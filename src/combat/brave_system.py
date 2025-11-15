@@ -283,8 +283,8 @@ class BraveSystem:
         # 데미지 계산기 사용
         damage_calc = get_damage_calculator()
 
-        # BREAK 상태 확인
-        is_defender_broken = defender.current_brv == 0
+        # BREAK 상태 확인 (is_broken 플래그 사용, BRV=0만으로는 BREAK가 아님)
+        is_defender_broken = self.is_broken(defender)
 
         # HP 데미지 계산 (스탯 기반)
         damage_result, wound_damage = damage_calc.calculate_hp_damage(
