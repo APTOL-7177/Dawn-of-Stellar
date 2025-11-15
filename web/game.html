@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dawn of Stellar - 플레이</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #loading h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .spinner {
+            border: 8px solid rgba(255, 255, 255, 0.3);
+            border-top: 8px solid #667eea;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            animation: spin 1s linear infinite;
+            margin: 20px 0;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loading-status {
+            font-size: 1.2rem;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        #progress-bar {
+            width: 400px;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        #progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            display: none;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        #error {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(231, 76, 60, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        #error h2 {
+            margin-bottom: 20px;
+        }
+
+        #error a {
+            color: #fff;
+            text-decoration: underline;
+        }
+
+        .btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <h1>⭐ Dawn of Stellar</h1>
+        <div class="spinner"></div>
+        <div id="loading-status">게임 초기화 중...</div>
+        <div id="progress-bar">
+            <div id="progress-fill">0%</div>
+        </div>
+        <p style="max-width: 500px; text-align: center; margin-top: 20px; opacity: 0.8;">
+            최초 로딩 시 약 1-2분이 소요됩니다.<br>
+            Python 런타임과 게임 파일을 다운로드하고 있습니다.
+        </p>
+    </div>
+
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <div id="error">
+        <h2>❌ 오류 발생</h2>
+        <p id="error-message"></p>
+        <a href="index.html" class="btn">메인으로 돌아가기</a>
+    </div>
+
+    <script>
+        let pyodide = null;
+        let progress = 0;
+
+        function updateProgress(value, status) {
+            progress = value;
+            document.getElementById('progress-fill').style.width = `${progress}%`;
+            document.getElementById('progress-fill').textContent = `${Math.round(progress)}%`;
+            if (status) {
+                document.getElementById('loading-status').textContent = status;
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error-message').innerHTML = message;
+        }
+
+        async function fetchFile(url) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`파일 로드 실패: ${url}`);
+            }
+            return await response.text();
+        }
+
+        async function loadGameFiles() {
+            const baseUrl = 'https://raw.githubusercontent.com/APTOL-7177/Dawn-of-Stellar/main';
+
+            updateProgress(40, '게임 파일 다운로드 중...');
+
+            // 주요 파일들 로드
+            const files = [
+                'main.py',
+                'src/__init__.py',
+                'src/core/__init__.py',
+                'src/core/event_bus.py',
+                // 필요한 파일들 추가...
+            ];
+
+            const fileContents = {};
+            for (let i = 0; i < files.length; i++) {
+                try {
+                    updateProgress(40 + (i / files.length) * 30, `${files[i]} 로딩 중...`);
+                    const content = await fetchFile(`${baseUrl}/${files[i]}`);
+                    fileContents[files[i]] = content;
+                } catch (e) {
+                    console.warn(`파일 로드 건너뛰기: ${files[i]}`);
+                }
+            }
+
+            return fileContents;
+        }
+
+        async function setupFileSystem(fileContents) {
+            updateProgress(70, '가상 파일 시스템 구성 중...');
+
+            // Pyodide의 가상 파일 시스템에 파일 작성
+            for (const [path, content] of Object.entries(fileContents)) {
+                const dirs = path.split('/').slice(0, -1).join('/');
+                if (dirs) {
+                    try {
+                        pyodide.FS.mkdirTree(dirs);
+                    } catch (e) {
+                        // 디렉토리가 이미 존재
+                    }
+                }
+                pyodide.FS.writeFile(path, content);
+            }
+        }
+
+        async function loadGame() {
+            try {
+                // 1. Pyodide 로드
+                updateProgress(5, 'Python 런타임 다운로드 중... (30MB)');
+                pyodide = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
+                });
+
+                // 2. 필수 패키지 설치
+                updateProgress(20, '필수 패키지 설치 중...');
+                await pyodide.loadPackage(['micropip', 'numpy']);
+
+                const micropip = pyodide.pyimport('micropip');
+
+                updateProgress(30, 'python-tcod 설치 중...');
+                // tcod 웹 버전 시도
+                try {
+                    await micropip.install([
+                        'https://files.pythonhosted.org/packages/py3/t/tcod/tcod-16.2.0-py3-none-any.whl'
+                    ]);
+                } catch (e) {
+                    console.error('tcod 설치 실패:', e);
+                    throw new Error('python-tcod를 설치할 수 없습니다. 이 게임은 웹에서 완전히 지원되지 않습니다.');
+                }
+
+                updateProgress(35, 'PyYAML 설치 중...');
+                await micropip.install('pyyaml');
+
+                // 3. 게임 파일 로드
+                const gameFiles = await loadGameFiles();
+
+                // 4. 파일 시스템 구성
+                await setupFileSystem(gameFiles);
+
+                // 5. 게임 실행
+                updateProgress(90, '게임 시작 중...');
+
+                // Canvas 설정
+                const canvas = document.getElementById('game-canvas');
+                pyodide.canvas.setCanvas2D(canvas);
+
+                // 게임 시작
+                updateProgress(95, '게임 초기화 중...');
+                await pyodide.runPythonAsync(`
+                    import sys
+                    sys.path.insert(0, '.')
+                    import main
+                    main.main()
+                `);
+
+                // 로딩 완료
+                updateProgress(100, '게임 로딩 완료!');
+                setTimeout(() => {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('game-container').style.display = 'block';
+                }, 500);
+
+            } catch (error) {
+                console.error('게임 로딩 오류:', error);
+                showError(`
+                    <strong>죄송합니다. 현재 웹 버전은 기술적 제한으로 인해 완전히 지원되지 않습니다.</strong><br><br>
+
+                    <strong>오류:</strong> ${error.message}<br><br>
+
+                    <strong>문제점:</strong><br>
+                    • python-tcod의 웹 지원이 제한적입니다<br>
+                    • SDL2 렌더링이 WebAssembly에서 완전히 작동하지 않습니다<br>
+                    • 파일 시스템 접근에 제한이 있습니다<br><br>
+
+                    <strong>대안:</strong><br>
+                    1. <a href="demo.html">전투 시스템 데모</a> - 브라우저에서 즉시 플레이<br>
+                    2. <a href="https://github.com/APTOL-7177/Dawn-of-Stellar/releases">데스크톱 버전 다운로드</a> - 완전한 게임 경험<br><br>
+
+                    완전한 웹 버전 지원을 위해 노력하고 있습니다. 양해 부탁드립니다.
+                `);
+            }
+        }
+
+        // 페이지 로드 시 게임 시작
+        window.addEventListener('load', loadGame);
+    </script>
+</body>
+</html>
