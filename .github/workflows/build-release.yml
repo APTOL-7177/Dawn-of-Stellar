@@ -1,0 +1,204 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable
+        run: |
+          pyinstaller --name="DawnOfStellar" `
+            --onefile `
+            --windowed `
+            --icon=assets/icon.ico `
+            --add-data="data;data" `
+            --add-data="assets;assets" `
+            --hidden-import=tcod `
+            --hidden-import=yaml `
+            --hidden-import=numpy `
+            main.py
+
+      - name: Create artifact
+        run: |
+          mkdir release
+          cp dist/DawnOfStellar.exe release/
+          cp README.md release/
+          cp LICENSE release/
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: DawnOfStellar-Windows
+          path: release/
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable
+        run: |
+          pyinstaller --name="DawnOfStellar" \
+            --onefile \
+            --add-data="data:data" \
+            --add-data="assets:assets" \
+            --hidden-import=tcod \
+            --hidden-import=yaml \
+            --hidden-import=numpy \
+            main.py
+
+      - name: Create artifact
+        run: |
+          mkdir release
+          cp dist/DawnOfStellar release/
+          cp README.md release/
+          cp LICENSE release/
+          chmod +x release/DawnOfStellar
+
+      - name: Upload Linux build
+        uses: actions/upload-artifact@v4
+        with:
+          name: DawnOfStellar-Linux
+          path: release/
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable
+        run: |
+          pyinstaller --name="DawnOfStellar" \
+            --onefile \
+            --windowed \
+            --add-data="data:data" \
+            --add-data="assets:assets" \
+            --hidden-import=tcod \
+            --hidden-import=yaml \
+            --hidden-import=numpy \
+            main.py
+
+      - name: Create artifact
+        run: |
+          mkdir release
+          cp dist/DawnOfStellar release/
+          cp README.md release/
+          cp LICENSE release/
+          chmod +x release/DawnOfStellar
+
+      - name: Upload macOS build
+        uses: actions/upload-artifact@v4
+        with:
+          name: DawnOfStellar-macOS
+          path: release/
+
+  create-release:
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: DawnOfStellar-Windows
+          path: windows/
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: DawnOfStellar-Linux
+          path: linux/
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: DawnOfStellar-macOS
+          path: macos/
+
+      - name: Create release archives
+        run: |
+          cd windows && zip -r ../DawnOfStellar-Windows.zip . && cd ..
+          cd linux && tar -czf ../DawnOfStellar-Linux.tar.gz . && cd ..
+          cd macos && tar -czf ../DawnOfStellar-macOS.tar.gz . && cd ..
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            DawnOfStellar-Windows.zip
+            DawnOfStellar-Linux.tar.gz
+            DawnOfStellar-macOS.tar.gz
+          body: |
+            ## Dawn of Stellar - ${{ github.ref_name }}
+
+            ### 📦 다운로드
+            - **Windows**: DawnOfStellar-Windows.zip
+            - **Linux**: DawnOfStellar-Linux.tar.gz
+            - **macOS**: DawnOfStellar-macOS.tar.gz
+
+            ### 🎮 실행 방법
+            - Windows: 압축 해제 후 `DawnOfStellar.exe` 실행
+            - Linux/macOS: 압축 해제 후 `./DawnOfStellar` 실행
+
+            ### 🌟 변경사항
+            - 자세한 내용은 [CHANGELOG.md](https://github.com/APTOL-7177/Dawn-of-Stellar/blob/main/CHANGELOG.md)를 참조하세요.
+
+            ---
+            🤖 자동 빌드 by GitHub Actions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
