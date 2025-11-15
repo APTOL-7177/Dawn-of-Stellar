@@ -100,59 +100,66 @@ git --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo ⚠️  Git이 설치되어 있지 않습니다.
     echo.
+
+    :: winget으로 설치 시도 (Windows 10/11)
     echo 📥 Git을 자동으로 설치합니다...
+    echo    방법 1: winget 사용 (권장)
     echo.
 
-    :: Git 설치 파일 다운로드
-    set GIT_URL=https://github.com/git-for-windows/git/releases/download/v2.45.2.windows.1/Git-2.45.2-64-bit.exe
-    set GIT_INSTALLER=git-installer.exe
-
-    echo    다운로드 중... (약 50MB, 시간이 걸릴 수 있습니다)
-    echo.
-
-    powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Write-Host 'Git 다운로드 시작...'; $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri '%GIT_URL%' -OutFile '%GIT_INSTALLER%'; Write-Host 'Git 다운로드 완료!'}"
-
-    if not exist %GIT_INSTALLER% (
+    winget --version >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo    winget을 사용하여 Git 설치 중...
         echo.
-        echo ❌ Git 다운로드 실패!
+        winget install --id Git.Git -e --source winget --silent --accept-package-agreements --accept-source-agreements
+
+        if %errorlevel% equ 0 (
+            echo.
+            echo ✅ Git 설치 완료!
+            echo.
+
+            :: PATH 새로고침
+            call :RefreshEnv
+
+            :: Git 재확인
+            git --version >nul 2>&1
+            if %errorlevel% neq 0 (
+                echo ⚠️  PATH 설정이 필요합니다. 새 명령 프롬프트에서 다시 실행하세요.
+                pause
+                exit /b 1
+            )
+        ) else (
+            echo.
+            echo ⚠️  winget 설치 실패
+            goto MANUAL_GIT_INSTALL
+        )
+    ) else (
+        :MANUAL_GIT_INSTALL
         echo.
-        echo 📌 수동 설치:
-        echo    https://git-scm.com/download/win
+        echo    winget을 사용할 수 없습니다.
+        echo.
+        echo ╔══════════════════════════════════════════════════════════════╗
+        echo ║  📌 Git 수동 설치가 필요합니다                              ║
+        echo ╚══════════════════════════════════════════════════════════════╝
+        echo.
+        echo    1. https://git-scm.com/download/win 방문
+        echo    2. "64-bit Git for Windows Setup" 다운로드
+        echo    3. 설치 (기본 옵션으로 진행)
+        echo    4. 이 스크립트 다시 실행
+        echo.
+        echo    또는 아래 명령어로 다운로드:
+        echo.
+        echo    powershell -Command "Start-Process 'https://git-scm.com/download/win'"
+        echo.
+
+        set /p OPEN_BROWSER="지금 브라우저를 여시겠습니까? (Y/N): "
+        if /i "%OPEN_BROWSER%"=="Y" (
+            powershell -Command "Start-Process 'https://git-scm.com/download/win'"
+        )
+
         echo.
         pause
         exit /b 1
     )
-
-    echo ✅ 다운로드 완료!
-    echo.
-    echo 📦 Git 설치 중... (2-3분 소요)
-    echo.
-
-    :: Git 자동 설치 (silent mode)
-    %GIT_INSTALLER% /VERYSILENT /NORESTART /NOCANCEL /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /COMPONENTS="icons,ext\reg\shellhere,assoc,assoc_sh"
-
-    timeout /t 10 /nobreak >nul
-
-    :: 설치 파일 삭제
-    del %GIT_INSTALLER% >nul 2>&1
-
-    :: PATH 새로고침
-    call :RefreshEnv
-
-    :: Git 재확인
-    git --version >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo.
-        echo ⚠️  Git이 설치되었지만 PATH 설정이 필요합니다.
-        echo.
-        echo 📌 컴퓨터를 재부팅하고 이 스크립트를 다시 실행하세요.
-        echo.
-        pause
-        exit /b 1
-    )
-
-    echo ✅ Git 설치 완료!
-    echo.
 ) else (
     for /f "tokens=3" %%i in ('git --version 2^>^&1') do set GIT_VERSION=%%i
     echo ✅ Git !GIT_VERSION! 이미 설치됨
@@ -230,50 +237,62 @@ python --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo ⚠️  Python이 설치되어 있지 않습니다.
     echo.
-    echo 📥 Python 3.11을 자동으로 설치합니다...
+
+    :: winget으로 설치 시도
+    echo 📥 Python을 자동으로 설치합니다...
+    echo    방법: winget 사용 (Windows 10/11)
     echo.
 
-    :: Python 설치 파일 다운로드
-    set PYTHON_URL=https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
-    set PYTHON_INSTALLER=python-installer.exe
-
-    echo    다운로드 중... (약 25MB)
-    echo.
-
-    powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%PYTHON_INSTALLER%'; Write-Host 'Python 다운로드 완료!'}"
-
-    if not exist %PYTHON_INSTALLER% (
+    winget --version >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo    Python 3.11 설치 중...
         echo.
-        echo ❌ Python 다운로드 실패!
+        winget install --id Python.Python.3.11 -e --source winget --silent --accept-package-agreements --accept-source-agreements
+
+        if %errorlevel% equ 0 (
+            echo.
+            echo ✅ Python 설치 완료!
+            echo.
+
+            :: PATH 새로고침
+            call :RefreshEnv
+
+            :: Python 재확인
+            python --version >nul 2>&1
+            if %errorlevel% neq 0 (
+                echo ⚠️  PATH 설정이 필요합니다. 새 명령 프롬프트에서 다시 실행하세요.
+                pause
+                exit /b 1
+            )
+        ) else (
+            echo.
+            echo ⚠️  winget 설치 실패
+            goto MANUAL_PYTHON_INSTALL
+        )
+    ) else (
+        :MANUAL_PYTHON_INSTALL
+        echo.
+        echo    winget을 사용할 수 없습니다.
+        echo.
+        echo ╔══════════════════════════════════════════════════════════════╗
+        echo ║  📌 Python 수동 설치가 필요합니다                           ║
+        echo ╚══════════════════════════════════════════════════════════════╝
+        echo.
+        echo    1. https://www.python.org/downloads/ 방문
+        echo    2. "Download Python 3.11" 클릭
+        echo    3. 설치 시 "Add Python to PATH" 체크!
+        echo    4. 이 스크립트 다시 실행
+        echo.
+
+        set /p OPEN_BROWSER_PY="지금 브라우저를 여시겠습니까? (Y/N): "
+        if /i "%OPEN_BROWSER_PY%"=="Y" (
+            powershell -Command "Start-Process 'https://www.python.org/downloads/'"
+        )
+
         echo.
         pause
         exit /b 1
     )
-
-    echo ✅ 다운로드 완료!
-    echo.
-    echo 📦 Python 설치 중... (2-3분 소요)
-    echo.
-
-    :: Python 자동 설치
-    %PYTHON_INSTALLER% /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
-
-    timeout /t 5 /nobreak >nul
-    del %PYTHON_INSTALLER% >nul 2>&1
-
-    call :RefreshEnv
-
-    python --version >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo.
-        echo ⚠️  Python PATH 설정 필요. 재부팅 후 다시 실행하세요.
-        echo.
-        pause
-        exit /b 1
-    )
-
-    echo ✅ Python 설치 완료!
-    echo.
 ) else (
     for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
     echo ✅ Python !PYTHON_VERSION! 이미 설치됨
@@ -297,20 +316,29 @@ echo.
 
 echo [5/7] 게임 패키지 설치 중...
 echo.
-echo    TCOD, PyYAML, NumPy 등 필수 패키지 설치
-echo    시간이 다소 걸릴 수 있습니다...
+echo    필수 패키지: TCOD (게임 엔진), PyYAML (설정), NumPy (연산)
+echo    시간이 다소 걸릴 수 있습니다 (1-3분)...
 echo.
 
-:: requirements-minimal.txt가 있으면 사용, 없으면 직접 설치
-if exist "requirements-minimal.txt" (
-    python -m pip install -r requirements-minimal.txt --quiet
+:: requirements.txt 또는 직접 설치
+if exist "requirements.txt" (
+    echo    requirements.txt에서 패키지 설치 중...
+    echo.
+    python -m pip install tcod pyyaml numpy
 ) else (
-    python -m pip install tcod pyyaml numpy --quiet
+    echo    필수 패키지 직접 설치 중...
+    echo.
+    python -m pip install tcod pyyaml numpy
 )
 
 if %errorlevel% neq 0 (
     echo.
     echo ❌ 패키지 설치 실패!
+    echo.
+    echo 📌 해결 방법:
+    echo    1. 인터넷 연결 확인
+    echo    2. 방화벽/백신 프로그램 확인
+    echo    3. 수동 설치: python -m pip install tcod pyyaml numpy
     echo.
     pause
     exit /b 1
