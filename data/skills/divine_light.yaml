@@ -1,0 +1,12 @@
+id: divine_light
+name: 신성한 빛
+type: brv_attack
+description: 성스러운 빛으로 적을 공격합니다
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: damage
+  element: holy
+  multiplier: 2.5
+  stat_base: magic

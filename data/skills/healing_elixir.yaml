@@ -1,0 +1,12 @@
+id: healing_elixir
+name: Healing Elixir
+type: heal
+description: Healing Elixir 스킬
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: heal
+  target: ally
+  multiplier: 2.0
+  stat_base: strength

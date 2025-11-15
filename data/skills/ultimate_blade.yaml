@@ -1,0 +1,15 @@
+id: ultimate_blade
+name: 극의 일도
+type: ultimate
+description: 검술의 극의에 도달한 일격입니다
+costs:
+  mp: 55
+  cast_time: 2.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 6.2
+  stat_base: strength
+- type: hp_damage
+  multiplier: 2.4800000000000004
+  uses_brv: true

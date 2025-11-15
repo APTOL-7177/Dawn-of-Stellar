@@ -1,0 +1,65 @@
+class_name: 신관
+description: 신의 기적을 일으켜 파티를 축복하는 성스러운 존재
+archetype: 기적/치유 특화
+base_stats:
+  hp: 143
+  mp: 81
+  init_brv: 110
+  speed: 52
+  physical_attack: 42
+  physical_defense: 57
+  magic_attack: 79
+  magic_defense: 89
+  max_brv: 443
+stat_growth:
+  hp: 10
+  mp: 7
+  init_brv: 3.9
+  strength: 2.2
+  defense: 2.5
+  magic: 4.2
+  spirit: 5.5
+  speed: 3.0
+  luck: 4.5
+  accuracy: 1.8
+  evasion: 1.5
+  max_brv: 2.3
+traits:
+- id: divine_miracle
+  name: 신의 기적
+  description: 턴 시작 시 10% 확률로 랜덤 긍정 효과 (부활, 완전회복, 무적 등)
+  type: trigger
+- id: healing_mastery
+  name: 치유 특화
+  description: 모든 회복 효과 +50%
+  type: passive
+- id: blessing
+  name: 축복의 기도
+  description: 파티 전체 크리티컬 받을 확률 -80%
+  type: passive
+- id: holy_protection
+  name: 신성한 보호
+  description: 상태이상 면역, 저주 무효
+  type: passive
+- id: resurrection
+  name: 부활의 기도
+  description: 전투 중 1회, 전투불능 파티원 HP 50%로 부활
+  type: trigger
+gimmick:
+  type: divinity_system
+  name: 심판의 권능
+  description: 신의 심판을 내리고 치유하며 신성력 획득
+  max_judgment_points: 100
+
+skills:
+- healing_prayer
+- divine_light
+- holy_barrier
+- miracle_cure
+- resurrection
+- divine_judgment
+bonuses:
+  healing_power: 1.5
+  mp_multiplier: 1.3
+  critical_taken_reduction: 0.2
+  status_immunity: 1.0

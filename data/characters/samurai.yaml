@@ -1,0 +1,64 @@
+class_name: 사무라이
+description: 명예와 의리를 중시하는 진정한 무사
+archetype: 명예의 전사
+base_stats:
+  hp: 167
+  mp: 43
+  init_brv: 125
+  speed: 67
+  physical_attack: 74
+  physical_defense: 58
+  magic_attack: 45
+  magic_defense: 53
+  max_brv: 465
+stat_growth:
+  hp: 12
+  mp: 4
+  init_brv: 4.4
+  strength: 4.6
+  defense: 3.8
+  magic: 2.2
+  spirit: 4.2
+  speed: 3.8
+  luck: 3.0
+  accuracy: 2.3
+  evasion: 1.8
+  max_brv: 2.6
+traits:
+- id: bushido
+  name: 무사도
+  description: 모든 디버프 무효, 정신 상태이상 면역
+  type: passive
+- id: honor_vow
+  name: 명예의 맹세
+  description: 1:1 전투 시 모든 스탯 +25%
+  type: trigger
+- id: meditation
+  name: 참선
+  description: 방어 태세 시 HP/MP 10% 회복
+  type: trigger
+- id: iaijutsu
+  name: 발도술
+  description: 선제 공격 시 크리티컬 확정 + 데미지 2배
+  type: trigger
+- id: iron_will
+  name: 강철 의지
+  description: HP 1로 생존 효과 (전투당 1회)
+  type: trigger
+gimmick:
+  type: iaijutsu_system
+  name: 거합의 도
+  description: 의지를 집중하여 완벽한 발도 기술 수행. 의지 게이지로 특수 기술 사용
+  max_will_gauge: 100
+
+skills:
+- quick_draw
+- cross_slash
+- meditation
+- honor_strike
+- final_blow
+- samurai_spirit
+bonuses:
+  status_immunity: 1.0
+  duel_bonus: 1.25
+  first_strike_bonus: 2.0

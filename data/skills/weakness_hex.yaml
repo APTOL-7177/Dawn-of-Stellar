@@ -1,0 +1,13 @@
+id: weakness_hex
+name: Weakness Hex
+type: debuff
+description: Weakness Hex 스킬
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: debuff
+  target: enemy
+  stat: physical_defense
+  value: 2.0
+  duration: 3

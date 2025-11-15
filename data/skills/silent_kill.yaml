@@ -1,0 +1,12 @@
+id: silent_kill
+name: 무음 살해
+type: brv_attack
+description: 소리 없이 적을 제거합니다
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 3.2
+  stat_base: strength

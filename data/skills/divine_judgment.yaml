@@ -1,0 +1,15 @@
+id: divine_judgment
+name: 신의 심판
+type: ultimate
+description: 신의 심판으로 적을 응징합니다
+costs:
+  mp: 50
+  cast_time: 2.0
+effects:
+- type: damage
+  element: holy
+  multiplier: 5.0
+  stat_base: magic
+- type: hp_damage
+  multiplier: 2.0
+  uses_brv: true

@@ -1,0 +1,12 @@
+id: smite_evil
+name: 악령 퇴치
+type: brv_attack
+description: 악한 존재에게 강력한 피해를 입힙니다
+costs:
+  mp: 25
+  cast_time: 1.0
+effects:
+- type: damage
+  element: holy
+  multiplier: 3.0
+  stat_base: magic

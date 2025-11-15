@@ -1,0 +1,12 @@
+id: dimension_slash
+name: 차원 베기
+type: brv_attack
+description: 차원을 가르는 공격입니다
+costs:
+  mp: 25
+  cast_time: 1.0
+effects:
+- type: damage
+  element: magical
+  multiplier: 3.0
+  stat_base: magic

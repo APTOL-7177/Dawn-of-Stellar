@@ -1,0 +1,60 @@
+class_name: 정령술사
+description: 자연의 정령을 소환하고 원소 마법을 다루는 마법사
+archetype: 마법 딜러/서포터
+base_stats:
+  hp: 107
+  mp: 94
+  init_brv: 108
+  physical_attack: 49
+  physical_defense: 42
+  magic_attack: 85
+  magic_defense: 69
+  speed: 59
+  max_brv: 438
+stat_growth:
+  hp: 8
+  mp: 8
+  init_brv: 3.8
+  physical_attack: 2.5
+  physical_defense: 2.0
+  magic_attack: 5.0
+  magic_defense: 4.5
+  speed: 3.5
+  max_brv: 2.3
+gimmick:
+  type: spirit_bond
+  name: 정령 친화도
+  description: 정령과의 유대를 쌓아 강력한 원소 마법 사용
+  max_bond: 25
+traits:
+- id: spirit_call
+  name: 정령 소환
+  description: 전투 시작 시 정령 친화도 5 획득
+  type: trigger
+- id: elemental_boost
+  name: 원소 강화
+  description: 정령 친화도 1당 원소 마법 위력 2% 증가
+  type: passive
+- id: nature_bond
+  name: 자연의 유대
+  description: 턴 종료 시 정령 친화도에 비례해 HP/MP 회복
+  type: passive
+- id: spirit_shield
+  name: 정령의 보호
+  description: 정령 친화도 15 이상일 때 마법 방어력 +30%
+  type: trigger
+- id: elemental_master
+  name: 원소 숙련
+  description: 모든 원소 마법 시전 시간 20% 감소
+  type: passive
+skills:
+- spirit_blast
+- summon_ifrit
+- summon_shiva
+- nature_heal
+- elemental_fury
+- spirit_storm
+bonuses:
+  mp_multiplier: 1.3
+  magic_damage: 1.15
+  spell_cost_reduction: 0.85

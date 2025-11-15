@@ -1,0 +1,12 @@
+id: mana_song
+name: Mana Song
+type: brv_attack
+description: Mana Song 스킬
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 2.0
+  stat_base: strength

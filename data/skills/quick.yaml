@@ -1,0 +1,13 @@
+id: quick
+name: 퀵
+type: support
+description: 즉시 한 번 더 행동합니다
+costs:
+  mp: 40
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 2.0
+  duration: 3

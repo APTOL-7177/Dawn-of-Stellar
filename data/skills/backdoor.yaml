@@ -1,0 +1,13 @@
+id: backdoor
+name: 백도어
+type: support
+description: 백도어를 설치하여 정보를 훔칩니다
+costs:
+  mp: 35
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.0
+  duration: 3

@@ -1,0 +1,13 @@
+id: sniper_stance
+name: Sniper Stance
+type: support
+description: Sniper Stance 스킬
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 2.0
+  duration: 3

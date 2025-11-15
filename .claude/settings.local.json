@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(tree \"X:\\로그라이크_2\\game\" /F /A)",
+      "Bash(tree:*)",
+      "Bash(python scripts/update_character_stats.py:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(pip install:*)",
+      "Bash(cat:*)",
+      "Bash(python:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(taskkill:*)",
+      "Bash(nul)",
+      "Bash(findstr:*)",
+      "WebFetch(domain:python-tcod.readthedocs.io)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:stackoverflow.com)",
+      "WebFetch(domain:finalfantasy.fandom.com)",
+      "WebFetch(domain:www.sounds-resource.com)",
+      "WebFetch(domain:sounds.spriters-resource.com)",
+      "WebFetch(domain:forums.qhimm.com)",
+      "Bash(timeout:*)",
+      "Bash(git pull:*)",
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(git stash:*)",
+      "Bash(done)",
+      "Bash(find:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

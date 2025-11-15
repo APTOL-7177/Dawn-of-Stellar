@@ -1,0 +1,64 @@
+class_name: 저격수
+description: 느리지만 압도적인 일격을 날리는 정밀 사수
+archetype: 초고화력 원거리
+base_stats:
+  hp: 151
+  mp: 43
+  init_brv: 115
+  speed: 62
+  physical_attack: 92
+  physical_defense: 41
+  magic_attack: 48
+  magic_defense: 43
+  max_brv: 450
+stat_growth:
+  hp: 10.0
+  mp: 4.2
+  init_brv: 4.0
+  strength: 6.5
+  defense: 2.5
+  magic: 3.2
+  spirit: 2.8
+  speed: 3.5
+  luck: 7.0
+  accuracy: 5.5
+  evasion: 2.0
+  max_brv: 2.4
+traits:
+- id: perfect_aim
+  name: 완벽한 조준
+  description: 크리티컬 확률 +30%, 크리티컬 데미지 +100%
+  type: passive
+- id: headshot_master
+  name: 헤드샷 마스터
+  description: 단일 대상 공격 시 즉사 확률 5% (보스 제외)
+  type: trigger
+- id: focus_power
+  name: 집중의 힘
+  description: 방어 선택 시마다 다음 공격 위력 +50% (누적, 최대 3스택)
+  type: passive
+- id: long_range_mastery
+  name: 장거리 지배
+  description: 첫 공격 시 100% 크리티컬, 이후 턴마다 크리티컬 확률 -20%
+  type: trigger
+- id: steady_hands
+  name: 안정된 손
+  description: 공격 시 명중률 무시 (100% 적중), 회피율 -50%
+  type: passive
+gimmick:
+  type: aim_system
+  name: 저격 집중
+  description: 집중력을 높여 완벽한 저격 수행. 집중 스택에 비례한 데미지 증가
+  max_focus_stacks: 5
+
+skills:
+- precise_aim
+- headshot
+- perfect_focus
+- penetrating_shot
+- sniper_stance
+- weak_spot
+bonuses:
+  critical_rate: 1.8
+  critical_damage: 2.5
+  single_target_bonus: 1.6

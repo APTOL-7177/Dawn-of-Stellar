@@ -1,0 +1,63 @@
+class_name: 브레이커
+description: BRV를 파괴하는 것에 특화된 전사
+archetype: BRV 파괴 특화
+base_stats:
+  hp: 195
+  mp: 38
+  init_brv: 130
+  speed: 68
+  physical_attack: 81
+  physical_defense: 62
+  magic_attack: 35
+  magic_defense: 48
+  max_brv: 475
+stat_growth:
+  hp: 13.0
+  mp: 3.8
+  init_brv: 4.6
+  strength: 6.2
+  defense: 4.5
+  magic: 2.5
+  spirit: 3.2
+  speed: 3.8
+  luck: 4.2
+  accuracy: 3.8
+  evasion: 2.0
+  max_brv: 2.8
+gimmick:
+  type: break_system
+  name: 브레이크 특화
+  description: BREAK를 유발하고 파괴력을 축적하는 시스템
+  max_break_power: 10
+traits:
+- id: brv_crusher
+  name: BRV 파쇄자
+  description: BRV 공격 시 추가 피해 +40%
+  type: passive
+- id: break_master
+  name: 브레이크 마스터
+  description: BREAK 발동 시 보너스 데미지 2배
+  type: passive
+- id: shield_breaker
+  name: 방패 파괴자
+  description: 보호막 무시 40%
+  type: passive
+- id: ruthless_breaker
+  name: 무자비한 파괴자
+  description: BREAK 상태의 적 공격 시 추가 데미지 +80%, 스턴 기간 +1턴
+  type: trigger
+- id: momentum_crush
+  name: 연쇄 파괴
+  description: BREAK 발동 시 다음 BRV 공격 위력 +60% (3턴)
+  type: trigger
+skills:
+- crush_strike
+- break_hit
+- brv_focus
+- multi_strike
+- break_enhance
+- mega_crush
+bonuses:
+  brv_damage: 1.4
+  break_bonus: 2.0
+  shield_penetration: 0.4

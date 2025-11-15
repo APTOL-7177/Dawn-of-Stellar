@@ -1,0 +1,64 @@
+class_name: 광전사
+description: 체력이 낮을수록 더 강해지는 광기의 전사
+archetype: 하이리스크 하이리턴
+base_stats:
+  hp: 327
+  mp: 22
+  init_brv: 145
+  speed: 74
+  physical_attack: 64
+  physical_defense: 22
+  magic_attack: 13
+  magic_defense: 21
+  max_brv: 505
+stat_growth:
+  hp: 15
+  mp: 2.5
+  init_brv: 5.1
+  strength: 6.0
+  defense: 2.0
+  magic: 1.5
+  spirit: 2.2
+  speed: 3.8
+  luck: 2.5
+  accuracy: 2.0
+  evasion: 1.0
+  max_brv: 3.1
+traits:
+- id: rage_mode
+  name: 광기 상태
+  description: HP가 낮을수록 공격력 증가 (HP 10%당 +15%, 최대 +135%)
+  type: passive
+- id: pain_immunity
+  name: 고통 무시
+  description: HP 50% 이하일 때 피격 시 BRV 감소 없음
+  type: trigger
+- id: berserk
+  name: 광폭화
+  description: HP 30% 이하 시 공격 속도 +50%, 크리티컬 확률 +30%
+  type: trigger
+- id: undying_fury
+  name: 불멸의 분노
+  description: HP 1로 생존 후 3턴간 무적 (전투당 1회)
+  type: trigger
+- id: reckless_assault
+  name: 무모한 돌격
+  description: 공격 시 자신도 피해 (10%)를 받지만 데미지 +80%
+  type: trigger
+gimmick:
+  type: rage_system
+  name: 광전사의 분노
+  description: 전투 중 분노를 축적하여 강력한 공격 수행. HP가 낮을수록 분노 획득량 증가
+  max_rage_stacks: 10
+
+skills:
+- reckless_strike
+- blood_frenzy
+- rage_burst
+- pain_for_power
+- death_wish
+- final_rampage
+bonuses:
+  low_hp_damage: 1.15
+  hp_multiplier: 1.15
+  reckless_bonus: 1.8

@@ -1,0 +1,51 @@
+# Dawn of Stellar - Python 의존성
+
+# Core
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# Game Development - Roguelike Engine
+tcod>=16.0.0
+numpy>=1.26.0  # tcod 의존성
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.12.0
+
+# Code Quality
+pylint>=3.0.0
+mypy>=1.7.0
+black>=23.12.0
+isort>=5.13.0
+
+# Type Stubs
+types-pyyaml>=6.0.0
+types-aiohttp>=3.9.0
+
+# Documentation
+sphinx>=7.2.0
+sphinx-rtd-theme>=2.0.0
+myst-parser>=2.0.0
+
+# Development Tools
+ipython>=8.18.0
+ipdb>=0.13.13
+
+# Profiling
+py-spy>=0.3.14
+memory-profiler>=0.61.0
+
+# Optional: AI/LLM Integration
+# openai>=1.0.0
+# anthropic>=0.8.0
+
+# Optional: Mobile Backend
+# flask>=3.0.0
+# flask-cors>=4.0.0
+# flask-socketio>=5.3.0
+
+# Optional: Database (for save files)
+# sqlalchemy>=2.0.0
+# alembic>=1.13.0

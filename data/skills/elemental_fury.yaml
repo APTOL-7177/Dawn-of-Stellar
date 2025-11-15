@@ -1,0 +1,15 @@
+id: elemental_fury
+name: Elemental Fury
+type: ultimate
+description: Elemental Fury 스킬
+costs:
+  mp: 20
+  cast_time: 2.0
+effects:
+- type: damage
+  element: magical
+  multiplier: 2.0
+  stat_base: magic
+- type: hp_damage
+  multiplier: 0.8
+  uses_brv: true

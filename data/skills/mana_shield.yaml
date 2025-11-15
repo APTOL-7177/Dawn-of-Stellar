@@ -1,0 +1,13 @@
+id: mana_shield
+name: 마나 보호막
+type: support
+description: 마법 방어막을 생성합니다
+costs:
+  mp: 25
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.3
+  duration: 3

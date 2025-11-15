@@ -1,0 +1,12 @@
+id: soul_harvest
+name: Soul Harvest
+type: brv_attack
+description: Soul Harvest 스킬
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 2.0
+  stat_base: strength

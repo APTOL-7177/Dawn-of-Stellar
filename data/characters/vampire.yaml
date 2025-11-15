@@ -1,0 +1,64 @@
+class_name: 흡혈귀
+description: 피를 흡수하여 생존하는 불사의 존재
+archetype: 생존 특화
+base_stats:
+  hp: 186
+  mp: 48
+  init_brv: 121
+  speed: 69
+  physical_attack: 68
+  physical_defense: 55
+  magic_attack: 63
+  magic_defense: 59
+  max_brv: 460
+stat_growth:
+  hp: 13.5
+  mp: 4.5
+  init_brv: 4.2
+  strength: 5.2
+  defense: 3.8
+  magic: 5.0
+  spirit: 4.2
+  speed: 4.0
+  luck: 3.0
+  accuracy: 3.5
+  evasion: 2.8
+  max_brv: 2.5
+traits:
+- id: blood_hunger
+  name: 피의 갈증
+  description: 모든 공격에 흡혈 30% 내장
+  type: passive
+- id: immortal_body
+  name: 불사의 육체
+  description: HP 30% 이하 시 피해 감소 50%, 흡혈 2배
+  type: passive
+- id: night_power
+  name: 밤의 힘
+  description: HP가 낮을수록 공격력 증가 (HP 10%당 +10%)
+  type: passive
+- id: blood_pool
+  name: 피의 저장고
+  description: 과잉 흡혈(HP 최대치 초과)을 혈액 풀로 저장 (최대 200), 사망 시 혈액 풀 소모하여 부활
+  type: trigger
+- id: crimson_frenzy
+  name: 진홍의 광란
+  description: 흡혈로 회복 시 20% 확률로 즉시 추가 공격
+  type: trigger
+gimmick:
+  type: blood_system
+  name: 혈액 마법
+  description: 피를 흡수하여 블러드 풀을 채우고 강력한 흡혈 마법 사용
+  max_blood_pool: 100
+  lifesteal_base: 0.15
+
+skills:
+- blood_drain
+- blood_lance
+- blood_armor
+- regeneration
+- blood_explosion
+- blood_frenzy
+bonuses:
+  lifesteal: 0.3
+  low_hp_bonus: 1.8

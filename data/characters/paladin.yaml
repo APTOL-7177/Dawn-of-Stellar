@@ -1,0 +1,65 @@
+class_name: 성기사
+description: 신성한 힘으로 아군을 수호하고 치유하는 성스러운 기사
+archetype: 탱커/서포터
+base_stats:
+  hp: 197
+  mp: 67
+  init_brv: 138
+  speed: 43
+  physical_attack: 67
+  physical_defense: 76
+  magic_attack: 38
+  magic_defense: 62
+  max_brv: 495
+stat_growth:
+  hp: 14
+  mp: 4.5
+  init_brv: 4.8
+  strength: 3.5
+  defense: 4.5
+  magic: 3.0
+  spirit: 4.8
+  speed: 2.8
+  luck: 3.0
+  accuracy: 1.6
+  evasion: 1.2
+  max_brv: 2.9
+traits:
+- id: divine_protection
+  name: 신성한 가호
+  description: 파티원이 치명타를 받을 때 30% 확률로 무효화
+  type: passive
+- id: holy_aura
+  name: 성스러운 오라
+  description: 주변 아군의 방어력 +15%, 언데드 적 약화
+  type: passive
+- id: martyr_spirit
+  name: 희생의 정신
+  description: 아군 대신 데미지를 받을 수 있음 (데미지 -30%)
+  type: trigger
+- id: healing_light
+  name: 치유의 빛
+  description: HP 회복 효과 35% 증가
+  type: passive
+- id: righteous_fury
+  name: 정의의 분노
+  description: 아군이 전투불능 시 공격력 40% 증가
+  type: trigger
+gimmick:
+  type: holy_system
+  name: 성스러운 힘
+  description: 적을 공격하고 아군을 치유하며 성력 획득. 성력으로 신성한 기술 사용
+  max_holy_power: 100
+
+skills:
+- holy_strike
+- divine_shield
+- sanctuary
+- healing_prayer
+- smite_evil
+- holy_judgment
+bonuses:
+  hp_multiplier: 1.08
+  defense_bonus: 15
+  spirit_bonus: 20
+  healing_received: 1.2

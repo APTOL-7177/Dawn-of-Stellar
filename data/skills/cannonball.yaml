@@ -1,0 +1,15 @@
+id: cannonball
+name: 대포 발사
+type: ultimate
+description: 대포를 발사하여 광역 피해를 입힙니다
+costs:
+  mp: 50
+  cast_time: 2.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 5.5
+  stat_base: strength
+- type: hp_damage
+  multiplier: 2.2
+  uses_brv: true

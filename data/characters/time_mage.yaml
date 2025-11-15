@@ -1,0 +1,64 @@
+class_name: 시간술사
+description: 시간을 조작하여 전장을 지배하는 시공의 마법사
+archetype: 시간 조작
+base_stats:
+  hp: 121
+  mp: 103
+  init_brv: 100
+  speed: 57
+  physical_attack: 54
+  physical_defense: 49
+  magic_attack: 77
+  magic_defense: 64
+  max_brv: 425
+stat_growth:
+  hp: 8.5
+  mp: 7
+  init_brv: 3.5
+  strength: 2.0
+  defense: 1.8
+  magic: 5.0
+  spirit: 4.5
+  speed: 5.0
+  luck: 4.0
+  accuracy: 2.0
+  evasion: 2.2
+  max_brv: 2.1
+traits:
+- id: time_awareness
+  name: 시간 인식
+  description: ATB 게이지 증가 속도 +30%, 선제공격 확률 +50%
+  type: passive
+- id: haste_aura
+  name: 가속의 장
+  description: 파티원 전체 속도 +15%
+  type: passive
+- id: slow_field
+  name: 감속 영역
+  description: 적 전체 ATB 회복 속도 -25%
+  type: passive
+- id: time_rewind
+  name: 시간 역행
+  description: 전투 중 1회, 직전 턴 상태로 복구
+  type: trigger
+- id: double_cast
+  name: 시간 분할
+  description: 마법 시전 시 20% 확률로 2회 발동
+  type: trigger
+gimmick:
+  type: time_system
+  name: 시간 조작
+  description: 시간 기록점을 생성하여 시간을 되돌리고 미래를 예측
+  max_time_points: 5
+
+skills:
+- haste
+- slow
+- stop
+- quick
+- time_break
+- temporal_rift
+bonuses:
+  speed_multiplier: 1.3
+  atb_rate: 1.3
+  spell_cast_speed: 1.4

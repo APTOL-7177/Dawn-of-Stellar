@@ -1,0 +1,13 @@
+id: counter_stance
+name: 반격 자세
+type: support
+description: 반격 자세를 취합니다
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.3
+  duration: 3

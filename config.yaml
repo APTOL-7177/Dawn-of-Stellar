@@ -1,0 +1,596 @@
+# Dawn of Stellar - 게임 설정 파일
+
+# 게임 기본 설정
+game:
+  title: "Dawn of Stellar - 별빛의 여명"
+  version: "5.0.0"
+  language: "ko"  # ko, en
+
+# 개발 모드
+development:
+  enabled: false  # true로 설정하면 개발자 기능 활성화
+  unlock_all_classes: false
+  unlimited_essence: false
+  debug_mode: false
+  show_damage_calculations: false
+
+# 디스플레이 설정 (python-tcod)
+display:
+  # 콘솔 크기 (문자 단위)
+  screen_width: 80
+  screen_height: 45
+
+  # 한글 폰트 설정
+  font_size: 60  # 셀 크기 = 폰트 크기 (픽셀)
+  char_spacing_adjust: 0  # 폰트 너비 조정 (0 = 정사각형, 양수 = 더 넓게, 음수 = 더 좁게)
+  tileset: "assets/fonts/dejavu10x10_gs_tc.png"  # tcod 기본 타일셋 (사용 안 함)
+
+  # 렌더링
+  renderer: "opengl2"  # auto, sdl2, opengl, opengl2 (opengl2 권장 - 더 나은 폰트 렌더링)
+  fullscreen: false
+  fps_limit: 60
+  show_fps: false
+  vsync: true
+
+  # 패널 레이아웃
+  panels:
+    map_width: 50      # 맵 영역 너비
+    map_height: 33     # 맵 영역 높이
+    sidebar_width: 20  # 사이드바 너비
+    message_height: 7  # 메시지 로그 높이
+
+  # UI 설정
+  ui:
+    animation_speed: 0.3
+    message_scroll_speed: 50
+    show_tooltips: true
+    color_scheme: "classic"  # classic, modern, high_contrast
+
+# 전투 시스템 설정
+combat:
+  # ATB 설정 (상대적 속도 기반)
+  atb:
+    enabled: true
+    max_gauge: 2000
+    action_threshold: 1000
+    # ATB 증가량 = (해당 전투원의 SPD / 모든 전투원의 평균 SPD) * base_rate
+    base_rate: 50      # 기본 증가율 (평균 속도일 때 50씩 증가)
+    animation_enabled: true
+    animation_fps: 60
+    frame_delay: 0.016  # ~60 FPS
+    show_percentage: true
+    # 플레이어 턴 동안 적 ATB 속도 배율
+    player_turn_enemy_atb_rate: 0.3  # 플레이어 턴 중 적 ATB는 30%로 감소
+
+  # Brave 시스템
+  brave:
+    base_brv: 1000
+    max_brv_multiplier: 1.5  # 최대 BRV = base_brv * multiplier
+    break_bonus: 1.5  # BREAK 시 HP 공격 보너스
+    break_stun_duration: 1  # BREAK 스턴 지속시간 (턴)
+
+  # 데미지 계산
+  damage:
+    brv_multiplier: 75.0  # BRV 공격 기본 배율 (1.5 × 50배)
+    hp_multiplier: 0.25  # HP 공격 기본 배율 (1/4로 감소)
+    physical_defense_reduction: 0.5  # 방어력 1당 데미지 감소
+    magical_defense_reduction: 0.5  # 정신력 1당 데미지 감소
+    critical_multiplier: 1.5  # 크리티컬 데미지 배율
+    critical_chance: 0.1  # 기본 크리티컬 확률
+    break_bonus: 1.5  # BREAK 시 HP 공격 보너스
+    wound_rate: 0.25  # 상처 데미지 비율 (HP 데미지의 25%)
+    elemental_weakness_bonus: 1.5  # 속성 약점 보너스
+    elemental_resistance_reduction: 0.5  # 속성 저항 감소
+
+  # 상태 효과
+  status:
+    max_stacks: 5  # 상태 효과 최대 중첩
+    dot_tick_interval: 1.0  # DoT 틱 간격 (초)
+
+  # 전투 난이도
+  difficulty:
+    player_turn_enemy_atb_multiplier:
+      평온: 0.1
+      보통: 0.2
+      도전: 0.3
+      악몽: 0.4
+      지옥: 0.5
+
+# 난이도 설정
+difficulty:
+  default: "보통"
+
+  levels:
+    평온:
+      name: "안정된 차원 항해"
+      description: "차원의 흐름이 안정되어 여유로운 탐험이 가능"
+      enemy_hp_multiplier: 0.7
+      enemy_damage_multiplier: 0.6
+      player_damage_multiplier: 1.3
+      exp_multiplier: 1.2
+      drop_rate_multiplier: 1.3
+
+    보통:
+      name: "균형잡힌 차원 항해"
+      description: "적절한 도전과 보상의 균형"
+      enemy_hp_multiplier: 1.0
+      enemy_damage_multiplier: 1.0
+      player_damage_multiplier: 1.0
+      exp_multiplier: 1.0
+      drop_rate_multiplier: 1.0
+
+    도전:
+      name: "불안정한 차원 항해"
+      description: "차원의 흐름이 불안정하여 더 강력한 적 출현"
+      enemy_hp_multiplier: 1.3
+      enemy_damage_multiplier: 1.3
+      player_damage_multiplier: 0.9
+      exp_multiplier: 1.3
+      drop_rate_multiplier: 1.2
+
+    악몽:
+      name: "왜곡된 차원 항해"
+      description: "차원이 크게 왜곡되어 매우 강력한 적 출현"
+      enemy_hp_multiplier: 1.6
+      enemy_damage_multiplier: 1.6
+      player_damage_multiplier: 0.8
+      exp_multiplier: 1.6
+      drop_rate_multiplier: 1.5
+
+    지옥:
+      name: "붕괴 직전의 차원 항해"
+      description: "차원이 붕괴 직전, 최강의 적들과 싸워야 함"
+      enemy_hp_multiplier: 2.0
+      enemy_damage_multiplier: 2.0
+      player_damage_multiplier: 0.7
+      exp_multiplier: 2.0
+      drop_rate_multiplier: 2.0
+
+# 맵 설정
+world:
+  map_sizes:
+    작은맵:
+      width: 40
+      height: 20
+      rooms: 5-8
+    보통맵:
+      width: 60
+      height: 30
+      rooms: 8-12
+    큰맵:
+      width: 80
+      height: 40
+      rooms: 12-16
+    거대맵:
+      width: 100
+      height: 50
+      rooms: 16-20
+
+  default_size: "보통맵"
+
+  # 던전 생성
+  dungeon:
+    min_room_size: 4
+    max_room_size: 10
+    corridor_width: 1
+    enemy_spawn_chance: 0.3
+    item_spawn_chance: 0.2
+    treasure_spawn_chance: 0.1
+
+    # 적 생성 수량
+    enemy_count:
+      min_enemies: 1  # 최소 적 수 (조정 가능)
+      max_enemies: 4  # 최대 적 수
+
+# 캐릭터 설정
+character:
+  max_level: 99
+
+  # 확장 가능한 스탯 시스템
+  stats:
+    base_stats:
+      - hp            # 체력
+      - mp            # 마나
+      - init_brv      # 초기 브레이브 (전투 시작 시 BRV)
+      - strength      # 물리 공격력
+      - defense       # 물리 방어력
+      - magic         # 마법 공격력
+      - spirit        # 마법 방어력
+      - speed         # 속도 (ATB 속도)
+      - luck          # 행운 (크리티컬)
+      - accuracy      # 명중률
+      - evasion       # 회피율
+
+    # 추가 스탯 (확장 가능)
+    extended_stats:
+      - stamina       # 스태미나 (필드 활동)
+      - vitality      # 생명력 (상처 회복)
+      - dexterity     # 손재주 (채집, 요리)
+      - perception    # 지각력 (탐지, 발견)
+      - endurance     # 인내력 (상태이상 저항)
+      - charisma      # 매력 (NPC 상호작용)
+
+    # 스탯 성장 타입 (확장 가능)
+    growth_types:
+      - linear        # 선형 성장
+      - exponential   # 지수 성장
+      - logarithmic   # 로그 성장
+      - custom        # 커스텀 공식
+
+  # 파티 설정
+  party:
+    max_size: 4
+    default_formation: "균형"
+
+  # 스킬 설정 (확장 가능)
+  skills:
+    max_equipped: 6
+    mp_regeneration_rate: 0.05
+    casting_interrupt_damage_threshold: 0.2
+
+    # 스킬 타입 (확장 가능)
+    skill_types:
+      combat:
+        - brv_attack
+        - hp_attack
+        - brv_hp_attack
+        - support
+        - debuff
+        - ultimate
+
+      field:
+        - lockpicking    # 자물쇠 해제
+        - detection      # 탐지
+        - stealth        # 은신
+        - tracking       # 추적
+        - healing_magic  # 치유 마법
+
+      crafting:
+        - cooking        # 요리
+        - alchemy        # 연금술
+        - smithing       # 대장장이
+        - enchanting     # 마법 부여
+
+# 상처 시스템
+wound_system:
+  enabled: true
+  wound_threshold: 0.25  # 데미지의 25%가 상처로 전환
+  natural_healing_rate: 0.01  # 턴당 최대 HP의 1% 자연 회복
+  max_wound_percentage: 0.5  # 최대 HP의 50%까지 상처 누적 가능
+  healing_items_efficiency: 1.5  # 치유 아이템 효율
+
+# 필드 시스템
+field_systems:
+  # 채집 시스템
+  gathering:
+    enabled: true
+    stamina_cost: 10
+    success_base_chance: 0.7
+    stat_bonus: "dexterity"  # 손재주가 성공률에 영향
+    yield_multiplier_range: [1, 3]  # 1-3개 획득
+
+  # 요리 시스템
+  cooking:
+    enabled: true
+    stamina_cost: 15
+    failure_chance: 0.1  # 실패 시 재료 손실
+    stat_bonus: "dexterity"
+
+    # 요리 품질 등급
+    quality_tiers:
+      - poor      # 효과 50%
+      - normal    # 효과 100%
+      - good      # 효과 150%
+      - excellent # 효과 200% + 추가 효과
+
+  # 필드 스킬
+  field_skills:
+    lockpicking:
+      enabled: true
+      stat_bonus: "dexterity"
+      difficulty_levels: [1, 2, 3, 4, 5]
+
+    detection:
+      enabled: true
+      stat_bonus: "perception"
+      radius_base: 5
+
+    stealth:
+      enabled: true
+      stat_bonus: "speed"
+      detection_radius_reduction: 0.5
+
+# 장비 시스템
+equipment:
+  max_slots: 3  # 무기, 방어구, 악세사리
+  durability_enabled: true
+  durability_loss_rate: 0.7  # 30% 감소된 내구도 손실
+
+  # 장비 등급별 드롭률
+  drop_rates:
+    common: 0.50
+    uncommon: 0.30
+    rare: 0.15
+    legendary: 0.04
+    artifact: 0.01
+
+# AI 시스템
+ai:
+  # AI 동료 설정
+  companion:
+    enabled: true
+    decision_delay: 0.5  # AI 의사결정 딜레이 (초)
+    personality_types:
+      - aggressive
+      - defensive
+      - balanced
+      - support
+    default_personality: "balanced"
+
+  # 적 AI 설정
+  enemy:
+    vision_range: 5  # 타일
+    chase_duration: 10  # 추적 지속 시간 (턴)
+    random_movement_chance: 0.3
+
+# 오디오 설정
+audio:
+  master_volume: 0.8
+  bgm_volume: 0.6
+  sfx_volume: 0.7
+
+  # BGM 설정 (Final Fantasy VII Original Soundtrack)
+  bgm:
+    enabled: true
+    fade_duration: 1.0  # 페이드 인/아웃 시간 (초)
+
+    # BGM 매핑 (FFVII OST 기반)
+    tracks:
+      # 메인 메뉴 & UI
+      intro: "02-Opening ~ Bombing Mission"                    # Opening ~ Bombing Mission (인트로 스토리)
+      main_menu: "01-The Prelude"                              # The Prelude
+      menu: "65-Aeris' Theme"                                  # Menu (런처 및 메뉴용 - Aeris' Theme)
+      party_setup: "24-Holding My Thoughts in My Heart"        # Holding My Thoughts in My Heart
+
+      # 월드 & 던전
+      world_map: "25-Main Theme of Final Fantasy VII"          # Main Theme of FFVII
+      dungeon_normal: "05-Anxious Heart"                       # Anxious Heart
+      dungeon_dark: "09-Lurking in the Darkness"               # Lurking in the Darkness
+      dungeon_search: "33-Chasing the Black-Caped Man"         # Chasing the Black-Caped Man
+
+      # 전투
+      battle_normal: "11-Fighting"                             # Fighting (Let the Battles Begin!)
+      battle_boss: "21-Still More Fighting"                    # Still More Fighting (Fight On!)
+      battle_jenova: "38-J-E-N-O-V-A"                          # J-E-N-O-V-A
+      battle_jenova_absolute: "85-Jenova Absolute"             # Jenova Absolute
+      battle_birth_of_god: "86-The Birth of God"               # The Birth of God
+      battle_sephiroth: "50-Those Chosen By the Planet"        # Those Chosen By the Planet
+      battle_weapon: "71-Weapon Raid"                          # Weapon Raid
+      battle_final_boss: "87-One-Winged Angel"                 # One-Winged Angel
+
+      # 전투 결과
+      victory: "12-Fanfare"                                    # Fanfare
+      game_over: "39-Continue"                                 # Continue
+
+      # 휴식 & 이벤트
+      rest: "27-Good Night, Until Tomorrow!"                   # Good Night, Until Tomorrow!
+      town: "26-Ahead on Our Way"                              # Ahead on Our Way
+      shop: "16-Oppressed People"                              # Oppressed People
+
+      # 특수 상황
+      escape: "08-Hurry!"                                      # Hurry!
+      danger: "70-Full-Scale Attack"                           # Full-Scale Attack
+      suspense: "18-Who Are You"                               # Who Are You
+
+      # 감정적 장면
+      sad: "65-Aeris' Theme"                                   # Aeris' Theme
+      hope: "80-If You Open Your Heart...."                    # If You Open Your Heart....
+      triumph: "72-The Highwind Takes to the Skies"            # The Highwind Takes to the Skies
+
+  # SFX 설정 (Final Fantasy VII Original Sound Effects)
+  sfx:
+    enabled: true
+
+    # UI 효과음 (FFVII 원본 SFX 인덱스)
+    ui:
+      cursor_move: "000"           # 커서 이동 (SFX #0)
+      cursor_select: "001"         # 메뉴 선택/확인 (SFX #1: Save Ready)
+      cursor_cancel: "003"         # 메뉴 취소/뒤로 (SFX #3: Cancel)
+      cursor_error: "002"          # 불가능한 행동 (SFX #2: Invalid Choice)
+      menu_open: "000"             # 메뉴 열기
+      menu_close: "003"            # 메뉴 닫기
+
+    # 전투 효과음
+    combat:
+      attack_physical: "017"       # 물리 공격 (SFX #17: Cloud's Sword Strike)
+      attack_gun: "014"            # 총 공격 (SFX #14: Gun Hit)
+      attack_magic: "012"          # 마법 공격 (SFX #12: Magic Casting Preparation)
+      damage_low: "004"            # 낮은 데미지 (SFX #4: Missed Hit)
+      damage_high: "034"           # 높은 데미지 (SFX #34: Enemy Punch Attack)
+      critical: "026"              # 크리티컬 히트 (SFX #26: Cloud Critical Sword Hit)
+      miss: "004"                  # 회피/빗나감 (SFX #4: Missed Hit)
+      dodge: "061"                 # 회피 (SFX #61: Dodging an Attack)
+      break: "445"                 # BRV BREAK/보스 죽음 (SFX #445: Boss Death)
+      guard: "061"                 # 방어 (Dodging)
+      battle_start: "042"          # 전투 시작 (SFX #42: Battle Swirl)
+      escape: "025"                # 도주 (SFX #25: Escaping from Battle)
+
+    # 캐릭터 상태
+    character:
+      hp_heal: "005"               # HP 회복 (SFX #5: Cure/Potion)
+      hp_heal_high: "006"          # 높은 HP 회복 (SFX #6: High Potion)
+      hp_heal_max: "007"           # 최대 HP 회복 (SFX #7: Cure 2/X-Potion)
+      mp_heal: "090"               # MP 회복 (SFX #90: Regen Spell)
+      level_up: "381"              # 레벨업 (SFX #381: Fourth Limit Break Acquired)
+      status_buff: "093"           # 버프 적용 (SFX #93: Protect Spell)
+      status_debuff: "148"         # 디버프 적용 (SFX #148: Status Ailment Inflicted)
+      death: "021"                 # 전투불능 (SFX #21: Enemy Death)
+      revive: "420"                # 부활 (SFX #420: Life 2)
+      faint: "134"                 # 기절 (SFX #134: Fainting)
+
+    # 스킬 효과음
+    skill:
+      cast_start: "012"            # 스킬 시전 시작 (SFX #12: Magic Casting Preparation)
+      cast_complete: "012"         # 스킬 시전 완료
+      fire: "008"                  # 파이어 (SFX #8: Fire Spell)
+      fire2: "009"                 # 파이어2 (SFX #9: Fire 2)
+      fire3: "141"                 # 파이어3 (SFX #141: Fire 3)
+      bolt: "010"                  # 볼트 (SFX #10: Bolt Spell)
+      bolt2: "011"                 # 볼트2 (SFX #11: Bolt 2)
+      bolt3: "069"                 # 볼트3 (SFX #69: Bolt 3)
+      ice: "023"                   # 아이스 (SFX #23: Ice Spell)
+      ice3: "028"                  # 아이스3 (SFX #28: Ice 3)
+      cure: "005"                  # 케어 (SFX #5: Cure)
+      cure2: "007"                 # 케어2 (SFX #7: Cure 2)
+      cure3: "068"                 # 케어3 (SFX #68: Cure 3)
+      haste: "082"                 # 헤이스트 (SFX #82: Haste Spell)
+      slow: "064"                  # 슬로우 (SFX #64: Slow Spell)
+      shell: "066"                 # 쉘 (SFX #66: Shell Spell)
+      protect: "093"               # 프로텍트 (SFX #93: Protect Spell)
+      reflect: "071"               # 리플렉트 (SFX #71: Reflect Spell)
+      ultima: "307"                # 알테마 (SFX #307: Ultima Spell)
+      flare: "369"                 # 플레어 (SFX #369: Flare Spell)
+      summon: "040"                # 소환 (SFX #40: Vanishing before summon)
+      limit_break: "035"           # 리미트 브레이크 (SFX #35: Limit Break Activation)
+
+    # 아이템 효과음
+    item:
+      get_item: "357"              # 아이템 획득 (SFX #357: Obtained Something)
+      use_item: "020"              # 아이템 사용 (SFX #20: Using Item)
+      open_chest: "253"            # 상자 열기 (SFX #253: Treasure Chest Opening)
+      get_gil: "170"               # 길 획득 (SFX #170: Gil Coin)
+      equip: "444"                 # 장비 착용 (SFX #444: Equipping)
+      buy: "261"                   # 구매 (SFX #261: Buying Something)
+      potion: "005"                # 포션 (SFX #5: Cure/Potion)
+      high_potion: "006"           # 하이 포션 (SFX #6: High Potion)
+      elixir: "068"                # 엘릭서 (SFX #68: Elixir)
+      phoenix_down: "379"          # 부활약 (SFX #379: Phoenix Tail Item)
+      grenade: "019"               # 수류탄 (SFX #19: Grenade Item Explosion)
+
+    # 월드 효과음
+    world:
+      door_open: "121"             # 문 열림 (SFX #121: Door Opening)
+      door_close: "052"            # 문 닫힘 (SFX #52: Train Door)
+      gate_open: "031"             # 게이트 열기 (SFX #31: Gate Opening)
+      gate_unlock: "051"           # 게이트 잠금 해제 (SFX #51: Gate Unlocked)
+      stairs: "054"                # 계단 이동 (SFX #54: Jumping)
+      save: "356"                  # 세이브 (SFX #356: Save Point)
+      gathering: "020"             # 채집 (SFX #20: Using Item/Grabbing)
+      jump: "054"                  # 점프 (SFX #54: Jumping)
+      land: "055"                  # 착지 (SFX #55: Landing)
+      fall: "132"                  # 낙하 (SFX #132: Falling)
+      switch_on: "050"             # 스위치 켜기 (SFX #50: Switching ON)
+      alert: "059"                 # 경보 (SFX #59: Alert)
+      break_open: "198"            # 부수기 (SFX #198: Break Open)
+
+    categories:
+      - ui
+      - combat
+      - character
+      - skill
+      - item
+      - world
+
+# 저장 시스템
+save:
+  auto_save_enabled: true
+  auto_save_interval: 300  # 5분 (초)
+  max_save_slots: 10
+  save_directory: "saves/"
+  backup_enabled: true
+  max_backups: 3
+
+# 메타 진행 시스템
+meta_progression:
+  enabled: true
+  star_fragment_drop_rate: 0.1
+  max_star_fragments: 9999
+
+  # 잠금 해제 비용
+  unlock_costs:
+    basic_class: 0  # 기본 클래스는 무료
+    advanced_class: 100
+    special_class: 500
+    ultimate_class: 1000
+
+# 멀티플레이어 설정
+multiplayer:
+  enabled: true
+  default_port: 5000
+  max_players: 4
+
+  modes:
+    - hotseat      # 핫시트 (로컬)
+    - cooperative  # 협동
+    - competitive  # 대전
+
+# 모바일 설정
+mobile:
+  enabled: false
+  server_mode: "web_ui"  # web_ui, flutter_backend
+  touch_controls: true
+  virtual_joystick: true
+
+# 로깅 설정
+logging:
+  enabled: true
+  log_directory: "logs/"
+
+  levels:
+    console: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    file: "DEBUG"
+
+  # 로그 카테고리
+  categories:
+    combat: true
+    player: true
+    enemy: true
+    world: true
+    system: true
+    error: true
+    debug: true
+
+  # 로그 로테이션
+  rotation:
+    enabled: true
+    max_size_mb: 10
+    max_files: 5
+
+# 스토리 및 테마
+story:
+  theme: "차원 항해사"
+  terminology:
+    location: "차원 공간"
+    boss: "차원 지배자"
+    exploration: "차원 항해"
+
+  # 특수 모드 (개발자 전용)
+  glitch_mode:
+    enabled: false
+    force_glitch: false
+
+  true_ending:
+    enabled: true
+    requirements_met: false
+
+# 성능 설정
+performance:
+  enable_profiling: false
+  max_particles: 100
+  animation_quality: "high"  # low, medium, high
+  cache_enabled: true
+  cache_size_mb: 100
+
+# 접근성
+accessibility:
+  colorblind_mode: false
+  high_contrast: false
+  text_to_speech: false
+  screen_shake: true
+  flash_reduction: false
+
+# 실험적 기능
+experimental:
+  hot_reload: false  # 코드 핫 리로드 (개발 전용)
+  advanced_ai: false  # 고급 AI (실험적)
+  procedural_story: false  # 절차적 스토리 생성

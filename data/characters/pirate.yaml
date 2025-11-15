@@ -1,0 +1,65 @@
+class_name: 해적
+description: 보물과 황금에 집착하는 탐욕스러운 모험가
+archetype: 보물 사냥꾼
+base_stats:
+  hp: 164
+  mp: 37
+  init_brv: 120
+  speed: 77
+  physical_attack: 74
+  physical_defense: 52
+  magic_attack: 34
+  magic_defense: 41
+  max_brv: 458
+stat_growth:
+  hp: 11.5
+  mp: 3.8
+  init_brv: 4.2
+  strength: 4.2
+  defense: 3.0
+  magic: 2.0
+  spirit: 2.5
+  speed: 4.0
+  luck: 5.0
+  accuracy: 2.2
+  evasion: 2.0
+  max_brv: 2.5
+traits:
+- id: treasure_hunter
+  name: 보물 사냥꾼
+  description: 골드 획득 +50%, 아이템 드랍률 +40%
+  type: passive
+- id: lucky_strike
+  name: 행운의 일격
+  description: 행운 수치만큼 크리티컬 확률 증가 (1행운 = 1%)
+  type: passive
+- id: greed
+  name: 탐욕
+  description: 골드 보유량이 많을수록 스탯 증가 (1000골드당 +2%)
+  type: passive
+- id: pirate_fortune
+  name: 해적의 행운
+  description: 전투 승리 시 15% 확률로 추가 보물 상자
+  type: trigger
+- id: dirty_fighting
+  name: 비열한 전투
+  description: 공격 시 20% 확률로 적 디버프 (랜덤)
+  type: trigger
+gimmick:
+  type: plunder_system
+  name: 약탈과 재물
+  description: 전투에서 골드를 획득하고 소모하여 강력한 해적 기술 사용
+  gold_per_hit: 10
+  max_gold: 1000
+
+skills:
+- cutlass_slash
+- pistol_shot
+- plunder
+- rum_bottle
+- cannonball
+- treasure_call
+bonuses:
+  gold_bonus: 1.5
+  item_drop: 1.4
+  luck_to_crit: 0.01

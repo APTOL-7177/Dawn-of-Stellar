@@ -1,0 +1,66 @@
+class_name: 네크로맨서
+description: 저주와 디버프로 적을 약화시키는 어둠의 마법사
+archetype: 디버프 특화
+base_stats:
+  hp: 134
+  mp: 84
+  init_brv: 103
+  speed: 48
+  physical_attack: 44
+  physical_defense: 39
+  magic_attack: 84
+  magic_defense: 74
+  max_brv: 432
+stat_growth:
+  hp: 8
+  mp: 7.5
+  init_brv: 3.6
+  strength: 1.8
+  defense: 1.5
+  magic: 5.2
+  spirit: 4.2
+  speed: 3.2
+  luck: 2.0
+  accuracy: 2.2
+  evasion: 1.8
+  max_brv: 2.2
+traits:
+- id: curse_master
+  name: 저주술의 대가
+  description: 모든 디버프 효과 +40%, 지속시간 +2턴
+  type: passive
+- id: death_aura
+  name: 죽음의 오라
+  description: 주변 적 전체 HP 회복 -50%
+  type: passive
+- id: dark_harvest
+  name: 어둠의 수확
+  description: 디버프 걸린 적 처치 시 MP 30% 회복
+  type: trigger
+- id: curse_reflection
+  name: 저주 반사
+  description: 디버프를 받을 시 30% 확률로 시전자에게 반사
+  type: trigger
+- id: plague_spread
+  name: 역병 확산
+  description: 디버프가 인접한 적에게 50% 확률로 전염
+  type: trigger
+gimmick:
+  type: necro_system
+  name: 네크로 에너지
+  description: 시체를 수집하고 언데드를 소환. 네크로 에너지로 강력한 주술 사용
+  max_necro_energy: 100
+  max_corpse_count: 10
+  max_minion_count: 3
+
+skills:
+- curse_bolt
+- weakness_hex
+- poison_cloud
+- life_drain
+- mass_debuff
+- death_curse
+bonuses:
+  mp_multiplier: 1.4
+  debuff_power: 1.4
+  debuff_duration: 1.5

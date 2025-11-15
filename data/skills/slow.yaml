@@ -1,0 +1,13 @@
+id: slow
+name: 슬로우
+type: debuff
+description: 적의 속도를 감소시킵니다
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: debuff
+  target: enemy
+  stat: physical_defense
+  value: 0.7
+  duration: 3

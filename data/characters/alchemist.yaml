@@ -1,0 +1,64 @@
+class_name: 연금술사
+description: 포션과 연금술로 파티를 지원하는 화학의 달인
+archetype: 포션 마스터
+base_stats:
+  hp: 135
+  mp: 69
+  init_brv: 113
+  speed: 54
+  physical_attack: 59
+  physical_defense: 44
+  magic_attack: 72
+  magic_defense: 58
+  max_brv: 446
+stat_growth:
+  hp: 9.5
+  mp: 5.8
+  init_brv: 4.0
+  strength: 2.8
+  defense: 2.5
+  magic: 4.0
+  spirit: 4.2
+  speed: 3.5
+  luck: 4.2
+  accuracy: 2.0
+  evasion: 1.8
+  max_brv: 2.4
+traits:
+- id: potion_mastery
+  name: 포션 제조
+  description: 모든 포션 효과 +50%, 사용 시 MP 소모 없음
+  type: passive
+- id: transmutation
+  name: 연금술 변환
+  description: 아이템을 다른 아이템으로 변환 가능
+  type: passive
+- id: chemical_weapon
+  name: 화학 무기
+  description: 공격 시 랜덤 상태이상 부여 (독, 화상, 둔화)
+  type: trigger
+- id: emergency_elixir
+  name: 비상 영약
+  description: HP 30% 이하 시 자동으로 HP 50% 회복 (전투당 1회)
+  type: trigger
+- id: philosopher_stone
+  name: 현자의 돌
+  description: 턴 종료 시 5% 확률로 랜덤 포션 생성
+  type: trigger
+gimmick:
+  type: alchemy_system
+  name: 연금술 조합
+  description: 포션을 조합하고 투척하여 다양한 효과 발동
+  max_potion_stock: 10
+
+skills:
+- throw_potion
+- acid_flask
+- healing_elixir
+- buff_potion
+- explosive_mixture
+- grand_elixir
+bonuses:
+  potion_power: 1.5
+  item_find: 1.3
+  luck_bonus: 15

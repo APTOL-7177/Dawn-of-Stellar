@@ -1,0 +1,12 @@
+id: hack_attempt
+name: Hack Attempt
+type: brv_attack
+description: Hack Attempt 스킬
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 2.0
+  stat_base: strength

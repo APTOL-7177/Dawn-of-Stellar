@@ -1,0 +1,80 @@
+class_name: 전사
+description: 강력한 물리 공격력과 높은 방어력을 가진 전장의 지배자
+archetype: 물리 딜러/탱커
+base_stats:
+  hp: 210
+  mp: 32
+  init_brv: 135
+  physical_attack: 60
+  physical_defense: 60
+  magic_attack: 40
+  magic_defense: 60
+  speed: 60
+  max_brv: 490
+stat_growth:
+  hp: 15
+  mp: 3
+  init_brv: 4.7
+  strength: 4.5
+  defense: 4.0
+  magic: 2.0
+  spirit: 3.5
+  speed: 3.0
+  luck: 2.0
+  accuracy: 1.5
+  evasion: 1.0
+  max_brv: 2.8
+gimmick:
+  type: stance_system
+  name: 6단계 스탠스
+  description: 전투 중 6가지 자세를 자유롭게 변경하며 상황에 대응
+  stances:
+  - id: attack
+    name: 공격 자세
+    description: 물리 공격력 +30%, 방어력 -20%
+  - id: defense
+    name: 방어 자세
+    description: 방어력 +40%, 공격력 -10%
+  - id: balanced
+    name: 균형 자세
+    description: 모든 스탯 균형 유지 (기본)
+  - id: berserker
+    name: 광전사 자세
+    description: 공격력 +50%, 방어력 -30%, 크리티컬 +15%
+  - id: guardian
+    name: 수호자 자세
+    description: 방어력 +60%, 공격력 -20%, 아군 보호
+  - id: speed
+    name: 속도 자세
+    description: 속도 +40%, ATB 증가율 +30%
+traits:
+- id: adaptive_combat
+  name: 적응형 무술
+  description: 전투 중 자세 변경 시 다음 공격 위력 30% 증가
+  type: trigger
+- id: battlefield_master
+  name: 전장의 지배자
+  description: 같은 자세 유지 시 턴마다 능력치 누적 증가 (최대 35%)
+  type: passive
+- id: indomitable_will
+  name: 불굴의 의지
+  description: 모든 자세에서 매 턴 HP 8% 회복
+  type: passive
+- id: combat_instinct
+  name: 전투 본능
+  description: 자세 변경 스킬 MP 소모 없음
+  type: passive
+- id: complete_mastery
+  name: 6단계 완전체
+  description: 6가지 자세 완전 숙달로 모든 자세에서 특화 보너스 획득
+  type: passive
+skills:
+- power_strike
+- shield_bash
+- war_cry
+- berserker_rage
+- defensive_stance
+- ultimate_slash
+bonuses:
+  hp_multiplier: 1.1
+  physical_damage: 1.1

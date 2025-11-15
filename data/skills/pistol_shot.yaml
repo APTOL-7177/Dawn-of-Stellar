@@ -1,0 +1,12 @@
+id: pistol_shot
+name: 권총 사격
+type: brv_attack
+description: 권총으로 사격합니다
+costs:
+  mp: 18
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 2.6
+  stat_base: strength

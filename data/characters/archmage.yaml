@@ -1,0 +1,72 @@
+class_name: 아크메이지
+description: 최강의 마법 공격력을 가진 원소의 지배자
+archetype: 마법 딜러
+base_stats:
+  hp: 121
+  mp: 89
+  init_brv: 102
+  physical_attack: 43
+  physical_defense: 33
+  magic_attack: 78
+  magic_defense: 67
+  speed: 58
+  max_brv: 430
+stat_growth:
+  hp: 8
+  mp: 8
+  init_brv: 3.6
+  strength: 2.0
+  defense: 1.5
+  magic: 5.5
+  spirit: 4.0
+  speed: 3.5
+  luck: 2.5
+  accuracy: 2.0
+  evasion: 1.5
+  max_brv: 2.2
+gimmick:
+  type: elemental_counter
+  name: 원소 조합
+  description: 화염/빙결/번개 원소를 조합하여 강력한 마법 발동
+  elements:
+  - id: fire
+    name: 화염
+    max_count: 5
+  - id: ice
+    name: 빙결
+    max_count: 5
+  - id: lightning
+    name: 번개
+    max_count: 5
+traits:
+- id: mana_mastery
+  name: 마나 숙련
+  description: 모든 마법 스킬 MP 소모 30% 감소
+  type: passive
+- id: arcane_knowledge
+  name: 비전 지식
+  description: 마법 공격력 20% 증가
+  type: passive
+- id: elemental_fury
+  name: 원소의 분노
+  description: 연속 마법 시전 시 위력 누적 (최대 50%)
+  type: trigger
+- id: spell_weaving
+  name: 주문 직조
+  description: 마법 시전 시간 25% 감소
+  type: passive
+- id: arcane_supremacy
+  name: 비전 최고봉
+  description: MP 70% 이상일 때 크리티컬 확률 20% 증가
+  type: trigger
+skills:
+- fireball
+- lightning_bolt
+- ice_storm
+- meteor
+- arcane_missile
+- time_stop
+bonuses:
+  mp_multiplier: 1.5
+  magic_damage: 1.2
+  spell_cost_reduction: 0.7

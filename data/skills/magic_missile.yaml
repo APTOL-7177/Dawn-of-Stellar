@@ -1,0 +1,12 @@
+id: magic_missile
+name: 마법 미사일
+type: brv_attack
+description: 마법 에너지를 발사합니다
+costs:
+  mp: 15
+  cast_time: 1.0
+effects:
+- type: damage
+  element: magical
+  multiplier: 2.5
+  stat_base: magic

@@ -1,0 +1,64 @@
+class_name: 궁수
+description: 정확한 원거리 공격으로 적을 제압하는 명사수
+archetype: 원거리 물리 딜러
+base_stats:
+  hp: 164
+  mp: 45
+  init_brv: 118
+  physical_attack: 74
+  physical_defense: 44
+  magic_attack: 33
+  magic_defense: 43
+  speed: 68
+  max_brv: 455
+stat_growth:
+  hp: 11
+  mp: 3.5
+  init_brv: 4.1
+  strength: 4.8
+  defense: 2.8
+  magic: 1.8
+  spirit: 2.5
+  speed: 4.0
+  luck: 3.5
+  accuracy: 2.8
+  evasion: 1.8
+  max_brv: 2.5
+traits:
+- id: precise_aim
+  name: 정밀 조준
+  description: 명중률 +30%, 크리티컬 확률 +15%
+  type: passive
+- id: rapid_fire
+  name: 속사
+  description: 연속 공격 시 공격 속도 10%씩 증가 (최대 50%)
+  type: trigger
+- id: weak_point
+  name: 약점 노출
+  description: 공격 시 20% 확률로 방어력 무시
+  type: trigger
+- id: hunters_mark
+  name: 사냥꾼의 표식
+  description: 같은 대상 공격 시 데미지 5%씩 증가 (최대 30%)
+  type: passive
+- id: headshot
+  name: 헤드샷
+  description: 크리티컬 시 추가 BRV 데미지 50%
+  type: trigger
+gimmick:
+  type: aim_system
+  name: 정밀 조준
+  description: 조준 포인트를 축적하여 치명적인 원거리 공격 수행
+  max_aim_points: 5
+
+skills:
+- power_shot
+- multi_shot
+- piercing_arrow
+- explosive_arrow
+- mark_target
+- arrow_rain
+bonuses:
+  accuracy_bonus: 20
+  critical_rate: 1.2
+  range_damage: 1.15

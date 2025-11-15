@@ -1,0 +1,15 @@
+id: sword_dance
+name: 검무
+type: brv_hp_attack
+description: 화려한 검무로 연속 공격합니다
+costs:
+  mp: 30
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 2.0
+  stat_base: strength
+- type: hp_damage
+  multiplier: 1.5
+  uses_brv: true

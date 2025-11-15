@@ -1,0 +1,64 @@
+class_name: 마검사
+description: 마법과 검술이 완벽하게 융합된 전투의 예술가
+archetype: 하이브리드 딜러
+base_stats:
+  hp: 164
+  mp: 62
+  init_brv: 117
+  speed: 58
+  physical_attack: 67
+  physical_defense: 54
+  magic_attack: 70
+  magic_defense: 61
+  max_brv: 453
+stat_growth:
+  hp: 11.5
+  mp: 5
+  init_brv: 4.1
+  strength: 4.2
+  defense: 3.0
+  magic: 4.2
+  spirit: 3.5
+  speed: 4.0
+  luck: 3.5
+  accuracy: 2.2
+  evasion: 1.8
+  max_brv: 2.5
+traits:
+- id: magic_blade_unity
+  name: 마검 일체
+  description: 물리 공격에 마법 데미지 추가 (마력의 50%)
+  type: passive
+- id: dual_element
+  name: 이중 속성
+  description: 공격 시 물리/마법 중 높은 쪽으로 계산
+  type: passive
+- id: spellblade_art
+  name: 마검 오의
+  description: 크리티컬 시 물리+마법 동시 발동 (데미지 150%씩)
+  type: trigger
+- id: arcane_edge
+  name: 마력 예리화
+  description: 마법 시전 후 다음 물리 공격 데미지 +60%
+  type: trigger
+- id: combat_casting
+  name: 전투 시전
+  description: 마법 시전 시간 -50%
+  type: passive
+gimmick:
+  type: enchant_system
+  name: 마력 부여
+  description: 검에 마력을 부여하여 원소 속성 공격 수행
+  max_mana_blade: 100
+
+skills:
+- magic_slash
+- enchant_blade
+- spell_strike
+- elemental_edge
+- arcane_burst
+- ultimate_fusion
+bonuses:
+  hybrid_damage: 1.25
+  spell_cast_speed: 1.5
+  dual_scaling: 1.0

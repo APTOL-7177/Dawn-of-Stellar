@@ -1,0 +1,64 @@
+class_name: 철학자
+description: 논리적 사고로 적을 혼란시키고 진리를 깨우치는 현자
+archetype: 논리 조작
+base_stats:
+  hp: 107
+  mp: 97
+  init_brv: 104
+  speed: 49
+  physical_attack: 38
+  physical_defense: 54
+  magic_attack: 76
+  magic_defense: 86
+  max_brv: 434
+stat_growth:
+  hp: 8.5
+  mp: 6.5
+  init_brv: 3.6
+  strength: 2.0
+  defense: 2.0
+  magic: 5.0
+  spirit: 5.2
+  speed: 3.5
+  luck: 4.0
+  accuracy: 2.0
+  evasion: 2.5
+  max_brv: 2.2
+traits:
+- id: logical_paradox
+  name: 논리적 역설
+  description: 적을 혼란 상태로 만듦 (자신/아군 공격, 50% 확률)
+  type: trigger
+- id: critical_thinking
+  name: 비판적 사고
+  description: 적의 버프 효과를 디버프로 반전
+  type: trigger
+- id: wise_insight
+  name: 현자의 통찰
+  description: 받는 마법 데미지 -40%
+  type: passive
+- id: existential_crisis
+  name: 실존적 위기
+  description: 적에게 정체성 혼란 부여 (모든 스탯 -20%)
+  type: trigger
+- id: enlightenment
+  name: 깨달음
+  description: MP 70% 이상일 때 경험치 획득 +30%
+  type: passive
+gimmick:
+  type: wisdom_system
+  name: 지혜의 축적
+  description: 전투 중 지식을 축적하여 현자의 돌의 힘 사용
+  max_knowledge_stacks: 10
+
+skills:
+- logical_argument
+- confuse_mind
+- truth_revelation
+- paradox_field
+- enlightenment_ray
+- existential_void
+bonuses:
+  confusion_rate: 0.5
+  magic_resistance: 0.6
+  exp_bonus: 1.3

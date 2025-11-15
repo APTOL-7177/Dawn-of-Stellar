@@ -1,0 +1,13 @@
+id: arena_roar
+name: 투기장의 함성
+type: support
+description: 함성으로 자신을 강화합니다
+costs:
+  mp: 25
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.4
+  duration: 3

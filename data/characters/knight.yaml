@@ -1,0 +1,64 @@
+class_name: 기사
+description: 영광의 맹세로 파티를 이끄는 고결한 지휘관
+archetype: 지휘관/버퍼
+base_stats:
+  hp: 216
+  mp: 34
+  init_brv: 130
+  speed: 48
+  physical_attack: 79
+  physical_defense: 72
+  magic_attack: 46
+  magic_defense: 54
+  max_brv: 485
+stat_growth:
+  hp: 13.5
+  mp: 4.2
+  init_brv: 4.6
+  strength: 4.0
+  defense: 4.2
+  magic: 2.5
+  spirit: 3.8
+  speed: 3.2
+  luck: 3.2
+  accuracy: 1.8
+  evasion: 1.3
+  max_brv: 2.8
+traits:
+- id: glory_vow
+  name: 영광의 맹세
+  description: 파티원 전체 공격력/방어력 +15%
+  type: passive
+- id: honor_guard
+  name: 명예의 수호
+  description: 파티원 대신 데미지를 받을 수 있음 (데미지 -20%)
+  type: trigger
+- id: chivalry
+  name: 기사도 정신
+  description: HP 80% 이상 유지 시 파티 전체 버프 효과 +25%
+  type: trigger
+- id: leadership
+  name: 지휘관의 카리스마
+  description: 파티원이 많을수록 스탯 증가 (1명당 +8%)
+  type: passive
+- id: heroic_sacrifice
+  name: 영웅적 희생
+  description: 파티원 보호 시 자신의 BRV가 상승
+  type: trigger
+gimmick:
+  type: duty_system
+  name: 기사의 의무
+  description: 아군을 보호하고 피해를 받으며 의무 스택 획득. 의무로 강력한 수호 기술 사용
+  max_duty_stacks: 10
+
+skills:
+- honorable_strike
+- rallying_cry
+- protect_ally
+- knights_honor
+- glory_charge
+- heroic_stand
+bonuses:
+  party_attack_bonus: 0.15
+  party_defense_bonus: 0.15
+  protect_reduction: 0.2

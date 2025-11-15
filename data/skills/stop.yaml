@@ -1,0 +1,13 @@
+id: stop
+name: 스톱
+type: debuff
+description: 적의 시간을 정지시킵니다
+costs:
+  mp: 35
+  cast_time: 1.0
+effects:
+- type: debuff
+  target: enemy
+  stat: physical_defense
+  value: 0.0
+  duration: 3

@@ -1,0 +1,13 @@
+id: plunder
+name: 약탈
+type: support
+description: 적에게서 물건을 약탈합니다
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.0
+  duration: 3

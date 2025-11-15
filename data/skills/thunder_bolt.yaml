@@ -1,0 +1,12 @@
+id: thunder_bolt
+name: 번개
+type: brv_attack
+description: 번개로 적을 타격합니다
+costs:
+  mp: 18
+  cast_time: 1.0
+effects:
+- type: damage
+  element: lightning
+  multiplier: 2.8
+  stat_base: magic

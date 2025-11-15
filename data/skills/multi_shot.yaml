@@ -1,0 +1,12 @@
+id: multi_shot
+name: 다중 사격
+type: brv_attack
+description: 여러 개의 화살을 동시에 발사합니다
+costs:
+  mp: 25
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 2.0
+  stat_base: strength

@@ -1,0 +1,12 @@
+id: dragon_dive
+name: 드래곤 다이브
+type: brv_attack
+description: 하늘에서 급강하 공격합니다
+costs:
+  mp: 35
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 3.8
+  stat_base: strength

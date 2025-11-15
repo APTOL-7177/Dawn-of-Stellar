@@ -1,0 +1,12 @@
+id: piercing_arrow
+name: 관통 화살
+type: brv_attack
+description: 방어력을 무시하는 화살을 발사합니다
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 2.8
+  stat_base: strength

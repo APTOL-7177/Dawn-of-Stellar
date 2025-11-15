@@ -1,0 +1,12 @@
+id: healing_prayer
+name: 치유의 기도
+type: heal
+description: 신성한 기도로 아군을 치유합니다
+costs:
+  mp: 25
+  cast_time: 1.0
+effects:
+- type: heal
+  target: ally
+  multiplier: 3.0
+  stat_base: magic

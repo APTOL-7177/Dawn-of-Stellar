@@ -1,0 +1,12 @@
+id: poison_blade
+name: 독 칼날
+type: brv_attack
+description: 독이 묻은 칼로 적을 공격합니다
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 2.2
+  stat_base: strength

@@ -1,0 +1,15 @@
+id: arrow_rain
+name: 화살 비
+type: ultimate
+description: 하늘에서 수많은 화살을 쏟아냅니다
+costs:
+  mp: 50
+  cast_time: 2.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 4.5
+  stat_base: strength
+- type: hp_damage
+  multiplier: 1.8
+  uses_brv: true

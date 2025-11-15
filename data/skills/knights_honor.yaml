@@ -1,0 +1,15 @@
+id: knights_honor
+name: 기사의 명예
+type: ultimate
+description: 기사의 명예를 건 강력한 공격입니다
+costs:
+  mp: 50
+  cast_time: 2.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 4.8
+  stat_base: strength
+- type: hp_damage
+  multiplier: 1.92
+  uses_brv: true

@@ -1,0 +1,15 @@
+id: chakra_burst
+name: Chakra Burst
+type: brv_hp_attack
+description: Chakra Burst 스킬
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 1.6
+  stat_base: strength
+- type: hp_damage
+  multiplier: 1.2
+  uses_brv: true

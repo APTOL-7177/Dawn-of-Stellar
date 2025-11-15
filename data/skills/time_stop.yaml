@@ -1,0 +1,15 @@
+id: time_stop
+name: 시간 정지
+type: ultimate
+description: 모든 적의 시간을 정지시킵니다
+costs:
+  mp: 70
+  cast_time: 2.0
+effects:
+- type: damage
+  element: magical
+  multiplier: 0.0
+  stat_base: magic
+- type: hp_damage
+  multiplier: 0.0
+  uses_brv: true

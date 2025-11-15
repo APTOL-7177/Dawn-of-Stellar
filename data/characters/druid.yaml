@@ -1,0 +1,68 @@
+class_name: 드루이드
+description: 다양한 동물로 변신하여 상황에 맞게 대응하는 자연의 수호자
+archetype: 변신 술사
+base_stats:
+  hp: 175
+  mp: 71
+  init_brv: 115
+  speed: 59
+  physical_attack: 53
+  physical_defense: 48
+  magic_attack: 81
+  magic_defense: 69
+  max_brv: 448
+stat_growth:
+  hp: 11
+  mp: 5
+  init_brv: 4.0
+  strength: 3.5
+  defense: 3.2
+  magic: 4.0
+  spirit: 4.0
+  speed: 3.8
+  luck: 3.0
+  accuracy: 2.0
+  evasion: 2.0
+  max_brv: 2.4
+traits:
+- id: shapeshifting
+  name: 동물 변신
+  description: '전투 중 동물 형태 전환 가능 (곰: 방어, 표범: 속도, 독수리: 회피)'
+  type: trigger
+- id: natures_blessing
+  name: 자연의 축복
+  description: 턴당 HP 3% 자동 회복
+  type: passive
+- id: plant_control
+  name: 식물 조종
+  description: 적을 속박하여 2턴간 행동 불가 (성공률 40%)
+  type: trigger
+- id: seasonal_power
+  name: 계절의 힘
+  description: '전투 턴마다 계절 변화 (봄: 회복, 여름: 공격, 가을: 방어, 겨울: 둔화)'
+  type: trigger
+- id: wild_instinct
+  name: 야생의 본능
+  description: HP 50% 이하 시 모든 스탯 +20%
+  type: trigger
+gimmick:
+  type: shapeshifting_system
+  name: 자연의 변신
+  description: 자연의 힘을 모아 동물 형태로 변신. 형태마다 고유한 능력 보유
+  max_nature_points: 100
+  forms:
+  - bear
+  - panther
+  - eagle
+
+skills:
+- bear_form
+- panther_form
+- eagle_form
+- natures_wrath
+- vine_prison
+- wild_growth
+bonuses:
+  hp_regen: 0.03
+  transform_bonus: 1.3
+  nature_damage: 1.2

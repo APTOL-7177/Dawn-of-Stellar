@@ -1,0 +1,64 @@
+class_name: 검투사
+description: 적의 공격을 받아내고 반격하는 카운터의 달인
+archetype: 반격 전문가
+base_stats:
+  hp: 172
+  mp: 29
+  init_brv: 140
+  speed: 64
+  physical_attack: 79
+  physical_defense: 56
+  magic_attack: 41
+  magic_defense: 48
+  max_brv: 500
+stat_growth:
+  hp: 13
+  mp: 3.5
+  init_brv: 4.9
+  strength: 4.5
+  defense: 4.5
+  magic: 1.8
+  spirit: 3.0
+  speed: 3.5
+  luck: 3.0
+  accuracy: 2.0
+  evasion: 1.8
+  max_brv: 2.9
+traits:
+- id: counter_attack
+  name: 반격
+  description: 피격 시 40% 확률로 즉시 반격 (데미지 120%)
+  type: trigger
+- id: iron_body
+  name: 강철 육체
+  description: 받는 물리 데미지 -25%
+  type: passive
+- id: survival_instinct
+  name: 생존 본능
+  description: HP 30% 이하 시 방어력 +50%, 반격 확률 100%
+  type: trigger
+- id: arena_experience
+  name: 투기장 경험
+  description: 연속 전투 시 스탯 누적 증가 (+5% per 전투, 최대 50%)
+  type: passive
+- id: revenge_strike
+  name: 복수의 일격
+  description: 피격 횟수만큼 공격력 증가 (1회당 +10%)
+  type: trigger
+gimmick:
+  type: arena_system
+  name: 투기장의 영광
+  description: 적을 처치하고 공격을 막아내며 영광 포인트 획득. 영광으로 강력한 기술 사용
+  max_glory_points: 100
+
+skills:
+- shield_bash
+- counter_stance
+- revenge_blow
+- last_stand
+- arena_roar
+- final_counter
+bonuses:
+  counter_rate: 0.4
+  physical_resistance: 0.25
+  low_hp_defense: 1.5

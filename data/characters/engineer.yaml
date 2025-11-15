@@ -1,0 +1,64 @@
+class_name: 기계공학자
+description: 장비와 기계를 극한까지 강화하는 기술의 달인
+archetype: 장비 강화
+base_stats:
+  hp: 156
+  mp: 61
+  init_brv: 116
+  speed: 53
+  physical_attack: 63
+  physical_defense: 54
+  magic_attack: 59
+  magic_defense: 48
+  max_brv: 451
+stat_growth:
+  hp: 10.5
+  mp: 4.5
+  init_brv: 4.1
+  strength: 3.5
+  defense: 4.0
+  magic: 3.0
+  spirit: 3.2
+  speed: 3.2
+  luck: 3.5
+  accuracy: 2.2
+  evasion: 1.5
+  max_brv: 2.5
+traits:
+- id: equipment_master
+  name: 장비 마스터
+  description: 모든 장비 효과 +35%
+  type: passive
+- id: overclock
+  name: 오버클럭
+  description: 장비의 특수 효과 발동 확률 2배
+  type: passive
+- id: emergency_repair
+  name: 긴급 수리
+  description: HP 50% 이하일 때 모든 장비 효과 2배
+  type: conditional
+- id: turret_deploy
+  name: 포탑 설치
+  description: 턴 종료 시 자동으로 적에게 피해 (공격력의 40%)
+  type: trigger
+- id: tech_upgrade
+  name: 기술 업그레이드
+  description: 전투 중 3턴마다 스탯 +5% (누적)
+  type: trigger
+gimmick:
+  type: construct_system
+  name: 기계 부품
+  description: 전투 중 기계 부품을 수집하여 포탑과 장치 제작
+  max_machine_parts: 5
+
+skills:
+- turret_shot
+- emp_blast
+- repair_kit
+- power_armor
+- rocket_punch
+- overclock_mode
+bonuses:
+  equipment_bonus: 1.35
+  special_proc_rate: 2.0
+  durability_bonus: 1.5

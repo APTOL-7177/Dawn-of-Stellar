@@ -1,0 +1,12 @@
+id: headshot
+name: 헤드샷
+type: brv_attack
+description: 머리를 정확히 노린 사격입니다
+costs:
+  mp: 25
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 4.0
+  stat_base: strength

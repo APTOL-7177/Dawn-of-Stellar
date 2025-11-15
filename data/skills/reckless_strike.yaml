@@ -1,0 +1,15 @@
+id: reckless_strike
+name: Reckless Strike
+type: ultimate
+description: Reckless Strike 스킬
+costs:
+  mp: 20
+  cast_time: 2.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 2.0
+  stat_base: strength
+- type: hp_damage
+  multiplier: 0.8
+  uses_brv: true

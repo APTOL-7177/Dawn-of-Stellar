@@ -1,0 +1,12 @@
+id: backstab
+name: 배후 습격
+type: brv_attack
+description: 적의 배후를 공격하여 치명타를 입힙니다
+costs:
+  mp: 18
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 3.0
+  stat_base: strength

@@ -1,0 +1,73 @@
+class_name: 바드
+description: 노래와 음악으로 파티 전체를 강화하는 지원가
+archetype: 파티 버퍼
+base_stats:
+  hp: 107
+  mp: 73
+  init_brv: 106
+  speed: 69
+  physical_attack: 43
+  physical_defense: 38
+  magic_attack: 66
+  magic_defense: 58
+  max_brv: 436
+stat_growth:
+  hp: 9
+  mp: 6
+  init_brv: 3.7
+  strength: 2.5
+  defense: 2.0
+  magic: 3.5
+  spirit: 3.8
+  speed: 4.2
+  luck: 4.5
+  accuracy: 1.8
+  evasion: 2.0
+  max_brv: 2.2
+traits:
+- id: battle_song
+  name: 전투 노래
+  description: 파티원 전체 공격력 +12%, 속도 +10%
+  type: passive
+- id: inspirational_melody
+  name: 영감의 선율
+  description: 파티원의 크리티컬 확률 +15%
+  type: passive
+- id: requiem
+  name: 진혼곡
+  description: 적 전체의 공격력 -10%, 명중률 -15%
+  type: trigger
+- id: harmony
+  name: 화음의 힘
+  description: 파티원 2명 이상 생존 시 모든 효과 +50%
+  type: trigger
+- id: encore
+  name: 앙코르
+  description: 버프 스킬 사용 시 20% 확률로 MP 환불
+  type: trigger
+gimmick:
+  type: melody_system
+  name: 음악의 선율
+  description: 음표를 모아 멜로디를 완성하고 강력한 버프 효과 발동
+  max_melody_notes: 8
+  octave_notes:
+  - 도
+  - 레
+  - 미
+  - 파
+  - 솔
+  - 라
+  - 시
+  - 도+
+
+skills:
+- courage_anthem
+- healing_ballad
+- speed_march
+- mana_song
+- debuff_lullaby
+- grand_finale
+bonuses:
+  party_attack_bonus: 0.12
+  party_speed_bonus: 0.1
+  buff_duration: 1.3

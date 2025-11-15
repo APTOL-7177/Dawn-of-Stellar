@@ -1,0 +1,13 @@
+id: mark_target
+name: 표적 지정
+type: debuff
+description: 적에게 표식을 남겨 피해를 증가시킵니다
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: debuff
+  target: enemy
+  stat: physical_defense
+  value: 0.8
+  duration: 3

@@ -1,0 +1,236 @@
+# 패시브 스킬 목록
+# 코스트: 2-5
+# 최대 3개 선택, 총 10 코스트 이내
+
+passives:
+  # 코스트 2 패시브 (기본/효율적)
+  - id: hp_boost
+    name: HP 증폭
+    description: 최대 HP +15%
+    cost: 2
+    unlocked: true
+    effects:
+      - type: stat_multiplier
+        stat: hp
+        value: 1.15
+
+  - id: mp_boost
+    name: MP 증폭
+    description: 최대 MP +15%
+    cost: 2
+    unlocked: true
+    effects:
+      - type: stat_multiplier
+        stat: mp
+        value: 1.15
+
+  - id: speed_boost
+    name: 신속
+    description: 스피드 +12%
+    cost: 2
+    unlocked: true
+    effects:
+      - type: stat_multiplier
+        stat: speed
+        value: 1.12
+
+  - id: brv_boost
+    name: BRV 증폭
+    description: 초기 BRV +15%
+    cost: 2
+    unlocked: true
+    effects:
+      - type: stat_multiplier
+        stat: init_brv
+        value: 1.15
+
+  - id: accuracy_boost
+    name: 정밀 사격
+    description: 명중률 +10%
+    cost: 2
+    unlocked: false
+    unlock_cost: 200
+
+  - id: evasion_boost
+    name: 민첩성
+    description: 회피율 +10%
+    cost: 2
+    unlocked: false
+    unlock_cost: 200
+
+  # 코스트 3 패시브 (중급)
+  - id: physical_power
+    name: 힘의 축복
+    description: 물리 공격력 +20%
+    cost: 3
+    unlocked: true
+    effects:
+      - type: stat_multiplier
+        stat: physical_attack
+        value: 1.20
+
+  - id: magic_power
+    name: 마력의 축복
+    description: 마법 공격력 +20%
+    cost: 3
+    unlocked: true
+    effects:
+      - type: stat_multiplier
+        stat: magic_attack
+        value: 1.20
+
+  - id: physical_guard
+    name: 철벽 방어
+    description: 물리 방어력 +20%
+    cost: 3
+    unlocked: true
+    effects:
+      - type: stat_multiplier
+        stat: physical_defense
+        value: 1.20
+
+  - id: magic_guard
+    name: 마법 장벽
+    description: 마법 방어력 +20%
+    cost: 3
+    unlocked: true
+    effects:
+      - type: stat_multiplier
+        stat: magic_defense
+        value: 1.20
+
+  - id: critical_boost
+    name: 치명타 강화
+    description: 크리티컬 확률 +15%
+    cost: 3
+    unlocked: false
+    unlock_cost: 300
+
+  - id: counter_stance
+    name: 카운터 자세
+    description: 피격 시 15% 확률로 반격
+    cost: 3
+    unlocked: false
+    unlock_cost: 300
+
+  - id: auto_regen
+    name: 자동 재생
+    description: 매 턴 HP 5% 회복
+    cost: 3
+    unlocked: false
+    unlock_cost: 350
+
+  - id: mp_recovery
+    name: 마력 회복
+    description: 매 턴 MP 3% 회복
+    cost: 3
+    unlocked: false
+    unlock_cost: 350
+
+  # 코스트 4 패시브 (고급)
+  - id: first_strike
+    name: 선제공격
+    description: 전투 시작 시 ATB 게이지 +50%
+    cost: 4
+    unlocked: false
+    unlock_cost: 400
+    effects:
+      - type: combat_start
+        effect: atb_boost
+        value: 500
+
+  - id: break_master
+    name: 브레이크 달인
+    description: BREAK 발동 시 보너스 데미지 +50%
+    cost: 4
+    unlocked: false
+    unlock_cost: 400
+
+  - id: skill_master
+    name: 기술 숙련
+    description: 모든 스킬 MP 소모 -20%
+    cost: 4
+    unlocked: false
+    unlock_cost: 450
+
+  - id: hp_danger_boost
+    name: 위기일발
+    description: HP 30% 이하 시 모든 공격력 +50%
+    cost: 4
+    unlocked: false
+    unlock_cost: 450
+
+  - id: shield_mastery
+    name: 방패 숙련
+    description: 방어 선택 시 BRV 피해 -50%, 방어 중 BRV 10% 회복
+    cost: 4
+    unlocked: false
+    unlock_cost: 500
+
+  - id: element_mastery
+    name: 속성 장악
+    description: 모든 속성 공격 위력 +25%
+    cost: 4
+    unlocked: false
+    unlock_cost: 500
+
+  # 코스트 5 패시브 (최상급)
+  - id: phoenix_blessing
+    name: 불사조의 가호
+    description: 전투 중 1회 사망 시 HP 50%로 부활
+    cost: 5
+    unlocked: false
+    unlock_cost: 600
+    effects:
+      - type: on_death
+        effect: revive
+        value: 0.5
+
+  - id: double_cast
+    name: 이중 시전
+    description: 스킬 사용 시 10% 확률로 2회 시전
+    cost: 5
+    unlocked: false
+    unlock_cost: 600
+
+  - id: ultimate_power
+    name: 궁극의 힘
+    description: 모든 공격력 +30%
+    cost: 5
+    unlocked: false
+    unlock_cost: 700
+    effects:
+      - type: stat_multiplier
+        stat: physical_attack
+        value: 1.30
+      - type: stat_multiplier
+        stat: magic_attack
+        value: 1.30
+
+  - id: ultimate_defense
+    name: 궁극의 방어
+    description: 모든 방어력 +30%
+    cost: 5
+    unlocked: false
+    unlock_cost: 700
+    effects:
+      - type: stat_multiplier
+        stat: physical_defense
+        value: 1.30
+      - type: stat_multiplier
+        stat: magic_defense
+        value: 1.30
+
+  - id: brave_soul
+    name: 용맹한 영혼
+    description: HP 50% 이상 시 받는 피해 -20%, BRV 공격 위력 +20%
+    cost: 5
+    unlocked: false
+    unlock_cost: 800
+
+  - id: tactical_genius
+    name: 전술의 천재
+    description: 매 5턴마다 랜덤 버프 획득 (공격력/방어력/속도 +30%, 2턴)
+    cost: 5
+    unlocked: false
+    unlock_cost: 800

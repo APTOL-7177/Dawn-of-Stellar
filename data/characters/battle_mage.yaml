@@ -1,0 +1,63 @@
+class_name: 배틀메이지
+description: 룬 마법과 근접 전투를 결합한 마법 전사
+archetype: 하이브리드 딜러
+base_stats:
+  hp: 168
+  mp: 56
+  init_brv: 119
+  speed: 70
+  physical_attack: 61
+  physical_defense: 49
+  magic_attack: 74
+  magic_defense: 52
+  max_brv: 456
+stat_growth:
+  hp: 11.5
+  mp: 5.5
+  init_brv: 4.2
+  strength: 4.8
+  defense: 3.2
+  magic: 6.2
+  spirit: 3.5
+  speed: 4.5
+  luck: 3.5
+  accuracy: 3.5
+  evasion: 2.5
+  max_brv: 2.5
+traits:
+- id: rune_explosion
+  name: 룬 폭발
+  description: 룬 스택 보유 시 모든 공격이 폭발 (스택당 +15% 데미지)
+  type: passive
+- id: magic_blade
+  name: 마법검
+  description: 물리 공격 시 마법 공격력의 50%를 추가 피해로
+  type: passive
+- id: spell_warrior
+  name: 마법 전사
+  description: 물리/마법 공격력 중 높은 쪽으로 데미지 계산
+  type: passive
+- id: arcane_blade_dance
+  name: 비전 검무
+  description: 물리 공격 후 마법 스킬 사용 시 MP 소모 50% 감소, 역도 동일
+  type: trigger
+- id: rune_resonance
+  name: 룬 공명
+  description: 룬 스택 5개 이상 시 모든 공격이 물리+마법 하이브리드로 계산
+  type: conditional
+gimmick:
+  type: rune_system
+  name: 마법 룬
+  description: 공격 시 룬을 각인하여 강력한 폭발 마법 발동
+  max_rune_stacks: 5
+
+skills:
+- engrave_rune
+- rune_burst
+- empower_rune
+- chain_burst
+- magic_blade_skill
+- rune_shield
+bonuses:
+  hybrid_power: 1.35
+  rune_efficiency: 1.4

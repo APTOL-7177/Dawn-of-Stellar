@@ -1,0 +1,13 @@
+id: berserker_rage
+name: 광전사의 분노
+type: support
+description: 공격력이 크게 증가하지만 방어력이 감소합니다
+costs:
+  mp: 30
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.5
+  duration: 3

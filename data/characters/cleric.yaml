@@ -1,0 +1,64 @@
+class_name: 성직자
+description: 신성한 치유의 힘으로 동료를 지키는 지원 전문가
+archetype: 힐러/서포터
+base_stats:
+  hp: 145
+  mp: 78
+  init_brv: 112
+  speed: 55
+  physical_attack: 38
+  physical_defense: 42
+  magic_attack: 62
+  magic_defense: 73
+  max_brv: 445
+stat_growth:
+  hp: 10
+  mp: 7
+  init_brv: 3.9
+  strength: 2.0
+  defense: 2.5
+  magic: 4.0
+  spirit: 5.0
+  speed: 3.0
+  luck: 2.5
+  accuracy: 1.5
+  evasion: 1.2
+  max_brv: 2.3
+traits:
+- id: healing_power
+  name: 치유력
+  description: 모든 회복 효과 +40%
+  type: passive
+- id: faith_shield
+  name: 신앙의 보호막
+  description: 아군 치유 시 대상에게 보호막 부여
+  type: trigger
+- id: divine_grace
+  name: 신의 은총
+  description: MP 50% 이상일 때 회복 스킬 시전 시간 -30%
+  type: trigger
+- id: resurrection_master
+  name: 부활 전문가
+  description: 부활 스킬 성공률 100%, 부활 대상 HP 50% 회복
+  type: passive
+- id: prayer_blessing
+  name: 기도의 축복
+  description: 매 턴 아군 전체 HP 5% 회복
+  type: passive
+gimmick:
+  type: divinity_system
+  name: 신앙의 힘
+  description: 신앙심으로 강력한 치유와 보호 마법 사용
+  max_faith_points: 100
+
+skills:
+- heal
+- greater_heal
+- mass_heal
+- holy_barrier
+- resurrect
+- divine_blessing
+bonuses:
+  healing_power: 1.4
+  mp_efficiency: 0.8
+  party_support: 1.3

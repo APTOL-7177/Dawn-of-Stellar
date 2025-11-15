@@ -1,0 +1,12 @@
+id: life_drain
+name: 생명력 흡수
+type: brv_attack
+description: 적의 생명력을 빼앗습니다
+costs:
+  mp: 25
+  cast_time: 1.0
+effects:
+- type: damage
+  element: dark
+  multiplier: 2.4
+  stat_base: magic

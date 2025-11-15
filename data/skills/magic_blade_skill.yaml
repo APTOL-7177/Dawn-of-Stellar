@@ -1,0 +1,12 @@
+id: magic_blade_skill
+name: Magic Blade Skill
+type: brv_attack
+description: Magic Blade Skill 스킬
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: damage
+  element: magical
+  multiplier: 2.0
+  stat_base: magic

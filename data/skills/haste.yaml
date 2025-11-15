@@ -1,0 +1,13 @@
+id: haste
+name: 헤이스트
+type: support
+description: 아군의 속도를 증가시킵니다
+costs:
+  mp: 25
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.5
+  duration: 3

@@ -1,0 +1,13 @@
+id: defensive_stance
+name: 방어 자세
+type: support
+description: 방어력을 크게 증가시킵니다
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.4
+  duration: 3

@@ -1,0 +1,64 @@
+class_name: 도적
+description: 압도적인 속도와 회피로 적을 농락하는 암살자
+archetype: 속도형 딜러
+base_stats:
+  hp: 150
+  mp: 41
+  init_brv: 110
+  physical_attack: 64
+  physical_defense: 43
+  magic_attack: 38
+  magic_defense: 49
+  speed: 93
+  max_brv: 442
+stat_growth:
+  hp: 10
+  mp: 4
+  init_brv: 3.9
+  strength: 4.0
+  defense: 2.5
+  magic: 2.0
+  spirit: 2.8
+  speed: 5.5
+  luck: 4.0
+  accuracy: 2.5
+  evasion: 2.0
+  max_brv: 2.3
+traits:
+- id: shadow_step
+  name: 그림자 걸음
+  description: 회피 성공 시 다음 공격 치명타 확률 50% 증가
+  type: trigger
+- id: assassinate
+  name: 암살
+  description: HP 30% 이하 적 공격 시 즉사 확률 15%
+  type: trigger
+- id: swift_strikes
+  name: 신속한 일격
+  description: 공격 속도 30% 증가, ATB 회복 빠름
+  type: passive
+- id: evasion_master
+  name: 회피의 달인
+  description: 회피율 +25%
+  type: passive
+- id: critical_finesse
+  name: 치명적 기교
+  description: 크리티컬 데미지 50% 증가
+  type: passive
+gimmick:
+  type: theft_system
+  name: 절도와 회피
+  description: 적의 아이템을 훔치고 회피 태세를 유지. 훔친 아이템으로 특수 기술 사용
+  max_stolen_items: 10
+
+skills:
+- backstab
+- shadow_strike
+- smoke_bomb
+- poison_blade
+- vanish
+- death_mark
+bonuses:
+  speed_multiplier: 1.3
+  critical_rate: 1.5
+  evasion_bonus: 25

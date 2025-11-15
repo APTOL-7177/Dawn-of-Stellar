@@ -1,0 +1,64 @@
+class_name: 차원술사
+description: 차원과 확률을 조작하는 시공간의 지배자
+archetype: 확률 조작
+base_stats:
+  hp: 84
+  mp: 91
+  init_brv: 98
+  speed: 47
+  physical_attack: 33
+  physical_defense: 28
+  magic_attack: 88
+  magic_defense: 72
+  max_brv: 422
+stat_growth:
+  hp: 8.8
+  mp: 6.5
+  init_brv: 3.4
+  strength: 2.2
+  defense: 2.0
+  magic: 4.8
+  spirit: 4.0
+  speed: 4.0
+  luck: 5.5
+  accuracy: 1.8
+  evasion: 2.5
+  max_brv: 2.0
+traits:
+- id: parallel_universe
+  name: 평행우주
+  description: 행동 실패 시 30% 확률로 재시도 가능
+  type: trigger
+- id: probability_shift
+  name: 확률 왜곡
+  description: 크리티컬 확률 +행운의 20%, 회피율 +행운의 15%
+  type: passive
+- id: dimensional_pocket
+  name: 차원 주머니
+  description: 인벤토리 공간 2배, 아이템 중복 확률 +25%
+  type: passive
+- id: spatial_leap
+  name: 공간 도약
+  description: 회피 시 즉시 반대편으로 이동하여 반격
+  type: trigger
+- id: quantum_state
+  name: 양자 상태
+  description: 공격/방어 중 하나를 선택하는 것이 아니라 둘 다 동시에 수행 (50% 효율)
+  type: passive
+gimmick:
+  type: dimension_system
+  name: 차원 조작
+  description: 차원의 틈을 열어 공간을 왜곡하고 차원 이동 수행
+  max_dimension_points: 100
+
+skills:
+- dimension_slash
+- teleport_strike
+- probability_bolt
+- parallel_self
+- dimensional_rift
+- reality_warp
+bonuses:
+  luck_multiplier: 1.5
+  retry_chance: 0.3
+  critical_rate: 1.3

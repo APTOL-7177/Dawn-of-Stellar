@@ -1,0 +1,13 @@
+id: war_cry
+name: 전쟁의 함성
+type: support
+description: 아군의 공격력을 증가시킵니다
+costs:
+  mp: 25
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.3
+  duration: 3

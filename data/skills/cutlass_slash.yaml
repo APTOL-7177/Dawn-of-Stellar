@@ -1,0 +1,12 @@
+id: cutlass_slash
+name: 커틀러스 베기
+type: brv_attack
+description: 커틀러스로 베어냅니다
+costs:
+  mp: 15
+  cast_time: 1.0
+effects:
+- type: damage
+  element: physical
+  multiplier: 2.4
+  stat_base: strength

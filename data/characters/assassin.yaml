@@ -1,0 +1,65 @@
+class_name: 암살자
+description: 그림자에서 나타나 적을 단숨에 처치하는 완벽한 킬러
+archetype: 암살 특화
+base_stats:
+  hp: 134
+  mp: 35
+  init_brv: 108
+  speed: 87
+  physical_attack: 81
+  physical_defense: 34
+  magic_attack: 28
+  magic_defense: 39
+  max_brv: 440
+stat_growth:
+  hp: 9.5
+  mp: 3.5
+  init_brv: 3.8
+  strength: 4.5
+  defense: 2.2
+  magic: 1.5
+  spirit: 2.5
+  speed: 5.5
+  luck: 4.5
+  accuracy: 3.0
+  evasion: 2.5
+  max_brv: 2.3
+traits:
+- id: shadow_cloak
+  name: 그림자 망토
+  description: 전투 시작 시 3턴간 은신 상태 (회피율 +50%)
+  type: trigger
+- id: critical_mastery
+  name: 치명타 특화
+  description: 크리티컬 확률 +30%, 크리티컬 데미지 +80%
+  type: passive
+- id: assassination
+  name: 암살술
+  description: 은신 상태에서 공격 시 즉사 확률 20% (HP 40% 이하 적은 50%)
+  type: trigger
+- id: shadow_step
+  name: 그림자 이동
+  description: 공격 후 자동으로 회피 태세 진입
+  type: trigger
+- id: vital_strike
+  name: 급소 공격
+  description: 배후 공격 시 방어력 무시 + 데미지 2배
+  type: trigger
+gimmick:
+  type: stealth_system
+  name: 은신 기술
+  description: 은신 상태에서 치명적인 암살 기술 사용. 은신 포인트를 소모하여 강화
+  max_stealth_points: 5
+
+skills:
+- backstab
+- shadow_strike
+- vanish
+- death_mark
+- throat_cut
+- silent_kill
+bonuses:
+  critical_rate: 1.6
+  critical_damage: 1.8
+  stealth_bonus: 0.5
+  assassination_rate: 0.2

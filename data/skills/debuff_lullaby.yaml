@@ -1,0 +1,13 @@
+id: debuff_lullaby
+name: Debuff Lullaby
+type: support
+description: Debuff Lullaby 스킬
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 2.0
+  duration: 3

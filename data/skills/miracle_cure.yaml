@@ -1,0 +1,12 @@
+id: miracle_cure
+name: 기적의 치유
+type: heal
+description: 기적적인 치유로 상태이상을 제거합니다
+costs:
+  mp: 40
+  cast_time: 1.0
+effects:
+- type: heal
+  target: ally
+  multiplier: 4.0
+  stat_base: magic

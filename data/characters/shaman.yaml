@@ -1,0 +1,65 @@
+class_name: 무당
+description: 영혼과 소통하여 미래를 예견하고 파티를 보호하는 영매
+archetype: 시야/정보 특화
+base_stats:
+  hp: 121
+  mp: 76
+  init_brv: 107
+  speed: 64
+  physical_attack: 48
+  physical_defense: 44
+  magic_attack: 86
+  magic_defense: 77
+  max_brv: 437
+stat_growth:
+  hp: 9
+  mp: 6
+  init_brv: 3.7
+  strength: 2.5
+  defense: 2.3
+  magic: 4.2
+  spirit: 4.8
+  speed: 3.5
+  luck: 4.8
+  accuracy: 2.0
+  evasion: 2.0
+  max_brv: 2.2
+traits:
+- id: spirit_sight
+  name: 영혼의 시야
+  description: 시야 범위 2배, 숨겨진 함정/보물 자동 발견
+  type: passive
+- id: ancestral_protection
+  name: 조상의 보호
+  description: 치명타 받을 확률 -50%, 즉사 공격 무효
+  type: passive
+- id: spirit_communion
+  name: 영혼 교감
+  description: 전투 시작 시 적의 약점 정보 획득
+  type: trigger
+- id: fortune_telling
+  name: 점술
+  description: 10% 확률로 적의 다음 행동 예측 및 회피
+  type: trigger
+- id: spirit_guide
+  name: 영혼 안내
+  description: 미니맵에 모든 적/아이템/출구 표시
+  type: passive
+gimmick:
+  type: totem_system
+  name: 토템의 저주
+  description: 토템을 설치하고 저주를 축적하여 강력한 주술 사용
+  max_curse_stacks: 10
+
+skills:
+- spirit_bolt
+- protection_totem
+- ancestral_call
+- spirit_link
+- vision_quest
+- soul_harvest
+bonuses:
+  vision_range: 2.0
+  treasure_find: 1.5
+  trap_detection: 1.0
+  critical_resistance: 0.5

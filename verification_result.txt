@@ -1,0 +1,247 @@
+================================================================================
+기믹 필드명 일치성 검증
+================================================================================
+
+총 34개 직업 YAML 발견
+character.py에서 33개 기믹 타입 발견
+combat_ui.py에서 33개 기믹 타입 발견
+
+================================================================================
+상세 검증 결과
+================================================================================
+
+[연금술사] (alchemist.yaml)
+  Gimmick Type: alchemy_system
+  YAML Max Fields: ['max_potion_stock']
+  Character Init Fields: ['potion_stock', 'max_potion_stock']
+  UI Display Fields: ['max_potion_stock', 'potion_stock']
+
+[궁수] (archer.yaml)
+  Gimmick Type: aim_system
+  YAML Max Fields: ['max_aim_points']
+  Character Init Fields: ['aim_points', 'max_aim_points', 'focus_stacks']
+  UI Display Fields: ['max_aim_points', 'aim_points']
+
+[아크메이지] (archmage.yaml)
+  Gimmick Type: elemental_counter
+  YAML Max Fields: []
+  Character Init Fields: ['fire_element', 'ice_element', 'lightning_element']
+  UI Display Fields: ['ice_element', 'fire_element', 'lightning_element']
+
+[암살자] (assassin.yaml)
+  Gimmick Type: stealth_system
+  YAML Max Fields: ['max_stealth_points']
+  Character Init Fields: ['stealth_points', 'max_stealth_points']
+  UI Display Fields: ['max_stealth_points', 'stealth_points']
+
+[바드] (bard.yaml)
+  Gimmick Type: melody_system
+  YAML Max Fields: ['max_melody_notes']
+  Character Init Fields: ['melody_stacks', 'max_melody_stacks', 'melody_notes', 'current_melody', 'octave_completed']
+  ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  UI Display Fields: ['melody_stacks', 'max_melody_stacks']
+
+[배틀메이지] (battle_mage.yaml)
+  Gimmick Type: rune_system
+  YAML Max Fields: ['max_rune_stacks']
+  Character Init Fields: ['rune_stacks', 'max_rune_stacks']
+  UI Display Fields: ['max_rune_stacks', 'rune_stacks']
+
+[광전사] (berserker.yaml)
+  Gimmick Type: rage_system
+  YAML Max Fields: ['max_rage_stacks']
+  Character Init Fields: ['rage_stacks', 'max_rage_stacks', 'shield_amount']
+  UI Display Fields: ['rage_stacks', 'max_rage_stacks']
+
+[브레이커] (breaker.yaml)
+  Gimmick Type: break_system
+  YAML Max Fields: ['max_break_power']
+  Character Init Fields: ['break_power', 'max_break_power']
+  UI Display Fields: ['max_break_power', 'break_power']
+
+[성직자] (cleric.yaml)
+  Gimmick Type: divinity_system
+  YAML Max Fields: ['max_faith_points']
+  Character Init Fields: ['judgment_points', 'max_judgment_points', 'faith_points', 'max_faith_points']
+  ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  UI Display Fields: ['faith_points', 'judgment_points']
+
+[암흑기사] (dark_knight.yaml)
+  Gimmick Type: darkness_system
+  YAML Max Fields: ['max_darkness']
+  Character Init Fields: ['darkness', 'max_darkness']
+  UI Display Fields: ['darkness']
+
+[차원술사] (dimensionist.yaml)
+  Gimmick Type: dimension_system
+  YAML Max Fields: ['max_dimension_points']
+  Character Init Fields: ['dimension_points', 'max_dimension_points']
+  UI Display Fields: ['dimension_points', 'max_dimension_points']
+
+[용기사] (dragon_knight.yaml)
+  Gimmick Type: dragon_marks
+  YAML Max Fields: ['max_dragon_power']
+  Character Init Fields: ['dragon_marks', 'max_dragon_marks', 'dragon_power']
+  ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  UI Display Fields: ['dragon_power', 'dragon_marks', 'max_dragon_marks']
+
+[드루이드] (druid.yaml)
+  Gimmick Type: shapeshifting_system
+  YAML Max Fields: ['max_nature_points']
+  Character Init Fields: ['nature_points', 'max_nature_points', 'current_form', 'available_forms']
+  UI Display Fields: ['nature_points', 'current_form']
+
+[정령술사] (elementalist.yaml)
+  Gimmick Type: spirit_bond
+  YAML Max Fields: ['max_bond']
+  Character Init Fields: ['spirit_bond', 'max_spirit_bond', 'spirit_count']
+  ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  UI Display Fields: ['spirit_bond', 'max_spirit_bond', 'spirit_count']
+
+[기계공학자] (engineer.yaml)
+  Gimmick Type: construct_system
+  YAML Max Fields: ['max_machine_parts']
+  Character Init Fields: ['machine_parts', 'max_machine_parts']
+  UI Display Fields: ['machine_parts', 'max_machine_parts']
+
+[검투사] (gladiator.yaml)
+  Gimmick Type: arena_system
+  YAML Max Fields: ['max_glory_points']
+  Character Init Fields: ['arena_points', 'max_arena_points', 'glory_points', 'kill_count', 'parry_active']
+  ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  UI Display Fields: ['glory_points', 'arena_points', 'kill_count']
+
+[해커] (hacker.yaml)
+  Gimmick Type: hack_system
+  YAML Max Fields: ['max_hack_stacks', 'max_debuff_count']
+  Character Init Fields: ['hack_stacks', 'max_hack_stacks', 'debuff_count', 'max_debuff_count']
+  UI Display Fields: ['max_hack_stacks', 'hack_stacks']
+
+[기사] (knight.yaml)
+  Gimmick Type: duty_system
+  YAML Max Fields: ['max_duty_stacks']
+  Character Init Fields: ['duty_stacks', 'max_duty_stacks']
+  UI Display Fields: ['duty_stacks', 'max_duty_stacks']
+
+[마법사] (mage.yaml)
+  Gimmick Type: elemental_counter
+  YAML Max Fields: []
+  Character Init Fields: ['fire_element', 'ice_element', 'lightning_element']
+  UI Display Fields: ['ice_element', 'fire_element', 'lightning_element']
+
+[몽크] (monk.yaml)
+  Gimmick Type: ki_system
+  YAML Max Fields: ['max_chakra_points', 'max_combo_count']
+  Character Init Fields: ['ki_energy', 'max_ki_energy', 'chakra_points', 'combo_count', 'strike_marks']
+  ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  UI Display Fields: ['max_ki_energy', 'ki_energy']
+
+[네크로맨서] (necromancer.yaml)
+  Gimmick Type: necro_system
+  YAML Max Fields: ['max_necro_energy', 'max_corpse_count', 'max_minion_count']
+  Character Init Fields: ['necro_energy', 'max_necro_energy', 'soul_power', 'undead_count', 'corpse_count', 'minion_count']
+  ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  UI Display Fields: ['max_necro_energy', 'necro_energy']
+
+[성기사] (paladin.yaml)
+  Gimmick Type: holy_system
+  YAML Max Fields: ['max_holy_power']
+  Character Init Fields: ['holy_power', 'max_holy_power']
+  UI Display Fields: ['max_holy_power', 'holy_power']
+
+[철학자] (philosopher.yaml)
+  Gimmick Type: wisdom_system
+  YAML Max Fields: ['max_knowledge_stacks']
+  Character Init Fields: ['knowledge_stacks', 'max_knowledge_stacks']
+  UI Display Fields: ['knowledge_stacks', 'max_knowledge_stacks']
+
+[해적] (pirate.yaml)
+  Gimmick Type: plunder_system
+  YAML Max Fields: ['max_gold']
+  Character Init Fields: ['gold', 'max_gold', 'gold_per_hit']
+  UI Display Fields: ['gold']
+
+[신관] (priest.yaml)
+  Gimmick Type: divinity_system
+  YAML Max Fields: ['max_judgment_points']
+  Character Init Fields: ['judgment_points', 'max_judgment_points', 'faith_points', 'max_faith_points']
+  ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  UI Display Fields: ['faith_points', 'judgment_points']
+
+[도적] (rogue.yaml)
+  Gimmick Type: theft_system
+  YAML Max Fields: ['max_stolen_items']
+  Character Init Fields: ['stolen_items', 'max_stolen_items', 'evasion_active']
+  UI Display Fields: ['stolen_items']
+
+[사무라이] (samurai.yaml)
+  Gimmick Type: iaijutsu_system
+  YAML Max Fields: ['max_will_gauge']
+  Character Init Fields: ['will_gauge', 'max_will_gauge']
+  UI Display Fields: ['will_gauge', 'max_will_gauge']
+
+[무당] (shaman.yaml)
+  Gimmick Type: totem_system
+  YAML Max Fields: ['max_curse_stacks']
+  Character Init Fields: ['curse_stacks', 'max_curse_stacks']
+  UI Display Fields: ['max_curse_stacks', 'curse_stacks']
+
+[저격수] (sniper.yaml)
+  Gimmick Type: aim_system
+  YAML Max Fields: ['max_focus_stacks']
+  Character Init Fields: ['aim_points', 'max_aim_points', 'focus_stacks']
+  ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  UI Display Fields: ['max_aim_points', 'aim_points']
+
+[마검사] (spellblade.yaml)
+  Gimmick Type: enchant_system
+  YAML Max Fields: ['max_mana_blade']
+  Character Init Fields: ['mana_blade', 'max_mana_blade']
+  UI Display Fields: ['mana_blade', 'max_mana_blade']
+
+[검성] (sword_saint.yaml)
+  Gimmick Type: sword_aura
+  YAML Max Fields: ['max_sword_aura']
+  Character Init Fields: ['sword_aura', 'max_sword_aura']
+  UI Display Fields: ['max_sword_aura', 'sword_aura']
+
+[시간술사] (time_mage.yaml)
+  Gimmick Type: time_system
+  YAML Max Fields: ['max_time_points']
+  Character Init Fields: ['time_marks', 'max_time_marks', 'time_points']
+  ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  UI Display Fields: ['max_time_marks', 'time_marks']
+
+[흡혈귀] (vampire.yaml)
+  Gimmick Type: blood_system
+  YAML Max Fields: ['max_blood_pool']
+  Character Init Fields: ['blood_pool', 'max_blood_pool', 'lifesteal_boost']
+  UI Display Fields: ['max_blood_pool', 'blood_pool']
+
+[전사] (warrior.yaml)
+  Gimmick Type: stance_system
+  YAML Max Fields: []
+  Character Init Fields: ['current_stance', 'stance_focus', 'available_stances']
+  UI Display Fields: ['current_stance']
+
+================================================================================
+UI에만 존재하는 기믹 타입 (중복 가능성)
+================================================================================
+  없음
+
+================================================================================
+요약
+================================================================================
+
+⚠️  10개의 문제 발견:
+
+  - 바드:   ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  - 성직자:   ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  - 용기사:   ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  - 정령술사:   ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  - 검투사:   ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  - 몽크:   ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  - 네크로맨서:   ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  - 신관:   ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  - 저격수:   ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
+  - 시간술사:   ⚠️  YAML의 max_ 필드와 character.py의 max_ 필드가 불일치
