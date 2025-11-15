@@ -146,12 +146,13 @@ class WorldUI:
                 logger.warning(f"[DEBUG] 전투 요청됨! 루프 탈출")
                 return True
 
-        # 채집 상호작용 (E키)
-        elif action == GameAction.INTERACT:
-            # 플레이어 주변 채집 오브젝트 찾기
+        # 채집 상호작용 (E키 또는 Z키)
+        elif action == GameAction.INTERACT or action == GameAction.CONFIRM:
+            # 먼저 주변에 채집 오브젝트가 있는지 확인
             nearby_harvestable = self._find_nearby_harvestable()
 
             if nearby_harvestable:
+                # 채집 오브젝트가 있으면 채집 실행
                 if console is not None and context is not None and self.inventory is not None:
                     from src.ui.gathering_ui import harvest_object, show_gathering_prompt
 
@@ -164,27 +165,29 @@ class WorldUI:
                         return False
                 else:
                     logger.warning("채집 불가: console, context, inventory가 필요합니다")
-            else:
+                return False
+
+            # 채집 오브젝트가 없으면 계단 이동 확인 (Z키만)
+            elif action == GameAction.CONFIRM:
+                tile = self.exploration.dungeon.get_tile(
+                    self.exploration.player.x,
+                    self.exploration.player.y
+                )
+
+                if tile:
+                    from src.world.tile import TileType
+                    if tile.tile_type == TileType.STAIRS_DOWN:
+                        self.floor_change_requested = "down"
+                        self.add_message("아래층으로 내려갑니다...")
+                        return True
+                    elif tile.tile_type == TileType.STAIRS_UP:
+                        self.floor_change_requested = "up"
+                        self.add_message("위층으로 올라갑니다...")
+                        return True
+
+            # E키를 눌렀지만 주변에 아무것도 없을 때
+            elif action == GameAction.INTERACT:
                 self.add_message("주변에 채집할 것이 없습니다.")
-            return False
-
-        # 계단 이동
-        elif action == GameAction.CONFIRM:
-            tile = self.exploration.dungeon.get_tile(
-                self.exploration.player.x,
-                self.exploration.player.y
-            )
-
-            if tile:
-                from src.world.tile import TileType
-                if tile.tile_type == TileType.STAIRS_DOWN:
-                    self.floor_change_requested = "down"
-                    self.add_message("아래층으로 내려갑니다...")
-                    return True
-                elif tile.tile_type == TileType.STAIRS_UP:
-                    self.floor_change_requested = "up"
-                    self.add_message("위층으로 올라갑니다...")
-                    return True
 
         return False
 
