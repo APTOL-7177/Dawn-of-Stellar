@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dawn of Stellar - 전투 데모</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .demo-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            text-align: center;
+            opacity: 0.8;
+            margin-bottom: 30px;
+        }
+
+        .combat-display {
+            background: #000;
+            border: 3px solid #4a90e2;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 400px;
+            margin-bottom: 20px;
+            overflow-y: auto;
+        }
+
+        .character-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .char-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .char-card.enemy {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .char-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .stat-bar {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            padding: 5px;
+            margin: 5px 0;
+        }
+
+        .bar {
+            background: linear-gradient(90deg, #27ae60 0%, #2ecc71 100%);
+            height: 20px;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .bar.mp {
+            background: linear-gradient(90deg, #3498db 0%, #5dade2 100%);
+        }
+
+        .bar.brv {
+            background: linear-gradient(90deg, #f39c12 0%, #f1c40f 100%);
+        }
+
+        .bar.atb {
+            background: linear-gradient(90deg, #9b59b6 0%, #8e44ad 100%);
+        }
+
+        .bar-text {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-weight: bold;
+            font-size: 0.9rem;
+            line-height: 20px;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .log-entry {
+            margin: 8px 0;
+            padding: 8px;
+            border-left: 3px solid #4a90e2;
+            background: rgba(74, 144, 226, 0.1);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .log-entry.damage {
+            border-left-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+        }
+
+        .log-entry.heal {
+            border-left-color: #27ae60;
+            background: rgba(39, 174, 96, 0.1);
+        }
+
+        .log-entry.break {
+            border-left-color: #f39c12;
+            background: rgba(243, 156, 18, 0.1);
+            font-weight: bold;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #4a90e2;
+            text-decoration: none;
+            font-size: 1.1rem;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>⚔️ 전투 시스템 데모</h1>
+        <p class="subtitle">ATB + BRV 시스템 체험</p>
+
+        <div class="character-panel">
+            <div class="char-card">
+                <div class="char-name">🗡️ 전사</div>
+                <div class="stat-bar">
+                    <div class="bar" id="player-hp" style="width: 100%;">
+                        <span class="bar-text">HP: <span id="player-hp-text">210/210</span></span>
+                    </div>
+                </div>
+                <div class="stat-bar">
+                    <div class="bar mp" id="player-mp" style="width: 100%;">
+                        <span class="bar-text">MP: <span id="player-mp-text">32/32</span></span>
+                    </div>
+                </div>
+                <div class="stat-bar">
+                    <div class="bar brv" id="player-brv" style="width: 67%;">
+                        <span class="bar-text">BRV: <span id="player-brv-text">1000/1500</span></span>
+                    </div>
+                </div>
+                <div class="stat-bar">
+                    <div class="bar atb" id="player-atb" style="width: 0%;">
+                        <span class="bar-text">ATB: <span id="player-atb-text">0/2000</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="char-card enemy">
+                <div class="char-name">👹 고블린</div>
+                <div class="stat-bar">
+                    <div class="bar" id="enemy-hp" style="width: 100%;">
+                        <span class="bar-text">HP: <span id="enemy-hp-text">150/150</span></span>
+                    </div>
+                </div>
+                <div class="stat-bar">
+                    <div class="bar mp" id="enemy-mp" style="width: 100%;">
+                        <span class="bar-text">MP: <span id="enemy-mp-text">20/20</span></span>
+                    </div>
+                </div>
+                <div class="stat-bar">
+                    <div class="bar brv" id="enemy-brv" style="width: 80%;">
+                        <span class="bar-text">BRV: <span id="enemy-brv-text">800/1000</span></span>
+                    </div>
+                </div>
+                <div class="stat-bar">
+                    <div class="bar atb" id="enemy-atb" style="width: 0%;">
+                        <span class="bar-text">ATB: <span id="enemy-atb-text">0/2000</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="combat-display" id="combat-log">
+            <div class="log-entry">⚔️ 전투 시작! ATB 게이지가 자동으로 증가합니다.</div>
+            <div class="log-entry">💡 ATB가 1000에 도달하면 행동할 수 있습니다.</div>
+            <div class="log-entry">💡 BRV 공격으로 BRV를 축적하고, HP 공격으로 실제 데미지를 입히세요!</div>
+        </div>
+
+        <div class="actions">
+            <button class="btn" id="brv-attack" disabled>BRV 공격</button>
+            <button class="btn" id="hp-attack" disabled>HP 공격</button>
+            <button class="btn" id="skill-attack" disabled>스킬: 강타</button>
+            <button class="btn" id="auto-btn">자동 전투</button>
+        </div>
+
+        <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
+    </div>
+
+    <script src="demo.js"></script>
+</body>
+</html>
