@@ -154,7 +154,7 @@ class DungeonGenerator:
         self._create_walls(dungeon)
 
         # 계단 배치
-        self._place_stairs(dungeon)
+        self._place_stairs(dungeon, floor_number)
 
         # 기믹 배치
         self._place_gimmicks(dungeon, floor_number)
@@ -319,16 +319,17 @@ class DungeonGenerator:
                             dungeon.set_tile(x, y, TileType.WALL)
                             break
 
-    def _place_stairs(self, dungeon: DungeonMap):
+    def _place_stairs(self, dungeon: DungeonMap, floor_number: int):
         """계단 배치"""
         if not dungeon.rooms:
             return
 
-        # 올라가는 계단 - 첫 번째 방
-        first_room = dungeon.rooms[0]
-        x, y = first_room.center
-        dungeon.set_tile(x, y, TileType.STAIRS_UP)
-        dungeon.stairs_up = (x, y)
+        # 올라가는 계단 - 첫 번째 방 (1층이 아닐 때만)
+        if floor_number > 1:
+            first_room = dungeon.rooms[0]
+            x, y = first_room.center
+            dungeon.set_tile(x, y, TileType.STAIRS_UP)
+            dungeon.stairs_up = (x, y)
 
         # 내려가는 계단 - 마지막 방
         last_room = dungeon.rooms[-1]

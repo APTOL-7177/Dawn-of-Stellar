@@ -94,9 +94,25 @@ class ExplorationSystem:
 
     def __init__(self, dungeon: DungeonMap, party: List[Any], floor_number: int = 1, inventory=None, game_stats=None):
         self.dungeon = dungeon
+
+        # 플레이어 스폰 위치 결정 (계단이 아닌 첫 번째 방의 안전한 위치)
+        spawn_x, spawn_y = 5, 5  # 기본값
+        if dungeon.rooms:
+            first_room = dungeon.rooms[0]
+            # 방의 중심에서 약간 떨어진 랜덤 위치
+            import random
+            spawn_x = first_room.x + random.randint(2, max(2, first_room.width - 3))
+            spawn_y = first_room.y + random.randint(2, max(2, first_room.height - 3))
+
+            # 계단과 겹치지 않도록 확인
+            if dungeon.stairs_up and (spawn_x, spawn_y) == dungeon.stairs_up:
+                spawn_x += 1
+            if dungeon.stairs_down and (spawn_x, spawn_y) == dungeon.stairs_down:
+                spawn_x += 1
+
         self.player = Player(
-            x=dungeon.stairs_up[0] if dungeon.stairs_up else 5,
-            y=dungeon.stairs_up[1] if dungeon.stairs_up else 5,
+            x=spawn_x,
+            y=spawn_y,
             party=party
         )
         self.fov_system = FOVSystem(default_radius=3)
