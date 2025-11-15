@@ -146,11 +146,24 @@ class WorldUI:
                 logger.warning(f"[DEBUG] 전투 요청됨! 루프 탈출")
                 return True
 
-        # 채집 상호작용 (E키 또는 Z키)
+        # 상호작용 (E키 또는 Z키)
         elif action == GameAction.INTERACT or action == GameAction.CONFIRM:
-            # 먼저 주변에 채집 오브젝트가 있는지 확인
-            nearby_harvestable = self._find_nearby_harvestable()
+            # 우선순위 1: 요리솥
+            nearby_cooking_pot = self._find_nearby_cooking_pot()
+            if nearby_cooking_pot:
+                if console is not None and context is not None and self.inventory is not None:
+                    from src.ui.cooking_ui import open_cooking_ui
 
+                    # 요리 UI 열기
+                    logger.info("요리솥 발견! 요리 UI 열기")
+                    open_cooking_ui(console, context, self.inventory, self.party)
+                    return False
+                else:
+                    self.add_message("요리솥을 사용할 수 없습니다.")
+                    return False
+
+            # 우선순위 2: 채집 오브젝트
+            nearby_harvestable = self._find_nearby_harvestable()
             if nearby_harvestable:
                 # 채집 오브젝트가 있으면 채집 실행
                 if console is not None and context is not None and self.inventory is not None:
@@ -167,8 +180,8 @@ class WorldUI:
                     logger.warning("채집 불가: console, context, inventory가 필요합니다")
                 return False
 
-            # 채집 오브젝트가 없으면 계단 이동 확인 (Z키만)
-            elif action == GameAction.CONFIRM:
+            # 우선순위 3: 계단 이동 (Z키만)
+            if action == GameAction.CONFIRM:
                 tile = self.exploration.dungeon.get_tile(
                     self.exploration.player.x,
                     self.exploration.player.y
@@ -186,8 +199,8 @@ class WorldUI:
                         return True
 
             # E키를 눌렀지만 주변에 아무것도 없을 때
-            elif action == GameAction.INTERACT:
-                self.add_message("주변에 채집할 것이 없습니다.")
+            if action == GameAction.INTERACT:
+                self.add_message("주변에 상호작용할 것이 없습니다.")
 
         return False
 
@@ -226,10 +239,13 @@ class WorldUI:
     def _find_nearby_harvestable(self):
         """
         플레이어 주변의 채집 가능한 오브젝트 찾기
+        (요리솥은 제외 - 별도 상호작용 필요)
 
         Returns:
             가장 가까운 HarvestableObject 또는 None
         """
+        from src.gathering.harvestable import HarvestableType
+
         player_x = self.exploration.player.x
         player_y = self.exploration.player.y
 
@@ -240,6 +256,10 @@ class WorldUI:
         closest_distance = max_distance + 1
 
         for harvestable in self.exploration.dungeon.harvestables:
+            # 요리솥은 채집이 아니라 요리 UI를 열어야 함
+            if harvestable.object_type == HarvestableType.COOKING_POT:
+                continue
+
             # 이미 채집한 오브젝트는 제외
             if harvestable.harvested:
                 continue
@@ -253,6 +273,35 @@ class WorldUI:
                 closest_distance = distance
 
         return closest_harvestable
+
+    def _find_nearby_cooking_pot(self):
+        """
+        플레이어 주변의 요리솥 찾기
+
+        Returns:
+            가장 가까운 요리솥 HarvestableObject 또는 None
+        """
+        from src.gathering.harvestable import HarvestableType
+
+        player_x = self.exploration.player.x
+        player_y = self.exploration.player.y
+
+        # 인접 범위 (맨하탄 거리 1~2칸)
+        max_distance = 2
+
+        for harvestable in self.exploration.dungeon.harvestables:
+            # 요리솥만 찾기
+            if harvestable.object_type != HarvestableType.COOKING_POT:
+                continue
+
+            # 맨하탄 거리 계산
+            distance = abs(harvestable.x - player_x) + abs(harvestable.y - player_y)
+
+            # 범위 내이면 반환
+            if distance <= max_distance:
+                return harvestable
+
+        return None
 
     def render(self, console: tcod.console.Console):
         """렌더링"""
