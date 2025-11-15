@@ -217,6 +217,17 @@ def serialize_dungeon(dungeon: Any) -> Dict[str, Any]:
                 "loot_id": tile.loot_id
             })
 
+    # 채집 오브젝트 직렬화
+    harvestables_data = []
+    if hasattr(dungeon, 'harvestables'):
+        for harvestable in dungeon.harvestables:
+            harvestables_data.append({
+                "object_type": harvestable.object_type.value,
+                "x": harvestable.x,
+                "y": harvestable.y,
+                "harvested": harvestable.harvested
+            })
+
     return {
         "width": dungeon.width,
         "height": dungeon.height,
@@ -226,6 +237,7 @@ def serialize_dungeon(dungeon: Any) -> Dict[str, Any]:
         "keys": dungeon.keys,
         "locked_doors": dungeon.locked_doors,
         "teleporters": {str(k): v for k, v in dungeon.teleporters.items()},  # Tuple key를 문자열로
+        "harvestables": harvestables_data,  # 채집 오브젝트 추가
     }
 
 
@@ -291,6 +303,7 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Any:
     """던전 역직렬화"""
     from src.world.dungeon_generator import DungeonMap
     from src.world.tile import TileType
+    from src.gathering.harvestable import HarvestableObject, HarvestableType
 
     dungeon = DungeonMap(dungeon_data["width"], dungeon_data["height"])
 
@@ -324,6 +337,20 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Any:
         key = eval(k_str)  # "(x, y)" 문자열을 튜플로
         teleporters[key] = tuple(v)
     dungeon.teleporters = teleporters
+
+    # 채집 오브젝트 복원
+    harvestables = []
+    for harv_data in dungeon_data.get("harvestables", []):
+        harvestable = HarvestableObject(
+            object_type=HarvestableType(harv_data["object_type"]),
+            x=harv_data["x"],
+            y=harv_data["y"],
+            harvested=harv_data.get("harvested", False)
+        )
+        harvestables.append(harvestable)
+    dungeon.harvestables = harvestables
+
+    logger.info(f"던전 복원 완료: {len(harvestables)}개의 채집 오브젝트 복원됨")
 
     return dungeon
 
