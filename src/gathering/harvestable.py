@@ -136,6 +136,26 @@ class HarvestableObject:
         """채집 가능 여부"""
         return not self.harvested
 
+    @property
+    def char(self) -> str:
+        """맵에 표시될 문자 심볼"""
+        return self.object_type.symbol
+
+    @property
+    def color(self) -> tuple:
+        """오브젝트 색상 (RGB)"""
+        colors = {
+            HarvestableType.BERRY_BUSH: (255, 100, 100),      # 빨간색
+            HarvestableType.MUSHROOM_PATCH: (200, 100, 255),  # 보라색
+            HarvestableType.HERB_PLANT: (100, 255, 100),      # 초록색
+            HarvestableType.TREE: (139, 69, 19),              # 갈색
+            HarvestableType.ROCK: (150, 150, 150),            # 회색
+            HarvestableType.WATER: (100, 150, 255),           # 파란색
+            HarvestableType.CARCASS: (200, 50, 50),           # 어두운 빨강
+            HarvestableType.COOKING_POT: (255, 200, 0)        # 주황색
+        }
+        return colors.get(self.object_type, (255, 255, 255))
+
 
 class HarvestableGenerator:
     """채집 오브젝트 생성기"""
