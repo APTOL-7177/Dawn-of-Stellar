@@ -174,6 +174,14 @@ def main() -> int:
                     # 던전 복원
                     dungeon = deserialize_dungeon(loaded_state["dungeon"])
                     floor_number = loaded_state.get("floor_number", 1)
+
+                    # 디버그: 채집 오브젝트 복원 확인
+                    harvestables_count = len(dungeon.harvestables) if hasattr(dungeon, 'harvestables') else 0
+                    logger.warning(f"[LOAD] 던전 복원 후 채집 오브젝트: {harvestables_count}개")
+                    if hasattr(dungeon, 'harvestables') and dungeon.harvestables:
+                        for i, h in enumerate(dungeon.harvestables[:3]):
+                            logger.warning(f"[LOAD]   {i+1}. {h.object_type.value} at ({h.x}, {h.y}), harvested={h.harvested}")
+
                     logger.info(f"던전 복원 완료: {floor_number}층")
 
                     # 인벤토리 복원 (파티 정보 전달로 최대 무게 계산)

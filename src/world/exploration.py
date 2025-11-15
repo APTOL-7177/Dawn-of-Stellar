@@ -137,6 +137,13 @@ class ExplorationSystem:
         else:
             logger.error(f"[INIT] ⚠️ 인벤토리가 None입니다!")
 
+        # 채집 오브젝트 확인
+        harvestables_count = len(dungeon.harvestables) if hasattr(dungeon, 'harvestables') else 0
+        logger.warning(f"[INIT] 던전 채집 오브젝트: {harvestables_count}개")
+        if hasattr(dungeon, 'harvestables') and dungeon.harvestables:
+            for i, h in enumerate(dungeon.harvestables[:3]):  # 처음 3개만 로깅
+                logger.warning(f"[INIT]   {i+1}. {h.object_type.value} at ({h.x}, {h.y}), harvested={h.harvested}")
+
         # 적 배치
         self._spawn_enemies()
 

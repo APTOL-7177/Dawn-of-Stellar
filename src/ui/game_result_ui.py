@@ -180,7 +180,7 @@ class GameResultUI:
         Returns:
             True: 종료, False: 계속
         """
-        if action == GameAction.CONFIRM or action == GameAction.ESCAPE:
+        if action == GameAction.CONFIRM or action == GameAction.ESCAPE or action == GameAction.MENU:
             return True
         return False
 
@@ -260,13 +260,14 @@ def show_game_result(
     # 정산 완료 처리
     ui.finalize()
 
-    # BGM 정지
+    # 게임 오버 BGM 재생
     try:
-        from src.audio import stop_bgm
-        stop_bgm()
+        from src.audio import play_bgm
+        play_bgm("game_over")
+        logger.info("게임 오버 BGM 재생")
     except Exception as e:
         # 오디오 시스템 없으면 무시
-        logger.debug(f"BGM 정지 실패 (오디오 시스템 없음): {e}")
+        logger.debug(f"게임 오버 BGM 재생 실패 (오디오 시스템 없음): {e}")
 
     # 결과 화면 표시
     while True:
