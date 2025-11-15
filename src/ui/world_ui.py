@@ -232,6 +232,14 @@ class WorldUI:
                 enemy_color = (255, 50, 50) if enemy.is_boss else (255, 150, 50)
                 console.print(enemy_screen_x, enemy_screen_y, "E", fg=enemy_color)
 
+        # 파밍 오브젝트 위치 표시 (채집 가능한 오브젝트)
+        for harvestable in self.exploration.dungeon.harvestables:
+            harv_screen_x = harvestable.x - camera_x
+            harv_screen_y = 5 + (harvestable.y - camera_y)
+            if 0 <= harv_screen_x < self.screen_width and 0 <= harv_screen_y < 40:
+                # 채집 오브젝트 표시
+                console.print(harv_screen_x, harv_screen_y, harvestable.char, fg=harvestable.color)
+
         # 플레이어 위치 표시 (적 위에 덮어씀)
         screen_x = player.x - camera_x
         screen_y = 5 + (player.y - camera_y)
