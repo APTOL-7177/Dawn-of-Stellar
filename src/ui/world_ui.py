@@ -146,6 +146,28 @@ class WorldUI:
                 logger.warning(f"[DEBUG] 전투 요청됨! 루프 탈출")
                 return True
 
+        # 채집 상호작용 (E키)
+        elif action == GameAction.INTERACT:
+            # 플레이어 주변 채집 오브젝트 찾기
+            nearby_harvestable = self._find_nearby_harvestable()
+
+            if nearby_harvestable:
+                if console is not None and context is not None and self.inventory is not None:
+                    from src.ui.gathering_ui import harvest_object, show_gathering_prompt
+
+                    # 채집 확인 프롬프트
+                    if show_gathering_prompt(console, context, nearby_harvestable):
+                        # 채집 실행
+                        success = harvest_object(console, context, nearby_harvestable, self.inventory)
+                        if success:
+                            logger.info(f"채집 성공: {nearby_harvestable.object_type.display_name}")
+                        return False
+                else:
+                    logger.warning("채집 불가: console, context, inventory가 필요합니다")
+            else:
+                self.add_message("주변에 채집할 것이 없습니다.")
+            return False
+
         # 계단 이동
         elif action == GameAction.CONFIRM:
             tile = self.exploration.dungeon.get_tile(
@@ -197,6 +219,37 @@ class WorldUI:
 
         elif result.event == ExplorationEvent.TELEPORT:
             self.add_message(f"위치: ({self.exploration.player.x}, {self.exploration.player.y})")
+
+    def _find_nearby_harvestable(self):
+        """
+        플레이어 주변의 채집 가능한 오브젝트 찾기
+
+        Returns:
+            가장 가까운 HarvestableObject 또는 None
+        """
+        player_x = self.exploration.player.x
+        player_y = self.exploration.player.y
+
+        # 인접 범위 (맨하탄 거리 1~2칸)
+        max_distance = 2
+
+        closest_harvestable = None
+        closest_distance = max_distance + 1
+
+        for harvestable in self.exploration.dungeon.harvestables:
+            # 이미 채집한 오브젝트는 제외
+            if harvestable.harvested:
+                continue
+
+            # 맨하탄 거리 계산
+            distance = abs(harvestable.x - player_x) + abs(harvestable.y - player_y)
+
+            # 범위 내이고 더 가까우면 선택
+            if distance <= max_distance and distance < closest_distance:
+                closest_harvestable = harvestable
+                closest_distance = distance
+
+        return closest_harvestable
 
     def render(self, console: tcod.console.Console):
         """렌더링"""
