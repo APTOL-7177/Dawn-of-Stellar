@@ -180,7 +180,7 @@ class GameResultUI:
         Returns:
             True: 종료, False: 계속
         """
-        if action == GameAction.CONFIRM or action == GameAction.ESCAPE:
+        if action == GameAction.CONFIRM or action == GameAction.ESCAPE or action == GameAction.MENU:
             return True
         return False
 
