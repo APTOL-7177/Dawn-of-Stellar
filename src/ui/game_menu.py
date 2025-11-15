@@ -214,6 +214,13 @@ def open_game_menu(
                         logger.warning(f"[SAVE] 저장 전 인벤토리: {inventory}")
                         logger.warning(f"[SAVE] 인벤토리 골드: {inventory.gold if inventory and hasattr(inventory, 'gold') else 'N/A'}G")
 
+                        # 디버그: 채집 오브젝트 확인
+                        harvestables_count = len(exploration.dungeon.harvestables) if hasattr(exploration.dungeon, 'harvestables') else 0
+                        logger.warning(f"[SAVE] 저장 전 채집 오브젝트: {harvestables_count}개")
+                        if hasattr(exploration.dungeon, 'harvestables') and exploration.dungeon.harvestables:
+                            for i, h in enumerate(exploration.dungeon.harvestables[:3]):
+                                logger.warning(f"[SAVE]   {i+1}. {h.object_type.value} at ({h.x}, {h.y}), harvested={h.harvested}")
+
                         game_state = {
                             "party": [serialize_party_member(m) for m in party] if party else [],
                             "floor_number": exploration.floor_number,
