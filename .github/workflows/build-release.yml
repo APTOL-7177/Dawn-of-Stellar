@@ -32,10 +32,8 @@ jobs:
         run: |
           pyinstaller --name="DawnOfStellar" `
             --onefile `
-            --windowed `
-            --icon=assets/icon.ico `
+            --console `
             --add-data="data;data" `
-            --add-data="assets;assets" `
             --hidden-import=tcod `
             --hidden-import=yaml `
             --hidden-import=numpy `
@@ -43,10 +41,10 @@ jobs:
 
       - name: Create artifact
         run: |
-          mkdir release
-          cp dist/DawnOfStellar.exe release/
-          cp README.md release/
-          cp LICENSE release/
+          New-Item -ItemType Directory -Force -Path release
+          Copy-Item dist/DawnOfStellar.exe release/
+          if (Test-Path README.md) { Copy-Item README.md release/ }
+          if (Test-Path LICENSE) { Copy-Item LICENSE release/ }
 
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
@@ -81,8 +79,8 @@ jobs:
         run: |
           pyinstaller --name="DawnOfStellar" \
             --onefile \
+            --console \
             --add-data="data:data" \
-            --add-data="assets:assets" \
             --hidden-import=tcod \
             --hidden-import=yaml \
             --hidden-import=numpy \
@@ -90,10 +88,10 @@ jobs:
 
       - name: Create artifact
         run: |
-          mkdir release
+          mkdir -p release
           cp dist/DawnOfStellar release/
-          cp README.md release/
-          cp LICENSE release/
+          [ -f README.md ] && cp README.md release/ || true
+          [ -f LICENSE ] && cp LICENSE release/ || true
           chmod +x release/DawnOfStellar
 
       - name: Upload Linux build
@@ -124,9 +122,8 @@ jobs:
         run: |
           pyinstaller --name="DawnOfStellar" \
             --onefile \
-            --windowed \
+            --console \
             --add-data="data:data" \
-            --add-data="assets:assets" \
             --hidden-import=tcod \
             --hidden-import=yaml \
             --hidden-import=numpy \
@@ -134,10 +131,10 @@ jobs:
 
       - name: Create artifact
         run: |
-          mkdir release
+          mkdir -p release
           cp dist/DawnOfStellar release/
-          cp README.md release/
-          cp LICENSE release/
+          [ -f README.md ] && cp README.md release/ || true
+          [ -f LICENSE ] && cp LICENSE release/ || true
           chmod +x release/DawnOfStellar
 
       - name: Upload macOS build
