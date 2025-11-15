@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dawn of Stellar - 웹에서 플레이</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #loading {
+            text-align: center;
+            padding: 40px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        #loading .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #game-container {
+            display: none;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        #game-canvas {
+            display: block;
+            margin: 0 auto;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        #controls {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 10px;
+        }
+
+        #controls h3 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .control-item {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+        }
+
+        .key {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #667eea;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        #error {
+            display: none;
+            background: rgba(231, 76, 60, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .back-link:hover {
+            background: #5568d3;
+        }
+
+        #status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(39, 174, 96, 0.3);
+            border-radius: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⭐ Dawn of Stellar - 웹 버전</h1>
+
+        <div id="loading">
+            <h2>🚀 게임 로딩 중...</h2>
+            <div class="spinner"></div>
+            <p id="loading-status">Python 런타임 초기화 중...</p>
+        </div>
+
+        <div id="game-container">
+            <canvas id="game-canvas"></canvas>
+
+            <div id="controls">
+                <h3>⌨️ 게임 조작법</h3>
+                <div class="control-grid">
+                    <div class="control-item">
+                        <span class="key">↑↓←→</span> 이동
+                    </div>
+                    <div class="control-item">
+                        <span class="key">SPACE</span> 전투 시작
+                    </div>
+                    <div class="control-item">
+                        <span class="key">1-6</span> 스킬 사용
+                    </div>
+                    <div class="control-item">
+                        <span class="key">I</span> 인벤토리
+                    </div>
+                    <div class="control-item">
+                        <span class="key">C</span> 캐릭터 정보
+                    </div>
+                    <div class="control-item">
+                        <span class="key">ESC</span> 메뉴
+                    </div>
+                </div>
+            </div>
+
+            <div id="status">
+                게임이 실행 중입니다. 즐거운 모험 되세요! ⚔️
+            </div>
+        </div>
+
+        <div id="error">
+            <h2>❌ 오류 발생</h2>
+            <p id="error-message"></p>
+            <p style="margin-top: 10px;">
+                <strong>참고:</strong> 웹 버전은 실험적 기능입니다.
+                완전한 게임 경험을 원하신다면
+                <a href="https://github.com/APTOL-7177/Dawn-of-Stellar/releases" style="color: #fff;">
+                    데스크톱 버전
+                </a>을 다운로드하세요.
+            </p>
+        </div>
+
+        <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
+    </div>
+
+    <script>
+        let pyodide = null;
+        const loadingStatus = document.getElementById('loading-status');
+
+        async function loadGame() {
+            try {
+                // Pyodide 로드
+                loadingStatus.textContent = 'Python 런타임 로딩 중... (약 30초 소요)';
+                pyodide = await loadPyodide();
+
+                // 필요한 패키지 설치
+                loadingStatus.textContent = 'TCOD 패키지 설치 중...';
+                await pyodide.loadPackage('micropip');
+                const micropip = pyodide.pyimport('micropip');
+
+                // python-tcod 설치 (웹 버전이 있는 경우)
+                loadingStatus.textContent = 'python-tcod 설치 시도 중...';
+                try {
+                    await micropip.install('tcod');
+                    loadingStatus.textContent = 'PyYAML 설치 중...';
+                    await micropip.install('pyyaml');
+                    await micropip.install('numpy');
+                } catch (e) {
+                    throw new Error('python-tcod 웹 버전을 찾을 수 없습니다. 이 게임은 아직 웹에서 완전히 지원되지 않습니다.');
+                }
+
+                // 게임 파일 로드 준비
+                loadingStatus.textContent = '게임 파일 로딩 중...';
+
+                // GitHub에서 파일을 fetch해야 하는데, 이는 복잡합니다
+                // 대신 간단한 버전을 표시
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error-message').innerHTML = `
+                    <strong>알림:</strong> 완전한 웹 버전 지원은 아직 준비 중입니다.<br><br>
+                    현재 이용 가능한 옵션:<br>
+                    1. <a href="demo.html" style="color: #fff; text-decoration: underline;">전투 시스템 데모</a> - 브라우저에서 즉시 플레이<br>
+                    2. <a href="https://github.com/APTOL-7177/Dawn-of-Stellar/releases" style="color: #fff; text-decoration: underline;">데스크톱 버전 다운로드</a> - 완전한 게임 경험<br><br>
+
+                    <strong>기술적 이유:</strong><br>
+                    - python-tcod의 웹 버전은 실험적 단계입니다<br>
+                    - 파일 시스템 접근이 제한적입니다<br>
+                    - 대용량 에셋 로딩이 필요합니다<br><br>
+
+                    완전한 웹 버전은 곧 출시 예정입니다! 🚀
+                `;
+
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error-message').innerHTML = `
+                    <strong>오류:</strong> ${error.message}<br><br>
+                    <strong>해결 방법:</strong><br>
+                    1. <a href="demo.html" style="color: #fff; text-decoration: underline;">전투 데모 플레이</a><br>
+                    2. <a href="https://github.com/APTOL-7177/Dawn-of-Stellar/releases" style="color: #fff; text-decoration: underline;">데스크톱 버전 다운로드</a>
+                `;
+                console.error('Game loading error:', error);
+            }
+        }
+
+        // 페이지 로드 시 게임 시작
+        window.addEventListener('load', loadGame);
+    </script>
+</body>
+</html>
