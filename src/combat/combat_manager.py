@@ -842,6 +842,16 @@ class CombatManager:
         """
         return self.atb.get_action_order()
 
+    @property
+    def party(self) -> List[Any]:
+        """
+        아군 파티 (allies의 별칭)
+
+        Returns:
+            아군 리스트
+        """
+        return self.allies
+
     def is_player_turn(self, character: Any) -> bool:
         """플레이어 턴 여부"""
         return character in self.allies
