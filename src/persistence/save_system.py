@@ -259,7 +259,8 @@ def serialize_game_state(
     inventory: List[Any],
     player_keys: List[str],
     traits: List[Any],
-    passives: List[Any]
+    passives: List[Any],
+    difficulty: Optional[str] = None
 ) -> Dict[str, Any]:
     """전체 게임 상태 직렬화"""
 
@@ -305,6 +306,7 @@ def serialize_game_state(
         "keys": player_keys,
         "traits": traits_data,
         "passives": passives_data,
+        "difficulty": difficulty if difficulty else "보통",  # 난이도 추가
     }
 
 

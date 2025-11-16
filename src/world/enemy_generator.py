@@ -240,20 +240,20 @@ ENEMY_TEMPLATES = {
 class SimpleEnemy:
     """간단한 적 클래스 (전투용)"""
 
-    def __init__(self, template: EnemyTemplate, level_modifier: float = 1.0):
+    def __init__(self, template: EnemyTemplate, level_modifier: float = 1.0, difficulty_hp_mult: float = 1.0, difficulty_dmg_mult: float = 1.0):
         self.enemy_id = template.enemy_id  # 적 ID 저장 (BGM 선택용)
         self.name = template.name
         self.level = max(1, int(template.level * level_modifier))
 
-        # 스탯 (레벨 보정)
-        self.max_hp = int(template.hp * level_modifier)
+        # 스탯 (레벨 보정 + 난이도 보정)
+        self.max_hp = int(template.hp * level_modifier * difficulty_hp_mult)
         self.current_hp = self.max_hp
         self.max_mp = int(template.mp * level_modifier)
         self.current_mp = self.max_mp
 
-        self.physical_attack = int(template.physical_attack * level_modifier)
+        self.physical_attack = int(template.physical_attack * level_modifier * difficulty_dmg_mult)
         self.physical_defense = int(template.physical_defense * level_modifier)
-        self.magic_attack = int(template.magic_attack * level_modifier)
+        self.magic_attack = int(template.magic_attack * level_modifier * difficulty_dmg_mult)
         self.magic_defense = int(template.magic_defense * level_modifier)
         self.speed = template.speed
         self.luck = template.luck
@@ -360,6 +360,16 @@ class EnemyGenerator:
             # 랜덤하게 1~4마리 생성
             num_enemies = random.randint(min_enemies, max_enemies)
 
+        # 난이도 시스템에서 배율 가져오기
+        from src.core.difficulty import get_difficulty_system
+        difficulty_system = get_difficulty_system()
+
+        difficulty_hp_mult = 1.0
+        difficulty_dmg_mult = 1.0
+        if difficulty_system:
+            difficulty_hp_mult = difficulty_system.get_enemy_hp_multiplier()
+            difficulty_dmg_mult = difficulty_system.get_enemy_damage_multiplier()
+
         # 층수에 맞는 적 ID 가져오기
         suitable_enemy_ids = EnemyGenerator.get_suitable_enemies_for_floor(floor_number)
 
@@ -373,7 +383,7 @@ class EnemyGenerator:
             # 1층 = 1.0배, 2층 = 1.5배, 3층 = 2.0배, ...
             level_modifier = 1.0 + (floor_number - 1) * 0.5
 
-            enemy = SimpleEnemy(template, level_modifier)
+            enemy = SimpleEnemy(template, level_modifier, difficulty_hp_mult, difficulty_dmg_mult)
 
             # 적 타입에 맞는 스킬 추가
             try:
@@ -390,6 +400,16 @@ class EnemyGenerator:
     @staticmethod
     def generate_boss(floor_number: int) -> SimpleEnemy:
         """보스 생성"""
+        # 난이도 시스템에서 배율 가져오기
+        from src.core.difficulty import get_difficulty_system
+        difficulty_system = get_difficulty_system()
+
+        difficulty_hp_mult = 1.0
+        difficulty_dmg_mult = 1.0
+        if difficulty_system:
+            difficulty_hp_mult = difficulty_system.get_enemy_hp_multiplier()
+            difficulty_dmg_mult = difficulty_system.get_enemy_damage_multiplier()
+
         # 층수에 맞는 보스 선택
         if floor_number == 15:
             # 15층: 세피로스 (최종 보스)
@@ -404,7 +424,7 @@ class EnemyGenerator:
         level_modifier = floor_number / template.level
         level_modifier = max(1.0, level_modifier)  # 최소 1배
 
-        boss = SimpleEnemy(template, level_modifier)
+        boss = SimpleEnemy(template, level_modifier, difficulty_hp_mult, difficulty_dmg_mult)
 
         # 세피로스일 경우 스킬 추가
         if floor_number == 15:

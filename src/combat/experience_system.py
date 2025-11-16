@@ -71,6 +71,13 @@ class ExperienceSystem:
         for i in range(enemy_count):
             total_exp += int(base_exp * math.pow(0.9, i))
 
+        # 난이도 보정
+        from src.core.difficulty import get_difficulty_system
+        difficulty_system = get_difficulty_system()
+        if difficulty_system:
+            exp_mult = difficulty_system.get_exp_multiplier()
+            total_exp = int(total_exp * exp_mult)
+
         return max(1, total_exp)
 
     @staticmethod
@@ -84,7 +91,18 @@ class ExperienceSystem:
         Returns:
             획득 경험치
         """
-        return ExperienceSystem.calculate_enemy_experience(boss_level, 1) * 3
+        # 난이도 배율은 calculate_enemy_experience에서 이미 적용되므로
+        # 여기서는 3배만 적용
+        base_exp = int(math.pow(boss_level, 1.3) * 25)
+
+        # 난이도 보정
+        from src.core.difficulty import get_difficulty_system
+        difficulty_system = get_difficulty_system()
+        if difficulty_system:
+            exp_mult = difficulty_system.get_exp_multiplier()
+            base_exp = int(base_exp * exp_mult)
+
+        return max(1, base_exp * 3)
 
     @staticmethod
     def add_experience_to_character(character: Any, exp_amount: int) -> List[Dict[str, Any]]:

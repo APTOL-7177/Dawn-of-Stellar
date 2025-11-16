@@ -162,6 +162,21 @@ def main() -> int:
                     from src.ui.reward_ui import show_reward_screen
                     from src.world.enemy_generator import EnemyGenerator
 
+                    # 난이도 시스템 복원
+                    from src.core.difficulty import DifficultySystem, DifficultyLevel, set_difficulty_system
+
+                    difficulty_system = DifficultySystem(config)
+                    difficulty_str = loaded_state.get("difficulty", "보통")
+
+                    # 문자열을 DifficultyLevel로 변환
+                    for level in DifficultyLevel:
+                        if level.value == difficulty_str:
+                            difficulty_system.set_difficulty(level)
+                            break
+
+                    set_difficulty_system(difficulty_system)
+                    logger.info(f"난이도 시스템 복원: {difficulty_str}")
+
                     # 파티 복원
                     try:
                         party = [deserialize_party_member(member_data) for member_data in loaded_state.get("party", [])]
@@ -410,6 +425,25 @@ def main() -> int:
                     # 이제 character_party를 사용
                     party = character_party
                     logger.info("파티 멤버를 Character 객체로 변환 완료")
+
+                    # 난이도 선택
+                    from src.core.difficulty import DifficultySystem, set_difficulty_system
+                    from src.ui.difficulty_selection_ui import show_difficulty_selection
+
+                    difficulty_system = DifficultySystem(config)
+                    selected_difficulty = show_difficulty_selection(
+                        display.console,
+                        display.context,
+                        difficulty_system
+                    )
+
+                    if selected_difficulty:
+                        difficulty_system.set_difficulty(selected_difficulty)
+                        set_difficulty_system(difficulty_system)
+                        logger.info(f"난이도 선택: {selected_difficulty.value}")
+                    else:
+                        logger.info("난이도 선택 취소 - 메인 메뉴로")
+                        continue
 
                     # 특성 선택
                     from src.ui.trait_selection import run_trait_selection
