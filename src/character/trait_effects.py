@@ -731,6 +731,146 @@ class TraitEffectManager:
             turn_count = context.get("turn_count", 0)
             return turn_count > 0 and turn_count % turn_mod == 0
 
+        # === 새로운 기믹 시스템 조건들 ===
+
+        # 확률 왜곡 게이지 조건 (차원술사)
+        elif condition == "distortion_gauge_min":
+            threshold = context.get("threshold", 50)
+            if hasattr(character, 'distortion_gauge'):
+                return character.distortion_gauge >= threshold
+            return False
+
+        # 군중 환호 조건 (글래디에이터)
+        elif condition == "cheer_min":
+            threshold = context.get("threshold", 50)
+            if hasattr(character, 'cheer'):
+                return character.cheer >= threshold
+            return False
+
+        # 갈증 구간 조건 (뱀파이어)
+        elif condition == "thirst_satisfied":
+            if hasattr(character, 'thirst') and hasattr(character, 'satisfied_max'):
+                return character.thirst <= character.satisfied_max
+            return False
+
+        elif condition == "thirst_normal":
+            if hasattr(character, 'thirst'):
+                normal_min = getattr(character, 'normal_min', 30)
+                normal_max = getattr(character, 'normal_max', 69)
+                return normal_min <= character.thirst <= normal_max
+            return False
+
+        elif condition == "thirst_starving":
+            if hasattr(character, 'thirst'):
+                starving_min = getattr(character, 'starving_min', 70)
+                return character.thirst >= starving_min
+            return False
+
+        # 광기 구간 조건 (버서커)
+        elif condition == "madness_safe":
+            if hasattr(character, 'madness') and hasattr(character, 'safe_max'):
+                return character.madness <= character.safe_max
+            return False
+
+        elif condition == "madness_danger":
+            if hasattr(character, 'madness') and hasattr(character, 'danger_min'):
+                return character.madness >= character.danger_min
+            return False
+
+        # 은신 상태 조건 (암살자)
+        elif condition == "stealth_active":
+            if hasattr(character, 'stealth_active'):
+                return character.stealth_active == True
+            return False
+
+        # 정령 활성화 조건 (정령술사)
+        elif condition == "spirit_fire_active":
+            if hasattr(character, 'spirit_fire'):
+                return character.spirit_fire > 0
+            return False
+
+        elif condition == "spirit_water_active":
+            if hasattr(character, 'spirit_water'):
+                return character.spirit_water > 0
+            return False
+
+        elif condition == "spirit_wind_active":
+            if hasattr(character, 'spirit_wind'):
+                return character.spirit_wind > 0
+            return False
+
+        elif condition == "spirit_earth_active":
+            if hasattr(character, 'spirit_earth'):
+                return character.spirit_earth > 0
+            return False
+
+        elif condition == "spirit_count_min":
+            threshold = context.get("threshold", 2)
+            if hasattr(character, 'spirit_fire'):
+                count = sum([
+                    getattr(character, 'spirit_fire', 0),
+                    getattr(character, 'spirit_water', 0),
+                    getattr(character, 'spirit_wind', 0),
+                    getattr(character, 'spirit_earth', 0)
+                ])
+                return count >= threshold
+            return False
+
+        # 선택 누적 조건 (철학자)
+        elif condition == "choice_power_min":
+            threshold = context.get("threshold", 5)
+            if hasattr(character, 'choice_power'):
+                return character.choice_power >= threshold
+            return False
+
+        elif condition == "choice_wisdom_min":
+            threshold = context.get("threshold", 5)
+            if hasattr(character, 'choice_wisdom'):
+                return character.choice_wisdom >= threshold
+            return False
+
+        elif condition == "choice_sacrifice_min":
+            threshold = context.get("threshold", 5)
+            if hasattr(character, 'choice_sacrifice'):
+                return character.choice_sacrifice >= threshold
+            return False
+
+        elif condition == "choice_truth_min":
+            threshold = context.get("threshold", 5)
+            if hasattr(character, 'choice_truth'):
+                return character.choice_truth >= threshold
+            return False
+
+        elif condition == "choices_balanced":
+            # 모든 선택 카운트의 차이가 2 이하인지 체크
+            if hasattr(character, 'choice_power'):
+                choices = [
+                    getattr(character, 'choice_power', 0),
+                    getattr(character, 'choice_wisdom', 0),
+                    getattr(character, 'choice_sacrifice', 0),
+                    getattr(character, 'choice_survival', 0),
+                    getattr(character, 'choice_truth', 0),
+                    getattr(character, 'choice_lie', 0),
+                    getattr(character, 'choice_order', 0),
+                    getattr(character, 'choice_chaos', 0)
+                ]
+                if max(choices) - min(choices) <= 2:
+                    return True
+            return False
+
+        # 지원사격 콤보 조건 (궁수)
+        elif condition == "support_fire_combo_min":
+            threshold = context.get("threshold", 2)
+            if hasattr(character, 'support_fire_combo'):
+                return character.support_fire_combo >= threshold
+            return False
+
+        elif condition == "marked_allies_min":
+            threshold = context.get("threshold", 3)
+            if hasattr(character, 'marked_allies'):
+                return len(character.marked_allies) >= threshold
+            return False
+
         # 기본적으로 조건 만족
         return True
 
