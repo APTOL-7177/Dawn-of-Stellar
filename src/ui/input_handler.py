@@ -49,6 +49,9 @@ class GameAction(Enum):
     # 인벤토리 전용
     INVENTORY_DESTROY = "inventory_destroy"
 
+    # 전투 전용
+    GIMMICK_DETAIL = "gimmick_detail"
+
 
 class InputHandler(tcod.event.EventDispatch[Optional[GameAction]]):
     """
@@ -106,13 +109,16 @@ class InputHandler(tcod.event.EventDispatch[Optional[GameAction]]):
 
             # 행동
             'e': GameAction.INTERACT,
-            'g': GameAction.PICKUP,
+            'p': GameAction.PICKUP,  # 변경: g -> p (기믹 커맨드를 위해)
 
             # 메뉴
             'i': GameAction.OPEN_INVENTORY,
             'c': GameAction.OPEN_CHARACTER,
             's': GameAction.OPEN_SKILLS,
             'm': GameAction.MENU,  # 정렬/메뉴
+
+            # 전투 (기믹 상세)
+            'g': GameAction.GIMMICK_DETAIL,  # 기믹 상세 보기
 
             # 인벤토리
             'v': GameAction.INVENTORY_DESTROY,  # 파괴/버리기

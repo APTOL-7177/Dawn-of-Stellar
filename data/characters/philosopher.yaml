@@ -25,31 +25,85 @@ stat_growth:
   evasion: 2.5
   max_brv: 2.2
 traits:
-- id: logical_paradox
-  name: 논리적 역설
-  description: 적을 혼란 상태로 만듦 (자신/아군 공격, 50% 확률)
-  type: trigger
-- id: critical_thinking
-  name: 비판적 사고
-  description: 적의 버프 효과를 디버프로 반전
-  type: trigger
-- id: wise_insight
-  name: 현자의 통찰
-  description: 받는 마법 데미지 -40%
-  type: passive
-- id: existential_crisis
-  name: 실존적 위기
-  description: 적에게 정체성 혼란 부여 (모든 스탯 -20%)
-  type: trigger
-- id: enlightenment
-  name: 깨달음
-  description: MP 70% 이상일 때 경험치 획득 +30%
-  type: passive
+- id: power_mastery
+  name: 힘의 숙달
+  description: 힘 선택 5회 이상 시 물리 공격력 +60%, 크리티컬 +30%
+  type: conditional
+  conditions:
+    choice_power_min: 5
+  effects:
+    attack_multiplier: 1.6
+    critical_rate_bonus: 0.3
+
+- id: wisdom_mastery
+  name: 지혜의 숙달
+  description: 지혜 선택 5회 이상 시 마법 공격력 +60%, MP 회복 +5/턴
+  type: conditional
+  conditions:
+    choice_wisdom_min: 5
+  effects:
+    magic_multiplier: 1.6
+    mp_regen: 5
+
+- id: sacrifice_mastery
+  name: 희생의 숙달
+  description: 희생 선택 5회 이상 시 아군 사망 시 자동 부활 (1회)
+  type: conditional
+  conditions:
+    choice_sacrifice_min: 5
+  effects:
+    auto_revive_ally: true
+
+- id: truth_mastery
+  name: 진실의 숙달
+  description: 진실 선택 5회 이상 시 적 디버프 효과 2배
+  type: conditional
+  conditions:
+    choice_truth_min: 5
+  effects:
+    debuff_power_multiplier: 2.0
+
+- id: balanced_philosophy
+  name: 균형의 철학
+  description: 모든 선택 카운트가 균형(차이 2 이하)일 때 모든 스탯 +20%
+  type: conditional
+  conditions:
+    choices_balanced: true
+  effects:
+    all_stats_multiplier: 1.2
+
 gimmick:
-  type: wisdom_system
-  name: 지혜의 축적
-  description: 전투 중 지식을 축적하여 현자의 돌의 힘 사용
-  max_knowledge_stacks: 10
+  type: dilemma_choice
+  name: 딜레마 선택 시스템
+  description: 철학적 딜레마 선택. 같은 선택 5회 시 특수 효과, 균형 선택 시 모든 스탯 +20%
+  dilemma_types:
+    power_wisdom:
+      name: 힘 vs 지혜
+      power: {effect: attack_up, value: 0.5, duration: 3}
+      wisdom: {effect: magic_up, value: 0.5, duration: 3}
+    sacrifice_survival:
+      name: 희생 vs 생존
+      sacrifice: {effect: ally_heal, value: 0.3}
+      survival: {effect: self_heal, value: 0.3}
+    truth_lie:
+      name: 진실 vs 거짓
+      truth: {effect: enemy_debuff, value: 0.4}
+      lie: {effect: self_buff, value: 0.3}
+    order_chaos:
+      name: 질서 vs 혼돈
+      order: {effect: defense_up, value: 0.4}
+      chaos: {effect: critical_up, value: 0.5}
+  choice_tracking:
+    choice_power: 0
+    choice_wisdom: 0
+    choice_sacrifice: 0
+    choice_survival: 0
+    choice_truth: 0
+    choice_lie: 0
+    choice_order: 0
+    choice_chaos: 0
+  accumulation_threshold: 5
+  max_choices: 99
 
 skills:
 - logical_argument

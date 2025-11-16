@@ -1,116 +1,149 @@
-"""Hacker Skills - 해커 스킬 (해킹/디버프 시스템)"""
+"""Hacker Skills - 해커 스킬 (멀티스레드 시스템)"""
 from src.character.skills.skill import Skill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.costs.mp_cost import MPCost
-from src.character.skills.costs.stack_cost import StackCost
 
 def create_hacker_skills():
-    """해커 9개 스킬"""
-    skills = []
-    
-    # 1. 기본 BRV: 해킹 시도
-    hack_attempt = Skill("hacker_hack", "해킹 시도", "시스템 침투")
-    hack_attempt.effects = [
-        DamageEffect(DamageType.BRV, 1.3, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "hack_stacks", 1, max_value=10)
+    """해커 10개 스킬 생성 (멀티스레드 시스템 - 최대 3개 프로그램 동시 실행)"""
+
+    # 1. 기본 BRV: 코드 주입
+    code_injection = Skill("hacker_code_injection", "코드 주입", "기본 해킹 공격")
+    code_injection.effects = [
+        DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
     ]
-    hack_attempt.costs = []  # 기본 공격은 MP 소모 없음
-    skills.append(hack_attempt)
-    
-    # 2. 기본 HP: 시스템 오버로드
-    overload = Skill("hacker_overload", "시스템 오버로드", "해킹 완료 후 폭발")
-    overload.effects = [
-        DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "hack_stacks", "multiplier": 0.25}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.CONSUME, "hack_stacks", 1)
+    code_injection.costs = []  # 기본 공격은 MP 소모 없음
+    code_injection.sfx = "332"  # FFVII tech sound
+    code_injection.metadata = {}
+
+    # 2. 기본 HP: 데이터 유출
+    data_breach = Skill("hacker_data_breach", "데이터 유출", "정보 탈취 HP 공격")
+    data_breach.effects = [
+        DamageEffect(DamageType.HP, 1.2, stat_type="magical")
     ]
-    overload.costs = []  # 기본 공격은 MP 소모 없음
-    skills.append(overload)
-    
-    # 3. 디버프 설치
-    install_debuff = Skill("hacker_debuff", "디버프 설치", "적 약화")
-    install_debuff.effects = [
-        DamageEffect(DamageType.BRV, 1.0, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "debuff_count", 1, max_value=5),
-        GimmickEffect(GimmickOperation.ADD, "hack_stacks", 2, max_value=10)
+    data_breach.costs = []  # 기본 공격은 MP 소모 없음
+    data_breach.sfx = "338"  # FFVII data sound
+    data_breach.metadata = {}
+
+    # 3. 바이러스 실행 (적 공격력 -20%)
+    run_virus = Skill("hacker_run_virus", "바이러스 실행", "적 공격력 -20% 프로그램 실행")
+    run_virus.effects = [
+        GimmickEffect(GimmickOperation.ADD, "program_virus", 1, max_value=1),  # 프로그램 실행 (on/off)
+        BuffEffect(BuffType.ATTACK_DOWN, 0.2, duration=99, target="enemy")  # 프로그램 실행 동안 지속
     ]
-    install_debuff.costs = [MPCost(6)]
-    install_debuff.cooldown = 2
-    skills.append(install_debuff)
-    
-    # 4. 시스템 교란
-    disrupt = Skill("hacker_disrupt", "시스템 교란", "적 능력 감소")
-    disrupt.effects = [
-        DamageEffect(DamageType.BRV, 1.5, gimmick_bonus={"field": "hack_stacks", "multiplier": 0.2}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "hack_stacks", 1, max_value=10)
+    run_virus.costs = [MPCost(10)]
+    run_virus.target_type = "single"
+    run_virus.sfx = "344"  # FFVII virus sound
+    run_virus.cooldown = 2
+    run_virus.metadata = {"program_type": "virus", "debuff": "attack_down"}
+
+    # 4. 백도어 실행 (적 방어력 -30%)
+    run_backdoor = Skill("hacker_run_backdoor", "백도어 실행", "적 방어력 -30% 프로그램 실행")
+    run_backdoor.effects = [
+        GimmickEffect(GimmickOperation.ADD, "program_backdoor", 1, max_value=1),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=99, target="enemy")
     ]
-    disrupt.costs = [MPCost(7)]
-    disrupt.cooldown = 2
-    skills.append(disrupt)
-    
-    # 5. 바이러스 유포
-    virus = Skill("hacker_virus", "바이러스 유포", "지속 피해")
-    virus.effects = [
-        DamageEffect(DamageType.BRV, 1.2, stat_type="magical"),
-        DamageEffect(DamageType.BRV, 1.0, stat_type="magical"),
-        DamageEffect(DamageType.BRV, 1.0, stat_type="magical"),
-        DamageEffect(DamageType.BRV, 0.8, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "hack_stacks", 2, max_value=10)
+    run_backdoor.costs = [MPCost(12)]
+    run_backdoor.target_type = "single"
+    run_backdoor.sfx = "352"  # FFVII backdoor sound
+    run_backdoor.cooldown = 2
+    run_backdoor.metadata = {"program_type": "backdoor", "debuff": "defense_down"}
+
+    # 5. DDoS 실행 (적 속도 -50%)
+    run_ddos = Skill("hacker_run_ddos", "DDoS 실행", "적 속도 -50% 프로그램 실행")
+    run_ddos.effects = [
+        GimmickEffect(GimmickOperation.ADD, "program_ddos", 1, max_value=1),
+        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=99, target="enemy")
     ]
-    virus.costs = [MPCost(9)]
-    virus.cooldown = 3
-    skills.append(virus)
-    
-    # 6. 백도어
-    backdoor = Skill("hacker_backdoor", "백도어", "해킹 축적")
-    backdoor.effects = [
-        GimmickEffect(GimmickOperation.ADD, "hack_stacks", 5, max_value=10),
-        BuffEffect(BuffType.SPEED_UP, 0.3, duration=3)
+    run_ddos.costs = [MPCost(15)]
+    run_ddos.target_type = "single"
+    run_ddos.sfx = "362"  # FFVII ddos sound
+    run_ddos.cooldown = 3
+    run_ddos.metadata = {"program_type": "ddos", "debuff": "speed_down"}
+
+    # 6. 랜섬웨어 실행 (적 스킬 봉인)
+    run_ransomware = Skill("hacker_run_ransomware", "랜섬웨어 실행", "적 스킬 봉인 프로그램 실행")
+    run_ransomware.effects = [
+        GimmickEffect(GimmickOperation.ADD, "program_ransomware", 1, max_value=1),
+        BuffEffect(BuffType.SKILL_SEAL, 1.0, duration=99, target="enemy")  # 스킬 봉인
     ]
-    backdoor.costs = [MPCost(8)]
-    backdoor.target_type = "self"
-    backdoor.cooldown = 5
-    skills.append(backdoor)
-    
-    # 7. 시스템 다운
-    system_down = Skill("hacker_system_down", "시스템 다운", "강제 종료")
-    system_down.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.0, gimmick_bonus={"field": "hack_stacks", "multiplier": 0.35}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.CONSUME, "hack_stacks", 3)
+    run_ransomware.costs = [MPCost(18)]
+    run_ransomware.target_type = "single"
+    run_ransomware.sfx = "376"  # FFVII lock sound
+    run_ransomware.cooldown = 4
+    run_ransomware.metadata = {"program_type": "ransomware", "debuff": "skill_seal"}
+
+    # 7. 스파이웨어 실행 (적 정보 획득 + 회피율 감소)
+    run_spyware = Skill("hacker_run_spyware", "스파이웨어 실행", "적 정보 획득 프로그램")
+    run_spyware.effects = [
+        GimmickEffect(GimmickOperation.ADD, "program_spyware", 1, max_value=1),
+        BuffEffect(BuffType.EVASION_DOWN, 0.3, duration=99, target="enemy"),
+        BuffEffect(BuffType.ACCURACY_UP, 0.3, duration=99, target="self")
     ]
-    system_down.costs = [MPCost(11), StackCost("hack_stacks", 3)]
-    system_down.cooldown = 4
-    skills.append(system_down)
-    
-    # 8. 루트킷
-    rootkit = Skill("hacker_rootkit", "루트킷", "완전 장악")
-    rootkit.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.2, gimmick_bonus={"field": "hack_stacks", "multiplier": 0.4}, stat_type="magical"),
-        BuffEffect(BuffType.MAGIC_UP, 0.4, duration=4),
-        GimmickEffect(GimmickOperation.CONSUME, "hack_stacks", 5)
+    run_spyware.costs = [MPCost(8)]
+    run_spyware.target_type = "single"
+    run_spyware.sfx = "404"  # FFVII scan sound
+    run_spyware.cooldown = 2
+    run_spyware.metadata = {"program_type": "spyware", "info_gathering": True}
+
+    # 8. 프로그램 종료 (모든 프로그램 종료하여 강력한 공격)
+    terminate_all = Skill("hacker_terminate_all", "프로그램 종료", "모든 프로그램 종료하여 강력한 공격")
+    terminate_all.effects = [
+        # 실행 중인 프로그램 수에 비례한 공격
+        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="magical",
+                    gimmick_bonus={"field": "total_programs", "multiplier": 0.6}),
+        # 모든 프로그램 종료
+        GimmickEffect(GimmickOperation.SET, "program_virus", 0),
+        GimmickEffect(GimmickOperation.SET, "program_backdoor", 0),
+        GimmickEffect(GimmickOperation.SET, "program_ddos", 0),
+        GimmickEffect(GimmickOperation.SET, "program_ransomware", 0),
+        GimmickEffect(GimmickOperation.SET, "program_spyware", 0)
     ]
-    rootkit.costs = [MPCost(14), StackCost("hack_stacks", 5)]
-    rootkit.cooldown = 6
-    skills.append(rootkit)
-    
-    # 9. 궁극기: 제로데이
-    ultimate = Skill("hacker_ultimate", "제로데이", "완벽한 해킹")
+    terminate_all.costs = [MPCost(20)]
+    terminate_all.sfx = "423"  # FFVII shutdown sound
+    terminate_all.cooldown = 5
+    terminate_all.metadata = {"terminate_all": True}
+
+    # 9. 시스템 과부하 (프로그램 유지하면서 강력한 공격)
+    system_overload = Skill("hacker_system_overload", "시스템 과부하", "프로그램 수에 비례한 강력한 공격")
+    system_overload.effects = [
+        DamageEffect(DamageType.BRV_HP, 3.0, stat_type="magical",
+                    gimmick_bonus={"field": "total_programs", "multiplier": 0.5})
+    ]
+    system_overload.costs = [MPCost(22)]
+    system_overload.sfx = "438"  # FFVII overload sound
+    system_overload.cooldown = 4
+    system_overload.metadata = {"program_scaling": True}
+
+    # 10. 궁극기: 멀티스레드 폭주 (모든 프로그램 즉시 실행 + 극대 공격)
+    ultimate = Skill("hacker_ultimate", "멀티스레드 폭주", "모든 프로그램 즉시 실행 + 극대 공격")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "hack_stacks", "multiplier": 0.5}, stat_type="magical"),
-        DamageEffect(DamageType.HP, 3.5, gimmick_bonus={"field": "debuff_count", "multiplier": 0.6}, stat_type="magical"),
-        BuffEffect(BuffType.MAGIC_UP, 0.6, duration=5),
-        GimmickEffect(GimmickOperation.SET, "hack_stacks", 10),
-        GimmickEffect(GimmickOperation.SET, "debuff_count", 0)
+        # 모든 프로그램 즉시 실행
+        GimmickEffect(GimmickOperation.SET, "program_virus", 1),
+        GimmickEffect(GimmickOperation.SET, "program_backdoor", 1),
+        GimmickEffect(GimmickOperation.SET, "program_ddos", 1),
+        # 극대 공격
+        DamageEffect(DamageType.BRV, 4.0, stat_type="magical"),
+        DamageEffect(DamageType.HP, 4.5, stat_type="magical"),
+        # 모든 디버프 적용
+        BuffEffect(BuffType.ATTACK_DOWN, 0.2, duration=5, target="enemy"),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=5, target="enemy"),
+        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=5, target="enemy"),
+        # 자신 버프
+        BuffEffect(BuffType.MAGIC_UP, 0.8, duration=4, target="self")
     ]
-    ultimate.costs = [MPCost(25)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 10
-    skills.append(ultimate)
-    
-    return skills
+    ultimate.sfx = "696"  # FFVII ultimate tech sound
+    ultimate.cooldown = 8
+    ultimate.metadata = {"ultimate": True, "multithread_rampage": True}
+
+    return [code_injection, data_breach, run_virus, run_backdoor, run_ddos,
+            run_ransomware, run_spyware, terminate_all, system_overload, ultimate]
 
 def register_hacker_skills(skill_manager):
+    """해커 스킬 등록"""
     skills = create_hacker_skills()
     for skill in skills:
         skill_manager.register_skill(skill)

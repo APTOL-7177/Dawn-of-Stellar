@@ -25,31 +25,63 @@ stat_growth:
   evasion: 2.5
   max_brv: 2.0
 traits:
-- id: parallel_universe
-  name: 평행우주
-  description: 행동 실패 시 30% 확률로 재시도 가능
+- id: gauge_per_turn
+  name: 확률 왜곡 충전
+  description: 매 턴 시작 시 확률 왜곡 게이지 +10
   type: trigger
-- id: probability_shift
-  name: 확률 왜곡
-  description: 크리티컬 확률 +행운의 20%, 회피율 +행운의 15%
-  type: passive
-- id: dimensional_pocket
-  name: 차원 주머니
-  description: 인벤토리 공간 2배, 아이템 중복 확률 +25%
-  type: passive
-- id: spatial_leap
-  name: 공간 도약
-  description: 회피 시 즉시 반대편으로 이동하여 반격
+  effects:
+    distortion_per_turn: 10
+
+- id: critical_charge
+  name: 크리티컬 충전
+  description: 크리티컬 공격 시 확률 왜곡 게이지 +20
   type: trigger
-- id: quantum_state
-  name: 양자 상태
-  description: 공격/방어 중 하나를 선택하는 것이 아니라 둘 다 동시에 수행 (50% 효율)
+  effects:
+    distortion_on_crit: 20
+
+- id: luck_amplifier
+  name: 행운 증폭
+  description: 행운 스탯에 비례하여 게이지 추가 획득 (행운 10당 +1)
   type: passive
+  effects:
+    distortion_luck_bonus: 0.1
+
+- id: probability_master
+  name: 확률의 달인
+  description: 게이지 50+ 시 크리티컬 확률 +30%, 회피율 +20%
+  type: conditional
+  conditions:
+    distortion_gauge_min: 50
+  effects:
+    critical_rate_bonus: 0.3
+    evasion_bonus: 0.2
+
+- id: dimensional_instability
+  name: 차원 불안정
+  description: 게이지 80+ 시 모든 공격 크리티컬 확률 +50%, 받는 데미지 +30%
+  type: conditional
+  conditions:
+    distortion_gauge_min: 80
+  effects:
+    critical_rate_bonus: 0.5
+    incoming_damage_multiplier: 1.3
+
 gimmick:
-  type: dimension_system
-  name: 차원 조작
-  description: 차원의 틈을 열어 공간을 왜곡하고 차원 이동 수행
-  max_dimension_points: 100
+  type: probability_distortion
+  name: 확률 왜곡 게이지
+  description: 확률 왜곡 게이지(0-100) 소모로 확률 조작. 매턴 +10, 크리티컬 시 +20
+  min_gauge: 0
+  max_gauge: 100
+  start_gauge: 0
+  gauge_gain:
+    per_turn: 10
+    on_critical: 20
+    luck_multiplier: 0.1
+  distortion_costs:
+    critical_boost: 20
+    evasion_boost: 30
+    retry: 50
+    parallel_universe: 100
 
 skills:
 - dimension_slash

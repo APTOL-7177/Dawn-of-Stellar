@@ -5,6 +5,7 @@ from src.character.skills.effects.base import SkillEffect, EffectResult, EffectT
 class HealType(Enum):
     HP = "hp"
     MP = "mp"
+    BRV = "brv"  # BRV 회복
 
 class HealEffect(SkillEffect):
     """회복 효과"""
@@ -61,7 +62,7 @@ class HealEffect(SkillEffect):
                     t.current_hp += actual_heal
                 else:
                     actual_heal = heal_amount
-            else:
+            elif self.heal_type == HealType.MP:
                 if hasattr(t, 'restore_mp'):
                     actual_heal = t.restore_mp(heal_amount)
                 elif hasattr(t, 'current_mp') and hasattr(t, 'max_mp'):
@@ -69,6 +70,15 @@ class HealEffect(SkillEffect):
                     t.current_mp += actual_heal
                 else:
                     actual_heal = heal_amount
+            elif self.heal_type == HealType.BRV:
+                # BRV 회복
+                if hasattr(t, 'current_brv') and hasattr(t, 'max_brv'):
+                    actual_heal = min(heal_amount, t.max_brv - t.current_brv)
+                    t.current_brv += actual_heal
+                else:
+                    actual_heal = heal_amount
+            else:
+                actual_heal = heal_amount
 
             total_heal += actual_heal
             healed_count += 1
@@ -123,7 +133,7 @@ class HealEffect(SkillEffect):
         if self.base_amount > 0:
             amount += self.base_amount
 
-        # 3. 비율 회복 추가 (대상의 최대 HP/MP 기준)
+        # 3. 비율 회복 추가 (대상의 최대 HP/MP/BRV 기준)
         if self.percentage > 0:
             if self.heal_type == HealType.HP:
                 if hasattr(target, 'max_hp'):
@@ -131,6 +141,9 @@ class HealEffect(SkillEffect):
             elif self.heal_type == HealType.MP:
                 if hasattr(target, 'max_mp'):
                     amount += int(target.max_mp * self.percentage)
+            elif self.heal_type == HealType.BRV:
+                if hasattr(target, 'max_brv'):
+                    amount += int(target.max_brv * self.percentage)
 
         # 최소 회복량 보장
         return max(1, amount)

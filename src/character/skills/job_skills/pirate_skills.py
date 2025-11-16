@@ -7,7 +7,9 @@ from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
 def create_pirate_skills():
-    """해적 9개 스킬 생성"""
+    """해적 10개 스킬 생성 (약탈/골드 시스템)"""
+
+    skills = []
 
     # 1. 기본 BRV: 약탈
     plunder = Skill("pirate_plunder", "약탈", "골드 획득")
@@ -16,6 +18,9 @@ def create_pirate_skills():
         GimmickEffect(GimmickOperation.ADD, "gold", 1, max_value=10)
     ]
     plunder.costs = []  # 기본 공격은 MP 소모 없음
+    plunder.sfx = "515"
+    plunder.metadata = {"gold_gain": 1}
+    skills.append(plunder)
 
     # 2. 기본 HP: 금화 발사
     coin_shot = Skill("pirate_coin_shot", "금화 발사", "골드 소비 공격")
@@ -24,6 +29,9 @@ def create_pirate_skills():
         GimmickEffect(GimmickOperation.CONSUME, "gold", 1)
     ]
     coin_shot.costs = []  # 기본 공격은 MP 소모 없음
+    coin_shot.sfx = "521"
+    coin_shot.metadata = {"gold_cost": 1, "gold_scaling": True}
+    skills.append(coin_shot)
 
     # 3. 보물 사냥
     treasure_hunt = Skill("pirate_treasure_hunt", "보물 사냥", "골드 2개 획득")
@@ -33,6 +41,9 @@ def create_pirate_skills():
     ]
     treasure_hunt.costs = [MPCost(6)]
     treasure_hunt.cooldown = 2
+    treasure_hunt.sfx = "527"
+    treasure_hunt.metadata = {"gold_gain": 2}
+    skills.append(treasure_hunt)
 
     # 4. 럼주 마시기
     drink_rum = Skill("pirate_drink_rum", "럼주 마시기", "골드 2개 소비, 버프")
@@ -44,6 +55,9 @@ def create_pirate_skills():
     drink_rum.costs = [MPCost(7), StackCost("gold", 2)]
     drink_rum.target_type = "self"
     drink_rum.cooldown = 3
+    drink_rum.sfx = "533"
+    drink_rum.metadata = {"gold_cost": 2, "buff": True}
+    skills.append(drink_rum)
 
     # 5. 대포 발사
     cannon_fire = Skill("pirate_cannon_fire", "대포 발사", "골드 3개 소비, 광역 공격")
@@ -54,6 +68,9 @@ def create_pirate_skills():
     cannon_fire.costs = [MPCost(10), StackCost("gold", 3)]
     cannon_fire.cooldown = 3
     cannon_fire.is_aoe = True
+    cannon_fire.sfx = "539"
+    cannon_fire.metadata = {"gold_cost": 3, "gold_scaling": True, "aoe": True}
+    skills.append(cannon_fire)
 
     # 6. 보물 저장
     store_treasure = Skill("pirate_store_treasure", "보물 저장", "골드 최대 회복")
@@ -64,6 +81,9 @@ def create_pirate_skills():
     store_treasure.costs = [MPCost(9)]
     store_treasure.target_type = "self"
     store_treasure.cooldown = 5
+    store_treasure.sfx = "545"
+    store_treasure.metadata = {"gold_refill": True, "buff": True}
+    skills.append(store_treasure)
 
     # 7. 금화 폭탄
     gold_bomb = Skill("pirate_gold_bomb", "금화 폭탄", "골드 5개 소비, 광역 폭발")
@@ -75,6 +95,9 @@ def create_pirate_skills():
     gold_bomb.costs = [MPCost(12), StackCost("gold", 5)]
     gold_bomb.cooldown = 4
     gold_bomb.is_aoe = True
+    gold_bomb.sfx = "551"
+    gold_bomb.metadata = {"gold_cost": 5, "gold_scaling": True, "aoe": True}
+    skills.append(gold_bomb)
 
     # 8. 해적선 공격
     pirate_ship_attack = Skill("pirate_pirate_ship_attack", "해적선 공격", "골드 7개 소비, 해적선 소환")
@@ -86,23 +109,44 @@ def create_pirate_skills():
     pirate_ship_attack.costs = [MPCost(15), StackCost("gold", 7)]
     pirate_ship_attack.cooldown = 6
     pirate_ship_attack.is_aoe = True
+    pirate_ship_attack.sfx = "557"
+    pirate_ship_attack.metadata = {"gold_cost": 7, "gold_scaling": True, "aoe": True}
+    skills.append(pirate_ship_attack)
 
-    # 9. 궁극기: 보물섬의 전설
+    # 9. 검은 수염의 저주 (NEW - 10번째 스킬 전)
+    blackbeard_curse = Skill("pirate_blackbeard_curse", "검은 수염의 저주", "골드 8개 소비, 강력한 디버프")
+    blackbeard_curse.effects = [
+        DamageEffect(DamageType.BRV_HP, 2.6, gimmick_bonus={"field": "gold", "multiplier": 0.45}),
+        BuffEffect(BuffType.ATTACK_DOWN, 0.5, duration=5, target="enemy"),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.5, duration=5, target="enemy"),
+        BuffEffect(BuffType.SPEED_DOWN, 0.3, duration=5, target="enemy"),
+        GimmickEffect(GimmickOperation.CONSUME, "gold", 8)
+    ]
+    blackbeard_curse.costs = [MPCost(18), StackCost("gold", 8)]
+    blackbeard_curse.cooldown = 7
+    blackbeard_curse.is_aoe = True
+    blackbeard_curse.sfx = "563"
+    blackbeard_curse.metadata = {"gold_cost": 8, "gold_scaling": True, "debuff": True, "aoe": True}
+    skills.append(blackbeard_curse)
+
+    # 10. 궁극기: 보물섬의 전설
     ultimate = Skill("pirate_ultimate", "보물섬의 전설", "모든 골드로 전설의 보물 개방")
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "gold", "multiplier": 0.35}),
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "gold", "multiplier": 0.35}),
         DamageEffect(DamageType.HP, 3.0, gimmick_bonus={"field": "gold", "multiplier": 0.5}),
         BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5),
-        GimmickEffect(GimmickOperation.SET, "gold", 0)
+        GimmickEffect(GimmickOperation.SET, "gold", 10)
     ]
-    ultimate.costs = [MPCost(25), StackCost("gold", 1)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
-    ultimate.cooldown = 10
+    ultimate.cooldown = 8
+    ultimate.sfx = "573"
+    ultimate.metadata = {"ultimate": True, "gold_scaling": True, "gold_refill": True, "aoe": True}
+    skills.append(ultimate)
 
-    return [plunder, coin_shot, treasure_hunt, drink_rum, cannon_fire,
-            store_treasure, gold_bomb, pirate_ship_attack, ultimate]
+    return skills
 
 def register_pirate_skills(skill_manager):
     """해적 스킬 등록"""

@@ -25,39 +25,50 @@ stat_growth:
   evasion: 2.0
   max_brv: 2.4
 traits:
-- id: perfect_aim
-  name: 완벽한 조준
-  description: 크리티컬 확률 +30%, 크리티컬 데미지 +100%
+- id: last_bullet
+  name: 라스트 불렛
+  description: 마지막 탄환 크리티컬 확률 +50%, 데미지 +30%
+  type: conditional
+- id: quick_hands
+  name: 빠른 손놀림
+  description: 재장전 시 턴을 소모하지 않음 (전투당 2회)
+  type: trigger
+- id: bullet_conservation
+  name: 탄환 절약
+  description: 30% 확률로 탄환 소모하지 않음
   type: passive
+- id: precision_aim
+  name: 정밀 조준
+  description: 특수 탄환 사용 시 효과 +50%
+  type: conditional
 - id: headshot_master
   name: 헤드샷 마스터
-  description: 단일 대상 공격 시 즉사 확률 5% (보스 제외)
+  description: 크리티컬 시 즉사 확률 5% (보스 제외)
   type: trigger
-- id: focus_power
-  name: 집중의 힘
-  description: 방어 선택 시마다 다음 공격 위력 +50% (누적, 최대 3스택)
-  type: passive
-- id: long_range_mastery
-  name: 장거리 지배
-  description: 첫 공격 시 100% 크리티컬, 이후 턴마다 크리티컬 확률 -20%
-  type: trigger
-- id: steady_hands
-  name: 안정된 손
-  description: 공격 시 명중률 무시 (100% 적중), 회피율 -50%
-  type: passive
 gimmick:
-  type: aim_system
-  name: 저격 집중
-  description: 집중력을 높여 완벽한 저격 수행. 집중 스택에 비례한 데미지 증가
-  max_focus_stacks: 5
+  type: magazine_system
+  name: 탄창 관리
+  description: 제한된 탄환(6발)을 관리하며 특수 탄환 활용. 재장전 필요
+  max_magazine: 6
+  bullet_types:
+    - normal: 기본 탄환 (배율 2.0)
+    - penetrating: 관통탄 (방어 무시 50%, 배율 2.5)
+    - explosive: 폭발탄 (광역 피해 50%, 배율 1.8)
+    - frost: 빙결탄 (빙결 상태이상, 배율 1.8)
+    - fire: 화염탄 (화상 3턴, 배율 2.0)
+    - poison: 독침탄 (독 5턴, 배율 1.5)
+    - flash: 섬광탄 (명중률 -50% 2턴)
+    - headshot: 헤드샷 탄 (크리티컬 100%, 배율 5.0)
 
 skills:
-- precise_aim
-- headshot
-- perfect_focus
-- penetrating_shot
-- sniper_stance
-- weak_spot
+- sniper_precise_shot
+- sniper_double_tap
+- sniper_reload
+- sniper_load_penetrating
+- sniper_load_explosive
+- sniper_headshot
+- sniper_perfect_aim
+- sniper_deadeye
 bonuses:
   critical_rate: 1.8
   critical_damage: 2.5

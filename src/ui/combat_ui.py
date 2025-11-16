@@ -32,6 +32,7 @@ class CombatUIState(Enum):
     SKILL_MENU = "skill_menu"  # 스킬 선택
     TARGET_SELECT = "target_select"  # 대상 선택
     ITEM_MENU = "item_menu"  # 아이템 선택
+    GIMMICK_VIEW = "gimmick_view"  # 기믹 상세 보기
     EXECUTING = "executing"  # 행동 실행 중
     BATTLE_END = "battle_end"  # 전투 종료
 
@@ -78,6 +79,10 @@ class CombatUI:
         self.battle_ended = False
         self.battle_result: Optional[CombatState] = None
 
+        # 기믹 상세 보기
+        self.gimmick_view_character: Optional[Any] = None
+        self.previous_state: Optional[CombatUIState] = None
+
         logger.info("전투 UI 초기화")
 
     def _create_action_menu(self, actor: Any = None) -> CursorMenu:
@@ -114,6 +119,7 @@ class CombatUI:
         items.append(MenuItem("스킬", description="특수 기술 사용", enabled=True, value=ActionType.SKILL))
         items.append(MenuItem("아이템", description="아이템 사용", enabled=True, value=ActionType.ITEM))
         items.append(MenuItem("방어", description="방어 자세로 피해 감소", enabled=True, value=ActionType.DEFEND))
+        items.append(MenuItem("기믹 상세", description="기믹 시스템 상세 정보 보기", enabled=True, value=("gimmick_detail", None)))
         items.append(MenuItem("도망", description="전투에서 도망", enabled=True, value=ActionType.FLEE))
 
         return CursorMenu(
@@ -121,7 +127,7 @@ class CombatUI:
             items=items,
             x=5,
             y=33,  # 2줄 위로 이동 (35 → 33)
-            width=30,
+            width=35,  # 너비 증가 (기믹 상세 텍스트 때문에)
             show_description=True
         )
 
@@ -209,6 +215,14 @@ class CombatUI:
         # 아이템 메뉴
         elif self.state == CombatUIState.ITEM_MENU:
             return self._handle_item_menu(action)
+
+        # 기믹 상세 보기
+        elif self.state == CombatUIState.GIMMICK_VIEW:
+            return self._handle_gimmick_view(action)
+
+        # G 키로 기믹 상세 보기 (전투 중 언제든지 가능)
+        if action == GameAction.GIMMICK_DETAIL and self.current_actor:
+            return self._open_gimmick_view()
 
         return False
 
@@ -307,13 +321,17 @@ class CombatUI:
 
     def _on_action_selected(self):
         """행동 선택 후 처리"""
-        # 튜플 형식 체크 (기본 공격 스킬)
+        # 튜플 형식 체크 (기본 공격 스킬, 기믹 상세)
         if isinstance(self.selected_action, tuple):
             action_type, skill = self.selected_action
             if action_type in ("brv_skill", "hp_skill"):
                 # 기본 공격 스킬 선택됨
                 self.selected_skill = skill
                 self._start_target_selection()
+                return
+            elif action_type == "gimmick_detail":
+                # 기믹 상세 보기 선택됨
+                self._open_gimmick_view()
                 return
 
         # ActionType 체크
@@ -380,6 +398,28 @@ class CombatUI:
                 break
 
         self.state = CombatUIState.TARGET_SELECT
+
+    def _open_gimmick_view(self) -> bool:
+        """기믹 상세 보기 열기"""
+        if self.current_actor:
+            self.gimmick_view_character = self.current_actor
+            self.previous_state = self.state
+            self.state = CombatUIState.GIMMICK_VIEW
+            logger.debug(f"기믹 상세 보기 열림: {self.current_actor.name}")
+        return False
+
+    def _handle_gimmick_view(self, action: GameAction) -> bool:
+        """기믹 상세 보기 입력 처리"""
+        # 아무 키나 눌러도 닫기
+        if action in [GameAction.CANCEL, GameAction.CONFIRM, GameAction.GIMMICK_DETAIL]:
+            self.gimmick_view_character = None
+            if self.previous_state:
+                self.state = self.previous_state
+                self.previous_state = None
+            else:
+                self.state = CombatUIState.ACTION_MENU
+            logger.debug("기믹 상세 보기 닫힘")
+        return False
 
     def _execute_current_action(self):
         """현재 선택된 행동 실행"""
@@ -609,6 +649,9 @@ class CombatUI:
         elif self.state == CombatUIState.ITEM_MENU:
             self._render_item_menu(console)
 
+        elif self.state == CombatUIState.GIMMICK_VIEW:
+            self._render_gimmick_view(console)
+
         elif self.state == CombatUIState.BATTLE_END:
             self._render_battle_end(console)
 
@@ -835,11 +878,16 @@ class CombatUI:
             lightning = getattr(character, 'lightning_element', 0)
             return f"[화염{fire} 냉기{ice} 번개{lightning}]"
 
-        elif gimmick_type == "aim_system":
-            # 궁수/저격수 - 조준
-            aim = getattr(character, 'aim_points', 0)
-            max_aim = getattr(character, 'max_aim_points', 5)
-            return f"[조준:{aim}/{max_aim}]"
+        elif gimmick_type == "support_fire_system":
+            # 궁수 - 지원사격
+            marked_allies = getattr(character, 'marked_allies', [])
+            combo = getattr(character, 'combo_count', 0)
+            return f"[지원:{len(marked_allies)}/3 콤보:{combo}]"
+
+        elif gimmick_type == "magazine_system":
+            # 저격수 - 탄창
+            magazine = getattr(character, 'magazine', [])
+            return f"[탄창:{len(magazine)}/6]"
 
         elif gimmick_type == "venom_system":
             # 도적 - 베놈
@@ -1021,6 +1069,1404 @@ class CombatUI:
             break_power = getattr(character, 'break_power', 0)
             max_break = getattr(character, 'max_break_power', 10)
             return f"[파괴:{break_power}/{max_break}]"
+
+        # === 15개 신규 기믹 시스템 (간략 표시) ===
+
+        elif gimmick_type == "yin_yang_flow":
+            # 몽크 - 음양 흐름 (간략: 게이지만)
+            ki = getattr(character, 'ki_gauge', 50)
+            return f"[기:{ki}]"
+
+        elif gimmick_type == "rune_resonance":
+            # 배틀메이지 - 룬 공명 (간략: 총합)
+            fire = getattr(character, 'rune_fire', 0)
+            ice = getattr(character, 'rune_ice', 0)
+            lightning = getattr(character, 'rune_lightning', 0)
+            total = fire + ice + lightning
+            return f"[룬:{total}]"
+
+        elif gimmick_type == "probability_distortion":
+            # 차원술사 - 확률 왜곡 (간략: 게이지)
+            gauge = getattr(character, 'distortion_gauge', 0)
+            return f"[왜곡:{gauge}]"
+
+        elif gimmick_type == "heat_gauge":
+            # 엔지니어 - 열 게이지 (간략: 상태)
+            heat = getattr(character, 'heat', 0)
+            if heat > 70:
+                return f"[⚠열:{heat}]"
+            else:
+                return f"[열:{heat}]"
+
+        elif gimmick_type == "thirst_gauge":
+            # 뱀파이어 - 갈증 (간략: 게이지)
+            thirst = getattr(character, 'thirst', 0)
+            if thirst > 70:
+                return f"[💧:{thirst}]"
+            else:
+                return f"[갈증:{thirst}]"
+
+        elif gimmick_type == "madness_gauge":
+            # 버서커 - 광기 (간략: 게이지)
+            madness = getattr(character, 'madness', 0)
+            if madness > 70:
+                return f"[⚡광:{madness}]"
+            else:
+                return f"[광기:{madness}]"
+
+        elif gimmick_type == "spirit_resonance":
+            # 정령술사 - 정령 (간략: 활성 정령 수)
+            fire = getattr(character, 'spirit_fire', 0)
+            water = getattr(character, 'spirit_water', 0)
+            wind = getattr(character, 'spirit_wind', 0)
+            earth = getattr(character, 'spirit_earth', 0)
+            active = sum([1 for s in [fire, water, wind, earth] if s > 0])
+            return f"[정령:{active}]"
+
+        elif gimmick_type == "stealth_mastery":
+            # 암살자 - 은신 (간략: 상태만)
+            stealth_active = getattr(character, 'stealth_active', False)
+            return "[🌑]" if stealth_active else "[👁]"
+
+        elif gimmick_type == "dilemma_choice":
+            # 철학자 - 선택 (간략: 총 선택 수)
+            power = getattr(character, 'choice_power', 0)
+            wisdom = getattr(character, 'choice_wisdom', 0)
+            sacrifice = getattr(character, 'choice_sacrifice', 0)
+            truth = getattr(character, 'choice_truth', 0)
+            total = power + wisdom + sacrifice + truth
+            return f"[선택:{total}]"
+
+        elif gimmick_type == "support_fire":
+            # 궁수 - 지원사격 (간략: 콤보)
+            combo = getattr(character, 'support_fire_combo', 0)
+            return f"[지원:{combo}]"
+
+        elif gimmick_type == "hack_threading":
+            # 해커 - 스레드 (간략: 스레드 수)
+            threads = getattr(character, 'active_threads', 0)
+            return f"[스레드:{threads}]"
+
+        elif gimmick_type == "cheer_gauge":
+            # 검투사 - 환호 (간략: 게이지)
+            cheer = getattr(character, 'cheer', 0)
+            if cheer > 70:
+                return f"[📢:{cheer}]"
+            else:
+                return f"[환호:{cheer}]"
+
+        return ""
+
+    def _render_gimmick_view(self, console: tcod.console.Console):
+        """기믹 상세 보기 렌더링 (박스 스타일)"""
+        if not self.gimmick_view_character:
+            return
+
+        character = self.gimmick_view_character
+        gimmick_type = getattr(character, 'gimmick_type', None)
+
+        # 박스 위치 및 크기
+        box_width = 50
+        box_height = 20
+        box_x = (self.screen_width - box_width) // 2
+        box_y = (self.screen_height - box_height) // 2
+
+        # 배경 (어두운 반투명)
+        for y in range(box_y, box_y + box_height):
+            console.draw_rect(box_x, y, box_width, 1, ord(" "), bg=(20, 20, 40))
+
+        # 박스 테두리
+        # 상단
+        console.print(box_x, box_y, "┌" + "─" * (box_width - 2) + "┐", fg=(200, 200, 255))
+        # 하단
+        console.print(box_x, box_y + box_height - 1, "└" + "─" * (box_width - 2) + "┘", fg=(200, 200, 255))
+        # 좌우
+        for y in range(box_y + 1, box_y + box_height - 1):
+            console.print(box_x, y, "│", fg=(200, 200, 255))
+            console.print(box_x + box_width - 1, y, "│", fg=(200, 200, 255))
+
+        # 내용 시작 위치
+        content_x = box_x + 2
+        content_y = box_y + 1
+        line = 0
+
+        # 기믹 타입에 따라 다른 UI 표시
+        if not gimmick_type:
+            console.print(content_x, content_y + line, "기믹 시스템 없음", fg=(150, 150, 150))
+            console.print(content_x, box_y + box_height - 2, "아무 키나 눌러 닫기...", fg=(150, 150, 150))
+            return
+
+        # === 15개 신규 기믹 시스템 상세 ===
+
+        if gimmick_type == "heat_gauge":
+            # 기계공학자 - 열 게이지
+            heat = getattr(character, 'heat', 0)
+            max_heat = getattr(character, 'max_heat', 100)
+
+            # 제목
+            console.print(content_x, content_y + line, "🔧 기계공학자 - 열 게이지", fg=(255, 200, 100))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 게이지 바
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, heat, max_heat, show_numbers=True, custom_color=(255, 100, 50))
+            line += 1
+
+            # 구간 표시
+            console.print(content_x, content_y + line, " 냉각   최적   위험   오버히트", fg=(150, 150, 150))
+            line += 1
+            # 현재 위치 표시
+            if heat < 50:
+                indicator_pos = int((heat / 50) * 6)
+                console.print(content_x + indicator_pos, content_y + line, "↑현재", fg=(100, 255, 255))
+            elif heat < 80:
+                indicator_pos = 6 + int(((heat - 50) / 30) * 6)
+                console.print(content_x + indicator_pos, content_y + line, "↑현재", fg=(100, 255, 100))
+            elif heat < 100:
+                indicator_pos = 12 + int(((heat - 80) / 20) * 6)
+                console.print(content_x + indicator_pos, content_y + line, "↑현재", fg=(255, 255, 100))
+            else:
+                console.print(content_x + 18, content_y + line, "↑현재", fg=(255, 100, 100))
+            line += 2
+
+            # 구분선
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 상태 정보
+            if heat >= 100:
+                console.print(content_x, content_y + line, "💥 상태: 오버히트!", fg=(255, 50, 50))
+                line += 1
+                console.print(content_x, content_y + line, "⚠️  스턴 2턴, 열 0으로 리셋", fg=(255, 100, 100))
+            elif heat >= 80:
+                console.print(content_x, content_y + line, "🔥 열 상태: 위험 구간", fg=(255, 200, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 효과: 공격력 +50%, 크리티컬 +15%", fg=(255, 255, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚠️  받는 피해 +20%, 명중률 -10%", fg=(255, 150, 100))
+            elif heat >= 50:
+                console.print(content_x, content_y + line, "🔥 열 상태: 최적 구간", fg=(100, 255, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 효과: 공격력 +30%, 스킬 효과 +20%", fg=(255, 255, 100))
+            else:
+                console.print(content_x, content_y + line, "❄️  열 상태: 냉각 구간", fg=(150, 150, 255))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 효과: 일반 공격력", fg=(200, 200, 200))
+            line += 1
+
+            # 다음 턴 예측
+            next_heat = heat + (5 if heat >= 50 else 0)
+            console.print(content_x, content_y + line, f"📊 다음 턴 자동 열 증가: +{5 if heat >= 50 else 0} (예상: {min(next_heat, 100)})", fg=(150, 200, 255))
+
+        elif gimmick_type == "yin_yang_flow":
+            # 몽크 - 음양 흐름
+            ki = getattr(character, 'ki_gauge', 50)
+            min_ki = getattr(character, 'min_ki', 0)
+            max_ki = getattr(character, 'max_ki', 100)
+
+            console.print(content_x, content_y + line, "🥋 몽크 - 음양 기 흐름", fg=(255, 215, 0))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 음양 게이지
+            console.print(content_x, content_y + line, "[陰]        [☯]        [陽]", fg=(200, 200, 200))
+            line += 1
+            # 게이지 바 (음=파랑, 양=빨강, 균형=금색)
+            if ki < 40:
+                gauge_color = (100, 150, 255)  # 파랑 (음)
+            elif ki <= 60:
+                gauge_color = (255, 215, 0)  # 금색 (균형)
+            else:
+                gauge_color = (255, 100, 100)  # 빨강 (양)
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, ki, max_ki, show_numbers=True, custom_color=gauge_color)
+            line += 1
+
+            # 상태 정보
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if ki < 25:
+                console.print(content_x, content_y + line, "🌟 상태: 음 (陰) 기운 특화", fg=(100, 150, 255))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 효과: 방어력 +50%, MP 회복 +100%", fg=(150, 200, 255))
+                line += 1
+                console.print(content_x, content_y + line, "   받는 피해 -30%", fg=(150, 200, 255))
+            elif ki > 75:
+                console.print(content_x, content_y + line, "🌟 상태: 양 (陽) 기운 특화", fg=(255, 100, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 효과: 공격력 +40%, 속도 +30%", fg=(255, 200, 100))
+                line += 1
+                console.print(content_x, content_y + line, "   크리티컬 확률 +20%", fg=(255, 200, 100))
+            else:
+                console.print(content_x, content_y + line, "🌟 상태: 태극 조화 (균형)", fg=(255, 215, 0))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 효과: 모든 스탯 +20%", fg=(255, 255, 100))
+                line += 1
+                console.print(content_x, content_y + line, "   음양 스킬 강화 +30%", fg=(255, 255, 100))
+                line += 1
+                console.print(content_x, content_y + line, "   HP/MP 회복 매 턴 5%", fg=(255, 255, 100))
+
+        elif gimmick_type == "rune_resonance":
+            # 배틀메이지 - 룬 공명
+            fire = getattr(character, 'rune_fire', 0)
+            ice = getattr(character, 'rune_ice', 0)
+            lightning = getattr(character, 'rune_lightning', 0)
+            max_rune = getattr(character, 'max_rune_per_type', 3)
+
+            console.print(content_x, content_y + line, "⚔️🔮 배틀메이지 - 룬 공명", fg=(200, 100, 255))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 룬 상태
+            console.print(content_x, content_y + line, f"🔥 화염 룬: {fire}/{max_rune}", fg=(255, 100, 50))
+            line += 1
+            console.print(content_x, content_y + line, f"❄️  냉기 룬: {ice}/{max_rune}", fg=(100, 200, 255))
+            line += 1
+            console.print(content_x, content_y + line, f"⚡ 번개 룬: {lightning}/{max_rune}", fg=(255, 255, 100))
+            line += 1
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 공명 가능 패턴 체크
+            resonances = []
+            if fire >= 3:
+                resonances.append("화염 폭발 (광역 화상)")
+            if ice >= 3:
+                resonances.append("빙하기 (전체 감속)")
+            if lightning >= 3:
+                resonances.append("연쇄 번개 (연쇄 공격)")
+            if fire >= 2 and ice >= 2:
+                resonances.append("증기 폭발 (화염+냉기)")
+            if fire >= 1 and ice >= 1 and lightning >= 1:
+                resonances.append("원소 융합 (3속성 피해)")
+
+            if resonances:
+                console.print(content_x, content_y + line, "🔍 공명 가능:", fg=(255, 255, 100))
+                line += 1
+                for res in resonances[:3]:  # 최대 3개만 표시
+                    console.print(content_x + 2, content_y + line, f"• {res}", fg=(200, 255, 200))
+                    line += 1
+            else:
+                console.print(content_x, content_y + line, "💡 룬 축적 필요", fg=(150, 150, 150))
+
+        elif gimmick_type == "probability_distortion":
+            # 차원술사 - 확률 왜곡
+            gauge = getattr(character, 'distortion_gauge', 0)
+            max_gauge = getattr(character, 'max_gauge', 100)
+
+            console.print(content_x, content_y + line, "🌀 차원술사 - 확률 왜곡", fg=(200, 100, 255))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, gauge, max_gauge, show_numbers=True, custom_color=(150, 100, 255))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 사용 가능한 왜곡 표시
+            console.print(content_x, content_y + line, "⚡ 사용 가능한 확률 왜곡:", fg=(255, 255, 100))
+            line += 1
+            if gauge >= 100:
+                console.print(content_x + 2, content_y + line, "• 평행우주 (100) - 모든 상태 리셋", fg=(255, 100, 255))
+                line += 1
+            if gauge >= 50:
+                console.print(content_x + 2, content_y + line, "• 시간 되감기 (50) - 실패 재시도", fg=(200, 200, 255))
+                line += 1
+            if gauge >= 30:
+                console.print(content_x + 2, content_y + line, "• 회피 왜곡 (30) - 회피율 +80%", fg=(150, 255, 200))
+                line += 1
+            if gauge >= 20:
+                console.print(content_x + 2, content_y + line, "• 크리티컬 왜곡 (20) - 크리 +50%", fg=(255, 255, 100))
+                line += 1
+
+        elif gimmick_type == "thirst_gauge":
+            # 뱀파이어 - 갈증
+            thirst = getattr(character, 'thirst', 0)
+            max_thirst = getattr(character, 'max_thirst', 100)
+
+            console.print(content_x, content_y + line, "🧛 흡혈귀 - 갈증 게이지", fg=(200, 50, 50))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_color = (200, 50, 50) if thirst > 70 else (150, 100, 100)
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, thirst, max_thirst, show_numbers=True, custom_color=gauge_color)
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if thirst > 90:
+                console.print(content_x, content_y + line, "💧 상태: 혈액 광란 (위험!)", fg=(255, 50, 50))
+                line += 1
+                console.print(content_x, content_y + line, "⚠️  통제 불가, 아군도 공격!", fg=(255, 100, 100))
+            elif thirst > 60:
+                console.print(content_x, content_y + line, "💧 상태: 극심한 갈증", fg=(255, 150, 150))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 공격력 +70%, 흡혈 3배, 속도 +50%", fg=(255, 200, 200))
+            elif thirst > 30:
+                console.print(content_x, content_y + line, "💧 상태: 갈증", fg=(200, 150, 150))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 공격력 +30%, 흡혈 2배", fg=(255, 255, 200))
+            else:
+                console.print(content_x, content_y + line, "💧 상태: 만족", fg=(150, 255, 150))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 정상 상태", fg=(200, 200, 200))
+            line += 1
+            console.print(content_x, content_y + line, f"📊 다음 턴 자동 증가: +10 (예상: {min(thirst + 10, max_thirst)})", fg=(150, 200, 255))
+
+        elif gimmick_type == "madness_gauge":
+            # 버서커 - 광기
+            madness = getattr(character, 'madness', 0)
+            max_madness = getattr(character, 'max_madness', 100)
+
+            console.print(content_x, content_y + line, "😡 광전사 - 광기 게이지", fg=(255, 100, 100))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_color = (255, 50, 50) if madness > 70 else (200, 100, 100)
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, madness, max_madness, show_numbers=True, custom_color=gauge_color)
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if madness >= 100:
+                console.print(content_x, content_y + line, "⚡ 상태: 폭주!", fg=(255, 50, 50))
+                line += 1
+                console.print(content_x, content_y + line, "⚠️  3턴간 통제 불가, 공격력 +200%!", fg=(255, 100, 100))
+            elif madness > 70:
+                console.print(content_x, content_y + line, "⚡ 상태: 위험 구간", fg=(255, 150, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 공격력 +100%, 받는 피해 +50%", fg=(255, 200, 100))
+            elif madness >= 30:
+                console.print(content_x, content_y + line, "⚡ 상태: 광전사 모드", fg=(255, 255, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 공격력 +60%", fg=(255, 255, 100))
+            else:
+                console.print(content_x, content_y + line, "⚡ 상태: 정상", fg=(200, 200, 200))
+
+        elif gimmick_type == "spirit_resonance":
+            # 정령술사 - 정령 공명
+            fire = getattr(character, 'spirit_fire', 0)
+            water = getattr(character, 'spirit_water', 0)
+            wind = getattr(character, 'spirit_wind', 0)
+            earth = getattr(character, 'spirit_earth', 0)
+
+            console.print(content_x, content_y + line, "🌊 정령술사 - 정령 공명", fg=(100, 200, 255))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 정령 상태
+            console.print(content_x, content_y + line, f"🔥 화염 정령: {'활성화' if fire > 0 else '비활성'}", fg=(255, 100, 50) if fire > 0 else (100, 100, 100))
+            line += 1
+            console.print(content_x, content_y + line, f"💧 수령 정령: {'활성화' if water > 0 else '비활성'}", fg=(100, 200, 255) if water > 0 else (100, 100, 100))
+            line += 1
+            console.print(content_x, content_y + line, f"💨 바람 정령: {'활성화' if wind > 0 else '비활성'}", fg=(200, 255, 200) if wind > 0 else (100, 100, 100))
+            line += 1
+            console.print(content_x, content_y + line, f"🌍 대지 정령: {'활성화' if earth > 0 else '비활성'}", fg=(150, 100, 50) if earth > 0 else (100, 100, 100))
+            line += 1
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 융합 가능 체크
+            active = sum([1 for s in [fire, water, wind, earth] if s > 0])
+            if active >= 2:
+                console.print(content_x, content_y + line, f"🔍 융합 가능! (활성 정령: {active})", fg=(255, 255, 100))
+                line += 1
+                if fire and wind:
+                    console.print(content_x + 2, content_y + line, "• 화염 돌풍 (화염+바람)", fg=(255, 200, 100))
+                    line += 1
+                if water and earth:
+                    console.print(content_x + 2, content_y + line, "• 진흙 속박 (물+대지)", fg=(100, 150, 100))
+                    line += 1
+            else:
+                console.print(content_x, content_y + line, "💡 정령 소환 필요", fg=(150, 150, 150))
+
+        elif gimmick_type == "stealth_mastery":
+            # 암살자 - 은신 숙련
+            stealth_active = getattr(character, 'stealth_active', False)
+            shadow_strike = getattr(character, 'shadow_strike_ready', False)
+
+            console.print(content_x, content_y + line, "🗡️ 암살자 - 은신 숙련", fg=(100, 100, 150))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 2
+
+            if stealth_active:
+                console.print(content_x + 10, content_y + line, "🌑 은신 중", fg=(100, 100, 200))
+                line += 2
+                console.print(content_x, content_y + line, "⚡ 회피율 +80%", fg=(150, 200, 255))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 다음 공격 크리티컬 확정", fg=(255, 255, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚠️  공격 시 은신 해제", fg=(200, 150, 100))
+            elif shadow_strike:
+                console.print(content_x + 8, content_y + line, "👁 그림자 공격 준비", fg=(150, 150, 200))
+                line += 2
+                console.print(content_x, content_y + line, "⚡ 암살 기술 사용 가능", fg=(255, 200, 100))
+            else:
+                console.print(content_x + 12, content_y + line, "👁 노출", fg=(200, 200, 200))
+                line += 2
+                console.print(content_x, content_y + line, "💡 은신 스킬로 재진입 가능", fg=(150, 200, 255))
+
+        elif gimmick_type == "dilemma_choice":
+            # 철학자 - 딜레마 선택
+            power = getattr(character, 'choice_power', 0)
+            wisdom = getattr(character, 'choice_wisdom', 0)
+            sacrifice = getattr(character, 'choice_sacrifice', 0)
+            truth = getattr(character, 'choice_truth', 0)
+
+            console.print(content_x, content_y + line, "📚 철학자 - 딜레마 선택", fg=(200, 150, 255))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            console.print(content_x, content_y + line, f"⚔️  힘의 선택: {power}", fg=(255, 100, 100))
+            line += 1
+            console.print(content_x, content_y + line, f"📖 지혜의 선택: {wisdom}", fg=(100, 200, 255))
+            line += 1
+            console.print(content_x, content_y + line, f"💔 희생의 선택: {sacrifice}", fg=(200, 100, 200))
+            line += 1
+            console.print(content_x, content_y + line, f"✨ 진리의 선택: {truth}", fg=(255, 255, 100))
+            line += 1
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 경향 분석
+            dominant = max(power, wisdom, sacrifice, truth)
+            if dominant == 0:
+                console.print(content_x, content_y + line, "💡 선택 대기 중", fg=(150, 150, 150))
+            else:
+                if power == dominant:
+                    console.print(content_x, content_y + line, "📊 경향: 힘 중심", fg=(255, 100, 100))
+                elif wisdom == dominant:
+                    console.print(content_x, content_y + line, "📊 경향: 지혜 중심", fg=(100, 200, 255))
+                elif sacrifice == dominant:
+                    console.print(content_x, content_y + line, "📊 경향: 희생 중심", fg=(200, 100, 200))
+                else:
+                    console.print(content_x, content_y + line, "📊 경향: 진리 중심", fg=(255, 255, 100))
+
+        elif gimmick_type == "support_fire":
+            # 궁수 - 지원사격
+            combo = getattr(character, 'support_fire_combo', 0)
+            marked = getattr(character, 'marked_allies_count', 0)
+
+            console.print(content_x, content_y + line, "🏹 궁수 - 지원사격", fg=(150, 200, 100))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            console.print(content_x, content_y + line, f"지원 콤보: {combo}", fg=(255, 200, 100))
+            line += 1
+            console.print(content_x, content_y + line, f"표식된 아군: {marked}명", fg=(100, 255, 200))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if combo >= 7:
+                console.print(content_x, content_y + line, "🔥 완벽한 지원!", fg=(255, 215, 0))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 데미지 +100%, 확정 크리티컬", fg=(255, 255, 100))
+            elif combo >= 5:
+                console.print(content_x, content_y + line, "🔥 연속 지원 보너스!", fg=(255, 200, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 데미지 +60%, 크리티컬 +40%", fg=(255, 255, 100))
+            elif combo >= 3:
+                console.print(content_x, content_y + line, "⚡ 연속 지원 중", fg=(200, 255, 200))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 데미지 +40%, 크리티컬 +20%", fg=(255, 255, 200))
+            else:
+                console.print(content_x, content_y + line, "💡 콤보 축적 중", fg=(150, 150, 150))
+
+        elif gimmick_type == "hack_threading":
+            # 해커 - 해킹 스레드
+            threads = getattr(character, 'active_threads', 0)
+            exploits = getattr(character, 'exploit_count', 0)
+            max_threads = getattr(character, 'max_threads', 5)
+
+            console.print(content_x, content_y + line, "💻 해커 - 해킹 스레드", fg=(100, 255, 100))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            console.print(content_x, content_y + line, f"활성 스레드: {threads}/{max_threads}", fg=(150, 255, 150))
+            line += 1
+            console.print(content_x, content_y + line, f"익스플로잇: {exploits}", fg=(255, 200, 100))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if threads >= 4:
+                console.print(content_x, content_y + line, "⚡ 다중 스레드 공격 가능!", fg=(255, 255, 100))
+                line += 1
+            if exploits >= 3:
+                console.print(content_x, content_y + line, "🔓 시스템 장악 준비 완료", fg=(255, 100, 255))
+
+        elif gimmick_type == "cheer_gauge":
+            # 검투사 - 환호
+            cheer = getattr(character, 'cheer', 0)
+            max_cheer = getattr(character, 'max_cheer', 100)
+
+            console.print(content_x, content_y + line, "⚔️ 검투사 - 환호 게이지", fg=(255, 200, 100))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_color = (255, 215, 0) if cheer > 70 else (200, 150, 100)
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, cheer, max_cheer, show_numbers=True, custom_color=gauge_color)
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if cheer >= 100:
+                console.print(content_x, content_y + line, "📢 열광! 검투사의 영광!", fg=(255, 215, 0))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 무적 3턴!", fg=(255, 255, 100))
+            elif cheer > 70:
+                console.print(content_x, content_y + line, "📢 열광! 궁극기 강화", fg=(255, 200, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 공격력 +60%, 크리티컬 +40%", fg=(255, 255, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 모든 공격 광역화", fg=(255, 200, 100))
+            elif cheer > 40:
+                console.print(content_x, content_y + line, "📢 고조 - 공격력 증가", fg=(255, 255, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 공격력 +30%, 크리티컬 +20%", fg=(255, 255, 200))
+            else:
+                console.print(content_x, content_y + line, "📢 평온 - 축적 필요", fg=(150, 150, 150))
+
+        # === 기존 기믹 시스템들 (21개) ===
+
+        elif gimmick_type == "stance_system":
+            # 전사 - 스탠스 시스템
+            stance = getattr(character, 'current_stance', 0)
+            stance_names = ["기본", "공격", "방어", "신속", "균형", "최종"]
+
+            console.print(content_x, content_y + line, "⚔️ 전사 - 스탠스 시스템", fg=(255, 150, 100))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 2
+
+            # 현재 스탠스 강조 표시
+            if 0 <= stance < len(stance_names):
+                console.print(content_x + 10, content_y + line, f"【 {stance_names[stance]} 】", fg=(255, 255, 100))
+                line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 스탠스별 효과
+            stance_effects = [
+                "일반 능력치",
+                "⚔️ 공격력 +40%, 방어력 -20%",
+                "🛡️ 방어력 +50%, 공격력 -10%",
+                "💨 속도 +50%, HP -10%",
+                "⚖️ 모든 스탯 +15%",
+                "⭐ 모든 스탯 +30%, 크리티컬 +20%"
+            ]
+            if 0 <= stance < len(stance_effects):
+                console.print(content_x, content_y + line, f"{stance_effects[stance]}", fg=(255, 255, 200))
+
+        elif gimmick_type == "elemental_counter":
+            # 아크메이지 - 원소 카운터
+            fire = getattr(character, 'fire_element', 0)
+            ice = getattr(character, 'ice_element', 0)
+            lightning = getattr(character, 'lightning_element', 0)
+            max_elem = 5
+
+            console.print(content_x, content_y + line, "🔮 아크메이지 - 원소 카운터", fg=(150, 100, 255))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 원소 게이지들
+            console.print(content_x, content_y + line, "🔥 화염:", fg=(255, 100, 50))
+            gauge_renderer.render_bar(console, content_x + 8, content_y + line, 15, fire, max_elem, show_numbers=True, custom_color=(255, 100, 50))
+            line += 1
+            console.print(content_x, content_y + line, "❄️ 냉기:", fg=(100, 200, 255))
+            gauge_renderer.render_bar(console, content_x + 8, content_y + line, 15, ice, max_elem, show_numbers=True, custom_color=(100, 200, 255))
+            line += 1
+            console.print(content_x, content_y + line, "⚡ 번개:", fg=(255, 255, 100))
+            gauge_renderer.render_bar(console, content_x + 8, content_y + line, 15, lightning, max_elem, show_numbers=True, custom_color=(255, 255, 100))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 원소 조합 가능 체크
+            if fire >= 3 and ice >= 3:
+                console.print(content_x, content_y + line, "💥 화염+냉기 융합 가능!", fg=(255, 200, 255))
+                line += 1
+            if ice >= 3 and lightning >= 3:
+                console.print(content_x, content_y + line, "⚡ 냉기+번개 융합 가능!", fg=(200, 255, 255))
+                line += 1
+            if fire >= 3 and lightning >= 3:
+                console.print(content_x, content_y + line, "🔥 화염+번개 융합 가능!", fg=(255, 255, 200))
+
+        elif gimmick_type == "support_fire_system":
+            # 궁수 - 지원사격 시스템
+            marked_allies = getattr(character, 'marked_allies', [])
+            combo = getattr(character, 'combo_count', 0)
+            max_marks = getattr(character, 'max_marks', 3)
+
+            console.print(content_x, content_y + line, "🏹 궁수 - 지원사격", fg=(100, 200, 100))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 마킹된 아군 정보
+            console.print(content_x, content_y + line, f"마킹된 아군: ({len(marked_allies)}/{max_marks})", fg=(200, 200, 200))
+            line += 1
+
+            if len(marked_allies) > 0:
+                console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+                line += 1
+
+                # 화살 타입 이름 매핑
+                arrow_names = {
+                    'N': '일반 화살',
+                    'P': '관통 화살 (방어 무시)',
+                    'F': '화염 화살 (화상)',
+                    'I': '빙결 화살 (속도↓)',
+                    'T': '독 화살 (독)',
+                    'E': '폭발 화살 (광역)',
+                    'H': '신성 화살 (언데드 특효)',
+                }
+
+                # 각 마킹된 아군 표시
+                for i, ally in enumerate(marked_allies):
+                    if isinstance(ally, dict):
+                        ally_name = ally.get('name', f'아군{i+1}')
+                        arrow_type = ally.get('arrow_type', 'N')
+                        remaining = ally.get('remaining_shots', 3)
+                    else:
+                        ally_name = f'아군{i+1}'
+                        arrow_type = 'N'
+                        remaining = 3
+
+                    console.print(content_x, content_y + line, f"[{ally_name}] 🎯", fg=(255, 200, 100))
+                    line += 1
+                    console.print(content_x + 2, content_y + line, f"화살: {arrow_names.get(arrow_type, '일반 화살')}", fg=(200, 200, 200))
+                    line += 1
+                    console.print(content_x + 2, content_y + line, f"남은 지원: {remaining}회", fg=(180, 180, 180))
+                    line += 1
+
+                    if i < len(marked_allies) - 1:
+                        line += 1  # 간격
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 콤보 상태
+            if combo >= 7:
+                console.print(content_x, content_y + line, "🔥 완벽한 지원! (콤보 7+)", fg=(255, 255, 100))
+                line += 1
+                console.print(content_x + 2, content_y + line, "데미지 +100%, 크리티컬 확정", fg=(255, 255, 200))
+            elif combo >= 5:
+                console.print(content_x, content_y + line, f"🔥 콤보: {combo} 연속", fg=(255, 200, 100))
+                line += 1
+                console.print(content_x + 2, content_y + line, "데미지 +60%, 크리티컬 +40%", fg=(255, 200, 150))
+                line += 1
+                remaining_for_perfect = 7 - combo
+                console.print(content_x, content_y + line, f"💡 {remaining_for_perfect}회 더 성공 시 완벽한 지원!", fg=(200, 255, 200))
+            elif combo >= 3:
+                console.print(content_x, content_y + line, f"🔥 콤보: {combo} 연속", fg=(255, 150, 100))
+                line += 1
+                console.print(content_x + 2, content_y + line, "데미지 +40%, 크리티컬 +20%", fg=(255, 200, 150))
+            elif combo >= 2:
+                console.print(content_x, content_y + line, f"🔥 콤보: {combo} 연속", fg=(200, 150, 100))
+                line += 1
+                console.print(content_x + 2, content_y + line, "데미지 +20%", fg=(200, 200, 150))
+            else:
+                console.print(content_x, content_y + line, "💡 지원 대기 중...", fg=(150, 150, 150))
+                line += 1
+                console.print(content_x, content_y + line, "아군 공격 시 자동 지원 발동", fg=(180, 180, 180))
+
+        elif gimmick_type == "magazine_system":
+            # 저격수 - 탄창 시스템
+            magazine = getattr(character, 'magazine', [])
+            current_bullet = getattr(character, 'current_bullet_index', 0)
+
+            console.print(content_x, content_y + line, "🎯 저격수 - 탄창", fg=(255, 200, 100))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 탄환 타입 심볼 매핑
+            bullet_symbols = {
+                'N': '■',  # 기본 탄환
+                'P': 'P',  # 관통탄
+                'E': 'E',  # 폭발탄
+                'I': 'I',  # 빙결탄
+                'F': 'F',  # 화염탄
+                'T': 'T',  # 독침탄
+                'S': 'S',  # 섬광탄
+                'H': 'H',  # 헤드샷 탄
+            }
+
+            # 탄창 표시 (최대 6발)
+            max_bullets = 6
+            bullet_display = ""
+            for i in range(max_bullets):
+                if i < len(magazine):
+                    bullet_type = magazine[i] if isinstance(magazine, list) else magazine[i] if i < len(magazine) else 'N'
+                    symbol = bullet_symbols.get(bullet_type, '■')
+                    bullet_display += f"[{symbol}]"
+                else:
+                    bullet_display += "[□]"  # 빈 슬롯
+
+            console.print(content_x, content_y + line, f"{bullet_display} {len(magazine)}/6", fg=(255, 255, 200))
+            line += 1
+
+            # 탄환 번호
+            console.print(content_x, content_y + line, " 1  2  3  4  5  6", fg=(150, 150, 150))
+            line += 1
+
+            # 라스트 불렛 표시 (마지막 탄환)
+            if len(magazine) > 0:
+                last_bullet_indicator = " " * (len(magazine) * 3 - 1) + "↑ 라스트 불렛"
+                console.print(content_x, content_y + line, last_bullet_indicator, fg=(255, 255, 100))
+                line += 1
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 범례
+            console.print(content_x, content_y + line, "범례:", fg=(200, 200, 200))
+            line += 1
+            console.print(content_x, content_y + line, "■=기본 P=관통 E=폭발", fg=(180, 180, 180))
+            line += 1
+            console.print(content_x, content_y + line, "I=빙결 F=화염 T=독침 S=섬광", fg=(180, 180, 180))
+            line += 1
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 상태 메시지
+            if len(magazine) == 0:
+                console.print(content_x, content_y + line, "⚠️ 탄창 비었음! 재장전 필요!", fg=(255, 100, 100))
+                line += 1
+                console.print(content_x, content_y + line, "권총 모드 (데미지 -80%)", fg=(255, 150, 150))
+            elif len(magazine) <= 2:
+                console.print(content_x, content_y + line, "⚠️ 탄약 부족! 재장전 권장", fg=(255, 200, 100))
+            elif len(magazine) == 6:
+                console.print(content_x, content_y + line, "✓ 탄창 만탄!", fg=(100, 255, 100))
+                line += 1
+                # 다음 발사할 탄환 정보
+                if current_bullet < len(magazine):
+                    next_bullet = magazine[current_bullet] if isinstance(magazine, list) else magazine[current_bullet]
+                    bullet_names = {
+                        'N': '기본 탄환',
+                        'P': '관통탄 (방어 무시)',
+                        'E': '폭발탄 (광역)',
+                        'I': '빙결탄 (빙결)',
+                        'F': '화염탄 (화상)',
+                        'T': '독침탄 (독)',
+                        'S': '섬광탄 (명중률↓)',
+                        'H': '헤드샷 탄 (크리티컬 100%)',
+                    }
+                    console.print(content_x, content_y + line, f"다음 발사: {bullet_names.get(next_bullet, '기본 탄환')}", fg=(200, 255, 200))
+            else:
+                # 다음 발사할 탄환 정보
+                if current_bullet < len(magazine):
+                    next_bullet = magazine[current_bullet] if isinstance(magazine, list) else magazine[current_bullet]
+                    bullet_names = {
+                        'N': '기본 탄환',
+                        'P': '관통탄 (방어 무시)',
+                        'E': '폭발탄 (광역)',
+                        'I': '빙결탄 (빙결)',
+                        'F': '화염탄 (화상)',
+                        'T': '독침탄 (독)',
+                        'S': '섬광탄 (명중률↓)',
+                        'H': '헤드샷 탄 (크리티컬 100%)',
+                    }
+                    console.print(content_x, content_y + line, f"다음 발사: {bullet_names.get(next_bullet, '기본 탄환')}", fg=(200, 255, 200))
+
+        elif gimmick_type == "sword_aura":
+            # 검성 - 검기
+            aura = getattr(character, 'sword_aura', 0)
+            max_aura = getattr(character, 'max_sword_aura', 5)
+
+            console.print(content_x, content_y + line, "⚔️ 검성 - 검기", fg=(200, 220, 255))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, aura, max_aura, show_numbers=True, custom_color=(200, 220, 255))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if aura >= 5:
+                console.print(content_x, content_y + line, "⚡ 검기 최대! 궁극기 가능", fg=(255, 255, 100))
+            elif aura >= 3:
+                console.print(content_x, content_y + line, "⚔️ 검기 충전 중", fg=(200, 220, 255))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 공격력 +20%", fg=(255, 255, 200))
+            else:
+                console.print(content_x, content_y + line, "💡 검기 축적 중...", fg=(150, 150, 150))
+
+        elif gimmick_type == "melody_system":
+            # 바드 - 멜로디 시스템
+            melody = getattr(character, 'melody_stacks', 0)
+            max_melody = getattr(character, 'max_melody_stacks', 7)
+
+            console.print(content_x, content_y + line, "🎵 바드 - 멜로디", fg=(255, 200, 255))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, melody, max_melody, show_numbers=True, custom_color=(255, 200, 255))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if melody >= 7:
+                console.print(content_x, content_y + line, "🎼 완벽한 하모니!", fg=(255, 215, 0))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 파티 전체 모든 스탯 +30%", fg=(255, 255, 100))
+            elif melody >= 4:
+                console.print(content_x, content_y + line, "🎵 멜로디 진행 중", fg=(255, 200, 255))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 파티 공격력 +15%", fg=(255, 255, 200))
+            else:
+                console.print(content_x, content_y + line, "💡 멜로디 작곡 중...", fg=(150, 150, 150))
+
+        elif gimmick_type == "necro_system":
+            # 네크로맨서 - 네크로 에너지
+            necro = getattr(character, 'necro_energy', 0)
+            max_necro = getattr(character, 'max_necro_energy', 50)
+            corpses = getattr(character, 'corpse_count', 0)
+
+            console.print(content_x, content_y + line, "💀 네크로맨서 - 사령 에너지", fg=(150, 100, 150))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            console.print(content_x, content_y + line, "사령 에너지:", fg=(200, 200, 200))
+            gauge_renderer.render_bar(console, content_x, content_y + line + 1, box_width - 6, necro, max_necro, show_numbers=True, custom_color=(150, 100, 150))
+            line += 2
+
+            console.print(content_x, content_y + line, f"💀 시체 수집: {corpses}/10", fg=(200, 150, 200))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if corpses >= 5:
+                console.print(content_x, content_y + line, "⚡ 강력한 언데드 소환 가능!", fg=(255, 200, 255))
+            elif corpses >= 2:
+                console.print(content_x, content_y + line, "💡 언데드 소환 가능", fg=(200, 150, 200))
+            else:
+                console.print(content_x, content_y + line, "💡 시체 수집 필요", fg=(150, 150, 150))
+
+        elif gimmick_type == "time_system":
+            # 시간술사 - 시간 마크
+            marks = getattr(character, 'time_marks', 0)
+            max_marks = getattr(character, 'max_time_marks', 7)
+
+            console.print(content_x, content_y + line, "⏰ 시간술사 - 시간 마크", fg=(200, 150, 255))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, marks, max_marks, show_numbers=True, custom_color=(200, 150, 255))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if marks >= 7:
+                console.print(content_x, content_y + line, "⏰ 시간 역행 가능!", fg=(255, 255, 100))
+            elif marks >= 4:
+                console.print(content_x, content_y + line, "⏰ 시간 조작 가능", fg=(200, 150, 255))
+            else:
+                console.print(content_x, content_y + line, "💡 시간 마크 축적 중...", fg=(150, 150, 150))
+
+        elif gimmick_type == "alchemy_system":
+            # 연금술사 - 포션 재고
+            potions = getattr(character, 'potion_stock', 0)
+            max_potions = getattr(character, 'max_potion_stock', 10)
+
+            console.print(content_x, content_y + line, "🧪 연금술사 - 포션 재고", fg=(100, 255, 150))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, potions, max_potions, show_numbers=True, custom_color=(100, 255, 150))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if potions >= 8:
+                console.print(content_x, content_y + line, "🧪 포션 풍부!", fg=(100, 255, 150))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 고급 포션 제작 가능", fg=(255, 255, 200))
+            elif potions >= 4:
+                console.print(content_x, content_y + line, "🧪 포션 충분", fg=(150, 255, 200))
+            else:
+                console.print(content_x, content_y + line, "⚠️ 포션 부족 - 제작 필요", fg=(255, 200, 100))
+
+        elif gimmick_type == "darkness_system":
+            # 암흑기사 - 어둠
+            darkness = getattr(character, 'darkness', 0)
+            max_darkness = 100
+
+            console.print(content_x, content_y + line, "⚫ 암흑기사 - 어둠", fg=(100, 100, 150))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, darkness, max_darkness, show_numbers=True, custom_color=(100, 100, 150))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if darkness >= 70:
+                console.print(content_x, content_y + line, "⚫ 어둠 가득!", fg=(150, 150, 200))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ HP 소모 스킬 +50%", fg=(255, 200, 255))
+            elif darkness >= 40:
+                console.print(content_x, content_y + line, "⚫ 어둠 축적 중", fg=(120, 120, 180))
+            else:
+                console.print(content_x, content_y + line, "💡 어둠 부족", fg=(150, 150, 150))
+
+        elif gimmick_type == "holy_system":
+            # 성기사/신관 - 신성력
+            holy = getattr(character, 'holy_power', 0)
+            max_holy = getattr(character, 'max_holy_power', 100)
+
+            console.print(content_x, content_y + line, "✨ 성기사 - 신성력", fg=(255, 255, 200))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, holy, max_holy, show_numbers=True, custom_color=(255, 255, 200))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if holy >= 80:
+                console.print(content_x, content_y + line, "✨ 신성력 충만!", fg=(255, 255, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 회복 +50%, 언데드 특효", fg=(255, 255, 200))
+            elif holy >= 40:
+                console.print(content_x, content_y + line, "✨ 신성력 충전 중", fg=(255, 255, 150))
+            else:
+                console.print(content_x, content_y + line, "💡 기도 필요", fg=(150, 150, 150))
+
+        elif gimmick_type == "iaijutsu_system":
+            # 사무라이 - 거합 게이지
+            will = getattr(character, 'will_gauge', 0)
+            max_will = getattr(character, 'max_will_gauge', 100)
+
+            console.print(content_x, content_y + line, "⚔️ 사무라이 - 거합", fg=(200, 50, 50))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, will, max_will, show_numbers=True, custom_color=(200, 50, 50))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if will >= 100:
+                console.print(content_x, content_y + line, "⚔️ 거합 준비 완료!", fg=(255, 100, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 일격필살 가능!", fg=(255, 255, 100))
+            elif will >= 50:
+                console.print(content_x, content_y + line, "⚔️ 의지 집중 중", fg=(200, 100, 100))
+            else:
+                console.print(content_x, content_y + line, "💡 집중 필요", fg=(150, 150, 150))
+
+        elif gimmick_type == "enchant_system":
+            # 마검사 - 마력 부여
+            mana = getattr(character, 'mana_blade', 0)
+            max_mana = getattr(character, 'max_mana_blade', 100)
+
+            console.print(content_x, content_y + line, "⚔️🔮 마검사 - 마력 부여", fg=(150, 100, 255))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, mana, max_mana, show_numbers=True, custom_color=(150, 100, 255))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if mana >= 70:
+                console.print(content_x, content_y + line, "⚔️🔮 마검 완성!", fg=(200, 150, 255))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 물리+마법 피해 극대화", fg=(255, 255, 200))
+            elif mana >= 35:
+                console.print(content_x, content_y + line, "⚔️🔮 마력 충전 중", fg=(150, 100, 255))
+            else:
+                console.print(content_x, content_y + line, "💡 마력 부여 필요", fg=(150, 150, 150))
+
+        elif gimmick_type == "shapeshifting_system":
+            # 드루이드 - 변신
+            nature = getattr(character, 'nature_points', 0)
+            form = getattr(character, 'current_form', None)
+
+            console.print(content_x, content_y + line, "🌿 드루이드 - 변신", fg=(100, 200, 100))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 2
+
+            if form:
+                form_icons = {
+                    "bear": "🐻 곰",
+                    "cat": "🐱 고양이",
+                    "bird": "🦅 독수리",
+                    "human": "👤 인간"
+                }
+                form_name = form_icons.get(form, form)
+                console.print(content_x + 10, content_y + line, f"【 {form_name} 】", fg=(100, 255, 100))
+            else:
+                console.print(content_x + 10, content_y + line, "【 인간 형태 】", fg=(200, 200, 200))
+            line += 2
+
+            console.print(content_x, content_y + line, f"🌿 자연 포인트: {nature}/100", fg=(150, 255, 150))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if nature >= 70:
+                console.print(content_x, content_y + line, "🌿 자연의 힘 충만!", fg=(100, 255, 100))
+            else:
+                console.print(content_x, content_y + line, "💡 자연과 교감 필요", fg=(150, 150, 150))
+
+        elif gimmick_type == "dragon_marks":
+            # 용기사 - 용의 표식
+            marks = getattr(character, 'dragon_marks', 0)
+            max_marks = getattr(character, 'max_dragon_marks', 3)
+            power = getattr(character, 'dragon_power', 0)
+
+            console.print(content_x, content_y + line, "🐉 용기사 - 용의 표식", fg=(255, 100, 50))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            console.print(content_x, content_y + line, f"🐉 용의 표식: {marks}/{max_marks}", fg=(255, 150, 100))
+            line += 1
+            console.print(content_x, content_y + line, f"⚡ 용력: {power}/100", fg=(255, 200, 100))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if marks >= 3:
+                console.print(content_x, content_y + line, "🐉 드래곤 폼 가능!", fg=(255, 100, 50))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 모든 스탯 +50%", fg=(255, 255, 100))
+            else:
+                console.print(content_x, content_y + line, "💡 표식 축적 필요", fg=(150, 150, 150))
+
+        elif gimmick_type == "arena_system":
+            # 검투사 - 투기장
+            arena = getattr(character, 'arena_points', 0)
+            glory = getattr(character, 'glory_points', 0)
+            kills = getattr(character, 'kill_count', 0)
+
+            console.print(content_x, content_y + line, "⚔️ 검투사 - 투기장", fg=(255, 200, 100))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            console.print(content_x, content_y + line, f"⚔️ 투기: {arena}", fg=(255, 200, 100))
+            line += 1
+            console.print(content_x, content_y + line, f"🏆 영광: {glory}", fg=(255, 215, 0))
+            line += 1
+            console.print(content_x, content_y + line, f"💀 처치: {kills}", fg=(255, 100, 100))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if glory >= 100:
+                console.print(content_x, content_y + line, "🏆 전설적 검투사!", fg=(255, 215, 0))
+            elif glory >= 50:
+                console.print(content_x, content_y + line, "⚔️ 명성 높은 검투사", fg=(255, 200, 100))
+            else:
+                console.print(content_x, content_y + line, "💡 명성 획득 필요", fg=(150, 150, 150))
+
+        elif gimmick_type == "break_system":
+            # 브레이커 - 파괴력
+            break_power = getattr(character, 'break_power', 0)
+            max_break = getattr(character, 'max_break_power', 10)
+
+            console.print(content_x, content_y + line, "🔨 브레이커 - 파괴력", fg=(255, 150, 50))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, break_power, max_break, show_numbers=True, custom_color=(255, 150, 50))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if break_power >= 10:
+                console.print(content_x, content_y + line, "🔨 최대 파괴력!", fg=(255, 100, 50))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 방어 무시 100%", fg=(255, 255, 100))
+            else:
+                console.print(content_x, content_y + line, "💡 파괴력 축적 중...", fg=(150, 150, 150))
+
+        elif gimmick_type == "plunder_system":
+            # 해적 - 약탈
+            gold = getattr(character, 'gold', 0)
+
+            console.print(content_x, content_y + line, "🏴‍☠️ 해적 - 약탈 골드", fg=(255, 215, 0))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 2
+
+            console.print(content_x + 10, content_y + line, f"💰 {gold} 골드", fg=(255, 215, 0))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if gold >= 1000:
+                console.print(content_x, content_y + line, "💰 골드 풍부!", fg=(255, 215, 0))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 용병/함포 강화 가능", fg=(255, 255, 200))
+            else:
+                console.print(content_x, content_y + line, "💡 약탈 필요", fg=(200, 200, 200))
+
+        elif gimmick_type == "divinity_system":
+            # 프리스트/클레릭 - 신성력
+            judgment = getattr(character, 'judgment_points', 0)
+            faith = getattr(character, 'faith_points', 0)
+
+            console.print(content_x, content_y + line, "⛪ 성직자 - 신성력", fg=(255, 255, 200))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            console.print(content_x, content_y + line, f"⚖️ 심판: {judgment}/100", fg=(255, 200, 100))
+            line += 1
+            console.print(content_x, content_y + line, f"🙏 신앙: {faith}/100", fg=(200, 220, 255))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            if judgment >= 70 and faith >= 70:
+                console.print(content_x, content_y + line, "✨ 균형잡힌 신성력!", fg=(255, 255, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 기적 스킬 가능", fg=(255, 255, 200))
+            elif judgment > faith:
+                console.print(content_x, content_y + line, "⚖️ 심판 중심 - 공격 강화", fg=(255, 200, 100))
+            else:
+                console.print(content_x, content_y + line, "🙏 신앙 중심 - 회복 강화", fg=(200, 220, 255))
+
+        else:
+            # 나머지 미구현 기믹들 (폴백)
+            console.print(content_x, content_y + line, f"기믹: {gimmick_type}", fg=(200, 200, 200))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 간단한 정보 표시
+            detail_text = self._get_gimmick_detail(character)
+            for detail_line in detail_text.split('\n')[:10]:  # 최대 10줄
+                if line >= box_height - 3:
+                    break
+                console.print(content_x, content_y + line, detail_line[:box_width - 6], fg=(200, 200, 200))
+                line += 1
+
+        # 하단 안내
+        console.print(content_x, box_y + box_height - 2, "아무 키나 눌러 닫기...", fg=(150, 150, 150))
+
+    def _get_gimmick_detail(self, character: Any) -> str:
+        """캐릭터의 기믹 상태 상세 정보 (기믹 커맨드용)"""
+        gimmick_type = getattr(character, 'gimmick_type', None)
+        if not gimmick_type:
+            return "기믹 시스템 없음"
+
+        details = []
+
+        # === 15개 신규 기믹 시스템 상세 ===
+
+        if gimmick_type == "yin_yang_flow":
+            ki = getattr(character, 'ki_gauge', 50)
+            details.append("=== 음양 흐름 시스템 ===")
+            details.append(f"기 게이지: {ki}/100")
+            if ki < 20:
+                details.append("상태: 음 (방어/회복 강화)")
+            elif ki > 80:
+                details.append("상태: 양 (공격/속도 강화)")
+            else:
+                details.append("상태: 균형 (안정적 전투)")
+
+        elif gimmick_type == "rune_resonance":
+            fire = getattr(character, 'rune_fire', 0)
+            ice = getattr(character, 'rune_ice', 0)
+            lightning = getattr(character, 'rune_lightning', 0)
+            details.append("=== 룬 공명 시스템 ===")
+            details.append(f"🔥 화염 룬: {fire}/3")
+            details.append(f"❄️  냉기 룬: {ice}/3")
+            details.append(f"⚡ 번개 룬: {lightning}/3")
+            if fire >= 2 and ice >= 2:
+                details.append("공명 가능: 화염+냉기")
+            if ice >= 2 and lightning >= 2:
+                details.append("공명 가능: 냉기+번개")
+            if fire >= 2 and lightning >= 2:
+                details.append("공명 가능: 화염+번개")
+
+        elif gimmick_type == "probability_distortion":
+            gauge = getattr(character, 'distortion_gauge', 0)
+            details.append("=== 확률 왜곡 시스템 ===")
+            details.append(f"왜곡 게이지: {gauge}/100")
+            if gauge >= 100:
+                details.append("평행우주 사용 가능!")
+            elif gauge >= 50:
+                details.append("시간 되감기 사용 가능")
+            elif gauge >= 30:
+                details.append("회피 왜곡 사용 가능")
+            elif gauge >= 20:
+                details.append("크리티컬 왜곡 사용 가능")
+
+        elif gimmick_type == "heat_gauge":
+            heat = getattr(character, 'heat', 0)
+            details.append("=== 열 게이지 시스템 ===")
+            details.append(f"열 누적: {heat}/100")
+            if heat > 70:
+                details.append("⚠️  과열 위험! 방출 권장")
+            elif heat > 40:
+                details.append("적정 열량 - 강화 스킬 사용 가능")
+            else:
+                details.append("낮은 열량 - 축적 필요")
+
+        elif gimmick_type == "thirst_gauge":
+            thirst = getattr(character, 'thirst', 0)
+            details.append("=== 갈증 게이지 시스템 ===")
+            details.append(f"갈증: {thirst}/100")
+            if thirst > 70:
+                details.append("💧 갈망 상태 - 흡혈 강화")
+            elif thirst < 30:
+                details.append("만족 상태 - 안정적")
+            else:
+                details.append("보통 상태")
+
+        elif gimmick_type == "madness_gauge":
+            madness = getattr(character, 'madness', 0)
+            details.append("=== 광기 게이지 시스템 ===")
+            details.append(f"광기: {madness}/100")
+            if madness > 70:
+                details.append("⚡ 광란 상태 - 초강력 공격 가능!")
+            elif madness > 40:
+                details.append("격앙 상태 - 공격력 증가")
+            else:
+                details.append("안전 구간")
+
+        elif gimmick_type == "spirit_resonance":
+            fire = getattr(character, 'spirit_fire', 0)
+            water = getattr(character, 'spirit_water', 0)
+            wind = getattr(character, 'spirit_wind', 0)
+            earth = getattr(character, 'spirit_earth', 0)
+            details.append("=== 정령 공명 시스템 ===")
+            details.append(f"🔥 화염 정령: {'활성화' if fire > 0 else '비활성'}")
+            details.append(f"💧 수령 정령: {'활성화' if water > 0 else '비활성'}")
+            details.append(f"💨 바람 정령: {'활성화' if wind > 0 else '비활성'}")
+            details.append(f"🌍 대지 정령: {'활성화' if earth > 0 else '비활성'}")
+            active = sum([1 for s in [fire, water, wind, earth] if s > 0])
+            if active >= 2:
+                details.append(f"융합 가능! (활성 정령: {active})")
+
+        elif gimmick_type == "stealth_mastery":
+            stealth_active = getattr(character, 'stealth_active', False)
+            shadow_strike = getattr(character, 'shadow_strike_ready', False)
+            details.append("=== 은신 숙련 시스템 ===")
+            if stealth_active:
+                details.append("상태: 🌑 은신 중")
+                details.append("다음 공격 크리티컬 확정")
+            elif shadow_strike:
+                details.append("상태: 그림자 공격 준비")
+                details.append("암살 기술 사용 가능")
+            else:
+                details.append("상태: 👁 노출")
+                details.append("은신 스킬로 재진입 가능")
+
+        elif gimmick_type == "dilemma_choice":
+            power = getattr(character, 'choice_power', 0)
+            wisdom = getattr(character, 'choice_wisdom', 0)
+            sacrifice = getattr(character, 'choice_sacrifice', 0)
+            truth = getattr(character, 'choice_truth', 0)
+            details.append("=== 딜레마 선택 시스템 ===")
+            details.append(f"힘의 선택: {power}")
+            details.append(f"지혜의 선택: {wisdom}")
+            details.append(f"희생의 선택: {sacrifice}")
+            details.append(f"진리의 선택: {truth}")
+            dominant = max(power, wisdom, sacrifice, truth)
+            if power == dominant:
+                details.append("경향: 힘 중심")
+            elif wisdom == dominant:
+                details.append("경향: 지혜 중심")
+            elif sacrifice == dominant:
+                details.append("경향: 희생 중심")
+            elif truth == dominant:
+                details.append("경향: 진리 중심")
+
+        elif gimmick_type == "support_fire":
+            combo = getattr(character, 'support_fire_combo', 0)
+            marked = getattr(character, 'marked_allies_count', 0)
+            details.append("=== 지원사격 시스템 ===")
+            details.append(f"지원 콤보: {combo}")
+            details.append(f"표식된 아군: {marked}명")
+            if combo >= 3:
+                details.append("연속 지원 보너스 활성!")
+
+        elif gimmick_type == "hack_threading":
+            threads = getattr(character, 'active_threads', 0)
+            exploits = getattr(character, 'exploit_count', 0)
+            details.append("=== 해킹 스레드 시스템 ===")
+            details.append(f"활성 스레드: {threads}/5")
+            details.append(f"익스플로잇: {exploits}")
+            if threads >= 4:
+                details.append("⚡ 다중 스레드 공격 가능!")
+            if exploits >= 3:
+                details.append("시스템 장악 준비 완료")
+
+        elif gimmick_type == "cheer_gauge":
+            cheer = getattr(character, 'cheer', 0)
+            details.append("=== 환호 게이지 시스템 ===")
+            details.append(f"환호: {cheer}/100")
+            if cheer > 70:
+                details.append("📢 열광! 궁극기 강화")
+            elif cheer > 40:
+                details.append("고조 - 공격력 증가")
+            else:
+                details.append("평온 - 축적 필요")
+
+        else:
+            return "기믹 상세 정보 없음"
+
+        return "\n".join(details)
 
         return ""
 

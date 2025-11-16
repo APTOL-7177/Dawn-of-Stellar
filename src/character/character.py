@@ -204,11 +204,29 @@ class Character:
             self.ice_element = 0
             self.lightning_element = 0
 
-        # 궁수/저격수 - 조준 포인트
+        # 궁수/저격수 - 조준 포인트 (구버전, 호환성 유지)
         elif gimmick_type == "aim_system":
             self.aim_points = 0
             self.max_aim_points = self.gimmick_data.get("max_aim", 5)
             self.focus_stacks = 0  # 집중 스택 (저격수가 사용하는 별칭)
+
+        # 저격수 - 탄창 시스템 (신버전)
+        elif gimmick_type == "magazine_system":
+            self.max_magazine = self.gimmick_data.get("max_magazine", 6)
+            self.magazine = []  # 현재 탄창 (리스트로 탄환 타입 저장)
+            self.current_bullet_index = 0  # 다음 발사할 탄환 인덱스
+            self.quick_reload_count = 2  # 빠른 재장전 남은 횟수
+            # 탄환 타입 정보 저장
+            self.bullet_types = {
+                "normal": {"name": "기본 탄환", "multiplier": 2.0},
+                "penetrating": {"name": "관통탄", "multiplier": 2.5, "defense_pierce": 0.5},
+                "explosive": {"name": "폭발탄", "multiplier": 1.8, "aoe": True},
+                "frost": {"name": "빙결탄", "multiplier": 1.8, "status": "frozen"},
+                "fire": {"name": "화염탄", "multiplier": 2.0, "status": "burn"},
+                "poison": {"name": "독침탄", "multiplier": 1.5, "status": "poison"},
+                "flash": {"name": "섬광탄", "multiplier": 1.0, "debuff": "blind"},
+                "headshot": {"name": "헤드샷 탄", "multiplier": 5.0, "crit_guaranteed": True}
+            }
 
         # 도적 - 베놈 파워
         elif gimmick_type == "venom_system":
@@ -264,11 +282,21 @@ class Character:
             self.max_spirit_bond = self.gimmick_data.get("max_bond", 25)
             self.spirit_count = 0  # 정령 개수 (스킬에서 사용)
 
-        # 시간술사 - 시간 기록점
+        # 시간술사 - 시간 기록점 (구버전, 호환성 유지)
         elif gimmick_type == "time_system":
             self.time_marks = 0
             self.max_time_marks = self.gimmick_data.get("max_marks", 7)
             self.time_points = 0  # 시간 포인트 (스킬에서 사용하는 별칭)
+
+        # 시간술사 - 타임라인 균형 시스템 (신버전)
+        elif gimmick_type == "timeline_system":
+            self.timeline = 0  # 현재 타임라인 위치 (-5 ~ +5)
+            self.min_timeline = self.gimmick_data.get("min_timeline", -5)
+            self.max_timeline = self.gimmick_data.get("max_timeline", 5)
+            self.optimal_point = self.gimmick_data.get("optimal_point", 0)
+            self.past_threshold = self.gimmick_data.get("past_threshold", -2)
+            self.future_threshold = self.gimmick_data.get("future_threshold", 2)
+            self.time_correction_counter = 0  # 시간 보정 카운터 (3턴마다)
 
         # 용기사 - 용의 표식
         elif gimmick_type == "dragon_marks":
@@ -321,10 +349,23 @@ class Character:
             self.max_gold = self.gimmick_data.get("max_gold", 1000)
             self.gold_per_hit = self.gimmick_data.get("gold_per_hit", 10)
 
-        # 엔지니어 - 구조물
+        # 엔지니어 - 구조물 (구버전, 호환성 유지)
         elif gimmick_type == "construct_system":
             self.machine_parts = 0
             self.max_machine_parts = self.gimmick_data.get("max_machine_parts", 5)
+
+        # 엔지니어 - 열 관리 시스템 (신버전)
+        elif gimmick_type == "heat_management":
+            self.heat = 0  # 현재 열 게이지 (0-100)
+            self.max_heat = self.gimmick_data.get("max_heat", 100)
+            self.optimal_min = self.gimmick_data.get("optimal_min", 50)
+            self.optimal_max = self.gimmick_data.get("optimal_max", 79)
+            self.danger_min = self.gimmick_data.get("danger_min", 80)
+            self.danger_max = self.gimmick_data.get("danger_max", 99)
+            self.overheat_threshold = self.gimmick_data.get("overheat_threshold", 100)
+            self.overheat_prevention_count = 2  # 오버히트 방지 남은 횟수
+            self.is_overheated = False  # 오버히트 상태
+            self.overheat_stun_turns = 0  # 오버히트 스턴 남은 턴
 
         # 사무라이 - 거합
         elif gimmick_type == "iaijutsu_system":
@@ -381,12 +422,111 @@ class Character:
             self.knowledge_stacks = 0
             self.max_knowledge_stacks = self.gimmick_data.get("max_knowledge_stacks", 10)
 
-        # 해커 - 해킹
+        # 해커 - 해킹 (구버전, 호환성 유지)
         elif gimmick_type == "hack_system":
             self.hack_stacks = 0
             self.max_hack_stacks = self.gimmick_data.get("max_hack_stacks", 5)
             self.debuff_count = 0
             self.max_debuff_count = self.gimmick_data.get("max_debuff_count", 10)
+
+        # === 새로운 기믹 시스템들 (문서 재설계) ===
+
+        # 몽크 - 음양 흐름 시스템 (신버전)
+        elif gimmick_type == "yin_yang_flow":
+            self.ki_gauge = 50  # 음양 게이지 (0-100, 50이 균형)
+            self.min_ki = self.gimmick_data.get("min_ki", 0)
+            self.max_ki = self.gimmick_data.get("max_ki", 100)
+            self.balance_center = self.gimmick_data.get("balance_center", 50)
+            self.yin_threshold = self.gimmick_data.get("yin_threshold", 20)  # 20 이하면 음 극대
+            self.yang_threshold = self.gimmick_data.get("yang_threshold", 80)  # 80 이상이면 양 극대
+
+        # 배틀메이지 - 룬 공명 시스템 (신버전)
+        elif gimmick_type == "rune_resonance":
+            self.rune_fire = 0  # 화염 룬 (0-3)
+            self.rune_ice = 0   # 빙결 룬 (0-3)
+            self.rune_lightning = 0  # 번개 룬 (0-3)
+            self.max_rune_per_type = self.gimmick_data.get("max_rune_per_type", 3)
+            self.resonance_bonus = 0  # 공명 보너스 (3개 동일 룬 시)
+
+        # 네크로맨서 - 언데드 군단 시스템 (신버전)
+        elif gimmick_type == "undead_legion":
+            self.undead_count = 0  # 현재 언데드 수 (0-10)
+            self.max_undead = self.gimmick_data.get("max_undead", 10)
+            self.skeleton_count = 0
+            self.zombie_count = 0
+            self.ghoul_count = 0
+            self.undead_power = 0  # 언데드 전체 파워
+
+        # 버서커 - 광기 임계치 시스템 (신버전)
+        elif gimmick_type == "madness_threshold":
+            self.madness = 0  # 광기 게이지 (0-100)
+            self.max_madness = self.gimmick_data.get("max_madness", 100)
+            self.safe_max = self.gimmick_data.get("safe_max", 74)  # 안전 구간
+            self.danger_min = self.gimmick_data.get("danger_min", 75)  # 위험 구간 시작
+            self.death_threshold = self.gimmick_data.get("death_threshold", 100)  # 100 도달 시 사망
+
+        # 뱀파이어 - 갈증 게이지 시스템 (신버전)
+        elif gimmick_type == "thirst_gauge":
+            self.thirst = 0  # 갈증 게이지 (0-100)
+            self.max_thirst = self.gimmick_data.get("max_thirst", 100)
+            self.satisfied_max = self.gimmick_data.get("satisfied_max", 29)  # 만족 구간
+            self.normal_min = self.gimmick_data.get("normal_min", 30)  # 보통 구간
+            self.normal_max = self.gimmick_data.get("normal_max", 69)
+            self.starving_min = self.gimmick_data.get("starving_min", 70)  # 굶주림 구간
+
+        # 해커 - 멀티스레드 시스템 (신버전)
+        elif gimmick_type == "multithread_system":
+            self.active_threads = []  # 활성 스레드 리스트 (최대 4개)
+            self.max_threads = self.gimmick_data.get("max_threads", 4)
+            self.thread_types = ["firewall", "exploit", "ddos", "rootkit"]  # 가능한 스레드 타입
+
+        # 글래디에이터 - 군중 환호 시스템 (신버전)
+        elif gimmick_type == "crowd_cheer":
+            self.cheer = 0  # 환호 게이지 (0-100)
+            self.max_cheer = self.gimmick_data.get("max_cheer", 100)
+            self.start_cheer = self.gimmick_data.get("start_cheer", 0)
+            self.cheer_zones = self.gimmick_data.get("cheer_zones", {})  # normal/popular/superstar/glory
+
+        # 암살자 - 은신-노출 딜레마 (신버전)
+        elif gimmick_type == "stealth_exposure":
+            self.stealth_active = True  # 은신 상태 (True/False)
+            self.exposed_turns = 0  # 노출 후 경과 턴 (3턴 후 재은신 가능)
+            self.restealth_cooldown = self.gimmick_data.get("restealth_cooldown", 3)
+
+        # 궁수 - 지원사격 시스템 (신버전)
+        elif gimmick_type == "support_fire":
+            self.marked_allies = {}  # 마킹된 아군 {ally_id: {"arrow_type": "normal", "shots_left": 3}}
+            self.max_marks = self.gimmick_data.get("max_marks", 3)
+            self.shots_per_mark = self.gimmick_data.get("shots_per_mark", 3)
+            self.support_fire_combo = 0  # 연속 지원 사격 콤보
+            self.arrow_types = self.gimmick_data.get("arrow_types", {})
+
+        # 정령술사 - 4대 정령 소환 (신버전)
+        elif gimmick_type == "elemental_spirits":
+            self.spirit_fire = 0  # 화염 정령 (0 or 1)
+            self.spirit_water = 0  # 물 정령 (0 or 1)
+            self.spirit_wind = 0  # 바람 정령 (0 or 1)
+            self.spirit_earth = 0  # 대지 정령 (0 or 1)
+            self.max_spirits = self.gimmick_data.get("max_spirits", 2)  # 최대 2마리 동시 소환
+
+        # 철학자 - 딜레마 선택 시스템 (신버전)
+        elif gimmick_type == "dilemma_choice":
+            self.choice_power = 0  # 힘 선택 카운트
+            self.choice_wisdom = 0  # 지혜 선택 카운트
+            self.choice_sacrifice = 0  # 희생 선택 카운트
+            self.choice_survival = 0  # 생존 선택 카운트
+            self.choice_truth = 0  # 진실 선택 카운트
+            self.choice_lie = 0  # 거짓 선택 카운트
+            self.choice_order = 0  # 질서 선택 카운트 (추가)
+            self.choice_chaos = 0  # 혼돈 선택 카운트 (추가)
+            self.accumulation_threshold = self.gimmick_data.get("accumulation_threshold", 5)
+
+        # 차원술사 - 확률 왜곡 게이지 (신버전)
+        elif gimmick_type == "probability_distortion":
+            self.distortion_gauge = 0  # 확률 왜곡 게이지 (0-100)
+            self.max_gauge = self.gimmick_data.get("max_gauge", 100)
+            self.start_gauge = self.gimmick_data.get("start_gauge", 0)
+            self.gauge_per_turn = self.gimmick_data.get("gauge_gain", {}).get("per_turn", 10)
 
         self.logger.debug(f"{self.character_class} 기믹 초기화: {gimmick_type}")
 

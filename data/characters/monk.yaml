@@ -25,40 +25,76 @@ stat_growth:
   evasion: 2.2
   max_brv: 2.6
 traits:
-- id: inner_power
-  name: 내공 순환
-  description: 매 턴 MP 5% 회복, MP로 HP 회복 가능
+- id: yin_yang_balance
+  name: 태극 조화
+  description: 음양 균형 상태(40-60)에서 HP/MP 5% 회복/턴
   type: passive
-- id: meditation
-  name: 명상의 깨달음
-  description: 방어 태세 시 MP 15% 회복 + 디버프 해제
-  type: trigger
-- id: spirit_resistance
-  name: 정신 수양
-  description: 모든 정신 상태이상 저항 +50%
+  conditions:
+    ki_gauge_min: 40
+    ki_gauge_max: 60
+  effects:
+    hp_regen_percent: 0.05
+    mp_regen_percent: 0.05
+
+- id: yang_mastery
+  name: 양극 숙련
+  description: 양 상태(80+)에서 물리 공격력 +30%, 크리티컬 +20%
   type: passive
-- id: chakra_strike
-  name: 차크라 타격
-  description: MP 소모하여 물리 공격력 증가 (MP 10 = 공격력 +20%)
+  conditions:
+    ki_gauge_min: 80
+  effects:
+    physical_attack_multiplier: 1.3
+    critical_rate_bonus: 0.2
+
+- id: yin_mastery
+  name: 음극 숙련
+  description: 음 상태(20-)에서 마법 공격력 +30%, 방어력 +20%
+  type: passive
+  conditions:
+    ki_gauge_max: 20
+  effects:
+    magic_attack_multiplier: 1.3
+    defense_multiplier: 1.2
+
+- id: ki_flow
+  name: 기 흐름
+  description: 매 턴 음양 게이지가 균형(50)으로 5씩 이동
+  type: passive
+  effects:
+    auto_balance: 5
+
+- id: enlightenment
+  name: 깨달음의 순간
+  description: 정확히 50에서 스킬 사용 시 MP 소모 50% 감소
   type: trigger
-- id: counter_stance
-  name: 반격의 자세
-  description: 회피 성공 시 30% 확률로 반격
-  type: trigger
+  conditions:
+    ki_gauge_exact: 50
+  effects:
+    mp_cost_reduction: 0.5
+
 gimmick:
-  type: ki_system
-  name: 기 에너지
-  description: 차크라를 개방하고 콤보를 쌓아 강력한 기공 기술 사용
-  max_chakra_points: 7
-  max_combo_count: 10
+  type: yin_yang_flow
+  name: 음양 기 흐름
+  description: 음(0)과 양(100) 사이의 기 균형 관리. 균형(40-60)에서 회복, 극단(0-20, 80-100)에서 공격력 증가
+  min_ki: 0
+  max_ki: 100
+  balance_min: 40
+  balance_max: 60
+  yin_threshold: 20
+  yang_threshold: 80
+  start_ki: 50
 
 skills:
-- palm_strike
-- chakra_burst
-- meditation_heal
-- pressure_point
-- inner_peace
-- ultimate_fist
+- monk_palm_strike
+- monk_energy_blast
+- monk_yin_strike
+- monk_yang_strike
+- monk_balance_restoration
+- monk_yin_extreme
+- monk_yang_extreme
+- monk_taichi_flow
+- monk_enlightenment
+- monk_taichi_ultimate
 bonuses:
   mp_multiplier: 1.3
   spirit_multiplier: 1.2

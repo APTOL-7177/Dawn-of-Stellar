@@ -24,41 +24,86 @@ stat_growth:
   accuracy: 3.8
   evasion: 3.2
   max_brv: 2.0
-traits:
-- id: system_breach
-  name: 시스템 침투
-  description: 적 공격 시 해킹 스택 획득, 스택당 적 능력치 -5%
-  type: passive
-- id: virus_spread
-  name: 바이러스 확산
-  description: 디버프 걸린 적 공격 시 다른 적에게 전파 (30% 확률)
-  type: trigger
-- id: backdoor_access
-  name: 백도어 접근
-  description: 전투 시작 시 해킹 스택 3개로 시작
-  type: passive
-- id: exploit_vulnerability
-  name: 취약점 악용
-  description: 디버프 3개 이상 걸린 적 공격 시 데미지 +100%
-  type: conditional
-- id: firewall_breach
-  name: 방화벽 침투
-  description: 적의 방어 버프 효과 50% 무시
-  type: passive
 gimmick:
-  type: hack_system
-  name: 시스템 해킹
-  description: 적의 시스템을 해킹하고 디버프를 누적시켜 무력화
-  max_hack_stacks: 5
-  max_debuff_count: 10
+  type: multithread
+  name: 멀티스레드 시스템
+  description: 최대 3개 프로그램을 동시 실행. 각 프로그램은 독립적인 디버프 효과 발휘
+  max_cpu_cores: 3
+  mp_per_program_per_turn: 5
+  programs:
+    virus:
+      name: 바이러스
+      effect: 적 공격력 -20%
+      mp_cost: 10
+    backdoor:
+      name: 백도어
+      effect: 적 방어력 -30%
+      mp_cost: 12
+    ddos:
+      name: DDoS
+      effect: 적 속도 -50%
+      mp_cost: 15
+    ransomware:
+      name: 랜섬웨어
+      effect: 적 스킬 봉인
+      mp_cost: 18
+    spyware:
+      name: 스파이웨어
+      effect: 적 정보 획득
+      mp_cost: 8
+
+traits:
+- id: multithread_master
+  name: 멀티스레드 마스터
+  description: 동시 실행 프로그램 수에 비례하여 모든 능력치 +15% (프로그램당)
+  type: passive
+  effects:
+    all_stats_per_program: 0.15
+
+- id: cpu_optimization
+  name: CPU 최적화
+  description: 프로그램 유지 비용 -2 MP/턴 (5→3)
+  type: passive
+  effects:
+    mp_cost_reduction: 2
+
+- id: overclocking
+  name: 오버클러킹
+  description: 프로그램 3개 동시 실행 시 속도 +40%, 크리티컬 +20%
+  type: conditional
+  conditions:
+    program_count_min: 3
+  effects:
+    speed_multiplier: 1.4
+    critical_rate_bonus: 0.2
+
+- id: kernel_panic
+  name: 커널 패닉
+  description: 적 프로그램 종료 시 MP 10 회복
+  type: trigger
+  effects:
+    mp_gain_on_terminate: 10
+
+- id: zero_day_exploit
+  name: 제로데이 익스플로잇
+  description: 모든 프로그램 동시 실행 시 공격력 +50%
+  type: conditional
+  conditions:
+    all_programs_active: true
+  effects:
+    attack_multiplier: 1.5
 
 skills:
-- hack_attempt
-- system_overload
-- install_debuff
-- disrupt
-- virus
-- backdoor
+- hacker_port_scan
+- hacker_data_breach
+- hacker_crack_firewall
+- hacker_ddos
+- hacker_root_access
+- hacker_virus_upload
+- hacker_system_overload
+- hacker_backdoor_install
+- hacker_network_collapse
+- hacker_zero_day
 bonuses:
   debuff_duration: 1.3
   status_effect_power: 1.25

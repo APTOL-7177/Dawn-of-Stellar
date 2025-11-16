@@ -9,8 +9,10 @@ from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
 def create_paladin_skills():
-    """팔라딘 9개 스킬 생성"""
-    
+    """팔라딘 10개 스킬 생성 (성력/신성 보호 시스템)"""
+
+    skills = []
+
     # 1. 기본 BRV: 성스러운 일격
     holy_strike = Skill("paladin_holy_strike", "성스러운 일격", "신성한 힘으로 공격, 성력 획득")
     holy_strike.effects = [
@@ -18,7 +20,10 @@ def create_paladin_skills():
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
     holy_strike.costs = []  # 기본 공격은 MP 소모 없음
-    
+    holy_strike.sfx = "456"
+    holy_strike.metadata = {"holy_power_gain": 1}
+    skills.append(holy_strike)
+
     # 2. 기본 HP: 신성한 심판
     divine_judgment = Skill("paladin_judgment", "신성한 심판", "성력 소비 심판의 일격")
     divine_judgment.effects = [
@@ -26,7 +31,10 @@ def create_paladin_skills():
         GimmickEffect(GimmickOperation.CONSUME, "holy_power", 1)
     ]
     divine_judgment.costs = []  # 기본 공격은 MP 소모 없음
-    
+    divine_judgment.sfx = "462"
+    divine_judgment.metadata = {"holy_power_cost": 1, "holy_power_scaling": True}
+    skills.append(divine_judgment)
+
     # 3. 신성한 보호막
     divine_shield = Skill("paladin_divine_shield", "신성한 보호막", "성력으로 강력한 보호막")
     divine_shield.effects = [
@@ -36,7 +44,10 @@ def create_paladin_skills():
     divine_shield.costs = [MPCost(8), StackCost("holy_power", 2)]
     divine_shield.target_type = "self"
     divine_shield.cooldown = 4
-    
+    divine_shield.sfx = "468"
+    divine_shield.metadata = {"holy_power_cost": 2, "shield": True, "holy_power_scaling": True}
+    skills.append(divine_shield)
+
     # 4. 신성화
     consecration = Skill("paladin_consecration", "신성화", "땅을 신성화, 지속 피해")
     consecration.effects = [
@@ -46,7 +57,10 @@ def create_paladin_skills():
     ]
     consecration.costs = [MPCost(6)]
     consecration.cooldown = 3
-    
+    consecration.sfx = "474"
+    consecration.metadata = {"holy_power_gain": 1, "dot": True}
+    skills.append(consecration)
+
     # 5. 성스러운 빛
     holy_light = Skill("paladin_holy_light", "성스러운 빛", "아군 치유 + 성력")
     holy_light.effects = [
@@ -56,7 +70,10 @@ def create_paladin_skills():
     holy_light.costs = [MPCost(8)]
     holy_light.target_type = "ally"
     holy_light.cooldown = 2
-    
+    holy_light.sfx = "480"
+    holy_light.metadata = {"holy_power_gain": 1, "healing": True}
+    skills.append(holy_light)
+
     # 6. 정의의 망치
     hammer = Skill("paladin_hammer", "정의의 망치", "성력 비례 강타")
     hammer.effects = [
@@ -65,7 +82,10 @@ def create_paladin_skills():
     ]
     hammer.costs = [MPCost(9)]
     hammer.cooldown = 3
-    
+    hammer.sfx = "486"
+    hammer.metadata = {"holy_power_gain": 1, "holy_power_scaling": True}
+    skills.append(hammer)
+
     # 7. 축복
     blessing = Skill("paladin_blessing", "축복", "파티 전체 방어 버프")
     blessing.effects = [
@@ -76,7 +96,10 @@ def create_paladin_skills():
     blessing.costs = [MPCost(10)]
     blessing.target_type = "party"
     blessing.cooldown = 5
-    
+    blessing.sfx = "492"
+    blessing.metadata = {"holy_power_gain": 1, "party": True, "buff": True}
+    skills.append(blessing)
+
     # 8. 복수의 격노
     avenging_wrath = Skill("paladin_wrath", "복수의 격노", "성력 3 소비, 강력한 버프")
     avenging_wrath.effects = [
@@ -88,8 +111,26 @@ def create_paladin_skills():
     avenging_wrath.costs = [MPCost(12), StackCost("holy_power", 3)]
     avenging_wrath.target_type = "self"
     avenging_wrath.cooldown = 6
-    
-    # 9. 궁극기: 신성한 폭풍
+    avenging_wrath.sfx = "498"
+    avenging_wrath.metadata = {"holy_power_cost": 3, "buff": True, "shield": True}
+    skills.append(avenging_wrath)
+
+    # 9. 성스러운 징벌 (NEW - 10번째 스킬 전)
+    holy_retribution = Skill("paladin_retribution", "성스러운 징벌", "성력 4 소비, 신성 폭발")
+    holy_retribution.effects = [
+        DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "holy_power", "multiplier": 0.35}),
+        BuffEffect(BuffType.ATTACK_DOWN, 0.4, duration=4, target="enemy"),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4, target="enemy"),
+        GimmickEffect(GimmickOperation.CONSUME, "holy_power", 4)
+    ]
+    holy_retribution.costs = [MPCost(15), StackCost("holy_power", 4)]
+    holy_retribution.cooldown = 6
+    holy_retribution.is_aoe = True
+    holy_retribution.sfx = "504"
+    holy_retribution.metadata = {"holy_power_cost": 4, "holy_power_scaling": True, "debuff": True, "aoe": True}
+    skills.append(holy_retribution)
+
+    # 10. 궁극기: 신성한 폭풍
     ultimate = Skill("paladin_ultimate", "신성한 폭풍", "성력으로 신성 폭풍 + 파티 힐")
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "holy_power", "multiplier": 0.4}),
@@ -97,14 +138,17 @@ def create_paladin_skills():
         DamageEffect(DamageType.HP, 3.0),
         HealEffect(HealType.HP, percentage=0.4, is_party_wide=True),
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5, is_party_wide=True),
-        GimmickEffect(GimmickOperation.SET, "holy_power", 0)
+        GimmickEffect(GimmickOperation.SET, "holy_power", 5)
     ]
-    ultimate.costs = [MPCost(25)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 10
-    
-    return [holy_strike, divine_judgment, divine_shield, consecration, holy_light,
-            hammer, blessing, avenging_wrath, ultimate]
+    ultimate.cooldown = 8
+    ultimate.is_aoe = True
+    ultimate.sfx = "514"
+    ultimate.metadata = {"ultimate": True, "holy_power_refill": True, "healing": True, "party": True}
+    skills.append(ultimate)
+
+    return skills
 
 def register_paladin_skills(skill_manager):
     """팔라딘 스킬 등록"""

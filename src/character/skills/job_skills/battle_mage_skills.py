@@ -1,129 +1,142 @@
-"""Battle Mage Skills - 배틀메이지 스킬 (룬 폭발 시스템)"""
+"""Battle Mage Skills - 배틀메이지 스킬 (룬 공명 시스템)"""
 from src.character.skills.skill import Skill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
-from src.character.skills.effects.status_effect import StatusEffect, StatusType
 from src.character.skills.costs.mp_cost import MPCost
-from src.character.skills.costs.stack_cost import StackCost
 
 def create_battle_mage_skills():
-    """배틀메이지 9개 스킬"""
-    skills = []
+    """배틀메이지 10개 스킬 생성 (룬 공명 시스템)"""
 
-    # 1. 기본 BRV: 룬 새기기
-    engrave_rune = Skill("bmage_engrave", "룬 새기기", "적에게 룬 각인")
-    engrave_rune.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magical"),
-        StatusEffect(StatusType.RUNE, duration=99, stackable=True),  # 적에게 룬 마크
-        GimmickEffect(GimmickOperation.ADD, "rune_stacks", 1, max_value=8)  # 자신의 룬 스택 증가
+    # 1. 기본 BRV: 마검 난무 (하이브리드 물리 공격)
+    slash = Skill("battle_mage_slash", "마검 난무", "마력을 실은 검격")
+    slash.effects = [
+        DamageEffect(DamageType.BRV, 1.5, stat_type="hybrid")  # 물리+마법 하이브리드
     ]
-    engrave_rune.costs = []  # 기본 공격은 MP 소모 없음
-    skills.append(engrave_rune)
-    
-    # 2. 기본 HP: 룬 폭발
-    rune_burst = Skill("bmage_burst", "룬 폭발", "룬 폭발 공격")
-    rune_burst.effects = [
-        DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "rune_stacks", "multiplier": 0.25}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.CONSUME, "rune_stacks", 1),
-        StatusEffect(StatusType.RUNE, remove=True)  # 적의 룬 마크 제거
+    slash.costs = []  # 기본 공격은 MP 소모 없음
+    slash.metadata = {}
+
+    # 2. 기본 HP: 마법탄 (하이브리드 마법 공격)
+    spell = Skill("battle_mage_spell", "마법탄", "마력탄 발사")
+    spell.effects = [
+        DamageEffect(DamageType.HP, 1.2, stat_type="hybrid")  # 물리+마법 하이브리드
     ]
-    rune_burst.costs = []  # 기본 공격은 MP 소모 없음
-    rune_burst.aoe_effect = DamageEffect(DamageType.BRV, 0.3, stat_type="magical")  # 룬 폭발 광역 피해 (약함)
-    rune_burst.aoe_includes_main_target = True  # 메인 타겟 포함 모든 적에게 광역 피해
-    skills.append(rune_burst)
-    
-    # 3. 룬 강화
-    empower_rune = Skill("bmage_empower", "룬 강화", "룬 위력 강화")
-    empower_rune.effects = [
-        BuffEffect(BuffType.MAGIC_UP, 0.4, duration=4),
-        GimmickEffect(GimmickOperation.ADD, "rune_stacks", 2, max_value=8)
+    spell.costs = []  # 기본 공격은 MP 소모 없음
+    spell.metadata = {}
+
+    # 3. 화염 룬 각인 (물리 공격력 +15% 버프)
+    fire_rune = Skill("battle_mage_fire_rune", "화염 룬",
+                     "화염 룬 각인, 물리 공격력 +15%")
+    fire_rune.effects = [
+        GimmickEffect(GimmickOperation.ADD, "runes_fire", 1, max_value=3),
+        BuffEffect(BuffType.ATTACK_UP, 0.15, duration=99)  # 룬 보유 동안 지속
     ]
-    empower_rune.costs = [MPCost(6)]
-    empower_rune.target_type = "self"
-    empower_rune.cooldown = 3
-    skills.append(empower_rune)
-    
-    # 4. 연쇄 폭발
-    chain_burst = Skill("bmage_chain", "연쇄 폭발", "다중 룬 폭발")
-    chain_burst.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.8, gimmick_bonus={"field": "rune_stacks", "multiplier": 0.3}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.CONSUME, "rune_stacks", 2),
-        StatusEffect(StatusType.RUNE, remove=True)  # 적의 룬 마크 제거
+    fire_rune.costs = [MPCost(8)]
+    fire_rune.target_type = "self"
+    fire_rune.metadata = {"rune_type": "fire"}
+
+    # 4. 냉기 룬 각인 (마법 공격력 +15% 버프)
+    ice_rune = Skill("battle_mage_ice_rune", "냉기 룬",
+                    "냉기 룬 각인, 마법 공격력 +15%")
+    ice_rune.effects = [
+        GimmickEffect(GimmickOperation.ADD, "runes_ice", 1, max_value=3),
+        BuffEffect(BuffType.MAGIC_ATTACK_UP, 0.15, duration=99)
     ]
-    chain_burst.costs = [MPCost(9), StackCost("rune_stacks", 2)]
-    chain_burst.cooldown = 2
-    chain_burst.aoe_effect = DamageEffect(DamageType.BRV, 0.4, stat_type="magical")  # 룬 폭발 광역 피해
-    chain_burst.aoe_includes_main_target = True  # 메인 타겟 포함 모든 적에게 광역 피해
-    skills.append(chain_burst)
-    
-    # 5. 마법검
-    magic_blade = Skill("bmage_blade", "마법검", "룬 부여 검격")
-    magic_blade.effects = [
-        DamageEffect(DamageType.BRV, 1.6, gimmick_bonus={"field": "rune_stacks", "multiplier": 0.2}, stat_type="magical"),
-        DamageEffect(DamageType.HP, 1.0, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "rune_stacks", 1, max_value=8)
+    ice_rune.costs = [MPCost(8)]
+    ice_rune.target_type = "self"
+    ice_rune.metadata = {"rune_type": "ice"}
+
+    # 5. 번개 룬 각인 (속도 +20% 버프)
+    lightning_rune = Skill("battle_mage_lightning_rune", "번개 룬",
+                          "번개 룬 각인, 속도 +20%")
+    lightning_rune.effects = [
+        GimmickEffect(GimmickOperation.ADD, "runes_lightning", 1, max_value=3),
+        BuffEffect(BuffType.SPEED_UP, 0.2, duration=99)
     ]
-    magic_blade.costs = [MPCost(8)]
-    magic_blade.cooldown = 2
-    skills.append(magic_blade)
-    
-    # 6. 룬 방어
-    rune_shield = Skill("bmage_shield", "룬 방어", "룬으로 보호")
-    rune_shield.effects = [
-        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=3),
-        BuffEffect(BuffType.SPIRIT_UP, 0.3, duration=3),
-        GimmickEffect(GimmickOperation.CONSUME, "rune_stacks", 2)
+    lightning_rune.costs = [MPCost(8)]
+    lightning_rune.target_type = "self"
+    lightning_rune.metadata = {"rune_type": "lightning"}
+
+    # 6. 대지 룬 각인 (방어력 +20% 버프)
+    earth_rune = Skill("battle_mage_earth_rune", "대지 룬",
+                      "대지 룬 각인, 방어력 +20%")
+    earth_rune.effects = [
+        GimmickEffect(GimmickOperation.ADD, "runes_earth", 1, max_value=3),
+        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=99)
     ]
-    rune_shield.costs = [MPCost(7), StackCost("rune_stacks", 2)]
-    rune_shield.target_type = "self"
-    rune_shield.cooldown = 4
-    skills.append(rune_shield)
-    
-    # 7. 룬 폭풍
-    rune_storm = Skill("bmage_storm", "룬 폭풍", "광역 룬 공격")
-    rune_storm.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.0, gimmick_bonus={"field": "rune_stacks", "multiplier": 0.35}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.CONSUME, "rune_stacks", 3),
-        StatusEffect(StatusType.RUNE, remove=True)  # 적의 룬 마크 제거
+    earth_rune.costs = [MPCost(8)]
+    earth_rune.target_type = "self"
+    earth_rune.metadata = {"rune_type": "earth"}
+
+    # 7. 비전 룬 각인 (MP 회복 버프)
+    arcane_rune = Skill("battle_mage_arcane_rune", "비전 룬",
+                       "비전 룬 각인, MP 회복 +5/턴")
+    arcane_rune.effects = [
+        GimmickEffect(GimmickOperation.ADD, "runes_arcane", 1, max_value=3),
+        BuffEffect(BuffType.MP_REGEN, 5, duration=99)
     ]
-    rune_storm.costs = [MPCost(11), StackCost("rune_stacks", 3)]
-    rune_storm.cooldown = 4
-    rune_storm.aoe_effect = DamageEffect(DamageType.BRV, 0.5, stat_type="magical")  # 룬 폭발 광역 피해
-    rune_storm.aoe_includes_main_target = True  # 메인 타겟 포함 모든 적에게 광역 피해
-    skills.append(rune_storm)
-    
-    # 8. 고대 룬
-    ancient_rune = Skill("bmage_ancient", "고대 룬", "강력한 고대 룬")
-    ancient_rune.effects = [
-        GimmickEffect(GimmickOperation.SET, "rune_stacks", 8),
-        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=4)
+    arcane_rune.costs = [MPCost(8)]
+    arcane_rune.target_type = "self"
+    arcane_rune.metadata = {"rune_type": "arcane"}
+
+    # 8. 룬 폭발 (보유 룬 개수에 비례한 대미지, 모든 룬 소모)
+    rune_explosion = Skill("battle_mage_rune_explosion", "룬 폭발",
+                          "모든 룬을 폭발시켜 강력한 피해")
+    rune_explosion.effects = [
+        DamageEffect(DamageType.BRV_HP, 2.0, stat_type="hybrid",
+                    gimmick_bonus={"field": "total_runes", "multiplier": 0.3}),  # 룬 1개당 +30% 피해
+        GimmickEffect(GimmickOperation.SET, "runes_fire", 0),
+        GimmickEffect(GimmickOperation.SET, "runes_ice", 0),
+        GimmickEffect(GimmickOperation.SET, "runes_lightning", 0),
+        GimmickEffect(GimmickOperation.SET, "runes_earth", 0),
+        GimmickEffect(GimmickOperation.SET, "runes_arcane", 0)
     ]
-    ancient_rune.costs = [MPCost(12)]
-    ancient_rune.target_type = "self"
-    ancient_rune.cooldown = 6
-    skills.append(ancient_rune)
-    
-    # 9. 궁극기: 룬 대폭발
-    ultimate = Skill("bmage_ultimate", "룬 대폭발", "모든 룬 폭발")
+    rune_explosion.costs = [MPCost(20)]
+    rune_explosion.cooldown = 4
+    rune_explosion.metadata = {"consumes_all_runes": True}
+
+    # 9. 원소 융합 (3가지 이상 다른 룬 보유 시 사용 가능, 강력한 융합 공격)
+    elemental_fusion = Skill("battle_mage_elemental_fusion", "원소 융합",
+                            "3가지 이상 룬 필요, 원소 융합 공격")
+    elemental_fusion.effects = [
+        DamageEffect(DamageType.BRV, 3.0, stat_type="hybrid"),
+        DamageEffect(DamageType.HP, 2.0, stat_type="hybrid"),
+        # 각 룬 타입별로 1개씩 소모
+        GimmickEffect(GimmickOperation.CONSUME, "runes_fire", 1),
+        GimmickEffect(GimmickOperation.CONSUME, "runes_ice", 1),
+        GimmickEffect(GimmickOperation.CONSUME, "runes_lightning", 1)
+    ]
+    elemental_fusion.costs = [MPCost(25)]
+    elemental_fusion.cooldown = 5
+    elemental_fusion.target_type = "single_enemy"
+    elemental_fusion.metadata = {"requires_different_runes": 3}
+
+    # 10. 궁극기: 원소 대재앙 (모든 룬을 융합하여 극한의 피해)
+    ultimate = Skill("battle_mage_ultimate", "원소 대재앙",
+                    "5가지 모든 원소를 융합한 궁극 마법")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "rune_stacks", "multiplier": 0.5}, stat_type="magical"),
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "rune_stacks", "multiplier": 0.4}, stat_type="magical"),
-        DamageEffect(DamageType.HP, 3.5, stat_type="magical"),
-        BuffEffect(BuffType.MAGIC_UP, 0.6, duration=5),
-        GimmickEffect(GimmickOperation.SET, "rune_stacks", 0),
-        StatusEffect(StatusType.RUNE, remove=True)  # 적의 룬 마크 제거
+        DamageEffect(DamageType.BRV, 3.5, stat_type="hybrid",
+                    gimmick_bonus={"field": "total_runes", "multiplier": 0.4}),
+        DamageEffect(DamageType.HP, 3.0, stat_type="hybrid",
+                    gimmick_bonus={"field": "total_runes", "multiplier": 0.3}),
+        GimmickEffect(GimmickOperation.SET, "runes_fire", 0),
+        GimmickEffect(GimmickOperation.SET, "runes_ice", 0),
+        GimmickEffect(GimmickOperation.SET, "runes_lightning", 0),
+        GimmickEffect(GimmickOperation.SET, "runes_earth", 0),
+        GimmickEffect(GimmickOperation.SET, "runes_arcane", 0)
     ]
-    ultimate.costs = [MPCost(25)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 10
-    ultimate.aoe_effect = DamageEffect(DamageType.BRV_HP, 1.0, stat_type="magical")  # 룬 대폭발 강력한 광역 피해
-    ultimate.aoe_includes_main_target = True  # 메인 타겟 포함 모든 적에게 광역 피해
-    skills.append(ultimate)
-    
-    return skills
+    ultimate.cooldown = 8
+    ultimate.target_type = "all_enemies"
+    ultimate.is_aoe = True
+    ultimate.metadata = {"ultimate": True, "elemental_cataclysm": True}
+
+    return [slash, spell, fire_rune, ice_rune, lightning_rune,
+            earth_rune, arcane_rune, rune_explosion, elemental_fusion, ultimate]
 
 def register_battle_mage_skills(skill_manager):
+    """배틀메이지 스킬 등록"""
     skills = create_battle_mage_skills()
     for skill in skills:
         skill_manager.register_skill(skill)

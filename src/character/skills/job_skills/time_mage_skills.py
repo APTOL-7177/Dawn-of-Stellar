@@ -1,105 +1,159 @@
-"""Time Mage Skills - 시간술사 스킬 (시간 조작 시스템)"""
+"""Time Mage Skills - 시간술사 스킬 (타임라인 균형 시스템)"""
 from src.character.skills.skill import Skill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.heal_effect import HealEffect
 from src.character.skills.costs.mp_cost import MPCost
-from src.character.skills.costs.stack_cost import StackCost
 
 def create_time_mage_skills():
-    """시간술사 9개 스킬 생성"""
+    """시간술사 10개 스킬 생성 (타임라인 균형 시스템)"""
+
+    # === 기본 공격 ===
 
     # 1. 기본 BRV: 시간 가속
-    time_accel = Skill("time_mage_time_accel", "시간 가속", "시간 포인트 획득")
-    time_accel.effects = [
-        DamageEffect(DamageType.BRV, 1.4, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "time_points", 1, max_value=6)
+    time_bolt = Skill("time_mage_time_bolt", "시간 탄환",
+                     "기본 마법 공격")
+    time_bolt.effects = [
+        DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
     ]
-    time_accel.costs = []  # 기본 공격은 MP 소모 없음
+    time_bolt.costs = []  # 기본 공격은 MP 소모 없음
 
     # 2. 기본 HP: 시간 충격
-    time_shock = Skill("time_mage_time_shock", "시간 충격", "시간 포인트 소비 공격")
+    time_shock = Skill("time_mage_time_shock", "시간 충격",
+                      "시간의 힘으로 강타")
     time_shock.effects = [
-        DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "time_points", "multiplier": 0.25}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.CONSUME, "time_points", 1)
+        DamageEffect(DamageType.HP, 1.2, stat_type="magical")
     ]
     time_shock.costs = []  # 기본 공격은 MP 소모 없음
 
-    # 3. 헤이스트
-    haste = Skill("time_mage_haste", "헤이스트", "아군 속도 대폭 상승")
-    haste.effects = [
-        BuffEffect(BuffType.SPEED_UP, 0.6, duration=4),
-        GimmickEffect(GimmickOperation.ADD, "time_points", 1, max_value=6)
+    # === 과거 스킬 (타임라인 -1 또는 -2) ===
+
+    # 3. 슬로우 (느려지기) - 과거 스킬
+    slow = Skill("time_mage_slow", "슬로우",
+                "적 ATB -50%, 타임라인 -1 (과거)")
+    slow.effects = [
+        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=3),
+        GimmickEffect(GimmickOperation.ADD, "timeline", -1, min_value=-5)
     ]
-    haste.costs = [MPCost(8)]
+    slow.costs = [MPCost(10)]
+    slow.target_type = "single_enemy"
+    slow.metadata = {"timeline_shift": -1, "skill_type": "past"}
+
+    # 4. 시간 정지 (스톱) - 과거 스킬
+    stop = Skill("time_mage_stop", "시간 정지",
+                "적 1턴 스턴, 타임라인 -1 (과거)")
+    stop.effects = [
+        BuffEffect(BuffType.STUN, 1.0, duration=1),
+        GimmickEffect(GimmickOperation.ADD, "timeline", -1, min_value=-5)
+    ]
+    stop.costs = [MPCost(20)]
+    stop.target_type = "single_enemy"
+    stop.cooldown = 3
+    stop.metadata = {"timeline_shift": -1, "skill_type": "past"}
+
+    # 5. 시간 역행 - 과거 스킬
+    rewind = Skill("time_mage_rewind", "시간 역행",
+                  "HP 20% 회복, 디버프 제거, 타임라인 -2 (과거)")
+    rewind.effects = [
+        HealEffect(percentage=0.2),
+        GimmickEffect(GimmickOperation.ADD, "timeline", -2, min_value=-5)
+    ]
+    rewind.costs = [MPCost(18)]
+    rewind.target_type = "self"
+    rewind.cooldown = 4
+    rewind.metadata = {"timeline_shift": -2, "skill_type": "past"}
+
+    # 6. 과거 반복 - 과거 스킬
+    repeat = Skill("time_mage_repeat", "과거 반복",
+                  "이전 스킬 재사용(구현 예정), 타임라인 -1 (과거)")
+    repeat.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=2),
+        GimmickEffect(GimmickOperation.ADD, "timeline", -1, min_value=-5)
+    ]
+    repeat.costs = [MPCost(15)]
+    repeat.target_type = "self"
+    repeat.cooldown = 5
+    repeat.metadata = {"timeline_shift": -1, "skill_type": "past"}
+
+    # === 현재 스킬 (타임라인 변화 없음) ===
+
+    # 7. 시간 정렬 - 현재 스킬 (타임라인 → 0)
+    align = Skill("time_mage_align", "시간 정렬",
+                 "타임라인을 0(현재)으로 리셋, HP 20% 회복")
+    align.effects = [
+        GimmickEffect(GimmickOperation.SET, "timeline", 0),
+        HealEffect(percentage=0.2)
+    ]
+    align.costs = [MPCost(12)]
+    align.target_type = "self"
+    align.metadata = {"timeline_shift": "reset", "skill_type": "present"}
+
+    # 8. 시간의 균형 - 현재 스킬 (현재 상태에서만 사용 가능)
+    balance = Skill("time_mage_balance", "시간의 균형",
+                   "현재(0) 상태에서만 발동, 배율 4.5 대량 피해")
+    balance.effects = [
+        DamageEffect(DamageType.BRV_HP, 4.5, stat_type="magical",
+                    conditional_bonus={"condition": "at_present", "multiplier": 1.0})
+    ]
+    balance.costs = [MPCost(25)]
+    balance.cooldown = 6
+    balance.metadata = {"requires_timeline": 0, "skill_type": "present"}
+
+    # === 미래 스킬 (타임라인 +1 또는 +2) ===
+
+    # 9. 헤이스트 (가속) - 미래 스킬
+    haste = Skill("time_mage_haste", "헤이스트",
+                 "아군 ATB +100%, 타임라인 +1 (미래)")
+    haste.effects = [
+        BuffEffect(BuffType.SPEED_UP, 1.0, duration=3),
+        GimmickEffect(GimmickOperation.ADD, "timeline", 1, max_value=5)
+    ]
+    haste.costs = [MPCost(14)]
     haste.target_type = "ally"
     haste.cooldown = 3
+    haste.metadata = {"timeline_shift": 1, "skill_type": "future"}
 
-    # 4. 슬로우
-    slow = Skill("time_mage_slow", "슬로우", "적 속도 감소")
-    slow.effects = [
-        DamageEffect(DamageType.BRV, 1.2, stat_type="magical"),
-        BuffEffect(BuffType.SPEED_DOWN, 0.4, duration=4),
-        GimmickEffect(GimmickOperation.ADD, "time_points", 1, max_value=6)
+    # 10. 예지 - 미래 스킬
+    foresight = Skill("time_mage_foresight", "예지",
+                     "회피율 +50%, 타임라인 +1 (미래)")
+    foresight.effects = [
+        BuffEffect(BuffType.EVASION_UP, 0.5, duration=3),
+        GimmickEffect(GimmickOperation.ADD, "timeline", 1, max_value=5)
     ]
-    slow.costs = [MPCost(6)]
-    slow.cooldown = 2
+    foresight.costs = [MPCost(11)]
+    foresight.target_type = "self"
+    foresight.metadata = {"timeline_shift": 1, "skill_type": "future"}
 
-    # 5. 시간 역행
-    time_rewind = Skill("time_mage_time_rewind", "시간 역행", "시간 2포인트 소비, 회복")
-    time_rewind.effects = [
-        GimmickEffect(GimmickOperation.CONSUME, "time_points", 2),
-        BuffEffect(BuffType.REGEN, 0.3, duration=3)
+    # 11. 시간 도약 (퀵) - 미래 스킬
+    leap = Skill("time_mage_leap", "시간 도약",
+                "즉시 턴 획득(구현 예정), 타임라인 +2 (미래)")
+    leap.effects = [
+        BuffEffect(BuffType.SPEED_UP, 2.0, duration=1),
+        GimmickEffect(GimmickOperation.ADD, "timeline", 2, max_value=5)
     ]
-    time_rewind.costs = [MPCost(9), StackCost("time_points", 2)]
-    time_rewind.target_type = "ally"
-    time_rewind.cooldown = 4
+    leap.costs = [MPCost(22)]
+    leap.target_type = "self"
+    leap.cooldown = 5
+    leap.metadata = {"timeline_shift": 2, "skill_type": "future", "instant_turn": True}
 
-    # 6. 시간 정지
-    time_stop = Skill("time_mage_time_stop", "시간 정지", "시간 3포인트 소비, 적 스턴")
-    time_stop.effects = [
-        DamageEffect(DamageType.BRV, 1.8, gimmick_bonus={"field": "time_points", "multiplier": 0.3}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.CONSUME, "time_points", 3)
+    # 12. 궁극기: 시간 파동 - 현재 스킬
+    wave = Skill("time_mage_wave", "시간 파동",
+                "타임라인 무관 최대 효과, 전체 공격")
+    wave.effects = [
+        DamageEffect(DamageType.BRV, 3.0, stat_type="magical"),
+        DamageEffect(DamageType.HP, 2.5, stat_type="magical"),
+        GimmickEffect(GimmickOperation.SET, "timeline", 0)  # 현재로 리셋
     ]
-    time_stop.costs = [MPCost(11), StackCost("time_points", 3)]
-    time_stop.cooldown = 5
+    wave.costs = [MPCost(30)]
+    wave.target_type = "all_enemies"
+    wave.is_ultimate = True
+    wave.is_aoe = True
+    wave.cooldown = 8
+    wave.metadata = {"timeline_shift": "reset", "skill_type": "ultimate"}
 
-    # 7. 미래 예지
-    future_sight = Skill("time_mage_future_sight", "미래 예지", "시간 4포인트 소비, 회피 상승")
-    future_sight.effects = [
-        BuffEffect(BuffType.EVASION_UP, 0.7, duration=3),
-        BuffEffect(BuffType.ACCURACY_UP, 0.5, duration=3),
-        GimmickEffect(GimmickOperation.CONSUME, "time_points", 4)
-    ]
-    future_sight.costs = [MPCost(10), StackCost("time_points", 4)]
-    future_sight.target_type = "self"
-    future_sight.cooldown = 5
-
-    # 8. 시간 왜곡
-    time_warp = Skill("time_mage_time_warp", "시간 왜곡", "시간 5포인트 소비, 차원 왜곡 공격")
-    time_warp.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "time_points", "multiplier": 0.5}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.CONSUME, "time_points", 5)
-    ]
-    time_warp.costs = [MPCost(15), StackCost("time_points", 5)]
-    time_warp.cooldown = 6
-    time_warp.is_aoe = True
-
-    # 9. 궁극기: 시간의 지배자
-    ultimate = Skill("time_mage_ultimate", "시간의 지배자", "모든 시간을 지배")
-    ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.2, gimmick_bonus={"field": "time_points", "multiplier": 0.4}, stat_type="magical"),
-        DamageEffect(DamageType.BRV, 2.2, gimmick_bonus={"field": "time_points", "multiplier": 0.4}, stat_type="magical"),
-        DamageEffect(DamageType.HP, 2.5, gimmick_bonus={"field": "time_points", "multiplier": 0.6}, stat_type="magical"),
-        BuffEffect(BuffType.SPEED_UP, 0.8, duration=5),
-        GimmickEffect(GimmickOperation.SET, "time_points", 0)
-    ]
-    ultimate.costs = [MPCost(25), StackCost("time_points", 1)]
-    ultimate.is_ultimate = True
-    ultimate.cooldown = 10
-
-    return [time_accel, time_shock, haste, slow, time_rewind,
-            time_stop, future_sight, time_warp, ultimate]
+    return [time_bolt, time_shock, slow, stop, rewind, repeat,
+            align, balance, haste, foresight, leap, wave]
 
 def register_time_mage_skills(skill_manager):
     """시간술사 스킬 등록"""

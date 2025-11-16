@@ -1,111 +1,156 @@
-"""Elementalist Skills - 정령술사 스킬 (정령 소환 시스템)"""
+"""Elementalist Skills - 정령술사 스킬 (4대 정령 소환)"""
 from src.character.skills.skill import Skill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.heal_effect import HealEffect
 from src.character.skills.costs.mp_cost import MPCost
-from src.character.skills.costs.stack_cost import StackCost
 
 def create_elementalist_skills():
-    """정령술사 9개 스킬 생성"""
+    """정령술사 10개 스킬 생성 (4대 정령 소환)"""
 
-    # 1. 기본 BRV: 정령 소환
-    spirit_call = Skill("elementalist_spirit_call", "정령 소환", "정령 포인트 획득")
-    spirit_call.effects = [
-        DamageEffect(DamageType.BRV, 1.3, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "spirit_count", 1, max_value=4)
+    # 1. 기본 BRV: 원소 타격
+    elemental_strike = Skill("elementalist_strike", "원소 타격", "기본 마법 공격")
+    elemental_strike.effects = [
+        DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
     ]
-    spirit_call.costs = []  # 기본 공격은 MP 소모 없음
+    elemental_strike.costs = []  # 기본 공격은 MP 소모 없음
+    elemental_strike.sfx = "338"  # FFVII elemental sound
+    elemental_strike.metadata = {}
 
-    # 2. 기본 HP: 정령 공격
-    spirit_attack = Skill("elementalist_spirit_attack", "정령 공격", "정령 소비 공격")
-    spirit_attack.effects = [
-        DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "spirit_count", "multiplier": 0.4}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.CONSUME, "spirit_count", 1)
+    # 2. 기본 HP: 정령 폭발
+    spirit_burst = Skill("elementalist_spirit_burst", "정령 폭발", "HP 마법 공격")
+    spirit_burst.effects = [
+        DamageEffect(DamageType.HP, 1.2, stat_type="magical")
     ]
-    spirit_attack.costs = []  # 기본 공격은 MP 소모 없음
+    spirit_burst.costs = []  # 기본 공격은 MP 소모 없음
+    spirit_burst.sfx = "344"  # FFVII burst sound
+    spirit_burst.metadata = {}
 
-    # 3. 화염 정령
-    fire_spirit = Skill("elementalist_fire_spirit", "화염 정령", "화염 정령 특수 소환")
-    fire_spirit.effects = [
-        DamageEffect(DamageType.BRV, 2.0, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "spirit_count", 1, max_value=4),
-        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3)
+    # 3. 화염 정령 소환 (공격력 +20%, 화상)
+    summon_fire = Skill("elementalist_summon_fire", "화염 정령 소환", "공격력 +20%, 화상 피해")
+    summon_fire.effects = [
+        GimmickEffect(GimmickOperation.ADD, "spirit_fire", 1, max_value=1),  # 화염 정령 소환
+        BuffEffect(BuffType.ATTACK_UP, 0.2, duration=99),  # 정령 소환 중 지속
+        DamageEffect(DamageType.BRV, 1.8, stat_type="magical")
     ]
-    fire_spirit.costs = [MPCost(7)]
-    fire_spirit.target_type = "self"
-    fire_spirit.cooldown = 2
+    summon_fire.costs = [MPCost(12)]
+    summon_fire.target_type = "self"
+    summon_fire.sfx = "352"  # FFVII fire summon sound
+    summon_fire.cooldown = 3
+    summon_fire.metadata = {"spirit_type": "fire", "attack_boost": 0.2}
 
-    # 4. 물 정령
-    water_spirit = Skill("elementalist_water_spirit", "물 정령", "물 정령 특수 소환")
-    water_spirit.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "spirit_count", 1, max_value=4),
-        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=3)
+    # 4. 물 정령 소환 (MP 회복 +5/턴, 힐 +30%)
+    summon_water = Skill("elementalist_summon_water", "물 정령 소환", "MP 회복 +5/턴, 힐 +30%")
+    summon_water.effects = [
+        GimmickEffect(GimmickOperation.ADD, "spirit_water", 1, max_value=1),
+        BuffEffect(BuffType.MP_REGEN, 5, duration=99),
+        HealEffect(percentage=0.15)  # 즉시 HP 15% 회복
     ]
-    water_spirit.costs = [MPCost(7)]
-    water_spirit.target_type = "self"
-    water_spirit.cooldown = 2
+    summon_water.costs = [MPCost(10)]
+    summon_water.target_type = "self"
+    summon_water.sfx = "362"  # FFVII water summon sound
+    summon_water.cooldown = 3
+    summon_water.metadata = {"spirit_type": "water", "mp_regen": 5}
 
-    # 5. 바람 정령
-    wind_spirit = Skill("elementalist_wind_spirit", "바람 정령", "바람 정령 특수 소환")
-    wind_spirit.effects = [
-        DamageEffect(DamageType.BRV, 1.8, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "spirit_count", 1, max_value=4),
-        BuffEffect(BuffType.SPEED_UP, 0.3, duration=3)
+    # 5. 바람 정령 소환 (속도 +30%, 회피 +15%)
+    summon_wind = Skill("elementalist_summon_wind", "바람 정령 소환", "속도 +30%, 회피 +15%")
+    summon_wind.effects = [
+        GimmickEffect(GimmickOperation.ADD, "spirit_wind", 1, max_value=1),
+        BuffEffect(BuffType.SPEED_UP, 0.3, duration=99),
+        BuffEffect(BuffType.EVASION_UP, 0.15, duration=99)
     ]
-    wind_spirit.costs = [MPCost(7)]
-    wind_spirit.target_type = "self"
-    wind_spirit.cooldown = 2
+    summon_wind.costs = [MPCost(10)]
+    summon_wind.target_type = "self"
+    summon_wind.sfx = "376"  # FFVII wind summon sound
+    summon_wind.cooldown = 3
+    summon_wind.metadata = {"spirit_type": "wind", "speed_boost": 0.3}
 
-    # 6. 대지 정령
-    earth_spirit = Skill("elementalist_earth_spirit", "대지 정령", "대지 정령 특수 소환")
-    earth_spirit.effects = [
-        DamageEffect(DamageType.BRV, 1.6, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "spirit_count", 2, max_value=4),
-        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3)
+    # 6. 대지 정령 소환 (방어력 +30%, HP 회복 +3/턴)
+    summon_earth = Skill("elementalist_summon_earth", "대지 정령 소환", "방어력 +30%, HP 회복 +3/턴")
+    summon_earth.effects = [
+        GimmickEffect(GimmickOperation.ADD, "spirit_earth", 1, max_value=1),
+        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=99),
+        BuffEffect(BuffType.HP_REGEN, 3, duration=99)
     ]
-    earth_spirit.costs = [MPCost(9)]
-    earth_spirit.target_type = "self"
-    earth_spirit.cooldown = 3
+    summon_earth.costs = [MPCost(10)]
+    summon_earth.target_type = "self"
+    summon_earth.sfx = "404"  # FFVII earth summon sound
+    summon_earth.cooldown = 3
+    summon_earth.metadata = {"spirit_type": "earth", "defense_boost": 0.3}
 
-    # 7. 정령 융합
-    spirit_fusion = Skill("elementalist_spirit_fusion", "정령 융합", "정령 2체 융합 공격")
-    spirit_fusion.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.0, gimmick_bonus={"field": "spirit_count", "multiplier": 0.5}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.CONSUME, "spirit_count", 2)
+    # 7. 융합: 화염 돌풍 (화염 + 바람)
+    fusion_firestorm = Skill("elementalist_fusion_firestorm", "화염 돌풍", "화염+바람 융합 (광역 화염 공격)")
+    fusion_firestorm.effects = [
+        DamageEffect(DamageType.BRV_HP, 3.0, stat_type="magical"),
+        # 두 정령 소비
+        GimmickEffect(GimmickOperation.SET, "spirit_fire", 0),
+        GimmickEffect(GimmickOperation.SET, "spirit_wind", 0)
     ]
-    spirit_fusion.costs = [MPCost(10), StackCost("spirit_count", 2)]
-    spirit_fusion.cooldown = 3
+    fusion_firestorm.costs = [MPCost(18)]
+    fusion_firestorm.target_type = "all_enemies"
+    fusion_firestorm.is_aoe = True
+    fusion_firestorm.sfx = "423"  # FFVII firestorm sound
+    fusion_firestorm.cooldown = 4
+    fusion_firestorm.metadata = {"fusion": "fire_wind", "requires_both_spirits": True}
 
-    # 8. 정령왕 소환
-    spirit_king = Skill("elementalist_spirit_king", "정령왕 소환", "정령 3체 소비, 정령왕 공격")
-    spirit_king.effects = [
-        DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "spirit_count", "multiplier": 0.6}, stat_type="magical"),
-        DamageEffect(DamageType.HP, 1.8, stat_type="magical"),
-        GimmickEffect(GimmickOperation.CONSUME, "spirit_count", 3)
+    # 8. 융합: 진흙 속박 (물 + 대지)
+    fusion_mudtrap = Skill("elementalist_fusion_mudtrap", "진흙 속박", "물+대지 융합 (속도↓ 방어↓)")
+    fusion_mudtrap.effects = [
+        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="magical"),
+        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=4, target="enemy"),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4, target="enemy"),
+        # 두 정령 소비
+        GimmickEffect(GimmickOperation.SET, "spirit_water", 0),
+        GimmickEffect(GimmickOperation.SET, "spirit_earth", 0)
     ]
-    spirit_king.costs = [MPCost(14), StackCost("spirit_count", 3)]
-    spirit_king.cooldown = 5
-    spirit_king.is_aoe = True
+    fusion_mudtrap.costs = [MPCost(16)]
+    fusion_mudtrap.sfx = "438"  # FFVII mud sound
+    fusion_mudtrap.cooldown = 4
+    fusion_mudtrap.metadata = {"fusion": "water_earth", "requires_both_spirits": True}
 
-    # 9. 궁극기: 정령 대결집
-    ultimate = Skill("elementalist_ultimate", "정령 대결집", "모든 정령의 힘을 결집")
+    # 9. 융합: 증기 폭발 (화염 + 물)
+    fusion_steam = Skill("elementalist_fusion_steam", "증기 폭발", "화염+물 융합 (마법 피해 + 명중↓)")
+    fusion_steam.effects = [
+        DamageEffect(DamageType.BRV_HP, 3.2, stat_type="magical"),
+        BuffEffect(BuffType.ACCURACY_DOWN, 0.4, duration=3, target="all_enemies"),
+        # 두 정령 소비
+        GimmickEffect(GimmickOperation.SET, "spirit_fire", 0),
+        GimmickEffect(GimmickOperation.SET, "spirit_water", 0)
+    ]
+    fusion_steam.costs = [MPCost(20)]
+    fusion_steam.target_type = "all_enemies"
+    fusion_steam.is_aoe = True
+    fusion_steam.sfx = "467"  # FFVII steam sound
+    fusion_steam.cooldown = 5
+    fusion_steam.metadata = {"fusion": "fire_water", "requires_both_spirits": True}
+
+    # 10. 궁극기: 4대 정령 대결집 (모든 정령 즉시 소환 + 극대 공격)
+    ultimate = Skill("elementalist_ultimate", "4대 정령 대결집", "모든 정령 소환 + 극대 융합 공격")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "spirit_count", "multiplier": 0.5}, stat_type="magical"),
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "spirit_count", "multiplier": 0.5}, stat_type="magical"),
-        DamageEffect(DamageType.HP, 2.8, gimmick_bonus={"field": "spirit_count", "multiplier": 0.7}, stat_type="magical"),
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=4),
-        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=4),
-        GimmickEffect(GimmickOperation.SET, "spirit_count", 0)
+        # 4대 정령 모두 소환
+        GimmickEffect(GimmickOperation.SET, "spirit_fire", 1),
+        GimmickEffect(GimmickOperation.SET, "spirit_water", 1),
+        GimmickEffect(GimmickOperation.SET, "spirit_wind", 1),
+        GimmickEffect(GimmickOperation.SET, "spirit_earth", 1),
+        # 극대 공격
+        DamageEffect(DamageType.BRV, 4.0, stat_type="magical"),
+        DamageEffect(DamageType.HP, 4.5, stat_type="magical"),
+        # 모든 정령 버프 적용
+        BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5),
+        BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=5),
+        BuffEffect(BuffType.SPEED_UP, 0.4, duration=5)
     ]
-    ultimate.costs = [MPCost(22), StackCost("spirit_count", 1)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
-    ultimate.cooldown = 10
+    ultimate.sfx = "696"  # FFVII ultimate summon sound
+    ultimate.cooldown = 8
+    ultimate.metadata = {"ultimate": True, "summon_all_spirits": True}
 
-    return [spirit_call, spirit_attack, fire_spirit, water_spirit, wind_spirit,
-            earth_spirit, spirit_fusion, spirit_king, ultimate]
+    return [elemental_strike, spirit_burst, summon_fire, summon_water, summon_wind,
+            summon_earth, fusion_firestorm, fusion_mudtrap, fusion_steam, ultimate]
 
 def register_elementalist_skills(skill_manager):
     """정령술사 스킬 등록"""

@@ -1,108 +1,140 @@
-"""Archer Skills - 궁수 스킬 (조준 포인트 + 지원사격)"""
+"""Archer Skills - 궁수 스킬 (지원사격 시스템)"""
 from src.character.skills.skill import Skill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
-from src.character.skills.effects.support_fire_effect import SupportFireEffect
 from src.character.skills.costs.mp_cost import MPCost
-from src.character.skills.costs.stack_cost import StackCost
 
 def create_archer_skills():
-    """궁수 9개 스킬 생성"""
-    
-    # 1. 기본 BRV: 삼연사
-    triple_shot = Skill("archer_triple_shot", "삼연사", "3회 연속 사격, 조준 포인트 획득")
-    triple_shot.effects = [
-        DamageEffect(DamageType.BRV, 0.6),  # 약한 대신 3회
-        DamageEffect(DamageType.BRV, 0.6),
-        DamageEffect(DamageType.BRV, 0.6),
-        GimmickEffect(GimmickOperation.ADD, "aim_points", 1, max_value=5)
+    """궁수 10개 스킬 생성 (지원사격 시스템)"""
+
+    # 1. 기본 BRV: 직접 사격 (콤보 단절)
+    direct_shot = Skill("archer_direct_shot", "직접 사격", "직접 공격 (지원 콤보 초기화)")
+    direct_shot.effects = [
+        DamageEffect(DamageType.BRV, 1.5, stat_type="physical"),
+        GimmickEffect(GimmickOperation.SET, "support_combo", 0)  # 콤보 초기화
     ]
-    triple_shot.costs = []  # 기본 공격은 MP 소모 없음
-    
-    # 2. 기본 HP: 정밀 사격
-    precision_shot = Skill("archer_precision_shot", "정밀 사격", "조준 포인트로 강화된 HP 공격")
-    precision_shot.effects = [
-        DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "aim_points", "multiplier": 0.25}),
-        GimmickEffect(GimmickOperation.CONSUME, "aim_points", 1)
+    direct_shot.costs = []  # 기본 공격은 MP 소모 없음
+    direct_shot.sfx = "193"  # FFVII shot sound
+    direct_shot.metadata = {"breaks_combo": True}
+
+    # 2. 기본 HP: 강력한 사격 (콤보 단절)
+    power_shot = Skill("archer_power_shot", "강력한 사격", "HP 공격 (지원 콤보 초기화)")
+    power_shot.effects = [
+        DamageEffect(DamageType.HP, 1.3, stat_type="physical"),
+        GimmickEffect(GimmickOperation.SET, "support_combo", 0)  # 콤보 초기화
     ]
-    precision_shot.costs = []  # 기본 공격은 MP 소모 없음
-    
-    # 3. 지원 사격
-    support_fire = Skill("archer_support_fire", "지원 사격", "아군 행동 시 조준 포인트 소비 자동 사격")
-    support_fire.effects = [
-        SupportFireEffect(max_points=3, damage_per_point=20),
-        BuffEffect(BuffType.ATTACK_UP, multiplier=1.15, duration=3)
+    power_shot.costs = []  # 기본 공격은 MP 소모 없음
+    power_shot.sfx = "204"  # FFVII power shot sound
+    power_shot.metadata = {"breaks_combo": True}
+
+    # 3. 일반 화살 마킹 (MP 0)
+    mark_normal = Skill("archer_mark_normal", "일반 화살 지원", "아군 마킹: 일반 화살 (배율 1.5)")
+    mark_normal.effects = [
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_normal", 1, max_value=3),  # 마킹 슬롯 추가
+        GimmickEffect(GimmickOperation.SET, "mark_shots_normal", 3),  # 3회 지원
     ]
-    support_fire.costs = [MPCost(6)]
-    support_fire.target_type = "self"
-    support_fire.cooldown = 4
-    
-    # 4. 관통 사격
-    piercing_arrow = Skill("archer_piercing_arrow", "관통 사격", "조준 포인트로 관통 공격")
-    piercing_arrow.effects = [
-        DamageEffect(DamageType.BRV, 1.5, gimmick_bonus={"field": "aim_points", "multiplier": 0.2}),
-        GimmickEffect(GimmickOperation.ADD, "aim_points", 1, max_value=5)
+    mark_normal.costs = []  # 일반 화살은 MP 소모 없음
+    mark_normal.target_type = "ally"
+    mark_normal.sfx = "219"  # FFVII mark sound
+    mark_normal.cooldown = 1
+    mark_normal.metadata = {"arrow_type": "normal", "multiplier": 1.5}
+
+    # 4. 관통 화살 마킹
+    mark_piercing = Skill("archer_mark_piercing", "관통 화살 지원", "아군 마킹: 관통 (배율 1.8, 방어 무시 30%)")
+    mark_piercing.effects = [
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_piercing", 1, max_value=3),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_piercing", 3),
     ]
-    piercing_arrow.costs = [MPCost(6)]
-    piercing_arrow.target_type = "all_enemies"
-    piercing_arrow.cooldown = 2
-    
-    # 5. 집중
-    focus = Skill("archer_focus", "집중", "조준 포인트 대량 축적")
-    focus.effects = [
-        GimmickEffect(GimmickOperation.ADD, "aim_points", 3, max_value=5),
-        BuffEffect(BuffType.CRITICAL_UP, multiplier=1.5, duration=2)
+    mark_piercing.costs = [MPCost(10)]
+    mark_piercing.target_type = "ally"
+    mark_piercing.sfx = "267"  # FFVII pierce sound
+    mark_piercing.cooldown = 2
+    mark_piercing.metadata = {"arrow_type": "piercing", "multiplier": 1.8, "defense_ignore": 0.3}
+
+    # 5. 화염 화살 마킹
+    mark_fire = Skill("archer_mark_fire", "화염 화살 지원", "아군 마킹: 화염 (배율 1.6, 화상 2턴)")
+    mark_fire.effects = [
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_fire", 1, max_value=3),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_fire", 3),
     ]
-    focus.costs = [MPCost(5)]
-    focus.target_type = "self"
-    focus.cooldown = 3
-    
-    # 6. 연속 화살
-    rapid_arrows = Skill("archer_rapid_arrows", "연속 화살", "빠른 연속 사격")
-    rapid_arrows.effects = [
-        DamageEffect(DamageType.BRV, 1.0),
-        DamageEffect(DamageType.BRV, 1.0),
-        DamageEffect(DamageType.HP, 1.0),
-        GimmickEffect(GimmickOperation.ADD, "aim_points", 2, max_value=5)
+    mark_fire.costs = [MPCost(10)]
+    mark_fire.target_type = "ally"
+    mark_fire.sfx = "314"  # FFVII fire sound
+    mark_fire.cooldown = 2
+    mark_fire.metadata = {"arrow_type": "fire", "multiplier": 1.6, "burn_duration": 2}
+
+    # 6. 빙결 화살 마킹
+    mark_ice = Skill("archer_mark_ice", "빙결 화살 지원", "아군 마킹: 빙결 (배율 1.4, 속도 -30%)")
+    mark_ice.effects = [
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_ice", 1, max_value=3),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_ice", 3),
     ]
-    rapid_arrows.costs = [MPCost(8)]
-    rapid_arrows.cast_time = 0.8
-    rapid_arrows.cooldown = 3
-    
-    # 7. 명중 강화
-    accuracy_up = Skill("archer_accuracy_up", "명중 강화", "명중률과 조준 포인트 증가")
-    accuracy_up.effects = [
-        GimmickEffect(GimmickOperation.ADD, "aim_points", 2, max_value=5),
-        BuffEffect(BuffType.ACCURACY_UP, multiplier=1.3, duration=4)
+    mark_ice.costs = [MPCost(10)]
+    mark_ice.target_type = "ally"
+    mark_ice.sfx = "644"  # FFVII ice sound
+    mark_ice.cooldown = 2
+    mark_ice.metadata = {"arrow_type": "ice", "multiplier": 1.4, "slow_percent": 0.3}
+
+    # 7. 독 화살 마킹
+    mark_poison = Skill("archer_mark_poison", "독 화살 지원", "아군 마킹: 독 (배율 1.3, 독 3턴)")
+    mark_poison.effects = [
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_poison", 1, max_value=3),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_poison", 3),
     ]
-    accuracy_up.costs = [MPCost(4)]
-    accuracy_up.target_type = "self"
-    accuracy_up.cooldown = 4
-    
-    # 8. 헤드샷
-    headshot = Skill("archer_headshot", "헤드샷", "조준 포인트 소비, 크리티컬 확정 HP 공격")
-    headshot.effects = [
-        DamageEffect(DamageType.HP, 2.0, gimmick_bonus={"field": "aim_points", "multiplier": 0.4}),
-        GimmickEffect(GimmickOperation.CONSUME, "aim_points", 3)
+    mark_poison.costs = [MPCost(8)]
+    mark_poison.target_type = "ally"
+    mark_poison.sfx = "645"  # FFVII poison sound
+    mark_poison.cooldown = 2
+    mark_poison.metadata = {"arrow_type": "poison", "multiplier": 1.3, "poison_duration": 3}
+
+    # 8. 폭발 화살 마킹
+    mark_explosive = Skill("archer_mark_explosive", "폭발 화살 지원", "아군 마킹: 폭발 (배율 2.0, 광역 50%)")
+    mark_explosive.effects = [
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_explosive", 1, max_value=3),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_explosive", 3),
     ]
-    headshot.costs = [MPCost(10), StackCost("aim_points", 3)]
-    headshot.cooldown = 5
-    
-    # 9. 궁극기: 천공 사격
-    heaven_piercer = Skill("archer_ultimate", "천공 사격", "모든 조준 포인트로 절대 명중 일격")
-    heaven_piercer.effects = [
-        DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "aim_points", "multiplier": 0.5}),
-        DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "aim_points", "multiplier": 0.5}),
-        DamageEffect(DamageType.HP, 2.5),
-        GimmickEffect(GimmickOperation.SET, "aim_points", 0)
+    mark_explosive.costs = [MPCost(15)]
+    mark_explosive.target_type = "ally"
+    mark_explosive.sfx = "678"  # FFVII explosion sound
+    mark_explosive.cooldown = 3
+    mark_explosive.metadata = {"arrow_type": "explosive", "multiplier": 2.0, "aoe_percent": 0.5}
+
+    # 9. 신성 화살 마킹
+    mark_holy = Skill("archer_mark_holy", "신성 화살 지원", "아군 마킹: 신성 (배율 1.7, 언데드 2배)")
+    mark_holy.effects = [
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_holy", 1, max_value=3),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_holy", 3),
     ]
-    heaven_piercer.costs = [MPCost(20), StackCost("aim_points", 1)]
-    heaven_piercer.is_ultimate = True
-    heaven_piercer.cooldown = 10
-    
-    return [triple_shot, precision_shot, support_fire, piercing_arrow, focus,
-            rapid_arrows, accuracy_up, headshot, heaven_piercer]
+    mark_holy.costs = [MPCost(12)]
+    mark_holy.target_type = "ally"
+    mark_holy.sfx = "687"  # FFVII holy sound
+    mark_holy.cooldown = 2
+    mark_holy.metadata = {"arrow_type": "holy", "multiplier": 1.7, "undead_bonus": 2.0}
+
+    # 10. 궁극기: 전원 마킹 (모든 아군에게 최강 화살)
+    ultimate = Skill("archer_ultimate", "총력 지원", "모든 아군 마킹 + 콤보 7 시작")
+    ultimate.effects = [
+        # 모든 아군에게 폭발 화살 마킹 (최강 화살)
+        GimmickEffect(GimmickOperation.SET, "mark_all_allies", 1),
+        GimmickEffect(GimmickOperation.SET, "ultimate_arrow_type", "explosive"),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_ultimate", 5),  # 5회 지원
+        # 콤보 즉시 7로 설정 (완벽한 지원 상태)
+        GimmickEffect(GimmickOperation.SET, "support_combo", 7),
+        # 버프
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="party"),
+        BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=5, target="party"),
+    ]
+    ultimate.costs = [MPCost(30)]
+    ultimate.is_ultimate = True
+    ultimate.target_type = "party"
+    ultimate.is_aoe = True
+    ultimate.sfx = "694"  # FFVII ultimate sound
+    ultimate.cooldown = 8
+    ultimate.metadata = {"ultimate": True, "mark_all": True, "perfect_support": True}
+
+    return [direct_shot, power_shot, mark_normal, mark_piercing, mark_fire,
+            mark_ice, mark_poison, mark_explosive, mark_holy, ultimate]
 
 def register_archer_skills(skill_manager):
     """궁수 스킬 등록"""

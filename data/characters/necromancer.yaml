@@ -25,41 +25,79 @@ stat_growth:
   evasion: 1.8
   max_brv: 2.2
 traits:
-- id: curse_master
-  name: 저주술의 대가
-  description: 모든 디버프 효과 +40%, 지속시간 +2턴
+- id: undead_commander
+  name: 언데드 지휘관
+  description: 언데드 3마리 이상 보유 시 모든 언데드 능력 +50%
   type: passive
-- id: death_aura
-  name: 죽음의 오라
-  description: 주변 적 전체 HP 회복 -50%
+  conditions:
+    undead_count_min: 3
+  effects:
+    undead_power_multiplier: 1.5
+
+- id: death_harvest
+  name: 죽음의 수확
+  description: 적 처치 시 시체 자동 획득 (스켈레톤 소환 재료)
+  type: trigger
+  effects:
+    auto_corpse_gain: true
+
+- id: necromantic_power
+  name: 사령술의 힘
+  description: 언데드 1마리당 마법 공격력 +10%
   type: passive
-- id: dark_harvest
-  name: 어둠의 수확
-  description: 디버프 걸린 적 처치 시 MP 30% 회복
+  effects:
+    magic_per_undead: 0.1
+
+- id: undead_sacrifice
+  name: 언데드 희생
+  description: 언데드 파괴 시 MP 20 회복
   type: trigger
-- id: curse_reflection
-  name: 저주 반사
-  description: 디버프를 받을 시 30% 확률로 시전자에게 반사
-  type: trigger
-- id: plague_spread
-  name: 역병 확산
-  description: 디버프가 인접한 적에게 50% 확률로 전염
-  type: trigger
+  effects:
+    mp_gain_on_death: 20
+
+- id: legion_master
+  name: 군단 숙련
+  description: 각 언데드 타입 1마리씩 보유 시 모든 능력치 +20%
+  type: conditional
+  conditions:
+    all_undead_types: true
+  effects:
+    all_stats_multiplier: 1.2
+
 gimmick:
-  type: necro_system
-  name: 네크로 에너지
-  description: 시체를 수집하고 언데드를 소환. 네크로 에너지로 강력한 주술 사용
-  max_necro_energy: 100
-  max_corpse_count: 10
-  max_minion_count: 3
+  type: undead_legion
+  name: 언데드 군단 관리
+  description: 3가지 언데드(스켈레톤/좀비/유령)를 소환하여 전투. 각 언데드는 고유 능력 제공
+  max_undead_total: 5
+  max_per_type: 2
+  undead_types:
+    skeleton:
+      name: 스켈레톤
+      effect: 물리 공격력 +15%
+      hp_cost: 10
+      summon_cost: 15
+    zombie:
+      name: 좀비
+      effect: 방어력 +20%, HP 회복 +3/턴
+      hp_cost: 15
+      summon_cost: 20
+    ghost:
+      name: 유령
+      effect: 마법 공격력 +20%, 회피율 +10%
+      hp_cost: 20
+      summon_cost: 25
 
 skills:
-- curse_bolt
-- weakness_hex
-- poison_cloud
-- life_drain
-- mass_debuff
-- death_curse
+- necromancer_shadow_bolt
+- necromancer_drain_life
+- necromancer_summon_skeleton
+- necromancer_summon_zombie
+- necromancer_summon_ghost
+- necromancer_sacrifice_undead
+- necromancer_legion_command
+- necromancer_death_wave
+- necromancer_mass_summon
+- necromancer_ultimate
 bonuses:
   mp_multiplier: 1.4
   debuff_power: 1.4

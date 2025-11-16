@@ -1,109 +1,141 @@
-"""Necromancer Skills - 네크로맨서 스킬 (시체/소환수 시스템)"""
+"""Necromancer Skills - 네크로맨서 스킬 (언데드 군단 관리 시스템)"""
 from src.character.skills.skill import Skill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
-from src.character.skills.effects.heal_effect import HealEffect, HealType
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.heal_effect import HealEffect
 from src.character.skills.costs.mp_cost import MPCost
-from src.character.skills.costs.stack_cost import StackCost
+from src.character.skills.costs.hp_cost import HPCost
 
 def create_necromancer_skills():
-    """네크로맨서 9개 스킬 생성"""
-    
-    # 1. 기본 BRV: 시체의 손길
-    corpse_touch = Skill("necro_corpse_touch", "시체의 손길", "죽음의 에너지로 공격, 시체 획득")
-    corpse_touch.effects = [
-        DamageEffect(DamageType.BRV, 1.4, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "corpse_count", 1, max_value=10)
+    """네크로맨서 10개 스킬 생성 (언데드 군단 관리 시스템)"""
+
+    # 1. 기본 BRV: 암흑 화살 (마법 공격)
+    shadow_bolt = Skill("necromancer_shadow_bolt", "암흑 화살", "어둠의 마법 공격")
+    shadow_bolt.effects = [
+        DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
     ]
-    corpse_touch.costs = []  # 기본 공격은 MP 소모 없음
-    
-    # 2. 기본 HP: 영혼 흡수
-    soul_drain = Skill("necro_soul_drain", "영혼 흡수", "시체를 소비하여 HP 공격")
-    soul_drain.effects = [
-        DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "corpse_count", "multiplier": 0.2}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.CONSUME, "corpse_count", 1)
+    shadow_bolt.costs = []  # 기본 공격은 MP 소모 없음
+    shadow_bolt.metadata = {}
+
+    # 2. 기본 HP: 생명력 흡수 (HP 드레인)
+    drain_life = Skill("necromancer_drain_life", "생명력 흡수", "적의 HP를 흡수")
+    drain_life.effects = [
+        DamageEffect(DamageType.HP, 1.0, stat_type="magical"),
+        HealEffect(percentage=0.15)  # 피해의 15% 회복
     ]
-    soul_drain.costs = []  # 기본 공격은 MP 소모 없음
-    
-    # 3. 스켈레톤 소환
-    summon_skeleton = Skill("necro_summon_skeleton", "스켈레톤 소환", "시체 3개로 소환수 생성")
+    drain_life.costs = []  # 기본 공격은 MP 소모 없음
+    drain_life.metadata = {"drain": True}
+
+    # 3. 스켈레톤 소환 (물리 공격력 +15%)
+    summon_skeleton = Skill("necromancer_summon_skeleton", "스켈레톤 소환",
+                           "HP 10 소모, 물리 공격력 +15% 증가")
     summon_skeleton.effects = [
-        GimmickEffect(GimmickOperation.ADD, "minion_count", 1, max_value=5),
-        GimmickEffect(GimmickOperation.CONSUME, "corpse_count", 3),
-        BuffEffect(BuffType.ATTACK_UP, 0.15, duration=5)
+        GimmickEffect(GimmickOperation.ADD, "undead_skeleton", 1, max_value=2),
+        BuffEffect(BuffType.ATTACK_UP, 0.15, duration=99)  # 스켈레톤 보유 동안 지속
     ]
-    summon_skeleton.costs = [MPCost(8), StackCost("corpse_count", 3)]
+    summon_skeleton.costs = [MPCost(15), HPCost(10)]
     summon_skeleton.target_type = "self"
-    summon_skeleton.cooldown = 3
-    
-    # 4. 죽음의 화살
-    death_bolt = Skill("necro_death_bolt", "죽음의 화살", "시체에 비례한 마법 공격")
-    death_bolt.effects = [
-        DamageEffect(DamageType.BRV, 1.8, gimmick_bonus={"field": "corpse_count", "multiplier": 0.15}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "corpse_count", 1, max_value=10)
+    summon_skeleton.metadata = {"undead_type": "skeleton"}
+
+    # 4. 좀비 소환 (방어력 +20%, HP 회복)
+    summon_zombie = Skill("necromancer_summon_zombie", "좀비 소환",
+                         "HP 15 소모, 방어력 +20% & HP회복 +3/턴")
+    summon_zombie.effects = [
+        GimmickEffect(GimmickOperation.ADD, "undead_zombie", 1, max_value=2),
+        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=99),
+        BuffEffect(BuffType.HP_REGEN, 3, duration=99)
     ]
-    death_bolt.costs = [MPCost(6)]
-    death_bolt.cooldown = 2
-    
-    # 5. 시체 폭발
-    corpse_explosion = Skill("necro_corpse_explosion", "시체 폭발", "모든 시체 폭발, 범위 공격")
-    corpse_explosion.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.5, gimmick_bonus={"field": "corpse_count", "multiplier": 0.3}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.SET, "corpse_count", 0)
+    summon_zombie.costs = [MPCost(20), HPCost(15)]
+    summon_zombie.target_type = "self"
+    summon_zombie.metadata = {"undead_type": "zombie"}
+
+    # 5. 유령 소환 (마법 공격력 +20%, 회피율 +10%)
+    summon_ghost = Skill("necromancer_summon_ghost", "유령 소환",
+                        "HP 20 소모, 마법 공격력 +20% & 회피 +10%")
+    summon_ghost.effects = [
+        GimmickEffect(GimmickOperation.ADD, "undead_ghost", 1, max_value=2),
+        BuffEffect(BuffType.MAGIC_ATTACK_UP, 0.2, duration=99),
+        BuffEffect(BuffType.EVASION_UP, 0.1, duration=99)
     ]
-    corpse_explosion.costs = [MPCost(10), StackCost("corpse_count", 1)]
-    corpse_explosion.cooldown = 4
-    
-    # 6. 생명 흡수
-    life_tap = Skill("necro_life_tap", "생명 흡수", "적의 생명력을 흡수")
-    life_tap.effects = [
-        DamageEffect(DamageType.BRV, 1.2, stat_type="magical"),
-        HealEffect(HealType.HP, percentage=0.2),
-        GimmickEffect(GimmickOperation.ADD, "corpse_count", 2, max_value=10)
+    summon_ghost.costs = [MPCost(25), HPCost(20)]
+    summon_ghost.target_type = "self"
+    summon_ghost.metadata = {"undead_type": "ghost"}
+
+    # 6. 언데드 희생 (언데드 1마리 희생하여 강력한 공격)
+    sacrifice_undead = Skill("necromancer_sacrifice_undead", "언데드 희생",
+                            "언데드 1마리 희생, 강력한 피해 + MP 회복")
+    sacrifice_undead.effects = [
+        DamageEffect(DamageType.BRV_HP, 3.0, stat_type="magical",
+                    gimmick_bonus={"field": "total_undead", "multiplier": 0.5}),
+        GimmickEffect(GimmickOperation.CONSUME, "undead_skeleton", 1),  # 우선순위: skeleton
+        HealEffect(mp_amount=20)
     ]
-    life_tap.costs = [MPCost(8)]
-    life_tap.cooldown = 3
-    
-    # 7. 암흑 의식
-    dark_ritual = Skill("necro_dark_ritual", "암흑 의식", "시체로 힘 강화")
-    dark_ritual.effects = [
-        BuffEffect(BuffType.MAGIC_UP, 0.3, duration=4),
-        BuffEffect(BuffType.SPEED_UP, 0.2, duration=4),
-        GimmickEffect(GimmickOperation.CONSUME, "corpse_count", 2)
+    sacrifice_undead.costs = [MPCost(15)]
+    sacrifice_undead.cooldown = 3
+    sacrifice_undead.metadata = {"sacrifice": True}
+
+    # 7. 군단 지휘 (언데드 강화 버프)
+    legion_command = Skill("necromancer_legion_command", "군단 지휘",
+                          "3턴간 모든 언데드 능력 2배")
+    legion_command.effects = [
+        BuffEffect(BuffType.CUSTOM, 1.0, duration=3, custom_stat="undead_power_enhanced")
     ]
-    dark_ritual.costs = [MPCost(9), StackCost("corpse_count", 2)]
-    dark_ritual.target_type = "self"
-    dark_ritual.cooldown = 4
-    
-    # 8. 재생
-    reanimate = Skill("necro_reanimate", "재생", "시체 5개 소비, 대량 회복 + 소환수")
-    reanimate.effects = [
-        HealEffect(HealType.HP, percentage=0.5),
-        GimmickEffect(GimmickOperation.ADD, "minion_count", 2, max_value=5),
-        GimmickEffect(GimmickOperation.CONSUME, "corpse_count", 5)
+    legion_command.costs = [MPCost(20)]
+    legion_command.target_type = "self"
+    legion_command.cooldown = 5
+    legion_command.metadata = {"undead_buff": True}
+
+    # 8. 죽음의 파동 (언데드 수에 비례한 광역 공격)
+    death_wave = Skill("necromancer_death_wave", "죽음의 파동",
+                      "언데드 수에 비례한 광역 공격")
+    death_wave.effects = [
+        DamageEffect(DamageType.BRV_HP, 2.0, stat_type="magical",
+                    gimmick_bonus={"field": "total_undead", "multiplier": 0.4})
     ]
-    reanimate.costs = [MPCost(12), StackCost("corpse_count", 5)]
-    reanimate.target_type = "self"
-    reanimate.cooldown = 6
-    
-    # 9. 궁극기: 언데드 군단
-    ultimate = Skill("necro_ultimate", "언데드 군단", "모든 시체로 군단 소환, 적 섬멸")
+    death_wave.costs = [MPCost(22)]
+    death_wave.cooldown = 4
+    death_wave.target_type = "all_enemies"
+    death_wave.is_aoe = True
+    death_wave.metadata = {"death_wave": True}
+
+    # 9. 대량 소환 (모든 언데드 타입 1마리씩 즉시 소환)
+    mass_summon = Skill("necromancer_mass_summon", "대량 소환",
+                       "HP 50 소모, 모든 언데드 타입 소환")
+    mass_summon.effects = [
+        GimmickEffect(GimmickOperation.ADD, "undead_skeleton", 1, max_value=2),
+        GimmickEffect(GimmickOperation.ADD, "undead_zombie", 1, max_value=2),
+        GimmickEffect(GimmickOperation.ADD, "undead_ghost", 1, max_value=2),
+        BuffEffect(BuffType.ATTACK_UP, 0.15, duration=99),
+        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=99),
+        BuffEffect(BuffType.MAGIC_ATTACK_UP, 0.2, duration=99)
+    ]
+    mass_summon.costs = [MPCost(30), HPCost(50)]
+    mass_summon.target_type = "self"
+    mass_summon.cooldown = 6
+    mass_summon.metadata = {"mass_summon": True}
+
+    # 10. 궁극기: 언데드 대군단 (모든 언데드 희생, 극한의 피해)
+    ultimate = Skill("necromancer_ultimate", "언데드 대군단",
+                    "모든 언데드 희생, 극한의 피해")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "corpse_count", "multiplier": 0.4}, stat_type="magical"),
-        DamageEffect(DamageType.BRV, 1.5, gimmick_bonus={"field": "minion_count", "multiplier": 0.5}, stat_type="magical"),
-        DamageEffect(DamageType.HP, 3.0, stat_type="magical"),
-        GimmickEffect(GimmickOperation.SET, "minion_count", 5),
-        GimmickEffect(GimmickOperation.SET, "corpse_count", 0),
-        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=5),
-        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=5)
+        DamageEffect(DamageType.BRV, 3.0, stat_type="magical",
+                    gimmick_bonus={"field": "total_undead", "multiplier": 0.8}),
+        DamageEffect(DamageType.HP, 3.0, stat_type="magical",
+                    gimmick_bonus={"field": "total_undead", "multiplier": 0.6}),
+        GimmickEffect(GimmickOperation.SET, "undead_skeleton", 0),
+        GimmickEffect(GimmickOperation.SET, "undead_zombie", 0),
+        GimmickEffect(GimmickOperation.SET, "undead_ghost", 0)
     ]
-    ultimate.costs = [MPCost(25)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 10
-    
-    return [corpse_touch, soul_drain, summon_skeleton, death_bolt, corpse_explosion,
-            life_tap, dark_ritual, reanimate, ultimate]
+    ultimate.cooldown = 8
+    ultimate.target_type = "all_enemies"
+    ultimate.is_aoe = True
+    ultimate.metadata = {"ultimate": True, "legion_sacrifice": True}
+
+    return [shadow_bolt, drain_life, summon_skeleton, summon_zombie, summon_ghost,
+            sacrifice_undead, legion_command, death_wave, mass_summon, ultimate]
 
 def register_necromancer_skills(skill_manager):
     """네크로맨서 스킬 등록"""

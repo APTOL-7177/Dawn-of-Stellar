@@ -25,39 +25,82 @@ stat_growth:
   evasion: 2.5
   max_brv: 2.5
 traits:
-- id: rune_explosion
-  name: 룬 폭발
-  description: 룬 스택 보유 시 모든 공격이 폭발 (스택당 +15% 데미지)
+- id: rune_mastery
+  name: 룬 숙달
+  description: 같은 종류 룬 3개 보유 시 해당 룬 효과 2배
   type: passive
-- id: magic_blade
-  name: 마법검
-  description: 물리 공격 시 마법 공격력의 50%를 추가 피해로
+  conditions:
+    same_rune_count: 3
+  effects:
+    rune_effect_multiplier: 2.0
+
+- id: hybrid_strike
+  name: 하이브리드 공격
+  description: 모든 물리 공격에 마법 공격력 30% 추가, 마법 공격에 물리 공격력 30% 추가
   type: passive
-- id: spell_warrior
-  name: 마법 전사
-  description: 물리/마법 공격력 중 높은 쪽으로 데미지 계산
+  effects:
+    physical_magic_bonus: 0.3
+    magic_physical_bonus: 0.3
+
+- id: rune_combination
+  name: 룬 조합
+  description: 서로 다른 룬 2개 이상 보유 시 조합 보너스 (공격력 +20%)
   type: passive
-- id: arcane_blade_dance
-  name: 비전 검무
-  description: 물리 공격 후 마법 스킬 사용 시 MP 소모 50% 감소, 역도 동일
+  conditions:
+    different_rune_min: 2
+  effects:
+    attack_multiplier: 1.2
+
+- id: arcane_flow
+  name: 비전 흐름
+  description: 룬 사용 시 15% 확률로 룬 소모 없음
   type: trigger
-- id: rune_resonance
-  name: 룬 공명
-  description: 룬 스택 5개 이상 시 모든 공격이 물리+마법 하이브리드로 계산
+  effects:
+    rune_save_chance: 0.15
+
+- id: elemental_harmony
+  name: 원소 조화
+  description: 5가지 룬을 모두 보유 시 모든 능력치 +30%
   type: conditional
+  conditions:
+    all_runes_present: true
+  effects:
+    all_stats_multiplier: 1.3
+
 gimmick:
-  type: rune_system
-  name: 마법 룬
-  description: 공격 시 룬을 각인하여 강력한 폭발 마법 발동
-  max_rune_stacks: 5
+  type: rune_resonance
+  name: 룬 공명
+  description: 5가지 원소 룬(화염/냉기/번개/대지/비전)을 조합하여 전투. 각 룬은 고유 효과 제공
+  max_runes_total: 9
+  max_per_rune: 3
+  rune_types:
+    fire:
+      name: 화염 룬
+      effect: 물리 공격력 +15%
+    ice:
+      name: 냉기 룬
+      effect: 마법 공격력 +15%
+    lightning:
+      name: 번개 룬
+      effect: 속도 +20%
+    earth:
+      name: 대지 룬
+      effect: 방어력 +20%
+    arcane:
+      name: 비전 룬
+      effect: MP 회복 +5/턴
 
 skills:
-- engrave_rune
-- rune_burst
-- empower_rune
-- chain_burst
-- magic_blade_skill
-- rune_shield
+- battle_mage_slash
+- battle_mage_spell
+- battle_mage_fire_rune
+- battle_mage_ice_rune
+- battle_mage_lightning_rune
+- battle_mage_earth_rune
+- battle_mage_arcane_rune
+- battle_mage_rune_explosion
+- battle_mage_elemental_fusion
+- battle_mage_ultimate
 bonuses:
   hybrid_power: 1.35
   rune_efficiency: 1.4
