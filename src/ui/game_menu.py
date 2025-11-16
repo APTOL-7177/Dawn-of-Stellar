@@ -221,6 +221,13 @@ def open_game_menu(
                             for i, h in enumerate(exploration.dungeon.harvestables[:3]):
                                 logger.warning(f"[SAVE]   {i+1}. {h.object_type.value} at ({h.x}, {h.y}), harvested={h.harvested}")
 
+                        # 현재 난이도 가져오기
+                        from src.core.difficulty import get_difficulty_system
+                        difficulty_system = get_difficulty_system()
+                        current_difficulty = "보통"
+                        if difficulty_system:
+                            current_difficulty = difficulty_system.current_difficulty.value
+
                         game_state = {
                             "party": [serialize_party_member(m) for m in party] if party else [],
                             "floor_number": exploration.floor_number,
@@ -234,6 +241,7 @@ def open_game_menu(
                                 "items": [serialize_item(slot.item) for slot in inventory.slots] if inventory and hasattr(inventory, 'slots') else []
                             },
                             "keys": exploration.player_keys if hasattr(exploration, 'player_keys') else [],
+                            "difficulty": current_difficulty,  # 난이도 추가
                             # 게임 통계 (로그라이크 정산용)
                             "enemies_defeated": exploration.game_stats.get("enemies_defeated", 0),
                             "max_floor_reached": exploration.game_stats.get("max_floor_reached", exploration.floor_number),
