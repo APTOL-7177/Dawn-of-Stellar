@@ -142,10 +142,10 @@ class DifficultySelectionUI:
                 pulse = math.sin(self.animation_frame / 10.0) * 10 + 20
                 bg_color = (int(pulse), int(pulse), int(pulse * 2))
 
-                # 박스 그리기 (배경색만 설정)
+                # 박스 그리기 (배경색만 설정) - tcod는 [y, x] 순서 사용
                 for dx in range(menu_width):
                     for dy in range(6):
-                        console.bg[menu_x + dx, y + dy] = bg_color
+                        console.bg[y + dy, menu_x + dx] = bg_color
 
             # 난이도 이름
             name_color = difficulty_colors.get(difficulty, Colors.WHITE)
