@@ -1,12 +1,13 @@
 id: nature_heal
 name: Nature Heal
 type: heal
-description: Nature Heal 스킬
+target_type: ally
+description: 자연의 힘으로 아군을 회복합니다 (마법력 기반)
 costs:
   mp: 20
   cast_time: 1.0
 effects:
 - type: heal
-  target: ally
-  multiplier: 2.0
-  stat_base: magic
+  heal_type: hp
+  stat_scaling: magic
+  multiplier: 2.3

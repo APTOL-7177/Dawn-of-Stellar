@@ -1,12 +1,13 @@
 id: meditation
 name: 사색
 type: heal
-description: 사색을 통해 정신력을 회복합니다
+target_type: self
+description: 사색을 통해 자신의 정신력(MP)을 회복합니다 (마법력 기반)
 costs:
-  mp: 20
+  mp: 0
   cast_time: 1.0
 effects:
 - type: heal
-  target: ally
-  multiplier: 2.0
-  stat_base: magic
+  heal_type: mp
+  stat_scaling: magic
+  multiplier: 1.5
