@@ -453,6 +453,17 @@ class CombatUI:
             else:
                 self.add_message("도망칠 수 없다!", (255, 100, 100))
 
+        elif action == "skill":
+            skill_name = result.get("skill_name", "스킬")
+            success = result.get("success", False)
+
+            if success:
+                message = result.get("message", f"{skill_name} 사용!")
+                self.add_message(message, (100, 255, 255))
+            else:
+                error = result.get("error", "사용 실패")
+                self.add_message(f"❌ {skill_name}: {error}", (255, 100, 100))
+
     def update(self, delta_time: float = 1.0):
         """업데이트 (매 프레임)"""
         # 플레이어가 선택 중인지 확인
