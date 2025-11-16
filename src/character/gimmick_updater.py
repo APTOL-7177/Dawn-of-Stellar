@@ -61,6 +61,68 @@ class GimmickUpdater:
                 character.stealth_active = False
                 character.exposed_turns = 0
                 logger.info(f"{character.name} 은신 해제 (공격 스킬 사용)")
+        elif gimmick_type == "support_fire":
+            # 직접 공격 시 콤보 초기화
+            if skill.metadata.get("breaks_combo", False):
+                character.support_fire_combo = 0
+                logger.debug(f"{character.name} 직접 공격으로 지원 콤보 초기화")
+
+    @staticmethod
+    def on_ally_attack(attacker, all_allies):
+        """아군 공격 시 기믹 트리거 (지원사격 등)"""
+        # 모든 아군 중에서 궁수 찾기
+        for ally in all_allies:
+            if not hasattr(ally, 'gimmick_type'):
+                continue
+
+            if ally.gimmick_type == "support_fire" and ally != attacker:
+                GimmickUpdater._trigger_support_fire(ally, attacker)
+
+    @staticmethod
+    def _trigger_support_fire(archer, attacking_ally):
+        """궁수 지원사격 트리거"""
+        # 마킹된 아군인지 확인
+        marked_slots = [
+            getattr(attacking_ally, 'mark_slot_normal', 0),
+            getattr(attacking_ally, 'mark_slot_piercing', 0),
+            getattr(attacking_ally, 'mark_slot_fire', 0),
+            getattr(attacking_ally, 'mark_slot_ice', 0),
+            getattr(attacking_ally, 'mark_slot_poison', 0),
+            getattr(attacking_ally, 'mark_slot_explosive', 0),
+            getattr(attacking_ally, 'mark_slot_holy', 0)
+        ]
+
+        # 마킹이 없으면 종료
+        if all(slot == 0 for slot in marked_slots):
+            return
+
+        # 마킹된 슬롯 찾기
+        arrow_types = ['normal', 'piercing', 'fire', 'ice', 'poison', 'explosive', 'holy']
+        for i, slot_count in enumerate(marked_slots):
+            if slot_count > 0:
+                arrow_type = arrow_types[i]
+                shots_attr = f'mark_shots_{arrow_type}'
+                shots_remaining = getattr(attacking_ally, shots_attr, 0)
+
+                if shots_remaining > 0:
+                    # 지원사격 발동
+                    logger.info(f"[지원사격] {archer.name} → {attacking_ally.name} ({arrow_type} 화살)")
+
+                    # 남은 발사 횟수 감소
+                    setattr(attacking_ally, shots_attr, shots_remaining - 1)
+
+                    # 발사 횟수가 0이 되면 마킹 슬롯 제거
+                    if shots_remaining - 1 <= 0:
+                        setattr(attacking_ally, f'mark_slot_{arrow_type}', 0)
+                        logger.debug(f"{attacking_ally.name}의 {arrow_type} 마킹 소진")
+
+                    # 콤보 증가
+                    current_combo = getattr(archer, 'support_fire_combo', 0)
+                    archer.support_fire_combo = current_combo + 1
+                    logger.debug(f"{archer.name} 지원 콤보: {archer.support_fire_combo}")
+
+                    # 첫 번째 마킹만 처리하고 종료
+                    break
 
     @staticmethod
     def check_overheat(character):

@@ -15,6 +15,7 @@ from src.combat.brave_system import get_brave_system, BraveSystem
 from src.combat.damage_calculator import get_damage_calculator, DamageCalculator
 from src.combat.status_effects import StatusManager, StatusEffect, StatusType
 from src.audio import play_sfx
+from src.character.gimmick_updater import GimmickUpdater
 
 
 class CombatState(Enum):
@@ -154,6 +155,9 @@ class CombatManager:
         result = {}
 
         # 턴 시작 처리
+        # 0. 기믹 업데이트 (턴 시작)
+        GimmickUpdater.on_turn_start(actor)
+
         # 1. BREAK 상태 해제
         if self.brave.is_broken(actor):
             self.logger.debug(f"{actor.name}의 BREAK 상태 해제")
@@ -255,6 +259,7 @@ class CombatManager:
         attacker: Any,
         defender: Any,
         skill: Optional[Any] = None,
+        trigger_gimmick: bool = True,
         **kwargs
     ) -> Dict[str, Any]:
         """BRV 공격 실행"""
@@ -291,6 +296,10 @@ class CombatManager:
         if hasattr(attacker, 'defend_stack_count') and attacker.defend_stack_count > 0:
             attacker.defend_stack_count = 0
 
+        # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
+        if trigger_gimmick and attacker in self.allies:
+            GimmickUpdater.on_ally_attack(attacker, self.allies)
+
         return {
             "action": "brv_attack",
             "damage": damage_result.final_damage,
@@ -306,6 +315,7 @@ class CombatManager:
         attacker: Any,
         defender: Any,
         skill: Optional[Any] = None,
+        trigger_gimmick: bool = True,
         **kwargs
     ) -> Dict[str, Any]:
         """HP 공격 실행"""
@@ -357,6 +367,10 @@ class CombatManager:
         if hasattr(attacker, 'defend_stack_count') and attacker.defend_stack_count > 0:
             attacker.defend_stack_count = 0
 
+        # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
+        if trigger_gimmick and attacker in self.allies:
+            GimmickUpdater.on_ally_attack(attacker, self.allies)
+
         return {
             "action": "hp_attack",
             "hp_damage": hp_result["hp_damage"],
@@ -374,14 +388,18 @@ class CombatManager:
         **kwargs
     ) -> Dict[str, Any]:
         """BRV + HP 복합 공격 실행"""
-        # 1. BRV 공격
-        brv_attack_result = self._execute_brv_attack(attacker, defender, skill, **kwargs)
+        # 1. BRV 공격 (기믹 트리거 안 함)
+        brv_attack_result = self._execute_brv_attack(attacker, defender, skill, trigger_gimmick=False, **kwargs)
 
-        # 2. HP 공격 (BRV가 있으면)
+        # 2. HP 공격 (BRV가 있으면, 기믹 트리거 안 함)
         if attacker.current_brv > 0:
-            hp_attack_result = self._execute_hp_attack(attacker, defender, skill, **kwargs)
+            hp_attack_result = self._execute_hp_attack(attacker, defender, skill, trigger_gimmick=False, **kwargs)
         else:
             hp_attack_result = {"hp_damage": 0, "wound_damage": 0, "brv_consumed": 0}
+
+        # 아군 공격 시 기믹 트리거 (지원사격 등) - 복합 공격 전체에 대해 한 번만
+        if attacker in self.allies:
+            GimmickUpdater.on_ally_attack(attacker, self.allies)
 
         # 결과 병합
         combined_result = {
@@ -448,6 +466,9 @@ class CombatManager:
         if skill_result.success:
             result["success"] = True
             result["message"] = skill_result.message
+
+            # 기믹 업데이트 (스킬 사용)
+            GimmickUpdater.on_skill_use(actor, skill)
         else:
             result["success"] = False
             result["error"] = skill_result.message
@@ -776,6 +797,9 @@ class CombatManager:
         """
         # 턴 종료 시에는 BRV 회복하지 않음 (HP 공격 후 BRV가 0인 상태 유지)
         # BRV 회복은 다음 턴 시작 시에 처리됨
+
+        # 기믹 업데이트 (턴 종료)
+        GimmickUpdater.on_turn_end(actor)
 
         # 이벤트 발행
         event_bus.publish(Events.COMBAT_TURN_END, {
