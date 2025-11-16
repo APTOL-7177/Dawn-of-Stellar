@@ -376,7 +376,7 @@ audio:
       rest: "27-Good Night, Until Tomorrow!"                   # Good Night, Until Tomorrow!
       town: "26-Ahead on Our Way"                              # Ahead on Our Way
       shop: "16-Oppressed People"                              # Oppressed People
-      tutorial: "27-Good Night, Until Tomorrow!"               # 튜토리얼 - 평화롭고 차분함
+      tutorial: "26-Ahead on Our Way"                          # 튜토리얼 - 평화로운 여정
 
       # 특수 상황
       escape: "08-Hurry!"                                      # Hurry!
