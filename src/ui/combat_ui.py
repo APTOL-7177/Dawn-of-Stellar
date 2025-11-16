@@ -345,8 +345,19 @@ class CombatUI:
         # 스킬의 target_type에 따라 대상 결정
         if self.selected_skill and hasattr(self.selected_skill, 'target_type'):
             target_type = self.selected_skill.target_type
+
+            # 문자열 target_type을 Enum으로 매핑 (하위 호환성)
+            ally_targets = (
+                SkillTargetType.SINGLE_ALLY,
+                SkillTargetType.SELF,
+                SkillTargetType.ALL_ALLIES,
+                "ally",      # 문자열 지원
+                "self",      # 문자열 지원
+                "party",     # 문자열 지원
+            )
+
             # 아군 타겟팅 스킬 (회복 등)
-            if target_type in (SkillTargetType.SINGLE_ALLY, SkillTargetType.SELF):
+            if target_type in ally_targets:
                 self.current_target_list = self.combat_manager.party
             else:
                 # 적 타겟팅 스킬 (공격 등)

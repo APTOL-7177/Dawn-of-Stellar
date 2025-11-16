@@ -1,12 +1,13 @@
 id: miracle_cure
 name: 기적의 치유
 type: heal
-description: 기적적인 치유로 상태이상을 제거합니다
+target_type: ally
+description: 기적적인 치유로 아군을 회복하고 상태이상을 제거합니다 (마법력 기반)
 costs:
   mp: 40
-  cast_time: 1.0
+  cast_time: 1.5
 effects:
 - type: heal
-  target: ally
+  heal_type: hp
+  stat_scaling: magic
   multiplier: 4.0
-  stat_base: magic
