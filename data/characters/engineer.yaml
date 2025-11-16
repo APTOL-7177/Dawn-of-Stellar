@@ -25,39 +25,46 @@ stat_growth:
   evasion: 1.5
   max_brv: 2.5
 traits:
-- id: equipment_master
-  name: 장비 마스터
-  description: 모든 장비 효과 +35%
-  type: passive
-- id: overclock
-  name: 오버클럭
-  description: 장비의 특수 효과 발동 확률 2배
-  type: passive
-- id: emergency_repair
-  name: 긴급 수리
-  description: HP 50% 이하일 때 모든 장비 효과 2배
+- id: heat_efficiency
+  name: 열 효율
+  description: 최적 구간(50-79) 유지 시 모든 스탯 +15%
   type: conditional
-- id: turret_deploy
-  name: 포탑 설치
-  description: 턴 종료 시 자동으로 적에게 피해 (공격력의 40%)
+- id: dangerous_combat
+  name: 위험한 전투
+  description: 위험 구간(80-99) 유지 시 크리티컬 확률 +20%
+  type: conditional
+- id: overheat_prevention
+  name: 오버히트 방지
+  description: 열이 95 도달 시 자동으로 -15 (전투당 2회)
   type: trigger
-- id: tech_upgrade
-  name: 기술 업그레이드
-  description: 전투 중 3턴마다 스탯 +5% (누적)
+- id: auto_cooling
+  name: 자동 냉각
+  description: 매 턴 종료 시 열 -5 (항상 발동)
   type: trigger
+- id: precision_engineering
+  name: 정밀 기계공학
+  description: 최적 구간에서 스킬 시전 시 MP 소모 -30%
+  type: conditional
 gimmick:
-  type: construct_system
-  name: 기계 부품
-  description: 전투 중 기계 부품을 수집하여 포탑과 장치 제작
-  max_machine_parts: 5
+  type: heat_management
+  name: 열 관리
+  description: 열 게이지를 관리하며 최적 구간(50-79)에서 강력한 보너스. 오버히트(100) 시 스턴
+  max_heat: 100
+  optimal_min: 50
+  optimal_max: 79
+  danger_min: 80
+  danger_max: 99
+  overheat_threshold: 100
 
 skills:
-- turret_shot
-- emp_blast
-- repair_kit
-- power_armor
-- rocket_punch
-- overclock_mode
+- engineer_turret_shot
+- engineer_overload_blast
+- engineer_emp_explosion
+- engineer_cooling_vent
+- engineer_rocket_punch
+- engineer_overclock_mode
+- engineer_emergency_repair
+- engineer_mega_blaster
 bonuses:
   equipment_bonus: 1.35
   special_proc_rate: 2.0

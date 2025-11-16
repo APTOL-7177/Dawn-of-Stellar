@@ -1,106 +1,108 @@
-"""Engineer Skills - 기계공학자 스킬 (기계 배치 시스템)"""
+"""Engineer Skills - 기계공학자 스킬 (열 관리 시스템)"""
 from src.character.skills.skill import Skill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.heal_effect import HealEffect
 from src.character.skills.costs.mp_cost import MPCost
-from src.character.skills.costs.stack_cost import StackCost
 
 def create_engineer_skills():
-    """기계공학자 9개 스킬 생성"""
+    """기계공학자 8개 스킬 생성 (열 관리 시스템)"""
 
-    # 1. 기본 BRV: 기계 부품 조립
-    assemble_parts = Skill("engineer_assemble_parts", "기계 부품 조립", "기계 부품 획득")
-    assemble_parts.effects = [
-        DamageEffect(DamageType.BRV, 1.3),
-        GimmickEffect(GimmickOperation.ADD, "machine_parts", 1, max_value=5)
+    # 1. 기본 BRV: 포탑 사격
+    turret_shot = Skill("engineer_turret_shot", "포탑 사격", "기본 공격, 열 +15")
+    turret_shot.effects = [
+        DamageEffect(DamageType.BRV, 1.5),
+        GimmickEffect(GimmickOperation.ADD, "heat", 15, max_value=100)
     ]
-    assemble_parts.costs = []  # 기본 공격은 MP 소모 없음
+    turret_shot.costs = []  # 기본 공격은 MP 소모 없음
+    turret_shot.metadata = {"heat_change": 15}
 
-    # 2. 기본 HP: 기계 공격
-    machine_attack = Skill("engineer_machine_attack", "기계 공격", "기계 부품 소비 공격")
-    machine_attack.effects = [
-        DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "machine_parts", "multiplier": 0.2}),
-        GimmickEffect(GimmickOperation.CONSUME, "machine_parts", 1)
+    # 2. 기본 HP: 로켓 펀치
+    rocket_punch = Skill("engineer_rocket_punch", "로켓 펀치", "단일 강타, 열 +25")
+    rocket_punch.effects = [
+        DamageEffect(DamageType.HP, 1.5),
+        GimmickEffect(GimmickOperation.ADD, "heat", 25, max_value=100)
     ]
-    machine_attack.costs = []  # 기본 공격은 MP 소모 없음
+    rocket_punch.costs = []  # 기본 공격은 MP 소모 없음
+    rocket_punch.metadata = {"heat_change": 25}
 
-    # 3. 포탑 설치
-    turret_deploy = Skill("engineer_turret_deploy", "포탑 설치", "부품 2개 소비, 포탑 배치")
-    turret_deploy.effects = [
-        DamageEffect(DamageType.BRV, 1.8, gimmick_bonus={"field": "machine_parts", "multiplier": 0.15}),
-        GimmickEffect(GimmickOperation.CONSUME, "machine_parts", 2)
+    # 3. 과열 포격 (위험 구간에서 강력함)
+    overload_blast = Skill("engineer_overload_blast", "과열 포격",
+                          "위험 구간(80+)에서 배율 3.5, 열 +35")
+    overload_blast.effects = [
+        DamageEffect(DamageType.BRV, 2.5,
+                    conditional_bonus={"condition": "danger_zone", "multiplier": 1.4}),
+        GimmickEffect(GimmickOperation.ADD, "heat", 35, max_value=100)
     ]
-    turret_deploy.costs = [MPCost(7), StackCost("machine_parts", 2)]
-    turret_deploy.cooldown = 2
+    overload_blast.costs = [MPCost(20)]
+    overload_blast.metadata = {"heat_change": 35, "danger_zone_bonus": True}
 
-    # 4. 수리 드론
-    repair_drone = Skill("engineer_repair_drone", "수리 드론", "부품 2개 소비, 회복 기계")
-    repair_drone.effects = [
-        GimmickEffect(GimmickOperation.CONSUME, "machine_parts", 2),
-        BuffEffect(BuffType.REGEN, 0.25, duration=4)
+    # 4. EMP 폭발 (광역 공격)
+    emp_explosion = Skill("engineer_emp_explosion", "EMP 폭발",
+                         "광역 공격, 기계 무력화, 열 +40")
+    emp_explosion.effects = [
+        DamageEffect(DamageType.BRV_HP, 2.0),
+        GimmickEffect(GimmickOperation.ADD, "heat", 40, max_value=100)
     ]
-    repair_drone.costs = [MPCost(8), StackCost("machine_parts", 2)]
-    repair_drone.target_type = "ally"
-    repair_drone.cooldown = 3
+    emp_explosion.costs = [MPCost(25)]
+    emp_explosion.target_type = "all_enemies"
+    emp_explosion.is_aoe = True
+    emp_explosion.metadata = {"heat_change": 40}
 
-    # 5. 방어막 생성기
-    shield_generator = Skill("engineer_shield_generator", "방어막 생성기", "부품 3개 소비, 방어막")
-    shield_generator.effects = [
-        BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=4),
-        GimmickEffect(GimmickOperation.CONSUME, "machine_parts", 3)
+    # 5. 냉각 벤트 (열 감소 + 방어 버프)
+    cooling_vent = Skill("engineer_cooling_vent", "냉각 벤트",
+                        "열 -30, 방어력 +20% 1턴")
+    cooling_vent.effects = [
+        GimmickEffect(GimmickOperation.ADD, "heat", -30, min_value=0),
+        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=1)
     ]
-    shield_generator.costs = [MPCost(9), StackCost("machine_parts", 3)]
-    shield_generator.target_type = "ally"
-    shield_generator.cooldown = 4
+    cooling_vent.costs = [MPCost(15)]
+    cooling_vent.target_type = "self"
+    cooling_vent.metadata = {"heat_change": -30}
 
-    # 6. 기계 전개
-    machine_deploy = Skill("engineer_machine_deploy", "기계 전개", "부품 최대 회복")
-    machine_deploy.effects = [
-        GimmickEffect(GimmickOperation.SET, "machine_parts", 5),
-        BuffEffect(BuffType.ACCURACY_UP, 0.3, duration=3)
+    # 6. 오버클럭 모드 (위험 구간 패널티 제거)
+    overclock_mode = Skill("engineer_overclock_mode", "오버클럭 모드",
+                          "3턴간 위험 구간 패널티 제거, 열 +20")
+    overclock_mode.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3),
+        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=3),
+        GimmickEffect(GimmickOperation.ADD, "heat", 20, max_value=100)
     ]
-    machine_deploy.costs = [MPCost(10)]
-    machine_deploy.target_type = "self"
-    machine_deploy.cooldown = 5
+    overclock_mode.costs = [MPCost(30)]
+    overclock_mode.target_type = "self"
+    overclock_mode.cooldown = 5
+    overclock_mode.metadata = {"heat_change": 20, "overclock": True}
 
-    # 7. 폭발 드론
-    explosive_drone = Skill("engineer_explosive_drone", "폭발 드론", "부품 4개 소비, 자폭 공격")
-    explosive_drone.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.2, gimmick_bonus={"field": "machine_parts", "multiplier": 0.3}),
-        GimmickEffect(GimmickOperation.CONSUME, "machine_parts", 4)
+    # 7. 긴급 수리 (회복 + 열 감소)
+    emergency_repair = Skill("engineer_emergency_repair", "긴급 수리",
+                            "HP 30% 회복, 열 -40")
+    emergency_repair.effects = [
+        HealEffect(percentage=0.3),
+        GimmickEffect(GimmickOperation.ADD, "heat", -40, min_value=0)
     ]
-    explosive_drone.costs = [MPCost(12), StackCost("machine_parts", 4)]
-    explosive_drone.cooldown = 4
-    explosive_drone.is_aoe = True
+    emergency_repair.costs = [MPCost(25)]
+    emergency_repair.target_type = "self"
+    emergency_repair.cooldown = 4
+    emergency_repair.metadata = {"heat_change": -40}
 
-    # 8. 거대 로봇
-    giant_robot = Skill("engineer_giant_robot", "거대 로봇", "부품 5개 소비, 로봇 소환")
-    giant_robot.effects = [
-        DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "machine_parts", "multiplier": 0.4}),
-        DamageEffect(DamageType.HP, 1.8),
-        GimmickEffect(GimmickOperation.CONSUME, "machine_parts", 5)
+    # 8. 궁극기: 메가 블래스터 (현재 열에 비례한 피해)
+    mega_blaster = Skill("engineer_mega_blaster", "메가 블래스터",
+                        "현재 열에 비례한 대량 피해, 열 +60")
+    mega_blaster.effects = [
+        DamageEffect(DamageType.BRV, 2.5,
+                    gimmick_bonus={"field": "heat", "multiplier": 0.02}),  # 열 1당 +2% 피해
+        DamageEffect(DamageType.HP, 2.0,
+                    gimmick_bonus={"field": "heat", "multiplier": 0.015}),  # 열 1당 +1.5% 피해
+        GimmickEffect(GimmickOperation.ADD, "heat", 60, max_value=100)
     ]
-    giant_robot.costs = [MPCost(15), StackCost("machine_parts", 5)]
-    giant_robot.cooldown = 6
+    mega_blaster.costs = [MPCost(30)]
+    mega_blaster.is_ultimate = True
+    mega_blaster.cooldown = 8
+    mega_blaster.metadata = {"heat_change": 60, "heat_scaling": True}
 
-    # 9. 궁극기: 기계군단
-    ultimate = Skill("engineer_ultimate", "기계군단", "모든 기계 총동원")
-    ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "machine_parts", "multiplier": 0.3}),
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "machine_parts", "multiplier": 0.3}),
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "machine_parts", "multiplier": 0.3}),
-        DamageEffect(DamageType.HP, 2.5),
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=4),
-        GimmickEffect(GimmickOperation.SET, "machine_parts", 0)
-    ]
-    ultimate.costs = [MPCost(22), StackCost("machine_parts", 1)]
-    ultimate.is_ultimate = True
-    ultimate.is_aoe = True
-    ultimate.cooldown = 10
-
-    return [assemble_parts, machine_attack, turret_deploy, repair_drone, shield_generator,
-            machine_deploy, explosive_drone, giant_robot, ultimate]
+    return [turret_shot, rocket_punch, overload_blast, emp_explosion,
+            cooling_vent, overclock_mode, emergency_repair, mega_blaster]
 
 def register_engineer_skills(skill_manager):
     """기계공학자 스킬 등록"""

@@ -204,11 +204,29 @@ class Character:
             self.ice_element = 0
             self.lightning_element = 0
 
-        # 궁수/저격수 - 조준 포인트
+        # 궁수/저격수 - 조준 포인트 (구버전, 호환성 유지)
         elif gimmick_type == "aim_system":
             self.aim_points = 0
             self.max_aim_points = self.gimmick_data.get("max_aim", 5)
             self.focus_stacks = 0  # 집중 스택 (저격수가 사용하는 별칭)
+
+        # 저격수 - 탄창 시스템 (신버전)
+        elif gimmick_type == "magazine_system":
+            self.max_magazine = self.gimmick_data.get("max_magazine", 6)
+            self.magazine = []  # 현재 탄창 (리스트로 탄환 타입 저장)
+            self.current_bullet_index = 0  # 다음 발사할 탄환 인덱스
+            self.quick_reload_count = 2  # 빠른 재장전 남은 횟수
+            # 탄환 타입 정보 저장
+            self.bullet_types = {
+                "normal": {"name": "기본 탄환", "multiplier": 2.0},
+                "penetrating": {"name": "관통탄", "multiplier": 2.5, "defense_pierce": 0.5},
+                "explosive": {"name": "폭발탄", "multiplier": 1.8, "aoe": True},
+                "frost": {"name": "빙결탄", "multiplier": 1.8, "status": "frozen"},
+                "fire": {"name": "화염탄", "multiplier": 2.0, "status": "burn"},
+                "poison": {"name": "독침탄", "multiplier": 1.5, "status": "poison"},
+                "flash": {"name": "섬광탄", "multiplier": 1.0, "debuff": "blind"},
+                "headshot": {"name": "헤드샷 탄", "multiplier": 5.0, "crit_guaranteed": True}
+            }
 
         # 도적 - 베놈 파워
         elif gimmick_type == "venom_system":
@@ -264,11 +282,21 @@ class Character:
             self.max_spirit_bond = self.gimmick_data.get("max_bond", 25)
             self.spirit_count = 0  # 정령 개수 (스킬에서 사용)
 
-        # 시간술사 - 시간 기록점
+        # 시간술사 - 시간 기록점 (구버전, 호환성 유지)
         elif gimmick_type == "time_system":
             self.time_marks = 0
             self.max_time_marks = self.gimmick_data.get("max_marks", 7)
             self.time_points = 0  # 시간 포인트 (스킬에서 사용하는 별칭)
+
+        # 시간술사 - 타임라인 균형 시스템 (신버전)
+        elif gimmick_type == "timeline_system":
+            self.timeline = 0  # 현재 타임라인 위치 (-5 ~ +5)
+            self.min_timeline = self.gimmick_data.get("min_timeline", -5)
+            self.max_timeline = self.gimmick_data.get("max_timeline", 5)
+            self.optimal_point = self.gimmick_data.get("optimal_point", 0)
+            self.past_threshold = self.gimmick_data.get("past_threshold", -2)
+            self.future_threshold = self.gimmick_data.get("future_threshold", 2)
+            self.time_correction_counter = 0  # 시간 보정 카운터 (3턴마다)
 
         # 용기사 - 용의 표식
         elif gimmick_type == "dragon_marks":
@@ -321,10 +349,23 @@ class Character:
             self.max_gold = self.gimmick_data.get("max_gold", 1000)
             self.gold_per_hit = self.gimmick_data.get("gold_per_hit", 10)
 
-        # 엔지니어 - 구조물
+        # 엔지니어 - 구조물 (구버전, 호환성 유지)
         elif gimmick_type == "construct_system":
             self.machine_parts = 0
             self.max_machine_parts = self.gimmick_data.get("max_machine_parts", 5)
+
+        # 엔지니어 - 열 관리 시스템 (신버전)
+        elif gimmick_type == "heat_management":
+            self.heat = 0  # 현재 열 게이지 (0-100)
+            self.max_heat = self.gimmick_data.get("max_heat", 100)
+            self.optimal_min = self.gimmick_data.get("optimal_min", 50)
+            self.optimal_max = self.gimmick_data.get("optimal_max", 79)
+            self.danger_min = self.gimmick_data.get("danger_min", 80)
+            self.danger_max = self.gimmick_data.get("danger_max", 99)
+            self.overheat_threshold = self.gimmick_data.get("overheat_threshold", 100)
+            self.overheat_prevention_count = 2  # 오버히트 방지 남은 횟수
+            self.is_overheated = False  # 오버히트 상태
+            self.overheat_stun_turns = 0  # 오버히트 스턴 남은 턴
 
         # 사무라이 - 거합
         elif gimmick_type == "iaijutsu_system":

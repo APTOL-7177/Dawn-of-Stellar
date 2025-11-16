@@ -1,116 +1,101 @@
-"""Sniper Skills - 저격수 스킬 (조준/1발 시스템)"""
+"""Sniper Skills - 저격수 스킬 (탄창 재장전 시스템)"""
 from src.character.skills.skill import Skill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.costs.mp_cost import MPCost
-from src.character.skills.costs.stack_cost import StackCost
 
 def create_sniper_skills():
-    """저격수 9개 스킬"""
-    skills = []
-    
-    # 1. 기본 BRV: 정밀 조준
-    precise_aim = Skill("sniper_aim", "정밀 조준", "조준 집중")
-    precise_aim.effects = [
-        DamageEffect(DamageType.BRV, 1.8),
-        GimmickEffect(GimmickOperation.ADD, "focus_stacks", 1, max_value=10)
+    """저격수 8개 스킬 생성 (탄창 재장전 시스템)"""
+
+    # 1. 기본 BRV: 정밀 사격 (탄환 1발 소모)
+    precise_shot = Skill("sniper_precise_shot", "정밀 사격", "현재 탄환 1발 사격")
+    precise_shot.effects = [
+        DamageEffect(DamageType.BRV, 2.0,
+                    conditional_bonus={"condition": "last_bullet", "multiplier": 1.3})
     ]
-    precise_aim.costs = []  # 기본 공격은 MP 소모 없음
-    skills.append(precise_aim)
-    
-    # 2. 기본 HP: 헤드샷
-    headshot = Skill("sniper_headshot", "헤드샷", "집중 소비 치명타")
+    precise_shot.costs = []  # 기본 공격은 MP 소모 없음
+    precise_shot.metadata = {"bullets_used": 1, "uses_magazine": True}
+
+    # 2. 기본 HP: 헤드샷 (탄환 1발 소모, 크리티컬 확정)
+    headshot = Skill("sniper_headshot", "헤드샷", "크리티컬 확정 강타, 탄환 1발")
     headshot.effects = [
-        DamageEffect(DamageType.HP, 2.0, gimmick_bonus={"field": "focus_stacks", "multiplier": 0.4}),
-        GimmickEffect(GimmickOperation.CONSUME, "focus_stacks", 2)
+        DamageEffect(DamageType.HP, 3.0,
+                    conditional_bonus={"condition": "last_bullet", "multiplier": 1.3})
     ]
     headshot.costs = []  # 기본 공격은 MP 소모 없음
-    skills.append(headshot)
-    
-    # 3. 완벽한 집중
-    perfect_focus = Skill("sniper_perfect_focus", "완벽한 집중", "집중 최대화")
-    perfect_focus.effects = [
-        GimmickEffect(GimmickOperation.ADD, "focus_stacks", 5, max_value=10),
-        BuffEffect(BuffType.CRITICAL_UP, 0.5, duration=3)
+    headshot.metadata = {"bullets_used": 1, "uses_magazine": True, "crit_guaranteed": True}
+
+    # 3. 더블 탭 (2발 연속 사격)
+    double_tap = Skill("sniper_double_tap", "더블 탭", "2발 연속 사격")
+    double_tap.effects = [
+        DamageEffect(DamageType.BRV, 1.8),
+        DamageEffect(DamageType.BRV, 1.8)
     ]
-    perfect_focus.costs = [MPCost(8)]
-    perfect_focus.target_type = "self"
-    perfect_focus.cooldown = 5
-    skills.append(perfect_focus)
-    
-    # 4. 관통 사격
-    penetrating_shot = Skill("sniper_penetrate", "관통 사격", "방어 무시 사격")
-    penetrating_shot.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "focus_stacks", "multiplier": 0.35}),
-        GimmickEffect(GimmickOperation.CONSUME, "focus_stacks", 3)
+    double_tap.costs = [MPCost(10)]
+    double_tap.metadata = {"bullets_used": 2, "uses_magazine": True}
+
+    # 4. 재장전 (탄창 6발 충전)
+    reload = Skill("sniper_reload", "재장전", "탄창 6발 충전 (기본 탄환)")
+    reload.effects = [
+        GimmickEffect(GimmickOperation.RELOAD_MAGAZINE, "magazine", 6,
+                     bullet_type="normal")
     ]
-    penetrating_shot.costs = [MPCost(10), StackCost("focus_stacks", 3)]
-    penetrating_shot.cast_time = 2.5
-    penetrating_shot.cooldown = 3
-    skills.append(penetrating_shot)
-    
-    # 5. 저격 자세
-    sniper_stance = Skill("sniper_stance", "저격 자세", "완벽한 자세")
-    sniper_stance.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=4),
-        BuffEffect(BuffType.ACCURACY_UP, 0.5, duration=4),
-        GimmickEffect(GimmickOperation.ADD, "focus_stacks", 2, max_value=10)
+    reload.costs = [MPCost(6)]
+    reload.target_type = "self"
+    reload.metadata = {"reload": True, "bullet_type": "normal", "amount": 6}
+
+    # 5. 관통탄 장전 (2발)
+    load_penetrating = Skill("sniper_load_penetrating", "관통탄 장전",
+                            "관통탄 2발 장전 (방어 무시 50%)")
+    load_penetrating.effects = [
+        GimmickEffect(GimmickOperation.LOAD_BULLETS, "magazine", 2,
+                     bullet_type="penetrating")
     ]
-    sniper_stance.costs = [MPCost(6)]
-    sniper_stance.target_type = "self"
-    sniper_stance.cooldown = 4
-    skills.append(sniper_stance)
-    
-    # 6. 급소 파악
-    weak_spot = Skill("sniper_weak_spot", "급소 파악", "적 약점 간파")
-    weak_spot.effects = [
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "focus_stacks", "multiplier": 0.3}),
-        GimmickEffect(GimmickOperation.ADD, "focus_stacks", 2, max_value=10)
+    load_penetrating.costs = [MPCost(12)]
+    load_penetrating.target_type = "self"
+    load_penetrating.metadata = {"load": True, "bullet_type": "penetrating", "amount": 2}
+
+    # 6. 폭발탄 장전 (2발)
+    load_explosive = Skill("sniper_load_explosive", "폭발탄 장전",
+                          "폭발탄 2발 장전 (광역 피해 50%)")
+    load_explosive.effects = [
+        GimmickEffect(GimmickOperation.LOAD_BULLETS, "magazine", 2,
+                     bullet_type="explosive")
     ]
-    weak_spot.costs = [MPCost(7)]
-    weak_spot.cast_time = 1.8
-    weak_spot.cooldown = 2
-    skills.append(weak_spot)
-    
-    # 7. 폭발탄
-    explosive_round = Skill("sniper_explosive", "폭발탄", "폭발 피해")
-    explosive_round.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.2, gimmick_bonus={"field": "focus_stacks", "multiplier": 0.38}),
-        GimmickEffect(GimmickOperation.CONSUME, "focus_stacks", 4)
+    load_explosive.costs = [MPCost(16)]
+    load_explosive.target_type = "self"
+    load_explosive.metadata = {"load": True, "bullet_type": "explosive", "amount": 2}
+
+    # 7. 완벽한 조준 (버프)
+    perfect_aim = Skill("sniper_perfect_aim", "완벽한 조준",
+                       "다음 3발 명중률 100%, 크리티컬 +30%")
+    perfect_aim.effects = [
+        BuffEffect(BuffType.ACCURACY_UP, 1.0, duration=3),
+        BuffEffect(BuffType.CRITICAL_RATE_UP, 0.3, duration=3)
     ]
-    explosive_round.costs = [MPCost(12), StackCost("focus_stacks", 4)]
-    explosive_round.cast_time = 2.2
-    explosive_round.cooldown = 5
-    skills.append(explosive_round)
-    
-    # 8. 최종 조준
-    final_aim = Skill("sniper_final_aim", "최종 조준", "절대 명중")
-    final_aim.effects = [
-        GimmickEffect(GimmickOperation.SET, "focus_stacks", 10),
-        BuffEffect(BuffType.CRITICAL_UP, 0.8, duration=2)
+    perfect_aim.costs = [MPCost(14)]
+    perfect_aim.target_type = "self"
+    perfect_aim.cooldown = 4
+
+    # 8. 궁극기: 데드아이 (탄창의 모든 탄환 연속 발사)
+    deadeye = Skill("sniper_deadeye", "데드아이",
+                   "탄창의 모든 탄환을 연속 발사")
+    deadeye.effects = [
+        # 실제 탄환 수만큼 반복 공격 (스킬 실행 시 동적 처리)
+        DamageEffect(DamageType.BRV, 2.5),
+        DamageEffect(DamageType.HP, 1.5)
     ]
-    final_aim.costs = [MPCost(15)]
-    final_aim.target_type = "self"
-    final_aim.cooldown = 8
-    skills.append(final_aim)
-    
-    # 9. 궁극기: 절대영도
-    ultimate = Skill("sniper_ultimate", "절대영도", "완벽한 1발")
-    ultimate.effects = [
-        DamageEffect(DamageType.BRV, 3.0, gimmick_bonus={"field": "focus_stacks", "multiplier": 0.6}),
-        DamageEffect(DamageType.HP, 5.0, gimmick_bonus={"field": "focus_stacks", "multiplier": 0.5}),
-        GimmickEffect(GimmickOperation.SET, "focus_stacks", 0)
-    ]
-    ultimate.costs = [MPCost(25)]
-    ultimate.is_ultimate = True
-    ultimate.cast_time = 3.0
-    ultimate.cooldown = 10
-    skills.append(ultimate)
-    
-    return skills
+    deadeye.costs = [MPCost(30)]
+    deadeye.is_ultimate = True
+    deadeye.cooldown = 8
+    deadeye.metadata = {"uses_all_bullets": True, "deadeye": True}
+
+    return [precise_shot, headshot, double_tap, reload,
+            load_penetrating, load_explosive, perfect_aim, deadeye]
 
 def register_sniper_skills(skill_manager):
+    """저격수 스킬 등록"""
     skills = create_sniper_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
