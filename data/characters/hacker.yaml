@@ -25,33 +25,73 @@ stat_growth:
   evasion: 3.2
   max_brv: 2.0
 gimmick:
-  type: network_access
-  name: 네트워크 접근
-  description: 적의 네트워크에 접근하여 레벨을 높이고 강력한 공격 수행
-  max_access_level: 5
-  firewall_break_count: 0
+  type: multithread
+  name: 멀티스레드 시스템
+  description: 최대 3개 프로그램을 동시 실행. 각 프로그램은 독립적인 디버프 효과 발휘
+  max_cpu_cores: 3
+  mp_per_program_per_turn: 5
+  programs:
+    virus:
+      name: 바이러스
+      effect: 적 공격력 -20%
+      mp_cost: 10
+    backdoor:
+      name: 백도어
+      effect: 적 방어력 -30%
+      mp_cost: 12
+    ddos:
+      name: DDoS
+      effect: 적 속도 -50%
+      mp_cost: 15
+    ransomware:
+      name: 랜섬웨어
+      effect: 적 스킬 봉인
+      mp_cost: 18
+    spyware:
+      name: 스파이웨어
+      effect: 적 정보 획득
+      mp_cost: 8
 
 traits:
-- id: cyber_warfare
-  name: 사이버 전쟁
-  description: 네트워크 접근 레벨이 높을수록 모든 데미지 +20% (레벨당 추가 +5%)
+- id: multithread_master
+  name: 멀티스레드 마스터
+  description: 동시 실행 프로그램 수에 비례하여 모든 능력치 +15% (프로그램당)
   type: passive
-- id: exploit_master
-  name: 익스플로잇 마스터
-  description: 공격 시 크리티컬 확률 +15%, 접근 레벨 3 이상 시 +30%
+  effects:
+    all_stats_per_program: 0.15
+
+- id: cpu_optimization
+  name: CPU 최적화
+  description: 프로그램 유지 비용 -2 MP/턴 (5→3)
+  type: passive
+  effects:
+    mp_cost_reduction: 2
+
+- id: overclocking
+  name: 오버클러킹
+  description: 프로그램 3개 동시 실행 시 속도 +40%, 크리티컬 +20%
   type: conditional
-- id: root_access
-  name: 루트 접근
-  description: 접근 레벨 5 달성 시 다음 공격 데미지 +200% (1회)
+  conditions:
+    program_count_min: 3
+  effects:
+    speed_multiplier: 1.4
+    critical_rate_bonus: 0.2
+
+- id: kernel_panic
+  name: 커널 패닉
+  description: 적 프로그램 종료 시 MP 10 회복
   type: trigger
-- id: backdoor_expert
-  name: 백도어 전문가
-  description: 전투 시작 시 네트워크 접근 레벨 2로 시작
-  type: passive
-- id: zero_day
+  effects:
+    mp_gain_on_terminate: 10
+
+- id: zero_day_exploit
   name: 제로데이 익스플로잇
-  description: 방화벽 파괴 5회 달성 시 모든 스킬 쿨다운 초기화 및 MP 50% 회복
-  type: trigger
+  description: 모든 프로그램 동시 실행 시 공격력 +50%
+  type: conditional
+  conditions:
+    all_programs_active: true
+  effects:
+    attack_multiplier: 1.5
 
 skills:
 - hacker_port_scan

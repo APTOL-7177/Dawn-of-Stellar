@@ -25,31 +25,70 @@ stat_growth:
   evasion: 1.8
   max_brv: 2.9
 traits:
-- id: counter_attack
-  name: 반격
-  description: 피격 시 40% 확률로 즉시 반격 (데미지 120%)
+- id: crowd_favorite
+  name: 군중의 총아
+  description: 환호 50+ 시 공격력 +30%, 크리티컬 +20%
+  type: conditional
+  conditions:
+    cheer_min: 50
+  effects:
+    attack_multiplier: 1.3
+    critical_rate_bonus: 0.2
+
+- id: spectacular_fighter
+  name: 화려한 전투가
+  description: 환호 80+ 시 공격력 +60%, 크리티컬 +40%, 모든 공격 광역화
+  type: conditional
+  conditions:
+    cheer_min: 80
+  effects:
+    attack_multiplier: 1.6
+    critical_rate_bonus: 0.4
+    all_attacks_aoe: true
+
+- id: gladiator_glory
+  name: 검투사의 영광
+  description: 환호 100 도달 시 무적 3턴 발동
   type: trigger
-- id: iron_body
-  name: 강철 육체
-  description: 받는 물리 데미지 -25%
-  type: passive
-- id: survival_instinct
-  name: 생존 본능
-  description: HP 30% 이하 시 방어력 +50%, 반격 확률 100%
+  conditions:
+    cheer_exact: 100
+  effects:
+    invincible: true
+    duration: 3
+
+- id: showmanship
+  name: 쇼맨십
+  description: 크리티컬 공격 시 환호 +10
   type: trigger
-- id: arena_experience
-  name: 투기장 경험
-  description: 연속 전투 시 스탯 누적 증가 (+5% per 전투, 최대 50%)
-  type: passive
-- id: revenge_strike
-  name: 복수의 일격
-  description: 피격 횟수만큼 공격력 증가 (1회당 +10%)
+  effects:
+    cheer_on_critical: 10
+
+- id: crowd_reaction
+  name: 군중 반응
+  description: 적 처치 시 환호 +20, 피격 시 환호 -10
   type: trigger
+  effects:
+    cheer_on_kill: 20
+    cheer_on_damage: -10
+
 gimmick:
-  type: arena_system
-  name: 투기장의 영광
-  description: 적을 처치하고 공격을 막아내며 영광 포인트 획득. 영광으로 강력한 기술 사용
-  max_glory_points: 100
+  type: crowd_cheer
+  name: 군중의 환호 시스템
+  description: 화려한 플레이로 관중의 환호 획득. 환호가 높을수록 강력해지며 100 도달 시 무적
+  min_cheer: 0
+  max_cheer: 100
+  start_cheer: 0
+  cheer_gain:
+    critical_hit: 10
+    kill_enemy: 20
+    near_death_survive: 30
+  cheer_loss:
+    take_damage: 10
+  cheer_zones:
+    normal: {min: 0, max: 49, description: "보통"}
+    popular: {min: 50, max: 79, description: "인기 (+30% 공격, +20% 크리티컬)"}
+    superstar: {min: 80, max: 99, description: "슈퍼스타 (+60% 공격, +40% 크리티컬, 광역화)"}
+    glory: {min: 100, max: 100, description: "검투사의 영광 (무적 3턴)"}
 
 skills:
 - shield_bash

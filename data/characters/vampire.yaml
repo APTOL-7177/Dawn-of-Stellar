@@ -25,33 +25,75 @@ stat_growth:
   evasion: 2.8
   max_brv: 2.5
 traits:
-- id: bloodthirst
-  name: 피의 갈망
-  description: 모든 공격 시 혈액 +10 획득, 혈액이 50 이상일 때 공격력 +25%
-  type: passive
-- id: hemophage
-  name: 혈식자
-  description: 모든 공격에 흡혈 20% 내장, 흡혈량의 10%를 혈액으로 전환
-  type: passive
-- id: blood_mastery
-  name: 혈액 지배
-  description: 혈액 50 이상 시 스킬 효과 +30%, 100 시 크리티컬율 +15%
-  type: passive
-- id: eternal_hunger
+- id: satisfied_state
+  name: 만족 상태
+  description: 갈증 0-30일 때 정상 상태 (기본 능력치)
+  type: conditional
+  conditions:
+    thirst_min: 0
+    thirst_max: 30
+  effects:
+    state: satisfied
+
+- id: thirsty_state
+  name: 갈증 상태
+  description: 갈증 31-60일 때 공격력 +30%, 흡혈 효과 2배
+  type: conditional
+  conditions:
+    thirst_min: 31
+    thirst_max: 60
+  effects:
+    attack_multiplier: 1.3
+    lifesteal_multiplier: 2.0
+
+- id: extreme_thirst
+  name: 극심한 갈증
+  description: 갈증 61-90일 때 공격력 +70%, 흡혈 3배, 속도 +50%
+  type: conditional
+  conditions:
+    thirst_min: 61
+    thirst_max: 90
+  effects:
+    attack_multiplier: 1.7
+    lifesteal_multiplier: 3.0
+    speed_multiplier: 1.5
+
+- id: blood_frenzy_state
+  name: 혈액 광란
+  description: 갈증 91-100일 때 통제 불가, 아군도 공격 (공격력 +100%)
+  type: conditional
+  conditions:
+    thirst_min: 91
+    thirst_max: 100
+  effects:
+    attack_multiplier: 2.0
+    uncontrollable: true
+    attack_allies: true
+    state: blood_frenzy
+
+- id: eternal_thirst
   name: 영원한 갈증
-  description: HP 50% 이하 시 혈액 획득량 +50%, 흡혈 효과 2배
-  type: trigger
-- id: crimson_power
-  name: 진홍의 힘
-  description: 혈액 소비 스킬 사용 시 20% 확률로 혈액 소모 없음
-  type: trigger
+  description: 매 턴 갈증 +10 자동 증가
+  type: passive
+  effects:
+    thirst_per_turn: 10
+
 gimmick:
-  type: blood_reserve
-  name: 혈액 저장고
-  description: 적 공격 시 혈액을 획득하고 강력한 흡혈 능력 사용
-  max_blood: 100
-  blood_per_hit: 10
-  bloodthirst_threshold: 50
+  type: thirst_management
+  name: 갈증 관리 시스템
+  description: 갈증(0-100)이 높을수록 강력하지만 통제 불가 위험. 피 흡수로 갈증 감소
+  min_thirst: 0
+  max_thirst: 100
+  start_thirst: 30
+  thirst_zones:
+    satisfied: {min: 0, max: 30, description: "만족 (정상)"}
+    thirsty: {min: 31, max: 60, description: "갈증 (공격력 +30%, 흡혈 2배)"}
+    extreme: {min: 61, max: 90, description: "극심한 갈증 (+70% 공격, 흡혈 3배, 속도 +50%)"}
+    frenzy: {min: 91, max: 100, description: "혈액 광란 (통제 불가)"}
+  thirst_changes:
+    blood_drain: -20
+    turn_elapsed: 10
+    take_damage: 15
 
 skills:
 - vampiric_bite

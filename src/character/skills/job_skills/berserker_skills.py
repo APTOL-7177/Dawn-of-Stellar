@@ -1,137 +1,140 @@
-"""Berserker Skills - 광전사 스킬 (분노 관리 시스템)"""
+"""Berserker Skills - 광전사 스킬 (광기 역치 시스템)"""
 from src.character.skills.skill import Skill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
-from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.heal_effect import HealEffect
 from src.character.skills.costs.mp_cost import MPCost
+from src.character.skills.costs.hp_cost import HPCost
 
 def create_berserker_skills():
-    """광전사 10개 스킬 생성 (분노 관리 시스템)"""
+    """광전사 10개 스킬 생성 (광기 역치 시스템 - HP↓ → 광기↑)"""
 
-    # 1. 기본 BRV: 야만적 일격 (분노 생성)
-    savage_strike = Skill("berserker_savage_strike", "야만적 일격", "기본 공격, 분노 +8")
-    savage_strike.effects = [
-        DamageEffect(DamageType.BRV, 1.5),
-        GimmickEffect(GimmickOperation.ADD, "rage", 8, max_value=100)
+    # 1. 기본 BRV: 베기
+    slash = Skill("berserker_slash", "베기", "기본 물리 공격")
+    slash.effects = [
+        DamageEffect(DamageType.BRV, 1.5, stat_type="physical")
     ]
-    savage_strike.costs = []  # 기본 공격은 MP 소모 없음
-    savage_strike.metadata = {"rage_change": 8}
+    slash.costs = []
+    slash.sfx = "slash_heavy.ogg"
+    slash.metadata = {}
 
-    # 2. 기본 HP: 잔혹한 강습 (분노 생성)
-    brutal_assault = Skill("berserker_brutal_assault", "잔혹한 강습", "HP 공격, 분노 +12")
-    brutal_assault.effects = [
-        DamageEffect(DamageType.HP, 1.3),
-        GimmickEffect(GimmickOperation.ADD, "rage", 12, max_value=100)
+    # 2. 기본 HP: 강타
+    smash = Skill("berserker_smash", "강타", "강력한 HP 공격")
+    smash.effects = [
+        DamageEffect(DamageType.HP, 1.3, stat_type="physical")
     ]
-    brutal_assault.costs = []  # 기본 공격은 MP 소모 없음
-    brutal_assault.metadata = {"rage_change": 12}
+    smash.costs = []
+    smash.sfx = "impact_brutal.ogg"
+    smash.metadata = {}
 
-    # 3. 분노의 일격 (분노에 비례한 데미지)
-    rage_strike = Skill("berserker_rage_strike", "분노의 일격",
-                       "분노에 비례한 강력한 BRV 공격, 분노 +15")
-    rage_strike.effects = [
-        DamageEffect(DamageType.BRV, 2.0,
-                    gimmick_bonus={"field": "rage", "multiplier": 0.015}),  # 분노 1당 +1.5% 피해
-        GimmickEffect(GimmickOperation.ADD, "rage", 15, max_value=100)
+    # 3. 무모한 일격 (HP 소모로 강력한 공격, 광기↑)
+    reckless_strike = Skill("berserker_reckless_strike", "무모한 일격",
+                           "HP 15% 소모, 광기↑로 강력한 공격")
+    reckless_strike.effects = [
+        DamageEffect(DamageType.BRV_HP, 2.8, stat_type="physical",
+                    conditional_bonus={"condition": "in_berserker_mode", "multiplier": 1.4}),
     ]
-    rage_strike.costs = [MPCost(12)]
-    rage_strike.metadata = {"rage_change": 15, "rage_scaling": True}
+    reckless_strike.costs = [MPCost(10), HPCost(percent=0.15)]
+    reckless_strike.sfx = "slash_reckless.ogg"
+    reckless_strike.cooldown = 2
+    reckless_strike.metadata = {"hp_cost_percent": 0.15}
 
-    # 4. 피의 광기 (분노 소비로 HP 공격)
-    blood_frenzy = Skill("berserker_blood_frenzy", "피의 광기",
-                        "분노 소비하여 강력한 HP 공격 (분노 -25)")
-    blood_frenzy.effects = [
-        DamageEffect(DamageType.HP, 2.5,
-                    gimmick_bonus={"field": "rage", "multiplier": 0.02}),  # 분노 1당 +2% 피해
-        GimmickEffect(GimmickOperation.ADD, "rage", -25, min_value=0)
+    # 4. 자해 (HP 20% 감소 → 광기 대폭 증가, 공격력 버프)
+    self_harm = Skill("berserker_self_harm", "자해",
+                     "HP 20% 감소, 3턴간 공격력 +50%")
+    self_harm.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=3)
     ]
-    blood_frenzy.costs = [MPCost(15)]
-    blood_frenzy.metadata = {"rage_change": -25, "rage_scaling": True}
+    self_harm.costs = [MPCost(8), HPCost(percent=0.20)]
+    self_harm.target_type = "self"
+    self_harm.sfx = "blood_splash.ogg"
+    self_harm.cooldown = 4
+    self_harm.metadata = {"hp_cost_percent": 0.20, "madness_gain": "high"}
 
-    # 5. 광전사 모드 (분노 생성 증가 버프)
-    berserk_mode = Skill("berserker_berserk_mode", "광전사 모드",
-                        "3턴간 공격력 +40%, 분노 획득 +50%")
-    berserk_mode.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=3),
-        GimmickEffect(GimmickOperation.ADD, "rage", 20, max_value=100)
+    # 5. 전투의 함성 (광역 디버프 + 자신 버프)
+    battle_cry = Skill("berserker_battle_cry", "전투의 함성",
+                      "적 전체 위축, 자신 속도 +40%")
+    battle_cry.effects = [
+        DamageEffect(DamageType.BRV, 1.2, stat_type="physical"),
+        BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=2, target="all_enemies"),
+        BuffEffect(BuffType.SPEED_UP, 0.4, duration=3, target="self")
     ]
-    berserk_mode.costs = [MPCost(18)]
-    berserk_mode.target_type = "self"
-    berserk_mode.cooldown = 5
-    berserk_mode.metadata = {"rage_change": 20, "berserk_buff": True}
+    battle_cry.costs = [MPCost(15)]
+    battle_cry.target_type = "all_enemies"
+    battle_cry.is_aoe = True
+    battle_cry.sfx = "roar_berserker.ogg"
+    battle_cry.cooldown = 3
+    battle_cry.metadata = {"aoe": True}
 
-    # 6. 전쟁의 함성 (광역 공격 + 분노 생성)
-    warcry = Skill("berserker_warcry", "전쟁의 함성",
-                  "광역 BRV 공격, 분노 +20")
-    warcry.effects = [
-        DamageEffect(DamageType.BRV, 1.8,
-                    gimmick_bonus={"field": "rage", "multiplier": 0.01}),  # 분노 1당 +1% 피해
-        GimmickEffect(GimmickOperation.ADD, "rage", 20, max_value=100)
+    # 6. 피의 분노 (광기에 비례한 공격)
+    blood_rage = Skill("berserker_blood_rage", "피의 분노",
+                      "광기(HP 손실)에 비례한 강력한 공격")
+    blood_rage.effects = [
+        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="physical",
+                    # HP 손실 비율에 비례 (HP 30%일 때 광기 70 → +140% 피해)
+                    gimmick_bonus={"field": "madness", "multiplier": 0.02})
     ]
-    warcry.costs = [MPCost(16)]
-    warcry.target_type = "all_enemies"
-    warcry.is_aoe = True
-    warcry.metadata = {"rage_change": 20}
+    blood_rage.costs = [MPCost(18)]
+    blood_rage.sfx = "blood_rage.ogg"
+    blood_rage.cooldown = 3
+    blood_rage.metadata = {"madness_scaling": True}
 
-    # 7. 분노 폭발 (높은 분노 소비로 폭발적 데미지)
-    rage_explosion = Skill("berserker_rage_explosion", "분노 폭발",
-                          "분노 50 이상 필요, 분노 전부 소비하여 극대 피해")
-    rage_explosion.effects = [
-        DamageEffect(DamageType.BRV_HP, 3.0,
-                    gimmick_bonus={"field": "rage", "multiplier": 0.03}),  # 분노 1당 +3% 피해
-        GimmickEffect(GimmickOperation.SET, "rage", 0)  # 분노 전부 소비
+    # 7. 필사의 공격 (HP 30% 이하일 때 극대 피해)
+    desperate_assault = Skill("berserker_desperate_assault", "필사의 공격",
+                             "HP 30% 이하 시 극대 피해 (조건부 강화)")
+    desperate_assault.effects = [
+        DamageEffect(DamageType.BRV_HP, 3.5, stat_type="physical",
+                    conditional_bonus={"condition": "hp_below_30", "multiplier": 1.8})
     ]
-    rage_explosion.costs = [MPCost(22)]
-    rage_explosion.cooldown = 4
-    rage_explosion.metadata = {"rage_consumed": "all", "min_rage": 50}
+    desperate_assault.costs = [MPCost(22)]
+    desperate_assault.sfx = "slash_desperate.ogg"
+    desperate_assault.cooldown = 4
+    desperate_assault.metadata = {"requires_low_hp": True}
 
-    # 8. 진정하기 (분노 감소로 방어 버프)
-    calm_down = Skill("berserker_calm_down", "진정하기",
-                     "분노 -40, 방어력 +50% 2턴")
-    calm_down.effects = [
-        GimmickEffect(GimmickOperation.ADD, "rage", -40, min_value=0),
-        BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=2),
-        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.3, duration=2)
+    # 8. 치유의 포효 (HP 30% 회복 + BRV 50% 회복)
+    healing_roar = Skill("berserker_healing_roar", "치유의 포효",
+                        "HP 30% 회복 + BRV 50% 회복 (광기↓)")
+    healing_roar.effects = [
+        HealEffect(percentage=0.30),
+        # BRV 회복 효과 추가 필요 (구현 시)
     ]
-    calm_down.costs = [MPCost(10)]
-    calm_down.target_type = "self"
-    calm_down.cooldown = 4
-    calm_down.metadata = {"rage_change": -40, "defensive": True}
+    healing_roar.costs = [MPCost(20)]
+    healing_roar.target_type = "self"
+    healing_roar.sfx = "heal_roar.ogg"
+    healing_roar.cooldown = 5
+    healing_roar.metadata = {"hp_heal": 0.30, "brv_heal": 0.50}
 
-    # 9. 광란 (연속 공격 + 분노 대량 생성)
-    rampage = Skill("berserker_rampage", "광란",
-                   "3회 연속 공격, 분노 +30")
-    rampage.effects = [
-        DamageEffect(DamageType.BRV, 1.2,
-                    gimmick_bonus={"field": "rage", "multiplier": 0.01}),
-        DamageEffect(DamageType.BRV, 1.2,
-                    gimmick_bonus={"field": "rage", "multiplier": 0.01}),
-        DamageEffect(DamageType.BRV, 1.2,
-                    gimmick_bonus={"field": "rage", "multiplier": 0.01}),
-        GimmickEffect(GimmickOperation.ADD, "rage", 30, max_value=100)
+    # 9. 통제된 광기 (HP를 50%로 조정 → 광기 50 유지)
+    controlled_fury = Skill("berserker_controlled_fury", "통제된 광기",
+                           "HP를 50%로 설정 (광기 최적 구간)")
+    controlled_fury.effects = [
+        # HP를 최대 HP의 50%로 설정하는 특수 효과
+        HealEffect(set_percent=0.50)  # HP를 50%로 설정
     ]
-    rampage.costs = [MPCost(20)]
-    rampage.cooldown = 5
-    rampage.metadata = {"rage_change": 30, "multi_hit": 3}
+    controlled_fury.costs = [MPCost(25)]
+    controlled_fury.target_type = "self"
+    controlled_fury.sfx = "controlled_fury.ogg"
+    controlled_fury.cooldown = 6
+    controlled_fury.metadata = {"hp_set_percent": 0.50, "madness_control": True}
 
-    # 10. 궁극기: 분노의 화신 (최대 분노로 압도적 공격)
-    ultimate_fury = Skill("berserker_ultimate_fury", "분노의 화신",
-                         "분노 70 이상 필요, 모든 분노를 소비하여 파괴적 공격")
-    ultimate_fury.effects = [
-        DamageEffect(DamageType.BRV, 3.5,
-                    gimmick_bonus={"field": "rage", "multiplier": 0.04}),  # 분노 1당 +4% 피해
-        DamageEffect(DamageType.HP, 3.0,
-                    gimmick_bonus={"field": "rage", "multiplier": 0.03}),  # 분노 1당 +3% 피해
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=2),  # 공격 후 버프
-        GimmickEffect(GimmickOperation.SET, "rage", 0)  # 모든 분노 소비
+    # 10. 궁극기: 광란의 힘 (HP 1%로 강제 → 광기 100, 폭주)
+    ultimate = Skill("berserker_ultimate", "광란의 힘",
+                    "HP를 1%로 감소, 광기 100 폭주 상태 진입!")
+    ultimate.effects = [
+        # HP를 1%로 강제 감소
+        DamageEffect(DamageType.BRV, 4.5, stat_type="physical"),
+        DamageEffect(DamageType.HP, 4.0, stat_type="physical"),
+        BuffEffect(BuffType.ATTACK_UP, 2.0, duration=3),  # 공격력 +200%
+        BuffEffect(BuffType.SPEED_UP, 1.0, duration=3)   # 속도 +100%
     ]
-    ultimate_fury.costs = [MPCost(30)]
-    ultimate_fury.is_ultimate = True
-    ultimate_fury.cooldown = 8
-    ultimate_fury.metadata = {"rage_consumed": "all", "min_rage": 70, "ultimate": True}
+    ultimate.costs = [MPCost(30), HPCost(percent=0.99)]  # HP 99% 소모 (1% 남김)
+    ultimate.is_ultimate = True
+    ultimate.sfx = "ultimate_berserker.ogg"
+    ultimate.cooldown = 8
+    ultimate.metadata = {"ultimate": True, "rampage": True, "hp_to_1_percent": True}
 
-    return [savage_strike, brutal_assault, rage_strike, blood_frenzy, berserk_mode,
-            warcry, rage_explosion, calm_down, rampage, ultimate_fury]
+    return [slash, smash, reckless_strike, self_harm, battle_cry,
+            blood_rage, desperate_assault, healing_roar, controlled_fury, ultimate]
 
 def register_berserker_skills(skill_manager):
     """광전사 스킬 등록"""

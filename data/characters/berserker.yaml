@@ -25,45 +25,79 @@ stat_growth:
   evasion: 1.0
   max_brv: 3.1
 traits:
-- id: rage_power
-  name: 분노의 힘
-  description: 분노 1당 공격력 +1% (최대 +100%)
+- id: madness_threshold
+  name: 광기 역치
+  description: HP 낮을수록 광기↑ (광기 = (1-HP비율)*100)
+  type: passive
+  effects:
+    madness_calculation: hp_based
+
+- id: berserker_mode
+  name: 광전사 모드
+  description: 광기 30-70 시 공격력 +60%, 속도 +30%
   type: conditional
-- id: reckless_defense
-  name: 무모한 방어
-  description: 분노 1당 방어력 -0.5% (최대 -50%)
+  conditions:
+    madness_min: 30
+    madness_max: 70
+  effects:
+    attack_multiplier: 1.6
+    speed_multiplier: 1.3
+
+- id: danger_zone
+  name: 위험 구간
+  description: 광기 71-99 시 공격력 +100%, 크리티컬 +30%, 받는 피해 +50%
   type: conditional
-- id: berserker_rage
-  name: 광전사의 분노
-  description: 분노 70 이상 시 공격 속도 +30%, 크리티컬 확률 +20%
+  conditions:
+    madness_min: 71
+    madness_max: 99
+  effects:
+    attack_multiplier: 2.0
+    critical_rate_bonus: 0.3
+    damage_taken_multiplier: 1.5
+
+- id: rampage_state
+  name: 폭주 상태
+  description: 광기 100 시 3턴간 통제 불가, 공격력 +200%, 무작위 공격
   type: conditional
-- id: battle_frenzy
-  name: 전투 광기
-  description: 피격 시 분노 +10 (턴당 최대 30)
-  type: trigger
-- id: last_stand
-  name: 최후의 일격
-  description: HP 30% 이하 시 분노 획득량 +100%
+  conditions:
+    madness_exact: 100
+  effects:
+    attack_multiplier: 3.0
+    uncontrollable: true
+    random_target: true
+    duration: 3
+
+- id: pain_tolerance
+  name: 고통 내성
+  description: HP 30% 이하 시 받는 피해 -20%
   type: conditional
+  conditions:
+    hp_percent_max: 0.3
+  effects:
+    damage_taken_multiplier: 0.8
+
 gimmick:
-  type: rage_management
-  name: 분노 관리
-  description: 피해를 받으면 분노 증가 (0-100). 높을수록 공격력 증가, 방어력 감소
-  max_rage: 100
-  rage_decay: 5
-  berserk_threshold: 70
+  type: madness_threshold
+  name: 광기 역치 시스템
+  description: HP가 낮을수록 광기 증가 (광기 = (1-HP비율)*100). 30-70 최적, 100 폭주
+  min_madness: 0
+  max_madness: 100
+  optimal_min: 30
+  optimal_max: 70
+  danger_min: 71
+  rampage_threshold: 100
 
 skills:
-- berserker_savage_strike
-- berserker_brutal_assault
-- berserker_rage_strike
-- berserker_blood_frenzy
-- berserker_berserk_mode
-- berserker_warcry
-- berserker_rage_explosion
-- berserker_calm_down
-- berserker_rampage
-- berserker_ultimate_fury
+- berserker_slash
+- berserker_smash
+- berserker_reckless_strike
+- berserker_self_harm
+- berserker_battle_cry
+- berserker_blood_rage
+- berserker_desperate_assault
+- berserker_healing_roar
+- berserker_controlled_fury
+- berserker_ultimate
 bonuses:
   low_hp_damage: 1.15
   hp_multiplier: 1.15
