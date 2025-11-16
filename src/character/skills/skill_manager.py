@@ -92,14 +92,10 @@ class SkillManager:
             # skill.sfx가 튜플인지 문자열인지 확인
             if isinstance(skill.sfx, tuple):
                 category, sfx_name = skill.sfx
-                self.logger.debug(f"[SFX_PLAY] {skill.name} - 튜플 SFX: {category}.{sfx_name}")
-                result = play_sfx(category, sfx_name)
-                self.logger.debug(f"[SFX_RESULT] 재생 결과: {result}")
+                play_sfx(category, sfx_name)
             else:
-                # 문자열인 경우 FFVII 카테고리 기본 사용
-                self.logger.debug(f"[SFX_PLAY] {skill.name} - 문자열 SFX: ffvii.{skill.sfx}")
-                result = play_sfx("ffvii", skill.sfx)
-                self.logger.debug(f"[SFX_RESULT] 재생 결과: {result}")
+                # 문자열인 경우 FFVII 카테고리 사용 (FFVII SFX 인덱스 번호)
+                play_sfx("ffvii", skill.sfx)
             return
 
         # 스킬 effects 분석
