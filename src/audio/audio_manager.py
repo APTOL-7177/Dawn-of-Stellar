@@ -180,11 +180,17 @@ class AudioManager:
         if not self.sfx_enabled:
             return False
 
-        # config에서 파일명 가져오기
-        file_name = self.config.get(f"audio.sfx.{category}.{sfx_name}")
-        if not file_name:
-            self.logger.debug(f"SFX '{category}.{sfx_name}'이 config.yaml에 정의되지 않음")
-            return False
+        # ffvii 카테고리는 특별 처리: sfx_name을 직접 파일명으로 사용
+        if category == "ffvii":
+            file_name = sfx_name  # "618" → "618.wav"
+        else:
+            # config에서 파일명 가져오기
+            config_key = f"audio.sfx.{category}.{sfx_name}"
+            file_name = self.config.get(config_key)
+
+            if not file_name:
+                self.logger.debug(f"SFX '{category}.{sfx_name}'이 config.yaml에 정의되지 않음")
+                return False
 
         # 캐시 확인
         cache_key = f"{category}.{sfx_name}"
@@ -193,6 +199,7 @@ class AudioManager:
         else:
             # 파일 경로 찾기 (sfx 디렉토리 바로 아래)
             file_path = self._find_audio_file(self.sfx_dir, file_name)
+
             if not file_path:
                 self.logger.debug(f"SFX 파일 '{file_name}'을 찾을 수 없음")
                 return False
