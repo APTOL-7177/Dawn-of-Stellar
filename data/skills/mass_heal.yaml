@@ -1,12 +1,14 @@
 id: mass_heal
 name: Mass Heal
 type: heal
-description: Mass Heal 스킬
+target_type: party
+description: 모든 아군을 회복합니다 (물리 공격력 기반)
 costs:
-  mp: 20
-  cast_time: 1.0
+  mp: 40
+  cast_time: 1.5
 effects:
 - type: heal
-  target: ally
-  multiplier: 2.0
-  stat_base: strength
+  heal_type: hp
+  stat_scaling: strength
+  multiplier: 1.5
+  is_party_wide: true

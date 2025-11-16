@@ -21,7 +21,24 @@ class HealEffect(SkillEffect):
         """회복 실행"""
         # 파티 전체 힐
         if self.is_party_wide:
-            targets = context.get('party_members', [target]) if context else [target]
+            # context에서 party_members를 가져오거나, combat_manager에서 가져오기
+            if context and 'party_members' in context:
+                targets = context['party_members']
+            elif context and 'combat_manager' in context:
+                # combat_manager가 있으면 allies를 사용
+                combat_manager = context['combat_manager']
+                if hasattr(combat_manager, 'allies'):
+                    # user가 allies에 속하면 allies를, enemies에 속하면 enemies를 사용
+                    if hasattr(combat_manager, 'allies') and user in combat_manager.allies:
+                        targets = [a for a in combat_manager.allies if getattr(a, 'is_alive', True)]
+                    elif hasattr(combat_manager, 'enemies') and user in combat_manager.enemies:
+                        targets = [e for e in combat_manager.enemies if getattr(e, 'is_alive', True)]
+                    else:
+                        targets = [target] if not isinstance(target, list) else target
+                else:
+                    targets = [target] if not isinstance(target, list) else target
+            else:
+                targets = [target] if not isinstance(target, list) else target
         else:
             targets = target if isinstance(target, list) else [target]
 
@@ -29,13 +46,29 @@ class HealEffect(SkillEffect):
         healed_count = 0
 
         for t in targets:
+            # 죽은 대상은 스킵 (부활 스킬이 아닌 경우)
+            if not getattr(t, 'is_alive', True):
+                continue
+
             heal_amount = self._calculate_heal_amount(user, t)
 
             # 회복 적용
             if self.heal_type == HealType.HP:
-                actual_heal = t.heal(heal_amount)
+                if hasattr(t, 'heal'):
+                    actual_heal = t.heal(heal_amount)
+                elif hasattr(t, 'current_hp') and hasattr(t, 'max_hp'):
+                    actual_heal = min(heal_amount, t.max_hp - t.current_hp)
+                    t.current_hp += actual_heal
+                else:
+                    actual_heal = heal_amount
             else:
-                actual_heal = t.restore_mp(heal_amount)
+                if hasattr(t, 'restore_mp'):
+                    actual_heal = t.restore_mp(heal_amount)
+                elif hasattr(t, 'current_mp') and hasattr(t, 'max_mp'):
+                    actual_heal = min(heal_amount, t.max_mp - t.current_mp)
+                    t.current_mp += actual_heal
+                else:
+                    actual_heal = heal_amount
 
             total_heal += actual_heal
             healed_count += 1
@@ -53,19 +86,51 @@ class HealEffect(SkillEffect):
         )
 
     def _calculate_heal_amount(self, user, target):
-        """회복량 계산"""
-        amount = self.base_amount
+        """
+        회복량 계산 (스탯 기반)
 
-        # 스탯 스케일링
-        if self.stat_scaling and hasattr(user, self.stat_scaling):
-            stat_value = getattr(user, self.stat_scaling, 0)
-            amount += int(stat_value * self.multiplier)
+        우선순위:
+        1. 스탯 스케일링 (stat_scaling + multiplier) - 주 회복량
+        2. 고정 기본량 (base_amount)
+        3. 비율 회복 (percentage) - 추가 회복량
 
-        # 비율 회복
+        Args:
+            user: 시전자
+            target: 대상
+
+        Returns:
+            계산된 회복량
+        """
+        amount = 0
+
+        # 1. 스탯 기반 회복 (주 회복량)
+        if self.stat_scaling:
+            stat_value = 0
+
+            # stat_scaling 이름에 따라 스탯 값 가져오기
+            if self.stat_scaling == 'strength':
+                stat_value = getattr(user, 'physical_attack', 0)
+            elif self.stat_scaling == 'magic':
+                stat_value = getattr(user, 'magic_attack', 0)
+            elif hasattr(user, self.stat_scaling):
+                stat_value = getattr(user, self.stat_scaling, 0)
+
+            # 스탯 * 배율로 회복량 계산
+            if stat_value > 0 and self.multiplier > 0:
+                amount = int(stat_value * self.multiplier)
+
+        # 2. 고정 기본량 추가
+        if self.base_amount > 0:
+            amount += self.base_amount
+
+        # 3. 비율 회복 추가 (대상의 최대 HP/MP 기준)
         if self.percentage > 0:
             if self.heal_type == HealType.HP:
-                amount += int(target.max_hp * self.percentage)
+                if hasattr(target, 'max_hp'):
+                    amount += int(target.max_hp * self.percentage)
             elif self.heal_type == HealType.MP:
-                amount += int(target.max_mp * self.percentage)
+                if hasattr(target, 'max_mp'):
+                    amount += int(target.max_mp * self.percentage)
 
-        return amount
+        # 최소 회복량 보장
+        return max(1, amount)
