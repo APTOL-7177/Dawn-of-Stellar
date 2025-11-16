@@ -677,9 +677,34 @@ class CombatUI:
             # 이름 + 상태
             name_color = (255, 255, 255) if ally.is_alive else (100, 100, 100)
 
-            # 현재 행동 중인 캐릭터 표시
-            turn_indicator = "▶ " if ally == self.current_actor else "  "
-            console.print(3, y, turn_indicator, fg=(255, 255, 100))
+            # 현재 행동 중인 캐릭터 표시 또는 타겟 선택 화살표
+            if ally == self.current_actor:
+                # 현재 행동 중
+                turn_indicator = "▶ "
+                indicator_color = (255, 255, 100)
+            elif self.state == CombatUIState.TARGET_SELECT:
+                # 타겟 선택 중 - 아군이 타겟 리스트에 있는지 확인
+                is_targeted = ally in self.current_target_list
+
+                # 광역 스킬 확인
+                is_aoe = self.selected_skill and getattr(self.selected_skill, 'is_aoe', False)
+
+                if is_aoe and is_targeted:
+                    # 광역 스킬 - 모든 타겟에 화살표
+                    turn_indicator = "◆ "
+                    indicator_color = (100, 255, 255)
+                elif is_targeted and i == self.target_cursor:
+                    # 단일 타겟 - 선택된 대상에만 화살표
+                    turn_indicator = "▶ "
+                    indicator_color = (100, 255, 100)
+                else:
+                    turn_indicator = "  "
+                    indicator_color = name_color
+            else:
+                turn_indicator = "  "
+                indicator_color = name_color
+
+            console.print(3, y, turn_indicator, fg=indicator_color)
 
             console.print(5, y, f"{i+1}. {ally.name}", fg=name_color)
 
@@ -794,10 +819,24 @@ class CombatUI:
                 # 현재 행동 중인 적
                 cursor = "⚔ "
                 cursor_color = (255, 100, 100)
-            elif self.state == CombatUIState.TARGET_SELECT and i == self.target_cursor:
-                # 타겟팅 중
-                cursor = "▶ "
-                cursor_color = (255, 255, 100)
+            elif self.state == CombatUIState.TARGET_SELECT:
+                # 타겟 선택 중 - 적이 타겟 리스트에 있는지 확인
+                is_targeted = enemy in self.current_target_list
+
+                # 광역 스킬 확인
+                is_aoe = self.selected_skill and getattr(self.selected_skill, 'is_aoe', False)
+
+                if is_aoe and is_targeted and enemy.is_alive:
+                    # 광역 스킬 - 모든 살아있는 타겟에 화살표
+                    cursor = "◆ "
+                    cursor_color = (255, 100, 255)
+                elif is_targeted and i == self.target_cursor:
+                    # 단일 타겟 - 선택된 대상에만 화살표
+                    cursor = "▶ "
+                    cursor_color = (255, 255, 100)
+                else:
+                    cursor = "  "
+                    cursor_color = name_color
             else:
                 cursor = "  "
                 cursor_color = name_color

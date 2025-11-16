@@ -177,46 +177,59 @@ class AudioManager:
         Returns:
             재생 성공 여부
         """
+        self.logger.warning(f"[SFX_MANAGER] play_sfx 호출: category={category}, sfx_name={sfx_name}")
+        self.logger.warning(f"[SFX_MANAGER] sfx_enabled={self.sfx_enabled}")
+
         if not self.sfx_enabled:
+            self.logger.warning(f"[SFX_MANAGER] SFX 비활성화 상태")
             return False
 
         # config에서 파일명 가져오기
-        file_name = self.config.get(f"audio.sfx.{category}.{sfx_name}")
+        config_key = f"audio.sfx.{category}.{sfx_name}"
+        file_name = self.config.get(config_key)
+        self.logger.warning(f"[SFX_MANAGER] config.get('{config_key}') = {file_name}")
+
         if not file_name:
-            self.logger.debug(f"SFX '{category}.{sfx_name}'이 config.yaml에 정의되지 않음")
+            self.logger.warning(f"[SFX_MANAGER] SFX '{category}.{sfx_name}'이 config.yaml에 정의되지 않음")
             return False
 
         # 캐시 확인
         cache_key = f"{category}.{sfx_name}"
         if cache_key in self.sfx_cache:
             sound = self.sfx_cache[cache_key]
+            self.logger.warning(f"[SFX_MANAGER] 캐시에서 로드: {cache_key}")
         else:
             # 파일 경로 찾기 (sfx 디렉토리 바로 아래)
+            self.logger.warning(f"[SFX_MANAGER] sfx_dir={self.sfx_dir}, file_name={file_name}")
             file_path = self._find_audio_file(self.sfx_dir, file_name)
+            self.logger.warning(f"[SFX_MANAGER] file_path={file_path}")
+
             if not file_path:
-                self.logger.debug(f"SFX 파일 '{file_name}'을 찾을 수 없음")
+                self.logger.warning(f"[SFX_MANAGER] SFX 파일 '{file_name}'을 찾을 수 없음")
                 return False
 
             try:
                 # SFX 로드
                 sound = pygame.mixer.Sound(str(file_path))
                 self.sfx_cache[cache_key] = sound
+                self.logger.warning(f"[SFX_MANAGER] 파일 로드 성공: {file_path}")
 
             except Exception as e:
-                self.logger.error(f"SFX 로드 실패 ({cache_key}): {e}")
+                self.logger.error(f"[SFX_MANAGER] SFX 로드 실패 ({cache_key}): {e}")
                 return False
 
         try:
             # 볼륨 설정 및 재생
             volume = self.master_volume * self.sfx_volume * volume_multiplier
+            self.logger.warning(f"[SFX_MANAGER] 재생 볼륨: {volume} (master={self.master_volume}, sfx={self.sfx_volume}, mult={volume_multiplier})")
             sound.set_volume(volume)
             sound.play()
 
-            self.logger.debug(f"SFX 재생: {cache_key}")
+            self.logger.warning(f"[SFX_MANAGER] ✓ SFX 재생 성공: {cache_key}")
             return True
 
         except Exception as e:
-            self.logger.error(f"SFX 재생 실패 ({cache_key}): {e}")
+            self.logger.error(f"[SFX_MANAGER] SFX 재생 실패 ({cache_key}): {e}")
             return False
 
     def _find_audio_file(self, directory: Path, file_name: str) -> Optional[Path]:
