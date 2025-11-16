@@ -200,7 +200,14 @@ class GameResultUI:
 
         # 세이브 파일 삭제
         if self.save_slot is not None:
-            save_file = Path(f"saves/save_slot_{self.save_slot}.json")
+            # save_slot이 이미 "save_slot_1" 형식이면 그대로 사용, 숫자면 "save_slot_{숫자}" 형식으로 변환
+            if isinstance(self.save_slot, str) and self.save_slot.startswith("save_slot_"):
+                # 이미 파일 이름 형식
+                save_file = Path(f"saves/{self.save_slot}.json")
+            else:
+                # 슬롯 번호만 있는 경우
+                save_file = Path(f"saves/save_slot_{self.save_slot}.json")
+
             if save_file.exists():
                 try:
                     os.remove(save_file)
