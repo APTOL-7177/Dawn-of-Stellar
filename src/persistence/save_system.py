@@ -223,7 +223,9 @@ def serialize_dungeon(dungeon: Any) -> Dict[str, Any]:
                 "key_id": tile.key_id,
                 "trap_damage": tile.trap_damage,
                 "teleport_target": tile.teleport_target,
-                "loot_id": tile.loot_id
+                "loot_id": tile.loot_id,
+                "ingredient_id": tile.ingredient_id,
+                "harvested": tile.harvested
             })
 
     # 채집 오브젝트 직렬화
@@ -335,6 +337,8 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Any:
         tile = dungeon.get_tile(x, y)
         tile.explored = tile_data.get("explored", False)
         tile.visible = tile_data.get("visible", False)
+        tile.ingredient_id = tile_data.get("ingredient_id")
+        tile.harvested = tile_data.get("harvested", False)
 
     # 계단, 열쇠, 문 복원
     dungeon.stairs_up = tuple(dungeon_data["stairs_up"]) if dungeon_data.get("stairs_up") else None

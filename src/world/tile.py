@@ -30,6 +30,7 @@ class TileType(Enum):
     PUZZLE = "puzzle"  # 퍼즐
     SHOP = "shop"  # 상점
     ITEM = "item"  # 떨어진 아이템/장비
+    INGREDIENT = "ingredient"  # 채집 가능한 식재료
 
 
 @dataclass
@@ -51,6 +52,8 @@ class Tile:
     trap_damage: int = 0  # 함정 데미지
     teleport_target: Optional[Tuple[int, int]] = None  # 텔레포터 목적지
     loot_id: Optional[str] = None  # 전리품 ID (상자)
+    ingredient_id: Optional[str] = None  # 식재료 ID
+    harvested: bool = False  # 수확 여부
 
     # 시각적
     char: str = "."  # 표시 문자
@@ -163,6 +166,12 @@ class Tile:
             self.transparent = True
             self.char = "i"
             self.fg_color = (255, 255, 100)
+
+        elif self.tile_type == TileType.INGREDIENT:
+            self.walkable = True
+            self.transparent = True
+            self.char = "*" if not self.harvested else "."
+            self.fg_color = (100, 255, 100) if not self.harvested else (100, 100, 100)
 
     def unlock(self):
         """문 잠금 해제"""
