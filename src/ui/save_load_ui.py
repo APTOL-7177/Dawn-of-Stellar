@@ -465,7 +465,9 @@ def show_load_screen(
                     if ui.selected_save:
                         game_state = save_system.load_game(ui.selected_save)
                         if game_state:
-                            logger.info(f"게임 로드 완료: {ui.selected_save}")
+                            # 슬롯 번호 추가 (게임 오버 시 세이브 파일 삭제용)
+                            game_state["save_slot"] = ui.selected_save
+                            logger.info(f"게임 로드 완료: {ui.selected_save}, 슬롯 번호 저장")
                         return game_state
                     return None
 
