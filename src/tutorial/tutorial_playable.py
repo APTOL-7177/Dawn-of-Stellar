@@ -52,6 +52,10 @@ class TutorialPlayMode:
         """
         logger.info("튜토리얼 시작")
 
+        # 튜토리얼 BGM 재생
+        from src.audio import play_bgm
+        play_bgm("tutorial", loop=True, fade_in=True)
+
         # 튜토리얼 순서
         tutorial_steps = [
             ("basic_movement", self._run_movement_tutorial),
@@ -251,13 +255,10 @@ class TutorialPlayMode:
                     elif action == GameAction.MOVE_RIGHT:
                         dx = 1
 
-                    new_x = exploration.player.x + dx
-                    new_y = exploration.player.y + dy
-
                     # 이동 가능한지 확인
-                    if exploration.can_move_to(new_x, new_y):
-                        exploration.player.x = new_x
-                        exploration.player.y = new_y
+                    if exploration.can_move(dx, dy):
+                        exploration.player.x += dx
+                        exploration.player.y += dy
 
                         # 목표 도달 확인
                         if exploration.player.x == target_x and exploration.player.y == target_y:
