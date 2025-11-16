@@ -1075,14 +1075,6 @@ class CombatUI:
             active = sum([1 for s in [fire, water, wind, earth] if s > 0])
             return f"[정령:{active}]"
 
-        elif gimmick_type == "combo_system":
-            # 격투가 - 콤보 (간략: 콤보수)
-            combo = getattr(character, 'combo_count', 0)
-            if combo >= 5:
-                return f"[⚡{combo}콤보]"
-            else:
-                return f"[콤보:{combo}]"
-
         elif gimmick_type == "stealth_mastery":
             # 암살자 - 은신 (간략: 상태만)
             stealth_active = getattr(character, 'stealth_active', False)
@@ -1114,16 +1106,6 @@ class CombatUI:
                 return f"[📢:{cheer}]"
             else:
                 return f"[환호:{cheer}]"
-
-        elif gimmick_type == "mimicry_system":
-            # 모방사 - 모방 (간략: 상태)
-            copied_skill = getattr(character, 'copied_skill_name', None)
-            return "[✓모방]" if copied_skill else "[모방]"
-
-        elif gimmick_type == "gear_system":
-            # 기계공 - 기어 (간략: 개수)
-            gears = getattr(character, 'gear_count', 0)
-            return f"[⚙:{gears}]"
 
         return ""
 
@@ -1223,17 +1205,6 @@ class CombatUI:
             if active >= 2:
                 details.append(f"융합 가능! (활성 정령: {active})")
 
-        elif gimmick_type == "combo_system":
-            combo = getattr(character, 'combo_count', 0)
-            details.append("=== 콤보 시스템 ===")
-            details.append(f"현재 콤보: {combo}")
-            if combo >= 7:
-                details.append("⚡ 최고 콤보! 피니셔 사용 가능")
-            elif combo >= 5:
-                details.append("고콤보 - 특수 기술 해금")
-            elif combo >= 3:
-                details.append("중콤보 - 연계 공격 가능")
-
         elif gimmick_type == "stealth_mastery":
             stealth_active = getattr(character, 'stealth_active', False)
             shadow_strike = getattr(character, 'shadow_strike_ready', False)
@@ -1298,30 +1269,6 @@ class CombatUI:
                 details.append("고조 - 공격력 증가")
             else:
                 details.append("평온 - 축적 필요")
-
-        elif gimmick_type == "mimicry_system":
-            copied_skill = getattr(character, 'copied_skill_name', None)
-            mimic_count = getattr(character, 'mimic_count', 0)
-            details.append("=== 모방 시스템 ===")
-            if copied_skill:
-                details.append(f"✓ 복사한 스킬: {copied_skill}")
-                details.append("모방 스킬 사용 가능")
-            else:
-                details.append("복사된 스킬 없음")
-                details.append("적 스킬 관찰로 복사 가능")
-            details.append(f"총 모방 횟수: {mimic_count}")
-
-        elif gimmick_type == "gear_system":
-            gears = getattr(character, 'gear_count', 0)
-            overheat = getattr(character, 'is_overheated', False)
-            details.append("=== 기어 시스템 ===")
-            details.append(f"⚙ 기어: {gears}/5")
-            if overheat:
-                details.append("⚠️  과열 상태 - 냉각 필요")
-            elif gears >= 5:
-                details.append("최대 기어 - 초강력 기술 사용")
-            elif gears >= 3:
-                details.append("고속 기어 - 강화 스킬 가능")
 
         else:
             return "기믹 상세 정보 없음"
