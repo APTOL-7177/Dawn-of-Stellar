@@ -26,6 +26,7 @@ class SettingOption(Enum):
     AUTO_SAVE = "auto_save"
     SHOW_DAMAGE_NUMBERS = "show_damage"
     COMBAT_SPEED = "combat_speed"
+    TUTORIAL = "tutorial"
     BACK = "back"
 
 
@@ -54,6 +55,7 @@ class SettingsUI:
             ("자동 저장", SettingOption.AUTO_SAVE),
             ("데미지 숫자 표시", SettingOption.SHOW_DAMAGE_NUMBERS),
             ("전투 속도", SettingOption.COMBAT_SPEED),
+            ("튜토리얼 다시보기", SettingOption.TUTORIAL),
             ("돌아가기", SettingOption.BACK),
         ]
 
@@ -82,6 +84,8 @@ class SettingsUI:
             option = self.options[self.selected_index][1]
             if option == SettingOption.BACK:
                 return "close"
+            elif option == SettingOption.TUTORIAL:
+                return "tutorial"
             else:
                 # Enter로도 값 토글/증가
                 self._adjust_setting(1)
@@ -185,6 +189,9 @@ class SettingsUI:
                 speed_names = {"slow": "느림", "normal": "보통", "fast": "빠름", "instant": "즉시"}
                 value = speed_names.get(self.combat_speed, self.combat_speed)
                 console.print(value_x, y, f"< {value} >", fg=value_color)
+            elif option == SettingOption.TUTORIAL:
+                # 튜토리얼 다시보기
+                console.print(value_x, y, "[ Enter로 시작 ]", fg=value_color)
             elif option == SettingOption.BACK:
                 # 돌아가기는 값 표시 없음
                 console.print(value_x, y, "", fg=value_color)
@@ -199,7 +206,8 @@ class SettingsUI:
             3: "자동 저장 기능을 켜거나 끕니다",
             4: "전투 중 데미지 숫자 표시 여부",
             5: "전투 애니메이션 속도를 조절합니다",
-            6: "메뉴로 돌아갑니다",
+            6: "튜토리얼을 다시 볼 수 있습니다 (게임 기본 조작법, 전투 시스템 등)",
+            7: "메뉴로 돌아갑니다",
         }
 
         explanation = explanations.get(self.selected_index, "")
@@ -259,6 +267,13 @@ def open_settings(
                     settings.save_settings()
                     logger.info("설정 메뉴 닫힘")
                     return
+                elif result == "tutorial":
+                    # 튜토리얼 뷰어 실행
+                    from src.tutorial.tutorial_viewer import run_tutorial_viewer
+                    logger.info("튜토리얼 뷰어 시작")
+                    run_tutorial_viewer(console, context)
+                    logger.info("튜토리얼 뷰어 종료")
+                    # 설정 화면으로 돌아옴
 
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):

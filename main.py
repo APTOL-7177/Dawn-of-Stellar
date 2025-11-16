@@ -119,12 +119,37 @@ def main() -> int:
 
         # 인트로 스토리 표시 (최초 1회)
         intro_shown = False
+        tutorial_offered = False
+
         if not intro_shown:
             from src.ui.intro_story import show_intro_story
             logger.info("인트로 스토리 시작")
             show_intro_story(display.console, display.context)
             intro_shown = True
             logger.info("인트로 스토리 완료")
+
+            # 인트로 후 튜토리얼 시작 여부 묻기
+            if not tutorial_offered:
+                from src.tutorial.tutorial_integration import TutorialIntegration
+
+                # 튜토리얼 통합 시스템 초기화
+                tutorial_integration = TutorialIntegration(display.console, display.context)
+
+                # 튜토리얼 시작 여부 묻기
+                if tutorial_integration._ask_start_tutorial():
+                    logger.info("사용자가 튜토리얼 시작 선택")
+
+                    # 튜토리얼 인트로 표시
+                    tutorial_integration.show_tutorial_intro()
+
+                    # 튜토리얼 뷰어 실행 (각 단계를 순서대로 표시)
+                    from src.tutorial.tutorial_viewer import run_tutorial_viewer
+                    run_tutorial_viewer(display.console, display.context)
+                    logger.info("튜토리얼 완료")
+                else:
+                    logger.info("사용자가 튜토리얼 건너뛰기 선택")
+
+                tutorial_offered = True
 
         # 메인 게임 루프
         while True:
