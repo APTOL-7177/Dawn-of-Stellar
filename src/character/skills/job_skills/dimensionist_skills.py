@@ -98,8 +98,8 @@ def create_dimensionist_skills():
     reality_shift = Skill("dimensionist_reality_shift", "현실 조작", "적 디버프 + 게이지 획득")
     reality_shift.effects = [
         DamageEffect(DamageType.BRV, 2.0, stat_type="magical"),
-        BuffEffect(BuffType.ACCURACY_DOWN, 0.5, duration=3, target="all_enemies"),
-        BuffEffect(BuffType.EVASION_DOWN, 0.3, duration=3, target="all_enemies"),
+        BuffEffect(BuffType.ACCURACY_DOWN, 0.5, duration=3),
+        BuffEffect(BuffType.EVASION_DOWN, 0.3, duration=3),
         GimmickEffect(GimmickOperation.ADD, "distortion_gauge", 30, max_value=100)  # 게이지 +30
     ]
     reality_shift.costs = [MPCost(20)]

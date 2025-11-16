@@ -122,8 +122,8 @@ def create_archer_skills():
         # 콤보 즉시 7로 설정 (완벽한 지원 상태)
         GimmickEffect(GimmickOperation.SET, "support_combo", 7),
         # 버프
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="party"),
-        BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=5, target="party"),
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
+        BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=5),
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True

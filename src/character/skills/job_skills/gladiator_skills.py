@@ -105,8 +105,8 @@ def create_gladiator_skills():
     # 9. 챔피언의 함성 (아군 지원 + 환호 공유)
     champion_roar = Skill("gladiator_champion_roar", "챔피언의 함성", "아군 전체 버프 (환호 비례)")
     champion_roar.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=4, target="party"),
-        BuffEffect(BuffType.CRITICAL_UP, 0.2, duration=4, target="party"),
+        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=4),
+        BuffEffect(BuffType.CRITICAL_UP, 0.2, duration=4),
         # Bonus based on cheer
         GimmickEffect(GimmickOperation.ADD, "cheer", 10, max_value=100)
     ]
@@ -126,9 +126,9 @@ def create_gladiator_skills():
         DamageEffect(DamageType.BRV, 4.0, stat_type="physical"),
         DamageEffect(DamageType.HP, 5.0, stat_type="physical"),
         # 무적 버프 (3턴)
-        BuffEffect(BuffType.INVINCIBLE, 1.0, duration=3, target="self"),
-        BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5, target="self"),
-        BuffEffect(BuffType.CRITICAL_UP, 0.6, duration=5, target="self")
+        BuffEffect(BuffType.INVINCIBLE, 1.0, duration=3),
+        BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5),
+        BuffEffect(BuffType.CRITICAL_UP, 0.6, duration=5)
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True

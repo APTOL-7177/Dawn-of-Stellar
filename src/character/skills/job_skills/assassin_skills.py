@@ -84,8 +84,8 @@ def create_assassin_skills():
     # 7. 죽음의 표식 (은신 해제하지 않는 디버프)
     death_mark = Skill("assassin_death_mark", "죽음의 표식", "적에게 표식 (은신 유지)")
     death_mark.effects = [
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4, target="enemy"),
-        BuffEffect(BuffType.EVASION_DOWN, 0.3, duration=4, target="enemy"),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4),
+        BuffEffect(BuffType.EVASION_DOWN, 0.3, duration=4),
         # 은신 유지 (공격 아님)
     ]
     death_mark.costs = [MPCost(12)]

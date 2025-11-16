@@ -105,7 +105,7 @@ def create_bard_skills():
     discord = Skill("bard_discord", "불협화음", "멜로디 2음 소비, 적 약화 공격")
     discord.effects = [
         DamageEffect(DamageType.BRV_HP, 1.8, stat_type="magical"),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=3, target="enemy")
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=3)
     ]
     discord.costs = [MPCost(10), StackCost("melody_stacks", 2)]  # 멜로디 2음 필요
     discord.cooldown = 3

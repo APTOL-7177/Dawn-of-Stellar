@@ -30,7 +30,7 @@ def create_hacker_skills():
     run_virus = Skill("hacker_run_virus", "바이러스 실행", "적 공격력 -20% 프로그램 실행")
     run_virus.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_virus", 1, max_value=1),  # 프로그램 실행 (on/off)
-        BuffEffect(BuffType.ATTACK_DOWN, 0.2, duration=99, target="enemy")  # 프로그램 실행 동안 지속
+        BuffEffect(BuffType.ATTACK_DOWN, 0.2, duration=99)  # 프로그램 실행 동안 지속
     ]
     run_virus.costs = [MPCost(10)]
     run_virus.target_type = "single"
@@ -42,7 +42,7 @@ def create_hacker_skills():
     run_backdoor = Skill("hacker_run_backdoor", "백도어 실행", "적 방어력 -30% 프로그램 실행")
     run_backdoor.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_backdoor", 1, max_value=1),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=99, target="enemy")
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=99)
     ]
     run_backdoor.costs = [MPCost(12)]
     run_backdoor.target_type = "single"
@@ -54,7 +54,7 @@ def create_hacker_skills():
     run_ddos = Skill("hacker_run_ddos", "DDoS 실행", "적 속도 -50% 프로그램 실행")
     run_ddos.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_ddos", 1, max_value=1),
-        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=99, target="enemy")
+        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=99)
     ]
     run_ddos.costs = [MPCost(15)]
     run_ddos.target_type = "single"
@@ -66,7 +66,7 @@ def create_hacker_skills():
     run_ransomware = Skill("hacker_run_ransomware", "랜섬웨어 실행", "적 스킬 봉인 프로그램 실행")
     run_ransomware.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_ransomware", 1, max_value=1),
-        BuffEffect(BuffType.SKILL_SEAL, 1.0, duration=99, target="enemy")  # 스킬 봉인
+        BuffEffect(BuffType.SKILL_SEAL, 1.0, duration=99)  # 스킬 봉인
     ]
     run_ransomware.costs = [MPCost(18)]
     run_ransomware.target_type = "single"
@@ -78,8 +78,8 @@ def create_hacker_skills():
     run_spyware = Skill("hacker_run_spyware", "스파이웨어 실행", "적 정보 획득 프로그램")
     run_spyware.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_spyware", 1, max_value=1),
-        BuffEffect(BuffType.EVASION_DOWN, 0.3, duration=99, target="enemy"),
-        BuffEffect(BuffType.ACCURACY_UP, 0.3, duration=99, target="self")
+        BuffEffect(BuffType.EVASION_DOWN, 0.3, duration=99),
+        BuffEffect(BuffType.ACCURACY_UP, 0.3, duration=99)
     ]
     run_spyware.costs = [MPCost(8)]
     run_spyware.target_type = "single"
@@ -127,11 +127,11 @@ def create_hacker_skills():
         DamageEffect(DamageType.BRV, 4.0, stat_type="magical"),
         DamageEffect(DamageType.HP, 4.5, stat_type="magical"),
         # 모든 디버프 적용
-        BuffEffect(BuffType.ATTACK_DOWN, 0.2, duration=5, target="enemy"),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=5, target="enemy"),
-        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=5, target="enemy"),
+        BuffEffect(BuffType.ATTACK_DOWN, 0.2, duration=5),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=5),
+        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=5),
         # 자신 버프
-        BuffEffect(BuffType.MAGIC_UP, 0.8, duration=4, target="self")
+        BuffEffect(BuffType.MAGIC_UP, 0.8, duration=4)
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True

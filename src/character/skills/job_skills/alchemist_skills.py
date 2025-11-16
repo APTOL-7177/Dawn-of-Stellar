@@ -120,8 +120,8 @@ def create_alchemist_skills():
     acid_flask = Skill("alchemist_acid_flask", "산성 플라스크", "방어력 감소 + 피해")
     acid_flask.effects = [
         DamageEffect(DamageType.BRV_HP, 2.2, stat_type="magical"),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.5, duration=4, target="enemy"),
-        BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.4, duration=4, target="enemy"),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.5, duration=4),
+        BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.4, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 3)
     ]
     acid_flask.costs = [MPCost(15), StackCost("potion_stock", 3)]
@@ -134,9 +134,9 @@ def create_alchemist_skills():
     ultimate = Skill("alchemist_ultimate", "현자의 물약", "완벽한 물약으로 파티 강화")
     ultimate.effects = [
         HealEffect(HealType.HP, percentage=0.5, is_party_wide=True),
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="party"),
-        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=5, target="party"),
-        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5, target="party"),
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
+        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=5),
+        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5),
         GimmickEffect(GimmickOperation.SET, "potion_stock", 10)
     ]
     ultimate.costs = [MPCost(30)]

@@ -117,9 +117,9 @@ def create_pirate_skills():
     blackbeard_curse = Skill("pirate_blackbeard_curse", "검은 수염의 저주", "골드 8개 소비, 강력한 디버프")
     blackbeard_curse.effects = [
         DamageEffect(DamageType.BRV_HP, 2.6, gimmick_bonus={"field": "gold", "multiplier": 0.45}),
-        BuffEffect(BuffType.ATTACK_DOWN, 0.5, duration=5, target="enemy"),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.5, duration=5, target="enemy"),
-        BuffEffect(BuffType.SPEED_DOWN, 0.3, duration=5, target="enemy"),
+        BuffEffect(BuffType.ATTACK_DOWN, 0.5, duration=5),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.5, duration=5),
+        BuffEffect(BuffType.SPEED_DOWN, 0.3, duration=5),
         GimmickEffect(GimmickOperation.CONSUME, "gold", 8)
     ]
     blackbeard_curse.costs = [MPCost(18), StackCost("gold", 8)]

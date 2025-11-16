@@ -119,8 +119,8 @@ def create_paladin_skills():
     holy_retribution = Skill("paladin_retribution", "성스러운 징벌", "성력 4 소비, 신성 폭발")
     holy_retribution.effects = [
         DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "holy_power", "multiplier": 0.35}),
-        BuffEffect(BuffType.ATTACK_DOWN, 0.4, duration=4, target="enemy"),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4, target="enemy"),
+        BuffEffect(BuffType.ATTACK_DOWN, 0.4, duration=4),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "holy_power", 4)
     ]
     holy_retribution.costs = [MPCost(15), StackCost("holy_power", 4)]

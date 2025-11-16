@@ -120,8 +120,8 @@ def create_cleric_skills():
     holy_judgment = Skill("cleric_holy_judgment", "성스러운 심판", "신앙 5포인트 소비 대규모 신성 공격")
     holy_judgment.effects = [
         DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "faith_points", "multiplier": 0.4}, stat_type="magical"),
-        BuffEffect(BuffType.ATTACK_DOWN, 0.4, duration=4, target="enemy"),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=4, target="enemy"),
+        BuffEffect(BuffType.ATTACK_DOWN, 0.4, duration=4),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 5)
     ]
     holy_judgment.costs = [MPCost(16), StackCost("faith_points", 5)]

@@ -112,7 +112,7 @@ def create_rogue_skills():
     assassinate.effects = [
         DamageEffect(DamageType.BRV_HP, 3.0, gimmick_bonus={"field": "stolen_items", "multiplier": 0.5}),
         BuffEffect(BuffType.CRITICAL_UP, 0.6, duration=3),
-        BuffEffect(BuffType.ATTACK_DOWN, 0.4, duration=4, target="enemy"),
+        BuffEffect(BuffType.ATTACK_DOWN, 0.4, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "stolen_items", 6)
     ]
     assassinate.costs = [MPCost(18), StackCost("stolen_items", 6)]

@@ -58,7 +58,7 @@ def create_philosopher_skills():
     choose_sacrifice.effects = [
         GimmickEffect(GimmickOperation.ADD, "choice_sacrifice", 1, max_value=99),  # 희생 선택 카운트 +1
         HealEffect(percentage=0.30),  # 아군 30% 회복
-        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=3, target="ally")
+        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=3)
     ]
     choose_sacrifice.costs = [MPCost(12)]
     choose_sacrifice.target_type = "ally"
@@ -84,8 +84,8 @@ def create_philosopher_skills():
     choose_truth.effects = [
         GimmickEffect(GimmickOperation.ADD, "choice_truth", 1, max_value=99),  # 진실 선택 카운트 +1
         DamageEffect(DamageType.BRV, 1.6, stat_type="magical"),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4, target="enemy"),
-        BuffEffect(BuffType.ACCURACY_DOWN, 0.3, duration=4, target="enemy")
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4),
+        BuffEffect(BuffType.ACCURACY_DOWN, 0.3, duration=4)
     ]
     choose_truth.costs = [MPCost(10)]
     choose_truth.sfx = "423"  # FFVII truth sound

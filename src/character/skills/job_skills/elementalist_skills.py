@@ -98,8 +98,8 @@ def create_elementalist_skills():
     fusion_mudtrap = Skill("elementalist_fusion_mudtrap", "진흙 속박", "물+대지 융합 (속도↓ 방어↓)")
     fusion_mudtrap.effects = [
         DamageEffect(DamageType.BRV_HP, 2.5, stat_type="magical"),
-        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=4, target="enemy"),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4, target="enemy"),
+        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=4),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4),
         # 두 정령 소비
         GimmickEffect(GimmickOperation.SET, "spirit_water", 0),
         GimmickEffect(GimmickOperation.SET, "spirit_earth", 0)
@@ -113,7 +113,7 @@ def create_elementalist_skills():
     fusion_steam = Skill("elementalist_fusion_steam", "증기 폭발", "화염+물 융합 (마법 피해 + 명중↓)")
     fusion_steam.effects = [
         DamageEffect(DamageType.BRV_HP, 3.2, stat_type="magical"),
-        BuffEffect(BuffType.ACCURACY_DOWN, 0.4, duration=3, target="all_enemies"),
+        BuffEffect(BuffType.ACCURACY_DOWN, 0.4, duration=3),
         # 두 정령 소비
         GimmickEffect(GimmickOperation.SET, "spirit_fire", 0),
         GimmickEffect(GimmickOperation.SET, "spirit_water", 0)

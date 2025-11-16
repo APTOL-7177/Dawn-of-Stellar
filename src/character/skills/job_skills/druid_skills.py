@@ -125,7 +125,7 @@ def create_druid_skills():
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "nature_points", "multiplier": 0.45}, stat_type="magical"),
         DamageEffect(DamageType.HP, 2.0, stat_type="magical"),
         BuffEffect(BuffType.MAGIC_UP, 0.5, duration=4),
-        BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=4, target="enemy"),
+        BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "nature_points", 5)
     ]
     natures_wrath.costs = [MPCost(18), StackCost("nature_points", 5)]

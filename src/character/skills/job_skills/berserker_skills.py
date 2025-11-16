@@ -56,8 +56,8 @@ def create_berserker_skills():
                       "적 전체 위축, 자신 속도 +40%")
     battle_cry.effects = [
         DamageEffect(DamageType.BRV, 1.2, stat_type="physical"),
-        BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=2, target="all_enemies"),
-        BuffEffect(BuffType.SPEED_UP, 0.4, duration=3, target="self")
+        BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=2),
+        BuffEffect(BuffType.SPEED_UP, 0.4, duration=3)
     ]
     battle_cry.costs = [MPCost(15)]
     battle_cry.target_type = "all_enemies"
