@@ -97,6 +97,13 @@ class DamageCalculator:
 
         final_damage = max(1, int(damage))
 
+        # 난이도 보정 (플레이어가 공격자인 경우)
+        from src.core.difficulty import get_difficulty_system
+        difficulty_system = get_difficulty_system()
+        if difficulty_system and self._is_player(attacker):
+            player_dmg_mult = difficulty_system.get_player_damage_multiplier()
+            final_damage = int(final_damage * player_dmg_mult)
+
         self.logger.debug(
             f"BRV 데미지 계산: {attacker.name} → {defender.name}",
             {
@@ -180,6 +187,13 @@ class DamageCalculator:
             self.logger.info(f"⚡ BREAK 보너스 데미지! {damage} ({self.break_damage_bonus}x)")
 
         final_damage = max(5, damage)
+
+        # 난이도 보정 (플레이어가 공격자인 경우)
+        from src.core.difficulty import get_difficulty_system
+        difficulty_system = get_difficulty_system()
+        if difficulty_system and self._is_player(attacker):
+            player_dmg_mult = difficulty_system.get_player_damage_multiplier()
+            final_damage = int(final_damage * player_dmg_mult)
 
         # 상처 데미지 (HP 데미지의 25%)
         wound_damage = int(final_damage * self.wound_damage_rate)
@@ -339,6 +353,12 @@ class DamageCalculator:
             if hasattr(character, attr):
                 return getattr(character, attr)
         return 10  # 기본값
+
+    def _is_player(self, character: Any) -> bool:
+        """플레이어 캐릭터 여부 확인"""
+        # Character 클래스의 인스턴스인지 확인 (적은 SimpleEnemy)
+        from src.character.character import Character
+        return isinstance(character, Character)
 
     def check_hit(self, attacker: Any, defender: Any) -> bool:
         """
