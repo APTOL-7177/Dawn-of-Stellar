@@ -1,0 +1,84 @@
+# 튜토리얼 4단계: ATB 시스템
+id: atb_system
+title: "ATB 시스템 이해하기"
+order: 4
+category: combat
+enabled: true
+skippable: true
+
+description: |
+  ATB(Active Time Battle) 시스템은 Dawn of Stellar의 핵심입니다.
+  시간이 실시간으로 흐르며, 빠른 판단이 필요합니다.
+
+objective: "ATB 시스템을 이해하고 2회 연속 공격하기"
+
+messages:
+  - text: "ATB 시스템에 대해 더 자세히 알아봅시다."
+    color: [0, 255, 255]
+    pause: 2.0
+    effect: "fade_in"
+
+  - text: "ATB 게이지는 0부터 2000까지 차오릅니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "게이지가 1000에 도달하면 한 번 행동할 수 있습니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "행동 후 게이지가 감소하고, 다시 차오르기 시작합니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "속도(Speed) 스탯이 높을수록 게이지가 빠르게 충전됩니다."
+    color: [255, 255, 0]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "이 적을 상대로 ATB 시스템을 연습해보세요!"
+    color: [255, 215, 0]
+    pause: 2.0
+    effect: "flash"
+
+completion_condition:
+  type: "action_count"
+  required_actions: 2
+  combat_required: true
+  message: "ATB 시스템을 이해했습니다!"
+
+hints:
+  - text: "ATB 게이지를 주시하세요. 1000이 되면 행동할 수 있습니다."
+    trigger_time: 5.0
+
+  - text: "게이지가 2000까지 차면 2회 연속 행동할 수 있습니다."
+    trigger_time: 15.0
+
+  - text: "적도 ATB 게이지를 가지고 있습니다. 적의 게이지도 확인하세요."
+    trigger_time: 25.0
+
+ui_highlights:
+  - element: "atb_gauge_player"
+    position: "top_left"
+    color: [0, 255, 0]
+    pulse: true
+    description: "아군 ATB 게이지"
+
+  - element: "atb_gauge_enemy"
+    position: "top_right"
+    color: [255, 0, 0]
+    pulse: true
+    description: "적 ATB 게이지"
+
+  - element: "speed_stat"
+    position: "left_panel"
+    color: [255, 255, 0]
+    description: "속도 스탯 - ATB 충전 속도에 영향"
+
+rewards:
+  exp: 50
+  message: "ATB 시스템을 마스터했습니다!"
+
+next_step: "brave_system"

@@ -1,0 +1,88 @@
+# 튜토리얼 7단계: 직업 시스템
+id: job_system
+title: "직업 시스템"
+order: 7
+category: management
+enabled: true
+skippable: true
+
+description: |
+  Dawn of Stellar에는 33개의 다양한 직업이 있습니다.
+  각 직업은 고유한 능력과 역할을 가지고 있습니다.
+
+objective: "캐릭터 정보에서 직업 특성 확인하기"
+
+messages:
+  - text: "이제 직업 시스템에 대해 알아봅시다."
+    color: [0, 255, 255]
+    pause: 2.0
+    effect: "fade_in"
+
+  - text: "이 게임에는 33개의 다양한 직업이 있습니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "각 직업은 고유한 스킬과 특성을 가지고 있습니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "직업은 크게 4가지 역할로 분류됩니다:"
+    color: [255, 255, 0]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "• 탱커 - 높은 체력과 방어력으로 아군을 보호"
+    color: [0, 100, 255]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "• 딜러 - 강력한 공격으로 적을 처치"
+    color: [255, 0, 0]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "• 힐러 - 아군을 회복하고 지원"
+    color: [0, 255, 0]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "• 서포터 - 버프와 디버프로 전투를 유리하게"
+    color: [255, 0, 255]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "캐릭터 정보 메뉴(I 키)에서 직업 특성을 확인해보세요!"
+    color: [255, 215, 0]
+    pause: 2.0
+    effect: "flash"
+
+completion_condition:
+  type: "menu_opened"
+  menu_type: "character_info"
+  message: "직업 시스템을 이해했습니다!"
+
+hints:
+  - text: "I 키를 눌러 캐릭터 정보를 확인할 수 있습니다."
+    trigger_time: 10.0
+
+  - text: "각 직업의 스킬과 패시브를 확인해보세요."
+    trigger_time: 20.0
+
+  - text: "파티 구성 시 다양한 역할을 고려하는 것이 중요합니다."
+    trigger_time: 30.0
+
+ui_highlights:
+  - element: "character_info_button"
+    position: "bottom_center"
+    color: [255, 255, 0]
+    pulse: true
+    description: "[I] 캐릭터 정보"
+
+rewards:
+  exp: 100
+  gold: 50
+  message: "직업 시스템을 이해했습니다!"
+
+next_step: "party_management"

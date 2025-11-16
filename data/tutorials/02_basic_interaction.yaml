@@ -1,0 +1,64 @@
+# 튜토리얼 2단계: 기본 상호작용
+id: basic_interaction
+title: "기본 상호작용"
+order: 2
+category: basics
+enabled: true
+skippable: true
+
+description: |
+  이제 세계와 상호작용하는 방법을 배워봅시다.
+  메뉴를 열고, 대화를 하고, 오브젝트와 상호작용할 수 있습니다.
+
+objective: "가이드 NPC와 대화하기"
+
+messages:
+  - text: "잘하셨습니다. 이제 주변과 상호작용하는 방법을 배울 차례입니다."
+    color: [0, 255, 255]
+    pause: 2.0
+    effect: "fade_in"
+
+  - text: "ESC 키를 눌러 메뉴를 열 수 있습니다."
+    color: [255, 255, 255]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "Z 키로 NPC와 대화하거나 오브젝트와 상호작용할 수 있습니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "앞에 있는 가이드에게 다가가 Z 키를 눌러보세요."
+    color: [255, 215, 0]
+    pause: 2.0
+    effect: "flash"
+
+completion_condition:
+  type: "npc_interaction"
+  npc_id: "tutorial_guide"
+  message: "대화를 완료했습니다!"
+
+hints:
+  - text: "NPC 옆으로 이동한 후 Z 키를 누르세요."
+    trigger_time: 10.0
+
+  - text: "ESC 키를 눌러 메뉴를 열고 닫을 수 있습니다."
+    trigger_time: 20.0
+
+ui_highlights:
+  - element: "npc"
+    npc_id: "tutorial_guide"
+    color: [0, 255, 0]
+    pulse: true
+    description: "가이드 NPC"
+
+  - element: "key_hint"
+    text: "[Z] 상호작용"
+    position: "bottom_center"
+    color: [255, 255, 255]
+
+rewards:
+  exp: 10
+  message: "상호작용 방법을 익혔습니다!"
+
+next_step: "combat_intro"

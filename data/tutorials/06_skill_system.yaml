@@ -1,0 +1,109 @@
+# 튜토리얼 6단계: 스킬 시스템
+id: skill_system
+title: "스킬 시스템"
+order: 6
+category: combat
+enabled: true
+skippable: true
+
+description: |
+  각 직업은 고유한 스킬을 가지고 있습니다.
+  다양한 스킬을 활용하여 전투를 유리하게 이끌어보세요!
+
+objective: "3가지 다른 타입의 스킬을 사용하기"
+
+messages:
+  - text: "이제 스킬 시스템에 대해 배워봅시다."
+    color: [0, 255, 255]
+    pause: 2.0
+    effect: "fade_in"
+
+  - text: "각 캐릭터는 6개의 고유 스킬을 가지고 있습니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "스킬에는 여러 타입이 있습니다:"
+    color: [255, 255, 0]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "• BRV 공격 - 적의 BRV를 깎고 내 BRV를 증가"
+    color: [0, 255, 255]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "• HP 공격 - BRV를 소비하여 HP 데미지"
+    color: [255, 0, 255]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "• BRV+HP 공격 - 두 가지를 동시에!"
+    color: [255, 165, 0]  # 오렌지
+    pause: 2.0
+    effect: "typing"
+
+  - text: "• 지원 스킬 - 아군을 강화하거나 회복"
+    color: [0, 255, 0]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "• 디버프 스킬 - 적을 약화"
+    color: [255, 0, 0]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "대부분의 스킬은 MP를 소비합니다. MP 관리도 중요합니다!"
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "다양한 스킬을 사용해보세요!"
+    color: [255, 215, 0]
+    pause: 2.0
+    effect: "flash"
+
+completion_condition:
+  type: "skill_usage_variety"
+  required_skill_types:
+    - "brv_attack"
+    - "hp_attack"
+    - "support"
+  message: "다양한 스킬을 사용할 수 있게 되었습니다!"
+
+hints:
+  - text: "스킬 선택 메뉴에서 각 스킬의 타입과 효과를 확인할 수 있습니다."
+    trigger_time: 10.0
+
+  - text: "MP가 부족하면 스킬을 사용할 수 없습니다. MP를 확인하세요."
+    trigger_time: 20.0
+
+  - text: "일부 스킬은 캐스팅 시간이 필요합니다."
+    trigger_time: 30.0
+
+  - text: "상황에 맞는 스킬을 선택하는 것이 중요합니다."
+    trigger_time: 40.0
+
+ui_highlights:
+  - element: "mp_bar"
+    position: "top_left"
+    color: [0, 100, 255]
+    pulse: true
+    description: "MP - 스킬 사용에 필요"
+
+  - element: "skill_list"
+    position: "bottom_center"
+    color: [255, 255, 255]
+    description: "스킬 목록"
+
+  - element: "skill_description"
+    position: "right_panel"
+    color: [200, 200, 200]
+    description: "스킬 설명 및 효과"
+
+rewards:
+  exp: 100
+  gold: 50
+  message: "스킬 시스템을 이해했습니다!"
+
+next_step: "job_system"

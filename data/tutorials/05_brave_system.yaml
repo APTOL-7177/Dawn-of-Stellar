@@ -1,0 +1,111 @@
+# 튜토리얼 5단계: BRV/HP 시스템
+id: brave_system
+title: "BRV/HP 시스템"
+order: 5
+category: combat
+enabled: true
+skippable: true
+
+description: |
+  Dawn of Stellar의 독특한 전투 메커니즘인 BRV(Brave) 시스템을 배워봅시다.
+  이것이 전투의 핵심 전략입니다!
+
+objective: "적을 BREAK 시키고 HP 데미지를 입히기"
+
+messages:
+  - text: "이제 가장 중요한 BRV 시스템을 배울 차례입니다."
+    color: [0, 255, 255]
+    pause: 2.0
+    effect: "fade_in"
+
+  - text: "BRV(Brave)는 축적된 공격력을 나타냅니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "HP는 실제 체력입니다. HP가 0이 되면 전투 불능 상태가 됩니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "공격에는 두 가지 종류가 있습니다:"
+    color: [255, 255, 0]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "1. BRV 공격 - 상대의 BRV를 깎고 내 BRV를 증가시킵니다."
+    color: [0, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "2. HP 공격 - 내 BRV를 소비하여 상대의 HP에 데미지를 줍니다."
+    color: [255, 0, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "적의 BRV를 0으로 만들면 BREAK 상태가 됩니다!"
+    color: [255, 215, 0]
+    pause: 2.5
+    effect: "flash"
+
+  - text: "BREAK 된 적은 잠시 행동 불능이 되고, 보너스 데미지를 입힐 수 있습니다."
+    color: [255, 215, 0]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "먼저 BRV 공격으로 적의 BRV를 깎은 후, HP 공격으로 마무리하세요!"
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+completion_condition:
+  type: "combat_action_sequence"
+  required_sequence:
+    - action: "brv_attack"
+      result: "break_enemy"
+    - action: "hp_attack"
+      target: "same_enemy"
+  message: "BRV 시스템을 완벽히 이해했습니다!"
+
+hints:
+  - text: "먼저 BRV 공격 스킬을 사용하여 적의 BRV를 0으로 만드세요."
+    trigger_time: 10.0
+
+  - text: "적이 BREAK 되면 'BREAK!' 메시지가 표시됩니다."
+    trigger_time: 20.0
+
+  - text: "BREAK 후에는 HP 공격으로 큰 데미지를 줄 수 있습니다."
+    trigger_time: 30.0
+
+  - text: "스킬 이름 옆의 아이콘으로 BRV/HP 공격을 구분할 수 있습니다."
+    trigger_time: 40.0
+
+ui_highlights:
+  - element: "brv_value"
+    position: "top_center"
+    color: [0, 255, 255]
+    pulse: true
+    description: "BRV 값 - 축적된 공격력"
+
+  - element: "hp_value"
+    position: "top_center"
+    color: [0, 255, 0]
+    pulse: true
+    description: "HP 값 - 실제 체력"
+
+  - element: "brv_attack_skill"
+    position: "skill_menu"
+    color: [0, 255, 255]
+    description: "BRV 공격 - 상대 BRV 깎기"
+
+  - element: "hp_attack_skill"
+    position: "skill_menu"
+    color: [255, 0, 255]
+    description: "HP 공격 - 상대 HP 데미지"
+
+rewards:
+  exp: 100
+  gold: 50
+  message: "BRV/HP 시스템을 마스터했습니다! 전투의 핵심을 이해했습니다."
+
+next_step: "skill_system"
