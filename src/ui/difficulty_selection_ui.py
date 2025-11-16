@@ -102,7 +102,7 @@ class DifficultySelectionUI:
             title_x,
             5,
             title,
-            fg=(100, 200, 255)  # 청록색
+            fg=Colors.CYAN
         )
 
         subtitle_x = (self.screen_width - len(subtitle)) // 2
