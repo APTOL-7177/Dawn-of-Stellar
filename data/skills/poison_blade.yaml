@@ -1,7 +1,7 @@
 id: poison_blade
 name: 독 칼날
 type: brv_attack
-description: 독이 묻은 칼로 적을 공격합니다
+description: 독이 묻은 칼로 적을 공격하여 중독시킵니다
 costs:
   mp: 20
   cast_time: 1.0
@@ -10,3 +10,8 @@ effects:
   element: physical
   multiplier: 2.2
   stat_base: strength
+- type: status_effect
+  status: poison
+  duration: 3
+  damage_stat: strength
+  damage_multiplier: 0.12

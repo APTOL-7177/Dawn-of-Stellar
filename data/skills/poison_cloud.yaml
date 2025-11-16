@@ -1,7 +1,7 @@
 id: poison_cloud
 name: Poison Cloud
 type: brv_attack
-description: Poison Cloud 스킬
+description: 독구름을 퍼뜨려 적을 공격하고 중독시킵니다
 costs:
   mp: 20
   cast_time: 1.0
@@ -10,3 +10,8 @@ effects:
   element: physical
   multiplier: 2.0
   stat_base: strength
+- type: status_effect
+  status: poison
+  duration: 4
+  damage_stat: magic
+  damage_multiplier: 0.10

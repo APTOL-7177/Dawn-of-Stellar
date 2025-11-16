@@ -43,13 +43,24 @@ class StatusEffectData:
 
 class StatusEffect(SkillEffect):
     """상태 이상 효과"""
-    def __init__(self, status_type: str, duration: int = 3, value: float = 0, stackable: bool = False, remove: bool = False):
+    def __init__(
+        self,
+        status_type: str,
+        duration: int = 3,
+        value: float = 0,
+        stackable: bool = False,
+        remove: bool = False,
+        damage_stat: str = None,
+        damage_multiplier: float = 0
+    ):
         super().__init__(EffectType.BUFF)  # 기존 BUFF 타입 재사용
         self.status_type = status_type
         self.duration = duration
         self.value = value
         self.stackable = stackable  # 스택 가능 여부
         self.remove = remove  # True면 상태 제거
+        self.damage_stat = damage_stat  # DoT 데미지 계산에 사용할 스탯
+        self.damage_multiplier = damage_multiplier  # DoT 데미지 배율
 
     def can_execute(self, user, target, context):
         return True, ""
@@ -64,7 +75,8 @@ class StatusEffect(SkillEffect):
                 if self._remove_status(t):
                     affected_count += 1
             else:
-                if self._apply_status(t):
+                # user를 전달하여 스탯 기반 DoT 계산
+                if self._apply_status(t, user):
                     affected_count += 1
 
         status_name = self.status_type.replace('_', ' ').title()
@@ -79,8 +91,76 @@ class StatusEffect(SkillEffect):
             message=message
         )
 
-    def _apply_status(self, target):
+    def _apply_status(self, target, user=None):
         """개별 상태 이상 적용"""
+        # StatusManager가 있으면 사용 (신규 시스템)
+        if hasattr(target, 'status_manager'):
+            from src.combat.status_effects import StatusEffect as CombatStatusEffect, StatusType
+
+            # status_type 문자열을 StatusType Enum으로 변환
+            status_type_map = {
+                'poison': StatusType.POISON,
+                'burn': StatusType.BURN,
+                'bleed': StatusType.BLEED,
+                'corrode': StatusType.CORROSION,
+                'corrosion': StatusType.CORROSION,
+                'disease': StatusType.DISEASE,
+                'necrosis': StatusType.NECROSIS,
+                'chill': StatusType.CHILL,
+                'shock': StatusType.SHOCK,
+                'stun': StatusType.STUN,
+                'sleep': StatusType.SLEEP,
+                'silence': StatusType.SILENCE,
+                'blind': StatusType.BLIND,
+                'paralyze': StatusType.PARALYZE,
+                'freeze': StatusType.FREEZE,
+                'slow': StatusType.SLOW,
+                'haste': StatusType.HASTE,
+                'regen': StatusType.REGENERATION,
+                'regeneration': StatusType.REGENERATION,
+            }
+
+            status_enum = status_type_map.get(self.status_type.lower())
+            if not status_enum:
+                # 알 수 없는 상태면 레거시 시스템 사용
+                return self._apply_status_legacy(target)
+
+            # DoT의 경우 base_damage 계산 (스탯 기반)
+            base_damage = 0
+            if self.damage_stat and self.damage_multiplier and user:
+                # user의 스탯 가져오기
+                stat_value = 0
+                if self.damage_stat == 'magic':
+                    stat_value = getattr(user, 'magic_attack', 0)
+                elif self.damage_stat == 'strength':
+                    stat_value = getattr(user, 'physical_attack', 0)
+                elif hasattr(user, self.damage_stat):
+                    stat_value = getattr(user, self.damage_stat, 0)
+
+                # base_damage = 스탯 * 배율
+                base_damage = int(stat_value * self.damage_multiplier)
+
+            # StatusEffect 객체 생성
+            status_effect = CombatStatusEffect(
+                name=self.status_type.replace('_', ' ').title(),
+                status_type=status_enum,
+                duration=self.duration,
+                intensity=self.value if self.value > 0 else 1.0,
+                is_stackable=self.stackable,
+                max_stacks=5 if self.stackable else 1,
+                source_id=getattr(user, 'name', None) if user else None,
+                metadata={"base_damage": base_damage} if base_damage > 0 else {}
+            )
+
+            # StatusManager에 추가
+            target.status_manager.add_status(status_effect, allow_refresh=True)
+            return True
+
+        # 레거시 시스템 사용
+        return self._apply_status_legacy(target)
+
+    def _apply_status_legacy(self, target):
+        """레거시 상태 효과 시스템"""
         # status_effects가 리스트인 경우
         if not hasattr(target, 'status_effects'):
             target.status_effects = []

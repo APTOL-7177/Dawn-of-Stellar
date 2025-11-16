@@ -164,6 +164,26 @@ class CombatManager:
         if int_brv_recovered > 0:
             self.logger.debug(f"{actor.name}이(가) INT BRV {int_brv_recovered} 회복")
 
+        # 3. DoT (지속 피해) 처리
+        if hasattr(actor, 'status_manager'):
+            dot_result = actor.status_manager.process_dot_effects(actor)
+            if dot_result["total_damage"] > 0 or dot_result["total_mp_drain"] > 0:
+                self.logger.info(
+                    f"{actor.name}: DoT 피해 {dot_result['total_damage']}"
+                    + (f", MP 소모 {dot_result['total_mp_drain']}" if dot_result["total_mp_drain"] > 0 else "")
+                )
+                # DoT로 사망 여부 확인
+                if hasattr(actor, 'current_hp') and actor.current_hp <= 0:
+                    if hasattr(actor, 'is_alive'):
+                        actor.is_alive = False
+                    self.logger.warning(f"{actor.name}이(가) DoT로 사망!")
+
+        # 4. 상태 효과 지속시간 감소
+        if hasattr(actor, 'status_manager'):
+            expired = actor.status_manager.update_duration()
+            if expired:
+                self.logger.debug(f"{actor.name}: {len(expired)}개 상태 효과 만료")
+
         self.logger.debug(
             f"행동 실행: {actor.name} → {action_type.value}",
             {"target": getattr(target, "name", None) if target else None}

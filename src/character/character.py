@@ -16,6 +16,7 @@ from src.character.character_loader import (
     get_bonuses
 )
 from src.character.trait_effects import get_trait_effect_manager
+from src.combat.status_effects import StatusManager
 from src.core.event_bus import event_bus, Events
 from src.core.logger import get_logger
 
@@ -72,8 +73,10 @@ class Character:
             "accessory": None
         }
 
-        # 상태 효과 (간단한 구현)
-        self.status_effects: List[Any] = []
+        # 상태 효과 관리자
+        self.status_manager = StatusManager(owner_name=name)
+        # 하위 호환성을 위한 별칭
+        self.status_effects = self.status_manager.status_effects
 
         # 직업 기믹 초기화
         self.gimmick_data = get_gimmick(character_class)
