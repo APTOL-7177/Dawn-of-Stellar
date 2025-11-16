@@ -26,18 +26,18 @@ class SkillManager:
         if not skill:
             return SkillResult(success=False, message=f"스킬 없음: {skill_id}")
 
-        # 디버그: 쿨다운 체크
-        char_id = id(user)
-        current_cooldown = self._cooldowns.get(char_id, {}).get(skill_id, 0)
-        skill_cooldown_value = getattr(skill, 'cooldown', 0)
-        is_basic_attack = getattr(skill, 'metadata', {}).get('basic_attack', False)
+        # 쿨다운 체크 비활성화 (사용자 요청)
+        # char_id = id(user)
+        # current_cooldown = self._cooldowns.get(char_id, {}).get(skill_id, 0)
+        # skill_cooldown_value = getattr(skill, 'cooldown', 0)
+        # is_basic_attack = getattr(skill, 'metadata', {}).get('basic_attack', False)
 
-        self.logger.debug(f"[CD_CHECK] {user.name} - {skill.name} (ID: {skill_id})")
-        self.logger.debug(f"  skill.cooldown = {skill_cooldown_value}, current_cd = {current_cooldown}, basic_attack = {is_basic_attack}")
+        # self.logger.debug(f"[CD_CHECK] {user.name} - {skill.name} (ID: {skill_id})")
+        # self.logger.debug(f"  skill.cooldown = {skill_cooldown_value}, current_cd = {current_cooldown}, basic_attack = {is_basic_attack}")
 
-        if self.is_on_cooldown(user, skill_id):
-            self.logger.warning(f"[CD_BLOCK] {skill.name}이(가) 쿨다운 중 (남은: {current_cooldown}턴)")
-            return SkillResult(success=False, message="쿨다운 중")
+        # if self.is_on_cooldown(user, skill_id):
+        #     self.logger.warning(f"[CD_BLOCK] {skill.name}이(가) 쿨다운 중 (남은: {current_cooldown}턴)")
+        #     return SkillResult(success=False, message="쿨다운 중")
 
         # 캐스팅이 필요한 스킬인지 확인
         if hasattr(skill, 'cast_time') and skill.cast_time and skill.cast_time > 0:
@@ -70,11 +70,12 @@ class SkillManager:
         event_bus.publish(Events.SKILL_CAST_START, {"skill": skill, "user": user, "target": target})
         result = skill.execute(user, target, context)
 
-        if result.success and skill.cooldown > 0:
-            self.logger.debug(f"[CD_SET] {skill.name} 쿨다운 설정: {skill.cooldown}턴")
-            self.set_cooldown(user, skill_id, skill.cooldown)
-        else:
-            self.logger.debug(f"[CD_SKIP] {skill.name} 쿨다운 설정 안 함 (success={result.success}, cooldown={skill.cooldown})")
+        # 쿨다운 설정 비활성화 (사용자 요청)
+        # if result.success and skill.cooldown > 0:
+        #     self.logger.debug(f"[CD_SET] {skill.name} 쿨다운 설정: {skill.cooldown}턴")
+        #     self.set_cooldown(user, skill_id, skill.cooldown)
+        # else:
+        #     self.logger.debug(f"[CD_SKIP] {skill.name} 쿨다운 설정 안 함 (success={result.success}, cooldown={skill.cooldown})")
 
         event_bus.publish(Events.SKILL_EXECUTE, {"skill": skill, "user": user, "target": target, "result": result})
         return result
@@ -91,10 +92,14 @@ class SkillManager:
             # skill.sfx가 튜플인지 문자열인지 확인
             if isinstance(skill.sfx, tuple):
                 category, sfx_name = skill.sfx
-                play_sfx(category, sfx_name)
+                self.logger.debug(f"[SFX_PLAY] {skill.name} - 튜플 SFX: {category}.{sfx_name}")
+                result = play_sfx(category, sfx_name)
+                self.logger.debug(f"[SFX_RESULT] 재생 결과: {result}")
             else:
                 # 문자열인 경우 FFVII 카테고리 기본 사용
-                play_sfx("ffvii", skill.sfx)
+                self.logger.debug(f"[SFX_PLAY] {skill.name} - 문자열 SFX: ffvii.{skill.sfx}")
+                result = play_sfx("ffvii", skill.sfx)
+                self.logger.debug(f"[SFX_RESULT] 재생 결과: {result}")
             return
 
         # 스킬 effects 분석

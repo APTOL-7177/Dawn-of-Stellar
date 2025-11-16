@@ -259,7 +259,9 @@ class CombatManager:
     ) -> Dict[str, Any]:
         """BRV 공격 실행"""
         # SFX 재생
-        play_sfx("combat", "attack_physical")
+        self.logger.debug(f"[SFX_BRV] BRV 공격 SFX 재생 시도: combat.attack_physical")
+        result = play_sfx("combat", "attack_physical")
+        self.logger.debug(f"[SFX_BRV_RESULT] 재생 결과: {result}")
 
         # 스킬 배율
         skill_multiplier = getattr(skill, "brv_multiplier", 1.0) if skill else 1.0
