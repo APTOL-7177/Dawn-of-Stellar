@@ -8,10 +8,10 @@ from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
 def create_rogue_skills():
-    """도적 9개 스킬"""
-    
+    """도적 10개 스킬 (아이템/훔치기 시스템)"""
+
     skills = []
-    
+
     # 1. 기본 BRV: 기습
     ambush = Skill("rogue_ambush", "기습", "빠른 기습 공격, 아이템 획득")
     ambush.effects = [
@@ -19,16 +19,20 @@ def create_rogue_skills():
         GimmickEffect(GimmickOperation.ADD, "stolen_items", 1, max_value=10)
     ]
     ambush.costs = []  # 기본 공격은 MP 소모 없음
+    ambush.sfx = "633"
+    ambush.metadata = {"item_gain": 1}
     skills.append(ambush)
-    
+
     # 2. 기본 HP: 급소 공격
     vital_strike = Skill("rogue_vital_strike", "급소 공격", "치명타 확정")
     vital_strike.effects = [
         DamageEffect(DamageType.HP, 1.2, gimmick_bonus={"field": "stolen_items", "multiplier": 0.15})
     ]
     vital_strike.costs = []  # 기본 공격은 MP 소모 없음
+    vital_strike.sfx = "639"
+    vital_strike.metadata = {"item_scaling": True, "critical": True}
     skills.append(vital_strike)
-    
+
     # 3. 훔치기
     steal = Skill("rogue_steal", "훔치기", "적의 버프/자원 훔치기")
     steal.effects = [
@@ -37,8 +41,10 @@ def create_rogue_skills():
     ]
     steal.costs = [MPCost(6)]
     steal.cooldown = 3
+    steal.sfx = "645"
+    steal.metadata = {"item_gain": 3, "buff": True}
     skills.append(steal)
-    
+
     # 4. 연막탄
     smoke_bomb = Skill("rogue_smoke", "연막탄", "회피 + 아이템 사용")
     smoke_bomb.effects = [
@@ -48,8 +54,10 @@ def create_rogue_skills():
     smoke_bomb.costs = [MPCost(5)]
     smoke_bomb.target_type = "self"
     smoke_bomb.cooldown = 4
+    smoke_bomb.sfx = "651"
+    smoke_bomb.metadata = {"evasion": True, "buff": True}
     skills.append(smoke_bomb)
-    
+
     # 5. 아이템 활용
     use_item = Skill("rogue_use_item", "아이템 활용", "훔친 아이템으로 공격")
     use_item.effects = [
@@ -57,8 +65,10 @@ def create_rogue_skills():
     ]
     use_item.costs = [MPCost(8), StackCost("stolen_items", 2)]
     use_item.cooldown = 2
+    use_item.sfx = "657"
+    use_item.metadata = {"item_cost": 2, "item_scaling": True}
     skills.append(use_item)
-    
+
     # 6. 독 바르기
     poison_blade = Skill("rogue_poison", "독 바르기", "지속 피해")
     poison_blade.effects = [
@@ -69,8 +79,10 @@ def create_rogue_skills():
     ]
     poison_blade.costs = [MPCost(7)]
     poison_blade.cooldown = 3
+    poison_blade.sfx = "663"
+    poison_blade.metadata = {"item_gain": 1, "dot": True, "poison": True}
     skills.append(poison_blade)
-    
+
     # 7. 보물 사냥
     treasure_hunt = Skill("rogue_treasure", "보물 사냥", "골드/아이템 대량 획득")
     treasure_hunt.effects = [
@@ -80,8 +92,10 @@ def create_rogue_skills():
     treasure_hunt.costs = [MPCost(9)]
     treasure_hunt.target_type = "self"
     treasure_hunt.cooldown = 5
+    treasure_hunt.sfx = "669"
+    treasure_hunt.metadata = {"item_gain": 5, "buff": True}
     skills.append(treasure_hunt)
-    
+
     # 8. 배신자의 일격
     backstab = Skill("rogue_backstab", "배신자의 일격", "아이템 소비 초강타")
     backstab.effects = [
@@ -89,9 +103,25 @@ def create_rogue_skills():
     ]
     backstab.costs = [MPCost(12), StackCost("stolen_items", 4)]
     backstab.cooldown = 5
+    backstab.sfx = "675"
+    backstab.metadata = {"item_cost": 4, "item_scaling": True, "critical": True}
     skills.append(backstab)
-    
-    # 9. 궁극기: 완벽한 강탈
+
+    # 9. 암살 (NEW - 10번째 스킬 전)
+    assassinate = Skill("rogue_assassinate", "암살", "아이템 6개 소비, 즉사 위협")
+    assassinate.effects = [
+        DamageEffect(DamageType.BRV_HP, 3.0, gimmick_bonus={"field": "stolen_items", "multiplier": 0.5}),
+        BuffEffect(BuffType.CRITICAL_UP, 0.6, duration=3),
+        BuffEffect(BuffType.ATTACK_DOWN, 0.4, duration=4, target="enemy"),
+        GimmickEffect(GimmickOperation.CONSUME, "stolen_items", 6)
+    ]
+    assassinate.costs = [MPCost(18), StackCost("stolen_items", 6)]
+    assassinate.cooldown = 7
+    assassinate.sfx = "681"
+    assassinate.metadata = {"item_cost": 6, "item_scaling": True, "critical": True, "debuff": True}
+    skills.append(assassinate)
+
+    # 10. 궁극기: 완벽한 강탈
     ultimate = Skill("rogue_ultimate", "완벽한 강탈", "모든 것을 훔치는 궁극기")
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "stolen_items", "multiplier": 0.5}),
@@ -100,11 +130,13 @@ def create_rogue_skills():
         BuffEffect(BuffType.SPEED_UP, 0.5, duration=5),
         BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=5)
     ]
-    ultimate.costs = [MPCost(25)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 10
+    ultimate.cooldown = 8
+    ultimate.sfx = "696"
+    ultimate.metadata = {"ultimate": True, "item_refill": True, "buff": True, "critical": True}
     skills.append(ultimate)
-    
+
     return skills
 
 def register_rogue_skills(skill_manager):

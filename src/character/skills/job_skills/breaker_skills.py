@@ -7,9 +7,9 @@ from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
 def create_breaker_skills():
-    """브레이커 9개 스킬"""
+    """브레이커 10개 스킬 (BRV 파괴 특화)"""
     skills = []
-    
+
     # 1. 기본 BRV: 파쇄 타격
     crush_strike = Skill("breaker_crush", "파쇄 타격", "BRV 파괴 공격")
     crush_strike.effects = [
@@ -17,8 +17,10 @@ def create_breaker_skills():
         GimmickEffect(GimmickOperation.ADD, "break_power", 1, max_value=10)
     ]
     crush_strike.costs = []  # 기본 공격은 MP 소모 없음
+    crush_strike.sfx = "533"
+    crush_strike.metadata = {"break_power_gain": 1}
     skills.append(crush_strike)
-    
+
     # 2. 기본 HP: 파괴의 일격
     break_hit = Skill("breaker_break_hit", "파괴의 일격", "BREAK 보너스")
     break_hit.effects = [
@@ -26,6 +28,8 @@ def create_breaker_skills():
         GimmickEffect(GimmickOperation.CONSUME, "break_power", 1)
     ]
     break_hit.costs = []  # 기본 공격은 MP 소모 없음
+    break_hit.sfx = "538"
+    break_hit.metadata = {"break_power_cost": 1, "break_scaling": True}
     skills.append(break_hit)
     
     # 3. BRV 집중
@@ -37,8 +41,10 @@ def create_breaker_skills():
     brv_focus.costs = [MPCost(6)]
     brv_focus.target_type = "self"
     brv_focus.cooldown = 3
+    brv_focus.sfx = "548"
+    brv_focus.metadata = {"buff": True, "break_power_gain": 2}
     skills.append(brv_focus)
-    
+
     # 4. 연타
     multi_strike = Skill("breaker_multi", "연타", "3연속 BRV 공격")
     multi_strike.effects = [
@@ -49,8 +55,10 @@ def create_breaker_skills():
     ]
     multi_strike.costs = [MPCost(8)]
     multi_strike.cooldown = 2
+    multi_strike.sfx = "558"
+    multi_strike.metadata = {"multi_hit": 3, "break_power_gain": 2}
     skills.append(multi_strike)
-    
+
     # 5. 파괴 강화
     break_enhance = Skill("breaker_enhance", "파괴 강화", "BREAK 위력 증폭")
     break_enhance.effects = [
@@ -60,8 +68,10 @@ def create_breaker_skills():
     break_enhance.costs = [MPCost(9)]
     break_enhance.target_type = "self"
     break_enhance.cooldown = 5
+    break_enhance.sfx = "568"
+    break_enhance.metadata = {"break_power_gain": 5, "buff": True}
     skills.append(break_enhance)
-    
+
     # 6. 대파쇄
     mega_crush = Skill("breaker_mega_crush", "대파쇄", "초강력 BRV 공격")
     mega_crush.effects = [
@@ -70,8 +80,10 @@ def create_breaker_skills():
     ]
     mega_crush.costs = [MPCost(10)]
     mega_crush.cooldown = 3
+    mega_crush.sfx = "578"
+    mega_crush.metadata = {"break_scaling": True, "break_power_gain": 1}
     skills.append(mega_crush)
-    
+
     # 7. 파괴 충격파
     break_wave = Skill("breaker_wave", "파괴 충격파", "광역 BRV 공격")
     break_wave.effects = [
@@ -80,8 +92,11 @@ def create_breaker_skills():
     ]
     break_wave.costs = [MPCost(11), StackCost("break_power", 3)]
     break_wave.cooldown = 4
+    break_wave.is_aoe = True
+    break_wave.sfx = "588"
+    break_wave.metadata = {"break_power_cost": 3, "break_scaling": True, "aoe": True}
     skills.append(break_wave)
-    
+
     # 8. 완전 파괴
     total_break = Skill("breaker_total", "완전 파괴", "절대 BREAK")
     total_break.effects = [
@@ -90,9 +105,25 @@ def create_breaker_skills():
     ]
     total_break.costs = [MPCost(14), StackCost("break_power", 5)]
     total_break.cooldown = 6
+    total_break.sfx = "598"
+    total_break.metadata = {"break_power_cost": 5, "break_scaling": True}
     skills.append(total_break)
-    
-    # 9. 궁극기: 절대 파괴
+
+    # 9. 파괴의 화신 (NEW - 10번째 스킬로 만들기 위해 추가)
+    devastation = Skill("breaker_devastation", "파괴의 화신", "최대 BREAK 전환 + 대공격")
+    devastation.effects = [
+        GimmickEffect(GimmickOperation.SET, "break_power", 10),
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=4),
+        BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=4)
+    ]
+    devastation.costs = [MPCost(16)]
+    devastation.target_type = "self"
+    devastation.cooldown = 6
+    devastation.sfx = "608"
+    devastation.metadata = {"break_power_max": True, "buff": True}
+    skills.append(devastation)
+
+    # 10. 궁극기: 절대 파괴
     ultimate = Skill("breaker_ultimate", "절대 파괴", "모든 것을 파괴")
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 3.5, gimmick_bonus={"field": "break_power", "multiplier": 0.5}),
@@ -101,11 +132,14 @@ def create_breaker_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5),
         GimmickEffect(GimmickOperation.SET, "break_power", 0)
     ]
-    ultimate.costs = [MPCost(25)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 10
+    ultimate.is_aoe = True
+    ultimate.cooldown = 8
+    ultimate.sfx = "618"
+    ultimate.metadata = {"ultimate": True, "break_scaling": True, "break_consume_all": True, "aoe": True}
     skills.append(ultimate)
-    
+
     return skills
 
 def register_breaker_skills(skill_manager):
