@@ -79,7 +79,7 @@ traits:
     thirst_per_turn: 10
 
 gimmick:
-  type: thirst_management
+  type: thirst_gauge
   name: 갈증 관리 시스템
   description: 갈증(0-100)이 높을수록 강력하지만 통제 불가 위험. 피 흡수로 갈증 감소
   min_thirst: 0

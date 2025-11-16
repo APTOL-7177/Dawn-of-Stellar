@@ -213,7 +213,7 @@ class Character:
         # 저격수 - 탄창 시스템 (신버전)
         elif gimmick_type == "magazine_system":
             self.max_magazine = self.gimmick_data.get("max_magazine", 6)
-            self.magazine = []  # 현재 탄창 (리스트로 탄환 타입 저장)
+            self.magazine = ["normal"] * self.max_magazine  # 현재 탄창 (기본 탄환으로 가득 채워 시작)
             self.current_bullet_index = 0  # 다음 발사할 탄환 인덱스
             self.quick_reload_count = 2  # 빠른 재장전 남은 횟수
             # 탄환 타입 정보 저장
@@ -251,14 +251,6 @@ class Character:
             self.max_rage_stacks = self.gimmick_data.get("max_rage", 10)
             self.shield_amount = 0  # 분노 방패량
 
-        # 몽크 - 기 에너지
-        elif gimmick_type == "ki_system":
-            self.ki_energy = 0
-            self.max_ki_energy = self.gimmick_data.get("max_ki", 100)
-            self.chakra_points = 0  # 차크라 포인트 (스킬에서 사용)
-            self.combo_count = 0
-            self.strike_marks = 0
-
         # 바드 - 멜로디
         elif gimmick_type == "melody_system":
             self.melody_stacks = 0
@@ -266,27 +258,6 @@ class Character:
             self.melody_notes = []
             self.current_melody = ""
             self.octave_completed = False  # 옥타브 완성 여부
-
-        # 네크로맨서 - 네크로 에너지
-        elif gimmick_type == "necro_system":
-            self.necro_energy = 0
-            self.max_necro_energy = self.gimmick_data.get("max_necro", 50)
-            self.soul_power = 0
-            self.undead_count = 0
-            self.corpse_count = 0  # 시체 개수 (스킬에서 사용)
-            self.minion_count = 0  # 미니언 개수 (스킬에서 사용)
-
-        # 정령술사 - 정령 친화도
-        elif gimmick_type == "spirit_bond":
-            self.spirit_bond = 0
-            self.max_spirit_bond = self.gimmick_data.get("max_bond", 25)
-            self.spirit_count = 0  # 정령 개수 (스킬에서 사용)
-
-        # 시간술사 - 시간 기록점 (구버전, 호환성 유지)
-        elif gimmick_type == "time_system":
-            self.time_marks = 0
-            self.max_time_marks = self.gimmick_data.get("max_marks", 7)
-            self.time_points = 0  # 시간 포인트 (스킬에서 사용하는 별칭)
 
         # 시간술사 - 타임라인 균형 시스템 (신버전)
         elif gimmick_type == "timeline_system":
@@ -332,11 +303,6 @@ class Character:
             self.holy_power = 0
             self.max_holy_power = self.gimmick_data.get("max_holy_power", 100)
 
-        # 암살자 - 은신
-        elif gimmick_type == "stealth_system":
-            self.stealth_points = 0
-            self.max_stealth_points = self.gimmick_data.get("max_stealth_points", 5)
-
         # 도적 - 절도
         elif gimmick_type == "theft_system":
             self.stolen_items = 0
@@ -348,11 +314,6 @@ class Character:
             self.gold = 0
             self.max_gold = self.gimmick_data.get("max_gold", 1000)
             self.gold_per_hit = self.gimmick_data.get("gold_per_hit", 10)
-
-        # 엔지니어 - 구조물 (구버전, 호환성 유지)
-        elif gimmick_type == "construct_system":
-            self.machine_parts = 0
-            self.max_machine_parts = self.gimmick_data.get("max_machine_parts", 5)
 
         # 엔지니어 - 열 관리 시스템 (신버전)
         elif gimmick_type == "heat_management":
@@ -372,20 +333,10 @@ class Character:
             self.will_gauge = 0
             self.max_will_gauge = self.gimmick_data.get("max_will_gauge", 100)
 
-        # 배틀메이지 - 룬
-        elif gimmick_type == "rune_system":
-            self.rune_stacks = 0
-            self.max_rune_stacks = self.gimmick_data.get("max_rune_stacks", 5)
-
         # 마검사 - 마력 부여
         elif gimmick_type == "enchant_system":
             self.mana_blade = 0
             self.max_mana_blade = self.gimmick_data.get("max_mana_blade", 100)
-
-        # 차원술사 - 차원 조작
-        elif gimmick_type == "dimension_system":
-            self.dimension_points = 0
-            self.max_dimension_points = self.gimmick_data.get("max_dimension_points", 100)
 
         # 프리스트/클레릭 - 신성력
         elif gimmick_type == "divinity_system":
@@ -445,29 +396,33 @@ class Character:
             self.rune_fire = 0  # 화염 룬 (0-3)
             self.rune_ice = 0   # 빙결 룬 (0-3)
             self.rune_lightning = 0  # 번개 룬 (0-3)
-            self.max_rune_per_type = self.gimmick_data.get("max_rune_per_type", 3)
+            self.rune_earth = 0  # 대지 룬 (0-3)
+            self.rune_arcane = 0  # 비전 룬 (0-3)
+            self.max_rune_per_type = self.gimmick_data.get("max_per_rune", 3)
+            self.max_runes_total = self.gimmick_data.get("max_runes_total", 9)
             self.resonance_bonus = 0  # 공명 보너스 (3개 동일 룬 시)
 
         # 네크로맨서 - 언데드 군단 시스템 (신버전)
         elif gimmick_type == "undead_legion":
-            self.undead_count = 0  # 현재 언데드 수 (0-10)
-            self.max_undead = self.gimmick_data.get("max_undead", 10)
+            self.undead_count = 0  # 현재 언데드 수 (0-5)
+            self.max_undead = self.gimmick_data.get("max_undead_total", 5)
             self.skeleton_count = 0
             self.zombie_count = 0
-            self.ghoul_count = 0
+            self.ghost_count = 0  # ghoul → ghost로 수정
             self.undead_power = 0  # 언데드 전체 파워
 
         # 버서커 - 광기 임계치 시스템 (신버전)
         elif gimmick_type == "madness_threshold":
             self.madness = 0  # 광기 게이지 (0-100)
             self.max_madness = self.gimmick_data.get("max_madness", 100)
-            self.safe_max = self.gimmick_data.get("safe_max", 74)  # 안전 구간
-            self.danger_min = self.gimmick_data.get("danger_min", 75)  # 위험 구간 시작
-            self.death_threshold = self.gimmick_data.get("death_threshold", 100)  # 100 도달 시 사망
+            self.optimal_min = self.gimmick_data.get("optimal_min", 30)  # 최적 구간 시작
+            self.optimal_max = self.gimmick_data.get("optimal_max", 70)  # 최적 구간 끝
+            self.danger_min = self.gimmick_data.get("danger_min", 71)  # 위험 구간 시작
+            self.rampage_threshold = self.gimmick_data.get("rampage_threshold", 100)  # 폭주 임계값
 
         # 뱀파이어 - 갈증 게이지 시스템 (신버전)
         elif gimmick_type == "thirst_gauge":
-            self.thirst = 0  # 갈증 게이지 (0-100)
+            self.thirst = self.gimmick_data.get("start_thirst", 0)  # 갈증 게이지 (0-100)
             self.max_thirst = self.gimmick_data.get("max_thirst", 100)
             self.satisfied_max = self.gimmick_data.get("satisfied_max", 29)  # 만족 구간
             self.normal_min = self.gimmick_data.get("normal_min", 30)  # 보통 구간

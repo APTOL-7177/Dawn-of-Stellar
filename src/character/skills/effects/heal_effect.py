@@ -9,7 +9,7 @@ class HealType(Enum):
 
 class HealEffect(SkillEffect):
     """회복 효과"""
-    def __init__(self, heal_type=HealType.HP, base_amount=0, percentage=0.0, stat_scaling=None, multiplier=1.0, is_party_wide=False):
+    def __init__(self, heal_type=HealType.HP, base_amount=0, percentage=0.0, stat_scaling=None, multiplier=1.0, is_party_wide=False, set_percent=None):
         super().__init__(EffectType.HEAL)
         self.heal_type = heal_type
         self.base_amount = base_amount
@@ -17,6 +17,7 @@ class HealEffect(SkillEffect):
         self.stat_scaling = stat_scaling
         self.multiplier = multiplier
         self.is_party_wide = is_party_wide
+        self.set_percent = set_percent  # HP/MP를 특정 %로 설정 (회복이 아닌 설정)
 
     def execute(self, user, target, context):
         """회복 실행"""
@@ -51,11 +52,23 @@ class HealEffect(SkillEffect):
             if not getattr(t, 'is_alive', True):
                 continue
 
-            heal_amount = self._calculate_heal_amount(user, t)
+            # set_percent가 설정된 경우 HP/MP를 특정 %로 설정
+            if self.set_percent is not None:
+                heal_amount = self._calculate_set_amount(t)
+            else:
+                heal_amount = self._calculate_heal_amount(user, t)
 
             # 회복 적용
             if self.heal_type == HealType.HP:
-                if hasattr(t, 'heal'):
+                if self.set_percent is not None:
+                    # set_percent: HP를 특정 %로 직접 설정
+                    if hasattr(t, 'current_hp') and hasattr(t, 'max_hp'):
+                        target_hp = int(t.max_hp * self.set_percent)
+                        actual_heal = target_hp - t.current_hp
+                        t.current_hp = max(1, target_hp)  # 최소 1 HP 보장
+                    else:
+                        actual_heal = heal_amount
+                elif hasattr(t, 'heal'):
                     actual_heal = t.heal(heal_amount)
                 elif hasattr(t, 'current_hp') and hasattr(t, 'max_hp'):
                     actual_heal = min(heal_amount, t.max_hp - t.current_hp)
@@ -63,7 +76,15 @@ class HealEffect(SkillEffect):
                 else:
                     actual_heal = heal_amount
             elif self.heal_type == HealType.MP:
-                if hasattr(t, 'restore_mp'):
+                if self.set_percent is not None:
+                    # set_percent: MP를 특정 %로 직접 설정
+                    if hasattr(t, 'current_mp') and hasattr(t, 'max_mp'):
+                        target_mp = int(t.max_mp * self.set_percent)
+                        actual_heal = target_mp - t.current_mp
+                        t.current_mp = max(0, target_mp)
+                    else:
+                        actual_heal = heal_amount
+                elif hasattr(t, 'restore_mp'):
                     actual_heal = t.restore_mp(heal_amount)
                 elif hasattr(t, 'current_mp') and hasattr(t, 'max_mp'):
                     actual_heal = min(heal_amount, t.max_mp - t.current_mp)
@@ -71,12 +92,21 @@ class HealEffect(SkillEffect):
                 else:
                     actual_heal = heal_amount
             elif self.heal_type == HealType.BRV:
-                # BRV 회복
-                if hasattr(t, 'current_brv') and hasattr(t, 'max_brv'):
-                    actual_heal = min(heal_amount, t.max_brv - t.current_brv)
-                    t.current_brv += actual_heal
+                if self.set_percent is not None:
+                    # set_percent: BRV를 특정 %로 직접 설정
+                    if hasattr(t, 'current_brv') and hasattr(t, 'max_brv'):
+                        target_brv = int(t.max_brv * self.set_percent)
+                        actual_heal = target_brv - t.current_brv
+                        t.current_brv = max(0, target_brv)
+                    else:
+                        actual_heal = heal_amount
                 else:
-                    actual_heal = heal_amount
+                    # BRV 회복
+                    if hasattr(t, 'current_brv') and hasattr(t, 'max_brv'):
+                        actual_heal = min(heal_amount, t.max_brv - t.current_brv)
+                        t.current_brv += actual_heal
+                    else:
+                        actual_heal = heal_amount
             else:
                 actual_heal = heal_amount
 
@@ -147,3 +177,28 @@ class HealEffect(SkillEffect):
 
         # 최소 회복량 보장
         return max(1, amount)
+
+    def _calculate_set_amount(self, target):
+        """
+        HP/MP를 특정 %로 설정하기 위한 회복량 계산
+
+        Args:
+            target: 대상
+
+        Returns:
+            현재 HP/MP를 목표 %로 만들기 위한 회복량 (음수일 수 있음)
+        """
+        if self.heal_type == HealType.HP:
+            if hasattr(target, 'max_hp') and hasattr(target, 'current_hp'):
+                target_hp = int(target.max_hp * self.set_percent)
+                return target_hp - target.current_hp  # 음수면 감소, 양수면 회복
+        elif self.heal_type == HealType.MP:
+            if hasattr(target, 'max_mp') and hasattr(target, 'current_mp'):
+                target_mp = int(target.max_mp * self.set_percent)
+                return target_mp - target.current_mp
+        elif self.heal_type == HealType.BRV:
+            if hasattr(target, 'max_brv') and hasattr(target, 'current_brv'):
+                target_brv = int(target.max_brv * self.set_percent)
+                return target_brv - target.current_brv
+
+        return 0

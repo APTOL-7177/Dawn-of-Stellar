@@ -7,6 +7,7 @@ class BuffType:
     ATTACK_UP = "attack_up"
     DEFENSE_UP = "defense_up"
     MAGIC_UP = "magic_up"
+    MAGIC_DEFENSE_UP = "magic_defense_up"  # 마법 방어력 증가
     SPIRIT_UP = "spirit_up"
     SPEED_UP = "speed_up"
     CRITICAL_UP = "critical_up"
@@ -18,6 +19,7 @@ class BuffType:
     ATTACK_DOWN = "attack_down"
     DEFENSE_DOWN = "defense_down"
     MAGIC_DOWN = "magic_down"
+    MAGIC_DEFENSE_DOWN = "magic_defense_down"  # 마법 방어력 감소
     SPIRIT_DOWN = "spirit_down"
     SPEED_DOWN = "speed_down"
     CRITICAL_DOWN = "critical_down"
@@ -26,10 +28,16 @@ class BuffType:
 
     # 특수 버프
     REGEN = "regen"  # HP 재생
+    HP_REGEN = "hp_regen"  # HP 재생 (고정값)
+    MP_REGEN = "mp_regen"  # MP 재생 (고정값)
+    COUNTER = "counter"  # 반격
+    INVINCIBLE = "invincible"  # 무적
+    SKILL_SEAL = "skill_seal"  # 스킬 봉인
+    CUSTOM = "custom"  # 커스텀 버프 (metadata 사용)
 
 class BuffEffect(SkillEffect):
     """버프 효과"""
-    def __init__(self, buff_type: str, value: float = None, duration: int = 3, is_party_wide: bool = False, multiplier: float = None):
+    def __init__(self, buff_type: str, value: float = None, duration: int = 3, is_party_wide: bool = False, multiplier: float = None, target: str = None, custom_stat: str = None):
         super().__init__(EffectType.BUFF)
         self.buff_type = buff_type
         # multiplier와 value 중 하나는 반드시 제공되어야 함
@@ -39,6 +47,8 @@ class BuffEffect(SkillEffect):
         self.value = value if value is not None else multiplier
         self.duration = duration
         self.is_party_wide = is_party_wide
+        self.target = target  # "enemy", "self", "party", "ally", "all_enemies" 등 (현재는 미사용, 향후 사용)
+        self.custom_stat = custom_stat  # CUSTOM 버프 타입용
 
     def can_execute(self, user, target, context):
         return True, ""

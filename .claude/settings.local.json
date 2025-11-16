@@ -29,7 +29,14 @@
       "Bash(git push)",
       "Bash(git stash:*)",
       "Bash(done)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(game_test5.log)",
+      "Bash(game_test6.log)",
+      "Bash(game_test7.log)",
+      "Bash(game_test8.log)",
+      "Bash(game_test9.log)",
+      "Bash(game_test10.log)",
+      "Bash(X:developDawn-of-Stellartemp_traits.txt)"
     ],
     "deny": [],
     "ask": []

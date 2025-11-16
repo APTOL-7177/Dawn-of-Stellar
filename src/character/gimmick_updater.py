@@ -143,8 +143,8 @@ class GimmickUpdater:
     @staticmethod
     def _update_madness_threshold(character):
         """버서커: 광기 임계치 시스템 업데이트"""
-        # 광기 자연 감소 (안전 구간에서만)
-        if character.madness < character.safe_max:
+        # 광기 자연 감소 (최적 구간 이하에서만)
+        if character.madness < character.optimal_max:
             character.madness = max(0, character.madness - 5)
             logger.debug(f"{character.name} 광기 자연 감소: -5 (총: {character.madness})")
 

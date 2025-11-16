@@ -3,7 +3,7 @@ from src.character.skills.skill import Skill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
-from src.character.skills.effects.heal_effect import HealEffect
+from src.character.skills.effects.heal_effect import HealEffect, HealType
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.hp_cost import HPCost
 
@@ -55,7 +55,7 @@ def create_necromancer_skills():
                         "HP 20 소모, 마법 공격력 +20% & 회피 +10%")
     summon_ghost.effects = [
         GimmickEffect(GimmickOperation.ADD, "undead_ghost", 1, max_value=2),
-        BuffEffect(BuffType.MAGIC_ATTACK_UP, 0.2, duration=99),
+        BuffEffect(BuffType.MAGIC_UP, 0.2, duration=99),
         BuffEffect(BuffType.EVASION_UP, 0.1, duration=99)
     ]
     summon_ghost.costs = [MPCost(25), HPCost(20)]
@@ -69,7 +69,7 @@ def create_necromancer_skills():
         DamageEffect(DamageType.BRV_HP, 3.0, stat_type="magical",
                     gimmick_bonus={"field": "total_undead", "multiplier": 0.5}),
         GimmickEffect(GimmickOperation.CONSUME, "undead_skeleton", 1),  # 우선순위: skeleton
-        HealEffect(mp_amount=20)
+        HealEffect(heal_type=HealType.MP, base_amount=20)
     ]
     sacrifice_undead.costs = [MPCost(15)]
     sacrifice_undead.cooldown = 3
@@ -108,7 +108,7 @@ def create_necromancer_skills():
         GimmickEffect(GimmickOperation.ADD, "undead_ghost", 1, max_value=2),
         BuffEffect(BuffType.ATTACK_UP, 0.15, duration=99),
         BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=99),
-        BuffEffect(BuffType.MAGIC_ATTACK_UP, 0.2, duration=99)
+        BuffEffect(BuffType.MAGIC_UP, 0.2, duration=99)
     ]
     mass_summon.costs = [MPCost(30), HPCost(50)]
     mass_summon.target_type = "self"

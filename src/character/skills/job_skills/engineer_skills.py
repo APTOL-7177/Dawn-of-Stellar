@@ -7,7 +7,7 @@ from src.character.skills.effects.heal_effect import HealEffect
 from src.character.skills.costs.mp_cost import MPCost
 
 def create_engineer_skills():
-    """기계공학자 8개 스킬 생성 (열 관리 시스템)"""
+    """기계공학자 10개 스킬 생성 (열 관리 시스템)"""
 
     # 1. 기본 BRV: 포탑 사격
     turret_shot = Skill("engineer_turret_shot", "포탑 사격", "기본 공격, 열 +15")
@@ -86,7 +86,31 @@ def create_engineer_skills():
     emergency_repair.cooldown = 4
     emergency_repair.metadata = {"heat_change": -40}
 
-    # 8. 궁극기: 메가 블래스터 (현재 열에 비례한 피해)
+    # 8. 보호막 생성기 (방어막 생성)
+    shield_generator = Skill("engineer_shield_generator", "보호막 생성기",
+                            "3턴간 피해 흡수 방어막, 열 +15")
+    shield_generator.effects = [
+        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3),
+        GimmickEffect(GimmickOperation.ADD, "heat", 15, max_value=100)
+    ]
+    shield_generator.costs = [MPCost(18)]
+    shield_generator.target_type = "self"
+    shield_generator.cooldown = 4
+    shield_generator.metadata = {"heat_change": 15, "shield": True}
+
+    # 9. 드론 배치 (지원 공격)
+    deploy_drone = Skill("engineer_deploy_drone", "드론 배치",
+                        "지원 드론 배치, 2턴간 공격력 +25%")
+    deploy_drone.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.25, duration=2),
+        GimmickEffect(GimmickOperation.ADD, "heat", 10, max_value=100)
+    ]
+    deploy_drone.costs = [MPCost(16)]
+    deploy_drone.target_type = "self"
+    deploy_drone.cooldown = 3
+    deploy_drone.metadata = {"heat_change": 10, "drone": True}
+
+    # 10. 궁극기: 메가 블래스터 (현재 열에 비례한 피해)
     mega_blaster = Skill("engineer_mega_blaster", "메가 블래스터",
                         "현재 열에 비례한 대량 피해, 열 +60")
     mega_blaster.effects = [
@@ -102,7 +126,8 @@ def create_engineer_skills():
     mega_blaster.metadata = {"heat_change": 60, "heat_scaling": True}
 
     return [turret_shot, rocket_punch, overload_blast, emp_explosion,
-            cooling_vent, overclock_mode, emergency_repair, mega_blaster]
+            cooling_vent, overclock_mode, emergency_repair, shield_generator,
+            deploy_drone, mega_blaster]
 
 def register_engineer_skills(skill_manager):
     """기계공학자 스킬 등록"""

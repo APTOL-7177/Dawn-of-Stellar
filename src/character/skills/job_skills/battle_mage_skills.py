@@ -40,7 +40,7 @@ def create_battle_mage_skills():
                     "냉기 룬 각인, 마법 공격력 +15%")
     ice_rune.effects = [
         GimmickEffect(GimmickOperation.ADD, "runes_ice", 1, max_value=3),
-        BuffEffect(BuffType.MAGIC_ATTACK_UP, 0.15, duration=99)
+        BuffEffect(BuffType.MAGIC_UP, 0.15, duration=99)
     ]
     ice_rune.costs = [MPCost(8)]
     ice_rune.target_type = "self"

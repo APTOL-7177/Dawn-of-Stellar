@@ -34,7 +34,7 @@ def create_berserker_skills():
         DamageEffect(DamageType.BRV_HP, 2.8, stat_type="physical",
                     conditional_bonus={"condition": "in_berserker_mode", "multiplier": 1.4}),
     ]
-    reckless_strike.costs = [MPCost(10), HPCost(percent=0.15)]
+    reckless_strike.costs = [MPCost(10), HPCost(percentage=0.15)]
     reckless_strike.sfx = "slash_reckless.ogg"
     reckless_strike.cooldown = 2
     reckless_strike.metadata = {"hp_cost_percent": 0.15}
@@ -45,7 +45,7 @@ def create_berserker_skills():
     self_harm.effects = [
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=3)
     ]
-    self_harm.costs = [MPCost(8), HPCost(percent=0.20)]
+    self_harm.costs = [MPCost(8), HPCost(percentage=0.20)]
     self_harm.target_type = "self"
     self_harm.sfx = "blood_splash.ogg"
     self_harm.cooldown = 4
@@ -127,7 +127,7 @@ def create_berserker_skills():
         BuffEffect(BuffType.ATTACK_UP, 2.0, duration=3),  # 공격력 +200%
         BuffEffect(BuffType.SPEED_UP, 1.0, duration=3)   # 속도 +100%
     ]
-    ultimate.costs = [MPCost(30), HPCost(percent=0.99)]  # HP 99% 소모 (1% 남김)
+    ultimate.costs = [MPCost(30), HPCost(percentage=0.99)]  # HP 99% 소모 (1% 남김)
     ultimate.is_ultimate = True
     ultimate.sfx = "ultimate_berserker.ogg"
     ultimate.cooldown = 8

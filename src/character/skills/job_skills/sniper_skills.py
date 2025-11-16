@@ -6,7 +6,7 @@ from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.costs.mp_cost import MPCost
 
 def create_sniper_skills():
-    """저격수 8개 스킬 생성 (탄창 재장전 시스템)"""
+    """저격수 10개 스킬 생성 (탄창 재장전 시스템)"""
 
     # 1. 기본 BRV: 정밀 사격 (탄환 1발 소모)
     precise_shot = Skill("sniper_precise_shot", "정밀 사격", "현재 탄환 1발 사격")
@@ -72,13 +72,36 @@ def create_sniper_skills():
                        "다음 3발 명중률 100%, 크리티컬 +30%")
     perfect_aim.effects = [
         BuffEffect(BuffType.ACCURACY_UP, 1.0, duration=3),
-        BuffEffect(BuffType.CRITICAL_RATE_UP, 0.3, duration=3)
+        BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=3)
     ]
     perfect_aim.costs = [MPCost(14)]
     perfect_aim.target_type = "self"
     perfect_aim.cooldown = 4
 
-    # 8. 궁극기: 데드아이 (탄창의 모든 탄환 연속 발사)
+    # 8. 연막탄 (회피 버프)
+    smoke_grenade = Skill("sniper_smoke_grenade", "연막탄",
+                         "3턴간 회피율 +40%, 적 명중률 -30%")
+    smoke_grenade.effects = [
+        BuffEffect(BuffType.EVASION_UP, 0.4, duration=3, target="self"),
+        BuffEffect(BuffType.ACCURACY_DOWN, 0.3, duration=3, target="all_enemies")
+    ]
+    smoke_grenade.costs = [MPCost(15)]
+    smoke_grenade.cooldown = 4
+    smoke_grenade.metadata = {"smoke": True}
+
+    # 9. 트랩 설치 (적 디버프)
+    set_trap = Skill("sniper_set_trap", "트랩 설치",
+                    "다음 턴 적 이동 시 피해 + 속도 -50%")
+    set_trap.effects = [
+        DamageEffect(DamageType.BRV, 2.0),
+        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=2)
+    ]
+    set_trap.costs = [MPCost(12)]
+    set_trap.target_type = "single_enemy"
+    set_trap.cooldown = 3
+    set_trap.metadata = {"trap": True}
+
+    # 10. 궁극기: 데드아이 (탄창의 모든 탄환 연속 발사)
     deadeye = Skill("sniper_deadeye", "데드아이",
                    "탄창의 모든 탄환을 연속 발사")
     deadeye.effects = [
@@ -92,7 +115,8 @@ def create_sniper_skills():
     deadeye.metadata = {"uses_all_bullets": True, "deadeye": True}
 
     return [precise_shot, headshot, double_tap, reload,
-            load_penetrating, load_explosive, perfect_aim, deadeye]
+            load_penetrating, load_explosive, perfect_aim, smoke_grenade,
+            set_trap, deadeye]
 
 def register_sniper_skills(skill_manager):
     """저격수 스킬 등록"""

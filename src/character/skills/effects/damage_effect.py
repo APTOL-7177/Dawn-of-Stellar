@@ -11,11 +11,12 @@ class DamageType(Enum):
 
 class DamageEffect(SkillEffect):
     """데미지 효과"""
-    def __init__(self, damage_type=DamageType.BRV, multiplier=1.0, gimmick_bonus=None, hp_scaling=False, stat_type="physical"):
+    def __init__(self, damage_type=DamageType.BRV, multiplier=1.0, gimmick_bonus=None, hp_scaling=False, stat_type="physical", conditional_bonus=None):
         super().__init__(EffectType.DAMAGE)
         self.damage_type = damage_type
         self.multiplier = multiplier
         self.gimmick_bonus = gimmick_bonus or {}
+        self.conditional_bonus = conditional_bonus or {}  # 조건부 보너스 (예: 은신 시 추가 피해)
         self.hp_scaling = hp_scaling
         self.stat_type = stat_type  # "physical" 또는 "magical"
         self.brave_system = get_brave_system()

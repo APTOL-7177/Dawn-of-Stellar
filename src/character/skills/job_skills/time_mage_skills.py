@@ -3,7 +3,8 @@ from src.character.skills.skill import Skill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
-from src.character.skills.effects.heal_effect import HealEffect
+from src.character.skills.effects.status_effect import StatusEffect, StatusType
+from src.character.skills.effects.heal_effect import HealEffect, HealType
 from src.character.skills.costs.mp_cost import MPCost
 
 def create_time_mage_skills():
@@ -44,7 +45,7 @@ def create_time_mage_skills():
     stop = Skill("time_mage_stop", "시간 정지",
                 "적 1턴 스턴, 타임라인 -1 (과거)")
     stop.effects = [
-        BuffEffect(BuffType.STUN, 1.0, duration=1),
+        StatusEffect(StatusType.STUN, duration=1),
         GimmickEffect(GimmickOperation.ADD, "timeline", -1, min_value=-5)
     ]
     stop.costs = [MPCost(20)]
@@ -64,17 +65,18 @@ def create_time_mage_skills():
     rewind.cooldown = 4
     rewind.metadata = {"timeline_shift": -2, "skill_type": "past"}
 
-    # 6. 과거 반복 - 과거 스킬
+    # 6. 과거 반복 - 과거 스킬 (MP 대량 회복으로 이전 스킬 재사용 가능)
     repeat = Skill("time_mage_repeat", "과거 반복",
-                  "이전 스킬 재사용(구현 예정), 타임라인 -1 (과거)")
+                  "MP 30 회복 + 공격력 +30%, 타임라인 -1 (과거)")
     repeat.effects = [
+        HealEffect(heal_type=HealType.MP, base_amount=30),
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=2),
         GimmickEffect(GimmickOperation.ADD, "timeline", -1, min_value=-5)
     ]
     repeat.costs = [MPCost(15)]
     repeat.target_type = "self"
     repeat.cooldown = 5
-    repeat.metadata = {"timeline_shift": -1, "skill_type": "past"}
+    repeat.metadata = {"timeline_shift": -1, "skill_type": "past", "mp_recovery": True}
 
     # === 현재 스킬 (타임라인 변화 없음) ===
 
@@ -125,17 +127,18 @@ def create_time_mage_skills():
     foresight.target_type = "self"
     foresight.metadata = {"timeline_shift": 1, "skill_type": "future"}
 
-    # 11. 시간 도약 (퀵) - 미래 스킬
+    # 11. 시간 도약 (퀵) - 미래 스킬 (속도 대폭 증가로 거의 즉시 턴 획득)
     leap = Skill("time_mage_leap", "시간 도약",
-                "즉시 턴 획득(구현 예정), 타임라인 +2 (미래)")
+                "속도 +200% 1턴 (거의 즉시 다음 턴), 타임라인 +2 (미래)")
     leap.effects = [
-        BuffEffect(BuffType.SPEED_UP, 2.0, duration=1),
+        BuffEffect(BuffType.SPEED_UP, 2.0, duration=1),  # 속도 +200%
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=1),  # 공격력도 증가
         GimmickEffect(GimmickOperation.ADD, "timeline", 2, max_value=5)
     ]
     leap.costs = [MPCost(22)]
     leap.target_type = "self"
     leap.cooldown = 5
-    leap.metadata = {"timeline_shift": 2, "skill_type": "future", "instant_turn": True}
+    leap.metadata = {"timeline_shift": 2, "skill_type": "future", "quick_turn": True}
 
     # 12. 궁극기: 시간 파동 - 현재 스킬
     wave = Skill("time_mage_wave", "시간 파동",

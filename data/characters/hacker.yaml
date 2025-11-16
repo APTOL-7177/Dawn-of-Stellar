@@ -25,10 +25,10 @@ stat_growth:
   evasion: 3.2
   max_brv: 2.0
 gimmick:
-  type: multithread
+  type: multithread_system
   name: 멀티스레드 시스템
   description: 최대 3개 프로그램을 동시 실행. 각 프로그램은 독립적인 디버프 효과 발휘
-  max_cpu_cores: 3
+  max_threads: 3
   mp_per_program_per_turn: 5
   programs:
     virus:

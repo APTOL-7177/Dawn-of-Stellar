@@ -99,7 +99,7 @@ def create_monk_skills():
     enlightenment.effects = [
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=3),
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3),
-        BuffEffect(BuffType.MAGIC_ATTACK_UP, 0.4, duration=3),
+        BuffEffect(BuffType.MAGIC_UP, 0.4, duration=3),
         BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.4, duration=3)
     ]
     enlightenment.costs = [MPCost(25)]

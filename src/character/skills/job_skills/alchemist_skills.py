@@ -4,6 +4,7 @@ from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.heal_effect import HealEffect, HealType
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.status_effect import StatusEffect, StatusType
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
@@ -66,7 +67,8 @@ def create_alchemist_skills():
     poison_bomb = Skill("alchemist_poison_bomb", "독 폭탄", "지속 피해 폭탄")
     poison_bomb.effects = [
         DamageEffect(DamageType.BRV_HP, 2.0, stat_type="magical"),
-        BuffEffect(BuffType.POISON, 10, duration=4, target="enemy"),  # 독 상태이상
+        StatusEffect(StatusType.POISON, duration=4, value=1.0,
+                    damage_stat="magic", damage_multiplier=0.15),  # 독 DoT: 마법 공격력의 15%
         GimmickEffect(GimmickOperation.ADD, "potion_stock", 1, max_value=10)
     ]
     poison_bomb.costs = [MPCost(12)]
