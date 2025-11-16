@@ -154,6 +154,7 @@ def test_combat_victory_condition():
 
     # 적을 죽임
     enemy.current_hp = 0
+    enemy.is_alive = False
 
     # 승리 판정
     manager._check_battle_end()
@@ -173,6 +174,7 @@ def test_combat_defeat_condition():
 
     # 플레이어가 죽음
     player.current_hp = 0
+    player.is_alive = False
 
     # 패배 판정
     manager._check_battle_end()

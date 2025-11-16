@@ -321,7 +321,7 @@ class DamageCalculator:
 
     def _get_defense_stat(self, character: Any) -> int:
         """방어력 스탯 추출"""
-        for attr in ["physical_defense", "p_def", "defense", "defense"]:
+        for attr in ["physical_defense", "p_def", "defense"]:
             if hasattr(character, attr):
                 return getattr(character, attr)
         return 10  # 기본값
@@ -408,6 +408,9 @@ class DamageCalculator:
         # 크리티컬 확률 = 기본 확률 + (행운 / 100)
         critical_chance = self.critical_base_chance + (luck / 100.0)
 
+        # 크리티컬 확률 상한선 (95%)
+        critical_chance = min(0.95, critical_chance)
+
         return random.random() < critical_chance
 
     def _get_element_bonus(self, defender: Any, element: str) -> float:
@@ -423,10 +426,11 @@ class DamageCalculator:
         """
         # 속성 저항 시스템 구현
         # defender.element_resistance = {"fire": 0.5, "ice": 2.0, ...}
-        # 값이 1.0보다 작으면 저항 (데미지 증가), 크면 약점 (데미지 감소)
+        # 값이 1.0보다 작으면 약점 (데미지 증가), 크면 저항 (데미지 감소)
         if hasattr(defender, "element_resistance"):
             resistance = defender.element_resistance.get(element, 1.0)
-            # 저항 값이 0.5면 데미지 2배, 2.0이면 데미지 0.5배
+            # resistance = 0.5 → 1.0/0.5 = 2.0 (데미지 2배, 약점)
+            # resistance = 2.0 → 1.0/2.0 = 0.5 (데미지 0.5배, 저항)
             return 1.0 / resistance
 
         # 기본 스탯 기반 속성 저항 (spirit이 높으면 마법 저항)

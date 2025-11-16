@@ -78,11 +78,10 @@ def test_get_warrior_skills():
 def test_get_all_classes():
     """전체 직업 목록 테스트"""
     classes = get_all_classes()
-    assert len(classes) == 28
+    assert len(classes) == 33
     assert "전사" in classes
     assert "아크메이지" in classes
     assert "정령술사" in classes
-    assert "마법사" in classes
 
 
 def test_validate_all_data():

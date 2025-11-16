@@ -311,9 +311,8 @@ class BraveSystem:
 
         # BRV 소비
         brv_consumed = attacker.current_brv
-        self.logger.warning(f"[HP 공격] {attacker.name} BRV 리셋 전: {attacker.current_brv}")
+        self.logger.debug(f"[HP 공격] {attacker.name} BRV 소비: {brv_consumed}")
         attacker.current_brv = 0
-        self.logger.warning(f"[HP 공격] {attacker.name} BRV 리셋 후: {attacker.current_brv}")
 
         event_bus.publish(Events.CHARACTER_BRV_CHANGE, {
             "character": attacker,

@@ -43,7 +43,12 @@ CLASS_FILE_MAP = {
     "마검사": "spellblade",
     "차원술사": "dimensionist",
     "광전사": "berserker",
-    "마법사": "mage",
+    "배틀메이지": "battle_mage",
+    "브레이커": "breaker",
+    "성직자": "cleric",
+    "해커": "hacker",
+    "저격수": "sniper",
+    "뱀파이어": "vampire",
 }
 
 # 캐시 (한 번만 로드)

@@ -184,6 +184,18 @@ class CombatManager:
             if expired:
                 self.logger.debug(f"{actor.name}: {len(expired)}개 상태 효과 만료")
 
+        # 5. 행동 불가능 상태 확인 (스턴, 마비, 수면 등)
+        if hasattr(actor, 'status_manager'):
+            can_act = actor.status_manager.can_act()
+            if not can_act:
+                self.logger.info(f"{actor.name}은(는) 행동 불가능 상태!")
+                result["success"] = False
+                result["error"] = "행동 불가능 상태"
+                # ATB는 소비하지만 행동하지 못함
+                self.atb.consume_atb(actor)
+                self._on_turn_end(actor)
+                return result
+
         self.logger.debug(
             f"행동 실행: {actor.name} → {action_type.value}",
             {"target": getattr(target, "name", None) if target else None}
@@ -209,7 +221,7 @@ class CombatManager:
         action_failed = False
         if action_type == ActionType.SKILL:
             # 스킬 실행 실패 시 (MP 부족 등)
-            if not result.get("success", True):
+            if not result.get("success", False):
                 action_failed = True
                 self.logger.warning(f"{actor.name}의 스킬 실행 실패: {result.get('error', 'unknown')}")
 
@@ -329,10 +341,9 @@ class CombatManager:
         # brave.hp_attack()이 take_damage()를 내부적으로 호출함
         hp_result = self.brave.hp_attack(attacker, defender, hp_multiplier)
 
-        # HP 공격 후 BRV 확실히 0으로 리셋 (이중 체크)
-        self.logger.warning(f"[combat_manager] HP 공격 후 {attacker.name} BRV: {attacker.current_brv}")
+        # HP 공격 후 BRV 0 확인 (안전장치)
         if attacker.current_brv != 0:
-            self.logger.error(f"[combat_manager] BRV가 0이 아님! 강제 리셋 실행")
+            self.logger.warning(f"[combat_manager] HP 공격 후 {attacker.name} BRV가 0이 아님 ({attacker.current_brv}), 강제 리셋")
             attacker.current_brv = 0
 
         # wound damage 계산 (BREAK 보너스)
@@ -438,6 +449,7 @@ class CombatManager:
             result["success"] = True
             result["message"] = skill_result.message
         else:
+            result["success"] = False
             result["error"] = skill_result.message
 
         return result
@@ -864,6 +876,11 @@ class CombatManager:
 
         # 시스템 정리
         self.atb.clear()
+
+        # 캐스팅 시스템 정리
+        from src.combat.casting_system import get_casting_system
+        casting_system = get_casting_system()
+        casting_system.clear()
 
     def get_action_order(self) -> List[Any]:
         """

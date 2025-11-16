@@ -275,7 +275,7 @@ def distribute_party_experience(party: List[Any], total_exp: int) -> Dict[Any, L
         return {}
 
     # 경험치는 균등 분배
-    exp_per_member = total_exp
+    exp_per_member = total_exp // len(alive_members)
 
     level_up_info = {}
     for character in alive_members:
