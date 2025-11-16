@@ -177,9 +177,9 @@ world:
     item_spawn_chance: 0.2
     treasure_spawn_chance: 0.1
 
-    # 적 생성 수량
+    # 적 생성 수량 (더 어려운 난이도로 조정)
     enemy_count:
-      min_enemies: 1  # 최소 적 수 (조정 가능)
+      min_enemies: 2  # 최소 적 수 (2마리로 증가)
       max_enemies: 4  # 최대 적 수
 
 # 캐릭터 설정

@@ -721,10 +721,39 @@ class Character:
 
         self.equipment[slot] = item
 
-        # 장비 보너스 적용
-        if hasattr(item, "stat_bonuses"):
+        # 스탯 이름 매핑 (장비 스탯 이름 → StatManager 스탯 이름)
+        stat_mapping = {
+            "physical_attack": Stats.STRENGTH,
+            "physical_defense": Stats.DEFENSE,
+            "magic_attack": Stats.MAGIC,
+            "magic_defense": Stats.SPIRIT,
+            "hp": Stats.HP,
+            "mp": Stats.MP,
+            "speed": Stats.SPEED,
+            "accuracy": Stats.ACCURACY,
+            "evasion": Stats.EVASION,
+            "luck": Stats.LUCK,
+            "init_brv": Stats.INIT_BRV,
+            "max_brv": Stats.MAX_BRV,
+            "strength": Stats.STRENGTH,  # 직접 매핑도 지원
+            "defense": Stats.DEFENSE,
+            "magic": Stats.MAGIC,
+            "spirit": Stats.SPIRIT,
+        }
+
+        # 장비 보너스 적용 (get_total_stats 메서드 사용)
+        if hasattr(item, "get_total_stats"):
+            total_stats = item.get_total_stats()
+            for stat_name, bonus in total_stats.items():
+                # 매핑된 스탯 이름 사용
+                mapped_stat = stat_mapping.get(stat_name, stat_name)
+                self.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}", bonus)
+                self.logger.debug(f"장비 스탯 적용: {self.name} - {stat_name} → {mapped_stat} +{bonus} ({slot})")
+        elif hasattr(item, "stat_bonuses"):
+            # 구 방식 호환성 유지
             for stat_name, bonus in item.stat_bonuses.items():
-                self.stat_manager.add_bonus(stat_name, f"equipment_{slot}", bonus)
+                mapped_stat = stat_mapping.get(stat_name, stat_name)
+                self.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}", bonus)
 
         event_bus.publish(Events.EQUIPMENT_EQUIPPED, {
             "character": self,
@@ -746,10 +775,39 @@ class Character:
         if not item:
             return None
 
-        # 장비 보너스 제거
-        if hasattr(item, "stat_bonuses"):
+        # 스탯 이름 매핑 (장비 스탯 이름 → StatManager 스탯 이름)
+        stat_mapping = {
+            "physical_attack": Stats.STRENGTH,
+            "physical_defense": Stats.DEFENSE,
+            "magic_attack": Stats.MAGIC,
+            "magic_defense": Stats.SPIRIT,
+            "hp": Stats.HP,
+            "mp": Stats.MP,
+            "speed": Stats.SPEED,
+            "accuracy": Stats.ACCURACY,
+            "evasion": Stats.EVASION,
+            "luck": Stats.LUCK,
+            "init_brv": Stats.INIT_BRV,
+            "max_brv": Stats.MAX_BRV,
+            "strength": Stats.STRENGTH,  # 직접 매핑도 지원
+            "defense": Stats.DEFENSE,
+            "magic": Stats.MAGIC,
+            "spirit": Stats.SPIRIT,
+        }
+
+        # 장비 보너스 제거 (get_total_stats 메서드 사용)
+        if hasattr(item, "get_total_stats"):
+            total_stats = item.get_total_stats()
+            for stat_name in total_stats.keys():
+                # 매핑된 스탯 이름 사용
+                mapped_stat = stat_mapping.get(stat_name, stat_name)
+                self.stat_manager.remove_bonus(mapped_stat, f"equipment_{slot}")
+                self.logger.debug(f"장비 스탯 제거: {self.name} - {stat_name} → {mapped_stat} ({slot})")
+        elif hasattr(item, "stat_bonuses"):
+            # 구 방식 호환성 유지
             for stat_name in item.stat_bonuses.keys():
-                self.stat_manager.remove_bonus(stat_name, f"equipment_{slot}")
+                mapped_stat = stat_mapping.get(stat_name, stat_name)
+                self.stat_manager.remove_bonus(mapped_stat, f"equipment_{slot}")
 
         self.equipment[slot] = None
 

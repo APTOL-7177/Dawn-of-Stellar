@@ -21,7 +21,7 @@ class EnemyAI:
     전투 상황을 분석하여 최적의 행동 결정
     """
 
-    def __init__(self, enemy: Any, difficulty: str = "normal"):
+    def __init__(self, enemy: Any, difficulty: str = "hard"):
         """
         Args:
             enemy: 적 캐릭터
@@ -30,13 +30,13 @@ class EnemyAI:
         self.enemy = enemy
         self.difficulty = difficulty
 
-        # 난이도별 스킬 사용 확률 조정
+        # 난이도별 스킬 사용 확률 조정 (더 공격적으로 변경)
         self.skill_use_multiplier = {
             "easy": 0.5,     # 스킬 사용 50% 감소
-            "normal": 1.0,   # 기본
-            "hard": 1.5,     # 스킬 사용 50% 증가
-            "insane": 2.0    # 스킬 사용 2배
-        }.get(difficulty, 1.0)
+            "normal": 1.5,   # 기본도 더 공격적으로
+            "hard": 2.0,     # 스킬 사용 2배
+            "insane": 3.0    # 스킬 사용 3배
+        }.get(difficulty, 2.0)  # 기본값도 2.0으로
 
     def decide_action(
         self,
@@ -209,9 +209,12 @@ class EnemyAI:
                     score *= 1.5
 
             if context["winning"]:
-                # 우세: 공격적인 스킬
+                # 우세: 더욱 공격적인 스킬 사용
                 if skill.damage > 0:
-                    score *= 1.3
+                    score *= 2.0  # 1.3에서 2.0으로 증가
+                # HP 공격 우선
+                if skill.hp_attack:
+                    score *= 1.8
 
             # MP가 부족하면 낮은 코스트 스킬 우선
             if hasattr(self.enemy, 'current_mp'):
@@ -427,8 +430,8 @@ def create_ai_for_enemy(enemy: Any) -> EnemyAI:
         return SephirothAI(enemy)
 
     # 보스
-    if 'boss' in enemy_name or '보스' in enemy_name or 'dragon' in enemy_name:
+    if 'boss' in enemy_name or '보스' in enemy_name or 'dragon' in enemy_name or '드래곤' in enemy_name:
         return BossAI(enemy)
 
-    # 일반 적
-    return EnemyAI(enemy, difficulty="normal")
+    # 일반 적도 hard 난이도로 (더 공격적으로)
+    return EnemyAI(enemy, difficulty="hard")

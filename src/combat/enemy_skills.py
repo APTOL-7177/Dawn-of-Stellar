@@ -197,6 +197,208 @@ class EnemySkillDatabase:
                 cooldown=4
             ),
 
+            # 늑대 - 물어뜯기
+            "savage_bite": EnemySkill(
+                skill_id="savage_bite",
+                name="물어뜯기",
+                description="날카로운 송곳니로 물어뜯어 출혈을 일으킨다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage=0,  # BRV 시스템
+                damage_multiplier=1.7,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["bleed"],
+                status_duration=3,
+                use_probability=0.4,
+                cooldown=2
+            ),
+
+            # 늑대 - 무리 사냥
+            "pack_tactics": EnemySkill(
+                skill_id="pack_tactics",
+                name="무리 사냥",
+                description="무리의 힘으로 공격력과 속도를 증가시킨다.",
+                target_type=SkillTargetType.ALL_ALLIES,
+                buff_stats={"strength": 1.4, "speed": 1.3},
+                use_probability=0.25,
+                requires_ally_count=2,  # 아군 2마리 이상 필요
+                cooldown=5
+            ),
+
+            # 슬라임 - 산성 분사
+            "acid_spray": EnemySkill(
+                skill_id="acid_spray",
+                name="산성 분사",
+                description="산성 액체를 뿌려 방어력을 감소시킨다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                damage=0,
+                damage_multiplier=1.2,
+                brv_damage=1,
+                is_magical=True,
+                debuff_stats={"defense": 0.7, "spirit": 0.7},
+                use_probability=0.35,
+                cooldown=3
+            ),
+
+            # 슬라임 - 분열
+            "slime_split": EnemySkill(
+                skill_id="slime_split",
+                name="분열",
+                description="자신을 분열시켜 실드를 얻는다.",
+                target_type=SkillTargetType.SELF,
+                shield_amount=30,
+                buff_stats={"defense": 1.3},
+                use_probability=0.3,
+                min_hp_percent=0.0,
+                max_hp_percent=0.4,
+                cooldown=6
+            ),
+
+            # 오우거 - 분쇄
+            "crush": EnemySkill(
+                skill_id="crush",
+                name="분쇄",
+                description="거대한 힘으로 적을 분쇄한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage=0,
+                damage_multiplier=2.5,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["stun"],
+                status_duration=1,
+                use_probability=0.3,
+                cooldown=4
+            ),
+
+            # 오우거 - 광폭화
+            "rage": EnemySkill(
+                skill_id="rage",
+                name="광폭화",
+                description="분노하여 공격력이 대폭 증가하지만 방어력이 감소한다.",
+                target_type=SkillTargetType.SELF,
+                hp_cost=20,
+                buff_stats={"strength": 2.0, "defense": 0.7},
+                use_probability=0.25,
+                min_hp_percent=0.0,
+                max_hp_percent=0.5,
+                cooldown=5
+            ),
+
+            # 망령 - 공포의 외침
+            "wail_of_terror": EnemySkill(
+                skill_id="wail_of_terror",
+                name="공포의 외침",
+                description="공포스러운 비명으로 적들을 겁에 질리게 한다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                debuff_stats={"strength": 0.6, "magic": 0.6, "speed": 0.8},
+                status_effects=["fear"],
+                status_duration=2,
+                is_magical=True,
+                mp_cost=25,
+                use_probability=0.35,
+                cooldown=4
+            ),
+
+            # 망령 - 영혼 흡수
+            "soul_drain": EnemySkill(
+                skill_id="soul_drain",
+                name="영혼 흡수",
+                description="적의 영혼을 흡수하여 MP를 회복한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage=0,
+                damage_multiplier=1.6,
+                brv_damage=1,
+                hp_attack=True,
+                is_magical=True,
+                heal_amount=25,  # MP 회복 (특수 처리)
+                mp_cost=15,
+                use_probability=0.3,
+                cooldown=3
+            ),
+
+            # 골렘 - 대지의 충격
+            "earth_shock": EnemySkill(
+                skill_id="earth_shock",
+                name="대지의 충격",
+                description="땅을 내리쳐 모든 적을 공격한다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                damage=0,
+                damage_multiplier=1.8,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["slow"],
+                status_duration=2,
+                use_probability=0.35,
+                cooldown=4
+            ),
+
+            # 골렘 - 석화
+            "petrify": EnemySkill(
+                skill_id="petrify",
+                name="석화",
+                description="자신을 돌로 만들어 방어력을 극대화한다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"defense": 2.5, "spirit": 2.0},
+                use_probability=0.25,
+                cooldown=6
+            ),
+
+            # 와이번 - 급강하
+            "dive_attack": EnemySkill(
+                skill_id="dive_attack",
+                name="급강하 공격",
+                description="하늘에서 급강하하여 강력한 일격을 날린다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage=0,
+                damage_multiplier=2.3,
+                brv_damage=1,
+                hp_attack=True,
+                use_probability=0.4,
+                cooldown=3
+            ),
+
+            # 와이번 - 독 숨결
+            "poison_breath": EnemySkill(
+                skill_id="poison_breath",
+                name="독 숨결",
+                description="독성 가스를 내뿜어 적들을 중독시킨다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                damage=0,
+                damage_multiplier=1.4,
+                brv_damage=1,
+                is_magical=True,
+                status_effects=["poison", "weakness"],
+                status_duration=3,
+                use_probability=0.3,
+                cooldown=4
+            ),
+
+            # 뱀파이어 - 흡혈
+            "vampire_bite": EnemySkill(
+                skill_id="vampire_bite",
+                name="흡혈",
+                description="적의 피를 빨아 HP를 회복한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage=0,
+                damage_multiplier=1.8,
+                brv_damage=1,
+                hp_attack=True,
+                heal_amount=40,
+                use_probability=0.45,
+                cooldown=2
+            ),
+
+            # 뱀파이어 - 박쥐 변신
+            "bat_form": EnemySkill(
+                skill_id="bat_form",
+                name="박쥐 변신",
+                description="박쥐로 변신하여 회피율과 속도를 대폭 증가시킨다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"speed": 2.0},  # 회피율은 특수 처리
+                use_probability=0.25,
+                cooldown=5
+            ),
+
             # 언데드 - 생명력 흡수
             "life_drain": EnemySkill(
                 skill_id="life_drain",
@@ -476,17 +678,38 @@ class EnemySkillDatabase:
         """
         cls.initialize()
 
-        # 적 타입별 스킬 매핑
+        # 적 타입별 스킬 매핑 (모든 적에게 스킬 추가)
         skill_mapping = {
+            # 약한 적
+            "slime": ["acid_spray", "slime_split"],
             "goblin": ["poison_stab", "goblin_flee"],
+            "wolf": ["savage_bite", "pack_tactics"],
+
+            # 일반 적
             "orc": ["heavy_strike", "war_cry"],
-            "troll": ["heavy_strike", "regeneration"],
             "skeleton": ["life_drain"],
-            "zombie": ["life_drain", "regeneration"],
-            "mage": ["fireball", "ice_storm", "mana_burst"],
-            "dark_mage": ["fireball", "shadow_flare", "mana_burst"],
+            "dark_mage": ["fireball", "shadow_flare", "ice_storm"],
+
+            # 강한 적
+            "ogre": ["crush", "rage", "heavy_strike"],
+            "wraith": ["wail_of_terror", "soul_drain", "life_drain"],
+            "golem": ["earth_shock", "petrify"],
+
+            # 매우 강한 적
+            "troll": ["heavy_strike", "regeneration", "crush"],
+            "vampire": ["vampire_bite", "bat_form", "life_drain"],
+            "wyvern": ["dive_attack", "poison_breath"],
+
+            # 최상급 적
+            "demon": ["hellfire", "demon_pact", "shadow_flare"],
             "dragon": ["dragon_breath", "dragon_intimidation", "dragon_flight"],
-            "demon": ["hellfire", "demon_pact"],
+
+            # 보스
+            "boss_chimera": ["dragon_breath", "heavy_strike", "regeneration"],
+            "boss_lich": ["shadow_flare", "ice_storm", "life_drain", "wail_of_terror"],
+            "boss_dragon_king": ["dragon_breath", "dragon_intimidation", "dragon_flight", "hellfire"],
+
+            # 최종 보스
             "sephiroth": [
                 "supernova",
                 "heartless_angel",
