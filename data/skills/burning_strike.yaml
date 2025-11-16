@@ -1,7 +1,7 @@
 id: burning_strike
 name: Burning Strike
 type: ultimate
-description: Burning Strike 스킬
+description: 화염으로 적을 공격하여 지속적인 화상 피해를 입힙니다
 costs:
   mp: 20
   cast_time: 2.0
@@ -13,3 +13,8 @@ effects:
 - type: hp_damage
   multiplier: 0.8
   uses_brv: true
+- type: status_effect
+  status: burn
+  duration: 3
+  damage_stat: magic
+  damage_multiplier: 0.15

@@ -362,6 +362,113 @@ class StatusManager:
         self.effects = self.status_effects
         return expired
 
+    def process_dot_effects(self, target: Any) -> Dict[str, Any]:
+        """
+        지속 피해(DoT) 효과 처리
+
+        턴마다 호출되어 독, 화상, 출혈 등의 DoT 데미지를 적용합니다.
+
+        Args:
+            target: DoT 피해를 받을 대상 (보통 self.owner와 동일)
+
+        Returns:
+            DoT 처리 결과 딕셔너리
+            {
+                "total_damage": int,  # 총 데미지
+                "total_mp_drain": int,  # 총 MP 소모
+                "effects": List[Dict]  # 각 DoT 효과 상세 정보
+            }
+        """
+        # DoT 타입 정의
+        dot_types = {
+            StatusType.POISON: {"name": "독", "multiplier": 0.10, "icon": "☠️"},
+            StatusType.BURN: {"name": "화상", "multiplier": 0.15, "icon": "🔥"},
+            StatusType.BLEED: {"name": "출혈", "multiplier": 0.12, "icon": "🩸"},
+            StatusType.CORRODE: {"name": "부식", "multiplier": 0.08, "icon": "🧪"},
+            StatusType.CORROSION: {"name": "부식", "multiplier": 0.08, "icon": "🧪"},
+            StatusType.DISEASE: {"name": "질병", "multiplier": 0.06, "icon": "🦠"},
+            StatusType.NECROSIS: {"name": "괴사", "multiplier": 0.20, "icon": "💀"},
+            StatusType.CHILL: {"name": "냉기", "multiplier": 0.05, "icon": "❄️"},
+            StatusType.SHOCK: {"name": "감전", "multiplier": 0.12, "icon": "⚡"},
+            StatusType.NATURE_CURSE: {"name": "자연저주", "multiplier": 0.10, "icon": "🌿"}
+        }
+
+        total_damage = 0
+        total_mp_drain = 0
+        effect_details = []
+
+        for effect in self.status_effects:
+            if effect.status_type not in dot_types:
+                continue
+
+            dot_info = dot_types[effect.status_type]
+
+            # metadata에서 base_damage 가져오기 (스킬 사용 시 계산된 값)
+            base_damage = effect.metadata.get("base_damage", 0)
+
+            # base_damage가 없으면 intensity와 multiplier로 계산
+            if base_damage == 0:
+                # 기본값으로 intensity * 10 사용 (레거시 호환성)
+                base_damage = int(effect.intensity * dot_info["multiplier"] * 100)
+
+            # 스택 수 적용
+            damage = int(base_damage * effect.stack_count)
+
+            # MP 소모 타입 처리
+            if effect.status_type == StatusType.MP_DRAIN:
+                mp_damage = damage // 2  # HP 데미지의 절반을 MP 소모로
+                if hasattr(target, 'current_mp'):
+                    actual_mp_drain = min(mp_damage, target.current_mp)
+                    target.current_mp -= actual_mp_drain
+                    total_mp_drain += actual_mp_drain
+
+                    effect_details.append({
+                        "name": "MP 소모",
+                        "mp_drain": actual_mp_drain,
+                        "icon": "💙"
+                    })
+
+                    logger.debug(f"{self.owner_name}: MP 소모 {actual_mp_drain}")
+
+            # HP 데미지 적용
+            if damage > 0:
+                if hasattr(target, 'take_damage'):
+                    actual_damage = target.take_damage(damage)
+                elif hasattr(target, 'current_hp'):
+                    actual_damage = min(damage, target.current_hp)
+                    target.current_hp = max(0, target.current_hp - actual_damage)
+                else:
+                    actual_damage = damage
+
+                total_damage += actual_damage
+
+                effect_details.append({
+                    "name": dot_info["name"],
+                    "damage": actual_damage,
+                    "icon": dot_info["icon"],
+                    "stacks": effect.stack_count
+                })
+
+                logger.debug(
+                    f"{self.owner_name}: {dot_info['name']} 피해 {actual_damage} "
+                    f"(스택: {effect.stack_count})"
+                )
+
+        # 이벤트 발행
+        if total_damage > 0 or total_mp_drain > 0:
+            event_bus.publish(Events.STATUS_DOT_DAMAGE, {
+                "owner": self.owner_name,
+                "total_damage": total_damage,
+                "total_mp_drain": total_mp_drain,
+                "effects": effect_details
+            })
+
+        return {
+            "total_damage": total_damage,
+            "total_mp_drain": total_mp_drain,
+            "effects": effect_details
+        }
+
     def clear_all_effects(self) -> None:
         """모든 상태 효과 제거"""
         cleared = self.status_effects.copy()
