@@ -1022,137 +1022,311 @@ class CombatUI:
             max_break = getattr(character, 'max_break_power', 10)
             return f"[파괴:{break_power}/{max_break}]"
 
-        # === 15개 신규 기믹 시스템 ===
+        # === 15개 신규 기믹 시스템 (간략 표시) ===
 
         elif gimmick_type == "yin_yang_flow":
-            # 몽크 - 음양 흐름 시스템
+            # 몽크 - 음양 흐름 (간략: 게이지만)
             ki = getattr(character, 'ki_gauge', 50)
-            if ki < 20:
-                return f"[음:{ki}]"
-            elif ki > 80:
-                return f"[양:{ki}]"
-            else:
-                return f"[균형:{ki}]"
+            return f"[기:{ki}]"
 
         elif gimmick_type == "rune_resonance":
-            # 배틀메이지 - 룬 공명
+            # 배틀메이지 - 룬 공명 (간략: 총합)
             fire = getattr(character, 'rune_fire', 0)
             ice = getattr(character, 'rune_ice', 0)
             lightning = getattr(character, 'rune_lightning', 0)
-            return f"[🔥{fire} ❄{ice} ⚡{lightning}]"
+            total = fire + ice + lightning
+            return f"[룬:{total}]"
 
         elif gimmick_type == "probability_distortion":
-            # 차원술사 - 확률 왜곡
+            # 차원술사 - 확률 왜곡 (간략: 게이지)
             gauge = getattr(character, 'distortion_gauge', 0)
-            max_gauge = getattr(character, 'max_gauge', 100)
-            return f"[확률:{gauge}/{max_gauge}]"
+            return f"[왜곡:{gauge}]"
 
         elif gimmick_type == "heat_gauge":
-            # 엔지니어 - 열 게이지
+            # 엔지니어 - 열 게이지 (간략: 상태)
             heat = getattr(character, 'heat', 0)
-            max_heat = getattr(character, 'max_heat', 100)
             if heat > 70:
-                return f"[과열!:{heat}/{max_heat}]"
+                return f"[⚠열:{heat}]"
             else:
-                return f"[열:{heat}/{max_heat}]"
+                return f"[열:{heat}]"
 
         elif gimmick_type == "thirst_gauge":
-            # 뱀파이어 - 갈증 게이지
+            # 뱀파이어 - 갈증 (간략: 게이지)
             thirst = getattr(character, 'thirst', 0)
-            max_thirst = getattr(character, 'max_thirst', 100)
             if thirst > 70:
-                return f"[갈증!:{thirst}]"
-            elif thirst < 30:
-                return f"[만족:{thirst}]"
+                return f"[💧:{thirst}]"
             else:
                 return f"[갈증:{thirst}]"
 
         elif gimmick_type == "madness_gauge":
-            # 버서커 - 광기 게이지
+            # 버서커 - 광기 (간략: 게이지)
             madness = getattr(character, 'madness', 0)
-            max_madness = getattr(character, 'max_madness', 100)
             if madness > 70:
-                return f"[광기!:{madness}]"
+                return f"[⚡광:{madness}]"
             else:
-                return f"[광기:{madness}/{max_madness}]"
+                return f"[광기:{madness}]"
 
         elif gimmick_type == "spirit_resonance":
-            # 정령술사 - 정령 공명
+            # 정령술사 - 정령 (간략: 활성 정령 수)
             fire = getattr(character, 'spirit_fire', 0)
             water = getattr(character, 'spirit_water', 0)
             wind = getattr(character, 'spirit_wind', 0)
             earth = getattr(character, 'spirit_earth', 0)
-            total = fire + water + wind + earth
-            return f"[정령:🔥{fire}💧{water}💨{wind}🌍{earth}]"
+            active = sum([1 for s in [fire, water, wind, earth] if s > 0])
+            return f"[정령:{active}]"
 
         elif gimmick_type == "combo_system":
-            # 격투가 - 콤보
+            # 격투가 - 콤보 (간략: 콤보수)
             combo = getattr(character, 'combo_count', 0)
-            max_combo = getattr(character, 'max_combo', 10)
             if combo >= 5:
-                return f"[콤보!:{combo}]"
+                return f"[⚡{combo}콤보]"
             else:
                 return f"[콤보:{combo}]"
 
         elif gimmick_type == "stealth_mastery":
-            # 암살자 - 은신 숙련
+            # 암살자 - 은신 (간략: 상태만)
             stealth_active = getattr(character, 'stealth_active', False)
-            shadow_strike = getattr(character, 'shadow_strike_ready', False)
-            if stealth_active:
-                return "[은신중]"
-            elif shadow_strike:
-                return "[그림자 공격 준비]"
-            else:
-                return "[노출]"
+            return "[🌑]" if stealth_active else "[👁]"
 
         elif gimmick_type == "dilemma_choice":
-            # 철학자 - 딜레마 선택
+            # 철학자 - 선택 (간략: 총 선택 수)
             power = getattr(character, 'choice_power', 0)
             wisdom = getattr(character, 'choice_wisdom', 0)
             sacrifice = getattr(character, 'choice_sacrifice', 0)
             truth = getattr(character, 'choice_truth', 0)
-            return f"[힘{power} 지혜{wisdom} 희생{sacrifice} 진리{truth}]"
+            total = power + wisdom + sacrifice + truth
+            return f"[선택:{total}]"
 
         elif gimmick_type == "support_fire":
-            # 궁수 - 지원사격
+            # 궁수 - 지원사격 (간략: 콤보)
             combo = getattr(character, 'support_fire_combo', 0)
-            marked = getattr(character, 'marked_allies_count', 0)
-            return f"[지원:{combo}콤보 표식{marked}]"
+            return f"[지원:{combo}]"
 
         elif gimmick_type == "hack_threading":
-            # 해커 - 해킹 스레드
+            # 해커 - 스레드 (간략: 스레드 수)
             threads = getattr(character, 'active_threads', 0)
-            max_threads = getattr(character, 'max_threads', 5)
-            exploits = getattr(character, 'exploit_count', 0)
-            return f"[스레드:{threads}/{max_threads} 익스{exploits}]"
+            return f"[스레드:{threads}]"
 
         elif gimmick_type == "cheer_gauge":
-            # 검투사 - 환호 게이지
+            # 검투사 - 환호 (간략: 게이지)
             cheer = getattr(character, 'cheer', 0)
-            max_cheer = getattr(character, 'max_cheer', 100)
             if cheer > 70:
-                return f"[열광!:{cheer}]"
+                return f"[📢:{cheer}]"
             else:
-                return f"[환호:{cheer}/{max_cheer}]"
+                return f"[환호:{cheer}]"
 
         elif gimmick_type == "mimicry_system":
-            # 모방사 - 모방
+            # 모방사 - 모방 (간략: 상태)
             copied_skill = getattr(character, 'copied_skill_name', None)
-            mimic_count = getattr(character, 'mimic_count', 0)
-            if copied_skill:
-                return f"[모방:{copied_skill[:4]}]"
-            else:
-                return f"[모방:{mimic_count}]"
+            return "[✓모방]" if copied_skill else "[모방]"
 
         elif gimmick_type == "gear_system":
-            # 기계공 - 기어
+            # 기계공 - 기어 (간략: 개수)
             gears = getattr(character, 'gear_count', 0)
-            max_gears = getattr(character, 'max_gears', 5)
-            overheat = getattr(character, 'is_overheated', False)
-            if overheat:
-                return f"[과열! 기어:{gears}]"
+            return f"[⚙:{gears}]"
+
+        return ""
+
+    def _get_gimmick_detail(self, character: Any) -> str:
+        """캐릭터의 기믹 상태 상세 정보 (기믹 커맨드용)"""
+        gimmick_type = getattr(character, 'gimmick_type', None)
+        if not gimmick_type:
+            return "기믹 시스템 없음"
+
+        details = []
+
+        # === 15개 신규 기믹 시스템 상세 ===
+
+        if gimmick_type == "yin_yang_flow":
+            ki = getattr(character, 'ki_gauge', 50)
+            details.append("=== 음양 흐름 시스템 ===")
+            details.append(f"기 게이지: {ki}/100")
+            if ki < 20:
+                details.append("상태: 음 (방어/회복 강화)")
+            elif ki > 80:
+                details.append("상태: 양 (공격/속도 강화)")
             else:
-                return f"[기어:{gears}/{max_gears}]"
+                details.append("상태: 균형 (안정적 전투)")
+
+        elif gimmick_type == "rune_resonance":
+            fire = getattr(character, 'rune_fire', 0)
+            ice = getattr(character, 'rune_ice', 0)
+            lightning = getattr(character, 'rune_lightning', 0)
+            details.append("=== 룬 공명 시스템 ===")
+            details.append(f"🔥 화염 룬: {fire}/3")
+            details.append(f"❄️  냉기 룬: {ice}/3")
+            details.append(f"⚡ 번개 룬: {lightning}/3")
+            if fire >= 2 and ice >= 2:
+                details.append("공명 가능: 화염+냉기")
+            if ice >= 2 and lightning >= 2:
+                details.append("공명 가능: 냉기+번개")
+            if fire >= 2 and lightning >= 2:
+                details.append("공명 가능: 화염+번개")
+
+        elif gimmick_type == "probability_distortion":
+            gauge = getattr(character, 'distortion_gauge', 0)
+            details.append("=== 확률 왜곡 시스템 ===")
+            details.append(f"왜곡 게이지: {gauge}/100")
+            if gauge >= 100:
+                details.append("평행우주 사용 가능!")
+            elif gauge >= 50:
+                details.append("시간 되감기 사용 가능")
+            elif gauge >= 30:
+                details.append("회피 왜곡 사용 가능")
+            elif gauge >= 20:
+                details.append("크리티컬 왜곡 사용 가능")
+
+        elif gimmick_type == "heat_gauge":
+            heat = getattr(character, 'heat', 0)
+            details.append("=== 열 게이지 시스템 ===")
+            details.append(f"열 누적: {heat}/100")
+            if heat > 70:
+                details.append("⚠️  과열 위험! 방출 권장")
+            elif heat > 40:
+                details.append("적정 열량 - 강화 스킬 사용 가능")
+            else:
+                details.append("낮은 열량 - 축적 필요")
+
+        elif gimmick_type == "thirst_gauge":
+            thirst = getattr(character, 'thirst', 0)
+            details.append("=== 갈증 게이지 시스템 ===")
+            details.append(f"갈증: {thirst}/100")
+            if thirst > 70:
+                details.append("💧 갈망 상태 - 흡혈 강화")
+            elif thirst < 30:
+                details.append("만족 상태 - 안정적")
+            else:
+                details.append("보통 상태")
+
+        elif gimmick_type == "madness_gauge":
+            madness = getattr(character, 'madness', 0)
+            details.append("=== 광기 게이지 시스템 ===")
+            details.append(f"광기: {madness}/100")
+            if madness > 70:
+                details.append("⚡ 광란 상태 - 초강력 공격 가능!")
+            elif madness > 40:
+                details.append("격앙 상태 - 공격력 증가")
+            else:
+                details.append("안전 구간")
+
+        elif gimmick_type == "spirit_resonance":
+            fire = getattr(character, 'spirit_fire', 0)
+            water = getattr(character, 'spirit_water', 0)
+            wind = getattr(character, 'spirit_wind', 0)
+            earth = getattr(character, 'spirit_earth', 0)
+            details.append("=== 정령 공명 시스템 ===")
+            details.append(f"🔥 화염 정령: {'활성화' if fire > 0 else '비활성'}")
+            details.append(f"💧 수령 정령: {'활성화' if water > 0 else '비활성'}")
+            details.append(f"💨 바람 정령: {'활성화' if wind > 0 else '비활성'}")
+            details.append(f"🌍 대지 정령: {'활성화' if earth > 0 else '비활성'}")
+            active = sum([1 for s in [fire, water, wind, earth] if s > 0])
+            if active >= 2:
+                details.append(f"융합 가능! (활성 정령: {active})")
+
+        elif gimmick_type == "combo_system":
+            combo = getattr(character, 'combo_count', 0)
+            details.append("=== 콤보 시스템 ===")
+            details.append(f"현재 콤보: {combo}")
+            if combo >= 7:
+                details.append("⚡ 최고 콤보! 피니셔 사용 가능")
+            elif combo >= 5:
+                details.append("고콤보 - 특수 기술 해금")
+            elif combo >= 3:
+                details.append("중콤보 - 연계 공격 가능")
+
+        elif gimmick_type == "stealth_mastery":
+            stealth_active = getattr(character, 'stealth_active', False)
+            shadow_strike = getattr(character, 'shadow_strike_ready', False)
+            details.append("=== 은신 숙련 시스템 ===")
+            if stealth_active:
+                details.append("상태: 🌑 은신 중")
+                details.append("다음 공격 크리티컬 확정")
+            elif shadow_strike:
+                details.append("상태: 그림자 공격 준비")
+                details.append("암살 기술 사용 가능")
+            else:
+                details.append("상태: 👁 노출")
+                details.append("은신 스킬로 재진입 가능")
+
+        elif gimmick_type == "dilemma_choice":
+            power = getattr(character, 'choice_power', 0)
+            wisdom = getattr(character, 'choice_wisdom', 0)
+            sacrifice = getattr(character, 'choice_sacrifice', 0)
+            truth = getattr(character, 'choice_truth', 0)
+            details.append("=== 딜레마 선택 시스템 ===")
+            details.append(f"힘의 선택: {power}")
+            details.append(f"지혜의 선택: {wisdom}")
+            details.append(f"희생의 선택: {sacrifice}")
+            details.append(f"진리의 선택: {truth}")
+            dominant = max(power, wisdom, sacrifice, truth)
+            if power == dominant:
+                details.append("경향: 힘 중심")
+            elif wisdom == dominant:
+                details.append("경향: 지혜 중심")
+            elif sacrifice == dominant:
+                details.append("경향: 희생 중심")
+            elif truth == dominant:
+                details.append("경향: 진리 중심")
+
+        elif gimmick_type == "support_fire":
+            combo = getattr(character, 'support_fire_combo', 0)
+            marked = getattr(character, 'marked_allies_count', 0)
+            details.append("=== 지원사격 시스템 ===")
+            details.append(f"지원 콤보: {combo}")
+            details.append(f"표식된 아군: {marked}명")
+            if combo >= 3:
+                details.append("연속 지원 보너스 활성!")
+
+        elif gimmick_type == "hack_threading":
+            threads = getattr(character, 'active_threads', 0)
+            exploits = getattr(character, 'exploit_count', 0)
+            details.append("=== 해킹 스레드 시스템 ===")
+            details.append(f"활성 스레드: {threads}/5")
+            details.append(f"익스플로잇: {exploits}")
+            if threads >= 4:
+                details.append("⚡ 다중 스레드 공격 가능!")
+            if exploits >= 3:
+                details.append("시스템 장악 준비 완료")
+
+        elif gimmick_type == "cheer_gauge":
+            cheer = getattr(character, 'cheer', 0)
+            details.append("=== 환호 게이지 시스템 ===")
+            details.append(f"환호: {cheer}/100")
+            if cheer > 70:
+                details.append("📢 열광! 궁극기 강화")
+            elif cheer > 40:
+                details.append("고조 - 공격력 증가")
+            else:
+                details.append("평온 - 축적 필요")
+
+        elif gimmick_type == "mimicry_system":
+            copied_skill = getattr(character, 'copied_skill_name', None)
+            mimic_count = getattr(character, 'mimic_count', 0)
+            details.append("=== 모방 시스템 ===")
+            if copied_skill:
+                details.append(f"✓ 복사한 스킬: {copied_skill}")
+                details.append("모방 스킬 사용 가능")
+            else:
+                details.append("복사된 스킬 없음")
+                details.append("적 스킬 관찰로 복사 가능")
+            details.append(f"총 모방 횟수: {mimic_count}")
+
+        elif gimmick_type == "gear_system":
+            gears = getattr(character, 'gear_count', 0)
+            overheat = getattr(character, 'is_overheated', False)
+            details.append("=== 기어 시스템 ===")
+            details.append(f"⚙ 기어: {gears}/5")
+            if overheat:
+                details.append("⚠️  과열 상태 - 냉각 필요")
+            elif gears >= 5:
+                details.append("최대 기어 - 초강력 기술 사용")
+            elif gears >= 3:
+                details.append("고속 기어 - 강화 스킬 가능")
+
+        else:
+            return "기믹 상세 정보 없음"
+
+        return "\n".join(details)
 
         return ""
 
