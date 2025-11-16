@@ -363,6 +363,10 @@ class CombatUI:
         # 스킬의 target_type에 따라 대상 결정
         if self.selected_skill and hasattr(self.selected_skill, 'target_type'):
             target_type = self.selected_skill.target_type
+            skill_name = getattr(self.selected_skill, 'name', 'Unknown')
+
+            # 디버그 로깅
+            logger.debug(f"[TARGET_SELECT] 스킬: {skill_name}, target_type: {target_type}")
 
             # 문자열 target_type을 Enum으로 매핑 (하위 호환성)
             ally_targets = (
@@ -376,12 +380,15 @@ class CombatUI:
 
             # 아군 타겟팅 스킬 (회복 등)
             if target_type in ally_targets:
+                logger.debug(f"[TARGET_SELECT] 아군 타겟팅 → 파티 리스트 사용 ({len(self.combat_manager.party)}명)")
                 self.current_target_list = self.combat_manager.party
             else:
                 # 적 타겟팅 스킬 (공격 등)
+                logger.debug(f"[TARGET_SELECT] 적 타겟팅 → 적 리스트 사용 ({len(self.combat_manager.enemies)}명)")
                 self.current_target_list = self.combat_manager.enemies
         else:
             # 기본 공격은 적 타겟
+            logger.debug(f"[TARGET_SELECT] 기본 공격 (selected_skill 없음) → 적 타겟")
             self.current_target_list = self.combat_manager.enemies
 
         # 살아있는 대상만 필터링

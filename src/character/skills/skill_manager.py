@@ -26,7 +26,17 @@ class SkillManager:
         if not skill:
             return SkillResult(success=False, message=f"스킬 없음: {skill_id}")
 
+        # 디버그: 쿨다운 체크
+        char_id = id(user)
+        current_cooldown = self._cooldowns.get(char_id, {}).get(skill_id, 0)
+        skill_cooldown_value = getattr(skill, 'cooldown', 0)
+        is_basic_attack = getattr(skill, 'metadata', {}).get('basic_attack', False)
+
+        self.logger.debug(f"[CD_CHECK] {user.name} - {skill.name} (ID: {skill_id})")
+        self.logger.debug(f"  skill.cooldown = {skill_cooldown_value}, current_cd = {current_cooldown}, basic_attack = {is_basic_attack}")
+
         if self.is_on_cooldown(user, skill_id):
+            self.logger.warning(f"[CD_BLOCK] {skill.name}이(가) 쿨다운 중 (남은: {current_cooldown}턴)")
             return SkillResult(success=False, message="쿨다운 중")
 
         # 캐스팅이 필요한 스킬인지 확인
@@ -61,7 +71,10 @@ class SkillManager:
         result = skill.execute(user, target, context)
 
         if result.success and skill.cooldown > 0:
+            self.logger.debug(f"[CD_SET] {skill.name} 쿨다운 설정: {skill.cooldown}턴")
             self.set_cooldown(user, skill_id, skill.cooldown)
+        else:
+            self.logger.debug(f"[CD_SKIP] {skill.name} 쿨다운 설정 안 함 (success={result.success}, cooldown={skill.cooldown})")
 
         event_bus.publish(Events.SKILL_EXECUTE, {"skill": skill, "user": user, "target": target, "result": result})
         return result
