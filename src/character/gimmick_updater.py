@@ -19,7 +19,14 @@ class GimmickUpdater:
             GimmickUpdater._update_timeline_system(character)
         elif gimmick_type == "yin_yang_flow":
             GimmickUpdater._update_yin_yang_flow(character)
-        # 나머지 기믹 타입들도 추가...
+        elif gimmick_type == "madness_threshold":
+            GimmickUpdater._update_madness_threshold(character)
+        elif gimmick_type == "thirst_gauge":
+            GimmickUpdater._update_thirst_gauge(character)
+        elif gimmick_type == "probability_distortion":
+            GimmickUpdater._update_probability_distortion(character)
+        elif gimmick_type == "stealth_exposure":
+            GimmickUpdater._update_stealth_exposure(character)
 
     @staticmethod
     def on_turn_start(character):
@@ -28,7 +35,16 @@ class GimmickUpdater:
         if not gimmick_type:
             return
 
-        # 필요한 경우 턴 시작 시 로직 추가
+        # 확률 왜곡 게이지 - 턴 시작 시 +10
+        if gimmick_type == "probability_distortion":
+            gauge_gain = getattr(character, 'gauge_per_turn', 10)
+            character.distortion_gauge = min(character.max_gauge, character.distortion_gauge + gauge_gain)
+            logger.debug(f"{character.name} 확률 왜곡 게이지 +{gauge_gain} (총: {character.distortion_gauge})")
+
+        # 갈증 게이지 - 턴 시작 시 +10
+        elif gimmick_type == "thirst_gauge":
+            character.thirst = min(character.max_thirst, character.thirst + 10)
+            logger.debug(f"{character.name} 갈증 +10 (총: {character.thirst})")
 
     @staticmethod
     def on_skill_use(character, skill):
@@ -39,6 +55,12 @@ class GimmickUpdater:
 
         if gimmick_type == "magazine_system":
             GimmickUpdater._consume_bullet(character, skill)
+        elif gimmick_type == "stealth_exposure":
+            # 공격 스킬 사용 시 은신 해제 체크
+            if skill.metadata.get("breaks_stealth", False):
+                character.stealth_active = False
+                character.exposed_turns = 0
+                logger.info(f"{character.name} 은신 해제 (공격 스킬 사용)")
 
     @staticmethod
     def check_overheat(character):
@@ -119,6 +141,52 @@ class GimmickUpdater:
             logger.debug(f"{character.name} 태극 조화: HP/MP 5% 회복")
 
     @staticmethod
+    def _update_madness_threshold(character):
+        """버서커: 광기 임계치 시스템 업데이트"""
+        # 광기 자연 감소 (안전 구간에서만)
+        if character.madness < character.safe_max:
+            character.madness = max(0, character.madness - 5)
+            logger.debug(f"{character.name} 광기 자연 감소: -5 (총: {character.madness})")
+
+        # 위험 구간에서는 자연 증가
+        elif character.madness >= character.danger_min:
+            character.madness = min(character.max_madness, character.madness + 10)
+            logger.warning(f"{character.name} 광기 위험 증가: +10 (총: {character.madness})")
+
+        # 사망 임계치 체크
+        if character.madness >= character.death_threshold:
+            logger.critical(f"{character.name} 광기 100 도달! 사망 위험!")
+            # 실제 사망 처리는 combat_manager에서 수행
+
+    @staticmethod
+    def _update_thirst_gauge(character):
+        """뱀파이어: 갈증 게이지 시스템 업데이트"""
+        # 굶주림 구간에서 HP 지속 감소
+        if character.thirst >= character.starving_min:
+            hp_loss = int(character.max_hp * 0.05)
+            character.current_hp = max(1, character.current_hp - hp_loss)
+            logger.warning(f"{character.name} 굶주림: HP -{hp_loss} (총 HP: {character.current_hp})")
+
+    @staticmethod
+    def _update_probability_distortion(character):
+        """차원술사: 확률 왜곡 게이지 시스템 업데이트"""
+        # 게이지는 턴 시작 시 on_turn_start에서 증가
+        # 턴 종료 시에는 특별한 업데이트 없음
+        pass
+
+    @staticmethod
+    def _update_stealth_exposure(character):
+        """암살자: 은신-노출 딜레마 시스템 업데이트"""
+        # 노출 상태에서 턴 경과 체크
+        if not character.stealth_active:
+            character.exposed_turns += 1
+            logger.debug(f"{character.name} 노출 턴 경과: {character.exposed_turns}/{character.restealth_cooldown}")
+
+            # 3턴 경과 시 재은신 가능 (자동 전환은 하지 않음, 스킬로만 가능)
+            if character.exposed_turns >= character.restealth_cooldown:
+                logger.info(f"{character.name} 재은신 가능!")
+
+    @staticmethod
     def _consume_bullet(character, skill):
         """저격수: 탄환 소비"""
         if not hasattr(character, 'magazine'):
@@ -168,6 +236,10 @@ class GimmickStateChecker:
         """위험 구간인지 체크"""
         if character.gimmick_type == "heat_management":
             return character.danger_min <= character.heat < character.danger_max
+        elif character.gimmick_type == "madness_threshold":
+            return character.madness >= character.danger_min
+        elif character.gimmick_type == "thirst_gauge":
+            return character.thirst >= character.starving_min
         return False
 
     @staticmethod
@@ -182,4 +254,52 @@ class GimmickStateChecker:
         """현재(0) 타임라인인지 체크 (시간술사)"""
         if character.gimmick_type == "timeline_system":
             return getattr(character, 'timeline', 0) == 0
+        return False
+
+    @staticmethod
+    def get_active_spirits_count(character) -> int:
+        """활성화된 정령 수 반환 (정령술사)"""
+        if character.gimmick_type == "elemental_spirits":
+            return sum([
+                getattr(character, 'spirit_fire', 0),
+                getattr(character, 'spirit_water', 0),
+                getattr(character, 'spirit_wind', 0),
+                getattr(character, 'spirit_earth', 0)
+            ])
+        return 0
+
+    @staticmethod
+    def get_rune_resonance_bonus(character) -> float:
+        """룬 공명 보너스 반환 (배틀메이지)"""
+        if character.gimmick_type == "rune_resonance":
+            fire = getattr(character, 'rune_fire', 0)
+            ice = getattr(character, 'rune_ice', 0)
+            lightning = getattr(character, 'rune_lightning', 0)
+
+            # 3개 동일 룬 = 공명 보너스 +50%
+            if fire == 3 or ice == 3 or lightning == 3:
+                return 0.5
+        return 0.0
+
+    @staticmethod
+    def is_in_stealth(character) -> bool:
+        """은신 상태인지 체크 (암살자)"""
+        if character.gimmick_type == "stealth_exposure":
+            return getattr(character, 'stealth_active', False)
+        return False
+
+    @staticmethod
+    def get_support_fire_combo(character) -> int:
+        """지원사격 콤보 수 반환 (궁수)"""
+        if character.gimmick_type == "support_fire":
+            return getattr(character, 'support_fire_combo', 0)
+        return 0
+
+    @staticmethod
+    def check_choice_mastery(character, choice_type: str) -> bool:
+        """선택 숙달 달성 여부 체크 (철학자)"""
+        if character.gimmick_type == "dilemma_choice":
+            count = getattr(character, f'choice_{choice_type}', 0)
+            threshold = getattr(character, 'accumulation_threshold', 5)
+            return count >= threshold
         return False
