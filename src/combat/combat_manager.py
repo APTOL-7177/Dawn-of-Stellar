@@ -205,11 +205,23 @@ class CombatManager:
         elif action_type == ActionType.FLEE:
             result = self._execute_flee(actor, **kwargs)
 
-        # ATB 소비
-        self.atb.consume_atb(actor)
+        # 행동 성공 여부 확인 (스킬 실패 시 ATB 소비 안 함)
+        action_failed = False
+        if action_type == ActionType.SKILL:
+            # 스킬 실행 실패 시 (MP 부족 등)
+            if not result.get("success", True):
+                action_failed = True
+                self.logger.warning(f"{actor.name}의 스킬 실행 실패: {result.get('error', 'unknown')}")
 
-        # 턴 종료 처리
-        self._on_turn_end(actor)
+        # ATB 소비 (행동 실패 시 소비 안 함)
+        if not action_failed:
+            self.atb.consume_atb(actor)
+
+            # 턴 종료 처리
+            self._on_turn_end(actor)
+        else:
+            # 실패한 행동은 ATB를 소비하지 않으므로 턴 종료 처리도 안 함
+            self.logger.info(f"{actor.name}의 행동 실패 - ATB 소비 안 함")
 
         # 콜백 호출
         if self.on_action_complete:
