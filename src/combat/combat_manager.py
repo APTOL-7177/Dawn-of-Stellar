@@ -392,7 +392,7 @@ class CombatManager:
         skill_manager = get_skill_manager()
 
         # context에 모든 적 정보 추가 (AOE 효과를 위해)
-        all_enemies = self.enemies if actor in getattr(self, 'party', []) else getattr(self, 'party', [])
+        all_enemies = self.enemies if actor in self.allies else self.allies
 
         # SkillManager를 통해 스킬 실행
         skill_result = skill_manager.execute_skill(
