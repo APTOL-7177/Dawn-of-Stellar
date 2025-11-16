@@ -82,9 +82,18 @@ class SaveSystem:
         saves = []
 
         for save_file in self.save_dir.glob("*.json"):
+            # meta_progress.json은 게임 세이브 파일이 아니므로 제외
+            if save_file.stem == "meta_progress":
+                continue
+
             try:
                 with open(save_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
+
+                # 게임 세이브 파일인지 확인 (party 키가 있어야 함)
+                if "party" not in data:
+                    logger.debug(f"게임 세이브 파일이 아님: {save_file.name}")
+                    continue
 
                 saves.append({
                     "name": save_file.stem,
