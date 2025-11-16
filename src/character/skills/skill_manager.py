@@ -75,8 +75,13 @@ class SkillManager:
 
         # 스킬에 직접 SFX가 지정되어 있으면 우선 사용
         if skill.sfx:
-            category, sfx_name = skill.sfx
-            play_sfx(category, sfx_name)
+            # skill.sfx가 튜플인지 문자열인지 확인
+            if isinstance(skill.sfx, tuple):
+                category, sfx_name = skill.sfx
+                play_sfx(category, sfx_name)
+            else:
+                # 문자열인 경우 FFVII 카테고리 기본 사용
+                play_sfx("ffvii", skill.sfx)
             return
 
         # 스킬 effects 분석

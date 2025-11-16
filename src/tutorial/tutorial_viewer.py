@@ -87,6 +87,18 @@ def run_tutorial_viewer(console: tcod.console.Console, context: tcod.context.Con
         console.print(4, y, tutorial.objective, fg=(255, 255, 255))
         y += 2
 
+        # 보상 (위쪽으로 이동)
+        rewards_text = []
+        star_fragments = tutorial.rewards.exp // 10  # 경험치를 별의 파편으로 변환
+        if star_fragments > 0:
+            rewards_text.append(f"별의 파편 +{star_fragments}")
+        if tutorial.rewards.gold > 0:
+            rewards_text.append(f"골드 +{tutorial.rewards.gold}")
+
+        if rewards_text:
+            console.print(2, y, f"💎 보상: {' | '.join(rewards_text)}", fg=(255, 215, 0))
+            y += 2
+
         # 주요 내용 (메시지들)
         console.print(2, y, "주요 내용:", fg=(0, 255, 0))
         y += 1
@@ -120,22 +132,11 @@ def run_tutorial_viewer(console: tcod.console.Console, context: tcod.context.Con
         # 힌트
         y = console.height - 6
         if tutorial.hints:
-            console.print(2, y, "힌트:", fg=(255, 255, 0))
+            console.print(2, y, "💡 힌트:", fg=(255, 255, 0))
             y += 1
             for hint in tutorial.hints[:2]:  # 처음 2개만 표시
-                console.print(4, y, f"💡 {hint.text}", fg=(200, 200, 100))
+                console.print(4, y, f"• {hint.text}", fg=(200, 200, 100))
                 y += 1
-
-        # 보상
-        y = console.height - 4
-        rewards_text = []
-        if tutorial.rewards.exp > 0:
-            rewards_text.append(f"경험치 +{tutorial.rewards.exp}")
-        if tutorial.rewards.gold > 0:
-            rewards_text.append(f"골드 +{tutorial.rewards.gold}")
-
-        if rewards_text:
-            console.print(2, y, f"보상: {' | '.join(rewards_text)}", fg=(255, 215, 0))
 
         # 컨트롤 안내
         y = console.height - 2

@@ -142,10 +142,14 @@ def main() -> int:
                     # 튜토리얼 인트로 표시
                     tutorial_integration.show_tutorial_intro()
 
-                    # 튜토리얼 뷰어 실행 (각 단계를 순서대로 표시)
-                    from src.tutorial.tutorial_viewer import run_tutorial_viewer
-                    run_tutorial_viewer(display.console, display.context)
-                    logger.info("튜토리얼 완료")
+                    # 플레이 가능한 튜토리얼 실행
+                    from src.tutorial.tutorial_playable import run_playable_tutorial
+                    tutorial_completed = run_playable_tutorial(display.console, display.context)
+
+                    if tutorial_completed:
+                        logger.info("튜토리얼 완료")
+                    else:
+                        logger.info("튜토리얼 중단")
                 else:
                     logger.info("사용자가 튜토리얼 건너뛰기 선택")
 
