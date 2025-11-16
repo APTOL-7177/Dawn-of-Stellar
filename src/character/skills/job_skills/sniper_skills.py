@@ -80,12 +80,12 @@ def create_sniper_skills():
 
     # 8. 연막탄 (회피 버프)
     smoke_grenade = Skill("sniper_smoke_grenade", "연막탄",
-                         "3턴간 회피율 +40%, 적 명중률 -30%")
+                         "3턴간 회피율 +40%")
     smoke_grenade.effects = [
-        BuffEffect(BuffType.EVASION_UP, 0.4, duration=3, target="self"),
-        BuffEffect(BuffType.ACCURACY_DOWN, 0.3, duration=3, target="all_enemies")
+        BuffEffect(BuffType.EVASION_UP, 0.4, duration=3)
     ]
     smoke_grenade.costs = [MPCost(15)]
+    smoke_grenade.target_type = "self"
     smoke_grenade.cooldown = 4
     smoke_grenade.metadata = {"smoke": True}
 
