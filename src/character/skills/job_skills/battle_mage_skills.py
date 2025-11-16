@@ -30,6 +30,7 @@ def create_battle_mage_skills():
     ]
     rune_burst.costs = []  # 기본 공격은 MP 소모 없음
     rune_burst.aoe_effect = DamageEffect(DamageType.BRV, 0.3, stat_type="magical")  # 룬 폭발 광역 피해 (약함)
+    rune_burst.aoe_includes_main_target = True  # 메인 타겟 포함 모든 적에게 광역 피해
     skills.append(rune_burst)
     
     # 3. 룬 강화
@@ -53,6 +54,7 @@ def create_battle_mage_skills():
     chain_burst.costs = [MPCost(9), StackCost("rune_stacks", 2)]
     chain_burst.cooldown = 2
     chain_burst.aoe_effect = DamageEffect(DamageType.BRV, 0.4, stat_type="magical")  # 룬 폭발 광역 피해
+    chain_burst.aoe_includes_main_target = True  # 메인 타겟 포함 모든 적에게 광역 피해
     skills.append(chain_burst)
     
     # 5. 마법검
@@ -88,6 +90,7 @@ def create_battle_mage_skills():
     rune_storm.costs = [MPCost(11), StackCost("rune_stacks", 3)]
     rune_storm.cooldown = 4
     rune_storm.aoe_effect = DamageEffect(DamageType.BRV, 0.5, stat_type="magical")  # 룬 폭발 광역 피해
+    rune_storm.aoe_includes_main_target = True  # 메인 타겟 포함 모든 적에게 광역 피해
     skills.append(rune_storm)
     
     # 8. 고대 룬
@@ -115,6 +118,7 @@ def create_battle_mage_skills():
     ultimate.is_ultimate = True
     ultimate.cooldown = 10
     ultimate.aoe_effect = DamageEffect(DamageType.BRV_HP, 1.0, stat_type="magical")  # 룬 대폭발 강력한 광역 피해
+    ultimate.aoe_includes_main_target = True  # 메인 타겟 포함 모든 적에게 광역 피해
     skills.append(ultimate)
     
     return skills

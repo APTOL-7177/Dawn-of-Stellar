@@ -62,13 +62,26 @@ class Skill:
         if hasattr(self, 'aoe_effect') and self.aoe_effect:
             # context에서 모든 적 가져오기
             all_enemies = context.get('all_enemies', [])
-            if all_enemies and len(all_enemies) > 1:
-                # 메인 타겟을 제외한 다른 적들에게 AOE 피해
-                other_enemies = [e for e in all_enemies if e != target and hasattr(e, 'is_alive') and e.is_alive]
-                if other_enemies and hasattr(self.aoe_effect, 'execute'):
-                    aoe_result = self.aoe_effect.execute(user, other_enemies, context)
+            if all_enemies:
+                # AOE 대상 결정: aoe_includes_main_target 플래그에 따라
+                aoe_includes_main = getattr(self, 'aoe_includes_main_target', False)
+
+                if aoe_includes_main:
+                    # 모든 적에게 AOE 피해 (메인 타겟 포함)
+                    aoe_targets = [e for e in all_enemies if hasattr(e, 'is_alive') and e.is_alive]
+                else:
+                    # 메인 타겟을 제외한 다른 적들에게 AOE 피해
+                    aoe_targets = [e for e in all_enemies if e != target and hasattr(e, 'is_alive') and e.is_alive]
+
+                if aoe_targets and hasattr(self.aoe_effect, 'execute'):
+                    from src.core.logger import get_logger
+                    logger = get_logger("skill")
+                    logger.debug(f"AOE 효과 실행: {len(aoe_targets)}명 대상, 메인 타겟 포함={aoe_includes_main}")
+
+                    aoe_result = self.aoe_effect.execute(user, aoe_targets, context)
                     if hasattr(aoe_result, 'damage_dealt'):
                         total_dmg += aoe_result.damage_dealt
+                        logger.debug(f"AOE 피해: {aoe_result.damage_dealt}")
 
         return SkillResult(
             success=True,
