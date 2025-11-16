@@ -878,11 +878,11 @@ class CombatUI:
             lightning = getattr(character, 'lightning_element', 0)
             return f"[화염{fire} 냉기{ice} 번개{lightning}]"
 
-        elif gimmick_type == "aim_system":
-            # 궁수 - 조준
-            aim = getattr(character, 'aim_points', 0)
-            max_aim = getattr(character, 'max_aim_points', 5)
-            return f"[조준:{aim}/{max_aim}]"
+        elif gimmick_type == "support_fire_system":
+            # 궁수 - 지원사격
+            marked_allies = getattr(character, 'marked_allies', [])
+            combo = getattr(character, 'combo_count', 0)
+            return f"[지원:{len(marked_allies)}/3 콤보:{combo}]"
 
         elif gimmick_type == "magazine_system":
             # 저격수 - 탄창
@@ -1717,32 +1717,84 @@ class CombatUI:
             if fire >= 3 and lightning >= 3:
                 console.print(content_x, content_y + line, "🔥 화염+번개 융합 가능!", fg=(255, 255, 200))
 
-        elif gimmick_type == "aim_system":
-            # 궁수 - 조준 시스템
-            aim = getattr(character, 'aim_points', 0)
-            max_aim = getattr(character, 'max_aim_points', 5)
+        elif gimmick_type == "support_fire_system":
+            # 궁수 - 지원사격 시스템
+            marked_allies = getattr(character, 'marked_allies', [])
+            combo = getattr(character, 'combo_count', 0)
+            max_marks = getattr(character, 'max_marks', 3)
 
-            console.print(content_x, content_y + line, "🎯 궁수 - 조준 시스템", fg=(150, 200, 100))
+            console.print(content_x, content_y + line, "🏹 궁수 - 지원사격", fg=(100, 200, 100))
             line += 1
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
-            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, aim, max_aim, show_numbers=True, custom_color=(100, 255, 150))
-            line += 2
+            # 마킹된 아군 정보
+            console.print(content_x, content_y + line, f"마킹된 아군: ({len(marked_allies)}/{max_marks})", fg=(200, 200, 200))
+            line += 1
+
+            if len(marked_allies) > 0:
+                console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+                line += 1
+
+                # 화살 타입 이름 매핑
+                arrow_names = {
+                    'N': '일반 화살',
+                    'P': '관통 화살 (방어 무시)',
+                    'F': '화염 화살 (화상)',
+                    'I': '빙결 화살 (속도↓)',
+                    'T': '독 화살 (독)',
+                    'E': '폭발 화살 (광역)',
+                    'H': '신성 화살 (언데드 특효)',
+                }
+
+                # 각 마킹된 아군 표시
+                for i, ally in enumerate(marked_allies):
+                    if isinstance(ally, dict):
+                        ally_name = ally.get('name', f'아군{i+1}')
+                        arrow_type = ally.get('arrow_type', 'N')
+                        remaining = ally.get('remaining_shots', 3)
+                    else:
+                        ally_name = f'아군{i+1}'
+                        arrow_type = 'N'
+                        remaining = 3
+
+                    console.print(content_x, content_y + line, f"[{ally_name}] 🎯", fg=(255, 200, 100))
+                    line += 1
+                    console.print(content_x + 2, content_y + line, f"화살: {arrow_names.get(arrow_type, '일반 화살')}", fg=(200, 200, 200))
+                    line += 1
+                    console.print(content_x + 2, content_y + line, f"남은 지원: {remaining}회", fg=(180, 180, 180))
+                    line += 1
+
+                    if i < len(marked_allies) - 1:
+                        line += 1  # 간격
 
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
-            if aim >= 5:
-                console.print(content_x, content_y + line, "🎯 완벽한 조준!", fg=(255, 255, 100))
+            # 콤보 상태
+            if combo >= 7:
+                console.print(content_x, content_y + line, "🔥 완벽한 지원! (콤보 7+)", fg=(255, 255, 100))
                 line += 1
-                console.print(content_x, content_y + line, "⚡ 크리티컬 +50%, 명중률 +30%", fg=(255, 255, 200))
-            elif aim >= 3:
-                console.print(content_x, content_y + line, "🎯 정밀 조준", fg=(200, 255, 200))
+                console.print(content_x + 2, content_y + line, "데미지 +100%, 크리티컬 확정", fg=(255, 255, 200))
+            elif combo >= 5:
+                console.print(content_x, content_y + line, f"🔥 콤보: {combo} 연속", fg=(255, 200, 100))
                 line += 1
-                console.print(content_x, content_y + line, "⚡ 크리티컬 +30%, 명중률 +20%", fg=(255, 255, 200))
+                console.print(content_x + 2, content_y + line, "데미지 +60%, 크리티컬 +40%", fg=(255, 200, 150))
+                line += 1
+                remaining_for_perfect = 7 - combo
+                console.print(content_x, content_y + line, f"💡 {remaining_for_perfect}회 더 성공 시 완벽한 지원!", fg=(200, 255, 200))
+            elif combo >= 3:
+                console.print(content_x, content_y + line, f"🔥 콤보: {combo} 연속", fg=(255, 150, 100))
+                line += 1
+                console.print(content_x + 2, content_y + line, "데미지 +40%, 크리티컬 +20%", fg=(255, 200, 150))
+            elif combo >= 2:
+                console.print(content_x, content_y + line, f"🔥 콤보: {combo} 연속", fg=(200, 150, 100))
+                line += 1
+                console.print(content_x + 2, content_y + line, "데미지 +20%", fg=(200, 200, 150))
             else:
-                console.print(content_x, content_y + line, "💡 조준 축적 중...", fg=(150, 150, 150))
+                console.print(content_x, content_y + line, "💡 지원 대기 중...", fg=(150, 150, 150))
+                line += 1
+                console.print(content_x, content_y + line, "아군 공격 시 자동 지원 발동", fg=(180, 180, 180))
 
         elif gimmick_type == "magazine_system":
             # 저격수 - 탄창 시스템
