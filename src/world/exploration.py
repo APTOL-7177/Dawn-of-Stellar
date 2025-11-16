@@ -512,7 +512,7 @@ class ExplorationSystem:
 
     def _trigger_combat_with_enemy(self, enemy: Enemy) -> ExplorationResult:
         """적 엔티티와의 전투"""
-        # 충돌한 적을 기준으로 주변 적들도 전투에 참여
+        # 충돌한 적을 기준으로 주변 적들도 수집 (전투 후 제거용)
         combat_enemies = [enemy]
 
         # 주변 가까운 거리(3칸) 내의 적들 수집
@@ -526,44 +526,21 @@ class ExplorationSystem:
                 combat_enemies.append(other_enemy)
                 logger.warning(f"[DEBUG] 주변 적 추가: ({other_enemy.x}, {other_enemy.y}), 거리={distance}")
 
-        # 기본 적 수 기록 (충돌 + 인접)
-        base_count = len(combat_enemies)
-        logger.warning(f"[DEBUG] 기본 적 수: {base_count}마리 (충돌 1 + 인접 {base_count - 1})")
+        logger.warning(f"[DEBUG] 맵 엔티티: {len(combat_enemies)}마리")
 
-        # Config에서 최대 적 수 가져오기
+        # Config에서 적 수 범위 가져오기
         from src.core.config import get_config
         config = get_config()
-        max_enemies_limit = config.get("world.dungeon.enemy_count.max_enemies", 4)
+        min_enemies = config.get("world.dungeon.enemy_count.min_enemies", 2)
+        max_enemies = config.get("world.dungeon.enemy_count.max_enemies", 4)
 
-        # max_enemies_limit 미만이면 더 먼 거리의 적도 찾기 (랜덤 인카운트용)
-        if len(combat_enemies) < max_enemies_limit:
-            extended_range = 6
-            for other_enemy in self.enemies:
-                if other_enemy in combat_enemies:
-                    continue
-
-                distance = abs(other_enemy.x - enemy.x) + abs(other_enemy.y - enemy.y)
-                if distance <= extended_range:
-                    combat_enemies.append(other_enemy)
-                    logger.warning(f"[DEBUG] 추가 적 발견: ({other_enemy.x}, {other_enemy.y}), 거리={distance}")
-                    if len(combat_enemies) >= max_enemies_limit:
-                        break
-
-        # Config에서 최소 적 수 가져오기
-        min_enemies_config = config.get("world.dungeon.enemy_count.min_enemies", 2)
-
-        # 실제 전투 적 수: 최소 min_enemies_config, 최대 min(len(combat_enemies), max_enemies_limit)
-        max_possible = min(len(combat_enemies), max_enemies_limit)
-        min_count = max(base_count, min_enemies_config)  # 최소 2마리 보장
-        actual_count = random.randint(min(min_count, max_possible), max_possible)
-
-        # actual_count만큼만 선택 (가까운 적 우선)
-        combat_enemies = combat_enemies[:actual_count]
-        num_enemies = actual_count
+        # 실제 전투 적 수는 항상 config 기준 (2-4마리)
+        # 맵 엔티티 수와 무관하게 추가 적이 소환됨
+        num_enemies = random.randint(min_enemies, max_enemies)
 
         has_boss = any(e.is_boss for e in combat_enemies)
 
-        logger.warning(f"[DEBUG] 전투 생성: 기본 {base_count}마리 → 랜덤 인카운트 {num_enemies}마리 (최대 {max_possible}마리 중)")
+        logger.warning(f"[DEBUG] 전투 생성: 맵 엔티티 {len(combat_enemies)}마리 → 실제 전투 {num_enemies}마리 (추가 적 소환)")
         logger.info(f"적과 조우! {num_enemies}마리 (레벨 {enemy.level})")
 
         return ExplorationResult(
