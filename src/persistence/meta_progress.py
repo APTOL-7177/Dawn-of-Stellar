@@ -178,7 +178,8 @@ class MetaProgress:
 class MetaProgressManager:
     """메타 진행 관리자"""
 
-    SAVE_FILE = Path("saves/meta_progress.json")
+    # 메타 진행 파일은 게임 세이브와 별도로 관리 (config 디렉토리)
+    SAVE_FILE = Path("config/meta_progress.json")
 
     def __init__(self):
         self.logger = get_logger(Loggers.SYSTEM)
@@ -187,8 +188,22 @@ class MetaProgressManager:
         # 저장 디렉토리 생성
         self.SAVE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
+        # 기존 saves/meta_progress.json 파일 마이그레이션
+        self._migrate_old_file()
+
         # 자동 로드
         self.load()
+
+    def _migrate_old_file(self):
+        """기존 saves/meta_progress.json 파일을 config/ 디렉토리로 이동"""
+        old_file = Path("saves/meta_progress.json")
+        if old_file.exists() and not self.SAVE_FILE.exists():
+            try:
+                import shutil
+                shutil.move(str(old_file), str(self.SAVE_FILE))
+                self.logger.info(f"메타 진행 파일 마이그레이션: {old_file} -> {self.SAVE_FILE}")
+            except Exception as e:
+                self.logger.warning(f"메타 진행 파일 마이그레이션 실패: {e}")
 
     def load(self) -> MetaProgress:
         """메타 진행 로드"""
