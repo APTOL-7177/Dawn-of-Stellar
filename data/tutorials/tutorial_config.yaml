@@ -1,0 +1,104 @@
+# 튜토리얼 시스템 설정
+
+# 전역 설정
+global:
+  enabled: true
+  auto_start: true  # 신규 플레이어에게 자동으로 튜토리얼 시작
+  can_skip_all: true  # 전체 튜토리얼 건너뛰기 허용
+  can_skip_individual: true  # 개별 단계 건너뛰기 허용
+  show_hints: true  # 힌트 시스템 활성화
+  hint_delay: 10.0  # 첫 힌트 표시까지 대기 시간 (초)
+
+# 튜토리얼 순서
+tutorial_order:
+  - basic_movement
+  - basic_interaction
+  - combat_intro
+  - atb_system
+  - brave_system
+  - skill_system
+  - job_system
+  - party_management
+  - equipment_inventory
+  - dungeon_exploration
+
+# 카테고리별 분류
+categories:
+  basics:
+    name: "기본 조작"
+    description: "게임의 기본적인 조작 방법"
+    tutorials:
+      - basic_movement
+      - basic_interaction
+
+  combat:
+    name: "전투 시스템"
+    description: "전투의 핵심 메커니즘"
+    tutorials:
+      - combat_intro
+      - atb_system
+      - brave_system
+      - skill_system
+
+  management:
+    name: "관리 시스템"
+    description: "파티, 장비, 인벤토리 관리"
+    tutorials:
+      - job_system
+      - party_management
+      - equipment_inventory
+
+  exploration:
+    name: "탐험"
+    description: "던전 탐험과 진행"
+    tutorials:
+      - dungeon_exploration
+
+# 보상 배율
+reward_multipliers:
+  first_completion: 1.0  # 첫 완료 시
+  replay: 0.0  # 재플레이 시 (보상 없음)
+
+# UI 설정
+ui:
+  overlay_opacity: 0.7  # 오버레이 투명도
+  highlight_pulse_speed: 1.0  # 강조 펄스 속도
+  text_speed: 0.05  # 텍스트 타이핑 속도 (초/글자)
+  tutorial_panel_position: "top_right"  # 튜토리얼 패널 위치
+
+  colors:
+    objective: [255, 215, 0]  # 목표 텍스트 색상 (금색)
+    hint: [200, 200, 200]  # 힌트 텍스트 색상
+    success: [0, 255, 0]  # 성공 메시지 색상
+    warning: [255, 255, 0]  # 경고 메시지 색상
+    error: [255, 0, 0]  # 오류 메시지 색상
+
+# 스토리 통합
+story_integration:
+  show_intro_before: true  # 튜토리얼 전에 인트로 스토리 표시
+  integrate_with_narrative: true  # 게임 내러티브와 통합
+
+  # 특정 스토리 지점에서 튜토리얼 트리거
+  story_triggers:
+    - story_point: "game_start"
+      tutorial: "basic_movement"
+
+    - story_point: "first_encounter"
+      tutorial: "combat_intro"
+
+    - story_point: "party_join"
+      tutorial: "party_management"
+
+# 적응형 튜토리얼 (향후 구현)
+adaptive:
+  enabled: false  # 아직 미구현
+  track_player_performance: true
+  adjust_difficulty: true
+  skip_mastered_concepts: true
+
+# 디버그 모드
+debug:
+  enabled: false
+  auto_complete: false  # 자동 완료 (테스트용)
+  show_completion_conditions: false  # 완료 조건 표시
+  log_events: true  # 이벤트 로그 기록
