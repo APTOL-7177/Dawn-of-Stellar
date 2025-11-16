@@ -173,7 +173,7 @@ class TutorialPlayMode:
         )
 
         # 안내
-        prompt = "Press any key to continue..."
+        prompt = "Press Z or Enter to continue..."
         self.console.print(
             (self.console.width - len(prompt)) // 2,
             self.console.height // 2 + 3,
@@ -183,10 +183,14 @@ class TutorialPlayMode:
 
         self.context.present(self.console)
 
-        # 입력 대기
-        for event in tcod.event.wait():
-            if isinstance(event, (tcod.event.KeyDown, tcod.event.Quit)):
-                break
+        # 입력 대기 (Z 또는 엔터만)
+        while True:
+            for event in tcod.event.wait():
+                if isinstance(event, tcod.event.KeyDown):
+                    if event.sym in (tcod.event.KeySym.z, tcod.event.KeySym.RETURN):
+                        return
+                elif isinstance(event, tcod.event.Quit):
+                    return
 
     def _run_movement_tutorial(self, tutorial) -> bool:
         """이동 튜토리얼 실행"""
@@ -286,7 +290,7 @@ class TutorialPlayMode:
             "• HP 공격으로 실제 데미지 입히기",
             "• 적의 BRV를 0으로 만들면 BREAK!",
             "",
-            "Press any key to continue..."
+            "Press Z or Enter to continue..."
         ]
 
         y = 10
@@ -301,12 +305,14 @@ class TutorialPlayMode:
 
         self.context.present(self.console)
 
-        # 입력 대기
-        for event in tcod.event.wait():
-            if isinstance(event, (tcod.event.KeyDown, tcod.event.Quit)):
-                break
-
-        return True
+        # 입력 대기 (Z 또는 엔터만)
+        while True:
+            for event in tcod.event.wait():
+                if isinstance(event, tcod.event.KeyDown):
+                    if event.sym in (tcod.event.KeySym.z, tcod.event.KeySym.RETURN):
+                        return True
+                elif isinstance(event, tcod.event.Quit):
+                    return False
 
     def _run_skill_tutorial(self, tutorial) -> bool:
         """스킬 튜토리얼 실행"""
@@ -329,7 +335,7 @@ class TutorialPlayMode:
             "",
             "메인 게임에서 다양한 스킬을 사용해보세요!",
             "",
-            "Press any key to continue..."
+            "Press Z or Enter to continue..."
         ]
 
         y = 8
@@ -344,12 +350,14 @@ class TutorialPlayMode:
 
         self.context.present(self.console)
 
-        # 입력 대기
-        for event in tcod.event.wait():
-            if isinstance(event, (tcod.event.KeyDown, tcod.event.Quit)):
-                break
-
-        return True
+        # 입력 대기 (Z 또는 엔터만)
+        while True:
+            for event in tcod.event.wait():
+                if isinstance(event, tcod.event.KeyDown):
+                    if event.sym in (tcod.event.KeySym.z, tcod.event.KeySym.RETURN):
+                        return True
+                elif isinstance(event, tcod.event.Quit):
+                    return False
 
     def _render_simple_map(self, exploration: ExplorationSystem, target_x: int, target_y: int) -> None:
         """간단한 맵 렌더링"""
@@ -418,7 +426,7 @@ class TutorialPlayMode:
             fg=(200, 200, 200)
         )
 
-        prompt = "Press any key to continue..."
+        prompt = "Press Z or Enter to continue..."
         self.console.print(
             (self.console.width - len(prompt)) // 2,
             self.console.height // 2 + 4,
@@ -428,10 +436,14 @@ class TutorialPlayMode:
 
         self.context.present(self.console)
 
-        # 입력 대기
-        for event in tcod.event.wait():
-            if isinstance(event, (tcod.event.KeyDown, tcod.event.Quit)):
-                break
+        # 입력 대기 (Z 또는 엔터만)
+        while True:
+            for event in tcod.event.wait():
+                if isinstance(event, tcod.event.KeyDown):
+                    if event.sym in (tcod.event.KeySym.z, tcod.event.KeySym.RETURN):
+                        return
+                elif isinstance(event, tcod.event.Quit):
+                    return
 
 
 def run_playable_tutorial(console: tcod.console.Console, context: tcod.context.Context) -> bool:
