@@ -190,11 +190,11 @@ class WorldUI:
                 if tile:
                     from src.world.tile import TileType
                     if tile.tile_type == TileType.STAIRS_DOWN:
-                        self.floor_change_requested = "down"
+                        self.floor_change_requested = "floor_down"
                         self.add_message("아래층으로 내려갑니다...")
                         return True
                     elif tile.tile_type == TileType.STAIRS_UP:
-                        self.floor_change_requested = "up"
+                        self.floor_change_requested = "floor_up"
                         self.add_message("위층으로 올라갑니다...")
                         return True
 
