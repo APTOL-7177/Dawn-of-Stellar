@@ -25,31 +25,68 @@ stat_growth:
   evasion: 2.5
   max_brv: 2.3
 traits:
-- id: shadow_cloak
-  name: 그림자 망토
-  description: 전투 시작 시 3턴간 은신 상태 (회피율 +50%)
+- id: stealth_state_bonus
+  name: 은신 상태 보너스
+  description: 은신 상태일 때 회피율 +80%, 다음 공격 크리티컬 확정
+  type: conditional
+  conditions:
+    stealth_active: true
+  effects:
+    evasion_multiplier: 1.8
+    next_attack_critical: true
+
+- id: stealth_speed_penalty
+  name: 은신 속도 감소
+  description: 은신 상태일 때 이동 속도 -50%
+  type: conditional
+  conditions:
+    stealth_active: true
+  effects:
+    speed_multiplier: 0.5
+
+- id: exposed_normal
+  name: 노출 상태
+  description: 노출 상태일 때 모든 능력치 정상, 3턴 후 은신 가능
+  type: conditional
+  conditions:
+    stealth_active: false
+  effects:
+    normal_stats: true
+    restealth_after_turns: 3
+
+- id: attack_breaks_stealth
+  name: 공격 시 은신 해제
+  description: 공격 스킬 사용 시 은신 상태 해제
   type: trigger
-- id: critical_mastery
-  name: 치명타 특화
-  description: 크리티컬 확률 +30%, 크리티컬 데미지 +80%
-  type: passive
-- id: assassination
-  name: 암살술
-  description: 은신 상태에서 공격 시 즉사 확률 20% (HP 40% 이하 적은 50%)
-  type: trigger
-- id: shadow_step
-  name: 그림자 이동
-  description: 공격 후 자동으로 회피 태세 진입
-  type: trigger
-- id: vital_strike
-  name: 급소 공격
-  description: 배후 공격 시 방어력 무시 + 데미지 2배
-  type: trigger
+  effects:
+    break_stealth_on_attack: true
+
+- id: shadow_master
+  name: 그림자의 달인
+  description: 은신 중 첫 공격 데미지 +150%
+  type: conditional
+  conditions:
+    stealth_active: true
+    first_attack: true
+  effects:
+    damage_multiplier: 2.5
+
 gimmick:
-  type: stealth_system
-  name: 은신 기술
-  description: 은신 상태에서 치명적인 암살 기술 사용. 은신 포인트를 소모하여 강화
-  max_stealth_points: 5
+  type: stealth_exposure
+  name: 은신-노출 딜레마
+  description: 은신 상태와 노출 상태를 오가는 전략적 플레이. 은신 중 공격 시 크리티컬 확정이지만 은신 해제
+  stealth_modes:
+    stealth:
+      name: 은신 상태
+      evasion_bonus: 0.8
+      guaranteed_critical: true
+      speed_penalty: 0.5
+      attack_breaks_stealth: true
+    exposed:
+      name: 노출 상태
+      normal_stats: true
+      turns_until_restealth: 3
+  start_mode: stealth
 
 skills:
 - backstab
