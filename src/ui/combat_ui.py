@@ -511,7 +511,8 @@ class CombatUI:
             CombatUIState.ACTION_MENU,
             CombatUIState.SKILL_MENU,
             CombatUIState.TARGET_SELECT,
-            CombatUIState.ITEM_MENU
+            CombatUIState.ITEM_MENU,
+            CombatUIState.GIMMICK_VIEW  # 기믹 상세 보기 중에도 시간 정지
         ]
 
         # 플레이어가 선택 중일 때는 ATB 증가를 멈춤
