@@ -1022,6 +1022,138 @@ class CombatUI:
             max_break = getattr(character, 'max_break_power', 10)
             return f"[파괴:{break_power}/{max_break}]"
 
+        # === 15개 신규 기믹 시스템 ===
+
+        elif gimmick_type == "yin_yang_flow":
+            # 몽크 - 음양 흐름 시스템
+            ki = getattr(character, 'ki_gauge', 50)
+            if ki < 20:
+                return f"[음:{ki}]"
+            elif ki > 80:
+                return f"[양:{ki}]"
+            else:
+                return f"[균형:{ki}]"
+
+        elif gimmick_type == "rune_resonance":
+            # 배틀메이지 - 룬 공명
+            fire = getattr(character, 'rune_fire', 0)
+            ice = getattr(character, 'rune_ice', 0)
+            lightning = getattr(character, 'rune_lightning', 0)
+            return f"[🔥{fire} ❄{ice} ⚡{lightning}]"
+
+        elif gimmick_type == "probability_distortion":
+            # 차원술사 - 확률 왜곡
+            gauge = getattr(character, 'distortion_gauge', 0)
+            max_gauge = getattr(character, 'max_gauge', 100)
+            return f"[확률:{gauge}/{max_gauge}]"
+
+        elif gimmick_type == "heat_gauge":
+            # 엔지니어 - 열 게이지
+            heat = getattr(character, 'heat', 0)
+            max_heat = getattr(character, 'max_heat', 100)
+            if heat > 70:
+                return f"[과열!:{heat}/{max_heat}]"
+            else:
+                return f"[열:{heat}/{max_heat}]"
+
+        elif gimmick_type == "thirst_gauge":
+            # 뱀파이어 - 갈증 게이지
+            thirst = getattr(character, 'thirst', 0)
+            max_thirst = getattr(character, 'max_thirst', 100)
+            if thirst > 70:
+                return f"[갈증!:{thirst}]"
+            elif thirst < 30:
+                return f"[만족:{thirst}]"
+            else:
+                return f"[갈증:{thirst}]"
+
+        elif gimmick_type == "madness_gauge":
+            # 버서커 - 광기 게이지
+            madness = getattr(character, 'madness', 0)
+            max_madness = getattr(character, 'max_madness', 100)
+            if madness > 70:
+                return f"[광기!:{madness}]"
+            else:
+                return f"[광기:{madness}/{max_madness}]"
+
+        elif gimmick_type == "spirit_resonance":
+            # 정령술사 - 정령 공명
+            fire = getattr(character, 'spirit_fire', 0)
+            water = getattr(character, 'spirit_water', 0)
+            wind = getattr(character, 'spirit_wind', 0)
+            earth = getattr(character, 'spirit_earth', 0)
+            total = fire + water + wind + earth
+            return f"[정령:🔥{fire}💧{water}💨{wind}🌍{earth}]"
+
+        elif gimmick_type == "combo_system":
+            # 격투가 - 콤보
+            combo = getattr(character, 'combo_count', 0)
+            max_combo = getattr(character, 'max_combo', 10)
+            if combo >= 5:
+                return f"[콤보!:{combo}]"
+            else:
+                return f"[콤보:{combo}]"
+
+        elif gimmick_type == "stealth_mastery":
+            # 암살자 - 은신 숙련
+            stealth_active = getattr(character, 'stealth_active', False)
+            shadow_strike = getattr(character, 'shadow_strike_ready', False)
+            if stealth_active:
+                return "[은신중]"
+            elif shadow_strike:
+                return "[그림자 공격 준비]"
+            else:
+                return "[노출]"
+
+        elif gimmick_type == "dilemma_choice":
+            # 철학자 - 딜레마 선택
+            power = getattr(character, 'choice_power', 0)
+            wisdom = getattr(character, 'choice_wisdom', 0)
+            sacrifice = getattr(character, 'choice_sacrifice', 0)
+            truth = getattr(character, 'choice_truth', 0)
+            return f"[힘{power} 지혜{wisdom} 희생{sacrifice} 진리{truth}]"
+
+        elif gimmick_type == "support_fire":
+            # 궁수 - 지원사격
+            combo = getattr(character, 'support_fire_combo', 0)
+            marked = getattr(character, 'marked_allies_count', 0)
+            return f"[지원:{combo}콤보 표식{marked}]"
+
+        elif gimmick_type == "hack_threading":
+            # 해커 - 해킹 스레드
+            threads = getattr(character, 'active_threads', 0)
+            max_threads = getattr(character, 'max_threads', 5)
+            exploits = getattr(character, 'exploit_count', 0)
+            return f"[스레드:{threads}/{max_threads} 익스{exploits}]"
+
+        elif gimmick_type == "cheer_gauge":
+            # 검투사 - 환호 게이지
+            cheer = getattr(character, 'cheer', 0)
+            max_cheer = getattr(character, 'max_cheer', 100)
+            if cheer > 70:
+                return f"[열광!:{cheer}]"
+            else:
+                return f"[환호:{cheer}/{max_cheer}]"
+
+        elif gimmick_type == "mimicry_system":
+            # 모방사 - 모방
+            copied_skill = getattr(character, 'copied_skill_name', None)
+            mimic_count = getattr(character, 'mimic_count', 0)
+            if copied_skill:
+                return f"[모방:{copied_skill[:4]}]"
+            else:
+                return f"[모방:{mimic_count}]"
+
+        elif gimmick_type == "gear_system":
+            # 기계공 - 기어
+            gears = getattr(character, 'gear_count', 0)
+            max_gears = getattr(character, 'max_gears', 5)
+            overheat = getattr(character, 'is_overheated', False)
+            if overheat:
+                return f"[과열! 기어:{gears}]"
+            else:
+                return f"[기어:{gears}/{max_gears}]"
+
         return ""
 
     def _render_item_menu(self, console: tcod.console.Console):
