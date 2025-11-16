@@ -491,8 +491,15 @@ class ExplorationSystem:
 
     def _trigger_combat(self) -> ExplorationResult:
         """전투 조우 (랜덤)"""
-        # 적 생성 (층수에 따라)
-        num_enemies = min(4, 1 + self.floor_number // 3)
+        # Config에서 적 수 범위 가져오기
+        from src.core.config import get_config
+        import random
+        config = get_config()
+        min_enemies = config.get("world.dungeon.enemy_count.min_enemies", 2)
+        max_enemies = config.get("world.dungeon.enemy_count.max_enemies", 4)
+
+        # 랜덤하게 적 수 결정 (2-4마리)
+        num_enemies = random.randint(min_enemies, max_enemies)
 
         logger.info(f"전투 조우! 적 {num_enemies}명")
 
@@ -523,8 +530,13 @@ class ExplorationSystem:
         base_count = len(combat_enemies)
         logger.warning(f"[DEBUG] 기본 적 수: {base_count}마리 (충돌 1 + 인접 {base_count - 1})")
 
-        # 4마리 미만이면 더 먼 거리의 적도 찾기 (랜덤 인카운트용)
-        if len(combat_enemies) < 4:
+        # Config에서 최대 적 수 가져오기
+        from src.core.config import get_config
+        config = get_config()
+        max_enemies_limit = config.get("world.dungeon.enemy_count.max_enemies", 4)
+
+        # max_enemies_limit 미만이면 더 먼 거리의 적도 찾기 (랜덤 인카운트용)
+        if len(combat_enemies) < max_enemies_limit:
             extended_range = 6
             for other_enemy in self.enemies:
                 if other_enemy in combat_enemies:
@@ -534,12 +546,16 @@ class ExplorationSystem:
                 if distance <= extended_range:
                     combat_enemies.append(other_enemy)
                     logger.warning(f"[DEBUG] 추가 적 발견: ({other_enemy.x}, {other_enemy.y}), 거리={distance}")
-                    if len(combat_enemies) >= 4:
+                    if len(combat_enemies) >= max_enemies_limit:
                         break
 
-        # 실제 전투 적 수: base_count ~ min(len(combat_enemies), 4) 사이 랜덤
-        max_possible = min(len(combat_enemies), 4)
-        actual_count = random.randint(base_count, max_possible)
+        # Config에서 최소 적 수 가져오기
+        min_enemies_config = config.get("world.dungeon.enemy_count.min_enemies", 2)
+
+        # 실제 전투 적 수: 최소 min_enemies_config, 최대 min(len(combat_enemies), max_enemies_limit)
+        max_possible = min(len(combat_enemies), max_enemies_limit)
+        min_count = max(base_count, min_enemies_config)  # 최소 2마리 보장
+        actual_count = random.randint(min(min_count, max_possible), max_possible)
 
         # actual_count만큼만 선택 (가까운 적 우선)
         combat_enemies = combat_enemies[:actual_count]
