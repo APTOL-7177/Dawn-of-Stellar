@@ -59,19 +59,20 @@ def get_shop_items() -> List[ShopItem]:
     items = []
 
     # === 영구 업그레이드 ===
-    items.append(ShopItem(
-        "HP 증가 I",
-        "파티원 전체의 최대 HP +10% (영구)",
-        500,
-        ShopCategory.PERMANENT_UPGRADES
-    ))
-    ShopItem(
-        "HP 증가 II",
-        "파티원 전체의 최대 HP +20% (영구)",
-        1500,
-        ShopCategory.PERMANENT_UPGRADES
-    ),
-    ShopItem(
+    items.extend([
+        ShopItem(
+            "HP 증가 I",
+            "파티원 전체의 최대 HP +10% (영구)",
+            500,
+            ShopCategory.PERMANENT_UPGRADES
+        ),
+        ShopItem(
+            "HP 증가 II",
+            "파티원 전체의 최대 HP +20% (영구)",
+            1500,
+            ShopCategory.PERMANENT_UPGRADES
+        ),
+        ShopItem(
         "MP 증가 I",
         "파티원 전체의 최대 MP +10% (영구)",
         500,
@@ -159,13 +160,15 @@ def get_shop_items() -> List[ShopItem]:
         150,
         ShopCategory.SPECIAL
     ),
-    ShopItem(
-        "보물 탐지기",
-        "현재 층의 모든 보물 위치를 미니맵에 표시",
-        100,
-        ShopCategory.SPECIAL
-    ),
-]
+        ShopItem(
+            "보물 탐지기",
+            "현재 층의 모든 보물 위치를 미니맵에 표시",
+            100,
+            ShopCategory.SPECIAL
+        ),
+    ])
+
+    return items
 
 
 class ShopUI:
