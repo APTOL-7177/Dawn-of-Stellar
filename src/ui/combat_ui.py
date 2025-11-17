@@ -1795,10 +1795,26 @@ class CombatUI:
                 console.print(content_x, content_y + line, "🔥 화염+번개 융합 가능!", fg=(255, 255, 200))
 
         elif gimmick_type == "support_fire_system":
-            # 궁수 - 지원사격 시스템
-            marked_allies = getattr(character, 'marked_allies', [])
-            combo = getattr(character, 'combo_count', 0)
-            max_marks = getattr(character, 'max_marks', 3)
+            # 궁수 - 지원사격 시스템 (구버전 호환)
+            combo = getattr(character, 'support_fire_combo', 0)
+
+            # 실제로 마킹된 아군 수 및 상세 정보 계산
+            marked_details = []
+            if hasattr(self, 'combat_manager') and hasattr(self.combat_manager, 'allies'):
+                for ally in self.combat_manager.allies:
+                    if ally == character:  # 자기 자신은 제외
+                        continue
+
+                    ally_marks = []
+                    for arrow_type in ['normal', 'piercing', 'fire', 'ice', 'poison', 'explosive', 'holy']:
+                        slot = getattr(ally, f'mark_slot_{arrow_type}', 0)
+                        shots = getattr(ally, f'mark_shots_{arrow_type}', 0)
+                        if slot > 0 and shots > 0:
+                            ally_marks.append((arrow_type, shots))
+
+                    if ally_marks:
+                        ally_name = getattr(ally, 'name', '아군')
+                        marked_details.append((ally_name, ally_marks))
 
             console.print(content_x, content_y + line, "🏹 궁수 - 지원사격", fg=(100, 200, 100))
             line += 1
@@ -1806,43 +1822,33 @@ class CombatUI:
             line += 1
 
             # 마킹된 아군 정보
-            console.print(content_x, content_y + line, f"마킹된 아군: ({len(marked_allies)}/{max_marks})", fg=(200, 200, 200))
+            console.print(content_x, content_y + line, f"마킹된 아군: ({len(marked_details)}/3)", fg=(200, 200, 200))
             line += 1
 
-            if len(marked_allies) > 0:
+            if marked_details:
                 console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
                 line += 1
 
-                # 화살 타입 이름 매핑
                 arrow_names = {
-                    'N': '일반 화살',
-                    'P': '관통 화살 (방어 무시)',
-                    'F': '화염 화살 (화상)',
-                    'I': '빙결 화살 (속도↓)',
-                    'T': '독 화살 (독)',
-                    'E': '폭발 화살 (광역)',
-                    'H': '신성 화살 (언데드 특효)',
+                    'normal': '일반',
+                    'piercing': '관통',
+                    'fire': '화염',
+                    'ice': '빙결',
+                    'poison': '독',
+                    'explosive': '폭발',
+                    'holy': '신성'
                 }
 
                 # 각 마킹된 아군 표시
-                for i, ally in enumerate(marked_allies):
-                    if isinstance(ally, dict):
-                        ally_name = ally.get('name', f'아군{i+1}')
-                        arrow_type = ally.get('arrow_type', 'N')
-                        remaining = ally.get('remaining_shots', 3)
-                    else:
-                        ally_name = f'아군{i+1}'
-                        arrow_type = 'N'
-                        remaining = 3
-
+                for i, (ally_name, marks) in enumerate(marked_details):
                     console.print(content_x, content_y + line, f"[{ally_name}] 🎯", fg=(255, 200, 100))
                     line += 1
-                    console.print(content_x + 2, content_y + line, f"화살: {arrow_names.get(arrow_type, '일반 화살')}", fg=(200, 200, 200))
-                    line += 1
-                    console.print(content_x + 2, content_y + line, f"남은 지원: {remaining}회", fg=(180, 180, 180))
-                    line += 1
+                    for arrow_type, shots in marks:
+                        arrow_name = arrow_names.get(arrow_type, arrow_type)
+                        console.print(content_x + 2, content_y + line, f"• {arrow_name}: {shots}회", fg=(200, 200, 200))
+                        line += 1
 
-                    if i < len(marked_allies) - 1:
+                    if i < len(marked_details) - 1:
                         line += 1  # 간격
 
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
