@@ -81,6 +81,19 @@ class DamageEffect(SkillEffect):
             elif condition == "madness_high":
                 # 광기 높음 (70+)
                 condition_met = getattr(user, 'madness', 0) >= 70
+            elif condition == "in_berserker_mode":
+                # 버서커 모드 (광기 >= 40)
+                condition_met = getattr(user, 'madness', 0) >= 40
+            elif condition == "hp_below_30":
+                # HP 30% 이하
+                current_hp = getattr(user, 'current_hp', 0)
+                max_hp = getattr(user, 'max_hp', 1)
+                condition_met = (current_hp / max_hp) <= 0.30 if max_hp > 0 else False
+            elif condition == "hp_below_50":
+                # HP 50% 이하
+                current_hp = getattr(user, 'current_hp', 0)
+                max_hp = getattr(user, 'max_hp', 1)
+                condition_met = (current_hp / max_hp) <= 0.50 if max_hp > 0 else False
             # 더 많은 조건을 여기에 추가 가능
 
             if condition_met:

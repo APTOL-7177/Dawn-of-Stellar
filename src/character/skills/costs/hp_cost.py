@@ -20,7 +20,15 @@ class HPCost(SkillCost):
         cost = self._calculate_cost(user)
         if user.current_hp <= cost:
             return False
-        user.take_damage(cost)
+
+        # HP 직접 감소 (take_damage 대신 안전한 방법)
+        if hasattr(user, 'take_damage'):
+            user.take_damage(cost)
+        elif hasattr(user, 'current_hp'):
+            user.current_hp = max(1, user.current_hp - cost)  # 최소 1 HP 보장
+        else:
+            return False
+
         # 소비한 HP를 context에 저장 (보호막 생성용)
         if context is not None:
             context['hp_consumed'] = cost
