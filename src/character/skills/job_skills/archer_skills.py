@@ -31,8 +31,8 @@ def create_archer_skills():
     # 3. 일반 화살 마킹 (MP 0)
     mark_normal = Skill("archer_mark_normal", "일반 화살 지원", "아군 마킹: 일반 화살 (배율 1.5)")
     mark_normal.effects = [
-        GimmickEffect(GimmickOperation.ADD, "mark_slot_normal", 1, max_value=3),  # 마킹 슬롯 추가
-        GimmickEffect(GimmickOperation.SET, "mark_shots_normal", 3),  # 3회 지원
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_normal", 1, max_value=3, apply_to_target=True),  # 대상에게 마킹 슬롯 추가
+        GimmickEffect(GimmickOperation.SET, "mark_shots_normal", 3, apply_to_target=True),  # 대상에게 3회 지원 설정
     ]
     mark_normal.costs = []  # 일반 화살은 MP 소모 없음
     mark_normal.target_type = "ally"
@@ -43,8 +43,8 @@ def create_archer_skills():
     # 4. 관통 화살 마킹
     mark_piercing = Skill("archer_mark_piercing", "관통 화살 지원", "아군 마킹: 관통 (배율 1.8, 방어 무시 30%)")
     mark_piercing.effects = [
-        GimmickEffect(GimmickOperation.ADD, "mark_slot_piercing", 1, max_value=3),
-        GimmickEffect(GimmickOperation.SET, "mark_shots_piercing", 3),
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_piercing", 1, max_value=3, apply_to_target=True),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_piercing", 3, apply_to_target=True),
     ]
     mark_piercing.costs = [MPCost(10)]
     mark_piercing.target_type = "ally"
@@ -55,8 +55,8 @@ def create_archer_skills():
     # 5. 화염 화살 마킹
     mark_fire = Skill("archer_mark_fire", "화염 화살 지원", "아군 마킹: 화염 (배율 1.6, 화상 2턴)")
     mark_fire.effects = [
-        GimmickEffect(GimmickOperation.ADD, "mark_slot_fire", 1, max_value=3),
-        GimmickEffect(GimmickOperation.SET, "mark_shots_fire", 3),
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_fire", 1, max_value=3, apply_to_target=True),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_fire", 3, apply_to_target=True),
     ]
     mark_fire.costs = [MPCost(10)]
     mark_fire.target_type = "ally"
@@ -67,8 +67,8 @@ def create_archer_skills():
     # 6. 빙결 화살 마킹
     mark_ice = Skill("archer_mark_ice", "빙결 화살 지원", "아군 마킹: 빙결 (배율 1.4, 속도 -30%)")
     mark_ice.effects = [
-        GimmickEffect(GimmickOperation.ADD, "mark_slot_ice", 1, max_value=3),
-        GimmickEffect(GimmickOperation.SET, "mark_shots_ice", 3),
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_ice", 1, max_value=3, apply_to_target=True),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_ice", 3, apply_to_target=True),
     ]
     mark_ice.costs = [MPCost(10)]
     mark_ice.target_type = "ally"
@@ -79,8 +79,8 @@ def create_archer_skills():
     # 7. 독 화살 마킹
     mark_poison = Skill("archer_mark_poison", "독 화살 지원", "아군 마킹: 독 (배율 1.3, 독 3턴)")
     mark_poison.effects = [
-        GimmickEffect(GimmickOperation.ADD, "mark_slot_poison", 1, max_value=3),
-        GimmickEffect(GimmickOperation.SET, "mark_shots_poison", 3),
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_poison", 1, max_value=3, apply_to_target=True),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_poison", 3, apply_to_target=True),
     ]
     mark_poison.costs = [MPCost(8)]
     mark_poison.target_type = "ally"
@@ -91,8 +91,8 @@ def create_archer_skills():
     # 8. 폭발 화살 마킹
     mark_explosive = Skill("archer_mark_explosive", "폭발 화살 지원", "아군 마킹: 폭발 (배율 2.0, 광역 50%)")
     mark_explosive.effects = [
-        GimmickEffect(GimmickOperation.ADD, "mark_slot_explosive", 1, max_value=3),
-        GimmickEffect(GimmickOperation.SET, "mark_shots_explosive", 3),
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_explosive", 1, max_value=3, apply_to_target=True),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_explosive", 3, apply_to_target=True),
     ]
     mark_explosive.costs = [MPCost(15)]
     mark_explosive.target_type = "ally"
@@ -103,8 +103,8 @@ def create_archer_skills():
     # 9. 신성 화살 마킹
     mark_holy = Skill("archer_mark_holy", "신성 화살 지원", "아군 마킹: 신성 (배율 1.7, 언데드 2배)")
     mark_holy.effects = [
-        GimmickEffect(GimmickOperation.ADD, "mark_slot_holy", 1, max_value=3),
-        GimmickEffect(GimmickOperation.SET, "mark_shots_holy", 3),
+        GimmickEffect(GimmickOperation.ADD, "mark_slot_holy", 1, max_value=3, apply_to_target=True),
+        GimmickEffect(GimmickOperation.SET, "mark_shots_holy", 3, apply_to_target=True),
     ]
     mark_holy.costs = [MPCost(12)]
     mark_holy.target_type = "ally"

@@ -12,30 +12,36 @@ class GimmickOperation(Enum):
 
 class GimmickEffect(SkillEffect):
     """기믹 효과"""
-    def __init__(self, operation, field, value, max_value=None, min_value=None, **kwargs):
+    def __init__(self, operation, field, value, max_value=None, min_value=None, apply_to_target=False, **kwargs):
         super().__init__(EffectType.GIMMICK)
         self.operation = operation
         self.field = field
         self.value = value
         self.max_value = max_value
         self.min_value = min_value
+        self.apply_to_target = apply_to_target  # True면 target에 적용, False면 user에 적용
         self.extra_params = kwargs  # bullet_type 등 추가 파라미터
     
     def can_execute(self, user, target, context) -> bool:
-        return hasattr(user, self.field)
-    
+        # apply_to_target이 True면 target을 확인, False면 user를 확인
+        check_entity = target if self.apply_to_target else user
+        return check_entity is not None
+
     def execute(self, user, target, context) -> EffectResult:
-        # 특수 operation 처리
+        # 특수 operation 처리 (항상 user에 적용)
         if self.operation == GimmickOperation.RELOAD_MAGAZINE:
             return self._reload_magazine(user, context)
         elif self.operation == GimmickOperation.LOAD_BULLETS:
             return self._load_bullets(user, context)
 
-        # 기본 operation 처리
-        if not hasattr(user, self.field):
-            return EffectResult(effect_type=EffectType.GIMMICK, success=False)
+        # apply_to_target이 True면 target에 적용, False면 user에 적용
+        entity = target if self.apply_to_target else user
 
-        old_value = getattr(user, self.field, 0)
+        if entity is None:
+            return EffectResult(effect_type=EffectType.GIMMICK, success=False, message="대상이 없습니다")
+
+        # 기본 operation 처리
+        old_value = getattr(entity, self.field, 0)
         new_value = old_value
 
         if self.operation == GimmickOperation.ADD:
@@ -47,8 +53,8 @@ class GimmickEffect(SkillEffect):
 
         # 최대값 제한
         max_field_name = f"max_{self.field}"
-        if hasattr(user, max_field_name):
-            actual_max = getattr(user, max_field_name)
+        if hasattr(entity, max_field_name):
+            actual_max = getattr(entity, max_field_name)
             new_value = min(new_value, actual_max)
         elif self.max_value is not None:
             new_value = min(new_value, self.max_value)
@@ -59,13 +65,14 @@ class GimmickEffect(SkillEffect):
         else:
             new_value = max(new_value, 0)
 
-        setattr(user, self.field, new_value)
+        setattr(entity, self.field, new_value)
 
+        entity_name = getattr(entity, 'name', '대상')
         return EffectResult(
             effect_type=EffectType.GIMMICK,
             success=True,
             gimmick_changes={self.field: new_value - old_value},
-            message=f"{self.field}: {old_value} -> {new_value}"
+            message=f"{entity_name}의 {self.field}: {old_value} -> {new_value}"
         )
 
     def _reload_magazine(self, user, context) -> EffectResult:

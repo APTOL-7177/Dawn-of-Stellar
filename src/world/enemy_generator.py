@@ -246,16 +246,16 @@ class SimpleEnemy:
         self.level = max(1, int(template.level * level_modifier))
 
         # 스탯 (레벨 보정 + 난이도 보정 + 밸런스 조정)
-        # 밸런스 조정: HP 1.17배 (낮춤), 방어력 1.5배 (낮춤), 공격력 0.5배
-        self.max_hp = int(template.hp * level_modifier * difficulty_hp_mult * 1.17)
+        # 밸런스 조정: HP 0.95배 (대폭 낮춤), 방어력 1.3배 (낮춤), 공격력 0.5배
+        self.max_hp = int(template.hp * level_modifier * difficulty_hp_mult * 0.95)
         self.current_hp = self.max_hp
-        self.max_mp = int(template.mp * level_modifier * 1.17)
+        self.max_mp = int(template.mp * level_modifier * 0.95)
         self.current_mp = self.max_mp
 
         self.physical_attack = int(template.physical_attack * level_modifier * difficulty_dmg_mult * 0.5)
-        self.physical_defense = int(template.physical_defense * level_modifier * 1.5)
+        self.physical_defense = int(template.physical_defense * level_modifier * 1.3)
         self.magic_attack = int(template.magic_attack * level_modifier * difficulty_dmg_mult * 0.5)
-        self.magic_defense = int(template.magic_defense * level_modifier * 1.5)
+        self.magic_defense = int(template.magic_defense * level_modifier * 1.3)
         self.speed = template.speed
         self.luck = template.luck
         self.accuracy = template.accuracy
