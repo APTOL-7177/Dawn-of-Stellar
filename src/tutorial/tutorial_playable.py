@@ -7,6 +7,7 @@
 import tcod
 import tcod.console
 import tcod.event
+import time
 from typing import Optional, Tuple
 
 from src.tutorial.tutorial_dungeon import TutorialDungeon
@@ -24,8 +25,12 @@ logger = get_logger(Loggers.SYSTEM)
 
 def flush_events():
     """이벤트 버퍼를 비웁니다 (이전 입력 제거)"""
-    for _ in tcod.event.get():
-        pass
+    # 짧은 시간 대기하면서 모든 이벤트 비우기
+    start_time = time.time()
+    while time.time() - start_time < 0.2:  # 200ms 대기
+        for _ in tcod.event.get():
+            pass
+        time.sleep(0.01)  # CPU 부하 방지
 
 
 class TutorialPlayMode:
