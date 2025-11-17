@@ -13,6 +13,7 @@ class GimmickUpdater:
         if not gimmick_type:
             return
 
+        # 기존 구현된 기믹들
         if gimmick_type == "heat_management":
             GimmickUpdater._update_heat_management(character)
         elif gimmick_type == "timeline_system":
@@ -27,6 +28,53 @@ class GimmickUpdater:
             GimmickUpdater._update_probability_distortion(character)
         elif gimmick_type == "stealth_exposure":
             GimmickUpdater._update_stealth_exposure(character)
+        # ISSUE-004: 신규 추가 기믹들
+        elif gimmick_type == "sword_aura":
+            GimmickUpdater._update_sword_aura(character)
+        elif gimmick_type == "crowd_cheer":
+            GimmickUpdater._update_crowd_cheer(character)
+        elif gimmick_type == "duty_system":
+            GimmickUpdater._update_duty_system(character)
+        elif gimmick_type == "stance_system":
+            GimmickUpdater._update_stance_system(character)
+        elif gimmick_type == "iaijutsu_system":
+            GimmickUpdater._update_iaijutsu_system(character)
+        elif gimmick_type == "dragon_marks":
+            GimmickUpdater._update_dragon_marks(character)
+        elif gimmick_type == "holy_system":
+            GimmickUpdater._update_holy_system(character)
+        elif gimmick_type == "divinity_system":
+            GimmickUpdater._update_divinity_system(character)
+        elif gimmick_type == "darkness_system":
+            GimmickUpdater._update_darkness_system(character)
+        elif gimmick_type == "undead_legion":
+            GimmickUpdater._update_undead_legion(character)
+        elif gimmick_type == "theft_system":
+            GimmickUpdater._update_theft_system(character)
+        elif gimmick_type == "shapeshifting_system":
+            GimmickUpdater._update_shapeshifting_system(character)
+        elif gimmick_type == "enchant_system":
+            GimmickUpdater._update_enchant_system(character)
+        elif gimmick_type == "totem_system":
+            GimmickUpdater._update_totem_system(character)
+        elif gimmick_type == "melody_system":
+            GimmickUpdater._update_melody_system(character)
+        elif gimmick_type == "break_system":
+            GimmickUpdater._update_break_system(character)
+        elif gimmick_type == "elemental_counter":
+            GimmickUpdater._update_elemental_counter(character)
+        elif gimmick_type == "alchemy_system":
+            GimmickUpdater._update_alchemy_system(character)
+        elif gimmick_type == "elemental_spirits":
+            GimmickUpdater._update_elemental_spirits(character)
+        elif gimmick_type == "plunder_system":
+            GimmickUpdater._update_plunder_system(character)
+        elif gimmick_type == "multithread_system":
+            GimmickUpdater._update_multithread_system(character)
+        elif gimmick_type == "dilemma_choice":
+            GimmickUpdater._update_dilemma_choice(character)
+        elif gimmick_type == "rune_resonance":
+            GimmickUpdater._update_rune_resonance(character)
 
     @staticmethod
     def on_turn_start(character):
@@ -45,6 +93,14 @@ class GimmickUpdater:
         elif gimmick_type == "thirst_gauge":
             character.thirst = min(character.max_thirst, character.thirst + 10)
             logger.debug(f"{character.name} 갈증 +10 (총: {character.thirst})")
+
+        # ISSUE-004: 추가 턴 시작 기믹 업데이트
+        # 군중 환호 - 턴 시작 시 +5
+        elif gimmick_type == "crowd_cheer":
+            cheer = getattr(character, 'cheer', 0)
+            max_cheer = getattr(character, 'max_cheer', 100)
+            character.cheer = min(max_cheer, cheer + 5)
+            logger.debug(f"{character.name} 환호 증가: +5 (총: {character.cheer})")
 
     @staticmethod
     def on_skill_use(character, skill):
@@ -397,6 +453,188 @@ class GimmickStateChecker:
         if character.gimmick_type == "support_fire":
             return getattr(character, 'support_fire_combo', 0)
         return 0
+
+    # === ISSUE-004: 신규 기믹 업데이트 로직 (1/3) ===
+
+    @staticmethod
+    def _update_sword_aura(character):
+        """검성: 검기 시스템 업데이트"""
+        # 검기는 공격 시 자동 획득하므로 자동 증가 없음 (YAML 기준 max=5)
+        # 최대값 제한만 체크
+        sword_aura = getattr(character, 'sword_aura', 0)
+        max_aura = getattr(character, 'max_sword_aura', 5)
+        if sword_aura > max_aura:
+            character.sword_aura = max_aura
+
+    @staticmethod
+    def _update_crowd_cheer(character):
+        """검투사: 군중 환호 시스템 업데이트"""
+        # 환호 자연 감소 (매 턴 -10)
+        cheer = getattr(character, 'cheer', 0)
+        character.cheer = max(0, cheer - 10)
+        logger.debug(f"{character.name} 환호 자연 감소: -10 (총: {character.cheer})")
+
+    @staticmethod
+    def _update_duty_system(character):
+        """기사: 의무 시스템 업데이트"""
+        # 의무 게이지는 스킬/특성으로만 변화, 자동 업데이트 없음
+        pass
+
+    @staticmethod
+    def _update_stance_system(character):
+        """전사: 자세 시스템 업데이트"""
+        # 자세는 스킬로만 변경, 자동 업데이트 없음
+        pass
+
+    @staticmethod
+    def _update_iaijutsu_system(character):
+        """사무라이: 거합 시스템 업데이트"""
+        # 의지 게이지 자연 증가 (매 턴 +10) - YAML: max_will_gauge
+        will_gauge = getattr(character, 'will_gauge', 0)
+        max_will = getattr(character, 'max_will_gauge', 100)
+        character.will_gauge = min(max_will, will_gauge + 10)
+        logger.debug(f"{character.name} 의지 게이지 증가: +10 (총: {character.will_gauge})")
+
+    @staticmethod
+    def _update_dragon_marks(character):
+        """용기사: 드래곤 마크 시스템 업데이트"""
+        # 각인은 스킬로만 축적, 자동 업데이트 없음
+        # 각인 5개 도달 시 드래곤 변신 가능 상태 표시
+        marks = getattr(character, 'dragon_marks', 0)
+        if marks >= 5:
+            character.dragon_transform_ready = True
+            logger.info(f"{character.name} 드래곤 변신 준비 완료!")
+
+    @staticmethod
+    def _update_holy_system(character):
+        """성직자: 신성 시스템 업데이트"""
+        # 신성력 자연 증가 (매 턴 +5)
+        holy = getattr(character, 'holy_gauge', 0)
+        max_holy = getattr(character, 'max_holy_gauge', 100)
+        character.holy_gauge = min(max_holy, holy + 5)
+        logger.debug(f"{character.name} 신성력 증가: +5 (총: {character.holy_gauge})")
+
+    @staticmethod
+    def _update_divinity_system(character):
+        """성기사/대마법사: 신성력 시스템 업데이트"""
+        # 신성력 자연 증가 (매 턴 +3, 성직자보다 느림)
+        divinity = getattr(character, 'divinity', 0)
+        max_divinity = getattr(character, 'max_divinity', 100)
+        character.divinity = min(max_divinity, divinity + 3)
+        logger.debug(f"{character.name} 신성력 증가: +3 (총: {character.divinity})")
+
+    @staticmethod
+    def _update_darkness_system(character):
+        """암흑기사: 암흑 시스템 업데이트"""
+        # 암흑력 자연 증가 (매 턴 +5)
+        darkness = getattr(character, 'darkness_gauge', 0)
+        max_darkness = getattr(character, 'max_darkness_gauge', 100)
+        character.darkness_gauge = min(max_darkness, darkness + 5)
+        logger.debug(f"{character.name} 암흑력 증가: +5 (총: {character.darkness_gauge})")
+
+    # === ISSUE-004: 신규 기믹 업데이트 로직 (2/3) ===
+
+    @staticmethod
+    def _update_undead_legion(character):
+        """네크로맨서: 언데드 군단 시스템 업데이트"""
+        # 소환된 언데드는 스킬로만 관리, 자동 업데이트 없음
+        # 최대 5개까지 유지
+        minions = getattr(character, 'undead_minions', 0)
+        if minions > 5:
+            character.undead_minions = 5
+
+    @staticmethod
+    def _update_theft_system(character):
+        """도적: 절도 시스템 업데이트"""
+        # 훔친 아이템/버프는 스킬로만 관리, 자동 업데이트 없음
+        pass
+
+    @staticmethod
+    def _update_shapeshifting_system(character):
+        """드루이드: 변신 시스템 업데이트"""
+        # 변신 형태는 스킬로만 변경, 자동 업데이트 없음
+        pass
+
+    @staticmethod
+    def _update_enchant_system(character):
+        """마검사: 마법부여 시스템 업데이트"""
+        # 부여된 속성은 스킬로만 변경, 자동 업데이트 없음
+        pass
+
+    @staticmethod
+    def _update_totem_system(character):
+        """무당: 토템 시스템 업데이트"""
+        # 토템은 스킬로만 설치/제거, 자동 업데이트 없음
+        # 최대 3개까지 유지
+        totems = getattr(character, 'active_totems', [])
+        if len(totems) > 3:
+            character.active_totems = totems[:3]
+
+    @staticmethod
+    def _update_melody_system(character):
+        """바드: 선율 시스템 업데이트"""
+        # 음표 자연 증가 (매 턴 +1)
+        notes = getattr(character, 'melody_notes', 0)
+        max_notes = getattr(character, 'max_melody_notes', 8)
+        character.melody_notes = min(max_notes, notes + 1)
+        logger.debug(f"{character.name} 음표 증가: +1 (총: {character.melody_notes})")
+
+    @staticmethod
+    def _update_break_system(character):
+        """브레이커: 브레이크 시스템 업데이트"""
+        # 브레이크 보너스 자연 감소 (매 턴 -5%)
+        bonus = getattr(character, 'break_bonus', 0)
+        character.break_bonus = max(0, bonus - 5)
+        logger.debug(f"{character.name} 브레이크 보너스 감소: -5% (총: {character.break_bonus}%)")
+
+    @staticmethod
+    def _update_elemental_counter(character):
+        """엘리멘탈리스트: 속성 카운터 시스템 업데이트"""
+        # 속성 스택은 스킬로만 축적, 자동 업데이트 없음
+        # 최대 5스택까지 유지
+        for element in ['fire', 'ice', 'lightning']:
+            stacks = getattr(character, f'{element}_stacks', 0)
+            if stacks > 5:
+                setattr(character, f'{element}_stacks', 5)
+
+    @staticmethod
+    def _update_alchemy_system(character):
+        """연금술사: 연금 시스템 업데이트"""
+        # 촉매는 스킬로만 변경, 자동 업데이트 없음
+        pass
+
+    @staticmethod
+    def _update_elemental_spirits(character):
+        """정령술사: 정령 소환 시스템 업데이트"""
+        # 정령은 스킬로만 소환/해제, 자동 업데이트 없음
+        pass
+
+    @staticmethod
+    def _update_plunder_system(character):
+        """해적: 약탈 시스템 업데이트"""
+        # 약탈한 골드는 스킬로만 획득, 자동 업데이트 없음
+        pass
+
+    @staticmethod
+    def _update_multithread_system(character):
+        """해커: 멀티스레드 시스템 업데이트"""
+        # 활성 스레드 자연 감소 (매 턴 -1)
+        threads = getattr(character, 'active_threads', 0)
+        character.active_threads = max(0, threads - 1)
+        if threads > 0:
+            logger.debug(f"{character.name} 활성 스레드 감소: -1 (총: {character.active_threads})")
+
+    @staticmethod
+    def _update_dilemma_choice(character):
+        """철학자: 딜레마 선택 시스템 업데이트"""
+        # 선택 값은 스킬로만 변경, 자동 업데이트 없음
+        pass
+
+    @staticmethod
+    def _update_rune_resonance(character):
+        """룬마스터: 룬 공명 시스템 업데이트"""
+        # 룬은 스킬로만 축적, 자동 업데이트 없음
+        pass
 
     @staticmethod
     def check_choice_mastery(character, choice_type: str) -> bool:

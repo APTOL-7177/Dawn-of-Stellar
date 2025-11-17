@@ -2385,6 +2385,41 @@ class CombatUI:
         # 하단 안내
         console.print(content_x, box_y + box_height - 2, "아무 키나 눌러 닫기...", fg=(150, 150, 150))
 
+    def _create_gauge_bar(self, current: int, maximum: int, width: int = 10, danger_threshold: int = None, optimal_min: int = None, optimal_max: int = None) -> str:
+        """게이지 바 생성
+
+        Args:
+            current: 현재 값
+            maximum: 최대 값
+            width: 바의 너비 (문자 수)
+            danger_threshold: 위험 구간 시작값 (이상이면 위험)
+            optimal_min: 최적 구간 최소값
+            optimal_max: 최적 구간 최대값
+
+        Returns:
+            게이지 바 문자열
+        """
+        if maximum == 0:
+            ratio = 0
+        else:
+            ratio = current / maximum
+
+        filled = int(ratio * width)
+        empty = width - filled
+
+        # 위험/최적 구간 판별
+        if danger_threshold is not None and current >= danger_threshold:
+            # 위험 구간: 빨간색 표시 (⚠️ 사용)
+            bar = f"[{'█' * filled}{'░' * empty}] ⚠️"
+        elif optimal_min is not None and optimal_max is not None and optimal_min <= current <= optimal_max:
+            # 최적 구간: 녹색 표시 (✓ 사용)
+            bar = f"[{'█' * filled}{'░' * empty}] ✓"
+        else:
+            # 일반 구간
+            bar = f"[{'█' * filled}{'░' * empty}]"
+
+        return f"{bar} {current}/{maximum}"
+
     def _get_gimmick_detail(self, character: Any) -> str:
         """캐릭터의 기믹 상태 상세 정보 (기믹 커맨드용)"""
         gimmick_type = getattr(character, 'gimmick_type', None)
@@ -2393,19 +2428,21 @@ class CombatUI:
 
         details = []
 
-        # === 33개 직업 기믹 시스템 상세 ===
+        # === 33개 직업 기믹 시스템 상세 (ISSUE-007: UI 시각화 개선) ===
 
         # 몽크 - 음양 흐름
         if gimmick_type == "yin_yang_flow":
             ki = getattr(character, 'ki_gauge', 50)
             details.append("=== 음양 흐름 시스템 ===")
-            details.append(f"기 게이지: {ki}/100")
+            # 게이지 바 추가 (최적 구간: 40-60)
+            gauge_bar = self._create_gauge_bar(ki, 100, width=10, optimal_min=40, optimal_max=60)
+            details.append(f"기 게이지: {gauge_bar}")
             if ki < 20:
-                details.append("상태: 음 (방어/회복 강화)")
+                details.append("상태: ☯️ 음 (방어/회복 강화)")
             elif ki > 80:
-                details.append("상태: 양 (공격/속도 강화)")
+                details.append("상태: ☯️ 양 (공격/속도 강화)")
             else:
-                details.append("상태: 균형 (안정적 전투)")
+                details.append("상태: ☯️ 균형 (안정적 전투)")
 
         elif gimmick_type == "rune_resonance":
             fire = getattr(character, 'rune_fire', 0)
@@ -2425,52 +2462,57 @@ class CombatUI:
         elif gimmick_type == "probability_distortion":
             gauge = getattr(character, 'distortion_gauge', 0)
             details.append("=== 확률 왜곡 시스템 ===")
-            details.append(f"왜곡 게이지: {gauge}/100")
+            gauge_bar = self._create_gauge_bar(gauge, 100, width=10)
+            details.append(f"왜곡 게이지: {gauge_bar}")
             if gauge >= 100:
-                details.append("평행우주 사용 가능!")
+                details.append("🌀 평행우주 사용 가능!")
             elif gauge >= 50:
-                details.append("시간 되감기 사용 가능")
+                details.append("⏮️ 시간 되감기 사용 가능")
             elif gauge >= 30:
-                details.append("회피 왜곡 사용 가능")
+                details.append("💨 회피 왜곡 사용 가능")
             elif gauge >= 20:
-                details.append("크리티컬 왜곡 사용 가능")
+                details.append("💫 크리티컬 왜곡 사용 가능")
 
         # 기계공학자 - 열 관리 (YAML: heat_management)
         elif gimmick_type == "heat_management":
             heat = getattr(character, 'heat', 0)
             details.append("=== 열 관리 시스템 ===")
-            details.append(f"열 누적: {heat}/100")
+            # 위험 구간 80+, 최적 구간 50-79
+            gauge_bar = self._create_gauge_bar(heat, 100, width=10, danger_threshold=80, optimal_min=50, optimal_max=79)
+            details.append(f"열 누적: {gauge_bar}")
             if heat >= 80:
                 details.append("⚠️  위험 구간! 과열 포격 배율 증가")
             elif heat >= 50:
-                details.append("최적 구간 - 안정적 화력")
+                details.append("🔥 최적 구간 - 안정적 화력")
             elif heat >= 30:
-                details.append("안전 구간 - 열 축적 중")
+                details.append("🌡️ 안전 구간 - 열 축적 중")
             else:
-                details.append("낮은 열량 - 축적 필요")
+                details.append("❄️ 낮은 열량 - 축적 필요")
 
         elif gimmick_type == "thirst_gauge":
             thirst = getattr(character, 'thirst', 0)
             details.append("=== 갈증 게이지 시스템 ===")
-            details.append(f"갈증: {thirst}/100")
+            gauge_bar = self._create_gauge_bar(thirst, 100, width=10, danger_threshold=70)
+            details.append(f"갈증: {gauge_bar}")
             if thirst > 70:
                 details.append("💧 갈망 상태 - 흡혈 강화")
             elif thirst < 30:
-                details.append("만족 상태 - 안정적")
+                details.append("😌 만족 상태 - 안정적")
             else:
-                details.append("보통 상태")
+                details.append("😐 보통 상태")
 
         # 버서커 - 광기 임계값 (YAML: madness_threshold)
         elif gimmick_type == "madness_threshold":
             madness = getattr(character, 'madness', 0)
             details.append("=== 광기 임계값 시스템 ===")
-            details.append(f"광기: {madness}/100")
+            gauge_bar = self._create_gauge_bar(madness, 100, width=10, danger_threshold=70)
+            details.append(f"광기: {gauge_bar}")
             if madness >= 70:
                 details.append("⚡ 광란 상태 - 초강력 공격 가능!")
             elif madness >= 40:
-                details.append("격앙 상태 - 공격력 증가")
+                details.append("😠 격앙 상태 - 공격력 증가")
             else:
-                details.append("안전 구간")
+                details.append("😐 안전 구간")
 
         # 정령술사 - 정령 소환 (YAML: elemental_spirits)
         elif gimmick_type == "elemental_spirits":
@@ -2568,13 +2610,14 @@ class CombatUI:
         elif gimmick_type == "crowd_cheer":
             cheer = getattr(character, 'cheer', 0)
             details.append("=== 군중 환호 시스템 ===")
-            details.append(f"환호: {cheer}/100")
+            gauge_bar = self._create_gauge_bar(cheer, 100, width=10, optimal_min=70, optimal_max=100)
+            details.append(f"환호: {gauge_bar}")
             if cheer >= 70:
                 details.append("📢 열광! 궁극기 강화")
             elif cheer >= 40:
-                details.append("고조 - 공격력 증가")
+                details.append("👏 고조 - 공격력 증가")
             else:
-                details.append("평온 - 축적 필요")
+                details.append("😶 평온 - 축적 필요")
 
         # 시간술사 - 타임라인 시스템 (YAML: timeline_system)
         elif gimmick_type == "timeline_system":
@@ -2591,26 +2634,29 @@ class CombatUI:
         # 검성 - 검기 (YAML: sword_aura)
         elif gimmick_type == "sword_aura":
             aura = getattr(character, 'sword_aura', 0)
+            max_aura = getattr(character, 'max_sword_aura', 5)
             details.append("=== 검기 시스템 ===")
-            details.append(f"검기: {aura}/100")
-            if aura >= 80:
+            gauge_bar = self._create_gauge_bar(aura, max_aura, width=10, optimal_min=int(max_aura*0.6), optimal_max=max_aura)
+            details.append(f"검기: {gauge_bar}")
+            if aura >= max_aura * 0.8:
                 details.append("⚔️ 검기 방출 가능!")
-            elif aura >= 50:
-                details.append("고양 상태 - 공격력 증가")
+            elif aura >= max_aura * 0.5:
+                details.append("✨ 고양 상태 - 공격력 증가")
             else:
-                details.append("축적 중")
+                details.append("🔄 축적 중")
 
         # 기사 - 의무 시스템 (YAML: duty_system)
         elif gimmick_type == "duty_system":
             duty = getattr(character, 'duty_gauge', 0)
             details.append("=== 의무 시스템 ===")
-            details.append(f"의무 게이지: {duty}/100")
+            gauge_bar = self._create_gauge_bar(duty, 100, width=10, optimal_min=80, optimal_max=100)
+            details.append(f"의무 게이지: {gauge_bar}")
             if duty >= 80:
                 details.append("🛡️ 최고 명예 - 방어 극대")
             elif duty >= 50:
-                details.append("충실 상태")
+                details.append("⚔️ 충실 상태")
             else:
-                details.append("기본 상태")
+                details.append("😐 기본 상태")
 
         # 네크로맨서 - 언데드 군단 (YAML: undead_legion)
         elif gimmick_type == "undead_legion":
@@ -2665,34 +2711,40 @@ class CombatUI:
         elif gimmick_type == "melody_system":
             melody = getattr(character, 'active_melody', None)
             notes = getattr(character, 'melody_notes', 0)
+            max_notes = getattr(character, 'max_melody_notes', 8)
             details.append("=== 선율 시스템 ===")
-            details.append(f"음표: {notes}/8")
+            gauge_bar = self._create_gauge_bar(notes, max_notes, width=10)
+            details.append(f"음표: {gauge_bar}")
             if melody:
-                details.append(f"연주 중: {melody}")
+                details.append(f"🎵 연주 중: {melody}")
             else:
-                details.append("대기 중")
+                details.append("🎼 대기 중")
 
         # 브레이커 - 브레이크 시스템 (YAML: break_system)
         elif gimmick_type == "break_system":
             bonus = getattr(character, 'break_bonus', 0)
             details.append("=== 브레이크 시스템 ===")
-            details.append(f"브레이크 보너스: {bonus}%")
+            gauge_bar = self._create_gauge_bar(bonus, 100, width=10, optimal_min=50, optimal_max=100)
+            details.append(f"브레이크 보너스: {gauge_bar}%")
             if bonus >= 50:
                 details.append("💥 극대 브레이크!")
 
         # 사무라이 - 거합 시스템 (YAML: iaijutsu_system)
         elif gimmick_type == "iaijutsu_system":
-            charge = getattr(character, 'iaijutsu_charge', 0)
+            charge = getattr(character, 'will_gauge', 0)
+            max_will = getattr(character, 'max_will_gauge', 100)
             details.append("=== 거합 시스템 ===")
-            details.append(f"집중력: {charge}/100")
-            if charge >= 80:
+            gauge_bar = self._create_gauge_bar(charge, max_will, width=10, optimal_min=80, optimal_max=max_will)
+            details.append(f"집중력: {gauge_bar}")
+            if charge >= max_will * 0.8:
                 details.append("⚡ 일섬 가능!")
 
         # 성직자 - 신성 시스템 (YAML: holy_system)
         elif gimmick_type == "holy_system":
             holy = getattr(character, 'holy_gauge', 0)
             details.append("=== 신성 시스템 ===")
-            details.append(f"신성력: {holy}/100")
+            gauge_bar = self._create_gauge_bar(holy, 100, width=10, optimal_min=80, optimal_max=100)
+            details.append(f"신성력: {gauge_bar}")
             if holy >= 80:
                 details.append("✨ 신의 은총 발동 가능")
 
@@ -2700,7 +2752,8 @@ class CombatUI:
         elif gimmick_type == "divinity_system":
             divinity = getattr(character, 'divinity', 0)
             details.append("=== 신성력 시스템 ===")
-            details.append(f"신성력: {divinity}/100")
+            gauge_bar = self._create_gauge_bar(divinity, 100, width=10, optimal_min=80, optimal_max=100)
+            details.append(f"신성력: {gauge_bar}")
             if divinity >= 80:
                 details.append("🌟 신성 강화 활성")
 
@@ -2718,7 +2771,8 @@ class CombatUI:
         elif gimmick_type == "darkness_system":
             darkness = getattr(character, 'darkness_gauge', 0)
             details.append("=== 암흑 시스템 ===")
-            details.append(f"암흑력: {darkness}/100")
+            gauge_bar = self._create_gauge_bar(darkness, 100, width=10, danger_threshold=80)
+            details.append(f"암흑력: {gauge_bar}")
             if darkness >= 80:
                 details.append("🌑 암흑 폭발 가능")
 
@@ -2727,15 +2781,16 @@ class CombatUI:
             catalyst = getattr(character, 'catalyst_type', None)
             details.append("=== 연금 시스템 ===")
             if catalyst:
-                details.append(f"활성 촉매: {catalyst}")
+                details.append(f"⚗️ 활성 촉매: {catalyst}")
             else:
-                details.append("촉매 없음")
+                details.append("❌ 촉매 없음")
 
         # 용기사 - 드래곤 마크 (YAML: dragon_marks)
         elif gimmick_type == "dragon_marks":
             marks = getattr(character, 'dragon_marks', 0)
             details.append("=== 드래곤 마크 시스템 ===")
-            details.append(f"각인: {marks}/5")
+            gauge_bar = self._create_gauge_bar(marks, 5, width=10, optimal_min=5, optimal_max=5)
+            details.append(f"각인: {gauge_bar}")
             if marks >= 5:
                 details.append("🐉 드래곤 변신 가능!")
 
@@ -2744,15 +2799,18 @@ class CombatUI:
             ammo = getattr(character, 'ammo', 0)
             max_ammo = getattr(character, 'max_ammo', 6)
             details.append("=== 탄창 시스템 ===")
-            details.append(f"탄약: {ammo}/{max_ammo}")
+            gauge_bar = self._create_gauge_bar(ammo, max_ammo, width=10)
+            details.append(f"탄약: {gauge_bar}")
             if ammo == 0:
                 details.append("🔄 재장전 필요")
+            elif ammo == max_ammo:
+                details.append("✅ 탄창 만료")
 
         # 전사 - 자세 시스템 (YAML: stance_system)
         elif gimmick_type == "stance_system":
             stance = getattr(character, 'current_stance', 0)
             details.append("=== 자세 시스템 ===")
-            stance_names = ["중립", "공격", "방어", "광전사", "수호자", "신속"]
+            stance_names = ["😐 중립", "⚔️ 공격", "🛡️ 방어", "😡 광전사", "🏰 수호자", "⚡ 신속"]
             if 0 <= stance < len(stance_names):
                 details.append(f"현재 자세: {stance_names[stance]}")
             else:
@@ -2762,7 +2820,8 @@ class CombatUI:
         elif gimmick_type == "plunder_system":
             gold = getattr(character, 'plundered_gold', 0)
             details.append("=== 약탈 시스템 ===")
-            details.append(f"약탈한 골드: {gold}")
+            gauge_bar = self._create_gauge_bar(gold, 200, width=10, optimal_min=100, optimal_max=200)
+            details.append(f"약탈한 골드: {gauge_bar}")
             if gold >= 100:
                 details.append("💰 대박! 강화 스킬 가능")
 

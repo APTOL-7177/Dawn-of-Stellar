@@ -62,15 +62,25 @@ class BuffEffect(SkillEffect):
             targets = target if isinstance(target, list) else [target]
 
         buffed_count = 0
+        target_names = []
         for t in targets:
             if self._apply_buff(t):
                 buffed_count += 1
+                if hasattr(t, 'name'):
+                    target_names.append(t.name)
 
+        # ISSUE-003: 버프 메시지 개선 - 대상 명시
         buff_name = self.buff_type.replace('_', ' ').title()
+        value_str = f"+{int(self.value*100)}%" if self.value >= 0 else f"{int(self.value*100)}%"
+
         if self.is_party_wide:
-            message = f"파티 전체에 {buff_name} 적용! (+{int(self.value*100)}%)"
+            message = f"파티 전체에 {buff_name} 적용! ({value_str}, {self.duration}턴)"
         else:
-            message = f"{buff_name} 적용! (+{int(self.value*100)}%)"
+            if target_names:
+                target_str = ", ".join(target_names)
+                message = f"{target_str}에게 {buff_name} 적용! ({value_str}, {self.duration}턴)"
+            else:
+                message = f"{buff_name} 적용! ({value_str}, {self.duration}턴)"
 
         return EffectResult(
             effect_type=EffectType.BUFF,
