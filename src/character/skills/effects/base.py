@@ -8,6 +8,7 @@ class EffectType(Enum):
     HEAL = "heal"
     GIMMICK = "gimmick"
     BUFF = "buff"
+    ATB = "atb"  # ATB 게이지 조작
 
 @dataclass
 class EffectResult:

@@ -76,7 +76,7 @@ def create_sniper_skills():
     ]
     perfect_aim.costs = [MPCost(14)]
     perfect_aim.target_type = "self"
-    perfect_aim.cooldown = 4
+    # perfect_aim.cooldown = 4  # 쿨다운 시스템 제거됨
 
     # 8. 연막탄 (회피 버프)
     smoke_grenade = Skill("sniper_smoke_grenade", "연막탄",
@@ -86,7 +86,7 @@ def create_sniper_skills():
     ]
     smoke_grenade.costs = [MPCost(15)]
     smoke_grenade.target_type = "self"
-    smoke_grenade.cooldown = 4
+    # smoke_grenade.cooldown = 4  # 쿨다운 시스템 제거됨
     smoke_grenade.metadata = {"smoke": True}
 
     # 9. 트랩 설치 (적 디버프)
@@ -98,7 +98,7 @@ def create_sniper_skills():
     ]
     set_trap.costs = [MPCost(12)]
     set_trap.target_type = "single_enemy"
-    set_trap.cooldown = 3
+    # set_trap.cooldown = 3  # 쿨다운 시스템 제거됨
     set_trap.metadata = {"trap": True}
 
     # 10. 궁극기: 데드아이 (탄창의 모든 탄환 연속 발사)
@@ -111,7 +111,7 @@ def create_sniper_skills():
     ]
     deadeye.costs = [MPCost(30)]
     deadeye.is_ultimate = True
-    deadeye.cooldown = 8
+    # deadeye.cooldown = 8  # 쿨다운 시스템 제거됨
     deadeye.metadata = {"uses_all_bullets": True, "deadeye": True}
 
     return [precise_shot, headshot, double_tap, reload,

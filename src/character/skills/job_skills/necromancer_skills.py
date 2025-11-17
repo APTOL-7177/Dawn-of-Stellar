@@ -72,7 +72,7 @@ def create_necromancer_skills():
         HealEffect(heal_type=HealType.MP, base_amount=20)
     ]
     sacrifice_undead.costs = [MPCost(15)]
-    sacrifice_undead.cooldown = 3
+    # sacrifice_undead.cooldown = 3  # 쿨다운 시스템 제거됨
     sacrifice_undead.metadata = {"sacrifice": True}
 
     # 7. 군단 지휘 (언데드 강화 버프)
@@ -83,7 +83,7 @@ def create_necromancer_skills():
     ]
     legion_command.costs = [MPCost(20)]
     legion_command.target_type = "self"
-    legion_command.cooldown = 5
+    # legion_command.cooldown = 5  # 쿨다운 시스템 제거됨
     legion_command.metadata = {"undead_buff": True}
 
     # 8. 죽음의 파동 (언데드 수에 비례한 광역 공격)
@@ -94,7 +94,7 @@ def create_necromancer_skills():
                     gimmick_bonus={"field": "total_undead", "multiplier": 0.4})
     ]
     death_wave.costs = [MPCost(22)]
-    death_wave.cooldown = 4
+    # death_wave.cooldown = 4  # 쿨다운 시스템 제거됨
     death_wave.target_type = "all_enemies"
     death_wave.is_aoe = True
     death_wave.metadata = {"death_wave": True}
@@ -112,7 +112,7 @@ def create_necromancer_skills():
     ]
     mass_summon.costs = [MPCost(30), HPCost(50)]
     mass_summon.target_type = "self"
-    mass_summon.cooldown = 6
+    # mass_summon.cooldown = 6  # 쿨다운 시스템 제거됨
     mass_summon.metadata = {"mass_summon": True}
 
     # 10. 궁극기: 언데드 대군단 (모든 언데드 희생, 극한의 피해)
@@ -129,7 +129,7 @@ def create_necromancer_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.metadata = {"ultimate": True, "legion_sacrifice": True}

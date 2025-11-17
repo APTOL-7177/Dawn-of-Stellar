@@ -40,7 +40,7 @@ def create_dragon_knight_skills():
         GimmickEffect(GimmickOperation.ADD, "dragon_power", 1, max_value=5)
     ]
     fire_breath.costs = [MPCost(7)]
-    fire_breath.cooldown = 2
+    # fire_breath.cooldown = 2  # 쿨다운 시스템 제거됨
     fire_breath.is_aoe = True
     fire_breath.sfx = "658"
     fire_breath.metadata = {"dragon_scaling": True, "dragon_power_gain": 1, "aoe": True}
@@ -54,7 +54,7 @@ def create_dragon_knight_skills():
         GimmickEffect(GimmickOperation.CONSUME, "dragon_power", 2)
     ]
     burning_strike.costs = [MPCost(8), StackCost("dragon_power", 2)]
-    burning_strike.cooldown = 3
+    # burning_strike.cooldown = 3  # 쿨다운 시스템 제거됨
     burning_strike.sfx = "663"
     burning_strike.metadata = {"dragon_power_cost": 2, "dragon_scaling": True}
     skills.append(burning_strike)
@@ -67,7 +67,7 @@ def create_dragon_knight_skills():
     ]
     dragon_rage.costs = [MPCost(9)]
     dragon_rage.target_type = "self"
-    dragon_rage.cooldown = 5
+    # dragon_rage.cooldown = 5  # 쿨다운 시스템 제거됨
     dragon_rage.sfx = "668"
     dragon_rage.metadata = {"dragon_power_max": True, "buff": True}
     skills.append(dragon_rage)
@@ -80,7 +80,7 @@ def create_dragon_knight_skills():
     ]
     dragon_scales.costs = [MPCost(6)]
     dragon_scales.target_type = "self"
-    dragon_scales.cooldown = 3
+    # dragon_scales.cooldown = 3  # 쿨다운 시스템 제거됨
     dragon_scales.sfx = "673"
     dragon_scales.metadata = {"buff": True, "dragon_power_gain": 2}
     skills.append(dragon_scales)
@@ -92,7 +92,7 @@ def create_dragon_knight_skills():
         GimmickEffect(GimmickOperation.CONSUME, "dragon_power", 3)
     ]
     inferno_burst.costs = [MPCost(11), StackCost("dragon_power", 3)]
-    inferno_burst.cooldown = 4
+    # inferno_burst.cooldown = 4  # 쿨다운 시스템 제거됨
     inferno_burst.is_aoe = True
     inferno_burst.sfx = "678"
     inferno_burst.metadata = {"dragon_power_cost": 3, "dragon_scaling": True, "aoe": True}
@@ -106,7 +106,7 @@ def create_dragon_knight_skills():
         GimmickEffect(GimmickOperation.CONSUME, "dragon_power", 4)
     ]
     dragon_wings.costs = [MPCost(14), StackCost("dragon_power", 4)]
-    dragon_wings.cooldown = 6
+    # dragon_wings.cooldown = 6  # 쿨다운 시스템 제거됨
     dragon_wings.sfx = "683"
     dragon_wings.metadata = {"dragon_power_cost": 4, "dragon_scaling": True}
     skills.append(dragon_wings)
@@ -120,7 +120,7 @@ def create_dragon_knight_skills():
     ]
     dragon_roar.costs = [MPCost(12)]
     dragon_roar.target_type = "party"
-    dragon_roar.cooldown = 5
+    # dragon_roar.cooldown = 5  # 쿨다운 시스템 제거됨
     dragon_roar.sfx = "688"
     dragon_roar.metadata = {"dragon_power_gain": 3, "buff": True, "party_wide": True}
     skills.append(dragon_roar)
@@ -138,7 +138,7 @@ def create_dragon_knight_skills():
     ultimate.costs = [MPCost(30), StackCost("dragon_power", 1)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "693"
     ultimate.metadata = {"ultimate": True, "dragon_consume_all": True, "dragon_scaling": True, "aoe": True, "buff": True}
     skills.append(ultimate)

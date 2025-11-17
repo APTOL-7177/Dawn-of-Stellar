@@ -37,7 +37,7 @@ def create_gladiator_skills():
     ]
     spectacular_attack.costs = [MPCost(12)]
     spectacular_attack.sfx = "537"  # FFVII spectacular sound
-    spectacular_attack.cooldown = 2
+    # spectacular_attack.cooldown = 2  # 쿨다운 시스템 제거됨
     spectacular_attack.metadata = {"showmanship": True, "cheer_gain": 20}
 
     # 4. 군중 도발 (환호에 비례한 공격)
@@ -49,7 +49,7 @@ def create_gladiator_skills():
     ]
     taunt_crowd.costs = [MPCost(15)]
     taunt_crowd.sfx = "573"  # FFVII taunt sound
-    taunt_crowd.cooldown = 3
+    # taunt_crowd.cooldown = 3  # 쿨다운 시스템 제거됨
     taunt_crowd.metadata = {"cheer_scaling": True}
 
     # 5. 위험한 묘기 (고위험 고보상 - 환호 +30, HP 손실)
@@ -61,7 +61,7 @@ def create_gladiator_skills():
     ]
     risky_stunt.costs = [MPCost(18)]
     risky_stunt.sfx = "575"  # FFVII risk sound
-    risky_stunt.cooldown = 4
+    # risky_stunt.cooldown = 4  # 쿨다운 시스템 제거됨
     risky_stunt.metadata = {"high_risk": True, "hp_cost_percent": 0.2, "cheer_gain": 30}
 
     # 6. 영광의 일격 (환호 소비하여 극강 공격)
@@ -73,7 +73,7 @@ def create_gladiator_skills():
     ]
     glory_strike.costs = [MPCost(20)]
     glory_strike.sfx = "587"  # FFVII glory sound
-    glory_strike.cooldown = 4
+    # glory_strike.cooldown = 4  # 쿨다운 시스템 제거됨
     glory_strike.metadata = {"cheer_cost": 30}
 
     # 7. 군중 흥분 (환호를 50으로 설정)
@@ -86,7 +86,7 @@ def create_gladiator_skills():
     excite_crowd.costs = [MPCost(15)]
     excite_crowd.target_type = "self"
     excite_crowd.sfx = "595"  # FFVII excite sound
-    excite_crowd.cooldown = 6
+    # excite_crowd.cooldown = 6  # 쿨다운 시스템 제거됨
     excite_crowd.metadata = {"cheer_control": True, "set_cheer": 50}
 
     # 8. 불굴의 투지 (HP 회복 + 환호 회복)
@@ -99,7 +99,7 @@ def create_gladiator_skills():
     indomitable_will.costs = [MPCost(18)]
     indomitable_will.target_type = "self"
     indomitable_will.sfx = "618"  # FFVII will sound
-    indomitable_will.cooldown = 5
+    # indomitable_will.cooldown = 5  # 쿨다운 시스템 제거됨
     indomitable_will.metadata = {"recovery": True, "cheer_gain": 25}
 
     # 9. 챔피언의 함성 (아군 지원 + 환호 공유)
@@ -114,7 +114,7 @@ def create_gladiator_skills():
     champion_roar.target_type = "party"
     champion_roar.is_aoe = True
     champion_roar.sfx = "628"  # FFVII roar sound
-    champion_roar.cooldown = 6
+    # champion_roar.cooldown = 6  # 쿨다운 시스템 제거됨
     champion_roar.metadata = {"party_buff": True}
 
     # 10. 궁극기: 검투사의 영광 (환호 100으로 폭발)
@@ -133,7 +133,7 @@ def create_gladiator_skills():
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.sfx = "694"  # FFVII ultimate glory sound
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "invincible": True}
 
     return [arena_strike, honor_strike, spectacular_attack, taunt_crowd, risky_stunt,

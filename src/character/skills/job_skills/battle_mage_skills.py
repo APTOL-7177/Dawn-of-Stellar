@@ -92,7 +92,7 @@ def create_battle_mage_skills():
         GimmickEffect(GimmickOperation.SET, "runes_arcane", 0)
     ]
     rune_explosion.costs = [MPCost(20)]
-    rune_explosion.cooldown = 4
+    # rune_explosion.cooldown = 4  # 쿨다운 시스템 제거됨
     rune_explosion.metadata = {"consumes_all_runes": True}
 
     # 9. 원소 융합 (3가지 이상 다른 룬 보유 시 사용 가능, 강력한 융합 공격)
@@ -107,7 +107,7 @@ def create_battle_mage_skills():
         GimmickEffect(GimmickOperation.CONSUME, "runes_lightning", 1)
     ]
     elemental_fusion.costs = [MPCost(25)]
-    elemental_fusion.cooldown = 5
+    # elemental_fusion.cooldown = 5  # 쿨다운 시스템 제거됨
     elemental_fusion.target_type = "single_enemy"
     elemental_fusion.metadata = {"requires_different_runes": 3}
 
@@ -127,7 +127,7 @@ def create_battle_mage_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.metadata = {"ultimate": True, "elemental_cataclysm": True}

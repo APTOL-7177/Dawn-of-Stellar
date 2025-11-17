@@ -37,7 +37,7 @@ def create_elementalist_skills():
     summon_fire.costs = [MPCost(12)]
     summon_fire.target_type = "self"
     summon_fire.sfx = "352"  # FFVII fire summon sound
-    summon_fire.cooldown = 3
+    # summon_fire.cooldown = 3  # 쿨다운 시스템 제거됨
     summon_fire.metadata = {"spirit_type": "fire", "attack_boost": 0.2}
 
     # 4. 물 정령 소환 (MP 회복 +5/턴, 힐 +30%)
@@ -50,7 +50,7 @@ def create_elementalist_skills():
     summon_water.costs = [MPCost(10)]
     summon_water.target_type = "self"
     summon_water.sfx = "362"  # FFVII water summon sound
-    summon_water.cooldown = 3
+    # summon_water.cooldown = 3  # 쿨다운 시스템 제거됨
     summon_water.metadata = {"spirit_type": "water", "mp_regen": 5}
 
     # 5. 바람 정령 소환 (속도 +30%, 회피 +15%)
@@ -63,7 +63,7 @@ def create_elementalist_skills():
     summon_wind.costs = [MPCost(10)]
     summon_wind.target_type = "self"
     summon_wind.sfx = "376"  # FFVII wind summon sound
-    summon_wind.cooldown = 3
+    # summon_wind.cooldown = 3  # 쿨다운 시스템 제거됨
     summon_wind.metadata = {"spirit_type": "wind", "speed_boost": 0.3}
 
     # 6. 대지 정령 소환 (방어력 +30%, HP 회복 +3/턴)
@@ -76,7 +76,7 @@ def create_elementalist_skills():
     summon_earth.costs = [MPCost(10)]
     summon_earth.target_type = "self"
     summon_earth.sfx = "404"  # FFVII earth summon sound
-    summon_earth.cooldown = 3
+    # summon_earth.cooldown = 3  # 쿨다운 시스템 제거됨
     summon_earth.metadata = {"spirit_type": "earth", "defense_boost": 0.3}
 
     # 7. 융합: 화염 돌풍 (화염 + 바람)
@@ -91,7 +91,7 @@ def create_elementalist_skills():
     fusion_firestorm.target_type = "all_enemies"
     fusion_firestorm.is_aoe = True
     fusion_firestorm.sfx = "423"  # FFVII firestorm sound
-    fusion_firestorm.cooldown = 4
+    # fusion_firestorm.cooldown = 4  # 쿨다운 시스템 제거됨
     fusion_firestorm.metadata = {"fusion": "fire_wind", "requires_both_spirits": True}
 
     # 8. 융합: 진흙 속박 (물 + 대지)
@@ -106,7 +106,7 @@ def create_elementalist_skills():
     ]
     fusion_mudtrap.costs = [MPCost(16)]
     fusion_mudtrap.sfx = "438"  # FFVII mud sound
-    fusion_mudtrap.cooldown = 4
+    # fusion_mudtrap.cooldown = 4  # 쿨다운 시스템 제거됨
     fusion_mudtrap.metadata = {"fusion": "water_earth", "requires_both_spirits": True}
 
     # 9. 융합: 증기 폭발 (화염 + 물)
@@ -122,7 +122,7 @@ def create_elementalist_skills():
     fusion_steam.target_type = "all_enemies"
     fusion_steam.is_aoe = True
     fusion_steam.sfx = "467"  # FFVII steam sound
-    fusion_steam.cooldown = 5
+    # fusion_steam.cooldown = 5  # 쿨다운 시스템 제거됨
     fusion_steam.metadata = {"fusion": "fire_water", "requires_both_spirits": True}
 
     # 10. 궁극기: 4대 정령 대결집 (모든 정령 즉시 소환 + 극대 공격)
@@ -146,7 +146,7 @@ def create_elementalist_skills():
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.sfx = "696"  # FFVII ultimate summon sound
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "summon_all_spirits": True}
 
     return [elemental_strike, spirit_burst, summon_fire, summon_water, summon_wind,

@@ -42,7 +42,7 @@ def create_spellblade_skills():
     ]
     fire_infusion.costs = [MPCost(7)]
     fire_infusion.target_type = "self"
-    fire_infusion.cooldown = 2
+    # fire_infusion.cooldown = 2  # 쿨다운 시스템 제거됨
     fire_infusion.sfx = "492"
     fire_infusion.metadata = {"mana_gain": 2, "buff": True, "element": "fire"}
     skills.append(fire_infusion)
@@ -56,7 +56,7 @@ def create_spellblade_skills():
     ]
     ice_infusion.costs = [MPCost(7)]
     ice_infusion.target_type = "self"
-    ice_infusion.cooldown = 2
+    # ice_infusion.cooldown = 2  # 쿨다운 시스템 제거됨
     ice_infusion.sfx = "499"
     ice_infusion.metadata = {"mana_gain": 2, "buff": True, "element": "ice"}
     skills.append(ice_infusion)
@@ -70,7 +70,7 @@ def create_spellblade_skills():
     ]
     lightning_infusion.costs = [MPCost(7)]
     lightning_infusion.target_type = "self"
-    lightning_infusion.cooldown = 2
+    # lightning_infusion.cooldown = 2  # 쿨다운 시스템 제거됨
     lightning_infusion.sfx = "506"
     lightning_infusion.metadata = {"mana_gain": 2, "buff": True, "element": "lightning"}
     skills.append(lightning_infusion)
@@ -84,7 +84,7 @@ def create_spellblade_skills():
         GimmickEffect(GimmickOperation.CONSUME, "mana_blade", 3)
     ]
     magic_blade_dance.costs = [MPCost(12), StackCost("mana_blade", 3)]
-    magic_blade_dance.cooldown = 4
+    # magic_blade_dance.cooldown = 4  # 쿨다운 시스템 제거됨
     magic_blade_dance.sfx = "513"
     magic_blade_dance.metadata = {"mana_cost": 3, "mana_scaling": True, "multi_hit": True}
     skills.append(magic_blade_dance)
@@ -97,7 +97,7 @@ def create_spellblade_skills():
     ]
     mana_burst.costs = [MPCost(10)]
     mana_burst.target_type = "self"
-    mana_burst.cooldown = 4
+    # mana_burst.cooldown = 4  # 쿨다운 시스템 제거됨
     mana_burst.sfx = "520"
     mana_burst.metadata = {"mana_refill": True, "buff": True}
     skills.append(mana_burst)
@@ -110,7 +110,7 @@ def create_spellblade_skills():
         GimmickEffect(GimmickOperation.CONSUME, "mana_blade", 5)
     ]
     elemental_storm.costs = [MPCost(16), StackCost("mana_blade", 5)]
-    elemental_storm.cooldown = 6
+    # elemental_storm.cooldown = 6  # 쿨다운 시스템 제거됨
     elemental_storm.is_aoe = True
     elemental_storm.sfx = "527"
     elemental_storm.metadata = {"mana_cost": 5, "mana_scaling": True, "aoe": True}
@@ -124,7 +124,7 @@ def create_spellblade_skills():
         GimmickEffect(GimmickOperation.CONSUME, "mana_blade", 4)
     ]
     blade_spin.costs = [MPCost(18), StackCost("mana_blade", 4)]
-    blade_spin.cooldown = 5
+    # blade_spin.cooldown = 5  # 쿨다운 시스템 제거됨
     blade_spin.is_aoe = True
     blade_spin.sfx = "534"
     blade_spin.metadata = {"mana_cost": 4, "mana_scaling": True, "aoe": True}
@@ -142,7 +142,7 @@ def create_spellblade_skills():
     ]
     ultimate.costs = [MPCost(30), StackCost("mana_blade", 1)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "541"
     ultimate.metadata = {"ultimate": True, "mana_dump": True, "hybrid_power": True}
     skills.append(ultimate)

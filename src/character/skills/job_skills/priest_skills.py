@@ -42,7 +42,7 @@ def create_priest_skills():
         GimmickEffect(GimmickOperation.ADD, "judgment_points", 1, max_value=6)
     ]
     light_bind.costs = [MPCost(6)]
-    light_bind.cooldown = 2
+    # light_bind.cooldown = 2  # 쿨다운 시스템 제거됨
     light_bind.sfx = "586"
     light_bind.metadata = {"judgment_gain": 1, "debuff": True}
     skills.append(light_bind)
@@ -55,7 +55,7 @@ def create_priest_skills():
     ]
     holy_heal.costs = [MPCost(8), StackCost("judgment_points", 2)]
     holy_heal.target_type = "ally"
-    holy_heal.cooldown = 3
+    # holy_heal.cooldown = 3  # 쿨다운 시스템 제거됨
     holy_heal.sfx = "592"
     holy_heal.metadata = {"judgment_cost": 2, "healing": True}
     skills.append(holy_heal)
@@ -69,7 +69,7 @@ def create_priest_skills():
     ]
     divine_protection.costs = [MPCost(8), StackCost("judgment_points", 2)]
     divine_protection.target_type = "ally"
-    divine_protection.cooldown = 4
+    # divine_protection.cooldown = 4  # 쿨다운 시스템 제거됨
     divine_protection.sfx = "598"
     divine_protection.metadata = {"judgment_cost": 2, "buff": True, "regen": True}
     skills.append(divine_protection)
@@ -82,7 +82,7 @@ def create_priest_skills():
     ]
     judgment_light.costs = [MPCost(9)]
     judgment_light.target_type = "self"
-    judgment_light.cooldown = 5
+    # judgment_light.cooldown = 5  # 쿨다운 시스템 제거됨
     judgment_light.sfx = "604"
     judgment_light.metadata = {"judgment_refill": True, "buff": True}
     skills.append(judgment_light)
@@ -94,7 +94,7 @@ def create_priest_skills():
         GimmickEffect(GimmickOperation.CONSUME, "judgment_points", 3)
     ]
     holy_beam.costs = [MPCost(11), StackCost("judgment_points", 3)]
-    holy_beam.cooldown = 4
+    # holy_beam.cooldown = 4  # 쿨다운 시스템 제거됨
     holy_beam.is_aoe = True
     holy_beam.sfx = "610"
     holy_beam.metadata = {"judgment_cost": 3, "judgment_scaling": True, "aoe": True}
@@ -109,7 +109,7 @@ def create_priest_skills():
         GimmickEffect(GimmickOperation.CONSUME, "judgment_points", 5)
     ]
     divine_wrath.costs = [MPCost(15), StackCost("judgment_points", 5)]
-    divine_wrath.cooldown = 6
+    # divine_wrath.cooldown = 6  # 쿨다운 시스템 제거됨
     divine_wrath.sfx = "616"
     divine_wrath.metadata = {"judgment_cost": 5, "judgment_scaling": True, "debuff": True}
     skills.append(divine_wrath)
@@ -125,7 +125,7 @@ def create_priest_skills():
     ]
     divine_grace.costs = [MPCost(16), StackCost("judgment_points", 4)]
     divine_grace.target_type = "party"
-    divine_grace.cooldown = 6
+    # divine_grace.cooldown = 6  # 쿨다운 시스템 제거됨
     divine_grace.sfx = "622"
     divine_grace.metadata = {"judgment_cost": 4, "healing": True, "buff": True, "party": True}
     skills.append(divine_grace)
@@ -142,7 +142,7 @@ def create_priest_skills():
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "632"
     ultimate.metadata = {"ultimate": True, "judgment_scaling": True, "judgment_refill": True, "healing": True, "party": True}
     skills.append(ultimate)

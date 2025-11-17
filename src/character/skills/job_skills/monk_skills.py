@@ -67,7 +67,7 @@ def create_monk_skills():
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", -10, min_value=0, max_value=100)
     ]
     yin_extreme.costs = [MPCost(22)]
-    yin_extreme.cooldown = 3
+    # yin_extreme.cooldown = 3  # 쿨다운 시스템 제거됨
     yin_extreme.metadata = {"requires_yin": True, "ki_shift": -10}
 
     # 7. 극양공 (양 극단 상태에서 강력한 물리 공격)
@@ -79,7 +79,7 @@ def create_monk_skills():
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", 10, min_value=0, max_value=100)
     ]
     yang_extreme.costs = [MPCost(22)]
-    yang_extreme.cooldown = 3
+    # yang_extreme.cooldown = 3  # 쿨다운 시스템 제거됨
     yang_extreme.metadata = {"requires_yang": True, "ki_shift": 10}
 
     # 8. 태극 유전 (3턴간 자동 균형 이동 강화)
@@ -90,7 +90,7 @@ def create_monk_skills():
     ]
     taichi_flow.costs = [MPCost(16)]
     taichi_flow.target_type = "self"
-    taichi_flow.cooldown = 4
+    # taichi_flow.cooldown = 4  # 쿨다운 시스템 제거됨
     taichi_flow.metadata = {"buff": "enhanced_ki_flow"}
 
     # 9. 깨달음 (정확히 50에서만 사용 가능, 강력한 버프)
@@ -104,7 +104,7 @@ def create_monk_skills():
     ]
     enlightenment.costs = [MPCost(25)]
     enlightenment.target_type = "self"
-    enlightenment.cooldown = 5
+    # enlightenment.cooldown = 5  # 쿨다운 시스템 제거됨
     enlightenment.metadata = {"requires_balance": True, "ki_exact": 50}
 
     # 10. 궁극기: 태극천지파 (음양을 모두 활용한 궁극기)
@@ -120,7 +120,7 @@ def create_monk_skills():
     ]
     taichi_ultimate.costs = [MPCost(30)]
     taichi_ultimate.is_ultimate = True
-    taichi_ultimate.cooldown = 8
+    # taichi_ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     taichi_ultimate.target_type = "single_enemy"
     taichi_ultimate.metadata = {"ultimate": True, "ki_reset": True}
 

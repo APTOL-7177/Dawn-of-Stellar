@@ -41,7 +41,7 @@ def create_knight_skills():
     ]
     guardian_oath.costs = [MPCost(6)]
     guardian_oath.target_type = "ally"
-    guardian_oath.cooldown = 3
+    # guardian_oath.cooldown = 3  # 쿨다운 시스템 제거됨
     guardian_oath.sfx = "409"
     guardian_oath.metadata = {"shield": True, "duty_gain": 1}
     skills.append(guardian_oath)
@@ -55,7 +55,7 @@ def create_knight_skills():
     ]
     chivalry.costs = [MPCost(8)]
     chivalry.target_type = "self"
-    chivalry.cooldown = 4
+    # chivalry.cooldown = 4  # 쿨다운 시스템 제거됨
     chivalry.sfx = "415"
     chivalry.metadata = {"buff": True, "duty_gain": 1, "defensive": True}
     skills.append(chivalry)
@@ -68,7 +68,7 @@ def create_knight_skills():
     ]
     iron_will.costs = [MPCost(9)]
     iron_will.target_type = "self"
-    iron_will.cooldown = 5
+    # iron_will.cooldown = 5  # 쿨다운 시스템 제거됨
     iron_will.sfx = "421"
     iron_will.metadata = {"shield": True, "duty_gain": 2}
     skills.append(iron_will)
@@ -81,7 +81,7 @@ def create_knight_skills():
         GimmickEffect(GimmickOperation.ADD, "duty_stacks", 1, max_value=5)
     ]
     shield_bash.costs = [MPCost(7)]
-    shield_bash.cooldown = 2
+    # shield_bash.cooldown = 2  # 쿨다운 시스템 제거됨
     shield_bash.sfx = "427"
     shield_bash.metadata = {"shield": True, "duty_gain": 1, "duty_scaling": True}
     skills.append(shield_bash)
@@ -95,7 +95,7 @@ def create_knight_skills():
     ]
     last_stand.costs = [MPCost(12), StackCost("duty_stacks", 3)]
     last_stand.target_type = "self"
-    last_stand.cooldown = 6
+    # last_stand.cooldown = 6  # 쿨다운 시스템 제거됨
     last_stand.sfx = "433"
     last_stand.metadata = {"shield": True, "duty_cost": 3, "defensive": True}
     skills.append(last_stand)
@@ -109,7 +109,7 @@ def create_knight_skills():
     ]
     devotion.costs = [MPCost(11)]
     devotion.target_type = "party"
-    devotion.cooldown = 6
+    # devotion.cooldown = 6  # 쿨다운 시스템 제거됨
     devotion.sfx = "439"
     devotion.metadata = {"shield": True, "party": True, "duty_gain": 1}
     skills.append(devotion)
@@ -124,7 +124,7 @@ def create_knight_skills():
     ]
     knight_pledge.costs = [MPCost(16), StackCost("duty_stacks", 4)]
     knight_pledge.target_type = "self"
-    knight_pledge.cooldown = 7
+    # knight_pledge.cooldown = 7  # 쿨다운 시스템 제거됨
     knight_pledge.sfx = "445"
     knight_pledge.metadata = {"shield": True, "duty_cost": 4, "counter": True}
     skills.append(knight_pledge)
@@ -140,7 +140,7 @@ def create_knight_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "455"
     ultimate.metadata = {"ultimate": True, "duty_scaling": True, "duty_refill": True, "shield": True}
     skills.append(ultimate)

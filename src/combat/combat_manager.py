@@ -841,9 +841,9 @@ class CombatManager:
                 # SFX 재생
                 skill_manager._play_skill_sfx(skill)
 
-                # 쿨다운 설정
-                if skill.cooldown > 0:
-                    skill_manager.set_cooldown(caster, skill.skill_id, skill.cooldown)
+                # 쿨다운 시스템 제거됨
+                # if skill.cooldown > 0:
+                #     skill_manager.set_cooldown(caster, skill.skill_id, skill.cooldown)
 
                 # ATB 소비
                 self.atb.consume_atb(caster, self.atb.threshold)

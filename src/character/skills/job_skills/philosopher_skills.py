@@ -37,7 +37,7 @@ def create_philosopher_skills():
     choose_power.costs = [MPCost(10)]
     choose_power.target_type = "self"
     choose_power.sfx = "352"  # FFVII power sound
-    choose_power.cooldown = 2
+    # choose_power.cooldown = 2  # 쿨다운 시스템 제거됨
     choose_power.metadata = {"dilemma": "power_wisdom", "choice": "power"}
 
     # 4. 지혜 선택 (마법 공격력 +50%, 3턴)
@@ -50,7 +50,7 @@ def create_philosopher_skills():
     choose_wisdom.costs = [MPCost(10)]
     choose_wisdom.target_type = "self"
     choose_wisdom.sfx = "362"  # FFVII wisdom sound
-    choose_wisdom.cooldown = 2
+    # choose_wisdom.cooldown = 2  # 쿨다운 시스템 제거됨
     choose_wisdom.metadata = {"dilemma": "power_wisdom", "choice": "wisdom"}
 
     # 5. 희생 선택 (아군 HP 30% 회복)
@@ -63,7 +63,7 @@ def create_philosopher_skills():
     choose_sacrifice.costs = [MPCost(12)]
     choose_sacrifice.target_type = "ally"
     choose_sacrifice.sfx = "376"  # FFVII sacrifice sound
-    choose_sacrifice.cooldown = 3
+    # choose_sacrifice.cooldown = 3  # 쿨다운 시스템 제거됨
     choose_sacrifice.metadata = {"dilemma": "sacrifice_survival", "choice": "sacrifice"}
 
     # 6. 생존 선택 (자신 HP 30% 회복)
@@ -76,7 +76,7 @@ def create_philosopher_skills():
     choose_survival.costs = [MPCost(12)]
     choose_survival.target_type = "self"
     choose_survival.sfx = "404"  # FFVII survival sound
-    choose_survival.cooldown = 3
+    # choose_survival.cooldown = 3  # 쿨다운 시스템 제거됨
     choose_survival.metadata = {"dilemma": "sacrifice_survival", "choice": "survival"}
 
     # 7. 진실 선택 (적 디버프 - 방어력↓ 명중↓)
@@ -89,7 +89,7 @@ def create_philosopher_skills():
     ]
     choose_truth.costs = [MPCost(10)]
     choose_truth.sfx = "423"  # FFVII truth sound
-    choose_truth.cooldown = 3
+    # choose_truth.cooldown = 3  # 쿨다운 시스템 제거됨
     choose_truth.metadata = {"dilemma": "truth_lie", "choice": "truth"}
 
     # 8. 거짓 선택 (자신 버프 - 공격↑ 속도↑)
@@ -103,7 +103,7 @@ def create_philosopher_skills():
     choose_lie.costs = [MPCost(10)]
     choose_lie.target_type = "self"
     choose_lie.sfx = "438"  # FFVII lie sound
-    choose_lie.cooldown = 3
+    # choose_lie.cooldown = 3  # 쿨다운 시스템 제거됨
     choose_lie.metadata = {"dilemma": "truth_lie", "choice": "lie"}
 
     # 9. 균형의 철학 (모든 선택 초기화, 균형 버프)
@@ -126,7 +126,7 @@ def create_philosopher_skills():
     balanced_philosophy.costs = [MPCost(20)]
     balanced_philosophy.target_type = "self"
     balanced_philosophy.sfx = "467"  # FFVII balance sound
-    balanced_philosophy.cooldown = 6
+    # balanced_philosophy.cooldown = 6  # 쿨다운 시스템 제거됨
     balanced_philosophy.metadata = {"reset_choices": True}
 
     # 10. 궁극기: 철학자의 돌
@@ -150,7 +150,7 @@ def create_philosopher_skills():
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.sfx = "696"  # FFVII ultimate philosopher sound
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "choice_scaling": True}
 
     return [philosophical_strike, truth_strike, choose_power, choose_wisdom, choose_sacrifice,

@@ -2393,8 +2393,9 @@ class CombatUI:
 
         details = []
 
-        # === 15개 신규 기믹 시스템 상세 ===
+        # === 33개 직업 기믹 시스템 상세 ===
 
+        # 몽크 - 음양 흐름
         if gimmick_type == "yin_yang_flow":
             ki = getattr(character, 'ki_gauge', 50)
             details.append("=== 음양 흐름 시스템 ===")
@@ -2434,14 +2435,17 @@ class CombatUI:
             elif gauge >= 20:
                 details.append("크리티컬 왜곡 사용 가능")
 
-        elif gimmick_type == "heat_gauge":
+        # 기계공학자 - 열 관리 (YAML: heat_management)
+        elif gimmick_type == "heat_management":
             heat = getattr(character, 'heat', 0)
-            details.append("=== 열 게이지 시스템 ===")
+            details.append("=== 열 관리 시스템 ===")
             details.append(f"열 누적: {heat}/100")
-            if heat > 70:
-                details.append("⚠️  과열 위험! 방출 권장")
-            elif heat > 40:
-                details.append("적정 열량 - 강화 스킬 사용 가능")
+            if heat >= 80:
+                details.append("⚠️  위험 구간! 과열 포격 배율 증가")
+            elif heat >= 50:
+                details.append("최적 구간 - 안정적 화력")
+            elif heat >= 30:
+                details.append("안전 구간 - 열 축적 중")
             else:
                 details.append("낮은 열량 - 축적 필요")
 
@@ -2456,23 +2460,25 @@ class CombatUI:
             else:
                 details.append("보통 상태")
 
-        elif gimmick_type == "madness_gauge":
+        # 버서커 - 광기 임계값 (YAML: madness_threshold)
+        elif gimmick_type == "madness_threshold":
             madness = getattr(character, 'madness', 0)
-            details.append("=== 광기 게이지 시스템 ===")
+            details.append("=== 광기 임계값 시스템 ===")
             details.append(f"광기: {madness}/100")
-            if madness > 70:
+            if madness >= 70:
                 details.append("⚡ 광란 상태 - 초강력 공격 가능!")
-            elif madness > 40:
+            elif madness >= 40:
                 details.append("격앙 상태 - 공격력 증가")
             else:
                 details.append("안전 구간")
 
-        elif gimmick_type == "spirit_resonance":
+        # 정령술사 - 정령 소환 (YAML: elemental_spirits)
+        elif gimmick_type == "elemental_spirits":
             fire = getattr(character, 'spirit_fire', 0)
             water = getattr(character, 'spirit_water', 0)
             wind = getattr(character, 'spirit_wind', 0)
             earth = getattr(character, 'spirit_earth', 0)
-            details.append("=== 정령 공명 시스템 ===")
+            details.append("=== 정령 소환 시스템 ===")
             details.append(f"🔥 화염 정령: {'활성화' if fire > 0 else '비활성'}")
             details.append(f"💧 수령 정령: {'활성화' if water > 0 else '비활성'}")
             details.append(f"💨 바람 정령: {'활성화' if wind > 0 else '비활성'}")
@@ -2481,19 +2487,22 @@ class CombatUI:
             if active >= 2:
                 details.append(f"융합 가능! (활성 정령: {active})")
 
-        elif gimmick_type == "stealth_mastery":
+        # 암살자 - 은신 노출 (YAML: stealth_exposure)
+        elif gimmick_type == "stealth_exposure":
             stealth_active = getattr(character, 'stealth_active', False)
-            shadow_strike = getattr(character, 'shadow_strike_ready', False)
-            details.append("=== 은신 숙련 시스템 ===")
+            exposed_turns = getattr(character, 'exposed_turns', 0)
+            restealth_cooldown = getattr(character, 'restealth_cooldown', 3)
+            details.append("=== 은신 노출 시스템 ===")
             if stealth_active:
                 details.append("상태: 🌑 은신 중")
                 details.append("다음 공격 크리티컬 확정")
-            elif shadow_strike:
-                details.append("상태: 그림자 공격 준비")
-                details.append("암살 기술 사용 가능")
             else:
                 details.append("상태: 👁 노출")
-                details.append("은신 스킬로 재진입 가능")
+                remaining = max(0, restealth_cooldown - exposed_turns)
+                if remaining > 0:
+                    details.append(f"재은신 가능까지: {remaining}턴")
+                else:
+                    details.append("재은신 가능")
 
         elif gimmick_type == "dilemma_choice":
             power = getattr(character, 'choice_power', 0)
@@ -2543,10 +2552,11 @@ class CombatUI:
             if combo >= 3:
                 details.append("연속 지원 보너스 활성!")
 
-        elif gimmick_type == "hack_threading":
+        # 해커 - 멀티스레드 시스템 (YAML: multithread_system)
+        elif gimmick_type == "multithread_system":
             threads = getattr(character, 'active_threads', 0)
             exploits = getattr(character, 'exploit_count', 0)
-            details.append("=== 해킹 스레드 시스템 ===")
+            details.append("=== 멀티스레드 시스템 ===")
             details.append(f"활성 스레드: {threads}/5")
             details.append(f"익스플로잇: {exploits}")
             if threads >= 4:
@@ -2554,16 +2564,207 @@ class CombatUI:
             if exploits >= 3:
                 details.append("시스템 장악 준비 완료")
 
-        elif gimmick_type == "cheer_gauge":
+        # 검투사 - 군중 환호 (YAML: crowd_cheer)
+        elif gimmick_type == "crowd_cheer":
             cheer = getattr(character, 'cheer', 0)
-            details.append("=== 환호 게이지 시스템 ===")
+            details.append("=== 군중 환호 시스템 ===")
             details.append(f"환호: {cheer}/100")
-            if cheer > 70:
+            if cheer >= 70:
                 details.append("📢 열광! 궁극기 강화")
-            elif cheer > 40:
+            elif cheer >= 40:
                 details.append("고조 - 공격력 증가")
             else:
                 details.append("평온 - 축적 필요")
+
+        # 시간술사 - 타임라인 시스템 (YAML: timeline_system)
+        elif gimmick_type == "timeline_system":
+            timeline = getattr(character, 'timeline', 0)
+            details.append("=== 타임라인 시스템 ===")
+            details.append(f"타임라인 위치: {timeline}")
+            if timeline > 0:
+                details.append(f"⏩ 미래 +{timeline} (속도 증가)")
+            elif timeline < 0:
+                details.append(f"⏪ 과거 {timeline} (HP 회복)")
+            else:
+                details.append("⏸ 현재 (균형 상태)")
+
+        # 검성 - 검기 (YAML: sword_aura)
+        elif gimmick_type == "sword_aura":
+            aura = getattr(character, 'sword_aura', 0)
+            details.append("=== 검기 시스템 ===")
+            details.append(f"검기: {aura}/100")
+            if aura >= 80:
+                details.append("⚔️ 검기 방출 가능!")
+            elif aura >= 50:
+                details.append("고양 상태 - 공격력 증가")
+            else:
+                details.append("축적 중")
+
+        # 기사 - 의무 시스템 (YAML: duty_system)
+        elif gimmick_type == "duty_system":
+            duty = getattr(character, 'duty_gauge', 0)
+            details.append("=== 의무 시스템 ===")
+            details.append(f"의무 게이지: {duty}/100")
+            if duty >= 80:
+                details.append("🛡️ 최고 명예 - 방어 극대")
+            elif duty >= 50:
+                details.append("충실 상태")
+            else:
+                details.append("기본 상태")
+
+        # 네크로맨서 - 언데드 군단 (YAML: undead_legion)
+        elif gimmick_type == "undead_legion":
+            minions = getattr(character, 'undead_minions', 0)
+            details.append("=== 언데드 군단 시스템 ===")
+            details.append(f"소환된 언데드: {minions}/5")
+            if minions >= 3:
+                details.append("💀 군단 형성 - 대량 공격 가능")
+            else:
+                details.append("소환 준비 중")
+
+        # 도적 - 절도 시스템 (YAML: theft_system)
+        elif gimmick_type == "theft_system":
+            stolen = getattr(character, 'stolen_items', 0)
+            details.append("=== 절도 시스템 ===")
+            details.append(f"훔친 아이템: {stolen}")
+            details.append("다음 목표: 적 버프/아이템")
+
+        # 드루이드 - 변신 시스템 (YAML: shapeshifting_system)
+        elif gimmick_type == "shapeshifting_system":
+            form = getattr(character, 'current_form', 'human')
+            details.append("=== 변신 시스템 ===")
+            details.append(f"현재 형태: {form}")
+            if form == 'bear':
+                details.append("🐻 곰 - 방어력/HP 증가")
+            elif form == 'cat':
+                details.append("🐱 고양이 - 속도/회피 증가")
+            elif form == 'wolf':
+                details.append("🐺 늑대 - 공격력 증가")
+            else:
+                details.append("👤 인간 - 기본 상태")
+
+        # 마검사 - 마법부여 (YAML: enchant_system)
+        elif gimmick_type == "enchant_system":
+            enchant = getattr(character, 'active_enchant', None)
+            details.append("=== 마법부여 시스템 ===")
+            if enchant:
+                details.append(f"활성 부여: {enchant}")
+            else:
+                details.append("부여 없음")
+
+        # 무당 - 토템 시스템 (YAML: totem_system)
+        elif gimmick_type == "totem_system":
+            totems = getattr(character, 'active_totems', [])
+            details.append("=== 토템 시스템 ===")
+            details.append(f"활성 토템: {len(totems)}/3")
+            if totems:
+                for totem in totems:
+                    details.append(f"  - {totem}")
+
+        # 바드 - 선율 시스템 (YAML: melody_system)
+        elif gimmick_type == "melody_system":
+            melody = getattr(character, 'active_melody', None)
+            notes = getattr(character, 'melody_notes', 0)
+            details.append("=== 선율 시스템 ===")
+            details.append(f"음표: {notes}/8")
+            if melody:
+                details.append(f"연주 중: {melody}")
+            else:
+                details.append("대기 중")
+
+        # 브레이커 - 브레이크 시스템 (YAML: break_system)
+        elif gimmick_type == "break_system":
+            bonus = getattr(character, 'break_bonus', 0)
+            details.append("=== 브레이크 시스템 ===")
+            details.append(f"브레이크 보너스: {bonus}%")
+            if bonus >= 50:
+                details.append("💥 극대 브레이크!")
+
+        # 사무라이 - 거합 시스템 (YAML: iaijutsu_system)
+        elif gimmick_type == "iaijutsu_system":
+            charge = getattr(character, 'iaijutsu_charge', 0)
+            details.append("=== 거합 시스템 ===")
+            details.append(f"집중력: {charge}/100")
+            if charge >= 80:
+                details.append("⚡ 일섬 가능!")
+
+        # 성직자 - 신성 시스템 (YAML: holy_system)
+        elif gimmick_type == "holy_system":
+            holy = getattr(character, 'holy_gauge', 0)
+            details.append("=== 신성 시스템 ===")
+            details.append(f"신성력: {holy}/100")
+            if holy >= 80:
+                details.append("✨ 신의 은총 발동 가능")
+
+        # 성기사/대마법사 - 신성력 (YAML: divinity_system)
+        elif gimmick_type == "divinity_system":
+            divinity = getattr(character, 'divinity', 0)
+            details.append("=== 신성력 시스템 ===")
+            details.append(f"신성력: {divinity}/100")
+            if divinity >= 80:
+                details.append("🌟 신성 강화 활성")
+
+        # 엘리멘탈리스트 - 속성 카운터 (YAML: elemental_counter)
+        elif gimmick_type == "elemental_counter":
+            fire = getattr(character, 'fire_stacks', 0)
+            ice = getattr(character, 'ice_stacks', 0)
+            lightning = getattr(character, 'lightning_stacks', 0)
+            details.append("=== 속성 카운터 시스템 ===")
+            details.append(f"🔥 화염: {fire}/5")
+            details.append(f"❄️ 냉기: {ice}/5")
+            details.append(f"⚡ 번개: {lightning}/5")
+
+        # 암흑기사 - 암흑 시스템 (YAML: darkness_system)
+        elif gimmick_type == "darkness_system":
+            darkness = getattr(character, 'darkness_gauge', 0)
+            details.append("=== 암흑 시스템 ===")
+            details.append(f"암흑력: {darkness}/100")
+            if darkness >= 80:
+                details.append("🌑 암흑 폭발 가능")
+
+        # 연금술사 - 연금 시스템 (YAML: alchemy_system)
+        elif gimmick_type == "alchemy_system":
+            catalyst = getattr(character, 'catalyst_type', None)
+            details.append("=== 연금 시스템 ===")
+            if catalyst:
+                details.append(f"활성 촉매: {catalyst}")
+            else:
+                details.append("촉매 없음")
+
+        # 용기사 - 드래곤 마크 (YAML: dragon_marks)
+        elif gimmick_type == "dragon_marks":
+            marks = getattr(character, 'dragon_marks', 0)
+            details.append("=== 드래곤 마크 시스템 ===")
+            details.append(f"각인: {marks}/5")
+            if marks >= 5:
+                details.append("🐉 드래곤 변신 가능!")
+
+        # 저격수 - 탄창 시스템 (YAML: magazine_system)
+        elif gimmick_type == "magazine_system":
+            ammo = getattr(character, 'ammo', 0)
+            max_ammo = getattr(character, 'max_ammo', 6)
+            details.append("=== 탄창 시스템 ===")
+            details.append(f"탄약: {ammo}/{max_ammo}")
+            if ammo == 0:
+                details.append("🔄 재장전 필요")
+
+        # 전사 - 자세 시스템 (YAML: stance_system)
+        elif gimmick_type == "stance_system":
+            stance = getattr(character, 'current_stance', 0)
+            details.append("=== 자세 시스템 ===")
+            stance_names = ["중립", "공격", "방어", "광전사", "수호자", "신속"]
+            if 0 <= stance < len(stance_names):
+                details.append(f"현재 자세: {stance_names[stance]}")
+            else:
+                details.append(f"현재 자세: {stance}")
+
+        # 해적 - 약탈 시스템 (YAML: plunder_system)
+        elif gimmick_type == "plunder_system":
+            gold = getattr(character, 'plundered_gold', 0)
+            details.append("=== 약탈 시스템 ===")
+            details.append(f"약탈한 골드: {gold}")
+            if gold >= 100:
+                details.append("💰 대박! 강화 스킬 가능")
 
         else:
             return "기믹 상세 정보 없음"

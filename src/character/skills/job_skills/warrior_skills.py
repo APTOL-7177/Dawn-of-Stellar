@@ -38,7 +38,7 @@ def create_warrior_skills():
     ]
     attack_stance.costs = [MPCost(4)]
     attack_stance.target_type = "self"
-    attack_stance.cooldown = 2
+    # attack_stance.cooldown = 2  # 쿨다운 시스템 제거됨
     attack_stance.sfx = "632"
     attack_stance.metadata = {"stance": "attack", "buff": True}
     skills.append(attack_stance)
@@ -51,7 +51,7 @@ def create_warrior_skills():
     ]
     defensive_stance.costs = [MPCost(4)]
     defensive_stance.target_type = "self"
-    defensive_stance.cooldown = 2
+    # defensive_stance.cooldown = 2  # 쿨다운 시스템 제거됨
     defensive_stance.sfx = "639"
     defensive_stance.metadata = {"stance": "defense", "buff": True}
     skills.append(defensive_stance)
@@ -65,7 +65,7 @@ def create_warrior_skills():
     ]
     berserker_rage.costs = [MPCost(8)]
     berserker_rage.target_type = "self"
-    berserker_rage.cooldown = 3
+    # berserker_rage.cooldown = 3  # 쿨다운 시스템 제거됨
     berserker_rage.sfx = "646"
     berserker_rage.metadata = {"stance": "berserker", "buff": True, "damage": True}
     skills.append(berserker_rage)
@@ -78,7 +78,7 @@ def create_warrior_skills():
     ]
     guardian_stance.costs = [MPCost(8)]
     guardian_stance.target_type = "self"
-    guardian_stance.cooldown = 3
+    # guardian_stance.cooldown = 3  # 쿨다운 시스템 제거됨
     guardian_stance.sfx = "653"
     guardian_stance.metadata = {"stance": "guardian", "buff": True}
     skills.append(guardian_stance)
@@ -91,7 +91,7 @@ def create_warrior_skills():
     ]
     speed_stance.costs = [MPCost(6)]
     speed_stance.target_type = "self"
-    speed_stance.cooldown = 2
+    # speed_stance.cooldown = 2  # 쿨다운 시스템 제거됨
     speed_stance.sfx = "660"
     speed_stance.metadata = {"stance": "speed", "buff": True}
     skills.append(speed_stance)
@@ -103,7 +103,7 @@ def create_warrior_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3)
     ]
     war_cry.costs = [MPCost(12)]
-    war_cry.cooldown = 4
+    # war_cry.cooldown = 4  # 쿨다운 시스템 제거됨
     war_cry.is_aoe = True
     war_cry.sfx = "667"
     war_cry.metadata = {"buff": True, "debuff": True, "aoe": True}
@@ -117,7 +117,7 @@ def create_warrior_skills():
         GimmickEffect(GimmickOperation.SET, "current_stance", 1)  # 1=attack
     ]
     furious_strike.costs = [MPCost(18)]
-    furious_strike.cooldown = 5
+    # furious_strike.cooldown = 5  # 쿨다운 시스템 제거됨
     furious_strike.sfx = "674"
     furious_strike.metadata = {"stance_based": True, "high_damage": True}
     skills.append(furious_strike)
@@ -135,7 +135,7 @@ def create_warrior_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "681"
     ultimate.metadata = {"ultimate": True, "all_stance_fusion": True, "party_buff": True}
     skills.append(ultimate)

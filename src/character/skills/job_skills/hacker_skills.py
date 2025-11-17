@@ -35,7 +35,7 @@ def create_hacker_skills():
     run_virus.costs = [MPCost(10)]
     run_virus.target_type = "single"
     run_virus.sfx = "344"  # FFVII virus sound
-    run_virus.cooldown = 2
+    # run_virus.cooldown = 2  # 쿨다운 시스템 제거됨
     run_virus.metadata = {"program_type": "virus", "debuff": "attack_down"}
 
     # 4. 백도어 실행 (적 방어력 -30%)
@@ -47,7 +47,7 @@ def create_hacker_skills():
     run_backdoor.costs = [MPCost(12)]
     run_backdoor.target_type = "single"
     run_backdoor.sfx = "352"  # FFVII backdoor sound
-    run_backdoor.cooldown = 2
+    # run_backdoor.cooldown = 2  # 쿨다운 시스템 제거됨
     run_backdoor.metadata = {"program_type": "backdoor", "debuff": "defense_down"}
 
     # 5. DDoS 실행 (적 속도 -50%)
@@ -59,7 +59,7 @@ def create_hacker_skills():
     run_ddos.costs = [MPCost(15)]
     run_ddos.target_type = "single"
     run_ddos.sfx = "362"  # FFVII ddos sound
-    run_ddos.cooldown = 3
+    # run_ddos.cooldown = 3  # 쿨다운 시스템 제거됨
     run_ddos.metadata = {"program_type": "ddos", "debuff": "speed_down"}
 
     # 6. 랜섬웨어 실행 (적 스킬 봉인)
@@ -71,7 +71,7 @@ def create_hacker_skills():
     run_ransomware.costs = [MPCost(18)]
     run_ransomware.target_type = "single"
     run_ransomware.sfx = "376"  # FFVII lock sound
-    run_ransomware.cooldown = 4
+    # run_ransomware.cooldown = 4  # 쿨다운 시스템 제거됨
     run_ransomware.metadata = {"program_type": "ransomware", "debuff": "skill_seal"}
 
     # 7. 스파이웨어 실행 (적 정보 획득 + 회피율 감소)
@@ -84,7 +84,7 @@ def create_hacker_skills():
     run_spyware.costs = [MPCost(8)]
     run_spyware.target_type = "single"
     run_spyware.sfx = "404"  # FFVII scan sound
-    run_spyware.cooldown = 2
+    # run_spyware.cooldown = 2  # 쿨다운 시스템 제거됨
     run_spyware.metadata = {"program_type": "spyware", "info_gathering": True}
 
     # 8. 프로그램 종료 (모든 프로그램 종료하여 강력한 공격)
@@ -102,7 +102,7 @@ def create_hacker_skills():
     ]
     terminate_all.costs = [MPCost(20)]
     terminate_all.sfx = "423"  # FFVII shutdown sound
-    terminate_all.cooldown = 5
+    # terminate_all.cooldown = 5  # 쿨다운 시스템 제거됨
     terminate_all.metadata = {"terminate_all": True}
 
     # 9. 시스템 과부하 (프로그램 유지하면서 강력한 공격)
@@ -113,7 +113,7 @@ def create_hacker_skills():
     ]
     system_overload.costs = [MPCost(22)]
     system_overload.sfx = "438"  # FFVII overload sound
-    system_overload.cooldown = 4
+    # system_overload.cooldown = 4  # 쿨다운 시스템 제거됨
     system_overload.metadata = {"program_scaling": True}
 
     # 10. 궁극기: 멀티스레드 폭주 (모든 프로그램 즉시 실행 + 극대 공격)
@@ -136,7 +136,7 @@ def create_hacker_skills():
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.sfx = "696"  # FFVII ultimate tech sound
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "multithread_rampage": True}
 
     return [code_injection, data_breach, run_virus, run_backdoor, run_ddos,

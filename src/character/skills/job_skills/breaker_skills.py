@@ -40,7 +40,7 @@ def create_breaker_skills():
     ]
     brv_focus.costs = [MPCost(6)]
     brv_focus.target_type = "self"
-    brv_focus.cooldown = 3
+    # brv_focus.cooldown = 3  # 쿨다운 시스템 제거됨
     brv_focus.sfx = "548"
     brv_focus.metadata = {"buff": True, "break_power_gain": 2}
     skills.append(brv_focus)
@@ -54,7 +54,7 @@ def create_breaker_skills():
         GimmickEffect(GimmickOperation.ADD, "break_power", 2, max_value=10)
     ]
     multi_strike.costs = [MPCost(8)]
-    multi_strike.cooldown = 2
+    # multi_strike.cooldown = 2  # 쿨다운 시스템 제거됨
     multi_strike.sfx = "558"
     multi_strike.metadata = {"multi_hit": 3, "break_power_gain": 2}
     skills.append(multi_strike)
@@ -67,7 +67,7 @@ def create_breaker_skills():
     ]
     break_enhance.costs = [MPCost(9)]
     break_enhance.target_type = "self"
-    break_enhance.cooldown = 5
+    # break_enhance.cooldown = 5  # 쿨다운 시스템 제거됨
     break_enhance.sfx = "568"
     break_enhance.metadata = {"break_power_gain": 5, "buff": True}
     skills.append(break_enhance)
@@ -79,7 +79,7 @@ def create_breaker_skills():
         GimmickEffect(GimmickOperation.ADD, "break_power", 1, max_value=10)
     ]
     mega_crush.costs = [MPCost(10)]
-    mega_crush.cooldown = 3
+    # mega_crush.cooldown = 3  # 쿨다운 시스템 제거됨
     mega_crush.sfx = "578"
     mega_crush.metadata = {"break_scaling": True, "break_power_gain": 1}
     skills.append(mega_crush)
@@ -91,7 +91,7 @@ def create_breaker_skills():
         GimmickEffect(GimmickOperation.CONSUME, "break_power", 3)
     ]
     break_wave.costs = [MPCost(11), StackCost("break_power", 3)]
-    break_wave.cooldown = 4
+    # break_wave.cooldown = 4  # 쿨다운 시스템 제거됨
     break_wave.is_aoe = True
     break_wave.sfx = "588"
     break_wave.metadata = {"break_power_cost": 3, "break_scaling": True, "aoe": True}
@@ -104,7 +104,7 @@ def create_breaker_skills():
         GimmickEffect(GimmickOperation.CONSUME, "break_power", 5)
     ]
     total_break.costs = [MPCost(14), StackCost("break_power", 5)]
-    total_break.cooldown = 6
+    # total_break.cooldown = 6  # 쿨다운 시스템 제거됨
     total_break.sfx = "598"
     total_break.metadata = {"break_power_cost": 5, "break_scaling": True}
     skills.append(total_break)
@@ -118,7 +118,7 @@ def create_breaker_skills():
     ]
     devastation.costs = [MPCost(16)]
     devastation.target_type = "self"
-    devastation.cooldown = 6
+    # devastation.cooldown = 6  # 쿨다운 시스템 제거됨
     devastation.sfx = "608"
     devastation.metadata = {"break_power_max": True, "buff": True}
     skills.append(devastation)
@@ -135,7 +135,7 @@ def create_breaker_skills():
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "618"
     ultimate.metadata = {"ultimate": True, "break_scaling": True, "break_consume_all": True, "aoe": True}
     skills.append(ultimate)

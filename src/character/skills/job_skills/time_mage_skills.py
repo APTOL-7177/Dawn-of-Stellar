@@ -5,6 +5,7 @@ from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOp
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.effects.status_effect import StatusEffect, StatusType
 from src.character.skills.effects.heal_effect import HealEffect, HealType
+from src.character.skills.effects.atb_effect import ATBEffect
 from src.character.skills.costs.mp_cost import MPCost
 
 def create_time_mage_skills():
@@ -32,9 +33,10 @@ def create_time_mage_skills():
 
     # 3. 슬로우 (느려지기) - 과거 스킬
     slow = Skill("time_mage_slow", "슬로우",
-                "적 ATB -50%, 타임라인 -1 (과거)")
+                "적 ATB -50%, 속도 -50% 3턴, 타임라인 -1 (과거)")
     slow.effects = [
-        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=3),
+        ATBEffect(-50, is_percentage=True),  # ATB -50% (즉시 감소)
+        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=3),  # 속도도 감소 (지속)
         GimmickEffect(GimmickOperation.ADD, "timeline", -1, min_value=-5)
     ]
     slow.costs = [MPCost(10)]
@@ -50,7 +52,7 @@ def create_time_mage_skills():
     ]
     stop.costs = [MPCost(20)]
     stop.target_type = "single_enemy"
-    stop.cooldown = 3
+    # stop.cooldown = 3  # 쿨다운 시스템 제거됨
     stop.metadata = {"timeline_shift": -1, "skill_type": "past"}
 
     # 5. 시간 역행 - 과거 스킬
@@ -62,7 +64,7 @@ def create_time_mage_skills():
     ]
     rewind.costs = [MPCost(18)]
     rewind.target_type = "self"
-    rewind.cooldown = 4
+    # rewind.cooldown = 4  # 쿨다운 시스템 제거됨
     rewind.metadata = {"timeline_shift": -2, "skill_type": "past"}
 
     # 6. 과거 반복 - 과거 스킬 (MP 대량 회복으로 이전 스킬 재사용 가능)
@@ -75,7 +77,7 @@ def create_time_mage_skills():
     ]
     repeat.costs = [MPCost(15)]
     repeat.target_type = "self"
-    repeat.cooldown = 5
+    # repeat.cooldown = 5  # 쿨다운 시스템 제거됨
     repeat.metadata = {"timeline_shift": -1, "skill_type": "past", "mp_recovery": True}
 
     # === 현재 스킬 (타임라인 변화 없음) ===
@@ -99,21 +101,22 @@ def create_time_mage_skills():
                     conditional_bonus={"condition": "at_present", "multiplier": 1.0})
     ]
     balance.costs = [MPCost(25)]
-    balance.cooldown = 6
+    # balance.cooldown = 6  # 쿨다운 시스템 제거됨
     balance.metadata = {"requires_timeline": 0, "skill_type": "present"}
 
     # === 미래 스킬 (타임라인 +1 또는 +2) ===
 
     # 9. 헤이스트 (가속) - 미래 스킬
     haste = Skill("time_mage_haste", "헤이스트",
-                 "아군 ATB +100%, 타임라인 +1 (미래)")
+                 "아군 ATB +100%, 속도 +100% 3턴, 타임라인 +1 (미래)")
     haste.effects = [
-        BuffEffect(BuffType.SPEED_UP, 1.0, duration=3),
+        ATBEffect(100, is_percentage=True),  # ATB +100% (즉시 증가)
+        BuffEffect(BuffType.SPEED_UP, 1.0, duration=3),  # 속도도 증가 (지속)
         GimmickEffect(GimmickOperation.ADD, "timeline", 1, max_value=5)
     ]
     haste.costs = [MPCost(14)]
     haste.target_type = "ally"
-    haste.cooldown = 3
+    # haste.cooldown = 3  # 쿨다운 시스템 제거됨
     haste.metadata = {"timeline_shift": 1, "skill_type": "future"}
 
     # 10. 예지 - 미래 스킬
@@ -127,17 +130,18 @@ def create_time_mage_skills():
     foresight.target_type = "self"
     foresight.metadata = {"timeline_shift": 1, "skill_type": "future"}
 
-    # 11. 시간 도약 (퀵) - 미래 스킬 (속도 대폭 증가로 거의 즉시 턴 획득)
+    # 11. 시간 도약 (퀵) - 미래 스킬 (ATB 대폭 증가로 거의 즉시 턴 획득)
     leap = Skill("time_mage_leap", "시간 도약",
-                "속도 +200% 1턴 (거의 즉시 다음 턴), 타임라인 +2 (미래)")
+                "ATB +150%, 속도 +200% 1턴 (거의 즉시 다음 턴), 타임라인 +2 (미래)")
     leap.effects = [
+        ATBEffect(150, is_percentage=True),  # ATB +150% (즉시 대폭 증가)
         BuffEffect(BuffType.SPEED_UP, 2.0, duration=1),  # 속도 +200%
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=1),  # 공격력도 증가
         GimmickEffect(GimmickOperation.ADD, "timeline", 2, max_value=5)
     ]
     leap.costs = [MPCost(22)]
     leap.target_type = "self"
-    leap.cooldown = 5
+    # leap.cooldown = 5  # 쿨다운 시스템 제거됨
     leap.metadata = {"timeline_shift": 2, "skill_type": "future", "quick_turn": True}
 
     # 12. 궁극기: 시간 파동 - 현재 스킬
@@ -152,7 +156,7 @@ def create_time_mage_skills():
     wave.target_type = "all_enemies"
     wave.is_ultimate = True
     wave.is_aoe = True
-    wave.cooldown = 8
+    # wave.cooldown = 8  # 쿨다운 시스템 제거됨
     wave.metadata = {"timeline_shift": "reset", "skill_type": "ultimate"}
 
     return [time_bolt, time_shock, slow, stop, rewind, repeat,

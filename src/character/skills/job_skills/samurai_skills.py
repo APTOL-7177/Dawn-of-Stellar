@@ -41,7 +41,7 @@ def create_samurai_skills():
     ]
     clear_mind.costs = [MPCost(6)]
     clear_mind.target_type = "self"
-    clear_mind.cooldown = 2
+    # clear_mind.cooldown = 2  # 쿨다운 시스템 제거됨
     clear_mind.sfx = "352"
     clear_mind.metadata = {"will_gain": 2, "buff": True}
     skills.append(clear_mind)
@@ -54,7 +54,7 @@ def create_samurai_skills():
     ]
     battojutsu.costs = [MPCost(8), StackCost("will_gauge", 2)]
     battojutsu.cast_time = 0.5
-    battojutsu.cooldown = 2
+    # battojutsu.cooldown = 2  # 쿨다운 시스템 제거됨
     battojutsu.sfx = "359"
     battojutsu.metadata = {"will_cost": 2, "will_scaling": True, "quick_draw": True}
     skills.append(battojutsu)
@@ -68,7 +68,7 @@ def create_samurai_skills():
     ]
     samurai_honor.costs = [MPCost(10)]
     samurai_honor.target_type = "self"
-    samurai_honor.cooldown = 4
+    # samurai_honor.cooldown = 4  # 쿨다운 시스템 제거됨
     samurai_honor.sfx = "366"
     samurai_honor.metadata = {"will_refill": True, "buff": True}
     skills.append(samurai_honor)
@@ -82,7 +82,7 @@ def create_samurai_skills():
         GimmickEffect(GimmickOperation.CONSUME, "will_gauge", 3)
     ]
     musou_ken.costs = [MPCost(12), StackCost("will_gauge", 3)]
-    musou_ken.cooldown = 4
+    # musou_ken.cooldown = 4  # 쿨다운 시스템 제거됨
     musou_ken.sfx = "373"
     musou_ken.metadata = {"will_cost": 3, "will_scaling": True, "multi_hit": True}
     skills.append(musou_ken)
@@ -94,7 +94,7 @@ def create_samurai_skills():
         GimmickEffect(GimmickOperation.CONSUME, "will_gauge", 4)
     ]
     flying_swallow.costs = [MPCost(15), StackCost("will_gauge", 4)]
-    flying_swallow.cooldown = 5
+    # flying_swallow.cooldown = 5  # 쿨다운 시스템 제거됨
     flying_swallow.sfx = "380"
     flying_swallow.metadata = {"will_cost": 4, "will_scaling": True, "aerial": True}
     skills.append(flying_swallow)
@@ -107,7 +107,7 @@ def create_samurai_skills():
         GimmickEffect(GimmickOperation.CONSUME, "will_gauge", 5)
     ]
     true_battojutsu.costs = [MPCost(18), StackCost("will_gauge", 5)]
-    true_battojutsu.cooldown = 6
+    # true_battojutsu.cooldown = 6  # 쿨다운 시스템 제거됨
     true_battojutsu.sfx = "387"
     true_battojutsu.metadata = {"will_cost": 5, "will_scaling": True, "true_strike": True}
     skills.append(true_battojutsu)
@@ -120,7 +120,7 @@ def create_samurai_skills():
         GimmickEffect(GimmickOperation.ADD, "will_gauge", 1, max_value=5)
     ]
     infinite_slash.costs = [MPCost(20)]
-    infinite_slash.cooldown = 5
+    # infinite_slash.cooldown = 5  # 쿨다운 시스템 제거됨
     infinite_slash.sfx = "394"
     infinite_slash.metadata = {"will_gain": 1, "high_damage": True}
     infinite_slash.is_aoe = True
@@ -137,7 +137,7 @@ def create_samurai_skills():
     ]
     ultimate.costs = [MPCost(30), StackCost("will_gauge", 1)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "401"
     ultimate.metadata = {"ultimate": True, "will_dump": True, "supreme_strike": True}
     skills.append(ultimate)
