@@ -68,7 +68,7 @@ class GimmickUpdater:
                 logger.debug(f"{character.name} 직접 공격으로 지원 콤보 초기화")
 
     @staticmethod
-    def on_ally_attack(attacker, all_allies):
+    def on_ally_attack(attacker, all_allies, target=None):
         """아군 공격 시 기믹 트리거 (지원사격 등)"""
         # 모든 아군 중에서 궁수 찾기
         for ally in all_allies:
@@ -76,10 +76,10 @@ class GimmickUpdater:
                 continue
 
             if ally.gimmick_type == "support_fire" and ally != attacker:
-                GimmickUpdater._trigger_support_fire(ally, attacker)
+                GimmickUpdater._trigger_support_fire(ally, attacker, target)
 
     @staticmethod
-    def _trigger_support_fire(archer, attacking_ally):
+    def _trigger_support_fire(archer, attacking_ally, target=None):
         """궁수 지원사격 트리거"""
         # 마킹된 아군인지 확인
         marked_slots = [
@@ -98,6 +98,16 @@ class GimmickUpdater:
 
         # 마킹된 슬롯 찾기
         arrow_types = ['normal', 'piercing', 'fire', 'ice', 'poison', 'explosive', 'holy']
+        arrow_multipliers = {
+            'normal': 1.5,
+            'piercing': 1.8,
+            'fire': 1.6,
+            'ice': 1.4,
+            'poison': 1.3,
+            'explosive': 2.0,
+            'holy': 1.7
+        }
+
         for i, slot_count in enumerate(marked_slots):
             if slot_count > 0:
                 arrow_type = arrow_types[i]
@@ -107,6 +117,37 @@ class GimmickUpdater:
                 if shots_remaining > 0:
                     # 지원사격 발동
                     logger.info(f"[지원사격] {archer.name} → {attacking_ally.name} ({arrow_type} 화살)")
+
+                    # 실제 BRV 데미지 계산 및 적용
+                    if target and hasattr(target, 'current_brv'):
+                        from src.combat.damage_calculator import DamageCalculator
+                        damage_calc = DamageCalculator()
+
+                        # 화살 배율 적용
+                        multiplier = arrow_multipliers.get(arrow_type, 1.5)
+
+                        # 콤보 보너스 적용
+                        combo = getattr(archer, 'support_fire_combo', 0)
+                        if combo >= 7:
+                            multiplier *= 2.0  # 콤보 7+: 데미지 2배
+                        elif combo >= 5:
+                            multiplier *= 1.6  # 콤보 5+: 데미지 +60%
+                        elif combo >= 3:
+                            multiplier *= 1.4  # 콤보 3+: 데미지 +40%
+                        elif combo >= 2:
+                            multiplier *= 1.2  # 콤보 2+: 데미지 +20%
+
+                        # BRV 데미지 계산 (물리 공격)
+                        damage_result = damage_calc.calculate_brv_damage(archer, target, skill_multiplier=multiplier)
+                        brv_damage = damage_result.final_damage
+
+                        # 적에게 BRV 데미지 적용
+                        target.current_brv = max(0, target.current_brv - brv_damage)
+
+                        # 궁수의 BRV 회복 (입힌 데미지만큼)
+                        archer.current_brv = min(archer.max_brv, archer.current_brv + brv_damage)
+
+                        logger.info(f"  → {target.name}에게 {brv_damage} BRV 데미지! {archer.name} BRV +{brv_damage}")
 
                     # 남은 발사 횟수 감소
                     setattr(attacking_ally, shots_attr, shots_remaining - 1)

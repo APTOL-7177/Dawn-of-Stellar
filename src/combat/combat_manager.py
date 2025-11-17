@@ -298,7 +298,7 @@ class CombatManager:
 
         # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
         if trigger_gimmick and attacker in self.allies:
-            GimmickUpdater.on_ally_attack(attacker, self.allies)
+            GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender)
 
         return {
             "action": "brv_attack",
@@ -369,7 +369,7 @@ class CombatManager:
 
         # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
         if trigger_gimmick and attacker in self.allies:
-            GimmickUpdater.on_ally_attack(attacker, self.allies)
+            GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender)
 
         return {
             "action": "hp_attack",
@@ -399,7 +399,7 @@ class CombatManager:
 
         # 아군 공격 시 기믹 트리거 (지원사격 등) - 복합 공격 전체에 대해 한 번만
         if attacker in self.allies:
-            GimmickUpdater.on_ally_attack(attacker, self.allies)
+            GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender)
 
         # 결과 병합
         combined_result = {
