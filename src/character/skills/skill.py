@@ -47,9 +47,11 @@ class Skill:
             if not cost.consume(user, context):
                 return SkillResult(success=False, message="비용 소비 실패")
 
-        # 효과 실행
+        # 효과 실행 (ISSUE-003: 효과 메시지 수집)
         total_dmg = 0
         total_heal = 0
+        effect_messages = []  # 각 효과의 메시지 수집
+
         for effect in self.effects:
             if hasattr(effect, 'execute'):
                 result = effect.execute(user, target, context)
@@ -57,6 +59,9 @@ class Skill:
                     total_dmg += result.damage_dealt
                 if hasattr(result, 'heal_amount'):
                     total_heal += result.heal_amount
+                # 효과 메시지 수집
+                if hasattr(result, 'message') and result.message:
+                    effect_messages.append(result.message)
 
         # AOE 효과 실행 (적 전체 대상)
         if hasattr(self, 'aoe_effect') and self.aoe_effect:
@@ -83,9 +88,16 @@ class Skill:
                         total_dmg += aoe_result.damage_dealt
                         logger.debug(f"AOE 피해: {aoe_result.damage_dealt}")
 
+        # 최종 메시지 구성 (ISSUE-003: 상세 피드백)
+        base_message = f"{user.name}이(가) {self.name} 사용!"
+        if effect_messages:
+            full_message = base_message + "\n  → " + "\n  → ".join(effect_messages)
+        else:
+            full_message = base_message
+
         return SkillResult(
             success=True,
-            message=f"{user.name}이(가) {self.name} 사용!",
+            message=full_message,
             total_damage=total_dmg,
             total_heal=total_heal
         )

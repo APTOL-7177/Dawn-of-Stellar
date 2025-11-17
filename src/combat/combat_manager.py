@@ -467,6 +467,9 @@ class CombatManager:
             result["success"] = True
             result["message"] = skill_result.message
 
+            # ISSUE-003: 스킬 효과 상세 로그 출력
+            self.logger.info(f"[스킬 효과] {skill_result.message}")
+
             # 기믹 업데이트 (스킬 사용)
             GimmickUpdater.on_skill_use(actor, skill)
         else:
