@@ -918,11 +918,30 @@ class CombatUI:
             lightning = getattr(character, 'lightning_element', 0)
             return f"[화염{fire} 냉기{ice} 번개{lightning}]"
 
-        elif gimmick_type == "support_fire_system":
+        elif gimmick_type == "support_fire_system" or gimmick_type == "support_fire":
             # 궁수 - 지원사격
-            marked_allies = getattr(character, 'marked_allies', [])
-            combo = getattr(character, 'combo_count', 0)
-            return f"[지원:{len(marked_allies)}/3 콤보:{combo}]"
+            combo = getattr(character, 'support_fire_combo', 0)
+
+            # 실제로 마킹된 아군 수 계산
+            marked = 0
+            if hasattr(self, 'combat_manager') and hasattr(self.combat_manager, 'allies'):
+                for ally in self.combat_manager.allies:
+                    if ally == character:  # 자기 자신은 제외
+                        continue
+                    # 7가지 화살 타입 중 하나라도 마킹되어 있으면 카운트
+                    has_mark = any([
+                        getattr(ally, 'mark_slot_normal', 0) > 0,
+                        getattr(ally, 'mark_slot_piercing', 0) > 0,
+                        getattr(ally, 'mark_slot_fire', 0) > 0,
+                        getattr(ally, 'mark_slot_ice', 0) > 0,
+                        getattr(ally, 'mark_slot_poison', 0) > 0,
+                        getattr(ally, 'mark_slot_explosive', 0) > 0,
+                        getattr(ally, 'mark_slot_holy', 0) > 0,
+                    ])
+                    if has_mark:
+                        marked += 1
+
+            return f"[지원:{marked}/3 콤보:{combo}]"
 
         elif gimmick_type == "magazine_system":
             # 저격수 - 탄창
@@ -1600,7 +1619,25 @@ class CombatUI:
         elif gimmick_type == "support_fire":
             # 궁수 - 지원사격
             combo = getattr(character, 'support_fire_combo', 0)
-            marked = getattr(character, 'marked_allies_count', 0)
+
+            # 실제로 마킹된 아군 수 계산
+            marked = 0
+            if hasattr(self, 'combat_manager') and hasattr(self.combat_manager, 'allies'):
+                for ally in self.combat_manager.allies:
+                    if ally == character:  # 자기 자신은 제외
+                        continue
+                    # 7가지 화살 타입 중 하나라도 마킹되어 있으면 카운트
+                    has_mark = any([
+                        getattr(ally, 'mark_slot_normal', 0) > 0,
+                        getattr(ally, 'mark_slot_piercing', 0) > 0,
+                        getattr(ally, 'mark_slot_fire', 0) > 0,
+                        getattr(ally, 'mark_slot_ice', 0) > 0,
+                        getattr(ally, 'mark_slot_poison', 0) > 0,
+                        getattr(ally, 'mark_slot_explosive', 0) > 0,
+                        getattr(ally, 'mark_slot_holy', 0) > 0,
+                    ])
+                    if has_mark:
+                        marked += 1
 
             console.print(content_x, content_y + line, "🏹 궁수 - 지원사격", fg=(150, 200, 100))
             line += 1
@@ -2474,7 +2511,26 @@ class CombatUI:
 
         elif gimmick_type == "support_fire":
             combo = getattr(character, 'support_fire_combo', 0)
-            marked = getattr(character, 'marked_allies_count', 0)
+
+            # 실제로 마킹된 아군 수 계산
+            marked = 0
+            if hasattr(self, 'combat_manager') and hasattr(self.combat_manager, 'allies'):
+                for ally in self.combat_manager.allies:
+                    if ally == character:  # 자기 자신은 제외
+                        continue
+                    # 7가지 화살 타입 중 하나라도 마킹되어 있으면 카운트
+                    has_mark = any([
+                        getattr(ally, 'mark_slot_normal', 0) > 0,
+                        getattr(ally, 'mark_slot_piercing', 0) > 0,
+                        getattr(ally, 'mark_slot_fire', 0) > 0,
+                        getattr(ally, 'mark_slot_ice', 0) > 0,
+                        getattr(ally, 'mark_slot_poison', 0) > 0,
+                        getattr(ally, 'mark_slot_explosive', 0) > 0,
+                        getattr(ally, 'mark_slot_holy', 0) > 0,
+                    ])
+                    if has_mark:
+                        marked += 1
+
             details.append("=== 지원사격 시스템 ===")
             details.append(f"지원 콤보: {combo}")
             details.append(f"표식된 아군: {marked}명")
