@@ -20,7 +20,7 @@ class Skill:
         self.costs = []
         self.target_type = "single_enemy"
         self.cast_time = None  # 기본값: 캐스팅 없음
-        self.cooldown = 0
+        # self.cooldown = 0  # 쿨다운 시스템 제거됨
         self.category = "combat"
         self.is_ultimate = False
         self.metadata = {}
@@ -96,8 +96,9 @@ class Skill:
         if self.costs:
             cost_strs = [getattr(c, 'get_description', lambda u: "")(user) for c in self.costs]
             parts.append(f"비용: {', '.join([c for c in cost_strs if c])}")
-        if self.cooldown > 0:
-            parts.append(f"쿨다운: {self.cooldown}턴")
+        # 쿨다운 시스템 제거됨
+        # if self.cooldown > 0:
+        #     parts.append(f"쿨다운: {self.cooldown}턴")
         return " | ".join(parts)
 
     def __repr__(self) -> str:

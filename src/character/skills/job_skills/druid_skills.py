@@ -44,7 +44,7 @@ def create_druid_skills():
     ]
     bear_form.costs = [MPCost(7)]
     bear_form.target_type = "self"
-    bear_form.cooldown = 3
+    # bear_form.cooldown = 3  # 쿨다운 시스템 제거됨
     bear_form.sfx = "352"
     bear_form.metadata = {"form": "bear", "defensive": True, "nature_gain": 1}
     skills.append(bear_form)
@@ -59,7 +59,7 @@ def create_druid_skills():
     ]
     cat_form.costs = [MPCost(7)]
     cat_form.target_type = "self"
-    cat_form.cooldown = 3
+    # cat_form.cooldown = 3  # 쿨다운 시스템 제거됨
     cat_form.sfx = "358"
     cat_form.metadata = {"form": "cat", "speed": True, "nature_gain": 1}
     skills.append(cat_form)
@@ -72,7 +72,7 @@ def create_druid_skills():
     ]
     healing_forest.costs = [MPCost(9), StackCost("nature_points", 2)]
     healing_forest.target_type = "party"
-    healing_forest.cooldown = 4
+    # healing_forest.cooldown = 4  # 쿨다운 시스템 제거됨
     healing_forest.sfx = "365"
     healing_forest.metadata = {"nature_cost": 2, "healing": True, "party": True}
     skills.append(healing_forest)
@@ -86,7 +86,7 @@ def create_druid_skills():
     ]
     nature_blessing.costs = [MPCost(10)]
     nature_blessing.target_type = "self"
-    nature_blessing.cooldown = 5
+    # nature_blessing.cooldown = 5  # 쿨다운 시스템 제거됨
     nature_blessing.sfx = "371"
     nature_blessing.metadata = {"nature_refill": True, "regen": True}
     skills.append(nature_blessing)
@@ -99,7 +99,7 @@ def create_druid_skills():
         GimmickEffect(GimmickOperation.CONSUME, "nature_points", 3)
     ]
     eagle_form.costs = [MPCost(11), StackCost("nature_points", 3)]
-    eagle_form.cooldown = 4
+    # eagle_form.cooldown = 4  # 쿨다운 시스템 제거됨
     eagle_form.sfx = "378"
     eagle_form.metadata = {"form": "eagle", "nature_cost": 3, "nature_scaling": True}
     skills.append(eagle_form)
@@ -113,7 +113,7 @@ def create_druid_skills():
         GimmickEffect(GimmickOperation.CONSUME, "nature_points", 4)
     ]
     wolf_form.costs = [MPCost(14), StackCost("nature_points", 4)]
-    wolf_form.cooldown = 5
+    # wolf_form.cooldown = 5  # 쿨다운 시스템 제거됨
     wolf_form.is_aoe = True
     wolf_form.sfx = "385"
     wolf_form.metadata = {"form": "wolf", "nature_cost": 4, "nature_scaling": True, "aoe": True}
@@ -129,7 +129,7 @@ def create_druid_skills():
         GimmickEffect(GimmickOperation.CONSUME, "nature_points", 5)
     ]
     natures_wrath.costs = [MPCost(18), StackCost("nature_points", 5)]
-    natures_wrath.cooldown = 6
+    # natures_wrath.cooldown = 6  # 쿨다운 시스템 제거됨
     natures_wrath.is_aoe = True
     natures_wrath.sfx = "390"
     natures_wrath.metadata = {"form": "elemental", "nature_cost": 5, "nature_scaling": True, "debuff": True}
@@ -149,7 +149,7 @@ def create_druid_skills():
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "396"
     ultimate.metadata = {"ultimate": True, "form": "primal", "nature_refill": True, "all_stats": True}
     skills.append(ultimate)

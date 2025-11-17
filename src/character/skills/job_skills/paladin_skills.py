@@ -43,7 +43,7 @@ def create_paladin_skills():
     ]
     divine_shield.costs = [MPCost(8), StackCost("holy_power", 2)]
     divine_shield.target_type = "self"
-    divine_shield.cooldown = 4
+    # divine_shield.cooldown = 4  # 쿨다운 시스템 제거됨
     divine_shield.sfx = "468"
     divine_shield.metadata = {"holy_power_cost": 2, "shield": True, "holy_power_scaling": True}
     skills.append(divine_shield)
@@ -56,7 +56,7 @@ def create_paladin_skills():
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
     consecration.costs = [MPCost(6)]
-    consecration.cooldown = 3
+    # consecration.cooldown = 3  # 쿨다운 시스템 제거됨
     consecration.sfx = "474"
     consecration.metadata = {"holy_power_gain": 1, "dot": True}
     skills.append(consecration)
@@ -69,7 +69,7 @@ def create_paladin_skills():
     ]
     holy_light.costs = [MPCost(8)]
     holy_light.target_type = "ally"
-    holy_light.cooldown = 2
+    # holy_light.cooldown = 2  # 쿨다운 시스템 제거됨
     holy_light.sfx = "480"
     holy_light.metadata = {"holy_power_gain": 1, "healing": True}
     skills.append(holy_light)
@@ -81,7 +81,7 @@ def create_paladin_skills():
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
     hammer.costs = [MPCost(9)]
-    hammer.cooldown = 3
+    # hammer.cooldown = 3  # 쿨다운 시스템 제거됨
     hammer.sfx = "486"
     hammer.metadata = {"holy_power_gain": 1, "holy_power_scaling": True}
     skills.append(hammer)
@@ -95,7 +95,7 @@ def create_paladin_skills():
     ]
     blessing.costs = [MPCost(10)]
     blessing.target_type = "party"
-    blessing.cooldown = 5
+    # blessing.cooldown = 5  # 쿨다운 시스템 제거됨
     blessing.sfx = "492"
     blessing.metadata = {"holy_power_gain": 1, "party": True, "buff": True}
     skills.append(blessing)
@@ -110,7 +110,7 @@ def create_paladin_skills():
     ]
     avenging_wrath.costs = [MPCost(12), StackCost("holy_power", 3)]
     avenging_wrath.target_type = "self"
-    avenging_wrath.cooldown = 6
+    # avenging_wrath.cooldown = 6  # 쿨다운 시스템 제거됨
     avenging_wrath.sfx = "498"
     avenging_wrath.metadata = {"holy_power_cost": 3, "buff": True, "shield": True}
     skills.append(avenging_wrath)
@@ -124,7 +124,7 @@ def create_paladin_skills():
         GimmickEffect(GimmickOperation.CONSUME, "holy_power", 4)
     ]
     holy_retribution.costs = [MPCost(15), StackCost("holy_power", 4)]
-    holy_retribution.cooldown = 6
+    # holy_retribution.cooldown = 6  # 쿨다운 시스템 제거됨
     holy_retribution.is_aoe = True
     holy_retribution.sfx = "504"
     holy_retribution.metadata = {"holy_power_cost": 4, "holy_power_scaling": True, "debuff": True, "aoe": True}
@@ -142,7 +142,7 @@ def create_paladin_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.is_aoe = True
     ultimate.sfx = "514"
     ultimate.metadata = {"ultimate": True, "holy_power_refill": True, "healing": True, "party": True}

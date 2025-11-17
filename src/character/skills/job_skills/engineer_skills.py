@@ -71,7 +71,7 @@ def create_engineer_skills():
     ]
     overclock_mode.costs = [MPCost(30)]
     overclock_mode.target_type = "self"
-    overclock_mode.cooldown = 5
+    # overclock_mode.cooldown = 5  # 쿨다운 시스템 제거됨
     overclock_mode.metadata = {"heat_change": 20, "overclock": True}
 
     # 7. 긴급 수리 (회복 + 열 감소)
@@ -83,7 +83,7 @@ def create_engineer_skills():
     ]
     emergency_repair.costs = [MPCost(25)]
     emergency_repair.target_type = "self"
-    emergency_repair.cooldown = 4
+    # emergency_repair.cooldown = 4  # 쿨다운 시스템 제거됨
     emergency_repair.metadata = {"heat_change": -40}
 
     # 8. 보호막 생성기 (방어막 생성)
@@ -95,7 +95,7 @@ def create_engineer_skills():
     ]
     shield_generator.costs = [MPCost(18)]
     shield_generator.target_type = "self"
-    shield_generator.cooldown = 4
+    # shield_generator.cooldown = 4  # 쿨다운 시스템 제거됨
     shield_generator.metadata = {"heat_change": 15, "shield": True}
 
     # 9. 드론 배치 (지원 공격)
@@ -107,7 +107,7 @@ def create_engineer_skills():
     ]
     deploy_drone.costs = [MPCost(16)]
     deploy_drone.target_type = "self"
-    deploy_drone.cooldown = 3
+    # deploy_drone.cooldown = 3  # 쿨다운 시스템 제거됨
     deploy_drone.metadata = {"heat_change": 10, "drone": True}
 
     # 10. 궁극기: 메가 블래스터 (현재 열에 비례한 피해)
@@ -122,7 +122,7 @@ def create_engineer_skills():
     ]
     mega_blaster.costs = [MPCost(30)]
     mega_blaster.is_ultimate = True
-    mega_blaster.cooldown = 8
+    # mega_blaster.cooldown = 8  # 쿨다운 시스템 제거됨
     mega_blaster.metadata = {"heat_change": 60, "heat_scaling": True}
 
     return [turret_shot, rocket_punch, overload_blast, emp_explosion,

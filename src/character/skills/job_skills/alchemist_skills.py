@@ -44,7 +44,7 @@ def create_alchemist_skills():
     healing_potion.costs = [MPCost(6), StackCost("potion_stock", 2)]
     healing_potion.target_type = "ally"
     healing_potion.sfx = "352"  # FFVII healing sound
-    healing_potion.cooldown = 2
+    # healing_potion.cooldown = 2  # 쿨다운 시스템 제거됨
     healing_potion.metadata = {"potion_cost": 2, "healing": True}
     skills.append(healing_potion)
 
@@ -59,7 +59,7 @@ def create_alchemist_skills():
     buff_potion.costs = [MPCost(10), StackCost("potion_stock", 3)]
     buff_potion.target_type = "ally"
     buff_potion.sfx = "362"  # FFVII buff sound
-    buff_potion.cooldown = 4
+    # buff_potion.cooldown = 4  # 쿨다운 시스템 제거됨
     buff_potion.metadata = {"potion_cost": 3, "buff": True}
     skills.append(buff_potion)
 
@@ -73,7 +73,7 @@ def create_alchemist_skills():
     ]
     poison_bomb.costs = [MPCost(12)]
     poison_bomb.sfx = "376"  # FFVII poison sound
-    poison_bomb.cooldown = 3
+    # poison_bomb.cooldown = 3  # 쿨다운 시스템 제거됨
     poison_bomb.metadata = {"potion_gain": 1, "poison": True}
     skills.append(poison_bomb)
 
@@ -86,7 +86,7 @@ def create_alchemist_skills():
     gather_materials.costs = [MPCost(8)]
     gather_materials.target_type = "self"
     gather_materials.sfx = "404"  # FFVII gather sound
-    gather_materials.cooldown = 4
+    # gather_materials.cooldown = 4  # 쿨다운 시스템 제거됨
     gather_materials.metadata = {"potion_gain": 5}
     skills.append(gather_materials)
 
@@ -99,7 +99,7 @@ def create_alchemist_skills():
     mana_potion.costs = [MPCost(4), StackCost("potion_stock", 2)]
     mana_potion.target_type = "ally"
     mana_potion.sfx = "423"  # FFVII mana sound
-    mana_potion.cooldown = 5
+    # mana_potion.cooldown = 5  # 쿨다운 시스템 제거됨
     mana_potion.metadata = {"potion_cost": 2, "mp_recovery": True}
     skills.append(mana_potion)
 
@@ -111,7 +111,7 @@ def create_alchemist_skills():
     ]
     chain_explosion.costs = [MPCost(18), StackCost("potion_stock", 4)]
     chain_explosion.sfx = "438"  # FFVII chain explosion sound
-    chain_explosion.cooldown = 5
+    # chain_explosion.cooldown = 5  # 쿨다운 시스템 제거됨
     chain_explosion.metadata = {"potion_cost": 4, "potion_scaling": True, "chain": True}
     chain_explosion.is_aoe = True
     skills.append(chain_explosion)
@@ -126,7 +126,7 @@ def create_alchemist_skills():
     ]
     acid_flask.costs = [MPCost(15), StackCost("potion_stock", 3)]
     acid_flask.sfx = "467"  # FFVII acid sound
-    acid_flask.cooldown = 4
+    # acid_flask.cooldown = 4  # 쿨다운 시스템 제거됨
     acid_flask.metadata = {"potion_cost": 3, "debuff": True}
     skills.append(acid_flask)
 
@@ -144,7 +144,7 @@ def create_alchemist_skills():
     ultimate.target_type = "party"
     ultimate.is_aoe = True
     ultimate.sfx = "696"  # FFVII ultimate alchemy sound
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "party_support": True, "potion_refill": True}
     skills.append(ultimate)
 

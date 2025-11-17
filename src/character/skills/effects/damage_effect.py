@@ -46,10 +46,10 @@ class DamageEffect(SkillEffect):
     def _execute_single(self, user, target, context):
         """단일 타겟 데미지"""
         result = EffectResult(effect_type=EffectType.DAMAGE, success=True)
-        
+
         # 최종 배율 계산
         final_mult = self.multiplier
-        
+
         # 기믹 보너스
         if self.gimmick_bonus:
             field = self.gimmick_bonus.get('field')
@@ -57,7 +57,35 @@ class DamageEffect(SkillEffect):
             if field and hasattr(user, field):
                 stacks = getattr(user, field, 0)
                 final_mult += stacks * bonus_mult
-        
+
+        # 조건부 보너스 (ISSUE-005 수정)
+        if self.conditional_bonus:
+            condition = self.conditional_bonus.get('condition')
+            bonus_mult = self.conditional_bonus.get('multiplier', 1.0)
+
+            # 조건 체크
+            condition_met = False
+            if condition == "danger_zone":
+                # 위험 구간 (열 >= 80)
+                condition_met = getattr(user, 'heat', 0) >= 80
+            elif condition == "optimal_zone":
+                # 최적 구간 (열 50-79)
+                heat = getattr(user, 'heat', 0)
+                condition_met = 50 <= heat < 80
+            elif condition == "at_present":
+                # 현재 타임라인 (타임라인 == 0)
+                condition_met = getattr(user, 'timeline', 0) == 0
+            elif condition == "stealth":
+                # 은신 중
+                condition_met = getattr(user, 'stealth_active', False)
+            elif condition == "madness_high":
+                # 광기 높음 (70+)
+                condition_met = getattr(user, 'madness', 0) >= 70
+            # 더 많은 조건을 여기에 추가 가능
+
+            if condition_met:
+                final_mult *= bonus_mult
+
         # HP 스케일링
         if self.hp_scaling:
             hp_percent = user.current_hp / user.max_hp

@@ -37,7 +37,7 @@ def create_archer_skills():
     mark_normal.costs = []  # 일반 화살은 MP 소모 없음
     mark_normal.target_type = "ally"
     mark_normal.sfx = "219"  # FFVII mark sound
-    mark_normal.cooldown = 1
+    # mark_normal.cooldown = 1  # 쿨다운 시스템 제거됨
     mark_normal.metadata = {"arrow_type": "normal", "multiplier": 1.5}
 
     # 4. 관통 화살 마킹
@@ -49,7 +49,7 @@ def create_archer_skills():
     mark_piercing.costs = [MPCost(10)]
     mark_piercing.target_type = "ally"
     mark_piercing.sfx = "267"  # FFVII pierce sound
-    mark_piercing.cooldown = 2
+    # mark_piercing.cooldown = 2  # 쿨다운 시스템 제거됨
     mark_piercing.metadata = {"arrow_type": "piercing", "multiplier": 1.8, "defense_ignore": 0.3}
 
     # 5. 화염 화살 마킹
@@ -61,7 +61,7 @@ def create_archer_skills():
     mark_fire.costs = [MPCost(10)]
     mark_fire.target_type = "ally"
     mark_fire.sfx = "314"  # FFVII fire sound
-    mark_fire.cooldown = 2
+    # mark_fire.cooldown = 2  # 쿨다운 시스템 제거됨
     mark_fire.metadata = {"arrow_type": "fire", "multiplier": 1.6, "burn_duration": 2}
 
     # 6. 빙결 화살 마킹
@@ -73,7 +73,7 @@ def create_archer_skills():
     mark_ice.costs = [MPCost(10)]
     mark_ice.target_type = "ally"
     mark_ice.sfx = "644"  # FFVII ice sound
-    mark_ice.cooldown = 2
+    # mark_ice.cooldown = 2  # 쿨다운 시스템 제거됨
     mark_ice.metadata = {"arrow_type": "ice", "multiplier": 1.4, "slow_percent": 0.3}
 
     # 7. 독 화살 마킹
@@ -85,7 +85,7 @@ def create_archer_skills():
     mark_poison.costs = [MPCost(8)]
     mark_poison.target_type = "ally"
     mark_poison.sfx = "645"  # FFVII poison sound
-    mark_poison.cooldown = 2
+    # mark_poison.cooldown = 2  # 쿨다운 시스템 제거됨
     mark_poison.metadata = {"arrow_type": "poison", "multiplier": 1.3, "poison_duration": 3}
 
     # 8. 폭발 화살 마킹
@@ -97,7 +97,7 @@ def create_archer_skills():
     mark_explosive.costs = [MPCost(15)]
     mark_explosive.target_type = "ally"
     mark_explosive.sfx = "678"  # FFVII explosion sound
-    mark_explosive.cooldown = 3
+    # mark_explosive.cooldown = 3  # 쿨다운 시스템 제거됨
     mark_explosive.metadata = {"arrow_type": "explosive", "multiplier": 2.0, "aoe_percent": 0.5}
 
     # 9. 신성 화살 마킹
@@ -109,7 +109,7 @@ def create_archer_skills():
     mark_holy.costs = [MPCost(12)]
     mark_holy.target_type = "ally"
     mark_holy.sfx = "687"  # FFVII holy sound
-    mark_holy.cooldown = 2
+    # mark_holy.cooldown = 2  # 쿨다운 시스템 제거됨
     mark_holy.metadata = {"arrow_type": "holy", "multiplier": 1.7, "undead_bonus": 2.0}
 
     # 10. 궁극기: 전원 마킹 (모든 아군에게 최강 화살)
@@ -130,7 +130,7 @@ def create_archer_skills():
     ultimate.target_type = "party"
     ultimate.is_aoe = True
     ultimate.sfx = "694"  # FFVII ultimate sound
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "mark_all": True, "perfect_support": True}
 
     return [direct_shot, power_shot, mark_normal, mark_piercing, mark_fire,

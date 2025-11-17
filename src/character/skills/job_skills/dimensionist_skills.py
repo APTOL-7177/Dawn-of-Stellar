@@ -39,7 +39,7 @@ def create_dimensionist_skills():
     crit_distortion.costs = [MPCost(10)]
     crit_distortion.target_type = "self"
     crit_distortion.sfx = "352"  # FFVII crit sound
-    crit_distortion.cooldown = 2
+    # crit_distortion.cooldown = 2  # 쿨다운 시스템 제거됨
     crit_distortion.metadata = {"distortion_cost": 20, "crit_boost": 0.5}
 
     # 4. 회피 왜곡 (게이지 30 소모 - 회피율 +80%)
@@ -52,7 +52,7 @@ def create_dimensionist_skills():
     evasion_distortion.costs = [MPCost(12)]
     evasion_distortion.target_type = "self"
     evasion_distortion.sfx = "362"  # FFVII evasion sound
-    evasion_distortion.cooldown = 3
+    # evasion_distortion.cooldown = 3  # 쿨다운 시스템 제거됨
     evasion_distortion.metadata = {"distortion_cost": 30, "evasion_boost": 0.8}
 
     # 5. 확률 공격 (게이지에 비례한 데미지)
@@ -64,7 +64,7 @@ def create_dimensionist_skills():
     ]
     probability_attack.costs = [MPCost(15)]
     probability_attack.sfx = "376"  # FFVII probability sound
-    probability_attack.cooldown = 3
+    # probability_attack.cooldown = 3  # 쿨다운 시스템 제거됨
     probability_attack.metadata = {"gauge_scaling": True}
 
     # 6. 양자 도약 (순간이동 + 회피)
@@ -76,7 +76,7 @@ def create_dimensionist_skills():
     ]
     quantum_leap.costs = [MPCost(18)]
     quantum_leap.sfx = "404"  # FFVII quantum sound
-    quantum_leap.cooldown = 4
+    # quantum_leap.cooldown = 4  # 쿨다운 시스템 제거됨
     quantum_leap.metadata = {"teleport": True, "gauge_gain": 25}
 
     # 7. 시간 되감기 (게이지 50 소모 - 쿨다운 리셋)
@@ -91,7 +91,7 @@ def create_dimensionist_skills():
     time_rewind.costs = [MPCost(25)]
     time_rewind.target_type = "self"
     time_rewind.sfx = "423"  # FFVII rewind sound
-    time_rewind.cooldown = 6
+    # time_rewind.cooldown = 6  # 쿨다운 시스템 제거됨
     time_rewind.metadata = {"distortion_cost": 50, "reset_cooldowns": True, "retry": True}
 
     # 8. 현실 조작 (전장 조작 + 게이지 획득)
@@ -106,7 +106,7 @@ def create_dimensionist_skills():
     reality_shift.target_type = "all_enemies"
     reality_shift.is_aoe = True
     reality_shift.sfx = "438"  # FFVII reality shift sound
-    reality_shift.cooldown = 5
+    # reality_shift.cooldown = 5  # 쿨다운 시스템 제거됨
     reality_shift.metadata = {"gauge_gain": 30}
 
     # 9. 평행우주 (게이지 100 소모 - 상태 리셋 + 극강 버프)
@@ -126,7 +126,7 @@ def create_dimensionist_skills():
     parallel_universe.costs = [MPCost(30)]
     parallel_universe.target_type = "self"
     parallel_universe.sfx = "467"  # FFVII parallel sound
-    parallel_universe.cooldown = 8
+    # parallel_universe.cooldown = 8  # 쿨다운 시스템 제거됨
     parallel_universe.metadata = {"distortion_cost": 100, "reset_status": True, "alternate_self": True}
 
     # 10. 궁극기: 차원 붕괴
@@ -149,7 +149,7 @@ def create_dimensionist_skills():
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.sfx = "696"  # FFVII ultimate dimension sound
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "gauge_scaling": True, "consume_all_gauge": True}
 
     return [distortion_strike, reality_cut, crit_distortion, evasion_distortion, probability_attack,

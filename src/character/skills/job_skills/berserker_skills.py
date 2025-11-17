@@ -36,7 +36,7 @@ def create_berserker_skills():
     ]
     reckless_strike.costs = [MPCost(10), HPCost(percentage=0.15)]
     reckless_strike.sfx = "slash_reckless.ogg"
-    reckless_strike.cooldown = 2
+    # reckless_strike.cooldown = 2  # 쿨다운 시스템 제거됨
     reckless_strike.metadata = {"hp_cost_percent": 0.15}
 
     # 4. 자해 (HP 20% 감소 → 광기 대폭 증가, 공격력 버프)
@@ -48,7 +48,7 @@ def create_berserker_skills():
     self_harm.costs = [MPCost(8), HPCost(percentage=0.20)]
     self_harm.target_type = "self"
     self_harm.sfx = "blood_splash.ogg"
-    self_harm.cooldown = 4
+    # self_harm.cooldown = 4  # 쿨다운 시스템 제거됨
     self_harm.metadata = {"hp_cost_percent": 0.20, "madness_gain": "high"}
 
     # 5. 전투의 함성 (광역 디버프 + 자신 버프)
@@ -63,7 +63,7 @@ def create_berserker_skills():
     battle_cry.target_type = "all_enemies"
     battle_cry.is_aoe = True
     battle_cry.sfx = "roar_berserker.ogg"
-    battle_cry.cooldown = 3
+    # battle_cry.cooldown = 3  # 쿨다운 시스템 제거됨
     battle_cry.metadata = {"aoe": True}
 
     # 6. 피의 분노 (광기에 비례한 공격)
@@ -76,7 +76,7 @@ def create_berserker_skills():
     ]
     blood_rage.costs = [MPCost(18)]
     blood_rage.sfx = "blood_rage.ogg"
-    blood_rage.cooldown = 3
+    # blood_rage.cooldown = 3  # 쿨다운 시스템 제거됨
     blood_rage.metadata = {"madness_scaling": True}
 
     # 7. 필사의 공격 (HP 30% 이하일 때 극대 피해)
@@ -88,7 +88,7 @@ def create_berserker_skills():
     ]
     desperate_assault.costs = [MPCost(22)]
     desperate_assault.sfx = "slash_desperate.ogg"
-    desperate_assault.cooldown = 4
+    # desperate_assault.cooldown = 4  # 쿨다운 시스템 제거됨
     desperate_assault.metadata = {"requires_low_hp": True}
 
     # 8. 치유의 포효 (HP 30% 회복 + BRV 50% 회복)
@@ -101,7 +101,7 @@ def create_berserker_skills():
     healing_roar.costs = [MPCost(20)]
     healing_roar.target_type = "self"
     healing_roar.sfx = "heal_roar.ogg"
-    healing_roar.cooldown = 5
+    # healing_roar.cooldown = 5  # 쿨다운 시스템 제거됨
     healing_roar.metadata = {"hp_heal": 0.30, "brv_heal": 0.50}
 
     # 9. 통제된 광기 (HP를 50%로 조정 → 광기 50 유지)
@@ -114,7 +114,7 @@ def create_berserker_skills():
     controlled_fury.costs = [MPCost(25)]
     controlled_fury.target_type = "self"
     controlled_fury.sfx = "controlled_fury.ogg"
-    controlled_fury.cooldown = 6
+    # controlled_fury.cooldown = 6  # 쿨다운 시스템 제거됨
     controlled_fury.metadata = {"hp_set_percent": 0.50, "madness_control": True}
 
     # 10. 궁극기: 광란의 힘 (HP 1%로 강제 → 광기 100, 폭주)
@@ -130,7 +130,7 @@ def create_berserker_skills():
     ultimate.costs = [MPCost(30), HPCost(percentage=0.99)]  # HP 99% 소모 (1% 남김)
     ultimate.is_ultimate = True
     ultimate.sfx = "ultimate_berserker.ogg"
-    ultimate.cooldown = 8
+    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "rampage": True, "hp_to_1_percent": True}
 
     return [slash, smash, reckless_strike, self_harm, battle_cry,
