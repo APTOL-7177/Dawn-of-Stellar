@@ -459,11 +459,12 @@ class GimmickStateChecker:
     @staticmethod
     def _update_sword_aura(character):
         """검성: 검기 시스템 업데이트"""
-        # 검기 자연 증가 (매 턴 +5)
+        # 검기는 공격 시 자동 획득하므로 자동 증가 없음 (YAML 기준 max=5)
+        # 최대값 제한만 체크
         sword_aura = getattr(character, 'sword_aura', 0)
-        max_aura = getattr(character, 'max_sword_aura', 100)
-        character.sword_aura = min(max_aura, sword_aura + 5)
-        logger.debug(f"{character.name} 검기 자연 증가: +5 (총: {character.sword_aura})")
+        max_aura = getattr(character, 'max_sword_aura', 5)
+        if sword_aura > max_aura:
+            character.sword_aura = max_aura
 
     @staticmethod
     def _update_crowd_cheer(character):
@@ -488,11 +489,11 @@ class GimmickStateChecker:
     @staticmethod
     def _update_iaijutsu_system(character):
         """사무라이: 거합 시스템 업데이트"""
-        # 집중력 자연 증가 (매 턴 +10)
-        charge = getattr(character, 'iaijutsu_charge', 0)
-        max_charge = getattr(character, 'max_iaijutsu_charge', 100)
-        character.iaijutsu_charge = min(max_charge, charge + 10)
-        logger.debug(f"{character.name} 거합 집중력 증가: +10 (총: {character.iaijutsu_charge})")
+        # 의지 게이지 자연 증가 (매 턴 +10) - YAML: max_will_gauge
+        will_gauge = getattr(character, 'will_gauge', 0)
+        max_will = getattr(character, 'max_will_gauge', 100)
+        character.will_gauge = min(max_will, will_gauge + 10)
+        logger.debug(f"{character.name} 의지 게이지 증가: +10 (총: {character.will_gauge})")
 
     @staticmethod
     def _update_dragon_marks(character):
