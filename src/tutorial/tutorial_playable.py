@@ -22,6 +22,12 @@ from src.core.logger import get_logger, Loggers
 logger = get_logger(Loggers.SYSTEM)
 
 
+def flush_events():
+    """이벤트 버퍼를 비웁니다 (이전 입력 제거)"""
+    for _ in tcod.event.get():
+        pass
+
+
 class TutorialPlayMode:
     """플레이 가능한 튜토리얼 모드"""
 
@@ -137,6 +143,9 @@ class TutorialPlayMode:
 
         self.context.present(self.console)
 
+        # 이벤트 버퍼 비우기 (이전 입력 제거)
+        flush_events()
+
         # 입력 대기
         for event in tcod.event.wait():
             if isinstance(event, tcod.event.KeyDown):
@@ -182,6 +191,9 @@ class TutorialPlayMode:
         )
 
         self.context.present(self.console)
+
+        # 이벤트 버퍼 비우기 (이전 입력 제거)
+        flush_events()
 
         # 입력 대기 (Z 또는 엔터만)
         while True:
@@ -305,6 +317,9 @@ class TutorialPlayMode:
 
         self.context.present(self.console)
 
+        # 이벤트 버퍼 비우기 (이전 입력 제거)
+        flush_events()
+
         # 입력 대기 (Z 또는 엔터만)
         while True:
             for event in tcod.event.wait():
@@ -386,7 +401,7 @@ class TutorialPlayMode:
                     selected = (selected - 1) % len(skill_info)
                 elif action == GameAction.MOVE_DOWN:
                     selected = (selected + 1) % len(skill_info)
-                elif action in (GameAction.SELECT, GameAction.CONFIRM):
+                elif action == GameAction.CONFIRM:
                     # 모든 스킬 확인했으면 완료
                     return True
                 elif isinstance(event, tcod.event.KeyDown):
@@ -471,6 +486,9 @@ class TutorialPlayMode:
         )
 
         self.context.present(self.console)
+
+        # 이벤트 버퍼 비우기 (이전 입력 제거)
+        flush_events()
 
         # 입력 대기 (Z 또는 엔터만)
         while True:
