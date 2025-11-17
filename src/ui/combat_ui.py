@@ -2449,15 +2449,18 @@ class CombatUI:
             ice = getattr(character, 'rune_ice', 0)
             lightning = getattr(character, 'rune_lightning', 0)
             details.append("=== 룬 공명 시스템 ===")
-            details.append(f"🔥 화염 룬: {fire}/3")
-            details.append(f"❄️  냉기 룬: {ice}/3")
-            details.append(f"⚡ 번개 룬: {lightning}/3")
+            fire_bar = self._create_gauge_bar(fire, 3, width=10)
+            ice_bar = self._create_gauge_bar(ice, 3, width=10)
+            lightning_bar = self._create_gauge_bar(lightning, 3, width=10)
+            details.append(f"🔥 화염 룬: {fire_bar}")
+            details.append(f"❄️  냉기 룬: {ice_bar}")
+            details.append(f"⚡ 번개 룬: {lightning_bar}")
             if fire >= 2 and ice >= 2:
-                details.append("공명 가능: 화염+냉기")
+                details.append("✨ 공명 가능: 화염+냉기")
             if ice >= 2 and lightning >= 2:
-                details.append("공명 가능: 냉기+번개")
+                details.append("✨ 공명 가능: 냉기+번개")
             if fire >= 2 and lightning >= 2:
-                details.append("공명 가능: 화염+번개")
+                details.append("✨ 공명 가능: 화염+번개")
 
         elif gimmick_type == "probability_distortion":
             gauge = getattr(character, 'distortion_gauge', 0)
@@ -2521,13 +2524,15 @@ class CombatUI:
             wind = getattr(character, 'spirit_wind', 0)
             earth = getattr(character, 'spirit_earth', 0)
             details.append("=== 정령 소환 시스템 ===")
-            details.append(f"🔥 화염 정령: {'활성화' if fire > 0 else '비활성'}")
-            details.append(f"💧 수령 정령: {'활성화' if water > 0 else '비활성'}")
-            details.append(f"💨 바람 정령: {'활성화' if wind > 0 else '비활성'}")
-            details.append(f"🌍 대지 정령: {'활성화' if earth > 0 else '비활성'}")
+            details.append(f"🔥 화염 정령: {'✅ 활성화' if fire > 0 else '❌ 비활성'}")
+            details.append(f"💧 수령 정령: {'✅ 활성화' if water > 0 else '❌ 비활성'}")
+            details.append(f"💨 바람 정령: {'✅ 활성화' if wind > 0 else '❌ 비활성'}")
+            details.append(f"🌍 대지 정령: {'✅ 활성화' if earth > 0 else '❌ 비활성'}")
             active = sum([1 for s in [fire, water, wind, earth] if s > 0])
+            active_bar = self._create_gauge_bar(active, 4, width=10, optimal_min=2, optimal_max=4)
+            details.append(f"활성 정령: {active_bar}")
             if active >= 2:
-                details.append(f"융합 가능! (활성 정령: {active})")
+                details.append(f"✨ 융합 가능! (활성 정령: {active}개)")
 
         # 암살자 - 은신 노출 (YAML: stealth_exposure)
         elif gimmick_type == "stealth_exposure":
@@ -2537,14 +2542,15 @@ class CombatUI:
             details.append("=== 은신 노출 시스템 ===")
             if stealth_active:
                 details.append("상태: 🌑 은신 중")
-                details.append("다음 공격 크리티컬 확정")
+                details.append("✅ 다음 공격 크리티컬 확정")
             else:
                 details.append("상태: 👁 노출")
                 remaining = max(0, restealth_cooldown - exposed_turns)
                 if remaining > 0:
-                    details.append(f"재은신 가능까지: {remaining}턴")
+                    cooldown_bar = self._create_gauge_bar(restealth_cooldown - remaining, restealth_cooldown, width=10)
+                    details.append(f"재은신 쿨다운: {cooldown_bar}")
                 else:
-                    details.append("재은신 가능")
+                    details.append("✅ 재은신 가능")
 
         elif gimmick_type == "dilemma_choice":
             power = getattr(character, 'choice_power', 0)
@@ -2552,19 +2558,23 @@ class CombatUI:
             sacrifice = getattr(character, 'choice_sacrifice', 0)
             truth = getattr(character, 'choice_truth', 0)
             details.append("=== 딜레마 선택 시스템 ===")
-            details.append(f"힘의 선택: {power}")
-            details.append(f"지혜의 선택: {wisdom}")
-            details.append(f"희생의 선택: {sacrifice}")
-            details.append(f"진리의 선택: {truth}")
+            power_bar = self._create_gauge_bar(power, 10, width=10)
+            wisdom_bar = self._create_gauge_bar(wisdom, 10, width=10)
+            sacrifice_bar = self._create_gauge_bar(sacrifice, 10, width=10)
+            truth_bar = self._create_gauge_bar(truth, 10, width=10)
+            details.append(f"💪 힘의 선택: {power_bar}")
+            details.append(f"🧠 지혜의 선택: {wisdom_bar}")
+            details.append(f"❤️ 희생의 선택: {sacrifice_bar}")
+            details.append(f"✨ 진리의 선택: {truth_bar}")
             dominant = max(power, wisdom, sacrifice, truth)
-            if power == dominant:
-                details.append("경향: 힘 중심")
-            elif wisdom == dominant:
-                details.append("경향: 지혜 중심")
-            elif sacrifice == dominant:
-                details.append("경향: 희생 중심")
-            elif truth == dominant:
-                details.append("경향: 진리 중심")
+            if power == dominant and power > 0:
+                details.append("경향: 💪 힘 중심")
+            elif wisdom == dominant and wisdom > 0:
+                details.append("경향: 🧠 지혜 중심")
+            elif sacrifice == dominant and sacrifice > 0:
+                details.append("경향: ❤️ 희생 중심")
+            elif truth == dominant and truth > 0:
+                details.append("경향: ✨ 진리 중심")
 
         elif gimmick_type == "support_fire":
             combo = getattr(character, 'support_fire_combo', 0)
@@ -2589,22 +2599,25 @@ class CombatUI:
                         marked += 1
 
             details.append("=== 지원사격 시스템 ===")
-            details.append(f"지원 콤보: {combo}")
-            details.append(f"표식된 아군: {marked}명")
+            combo_bar = self._create_gauge_bar(combo, 5, width=10, optimal_min=3, optimal_max=5)
+            details.append(f"지원 콤보: {combo_bar}")
+            details.append(f"🎯 표식된 아군: {marked}명")
             if combo >= 3:
-                details.append("연속 지원 보너스 활성!")
+                details.append("✨ 연속 지원 보너스 활성!")
 
         # 해커 - 멀티스레드 시스템 (YAML: multithread_system)
         elif gimmick_type == "multithread_system":
             threads = getattr(character, 'active_threads', 0)
             exploits = getattr(character, 'exploit_count', 0)
             details.append("=== 멀티스레드 시스템 ===")
-            details.append(f"활성 스레드: {threads}/5")
-            details.append(f"익스플로잇: {exploits}")
+            thread_bar = self._create_gauge_bar(threads, 5, width=10, optimal_min=3, optimal_max=5)
+            details.append(f"활성 스레드: {thread_bar}")
+            exploit_bar = self._create_gauge_bar(exploits, 5, width=10, optimal_min=3, optimal_max=5)
+            details.append(f"익스플로잇: {exploit_bar}")
             if threads >= 4:
                 details.append("⚡ 다중 스레드 공격 가능!")
             if exploits >= 3:
-                details.append("시스템 장악 준비 완료")
+                details.append("💻 시스템 장악 준비 완료")
 
         # 검투사 - 군중 환호 (YAML: crowd_cheer)
         elif gimmick_type == "crowd_cheer":
@@ -2662,50 +2675,56 @@ class CombatUI:
         elif gimmick_type == "undead_legion":
             minions = getattr(character, 'undead_minions', 0)
             details.append("=== 언데드 군단 시스템 ===")
-            details.append(f"소환된 언데드: {minions}/5")
+            minion_bar = self._create_gauge_bar(minions, 5, width=10, optimal_min=3, optimal_max=5)
+            details.append(f"소환된 언데드: {minion_bar}")
             if minions >= 3:
                 details.append("💀 군단 형성 - 대량 공격 가능")
             else:
-                details.append("소환 준비 중")
+                details.append("⏳ 소환 준비 중")
 
         # 도적 - 절도 시스템 (YAML: theft_system)
         elif gimmick_type == "theft_system":
             stolen = getattr(character, 'stolen_items', 0)
             details.append("=== 절도 시스템 ===")
-            details.append(f"훔친 아이템: {stolen}")
-            details.append("다음 목표: 적 버프/아이템")
+            stolen_bar = self._create_gauge_bar(stolen, 10, width=10, optimal_min=5, optimal_max=10)
+            details.append(f"훔친 아이템: {stolen_bar}")
+            details.append("🎯 다음 목표: 적 버프/아이템")
 
         # 드루이드 - 변신 시스템 (YAML: shapeshifting_system)
         elif gimmick_type == "shapeshifting_system":
             form = getattr(character, 'current_form', 'human')
             details.append("=== 변신 시스템 ===")
-            details.append(f"현재 형태: {form}")
             if form == 'bear':
-                details.append("🐻 곰 - 방어력/HP 증가")
+                details.append("현재 형태: 🐻 곰")
+                details.append("효과: 방어력/HP 증가")
             elif form == 'cat':
-                details.append("🐱 고양이 - 속도/회피 증가")
+                details.append("현재 형태: 🐱 고양이")
+                details.append("효과: 속도/회피 증가")
             elif form == 'wolf':
-                details.append("🐺 늑대 - 공격력 증가")
+                details.append("현재 형태: 🐺 늑대")
+                details.append("효과: 공격력 증가")
             else:
-                details.append("👤 인간 - 기본 상태")
+                details.append("현재 형태: 👤 인간")
+                details.append("상태: 기본 상태")
 
         # 마검사 - 마법부여 (YAML: enchant_system)
         elif gimmick_type == "enchant_system":
             enchant = getattr(character, 'active_enchant', None)
             details.append("=== 마법부여 시스템 ===")
             if enchant:
-                details.append(f"활성 부여: {enchant}")
+                details.append(f"⚡ 활성 부여: {enchant}")
             else:
-                details.append("부여 없음")
+                details.append("❌ 부여 없음")
 
         # 무당 - 토템 시스템 (YAML: totem_system)
         elif gimmick_type == "totem_system":
             totems = getattr(character, 'active_totems', [])
             details.append("=== 토템 시스템 ===")
-            details.append(f"활성 토템: {len(totems)}/3")
+            totem_bar = self._create_gauge_bar(len(totems), 3, width=10, optimal_min=2, optimal_max=3)
+            details.append(f"활성 토템: {totem_bar}")
             if totems:
                 for totem in totems:
-                    details.append(f"  - {totem}")
+                    details.append(f"  🗿 {totem}")
 
         # 바드 - 선율 시스템 (YAML: melody_system)
         elif gimmick_type == "melody_system":
@@ -2763,9 +2782,12 @@ class CombatUI:
             ice = getattr(character, 'ice_stacks', 0)
             lightning = getattr(character, 'lightning_stacks', 0)
             details.append("=== 속성 카운터 시스템 ===")
-            details.append(f"🔥 화염: {fire}/5")
-            details.append(f"❄️ 냉기: {ice}/5")
-            details.append(f"⚡ 번개: {lightning}/5")
+            fire_bar = self._create_gauge_bar(fire, 5, width=10)
+            ice_bar = self._create_gauge_bar(ice, 5, width=10)
+            lightning_bar = self._create_gauge_bar(lightning, 5, width=10)
+            details.append(f"🔥 화염: {fire_bar}")
+            details.append(f"❄️ 냉기: {ice_bar}")
+            details.append(f"⚡ 번개: {lightning_bar}")
 
         # 암흑기사 - 암흑 시스템 (YAML: darkness_system)
         elif gimmick_type == "darkness_system":
