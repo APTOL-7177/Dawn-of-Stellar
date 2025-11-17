@@ -52,12 +52,16 @@ gimmick:
   max_faith_points: 100
 
 skills:
-- heal
-- greater_heal
-- mass_heal
-- holy_barrier
-- resurrect
-- divine_blessing
+- cleric_pray
+- cleric_holy_attack
+- cleric_heal
+- cleric_greater_heal
+- cleric_mass_heal
+- cleric_faith_blessing
+- cleric_holy_barrier
+- cleric_resurrect
+- cleric_holy_judgment
+- cleric_ultimate
 bonuses:
   healing_power: 1.4
   mp_efficiency: 0.8

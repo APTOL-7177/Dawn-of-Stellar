@@ -91,12 +91,16 @@ gimmick:
     combo_7: {damage_bonus: 1.0, guaranteed_crit: true}
 
 skills:
-- power_shot
-- multi_shot
-- piercing_arrow
-- explosive_arrow
-- mark_target
-- arrow_rain
+- archer_direct_shot
+- archer_power_shot
+- archer_mark_normal
+- archer_mark_piercing
+- archer_mark_fire
+- archer_mark_ice
+- archer_mark_poison
+- archer_mark_explosive
+- archer_mark_holy
+- archer_ultimate
 bonuses:
   accuracy_bonus: 20
   critical_rate: 1.2
