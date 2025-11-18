@@ -32,6 +32,10 @@ class MetaProgress:
     # 해금된 직업 (job_id 목록)
     unlocked_jobs: Set[str] = field(default_factory=set)
 
+    # 게임 초기 설정
+    intro_shown: bool = False  # 인트로 스토리 표시 여부
+    tutorial_offered: bool = False  # 튜토리얼 권장 여부
+
     def __post_init__(self):
         """초기화 후 처리"""
         # Set을 list로 변환되어 저장된 것을 다시 Set으로 복원
@@ -160,7 +164,9 @@ class MetaProgress:
             "unlocked_traits": self.unlocked_traits,
             "purchased_upgrades": list(self.purchased_upgrades),
             "purchased_passives": list(self.purchased_passives),
-            "unlocked_jobs": list(self.unlocked_jobs)
+            "unlocked_jobs": list(self.unlocked_jobs),
+            "intro_shown": self.intro_shown,
+            "tutorial_offered": self.tutorial_offered
         }
 
     @classmethod
@@ -171,7 +177,9 @@ class MetaProgress:
             unlocked_traits=data.get("unlocked_traits", {}),
             purchased_upgrades=set(data.get("purchased_upgrades", [])),
             purchased_passives=set(data.get("purchased_passives", [])),
-            unlocked_jobs=set(data.get("unlocked_jobs", []))
+            unlocked_jobs=set(data.get("unlocked_jobs", [])),
+            intro_shown=data.get("intro_shown", False),
+            tutorial_offered=data.get("tutorial_offered", False)
         )
 
 
