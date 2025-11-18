@@ -49,8 +49,8 @@ class CookingPotUI:
 
         self.mode = CookingMode.SELECT_SLOT
 
-        # 냄비 슬롯 (4개)
-        self.pot_slots: List[Optional[Ingredient]] = [None, None, None, None]
+        # 냄비 슬롯 (4개) - (재료, 인벤토리 슬롯 인덱스) 튜플
+        self.pot_slots: List[Optional[tuple]] = [None, None, None, None]
         self.selected_slot = 0  # 현재 선택된 슬롯
 
         # 재료 선택
@@ -101,11 +101,12 @@ class CookingPotUI:
                 self.ingredient_cursor = 0
                 self.ingredient_scroll = 0
             else:
-                # 슬롯 비우기
-                ingredient = self.pot_slots[self.selected_slot]
+                # 슬롯 비우기 (재료 반환하지 않음 - 취소 시에만 반환)
+                ingredient_data = self.pot_slots[self.selected_slot]
+                if ingredient_data:
+                    ingredient, _ = ingredient_data
+                    logger.info(f"슬롯 {self.selected_slot + 1}에서 {ingredient.name} 제거")
                 self.pot_slots[self.selected_slot] = None
-                # 인벤토리에 복귀 (실제 구현 시 필요)
-                logger.info(f"슬롯 {self.selected_slot + 1}에서 {ingredient.name} 제거")
         elif action == GameAction.MENU:
             # 요리 시작 (M 키)
             if any(slot is not None for slot in self.pot_slots):
@@ -133,11 +134,9 @@ class CookingPotUI:
             if 0 <= self.ingredient_cursor < len(ingredients):
                 slot_idx, ingredient = ingredients[self.ingredient_cursor]
 
-                # 슬롯에 추가
-                self.pot_slots[self.selected_slot] = ingredient
+                # 슬롯에 추가 (재료와 인벤토리 슬롯 인덱스 모두 저장)
+                self.pot_slots[self.selected_slot] = (ingredient, slot_idx)
 
-                # 인벤토리에서 제거 (임시로 냄비에 보관)
-                # 실제로는 인벤토리에서 제거하지 않고, 요리 완료 시 제거
                 logger.info(f"슬롯 {self.selected_slot + 1}에 {ingredient.name} 추가")
 
                 # 슬롯 선택 모드로 복귀
@@ -171,12 +170,16 @@ class CookingPotUI:
 
     def _cook(self):
         """요리 실행"""
-        # 냄비에 있는 재료 수집
-        ingredients = [slot for slot in self.pot_slots if slot is not None]
+        # 냄비에 있는 재료 수집 (재료만 추출)
+        ingredient_data = [slot for slot in self.pot_slots if slot is not None]
 
-        if not ingredients:
+        if not ingredient_data:
             logger.warning("재료가 없습니다!")
             return
+
+        # 재료와 슬롯 인덱스 분리
+        ingredients = [data[0] for data in ingredient_data]
+        slot_indices = [data[1] for data in ingredient_data]
 
         # 레시피 찾기
         recipe = RecipeDatabase.find_recipe(ingredients)
@@ -185,8 +188,18 @@ class CookingPotUI:
 
         logger.info(f"요리 완료: {self.cooked_food.name}")
 
-        # 인벤토리에서 재료 제거 (실제 구현 시)
-        # 요리 결과를 인벤토리에 추가 (실제 구현 시)
+        # 인벤토리에서 재료 제거 (높은 인덱스부터 제거해야 인덱스 변경 안됨)
+        for slot_idx in sorted(slot_indices, reverse=True):
+            removed = self.inventory.remove_item(slot_idx, quantity=1)
+            if removed:
+                logger.debug(f"인벤토리에서 재료 제거: 슬롯 {slot_idx}, {removed.name}")
+
+        # 요리 결과를 인벤토리에 추가
+        success = self.inventory.add_item(self.cooked_food, quantity=1)
+        if success:
+            logger.info(f"인벤토리에 요리 추가: {self.cooked_food.name}")
+        else:
+            logger.warning(f"인벤토리가 가득 차서 요리를 추가할 수 없습니다!")
 
     def _get_available_ingredients(self) -> List[tuple]:
         """
@@ -197,10 +210,17 @@ class CookingPotUI:
         """
         available = []
 
+        # 냄비에 이미 사용된 슬롯 인덱스 추출
+        used_slot_indices = set()
+        for pot_slot in self.pot_slots:
+            if pot_slot is not None:
+                _, slot_idx = pot_slot
+                used_slot_indices.add(slot_idx)
+
         for i, slot in enumerate(self.inventory.slots):
             if isinstance(slot.item, Ingredient):
-                # 이미 냄비에 있는 재료는 제외 (같은 인스턴스 체크)
-                if slot.item not in self.pot_slots:
+                # 이미 냄비에 있는 재료는 제외
+                if i not in used_slot_indices:
                     available.append((i, slot.item))
 
         return available
@@ -213,10 +233,13 @@ class CookingPotUI:
             self.ingredient_scroll = self.ingredient_cursor - self.max_visible_ingredients + 1
 
     def _return_all_ingredients(self):
-        """모든 재료 인벤토리로 복귀"""
-        for i, ingredient in enumerate(self.pot_slots):
-            if ingredient:
-                logger.info(f"슬롯 {i + 1}의 {ingredient.name} 반환")
+        """모든 재료 인벤토리로 복귀 (취소 시)"""
+        # 요리를 취소했으므로 재료를 반환하지 않음
+        # 재료는 여전히 인벤토리에 있음 (제거하지 않았으므로)
+        for i, slot_data in enumerate(self.pot_slots):
+            if slot_data:
+                ingredient, _ = slot_data
+                logger.info(f"슬롯 {i + 1}의 {ingredient.name} 반환 (실제로는 인벤토리에 유지)")
                 self.pot_slots[i] = None
 
     def render(self, console: tcod.console.Console):
@@ -265,8 +288,9 @@ class CookingPotUI:
             console.print(slot_x, slot_y, f"[{i + 1}] {box_char}", fg=Colors.UI_TEXT_SELECTED if is_selected else Colors.UI_TEXT)
 
             # 슬롯 내용
-            ingredient = self.pot_slots[i]
-            if ingredient:
+            slot_data = self.pot_slots[i]
+            if slot_data:
+                ingredient, _ = slot_data  # 튜플에서 재료만 추출
                 # 재료 이름
                 console.print(
                     slot_x + 2,
@@ -389,10 +413,13 @@ class CookingPotUI:
 
     def _render_preview(self, console: tcod.console.Console, y: int):
         """예상 결과 미리보기"""
-        ingredients = [slot for slot in self.pot_slots if slot is not None]
+        ingredient_data = [slot for slot in self.pot_slots if slot is not None]
 
-        if not ingredients:
+        if not ingredient_data:
             return
+
+        # 재료만 추출
+        ingredients = [data[0] for data in ingredient_data]
 
         # 레시피 찾기
         recipe = RecipeDatabase.find_recipe(ingredients)
