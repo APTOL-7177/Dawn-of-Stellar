@@ -276,9 +276,12 @@ class MainMenu:
 
         # 배경에 어두운 그라데이션 (우주 느낌)
         for y in range(self.screen_height):
-            gradient_intensity = int(10 + (y / self.screen_height) * 20)
+            gradient_intensity = max(0, int(10 + (y / self.screen_height) * 20))
+            r = max(0, gradient_intensity // 3)
+            g = max(0, gradient_intensity // 4)
+            b = max(0, gradient_intensity)
             for x in range(self.screen_width):
-                console.tiles_rgb['bg'][y, x] = (gradient_intensity // 3, gradient_intensity // 4, gradient_intensity)
+                console.rgb[y, x] = (0, 0, 0), (r, g, b)
 
         # 배경 별 렌더링 (반짝임 효과)
         for star in self.star_positions:
@@ -420,7 +423,8 @@ class MainMenu:
 
                                 # 그림자 효과
                                 if px + 1 < self.screen_width and py + 1 < self.screen_height:
-                                    console.tiles_rgb['bg'][py + 1, px + 1] = shadow_color
+                                    fg, _ = console.rgb[py + 1, px + 1]
+                                    console.rgb[py + 1, px + 1] = fg, shadow_color
 
                                 # 글로우 효과 (선택적)
                                 if use_glow:
@@ -433,14 +437,15 @@ class MainMenu:
                                     for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
                                         gx, gy = px + dx, py + dy
                                         if 0 <= gx < self.screen_width and 0 <= gy < self.screen_height:
-                                            current_bg = console.tiles_rgb['bg'][gy, gx]
+                                            fg, current_bg = console.rgb[gy, gx]
                                             # 이미 그려진 부분이 아니면 글로우 적용
                                             if not (current_bg[0] > 100 or current_bg[1] > 100 or current_bg[2] > 100):
-                                                console.tiles_rgb['bg'][gy, gx] = glow_color
+                                                console.rgb[gy, gx] = fg, glow_color
 
                                 # 메인 블록
                                 if px < self.screen_width and py < self.screen_height:
-                                    console.tiles_rgb['bg'][py, px] = color
+                                    fg, _ = console.rgb[py, px]
+                                    console.rgb[py, px] = fg, color
 
                     # 다음 글자 위치로 이동
                     current_x += char_width + letter_spacing
