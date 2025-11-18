@@ -94,7 +94,7 @@ def create_vampire_skills():
     life_tap = Skill("vampire_life_tap", "생명력 착취", "적의 생명력을 대량 흡수, 갈증 -30")
     life_tap.effects = [
         DamageEffect(DamageType.HP, 2.5, stat_type="magical"),
-        HealEffect(percentage=0.25),  # HP 회복
+        HealEffect(percentage=0.4),  # 생명력 착취 (흡혈 보너스)
         GimmickEffect(GimmickOperation.ADD, "thirst", -30, min_value=0)  # 갈증 -30
     ]
     life_tap.costs = [MPCost(9)]
@@ -106,7 +106,7 @@ def create_vampire_skills():
     blood_satiation = Skill("vampire_blood_satiation", "혈액 만족", "갈증을 0으로 리셋 (만족 상태)")
     blood_satiation.effects = [
         GimmickEffect(GimmickOperation.SET, "thirst", 0),  # 갈증 0으로 리셋
-        HealEffect(percentage=0.20),  # HP 20% 회복
+        HealEffect(percentage=0.38),  # 혈액 만족
         BuffEffect(BuffType.SPEED_UP, 0.3, duration=3)
     ]
     blood_satiation.costs = [MPCost(10)]
@@ -123,13 +123,13 @@ def create_vampire_skills():
                     gimmick_bonus={"field": "thirst", "multiplier": 0.04}),
         DamageEffect(DamageType.HP, 4.0, stat_type="magical",
                     gimmick_bonus={"field": "thirst", "multiplier": 0.03}),
-        HealEffect(percentage=0.40),  # HP 40% 회복
+        HealEffect(percentage=0.95),  # 궁극기
         BuffEffect(BuffType.ATTACK_UP, 1.0, duration=4),  # 공격력 +100%
         GimmickEffect(GimmickOperation.ADD, "thirst", 20, max_value=100)  # 갈증 +20 (궁극기 사용 비용)
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.sfx = "687"  # FFVII ultimate sound
+    ultimate.sfx = "035"  # 짧은 리미트 브레이크
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.target_type = "single"
     ultimate.metadata = {"ultimate": True, "thirst_scaling_max": True, "thirst_increase": True}

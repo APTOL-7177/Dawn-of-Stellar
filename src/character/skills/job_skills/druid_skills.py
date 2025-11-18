@@ -67,7 +67,7 @@ def create_druid_skills():
     # 5. 치유의 숲
     healing_forest = Skill("druid_healing_forest", "치유의 숲", "자연 2포인트 소비, 회복")
     healing_forest.effects = [
-        HealEffect(HealType.HP, percentage=0.3, is_party_wide=True),
+        HealEffect(HealType.HP, percentage=0.26, is_party_wide=True),  # 치유의 숲 (파티 힐)
         GimmickEffect(GimmickOperation.CONSUME, "nature_points", 2)
     ]
     healing_forest.costs = [MPCost(5), StackCost("nature_points", 2)]

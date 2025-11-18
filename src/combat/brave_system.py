@@ -307,11 +307,16 @@ class BraveSystem:
             damage_type=damage_type
         )
 
+        # HP 데미지 적용 전에 상처 적용 플래그 설정 (중복 방지)
+        if hasattr(defender, "wound"):
+            defender._wound_applied_this_turn = True
+        
         # HP 데미지 적용
         hp_damage = defender.take_damage(damage_result.final_damage)
-
+        
         # 상처 데미지 적용 (HP 데미지의 일부가 상처로 전환)
-        if hasattr(defender, "wound"):
+        # WoundSystem의 이벤트 핸들러는 플래그로 인해 무시됨
+        if hasattr(defender, "wound") and wound_damage > 0:
             # config의 max_wound_percentage 확인 (기본 50%)
             max_wound = int(defender.max_hp * 0.5)
             if defender.wound + wound_damage > max_wound:
@@ -319,6 +324,10 @@ class BraveSystem:
 
             defender.wound += wound_damage
             self.logger.info(f"상처 축적: {defender.name} +{wound_damage} (총 {defender.wound}/{max_wound})")
+        
+        # 플래그 해제
+        if hasattr(defender, "_wound_applied_this_turn"):
+            defender._wound_applied_this_turn = False
 
         # BRV 소비
         brv_consumed = attacker.current_brv

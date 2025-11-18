@@ -17,7 +17,7 @@ def create_sword_saint_skills():
         GimmickEffect(GimmickOperation.ADD, "sword_aura", 1, max_value=5)
     ]
     kenkizan.costs = []  # 기본 공격은 MP 소모 없음
-    kenkizan.sfx = "548"
+    kenkizan.sfx = "017"  # 짧은 물리 공격
     kenkizan.metadata = {"aura_gain": 1}
     skills.append(kenkizan)
 
@@ -28,7 +28,7 @@ def create_sword_saint_skills():
         GimmickEffect(GimmickOperation.CONSUME, "sword_aura", 1)
     ]
     ilseom.costs = []  # 기본 공격은 MP 소모 없음
-    ilseom.sfx = "555"
+    ilseom.sfx = "026"  # 짧은 크리티컬
     ilseom.metadata = {"aura_cost": 1, "aura_scaling": True}
     skills.append(ilseom)
 
@@ -40,7 +40,7 @@ def create_sword_saint_skills():
     ]
     kenki_hadou.costs = []
     # kenki_hadou.cooldown = 2  # 쿨다운 시스템 제거됨
-    kenki_hadou.sfx = "562"
+    kenki_hadou.sfx = "012"  # 짧은 마법
     kenki_hadou.metadata = {"aura_gain": 1, "piercing": True}
     skills.append(kenki_hadou)
 
@@ -53,7 +53,7 @@ def create_sword_saint_skills():
     ]
     nitoryu.costs = [MPCost(5), StackCost("sword_aura", 2)]
     # nitoryu.cooldown = 3  # 쿨다운 시스템 제거됨
-    nitoryu.sfx = "569"
+    nitoryu.sfx = "017"  # 짧은 물리 공격
     nitoryu.metadata = {"aura_cost": 2, "dual_wield": True}
     skills.append(nitoryu)
 
@@ -65,7 +65,7 @@ def create_sword_saint_skills():
     ]
     kenki_bakuhatsu.costs = [MPCost(6), StackCost("sword_aura", 1)]
     # kenki_bakuhatsu.cooldown = 4  # 쿨다운 시스템 제거됨
-    kenki_bakuhatsu.sfx = "576"
+    kenki_bakuhatsu.sfx = "146"  # 짧은 폭발
     kenki_bakuhatsu.metadata = {"aura_dump": True, "aura_scaling": True}
     skills.append(kenki_bakuhatsu)
 
@@ -78,7 +78,7 @@ def create_sword_saint_skills():
     rapid_slash.costs = [MPCost(3)]
     rapid_slash.cast_time = 0.5
     # rapid_slash.cooldown = 2  # 쿨다운 시스템 제거됨
-    rapid_slash.sfx = "583"
+    rapid_slash.sfx = "017"  # 짧은 빠른 공격
     rapid_slash.metadata = {"aura_gain": 2, "quick": True}
     skills.append(rapid_slash)
 
@@ -90,7 +90,7 @@ def create_sword_saint_skills():
     will.costs = [MPCost(5)]
     will.target_type = "self"
     # will.cooldown = 4  # 쿨다운 시스템 제거됨
-    will.sfx = "590"
+    will.sfx = "093"  # 짧은 버프
     will.metadata = {"aura_refill": True}
     skills.append(will)
 
@@ -102,7 +102,7 @@ def create_sword_saint_skills():
     ]
     bisect.costs = [MPCost(9), StackCost("sword_aura", 3)]
     # bisect.cooldown = 5  # 쿨다운 시스템 제거됨
-    bisect.sfx = "597"
+    bisect.sfx = "034"  # 짧은 강한 공격
     bisect.metadata = {"aura_cost": 3, "aura_scaling": True, "cleave": True}
     skills.append(bisect)
 
@@ -116,7 +116,7 @@ def create_sword_saint_skills():
     sword_storm.costs = [MPCost(13), StackCost("sword_aura", 4)]
     # sword_storm.cooldown = 6  # 쿨다운 시스템 제거됨
     sword_storm.is_aoe = True
-    sword_storm.sfx = "604"
+    sword_storm.sfx = "146"  # 짧은 광역 공격
     sword_storm.metadata = {"aura_cost": 4, "aura_scaling": True, "aoe": True}
     skills.append(sword_storm)
 
@@ -132,7 +132,7 @@ def create_sword_saint_skills():
     ultimate.costs = [MPCost(30), StackCost("sword_aura", 1)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.sfx = "611"
+    ultimate.sfx = "035"  # 짧은 리미트 브레이크
     ultimate.metadata = {"ultimate": True, "aura_dump": True, "infinite_blade": True}
     skills.append(ultimate)
 

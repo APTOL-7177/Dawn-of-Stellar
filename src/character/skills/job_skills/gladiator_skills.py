@@ -16,7 +16,7 @@ def create_gladiator_skills():
         GimmickEffect(GimmickOperation.ADD, "cheer", 5, max_value=100)  # 환호 +5
     ]
     arena_strike.costs = []  # 기본 공격은 MP 소모 없음
-    arena_strike.sfx = "467"  # FFVII strike sound
+    arena_strike.sfx = "017"  # 짧은 물리 공격
     arena_strike.metadata = {"cheer_gain": 5}
 
     # 2. 기본 HP: 명예의 일격
@@ -26,7 +26,7 @@ def create_gladiator_skills():
         GimmickEffect(GimmickOperation.ADD, "cheer", 10, max_value=100)  # 환호 +10
     ]
     honor_strike.costs = []  # 기본 공격은 MP 소모 없음
-    honor_strike.sfx = "496"  # FFVII honor sound
+    honor_strike.sfx = "026"  # 짧은 크리티컬
     honor_strike.metadata = {"cheer_gain": 10}
 
     # 3. 화려한 공격 (환호 대폭 증가)
@@ -36,7 +36,7 @@ def create_gladiator_skills():
         GimmickEffect(GimmickOperation.ADD, "cheer", 20, max_value=100)  # 환호 +20
     ]
     spectacular_attack.costs = []
-    spectacular_attack.sfx = "537"  # FFVII spectacular sound
+    spectacular_attack.sfx = "017"  # 짧은 물리 공격
     # spectacular_attack.cooldown = 2  # 쿨다운 시스템 제거됨
     spectacular_attack.metadata = {"showmanship": True, "cheer_gain": 20}
 
@@ -48,7 +48,7 @@ def create_gladiator_skills():
         GimmickEffect(GimmickOperation.ADD, "cheer", 15, max_value=100)
     ]
     taunt_crowd.costs = [MPCost(6)]
-    taunt_crowd.sfx = "573"  # FFVII taunt sound
+    taunt_crowd.sfx = "093"  # 짧은 버프
     # taunt_crowd.cooldown = 3  # 쿨다운 시스템 제거됨
     taunt_crowd.metadata = {"cheer_scaling": True}
 
@@ -60,7 +60,7 @@ def create_gladiator_skills():
         # HP 20% 손실 (self-damage)
     ]
     risky_stunt.costs = [MPCost(7)]
-    risky_stunt.sfx = "575"  # FFVII risk sound
+    risky_stunt.sfx = "034"  # 짧은 강한 타격
     # risky_stunt.cooldown = 4  # 쿨다운 시스템 제거됨
     risky_stunt.metadata = {"high_risk": True, "hp_cost_percent": 0.2, "cheer_gain": 30}
 
@@ -72,7 +72,7 @@ def create_gladiator_skills():
         GimmickEffect(GimmickOperation.ADD, "cheer", -30, min_value=0)  # 환호 -30
     ]
     glory_strike.costs = [MPCost(9)]
-    glory_strike.sfx = "587"  # FFVII glory sound
+    glory_strike.sfx = "026"  # 짧은 크리티컬/강타
     # glory_strike.cooldown = 4  # 쿨다운 시스템 제거됨
     glory_strike.metadata = {"cheer_cost": 30}
 
@@ -85,20 +85,20 @@ def create_gladiator_skills():
     ]
     excite_crowd.costs = [MPCost(6)]
     excite_crowd.target_type = "self"
-    excite_crowd.sfx = "595"  # FFVII excite sound
+    excite_crowd.sfx = "093"  # 짧은 버프
     # excite_crowd.cooldown = 6  # 쿨다운 시스템 제거됨
     excite_crowd.metadata = {"cheer_control": True, "set_cheer": 50}
 
     # 8. 불굴의 투지 (HP 회복 + 환호 회복)
     indomitable_will = Skill("gladiator_will", "불굴의 투지", "HP 30% 회복 + 환호 +25")
     indomitable_will.effects = [
-        HealEffect(percentage=0.30),  # HP 30% 회복
+        HealEffect(percentage=0.45),  # 불굴의 투지
         GimmickEffect(GimmickOperation.ADD, "cheer", 25, max_value=100),  # 환호 +25
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3)
     ]
     indomitable_will.costs = [MPCost(7)]
     indomitable_will.target_type = "self"
-    indomitable_will.sfx = "618"  # FFVII will sound
+    indomitable_will.sfx = "005"  # 짧은 힐
     # indomitable_will.cooldown = 5  # 쿨다운 시스템 제거됨
     indomitable_will.metadata = {"recovery": True, "cheer_gain": 25}
 
@@ -113,7 +113,7 @@ def create_gladiator_skills():
     champion_roar.costs = [MPCost(9)]
     champion_roar.target_type = "party"
     champion_roar.is_aoe = True
-    champion_roar.sfx = "628"  # FFVII roar sound
+    champion_roar.sfx = "093"  # 짧은 버프
     # champion_roar.cooldown = 6  # 쿨다운 시스템 제거됨
     champion_roar.metadata = {"party_buff": True}
 
@@ -132,7 +132,7 @@ def create_gladiator_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.sfx = "694"  # FFVII ultimate glory sound
+    ultimate.sfx = "035"  # 짧은 리미트 브레이크
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "invincible": True}
 

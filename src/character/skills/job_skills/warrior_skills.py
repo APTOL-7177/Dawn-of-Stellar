@@ -16,7 +16,7 @@ def create_warrior_skills():
         DamageEffect(DamageType.BRV, 1.6)
     ]
     power_strike.costs = []  # 기본 공격은 MP 소모 없음
-    power_strike.sfx = "618"
+    power_strike.sfx = "017"  # 짧은 물리 공격
     power_strike.metadata = {"basic_attack": True}
     skills.append(power_strike)
 
@@ -26,7 +26,7 @@ def create_warrior_skills():
         DamageEffect(DamageType.HP, 1.1)
     ]
     shield_bash.costs = []  # 기본 공격은 MP 소모 없음
-    shield_bash.sfx = "625"
+    shield_bash.sfx = "034"  # 짧은 강한 타격
     shield_bash.metadata = {"basic_attack": True}
     skills.append(shield_bash)
 
@@ -35,9 +35,9 @@ def create_warrior_skills():
     balanced_stance.effects = [
         GimmickEffect(GimmickOperation.SET, "current_stance", 0)  # 0=balanced
     ]
-    balanced_stance.costs = []
+    balanced_stance.costs = [MPCost(6)]
     balanced_stance.target_type = "self"
-    balanced_stance.sfx = "632"
+    balanced_stance.sfx = "093"  # 짧은 버프
     balanced_stance.metadata = {"stance": "balanced"}
     skills.append(balanced_stance)
 
@@ -46,9 +46,9 @@ def create_warrior_skills():
     attack_stance.effects = [
         GimmickEffect(GimmickOperation.SET, "current_stance", 1)  # 1=attack
     ]
-    attack_stance.costs = []
+    attack_stance.costs = [MPCost(6)]
     attack_stance.target_type = "self"
-    attack_stance.sfx = "632"
+    attack_stance.sfx = "093"  # 짧은 버프
     attack_stance.metadata = {"stance": "attack"}
     skills.append(attack_stance)
 
@@ -57,9 +57,9 @@ def create_warrior_skills():
     defensive_stance.effects = [
         GimmickEffect(GimmickOperation.SET, "current_stance", 2)  # 2=defense
     ]
-    defensive_stance.costs = [MPCost(3)]
+    defensive_stance.costs = [MPCost(6)]
     defensive_stance.target_type = "self"
-    defensive_stance.sfx = "639"
+    defensive_stance.sfx = "093"  # 짧은 버프
     defensive_stance.metadata = {"stance": "defense"}
     skills.append(defensive_stance)
 
@@ -71,7 +71,7 @@ def create_warrior_skills():
     ]
     berserker_rage.costs = [MPCost(6)]
     berserker_rage.target_type = "self"
-    berserker_rage.sfx = "646"
+    berserker_rage.sfx = "026"  # 짧은 크리티컬/강타
     berserker_rage.metadata = {"stance": "berserker", "damage": True}
     skills.append(berserker_rage)
 
@@ -82,7 +82,7 @@ def create_warrior_skills():
     ]
     guardian_stance.costs = [MPCost(6)]
     guardian_stance.target_type = "self"
-    guardian_stance.sfx = "653"
+    guardian_stance.sfx = "093"  # 짧은 버프
     guardian_stance.metadata = {"stance": "guardian"}
     skills.append(guardian_stance)
 
@@ -91,9 +91,9 @@ def create_warrior_skills():
     speed_stance.effects = [
         GimmickEffect(GimmickOperation.SET, "current_stance", 6)  # 6=speed
     ]
-    speed_stance.costs = [MPCost(4)]
+    speed_stance.costs = [MPCost(6)]
     speed_stance.target_type = "self"
-    speed_stance.sfx = "660"
+    speed_stance.sfx = "093"  # 짧은 버프
     speed_stance.metadata = {"stance": "speed"}
     skills.append(speed_stance)
 
@@ -102,9 +102,9 @@ def create_warrior_skills():
     adaptive_stance.effects = [
         GimmickEffect(GimmickOperation.AUTO_STANCE, "current_stance", None)  # 자동 전환
     ]
-    adaptive_stance.costs = [MPCost(5)]
+    adaptive_stance.costs = [MPCost(6)]
     adaptive_stance.target_type = "self"
-    adaptive_stance.sfx = "632"
+    adaptive_stance.sfx = "093"  # 짧은 버프
     adaptive_stance.metadata = {"stance": "auto", "adaptive": True}
     skills.append(adaptive_stance)
 
@@ -116,7 +116,7 @@ def create_warrior_skills():
     ]
     war_cry.costs = [MPCost(9)]
     war_cry.is_aoe = True
-    war_cry.sfx = "667"
+    war_cry.sfx = "093"  # 짧은 버프/디버프
     war_cry.metadata = {"buff": True, "debuff": True, "aoe": True}
     skills.append(war_cry)
 
@@ -129,7 +129,7 @@ def create_warrior_skills():
     ]
     furious_strike.costs = [MPCost(13)]
     # furious_strike.cooldown = 5  # 쿨다운 시스템 제거됨
-    furious_strike.sfx = "674"
+    furious_strike.sfx = "026"  # 짧은 강한 공격
     furious_strike.metadata = {"stance_based": True, "high_damage": True}
     skills.append(furious_strike)
 
@@ -147,7 +147,7 @@ def create_warrior_skills():
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.sfx = "681"
+    ultimate.sfx = "035"  # 짧은 리미트 브레이크
     ultimate.metadata = {"ultimate": True, "all_stance_fusion": True, "party_buff": True}
     skills.append(ultimate)
 

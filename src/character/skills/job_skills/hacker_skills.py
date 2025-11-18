@@ -94,7 +94,7 @@ def create_hacker_skills():
     run_spyware.costs = []  # MP 소모 0으로 변경
     run_spyware.target_type = "all_enemies"
     run_spyware.is_aoe = True
-    run_spyware.sfx = "404"  # FFVII scan sound
+    run_spyware.sfx = "148"  # 짧은 디버프
     # run_spyware.cooldown = 2  # 쿨다운 시스템 제거됨
     run_spyware.metadata = {"program_type": "spyware", "info_gathering": True}
 
@@ -148,7 +148,7 @@ def create_hacker_skills():
     ultimate.target_type = "all_enemies"
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
-    ultimate.sfx = "696"  # FFVII ultimate tech sound
+    ultimate.sfx = "035"  # 짧은 리미트 브레이크
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "multithread_rampage": True}
 

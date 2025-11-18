@@ -17,7 +17,7 @@ def create_breaker_skills():
         GimmickEffect(GimmickOperation.ADD, "break_power", 1, max_value=10)
     ]
     crush_strike.costs = []  # 기본 공격은 MP 소모 없음
-    crush_strike.sfx = "533"
+    crush_strike.sfx = "017"  # 짧은 물리 공격
     crush_strike.metadata = {"break_power_gain": 1}
     skills.append(crush_strike)
 
@@ -28,7 +28,7 @@ def create_breaker_skills():
         GimmickEffect(GimmickOperation.CONSUME, "break_power", 1)
     ]
     break_hit.costs = []  # 기본 공격은 MP 소모 없음
-    break_hit.sfx = "538"
+    break_hit.sfx = "034"  # 짧은 강한 타격
     break_hit.metadata = {"break_power_cost": 1, "break_scaling": True}
     skills.append(break_hit)
     
@@ -41,7 +41,7 @@ def create_breaker_skills():
     brv_focus.costs = []
     brv_focus.target_type = "self"
     # brv_focus.cooldown = 3  # 쿨다운 시스템 제거됨
-    brv_focus.sfx = "548"
+    brv_focus.sfx = "093"  # 짧은 버프
     brv_focus.metadata = {"buff": True, "break_power_gain": 2}
     skills.append(brv_focus)
 
@@ -55,7 +55,7 @@ def create_breaker_skills():
     ]
     multi_strike.costs = [MPCost(4)]
     # multi_strike.cooldown = 2  # 쿨다운 시스템 제거됨
-    multi_strike.sfx = "558"
+    multi_strike.sfx = "017"  # 짧은 연속 공격
     multi_strike.metadata = {"multi_hit": 3, "break_power_gain": 2}
     skills.append(multi_strike)
 
@@ -68,7 +68,7 @@ def create_breaker_skills():
     break_enhance.costs = [MPCost(5)]
     break_enhance.target_type = "self"
     # break_enhance.cooldown = 5  # 쿨다운 시스템 제거됨
-    break_enhance.sfx = "568"
+    break_enhance.sfx = "093"  # 짧은 버프
     break_enhance.metadata = {"break_power_gain": 5, "buff": True}
     skills.append(break_enhance)
 
@@ -80,7 +80,7 @@ def create_breaker_skills():
     ]
     mega_crush.costs = [MPCost(6)]
     # mega_crush.cooldown = 3  # 쿨다운 시스템 제거됨
-    mega_crush.sfx = "578"
+    mega_crush.sfx = "034"  # 짧은 강한 공격
     mega_crush.metadata = {"break_scaling": True, "break_power_gain": 1}
     skills.append(mega_crush)
 
@@ -93,7 +93,7 @@ def create_breaker_skills():
     break_wave.costs = [MPCost(7), StackCost("break_power", 3)]
     # break_wave.cooldown = 4  # 쿨다운 시스템 제거됨
     break_wave.is_aoe = True
-    break_wave.sfx = "588"
+    break_wave.sfx = "146"  # 짧은 광역 공격
     break_wave.metadata = {"break_power_cost": 3, "break_scaling": True, "aoe": True}
     skills.append(break_wave)
 
@@ -105,7 +105,7 @@ def create_breaker_skills():
     ]
     total_break.costs = [MPCost(9), StackCost("break_power", 5)]
     # total_break.cooldown = 6  # 쿨다운 시스템 제거됨
-    total_break.sfx = "598"
+    total_break.sfx = "146"  # 짧은 강한 공격
     total_break.metadata = {"break_power_cost": 5, "break_scaling": True}
     skills.append(total_break)
 
@@ -119,7 +119,7 @@ def create_breaker_skills():
     devastation.costs = [MPCost(10)]
     devastation.target_type = "self"
     # devastation.cooldown = 6  # 쿨다운 시스템 제거됨
-    devastation.sfx = "608"
+    devastation.sfx = "093"  # 짧은 버프
     devastation.metadata = {"break_power_max": True, "buff": True}
     skills.append(devastation)
 
@@ -136,7 +136,7 @@ def create_breaker_skills():
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.sfx = "618"
+    ultimate.sfx = "035"  # 짧은 리미트 브레이크
     ultimate.metadata = {"ultimate": True, "break_scaling": True, "break_consume_all": True, "aoe": True}
     skills.append(ultimate)
 

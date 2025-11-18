@@ -20,6 +20,8 @@ from src.combat.status_effects import StatusManager
 from src.core.event_bus import event_bus, Events
 from src.core.logger import get_logger
 
+logger = get_logger("character")
+
 
 class Character:
     """
@@ -405,10 +407,10 @@ class Character:
         # 네크로맨서 - 언데드 군단 시스템 (신버전)
         elif gimmick_type == "undead_legion":
             self.undead_count = 0  # 현재 언데드 수 (0-5)
-            self.max_undead = self.gimmick_data.get("max_undead_total", 5)
-            self.skeleton_count = 0
-            self.zombie_count = 0
-            self.ghost_count = 0  # ghoul → ghost로 수정
+            self.max_undead_total = self.gimmick_data.get("max_undead_total", 5)
+            self.undead_skeleton = 0  # 스켈레톤 수
+            self.undead_zombie = 0  # 좀비 수
+            self.undead_ghost = 0  # 유령 수
             self.undead_power = 0  # 언데드 전체 파워
 
         # 버서커 - 광기 임계치 시스템 (신버전)
@@ -505,7 +507,7 @@ class Character:
             "암흑기사": "dk_",  # dark_knight 축약형
             "몽크": "monk_",
             "바드": "bard_",
-            "네크로맨서": "necro_",  # necromancer 축약형
+            "네크로맨서": "necromancer_",
             "용기사": "dragon_knight_",
             "검성": "sword_saint_",
             "정령술사": "elementalist_",
@@ -540,7 +542,7 @@ class Character:
             "dark_knight": "dk_",
             "monk": "monk_",
             "bard": "bard_",
-            "necromancer": "necro_",
+            "necromancer": "necromancer_",
             "dragon_knight": "dragon_knight_",
             "sword_saint": "sword_saint_",
             "elementalist": "elementalist_",
@@ -688,6 +690,32 @@ class Character:
         Returns:
             실제로 받은 데미지
         """
+        # 네크로맨서: 미니언이 공격을 대신 받을 확률 체크
+        if hasattr(self, 'gimmick_type') and self.gimmick_type == "undead_legion":
+            skeleton = getattr(self, 'undead_skeleton', 0)
+            zombie = getattr(self, 'undead_zombie', 0)
+            ghost = getattr(self, 'undead_ghost', 0)
+            total_undead = skeleton + zombie + ghost
+            
+            if total_undead > 0:
+                import random
+                # 미니언 1마리마다 20% 확률로 공격을 대신 받음
+                minion_block_chance = min(0.8, total_undead * 0.2)  # 최대 80%
+                if random.random() < minion_block_chance:
+                    # 미니언이 대신 받음 - 미니언 1마리 제거
+                    if ghost > 0:
+                        self.undead_ghost = max(0, ghost - 1)
+                        logger.info(f"👻 유령이 {self.name}를 대신 공격을 막았습니다! (남은 유령: {self.undead_ghost})")
+                    elif zombie > 0:
+                        self.undead_zombie = max(0, zombie - 1)
+                        logger.info(f"🧟 좀비가 {self.name}를 대신 공격을 막았습니다! (남은 좀비: {self.undead_zombie})")
+                    elif skeleton > 0:
+                        self.undead_skeleton = max(0, skeleton - 1)
+                        logger.info(f"💀 스켈레톤이 {self.name}를 대신 공격을 막았습니다! (남은 스켈레톤: {self.undead_skeleton})")
+                    
+                    # 미니언이 대신 받았으므로 데미지 0
+                    return 0
+        
         actual_damage = min(damage, self.current_hp)
         self.current_hp -= actual_damage
 

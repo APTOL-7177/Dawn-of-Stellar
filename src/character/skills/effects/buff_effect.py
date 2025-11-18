@@ -55,8 +55,10 @@ class BuffEffect(SkillEffect):
 
     def execute(self, user, target, context):
         """버프 적용"""
-        # 파티 전체 버프
-        if self.is_party_wide:
+        # target 파라미터 확인 ("self"면 user에게 적용)
+        if self.target == "self":
+            targets = [user]
+        elif self.is_party_wide:
             targets = context.get('party_members', [target]) if context else [target]
         else:
             targets = target if isinstance(target, list) else [target]
@@ -64,7 +66,7 @@ class BuffEffect(SkillEffect):
         buffed_count = 0
         target_names = []
         for t in targets:
-            if self._apply_buff(t):
+            if self._apply_buff(t, user):
                 buffed_count += 1
                 if hasattr(t, 'name'):
                     target_names.append(t.name)
@@ -88,13 +90,31 @@ class BuffEffect(SkillEffect):
             message=message
         )
     
-    def _apply_buff(self, target):
+    def _apply_buff(self, target, user=None):
         """개별 버프 적용"""
         if not hasattr(target, 'active_buffs'):
             target.active_buffs = {}
         
-        target.active_buffs[self.buff_type] = {
+        buff_data = {
             'value': self.value,
             'duration': self.duration
         }
+        
+        # HP_REGEN의 경우 시전자 스탯 정보 저장 (스탯 기반 계산용)
+        # MP_REGEN은 고정값으로 유지
+        if self.buff_type == 'hp_regen' and user:
+            # 시전자의 공격력/마법력 저장
+            if hasattr(user, 'stat_manager'):
+                from src.character.stats import Stats
+                # HP 재생은 물리 공격력 또는 마법 공격력 중 높은 값 사용
+                physical_attack = user.stat_manager.get_value(Stats.STRENGTH)
+                magic_attack = user.stat_manager.get_value(Stats.MAGIC)
+                buff_data['stat_base'] = max(physical_attack, magic_attack)
+            else:
+                # StatManager가 없는 경우 기본 속성 사용
+                physical_attack = getattr(user, 'physical_attack', getattr(user, 'strength', 0))
+                magic_attack = getattr(user, 'magic_attack', getattr(user, 'magic', 0))
+                buff_data['stat_base'] = max(physical_attack, magic_attack)
+        
+        target.active_buffs[self.buff_type] = buff_data
         return True

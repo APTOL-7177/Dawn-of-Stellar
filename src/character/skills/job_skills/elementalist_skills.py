@@ -45,7 +45,7 @@ def create_elementalist_skills():
     summon_water.effects = [
         GimmickEffect(GimmickOperation.ADD, "spirit_water", 1, max_value=1),
         BuffEffect(BuffType.MP_REGEN, 5, duration=99),
-        HealEffect(percentage=0.15)  # 즉시 HP 15% 회복
+        HealEffect(percentage=0.27)  # 물 정령 소환
     ]
     summon_water.costs = [MPCost(4)]
     summon_water.target_type = "self"
@@ -75,7 +75,7 @@ def create_elementalist_skills():
     ]
     summon_earth.costs = [MPCost(4)]
     summon_earth.target_type = "self"
-    summon_earth.sfx = "404"  # FFVII earth summon sound
+    summon_earth.sfx = "093"  # 짧은 버프
     # summon_earth.cooldown = 3  # 쿨다운 시스템 제거됨
     summon_earth.metadata = {"spirit_type": "earth", "defense_boost": 0.3}
 
@@ -90,7 +90,7 @@ def create_elementalist_skills():
     fusion_firestorm.costs = [MPCost(9)]
     fusion_firestorm.target_type = "all_enemies"
     fusion_firestorm.is_aoe = True
-    fusion_firestorm.sfx = "423"  # FFVII firestorm sound
+    fusion_firestorm.sfx = "146"  # 짧은 광역 마법
     # fusion_firestorm.cooldown = 4  # 쿨다운 시스템 제거됨
     fusion_firestorm.metadata = {"fusion": "fire_wind", "requires_both_spirits": True}
 
@@ -105,7 +105,7 @@ def create_elementalist_skills():
         GimmickEffect(GimmickOperation.SET, "spirit_earth", 0)
     ]
     fusion_mudtrap.costs = [MPCost(7)]
-    fusion_mudtrap.sfx = "438"  # FFVII mud sound
+    fusion_mudtrap.sfx = "148"  # 짧은 디버프
     # fusion_mudtrap.cooldown = 4  # 쿨다운 시스템 제거됨
     fusion_mudtrap.metadata = {"fusion": "water_earth", "requires_both_spirits": True}
 
@@ -121,7 +121,7 @@ def create_elementalist_skills():
     fusion_steam.costs = [MPCost(10)]
     fusion_steam.target_type = "all_enemies"
     fusion_steam.is_aoe = True
-    fusion_steam.sfx = "467"  # FFVII steam sound
+    fusion_steam.sfx = "146"  # 짧은 광역 마법
     # fusion_steam.cooldown = 5  # 쿨다운 시스템 제거됨
     fusion_steam.metadata = {"fusion": "fire_water", "requires_both_spirits": True}
 
@@ -145,7 +145,7 @@ def create_elementalist_skills():
     ultimate.is_ultimate = True
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
-    ultimate.sfx = "696"  # FFVII ultimate summon sound
+    ultimate.sfx = "035"  # 짧은 리미트 브레이크
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "summon_all_spirits": True}
 
