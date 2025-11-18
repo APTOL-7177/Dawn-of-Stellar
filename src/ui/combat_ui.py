@@ -488,10 +488,10 @@ class CombatUI:
                     attacker_type = "아군" if is_attacker_ally else "적"
                     target_type = "아군" if is_target_ally else "적"
 
-                    msg = f"💨 {attacker_type} {attacker_name}의 공격이 {target_type} {target_name}에게 빗나갔다!"
+                    msg = f"[빗나감] {attacker_type} {attacker_name}의 공격이 {target_type} {target_name}에게 빗나갔다!"
                     color = (150, 150, 150)
                 else:
-                    msg = "💨 공격이 빗나갔다!"
+                    msg = "[빗나감] 공격이 빗나갔다!"
                     color = (150, 150, 150)
             else:
                 msg = f"BRV 공격! {damage} 데미지"
@@ -545,16 +545,17 @@ class CombatUI:
                 # 대기 완료, WAITING_ATB로 전환
                 self.state = CombatUIState.WAITING_ATB
 
-        # 플레이어가 선택 중인지 확인
+        # 플레이어가 선택 중인지 또는 대기 중인지 확인
         is_player_selecting = self.state in [
             CombatUIState.ACTION_MENU,
             CombatUIState.SKILL_MENU,
             CombatUIState.TARGET_SELECT,
             CombatUIState.ITEM_MENU,
-            CombatUIState.GIMMICK_VIEW  # 기믹 상세 보기 중에도 시간 정지
+            CombatUIState.GIMMICK_VIEW,  # 기믹 상세 보기 중에도 시간 정지
+            CombatUIState.EXECUTING  # 행동 실행 후 대기 중에도 시간 정지
         ]
 
-        # 플레이어가 선택 중일 때는 ATB 증가를 멈춤
+        # 플레이어가 선택 중이거나 대기 중일 때는 ATB 증가를 멈춤
         if is_player_selecting:
             # ATB 업데이트 스킵 (시간 정지)
             # 플레이어 턴으로 표시하여 ATB 증가 방지

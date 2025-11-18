@@ -360,8 +360,14 @@ class InventoryUI:
     def _get_filtered_item_count(self) -> int:
         """필터링된 아이템 수 반환"""
         count = 0
+        from src.cooking.recipe import CookedFood
         for slot in self.inventory.slots:
-            current_type = getattr(slot.item, 'item_type', ItemType.CONSUMABLE)
+            # CookedFood는 소비품으로 취급
+            if isinstance(slot.item, CookedFood):
+                current_type = ItemType.CONSUMABLE
+            else:
+                current_type = getattr(slot.item, 'item_type', ItemType.CONSUMABLE)
+
             if self.filter_type is None or current_type == self.filter_type:
                 count += 1
         return count
@@ -369,8 +375,14 @@ class InventoryUI:
     def _get_actual_slot_index(self, filtered_index: int) -> int:
         """필터링된 인덱스를 원래 인벤토리 인덱스로 변환"""
         visible_items = []
+        from src.cooking.recipe import CookedFood
         for i, slot in enumerate(self.inventory.slots):
-            current_type = getattr(slot.item, 'item_type', ItemType.CONSUMABLE)
+            # CookedFood는 소비품으로 취급
+            if isinstance(slot.item, CookedFood):
+                current_type = ItemType.CONSUMABLE
+            else:
+                current_type = getattr(slot.item, 'item_type', ItemType.CONSUMABLE)
+
             if self.filter_type is None or current_type == self.filter_type:
                 visible_items.append(i)
 
@@ -516,9 +528,15 @@ class InventoryUI:
 
         # 필터링
         visible_items = []
+        from src.cooking.recipe import CookedFood
         for i, slot in enumerate(self.inventory.slots):
-            # 안전하게 item_type 속성 접근 (기본값 CONSUMABLE)
-            current_type = getattr(slot.item, 'item_type', ItemType.CONSUMABLE)
+            # CookedFood는 소비품으로 취급
+            if isinstance(slot.item, CookedFood):
+                current_type = ItemType.CONSUMABLE
+            else:
+                # 안전하게 item_type 속성 접근 (기본값 CONSUMABLE)
+                current_type = getattr(slot.item, 'item_type', ItemType.CONSUMABLE)
+
             if self.filter_type is None or current_type == self.filter_type:
                 visible_items.append((i, slot))
 
