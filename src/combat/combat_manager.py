@@ -484,6 +484,18 @@ class CombatManager:
 
             # 기믹 업데이트 (스킬 사용)
             GimmickUpdater.on_skill_use(actor, skill)
+
+            # 공격 스킬 사용 시 기믹 트리거 (지원사격 등)
+            if actor in self.allies and target:
+                # 스킬에 데미지 효과가 있는지 확인
+                has_damage = False
+                if hasattr(skill, 'effects'):
+                    from src.character.skills.effects.damage_effect import DamageEffect
+                    has_damage = any(isinstance(effect, DamageEffect) for effect in skill.effects)
+
+                # 데미지 효과가 있으면 공격 스킬로 간주하고 on_ally_attack 호출
+                if has_damage:
+                    GimmickUpdater.on_ally_attack(actor, self.allies, target=target)
         else:
             result["success"] = False
             result["error"] = skill_result.message

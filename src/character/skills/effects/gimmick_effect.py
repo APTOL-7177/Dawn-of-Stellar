@@ -67,6 +67,29 @@ class GimmickEffect(SkillEffect):
 
         setattr(entity, self.field, new_value)
 
+        # 해커 멀티스레드 시스템: program_* 변수 변경 시 active_threads 자동 업데이트
+        if hasattr(entity, 'gimmick_type') and entity.gimmick_type == "multithread_system":
+            if self.field.startswith("program_"):
+                program_name = self.field.replace("program_", "")  # "program_virus" -> "virus"
+
+                # active_threads 리스트 초기화 (없으면)
+                if not hasattr(entity, 'active_threads'):
+                    entity.active_threads = []
+
+                # 정수 타입이면 리스트로 변환 (하위 호환성)
+                if isinstance(entity.active_threads, int):
+                    entity.active_threads = []
+
+                # 프로그램 활성화 (new_value > 0)
+                if new_value > 0 and old_value == 0:
+                    if program_name not in entity.active_threads:
+                        entity.active_threads.append(program_name)
+
+                # 프로그램 비활성화 (new_value == 0)
+                elif new_value == 0 and old_value > 0:
+                    if program_name in entity.active_threads:
+                        entity.active_threads.remove(program_name)
+
         entity_name = getattr(entity, 'name', '대상')
         return EffectResult(
             effect_type=EffectType.GIMMICK,

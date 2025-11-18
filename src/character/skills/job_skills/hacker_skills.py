@@ -33,7 +33,7 @@ def create_hacker_skills():
         BuffEffect(BuffType.ATTACK_DOWN, 0.15, duration=99),  # 프로그램 실행 동안 지속
         BuffEffect(BuffType.MAGIC_DOWN, 0.15, duration=99)  # 마법력도 동시 감소
     ]
-    run_virus.costs = [MPCost(12)]
+    run_virus.costs = [MPCost(8)]
     run_virus.target_type = "all_enemies"
     run_virus.is_aoe = True
     run_virus.sfx = "344"  # FFVII virus sound
@@ -47,7 +47,7 @@ def create_hacker_skills():
         BuffEffect(BuffType.DEFENSE_DOWN, 0.2, duration=99),
         BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.2, duration=99)
     ]
-    run_backdoor.costs = [MPCost(15)]
+    run_backdoor.costs = [MPCost(10)]
     run_backdoor.target_type = "all_enemies"
     run_backdoor.is_aoe = True
     run_backdoor.sfx = "352"  # FFVII backdoor sound
@@ -60,7 +60,7 @@ def create_hacker_skills():
         GimmickEffect(GimmickOperation.ADD, "program_ddos", 1, max_value=1),
         BuffEffect(BuffType.SPEED_DOWN, 0.35, duration=99)
     ]
-    run_ddos.costs = [MPCost(18)]
+    run_ddos.costs = [MPCost(12)]
     run_ddos.target_type = "all_enemies"
     run_ddos.is_aoe = True
     run_ddos.sfx = "362"  # FFVII ddos sound
@@ -73,7 +73,7 @@ def create_hacker_skills():
         GimmickEffect(GimmickOperation.ADD, "program_ransomware", 1, max_value=1),
         BuffEffect(BuffType.CUSTOM, 0, duration=99, custom_stat="hp_drain_magic")  # DoT 효과 (마법력 비례)
     ]
-    run_ransomware.costs = [MPCost(18)]
+    run_ransomware.costs = [MPCost(12)]
     run_ransomware.target_type = "all_enemies"
     run_ransomware.is_aoe = True
     run_ransomware.sfx = "376"  # FFVII lock sound
@@ -91,7 +91,7 @@ def create_hacker_skills():
         GimmickEffect(GimmickOperation.ADD, "program_spyware", 1, max_value=1),
         BuffEffect(BuffType.ACCURACY_DOWN, 0.25, duration=99)  # 적 명중률 -25%
     ]
-    run_spyware.costs = [MPCost(12)]
+    run_spyware.costs = [MPCost(8)]
     run_spyware.target_type = "all_enemies"
     run_spyware.is_aoe = True
     run_spyware.sfx = "404"  # FFVII scan sound
@@ -111,7 +111,7 @@ def create_hacker_skills():
         GimmickEffect(GimmickOperation.SET, "program_ransomware", 0),
         GimmickEffect(GimmickOperation.SET, "program_spyware", 0)
     ]
-    terminate_all.costs = [MPCost(20)]
+    terminate_all.costs = [MPCost(15)]
     terminate_all.sfx = "423"  # FFVII shutdown sound
     # terminate_all.cooldown = 5  # 쿨다운 시스템 제거됨
     terminate_all.metadata = {"terminate_all": True}
@@ -122,7 +122,7 @@ def create_hacker_skills():
         DamageEffect(DamageType.BRV_HP, 3.0, stat_type="magical",
                     gimmick_bonus={"field": "total_programs", "multiplier": 0.5})
     ]
-    system_overload.costs = [MPCost(22)]
+    system_overload.costs = [MPCost(18)]
     system_overload.sfx = "438"  # FFVII overload sound
     # system_overload.cooldown = 4  # 쿨다운 시스템 제거됨
     system_overload.metadata = {"program_scaling": True}
