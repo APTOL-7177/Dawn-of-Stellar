@@ -560,6 +560,11 @@ class GimmickUpdater:
 
     @staticmethod
     def check_choice_mastery(character, choice_type: str) -> bool:
+        """딜레마틱: 선택 숙련도 확인"""
+        # TODO: 구현 필요
+        return False
+
+
 class GimmickStateChecker:
     """기믹 상태 체크 (조건부 보너스 등)"""
 
