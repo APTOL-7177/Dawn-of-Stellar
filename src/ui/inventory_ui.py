@@ -560,8 +560,8 @@ class InventoryUI:
                 rarity_color = Colors.UI_TEXT
             item_name = getattr(item, 'name', '알 수 없는 아이템')
 
-            # 수량 (소비품만)
-            if isinstance(item, Consumable):
+            # 수량 (소비품만, 2개 이상일 때만 표시)
+            if isinstance(item, Consumable) and slot.quantity > 1:
                 item_name += f" x{slot.quantity}"
 
             # 레벨 요구사항
