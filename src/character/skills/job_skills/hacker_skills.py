@@ -39,11 +39,12 @@ def create_hacker_skills():
     # run_virus.cooldown = 2  # 쿨다운 시스템 제거됨
     run_virus.metadata = {"program_type": "virus", "debuff": "attack_down"}
 
-    # 4. 백도어 실행 (적 전체 방어력 -20%)
-    run_backdoor = Skill("hacker_run_backdoor", "백도어 실행", "적 전체 방어력 -20% 프로그램 실행")
+    # 4. 백도어 실행 (적 전체 방어력 + 마법방어력 -20%)
+    run_backdoor = Skill("hacker_run_backdoor", "백도어 실행", "적 전체 방어력 + 마법방어력 -20% 프로그램 실행")
     run_backdoor.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_backdoor", 1, max_value=1),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.2, duration=99)
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.2, duration=99),
+        BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.2, duration=99)
     ]
     run_backdoor.costs = [MPCost(15)]
     run_backdoor.target_type = "all_enemies"
@@ -65,27 +66,31 @@ def create_hacker_skills():
     # run_ddos.cooldown = 3  # 쿨다운 시스템 제거됨
     run_ddos.metadata = {"program_type": "ddos", "debuff": "speed_down"}
 
-    # 6. 랜섬웨어 실행 (적 전체 스킬 봉인 3턴)
-    run_ransomware = Skill("hacker_run_ransomware", "랜섬웨어 실행", "적 전체 스킬 봉인 프로그램 실행")
+    # 6. 랜섬웨어 실행 (적 전체 매 턴 HP 피해 - 마법력 비례)
+    run_ransomware = Skill("hacker_run_ransomware", "랜섬웨어 실행", "적 전체 매 턴 마법력 15% HP 피해 프로그램")
     run_ransomware.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_ransomware", 1, max_value=1),
-        BuffEffect(BuffType.SKILL_SEAL, 1.0, duration=3)  # 스킬 봉인 (전체 대상이므로 3턴으로 감소)
+        BuffEffect(BuffType.CUSTOM, 0, duration=99, custom_stat="hp_drain_magic")  # DoT 효과 (마법력 비례)
     ]
-    run_ransomware.costs = [MPCost(22)]
+    run_ransomware.costs = [MPCost(18)]
     run_ransomware.target_type = "all_enemies"
     run_ransomware.is_aoe = True
     run_ransomware.sfx = "376"  # FFVII lock sound
     # run_ransomware.cooldown = 4  # 쿨다운 시스템 제거됨
-    run_ransomware.metadata = {"program_type": "ransomware", "debuff": "skill_seal"}
+    run_ransomware.metadata = {
+        "program_type": "ransomware",
+        "debuff": "hp_drain",
+        "dot": True,
+        "magic_percentage": 0.15  # 마법력의 15%만큼 매 턴 HP 감소
+    }
 
-    # 7. 스파이웨어 실행 (적 전체 정보 획득 + 회피율 감소)
-    run_spyware = Skill("hacker_run_spyware", "스파이웨어 실행", "적 전체 정보 획득 프로그램")
+    # 7. 스파이웨어 실행 (적 전체 명중률 감소)
+    run_spyware = Skill("hacker_run_spyware", "스파이웨어 실행", "적 전체 명중률 -25% 프로그램")
     run_spyware.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_spyware", 1, max_value=1),
-        BuffEffect(BuffType.EVASION_DOWN, 0.2, duration=99),
-        BuffEffect(BuffType.ACCURACY_UP, 0.3, duration=99)  # 자신에게 적용되는 버프이므로 유지
+        BuffEffect(BuffType.ACCURACY_DOWN, 0.25, duration=99)  # 적 명중률 -25%
     ]
-    run_spyware.costs = [MPCost(10)]
+    run_spyware.costs = [MPCost(12)]
     run_spyware.target_type = "all_enemies"
     run_spyware.is_aoe = True
     run_spyware.sfx = "404"  # FFVII scan sound
