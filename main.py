@@ -117,19 +117,21 @@ def main() -> int:
         effect_manager = get_equipment_effect_manager()
         logger.info("장비 효과 시스템 초기화 완료")
 
-        # 인트로 스토리 표시 (최초 1회)
-        intro_shown = False
-        tutorial_offered = False
+        # 메타 진행 시스템 로드
+        from src.persistence.meta_progress import get_meta_progress, save_meta_progress
+        meta_progress = get_meta_progress()
 
-        if not intro_shown:
+        # 인트로 스토리 표시 (최초 1회)
+        if not meta_progress.intro_shown:
             from src.ui.intro_story import show_intro_story
             logger.info("인트로 스토리 시작")
             show_intro_story(display.console, display.context)
-            intro_shown = True
+            meta_progress.intro_shown = True
+            save_meta_progress()
             logger.info("인트로 스토리 완료")
 
-            # 인트로 후 튜토리얼 시작 여부 묻기
-            if not tutorial_offered:
+            # 인트로 후 튜토리얼 시작 여부 묻기 (최초 1회)
+            if not meta_progress.tutorial_offered:
                 from src.tutorial.tutorial_integration import TutorialIntegration
 
                 # 튜토리얼 통합 시스템 초기화
@@ -153,7 +155,9 @@ def main() -> int:
                 else:
                     logger.info("사용자가 튜토리얼 건너뛰기 선택")
 
-                tutorial_offered = True
+                meta_progress.tutorial_offered = True
+                save_meta_progress()
+                logger.info("튜토리얼 권장 상태 저장 완료")
 
         # 메인 게임 루프
         while True:
