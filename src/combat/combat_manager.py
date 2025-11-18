@@ -677,7 +677,9 @@ class CombatManager:
         # Consumable 아이템 처리
         from src.equipment.item_system import Consumable, ItemType
 
-        if isinstance(item, Consumable) or (hasattr(item, 'item_type') and item.item_type == ItemType.CONSUMABLE):
+        # 안전하게 item_type 확인
+        item_type = getattr(item, 'item_type', None)
+        if isinstance(item, Consumable) or item_type == ItemType.CONSUMABLE:
             effect_type = getattr(item, 'effect_type', 'heal_hp')
             effect_value = getattr(item, 'effect_value', 0)
 
