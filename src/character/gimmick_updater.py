@@ -197,13 +197,14 @@ class GimmickUpdater:
                         damage_result = damage_calc.calculate_brv_damage(archer, target, skill_multiplier=multiplier)
                         brv_damage = damage_result.final_damage
 
-                        # 적에게 BRV 데미지 적용
-                        target.current_brv = max(0, target.current_brv - brv_damage)
+                        # brave_system을 사용하여 BRV 공격 적용 (BREAK 체크 포함)
+                        from src.combat.brave_system import get_brave_system
+                        brave_system = get_brave_system()
+                        brv_result = brave_system.brv_attack(archer, target, brv_damage)
 
-                        # 궁수의 BRV 회복 (입힌 데미지만큼)
-                        archer.current_brv = min(archer.max_brv, archer.current_brv + brv_damage)
-
-                        logger.info(f"  → {target.name}에게 {brv_damage} BRV 데미지! {archer.name} BRV +{brv_damage}")
+                        logger.info(f"  → {target.name}에게 {brv_result['brv_stolen']} BRV 데미지! {archer.name} BRV +{brv_result['actual_gain']}")
+                        if brv_result['is_break']:
+                            logger.info(f"  → [BREAK!] {target.name} BRV 파괴!")
 
                     # 남은 발사 횟수 감소
                     setattr(attacking_ally, shots_attr, shots_remaining - 1)
