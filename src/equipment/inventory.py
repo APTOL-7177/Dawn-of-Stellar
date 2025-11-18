@@ -96,6 +96,27 @@ class Inventory:
             total += item_weight * slot.quantity
         return round(total, 2)
 
+    def can_add_item(self, item: Optional[Item] = None, quantity: int = 1) -> bool:
+        """
+        아이템 추가 가능 여부 확인
+        
+        Args:
+            item: 추가할 아이템 (선택적, 무게 체크용)
+            quantity: 수량 (선택적)
+            
+        Returns:
+            추가 가능 여부
+        """
+        # 아이템이 주어진 경우 무게 체크
+        if item:
+            item_weight = getattr(item, 'weight', 0.5) * quantity
+            if self.current_weight + item_weight > self.max_weight:
+                return False
+        
+        # 무게 기반 인벤토리이므로 무게만 체크하면 됨
+        # (슬롯 제한이 없음)
+        return True
+
     @property
     def is_full(self) -> bool:
         """인벤토리가 가득 찼는지 (무게 기준)"""

@@ -2681,7 +2681,6 @@ class ItemGenerator:
 
         if not suitable_templates:
             # 적합한 템플릿 없으면 소비 아이템 (HP/MP 포션 또는 전투용 아이템 랜덤)
-            import random
             # 전투용 아이템도 포함 (30% 확률)
             if random.random() < 0.3:
                 combat_consumables = [

@@ -250,6 +250,78 @@ class CombatUI:
             show_description=True
         )
 
+    def _create_item_menu(self) -> CursorMenu:
+        """아이템 메뉴 생성"""
+        items = []
+        
+        if not self.inventory:
+            # 인벤토리가 없으면 빈 메뉴
+            items.append(MenuItem("← 뒤로", "행동 메뉴로 돌아가기", True, None))
+            return CursorMenu(
+                title="아이템",
+                items=items,
+                x=5,
+                y=28,
+                width=40,
+                show_description=True
+            )
+        
+        # 소비 아이템만 필터링 (요리 아이템 제외)
+        from src.equipment.item_system import Consumable
+        from src.cooking.recipe import CookedFood
+        
+        for slot_index, slot in enumerate(self.inventory.slots):
+            if not slot or not slot.item:
+                continue
+            
+            item = slot.item
+            
+            # 요리 아이템은 전투 중 사용 불가
+            if isinstance(item, CookedFood):
+                continue
+            
+            # Consumable만 표시
+            if not isinstance(item, Consumable):
+                continue
+            
+            item_name = getattr(item, 'name', '알 수 없는 아이템')
+            item_desc = getattr(item, 'description', '')
+            quantity = slot.quantity
+            
+            # 수량 표시
+            name_text = f"{item_name} x{quantity}" if quantity > 1 else item_name
+            
+            # 사용 가능 여부 (쿨타임 체크는 use_consumable에서 처리)
+            enabled = True
+            
+            items.append(MenuItem(
+                text=name_text,
+                description=item_desc,
+                enabled=enabled,
+                value=(slot_index, item)  # (슬롯 인덱스, 아이템) 튜플
+            ))
+        
+        # 아이템이 없으면 메시지 추가
+        if not items:
+            items.append(MenuItem(
+                text="사용 가능한 아이템이 없습니다",
+                description="인벤토리에 전투용 아이템이 없습니다",
+                enabled=False,
+                value=None
+            ))
+        
+        # 뒤로가기
+        items.append(MenuItem("← 뒤로", "행동 메뉴로 돌아가기", True, None))
+        
+        return CursorMenu(
+            title="아이템",
+            items=items,
+            x=5,
+            y=28,
+            width=40,
+            show_description=True
+        )
+
     def handle_input(self, action: GameAction) -> bool:
         """
         입력 처리
@@ -3216,7 +3288,8 @@ def run_combat(
     console: tcod.console.Console,
     context: tcod.context.Context,
     party: List[Any],
-    enemies: List[Any]
+    enemies: List[Any],
+    inventory: Optional[Any] = None
 ) -> CombatState:
     """
     전투 실행
@@ -3226,6 +3299,7 @@ def run_combat(
         context: TCOD 컨텍스트
         party: 아군 파티
         enemies: 적군 리스트
+        inventory: 인벤토리 (아이템 사용용)
 
     Returns:
         전투 결과 (승리/패배/도주)
@@ -3260,6 +3334,10 @@ def run_combat(
     # 전투 매니저 생성
     combat_manager = CombatManager()
     combat_manager.start_combat(party, enemies)
+    
+    # 인벤토리 설정 (전투 매니저에도 전달)
+    if inventory:
+        combat_manager.inventory = inventory
 
     # 전투 UI 생성
     ui = CombatUI(console.width, console.height, combat_manager, inventory=inventory)

@@ -302,7 +302,7 @@ class GoldShopUI:
             return
 
         # 인벤토리 공간 확인
-        if not self.inventory.can_add_item():
+        if not self.inventory.can_add_item(selected_item.item_obj):
             logger.warning("인벤토리가 가득 찼습니다")
             return
 

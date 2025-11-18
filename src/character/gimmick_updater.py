@@ -877,12 +877,24 @@ class GimmickUpdater:
         if active_programs > 0 and hasattr(character, 'current_mp'):
             mp_per_program = getattr(character, 'mp_per_program_per_turn', 4)
             
-            # CPU 최적화 특성 체크 (프로그램당 MP 소모 -2)
+            # CPU 최적화 특성 체크 (프로그램당 MP 소모 -2) - TraitEffectManager 사용
+            from src.character.trait_effects import get_trait_effect_manager
+            trait_manager = get_trait_effect_manager()
+            
             if hasattr(character, 'active_traits'):
                 for trait_data in character.active_traits:
                     trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
-                    if trait_id == 'cpu_optimization':
-                        mp_per_program = max(1, mp_per_program - 2)  # 최소 1로 제한
+                    effects = trait_manager.get_trait_effects(trait_id)
+                    
+                    for effect in effects:
+                        # program_cost 타겟인 MP_COST_REDUCTION 효과 확인
+                        from src.character.trait_effects import TraitEffectType
+                        if (effect.effect_type == TraitEffectType.MP_COST_REDUCTION and 
+                            hasattr(effect, 'target_stat') and 
+                            effect.target_stat == "program_cost"):
+                            # 고정값 감소 (value는 감소량)
+                            mp_per_program = max(1, mp_per_program - int(effect.value))  # 최소 1로 제한
+                            logger.debug(f"[{trait_id}] 프로그램 유지 비용 감소: -{effect.value} MP/턴")
             
             total_mp_cost = active_programs * mp_per_program
             actual_mp_cost = min(total_mp_cost, character.current_mp)

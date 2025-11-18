@@ -2272,6 +2272,39 @@ class TraitEffectManager:
 
                 # 스탯 타겟 확인
                 if effect.target_stat and effect.target_stat != stat_name:
+                    # all_stats_per_program은 모든 스탯에 적용 (프로그램 수에 비례)
+                    if effect.target_stat == "all_stats_per_program":
+                        # 해커의 활성 프로그램 수 계산
+                        program_fields = ['program_virus', 'program_backdoor', 'program_ddos', 'program_ransomware', 'program_spyware']
+                        active_programs = sum(1 for field in program_fields if getattr(character, field, 0) > 0)
+                        if active_programs > 0:
+                            # 프로그램당 보너스 적용 (value는 프로그램당 배율)
+                            program_bonus = effect.value ** active_programs  # 1.15^프로그램수
+                            final_value *= program_bonus
+                            self.logger.debug(
+                                f"[{trait_id}] {stat_name} 프로그램 보너스 적용: 프로그램 {active_programs}개 × {effect.value} → x{program_bonus:.3f} → {final_value}"
+                            )
+                    # all_stats는 모든 스탯에 적용
+                    elif effect.target_stat == "all_stats":
+                        # 모든 스탯에 보너스 적용
+                        if effect.effect_type == TraitEffectType.STAT_MULTIPLIER:
+                            final_value *= effect.value
+                            self.logger.debug(
+                                f"[{trait_id}] {stat_name} 전체 스탯 보너스 적용: x{effect.value} → {final_value}"
+                            )
+                        elif effect.effect_type == TraitEffectType.STAT_FLAT:
+                            final_value += effect.value
+                            self.logger.debug(
+                                f"[{trait_id}] {stat_name} 전체 스탯 고정값 보너스 적용: +{effect.value} → {final_value}"
+                            )
+                    # all_stats_in_stance는 모든 스탯에 적용 (전사 특성)
+                    elif effect.target_stat == "all_stats_in_stance":
+                        # 모든 스탯에 보너스 적용
+                        if effect.effect_type == TraitEffectType.STAT_MULTIPLIER:
+                            final_value *= effect.value
+                            self.logger.debug(
+                                f"[{trait_id}] {stat_name} 자세 전체 스탯 보너스 적용: x{effect.value} → {final_value}"
+                            )
                     continue
 
                 # 효과 적용
@@ -2711,6 +2744,56 @@ class TraitEffectManager:
             if hasattr(character, 'marked_allies'):
                 return len(character.marked_allies) >= threshold
             return False
+
+        # 해커 프로그램 조건
+        elif condition == "programs_3":
+            # 프로그램 3개 이상 활성화 확인
+            program_fields = ['program_virus', 'program_backdoor', 'program_ddos', 'program_ransomware', 'program_spyware']
+            active_count = sum(1 for field in program_fields if getattr(character, field, 0) > 0)
+            return active_count >= 3
+
+        elif condition == "all_programs_active":
+            # 모든 프로그램 활성화 확인 (5개)
+            program_fields = ['program_virus', 'program_backdoor', 'program_ddos', 'program_ransomware', 'program_spyware']
+            active_count = sum(1 for field in program_fields if getattr(character, field, 0) > 0)
+            return active_count >= 5
+
+        elif condition == "enemy_program_end":
+            # 적 프로그램 종료 이벤트 확인 (context에서 확인)
+            return context.get("enemy_program_ended", False)
+
+        # 엔지니어 열 관리 조건
+        elif condition == "heat_optimal":
+            # 최적 구간 (50-79)
+            if hasattr(character, 'heat'):
+                optimal_min = getattr(character, 'optimal_min', 50)
+                optimal_max = getattr(character, 'optimal_max', 79)
+                return optimal_min <= character.heat <= optimal_max
+            return False
+
+        # 음양사 기 조건
+        elif condition == "yin_yang_perfect":
+            # 정확히 50 (balance_center)
+            if hasattr(character, 'ki_gauge'):
+                balance_center = getattr(character, 'balance_center', 50)
+                return character.ki_gauge == balance_center
+            return False
+
+        # 마법 스킬 조건
+        elif condition == "magic_skill":
+            # context에서 스킬 정보 확인
+            skill = context.get("skill") if context else None
+            if skill:
+                # stat_type이 "magical"이거나 damage_type이 "magic"인 경우
+                stat_type = getattr(skill, 'stat_type', None)
+                damage_type = getattr(skill, 'damage_type', None)
+                return stat_type == "magical" or damage_type == "magic"
+            return False
+
+        # 포션 사용 조건
+        elif condition == "using_potion":
+            # context에서 아이템 사용 정보 확인
+            return context.get("using_potion", False) if context else False
 
         # 기본적으로 조건 만족
         return True

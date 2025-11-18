@@ -1074,8 +1074,13 @@ class CombatManager:
             if getattr(ally, 'program_ransomware', 0) <= 0:
                 continue
             
-            # 해커의 마법력 계산
-            magic_attack = getattr(ally, 'magic_attack', 0)
+            # 해커의 마법력 계산 (stat_manager 사용)
+            if hasattr(ally, 'stat_manager'):
+                from src.character.stats import Stats
+                magic_attack = int(ally.stat_manager.get_value(Stats.MAGIC))
+            else:
+                magic_attack = getattr(ally, 'magic_attack', getattr(ally, 'magic', 0))
+            
             if magic_attack <= 0:
                 continue
             
