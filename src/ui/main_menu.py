@@ -281,14 +281,14 @@ class MainMenu:
             g = max(0, gradient_intensity // 4)
             b = max(0, gradient_intensity)
             for x in range(self.screen_width):
-                console.rgb[y, x] = (0, 0, 0), (r, g, b)
+                console.rgb[y, x] = (ord(' '), (r, g, b), (r, g, b))
 
         # 배경 별 렌더링 (반짝임 효과)
         for star in self.star_positions:
             x, y, brightness, speed = star
             # 밝기 변화 (사인 함수로 부드러운 반짝임)
             phase = (self.animation_frame + brightness * 10) / (20.0 / speed)
-            current_brightness = int(100 + 155 * math.sin(phase))
+            current_brightness = max(0, min(255, int(100 + 155 * math.sin(phase))))
 
             # 별 문자와 색상 (다양한 색상)
             star_types = [
@@ -324,7 +324,7 @@ class MainMenu:
 
             # 별똥별 머리 부분
             if 0 <= int(x) < self.screen_width and 0 <= int(y) < self.screen_height:
-                glow_brightness = int(200 + 55 * math.sin(self.animation_frame / 5.0))
+                glow_brightness = max(0, min(255, int(200 + 55 * math.sin(self.animation_frame / 5.0))))
                 console.print(int(x), int(y), "*", fg=(255, 255, glow_brightness))
 
             # 별똥별 이동 (오른쪽 아래로)
@@ -339,7 +339,7 @@ class MainMenu:
         # 펄스 링 효과 (타이틀 주변)
         pulse_phase = (self.animation_frame / 50.0) % (2 * math.pi)
         pulse_radius = int(15 + 5 * math.sin(pulse_phase))
-        pulse_alpha = int(50 + 30 * math.sin(pulse_phase))
+        pulse_alpha = max(0, min(255, int(50 + 30 * math.sin(pulse_phase))))
         center_x = self.screen_width // 2
         center_y = 14
 
@@ -369,7 +369,7 @@ class MainMenu:
                 px, py, vy, life, max_life = particle
                 # 파티클 렌더링
                 if 0 <= int(px) < self.screen_width and 0 <= int(py) < self.screen_height:
-                    alpha = int(255 * (life / max_life))
+                    alpha = max(0, min(255, int(255 * (life / max_life))))
                     console.print(int(px), int(py), ".", fg=(alpha, alpha, 255))
 
                 # 파티클 이동
@@ -423,8 +423,8 @@ class MainMenu:
 
                                 # 그림자 효과
                                 if px + 1 < self.screen_width and py + 1 < self.screen_height:
-                                    fg, _ = console.rgb[py + 1, px + 1]
-                                    console.rgb[py + 1, px + 1] = fg, shadow_color
+                                    ch, fg, _ = console.rgb[py + 1, px + 1]
+                                    console.rgb[py + 1, px + 1] = (ch, fg, shadow_color)
 
                                 # 글로우 효과 (선택적)
                                 if use_glow:
@@ -437,15 +437,15 @@ class MainMenu:
                                     for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
                                         gx, gy = px + dx, py + dy
                                         if 0 <= gx < self.screen_width and 0 <= gy < self.screen_height:
-                                            fg, current_bg = console.rgb[gy, gx]
+                                            ch, fg, current_bg = console.rgb[gy, gx]
                                             # 이미 그려진 부분이 아니면 글로우 적용
                                             if not (current_bg[0] > 100 or current_bg[1] > 100 or current_bg[2] > 100):
-                                                console.rgb[gy, gx] = fg, glow_color
+                                                console.rgb[gy, gx] = (ch, fg, glow_color)
 
                                 # 메인 블록
                                 if px < self.screen_width and py < self.screen_height:
-                                    fg, _ = console.rgb[py, px]
-                                    console.rgb[py, px] = fg, color
+                                    ch, fg, _ = console.rgb[py, px]
+                                    console.rgb[py, px] = (ch, fg, color)
 
                     # 다음 글자 위치로 이동
                     current_x += char_width + letter_spacing
@@ -463,7 +463,7 @@ class MainMenu:
         subtitle_y = title_start_y + 18  # 타이틀 전체 높이 + 2줄 간격
         subtitle_x = (self.screen_width - len(self.subtitle)) // 2
         # 서브타이틀도 은은하게 반짝임
-        subtitle_brightness = int(200 + 55 * math.sin(self.animation_frame / 25.0))
+        subtitle_brightness = max(0, min(255, int(200 + 55 * math.sin(self.animation_frame / 25.0))))
         console.print(
             subtitle_x,
             subtitle_y,
@@ -473,7 +473,7 @@ class MainMenu:
 
         # 장식 별 (타이틀 양옆 - 애니메이션)
         star_y = title_start_y + 8  # "OF" 줄 높이
-        star_brightness = int(150 + 105 * math.sin(self.animation_frame / 15.0))
+        star_brightness = max(0, min(255, int(150 + 105 * math.sin(self.animation_frame / 15.0))))
         star_color = (star_brightness, star_brightness, 255)
 
         # 좌우 대칭 별 (회전 애니메이션)
@@ -486,8 +486,8 @@ class MainMenu:
         console.print(self.screen_width - 6, star_y, right_star, fg=star_color)
 
         # 위아래 별 (펄스 애니메이션)
-        top_brightness = int(120 + 135 * math.sin(self.animation_frame / 12.0))
-        bottom_brightness = int(120 + 135 * math.sin(self.animation_frame / 12.0 + math.pi))
+        top_brightness = max(0, min(255, int(120 + 135 * math.sin(self.animation_frame / 12.0))))
+        bottom_brightness = max(0, min(255, int(120 + 135 * math.sin(self.animation_frame / 12.0 + math.pi))))
         console.print(self.screen_width // 2, title_start_y - 1, "✦", fg=(top_brightness, top_brightness, 255))
         console.print(self.screen_width // 2, title_start_y + 17, "✦", fg=(bottom_brightness, bottom_brightness, 255))
 
