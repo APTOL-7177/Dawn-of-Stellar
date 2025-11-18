@@ -171,18 +171,65 @@ class CombatManager:
         # 턴 시작 처리
         # 0. 기믹 업데이트 (턴 시작)
         
-        # 0-1. active_buffs의 MP_REGEN 처리
+        # 0-1. active_buffs의 REGEN, HP_REGEN, MP_REGEN 처리
         if hasattr(actor, 'active_buffs') and actor.active_buffs:
+            # REGEN 처리 (비율 기반 HP 재생)
+            if 'regen' in actor.active_buffs:
+                regen_buff = actor.active_buffs['regen']
+                regen_percent = float(regen_buff.get('value', 0))
+                if regen_percent > 0 and hasattr(actor, 'current_hp') and hasattr(actor, 'max_hp'):
+                    old_hp = actor.current_hp
+                    hp_amount = int(actor.max_hp * regen_percent)
+                    if hasattr(actor, 'heal'):
+                        actual_heal = actor.heal(hp_amount)
+                    else:
+                        actor.current_hp = min(actor.max_hp, actor.current_hp + hp_amount)
+                        actual_heal = actor.current_hp - old_hp
+                    if actual_heal > 0:
+                        self.logger.info(f"{actor.name} HP 재생: +{actual_heal} ({int(regen_percent*100)}%, 버프)")
+            
+            # HP_REGEN 처리 (시전자 스탯 기반 HP 재생, 약 8%)
+            if 'hp_regen' in actor.active_buffs:
+                hp_regen_buff = actor.active_buffs['hp_regen']
+                # 시전자 스탯 기반 계산 (약 8%)
+                stat_base = hp_regen_buff.get('stat_base', 0)
+                if stat_base > 0:
+                    hp_amount = int(stat_base * 0.16)  # 2배 증가 (8% → 16%)
+                else:
+                    # stat_base가 없으면 기존 value 사용 (하위 호환성)
+                    hp_amount = int(hp_regen_buff.get('value', 0))
+                
+                if hp_amount > 0 and hasattr(actor, 'current_hp') and hasattr(actor, 'max_hp'):
+                    old_hp = actor.current_hp
+                    if hasattr(actor, 'heal'):
+                        actual_heal = actor.heal(hp_amount)
+                    else:
+                        actor.current_hp = min(actor.max_hp, actor.current_hp + hp_amount)
+                        actual_heal = actor.current_hp - old_hp
+                    if actual_heal > 0:
+                        self.logger.info(f"{actor.name} HP 재생: +{actual_heal} (버프, 스탯 기반)")
+            
+            # MP 재생 처리 (고정값 기반)
             if 'mp_regen' in actor.active_buffs:
                 mp_regen_buff = actor.active_buffs['mp_regen']
                 mp_amount = int(mp_regen_buff.get('value', 0))
+                
                 if mp_amount > 0 and hasattr(actor, 'current_mp') and hasattr(actor, 'max_mp'):
                     old_mp = actor.current_mp
-                    actor.current_mp = min(actor.max_mp, actor.current_mp + mp_amount)
-                    actual_restore = actor.current_mp - old_mp
+                    if hasattr(actor, 'restore_mp'):
+                        actual_restore = actor.restore_mp(mp_amount)
+                    else:
+                        actor.current_mp = min(actor.max_mp, actor.current_mp + mp_amount)
+                        actual_restore = actor.current_mp - old_mp
                     if actual_restore > 0:
                         self.logger.info(f"{actor.name} MP 재생: +{actual_restore} (버프)")
-        GimmickUpdater.on_turn_start(actor)
+        # 기믹 업데이트에 context 전달 (언데드 자동 공격 등)
+        context = {
+            'enemies': self.enemies,
+            'combat_manager': self,
+            'damage_calculator': self.damage_calc
+        }
+        GimmickUpdater.on_turn_start(actor, context)
 
         # 1. BREAK 상태 해제
         if self.brave.is_broken(actor):

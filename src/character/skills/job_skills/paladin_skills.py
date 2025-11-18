@@ -64,7 +64,7 @@ def create_paladin_skills():
     # 5. 성스러운 빛
     holy_light = Skill("paladin_holy_light", "성스러운 빛", "아군 치유 + 성력")
     holy_light.effects = [
-        HealEffect(HealType.HP, percentage=0.35),
+        HealEffect(HealType.HP, percentage=0.35),  # 성스러운 빛
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
     holy_light.costs = [MPCost(5)]
@@ -136,7 +136,7 @@ def create_paladin_skills():
         DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "holy_power", "multiplier": 0.4}),
         DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "holy_power", "multiplier": 0.4}),
         DamageEffect(DamageType.HP, 3.0),
-        HealEffect(HealType.HP, percentage=0.4, is_party_wide=True),
+        HealEffect(HealType.HP, percentage=0.7, is_party_wide=True),  # 궁극기
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "holy_power", 5)
     ]

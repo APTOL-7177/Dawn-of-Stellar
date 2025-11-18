@@ -149,9 +149,27 @@ class HealEffect(SkillEffect):
 
             # stat_scaling 이름에 따라 스탯 값 가져오기
             if self.stat_scaling == 'strength':
-                stat_value = getattr(user, 'physical_attack', 0)
+                if hasattr(user, 'stat_manager'):
+                    from src.character.stats import Stats
+                    stat_value = user.stat_manager.get_value(Stats.STRENGTH)
+                else:
+                    stat_value = getattr(user, 'physical_attack', getattr(user, 'strength', 0))
             elif self.stat_scaling == 'magic':
-                stat_value = getattr(user, 'magic_attack', 0)
+                if hasattr(user, 'stat_manager'):
+                    from src.character.stats import Stats
+                    stat_value = user.stat_manager.get_value(Stats.MAGIC)
+                else:
+                    stat_value = getattr(user, 'magic_attack', getattr(user, 'magic', 0))
+            elif self.stat_scaling == 'max_attack':  # 물리/마법 중 높은 값
+                if hasattr(user, 'stat_manager'):
+                    from src.character.stats import Stats
+                    physical = user.stat_manager.get_value(Stats.STRENGTH)
+                    magic = user.stat_manager.get_value(Stats.MAGIC)
+                    stat_value = max(physical, magic)
+                else:
+                    physical = getattr(user, 'physical_attack', getattr(user, 'strength', 0))
+                    magic = getattr(user, 'magic_attack', getattr(user, 'magic', 0))
+                    stat_value = max(physical, magic)
             elif hasattr(user, self.stat_scaling):
                 stat_value = getattr(user, self.stat_scaling, 0)
 
@@ -163,11 +181,21 @@ class HealEffect(SkillEffect):
         if self.base_amount > 0:
             amount += self.base_amount
 
-        # 3. 비율 회복 추가 (대상의 최대 HP/MP/BRV 기준)
+        # 3. 비율 회복 추가 (HP는 시전자 스탯 기반, MP/BRV는 대상 최대값 기반)
         if self.percentage > 0:
             if self.heal_type == HealType.HP:
-                if hasattr(target, 'max_hp'):
-                    amount += int(target.max_hp * self.percentage)
+                # HP 회복은 항상 시전자 스탯 기반 (물리/마법 중 높은 값)
+                if hasattr(user, 'stat_manager'):
+                    from src.character.stats import Stats
+                    physical = user.stat_manager.get_value(Stats.STRENGTH)
+                    magic = user.stat_manager.get_value(Stats.MAGIC)
+                    stat_value = max(physical, magic)
+                else:
+                    physical = getattr(user, 'physical_attack', getattr(user, 'strength', 0))
+                    magic = getattr(user, 'magic_attack', getattr(user, 'magic', 0))
+                    stat_value = max(physical, magic)
+                # percentage를 배율로 사용 (예: 0.3 = 30%, 0.6 = 60%, 1.1 = 110%)
+                amount += int(stat_value * self.percentage)
             elif self.heal_type == HealType.MP:
                 if hasattr(target, 'max_mp'):
                     amount += int(target.max_mp * self.percentage)

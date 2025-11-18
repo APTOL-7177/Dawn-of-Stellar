@@ -2540,10 +2540,10 @@ class TraitEffectManager:
                 return True
 
         elif condition == "stance_change_skill":
-            # 스탠스 변경 스킬인지 확인
+            # 스탠스 변경 스킬인지 확인 (metadata에 "stance" 키가 있는지 확인)
             skill = context.get("skill")
-            if skill and hasattr(skill, 'skill_id'):
-                return "stance" in skill.skill_id.lower()
+            if skill and hasattr(skill, 'metadata'):
+                return "stance" in skill.metadata
             return False
 
         # 전투 시작

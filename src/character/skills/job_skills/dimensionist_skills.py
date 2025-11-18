@@ -75,7 +75,7 @@ def create_dimensionist_skills():
         GimmickEffect(GimmickOperation.ADD, "distortion_gauge", 25, max_value=100)  # 게이지 +25
     ]
     quantum_leap.costs = [MPCost(7)]
-    quantum_leap.sfx = "404"  # FFVII quantum sound
+    quantum_leap.sfx = "061"  # 짧은 회피/순간이동
     # quantum_leap.cooldown = 4  # 쿨다운 시스템 제거됨
     quantum_leap.metadata = {"teleport": True, "gauge_gain": 25}
 
@@ -86,11 +86,11 @@ def create_dimensionist_skills():
         # 쿨다운 리셋 효과 (메타데이터로 표시)
         BuffEffect(BuffType.SPEED_UP, 0.8, duration=2),
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=2),
-        HealEffect(percentage=0.20)  # HP 20% 회복
+        HealEffect(percentage=0.33)  # 시간 되돌리기
     ]
     time_rewind.costs = [MPCost(10)]
     time_rewind.target_type = "self"
-    time_rewind.sfx = "423"  # FFVII rewind sound
+    time_rewind.sfx = "093"  # 짧은 버프
     # time_rewind.cooldown = 6  # 쿨다운 시스템 제거됨
     time_rewind.metadata = {"distortion_cost": 50, "reset_cooldowns": True, "retry": True}
 
@@ -105,7 +105,7 @@ def create_dimensionist_skills():
     reality_shift.costs = [MPCost(8)]
     reality_shift.target_type = "all_enemies"
     reality_shift.is_aoe = True
-    reality_shift.sfx = "438"  # FFVII reality shift sound
+    reality_shift.sfx = "148"  # 짧은 디버프
     # reality_shift.cooldown = 5  # 쿨다운 시스템 제거됨
     reality_shift.metadata = {"gauge_gain": 30}
 
@@ -114,7 +114,7 @@ def create_dimensionist_skills():
     parallel_universe.effects = [
         GimmickEffect(GimmickOperation.SET, "distortion_gauge", 0),  # 게이지 전부 소모
         # 상태 리셋 (모든 디버프 제거, HP/MP 회복)
-        HealEffect(percentage=0.50),  # HP 50% 회복
+        HealEffect(percentage=0.88),  # 평행우주
         # 극강 버프 (평행우주의 강화된 나)
         BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5),
         BuffEffect(BuffType.MAGIC_UP, 0.8, duration=5),
@@ -125,7 +125,7 @@ def create_dimensionist_skills():
     ]
     parallel_universe.costs = [MPCost(12)]
     parallel_universe.target_type = "self"
-    parallel_universe.sfx = "467"  # FFVII parallel sound
+    parallel_universe.sfx = "093"  # 짧은 버프
     # parallel_universe.cooldown = 8  # 쿨다운 시스템 제거됨
     parallel_universe.metadata = {"distortion_cost": 100, "reset_status": True, "alternate_self": True}
 
@@ -148,7 +148,7 @@ def create_dimensionist_skills():
     ultimate.is_ultimate = True
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
-    ultimate.sfx = "696"  # FFVII ultimate dimension sound
+    ultimate.sfx = "035"  # 짧은 리미트 브레이크
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "gauge_scaling": True, "consume_all_gauge": True}
 

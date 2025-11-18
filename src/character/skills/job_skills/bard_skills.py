@@ -49,7 +49,7 @@ def create_bard_skills():
     # 4. 회복의 노래
     healing_song = Skill("bard_healing_song", "회복의 노래", "아군 회복 + 멜로디 획득")
     healing_song.effects = [
-        HealEffect(HealType.HP, percentage=0.3, is_party_wide=True),
+        HealEffect(HealType.HP, percentage=0.24, is_party_wide=True),  # 회복의 노래 (파티 힐)
         GimmickEffect(GimmickOperation.ADD, "melody_stacks", 1, max_value=7)
     ]
     healing_song.costs = [MPCost(5)]

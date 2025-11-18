@@ -77,8 +77,13 @@ class GimmickUpdater:
             GimmickUpdater._update_rune_resonance(character)
 
     @staticmethod
-    def on_turn_start(character):
-        """턴 시작 시 기믹 업데이트"""
+    def on_turn_start(character, context=None):
+        """턴 시작 시 기믹 업데이트
+        
+        Args:
+            character: 캐릭터
+            context: 컨텍스트 (enemies, combat_manager 등)
+        """
         gimmick_type = getattr(character, 'gimmick_type', None)
         if not gimmick_type:
             return
@@ -117,6 +122,10 @@ class GimmickUpdater:
         # 전사 - 스탠스 시스템 효과 적용
         elif gimmick_type == "stance_system":
             GimmickUpdater._apply_stance_effects(character)
+        
+        # 네크로맨서 - 언데드 자동 공격
+        elif gimmick_type == "undead_legion":
+            GimmickUpdater._undead_auto_attack(character, context)
 
     @staticmethod
     def on_skill_use(character, skill):
@@ -629,9 +638,101 @@ class GimmickUpdater:
         """네크로맨서: 언데드 군단 시스템 업데이트"""
         # 소환된 언데드는 스킬로만 관리, 자동 업데이트 없음
         # 최대 5개까지 유지
-        minions = getattr(character, 'undead_minions', 0)
-        if minions > 5:
-            character.undead_minions = 5
+        skeleton = getattr(character, 'undead_skeleton', 0)
+        zombie = getattr(character, 'undead_zombie', 0)
+        ghost = getattr(character, 'undead_ghost', 0)
+        total = skeleton + zombie + ghost
+        max_undead = getattr(character, 'max_undead_total', 5)
+        if total > max_undead:
+            # 초과분 제거 (우선순위: ghost > zombie > skeleton)
+            excess = total - max_undead
+            while excess > 0 and ghost > 0:
+                ghost -= 1
+                excess -= 1
+            while excess > 0 and zombie > 0:
+                zombie -= 1
+                excess -= 1
+            while excess > 0 and skeleton > 0:
+                skeleton -= 1
+                excess -= 1
+            character.undead_skeleton = skeleton
+            character.undead_zombie = zombie
+            character.undead_ghost = ghost
+    
+    @staticmethod
+    def _undead_auto_attack(character, context):
+        """네크로맨서: 언데드 자동 공격"""
+        if not context:
+            return
+        
+        enemies = context.get('enemies', [])
+        if not enemies:
+            return
+        
+        # 살아있는 적만 필터링
+        alive_enemies = [e for e in enemies if hasattr(e, 'is_alive') and e.is_alive]
+        if not alive_enemies:
+            return
+        
+        skeleton = getattr(character, 'undead_skeleton', 0)
+        zombie = getattr(character, 'undead_zombie', 0)
+        ghost = getattr(character, 'undead_ghost', 0)
+        
+        # 네크로맨서의 스탯 가져오기
+        from src.character.stats import Stats
+        base_attack = 0
+        base_magic = 0
+        if hasattr(character, 'stat_manager'):
+            base_attack = character.stat_manager.get_value(Stats.STRENGTH)
+            base_magic = character.stat_manager.get_value(Stats.MAGIC)
+        else:
+            base_attack = getattr(character, 'physical_attack', 0)
+            base_magic = getattr(character, 'magic_attack', 0)
+        
+        # 스켈레톤: 물리 공격 (네크로맨서의 물리 공격력 + 마법력의 일부 기반, HP 공격)
+        for i in range(skeleton):
+            if not alive_enemies:
+                break
+            target = alive_enemies[i % len(alive_enemies)]
+            
+            # 스켈레톤 공격력: 네크로맨서 물리 공격력의 60% + 마법력의 20%
+            skeleton_brv = int(base_attack * 0.6 + base_magic * 0.2)
+            # 단순히 brv_points를 데미지로 사용
+            damage = max(1, skeleton_brv)
+            
+            if damage > 0:
+                target.take_damage(damage)
+                logger.info(f"💀 스켈레톤이 {target.name}에게 {damage} HP 피해!")
+        
+        # 좀비: 방어/탱킹 (약한 물리 HP 공격)
+        for i in range(zombie):
+            if not alive_enemies:
+                break
+            target = alive_enemies[i % len(alive_enemies)]
+            
+            # 좀비 공격력: 네크로맨서 물리 공격력의 40% + 마법력의 10% (약한 공격)
+            zombie_brv = int(base_attack * 0.4 + base_magic * 0.1)
+            # 단순히 brv_points를 데미지로 사용
+            damage = max(1, zombie_brv)
+            
+            if damage > 0:
+                target.take_damage(damage)
+                logger.info(f"🧟 좀비가 {target.name}에게 {damage} HP 피해!")
+        
+        # 유령: 마법 공격 (네크로맨서의 마법 공격력 기반, HP 공격)
+        for i in range(ghost):
+            if not alive_enemies:
+                break
+            target = alive_enemies[i % len(alive_enemies)]
+            
+            # 유령 공격력: 네크로맨서 마법 공격력의 70%
+            ghost_brv = int(base_magic * 0.7)
+            # 단순히 brv_points를 데미지로 사용
+            damage = max(1, ghost_brv)
+            
+            if damage > 0:
+                target.take_damage(damage)
+                logger.info(f"👻 유령이 {target.name}에게 {damage} HP 피해!")
 
     @staticmethod
     def _update_theft_system(character):

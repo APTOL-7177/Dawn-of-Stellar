@@ -38,7 +38,7 @@ def create_alchemist_skills():
     # 3. 회복 포션
     healing_potion = Skill("alchemist_heal_potion", "회복 포션", "강력한 회복")
     healing_potion.effects = [
-        HealEffect(HealType.HP, percentage=0.4),
+        HealEffect(HealType.HP, percentage=0.42),  # 회복 포션
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 2)
     ]
     healing_potion.costs = []
@@ -85,7 +85,7 @@ def create_alchemist_skills():
     ]
     gather_materials.costs = [MPCost(4)]
     gather_materials.target_type = "self"
-    gather_materials.sfx = "404"  # FFVII gather sound
+    gather_materials.sfx = "020"  # 짧은 획득
     # gather_materials.cooldown = 4  # 쿨다운 시스템 제거됨
     gather_materials.metadata = {"potion_gain": 5}
     skills.append(gather_materials)
@@ -98,7 +98,7 @@ def create_alchemist_skills():
     ]
     mana_potion.costs = [MPCost(2), StackCost("potion_stock", 2)]
     mana_potion.target_type = "ally"
-    mana_potion.sfx = "423"  # FFVII mana sound
+    mana_potion.sfx = "005"  # 짧은 힐
     # mana_potion.cooldown = 5  # 쿨다운 시스템 제거됨
     mana_potion.metadata = {"potion_cost": 2, "mp_recovery": True}
     skills.append(mana_potion)
@@ -110,7 +110,7 @@ def create_alchemist_skills():
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 4)
     ]
     chain_explosion.costs = [MPCost(12), StackCost("potion_stock", 4)]
-    chain_explosion.sfx = "438"  # FFVII chain explosion sound
+    chain_explosion.sfx = "146"  # 짧은 폭발
     # chain_explosion.cooldown = 5  # 쿨다운 시스템 제거됨
     chain_explosion.metadata = {"potion_cost": 4, "potion_scaling": True, "chain": True}
     chain_explosion.is_aoe = True
@@ -125,7 +125,7 @@ def create_alchemist_skills():
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 3)
     ]
     acid_flask.costs = [MPCost(10), StackCost("potion_stock", 3)]
-    acid_flask.sfx = "467"  # FFVII acid sound
+    acid_flask.sfx = "148"  # 짧은 디버프
     # acid_flask.cooldown = 4  # 쿨다운 시스템 제거됨
     acid_flask.metadata = {"potion_cost": 3, "debuff": True}
     skills.append(acid_flask)
@@ -133,7 +133,7 @@ def create_alchemist_skills():
     # 10. 궁극기: 현자의 물약
     ultimate = Skill("alchemist_ultimate", "현자의 물약", "완벽한 물약으로 파티 강화")
     ultimate.effects = [
-        HealEffect(HealType.HP, percentage=0.5, is_party_wide=True),
+        HealEffect(HealType.HP, percentage=0.68, is_party_wide=True),  # 궁극기
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
         BuffEffect(BuffType.MAGIC_UP, 0.5, duration=5),
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5),
@@ -143,7 +143,7 @@ def create_alchemist_skills():
     ultimate.is_ultimate = True
     ultimate.target_type = "party"
     ultimate.is_aoe = True
-    ultimate.sfx = "696"  # FFVII ultimate alchemy sound
+    ultimate.sfx = "035"  # 짧은 리미트 브레이크
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "party_support": True, "potion_refill": True}
     skills.append(ultimate)

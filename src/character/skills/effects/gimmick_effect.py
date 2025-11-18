@@ -45,14 +45,35 @@ class GimmickEffect(SkillEffect):
 
         # 기본 operation 처리
         old_value = getattr(entity, self.field, 0)
+        
+        # current_stance 필드의 경우 문자열을 정수로 변환
+        if self.field == "current_stance" and isinstance(old_value, str):
+            stance_id_to_index = {
+                "balanced": 0,
+                "attack": 1,
+                "defense": 2,
+                "berserker": 4,
+                "guardian": 5,
+                "speed": 6
+            }
+            old_value = stance_id_to_index.get(old_value, 0)
+        
         new_value = old_value
 
         if self.operation == GimmickOperation.ADD:
-            new_value = old_value + self.value
+            # 타입 체크
+            if isinstance(old_value, (int, float)) and isinstance(self.value, (int, float)):
+                new_value = old_value + self.value
+            else:
+                new_value = old_value
         elif self.operation == GimmickOperation.SET:
             new_value = self.value
         elif self.operation == GimmickOperation.CONSUME:
-            new_value = old_value - self.value
+            # 타입 체크
+            if isinstance(old_value, (int, float)) and isinstance(self.value, (int, float)):
+                new_value = old_value - self.value
+            else:
+                new_value = old_value
 
         # 최대값 제한
         max_field_name = f"max_{self.field}"
@@ -94,10 +115,17 @@ class GimmickEffect(SkillEffect):
                         entity.active_threads.remove(program_name)
 
         entity_name = getattr(entity, 'name', '대상')
+        
+        # gimmick_changes 계산 (타입 안전하게)
+        if isinstance(new_value, (int, float)) and isinstance(old_value, (int, float)):
+            change_value = new_value - old_value
+        else:
+            change_value = 0
+        
         return EffectResult(
             effect_type=EffectType.GIMMICK,
             success=True,
-            gimmick_changes={self.field: new_value - old_value},
+            gimmick_changes={self.field: change_value},
             message=f"{entity_name}의 {self.field}: {old_value} -> {new_value}"
         )
 

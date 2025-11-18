@@ -160,7 +160,18 @@ class CombatUI:
             cost_parts = []
             for cost in skill.costs:
                 if hasattr(cost, 'get_description'):
-                    cost_desc = cost.get_description(actor)
+                    # 스킬 정보를 context에 추가하여 특성 효과 반영
+                    context = {'skill': skill}
+                    # get_description에 context 전달 (시그니처 확인)
+                    if hasattr(cost, '_calculate_actual_cost'):
+                        # MPCost의 경우 context를 전달
+                        cost_desc = cost.get_description(actor, context)
+                    else:
+                        # 다른 비용 타입은 기존 방식
+                        try:
+                            cost_desc = cost.get_description(actor, context)
+                        except TypeError:
+                            cost_desc = cost.get_description(actor)
                     if cost_desc:
                         cost_parts.append(cost_desc)
 
@@ -168,14 +179,37 @@ class CombatUI:
 
             name = getattr(skill, 'name', str(skill))
             
-            # 스탠스 변경 스킬인 경우 예상 스탠스 표시
+            # 스탠스 변경 스킬인 경우 현재 스탠스 → 예상 스탠스 표시
             skill_metadata = getattr(skill, 'metadata', {})
             if 'stance' in skill_metadata:
+                # 현재 스탠스 가져오기
+                current_stance = getattr(actor, 'current_stance', 0)
+                if isinstance(current_stance, str):
+                    stance_id_to_index = {
+                        "balanced": 0,
+                        "attack": 1,
+                        "defense": 2,
+                        "berserker": 4,
+                        "guardian": 5,
+                        "speed": 6
+                    }
+                    current_stance = stance_id_to_index.get(current_stance, 0)
+                
+                stance_id_to_name = {
+                    0: "중립",
+                    1: "공격",
+                    2: "방어",
+                    4: "광전사",
+                    5: "수호자",
+                    6: "신속"
+                }
+                current_stance_name = stance_id_to_name.get(current_stance, "중립")
+                
                 stance_id = skill_metadata['stance']
                 if stance_id == "auto":
-                    name = f"{name} → 상황에 맞게"
+                    name = f"{current_stance_name} → 상황에 맞게"
                 else:
-                    stance_id_to_name = {
+                    stance_id_to_name_map = {
                         "balanced": "중립",
                         "attack": "공격",
                         "defense": "방어",
@@ -183,9 +217,9 @@ class CombatUI:
                         "guardian": "수호자",
                         "speed": "신속"
                     }
-                    stance_name = stance_id_to_name.get(stance_id, "")
-                    if stance_name:
-                        name = f"{name} → {stance_name}"
+                    target_stance_name = stance_id_to_name_map.get(stance_id, "")
+                    if target_stance_name:
+                        name = f"{current_stance_name} → {target_stance_name}"
             
             desc = getattr(skill, 'description', '')
 
@@ -1346,11 +1380,11 @@ class CombatUI:
 
         elif gimmick_type == "undead_legion":
             # 네크로맨서 - 언데드 군단
-            skeleton = getattr(character, 'skeleton_count', 0)
-            zombie = getattr(character, 'zombie_count', 0)
-            ghost = getattr(character, 'ghost_count', 0)
+            skeleton = getattr(character, 'undead_skeleton', 0)
+            zombie = getattr(character, 'undead_zombie', 0)
+            ghost = getattr(character, 'undead_ghost', 0)
             total = skeleton + zombie + ghost
-            max_undead = getattr(character, 'max_undead', 5)
+            max_undead = getattr(character, 'max_undead_total', 5)
             return f"[언데드:{total}/{max_undead}]"
 
         elif gimmick_type == "stealth_exposure":
@@ -2881,17 +2915,22 @@ class CombatUI:
 
         # 네크로맨서 - 언데드 군단 (YAML: undead_legion)
         elif gimmick_type == "undead_legion":
-            minions = getattr(character, 'undead_minions', 0)
-
-            # 리스트 타입인 경우 길이로 변환
-            if isinstance(minions, list):
-                minions = len(minions)
+            skeleton = getattr(character, 'undead_skeleton', 0)
+            zombie = getattr(character, 'undead_zombie', 0)
+            ghost = getattr(character, 'undead_ghost', 0)
+            total = skeleton + zombie + ghost
+            max_undead = getattr(character, 'max_undead_total', 5)
 
             details.append("=== 언데드 군단 시스템 ===")
-            minion_bar = self._create_gauge_bar(minions, 5, width=10, optimal_min=3, optimal_max=5)
-            details.append(f"소환된 언데드: {minion_bar}")
-            if minions >= 3:
+            details.append(f"💀 스켈레톤: {skeleton}/2")
+            details.append(f"🧟 좀비: {zombie}/2")
+            details.append(f"👻 유령: {ghost}/2")
+            minion_bar = self._create_gauge_bar(total, max_undead, width=10, optimal_min=3, optimal_max=max_undead)
+            details.append(f"총 소환: {minion_bar} ({total}/{max_undead})")
+            if total >= 3:
                 details.append("💀 군단 형성 - 대량 공격 가능")
+            elif total > 0:
+                details.append("⏳ 소환 진행 중")
             else:
                 details.append("⏳ 소환 준비 중")
 

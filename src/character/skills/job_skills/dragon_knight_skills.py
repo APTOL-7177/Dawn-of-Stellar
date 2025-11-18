@@ -18,7 +18,7 @@ def create_dragon_knight_skills():
         GimmickEffect(GimmickOperation.ADD, "dragon_power", 1, max_value=5)
     ]
     flame_slash.costs = []  # 기본 공격은 MP 소모 없음
-    flame_slash.sfx = "643"
+    flame_slash.sfx = "017"  # 짧은 물리 공격
     flame_slash.metadata = {"dragon_power_gain": 1}
     skills.append(flame_slash)
 
@@ -29,7 +29,7 @@ def create_dragon_knight_skills():
         GimmickEffect(GimmickOperation.CONSUME, "dragon_power", 1)
     ]
     dragon_dive.costs = []  # 기본 공격은 MP 소모 없음
-    dragon_dive.sfx = "648"
+    dragon_dive.sfx = "034"  # 짧은 강한 타격
     dragon_dive.metadata = {"dragon_power_cost": 1, "dragon_scaling": True}
     skills.append(dragon_dive)
 
@@ -42,7 +42,7 @@ def create_dragon_knight_skills():
     fire_breath.costs = []
     # fire_breath.cooldown = 2  # 쿨다운 시스템 제거됨
     fire_breath.is_aoe = True
-    fire_breath.sfx = "658"
+    fire_breath.sfx = "146"  # 짧은 광역 마법
     fire_breath.metadata = {"dragon_scaling": True, "dragon_power_gain": 1, "aoe": True}
     skills.append(fire_breath)
 
@@ -55,7 +55,7 @@ def create_dragon_knight_skills():
     ]
     burning_strike.costs = [MPCost(5), StackCost("dragon_power", 2)]
     # burning_strike.cooldown = 3  # 쿨다운 시스템 제거됨
-    burning_strike.sfx = "663"
+    burning_strike.sfx = "026"  # 짧은 크리티컬/강타
     burning_strike.metadata = {"dragon_power_cost": 2, "dragon_scaling": True}
     skills.append(burning_strike)
 
@@ -68,7 +68,7 @@ def create_dragon_knight_skills():
     dragon_rage.costs = [MPCost(6)]
     dragon_rage.target_type = "self"
     # dragon_rage.cooldown = 5  # 쿨다운 시스템 제거됨
-    dragon_rage.sfx = "668"
+    dragon_rage.sfx = "093"  # 짧은 버프
     dragon_rage.metadata = {"dragon_power_max": True, "buff": True}
     skills.append(dragon_rage)
 
@@ -81,7 +81,7 @@ def create_dragon_knight_skills():
     dragon_scales.costs = [MPCost(3)]
     dragon_scales.target_type = "self"
     # dragon_scales.cooldown = 3  # 쿨다운 시스템 제거됨
-    dragon_scales.sfx = "673"
+    dragon_scales.sfx = "093"  # 짧은 버프
     dragon_scales.metadata = {"buff": True, "dragon_power_gain": 2}
     skills.append(dragon_scales)
 
@@ -94,7 +94,7 @@ def create_dragon_knight_skills():
     inferno_burst.costs = [MPCost(7), StackCost("dragon_power", 3)]
     # inferno_burst.cooldown = 4  # 쿨다운 시스템 제거됨
     inferno_burst.is_aoe = True
-    inferno_burst.sfx = "678"
+    inferno_burst.sfx = "146"  # 짧은 광역 폭발
     inferno_burst.metadata = {"dragon_power_cost": 3, "dragon_scaling": True, "aoe": True}
     skills.append(inferno_burst)
 
@@ -107,7 +107,7 @@ def create_dragon_knight_skills():
     ]
     dragon_wings.costs = [MPCost(9), StackCost("dragon_power", 4)]
     # dragon_wings.cooldown = 6  # 쿨다운 시스템 제거됨
-    dragon_wings.sfx = "683"
+    dragon_wings.sfx = "034"  # 짧은 강한 공격
     dragon_wings.metadata = {"dragon_power_cost": 4, "dragon_scaling": True}
     skills.append(dragon_wings)
 
@@ -121,7 +121,7 @@ def create_dragon_knight_skills():
     dragon_roar.costs = [MPCost(7)]
     dragon_roar.target_type = "party"
     # dragon_roar.cooldown = 5  # 쿨다운 시스템 제거됨
-    dragon_roar.sfx = "688"
+    dragon_roar.sfx = "093"  # 짧은 버프
     dragon_roar.metadata = {"dragon_power_gain": 3, "buff": True, "party_wide": True}
     skills.append(dragon_roar)
 
@@ -139,7 +139,7 @@ def create_dragon_knight_skills():
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.sfx = "693"
+    ultimate.sfx = "035"  # 짧은 리미트 브레이크
     ultimate.metadata = {"ultimate": True, "dragon_consume_all": True, "dragon_scaling": True, "aoe": True, "buff": True}
     skills.append(ultimate)
 

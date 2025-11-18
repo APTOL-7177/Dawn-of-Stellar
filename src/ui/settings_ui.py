@@ -41,8 +41,24 @@ class SettingsUI:
 
         # 설정값들
         config = get_config()
-        self.bgm_volume = config.get("audio.bgm_volume", 70)
-        self.sfx_volume = config.get("audio.sfx_volume", 80)
+        # 볼륨은 0-100 정수로 저장, config에는 float(0.0-1.0) 또는 int(0-100)가 있을 수 있음
+        bgm_vol = config.get("audio.bgm_volume", 70)
+        sfx_vol = config.get("audio.sfx_volume", 80)
+        
+        # float 값이면 정수로 변환 (0.0-1.0 -> 0-100)
+        if isinstance(bgm_vol, float):
+            self.bgm_volume = int(round(bgm_vol * 100))
+        else:
+            self.bgm_volume = int(bgm_vol)
+        
+        if isinstance(sfx_vol, float):
+            self.sfx_volume = int(round(sfx_vol * 100))
+        else:
+            self.sfx_volume = int(sfx_vol)
+        
+        # 10의 배수로 반올림
+        self.bgm_volume = round(self.bgm_volume / 10) * 10
+        self.sfx_volume = round(self.sfx_volume / 10) * 10
         self.language = config.get("game.language", "ko")
         self.difficulty = config.get("game.difficulty", "normal")
         self.auto_save = config.get("save.auto_save", True)
@@ -101,6 +117,8 @@ class SettingsUI:
 
         if option == SettingOption.VOLUME_BGM:
             self.bgm_volume = max(0, min(100, self.bgm_volume + direction * 10))
+            # 10의 배수로 보장
+            self.bgm_volume = round(self.bgm_volume / 10) * 10
             # 실제 BGM 볼륨 조정 적용
             try:
                 audio_manager = get_audio_manager()
@@ -110,6 +128,8 @@ class SettingsUI:
                 logger.warning(f"BGM 볼륨 조정 실패: {e}")
         elif option == SettingOption.VOLUME_SFX:
             self.sfx_volume = max(0, min(100, self.sfx_volume + direction * 10))
+            # 10의 배수로 보장
+            self.sfx_volume = round(self.sfx_volume / 10) * 10
             # 실제 SFX 볼륨 조정 적용
             try:
                 audio_manager = get_audio_manager()
@@ -169,12 +189,16 @@ class SettingsUI:
             value_color = (255, 255, 100) if i == self.selected_index else (200, 200, 200)
 
             if option == SettingOption.VOLUME_BGM:
-                value = f"{self.bgm_volume}%"
-                bar = self._render_volume_bar(self.bgm_volume)
+                # 10의 배수로 보장
+                bgm_vol = round(self.bgm_volume / 10) * 10
+                value = f"{int(bgm_vol)}%"
+                bar = self._render_volume_bar(int(bgm_vol))
                 console.print(value_x, y, f"{bar} {value}", fg=value_color)
             elif option == SettingOption.VOLUME_SFX:
-                value = f"{self.sfx_volume}%"
-                bar = self._render_volume_bar(self.sfx_volume)
+                # 10의 배수로 보장
+                sfx_vol = round(self.sfx_volume / 10) * 10
+                value = f"{int(sfx_vol)}%"
+                bar = self._render_volume_bar(int(sfx_vol))
                 console.print(value_x, y, f"{bar} {value}", fg=value_color)
             elif option == SettingOption.DIFFICULTY:
                 diff_names = {"easy": "쉬움", "normal": "보통", "hard": "어려움", "extreme": "익스트림"}

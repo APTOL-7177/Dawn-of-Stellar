@@ -194,6 +194,10 @@ class WoundSystem:
         change = data.get("change", 0)
 
         if change < 0 and character:
+            # 이미 상처가 적용된 경우 (brave_system에서 직접 적용) 중복 방지
+            if hasattr(character, '_wound_applied_this_turn') and character._wound_applied_this_turn:
+                return
+            
             # 데미지를 받았을 때
             self.apply_damage(character, abs(change))
 

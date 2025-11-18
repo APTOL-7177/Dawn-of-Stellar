@@ -52,7 +52,7 @@ def create_monk_skills():
                                "음양을 균형으로 되돌려 HP 25% 회복")
     balance_restoration.effects = [
         GimmickEffect(GimmickOperation.SET, "ki_gauge", 50),
-        HealEffect(percentage=0.25)
+        HealEffect(percentage=0.44)  # 태극 회복
     ]
     balance_restoration.costs = [MPCost(7)]
     balance_restoration.target_type = "self"

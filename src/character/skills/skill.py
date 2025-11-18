@@ -29,6 +29,8 @@ class Skill:
     def can_use(self, user: Any, context: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
         """스킬 사용 가능 여부"""
         context = context or {}
+        # 스킬 정보를 context에 추가 (특성 효과 적용을 위해)
+        context['skill'] = self
         
         # 비용 체크
         for cost in self.costs:
@@ -56,6 +58,9 @@ class Skill:
     def execute(self, user: Any, target: Any, context: Optional[Dict[str, Any]] = None) -> SkillResult:
         """스킬 실행"""
         context = context or {}
+        # 스킬 정보를 context에 추가 (특성 효과 적용을 위해)
+        context['skill'] = self
+        
         can_use, reason = self.can_use(user, context)
         if not can_use:
             return SkillResult(success=False, message=f"사용 불가: {reason}")
