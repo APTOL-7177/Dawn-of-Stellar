@@ -192,6 +192,10 @@ class CombatManager:
                     if hasattr(actor, 'is_alive'):
                         actor.is_alive = False
                     self.logger.warning(f"{actor.name}이(가) DoT로 사망!")
+        
+        # 3-1. 랜섬웨어 효과 처리 (적의 턴 시작 시)
+        if actor in self.enemies:
+            self._process_ransomware_damage(actor)
 
         # 4. 상태 효과 지속시간 감소
         if hasattr(actor, 'status_manager'):
@@ -827,6 +831,68 @@ class CombatManager:
                 "action": "flee",
                 "success": False
             }
+
+    def _process_ransomware_damage(self, enemy: Any) -> None:
+        """
+        랜섬웨어 효과 처리 (적의 턴 시작 시)
+        
+        해커의 랜섬웨어가 활성화되어 있으면 적에게 해커의 마법력의 35%만큼 HP 피해를 적용
+        
+        Args:
+            enemy: 적 캐릭터
+        """
+        # 아군 중 해커 찾기
+        for ally in self.allies:
+            if not hasattr(ally, 'gimmick_type'):
+                continue
+            
+            # 해커인지 확인
+            if ally.gimmick_type != "multithread_system":
+                continue
+            
+            # 랜섬웨어가 활성화되어 있는지 확인
+            if getattr(ally, 'program_ransomware', 0) <= 0:
+                continue
+            
+            # 해커의 마법력 계산
+            magic_attack = getattr(ally, 'magic_attack', 0)
+            if magic_attack <= 0:
+                continue
+            
+            # 마법력의 35%만큼 HP 피해 계산
+            damage = int(magic_attack * 0.35)
+            if damage <= 0:
+                continue
+            
+            # 적이 살아있는지 확인
+            if hasattr(enemy, 'is_alive') and not enemy.is_alive:
+                continue
+            if hasattr(enemy, 'current_hp') and enemy.current_hp <= 0:
+                continue
+            
+            # HP 피해 적용
+            if hasattr(enemy, 'take_damage'):
+                actual_damage = enemy.take_damage(damage)
+            elif hasattr(enemy, 'current_hp'):
+                actual_damage = min(damage, enemy.current_hp)
+                enemy.current_hp = max(0, enemy.current_hp - actual_damage)
+            else:
+                actual_damage = damage
+            
+            if actual_damage > 0:
+                self.logger.info(
+                    f"[랜섬웨어] {ally.name}의 프로그램이 {enemy.name}에게 "
+                    f"{actual_damage} HP 피해! (마법력 {magic_attack}의 35%)"
+                )
+                
+                # 사망 여부 확인
+                if hasattr(enemy, 'current_hp') and enemy.current_hp <= 0:
+                    if hasattr(enemy, 'is_alive'):
+                        enemy.is_alive = False
+                    self.logger.warning(f"{enemy.name}이(가) 랜섬웨어로 사망!")
+            
+            # 한 해커만 처리 (여러 해커가 있어도 한 번만)
+            break
 
     def _on_turn_end(self, actor: Any) -> None:
         """
