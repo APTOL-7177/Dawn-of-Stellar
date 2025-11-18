@@ -36,7 +36,11 @@
       "Bash(game_test8.log)",
       "Bash(game_test9.log)",
       "Bash(game_test10.log)",
-      "Bash(X:developDawn-of-Stellartemp_traits.txt)"
+      "Bash(X:developDawn-of-Stellartemp_traits.txt)",
+      "Bash(pytest:*)",
+      "Bash(X:developDawn-of-Stellarvalidation_results.txt)",
+      "Bash(git reset:*)",
+      "Bash(ping:*)"
     ],
     "deny": [],
     "ask": []
