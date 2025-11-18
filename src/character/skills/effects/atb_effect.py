@@ -48,8 +48,9 @@ class ATBEffect(SkillEffect):
         old_atb = gauge.current
         
         if change > 0:
-            # 증가: increase() 메서드 사용 (최대치 제한 자동 적용, 캐스팅 중에는 증가 안 함)
-            gauge.increase(float(change))
+            # 증가: 일관성을 위해 캐스팅 중에도 적용 (increase()는 캐스팅 중 차단하므로 직접 수정)
+            # 최대치 제한 적용
+            gauge.current = min(gauge.current + change, gauge.max_gauge)
         elif change < 0:
             # 감소: 직접 current 수정 (디버프는 캐스팅 중에도 적용)
             # change가 음수이므로 current + change = current - |change|
@@ -59,8 +60,22 @@ class ATBEffect(SkillEffect):
         new_atb = gauge.current
         actual_change = new_atb - old_atb
 
-        result.success = True
-        result.message = f"{target.name}의 ATB {'+' if actual_change > 0 else ''}{actual_change} ({old_atb} → {new_atb})"
+        # 실제로 변경이 있었는지 확인
+        if actual_change == 0 and change != 0:
+            # 변경이 없었는데 change가 0이 아니면 (이미 최대치/최소치인 경우)
+            result.success = False
+            if change > 0:
+                result.message = f"{target.name}의 ATB는 이미 최대치입니다"
+            else:
+                result.message = f"{target.name}의 ATB는 이미 최소치입니다"
+        elif actual_change == 0:
+            # change == 0인 경우 (변경 없음)
+            result.success = True
+            result.message = f"{target.name}의 ATB 변경 없음"
+        else:
+            # 정상적으로 변경됨
+            result.success = True
+            result.message = f"{target.name}의 ATB {'+' if actual_change > 0 else ''}{actual_change} ({old_atb} → {new_atb})"
 
         self.logger.debug(f"[ATB_EFFECT] {target.name}: {old_atb} → {new_atb} (변경: {actual_change})")
 
