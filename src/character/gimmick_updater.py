@@ -549,11 +549,20 @@ class GimmickUpdater:
     @staticmethod
     def _update_multithread_system(character):
         """해커: 멀티스레드 시스템 업데이트"""
-        # 활성 스레드 자연 감소 (매 턴 -1)
-        threads = getattr(character, 'active_threads', 0)
-        character.active_threads = max(0, threads - 1)
-        if threads > 0:
-            logger.debug(f"{character.name} 활성 스레드 감소: -1 (총: {character.active_threads})")
+        # 활성 스레드 리스트 관리
+        threads = getattr(character, 'active_threads', [])
+
+        # 리스트 타입이 아니면 정수로 처리 (하위 호환성)
+        if isinstance(threads, int):
+            character.active_threads = max(0, threads - 1)
+            if threads > 0:
+                logger.debug(f"{character.name} 활성 스레드 감소: -1 (총: {character.active_threads})")
+        else:
+            # 리스트 타입인 경우 (신버전) - 프로그램 기반 관리로 변경되었으므로 자동 감소 안 함
+            # 프로그램들은 program_virus, program_backdoor 등으로 개별 관리됨
+            thread_count = len(threads)
+            if thread_count > 0:
+                logger.debug(f"{character.name} 활성 스레드: {thread_count}개")
 
     @staticmethod
     def _update_dilemma_choice(character):
