@@ -124,6 +124,9 @@ class CookedFood:
     # 신선도 (요리된 음식도 부패할 수 있음)
     spoil_time: int = 200
 
+    # 인벤토리 관련
+    weight: float = 0.5  # 무게 (kg) - 요리는 일반적으로 가벼움
+
     def __repr__(self) -> str:
         return f"{self.name} (HP+{self.hp_restore}, MP+{self.mp_restore})"
 
