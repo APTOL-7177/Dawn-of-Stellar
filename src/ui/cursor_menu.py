@@ -160,27 +160,37 @@ class CursorMenu:
             )
             current_y += 2
 
-        # 테두리 (제거됨 - 메인 메뉴에서 프레임 없이 깔끔하게)
-        # title_offset = 2 if self.title else 0
-        # description_height = 3 if self.show_description else 0
-        # frame_height = min(len(self.items), self.max_visible_items) + 2 + description_height
-        #
-        # console.draw_frame(
-        #     self.x,
-        #     self.y + title_offset,
-        #     self.width,
-        #     frame_height,
-        #     "",
-        #     fg=Colors.UI_BORDER,
-        #     bg=Colors.UI_BG
-        # )
+        # 메뉴 아이템 영역 시작 위치
+        items_start_y = current_y
+        visible_items = self.items[self.scroll_offset:self.scroll_offset + self.max_visible_items]
+        items_height = min(len(visible_items), self.max_visible_items)
+
+        # 배경 렌더링 (얇은 반투명 배경)
+        # 메뉴 아이템 영역
+        console.draw_rect(
+            self.x,
+            items_start_y,
+            self.width,
+            items_height,
+            ord(" "),
+            bg=(20, 20, 30)  # 어두운 파란색 배경
+        )
 
         # 아이템 렌더링
-        visible_items = self.items[self.scroll_offset:self.scroll_offset + self.max_visible_items]
-
         for i, item in enumerate(visible_items):
             actual_index = self.scroll_offset + i
-            item_y = current_y + i
+            item_y = items_start_y + i
+
+            # 선택된 아이템 하이라이트 배경
+            if actual_index == self.cursor_index:
+                console.draw_rect(
+                    self.x,
+                    item_y,
+                    self.width,
+                    1,
+                    ord(" "),
+                    bg=(40, 40, 60)  # 밝은 하이라이트
+                )
 
             # 커서 표시
             cursor = ">" if actual_index == self.cursor_index else " "
@@ -202,19 +212,41 @@ class CursorMenu:
                 fg=color
             )
 
+        # 스크롤 표시
+        if len(self.items) > self.max_visible_items:
+            # 위쪽 화살표
+            if self.scroll_offset > 0:
+                console.print(
+                    self.x + self.width - 2,
+                    items_start_y,
+                    "▲",
+                    fg=Colors.YELLOW
+                )
+
+            # 아래쪽 화살표
+            if self.scroll_offset + self.max_visible_items < len(self.items):
+                console.print(
+                    self.x + self.width - 2,
+                    items_start_y + items_height - 1,
+                    "▼",
+                    fg=Colors.YELLOW
+                )
+
         # 설명 렌더링
         if self.show_description:
             selected = self.get_selected_item()
             if selected and selected.description:
-                desc_y = current_y + min(len(self.items), self.max_visible_items) + 2
+                desc_y = items_start_y + items_height + 1
 
-                # 설명 구분선 (제거됨)
-                # console.print(
-                #     self.x + 1,
-                #     desc_y - 1,
-                #     "─" * (self.width - 2),
-                #     fg=Colors.UI_BORDER
-                # )
+                # 설명 배경
+                console.draw_rect(
+                    self.x,
+                    desc_y,
+                    self.width,
+                    2,  # 2줄
+                    ord(" "),
+                    bg=(15, 15, 25)  # 더 어두운 배경
+                )
 
                 # 설명 텍스트 (여러 줄 지원)
                 desc_lines = self._wrap_text(selected.description, self.width - 4)
@@ -225,26 +257,6 @@ class CursorMenu:
                         line,
                         fg=Colors.GRAY
                     )
-
-        # 스크롤 표시
-        if len(self.items) > self.max_visible_items:
-            # 위쪽 화살표
-            if self.scroll_offset > 0:
-                console.print(
-                    self.x + self.width - 2,
-                    self.y + title_offset + 1,
-                    "▲",
-                    fg=Colors.UI_TEXT
-                )
-
-            # 아래쪽 화살표
-            if self.scroll_offset + self.max_visible_items < len(self.items):
-                console.print(
-                    self.x + self.width - 2,
-                    current_y + self.max_visible_items - 1,
-                    "▼",
-                    fg=Colors.UI_TEXT
-                )
 
     def _wrap_text(self, text: str, max_width: int) -> List[str]:
         """텍스트를 최대 너비로 줄바꿈"""
