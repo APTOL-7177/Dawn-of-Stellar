@@ -474,8 +474,12 @@ class InventoryUI:
             # 선택 표시
             prefix = "►" if is_selected else " "
 
-            # 아이템 이름 (등급 색상)
-            rarity_color = getattr(item.rarity, 'color', Colors.UI_TEXT)
+            # 아이템 이름 (등급 색상) - 안전하게 rarity 접근
+            item_rarity = getattr(item, 'rarity', None)
+            if item_rarity:
+                rarity_color = getattr(item_rarity, 'color', Colors.UI_TEXT)
+            else:
+                rarity_color = Colors.UI_TEXT
             item_name = getattr(item, 'name', '알 수 없는 아이템')
 
             # 수량 (소비품만)
@@ -557,14 +561,21 @@ class InventoryUI:
         console.print(x, y, "─" * 70, fg=Colors.UI_BORDER)
         y += 1
 
-        # 이름 + 등급
-        rarity_name = getattr(item.rarity, 'display_name', '일반')
+        # 이름 + 등급 (안전하게 rarity 접근)
+        item_rarity = getattr(item, 'rarity', None)
+        if item_rarity:
+            rarity_name = getattr(item_rarity, 'display_name', '일반')
+            rarity_color = getattr(item_rarity, 'color', Colors.UI_TEXT)
+        else:
+            rarity_name = '일반'
+            rarity_color = Colors.UI_TEXT
+
         item_name = getattr(item, 'name', '알 수 없는 아이템')
         console.print(
             x,
             y,
             f"{item_name} [{rarity_name}]",
-            fg=getattr(item.rarity, 'color', Colors.UI_TEXT)
+            fg=rarity_color
         )
         y += 1
 
@@ -841,12 +852,21 @@ class InventoryUI:
         )
         y += 1
 
+        # 안전하게 rarity 접근
         new_item_name = getattr(new_item, 'name', '알 수 없는 아이템')
-        item_name = f"{new_item_name} [{getattr(new_item.rarity, 'display_name', '일반')}]"
+        new_item_rarity = getattr(new_item, 'rarity', None)
+        if new_item_rarity:
+            rarity_display = getattr(new_item_rarity, 'display_name', '일반')
+            rarity_color = getattr(new_item_rarity, 'color', Colors.UI_TEXT)
+        else:
+            rarity_display = '일반'
+            rarity_color = Colors.UI_TEXT
+
+        item_name = f"{new_item_name} [{rarity_display}]"
         console.print(
             box_x + 4, y,
             item_name,
-            fg=getattr(new_item.rarity, 'color', Colors.UI_TEXT)
+            fg=rarity_color
         )
         y += 2
 
