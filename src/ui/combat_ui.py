@@ -84,6 +84,10 @@ class CombatUI:
         self.gimmick_view_character: Optional[Any] = None
         self.previous_state: Optional[CombatUIState] = None
 
+        # 행동 후 대기 시간 (프레임 단위, 60 FPS 기준)
+        self.action_delay_frames = 0
+        self.action_delay_max = 90  # 1.5초 대기
+
         logger.info("전투 UI 초기화")
 
     def _create_action_menu(self, actor: Any = None) -> CursorMenu:
@@ -441,12 +445,15 @@ class CombatUI:
         # 결과 메시지 표시
         self._show_action_result(result)
 
+        # 행동 후 대기 시간 설정 (1.5초)
+        self.action_delay_frames = self.action_delay_max
+
         # 상태 초기화
         self.current_actor = None
         self.selected_action = None
         self.selected_skill = None
         self.selected_target = None
-        self.state = CombatUIState.WAITING_ATB
+        # 주의: state는 update()에서 delay 후 WAITING_ATB로 전환됨
 
         # 전투 종료 확인
         if self.combat_manager.state in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
@@ -463,14 +470,38 @@ class CombatUI:
             damage = result.get("damage", 0)
             is_crit = result.get("is_critical", False)
             is_break = result.get("is_break", False)
+            is_miss = result.get("is_miss", False)
 
-            msg = f"BRV 공격! {damage} 데미지"
-            if is_crit:
-                msg += " [크리티컬!]"
-            if is_break:
-                msg += " [BREAK!]"
+            # 빗나감 체크
+            if is_miss:
+                # 공격자/방어자 정보
+                attacker = self.current_actor
+                target = self.selected_target
+                if attacker and target:
+                    attacker_name = getattr(attacker, 'name', '알 수 없음')
+                    target_name = getattr(target, 'name', '알 수 없음')
 
-            color = (255, 255, 100) if is_crit else (200, 200, 200)
+                    # 아군/적 구분
+                    is_attacker_ally = attacker in self.combat_manager.allies
+                    is_target_ally = target in self.combat_manager.allies
+
+                    attacker_type = "아군" if is_attacker_ally else "적"
+                    target_type = "아군" if is_target_ally else "적"
+
+                    msg = f"💨 {attacker_type} {attacker_name}의 공격이 {target_type} {target_name}에게 빗나갔다!"
+                    color = (150, 150, 150)
+                else:
+                    msg = "💨 공격이 빗나갔다!"
+                    color = (150, 150, 150)
+            else:
+                msg = f"BRV 공격! {damage} 데미지"
+                if is_crit:
+                    msg += " [크리티컬!]"
+                if is_break:
+                    msg += " [BREAK!]"
+
+                color = (255, 255, 100) if is_crit else (200, 200, 200)
+
             self.add_message(msg, color)
 
         elif action == "hp_attack":
@@ -507,6 +538,13 @@ class CombatUI:
 
     def update(self, delta_time: float = 1.0):
         """업데이트 (매 프레임)"""
+        # 행동 후 대기 시간 처리
+        if self.action_delay_frames > 0:
+            self.action_delay_frames -= 1
+            if self.action_delay_frames == 0 and self.state == CombatUIState.EXECUTING:
+                # 대기 완료, WAITING_ATB로 전환
+                self.state = CombatUIState.WAITING_ATB
+
         # 플레이어가 선택 중인지 확인
         is_player_selecting = self.state in [
             CombatUIState.ACTION_MENU,
