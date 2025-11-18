@@ -48,6 +48,7 @@ class GameAction(Enum):
 
     # 인벤토리 전용
     INVENTORY_DESTROY = "inventory_destroy"
+    USE_CONSUMABLE = "use_consumable"  # 음식/소비품 사용
 
     # 전투 전용
     GIMMICK_DETAIL = "gimmick_detail"
@@ -122,6 +123,7 @@ class InputHandler(tcod.event.EventDispatch[Optional[GameAction]]):
 
             # 인벤토리
             'v': GameAction.INVENTORY_DESTROY,  # 파괴/버리기
+            'f': GameAction.USE_CONSUMABLE,  # 음식/소비품 사용
 
             # 시스템 (Z = 선택, X = 취소)
             'z': GameAction.CONFIRM,

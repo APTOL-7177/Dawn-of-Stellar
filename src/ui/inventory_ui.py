@@ -121,18 +121,33 @@ class InventoryUI:
             self.cursor = min(len(self.inventory) - 1, self.cursor + 1)
             self._update_scroll()
             self.show_comparison = False
+        elif action == GameAction.USE_CONSUMABLE:
+            # F 키: 음식/소비품 직접 사용
+            if len(self.inventory) > 0:
+                item = self.inventory.get_item(self.cursor)
+                if item:
+                    # CookedFood 타입 확인
+                    from src.cooking.recipe import CookedFood
+
+                    if isinstance(item, (Consumable, CookedFood)):
+                        self.selected_item_index = self.cursor
+                        self.mode = InventoryMode.USE_ITEM
         elif action == GameAction.CONFIRM:
             # 아이템 사용/장착
             if len(self.inventory) > 0:
                 item = self.inventory.get_item(self.cursor)
                 if item:
+                    # CookedFood 타입 확인
+                    from src.cooking.recipe import CookedFood
+
                     self.selected_item_index = self.cursor
 
                     if isinstance(item, Equipment):
                         # 장비 아이템: 장착 모드로 전환
                         self.mode = InventoryMode.EQUIP
                         self.show_comparison = False
-                    elif isinstance(item, Consumable):
+                    elif isinstance(item, (Consumable, CookedFood)):
+                        # 소비품 또는 요리: 사용 모드로 전환
                         self.mode = InventoryMode.USE_ITEM
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             self.closed = True
@@ -544,7 +559,7 @@ class InventoryUI:
         # 도움말
         help_y = self.screen_height - 2
         if self.mode == InventoryMode.BROWSE:
-            help_text = "Z: 사용/비교  C: 캐릭터 장비  V: 파괴  M: 정렬  ←→: 필터  X: 닫기"
+            help_text = "F: 먹기  Z: 사용/비교  C: 캐릭터 장비  V: 파괴  M: 정렬  ←→: 필터  X: 닫기"
             console.print(2, help_y, help_text, fg=Colors.GRAY)
         elif self.mode == InventoryMode.CHARACTER_EQUIPMENT:
             help_text = "↑↓: 캐릭터 선택  Z: 확인  X: 취소"
