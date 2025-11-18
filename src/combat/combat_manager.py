@@ -70,6 +70,9 @@ class CombatManager:
         self.on_turn_start: Optional[Callable[[Any], None]] = None
         self.on_action_complete: Optional[Callable[[Any, Dict], None]] = None
 
+        # 사망 이벤트 구독
+        event_bus.subscribe(Events.CHARACTER_DEATH, self._on_character_death)
+
     def start_combat(self, allies: List[Any], enemies: List[Any]) -> None:
         """
         전투 시작
@@ -192,6 +195,21 @@ class CombatManager:
                     if hasattr(actor, 'is_alive'):
                         actor.is_alive = False
                     self.logger.warning(f"{actor.name}이(가) DoT로 사망!")
+        
+        # 3-1. 랜섬웨어 효과 처리 (적의 턴 시작 시)
+        if actor in self.enemies:
+            self._process_ransomware_damage(actor)
+        
+        # 3-2. 사망 여부 확인 (DoT 또는 랜섬웨어로 사망한 경우)
+        if hasattr(actor, 'is_alive') and not actor.is_alive:
+            self.logger.warning(f"{actor.name}이(가) 턴 시작 시 피해로 사망하여 행동을 취소합니다.")
+            result["success"] = False
+            result["error"] = "사망"
+            result["death_reason"] = "턴 시작 시 피해"
+            # ATB는 소비하지만 행동하지 못함
+            self.atb.consume_atb(actor)
+            self._on_turn_end(actor)
+            return result
 
         # 4. 상태 효과 지속시간 감소
         if hasattr(actor, 'status_manager'):
@@ -827,6 +845,189 @@ class CombatManager:
                 "action": "flee",
                 "success": False
             }
+
+    def _process_ransomware_damage(self, enemy: Any) -> None:
+        """
+        랜섬웨어 효과 처리 (적의 턴 시작 시)
+        
+        해커의 랜섬웨어가 활성화되어 있으면 적에게 해커의 마법력의 35%만큼 HP 피해를 적용
+        
+        Args:
+            enemy: 적 캐릭터
+        """
+        # 아군 중 해커 찾기
+        for ally in self.allies:
+            # 해커가 살아있는지 확인
+            if hasattr(ally, 'is_alive') and not ally.is_alive:
+                continue
+            
+            if not hasattr(ally, 'gimmick_type'):
+                continue
+            
+            # 해커인지 확인
+            if ally.gimmick_type != "multithread_system":
+                continue
+            
+            # 랜섬웨어가 활성화되어 있는지 확인
+            if getattr(ally, 'program_ransomware', 0) <= 0:
+                continue
+            
+            # 해커의 마법력 계산
+            magic_attack = getattr(ally, 'magic_attack', 0)
+            if magic_attack <= 0:
+                continue
+            
+            # 마법력의 35%만큼 HP 피해 계산
+            damage = int(magic_attack * 0.35)
+            if damage <= 0:
+                continue
+            
+            # 적이 살아있는지 확인
+            if hasattr(enemy, 'is_alive') and not enemy.is_alive:
+                continue
+            if hasattr(enemy, 'current_hp') and enemy.current_hp <= 0:
+                continue
+            
+            # HP 피해 적용
+            if hasattr(enemy, 'take_damage'):
+                actual_damage = enemy.take_damage(damage)
+            elif hasattr(enemy, 'current_hp'):
+                actual_damage = min(damage, enemy.current_hp)
+                enemy.current_hp = max(0, enemy.current_hp - actual_damage)
+            else:
+                actual_damage = damage
+            
+            if actual_damage > 0:
+                self.logger.info(
+                    f"[랜섬웨어] {ally.name}의 프로그램이 {enemy.name}에게 "
+                    f"{actual_damage} HP 피해! (마법력 {magic_attack}의 35%)"
+                )
+                
+                # 사망 여부 확인
+                if hasattr(enemy, 'current_hp') and enemy.current_hp <= 0:
+                    if hasattr(enemy, 'is_alive'):
+                        enemy.is_alive = False
+                    self.logger.warning(f"{enemy.name}이(가) 랜섬웨어로 사망!")
+            
+            # 한 해커만 처리 (여러 해커가 있어도 한 번만)
+            break
+
+    def _on_character_death(self, data: Dict[str, Any]) -> None:
+        """
+        캐릭터 사망 이벤트 처리
+        
+        직업별 사망 후 처리 로직을 수행합니다.
+        
+        Args:
+            data: 이벤트 데이터 (character, name 포함)
+        """
+        character = data.get("character")
+        if not character:
+            return
+        
+        character_name = data.get("name", getattr(character, "name", "Unknown"))
+        self.logger.info(f"{character_name} 사망 처리 시작")
+        
+        # 해커: 모든 프로그램 종료
+        if hasattr(character, 'gimmick_type') and character.gimmick_type == "multithread_system":
+            self._handle_hacker_death(character)
+        
+        # 네크로맨서: 언데드 소환물 처리
+        if hasattr(character, 'gimmick_type') and character.gimmick_type == "undead_legion":
+            self._handle_necromancer_death(character)
+        
+        # 버서커: 광기 시스템 정리
+        if hasattr(character, 'gimmick_type') and character.gimmick_type == "madness_threshold":
+            self._handle_berserker_death(character)
+        
+        # 뱀파이어: 갈증 게이지 정리
+        if hasattr(character, 'gimmick_type') and character.gimmick_type == "thirst_gauge":
+            self._handle_vampire_death(character)
+        
+        # 일반적인 사망 후 처리
+        self._handle_general_death(character)
+    
+    def _handle_hacker_death(self, hacker: Any) -> None:
+        """
+        해커 사망 시 처리: 모든 프로그램 종료
+        
+        Args:
+            hacker: 사망한 해커 캐릭터
+        """
+        program_fields = ['program_virus', 'program_backdoor', 'program_ddos', 'program_ransomware', 'program_spyware']
+        active_programs = []
+        
+        for field in program_fields:
+            if getattr(hacker, field, 0) > 0:
+                active_programs.append(field.replace('program_', ''))
+                setattr(hacker, field, 0)
+        
+        if active_programs:
+            self.logger.warning(
+                f"{hacker.name} 사망으로 인해 실행 중이던 프로그램들이 종료되었습니다: {', '.join(active_programs)}"
+            )
+    
+    def _handle_necromancer_death(self, necromancer: Any) -> None:
+        """
+        네크로맨서 사망 시 처리: 언데드 소환물 정리
+        
+        Args:
+            necromancer: 사망한 네크로맨서 캐릭터
+        """
+        # 언데드 소환물이 있다면 정리
+        if hasattr(necromancer, 'undead_list'):
+            undead_count = len(getattr(necromancer, 'undead_list', []))
+            if undead_count > 0:
+                self.logger.warning(
+                    f"{necromancer.name} 사망으로 인해 소환된 언데드 {undead_count}마리가 소멸했습니다."
+                )
+                necromancer.undead_list = []
+    
+    def _handle_berserker_death(self, berserker: Any) -> None:
+        """
+        버서커 사망 시 처리: 광기 시스템 정리
+        
+        Args:
+            berserker: 사망한 버서커 캐릭터
+        """
+        # 광기 값은 유지하되, 더 이상 증가하지 않도록 처리
+        if hasattr(berserker, 'madness'):
+            madness_value = getattr(berserker, 'madness', 0)
+            if madness_value > 0:
+                self.logger.debug(
+                    f"{berserker.name} 사망 시 광기 값: {madness_value}"
+                )
+    
+    def _handle_vampire_death(self, vampire: Any) -> None:
+        """
+        뱀파이어 사망 시 처리: 갈증 게이지 정리
+        
+        Args:
+            vampire: 사망한 뱀파이어 캐릭터
+        """
+        # 갈증 게이지 값은 유지하되, 더 이상 증가하지 않도록 처리
+        if hasattr(vampire, 'thirst'):
+            thirst_value = getattr(vampire, 'thirst', 0)
+            if thirst_value > 0:
+                self.logger.debug(
+                    f"{vampire.name} 사망 시 갈증 게이지: {thirst_value}"
+                )
+    
+    def _handle_general_death(self, character: Any) -> None:
+        """
+        일반적인 사망 후 처리
+        
+        Args:
+            character: 사망한 캐릭터
+        """
+        # 상태 효과 정리 (선택적 - 일부 버프는 사망 후에도 유지될 수 있음)
+        if hasattr(character, 'status_manager'):
+            # 사망 시 특정 상태 효과만 제거할 수도 있음
+            pass
+        
+        # BRV 초기화
+        if hasattr(character, 'current_brv'):
+            character.current_brv = 0
 
     def _on_turn_end(self, actor: Any) -> None:
         """

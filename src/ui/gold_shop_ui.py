@@ -72,27 +72,23 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     ]
 
     for item_id, price in consumable_items:
-        if item_id in CONSUMABLE_TEMPLATES:
-            template = CONSUMABLE_TEMPLATES[item_id]
-            consumable = Consumable(
-                item_id=item_id,
-                name=template["name"],
-                description=template["description"],
-                item_type=ItemType.CONSUMABLE,
-                rarity=template["rarity"],
-                effect_type=template["effect_type"],
-                effect_value=template["effect_value"],
-                sell_price=template["sell_price"]
+        # ItemGenerator를 사용하여 일관된 아이템 생성 (스택 문제 해결)
+        from src.equipment.item_system import ItemGenerator
+        try:
+            consumable = ItemGenerator.create_consumable(item_id)
+        except (ValueError, KeyError):
+            # 템플릿이 없으면 스킵
+            continue
+        
+        items[GoldShopTab.CONSUMABLES].append(
+            GoldShopItem(
+                consumable.name,
+                consumable.description,
+                price,
+                consumable,
+                "consumable"
             )
-            items[GoldShopTab.CONSUMABLES].append(
-                GoldShopItem(
-                    consumable.name,
-                    consumable.description,
-                    price,
-                    consumable,
-                    "consumable"
-                )
-            )
+        )
 
     # === 장비 (층수에 맞는 장비) ===
     # floor_level에 따라 적절한 등급의 장비 제공
@@ -220,21 +216,17 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     ]
 
     for item_id, price in special_items:
-        if item_id in CONSUMABLE_TEMPLATES:
-            template = CONSUMABLE_TEMPLATES[item_id]
-            consumable = Consumable(
-                item_id=item_id,
-                name=template["name"],
-                description=template["description"],
-                item_type=ItemType.CONSUMABLE,
-                rarity=template["rarity"],
-                effect_type=template["effect_type"],
-                effect_value=template["effect_value"],
-                sell_price=template["sell_price"]
-            )
-            items[GoldShopTab.SPECIAL].append(
-                GoldShopItem(consumable.name, consumable.description, price, consumable, "special")
-            )
+        # ItemGenerator를 사용하여 일관된 아이템 생성 (스택 문제 해결)
+        from src.equipment.item_system import ItemGenerator
+        try:
+            consumable = ItemGenerator.create_consumable(item_id)
+        except (ValueError, KeyError):
+            # 템플릿이 없으면 스킵
+            continue
+        
+        items[GoldShopTab.SPECIAL].append(
+            GoldShopItem(consumable.name, consumable.description, price, consumable, "special")
+        )
 
     return items
 
