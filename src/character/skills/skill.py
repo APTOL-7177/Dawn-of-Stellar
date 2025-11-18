@@ -53,6 +53,20 @@ class Skill:
             if not cost.consume(user, context):
                 return SkillResult(success=False, message="비용 소비 실패")
 
+        # 랜덤 룬 추가 처리 (배틀메이지)
+        if self.metadata.get("random_rune") and hasattr(user, 'gimmick_type') and user.gimmick_type == "rune_resonance":
+            import random
+            rune_types = ["fire", "ice", "lightning", "earth", "arcane"]
+            selected_rune = random.choice(rune_types)
+            rune_field = f"rune_{selected_rune}"
+            current_value = getattr(user, rune_field, 0)
+            max_value = getattr(user, 'max_rune_per_type', 3)
+            if current_value < max_value:
+                setattr(user, rune_field, current_value + 1)
+                from src.core.logger import get_logger
+                logger = get_logger("skill")
+                logger.info(f"{user.name} 랜덤 룬 획득: {selected_rune} 룬 (+1, 총: {current_value + 1}/{max_value})")
+
         # 효과 실행 (ISSUE-003: 효과 메시지 수집)
         total_dmg = 0
         total_heal = 0

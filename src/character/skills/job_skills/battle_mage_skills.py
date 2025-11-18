@@ -11,12 +11,10 @@ def create_battle_mage_skills():
     # 1. 기본 BRV: 룬 새기기 (룬 획득)
     carve_rune = Skill("battle_mage_carve_rune", "룬 새기기", "적에게 룬을 새겨 룬 획득")
     carve_rune.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="hybrid"),
-        # 랜덤 룬 타입 획득 (화염/냉기/번개/대지/비전 중 하나)
-        GimmickEffect(GimmickOperation.ADD_RANDOM_RUNE, "runes", 1, max_value=3)
+        DamageEffect(DamageType.BRV, 1.5, stat_type="hybrid")
     ]
     carve_rune.costs = []  # 기본 공격은 MP 소모 없음
-    carve_rune.metadata = {"basic_attack": True, "rune_gain": True}
+    carve_rune.metadata = {"basic_attack": True, "rune_gain": True, "random_rune": True}
 
     # 2. 기본 HP: 룬 폭발 (보유 룬 소모하여 강력한 공격)
     rune_burst = Skill("battle_mage_rune_burst", "룬 폭발", "보유한 룬을 폭발시켜 강력한 피해")
@@ -24,11 +22,11 @@ def create_battle_mage_skills():
         DamageEffect(DamageType.BRV_HP, 1.8, stat_type="hybrid",
                     gimmick_bonus={"field": "total_runes", "multiplier": 0.2}),  # 룬 1개당 +20% 피해
         # 모든 룬 1개씩 소모
-        GimmickEffect(GimmickOperation.CONSUME, "runes_fire", 1),
-        GimmickEffect(GimmickOperation.CONSUME, "runes_ice", 1),
-        GimmickEffect(GimmickOperation.CONSUME, "runes_lightning", 1),
-        GimmickEffect(GimmickOperation.CONSUME, "runes_earth", 1),
-        GimmickEffect(GimmickOperation.CONSUME, "runes_arcane", 1)
+        GimmickEffect(GimmickOperation.CONSUME, "rune_fire", 1),
+        GimmickEffect(GimmickOperation.CONSUME, "rune_ice", 1),
+        GimmickEffect(GimmickOperation.CONSUME, "rune_lightning", 1),
+        GimmickEffect(GimmickOperation.CONSUME, "rune_earth", 1),
+        GimmickEffect(GimmickOperation.CONSUME, "rune_arcane", 1)
     ]
     rune_burst.costs = []  # 기본 공격은 MP 소모 없음
     rune_burst.metadata = {"basic_attack": True, "consumes_runes": True}
@@ -37,7 +35,7 @@ def create_battle_mage_skills():
     fire_rune = Skill("battle_mage_fire_rune", "화염 룬",
                      "화염 룬 각인, 물리 공격력 +15%")
     fire_rune.effects = [
-        GimmickEffect(GimmickOperation.ADD, "runes_fire", 1, max_value=3),
+        GimmickEffect(GimmickOperation.ADD, "rune_fire", 1, max_value=3),
         BuffEffect(BuffType.ATTACK_UP, 0.15, duration=99)  # 룬 보유 동안 지속
     ]
     fire_rune.costs = []
@@ -48,7 +46,7 @@ def create_battle_mage_skills():
     ice_rune = Skill("battle_mage_ice_rune", "냉기 룬",
                     "냉기 룬 각인, 마법 공격력 +15%")
     ice_rune.effects = [
-        GimmickEffect(GimmickOperation.ADD, "runes_ice", 1, max_value=3),
+        GimmickEffect(GimmickOperation.ADD, "rune_ice", 1, max_value=3),
         BuffEffect(BuffType.MAGIC_UP, 0.15, duration=99)
     ]
     ice_rune.costs = [MPCost(4)]
@@ -59,7 +57,7 @@ def create_battle_mage_skills():
     lightning_rune = Skill("battle_mage_lightning_rune", "번개 룬",
                           "번개 룬 각인, 속도 +20%")
     lightning_rune.effects = [
-        GimmickEffect(GimmickOperation.ADD, "runes_lightning", 1, max_value=3),
+        GimmickEffect(GimmickOperation.ADD, "rune_lightning", 1, max_value=3),
         BuffEffect(BuffType.SPEED_UP, 0.2, duration=99)
     ]
     lightning_rune.costs = [MPCost(4)]
@@ -70,7 +68,7 @@ def create_battle_mage_skills():
     earth_rune = Skill("battle_mage_earth_rune", "대지 룬",
                       "대지 룬 각인, 방어력 +20%")
     earth_rune.effects = [
-        GimmickEffect(GimmickOperation.ADD, "runes_earth", 1, max_value=3),
+        GimmickEffect(GimmickOperation.ADD, "rune_earth", 1, max_value=3),
         BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=99)
     ]
     earth_rune.costs = [MPCost(4)]
@@ -81,7 +79,7 @@ def create_battle_mage_skills():
     arcane_rune = Skill("battle_mage_arcane_rune", "비전 룬",
                        "비전 룬 각인, MP 회복 +5/턴")
     arcane_rune.effects = [
-        GimmickEffect(GimmickOperation.ADD, "runes_arcane", 1, max_value=3),
+        GimmickEffect(GimmickOperation.ADD, "rune_arcane", 1, max_value=3),
         BuffEffect(BuffType.MP_REGEN, 5, duration=99)
     ]
     arcane_rune.costs = [MPCost(4)]
@@ -94,11 +92,11 @@ def create_battle_mage_skills():
     rune_explosion.effects = [
         DamageEffect(DamageType.BRV_HP, 2.0, stat_type="hybrid",
                     gimmick_bonus={"field": "total_runes", "multiplier": 0.3}),  # 룬 1개당 +30% 피해
-        GimmickEffect(GimmickOperation.SET, "runes_fire", 0),
-        GimmickEffect(GimmickOperation.SET, "runes_ice", 0),
-        GimmickEffect(GimmickOperation.SET, "runes_lightning", 0),
-        GimmickEffect(GimmickOperation.SET, "runes_earth", 0),
-        GimmickEffect(GimmickOperation.SET, "runes_arcane", 0)
+        GimmickEffect(GimmickOperation.SET, "rune_fire", 0),
+        GimmickEffect(GimmickOperation.SET, "rune_ice", 0),
+        GimmickEffect(GimmickOperation.SET, "rune_lightning", 0),
+        GimmickEffect(GimmickOperation.SET, "rune_earth", 0),
+        GimmickEffect(GimmickOperation.SET, "rune_arcane", 0)
     ]
     rune_explosion.costs = [MPCost(12)]
     # rune_explosion.cooldown = 4  # 쿨다운 시스템 제거됨
@@ -111,9 +109,9 @@ def create_battle_mage_skills():
         DamageEffect(DamageType.BRV, 3.0, stat_type="hybrid"),
         DamageEffect(DamageType.HP, 2.0, stat_type="hybrid"),
         # 각 룬 타입별로 1개씩 소모
-        GimmickEffect(GimmickOperation.CONSUME, "runes_fire", 1),
-        GimmickEffect(GimmickOperation.CONSUME, "runes_ice", 1),
-        GimmickEffect(GimmickOperation.CONSUME, "runes_lightning", 1)
+        GimmickEffect(GimmickOperation.CONSUME, "rune_fire", 1),
+        GimmickEffect(GimmickOperation.CONSUME, "rune_ice", 1),
+        GimmickEffect(GimmickOperation.CONSUME, "rune_lightning", 1)
     ]
     elemental_fusion.costs = [MPCost(15)]
     # elemental_fusion.cooldown = 5  # 쿨다운 시스템 제거됨
@@ -128,11 +126,11 @@ def create_battle_mage_skills():
                     gimmick_bonus={"field": "total_runes", "multiplier": 0.4}),
         DamageEffect(DamageType.HP, 3.0, stat_type="hybrid",
                     gimmick_bonus={"field": "total_runes", "multiplier": 0.3}),
-        GimmickEffect(GimmickOperation.SET, "runes_fire", 0),
-        GimmickEffect(GimmickOperation.SET, "runes_ice", 0),
-        GimmickEffect(GimmickOperation.SET, "runes_lightning", 0),
-        GimmickEffect(GimmickOperation.SET, "runes_earth", 0),
-        GimmickEffect(GimmickOperation.SET, "runes_arcane", 0)
+        GimmickEffect(GimmickOperation.SET, "rune_fire", 0),
+        GimmickEffect(GimmickOperation.SET, "rune_ice", 0),
+        GimmickEffect(GimmickOperation.SET, "rune_lightning", 0),
+        GimmickEffect(GimmickOperation.SET, "rune_earth", 0),
+        GimmickEffect(GimmickOperation.SET, "rune_arcane", 0)
     ]
     ultimate.costs = [MPCost(18)]
     ultimate.is_ultimate = True
