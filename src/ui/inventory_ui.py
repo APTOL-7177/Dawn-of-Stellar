@@ -179,7 +179,8 @@ class InventoryUI:
                 # 소비 아이템 사용
                 success = self.inventory.use_consumable(self.selected_item_index, target)
                 if success:
-                    logger.info(f"{item.name} 사용 완료")
+                    item_name = getattr(item, 'name', '알 수 없는 아이템')
+                    logger.info(f"{item_name} 사용 완료")
                     # 인덱스 조정
                     if self.cursor >= len(self.inventory):
                         self.cursor = max(0, len(self.inventory) - 1)
@@ -236,12 +237,14 @@ class InventoryUI:
                 item = character.unequip_item(slot)
                 if item:
                     # 인벤토리에 추가
+                    item_name = getattr(item, 'name', '알 수 없는 아이템')
+                    char_name = getattr(character, 'name', '알 수 없는 캐릭터')
                     if self.inventory.add_item(item):
-                        logger.info(f"{character.name}: {item.name} 해제 → 인벤토리")
+                        logger.info(f"{char_name}: {item_name} 해제 → 인벤토리")
                     else:
                         # 인벤토리 가득 참 - 다시 장착
                         character.equip_item(slot, item)
-                        logger.warning(f"인벤토리 가득 참! {item.name} 해제 실패")
+                        logger.warning(f"인벤토리 가득 참! {item_name} 해제 실패")
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 캐릭터 선택 모드로 복귀
             self.mode = InventoryMode.CHARACTER_EQUIPMENT
@@ -261,7 +264,8 @@ class InventoryUI:
                 item = self.inventory.get_item(self.confirm_destroy_item)
                 if item:
                     self.inventory.remove_item(self.confirm_destroy_item)
-                    logger.info(f"{item.name} 파괴됨")
+                    item_name = getattr(item, 'name', '알 수 없는 아이템')
+                    logger.info(f"{item_name} 파괴됨")
 
                     # 커서 조정
                     if self.cursor >= len(self.inventory) and len(self.inventory) > 0:
@@ -363,11 +367,14 @@ class InventoryUI:
         if old_item:
             # 인벤토리에 되돌림
             self.inventory.add_item(old_item)
-            logger.info(f"{character.name}: {old_item.name} 해제")
+            old_item_name = getattr(old_item, 'name', '알 수 없는 아이템')
+            char_name = getattr(character, 'name', '알 수 없는 캐릭터')
+            logger.info(f"{char_name}: {old_item_name} 해제")
 
         # 새 장비 착용
         character.equip_item(slot_name, item)
-        logger.info(f"{character.name}: {item.name} 착용")
+        item_name = getattr(item, 'name', '알 수 없는 아이템')
+        logger.info(f"{char_name}: {item_name} 착용")
 
         # 인벤토리에서 제거
         self.inventory.remove_item(self.selected_item_index)
@@ -455,7 +462,6 @@ class InventoryUI:
         visible_items = []
         for i, slot in enumerate(self.inventory.slots):
             # 안전하게 item_type 속성 접근 (기본값 CONSUMABLE)
-            from src.equipment.item_system import ItemType
             current_type = getattr(slot.item, 'item_type', ItemType.CONSUMABLE)
             if self.filter_type is None or current_type == self.filter_type:
                 visible_items.append((i, slot))
@@ -470,7 +476,7 @@ class InventoryUI:
 
             # 아이템 이름 (등급 색상)
             rarity_color = getattr(item.rarity, 'color', Colors.UI_TEXT)
-            item_name = item.name
+            item_name = getattr(item, 'name', '알 수 없는 아이템')
 
             # 수량 (소비품만)
             if isinstance(item, Consumable):
@@ -553,10 +559,11 @@ class InventoryUI:
 
         # 이름 + 등급
         rarity_name = getattr(item.rarity, 'display_name', '일반')
+        item_name = getattr(item, 'name', '알 수 없는 아이템')
         console.print(
             x,
             y,
-            f"{item.name} [{rarity_name}]",
+            f"{item_name} [{rarity_name}]",
             fg=getattr(item.rarity, 'color', Colors.UI_TEXT)
         )
         y += 1
@@ -777,7 +784,8 @@ class InventoryUI:
         )
 
         # 경고 메시지
-        msg = f"'{item.name}'을(를) 파괴하시겠습니까?"
+        item_name = getattr(item, 'name', '알 수 없는 아이템')
+        msg = f"'{item_name}'을(를) 파괴하시겠습니까?"
         console.print(
             box_x + (box_width - len(msg)) // 2,
             box_y + 3,
@@ -833,7 +841,8 @@ class InventoryUI:
         )
         y += 1
 
-        item_name = f"{new_item.name} [{getattr(new_item.rarity, 'display_name', '일반')}]"
+        new_item_name = getattr(new_item, 'name', '알 수 없는 아이템')
+        item_name = f"{new_item_name} [{getattr(new_item.rarity, 'display_name', '일반')}]"
         console.print(
             box_x + 4, y,
             item_name,
