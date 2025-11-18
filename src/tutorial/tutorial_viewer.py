@@ -155,15 +155,17 @@ def run_tutorial_viewer(console: tcod.console.Console, context: tcod.context.Con
                     if event.sym == tcod.event.KeySym.ESCAPE:
                         # 메인 메뉴로
                         return
-                    elif event.sym == tcod.event.KeySym.RIGHT or event.sym == tcod.event.KeySym.RETURN:
-                        # 다음 튜토리얼
+                    elif event.sym in (tcod.event.KeySym.RIGHT, tcod.event.KeySym.RETURN, tcod.event.KeySym.KP_ENTER):
+                        # 다음 튜토리얼 (엔터 키 지원)
                         current_tutorial_index += 1
                         waiting = False
+                        break
                     elif event.sym == tcod.event.KeySym.LEFT:
                         # 이전 튜토리얼
                         if current_tutorial_index > 0:
                             current_tutorial_index -= 1
                         waiting = False
+                        break
 
     # 모든 튜토리얼 완료
     console.clear()
@@ -195,8 +197,14 @@ def run_tutorial_viewer(console: tcod.console.Console, context: tcod.context.Con
     context.present(console)
 
     # 아무 키나 누를 때까지 대기
-    for event in tcod.event.wait():
-        if isinstance(event, (tcod.event.KeyDown, tcod.event.Quit)):
-            break
+    waiting = True
+    while waiting:
+        for event in tcod.event.wait():
+            if isinstance(event, tcod.event.Quit):
+                waiting = False
+                break
+            elif isinstance(event, tcod.event.KeyDown):
+                waiting = False
+                break
 
     logger.info("튜토리얼 뷰어 종료")

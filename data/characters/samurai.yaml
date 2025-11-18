@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 12
   mp: 4
-  init_brv: 4.4
+  init_brv: 25.0
   strength: 4.6
   defense: 3.8
   magic: 2.2
@@ -23,7 +23,7 @@ stat_growth:
   luck: 3.0
   accuracy: 2.3
   evasion: 1.8
-  max_brv: 2.6
+  max_brv: 93.0
 traits:
 - id: bushido
   name: 무사도
@@ -50,7 +50,6 @@ gimmick:
   name: 거합의 도
   description: 의지를 집중하여 완벽한 발도 기술 수행. 의지 게이지로 특수 기술 사용
   max_will_gauge: 100
-
 skills:
 - quick_draw
 - cross_slash

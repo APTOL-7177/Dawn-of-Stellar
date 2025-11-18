@@ -159,7 +159,7 @@ def create_archmage_skills():
         GimmickEffect(GimmickOperation.SET, "ice_element", 0),
         GimmickEffect(GimmickOperation.SET, "lightning_element", 0)
     ]
-    ultimate.costs = [MPCost(18)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

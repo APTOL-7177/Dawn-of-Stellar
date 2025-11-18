@@ -139,7 +139,7 @@ def create_bard_skills():
         BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=5, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "melody_stacks", 0)
     ]
-    ultimate.costs = [MPCost(18)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     ultimate.cast_time = 0.8  # ATB 80% 캐스팅 (궁극기)

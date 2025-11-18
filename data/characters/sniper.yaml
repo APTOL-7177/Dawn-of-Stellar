@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 10.0
   mp: 4.2
-  init_brv: 4.0
+  init_brv: 23.0
   strength: 6.5
   defense: 2.5
   magic: 3.2
@@ -23,7 +23,7 @@ stat_growth:
   luck: 7.0
   accuracy: 5.5
   evasion: 2.0
-  max_brv: 2.4
+  max_brv: 90.0
 traits:
 - id: last_bullet
   name: 라스트 불렛
@@ -51,15 +51,14 @@ gimmick:
   description: 제한된 탄환(6발)을 관리하며 특수 탄환 활용. 재장전 필요
   max_magazine: 6
   bullet_types:
-    - normal: 기본 탄환 (배율 2.0)
-    - penetrating: 관통탄 (방어 무시 50%, 배율 2.5)
-    - explosive: 폭발탄 (광역 피해 50%, 배율 1.8)
-    - frost: 빙결탄 (빙결 상태이상, 배율 1.8)
-    - fire: 화염탄 (화상 3턴, 배율 2.0)
-    - poison: 독침탄 (독 5턴, 배율 1.5)
-    - flash: 섬광탄 (명중률 -50% 2턴)
-    - headshot: 헤드샷 탄 (크리티컬 100%, 배율 5.0)
-
+  - normal: 기본 탄환 (배율 2.0)
+  - penetrating: 관통탄 (방어 무시 50%, 배율 2.5)
+  - explosive: 폭발탄 (광역 피해 50%, 배율 1.8)
+  - frost: 빙결탄 (빙결 상태이상, 배율 1.8)
+  - fire: 화염탄 (화상 3턴, 배율 2.0)
+  - poison: 독침탄 (독 5턴, 배율 1.5)
+  - flash: 섬광탄 (명중률 -50% 2턴)
+  - headshot: 헤드샷 탄 (크리티컬 100%, 배율 5.0)
 skills:
 - sniper_precise_shot
 - sniper_double_tap

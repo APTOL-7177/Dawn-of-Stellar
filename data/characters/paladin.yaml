@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 14
   mp: 4.5
-  init_brv: 4.8
+  init_brv: 27.6
   strength: 3.5
   defense: 4.5
   magic: 3.0
@@ -23,7 +23,7 @@ stat_growth:
   luck: 3.0
   accuracy: 1.6
   evasion: 1.2
-  max_brv: 2.9
+  max_brv: 99.0
 traits:
 - id: divine_protection
   name: 신성한 가호
@@ -50,7 +50,6 @@ gimmick:
   name: 성스러운 힘
   description: 적을 공격하고 아군을 치유하며 성력 획득. 성력으로 신성한 기술 사용
   max_holy_power: 100
-
 skills:
 - holy_strike
 - divine_shield

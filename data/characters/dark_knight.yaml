@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 12
   mp: 4
-  init_brv: 4.6
+  init_brv: 26.4
   strength: 5.0
   defense: 3.2
   magic: 2.5
@@ -23,7 +23,7 @@ stat_growth:
   luck: 2.2
   accuracy: 2.0
   evasion: 1.5
-  max_brv: 2.8
+  max_brv: 97.6
 traits:
 - id: lifesteal
   name: 생명 흡수
@@ -50,7 +50,6 @@ gimmick:
   name: 어둠의 힘
   description: 자신의 HP를 소모하여 어둠의 힘을 얻고 강력한 암흑 마법 사용
   max_darkness: 100
-
 skills:
 - dark_slash
 - blood_drain

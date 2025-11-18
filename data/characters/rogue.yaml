@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 10
   mp: 4
-  init_brv: 3.9
+  init_brv: 22.0
   strength: 4.0
   defense: 2.5
   magic: 2.0
@@ -23,7 +23,7 @@ stat_growth:
   luck: 4.0
   accuracy: 2.5
   evasion: 2.0
-  max_brv: 2.3
+  max_brv: 88.4
 traits:
 - id: shadow_step
   name: 그림자 걸음
@@ -50,7 +50,6 @@ gimmick:
   name: 절도와 회피
   description: 적의 아이템을 훔치고 회피 태세를 유지. 훔친 아이템으로 특수 기술 사용
   max_stolen_items: 10
-
 skills:
 - backstab
 - shadow_strike

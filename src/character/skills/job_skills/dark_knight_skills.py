@@ -136,7 +136,7 @@ def create_dark_knight_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
         GimmickEffect(GimmickOperation.SET, "darkness", 0)
     ]
-    ultimate.costs = [MPCost(18)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

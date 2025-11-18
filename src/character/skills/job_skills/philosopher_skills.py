@@ -145,7 +145,7 @@ def create_philosopher_skills():
         BuffEffect(BuffType.SPEED_UP, 0.5, duration=5),
         # 선택 누적 유지 (초기화하지 않음)
     ]
-    ultimate.costs = [MPCost(18)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True

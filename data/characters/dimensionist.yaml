@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 8.8
   mp: 6.5
-  init_brv: 3.4
+  init_brv: 19.6
   strength: 2.2
   defense: 2.0
   magic: 4.8
@@ -23,7 +23,7 @@ stat_growth:
   luck: 5.5
   accuracy: 1.8
   evasion: 2.5
-  max_brv: 2.0
+  max_brv: 84.4
 traits:
 - id: gauge_per_turn
   name: 확률 왜곡 충전
@@ -31,21 +31,18 @@ traits:
   type: trigger
   effects:
     distortion_per_turn: 10
-
 - id: critical_charge
   name: 크리티컬 충전
   description: 크리티컬 공격 시 확률 왜곡 게이지 +20
   type: trigger
   effects:
     distortion_on_crit: 20
-
 - id: luck_amplifier
   name: 행운 증폭
   description: 행운 스탯에 비례하여 게이지 추가 획득 (행운 10당 +1)
   type: passive
   effects:
     distortion_luck_bonus: 0.1
-
 - id: probability_master
   name: 확률의 달인
   description: 게이지 50+ 시 크리티컬 확률 +30%, 회피율 +20%
@@ -55,7 +52,6 @@ traits:
   effects:
     critical_rate_bonus: 0.3
     evasion_bonus: 0.2
-
 - id: dimensional_instability
   name: 차원 불안정
   description: 게이지 80+ 시 모든 공격 크리티컬 확률 +50%, 회피율 +25%, 데미지 +20%
@@ -66,7 +62,6 @@ traits:
     critical_rate_bonus: 0.5
     evasion_bonus: 0.25
     damage_multiplier: 1.2
-
 gimmick:
   type: probability_distortion
   name: 확률 왜곡 게이지
@@ -83,7 +78,6 @@ gimmick:
     evasion_boost: 30
     retry: 50
     parallel_universe: 100
-
 skills:
 - dimension_slash
 - teleport_strike

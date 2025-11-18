@@ -146,7 +146,7 @@ def create_druid_skills():
         BuffEffect(BuffType.SPEED_UP, 0.6, duration=5),
         GimmickEffect(GimmickOperation.SET, "nature_points", 5)
     ]
-    ultimate.costs = [MPCost(18)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

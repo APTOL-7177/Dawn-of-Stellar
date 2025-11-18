@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 9.5
   mp: 5.8
-  init_brv: 4.0
+  init_brv: 22.6
   strength: 2.8
   defense: 2.5
   magic: 4.0
@@ -23,7 +23,7 @@ stat_growth:
   luck: 4.2
   accuracy: 2.0
   evasion: 1.8
-  max_brv: 2.4
+  max_brv: 89.2
 traits:
 - id: potion_mastery
   name: 포션 제조
@@ -50,7 +50,6 @@ gimmick:
   name: 연금술 조합
   description: 포션을 조합하고 투척하여 다양한 효과 발동
   max_potion_stock: 10
-
 skills:
 - throw_potion
 - acid_flask

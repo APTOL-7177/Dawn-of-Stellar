@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 15
   mp: 2.5
-  init_brv: 5.1
+  init_brv: 29.0
   strength: 6.0
   defense: 2.0
   magic: 1.5
@@ -23,7 +23,7 @@ stat_growth:
   luck: 2.5
   accuracy: 2.0
   evasion: 1.0
-  max_brv: 3.1
+  max_brv: 101.0
 traits:
 - id: madness_threshold
   name: 광기 역치
@@ -31,7 +31,6 @@ traits:
   type: passive
   effects:
     madness_calculation: hp_based
-
 - id: berserker_mode
   name: 광전사 모드
   description: 광기 30-70 시 공격력 +60%, 속도 +30%
@@ -42,7 +41,6 @@ traits:
   effects:
     attack_multiplier: 1.6
     speed_multiplier: 1.3
-
 - id: danger_zone
   name: 위험 구간
   description: 광기 71-99 시 공격력 +100%, 크리티컬 +30%, 받는 피해 +50%
@@ -54,7 +52,6 @@ traits:
     attack_multiplier: 2.0
     critical_rate_bonus: 0.3
     damage_taken_multiplier: 1.5
-
 - id: controlled_rampage
   name: 통제된 폭주
   description: 광기 100 시 2턴간 공격력 +200%, 크리티컬 확률 +50%, 받는 데미지 +30% (통제 가능, 무작위 공격 없음)
@@ -66,7 +63,6 @@ traits:
     critical_rate_bonus: 0.5
     damage_taken_multiplier: 1.3
     duration: 2
-
 - id: pain_tolerance
   name: 고통 내성
   description: HP 30% 이하 시 받는 피해 -20%
@@ -75,7 +71,6 @@ traits:
     hp_percent_max: 0.3
   effects:
     damage_taken_multiplier: 0.8
-
 gimmick:
   type: madness_threshold
   name: 광기 역치 시스템
@@ -86,7 +81,6 @@ gimmick:
   optimal_max: 70
   danger_min: 71
   rampage_threshold: 100
-
 skills:
 - berserker_slash
 - berserker_smash

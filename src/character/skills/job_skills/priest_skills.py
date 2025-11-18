@@ -139,7 +139,7 @@ def create_priest_skills():
         HealEffect(HealType.HP, percentage=0.3, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "judgment_points", 6)
     ]
-    ultimate.costs = [MPCost(18)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

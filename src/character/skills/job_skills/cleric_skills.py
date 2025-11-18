@@ -140,7 +140,7 @@ def create_cleric_skills():
         DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "faith_points", "multiplier": 0.3}, stat_type="magical"),
         GimmickEffect(GimmickOperation.SET, "faith_points", 0)
     ]
-    ultimate.costs = [MPCost(18), StackCost("faith_points", 1)]
+    ultimate.costs = [MPCost(30), StackCost("faith_points", 1)]
     ultimate.is_ultimate = True
     ultimate.target_type = "party"
     ultimate.is_aoe = True

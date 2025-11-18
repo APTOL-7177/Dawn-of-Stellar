@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 9.5
   mp: 5.8
-  init_brv: 3.3
+  init_brv: 19.0
   strength: 3.5
   defense: 2.5
   magic: 6.0
@@ -23,7 +23,7 @@ stat_growth:
   luck: 4.5
   accuracy: 3.8
   evasion: 3.2
-  max_brv: 2.0
+  max_brv: 84.0
 gimmick:
   type: multithread_system
   name: 멀티스레드 시스템
@@ -51,7 +51,6 @@ gimmick:
       name: 스파이웨어
       effect: 적 정보 획득
       mp_cost: 8
-
 traits:
 - id: multithread_master
   name: 멀티스레드 마스터
@@ -59,14 +58,12 @@ traits:
   type: passive
   effects:
     all_stats_per_program: 0.15
-
 - id: cpu_optimization
   name: CPU 최적화
   description: 프로그램 유지 비용 -2 MP/턴 (5→3)
   type: passive
   effects:
     mp_cost_reduction: 2
-
 - id: overclocking
   name: 오버클러킹
   description: 프로그램 3개 동시 실행 시 속도 +40%, 크리티컬 +20%
@@ -76,14 +73,12 @@ traits:
   effects:
     speed_multiplier: 1.4
     critical_rate_bonus: 0.2
-
 - id: kernel_panic
   name: 커널 패닉
   description: 적 프로그램 종료 시 MP 10 회복
   type: trigger
   effects:
     mp_gain_on_terminate: 10
-
 - id: zero_day_exploit
   name: 제로데이 익스플로잇
   description: 모든 프로그램 동시 실행 시 공격력 +50%
@@ -92,7 +87,6 @@ traits:
     all_programs_active: true
   effects:
     attack_multiplier: 1.5
-
 skills:
 - hacker_port_scan
 - hacker_data_breach

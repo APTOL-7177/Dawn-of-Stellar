@@ -125,7 +125,7 @@ def create_archer_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
         BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=5),
     ]
-    ultimate.costs = [MPCost(18)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.target_type = "party"
     ultimate.is_aoe = True

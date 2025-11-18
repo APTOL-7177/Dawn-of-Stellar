@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 11
   mp: 3.5
-  init_brv: 4.1
+  init_brv: 23.6
   strength: 4.8
   defense: 2.8
   magic: 1.8
@@ -23,7 +23,7 @@ stat_growth:
   luck: 3.5
   accuracy: 2.8
   evasion: 1.8
-  max_brv: 2.5
+  max_brv: 91.0
 traits:
 - id: support_fire_master
   name: 지원 사격의 달인
@@ -33,7 +33,6 @@ traits:
     support_fire_combo_min: 2
   effects:
     damage_bonus: 0.2
-
 - id: perfect_support
   name: 완벽한 지원
   description: 연속 지원 사격 7회 이상 시 데미지 +100%, 확정 크리티컬
@@ -43,14 +42,12 @@ traits:
   effects:
     damage_multiplier: 2.0
     guaranteed_critical: true
-
 - id: tactical_marksman
   name: 전술적 사격수
   description: 마킹된 아군 수에 비례하여 명중률 +10% (최대 +30%)
   type: passive
   effects:
     accuracy_per_mark: 0.1
-
 - id: combo_momentum
   name: 콤보 모멘텀
   description: 연속 지원 사격 시 콤보가 높을수록 명중률과 크리티컬 확률 증가 (콤보당 +3%)
@@ -58,7 +55,6 @@ traits:
   effects:
     accuracy_per_combo: 0.03
     critical_per_combo: 0.03
-
 - id: overwatch
   name: 감시 태세
   description: 마킹된 아군 3명 이상 시 회피율 +20%, 속도 +15%
@@ -68,7 +64,6 @@ traits:
   effects:
     evasion_multiplier: 1.2
     speed_multiplier: 1.15
-
 gimmick:
   type: support_fire
   name: 지원사격 시스템
@@ -76,19 +71,52 @@ gimmick:
   max_marks: 3
   shots_per_mark: 3
   arrow_types:
-    normal: {name: 일반 화살, multiplier: 1.5, mp_cost: 0}
-    piercing: {name: 관통 화살, multiplier: 1.8, defense_ignore: 0.3, mp_cost: 10}
-    fire: {name: 화염 화살, multiplier: 1.6, burn_duration: 2, mp_cost: 10}
-    ice: {name: 빙결 화살, multiplier: 1.4, slow_percent: 0.3, mp_cost: 10}
-    poison: {name: 독 화살, multiplier: 1.3, poison_duration: 3, mp_cost: 8}
-    explosive: {name: 폭발 화살, multiplier: 2.0, aoe_percent: 0.5, mp_cost: 15}
-    holy: {name: 신성 화살, multiplier: 1.7, undead_bonus: 2.0, mp_cost: 12}
+    normal:
+      name: 일반 화살
+      multiplier: 1.5
+      mp_cost: 0
+    piercing:
+      name: 관통 화살
+      multiplier: 1.8
+      defense_ignore: 0.3
+      mp_cost: 10
+    fire:
+      name: 화염 화살
+      multiplier: 1.6
+      burn_duration: 2
+      mp_cost: 10
+    ice:
+      name: 빙결 화살
+      multiplier: 1.4
+      slow_percent: 0.3
+      mp_cost: 10
+    poison:
+      name: 독 화살
+      multiplier: 1.3
+      poison_duration: 3
+      mp_cost: 8
+    explosive:
+      name: 폭발 화살
+      multiplier: 2.0
+      aoe_percent: 0.5
+      mp_cost: 15
+    holy:
+      name: 신성 화살
+      multiplier: 1.7
+      undead_bonus: 2.0
+      mp_cost: 12
   combo_bonuses:
-    combo_2: {damage_bonus: 0.2}
-    combo_3: {damage_bonus: 0.4, crit_bonus: 0.2}
-    combo_5: {damage_bonus: 0.6, crit_bonus: 0.4}
-    combo_7: {damage_bonus: 1.0, guaranteed_crit: true}
-
+    combo_2:
+      damage_bonus: 0.2
+    combo_3:
+      damage_bonus: 0.4
+      crit_bonus: 0.2
+    combo_5:
+      damage_bonus: 0.6
+      crit_bonus: 0.4
+    combo_7:
+      damage_bonus: 1.0
+      guaranteed_crit: true
 skills:
 - archer_direct_shot
 - archer_power_shot

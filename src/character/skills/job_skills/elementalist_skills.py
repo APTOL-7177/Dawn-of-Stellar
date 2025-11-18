@@ -141,7 +141,7 @@ def create_elementalist_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=5),
         BuffEffect(BuffType.SPEED_UP, 0.4, duration=5)
     ]
-    ultimate.costs = [MPCost(15)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True

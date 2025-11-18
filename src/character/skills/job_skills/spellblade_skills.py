@@ -140,7 +140,7 @@ def create_spellblade_skills():
         BuffEffect(BuffType.MAGIC_UP, 0.7, duration=5),
         GimmickEffect(GimmickOperation.SET, "mana_blade", 0)
     ]
-    ultimate.costs = [MPCost(18), StackCost("mana_blade", 1)]
+    ultimate.costs = [MPCost(30), StackCost("mana_blade", 1)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "541"

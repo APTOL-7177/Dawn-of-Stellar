@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 11.5
   mp: 3.8
-  init_brv: 4.2
+  init_brv: 24.0
   strength: 4.2
   defense: 3.0
   magic: 2.0
@@ -23,7 +23,7 @@ stat_growth:
   luck: 5.0
   accuracy: 2.2
   evasion: 2.0
-  max_brv: 2.5
+  max_brv: 91.6
 traits:
 - id: treasure_hunter
   name: 보물 사냥꾼
@@ -51,7 +51,6 @@ gimmick:
   description: 전투에서 골드를 획득하고 소모하여 강력한 해적 기술 사용
   gold_per_hit: 10
   max_gold: 1000
-
 skills:
 - cutlass_slash
 - pistol_shot

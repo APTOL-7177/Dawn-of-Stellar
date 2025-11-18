@@ -139,7 +139,7 @@ def create_alchemist_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5),
         GimmickEffect(GimmickOperation.SET, "potion_stock", 10)
     ]
-    ultimate.costs = [MPCost(18)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.target_type = "party"
     ultimate.is_aoe = True

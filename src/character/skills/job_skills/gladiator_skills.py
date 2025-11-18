@@ -130,7 +130,7 @@ def create_gladiator_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5),
         BuffEffect(BuffType.CRITICAL_UP, 0.6, duration=5)
     ]
-    ultimate.costs = [MPCost(15)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.sfx = "694"  # FFVII ultimate glory sound
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

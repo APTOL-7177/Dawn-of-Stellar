@@ -121,43 +121,40 @@ def main() -> int:
         from src.persistence.meta_progress import get_meta_progress, save_meta_progress
         meta_progress = get_meta_progress()
 
-        # 인트로 스토리 표시 (최초 1회)
-        if not meta_progress.intro_shown:
-            from src.ui.intro_story import show_intro_story
-            logger.info("인트로 스토리 시작")
-            show_intro_story(display.console, display.context)
-            meta_progress.intro_shown = True
-            save_meta_progress()
-            logger.info("인트로 스토리 완료")
+        # 인트로 스토리 표시 (항상 표시)
+        from src.ui.intro_story import show_intro_story
+        logger.info("인트로 스토리 시작")
+        show_intro_story(display.console, display.context)
+        logger.info("인트로 스토리 완료")
 
-            # 인트로 후 튜토리얼 시작 여부 묻기 (최초 1회)
-            if not meta_progress.tutorial_offered:
-                from src.tutorial.tutorial_integration import TutorialIntegration
+        # 인트로 후 튜토리얼 시작 여부 묻기 (최초 1회)
+        if not meta_progress.tutorial_offered:
+            from src.tutorial.tutorial_integration import TutorialIntegration
 
-                # 튜토리얼 통합 시스템 초기화
-                tutorial_integration = TutorialIntegration(display.console, display.context)
+            # 튜토리얼 통합 시스템 초기화
+            tutorial_integration = TutorialIntegration(display.console, display.context)
 
-                # 튜토리얼 시작 여부 묻기
-                if tutorial_integration._ask_start_tutorial():
-                    logger.info("사용자가 튜토리얼 시작 선택")
+            # 튜토리얼 시작 여부 묻기
+            if tutorial_integration._ask_start_tutorial():
+                logger.info("사용자가 튜토리얼 시작 선택")
 
-                    # 튜토리얼 인트로 표시
-                    tutorial_integration.show_tutorial_intro()
+                # 튜토리얼 인트로 표시
+                tutorial_integration.show_tutorial_intro()
 
-                    # 플레이 가능한 튜토리얼 실행
-                    from src.tutorial.tutorial_playable import run_playable_tutorial
-                    tutorial_completed = run_playable_tutorial(display.console, display.context)
+                # 플레이 가능한 튜토리얼 실행
+                from src.tutorial.tutorial_playable import run_playable_tutorial
+                tutorial_completed = run_playable_tutorial(display.console, display.context)
 
-                    if tutorial_completed:
-                        logger.info("튜토리얼 완료")
-                    else:
-                        logger.info("튜토리얼 중단")
+                if tutorial_completed:
+                    logger.info("튜토리얼 완료")
                 else:
-                    logger.info("사용자가 튜토리얼 건너뛰기 선택")
+                    logger.info("튜토리얼 중단")
+            else:
+                logger.info("사용자가 튜토리얼 건너뛰기 선택")
 
-                meta_progress.tutorial_offered = True
-                save_meta_progress()
-                logger.info("튜토리얼 권장 상태 저장 완료")
+            meta_progress.tutorial_offered = True
+            save_meta_progress()
+            logger.info("튜토리얼 권장 상태 저장 완료")
 
         # 메인 게임 루프
         while True:

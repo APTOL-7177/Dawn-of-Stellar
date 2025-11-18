@@ -113,6 +113,10 @@ class GimmickUpdater:
             max_cheer = getattr(character, 'max_cheer', 100)
             character.cheer = min(max_cheer, cheer + 5)
             logger.debug(f"{character.name} 환호 증가: +5 (총: {character.cheer})")
+        
+        # 전사 - 스탠스 시스템 효과 적용
+        elif gimmick_type == "stance_system":
+            GimmickUpdater._apply_stance_effects(character)
 
     @staticmethod
     def on_skill_use(character, skill):
@@ -134,6 +138,10 @@ class GimmickUpdater:
             if skill.metadata.get("breaks_combo", False):
                 character.support_fire_combo = 0
                 logger.debug(f"{character.name} 직접 공격으로 지원 콤보 초기화")
+        elif gimmick_type == "stance_system":
+            # 스탠스 변경 스킬 사용 시 스탠스 효과 재적용
+            if skill.metadata.get("stance"):
+                GimmickUpdater._apply_stance_effects(character)
 
     @staticmethod
     def on_ally_attack(attacker, all_allies, target=None):
@@ -333,19 +341,34 @@ class GimmickUpdater:
             character.madness = min(character.max_madness, character.madness + 10)
             logger.warning(f"{character.name} 광기 위험 증가: +10 (총: {character.madness})")
 
-        # 사망 임계치 체크
-        if character.madness >= character.death_threshold:
-            logger.critical(f"{character.name} 광기 100 도달! 사망 위험!")
+        # 사망 임계치 체크 (rampage_threshold 사용)
+        rampage_threshold = getattr(character, 'rampage_threshold', 100)
+        if character.madness >= rampage_threshold:
+            logger.critical(f"{character.name} 광기 {rampage_threshold} 도달! 사망 위험!")
             # 실제 사망 처리는 combat_manager에서 수행
 
     @staticmethod
     def _update_thirst_gauge(character):
         """뱀파이어: 갈증 게이지 시스템 업데이트"""
-        # 굶주림 구간에서 HP 지속 감소
-        if character.thirst >= character.starving_min:
+        thirst = getattr(character, 'thirst', 0)
+        
+        # 갈증 100: 치명적 리스크 (HP 10% 감소, MP 20% 감소)
+        if thirst >= 100:
+            critical_hp_loss = int(character.max_hp * 0.10)
+            character.current_hp = max(1, character.current_hp - critical_hp_loss)
+            mp_loss = int(character.max_mp * 0.2)
+            character.current_mp = max(0, character.current_mp - mp_loss)
+            logger.critical(f"{character.name} 최대 갈증! HP -{critical_hp_loss}, MP -{mp_loss} (총 HP: {character.current_hp}, MP: {character.current_mp})")
+        # 갈증 95-99: HP 지속 감소 (8%)
+        elif thirst >= 95:
+            hp_loss = int(character.max_hp * 0.08)
+            character.current_hp = max(1, character.current_hp - hp_loss)
+            logger.warning(f"{character.name} 혈액 광란: HP -{hp_loss} (총 HP: {character.current_hp})")
+        # 갈증 90-94: HP 지속 감소 (5%)
+        elif thirst >= 90:
             hp_loss = int(character.max_hp * 0.05)
             character.current_hp = max(1, character.current_hp - hp_loss)
-            logger.warning(f"{character.name} 굶주림: HP -{hp_loss} (총 HP: {character.current_hp})")
+            logger.warning(f"{character.name} 극심한 갈증: HP -{hp_loss} (총 HP: {character.current_hp})")
 
     @staticmethod
     def _update_probability_distortion(character):
@@ -426,8 +449,132 @@ class GimmickUpdater:
     @staticmethod
     def _update_stance_system(character):
         """전사: 자세 시스템 업데이트"""
-        # 자세는 스킬로만 변경, 자동 업데이트 없음
-        pass
+        # 턴 종료 시 스탠스별 효과 처리
+        stance = getattr(character, 'current_stance', 0)
+        
+        # 문자열인 경우 정수로 변환
+        if isinstance(stance, str):
+            stance_id_to_index = {
+                "balanced": 0,
+                "attack": 1,
+                "defense": 2,
+                "berserker": 4,
+                "guardian": 5,
+                "speed": 6
+            }
+            stance = stance_id_to_index.get(stance, 0)
+        
+        # 광전사: 매턴 피해
+        if stance == 4:  # berserker
+            if hasattr(character, 'max_hp'):
+                damage = int(character.max_hp * 0.05)  # 최대 HP의 5%
+                character.current_hp = max(1, character.current_hp - damage)
+                logger.info(f"{character.name} 광전사 자세: 매턴 피해 -{damage} HP")
+        
+        # 수호자: HP/MP 재생
+        elif stance == 5:  # guardian
+            if hasattr(character, 'max_hp') and hasattr(character, 'max_mp'):
+                hp_regen = int(character.max_hp * 0.08)  # 최대 HP의 8%
+                mp_regen = int(character.max_mp * 0.10)  # 최대 MP의 10%
+                old_hp = character.current_hp
+                old_mp = character.current_mp
+                character.current_hp = min(character.max_hp, character.current_hp + hp_regen)
+                character.current_mp = min(character.max_mp, character.current_mp + mp_regen)
+                actual_hp = character.current_hp - old_hp
+                actual_mp = character.current_mp - old_mp
+                if actual_hp > 0 or actual_mp > 0:
+                    logger.info(f"{character.name} 수호자 자세: HP +{actual_hp}, MP +{actual_mp}")
+    
+    @staticmethod
+    def _apply_stance_effects(character):
+        """전사: 스탠스 효과를 StatManager에 적용"""
+        if not hasattr(character, 'stat_manager'):
+            return
+        
+        stance = getattr(character, 'current_stance', 0)
+        
+        # 문자열인 경우 정수로 변환
+        if isinstance(stance, str):
+            stance_id_to_index = {
+                "balanced": 0,
+                "attack": 1,
+                "defense": 2,
+                "berserker": 4,
+                "guardian": 5,
+                "speed": 6
+            }
+            stance = stance_id_to_index.get(stance, 0)
+        
+        from src.character.stats import Stats
+        
+        # 기존 스탠스 보너스 제거
+        for stat_name in [Stats.STRENGTH, Stats.DEFENSE, Stats.SPIRIT, Stats.SPEED]:
+            character.stat_manager.remove_bonus(stat_name, "stance")
+        
+        # 스탠스별 효과 적용
+        if stance == 0:  # 중립 (balanced)
+            # 모든 스탯 그대로 - 보너스 없음
+            pass
+        
+        elif stance == 1:  # 공격 (attack)
+            # 공격+40%, 방,마방-25%
+            base_attack = character.stat_manager.get_value(Stats.STRENGTH)
+            base_defense = character.stat_manager.get_value(Stats.DEFENSE)
+            base_magic_def = character.stat_manager.get_value(Stats.SPIRIT)
+            
+            character.stat_manager.add_bonus(Stats.STRENGTH, "stance", base_attack * 0.40)
+            character.stat_manager.add_bonus(Stats.DEFENSE, "stance", -base_defense * 0.25)
+            character.stat_manager.add_bonus(Stats.SPIRIT, "stance", -base_magic_def * 0.25)
+        
+        elif stance == 2:  # 방어 (defense)
+            # 방,마방+60%, 공-30%, 속도-30%
+            base_attack = character.stat_manager.get_value(Stats.STRENGTH)
+            base_defense = character.stat_manager.get_value(Stats.DEFENSE)
+            base_magic_def = character.stat_manager.get_value(Stats.SPIRIT)
+            base_speed = character.stat_manager.get_value(Stats.SPEED)
+            
+            character.stat_manager.add_bonus(Stats.DEFENSE, "stance", base_defense * 0.60)
+            character.stat_manager.add_bonus(Stats.SPIRIT, "stance", base_magic_def * 0.60)
+            character.stat_manager.add_bonus(Stats.STRENGTH, "stance", -base_attack * 0.30)
+            character.stat_manager.add_bonus(Stats.SPEED, "stance", -base_speed * 0.30)
+        
+        elif stance == 4:  # 광전사 (berserker)
+            # 속도,공격+55%, 방,마방-45%
+            base_attack = character.stat_manager.get_value(Stats.STRENGTH)
+            base_defense = character.stat_manager.get_value(Stats.DEFENSE)
+            base_magic_def = character.stat_manager.get_value(Stats.SPIRIT)
+            base_speed = character.stat_manager.get_value(Stats.SPEED)
+            
+            character.stat_manager.add_bonus(Stats.STRENGTH, "stance", base_attack * 0.55)
+            character.stat_manager.add_bonus(Stats.SPEED, "stance", base_speed * 0.55)
+            character.stat_manager.add_bonus(Stats.DEFENSE, "stance", -base_defense * 0.45)
+            character.stat_manager.add_bonus(Stats.SPIRIT, "stance", -base_magic_def * 0.45)
+        
+        elif stance == 5:  # 수호자 (guardian)
+            # 모든 스탯 15% 감소
+            base_attack = character.stat_manager.get_value(Stats.STRENGTH)
+            base_defense = character.stat_manager.get_value(Stats.DEFENSE)
+            base_magic = character.stat_manager.get_value(Stats.MAGIC)
+            base_magic_def = character.stat_manager.get_value(Stats.SPIRIT)
+            base_speed = character.stat_manager.get_value(Stats.SPEED)
+            
+            character.stat_manager.add_bonus(Stats.STRENGTH, "stance", -base_attack * 0.15)
+            character.stat_manager.add_bonus(Stats.DEFENSE, "stance", -base_defense * 0.15)
+            character.stat_manager.add_bonus(Stats.MAGIC, "stance", -base_magic * 0.15)
+            character.stat_manager.add_bonus(Stats.SPIRIT, "stance", -base_magic_def * 0.15)
+            character.stat_manager.add_bonus(Stats.SPEED, "stance", -base_speed * 0.15)
+        
+        elif stance == 6:  # 속도 (speed)
+            # 속도+80%, 방,마방,공-25%
+            base_attack = character.stat_manager.get_value(Stats.STRENGTH)
+            base_defense = character.stat_manager.get_value(Stats.DEFENSE)
+            base_magic_def = character.stat_manager.get_value(Stats.SPIRIT)
+            base_speed = character.stat_manager.get_value(Stats.SPEED)
+            
+            character.stat_manager.add_bonus(Stats.SPEED, "stance", base_speed * 0.80)
+            character.stat_manager.add_bonus(Stats.STRENGTH, "stance", -base_attack * 0.25)
+            character.stat_manager.add_bonus(Stats.DEFENSE, "stance", -base_defense * 0.25)
+            character.stat_manager.add_bonus(Stats.SPIRIT, "stance", -base_magic_def * 0.25)
 
     @staticmethod
     def _update_iaijutsu_system(character):

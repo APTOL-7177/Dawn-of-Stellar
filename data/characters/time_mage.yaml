@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 8.5
   mp: 7
-  init_brv: 3.5
+  init_brv: 20.0
   strength: 2.0
   defense: 1.8
   magic: 5.0
@@ -23,7 +23,7 @@ stat_growth:
   luck: 4.0
   accuracy: 2.0
   evasion: 2.2
-  max_brv: 2.1
+  max_brv: 85.0
 traits:
 - id: time_balancer
   name: 시간의 균형자
@@ -54,7 +54,6 @@ gimmick:
   optimal_point: 0
   past_threshold: -2
   future_threshold: 2
-
 skills:
 - time_mage_slow
 - time_mage_stop

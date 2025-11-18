@@ -129,7 +129,7 @@ def create_sword_saint_skills():
         DamageEffect(DamageType.HP, 2.0),
         GimmickEffect(GimmickOperation.SET, "sword_aura", 0)
     ]
-    ultimate.costs = [MPCost(18), StackCost("sword_aura", 1)]
+    ultimate.costs = [MPCost(30), StackCost("sword_aura", 1)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "611"

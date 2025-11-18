@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 11
   mp: 3.8
-  init_brv: 4.5
+  init_brv: 25.6
   strength: 5.5
   defense: 2.8
   magic: 2.0
@@ -23,7 +23,7 @@ stat_growth:
   luck: 3.8
   accuracy: 2.8
   evasion: 1.8
-  max_brv: 2.7
+  max_brv: 94.0
 traits:
 - id: sword_energy
   name: 검기 충격
@@ -50,7 +50,6 @@ gimmick:
   name: 검기
   description: 검기를 축적하여 강력한 검술 사용. 검기는 공격 시 자동 획득
   max_sword_aura: 5
-
 skills:
 - swift_strike
 - blade_storm

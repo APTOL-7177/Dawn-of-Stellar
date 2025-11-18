@@ -138,7 +138,7 @@ def create_knight_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5),
         GimmickEffect(GimmickOperation.SET, "duty_stacks", 5)
     ]
-    ultimate.costs = [MPCost(18)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "455"

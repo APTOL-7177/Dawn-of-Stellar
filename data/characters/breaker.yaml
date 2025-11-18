@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 13.0
   mp: 3.8
-  init_brv: 4.6
+  init_brv: 26.0
   strength: 6.2
   defense: 4.5
   magic: 2.5
@@ -23,7 +23,7 @@ stat_growth:
   luck: 4.2
   accuracy: 3.8
   evasion: 2.0
-  max_brv: 2.8
+  max_brv: 95.0
 gimmick:
   type: break_system
   name: 브레이크 특화

@@ -118,7 +118,7 @@ def create_monk_skills():
                     gimmick_bonus={"field": "ki_gauge", "multiplier": -0.01, "invert": True}),  # 100-기 값만큼 피해
         GimmickEffect(GimmickOperation.SET, "ki_gauge", 50)  # 균형으로 복귀
     ]
-    taichi_ultimate.costs = [MPCost(15)]
+    taichi_ultimate.costs = [MPCost(30)]
     taichi_ultimate.is_ultimate = True
     # taichi_ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     taichi_ultimate.target_type = "single_enemy"

@@ -121,7 +121,9 @@ class PartySetup:
 
         if not name_file.exists():
             self.logger.warning("name.txt 파일이 없습니다. 기본 이름을 사용합니다.")
-            return ["전사", "아크메이지", "도적", "성기사"]
+            # 기본 랜덤 이름 풀 (직업명이 아닌 실제 이름)
+            return ["아리아", "카일", "엘리나", "다리우스", "루나", "제이든", "세라", "라이언", 
+                    "미아", "알렉스", "소피아", "마커스", "이리스", "테오", "엠마", "노아"]
 
         try:
             with open(name_file, 'r', encoding='utf-8') as f:
@@ -133,14 +135,18 @@ class PartySetup:
 
             if not names:
                 self.logger.warning("name.txt에서 이름을 찾을 수 없습니다.")
-                return ["전사", "아크메이지", "도적", "성기사"]
+                # 기본 랜덤 이름 풀 (직업명이 아닌 실제 이름)
+                return ["아리아", "카일", "엘리나", "다리우스", "루나", "제이든", "세라", "라이언", 
+                        "미아", "알렉스", "소피아", "마커스", "이리스", "테오", "엠마", "노아"]
 
             self.logger.info(f"랜덤 이름 {len(names)}개 로드 완료")
             return names
 
         except Exception as e:
             self.logger.error(f"name.txt 로드 실패: {e}")
-            return ["전사", "아크메이지", "도적", "성기사"]
+            # 기본 랜덤 이름 풀 (직업명이 아닌 실제 이름)
+            return ["아리아", "카일", "엘리나", "다리우스", "루나", "제이든", "세라", "라이언", 
+                    "미아", "알렉스", "소피아", "마커스", "이리스", "테오", "엠마", "노아"]
 
     def _create_job_menu(self):
         """직업 선택 메뉴 생성"""

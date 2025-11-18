@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 8
   mp: 7.5
-  init_brv: 3.6
+  init_brv: 20.6
   strength: 1.8
   defense: 1.5
   magic: 5.2
@@ -23,7 +23,7 @@ stat_growth:
   luck: 2.0
   accuracy: 2.2
   evasion: 1.8
-  max_brv: 2.2
+  max_brv: 86.4
 traits:
 - id: undead_commander
   name: 언데드 지휘관
@@ -33,28 +33,24 @@ traits:
     undead_count_min: 3
   effects:
     undead_power_multiplier: 1.5
-
 - id: death_harvest
   name: 죽음의 수확
   description: 적 처치 시 시체 자동 획득 (스켈레톤 소환 재료)
   type: trigger
   effects:
     auto_corpse_gain: true
-
 - id: necromantic_power
   name: 사령술의 힘
   description: 언데드 1마리당 마법 공격력 +10%
   type: passive
   effects:
     magic_per_undead: 0.1
-
 - id: undead_sacrifice
   name: 언데드 희생
   description: 언데드 파괴 시 MP 20 회복
   type: trigger
   effects:
     mp_gain_on_death: 20
-
 - id: legion_master
   name: 군단 숙련
   description: 각 언데드 타입 1마리씩 보유 시 모든 능력치 +20%
@@ -63,7 +59,6 @@ traits:
     all_undead_types: true
   effects:
     all_stats_multiplier: 1.2
-
 gimmick:
   type: undead_legion
   name: 언데드 군단 관리
@@ -86,7 +81,6 @@ gimmick:
       effect: 마법 공격력 +20%, 회피율 +10%
       hp_cost: 20
       summon_cost: 25
-
 skills:
 - necromancer_shadow_bolt
 - necromancer_drain_life

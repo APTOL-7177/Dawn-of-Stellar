@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 11.5
   mp: 5
-  init_brv: 4.1
+  init_brv: 23.4
   strength: 4.2
   defense: 3.0
   magic: 4.2
@@ -23,7 +23,7 @@ stat_growth:
   luck: 3.5
   accuracy: 2.2
   evasion: 1.8
-  max_brv: 2.5
+  max_brv: 90.6
 traits:
 - id: magic_blade_unity
   name: 마검 일체
@@ -50,7 +50,6 @@ gimmick:
   name: 마력 부여
   description: 검에 마력을 부여하여 원소 속성 공격 수행
   max_mana_blade: 100
-
 skills:
 - magic_slash
 - enchant_blade

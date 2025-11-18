@@ -120,7 +120,7 @@ def create_engineer_skills():
                     gimmick_bonus={"field": "heat", "multiplier": 0.015}),  # 열 1당 +1.5% 피해
         GimmickEffect(GimmickOperation.ADD, "heat", 60, max_value=100)
     ]
-    mega_blaster.costs = [MPCost(15)]
+    mega_blaster.costs = [MPCost(30)]
     mega_blaster.is_ultimate = True
     # mega_blaster.cooldown = 8  # 쿨다운 시스템 제거됨
     mega_blaster.metadata = {"heat_change": 60, "heat_scaling": True}

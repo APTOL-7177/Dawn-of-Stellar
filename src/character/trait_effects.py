@@ -1184,13 +1184,14 @@ class TraitEffectManager:
                     metadata={"duration": 2, "description": "적을 속박하여 2턴간 행동 불가 (성공률 40%)"}
                 )
             ],
-            "seasonal_power": [
+            "natural_balance": [
                 TraitEffect(
-                    trait_id="seasonal_power",
+                    trait_id="natural_balance",
                     effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=1.0,
-                    target_stat="season_rotation",
-                    metadata={"description": "전투 턴마다 계절 변화 (봄: 회복, 여름: 공격, 가을: 방어, 겨울: 둔화)"}
+                    value=1.25,
+                    target_stat="form_bonus",
+                    condition="in_animal_form",
+                    metadata={"description": "변신 상태에 따라 능력치 보너스 (곰: 방어력 +25%, 표범: 공격력 +25%, 독수리: 속도 +25%)"}
                 )
             ],
             "wild_instinct": [

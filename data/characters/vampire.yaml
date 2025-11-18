@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 13.5
   mp: 4.5
-  init_brv: 4.2
+  init_brv: 24.2
   strength: 5.2
   defense: 3.8
   magic: 5.0
@@ -23,7 +23,7 @@ stat_growth:
   luck: 3.0
   accuracy: 3.5
   evasion: 2.8
-  max_brv: 2.5
+  max_brv: 92.0
 traits:
 - id: blood_satisfaction
   name: 피의 만족
@@ -35,7 +35,6 @@ traits:
   effects:
     all_stats_multiplier: 1.1
     damage_taken_multiplier: 0.85
-
 - id: thirsty_state
   name: 갈증 상태
   description: 갈증 31-60일 때 공격력 +30%, 흡혈 효과 2배, 크리티컬 확률 +15%
@@ -47,7 +46,6 @@ traits:
     attack_multiplier: 1.3
     lifesteal_multiplier: 2.0
     critical_rate_bonus: 0.15
-
 - id: extreme_thirst
   name: 극심한 갈증
   description: 갈증 61-90일 때 공격력 +70%, 흡혈 3배, 속도 +50%, 크리티컬 데미지 +40%
@@ -60,20 +58,34 @@ traits:
     lifesteal_multiplier: 3.0
     speed_multiplier: 1.5
     critical_damage_bonus: 0.4
-
 - id: controlled_frenzy
   name: 통제된 광란
-  description: 갈증 91-100일 때 공격력 +100%, 흡혈 4배, 속도 +70%, 받는 데미지 +20% (아군 공격 없음)
+  description: 갈증 91-95일 때 공격력 +120%, 흡혈 4배, 속도 +80%, 크리티컬 확률 +30%, 받는 데미지 +30%
   type: conditional
   conditions:
     thirst_min: 91
+    thirst_max: 95
+  effects:
+    attack_multiplier: 2.2
+    lifesteal_multiplier: 4.0
+    speed_multiplier: 1.8
+    critical_rate_bonus: 0.3
+    damage_taken_multiplier: 1.3
+- id: blood_frenzy
+  name: 혈액 광란
+  description: 갈증 96-100일 때 공격력 +150%, 흡혈 5배, 속도 +100%, 크리티컬 확률 +50%, 크리티컬 데미지 +100%,
+    받는 데미지 +50%, 매 턴 HP 10% 감소
+  type: conditional
+  conditions:
+    thirst_min: 96
     thirst_max: 100
   effects:
-    attack_multiplier: 2.0
-    lifesteal_multiplier: 4.0
-    speed_multiplier: 1.7
-    damage_taken_multiplier: 1.2
-
+    attack_multiplier: 2.5
+    lifesteal_multiplier: 5.0
+    speed_multiplier: 2.0
+    critical_rate_bonus: 0.5
+    critical_damage_bonus: 1.0
+    damage_taken_multiplier: 1.5
 - id: blood_control
   name: 피의 통제
   description: 매 턴 갈증 +5 자동 증가 (기존 10에서 감소), 흡혈 성공 시 갈증 감소량 +50%
@@ -81,7 +93,6 @@ traits:
   effects:
     thirst_per_turn: 5
     thirst_reduction_on_lifesteal: 1.5
-
 gimmick:
   type: thirst_gauge
   name: 갈증 관리 시스템
@@ -90,18 +101,29 @@ gimmick:
   max_thirst: 100
   start_thirst: 30
   thirst_zones:
-    satisfied: {min: 0, max: 30, description: "만족 (정상)"}
-    thirsty: {min: 31, max: 60, description: "갈증 (공격력 +30%, 흡혈 2배)"}
-    extreme: {min: 61, max: 90, description: "극심한 갈증 (+70% 공격, 흡혈 3배, 속도 +50%)"}
-    frenzy: {min: 91, max: 100, description: "혈액 광란 (통제 불가)"}
+    satisfied:
+      min: 0
+      max: 30
+      description: 만족 (정상)
+    thirsty:
+      min: 31
+      max: 60
+      description: 갈증 (공격력 +30%, 흡혈 2배)
+    extreme:
+      min: 61
+      max: 90
+      description: 극심한 갈증 (+70% 공격, 흡혈 3배, 속도 +50%)
+    frenzy:
+      min: 91
+      max: 100
+      description: 혈액 광란 (통제 불가)
   thirst_changes:
     blood_drain: -20
     turn_elapsed: 5
     take_damage: 15
-
 skills:
-- vampiric_bite
-- vampiric_blood_drain
+- vampire_vampiric_bite
+- vampire_blood_drain
 - vampire_blood_lance
 - vampire_thirst_surge
 - vampire_bat_swarm

@@ -144,7 +144,7 @@ def create_dimensionist_skills():
         # 모든 게이지 소모
         GimmickEffect(GimmickOperation.SET, "distortion_gauge", 0)
     ]
-    ultimate.costs = [MPCost(15)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
