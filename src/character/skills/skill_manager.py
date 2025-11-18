@@ -64,6 +64,17 @@ class SkillManager:
             return SkillResult(success=True, message=f"{skill.name} 시전 시작")
 
         # 캐스팅이 필요 없는 스킬은 즉시 실행
+        # 저격수 탄환 체크 (magazine_system 기믹)
+        if hasattr(user, 'gimmick_type') and user.gimmick_type == "magazine_system":
+            bullets_required = skill.metadata.get('bullets_used', 0)
+            uses_magazine = skill.metadata.get('uses_magazine', False)
+
+            if uses_magazine and bullets_required > 0:
+                current_bullets = len(getattr(user, 'magazine', []))
+                if current_bullets < bullets_required:
+                    self.logger.warning(f"{user.name}: 탄환 부족! (필요: {bullets_required}, 보유: {current_bullets})")
+                    return SkillResult(success=False, message=f"탄환 부족 (필요: {bullets_required}, 보유: {current_bullets})")
+
         # 스킬 타입에 따른 SFX 재생
         self._play_skill_sfx(skill)
 

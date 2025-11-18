@@ -263,9 +263,6 @@ class CombatManager:
         **kwargs
     ) -> Dict[str, Any]:
         """BRV 공격 실행"""
-        # SFX 재생
-        play_sfx("combat", "attack_physical")
-
         # 스킬 배율
         skill_multiplier = getattr(skill, "brv_multiplier", 1.0) if skill else 1.0
 
@@ -289,6 +286,19 @@ class CombatManager:
             attacker, defender, skill_multiplier, **kwargs
         )
 
+        # 공격 빗나감 체크
+        is_miss = damage_result.details.get("miss", False)
+        if is_miss:
+            # 공격 빗나감 로그
+            attacker_type = "아군" if attacker in self.allies else "적"
+            defender_type = "아군" if defender in self.allies else "적"
+            self.logger.info(f"💨 [빗나감] {attacker_type} {attacker.name}의 공격이 {defender_type} {defender.name}에게 빗나갔다!")
+            # SFX 재생 (회피 사운드)
+            play_sfx("combat", "miss")
+        else:
+            # 명중 SFX 재생
+            play_sfx("combat", "attack_physical")
+
         # BRV 공격 적용
         brv_result = self.brave.brv_attack(attacker, defender, damage_result.final_damage)
 
@@ -296,8 +306,9 @@ class CombatManager:
         if hasattr(attacker, 'defend_stack_count') and attacker.defend_stack_count > 0:
             attacker.defend_stack_count = 0
 
-        # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
-        if trigger_gimmick and attacker in self.allies:
+        # 빗나간 공격은 기믹 트리거 안 함
+        if not is_miss and trigger_gimmick and attacker in self.allies:
+            # 아군 공격 시 기믹 트리거 (지원사격 등)
             GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender)
 
         return {
@@ -307,7 +318,8 @@ class CombatManager:
             "brv_stolen": brv_result["brv_stolen"],
             "actual_gain": brv_result["actual_gain"],
             "is_break": brv_result["is_break"],
-            "defend_stack_bonus": defend_stack_bonus
+            "defend_stack_bonus": defend_stack_bonus,
+            "is_miss": is_miss
         }
 
     def _execute_hp_attack(
