@@ -287,7 +287,7 @@ def serialize_item(item: Any) -> Dict[str, Any]:
     else:
         equip_slot_value = None
 
-    return {
+    result = {
         "item_id": item_id,
         "name": name,
         "description": description,
@@ -297,8 +297,29 @@ def serialize_item(item: Any) -> Dict[str, Any]:
         "base_stats": base_stats,
         "affixes": affixes,
         "unique_effect": getattr(item, 'unique_effect', None),
-        "equip_slot": equip_slot_value
+        "equip_slot": equip_slot_value,
+        "weight": getattr(item, 'weight', 1.0),
+        "sell_price": getattr(item, 'sell_price', 0)
     }
+    
+    # Ingredient 특수 속성 저장
+    from src.gathering.ingredient import Ingredient
+    if isinstance(item, Ingredient):
+        result["ingredient_category"] = item.category.value if hasattr(item.category, 'value') else str(item.category)
+        result["food_value"] = getattr(item, 'food_value', 1.0)
+        result["freshness"] = getattr(item, 'freshness', 1.0)
+        result["spoil_time"] = getattr(item, 'spoil_time', 0)
+        result["edible_raw"] = getattr(item, 'edible_raw', False)
+        result["raw_hp_restore"] = getattr(item, 'raw_hp_restore', 0)
+        result["raw_mp_restore"] = getattr(item, 'raw_mp_restore', 0)
+    
+    # Consumable 특수 속성 저장
+    from src.equipment.item_system import Consumable
+    if isinstance(item, Consumable):
+        result["effect_type"] = getattr(item, 'effect_type', 'heal_hp')
+        result["effect_value"] = getattr(item, 'effect_value', 0)
+    
+    return result
 
 
 def serialize_dungeon(dungeon: Any) -> Dict[str, Any]:
@@ -479,6 +500,7 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
         Item, Equipment, Consumable, ItemType, ItemRarity,
         EquipSlot, ItemAffix
     )
+    from src.gathering.ingredient import Ingredient, IngredientCategory
 
     # 접사 복원
     affixes = []
@@ -501,6 +523,42 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
     if not rarity:
         rarity = ItemRarity.COMMON
 
+    weight = item_data.get("weight", 1.0)
+    sell_price = item_data.get("sell_price", 0)
+
+    # Ingredient 복원 (ingredient_category 필드가 있으면 Ingredient로 복원)
+    if item_data.get("ingredient_category"):
+        category_value = item_data.get("ingredient_category", "filler")
+        # IngredientCategory 찾기
+        category = None
+        for cat in IngredientCategory:
+            if cat.value == category_value:
+                category = cat
+                break
+        if not category:
+            category = IngredientCategory.FILLER
+        
+        return Ingredient(
+            item_id=item_data["item_id"],
+            name=item_data["name"],
+            description=item_data["description"],
+            item_type=item_type,
+            rarity=rarity,
+            level_requirement=item_data.get("level_requirement", 1),
+            base_stats=item_data.get("base_stats", {}),
+            affixes=affixes,
+            unique_effect=item_data.get("unique_effect"),
+            weight=weight,
+            sell_price=sell_price,
+            category=category,
+            food_value=item_data.get("food_value", 1.0),
+            freshness=item_data.get("freshness", 1.0),
+            spoil_time=item_data.get("spoil_time", 0),
+            edible_raw=item_data.get("edible_raw", False),
+            raw_hp_restore=item_data.get("raw_hp_restore", 0),
+            raw_mp_restore=item_data.get("raw_mp_restore", 0)
+        )
+
     # 장비 vs 소비 아이템
     if item_type in [ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY]:
         equip_slot = EquipSlot(item_data["equip_slot"]) if item_data.get("equip_slot") else EquipSlot.WEAPON
@@ -515,7 +573,26 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
             base_stats=item_data["base_stats"],
             affixes=affixes,
             unique_effect=item_data.get("unique_effect"),
-            equip_slot=equip_slot
+            equip_slot=equip_slot,
+            weight=weight,
+            sell_price=sell_price
+        )
+    elif item_type == ItemType.CONSUMABLE or item_data.get("effect_type"):
+        # Consumable 복원
+        return Consumable(
+            item_id=item_data["item_id"],
+            name=item_data["name"],
+            description=item_data["description"],
+            item_type=item_type,
+            rarity=rarity,
+            level_requirement=item_data.get("level_requirement", 1),
+            base_stats=item_data.get("base_stats", {}),
+            affixes=affixes,
+            unique_effect=item_data.get("unique_effect"),
+            effect_type=item_data.get("effect_type", "heal_hp"),
+            effect_value=item_data.get("effect_value", 0),
+            weight=weight,
+            sell_price=sell_price
         )
     else:
         return Item(
@@ -524,10 +601,12 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
             description=item_data["description"],
             item_type=item_type,
             rarity=rarity,
-            level_requirement=item_data["level_requirement"],
-            base_stats=item_data["base_stats"],
+            level_requirement=item_data.get("level_requirement", 1),
+            base_stats=item_data.get("base_stats", {}),
             affixes=affixes,
-            unique_effect=item_data.get("unique_effect")
+            unique_effect=item_data.get("unique_effect"),
+            weight=weight,
+            sell_price=sell_price
         )
 
 

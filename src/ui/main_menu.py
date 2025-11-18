@@ -484,9 +484,28 @@ def run_main_menu(console: tcod.console.Console, context: tcod.context.Context) 
     last_time = time.time()
     frame_time = 1.0 / 30.0  # 30 FPS
 
+    # 핫 리로드 체크를 위한 변수
+    last_hot_reload_check = time.time()
+    
     while True:
         current_time = time.time()
         delta_time = current_time - last_time
+        
+        # 핫 리로드 체크 (개발 모드일 때만, 드물게 체크)
+        if current_time - last_hot_reload_check >= 1.0:  # 1초마다 한 번만
+            last_hot_reload_check = current_time
+            try:
+                from src.core.config import get_config
+                config = get_config()
+                if config.development_mode:
+                    from src.core.hot_reload import check_and_reload
+                    reloaded = check_and_reload()
+                    if reloaded:
+                        from src.core.logger import get_logger, Loggers
+                        logger = get_logger(Loggers.SYSTEM)
+                        logger.info(f"📦 [메뉴] 재로드된 모듈: {', '.join(reloaded)}")
+            except Exception:
+                pass  # 핫 리로드 오류는 무시
 
         # 프레임 제한 (30 FPS)
         if delta_time >= frame_time:

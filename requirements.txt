@@ -32,6 +32,7 @@ myst-parser>=2.0.0
 # Development Tools
 ipython>=8.18.0
 ipdb>=0.13.13
+watchdog>=4.0.0  # 핫 리로드를 위한 파일 감시
 
 # Profiling
 py-spy>=0.3.14
