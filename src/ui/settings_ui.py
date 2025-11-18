@@ -9,6 +9,7 @@ from typing import Optional
 import tcod
 
 from src.ui.input_handler import InputHandler, GameAction
+from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.core.config import get_config
 from src.audio import get_audio_manager
@@ -146,7 +147,7 @@ class SettingsUI:
 
     def render(self, console: tcod.console.Console):
         """설정 렌더링"""
-        console.clear()
+        render_space_background(console, console.width, console.height)
 
         # 제목
         title = "=== 환경 설정 ==="

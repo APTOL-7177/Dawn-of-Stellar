@@ -8,7 +8,7 @@ import tcod.console
 import tcod.event
 from typing import List, Dict, Any, Optional
 
-from src.ui.tcod_display import Colors
+from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler
 from src.core.logger import get_logger
 
@@ -67,7 +67,7 @@ class RewardDisplay:
 
     def render(self, console: tcod.console.Console):
         """보상 화면 렌더링"""
-        console.clear()
+        render_space_background(console, self.screen_width, self.screen_height)
 
         # 제목
         title = "⭐ 전투 승리! ⭐"

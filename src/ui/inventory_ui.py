@@ -11,7 +11,7 @@ from enum import Enum
 
 from src.equipment.inventory import Inventory
 from src.equipment.item_system import Item, Equipment, Consumable, ItemType
-from src.ui.tcod_display import Colors
+from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.core.logger import get_logger
@@ -374,7 +374,7 @@ class InventoryUI:
 
     def render(self, console: tcod.console.Console):
         """인벤토리 화면 렌더링"""
-        console.clear()
+        render_space_background(console, self.screen_width, self.screen_height)
 
         # 제목
         title = "인벤토리"

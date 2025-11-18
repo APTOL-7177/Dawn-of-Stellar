@@ -13,7 +13,7 @@ import yaml
 from pathlib import Path
 
 from src.ui.cursor_menu import CursorMenu, MenuItem
-from src.ui.tcod_display import Colors
+from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler
 from src.core.logger import get_logger
 from src.core.config import get_config
@@ -287,7 +287,7 @@ class TraitSelection:
 
     def render(self, console: tcod.console.Console):
         """특성 선택 화면 렌더링"""
-        console.clear()
+        render_space_background(console, self.screen_width, self.screen_height)
 
         # 제목
         title = "특성 선택"

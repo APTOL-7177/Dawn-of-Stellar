@@ -14,6 +14,7 @@ import random
 from src.ui.input_handler import InputHandler, GameAction
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.gauge_renderer import GaugeRenderer
+from src.ui.tcod_display import render_space_background
 from src.combat.combat_manager import CombatManager, CombatState, ActionType
 from src.combat.casting_system import get_casting_system, CastingSystem
 from src.core.logger import get_logger, Loggers
@@ -618,7 +619,7 @@ class CombatUI:
 
     def render(self, console: tcod.console.Console):
         """렌더링"""
-        console.clear()
+        render_space_background(console, self.screen_width, self.screen_height)
 
         # 제목
         console.print(

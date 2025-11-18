@@ -12,6 +12,7 @@ import yaml
 import tcod
 
 from src.ui.input_handler import InputHandler, GameAction
+from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.core.config import get_config
 
@@ -206,7 +207,7 @@ class PassiveSelectionUI:
 
     def render(self, console: tcod.console.Console):
         """UI 렌더링"""
-        console.clear()
+        render_space_background(console, self.screen_width, self.screen_height)
 
         # 제목
         title = "패시브 선택"

@@ -9,7 +9,7 @@ import tcod.event
 from typing import List, Any, Optional
 
 from src.equipment.inventory import Inventory
-from src.ui.tcod_display import Colors
+from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler
 from src.ui.cooking_ui import open_cooking_pot
 from src.core.logger import get_logger
@@ -49,7 +49,7 @@ def open_rest_menu(
 
     while True:
         # 화면 지우기
-        console.clear()
+        render_space_background(console, console.width, console.height)
 
         # 제목
         title = "⛺ 캠프"

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from src.ui.input_handler import InputHandler, GameAction
+from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.persistence.meta_progress import get_meta_progress, save_meta_progress
 
@@ -72,7 +73,7 @@ class GameResultUI:
 
     def render(self, console: tcod.console.Console):
         """정산 화면 렌더링"""
-        console.clear()
+        render_space_background(console, self.screen_width, self.screen_height)
 
         # 제목
         if self.is_victory:

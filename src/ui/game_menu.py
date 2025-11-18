@@ -9,6 +9,7 @@ from typing import Optional, List
 import tcod
 
 from src.ui.input_handler import InputHandler, GameAction
+from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 
 
@@ -301,7 +302,7 @@ def open_party_status_menu(
     selected_index = 0
 
     while True:
-        console.clear()
+        render_space_background(console, console.width, console.height)
 
         # 제목
         title = "=== 파티 상태 ==="
@@ -384,7 +385,7 @@ def show_character_detail(
     handler = InputHandler()
 
     while True:
-        console.clear()
+        render_space_background(console, console.width, console.height)
 
         # 제목
         title = f"=== {character.name} 상세 정보 ==="

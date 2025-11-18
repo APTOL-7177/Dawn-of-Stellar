@@ -78,8 +78,15 @@ class CursorMenu:
         # 이전 활성화된 아이템 찾기
         original_index = self.cursor_index
         moved = False
+        wrapped = False
+
         while True:
+            prev_index = self.cursor_index
             self.cursor_index = (self.cursor_index - 1) % len(self.items)
+
+            # 순환 감지 (맨 위에서 맨 아래로)
+            if prev_index == 0 and self.cursor_index == len(self.items) - 1:
+                wrapped = True
 
             if self.items[self.cursor_index].enabled:
                 moved = True
@@ -90,7 +97,10 @@ class CursorMenu:
                 break
 
         # 스크롤 조정
-        if self.cursor_index < self.scroll_offset:
+        if wrapped:
+            # 순환: 맨 아래로 스크롤
+            self.scroll_offset = max(0, len(self.items) - self.max_visible_items)
+        elif self.cursor_index < self.scroll_offset:
             self.scroll_offset = self.cursor_index
 
         # 커서 이동 효과음
@@ -105,8 +115,15 @@ class CursorMenu:
         # 다음 활성화된 아이템 찾기
         original_index = self.cursor_index
         moved = False
+        wrapped = False
+
         while True:
+            prev_index = self.cursor_index
             self.cursor_index = (self.cursor_index + 1) % len(self.items)
+
+            # 순환 감지 (맨 아래에서 맨 위로)
+            if prev_index == len(self.items) - 1 and self.cursor_index == 0:
+                wrapped = True
 
             if self.items[self.cursor_index].enabled:
                 moved = True
@@ -117,7 +134,10 @@ class CursorMenu:
                 break
 
         # 스크롤 조정
-        if self.cursor_index >= self.scroll_offset + self.max_visible_items:
+        if wrapped:
+            # 순환: 맨 위로 스크롤
+            self.scroll_offset = 0
+        elif self.cursor_index >= self.scroll_offset + self.max_visible_items:
             self.scroll_offset = self.cursor_index - self.max_visible_items + 1
 
         # 커서 이동 효과음

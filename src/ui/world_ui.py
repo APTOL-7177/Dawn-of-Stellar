@@ -11,6 +11,7 @@ from src.world.exploration import ExplorationSystem, ExplorationEvent, Explorati
 from src.world.map_renderer import MapRenderer
 from src.ui.input_handler import InputHandler, GameAction
 from src.ui.gauge_renderer import GaugeRenderer
+from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.audio.audio_manager import play_bgm
 
@@ -305,7 +306,7 @@ class WorldUI:
 
     def render(self, console: tcod.console.Console):
         """렌더링"""
-        console.clear()
+        render_space_background(console, self.screen_width, self.screen_height)
 
         # 제목
         console.print(

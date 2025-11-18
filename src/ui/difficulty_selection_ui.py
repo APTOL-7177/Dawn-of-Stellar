@@ -10,7 +10,7 @@ from typing import Optional
 import math
 
 from src.core.difficulty import DifficultyLevel, DifficultySystem
-from src.ui.tcod_display import Colors
+from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction
 from src.core.logger import get_logger
 
@@ -88,7 +88,7 @@ class DifficultySelectionUI:
             console: 렌더링할 콘솔
         """
         # 배경 클리어
-        console.clear()
+        render_space_background(console, self.screen_width, self.screen_height)
 
         # 애니메이션 프레임 증가
         self.animation_frame += 1

@@ -11,6 +11,7 @@ import yaml
 from pathlib import Path
 
 from src.ui.input_handler import InputHandler, GameAction
+from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.persistence.meta_progress import get_meta_progress, save_meta_progress
 
@@ -436,7 +437,7 @@ class ShopUI:
 
     def render(self, console: tcod.console.Console):
         """상점 렌더링"""
-        console.clear()
+        render_space_background(console, self.screen_width, self.screen_height)
 
         # 제목
         title = "=== 상점 (메타 진행) ==="

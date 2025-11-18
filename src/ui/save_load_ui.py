@@ -11,7 +11,7 @@ from datetime import datetime
 from enum import Enum
 
 from src.persistence.save_system import SaveSystem
-from src.ui.tcod_display import Colors
+from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler
 from src.ui.cursor_menu import CursorMenu, MenuItem, TextInputBox
 from src.core.logger import get_logger
@@ -212,7 +212,7 @@ class SaveLoadUI:
 
     def render(self, console: tcod.console.Console):
         """저장/로드 화면 렌더링"""
-        console.clear()
+        render_space_background(console, self.screen_width, self.screen_height)
 
         # 제목
         title = "게임 저장" if self.mode == SaveLoadMode.SAVE else "게임 불러오기"

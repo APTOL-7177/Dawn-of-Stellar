@@ -507,3 +507,22 @@ def get_display() -> TCODDisplay:
     if _display is None:
         _display = TCODDisplay()
     return _display
+
+
+def render_space_background(console: tcod.console.Console, width: int, height: int) -> None:
+    """
+    우주 느낌의 그라데이션 배경 렌더링
+
+    Args:
+        console: 렌더링할 콘솔
+        width: 콘솔 너비
+        height: 콘솔 높이
+    """
+    for y in range(height):
+        gradient_intensity = max(0, int(10 + (y / height) * 20))
+        r = max(0, min(255, gradient_intensity // 3))
+        g = max(0, min(255, gradient_intensity // 4))
+        b = max(0, min(255, gradient_intensity))
+
+        for x in range(width):
+            console.rgb[y, x] = (ord(' '), (r, g, b), (r, g, b))
