@@ -29,7 +29,7 @@ gimmick:
   name: 멀티스레드 시스템
   description: 최대 3개 프로그램을 동시 실행. 각 프로그램은 독립적인 디버프 효과 발휘
   max_threads: 3
-  mp_per_program_per_turn: 5
+  mp_per_program_per_turn: 4
   programs:
     virus:
       name: 바이러스

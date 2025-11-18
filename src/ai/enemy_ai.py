@@ -214,7 +214,16 @@ class EnemyAI:
                     score *= 2.0  # 1.3에서 2.0으로 증가
                 # HP 공격 우선
                 if skill.hp_attack:
-                    score *= 1.8
+                    score *= 2.5  # 1.8에서 2.5로 증가
+            
+            # HP 공격 스킬에 대한 일반적인 가중치 증가 (상황에 관계없이)
+            if skill.hp_attack:
+                score *= 1.5  # HP 공격 스킬은 기본적으로 1.5배 가중치
+            
+            # BRV가 충분히 쌓인 상황에서 HP 공격 우선
+            if hasattr(self.enemy, 'current_brv') and self.enemy.current_brv > 0:
+                if skill.hp_attack:
+                    score *= 1.8  # BRV가 있을 때 HP 공격 우선
 
             # MP가 부족하면 낮은 코스트 스킬 우선
             if hasattr(self.enemy, 'current_mp'):

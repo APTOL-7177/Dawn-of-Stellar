@@ -563,6 +563,34 @@ class GimmickUpdater:
             thread_count = len(threads)
             if thread_count > 0:
                 logger.debug(f"{character.name} 활성 스레드: {thread_count}개")
+        
+        # 실행 중인 프로그램 수 계산 (program_* 변수 확인)
+        active_programs = 0
+        program_fields = ['program_virus', 'program_backdoor', 'program_ddos', 'program_ransomware', 'program_spyware']
+        for field in program_fields:
+            if getattr(character, field, 0) > 0:
+                active_programs += 1
+        
+        # 프로그램당 MP 소모 (기본값 4, 특성으로 감소 가능)
+        if active_programs > 0 and hasattr(character, 'current_mp'):
+            mp_per_program = getattr(character, 'mp_per_program_per_turn', 4)
+            
+            # CPU 최적화 특성 체크 (프로그램당 MP 소모 -2)
+            if hasattr(character, 'active_traits'):
+                for trait_data in character.active_traits:
+                    trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                    if trait_id == 'cpu_optimization':
+                        mp_per_program = max(1, mp_per_program - 2)  # 최소 1로 제한
+            
+            total_mp_cost = active_programs * mp_per_program
+            actual_mp_cost = min(total_mp_cost, character.current_mp)
+            character.current_mp -= actual_mp_cost
+            
+            if actual_mp_cost > 0:
+                logger.info(
+                    f"{character.name} 프로그램 유지 비용: {actual_mp_cost} MP "
+                    f"(프로그램 {active_programs}개 × {mp_per_program} MP/턴)"
+                )
 
     @staticmethod
     def _update_dilemma_choice(character):

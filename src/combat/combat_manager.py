@@ -87,13 +87,24 @@ class CombatManager:
         self.state = CombatState.IN_PROGRESS
 
         # ATB 시스템에 전투원 등록
+        import random
         for ally in allies:
             self.atb.register_combatant(ally)
             self.brave.initialize_brv(ally)
+            # ATB 게이지를 0~50% 랜덤하게 채우기
+            gauge = self.atb.get_gauge(ally)
+            if gauge:
+                random_percentage = random.uniform(0.0, 0.5)
+                gauge.current = int(gauge.max_gauge * random_percentage)
 
         for enemy in enemies:
             self.atb.register_combatant(enemy)
             self.brave.initialize_brv(enemy)
+            # ATB 게이지를 0~50% 랜덤하게 채우기
+            gauge = self.atb.get_gauge(enemy)
+            if gauge:
+                random_percentage = random.uniform(0.0, 0.5)
+                gauge.current = int(gauge.max_gauge * random_percentage)
 
         # 캐스팅 시스템 초기화
         from src.combat.casting_system import get_casting_system
