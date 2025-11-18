@@ -234,6 +234,294 @@ ENEMY_TEMPLATES = {
         max_brv=6400, init_brv=2133,  # 세피로스급 BRV (19200÷3, 6400÷3)
         luck=30, accuracy=90, evasion=25
     ),
+
+    # ============================================================
+    # 새로운 적 타입 추가 (30종)
+    # ============================================================
+
+    # === 언데드 타입 (5종) ===
+    "zombie": EnemyTemplate(
+        "zombie", "좀비", 1,
+        hp=230, mp=20,  # 높은 HP, 낮은 MP
+        physical_attack=55, physical_defense=40,
+        magic_attack=20, magic_defense=30,
+        speed=30,  # 매우 느림
+        max_brv=1040, init_brv=347,
+        luck=5, accuracy=55, evasion=3
+    ),
+    "ghoul": EnemyTemplate(
+        "ghoul", "구울", 1,
+        hp=210, mp=40,  # 빠른 언데드
+        physical_attack=70, physical_defense=45,
+        magic_attack=35, magic_defense=40,
+        speed=65,  # 빠름
+        max_brv=1120, init_brv=373,
+        luck=12, accuracy=68, evasion=16
+    ),
+    "banshee": EnemyTemplate(
+        "banshee", "밴시", 1,
+        hp=170, mp=90,  # 마법형 언데드
+        physical_attack=40, physical_defense=35,
+        magic_attack=88, magic_defense=70,
+        speed=68,
+        max_brv=1440, init_brv=480,
+        luck=15, accuracy=72, evasion=20
+    ),
+    "death_knight": EnemyTemplate(
+        "death_knight", "죽음의 기사", 1,
+        hp=290, mp=70,  # 강력한 언데드 전사
+        physical_attack=95, physical_defense=80,
+        magic_attack=65, magic_defense=60,
+        speed=55,
+        max_brv=1680, init_brv=560,
+        luck=14, accuracy=70, evasion=10
+    ),
+    "mummy": EnemyTemplate(
+        "mummy", "미라", 1,
+        hp=260, mp=60,  # 저주와 재생
+        physical_attack=60, physical_defense=65,
+        magic_attack=70, magic_defense=75,
+        speed=35,
+        max_brv=1360, init_brv=453,
+        luck=8, accuracy=62, evasion=5
+    ),
+
+    # === 엘리멘탈 타입 (6종) ===
+    "fire_elemental": EnemyTemplate(
+        "fire_elemental", "불의 정령", 1,
+        hp=180, mp=100,  # 마법 특화
+        physical_attack=45, physical_defense=40,
+        magic_attack=95, magic_defense=70,
+        speed=60,
+        max_brv=1520, init_brv=507,
+        luck=12, accuracy=70, evasion=15
+    ),
+    "ice_elemental": EnemyTemplate(
+        "ice_elemental", "얼음의 정령", 1,
+        hp=175, mp=100,
+        physical_attack=42, physical_defense=45,
+        magic_attack=92, magic_defense=75,
+        speed=55,
+        max_brv=1480, init_brv=493,
+        luck=10, accuracy=68, evasion=12
+    ),
+    "thunder_elemental": EnemyTemplate(
+        "thunder_elemental", "번개의 정령", 1,
+        hp=170, mp=110,
+        physical_attack=40, physical_defense=38,
+        magic_attack=100, magic_defense=65,
+        speed=75,  # 매우 빠름
+        max_brv=1600, init_brv=533,
+        luck=18, accuracy=75, evasion=22
+    ),
+    "earth_elemental": EnemyTemplate(
+        "earth_elemental", "대지의 정령", 1,
+        hp=250, mp=80,  # 방어 특화
+        physical_attack=65, physical_defense=90,
+        magic_attack=55, magic_defense=85,
+        speed=35,
+        max_brv=1200, init_brv=400,
+        luck=8, accuracy=62, evasion=4
+    ),
+    "wind_elemental": EnemyTemplate(
+        "wind_elemental", "바람의 정령", 1,
+        hp=160, mp=95,  # 회피 특화
+        physical_attack=50, physical_defense=35,
+        magic_attack=75, magic_defense=50,
+        speed=85,  # 최고 속도
+        max_brv=1280, init_brv=427,
+        luck=20, accuracy=72, evasion=30
+    ),
+    "dark_elemental": EnemyTemplate(
+        "dark_elemental", "어둠의 정령", 1,
+        hp=190, mp=120,  # 암흑 마법
+        physical_attack=50, physical_defense=45,
+        magic_attack=105, magic_defense=80,
+        speed=58,
+        max_brv=1680, init_brv=560,
+        luck=16, accuracy=70, evasion=18
+    ),
+
+    # === 야수/몬스터 타입 (6종) ===
+    "bear": EnemyTemplate(
+        "bear", "곰", 1,
+        hp=270, mp=30,  # 강력한 물리 공격
+        physical_attack=85, physical_defense=65,
+        magic_attack=25, magic_defense=35,
+        speed=45,
+        max_brv=1360, init_brv=453,
+        luck=10, accuracy=65, evasion=8
+    ),
+    "spider": EnemyTemplate(
+        "spider", "거대 거미", 1,
+        hp=190, mp=45,  # 독과 거미줄
+        physical_attack=65, physical_defense=50,
+        magic_attack=40, magic_defense=45,
+        speed=70,
+        max_brv=1040, init_brv=347,
+        luck=14, accuracy=70, evasion=18
+    ),
+    "scorpion": EnemyTemplate(
+        "scorpion", "전갈", 1,
+        hp=220, mp=40,  # 독침과 방어
+        physical_attack=70, physical_defense=70,
+        magic_attack=30, magic_defense=50,
+        speed=55,
+        max_brv=1200, init_brv=400,
+        luck=12, accuracy=68, evasion=14
+    ),
+    "basilisk": EnemyTemplate(
+        "basilisk", "바실리스크", 1,
+        hp=240, mp=75,  # 석화 시선
+        physical_attack=72, physical_defense=60,
+        magic_attack=80, magic_defense=65,
+        speed=50,
+        max_brv=1440, init_brv=480,
+        luck=15, accuracy=72, evasion=12
+    ),
+    "cerberus": EnemyTemplate(
+        "cerberus", "케르베로스", 1,
+        hp=280, mp=60,  # 3연속 공격
+        physical_attack=88, physical_defense=65,
+        magic_attack=55, magic_defense=55,
+        speed=68,
+        max_brv=1600, init_brv=533,
+        luck=16, accuracy=72, evasion=15
+    ),
+    "hydra": EnemyTemplate(
+        "hydra", "히드라", 1,
+        hp=320, mp=80,  # 재생 능력
+        physical_attack=80, physical_defense=60,
+        magic_attack=60, magic_defense=65,
+        speed=48,
+        max_brv=1760, init_brv=587,
+        luck=12, accuracy=68, evasion=10
+    ),
+
+    # === 드래곤 타입 (4종) ===
+    "fire_dragon": EnemyTemplate(
+        "fire_dragon", "화염 드래곤", 1,
+        hp=340, mp=130,  # 불 특화 드래곤
+        physical_attack=95, physical_defense=75,
+        magic_attack=110, magic_defense=70,
+        speed=62,
+        max_brv=2240, init_brv=747,
+        luck=18, accuracy=75, evasion=14
+    ),
+    "ice_dragon": EnemyTemplate(
+        "ice_dragon", "빙룡", 1,
+        hp=350, mp=135,  # 얼음 특화 드래곤
+        physical_attack=92, physical_defense=78,
+        magic_attack=108, magic_defense=75,
+        speed=60,
+        max_brv=2280, init_brv=760,
+        luck=17, accuracy=74, evasion=12
+    ),
+    "poison_dragon": EnemyTemplate(
+        "poison_dragon", "독 드래곤", 1,
+        hp=330, mp=125,  # 독 특화 드래곤
+        physical_attack=88, physical_defense=72,
+        magic_attack=100, magic_defense=68,
+        speed=65,
+        max_brv=2160, init_brv=720,
+        luck=19, accuracy=76, evasion=16
+    ),
+    "elder_dragon": EnemyTemplate(
+        "elder_dragon", "고룡", 1,
+        hp=420, mp=170,  # 최강 드래곤
+        physical_attack=120, physical_defense=100,
+        magic_attack=115, magic_defense=95,
+        speed=65,
+        max_brv=2880, init_brv=960,
+        luck=22, accuracy=78, evasion=15
+    ),
+
+    # === 악마/언홀리 타입 (4종) ===
+    "imp": EnemyTemplate(
+        "imp", "임프", 1,
+        hp=150, mp=80,  # 약한 악마, 마법
+        physical_attack=45, physical_defense=35,
+        magic_attack=75, magic_defense=55,
+        speed=72,
+        max_brv=960, init_brv=320,
+        luck=14, accuracy=68, evasion=20
+    ),
+    "succubus": EnemyTemplate(
+        "succubus", "서큐버스", 1,
+        hp=230, mp=110,  # 매혹과 흡혈
+        physical_attack=68, physical_defense=55,
+        magic_attack=98, magic_defense=75,
+        speed=70,
+        max_brv=1840, init_brv=613,
+        luck=20, accuracy=76, evasion=22
+    ),
+    "balrog": EnemyTemplate(
+        "balrog", "발록", 1,
+        hp=360, mp=140,  # 강력한 화염 악마
+        physical_attack=105, physical_defense=85,
+        magic_attack=120, magic_defense=90,
+        speed=58,
+        max_brv=2400, init_brv=800,
+        luck=18, accuracy=75, evasion=12
+    ),
+    "archfiend": EnemyTemplate(
+        "archfiend", "대악마", 1,
+        hp=380, mp=160,  # 최강 악마
+        physical_attack=115, physical_defense=90,
+        magic_attack=130, magic_defense=100,
+        speed=68,
+        max_brv=2720, init_brv=907,
+        luck=24, accuracy=80, evasion=18
+    ),
+
+    # === 기계/골렘 타입 (3종) ===
+    "iron_golem": EnemyTemplate(
+        "iron_golem", "강철 골렘", 1,
+        hp=350, mp=30,  # 극도의 방어
+        physical_attack=80, physical_defense=110,
+        magic_attack=20, magic_defense=70,
+        speed=25,
+        max_brv=1920, init_brv=640,
+        luck=5, accuracy=60, evasion=2
+    ),
+    "crystal_golem": EnemyTemplate(
+        "crystal_golem", "수정 골렘", 1,
+        hp=300, mp=50,  # 마법 반사
+        physical_attack=70, physical_defense=85,
+        magic_attack=60, magic_defense=120,
+        speed=30,
+        max_brv=1760, init_brv=587,
+        luck=8, accuracy=62, evasion=5
+    ),
+    "ancient_automaton": EnemyTemplate(
+        "ancient_automaton", "고대 자동인형", 1,
+        hp=280, mp=100,  # 기계 공격
+        physical_attack=90, physical_defense=75,
+        magic_attack=85, magic_defense=70,
+        speed=52,
+        max_brv=1840, init_brv=613,
+        luck=10, accuracy=70, evasion=8
+    ),
+
+    # === 보스급/특수 타입 (2종) ===
+    "mimic": EnemyTemplate(
+        "mimic", "미믹", 1,
+        hp=200, mp=50,  # 보물상자 위장
+        physical_attack=85, physical_defense=60,
+        magic_attack=50, magic_defense=50,
+        speed=65,
+        max_brv=1440, init_brv=480,
+        luck=25, accuracy=80, evasion=20  # 높은 행운과 회피
+    ),
+    "nightmare": EnemyTemplate(
+        "nightmare", "나이트메어", 1,
+        hp=270, mp=140,  # 꿈의 악마
+        physical_attack=75, physical_defense=50,
+        magic_attack=115, magic_defense=85,
+        speed=72,
+        max_brv=2080, init_brv=693,
+        luck=22, accuracy=78, evasion=25
+    ),
 }
 
 
@@ -297,15 +585,32 @@ class EnemyGenerator:
     # 적 등급별 등장 층수 정의
     ENEMY_TIERS = {
         # 약한 적 (1-3층)
-        "weak": ["slime", "goblin", "wolf"],
+        "weak": ["slime", "goblin", "wolf", "zombie", "imp"],
         # 일반 적 (3-6층)
-        "normal": ["orc", "skeleton", "dark_mage"],
+        "normal": ["orc", "skeleton", "dark_mage", "ghoul", "spider", "scorpion", "bear"],
         # 강한 적 (6-9층)
-        "strong": ["ogre", "wraith", "golem"],
+        "strong": [
+            "ogre", "wraith", "golem",
+            "mummy", "banshee", "fire_elemental", "ice_elemental",
+            "wind_elemental", "basilisk"
+        ],
         # 매우 강한 적 (9-12층)
-        "very_strong": ["troll", "vampire", "wyvern"],
-        # 최상급 적 (12층 이상)
-        "elite": ["demon", "dragon"],
+        "very_strong": [
+            "troll", "vampire", "wyvern",
+            "death_knight", "thunder_elemental", "dark_elemental",
+            "earth_elemental", "cerberus", "hydra", "mimic"
+        ],
+        # 최상급 적 (12-15층)
+        "elite": [
+            "demon", "dragon",
+            "fire_dragon", "ice_dragon", "poison_dragon",
+            "succubus", "nightmare"
+        ],
+        # 보스급 (15층 이상 또는 특수 조우)
+        "boss": [
+            "balrog", "archfiend", "elder_dragon",
+            "iron_golem", "crystal_golem", "ancient_automaton"
+        ],
     }
 
     @staticmethod
@@ -330,8 +635,11 @@ class EnemyGenerator:
             suitable.extend(EnemyGenerator.ENEMY_TIERS["strong"])
         if 8 <= floor_number <= 12:
             suitable.extend(EnemyGenerator.ENEMY_TIERS["very_strong"])
-        if floor_number >= 11:
+        if 11 <= floor_number <= 15:
             suitable.extend(EnemyGenerator.ENEMY_TIERS["elite"])
+        if floor_number >= 15:
+            # 15층 이상: 보스급 적도 일반 조우로 등장 (낮은 확률)
+            suitable.extend(EnemyGenerator.ENEMY_TIERS["boss"])
 
         # 최소 1종류는 나오도록
         if not suitable:
