@@ -152,11 +152,11 @@ class MainMenu:
     def _generate_stars(self):
         """배경 별 생성"""
         import random
-        # 화면에 랜덤하게 별 배치
+        # 화면에 랜덤하게 별 배치 (줄임)
         self.star_positions = []
-        for _ in range(50):  # 50개의 별로 증가
+        for _ in range(15):  # 15개로 줄임
             x = random.randint(0, self.screen_width - 1)
-            y = random.randint(0, self.screen_height - 1)  # 전체 화면에
+            y = random.randint(0, self.screen_height - 1)
             brightness = random.randint(0, 10)  # 초기 밝기
             speed = random.uniform(0.5, 2.0)  # 반짝임 속도
             self.star_positions.append([x, y, brightness, speed])
@@ -283,111 +283,56 @@ class MainMenu:
             for x in range(self.screen_width):
                 console.rgb[y, x] = (ord(' '), (r, g, b), (r, g, b))
 
-        # 배경 별 렌더링 (반짝임 효과)
+        # 배경 별 렌더링 (은은한 반짝임만)
         for star in self.star_positions:
             x, y, brightness, speed = star
             # 밝기 변화 (사인 함수로 부드러운 반짝임)
             phase = (self.animation_frame + brightness * 10) / (20.0 / speed)
-            current_brightness = max(0, min(255, int(100 + 155 * math.sin(phase))))
+            current_brightness = max(0, min(255, int(120 + 135 * math.sin(phase))))
 
-            # 별 문자와 색상 (다양한 색상)
-            star_types = [
-                (".", (current_brightness, current_brightness, 255)),
-                ("*", (255, current_brightness, current_brightness)),
-                ("·", (current_brightness, 255, current_brightness)),
-                ("∘", (255, 255, current_brightness)),
-            ]
-            star_char, star_color = star_types[brightness % len(star_types)]
+            # 은은한 별 (한 가지 스타일)
+            star_color = (current_brightness, current_brightness, 255)
 
             if 0 <= x < self.screen_width and 0 <= y < self.screen_height:
-                console.print(x, y, star_char, fg=star_color)
+                console.print(x, y, "·", fg=star_color)
 
-        # 떨어지는 별똥별 (랜덤 생성)
-        if self.animation_frame % 90 == 0 or random.random() < 0.015:  # 더 자주 생성
-            start_x = random.randint(self.screen_width // 4, self.screen_width - 1)
-            start_y = random.randint(0, self.screen_height // 3)
-            speed = random.uniform(0.5, 1.5)
-            self.shooting_stars.append([start_x, start_y, 0, speed])  # [x, y, life, speed]
+        # 화면 테두리 장식 (코너 장식)
+        corner_brightness = max(0, min(255, int(150 + 105 * math.sin(self.animation_frame / 20.0))))
+        corner_color = (corner_brightness, corner_brightness, 255)
 
-        # 별똥별 렌더링 및 업데이트
-        for shooting_star in self.shooting_stars[:]:
-            x, y, life, speed = shooting_star
-            # 별똥별 꼬리 렌더링
-            trail_length = 5
-            for i in range(trail_length):
-                trail_y = int(y - i * speed)
-                trail_x = int(x + i * speed * 0.7)
-                if 0 <= trail_x < self.screen_width and 0 <= trail_y < self.screen_height:
-                    alpha = max(50, 255 - (i * 50))
-                    trail_color = (alpha, alpha, min(255, alpha + 80))
-                    console.print(trail_x, trail_y, "·", fg=trail_color)
+        # 좌상단
+        console.print(0, 0, "╔", fg=corner_color)
+        console.print(1, 0, "═", fg=corner_color)
+        console.print(2, 0, "═", fg=corner_color)
+        console.print(0, 1, "║", fg=corner_color)
 
-            # 별똥별 머리 부분
-            if 0 <= int(x) < self.screen_width and 0 <= int(y) < self.screen_height:
-                glow_brightness = max(0, min(255, int(200 + 55 * math.sin(self.animation_frame / 5.0))))
-                console.print(int(x), int(y), "*", fg=(255, 255, glow_brightness))
+        # 우상단
+        console.print(self.screen_width - 1, 0, "╗", fg=corner_color)
+        console.print(self.screen_width - 2, 0, "═", fg=corner_color)
+        console.print(self.screen_width - 3, 0, "═", fg=corner_color)
+        console.print(self.screen_width - 1, 1, "║", fg=corner_color)
 
-            # 별똥별 이동 (오른쪽 아래로)
-            shooting_star[0] += speed * 0.7
-            shooting_star[1] += speed
-            shooting_star[2] += 1
+        # 좌하단
+        console.print(0, self.screen_height - 1, "╚", fg=corner_color)
+        console.print(1, self.screen_height - 1, "═", fg=corner_color)
+        console.print(2, self.screen_height - 1, "═", fg=corner_color)
+        console.print(0, self.screen_height - 2, "║", fg=corner_color)
 
-            # 화면 밖으로 나가거나 수명 다하면 제거
-            if shooting_star[0] >= self.screen_width or shooting_star[1] >= self.screen_height or shooting_star[2] > 40:
-                self.shooting_stars.remove(shooting_star)
-
-        # 펄스 링 효과 (타이틀 주변)
-        pulse_phase = (self.animation_frame / 50.0) % (2 * math.pi)
-        pulse_radius = int(15 + 5 * math.sin(pulse_phase))
-        pulse_alpha = max(0, min(255, int(50 + 30 * math.sin(pulse_phase))))
-        center_x = self.screen_width // 2
-        center_y = 14
-
-        for angle in range(0, 360, 15):
-            rad = math.radians(angle)
-            px = int(center_x + pulse_radius * math.cos(rad))
-            py = int(center_y + pulse_radius * 0.5 * math.sin(rad))
-            if 0 <= px < self.screen_width and 0 <= py < self.screen_height:
-                console.print(px, py, "·", fg=(pulse_alpha, pulse_alpha, 255))
-
-        # 파티클 효과 (메뉴 주변)
-        if self.animation_frame % 10 == 0:
-            if not hasattr(self, 'particles'):
-                self.particles = []
-            # 새 파티클 생성
-            menu_center_y = self.screen_height // 2 + 2
-            for _ in range(2):
-                px = random.randint(10, self.screen_width - 10)
-                py = menu_center_y + random.randint(-5, 15)
-                vy = random.uniform(-0.3, -0.1)
-                life = random.randint(30, 60)
-                self.particles.append([px, py, vy, life, life])  # [x, y, vy, life, max_life]
-
-        # 파티클 렌더링 및 업데이트
-        if hasattr(self, 'particles'):
-            for particle in self.particles[:]:
-                px, py, vy, life, max_life = particle
-                # 파티클 렌더링
-                if 0 <= int(px) < self.screen_width and 0 <= int(py) < self.screen_height:
-                    alpha = max(0, min(255, int(255 * (life / max_life))))
-                    console.print(int(px), int(py), ".", fg=(alpha, alpha, 255))
-
-                # 파티클 이동
-                particle[1] += vy
-                particle[3] -= 1
-
-                # 수명 다하면 제거
-                if particle[3] <= 0 or particle[1] < 0:
-                    self.particles.remove(particle)
+        # 우하단
+        console.print(self.screen_width - 1, self.screen_height - 1, "╝", fg=corner_color)
+        console.print(self.screen_width - 2, self.screen_height - 1, "═", fg=corner_color)
+        console.print(self.screen_width - 3, self.screen_height - 1, "═", fg=corner_color)
+        console.print(self.screen_width - 1, self.screen_height - 2, "║", fg=corner_color)
 
         # 박스 렌더링 타이틀 (중앙 상단, 3줄로 구성)
         title_start_y = 6
 
-        # 타이틀 색상 애니메이션 (천천히 변화)
+        # 타이틀 색상 애니메이션 (천천히 변화 + 물결 효과)
         color_shift = math.sin(self.animation_frame / 30.0) * 30
+        wave_offset = math.sin(self.animation_frame / 15.0) * 2  # 물결 효과
 
-        # 메인 타이틀 색상 (파란색 계열)
-        main_color_base = (120, 180, 255)
+        # 메인 타이틀 색상 (파란색 계열 - 더 밝게)
+        main_color_base = (140, 200, 255)
         main_r = min(255, max(0, int(main_color_base[0] + color_shift)))
         main_g = min(255, max(0, int(main_color_base[1] + color_shift)))
         main_b = min(255, max(0, int(main_color_base[2] + color_shift * 0.5)))
@@ -459,6 +404,25 @@ class MainMenu:
         # 3줄: "STELLAR" (큰 글씨)
         render_text("STELLAR", self.big_font, 11, 4, 5, main_color, use_glow=True)
 
+        # 타이틀 주변 빛 확산 효과
+        title_center_y = title_start_y + 8
+        title_center_x = self.screen_width // 2
+
+        # 빛 확산 라인 (좌우)
+        glow_length = int(8 + 3 * math.sin(self.animation_frame / 25.0))
+        glow_brightness = max(0, min(255, int(80 + 50 * math.sin(self.animation_frame / 20.0))))
+
+        for i in range(1, glow_length):
+            alpha = max(0, int(glow_brightness * (1 - i / glow_length)))
+            glow_color = (alpha, alpha, 255)
+
+            # 왼쪽
+            if title_center_x - 25 - i >= 0:
+                console.print(title_center_x - 25 - i, title_center_y, "─", fg=glow_color)
+            # 오른쪽
+            if title_center_x + 25 + i < self.screen_width:
+                console.print(title_center_x + 25 + i, title_center_y, "─", fg=glow_color)
+
         # 한글 서브타이틀 (별빛의 여명)
         subtitle_y = title_start_y + 18  # 타이틀 전체 높이 + 2줄 간격
         subtitle_x = (self.screen_width - len(self.subtitle)) // 2
@@ -471,25 +435,49 @@ class MainMenu:
             fg=(subtitle_brightness, subtitle_brightness, 255)
         )
 
-        # 장식 별 (타이틀 양옆 - 애니메이션)
-        star_y = title_start_y + 8  # "OF" 줄 높이
+        # 장식 별 (타이틀 위아래만 - 더 은은하게)
         star_brightness = max(0, min(255, int(150 + 105 * math.sin(self.animation_frame / 15.0))))
         star_color = (star_brightness, star_brightness, 255)
 
-        # 좌우 대칭 별 (회전 애니메이션)
-        rotation = (self.animation_frame / 20.0) % 6
-        star_chars = ["✦", "✧", "⋆", "✦", "✧", "⋆"]
-        left_star = star_chars[int(rotation)]
-        right_star = star_chars[int((rotation + 3) % 6)]
-
-        console.print(5, star_y, left_star, fg=star_color)
-        console.print(self.screen_width - 6, star_y, right_star, fg=star_color)
-
         # 위아래 별 (펄스 애니메이션)
-        top_brightness = max(0, min(255, int(120 + 135 * math.sin(self.animation_frame / 12.0))))
-        bottom_brightness = max(0, min(255, int(120 + 135 * math.sin(self.animation_frame / 12.0 + math.pi))))
+        top_brightness = max(0, min(255, int(180 + 75 * math.sin(self.animation_frame / 12.0))))
+        bottom_brightness = max(0, min(255, int(180 + 75 * math.sin(self.animation_frame / 12.0 + math.pi))))
+
+        # 위쪽 별 3개
+        console.print(self.screen_width // 2 - 2, title_start_y - 1, "✦", fg=(top_brightness, top_brightness, 255))
         console.print(self.screen_width // 2, title_start_y - 1, "✦", fg=(top_brightness, top_brightness, 255))
+        console.print(self.screen_width // 2 + 2, title_start_y - 1, "✦", fg=(top_brightness, top_brightness, 255))
+
+        # 아래쪽 별 3개
+        console.print(self.screen_width // 2 - 2, title_start_y + 17, "✦", fg=(bottom_brightness, bottom_brightness, 255))
         console.print(self.screen_width // 2, title_start_y + 17, "✦", fg=(bottom_brightness, bottom_brightness, 255))
+        console.print(self.screen_width // 2 + 2, title_start_y + 17, "✦", fg=(bottom_brightness, bottom_brightness, 255))
+
+        # 메뉴 프레임 효과
+        menu_y_start = self.screen_height // 2 + 1
+        menu_y_end = menu_y_start + 10
+        menu_x_start = (self.screen_width - 40) // 2 - 2
+        menu_x_end = menu_x_start + 44
+
+        frame_brightness = max(0, min(255, int(100 + 50 * math.sin(self.animation_frame / 30.0))))
+        frame_color = (frame_brightness, frame_brightness, 200)
+
+        # 프레임 라인 (상하좌우)
+        for x in range(menu_x_start, menu_x_end):
+            if x >= 0 and x < self.screen_width:
+                console.print(x, menu_y_start - 1, "─", fg=frame_color)
+                console.print(x, menu_y_end, "─", fg=frame_color)
+
+        for y in range(menu_y_start, menu_y_end):
+            if y >= 0 and y < self.screen_height:
+                console.print(menu_x_start - 1, y, "│", fg=frame_color)
+                console.print(menu_x_end, y, "│", fg=frame_color)
+
+        # 프레임 코너
+        console.print(menu_x_start - 1, menu_y_start - 1, "┌", fg=frame_color)
+        console.print(menu_x_end, menu_y_start - 1, "┐", fg=frame_color)
+        console.print(menu_x_start - 1, menu_y_end, "└", fg=frame_color)
+        console.print(menu_x_end, menu_y_end, "┘", fg=frame_color)
 
         # 버전 정보
         version = "v5.0.0"
