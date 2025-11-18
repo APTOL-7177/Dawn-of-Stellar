@@ -199,6 +199,17 @@ class CombatManager:
         # 3-1. 랜섬웨어 효과 처리 (적의 턴 시작 시)
         if actor in self.enemies:
             self._process_ransomware_damage(actor)
+        
+        # 3-2. 사망 여부 확인 (DoT 또는 랜섬웨어로 사망한 경우)
+        if hasattr(actor, 'is_alive') and not actor.is_alive:
+            self.logger.warning(f"{actor.name}이(가) 턴 시작 시 피해로 사망하여 행동을 취소합니다.")
+            result["success"] = False
+            result["error"] = "사망"
+            result["death_reason"] = "턴 시작 시 피해"
+            # ATB는 소비하지만 행동하지 못함
+            self.atb.consume_atb(actor)
+            self._on_turn_end(actor)
+            return result
 
         # 4. 상태 효과 지속시간 감소
         if hasattr(actor, 'status_manager'):
