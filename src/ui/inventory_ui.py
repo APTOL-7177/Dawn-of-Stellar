@@ -454,7 +454,10 @@ class InventoryUI:
         # 필터링
         visible_items = []
         for i, slot in enumerate(self.inventory.slots):
-            if self.filter_type is None or slot.item.item_type == self.filter_type:
+            # 안전하게 item_type 속성 접근 (기본값 CONSUMABLE)
+            from src.equipment.item_system import ItemType
+            current_type = getattr(slot.item, 'item_type', ItemType.CONSUMABLE)
+            if self.filter_type is None or current_type == self.filter_type:
                 visible_items.append((i, slot))
 
         # 스크롤된 아이템 표시
