@@ -118,29 +118,45 @@ class InventoryUI:
             self._update_scroll()
             self.show_comparison = False
         elif action == GameAction.MOVE_DOWN:
-            self.cursor = min(len(self.inventory) - 1, self.cursor + 1)
+            # 필터링된 아이템 수 기준으로 커서 이동
+            filtered_count = self._get_filtered_item_count()
+            self.cursor = min(filtered_count - 1, self.cursor + 1)
             self._update_scroll()
             self.show_comparison = False
         elif action == GameAction.USE_CONSUMABLE:
-            # F 키: 음식/소비품 직접 사용
+            # F 키: 음식/소비품 직접 사용 (첫 번째 캐릭터에게 바로 사용)
             if len(self.inventory) > 0:
-                item = self.inventory.get_item(self.cursor)
+                # 필터링된 인덱스를 원래 인덱스로 변환
+                actual_index = self._get_actual_slot_index(self.cursor)
+                item = self.inventory.get_item(actual_index)
                 if item:
                     # CookedFood 타입 확인
                     from src.cooking.recipe import CookedFood
 
                     if isinstance(item, (Consumable, CookedFood)):
-                        self.selected_item_index = self.cursor
-                        self.mode = InventoryMode.USE_ITEM
+                        # 첫 번째 캐릭터에게 바로 사용
+                        target = self.party[0] if self.party else None
+                        if target:
+                            success = self.inventory.use_consumable(actual_index, target)
+                            if success:
+                                item_name = getattr(item, 'name', '알 수 없는 아이템')
+                                logger.info(f"{item_name} 사용 완료 (대상: {target.name})")
+                                # 인덱스 조정
+                                if self.cursor >= len(self.inventory):
+                                    self.cursor = max(0, len(self.inventory) - 1)
+                        else:
+                            logger.warning("사용할 대상이 없습니다")
         elif action == GameAction.CONFIRM:
             # 아이템 사용/장착
             if len(self.inventory) > 0:
-                item = self.inventory.get_item(self.cursor)
+                # 필터링된 인덱스를 원래 인덱스로 변환
+                actual_index = self._get_actual_slot_index(self.cursor)
+                item = self.inventory.get_item(actual_index)
                 if item:
                     # CookedFood 타입 확인
                     from src.cooking.recipe import CookedFood
 
-                    self.selected_item_index = self.cursor
+                    self.selected_item_index = actual_index
 
                     if isinstance(item, Equipment):
                         # 장비 아이템: 장착 모드로 전환
@@ -341,6 +357,27 @@ class InventoryUI:
         elif self.cursor >= self.scroll_offset + self.max_visible:
             self.scroll_offset = self.cursor - self.max_visible + 1
 
+    def _get_filtered_item_count(self) -> int:
+        """필터링된 아이템 수 반환"""
+        count = 0
+        for slot in self.inventory.slots:
+            current_type = getattr(slot.item, 'item_type', ItemType.CONSUMABLE)
+            if self.filter_type is None or current_type == self.filter_type:
+                count += 1
+        return count
+
+    def _get_actual_slot_index(self, filtered_index: int) -> int:
+        """필터링된 인덱스를 원래 인벤토리 인덱스로 변환"""
+        visible_items = []
+        for i, slot in enumerate(self.inventory.slots):
+            current_type = getattr(slot.item, 'item_type', ItemType.CONSUMABLE)
+            if self.filter_type is None or current_type == self.filter_type:
+                visible_items.append(i)
+
+        if 0 <= filtered_index < len(visible_items):
+            return visible_items[filtered_index]
+        return filtered_index  # 범위 밖이면 그대로 반환
+
     def _change_filter(self, direction: int):
         """필터 변경"""
         filters = [None, ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY, ItemType.CONSUMABLE]
@@ -353,9 +390,10 @@ class InventoryUI:
         new_idx = (current_idx + direction) % len(filters)
         self.filter_type = filters[new_idx]
 
-        # 커서 초기화
+        # 커서 초기화 및 스크롤 업데이트
         self.cursor = 0
         self.scroll_offset = 0
+        self._update_scroll()  # 화면 스크롤 업데이트
 
         logger.debug(f"필터 변경: {self.filter_type}")
 
@@ -487,7 +525,9 @@ class InventoryUI:
         # 스크롤된 아이템 표시
         for idx, (slot_idx, slot) in enumerate(visible_items[self.scroll_offset:self.scroll_offset + self.max_visible]):
             item = slot.item
-            is_selected = (self.cursor == slot_idx and self.mode == InventoryMode.BROWSE)
+            # 필터링된 리스트의 인덱스로 선택 확인
+            filtered_idx = self.scroll_offset + idx
+            is_selected = (self.cursor == filtered_idx and self.mode == InventoryMode.BROWSE)
 
             # 선택 표시
             prefix = "►" if is_selected else " "
