@@ -42,6 +42,12 @@ class Skill:
         if not can_use:
             return SkillResult(success=False, message=f"사용 불가: {reason}")
 
+        # target_type이 "all_enemies"인 경우, context에서 all_enemies 가져오기
+        if hasattr(self, 'target_type') and self.target_type == "all_enemies":
+            all_enemies = context.get('all_enemies', [])
+            if all_enemies:
+                target = all_enemies
+
         # 비용 소비
         for cost in self.costs:
             if not cost.consume(user, context):
