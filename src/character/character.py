@@ -255,7 +255,7 @@ class Character:
         elif gimmick_type == "melody_system":
             self.melody_stacks = 0
             self.max_melody_stacks = self.gimmick_data.get("max_melody", 7)
-            self.melody_notes = []
+            self.melody_notes = 0
             self.current_melody = ""
             self.octave_completed = False  # 옥타브 완성 여부
 
