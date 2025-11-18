@@ -66,6 +66,23 @@ class Skill:
                 from src.core.logger import get_logger
                 logger = get_logger("skill")
                 logger.info(f"{user.name} 랜덤 룬 획득: {selected_rune} 룬 (+1, 총: {current_value + 1}/{max_value})")
+            
+            # 적에게 룬 새기기 (적이 리스트인 경우 첫 번째 적에게 적용)
+            target_list = target if isinstance(target, list) else [target]
+            for single_target in target_list:
+                if single_target and hasattr(single_target, 'is_alive') and single_target.is_alive:
+                    # 적의 carved_runes 딕셔너리 초기화 (없으면)
+                    if not hasattr(single_target, 'carved_runes'):
+                        single_target.carved_runes = {}
+                    
+                    # 랜덤 룬 타입을 적에게 새기기 (최대 3개까지)
+                    current_count = single_target.carved_runes.get(selected_rune, 0)
+                    if current_count < 3:
+                        single_target.carved_runes[selected_rune] = current_count + 1
+                        rune_names = {"fire": "화염", "ice": "냉기", "lightning": "번개", "earth": "대지", "arcane": "비전"}
+                        rune_name = rune_names.get(selected_rune, selected_rune)
+                        logger.info(f"{single_target.name}에게 {rune_name} 룬 새김! (총: {current_count + 1}/3)")
+                    break  # 첫 번째 적에게만 적용
 
         # 효과 실행 (ISSUE-003: 효과 메시지 수집)
         total_dmg = 0

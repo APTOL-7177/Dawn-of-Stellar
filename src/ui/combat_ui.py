@@ -939,6 +939,17 @@ class CombatUI:
 
     def _get_gimmick_display(self, character: Any) -> str:
         """캐릭터의 기믹 상태를 문자열로 반환"""
+        # 적에게 새겨진 룬 표시 (배틀메이지의 룬 새기기)
+        if hasattr(character, 'carved_runes') and character.carved_runes:
+            rune_display = []
+            rune_names = {"fire": "🔥", "ice": "❄", "lightning": "⚡", "earth": "🌍", "arcane": "✨"}
+            for rune_type, count in character.carved_runes.items():
+                if count > 0:
+                    icon = rune_names.get(rune_type, rune_type[0].upper())
+                    rune_display.append(f"{icon}{count}")
+            if rune_display:
+                return f"[룬: {', '.join(rune_display)}]"
+        
         gimmick_type = getattr(character, 'gimmick_type', None)
         if not gimmick_type:
             return ""
@@ -1181,7 +1192,9 @@ class CombatUI:
             fire = getattr(character, 'rune_fire', 0)
             ice = getattr(character, 'rune_ice', 0)
             lightning = getattr(character, 'rune_lightning', 0)
-            total = fire + ice + lightning
+            earth = getattr(character, 'rune_earth', 0)
+            arcane = getattr(character, 'rune_arcane', 0)
+            total = fire + ice + lightning + earth + arcane
             return f"[룬:{total}]"
 
         elif gimmick_type == "probability_distortion":
@@ -1412,6 +1425,8 @@ class CombatUI:
             fire = getattr(character, 'rune_fire', 0)
             ice = getattr(character, 'rune_ice', 0)
             lightning = getattr(character, 'rune_lightning', 0)
+            earth = getattr(character, 'rune_earth', 0)
+            arcane = getattr(character, 'rune_arcane', 0)
             max_rune = getattr(character, 'max_rune_per_type', 3)
 
             console.print(content_x, content_y + line, "⚔️🔮 배틀메이지 - 룬 공명", fg=(200, 100, 255))
@@ -1419,12 +1434,16 @@ class CombatUI:
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
-            # 룬 상태
+            # 룬 상태 (5가지 모두 표시)
             console.print(content_x, content_y + line, f"🔥 화염 룬: {fire}/{max_rune}", fg=(255, 100, 50))
             line += 1
             console.print(content_x, content_y + line, f"❄️  냉기 룬: {ice}/{max_rune}", fg=(100, 200, 255))
             line += 1
             console.print(content_x, content_y + line, f"⚡ 번개 룬: {lightning}/{max_rune}", fg=(255, 255, 100))
+            line += 1
+            console.print(content_x, content_y + line, f"🌍 대지 룬: {earth}/{max_rune}", fg=(139, 69, 19))
+            line += 1
+            console.print(content_x, content_y + line, f"✨ 비전 룬: {arcane}/{max_rune}", fg=(200, 100, 255))
             line += 1
 
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
@@ -2494,13 +2513,19 @@ class CombatUI:
             fire = getattr(character, 'rune_fire', 0)
             ice = getattr(character, 'rune_ice', 0)
             lightning = getattr(character, 'rune_lightning', 0)
+            earth = getattr(character, 'rune_earth', 0)
+            arcane = getattr(character, 'rune_arcane', 0)
             details.append("=== 룬 공명 시스템 ===")
             fire_bar = self._create_gauge_bar(fire, 3, width=10)
             ice_bar = self._create_gauge_bar(ice, 3, width=10)
             lightning_bar = self._create_gauge_bar(lightning, 3, width=10)
+            earth_bar = self._create_gauge_bar(earth, 3, width=10)
+            arcane_bar = self._create_gauge_bar(arcane, 3, width=10)
             details.append(f"🔥 화염 룬: {fire_bar}")
             details.append(f"❄️  냉기 룬: {ice_bar}")
             details.append(f"⚡ 번개 룬: {lightning_bar}")
+            details.append(f"🌍 대지 룬: {earth_bar}")
+            details.append(f"✨ 비전 룬: {arcane_bar}")
             if fire >= 2 and ice >= 2:
                 details.append("✨ 공명 가능: 화염+냉기")
             if ice >= 2 and lightning >= 2:

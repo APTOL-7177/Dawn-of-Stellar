@@ -1,0 +1,146 @@
+{
+  "star_fragments": 0,
+  "unlocked_traits": {
+    "alchemist": [
+      "potion_mastery",
+      "transmutation"
+    ],
+    "archer": [
+      "support_fire_master",
+      "perfect_support"
+    ],
+    "archmage": [
+      "mana_mastery",
+      "arcane_knowledge"
+    ],
+    "assassin": [
+      "stealth_state_bonus",
+      "shadow_mobility"
+    ],
+    "bard": [
+      "battle_song",
+      "inspirational_melody"
+    ],
+    "battle_mage": [
+      "rune_mastery",
+      "hybrid_strike"
+    ],
+    "berserker": [
+      "madness_threshold",
+      "berserker_mode"
+    ],
+    "breaker": [
+      "brv_crusher",
+      "break_master"
+    ],
+    "cleric": [
+      "healing_power",
+      "faith_shield"
+    ],
+    "dark_knight": [
+      "lifesteal",
+      "dark_pact"
+    ],
+    "dimensionist": [
+      "gauge_per_turn",
+      "critical_charge"
+    ],
+    "dragon_knight": [
+      "dragon_breath",
+      "burning_rage"
+    ],
+    "druid": [],
+    "elementalist": [
+      "fire_spirit_power",
+      "water_spirit_regeneration"
+    ],
+    "engineer": [
+      "heat_efficiency",
+      "dangerous_combat"
+    ],
+    "gladiator": [
+      "crowd_favorite",
+      "spectacular_fighter"
+    ],
+    "hacker": [
+      "multithread_master",
+      "cpu_optimization"
+    ],
+    "knight": [
+      "glory_vow",
+      "honor_guard"
+    ],
+    "monk": [
+      "yin_yang_balance",
+      "yang_mastery"
+    ],
+    "necromancer": [
+      "undead_commander",
+      "death_harvest"
+    ],
+    "paladin": [
+      "divine_protection",
+      "holy_aura"
+    ],
+    "philosopher": [
+      "power_mastery",
+      "wisdom_mastery"
+    ],
+    "pirate": [
+      "treasure_hunter",
+      "lucky_strike"
+    ],
+    "priest": [
+      "divine_miracle",
+      "healing_mastery"
+    ],
+    "rogue": [
+      "shadow_step",
+      "assassinate"
+    ],
+    "samurai": [
+      "bushido",
+      "honor_vow"
+    ],
+    "shaman": [
+      "spirit_sight",
+      "ancestral_protection"
+    ],
+    "sniper": [
+      "last_bullet",
+      "quick_hands"
+    ],
+    "spellblade": [
+      "magic_blade_unity",
+      "dual_element"
+    ],
+    "sword_saint": [
+      "sword_energy",
+      "rapid_slash"
+    ],
+    "time_mage": [
+      "time_balancer",
+      "past_wisdom"
+    ],
+    "vampire": [
+      "blood_satisfaction",
+      "thirsty_state"
+    ],
+    "warrior": [
+      "adaptive_combat",
+      "battlefield_master"
+    ]
+  },
+  "purchased_upgrades": [],
+  "purchased_passives": [],
+  "unlocked_jobs": [
+    "warrior",
+    "archer",
+    "rogue",
+    "archmage",
+    "knight",
+    "cleric"
+  ],
+  "intro_shown": true,
+  "tutorial_offered": true
+}
