@@ -138,7 +138,7 @@ def create_shaman_skills():
         BuffEffect(BuffType.DEFENSE_DOWN, 0.6, duration=5),
         GimmickEffect(GimmickOperation.SET, "curse_stacks", 0)
     ]
-    ultimate.costs = [MPCost(15), StackCost("curse_stacks", 1)]
+    ultimate.costs = [MPCost(30), StackCost("curse_stacks", 1)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

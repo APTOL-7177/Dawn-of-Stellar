@@ -140,7 +140,7 @@ def create_paladin_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "holy_power", 5)
     ]
-    ultimate.costs = [MPCost(18)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.is_aoe = True

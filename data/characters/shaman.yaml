@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 9
   mp: 6
-  init_brv: 3.7
+  init_brv: 21.4
   strength: 2.5
   defense: 2.3
   magic: 4.2
@@ -23,7 +23,7 @@ stat_growth:
   luck: 4.8
   accuracy: 2.0
   evasion: 2.0
-  max_brv: 2.2
+  max_brv: 87.4
 traits:
 - id: spirit_sight
   name: 영혼의 시야
@@ -50,7 +50,6 @@ gimmick:
   name: 토템의 저주
   description: 토템을 설치하고 저주를 축적하여 강력한 주술 사용
   max_curse_stacks: 10
-
 skills:
 - spirit_bolt
 - protection_totem

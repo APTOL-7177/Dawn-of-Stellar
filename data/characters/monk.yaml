@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 11
   mp: 5.5
-  init_brv: 4.3
+  init_brv: 24.4
   strength: 4.2
   defense: 3.0
   magic: 2.2
@@ -23,7 +23,7 @@ stat_growth:
   luck: 3.2
   accuracy: 2.5
   evasion: 2.2
-  max_brv: 2.6
+  max_brv: 92.4
 traits:
 - id: yin_yang_balance
   name: 태극 조화
@@ -35,7 +35,6 @@ traits:
   effects:
     hp_regen_percent: 0.05
     mp_regen_percent: 0.05
-
 - id: yang_mastery
   name: 양극 숙련
   description: 양 상태(80+)에서 물리 공격력 +30%, 크리티컬 +20%
@@ -45,7 +44,6 @@ traits:
   effects:
     physical_attack_multiplier: 1.3
     critical_rate_bonus: 0.2
-
 - id: yin_mastery
   name: 음극 숙련
   description: 음 상태(20-)에서 마법 공격력 +30%, 방어력 +20%
@@ -55,14 +53,12 @@ traits:
   effects:
     magic_attack_multiplier: 1.3
     defense_multiplier: 1.2
-
 - id: ki_flow
   name: 기 흐름
   description: 매 턴 음양 게이지가 균형(50)으로 5씩 이동
   type: passive
   effects:
     auto_balance: 5
-
 - id: enlightenment
   name: 깨달음의 순간
   description: 정확히 50에서 스킬 사용 시 MP 소모 50% 감소
@@ -71,7 +67,6 @@ traits:
     ki_gauge_exact: 50
   effects:
     mp_cost_reduction: 0.5
-
 gimmick:
   type: yin_yang_flow
   name: 음양 기 흐름
@@ -83,7 +78,6 @@ gimmick:
   yin_threshold: 20
   yang_threshold: 80
   start_ki: 50
-
 skills:
 - monk_palm_strike
 - monk_energy_blast

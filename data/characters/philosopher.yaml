@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 8.5
   mp: 6.5
-  init_brv: 3.6
+  init_brv: 20.8
   strength: 2.0
   defense: 2.0
   magic: 5.0
@@ -23,7 +23,7 @@ stat_growth:
   luck: 4.0
   accuracy: 2.0
   evasion: 2.5
-  max_brv: 2.2
+  max_brv: 86.8
 traits:
 - id: power_mastery
   name: 힘의 숙달
@@ -34,7 +34,6 @@ traits:
   effects:
     attack_multiplier: 1.6
     critical_rate_bonus: 0.3
-
 - id: wisdom_mastery
   name: 지혜의 숙달
   description: 지혜 선택 5회 이상 시 마법 공격력 +60%, MP 회복 +5/턴
@@ -44,7 +43,6 @@ traits:
   effects:
     magic_multiplier: 1.6
     mp_regen: 5
-
 - id: sacrifice_mastery
   name: 희생의 숙달
   description: 희생 선택 5회 이상 시 아군 사망 시 자동 부활 (1회)
@@ -53,7 +51,6 @@ traits:
     choice_sacrifice_min: 5
   effects:
     auto_revive_ally: true
-
 - id: truth_mastery
   name: 진실의 숙달
   description: 진실 선택 5회 이상 시 적 디버프 효과 2배
@@ -62,7 +59,6 @@ traits:
     choice_truth_min: 5
   effects:
     debuff_power_multiplier: 2.0
-
 - id: balanced_philosophy
   name: 균형의 철학
   description: 모든 선택 카운트가 균형(차이 2 이하)일 때 모든 스탯 +20%
@@ -71,7 +67,6 @@ traits:
     choices_balanced: true
   effects:
     all_stats_multiplier: 1.2
-
 gimmick:
   type: dilemma_choice
   name: 딜레마 선택 시스템
@@ -79,20 +74,38 @@ gimmick:
   dilemma_types:
     power_wisdom:
       name: 힘 vs 지혜
-      power: {effect: attack_up, value: 0.5, duration: 3}
-      wisdom: {effect: magic_up, value: 0.5, duration: 3}
+      power:
+        effect: attack_up
+        value: 0.5
+        duration: 3
+      wisdom:
+        effect: magic_up
+        value: 0.5
+        duration: 3
     sacrifice_survival:
       name: 희생 vs 생존
-      sacrifice: {effect: ally_heal, value: 0.3}
-      survival: {effect: self_heal, value: 0.3}
+      sacrifice:
+        effect: ally_heal
+        value: 0.3
+      survival:
+        effect: self_heal
+        value: 0.3
     truth_lie:
       name: 진실 vs 거짓
-      truth: {effect: enemy_debuff, value: 0.4}
-      lie: {effect: self_buff, value: 0.3}
+      truth:
+        effect: enemy_debuff
+        value: 0.4
+      lie:
+        effect: self_buff
+        value: 0.3
     order_chaos:
       name: 질서 vs 혼돈
-      order: {effect: defense_up, value: 0.4}
-      chaos: {effect: critical_up, value: 0.5}
+      order:
+        effect: defense_up
+        value: 0.4
+      chaos:
+        effect: critical_up
+        value: 0.5
   choice_tracking:
     choice_power: 0
     choice_wisdom: 0
@@ -104,7 +117,6 @@ gimmick:
     choice_chaos: 0
   accumulation_threshold: 5
   max_choices: 99
-
 skills:
 - logical_argument
 - confuse_mind

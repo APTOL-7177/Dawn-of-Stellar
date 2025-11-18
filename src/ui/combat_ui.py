@@ -167,6 +167,26 @@ class CombatUI:
             cost_text = f" ({', '.join(cost_parts)})" if cost_parts else ""
 
             name = getattr(skill, 'name', str(skill))
+            
+            # 스탠스 변경 스킬인 경우 예상 스탠스 표시
+            skill_metadata = getattr(skill, 'metadata', {})
+            if 'stance' in skill_metadata:
+                stance_id = skill_metadata['stance']
+                if stance_id == "auto":
+                    name = f"{name} → 상황에 맞게"
+                else:
+                    stance_id_to_name = {
+                        "balanced": "중립",
+                        "attack": "공격",
+                        "defense": "방어",
+                        "berserker": "광전사",
+                        "guardian": "수호자",
+                        "speed": "신속"
+                    }
+                    stance_name = stance_id_to_name.get(stance_id, "")
+                    if stance_name:
+                        name = f"{name} → {stance_name}"
+            
             desc = getattr(skill, 'description', '')
 
             # 사용 불가 시 이유 추가
@@ -942,11 +962,11 @@ class CombatUI:
         # 적에게 새겨진 룬 표시 (배틀메이지의 룬 새기기)
         if hasattr(character, 'carved_runes') and character.carved_runes:
             rune_display = []
-            rune_names = {"fire": "🔥", "ice": "❄", "lightning": "⚡", "earth": "🌍", "arcane": "✨"}
+            rune_names = {"fire": "화", "ice": "냉", "lightning": "번", "earth": "대", "arcane": "비"}
             for rune_type, count in character.carved_runes.items():
                 if count > 0:
-                    icon = rune_names.get(rune_type, rune_type[0].upper())
-                    rune_display.append(f"{icon}{count}")
+                    name = rune_names.get(rune_type, rune_type[0].upper())
+                    rune_display.append(f"{name}{count}")
             if rune_display:
                 return f"[룬: {', '.join(rune_display)}]"
         
@@ -958,9 +978,31 @@ class CombatUI:
         if gimmick_type == "stance_system":
             # 전사 - 스탠스
             stance = getattr(character, 'current_stance', 0)
-            stance_names = ["기본", "공격", "방어", "신속", "균형", "최종"]
-            if 0 <= stance < len(stance_names):
-                return f"[{stance_names[stance]}]"
+            # 문자열인 경우 정수로 변환
+            if isinstance(stance, str):
+                stance_id_to_index = {
+                    "balanced": 0,
+                    "attack": 1,
+                    "defense": 2,
+                    "berserker": 4,
+                    "guardian": 5,
+                    "speed": 6
+                }
+                stance = stance_id_to_index.get(stance, 0)
+            # 스탠스 인덱스를 배열 인덱스로 매핑 (0,1,2,4,5,6 -> 0,1,2,3,4,5)
+            stance_to_array_index = {
+                0: 0,  # balanced -> 중립
+                1: 1,  # attack -> 공격
+                2: 2,  # defense -> 방어
+                4: 3,  # berserker -> 광전사
+                5: 4,  # guardian -> 수호자
+                6: 5   # speed -> 신속
+            }
+            stance_names = ["중립", "공격", "방어", "광전사", "수호자", "신속"]
+            if isinstance(stance, int):
+                array_index = stance_to_array_index.get(stance, 0)
+                if 0 <= array_index < len(stance_names):
+                    return f"[{stance_names[array_index]}]"
 
         elif gimmick_type == "elemental_counter":
             # 아크메이지 - 원소 카운터
@@ -1205,26 +1247,33 @@ class CombatUI:
         elif gimmick_type == "heat_gauge":
             # 엔지니어 - 열 게이지 (간략: 상태)
             heat = getattr(character, 'heat', 0)
-            if heat > 70:
-                return f"[⚠열:{heat}]"
-            else:
-                return f"[열:{heat}]"
+            return f"[열:{heat}]"
 
         elif gimmick_type == "thirst_gauge":
             # 뱀파이어 - 갈증 (간략: 게이지)
             thirst = getattr(character, 'thirst', 0)
-            if thirst > 70:
-                return f"[💧:{thirst}]"
-            else:
-                return f"[갈증:{thirst}]"
+            return f"[갈증:{thirst}]"
 
         elif gimmick_type == "madness_gauge":
             # 버서커 - 광기 (간략: 게이지)
             madness = getattr(character, 'madness', 0)
-            if madness > 70:
-                return f"[⚡광:{madness}]"
+            return f"[광기:{madness}]"
+
+        elif gimmick_type == "madness_threshold":
+            # 광전사 - 광기 임계치
+            madness = getattr(character, 'madness', 0)
+            max_madness = getattr(character, 'max_madness', 100)
+            optimal_min = getattr(character, 'optimal_min', 30)
+            optimal_max = getattr(character, 'optimal_max', 70)
+            danger_min = getattr(character, 'danger_min', 71)
+            
+            # 위험 구간 표시
+            if madness >= danger_min:
+                return f"[위험광기:{madness}/{max_madness}]"
+            elif madness >= optimal_min:
+                return f"[최적광기:{madness}/{max_madness}]"
             else:
-                return f"[광기:{madness}]"
+                return f"[광기:{madness}/{max_madness}]"
 
         elif gimmick_type == "spirit_resonance":
             # 정령술사 - 정령 (간략: 활성 정령 수)
@@ -1238,7 +1287,7 @@ class CombatUI:
         elif gimmick_type == "stealth_mastery":
             # 암살자 - 은신 (간략: 상태만)
             stealth_active = getattr(character, 'stealth_active', False)
-            return "[🌑]" if stealth_active else "[👁]"
+            return "[은신]" if stealth_active else "[노출]"
 
         elif gimmick_type == "dilemma_choice":
             # 철학자 - 선택 (간략: 총 선택 수)
@@ -1259,13 +1308,60 @@ class CombatUI:
             threads = getattr(character, 'active_threads', 0)
             return f"[스레드:{threads}]"
 
+        elif gimmick_type == "multithread_system":
+            # 해커 - 멀티스레드 시스템
+            virus = getattr(character, 'program_virus', 0)
+            backdoor = getattr(character, 'program_backdoor', 0)
+            ddos = getattr(character, 'program_ddos', 0)
+            ransomware = getattr(character, 'program_ransomware', 0)
+            spyware = getattr(character, 'program_spyware', 0)
+            total = virus + backdoor + ddos + ransomware + spyware
+            return f"[프로그램:{total}]"
+
         elif gimmick_type == "cheer_gauge":
             # 검투사 - 환호 (간략: 게이지)
             cheer = getattr(character, 'cheer', 0)
             if cheer > 70:
-                return f"[📢:{cheer}]"
+                return f"[열광:{cheer}]"
             else:
                 return f"[환호:{cheer}]"
+
+        elif gimmick_type == "crowd_cheer":
+            # 검투사 - 군중의 환호
+            cheer = getattr(character, 'cheer', 0)
+            max_cheer = getattr(character, 'max_cheer', 100)
+            return f"[환호:{cheer}/{max_cheer}]"
+
+        elif gimmick_type == "timeline_system":
+            # 시간술사 - 타임라인
+            timeline = getattr(character, 'timeline', 0)
+            min_timeline = getattr(character, 'min_timeline', -5)
+            max_timeline = getattr(character, 'max_timeline', 5)
+            if timeline < 0:
+                return f"[과거:{timeline}]"
+            elif timeline > 0:
+                return f"[미래:{timeline}]"
+            else:
+                return f"[현재:{timeline}]"
+
+        elif gimmick_type == "undead_legion":
+            # 네크로맨서 - 언데드 군단
+            skeleton = getattr(character, 'skeleton_count', 0)
+            zombie = getattr(character, 'zombie_count', 0)
+            ghost = getattr(character, 'ghost_count', 0)
+            total = skeleton + zombie + ghost
+            max_undead = getattr(character, 'max_undead', 5)
+            return f"[언데드:{total}/{max_undead}]"
+
+        elif gimmick_type == "stealth_exposure":
+            # 암살자 - 은신-노출
+            stealth = getattr(character, 'stealth_points', 0)
+            max_stealth = getattr(character, 'max_stealth_points', 5)
+            exposed = getattr(character, 'exposed', False)
+            if exposed:
+                return f"[노출:{stealth}/{max_stealth}]"
+            else:
+                return f"[은신:{stealth}/{max_stealth}]"
 
         return ""
 
@@ -1279,7 +1375,8 @@ class CombatUI:
 
         # 박스 위치 및 크기
         box_width = 50
-        box_height = 20
+        # 배틀메이지의 경우 룬 5개 + 공명 정보를 위해 높이 증가
+        box_height = 22
         box_x = (self.screen_width - box_width) // 2
         box_y = (self.screen_height - box_height) // 2
 
@@ -1431,7 +1528,7 @@ class CombatUI:
 
             console.print(content_x, content_y + line, "⚔️🔮 배틀메이지 - 룬 공명", fg=(200, 100, 255))
             line += 1
-            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            console.print(box_x, content_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
             # 룬 상태 (5가지 모두 표시)
@@ -1446,7 +1543,7 @@ class CombatUI:
             console.print(content_x, content_y + line, f"✨ 비전 룬: {arcane}/{max_rune}", fg=(200, 100, 255))
             line += 1
 
-            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            console.print(box_x, content_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
             # 공명 가능 패턴 체크
@@ -1520,10 +1617,18 @@ class CombatUI:
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
-            if thirst > 90:
-                console.print(content_x, content_y + line, "💧 상태: 혈액 광란 (위험!)", fg=(255, 50, 50))
+            if thirst >= 96:
+                console.print(content_x, content_y + line, "💧 상태: 혈액 광란 (극위험!)", fg=(255, 0, 0))
                 line += 1
-                console.print(content_x, content_y + line, "⚠️  통제 불가, 아군도 공격!", fg=(255, 100, 100))
+                console.print(content_x, content_y + line, "⚡ 공격력 +150%, 흡혈 5배, 속도 +100%", fg=(255, 200, 0))
+                line += 1
+                console.print(content_x, content_y + line, "⚠️  매 턴 HP 10% 감소, 받는 데미지 +50%", fg=(255, 50, 50))
+            elif thirst >= 91:
+                console.print(content_x, content_y + line, "💧 상태: 통제된 광란 (위험!)", fg=(255, 100, 50))
+                line += 1
+                console.print(content_x, content_y + line, "⚡ 공격력 +120%, 흡혈 4배, 속도 +80%", fg=(255, 200, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚠️  매 턴 HP 5% 감소, 받는 데미지 +30%", fg=(255, 150, 100))
             elif thirst > 60:
                 console.print(content_x, content_y + line, "💧 상태: 극심한 갈증", fg=(255, 150, 150))
                 line += 1
@@ -1537,7 +1642,8 @@ class CombatUI:
                 line += 1
                 console.print(content_x, content_y + line, "⚡ 정상 상태", fg=(200, 200, 200))
             line += 1
-            console.print(content_x, content_y + line, f"📊 다음 턴 자동 증가: +10 (예상: {min(thirst + 10, max_thirst)})", fg=(150, 200, 255))
+            thirst_per_turn = 5  # 기본값 (blood_control 특성에서 가져올 수 있음)
+            console.print(content_x, content_y + line, f"📊 다음 턴 자동 증가: +{thirst_per_turn} (예상: {min(thirst + thirst_per_turn, max_thirst)})", fg=(150, 200, 255))
 
         elif gimmick_type == "madness_gauge":
             # 버서커 - 광기
@@ -1796,7 +1902,27 @@ class CombatUI:
         elif gimmick_type == "stance_system":
             # 전사 - 스탠스 시스템
             stance = getattr(character, 'current_stance', 0)
-            stance_names = ["기본", "공격", "방어", "신속", "균형", "최종"]
+            # 문자열인 경우 정수로 변환
+            if isinstance(stance, str):
+                stance_id_to_index = {
+                    "balanced": 0,
+                    "attack": 1,
+                    "defense": 2,
+                    "berserker": 4,
+                    "guardian": 5,
+                    "speed": 6
+                }
+                stance = stance_id_to_index.get(stance, 0)
+            # 스탠스 인덱스를 배열 인덱스로 매핑 (0,1,2,4,5,6 -> 0,1,2,3,4,5)
+            stance_to_array_index = {
+                0: 0,  # balanced -> 중립
+                1: 1,  # attack -> 공격
+                2: 2,  # defense -> 방어
+                4: 3,  # berserker -> 광전사
+                5: 4,  # guardian -> 수호자
+                6: 5   # speed -> 신속
+            }
+            stance_names = ["중립", "공격", "방어", "광전사", "수호자", "신속"]
 
             console.print(content_x, content_y + line, "⚔️ 전사 - 스탠스 시스템", fg=(255, 150, 100))
             line += 1
@@ -1804,24 +1930,28 @@ class CombatUI:
             line += 2
 
             # 현재 스탠스 강조 표시
-            if 0 <= stance < len(stance_names):
-                console.print(content_x + 10, content_y + line, f"【 {stance_names[stance]} 】", fg=(255, 255, 100))
-                line += 2
+            if isinstance(stance, int):
+                array_index = stance_to_array_index.get(stance, 0)
+                if 0 <= array_index < len(stance_names):
+                    console.print(content_x + 10, content_y + line, f"【 {stance_names[array_index]} 】", fg=(255, 255, 100))
+                    line += 2
 
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
             # 스탠스별 효과
             stance_effects = [
-                "일반 능력치",
-                "⚔️ 공격력 +40%, 방어력 -20%",
-                "🛡️ 방어력 +50%, 공격력 -10%",
-                "💨 속도 +50%, HP -10%",
-                "⚖️ 모든 스탯 +15%",
-                "⭐ 모든 스탯 +30%, 크리티컬 +20%"
+                "모든 스탯 그대로",
+                "공격력 +40%, 방어력/마법방어력 -25%",
+                "방어력/마법방어력 +60%, 공격력 -30%, 속도 -30%",
+                "속도/공격력 +55%, 방어력/마법방어력 -45%, 매턴 피해",
+                "모든 스탯 -15%, HP/MP 매턴 재생",
+                "속도 +80%, 방어력/마법방어력/공격력 -25%"
             ]
-            if 0 <= stance < len(stance_effects):
-                console.print(content_x, content_y + line, f"{stance_effects[stance]}", fg=(255, 255, 200))
+            if isinstance(stance, int):
+                array_index = stance_to_array_index.get(stance, 0)
+                if 0 <= array_index < len(stance_effects):
+                    console.print(content_x, content_y + line, f"{stance_effects[array_index]}", fg=(255, 255, 200))
 
         elif gimmick_type == "elemental_counter":
             # 아크메이지 - 원소 카운터
@@ -2919,10 +3049,34 @@ class CombatUI:
         # 전사 - 자세 시스템 (YAML: stance_system)
         elif gimmick_type == "stance_system":
             stance = getattr(character, 'current_stance', 0)
+            # 문자열인 경우 정수로 변환
+            if isinstance(stance, str):
+                stance_id_to_index = {
+                    "balanced": 0,
+                    "attack": 1,
+                    "defense": 2,
+                    "berserker": 4,
+                    "guardian": 5,
+                    "speed": 6
+                }
+                stance = stance_id_to_index.get(stance, 0)
+            # 스탠스 인덱스를 배열 인덱스로 매핑 (0,1,2,4,5,6 -> 0,1,2,3,4,5)
+            stance_to_array_index = {
+                0: 0,  # balanced -> 중립
+                1: 1,  # attack -> 공격
+                2: 2,  # defense -> 방어
+                4: 3,  # berserker -> 광전사
+                5: 4,  # guardian -> 수호자
+                6: 5   # speed -> 신속
+            }
             details.append("=== 자세 시스템 ===")
-            stance_names = ["😐 중립", "⚔️ 공격", "🛡️ 방어", "😡 광전사", "🏰 수호자", "⚡ 신속"]
-            if 0 <= stance < len(stance_names):
-                details.append(f"현재 자세: {stance_names[stance]}")
+            stance_names = ["중립", "공격", "방어", "광전사", "수호자", "신속"]
+            if isinstance(stance, int):
+                array_index = stance_to_array_index.get(stance, 0)
+                if 0 <= array_index < len(stance_names):
+                    details.append(f"현재 자세: {stance_names[array_index]}")
+                else:
+                    details.append(f"현재 자세: {stance}")
             else:
                 details.append(f"현재 자세: {stance}")
 

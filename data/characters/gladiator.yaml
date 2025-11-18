@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 13
   mp: 3.5
-  init_brv: 4.9
+  init_brv: 28.0
   strength: 4.5
   defense: 4.5
   magic: 1.8
@@ -23,7 +23,7 @@ stat_growth:
   luck: 3.0
   accuracy: 2.0
   evasion: 1.8
-  max_brv: 2.9
+  max_brv: 100.0
 traits:
 - id: crowd_favorite
   name: 군중의 총아
@@ -34,7 +34,6 @@ traits:
   effects:
     attack_multiplier: 1.3
     critical_rate_bonus: 0.2
-
 - id: spectacular_fighter
   name: 화려한 전투가
   description: 환호 80+ 시 공격력 +60%, 크리티컬 +40%, 모든 공격 광역화
@@ -45,7 +44,6 @@ traits:
     attack_multiplier: 1.6
     critical_rate_bonus: 0.4
     all_attacks_aoe: true
-
 - id: gladiator_glory
   name: 검투사의 영광
   description: 환호 100 도달 시 무적 3턴 발동
@@ -55,14 +53,12 @@ traits:
   effects:
     invincible: true
     duration: 3
-
 - id: showmanship
   name: 쇼맨십
   description: 크리티컬 공격 시 환호 +10
   type: trigger
   effects:
     cheer_on_critical: 10
-
 - id: crowd_reaction
   name: 군중 반응
   description: 적 처치 시 환호 +20, 피격 시 환호 -10
@@ -70,7 +66,6 @@ traits:
   effects:
     cheer_on_kill: 20
     cheer_on_damage: -10
-
 gimmick:
   type: crowd_cheer
   name: 군중의 환호 시스템
@@ -85,11 +80,22 @@ gimmick:
   cheer_loss:
     take_damage: 10
   cheer_zones:
-    normal: {min: 0, max: 49, description: "보통"}
-    popular: {min: 50, max: 79, description: "인기 (+30% 공격, +20% 크리티컬)"}
-    superstar: {min: 80, max: 99, description: "슈퍼스타 (+60% 공격, +40% 크리티컬, 광역화)"}
-    glory: {min: 100, max: 100, description: "검투사의 영광 (무적 3턴)"}
-
+    normal:
+      min: 0
+      max: 49
+      description: 보통
+    popular:
+      min: 50
+      max: 79
+      description: 인기 (+30% 공격, +20% 크리티컬)
+    superstar:
+      min: 80
+      max: 99
+      description: 슈퍼스타 (+60% 공격, +40% 크리티컬, 광역화)
+    glory:
+      min: 100
+      max: 100
+      description: 검투사의 영광 (무적 3턴)
 skills:
 - shield_bash
 - counter_stance

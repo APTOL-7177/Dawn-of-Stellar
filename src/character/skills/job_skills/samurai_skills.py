@@ -135,7 +135,7 @@ def create_samurai_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5),
         GimmickEffect(GimmickOperation.SET, "will_gauge", 0)
     ]
-    ultimate.costs = [MPCost(18), StackCost("will_gauge", 1)]
+    ultimate.costs = [MPCost(30), StackCost("will_gauge", 1)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "401"

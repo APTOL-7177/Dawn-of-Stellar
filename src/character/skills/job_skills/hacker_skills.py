@@ -144,7 +144,7 @@ def create_hacker_skills():
         # 자신 버프
         BuffEffect(BuffType.MAGIC_UP, 0.8, duration=4)
     ]
-    ultimate.costs = [MPCost(15)]
+    ultimate.costs = [MPCost(30)]
     ultimate.target_type = "all_enemies"
     ultimate.is_ultimate = True
     ultimate.is_aoe = True

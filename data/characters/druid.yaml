@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 11
   mp: 5
-  init_brv: 4.0
+  init_brv: 23.0
   strength: 3.5
   defense: 3.2
   magic: 4.0
@@ -23,7 +23,7 @@ stat_growth:
   luck: 3.0
   accuracy: 2.0
   evasion: 2.0
-  max_brv: 2.4
+  max_brv: 89.6
 traits:
 - id: animal_affinity
   name: 동물 친화력
@@ -46,12 +46,16 @@ traits:
   effects:
     bind_success_rate: 0.5
     bind_brv_damage: 0.2
-- id: seasonal_adaptation
-  name: 계절 적응
-  description: 현재 계절에 맞는 능력치 보너스 +20% (봄: 회복력, 여름: 공격력, 가을: 방어력, 겨울: 마법력)
-  type: passive
+- id: natural_balance
+  name: 자연의 균형
+  description: 변신 상태에 따라 능력치 보너스 (곰: 방어력 +25%, 표범: 공격력 +25%, 독수리: 속도 +25%)
+  type: conditional
+  conditions:
+    in_animal_form: true
   effects:
-    seasonal_bonus: 0.2
+    form_defense_bonus: 0.25
+    form_attack_bonus: 0.25
+    form_speed_bonus: 0.25
 - id: wild_instinct
   name: 야생의 본능
   description: HP 50% 이하 시 모든 스탯 +25%, 변신 쿨다운 -50%
@@ -68,7 +72,6 @@ gimmick:
   - bear
   - panther
   - eagle
-
 skills:
 - bear_form
 - panther_form

@@ -127,7 +127,7 @@ def create_berserker_skills():
         BuffEffect(BuffType.ATTACK_UP, 2.0, duration=3),  # 공격력 +200%
         BuffEffect(BuffType.SPEED_UP, 1.0, duration=3)   # 속도 +100%
     ]
-    ultimate.costs = [MPCost(15), HPCost(percentage=0.99)]  # HP 99% 소모 (1% 남김)
+    ultimate.costs = [MPCost(30), HPCost(percentage=0.99)]  # HP 99% 소모 (1% 남김)
     ultimate.is_ultimate = True
     ultimate.sfx = "ultimate_berserker.ogg"
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

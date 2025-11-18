@@ -109,7 +109,7 @@ def create_sniper_skills():
         DamageEffect(DamageType.BRV, 2.5),
         DamageEffect(DamageType.HP, 1.5)
     ]
-    deadeye.costs = [MPCost(18)]
+    deadeye.costs = [MPCost(30)]
     deadeye.is_ultimate = True
     # deadeye.cooldown = 8  # 쿨다운 시스템 제거됨
     deadeye.metadata = {"uses_all_bullets": True, "deadeye": True}

@@ -621,25 +621,25 @@ JOB_ATTACK_PROFILES: Dict[str, Dict[str, Any]] = {
     # ===== 특수 계열 =====
     "vampire": {
         "brv_attack": {
-            "name": "흡혈",
+            "name": "흡혈 물기",
+            "skill_id": "vampire_vampiric_bite",
             "damage_type": "physical",
             "stat_base": "strength",
             "base_multiplier": 1.2,
             "can_critical": True,
             "element": "dark",
             "lifesteal": 0.25,  # 25% 흡혈
-            "description": "피를 빨아들이는 공격"
+            "description": "적을 물어 피를 빨아 갈증 감소"
         },
         "hp_attack": {
-            "name": "피의 마법",
-            "damage_type": "hybrid",
-            "stat_base": "both",
+            "name": "피의 흡수",
+            "skill_id": "vampire_blood_drain",
+            "damage_type": "physical",
+            "stat_base": "strength",
             "base_multiplier": 1.1,
             "can_critical": False,
-            "physical_ratio": 0.5,
-            "magic_ratio": 0.5,
-            "lifesteal": 0.15,
-            "description": "피로 만든 마법"
+            "lifesteal": 0.4,  # 40% 흡혈
+            "description": "적의 생명력을 빨아들여 갈증 대폭 감소"
         }
     },
 

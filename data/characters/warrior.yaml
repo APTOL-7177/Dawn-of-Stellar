@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 15
   mp: 3
-  init_brv: 4.7
+  init_brv: 27.0
   strength: 4.5
   defense: 4.0
   magic: 2.0
@@ -23,30 +23,30 @@ stat_growth:
   luck: 2.0
   accuracy: 1.5
   evasion: 1.0
-  max_brv: 2.8
+  max_brv: 98.0
 gimmick:
   type: stance_system
   name: 6단계 스탠스
   description: 전투 중 6가지 자세를 자유롭게 변경하며 상황에 대응
   stances:
+  - id: balanced
+    name: 중립 자세
+    description: 모든 스탯 그대로 유지
   - id: attack
     name: 공격 자세
-    description: 물리 공격력 +30%, 방어력 -20%
+    description: 공격력 +40%, 방어력/마법방어력 -25%
   - id: defense
     name: 방어 자세
-    description: 방어력 +40%, 공격력 -10%
-  - id: balanced
-    name: 균형 자세
-    description: 모든 스탯 균형 유지 (기본)
+    description: 방어력/마법방어력 +60%, 공격력 -30%, 속도 -30%
   - id: berserker
     name: 광전사 자세
-    description: 공격력 +50%, 방어력 -30%, 크리티컬 +15%
+    description: 속도/공격력 +55%, 방어력/마법방어력 -45%, 매턴 피해
   - id: guardian
     name: 수호자 자세
-    description: 방어력 +60%, 공격력 -20%, 아군 보호
+    description: 모든 스탯 -15%, HP/MP 매턴 크게 재생
   - id: speed
     name: 속도 자세
-    description: 속도 +40%, ATB 증가율 +30%
+    description: 속도 +80%, 방어력/마법방어력/공격력 -25%
 traits:
 - id: adaptive_combat
   name: 적응형 무술
@@ -70,7 +70,7 @@ traits:
   type: passive
   effects:
     all_stance_bonus: 0.15
-    stance_change_bonus: 0.10
+    stance_change_bonus: 0.1
 skills:
 - power_strike
 - shield_bash

@@ -152,7 +152,7 @@ def create_time_mage_skills():
         DamageEffect(DamageType.HP, 2.5, stat_type="magical"),
         GimmickEffect(GimmickOperation.SET, "timeline", 0)  # 현재로 리셋
     ]
-    wave.costs = [MPCost(15)]
+    wave.costs = [MPCost(30)]
     wave.target_type = "all_enemies"
     wave.is_ultimate = True
     wave.is_aoe = True

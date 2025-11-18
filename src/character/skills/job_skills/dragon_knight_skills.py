@@ -135,7 +135,7 @@ def create_dragon_knight_skills():
         BuffEffect(BuffType.CRITICAL_UP, 0.5, duration=5),
         GimmickEffect(GimmickOperation.SET, "dragon_power", 0)
     ]
-    ultimate.costs = [MPCost(18), StackCost("dragon_power", 1)]
+    ultimate.costs = [MPCost(30), StackCost("dragon_power", 1)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

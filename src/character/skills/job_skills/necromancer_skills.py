@@ -127,7 +127,7 @@ def create_necromancer_skills():
         GimmickEffect(GimmickOperation.SET, "undead_zombie", 0),
         GimmickEffect(GimmickOperation.SET, "undead_ghost", 0)
     ]
-    ultimate.costs = [MPCost(15)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.target_type = "all_enemies"

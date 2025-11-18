@@ -134,7 +134,7 @@ def create_assassin_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5),
         # 궁극기는 예외적으로 은신 유지
     ]
-    ultimate.costs = [MPCost(15)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     ultimate.sfx = "186"  # FFVII ultimate shadow sound
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

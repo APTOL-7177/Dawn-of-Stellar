@@ -132,7 +132,7 @@ def create_battle_mage_skills():
         GimmickEffect(GimmickOperation.SET, "rune_earth", 0),
         GimmickEffect(GimmickOperation.SET, "rune_arcane", 0)
     ]
-    ultimate.costs = [MPCost(18)]
+    ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.target_type = "all_enemies"

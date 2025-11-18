@@ -14,7 +14,7 @@ base_stats:
 stat_growth:
   hp: 13
   mp: 4.2
-  init_brv: 4.4
+  init_brv: 25.4
   strength: 4.8
   defense: 3.5
   magic: 3.2
@@ -23,7 +23,7 @@ stat_growth:
   luck: 2.5
   accuracy: 1.8
   evasion: 1.3
-  max_brv: 2.6
+  max_brv: 93.6
 traits:
 - id: dragon_breath
   name: 용의 숨결
@@ -50,7 +50,6 @@ gimmick:
   name: 용의 각인
   description: 용의 힘을 축적하여 드래곤 브레스와 비상 기술 사용
   max_dragon_power: 100
-
 skills:
 - flame_slash
 - dragon_dive
