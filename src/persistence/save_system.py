@@ -170,7 +170,7 @@ def serialize_equipment(member: Any) -> Dict[str, Any]:
 
 
 def serialize_item(item: Any) -> Dict[str, Any]:
-    """아이템 직렬화"""
+    """아이템 직렬화 (모든 아이템 타입 지원)"""
     from src.equipment.item_system import ItemAffix
 
     affixes = []
@@ -184,17 +184,46 @@ def serialize_item(item: Any) -> Dict[str, Any]:
                 "is_percentage": affix.is_percentage
             })
 
+    # 안전하게 속성 접근
+    item_id = getattr(item, 'item_id', str(id(item)))
+    name = getattr(item, 'name', '알 수 없는 아이템')
+    description = getattr(item, 'description', '')
+
+    # item_type 안전 접근
+    item_type = getattr(item, 'item_type', None)
+    if item_type:
+        item_type_value = item_type.value if hasattr(item_type, 'value') else str(item_type)
+    else:
+        item_type_value = 'consumable'
+
+    # rarity 안전 접근
+    rarity = getattr(item, 'rarity', None)
+    if rarity:
+        rarity_value = rarity.id if hasattr(rarity, 'id') else str(rarity)
+    else:
+        rarity_value = 'common'
+
+    level_requirement = getattr(item, 'level_requirement', 1)
+    base_stats = getattr(item, 'base_stats', {})
+
+    # equip_slot 안전 접근
+    equip_slot = getattr(item, 'equip_slot', None)
+    if equip_slot and hasattr(equip_slot, 'value'):
+        equip_slot_value = equip_slot.value
+    else:
+        equip_slot_value = None
+
     return {
-        "item_id": item.item_id,
-        "name": item.name,
-        "description": item.description,
-        "item_type": item.item_type.value if hasattr(item.item_type, 'value') else str(item.item_type),
-        "rarity": item.rarity.id if hasattr(item.rarity, 'id') else str(item.rarity),
-        "level_requirement": item.level_requirement,
-        "base_stats": item.base_stats,
+        "item_id": item_id,
+        "name": name,
+        "description": description,
+        "item_type": item_type_value,
+        "rarity": rarity_value,
+        "level_requirement": level_requirement,
+        "base_stats": base_stats,
         "affixes": affixes,
         "unique_effect": getattr(item, 'unique_effect', None),
-        "equip_slot": item.equip_slot.value if hasattr(item, 'equip_slot') and hasattr(item.equip_slot, 'value') else None
+        "equip_slot": equip_slot_value
     }
 
 

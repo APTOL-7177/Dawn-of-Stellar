@@ -160,11 +160,16 @@ class RewardDisplay:
             visible_items = items[self.scroll_offset:self.scroll_offset + self.max_items_visible]
 
             for item in visible_items:
-                # 등급별 색상
-                rarity_color = getattr(item.rarity, 'color', Colors.UI_TEXT)
+                # 등급별 색상 (안전하게 rarity 접근)
+                item_rarity = getattr(item, 'rarity', None)
+                if item_rarity:
+                    rarity_color = getattr(item_rarity, 'color', Colors.UI_TEXT)
+                else:
+                    rarity_color = Colors.UI_TEXT
 
                 # 아이템 이름 + 레벨
-                item_text = f"  • {item.name}"
+                item_name = getattr(item, 'name', '알 수 없는 아이템')
+                item_text = f"  • {item_name}"
                 if hasattr(item, 'level_requirement') and item.level_requirement > 1:
                     item_text += f" (Lv.{item.level_requirement})"
 
