@@ -262,7 +262,9 @@ class Inventory:
         """
         indices = []
         for i, slot in enumerate(self.slots):
-            if slot.item.item_type == item_type:
+            # 안전하게 item_type 속성 접근 (기본값 CONSUMABLE)
+            current_type = getattr(slot.item, 'item_type', ItemType.CONSUMABLE)
+            if current_type == item_type:
                 indices.append(i)
         return indices
 
@@ -278,7 +280,9 @@ class Inventory:
         """
         indices = []
         for i, slot in enumerate(self.slots):
-            if slot.item.rarity == rarity:
+            # 안전하게 rarity 속성 접근 (기본값 COMMON)
+            current_rarity = getattr(slot.item, 'rarity', ItemRarity.COMMON)
+            if current_rarity == rarity:
                 indices.append(i)
         return indices
 
@@ -321,7 +325,8 @@ class Inventory:
             ItemRarity.COMMON: 5
         }
 
-        self.slots.sort(key=lambda s: rarity_order.get(s.item.rarity, 99))
+        # 안전하게 rarity 속성 접근 (기본값 COMMON)
+        self.slots.sort(key=lambda s: rarity_order.get(getattr(s.item, 'rarity', ItemRarity.COMMON), 99))
         logger.debug("인벤토리 정렬: 등급순")
 
     def sort_by_type(self):
@@ -335,7 +340,8 @@ class Inventory:
             ItemType.KEY_ITEM: 5
         }
 
-        self.slots.sort(key=lambda s: type_order.get(s.item.item_type, 99))
+        # 안전하게 item_type 속성 접근 (기본값 CONSUMABLE)
+        self.slots.sort(key=lambda s: type_order.get(getattr(s.item, 'item_type', ItemType.CONSUMABLE), 99))
         logger.debug("인벤토리 정렬: 타입순")
 
     def sort_by_name(self):
