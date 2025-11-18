@@ -430,13 +430,15 @@ class InventoryUI:
         # 장비 슬롯 결정
         slot_name = item.equip_slot.value  # "weapon", "armor", "accessory"
 
+        # 캐릭터 이름 미리 가져오기
+        char_name = getattr(character, 'name', '알 수 없는 캐릭터')
+
         # 기존 장비 해제
         old_item = character.equipment.get(slot_name)
         if old_item:
             # 인벤토리에 되돌림
             self.inventory.add_item(old_item)
             old_item_name = getattr(old_item, 'name', '알 수 없는 아이템')
-            char_name = getattr(character, 'name', '알 수 없는 캐릭터')
             logger.info(f"{char_name}: {old_item_name} 해제")
 
         # 새 장비 착용
