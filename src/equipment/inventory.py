@@ -136,9 +136,10 @@ class Inventory:
         """
         # 무게 체크 (안전하게 weight 속성 접근, 기본값 0.5kg)
         item_weight = getattr(item, 'weight', 0.5) * quantity
+        item_name = getattr(item, 'name', '알 수 없는 아이템')
         if self.current_weight + item_weight > self.max_weight:
             logger.warning(
-                f"무게 초과! {item.name} x{quantity} ({item_weight}kg) 추가 실패. "
+                f"무게 초과! {item_name} x{quantity} ({item_weight}kg) 추가 실패. "
                 f"현재: {self.current_weight}kg / 최대: {self.max_weight}kg"
             )
             return False
@@ -146,11 +147,13 @@ class Inventory:
         # 소비 아이템은 스택 가능
         if isinstance(item, Consumable):
             # 같은 아이템이 있는지 확인
+            item_id = getattr(item, 'item_id', id(item))
             for slot in self.slots:
-                if isinstance(slot.item, Consumable) and slot.item.item_id == item.item_id:
+                slot_item_id = getattr(slot.item, 'item_id', id(slot.item))
+                if isinstance(slot.item, Consumable) and slot_item_id == item_id:
                     slot.quantity += quantity
                     logger.info(
-                        f"아이템 추가: {item.name} x{quantity} (총 {slot.quantity}개). "
+                        f"아이템 추가: {item_name} x{quantity} (총 {slot.quantity}개). "
                         f"무게: {self.current_weight}kg/{self.max_weight}kg"
                     )
                     return True
@@ -158,7 +161,7 @@ class Inventory:
         # 새 슬롯 추가
         self.slots.append(InventorySlot(item, quantity))
         logger.info(
-            f"아이템 추가: {item.name} x{quantity}. "
+            f"아이템 추가: {item_name} x{quantity}. "
             f"무게: {self.current_weight}kg/{self.max_weight}kg"
         )
         return True
@@ -187,17 +190,20 @@ class Inventory:
             if slot.quantity <= 0:
                 # 수량이 0이 되면 슬롯 제거
                 removed_item = slot.item
+                removed_name = getattr(removed_item, 'name', '알 수 없는 아이템')
                 self.slots.pop(slot_index)
-                logger.info(f"아이템 제거: {removed_item.name}")
+                logger.info(f"아이템 제거: {removed_name}")
                 return removed_item
             else:
-                logger.info(f"아이템 사용: {slot.item.name} (남은 수량: {slot.quantity})")
+                item_name = getattr(slot.item, 'name', '알 수 없는 아이템')
+                logger.info(f"아이템 사용: {item_name} (남은 수량: {slot.quantity})")
                 return slot.item
         else:
             # 장비는 슬롯 제거
             removed_item = slot.item
+            removed_name = getattr(removed_item, 'name', '알 수 없는 아이템')
             self.slots.pop(slot_index)
-            logger.info(f"아이템 제거: {removed_item.name}")
+            logger.info(f"아이템 제거: {removed_name}")
             return removed_item
 
     def get_item(self, slot_index: int) -> Optional[Item]:
@@ -223,7 +229,9 @@ class Inventory:
             슬롯 인덱스 (없으면 None)
         """
         for i, slot in enumerate(self.slots):
-            if slot.item.item_id == item_id:
+            # 안전하게 item_id 접근 (기본값은 객체 id)
+            slot_item_id = getattr(slot.item, 'item_id', str(id(slot.item)))
+            if slot_item_id == item_id:
                 return i
         return None
 
@@ -346,7 +354,8 @@ class Inventory:
 
     def sort_by_name(self):
         """이름별로 정렬"""
-        self.slots.sort(key=lambda s: s.item.name)
+        # 안전하게 name 속성 접근 (기본값 '알 수 없는 아이템')
+        self.slots.sort(key=lambda s: getattr(s.item, 'name', '알 수 없는 아이템'))
         logger.debug("인벤토리 정렬: 이름순")
 
     def use_consumable(
@@ -370,7 +379,8 @@ class Inventory:
 
         item = slot.item
         if not isinstance(item, Consumable):
-            logger.warning(f"{item.name}은(는) 소비 아이템이 아닙니다")
+            item_name = getattr(item, 'name', '알 수 없는 아이템')
+            logger.warning(f"{item_name}은(는) 소비 아이템이 아닙니다")
             return False
 
         # 효과 적용
@@ -378,37 +388,40 @@ class Inventory:
         effect_type = item.effect_type
         effect_value = item.effect_value
 
+        item_name = getattr(item, 'name', '알 수 없는 아이템')
+        target_name = getattr(target, 'name', '알 수 없는 대상')
+
         if effect_type == "heal_hp":
             # HP 회복
             healed = target.heal(effect_value)
             if healed > 0:
-                logger.info(f"{target.name}: {item.name} 사용 → HP +{healed}")
+                logger.info(f"{target_name}: {item_name} 사용 → HP +{healed}")
                 success = True
         elif effect_type == "heal_mp":
             # MP 회복
             restored = target.restore_mp(effect_value)
             if restored > 0:
-                logger.info(f"{target.name}: {item.name} 사용 → MP +{restored}")
+                logger.info(f"{target_name}: {item_name} 사용 → MP +{restored}")
                 success = True
         elif effect_type == "heal_both":
             # HP/MP 모두 회복
             healed = target.heal(effect_value)
             restored = target.restore_mp(effect_value)
             if healed > 0 or restored > 0:
-                logger.info(f"{target.name}: {item.name} 사용 → HP +{healed}, MP +{restored}")
+                logger.info(f"{target_name}: {item_name} 사용 → HP +{healed}, MP +{restored}")
                 success = True
         elif effect_type == "revive":
             # 부활
             if not getattr(target, 'is_alive', True):
                 target.is_alive = True
                 target.current_hp = effect_value
-                logger.info(f"{target.name}: {item.name} 사용 → 부활! HP {effect_value}")
+                logger.info(f"{target_name}: {item_name} 사용 → 부활! HP {effect_value}")
                 success = True
         elif effect_type == "cure_status":
             # 상태이상 치료
             if hasattr(target, 'status_effects'):
                 target.status_effects.clear()
-                logger.info(f"{target.name}: {item.name} 사용 → 상태이상 치료")
+                logger.info(f"{target_name}: {item_name} 사용 → 상태이상 치료")
                 success = True
 
         # 사용 성공 시 아이템 제거
