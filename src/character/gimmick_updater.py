@@ -137,8 +137,8 @@ class GimmickUpdater:
     @staticmethod
     def _trigger_support_fire(archer, attacking_ally, target=None):
         """궁수 지원사격 트리거"""
-        # 디버그: 지원사격 체크 시작
-        logger.debug(f"[지원사격 체크] 궁수 {archer.name}, 공격자 {attacking_ally.name}, 타겟 {getattr(target, 'name', 'None')}")
+        # 디버그: 지원사격 체크 시작 (INFO 레벨로 변경)
+        logger.info(f"[지원사격 체크] 궁수 {archer.name}, 공격자 {attacking_ally.name}, 타겟 {getattr(target, 'name', 'None')}")
 
         # 마킹된 아군인지 확인
         marked_slots = [
@@ -151,11 +151,11 @@ class GimmickUpdater:
             getattr(attacking_ally, 'mark_slot_holy', 0)
         ]
 
-        logger.debug(f"  마킹 슬롯: {marked_slots}")
+        logger.info(f"  마킹 슬롯: {marked_slots}")
 
         # 마킹이 없으면 종료
         if all(slot == 0 for slot in marked_slots):
-            logger.debug(f"  → 마킹 없음, 지원사격 안 함")
+            logger.info(f"  -> 마킹 없음, 지원사격 안 함")
             return
 
         # 마킹된 슬롯 찾기
@@ -176,11 +176,11 @@ class GimmickUpdater:
                 shots_attr = f'mark_shots_{arrow_type}'
                 shots_remaining = getattr(attacking_ally, shots_attr, 0)
 
-                logger.debug(f"  화살 타입: {arrow_type}, 슬롯: {slot_count}, 남은 발사 횟수: {shots_remaining}")
+                logger.info(f"  화살 타입: {arrow_type}, 슬롯: {slot_count}, 남은 발사 횟수: {shots_remaining}")
 
                 if shots_remaining > 0:
                     # 지원사격 발동
-                    logger.info(f"✨ [지원사격] {archer.name} → {attacking_ally.name}의 공격 지원 ({arrow_type} 화살)")
+                    logger.info(f"[지원사격] {archer.name} -> {attacking_ally.name}의 공격 지원 ({arrow_type} 화살)")
 
                     # 실제 BRV 데미지 계산 및 적용
                     if target and hasattr(target, 'current_brv'):

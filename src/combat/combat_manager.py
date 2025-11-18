@@ -292,7 +292,7 @@ class CombatManager:
             # 공격 빗나감 로그
             attacker_type = "아군" if attacker in self.allies else "적"
             defender_type = "아군" if defender in self.allies else "적"
-            self.logger.info(f"💨 [빗나감] {attacker_type} {attacker.name}의 공격이 {defender_type} {defender.name}에게 빗나갔다!")
+            self.logger.info(f"[빗나감] {attacker_type} {attacker.name}의 공격이 {defender_type} {defender.name}에게 빗나갔다!")
             # SFX 재생 (회피 사운드)
             play_sfx("combat", "miss")
         else:
