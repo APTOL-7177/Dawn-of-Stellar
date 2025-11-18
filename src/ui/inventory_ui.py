@@ -175,8 +175,11 @@ class InventoryUI:
             target = self.party[self.target_cursor]
             item = self.inventory.get_item(self.selected_item_index)
 
-            if isinstance(item, Consumable):
-                # 소비 아이템 사용
+            # CookedFood 타입 확인
+            from src.cooking.recipe import CookedFood
+
+            if isinstance(item, (Consumable, CookedFood)):
+                # 소비 아이템 또는 요리 사용
                 success = self.inventory.use_consumable(self.selected_item_index, target)
                 if success:
                     item_name = getattr(item, 'name', '알 수 없는 아이템')
