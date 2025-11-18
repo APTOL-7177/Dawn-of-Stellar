@@ -214,27 +214,26 @@ class RewardCalculator:
                 enemy_gold *= 5  # 보스는 5배
             total_gold += enemy_gold
 
-        # 아이템 드롭 (2배 증가)
-        # 일반 적: 40% 확률 (기존 20%에서 2배), 보스: 100% 확률
+        # 아이템 드롭
+        # 일반 적: 20% 확률, 보스: 100% 확률
         items = []
 
         if is_boss_fight:
-            # 보스는 무조건 3~5개 드롭 (기존 2-4에서 증가)
-            drop_count = random.randint(3, 5)
+            # 보스는 무조건 2~3개 드롭
+            drop_count = random.randint(2, 3)
             for _ in range(drop_count):
                 items.append(RewardCalculator._generate_drop(floor_number, is_boss=True))
-            # 보스는 추가로 전투용 소비 아이템 1~2개 드롭
-            consumable_count = random.randint(1, 2)
-            for _ in range(consumable_count):
+            # 보스는 추가로 전투용 소비 아이템 0~1개 드롭
+            if random.random() < 0.5:  # 50% 확률
                 items.append(RewardCalculator._generate_combat_consumable_drop())
         else:
-            # 일반 적: 각 적마다 40% 확률 (기존 20%에서 2배)
+            # 일반 적: 각 적마다 20% 확률
             for enemy in enemies:
-                if random.random() < 0.4:  # 40%
+                if random.random() < 0.2:  # 20%
                     enemy_level = getattr(enemy, 'level', floor_number)
                     items.append(RewardCalculator._generate_drop(enemy_level))
-                # 일반 적도 10% 확률로 전투용 소비 아이템 드롭
-                if random.random() < 0.1:  # 10%
+                # 일반 적도 5% 확률로 전투용 소비 아이템 드롭
+                if random.random() < 0.05:  # 5%
                     items.append(RewardCalculator._generate_combat_consumable_drop())
 
         return {

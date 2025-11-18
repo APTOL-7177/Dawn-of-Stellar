@@ -2753,10 +2753,11 @@ class TraitEffectManager:
             return active_count >= 3
 
         elif condition == "all_programs_active":
-            # 모든 프로그램 활성화 확인 (5개)
+            # 모든 프로그램 활성화 확인 (최대 스레드 수, 기본 3개)
+            max_threads = getattr(character, 'max_threads', 3)
             program_fields = ['program_virus', 'program_backdoor', 'program_ddos', 'program_ransomware', 'program_spyware']
             active_count = sum(1 for field in program_fields if getattr(character, field, 0) > 0)
-            return active_count >= 5
+            return active_count >= max_threads
 
         elif condition == "enemy_program_end":
             # 적 프로그램 종료 이벤트 확인 (context에서 확인)

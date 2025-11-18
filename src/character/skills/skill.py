@@ -52,6 +52,18 @@ class Skill:
                     
                     if different_runes < required_count:
                         return False, f"서로 다른 룬 {required_count}개가 필요합니다 (현재: {different_runes}개)"
+            
+            # 해커: 프로그램 실행 스킬은 스레드 여유가 있어야 사용 가능
+            if self.metadata.get("program_type"):
+                if hasattr(user, 'gimmick_type') and user.gimmick_type == "multithread_system":
+                    # 현재 활성 프로그램 수 계산
+                    program_fields = ['program_virus', 'program_backdoor', 'program_ddos', 'program_ransomware', 'program_spyware']
+                    active_programs = sum(1 for field in program_fields if getattr(user, field, 0) > 0)
+                    max_threads = getattr(user, 'max_threads', 3)
+                    
+                    # 이미 최대 스레드 수만큼 프로그램이 실행 중이면 새 프로그램 실행 불가
+                    if active_programs >= max_threads:
+                        return False, f"스레드 부족! (활성: {active_programs}/{max_threads})"
         
         return True, ""
 

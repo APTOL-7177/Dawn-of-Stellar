@@ -511,7 +511,7 @@ class CookingPotUI:
 
         console.draw_frame(
             box_x, box_y, box_width, box_height,
-            "✨ 요리 완성! ✨",
+            " 요리 완성! ",
             fg=Colors.UI_BORDER,
             bg=Colors.UI_BG
         )
