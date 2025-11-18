@@ -41,6 +41,10 @@ class Inventory:
         self.party = party or []
         self.slots: List[InventorySlot] = []
         self.gold = 0
+        
+        # 요리 쿨타임 (전투 턴 기준)
+        self.cooking_cooldown_turn: Optional[int] = None  # 요리 사용한 전투 턴
+        self.cooking_cooldown_duration: int = 0  # 쿨타임 지속 턴 수
 
         logger.info(f"인벤토리 생성: 기본 무게 {base_weight}kg")
 
@@ -144,13 +148,17 @@ class Inventory:
             )
             return False
 
-        # 소비 아이템은 스택 가능
-        if isinstance(item, Consumable):
+        # 소비 아이템과 식재료는 스택 가능
+        from src.gathering.ingredient import Ingredient
+        is_stackable = isinstance(item, Consumable) or isinstance(item, Ingredient) or item.item_type == ItemType.MATERIAL
+        
+        if is_stackable:
             # 같은 아이템이 있는지 확인
             item_id = getattr(item, 'item_id', id(item))
             for slot in self.slots:
                 slot_item_id = getattr(slot.item, 'item_id', id(slot.item))
-                if isinstance(slot.item, Consumable) and slot_item_id == item_id:
+                slot_is_stackable = isinstance(slot.item, Consumable) or isinstance(slot.item, Ingredient) or getattr(slot.item, 'item_type', None) == ItemType.MATERIAL
+                if slot_is_stackable and slot_item_id == item_id:
                     slot.quantity += quantity
                     logger.info(
                         f"아이템 추가: {item_name} x{quantity} (총 {slot.quantity}개). "
@@ -183,8 +191,11 @@ class Inventory:
 
         slot = self.slots[slot_index]
 
-        # 소비 아이템은 수량 감소
-        if isinstance(slot.item, Consumable):
+        # 소비 아이템과 식재료는 수량 감소
+        from src.gathering.ingredient import Ingredient
+        is_stackable = isinstance(slot.item, Consumable) or isinstance(slot.item, Ingredient) or getattr(slot.item, 'item_type', None) == ItemType.MATERIAL
+        
+        if is_stackable:
             slot.quantity -= quantity
 
             if slot.quantity <= 0:
@@ -497,7 +508,33 @@ class Inventory:
         buff_type = getattr(food, 'buff_type', None)
         buff_duration = getattr(food, 'buff_duration', 0)
         if buff_type and buff_duration > 0:
-            logger.info(f"{target_name}: {item_name} 사용 → {buff_type} 버프 ({buff_duration}턴)")
+            # active_buffs에 버프 적용
+            if not hasattr(target, 'active_buffs'):
+                target.active_buffs = {}
+            
+            # 요리 버프 타입을 시스템 버프 타입으로 매핑
+            buff_type_mapping = {
+                "attack": "attack_up",
+                "defense": "defense_up",
+                "speed": "speed_up"
+            }
+            system_buff_type = buff_type_mapping.get(buff_type, buff_type)
+            
+            # 버프 타입에 따라 value 설정 (기본값 0.2 = 20%)
+            buff_value = 0.2  # 기본 20% 증가
+            if buff_type == "attack":
+                buff_value = 0.2  # 공격력 +20%
+            elif buff_type == "defense":
+                buff_value = 0.2  # 방어력 +20%
+            elif buff_type == "speed":
+                buff_value = 0.2  # 속도 +20%
+            
+            target.active_buffs[system_buff_type] = {
+                'value': buff_value,
+                'duration': buff_duration,
+                'source': 'cooked_food'  # 요리 버프임을 표시
+            }
+            logger.info(f"{target_name}: {item_name} 사용 → {system_buff_type} 버프 ({buff_duration}턴, +{int(buff_value*100)}%)")
             success = True
 
         # 독 (실패 요리)

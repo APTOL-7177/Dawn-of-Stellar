@@ -130,7 +130,8 @@ def open_rest_menu(
                     return "rest"
                 elif cursor == 1:
                     # 요리
-                    cooked_food = open_cooking_pot(console, context, inventory)
+                    # 휴식 UI에서 요리할 때는 요리솥 보너스 없음
+                    cooked_food = open_cooking_pot(console, context, inventory, is_cooking_pot=False)
                     if cooked_food:
                         logger.info(f"요리 완료: {cooked_food.name}")
                         # 요리 결과를 인벤토리에 추가 (Consumable 아이템으로 변환)

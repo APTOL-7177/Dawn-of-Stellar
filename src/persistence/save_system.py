@@ -142,6 +142,14 @@ def serialize_party_member(member: Any) -> Dict[str, Any]:
     if hasattr(member, 'stat_manager'):
         stats_data = member.stat_manager.to_dict()
 
+    # 기믹 상태 직렬화
+    gimmick_state = serialize_gimmick_state(member)
+
+    # active_buffs 직렬화 (요리 버프 포함)
+    active_buffs_data = {}
+    if hasattr(member, 'active_buffs') and member.active_buffs:
+        active_buffs_data = member.active_buffs.copy()
+    
     return {
         "name": member.name,
         "character_class": getattr(member, 'character_class', getattr(member, 'job_id', 'unknown')),
@@ -156,7 +164,73 @@ def serialize_party_member(member: Any) -> Dict[str, Any]:
         "status_effects": getattr(member, 'status_effects', []),
         "skill_ids": getattr(member, 'skill_ids', []),
         "active_traits": getattr(member, 'active_traits', []),
+        "active_buffs": active_buffs_data,  # 요리 버프 포함
+        "gimmick_state": gimmick_state,
     }
+
+
+def serialize_gimmick_state(member: Any) -> Dict[str, Any]:
+    """기믹 상태 직렬화"""
+    gimmick_state = {}
+    
+    if not hasattr(member, 'gimmick_type') or not member.gimmick_type:
+        return gimmick_state
+    
+    gimmick_state["gimmick_type"] = member.gimmick_type
+    
+    # 기믹 타입별 저장할 속성 목록
+    gimmick_attributes = {
+        "stance_system": ["current_stance", "stance_focus", "available_stances"],
+        "elemental_counter": ["fire_element", "ice_element", "lightning_element"],
+        "aim_system": ["aim_points", "max_aim_points", "focus_stacks"],
+        "magazine_system": ["magazine", "current_bullet_index", "quick_reload_count"],
+        "venom_system": ["venom_power", "venom_power_max", "poison_stacks", "max_poison_stacks"],
+        "shadow_system": ["shadow_count", "max_shadow_count"],
+        "sword_aura": ["sword_aura", "max_sword_aura"],
+        "rage_system": ["rage_stacks", "max_rage_stacks", "shield_amount"],
+        "melody_system": ["melody_stacks", "max_melody_stacks", "melody_notes", "current_melody", "octave_completed"],
+        "timeline_system": ["timeline", "min_timeline", "max_timeline", "optimal_point", "past_threshold", "future_threshold", "time_correction_counter"],
+        "dragon_marks": ["dragon_marks", "max_dragon_marks", "dragon_power"],
+        "arena_system": ["arena_points", "max_arena_points", "glory_points", "kill_count", "parry_active"],
+        "break_system": ["break_power", "max_break_power"],
+        "darkness_system": ["darkness", "max_darkness"],
+        "duty_system": ["duty_stacks", "max_duty_stacks"],
+        "holy_system": ["holy_power", "max_holy_power"],
+        "theft_system": ["stolen_items", "max_stolen_items", "evasion_active"],
+        "plunder_system": ["gold", "max_gold", "gold_per_hit"],
+        "heat_management": ["heat", "max_heat", "optimal_min", "optimal_max", "danger_min", "danger_max", "overheat_threshold", "overheat_prevention_count", "is_overheated", "overheat_stun_turns"],
+        "iaijutsu_system": ["will_gauge", "max_will_gauge"],
+        "enchant_system": ["mana_blade", "max_mana_blade"],
+        "divinity_system": ["judgment_points", "max_judgment_points", "faith_points", "max_faith_points"],
+        "shapeshifting_system": ["nature_points", "max_nature_points", "current_form", "available_forms"],
+        "totem_system": ["curse_stacks", "max_curse_stacks"],
+        "blood_system": ["blood_pool", "max_blood_pool", "lifesteal_boost"],
+        "alchemy_system": ["potion_stock", "max_potion_stock"],
+        "wisdom_system": ["knowledge_stacks", "max_knowledge_stacks"],
+        "hack_system": ["hack_stacks", "max_hack_stacks", "debuff_count", "max_debuff_count"],
+        "yin_yang_flow": ["ki_gauge", "min_ki", "max_ki", "balance_center", "yin_threshold", "yang_threshold"],
+        "rune_resonance": ["rune_fire", "rune_ice", "rune_lightning", "rune_earth", "rune_arcane", "max_rune_per_type", "max_runes_total", "resonance_bonus"],
+        "undead_legion": ["undead_count", "max_undead_total", "undead_skeleton", "undead_zombie", "undead_ghost", "undead_power"],
+        "madness_threshold": ["madness", "max_madness", "optimal_min", "optimal_max", "danger_min", "rampage_threshold"],
+        "thirst_gauge": ["thirst", "max_thirst", "satisfied_max", "normal_min", "normal_max", "starving_min"],
+        "multithread_system": ["active_threads", "max_threads", "thread_types"],
+        "crowd_cheer": ["cheer", "max_cheer", "start_cheer", "cheer_zones"],
+        "stealth_exposure": ["stealth_active", "exposed_turns", "restealth_cooldown"],
+        "support_fire": ["marked_allies", "max_marks", "shots_per_mark", "support_fire_combo", "arrow_types"],
+        "elemental_spirits": ["spirit_fire", "spirit_water", "spirit_wind", "spirit_earth", "max_spirits"],
+        "dilemma_choice": ["choice_power", "choice_wisdom", "choice_sacrifice", "choice_survival", "choice_truth", "choice_lie", "choice_order", "choice_chaos", "accumulation_threshold"],
+        "probability_distortion": ["distortion_gauge", "max_gauge", "start_gauge", "gauge_per_turn"],
+    }
+    
+    # 해당 기믹 타입의 속성들을 저장
+    attributes_to_save = gimmick_attributes.get(member.gimmick_type, [])
+    for attr in attributes_to_save:
+        if hasattr(member, attr):
+            value = getattr(member, attr)
+            # 리스트나 딕셔너리는 그대로 저장 (JSON 직렬화 가능)
+            gimmick_state[attr] = value
+    
+    return gimmick_state
 
 
 def serialize_equipment(member: Any) -> Dict[str, Any]:
@@ -457,6 +531,26 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
         )
 
 
+def deserialize_gimmick_state(character: Any, gimmick_state: Dict[str, Any]) -> None:
+    """기믹 상태 역직렬화"""
+    if not gimmick_state or not gimmick_state.get("gimmick_type"):
+        return
+    
+    # 기믹 타입 확인
+    gimmick_type = gimmick_state.get("gimmick_type")
+    if not hasattr(character, 'gimmick_type') or character.gimmick_type != gimmick_type:
+        logger.warning(f"기믹 타입 불일치: 저장된 {gimmick_type} vs 현재 {getattr(character, 'gimmick_type', None)}")
+        return
+    
+    # 저장된 속성들을 복원
+    for attr, value in gimmick_state.items():
+        if attr == "gimmick_type":
+            continue
+        if hasattr(character, attr):
+            setattr(character, attr, value)
+            logger.debug(f"기믹 상태 복원: {character.name} - {attr} = {value}")
+
+
 def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
     """파티원 역직렬화"""
     from src.character.character import Character
@@ -499,6 +593,17 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
     if member_data.get("active_traits"):
         char.active_traits = member_data["active_traits"]
 
+    # active_buffs 복원 (요리 버프 포함)
+    if member_data.get("active_buffs"):
+        if not hasattr(char, 'active_buffs'):
+            char.active_buffs = {}
+        char.active_buffs = member_data["active_buffs"].copy()
+        logger.debug(f"버프 복원: {char.name} - {len(char.active_buffs)}개 버프")
+
+    # 기믹 상태 복원
+    if member_data.get("gimmick_state"):
+        deserialize_gimmick_state(char, member_data["gimmick_state"])
+
     # 장비 복원
     if member_data.get("equipment"):
         # equipment 속성이 없으면 생성
@@ -535,11 +640,17 @@ def deserialize_inventory(inventory_data: Dict[str, Any], party: List[Any] = Non
     # 골드 복원
     inventory.gold = inventory_data.get("gold", 0)
 
+    # 요리 쿨타임 복원
+    inventory.cooking_cooldown_turn = inventory_data.get("cooking_cooldown_turn", None)
+    inventory.cooking_cooldown_duration = inventory_data.get("cooking_cooldown_duration", 0)
+
     # 아이템 복원
     for item_data in inventory_data.get("items", []):
         item = deserialize_item(item_data)
         inventory.add_item(item)
 
     logger.warning(f"[DESERIALIZE] 복원 후 인벤토리 골드: {inventory.gold}G")
+    if inventory.cooking_cooldown_duration > 0:
+        logger.warning(f"[DESERIALIZE] 요리 쿨타임 복원: {inventory.cooking_cooldown_duration}턴")
 
     return inventory

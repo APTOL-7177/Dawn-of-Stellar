@@ -64,6 +64,10 @@ class CombatManager:
         # 전투원
         self.allies: List[Any] = []
         self.enemies: List[Any] = []
+        
+        # 요리 쿨타임 (전투 턴 기준)
+        self.cooking_cooldown_turn: Optional[int] = None  # 요리 사용한 턴
+        self.cooking_cooldown_duration: int = 0  # 쿨타임 지속 턴 수
 
         # 콜백
         self.on_combat_end: Optional[Callable[[CombatState], None]] = None
@@ -88,6 +92,19 @@ class CombatManager:
         self.enemies = enemies
         self.turn_count = 0
         self.state = CombatState.IN_PROGRESS
+        
+        # 요리 쿨타임 초기화 (인벤토리에서 쿨타임 정보 가져오기)
+        # 전투 시작 시 현재 쿨타임 턴을 설정
+        if hasattr(self, 'inventory') and self.inventory:
+            if self.inventory.cooking_cooldown_duration > 0:
+                self.cooking_cooldown_turn = 0  # 전투 시작 턴
+                self.cooking_cooldown_duration = self.inventory.cooking_cooldown_duration
+            else:
+                self.cooking_cooldown_turn = None
+                self.cooking_cooldown_duration = 0
+        else:
+            self.cooking_cooldown_turn = None
+            self.cooking_cooldown_duration = 0
 
         # ATB 시스템에 전투원 등록
         import random
@@ -173,20 +190,30 @@ class CombatManager:
         
         # 0-1. active_buffs의 REGEN, HP_REGEN, MP_REGEN 처리
         if hasattr(actor, 'active_buffs') and actor.active_buffs:
-            # REGEN 처리 (비율 기반 HP 재생)
+            # REGEN 처리 (시전자 스탯 기반 HP 재생)
             if 'regen' in actor.active_buffs:
                 regen_buff = actor.active_buffs['regen']
                 regen_percent = float(regen_buff.get('value', 0))
-                if regen_percent > 0 and hasattr(actor, 'current_hp') and hasattr(actor, 'max_hp'):
+                # 시전자 스탯 기반 계산
+                stat_base = regen_buff.get('stat_base', 0)
+                if stat_base > 0:
+                    hp_amount = int(stat_base * regen_percent)
+                else:
+                    # stat_base가 없으면 기존 방식 (하위 호환성, 최대 HP 기반)
+                    if hasattr(actor, 'max_hp'):
+                        hp_amount = int(actor.max_hp * regen_percent)
+                    else:
+                        hp_amount = 0
+                
+                if hp_amount > 0 and hasattr(actor, 'current_hp') and hasattr(actor, 'max_hp'):
                     old_hp = actor.current_hp
-                    hp_amount = int(actor.max_hp * regen_percent)
                     if hasattr(actor, 'heal'):
                         actual_heal = actor.heal(hp_amount)
                     else:
                         actor.current_hp = min(actor.max_hp, actor.current_hp + hp_amount)
                         actual_heal = actor.current_hp - old_hp
                     if actual_heal > 0:
-                        self.logger.info(f"{actor.name} HP 재생: +{actual_heal} ({int(regen_percent*100)}%, 버프)")
+                        self.logger.info(f"{actor.name} HP 재생: +{actual_heal} ({int(regen_percent*100)}% 스탯 기반, 버프)")
             
             # HP_REGEN 처리 (시전자 스탯 기반 HP 재생, 약 8%)
             if 'hp_regen' in actor.active_buffs:
@@ -827,19 +854,135 @@ class CombatManager:
                 # 버프 효과 (간단하게 처리)
                 result["buff_applied"] = True
 
-            elif effect_type == "cure":
+            elif effect_type == "cure" or effect_type == "status_cleanse":
                 # 상태이상 치료
                 if hasattr(tgt, 'status_manager'):
-                    # 디버프 및 상태이상 제거 (예시)
+                    tgt.status_manager.clear_all_effects()
                     result["status_cured"] = True
+                elif hasattr(tgt, 'status_effects'):
+                    tgt.status_effects.clear()
+                    result["status_cured"] = True
+            
+            # === 공격적 아이템 효과 ===
+            elif effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade"]:
+                # 적 전체 데미지
+                damage = int(effect_value)
+                total_damage = 0
+                for enemy in self.enemies:
+                    if hasattr(enemy, 'is_alive') and enemy.is_alive:
+                        if hasattr(enemy, 'take_damage'):
+                            dmg = enemy.take_damage(damage)
+                        else:
+                            dmg = min(damage, getattr(enemy, 'current_hp', 0))
+                            enemy.current_hp = max(0, enemy.current_hp - dmg)
+                        total_damage += dmg
+                        
+                        # 상태이상 부여
+                        if effect_type == "poison_bomb" and hasattr(enemy, 'status_manager'):
+                            from src.combat.status_effects import StatusEffect, StatusType
+                            poison = StatusEffect("독", StatusType.POISON, duration=3, intensity=1.0)
+                            enemy.status_manager.add_status(poison)
+                        elif effect_type == "thunder_grenade" and hasattr(enemy, 'status_manager'):
+                            from src.combat.status_effects import StatusEffect, StatusType
+                            shock = StatusEffect("감전", StatusType.SHOCK, duration=2, intensity=1.0)
+                            enemy.status_manager.add_status(shock)
+                result["aoe_damage"] = total_damage
+                result["targets_hit"] = len([e for e in self.enemies if hasattr(e, 'is_alive') and e.is_alive])
+            
+            elif effect_type in ["single_lightning", "acid_flask"]:
+                # 단일 적 데미지
+                damage = int(effect_value)
+                if hasattr(tgt, 'take_damage'):
+                    dmg = tgt.take_damage(damage)
+                else:
+                    dmg = min(damage, getattr(tgt, 'current_hp', 0))
+                    tgt.current_hp = max(0, tgt.current_hp - dmg)
+                result["damage"] = dmg
+                
+                # 추가 효과
+                if effect_type == "acid_flask" and hasattr(tgt, 'stat_manager'):
+                    # 방어력 감소 (간단하게 처리)
+                    result["defense_debuffed"] = True
+            
+            elif effect_type in ["debuff_attack", "debuff_defense", "debuff_speed", "smoke_bomb"]:
+                # 적 전체 디버프
+                debuff_value = effect_value
+                duration = 3 if effect_type != "smoke_bomb" else 2
+                targets_debuffed = 0
+                for enemy in self.enemies:
+                    if hasattr(enemy, 'is_alive') and enemy.is_alive:
+                        if hasattr(enemy, 'active_buffs'):
+                            if effect_type == "debuff_attack":
+                                enemy.active_buffs['attack_down'] = {'value': debuff_value, 'duration': duration}
+                            elif effect_type == "debuff_defense":
+                                enemy.active_buffs['defense_down'] = {'value': debuff_value, 'duration': duration}
+                            elif effect_type == "debuff_speed":
+                                enemy.active_buffs['speed_down'] = {'value': debuff_value, 'duration': duration}
+                            elif effect_type == "smoke_bomb":
+                                enemy.active_buffs['accuracy_down'] = {'value': debuff_value, 'duration': duration}
+                        targets_debuffed += 1
+                result["debuff_applied"] = True
+                result["targets_debuffed"] = targets_debuffed
+            
+            elif effect_type == "break_brv":
+                # 적 전체 BRV 감소
+                brv_loss = int(effect_value)
+                total_brv_loss = 0
+                for enemy in self.enemies:
+                    if hasattr(enemy, 'is_alive') and enemy.is_alive:
+                        if hasattr(enemy, 'current_brv'):
+                            loss = min(brv_loss, enemy.current_brv)
+                            enemy.current_brv = max(0, enemy.current_brv - loss)
+                            total_brv_loss += loss
+                result["brv_loss"] = total_brv_loss
+            
+            # === 수비적 아이템 효과 ===
+            elif effect_type in ["barrier_crystal", "haste_crystal", "power_tonic", "defense_elixir", "regen_crystal", "mp_regen_crystal"]:
+                # 버프 적용
+                duration = 3 if effect_type != "regen_crystal" and effect_type != "mp_regen_crystal" else 5
+                if hasattr(tgt, 'active_buffs'):
+                    if effect_type == "barrier_crystal":
+                        tgt.active_buffs['damage_reduction'] = {'value': effect_value, 'duration': duration}
+                    elif effect_type == "haste_crystal":
+                        tgt.active_buffs['speed_up'] = {'value': effect_value, 'duration': duration}
+                    elif effect_type == "power_tonic":
+                        tgt.active_buffs['attack_up'] = {'value': effect_value, 'duration': duration}
+                        tgt.active_buffs['magic_up'] = {'value': effect_value, 'duration': duration}
+                    elif effect_type == "defense_elixir":
+                        tgt.active_buffs['defense_up'] = {'value': effect_value, 'duration': duration}
+                        tgt.active_buffs['magic_defense_up'] = {'value': effect_value, 'duration': duration}
+                    elif effect_type == "regen_crystal":
+                        tgt.active_buffs['hp_regen'] = {'value': effect_value, 'duration': duration}
+                    elif effect_type == "mp_regen_crystal":
+                        tgt.active_buffs['mp_regen'] = {'value': effect_value, 'duration': duration}
+                result["buff_applied"] = True
+            
+            elif effect_type == "revive_crystal":
+                # 부활
+                if not getattr(tgt, 'is_alive', True):
+                    tgt.is_alive = True
+                    if hasattr(tgt, 'max_hp'):
+                        tgt.current_hp = int(tgt.max_hp * effect_value)
+                    else:
+                        tgt.current_hp = int(effect_value * 100)  # 기본값
+                    result["revived"] = True
+                    result["hp_restored"] = tgt.current_hp
 
             # 인벤토리에서 아이템 제거
-            if hasattr(actor, 'inventory'):
-                try:
-                    actor.inventory.remove_item(item, 1)
-                except Exception as e:
-                    # 인벤토리 제거 실패 (아이템 없음 등)
-                    self.logger.warning(f"아이템 제거 실패: {e}")
+            item_index = kwargs.get('item_index')
+            if item_index is not None:
+                # 인벤토리에서 슬롯 인덱스로 제거
+                if hasattr(actor, 'inventory'):
+                    try:
+                        actor.inventory.remove_item(item_index, 1)
+                    except Exception as e:
+                        self.logger.warning(f"아이템 제거 실패: {e}")
+                # 또는 전역 인벤토리에서 제거
+                elif hasattr(self, 'inventory') and self.inventory:
+                    try:
+                        self.inventory.remove_item(item_index, 1)
+                    except Exception as e:
+                        self.logger.warning(f"아이템 제거 실패: {e}")
 
             return result
         else:
@@ -1108,6 +1251,18 @@ class CombatManager:
         })
 
         self.turn_count += 1
+        
+        # 요리 쿨타임 감소
+        if self.cooking_cooldown_turn is not None and self.cooking_cooldown_duration > 0:
+            elapsed_turns = self.turn_count - self.cooking_cooldown_turn
+            if elapsed_turns >= self.cooking_cooldown_duration:
+                # 쿨타임 종료
+                self.cooking_cooldown_duration = 0
+                self.cooking_cooldown_turn = None
+                # 인벤토리에도 반영
+                if hasattr(self, 'inventory') and self.inventory:
+                    self.inventory.cooking_cooldown_duration = 0
+                    self.inventory.cooking_cooldown_turn = None
 
     def _process_completed_casts(self) -> None:
         """완료된 캐스팅 처리"""

@@ -48,7 +48,7 @@ def create_necromancer_skills():
     summon_zombie.effects = [
         GimmickEffect(GimmickOperation.ADD, "undead_zombie", 1, max_value=2),
         BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=99),
-        BuffEffect(BuffType.HP_REGEN, 3, duration=99)
+        BuffEffect(BuffType.HP_REGEN, 5, duration=99)  # 좀비 소환
     ]
     summon_zombie.costs = [MPCost(7), HPCost(15)]
     summon_zombie.target_type = "self"

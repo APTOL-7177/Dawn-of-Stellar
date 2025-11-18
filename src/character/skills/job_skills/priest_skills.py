@@ -64,7 +64,7 @@ def create_priest_skills():
     divine_protection = Skill("priest_divine_protection", "신의 가호", "심판 2포인트 소비, 버프")
     divine_protection.effects = [
         BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=4),
-        BuffEffect(BuffType.REGEN, 0.2, duration=4),
+        BuffEffect(BuffType.REGEN, 0.19, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "judgment_points", 2)
     ]
     divine_protection.costs = [MPCost(5), StackCost("judgment_points", 2)]
@@ -120,7 +120,7 @@ def create_priest_skills():
         HealEffect(HealType.HP, percentage=0.28, is_party_wide=True),  # 신의 은총 (파티 힐)
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=4, is_party_wide=True),
         BuffEffect(BuffType.SPIRIT_UP, 0.4, duration=4, is_party_wide=True),
-        BuffEffect(BuffType.REGEN, 0.25, duration=4, is_party_wide=True),
+        BuffEffect(BuffType.REGEN, 0.24, duration=4, is_party_wide=True),
         GimmickEffect(GimmickOperation.CONSUME, "judgment_points", 4)
     ]
     divine_grace.costs = [MPCost(10), StackCost("judgment_points", 4)]

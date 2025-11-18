@@ -51,7 +51,7 @@ def create_cleric_skills():
     greater_heal = Skill("cleric_greater_heal", "대치유", "신앙 2포인트 소비, 강력한 치유")
     greater_heal.effects = [
         HealEffect(HealType.HP, percentage=0.65),  # 대치유
-        BuffEffect(BuffType.REGEN, 0.2, duration=3),
+        BuffEffect(BuffType.REGEN, 0.18, duration=3),
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 2)
     ]
     greater_heal.costs = [MPCost(5), StackCost("faith_points", 2)]
@@ -79,7 +79,7 @@ def create_cleric_skills():
     faith_blessing.effects = [
         GimmickEffect(GimmickOperation.SET, "faith_points", 8),
         BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=4),
-        BuffEffect(BuffType.REGEN, 0.25, duration=4)
+        BuffEffect(BuffType.REGEN, 0.22, duration=4)
     ]
     faith_blessing.costs = [MPCost(6)]
     faith_blessing.target_type = "self"
@@ -92,7 +92,7 @@ def create_cleric_skills():
     holy_barrier = Skill("cleric_holy_barrier", "신성한 보호막", "신앙 4포인트 소비, 파티 보호")
     holy_barrier.effects = [
         BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=4),
-        BuffEffect(BuffType.REGEN, 0.3, duration=4),
+        BuffEffect(BuffType.REGEN, 0.28, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 4)
     ]
     holy_barrier.costs = [MPCost(7), StackCost("faith_points", 4)]
@@ -106,7 +106,7 @@ def create_cleric_skills():
     resurrect = Skill("cleric_resurrect", "부활", "신앙 6포인트 소비, 동료 부활")
     resurrect.effects = [
         HealEffect(HealType.HP, percentage=0.75),  # 부활
-        BuffEffect(BuffType.REGEN, 0.4, duration=5),
+        BuffEffect(BuffType.REGEN, 0.35, duration=5),
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 6)
     ]
     resurrect.costs = [MPCost(12), StackCost("faith_points", 6)]
@@ -136,7 +136,7 @@ def create_cleric_skills():
     ultimate.effects = [
         HealEffect(HealType.HP, percentage=1.15, is_party_wide=True),  # 궁극기
         BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5, is_party_wide=True),
-        BuffEffect(BuffType.REGEN, 0.5, duration=5, is_party_wide=True),
+        BuffEffect(BuffType.REGEN, 0.42, duration=5, is_party_wide=True),
         DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "faith_points", "multiplier": 0.3}, stat_type="magical"),
         GimmickEffect(GimmickOperation.SET, "faith_points", 0)
     ]

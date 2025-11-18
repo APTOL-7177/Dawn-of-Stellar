@@ -81,7 +81,7 @@ def create_druid_skills():
     nature_blessing = Skill("druid_nature_blessing", "자연의 축복", "자연 최대 회복")
     nature_blessing.effects = [
         GimmickEffect(GimmickOperation.SET, "nature_points", 5),
-        BuffEffect(BuffType.REGEN, 0.3, duration=4),
+        BuffEffect(BuffType.REGEN, 0.27, duration=4),
         BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=4)
     ]
     nature_blessing.costs = [MPCost(6)]

@@ -20,6 +20,7 @@ class MenuOption(Enum):
     """메뉴 옵션"""
     PARTY_STATUS = "party_status"
     INVENTORY = "inventory"
+    COOKING = "cooking"  # 요리
     SHOP = "shop"  # 골드 상점
     SAVE_GAME = "save"
     LOAD_GAME = "load"
@@ -38,6 +39,7 @@ class GameMenu:
         self.menu_options = [
             ("파티 상태", MenuOption.PARTY_STATUS),
             ("인벤토리", MenuOption.INVENTORY),
+            ("요리", MenuOption.COOKING),
             ("상점", MenuOption.SHOP),
             ("게임 저장", MenuOption.SAVE_GAME),
             ("게임 불러오기", MenuOption.LOAD_GAME),
@@ -184,6 +186,17 @@ def open_game_menu(
                             show_message(console, context, "인벤토리를 열 수 없습니다.")
                             continue
 
+                    elif result == MenuOption.COOKING:
+                        if inventory is not None:
+                            from src.ui.cooking_ui import open_cooking_pot
+                            # 메뉴에서 요리할 때는 요리솥 보너스 없음
+                            open_cooking_pot(console, context, inventory, is_cooking_pot=False)
+                            # 요리에서 돌아온 후 메뉴 계속
+                            continue
+                        else:
+                            show_message(console, context, "인벤토리가 없어서 요리를 할 수 없습니다.")
+                            continue
+
                     elif result == MenuOption.PARTY_STATUS and party:
                         open_party_status_menu(console, context, party)
                         # 파티 상태에서 돌아온 후 메뉴 계속
@@ -239,7 +252,9 @@ def open_game_menu(
                             },
                             "inventory": {
                                 "gold": inventory.gold if inventory and hasattr(inventory, 'gold') else 0,
-                                "items": [serialize_item(slot.item) for slot in inventory.slots] if inventory and hasattr(inventory, 'slots') else []
+                                "items": [serialize_item(slot.item) for slot in inventory.slots] if inventory and hasattr(inventory, 'slots') else [],
+                                "cooking_cooldown_turn": inventory.cooking_cooldown_turn if inventory and hasattr(inventory, 'cooking_cooldown_turn') else None,
+                                "cooking_cooldown_duration": inventory.cooking_cooldown_duration if inventory and hasattr(inventory, 'cooking_cooldown_duration') else 0
                             },
                             "keys": exploration.player_keys if hasattr(exploration, 'player_keys') else [],
                             "difficulty": current_difficulty,  # 난이도 추가

@@ -2290,6 +2290,138 @@ CONSUMABLE_TEMPLATES = {
         "effect_value": 5,
         "sell_price": 280
     },
+    
+    # === 공격적 아이템 (전투용) ===
+    "poison_bomb": {
+        "name": "독 폭탄",
+        "description": "적 전체에 독 데미지 + 독 상태이상",
+        "rarity": ItemRarity.UNCOMMON,
+        "effect_type": "poison_bomb",
+        "effect_value": 100,
+        "sell_price": 150
+    },
+    "thunder_grenade": {
+        "name": "천둥 수류탄",
+        "description": "적 전체에 번개 데미지 + 감전",
+        "rarity": ItemRarity.RARE,
+        "effect_type": "thunder_grenade",
+        "effect_value": 200,
+        "sell_price": 250
+    },
+    "acid_flask": {
+        "name": "산성 플라스크",
+        "description": "적 1명에게 산성 데미지 + 방어력 감소",
+        "rarity": ItemRarity.UNCOMMON,
+        "effect_type": "acid_flask",
+        "effect_value": 180,
+        "sell_price": 160
+    },
+    "debuff_attack": {
+        "name": "공격 약화 폭탄",
+        "description": "적 전체 공격력 -30% (3턴)",
+        "rarity": ItemRarity.RARE,
+        "effect_type": "debuff_attack",
+        "effect_value": 0.3,
+        "sell_price": 200
+    },
+    "debuff_defense": {
+        "name": "방어 약화 폭탄",
+        "description": "적 전체 방어력 -40% (3턴)",
+        "rarity": ItemRarity.RARE,
+        "effect_type": "debuff_defense",
+        "effect_value": 0.4,
+        "sell_price": 220
+    },
+    "debuff_speed": {
+        "name": "속도 약화 폭탄",
+        "description": "적 전체 속도 -35% (3턴)",
+        "rarity": ItemRarity.RARE,
+        "effect_type": "debuff_speed",
+        "effect_value": 0.35,
+        "sell_price": 210
+    },
+    "break_brv": {
+        "name": "BRV 파괴 폭탄",
+        "description": "적 전체 BRV -200",
+        "rarity": ItemRarity.EPIC,
+        "effect_type": "break_brv",
+        "effect_value": 200,
+        "sell_price": 350
+    },
+    "smoke_bomb": {
+        "name": "연막탄",
+        "description": "적 전체 명중률 -50% (2턴)",
+        "rarity": ItemRarity.UNCOMMON,
+        "effect_type": "smoke_bomb",
+        "effect_value": 0.5,
+        "sell_price": 120
+    },
+    
+    # === 수비적 아이템 (전투용) ===
+    "barrier_crystal": {
+        "name": "방어 크리스탈",
+        "description": "3턴 동안 모든 피해 -30%",
+        "rarity": ItemRarity.RARE,
+        "effect_type": "barrier_crystal",
+        "effect_value": 0.3,
+        "sell_price": 280
+    },
+    "haste_crystal": {
+        "name": "가속 크리스탈",
+        "description": "3턴 동안 속도 +40%",
+        "rarity": ItemRarity.RARE,
+        "effect_type": "haste_crystal",
+        "effect_value": 0.4,
+        "sell_price": 300
+    },
+    "power_tonic": {
+        "name": "힘의 비약",
+        "description": "3턴 동안 물리/마법 공격력 +35%",
+        "rarity": ItemRarity.EPIC,
+        "effect_type": "power_tonic",
+        "effect_value": 0.35,
+        "sell_price": 400
+    },
+    "defense_elixir": {
+        "name": "방어 엘릭서",
+        "description": "3턴 동안 물리/마법 방어력 +40%",
+        "rarity": ItemRarity.EPIC,
+        "effect_type": "defense_elixir",
+        "effect_value": 0.4,
+        "sell_price": 380
+    },
+    "regen_crystal": {
+        "name": "재생 크리스탈",
+        "description": "5턴 동안 턴당 HP 50 회복",
+        "rarity": ItemRarity.RARE,
+        "effect_type": "regen_crystal",
+        "effect_value": 50,
+        "sell_price": 320
+    },
+    "mp_regen_crystal": {
+        "name": "MP 재생 크리스탈",
+        "description": "5턴 동안 턴당 MP 20 회복",
+        "rarity": ItemRarity.RARE,
+        "effect_type": "mp_regen_crystal",
+        "effect_value": 20,
+        "sell_price": 300
+    },
+    "status_cleanse": {
+        "name": "정화 물약",
+        "description": "모든 상태이상 제거",
+        "rarity": ItemRarity.UNCOMMON,
+        "effect_type": "status_cleanse",
+        "effect_value": 0,
+        "sell_price": 180
+    },
+    "revive_crystal": {
+        "name": "부활 크리스탈",
+        "description": "전투 불능 상태를 회복 (HP 30%)",
+        "rarity": ItemRarity.EPIC,
+        "effect_type": "revive_crystal",
+        "effect_value": 0.3,
+        "sell_price": 500
+    },
 }
 
 # 접사 풀 (랜덤 생성용)
@@ -2548,8 +2680,20 @@ class ItemGenerator:
         ]
 
         if not suitable_templates:
-            # 적합한 템플릿 없으면 소비 아이템
-            return ItemGenerator.create_consumable("health_potion")
+            # 적합한 템플릿 없으면 소비 아이템 (HP/MP 포션 또는 전투용 아이템 랜덤)
+            import random
+            # 전투용 아이템도 포함 (30% 확률)
+            if random.random() < 0.3:
+                combat_consumables = [
+                    "fire_bomb", "ice_bomb", "poison_bomb", "thunder_grenade",
+                    "barrier_crystal", "haste_crystal", "power_tonic", "defense_elixir",
+                    "regen_crystal", "mp_regen_crystal", "status_cleanse"
+                ]
+                chosen_consumable = random.choice(combat_consumables)
+            else:
+                consumable_choices = ["health_potion", "mana_potion"]
+                chosen_consumable = random.choice(consumable_choices)
+            return ItemGenerator.create_consumable(chosen_consumable)
 
         template_id, template = random.choice(suitable_templates)
 

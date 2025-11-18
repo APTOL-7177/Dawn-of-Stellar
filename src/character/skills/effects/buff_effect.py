@@ -100,9 +100,9 @@ class BuffEffect(SkillEffect):
             'duration': self.duration
         }
         
-        # HP_REGEN의 경우 시전자 스탯 정보 저장 (스탯 기반 계산용)
+        # HP_REGEN과 REGEN의 경우 시전자 스탯 정보 저장 (스탯 기반 계산용)
         # MP_REGEN은 고정값으로 유지
-        if self.buff_type == 'hp_regen' and user:
+        if (self.buff_type == 'hp_regen' or self.buff_type == 'regen') and user:
             # 시전자의 공격력/마법력 저장
             if hasattr(user, 'stat_manager'):
                 from src.character.stats import Stats

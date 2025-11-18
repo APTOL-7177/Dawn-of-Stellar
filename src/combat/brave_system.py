@@ -317,8 +317,10 @@ class BraveSystem:
         # 상처 데미지 적용 (HP 데미지의 일부가 상처로 전환)
         # WoundSystem의 이벤트 핸들러는 플래그로 인해 무시됨
         if hasattr(defender, "wound") and wound_damage > 0:
-            # config의 max_wound_percentage 확인 (기본 50%)
-            max_wound = int(defender.max_hp * 0.5)
+            # WoundSystem의 설정 사용
+            from src.systems.wound_system import get_wound_system
+            wound_system = get_wound_system()
+            max_wound = int(defender.max_hp * wound_system.max_wound_percentage)
             if defender.wound + wound_damage > max_wound:
                 wound_damage = max(0, max_wound - defender.wound)
 

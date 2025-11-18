@@ -53,11 +53,13 @@ class CombatUI:
         self,
         screen_width: int,
         screen_height: int,
-        combat_manager: CombatManager
+        combat_manager: CombatManager,
+        inventory: Optional[Any] = None
     ):
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.combat_manager = combat_manager
+        self.inventory = inventory  # 전투 중 아이템 사용을 위한 인벤토리
 
         # UI 상태
         self.state = CombatUIState.WAITING_ATB
@@ -65,6 +67,8 @@ class CombatUI:
         self.selected_action: Optional[ActionType] = None
         self.selected_skill: Optional[Any] = None
         self.selected_target: Optional[Any] = None
+        self.selected_item: Optional[Any] = None  # 선택된 아이템
+        self.selected_item_index: Optional[int] = None  # 선택된 아이템 인덱스
 
         # 메시지 로그
         self.messages: List[CombatMessage] = []
@@ -73,6 +77,7 @@ class CombatUI:
         # 메뉴
         self.action_menu: Optional[CursorMenu] = None
         self.skill_menu: Optional[CursorMenu] = None
+        self.item_menu: Optional[CursorMenu] = None  # 아이템 메뉴
         self.target_cursor = 0
         self.current_target_list: List[Any] = []  # 현재 타겟 선택 리스트
 
@@ -350,30 +355,60 @@ class CombatUI:
             self.target_cursor = alive_indices[new_pos]
         elif action == GameAction.CONFIRM:
             self.selected_target = targets[self.target_cursor]
-            self._execute_current_action()
+            # 아이템 사용인 경우 아이템 정보도 전달
+            if self.selected_action == ActionType.ITEM and self.selected_item:
+                self._execute_current_action()
+            else:
+                self._execute_current_action()
         elif action == GameAction.CANCEL:
             # 취소 - 이전 상태로
             if self.selected_action == ActionType.SKILL:
                 self.state = CombatUIState.SKILL_MENU
+            elif self.selected_action == ActionType.ITEM:
+                self.state = CombatUIState.ITEM_MENU
             else:
                 self.state = CombatUIState.ACTION_MENU
             self.selected_skill = None
+            self.selected_item = None
+            self.selected_item_index = None
 
         return False
 
     def _handle_item_menu(self, action: GameAction) -> bool:
         """아이템 메뉴 입력 처리"""
-        if action == GameAction.CANCEL:
-            self.state = CombatUIState.ACTION_MENU
+        if not self.item_menu:
+            return False
+
+        if action == GameAction.MOVE_UP:
+            self.item_menu.move_cursor_up()
+        elif action == GameAction.MOVE_DOWN:
+            self.item_menu.move_cursor_down()
         elif action == GameAction.CONFIRM:
-            # 아이템 시스템 구현 (인벤토리에서 선택)
-            # 현재는 간단한 메시지 표시
-            self.add_message("아이템 메뉴 (인벤토리 UI 연동 필요)", (200, 200, 200))
-            # 실제 구현 시: 인벤토리 UI를 표시하고 아이템 선택
-            # selected_item = inventory_ui.show()
-            # if selected_item:
-            #     self.selected_action = ("item", selected_item)
-            #     self.state = CombatUIState.TARGET_SELECTION
+            selected_item = self.item_menu.get_selected_item()
+            if selected_item:
+                if selected_item.value is None:  # 뒤로가기
+                    self.state = CombatUIState.ACTION_MENU
+                else:
+                    # 아이템 선택
+                    item_data = selected_item.value
+                    if isinstance(item_data, tuple) and len(item_data) == 2:
+                        self.selected_item_index, self.selected_item = item_data
+                        # 아이템 효과에 따라 대상 선택 필요 여부 결정
+                        from src.equipment.item_system import Consumable
+                        if isinstance(self.selected_item, Consumable):
+                            effect_type = getattr(self.selected_item, 'effect_type', 'heal_hp')
+                            # 공격적 아이템은 적 대상 선택, 수비적 아이템은 아군 대상 선택
+                            if effect_type in ["damage", "aoe_fire", "aoe_ice", "single_lightning", "poison_bomb", "debuff_attack", "debuff_defense", "debuff_speed", "break_brv"]:
+                                # 적 대상 선택
+                                self.current_target_list = self.combat_manager.enemies
+                                self.target_cursor = 0
+                                self.state = CombatUIState.TARGET_SELECT
+                            else:
+                                # 아군 대상 선택 (또는 자기 자신)
+                                self.current_target_list = self.combat_manager.party
+                                self.target_cursor = 0
+                                self.state = CombatUIState.TARGET_SELECT
+        elif action == GameAction.CANCEL:
             self.state = CombatUIState.ACTION_MENU
 
         return False
@@ -401,6 +436,7 @@ class CombatUI:
 
         elif self.selected_action == ActionType.ITEM:
             # 아이템 메뉴 열기
+            self.item_menu = self._create_item_menu()
             self.state = CombatUIState.ITEM_MENU
 
         elif self.selected_action == ActionType.DEFEND:
@@ -489,11 +525,18 @@ class CombatUI:
         if isinstance(self.selected_action, tuple):
             action_type = ActionType.SKILL  # 기본 공격 스킬도 스킬로 실행
 
+        # 아이템 사용인 경우 아이템 정보 전달
+        kwargs = {}
+        if action_type == ActionType.ITEM and self.selected_item:
+            kwargs['item'] = self.selected_item
+            kwargs['item_index'] = self.selected_item_index
+        
         result = self.combat_manager.execute_action(
             actor=self.current_actor,
             action_type=action_type,
             target=self.selected_target,
-            skill=self.selected_skill
+            skill=self.selected_skill,
+            **kwargs
         )
 
         # 결과 메시지 표시
@@ -507,6 +550,8 @@ class CombatUI:
         self.selected_action = None
         self.selected_skill = None
         self.selected_target = None
+        self.selected_item = None
+        self.selected_item_index = None
         # 주의: state는 update()에서 delay 후 WAITING_ATB로 전환됨
 
         # 전투 종료 확인
@@ -3136,20 +3181,9 @@ class CombatUI:
         return ""
 
     def _render_item_menu(self, console: tcod.console.Console):
-        """아이템 메뉴 렌더링 (인벤토리 UI 연동 필요)"""
-        console.print(
-            self.screen_width // 2 - 10,
-            35,
-            "아이템 (인벤토리 열기)",
-            fg=(255, 255, 100)
-        )
-
-        console.print(
-            self.screen_width // 2 - 8,
-            36,
-            "X: 취소",
-            fg=(180, 180, 180)
-        )
+        """아이템 메뉴 렌더링"""
+        if self.item_menu:
+            self.item_menu.render(console)
 
     def _render_battle_end(self, console: tcod.console.Console):
         """전투 종료 화면 렌더링"""
@@ -3228,7 +3262,7 @@ def run_combat(
     combat_manager.start_combat(party, enemies)
 
     # 전투 UI 생성
-    ui = CombatUI(console.width, console.height, combat_manager)
+    ui = CombatUI(console.width, console.height, combat_manager, inventory=inventory)
     handler = InputHandler()
 
     logger.info(f"전투 시작: 아군 {len(party)}명 vs 적군 {len(enemies)}명 (BGM: {selected_bgm})")

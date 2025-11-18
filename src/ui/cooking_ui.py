@@ -35,17 +35,20 @@ class CookingPotUI:
         self,
         screen_width: int,
         screen_height: int,
-        inventory: Inventory
+        inventory: Inventory,
+        is_cooking_pot: bool = False
     ):
         """
         Args:
             screen_width: 화면 너비
             screen_height: 화면 높이
             inventory: 인벤토리 (재료 가져오기)
+            is_cooking_pot: 요리솥에서 요리하는지 여부 (보너스 적용)
         """
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.inventory = inventory
+        self.is_cooking_pot = is_cooking_pot  # 요리솥 보너스 플래그
 
         self.mode = CookingMode.SELECT_SLOT
 
@@ -170,6 +173,8 @@ class CookingPotUI:
 
     def _cook(self):
         """요리 실행"""
+        import random
+        
         # 냄비에 있는 재료 수집 (재료만 추출)
         ingredient_data = [slot for slot in self.pot_slots if slot is not None]
 
@@ -185,6 +190,39 @@ class CookingPotUI:
         recipe = RecipeDatabase.find_recipe(ingredients)
 
         self.cooked_food = recipe.result
+
+        # 요리솥 보너스 적용
+        if self.is_cooking_pot:
+            # 요리솥에서 요리 시 보너스:
+            # 1. HP/MP 회복량 20% 증가
+            # 2. 버프 지속시간 20% 증가
+            # 3. 추가 아이템 생성 (10% 확률로 같은 음식 1개 추가)
+            
+            # HP/MP 회복량 증가
+            if hasattr(self.cooked_food, 'hp_restore') and self.cooked_food.hp_restore > 0:
+                self.cooked_food.hp_restore = int(self.cooked_food.hp_restore * 1.2)
+                logger.info(f"요리솥 보너스: HP 회복량 20% 증가! (현재: {self.cooked_food.hp_restore})")
+            
+            if hasattr(self.cooked_food, 'mp_restore') and self.cooked_food.mp_restore > 0:
+                self.cooked_food.mp_restore = int(self.cooked_food.mp_restore * 1.2)
+                logger.info(f"요리솥 보너스: MP 회복량 20% 증가! (현재: {self.cooked_food.mp_restore})")
+            
+            # 버프 지속시간 증가
+            if hasattr(self.cooked_food, 'buff_duration') and self.cooked_food.buff_duration > 0:
+                self.cooked_food.buff_duration = int(self.cooked_food.buff_duration * 1.2)
+                logger.info(f"요리솥 보너스: 버프 지속시간 20% 증가! (현재: {self.cooked_food.buff_duration})")
+            
+            # 추가 아이템 생성
+            extra_item = random.random() < 0.1  # 10% 확률
+            if extra_item:
+                # 같은 음식을 하나 더 추가
+                from copy import deepcopy
+                extra_food = deepcopy(recipe.result)
+                success_extra = self.inventory.add_item(extra_food, quantity=1)
+                if success_extra:
+                    logger.info(f"요리솥 보너스: 추가 음식 생성! {extra_food.name}")
+                else:
+                    logger.warning("요리솥 보너스: 추가 음식 생성 실패 (인벤토리 가득 참)")
 
         logger.info(f"요리 완료: {self.cooked_food.name}")
 
@@ -210,6 +248,10 @@ class CookingPotUI:
         """
         available = []
 
+        if not self.inventory or not hasattr(self.inventory, 'slots'):
+            logger.warning("인벤토리 또는 슬롯이 없습니다!")
+            return available
+
         # 냄비에 이미 사용된 슬롯 인덱스 추출
         used_slot_indices = set()
         for pot_slot in self.pot_slots:
@@ -218,11 +260,20 @@ class CookingPotUI:
                 used_slot_indices.add(slot_idx)
 
         for i, slot in enumerate(self.inventory.slots):
+            # 슬롯과 아이템이 존재하는지 확인
+            if slot is None:
+                continue
+            if not hasattr(slot, 'item') or slot.item is None:
+                continue
+            
+            # Ingredient 타입 확인
             if isinstance(slot.item, Ingredient):
                 # 이미 냄비에 있는 재료는 제외
                 if i not in used_slot_indices:
                     available.append((i, slot.item))
+                    logger.debug(f"사용 가능한 재료 발견: 슬롯 {i}, {slot.item.name}")
 
+        logger.info(f"사용 가능한 재료 개수: {len(available)}")
         return available
 
     def _update_ingredient_scroll(self):
@@ -246,8 +297,11 @@ class CookingPotUI:
         """요리 화면 렌더링"""
         render_space_background(console, self.screen_width, self.screen_height)
 
-        # 제목
-        title = "🍲 요리 냄비"
+        # 제목 (요리솥 보너스 표시)
+        if self.is_cooking_pot:
+            title = "🍲 요리 냄비 (요리솥 보너스 적용)"
+        else:
+            title = "🍲 요리 냄비"
         console.print(
             (self.screen_width - len(title)) // 2,
             2,
@@ -546,7 +600,8 @@ class CookingPotUI:
 def open_cooking_pot(
     console: tcod.console.Console,
     context: tcod.context.Context,
-    inventory: Inventory
+    inventory: Inventory,
+    is_cooking_pot: bool = False
 ) -> Optional[CookedFood]:
     """
     요리 냄비 열기
@@ -555,14 +610,15 @@ def open_cooking_pot(
         console: TCOD 콘솔
         context: TCOD 컨텍스트
         inventory: 인벤토리
+        is_cooking_pot: 요리솥에서 요리하는지 여부 (보너스 적용)
 
     Returns:
         요리된 음식 (취소 시 None)
     """
-    ui = CookingPotUI(console.width, console.height, inventory)
+    ui = CookingPotUI(console.width, console.height, inventory, is_cooking_pot=is_cooking_pot)
     handler = InputHandler()
 
-    logger.info("요리 냄비 열기")
+    logger.info(f"요리 냄비 열기 (요리솥: {is_cooking_pot})")
 
     while not ui.closed:
         # 렌더링

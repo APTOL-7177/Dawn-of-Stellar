@@ -689,11 +689,47 @@ class GimmickUpdater:
             base_attack = getattr(character, 'physical_attack', 0)
             base_magic = getattr(character, 'magic_attack', 0)
         
+        import random
+        
+        def select_target(enemy_list, strategy="smart"):
+            """언데드가 자율적으로 적을 선택"""
+            if not enemy_list:
+                return None
+            
+            if strategy == "weakest":
+                # 가장 약한 적 (HP가 가장 낮은 적)
+                return min(enemy_list, key=lambda e: getattr(e, 'current_hp', 0))
+            elif strategy == "strongest":
+                # 가장 강한 적 (HP가 가장 높은 적)
+                return max(enemy_list, key=lambda e: getattr(e, 'current_hp', 0))
+            elif strategy == "random":
+                # 랜덤 선택
+                return random.choice(enemy_list)
+            else:  # "smart" - 지능적 선택
+                # HP 비율이 낮은 적 우선 (마무리), 그 외는 랜덤
+                hp_ratios = []
+                for enemy in enemy_list:
+                    max_hp = getattr(enemy, 'max_hp', 1)
+                    current_hp = getattr(enemy, 'current_hp', 0)
+                    ratio = current_hp / max_hp if max_hp > 0 else 1.0
+                    hp_ratios.append((enemy, ratio))
+                
+                # HP 비율이 30% 이하인 적이 있으면 그 중 가장 약한 적 선택
+                low_hp_enemies = [e for e, ratio in hp_ratios if ratio <= 0.3]
+                if low_hp_enemies:
+                    return min(low_hp_enemies, key=lambda e: getattr(e, 'current_hp', 0))
+                
+                # 그 외는 랜덤 선택
+                return random.choice(enemy_list)
+        
         # 스켈레톤: 물리 공격 (네크로맨서의 물리 공격력 + 마법력의 일부 기반, HP 공격)
+        # 스켈레톤은 지능적으로 적을 선택 (약한 적 우선)
         for i in range(skeleton):
             if not alive_enemies:
                 break
-            target = alive_enemies[i % len(alive_enemies)]
+            target = select_target(alive_enemies, strategy="smart")
+            if not target:
+                break
             
             # 스켈레톤 공격력: 네크로맨서 물리 공격력의 60% + 마법력의 20%
             skeleton_brv = int(base_attack * 0.6 + base_magic * 0.2)
@@ -705,10 +741,13 @@ class GimmickUpdater:
                 logger.info(f"💀 스켈레톤이 {target.name}에게 {damage} HP 피해!")
         
         # 좀비: 방어/탱킹 (약한 물리 HP 공격)
+        # 좀비는 랜덤으로 적을 선택 (탱킹 역할)
         for i in range(zombie):
             if not alive_enemies:
                 break
-            target = alive_enemies[i % len(alive_enemies)]
+            target = select_target(alive_enemies, strategy="random")
+            if not target:
+                break
             
             # 좀비 공격력: 네크로맨서 물리 공격력의 40% + 마법력의 10% (약한 공격)
             zombie_brv = int(base_attack * 0.4 + base_magic * 0.1)
@@ -720,10 +759,13 @@ class GimmickUpdater:
                 logger.info(f"🧟 좀비가 {target.name}에게 {damage} HP 피해!")
         
         # 유령: 마법 공격 (네크로맨서의 마법 공격력 기반, HP 공격)
+        # 유령은 가장 강한 적을 집중 공격 (디버프 역할)
         for i in range(ghost):
             if not alive_enemies:
                 break
-            target = alive_enemies[i % len(alive_enemies)]
+            target = select_target(alive_enemies, strategy="strongest")
+            if not target:
+                break
             
             # 유령 공격력: 네크로맨서 마법 공격력의 70%
             ghost_brv = int(base_magic * 0.7)

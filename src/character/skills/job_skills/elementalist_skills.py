@@ -71,7 +71,7 @@ def create_elementalist_skills():
     summon_earth.effects = [
         GimmickEffect(GimmickOperation.ADD, "spirit_earth", 1, max_value=1),
         BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=99),
-        BuffEffect(BuffType.HP_REGEN, 3, duration=99)
+        BuffEffect(BuffType.HP_REGEN, 4, duration=99)  # 대지 정령
     ]
     summon_earth.costs = [MPCost(4)]
     summon_earth.target_type = "self"

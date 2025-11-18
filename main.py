@@ -601,7 +601,8 @@ def main() -> int:
                                         display.console,
                                         display.context,
                                         party,
-                                        enemies
+                                        enemies,
+                                        inventory=inventory
                                     )
 
                                     logger.info(f"전투 결과: {combat_result}")

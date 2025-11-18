@@ -223,12 +223,19 @@ class RewardCalculator:
             drop_count = random.randint(3, 5)
             for _ in range(drop_count):
                 items.append(RewardCalculator._generate_drop(floor_number, is_boss=True))
+            # 보스는 추가로 전투용 소비 아이템 1~2개 드롭
+            consumable_count = random.randint(1, 2)
+            for _ in range(consumable_count):
+                items.append(RewardCalculator._generate_combat_consumable_drop())
         else:
             # 일반 적: 각 적마다 40% 확률 (기존 20%에서 2배)
             for enemy in enemies:
                 if random.random() < 0.4:  # 40%
                     enemy_level = getattr(enemy, 'level', floor_number)
                     items.append(RewardCalculator._generate_drop(enemy_level))
+                # 일반 적도 10% 확률로 전투용 소비 아이템 드롭
+                if random.random() < 0.1:  # 10%
+                    items.append(RewardCalculator._generate_combat_consumable_drop())
 
         return {
             "experience": total_exp,
@@ -255,6 +262,46 @@ class RewardCalculator:
             return ItemGenerator.create_random_drop(level, boss_drop=True)
         else:
             return ItemGenerator.create_random_drop(level)
+
+    @staticmethod
+    def _generate_consumable_drop() -> Any:
+        """
+        소비 아이템 드롭 생성 (HP/MP 포션)
+
+        Returns:
+            소비 아이템
+        """
+        from src.equipment.item_system import ItemGenerator
+        import random
+
+        # HP/MP 포션 랜덤 선택
+        consumable_choices = ["health_potion", "mana_potion"]
+        chosen_consumable = random.choice(consumable_choices)
+        return ItemGenerator.create_consumable(chosen_consumable)
+    
+    @staticmethod
+    def _generate_combat_consumable_drop() -> Any:
+        """
+        전투용 소비 아이템 드롭 생성 (공격/수비 아이템)
+
+        Returns:
+            전투용 소비 아이템
+        """
+        from src.equipment.item_system import ItemGenerator
+        import random
+
+        # 전투용 아이템 랜덤 선택
+        combat_consumables = [
+            # 공격적 아이템
+            "fire_bomb", "ice_bomb", "poison_bomb", "thunder_grenade",
+            "acid_flask", "debuff_attack", "debuff_defense", "debuff_speed",
+            "break_brv", "smoke_bomb",
+            # 수비적 아이템
+            "barrier_crystal", "haste_crystal", "power_tonic", "defense_elixir",
+            "regen_crystal", "mp_regen_crystal", "status_cleanse", "revive_crystal"
+        ]
+        chosen_consumable = random.choice(combat_consumables)
+        return ItemGenerator.create_consumable(chosen_consumable)
 
 
 def distribute_party_experience(party: List[Any], total_exp: int) -> Dict[Any, List[Dict[str, Any]]]:

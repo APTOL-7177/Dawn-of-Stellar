@@ -157,7 +157,8 @@ class WorldUI:
 
                     # 요리 UI 열기
                     logger.info("요리솥 발견! 요리 UI 열기")
-                    open_cooking_pot(console, context, self.inventory)
+                    # 요리솥에서 요리할 때는 보너스 적용
+                    open_cooking_pot(console, context, self.inventory, is_cooking_pot=True)
                     return False
                 else:
                     self.add_message("요리솥을 사용할 수 없습니다.")

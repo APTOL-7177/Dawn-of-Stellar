@@ -533,25 +533,49 @@ class SimpleEnemy:
         self.name = template.name
         self.level = max(1, int(template.level * level_modifier))
 
-        # 스탯 (레벨 보정 + 난이도 보정 + 밸런스 조정)
-        # 밸런스 조정: HP 0.95배 (대폭 낮춤), 방어력 1.3배 (낮춤), 공격력 0.5배
-        self.max_hp = int(template.hp * level_modifier * difficulty_hp_mult * 0.95)
+        # 플레이어와 유사한 레벨당 비율 기반 성장 (장비 차이 고려하여 약 1.25배 더 성장)
+        # 플레이어: HP 11.5%, 공격 20%, 방어 20% → 적: HP 14.4%, 공격 25%, 방어 25%
+        level = self.level
+        enemy_growth_mult = 1.25  # 장비 차이 보정 (플레이어보다 25% 더 성장)
+        
+        # HP: 레벨당 기초 HP의 14.4% 성장 (플레이어 11.5% * 1.25)
+        hp_growth = template.hp * 0.144 * (level - 1)
+        self.max_hp = int(template.hp + hp_growth) * difficulty_hp_mult
         self.current_hp = self.max_hp
-        self.max_mp = int(template.mp * level_modifier * 0.95)
+        
+        # MP: 레벨당 기초 MP의 6.25% 성장 (플레이어 5% * 1.25)
+        mp_growth = template.mp * 0.0625 * (level - 1)
+        self.max_mp = int(template.mp + mp_growth)
         self.current_mp = self.max_mp
 
-        self.physical_attack = int(template.physical_attack * level_modifier * difficulty_dmg_mult * 0.5)
-        self.physical_defense = int(template.physical_defense * level_modifier * 1.3)
-        self.magic_attack = int(template.magic_attack * level_modifier * difficulty_dmg_mult * 0.5)
-        self.magic_defense = int(template.magic_defense * level_modifier * 1.3)
-        self.speed = template.speed
-        self.luck = template.luck
-        self.accuracy = template.accuracy
-        self.evasion = template.evasion
+        # 공격력: 레벨당 기초 공격력의 25% 성장, 최종값 12% 증가 (플레이어 20% * 1.25, 최종 1.12배)
+        attack_growth = template.physical_attack * 0.25 * (level - 1)
+        self.physical_attack = int((template.physical_attack + attack_growth) * 1.12) * difficulty_dmg_mult
+        
+        magic_attack_growth = template.magic_attack * 0.25 * (level - 1)
+        self.magic_attack = int((template.magic_attack + magic_attack_growth) * 1.12) * difficulty_dmg_mult
+        
+        # 방어력: 레벨당 기초 방어력의 25% 성장, 최종값 15% 증가 (플레이어 20% * 1.25, 최종 0.75 * 1.15 = 0.8625배)
+        defense_growth = template.physical_defense * 0.25 * (level - 1)
+        self.physical_defense = int((template.physical_defense + defense_growth) * 0.75 * 1.15)
+        
+        magic_defense_growth = template.magic_defense * 0.25 * (level - 1)
+        self.magic_defense = int((template.magic_defense + magic_defense_growth) * 0.75 * 1.15)
+        
+        # 속도: 레벨당 기초 속도의 25% 성장 (플레이어 20% * 1.25)
+        speed_growth = template.speed * 0.25 * (level - 1)
+        self.speed = int(template.speed + speed_growth)
+        
+        # 행운, 명중, 회피는 레벨에 따라 약간 증가
+        self.luck = int(template.luck + (level - 1) * 0.5)
+        self.accuracy = int(template.accuracy + (level - 1) * 1.0)
+        self.evasion = int(template.evasion + (level - 1) * 0.5)
 
-        # BRV (템플릿에서 정의된 값을 레벨 보정)
-        self.max_brv = int(template.max_brv * level_modifier)
-        self.current_brv = int(template.init_brv * level_modifier)
+        # BRV: 레벨당 기초 BRV의 25% 성장 (플레이어 20% * 1.25)
+        brv_growth = template.max_brv * 0.25 * (level - 1)
+        self.max_brv = int(template.max_brv + brv_growth)
+        init_brv_growth = template.init_brv * 0.25 * (level - 1)
+        self.current_brv = int(template.init_brv + init_brv_growth)
 
         # 상태
         self.is_alive = True
