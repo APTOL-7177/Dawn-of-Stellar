@@ -186,6 +186,16 @@ class BraveSystem:
         Returns:
             공격 결과 {"brv_stolen": int, "actual_gain": int, "is_break": bool}
         """
+        # 빗나간 공격 (데미지 0)은 BRV 회복 없음
+        if damage == 0:
+            return {
+                "brv_stolen": 0,
+                "actual_gain": 0,
+                "is_break": False,
+                "damage": 0,
+                "miss": True
+            }
+
         # 방어자의 BRV 저항 반영
         defender_resistance = getattr(defender, "brv_loss_resistance", 1.0)
         actual_damage = int(damage / defender_resistance)
@@ -251,7 +261,8 @@ class BraveSystem:
             "brv_stolen": brv_stolen,
             "actual_gain": actual_gain,
             "is_break": is_break,
-            "damage": actual_damage
+            "damage": actual_damage,
+            "miss": False
         }
 
     def hp_attack(
