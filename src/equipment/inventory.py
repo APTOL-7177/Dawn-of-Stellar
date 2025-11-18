@@ -364,7 +364,7 @@ class Inventory:
         target: Any
     ) -> bool:
         """
-        소비 아이템 사용
+        소비 아이템 사용 (Consumable 및 CookedFood 지원)
 
         Args:
             slot_index: 슬롯 인덱스
@@ -378,8 +378,16 @@ class Inventory:
             return False
 
         item = slot.item
+        item_name = getattr(item, 'name', '알 수 없는 아이템')
+        target_name = getattr(target, 'name', '알 수 없는 대상')
+
+        # CookedFood 타입 확인
+        from src.cooking.recipe import CookedFood
+        if isinstance(item, CookedFood):
+            return self._use_cooked_food(slot_index, item, target, item_name, target_name)
+
+        # Consumable 타입 확인
         if not isinstance(item, Consumable):
-            item_name = getattr(item, 'name', '알 수 없는 아이템')
             logger.warning(f"{item_name}은(는) 소비 아이템이 아닙니다")
             return False
 
@@ -423,6 +431,88 @@ class Inventory:
                 target.status_effects.clear()
                 logger.info(f"{target_name}: {item_name} 사용 → 상태이상 치료")
                 success = True
+
+        # 사용 성공 시 아이템 제거
+        if success:
+            self.remove_item(slot_index, 1)
+
+        return success
+
+    def _use_cooked_food(
+        self,
+        slot_index: int,
+        food: Any,
+        target: Any,
+        item_name: str,
+        target_name: str
+    ) -> bool:
+        """
+        요리 음식 사용
+
+        Args:
+            slot_index: 슬롯 인덱스
+            food: CookedFood 객체
+            target: 대상 캐릭터
+            item_name: 아이템 이름
+            target_name: 대상 이름
+
+        Returns:
+            성공 여부
+        """
+        success = False
+
+        # HP 회복
+        hp_restore = getattr(food, 'hp_restore', 0)
+        if hp_restore > 0:
+            healed = target.heal(hp_restore)
+            if healed > 0:
+                logger.info(f"{target_name}: {item_name} 사용 → HP +{healed}")
+                success = True
+
+        # MP 회복
+        mp_restore = getattr(food, 'mp_restore', 0)
+        if mp_restore > 0:
+            restored = target.restore_mp(mp_restore)
+            if restored > 0:
+                logger.info(f"{target_name}: {item_name} 사용 → MP +{restored}")
+                success = True
+
+        # 최대 HP 보너스 (일시적)
+        max_hp_bonus = getattr(food, 'max_hp_bonus', 0)
+        if max_hp_bonus > 0:
+            if hasattr(target, 'temp_max_hp_bonus'):
+                target.temp_max_hp_bonus += max_hp_bonus
+            logger.info(f"{target_name}: {item_name} 사용 → 최대 HP +{max_hp_bonus}")
+            success = True
+
+        # 최대 MP 보너스 (일시적)
+        max_mp_bonus = getattr(food, 'max_mp_bonus', 0)
+        if max_mp_bonus > 0:
+            if hasattr(target, 'temp_max_mp_bonus'):
+                target.temp_max_mp_bonus += max_mp_bonus
+            logger.info(f"{target_name}: {item_name} 사용 → 최대 MP +{max_mp_bonus}")
+            success = True
+
+        # 버프 적용
+        buff_type = getattr(food, 'buff_type', None)
+        buff_duration = getattr(food, 'buff_duration', 0)
+        if buff_type and buff_duration > 0:
+            logger.info(f"{target_name}: {item_name} 사용 → {buff_type} 버프 ({buff_duration}턴)")
+            success = True
+
+        # 독 (실패 요리)
+        is_poison = getattr(food, 'is_poison', False)
+        poison_damage = getattr(food, 'poison_damage', 0)
+        if is_poison and poison_damage > 0:
+            if hasattr(target, 'take_damage'):
+                target.take_damage(poison_damage)
+            logger.warning(f"{target_name}: {item_name} 사용 → 독! 피해 {poison_damage}")
+            success = True
+
+        # 성공하지 않았다면 최소한 아무 효과 없음
+        if not success and (hp_restore > 0 or mp_restore > 0):
+            logger.info(f"{target_name}: {item_name} 사용 (이미 최대치)")
+            success = True
 
         # 사용 성공 시 아이템 제거
         if success:

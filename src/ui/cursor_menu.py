@@ -22,6 +22,11 @@ class MenuItem:
     description: str = ""
     value: Any = None  # 추가 데이터 저장용
 
+    @property
+    def data(self):
+        """하위 호환성을 위한 data 속성 (value의 별칭)"""
+        return self.value
+
 
 class CursorMenu:
     """
