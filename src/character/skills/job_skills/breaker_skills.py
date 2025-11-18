@@ -38,7 +38,7 @@ def create_breaker_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=4),
         GimmickEffect(GimmickOperation.ADD, "break_power", 2, max_value=10)
     ]
-    brv_focus.costs = [MPCost(6)]
+    brv_focus.costs = []
     brv_focus.target_type = "self"
     # brv_focus.cooldown = 3  # 쿨다운 시스템 제거됨
     brv_focus.sfx = "548"
@@ -53,7 +53,7 @@ def create_breaker_skills():
         DamageEffect(DamageType.BRV, 1.5),
         GimmickEffect(GimmickOperation.ADD, "break_power", 2, max_value=10)
     ]
-    multi_strike.costs = [MPCost(8)]
+    multi_strike.costs = [MPCost(4)]
     # multi_strike.cooldown = 2  # 쿨다운 시스템 제거됨
     multi_strike.sfx = "558"
     multi_strike.metadata = {"multi_hit": 3, "break_power_gain": 2}
@@ -65,7 +65,7 @@ def create_breaker_skills():
         GimmickEffect(GimmickOperation.ADD, "break_power", 5, max_value=10),
         BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=3)
     ]
-    break_enhance.costs = [MPCost(9)]
+    break_enhance.costs = [MPCost(5)]
     break_enhance.target_type = "self"
     # break_enhance.cooldown = 5  # 쿨다운 시스템 제거됨
     break_enhance.sfx = "568"
@@ -78,7 +78,7 @@ def create_breaker_skills():
         DamageEffect(DamageType.BRV, 3.0, gimmick_bonus={"field": "break_power", "multiplier": 0.3}),
         GimmickEffect(GimmickOperation.ADD, "break_power", 1, max_value=10)
     ]
-    mega_crush.costs = [MPCost(10)]
+    mega_crush.costs = [MPCost(6)]
     # mega_crush.cooldown = 3  # 쿨다운 시스템 제거됨
     mega_crush.sfx = "578"
     mega_crush.metadata = {"break_scaling": True, "break_power_gain": 1}
@@ -90,7 +90,7 @@ def create_breaker_skills():
         DamageEffect(DamageType.BRV, 2.2, gimmick_bonus={"field": "break_power", "multiplier": 0.25}),
         GimmickEffect(GimmickOperation.CONSUME, "break_power", 3)
     ]
-    break_wave.costs = [MPCost(11), StackCost("break_power", 3)]
+    break_wave.costs = [MPCost(7), StackCost("break_power", 3)]
     # break_wave.cooldown = 4  # 쿨다운 시스템 제거됨
     break_wave.is_aoe = True
     break_wave.sfx = "588"
@@ -103,7 +103,7 @@ def create_breaker_skills():
         DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "break_power", "multiplier": 0.4}),
         GimmickEffect(GimmickOperation.CONSUME, "break_power", 5)
     ]
-    total_break.costs = [MPCost(14), StackCost("break_power", 5)]
+    total_break.costs = [MPCost(9), StackCost("break_power", 5)]
     # total_break.cooldown = 6  # 쿨다운 시스템 제거됨
     total_break.sfx = "598"
     total_break.metadata = {"break_power_cost": 5, "break_scaling": True}
@@ -116,7 +116,7 @@ def create_breaker_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=4),
         BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=4)
     ]
-    devastation.costs = [MPCost(16)]
+    devastation.costs = [MPCost(10)]
     devastation.target_type = "self"
     # devastation.cooldown = 6  # 쿨다운 시스템 제거됨
     devastation.sfx = "608"
@@ -132,7 +132,7 @@ def create_breaker_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5),
         GimmickEffect(GimmickOperation.SET, "break_power", 0)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(18)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

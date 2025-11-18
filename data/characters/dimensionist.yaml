@@ -58,13 +58,14 @@ traits:
 
 - id: dimensional_instability
   name: 차원 불안정
-  description: 게이지 80+ 시 모든 공격 크리티컬 확률 +50%, 받는 데미지 +30%
+  description: 게이지 80+ 시 모든 공격 크리티컬 확률 +50%, 회피율 +25%, 데미지 +20%
   type: conditional
   conditions:
     distortion_gauge_min: 80
   effects:
     critical_rate_bonus: 0.5
-    incoming_damage_multiplier: 1.3
+    evasion_bonus: 0.25
+    damage_multiplier: 1.2
 
 gimmick:
   type: probability_distortion

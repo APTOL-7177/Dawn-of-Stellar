@@ -25,26 +25,40 @@ stat_growth:
   evasion: 2.0
   max_brv: 2.4
 traits:
-- id: shapeshifting
-  name: 동물 변신
-  description: '전투 중 동물 형태 전환 가능 (곰: 방어, 표범: 속도, 독수리: 회피)'
-  type: trigger
+- id: animal_affinity
+  name: 동물 친화력
+  description: 동물 형태로 변신 시 해당 형태의 능력치 보너스 +30%, 변신 유지 시간 +2턴
+  type: passive
+  effects:
+    form_bonus_multiplier: 1.3
+    form_duration_bonus: 2
 - id: natures_blessing
   name: 자연의 축복
-  description: 턴당 HP 3% 자동 회복
+  description: 턴당 HP 3% 자동 회복, 자연 속성 공격 데미지 +25%
   type: passive
+  effects:
+    hp_regen_percent: 0.03
+    nature_damage_bonus: 0.25
 - id: plant_control
   name: 식물 조종
-  description: 적을 속박하여 2턴간 행동 불가 (성공률 40%)
+  description: 적을 속박하여 2턴간 행동 불가 (성공률 50%, 성공 시 추가로 BRV 감소)
   type: trigger
-- id: seasonal_power
-  name: 계절의 힘
-  description: '전투 턴마다 계절 변화 (봄: 회복, 여름: 공격, 가을: 방어, 겨울: 둔화)'
-  type: trigger
+  effects:
+    bind_success_rate: 0.5
+    bind_brv_damage: 0.2
+- id: seasonal_adaptation
+  name: 계절 적응
+  description: 현재 계절에 맞는 능력치 보너스 +20% (봄: 회복력, 여름: 공격력, 가을: 방어력, 겨울: 마법력)
+  type: passive
+  effects:
+    seasonal_bonus: 0.2
 - id: wild_instinct
   name: 야생의 본능
-  description: HP 50% 이하 시 모든 스탯 +20%
+  description: HP 50% 이하 시 모든 스탯 +25%, 변신 쿨다운 -50%
   type: trigger
+  effects:
+    all_stats_multiplier: 1.25
+    transform_cooldown_reduction: 0.5
 gimmick:
   type: shapeshifting_system
   name: 자연의 변신

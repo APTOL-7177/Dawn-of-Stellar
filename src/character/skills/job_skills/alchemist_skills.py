@@ -41,7 +41,7 @@ def create_alchemist_skills():
         HealEffect(HealType.HP, percentage=0.4),
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 2)
     ]
-    healing_potion.costs = [MPCost(6), StackCost("potion_stock", 2)]
+    healing_potion.costs = []
     healing_potion.target_type = "ally"
     healing_potion.sfx = "352"  # FFVII healing sound
     # healing_potion.cooldown = 2  # 쿨다운 시스템 제거됨
@@ -56,7 +56,7 @@ def create_alchemist_skills():
         BuffEffect(BuffType.SPEED_UP, 0.2, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 3)
     ]
-    buff_potion.costs = [MPCost(10), StackCost("potion_stock", 3)]
+    buff_potion.costs = [MPCost(7), StackCost("potion_stock", 3)]
     buff_potion.target_type = "ally"
     buff_potion.sfx = "362"  # FFVII buff sound
     # buff_potion.cooldown = 4  # 쿨다운 시스템 제거됨
@@ -71,7 +71,7 @@ def create_alchemist_skills():
                     damage_stat="magic", damage_multiplier=0.15),  # 독 DoT: 마법 공격력의 15%
         GimmickEffect(GimmickOperation.ADD, "potion_stock", 1, max_value=10)
     ]
-    poison_bomb.costs = [MPCost(12)]
+    poison_bomb.costs = [MPCost(8)]
     poison_bomb.sfx = "376"  # FFVII poison sound
     # poison_bomb.cooldown = 3  # 쿨다운 시스템 제거됨
     poison_bomb.metadata = {"potion_gain": 1, "poison": True}
@@ -83,7 +83,7 @@ def create_alchemist_skills():
         GimmickEffect(GimmickOperation.ADD, "potion_stock", 5, max_value=10),
         BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=3)  # 방어 태세
     ]
-    gather_materials.costs = [MPCost(8)]
+    gather_materials.costs = [MPCost(4)]
     gather_materials.target_type = "self"
     gather_materials.sfx = "404"  # FFVII gather sound
     # gather_materials.cooldown = 4  # 쿨다운 시스템 제거됨
@@ -96,7 +96,7 @@ def create_alchemist_skills():
         HealEffect(HealType.MP, base_amount=50),
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 2)
     ]
-    mana_potion.costs = [MPCost(4), StackCost("potion_stock", 2)]
+    mana_potion.costs = [MPCost(2), StackCost("potion_stock", 2)]
     mana_potion.target_type = "ally"
     mana_potion.sfx = "423"  # FFVII mana sound
     # mana_potion.cooldown = 5  # 쿨다운 시스템 제거됨
@@ -109,7 +109,7 @@ def create_alchemist_skills():
         DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "potion_stock", "multiplier": 0.3}, stat_type="magical"),
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 4)
     ]
-    chain_explosion.costs = [MPCost(18), StackCost("potion_stock", 4)]
+    chain_explosion.costs = [MPCost(12), StackCost("potion_stock", 4)]
     chain_explosion.sfx = "438"  # FFVII chain explosion sound
     # chain_explosion.cooldown = 5  # 쿨다운 시스템 제거됨
     chain_explosion.metadata = {"potion_cost": 4, "potion_scaling": True, "chain": True}
@@ -124,7 +124,7 @@ def create_alchemist_skills():
         BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.4, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 3)
     ]
-    acid_flask.costs = [MPCost(15), StackCost("potion_stock", 3)]
+    acid_flask.costs = [MPCost(10), StackCost("potion_stock", 3)]
     acid_flask.sfx = "467"  # FFVII acid sound
     # acid_flask.cooldown = 4  # 쿨다운 시스템 제거됨
     acid_flask.metadata = {"potion_cost": 3, "debuff": True}
@@ -139,7 +139,7 @@ def create_alchemist_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5),
         GimmickEffect(GimmickOperation.SET, "potion_stock", 10)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(18)]
     ultimate.is_ultimate = True
     ultimate.target_type = "party"
     ultimate.is_aoe = True

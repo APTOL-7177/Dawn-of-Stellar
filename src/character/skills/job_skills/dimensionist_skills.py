@@ -36,7 +36,7 @@ def create_dimensionist_skills():
         BuffEffect(BuffType.CRITICAL_UP, 0.5, duration=2),
         DamageEffect(DamageType.BRV, 2.0, stat_type="magical")
     ]
-    crit_distortion.costs = [MPCost(10)]
+    crit_distortion.costs = []
     crit_distortion.target_type = "self"
     crit_distortion.sfx = "352"  # FFVII crit sound
     # crit_distortion.cooldown = 2  # 쿨다운 시스템 제거됨
@@ -49,7 +49,7 @@ def create_dimensionist_skills():
         BuffEffect(BuffType.EVASION_UP, 0.8, duration=2),
         BuffEffect(BuffType.SPEED_UP, 0.3, duration=2)
     ]
-    evasion_distortion.costs = [MPCost(12)]
+    evasion_distortion.costs = [MPCost(4)]
     evasion_distortion.target_type = "self"
     evasion_distortion.sfx = "362"  # FFVII evasion sound
     # evasion_distortion.cooldown = 3  # 쿨다운 시스템 제거됨
@@ -62,7 +62,7 @@ def create_dimensionist_skills():
                     gimmick_bonus={"field": "distortion_gauge", "multiplier": 0.02}),  # 게이지 1당 +2% 피해
         GimmickEffect(GimmickOperation.ADD, "distortion_gauge", 10, max_value=100)  # 게이지 +10
     ]
-    probability_attack.costs = [MPCost(15)]
+    probability_attack.costs = [MPCost(6)]
     probability_attack.sfx = "376"  # FFVII probability sound
     # probability_attack.cooldown = 3  # 쿨다운 시스템 제거됨
     probability_attack.metadata = {"gauge_scaling": True}
@@ -74,7 +74,7 @@ def create_dimensionist_skills():
         BuffEffect(BuffType.EVASION_UP, 0.5, duration=2),
         GimmickEffect(GimmickOperation.ADD, "distortion_gauge", 25, max_value=100)  # 게이지 +25
     ]
-    quantum_leap.costs = [MPCost(18)]
+    quantum_leap.costs = [MPCost(7)]
     quantum_leap.sfx = "404"  # FFVII quantum sound
     # quantum_leap.cooldown = 4  # 쿨다운 시스템 제거됨
     quantum_leap.metadata = {"teleport": True, "gauge_gain": 25}
@@ -88,7 +88,7 @@ def create_dimensionist_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=2),
         HealEffect(percentage=0.20)  # HP 20% 회복
     ]
-    time_rewind.costs = [MPCost(25)]
+    time_rewind.costs = [MPCost(10)]
     time_rewind.target_type = "self"
     time_rewind.sfx = "423"  # FFVII rewind sound
     # time_rewind.cooldown = 6  # 쿨다운 시스템 제거됨
@@ -102,7 +102,7 @@ def create_dimensionist_skills():
         BuffEffect(BuffType.EVASION_DOWN, 0.3, duration=3),
         GimmickEffect(GimmickOperation.ADD, "distortion_gauge", 30, max_value=100)  # 게이지 +30
     ]
-    reality_shift.costs = [MPCost(20)]
+    reality_shift.costs = [MPCost(8)]
     reality_shift.target_type = "all_enemies"
     reality_shift.is_aoe = True
     reality_shift.sfx = "438"  # FFVII reality shift sound
@@ -123,7 +123,7 @@ def create_dimensionist_skills():
         BuffEffect(BuffType.CRITICAL_UP, 0.6, duration=5),
         DamageEffect(DamageType.BRV_HP, 3.0, stat_type="magical")
     ]
-    parallel_universe.costs = [MPCost(30)]
+    parallel_universe.costs = [MPCost(12)]
     parallel_universe.target_type = "self"
     parallel_universe.sfx = "467"  # FFVII parallel sound
     # parallel_universe.cooldown = 8  # 쿨다운 시스템 제거됨
@@ -144,7 +144,7 @@ def create_dimensionist_skills():
         # 모든 게이지 소모
         GimmickEffect(GimmickOperation.SET, "distortion_gauge", 0)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(15)]
     ultimate.is_ultimate = True
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True

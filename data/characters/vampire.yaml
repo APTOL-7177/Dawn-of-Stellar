@@ -25,19 +25,20 @@ stat_growth:
   evasion: 2.8
   max_brv: 2.5
 traits:
-- id: satisfied_state
-  name: 만족 상태
-  description: 갈증 0-30일 때 정상 상태 (기본 능력치)
+- id: blood_satisfaction
+  name: 피의 만족
+  description: 갈증 0-30일 때 모든 스탯 +10%, 받는 데미지 -15%
   type: conditional
   conditions:
     thirst_min: 0
     thirst_max: 30
   effects:
-    state: satisfied
+    all_stats_multiplier: 1.1
+    damage_taken_multiplier: 0.85
 
 - id: thirsty_state
   name: 갈증 상태
-  description: 갈증 31-60일 때 공격력 +30%, 흡혈 효과 2배
+  description: 갈증 31-60일 때 공격력 +30%, 흡혈 효과 2배, 크리티컬 확률 +15%
   type: conditional
   conditions:
     thirst_min: 31
@@ -45,10 +46,11 @@ traits:
   effects:
     attack_multiplier: 1.3
     lifesteal_multiplier: 2.0
+    critical_rate_bonus: 0.15
 
 - id: extreme_thirst
   name: 극심한 갈증
-  description: 갈증 61-90일 때 공격력 +70%, 흡혈 3배, 속도 +50%
+  description: 갈증 61-90일 때 공격력 +70%, 흡혈 3배, 속도 +50%, 크리티컬 데미지 +40%
   type: conditional
   conditions:
     thirst_min: 61
@@ -57,26 +59,28 @@ traits:
     attack_multiplier: 1.7
     lifesteal_multiplier: 3.0
     speed_multiplier: 1.5
+    critical_damage_bonus: 0.4
 
-- id: blood_frenzy_state
-  name: 혈액 광란
-  description: 갈증 91-100일 때 통제 불가, 아군도 공격 (공격력 +100%)
+- id: controlled_frenzy
+  name: 통제된 광란
+  description: 갈증 91-100일 때 공격력 +100%, 흡혈 4배, 속도 +70%, 받는 데미지 +20% (아군 공격 없음)
   type: conditional
   conditions:
     thirst_min: 91
     thirst_max: 100
   effects:
     attack_multiplier: 2.0
-    uncontrollable: true
-    attack_allies: true
-    state: blood_frenzy
+    lifesteal_multiplier: 4.0
+    speed_multiplier: 1.7
+    damage_taken_multiplier: 1.2
 
-- id: eternal_thirst
-  name: 영원한 갈증
-  description: 매 턴 갈증 +10 자동 증가
+- id: blood_control
+  name: 피의 통제
+  description: 매 턴 갈증 +5 자동 증가 (기존 10에서 감소), 흡혈 성공 시 갈증 감소량 +50%
   type: passive
   effects:
-    thirst_per_turn: 10
+    thirst_per_turn: 5
+    thirst_reduction_on_lifesteal: 1.5
 
 gimmick:
   type: thirst_gauge
@@ -92,7 +96,7 @@ gimmick:
     frenzy: {min: 91, max: 100, description: "혈액 광란 (통제 불가)"}
   thirst_changes:
     blood_drain: -20
-    turn_elapsed: 10
+    turn_elapsed: 5
     take_damage: 15
 
 skills:

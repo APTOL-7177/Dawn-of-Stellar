@@ -39,7 +39,7 @@ def create_bard_skills():
     scale_up.effects = [
         GimmickEffect(GimmickOperation.ADD, "melody_stacks", 3, max_value=7)
     ]
-    scale_up.costs = [MPCost(5)]
+    scale_up.costs = []
     scale_up.target_type = "self"
     # scale_up.cooldown = 3  # 쿨다운 시스템 제거됨
     scale_up.sfx = "453"
@@ -52,7 +52,7 @@ def create_bard_skills():
         HealEffect(HealType.HP, percentage=0.3, is_party_wide=True),
         GimmickEffect(GimmickOperation.ADD, "melody_stacks", 1, max_value=7)
     ]
-    healing_song.costs = [MPCost(8)]
+    healing_song.costs = [MPCost(5)]
     healing_song.target_type = "party"
     # healing_song.cooldown = 3  # 쿨다운 시스템 제거됨
     healing_song.cast_time = 0.2  # ATB 20% 캐스팅
@@ -66,7 +66,7 @@ def create_bard_skills():
         DamageEffect(DamageType.BRV, 1.5, gimmick_bonus={"field": "melody_stacks", "multiplier": 0.3}, stat_type="magical"),
         GimmickEffect(GimmickOperation.ADD, "melody_stacks", 1, max_value=7)
     ]
-    crescendo.costs = [MPCost(6)]
+    crescendo.costs = [MPCost(4)]
     # crescendo.cooldown = 2  # 쿨다운 시스템 제거됨
     crescendo.sfx = "473"
     crescendo.metadata = {"melody_scaling": True, "melody_gain": 1}
@@ -78,7 +78,7 @@ def create_bard_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.25, duration=3, is_party_wide=True),
         GimmickEffect(GimmickOperation.ADD, "melody_stacks", 1, max_value=7)
     ]
-    resonance.costs = [MPCost(9)]
+    resonance.costs = [MPCost(6)]
     resonance.target_type = "party"
     # resonance.cooldown = 4  # 쿨다운 시스템 제거됨
     resonance.sfx = "483"
@@ -93,7 +93,7 @@ def create_bard_skills():
         BuffEffect(BuffType.SPEED_UP, 0.3, duration=4, is_party_wide=True),
         GimmickEffect(GimmickOperation.ADD, "octave_completed", 1)
     ]
-    perfect_harmony.costs = [MPCost(12), StackCost("melody_stacks", 7)]  # 멜로디 7음 필요
+    perfect_harmony.costs = [MPCost(8), StackCost("melody_stacks", 7)]  # 멜로디 7음 필요
     perfect_harmony.target_type = "party"
     # perfect_harmony.cooldown = 5  # 쿨다운 시스템 제거됨
     perfect_harmony.cast_time = 0.4  # ATB 40% 캐스팅
@@ -107,7 +107,7 @@ def create_bard_skills():
         DamageEffect(DamageType.BRV_HP, 1.8, stat_type="magical"),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=3)
     ]
-    discord.costs = [MPCost(10), StackCost("melody_stacks", 2)]  # 멜로디 2음 필요
+    discord.costs = [MPCost(7), StackCost("melody_stacks", 2)]  # 멜로디 2음 필요
     # discord.cooldown = 3  # 쿨다운 시스템 제거됨
     discord.sfx = "503"
     discord.metadata = {"melody_cost": 2, "debuff": True}
@@ -121,7 +121,7 @@ def create_bard_skills():
         BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=4, is_party_wide=True),
         GimmickEffect(GimmickOperation.CONSUME, "melody_stacks", 4)
     ]
-    fortissimo.costs = [MPCost(14), StackCost("melody_stacks", 4)]
+    fortissimo.costs = [MPCost(9), StackCost("melody_stacks", 4)]
     fortissimo.target_type = "party"
     # fortissimo.cooldown = 5  # 쿨다운 시스템 제거됨
     fortissimo.sfx = "513"
@@ -139,7 +139,7 @@ def create_bard_skills():
         BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=5, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "melody_stacks", 0)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(18)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     ultimate.cast_time = 0.8  # ATB 80% 캐스팅 (궁극기)

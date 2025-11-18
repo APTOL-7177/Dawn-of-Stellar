@@ -42,7 +42,7 @@ def create_dark_knight_skills():
         DamageEffect(DamageType.BRV, 1.0),
         GimmickEffect(GimmickOperation.ADD, "darkness", 2, max_value=10)
     ]
-    dark_aura.costs = [MPCost(8)]
+    dark_aura.costs = []
     # dark_aura.cooldown = 3  # 쿨다운 시스템 제거됨
     dark_aura.sfx = "568"
     dark_aura.metadata = {"multi_hit": 3, "darkness_gain": 2}
@@ -54,7 +54,7 @@ def create_dark_knight_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "darkness", 2)
     ]
-    dark_shield.costs = [MPCost(7), StackCost("darkness", 2)]
+    dark_shield.costs = [MPCost(4), StackCost("darkness", 2)]
     dark_shield.target_type = "self"
     # dark_shield.cooldown = 4  # 쿨다운 시스템 제거됨
     dark_shield.sfx = "578"
@@ -68,7 +68,7 @@ def create_dark_knight_skills():
         LifestealEffect(0.4),
         GimmickEffect(GimmickOperation.CONSUME, "darkness", 3)
     ]
-    dark_wave.costs = [MPCost(10), StackCost("darkness", 3)]
+    dark_wave.costs = [MPCost(6), StackCost("darkness", 3)]
     # dark_wave.cooldown = 4  # 쿨다운 시스템 제거됨
     dark_wave.is_aoe = True
     dark_wave.sfx = "588"
@@ -81,7 +81,7 @@ def create_dark_knight_skills():
         DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "darkness", "multiplier": 0.2}),
         GimmickEffect(GimmickOperation.ADD, "darkness", 1, max_value=10)
     ]
-    dark_blade.costs = [MPCost(9)]
+    dark_blade.costs = [MPCost(6)]
     # dark_blade.cooldown = 2  # 쿨다운 시스템 제거됨
     dark_blade.sfx = "598"
     dark_blade.metadata = {"darkness_scaling": True, "darkness_gain": 1}
@@ -94,7 +94,7 @@ def create_dark_knight_skills():
         LifestealEffect(0.6),
         GimmickEffect(GimmickOperation.CONSUME, "darkness", 2)
     ]
-    soul_eater.costs = [MPCost(10), StackCost("darkness", 2)]
+    soul_eater.costs = [MPCost(6), StackCost("darkness", 2)]
     # soul_eater.cooldown = 3  # 쿨다운 시스템 제거됨
     soul_eater.sfx = "608"
     soul_eater.metadata = {"darkness_cost": 2, "darkness_scaling": True, "lifesteal": True}
@@ -106,7 +106,7 @@ def create_dark_knight_skills():
         DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "darkness", "multiplier": 0.4}),
         GimmickEffect(GimmickOperation.CONSUME, "darkness", 4)
     ]
-    dark_buster.costs = [MPCost(12), StackCost("darkness", 4)]
+    dark_buster.costs = [MPCost(7), StackCost("darkness", 4)]
     # dark_buster.cooldown = 5  # 쿨다운 시스템 제거됨
     dark_buster.sfx = "618"
     dark_buster.metadata = {"darkness_cost": 4, "darkness_scaling": True}
@@ -119,7 +119,7 @@ def create_dark_knight_skills():
         LifestealEffect(0.3),
         GimmickEffect(GimmickOperation.CONSUME, "darkness", 5)
     ]
-    dark_explosion.costs = [MPCost(15), StackCost("darkness", 5)]
+    dark_explosion.costs = [MPCost(10), StackCost("darkness", 5)]
     dark_explosion.target_type = "all_enemies"
     # dark_explosion.cooldown = 6  # 쿨다운 시스템 제거됨
     dark_explosion.is_aoe = True
@@ -136,7 +136,7 @@ def create_dark_knight_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
         GimmickEffect(GimmickOperation.SET, "darkness", 0)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(18)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

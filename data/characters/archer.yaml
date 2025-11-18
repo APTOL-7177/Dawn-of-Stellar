@@ -51,14 +51,13 @@ traits:
   effects:
     accuracy_per_mark: 0.1
 
-- id: combo_breaker_penalty
-  name: 콤보 단절
-  description: 직접 공격, 피격, 3턴 지원 없음 시 콤보 초기화
-  type: trigger
+- id: combo_momentum
+  name: 콤보 모멘텀
+  description: 연속 지원 사격 시 콤보가 높을수록 명중률과 크리티컬 확률 증가 (콤보당 +3%)
+  type: passive
   effects:
-    reset_combo_on_attack: true
-    reset_combo_on_hit: true
-    reset_combo_after_turns: 3
+    accuracy_per_combo: 0.03
+    critical_per_combo: 0.03
 
 - id: overwatch
   name: 감시 태세

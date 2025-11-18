@@ -32,7 +32,7 @@ def create_sniper_skills():
         DamageEffect(DamageType.BRV, 1.8),
         DamageEffect(DamageType.BRV, 1.8)
     ]
-    double_tap.costs = [MPCost(10)]
+    double_tap.costs = []
     double_tap.metadata = {"bullets_used": 2, "uses_magazine": True}
 
     # 4. 재장전 (탄창 6발 충전)
@@ -41,7 +41,7 @@ def create_sniper_skills():
         GimmickEffect(GimmickOperation.RELOAD_MAGAZINE, "magazine", 6,
                      bullet_type="normal")
     ]
-    reload.costs = [MPCost(6)]
+    reload.costs = [MPCost(3)]
     reload.target_type = "self"
     reload.metadata = {"reload": True, "bullet_type": "normal", "amount": 6}
 
@@ -52,7 +52,7 @@ def create_sniper_skills():
         GimmickEffect(GimmickOperation.LOAD_BULLETS, "magazine", 2,
                      bullet_type="penetrating")
     ]
-    load_penetrating.costs = [MPCost(12)]
+    load_penetrating.costs = [MPCost(7)]
     load_penetrating.target_type = "self"
     load_penetrating.metadata = {"load": True, "bullet_type": "penetrating", "amount": 2}
 
@@ -63,7 +63,7 @@ def create_sniper_skills():
         GimmickEffect(GimmickOperation.LOAD_BULLETS, "magazine", 2,
                      bullet_type="explosive")
     ]
-    load_explosive.costs = [MPCost(16)]
+    load_explosive.costs = [MPCost(9)]
     load_explosive.target_type = "self"
     load_explosive.metadata = {"load": True, "bullet_type": "explosive", "amount": 2}
 
@@ -74,7 +74,7 @@ def create_sniper_skills():
         BuffEffect(BuffType.ACCURACY_UP, 1.0, duration=3),
         BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=3)
     ]
-    perfect_aim.costs = [MPCost(14)]
+    perfect_aim.costs = [MPCost(8)]
     perfect_aim.target_type = "self"
     # perfect_aim.cooldown = 4  # 쿨다운 시스템 제거됨
 
@@ -84,7 +84,7 @@ def create_sniper_skills():
     smoke_grenade.effects = [
         BuffEffect(BuffType.EVASION_UP, 0.4, duration=3)
     ]
-    smoke_grenade.costs = [MPCost(15)]
+    smoke_grenade.costs = [MPCost(9)]
     smoke_grenade.target_type = "self"
     # smoke_grenade.cooldown = 4  # 쿨다운 시스템 제거됨
     smoke_grenade.metadata = {"smoke": True}
@@ -96,7 +96,7 @@ def create_sniper_skills():
         DamageEffect(DamageType.BRV, 2.0),
         BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=2)
     ]
-    set_trap.costs = [MPCost(12)]
+    set_trap.costs = [MPCost(7)]
     set_trap.target_type = "single_enemy"
     # set_trap.cooldown = 3  # 쿨다운 시스템 제거됨
     set_trap.metadata = {"trap": True}
@@ -109,7 +109,7 @@ def create_sniper_skills():
         DamageEffect(DamageType.BRV, 2.5),
         DamageEffect(DamageType.HP, 1.5)
     ]
-    deadeye.costs = [MPCost(30)]
+    deadeye.costs = [MPCost(18)]
     deadeye.is_ultimate = True
     # deadeye.cooldown = 8  # 쿨다운 시스템 제거됨
     deadeye.metadata = {"uses_all_bullets": True, "deadeye": True}

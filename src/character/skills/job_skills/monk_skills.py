@@ -33,7 +33,7 @@ def create_monk_skills():
                     conditional_bonus={"condition": "in_yin_state", "multiplier": 1.3}),
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", -15, min_value=0, max_value=100)
     ]
-    yin_strike.costs = [MPCost(12)]
+    yin_strike.costs = []
     yin_strike.metadata = {"ki_shift": -15, "element": "yin"}
 
     # 4. 양극 권 (양으로 이동, 물리 피해)
@@ -44,7 +44,7 @@ def create_monk_skills():
                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.3}),
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", 15, min_value=0, max_value=100)
     ]
-    yang_strike.costs = [MPCost(12)]
+    yang_strike.costs = [MPCost(5)]
     yang_strike.metadata = {"ki_shift": 15, "element": "yang"}
 
     # 5. 태극 회복 (균형으로 복귀, 회복)
@@ -54,7 +54,7 @@ def create_monk_skills():
         GimmickEffect(GimmickOperation.SET, "ki_gauge", 50),
         HealEffect(percentage=0.25)
     ]
-    balance_restoration.costs = [MPCost(18)]
+    balance_restoration.costs = [MPCost(7)]
     balance_restoration.target_type = "self"
     balance_restoration.metadata = {"ki_shift": "reset", "heal": True}
 
@@ -66,7 +66,7 @@ def create_monk_skills():
                     conditional_bonus={"condition": "in_yin_state", "multiplier": 1.0}),
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", -10, min_value=0, max_value=100)
     ]
-    yin_extreme.costs = [MPCost(22)]
+    yin_extreme.costs = [MPCost(9)]
     # yin_extreme.cooldown = 3  # 쿨다운 시스템 제거됨
     yin_extreme.metadata = {"requires_yin": True, "ki_shift": -10}
 
@@ -78,7 +78,7 @@ def create_monk_skills():
                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", 10, min_value=0, max_value=100)
     ]
-    yang_extreme.costs = [MPCost(22)]
+    yang_extreme.costs = [MPCost(9)]
     # yang_extreme.cooldown = 3  # 쿨다운 시스템 제거됨
     yang_extreme.metadata = {"requires_yang": True, "ki_shift": 10}
 
@@ -88,7 +88,7 @@ def create_monk_skills():
     taichi_flow.effects = [
         BuffEffect(BuffType.CUSTOM, 1.0, duration=3, custom_stat="ki_flow_enhanced")
     ]
-    taichi_flow.costs = [MPCost(16)]
+    taichi_flow.costs = [MPCost(7)]
     taichi_flow.target_type = "self"
     # taichi_flow.cooldown = 4  # 쿨다운 시스템 제거됨
     taichi_flow.metadata = {"buff": "enhanced_ki_flow"}
@@ -102,7 +102,7 @@ def create_monk_skills():
         BuffEffect(BuffType.MAGIC_UP, 0.4, duration=3),
         BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.4, duration=3)
     ]
-    enlightenment.costs = [MPCost(25)]
+    enlightenment.costs = [MPCost(10)]
     enlightenment.target_type = "self"
     # enlightenment.cooldown = 5  # 쿨다운 시스템 제거됨
     enlightenment.metadata = {"requires_balance": True, "ki_exact": 50}
@@ -118,7 +118,7 @@ def create_monk_skills():
                     gimmick_bonus={"field": "ki_gauge", "multiplier": -0.01, "invert": True}),  # 100-기 값만큼 피해
         GimmickEffect(GimmickOperation.SET, "ki_gauge", 50)  # 균형으로 복귀
     ]
-    taichi_ultimate.costs = [MPCost(30)]
+    taichi_ultimate.costs = [MPCost(15)]
     taichi_ultimate.is_ultimate = True
     # taichi_ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     taichi_ultimate.target_type = "single_enemy"

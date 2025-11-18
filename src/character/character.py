@@ -525,7 +525,7 @@ class Character:
             "차원술사": "dimensionist_",
             "광전사": "berserker_",
             "마법사": "mage_",
-            "전투마법사": "bmage_",  # battle_mage 축약형
+            "전투마법사": "battle_mage_",  # battle_mage
             "클레릭": "cleric_",
             "브레이커": "breaker_",
             "해커": "hacker_",
@@ -560,7 +560,7 @@ class Character:
             "dimensionist": "dimensionist_",
             "berserker": "berserker_",
             "mage": "mage_",
-            "battle_mage": "bmage_",
+            "battle_mage": "battle_mage_",
             "cleric": "cleric_",
             "breaker": "breaker_",
             "hacker": "hacker_",

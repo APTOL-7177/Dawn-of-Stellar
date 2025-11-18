@@ -35,31 +35,28 @@ traits:
     evasion_multiplier: 1.8
     next_attack_critical: true
 
-- id: stealth_speed_penalty
-  name: 은신 속도 감소
-  description: 은신 상태일 때 이동 속도 -50%
-  type: conditional
-  conditions:
-    stealth_active: true
-  effects:
-    speed_multiplier: 0.5
-
-- id: exposed_normal
-  name: 노출 상태
-  description: 노출 상태일 때 모든 능력치 정상, 3턴 후 은신 가능
-  type: conditional
-  conditions:
-    stealth_active: false
-  effects:
-    normal_stats: true
-    restealth_after_turns: 3
-
-- id: attack_breaks_stealth
-  name: 공격 시 은신 해제
-  description: 공격 스킬 사용 시 은신 상태 해제
+- id: shadow_mobility
+  name: 그림자 기동력
+  description: 은신 상태에서 회피 성공 시 즉시 재은신 가능, 다음 공격 데미지 +25%
   type: trigger
   effects:
-    break_stealth_on_attack: true
+    restealth_on_evade: true
+    next_attack_damage_bonus: 0.25
+
+- id: quick_restealth
+  name: 빠른 재은신
+  description: 노출 상태에서 2턴 후 은신 가능 (기본 3턴에서 감소), 재은신 시 첫 공격 데미지 +50%
+  type: passive
+  effects:
+    restealth_turns: 2
+    restealth_first_attack_bonus: 0.5
+
+- id: shadow_mastery
+  name: 그림자 숙련
+  description: 공격 후 은신 해제 시 다음 턴 시작 시 은신 게이지 +30 자동 충전
+  type: trigger
+  effects:
+    stealth_gauge_on_break: 30
 
 - id: shadow_master
   name: 그림자의 달인

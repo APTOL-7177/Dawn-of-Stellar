@@ -34,7 +34,7 @@ def create_philosopher_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=3),
         DamageEffect(DamageType.BRV, 1.8, stat_type="physical")
     ]
-    choose_power.costs = [MPCost(10)]
+    choose_power.costs = []
     choose_power.target_type = "self"
     choose_power.sfx = "352"  # FFVII power sound
     # choose_power.cooldown = 2  # 쿨다운 시스템 제거됨
@@ -47,7 +47,7 @@ def create_philosopher_skills():
         BuffEffect(BuffType.MAGIC_UP, 0.5, duration=3),
         DamageEffect(DamageType.BRV, 1.8, stat_type="magical")
     ]
-    choose_wisdom.costs = [MPCost(10)]
+    choose_wisdom.costs = [MPCost(6)]
     choose_wisdom.target_type = "self"
     choose_wisdom.sfx = "362"  # FFVII wisdom sound
     # choose_wisdom.cooldown = 2  # 쿨다운 시스템 제거됨
@@ -60,7 +60,7 @@ def create_philosopher_skills():
         HealEffect(percentage=0.30),  # 아군 30% 회복
         BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=3)
     ]
-    choose_sacrifice.costs = [MPCost(12)]
+    choose_sacrifice.costs = [MPCost(7)]
     choose_sacrifice.target_type = "ally"
     choose_sacrifice.sfx = "376"  # FFVII sacrifice sound
     # choose_sacrifice.cooldown = 3  # 쿨다운 시스템 제거됨
@@ -73,7 +73,7 @@ def create_philosopher_skills():
         HealEffect(percentage=0.30),  # 자신 30% 회복
         BuffEffect(BuffType.EVASION_UP, 0.3, duration=3)
     ]
-    choose_survival.costs = [MPCost(12)]
+    choose_survival.costs = [MPCost(7)]
     choose_survival.target_type = "self"
     choose_survival.sfx = "404"  # FFVII survival sound
     # choose_survival.cooldown = 3  # 쿨다운 시스템 제거됨
@@ -87,7 +87,7 @@ def create_philosopher_skills():
         BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4),
         BuffEffect(BuffType.ACCURACY_DOWN, 0.3, duration=4)
     ]
-    choose_truth.costs = [MPCost(10)]
+    choose_truth.costs = [MPCost(6)]
     choose_truth.sfx = "423"  # FFVII truth sound
     # choose_truth.cooldown = 3  # 쿨다운 시스템 제거됨
     choose_truth.metadata = {"dilemma": "truth_lie", "choice": "truth"}
@@ -100,7 +100,7 @@ def create_philosopher_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=4),
         BuffEffect(BuffType.SPEED_UP, 0.3, duration=4)
     ]
-    choose_lie.costs = [MPCost(10)]
+    choose_lie.costs = [MPCost(6)]
     choose_lie.target_type = "self"
     choose_lie.sfx = "438"  # FFVII lie sound
     # choose_lie.cooldown = 3  # 쿨다운 시스템 제거됨
@@ -123,7 +123,7 @@ def create_philosopher_skills():
         BuffEffect(BuffType.SPEED_UP, 0.3, duration=5),
         DamageEffect(DamageType.BRV_HP, 2.5, stat_type="magical")
     ]
-    balanced_philosophy.costs = [MPCost(20)]
+    balanced_philosophy.costs = [MPCost(12)]
     balanced_philosophy.target_type = "self"
     balanced_philosophy.sfx = "467"  # FFVII balance sound
     # balanced_philosophy.cooldown = 6  # 쿨다운 시스템 제거됨
@@ -145,7 +145,7 @@ def create_philosopher_skills():
         BuffEffect(BuffType.SPEED_UP, 0.5, duration=5),
         # 선택 누적 유지 (초기화하지 않음)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(18)]
     ultimate.is_ultimate = True
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True

@@ -46,7 +46,7 @@ def create_archer_skills():
         GimmickEffect(GimmickOperation.ADD, "mark_slot_piercing", 1, max_value=3, apply_to_target=True),
         GimmickEffect(GimmickOperation.SET, "mark_shots_piercing", 3, apply_to_target=True),
     ]
-    mark_piercing.costs = [MPCost(10)]
+    mark_piercing.costs = [MPCost(6)]
     mark_piercing.target_type = "ally"
     mark_piercing.sfx = "267"  # FFVII pierce sound
     # mark_piercing.cooldown = 2  # 쿨다운 시스템 제거됨
@@ -58,7 +58,7 @@ def create_archer_skills():
         GimmickEffect(GimmickOperation.ADD, "mark_slot_fire", 1, max_value=3, apply_to_target=True),
         GimmickEffect(GimmickOperation.SET, "mark_shots_fire", 3, apply_to_target=True),
     ]
-    mark_fire.costs = [MPCost(10)]
+    mark_fire.costs = [MPCost(6)]
     mark_fire.target_type = "ally"
     mark_fire.sfx = "314"  # FFVII fire sound
     # mark_fire.cooldown = 2  # 쿨다운 시스템 제거됨
@@ -70,7 +70,7 @@ def create_archer_skills():
         GimmickEffect(GimmickOperation.ADD, "mark_slot_ice", 1, max_value=3, apply_to_target=True),
         GimmickEffect(GimmickOperation.SET, "mark_shots_ice", 3, apply_to_target=True),
     ]
-    mark_ice.costs = [MPCost(10)]
+    mark_ice.costs = [MPCost(6)]
     mark_ice.target_type = "ally"
     mark_ice.sfx = "644"  # FFVII ice sound
     # mark_ice.cooldown = 2  # 쿨다운 시스템 제거됨
@@ -82,7 +82,7 @@ def create_archer_skills():
         GimmickEffect(GimmickOperation.ADD, "mark_slot_poison", 1, max_value=3, apply_to_target=True),
         GimmickEffect(GimmickOperation.SET, "mark_shots_poison", 3, apply_to_target=True),
     ]
-    mark_poison.costs = [MPCost(8)]
+    mark_poison.costs = [MPCost(4)]
     mark_poison.target_type = "ally"
     mark_poison.sfx = "645"  # FFVII poison sound
     # mark_poison.cooldown = 2  # 쿨다운 시스템 제거됨
@@ -94,7 +94,7 @@ def create_archer_skills():
         GimmickEffect(GimmickOperation.ADD, "mark_slot_explosive", 1, max_value=3, apply_to_target=True),
         GimmickEffect(GimmickOperation.SET, "mark_shots_explosive", 3, apply_to_target=True),
     ]
-    mark_explosive.costs = [MPCost(15)]
+    mark_explosive.costs = [MPCost(9)]
     mark_explosive.target_type = "ally"
     mark_explosive.sfx = "678"  # FFVII explosion sound
     # mark_explosive.cooldown = 3  # 쿨다운 시스템 제거됨
@@ -106,7 +106,7 @@ def create_archer_skills():
         GimmickEffect(GimmickOperation.ADD, "mark_slot_holy", 1, max_value=3, apply_to_target=True),
         GimmickEffect(GimmickOperation.SET, "mark_shots_holy", 3, apply_to_target=True),
     ]
-    mark_holy.costs = [MPCost(12)]
+    mark_holy.costs = [MPCost(7)]
     mark_holy.target_type = "ally"
     mark_holy.sfx = "687"  # FFVII holy sound
     # mark_holy.cooldown = 2  # 쿨다운 시스템 제거됨
@@ -125,7 +125,7 @@ def create_archer_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
         BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=5),
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(18)]
     ultimate.is_ultimate = True
     ultimate.target_type = "party"
     ultimate.is_aoe = True

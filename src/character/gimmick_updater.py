@@ -89,10 +89,22 @@ class GimmickUpdater:
             character.distortion_gauge = min(character.max_gauge, character.distortion_gauge + gauge_gain)
             logger.debug(f"{character.name} 확률 왜곡 게이지 +{gauge_gain} (총: {character.distortion_gauge})")
 
-        # 갈증 게이지 - 턴 시작 시 +10
+        # 갈증 게이지 - 턴 시작 시 증가 (특성에서 설정된 값 사용, 기본값 5)
         elif gimmick_type == "thirst_gauge":
-            character.thirst = min(character.max_thirst, character.thirst + 10)
-            logger.debug(f"{character.name} 갈증 +10 (총: {character.thirst})")
+            # 특성에서 thirst_per_turn 값 확인
+            thirst_per_turn = 5  # 기본값
+            if hasattr(character, 'active_traits'):
+                from src.character.trait_effects import get_trait_effect_manager
+                trait_manager = get_trait_effect_manager()
+                for trait_data in character.active_traits:
+                    trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                    if trait_id == "blood_control":
+                        # blood_control 특성의 thirst_per_turn 값 사용
+                        thirst_per_turn = 5  # 특성에서 정의된 값
+                        break
+            
+            character.thirst = min(character.max_thirst, character.thirst + thirst_per_turn)
+            logger.debug(f"{character.name} 갈증 +{thirst_per_turn} (총: {character.thirst})")
 
         # ISSUE-004: 추가 턴 시작 기믹 업데이트
         # 군중 환호 - 턴 시작 시 +5

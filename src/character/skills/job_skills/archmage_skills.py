@@ -39,7 +39,7 @@ def create_archmage_skills():
         DamageEffect(DamageType.BRV, 2.0, stat_type="magical"),
         GimmickEffect(GimmickOperation.ADD, "ice_element", 1, max_value=5)
     ]
-    ice_storm.costs = [MPCost(8)]
+    ice_storm.costs = []
     # ice_storm.cooldown = 2  # 쿨다운 시스템 제거됨
     ice_storm.is_aoe = True
     ice_storm.cast_time = 0.3  # ATB 30% 캐스팅
@@ -55,7 +55,7 @@ def create_archmage_skills():
         DamageEffect(DamageType.BRV, 1.0,
                     gimmick_bonus={"field": "lightning_element", "multiplier": 0.2}, stat_type="magical")
     ]
-    flame_lightning.costs = [MPCost(9), StackCost("fire_element", 1), StackCost("lightning_element", 1)]
+    flame_lightning.costs = [MPCost(5), StackCost("fire_element", 1), StackCost("lightning_element", 1)]
     # flame_lightning.cooldown = 3  # 쿨다운 시스템 제거됨
     flame_lightning.cast_time = 0.25  # ATB 25% 캐스팅
     flame_lightning.sfx = "363"
@@ -70,7 +70,7 @@ def create_archmage_skills():
         DamageEffect(DamageType.HP, 1.2,
                     gimmick_bonus={"field": "lightning_element", "multiplier": 0.25}, stat_type="magical")
     ]
-    ice_lightning.costs = [MPCost(9), StackCost("ice_element", 1), StackCost("lightning_element", 1)]
+    ice_lightning.costs = [MPCost(5), StackCost("ice_element", 1), StackCost("lightning_element", 1)]
     # ice_lightning.cooldown = 3  # 쿨다운 시스템 제거됨
     ice_lightning.cast_time = 0.25  # ATB 25% 캐스팅
     ice_lightning.sfx = "373"
@@ -85,7 +85,7 @@ def create_archmage_skills():
         DamageEffect(DamageType.BRV, 1.2,
                     gimmick_bonus={"field": "ice_element", "multiplier": 0.3}, stat_type="magical")
     ]
-    flame_ice.costs = [MPCost(9), StackCost("fire_element", 1), StackCost("ice_element", 1)]
+    flame_ice.costs = [MPCost(5), StackCost("fire_element", 1), StackCost("ice_element", 1)]
     # flame_ice.cooldown = 3  # 쿨다운 시스템 제거됨
     flame_ice.cast_time = 0.25  # ATB 25% 캐스팅
     flame_ice.sfx = "383"
@@ -102,7 +102,7 @@ def create_archmage_skills():
         DamageEffect(DamageType.HP, 2.0,
                     gimmick_bonus={"field": "lightning_element", "multiplier": 0.3}, stat_type="magical")
     ]
-    meteor.costs = [MPCost(15), StackCost("fire_element", 1), StackCost("ice_element", 1), StackCost("lightning_element", 1)]
+    meteor.costs = [MPCost(9), StackCost("fire_element", 1), StackCost("ice_element", 1), StackCost("lightning_element", 1)]
     # meteor.cooldown = 5  # 쿨다운 시스템 제거됨
     meteor.is_aoe = True
     meteor.cast_time = 0.5  # ATB 50% 캐스팅 (강력한 마법)
@@ -123,7 +123,7 @@ def create_archmage_skills():
         GimmickEffect(GimmickOperation.SET, "ice_element", 0),
         GimmickEffect(GimmickOperation.SET, "lightning_element", 0)
     ]
-    arcane_missile.costs = [MPCost(18)]
+    arcane_missile.costs = [MPCost(11)]
     # arcane_missile.cooldown = 6  # 쿨다운 시스템 제거됨
     arcane_missile.cast_time = 0.6  # ATB 60% 캐스팅
     arcane_missile.sfx = "403"
@@ -138,7 +138,7 @@ def create_archmage_skills():
         GimmickEffect(GimmickOperation.ADD, "lightning_element", 2, max_value=5),
         BuffEffect(BuffType.MAGIC_UP, 0.5, duration=4)
     ]
-    elemental_surge.costs = [MPCost(12)]
+    elemental_surge.costs = [MPCost(7)]
     elemental_surge.target_type = "self"
     # elemental_surge.cooldown = 5  # 쿨다운 시스템 제거됨
     elemental_surge.sfx = "413"
@@ -159,7 +159,7 @@ def create_archmage_skills():
         GimmickEffect(GimmickOperation.SET, "ice_element", 0),
         GimmickEffect(GimmickOperation.SET, "lightning_element", 0)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(18)]
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

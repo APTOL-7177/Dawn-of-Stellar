@@ -38,7 +38,7 @@ def create_sword_saint_skills():
         DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "sword_aura", "multiplier": 0.2}),
         GimmickEffect(GimmickOperation.ADD, "sword_aura", 1, max_value=5)
     ]
-    kenki_hadou.costs = [MPCost(6)]
+    kenki_hadou.costs = []
     # kenki_hadou.cooldown = 2  # 쿨다운 시스템 제거됨
     kenki_hadou.sfx = "562"
     kenki_hadou.metadata = {"aura_gain": 1, "piercing": True}
@@ -51,7 +51,7 @@ def create_sword_saint_skills():
         DamageEffect(DamageType.HP, 1.2),
         GimmickEffect(GimmickOperation.CONSUME, "sword_aura", 2)
     ]
-    nitoryu.costs = [MPCost(8), StackCost("sword_aura", 2)]
+    nitoryu.costs = [MPCost(5), StackCost("sword_aura", 2)]
     # nitoryu.cooldown = 3  # 쿨다운 시스템 제거됨
     nitoryu.sfx = "569"
     nitoryu.metadata = {"aura_cost": 2, "dual_wield": True}
@@ -63,7 +63,7 @@ def create_sword_saint_skills():
         DamageEffect(DamageType.BRV_HP, 1.5, gimmick_bonus={"field": "sword_aura", "multiplier": 0.4}),
         GimmickEffect(GimmickOperation.SET, "sword_aura", 0)
     ]
-    kenki_bakuhatsu.costs = [MPCost(10), StackCost("sword_aura", 1)]
+    kenki_bakuhatsu.costs = [MPCost(6), StackCost("sword_aura", 1)]
     # kenki_bakuhatsu.cooldown = 4  # 쿨다운 시스템 제거됨
     kenki_bakuhatsu.sfx = "576"
     kenki_bakuhatsu.metadata = {"aura_dump": True, "aura_scaling": True}
@@ -75,7 +75,7 @@ def create_sword_saint_skills():
         DamageEffect(DamageType.BRV, 1.2),
         GimmickEffect(GimmickOperation.ADD, "sword_aura", 2, max_value=5)
     ]
-    rapid_slash.costs = [MPCost(5)]
+    rapid_slash.costs = [MPCost(3)]
     rapid_slash.cast_time = 0.5
     # rapid_slash.cooldown = 2  # 쿨다운 시스템 제거됨
     rapid_slash.sfx = "583"
@@ -87,7 +87,7 @@ def create_sword_saint_skills():
     will.effects = [
         GimmickEffect(GimmickOperation.SET, "sword_aura", 5)
     ]
-    will.costs = [MPCost(8)]
+    will.costs = [MPCost(5)]
     will.target_type = "self"
     # will.cooldown = 4  # 쿨다운 시스템 제거됨
     will.sfx = "590"
@@ -100,7 +100,7 @@ def create_sword_saint_skills():
         DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "sword_aura", "multiplier": 0.5}),
         GimmickEffect(GimmickOperation.CONSUME, "sword_aura", 3)
     ]
-    bisect.costs = [MPCost(14), StackCost("sword_aura", 3)]
+    bisect.costs = [MPCost(9), StackCost("sword_aura", 3)]
     # bisect.cooldown = 5  # 쿨다운 시스템 제거됨
     bisect.sfx = "597"
     bisect.metadata = {"aura_cost": 3, "aura_scaling": True, "cleave": True}
@@ -113,7 +113,7 @@ def create_sword_saint_skills():
         DamageEffect(DamageType.HP, 1.7, gimmick_bonus={"field": "sword_aura", "multiplier": 0.3}),
         GimmickEffect(GimmickOperation.CONSUME, "sword_aura", 4)
     ]
-    sword_storm.costs = [MPCost(20), StackCost("sword_aura", 4)]
+    sword_storm.costs = [MPCost(13), StackCost("sword_aura", 4)]
     # sword_storm.cooldown = 6  # 쿨다운 시스템 제거됨
     sword_storm.is_aoe = True
     sword_storm.sfx = "604"
@@ -129,7 +129,7 @@ def create_sword_saint_skills():
         DamageEffect(DamageType.HP, 2.0),
         GimmickEffect(GimmickOperation.SET, "sword_aura", 0)
     ]
-    ultimate.costs = [MPCost(30), StackCost("sword_aura", 1)]
+    ultimate.costs = [MPCost(18), StackCost("sword_aura", 1)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "611"
