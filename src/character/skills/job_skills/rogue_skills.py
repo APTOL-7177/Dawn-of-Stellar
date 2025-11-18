@@ -39,7 +39,7 @@ def create_rogue_skills():
         GimmickEffect(GimmickOperation.ADD, "stolen_items", 3, max_value=10),
         BuffEffect(BuffType.SPEED_UP, 0.2, duration=3)
     ]
-    steal.costs = [MPCost(6)]
+    steal.costs = []
     # steal.cooldown = 3  # 쿨다운 시스템 제거됨
     steal.sfx = "645"
     steal.metadata = {"item_gain": 3, "buff": True}
@@ -51,7 +51,7 @@ def create_rogue_skills():
         GimmickEffect(GimmickOperation.SET, "evasion_active", 1),
         BuffEffect(BuffType.EVASION_UP, 0.4, duration=2)
     ]
-    smoke_bomb.costs = [MPCost(5)]
+    smoke_bomb.costs = [MPCost(3)]
     smoke_bomb.target_type = "self"
     # smoke_bomb.cooldown = 4  # 쿨다운 시스템 제거됨
     smoke_bomb.sfx = "651"
@@ -63,7 +63,7 @@ def create_rogue_skills():
     use_item.effects = [
         DamageEffect(DamageType.BRV_HP, 1.8, gimmick_bonus={"field": "stolen_items", "multiplier": 0.25})
     ]
-    use_item.costs = [MPCost(8), StackCost("stolen_items", 2)]
+    use_item.costs = [MPCost(6), StackCost("stolen_items", 2)]
     # use_item.cooldown = 2  # 쿨다운 시스템 제거됨
     use_item.sfx = "657"
     use_item.metadata = {"item_cost": 2, "item_scaling": True}
@@ -77,7 +77,7 @@ def create_rogue_skills():
         DamageEffect(DamageType.BRV, 0.8),
         GimmickEffect(GimmickOperation.ADD, "stolen_items", 1, max_value=10)
     ]
-    poison_blade.costs = [MPCost(7)]
+    poison_blade.costs = [MPCost(4)]
     # poison_blade.cooldown = 3  # 쿨다운 시스템 제거됨
     poison_blade.sfx = "663"
     poison_blade.metadata = {"item_gain": 1, "dot": True, "poison": True}
@@ -89,7 +89,7 @@ def create_rogue_skills():
         GimmickEffect(GimmickOperation.ADD, "stolen_items", 5, max_value=10),
         BuffEffect(BuffType.LUCK, 0.3, duration=4)
     ]
-    treasure_hunt.costs = [MPCost(9)]
+    treasure_hunt.costs = [MPCost(6)]
     treasure_hunt.target_type = "self"
     # treasure_hunt.cooldown = 5  # 쿨다운 시스템 제거됨
     treasure_hunt.sfx = "669"
@@ -101,7 +101,7 @@ def create_rogue_skills():
     backstab.effects = [
         DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "stolen_items", "multiplier": 0.4})
     ]
-    backstab.costs = [MPCost(12), StackCost("stolen_items", 4)]
+    backstab.costs = [MPCost(9), StackCost("stolen_items", 4)]
     # backstab.cooldown = 5  # 쿨다운 시스템 제거됨
     backstab.sfx = "675"
     backstab.metadata = {"item_cost": 4, "item_scaling": True, "critical": True}
@@ -115,7 +115,7 @@ def create_rogue_skills():
         BuffEffect(BuffType.ATTACK_DOWN, 0.4, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "stolen_items", 6)
     ]
-    assassinate.costs = [MPCost(18), StackCost("stolen_items", 6)]
+    assassinate.costs = [MPCost(13), StackCost("stolen_items", 6)]
     # assassinate.cooldown = 7  # 쿨다운 시스템 제거됨
     assassinate.sfx = "681"
     assassinate.metadata = {"item_cost": 6, "item_scaling": True, "critical": True, "debuff": True}
@@ -130,7 +130,7 @@ def create_rogue_skills():
         BuffEffect(BuffType.SPEED_UP, 0.5, duration=5),
         BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=5)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(18)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "696"

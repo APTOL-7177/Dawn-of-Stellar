@@ -91,8 +91,8 @@ gimmick:
       effect: MP 회복 +5/턴
 
 skills:
-- battle_mage_slash
-- battle_mage_spell
+- battle_mage_carve_rune
+- battle_mage_rune_burst
 - battle_mage_fire_rune
 - battle_mage_ice_rune
 - battle_mage_lightning_rune

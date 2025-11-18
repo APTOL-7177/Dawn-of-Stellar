@@ -35,7 +35,7 @@ def create_engineer_skills():
                     conditional_bonus={"condition": "danger_zone", "multiplier": 1.4}),
         GimmickEffect(GimmickOperation.ADD, "heat", 35, max_value=100)
     ]
-    overload_blast.costs = [MPCost(20)]
+    overload_blast.costs = []
     overload_blast.metadata = {"heat_change": 35, "danger_zone_bonus": True}
 
     # 4. EMP 폭발 (광역 공격)
@@ -45,7 +45,7 @@ def create_engineer_skills():
         DamageEffect(DamageType.BRV_HP, 2.0),
         GimmickEffect(GimmickOperation.ADD, "heat", 40, max_value=100)
     ]
-    emp_explosion.costs = [MPCost(25)]
+    emp_explosion.costs = [MPCost(9)]
     emp_explosion.target_type = "all_enemies"
     emp_explosion.is_aoe = True
     emp_explosion.metadata = {"heat_change": 40}
@@ -57,7 +57,7 @@ def create_engineer_skills():
         GimmickEffect(GimmickOperation.ADD, "heat", -30, min_value=0),
         BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=1)
     ]
-    cooling_vent.costs = [MPCost(15)]
+    cooling_vent.costs = [MPCost(5)]
     cooling_vent.target_type = "self"
     cooling_vent.metadata = {"heat_change": -30}
 
@@ -69,7 +69,7 @@ def create_engineer_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=3),
         GimmickEffect(GimmickOperation.ADD, "heat", 20, max_value=100)
     ]
-    overclock_mode.costs = [MPCost(30)]
+    overclock_mode.costs = [MPCost(11)]
     overclock_mode.target_type = "self"
     # overclock_mode.cooldown = 5  # 쿨다운 시스템 제거됨
     overclock_mode.metadata = {"heat_change": 20, "overclock": True}
@@ -81,7 +81,7 @@ def create_engineer_skills():
         HealEffect(percentage=0.3),
         GimmickEffect(GimmickOperation.ADD, "heat", -40, min_value=0)
     ]
-    emergency_repair.costs = [MPCost(25)]
+    emergency_repair.costs = [MPCost(9)]
     emergency_repair.target_type = "self"
     # emergency_repair.cooldown = 4  # 쿨다운 시스템 제거됨
     emergency_repair.metadata = {"heat_change": -40}
@@ -93,7 +93,7 @@ def create_engineer_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3),
         GimmickEffect(GimmickOperation.ADD, "heat", 15, max_value=100)
     ]
-    shield_generator.costs = [MPCost(18)]
+    shield_generator.costs = [MPCost(6)]
     shield_generator.target_type = "self"
     # shield_generator.cooldown = 4  # 쿨다운 시스템 제거됨
     shield_generator.metadata = {"heat_change": 15, "shield": True}
@@ -105,7 +105,7 @@ def create_engineer_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.25, duration=2),
         GimmickEffect(GimmickOperation.ADD, "heat", 10, max_value=100)
     ]
-    deploy_drone.costs = [MPCost(16)]
+    deploy_drone.costs = [MPCost(6)]
     deploy_drone.target_type = "self"
     # deploy_drone.cooldown = 3  # 쿨다운 시스템 제거됨
     deploy_drone.metadata = {"heat_change": 10, "drone": True}
@@ -120,7 +120,7 @@ def create_engineer_skills():
                     gimmick_bonus={"field": "heat", "multiplier": 0.015}),  # 열 1당 +1.5% 피해
         GimmickEffect(GimmickOperation.ADD, "heat", 60, max_value=100)
     ]
-    mega_blaster.costs = [MPCost(30)]
+    mega_blaster.costs = [MPCost(15)]
     mega_blaster.is_ultimate = True
     # mega_blaster.cooldown = 8  # 쿨다운 시스템 제거됨
     mega_blaster.metadata = {"heat_change": 60, "heat_scaling": True}

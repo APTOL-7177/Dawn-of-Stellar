@@ -35,7 +35,7 @@ def create_gladiator_skills():
         DamageEffect(DamageType.BRV_HP, 2.0, stat_type="physical"),
         GimmickEffect(GimmickOperation.ADD, "cheer", 20, max_value=100)  # 환호 +20
     ]
-    spectacular_attack.costs = [MPCost(12)]
+    spectacular_attack.costs = []
     spectacular_attack.sfx = "537"  # FFVII spectacular sound
     # spectacular_attack.cooldown = 2  # 쿨다운 시스템 제거됨
     spectacular_attack.metadata = {"showmanship": True, "cheer_gain": 20}
@@ -47,7 +47,7 @@ def create_gladiator_skills():
                     gimmick_bonus={"field": "cheer", "multiplier": 0.02}),  # 환호 1당 +2% 피해
         GimmickEffect(GimmickOperation.ADD, "cheer", 15, max_value=100)
     ]
-    taunt_crowd.costs = [MPCost(15)]
+    taunt_crowd.costs = [MPCost(6)]
     taunt_crowd.sfx = "573"  # FFVII taunt sound
     # taunt_crowd.cooldown = 3  # 쿨다운 시스템 제거됨
     taunt_crowd.metadata = {"cheer_scaling": True}
@@ -59,7 +59,7 @@ def create_gladiator_skills():
         GimmickEffect(GimmickOperation.ADD, "cheer", 30, max_value=100),  # 환호 +30
         # HP 20% 손실 (self-damage)
     ]
-    risky_stunt.costs = [MPCost(18)]
+    risky_stunt.costs = [MPCost(7)]
     risky_stunt.sfx = "575"  # FFVII risk sound
     # risky_stunt.cooldown = 4  # 쿨다운 시스템 제거됨
     risky_stunt.metadata = {"high_risk": True, "hp_cost_percent": 0.2, "cheer_gain": 30}
@@ -71,7 +71,7 @@ def create_gladiator_skills():
                     gimmick_bonus={"field": "cheer", "multiplier": 0.03}),
         GimmickEffect(GimmickOperation.ADD, "cheer", -30, min_value=0)  # 환호 -30
     ]
-    glory_strike.costs = [MPCost(20)]
+    glory_strike.costs = [MPCost(9)]
     glory_strike.sfx = "587"  # FFVII glory sound
     # glory_strike.cooldown = 4  # 쿨다운 시스템 제거됨
     glory_strike.metadata = {"cheer_cost": 30}
@@ -83,7 +83,7 @@ def create_gladiator_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3),
         BuffEffect(BuffType.CRITICAL_UP, 0.2, duration=3)
     ]
-    excite_crowd.costs = [MPCost(15)]
+    excite_crowd.costs = [MPCost(6)]
     excite_crowd.target_type = "self"
     excite_crowd.sfx = "595"  # FFVII excite sound
     # excite_crowd.cooldown = 6  # 쿨다운 시스템 제거됨
@@ -96,7 +96,7 @@ def create_gladiator_skills():
         GimmickEffect(GimmickOperation.ADD, "cheer", 25, max_value=100),  # 환호 +25
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3)
     ]
-    indomitable_will.costs = [MPCost(18)]
+    indomitable_will.costs = [MPCost(7)]
     indomitable_will.target_type = "self"
     indomitable_will.sfx = "618"  # FFVII will sound
     # indomitable_will.cooldown = 5  # 쿨다운 시스템 제거됨
@@ -110,7 +110,7 @@ def create_gladiator_skills():
         # Bonus based on cheer
         GimmickEffect(GimmickOperation.ADD, "cheer", 10, max_value=100)
     ]
-    champion_roar.costs = [MPCost(22)]
+    champion_roar.costs = [MPCost(9)]
     champion_roar.target_type = "party"
     champion_roar.is_aoe = True
     champion_roar.sfx = "628"  # FFVII roar sound
@@ -130,7 +130,7 @@ def create_gladiator_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5),
         BuffEffect(BuffType.CRITICAL_UP, 0.6, duration=5)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(15)]
     ultimate.is_ultimate = True
     ultimate.sfx = "694"  # FFVII ultimate glory sound
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

@@ -408,24 +408,14 @@ JOB_ATTACK_PROFILES: Dict[str, Dict[str, Any]] = {
 
     "battle_mage": {
         "brv_attack": {
-            "name": "마검",
-            "damage_type": "hybrid",  # 물리 + 마법
-            "stat_base": "both",
-            "base_multiplier": 1.15,
-            "can_critical": True,
-            "physical_ratio": 0.6,
-            "magic_ratio": 0.4,
-            "description": "마법과 검술의 융합"
+            "name": "룬 새기기",
+            "skill_id": "battle_mage_carve_rune",
+            "description": "적에게 룬을 새겨 룬 획득"
         },
         "hp_attack": {
-            "name": "마력 베기",
-            "damage_type": "hybrid",
-            "stat_base": "both",
-            "base_multiplier": 1.0,
-            "can_critical": True,
-            "physical_ratio": 0.5,
-            "magic_ratio": 0.5,
-            "description": "물리와 마법을 동시에"
+            "name": "룬 폭발",
+            "skill_id": "battle_mage_rune_burst",
+            "description": "보유한 룬을 폭발시켜 강력한 피해"
         }
     },
 

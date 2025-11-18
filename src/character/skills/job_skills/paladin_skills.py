@@ -41,7 +41,7 @@ def create_paladin_skills():
         ShieldEffect(base_amount=50, multiplier=1.0, stat_name="holy_power"),
         GimmickEffect(GimmickOperation.CONSUME, "holy_power", 2)
     ]
-    divine_shield.costs = [MPCost(8), StackCost("holy_power", 2)]
+    divine_shield.costs = []
     divine_shield.target_type = "self"
     # divine_shield.cooldown = 4  # 쿨다운 시스템 제거됨
     divine_shield.sfx = "468"
@@ -55,7 +55,7 @@ def create_paladin_skills():
         DamageEffect(DamageType.BRV, 1.3),
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
-    consecration.costs = [MPCost(6)]
+    consecration.costs = [MPCost(3)]
     # consecration.cooldown = 3  # 쿨다운 시스템 제거됨
     consecration.sfx = "474"
     consecration.metadata = {"holy_power_gain": 1, "dot": True}
@@ -67,7 +67,7 @@ def create_paladin_skills():
         HealEffect(HealType.HP, percentage=0.35),
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
-    holy_light.costs = [MPCost(8)]
+    holy_light.costs = [MPCost(5)]
     holy_light.target_type = "ally"
     # holy_light.cooldown = 2  # 쿨다운 시스템 제거됨
     holy_light.sfx = "480"
@@ -80,7 +80,7 @@ def create_paladin_skills():
         DamageEffect(DamageType.BRV_HP, 2.0, gimmick_bonus={"field": "holy_power", "multiplier": 0.25}),
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
-    hammer.costs = [MPCost(9)]
+    hammer.costs = [MPCost(6)]
     # hammer.cooldown = 3  # 쿨다운 시스템 제거됨
     hammer.sfx = "486"
     hammer.metadata = {"holy_power_gain": 1, "holy_power_scaling": True}
@@ -93,7 +93,7 @@ def create_paladin_skills():
         BuffEffect(BuffType.SPIRIT_UP, 0.3, duration=4, is_party_wide=True),
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
-    blessing.costs = [MPCost(10)]
+    blessing.costs = [MPCost(6)]
     blessing.target_type = "party"
     # blessing.cooldown = 5  # 쿨다운 시스템 제거됨
     blessing.sfx = "492"
@@ -108,7 +108,7 @@ def create_paladin_skills():
         ShieldEffect(base_amount=80),
         GimmickEffect(GimmickOperation.CONSUME, "holy_power", 3)
     ]
-    avenging_wrath.costs = [MPCost(12), StackCost("holy_power", 3)]
+    avenging_wrath.costs = [MPCost(7), StackCost("holy_power", 3)]
     avenging_wrath.target_type = "self"
     # avenging_wrath.cooldown = 6  # 쿨다운 시스템 제거됨
     avenging_wrath.sfx = "498"
@@ -123,7 +123,7 @@ def create_paladin_skills():
         BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "holy_power", 4)
     ]
-    holy_retribution.costs = [MPCost(15), StackCost("holy_power", 4)]
+    holy_retribution.costs = [MPCost(10), StackCost("holy_power", 4)]
     # holy_retribution.cooldown = 6  # 쿨다운 시스템 제거됨
     holy_retribution.is_aoe = True
     holy_retribution.sfx = "504"
@@ -140,7 +140,7 @@ def create_paladin_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "holy_power", 5)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(18)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.is_aoe = True

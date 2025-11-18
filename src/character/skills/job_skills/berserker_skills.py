@@ -34,7 +34,7 @@ def create_berserker_skills():
         DamageEffect(DamageType.BRV_HP, 2.8, stat_type="physical",
                     conditional_bonus={"condition": "in_berserker_mode", "multiplier": 1.4}),
     ]
-    reckless_strike.costs = [MPCost(10), HPCost(percentage=0.15)]
+    reckless_strike.costs = [MPCost(4), HPCost(percentage=0.15)]
     reckless_strike.sfx = "slash_reckless.ogg"
     # reckless_strike.cooldown = 2  # 쿨다운 시스템 제거됨
     reckless_strike.metadata = {"hp_cost_percent": 0.15}
@@ -45,7 +45,7 @@ def create_berserker_skills():
     self_harm.effects = [
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=3)
     ]
-    self_harm.costs = [MPCost(8), HPCost(percentage=0.20)]
+    self_harm.costs = [MPCost(3), HPCost(percentage=0.20)]
     self_harm.target_type = "self"
     self_harm.sfx = "blood_splash.ogg"
     # self_harm.cooldown = 4  # 쿨다운 시스템 제거됨
@@ -59,7 +59,7 @@ def create_berserker_skills():
         BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=2),
         BuffEffect(BuffType.SPEED_UP, 0.4, duration=3)
     ]
-    battle_cry.costs = [MPCost(15)]
+    battle_cry.costs = [MPCost(6)]
     battle_cry.target_type = "all_enemies"
     battle_cry.is_aoe = True
     battle_cry.sfx = "roar_berserker.ogg"
@@ -74,7 +74,7 @@ def create_berserker_skills():
                     # HP 손실 비율에 비례 (HP 30%일 때 광기 70 → +140% 피해)
                     gimmick_bonus={"field": "madness", "multiplier": 0.02})
     ]
-    blood_rage.costs = [MPCost(18)]
+    blood_rage.costs = [MPCost(7)]
     blood_rage.sfx = "blood_rage.ogg"
     # blood_rage.cooldown = 3  # 쿨다운 시스템 제거됨
     blood_rage.metadata = {"madness_scaling": True}
@@ -86,7 +86,7 @@ def create_berserker_skills():
         DamageEffect(DamageType.BRV_HP, 3.5, stat_type="physical",
                     conditional_bonus={"condition": "hp_below_30", "multiplier": 1.8})
     ]
-    desperate_assault.costs = [MPCost(22)]
+    desperate_assault.costs = [MPCost(9)]
     desperate_assault.sfx = "slash_desperate.ogg"
     # desperate_assault.cooldown = 4  # 쿨다운 시스템 제거됨
     desperate_assault.metadata = {"requires_low_hp": True}
@@ -98,7 +98,7 @@ def create_berserker_skills():
         HealEffect(percentage=0.30),
         # BRV 회복 효과 추가 필요 (구현 시)
     ]
-    healing_roar.costs = [MPCost(20)]
+    healing_roar.costs = [MPCost(9)]
     healing_roar.target_type = "self"
     healing_roar.sfx = "heal_roar.ogg"
     # healing_roar.cooldown = 5  # 쿨다운 시스템 제거됨
@@ -111,7 +111,7 @@ def create_berserker_skills():
         # HP를 최대 HP의 50%로 설정하는 특수 효과
         HealEffect(set_percent=0.50)  # HP를 50%로 설정
     ]
-    controlled_fury.costs = [MPCost(25)]
+    controlled_fury.costs = [MPCost(10)]
     controlled_fury.target_type = "self"
     controlled_fury.sfx = "controlled_fury.ogg"
     # controlled_fury.cooldown = 6  # 쿨다운 시스템 제거됨
@@ -127,7 +127,7 @@ def create_berserker_skills():
         BuffEffect(BuffType.ATTACK_UP, 2.0, duration=3),  # 공격력 +200%
         BuffEffect(BuffType.SPEED_UP, 1.0, duration=3)   # 속도 +100%
     ]
-    ultimate.costs = [MPCost(30), HPCost(percentage=0.99)]  # HP 99% 소모 (1% 남김)
+    ultimate.costs = [MPCost(15), HPCost(percentage=0.99)]  # HP 99% 소모 (1% 남김)
     ultimate.is_ultimate = True
     ultimate.sfx = "ultimate_berserker.ogg"
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨

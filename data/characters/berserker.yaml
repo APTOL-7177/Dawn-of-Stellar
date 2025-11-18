@@ -55,17 +55,17 @@ traits:
     critical_rate_bonus: 0.3
     damage_taken_multiplier: 1.5
 
-- id: rampage_state
-  name: 폭주 상태
-  description: 광기 100 시 3턴간 통제 불가, 공격력 +200%, 무작위 공격
+- id: controlled_rampage
+  name: 통제된 폭주
+  description: 광기 100 시 2턴간 공격력 +200%, 크리티컬 확률 +50%, 받는 데미지 +30% (통제 가능, 무작위 공격 없음)
   type: conditional
   conditions:
     madness_exact: 100
   effects:
     attack_multiplier: 3.0
-    uncontrollable: true
-    random_target: true
-    duration: 3
+    critical_rate_bonus: 0.5
+    damage_taken_multiplier: 1.3
+    duration: 2
 
 - id: pain_tolerance
   name: 고통 내성

@@ -36,7 +36,7 @@ def create_warrior_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=4),
         GimmickEffect(GimmickOperation.SET, "current_stance", 1)  # 1=attack
     ]
-    attack_stance.costs = [MPCost(4)]
+    attack_stance.costs = []
     attack_stance.target_type = "self"
     # attack_stance.cooldown = 2  # 쿨다운 시스템 제거됨
     attack_stance.sfx = "632"
@@ -49,7 +49,7 @@ def create_warrior_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=4),
         GimmickEffect(GimmickOperation.SET, "current_stance", 2)  # 2=defense
     ]
-    defensive_stance.costs = [MPCost(4)]
+    defensive_stance.costs = [MPCost(3)]
     defensive_stance.target_type = "self"
     # defensive_stance.cooldown = 2  # 쿨다운 시스템 제거됨
     defensive_stance.sfx = "639"
@@ -63,7 +63,7 @@ def create_warrior_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=4),
         GimmickEffect(GimmickOperation.SET, "current_stance", 4)  # 4=berserker
     ]
-    berserker_rage.costs = [MPCost(8)]
+    berserker_rage.costs = [MPCost(6)]
     berserker_rage.target_type = "self"
     # berserker_rage.cooldown = 3  # 쿨다운 시스템 제거됨
     berserker_rage.sfx = "646"
@@ -76,7 +76,7 @@ def create_warrior_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=4),
         GimmickEffect(GimmickOperation.SET, "current_stance", 5)  # 5=guardian
     ]
-    guardian_stance.costs = [MPCost(8)]
+    guardian_stance.costs = [MPCost(6)]
     guardian_stance.target_type = "self"
     # guardian_stance.cooldown = 3  # 쿨다운 시스템 제거됨
     guardian_stance.sfx = "653"
@@ -89,7 +89,7 @@ def create_warrior_skills():
         BuffEffect(BuffType.SPEED_UP, 0.4, duration=4),
         GimmickEffect(GimmickOperation.SET, "current_stance", 6)  # 6=speed
     ]
-    speed_stance.costs = [MPCost(6)]
+    speed_stance.costs = [MPCost(4)]
     speed_stance.target_type = "self"
     # speed_stance.cooldown = 2  # 쿨다운 시스템 제거됨
     speed_stance.sfx = "660"
@@ -102,7 +102,7 @@ def create_warrior_skills():
         BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=3),
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3)
     ]
-    war_cry.costs = [MPCost(12)]
+    war_cry.costs = [MPCost(9)]
     # war_cry.cooldown = 4  # 쿨다운 시스템 제거됨
     war_cry.is_aoe = True
     war_cry.sfx = "667"
@@ -116,7 +116,7 @@ def create_warrior_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=3),
         GimmickEffect(GimmickOperation.SET, "current_stance", 1)  # 1=attack
     ]
-    furious_strike.costs = [MPCost(18)]
+    furious_strike.costs = [MPCost(13)]
     # furious_strike.cooldown = 5  # 쿨다운 시스템 제거됨
     furious_strike.sfx = "674"
     furious_strike.metadata = {"stance_based": True, "high_damage": True}
@@ -133,7 +133,7 @@ def create_warrior_skills():
         BuffEffect(BuffType.SPEED_UP, 0.6, duration=5),
         GimmickEffect(GimmickOperation.SET, "current_stance", 0)  # 0=balanced
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(18)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "681"

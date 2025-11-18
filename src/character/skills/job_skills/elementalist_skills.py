@@ -34,7 +34,7 @@ def create_elementalist_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.2, duration=99),  # 정령 소환 중 지속
         DamageEffect(DamageType.BRV, 1.8, stat_type="magical")
     ]
-    summon_fire.costs = [MPCost(12)]
+    summon_fire.costs = []
     summon_fire.target_type = "self"
     summon_fire.sfx = "352"  # FFVII fire summon sound
     # summon_fire.cooldown = 3  # 쿨다운 시스템 제거됨
@@ -47,7 +47,7 @@ def create_elementalist_skills():
         BuffEffect(BuffType.MP_REGEN, 5, duration=99),
         HealEffect(percentage=0.15)  # 즉시 HP 15% 회복
     ]
-    summon_water.costs = [MPCost(10)]
+    summon_water.costs = [MPCost(4)]
     summon_water.target_type = "self"
     summon_water.sfx = "362"  # FFVII water summon sound
     # summon_water.cooldown = 3  # 쿨다운 시스템 제거됨
@@ -60,7 +60,7 @@ def create_elementalist_skills():
         BuffEffect(BuffType.SPEED_UP, 0.3, duration=99),
         BuffEffect(BuffType.EVASION_UP, 0.15, duration=99)
     ]
-    summon_wind.costs = [MPCost(10)]
+    summon_wind.costs = [MPCost(4)]
     summon_wind.target_type = "self"
     summon_wind.sfx = "376"  # FFVII wind summon sound
     # summon_wind.cooldown = 3  # 쿨다운 시스템 제거됨
@@ -73,7 +73,7 @@ def create_elementalist_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=99),
         BuffEffect(BuffType.HP_REGEN, 3, duration=99)
     ]
-    summon_earth.costs = [MPCost(10)]
+    summon_earth.costs = [MPCost(4)]
     summon_earth.target_type = "self"
     summon_earth.sfx = "404"  # FFVII earth summon sound
     # summon_earth.cooldown = 3  # 쿨다운 시스템 제거됨
@@ -87,7 +87,7 @@ def create_elementalist_skills():
         GimmickEffect(GimmickOperation.SET, "spirit_fire", 0),
         GimmickEffect(GimmickOperation.SET, "spirit_wind", 0)
     ]
-    fusion_firestorm.costs = [MPCost(18)]
+    fusion_firestorm.costs = [MPCost(9)]
     fusion_firestorm.target_type = "all_enemies"
     fusion_firestorm.is_aoe = True
     fusion_firestorm.sfx = "423"  # FFVII firestorm sound
@@ -104,7 +104,7 @@ def create_elementalist_skills():
         GimmickEffect(GimmickOperation.SET, "spirit_water", 0),
         GimmickEffect(GimmickOperation.SET, "spirit_earth", 0)
     ]
-    fusion_mudtrap.costs = [MPCost(16)]
+    fusion_mudtrap.costs = [MPCost(7)]
     fusion_mudtrap.sfx = "438"  # FFVII mud sound
     # fusion_mudtrap.cooldown = 4  # 쿨다운 시스템 제거됨
     fusion_mudtrap.metadata = {"fusion": "water_earth", "requires_both_spirits": True}
@@ -118,7 +118,7 @@ def create_elementalist_skills():
         GimmickEffect(GimmickOperation.SET, "spirit_fire", 0),
         GimmickEffect(GimmickOperation.SET, "spirit_water", 0)
     ]
-    fusion_steam.costs = [MPCost(20)]
+    fusion_steam.costs = [MPCost(10)]
     fusion_steam.target_type = "all_enemies"
     fusion_steam.is_aoe = True
     fusion_steam.sfx = "467"  # FFVII steam sound
@@ -141,7 +141,7 @@ def create_elementalist_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=5),
         BuffEffect(BuffType.SPEED_UP, 0.4, duration=5)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(15)]
     ultimate.is_ultimate = True
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True

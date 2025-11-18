@@ -34,7 +34,7 @@ def create_necromancer_skills():
         GimmickEffect(GimmickOperation.ADD, "undead_skeleton", 1, max_value=2),
         BuffEffect(BuffType.ATTACK_UP, 0.15, duration=99)  # 스켈레톤 보유 동안 지속
     ]
-    summon_skeleton.costs = [MPCost(15), HPCost(10)]
+    summon_skeleton.costs = []
     summon_skeleton.target_type = "self"
     summon_skeleton.metadata = {"undead_type": "skeleton"}
 
@@ -46,7 +46,7 @@ def create_necromancer_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=99),
         BuffEffect(BuffType.HP_REGEN, 3, duration=99)
     ]
-    summon_zombie.costs = [MPCost(20), HPCost(15)]
+    summon_zombie.costs = [MPCost(7), HPCost(15)]
     summon_zombie.target_type = "self"
     summon_zombie.metadata = {"undead_type": "zombie"}
 
@@ -58,7 +58,7 @@ def create_necromancer_skills():
         BuffEffect(BuffType.MAGIC_UP, 0.2, duration=99),
         BuffEffect(BuffType.EVASION_UP, 0.1, duration=99)
     ]
-    summon_ghost.costs = [MPCost(25), HPCost(20)]
+    summon_ghost.costs = [MPCost(9), HPCost(20)]
     summon_ghost.target_type = "self"
     summon_ghost.metadata = {"undead_type": "ghost"}
 
@@ -71,7 +71,7 @@ def create_necromancer_skills():
         GimmickEffect(GimmickOperation.CONSUME, "undead_skeleton", 1),  # 우선순위: skeleton
         HealEffect(heal_type=HealType.MP, base_amount=20)
     ]
-    sacrifice_undead.costs = [MPCost(15)]
+    sacrifice_undead.costs = [MPCost(5)]
     # sacrifice_undead.cooldown = 3  # 쿨다운 시스템 제거됨
     sacrifice_undead.metadata = {"sacrifice": True}
 
@@ -81,7 +81,7 @@ def create_necromancer_skills():
     legion_command.effects = [
         BuffEffect(BuffType.CUSTOM, 1.0, duration=3, custom_stat="undead_power_enhanced")
     ]
-    legion_command.costs = [MPCost(20)]
+    legion_command.costs = [MPCost(7)]
     legion_command.target_type = "self"
     # legion_command.cooldown = 5  # 쿨다운 시스템 제거됨
     legion_command.metadata = {"undead_buff": True}
@@ -93,7 +93,7 @@ def create_necromancer_skills():
         DamageEffect(DamageType.BRV_HP, 2.0, stat_type="magical",
                     gimmick_bonus={"field": "total_undead", "multiplier": 0.4})
     ]
-    death_wave.costs = [MPCost(22)]
+    death_wave.costs = [MPCost(8)]
     # death_wave.cooldown = 4  # 쿨다운 시스템 제거됨
     death_wave.target_type = "all_enemies"
     death_wave.is_aoe = True
@@ -110,7 +110,7 @@ def create_necromancer_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=99),
         BuffEffect(BuffType.MAGIC_UP, 0.2, duration=99)
     ]
-    mass_summon.costs = [MPCost(30), HPCost(50)]
+    mass_summon.costs = [MPCost(11), HPCost(50)]
     mass_summon.target_type = "self"
     # mass_summon.cooldown = 6  # 쿨다운 시스템 제거됨
     mass_summon.metadata = {"mass_summon": True}
@@ -127,7 +127,7 @@ def create_necromancer_skills():
         GimmickEffect(GimmickOperation.SET, "undead_zombie", 0),
         GimmickEffect(GimmickOperation.SET, "undead_ghost", 0)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(15)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.target_type = "all_enemies"

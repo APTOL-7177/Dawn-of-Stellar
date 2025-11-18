@@ -40,7 +40,7 @@ def create_spellblade_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=4),
         GimmickEffect(GimmickOperation.ADD, "mana_blade", 2, max_value=6)
     ]
-    fire_infusion.costs = [MPCost(7)]
+    fire_infusion.costs = []
     fire_infusion.target_type = "self"
     # fire_infusion.cooldown = 2  # 쿨다운 시스템 제거됨
     fire_infusion.sfx = "492"
@@ -54,7 +54,7 @@ def create_spellblade_skills():
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=4),
         GimmickEffect(GimmickOperation.ADD, "mana_blade", 2, max_value=6)
     ]
-    ice_infusion.costs = [MPCost(7)]
+    ice_infusion.costs = [MPCost(4)]
     ice_infusion.target_type = "self"
     # ice_infusion.cooldown = 2  # 쿨다운 시스템 제거됨
     ice_infusion.sfx = "499"
@@ -68,7 +68,7 @@ def create_spellblade_skills():
         BuffEffect(BuffType.SPEED_UP, 0.5, duration=4),
         GimmickEffect(GimmickOperation.ADD, "mana_blade", 2, max_value=6)
     ]
-    lightning_infusion.costs = [MPCost(7)]
+    lightning_infusion.costs = [MPCost(4)]
     lightning_infusion.target_type = "self"
     # lightning_infusion.cooldown = 2  # 쿨다운 시스템 제거됨
     lightning_infusion.sfx = "506"
@@ -83,7 +83,7 @@ def create_spellblade_skills():
         DamageEffect(DamageType.HP, 1.3),
         GimmickEffect(GimmickOperation.CONSUME, "mana_blade", 3)
     ]
-    magic_blade_dance.costs = [MPCost(12), StackCost("mana_blade", 3)]
+    magic_blade_dance.costs = [MPCost(7), StackCost("mana_blade", 3)]
     # magic_blade_dance.cooldown = 4  # 쿨다운 시스템 제거됨
     magic_blade_dance.sfx = "513"
     magic_blade_dance.metadata = {"mana_cost": 3, "mana_scaling": True, "multi_hit": True}
@@ -95,7 +95,7 @@ def create_spellblade_skills():
         GimmickEffect(GimmickOperation.SET, "mana_blade", 6),
         BuffEffect(BuffType.MAGIC_UP, 0.5, duration=4)
     ]
-    mana_burst.costs = [MPCost(10)]
+    mana_burst.costs = [MPCost(6)]
     mana_burst.target_type = "self"
     # mana_burst.cooldown = 4  # 쿨다운 시스템 제거됨
     mana_burst.sfx = "520"
@@ -109,7 +109,7 @@ def create_spellblade_skills():
         DamageEffect(DamageType.HP, 1.8),
         GimmickEffect(GimmickOperation.CONSUME, "mana_blade", 5)
     ]
-    elemental_storm.costs = [MPCost(16), StackCost("mana_blade", 5)]
+    elemental_storm.costs = [MPCost(10), StackCost("mana_blade", 5)]
     # elemental_storm.cooldown = 6  # 쿨다운 시스템 제거됨
     elemental_storm.is_aoe = True
     elemental_storm.sfx = "527"
@@ -123,7 +123,7 @@ def create_spellblade_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3),
         GimmickEffect(GimmickOperation.CONSUME, "mana_blade", 4)
     ]
-    blade_spin.costs = [MPCost(18), StackCost("mana_blade", 4)]
+    blade_spin.costs = [MPCost(11), StackCost("mana_blade", 4)]
     # blade_spin.cooldown = 5  # 쿨다운 시스템 제거됨
     blade_spin.is_aoe = True
     blade_spin.sfx = "534"
@@ -140,7 +140,7 @@ def create_spellblade_skills():
         BuffEffect(BuffType.MAGIC_UP, 0.7, duration=5),
         GimmickEffect(GimmickOperation.SET, "mana_blade", 0)
     ]
-    ultimate.costs = [MPCost(30), StackCost("mana_blade", 1)]
+    ultimate.costs = [MPCost(18), StackCost("mana_blade", 1)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "541"

@@ -66,8 +66,11 @@ traits:
   type: passive
 - id: complete_mastery
   name: 6단계 완전체
-  description: 6가지 자세 완전 숙달로 모든 자세에서 특화 보너스 획득
+  description: 모든 자세를 3회 이상 사용 시 모든 자세에서 스탯 보너스 +15%, 자세 변경 시 추가 보너스 +10%
   type: passive
+  effects:
+    all_stance_bonus: 0.15
+    stance_change_bonus: 0.10
 skills:
 - power_strike
 - shield_bash

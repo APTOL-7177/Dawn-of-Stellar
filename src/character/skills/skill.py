@@ -29,10 +29,28 @@ class Skill:
     def can_use(self, user: Any, context: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
         """스킬 사용 가능 여부"""
         context = context or {}
+        
+        # 비용 체크
         for cost in self.costs:
             can_afford, reason = cost.can_afford(user, context)
             if not can_afford:
                 return False, reason
+        
+        # 메타데이터 기반 조건 체크
+        if self.metadata:
+            # 배틀메이지: 서로 다른 룬 3개 필요
+            if self.metadata.get("requires_different_runes"):
+                required_count = self.metadata.get("requires_different_runes", 3)
+                if hasattr(user, 'gimmick_type') and user.gimmick_type == "rune_resonance":
+                    rune_types = ["rune_fire", "rune_ice", "rune_lightning", "rune_earth", "rune_arcane"]
+                    different_runes = 0
+                    for rune_type in rune_types:
+                        if getattr(user, rune_type, 0) > 0:
+                            different_runes += 1
+                    
+                    if different_runes < required_count:
+                        return False, f"서로 다른 룬 {required_count}개가 필요합니다 (현재: {different_runes}개)"
+        
         return True, ""
 
     def execute(self, user: Any, target: Any, context: Optional[Dict[str, Any]] = None) -> SkillResult:
@@ -52,6 +70,37 @@ class Skill:
         for cost in self.costs:
             if not cost.consume(user, context):
                 return SkillResult(success=False, message="비용 소비 실패")
+
+        # 랜덤 룬 추가 처리 (배틀메이지)
+        if self.metadata.get("random_rune") and hasattr(user, 'gimmick_type') and user.gimmick_type == "rune_resonance":
+            import random
+            rune_types = ["fire", "ice", "lightning", "earth", "arcane"]
+            selected_rune = random.choice(rune_types)
+            rune_field = f"rune_{selected_rune}"
+            current_value = getattr(user, rune_field, 0)
+            max_value = getattr(user, 'max_rune_per_type', 3)
+            if current_value < max_value:
+                setattr(user, rune_field, current_value + 1)
+                from src.core.logger import get_logger
+                logger = get_logger("skill")
+                logger.info(f"{user.name} 랜덤 룬 획득: {selected_rune} 룬 (+1, 총: {current_value + 1}/{max_value})")
+            
+            # 적에게 룬 새기기 (적이 리스트인 경우 첫 번째 적에게 적용)
+            target_list = target if isinstance(target, list) else [target]
+            for single_target in target_list:
+                if single_target and hasattr(single_target, 'is_alive') and single_target.is_alive:
+                    # 적의 carved_runes 딕셔너리 초기화 (없으면)
+                    if not hasattr(single_target, 'carved_runes'):
+                        single_target.carved_runes = {}
+                    
+                    # 랜덤 룬 타입을 적에게 새기기 (최대 3개까지)
+                    current_count = single_target.carved_runes.get(selected_rune, 0)
+                    if current_count < 3:
+                        single_target.carved_runes[selected_rune] = current_count + 1
+                        rune_names = {"fire": "화염", "ice": "냉기", "lightning": "번개", "earth": "대지", "arcane": "비전"}
+                        rune_name = rune_names.get(selected_rune, selected_rune)
+                        logger.info(f"{single_target.name}에게 {rune_name} 룬 새김! (총: {current_count + 1}/3)")
+                    break  # 첫 번째 적에게만 적용
 
         # 효과 실행 (ISSUE-003: 효과 메시지 수집)
         total_dmg = 0

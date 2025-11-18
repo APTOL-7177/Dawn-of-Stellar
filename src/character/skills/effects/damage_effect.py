@@ -54,9 +54,43 @@ class DamageEffect(SkillEffect):
         if self.gimmick_bonus:
             field = self.gimmick_bonus.get('field')
             bonus_mult = self.gimmick_bonus.get('multiplier', 0)
-            if field and hasattr(user, field):
-                stacks = getattr(user, field, 0)
-                final_mult += stacks * bonus_mult
+            if field:
+                stacks = 0
+                # 계산된 필드 처리 (character에 직접 필드가 없는 경우)
+                if field == "total_runes":
+                    # 배틀메이지: 모든 룬 타입 합산
+                    if hasattr(user, 'gimmick_type') and user.gimmick_type == "rune_resonance":
+                        stacks = (
+                            getattr(user, 'rune_fire', 0) +
+                            getattr(user, 'rune_ice', 0) +
+                            getattr(user, 'rune_lightning', 0) +
+                            getattr(user, 'rune_earth', 0) +
+                            getattr(user, 'rune_arcane', 0)
+                        )
+                elif field == "total_undead":
+                    # 네크로맨서: 모든 언데드 타입 합산
+                    if hasattr(user, 'gimmick_type') and user.gimmick_type == "undead_legion":
+                        stacks = (
+                            getattr(user, 'undead_skeleton', 0) +
+                            getattr(user, 'undead_zombie', 0) +
+                            getattr(user, 'undead_ghost', 0)
+                        )
+                elif field == "total_programs":
+                    # 해커: 모든 프로그램 타입 합산
+                    if hasattr(user, 'gimmick_type') and user.gimmick_type == "program_execution":
+                        stacks = (
+                            getattr(user, 'program_virus', 0) +
+                            getattr(user, 'program_backdoor', 0) +
+                            getattr(user, 'program_ddos', 0) +
+                            getattr(user, 'program_ransomware', 0) +
+                            getattr(user, 'program_spyware', 0)
+                        )
+                elif hasattr(user, field):
+                    # 일반 필드 (기존 로직)
+                    stacks = getattr(user, field, 0)
+                
+                if stacks > 0:
+                    final_mult += stacks * bonus_mult
 
         # 조건부 보너스 (ISSUE-005 수정)
         if self.conditional_bonus:

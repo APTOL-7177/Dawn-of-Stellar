@@ -39,7 +39,7 @@ def create_time_mage_skills():
         BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=3),  # 속도도 감소 (지속)
         GimmickEffect(GimmickOperation.ADD, "timeline", -1, min_value=-5)
     ]
-    slow.costs = [MPCost(10)]
+    slow.costs = []
     slow.target_type = "single_enemy"
     slow.metadata = {"timeline_shift": -1, "skill_type": "past"}
 
@@ -50,7 +50,7 @@ def create_time_mage_skills():
         StatusEffect(StatusType.STUN, duration=1),
         GimmickEffect(GimmickOperation.ADD, "timeline", -1, min_value=-5)
     ]
-    stop.costs = [MPCost(20)]
+    stop.costs = [MPCost(9)]
     stop.target_type = "single_enemy"
     # stop.cooldown = 3  # 쿨다운 시스템 제거됨
     stop.metadata = {"timeline_shift": -1, "skill_type": "past"}
@@ -62,7 +62,7 @@ def create_time_mage_skills():
         HealEffect(percentage=0.2),
         GimmickEffect(GimmickOperation.ADD, "timeline", -2, min_value=-5)
     ]
-    rewind.costs = [MPCost(18)]
+    rewind.costs = [MPCost(7)]
     rewind.target_type = "self"
     # rewind.cooldown = 4  # 쿨다운 시스템 제거됨
     rewind.metadata = {"timeline_shift": -2, "skill_type": "past"}
@@ -75,7 +75,7 @@ def create_time_mage_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=2),
         GimmickEffect(GimmickOperation.ADD, "timeline", -1, min_value=-5)
     ]
-    repeat.costs = [MPCost(15)]
+    repeat.costs = [MPCost(6)]
     repeat.target_type = "self"
     # repeat.cooldown = 5  # 쿨다운 시스템 제거됨
     repeat.metadata = {"timeline_shift": -1, "skill_type": "past", "mp_recovery": True}
@@ -89,7 +89,7 @@ def create_time_mage_skills():
         GimmickEffect(GimmickOperation.SET, "timeline", 0),
         HealEffect(percentage=0.2)
     ]
-    align.costs = [MPCost(12)]
+    align.costs = [MPCost(5)]
     align.target_type = "self"
     align.metadata = {"timeline_shift": "reset", "skill_type": "present"}
 
@@ -100,7 +100,7 @@ def create_time_mage_skills():
         DamageEffect(DamageType.BRV_HP, 4.5, stat_type="magical",
                     conditional_bonus={"condition": "at_present", "multiplier": 1.0})
     ]
-    balance.costs = [MPCost(25)]
+    balance.costs = [MPCost(10)]
     # balance.cooldown = 6  # 쿨다운 시스템 제거됨
     balance.metadata = {"requires_timeline": 0, "skill_type": "present"}
 
@@ -114,7 +114,7 @@ def create_time_mage_skills():
         BuffEffect(BuffType.SPEED_UP, 1.0, duration=3),  # 속도도 증가 (지속)
         GimmickEffect(GimmickOperation.ADD, "timeline", 1, max_value=5)
     ]
-    haste.costs = [MPCost(14)]
+    haste.costs = [MPCost(6)]
     haste.target_type = "ally"
     # haste.cooldown = 3  # 쿨다운 시스템 제거됨
     haste.metadata = {"timeline_shift": 1, "skill_type": "future"}
@@ -126,7 +126,7 @@ def create_time_mage_skills():
         BuffEffect(BuffType.EVASION_UP, 0.5, duration=3),
         GimmickEffect(GimmickOperation.ADD, "timeline", 1, max_value=5)
     ]
-    foresight.costs = [MPCost(11)]
+    foresight.costs = [MPCost(4)]
     foresight.target_type = "self"
     foresight.metadata = {"timeline_shift": 1, "skill_type": "future"}
 
@@ -139,7 +139,7 @@ def create_time_mage_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=1),  # 공격력도 증가
         GimmickEffect(GimmickOperation.ADD, "timeline", 2, max_value=5)
     ]
-    leap.costs = [MPCost(22)]
+    leap.costs = [MPCost(9)]
     leap.target_type = "self"
     # leap.cooldown = 5  # 쿨다운 시스템 제거됨
     leap.metadata = {"timeline_shift": 2, "skill_type": "future", "quick_turn": True}
@@ -152,7 +152,7 @@ def create_time_mage_skills():
         DamageEffect(DamageType.HP, 2.5, stat_type="magical"),
         GimmickEffect(GimmickOperation.SET, "timeline", 0)  # 현재로 리셋
     ]
-    wave.costs = [MPCost(30)]
+    wave.costs = [MPCost(15)]
     wave.target_type = "all_enemies"
     wave.is_ultimate = True
     wave.is_aoe = True
