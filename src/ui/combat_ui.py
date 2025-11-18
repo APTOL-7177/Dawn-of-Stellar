@@ -1713,6 +1713,12 @@ class CombatUI:
             exploits = getattr(character, 'exploit_count', 0)
             max_threads = getattr(character, 'max_threads', 5)
 
+            # 리스트 타입인 경우 길이로 변환
+            if isinstance(threads, list):
+                threads = len(threads)
+            if isinstance(exploits, list):
+                exploits = len(exploits)
+
             console.print(content_x, content_y + line, "💻 해커 - 해킹 스레드", fg=(100, 255, 100))
             line += 1
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
@@ -2649,6 +2655,13 @@ class CombatUI:
         elif gimmick_type == "multithread_system":
             threads = getattr(character, 'active_threads', 0)
             exploits = getattr(character, 'exploit_count', 0)
+
+            # 리스트 타입인 경우 길이로 변환
+            if isinstance(threads, list):
+                threads = len(threads)
+            if isinstance(exploits, list):
+                exploits = len(exploits)
+
             details.append("=== 멀티스레드 시스템 ===")
             thread_bar = self._create_gauge_bar(threads, 5, width=10, optimal_min=3, optimal_max=5)
             details.append(f"활성 스레드: {thread_bar}")
@@ -2714,6 +2727,11 @@ class CombatUI:
         # 네크로맨서 - 언데드 군단 (YAML: undead_legion)
         elif gimmick_type == "undead_legion":
             minions = getattr(character, 'undead_minions', 0)
+
+            # 리스트 타입인 경우 길이로 변환
+            if isinstance(minions, list):
+                minions = len(minions)
+
             details.append("=== 언데드 군단 시스템 ===")
             minion_bar = self._create_gauge_bar(minions, 5, width=10, optimal_min=3, optimal_max=5)
             details.append(f"소환된 언데드: {minion_bar}")
@@ -2725,6 +2743,11 @@ class CombatUI:
         # 도적 - 절도 시스템 (YAML: theft_system)
         elif gimmick_type == "theft_system":
             stolen = getattr(character, 'stolen_items', 0)
+
+            # 리스트 타입인 경우 길이로 변환
+            if isinstance(stolen, list):
+                stolen = len(stolen)
+
             details.append("=== 절도 시스템 ===")
             stolen_bar = self._create_gauge_bar(stolen, 10, width=10, optimal_min=5, optimal_max=10)
             details.append(f"훔친 아이템: {stolen_bar}")
