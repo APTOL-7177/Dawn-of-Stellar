@@ -26,63 +26,68 @@ def create_hacker_skills():
     data_breach.sfx = "338"  # FFVII data sound
     data_breach.metadata = {}
 
-    # 3. 바이러스 실행 (적 공격력 -20%)
-    run_virus = Skill("hacker_run_virus", "바이러스 실행", "적 공격력 -20% 프로그램 실행")
+    # 3. 바이러스 실행 (적 전체 공격력 -15%)
+    run_virus = Skill("hacker_run_virus", "바이러스 실행", "적 전체 공격력 -15% 프로그램 실행")
     run_virus.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_virus", 1, max_value=1),  # 프로그램 실행 (on/off)
-        BuffEffect(BuffType.ATTACK_DOWN, 0.2, duration=99)  # 프로그램 실행 동안 지속
+        BuffEffect(BuffType.ATTACK_DOWN, 0.15, duration=99)  # 프로그램 실행 동안 지속
     ]
-    run_virus.costs = [MPCost(10)]
-    run_virus.target_type = "single"
+    run_virus.costs = [MPCost(12)]
+    run_virus.target_type = "all_enemies"
+    run_virus.is_aoe = True
     run_virus.sfx = "344"  # FFVII virus sound
     # run_virus.cooldown = 2  # 쿨다운 시스템 제거됨
     run_virus.metadata = {"program_type": "virus", "debuff": "attack_down"}
 
-    # 4. 백도어 실행 (적 방어력 -30%)
-    run_backdoor = Skill("hacker_run_backdoor", "백도어 실행", "적 방어력 -30% 프로그램 실행")
+    # 4. 백도어 실행 (적 전체 방어력 -20%)
+    run_backdoor = Skill("hacker_run_backdoor", "백도어 실행", "적 전체 방어력 -20% 프로그램 실행")
     run_backdoor.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_backdoor", 1, max_value=1),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=99)
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.2, duration=99)
     ]
-    run_backdoor.costs = [MPCost(12)]
-    run_backdoor.target_type = "single"
+    run_backdoor.costs = [MPCost(15)]
+    run_backdoor.target_type = "all_enemies"
+    run_backdoor.is_aoe = True
     run_backdoor.sfx = "352"  # FFVII backdoor sound
     # run_backdoor.cooldown = 2  # 쿨다운 시스템 제거됨
     run_backdoor.metadata = {"program_type": "backdoor", "debuff": "defense_down"}
 
-    # 5. DDoS 실행 (적 속도 -50%)
-    run_ddos = Skill("hacker_run_ddos", "DDoS 실행", "적 속도 -50% 프로그램 실행")
+    # 5. DDoS 실행 (적 전체 속도 -35%)
+    run_ddos = Skill("hacker_run_ddos", "DDoS 실행", "적 전체 속도 -35% 프로그램 실행")
     run_ddos.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_ddos", 1, max_value=1),
-        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=99)
+        BuffEffect(BuffType.SPEED_DOWN, 0.35, duration=99)
     ]
-    run_ddos.costs = [MPCost(15)]
-    run_ddos.target_type = "single"
+    run_ddos.costs = [MPCost(18)]
+    run_ddos.target_type = "all_enemies"
+    run_ddos.is_aoe = True
     run_ddos.sfx = "362"  # FFVII ddos sound
     # run_ddos.cooldown = 3  # 쿨다운 시스템 제거됨
     run_ddos.metadata = {"program_type": "ddos", "debuff": "speed_down"}
 
-    # 6. 랜섬웨어 실행 (적 스킬 봉인)
-    run_ransomware = Skill("hacker_run_ransomware", "랜섬웨어 실행", "적 스킬 봉인 프로그램 실행")
+    # 6. 랜섬웨어 실행 (적 전체 스킬 봉인 3턴)
+    run_ransomware = Skill("hacker_run_ransomware", "랜섬웨어 실행", "적 전체 스킬 봉인 프로그램 실행")
     run_ransomware.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_ransomware", 1, max_value=1),
-        BuffEffect(BuffType.SKILL_SEAL, 1.0, duration=99)  # 스킬 봉인
+        BuffEffect(BuffType.SKILL_SEAL, 1.0, duration=3)  # 스킬 봉인 (전체 대상이므로 3턴으로 감소)
     ]
-    run_ransomware.costs = [MPCost(18)]
-    run_ransomware.target_type = "single"
+    run_ransomware.costs = [MPCost(22)]
+    run_ransomware.target_type = "all_enemies"
+    run_ransomware.is_aoe = True
     run_ransomware.sfx = "376"  # FFVII lock sound
     # run_ransomware.cooldown = 4  # 쿨다운 시스템 제거됨
     run_ransomware.metadata = {"program_type": "ransomware", "debuff": "skill_seal"}
 
-    # 7. 스파이웨어 실행 (적 정보 획득 + 회피율 감소)
-    run_spyware = Skill("hacker_run_spyware", "스파이웨어 실행", "적 정보 획득 프로그램")
+    # 7. 스파이웨어 실행 (적 전체 정보 획득 + 회피율 감소)
+    run_spyware = Skill("hacker_run_spyware", "스파이웨어 실행", "적 전체 정보 획득 프로그램")
     run_spyware.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_spyware", 1, max_value=1),
-        BuffEffect(BuffType.EVASION_DOWN, 0.3, duration=99),
-        BuffEffect(BuffType.ACCURACY_UP, 0.3, duration=99)
+        BuffEffect(BuffType.EVASION_DOWN, 0.2, duration=99),
+        BuffEffect(BuffType.ACCURACY_UP, 0.3, duration=99)  # 자신에게 적용되는 버프이므로 유지
     ]
-    run_spyware.costs = [MPCost(8)]
-    run_spyware.target_type = "single"
+    run_spyware.costs = [MPCost(10)]
+    run_spyware.target_type = "all_enemies"
+    run_spyware.is_aoe = True
     run_spyware.sfx = "404"  # FFVII scan sound
     # run_spyware.cooldown = 2  # 쿨다운 시스템 제거됨
     run_spyware.metadata = {"program_type": "spyware", "info_gathering": True}
@@ -117,7 +122,7 @@ def create_hacker_skills():
     system_overload.metadata = {"program_scaling": True}
 
     # 10. 궁극기: 멀티스레드 폭주 (모든 프로그램 즉시 실행 + 극대 공격)
-    ultimate = Skill("hacker_ultimate", "멀티스레드 폭주", "모든 프로그램 즉시 실행 + 극대 공격")
+    ultimate = Skill("hacker_ultimate", "멀티스레드 폭주", "적 전체에 모든 프로그램 즉시 실행 + 극대 공격")
     ultimate.effects = [
         # 모든 프로그램 즉시 실행
         GimmickEffect(GimmickOperation.SET, "program_virus", 1),
@@ -127,14 +132,16 @@ def create_hacker_skills():
         DamageEffect(DamageType.BRV, 4.0, stat_type="magical"),
         DamageEffect(DamageType.HP, 4.5, stat_type="magical"),
         # 모든 디버프 적용
-        BuffEffect(BuffType.ATTACK_DOWN, 0.2, duration=5),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=5),
-        BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=5),
+        BuffEffect(BuffType.ATTACK_DOWN, 0.15, duration=5),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.2, duration=5),
+        BuffEffect(BuffType.SPEED_DOWN, 0.35, duration=5),
         # 자신 버프
         BuffEffect(BuffType.MAGIC_UP, 0.8, duration=4)
     ]
     ultimate.costs = [MPCost(30)]
+    ultimate.target_type = "all_enemies"
     ultimate.is_ultimate = True
+    ultimate.is_aoe = True
     ultimate.sfx = "696"  # FFVII ultimate tech sound
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "multithread_rampage": True}
