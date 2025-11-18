@@ -26,11 +26,12 @@ def create_hacker_skills():
     data_breach.sfx = "338"  # FFVII data sound
     data_breach.metadata = {}
 
-    # 3. 바이러스 실행 (적 전체 공격력 -15%)
-    run_virus = Skill("hacker_run_virus", "바이러스 실행", "적 전체 공격력 -15% 프로그램 실행")
+    # 3. 바이러스 실행 (적 전체 공격력 + 마법력 -15%)
+    run_virus = Skill("hacker_run_virus", "바이러스 실행", "적 전체 공격력 + 마법력 -15% 프로그램 실행")
     run_virus.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_virus", 1, max_value=1),  # 프로그램 실행 (on/off)
-        BuffEffect(BuffType.ATTACK_DOWN, 0.15, duration=99)  # 프로그램 실행 동안 지속
+        BuffEffect(BuffType.ATTACK_DOWN, 0.15, duration=99),  # 프로그램 실행 동안 지속
+        BuffEffect(BuffType.MAGIC_DOWN, 0.15, duration=99)  # 마법력도 동시 감소
     ]
     run_virus.costs = [MPCost(12)]
     run_virus.target_type = "all_enemies"
@@ -67,7 +68,7 @@ def create_hacker_skills():
     run_ddos.metadata = {"program_type": "ddos", "debuff": "speed_down"}
 
     # 6. 랜섬웨어 실행 (적 전체 매 턴 HP 피해 - 마법력 비례)
-    run_ransomware = Skill("hacker_run_ransomware", "랜섬웨어 실행", "적 전체 매 턴 마법력 15% HP 피해 프로그램")
+    run_ransomware = Skill("hacker_run_ransomware", "랜섬웨어 실행", "적 전체 매 턴 마법력 35% HP 피해 프로그램")
     run_ransomware.effects = [
         GimmickEffect(GimmickOperation.ADD, "program_ransomware", 1, max_value=1),
         BuffEffect(BuffType.CUSTOM, 0, duration=99, custom_stat="hp_drain_magic")  # DoT 효과 (마법력 비례)
@@ -81,7 +82,7 @@ def create_hacker_skills():
         "program_type": "ransomware",
         "debuff": "hp_drain",
         "dot": True,
-        "magic_percentage": 0.15  # 마법력의 15%만큼 매 턴 HP 감소
+        "magic_percentage": 0.35  # 마법력의 35%만큼 매 턴 HP 감소
     }
 
     # 7. 스파이웨어 실행 (적 전체 명중률 감소)
