@@ -153,11 +153,11 @@ class WorldUI:
             nearby_cooking_pot = self._find_nearby_cooking_pot()
             if nearby_cooking_pot:
                 if console is not None and context is not None and self.inventory is not None:
-                    from src.ui.cooking_ui import open_cooking_ui
+                    from src.ui.cooking_ui import open_cooking_pot
 
                     # 요리 UI 열기
                     logger.info("요리솥 발견! 요리 UI 열기")
-                    open_cooking_ui(console, context, self.inventory, self.party)
+                    open_cooking_pot(console, context, self.inventory)
                     return False
                 else:
                     self.add_message("요리솥을 사용할 수 없습니다.")

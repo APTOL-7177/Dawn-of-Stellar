@@ -12,7 +12,7 @@ from enum import Enum
 from src.equipment.inventory import Inventory
 from src.gathering.ingredient import Ingredient, IngredientCategory
 from src.cooking.recipe import RecipeDatabase, CookedFood
-from src.ui.tcod_display import Colors
+from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler
 from src.core.logger import get_logger
 
@@ -221,7 +221,7 @@ class CookingPotUI:
 
     def render(self, console: tcod.console.Console):
         """요리 화면 렌더링"""
-        console.clear()
+        render_space_background(console, self.screen_width, self.screen_height)
 
         # 제목
         title = "🍲 요리 냄비"
