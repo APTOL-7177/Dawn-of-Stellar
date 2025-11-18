@@ -87,7 +87,9 @@ class Inventory:
         """현재 총 무게"""
         total = 0.0
         for slot in self.slots:
-            total += slot.item.weight * slot.quantity
+            # 안전하게 weight 속성 접근 (기본값 0.5kg)
+            item_weight = getattr(slot.item, 'weight', 0.5)
+            total += item_weight * slot.quantity
         return round(total, 2)
 
     @property
@@ -132,8 +134,8 @@ class Inventory:
         Returns:
             성공 여부
         """
-        # 무게 체크
-        item_weight = item.weight * quantity
+        # 무게 체크 (안전하게 weight 속성 접근, 기본값 0.5kg)
+        item_weight = getattr(item, 'weight', 0.5) * quantity
         if self.current_weight + item_weight > self.max_weight:
             logger.warning(
                 f"무게 초과! {item.name} x{quantity} ({item_weight}kg) 추가 실패. "
