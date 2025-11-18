@@ -101,15 +101,15 @@ gimmick:
 
 skills:
 - vampiric_bite
-- blood_drain
-- blood_lance
-- bat_swarm
-- blood_shield
-- mist_form
-- blood_frenzy
-- life_tap
-- crimson_nova
-- blood_lord_ultimate
+- vampiric_blood_drain
+- vampire_blood_lance
+- vampire_thirst_surge
+- vampire_bat_swarm
+- vampire_mist_form
+- vampire_prepare_frenzy
+- vampire_life_tap
+- vampire_blood_satiation
+- vampire_ultimate
 bonuses:
   lifesteal: 0.3
   low_hp_bonus: 1.8

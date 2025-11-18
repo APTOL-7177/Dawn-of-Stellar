@@ -823,14 +823,14 @@ class CombatUI:
             if wound_damage > 0:
                 gauge_renderer.render_wound_indicator(console, 33, y + 2, wound_damage)
 
-            # 캐스팅 중이면 스킬 이름 표시
-            if cast_info:
-                skill_name = getattr(cast_info.skill, 'name', 'Unknown')
-                console.print(8, y + 4, f"⏳ 시전: {skill_name}", fg=(200, 100, 255))
-
-            # BREAK 상태 표시
+            # BREAK 상태 표시 (캐스팅보다 우선)
             if self.combat_manager.brave.is_broken(ally):
-                console.print(8, y + 4, "💔 BREAK!", fg=(255, 50, 50))
+                console.print(8, y + 3, "💔 BREAK!", fg=(255, 50, 50))
+            
+            # 캐스팅 중이면 스킬 이름 표시 (BREAK가 없을 때만)
+            elif cast_info:
+                skill_name = getattr(cast_info.skill, 'name', 'Unknown')
+                console.print(8, y + 3, f"⏳ 시전: {skill_name}", fg=(200, 100, 255))
 
     def _render_enemies(self, console: tcod.console.Console):
         """적군 상태 렌더링 (상세)"""

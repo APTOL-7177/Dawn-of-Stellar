@@ -29,10 +29,28 @@ class Skill:
     def can_use(self, user: Any, context: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
         """스킬 사용 가능 여부"""
         context = context or {}
+        
+        # 비용 체크
         for cost in self.costs:
             can_afford, reason = cost.can_afford(user, context)
             if not can_afford:
                 return False, reason
+        
+        # 메타데이터 기반 조건 체크
+        if self.metadata:
+            # 배틀메이지: 서로 다른 룬 3개 필요
+            if self.metadata.get("requires_different_runes"):
+                required_count = self.metadata.get("requires_different_runes", 3)
+                if hasattr(user, 'gimmick_type') and user.gimmick_type == "rune_resonance":
+                    rune_types = ["rune_fire", "rune_ice", "rune_lightning", "rune_earth", "rune_arcane"]
+                    different_runes = 0
+                    for rune_type in rune_types:
+                        if getattr(user, rune_type, 0) > 0:
+                            different_runes += 1
+                    
+                    if different_runes < required_count:
+                        return False, f"서로 다른 룬 {required_count}개가 필요합니다 (현재: {different_runes}개)"
+        
         return True, ""
 
     def execute(self, user: Any, target: Any, context: Optional[Dict[str, Any]] = None) -> SkillResult:

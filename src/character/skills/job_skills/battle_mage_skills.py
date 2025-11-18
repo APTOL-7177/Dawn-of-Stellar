@@ -38,7 +38,7 @@ def create_battle_mage_skills():
         GimmickEffect(GimmickOperation.ADD, "rune_fire", 1, max_value=3),
         BuffEffect(BuffType.ATTACK_UP, 0.15, duration=99)  # 룬 보유 동안 지속
     ]
-    fire_rune.costs = []
+    fire_rune.costs = [MPCost(4)]  # 다른 룬들과 동일한 MP 비용
     fire_rune.target_type = "self"
     fire_rune.metadata = {"rune_type": "fire"}
 
