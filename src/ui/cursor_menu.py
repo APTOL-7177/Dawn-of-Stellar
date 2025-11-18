@@ -160,20 +160,20 @@ class CursorMenu:
             )
             current_y += 2
 
-        # 테두리
-        title_offset = 2 if self.title else 0
-        description_height = 3 if self.show_description else 0
-        frame_height = min(len(self.items), self.max_visible_items) + 2 + description_height
-
-        console.draw_frame(
-            self.x,
-            self.y + title_offset,
-            self.width,
-            frame_height,
-            "",
-            fg=Colors.UI_BORDER,
-            bg=Colors.UI_BG
-        )
+        # 테두리 (제거됨 - 메인 메뉴에서 프레임 없이 깔끔하게)
+        # title_offset = 2 if self.title else 0
+        # description_height = 3 if self.show_description else 0
+        # frame_height = min(len(self.items), self.max_visible_items) + 2 + description_height
+        #
+        # console.draw_frame(
+        #     self.x,
+        #     self.y + title_offset,
+        #     self.width,
+        #     frame_height,
+        #     "",
+        #     fg=Colors.UI_BORDER,
+        #     bg=Colors.UI_BG
+        # )
 
         # 아이템 렌더링
         visible_items = self.items[self.scroll_offset:self.scroll_offset + self.max_visible_items]
@@ -206,15 +206,15 @@ class CursorMenu:
         if self.show_description:
             selected = self.get_selected_item()
             if selected and selected.description:
-                desc_y = current_y + min(len(self.items), self.max_visible_items) + 1
+                desc_y = current_y + min(len(self.items), self.max_visible_items) + 2
 
-                # 설명 구분선
-                console.print(
-                    self.x + 1,
-                    desc_y - 1,
-                    "─" * (self.width - 2),
-                    fg=Colors.UI_BORDER
-                )
+                # 설명 구분선 (제거됨)
+                # console.print(
+                #     self.x + 1,
+                #     desc_y - 1,
+                #     "─" * (self.width - 2),
+                #     fg=Colors.UI_BORDER
+                # )
 
                 # 설명 텍스트 (여러 줄 지원)
                 desc_lines = self._wrap_text(selected.description, self.width - 4)

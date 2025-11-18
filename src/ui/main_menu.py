@@ -196,10 +196,10 @@ class MainMenu:
             ),
         ]
 
-        # 커서 메뉴 생성 (중앙 하단 배치)
+        # 커서 메뉴 생성 (중앙 하단 배치 - 더 아래로)
         menu_width = 40
         menu_x = (self.screen_width - menu_width) // 2
-        menu_y = self.screen_height // 2 + 2  # 타이틀이 작아져서 간격 조정
+        menu_y = self.screen_height // 2 + 8  # 더 아래로 내림
 
         self.menu = CursorMenu(
             title="",
@@ -404,25 +404,6 @@ class MainMenu:
         # 3줄: "STELLAR" (큰 글씨)
         render_text("STELLAR", self.big_font, 11, 4, 5, main_color, use_glow=True)
 
-        # 타이틀 주변 빛 확산 효과
-        title_center_y = title_start_y + 8
-        title_center_x = self.screen_width // 2
-
-        # 빛 확산 라인 (좌우)
-        glow_length = int(8 + 3 * math.sin(self.animation_frame / 25.0))
-        glow_brightness = max(0, min(255, int(80 + 50 * math.sin(self.animation_frame / 20.0))))
-
-        for i in range(1, glow_length):
-            alpha = max(0, int(glow_brightness * (1 - i / glow_length)))
-            glow_color = (alpha, alpha, 255)
-
-            # 왼쪽
-            if title_center_x - 25 - i >= 0:
-                console.print(title_center_x - 25 - i, title_center_y, "─", fg=glow_color)
-            # 오른쪽
-            if title_center_x + 25 + i < self.screen_width:
-                console.print(title_center_x + 25 + i, title_center_y, "─", fg=glow_color)
-
         # 한글 서브타이틀 (별빛의 여명)
         subtitle_y = title_start_y + 18  # 타이틀 전체 높이 + 2줄 간격
         subtitle_x = (self.screen_width - len(self.subtitle)) // 2
@@ -452,32 +433,6 @@ class MainMenu:
         console.print(self.screen_width // 2 - 2, title_start_y + 17, "✦", fg=(bottom_brightness, bottom_brightness, 255))
         console.print(self.screen_width // 2, title_start_y + 17, "✦", fg=(bottom_brightness, bottom_brightness, 255))
         console.print(self.screen_width // 2 + 2, title_start_y + 17, "✦", fg=(bottom_brightness, bottom_brightness, 255))
-
-        # 메뉴 프레임 효과
-        menu_y_start = self.screen_height // 2 + 1
-        menu_y_end = menu_y_start + 10
-        menu_x_start = (self.screen_width - 40) // 2 - 2
-        menu_x_end = menu_x_start + 44
-
-        frame_brightness = max(0, min(255, int(100 + 50 * math.sin(self.animation_frame / 30.0))))
-        frame_color = (frame_brightness, frame_brightness, 200)
-
-        # 프레임 라인 (상하좌우)
-        for x in range(menu_x_start, menu_x_end):
-            if x >= 0 and x < self.screen_width:
-                console.print(x, menu_y_start - 1, "─", fg=frame_color)
-                console.print(x, menu_y_end, "─", fg=frame_color)
-
-        for y in range(menu_y_start, menu_y_end):
-            if y >= 0 and y < self.screen_height:
-                console.print(menu_x_start - 1, y, "│", fg=frame_color)
-                console.print(menu_x_end, y, "│", fg=frame_color)
-
-        # 프레임 코너
-        console.print(menu_x_start - 1, menu_y_start - 1, "┌", fg=frame_color)
-        console.print(menu_x_end, menu_y_start - 1, "┐", fg=frame_color)
-        console.print(menu_x_start - 1, menu_y_end, "└", fg=frame_color)
-        console.print(menu_x_end, menu_y_end, "┘", fg=frame_color)
 
         # 버전 정보
         version = "v5.0.0"
