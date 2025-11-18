@@ -915,7 +915,7 @@ class CombatUI:
 
     def _render_messages(self, console: tcod.console.Console):
         """메시지 로그 렌더링"""
-        msg_y = 28
+        msg_y = 31
         console.print(5, msg_y, "─" * (self.screen_width - 10), fg=(100, 100, 100))
 
         for i, msg in enumerate(self.messages[-self.max_messages:]):
