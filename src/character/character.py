@@ -736,8 +736,21 @@ class Character:
         # 이 효과는 combat_manager에서 처리되어야 함 (아군이 피해를 받을 때)
         # 여기서는 실제 데미지만 적용
         
-        actual_damage = min(damage, self.current_hp)
+        # 피해 받기 전 이벤트 발행 (수호 효과를 위해 - 피해를 줄이거나 대신 받기 위함)
         old_hp = self.current_hp
+        damage_event_data = {
+            "character": self,
+            "damage": damage,
+            "old_hp": old_hp,
+            "new_hp": None  # 아직 피해가 적용되지 않았음을 나타냄
+        }
+        event_bus.publish(Events.COMBAT_DAMAGE_TAKEN, damage_event_data)
+        
+        # 이벤트 핸들러에서 수정된 피해를 사용 (수호 효과가 적용되었을 수 있음)
+        # 수호 효과가 적용되면 이벤트 핸들러에서 damage_event_data["damage"]를 수정함
+        final_damage = damage_event_data.get("damage", damage)
+        
+        actual_damage = min(final_damage, self.current_hp)
         self.current_hp -= actual_damage
 
         # 특성 효과: 보복 (retaliation) - 피해 받을 때마다 공격력 증가
@@ -786,14 +799,6 @@ class Character:
             "change": -actual_damage,
             "current": self.current_hp,
             "max": self.max_hp
-        })
-        
-        # 피해 받은 이벤트 발행 (수호 효과를 위해)
-        event_bus.publish(Events.COMBAT_DAMAGE_TAKEN, {
-            "character": self,
-            "damage": actual_damage,
-            "old_hp": old_hp,
-            "new_hp": self.current_hp
         })
 
         return actual_damage

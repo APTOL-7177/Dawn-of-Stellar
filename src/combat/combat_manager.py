@@ -1403,6 +1403,11 @@ class CombatManager:
         if defender not in self.allies:
             return
         
+        # 이미 피해가 적용되었는지 확인 (new_hp가 None이면 아직 적용 전)
+        if data.get("new_hp") is not None:
+            # 이미 피해가 적용된 경우, 수호 효과는 처리할 수 없음
+            return
+        
         # 특성 효과: 수호 (guardian_angel) - 아군 피해 대신 받기
         from src.character.trait_effects import get_trait_effect_manager, TraitEffectType
         trait_manager = get_trait_effect_manager()
@@ -1423,20 +1428,24 @@ class CombatManager:
                         # 확률적으로 피해 대신 받기
                         import random
                         if random.random() < effect.value:  # value = 확률 (0.20 = 20%)
-                            # 피해를 수호자에게 전환
-                            protected_damage = int(damage * effect.value)  # 일부 피해만 대신 받기
+                            # 수호자가 받을 피해 계산 (원래 피해의 일부)
+                            protected_damage = int(damage * effect.value)  # 20% 대신 받기
+                            
+                            # 원래 피해를 받을 캐릭터가 받을 피해를 줄임
+                            remaining_damage = damage - protected_damage
+                            
+                            # 데이터에 수정된 피해를 반영
+                            data["damage"] = remaining_damage
+                            
+                            # 수호자가 피해를 받음
                             if hasattr(ally, 'take_damage'):
-                                actual_damage = ally.take_damage(protected_damage)
+                                guardian_actual_damage = ally.take_damage(protected_damage)
                                 self.logger.info(
                                     f"[{trait_id}] {ally.name}이(가) {defender.name}의 피해를 대신 받음: "
-                                    f"{protected_damage} → 실제 {actual_damage}"
+                                    f"{protected_damage} → 실제 {guardian_actual_damage} (원래 피해: {damage}, 남은 피해: {remaining_damage})"
                                 )
-                                # 원래 피해를 받은 캐릭터는 피해 감소
-                                if hasattr(defender, 'current_hp'):
-                                    defender.current_hp = min(defender.current_hp + protected_damage, defender.max_hp)
-                                    if hasattr(defender, 'heal'):
-                                        defender.heal(protected_damage)
-                                return  # 한 명만 수호
+                            
+                            return  # 한 명만 수호
 
     def _on_turn_end(self, actor: Any) -> None:
         """

@@ -973,18 +973,14 @@ class PartySetup:
                 is_selected=is_selected  # 선택된 항목 표시 (색상 구분용)
             ))
         
-        # 완료 항목
-        menu_items.append(MenuItem(
-            text="← 완료",
-            value="done",
-            enabled=True,
-            description="패시브 선택 완료"
-        ))
-        
         # 총 코스트 정보 포함한 제목
-        title = f"파티 전체 패시브 선택 (총 코스트: {total_cost}/10)"
+        max_passives = 3
+        selected_count = len(self.selected_passives)
+        title = f"파티 전체 패시브 선택 (선택: {selected_count}/{max_passives}, 코스트: {total_cost}/10)"
         if total_cost > 10:
-            title += " [초과!]"
+            title += " [코스트 초과!]"
+        if selected_count > max_passives:
+            title += " [종류 초과!]"
         
         self.passive_menu = CursorMenu(
             title=title,
@@ -995,37 +991,56 @@ class PartySetup:
             show_description=True
         )
 
-    def _handle_passive_select(self, action: GameAction) -> bool:
+    def _handle_passive_select(self, action: GameAction, event: tcod.event.KeyDown = None) -> bool:
         """패시브 선택 입력 처리 (파티 전체 공통)"""
         if action == GameAction.MOVE_UP:
             self.passive_menu.move_cursor_up()
         elif action == GameAction.MOVE_DOWN:
             self.passive_menu.move_cursor_down()
         elif action == GameAction.CONFIRM:
-            selected = self.passive_menu.get_selected_item()
-            if selected:
-                value = selected.value
+            # 엔터 키 확인 (게임 시작)
+            if event and event.sym == tcod.event.KeySym.RETURN:
+                # 패시브 선택 완료 조건 확인
+                max_passives = 3
+                selected_count = len(self.selected_passives)
                 
-                if value == "done":
-                    # 패시브 선택 완료 → 확인 단계로
-                    total_cost = 0
-                    for passive_id in self.selected_passives:
-                        # passives.yaml에서 코스트 확인
-                        from pathlib import Path
-                        import yaml
-                        passives_file = Path("data/passives.yaml")
-                        if passives_file.exists():
-                            with open(passives_file, 'r', encoding='utf-8') as f:
-                                data = yaml.safe_load(f)
-                                if data and 'passives' in data:
-                                    passives = data['passives'] if isinstance(data['passives'], list) else list(data['passives'].values())
-                                    for p in passives:
-                                        if p.get('id') == passive_id:
-                                            total_cost += p.get('cost', 0)
-                    
-                    self.logger.info(f"패시브 선택 완료: 선택된 패시브 수: {len(self.selected_passives)}, 총 코스트: {total_cost}")
-                    self.state = "confirm"
+                # 총 코스트 계산
+                from pathlib import Path
+                import yaml
+                total_cost = 0
+                passives_file = Path("data/passives.yaml")
+                if passives_file.exists():
+                    with open(passives_file, 'r', encoding='utf-8') as f:
+                        data = yaml.safe_load(f)
+                        if data and 'passives' in data:
+                            passives = data['passives'] if isinstance(data['passives'], list) else list(data['passives'].values())
+                            for passive_id in self.selected_passives:
+                                for p in passives:
+                                    if p.get('id') == passive_id:
+                                        total_cost += p.get('cost', 0)
+                
+                # 완료 조건 확인
+                if selected_count > max_passives:
+                    self.error_message = f"패시브는 최대 {max_passives}종류까지 선택할 수 있습니다! (현재: {selected_count}개)"
+                    self.error_timer = 120
+                    self.logger.warning(f"패시브 선택 완료 실패: 종류 초과 ({selected_count} > {max_passives})")
+                    return False
+                elif total_cost > 10:
+                    self.error_message = f"코스트 초과! (현재: {total_cost}, 최대: 10)"
+                    self.error_timer = 120
+                    self.logger.warning(f"패시브 선택 완료 실패: 코스트 초과 ({total_cost} > 10)")
+                    return False
                 else:
+                    # 패시브 선택 완료 → 게임 시작
+                    self.logger.info(f"패시브 선택 완료: 선택된 패시브 수: {selected_count}, 총 코스트: {total_cost}")
+                    self.completed = True
+                    return True
+            else:
+                # Z 키: 패시브 토글
+                selected = self.passive_menu.get_selected_item()
+                if selected:
+                    value = selected.value
+                    
                     # 패시브 토글 (파티 전체 공통)
                     # 코스트 계산
                     from pathlib import Path
@@ -1033,6 +1048,7 @@ class PartySetup:
                     passives_file = Path("data/passives.yaml")
                     current_cost = 0
                     passive_cost = 0
+                    max_passives = 3
                     
                     if passives_file.exists():
                         with open(passives_file, 'r', encoding='utf-8') as f:
@@ -1050,14 +1066,19 @@ class PartySetup:
                         self.selected_passives.remove(value)
                         self.logger.info(f"패시브 선택 해제: {value}, 현재 선택된 패시브: {self.selected_passives}")
                     else:
-                        # 선택 (최대 코스트 10 제한)
-                        if current_cost + passive_cost <= 10:
-                            self.selected_passives.append(value)
-                            self.logger.info(f"패시브 선택: {value}, 현재 선택된 패시브: {self.selected_passives}, 총 코스트: {current_cost + passive_cost}")
-                        else:
+                        # 선택 (최대 3종류, 최대 코스트 10 제한)
+                        selected_count = len(self.selected_passives)
+                        if selected_count >= max_passives:
+                            self.error_message = f"패시브는 최대 {max_passives}종류까지 선택할 수 있습니다! (현재: {selected_count}개)"
+                            self.error_timer = 120
+                            self.logger.warning(f"패시브 선택 실패: 종류 초과 ({selected_count} >= {max_passives})")
+                        elif current_cost + passive_cost > 10:
                             self.error_message = f"코스트 초과! (현재: {current_cost}, 추가: {passive_cost}, 최대: 10)"
                             self.error_timer = 120
                             self.logger.warning(f"패시브 선택 실패: 코스트 초과 ({current_cost} + {passive_cost} > 10)")
+                        else:
+                            self.selected_passives.append(value)
+                            self.logger.info(f"패시브 선택: {value}, 현재 선택된 패시브: {self.selected_passives}, 총 코스트: {current_cost + passive_cost}")
                     
                     # 메뉴 다시 생성 (체크 표시 및 총 코스트 업데이트)
                     current_cursor = self.passive_menu.cursor_index if self.passive_menu else 0
