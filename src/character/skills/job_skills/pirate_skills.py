@@ -18,7 +18,7 @@ def create_pirate_skills():
         GimmickEffect(GimmickOperation.ADD, "gold", 1, max_value=10)
     ]
     plunder.costs = []  # 기본 공격은 MP 소모 없음
-    plunder.sfx = "020"  # 짧은 획득
+    plunder.sfx = ("item", "get_item")  # 약탈
     plunder.metadata = {"gold_gain": 1}
     skills.append(plunder)
 
@@ -29,7 +29,7 @@ def create_pirate_skills():
         GimmickEffect(GimmickOperation.CONSUME, "gold", 1)
     ]
     coin_shot.costs = []  # 기본 공격은 MP 소모 없음
-    coin_shot.sfx = "014"  # 짧은 총 공격
+    coin_shot.sfx = ("skill", "gun_reload")  # 금화 발사
     coin_shot.metadata = {"gold_cost": 1, "gold_scaling": True}
     skills.append(coin_shot)
 
@@ -41,7 +41,7 @@ def create_pirate_skills():
     ]
     treasure_hunt.costs = []
     # treasure_hunt.cooldown = 2  # 쿨다운 시스템 제거됨
-    treasure_hunt.sfx = "357"  # 짧은 획득
+    treasure_hunt.sfx = ("item", "get_item")  # 보물 사냥
     treasure_hunt.metadata = {"gold_gain": 2}
     skills.append(treasure_hunt)
 
@@ -55,7 +55,7 @@ def create_pirate_skills():
     drink_rum.costs = [MPCost(4), StackCost("gold", 2)]
     drink_rum.target_type = "self"
     # drink_rum.cooldown = 3  # 쿨다운 시스템 제거됨
-    drink_rum.sfx = "093"  # 짧은 버프
+    drink_rum.sfx = ("character", "status_buff")  # 럼주 마시기
     drink_rum.metadata = {"gold_cost": 2, "buff": True}
     skills.append(drink_rum)
 
@@ -68,7 +68,7 @@ def create_pirate_skills():
     cannon_fire.costs = [MPCost(6), StackCost("gold", 3)]
     # cannon_fire.cooldown = 3  # 쿨다운 시스템 제거됨
     cannon_fire.is_aoe = True
-    cannon_fire.sfx = "019"  # 짧은 폭발
+    cannon_fire.sfx = ("skill", "cannon")  # 대포 발사
     cannon_fire.metadata = {"gold_cost": 3, "gold_scaling": True, "aoe": True}
     skills.append(cannon_fire)
 
@@ -81,7 +81,7 @@ def create_pirate_skills():
     store_treasure.costs = [MPCost(5)]
     store_treasure.target_type = "self"
     # store_treasure.cooldown = 5  # 쿨다운 시스템 제거됨
-    store_treasure.sfx = "093"  # 짧은 버프
+    store_treasure.sfx = ("character", "status_buff")  # 보물 저장
     store_treasure.metadata = {"gold_refill": True, "buff": True}
     skills.append(store_treasure)
 
@@ -95,7 +95,7 @@ def create_pirate_skills():
     gold_bomb.costs = [MPCost(7), StackCost("gold", 5)]
     # gold_bomb.cooldown = 4  # 쿨다운 시스템 제거됨
     gold_bomb.is_aoe = True
-    gold_bomb.sfx = "146"  # 짧은 폭발
+    gold_bomb.sfx = ("skill", "cannon")  # 금화 폭탄
     gold_bomb.metadata = {"gold_cost": 5, "gold_scaling": True, "aoe": True}
     skills.append(gold_bomb)
 
@@ -109,7 +109,7 @@ def create_pirate_skills():
     pirate_ship_attack.costs = [MPCost(9), StackCost("gold", 7)]
     # pirate_ship_attack.cooldown = 6  # 쿨다운 시스템 제거됨
     pirate_ship_attack.is_aoe = True
-    pirate_ship_attack.sfx = "146"  # 짧은 광역 공격
+    pirate_ship_attack.sfx = ("skill", "cannon")  # 해적선 공격
     pirate_ship_attack.metadata = {"gold_cost": 7, "gold_scaling": True, "aoe": True}
     skills.append(pirate_ship_attack)
 
@@ -125,7 +125,7 @@ def create_pirate_skills():
     blackbeard_curse.costs = [MPCost(11), StackCost("gold", 8)]
     # blackbeard_curse.cooldown = 7  # 쿨다운 시스템 제거됨
     blackbeard_curse.is_aoe = True
-    blackbeard_curse.sfx = "148"  # 짧은 디버프
+    blackbeard_curse.sfx = ("character", "status_debuff")  # 검은 수염의 저주
     blackbeard_curse.metadata = {"gold_cost": 8, "gold_scaling": True, "debuff": True, "aoe": True}
     skills.append(blackbeard_curse)
 
@@ -142,7 +142,7 @@ def create_pirate_skills():
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.sfx = "035"  # 짧은 리미트 브레이크
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "gold_scaling": True, "gold_refill": True, "aoe": True}
     skills.append(ultimate)
 

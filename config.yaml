@@ -339,150 +339,189 @@ audio:
   bgm_volume: 0.6
   sfx_volume: 0.7
 
-  # BGM 설정 (Final Fantasy VII Original Soundtrack)
+  # BGM 설정 (RPG MAKER MZ BGM/ME, bg 폴더 우선)
   bgm:
     enabled: true
     fade_duration: 1.0  # 페이드 인/아웃 시간 (초)
 
-    # BGM 매핑 (FFVII OST 기반)
+    # BGM 매핑 (RPG MAKER MZ 기반, bg > me > bgm 순서로 검색)
     tracks:
       # 메인 메뉴 & UI
-      intro: "02-Opening ~ Bombing Mission"                    # Opening ~ Bombing Mission (인트로 스토리)
-      main_menu: "01-The Prelude"                              # The Prelude
-      menu: "65-Aeris' Theme"                                  # Menu (런처 및 메뉴용 - Aeris' Theme)
-      party_setup: "24-Holding My Thoughts in My Heart"        # Holding My Thoughts in My Heart
+      intro: "intro"                                            # 인트로 스토리
+      main_menu: "menu"                                         # 메인 메뉴
+      menu: "menu2"                                             # 메뉴
+      party_setup: "party_setup"                                # 파티 설정
 
       # 월드 & 던전
-      world_map: "25-Main Theme of Final Fantasy VII"          # Main Theme of FFVII
-      dungeon_normal: "05-Anxious Heart"                       # Anxious Heart
-      dungeon_dark: "09-Lurking in the Darkness"               # Lurking in the Darkness
-      dungeon_search: "33-Chasing the Black-Caped Man"         # Chasing the Black-Caped Man
+      world_map: "worldmap"                                     # 월드 맵
+      
+      # 바이옴별 던전 BGM (5층마다 바뀜)
+      biome_0: "caves"                                          # 바이옴 0 (1-5층): 동굴
+      biome_1: "forest"                                         # 바이옴 1 (6-10층): 숲
+      biome_2: "devillands"                                     # 바이옴 2 (11-15층): 악마의 땅
+      biome_3: "badlands"                                       # 바이옴 3 (16-20층): 황무지
+      biome_4: "desert"                                         # 바이옴 4 (21-25층): 사막
+      biome_5: "frostlands"                                     # 바이옴 5 (26-30층): 얼음 땅
+      biome_6: "highlands"                                      # 바이옴 6 (31-35층): 고원
+      biome_7: "icelands"                                       # 바이옴 7 (36-40층): 빙원
+      biome_8: "warlands"                                       # 바이옴 8 (41-45층): 전쟁의 땅
+      biome_9: "caves"                                          # 바이옴 9 (46-50층): 동굴 (순환)
+      
+      # 레거시 던전 BGM (하위 호환성)
+      dungeon_normal: "caves"                                   # 일반 던전 (기본값)
+      dungeon_dark: "devillands"                                # 어두운 던전
+      dungeon_search: "forest"                                  # 탐색 던전
 
       # 전투
-      battle_normal: "11-Fighting"                             # Fighting (Let the Battles Begin!)
-      battle_boss: "21-Still More Fighting"                    # Still More Fighting (Fight On!)
-      battle_jenova: "38-J-E-N-O-V-A"                          # J-E-N-O-V-A
-      battle_jenova_absolute: "85-Jenova Absolute"             # Jenova Absolute
-      battle_birth_of_god: "86-The Birth of God"               # The Birth of God
-      battle_sephiroth: "50-Those Chosen By the Planet"        # Those Chosen By the Planet
-      battle_weapon: "71-Weapon Raid"                          # Weapon Raid
-      battle_final_boss: "87-One-Winged Angel"                 # One-Winged Angel
+      battle_normal: "battle"                                   # 일반 전투
+      battle_boss: "boss"                                       # 보스 전투
+      battle_jenova: "battle"                                   # 젠노바 전투
+      battle_jenova_absolute: "battle"                          # 젠노바 절대 전투
+      battle_birth_of_god: "boss"                               # 신의 탄생 전투
+      battle_sephiroth: "sephiroth"                             # 세피로스 전투
+      battle_weapon: "boss"                                     # 웨폰 전투
+      battle_final_boss: "boss"                                 # 최종 보스 전투
 
       # 전투 결과
-      victory: "12-Fanfare"                                    # Fanfare
-      game_over: "39-Continue"                                 # Continue
+      victory: "fanfare"                                        # 승리 (bg 우선, 없으면 me/Fanfare1-3 검색)
+      game_over: "gameover"                                     # 게임 오버
 
       # 휴식 & 이벤트
-      rest: "27-Good Night, Until Tomorrow!"                   # Good Night, Until Tomorrow!
-      town: "26-Ahead on Our Way"                              # Ahead on Our Way
-      shop: "16-Oppressed People"                              # Oppressed People
-      tutorial: "26-Ahead on Our Way"                          # 튜토리얼 - 평화로운 여정
+      rest: "inn1"                                              # 휴식 (me/Inn1)
+      town: "highlands"                                         # 마을
+      shop: "menu2"                                             # 상점
+      tutorial: "menu"                                          # 튜토리얼
 
       # 특수 상황
-      escape: "08-Hurry!"                                      # Hurry!
-      danger: "70-Full-Scale Attack"                           # Full-Scale Attack
-      suspense: "18-Who Are You"                               # Who Are You
+      escape: "evillands"                                          # 도주
+      danger: "warlands"                                        # 위험
+      suspense: "devillands"                                    # 긴장감
 
       # 감정적 장면
-      sad: "65-Aeris' Theme"                                   # Aeris' Theme
-      hope: "80-If You Open Your Heart...."                    # If You Open Your Heart....
-      triumph: "72-The Highwind Takes to the Skies"            # The Highwind Takes to the Skies
+      sad: "menu2"                                              # 슬픔
+      hope: "menu"                                              # 희망
+      triumph: "fanfare"                                        # 승리감
 
-  # SFX 설정 (Final Fantasy VII Original Sound Effects)
+  # SFX 설정 (RPG MAKER MZ SE Sound Effects)
   sfx:
     enabled: true
 
-    # UI 효과음 (FFVII 원본 SFX 인덱스)
+    # UI 효과음 (RPG MAKER MZ SE)
     ui:
-      cursor_move: "000"           # 커서 이동 (SFX #0)
-      cursor_select: "001"         # 메뉴 선택/확인 (SFX #1: Save Ready)
-      cursor_cancel: "003"         # 메뉴 취소/뒤로 (SFX #3: Cancel)
-      cursor_error: "002"          # 불가능한 행동 (SFX #2: Invalid Choice)
-      menu_open: "000"             # 메뉴 열기
-      menu_close: "003"            # 메뉴 닫기
+      cursor_move: "Cursor1"       # 커서 이동
+      cursor_select: "Decision1"   # 메뉴 선택/확인
+      cursor_cancel: "Cancel1"     # 메뉴 취소/뒤로
+      cursor_error: "Buzzer1"      # 불가능한 행동
+      menu_open: "Cursor1"         # 메뉴 열기
+      menu_close: "Cancel1"        # 메뉴 닫기
 
     # 전투 효과음
     combat:
-      attack_physical: "017"       # 물리 공격 (SFX #17: Cloud's Sword Strike)
-      attack_gun: "014"            # 총 공격 (SFX #14: Gun Hit)
-      attack_magic: "012"          # 마법 공격 (SFX #12: Magic Casting Preparation)
-      damage_low: "004"            # 낮은 데미지 (SFX #4: Missed Hit)
-      damage_high: "034"           # 높은 데미지 (SFX #34: Enemy Punch Attack)
-      critical: "026"              # 크리티컬 히트 (SFX #26: Cloud Critical Sword Hit)
-      miss: "004"                  # 회피/빗나감 (SFX #4: Missed Hit)
-      dodge: "061"                 # 회피 (SFX #61: Dodging an Attack)
-      break: "445"                 # BRV BREAK/보스 죽음 (SFX #445: Boss Death)
-      guard: "061"                 # 방어 (Dodging)
-      battle_start: "042"          # 전투 시작 (SFX #42: Battle Swirl)
-      escape: "025"                # 도주 (SFX #25: Escaping from Battle)
+      attack_physical: "Sword1"    # 물리 공격
+      attack_gun: "Gun1"           # 총 공격
+      attack_magic: "Magic1"       # 마법 공격
+      damage_low: "Damage1"        # 낮은 데미지
+      damage_high: "Damage3"       # 높은 데미지
+      critical: "Critical"         # 크리티컬 히트
+      miss: "Miss"                 # 회피/빗나감
+      dodge: "Evasion1"            # 회피
+      break: "Break"               # BRV BREAK/보스 죽음
+      guard: "Parry"               # 방어
+      battle_start: "Battle1"      # 전투 시작
+      escape: "Run"                # 도주
+      turn_start: "Cursor2"        # 턴 시작
 
     # 캐릭터 상태
     character:
-      hp_heal: "005"               # HP 회복 (SFX #5: Cure/Potion)
-      hp_heal_high: "006"          # 높은 HP 회복 (SFX #6: High Potion)
-      hp_heal_max: "007"           # 최대 HP 회복 (SFX #7: Cure 2/X-Potion)
-      mp_heal: "090"               # MP 회복 (SFX #90: Regen Spell)
-      level_up: "381"              # 레벨업 (SFX #381: Fourth Limit Break Acquired)
-      status_buff: "093"           # 버프 적용 (SFX #93: Protect Spell)
-      status_debuff: "148"         # 디버프 적용 (SFX #148: Status Ailment Inflicted)
-      death: "021"                 # 전투불능 (SFX #21: Enemy Death)
-      revive: "420"                # 부활 (SFX #420: Life 2)
-      faint: "134"                 # 기절 (SFX #134: Fainting)
+      hp_heal: "Recovery"             # HP 회복
+      hp_heal_high: "Recovery"        # 높은 HP 회복
+      hp_heal_max: "Recovery"         # 최대 HP 회복
+      mp_heal: "Recovery"          # MP 회복
+      level_up: "Powerup"          # 레벨업
+      status_buff: "Up1"           # 버프 적용
+      status_debuff: "Down1"       # 디버프 적용
+      death: "Collapse1"           # 전투불능
+      revive: "Raise1"             # 부활
+      faint: "Paralyze1"           # 기절
 
     # 스킬 효과음
     skill:
-      cast_start: "012"            # 스킬 시전 시작 (SFX #12: Magic Casting Preparation)
-      cast_complete: "012"         # 스킬 시전 완료
-      fire: "008"                  # 파이어 (SFX #8: Fire Spell)
-      fire2: "009"                 # 파이어2 (SFX #9: Fire 2)
-      fire3: "141"                 # 파이어3 (SFX #141: Fire 3)
-      bolt: "010"                  # 볼트 (SFX #10: Bolt Spell)
-      bolt2: "011"                 # 볼트2 (SFX #11: Bolt 2)
-      bolt3: "069"                 # 볼트3 (SFX #69: Bolt 3)
-      ice: "023"                   # 아이스 (SFX #23: Ice Spell)
-      ice3: "028"                  # 아이스3 (SFX #28: Ice 3)
-      cure: "005"                  # 케어 (SFX #5: Cure)
-      cure2: "007"                 # 케어2 (SFX #7: Cure 2)
-      cure3: "068"                 # 케어3 (SFX #68: Cure 3)
-      haste: "082"                 # 헤이스트 (SFX #82: Haste Spell)
-      slow: "064"                  # 슬로우 (SFX #64: Slow Spell)
-      shell: "066"                 # 쉘 (SFX #66: Shell Spell)
-      protect: "093"               # 프로텍트 (SFX #93: Protect Spell)
-      reflect: "071"               # 리플렉트 (SFX #71: Reflect Spell)
-      ultima: "307"                # 알테마 (SFX #307: Ultima Spell)
-      flare: "369"                 # 플레어 (SFX #369: Flare Spell)
-      summon: "040"                # 소환 (SFX #40: Vanishing before summon)
-      limit_break: "035"           # 리미트 브레이크 (SFX #35: Limit Break Activation)
+      cast_start: "Magic1"         # 스킬 시전 시작
+      cast_complete: "Magic2"      # 스킬 시전 완료
+      fire: "Fire1"                # 파이어
+      fire2: "Fire2"               # 파이어2
+      fire3: "Fire3"               # 파이어3
+      bolt: "Thunder1"             # 볼트
+      bolt2: "Thunder2"            # 볼트2
+      bolt3: "Thunder3"            # 볼트3
+      ice: "Ice1"                  # 아이스
+      ice3: "Ice3"                 # 아이스3
+      cure: "Heal1"                # 케어
+      cure2: "Heal1"               # 케어2
+      cure3: "Heal1"               # 케어3
+      haste: "Up2"                 # 헤이스트
+      slow: "Down2"                # 슬로우
+      shell: "Barrier"             # 쉘
+      protect: "Barrier"           # 프로텍트
+      reflect: "Reflection"        # 리플렉트
+      ultima: "Explosion4"         # 알테마
+      flare: "Explosion3"          # 플레어
+      summon: "Summon"             # 소환
+      limit_break: "Critical"      # 리미트 브레이크
+      # 유니크 SFX (직업별 특화)
+      computer: "Computer"         # 컴퓨터 (해커)
+      machine: "Machine"           # 기계
+      laser: "Laser1"              # 레이저
+      switch: "Switch1"            # 스위치
+      load: "Load1"                # 로드
+      save: "Save1"                # 세이브
+      bell: "Bell1"                # 벨 (바드)
+      sound1: "Sound1"             # 사운드1
+      sound2: "Sound2"             # 사운드2
+      sound3: "Sound3"             # 사운드3
+      roar: "Roar1"                # 포효 (드래곤나이트)
+      slash: "Slash1"              # 베기
+      slash2: "Slash2"             # 베기2
+      sword: "Sword2"              # 검
+      gun_shot: "Gun1"             # 총 발사
+      gun_reload: "Gun2"           # 총 장전 (해적)
+      cannon: "Explosion2"         # 대포 (해적)
+      wind: "Wind1"                # 바람
+      earth: "Earth1"              # 땅
+      holy: "Heal4"                # 성스러운 (팔라딘)
+      dark: "Dark1"                # 어둠 (다크나이트)
+      poison: "Poison1"            # 독
+      confusion: "Confusion1"      # 혼란
 
     # 아이템 효과음
     item:
-      get_item: "357"              # 아이템 획득 (SFX #357: Obtained Something)
-      use_item: "020"              # 아이템 사용 (SFX #20: Using Item)
-      open_chest: "253"            # 상자 열기 (SFX #253: Treasure Chest Opening)
-      get_gil: "170"               # 길 획득 (SFX #170: Gil Coin)
-      equip: "444"                 # 장비 착용 (SFX #444: Equipping)
-      buy: "261"                   # 구매 (SFX #261: Buying Something)
-      potion: "005"                # 포션 (SFX #5: Cure/Potion)
-      high_potion: "006"           # 하이 포션 (SFX #6: High Potion)
-      elixir: "068"                # 엘릭서 (SFX #68: Elixir)
-      phoenix_down: "379"          # 부활약 (SFX #379: Phoenix Tail Item)
-      grenade: "019"               # 수류탄 (SFX #19: Grenade Item Explosion)
+      get_item: "Item1"            # 아이템 획득
+      use_item: "Item2"            # 아이템 사용
+      open_chest: "Chest1"         # 상자 열기
+      get_gil: "Coin"              # 길 획득
+      equip: "Equip1"              # 장비 착용
+      buy: "Shop1"                 # 구매
+      potion: "Heal1"              # 포션
+      high_potion: "Heal3"         # 하이 포션
+      elixir: "Heal5"              # 엘릭서
+      phoenix_down: "Raise1"       # 부활약
+      grenade: "Explosion1"        # 수류탄
 
     # 월드 효과음
     world:
-      door_open: "121"             # 문 열림 (SFX #121: Door Opening)
-      door_close: "052"            # 문 닫힘 (SFX #52: Train Door)
-      gate_open: "031"             # 게이트 열기 (SFX #31: Gate Opening)
-      gate_unlock: "051"           # 게이트 잠금 해제 (SFX #51: Gate Unlocked)
-      stairs: "054"                # 계단 이동 (SFX #54: Jumping)
-      save: "356"                  # 세이브 (SFX #356: Save Point)
-      gathering: "020"             # 채집 (SFX #20: Using Item/Grabbing)
-      jump: "054"                  # 점프 (SFX #54: Jumping)
-      land: "055"                  # 착지 (SFX #55: Landing)
-      fall: "132"                  # 낙하 (SFX #132: Falling)
-      switch_on: "050"             # 스위치 켜기 (SFX #50: Switching ON)
-      alert: "059"                 # 경보 (SFX #59: Alert)
-      break_open: "198"            # 부수기 (SFX #198: Break Open)
+      door_open: "Door1"           # 문 열림
+      door_close: "Close1"         # 문 닫힘
+      gate_open: "Gate1"           # 게이트 열기
+      gate_unlock: "Key"           # 게이트 잠금 해제
+      stairs: "Move1"              # 계단 이동
+      save: "Save1"                # 세이브
+      gathering: "Item2"           # 채집
+      jump: "Jump1"                # 점프
+      land: "Move2"                # 착지
+      fall: "Fall"                 # 낙하
+      switch_on: "Switch1"         # 스위치 켜기
+      alert: "Siren"               # 경보
+      break_open: "Hammer"         # 부수기
 
     categories:
       - ui

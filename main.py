@@ -402,18 +402,15 @@ def main() -> int:
 
                                 # 별의 파편은 게임 정산 시에만 지급 (로그라이크 방식)
 
-                                # 전투 후 던전 BGM 재생 (층수에 맞는 BGM)
+                                # 전투 후 던전 BGM 재생 (바이옴별 BGM)
                                 from src.audio import play_bgm
                                 floor = exploration.floor_number
-                                if floor <= 5:
-                                    play_bgm("dungeon_normal", loop=True, fade_in=True)
-                                elif floor <= 10:
-                                    play_bgm("dungeon_search", loop=True, fade_in=True)
-                                elif floor <= 15:
-                                    play_bgm("dungeon_dark", loop=True, fade_in=True)
-                                else:
-                                    play_bgm("danger", loop=True, fade_in=True)
-                                logger.info(f"던전 BGM 재생 (층수: {floor})")
+                                # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
+                                biome_index = (floor - 1) // 5
+                                biome_index = biome_index % 10  # 10개 바이옴 순환
+                                biome_track = f"biome_{biome_index}"
+                                play_bgm(biome_track, loop=True, fade_in=True)
+                                logger.info(f"던전 BGM 재생 (층수: {floor}, 바이옴: {biome_index}, BGM: {biome_track})")
                                 play_dungeon_bgm = False
                                 continue
                             elif combat_result == CombatState.DEFEAT:
@@ -434,18 +431,15 @@ def main() -> int:
                                 break
                             else:
                                 logger.info("🏃 도망쳤다")
-                                # 도망 후 던전 BGM 재생 (층수에 맞는 BGM)
+                                # 도망 후 던전 BGM 재생 (바이옴별 BGM)
                                 from src.audio import play_bgm
                                 floor = exploration.floor_number
-                                if floor <= 5:
-                                    play_bgm("dungeon_normal", loop=True, fade_in=True)
-                                elif floor <= 10:
-                                    play_bgm("dungeon_search", loop=True, fade_in=True)
-                                elif floor <= 15:
-                                    play_bgm("dungeon_dark", loop=True, fade_in=True)
-                                else:
-                                    play_bgm("danger", loop=True, fade_in=True)
-                                logger.info(f"던전 BGM 재생 (층수: {floor})")
+                                # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
+                                biome_index = (floor - 1) // 5
+                                biome_index = biome_index % 10  # 10개 바이옴 순환
+                                biome_track = f"biome_{biome_index}"
+                                play_bgm(biome_track, loop=True, fade_in=True)
+                                logger.info(f"던전 BGM 재생 (층수: {floor}, 바이옴: {biome_index}, BGM: {biome_track})")
                                 play_dungeon_bgm = False
                                 continue
 
@@ -791,18 +785,15 @@ def main() -> int:
 
                                         # 별의 파편은 게임 정산 시에만 지급 (로그라이크 방식)
 
-                                        # 전투 후 던전 BGM 재생 (층수에 맞는 BGM)
+                                        # 전투 후 던전 BGM 재생 (바이옴별 BGM)
                                         from src.audio import play_bgm
                                         floor = exploration.floor_number
-                                        if floor <= 5:
-                                            play_bgm("dungeon_normal", loop=True, fade_in=True)
-                                        elif floor <= 10:
-                                            play_bgm("dungeon_search", loop=True, fade_in=True)
-                                        elif floor <= 15:
-                                            play_bgm("dungeon_dark", loop=True, fade_in=True)
-                                        else:
-                                            play_bgm("danger", loop=True, fade_in=True)
-                                        logger.info(f"던전 BGM 재생 (층수: {floor})")
+                                        # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
+                                        biome_index = (floor - 1) // 5
+                                        biome_index = biome_index % 10  # 10개 바이옴 순환
+                                        biome_track = f"biome_{biome_index}"
+                                        play_bgm(biome_track, loop=True, fade_in=True)
+                                        logger.info(f"던전 BGM 재생 (층수: {floor}, 바이옴: {biome_index}, BGM: {biome_track})")
                                         play_dungeon_bgm = False
                                         continue  # 탐험 계속
                                     elif combat_result == CombatState.DEFEAT:
@@ -823,18 +814,15 @@ def main() -> int:
                                         break
                                     else:
                                         logger.info("🏃 도망쳤다")
-                                        # 도망 후 던전 BGM 재생 (층수에 맞는 BGM)
+                                        # 도망 후 던전 BGM 재생 (바이옴별 BGM)
                                         from src.audio import play_bgm
                                         floor = exploration.floor_number
-                                        if floor <= 5:
-                                            play_bgm("dungeon_normal", loop=True, fade_in=True)
-                                        elif floor <= 10:
-                                            play_bgm("dungeon_search", loop=True, fade_in=True)
-                                        elif floor <= 15:
-                                            play_bgm("dungeon_dark", loop=True, fade_in=True)
-                                        else:
-                                            play_bgm("danger", loop=True, fade_in=True)
-                                        logger.info(f"던전 BGM 재생 (층수: {floor})")
+                                        # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
+                                        biome_index = (floor - 1) // 5
+                                        biome_index = biome_index % 10  # 10개 바이옴 순환
+                                        biome_track = f"biome_{biome_index}"
+                                        play_bgm(biome_track, loop=True, fade_in=True)
+                                        logger.info(f"던전 BGM 재생 (층수: {floor}, 바이옴: {biome_index}, BGM: {biome_track})")
                                         play_dungeon_bgm = False
                                         continue
 

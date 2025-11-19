@@ -19,7 +19,7 @@ def create_bard_skills():
         GimmickEffect(GimmickOperation.ADD, "melody_stacks", 1, max_value=7)
     ]
     note_attack.costs = []  # 기본 공격은 MP 소모 없음
-    note_attack.sfx = "438"
+    note_attack.sfx = ("skill", "bell")  # 음표 공격
     note_attack.metadata = {"melody_gain": 1}
     skills.append(note_attack)
 
@@ -30,7 +30,7 @@ def create_bard_skills():
         GimmickEffect(GimmickOperation.CONSUME, "melody_stacks", 1)
     ]
     chord_strike.costs = []  # 기본 공격은 MP 소모 없음
-    chord_strike.sfx = "443"
+    chord_strike.sfx = ("skill", "sound1")  # 화음 타격
     chord_strike.metadata = {"melody_cost": 1, "melody_scaling": True}
     skills.append(chord_strike)
 
@@ -42,7 +42,7 @@ def create_bard_skills():
     scale_up.costs = []
     scale_up.target_type = "self"
     # scale_up.cooldown = 3  # 쿨다운 시스템 제거됨
-    scale_up.sfx = "453"
+    scale_up.sfx = ("skill", "haste")  # 음계 상승
     scale_up.metadata = {"melody_gain": 3}
     skills.append(scale_up)
 
@@ -56,7 +56,7 @@ def create_bard_skills():
     healing_song.target_type = "party"
     # healing_song.cooldown = 3  # 쿨다운 시스템 제거됨
     healing_song.cast_time = 0.2  # ATB 20% 캐스팅
-    healing_song.sfx = "463"
+    healing_song.sfx = ("skill", "bell")  # 회복의 노래
     healing_song.metadata = {"healing": True, "party_wide": True, "melody_gain": 1}
     skills.append(healing_song)
 
@@ -68,7 +68,7 @@ def create_bard_skills():
     ]
     crescendo.costs = [MPCost(4)]
     # crescendo.cooldown = 2  # 쿨다운 시스템 제거됨
-    crescendo.sfx = "473"
+    crescendo.sfx = ("skill", "sound2")  # 전율
     crescendo.metadata = {"melody_scaling": True, "melody_gain": 1}
     skills.append(crescendo)
 
@@ -81,7 +81,7 @@ def create_bard_skills():
     resonance.costs = [MPCost(6)]
     resonance.target_type = "party"
     # resonance.cooldown = 4  # 쿨다운 시스템 제거됨
-    resonance.sfx = "483"
+    resonance.sfx = ("skill", "sound1")  # 공명
     resonance.metadata = {"buff": True, "party_wide": True, "melody_gain": 1}
     skills.append(resonance)
 
@@ -97,7 +97,7 @@ def create_bard_skills():
     perfect_harmony.target_type = "party"
     # perfect_harmony.cooldown = 5  # 쿨다운 시스템 제거됨
     perfect_harmony.cast_time = 0.4  # ATB 40% 캐스팅
-    perfect_harmony.sfx = "493"
+    perfect_harmony.sfx = ("skill", "bell")  # 화음 완성
     perfect_harmony.metadata = {"octave": True, "melody_cost": 7, "buff": True, "party_wide": True}
     skills.append(perfect_harmony)
 
@@ -109,7 +109,7 @@ def create_bard_skills():
     ]
     discord.costs = [MPCost(7), StackCost("melody_stacks", 2)]  # 멜로디 2음 필요
     # discord.cooldown = 3  # 쿨다운 시스템 제거됨
-    discord.sfx = "503"
+    discord.sfx = ("skill", "sound3")  # 불협화음
     discord.metadata = {"melody_cost": 2, "debuff": True}
     skills.append(discord)
 
@@ -124,7 +124,7 @@ def create_bard_skills():
     fortissimo.costs = [MPCost(9), StackCost("melody_stacks", 4)]
     fortissimo.target_type = "party"
     # fortissimo.cooldown = 5  # 쿨다운 시스템 제거됨
-    fortissimo.sfx = "513"
+    fortissimo.sfx = ("skill", "sound2")  # 강화 협주곡
     fortissimo.metadata = {"melody_cost": 4, "buff": True, "party_wide": True}
     skills.append(fortissimo)
 
@@ -144,7 +144,7 @@ def create_bard_skills():
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.cast_time = 0.8  # ATB 80% 캐스팅 (궁극기)
-    ultimate.sfx = "523"
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "melody_consume_all": True, "octave_scaling": True, "party_wide": True, "aoe": True}
     skills.append(ultimate)

@@ -20,7 +20,7 @@ def create_paladin_skills():
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
     holy_strike.costs = []  # 기본 공격은 MP 소모 없음
-    holy_strike.sfx = "456"
+    holy_strike.sfx = ("combat", "attack_physical")  # 성스러운 일격
     holy_strike.metadata = {"holy_power_gain": 1}
     skills.append(holy_strike)
 
@@ -31,7 +31,7 @@ def create_paladin_skills():
         GimmickEffect(GimmickOperation.CONSUME, "holy_power", 1)
     ]
     divine_judgment.costs = []  # 기본 공격은 MP 소모 없음
-    divine_judgment.sfx = "462"
+    divine_judgment.sfx = ("skill", "cast_complete")  # 신성한 심판
     divine_judgment.metadata = {"holy_power_cost": 1, "holy_power_scaling": True}
     skills.append(divine_judgment)
 
@@ -44,7 +44,7 @@ def create_paladin_skills():
     divine_shield.costs = []
     divine_shield.target_type = "self"
     # divine_shield.cooldown = 4  # 쿨다운 시스템 제거됨
-    divine_shield.sfx = "468"
+    divine_shield.sfx = ("skill", "shell")  # 신성한 보호막
     divine_shield.metadata = {"holy_power_cost": 2, "shield": True, "holy_power_scaling": True}
     skills.append(divine_shield)
 
@@ -57,7 +57,7 @@ def create_paladin_skills():
     ]
     consecration.costs = [MPCost(3)]
     # consecration.cooldown = 3  # 쿨다운 시스템 제거됨
-    consecration.sfx = "474"
+    consecration.sfx = ("character", "status_buff")  # 신성화
     consecration.metadata = {"holy_power_gain": 1, "dot": True}
     skills.append(consecration)
 
@@ -70,7 +70,7 @@ def create_paladin_skills():
     holy_light.costs = [MPCost(5)]
     holy_light.target_type = "ally"
     # holy_light.cooldown = 2  # 쿨다운 시스템 제거됨
-    holy_light.sfx = "480"
+    holy_light.sfx = ("character", "hp_heal")  # 성스러운 빛
     holy_light.metadata = {"holy_power_gain": 1, "healing": True}
     skills.append(holy_light)
 
@@ -82,7 +82,7 @@ def create_paladin_skills():
     ]
     hammer.costs = [MPCost(6)]
     # hammer.cooldown = 3  # 쿨다운 시스템 제거됨
-    hammer.sfx = "486"
+    hammer.sfx = ("combat", "damage_high")  # 정의의 망치
     hammer.metadata = {"holy_power_gain": 1, "holy_power_scaling": True}
     skills.append(hammer)
 
@@ -96,7 +96,7 @@ def create_paladin_skills():
     blessing.costs = [MPCost(6)]
     blessing.target_type = "party"
     # blessing.cooldown = 5  # 쿨다운 시스템 제거됨
-    blessing.sfx = "492"
+    blessing.sfx = ("character", "status_buff")  # 축복
     blessing.metadata = {"holy_power_gain": 1, "party": True, "buff": True}
     skills.append(blessing)
 
@@ -111,7 +111,7 @@ def create_paladin_skills():
     avenging_wrath.costs = [MPCost(7), StackCost("holy_power", 3)]
     avenging_wrath.target_type = "self"
     # avenging_wrath.cooldown = 6  # 쿨다운 시스템 제거됨
-    avenging_wrath.sfx = "498"
+    avenging_wrath.sfx = ("skill", "haste")  # 복수의 격노
     avenging_wrath.metadata = {"holy_power_cost": 3, "buff": True, "shield": True}
     skills.append(avenging_wrath)
 
@@ -127,7 +127,7 @@ def create_paladin_skills():
     # holy_retribution.cooldown = 6  # 쿨다운 시스템 제거됨
     holy_retribution.target_type = "all_enemies"
     holy_retribution.is_aoe = True
-    holy_retribution.sfx = "504"
+    holy_retribution.sfx = ("skill", "ultima")  # 성스러운 징벌
     holy_retribution.metadata = {"holy_power_cost": 4, "holy_power_scaling": True, "debuff": True, "aoe": True}
     skills.append(holy_retribution)
 
@@ -146,7 +146,7 @@ def create_paladin_skills():
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
-    ultimate.sfx = "514"
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "holy_power_refill": True, "healing": True, "party": True}
     skills.append(ultimate)
 

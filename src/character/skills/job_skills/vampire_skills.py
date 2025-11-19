@@ -16,7 +16,7 @@ def create_vampire_skills():
         GimmickEffect(GimmickOperation.ADD, "thirst", -5, min_value=0)  # 갈증 -5
     ]
     vampiric_bite.costs = []  # 기본 공격은 MP 소모 없음
-    vampiric_bite.sfx = "032"  # FFVII bite/drain sound
+    vampiric_bite.sfx = ("combat", "attack_physical")  # 흡혈 물기
     vampiric_bite.metadata = {"basic_attack": True, "thirst_reduction": -5, "lifesteal": 0.2}
 
     # 2. 기본 HP: 피의 흡수 (갈증 -20, 대량 감소)
@@ -26,7 +26,7 @@ def create_vampire_skills():
         GimmickEffect(GimmickOperation.ADD, "thirst", -20, min_value=0)  # 갈증 -20
     ]
     blood_drain.costs = []  # 기본 공격은 MP 소모 없음
-    blood_drain.sfx = "048"  # FFVII drain sound
+    blood_drain.sfx = ("character", "hp_heal")  # 피의 흡수
     blood_drain.metadata = {"basic_attack": True, "thirst_reduction": -20, "lifesteal": 0.4}
 
     # 3. 피의 창 (갈증에 비례한 강력한 공격, 갈증 증가)
@@ -37,7 +37,7 @@ def create_vampire_skills():
         GimmickEffect(GimmickOperation.ADD, "thirst", 15, max_value=100)  # 갈증 +15
     ]
     blood_lance.costs = [MPCost(4)]  # MP 소모 필요
-    blood_lance.sfx = "108"  # FFVII lance/spear sound
+    blood_lance.sfx = ("combat", "damage_high")  # 피의 창
     # blood_lance.cooldown = 2  # 쿨다운 시스템 제거됨
     blood_lance.metadata = {"thirst_scaling": True, "thirst_increase": True}
 
@@ -49,7 +49,7 @@ def create_vampire_skills():
         GimmickEffect(GimmickOperation.ADD, "thirst", 30, max_value=100)  # 갈증 +30 (위험!)
     ]
     thirst_surge.costs = [MPCost(6)]  # MP 소모 필요
-    thirst_surge.sfx = "146"  # FFVII explosion sound
+    thirst_surge.sfx = ("skill", "cast_complete")  # 갈증 폭발
     thirst_surge.metadata = {"thirst_increase": True, "high_risk": True}
 
     # 5. 박쥐 떼 (광역 공격, 갈증 증가)
@@ -61,7 +61,7 @@ def create_vampire_skills():
     bat_swarm.costs = [MPCost(5)]
     bat_swarm.target_type = "all_enemies"
     bat_swarm.is_aoe = True
-    bat_swarm.sfx = "182"  # FFVII swarm/flutter sound
+    bat_swarm.sfx = ("skill", "summon")  # 박쥐 떼
     # bat_swarm.cooldown = 4  # 쿨다운 시스템 제거됨
     bat_swarm.metadata = {"aoe": True, "thirst_increase": True}
 
@@ -74,7 +74,7 @@ def create_vampire_skills():
     ]
     mist_form.costs = [MPCost(4)]
     mist_form.target_type = "self"
-    mist_form.sfx = "199"  # FFVII mist/fog sound
+    mist_form.sfx = ("combat", "dodge")  # 안개 형상
     # mist_form.cooldown = 5  # 쿨다운 시스템 제거됨
     mist_form.metadata = {"evasion_buff": True, "thirst_increase": True}
 
@@ -86,7 +86,7 @@ def create_vampire_skills():
     ]
     prepare_frenzy.costs = [MPCost(9)]
     prepare_frenzy.target_type = "self"
-    prepare_frenzy.sfx = "217"  # FFVII power-up sound
+    prepare_frenzy.sfx = ("character", "status_buff")  # 광란 준비
     # prepare_frenzy.cooldown = 6  # 쿨다운 시스템 제거됨
     prepare_frenzy.metadata = {"thirst_increase": True, "optimal_thirst": 70}
 
@@ -98,7 +98,7 @@ def create_vampire_skills():
         GimmickEffect(GimmickOperation.ADD, "thirst", -30, min_value=0)  # 갈증 -30
     ]
     life_tap.costs = [MPCost(9)]
-    life_tap.sfx = "261"  # FFVII drain/absorb sound
+    life_tap.sfx = ("character", "hp_heal")  # 생명력 착취
     # life_tap.cooldown = 4  # 쿨다운 시스템 제거됨
     life_tap.metadata = {"major_drain": True, "thirst_reduction": -30}
 
@@ -111,7 +111,7 @@ def create_vampire_skills():
     ]
     blood_satiation.costs = [MPCost(10)]
     blood_satiation.target_type = "self"
-    blood_satiation.sfx = "300"  # FFVII restoration sound
+    blood_satiation.sfx = ("character", "hp_heal")  # 혈액 만족
     # blood_satiation.cooldown = 7  # 쿨다운 시스템 제거됨
     blood_satiation.metadata = {"thirst_reset": True, "recovery": True}
 
@@ -129,7 +129,7 @@ def create_vampire_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.sfx = "035"  # 짧은 리미트 브레이크
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.target_type = "single"
     ultimate.metadata = {"ultimate": True, "thirst_scaling_max": True, "thirst_increase": True}

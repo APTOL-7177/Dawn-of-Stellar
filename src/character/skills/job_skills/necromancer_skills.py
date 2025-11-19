@@ -17,7 +17,7 @@ def create_necromancer_skills():
         DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
     ]
     shadow_bolt.costs = []  # 기본 공격은 MP 소모 없음
-    shadow_bolt.sfx = "012"  # 짧은 마법 공격
+    shadow_bolt.sfx = ("skill", "cast_start")  # 암흑 화살
     shadow_bolt.metadata = {}
 
     # 2. 기본 HP: 생명력 흡수 (HP 드레인)
@@ -27,7 +27,7 @@ def create_necromancer_skills():
         LifestealEffect(lifesteal_percent=0.15, low_hp_bonus=False)  # 피해의 15% 회복
     ]
     drain_life.costs = []  # 기본 공격은 MP 소모 없음
-    drain_life.sfx = "048"  # 짧은 드레인/흡수
+    drain_life.sfx = ("character", "hp_heal")  # 생명력 흡수
     drain_life.metadata = {"drain": True}
 
     # 3. 스켈레톤 소환 (물리 공격력 +15%)
@@ -39,7 +39,7 @@ def create_necromancer_skills():
     ]
     summon_skeleton.costs = [HPCost(10)]
     summon_skeleton.target_type = "self"
-    summon_skeleton.sfx = "148"  # 짧은 저주/소환
+    summon_skeleton.sfx = ("skill", "summon")  # 스켈레톤 소환
     summon_skeleton.metadata = {"undead_type": "skeleton"}
 
     # 4. 좀비 소환 (방어력 +20%, HP 회복)
@@ -52,7 +52,7 @@ def create_necromancer_skills():
     ]
     summon_zombie.costs = [MPCost(7), HPCost(15)]
     summon_zombie.target_type = "self"
-    summon_zombie.sfx = "148"  # 짧은 저주/소환
+    summon_zombie.sfx = ("skill", "summon")  # 좀비 소환
     summon_zombie.metadata = {"undead_type": "zombie"}
 
     # 5. 유령 소환 (마법 공격력 +20%, 회피율 +10%)
@@ -65,7 +65,7 @@ def create_necromancer_skills():
     ]
     summon_ghost.costs = [MPCost(9), HPCost(20)]
     summon_ghost.target_type = "self"
-    summon_ghost.sfx = "148"  # 짧은 저주/소환
+    summon_ghost.sfx = ("skill", "summon")  # 유령 소환
     summon_ghost.metadata = {"undead_type": "ghost"}
 
     # 6. 언데드 희생 (언데드 1마리 희생하여 강력한 공격)
@@ -78,7 +78,7 @@ def create_necromancer_skills():
         HealEffect(heal_type=HealType.MP, base_amount=20)
     ]
     sacrifice_undead.costs = [MPCost(5)]
-    sacrifice_undead.sfx = "146"  # 짧은 폭발
+    sacrifice_undead.sfx = ("skill", "ultima")  # 언데드 희생
     sacrifice_undead.metadata = {"sacrifice": True}
 
     # 7. 군단 지휘 (언데드 강화 버프)
@@ -89,7 +89,7 @@ def create_necromancer_skills():
     ]
     legion_command.costs = [MPCost(7)]
     legion_command.target_type = "self"
-    legion_command.sfx = "093"  # 짧은 버프
+    legion_command.sfx = ("character", "status_buff")  # 군단 지휘
     legion_command.metadata = {"undead_buff": True}
 
     # 8. 죽음의 파동 (언데드 수에 비례한 광역 공격)
@@ -102,7 +102,7 @@ def create_necromancer_skills():
     death_wave.costs = [MPCost(8)]
     death_wave.target_type = "all_enemies"
     death_wave.is_aoe = True
-    death_wave.sfx = "146"  # 짧은 광역 마법
+    death_wave.sfx = ("skill", "cast_complete")  # 죽음의 파동
     death_wave.metadata = {"death_wave": True}
 
     # 9. 대량 소환 (모든 언데드 타입 1마리씩 즉시 소환)
@@ -118,7 +118,7 @@ def create_necromancer_skills():
     ]
     mass_summon.costs = [MPCost(11), HPCost(50)]
     mass_summon.target_type = "self"
-    mass_summon.sfx = "148"  # 짧은 대량 소환
+    mass_summon.sfx = ("skill", "summon")  # 대량 소환
     mass_summon.metadata = {"mass_summon": True}
 
     # 10. 궁극기: 언데드 대군단 (모든 언데드 희생, 극한의 피해)
@@ -137,7 +137,7 @@ def create_necromancer_skills():
     ultimate.is_ultimate = True
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
-    ultimate.sfx = "035"  # 짧은 리미트 브레이크
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "legion_sacrifice": True}
 
     return [shadow_bolt, drain_life, summon_skeleton, summon_zombie, summon_ghost,

@@ -19,7 +19,7 @@ def create_druid_skills():
         GimmickEffect(GimmickOperation.ADD, "nature_points", 1, max_value=5)
     ]
     nature_power.costs = []  # 기본 공격은 MP 소모 없음
-    nature_power.sfx = "338"
+    nature_power.sfx = ("skill", "cast_start")  # 자연의 힘
     nature_power.metadata = {"nature_gain": 1}
     skills.append(nature_power)
 
@@ -30,7 +30,7 @@ def create_druid_skills():
         GimmickEffect(GimmickOperation.CONSUME, "nature_points", 1)
     ]
     thorn_vine.costs = []  # 기본 공격은 MP 소모 없음
-    thorn_vine.sfx = "344"
+    thorn_vine.sfx = ("skill", "cast_complete")  # 가시 덩굴
     thorn_vine.metadata = {"nature_cost": 1, "nature_scaling": True}
     skills.append(thorn_vine)
 
@@ -45,7 +45,7 @@ def create_druid_skills():
     bear_form.costs = []
     bear_form.target_type = "self"
     # bear_form.cooldown = 3  # 쿨다운 시스템 제거됨
-    bear_form.sfx = "352"
+    bear_form.sfx = ("character", "status_buff")  # 곰 변신
     bear_form.metadata = {"form": "bear", "defensive": True, "nature_gain": 1}
     skills.append(bear_form)
 
@@ -60,7 +60,7 @@ def create_druid_skills():
     cat_form.costs = [MPCost(4)]
     cat_form.target_type = "self"
     # cat_form.cooldown = 3  # 쿨다운 시스템 제거됨
-    cat_form.sfx = "358"
+    cat_form.sfx = ("skill", "haste")  # 표범 변신
     cat_form.metadata = {"form": "cat", "speed": True, "nature_gain": 1}
     skills.append(cat_form)
 
@@ -73,7 +73,7 @@ def create_druid_skills():
     healing_forest.costs = [MPCost(5), StackCost("nature_points", 2)]
     healing_forest.target_type = "party"
     # healing_forest.cooldown = 4  # 쿨다운 시스템 제거됨
-    healing_forest.sfx = "365"
+    healing_forest.sfx = ("character", "hp_heal")  # 치유의 숲
     healing_forest.metadata = {"nature_cost": 2, "healing": True, "party": True}
     skills.append(healing_forest)
 
@@ -87,7 +87,7 @@ def create_druid_skills():
     nature_blessing.costs = [MPCost(6)]
     nature_blessing.target_type = "self"
     # nature_blessing.cooldown = 5  # 쿨다운 시스템 제거됨
-    nature_blessing.sfx = "371"
+    nature_blessing.sfx = ("character", "status_buff")  # 자연의 축복
     nature_blessing.metadata = {"nature_refill": True, "regen": True}
     skills.append(nature_blessing)
 
@@ -100,7 +100,7 @@ def create_druid_skills():
     ]
     eagle_form.costs = [MPCost(7), StackCost("nature_points", 3)]
     # eagle_form.cooldown = 4  # 쿨다운 시스템 제거됨
-    eagle_form.sfx = "378"
+    eagle_form.sfx = ("world", "jump")  # 독수리 변신
     eagle_form.metadata = {"form": "eagle", "nature_cost": 3, "nature_scaling": True}
     skills.append(eagle_form)
 
@@ -116,7 +116,7 @@ def create_druid_skills():
     # wolf_form.cooldown = 5  # 쿨다운 시스템 제거됨
     wolf_form.target_type = "all_enemies"
     wolf_form.is_aoe = True
-    wolf_form.sfx = "385"
+    wolf_form.sfx = ("combat", "attack_physical")  # 늑대 변신
     wolf_form.metadata = {"form": "wolf", "nature_cost": 4, "nature_scaling": True, "aoe": True}
     skills.append(wolf_form)
 
@@ -133,7 +133,7 @@ def create_druid_skills():
     # natures_wrath.cooldown = 6  # 쿨다운 시스템 제거됨
     natures_wrath.target_type = "all_enemies"
     natures_wrath.is_aoe = True
-    natures_wrath.sfx = "390"
+    natures_wrath.sfx = ("skill", "cast_complete")  # 자연의 분노
     natures_wrath.metadata = {"form": "elemental", "nature_cost": 5, "nature_scaling": True, "debuff": True}
     skills.append(natures_wrath)
 
@@ -153,7 +153,7 @@ def create_druid_skills():
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.sfx = "396"
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "form": "primal", "nature_refill": True, "all_stats": True}
     skills.append(ultimate)
 

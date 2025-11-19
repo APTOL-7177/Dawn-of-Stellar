@@ -504,21 +504,17 @@ def run_exploration(
     # 남은 이벤트 제거 (불러오기 등에서 남은 키 입력 방지)
     tcod.event.get()
 
-    # 층마다 다른 BGM 재생 (전투 후 복귀 시에는 재생하지 않음)
+    # 바이옴별 BGM 재생 (5층마다 바뀜, 전투 후 복귀 시에는 재생하지 않음)
     if play_bgm_on_start:
         floor = exploration.floor_number
-        if floor <= 5:
-            # 초반 층: 일반 던전 BGM
-            play_bgm("dungeon_normal")
-        elif floor <= 10:
-            # 중반 층: 탐색 던전 BGM
-            play_bgm("dungeon_search")
-        elif floor <= 15:
-            # 중후반 층: 어두운 던전 BGM
-            play_bgm("dungeon_dark")
-        else:
-            # 후반 층: 위험한 분위기
-            play_bgm("danger")
+        # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
+        biome_index = (floor - 1) // 5
+        # 바이옴 9 이상은 순환 (10개 바이옴 순환)
+        biome_index = biome_index % 10
+        biome_track = f"biome_{biome_index}"
+        
+        logger.info(f"층 {floor} -> 바이옴 {biome_index}, BGM: {biome_track}")
+        play_bgm(biome_track)
 
     while True:
         # 핫 리로드 체크 (개발 모드일 때만)

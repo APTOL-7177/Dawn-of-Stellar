@@ -385,6 +385,32 @@ class DungeonGenerator:
 
     def _place_keys_and_locks(self, dungeon: DungeonMap, num_keys: int):
         """열쇠와 잠긴 문 배치"""
+        # 계단이 있는 방 찾기
+        stairs_rooms = set()
+        if dungeon.stairs_up:
+            stairs_up_room = self._find_room_containing_point(dungeon, dungeon.stairs_up)
+            if stairs_up_room:
+                stairs_rooms.add(id(stairs_up_room))
+        if dungeon.stairs_down:
+            stairs_down_room = self._find_room_containing_point(dungeon, dungeon.stairs_down)
+            if stairs_down_room:
+                stairs_rooms.add(id(stairs_down_room))
+        
+        # 계단이 있는 방과 연결된 복도 타일 찾기 (제외할 복도)
+        excluded_corridors = set()
+        for stairs_room in stairs_rooms:
+            room = next((r for r in dungeon.rooms if id(r) == stairs_room), None)
+            if room:
+                # 방의 경계 근처 복도 타일 찾기
+                for corridor_pos in dungeon.corridors:
+                    cx, cy = corridor_pos
+                    # 방의 경계에서 일정 거리 내에 있는 복도는 제외
+                    if (room.x1 - 2 <= cx <= room.x2 + 2 and room.y1 - 2 <= cy <= room.y2 + 2):
+                        excluded_corridors.add(corridor_pos)
+        
+        # 잠긴 문을 배치할 수 있는 복도 목록 (계단 방과 연결된 복도 제외)
+        available_corridors = [pos for pos in dungeon.corridors if pos not in excluded_corridors]
+        
         for i in range(num_keys):
             key_id = f"key_{i}"
 
@@ -395,9 +421,9 @@ class DungeonGenerator:
                 dungeon.set_tile(key_pos[0], key_pos[1], TileType.KEY, key_id=key_id)
                 dungeon.keys.append((key_pos[0], key_pos[1], key_id))
 
-            # 복도에 잠긴 문 배치
-            if len(dungeon.corridors) > 10:
-                lock_pos = random.choice(dungeon.corridors[-len(dungeon.corridors)//2:])
+            # 복도에 잠긴 문 배치 (계단 방과 연결된 복도 제외)
+            if len(available_corridors) > 0:
+                lock_pos = random.choice(available_corridors)
                 dungeon.set_tile(
                     lock_pos[0], lock_pos[1],
                     TileType.LOCKED_DOOR,
@@ -405,6 +431,16 @@ class DungeonGenerator:
                     locked=True
                 )
                 dungeon.locked_doors.append((lock_pos[0], lock_pos[1], key_id))
+                # 이미 사용한 복도는 제외 (중복 방지)
+                available_corridors.remove(lock_pos)
+    
+    def _find_room_containing_point(self, dungeon: DungeonMap, point: Tuple[int, int]) -> Optional[Rect]:
+        """특정 좌표를 포함하는 방 찾기"""
+        px, py = point
+        for room in dungeon.rooms:
+            if room.x1 <= px < room.x2 and room.y1 <= py < room.y2:
+                return room
+        return None
 
     def _place_traps(self, dungeon: DungeonMap, num_traps: int):
         """함정 배치"""

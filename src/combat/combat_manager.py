@@ -213,7 +213,36 @@ class CombatManager:
         self.current_actor = actor
         result = {}
 
-        # 턴 시작 처리
+        # 행동 타입별 처리 (먼저 실행하여 실패 여부 확인)
+        if action_type == ActionType.BRV_ATTACK:
+            result = self._execute_brv_attack(actor, target, skill, **kwargs)
+        elif action_type == ActionType.HP_ATTACK:
+            result = self._execute_hp_attack(actor, target, skill, **kwargs)
+        elif action_type == ActionType.BRV_HP_ATTACK:
+            result = self._execute_brv_hp_attack(actor, target, skill, **kwargs)
+        elif action_type == ActionType.SKILL:
+            result = self._execute_skill(actor, target, skill, **kwargs)
+        elif action_type == ActionType.ITEM:
+            result = self._execute_item(actor, target, **kwargs)
+        elif action_type == ActionType.DEFEND:
+            result = self._execute_defend(actor, **kwargs)
+        elif action_type == ActionType.FLEE:
+            result = self._execute_flee(actor, **kwargs)
+
+        # 행동 성공 여부 확인 (스킬 실패 시 ATB 소비 안 함)
+        action_failed = False
+        if action_type == ActionType.SKILL:
+            # 스킬 실행 실패 시 (MP 부족 등)
+            if not result.get("success", False):
+                action_failed = True
+                self.logger.warning(f"{actor.name}의 스킬 실행 실패: {result.get('error', 'unknown')}")
+        
+        # 행동이 실패하면 턴 시작 처리(재생 효과 포함)를 하지 않음
+        if action_failed:
+            self.logger.info(f"{actor.name}의 행동 실패 - ATB 소비 안 함, 재생 효과 없음")
+            return result
+
+        # 턴 시작 처리 (행동 성공 시에만)
         # 0. 특성 효과: 턴 시작 효과 적용
         from src.character.trait_effects import get_trait_effect_manager
         trait_manager = get_trait_effect_manager()
@@ -398,44 +427,11 @@ class CombatManager:
                 self._on_turn_end(actor)
                 return result
 
-        self.logger.debug(
-            f"행동 실행: {actor.name} → {action_type.value}",
-            {"target": getattr(target, "name", None) if target else None}
-        )
+        # ATB 소비 (행동 성공 시)
+        self.atb.consume_atb(actor)
 
-        # 행동 타입별 처리
-        if action_type == ActionType.BRV_ATTACK:
-            result = self._execute_brv_attack(actor, target, skill, **kwargs)
-        elif action_type == ActionType.HP_ATTACK:
-            result = self._execute_hp_attack(actor, target, skill, **kwargs)
-        elif action_type == ActionType.BRV_HP_ATTACK:
-            result = self._execute_brv_hp_attack(actor, target, skill, **kwargs)
-        elif action_type == ActionType.SKILL:
-            result = self._execute_skill(actor, target, skill, **kwargs)
-        elif action_type == ActionType.ITEM:
-            result = self._execute_item(actor, target, **kwargs)
-        elif action_type == ActionType.DEFEND:
-            result = self._execute_defend(actor, **kwargs)
-        elif action_type == ActionType.FLEE:
-            result = self._execute_flee(actor, **kwargs)
-
-        # 행동 성공 여부 확인 (스킬 실패 시 ATB 소비 안 함)
-        action_failed = False
-        if action_type == ActionType.SKILL:
-            # 스킬 실행 실패 시 (MP 부족 등)
-            if not result.get("success", False):
-                action_failed = True
-                self.logger.warning(f"{actor.name}의 스킬 실행 실패: {result.get('error', 'unknown')}")
-
-        # ATB 소비 (행동 실패 시 소비 안 함)
-        if not action_failed:
-            self.atb.consume_atb(actor)
-
-            # 턴 종료 처리
-            self._on_turn_end(actor)
-        else:
-            # 실패한 행동은 ATB를 소비하지 않으므로 턴 종료 처리도 안 함
-            self.logger.info(f"{actor.name}의 행동 실패 - ATB 소비 안 함")
+        # 턴 종료 처리
+        self._on_turn_end(actor)
 
         # 콜백 호출
         if self.on_action_complete:
@@ -706,16 +702,56 @@ class CombatManager:
         from src.character.skills.skill_manager import get_skill_manager
         skill_manager = get_skill_manager()
 
-        # context에 모든 적 정보 추가 (AOE 효과를 위해)
-        all_enemies = self.enemies if actor in self.allies else self.allies
+        # 스킬 ID 확인
+        skill_id = getattr(skill, 'skill_id', None)
+        if not skill_id:
+            self.logger.error(f"스킬 ID가 없습니다: {skill}, actor={actor.name}")
+            return {
+                "action": "skill",
+                "success": False,
+                "error": "스킬 ID가 없습니다",
+                "skill_name": getattr(skill, "name", "Unknown")
+            }
 
-        # SkillManager를 통해 스킬 실행
-        skill_result = skill_manager.execute_skill(
-            skill.skill_id,
-            actor,
-            target,
-            context={"combat_manager": self, "all_enemies": all_enemies}
-        )
+        # 스킬이 등록되어 있는지 확인
+        registered_skill = skill_manager.get_skill(skill_id)
+        if not registered_skill:
+            self.logger.error(f"스킬이 등록되지 않았습니다: {skill_id}, actor={actor.name}")
+            # 스킬을 다시 찾아보기 (skill_ids에서 직접 가져오기)
+            if hasattr(actor, 'skill_ids') and skill_id in actor.skill_ids:
+                # 스킬이 actor의 skill_ids에 있지만 등록되지 않은 경우
+                # 스킬을 다시 등록 시도 (임시 해결책)
+                self.logger.warning(f"스킬 {skill_id}가 등록되지 않았지만 actor의 skill_ids에 있습니다. 스킬을 다시 등록합니다.")
+                # skill 객체를 직접 사용
+                if hasattr(skill, 'execute'):
+                    # Skill 객체를 직접 실행
+                    context = {"combat_manager": self, "all_enemies": self.enemies if actor in self.allies else self.allies}
+                    skill_result = skill.execute(actor, target, context)
+                else:
+                    return {
+                        "action": "skill",
+                        "success": False,
+                        "error": f"스킬 없음: {skill_id}",
+                        "skill_name": getattr(skill, "name", "Unknown")
+                    }
+            else:
+                return {
+                    "action": "skill",
+                    "success": False,
+                    "error": f"스킬 없음: {skill_id}",
+                    "skill_name": getattr(skill, "name", "Unknown")
+                }
+        else:
+            # context에 모든 적 정보 추가 (AOE 효과를 위해)
+            all_enemies = self.enemies if actor in self.allies else self.allies
+
+            # SkillManager를 통해 스킬 실행
+            skill_result = skill_manager.execute_skill(
+                skill_id,
+                actor,
+                target,
+                context={"combat_manager": self, "all_enemies": all_enemies}
+            )
 
         if skill_result.success:
             result["success"] = True

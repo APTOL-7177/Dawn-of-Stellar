@@ -17,7 +17,7 @@ def create_assassin_skills():
         GimmickEffect(GimmickOperation.SET, "stealth_active", 0)
     ]
     shadow_slash.costs = []  # 기본 공격은 MP 소모 없음
-    shadow_slash.sfx = "025"  # FFVII slash sound
+    shadow_slash.sfx = ("combat", "attack_physical")  # 물리 공격
     shadow_slash.metadata = {"breaks_stealth": True}
 
     # 2. 기본 HP: 암살 (은신 중 극대 피해, 은신 해제)
@@ -28,7 +28,7 @@ def create_assassin_skills():
         GimmickEffect(GimmickOperation.SET, "stealth_active", 0)  # 은신 해제
     ]
     assassinate.costs = []  # 기본 공격은 MP 소모 없음
-    assassinate.sfx = "025"  # 간결한 slash sound
+    assassinate.sfx = ("combat", "critical")  # 크리티컬
     assassinate.metadata = {"breaks_stealth": True, "stealth_bonus_high": True}
 
     # 3. 은신 (다시 은신 상태로 전환)
@@ -40,7 +40,7 @@ def create_assassin_skills():
     ]
     vanish.costs = []
     vanish.target_type = "self"
-    vanish.sfx = "010"  # FFVII vanish sound
+    vanish.sfx = ("skill", "cast_start")  # 은신 시작
     # vanish.cooldown = 3  # 쿨다운 시스템 제거됨
     vanish.metadata = {"enter_stealth": True}
 
@@ -52,7 +52,7 @@ def create_assassin_skills():
         GimmickEffect(GimmickOperation.SET, "stealth_active", 0)  # 은신 해제
     ]
     backstab.costs = [MPCost(6)]
-    backstab.sfx = "016"  # FFVII backstab sound
+    backstab.sfx = ("combat", "attack_physical")  # 백스탭
     # backstab.cooldown = 2  # 쿨다운 시스템 제거됨
     backstab.metadata = {"breaks_stealth": True, "defense_ignore_stealth": True}
 
@@ -64,7 +64,7 @@ def create_assassin_skills():
         GimmickEffect(GimmickOperation.SET, "exposed_turns", 0)
     ]
     throat_slit.costs = [MPCost(7)]
-    throat_slit.sfx = "069"  # FFVII slit sound
+    throat_slit.sfx = ("combat", "damage_high")  # 강한 타격
     # throat_slit.cooldown = 4  # 쿨다운 시스템 제거됨
     throat_slit.metadata = {"enter_stealth_after_attack": True}
 
@@ -77,7 +77,7 @@ def create_assassin_skills():
     ]
     shadow_step.costs = [MPCost(4)]
     shadow_step.target_type = "self"
-    shadow_step.sfx = "077"  # FFVII step sound
+    shadow_step.sfx = ("world", "jump")  # 이동
     # shadow_step.cooldown = 5  # 쿨다운 시스템 제거됨
     shadow_step.metadata = {"maintain_stealth": True}
 
@@ -90,7 +90,7 @@ def create_assassin_skills():
     ]
     death_mark.costs = [MPCost(6)]
     death_mark.target_type = "single"
-    death_mark.sfx = "127"  # FFVII mark sound
+    death_mark.sfx = ("character", "status_debuff")  # 디버프
     # death_mark.cooldown = 4  # 쿨다운 시스템 제거됨
     death_mark.metadata = {"non_attack_skill": True, "maintain_stealth": True}
 
@@ -103,7 +103,7 @@ def create_assassin_skills():
     ]
     shadow_clone.costs = [MPCost(9)]
     shadow_clone.target_type = "self"
-    shadow_clone.sfx = "143"  # FFVII clone sound
+    shadow_clone.sfx = ("character", "status_buff")  # 버프
     # shadow_clone.cooldown = 6  # 쿨다운 시스템 제거됨
     shadow_clone.metadata = {"enhance_stealth": True}
 
@@ -115,7 +115,7 @@ def create_assassin_skills():
         GimmickEffect(GimmickOperation.SET, "stealth_active", 0)  # 은신 해제
     ]
     silent_execution.costs = [MPCost(10)]
-    silent_execution.sfx = "159"  # FFVII execution sound
+    silent_execution.sfx = ("combat", "critical")  # 강한 공격
     # silent_execution.cooldown = 5  # 쿨다운 시스템 제거됨
     silent_execution.metadata = {"breaks_stealth": True, "ultimate_stealth_attack": True}
 
@@ -136,7 +136,7 @@ def create_assassin_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.sfx = "186"  # FFVII ultimate shadow sound
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "perfect_stealth": True}
 

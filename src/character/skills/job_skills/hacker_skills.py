@@ -14,7 +14,7 @@ def create_hacker_skills():
         DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
     ]
     code_injection.costs = []  # 기본 공격은 MP 소모 없음
-    code_injection.sfx = "332"  # FFVII tech sound
+    code_injection.sfx = ("skill", "computer")  # 코드 주입
     code_injection.metadata = {}
 
     # 2. 기본 HP: 데이터 유출
@@ -23,7 +23,7 @@ def create_hacker_skills():
         DamageEffect(DamageType.HP, 1.2, stat_type="magical")
     ]
     data_breach.costs = []  # 기본 공격은 MP 소모 없음
-    data_breach.sfx = "338"  # FFVII data sound
+    data_breach.sfx = ("skill", "load")  # 데이터 유출
     data_breach.metadata = {}
 
     # 3. 바이러스 실행 (적 전체 공격력 + 마법력 -15%)
@@ -36,7 +36,7 @@ def create_hacker_skills():
     run_virus.costs = []  # MP 소모 0으로 변경
     run_virus.target_type = "all_enemies"
     run_virus.is_aoe = True
-    run_virus.sfx = "344"  # FFVII virus sound
+    run_virus.sfx = ("skill", "switch")  # 바이러스 실행
     # run_virus.cooldown = 2  # 쿨다운 시스템 제거됨
     run_virus.metadata = {"program_type": "virus", "debuff": "attack_down"}
 
@@ -50,7 +50,7 @@ def create_hacker_skills():
     run_backdoor.costs = []  # MP 소모 0으로 변경
     run_backdoor.target_type = "all_enemies"
     run_backdoor.is_aoe = True
-    run_backdoor.sfx = "352"  # FFVII backdoor sound
+    run_backdoor.sfx = ("skill", "computer")  # 백도어 실행
     # run_backdoor.cooldown = 2  # 쿨다운 시스템 제거됨
     run_backdoor.metadata = {"program_type": "backdoor", "debuff": "defense_down"}
 
@@ -63,7 +63,7 @@ def create_hacker_skills():
     run_ddos.costs = []  # MP 소모 0으로 변경
     run_ddos.target_type = "all_enemies"
     run_ddos.is_aoe = True
-    run_ddos.sfx = "362"  # FFVII ddos sound
+    run_ddos.sfx = ("skill", "machine")  # DDoS 실행
     # run_ddos.cooldown = 3  # 쿨다운 시스템 제거됨
     run_ddos.metadata = {"program_type": "ddos", "debuff": "speed_down"}
 
@@ -76,7 +76,7 @@ def create_hacker_skills():
     run_ransomware.costs = []  # MP 소모 0으로 변경
     run_ransomware.target_type = "all_enemies"
     run_ransomware.is_aoe = True
-    run_ransomware.sfx = "376"  # FFVII lock sound
+    run_ransomware.sfx = ("skill", "computer")  # 랜섬웨어 실행
     # run_ransomware.cooldown = 4  # 쿨다운 시스템 제거됨
     run_ransomware.metadata = {
         "program_type": "ransomware",
@@ -94,7 +94,7 @@ def create_hacker_skills():
     run_spyware.costs = []  # MP 소모 0으로 변경
     run_spyware.target_type = "all_enemies"
     run_spyware.is_aoe = True
-    run_spyware.sfx = "148"  # 짧은 디버프
+    run_spyware.sfx = ("skill", "save")  # 스파이웨어 실행
     # run_spyware.cooldown = 2  # 쿨다운 시스템 제거됨
     run_spyware.metadata = {"program_type": "spyware", "info_gathering": True}
 
@@ -112,7 +112,7 @@ def create_hacker_skills():
         GimmickEffect(GimmickOperation.SET, "program_spyware", 0)
     ]
     terminate_all.costs = [MPCost(2)]  # MP 소모량 15 -> 5로 감소
-    terminate_all.sfx = "423"  # FFVII shutdown sound
+    terminate_all.sfx = ("skill", "laser")  # 프로그램 종료
     # terminate_all.cooldown = 5  # 쿨다운 시스템 제거됨
     terminate_all.metadata = {"terminate_all": True}
 
@@ -123,7 +123,7 @@ def create_hacker_skills():
                     gimmick_bonus={"field": "total_programs", "multiplier": 0.5})
     ]
     system_overload.costs = [MPCost(7)]
-    system_overload.sfx = "438"  # FFVII overload sound
+    system_overload.sfx = ("skill", "machine")  # 시스템 과부하
     # system_overload.cooldown = 4  # 쿨다운 시스템 제거됨
     system_overload.metadata = {"program_scaling": True}
 
@@ -148,7 +148,7 @@ def create_hacker_skills():
     ultimate.target_type = "all_enemies"
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
-    ultimate.sfx = "035"  # 짧은 리미트 브레이크
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "multithread_rampage": True}
 

@@ -16,7 +16,7 @@ def create_dimensionist_skills():
         GimmickEffect(GimmickOperation.ADD, "distortion_gauge", 15, max_value=100)  # 게이지 +15
     ]
     distortion_strike.costs = []  # 기본 공격은 MP 소모 없음
-    distortion_strike.sfx = "338"  # FFVII distortion sound
+    distortion_strike.sfx = ("skill", "cast_start")  # 확률 왜곡 타격
     distortion_strike.metadata = {"gauge_gain": 15}
 
     # 2. 기본 HP: 현실 절단
@@ -26,7 +26,7 @@ def create_dimensionist_skills():
         GimmickEffect(GimmickOperation.ADD, "distortion_gauge", 20, max_value=100)  # 게이지 +20
     ]
     reality_cut.costs = []  # 기본 공격은 MP 소모 없음
-    reality_cut.sfx = "344"  # FFVII reality sound
+    reality_cut.sfx = ("skill", "cast_complete")  # 현실 절단
     reality_cut.metadata = {"gauge_gain": 20}
 
     # 3. 크리티컬 왜곡 (게이지 20 소모 - 크리티컬 확률 +50%)
@@ -38,7 +38,7 @@ def create_dimensionist_skills():
     ]
     crit_distortion.costs = []
     crit_distortion.target_type = "self"
-    crit_distortion.sfx = "352"  # FFVII crit sound
+    crit_distortion.sfx = ("combat", "critical")  # 크리티컬 왜곡
     # crit_distortion.cooldown = 2  # 쿨다운 시스템 제거됨
     crit_distortion.metadata = {"distortion_cost": 20, "crit_boost": 0.5}
 
@@ -51,7 +51,7 @@ def create_dimensionist_skills():
     ]
     evasion_distortion.costs = [MPCost(4)]
     evasion_distortion.target_type = "self"
-    evasion_distortion.sfx = "362"  # FFVII evasion sound
+    evasion_distortion.sfx = ("combat", "dodge")  # 회피 왜곡
     # evasion_distortion.cooldown = 3  # 쿨다운 시스템 제거됨
     evasion_distortion.metadata = {"distortion_cost": 30, "evasion_boost": 0.8}
 
@@ -63,7 +63,7 @@ def create_dimensionist_skills():
         GimmickEffect(GimmickOperation.ADD, "distortion_gauge", 10, max_value=100)  # 게이지 +10
     ]
     probability_attack.costs = [MPCost(6)]
-    probability_attack.sfx = "376"  # FFVII probability sound
+    probability_attack.sfx = ("skill", "cast_complete")  # 확률 공격
     # probability_attack.cooldown = 3  # 쿨다운 시스템 제거됨
     probability_attack.metadata = {"gauge_scaling": True}
 
@@ -75,7 +75,7 @@ def create_dimensionist_skills():
         GimmickEffect(GimmickOperation.ADD, "distortion_gauge", 25, max_value=100)  # 게이지 +25
     ]
     quantum_leap.costs = [MPCost(7)]
-    quantum_leap.sfx = "061"  # 짧은 회피/순간이동
+    quantum_leap.sfx = ("combat", "dodge")  # 양자 도약
     # quantum_leap.cooldown = 4  # 쿨다운 시스템 제거됨
     quantum_leap.metadata = {"teleport": True, "gauge_gain": 25}
 
@@ -90,7 +90,7 @@ def create_dimensionist_skills():
     ]
     time_rewind.costs = [MPCost(10)]
     time_rewind.target_type = "self"
-    time_rewind.sfx = "093"  # 짧은 버프
+    time_rewind.sfx = ("skill", "haste")  # 시간 되감기
     # time_rewind.cooldown = 6  # 쿨다운 시스템 제거됨
     time_rewind.metadata = {"distortion_cost": 50, "reset_cooldowns": True, "retry": True}
 
@@ -105,7 +105,7 @@ def create_dimensionist_skills():
     reality_shift.costs = [MPCost(8)]
     reality_shift.target_type = "all_enemies"
     reality_shift.is_aoe = True
-    reality_shift.sfx = "148"  # 짧은 디버프
+    reality_shift.sfx = ("character", "status_debuff")  # 현실 조작
     # reality_shift.cooldown = 5  # 쿨다운 시스템 제거됨
     reality_shift.metadata = {"gauge_gain": 30}
 
@@ -125,7 +125,7 @@ def create_dimensionist_skills():
     ]
     parallel_universe.costs = [MPCost(12)]
     parallel_universe.target_type = "self"
-    parallel_universe.sfx = "093"  # 짧은 버프
+    parallel_universe.sfx = ("character", "status_buff")  # 평행우주
     # parallel_universe.cooldown = 8  # 쿨다운 시스템 제거됨
     parallel_universe.metadata = {"distortion_cost": 100, "reset_status": True, "alternate_self": True}
 
@@ -148,7 +148,7 @@ def create_dimensionist_skills():
     ultimate.is_ultimate = True
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
-    ultimate.sfx = "035"  # 짧은 리미트 브레이크
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "gauge_scaling": True, "consume_all_gauge": True}
 
