@@ -13,6 +13,7 @@ from src.world.dungeon_generator import DungeonMap
 from src.world.tile import Tile, TileType
 from src.world.fov import FOVSystem
 from src.core.logger import get_logger, Loggers
+from src.audio import play_sfx
 
 
 logger = get_logger(Loggers.WORLD)
@@ -280,6 +281,11 @@ class ExplorationSystem:
             logger.warning(f"[DEBUG] 전투 결과: event={combat_result.event}")
             return combat_result
 
+        # 이동 발소리 (간헐적으로만 재생)
+        import random
+        if random.random() < 0.15:  # 15% 확률로 발소리 재생
+            play_sfx("world", "footstep", volume_multiplier=0.5)
+        
         # 이동
         self.player.x = new_x
         self.player.y = new_y
@@ -320,6 +326,7 @@ class ExplorationSystem:
             return self._handle_healing_spring(tile)
 
         elif tile.tile_type == TileType.STAIRS_UP:
+            play_sfx("world", "stairs_up")
             return ExplorationResult(
                 success=True,
                 event=ExplorationEvent.STAIRS_UP,
@@ -327,6 +334,7 @@ class ExplorationSystem:
             )
 
         elif tile.tile_type == TileType.STAIRS_DOWN:
+            play_sfx("world", "stairs_down")
             return ExplorationResult(
                 success=True,
                 event=ExplorationEvent.STAIRS_DOWN,
@@ -431,6 +439,9 @@ class ExplorationSystem:
         """함정 처리"""
         damage = tile.trap_damage
 
+        # 함정 발동 SFX
+        play_sfx("world", "trap_trigger")
+        
         # 파티원들에게 데미지
         for member in self.player.party:
             if hasattr(member, 'take_damage'):
@@ -452,6 +463,7 @@ class ExplorationSystem:
     def _handle_teleporter(self, tile: Tile) -> ExplorationResult:
         """텔레포터 처리"""
         if tile.teleport_target:
+            play_sfx("world", "teleport")
             self.player.x, self.player.y = tile.teleport_target
             self.update_fov()
 
@@ -485,6 +497,7 @@ class ExplorationSystem:
 
     def _handle_healing_spring(self, tile: Tile) -> ExplorationResult:
         """치유의 샘 처리"""
+        play_sfx("character", "hp_heal")
         heal_amount = 50
 
         for member in self.player.party:
@@ -524,6 +537,9 @@ class ExplorationSystem:
             logger.warning(f"[CHEST] 인벤토리 슬롯 수: {len(self.inventory.slots)}")
             logger.warning(f"[CHEST] 현재 무게: {self.inventory.current_weight}kg / {self.inventory.max_weight}kg")
 
+        # 보물상자 열기 SFX
+        play_sfx("world", "chest_open")
+        
         # 인벤토리에 추가
         if self.inventory is not None:
             success = self.inventory.add_item(item)
@@ -539,6 +555,9 @@ class ExplorationSystem:
             logger.error(f"[CHEST] 인벤토리가 None입니다!")
 
         logger.info(f"보물상자 획득: {item.name}")
+
+        # 아이템 획득 SFX
+        play_sfx("item", "get_item")
 
         # 상자 제거
         tile.tile_type = TileType.FLOOR
@@ -592,8 +611,14 @@ class ExplorationSystem:
                 message=f"✨ 아이템 발견! 하지만 인벤토리가 가득 차서 {item.name}을(를) 버렸다..."
             )
 
+        # 아이템 발견 SFX
+        play_sfx("world", "item_discover")
+        
         # 성공: 아이템 획득
         logger.info(f"아이템 획득: {item.name}")
+
+        # 아이템 획득 SFX
+        play_sfx("item", "get_item")
 
         # 아이템 제거
         tile.tile_type = TileType.FLOOR
@@ -609,6 +634,10 @@ class ExplorationSystem:
     def _handle_key(self, tile: Tile) -> ExplorationResult:
         """열쇠 처리"""
         key_id = tile.key_id or "key_unknown"
+        
+        # 열쇠 획득 SFX
+        play_sfx("world", "key_pickup")
+        
         self.player.keys.append(key_id)
 
         logger.info(f"열쇠 획득: {key_id}")
@@ -630,6 +659,8 @@ class ExplorationSystem:
 
         if key_id in self.player.keys:
             # 열쇠가 있으면 문 열기
+            play_sfx("world", "door_unlock")
+            play_sfx("world", "door_open")
             tile.unlock()
             logger.info(f"문 잠금 해제: {key_id}")
 
@@ -902,6 +933,12 @@ class ExplorationSystem:
         """스위치 처리"""
         tile.switch_active = not tile.switch_active
         
+        # 스위치 SFX
+        if tile.switch_active:
+            play_sfx("world", "switch_on")
+        else:
+            play_sfx("world", "switch_off")
+        
         # 스위치가 제어하는 대상 처리 (예: 문 열기)
         if tile.switch_target:
             # switch_target이 문 ID인 경우 해당 문 열기
@@ -910,6 +947,7 @@ class ExplorationSystem:
                     target_tile = self.dungeon.get_tile(x, y)
                     if target_tile and target_tile.key_id == tile.switch_target:
                         if target_tile.tile_type == TileType.LOCKED_DOOR:
+                            play_sfx("world", "door_unlock")
                             target_tile.unlock()
                             logger.info(f"스위치로 문 열림: {tile.switch_target}")
 
@@ -924,6 +962,7 @@ class ExplorationSystem:
     def _handle_pressure_plate(self, tile: Tile) -> ExplorationResult:
         """압력판 처리 (자동 활성화)"""
         if not tile.switch_active:
+            play_sfx("world", "pressure_plate")
             tile.switch_active = True
             
             # 압력판이 제어하는 대상 처리
@@ -933,6 +972,7 @@ class ExplorationSystem:
                         target_tile = self.dungeon.get_tile(x, y)
                         if target_tile and target_tile.key_id == tile.switch_target:
                             if target_tile.tile_type == TileType.LOCKED_DOOR:
+                                play_sfx("world", "door_unlock")
                                 target_tile.unlock()
                                 logger.info(f"압력판으로 문 열림: {tile.switch_target}")
 
@@ -946,6 +986,7 @@ class ExplorationSystem:
 
     def _handle_lever(self, tile: Tile) -> ExplorationResult:
         """레버 처리"""
+        play_sfx("world", "lever")
         tile.switch_active = not tile.switch_active
         
         # 레버가 제어하는 대상 처리
@@ -955,6 +996,7 @@ class ExplorationSystem:
                     target_tile = self.dungeon.get_tile(x, y)
                     if target_tile and target_tile.key_id == tile.switch_target:
                         if target_tile.tile_type == TileType.LOCKED_DOOR:
+                            play_sfx("world", "door_unlock")
                             target_tile.unlock()
                             logger.info(f"레버로 문 열림: {tile.switch_target}")
 
@@ -1021,45 +1063,16 @@ class ExplorationSystem:
             return self._handle_neutral_npc(tile)
     
     def _handle_time_researcher(self, tile: Tile) -> ExplorationResult:
-        """시공 연구자 NPC"""
-        import random
+        """시공 연구자 NPC (선택지 제공)"""
         tile.npc_interacted = True
         
-        # 연구자가 시공교란에 대한 정보 제공
-        help_type = random.choice(["info_heal", "info_item", "info_mp"])
-        
-        if help_type == "info_heal":
-            heal_amount = 80 + self.floor_number * 15
-            for member in self.player.party:
-                if hasattr(member, 'heal'):
-                    member.heal(heal_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"시공 연구자: '시공교란의 원인을 조사 중입니다. 이 치유 물약을 받으세요.'\n파티가 {heal_amount} HP 회복했습니다!",
-                data={"npc_subtype": "time_researcher", "heal": heal_amount}
-            )
-        elif help_type == "info_item":
-            from src.equipment.item_system import ItemGenerator
-            item = ItemGenerator.create_random_drop(self.floor_number + 2)
-            if self.inventory and self.inventory.add_item(item):
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"시공 연구자: '타임라인 붕괴를 막기 위한 장비입니다. 받으세요.'\n{item.name}을(를) 획득했습니다!",
-                    data={"npc_subtype": "time_researcher", "item": item}
-                )
-        else:  # info_mp
-            mp_amount = 30 + self.floor_number * 5
-            for member in self.player.party:
-                if hasattr(member, 'current_mp') and hasattr(member, 'max_mp'):
-                    member.current_mp = min(member.max_mp, member.current_mp + mp_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"시공 연구자: '마나 회복제입니다. 시공 마법에 유용할 것입니다.'\n파티가 {mp_amount} MP 회복했습니다!",
-                data={"npc_subtype": "time_researcher", "mp": mp_amount}
-            )
+        # 선택지가 있는 NPC로 처리 (UI에서 선택지 제공)
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NPC_INTERACTION,
+            message="시공 연구자: '시공교란의 원인을 조사 중입니다. 도움이 필요하신가요?'\n어떤 도움을 받으시겠습니까?",
+            data={"npc_subtype": "time_researcher", "has_choices": True}
+        )
     
     def _handle_timeline_survivor(self, tile: Tile) -> ExplorationResult:
         """타임라인 붕괴 생존자 NPC"""
@@ -1137,10 +1150,7 @@ class ExplorationSystem:
             )
     
     def _handle_merchant(self, tile: Tile) -> ExplorationResult:
-        """상인 NPC (중립, 반복 상호작용 가능)"""
-        import random
-        
-        # 상인은 항상 골드를 받고 아이템을 판매
+        """상인 NPC (선택지 제공: 구매/판매)"""
         if not self.inventory:
             return ExplorationResult(
                 success=False,
@@ -1149,35 +1159,13 @@ class ExplorationSystem:
                 data={"npc_subtype": "merchant"}
             )
         
-        # 간단한 거래: 골드를 주면 아이템 제공
-        cost = random.randint(50, 150) * self.floor_number
-        
-        if self.inventory.gold >= cost:
-            self.inventory.gold -= cost
-            from src.equipment.item_system import ItemGenerator
-            item = ItemGenerator.create_random_drop(self.floor_number)
-            if self.inventory.add_item(item):
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"상인: '좋은 거래입니다!'\n{cost} 골드를 지불하고 {item.name}을(를) 구매했습니다!",
-                    data={"npc_subtype": "merchant", "cost": cost, "item": item}
-                )
-            else:
-                self.inventory.gold += cost  # 환불
-                return ExplorationResult(
-                    success=False,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message="상인: '인벤토리가 가득 찼습니다.'",
-                    data={"npc_subtype": "merchant"}
-                )
-        else:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"상인: '골드가 부족합니다. {cost} 골드가 필요합니다.' (보유: {self.inventory.gold})",
-                data={"npc_subtype": "merchant", "required": cost}
-            )
+        # 선택지가 있는 NPC로 처리 (UI에서 구매/판매 선택)
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NPC_INTERACTION,
+            message="상인: '안녕하세요! 무엇을 도와드릴까요?'\n어떤 서비스를 원하시나요?",
+            data={"npc_subtype": "merchant", "has_choices": True}
+        )
     
     def _handle_refugee(self, tile: Tile) -> ExplorationResult:
         """난민 NPC"""
@@ -1304,9 +1292,7 @@ class ExplorationSystem:
             )
     
     def _handle_mysterious_merchant(self, tile: Tile) -> ExplorationResult:
-        """신비한 상인 NPC (복합: 비싼 거래)"""
-        import random
-        
+        """신비한 상인 NPC (선택지 제공: 구매/판매)"""
         if not self.inventory:
             return ExplorationResult(
                 success=False,
@@ -1315,40 +1301,13 @@ class ExplorationSystem:
                 data={"npc_subtype": "mysterious_merchant"}
             )
         
-        cost = random.randint(200, 500) * self.floor_number
-        
-        if self.inventory.gold >= cost:
-            self.inventory.gold -= cost
-            from src.equipment.item_system import ItemGenerator
-            # 더 좋은 아이템 제공
-            item = ItemGenerator.create_random_drop(self.floor_number + 3)
-            if self.inventory.add_item(item):
-                # 추가 보너스: HP 회복
-                heal_amount = 50 + self.floor_number * 10
-                for member in self.player.party:
-                    if hasattr(member, 'heal'):
-                        member.heal(heal_amount)
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"신비한 상인: '시공의 힘이 깃든 물건입니다...'\n{cost} 골드를 지불하고 {item.name}을(를) 구매했습니다! 파티가 {heal_amount} HP 회복했습니다!",
-                    data={"npc_subtype": "mysterious_merchant", "cost": cost, "item": item, "heal": heal_amount}
-                )
-            else:
-                self.inventory.gold += cost
-                return ExplorationResult(
-                    success=False,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message="신비한 상인: '인벤토리가 가득 찼습니다.'",
-                    data={"npc_subtype": "mysterious_merchant"}
-                )
-        else:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"신비한 상인: '골드가 부족합니다. {cost} 골드가 필요합니다.' (보유: {self.inventory.gold})",
-                data={"npc_subtype": "mysterious_merchant", "required": cost}
-            )
+        # 선택지가 있는 NPC로 처리 (UI에서 구매/판매 선택)
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NPC_INTERACTION,
+            message="신비한 상인: '시공의 힘이 깃든 물건들을 팝니다...'\n어떤 서비스를 원하시나요?",
+            data={"npc_subtype": "mysterious_merchant", "has_choices": True}
+        )
     
     def _handle_time_mage(self, tile: Tile) -> ExplorationResult:
         """시공 마법사 NPC (복합: 강력한 도움과 손해)"""
@@ -1690,6 +1649,10 @@ class ExplorationSystem:
                 message="이미 사용한 제단입니다."
             )
 
+        # 제단 축복 SFX
+        play_sfx("character", "hp_heal")
+        play_sfx("character", "status_buff")
+        
         # 파티 전체 회복 및 버프
         if self.player and self.player.party:
             for member in self.player.party:
@@ -1714,6 +1677,10 @@ class ExplorationSystem:
                 message="이미 사용한 신전입니다."
             )
 
+        # 신전 축복 SFX
+        play_sfx("character", "hp_heal")
+        play_sfx("character", "status_buff")
+        
         # 파티 전체 완전 회복
         if self.player and self.player.party:
             for member in self.player.party:
@@ -1744,6 +1711,7 @@ class ExplorationSystem:
                 tile.teleport_target = (target_x, target_y)
 
         if tile.teleport_target:
+            play_sfx("world", "teleport")
             self.player.x, self.player.y = tile.teleport_target
             self.update_fov()
             return ExplorationResult(
@@ -1767,6 +1735,9 @@ class ExplorationSystem:
                 message="이미 사용한 크리스탈입니다."
             )
 
+        # 크리스탈 SFX
+        play_sfx("character", "mp_heal")
+        
         # 파티 전체 MP 회복
         if self.player and self.player.party:
             for member in self.player.party:
@@ -1789,6 +1760,9 @@ class ExplorationSystem:
                 message="이미 사용한 마나 샘입니다."
             )
 
+        # 마나 샘 SFX
+        play_sfx("character", "mp_heal")
+        
         # 파티 전체 MP 회복 (일부)
         if self.player and self.player.party:
             for member in self.player.party:
@@ -1927,6 +1901,9 @@ class ExplorationSystem:
                 message="이미 누른 버튼입니다."
             )
 
+        # 버튼 SFX
+        play_sfx("world", "button")
+        
         # 버튼 활성화 (미구현)
         tile.used = True
         return ExplorationResult(
@@ -1945,6 +1922,7 @@ class ExplorationSystem:
             )
 
         # 비밀 문 발견 및 열기
+        play_sfx("world", "door_open")
         tile.revealed = True
         tile.walkable = True
         tile.transparent = True

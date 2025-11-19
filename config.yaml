@@ -393,7 +393,7 @@ audio:
       tutorial: "menu"                                          # 튜토리얼
 
       # 특수 상황
-      escape: "evillands"                                          # 도주
+      escape: "devillands"                                         # 도주
       danger: "warlands"                                        # 위험
       suspense: "devillands"                                    # 긴장감
 
@@ -511,15 +511,28 @@ audio:
     world:
       door_open: "Door1"           # 문 열림
       door_close: "Close1"         # 문 닫힘
+      door_unlock: "Key"           # 문 잠금 해제
       gate_open: "Gate1"           # 게이트 열기
       gate_unlock: "Key"           # 게이트 잠금 해제
       stairs: "Move1"              # 계단 이동
+      stairs_up: "Move1"           # 위층으로 올라가기
+      stairs_down: "Move1"         # 아래층으로 내려가기
       save: "Save1"                # 세이브
       gathering: "Item2"           # 채집
       jump: "Jump1"                # 점프
       land: "Move2"                # 착지
       fall: "Fall"                 # 낙하
       switch_on: "Switch1"         # 스위치 켜기
+      switch_off: "Switch2"        # 스위치 끄기
+      lever: "Switch1"             # 레버 당기기
+      button: "Switch1"            # 버튼 누르기
+      pressure_plate: "Switch1"    # 압력판 밟기
+      trap_trigger: "Buzzer1"      # 함정 발동
+      teleport: "Move2"            # 텔레포트
+      footstep: "Move1"            # 발소리 (이동)
+      item_discover: "Item1"       # 아이템 발견
+      chest_open: "Chest1"         # 상자 열기
+      key_pickup: "Item1"          # 열쇠 획득
       alert: "Siren"               # 경보
       break_open: "Hammer"         # 부수기
 

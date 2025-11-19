@@ -41,6 +41,10 @@ def harvest_object(
         show_message(console, context, "이미 채집한 곳입니다.", Colors.GRAY)
         return False
 
+    # 채집 SFX
+    from src.audio import play_sfx
+    play_sfx("world", "gathering")
+    
     # 채집 실행
     results = harvestable.harvest()
 

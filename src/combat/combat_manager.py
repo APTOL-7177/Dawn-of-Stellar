@@ -107,6 +107,9 @@ class CombatManager:
             self.cooking_cooldown_turn = None
             self.cooking_cooldown_duration = 0
 
+        # 보호 관계 초기화 (이전 전투의 오래된 참조 제거)
+        self._clear_protection_relationships(allies)
+        
         # ATB 시스템에 전투원 등록
         import random
         for ally in allies:
@@ -1505,9 +1508,11 @@ class CombatManager:
         # 보호받는 대상인지 확인
         if hasattr(defender, 'protected_by') and defender.protected_by:
             # 보호자가 있는 경우, 보호자가 대신 피해를 받음
-            for guardian in defender.protected_by:
-                if (hasattr(guardian, 'is_alive') and guardian.is_alive and 
-                    guardian != defender and guardian in self.allies):
+            # 현재 전투에 참여하는 보호자만 확인 (오래된 참조 방지)
+            for guardian in list(defender.protected_by):  # 리스트 복사하여 순회 중 수정 방지
+                if (guardian in self.allies and
+                    hasattr(guardian, 'is_alive') and guardian.is_alive and 
+                    guardian != defender):
                     # 보호자가 모든 피해를 대신 받음
                     protected_damage = damage
                     data["damage"] = 0  # 원래 대상은 피해를 받지 않음
@@ -1688,6 +1693,43 @@ class CombatManager:
             return character.current_hp <= 0
         return False
 
+    def _clear_protection_relationships(self, characters: List[Any]) -> None:
+        """
+        보호 관계 초기화 (오래된 참조 제거)
+        
+        전투 간 보호 관계가 유지되지 않도록, 현재 전투에 참여하는 캐릭터만
+        보호 관계를 유지하고 나머지는 제거합니다.
+        
+        Args:
+            characters: 현재 전투에 참여하는 캐릭터 리스트
+        """
+        character_set = set(characters)
+        
+        for character in characters:
+            # protected_allies: 이 캐릭터가 보호하는 아군 목록
+            # 현재 전투에 참여하지 않는 캐릭터 제거
+            if hasattr(character, 'protected_allies'):
+                if not isinstance(character.protected_allies, list):
+                    character.protected_allies = []
+                else:
+                    # 현재 전투에 참여하는 캐릭터만 유지
+                    character.protected_allies = [
+                        ally for ally in character.protected_allies
+                        if ally in character_set
+                    ]
+            
+            # protected_by: 이 캐릭터를 보호하는 캐릭터 목록
+            # 현재 전투에 참여하지 않는 캐릭터 제거
+            if hasattr(character, 'protected_by'):
+                if not isinstance(character.protected_by, list):
+                    character.protected_by = []
+                else:
+                    # 현재 전투에 참여하는 캐릭터만 유지
+                    character.protected_by = [
+                        guardian for guardian in character.protected_by
+                        if guardian in character_set
+                    ]
+
     def _end_combat(self, state: CombatState) -> None:
         """
         전투 종료
@@ -1709,6 +1751,9 @@ class CombatManager:
         if self.on_combat_end:
             self.on_combat_end(state)
 
+        # 보호 관계 정리 (오래된 참조 제거)
+        self._clear_protection_relationships(self.allies)
+        
         # 시스템 정리
         self.atb.clear()
 
