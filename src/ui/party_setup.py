@@ -779,7 +779,7 @@ class PartySetup:
         elif self.state == "trait_select":
             return self._handle_trait_select(action)
         elif self.state == "passive_select":
-            return self._handle_passive_select(action)
+            return self._handle_passive_select(action, event)
         elif self.state == "confirm":
             return self._handle_confirm(action)
 
@@ -997,7 +997,7 @@ class PartySetup:
             self.passive_menu.move_cursor_up()
         elif action == GameAction.MOVE_DOWN:
             self.passive_menu.move_cursor_down()
-        elif action == GameAction.CONFIRM:
+        elif action == GameAction.CONFIRM or (action == GameAction.MENU and event and event.sym == tcod.event.KeySym.RETURN):
             # 엔터 키 확인 (게임 시작)
             if event and event.sym == tcod.event.KeySym.RETURN:
                 # 패시브 선택 완료 조건 확인
@@ -1435,8 +1435,8 @@ def run_party_setup(console: tcod.console.Console, context: tcod.context.Context
             # KeyDown 이벤트 저장 (텍스트 입력용)
             key_event = event if isinstance(event, tcod.event.KeyDown) else None
 
-            # 이름 입력 중에는 action이 없어도 event 처리 필요
-            if action or (key_event and setup.state == "name_input"):
+            # 이름 입력 중이나 패시브 선택 중에는 action이 없어도 event 처리 필요
+            if action or (key_event and (setup.state == "name_input" or setup.state == "passive_select")):
                 if setup.handle_input(action, key_event):
                     # 완료 또는 취소
                     if setup.cancelled:

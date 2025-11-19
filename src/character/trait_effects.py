@@ -338,8 +338,9 @@ class TraitEffectManager:
                 TraitEffect(
                     trait_id="guardian_angel",
                     effect_type=TraitEffectType.GUARDIAN,
-                    value=0.20,
-                    condition="ally_damaged"
+                    value=0.20,  # 발동 확률 (20%)
+                    condition="ally_damaged",
+                    metadata={"protection_ratio": 1.0}  # 보호받을 피해 비율 (100% = 전체 피해 대신 받기)
                 )
             ],
 

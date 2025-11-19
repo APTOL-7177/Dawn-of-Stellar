@@ -1427,9 +1427,12 @@ class CombatManager:
                     if effect.effect_type == TraitEffectType.GUARDIAN:
                         # 확률적으로 피해 대신 받기
                         import random
-                        if random.random() < effect.value:  # value = 확률 (0.20 = 20%)
-                            # 수호자가 받을 피해 계산 (원래 피해의 일부)
-                            protected_damage = int(damage * effect.value)  # 20% 대신 받기
+                        if random.random() < effect.value:  # value = 발동 확률 (0.20 = 20%)
+                            # 보호받을 피해 비율 (metadata에서 가져오거나 기본값 100%)
+                            protection_ratio = effect.metadata.get("protection_ratio", 1.0) if effect.metadata else 1.0
+                            
+                            # 수호자가 받을 피해 계산 (원래 피해의 protection_ratio만큼)
+                            protected_damage = int(damage * protection_ratio)
                             
                             # 원래 피해를 받을 캐릭터가 받을 피해를 줄임
                             remaining_damage = damage - protected_damage
@@ -1442,7 +1445,7 @@ class CombatManager:
                                 guardian_actual_damage = ally.take_damage(protected_damage)
                                 self.logger.info(
                                     f"[{trait_id}] {ally.name}이(가) {defender.name}의 피해를 대신 받음: "
-                                    f"{protected_damage} → 실제 {guardian_actual_damage} (원래 피해: {damage}, 남은 피해: {remaining_damage})"
+                                    f"{protected_damage} → 실제 {guardian_actual_damage} (원래 피해: {damage}, 남은 피해: {remaining_damage}, 보호 비율: {int(protection_ratio * 100)}%)"
                                 )
                             
                             return  # 한 명만 수호
