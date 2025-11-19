@@ -140,11 +140,18 @@ class StatusEffect(SkillEffect):
                 # base_damage = 스탯 * 배율
                 base_damage = int(stat_value * self.damage_multiplier)
 
+            # 강력한 상태이상은 최대 2턴으로 제한
+            duration = self.duration
+            if status_enum in [StatusType.STUN, StatusType.SLEEP, StatusType.FREEZE,
+                              StatusType.PARALYZE, StatusType.PETRIFY, StatusType.TIME_STOP,
+                              StatusType.SILENCE]:
+                duration = min(duration, 2)  # 최대 2턴
+            
             # StatusEffect 객체 생성
             status_effect = CombatStatusEffect(
                 name=self.status_type.replace('_', ' ').title(),
                 status_type=status_enum,
-                duration=self.duration,
+                duration=duration,
                 intensity=self.value if self.value > 0 else 1.0,
                 is_stackable=self.stackable,
                 max_stacks=5 if self.stackable else 1,

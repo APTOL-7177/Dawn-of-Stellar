@@ -131,14 +131,18 @@ class MapRenderer:
         legend_y = minimap_y + minimap_height + 1
         console.print(minimap_x, legend_y, "@=나 E=적 S=계단", fg=(180, 180, 180))
 
-        # 적 위치를 미니맵 좌표로 변환 (미리 계산)
+        # 적 위치를 미니맵 좌표로 변환 (보스와 일반 적 구분)
         enemy_minimap_positions = set()
+        boss_minimap_positions = set()
         if enemies:
             for enemy in enemies:
                 enemy_mx = int(enemy.x / scale_x)
                 enemy_my = int(enemy.y / scale_y)
                 if 0 <= enemy_mx < minimap_width and 0 <= enemy_my < minimap_height:
-                    enemy_minimap_positions.add((enemy_mx, enemy_my))
+                    if getattr(enemy, 'is_boss', False):
+                        boss_minimap_positions.add((enemy_mx, enemy_my))
+                    else:
+                        enemy_minimap_positions.add((enemy_mx, enemy_my))
 
         # 플레이어 위치를 미니맵 좌표로 변환
         player_mx, player_my = None, None
@@ -163,10 +167,14 @@ class MapRenderer:
                 if player_mx == mx and player_my == my:
                     char = "@"
                     fg = (0, 255, 0)  # 초록색
-                # 적 위치
+                # 보스 위치 (우선)
+                elif (mx, my) in boss_minimap_positions:
+                    char = "B"
+                    fg = (255, 0, 0)  # 선명한 빨간색
+                # 일반 적 위치
                 elif (mx, my) in enemy_minimap_positions:
                     char = "E"
-                    fg = (255, 50, 50)  # 빨간색
+                    fg = (255, 150, 50)  # 주황색
                 # 타일 타입
                 elif tile.tile_type == TileType.FLOOR:
                     char = "."

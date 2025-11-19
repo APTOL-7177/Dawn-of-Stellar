@@ -70,6 +70,7 @@ def create_dark_knight_skills():
     ]
     dark_wave.costs = [MPCost(6), StackCost("darkness", 3)]
     # dark_wave.cooldown = 4  # 쿨다운 시스템 제거됨
+    dark_wave.target_type = "all_enemies"
     dark_wave.is_aoe = True
     dark_wave.sfx = ("skill", "cast_complete")  # 어둠의 파동
     dark_wave.metadata = {"darkness_cost": 3, "darkness_scaling": True, "lifesteal": True, "aoe": True}
@@ -138,6 +139,7 @@ def create_dark_knight_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = ("skill", "limit_break")  # 궁극기

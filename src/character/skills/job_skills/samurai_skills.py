@@ -121,6 +121,7 @@ def create_samurai_skills():
     ]
     infinite_slash.costs = [MPCost(12)]
     # infinite_slash.cooldown = 5  # 쿨다운 시스템 제거됨
+    infinite_slash.target_type = "all_enemies"
     infinite_slash.sfx = ("skill", "cast_complete")  # 무한 베기
     infinite_slash.metadata = {"will_gain": 1, "high_damage": True}
     infinite_slash.is_aoe = True

@@ -115,6 +115,7 @@ def create_sword_saint_skills():
     ]
     sword_storm.costs = [MPCost(13), StackCost("sword_aura", 4)]
     # sword_storm.cooldown = 6  # 쿨다운 시스템 제거됨
+    sword_storm.target_type = "all_enemies"
     sword_storm.is_aoe = True
     sword_storm.sfx = ("skill", "cast_complete")  # 검광 폭풍
     sword_storm.metadata = {"aura_cost": 4, "aura_scaling": True, "aoe": True}

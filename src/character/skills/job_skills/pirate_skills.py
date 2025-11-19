@@ -67,6 +67,7 @@ def create_pirate_skills():
     ]
     cannon_fire.costs = [MPCost(6), StackCost("gold", 3)]
     # cannon_fire.cooldown = 3  # 쿨다운 시스템 제거됨
+    cannon_fire.target_type = "all_enemies"
     cannon_fire.is_aoe = True
     cannon_fire.sfx = ("skill", "cannon")  # 대포 발사
     cannon_fire.metadata = {"gold_cost": 3, "gold_scaling": True, "aoe": True}
@@ -94,6 +95,7 @@ def create_pirate_skills():
     ]
     gold_bomb.costs = [MPCost(7), StackCost("gold", 5)]
     # gold_bomb.cooldown = 4  # 쿨다운 시스템 제거됨
+    gold_bomb.target_type = "all_enemies"
     gold_bomb.is_aoe = True
     gold_bomb.sfx = ("skill", "cannon")  # 금화 폭탄
     gold_bomb.metadata = {"gold_cost": 5, "gold_scaling": True, "aoe": True}
@@ -108,6 +110,7 @@ def create_pirate_skills():
     ]
     pirate_ship_attack.costs = [MPCost(9), StackCost("gold", 7)]
     # pirate_ship_attack.cooldown = 6  # 쿨다운 시스템 제거됨
+    pirate_ship_attack.target_type = "all_enemies"
     pirate_ship_attack.is_aoe = True
     pirate_ship_attack.sfx = ("skill", "cannon")  # 해적선 공격
     pirate_ship_attack.metadata = {"gold_cost": 7, "gold_scaling": True, "aoe": True}
@@ -124,6 +127,7 @@ def create_pirate_skills():
     ]
     blackbeard_curse.costs = [MPCost(11), StackCost("gold", 8)]
     # blackbeard_curse.cooldown = 7  # 쿨다운 시스템 제거됨
+    blackbeard_curse.target_type = "all_enemies"
     blackbeard_curse.is_aoe = True
     blackbeard_curse.sfx = ("character", "status_debuff")  # 검은 수염의 저주
     blackbeard_curse.metadata = {"gold_cost": 8, "gold_scaling": True, "debuff": True, "aoe": True}
@@ -140,6 +144,7 @@ def create_pirate_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = ("skill", "limit_break")  # 궁극기

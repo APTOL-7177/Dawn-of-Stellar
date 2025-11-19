@@ -344,12 +344,29 @@ def main() -> int:
                                 map_enemies = []
                                 logger.info("전투 데이터 없음")
 
+                            # 맵 엔티티에서 보스 정보 확인
+                            is_boss_fight = any(e.is_boss for e in map_enemies) if map_enemies else False
+                            
                             if num_enemies > 0:
                                 enemies = EnemyGenerator.generate_enemies(floor_number, num_enemies)
                                 logger.info(f"적 {len(enemies)}명 생성: {[e.name for e in enemies]}")
                             else:
                                 enemies = EnemyGenerator.generate_enemies(floor_number)
                                 logger.info(f"적 {len(enemies)}명 생성(기본값)")
+                            
+                            # 보스가 포함된 경우 보스 추가/교체
+                            if is_boss_fight and map_enemies:
+                                # 보스 엔티티 찾기
+                                boss_entity = next((e for e in map_enemies if e.is_boss), None)
+                                if boss_entity:
+                                    from src.world.enemy_generator import EnemyGenerator
+                                    boss = EnemyGenerator.generate_boss(floor_number)
+                                    # 보스를 적 리스트의 첫 번째에 추가 (또는 교체)
+                                    if enemies:
+                                        enemies[0] = boss
+                                    else:
+                                        enemies.append(boss)
+                                    logger.info(f"보스 추가: {boss.name} (enemy_id: {boss.enemy_id})")
 
                             combat_result = run_combat(
                                 display.console,
@@ -375,7 +392,7 @@ def main() -> int:
                                 rewards = RewardCalculator.calculate_combat_rewards(
                                     enemies,
                                     floor_number,
-                                    is_boss_fight=False
+                                    is_boss_fight=is_boss_fight
                                 )
 
                                 level_up_info = distribute_party_experience(
@@ -719,6 +736,9 @@ def main() -> int:
                                         map_enemies = []
                                         logger.warning("[DEBUG] 전투 데이터 없음 - 랜덤 생성")
 
+                                    # 맵 엔티티에서 보스 정보 확인
+                                    is_boss_fight = any(e.is_boss for e in map_enemies) if map_enemies else False
+                                    
                                     # 적 생성
                                     if num_enemies > 0:
                                         enemies = EnemyGenerator.generate_enemies(floor_number, num_enemies)
@@ -727,6 +747,20 @@ def main() -> int:
                                         # fallback: 랜덤 생성
                                         enemies = EnemyGenerator.generate_enemies(floor_number)
                                         logger.info(f"적 {len(enemies)}명 생성(기본값)")
+                                    
+                                    # 보스가 포함된 경우 보스 추가/교체
+                                    if is_boss_fight and map_enemies:
+                                        # 보스 엔티티 찾기
+                                        boss_entity = next((e for e in map_enemies if e.is_boss), None)
+                                        if boss_entity:
+                                            from src.world.enemy_generator import EnemyGenerator
+                                            boss = EnemyGenerator.generate_boss(floor_number)
+                                            # 보스를 적 리스트의 첫 번째에 추가 (또는 교체)
+                                            if enemies:
+                                                enemies[0] = boss
+                                            else:
+                                                enemies.append(boss)
+                                            logger.info(f"보스 추가: {boss.name} (enemy_id: {boss.enemy_id})")
 
                                     # 전투 실행
                                     combat_result = run_combat(
@@ -754,7 +788,7 @@ def main() -> int:
                                         rewards = RewardCalculator.calculate_combat_rewards(
                                             enemies,
                                             floor_number,
-                                            is_boss_fight=False
+                                            is_boss_fight=is_boss_fight
                                         )
 
                                         # 경험치 분배

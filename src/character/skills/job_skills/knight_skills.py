@@ -30,7 +30,7 @@ def create_knight_skills():
         GimmickEffect(GimmickOperation.CONSUME, "duty_stacks", 1)
     ]
     duty_strike.costs = []  # 기본 공격은 MP 소모 없음
-    duty_strike.sfx = ("combat", "critical")  # 의무의 일격
+    duty_strike.sfx = ("skill", "slash")  # 의무의 일격
     duty_strike.metadata = {"duty_cost": 1, "duty_scaling": True}
     skills.append(duty_strike)
 

@@ -372,8 +372,8 @@ class WorldUI:
             enemy_screen_x = enemy.x - camera_x
             enemy_screen_y = 5 + (enemy.y - camera_y)
             if 0 <= enemy_screen_x < self.screen_width and 0 <= enemy_screen_y < 40:
-                # 적 색상: 보스는 빨강, 일반 적은 주황색
-                enemy_color = (255, 50, 50) if enemy.is_boss else (255, 150, 50)
+                # 적 색상: 보스는 선명한 빨강, 일반 적은 주황색
+                enemy_color = (255, 0, 0) if enemy.is_boss else (255, 150, 50)
                 console.print(enemy_screen_x, enemy_screen_y, "E", fg=enemy_color)
 
         # 파밍 오브젝트 위치 표시 (채집 가능한 오브젝트)
@@ -508,96 +508,6 @@ class WorldUI:
             fg=(150, 150, 150)
         )
 
-
-def run_exploration(
-    console: tcod.console.Console,
-    context: tcod.context.Context,
-    exploration: ExplorationSystem,
-    inventory=None,
-    party=None,
-    play_bgm_on_start: bool = True
-) -> str:
-    """
-    탐험 실행
-
-    Args:
-        play_bgm_on_start: 탐험 시작 시 BGM 재생 여부 (기본 True, 전투 후 복귀 시 False)
-
-    Returns:
-        "quit", "combat", "floor_up", "floor_down"
-    """
-    ui = WorldUI(console.width, console.height, exploration, inventory, party)
-    handler = InputHandler()
-
-    logger.info(f"탐험 시작: {exploration.floor_number}층")
-
-    # 남은 이벤트 제거 (불러오기 등에서 남은 키 입력 방지)
-    tcod.event.get()
-
-    # 바이옴별 BGM 재생 (5층마다 바뀜, 전투 후 복귀 시에는 재생하지 않음)
-    if play_bgm_on_start:
-        floor = exploration.floor_number
-        # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
-        biome_index = (floor - 1) // 5
-        # 바이옴 9 이상은 순환 (10개 바이옴 순환)
-        biome_index = biome_index % 10
-        biome_track = f"biome_{biome_index}"
-        
-        logger.info(f"층 {floor} -> 바이옴 {biome_index}, BGM: {biome_track}")
-        play_bgm(biome_track)
-
-    while True:
-        # 핫 리로드 체크 (개발 모드일 때만)
-        try:
-            from src.core.config import get_config
-            config = get_config()
-            if config.development_mode:
-                from src.core.hot_reload import check_and_reload
-                reloaded = check_and_reload()
-                if reloaded:
-                    logger.info(f"📦 [탐험] 재로드된 모듈: {', '.join(reloaded)}")
-        except Exception:
-            pass  # 핫 리로드 오류는 무시
-        
-        # 렌더링
-        ui.render(console)
-        context.present(console)
-
-        # 입력 처리
-        for event in tcod.event.wait():
-            action = handler.dispatch(event)
-
-            if action:
-                logger.warning(f"[DEBUG] 액션 수신: {action}")
-                done = ui.handle_input(action, console, context)
-                logger.warning(f"[DEBUG] handle_input 반환값: {done}")
-                if done:
-                    logger.warning(f"[DEBUG] 루프 탈출 - done=True")
-                    break
-            else:
-                # action이 None인 경우 (키 입력 없음)
-                # 다음 이벤트 처리로 넘어감
-                continue
-
-            # 윈도우 닫기
-            if isinstance(event, tcod.event.Quit):
-                return ("quit", None)
-
-        # 상태 체크
-        logger.warning(f"[DEBUG] 상태 체크: quit={ui.quit_requested}, combat={ui.combat_requested}, floor_change={ui.floor_change_requested}")
-        if ui.quit_requested:
-            return ("quit", None)
-        elif ui.combat_requested:
-            logger.warning(f"[DEBUG] 전투 반환! 적 {ui.combat_num_enemies}마리 (맵 엔티티: {len(ui.combat_enemies) if ui.combat_enemies else 0}개)")
-            # 전투 데이터 반환: (적 수, 맵 적 엔티티)
-            combat_data = {
-                "num_enemies": ui.combat_num_enemies,
-                "enemies": ui.combat_enemies
-            }
-            return ("combat", combat_data)
-        elif ui.floor_change_requested:
-            return (ui.floor_change_requested, None)
-    
     def _get_npc_name(self, npc_subtype: str) -> str:
         """NPC 서브타입에 따른 이름 반환"""
         npc_names = {
@@ -720,3 +630,93 @@ def run_exploration(
             ]
         
         return choices if choices else None
+
+
+def run_exploration(
+    console: tcod.console.Console,
+    context: tcod.context.Context,
+    exploration: ExplorationSystem,
+    inventory=None,
+    party=None,
+    play_bgm_on_start: bool = True
+) -> str:
+    """
+    탐험 실행
+
+    Args:
+        play_bgm_on_start: 탐험 시작 시 BGM 재생 여부 (기본 True, 전투 후 복귀 시 False)
+
+    Returns:
+        "quit", "combat", "floor_up", "floor_down"
+    """
+    ui = WorldUI(console.width, console.height, exploration, inventory, party)
+    handler = InputHandler()
+
+    logger.info(f"탐험 시작: {exploration.floor_number}층")
+
+    # 남은 이벤트 제거 (불러오기 등에서 남은 키 입력 방지)
+    tcod.event.get()
+
+    # 바이옴별 BGM 재생 (5층마다 바뀜, 전투 후 복귀 시에는 재생하지 않음)
+    if play_bgm_on_start:
+        floor = exploration.floor_number
+        # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
+        biome_index = (floor - 1) // 5
+        # 바이옴 9 이상은 순환 (10개 바이옴 순환)
+        biome_index = biome_index % 10
+        biome_track = f"biome_{biome_index}"
+        
+        logger.info(f"층 {floor} -> 바이옴 {biome_index}, BGM: {biome_track}")
+        play_bgm(biome_track)
+
+    while True:
+        # 핫 리로드 체크 (개발 모드일 때만)
+        try:
+            from src.core.config import get_config
+            config = get_config()
+            if config.development_mode:
+                from src.core.hot_reload import check_and_reload
+                reloaded = check_and_reload()
+                if reloaded:
+                    logger.info(f"📦 [탐험] 재로드된 모듈: {', '.join(reloaded)}")
+        except Exception:
+            pass  # 핫 리로드 오류는 무시
+        
+        # 렌더링
+        ui.render(console)
+        context.present(console)
+
+        # 입력 처리
+        for event in tcod.event.wait():
+            action = handler.dispatch(event)
+
+            if action:
+                logger.warning(f"[DEBUG] 액션 수신: {action}")
+                done = ui.handle_input(action, console, context)
+                logger.warning(f"[DEBUG] handle_input 반환값: {done}")
+                if done:
+                    logger.warning(f"[DEBUG] 루프 탈출 - done=True")
+                    break
+            else:
+                # action이 None인 경우 (키 입력 없음)
+                # 다음 이벤트 처리로 넘어감
+                continue
+
+            # 윈도우 닫기
+            if isinstance(event, tcod.event.Quit):
+                return ("quit", None)
+
+        # 상태 체크
+        logger.warning(f"[DEBUG] 상태 체크: quit={ui.quit_requested}, combat={ui.combat_requested}, floor_change={ui.floor_change_requested}")
+        if ui.quit_requested:
+            return ("quit", None)
+        elif ui.combat_requested:
+            logger.warning(f"[DEBUG] 전투 반환! 적 {ui.combat_num_enemies}마리 (맵 엔티티: {len(ui.combat_enemies) if ui.combat_enemies else 0}개)")
+            # 전투 데이터 반환: (적 수, 맵 적 엔티티)
+            combat_data = {
+                "num_enemies": ui.combat_num_enemies,
+                "enemies": ui.combat_enemies
+            }
+            return ("combat", combat_data)
+        elif ui.floor_change_requested:
+            return (ui.floor_change_requested, None)

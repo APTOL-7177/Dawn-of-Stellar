@@ -92,6 +92,7 @@ def create_breaker_skills():
     ]
     break_wave.costs = [MPCost(7), StackCost("break_power", 3)]
     # break_wave.cooldown = 4  # 쿨다운 시스템 제거됨
+    break_wave.target_type = "all_enemies"
     break_wave.is_aoe = True
     break_wave.sfx = ("skill", "cast_complete")  # 파괴 충격파
     break_wave.metadata = {"break_power_cost": 3, "break_scaling": True, "aoe": True}
@@ -134,6 +135,7 @@ def create_breaker_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = ("skill", "limit_break")  # 궁극기

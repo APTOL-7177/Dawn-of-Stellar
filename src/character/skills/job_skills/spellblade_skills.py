@@ -111,6 +111,7 @@ def create_spellblade_skills():
     ]
     elemental_storm.costs = [MPCost(10), StackCost("mana_blade", 5)]
     # elemental_storm.cooldown = 6  # 쿨다운 시스템 제거됨
+    elemental_storm.target_type = "all_enemies"
     elemental_storm.is_aoe = True
     elemental_storm.sfx = ("skill", "cast_complete")  # 원소 폭풍
     elemental_storm.metadata = {"mana_cost": 5, "mana_scaling": True, "aoe": True}
@@ -125,6 +126,7 @@ def create_spellblade_skills():
     ]
     blade_spin.costs = [MPCost(11), StackCost("mana_blade", 4)]
     # blade_spin.cooldown = 5  # 쿨다운 시스템 제거됨
+    blade_spin.target_type = "all_enemies"
     blade_spin.is_aoe = True
     blade_spin.sfx = ("skill", "cast_complete")  # 마검 회전 베기
     blade_spin.metadata = {"mana_cost": 4, "mana_scaling": True, "aoe": True}

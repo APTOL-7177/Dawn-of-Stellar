@@ -115,6 +115,7 @@ def create_warrior_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3)
     ]
     war_cry.costs = [MPCost(9)]
+    war_cry.target_type = "all_enemies"
     war_cry.is_aoe = True
     war_cry.sfx = ("character", "status_debuff")  # 전쟁의 함성
     war_cry.metadata = {"buff": True, "debuff": True, "aoe": True}
