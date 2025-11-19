@@ -141,6 +141,7 @@ def create_bard_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.cast_time = 0.8  # ATB 80% 캐스팅 (궁극기)
     ultimate.sfx = "523"

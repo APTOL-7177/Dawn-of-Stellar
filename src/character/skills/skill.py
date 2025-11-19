@@ -64,6 +64,39 @@ class Skill:
                     # 이미 최대 스레드 수만큼 프로그램이 실행 중이면 새 프로그램 실행 불가
                     if active_programs >= max_threads:
                         return False, f"스레드 부족! (활성: {active_programs}/{max_threads})"
+            
+            # 몽크: 기 게이지 조건 체크
+            if hasattr(user, 'gimmick_type') and user.gimmick_type == "yin_yang_flow":
+                ki_gauge = getattr(user, 'ki_gauge', 50)
+                
+                # 음 극단 상태 필요 (20 이하)
+                if self.metadata.get("requires_yin"):
+                    if ki_gauge > 20:
+                        return False, f"음 극단 상태(20 이하)가 필요합니다 (현재: {ki_gauge})"
+                
+                # 양 극단 상태 필요 (80 이상)
+                if self.metadata.get("requires_yang"):
+                    if ki_gauge < 80:
+                        return False, f"양 극단 상태(80 이상)가 필요합니다 (현재: {ki_gauge})"
+                
+                # 균형 상태 필요 (40-60)
+                if self.metadata.get("requires_balance"):
+                    if not (40 <= ki_gauge <= 60):
+                        return False, f"균형 상태(40-60)가 필요합니다 (현재: {ki_gauge})"
+                
+                # 정확한 기 게이지 값 필요
+                if "ki_exact" in self.metadata:
+                    required_ki = self.metadata.get("ki_exact")
+                    if ki_gauge != required_ki:
+                        return False, f"기 게이지가 정확히 {required_ki}여야 합니다 (현재: {ki_gauge})"
+            
+            # 차원술사: 확률 왜곡 게이지 소모량 조건 체크
+            if hasattr(user, 'gimmick_type') and user.gimmick_type == "probability_distortion":
+                if "distortion_cost" in self.metadata:
+                    required_gauge = self.metadata.get("distortion_cost", 0)
+                    current_gauge = getattr(user, 'distortion_gauge', 0)
+                    if current_gauge < required_gauge:
+                        return False, f"확률 왜곡 게이지가 부족합니다! (필요: {required_gauge}, 현재: {current_gauge})"
         
         return True, ""
 
@@ -159,6 +192,22 @@ class Skill:
                     if hasattr(aoe_result, 'damage_dealt'):
                         total_dmg += aoe_result.damage_dealt
                         logger.debug(f"AOE 피해: {aoe_result.damage_dealt}")
+
+        # 스킬 메타데이터의 lifesteal 처리 (흡혈귀 등)
+        if self.metadata and 'lifesteal' in self.metadata:
+            lifesteal_rate = self.metadata.get('lifesteal')
+            if lifesteal_rate and total_dmg > 0:
+                # lifesteal_rate가 숫자인 경우 (비율)
+                if isinstance(lifesteal_rate, (int, float)) and lifesteal_rate > 0:
+                    heal_amount = int(total_dmg * lifesteal_rate)
+                    if heal_amount > 0:
+                        if hasattr(user, 'heal'):
+                            actual_heal = user.heal(heal_amount)
+                            total_heal += actual_heal
+                            from src.core.logger import get_logger
+                            logger = get_logger("skill")
+                            logger.info(f"[생명력 흡수] {user.name} HP 회복: +{actual_heal} (피해의 {lifesteal_rate * 100:.0f}%)")
+                            effect_messages.append(f"생명력 흡수 +{actual_heal}")
 
         # 최종 메시지 구성 (ISSUE-003: 상세 피드백)
         base_message = f"{user.name}이(가) {self.name} 사용!"

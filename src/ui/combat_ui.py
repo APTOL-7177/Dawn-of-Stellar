@@ -1543,7 +1543,17 @@ class CombatUI:
             nature = getattr(character, 'nature_points', 0)
             form = getattr(character, 'current_form', None)
             if form:
-                return f"[{form}형태 {nature}]"
+                form_names = {
+                    "bear": "곰",
+                    "cat": "표범",
+                    "panther": "표범",
+                    "eagle": "독수리",
+                    "wolf": "늑대",
+                    "primal": "진변신",
+                    "elemental": "원소"
+                }
+                form_name = form_names.get(form, form)
+                return f"[{form_name}형태 {nature}]"
             return f"[자연:{nature}]"
 
         elif gimmick_type == "spirit_bond":
@@ -1833,9 +1843,16 @@ class CombatUI:
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
-            # 음양 게이지
-            console.print(content_x, content_y + line, "[陰]        [☯]        [陽]", fg=(200, 200, 200))
+            # 게이지 바 너비 계산
+            gauge_width = box_width - 6
+            gauge_start_x = content_x
+            
+            # 음양 게이지 위치 표시 (게이지 바 너비에 맞춰 중앙 정렬)
+            yin_yang_text = "[陰]        [☯]        [陽]"
+            text_start_x = gauge_start_x + (gauge_width - len(yin_yang_text)) // 2
+            console.print(text_start_x, content_y + line, yin_yang_text, fg=(200, 200, 200))
             line += 1
+            
             # 게이지 바 (음=파랑, 양=빨강, 균형=금색)
             if ki < 40:
                 gauge_color = (100, 150, 255)  # 파랑 (음)
@@ -1843,7 +1860,7 @@ class CombatUI:
                 gauge_color = (255, 215, 0)  # 금색 (균형)
             else:
                 gauge_color = (255, 100, 100)  # 빨강 (양)
-            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, ki, max_ki, show_numbers=True, custom_color=gauge_color)
+            gauge_renderer.render_bar(console, gauge_start_x, content_y + line, gauge_width, ki, max_ki, show_numbers=True, custom_color=gauge_color)
             line += 1
 
             # 상태 정보
@@ -2822,14 +2839,17 @@ class CombatUI:
             if form:
                 form_icons = {
                     "bear": "🐻 곰",
-                    "cat": "🐱 고양이",
-                    "bird": "🦅 독수리",
-                    "human": " 인간"
+                    "cat": "🐱 표범",
+                    "panther": "🐱 표범",
+                    "eagle": "🦅 독수리",
+                    "wolf": "🐺 늑대",
+                    "primal": "🌿 진 변신",
+                    "elemental": "⚡ 원소"
                 }
                 form_name = form_icons.get(form, form)
                 console.print(content_x + 10, content_y + line, f"【 {form_name} 】", fg=(100, 255, 100))
             else:
-                console.print(content_x + 10, content_y + line, "【 인간 형태 】", fg=(200, 200, 200))
+                console.print(content_x + 10, content_y + line, "【 👤 인간 형태 】", fg=(200, 200, 200))
             line += 2
 
             console.print(content_x, content_y + line, f" 자연 포인트: {nature}/100", fg=(150, 255, 150))
@@ -3335,19 +3355,33 @@ class CombatUI:
 
         # 드루이드 - 변신 시스템 (YAML: shapeshifting_system)
         elif gimmick_type == "shapeshifting_system":
-            form = getattr(character, 'current_form', 'human')
+            form = getattr(character, 'current_form', None)
+            nature = getattr(character, 'nature_points', 0)
+            max_nature = getattr(character, 'max_nature_points', 5)
             details.append("=== 변신 시스템 ===")
+            nature_bar = self._create_gauge_bar(nature, max_nature, width=10)
+            details.append(f"자연 포인트: {nature_bar} ({nature}/{max_nature})")
+            
             if form == 'bear':
                 details.append("현재 형태: 🐻 곰")
                 details.append("효과: 방어력/HP 증가")
-            elif form == 'cat':
-                details.append("현재 형태: 🐱 고양이")
+            elif form in ['cat', 'panther']:
+                details.append("현재 형태: 🐱 표범")
                 details.append("효과: 속도/회피 증가")
+            elif form == 'eagle':
+                details.append("현재 형태: 🦅 독수리")
+                details.append("효과: 공중 공격, 속도 증가")
             elif form == 'wolf':
                 details.append("현재 형태: 🐺 늑대")
-                details.append("효과: 공격력 증가")
+                details.append("효과: 공격력 증가, 광역 공격")
+            elif form == 'primal':
+                details.append("현재 형태: 🌿 진 변신")
+                details.append("효과: 모든 능력치 증가")
+            elif form == 'elemental':
+                details.append("현재 형태: ⚡ 원소")
+                details.append("효과: 원소 폭발")
             else:
-                details.append("현재 형태:  인간")
+                details.append("현재 형태: 👤 인간")
                 details.append("상태: 기본 상태")
 
         # 마검사 - 마법부여 (YAML: enchant_system)

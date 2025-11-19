@@ -41,6 +41,7 @@ def create_dragon_knight_skills():
     ]
     fire_breath.costs = []
     # fire_breath.cooldown = 2  # 쿨다운 시스템 제거됨
+    fire_breath.target_type = "all_enemies"
     fire_breath.is_aoe = True
     fire_breath.sfx = "146"  # 짧은 광역 마법
     fire_breath.metadata = {"dragon_scaling": True, "dragon_power_gain": 1, "aoe": True}
@@ -93,6 +94,7 @@ def create_dragon_knight_skills():
     ]
     inferno_burst.costs = [MPCost(7), StackCost("dragon_power", 3)]
     # inferno_burst.cooldown = 4  # 쿨다운 시스템 제거됨
+    inferno_burst.target_type = "all_enemies"
     inferno_burst.is_aoe = True
     inferno_burst.sfx = "146"  # 짧은 광역 폭발
     inferno_burst.metadata = {"dragon_power_cost": 3, "dragon_scaling": True, "aoe": True}
@@ -137,6 +139,7 @@ def create_dragon_knight_skills():
     ]
     ultimate.costs = [MPCost(30), StackCost("dragon_power", 1)]
     ultimate.is_ultimate = True
+    ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "035"  # 짧은 리미트 브레이크

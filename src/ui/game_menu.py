@@ -242,29 +242,46 @@ def open_game_menu(
                         if difficulty_system:
                             current_difficulty = difficulty_system.current_difficulty.value
 
-                        game_state = {
-                            "party": [serialize_party_member(m) for m in party] if party else [],
-                            "floor_number": exploration.floor_number,
-                            "dungeon": serialize_dungeon(exploration.dungeon),
-                            "player_position": {
-                                "x": exploration.player.x,
-                                "y": exploration.player.y
-                            },
-                            "inventory": {
-                                "gold": inventory.gold if inventory and hasattr(inventory, 'gold') else 0,
-                                "items": [serialize_item(slot.item) for slot in inventory.slots] if inventory and hasattr(inventory, 'slots') else [],
-                                "cooking_cooldown_turn": inventory.cooking_cooldown_turn if inventory and hasattr(inventory, 'cooking_cooldown_turn') else None,
-                                "cooking_cooldown_duration": inventory.cooking_cooldown_duration if inventory and hasattr(inventory, 'cooking_cooldown_duration') else 0
-                            },
-                            "keys": exploration.player_keys if hasattr(exploration, 'player_keys') else [],
-                            "difficulty": current_difficulty,  # 난이도 추가
-                            # 게임 통계 (로그라이크 정산용)
+                        from src.persistence.save_system import serialize_game_state
+                        
+                        # 인벤토리 아이템 리스트 생성
+                        inventory_items = []
+                        if inventory and hasattr(inventory, 'slots'):
+                            for slot in inventory.slots:
+                                if slot.item:
+                                    inventory_items.append(slot.item)
+                        
+                        game_state = serialize_game_state(
+                            party=party if party else [],
+                            floor_number=exploration.floor_number,
+                            dungeon=exploration.dungeon,
+                            player_x=exploration.player.x,
+                            player_y=exploration.player.y,
+                            inventory=inventory_items,
+                            player_keys=exploration.player_keys if hasattr(exploration, 'player_keys') else [],
+                            traits=[],  # 특성은 파티 구성 시점에 저장됨
+                            passives=[],  # 패시브도 파티 구성 시점에 저장됨
+                            difficulty=current_difficulty,
+                            exploration=exploration
+                        )
+                        
+                        # 게임 통계 추가
+                        game_state.update({
                             "enemies_defeated": exploration.game_stats.get("enemies_defeated", 0),
                             "max_floor_reached": exploration.game_stats.get("max_floor_reached", exploration.floor_number),
                             "total_gold_earned": exploration.game_stats.get("total_gold_earned", 0),
                             "total_exp_earned": exploration.game_stats.get("total_exp_earned", 0),
                             "save_slot": exploration.game_stats.get("save_slot", None),
-                        }
+                        })
+                        
+                        # 인벤토리 정보 추가 (기존 형식 유지)
+                        if inventory:
+                            game_state["inventory"] = {
+                                "gold": inventory.gold if hasattr(inventory, 'gold') else 0,
+                                "items": [{"item": serialize_item(slot.item), "quantity": getattr(slot, 'quantity', 1)} for slot in inventory.slots] if hasattr(inventory, 'slots') else [],
+                                "cooking_cooldown_turn": inventory.cooking_cooldown_turn if hasattr(inventory, 'cooking_cooldown_turn') else None,
+                                "cooking_cooldown_duration": inventory.cooking_cooldown_duration if hasattr(inventory, 'cooking_cooldown_duration') else 0
+                            }
 
                         logger.warning(f"[SAVE] game_state['inventory']: {game_state['inventory']}")
 

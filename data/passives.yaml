@@ -76,13 +76,13 @@ passives:
 
   - id: quick_step
     name: 신속한 발걸음
-    description: 이동 속도 +10%
+    description: 최대 BRV +15%
     cost: 2
     unlocked: true
     effects:
       - type: stat_multiplier
-        stat: speed
-        value: 1.10
+        stat: max_brv
+        value: 1.15
 
   # 코스트 3 패시브 (중급)
   - id: physical_power

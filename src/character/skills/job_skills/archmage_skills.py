@@ -41,6 +41,7 @@ def create_archmage_skills():
     ]
     ice_storm.costs = []
     # ice_storm.cooldown = 2  # 쿨다운 시스템 제거됨
+    ice_storm.target_type = "all_enemies"
     ice_storm.is_aoe = True
     ice_storm.cast_time = 0.3  # ATB 30% 캐스팅
     ice_storm.sfx = "353"
@@ -104,6 +105,7 @@ def create_archmage_skills():
     ]
     meteor.costs = [MPCost(9), StackCost("fire_element", 1), StackCost("ice_element", 1), StackCost("lightning_element", 1)]
     # meteor.cooldown = 5  # 쿨다운 시스템 제거됨
+    meteor.target_type = "all_enemies"
     meteor.is_aoe = True
     meteor.cast_time = 0.5  # ATB 50% 캐스팅 (강력한 마법)
     meteor.sfx = "393"
@@ -161,6 +163,7 @@ def create_archmage_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.cast_time = 1.0  # ATB 100% 캐스팅 (궁극기는 한 턴 전체 필요)

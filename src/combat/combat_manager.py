@@ -183,6 +183,15 @@ class CombatManager:
         Returns:
             행동 결과
         """
+        # 죽은 캐릭터는 행동 불가
+        if not getattr(actor, 'is_alive', True):
+            self.logger.warning(f"{getattr(actor, 'name', 'Unknown')}은(는) 죽어서 행동할 수 없습니다.")
+            return {
+                "action": "error",
+                "error": "actor_is_dead",
+                "message": "죽은 캐릭터는 행동할 수 없습니다."
+            }
+        
         self.current_actor = actor
         result = {}
 

@@ -6,7 +6,7 @@
 
 import json
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
 from src.core.logger import get_logger, Loggers
@@ -40,15 +40,80 @@ class SaveSystem:
             game_state["save_time"] = datetime.now().isoformat()
             game_state["version"] = "5.0.0"
 
+            # JSON 직렬화 전에 모든 데이터 검증 및 정리
+            cleaned_state = self._clean_for_json(game_state)
+
             with open(save_path, 'w', encoding='utf-8') as f:
-                json.dump(game_state, f, indent=2, ensure_ascii=False)
+                json.dump(cleaned_state, f, indent=2, ensure_ascii=False, default=self._json_default)
 
             logger.info(f"게임 저장 완료: {save_path}")
             return True
 
         except Exception as e:
-            logger.error(f"게임 저장 실패: {e}")
+            logger.error(f"게임 저장 실패: {e}", exc_info=True)
             return False
+
+    def _json_default(self, obj: Any) -> Any:
+        """JSON 직렬화 불가능한 객체를 처리하는 기본 함수"""
+        # StatusEffect 객체 처리 (먼저 체크)
+        from src.combat.status_effects import StatusEffect
+        if isinstance(obj, StatusEffect):
+            logger.warning(f"StatusEffect 객체가 _json_default에서 발견됨 (이미 _clean_for_json에서 처리되어야 함): {obj.name}")
+            return {
+                "name": obj.name,
+                "status_type": obj.status_type.value if hasattr(obj.status_type, 'value') else str(obj.status_type),
+                "duration": obj.duration,
+                "intensity": obj.intensity,
+                "stack_count": obj.stack_count,
+                "max_stacks": obj.max_stacks,
+                "is_stackable": obj.is_stackable,
+                "source_id": obj.source_id,
+                "metadata": obj.metadata or {},
+                "max_duration": getattr(obj, 'max_duration', obj.duration)
+            }
+        
+        # Enum 처리
+        if hasattr(obj, 'value'):
+            return obj.value
+        if hasattr(obj, 'name'):
+            return obj.name
+        # 그 외의 객체는 문자열로 변환
+        logger.warning(f"JSON 직렬화 불가능한 객체 발견: {type(obj)}, 값: {obj}")
+        return str(obj)
+
+    def _clean_for_json(self, data: Any) -> Any:
+        """JSON 직렬화를 위해 데이터 정리 (재귀적으로 모든 객체 검사)"""
+        # StatusEffect 객체 처리 (먼저 체크)
+        from src.combat.status_effects import StatusEffect
+        if isinstance(data, StatusEffect):
+            logger.debug(f"StatusEffect 객체 발견 및 직렬화: {data.name}")
+            return {
+                "name": data.name,
+                "status_type": data.status_type.value if hasattr(data.status_type, 'value') else str(data.status_type),
+                "duration": data.duration,
+                "intensity": data.intensity,
+                "stack_count": data.stack_count,
+                "max_stacks": data.max_stacks,
+                "is_stackable": data.is_stackable,
+                "source_id": data.source_id,
+                "metadata": data.metadata or {},
+                "max_duration": getattr(data, 'max_duration', data.duration)
+            }
+        
+        if isinstance(data, dict):
+            return {k: self._clean_for_json(v) for k, v in data.items()}
+        elif isinstance(data, (list, tuple)):
+            return [self._clean_for_json(item) for item in data]
+        elif isinstance(data, (str, int, float, bool, type(None))):
+            return data
+        elif hasattr(data, 'value'):  # Enum
+            return data.value
+        elif hasattr(data, 'name'):  # Enum 또는 다른 객체
+            return data.name
+        else:
+            # 예상치 못한 객체 타입
+            logger.warning(f"JSON 직렬화 전 정리 중 예상치 못한 타입: {type(data)}, 값: {data}")
+            return str(data)
 
     def load_game(self, save_name: str) -> Optional[Dict[str, Any]]:
         """
@@ -135,6 +200,28 @@ class SaveSystem:
         return save_path.exists()
 
 
+def serialize_status_effects(status_effects: List[Any]) -> List[Dict[str, Any]]:
+    """StatusEffect 리스트 직렬화"""
+    from src.combat.status_effects import StatusEffect
+    
+    serialized = []
+    for effect in status_effects:
+        if isinstance(effect, StatusEffect):
+            serialized.append({
+                "name": effect.name,
+                "status_type": effect.status_type.value if hasattr(effect.status_type, 'value') else str(effect.status_type),
+                "duration": effect.duration,
+                "intensity": effect.intensity,
+                "stack_count": effect.stack_count,
+                "max_stacks": effect.max_stacks,
+                "is_stackable": effect.is_stackable,
+                "source_id": effect.source_id,
+                "metadata": effect.metadata or {},
+                "max_duration": getattr(effect, 'max_duration', effect.duration)
+            })
+    return serialized
+
+
 def serialize_party_member(member: Any) -> Dict[str, Any]:
     """파티원 직렬화"""
     # StatManager가 있으면 직렬화
@@ -150,6 +237,14 @@ def serialize_party_member(member: Any) -> Dict[str, Any]:
     if hasattr(member, 'active_buffs') and member.active_buffs:
         active_buffs_data = member.active_buffs.copy()
     
+    # status_effects 직렬화
+    status_effects_data = []
+    # status_manager의 status_effects를 우선 확인 (실제 데이터 소스)
+    if hasattr(member, 'status_manager') and hasattr(member.status_manager, 'status_effects'):
+        status_effects_data = serialize_status_effects(member.status_manager.status_effects)
+    elif hasattr(member, 'status_effects') and member.status_effects:
+        status_effects_data = serialize_status_effects(member.status_effects)
+    
     return {
         "name": member.name,
         "character_class": getattr(member, 'character_class', getattr(member, 'job_id', 'unknown')),
@@ -161,7 +256,7 @@ def serialize_party_member(member: Any) -> Dict[str, Any]:
         "experience": getattr(member, 'experience', 0),
         "stats": stats_data,
         "equipment": serialize_equipment(member),
-        "status_effects": getattr(member, 'status_effects', []),
+        "status_effects": status_effects_data,
         "skill_ids": getattr(member, 'skill_ids', []),
         "active_traits": getattr(member, 'active_traits', []),
         "active_buffs": active_buffs_data,  # 요리 버프 포함
@@ -227,8 +322,18 @@ def serialize_gimmick_state(member: Any) -> Dict[str, Any]:
     for attr in attributes_to_save:
         if hasattr(member, attr):
             value = getattr(member, attr)
-            # 리스트나 딕셔너리는 그대로 저장 (JSON 직렬화 가능)
-            gimmick_state[attr] = value
+            # JSON 직렬화 가능한 타입만 저장
+            if isinstance(value, (str, int, float, bool, type(None), list, dict)):
+                gimmick_state[attr] = value
+            else:
+                # Enum 등은 문자열로 변환
+                if hasattr(value, 'value'):
+                    gimmick_state[attr] = value.value
+                elif hasattr(value, 'name'):
+                    gimmick_state[attr] = value.name
+                else:
+                    gimmick_state[attr] = str(value)
+                    logger.warning(f"기믹 속성 {attr}를 문자열로 변환: {type(value)}")
     
     return gimmick_state
 
@@ -319,10 +424,32 @@ def serialize_item(item: Any) -> Dict[str, Any]:
         result["effect_type"] = getattr(item, 'effect_type', 'heal_hp')
         result["effect_value"] = getattr(item, 'effect_value', 0)
     
+    # CookedFood 특수 속성 저장 (Item의 서브클래스가 아니므로 먼저 체크)
+    from src.cooking.recipe import CookedFood
+    if isinstance(item, CookedFood):
+        # CookedFood는 Item의 서브클래스가 아니므로 기본 속성도 직접 설정
+        result["item_id"] = getattr(item, 'name', 'cooked_food')  # 이름을 ID로 사용
+        result["name"] = getattr(item, 'name', '요리된 음식')
+        result["description"] = getattr(item, 'description', '')
+        result["item_type"] = 'consumable'  # 소비 아이템으로 분류
+        result["rarity"] = 'common'
+        result["is_cooked_food"] = True
+        result["hp_restore"] = getattr(item, 'hp_restore', 0)
+        result["mp_restore"] = getattr(item, 'mp_restore', 0)
+        result["max_hp_bonus"] = getattr(item, 'max_hp_bonus', 0)
+        result["max_mp_bonus"] = getattr(item, 'max_mp_bonus', 0)
+        result["buff_duration"] = getattr(item, 'buff_duration', 0)
+        result["buff_type"] = getattr(item, 'buff_type', None)
+        result["is_poison"] = getattr(item, 'is_poison', False)
+        result["poison_damage"] = getattr(item, 'poison_damage', 0)
+        result["spoil_time"] = getattr(item, 'spoil_time', 200)
+        result["weight"] = getattr(item, 'weight', 0.5)
+        return result  # CookedFood는 여기서 반환
+    
     return result
 
 
-def serialize_dungeon(dungeon: Any) -> Dict[str, Any]:
+def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]:
     """던전 직렬화"""
     from src.world.tile import TileType
 
@@ -363,6 +490,25 @@ def serialize_dungeon(dungeon: Any) -> Dict[str, Any]:
                 "harvested": harvestable.harvested
             })
 
+    # 적(enemies) 직렬화
+    enemies_data = []
+    if enemies:
+        for enemy in enemies:
+            enemies_data.append({
+                "x": enemy.x,
+                "y": enemy.y,
+                "level": enemy.level,
+                "name": getattr(enemy, 'name', '적'),
+                "is_boss": getattr(enemy, 'is_boss', False),
+                "spawn_x": getattr(enemy, 'spawn_x', enemy.x),
+                "spawn_y": getattr(enemy, 'spawn_y', enemy.y),
+                "is_chasing": getattr(enemy, 'is_chasing', False),
+                "chase_turns": getattr(enemy, 'chase_turns', 0),
+                "max_chase_turns": getattr(enemy, 'max_chase_turns', 15),
+                "max_chase_distance": getattr(enemy, 'max_chase_distance', 15),
+                "detection_range": getattr(enemy, 'detection_range', 5)
+            })
+
     return {
         "width": dungeon.width,
         "height": dungeon.height,
@@ -373,6 +519,7 @@ def serialize_dungeon(dungeon: Any) -> Dict[str, Any]:
         "locked_doors": dungeon.locked_doors,
         "teleporters": {str(k): v for k, v in dungeon.teleporters.items()},  # Tuple key를 문자열로
         "harvestables": harvestables_data,  # 채집 오브젝트 추가
+        "enemies": enemies_data,  # 적 추가
     }
 
 
@@ -386,15 +533,30 @@ def serialize_game_state(
     player_keys: List[str],
     traits: List[Any],
     passives: List[Any],
-    difficulty: Optional[str] = None
+    difficulty: Optional[str] = None,
+    exploration: Any = None,
+    all_floors_dungeons: Dict[int, Any] = None
 ) -> Dict[str, Any]:
     """전체 게임 상태 직렬화"""
 
     # 파티
     party_data = [serialize_party_member(member) for member in party]
 
-    # 던전
-    dungeon_data = serialize_dungeon(dungeon)
+    # 현재 층 던전 (적 포함)
+    enemies = []
+    if exploration and hasattr(exploration, 'enemies'):
+        enemies = exploration.enemies
+    
+    dungeon_data = serialize_dungeon(dungeon, enemies=enemies)
+
+    # 모든 층의 던전 상태 저장 (층별 던전 상태 유지)
+    floors_data = {}
+    if all_floors_dungeons:
+        for floor_num, floor_dungeon_data in all_floors_dungeons.items():
+            floors_data[floor_num] = floor_dungeon_data
+    else:
+        # 기존 방식: 현재 층만 저장
+        floors_data[floor_number] = dungeon_data
 
     # 인벤토리
     inventory_data = [serialize_item(item) for item in inventory]
@@ -426,7 +588,8 @@ def serialize_game_state(
     return {
         "party": party_data,
         "floor_number": floor_number,
-        "dungeon": dungeon_data,
+        "dungeon": dungeon_data,  # 현재 층 던전 (하위 호환성)
+        "floors": floors_data,  # 모든 층의 던전 상태
         "player_position": {"x": player_x, "y": player_y},
         "inventory": inventory_data,
         "keys": player_keys,
@@ -436,11 +599,12 @@ def serialize_game_state(
     }
 
 
-def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Any:
-    """던전 역직렬화"""
+def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
+    """던전 역직렬화 (던전과 적 리스트 반환)"""
     from src.world.dungeon_generator import DungeonMap
     from src.world.tile import TileType
     from src.gathering.harvestable import HarvestableObject, HarvestableType
+    from src.world.exploration import Enemy
 
     dungeon = DungeonMap(dungeon_data["width"], dungeon_data["height"])
 
@@ -489,9 +653,28 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Any:
         harvestables.append(harvestable)
     dungeon.harvestables = harvestables
 
-    logger.info(f"던전 복원 완료: {len(harvestables)}개의 채집 오브젝트 복원됨")
+    # 적(enemies) 복원
+    enemies = []
+    for enemy_data in dungeon_data.get("enemies", []):
+        enemy = Enemy(
+            x=enemy_data["x"],
+            y=enemy_data["y"],
+            level=enemy_data.get("level", 1),
+            name=enemy_data.get("name", "적"),
+            is_boss=enemy_data.get("is_boss", False)
+        )
+        enemy.spawn_x = enemy_data.get("spawn_x", enemy.x)
+        enemy.spawn_y = enemy_data.get("spawn_y", enemy.y)
+        enemy.is_chasing = enemy_data.get("is_chasing", False)
+        enemy.chase_turns = enemy_data.get("chase_turns", 0)
+        enemy.max_chase_turns = enemy_data.get("max_chase_turns", 15)
+        enemy.max_chase_distance = enemy_data.get("max_chase_distance", 15)
+        enemy.detection_range = enemy_data.get("detection_range", 5)
+        enemies.append(enemy)
 
-    return dungeon
+    logger.info(f"던전 복원 완료: {len(harvestables)}개의 채집 오브젝트, {len(enemies)}마리의 적 복원됨")
+
+    return dungeon, enemies
 
 
 def deserialize_item(item_data: Dict[str, Any]) -> Any:
@@ -525,6 +708,24 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
 
     weight = item_data.get("weight", 1.0)
     sell_price = item_data.get("sell_price", 0)
+
+    # CookedFood 복원 (is_cooked_food 플래그가 있으면)
+    if item_data.get("is_cooked_food"):
+        from src.cooking.recipe import CookedFood
+        return CookedFood(
+            name=item_data["name"],
+            description=item_data.get("description", ""),
+            hp_restore=item_data.get("hp_restore", 0),
+            mp_restore=item_data.get("mp_restore", 0),
+            max_hp_bonus=item_data.get("max_hp_bonus", 0),
+            max_mp_bonus=item_data.get("max_mp_bonus", 0),
+            buff_duration=item_data.get("buff_duration", 0),
+            buff_type=item_data.get("buff_type", None),
+            is_poison=item_data.get("is_poison", False),
+            poison_damage=item_data.get("poison_damage", 0),
+            spoil_time=item_data.get("spoil_time", 200),
+            weight=weight
+        )
 
     # Ingredient 복원 (item_type이 MATERIAL이거나 ingredient_category 필드가 있으면)
     if item_type == ItemType.MATERIAL or item_data.get("ingredient_category"):
@@ -698,6 +899,10 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
         char.active_buffs = member_data["active_buffs"].copy()
         logger.debug(f"버프 복원: {char.name} - {len(char.active_buffs)}개 버프")
 
+    # status_effects 복원
+    if member_data.get("status_effects"):
+        deserialize_status_effects(char, member_data["status_effects"])
+
     # 기믹 상태 복원
     if member_data.get("gimmick_state"):
         deserialize_gimmick_state(char, member_data["gimmick_state"])
@@ -723,6 +928,52 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
     return char
 
 
+def deserialize_status_effects(character: Any, status_effects_data: List[Dict[str, Any]]) -> None:
+    """StatusEffect 리스트 역직렬화"""
+    from src.combat.status_effects import StatusEffect, StatusType
+    
+    if not hasattr(character, 'status_manager'):
+        return
+    
+    # 기존 상태 효과 초기화
+    character.status_manager.status_effects = []
+    
+    for effect_data in status_effects_data:
+        try:
+            # StatusType 찾기
+            status_type_value = effect_data.get("status_type")
+            status_type = None
+            for st in StatusType:
+                if st.value == status_type_value or str(st) == status_type_value:
+                    status_type = st
+                    break
+            
+            if status_type is None:
+                logger.warning(f"알 수 없는 StatusType: {status_type_value}, 건너뜀")
+                continue
+            
+            # StatusEffect 생성
+            effect = StatusEffect(
+                name=effect_data.get("name", "Unknown"),
+                status_type=status_type,
+                duration=effect_data.get("duration", 1),
+                intensity=effect_data.get("intensity", 1.0),
+                stack_count=effect_data.get("stack_count", 1),
+                max_stacks=effect_data.get("max_stacks", 1),
+                is_stackable=effect_data.get("is_stackable", False),
+                source_id=effect_data.get("source_id"),
+                metadata=effect_data.get("metadata", {})
+            )
+            
+            # max_duration 복원
+            if "max_duration" in effect_data:
+                effect.max_duration = effect_data["max_duration"]
+            
+            character.status_manager.status_effects.append(effect)
+        except Exception as e:
+            logger.warning(f"StatusEffect 복원 실패: {e}, 데이터: {effect_data}")
+
+
 def deserialize_inventory(inventory_data: Dict[str, Any], party: List[Any] = None) -> Any:
     """인벤토리 역직렬화"""
     from src.equipment.inventory import Inventory
@@ -743,9 +994,18 @@ def deserialize_inventory(inventory_data: Dict[str, Any], party: List[Any] = Non
     inventory.cooking_cooldown_duration = inventory_data.get("cooking_cooldown_duration", 0)
 
     # 아이템 복원
-    for item_data in inventory_data.get("items", []):
-        item = deserialize_item(item_data)
-        inventory.add_item(item)
+    for item_entry in inventory_data.get("items", []):
+        # 새 형식: {"item": {...}, "quantity": ...} 또는 구형식: {...} (직접 item_data)
+        if isinstance(item_entry, dict) and "item" in item_entry:
+            # 새 형식: quantity 정보 포함
+            item = deserialize_item(item_entry["item"])
+            quantity = item_entry.get("quantity", 1)
+            # add_item은 quantity를 지원하므로 한 번에 추가 (스택 가능한 아이템은 자동으로 스택됨)
+            inventory.add_item(item, quantity=quantity)
+        else:
+            # 구형식: 직접 item_data (하위 호환성)
+            item = deserialize_item(item_entry)
+            inventory.add_item(item, quantity=1)
 
     logger.warning(f"[DESERIALIZE] 복원 후 인벤토리 골드: {inventory.gold}G")
     if inventory.cooking_cooldown_duration > 0:

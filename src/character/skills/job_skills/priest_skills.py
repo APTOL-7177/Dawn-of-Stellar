@@ -95,6 +95,7 @@ def create_priest_skills():
     ]
     holy_beam.costs = [MPCost(7), StackCost("judgment_points", 3)]
     # holy_beam.cooldown = 4  # 쿨다운 시스템 제거됨
+    holy_beam.target_type = "all_enemies"
     holy_beam.is_aoe = True
     holy_beam.sfx = "146"  # 짧은 광역 마법
     holy_beam.metadata = {"judgment_cost": 3, "judgment_scaling": True, "aoe": True}
@@ -141,6 +142,7 @@ def create_priest_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "035"  # 짧은 리미트 브레이크

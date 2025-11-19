@@ -803,18 +803,27 @@ class Character:
 
         return actual_damage
 
-    def heal(self, amount: int) -> int:
+    def heal(self, amount: int, can_revive: bool = False) -> int:
         """
         HP를 회복합니다
 
         Args:
             amount: 회복량
+            can_revive: 죽은 캐릭터도 회복 가능한지 여부 (음식 등)
 
         Returns:
             실제로 회복한 양
         """
         old_hp = self.current_hp
-        self.current_hp = min(self.current_hp + amount, self.max_hp)
+        was_dead = not getattr(self, 'is_alive', True)
+        
+        # 죽은 캐릭터 회복 처리
+        if was_dead and can_revive and amount > 0:
+            self.is_alive = True
+            self.current_hp = min(amount, self.max_hp)
+        else:
+            self.current_hp = min(self.current_hp + amount, self.max_hp)
+        
         actual_heal = self.current_hp - old_hp
 
         event_bus.publish(Events.CHARACTER_HP_CHANGE, {
