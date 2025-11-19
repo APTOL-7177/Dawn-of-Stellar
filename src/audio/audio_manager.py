@@ -191,9 +191,9 @@ class AudioManager:
         config_key = f"audio.sfx.{category}.{sfx_name}"
         file_name = self.config.get(config_key)
 
-            if not file_name:
-                self.logger.debug(f"SFX '{category}.{sfx_name}'이 config.yaml에 정의되지 않음")
-                return False
+        if not file_name:
+            self.logger.debug(f"SFX '{category}.{sfx_name}'이 config.yaml에 정의되지 않음")
+            return False
 
         # 캐시 확인
         cache_key = f"{category}.{sfx_name}"
