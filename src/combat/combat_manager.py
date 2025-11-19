@@ -198,10 +198,13 @@ class CombatManager:
         # 행동 불가 상태이상 체크 (빙결, 기절 등)
         if hasattr(actor, 'status_manager'):
             if not actor.status_manager.can_act():
+                # StatusType을 명시적으로 import하여 사용
+                from src.combat.status_effects import StatusType as StatusTypeEnum
+                
                 blocking_status = None
                 for effect in actor.status_manager.status_effects:
-                    if effect.status_type in [StatusType.STUN, StatusType.SLEEP, StatusType.FREEZE, 
-                                             StatusType.PETRIFY, StatusType.PARALYZE, StatusType.TIME_STOP]:
+                    if effect.status_type in [StatusTypeEnum.STUN, StatusTypeEnum.SLEEP, StatusTypeEnum.FREEZE, 
+                                             StatusTypeEnum.PETRIFY, StatusTypeEnum.PARALYZE, StatusTypeEnum.TIME_STOP]:
                         blocking_status = effect.name
                         break
                 
@@ -1031,8 +1034,16 @@ class CombatManager:
                             duration = skill.status_duration  # 기본 duration 사용
                             intensity = 1.0  # 기본 intensity
 
+                            # 강력한 상태이상은 최대 2턴으로 제한
+                            from src.combat.status_effects import StatusType as StatusTypeEnum
                             status_type = self._map_status_to_status_type(effect_name)
                             if status_type:
+                                # 강력한 상태이상 체크 (기절, 침묵, 빙결, 마비, 석화, 시간정지)
+                                if status_type in [StatusTypeEnum.STUN, StatusTypeEnum.SLEEP, StatusTypeEnum.FREEZE,
+                                                   StatusTypeEnum.PARALYZE, StatusTypeEnum.PETRIFY, StatusTypeEnum.TIME_STOP,
+                                                   StatusTypeEnum.SILENCE]:
+                                    duration = min(duration, 2)  # 최대 2턴
+                                
                                 status_effect = StatusEffect(
                                     name=effect_name,
                                     status_type=status_type,
@@ -1941,30 +1952,33 @@ class CombatManager:
 
         return debuff_mapping.get(debuff_name.lower())
 
-    def _map_status_to_status_type(self, status_name: str) -> Optional[StatusType]:
+    def _map_status_to_status_type(self, status_name: str):
         """상태이상 이름을 StatusType으로 매핑"""
+        # StatusType을 명시적으로 import하여 사용
+        from src.combat.status_effects import StatusType as StatusTypeEnum
+        
         status_mapping = {
-            "poison": StatusType.POISON,
-            "burn": StatusType.BURN,
-            "bleed": StatusType.BLEED,
-            "stun": StatusType.STUN,
-            "sleep": StatusType.SLEEP,
-            "silence": StatusType.SILENCE,
-            "blind": StatusType.BLIND,
-            "paralyze": StatusType.PARALYZE,
-            "freeze": StatusType.FREEZE,
-            "petrify": StatusType.PETRIFY,
-            "curse": StatusType.CURSE,
-            "slow": StatusType.SLOW,
-            "corrosion": StatusType.CORROSION,
-            "disease": StatusType.DISEASE,
-            "charm": StatusType.CHARM,
-            "dominate": StatusType.DOMINATE,
-            "root": StatusType.ROOT,
-            "chill": StatusType.CHILL,
-            "shock": StatusType.SHOCK,
-            "madness": StatusType.MADNESS,
-            "taunt": StatusType.TAUNT,
+            "poison": StatusTypeEnum.POISON,
+            "burn": StatusTypeEnum.BURN,
+            "bleed": StatusTypeEnum.BLEED,
+            "stun": StatusTypeEnum.STUN,
+            "sleep": StatusTypeEnum.SLEEP,
+            "silence": StatusTypeEnum.SILENCE,
+            "blind": StatusTypeEnum.BLIND,
+            "paralyze": StatusTypeEnum.PARALYZE,
+            "freeze": StatusTypeEnum.FREEZE,
+            "petrify": StatusTypeEnum.PETRIFY,
+            "curse": StatusTypeEnum.CURSE,
+            "slow": StatusTypeEnum.SLOW,
+            "corrosion": StatusTypeEnum.CORROSION,
+            "disease": StatusTypeEnum.DISEASE,
+            "charm": StatusTypeEnum.CHARM,
+            "dominate": StatusTypeEnum.DOMINATE,
+            "root": StatusTypeEnum.ROOT,
+            "chill": StatusTypeEnum.CHILL,
+            "shock": StatusTypeEnum.SHOCK,
+            "madness": StatusTypeEnum.MADNESS,
+            "taunt": StatusTypeEnum.TAUNT,
         }
 
         return status_mapping.get(status_name.lower())

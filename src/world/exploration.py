@@ -774,18 +774,38 @@ class ExplorationSystem:
                     abs(x - self.player.x) > 3 and abs(y - self.player.y) > 3):
                     possible_positions.append((x, y))
 
-        # 랜덤하게 적 배치
+        # 보스 먼저 배치 (층마다 한 마리씩 꼭 생성)
         if possible_positions:
-            spawn_positions = random.sample(possible_positions, min(num_enemies, len(possible_positions)))
-            for x, y in spawn_positions:
-                enemy = Enemy(x=x, y=y, level=self.floor_number)
-                self.enemies.append(enemy)
+            from src.world.enemy_generator import EnemyGenerator
+            boss = EnemyGenerator.generate_boss(self.floor_number)
+            # 보스를 위한 위치 선택 (가능한 위치 중 하나)
+            import random
+            boss_positions = [pos for pos in possible_positions if pos[0] > self.dungeon.width // 3]  # 오른쪽 구역 우선
+            if not boss_positions:
+                boss_positions = possible_positions
+            
+            if boss_positions:
+                boss_x, boss_y = random.choice(boss_positions)
+                boss_enemy = Enemy(x=boss_x, y=boss_y, level=self.floor_number, is_boss=True)
+                boss_enemy.name = boss.name
+                self.enemies.append(boss_enemy)
+                possible_positions.remove((boss_x, boss_y))  # 보스 위치 제외
+                logger.info(f"[_spawn_enemies] 보스 배치: {boss_enemy.name} at ({boss_x}, {boss_y})")
+
+        # 나머지 일반 적 배치
+        if possible_positions:
+            remaining_enemies = num_enemies - len(self.enemies)
+            if remaining_enemies > 0:
+                spawn_positions = random.sample(possible_positions, min(remaining_enemies, len(possible_positions)))
+                for x, y in spawn_positions:
+                    enemy = Enemy(x=x, y=y, level=self.floor_number)
+                    self.enemies.append(enemy)
 
         logger.info(f"[_spawn_enemies] 적 {len(self.enemies)}마리 배치 완료 (요청: {num_enemies}마리, 가능한 위치: {len(possible_positions)}개)")
         if len(self.enemies) == 0:
             logger.warning(f"[_spawn_enemies] ⚠️ 적이 스폰되지 않았습니다! possible_positions: {len(possible_positions)}개")
         for i, enemy in enumerate(self.enemies[:5]):  # 처음 5마리만 로그
-            logger.info(f"[_spawn_enemies] 적 {i+1}: 위치 ({enemy.x}, {enemy.y})")
+            logger.info(f"[_spawn_enemies] 적 {i+1}: {enemy.name} ({'보스' if enemy.is_boss else '일반'}) 위치 ({enemy.x}, {enemy.y})")
 
     def get_enemy_at(self, x: int, y: int) -> Optional[Enemy]:
         """특정 위치의 적 가져오기"""

@@ -589,13 +589,19 @@ class CombatUI:
         if self.selected_skill:
             target_type = getattr(self.selected_skill, 'target_type', 'single_enemy')
 
+            # "self" 타겟은 타겟 선택 건너뛰기
+            if target_type == "self":
+                # 타겟 선택 없이 바로 실행
+                self.selected_target = self.current_actor
+                self._execute_current_action()
+                return
+
             # 문자열 target_type을 Enum으로 매핑 (하위 호환성)
             ally_targets = (
                 SkillTargetType.SINGLE_ALLY,
                 SkillTargetType.SELF,
                 SkillTargetType.ALL_ALLIES,
                 "ally",      # 문자열 지원
-                "self",      # 문자열 지원
                 "party",     # 문자열 지원
             )
 
@@ -924,8 +930,8 @@ class CombatUI:
         # 아군 턴
         for combatant in ready:
             if combatant in self.combat_manager.allies:
-                # 아군 턴 시작 SFX
-                play_sfx("combat", "turn_start")
+                # 아군 턴 시작 SFX (선택 SFX와 동일)
+                play_sfx("ui", "cursor_select")
 
                 self.current_actor = combatant
                 self.action_menu = self._create_action_menu(self.current_actor)  # actor 전달
@@ -1184,8 +1190,14 @@ class CombatUI:
             y = 6 + i * 6
             x = self.screen_width - 30
 
-            # 이름
-            name_color = (255, 255, 255) if enemy.is_alive else (100, 100, 100)
+            # 이름 색상: 보스는 빨간색, 일반 적은 흰색
+            is_boss = hasattr(enemy, 'enemy_id') and enemy.enemy_id.startswith("boss_") if hasattr(enemy, 'enemy_id') else False
+            if not enemy.is_alive:
+                name_color = (100, 100, 100)
+            elif is_boss:
+                name_color = (255, 0, 0)  # 보스: 선명한 빨간색
+            else:
+                name_color = (255, 255, 255)  # 일반 적: 흰색
 
             # 대상 선택 커서 또는 턴 표시
             if enemy == self.current_actor:
@@ -3634,13 +3646,11 @@ def run_combat(
         # 세피로스전: One-Winged Angel 고정
         selected_bgm = "battle_final_boss"
     elif is_boss:
-        # 보스전: 2개 중 랜덤
-        boss_bgm_tracks = ["battle_jenova", "battle_birth_of_god"]
-        selected_bgm = random.choice(boss_bgm_tracks)
+        # 보스전: battle_boss만 재생
+        selected_bgm = "battle_boss"
     else:
-        # 일반 전투: 3개 중 랜덤
+        # 일반 전투: 2개 중 랜덤 (battle_boss 제외)
         battle_bgm_tracks = [
-            "battle_boss",              # 21-Still More Fighting
             "battle_jenova_absolute",   # 85-Jenova Absolute
             "battle_normal"             # 11-Fighting
         ]

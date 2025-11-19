@@ -42,6 +42,7 @@ def create_shaman_skills():
     ]
     plague.costs = []
     # plague.cooldown = 2  # 쿨다운 시스템 제거됨
+    plague.target_type = "all_enemies"
     plague.is_aoe = True
     plague.sfx = ("character", "status_debuff")  # 역병
     plague.metadata = {"curse_gain": 2, "debuff": True, "aoe": True}
@@ -55,6 +56,7 @@ def create_shaman_skills():
     ]
     curse_transfer.costs = [MPCost(3), StackCost("curse_stacks", 2)]
     # curse_transfer.cooldown = 3  # 쿨다운 시스템 제거됨
+    curse_transfer.target_type = "all_enemies"
     curse_transfer.is_aoe = True
     curse_transfer.sfx = ("skill", "cast_complete")  # 저주 전이
     curse_transfer.metadata = {"curse_cost": 2, "curse_scaling": True, "aoe": True}
@@ -123,6 +125,7 @@ def create_shaman_skills():
     ]
     nightmare.costs = [MPCost(10), StackCost("curse_stacks", 5)]
     # nightmare.cooldown = 5  # 쿨다운 시스템 제거됨
+    nightmare.target_type = "all_enemies"
     nightmare.is_aoe = True
     nightmare.sfx = ("skill", "cast_complete")  # 영혼의 악몽
     nightmare.metadata = {"curse_cost": 5, "curse_scaling": True, "debuff": True, "aoe": True}
@@ -140,6 +143,7 @@ def create_shaman_skills():
     ]
     ultimate.costs = [MPCost(30), StackCost("curse_stacks", 1)]
     ultimate.is_ultimate = True
+    ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = ("skill", "limit_break")  # 궁극기

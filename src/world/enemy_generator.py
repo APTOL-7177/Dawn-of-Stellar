@@ -528,10 +528,21 @@ ENEMY_TEMPLATES = {
 class SimpleEnemy:
     """간단한 적 클래스 (전투용)"""
 
-    def __init__(self, template: EnemyTemplate, level_modifier: float = 1.0, difficulty_hp_mult: float = 1.0, difficulty_dmg_mult: float = 1.0):
+    def __init__(self, template: EnemyTemplate, level_modifier: float = 1.0, difficulty_hp_mult: float = 1.0, difficulty_dmg_mult: float = 1.0, is_boss: bool = False):
         self.enemy_id = template.enemy_id  # 적 ID 저장 (BGM 선택용)
         self.name = template.name
         self.level = max(1, int(template.level * level_modifier))
+        
+        # 보스 여부 확인 (enemy_id로도 확인)
+        if not is_boss:
+            is_boss = template.enemy_id.startswith("boss_") or template.enemy_id == "sephiroth"
+        
+        # ±20% 랜덤 오차 (0.8 ~ 1.2배)
+        stat_variance = random.uniform(0.8, 1.2)
+        
+        # 보스 배율: 기본 스탯 1.7배, HP 3.5배
+        boss_stat_mult = 1.7 if is_boss else 1.0
+        boss_hp_mult = 3.5 if is_boss else 1.0
 
         # 플레이어와 유사한 레벨당 비율 기반 성장 (장비 차이 고려하여 약 1.25배 더 성장)
         # 플레이어: HP 11.5%, 공격 20%, 방어 20% → 적: HP 14.4%, 공격 25%, 방어 25%
@@ -540,43 +551,55 @@ class SimpleEnemy:
         
         # HP: 레벨당 기초 HP의 14.4% 성장 (플레이어 11.5% * 1.25)
         hp_growth = template.hp * 0.144 * (level - 1)
-        self.max_hp = int(template.hp + hp_growth) * difficulty_hp_mult
+        base_hp = (template.hp + hp_growth) * boss_hp_mult * stat_variance
+        self.max_hp = int(base_hp) * difficulty_hp_mult
         self.current_hp = self.max_hp
         
         # MP: 레벨당 기초 MP의 6.25% 성장 (플레이어 5% * 1.25)
         mp_growth = template.mp * 0.0625 * (level - 1)
-        self.max_mp = int(template.mp + mp_growth)
+        base_mp = (template.mp + mp_growth) * boss_stat_mult * stat_variance
+        self.max_mp = int(base_mp)
         self.current_mp = self.max_mp
-
+        
         # 공격력: 레벨당 기초 공격력의 25% 성장, 최종값 12% 증가 후 25% 감소 (0.75배)
         # (플레이어 20% * 1.25, 최종 1.12배 * 0.75 = 0.84배)
         attack_growth = template.physical_attack * 0.25 * (level - 1)
-        self.physical_attack = int((template.physical_attack + attack_growth) * 1.12 * 0.75) * difficulty_dmg_mult
+        base_physical_attack = (template.physical_attack + attack_growth) * 1.12 * 0.75 * boss_stat_mult * stat_variance
+        self.physical_attack = int(base_physical_attack) * difficulty_dmg_mult
         
         magic_attack_growth = template.magic_attack * 0.25 * (level - 1)
-        self.magic_attack = int((template.magic_attack + magic_attack_growth) * 1.12 * 0.75) * difficulty_dmg_mult
+        base_magic_attack = (template.magic_attack + magic_attack_growth) * 1.12 * 0.75 * boss_stat_mult * stat_variance
+        self.magic_attack = int(base_magic_attack) * difficulty_dmg_mult
         
         # 방어력: 레벨당 기초 방어력의 25% 성장, 최종값 15% 증가 (플레이어 20% * 1.25, 최종 0.75 * 1.15 = 0.8625배)
         defense_growth = template.physical_defense * 0.25 * (level - 1)
-        self.physical_defense = int((template.physical_defense + defense_growth) * 0.75 * 1.15)
+        base_physical_defense = (template.physical_defense + defense_growth) * 0.75 * 1.15 * boss_stat_mult * stat_variance
+        self.physical_defense = int(base_physical_defense)
         
         magic_defense_growth = template.magic_defense * 0.25 * (level - 1)
-        self.magic_defense = int((template.magic_defense + magic_defense_growth) * 0.75 * 1.15)
+        base_magic_defense = (template.magic_defense + magic_defense_growth) * 0.75 * 1.15 * boss_stat_mult * stat_variance
+        self.magic_defense = int(base_magic_defense)
         
         # 속도: 레벨당 기초 속도의 25% 성장 (플레이어 20% * 1.25)
         speed_growth = template.speed * 0.25 * (level - 1)
-        self.speed = int(template.speed + speed_growth)
+        base_speed = (template.speed + speed_growth) * boss_stat_mult * stat_variance
+        self.speed = int(base_speed)
         
         # 행운, 명중, 회피는 레벨에 따라 약간 증가
-        self.luck = int(template.luck + (level - 1) * 0.5)
-        self.accuracy = int(template.accuracy + (level - 1) * 1.0)
-        self.evasion = int(template.evasion + (level - 1) * 0.5)
+        base_luck = (template.luck + (level - 1) * 0.5) * boss_stat_mult * stat_variance
+        self.luck = int(base_luck)
+        base_accuracy = (template.accuracy + (level - 1) * 1.0) * boss_stat_mult * stat_variance
+        self.accuracy = int(base_accuracy)
+        base_evasion = (template.evasion + (level - 1) * 0.5) * boss_stat_mult * stat_variance
+        self.evasion = int(base_evasion)
 
         # BRV: 레벨당 기초 BRV의 25% 성장 (플레이어 20% * 1.25)
         brv_growth = template.max_brv * 0.25 * (level - 1)
-        self.max_brv = int(template.max_brv + brv_growth)
+        base_max_brv = (template.max_brv + brv_growth) * boss_stat_mult * stat_variance
+        self.max_brv = int(base_max_brv)
         init_brv_growth = template.init_brv * 0.25 * (level - 1)
-        self.current_brv = int(template.init_brv + init_brv_growth)
+        base_init_brv = (template.init_brv + init_brv_growth) * boss_stat_mult * stat_variance
+        self.current_brv = int(base_init_brv)
 
         # 상태
         self.is_alive = True
@@ -733,7 +756,7 @@ class EnemyGenerator:
 
     @staticmethod
     def generate_boss(floor_number: int) -> SimpleEnemy:
-        """보스 생성"""
+        """보스 생성 (일반 몹의 강화 버전)"""
         # 난이도 시스템에서 배율 가져오기
         from src.core.difficulty import get_difficulty_system
         difficulty_system = get_difficulty_system()
@@ -744,21 +767,34 @@ class EnemyGenerator:
             difficulty_hp_mult = difficulty_system.get_enemy_hp_multiplier()
             difficulty_dmg_mult = difficulty_system.get_enemy_damage_multiplier()
 
-        # 층수에 맞는 보스 선택
+        # 층수에 맞는 일반 몹 템플릿 선택 (보스는 일반 몹의 강화 버전)
+        suitable_enemy_ids = EnemyGenerator.get_suitable_enemies_for_floor(floor_number)
+        # 보스 템플릿 제외 (boss_로 시작하거나 sephiroth 제외)
+        normal_enemy_ids = [eid for eid in suitable_enemy_ids if not eid.startswith("boss_") and eid != "sephiroth"]
+        
+        # 일반 몹이 없으면 전체에서 선택 (보스 템플릿 제외)
+        if not normal_enemy_ids:
+            normal_enemy_ids = [eid for eid in ENEMY_TEMPLATES.keys() if not eid.startswith("boss_") and eid != "sephiroth"]
+        
+        # 랜덤으로 일반 몹 템플릿 선택
+        base_enemy_id = random.choice(normal_enemy_ids)
+        template = ENEMY_TEMPLATES[base_enemy_id]
+        
+        # 보스 이름 설정
+        boss_name = f"{template.name} (보스)"
         if floor_number == 15:
-            # 15층: 세피로스 (최종 보스)
-            template = ENEMY_TEMPLATES["sephiroth"]
-        elif floor_number < 15:
-            template = ENEMY_TEMPLATES["boss_chimera"]
-        elif floor_number < 25:
-            template = ENEMY_TEMPLATES["boss_lich"]
+            boss_name = "세피로스"
+            boss_enemy_id = "sephiroth"
         else:
-            template = ENEMY_TEMPLATES["boss_dragon_king"]
+            boss_enemy_id = f"boss_{base_enemy_id}"
 
-        level_modifier = floor_number / template.level
-        level_modifier = max(1.0, level_modifier)  # 최소 1배
+        # 레벨 스케일링 계수 (층수와 비슷하거나 조금 낮게)
+        level_modifier = floor_number * 0.8
 
-        boss = SimpleEnemy(template, level_modifier, difficulty_hp_mult, difficulty_dmg_mult)
+        # 보스 생성 (is_boss=True로 설정하여 1.7배 스탯, 3.5배 HP 적용)
+        boss = SimpleEnemy(template, level_modifier, difficulty_hp_mult, difficulty_dmg_mult, is_boss=True)
+        boss.name = boss_name
+        boss.enemy_id = boss_enemy_id
 
         # 세피로스일 경우 스킬 추가
         if floor_number == 15:
@@ -768,5 +804,12 @@ class EnemyGenerator:
             except ImportError as e:
                 # EnemySkillDatabase가 없을 경우 기본 스킬로 작동
                 logger.warning(f"세피로스 스킬 로드 실패: {e} - 기본 스킬 사용")
+        else:
+            # 일반 보스는 기본 적 스킬 사용
+            try:
+                from src.combat.enemy_skills import EnemySkillDatabase
+                boss.skills = EnemySkillDatabase.get_skills_for_enemy_type(base_enemy_id)
+            except ImportError as e:
+                logger.debug(f"보스 스킬 로드 실패: {e} - 기본 스킬 사용")
 
         return boss
