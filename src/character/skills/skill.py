@@ -115,6 +115,21 @@ class Skill:
             all_enemies = context.get('all_enemies', [])
             if all_enemies:
                 target = all_enemies
+            else:
+                # all_enemies가 없으면 combat_manager에서 가져오기
+                combat_manager = context.get('combat_manager')
+                if combat_manager:
+                    # 아군이 사용하는 경우 적 전체, 적이 사용하는 경우 아군 전체
+                    if hasattr(combat_manager, 'allies') and user in getattr(combat_manager, 'allies', []):
+                        target = getattr(combat_manager, 'enemies', [])
+                    elif hasattr(combat_manager, 'enemies') and user in getattr(combat_manager, 'enemies', []):
+                        target = getattr(combat_manager, 'allies', [])
+                    else:
+                        # 기본값: 적 전체
+                        target = getattr(combat_manager, 'enemies', [])
+                else:
+                    # combat_manager도 없으면 원래 target 유지 (하위 호환성)
+                    pass
 
         # 비용 소비
         for cost in self.costs:

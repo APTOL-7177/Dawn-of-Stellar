@@ -236,6 +236,12 @@ class RewardCalculator:
                 if random.random() < 0.05:  # 5%
                     items.append(RewardCalculator._generate_combat_consumable_drop())
 
+        # 골드 획득량 50% 감소
+        total_gold = int(total_gold * 0.5)
+        
+        # 경험치 획득량 30% 감소
+        total_exp = int(total_exp * 0.7)
+
         return {
             "experience": total_exp,
             "gold": total_gold,

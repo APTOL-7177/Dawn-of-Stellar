@@ -28,7 +28,7 @@ def create_assassin_skills():
         GimmickEffect(GimmickOperation.SET, "stealth_active", 0)  # 은신 해제
     ]
     assassinate.costs = []  # 기본 공격은 MP 소모 없음
-    assassinate.sfx = "013"  # FFVII assassinate sound
+    assassinate.sfx = "025"  # 간결한 slash sound
     assassinate.metadata = {"breaks_stealth": True, "stealth_bonus_high": True}
 
     # 3. 은신 (다시 은신 상태로 전환)

@@ -153,6 +153,11 @@ class ExplorationSystem:
         # 초기 FOV 계산
         self.update_fov()
 
+        # 장비 착용/해제 이벤트 구독 (시야 업데이트용)
+        from src.core.event_bus import event_bus, Events
+        event_bus.subscribe(Events.EQUIPMENT_EQUIPPED, self._on_equipment_changed)
+        event_bus.subscribe(Events.EQUIPMENT_UNEQUIPPED, self._on_equipment_changed)
+
         logger.info(f"탐험 시작: 층 {self.floor_number}, 위치 ({self.player.x}, {self.player.y})")
 
     def update_fov(self):
@@ -160,16 +165,75 @@ class ExplorationSystem:
         # 이전 visible 초기화
         self.fov_system.clear_visibility(self.dungeon)
 
+        # 기본 시야 반지름 (3)
+        base_radius = 3
+        
+        # 파티 멤버들의 시야 보너스 합산
+        vision_bonus = 0
+        skill_bonus = 0  # 스킬/특성/보너스 시야 증가
+        
+        if self.player.party:
+            for member in self.player.party:
+                # 장비 효과로 인한 vision_bonus 확인
+                member_vision_bonus = getattr(member, 'vision_bonus', 0)
+                vision_bonus += member_vision_bonus
+                
+                # 직업 보너스에서 시야 증가 확인 (예: 무당의 vision_range: 2.0)
+                from src.character.character_loader import get_bonuses
+                bonuses = get_bonuses(member.character_class)
+                if bonuses and 'vision_range' in bonuses:
+                    vision_range_bonus = bonuses.get('vision_range', 0)
+                    if isinstance(vision_range_bonus, (int, float)):
+                        skill_bonus += int(vision_range_bonus)
+                
+        # 최종 시야 반지름 계산: 기본 3 + 장비 vision_bonus + 스킬/특성/보너스
+        final_radius = base_radius + vision_bonus + skill_bonus
+        
+        # 특성의 "시야 범위 2배" 같은 곱셈 효과 적용
+        vision_multiplier = 1.0
+        if self.player.party:
+            from src.character.trait_effects import get_trait_effect_manager, TraitEffectType
+            trait_manager = get_trait_effect_manager()
+            
+            for member in self.player.party:
+                if hasattr(member, 'active_traits') and member.active_traits:
+                    for trait in member.active_traits:
+                        trait_id = getattr(trait, 'id', '') if hasattr(trait, 'id') else str(trait)
+                        effects = trait_manager.get_trait_effects(trait_id)
+                        
+                        for effect in effects:
+                            # vision_range 타겟 스탯을 가진 STAT_MULTIPLIER 효과 확인
+                            if (effect.effect_type == TraitEffectType.STAT_MULTIPLIER and 
+                                effect.target_stat == "vision_range"):
+                                # 곱셈 효과 적용 (예: 2.0배)
+                                vision_multiplier *= effect.value
+                                logger.debug(f"{member.name} 특성 {trait_id}: 시야 {effect.value}배")
+        
+        # 곱셈 적용
+        final_radius = int(final_radius * vision_multiplier)
+        
+        # 최소 1, 최대 10
+        final_radius = max(1, min(10, final_radius))
+        
+        logger.debug(f"시야 계산: 기본={base_radius}, 장비보너스={vision_bonus}, 스킬보너스={skill_bonus}, 곱셈={vision_multiplier}, 최종={final_radius}")
+
         # FOV 계산
         visible = self.fov_system.compute_fov(
             self.dungeon,
             self.player.x,
             self.player.y,
-            self.player.fov_radius
+            final_radius
         )
 
         # 탐험한 타일 누적
         self.explored_tiles.update(visible)
+
+    def _on_equipment_changed(self, data: Dict[str, Any]):
+        """장비 착용/해제 시 시야 업데이트"""
+        # 파티 멤버의 장비가 변경되었으면 시야 재계산
+        character = data.get("character")
+        if character and character in self.player.party:
+            self.update_fov()
 
     def can_move(self, dx: int, dy: int) -> bool:
         """이동 가능 여부"""
@@ -226,6 +290,9 @@ class ExplorationSystem:
 
         # 플레이어가 움직인 후 모든 적 움직임
         self._move_all_enemies()
+
+        # NPC 이동 (플레이어 이동 후)
+        self._move_npcs()
 
         # 적 움직임 후 플레이어 위치에 적이 있는지 다시 체크
         enemy_at_player = self.get_enemy_at(self.player.x, self.player.y)
@@ -1560,3 +1627,51 @@ class ExplorationSystem:
             message="NPC와 대화했습니다. (특별한 일은 없었습니다)",
             data={"npc_type": "neutral"}
         )
+
+    def _move_npcs(self):
+        """모든 NPC 움직임 처리 (랜덤 배회)"""
+        # 던전 전체를 스캔하여 NPC 타일 찾기
+        npc_positions = []
+        for y in range(self.dungeon.height):
+            for x in range(self.dungeon.width):
+                tile = self.dungeon.get_tile(x, y)
+                if tile and tile.tile_type == TileType.NPC:
+                    npc_positions.append((x, y, tile))
+        
+        # 각 NPC를 랜덤하게 이동
+        for x, y, npc_tile in npc_positions:
+            # NPC는 상호작용하지 않은 경우에만 이동 (상인 등은 제외)
+            if npc_tile.npc_interacted:
+                continue
+            
+            # 30% 확률로 이동 (적보다 덜 자주 이동)
+            if random.random() < 0.3:
+                directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+                random.shuffle(directions)  # 랜덤 순서
+                
+                for dx, dy in directions:
+                    new_x = x + dx
+                    new_y = y + dy
+                    
+                    # 이동 가능한 위치인지 확인
+                    if self.dungeon.is_walkable(new_x, new_y):
+                        new_tile = self.dungeon.get_tile(new_x, new_y)
+                        # 다른 NPC나 적, 플레이어와 겹치지 않도록 체크
+                        if (new_tile and new_tile.tile_type != TileType.NPC and
+                            not self.get_enemy_at(new_x, new_y) and
+                            (new_x, new_y) != (self.player.x, self.player.y)):
+                            
+                            # 기존 위치를 FLOOR로 변경
+                            self.dungeon.set_tile(x, y, TileType.FLOOR)
+                            
+                            # 새 위치에 NPC 배치
+                            self.dungeon.set_tile(
+                                new_x, new_y,
+                                TileType.NPC,
+                                npc_id=npc_tile.npc_id,
+                                npc_type=npc_tile.npc_type,
+                                npc_subtype=npc_tile.npc_subtype,
+                                npc_interacted=npc_tile.npc_interacted
+                            )
+                            logger.debug(f"NPC 이동: {npc_tile.npc_subtype} ({x}, {y}) -> ({new_x}, {new_y})")
+                            break  # 이동 성공하면 중단

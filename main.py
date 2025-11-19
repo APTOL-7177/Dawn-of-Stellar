@@ -450,7 +450,11 @@ def main() -> int:
                             if floor_number in floors_dungeons:
                                 floor_data = floors_dungeons[floor_number]
                                 dungeon = floor_data["dungeon"]
-                                saved_enemies = floor_data["enemies"]
+                                # dungeon이 튜플인 경우 언패킹 (하위 호환성)
+                                if isinstance(dungeon, tuple):
+                                    dungeon, saved_enemies = dungeon
+                                else:
+                                    saved_enemies = floor_data["enemies"]
                                 saved_x = floor_data["player_x"]
                                 saved_y = floor_data["player_y"]
                                 logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
@@ -464,7 +468,10 @@ def main() -> int:
                                 logger.info(f"새 {floor_number}층 던전 생성")
                             
                             exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
-                            exploration.enemies = saved_enemies
+                            # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
+                            if saved_enemies:
+                                exploration.enemies = saved_enemies
+                            # 새 던전인 경우 _spawn_enemies()가 이미 호출되어 적이 생성됨
                             if saved_x is not None and saved_y is not None:
                                 exploration.player.x = saved_x
                                 exploration.player.y = saved_y
@@ -488,7 +495,11 @@ def main() -> int:
                                 if floor_number in floors_dungeons:
                                     floor_data = floors_dungeons[floor_number]
                                     dungeon = floor_data["dungeon"]
-                                    saved_enemies = floor_data["enemies"]
+                                    # dungeon이 튜플인 경우 언패킹 (하위 호환성)
+                                    if isinstance(dungeon, tuple):
+                                        dungeon, saved_enemies = dungeon
+                                    else:
+                                        saved_enemies = floor_data["enemies"]
                                     saved_x = floor_data["player_x"]
                                     saved_y = floor_data["player_y"]
                                     logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
@@ -502,7 +513,10 @@ def main() -> int:
                                     logger.info(f"새 {floor_number}층 던전 생성")
                                 
                                 exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
-                                exploration.enemies = saved_enemies
+                                # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
+                                if saved_enemies:
+                                    exploration.enemies = saved_enemies
+                                # 새 던전인 경우 _spawn_enemies()가 이미 호출되어 적이 생성됨
                                 if saved_x is not None and saved_y is not None:
                                     exploration.player.x = saved_x
                                     exploration.player.y = saved_y
@@ -621,8 +635,8 @@ def main() -> int:
                     from src.ui.reward_ui import show_reward_screen
                     from src.equipment.inventory import Inventory
 
-                    # 인벤토리 생성 (무게 기반 - 파티 스탯에 연동)
-                    inventory = Inventory(base_weight=50.0, party=party)
+                    # 인벤토리 생성 (무게 기반 - 파티 스탯에 연동, 1/10로 조정됨)
+                    inventory = Inventory(base_weight=5.0, party=party)
                     inventory.add_gold(200)  # 시작 골드
                     logger.info(f"인벤토리 생성 완료: {inventory.max_weight}kg 가능")
 
@@ -809,7 +823,11 @@ def main() -> int:
                                     if floor_number in floors_dungeons:
                                         floor_data = floors_dungeons[floor_number]
                                         dungeon = floor_data["dungeon"]
-                                        saved_enemies = floor_data["enemies"]
+                                        # dungeon이 튜플인 경우 언패킹 (하위 호환성)
+                                        if isinstance(dungeon, tuple):
+                                            dungeon, saved_enemies = dungeon
+                                        else:
+                                            saved_enemies = floor_data["enemies"]
                                         saved_x = floor_data["player_x"]
                                         saved_y = floor_data["player_y"]
                                         logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
@@ -821,7 +839,10 @@ def main() -> int:
                                         logger.info(f"새 {floor_number}층 던전 생성")
                                     
                                     exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
-                                    exploration.enemies = saved_enemies
+                                    # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
+                                    if saved_enemies:
+                                        exploration.enemies = saved_enemies
+                                    # 새 던전인 경우 _spawn_enemies()가 이미 호출되어 적이 생성됨
                                     if saved_x is not None and saved_y is not None:
                                         exploration.player.x = saved_x
                                         exploration.player.y = saved_y
@@ -845,7 +866,11 @@ def main() -> int:
                                         if floor_number in floors_dungeons:
                                             floor_data = floors_dungeons[floor_number]
                                             dungeon = floor_data["dungeon"]
-                                            saved_enemies = floor_data["enemies"]
+                                            # dungeon이 튜플인 경우 언패킹 (하위 호환성)
+                                            if isinstance(dungeon, tuple):
+                                                dungeon, saved_enemies = dungeon
+                                            else:
+                                                saved_enemies = floor_data["enemies"]
                                             saved_x = floor_data["player_x"]
                                             saved_y = floor_data["player_y"]
                                             logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
@@ -857,7 +882,10 @@ def main() -> int:
                                             logger.info(f"새 {floor_number}층 던전 생성")
                                         
                                         exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
-                                        exploration.enemies = saved_enemies
+                                        # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
+                                        if saved_enemies:
+                                            exploration.enemies = saved_enemies
+                                        # 새 던전인 경우 _spawn_enemies()가 이미 호출되어 적이 생성됨
                                         if saved_x is not None and saved_y is not None:
                                             exploration.player.x = saved_x
                                             exploration.player.y = saved_y

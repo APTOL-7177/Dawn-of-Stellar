@@ -781,7 +781,27 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
 
     # 장비 vs 소비 아이템
     if item_type in [ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY]:
-        equip_slot = EquipSlot(item_data["equip_slot"]) if item_data.get("equip_slot") else EquipSlot.WEAPON
+        # equip_slot 복원 (item_type에 따라 기본값 설정)
+        equip_slot_value = item_data.get("equip_slot")
+        if equip_slot_value:
+            try:
+                equip_slot = EquipSlot(equip_slot_value)
+            except (ValueError, KeyError):
+                # 잘못된 값이면 item_type에 따라 기본값 설정
+                if item_type == ItemType.WEAPON:
+                    equip_slot = EquipSlot.WEAPON
+                elif item_type == ItemType.ARMOR:
+                    equip_slot = EquipSlot.ARMOR
+                else:  # ACCESSORY
+                    equip_slot = EquipSlot.ACCESSORY
+        else:
+            # equip_slot이 없으면 item_type에 따라 기본값 설정
+            if item_type == ItemType.WEAPON:
+                equip_slot = EquipSlot.WEAPON
+            elif item_type == ItemType.ARMOR:
+                equip_slot = EquipSlot.ARMOR
+            else:  # ACCESSORY
+                equip_slot = EquipSlot.ACCESSORY
 
         return Equipment(
             item_id=item_data["item_id"],
