@@ -4,26 +4,26 @@ archetype: 초고화력 원거리
 base_stats:
   hp: 151
   mp: 43
-  init_brv: 115
-  speed: 62
-  physical_attack: 92
+  init_brv: 144
+  speed: 38
+  physical_attack: 127
   physical_defense: 41
   magic_attack: 48
   magic_defense: 43
-  max_brv: 450
+  max_brv: 563
 stat_growth:
   hp: 10.0
   mp: 4.2
-  init_brv: 23.0
-  strength: 6.5
+  init_brv: 28.8
+  strength: 8.5
   defense: 2.5
   magic: 3.2
   spirit: 2.8
-  speed: 3.5
+  speed: 2.0
   luck: 7.0
   accuracy: 5.5
   evasion: 2.0
-  max_brv: 90.0
+  max_brv: 112.5
 traits:
 - id: last_bullet
   name: 라스트 불렛

@@ -526,17 +526,36 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
     weight = item_data.get("weight", 1.0)
     sell_price = item_data.get("sell_price", 0)
 
-    # Ingredient 복원 (ingredient_category 필드가 있으면 Ingredient로 복원)
-    if item_data.get("ingredient_category"):
-        category_value = item_data.get("ingredient_category", "filler")
-        # IngredientCategory 찾기
-        category = None
-        for cat in IngredientCategory:
-            if cat.value == category_value:
-                category = cat
-                break
-        if not category:
+    # Ingredient 복원 (item_type이 MATERIAL이거나 ingredient_category 필드가 있으면)
+    if item_type == ItemType.MATERIAL or item_data.get("ingredient_category"):
+        # IngredientDatabase에서 기본 데이터 가져오기 (item_id로)
+        from src.gathering.ingredient import IngredientDatabase
+        ingredient_template = IngredientDatabase.get_ingredient(item_data["item_id"])
+        
+        # ingredient_category 필드가 있으면 그걸 우선 사용
+        if item_data.get("ingredient_category"):
+            category_value = item_data.get("ingredient_category", "filler")
+            # IngredientCategory 찾기
+            category = None
+            for cat in IngredientCategory:
+                if cat.value == category_value:
+                    category = cat
+                    break
+            if not category:
+                category = IngredientCategory.FILLER
+        elif ingredient_template:
+            # 템플릿에서 카테고리 가져오기
+            category = ingredient_template.category
+        else:
             category = IngredientCategory.FILLER
+        
+        # food_value 등도 템플릿에서 가져오되, 저장된 값이 있으면 그것 우선
+        food_value = item_data.get("food_value", ingredient_template.food_value if ingredient_template else 1.0)
+        freshness = item_data.get("freshness", ingredient_template.freshness if ingredient_template else 1.0)
+        spoil_time = item_data.get("spoil_time", ingredient_template.spoil_time if ingredient_template else 0)
+        edible_raw = item_data.get("edible_raw", ingredient_template.edible_raw if ingredient_template else False)
+        raw_hp_restore = item_data.get("raw_hp_restore", ingredient_template.raw_hp_restore if ingredient_template else 0)
+        raw_mp_restore = item_data.get("raw_mp_restore", ingredient_template.raw_mp_restore if ingredient_template else 0)
         
         return Ingredient(
             item_id=item_data["item_id"],
@@ -551,12 +570,12 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
             weight=weight,
             sell_price=sell_price,
             category=category,
-            food_value=item_data.get("food_value", 1.0),
-            freshness=item_data.get("freshness", 1.0),
-            spoil_time=item_data.get("spoil_time", 0),
-            edible_raw=item_data.get("edible_raw", False),
-            raw_hp_restore=item_data.get("raw_hp_restore", 0),
-            raw_mp_restore=item_data.get("raw_mp_restore", 0)
+            food_value=food_value,
+            freshness=freshness,
+            spoil_time=spoil_time,
+            edible_raw=edible_raw,
+            raw_hp_restore=raw_hp_restore,
+            raw_mp_restore=raw_mp_restore
         )
 
     # 장비 vs 소비 아이템

@@ -716,8 +716,74 @@ class Character:
                     # 미니언이 대신 받았으므로 데미지 0
                     return 0
         
-        actual_damage = min(damage, self.current_hp)
+        # 특성 효과: 피해 감소 (damage_reduction, brave_soul 등)
+        from src.character.trait_effects import get_trait_effect_manager
+        trait_manager = get_trait_effect_manager()
+        
+        # 방어 중인지 확인 (수호 상태)
+        is_defending = False
+        if hasattr(self, 'status_manager'):
+            from src.combat.status_effects import StatusType
+            if hasattr(self.status_manager, 'has_status'):
+                is_defending = self.status_manager.has_status(StatusType.GUARDIAN) or \
+                               self.status_manager.has_status(StatusType.SHIELD)
+        
+        damage_reduction = trait_manager.calculate_damage_reduction(self, is_defending=is_defending)
+        if damage_reduction > 0:
+            damage = int(damage * (1.0 - damage_reduction))
+        
+        # 특성 효과: 수호 (guardian_angel) - 아군 피해 대신 받기
+        # 이 효과는 combat_manager에서 처리되어야 함 (아군이 피해를 받을 때)
+        # 여기서는 실제 데미지만 적용
+        
+        # 피해 받기 전 이벤트 발행 (수호 효과를 위해 - 피해를 줄이거나 대신 받기 위함)
+        old_hp = self.current_hp
+        damage_event_data = {
+            "character": self,
+            "damage": damage,
+            "old_hp": old_hp,
+            "new_hp": None  # 아직 피해가 적용되지 않았음을 나타냄
+        }
+        event_bus.publish(Events.COMBAT_DAMAGE_TAKEN, damage_event_data)
+        
+        # 이벤트 핸들러에서 수정된 피해를 사용 (수호 효과가 적용되었을 수 있음)
+        # 수호 효과가 적용되면 이벤트 핸들러에서 damage_event_data["damage"]를 수정함
+        final_damage = damage_event_data.get("damage", damage)
+        
+        actual_damage = min(final_damage, self.current_hp)
         self.current_hp -= actual_damage
+
+        # 특성 효과: 보복 (retaliation) - 피해 받을 때마다 공격력 증가
+        if actual_damage > 0 and hasattr(self, 'active_traits'):
+            from src.character.trait_effects import TraitEffectType
+            for trait_data in self.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                effects = trait_manager.get_trait_effects(trait_id)
+                for effect in effects:
+                    if effect.effect_type == TraitEffectType.RETALIATION:
+                        # 스택 누적
+                        stack_key = f"_retaliation_stacks_{trait_id}"
+                        current_stacks = getattr(self, stack_key, 0)
+                        max_stacks = effect.metadata.get("max_stacks", 3) if effect.metadata else 3
+                        new_stacks = min(current_stacks + 1, max_stacks)
+                        setattr(self, stack_key, new_stacks)
+                        
+                        # 공격력 증가 적용 (스탯 보너스로 적용)
+                        bonus_per_stack = effect.value  # 0.05 = 5% per stack
+                        total_bonus = bonus_per_stack * new_stacks
+                        from src.character.stats import Stats
+                        if hasattr(self, 'stat_manager'):
+                            # 기존 보너스 제거 후 새 보너스 추가
+                            self.stat_manager.remove_bonus(Stats.STRENGTH, f"retaliation_{trait_id}")
+                            self.stat_manager.remove_bonus(Stats.MAGIC, f"retaliation_{trait_id}")
+                            bonus_atk = int(self.stat_manager.get_value(Stats.STRENGTH, use_total=False) * total_bonus)
+                            bonus_mag = int(self.stat_manager.get_value(Stats.MAGIC, use_total=False) * total_bonus)
+                            if bonus_atk > 0:
+                                self.stat_manager.add_bonus(Stats.STRENGTH, f"retaliation_{trait_id}", bonus_atk)
+                            if bonus_mag > 0:
+                                self.stat_manager.add_bonus(Stats.MAGIC, f"retaliation_{trait_id}", bonus_mag)
+                            
+                            logger.info(f"[{trait_id}] {self.name} 보복: 스택 {new_stacks}/{max_stacks} → 공격력 +{int(total_bonus * 100)}%")
 
         if self.current_hp <= 0:
             self.current_hp = 0
@@ -839,6 +905,13 @@ class Character:
         """
         if slot not in self.equipment:
             self.logger.warning(f"잘못된 장비 슬롯: {slot}")
+            return
+
+        # 레벨 제한 체크
+        item_level_req = getattr(item, 'level_requirement', 1)
+        if item_level_req > self.level:
+            item_name = getattr(item, 'name', '알 수 없는 아이템')
+            self.logger.warning(f"{self.name}은(는) 레벨 {item_level_req} 이상이어야 {item_name}을(를) 장착할 수 있습니다. (현재 레벨: {self.level})")
             return
 
         # 기존 장비 해제

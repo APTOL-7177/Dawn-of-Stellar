@@ -455,33 +455,21 @@ def main() -> int:
 
                 # 파티 구성
                 from src.ui.party_setup import run_party_setup
-                party = run_party_setup(display.console, display.context)
+                result = run_party_setup(display.console, display.context)
+                
+                if result is None:
+                    continue
+                
+                party_members, selected_passives = result
 
-                if party:
-                    logger.info(f"파티 구성 완료: {len(party)}명")
-                    for i, member in enumerate(party):
+                if party_members:
+                    logger.info(f"파티 구성 완료: {len(party_members)}명")
+                    for i, member in enumerate(party_members):
                         logger.info(
                             f"  {i+1}. {member.character_name} ({member.job_name})"
                         )
 
-                    # PartyMember를 Character 객체로 변환
-                    from src.character.character import Character
-                    character_party = []
-                    for member in party:
-                        char = Character(
-                            name=member.character_name,
-                            character_class=member.job_id,
-                            level=1
-                        )
-                        # 경험치 초기화
-                        char.experience = 0
-                        character_party.append(char)
-
-                    # 이제 character_party를 사용
-                    party = character_party
-                    logger.info("파티 멤버를 Character 객체로 변환 완료")
-
-                    # 난이도 선택
+                    # 난이도 선택 (파티 구성 완료 후)
                     from src.core.difficulty import DifficultySystem, set_difficulty_system
                     from src.ui.difficulty_selection_ui import show_difficulty_selection
 
@@ -500,88 +488,95 @@ def main() -> int:
                         logger.info("난이도 선택 취소 - 메인 메뉴로")
                         continue
 
-                    # 특성 선택
-                    from src.ui.trait_selection import run_trait_selection
-                    trait_selections = run_trait_selection(
-                        display.console,
-                        display.context,
-                        party
+                    # PartyMember를 Character 객체로 변환 (특성/패시브 정보 포함)
+                    from src.character.character import Character
+                    character_party = []
+                    for member in party_members:
+                        char = Character(
+                            name=member.character_name,
+                            character_class=member.job_id,
+                            level=1
+                        )
+                        # 경험치 초기화
+                        char.experience = 0
+                        
+                        # 파티 구성에서 선택된 특성 적용
+                        if member.selected_traits:
+                            for trait_id in member.selected_traits:
+                                if char.activate_trait(trait_id):
+                                    logger.debug(f"{member.character_name}에 특성 추가: {trait_id}")
+                        
+                        character_party.append(char)
+                    
+                    # 선택된 패시브를 모든 캐릭터에 적용 (파티 전체 공통)
+                    if selected_passives:
+                        for passive_id in selected_passives:
+                            for char in character_party:
+                                if char.activate_trait(passive_id):
+                                    logger.debug(f"{char.name}에 패시브 추가: {passive_id}")
+                        logger.info(f"패시브 적용 완료: {', '.join(selected_passives)}")
+                    
+                    # 선택된 특성/패시브 로그
+                    logger.info("선택된 특성/패시브:")
+                    for i, member in enumerate(party_members):
+                        char = character_party[i]
+                        traits_str = ", ".join(member.selected_traits) if member.selected_traits else "없음"
+                        logger.info(f"  {member.character_name} ({member.job_name}): 특성={traits_str}")
+                    logger.info(f"  파티 전체 패시브: {', '.join(selected_passives) if selected_passives else '없음'}")
+
+                    # 이제 character_party를 사용
+                    party = character_party
+                    logger.info("파티 멤버를 Character 객체로 변환 완료")
+
+                    # 게임 시작!
+                    logger.info("=== 게임 시작! ===")
+                    from src.world.dungeon_generator import DungeonGenerator
+                    from src.world.exploration import ExplorationSystem
+                    from src.world.enemy_generator import EnemyGenerator
+                    from src.ui.world_ui import run_exploration
+                    from src.ui.combat_ui import run_combat, CombatState
+                    from src.combat.experience_system import (
+                        RewardCalculator,
+                        distribute_party_experience
+                    )
+                    from src.ui.reward_ui import show_reward_screen
+                    from src.equipment.inventory import Inventory
+
+                    # 인벤토리 생성 (무게 기반 - 파티 스탯에 연동)
+                    inventory = Inventory(base_weight=50.0, party=party)
+                    inventory.add_gold(200)  # 시작 골드
+                    logger.info(f"인벤토리 생성 완료: {inventory.max_weight}kg 가능")
+
+                    # 무게 제한 세부 내역 로그
+                    breakdown = inventory.weight_breakdown
+                    logger.info(
+                        f"무게 제한 세부: 기본 {breakdown['base']}kg + "
+                        f"파티 {breakdown['party_count']}kg + "
+                        f"힘 {breakdown['strength_bonus']}kg + "
+                        f"레벨 {breakdown['level_bonus']}kg = "
+                        f"총 {inventory.max_weight}kg"
                     )
 
-                    if trait_selections:
-                        logger.info(f"특성 선택 완료: {len(trait_selections)}명")
-                        for traits in trait_selections:
-                            logger.info(
-                                f"  {traits.character_name} ({traits.job_name}): "
-                                f"{', '.join([t.name for t in traits.selected_traits])}"
-                            )
+                    floor_number = 1
 
-                        # 패시브 선택
-                        from src.ui.passive_selection import run_passive_selection
-                        passive_selection = run_passive_selection(
-                            display.console,
-                            display.context
-                        )
+                    # 게임 통계 초기화
+                    game_stats = {
+                        "enemies_defeated": 0,
+                        "max_floor_reached": 1,
+                        "total_gold_earned": 0,
+                        "total_exp_earned": 0,
+                        "save_slot": None
+                    }
 
-                        if passive_selection:
-                            logger.info(
-                                f"패시브 선택 완료: {len(passive_selection.passives)}개, "
-                                f"총 코스트 {passive_selection.total_cost}"
-                            )
-                            for passive in passive_selection.passives:
-                                logger.info(
-                                    f"  [{passive.cost}] {passive.name}"
-                                )
+                    # 던전 및 탐험 초기화 (층 변경 시에만 재생성)
+                    dungeon_gen = DungeonGenerator(width=80, height=50)
+                    dungeon = dungeon_gen.generate(floor_number)
+                    exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
 
-                            # 게임 시작!
-                            logger.info("=== 게임 시작! ===")
-                            from src.world.dungeon_generator import DungeonGenerator
-                            from src.world.exploration import ExplorationSystem
-                            from src.world.enemy_generator import EnemyGenerator
-                            from src.ui.world_ui import run_exploration
-                            from src.ui.combat_ui import run_combat, CombatState
-                            from src.combat.experience_system import (
-                                RewardCalculator,
-                                distribute_party_experience
-                            )
-                            from src.ui.reward_ui import show_reward_screen
-                            from src.equipment.inventory import Inventory
+                    # BGM 제어 플래그 (첫 탐험 시작 및 층 변경 시에만 재생)
+                    play_dungeon_bgm = True
 
-                            # 인벤토리 생성 (무게 기반 - 파티 스탯에 연동)
-                            inventory = Inventory(base_weight=50.0, party=party)
-                            inventory.add_gold(200)  # 시작 골드
-                            logger.info(f"인벤토리 생성 완료: {inventory.max_weight}kg 가능")
-
-                            # 무게 제한 세부 내역 로그
-                            breakdown = inventory.weight_breakdown
-                            logger.info(
-                                f"무게 제한 세부: 기본 {breakdown['base']}kg + "
-                                f"파티 {breakdown['party_count']}kg + "
-                                f"힘 {breakdown['strength_bonus']}kg + "
-                                f"레벨 {breakdown['level_bonus']}kg = "
-                                f"총 {inventory.max_weight}kg"
-                            )
-
-                            floor_number = 1
-
-                            # 게임 통계 초기화
-                            game_stats = {
-                                "enemies_defeated": 0,
-                                "max_floor_reached": 1,
-                                "total_gold_earned": 0,
-                                "total_exp_earned": 0,
-                                "save_slot": None
-                            }
-
-                            # 던전 및 탐험 초기화 (층 변경 시에만 재생성)
-                            dungeon_gen = DungeonGenerator(width=80, height=50)
-                            dungeon = dungeon_gen.generate(floor_number)
-                            exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
-
-                            # BGM 제어 플래그 (첫 탐험 시작 및 층 변경 시에만 재생)
-                            play_dungeon_bgm = True
-
-                            while True:
+                    while True:
                                 # 탐험 시작 (기존 exploration 객체 재사용)
                                 result, data = run_exploration(
                                     display.console,
@@ -745,14 +740,6 @@ def main() -> int:
                                             save_slot=exploration.game_stats.get("save_slot", None)
                                         )
                                         break
-
-                            break
-                        else:
-                            logger.info("패시브 선택 취소 - 메인 메뉴로")
-                            continue
-                    else:
-                        logger.info("특성 선택 취소 - 메인 메뉴로")
-                        continue
                 else:
                     logger.info("파티 구성 취소 - 메인 메뉴로")
                     continue

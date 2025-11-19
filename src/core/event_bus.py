@@ -126,6 +126,7 @@ class Events:
     STATUS_APPLIED = "status.applied"
     STATUS_REMOVED = "status.removed"
     STATUS_TICK = "status.tick"
+    STATUS_DOT_DAMAGE = "status.dot_damage"  # 지속 피해 (독, 화상 등)
 
     # World Events
     WORLD_FLOOR_CHANGE = "world.floor_change"

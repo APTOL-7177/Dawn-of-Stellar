@@ -485,98 +485,109 @@ class Inventory:
         target_name: str
     ) -> bool:
         """
-        요리 음식 사용
+        요리 음식 사용 (아군 전체에게 효과 적용)
 
         Args:
             slot_index: 슬롯 인덱스
             food: CookedFood 객체
-            target: 대상 캐릭터
+            target: 대상 캐릭터 (사용되지 않음, 아군 전체에 적용)
             item_name: 아이템 이름
-            target_name: 대상 이름
+            target_name: 대상 이름 (사용되지 않음)
 
         Returns:
             성공 여부
         """
+        # 아군 전체 가져오기
+        targets = self.party if self.party else []
+        if not targets:
+            logger.warning(f"{item_name} 사용 실패: 아군이 없습니다")
+            return False
+        
         success = False
 
-        # HP 회복
-        hp_restore = getattr(food, 'hp_restore', 0)
-        if hp_restore > 0:
-            healed = target.heal(hp_restore)
-            if healed > 0:
-                logger.info(f"{target_name}: {item_name} 사용 → HP +{healed}")
+        # 모든 아군에게 효과 적용
+        for member in targets:
+            member_name = getattr(member, 'name', '알 수 없는 대상')
+            
+            # HP 회복
+            hp_restore = getattr(food, 'hp_restore', 0)
+            if hp_restore > 0:
+                healed = member.heal(hp_restore)
+                if healed > 0:
+                    logger.info(f"{member_name}: {item_name} 사용 → HP +{healed}")
+                    success = True
+
+            # MP 회복
+            mp_restore = getattr(food, 'mp_restore', 0)
+            if mp_restore > 0:
+                restored = member.restore_mp(mp_restore)
+                if restored > 0:
+                    logger.info(f"{member_name}: {item_name} 사용 → MP +{restored}")
+                    success = True
+
+            # 최대 HP 보너스 (일시적)
+            max_hp_bonus = getattr(food, 'max_hp_bonus', 0)
+            if max_hp_bonus > 0:
+                if not hasattr(member, 'temp_max_hp_bonus'):
+                    member.temp_max_hp_bonus = 0
+                member.temp_max_hp_bonus += max_hp_bonus
+                logger.info(f"{member_name}: {item_name} 사용 → 최대 HP +{max_hp_bonus}")
                 success = True
 
-        # MP 회복
-        mp_restore = getattr(food, 'mp_restore', 0)
-        if mp_restore > 0:
-            restored = target.restore_mp(mp_restore)
-            if restored > 0:
-                logger.info(f"{target_name}: {item_name} 사용 → MP +{restored}")
+            # 최대 MP 보너스 (일시적)
+            max_mp_bonus = getattr(food, 'max_mp_bonus', 0)
+            if max_mp_bonus > 0:
+                if not hasattr(member, 'temp_max_mp_bonus'):
+                    member.temp_max_mp_bonus = 0
+                member.temp_max_mp_bonus += max_mp_bonus
+                logger.info(f"{member_name}: {item_name} 사용 → 최대 MP +{max_mp_bonus}")
                 success = True
 
-        # 최대 HP 보너스 (일시적)
-        max_hp_bonus = getattr(food, 'max_hp_bonus', 0)
-        if max_hp_bonus > 0:
-            if hasattr(target, 'temp_max_hp_bonus'):
-                target.temp_max_hp_bonus += max_hp_bonus
-            logger.info(f"{target_name}: {item_name} 사용 → 최대 HP +{max_hp_bonus}")
-            success = True
+            # 버프 적용
+            buff_type = getattr(food, 'buff_type', None)
+            buff_duration = getattr(food, 'buff_duration', 0)
+            if buff_type and buff_duration > 0:
+                # active_buffs에 버프 적용
+                if not hasattr(member, 'active_buffs'):
+                    member.active_buffs = {}
+                
+                # 요리 버프 타입을 시스템 버프 타입으로 매핑
+                buff_type_mapping = {
+                    "attack": "attack_up",
+                    "defense": "defense_up",
+                    "speed": "speed_up"
+                }
+                system_buff_type = buff_type_mapping.get(buff_type, buff_type)
+                
+                # 버프 타입에 따라 value 설정 (기본값 0.2 = 20%)
+                buff_value = 0.2  # 기본 20% 증가
+                if buff_type == "attack":
+                    buff_value = 0.2  # 공격력 +20%
+                elif buff_type == "defense":
+                    buff_value = 0.2  # 방어력 +20%
+                elif buff_type == "speed":
+                    buff_value = 0.2  # 속도 +20%
+                
+                member.active_buffs[system_buff_type] = {
+                    'value': buff_value,
+                    'duration': buff_duration,
+                    'source': 'cooked_food'  # 요리 버프임을 표시
+                }
+                logger.info(f"{member_name}: {item_name} 사용 → {system_buff_type} 버프 ({buff_duration}턴, +{int(buff_value*100)}%)")
+                success = True
 
-        # 최대 MP 보너스 (일시적)
-        max_mp_bonus = getattr(food, 'max_mp_bonus', 0)
-        if max_mp_bonus > 0:
-            if hasattr(target, 'temp_max_mp_bonus'):
-                target.temp_max_mp_bonus += max_mp_bonus
-            logger.info(f"{target_name}: {item_name} 사용 → 최대 MP +{max_mp_bonus}")
-            success = True
+            # 독 (실패 요리)
+            is_poison = getattr(food, 'is_poison', False)
+            poison_damage = getattr(food, 'poison_damage', 0)
+            if is_poison and poison_damage > 0:
+                if hasattr(member, 'take_damage'):
+                    member.take_damage(poison_damage)
+                logger.warning(f"{member_name}: {item_name} 사용 → 독! 피해 {poison_damage}")
+                success = True
 
-        # 버프 적용
-        buff_type = getattr(food, 'buff_type', None)
-        buff_duration = getattr(food, 'buff_duration', 0)
-        if buff_type and buff_duration > 0:
-            # active_buffs에 버프 적용
-            if not hasattr(target, 'active_buffs'):
-                target.active_buffs = {}
-            
-            # 요리 버프 타입을 시스템 버프 타입으로 매핑
-            buff_type_mapping = {
-                "attack": "attack_up",
-                "defense": "defense_up",
-                "speed": "speed_up"
-            }
-            system_buff_type = buff_type_mapping.get(buff_type, buff_type)
-            
-            # 버프 타입에 따라 value 설정 (기본값 0.2 = 20%)
-            buff_value = 0.2  # 기본 20% 증가
-            if buff_type == "attack":
-                buff_value = 0.2  # 공격력 +20%
-            elif buff_type == "defense":
-                buff_value = 0.2  # 방어력 +20%
-            elif buff_type == "speed":
-                buff_value = 0.2  # 속도 +20%
-            
-            target.active_buffs[system_buff_type] = {
-                'value': buff_value,
-                'duration': buff_duration,
-                'source': 'cooked_food'  # 요리 버프임을 표시
-            }
-            logger.info(f"{target_name}: {item_name} 사용 → {system_buff_type} 버프 ({buff_duration}턴, +{int(buff_value*100)}%)")
-            success = True
-
-        # 독 (실패 요리)
-        is_poison = getattr(food, 'is_poison', False)
-        poison_damage = getattr(food, 'poison_damage', 0)
-        if is_poison and poison_damage > 0:
-            if hasattr(target, 'take_damage'):
-                target.take_damage(poison_damage)
-            logger.warning(f"{target_name}: {item_name} 사용 → 독! 피해 {poison_damage}")
-            success = True
-
-        # 성공하지 않았다면 최소한 아무 효과 없음
-        if not success and (hp_restore > 0 or mp_restore > 0):
-            logger.info(f"{target_name}: {item_name} 사용 (이미 최대치)")
-            success = True
+        # 전체 로그
+        if success:
+            logger.info(f"{item_name} 사용 완료 (아군 전체 {len(targets)}명에게 적용)")
 
         # 사용 성공 시 아이템 제거
         if success:

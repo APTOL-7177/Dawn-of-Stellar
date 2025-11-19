@@ -66,8 +66,9 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
         GoldShopTab.SPECIAL: []
     }
     
-    # 층별로 고정된 시드 설정 (같은 층에서는 같은 랜덤 결과)
-    random.seed(floor_level * 12345)  # 층별 고유 시드
+    # 층별로 고정된 시드를 사용하는 별도의 Random 인스턴스 생성
+    # 전역 random 상태를 변경하지 않도록 독립적인 인스턴스 사용
+    floor_random = random.Random(floor_level * 12345)  # 층별 고유 시드
 
     # === 소모품 (회복 아이템) ===
     # 층별로 다른 소모품 풀 선택
@@ -94,8 +95,8 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     ]
     
     # 층별로 6~8개의 소모품 랜덤 선택
-    num_consumables = random.randint(6, 8)
-    consumable_items = random.sample(all_consumable_items, min(num_consumables, len(all_consumable_items)))
+    num_consumables = floor_random.randint(6, 8)
+    consumable_items = floor_random.sample(all_consumable_items, min(num_consumables, len(all_consumable_items)))
 
     for item_id, price in consumable_items:
         # ItemGenerator를 사용하여 일관된 아이템 생성 (스택 문제 해결)
@@ -107,7 +108,7 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             continue
         
         # 소모품 재고: 1~3개 랜덤
-        stock = random.randint(1, 3)
+        stock = floor_random.randint(1, 3)
         
         items[GoldShopTab.CONSUMABLES].append(
             GoldShopItem(
@@ -191,8 +192,8 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
         ]
     
     # 층별로 4~6개의 장비 랜덤 선택
-    num_equipment = random.randint(4, 6)
-    equipment_items = random.sample(all_equipment_pools, min(num_equipment, len(all_equipment_pools)))
+    num_equipment = floor_random.randint(4, 6)
+    equipment_items = floor_random.sample(all_equipment_pools, min(num_equipment, len(all_equipment_pools)))
 
     for item_id, price in equipment_items:
         # 무기 템플릿 확인
@@ -269,8 +270,8 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     ]
     
     # 층별로 3~4개의 특수 아이템 랜덤 선택
-    num_special = random.randint(3, 4)
-    special_items = random.sample(all_special_items, min(num_special, len(all_special_items)))
+    num_special = floor_random.randint(3, 4)
+    special_items = floor_random.sample(all_special_items, min(num_special, len(all_special_items)))
 
     for item_id, price in special_items:
         # ItemGenerator를 사용하여 일관된 아이템 생성 (스택 문제 해결)
@@ -282,7 +283,7 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             continue
         
         # 특수 아이템 재고: 1~3개 랜덤 (소모품과 동일)
-        stock = random.randint(1, 3)
+        stock = floor_random.randint(1, 3)
         
         items[GoldShopTab.SPECIAL].append(
             GoldShopItem(consumable.name, consumable.description, price, consumable, "special", stock=stock)

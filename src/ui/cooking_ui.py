@@ -10,6 +10,7 @@ from typing import List, Optional, Any
 from enum import Enum
 
 from src.equipment.inventory import Inventory
+from src.equipment.item_system import ItemType
 from src.gathering.ingredient import Ingredient, IngredientCategory
 from src.cooking.recipe import RecipeDatabase, CookedFood
 from src.ui.tcod_display import Colors, render_space_background
@@ -266,12 +267,34 @@ class CookingPotUI:
             if not hasattr(slot, 'item') or slot.item is None:
                 continue
             
-            # Ingredient 타입 확인
-            if isinstance(slot.item, Ingredient):
+            # Ingredient 타입 확인 (여러 방법 시도 - 순서 중요!)
+            is_ingredient = False
+            
+            # 방법 1: item_type이 MATERIAL이고 category 속성이 있는지 확인 (가장 확실한 방법)
+            item_type = getattr(slot.item, 'item_type', None)
+            has_category = hasattr(slot.item, 'category')
+            if item_type == ItemType.MATERIAL and has_category:
+                is_ingredient = True
+            # 방법 2: isinstance 체크
+            elif isinstance(slot.item, Ingredient):
+                is_ingredient = True
+            # 방법 3: category 속성이 IngredientCategory 타입인지 확인 (저장/로드 후 타입 체크 실패 대비)
+            elif has_category and isinstance(getattr(slot.item, 'category', None), IngredientCategory):
+                is_ingredient = True
+            
+            if is_ingredient:
                 # 이미 냄비에 있는 재료는 제외
                 if i not in used_slot_indices:
                     available.append((i, slot.item))
-                    logger.debug(f"사용 가능한 재료 발견: 슬롯 {i}, {slot.item.name}")
+                    logger.info(f"사용 가능한 재료 발견: 슬롯 {i}, {slot.item.name} (타입: {type(slot.item).__name__})")
+            else:
+                # 디버그: 왜 식재료로 인식되지 않는지 확인 (로그 레벨을 info로 변경해서 항상 출력)
+                item_type = getattr(slot.item, 'item_type', None)
+                has_category = hasattr(slot.item, 'category')
+                category_value = getattr(slot.item, 'category', None)
+                logger.info(f"슬롯 {i} 아이템은 식재료가 아님: {getattr(slot.item, 'name', 'Unknown')} "
+                           f"(타입: {type(slot.item).__name__}, item_type: {item_type}, "
+                           f"category 속성: {has_category}, category 값: {category_value})")
 
         logger.info(f"사용 가능한 재료 개수: {len(available)}")
         return available

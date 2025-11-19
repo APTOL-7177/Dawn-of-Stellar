@@ -163,8 +163,21 @@ class InventoryUI:
                         self.mode = InventoryMode.EQUIP
                         self.show_comparison = False
                     elif isinstance(item, (Consumable, CookedFood)):
-                        # 소비품 또는 요리: 사용 모드로 전환
-                        self.mode = InventoryMode.USE_ITEM
+                        # CookedFood는 바로 사용 (아군 전체에 효과)
+                        from src.cooking.recipe import CookedFood
+                        if isinstance(item, CookedFood):
+                            # 음식은 타겟 선택 없이 바로 사용
+                            target = self.party[0] if self.party else None  # 더미 타겟
+                            success = self.inventory.use_consumable(actual_index, target)
+                            if success:
+                                item_name = getattr(item, 'name', '알 수 없는 아이템')
+                                logger.info(f"{item_name} 사용 완료 (아군 전체)")
+                                # 인덱스 조정
+                                if self.cursor >= len(self.inventory):
+                                    self.cursor = max(0, len(self.inventory) - 1)
+                        else:
+                            # 일반 소비품: 사용 모드로 전환
+                            self.mode = InventoryMode.USE_ITEM
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             self.closed = True
             return True
@@ -197,6 +210,32 @@ class InventoryUI:
 
     def _handle_use_or_equip(self, action: GameAction) -> bool:
         """아이템 사용/장착 모드 입력"""
+        from src.cooking.recipe import CookedFood
+        item = self.inventory.get_item(self.selected_item_index)
+        
+        # CookedFood인 경우 타겟 선택 없이 바로 사용 (아군 전체에 효과)
+        if isinstance(item, CookedFood):
+            if action == GameAction.CONFIRM:
+                # 음식은 아군 전체에게 효과 적용 (target은 무시됨)
+                target = self.party[0] if self.party else None  # 더미 타겟
+                success = self.inventory.use_consumable(self.selected_item_index, target)
+                if success:
+                    item_name = getattr(item, 'name', '알 수 없는 아이템')
+                    logger.info(f"{item_name} 사용 완료 (아군 전체)")
+                    # 인덱스 조정
+                    if self.cursor >= len(self.inventory):
+                        self.cursor = max(0, len(self.inventory) - 1)
+                
+                # 모드 복귀
+                self.mode = InventoryMode.BROWSE
+                self.selected_item_index = None
+            elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+                # 취소: 모드 복귀
+                self.mode = InventoryMode.BROWSE
+                self.selected_item_index = None
+            return False
+        
+        # 일반 소비품/장비는 기존처럼 타겟 선택
         if action == GameAction.MOVE_UP:
             self.target_cursor = max(0, self.target_cursor - 1)
         elif action == GameAction.MOVE_DOWN:
@@ -427,6 +466,16 @@ class InventoryUI:
 
     def _equip_item(self, character: Any, item: Equipment):
         """장비 착용"""
+        # 레벨 제한 체크
+        char_level = getattr(character, 'level', 1)
+        item_level_req = getattr(item, 'level_requirement', 1)
+        
+        if item_level_req > char_level:
+            char_name = getattr(character, 'name', '알 수 없는 캐릭터')
+            item_name = getattr(item, 'name', '알 수 없는 아이템')
+            logger.warning(f"{char_name}은(는) 레벨 {item_level_req} 이상이어야 {item_name}을(를) 장착할 수 있습니다. (현재 레벨: {char_level})")
+            return  # 레벨 부족으로 장착 실패
+
         # 장비 슬롯 결정
         slot_name = item.equip_slot.value  # "weapon", "armor", "accessory"
 
@@ -658,7 +707,7 @@ class InventoryUI:
         y += 1
 
         # 설명
-        console.print(x, y, item.description, fg=Colors.GRAY)
+        console.print(x, y, item.description, fg=Colors.DARK_GRAY)
         y += 1
 
         # 무게
@@ -671,9 +720,59 @@ class InventoryUI:
             console.print(x, y, "기본 스탯:", fg=Colors.UI_TEXT)
             y += 1
 
+            # 스탯 이름 한글 매핑
+            stat_names = {
+                "hp": "HP",
+                "mp": "MP",
+                "physical_attack": "물리 공격력",
+                "physical_defense": "물리 방어력",
+                "magic_attack": "마법 공격력",
+                "magic_defense": "마법 방어력",
+                "speed": "속도",
+                "accuracy": "명중률",
+                "evasion": "회피율",
+                "luck": "행운",
+                "strength": "힘",
+                "defense": "방어력",
+                "magic": "마력",
+                "spirit": "정신력",
+                "init_brv": "초기 BRV",
+                "max_brv": "최대 BRV",
+            }
+            
             for stat_name, value in item.base_stats.items():
                 if value != 0:
-                    console.print(x + 2, y, f"{stat_name}: +{value}", fg=Colors.UI_TEXT)
+                    display_stat = stat_names.get(stat_name, stat_name.upper())
+                    console.print(x + 2, y, f"{display_stat}: +{int(value)}", fg=rarity_color)
+                    y += 1
+
+            # unique_effect에서 재생 스탯 등 추출하여 표시
+            if hasattr(item, 'unique_effect') and item.unique_effect:
+                # unique_effect 파싱 (간단한 파싱)
+                unique_stats = {}
+                for effect_str in item.unique_effect.split("|"):
+                    if ":" in effect_str:
+                        effect_name, value_str = effect_str.split(":", 1)
+                        effect_name = effect_name.strip()
+                        try:
+                            value = float(value_str.strip())
+                            # 재생 스탯 등 기본 스탯 섹션에 표시할 효과들
+                            if effect_name == "mp_regen":
+                                unique_stats["MP 재생"] = int(value)
+                            elif effect_name == "hp_regen":
+                                # 퍼센트일 수 있음 (0.05 = 5%)
+                                if value < 1:
+                                    unique_stats["HP 재생"] = f"{int(value * 100)}%"
+                                else:
+                                    unique_stats["HP 재생"] = int(value)
+                            elif effect_name == "wound_regen":
+                                unique_stats["상처 회복"] = int(value)
+                        except ValueError:
+                            pass
+                
+                # 추출한 스탯 표시
+                for stat_name, value in unique_stats.items():
+                    console.print(x + 2, y, f"{stat_name}: +{value}", fg=rarity_color)
                     y += 1
 
             # 접사
@@ -683,10 +782,9 @@ class InventoryUI:
                 y += 1
 
                 for affix in item.affixes:
-                    if affix.is_percentage:
-                        console.print(x + 2, y, f"{affix.name} +{affix.value}%", fg=(150, 255, 150))
-                    else:
-                        console.print(x + 2, y, f"{affix.name} +{int(affix.value)}", fg=(150, 255, 150))
+                    # get_description() 메서드를 사용하여 올바른 형식으로 표시
+                    affix_desc = affix.get_description()
+                    console.print(x + 2, y, affix_desc, fg=(150, 255, 150))
                     y += 1
 
             # 유니크 효과

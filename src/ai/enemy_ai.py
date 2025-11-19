@@ -95,9 +95,20 @@ class EnemyAI:
                     # 쿨다운 활성화
                     selected_skill.activate_cooldown()
 
+                    # 대상 이름 결정 (리스트인 경우 처리)
+                    if isinstance(target, list):
+                        if len(target) == 1:
+                            target_name = getattr(target[0], 'name', 'Unknown')
+                        elif len(target) > 1:
+                            target_name = f"전체 ({len(target)}명)"
+                        else:
+                            target_name = "없음"
+                    else:
+                        target_name = getattr(target, 'name', 'Unknown')
+                    
                     logger.info(
                         f"{self.enemy.name}이(가) {selected_skill.name} 사용! "
-                        f"(대상: {getattr(target, 'name', 'Unknown')})"
+                        f"(대상: {target_name})"
                     )
 
                     return {
@@ -452,19 +463,21 @@ class EnemyAI:
         if skill.target_type == SkillTargetType.SELF:
             return self.enemy
 
-        elif skill.target_type == SkillTargetType.SINGLE_ALLY:
-            # 단일 아군 선택 (회복 스킬 등) - 가장 HP가 낮은 아군
-            alive_allies = [a for a in allies if getattr(a, 'is_alive', True)]
-            if not alive_allies:
-                return None
-            # HP가 가장 낮은 아군 선택
-            return min(alive_allies, key=lambda a: getattr(a, 'current_hp', 0))
-
         elif skill.target_type == SkillTargetType.ALL_ALLIES:
             return allies  # 전체 대상
 
         elif skill.target_type == SkillTargetType.ALL_ENEMIES:
             return enemies  # 전체 대상
+
+        elif skill.target_type == SkillTargetType.SINGLE_ALLY:
+            # 아군 1명 선택 (힐링/서포트 스킬)
+            alive_allies = [a for a in allies if getattr(a, 'is_alive', True)]
+            if not alive_allies:
+                return None
+            
+            # 가장 HP가 낮은 아군 우선 선택
+            weakest_ally = min(alive_allies, key=lambda a: (a.current_hp / a.max_hp) if a.max_hp > 0 else 1.0)
+            return weakest_ally
 
         elif skill.target_type == SkillTargetType.SINGLE_ENEMY:
             # 단일 적 선택 (난이도별 어그로 시스템 사용)
@@ -557,54 +570,87 @@ class EnemyAI:
         # BRV 확인 (절대값만 사용)
         current_brv = getattr(self.enemy, 'current_brv', 0)
         
-        # 난이도별 타겟 선택 전략
-        if self.difficulty == "insane":
-            # insane: 항상 최적 타겟 선택 (랜덤 없음)
-            best_target = None
-            best_score = -1
-            
-            for enemy in alive_enemies:
-                agro_weight = self._calculate_agro_weight(enemy, None)
-                if agro_weight > best_score:
-                    best_score = agro_weight
-                    best_target = enemy
-            
-            if best_target:
-                target = best_target
-                target._agro_value = getattr(target, '_agro_value', 50) + random.randint(15, 25)
-            else:
-                target = random.choice(alive_enemies)
+        # 타겟 선택 (안전장치 포함)
+        target = None
+        
+        try:
+            # 난이도별 타겟 선택 전략
+            if self.difficulty == "insane":
+                # insane: 항상 최적 타겟 선택 (랜덤 없음)
+                best_target = None
+                best_score = -1
                 
-        elif self.difficulty == "easy":
-            # easy: 높은 랜덤성 (50% 확률로 랜덤, 50% 확률로 어그로 기반)
-            if random.random() < 0.5:
-                target = random.choice(alive_enemies)
+                for enemy in alive_enemies:
+                    try:
+                        agro_weight = self._calculate_agro_weight(enemy, None)
+                        if agro_weight > best_score:
+                            best_score = agro_weight
+                            best_target = enemy
+                    except Exception as e:
+                        logger.warning(f"어그로 계산 오류: {e}")
+                        continue
+                
+                if best_target:
+                    target = best_target
+                    target._agro_value = getattr(target, '_agro_value', 50) + random.randint(15, 25)
+                else:
+                    target = random.choice(alive_enemies)
+                    
+            elif self.difficulty == "easy":
+                # easy: 높은 랜덤성 (50% 확률로 랜덤, 50% 확률로 어그로 기반)
+                if random.random() < 0.5:
+                    target = random.choice(alive_enemies)
+                else:
+                    try:
+                        enemy_weights = [self._calculate_agro_weight(e, None) for e in alive_enemies]
+                        if enemy_weights and min(enemy_weights) > 0:
+                            min_weight = max(10, min(enemy_weights) * 0.7)
+                            enemy_weights = [max(w, min_weight) for w in enemy_weights]
+                            target = random.choices(alive_enemies, weights=enemy_weights, k=1)[0]
+                        else:
+                            target = random.choice(alive_enemies)
+                    except Exception as e:
+                        logger.warning(f"어그로 기반 선택 오류: {e}")
+                        target = random.choice(alive_enemies)
+                
+                if target:
+                    target._agro_value = getattr(target, '_agro_value', 50) + random.randint(5, 15)
+                
             else:
-                enemy_weights = [self._calculate_agro_weight(e, None) for e in alive_enemies]
-                min_weight = max(10, min(enemy_weights) * 0.7)
-                enemy_weights = [max(w, min_weight) for w in enemy_weights]
-                target = random.choices(alive_enemies, weights=enemy_weights, k=1)[0]
-            
-            target._agro_value = getattr(target, '_agro_value', 50) + random.randint(5, 15)
-            
-        else:
-            # normal, hard: 어그로 가중치 기반 랜덤 선택
-            enemy_weights = [self._calculate_agro_weight(e, None) for e in alive_enemies]
-            
-            # hard는 더 편중되게, normal은 더 균등하게
-            if self.difficulty == "hard":
-                min_weight = max(10, min(enemy_weights) * 0.4)
-            else:
-                min_weight = max(10, min(enemy_weights) * 0.6)
-            
-            enemy_weights = [max(w, min_weight) for w in enemy_weights]
-            target = random.choices(alive_enemies, weights=enemy_weights, k=1)[0]
-            
-            # 선택된 타겟의 어그로 증가
-            if self.difficulty == "hard":
-                target._agro_value = getattr(target, '_agro_value', 50) + random.randint(15, 25)
-            else:
-                target._agro_value = getattr(target, '_agro_value', 50) + random.randint(10, 20)
+                # normal, hard: 어그로 가중치 기반 랜덤 선택
+                try:
+                    enemy_weights = [self._calculate_agro_weight(e, None) for e in alive_enemies]
+                    
+                    if enemy_weights and min(enemy_weights) > 0:
+                        # hard는 더 편중되게, normal은 더 균등하게
+                        if self.difficulty == "hard":
+                            min_weight = max(10, min(enemy_weights) * 0.4)
+                        else:
+                            min_weight = max(10, min(enemy_weights) * 0.6)
+                        
+                        enemy_weights = [max(w, min_weight) for w in enemy_weights]
+                        target = random.choices(alive_enemies, weights=enemy_weights, k=1)[0]
+                    else:
+                        target = random.choice(alive_enemies)
+                    
+                    # 선택된 타겟의 어그로 증가
+                    if target:
+                        if self.difficulty == "hard":
+                            target._agro_value = getattr(target, '_agro_value', 50) + random.randint(15, 25)
+                        else:
+                            target._agro_value = getattr(target, '_agro_value', 50) + random.randint(10, 20)
+                except Exception as e:
+                    logger.warning(f"어그로 기반 선택 오류: {e}")
+                    target = random.choice(alive_enemies)
+        except Exception as e:
+            logger.error(f"타겟 선택 오류: {e}")
+            target = random.choice(alive_enemies) if alive_enemies else None
+        
+        # 타겟이 선택되지 않았으면 안전장치
+        if not target:
+            target = random.choice(alive_enemies) if alive_enemies else None
+            if not target:
+                return {"type": "defend", "target": None}
 
         # HP 공격 판단: 현재 BRV로 타겟에게 의미있는 데미지를 줄 수 있는지 계산
         if current_brv > 0:

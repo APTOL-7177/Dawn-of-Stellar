@@ -777,6 +777,12 @@ class ExplorationSystem:
 
     def _handle_puzzle(self, tile: Tile) -> ExplorationResult:
         """퍼즐 처리"""
+        import random
+        from src.core.logger import get_logger
+        logger = get_logger("exploration")
+        
+        logger.info(f"퍼즐 타일 접근: 해결 여부={tile.puzzle_solved}")
+        
         if tile.puzzle_solved:
             return ExplorationResult(
                 success=True,
@@ -785,11 +791,11 @@ class ExplorationSystem:
             )
 
         # 간단한 퍼즐: 숫자 맞추기 (1-9)
-        import random
         puzzle_answer = tile.puzzle_type or str(random.randint(1, 9))
         
         # 퍼즐 해결 (간단하게 자동 해결로 구현, 나중에 UI 추가 가능)
         tile.puzzle_solved = True
+        logger.info(f"퍼즐 해결! 답: {puzzle_answer}")
         
         # 보상: 골드 또는 아이템
         reward_type = random.choice(["gold", "item"])

@@ -312,6 +312,37 @@ class BraveSystem:
             defender._wound_applied_this_turn = True
         
         # HP 데미지 적용
+        # shield_mastery 등의 DEFEND_BOOST 효과는 take_damage 내부의 calculate_damage_reduction에서 처리됨
+        # 여기서는 BRV 회복만 처리
+        from src.character.trait_effects import get_trait_effect_manager, TraitEffectType
+        trait_manager = get_trait_effect_manager()
+        
+        # 방어 중인지 확인
+        is_defending = False
+        if hasattr(defender, 'status_manager'):
+            from src.combat.status_effects import StatusType
+            if hasattr(defender.status_manager, 'has_status'):
+                is_defending = defender.status_manager.has_status(StatusType.GUARDIAN) or \
+                               defender.status_manager.has_status(StatusType.SHIELD)
+        
+        # 방어 보너스: BRV 회복만 여기서 처리 (피해 감소는 take_damage에서 처리)
+        if is_defending and hasattr(defender, 'active_traits'):
+            for trait_data in defender.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                effects = trait_manager.get_trait_effects(trait_id)
+                for effect in effects:
+                    if effect.effect_type == TraitEffectType.DEFEND_BOOST:
+                        # BRV 회복만 처리
+                        if effect.metadata and "brv_regen" in effect.metadata:
+                            brv_regen = effect.metadata["brv_regen"]
+                            brv_recovered = int(defender.max_brv * brv_regen)
+                            old_brv = defender.current_brv
+                            defender.current_brv = min(defender.current_brv + brv_recovered, defender.max_brv)
+                            actual_brv_regen = defender.current_brv - old_brv
+                            if actual_brv_regen > 0:
+                                self.logger.info(f"[{trait_id}] {defender.name} BRV 회복: +{actual_brv_regen} ({brv_regen * 100:.0f}%)")
+        
+        # HP 데미지 적용 (피해 감소는 take_damage 내부에서 처리)
         hp_damage = defender.take_damage(damage_result.final_damage)
         
         # 상처 데미지 적용 (HP 데미지의 일부가 상처로 전환)
@@ -330,6 +361,26 @@ class BraveSystem:
         # 플래그 해제
         if hasattr(defender, "_wound_applied_this_turn"):
             defender._wound_applied_this_turn = False
+
+        # 생명력/마력 흡수 적용 (lifesteal, mana_leech)
+        from src.character.trait_effects import get_trait_effect_manager
+        trait_manager = get_trait_effect_manager()
+        
+        lifesteal_rate = trait_manager.calculate_lifesteal(attacker)
+        if lifesteal_rate > 0 and hp_damage > 0:
+            heal_amount = int(hp_damage * lifesteal_rate)
+            if hasattr(attacker, 'heal'):
+                actual_heal = attacker.heal(heal_amount)
+                if actual_heal > 0:
+                    self.logger.info(f"[생명력 흡수] {attacker.name} HP 회복: +{actual_heal} ({lifesteal_rate * 100:.0f}%)")
+        
+        mana_leech_rate = trait_manager.calculate_mana_leech(attacker)
+        if mana_leech_rate > 0 and hp_damage > 0:
+            mp_amount = int(hp_damage * mana_leech_rate)
+            if hasattr(attacker, 'restore_mp'):
+                actual_mp = attacker.restore_mp(mp_amount)
+                if actual_mp > 0:
+                    self.logger.info(f"[마력 흡수] {attacker.name} MP 회복: +{actual_mp} ({mana_leech_rate * 100:.0f}%)")
 
         # BRV 소비
         brv_consumed = attacker.current_brv

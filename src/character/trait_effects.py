@@ -23,14 +23,32 @@ class TraitEffectType(Enum):
     STAT_MULTIPLIER = "stat_multiplier"      # 스탯 배율 증가
     STAT_FLAT = "stat_flat"                  # 스탯 고정값 증가
     DAMAGE_MULTIPLIER = "damage_multiplier"  # 데미지 배율 증가
+    DAMAGE_REDUCTION = "damage_reduction"    # 받는 피해 감소
     MP_COST_REDUCTION = "mp_cost_reduction"  # MP 소모 감소
     HP_REGEN = "hp_regen"                    # HP 회복
     MP_REGEN = "mp_regen"                    # MP 회복
     CRITICAL_BONUS = "critical_bonus"        # 크리티컬 확률 증가
+    CRITICAL_DAMAGE = "critical_damage"      # 크리티컬 데미지 증가
     BREAK_BONUS = "break_bonus"              # 브레이크 보너스 증가
     ATB_BOOST = "atb_boost"                  # ATB 게이지 증가
     COUNTER = "counter"                      # 반격
     REVIVE = "revive"                        # 부활
+    LIFESTEAL = "lifesteal"                  # 생명력 흡수
+    MANA_LEECH = "mana_leech"                # 마력 흡수
+    ON_KILL = "on_kill"                      # 적 처치 시 효과
+    STATUS_RESIST = "status_resist"          # 상태 저항
+    DOUBLE_ATTACK = "double_attack"          # 이중 공격
+    DOUBLE_CAST = "double_cast"              # 이중 시전
+    RETALIATION = "retaliation"              # 보복 (피해 받을 때 공격력 증가)
+    HP_SCALING_ATTACK = "hp_scaling_attack"  # HP에 따른 공격력 증가
+    GUARDIAN = "guardian"                    # 수호 (아군 피해 대신 받기)
+    PERIODIC_BUFF = "periodic_buff"          # 주기적 버프
+    LAST_STAND = "last_stand"                # 최후의 일격
+    KILL_BONUS = "kill_bonus"                # 처치 보너스
+    STATUS_CLEANSE = "status_cleanse"        # 상태 해제
+    COOLDOWN_REDUCTION = "cooldown_reduction" # 쿨타임 감소
+    DEFEND_BOOST = "defend_boost"            # 방어 보너스
+    ALL_STATS_MULTIPLIER = "all_stats_multiplier"  # 모든 스탯 배율
 
 
 @dataclass
@@ -110,6 +128,22 @@ class TraitEffectManager:
                     target_stat="evasion"
                 )
             ],
+            "luck_boost": [
+                TraitEffect(
+                    trait_id="luck_boost",
+                    effect_type=TraitEffectType.STAT_FLAT,
+                    value=10,
+                    target_stat="luck"
+                )
+            ],
+            "quick_step": [
+                TraitEffect(
+                    trait_id="quick_step",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.10,
+                    target_stat="speed"
+                )
+            ],
 
             # 코스트 3 패시브
             "physical_power": [
@@ -175,13 +209,43 @@ class TraitEffectManager:
                     condition="turn_start"
                 )
             ],
+            "battle_heal": [
+                TraitEffect(
+                    trait_id="battle_heal",
+                    effect_type=TraitEffectType.ON_KILL,
+                    value=0.10,
+                    metadata={"heal_type": "hp"}
+                )
+            ],
+            "battle_mp": [
+                TraitEffect(
+                    trait_id="battle_mp",
+                    effect_type=TraitEffectType.ON_KILL,
+                    value=0.05,
+                    metadata={"heal_type": "mp"}
+                )
+            ],
+            "damage_reduction": [
+                TraitEffect(
+                    trait_id="damage_reduction",
+                    effect_type=TraitEffectType.DAMAGE_REDUCTION,
+                    value=0.10
+                )
+            ],
+            "status_resist": [
+                TraitEffect(
+                    trait_id="status_resist",
+                    effect_type=TraitEffectType.STATUS_RESIST,
+                    value=0.15
+                )
+            ],
 
             # 코스트 4 패시브
             "first_strike": [
                 TraitEffect(
                     trait_id="first_strike",
                     effect_type=TraitEffectType.ATB_BOOST,
-                    value=500,
+                    value=0.50,  # 50% = 0.50
                     condition="combat_start"
                 )
             ],
@@ -211,7 +275,7 @@ class TraitEffectManager:
             "shield_mastery": [
                 TraitEffect(
                     trait_id="shield_mastery",
-                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    effect_type=TraitEffectType.DEFEND_BOOST,
                     value=0.50,
                     condition="defending",
                     metadata={"brv_regen": 0.10}
@@ -223,6 +287,60 @@ class TraitEffectManager:
                     effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
                     value=1.25,
                     target_stat="elemental"
+                )
+            ],
+            "critical_master": [
+                TraitEffect(
+                    trait_id="critical_master",
+                    effect_type=TraitEffectType.CRITICAL_DAMAGE,
+                    value=1.50
+                )
+            ],
+            "double_hit": [
+                TraitEffect(
+                    trait_id="double_hit",
+                    effect_type=TraitEffectType.DOUBLE_ATTACK,
+                    value=0.25,
+                    condition="normal_attack"
+                )
+            ],
+            "lifesteal": [
+                TraitEffect(
+                    trait_id="lifesteal",
+                    effect_type=TraitEffectType.LIFESTEAL,
+                    value=0.10
+                )
+            ],
+            "mana_leech": [
+                TraitEffect(
+                    trait_id="mana_leech",
+                    effect_type=TraitEffectType.MANA_LEECH,
+                    value=0.05
+                )
+            ],
+            "retaliation": [
+                TraitEffect(
+                    trait_id="retaliation",
+                    effect_type=TraitEffectType.RETALIATION,
+                    value=0.05,
+                    metadata={"max_stacks": 3}
+                )
+            ],
+            "berserker_rage": [
+                TraitEffect(
+                    trait_id="berserker_rage",
+                    effect_type=TraitEffectType.HP_SCALING_ATTACK,
+                    value=0.50,
+                    metadata={"max_bonus": 0.50}
+                )
+            ],
+            "guardian_angel": [
+                TraitEffect(
+                    trait_id="guardian_angel",
+                    effect_type=TraitEffectType.GUARDIAN,
+                    value=0.20,  # 발동 확률 (20%)
+                    condition="ally_damaged",
+                    metadata={"protection_ratio": 1.0}  # 보호받을 피해 비율 (100% = 전체 피해 대신 받기)
                 )
             ],
 
@@ -238,10 +356,9 @@ class TraitEffectManager:
             "double_cast": [
                 TraitEffect(
                     trait_id="double_cast",
-                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    effect_type=TraitEffectType.DOUBLE_CAST,
                     value=0.10,
-                    condition="skill_cast",
-                    metadata={"double_chance": 0.10}
+                    condition="skill_cast"
                 )
             ],
             "ultimate_power": [
@@ -275,10 +392,9 @@ class TraitEffectManager:
             "brave_soul": [
                 TraitEffect(
                     trait_id="brave_soul",
-                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
-                    value=0.80,  # 받는 피해 -20% = 0.80 배율
-                    condition="hp_above_50",
-                    target_stat="damage_taken"
+                    effect_type=TraitEffectType.DAMAGE_REDUCTION,
+                    value=0.20,
+                    condition="hp_above_50"
                 ),
                 TraitEffect(
                     trait_id="brave_soul",
@@ -291,10 +407,76 @@ class TraitEffectManager:
             "tactical_genius": [
                 TraitEffect(
                     trait_id="tactical_genius",
-                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
-                    value=1.0,
+                    effect_type=TraitEffectType.PERIODIC_BUFF,
+                    value=0.30,
                     condition="turn_count_5",
-                    metadata={"buff_duration": 2, "buff_power": 1.30}
+                    metadata={"interval": 5, "duration": 2}
+                )
+            ],
+            "time_master": [
+                TraitEffect(
+                    trait_id="time_master",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.25,
+                    target_stat="speed"
+                ),
+                TraitEffect(
+                    trait_id="time_master",
+                    effect_type=TraitEffectType.COOLDOWN_REDUCTION,
+                    value=0.10
+                )
+            ],
+            "perfect_form": [
+                TraitEffect(
+                    trait_id="perfect_form",
+                    effect_type=TraitEffectType.ALL_STATS_MULTIPLIER,
+                    value=1.15
+                )
+            ],
+            "unbreakable": [
+                TraitEffect(
+                    trait_id="unbreakable",
+                    effect_type=TraitEffectType.LAST_STAND,
+                    value=1.0,
+                    condition="on_death",
+                    metadata={"once_per_battle": True}
+                )
+            ],
+            "master_counter": [
+                TraitEffect(
+                    trait_id="master_counter",
+                    effect_type=TraitEffectType.COUNTER,
+                    value=0.30,
+                    condition="on_hit",
+                    metadata={"damage_multiplier": 2.0}
+                )
+            ],
+            "bloodthirst": [
+                TraitEffect(
+                    trait_id="bloodthirst",
+                    effect_type=TraitEffectType.KILL_BONUS,
+                    value=0.10,
+                    metadata={"max_stacks": 3}
+                )
+            ],
+            "eternal_flame": [
+                TraitEffect(
+                    trait_id="eternal_flame",
+                    effect_type=TraitEffectType.HP_REGEN,
+                    value=0.10,
+                    condition="turn_start"
+                ),
+                TraitEffect(
+                    trait_id="eternal_flame",
+                    effect_type=TraitEffectType.MP_REGEN,
+                    value=0.10,
+                    condition="turn_start"
+                ),
+                TraitEffect(
+                    trait_id="eternal_flame",
+                    effect_type=TraitEffectType.STATUS_CLEANSE,
+                    value=1.0,
+                    condition="turn_start"
                 )
             ],
         }
@@ -2297,6 +2479,12 @@ class TraitEffectManager:
                             self.logger.debug(
                                 f"[{trait_id}] {stat_name} 전체 스탯 고정값 보너스 적용: +{effect.value} → {final_value}"
                             )
+                    # ALL_STATS_MULTIPLIER 타입은 모든 스탯에 적용
+                    elif effect.effect_type == TraitEffectType.ALL_STATS_MULTIPLIER:
+                        final_value *= effect.value
+                        self.logger.debug(
+                            f"[{trait_id}] {stat_name} 모든 스탯 배율 적용: x{effect.value} → {final_value}"
+                        )
                     # all_stats_in_stance는 모든 스탯에 적용 (전사 특성)
                     elif effect.target_stat == "all_stats_in_stance":
                         # 모든 스탯에 보너스 적용
@@ -2473,6 +2661,46 @@ class TraitEffectManager:
 
         return bonus
 
+    def calculate_damage_reduction(self, character: Any, is_defending: bool = False) -> float:
+        """
+        특성에 의한 피해 감소율 계산
+        
+        Args:
+            character: 캐릭터
+            is_defending: 방어 중인지 여부
+        
+        Returns:
+            총 피해 감소율 (0.0 = 0%, 0.5 = 50%)
+        """
+        if not hasattr(character, 'active_traits'):
+            return 0.0
+        
+        total_reduction = 0.0
+        
+        for trait_data in character.active_traits:
+            trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+            effects = self.get_trait_effects(trait_id)
+            
+            for effect in effects:
+                # DAMAGE_REDUCTION: 일반 피해 감소 (조건 확인)
+                if effect.effect_type == TraitEffectType.DAMAGE_REDUCTION:
+                    if self._check_condition(character, effect.condition or "", {}):
+                        total_reduction += effect.value
+                        self.logger.debug(f"[{trait_id}] 피해 감소: +{effect.value * 100:.0f}%")
+                
+                # DEFEND_BOOST: 방어 중일 때만 피해 감소
+                elif effect.effect_type == TraitEffectType.DEFEND_BOOST:
+                    if is_defending:
+                        condition_met = not effect.condition or self._check_condition(
+                            character, effect.condition, {}
+                        )
+                        if condition_met:
+                            total_reduction += effect.value
+                            self.logger.debug(f"[{trait_id}] 방어 보너스 피해 감소: +{effect.value * 100:.0f}%")
+        
+        # 최대 90%까지 감소 가능
+        return min(total_reduction, 0.90)
+
     def apply_turn_start_effects(self, character: Any):
         """
         턴 시작 시 특성 효과 적용 (HP/MP 회복 등)
@@ -2589,21 +2817,44 @@ class TraitEffectManager:
 
         # 방어 중
         elif condition == "defending":
-            return context.get("is_defending", False)
+            # context에서 직접 확인하거나 캐릭터 상태 확인
+            if context.get("is_defending", False):
+                return True
+            # 캐릭터가 방어 상태인지 확인
+            if hasattr(character, 'status_manager'):
+                from src.combat.status_effects import StatusType
+                if hasattr(character.status_manager, 'has_status'):
+                    return character.status_manager.has_status(StatusType.GUARDIAN) or \
+                           character.status_manager.has_status(StatusType.SHIELD)
+            return False
 
         # 피격 시
         elif condition == "on_hit":
             return context.get("on_hit", False)
-
+        
+        # 일반 공격
+        elif condition == "normal_attack":
+            return context.get("is_normal_attack", False)
+        
+        # 아군 피해 받음
+        elif condition == "ally_damaged":
+            return context.get("ally_damaged", False)
+        
+        # 턴 카운트 조건
+        elif condition.startswith("turn_count_"):
+            turn_num = int(condition.split("_")[-1])
+            current_turn = context.get("turn_count", 0)
+            return current_turn % turn_num == 0
+        
         # 사망 시
         elif condition == "on_death":
-            return context.get("on_death", False)
-
-        # 턴 카운트
-        elif condition.startswith("turn_count_"):
-            turn_mod = int(condition.split("_")[-1])
-            turn_count = context.get("turn_count", 0)
-            return turn_count > 0 and turn_count % turn_mod == 0
+            if hasattr(character, 'current_hp'):
+                return character.current_hp <= 0
+            return context.get("is_dead", False) or context.get("on_death", False)
+        
+        # 적 처치 시
+        elif condition == "on_kill":
+            return context.get("killed_enemy", False)
 
         # === 새로운 기믹 시스템 조건들 ===
 

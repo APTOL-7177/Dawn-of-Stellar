@@ -70,9 +70,10 @@ class CombatUI:
         self.selected_item: Optional[Any] = None  # 선택된 아이템
         self.selected_item_index: Optional[int] = None  # 선택된 아이템 인덱스
 
-        # 메시지 로그
+        # 메시지 로그 (스크롤 형식, 제한 없이 저장)
         self.messages: List[CombatMessage] = []
-        self.max_messages = 5
+        self.log_scroll_offset = 0  # 스크롤 오프셋 (0이면 최신 메시지)
+        self.log_visible_lines = 8  # 화면에 표시할 메시지 라인 수
 
         # 메뉴
         self.action_menu: Optional[CursorMenu] = None
@@ -375,6 +376,19 @@ class CombatUI:
         # G 키로 기믹 상세 보기 (전투 중 언제든지 가능)
         if action == GameAction.GIMMICK_DETAIL and self.current_actor:
             return self._open_gimmick_view()
+
+        # 로그 스크롤 (언제든지 가능)
+        if action == GameAction.PAGE_UP:
+            # 위로 스크롤 (오래된 메시지 보기)
+            self.log_scroll_offset = min(
+                self.log_scroll_offset + 3,
+                max(0, len(self.messages) - self.log_visible_lines)
+            )
+            return False
+        elif action == GameAction.PAGE_DOWN:
+            # 아래로 스크롤 (최신 메시지 보기)
+            self.log_scroll_offset = max(0, self.log_scroll_offset - 3)
+            return False
 
         return False
 
@@ -732,7 +746,27 @@ class CombatUI:
 
             if success:
                 message = result.get("message", f"{skill_name} 사용!")
-                self.add_message(message, (100, 255, 255))
+                # 여러 줄 메시지에서 기믹 관련 줄 필터링
+                import re
+                lines = message.split("\n")
+                filtered_lines = []
+                for line in lines:
+                    # "  → "로 시작하는 효과 메시지 체크
+                    if line.strip().startswith("→"):
+                        # 기믹 수치 변화 패턴 체크
+                        gimmick_pattern = r'.+의\s+\w+:\s*\d+\s*->\s*\d+'
+                        if re.search(gimmick_pattern, line):
+                            # 기믹 관련 메시지는 제외
+                            continue
+                    filtered_lines.append(line)
+                
+                # 필터링된 메시지 조합 (빈 줄 제거)
+                filtered_message = "\n".join(filtered_lines).strip()
+                if filtered_message:  # 메시지가 남아있으면 추가
+                    self.add_message(filtered_message, (100, 255, 255))
+                else:
+                    # 모든 메시지가 필터링되었으면 기본 메시지만 추가
+                    self.add_message(f"{skill_name} 사용!", (100, 255, 255))
             else:
                 error = result.get("error", "사용 실패")
                 self.add_message(f"❌ {skill_name}: {error}", (255, 100, 100))
@@ -857,12 +891,10 @@ class CombatUI:
                 self.state = CombatUIState.BATTLE_END
                 logger.info(f"전투 종료 감지: {self.battle_result.value}")
 
-        # 메시지 타이머 감소
+        # 메시지 타이머 감소 (표시용이지만, 메시지는 사라지지 않고 계속 저장됨)
         for msg in self.messages:
             msg.frames_remaining -= 1
-
-        # 만료된 메시지 제거
-        self.messages = [m for m in self.messages if m.frames_remaining > 0]
+        # 메시지는 제거하지 않음 (스크롤로 항상 볼 수 있도록)
 
         # ATB 대기 중 - 턴 체크
         if self.state == CombatUIState.WAITING_ATB:
@@ -894,47 +926,63 @@ class CombatUI:
                 return
 
     def _execute_enemy_turn(self, enemy: Any):
-        """적 턴 실행 (간단한 AI)"""
-        # 간단한 AI: 랜덤 대상에게 BRV 공격 또는 HP 공격
-        import random
+        """적 턴 실행 (AI 사용)"""
+        try:
+            # CombatManager의 execute_enemy_turn 사용 (새로운 AI 시스템)
+            result = self.combat_manager.execute_enemy_turn(enemy)
+            
+            if result:
+                self._show_action_result(result)
+            else:
+                # AI 결정 실패 시 기본 메시지
+                self.add_message(f"{enemy.name}의 행동 결정 실패", (200, 200, 200))
 
-        allies_alive = [a for a in self.combat_manager.allies if a.is_alive]
-        if not allies_alive:
-            return
-
-        target = random.choice(allies_alive)
-
-        # BRV가 충분하면 HP 공격, 아니면 BRV 공격
-        if enemy.current_brv > 500:
-            action = ActionType.HP_ATTACK
-        else:
-            action = ActionType.BRV_ATTACK
-
-        self.add_message(f"{enemy.name}의 공격!", (255, 150, 150))
-
-        result = self.combat_manager.execute_action(
-            actor=enemy,
-            action_type=action,
-            target=target
-        )
-
-        self._show_action_result(result)
-
-        # 전투 종료 확인
-        if self.combat_manager.state in [CombatState.VICTORY, CombatState.DEFEAT]:
-            self.battle_ended = True
-            self.battle_result = self.combat_manager.state
-            self.state = CombatUIState.BATTLE_END
+            # 전투 종료 확인
+            if self.combat_manager.state in [CombatState.VICTORY, CombatState.DEFEAT]:
+                self.battle_ended = True
+                self.battle_result = self.combat_manager.state
+                self.state = CombatUIState.BATTLE_END
+        except Exception as e:
+            # AI 실행 오류 시 안전장치 (기본 공격)
+            logger.error(f"적 AI 실행 오류: {e}")
+            allies_alive = [a for a in self.combat_manager.allies if getattr(a, 'is_alive', True)]
+            if allies_alive:
+                import random
+                target = random.choice(allies_alive)
+                
+                # 기본 BRV 공격
+                result = self.combat_manager.execute_action(
+                    actor=enemy,
+                    action_type=ActionType.BRV_ATTACK,
+                    target=target
+                )
+                
+                if result:
+                    self._show_action_result(result)
+                
+                # 전투 종료 확인
+                if self.combat_manager.state in [CombatState.VICTORY, CombatState.DEFEAT]:
+                    self.battle_ended = True
+                    self.battle_result = self.combat_manager.state
+                    self.state = CombatUIState.BATTLE_END
 
     def add_message(self, text: str, color: Tuple[int, int, int] = (255, 255, 255)):
-        """메시지 추가"""
+        """메시지 추가 (스크롤 형식 - 제한 없이 계속 저장)"""
+        # 기믹 관련 수치 증감 메시지 필터링 (예: "이름의 필드: 값 -> 값" 형식)
+        import re
+        # 기믹 수치 변화 패턴 체크: "이름의 필드명: 숫자 -> 숫자" 또는 "이름의 필드명: 숫자 -> 숫자"
+        gimmick_pattern = r'.+의\s+\w+:\s*\d+\s*->\s*\d+'
+        if re.match(gimmick_pattern, text):
+            # 기믹 관련 메시지는 로그에 추가하지 않음
+            logger.debug(f"기믹 메시지 필터링됨: {text}")
+            return
+        
         msg = CombatMessage(text=text, color=color)
         self.messages.append(msg)
 
-        # 최대 개수 초과 시 오래된 것 제거
-        if len(self.messages) > self.max_messages:
-            self.messages.pop(0)
-
+        # 새로운 메시지가 추가되면 스크롤을 최신으로 (옵션)
+        # 사용자가 스크롤 중이면 그대로 유지하는 것이 나을 수도 있음
+        
         logger.debug(f"전투 메시지: {text}")
 
     def render(self, console: tcod.console.Console):
@@ -1023,12 +1071,6 @@ class CombatUI:
             if gimmick_text:
                 console.print(5 + len(f"{i+1}. {ally.name}") + 2, y, gimmick_text, fg=(150, 255, 200))
 
-            # 상태이상 아이콘
-            status_effects = getattr(ally, 'status_effects', {})
-            if status_effects:
-                status_text = gauge_renderer.render_status_icons(status_effects)
-                console.print(5 + len(ally.name) + 4, y, status_text, fg=(200, 200, 255))
-
             # HP 게이지 (정밀)
             console.print(8, y + 1, "HP:", fg=(200, 200, 200))
             gauge_renderer.render_bar(
@@ -1089,6 +1131,13 @@ class CombatUI:
             is_casting = cast_info is not None
             cast_progress = cast_info.progress if cast_info else 0.0
 
+            # 상태이상 아이콘 (ATB 게이지 바로 위)
+            status_effects = getattr(ally, 'status_effects', {})
+            if status_effects:
+                status_text = gauge_renderer.render_status_icons(status_effects)
+                if status_text:
+                    console.print(28, y, status_text, fg=(200, 200, 255))
+            
             console.print(28, y + 1, "ATB:", fg=(200, 200, 200))
             gauge_renderer.render_atb_with_cast(
                 console, 33, y + 1, 15,
@@ -1159,13 +1208,13 @@ class CombatUI:
             if gimmick_text:
                 console.print(x + 2 + len(f"{chr(65+i)}. {enemy.name}") + 1, y, gimmick_text, fg=(150, 255, 200))
 
-            # 상태이상
+            # 상태이상 (HP 게이지 바로 위)
             status_effects = getattr(enemy, 'status_effects', [])
             if status_effects:
                 status_text = gauge_renderer.render_status_icons(status_effects)
                 if status_text:
-                    console.print(x, y + 1, status_text, fg=(200, 200, 255))
-
+                    console.print(x + 3, y + 1, status_text, fg=(200, 200, 255))
+            
             # HP 게이지
             console.print(x + 3, y + 2, "HP:", fg=(200, 200, 200))
             gauge_renderer.render_bar(
@@ -1195,12 +1244,53 @@ class CombatUI:
                 )
 
     def _render_messages(self, console: tcod.console.Console):
-        """메시지 로그 렌더링"""
-        msg_y = 31
-        console.print(5, msg_y, "─" * (self.screen_width - 10), fg=(100, 100, 100))
-
-        for i, msg in enumerate(self.messages[-self.max_messages:]):
-            console.print(5, msg_y + 1 + i, msg.text, fg=msg.color)
+        """메시지 로그 렌더링 (오른쪽에 배치, 스크롤 형식)"""
+        # 커맨드 창(action_menu)과 같은 높이: y=33
+        msg_y = 33
+        
+        # 오른쪽에 배치: action_menu가 x=5, width=35이므로 x=42부터 시작
+        msg_x = 42
+        msg_width = self.screen_width - msg_x - 3  # 오른쪽 여백 3 (스크롤 인디케이터 공간)
+        
+        # 구분선과 로그 제목
+        separator = "─" * (msg_width - 12)  # "[전투 로그]" 공간 확보
+        console.print(msg_x, msg_y - 1, "[전투 로그]" + separator, fg=(150, 150, 150))
+        
+        # 메시지 목록 (오래된 것부터 정렬)
+        total_messages = len(self.messages)
+        
+        # 스크롤 가능한 범위 계산
+        max_scroll = max(0, total_messages - self.log_visible_lines)
+        
+        # 스크롤 오프셋이 범위를 벗어나지 않도록 조정
+        if self.log_scroll_offset > max_scroll:
+            self.log_scroll_offset = max_scroll
+        if self.log_scroll_offset < 0:
+            self.log_scroll_offset = 0
+        
+        # 표시할 메시지 범위 계산 (하단에서 위로 스크롤)
+        # offset=0이면 최신 메시지들, offset이 커질수록 오래된 메시지들
+        start_idx = max(0, total_messages - self.log_visible_lines - self.log_scroll_offset)
+        end_idx = total_messages - self.log_scroll_offset
+        
+        # 메시지 표시 (오래된 것부터 위로)
+        display_messages = self.messages[start_idx:end_idx]
+        for i, msg in enumerate(display_messages):
+            if i >= self.log_visible_lines:
+                break
+            
+            # 텍스트가 너무 길면 잘라내기
+            display_text = msg.text[:msg_width] if len(msg.text) > msg_width else msg.text
+            console.print(msg_x, msg_y + i, display_text, fg=msg.color)
+        
+        # 스크롤 가능 여부 표시
+        if total_messages > self.log_visible_lines:
+            # 아래로 스크롤 가능 (오래된 메시지 더 보기)
+            if self.log_scroll_offset < max_scroll:
+                console.print(msg_x + msg_width, msg_y + self.log_visible_lines - 1, "▼", fg=(150, 150, 150))
+            # 위로 스크롤 가능 (최신 메시지 보기)
+            if self.log_scroll_offset > 0:
+                console.print(msg_x + msg_width, msg_y, "▲", fg=(150, 150, 150))
 
     def _render_target_select(self, console: tcod.console.Console):
         """대상 선택 UI 렌더링"""

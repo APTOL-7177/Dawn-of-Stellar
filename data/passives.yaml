@@ -1,6 +1,6 @@
 # 패시브 스킬 목록
 # 코스트: 2-5
-# 최대 3개 선택, 총 10 코스트 이내
+# 최대 선택 시 총 10 코스트 이내
 
 passives:
   # 코스트 2 패시브 (기본/효율적)
@@ -46,17 +46,43 @@ passives:
 
   - id: accuracy_boost
     name: 정밀 사격
-    description: 명중률 +10%
+    description: 명중률 +10
     cost: 2
-    unlocked: false
-    unlock_cost: 200
+    unlocked: true
+    effects:
+      - type: stat_flat
+        stat: accuracy
+        value: 10
 
   - id: evasion_boost
     name: 민첩성
-    description: 회피율 +10%
+    description: 회피율 +10
     cost: 2
-    unlocked: false
-    unlock_cost: 200
+    unlocked: true
+    effects:
+      - type: stat_flat
+        stat: evasion
+        value: 10
+
+  - id: luck_boost
+    name: 행운의 축복
+    description: 행운 +10
+    cost: 2
+    unlocked: true
+    effects:
+      - type: stat_flat
+        stat: luck
+        value: 10
+
+  - id: quick_step
+    name: 신속한 발걸음
+    description: 이동 속도 +10%
+    cost: 2
+    unlocked: true
+    effects:
+      - type: stat_multiplier
+        stat: speed
+        value: 1.10
 
   # 코스트 3 패시브 (중급)
   - id: physical_power
@@ -103,102 +129,224 @@ passives:
     name: 치명타 강화
     description: 크리티컬 확률 +15%
     cost: 3
-    unlocked: false
-    unlock_cost: 300
+    unlocked: true
+    effects:
+      - type: critical_bonus
+        value: 0.15
 
   - id: counter_stance
     name: 카운터 자세
     description: 피격 시 15% 확률로 반격
     cost: 3
-    unlocked: false
-    unlock_cost: 300
+    unlocked: true
+    effects:
+      - type: counter
+        value: 0.15
 
   - id: auto_regen
     name: 자동 재생
     description: 매 턴 HP 5% 회복
     cost: 3
-    unlocked: false
-    unlock_cost: 350
+    unlocked: true
+    effects:
+      - type: hp_regen
+        value: 0.05
 
   - id: mp_recovery
     name: 마력 회복
     description: 매 턴 MP 3% 회복
     cost: 3
-    unlocked: false
-    unlock_cost: 350
+    unlocked: true
+    effects:
+      - type: mp_regen
+        value: 0.03
+
+  - id: battle_heal
+    name: 전투 치유
+    description: 적 처치 시 HP 10% 회복
+    cost: 3
+    unlocked: true
+    effects:
+      - type: on_kill
+        effect: heal_hp_percent
+        value: 0.10
+
+  - id: battle_mp
+    name: 전투 마력
+    description: 적 처치 시 MP 5% 회복
+    cost: 3
+    unlocked: true
+    effects:
+      - type: on_kill
+        effect: heal_mp_percent
+        value: 0.05
+
+  - id: damage_reduction
+    name: 피해 감소
+    description: 받는 모든 피해 -10%
+    cost: 3
+    unlocked: true
+    effects:
+      - type: damage_reduction
+        value: 0.10
+
+  - id: status_resist
+    name: 상태 저항
+    description: 상태 이상 저항률 +15%
+    cost: 3
+    unlocked: true
+    effects:
+      - type: status_resist
+        value: 0.15
 
   # 코스트 4 패시브 (고급)
   - id: first_strike
     name: 선제공격
     description: 전투 시작 시 ATB 게이지 +50%
     cost: 4
-    unlocked: false
-    unlock_cost: 400
+    unlocked: true
     effects:
       - type: combat_start
         effect: atb_boost
-        value: 500
+        value: 0.50
 
   - id: break_master
     name: 브레이크 달인
     description: BREAK 발동 시 보너스 데미지 +50%
     cost: 4
-    unlocked: false
-    unlock_cost: 400
+    unlocked: true
+    effects:
+      - type: break_bonus
+        value: 1.50
 
   - id: skill_master
     name: 기술 숙련
     description: 모든 스킬 MP 소모 -20%
     cost: 4
-    unlocked: false
-    unlock_cost: 450
+    unlocked: true
+    effects:
+      - type: mp_cost_reduction
+        value: 0.20
 
   - id: hp_danger_boost
     name: 위기일발
     description: HP 30% 이하 시 모든 공격력 +50%
     cost: 4
-    unlocked: false
-    unlock_cost: 450
+    unlocked: true
+    effects:
+      - type: damage_multiplier
+        condition: hp_below_30
+        value: 1.50
 
   - id: shield_mastery
     name: 방패 숙련
     description: 방어 선택 시 BRV 피해 -50%, 방어 중 BRV 10% 회복
     cost: 4
-    unlocked: false
-    unlock_cost: 500
+    unlocked: true
+    effects:
+      - type: defend_boost
+        damage_reduction: 0.50
+        brv_regen: 0.10
 
   - id: element_mastery
     name: 속성 장악
     description: 모든 속성 공격 위력 +25%
     cost: 4
-    unlocked: false
-    unlock_cost: 500
+    unlocked: true
+    effects:
+      - type: damage_multiplier
+        target: elemental
+        value: 1.25
+
+  - id: critical_master
+    name: 치명타 달인
+    description: 크리티컬 데미지 +50%
+    cost: 4
+    unlocked: true
+    effects:
+      - type: critical_damage
+        value: 1.50
+
+  - id: double_hit
+    name: 이중 타격
+    description: 일반 공격 시 25% 확률로 추가 공격
+    cost: 4
+    unlocked: true
+    effects:
+      - type: double_attack
+        chance: 0.25
+
+  - id: lifesteal
+    name: 생명력 흡수
+    description: 공격 데미지의 10%만큼 HP 회복
+    cost: 4
+    unlocked: true
+    effects:
+      - type: lifesteal
+        value: 0.10
+
+  - id: mana_leech
+    name: 마력 흡수
+    description: 공격 데미지의 5%만큼 MP 회복
+    cost: 4
+    unlocked: true
+    effects:
+      - type: mana_leech
+        value: 0.05
+
+  - id: retaliation
+    name: 보복
+    description: 피해를 받을 때마다 공격력 +5% (최대 3중첩)
+    cost: 4
+    unlocked: true
+    effects:
+      - type: retaliation
+        value: 0.05
+        max_stacks: 3
+
+  - id: berserker_rage
+    name: 광전사의 분노
+    description: HP가 낮을수록 공격력 증가 (최대 +50%)
+    cost: 4
+    unlocked: true
+    effects:
+      - type: hp_scaling_attack
+        max_bonus: 0.50
+
+  - id: guardian_angel
+    name: 수호 천사
+    description: 아군이 피해를 받을 때 20% 확률로 대신 받기
+    cost: 4
+    unlocked: true
+    effects:
+      - type: guardian
+        chance: 0.20
 
   # 코스트 5 패시브 (최상급)
   - id: phoenix_blessing
     name: 불사조의 가호
     description: 전투 중 1회 사망 시 HP 50%로 부활
     cost: 5
-    unlocked: false
-    unlock_cost: 600
+    unlocked: true
     effects:
-      - type: on_death
-        effect: revive
-        value: 0.5
+      - type: revive
+        value: 0.50
+        once_per_battle: true
 
   - id: double_cast
     name: 이중 시전
     description: 스킬 사용 시 10% 확률로 2회 시전
     cost: 5
-    unlocked: false
-    unlock_cost: 600
+    unlocked: true
+    effects:
+      - type: double_cast
+        chance: 0.10
 
   - id: ultimate_power
     name: 궁극의 힘
     description: 모든 공격력 +30%
     cost: 5
-    unlocked: false
-    unlock_cost: 700
+    unlocked: true
     effects:
       - type: stat_multiplier
         stat: physical_attack
@@ -211,8 +359,7 @@ passives:
     name: 궁극의 방어
     description: 모든 방어력 +30%
     cost: 5
-    unlocked: false
-    unlock_cost: 700
+    unlocked: true
     effects:
       - type: stat_multiplier
         stat: physical_defense
@@ -225,12 +372,86 @@ passives:
     name: 용맹한 영혼
     description: HP 50% 이상 시 받는 피해 -20%, BRV 공격 위력 +20%
     cost: 5
-    unlocked: false
-    unlock_cost: 800
+    unlocked: true
+    effects:
+      - type: damage_reduction
+        condition: hp_above_50
+        value: 0.20
+      - type: damage_multiplier
+        condition: hp_above_50
+        target: brv_attack
+        value: 1.20
 
   - id: tactical_genius
     name: 전술의 천재
     description: 매 5턴마다 랜덤 버프 획득 (공격력/방어력/속도 +30%, 2턴)
     cost: 5
-    unlocked: false
-    unlock_cost: 800
+    unlocked: true
+    effects:
+      - type: periodic_buff
+        interval: 5
+        duration: 2
+        value: 0.30
+
+  - id: time_master
+    name: 시간의 지배자
+    description: 모든 행동 속도 +25%, 쿨다운 -10%
+    cost: 5
+    unlocked: true
+    effects:
+      - type: stat_multiplier
+        stat: speed
+        value: 1.25
+      - type: cooldown_reduction
+        value: 0.10
+
+  - id: perfect_form
+    name: 완벽한 형상
+    description: 모든 스탯 +15%
+    cost: 5
+    unlocked: true
+    effects:
+      - type: all_stats_multiplier
+        value: 1.15
+
+  - id: unbreakable
+    name: 무적의 의지
+    description: 사망 직전 1회 한번 HP 1로 살아남음
+    cost: 5
+    unlocked: true
+    effects:
+      - type: last_stand
+        once_per_battle: true
+
+  - id: master_counter
+    name: 대가의 반격
+    description: 피격 시 30% 확률로 반격, 반격 데미지 +100%
+    cost: 5
+    unlocked: true
+    effects:
+      - type: counter
+        chance: 0.30
+        damage_multiplier: 2.0
+
+  - id: bloodthirst
+    name: 피의 갈망
+    description: 적 처치 시 모든 스탯 +10% (최대 3중첩)
+    cost: 5
+    unlocked: true
+    effects:
+      - type: kill_bonus
+        value: 0.10
+        max_stacks: 3
+
+  - id: eternal_flame
+    name: 영원한 불꽃
+    description: 매 턴 HP/MP 10% 회복, 상태 이상 해제
+    cost: 5
+    unlocked: true
+    effects:
+      - type: hp_regen
+        value: 0.10
+      - type: mp_regen
+        value: 0.10
+      - type: status_cleanse
+        each_turn: true

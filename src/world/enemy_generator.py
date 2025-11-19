@@ -548,12 +548,13 @@ class SimpleEnemy:
         self.max_mp = int(template.mp + mp_growth)
         self.current_mp = self.max_mp
 
-        # 공격력: 레벨당 기초 공격력의 25% 성장, 최종값 12% 증가 (플레이어 20% * 1.25, 최종 1.12배)
+        # 공격력: 레벨당 기초 공격력의 25% 성장, 최종값 12% 증가 후 25% 감소 (0.75배)
+        # (플레이어 20% * 1.25, 최종 1.12배 * 0.75 = 0.84배)
         attack_growth = template.physical_attack * 0.25 * (level - 1)
-        self.physical_attack = int((template.physical_attack + attack_growth) * 1.12) * difficulty_dmg_mult
+        self.physical_attack = int((template.physical_attack + attack_growth) * 1.12 * 0.75) * difficulty_dmg_mult
         
         magic_attack_growth = template.magic_attack * 0.25 * (level - 1)
-        self.magic_attack = int((template.magic_attack + magic_attack_growth) * 1.12) * difficulty_dmg_mult
+        self.magic_attack = int((template.magic_attack + magic_attack_growth) * 1.12 * 0.75) * difficulty_dmg_mult
         
         # 방어력: 레벨당 기초 방어력의 25% 성장, 최종값 15% 증가 (플레이어 20% * 1.25, 최종 0.75 * 1.15 = 0.8625배)
         defense_growth = template.physical_defense * 0.25 * (level - 1)

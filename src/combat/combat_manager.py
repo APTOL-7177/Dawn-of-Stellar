@@ -76,6 +76,7 @@ class CombatManager:
 
         # 사망 이벤트 구독
         event_bus.subscribe(Events.CHARACTER_DEATH, self._on_character_death)
+        event_bus.subscribe(Events.COMBAT_DAMAGE_TAKEN, self._on_damage_taken)
 
     def start_combat(self, allies: List[Any], enemies: List[Any]) -> None:
         """
@@ -186,9 +187,64 @@ class CombatManager:
         result = {}
 
         # 턴 시작 처리
-        # 0. 기믹 업데이트 (턴 시작)
+        # 0. 특성 효과: 턴 시작 효과 적용
+        from src.character.trait_effects import get_trait_effect_manager
+        trait_manager = get_trait_effect_manager()
+        trait_manager.apply_turn_start_effects(actor)
         
-        # 0-1. active_buffs의 REGEN, HP_REGEN, MP_REGEN 처리
+        # 0-1. 특성 효과: 주기적 버프 (tactical_genius 등)
+        if hasattr(actor, 'active_traits'):
+            from src.character.trait_effects import TraitEffectType
+            for trait_data in actor.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                effects = trait_manager.get_trait_effects(trait_id)
+                for effect in effects:
+                    if effect.effect_type == TraitEffectType.PERIODIC_BUFF:
+                        # 턴 카운트 확인
+                        interval = effect.metadata.get("interval", 5) if effect.metadata else 5
+                        duration = effect.metadata.get("duration", 2) if effect.metadata else 2
+                        if self.turn_count > 0 and self.turn_count % interval == 0:
+                            # 랜덤 버프 적용
+                            import random
+                            buff_types = ["atk", "def", "spd"]
+                            buff_type = random.choice(buff_types)
+                            buff_power = effect.value  # 0.30 = 30%
+                            
+                            if buff_type == "atk":
+                                from src.combat.status_effects import StatusType, StatusEffect
+                                buff = StatusEffect(
+                                    status_type=StatusType.BOOST_ATK,
+                                    duration=duration,
+                                    intensity=int(buff_power * 100),
+                                    name=f"공격력 증가 ({int(buff_power * 100)}%)"
+                                )
+                                if hasattr(actor, 'status_manager'):
+                                    actor.status_manager.add_status(buff)
+                                    self.logger.info(f"[{trait_id}] {actor.name} 랜덤 버프: 공격력 +{int(buff_power * 100)}% ({duration}턴)")
+                            elif buff_type == "def":
+                                from src.combat.status_effects import StatusType, StatusEffect
+                                buff = StatusEffect(
+                                    status_type=StatusType.BOOST_DEF,
+                                    duration=duration,
+                                    intensity=int(buff_power * 100),
+                                    name=f"방어력 증가 ({int(buff_power * 100)}%)"
+                                )
+                                if hasattr(actor, 'status_manager'):
+                                    actor.status_manager.add_status(buff)
+                                    self.logger.info(f"[{trait_id}] {actor.name} 랜덤 버프: 방어력 +{int(buff_power * 100)}% ({duration}턴)")
+                            elif buff_type == "spd":
+                                from src.combat.status_effects import StatusType, StatusEffect
+                                buff = StatusEffect(
+                                    status_type=StatusType.BOOST_SPD,
+                                    duration=duration,
+                                    intensity=int(buff_power * 100),
+                                    name=f"속도 증가 ({int(buff_power * 100)}%)"
+                                )
+                                if hasattr(actor, 'status_manager'):
+                                    actor.status_manager.add_status(buff)
+                                    self.logger.info(f"[{trait_id}] {actor.name} 랜덤 버프: 속도 +{int(buff_power * 100)}% ({duration}턴)")
+        
+        # 0-2. active_buffs의 REGEN, HP_REGEN, MP_REGEN 처리
         if hasattr(actor, 'active_buffs') and actor.active_buffs:
             # REGEN 처리 (시전자 스탯 기반 HP 재생)
             if 'regen' in actor.active_buffs:
@@ -497,6 +553,50 @@ class CombatManager:
         # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
         if trigger_gimmick and attacker in self.allies:
             GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender)
+        
+        # 적 처치 확인 및 효과 적용 (battle_heal, battle_mp, bloodthirst 등)
+        if hasattr(defender, 'current_hp') and defender.current_hp <= 0:
+            if defender in self.enemies:
+                # 적 처치 확인
+                from src.character.trait_effects import get_trait_effect_manager
+                trait_manager = get_trait_effect_manager()
+                
+                # 모든 아군에게 처치 효과 적용
+                for ally in self.allies:
+                    if hasattr(ally, 'is_alive') and ally.is_alive:
+                        trait_manager.apply_on_kill_effects(ally, defender)
+                        
+                        # 처치 보너스 (bloodthirst) - 스택 누적
+                        if hasattr(ally, 'active_traits'):
+                            from src.character.trait_effects import TraitEffectType
+                            for trait_data in ally.active_traits:
+                                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                                effects = trait_manager.get_trait_effects(trait_id)
+                                for effect in effects:
+                                    if effect.effect_type == TraitEffectType.KILL_BONUS:
+                                        # 스택 누적
+                                        stack_key = f"_kill_bonus_stacks_{trait_id}"
+                                        current_stacks = getattr(ally, stack_key, 0)
+                                        max_stacks = effect.metadata.get("max_stacks", 3) if effect.metadata else 3
+                                        new_stacks = min(current_stacks + 1, max_stacks)
+                                        setattr(ally, stack_key, new_stacks)
+                                        
+                                        # 공격력 증가 적용
+                                        bonus_per_stack = effect.value  # 0.10 = 10% per stack
+                                        total_bonus = bonus_per_stack * new_stacks
+                                        from src.character.stats import Stats
+                                        if hasattr(ally, 'stat_manager'):
+                                            # 기존 보너스 제거 후 새 보너스 추가
+                                            ally.stat_manager.remove_bonus(Stats.STRENGTH, f"kill_bonus_{trait_id}")
+                                            ally.stat_manager.remove_bonus(Stats.MAGIC, f"kill_bonus_{trait_id}")
+                                            bonus_atk = int(ally.stat_manager.get_value(Stats.STRENGTH, use_total=False) * total_bonus)
+                                            bonus_mag = int(ally.stat_manager.get_value(Stats.MAGIC, use_total=False) * total_bonus)
+                                            if bonus_atk > 0:
+                                                ally.stat_manager.add_bonus(Stats.STRENGTH, f"kill_bonus_{trait_id}", bonus_atk)
+                                            if bonus_mag > 0:
+                                                ally.stat_manager.add_bonus(Stats.MAGIC, f"kill_bonus_{trait_id}", bonus_mag)
+                                            
+                                            self.logger.info(f"[{trait_id}] {ally.name} 처치 보너스: 스택 {new_stacks}/{max_stacks} → 공격력 +{int(total_bonus * 100)}%")
 
         return {
             "action": "hp_attack",
@@ -639,15 +739,41 @@ class CombatManager:
         from src.combat.enemy_skills import SkillTargetType
 
         result = {
+            "action": "skill",
+            "skill_name": getattr(skill, "name", "Unknown"),
+            "success": True,
             "targets": [],
             "effects": []
         }
+
+        # 스킬 사용 가능 여부 확인
+        if not skill.can_use(actor):
+            result["success"] = False
+            # 실패 원인 파악
+            if hasattr(actor, 'current_mp') and actor.current_mp < skill.mp_cost:
+                result["error"] = f"MP 부족 (필요: {skill.mp_cost}, 현재: {actor.current_mp})"
+            elif skill.current_cooldown > 0:
+                result["error"] = f"쿨다운 중 ({skill.current_cooldown}턴 남음)"
+            elif hasattr(actor, 'current_hp'):
+                hp_percent = actor.current_hp / actor.max_hp if actor.max_hp > 0 else 0
+                if hp_percent < skill.min_hp_percent:
+                    result["error"] = f"HP 부족 (필요: {int(skill.min_hp_percent * 100)}% 이상)"
+                elif hp_percent > skill.max_hp_percent:
+                    result["error"] = f"HP 초과 (최대: {int(skill.max_hp_percent * 100)}% 이하)"
+                elif actor.current_hp <= skill.hp_cost:
+                    result["error"] = f"HP 코스트 부족 (필요: {skill.hp_cost})"
+            else:
+                result["error"] = "사용 불가"
+            return result
 
         # MP/HP 코스트 지불
         if hasattr(actor, 'current_mp'):
             actor.current_mp = max(0, actor.current_mp - skill.mp_cost)
         if hasattr(actor, 'current_hp'):
             actor.current_hp = max(1, actor.current_hp - skill.hp_cost)
+        
+        # 쿨다운 활성화
+        skill.activate_cooldown()
 
         # 대상 결정
         targets = []
@@ -659,13 +785,49 @@ class CombatManager:
         elif skill.target_type == SkillTargetType.ALL_ENEMIES:
             # 적 전체
             targets = [a for a in self.allies if getattr(a, 'is_alive', True)]
+        elif skill.target_type == SkillTargetType.SINGLE_ALLY:
+            # 아군 1명 (힐링/서포트 스킬)
+            if target:
+                if isinstance(target, list):
+                    targets = target
+                else:
+                    targets = [target]
+            else:
+                # 타겟이 없으면 아군 중 랜덤 선택
+                alive_allies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+                if alive_allies:
+                    import random
+                    targets = [random.choice(alive_allies)]
+        elif skill.target_type == SkillTargetType.RANDOM_ENEMY:
+            # 랜덤 적 (타겟이 없으면 랜덤 선택)
+            if target:
+                if isinstance(target, list):
+                    targets = target
+                else:
+                    targets = [target]
+            else:
+                alive_enemies = [a for a in self.allies if getattr(a, 'is_alive', True)]
+                if alive_enemies:
+                    import random
+                    targets = [random.choice(alive_enemies)]
         elif target:
             # 단일 대상
             if isinstance(target, list):
                 targets = target
             else:
                 targets = [target]
+        else:
+            # 타겟이 필요한데 없으면 실패
+            result["success"] = False
+            result["error"] = "대상이 없습니다"
+            return result
 
+        # 대상이 없으면 실패
+        if not targets:
+            result["success"] = False
+            result["error"] = "대상이 없습니다"
+            return result
+        
         # 각 대상에게 스킬 효과 적용
         for tgt in targets:
             target_result = {"target": getattr(tgt, 'name', 'Unknown')}
@@ -781,13 +943,10 @@ class CombatManager:
                 if hasattr(tgt, 'status_manager') or hasattr(tgt, 'status_effects'):
                     status_mgr = getattr(tgt, 'status_manager', None) or getattr(tgt, 'status_effects', None)
                     if isinstance(status_mgr, StatusManager):
-                        for effect_name, effect_data in skill.status_effects.items():
-                            if isinstance(effect_data, dict):
-                                duration = effect_data.get('duration', 3)
-                                intensity = effect_data.get('intensity', 1.0)
-                            else:
-                                duration = 3
-                                intensity = 1.0
+                        # status_effects는 List[str] 타입이므로 리스트를 반복
+                        for effect_name in skill.status_effects:
+                            duration = skill.status_duration  # 기본 duration 사용
+                            intensity = 1.0  # 기본 intensity
 
                             status_type = self._map_status_to_status_type(effect_name)
                             if status_type:
@@ -845,10 +1004,14 @@ class CombatManager:
                 result["healing"] = healed
 
             elif effect_type == "heal_mp":
-                if hasattr(tgt, 'current_mp') and hasattr(tgt, 'max_mp'):
+                if hasattr(tgt, 'restore_mp'):
+                    healed = tgt.restore_mp(int(effect_value))
+                elif hasattr(tgt, 'current_mp') and hasattr(tgt, 'max_mp'):
                     healed = min(int(effect_value), tgt.max_mp - tgt.current_mp)
                     tgt.current_mp += healed
-                    result["mp_healing"] = healed
+                else:
+                    healed = int(effect_value)
+                result["mp_healing"] = healed
 
             elif effect_type == "buff":
                 # 버프 효과 (간단하게 처리)
@@ -1235,6 +1398,70 @@ class CombatManager:
         # BRV 초기화
         if hasattr(character, 'current_brv'):
             character.current_brv = 0
+    
+    def _on_damage_taken(self, data: Dict[str, Any]) -> None:
+        """
+        피해 받은 이벤트 처리 (수호 효과)
+        
+        Args:
+            data: 이벤트 데이터 (character, damage 등)
+        """
+        defender = data.get("character")
+        damage = data.get("damage", 0)
+        
+        if not defender or damage <= 0:
+            return
+        
+        # 아군이 피해를 받았는지 확인
+        if defender not in self.allies:
+            return
+        
+        # 이미 피해가 적용되었는지 확인 (new_hp가 None이면 아직 적용 전)
+        if data.get("new_hp") is not None:
+            # 이미 피해가 적용된 경우, 수호 효과는 처리할 수 없음
+            return
+        
+        # 특성 효과: 수호 (guardian_angel) - 아군 피해 대신 받기
+        from src.character.trait_effects import get_trait_effect_manager, TraitEffectType
+        trait_manager = get_trait_effect_manager()
+        
+        # 다른 아군 중 수호 효과가 있는 캐릭터 찾기
+        for ally in self.allies:
+            if ally == defender or not hasattr(ally, 'is_alive') or not ally.is_alive:
+                continue
+            
+            if not hasattr(ally, 'active_traits'):
+                continue
+            
+            for trait_data in ally.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                effects = trait_manager.get_trait_effects(trait_id)
+                for effect in effects:
+                    if effect.effect_type == TraitEffectType.GUARDIAN:
+                        # 확률적으로 피해 대신 받기
+                        import random
+                        if random.random() < effect.value:  # value = 발동 확률 (0.20 = 20%)
+                            # 보호받을 피해 비율 (metadata에서 가져오거나 기본값 100%)
+                            protection_ratio = effect.metadata.get("protection_ratio", 1.0) if effect.metadata else 1.0
+                            
+                            # 수호자가 받을 피해 계산 (원래 피해의 protection_ratio만큼)
+                            protected_damage = int(damage * protection_ratio)
+                            
+                            # 원래 피해를 받을 캐릭터가 받을 피해를 줄임
+                            remaining_damage = damage - protected_damage
+                            
+                            # 데이터에 수정된 피해를 반영
+                            data["damage"] = remaining_damage
+                            
+                            # 수호자가 피해를 받음
+                            if hasattr(ally, 'take_damage'):
+                                guardian_actual_damage = ally.take_damage(protected_damage)
+                                self.logger.info(
+                                    f"[{trait_id}] {ally.name}이(가) {defender.name}의 피해를 대신 받음: "
+                                    f"{protected_damage} → 실제 {guardian_actual_damage} (원래 피해: {damage}, 남은 피해: {remaining_damage}, 보호 비율: {int(protection_ratio * 100)}%)"
+                                )
+                            
+                            return  # 한 명만 수호
 
     def _on_turn_end(self, actor: Any) -> None:
         """
