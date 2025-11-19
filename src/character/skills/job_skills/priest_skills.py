@@ -19,7 +19,7 @@ def create_priest_skills():
         GimmickEffect(GimmickOperation.ADD, "judgment_points", 1, max_value=6)
     ]
     holy_smite.costs = []  # 기본 공격은 MP 소모 없음
-    holy_smite.sfx = "012"  # 짧은 마법
+    holy_smite.sfx = ("skill", "cast_start")  # 마법 시전
     holy_smite.metadata = {"judgment_gain": 1}
     skills.append(holy_smite)
 
@@ -30,7 +30,7 @@ def create_priest_skills():
         GimmickEffect(GimmickOperation.CONSUME, "judgment_points", 1)
     ]
     divine_judgment.costs = []  # 기본 공격은 MP 소모 없음
-    divine_judgment.sfx = "012"  # 짧은 마법
+    divine_judgment.sfx = ("skill", "cast_complete")  # 마법 완료
     divine_judgment.metadata = {"judgment_cost": 1, "judgment_scaling": True}
     skills.append(divine_judgment)
 
@@ -43,7 +43,7 @@ def create_priest_skills():
     ]
     light_bind.costs = []
     # light_bind.cooldown = 2  # 쿨다운 시스템 제거됨
-    light_bind.sfx = "148"  # 짧은 디버프
+    light_bind.sfx = ("character", "status_debuff")  # 디버프
     light_bind.metadata = {"judgment_gain": 1, "debuff": True}
     skills.append(light_bind)
 
@@ -56,7 +56,7 @@ def create_priest_skills():
     holy_heal.costs = [MPCost(5), StackCost("judgment_points", 2)]
     holy_heal.target_type = "ally"
     # holy_heal.cooldown = 3  # 쿨다운 시스템 제거됨
-    holy_heal.sfx = "005"  # 짧은 힐
+    holy_heal.sfx = ("character", "hp_heal")  # 회복
     holy_heal.metadata = {"judgment_cost": 2, "healing": True}
     skills.append(holy_heal)
 
@@ -70,7 +70,7 @@ def create_priest_skills():
     divine_protection.costs = [MPCost(5), StackCost("judgment_points", 2)]
     divine_protection.target_type = "ally"
     # divine_protection.cooldown = 4  # 쿨다운 시스템 제거됨
-    divine_protection.sfx = "093"  # 짧은 버프
+    divine_protection.sfx = ("character", "status_buff")  # 버프
     divine_protection.metadata = {"judgment_cost": 2, "buff": True, "regen": True}
     skills.append(divine_protection)
 
@@ -83,7 +83,7 @@ def create_priest_skills():
     judgment_light.costs = [MPCost(6)]
     judgment_light.target_type = "self"
     # judgment_light.cooldown = 5  # 쿨다운 시스템 제거됨
-    judgment_light.sfx = "093"  # 짧은 버프
+    judgment_light.sfx = ("skill", "haste")  # 버프/강화
     judgment_light.metadata = {"judgment_refill": True, "buff": True}
     skills.append(judgment_light)
 
@@ -97,7 +97,7 @@ def create_priest_skills():
     # holy_beam.cooldown = 4  # 쿨다운 시스템 제거됨
     holy_beam.target_type = "all_enemies"
     holy_beam.is_aoe = True
-    holy_beam.sfx = "146"  # 짧은 광역 마법
+    holy_beam.sfx = ("skill", "cast_complete")  # 광역 마법
     holy_beam.metadata = {"judgment_cost": 3, "judgment_scaling": True, "aoe": True}
     skills.append(holy_beam)
 
@@ -111,7 +111,7 @@ def create_priest_skills():
     ]
     divine_wrath.costs = [MPCost(10), StackCost("judgment_points", 5)]
     # divine_wrath.cooldown = 6  # 쿨다운 시스템 제거됨
-    divine_wrath.sfx = "146"  # 짧은 강한 마법
+    divine_wrath.sfx = ("skill", "ultima")  # 강한 마법
     divine_wrath.metadata = {"judgment_cost": 5, "judgment_scaling": True, "debuff": True}
     skills.append(divine_wrath)
 
@@ -127,7 +127,7 @@ def create_priest_skills():
     divine_grace.costs = [MPCost(10), StackCost("judgment_points", 4)]
     divine_grace.target_type = "party"
     # divine_grace.cooldown = 6  # 쿨다운 시스템 제거됨
-    divine_grace.sfx = "005"  # 짧은 힐
+    divine_grace.sfx = ("character", "hp_heal")  # 회복
     divine_grace.metadata = {"judgment_cost": 4, "healing": True, "buff": True, "party": True}
     skills.append(divine_grace)
 
@@ -145,7 +145,7 @@ def create_priest_skills():
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.sfx = "035"  # 짧은 리미트 브레이크
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "judgment_scaling": True, "judgment_refill": True, "healing": True, "party": True}
     skills.append(ultimate)
 

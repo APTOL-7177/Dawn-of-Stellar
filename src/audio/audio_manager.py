@@ -6,7 +6,7 @@ pygame.mixer를 사용한 BGM 및 SFX 재생 관리
 
 import pygame.mixer
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from src.core.config import get_config
 from src.core.logger import get_logger
 
@@ -41,9 +41,16 @@ class AudioManager:
         # SFX 캐시 (자주 사용하는 SFX를 메모리에 보관)
         self.sfx_cache: Dict[str, pygame.mixer.Sound] = {}
 
-        # 오디오 경로
-        self.bgm_dir = Path("assets/audio/bgm")
-        self.sfx_dir = Path("assets/audio/sfx")
+        # 오디오 경로 (우선순위 순서)
+        self.bgm_dirs = [
+            Path("assets/audio/bg"),      # RPG MAKER MZ BGM (최우선)
+            Path("assets/audio/me"),      # RPG MAKER MZ ME (2순위)
+            Path("assets/audio/bgm")      # 기존 BGM (3순위, 아카이브)
+        ]
+        self.sfx_dirs = [
+            Path("assets/audio/se"),      # RPG MAKER MZ SE (최우선)
+            Path("assets/audio/sfx")      # 기존 SFX (2순위, 아카이브)
+        ]
 
         # pygame.mixer 초기화
         self._initialize_mixer()
@@ -94,8 +101,8 @@ class AudioManager:
             self.logger.warning(f"BGM 트랙 '{track_name}'이 config.yaml에 정의되지 않음")
             return False
 
-        # 파일 경로 찾기 (여러 확장자 시도)
-        file_path = self._find_audio_file(self.bgm_dir, file_name)
+        # 파일 경로 찾기 (bg > me > bgm 순서로 검색)
+        file_path = self._find_audio_file_in_dirs(self.bgm_dirs, file_name)
         if not file_path:
             self.logger.warning(f"BGM 파일 '{file_name}'을 찾을 수 없음")
             return False
@@ -180,25 +187,21 @@ class AudioManager:
         if not self.sfx_enabled:
             return False
 
-        # ffvii 카테고리는 특별 처리: sfx_name을 직접 파일명으로 사용
-        if category == "ffvii":
-            file_name = sfx_name  # "618" → "618.wav"
-        else:
-            # config에서 파일명 가져오기
-            config_key = f"audio.sfx.{category}.{sfx_name}"
-            file_name = self.config.get(config_key)
+        # config에서 파일명 가져오기
+        config_key = f"audio.sfx.{category}.{sfx_name}"
+        file_name = self.config.get(config_key)
 
-            if not file_name:
-                self.logger.debug(f"SFX '{category}.{sfx_name}'이 config.yaml에 정의되지 않음")
-                return False
+        if not file_name:
+            self.logger.debug(f"SFX '{category}.{sfx_name}'이 config.yaml에 정의되지 않음")
+            return False
 
         # 캐시 확인
         cache_key = f"{category}.{sfx_name}"
         if cache_key in self.sfx_cache:
             sound = self.sfx_cache[cache_key]
         else:
-            # 파일 경로 찾기 (sfx 디렉토리 바로 아래)
-            file_path = self._find_audio_file(self.sfx_dir, file_name)
+            # 파일 경로 찾기 (se > sfx 순서로 검색)
+            file_path = self._find_audio_file_in_dirs(self.sfx_dirs, file_name)
 
             if not file_path:
                 self.logger.debug(f"SFX 파일 '{file_name}'을 찾을 수 없음")
@@ -254,6 +257,23 @@ class AudioManager:
             if file_path.exists():
                 return file_path
 
+        return None
+
+    def _find_audio_file_in_dirs(self, directories: List[Path], file_name: str) -> Optional[Path]:
+        """
+        여러 디렉토리를 순서대로 검색하여 오디오 파일 찾기
+
+        Args:
+            directories: 검색할 디렉토리 목록 (우선순위 순서)
+            file_name: 파일명 (확장자 포함 또는 미포함)
+
+        Returns:
+            파일 경로 또는 None (첫 번째로 찾은 파일)
+        """
+        for directory in directories:
+            file_path = self._find_audio_file(directory, file_name)
+            if file_path:
+                return file_path
         return None
 
     def set_master_volume(self, volume: float) -> None:

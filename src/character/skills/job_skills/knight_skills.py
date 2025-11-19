@@ -4,6 +4,7 @@ from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.shield_effect import ShieldEffect
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.protect_effect import ProtectEffect
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
@@ -18,7 +19,7 @@ def create_knight_skills():
         GimmickEffect(GimmickOperation.ADD, "duty_stacks", 1, max_value=5)
     ]
     lance_charge.costs = []  # 기본 공격은 MP 소모 없음
-    lance_charge.sfx = "397"
+    lance_charge.sfx = ("combat", "attack_physical")  # 창 돌격
     lance_charge.metadata = {"duty_gain": 1}
     skills.append(lance_charge)
 
@@ -29,21 +30,22 @@ def create_knight_skills():
         GimmickEffect(GimmickOperation.CONSUME, "duty_stacks", 1)
     ]
     duty_strike.costs = []  # 기본 공격은 MP 소모 없음
-    duty_strike.sfx = "403"
+    duty_strike.sfx = ("combat", "critical")  # 의무의 일격
     duty_strike.metadata = {"duty_cost": 1, "duty_scaling": True}
     skills.append(duty_strike)
 
     # 3. 수호의 맹세
-    guardian_oath = Skill("knight_oath", "수호의 맹세", "아군 보호")
+    guardian_oath = Skill("knight_oath", "수호의 맹세", "본인에게 보호막을 두르고 선택한 아군을 보호")
     guardian_oath.effects = [
-        ShieldEffect(base_amount=60),
+        ShieldEffect(base_amount=0),  # 공격력 기반으로 계산 (base_amount는 0)
+        ProtectEffect(),  # 선택한 아군 보호
         GimmickEffect(GimmickOperation.ADD, "duty_stacks", 1, max_value=5)
     ]
     guardian_oath.costs = []
-    guardian_oath.target_type = "ally"
+    guardian_oath.target_type = "ally"  # 아군 선택
     # guardian_oath.cooldown = 3  # 쿨다운 시스템 제거됨
-    guardian_oath.sfx = "409"
-    guardian_oath.metadata = {"shield": True, "duty_gain": 1}
+    guardian_oath.sfx = ("skill", "protect")  # 보호막
+    guardian_oath.metadata = {"shield": True, "duty_gain": 1, "protect": True, "attack_multiplier": 0.4, "replace_shield": True}  # 공격력의 40%, 중첩 방지
     skills.append(guardian_oath)
 
     # 4. 기사도
@@ -56,7 +58,7 @@ def create_knight_skills():
     chivalry.costs = [MPCost(5)]
     chivalry.target_type = "self"
     # chivalry.cooldown = 4  # 쿨다운 시스템 제거됨
-    chivalry.sfx = "415"
+    chivalry.sfx = ("character", "status_buff")  # 버프
     chivalry.metadata = {"buff": True, "duty_gain": 1, "defensive": True}
     skills.append(chivalry)
 
@@ -69,7 +71,7 @@ def create_knight_skills():
     iron_will.costs = [MPCost(6)]
     iron_will.target_type = "self"
     # iron_will.cooldown = 5  # 쿨다운 시스템 제거됨
-    iron_will.sfx = "421"
+    iron_will.sfx = ("skill", "shell")  # 방어막
     iron_will.metadata = {"shield": True, "duty_gain": 2}
     skills.append(iron_will)
 
@@ -82,7 +84,7 @@ def create_knight_skills():
     ]
     shield_bash.costs = [MPCost(4)]
     # shield_bash.cooldown = 2  # 쿨다운 시스템 제거됨
-    shield_bash.sfx = "427"
+    shield_bash.sfx = ("combat", "attack_physical")  # 방패 강타
     shield_bash.metadata = {"shield": True, "duty_gain": 1, "duty_scaling": True}
     skills.append(shield_bash)
 
@@ -96,7 +98,7 @@ def create_knight_skills():
     last_stand.costs = [MPCost(7), StackCost("duty_stacks", 3)]
     last_stand.target_type = "self"
     # last_stand.cooldown = 6  # 쿨다운 시스템 제거됨
-    last_stand.sfx = "433"
+    last_stand.sfx = ("combat", "damage_high")  # 최후의 보루
     last_stand.metadata = {"shield": True, "duty_cost": 3, "defensive": True}
     skills.append(last_stand)
 
@@ -110,7 +112,7 @@ def create_knight_skills():
     devotion.costs = [MPCost(7)]
     devotion.target_type = "party"
     # devotion.cooldown = 6  # 쿨다운 시스템 제거됨
-    devotion.sfx = "439"
+    devotion.sfx = ("character", "status_buff")  # 파티 보호
     devotion.metadata = {"shield": True, "party": True, "duty_gain": 1}
     skills.append(devotion)
 
@@ -125,7 +127,7 @@ def create_knight_skills():
     knight_pledge.costs = [MPCost(10), StackCost("duty_stacks", 4)]
     knight_pledge.target_type = "self"
     # knight_pledge.cooldown = 7  # 쿨다운 시스템 제거됨
-    knight_pledge.sfx = "445"
+    knight_pledge.sfx = ("combat", "break")  # 기사의 맹세
     knight_pledge.metadata = {"shield": True, "duty_cost": 4, "counter": True}
     skills.append(knight_pledge)
 
@@ -141,7 +143,7 @@ def create_knight_skills():
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.sfx = "455"
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "duty_scaling": True, "duty_refill": True, "shield": True}
     skills.append(ultimate)
 

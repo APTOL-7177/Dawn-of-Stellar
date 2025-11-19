@@ -18,7 +18,7 @@ def create_shaman_skills():
         GimmickEffect(GimmickOperation.ADD, "curse_stacks", 1, max_value=8)
     ]
     curse.costs = []  # 기본 공격은 MP 소모 없음
-    curse.sfx = "408"
+    curse.sfx = ("skill", "cast_start")  # 저주 걸기
     curse.metadata = {"curse_gain": 1}
     skills.append(curse)
 
@@ -29,7 +29,7 @@ def create_shaman_skills():
         GimmickEffect(GimmickOperation.CONSUME, "curse_stacks", 1)
     ]
     curse_burst.costs = []  # 기본 공격은 MP 소모 없음
-    curse_burst.sfx = "415"
+    curse_burst.sfx = ("skill", "cast_complete")  # 저주 폭발
     curse_burst.metadata = {"curse_cost": 1, "curse_scaling": True}
     skills.append(curse_burst)
 
@@ -43,7 +43,7 @@ def create_shaman_skills():
     plague.costs = []
     # plague.cooldown = 2  # 쿨다운 시스템 제거됨
     plague.is_aoe = True
-    plague.sfx = "422"
+    plague.sfx = ("character", "status_debuff")  # 역병
     plague.metadata = {"curse_gain": 2, "debuff": True, "aoe": True}
     skills.append(plague)
 
@@ -56,7 +56,7 @@ def create_shaman_skills():
     curse_transfer.costs = [MPCost(3), StackCost("curse_stacks", 2)]
     # curse_transfer.cooldown = 3  # 쿨다운 시스템 제거됨
     curse_transfer.is_aoe = True
-    curse_transfer.sfx = "429"
+    curse_transfer.sfx = ("skill", "cast_complete")  # 저주 전이
     curse_transfer.metadata = {"curse_cost": 2, "curse_scaling": True, "aoe": True}
     skills.append(curse_transfer)
 
@@ -69,7 +69,7 @@ def create_shaman_skills():
     curse_accumulate.costs = [MPCost(4)]
     curse_accumulate.target_type = "self"
     # curse_accumulate.cooldown = 4  # 쿨다운 시스템 제거됨
-    curse_accumulate.sfx = "436"
+    curse_accumulate.sfx = ("character", "status_buff")  # 저주 축적
     curse_accumulate.metadata = {"curse_refill": True, "buff": True}
     skills.append(curse_accumulate)
 
@@ -83,7 +83,7 @@ def create_shaman_skills():
     ]
     dark_magic.costs = [MPCost(6), StackCost("curse_stacks", 3)]
     # dark_magic.cooldown = 4  # 쿨다운 시스템 제거됨
-    dark_magic.sfx = "443"
+    dark_magic.sfx = ("skill", "ultima")  # 사술
     dark_magic.metadata = {"curse_cost": 3, "curse_scaling": True, "debuff": True}
     skills.append(dark_magic)
 
@@ -95,7 +95,7 @@ def create_shaman_skills():
     ]
     soul_drain.costs = [MPCost(6), StackCost("curse_stacks", 4)]
     # soul_drain.cooldown = 5  # 쿨다운 시스템 제거됨
-    soul_drain.sfx = "450"
+    soul_drain.sfx = ("character", "hp_heal")  # 영혼 흡수
     soul_drain.metadata = {"curse_cost": 4, "curse_scaling": True, "drain": True}
     skills.append(soul_drain)
 
@@ -110,7 +110,7 @@ def create_shaman_skills():
     ]
     curse_mark.costs = [MPCost(9), StackCost("curse_stacks", 6)]
     # curse_mark.cooldown = 6  # 쿨다운 시스템 제거됨
-    curse_mark.sfx = "457"
+    curse_mark.sfx = ("character", "status_debuff")  # 저주의 낙인
     curse_mark.metadata = {"curse_cost": 6, "curse_scaling": True, "debuff": True}
     skills.append(curse_mark)
 
@@ -124,7 +124,7 @@ def create_shaman_skills():
     nightmare.costs = [MPCost(10), StackCost("curse_stacks", 5)]
     # nightmare.cooldown = 5  # 쿨다운 시스템 제거됨
     nightmare.is_aoe = True
-    nightmare.sfx = "464"
+    nightmare.sfx = ("skill", "cast_complete")  # 영혼의 악몽
     nightmare.metadata = {"curse_cost": 5, "curse_scaling": True, "debuff": True, "aoe": True}
     skills.append(nightmare)
 
@@ -142,7 +142,7 @@ def create_shaman_skills():
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.sfx = "471"
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "curse_dump": True, "debuff": True, "aoe": True}
     skills.append(ultimate)
 

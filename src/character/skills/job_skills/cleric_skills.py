@@ -19,7 +19,7 @@ def create_cleric_skills():
         GimmickEffect(GimmickOperation.ADD, "faith_points", 1, max_value=8)
     ]
     pray.costs = []  # 기본 공격은 MP 소모 없음
-    pray.sfx = "012"  # 짧은 마법
+    pray.sfx = ("skill", "cast_start")  # 기도
     pray.metadata = {"faith_gain": 1}
     skills.append(pray)
 
@@ -30,7 +30,7 @@ def create_cleric_skills():
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 1)
     ]
     holy_attack.costs = []  # 기본 공격은 MP 소모 없음
-    holy_attack.sfx = "012"  # 짧은 마법
+    holy_attack.sfx = ("skill", "cast_complete")  # 신성 공격
     holy_attack.metadata = {"faith_cost": 1, "faith_scaling": True}
     skills.append(holy_attack)
 
@@ -43,7 +43,7 @@ def create_cleric_skills():
     heal.costs = []
     heal.target_type = "ally"
     # heal.cooldown = 1  # 쿨다운 시스템 제거됨
-    heal.sfx = "005"  # 짧은 힐
+    heal.sfx = ("character", "hp_heal")  # 치유
     heal.metadata = {"faith_cost": 1, "healing": True}
     skills.append(heal)
 
@@ -57,7 +57,7 @@ def create_cleric_skills():
     greater_heal.costs = [MPCost(5), StackCost("faith_points", 2)]
     greater_heal.target_type = "ally"
     # greater_heal.cooldown = 2  # 쿨다운 시스템 제거됨
-    greater_heal.sfx = "005"  # 짧은 힐
+    greater_heal.sfx = ("character", "hp_heal_high")  # 대치유
     greater_heal.metadata = {"faith_cost": 2, "healing": True, "regen": True}
     skills.append(greater_heal)
 
@@ -70,7 +70,7 @@ def create_cleric_skills():
     mass_heal.costs = [MPCost(6), StackCost("faith_points", 3)]
     mass_heal.target_type = "party"
     # mass_heal.cooldown = 4  # 쿨다운 시스템 제거됨
-    mass_heal.sfx = "005"  # 짧은 힐
+    mass_heal.sfx = ("character", "hp_heal_max")  # 집단 치유
     mass_heal.metadata = {"faith_cost": 3, "healing": True, "party_wide": True}
     skills.append(mass_heal)
 
@@ -84,7 +84,7 @@ def create_cleric_skills():
     faith_blessing.costs = [MPCost(6)]
     faith_blessing.target_type = "self"
     # faith_blessing.cooldown = 5  # 쿨다운 시스템 제거됨
-    faith_blessing.sfx = "093"  # 짧은 버프
+    faith_blessing.sfx = ("character", "status_buff")  # 신앙의 축복
     faith_blessing.metadata = {"faith_max": True, "buff": True}
     skills.append(faith_blessing)
 
@@ -98,7 +98,7 @@ def create_cleric_skills():
     holy_barrier.costs = [MPCost(7), StackCost("faith_points", 4)]
     holy_barrier.target_type = "party"
     # holy_barrier.cooldown = 5  # 쿨다운 시스템 제거됨
-    holy_barrier.sfx = "093"  # 짧은 버프
+    holy_barrier.sfx = ("skill", "protect")  # 신성한 보호막
     holy_barrier.metadata = {"faith_cost": 4, "buff": True, "party_wide": True}
     skills.append(holy_barrier)
 
@@ -112,7 +112,7 @@ def create_cleric_skills():
     resurrect.costs = [MPCost(12), StackCost("faith_points", 6)]
     resurrect.target_type = "ally"
     # resurrect.cooldown = 8  # 쿨다운 시스템 제거됨
-    resurrect.sfx = "005"  # 짧은 힐
+    resurrect.sfx = ("character", "revive")  # 부활
     resurrect.metadata = {"faith_cost": 6, "revival": True, "healing": True}
     skills.append(resurrect)
 
@@ -128,7 +128,7 @@ def create_cleric_skills():
     holy_judgment.target_type = "all_enemies"
     holy_judgment.is_aoe = True
     # holy_judgment.cooldown = 6  # 쿨다운 시스템 제거됨
-    holy_judgment.sfx = "146"  # 짧은 광역 마법
+    holy_judgment.sfx = ("skill", "cast_complete")  # 성스러운 심판
     holy_judgment.metadata = {"faith_cost": 5, "faith_scaling": True, "debuff": True, "aoe": True}
     skills.append(holy_judgment)
 
@@ -146,7 +146,7 @@ def create_cleric_skills():
     ultimate.target_type = "party"
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.sfx = "035"  # 짧은 리미트 브레이크
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "faith_consume_all": True, "healing": True, "party_wide": True, "buff": True}
     skills.append(ultimate)
 

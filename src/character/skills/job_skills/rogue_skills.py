@@ -19,7 +19,7 @@ def create_rogue_skills():
         GimmickEffect(GimmickOperation.ADD, "stolen_items", 1, max_value=10)
     ]
     ambush.costs = []  # 기본 공격은 MP 소모 없음
-    ambush.sfx = "017"  # 짧은 빠른 공격
+    ambush.sfx = ("combat", "attack_physical")  # 기습
     ambush.metadata = {"item_gain": 1}
     skills.append(ambush)
 
@@ -29,7 +29,7 @@ def create_rogue_skills():
         DamageEffect(DamageType.HP, 1.2, gimmick_bonus={"field": "stolen_items", "multiplier": 0.15})
     ]
     vital_strike.costs = []  # 기본 공격은 MP 소모 없음
-    vital_strike.sfx = "026"  # 짧은 크리티컬
+    vital_strike.sfx = ("combat", "critical")  # 급소 공격
     vital_strike.metadata = {"item_scaling": True, "critical": True}
     skills.append(vital_strike)
 
@@ -42,7 +42,7 @@ def create_rogue_skills():
     ]
     steal.costs = []
     # steal.cooldown = 3  # 쿨다운 시스템 제거됨
-    steal.sfx = "020"  # 짧은 아이템/획득
+    steal.sfx = ("item", "get_item")  # 훔치기
     steal.metadata = {"item_gain": 3, "buff": True}
     skills.append(steal)
 
@@ -55,7 +55,7 @@ def create_rogue_skills():
     smoke_bomb.costs = [MPCost(3)]
     smoke_bomb.target_type = "self"
     # smoke_bomb.cooldown = 4  # 쿨다운 시스템 제거됨
-    smoke_bomb.sfx = "061"  # 짧은 회피
+    smoke_bomb.sfx = ("combat", "dodge")  # 연막탄
     smoke_bomb.metadata = {"evasion": True, "buff": True}
     skills.append(smoke_bomb)
 
@@ -66,7 +66,7 @@ def create_rogue_skills():
     ]
     use_item.costs = [MPCost(6), StackCost("stolen_items", 2)]
     # use_item.cooldown = 2  # 쿨다운 시스템 제거됨
-    use_item.sfx = "019"  # 짧은 수류탄/폭발
+    use_item.sfx = ("item", "grenade")  # 아이템 활용
     use_item.metadata = {"item_cost": 2, "item_scaling": True}
     skills.append(use_item)
 
@@ -80,7 +80,7 @@ def create_rogue_skills():
     ]
     poison_blade.costs = [MPCost(4)]
     # poison_blade.cooldown = 3  # 쿨다운 시스템 제거됨
-    poison_blade.sfx = "148"  # 짧은 디버프/독
+    poison_blade.sfx = ("character", "status_debuff")  # 독 바르기
     poison_blade.metadata = {"item_gain": 1, "dot": True, "poison": True}
     skills.append(poison_blade)
 
@@ -93,7 +93,7 @@ def create_rogue_skills():
     treasure_hunt.costs = [MPCost(6)]
     treasure_hunt.target_type = "self"
     # treasure_hunt.cooldown = 5  # 쿨다운 시스템 제거됨
-    treasure_hunt.sfx = "357"  # 짧은 획득
+    treasure_hunt.sfx = ("item", "get_item")  # 보물 사냥
     treasure_hunt.metadata = {"item_gain": 5, "buff": True}
     skills.append(treasure_hunt)
 
@@ -104,7 +104,7 @@ def create_rogue_skills():
     ]
     backstab.costs = [MPCost(9), StackCost("stolen_items", 4)]
     # backstab.cooldown = 5  # 쿨다운 시스템 제거됨
-    backstab.sfx = "026"  # 짧은 크리티컬/강타
+    backstab.sfx = ("combat", "critical")  # 배신자의 일격
     backstab.metadata = {"item_cost": 4, "item_scaling": True, "critical": True}
     skills.append(backstab)
 
@@ -118,7 +118,7 @@ def create_rogue_skills():
     ]
     assassinate.costs = [MPCost(13), StackCost("stolen_items", 6)]
     # assassinate.cooldown = 7  # 쿨다운 시스템 제거됨
-    assassinate.sfx = "034"  # 짧은 강한 공격
+    assassinate.sfx = ("combat", "damage_high")  # 암살
     assassinate.metadata = {"item_cost": 6, "item_scaling": True, "critical": True, "debuff": True}
     skills.append(assassinate)
 
@@ -134,7 +134,7 @@ def create_rogue_skills():
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.sfx = "035"  # 짧은 리미트 브레이크
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "item_refill": True, "buff": True, "critical": True}
     skills.append(ultimate)
 

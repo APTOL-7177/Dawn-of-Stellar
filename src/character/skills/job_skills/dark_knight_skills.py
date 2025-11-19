@@ -18,7 +18,7 @@ def create_dark_knight_skills():
         GimmickEffect(GimmickOperation.ADD, "darkness", 1, max_value=10)
     ]
     dark_slash.costs = []  # 기본 공격은 MP 소모 없음
-    dark_slash.sfx = "017"  # 짧은 물리 공격
+    dark_slash.sfx = ("combat", "attack_physical")  # 어둠 베기
     dark_slash.metadata = {"darkness_gain": 1}
     skills.append(dark_slash)
 
@@ -30,7 +30,7 @@ def create_dark_knight_skills():
         GimmickEffect(GimmickOperation.CONSUME, "darkness", 1)
     ]
     drain.costs = []  # 기본 공격은 MP 소모 없음
-    drain.sfx = "048"  # 짧은 드레인/흡수
+    drain.sfx = ("character", "hp_heal")  # 흡혈 강타
     drain.metadata = {"darkness_cost": 1, "darkness_scaling": True, "lifesteal": True}
     skills.append(drain)
     
@@ -44,7 +44,7 @@ def create_dark_knight_skills():
     ]
     dark_aura.costs = []
     # dark_aura.cooldown = 3  # 쿨다운 시스템 제거됨
-    dark_aura.sfx = "148"  # 짧은 디버프
+    dark_aura.sfx = ("character", "status_debuff")  # 어둠의 오라
     dark_aura.metadata = {"multi_hit": 3, "darkness_gain": 2}
     skills.append(dark_aura)
 
@@ -57,7 +57,7 @@ def create_dark_knight_skills():
     dark_shield.costs = [MPCost(4), StackCost("darkness", 2)]
     dark_shield.target_type = "self"
     # dark_shield.cooldown = 4  # 쿨다운 시스템 제거됨
-    dark_shield.sfx = "093"  # 짧은 버프
+    dark_shield.sfx = ("skill", "protect")  # 어둠의 보호막
     dark_shield.metadata = {"darkness_cost": 2, "buff": True}
     skills.append(dark_shield)
 
@@ -71,7 +71,7 @@ def create_dark_knight_skills():
     dark_wave.costs = [MPCost(6), StackCost("darkness", 3)]
     # dark_wave.cooldown = 4  # 쿨다운 시스템 제거됨
     dark_wave.is_aoe = True
-    dark_wave.sfx = "146"  # 짧은 광역 마법
+    dark_wave.sfx = ("skill", "cast_complete")  # 어둠의 파동
     dark_wave.metadata = {"darkness_cost": 3, "darkness_scaling": True, "lifesteal": True, "aoe": True}
     skills.append(dark_wave)
 
@@ -83,7 +83,7 @@ def create_dark_knight_skills():
     ]
     dark_blade.costs = [MPCost(6)]
     # dark_blade.cooldown = 2  # 쿨다운 시스템 제거됨
-    dark_blade.sfx = "017"  # 짧은 물리 공격
+    dark_blade.sfx = ("combat", "attack_physical")  # 어둠의 검
     dark_blade.metadata = {"darkness_scaling": True, "darkness_gain": 1}
     skills.append(dark_blade)
 
@@ -96,7 +96,7 @@ def create_dark_knight_skills():
     ]
     soul_eater.costs = [MPCost(6), StackCost("darkness", 2)]
     # soul_eater.cooldown = 3  # 쿨다운 시스템 제거됨
-    soul_eater.sfx = "048"  # 짧은 드레인/흡수
+    soul_eater.sfx = ("character", "hp_heal")  # 영혼 포식
     soul_eater.metadata = {"darkness_cost": 2, "darkness_scaling": True, "lifesteal": True}
     skills.append(soul_eater)
 
@@ -108,7 +108,7 @@ def create_dark_knight_skills():
     ]
     dark_buster.costs = [MPCost(7), StackCost("darkness", 4)]
     # dark_buster.cooldown = 5  # 쿨다운 시스템 제거됨
-    dark_buster.sfx = "034"  # 짧은 강한 공격
+    dark_buster.sfx = ("combat", "damage_high")  # 어둠 파쇄
     dark_buster.metadata = {"darkness_cost": 4, "darkness_scaling": True}
     skills.append(dark_buster)
 
@@ -123,7 +123,7 @@ def create_dark_knight_skills():
     dark_explosion.target_type = "all_enemies"
     # dark_explosion.cooldown = 6  # 쿨다운 시스템 제거됨
     dark_explosion.is_aoe = True
-    dark_explosion.sfx = "146"  # 짧은 광역 폭발
+    dark_explosion.sfx = ("skill", "ultima")  # 어둠 폭발
     dark_explosion.metadata = {"darkness_cost": 5, "darkness_scaling": True, "lifesteal": True, "aoe": True}
     skills.append(dark_explosion)
     
@@ -140,7 +140,7 @@ def create_dark_knight_skills():
     ultimate.is_ultimate = True
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.sfx = "035"  # 짧은 리미트 브레이크
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "darkness_consume_all": True, "darkness_scaling": True, "lifesteal": True, "aoe": True}
     skills.append(ultimate)
 

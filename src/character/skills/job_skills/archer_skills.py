@@ -15,7 +15,7 @@ def create_archer_skills():
         GimmickEffect(GimmickOperation.SET, "support_combo", 0)  # 콤보 초기화
     ]
     direct_shot.costs = []  # 기본 공격은 MP 소모 없음
-    direct_shot.sfx = "014"  # 짧은 총 공격
+    direct_shot.sfx = ("combat", "attack_gun")  # 직접 사격
     direct_shot.metadata = {"breaks_combo": True}
 
     # 2. 기본 HP: 강력한 사격 (콤보 단절)
@@ -25,7 +25,7 @@ def create_archer_skills():
         GimmickEffect(GimmickOperation.SET, "support_combo", 0)  # 콤보 초기화
     ]
     power_shot.costs = []  # 기본 공격은 MP 소모 없음
-    power_shot.sfx = "026"  # 짧은 크리티컬
+    power_shot.sfx = ("combat", "critical")  # 강력한 사격
     power_shot.metadata = {"breaks_combo": True}
 
     # 3. 일반 화살 마킹 (MP 0)
@@ -36,7 +36,7 @@ def create_archer_skills():
     ]
     mark_normal.costs = []  # 일반 화살은 MP 소모 없음
     mark_normal.target_type = "ally"
-    mark_normal.sfx = "093"  # 짧은 버프
+    mark_normal.sfx = ("character", "status_buff")  # 일반 화살 마킹
     # mark_normal.cooldown = 1  # 쿨다운 시스템 제거됨
     mark_normal.metadata = {"arrow_type": "normal", "multiplier": 1.5}
 
@@ -48,7 +48,7 @@ def create_archer_skills():
     ]
     mark_piercing.costs = [MPCost(6)]
     mark_piercing.target_type = "ally"
-    mark_piercing.sfx = "093"  # 짧은 버프
+    mark_piercing.sfx = ("skill", "haste")  # 관통 화살 마킹
     # mark_piercing.cooldown = 2  # 쿨다운 시스템 제거됨
     mark_piercing.metadata = {"arrow_type": "piercing", "multiplier": 1.8, "defense_ignore": 0.3}
 
@@ -60,7 +60,7 @@ def create_archer_skills():
     ]
     mark_fire.costs = [MPCost(6)]
     mark_fire.target_type = "ally"
-    mark_fire.sfx = "012"  # 짧은 마법
+    mark_fire.sfx = ("skill", "fire")  # 화염 화살 마킹
     # mark_fire.cooldown = 2  # 쿨다운 시스템 제거됨
     mark_fire.metadata = {"arrow_type": "fire", "multiplier": 1.6, "burn_duration": 2}
 
@@ -72,7 +72,7 @@ def create_archer_skills():
     ]
     mark_ice.costs = [MPCost(6)]
     mark_ice.target_type = "ally"
-    mark_ice.sfx = "012"  # 짧은 마법
+    mark_ice.sfx = ("skill", "ice")  # 빙결 화살 마킹
     # mark_ice.cooldown = 2  # 쿨다운 시스템 제거됨
     mark_ice.metadata = {"arrow_type": "ice", "multiplier": 1.4, "slow_percent": 0.3}
 
@@ -84,7 +84,7 @@ def create_archer_skills():
     ]
     mark_poison.costs = [MPCost(4)]
     mark_poison.target_type = "ally"
-    mark_poison.sfx = "148"  # 짧은 디버프
+    mark_poison.sfx = ("character", "status_debuff")  # 독 화살 마킹
     # mark_poison.cooldown = 2  # 쿨다운 시스템 제거됨
     mark_poison.metadata = {"arrow_type": "poison", "multiplier": 1.3, "poison_duration": 3}
 
@@ -96,7 +96,7 @@ def create_archer_skills():
     ]
     mark_explosive.costs = [MPCost(9)]
     mark_explosive.target_type = "ally"
-    mark_explosive.sfx = "019"  # 짧은 폭발
+    mark_explosive.sfx = ("item", "grenade")  # 폭발 화살 마킹
     # mark_explosive.cooldown = 3  # 쿨다운 시스템 제거됨
     mark_explosive.metadata = {"arrow_type": "explosive", "multiplier": 2.0, "aoe_percent": 0.5}
 
@@ -108,7 +108,7 @@ def create_archer_skills():
     ]
     mark_holy.costs = [MPCost(7)]
     mark_holy.target_type = "ally"
-    mark_holy.sfx = "093"  # 짧은 버프
+    mark_holy.sfx = ("skill", "protect")  # 신성 화살 마킹
     # mark_holy.cooldown = 2  # 쿨다운 시스템 제거됨
     mark_holy.metadata = {"arrow_type": "holy", "multiplier": 1.7, "undead_bonus": 2.0}
 
@@ -129,7 +129,7 @@ def create_archer_skills():
     ultimate.is_ultimate = True
     ultimate.target_type = "party"
     ultimate.is_aoe = True
-    ultimate.sfx = "035"  # 짧은 리미트 브레이크
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "mark_all": True, "perfect_support": True}
 

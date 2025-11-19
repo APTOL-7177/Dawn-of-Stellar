@@ -141,7 +141,7 @@ class WorldUI:
         if dx != 0 or dy != 0:
             result = self.exploration.move_player(dx, dy)
             logger.warning(f"[DEBUG] 이동 결과: event={result.event}")
-            self._handle_exploration_result(result)
+            self._handle_exploration_result(result, console, context)
             # 전투가 트리거되면 즉시 루프 탈출
             if self.combat_requested:
                 logger.warning(f"[DEBUG] 전투 요청됨! 루프 탈출")
@@ -191,11 +191,14 @@ class WorldUI:
 
                 if tile:
                     from src.world.tile import TileType
+                    from src.audio import play_sfx
                     if tile.tile_type == TileType.STAIRS_DOWN:
+                        play_sfx("world", "stairs_down")
                         self.floor_change_requested = "floor_down"
                         self.add_message("아래층으로 내려갑니다...")
                         return True
                     elif tile.tile_type == TileType.STAIRS_UP:
+                        play_sfx("world", "stairs_up")
                         self.floor_change_requested = "floor_up"
                         self.add_message("위층으로 올라갑니다...")
                         return True
@@ -206,9 +209,36 @@ class WorldUI:
 
         return False
 
-    def _handle_exploration_result(self, result: ExplorationResult):
+    def _handle_exploration_result(self, result: ExplorationResult, console=None, context=None):
         """탐험 결과 처리"""
         logger.warning(f"[DEBUG] 탐험 결과: event={result.event}, message={result.message}")
+
+        # NPC 상호작용은 대화 창으로 처리 (로그에 표시하지 않음)
+        if result.event == ExplorationEvent.NPC_INTERACTION:
+            if console and context and result.data:
+                # 기존 화면 먼저 렌더링 (대화 창 위에 표시하기 위해)
+                if hasattr(self, 'render'):
+                    self.render(console)
+                    context.present(console)
+                
+                from src.ui.npc_dialog_ui import show_npc_dialog, NPCChoice
+                
+                npc_subtype = result.data.get("npc_subtype", result.data.get("npc_type", "unknown"))
+                npc_name = self._get_npc_name(npc_subtype)
+                
+                # 이미 상호작용한 NPC는 메시지만 표시
+                if result.data.get("already_interacted", False):
+                    show_npc_dialog(console, context, npc_name, result.message)
+                else:
+                    # 선택지가 있는 NPC 처리
+                    choices = self._get_npc_choices(result, npc_subtype, console, context)
+                    if choices:
+                        choice_index = show_npc_dialog(console, context, npc_name, result.message, choices)
+                        # 선택지 콜백은 show_npc_dialog 내부에서 처리됨
+                    else:
+                        # 선택지 없이 대화만 표시
+                        show_npc_dialog(console, context, npc_name, result.message)
+            return
 
         if result.message:
             self.add_message(result.message)
@@ -504,21 +534,17 @@ def run_exploration(
     # 남은 이벤트 제거 (불러오기 등에서 남은 키 입력 방지)
     tcod.event.get()
 
-    # 층마다 다른 BGM 재생 (전투 후 복귀 시에는 재생하지 않음)
+    # 바이옴별 BGM 재생 (5층마다 바뀜, 전투 후 복귀 시에는 재생하지 않음)
     if play_bgm_on_start:
         floor = exploration.floor_number
-        if floor <= 5:
-            # 초반 층: 일반 던전 BGM
-            play_bgm("dungeon_normal")
-        elif floor <= 10:
-            # 중반 층: 탐색 던전 BGM
-            play_bgm("dungeon_search")
-        elif floor <= 15:
-            # 중후반 층: 어두운 던전 BGM
-            play_bgm("dungeon_dark")
-        else:
-            # 후반 층: 위험한 분위기
-            play_bgm("danger")
+        # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
+        biome_index = (floor - 1) // 5
+        # 바이옴 9 이상은 순환 (10개 바이옴 순환)
+        biome_index = biome_index % 10
+        biome_track = f"biome_{biome_index}"
+        
+        logger.info(f"층 {floor} -> 바이옴 {biome_index}, BGM: {biome_track}")
+        play_bgm(biome_track)
 
     while True:
         # 핫 리로드 체크 (개발 모드일 때만)
@@ -571,3 +597,126 @@ def run_exploration(
             return ("combat", combat_data)
         elif ui.floor_change_requested:
             return (ui.floor_change_requested, None)
+    
+    def _get_npc_name(self, npc_subtype: str) -> str:
+        """NPC 서브타입에 따른 이름 반환"""
+        npc_names = {
+            "time_researcher": "시공 연구자",
+            "timeline_survivor": "타임라인 생존자",
+            "space_explorer": "우주 탐험가",
+            "merchant": "상인",
+            "refugee": "난민",
+            "time_thief": "시공 도둑",
+            "distortion_entity": "왜곡된 존재",
+            "betrayer": "배신자",
+            "mysterious_merchant": "신비한 상인",
+            "time_mage": "시공 마법사",
+            "future_self": "미래의 자신",
+            "corrupted_survivor": "오염된 생존자",
+            "ancient_guardian": "고대 수호자",
+            "void_wanderer": "공허 방랑자",
+            "helpful": "친절한 방랑자",
+            "harmful": "의심스러운 존재",
+            "neutral": "무명의 여행자"
+        }
+        return npc_names.get(npc_subtype, "NPC")
+    
+    def _get_npc_choices(self, result: ExplorationResult, npc_subtype: str, console, context) -> Optional[List]:
+        """NPC 서브타입에 따른 선택지 반환"""
+        from src.ui.npc_dialog_ui import NPCChoice
+        
+        choices = []
+        
+        # 시공 연구자: 도움 종류 선택
+        if npc_subtype == "time_researcher":
+            def choose_heal():
+                heal_amount = 80 + self.exploration.floor_number * 15
+                for member in self.exploration.player.party:
+                    if hasattr(member, 'heal'):
+                        member.heal(heal_amount)
+                from src.ui.npc_dialog_ui import show_npc_dialog
+                show_npc_dialog(
+                    console, context,
+                    self._get_npc_name(npc_subtype),
+                    f"치유 물약을 받았습니다!\n파티가 {heal_amount} HP 회복했습니다!"
+                )
+            
+            def choose_item():
+                from src.equipment.item_system import ItemGenerator
+                item = ItemGenerator.create_random_drop(self.exploration.floor_number + 2)
+                if self.inventory and self.inventory.add_item(item):
+                    from src.ui.npc_dialog_ui import show_npc_dialog
+                    show_npc_dialog(
+                        console, context,
+                        self._get_npc_name(npc_subtype),
+                        f"{item.name}을(를) 획득했습니다!"
+                    )
+            
+            def choose_mp():
+                mp_amount = 30 + self.exploration.floor_number * 5
+                for member in self.exploration.player.party:
+                    if hasattr(member, 'current_mp') and hasattr(member, 'max_mp'):
+                        member.current_mp = min(member.max_mp, member.current_mp + mp_amount)
+                from src.ui.npc_dialog_ui import show_npc_dialog
+                show_npc_dialog(
+                    console, context,
+                    self._get_npc_name(npc_subtype),
+                    f"마나 회복제를 받았습니다!\n파티가 {mp_amount} MP 회복했습니다!"
+                )
+            
+            choices = [
+                NPCChoice("치유 물약 받기", choose_heal),
+                NPCChoice("장비 받기", choose_item),
+                NPCChoice("마나 회복제 받기", choose_mp)
+            ]
+        
+        # 상인: 구매/판매
+        elif npc_subtype in ["merchant", "mysterious_merchant"]:
+            def choose_buy():
+                from src.ui.shop_ui import open_shop
+                open_shop(console, context, self.inventory)
+            
+            def choose_sell():
+                # TODO: 판매 모드 구현
+                from src.ui.npc_dialog_ui import show_npc_dialog
+                show_npc_dialog(
+                    console, context,
+                    self._get_npc_name(npc_subtype),
+                    "판매 기능은 아직 구현되지 않았습니다."
+                )
+            
+            choices = [
+                NPCChoice("구매하기", choose_buy),
+                NPCChoice("판매하기", choose_sell),
+                NPCChoice("떠나기", None)
+            ]
+        
+        # 배신자: 신뢰하기/거절
+        elif npc_subtype == "betrayer":
+            def choose_trust():
+                # 배신: 데미지 받음
+                damage = 100 + self.exploration.floor_number * 20
+                for member in self.exploration.player.party:
+                    if hasattr(member, 'take_damage'):
+                        member.take_damage(damage)
+                from src.ui.npc_dialog_ui import show_npc_dialog
+                show_npc_dialog(
+                    console, context,
+                    self._get_npc_name(npc_subtype),
+                    f"배신당했습니다!\n파티가 {damage} 데미지를 입었습니다!"
+                )
+            
+            def choose_refuse():
+                from src.ui.npc_dialog_ui import show_npc_dialog
+                show_npc_dialog(
+                    console, context,
+                    self._get_npc_name(npc_subtype),
+                    "신중한 선택이었습니다.\nNPC가 떠났습니다."
+                )
+            
+            choices = [
+                NPCChoice("신뢰하기", choose_trust),
+                NPCChoice("거절하기", choose_refuse)
+            ]
+        
+        return choices if choices else None

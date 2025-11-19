@@ -107,6 +107,9 @@ class CombatManager:
             self.cooking_cooldown_turn = None
             self.cooking_cooldown_duration = 0
 
+        # 보호 관계 초기화 (이전 전투의 오래된 참조 제거)
+        self._clear_protection_relationships(allies)
+        
         # ATB 시스템에 전투원 등록
         import random
         for ally in allies:
@@ -192,10 +195,57 @@ class CombatManager:
                 "message": "죽은 캐릭터는 행동할 수 없습니다."
             }
         
+        # 행동 불가 상태이상 체크 (빙결, 기절 등)
+        if hasattr(actor, 'status_manager'):
+            if not actor.status_manager.can_act():
+                blocking_status = None
+                for effect in actor.status_manager.status_effects:
+                    if effect.status_type in [StatusType.STUN, StatusType.SLEEP, StatusType.FREEZE, 
+                                             StatusType.PETRIFY, StatusType.PARALYZE, StatusType.TIME_STOP]:
+                        blocking_status = effect.name
+                        break
+                
+                status_name = blocking_status or "행동 불가 상태"
+                self.logger.warning(f"{getattr(actor, 'name', 'Unknown')}은(는) {status_name}로 인해 행동할 수 없습니다.")
+                return {
+                    "action": "error",
+                    "error": "actor_cannot_act",
+                    "message": f"{status_name}로 인해 행동할 수 없습니다."
+                }
+        
         self.current_actor = actor
         result = {}
 
-        # 턴 시작 처리
+        # 행동 타입별 처리 (먼저 실행하여 실패 여부 확인)
+        if action_type == ActionType.BRV_ATTACK:
+            result = self._execute_brv_attack(actor, target, skill, **kwargs)
+        elif action_type == ActionType.HP_ATTACK:
+            result = self._execute_hp_attack(actor, target, skill, **kwargs)
+        elif action_type == ActionType.BRV_HP_ATTACK:
+            result = self._execute_brv_hp_attack(actor, target, skill, **kwargs)
+        elif action_type == ActionType.SKILL:
+            result = self._execute_skill(actor, target, skill, **kwargs)
+        elif action_type == ActionType.ITEM:
+            result = self._execute_item(actor, target, **kwargs)
+        elif action_type == ActionType.DEFEND:
+            result = self._execute_defend(actor, **kwargs)
+        elif action_type == ActionType.FLEE:
+            result = self._execute_flee(actor, **kwargs)
+
+        # 행동 성공 여부 확인 (스킬 실패 시 ATB 소비 안 함)
+        action_failed = False
+        if action_type == ActionType.SKILL:
+            # 스킬 실행 실패 시 (MP 부족 등)
+            if not result.get("success", False):
+                action_failed = True
+                self.logger.warning(f"{actor.name}의 스킬 실행 실패: {result.get('error', 'unknown')}")
+        
+        # 행동이 실패하면 턴 시작 처리(재생 효과 포함)를 하지 않음
+        if action_failed:
+            self.logger.info(f"{actor.name}의 행동 실패 - ATB 소비 안 함, 재생 효과 없음")
+            return result
+
+        # 턴 시작 처리 (행동 성공 시에만)
         # 0. 특성 효과: 턴 시작 효과 적용
         from src.character.trait_effects import get_trait_effect_manager
         trait_manager = get_trait_effect_manager()
@@ -380,44 +430,11 @@ class CombatManager:
                 self._on_turn_end(actor)
                 return result
 
-        self.logger.debug(
-            f"행동 실행: {actor.name} → {action_type.value}",
-            {"target": getattr(target, "name", None) if target else None}
-        )
+        # ATB 소비 (행동 성공 시)
+        self.atb.consume_atb(actor)
 
-        # 행동 타입별 처리
-        if action_type == ActionType.BRV_ATTACK:
-            result = self._execute_brv_attack(actor, target, skill, **kwargs)
-        elif action_type == ActionType.HP_ATTACK:
-            result = self._execute_hp_attack(actor, target, skill, **kwargs)
-        elif action_type == ActionType.BRV_HP_ATTACK:
-            result = self._execute_brv_hp_attack(actor, target, skill, **kwargs)
-        elif action_type == ActionType.SKILL:
-            result = self._execute_skill(actor, target, skill, **kwargs)
-        elif action_type == ActionType.ITEM:
-            result = self._execute_item(actor, target, **kwargs)
-        elif action_type == ActionType.DEFEND:
-            result = self._execute_defend(actor, **kwargs)
-        elif action_type == ActionType.FLEE:
-            result = self._execute_flee(actor, **kwargs)
-
-        # 행동 성공 여부 확인 (스킬 실패 시 ATB 소비 안 함)
-        action_failed = False
-        if action_type == ActionType.SKILL:
-            # 스킬 실행 실패 시 (MP 부족 등)
-            if not result.get("success", False):
-                action_failed = True
-                self.logger.warning(f"{actor.name}의 스킬 실행 실패: {result.get('error', 'unknown')}")
-
-        # ATB 소비 (행동 실패 시 소비 안 함)
-        if not action_failed:
-            self.atb.consume_atb(actor)
-
-            # 턴 종료 처리
-            self._on_turn_end(actor)
-        else:
-            # 실패한 행동은 ATB를 소비하지 않으므로 턴 종료 처리도 안 함
-            self.logger.info(f"{actor.name}의 행동 실패 - ATB 소비 안 함")
+        # 턴 종료 처리
+        self._on_turn_end(actor)
 
         # 콜백 호출
         if self.on_action_complete:
@@ -688,16 +705,56 @@ class CombatManager:
         from src.character.skills.skill_manager import get_skill_manager
         skill_manager = get_skill_manager()
 
-        # context에 모든 적 정보 추가 (AOE 효과를 위해)
-        all_enemies = self.enemies if actor in self.allies else self.allies
+        # 스킬 ID 확인
+        skill_id = getattr(skill, 'skill_id', None)
+        if not skill_id:
+            self.logger.error(f"스킬 ID가 없습니다: {skill}, actor={actor.name}")
+            return {
+                "action": "skill",
+                "success": False,
+                "error": "스킬 ID가 없습니다",
+                "skill_name": getattr(skill, "name", "Unknown")
+            }
 
-        # SkillManager를 통해 스킬 실행
-        skill_result = skill_manager.execute_skill(
-            skill.skill_id,
-            actor,
-            target,
-            context={"combat_manager": self, "all_enemies": all_enemies}
-        )
+        # 스킬이 등록되어 있는지 확인
+        registered_skill = skill_manager.get_skill(skill_id)
+        if not registered_skill:
+            self.logger.error(f"스킬이 등록되지 않았습니다: {skill_id}, actor={actor.name}")
+            # 스킬을 다시 찾아보기 (skill_ids에서 직접 가져오기)
+            if hasattr(actor, 'skill_ids') and skill_id in actor.skill_ids:
+                # 스킬이 actor의 skill_ids에 있지만 등록되지 않은 경우
+                # 스킬을 다시 등록 시도 (임시 해결책)
+                self.logger.warning(f"스킬 {skill_id}가 등록되지 않았지만 actor의 skill_ids에 있습니다. 스킬을 다시 등록합니다.")
+                # skill 객체를 직접 사용
+                if hasattr(skill, 'execute'):
+                    # Skill 객체를 직접 실행
+                    context = {"combat_manager": self, "all_enemies": self.enemies if actor in self.allies else self.allies}
+                    skill_result = skill.execute(actor, target, context)
+                else:
+                    return {
+                        "action": "skill",
+                        "success": False,
+                        "error": f"스킬 없음: {skill_id}",
+                        "skill_name": getattr(skill, "name", "Unknown")
+                    }
+            else:
+                return {
+                    "action": "skill",
+                    "success": False,
+                    "error": f"스킬 없음: {skill_id}",
+                    "skill_name": getattr(skill, "name", "Unknown")
+                }
+        else:
+            # context에 모든 적 정보 추가 (AOE 효과를 위해)
+            all_enemies = self.enemies if actor in self.allies else self.allies
+
+            # SkillManager를 통해 스킬 실행
+            skill_result = skill_manager.execute_skill(
+                skill_id,
+                actor,
+                target,
+                context={"combat_manager": self, "all_enemies": all_enemies}
+            )
 
         if skill_result.success:
             result["success"] = True
@@ -880,8 +937,25 @@ class CombatManager:
                             actual_damage = final_damage
                         target_result["hp_damage"] = actual_damage
 
-            # 힐링 적용
-            if skill.heal_amount > 0:
+            # 마법도둑 특수 처리: 타겟의 MP를 훔쳐서 사용자의 MP를 회복
+            if skill.skill_id == "mana_steal":
+                # 타겟의 MP를 소모
+                mp_stolen = min(skill.heal_amount, getattr(tgt, 'current_mp', 0))
+                if mp_stolen > 0 and hasattr(tgt, 'consume_mp'):
+                    # 무한 루프 방지를 위해 이벤트 발행 없이 직접 소모
+                    tgt.current_mp = max(0, tgt.current_mp - mp_stolen)
+                    target_result["mp_stolen"] = mp_stolen
+                    self.logger.info(f"[마법 도둑] {actor.name}이(가) {tgt.name}의 MP {mp_stolen}을(를) 훔쳤습니다!")
+                
+                # 사용자의 MP를 회복
+                if hasattr(actor, 'restore_mp'):
+                    actor.restore_mp(mp_stolen)
+                elif hasattr(actor, 'current_mp') and hasattr(actor, 'max_mp'):
+                    actor.current_mp = min(actor.current_mp + mp_stolen, actor.max_mp)
+                target_result["mp_restored"] = mp_stolen
+            
+            # 힐링 적용 (마법도둑이 아닌 경우)
+            elif skill.heal_amount > 0:
                 if hasattr(tgt, 'heal'):
                     healed = tgt.heal(skill.heal_amount)
                 elif hasattr(tgt, 'current_hp') and hasattr(tgt, 'max_hp'):
@@ -1430,6 +1504,29 @@ class CombatManager:
             # 이미 피해가 적용된 경우, 수호 효과는 처리할 수 없음
             return
         
+        # 스킬 효과: 수호의 맹세 - 기사가 아군을 보호
+        # 보호받는 대상인지 확인
+        if hasattr(defender, 'protected_by') and defender.protected_by:
+            # 보호자가 있는 경우, 보호자가 대신 피해를 받음
+            # 현재 전투에 참여하는 보호자만 확인 (오래된 참조 방지)
+            for guardian in list(defender.protected_by):  # 리스트 복사하여 순회 중 수정 방지
+                if (guardian in self.allies and
+                    hasattr(guardian, 'is_alive') and guardian.is_alive and 
+                    guardian != defender):
+                    # 보호자가 모든 피해를 대신 받음
+                    protected_damage = damage
+                    data["damage"] = 0  # 원래 대상은 피해를 받지 않음
+                    
+                    # 보호자가 피해를 받음
+                    if hasattr(guardian, 'take_damage'):
+                        guardian_actual_damage = guardian.take_damage(protected_damage)
+                        self.logger.info(
+                            f"[수호의 맹세] {guardian.name}이(가) {defender.name}의 피해를 대신 받음: "
+                            f"{protected_damage} → 실제 {guardian_actual_damage}"
+                        )
+                    
+                    return  # 한 명만 수호
+        
         # 특성 효과: 수호 (guardian_angel) - 아군 피해 대신 받기
         from src.character.trait_effects import get_trait_effect_manager, TraitEffectType
         trait_manager = get_trait_effect_manager()
@@ -1596,6 +1693,43 @@ class CombatManager:
             return character.current_hp <= 0
         return False
 
+    def _clear_protection_relationships(self, characters: List[Any]) -> None:
+        """
+        보호 관계 초기화 (오래된 참조 제거)
+        
+        전투 간 보호 관계가 유지되지 않도록, 현재 전투에 참여하는 캐릭터만
+        보호 관계를 유지하고 나머지는 제거합니다.
+        
+        Args:
+            characters: 현재 전투에 참여하는 캐릭터 리스트
+        """
+        character_set = set(characters)
+        
+        for character in characters:
+            # protected_allies: 이 캐릭터가 보호하는 아군 목록
+            # 현재 전투에 참여하지 않는 캐릭터 제거
+            if hasattr(character, 'protected_allies'):
+                if not isinstance(character.protected_allies, list):
+                    character.protected_allies = []
+                else:
+                    # 현재 전투에 참여하는 캐릭터만 유지
+                    character.protected_allies = [
+                        ally for ally in character.protected_allies
+                        if ally in character_set
+                    ]
+            
+            # protected_by: 이 캐릭터를 보호하는 캐릭터 목록
+            # 현재 전투에 참여하지 않는 캐릭터 제거
+            if hasattr(character, 'protected_by'):
+                if not isinstance(character.protected_by, list):
+                    character.protected_by = []
+                else:
+                    # 현재 전투에 참여하는 캐릭터만 유지
+                    character.protected_by = [
+                        guardian for guardian in character.protected_by
+                        if guardian in character_set
+                    ]
+
     def _end_combat(self, state: CombatState) -> None:
         """
         전투 종료
@@ -1617,6 +1751,9 @@ class CombatManager:
         if self.on_combat_end:
             self.on_combat_end(state)
 
+        # 보호 관계 정리 (오래된 참조 제거)
+        self._clear_protection_relationships(self.allies)
+        
         # 시스템 정리
         self.atb.clear()
 

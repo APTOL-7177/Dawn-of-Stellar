@@ -25,6 +25,32 @@ class SkillManager:
         skill = self.get_skill(skill_id)
         if not skill:
             return SkillResult(success=False, message=f"스킬 없음: {skill_id}")
+        
+        # 행동 불가 상태이상 체크 (빙결, 기절 등 - 모든 행동 불가)
+        if hasattr(user, 'status_manager'):
+            if not user.status_manager.can_act():
+                # 기본 공격인지 확인
+                is_basic_attack = skill.metadata.get('basic_attack', False)
+                if not is_basic_attack:
+                    return SkillResult(success=False, message="행동 불가 상태로 인해 스킬을 사용할 수 없습니다")
+        
+        # 침묵 상태이상 체크 (기본 공격은 제외)
+        if hasattr(user, 'status_manager'):
+            if not user.status_manager.can_use_skills():
+                # 기본 공격인지 확인 (여러 방법으로 확인)
+                is_basic_attack = skill.metadata.get('basic_attack', False)
+                
+                # 메타데이터에 없으면 다른 방법으로 확인
+                if not is_basic_attack:
+                    # 1. costs가 비어있고 (MP 소모 없음)
+                    # 2. 스킬이 사용자의 skill_ids에서 첫 번째 또는 두 번째인 경우
+                    if not skill.costs and hasattr(user, 'skill_ids') and user.skill_ids:
+                        skill_index = user.skill_ids.index(skill_id) if skill_id in user.skill_ids else -1
+                        if skill_index in [0, 1]:  # 첫 번째 또는 두 번째 스킬
+                            is_basic_attack = True
+                
+                if not is_basic_attack:
+                    return SkillResult(success=False, message="침묵 상태로 인해 스킬을 사용할 수 없습니다")
 
         # 쿨다운 체크 비활성화 (사용자 요청)
         # char_id = id(user)
@@ -100,13 +126,9 @@ class SkillManager:
 
         # 스킬에 직접 SFX가 지정되어 있으면 우선 사용
         if skill.sfx:
-            # skill.sfx가 튜플인지 문자열인지 확인
             if isinstance(skill.sfx, tuple):
                 category, sfx_name = skill.sfx
                 play_sfx(category, sfx_name)
-            else:
-                # 문자열인 경우 FFVII 카테고리 사용 (FFVII SFX 인덱스 번호)
-                play_sfx("ffvii", skill.sfx)
             return
 
         # 스킬 effects 분석

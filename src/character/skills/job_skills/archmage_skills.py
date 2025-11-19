@@ -18,7 +18,7 @@ def create_archmage_skills():
         GimmickEffect(GimmickOperation.ADD, "fire_element", 1, max_value=5)
     ]
     fireball.costs = []  # 기본 공격은 MP 소모 없음
-    fireball.sfx = "338"
+    fireball.sfx = ("skill", "fire")  # 화염구
     fireball.metadata = {"element": "fire", "element_gain": 1}
     skills.append(fireball)
 
@@ -29,7 +29,7 @@ def create_archmage_skills():
         GimmickEffect(GimmickOperation.ADD, "lightning_element", 1, max_value=5)
     ]
     lightning_bolt.costs = []  # 기본 공격은 MP 소모 없음
-    lightning_bolt.sfx = "343"
+    lightning_bolt.sfx = ("skill", "bolt")  # 번개 화살
     lightning_bolt.metadata = {"element": "lightning", "element_gain": 1}
     skills.append(lightning_bolt)
 
@@ -44,7 +44,7 @@ def create_archmage_skills():
     ice_storm.target_type = "all_enemies"
     ice_storm.is_aoe = True
     ice_storm.cast_time = 0.3  # ATB 30% 캐스팅
-    ice_storm.sfx = "353"
+    ice_storm.sfx = ("skill", "ice")  # 빙결 폭풍
     ice_storm.metadata = {"element": "ice", "element_gain": 1, "aoe": True}
     skills.append(ice_storm)
 
@@ -59,7 +59,7 @@ def create_archmage_skills():
     flame_lightning.costs = [MPCost(5), StackCost("fire_element", 1), StackCost("lightning_element", 1)]
     # flame_lightning.cooldown = 3  # 쿨다운 시스템 제거됨
     flame_lightning.cast_time = 0.25  # ATB 25% 캐스팅
-    flame_lightning.sfx = "363"
+    flame_lightning.sfx = ("skill", "cast_complete")  # 화염뇌
     flame_lightning.metadata = {"fusion": True, "elements": ["fire", "lightning"], "element_cost": 2}
     skills.append(flame_lightning)
 
@@ -74,7 +74,7 @@ def create_archmage_skills():
     ice_lightning.costs = [MPCost(5), StackCost("ice_element", 1), StackCost("lightning_element", 1)]
     # ice_lightning.cooldown = 3  # 쿨다운 시스템 제거됨
     ice_lightning.cast_time = 0.25  # ATB 25% 캐스팅
-    ice_lightning.sfx = "373"
+    ice_lightning.sfx = ("skill", "cast_complete")  # 빙결뇌
     ice_lightning.metadata = {"fusion": True, "elements": ["ice", "lightning"], "element_cost": 2}
     skills.append(ice_lightning)
 
@@ -89,7 +89,7 @@ def create_archmage_skills():
     flame_ice.costs = [MPCost(5), StackCost("fire_element", 1), StackCost("ice_element", 1)]
     # flame_ice.cooldown = 3  # 쿨다운 시스템 제거됨
     flame_ice.cast_time = 0.25  # ATB 25% 캐스팅
-    flame_ice.sfx = "383"
+    flame_ice.sfx = ("skill", "cast_complete")  # 염빙
     flame_ice.metadata = {"fusion": True, "elements": ["fire", "ice"], "element_cost": 2}
     skills.append(flame_ice)
 
@@ -108,7 +108,7 @@ def create_archmage_skills():
     meteor.target_type = "all_enemies"
     meteor.is_aoe = True
     meteor.cast_time = 0.5  # ATB 50% 캐스팅 (강력한 마법)
-    meteor.sfx = "393"
+    meteor.sfx = ("skill", "ultima")  # 메테오
     meteor.metadata = {"fusion": True, "elements": ["fire", "ice", "lightning"], "element_cost": 3, "aoe": True}
     skills.append(meteor)
 
@@ -128,7 +128,7 @@ def create_archmage_skills():
     arcane_missile.costs = [MPCost(11)]
     # arcane_missile.cooldown = 6  # 쿨다운 시스템 제거됨
     arcane_missile.cast_time = 0.6  # ATB 60% 캐스팅
-    arcane_missile.sfx = "403"
+    arcane_missile.sfx = ("combat", "attack_physical")  # 비전 미사일
     arcane_missile.metadata = {"element_consume_all": True, "element_scaling": True}
     skills.append(arcane_missile)
 
@@ -143,7 +143,7 @@ def create_archmage_skills():
     elemental_surge.costs = [MPCost(7)]
     elemental_surge.target_type = "self"
     # elemental_surge.cooldown = 5  # 쿨다운 시스템 제거됨
-    elemental_surge.sfx = "413"
+    elemental_surge.sfx = ("character", "status_buff")  # 원소 폭주
     elemental_surge.metadata = {"element_gain_all": True, "buff": True}
     skills.append(elemental_surge)
 
@@ -167,7 +167,7 @@ def create_archmage_skills():
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.cast_time = 1.0  # ATB 100% 캐스팅 (궁극기는 한 턴 전체 필요)
-    ultimate.sfx = "423"
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "element_consume_all": True, "aoe": True, "element_scaling": True}
     skills.append(ultimate)
 

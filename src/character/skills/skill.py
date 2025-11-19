@@ -32,6 +32,32 @@ class Skill:
         # 스킬 정보를 context에 추가 (특성 효과 적용을 위해)
         context['skill'] = self
         
+        # 행동 불가 상태이상 체크 (빙결, 기절 등 - 모든 행동 불가)
+        if hasattr(user, 'status_manager'):
+            if not user.status_manager.can_act():
+                # 기본 공격인지 확인
+                is_basic_attack = self.metadata.get('basic_attack', False)
+                if not is_basic_attack:
+                    return False, "행동 불가 상태로 인해 스킬을 사용할 수 없습니다"
+        
+        # 침묵 상태이상 체크 (기본 공격은 제외)
+        if hasattr(user, 'status_manager'):
+            if not user.status_manager.can_use_skills():
+                # 기본 공격인지 확인 (여러 방법으로 확인)
+                is_basic_attack = self.metadata.get('basic_attack', False)
+                
+                # 메타데이터에 없으면 다른 방법으로 확인
+                if not is_basic_attack:
+                    # 1. costs가 비어있고 (MP 소모 없음)
+                    # 2. 스킬이 사용자의 skill_ids에서 첫 번째 또는 두 번째인 경우
+                    if not self.costs and hasattr(user, 'skill_ids') and user.skill_ids:
+                        skill_index = user.skill_ids.index(self.skill_id) if self.skill_id in user.skill_ids else -1
+                        if skill_index in [0, 1]:  # 첫 번째 또는 두 번째 스킬
+                            is_basic_attack = True
+                
+                if not is_basic_attack:
+                    return False, "침묵 상태로 인해 스킬을 사용할 수 없습니다"
+        
         # 비용 체크
         for cost in self.costs:
             can_afford, reason = cost.can_afford(user, context)
@@ -97,6 +123,55 @@ class Skill:
                     current_gauge = getattr(user, 'distortion_gauge', 0)
                     if current_gauge < required_gauge:
                         return False, f"확률 왜곡 게이지가 부족합니다! (필요: {required_gauge}, 현재: {current_gauge})"
+            
+            # 정령술사: 융합 스킬 조건 체크
+            if hasattr(user, 'gimmick_type') and user.gimmick_type == "elemental_spirits":
+                # 융합 스킬은 필요한 정령이 모두 소환되어 있어야 함
+                if self.metadata.get("requires_both_spirits", False):
+                    fusion_type = self.metadata.get("fusion", "")
+                    spirit_fire = getattr(user, 'spirit_fire', 0)
+                    spirit_water = getattr(user, 'spirit_water', 0)
+                    spirit_wind = getattr(user, 'spirit_wind', 0)
+                    spirit_earth = getattr(user, 'spirit_earth', 0)
+                    
+                    missing_spirits = []
+                    
+                    if fusion_type == "fire_wind":
+                        if spirit_fire == 0:
+                            missing_spirits.append("화염 정령")
+                        if spirit_wind == 0:
+                            missing_spirits.append("바람 정령")
+                    elif fusion_type == "water_earth":
+                        if spirit_water == 0:
+                            missing_spirits.append("물 정령")
+                        if spirit_earth == 0:
+                            missing_spirits.append("대지 정령")
+                    elif fusion_type == "fire_water":
+                        if spirit_fire == 0:
+                            missing_spirits.append("화염 정령")
+                        if spirit_water == 0:
+                            missing_spirits.append("물 정령")
+                    
+                    if missing_spirits:
+                        return False, f"융합 스킬 사용 불가: {', '.join(missing_spirits)} 소환 필요"
+                
+                # 정령 소환 스킬: 최대 정령 수 체크 (이미 2마리 소환되어 있으면 새로 소환 불가)
+                if self.metadata.get("spirit_type"):
+                    current_spirits = (
+                        getattr(user, 'spirit_fire', 0) +
+                        getattr(user, 'spirit_water', 0) +
+                        getattr(user, 'spirit_wind', 0) +
+                        getattr(user, 'spirit_earth', 0)
+                    )
+                    max_spirits = getattr(user, 'max_spirits', 2)
+                    
+                    # 이미 소환된 정령이 최대치이고, 새로 소환하려는 정령이 아직 소환되지 않은 경우
+                    spirit_type = self.metadata.get("spirit_type")
+                    spirit_attr = f"spirit_{spirit_type}"
+                    current_spirit_value = getattr(user, spirit_attr, 0)
+                    
+                    if current_spirits >= max_spirits and current_spirit_value == 0:
+                        return False, f"최대 정령 수 도달! (현재: {current_spirits}/{max_spirits}) 기존 정령을 해제하거나 대체해야 합니다"
         
         return True, ""
 
@@ -171,6 +246,23 @@ class Skill:
         total_dmg = 0
         total_heal = 0
         effect_messages = []  # 각 효과의 메시지 수집
+
+        # 수호의 맹세 스킬: 본인에게 보호막을 두르고 선택한 아군을 보호
+        # ProtectEffect가 있으면 protect_self 플래그 설정
+        has_protect_effect = any(
+            effect.__class__.__name__ == 'ProtectEffect' 
+            for effect in self.effects
+        )
+        if has_protect_effect:
+            context['protect_self'] = True  # ShieldEffect는 본인에게 적용
+        
+        # 공격력 기반 보호막 배율 설정 (metadata에서 가져오기)
+        if self.metadata and 'attack_multiplier' in self.metadata:
+            context['attack_multiplier'] = self.metadata['attack_multiplier']
+        
+        # 보호막 중첩 방지 설정 (metadata에서 가져오기)
+        if self.metadata and 'replace_shield' in self.metadata:
+            context['replace_shield'] = self.metadata['replace_shield']
 
         for effect in self.effects:
             if hasattr(effect, 'execute'):

@@ -1989,7 +1989,7 @@ class TraitEffectManager:
                     effect_type=TraitEffectType.STAT_MULTIPLIER,
                     value=1.02,
                     target_stat="stats_per_1000gold",
-                    metadata={"description": "골드 보유량이 많을수록 스탯 증가 (1000골드당 +2%)"}
+                    metadata={"description": "골드 보유량이 많을수록 스탯 증가 (250골드당 +2%, 최대 +50%)"}
                 )
             ],
             "pirate_fortune": [
@@ -2492,6 +2492,46 @@ class TraitEffectManager:
                             final_value *= effect.value
                             self.logger.debug(
                                 f"[{trait_id}] {stat_name} 자세 전체 스탯 보너스 적용: x{effect.value} → {final_value}"
+                            )
+                    # stats_per_1000gold는 골드 보유량에 비례한 스탯 증가 (해적 탐욕 특성)
+                    elif effect.target_stat == "stats_per_1000gold":
+                        # 골드 보유량 가져오기
+                        gold_amount = 0
+                        
+                        # 1. character에 inventory 속성이 있는 경우
+                        if hasattr(character, 'inventory') and hasattr(character.inventory, 'gold'):
+                            gold_amount = character.inventory.gold
+                        # 2. character에 직접 gold 속성이 있는 경우
+                        elif hasattr(character, 'gold'):
+                            gold_amount = character.gold
+                        # 3. 파티에서 골드 가져오기 시도
+                        elif hasattr(character, 'party') and character.party:
+                            for member in character.party:
+                                if hasattr(member, 'inventory') and hasattr(member.inventory, 'gold'):
+                                    gold_amount = member.inventory.gold
+                                    break
+                        # 4. 전역 게임 상태에서 골드 가져오기 시도
+                        else:
+                            try:
+                                # main.py의 전역 변수에서 골드 가져오기
+                                import main
+                                if hasattr(main, 'inventory') and hasattr(main.inventory, 'gold'):
+                                    gold_amount = main.inventory.gold
+                            except:
+                                pass
+                        
+                        # 250골드당 +2% (기존: 1000골드당 +2%)
+                        gold_units = gold_amount // 250
+                        bonus_multiplier = 1.0 + (gold_units * 0.02)  # 250골드당 +2%
+                        
+                        # 최대값 50%로 제한
+                        max_multiplier = 1.50  # 최대 +50%
+                        bonus_multiplier = min(bonus_multiplier, max_multiplier)
+                        
+                        if bonus_multiplier > 1.0:
+                            final_value *= bonus_multiplier
+                            self.logger.debug(
+                                f"[{trait_id}] {stat_name} 골드 보너스 적용: {gold_amount}골드 ({gold_units}×250) → x{bonus_multiplier:.3f} → {final_value}"
                             )
                     continue
 

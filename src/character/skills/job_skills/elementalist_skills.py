@@ -15,7 +15,7 @@ def create_elementalist_skills():
         DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
     ]
     elemental_strike.costs = []  # 기본 공격은 MP 소모 없음
-    elemental_strike.sfx = "338"  # FFVII elemental sound
+    elemental_strike.sfx = ("skill", "cast_start")  # 원소 타격
     elemental_strike.metadata = {}
 
     # 2. 기본 HP: 정령 폭발
@@ -24,7 +24,7 @@ def create_elementalist_skills():
         DamageEffect(DamageType.HP, 1.2, stat_type="magical")
     ]
     spirit_burst.costs = []  # 기본 공격은 MP 소모 없음
-    spirit_burst.sfx = "344"  # FFVII burst sound
+    spirit_burst.sfx = ("skill", "cast_complete")  # 정령 폭발
     spirit_burst.metadata = {}
 
     # 3. 화염 정령 소환 (공격력 +20%, 화상)
@@ -36,7 +36,7 @@ def create_elementalist_skills():
     ]
     summon_fire.costs = []
     summon_fire.target_type = "self"
-    summon_fire.sfx = "352"  # FFVII fire summon sound
+    summon_fire.sfx = ("skill", "fire")  # 화염 정령 소환
     # summon_fire.cooldown = 3  # 쿨다운 시스템 제거됨
     summon_fire.metadata = {"spirit_type": "fire", "attack_boost": 0.2}
 
@@ -49,7 +49,7 @@ def create_elementalist_skills():
     ]
     summon_water.costs = [MPCost(4)]
     summon_water.target_type = "self"
-    summon_water.sfx = "362"  # FFVII water summon sound
+    summon_water.sfx = ("character", "hp_heal")  # 물 정령 소환
     # summon_water.cooldown = 3  # 쿨다운 시스템 제거됨
     summon_water.metadata = {"spirit_type": "water", "mp_regen": 5}
 
@@ -62,7 +62,7 @@ def create_elementalist_skills():
     ]
     summon_wind.costs = [MPCost(4)]
     summon_wind.target_type = "self"
-    summon_wind.sfx = "376"  # FFVII wind summon sound
+    summon_wind.sfx = ("skill", "haste")  # 바람 정령 소환
     # summon_wind.cooldown = 3  # 쿨다운 시스템 제거됨
     summon_wind.metadata = {"spirit_type": "wind", "speed_boost": 0.3}
 
@@ -75,7 +75,7 @@ def create_elementalist_skills():
     ]
     summon_earth.costs = [MPCost(4)]
     summon_earth.target_type = "self"
-    summon_earth.sfx = "093"  # 짧은 버프
+    summon_earth.sfx = ("skill", "protect")  # 대지 정령 소환
     # summon_earth.cooldown = 3  # 쿨다운 시스템 제거됨
     summon_earth.metadata = {"spirit_type": "earth", "defense_boost": 0.3}
 
@@ -90,7 +90,7 @@ def create_elementalist_skills():
     fusion_firestorm.costs = [MPCost(9)]
     fusion_firestorm.target_type = "all_enemies"
     fusion_firestorm.is_aoe = True
-    fusion_firestorm.sfx = "146"  # 짧은 광역 마법
+    fusion_firestorm.sfx = ("skill", "fire3")  # 화염 돌풍
     # fusion_firestorm.cooldown = 4  # 쿨다운 시스템 제거됨
     fusion_firestorm.metadata = {"fusion": "fire_wind", "requires_both_spirits": True}
 
@@ -105,7 +105,7 @@ def create_elementalist_skills():
         GimmickEffect(GimmickOperation.SET, "spirit_earth", 0)
     ]
     fusion_mudtrap.costs = [MPCost(7)]
-    fusion_mudtrap.sfx = "148"  # 짧은 디버프
+    fusion_mudtrap.sfx = ("character", "status_debuff")  # 진흙 속박
     # fusion_mudtrap.cooldown = 4  # 쿨다운 시스템 제거됨
     fusion_mudtrap.metadata = {"fusion": "water_earth", "requires_both_spirits": True}
 
@@ -121,7 +121,7 @@ def create_elementalist_skills():
     fusion_steam.costs = [MPCost(10)]
     fusion_steam.target_type = "all_enemies"
     fusion_steam.is_aoe = True
-    fusion_steam.sfx = "146"  # 짧은 광역 마법
+    fusion_steam.sfx = ("skill", "cast_complete")  # 증기 폭발
     # fusion_steam.cooldown = 5  # 쿨다운 시스템 제거됨
     fusion_steam.metadata = {"fusion": "fire_water", "requires_both_spirits": True}
 
@@ -145,7 +145,7 @@ def create_elementalist_skills():
     ultimate.is_ultimate = True
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
-    ultimate.sfx = "035"  # 짧은 리미트 브레이크
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "summon_all_spirits": True}
 

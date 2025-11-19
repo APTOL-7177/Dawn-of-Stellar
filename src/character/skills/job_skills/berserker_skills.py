@@ -15,7 +15,7 @@ def create_berserker_skills():
         DamageEffect(DamageType.BRV, 1.5, stat_type="physical")
     ]
     slash.costs = []
-    slash.sfx = "017"  # 짧은 물리 공격
+    slash.sfx = ("combat", "attack_physical")  # 베기
     slash.metadata = {}
 
     # 2. 기본 HP: 강타
@@ -24,7 +24,7 @@ def create_berserker_skills():
         DamageEffect(DamageType.HP, 1.3, stat_type="physical")
     ]
     smash.costs = []
-    smash.sfx = "034"  # 짧은 강한 타격
+    smash.sfx = ("combat", "damage_high")  # 강타
     smash.metadata = {}
 
     # 3. 무모한 일격 (HP 소모로 강력한 공격, 광기↑)
@@ -35,7 +35,7 @@ def create_berserker_skills():
                     conditional_bonus={"condition": "in_berserker_mode", "multiplier": 1.4}),
     ]
     reckless_strike.costs = [MPCost(4), HPCost(percentage=0.15)]
-    reckless_strike.sfx = "026"  # 짧은 크리티컬/강타
+    reckless_strike.sfx = ("combat", "critical")  # 무모한 일격
     # reckless_strike.cooldown = 2  # 쿨다운 시스템 제거됨
     reckless_strike.metadata = {"hp_cost_percent": 0.15}
 
@@ -47,7 +47,7 @@ def create_berserker_skills():
     ]
     self_harm.costs = [MPCost(3), HPCost(percentage=0.20)]
     self_harm.target_type = "self"
-    self_harm.sfx = "034"  # 짧은 강한 타격
+    self_harm.sfx = ("combat", "damage_high")  # 자해
     # self_harm.cooldown = 4  # 쿨다운 시스템 제거됨
     self_harm.metadata = {"hp_cost_percent": 0.20, "madness_gain": "high"}
 
@@ -62,7 +62,7 @@ def create_berserker_skills():
     battle_cry.costs = [MPCost(6)]
     battle_cry.target_type = "all_enemies"
     battle_cry.is_aoe = True
-    battle_cry.sfx = "093"  # 짧은 버프/디버프
+    battle_cry.sfx = ("character", "status_debuff")  # 전투의 함성
     # battle_cry.cooldown = 3  # 쿨다운 시스템 제거됨
     battle_cry.metadata = {"aoe": True}
 
@@ -75,7 +75,7 @@ def create_berserker_skills():
                     gimmick_bonus={"field": "madness", "multiplier": 0.02})
     ]
     blood_rage.costs = [MPCost(7)]
-    blood_rage.sfx = "026"  # 짧은 크리티컬/강타
+    blood_rage.sfx = ("combat", "critical")  # 피의 분노
     # blood_rage.cooldown = 3  # 쿨다운 시스템 제거됨
     blood_rage.metadata = {"madness_scaling": True}
 
@@ -87,7 +87,7 @@ def create_berserker_skills():
                     conditional_bonus={"condition": "hp_below_30", "multiplier": 1.8})
     ]
     desperate_assault.costs = [MPCost(9)]
-    desperate_assault.sfx = "034"  # 짧은 강한 공격
+    desperate_assault.sfx = ("combat", "damage_high")  # 필사의 공격
     # desperate_assault.cooldown = 4  # 쿨다운 시스템 제거됨
     desperate_assault.metadata = {"requires_low_hp": True}
 
@@ -100,7 +100,7 @@ def create_berserker_skills():
     ]
     healing_roar.costs = [MPCost(9)]
     healing_roar.target_type = "self"
-    healing_roar.sfx = "005"  # 짧은 힐
+    healing_roar.sfx = ("character", "hp_heal")  # 치유의 포효
     # healing_roar.cooldown = 5  # 쿨다운 시스템 제거됨
     healing_roar.metadata = {"hp_heal": 0.30, "brv_heal": 0.50}
 
@@ -113,7 +113,7 @@ def create_berserker_skills():
     ]
     controlled_fury.costs = [MPCost(10)]
     controlled_fury.target_type = "self"
-    controlled_fury.sfx = "093"  # 짧은 버프
+    controlled_fury.sfx = ("character", "status_buff")  # 통제된 광기
     # controlled_fury.cooldown = 6  # 쿨다운 시스템 제거됨
     controlled_fury.metadata = {"hp_set_percent": 0.50, "madness_control": True}
 
@@ -129,7 +129,7 @@ def create_berserker_skills():
     ]
     ultimate.costs = [MPCost(30), HPCost(percentage=0.99)]  # HP 99% 소모 (1% 남김)
     ultimate.is_ultimate = True
-    ultimate.sfx = "035"  # 짧은 리미트 브레이크
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "rampage": True, "hp_to_1_percent": True}
 

@@ -204,8 +204,28 @@ class StatManager:
         Args:
             level: 새 레벨
         """
-        for stat in self.stats.values():
+        from src.core.logger import get_logger
+        logger = get_logger("stats")
+        
+        for stat_name, stat in self.stats.items():
+            old_base = stat.base_value
+            old_total = stat.total_value
+            old_bonuses = sum(stat._bonuses.values())
+            
+            # base_value만 재계산 (장비 보너스는 유지)
             stat.base_value = stat.calculate_growth(level)
+            
+            new_base = stat.base_value
+            new_total = stat.total_value
+            base_gain = new_base - old_base
+            total_gain = new_total - old_total
+            
+            # 로그 출력 (변화가 있는 경우만)
+            if base_gain != 0:
+                logger.info(f"[레벨업] {stat_name}: base {old_base:.1f} → {new_base:.1f} (+{base_gain:.1f}), "
+                          f"total {old_total:.1f} → {new_total:.1f} (+{total_gain:.1f}), "
+                          f"보너스: {old_bonuses:.1f} (변화 없음)")
+                logger.debug(f"  - growth_type: {stat.growth_type.value}, growth_rate: {stat.growth_rate:.2f}")
 
     def add_stat(
         self,
