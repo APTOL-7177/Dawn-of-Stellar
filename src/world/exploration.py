@@ -176,6 +176,8 @@ class ExplorationSystem:
             for member in self.player.party:
                 # 장비 효과로 인한 vision_bonus 확인
                 member_vision_bonus = getattr(member, 'vision_bonus', 0)
+                if member_vision_bonus > 0:
+                    logger.info(f"{member.name} vision_bonus: {member_vision_bonus}")
                 vision_bonus += member_vision_bonus
                 
                 # 직업 보너스에서 시야 증가 확인 (예: 무당의 vision_range: 2.0)
@@ -188,6 +190,7 @@ class ExplorationSystem:
                 
         # 최종 시야 반지름 계산: 기본 3 + 장비 vision_bonus + 스킬/특성/보너스
         final_radius = base_radius + vision_bonus + skill_bonus
+        logger.info(f"[update_fov] 시야 계산: 기본={base_radius}, vision_bonus={vision_bonus}, skill_bonus={skill_bonus}, 최종={final_radius}")
         
         # 특성의 "시야 범위 2배" 같은 곱셈 효과 적용
         vision_multiplier = 1.0
@@ -747,9 +750,11 @@ class ExplorationSystem:
                 enemy = Enemy(x=x, y=y, level=self.floor_number)
                 self.enemies.append(enemy)
 
-        logger.warning(f"[DEBUG] 적 {len(self.enemies)}마리 배치 완료")
+        logger.info(f"[_spawn_enemies] 적 {len(self.enemies)}마리 배치 완료 (요청: {num_enemies}마리, 가능한 위치: {len(possible_positions)}개)")
+        if len(self.enemies) == 0:
+            logger.warning(f"[_spawn_enemies] ⚠️ 적이 스폰되지 않았습니다! possible_positions: {len(possible_positions)}개")
         for i, enemy in enumerate(self.enemies[:5]):  # 처음 5마리만 로그
-            logger.warning(f"[DEBUG] 적 {i+1}: 위치 ({enemy.x}, {enemy.y})")
+            logger.info(f"[_spawn_enemies] 적 {i+1}: 위치 ({enemy.x}, {enemy.y})")
 
     def get_enemy_at(self, x: int, y: int) -> Optional[Enemy]:
         """특정 위치의 적 가져오기"""
@@ -1675,3 +1680,277 @@ class ExplorationSystem:
                             )
                             logger.debug(f"NPC 이동: {npc_tile.npc_subtype} ({x}, {y}) -> ({new_x}, {new_y})")
                             break  # 이동 성공하면 중단
+
+    def _handle_altar(self, tile: Tile) -> ExplorationResult:
+        """제단 처리 (버프/회복)"""
+        if hasattr(tile, 'used') and tile.used:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이미 사용한 제단입니다."
+            )
+
+        # 파티 전체 회복 및 버프
+        if self.player and self.player.party:
+            for member in self.player.party:
+                if hasattr(member, 'current_hp') and hasattr(member, 'max_hp'):
+                    member.current_hp = min(member.current_hp + member.max_hp // 2, member.max_hp)
+                if hasattr(member, 'current_mp') and hasattr(member, 'max_mp'):
+                    member.current_mp = min(member.current_mp + member.max_mp // 2, member.max_mp)
+
+        tile.used = True
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NONE,
+            message="제단의 축복을 받았습니다! HP와 MP가 회복되었습니다."
+        )
+
+    def _handle_shrine(self, tile: Tile) -> ExplorationResult:
+        """신전 처리 (회복/보상)"""
+        if hasattr(tile, 'used') and tile.used:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이미 사용한 신전입니다."
+            )
+
+        # 파티 전체 완전 회복
+        if self.player and self.player.party:
+            for member in self.player.party:
+                if hasattr(member, 'current_hp') and hasattr(member, 'max_hp'):
+                    member.current_hp = member.max_hp
+                if hasattr(member, 'current_mp') and hasattr(member, 'max_mp'):
+                    member.current_mp = member.max_mp
+                # 상태이상 제거
+                if hasattr(member, 'status_manager'):
+                    member.status_manager.clear_all_effects()
+
+        tile.used = True
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NONE,
+            message="신전의 축복을 받았습니다! 모든 상태가 회복되었습니다."
+        )
+
+    def _handle_portal(self, tile: Tile) -> ExplorationResult:
+        """포털 처리 (텔레포트)"""
+        if not tile.teleport_target:
+            # 랜덤 위치로 텔레포트
+            import random
+            if self.dungeon.rooms:
+                target_room = random.choice(self.dungeon.rooms)
+                target_x = random.randint(target_room.x1 + 1, target_room.x2 - 1)
+                target_y = random.randint(target_room.y1 + 1, target_room.y2 - 1)
+                tile.teleport_target = (target_x, target_y)
+
+        if tile.teleport_target:
+            self.player.x, self.player.y = tile.teleport_target
+            self.update_fov()
+            return ExplorationResult(
+                success=True,
+                event=ExplorationEvent.NONE,
+                message="포털을 통해 다른 곳으로 이동했습니다!"
+            )
+
+        return ExplorationResult(
+            success=False,
+            event=ExplorationEvent.NONE,
+            message="포털이 작동하지 않습니다."
+        )
+
+    def _handle_crystal(self, tile: Tile) -> ExplorationResult:
+        """크리스탈 처리 (MP 회복)"""
+        if hasattr(tile, 'used') and tile.used:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이미 사용한 크리스탈입니다."
+            )
+
+        # 파티 전체 MP 회복
+        if self.player and self.player.party:
+            for member in self.player.party:
+                if hasattr(member, 'current_mp') and hasattr(member, 'max_mp'):
+                    member.current_mp = member.max_mp
+
+        tile.used = True
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NONE,
+            message="크리스탈의 힘으로 MP가 완전히 회복되었습니다!"
+        )
+
+    def _handle_mana_well(self, tile: Tile) -> ExplorationResult:
+        """마나 샘 처리 (MP 회복)"""
+        if hasattr(tile, 'used') and tile.used:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이미 사용한 마나 샘입니다."
+            )
+
+        # 파티 전체 MP 회복 (일부)
+        if self.player and self.player.party:
+            for member in self.player.party:
+                if hasattr(member, 'current_mp') and hasattr(member, 'max_mp'):
+                    member.current_mp = min(member.current_mp + member.max_mp // 3, member.max_mp)
+
+        tile.used = True
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NONE,
+            message="마나 샘에서 MP를 회복했습니다!"
+        )
+
+    def _handle_magic_circle(self, tile: Tile) -> ExplorationResult:
+        """마법진 처리 (랜덤 효과)"""
+        if hasattr(tile, 'used') and tile.used:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이미 사용한 마법진입니다."
+            )
+
+        import random
+        effect = random.choice(["heal", "buff", "teleport"])
+        
+        if effect == "heal":
+            if self.player and self.player.party:
+                for member in self.player.party:
+                    if hasattr(member, 'current_hp') and hasattr(member, 'max_hp'):
+                        member.current_hp = min(member.current_hp + member.max_hp // 2, member.max_hp)
+            message = "마법진이 파티를 치유했습니다!"
+        elif effect == "buff":
+            # 버프 효과는 추후 구현
+            message = "마법진의 힘이 느껴집니다... (버프 효과 미구현)"
+        else:  # teleport
+            if self.dungeon.rooms:
+                target_room = random.choice(self.dungeon.rooms)
+                target_x = random.randint(target_room.x1 + 1, target_room.x2 - 1)
+                target_y = random.randint(target_room.y1 + 1, target_room.y2 - 1)
+                self.player.x, self.player.y = target_x, target_y
+                self.update_fov()
+                message = "마법진이 당신을 다른 곳으로 이동시켰습니다!"
+
+        tile.used = True
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NONE,
+            message=message
+        )
+
+    def _handle_sacrifice_altar(self, tile: Tile) -> ExplorationResult:
+        """희생 제단 처리 (HP 소모하여 보상)"""
+        if hasattr(tile, 'used') and tile.used:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이미 사용한 제단입니다."
+            )
+
+        # 플레이어 HP의 25% 소모하여 골드 획득
+        if self.player:
+            hp_cost = max(1, self.player.max_hp // 4)
+            if self.player.current_hp > hp_cost:
+                self.player.current_hp -= hp_cost
+                gold_gained = hp_cost * 2
+                if self.inventory:
+                    self.inventory.add_gold(gold_gained)
+                tile.used = True
+                return ExplorationResult(
+                    success=True,
+                    event=ExplorationEvent.NONE,
+                    message=f"제단에 HP {hp_cost}를 희생하여 골드 {gold_gained}을 얻었습니다!"
+                )
+            else:
+                return ExplorationResult(
+                    success=False,
+                    event=ExplorationEvent.NONE,
+                    message="HP가 부족하여 제단을 사용할 수 없습니다."
+                )
+
+        return ExplorationResult(
+            success=False,
+            event=ExplorationEvent.NONE,
+            message="제단을 사용할 수 없습니다."
+        )
+
+    def _handle_treasure_map(self, tile: Tile) -> ExplorationResult:
+        """보물 지도 처리"""
+        if hasattr(tile, 'used') and tile.used:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이미 사용한 보물 지도입니다."
+            )
+
+        # 보물 위치 힌트 제공 (미구현)
+        tile.used = True
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NONE,
+            message="보물 지도를 발견했습니다! (기능 미구현)"
+        )
+
+    def _handle_riddle_stone(self, tile: Tile) -> ExplorationResult:
+        """수수께끼 돌 처리"""
+        if hasattr(tile, 'used') and tile.used:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이미 사용한 수수께끼 돌입니다."
+            )
+
+        # 수수께끼 풀기 (미구현)
+        tile.used = True
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NONE,
+            message="수수께끼 돌을 발견했습니다! (기능 미구현)"
+        )
+
+    def _handle_pedestal(self, tile: Tile) -> ExplorationResult:
+        """받침대 처리 (아이템 올려놓기)"""
+        # 아이템 올려놓기 기능 (미구현)
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NONE,
+            message="받침대를 발견했습니다! (기능 미구현)"
+        )
+
+    def _handle_button(self, tile: Tile) -> ExplorationResult:
+        """버튼 처리"""
+        if hasattr(tile, 'used') and tile.used:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이미 누른 버튼입니다."
+            )
+
+        # 버튼 활성화 (미구현)
+        tile.used = True
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NONE,
+            message="버튼을 눌렀습니다! (기능 미구현)"
+        )
+
+    def _handle_secret_door(self, tile: Tile) -> ExplorationResult:
+        """비밀 문 처리"""
+        if hasattr(tile, 'revealed') and tile.revealed:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이미 발견한 비밀 문입니다."
+            )
+
+        # 비밀 문 발견 및 열기
+        tile.revealed = True
+        tile.walkable = True
+        tile.transparent = True
+        tile.tile_type = TileType.DOOR
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NONE,
+            message="비밀 문을 발견했습니다!"
+        )

@@ -25,6 +25,22 @@ class SkillManager:
         skill = self.get_skill(skill_id)
         if not skill:
             return SkillResult(success=False, message=f"스킬 없음: {skill_id}")
+        
+        # 행동 불가 상태이상 체크 (빙결, 기절 등 - 모든 행동 불가)
+        if hasattr(user, 'status_manager'):
+            if not user.status_manager.can_act():
+                # 기본 공격인지 확인
+                is_basic_attack = skill.metadata.get('basic_attack', False)
+                if not is_basic_attack:
+                    return SkillResult(success=False, message="행동 불가 상태로 인해 스킬을 사용할 수 없습니다")
+        
+        # 침묵 상태이상 체크 (기본 공격은 제외)
+        if hasattr(user, 'status_manager'):
+            if not user.status_manager.can_use_skills():
+                # 기본 공격인지 확인
+                is_basic_attack = skill.metadata.get('basic_attack', False)
+                if not is_basic_attack:
+                    return SkillResult(success=False, message="침묵 상태로 인해 스킬을 사용할 수 없습니다")
 
         # 쿨다운 체크 비활성화 (사용자 요청)
         # char_id = id(user)

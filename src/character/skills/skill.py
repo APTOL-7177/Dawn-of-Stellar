@@ -32,6 +32,22 @@ class Skill:
         # 스킬 정보를 context에 추가 (특성 효과 적용을 위해)
         context['skill'] = self
         
+        # 행동 불가 상태이상 체크 (빙결, 기절 등 - 모든 행동 불가)
+        if hasattr(user, 'status_manager'):
+            if not user.status_manager.can_act():
+                # 기본 공격인지 확인
+                is_basic_attack = self.metadata.get('basic_attack', False)
+                if not is_basic_attack:
+                    return False, "행동 불가 상태로 인해 스킬을 사용할 수 없습니다"
+        
+        # 침묵 상태이상 체크 (기본 공격은 제외)
+        if hasattr(user, 'status_manager'):
+            if not user.status_manager.can_use_skills():
+                # 기본 공격인지 확인
+                is_basic_attack = self.metadata.get('basic_attack', False)
+                if not is_basic_attack:
+                    return False, "침묵 상태로 인해 스킬을 사용할 수 없습니다"
+        
         # 비용 체크
         for cost in self.costs:
             can_afford, reason = cost.can_afford(user, context)
@@ -171,6 +187,23 @@ class Skill:
         total_dmg = 0
         total_heal = 0
         effect_messages = []  # 각 효과의 메시지 수집
+
+        # 수호의 맹세 스킬: 본인에게 보호막을 두르고 선택한 아군을 보호
+        # ProtectEffect가 있으면 protect_self 플래그 설정
+        has_protect_effect = any(
+            effect.__class__.__name__ == 'ProtectEffect' 
+            for effect in self.effects
+        )
+        if has_protect_effect:
+            context['protect_self'] = True  # ShieldEffect는 본인에게 적용
+        
+        # 공격력 기반 보호막 배율 설정 (metadata에서 가져오기)
+        if self.metadata and 'attack_multiplier' in self.metadata:
+            context['attack_multiplier'] = self.metadata['attack_multiplier']
+        
+        # 보호막 중첩 방지 설정 (metadata에서 가져오기)
+        if self.metadata and 'replace_shield' in self.metadata:
+            context['replace_shield'] = self.metadata['replace_shield']
 
         for effect in self.effects:
             if hasattr(effect, 'execute'):

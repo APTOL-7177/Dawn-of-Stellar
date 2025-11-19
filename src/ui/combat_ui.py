@@ -144,7 +144,16 @@ class CombatUI:
 
     def _create_skill_menu(self, actor: Any) -> CursorMenu:
         """스킬 메뉴 생성"""
+        # skills 프로퍼티가 없거나 빈 리스트인 경우 skill_ids로부터 직접 생성
         all_skills = getattr(actor, 'skills', [])
+        if not all_skills and hasattr(actor, 'skill_ids') and actor.skill_ids:
+            from src.character.skills.skill_manager import get_skill_manager
+            skill_manager = get_skill_manager()
+            all_skills = [
+                skill_manager.get_skill(skill_id)
+                for skill_id in actor.skill_ids
+                if skill_manager.get_skill(skill_id)
+            ]
 
         # 디버그 로그
         from src.core.logger import get_logger
@@ -161,6 +170,11 @@ class CombatUI:
         for skill in skills:
             # 모든 비용 체크 (MP, Stack, HP 등)
             can_use, reason = skill.can_use(actor)
+            
+            # 빙결/기절 등 행동 불가 상태이상 체크 (스킬 목록에는 표시하되 사용 불가 표시)
+            if hasattr(actor, 'status_manager') and not actor.status_manager.can_act():
+                can_use = False
+                reason = "행동 불가 상태"
 
             # 비용 정보 표시
             cost_parts = []

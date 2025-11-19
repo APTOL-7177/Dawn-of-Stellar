@@ -4,6 +4,7 @@ from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.shield_effect import ShieldEffect
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.protect_effect import ProtectEffect
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
@@ -34,16 +35,17 @@ def create_knight_skills():
     skills.append(duty_strike)
 
     # 3. 수호의 맹세
-    guardian_oath = Skill("knight_oath", "수호의 맹세", "아군 보호")
+    guardian_oath = Skill("knight_oath", "수호의 맹세", "본인에게 보호막을 두르고 선택한 아군을 보호")
     guardian_oath.effects = [
-        ShieldEffect(base_amount=60),
+        ShieldEffect(base_amount=0),  # 공격력 기반으로 계산 (base_amount는 0)
+        ProtectEffect(),  # 선택한 아군 보호
         GimmickEffect(GimmickOperation.ADD, "duty_stacks", 1, max_value=5)
     ]
     guardian_oath.costs = []
-    guardian_oath.target_type = "ally"
+    guardian_oath.target_type = "ally"  # 아군 선택
     # guardian_oath.cooldown = 3  # 쿨다운 시스템 제거됨
     guardian_oath.sfx = "409"
-    guardian_oath.metadata = {"shield": True, "duty_gain": 1}
+    guardian_oath.metadata = {"shield": True, "duty_gain": 1, "protect": True, "attack_multiplier": 0.4, "replace_shield": True}  # 공격력의 40%, 중첩 방지
     skills.append(guardian_oath)
 
     # 4. 기사도

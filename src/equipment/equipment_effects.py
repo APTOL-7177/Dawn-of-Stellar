@@ -56,6 +56,7 @@ class EffectType(Enum):
     THORNS = "thorns"                          # 반사 데미지 X%
     CRITICAL_DAMAGE = "critical_damage"        # 크리티컬 데미지 +X%
     CRITICAL_CHANCE = "critical_chance"        # 크리티컬 확률 +X%
+    CRITICAL_RATE = "critical_rate"            # 크리티컬 확률 +X% (CRITICAL_CHANCE와 동일, 호환성)
     DODGE_CHANCE = "dodge_chance"              # 회피 확률 +X%
     BLOCK_CHANCE = "block_chance"              # 블록 확률 +X%
     COUNTER_ATTACK = "counter_attack"          # 반격 확률 X%
@@ -66,13 +67,20 @@ class EffectType(Enum):
     HP_REGEN = "hp_regen"                      # HP 재생 (턴당 X%)
     MP_REGEN = "mp_regen"                      # MP 재생 (턴당 X)
     HEAL_BOOST = "heal_boost"                  # 받는 회복량 +X%
+    HEALING_BONUS = "healing_bonus"            # 회복량 보너스 (HEAL_BOOST와 동일, 호환성)
     OVERHEAL = "overheal"                      # 과다 회복 → 실드
+    OVERHEAL_SHIELD = "overheal_shield"        # 과다 회복 → 실드 (OVERHEAL과 동일, 호환성)
 
     # === 상태 효과 ===
     STATUS_IMMUNITY = "status_immunity"        # 상태이상 면역
     STATUS_RESISTANCE = "status_resistance"    # 상태이상 저항 X%
     STATUS_DURATION = "status_duration"        # 버프 지속시간 +X턴
     DEBUFF_REFLECT = "debuff_reflect"          # 디버프 반사 X%
+    POISON_IMMUNITY = "poison_immunity"        # 독 면역
+    STUN_IMMUNITY = "stun_immunity"            # 기절 면역
+    SILENCE_IMMUNITY = "silence_immunity"      # 침묵 면역
+    BURN_IMMUNITY = "burn_immunity"            # 화상 면역
+    FREEZE_IMMUNITY = "freeze_immunity"        # 빙결 면역
 
     # === 자원 관련 ===
     MP_COST_REDUCTION = "mp_cost_reduction"    # MP 소비 -X%
@@ -95,6 +103,12 @@ class EffectType(Enum):
     DAMAGE_CONVERSION = "damage_conversion"    # 데미지 속성 변환
     COOLDOWN_REDUCTION = "cooldown_reduction"  # 쿨다운 감소
     MULTI_STRIKE = "multi_strike"              # 연속 공격 확률
+    SKILL_POWER = "skill_power"                # 스킬 위력 +X%
+    SPELL_POWER = "spell_power"                # 주문 위력 +X%
+    SPELL_ECHO = "spell_echo"                  # 주문 반향 (확률로 재시전)
+    HACK_DAMAGE_BONUS = "hack_damage_bonus"    # 해킹 데미지 보너스
+    STANCE_POWER = "stance_power"              # 스탠스 위력 +X%
+    ELEMENTAL_POWER = "elemental_power"         # 속성 위력 +X%
 
 
 @dataclass
@@ -136,22 +150,27 @@ class EquipmentEffectManager:
     """장비 효과 관리자"""
 
     def __init__(self):
+        logger.info("[EquipmentEffectManager] 초기화 시작")
         self.active_effects: Dict[str, List[EquipmentEffect]] = {}  # character_id -> effects
         self.effect_handlers: Dict[EffectType, Callable] = {}
         self._register_handlers()
         self._subscribe_events()
+        logger.info(f"[EquipmentEffectManager] 초기화 완료 (핸들러 {len(self.effect_handlers)}개 등록)")
 
     def _subscribe_events(self):
         """이벤트 구독"""
+        logger.info("[EquipmentEffectManager] 이벤트 구독 시작")
         event_bus.subscribe(Events.EQUIPMENT_EQUIPPED, self._on_equipment_equipped)
         event_bus.subscribe(Events.EQUIPMENT_UNEQUIPPED, self._on_equipment_unequipped)
         event_bus.subscribe(Events.COMBAT_DAMAGE_DEALT, self._on_damage_dealt)
         event_bus.subscribe(Events.COMBAT_DAMAGE_TAKEN, self._on_damage_taken)
         event_bus.subscribe(Events.COMBAT_TURN_START, self._on_turn_start)
         event_bus.subscribe(Events.COMBAT_TURN_END, self._on_turn_end)
+        logger.info("[EquipmentEffectManager] 이벤트 구독 완료")
 
     def _register_handlers(self):
         """효과 핸들러 등록"""
+        logger.debug(f"[_register_handlers] 핸들러 등록 시작")
         self.effect_handlers = {
             EffectType.VISION_BONUS: self._handle_vision_bonus,
             EffectType.WOUND_REDUCTION: self._handle_wound_reduction,
@@ -164,8 +183,26 @@ class EquipmentEffectManager:
             EffectType.THORNS: self._handle_thorns,
             EffectType.HP_REGEN: self._handle_hp_regen,
             EffectType.MP_REGEN: self._handle_mp_regen,
+            # CRITICAL_RATE는 CRITICAL_CHANCE와 동일하게 처리 (호환성)
+            EffectType.CRITICAL_CHANCE: self._handle_critical_chance,
+            EffectType.CRITICAL_RATE: self._handle_critical_chance,
+            # HEALING_BONUS는 HEAL_BOOST와 동일하게 처리
+            EffectType.HEAL_BOOST: self._handle_heal_boost,
+            EffectType.HEALING_BONUS: self._handle_heal_boost,
+            # OVERHEAL_SHIELD는 OVERHEAL과 동일하게 처리
+            EffectType.OVERHEAL: self._handle_overheal,
+            EffectType.OVERHEAL_SHIELD: self._handle_overheal,
+            # 상태 면역 효과 (핸들러 없으면 로그만)
+            EffectType.POISON_IMMUNITY: self._handle_status_immunity,
+            EffectType.STUN_IMMUNITY: self._handle_status_immunity,
+            EffectType.SILENCE_IMMUNITY: self._handle_status_immunity,
+            EffectType.BURN_IMMUNITY: self._handle_status_immunity,
+            EffectType.FREEZE_IMMUNITY: self._handle_status_immunity,
             # 더 많은 핸들러...
         }
+        logger.info(f"[_register_handlers] 핸들러 등록 완료: {len(self.effect_handlers)}개 (VISION_BONUS 포함: {EffectType.VISION_BONUS in self.effect_handlers})")
+        if EffectType.VISION_BONUS in self.effect_handlers:
+            logger.info(f"[_register_handlers] VISION_BONUS 핸들러: {self.effect_handlers[EffectType.VISION_BONUS]}")
 
     def add_effect(self, character_id: str, effect: EquipmentEffect):
         """효과 추가"""
@@ -215,11 +252,18 @@ class EquipmentEffectManager:
         character = data.get("character")
         item = data.get("item")
 
+        logger.info(f"[장비 착용 이벤트] character={character.name if character else None}, item={getattr(item, 'name', None) if item else None}")
+
         if not character or not item:
+            logger.warning(f"[장비 착용 이벤트] character 또는 item이 None입니다")
             return
 
         # 캐릭터 ID (name 사용)
         character_id = character.name
+        item_name = getattr(item, 'name', '알 수 없는 아이템')
+        unique_effect = getattr(item, 'unique_effect', None)
+
+        logger.info(f"[장비 착용] {character.name} - {item_name} (unique_effect: {unique_effect})")
 
         # 아이템의 특수 효과 파싱 및 적용
         effects = []
@@ -227,19 +271,29 @@ class EquipmentEffectManager:
         # 1. special_effects 리스트가 있으면 그것을 사용
         if hasattr(item, "special_effects") and item.special_effects:
             effects = item.special_effects
+            logger.info(f"[장비 착용] special_effects 사용: {len(effects)}개")
         # 2. unique_effect 문자열이 있으면 파싱
         elif hasattr(item, "unique_effect") and item.unique_effect:
+            logger.info(f"[장비 착용] unique_effect 파싱 시작: '{item.unique_effect}'")
             effects = parse_unique_effects(item.unique_effect)
+            logger.info(f"[장비 착용] unique_effect 파싱 완료: {len(effects)}개 효과")
+            for i, eff in enumerate(effects):
+                logger.info(f"  효과 {i+1}: {eff.effect_type.value if hasattr(eff.effect_type, 'value') else eff.effect_type} (트리거: {eff.trigger.value if hasattr(eff.trigger, 'value') else eff.trigger}, 값: {eff.value})")
 
         # 효과 적용
         for effect in effects:
             # 효과에 source_id 추가 (제거용)
             effect.source_id = getattr(item, 'item_id', item.name)
             self.add_effect(character_id, effect)
+            logger.info(f"효과 추가: {character.name} - {effect.effect_type.value} (트리거: {effect.trigger.value}, 값: {effect.value})")
 
             # ON_EQUIP 트리거 효과 즉시 실행
             if effect.trigger == EffectTrigger.ON_EQUIP:
-                self._execute_effect(character, effect, {})
+                logger.info(f"ON_EQUIP 효과 실행: {character.name} - {effect.effect_type.value} (값: {effect.value})")
+                try:
+                    self._execute_effect(character, effect, {})
+                except Exception as e:
+                    logger.error(f"ON_EQUIP 효과 실행 중 에러: {e}", exc_info=True)
 
     def _on_equipment_unequipped(self, data: Dict[str, Any]):
         """장비 해제 이벤트"""
@@ -327,21 +381,73 @@ class EquipmentEffectManager:
 
     def _execute_effect(self, character: Any, effect: EquipmentEffect, context: Dict[str, Any]):
         """효과 실행"""
-        handler = self.effect_handlers.get(effect.effect_type)
-        if handler:
-            handler(character, effect, context)
-        else:
-            logger.warning(f"핸들러 없음: {effect.effect_type}")
+        try:
+            # effect_type이 EffectType enum인지 확인
+            if not isinstance(effect.effect_type, EffectType):
+                logger.error(f"잘못된 effect_type 타입: {type(effect.effect_type)}, 값: {effect.effect_type}")
+                return
+            
+            # 디버깅: 등록된 핸들러 확인
+            logger.info(f"[_execute_effect] 등록된 핸들러 수: {len(self.effect_handlers)}")
+            logger.info(f"[_execute_effect] 찾는 effect_type: {effect.effect_type} (값: {effect.effect_type.value})")
+            logger.info(f"[_execute_effect] VISION_BONUS 핸들러 존재 여부: {EffectType.VISION_BONUS in self.effect_handlers}")
+            if EffectType.VISION_BONUS in self.effect_handlers:
+                logger.info(f"[_execute_effect] VISION_BONUS 핸들러: {self.effect_handlers[EffectType.VISION_BONUS]}")
+            logger.info(f"[_execute_effect] 등록된 핸들러 키들: {[k.value for k in list(self.effect_handlers.keys())[:10]]}")
+            
+            handler = self.effect_handlers.get(effect.effect_type)
+            if handler:
+                logger.info(f"효과 핸들러 실행: {character.name} - {effect.effect_type.value} (값: {effect.value})")
+                handler(character, effect, context)
+            else:
+                logger.warning(f"핸들러 없음: {effect.effect_type} (타입: {type(effect.effect_type)}, 등록된 핸들러: {list(self.effect_handlers.keys())[:5]}...)")
+        except AttributeError as e:
+            logger.error(f"효과 실행 중 에러: {e}, effect_type: {effect.effect_type}, 타입: {type(effect.effect_type)}")
+            # effect_type이 문자열인 경우 EffectType enum으로 변환 시도
+            if isinstance(effect.effect_type, str):
+                try:
+                    effect.effect_type = EffectType(effect.effect_type)
+                    handler = self.effect_handlers.get(effect.effect_type)
+                    if handler:
+                        logger.info(f"효과 핸들러 실행 (변환 후): {character.name} - {effect.effect_type.value} (값: {effect.value})")
+                        handler(character, effect, context)
+                except (ValueError, AttributeError) as e2:
+                    logger.error(f"EffectType 변환 실패: {e2}, 문자열: {effect.effect_type}")
+        except Exception as e:
+            logger.error(f"효과 실행 중 예상치 못한 에러: {e}, effect_type: {effect.effect_type}")
 
     # === 개별 효과 핸들러 ===
 
     def _handle_vision_bonus(self, character: Any, effect: EquipmentEffect, context: Dict):
         """시야 증가"""
-        if hasattr(character, "vision_bonus"):
-            character.vision_bonus += int(effect.value)
-        else:
-            character.vision_bonus = int(effect.value)
-        logger.debug(f"{character.name} 시야 +{effect.value}")
+        if not hasattr(character, "vision_bonus"):
+            character.vision_bonus = 0
+        character.vision_bonus += int(effect.value)
+        logger.info(f"{character.name} 시야 +{effect.value} (현재: {character.vision_bonus})")
+        
+    def _handle_critical_chance(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """크리티컬 확률 증가 (CRITICAL_RATE와 CRITICAL_CHANCE 모두 처리)"""
+        # 크리티컬 확률은 StatManager나 다른 시스템에서 처리될 수 있음
+        # 여기서는 로그만 남김
+        logger.debug(f"{character.name} 크리티컬 확률 +{effect.value * 100:.1f}%")
+        
+    def _handle_heal_boost(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """회복량 보너스 (HEAL_BOOST와 HEALING_BONUS 모두 처리)"""
+        # 회복량 보너스는 전투 시스템에서 처리될 수 있음
+        # 여기서는 로그만 남김
+        logger.debug(f"{character.name} 회복량 보너스 +{effect.value * 100:.1f}%")
+        
+    def _handle_overheal(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """과다 회복 → 실드 (OVERHEAL과 OVERHEAL_SHIELD 모두 처리)"""
+        # 과다 회복 효과는 전투 시스템에서 처리될 수 있음
+        # 여기서는 로그만 남김
+        logger.debug(f"{character.name} 과다 회복 → 실드 효과 활성화")
+        
+    def _handle_status_immunity(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """상태 면역 (POISON_IMMUNITY, STUN_IMMUNITY 등)"""
+        # 상태 면역 효과는 전투 시스템에서 처리될 수 있음
+        # 여기서는 로그만 남김
+        logger.debug(f"{character.name} {effect.effect_type.value} 효과 활성화")
 
     def _handle_wound_reduction(self, character: Any, effect: EquipmentEffect, context: Dict):
         """상처 감소"""
@@ -427,6 +533,7 @@ def get_equipment_effect_manager() -> EquipmentEffectManager:
     """전역 장비 효과 관리자"""
     global _equipment_effect_manager
     if _equipment_effect_manager is None:
+        logger.info("[get_equipment_effect_manager] EquipmentEffectManager 생성")
         _equipment_effect_manager = EquipmentEffectManager()
     return _equipment_effect_manager
 
@@ -497,17 +604,25 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
         EquipmentEffect 객체 리스트
     """
     if not unique_effect_string:
+        logger.debug(f"[parse_unique_effects] 빈 문자열")
         return []
 
     effects = []
+    logger.debug(f"[parse_unique_effects] 파싱 시작: '{unique_effect_string}'")
 
     # | 로 분리
     for effect_str in unique_effect_string.split("|"):
+        effect_str = effect_str.strip()
+        if not effect_str:
+            continue
         if ":" not in effect_str:
+            logger.warning(f"[parse_unique_effects] ':' 구분자가 없음: '{effect_str}'")
             continue
 
         effect_name, value_str = effect_str.split(":", 1)
         effect_name = effect_name.strip()
+        value_str = value_str.strip()
+        logger.debug(f"[parse_unique_effects] 효과 파싱: '{effect_name}' = '{value_str}'")
 
         try:
             value = float(value_str)
@@ -571,11 +686,16 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
 
         if effect_name in effect_mapping:
             effect_type, trigger = effect_mapping[effect_name]
-            effects.append(EquipmentEffect(
+            effect = EquipmentEffect(
                 effect_type=effect_type,
                 trigger=trigger,
                 value=value,
                 description=f"{effect_name}: {value}"
-            ))
+            )
+            effects.append(effect)
+            logger.debug(f"[parse_unique_effects] 효과 생성: {effect_type.value} (트리거: {trigger.value}, 값: {value})")
+        else:
+            logger.warning(f"[parse_unique_effects] 알 수 없는 효과 이름: '{effect_name}'")
 
+    logger.debug(f"[parse_unique_effects] 파싱 완료: {len(effects)}개 효과 생성")
     return effects

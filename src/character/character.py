@@ -55,6 +55,10 @@ class Character:
             stats_config = self._get_stats_from_yaml()
 
         self.stat_manager = StatManager(stats_config)
+        
+        # 초기 레벨이 1이 아닌 경우 레벨업 적용 (base_value는 1레벨 기준이므로)
+        if self.level > 1:
+            self.stat_manager.apply_level_up(self.level)
 
         # 현재 HP/MP (StatManager와 별도 관리)
         self.current_hp = self.max_hp
@@ -98,6 +102,10 @@ class Character:
 
         # 시야 보너스 초기화 (장비 효과용)
         self.vision_bonus = 0
+
+        # 보호 시스템 초기화 (수호의 맹세 등)
+        self.protected_allies = []  # 이 캐릭터가 보호하는 아군 목록
+        self.protected_by = []  # 이 캐릭터를 보호하는 캐릭터 목록
 
         # 로그
         self.logger.info(f"캐릭터 생성: {self.name} ({self.character_class}), 스킬: {len(self.skill_ids)}개")
@@ -753,6 +761,20 @@ class Character:
         # 수호 효과가 적용되면 이벤트 핸들러에서 damage_event_data["damage"]를 수정함
         final_damage = damage_event_data.get("damage", damage)
         
+        # 보호막이 있으면 먼저 보호막이 데미지를 흡수
+        shield_amount = getattr(self, 'shield_amount', 0)
+        if shield_amount > 0:
+            shield_absorbed = min(shield_amount, final_damage)
+            self.shield_amount -= shield_absorbed
+            final_damage -= shield_absorbed
+            
+            if shield_absorbed > 0:
+                logger.info(f"🛡️ {self.name}의 보호막이 {shield_absorbed} 데미지를 흡수했습니다! (남은 보호막: {self.shield_amount})")
+            
+            # 보호막이 모두 소진되면 0으로 설정
+            if self.shield_amount <= 0:
+                self.shield_amount = 0
+        
         actual_damage = min(final_damage, self.current_hp)
         self.current_hp -= actual_damage
 
@@ -838,12 +860,13 @@ class Character:
 
         return actual_heal
 
-    def consume_mp(self, amount: int) -> bool:
+    def consume_mp(self, amount: int, silent: bool = False) -> bool:
         """
         MP를 소비합니다
 
         Args:
             amount: 소비량
+            silent: True이면 이벤트를 발행하지 않음 (무한 루프 방지)
 
         Returns:
             성공 여부
@@ -853,12 +876,14 @@ class Character:
 
         self.current_mp -= amount
 
-        event_bus.publish(Events.CHARACTER_MP_CHANGE, {
-            "character": self,
-            "change": -amount,
-            "current": self.current_mp,
-            "max": self.max_mp
-        })
+        # 무한 루프 방지: silent 플래그가 True이면 이벤트 발행 안 함
+        if not silent:
+            event_bus.publish(Events.CHARACTER_MP_CHANGE, {
+                "character": self,
+                "change": -amount,
+                "current": self.current_mp,
+                "max": self.max_mp
+            })
 
         return True
 

@@ -192,6 +192,24 @@ class CombatManager:
                 "message": "죽은 캐릭터는 행동할 수 없습니다."
             }
         
+        # 행동 불가 상태이상 체크 (빙결, 기절 등)
+        if hasattr(actor, 'status_manager'):
+            if not actor.status_manager.can_act():
+                blocking_status = None
+                for effect in actor.status_manager.status_effects:
+                    if effect.status_type in [StatusType.STUN, StatusType.SLEEP, StatusType.FREEZE, 
+                                             StatusType.PETRIFY, StatusType.PARALYZE, StatusType.TIME_STOP]:
+                        blocking_status = effect.name
+                        break
+                
+                status_name = blocking_status or "행동 불가 상태"
+                self.logger.warning(f"{getattr(actor, 'name', 'Unknown')}은(는) {status_name}로 인해 행동할 수 없습니다.")
+                return {
+                    "action": "error",
+                    "error": "actor_cannot_act",
+                    "message": f"{status_name}로 인해 행동할 수 없습니다."
+                }
+        
         self.current_actor = actor
         result = {}
 
@@ -880,8 +898,25 @@ class CombatManager:
                             actual_damage = final_damage
                         target_result["hp_damage"] = actual_damage
 
-            # 힐링 적용
-            if skill.heal_amount > 0:
+            # 마법도둑 특수 처리: 타겟의 MP를 훔쳐서 사용자의 MP를 회복
+            if skill.skill_id == "mana_steal":
+                # 타겟의 MP를 소모
+                mp_stolen = min(skill.heal_amount, getattr(tgt, 'current_mp', 0))
+                if mp_stolen > 0 and hasattr(tgt, 'consume_mp'):
+                    # 무한 루프 방지를 위해 이벤트 발행 없이 직접 소모
+                    tgt.current_mp = max(0, tgt.current_mp - mp_stolen)
+                    target_result["mp_stolen"] = mp_stolen
+                    self.logger.info(f"[마법 도둑] {actor.name}이(가) {tgt.name}의 MP {mp_stolen}을(를) 훔쳤습니다!")
+                
+                # 사용자의 MP를 회복
+                if hasattr(actor, 'restore_mp'):
+                    actor.restore_mp(mp_stolen)
+                elif hasattr(actor, 'current_mp') and hasattr(actor, 'max_mp'):
+                    actor.current_mp = min(actor.current_mp + mp_stolen, actor.max_mp)
+                target_result["mp_restored"] = mp_stolen
+            
+            # 힐링 적용 (마법도둑이 아닌 경우)
+            elif skill.heal_amount > 0:
                 if hasattr(tgt, 'heal'):
                     healed = tgt.heal(skill.heal_amount)
                 elif hasattr(tgt, 'current_hp') and hasattr(tgt, 'max_hp'):
@@ -1429,6 +1464,27 @@ class CombatManager:
         if data.get("new_hp") is not None:
             # 이미 피해가 적용된 경우, 수호 효과는 처리할 수 없음
             return
+        
+        # 스킬 효과: 수호의 맹세 - 기사가 아군을 보호
+        # 보호받는 대상인지 확인
+        if hasattr(defender, 'protected_by') and defender.protected_by:
+            # 보호자가 있는 경우, 보호자가 대신 피해를 받음
+            for guardian in defender.protected_by:
+                if (hasattr(guardian, 'is_alive') and guardian.is_alive and 
+                    guardian != defender and guardian in self.allies):
+                    # 보호자가 모든 피해를 대신 받음
+                    protected_damage = damage
+                    data["damage"] = 0  # 원래 대상은 피해를 받지 않음
+                    
+                    # 보호자가 피해를 받음
+                    if hasattr(guardian, 'take_damage'):
+                        guardian_actual_damage = guardian.take_damage(protected_damage)
+                        self.logger.info(
+                            f"[수호의 맹세] {guardian.name}이(가) {defender.name}의 피해를 대신 받음: "
+                            f"{protected_damage} → 실제 {guardian_actual_damage}"
+                        )
+                    
+                    return  # 한 명만 수호
         
         # 특성 효과: 수호 (guardian_angel) - 아군 피해 대신 받기
         from src.character.trait_effects import get_trait_effect_manager, TraitEffectType

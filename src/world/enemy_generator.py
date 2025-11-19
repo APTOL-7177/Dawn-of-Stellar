@@ -713,9 +713,9 @@ class EnemyGenerator:
             enemy_id = random.choice(suitable_enemy_ids)
             template = ENEMY_TEMPLATES[enemy_id]
 
-            # 레벨 스케일링 계수 (층수에 비례)
-            # 1층 = 1.0배, 2층 = 1.5배, 3층 = 2.0배, ...
-            level_modifier = 1.0 + (floor_number - 1) * 0.5
+            # 레벨 스케일링 계수 (층수와 비슷하거나 조금 낮게)
+            # 1층 = 0.8배, 2층 = 1.6배, 3층 = 2.4배, ... (층수 * 0.8)
+            level_modifier = floor_number * 0.8
 
             enemy = SimpleEnemy(template, level_modifier, difficulty_hp_mult, difficulty_dmg_mult)
 
