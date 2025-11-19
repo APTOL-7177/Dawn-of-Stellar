@@ -1833,9 +1833,16 @@ class CombatUI:
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
-            # 음양 게이지
-            console.print(content_x, content_y + line, "[陰]        [☯]        [陽]", fg=(200, 200, 200))
+            # 게이지 바 너비 계산
+            gauge_width = box_width - 6
+            gauge_start_x = content_x
+            
+            # 음양 게이지 위치 표시 (게이지 바 너비에 맞춰 중앙 정렬)
+            yin_yang_text = "[陰]        [☯]        [陽]"
+            text_start_x = gauge_start_x + (gauge_width - len(yin_yang_text)) // 2
+            console.print(text_start_x, content_y + line, yin_yang_text, fg=(200, 200, 200))
             line += 1
+            
             # 게이지 바 (음=파랑, 양=빨강, 균형=금색)
             if ki < 40:
                 gauge_color = (100, 150, 255)  # 파랑 (음)
@@ -1843,7 +1850,7 @@ class CombatUI:
                 gauge_color = (255, 215, 0)  # 금색 (균형)
             else:
                 gauge_color = (255, 100, 100)  # 빨강 (양)
-            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, ki, max_ki, show_numbers=True, custom_color=gauge_color)
+            gauge_renderer.render_bar(console, gauge_start_x, content_y + line, gauge_width, ki, max_ki, show_numbers=True, custom_color=gauge_color)
             line += 1
 
             # 상태 정보

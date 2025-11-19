@@ -743,9 +743,18 @@ def deserialize_inventory(inventory_data: Dict[str, Any], party: List[Any] = Non
     inventory.cooking_cooldown_duration = inventory_data.get("cooking_cooldown_duration", 0)
 
     # 아이템 복원
-    for item_data in inventory_data.get("items", []):
-        item = deserialize_item(item_data)
-        inventory.add_item(item)
+    for item_entry in inventory_data.get("items", []):
+        # 새 형식: {"item": {...}, "quantity": ...} 또는 구형식: {...} (직접 item_data)
+        if isinstance(item_entry, dict) and "item" in item_entry:
+            # 새 형식: quantity 정보 포함
+            item = deserialize_item(item_entry["item"])
+            quantity = item_entry.get("quantity", 1)
+            # add_item은 quantity를 지원하므로 한 번에 추가 (스택 가능한 아이템은 자동으로 스택됨)
+            inventory.add_item(item, quantity=quantity)
+        else:
+            # 구형식: 직접 item_data (하위 호환성)
+            item = deserialize_item(item_entry)
+            inventory.add_item(item, quantity=1)
 
     logger.warning(f"[DESERIALIZE] 복원 후 인벤토리 골드: {inventory.gold}G")
     if inventory.cooking_cooldown_duration > 0:

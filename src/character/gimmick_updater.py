@@ -312,7 +312,7 @@ class GimmickUpdater:
             character.time_correction_counter += 1
             if character.time_correction_counter >= 3:
                 if hasattr(character, 'active_traits'):
-                    if any(t.get('id') == 'time_correction' for t in character.active_traits):
+                    if any((t if isinstance(t, str) else t.get('id')) == 'time_correction' for t in character.active_traits):
                         logger.info(f"{character.name} 시간 보정 발동! 타임라인 0으로")
                         character.timeline = 0
                         character.time_correction_counter = 0
@@ -322,7 +322,7 @@ class GimmickUpdater:
         """몽크: 음양 기 흐름 시스템 업데이트"""
         # 기 흐름 특성 (매 턴 균형(50)으로 +5 이동)
         if hasattr(character, 'active_traits'):
-            if any(t.get('id') == 'ki_flow' for t in character.active_traits):
+            if any((t if isinstance(t, str) else t.get('id')) == 'ki_flow' for t in character.active_traits):
                 current_ki = getattr(character, 'ki_gauge', 50)
                 if current_ki < 50:
                     character.ki_gauge = min(50, current_ki + 5)

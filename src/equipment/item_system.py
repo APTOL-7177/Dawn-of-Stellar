@@ -484,7 +484,7 @@ WEAPON_TEMPLATES = {
     },
     "windcutter": {
         "name": "바람 절단자",
-        "description": "바람 속성. 공격 속도 증가",
+        "description": "바람 속성. 행동 속도 증가",
         "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 4,
         "base_stats": {"physical_attack": 42, "speed": 8, "accuracy": 10},
@@ -1005,7 +1005,7 @@ ARMOR_TEMPLATES = {
     },
     "fortress_plate": {
         "name": "요새 판금",
-        "description": "BRV 데미지를 크게 감소시키지만 이동 속도가 느려진다",
+        "description": "BRV 데미지를 크게 감소시키지만 행동 속도가 느려진다",
         "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
         "base_stats": {"physical_defense": 85, "hp": 200, "speed": -5},
@@ -1204,11 +1204,11 @@ ARMOR_TEMPLATES = {
     },
     "windwalker_armor": {
         "name": "바람걸음 갑옷",
-        "description": "회피율과 속도를 크게 향상시킨다",
+        "description": "회피율과 BRV 흡수율을 크게 향상시킨다",
         "rarity": ItemRarity.RARE,
         "level_requirement": 3,
         "base_stats": {"physical_defense": 35, "evasion": 20, "speed": 15},
-        "unique_effect": "dodge_chance:0.20|move_speed:0.30",
+        "unique_effect": "dodge_chance:0.20|brv_steal:0.30",
         "sell_price": 800
     },
 
@@ -1374,7 +1374,7 @@ ACCESSORY_TEMPLATES = {
     },
     "ring_of_agility": {
         "name": "민첩의 반지",
-        "description": "착용자의 속도와 회피를 증가",
+        "description": "착용자의 행동 속도와 회피를 증가",
         "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
         "base_stats": {"speed": 8, "evasion": 10},
@@ -1696,16 +1696,16 @@ ACCESSORY_TEMPLATES = {
     },
     "wind_walker_anklet": {
         "name": "바람걸이 발찌",
-        "description": "속도 +20. 선제공격 보너스",
+        "description": "행동 속도 +20. 선제공격과 BRV 흡수 보너스",
         "rarity": ItemRarity.RARE,
         "level_requirement": 3,
         "base_stats": {"speed": 20, "evasion": 15},
-        "unique_effect": "first_strike|move_speed:0.40",
+        "unique_effect": "first_strike|brv_steal:0.40",
         "sell_price": 750
     },
     "time_stop_watch": {
         "name": "시간 정지 회중시계",
-        "description": "속도를 크게 향상시키고 가끔 2회 행동하며 항상 선제공격한다",
+        "description": "행동 속도를 크게 향상시키고 가끔 2회 행동하며 항상 선제공격한다",
         "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
         "base_stats": {"speed": 25, "all_stats": 8},

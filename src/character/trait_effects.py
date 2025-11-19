@@ -101,7 +101,7 @@ class TraitEffectManager:
                     trait_id="speed_boost",
                     effect_type=TraitEffectType.STAT_MULTIPLIER,
                     value=1.12,
-                    target_stat="speed"
+                    target_stat="speed"  # 전투 행동 속도 (ATB에 영향)
                 )
             ],
             "brv_boost": [

@@ -252,7 +252,7 @@ def open_game_menu(
                             },
                             "inventory": {
                                 "gold": inventory.gold if inventory and hasattr(inventory, 'gold') else 0,
-                                "items": [serialize_item(slot.item) for slot in inventory.slots] if inventory and hasattr(inventory, 'slots') else [],
+                                "items": [{"item": serialize_item(slot.item), "quantity": getattr(slot, 'quantity', 1)} for slot in inventory.slots] if inventory and hasattr(inventory, 'slots') else [],
                                 "cooking_cooldown_turn": inventory.cooking_cooldown_turn if inventory and hasattr(inventory, 'cooking_cooldown_turn') else None,
                                 "cooking_cooldown_duration": inventory.cooking_cooldown_duration if inventory and hasattr(inventory, 'cooking_cooldown_duration') else 0
                             },

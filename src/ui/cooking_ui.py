@@ -253,12 +253,12 @@ class CookingPotUI:
             logger.warning("인벤토리 또는 슬롯이 없습니다!")
             return available
 
-        # 냄비에 이미 사용된 슬롯 인덱스 추출
-        used_slot_indices = set()
+        # 냄비에 이미 사용된 슬롯별 개수 추적
+        used_counts = {}  # {슬롯_인덱스: 사용된_개수}
         for pot_slot in self.pot_slots:
             if pot_slot is not None:
                 _, slot_idx = pot_slot
-                used_slot_indices.add(slot_idx)
+                used_counts[slot_idx] = used_counts.get(slot_idx, 0) + 1
 
         for i, slot in enumerate(self.inventory.slots):
             # 슬롯과 아이템이 존재하는지 확인
@@ -283,10 +283,16 @@ class CookingPotUI:
                 is_ingredient = True
             
             if is_ingredient:
-                # 이미 냄비에 있는 재료는 제외
-                if i not in used_slot_indices:
-                    available.append((i, slot.item))
-                    logger.info(f"사용 가능한 재료 발견: 슬롯 {i}, {slot.item.name} (타입: {type(slot.item).__name__})")
+                # 슬롯의 전체 quantity와 이미 사용된 개수 확인
+                total_quantity = getattr(slot, 'quantity', 1)
+                used_count = used_counts.get(i, 0)
+                remaining_quantity = total_quantity - used_count
+                
+                # 남은 quantity만큼만 목록에 추가
+                if remaining_quantity > 0:
+                    for _ in range(remaining_quantity):
+                        available.append((i, slot.item))
+                    logger.info(f"사용 가능한 재료 발견: 슬롯 {i}, {slot.item.name} (전체: {total_quantity}, 사용: {used_count}, 남음: {remaining_quantity})")
             else:
                 # 디버그: 왜 식재료로 인식되지 않는지 확인 (로그 레벨을 info로 변경해서 항상 출력)
                 item_type = getattr(slot.item, 'item_type', None)

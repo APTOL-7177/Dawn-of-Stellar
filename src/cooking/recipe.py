@@ -330,7 +330,1217 @@ class RecipeDatabase:
                 priority=RecipePriority.LOW
             ),
 
-            # === 실패 요리 (폴백) ===
+            # === HP 회복 특화 요리 ===
+
+            # 스테이크 (고기 2개 이상)
+            Recipe(
+                recipe_id="steak",
+                result=CookedFood(
+                    name="스테이크",
+                    description="고기로 만든 두툼한 스테이크. HP를 크게 회복시킨다.",
+                    hp_restore=90,
+                    mp_restore=0,
+                    buff_duration=8,
+                    buff_type="attack"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 2.0},
+                    max_category={IngredientCategory.MUSHROOM: 0.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 삼계탕 (고기 2 + 채소)
+            Recipe(
+                recipe_id="samgyetang",
+                result=CookedFood(
+                    name="삼계탕",
+                    description="영양만점 삼계탕. 최대 HP를 증가시킨다.",
+                    hp_restore=100,
+                    mp_restore=30,
+                    max_hp_bonus=40,
+                    buff_duration=12
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 2.0, IngredientCategory.VEGETABLE: 1.0},
+                    min_total_value=3.0
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 갈비찜 (고기 3개)
+            Recipe(
+                recipe_id="galbi_jjim",
+                result=CookedFood(
+                    name="갈비찜",
+                    description="부드러운 갈비찜. HP 회복과 방어력 증가.",
+                    hp_restore=110,
+                    mp_restore=0,
+                    buff_duration=10,
+                    buff_type="defense"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 3.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # === MP 회복 특화 요리 ===
+
+            # 마나 포션 (마법 허브 2개)
+            Recipe(
+                recipe_id="mana_potion_food",
+                result=CookedFood(
+                    name="마나 주스",
+                    description="마법 허브로 만든 주스. MP를 크게 회복시킨다.",
+                    hp_restore=20,
+                    mp_restore=80,
+                    max_mp_bonus=30,
+                    buff_duration=8
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["magic_herb"],
+                    min_category={IngredientCategory.VEGETABLE: 2.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 버섯 스튜 (버섯 3개)
+            Recipe(
+                recipe_id="mushroom_stew",
+                result=CookedFood(
+                    name="버섯 스튜",
+                    description="다양한 버섯으로 만든 스튜. 마력이 솟아난다.",
+                    hp_restore=30,
+                    mp_restore=70,
+                    buff_duration=6,
+                    buff_type="magic"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MUSHROOM: 3.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 과일 주스 (과일 3개)
+            Recipe(
+                recipe_id="fruit_juice",
+                result=CookedFood(
+                    name="과일 주스",
+                    description="신선한 과일로 만든 주스. MP 회복과 최대 MP 증가.",
+                    hp_restore=25,
+                    mp_restore=60,
+                    max_mp_bonus=25,
+                    buff_duration=10
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.FRUIT: 3.0},
+                    max_category={IngredientCategory.MEAT: 0.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 공격력 버프 특화 요리 ===
+
+            # 불고기 (고기 2 + 향신료)
+            Recipe(
+                recipe_id="bulgogi",
+                result=CookedFood(
+                    name="불고기",
+                    description="달콤한 양념의 불고기. 공격력이 크게 증가한다.",
+                    hp_restore=75,
+                    mp_restore=0,
+                    buff_duration=12,
+                    buff_type="attack"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 2.0, IngredientCategory.SPICE: 1.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 바베큐 (고기 2 + 꿀)
+            Recipe(
+                recipe_id="barbecue",
+                result=CookedFood(
+                    name="바베큐",
+                    description="꿀로 간을 한 바베큐. 물리 공격력과 HP 회복.",
+                    hp_restore=85,
+                    mp_restore=10,
+                    max_hp_bonus=15,
+                    buff_duration=10,
+                    buff_type="attack"
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["honey"],
+                    min_category={IngredientCategory.MEAT: 2.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # === 방어력 버프 특화 요리 ===
+
+            # 영양탕 (고기 1 + 채소 2)
+            Recipe(
+                recipe_id="nutrient_soup",
+                result=CookedFood(
+                    name="영양탕",
+                    description="다양한 재료로 끓인 영양탕. 방어력과 최대 HP 증가.",
+                    hp_restore=70,
+                    mp_restore=25,
+                    max_hp_bonus=30,
+                    buff_duration=12,
+                    buff_type="defense"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 1.0, IngredientCategory.VEGETABLE: 2.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 그라탕 (채소 3개)
+            Recipe(
+                recipe_id="gratin",
+                result=CookedFood(
+                    name="그라탕",
+                    description="채소로 만든 그라탕. 방어력과 MP 회복.",
+                    hp_restore=65,
+                    mp_restore=40,
+                    buff_duration=10,
+                    buff_type="defense"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.VEGETABLE: 3.0},
+                    max_category={IngredientCategory.MEAT: 0.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 속도 버프 특화 요리 ===
+
+            # 에너지 드링크 (과일 2 + 마법 허브)
+            Recipe(
+                recipe_id="energy_drink",
+                result=CookedFood(
+                    name="에너지 드링크",
+                    description="과일과 허브로 만든 에너지 드링크. 속도가 크게 증가한다.",
+                    hp_restore=30,
+                    mp_restore=40,
+                    buff_duration=15,
+                    buff_type="speed"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.FRUIT: 2.0, IngredientCategory.VEGETABLE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 볶음밥 (곡물 2 + 기타)
+            Recipe(
+                recipe_id="fried_rice",
+                result=CookedFood(
+                    name="볶음밥",
+                    description="재빠르게 볶은 밥. 속도 증가와 종합 회복.",
+                    hp_restore=60,
+                    mp_restore=30,
+                    buff_duration=10,
+                    buff_type="speed"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.GRAIN: 2.0},
+                    min_total_value=3.0
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 종합 회복 요리 ===
+
+            # 비빔밥 (곡물 1 + 채소 2 + 고기 1)
+            Recipe(
+                recipe_id="bibimbap",
+                result=CookedFood(
+                    name="비빔밥",
+                    description="다양한 재료가 들어간 비빔밥. 균형잡힌 회복.",
+                    hp_restore=80,
+                    mp_restore=45,
+                    buff_duration=8
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.GRAIN: 1.0, IngredientCategory.VEGETABLE: 2.0, IngredientCategory.MEAT: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 파스타 (곡물 2 + 채소 1 + 고기 1)
+            Recipe(
+                recipe_id="pasta",
+                result=CookedFood(
+                    name="파스타",
+                    description="이탈리아식 파스타. HP와 MP를 모두 회복.",
+                    hp_restore=85,
+                    mp_restore=50,
+                    buff_duration=8
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.GRAIN: 2.0, IngredientCategory.VEGETABLE: 1.0, IngredientCategory.MEAT: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 라면 (곡물 2 + 채소 1)
+            Recipe(
+                recipe_id="ramen",
+                result=CookedFood(
+                    name="라면",
+                    description="든든한 라면. 종합 회복과 최대 HP 증가.",
+                    hp_restore=75,
+                    mp_restore=35,
+                    max_hp_bonus=20,
+                    buff_duration=10
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.GRAIN: 2.0, IngredientCategory.VEGETABLE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 특수 효과 요리 ===
+
+            # 초밥 (생선 2 + 곡물 1)
+            Recipe(
+                recipe_id="sushi",
+                result=CookedFood(
+                    name="초밥",
+                    description="신선한 생선으로 만든 초밥. 최대 HP/MP 증가.",
+                    hp_restore=90,
+                    mp_restore=55,
+                    max_hp_bonus=25,
+                    max_mp_bonus=25,
+                    buff_duration=10
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.FISH: 2.0, IngredientCategory.GRAIN: 1.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 꿀 케이크 (곡물 2 + 꿀)
+            Recipe(
+                recipe_id="honey_cake",
+                result=CookedFood(
+                    name="꿀 케이크",
+                    description="달콤한 꿀 케이크. HP/MP 회복과 최대 HP 증가.",
+                    hp_restore=60,
+                    mp_restore=50,
+                    max_hp_bonus=20,
+                    buff_duration=10
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["honey"],
+                    min_category={IngredientCategory.GRAIN: 2.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 사과 파이 (과일 2 + 곡물 2)
+            Recipe(
+                recipe_id="apple_pie",
+                result=CookedFood(
+                    name="사과 파이",
+                    description="달콤한 사과 파이. MP 회복 특화.",
+                    hp_restore=45,
+                    mp_restore=70,
+                    max_mp_bonus=30,
+                    buff_duration=10
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.FRUIT: 2.0, IngredientCategory.GRAIN: 2.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 간편 요리 ===
+
+            # 구운 생선 (생선 1개)
+            Recipe(
+                recipe_id="cooked_fish",
+                result=CookedFood(
+                    name="구운 생선",
+                    description="간단하게 구운 생선.",
+                    hp_restore=45,
+                    mp_restore=15
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.FISH: 1.0},
+                    max_total_value=2.0
+                ),
+                priority=RecipePriority.LOW
+            ),
+
+            # 과일 샐러드 (과일 2개)
+            Recipe(
+                recipe_id="fruit_salad_simple",
+                result=CookedFood(
+                    name="과일 샐러드",
+                    description="신선한 과일 샐러드.",
+                    hp_restore=35,
+                    mp_restore=25
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.FRUIT: 2.0},
+                    max_total_value=3.0
+                ),
+                priority=RecipePriority.LOW
+            ),
+
+            # 버섯 볶음 (버섯 2개)
+            Recipe(
+                recipe_id="fried_mushroom",
+                result=CookedFood(
+                    name="버섯 볶음",
+                    description="버섯을 볶은 요리. MP 회복.",
+                    hp_restore=25,
+                    mp_restore=45
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MUSHROOM: 2.0},
+                    max_total_value=3.0
+                ),
+                priority=RecipePriority.LOW
+            ),
+
+            # === 더 많은 HP 회복 특화 요리 ===
+
+            # 로스트 치킨 (고기 2 + 향신료)
+            Recipe(
+                recipe_id="roast_chicken",
+                result=CookedFood(
+                    name="로스트 치킨",
+                    description="향신료를 넣어 구운 닭고기. HP를 크게 회복시킨다.",
+                    hp_restore=95,
+                    mp_restore=0,
+                    buff_duration=8,
+                    buff_type="attack"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 2.0, IngredientCategory.SPICE: 1.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 포터하우스 스테이크 (고기 3 + 향신료)
+            Recipe(
+                recipe_id="porterhouse_steak",
+                result=CookedFood(
+                    name="포터하우스 스테이크",
+                    description="최고급 부위로 만든 스테이크. 최고의 HP 회복.",
+                    hp_restore=120,
+                    mp_restore=20,
+                    max_hp_bonus=35,
+                    buff_duration=12,
+                    buff_type="attack"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 3.0, IngredientCategory.SPICE: 1.0},
+                    min_total_value=4.0
+                ),
+                priority=RecipePriority.VERY_HIGH
+            ),
+
+            # 영양만점 국수 (곡물 2 + 고기 1 + 채소 1)
+            Recipe(
+                recipe_id="nutrient_noodles",
+                result=CookedFood(
+                    name="영양만점 국수",
+                    description="다양한 재료가 들어간 국수. HP 회복 특화.",
+                    hp_restore=85,
+                    mp_restore=25,
+                    max_hp_bonus=25,
+                    buff_duration=10
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.GRAIN: 2.0, IngredientCategory.MEAT: 1.0, IngredientCategory.VEGETABLE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 찜닭 (고기 2 + 채소 1 + 향신료)
+            Recipe(
+                recipe_id="braised_chicken",
+                result=CookedFood(
+                    name="찜닭",
+                    description="부드럽게 찐 닭고기. HP 회복과 최대 HP 증가.",
+                    hp_restore=90,
+                    mp_restore=15,
+                    max_hp_bonus=30,
+                    buff_duration=10,
+                    buff_type="defense"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 2.0, IngredientCategory.VEGETABLE: 1.0, IngredientCategory.SPICE: 1.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # === 더 많은 MP 회복 특화 요리 ===
+
+            # 마법사 파이 (마법 허브 + 과일 2 + 곡물 1)
+            Recipe(
+                recipe_id="wizard_pie",
+                result=CookedFood(
+                    name="마법사 파이",
+                    description="마법 허브가 들어간 파이. MP를 크게 회복시킨다.",
+                    hp_restore=30,
+                    mp_restore=90,
+                    max_mp_bonus=35,
+                    buff_duration=10,
+                    buff_type="magic"
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["magic_herb"],
+                    min_category={IngredientCategory.FRUIT: 2.0, IngredientCategory.GRAIN: 1.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 버섯 라자냐 (버섯 2 + 곡물 2)
+            Recipe(
+                recipe_id="mushroom_lasagna",
+                result=CookedFood(
+                    name="버섯 라자냐",
+                    description="버섯으로 만든 라자냐. 마력이 솟아난다.",
+                    hp_restore=40,
+                    mp_restore=80,
+                    max_mp_bonus=30,
+                    buff_duration=8,
+                    buff_type="magic"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MUSHROOM: 2.0, IngredientCategory.GRAIN: 2.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 마나 케이크 (마법 허브 + 곡물 2 + 꿀)
+            Recipe(
+                recipe_id="mana_cake",
+                result=CookedFood(
+                    name="마나 케이크",
+                    description="마법 허브와 꿀로 만든 케이크. MP 회복 특화.",
+                    hp_restore=35,
+                    mp_restore=75,
+                    max_mp_bonus=40,
+                    buff_duration=12,
+                    buff_type="magic"
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["magic_herb", "honey"],
+                    min_category={IngredientCategory.GRAIN: 2.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 마법 스튜 (마법 허브 + 버섯 2)
+            Recipe(
+                recipe_id="magic_stew",
+                result=CookedFood(
+                    name="마법 스튜",
+                    description="마법 허브와 버섯으로 만든 스튜. 강력한 MP 회복.",
+                    hp_restore=25,
+                    mp_restore=85,
+                    max_mp_bonus=30,
+                    buff_duration=10,
+                    buff_type="magic"
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["magic_herb"],
+                    min_category={IngredientCategory.MUSHROOM: 2.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # === 더 많은 종합 회복 요리 ===
+
+            # 김치찌개 (채소 2 + 고기 1 + 향신료)
+            Recipe(
+                recipe_id="kimchi_stew",
+                result=CookedFood(
+                    name="김치찌개",
+                    description="매콤한 김치찌개. 종합 회복과 공격력 버프.",
+                    hp_restore=75,
+                    mp_restore=35,
+                    buff_duration=10,
+                    buff_type="attack"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.VEGETABLE: 2.0, IngredientCategory.MEAT: 1.0, IngredientCategory.SPICE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 된장찌개 (채소 2 + 고기 1)
+            Recipe(
+                recipe_id="doenjang_stew",
+                result=CookedFood(
+                    name="된장찌개",
+                    description="구수한 된장찌개. 균형잡힌 회복.",
+                    hp_restore=70,
+                    mp_restore=40,
+                    buff_duration=8
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.VEGETABLE: 2.0, IngredientCategory.MEAT: 1.0},
+                    max_category={IngredientCategory.SPICE: 0.5}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 부대찌개 (고기 1 + 채소 1 + 곡물 1)
+            Recipe(
+                recipe_id="budae_stew",
+                result=CookedFood(
+                    name="부대찌개",
+                    description="다양한 재료가 들어간 부대찌개. 종합 회복.",
+                    hp_restore=80,
+                    mp_restore=45,
+                    max_hp_bonus=15,
+                    buff_duration=8
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 1.0, IngredientCategory.VEGETABLE: 1.0, IngredientCategory.GRAIN: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 잡채 (채소 2 + 고기 1 + 향신료)
+            Recipe(
+                recipe_id="japchae",
+                result=CookedFood(
+                    name="잡채",
+                    description="당면과 채소로 만든 잡채. 종합 회복과 속도 버프.",
+                    hp_restore=70,
+                    mp_restore=40,
+                    buff_duration=12,
+                    buff_type="speed"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.VEGETABLE: 2.0, IngredientCategory.MEAT: 1.0, IngredientCategory.SPICE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 해물파전 (해산물 2 + 곡물 1 + 채소 1)
+            Recipe(
+                recipe_id="seafood_pancake",
+                result=CookedFood(
+                    name="해물파전",
+                    description="신선한 해산물로 만든 파전. 종합 회복.",
+                    hp_restore=75,
+                    mp_restore=50,
+                    buff_duration=8
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.FISH: 2.0, IngredientCategory.GRAIN: 1.0, IngredientCategory.VEGETABLE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 더 많은 공격력 버프 요리 ===
+
+            # 스파이시 치킨 (고기 2 + 향신료 2)
+            Recipe(
+                recipe_id="spicy_chicken",
+                result=CookedFood(
+                    name="스파이시 치킨",
+                    description="매운 양념 치킨. 공격력이 크게 증가한다.",
+                    hp_restore=80,
+                    mp_restore=10,
+                    buff_duration=15,
+                    buff_type="attack"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 2.0, IngredientCategory.SPICE: 2.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 스테이크 샐러드 (고기 2 + 채소 1)
+            Recipe(
+                recipe_id="steak_salad",
+                result=CookedFood(
+                    name="스테이크 샐러드",
+                    description="스테이크와 채소 샐러드. 공격력 버프와 종합 회복.",
+                    hp_restore=85,
+                    mp_restore=30,
+                    buff_duration=10,
+                    buff_type="attack"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 2.0, IngredientCategory.VEGETABLE: 1.0},
+                    max_category={IngredientCategory.SPICE: 0.5}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # === 더 많은 방어력 버프 요리 ===
+
+            # 보양탕 (고기 2 + 채소 2)
+            Recipe(
+                recipe_id="boyang_tang",
+                result=CookedFood(
+                    name="보양탕",
+                    description="영양가 높은 보양탕. 방어력과 최대 HP 증가.",
+                    hp_restore=95,
+                    mp_restore=30,
+                    max_hp_bonus=40,
+                    buff_duration=15,
+                    buff_type="defense"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 2.0, IngredientCategory.VEGETABLE: 2.0},
+                    min_total_value=4.0
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 영양밥 (곡물 2 + 채소 2 + 고기 1)
+            Recipe(
+                recipe_id="nutrient_rice",
+                result=CookedFood(
+                    name="영양밥",
+                    description="영양가 높은 영양밥. 방어력 버프와 종합 회복.",
+                    hp_restore=75,
+                    mp_restore=40,
+                    max_hp_bonus=25,
+                    buff_duration=12,
+                    buff_type="defense"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.GRAIN: 2.0, IngredientCategory.VEGETABLE: 2.0, IngredientCategory.MEAT: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 더 많은 속도 버프 요리 ===
+
+            # 샐러드 볼 (채소 3 + 과일 1)
+            Recipe(
+                recipe_id="salad_bowl",
+                result=CookedFood(
+                    name="샐러드 볼",
+                    description="신선한 샐러드. 속도가 크게 증가한다.",
+                    hp_restore=50,
+                    mp_restore=50,
+                    buff_duration=18,
+                    buff_type="speed"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.VEGETABLE: 3.0, IngredientCategory.FRUIT: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 과일 스무디 (과일 3 + 꿀)
+            Recipe(
+                recipe_id="fruit_smoothie",
+                result=CookedFood(
+                    name="과일 스무디",
+                    description="신선한 과일 스무디. 속도 버프와 MP 회복.",
+                    hp_restore=35,
+                    mp_restore=55,
+                    max_mp_bonus=20,
+                    buff_duration=15,
+                    buff_type="speed"
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["honey"],
+                    min_category={IngredientCategory.FRUIT: 3.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 더 많은 특수 효과 요리 ===
+
+            # 피쉬 앤 칩스 (생선 2 + 곡물 1 + 향신료)
+            Recipe(
+                recipe_id="fish_and_chips",
+                result=CookedFood(
+                    name="피쉬 앤 칩스",
+                    description="영국식 피쉬 앤 칩스. 최대 HP/MP 증가.",
+                    hp_restore=85,
+                    mp_restore=55,
+                    max_hp_bonus=30,
+                    max_mp_bonus=25,
+                    buff_duration=10
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.FISH: 2.0, IngredientCategory.GRAIN: 1.0, IngredientCategory.SPICE: 1.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 영양 샌드위치 (곡물 1 + 고기 1 + 채소 1)
+            Recipe(
+                recipe_id="nutrient_sandwich",
+                result=CookedFood(
+                    name="영양 샌드위치",
+                    description="다양한 재료가 들어간 샌드위치. 균형잡힌 회복.",
+                    hp_restore=65,
+                    mp_restore=45,
+                    max_hp_bonus=20,
+                    max_mp_bonus=15,
+                    buff_duration=10
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.GRAIN: 1.0, IngredientCategory.MEAT: 1.0, IngredientCategory.VEGETABLE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 디저트/음료 ===
+
+            # 초콜릿 케이크 (곡물 2 + 꿀 + 향신료)
+            Recipe(
+                recipe_id="chocolate_cake",
+                result=CookedFood(
+                    name="초콜릿 케이크",
+                    description="달콤한 초콜릿 케이크. MP 회복과 최대 MP 증가.",
+                    hp_restore=50,
+                    mp_restore=65,
+                    max_mp_bonus=25,
+                    buff_duration=10
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["honey"],
+                    min_category={IngredientCategory.GRAIN: 2.0, IngredientCategory.SPICE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 베리 케이크 (과일 2 + 곡물 2 + 꿀)
+            Recipe(
+                recipe_id="berry_cake",
+                result=CookedFood(
+                    name="베리 케이크",
+                    description="신선한 베리 케이크. 종합 회복.",
+                    hp_restore=55,
+                    mp_restore=60,
+                    max_mp_bonus=20,
+                    buff_duration=10
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["honey"],
+                    min_category={IngredientCategory.FRUIT: 2.0, IngredientCategory.GRAIN: 2.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 허브차 (마법 허브 + 채소 1)
+            Recipe(
+                recipe_id="herb_tea",
+                result=CookedFood(
+                    name="허브차",
+                    description="마법 허브로 끓인 차. MP 회복과 마법 버프.",
+                    hp_restore=20,
+                    mp_restore=70,
+                    max_mp_bonus=20,
+                    buff_duration=12,
+                    buff_type="magic"
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["magic_herb"],
+                    min_category={IngredientCategory.VEGETABLE: 1.0},
+                    max_total_value=3.0
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 마나 포션 요리 (마법 허브 + 과일 2)
+            Recipe(
+                recipe_id="mana_potion_cooked",
+                result=CookedFood(
+                    name="마나 포션 스튜",
+                    description="마법 허브와 과일로 만든 스튜. 강력한 MP 회복.",
+                    hp_restore=25,
+                    mp_restore=95,
+                    max_mp_bonus=35,
+                    buff_duration=10,
+                    buff_type="magic"
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["magic_herb"],
+                    min_category={IngredientCategory.FRUIT: 2.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # === 더 많은 간편 요리 ===
+
+            # 구운 야수 고기 (야수 고기 1개)
+            Recipe(
+                recipe_id="cooked_beast_meat",
+                result=CookedFood(
+                    name="구운 야수 고기",
+                    description="야수 고기를 구운 요리.",
+                    hp_restore=60,
+                    mp_restore=5
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["beast_meat"],
+                    max_total_value=3.0
+                ),
+                priority=RecipePriority.LOW
+            ),
+
+            # 생선초밥 (생선 1 + 곡물 1)
+            Recipe(
+                recipe_id="sashimi_rice",
+                result=CookedFood(
+                    name="생선초밥",
+                    description="생선과 밥으로 만든 초밥.",
+                    hp_restore=55,
+                    mp_restore=40
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.FISH: 1.0, IngredientCategory.GRAIN: 1.0},
+                    max_total_value=3.0
+                ),
+                priority=RecipePriority.LOW
+            ),
+
+            # 채소 볶음 (채소 2)
+            Recipe(
+                recipe_id="stir_fried_vegetables",
+                result=CookedFood(
+                    name="채소 볶음",
+                    description="간단하게 볶은 채소.",
+                    hp_restore=40,
+                    mp_restore=20
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.VEGETABLE: 2.0},
+                    max_total_value=2.5
+                ),
+                priority=RecipePriority.LOW
+            ),
+
+            # === 추가 HP 회복 요리 ===
+
+            # 치킨 스튜 (고기 2 + 채소 1)
+            Recipe(
+                recipe_id="chicken_stew",
+                result=CookedFood(
+                    name="치킨 스튜",
+                    description="부드러운 치킨 스튜. HP 회복과 방어력 버프.",
+                    hp_restore=88,
+                    mp_restore=20,
+                    max_hp_bonus=22,
+                    buff_duration=9,
+                    buff_type="defense"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 2.0, IngredientCategory.VEGETABLE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 돼지갈비 (고기 2 + 향신료)
+            Recipe(
+                recipe_id="pork_ribs",
+                result=CookedFood(
+                    name="돼지갈비",
+                    description="양념 갈비. HP 회복과 공격력 버프.",
+                    hp_restore=92,
+                    mp_restore=5,
+                    buff_duration=10,
+                    buff_type="attack"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 2.0, IngredientCategory.SPICE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 추가 MP 회복 요리 ===
+
+            # 마법 파스타 (마법 허브 + 곡물 2)
+            Recipe(
+                recipe_id="magic_pasta",
+                result=CookedFood(
+                    name="마법 파스타",
+                    description="마법 허브가 들어간 파스타. MP 회복 특화.",
+                    hp_restore=35,
+                    mp_restore=78,
+                    max_mp_bonus=28,
+                    buff_duration=9,
+                    buff_type="magic"
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["magic_herb"],
+                    min_category={IngredientCategory.GRAIN: 2.0}
+                ),
+                priority=RecipePriority.HIGH
+            ),
+
+            # 버섯 크림 스프 (버섯 2 + 채소 1)
+            Recipe(
+                recipe_id="mushroom_cream_soup",
+                result=CookedFood(
+                    name="버섯 크림 스프",
+                    description="버섯으로 만든 크림 스프. MP 회복.",
+                    hp_restore=32,
+                    mp_restore=72,
+                    max_mp_bonus=25,
+                    buff_duration=8,
+                    buff_type="magic"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MUSHROOM: 2.0, IngredientCategory.VEGETABLE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 추가 종합 회복 요리 ===
+
+            # 떡볶이 (곡물 2 + 채소 1 + 향신료)
+            Recipe(
+                recipe_id="tteokbokki",
+                result=CookedFood(
+                    name="떡볶이",
+                    description="매콤달콤한 떡볶이. 종합 회복과 속도 버프.",
+                    hp_restore=72,
+                    mp_restore=38,
+                    buff_duration=10,
+                    buff_type="speed"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.GRAIN: 2.0, IngredientCategory.VEGETABLE: 1.0, IngredientCategory.SPICE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 쌀국수 (곡물 2 + 채소 1 + 고기 1)
+            Recipe(
+                recipe_id="pho",
+                result=CookedFood(
+                    name="쌀국수",
+                    description="베트남식 쌀국수. 종합 회복.",
+                    hp_restore=82,
+                    mp_restore=42,
+                    max_hp_bonus=18,
+                    buff_duration=8
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.GRAIN: 2.0, IngredientCategory.VEGETABLE: 1.0, IngredientCategory.MEAT: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 마파두부 (채소 2 + 고기 1 + 향신료)
+            Recipe(
+                recipe_id="mapo_tofu",
+                result=CookedFood(
+                    name="마파두부",
+                    description="매콤한 마파두부. 종합 회복과 마법 버프.",
+                    hp_restore=68,
+                    mp_restore=48,
+                    buff_duration=10,
+                    buff_type="magic"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.VEGETABLE: 2.0, IngredientCategory.MEAT: 1.0, IngredientCategory.SPICE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 탕수육 (고기 2 + 채소 1 + 향신료)
+            Recipe(
+                recipe_id="sweet_sour_pork",
+                result=CookedFood(
+                    name="탕수육",
+                    description="중국식 탕수육. 종합 회복과 공격력 버프.",
+                    hp_restore=88,
+                    mp_restore=32,
+                    buff_duration=9,
+                    buff_type="attack"
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MEAT: 2.0, IngredientCategory.VEGETABLE: 1.0, IngredientCategory.SPICE: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 추가 특수 효과 요리 ===
+
+            # 드래곤 스튜 (드래곤 고기 + 채소 1)
+            Recipe(
+                recipe_id="dragon_stew",
+                result=CookedFood(
+                    name="드래곤 스튜",
+                    description="드래곤 고기로 만든 스튜. 최고의 효과.",
+                    hp_restore=105,
+                    mp_restore=60,
+                    max_hp_bonus=45,
+                    max_mp_bonus=30,
+                    buff_duration=15,
+                    buff_type="attack"
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["dragon_meat"],
+                    min_category={IngredientCategory.VEGETABLE: 1.0},
+                    min_total_value=3.5
+                ),
+                priority=RecipePriority.VERY_HIGH
+            ),
+
+            # 골든 파이 (꿀 + 곡물 2 + 과일 1)
+            Recipe(
+                recipe_id="golden_pie",
+                result=CookedFood(
+                    name="골든 파이",
+                    description="황금빛 파이. 최대 HP/MP 증가.",
+                    hp_restore=62,
+                    mp_restore=68,
+                    max_hp_bonus=30,
+                    max_mp_bonus=30,
+                    buff_duration=12
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["honey"],
+                    min_category={IngredientCategory.GRAIN: 2.0, IngredientCategory.FRUIT: 1.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 추가 간편 요리 ===
+
+            # 베리 샐러드 (과일 2)
+            Recipe(
+                recipe_id="berry_salad",
+                result=CookedFood(
+                    name="베리 샐러드",
+                    description="신선한 베리 샐러드.",
+                    hp_restore=32,
+                    mp_restore=28
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.FRUIT: 2.0},
+                    max_total_value=2.5
+                ),
+                priority=RecipePriority.LOW
+            ),
+
+            # 구운 버섯 (버섯 2)
+            Recipe(
+                recipe_id="grilled_mushroom",
+                result=CookedFood(
+                    name="구운 버섯",
+                    description="간단하게 구운 버섯.",
+                    hp_restore=28,
+                    mp_restore=42
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.MUSHROOM: 2.0},
+                    max_total_value=2.5
+                ),
+                priority=RecipePriority.LOW
+            ),
+
+            # 구운 당근 (채소 2)
+            Recipe(
+                recipe_id="roasted_carrots",
+                result=CookedFood(
+                    name="구운 당근",
+                    description="구운 당근.",
+                    hp_restore=38,
+                    mp_restore=15
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.VEGETABLE: 2.0},
+                    max_total_value=2.5,
+                    max_category={IngredientCategory.MEAT: 0.0}
+                ),
+                priority=RecipePriority.LOW
+            ),
+
+            # === 디저트 추가 ===
+
+            # 스트로베리 쇼트케이크 (과일 2 + 곡물 2)
+            Recipe(
+                recipe_id="strawberry_cake",
+                result=CookedFood(
+                    name="스트로베리 쇼트케이크",
+                    description="달콤한 스트로베리 케이크. MP 회복.",
+                    hp_restore=48,
+                    mp_restore=62,
+                    max_mp_bonus=22,
+                    buff_duration=10
+                ),
+                condition=RecipeCondition(
+                    min_category={IngredientCategory.FRUIT: 2.0, IngredientCategory.GRAIN: 2.0}
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # 허니 토스트 (곡물 1 + 꿀)
+            Recipe(
+                recipe_id="honey_toast",
+                result=CookedFood(
+                    name="허니 토스트",
+                    description="달콤한 꿀 토스트. 종합 회복.",
+                    hp_restore=52,
+                    mp_restore=48,
+                    max_hp_bonus=15,
+                    buff_duration=8
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["honey"],
+                    min_category={IngredientCategory.GRAIN: 1.0},
+                    max_total_value=2.5
+                ),
+                priority=RecipePriority.MEDIUM
+            ),
+
+            # === 실패 요리 (독성) ===
+
+            # 독 버섯 요리 (독 버섯 포함)
+            Recipe(
+                recipe_id="poison_mushroom_dish",
+                result=CookedFood(
+                    name="독 버섯 요리",
+                    description="독성 버섯이 들어간 요리. 위험하다!",
+                    hp_restore=20,
+                    mp_restore=10,
+                    is_poison=True,
+                    poison_damage=30
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["red_mushroom"],
+                    min_category={IngredientCategory.MUSHROOM: 2.0}
+                ),
+                priority=RecipePriority.FALLBACK
+            ),
+
+            # 나쁜 고기 요리 (썩은 고기)
+            Recipe(
+                recipe_id="rotten_meat_dish",
+                result=CookedFood(
+                    name="썩은 고기 요리",
+                    description="상한 고기로 만든 요리...",
+                    hp_restore=15,
+                    mp_restore=0,
+                    is_poison=True,
+                    poison_damage=25
+                ),
+                condition=RecipeCondition(
+                    required_ingredients=["monster_meat"],
+                    min_category={IngredientCategory.MEAT: 2.0},
+                    max_total_value=2.5  # 낮은 가치 = 상한 고기
+                ),
+                priority=RecipePriority.FALLBACK
+            ),
+
+            # === 폴백 요리 ===
 
             # Wet Goop (조건 불만족)
             Recipe(

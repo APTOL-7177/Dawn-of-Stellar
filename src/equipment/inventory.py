@@ -555,7 +555,8 @@ class Inventory:
                 buff_type_mapping = {
                     "attack": "attack_up",
                     "defense": "defense_up",
-                    "speed": "speed_up"
+                    "speed": "speed_up",
+                    "magic": "magic_up"
                 }
                 system_buff_type = buff_type_mapping.get(buff_type, buff_type)
                 
@@ -567,6 +568,8 @@ class Inventory:
                     buff_value = 0.2  # 방어력 +20%
                 elif buff_type == "speed":
                     buff_value = 0.2  # 속도 +20%
+                elif buff_type == "magic":
+                    buff_value = 0.2  # 마법 공격력 +20%
                 
                 member.active_buffs[system_buff_type] = {
                     'value': buff_value,
