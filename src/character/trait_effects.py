@@ -2661,6 +2661,46 @@ class TraitEffectManager:
 
         return bonus
 
+    def calculate_damage_reduction(self, character: Any, is_defending: bool = False) -> float:
+        """
+        특성에 의한 피해 감소율 계산
+        
+        Args:
+            character: 캐릭터
+            is_defending: 방어 중인지 여부
+        
+        Returns:
+            총 피해 감소율 (0.0 = 0%, 0.5 = 50%)
+        """
+        if not hasattr(character, 'active_traits'):
+            return 0.0
+        
+        total_reduction = 0.0
+        
+        for trait_data in character.active_traits:
+            trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+            effects = self.get_trait_effects(trait_id)
+            
+            for effect in effects:
+                # DAMAGE_REDUCTION: 일반 피해 감소 (조건 확인)
+                if effect.effect_type == TraitEffectType.DAMAGE_REDUCTION:
+                    if self._check_condition(character, effect.condition or "", {}):
+                        total_reduction += effect.value
+                        self.logger.debug(f"[{trait_id}] 피해 감소: +{effect.value * 100:.0f}%")
+                
+                # DEFEND_BOOST: 방어 중일 때만 피해 감소
+                elif effect.effect_type == TraitEffectType.DEFEND_BOOST:
+                    if is_defending:
+                        condition_met = not effect.condition or self._check_condition(
+                            character, effect.condition, {}
+                        )
+                        if condition_met:
+                            total_reduction += effect.value
+                            self.logger.debug(f"[{trait_id}] 방어 보너스 피해 감소: +{effect.value * 100:.0f}%")
+        
+        # 최대 90%까지 감소 가능
+        return min(total_reduction, 0.90)
+
     def apply_turn_start_effects(self, character: Any):
         """
         턴 시작 시 특성 효과 적용 (HP/MP 회복 등)

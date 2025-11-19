@@ -18,6 +18,7 @@ logger = get_logger("enemy_skills")
 class SkillTargetType(Enum):
     """스킬 대상 타입"""
     SINGLE_ENEMY = "single_enemy"  # 적 1명
+    SINGLE_ALLY = "single_ally"    # 아군 1명 (힐링/서포트)
     ALL_ENEMIES = "all_enemies"    # 적 전체
     SELF = "self"                   # 자신
     ALL_ALLIES = "all_allies"      # 아군 전체

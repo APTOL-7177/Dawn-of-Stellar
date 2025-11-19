@@ -311,7 +311,9 @@ class BraveSystem:
         if hasattr(defender, "wound"):
             defender._wound_applied_this_turn = True
         
-        # 특성 효과: 방어 보너스 (shield_mastery 등)
+        # HP 데미지 적용
+        # shield_mastery 등의 DEFEND_BOOST 효과는 take_damage 내부의 calculate_damage_reduction에서 처리됨
+        # 여기서는 BRV 회복만 처리
         from src.character.trait_effects import get_trait_effect_manager, TraitEffectType
         trait_manager = get_trait_effect_manager()
         
@@ -323,19 +325,14 @@ class BraveSystem:
                 is_defending = defender.status_manager.has_status(StatusType.GUARDIAN) or \
                                defender.status_manager.has_status(StatusType.SHIELD)
         
-        # 방어 보너스 적용 (shield_mastery)
-        actual_damage = damage_result.final_damage
+        # 방어 보너스: BRV 회복만 여기서 처리 (피해 감소는 take_damage에서 처리)
         if is_defending and hasattr(defender, 'active_traits'):
             for trait_data in defender.active_traits:
                 trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
                 effects = trait_manager.get_trait_effects(trait_id)
                 for effect in effects:
                     if effect.effect_type == TraitEffectType.DEFEND_BOOST:
-                        # BRV 피해 감소 (value = 감소율)
-                        damage_reduction = effect.value
-                        actual_damage = int(actual_damage * (1.0 - damage_reduction))
-                        self.logger.info(f"[{trait_id}] {defender.name} 방어 보너스: BRV 피해 {damage_reduction * 100:.0f}% 감소")
-                        # BRV 회복
+                        # BRV 회복만 처리
                         if effect.metadata and "brv_regen" in effect.metadata:
                             brv_regen = effect.metadata["brv_regen"]
                             brv_recovered = int(defender.max_brv * brv_regen)
@@ -345,8 +342,8 @@ class BraveSystem:
                             if actual_brv_regen > 0:
                                 self.logger.info(f"[{trait_id}] {defender.name} BRV 회복: +{actual_brv_regen} ({brv_regen * 100:.0f}%)")
         
-        # HP 데미지 적용
-        hp_damage = defender.take_damage(actual_damage)
+        # HP 데미지 적용 (피해 감소는 take_damage 내부에서 처리)
+        hp_damage = defender.take_damage(damage_result.final_damage)
         
         # 상처 데미지 적용 (HP 데미지의 일부가 상처로 전환)
         # WoundSystem의 이벤트 핸들러는 플래그로 인해 무시됨

@@ -469,6 +469,16 @@ class EnemyAI:
         elif skill.target_type == SkillTargetType.ALL_ENEMIES:
             return enemies  # 전체 대상
 
+        elif skill.target_type == SkillTargetType.SINGLE_ALLY:
+            # 아군 1명 선택 (힐링/서포트 스킬)
+            alive_allies = [a for a in allies if getattr(a, 'is_alive', True)]
+            if not alive_allies:
+                return None
+            
+            # 가장 HP가 낮은 아군 우선 선택
+            weakest_ally = min(alive_allies, key=lambda a: (a.current_hp / a.max_hp) if a.max_hp > 0 else 1.0)
+            return weakest_ally
+
         elif skill.target_type == SkillTargetType.SINGLE_ENEMY:
             # 단일 적 선택 (난이도별 어그로 시스템 사용)
             alive_enemies = [e for e in enemies if getattr(e, 'is_alive', True)]

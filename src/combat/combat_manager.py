@@ -785,6 +785,19 @@ class CombatManager:
         elif skill.target_type == SkillTargetType.ALL_ENEMIES:
             # 적 전체
             targets = [a for a in self.allies if getattr(a, 'is_alive', True)]
+        elif skill.target_type == SkillTargetType.SINGLE_ALLY:
+            # 아군 1명 (힐링/서포트 스킬)
+            if target:
+                if isinstance(target, list):
+                    targets = target
+                else:
+                    targets = [target]
+            else:
+                # 타겟이 없으면 아군 중 랜덤 선택
+                alive_allies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+                if alive_allies:
+                    import random
+                    targets = [random.choice(alive_allies)]
         elif skill.target_type == SkillTargetType.RANDOM_ENEMY:
             # 랜덤 적 (타겟이 없으면 랜덤 선택)
             if target:
