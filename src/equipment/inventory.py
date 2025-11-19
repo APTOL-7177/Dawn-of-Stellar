@@ -31,10 +31,10 @@ class Inventory:
     - 동적 무게 제한 (파티 스탯에 따라 변동)
     """
 
-    def __init__(self, base_weight: float = 50.0, party: List[Any] = None):
+    def __init__(self, base_weight: float = 5.0, party: List[Any] = None):
         """
         Args:
-            base_weight: 기본 무게 (kg)
+            base_weight: 기본 무게 (kg) - 1/10로 조정됨 (max_weight에서 1/2.5 추가 조정)
             party: 파티 멤버 리스트 (스탯 계산용)
         """
         self.base_weight = base_weight
@@ -51,19 +51,19 @@ class Inventory:
     @property
     def max_weight(self) -> float:
         """
-        최대 무게 계산 (동적)
+        최대 무게 계산 (동적) - 1/2.5로 추가 조정 (더 빡빡하게)
 
         계산 방식:
-        - 기본 무게: 50kg
-        - 파티원 1명당: +10kg
-        - 힘(Strength) 1당: +0.5kg
-        - 레벨 1당: +1kg
+        - 기본 무게: 5kg → 2kg (1/2.5)
+        - 파티원 1명당: +1kg → +0.4kg (1/2.5)
+        - 힘(Strength) 1당: +0.05kg → +0.02kg (1/2.5)
+        - 레벨 1당: +0.1kg → +0.04kg (1/2.5)
         """
         total = self.base_weight
 
         if self.party:
             # 파티원 수 보너스
-            total += len(self.party) * 10.0
+            total += len(self.party) * 1.0
 
             # 파티원들의 힘 스탯 합계
             total_strength = 0
@@ -78,11 +78,14 @@ class Inventory:
                 level = getattr(member, 'level', 1)
                 total_level += level
 
-            # 힘 보너스: 1 STR = +0.5kg
-            total += total_strength * 0.5
+            # 힘 보너스: 1 STR = +0.05kg
+            total += total_strength * 0.05
 
-            # 레벨 보너스: 1 Level = +1kg
-            total += total_level * 1.0
+            # 레벨 보너스: 1 Level = +0.1kg
+            total += total_level * 0.1
+
+        # 1/2.5로 추가 조정 (더 빡빡하게)
+        total = total / 2.5
 
         return round(total, 1)
 

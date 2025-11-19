@@ -263,6 +263,12 @@ class EquipmentEffectManager:
         for effect in effects:
             if effect.trigger == EffectTrigger.ON_UNEQUIP:
                 self._execute_effect(character, effect, {})
+            
+            # vision_bonus 효과 제거 (ON_EQUIP 트리거인 경우)
+            if effect.effect_type == EffectType.VISION_BONUS and effect.trigger == EffectTrigger.ON_EQUIP:
+                if hasattr(character, "vision_bonus"):
+                    character.vision_bonus = max(0, character.vision_bonus - int(effect.value))
+                    logger.debug(f"{character.name} 시야 -{effect.value} (장비 해제)")
 
         # 효과 제거
         self.remove_effects(character_id, item_id)

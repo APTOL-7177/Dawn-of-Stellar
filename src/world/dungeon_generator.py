@@ -372,6 +372,13 @@ class DungeonGenerator:
         if random.random() < 0.3:
             self._place_healing_spring(dungeon)
 
+        # NPC 배치
+        num_npcs = min(3, 1 + floor_number // 5)
+        self._place_npcs(dungeon, num_npcs)
+
+        # 특수 타일 배치
+        self._place_special_tiles(dungeon, floor_number)
+
         # 보스룸 (마지막 층 또는 5층마다)
         if floor_number % 5 == 0:
             self._place_boss_room(dungeon)
@@ -556,3 +563,115 @@ class DungeonGenerator:
 
         except ImportError as e:
             logger.warning(f"채집 시스템 로드 실패: {e}")
+
+    def _place_npcs(self, dungeon: DungeonMap, num_npcs: int):
+        """NPC 배치"""
+        npc_types = ["helpful", "harmful", "neutral"]
+        npc_subtypes = [
+            "time_researcher", "timeline_survivor", "space_explorer",
+            "merchant", "refugee", "time_thief", "distortion_entity",
+            "betrayer", "mysterious_merchant", "time_mage", "future_self",
+            "corrupted_survivor", "ancient_guardian", "void_wanderer"
+        ]
+
+        for i in range(num_npcs):
+            if not dungeon.rooms:
+                break
+
+            room = random.choice(dungeon.rooms)
+            pos = self._get_random_floor_pos(dungeon, room, avoid_center=True)
+            
+            if pos:
+                # NPC 타입과 서브타입 랜덤 선택
+                npc_type = random.choice(npc_types)
+                npc_subtype = random.choice(npc_subtypes)
+                npc_id = f"npc_{i}_{npc_subtype}"
+                
+                dungeon.set_tile(
+                    pos[0], pos[1],
+                    TileType.NPC,
+                    npc_id=npc_id,
+                    npc_type=npc_type,
+                    npc_subtype=npc_subtype,
+                    npc_interacted=False
+                )
+                logger.debug(f"NPC 배치: {npc_subtype} ({npc_type}) at {pos}")
+
+    def _place_special_tiles(self, dungeon: DungeonMap, floor_number: int):
+        """특수 타일 배치 (ALTAR, SHRINE, PORTAL, CRYSTAL, MANA_WELL 등)"""
+        if not dungeon.rooms:
+            return
+
+        # 제단 (ALTAR) - 20% 확률
+        if random.random() < 0.2:
+            room = random.choice(dungeon.rooms)
+            pos = self._get_random_floor_pos(dungeon, room, avoid_center=True)
+            if pos:
+                dungeon.set_tile(pos[0], pos[1], TileType.ALTAR)
+                logger.debug(f"제단 배치: {pos}")
+
+        # 신전 (SHRINE) - 15% 확률
+        if random.random() < 0.15:
+            room = random.choice(dungeon.rooms)
+            pos = self._get_random_floor_pos(dungeon, room, avoid_center=True)
+            if pos:
+                dungeon.set_tile(pos[0], pos[1], TileType.SHRINE)
+                logger.debug(f"신전 배치: {pos}")
+
+        # 포털 (PORTAL) - 10% 확률 (3층 이상)
+        if floor_number >= 3 and random.random() < 0.1:
+            if len(dungeon.rooms) >= 2:
+                room1, room2 = random.sample(dungeon.rooms, 2)
+                pos1 = self._get_random_floor_pos(dungeon, room1, avoid_center=True)
+                pos2 = self._get_random_floor_pos(dungeon, room2, avoid_center=True)
+                if pos1 and pos2:
+                    dungeon.set_tile(pos1[0], pos1[1], TileType.PORTAL, teleport_target=pos2)
+                    dungeon.set_tile(pos2[0], pos2[1], TileType.PORTAL, teleport_target=pos1)
+                    logger.debug(f"포털 쌍 배치: {pos1} <-> {pos2}")
+
+        # 크리스탈 (CRYSTAL) - 25% 확률
+        if random.random() < 0.25:
+            room = random.choice(dungeon.rooms)
+            pos = self._get_random_floor_pos(dungeon, room, avoid_center=True)
+            if pos:
+                dungeon.set_tile(pos[0], pos[1], TileType.CRYSTAL)
+                logger.debug(f"크리스탈 배치: {pos}")
+
+        # 마나 샘 (MANA_WELL) - 20% 확률
+        if random.random() < 0.2:
+            room = random.choice(dungeon.rooms)
+            pos = self._get_random_floor_pos(dungeon, room, avoid_center=True)
+            if pos:
+                dungeon.set_tile(pos[0], pos[1], TileType.MANA_WELL)
+                logger.debug(f"마나 샘 배치: {pos}")
+
+        # 마법진 (MAGIC_CIRCLE) - 15% 확률 (5층 이상)
+        if floor_number >= 5 and random.random() < 0.15:
+            room = random.choice(dungeon.rooms)
+            pos = self._get_random_floor_pos(dungeon, room, avoid_center=True)
+            if pos:
+                dungeon.set_tile(pos[0], pos[1], TileType.MAGIC_CIRCLE)
+                logger.debug(f"마법진 배치: {pos}")
+
+        # 희생 제단 (SACRIFICE_ALTAR) - 10% 확률 (7층 이상)
+        if floor_number >= 7 and random.random() < 0.1:
+            room = random.choice(dungeon.rooms)
+            pos = self._get_random_floor_pos(dungeon, room, avoid_center=True)
+            if pos:
+                dungeon.set_tile(pos[0], pos[1], TileType.SACRIFICE_ALTAR)
+                logger.debug(f"희생 제단 배치: {pos}")
+
+        # 다양한 함정 타입 추가
+        num_special_traps = min(3, floor_number // 3)
+        for _ in range(num_special_traps):
+            room = random.choice(dungeon.rooms)
+            pos = self._get_random_floor_pos(dungeon, room, avoid_center=True)
+            if pos:
+                trap_type = random.choice([
+                    TileType.SPIKE_TRAP,
+                    TileType.POISON_GAS,
+                    TileType.FIRE_TRAP
+                ])
+                damage = random.randint(10, 30)
+                dungeon.set_tile(pos[0], pos[1], trap_type, trap_damage=damage)
+                logger.debug(f"특수 함정 배치: {trap_type.value} at {pos}")

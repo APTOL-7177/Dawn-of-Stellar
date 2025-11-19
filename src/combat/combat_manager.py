@@ -1482,6 +1482,29 @@ class CombatManager:
         # 턴 종료 시에는 BRV 회복하지 않음 (HP 공격 후 BRV가 0인 상태 유지)
         # BRV 회복은 다음 턴 시작 시에 처리됨
 
+        # 버프 지속시간 감소 (모든 전투원)
+        all_combatants = self.party + self.enemies
+        for combatant in all_combatants:
+            if hasattr(combatant, 'active_buffs') and combatant.active_buffs:
+                expired_buffs = []
+                for buff_type, buff_data in list(combatant.active_buffs.items()):
+                    # REGEN, HP_REGEN, MP_REGEN은 duration 감소하지 않음 (다른 방식으로 관리)
+                    if buff_type in ['regen', 'hp_regen', 'mp_regen']:
+                        continue
+                    
+                    duration = buff_data.get('duration', 0)
+                    if duration > 0:
+                        duration -= 1
+                        buff_data['duration'] = duration
+                        
+                        if duration <= 0:
+                            expired_buffs.append(buff_type)
+                            self.logger.debug(f"{combatant.name}의 {buff_type} 버프 만료")
+                
+                # 만료된 버프 제거
+                for buff_type in expired_buffs:
+                    del combatant.active_buffs[buff_type]
+
         # 기믹 업데이트 (턴 종료)
         GimmickUpdater.on_turn_end(actor)
 

@@ -1752,15 +1752,6 @@ ACCESSORY_TEMPLATES = {
         "unique_effect": "mp_regen:6|mp_cost_reduction:0.15",
         "sell_price": 650
     },
-    "mana_crystal": {
-        "name": "마나 크리스탈",
-        "description": "최대 MP +100. 마법 공격력 +20",
-        "rarity": ItemRarity.UNCOMMON,
-        "level_requirement": 2,
-        "base_stats": {"mp": 120, "magic_attack": 25},
-        "unique_effect": "spell_power:0.10",
-        "sell_price": 400
-    },
     "sorcerers_pendant": {
         "name": "마법사의 펜던트",
         "description": "MP를 지속적으로 재생시키고 마법 위력을 향상시키며 턴 시작 시 보호막을 생성한다",
@@ -2086,6 +2077,14 @@ CONSUMABLE_TEMPLATES = {
         "effect_type": "heal_mp",
         "effect_value": 80,
         "sell_price": 90
+    },
+    "mana_crystal": {
+        "name": "마나 크리스탈",
+        "description": "MP 100 회복",
+        "rarity": ItemRarity.UNCOMMON,
+        "effect_type": "heal_mp",
+        "effect_value": 100,
+        "sell_price": 120
     },
     "super_mana_potion": {
         "name": "최상급 마나 물약",
@@ -2605,6 +2604,7 @@ class ItemGenerator:
             base_stats=template["base_stats"].copy(),
             affixes=affixes,
             equip_slot=EquipSlot.ACCESSORY,
+            unique_effect=template.get("unique_effect"),  # unique_effect 추가
             sell_price=template["sell_price"],
             weight=weight
         )

@@ -371,26 +371,53 @@ class DamageCalculator:
         )
 
     def _get_attack_stat(self, character: Any) -> int:
-        """공격력 스탯 추출"""
+        """공격력 스탯 추출 (버프 반영)"""
         # 여러 속성명 시도
+        base_stat = 10
         for attr in ["physical_attack", "p_atk", "attack", "strength"]:
             if hasattr(character, attr):
-                return getattr(character, attr)
-        return 10  # 기본값
+                base_stat = getattr(character, attr)
+                break
+        
+        # 버프 적용 (attack_up)
+        if hasattr(character, 'active_buffs') and character.active_buffs:
+            if 'attack_up' in character.active_buffs:
+                buff_value = character.active_buffs['attack_up'].get('value', 0.0)
+                base_stat = int(base_stat * (1.0 + buff_value))
+        
+        return base_stat
 
     def _get_defense_stat(self, character: Any) -> int:
-        """방어력 스탯 추출"""
+        """방어력 스탯 추출 (버프 반영)"""
+        base_stat = 10
         for attr in ["physical_defense", "p_def", "defense"]:
             if hasattr(character, attr):
-                return getattr(character, attr)
-        return 10  # 기본값
+                base_stat = getattr(character, attr)
+                break
+        
+        # 버프 적용 (defense_up)
+        if hasattr(character, 'active_buffs') and character.active_buffs:
+            if 'defense_up' in character.active_buffs:
+                buff_value = character.active_buffs['defense_up'].get('value', 0.0)
+                base_stat = int(base_stat * (1.0 + buff_value))
+        
+        return base_stat
 
     def _get_magic_stat(self, character: Any) -> int:
-        """마법력 스탯 추출"""
+        """마법력 스탯 추출 (버프 반영)"""
+        base_stat = 10
         for attr in ["magic_attack", "m_atk", "magic", "intelligence"]:
             if hasattr(character, attr):
-                return getattr(character, attr)
-        return 10  # 기본값
+                base_stat = getattr(character, attr)
+                break
+        
+        # 버프 적용 (magic_up)
+        if hasattr(character, 'active_buffs') and character.active_buffs:
+            if 'magic_up' in character.active_buffs:
+                buff_value = character.active_buffs['magic_up'].get('value', 0.0)
+                base_stat = int(base_stat * (1.0 + buff_value))
+        
+        return base_stat
 
     def _get_spirit_stat(self, character: Any) -> int:
         """정신력 스탯 추출"""
@@ -400,11 +427,20 @@ class DamageCalculator:
         return 10  # 기본값
 
     def _get_accuracy_stat(self, character: Any) -> int:
-        """명중률 스탯 추출"""
+        """명중률 스탯 추출 (버프 반영)"""
+        base_stat = 50
         for attr in ["accuracy", "acc", "hit_rate"]:
             if hasattr(character, attr):
-                return getattr(character, attr)
-        return 50  # 기본값
+                base_stat = getattr(character, attr)
+                break
+        
+        # 버프 적용 (accuracy_up이 있다면)
+        if hasattr(character, 'active_buffs') and character.active_buffs:
+            if 'accuracy_up' in character.active_buffs:
+                buff_value = character.active_buffs['accuracy_up'].get('value', 0.0)
+                base_stat = int(base_stat * (1.0 + buff_value))
+        
+        return base_stat
 
     def _get_evasion_stat(self, character: Any) -> int:
         """회피율 스탯 추출"""

@@ -73,6 +73,12 @@ class ATBGauge:
         if self.is_confused:
             speed_modifier *= 0.7
 
+        # 버프 적용 (speed_up)
+        if hasattr(self.owner, 'active_buffs') and self.owner.active_buffs:
+            if 'speed_up' in self.owner.active_buffs:
+                buff_value = self.owner.active_buffs['speed_up'].get('value', 0.0)
+                speed_modifier *= (1.0 + buff_value)
+
         return base_speed * speed_modifier
 
     def increase(self, amount: float) -> None:
@@ -316,6 +322,9 @@ class ATBSystem:
 
         if effect_type == "stun":
             gauge.is_stunned = True
+            # 기절 시 ATB 즉시 0으로 리셋
+            gauge.current = 0
+            self.logger.info(f"{getattr(combatant, 'name', 'Unknown')}: 기절 상태이상 적용 → ATB 0으로 리셋")
         elif effect_type == "paralyze":
             gauge.is_paralyzed = True
         elif effect_type == "confuse":

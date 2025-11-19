@@ -76,7 +76,7 @@ class Character:
         }
 
         # 상태 효과 관리자
-        self.status_manager = StatusManager(owner_name=name)
+        self.status_manager = StatusManager(owner_name=name, owner=self)
         # 하위 호환성을 위한 별칭
         self.status_effects = self.status_manager.status_effects
 
@@ -95,6 +95,9 @@ class Character:
         # 스킬 - 직업별로 등록된 스킬 가져오기
         self.skill_ids = self._get_class_skills(character_class)
         self._cached_skills = None  # 스킬 객체 캐시
+
+        # 시야 보너스 초기화 (장비 효과용)
+        self.vision_bonus = 0
 
         # 로그
         self.logger.info(f"캐릭터 생성: {self.name} ({self.character_class}), 스킬: {len(self.skill_ids)}개")

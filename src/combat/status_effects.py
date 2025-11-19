@@ -210,12 +210,14 @@ class StatusManager:
     캐릭터의 모든 상태 효과를 관리합니다.
     """
 
-    def __init__(self, owner_name: str = "Unknown") -> None:
+    def __init__(self, owner_name: str = "Unknown", owner: Any = None) -> None:
         """
         Args:
             owner_name: 상태 효과의 소유자 이름 (로깅용)
+            owner: 상태 효과의 소유자 객체 (ATB 리셋 등에 사용)
         """
         self.owner_name = owner_name
+        self.owner = owner  # 캐릭터 객체 참조
         self.status_effects: List[StatusEffect] = []
         self.effects = self.status_effects  # 호환성을 위한 별칭
 
@@ -254,9 +256,21 @@ class StatusManager:
                     f"({existing.duration}턴)"
                 )
 
+            # 기절 상태이상 갱신 시에도 ATB 리셋 (기절이 새로 적용되는 경우)
+            if status_effect.status_type == StatusType.STUN and self.owner:
+                from src.combat.atb_system import get_atb_system
+                atb_system = get_atb_system()
+                gauge = atb_system.get_gauge(self.owner)
+                if gauge and not gauge.is_stunned:
+                    # 기절이 새로 적용되는 경우 (기존에 기절이 없었던 경우)
+                    gauge.current = 0
+                    gauge.is_stunned = True
+                    logger.info(f"{self.owner_name}: 기절 상태이상 갱신 → ATB 0으로 리셋")
+
             # 이벤트 발행
             event_bus.publish(Events.STATUS_APPLIED, {
                 "owner": self.owner_name,
+                "owner_object": self.owner,  # owner 객체 추가
                 "status": existing,
                 "is_new": False
             })
@@ -272,9 +286,20 @@ class StatusManager:
                 f"(지속시간: {status_effect.duration}턴, 강도: {status_effect.intensity})"
             )
 
+            # 기절 상태이상 추가 시 ATB 즉시 0으로 리셋
+            if status_effect.status_type == StatusType.STUN and self.owner:
+                from src.combat.atb_system import get_atb_system
+                atb_system = get_atb_system()
+                gauge = atb_system.get_gauge(self.owner)
+                if gauge:
+                    gauge.current = 0
+                    gauge.is_stunned = True
+                    logger.info(f"{self.owner_name}: 기절 상태이상 적용 → ATB 0으로 리셋")
+
             # 이벤트 발행
             event_bus.publish(Events.STATUS_APPLIED, {
                 "owner": self.owner_name,
+                "owner_object": self.owner,  # owner 객체 추가
                 "status": status_effect,
                 "is_new": True
             })

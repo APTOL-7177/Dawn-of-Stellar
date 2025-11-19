@@ -76,6 +76,8 @@ class InventoryUI:
         # 파괴 확인
         self.confirm_destroy_item: Optional[int] = None
         self.confirm_yes = False
+        self.destroy_quantity: int = 1  # 파괴할 개수
+        self.destroy_quantity_input_mode: bool = False  # 개수 입력 모드
 
         # 장비 비교 모드
         self.show_comparison = False
@@ -327,32 +329,88 @@ class InventoryUI:
 
     def _handle_confirm_destroy(self, action: GameAction) -> bool:
         """아이템 파괴 확인"""
+        item = self.inventory.get_item(self.confirm_destroy_item) if self.confirm_destroy_item is not None else None
+        if not item:
+            self.mode = InventoryMode.BROWSE
+            return False
+        
+        # 스택 가능 여부 확인
+        from src.gathering.ingredient import Ingredient
+        from src.cooking.recipe import CookedFood
+        is_stackable = not isinstance(item, Equipment)
+        slot = self.inventory.slots[self.confirm_destroy_item] if self.confirm_destroy_item < len(self.inventory.slots) else None
+        max_quantity = slot.quantity if slot else 1
+        
+        # 개수 입력 모드
+        if self.destroy_quantity_input_mode and is_stackable:
+            if action == GameAction.MOVE_UP:
+                self.destroy_quantity = min(max_quantity, self.destroy_quantity + 1)
+            elif action == GameAction.MOVE_DOWN:
+                self.destroy_quantity = max(1, self.destroy_quantity - 1)
+            elif action == GameAction.MOVE_LEFT:
+                self.destroy_quantity = max(1, self.destroy_quantity - 10)
+            elif action == GameAction.MOVE_RIGHT:
+                self.destroy_quantity = min(max_quantity, self.destroy_quantity + 10)
+            elif action == GameAction.CONFIRM:
+                # 개수 입력 완료 - 파괴 실행
+                destroy_qty = self.destroy_quantity
+                self.inventory.remove_item(self.confirm_destroy_item, destroy_qty)
+                item_name = getattr(item, 'name', '알 수 없는 아이템')
+                logger.info(f"{item_name} {destroy_qty}개 파괴됨")
+
+                # 커서 조정
+                if self.cursor >= len(self.inventory) and len(self.inventory) > 0:
+                    self.cursor = max(0, len(self.inventory) - 1)
+                elif len(self.inventory) == 0:
+                    self.cursor = 0
+
+                # 모드 복귀
+                self.mode = InventoryMode.BROWSE
+                self.confirm_destroy_item = None
+                self.destroy_quantity = 1
+                self.destroy_quantity_input_mode = False
+            elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+                # 개수 입력 취소
+                self.destroy_quantity_input_mode = False
+                self.destroy_quantity = 1
+            return False
+        
+        # 일반 확인 모드
         if action == GameAction.MOVE_LEFT:
             self.confirm_yes = True
         elif action == GameAction.MOVE_RIGHT:
             self.confirm_yes = False
         elif action == GameAction.CONFIRM:
             if self.confirm_yes:
-                # 파괴 실행
-                item = self.inventory.get_item(self.confirm_destroy_item)
-                if item:
-                    self.inventory.remove_item(self.confirm_destroy_item)
-                    item_name = getattr(item, 'name', '알 수 없는 아이템')
-                    logger.info(f"{item_name} 파괴됨")
+                # 스택형 아이템이고 개수 입력이 필요하면 개수 입력 모드로
+                if is_stackable and max_quantity > 1:
+                    self.destroy_quantity_input_mode = True
+                    self.destroy_quantity = min(max_quantity, self.destroy_quantity)
+                    return False
+                
+                # 파괴 실행 (비스택형이거나 1개만 있는 경우)
+                destroy_qty = 1
+                self.inventory.remove_item(self.confirm_destroy_item, destroy_qty)
+                item_name = getattr(item, 'name', '알 수 없는 아이템')
+                logger.info(f"{item_name} 파괴됨")
 
-                    # 커서 조정
-                    if self.cursor >= len(self.inventory) and len(self.inventory) > 0:
-                        self.cursor = len(self.inventory) - 1
-                    elif len(self.inventory) == 0:
-                        self.cursor = 0
+                # 커서 조정
+                if self.cursor >= len(self.inventory) and len(self.inventory) > 0:
+                    self.cursor = max(0, len(self.inventory) - 1)
+                elif len(self.inventory) == 0:
+                    self.cursor = 0
 
-            # 모드 복귀
-            self.mode = InventoryMode.BROWSE
-            self.confirm_destroy_item = None
+                # 모드 복귀
+                self.mode = InventoryMode.BROWSE
+                self.confirm_destroy_item = None
+                self.destroy_quantity = 1
+                self.destroy_quantity_input_mode = False
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 취소
             self.mode = InventoryMode.BROWSE
             self.confirm_destroy_item = None
+            self.destroy_quantity = 1
+            self.destroy_quantity_input_mode = False
 
         return False
 
@@ -476,8 +534,29 @@ class InventoryUI:
             logger.warning(f"{char_name}은(는) 레벨 {item_level_req} 이상이어야 {item_name}을(를) 장착할 수 있습니다. (현재 레벨: {char_level})")
             return  # 레벨 부족으로 장착 실패
 
-        # 장비 슬롯 결정
-        slot_name = item.equip_slot.value  # "weapon", "armor", "accessory"
+        # 장비 슬롯 결정 (안전하게 처리)
+        equip_slot = getattr(item, 'equip_slot', None)
+        if equip_slot and hasattr(equip_slot, 'value'):
+            slot_name = equip_slot.value  # "weapon", "armor", "accessory"
+        else:
+            # equip_slot이 없으면 item_type에 따라 결정
+            from src.equipment.item_system import ItemType
+            item_type = getattr(item, 'item_type', None)
+            if item_type == ItemType.WEAPON:
+                slot_name = "weapon"
+            elif item_type == ItemType.ARMOR:
+                slot_name = "armor"
+            elif item_type == ItemType.ACCESSORY:
+                slot_name = "accessory"
+            else:
+                # 기본값으로 weapon 사용
+                slot_name = "weapon"
+                logger.warning(f"아이템 {getattr(item, 'name', '알 수 없는 아이템')}의 equip_slot을 확인할 수 없어 weapon 슬롯으로 설정합니다.")
+        
+        # 슬롯 이름 검증
+        if slot_name not in ["weapon", "armor", "accessory"]:
+            logger.error(f"잘못된 장비 슬롯: {slot_name} (아이템: {getattr(item, 'name', '알 수 없는 아이템')})")
+            return
 
         # 캐릭터 이름 미리 가져오기
         char_name = getattr(character, 'name', '알 수 없는 캐릭터')
@@ -609,8 +688,11 @@ class InventoryUI:
                 rarity_color = Colors.UI_TEXT
             item_name = getattr(item, 'name', '알 수 없는 아이템')
 
-            # 수량 (소비품만, 2개 이상일 때만 표시)
-            if isinstance(item, Consumable) and slot.quantity > 1:
+            # 수량 표시 (스택형 아이템은 항상 표시, 1개일 때도 표시)
+            from src.gathering.ingredient import Ingredient
+            from src.cooking.recipe import CookedFood
+            is_stackable = not isinstance(item, Equipment)
+            if is_stackable:
                 item_name += f" x{slot.quantity}"
 
             # 레벨 요구사항
@@ -677,7 +759,11 @@ class InventoryUI:
             help_text = "↑↓: 장비 슬롯 선택  Z: 해제  X: 뒤로"
             console.print(2, help_y, help_text, fg=Colors.GRAY)
         elif self.mode == InventoryMode.CONFIRM_DESTROY:
-            help_text = "←→: 선택  Z: 확인  X: 취소"
+            # 개수 입력 모드인지 확인
+            if self.destroy_quantity_input_mode:
+                help_text = "↑↓: ±1  ←→: ±10  Z: 확인  X: 취소"
+            else:
+                help_text = "←→: 선택  Z: 확인/개수선택  X: 취소"
             console.print(2, help_y, help_text, fg=Colors.GRAY)
         elif self.mode in [InventoryMode.USE_ITEM, InventoryMode.EQUIP]:
             help_text = "↑↓: 대상 선택  Z: 확인  X: 취소"
@@ -805,6 +891,75 @@ class InventoryUI:
 
             desc = effect_desc.get(item.effect_type, "효과 불명")
             console.print(x, y, f"효과: {desc}", fg=Colors.UI_TEXT)
+        
+        # 요리 음식 정보 (CookedFood)
+        else:
+            from src.cooking.recipe import CookedFood
+            if isinstance(item, CookedFood):
+                y += 1
+                console.print(x, y, "효과 (아군 전체 적용):", fg=Colors.UI_TEXT_SELECTED)
+                y += 1
+                
+                # HP 회복
+                hp_restore = getattr(item, 'hp_restore', 0)
+                if hp_restore > 0:
+                    console.print(x + 2, y, f"HP +{hp_restore} 회복", fg=(100, 255, 100))
+                    y += 1
+                
+                # MP 회복
+                mp_restore = getattr(item, 'mp_restore', 0)
+                if mp_restore > 0:
+                    console.print(x + 2, y, f"MP +{mp_restore} 회복", fg=(100, 200, 255))
+                    y += 1
+                
+                # 최대 HP 보너스
+                max_hp_bonus = getattr(item, 'max_hp_bonus', 0)
+                if max_hp_bonus > 0:
+                    console.print(x + 2, y, f"최대 HP +{max_hp_bonus} (일시적)", fg=(255, 200, 100))
+                    y += 1
+                
+                # 최대 MP 보너스
+                max_mp_bonus = getattr(item, 'max_mp_bonus', 0)
+                if max_mp_bonus > 0:
+                    console.print(x + 2, y, f"최대 MP +{max_mp_bonus} (일시적)", fg=(200, 150, 255))
+                    y += 1
+                
+                # 버프 정보
+                buff_type = getattr(item, 'buff_type', None)
+                buff_duration = getattr(item, 'buff_duration', 0)
+                if buff_type and buff_duration > 0:
+                    y += 1
+                    console.print(x, y, "버프 효과:", fg=Colors.UI_TEXT_SELECTED)
+                    y += 1
+                    
+                    # 버프 타입 한글 매핑
+                    buff_names = {
+                        "attack": "공격력",
+                        "defense": "방어력",
+                        "speed": "속도",
+                        "magic": "마법 공격력"
+                    }
+                    buff_name = buff_names.get(buff_type, buff_type)
+                    buff_value = 0.2  # 기본 20% (inventory.py에서 사용하는 값과 동일)
+                    
+                    console.print(
+                        x + 2, y,
+                        f"{buff_name} +{int(buff_value * 100)}% ({buff_duration}턴)",
+                        fg=(255, 255, 100)
+                    )
+                    y += 1
+                
+                # 독 효과 (실패 요리)
+                is_poison = getattr(item, 'is_poison', False)
+                poison_damage = getattr(item, 'poison_damage', 0)
+                if is_poison and poison_damage > 0:
+                    y += 1
+                    console.print(
+                        x, y,
+                        f"⚠ 독! 피해 {poison_damage}",
+                        fg=(255, 100, 100)
+                    )
+                    y += 1
 
     def _render_target_selection(self, console: tcod.console.Console):
         """대상 선택 UI"""
@@ -958,8 +1113,20 @@ class InventoryUI:
         if not item:
             return
 
+        # 스택 가능 여부 확인
+        from src.gathering.ingredient import Ingredient
+        from src.cooking.recipe import CookedFood
+        is_stackable = not isinstance(item, Equipment)
+        slot = self.inventory.slots[self.confirm_destroy_item] if self.confirm_destroy_item < len(self.inventory.slots) else None
+        max_quantity = slot.quantity if slot else 1
+
+        # 박스 크기 조정 (개수 입력 모드면 더 크게)
+        if self.destroy_quantity_input_mode and is_stackable:
+            box_height = 12
+        else:
+            box_height = 10
+
         box_width = 55
-        box_height = 10
         box_x = (self.screen_width - box_width) // 2
         box_y = (self.screen_height - box_height) // 2
 
@@ -972,37 +1139,78 @@ class InventoryUI:
 
         # 경고 메시지
         item_name = getattr(item, 'name', '알 수 없는 아이템')
-        msg = f"'{item_name}'을(를) 파괴하시겠습니까?"
-        console.print(
-            box_x + (box_width - len(msg)) // 2,
-            box_y + 3,
-            msg,
-            fg=(255, 100, 100)
-        )
+        
+        # 개수 입력 모드
+        if self.destroy_quantity_input_mode and is_stackable:
+            msg = f"'{item_name}'을(를) 몇 개 파괴하시겠습니까?"
+            console.print(
+                box_x + (box_width - len(msg)) // 2,
+                box_y + 3,
+                msg,
+                fg=(255, 100, 100)
+            )
+            
+            # 개수 표시
+            qty_msg = f"개수: {self.destroy_quantity} / {max_quantity}"
+            console.print(
+                box_x + (box_width - len(qty_msg)) // 2,
+                box_y + 5,
+                qty_msg,
+                fg=Colors.UI_TEXT_SELECTED
+            )
+            
+            # 조작법
+            controls = "↑↓: ±1  ←→: ±10  Z: 확인  X: 취소"
+            console.print(
+                box_x + (box_width - len(controls)) // 2,
+                box_y + 7,
+                controls,
+                fg=Colors.GRAY
+            )
+        else:
+            if is_stackable and max_quantity > 1:
+                msg = f"'{item_name}' (보유: {max_quantity}개)을(를) 파괴하시겠습니까?"
+            else:
+                msg = f"'{item_name}'을(를) 파괴하시겠습니까?"
+            console.print(
+                box_x + (box_width - len(msg)) // 2,
+                box_y + 3,
+                msg,
+                fg=(255, 100, 100)
+            )
 
-        console.print(
-            box_x + (box_width - 30) // 2,
-            box_y + 4,
-            "이 작업은 되돌릴 수 없습니다!",
-            fg=Colors.GRAY
-        )
+            console.print(
+                box_x + (box_width - 30) // 2,
+                box_y + 4,
+                "이 작업은 되돌릴 수 없습니다!",
+                fg=Colors.GRAY
+            )
 
-        # YES / NO 버튼
-        y = box_y + 7
-        yes_color = Colors.UI_TEXT_SELECTED if self.confirm_yes else Colors.UI_TEXT
-        no_color = Colors.UI_TEXT_SELECTED if not self.confirm_yes else Colors.UI_TEXT
+            # 스택형 아이템이면 개수 선택 안내
+            if is_stackable and max_quantity > 1:
+                console.print(
+                    box_x + (box_width - 25) // 2,
+                    box_y + 5,
+                    "Z: 개수 선택",
+                    fg=Colors.GRAY
+                )
 
-        console.print(
-            box_x + 15, y,
-            "[ 예 ]" if self.confirm_yes else "  예  ",
-            fg=yes_color
-        )
+            # YES / NO 버튼
+            y = box_y + 7
+            yes_color = Colors.UI_TEXT_SELECTED if self.confirm_yes else Colors.UI_TEXT
+            no_color = Colors.UI_TEXT_SELECTED if not self.confirm_yes else Colors.UI_TEXT
 
-        console.print(
-            box_x + 30, y,
-            "[아니오]" if not self.confirm_yes else " 아니오 ",
-            fg=no_color
-        )
+            console.print(
+                box_x + 15, y,
+                "[ 예 ]" if self.confirm_yes else "  예  ",
+                fg=yes_color
+            )
+
+            console.print(
+                box_x + 30, y,
+                "[아니오]" if not self.confirm_yes else " 아니오 ",
+                fg=no_color
+            )
 
     def _render_equipment_comparison(self, console: tcod.console.Console, new_item: Equipment):
         """장비 비교 UI"""
