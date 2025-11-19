@@ -332,6 +332,13 @@ class WorldUI:
         camera_x = max(0, player.x - 40)
         camera_y = max(0, player.y - 20)
         for enemy in self.exploration.enemies:
+            # 타일의 탐험 및 시야 상태 확인
+            tile = self.exploration.dungeon.get_tile(enemy.x, enemy.y)
+            if tile and not tile.explored:
+                continue  # 탐험하지 않은 영역의 적은 표시하지 않음
+            if tile and not tile.visible:
+                continue  # 벽 너머의 적은 표시하지 않음
+            
             enemy_screen_x = enemy.x - camera_x
             enemy_screen_y = 5 + (enemy.y - camera_y)
             if 0 <= enemy_screen_x < self.screen_width and 0 <= enemy_screen_y < 40:
@@ -341,6 +348,13 @@ class WorldUI:
 
         # 파밍 오브젝트 위치 표시 (채집 가능한 오브젝트)
         for harvestable in self.exploration.dungeon.harvestables:
+            # 타일의 탐험 및 시야 상태 확인
+            tile = self.exploration.dungeon.get_tile(harvestable.x, harvestable.y)
+            if tile and not tile.explored:
+                continue  # 탐험하지 않은 영역의 오브젝트는 표시하지 않음
+            if tile and not tile.visible:
+                continue  # 벽 너머의 오브젝트는 표시하지 않음
+            
             harv_screen_x = harvestable.x - camera_x
             harv_screen_y = 5 + (harvestable.y - camera_y)
             if 0 <= harv_screen_x < self.screen_width and 0 <= harv_screen_y < 40:
@@ -358,16 +372,6 @@ class WorldUI:
 
         # 메시지 로그 (하단)
         self._render_messages(console)
-
-        # 미니맵 (우측 하단)
-        self.map_renderer.render_minimap(
-            console,
-            self.exploration.dungeon,
-            minimap_x=self.screen_width - 22,
-            minimap_y=self.screen_height - 19,  # 범례 공간 확보 (+2줄)
-            player_pos=(self.exploration.player.x, self.exploration.player.y),
-            enemies=self.exploration.enemies
-        )
 
         # 조작법 (하단)
         console.print(
@@ -517,6 +521,18 @@ def run_exploration(
             play_bgm("danger")
 
     while True:
+        # 핫 리로드 체크 (개발 모드일 때만)
+        try:
+            from src.core.config import get_config
+            config = get_config()
+            if config.development_mode:
+                from src.core.hot_reload import check_and_reload
+                reloaded = check_and_reload()
+                if reloaded:
+                    logger.info(f"📦 [탐험] 재로드된 모듈: {', '.join(reloaded)}")
+        except Exception:
+            pass  # 핫 리로드 오류는 무시
+        
         # 렌더링
         ui.render(console)
         context.present(console)

@@ -1459,6 +1459,13 @@ class CombatManager:
                     target=target,
                     skill=skill
                 )
+            elif action_type_str == "hp_attack":
+                # HP 공격
+                return self.execute_action(
+                    enemy,
+                    ActionType.HP_ATTACK,
+                    target=target
+                )
             elif action_type_str == "defend":
                 # 방어
                 return self.execute_action(
@@ -1466,7 +1473,7 @@ class CombatManager:
                     ActionType.DEFEND
                 )
             else:
-                # 일반 공격
+                # 일반 BRV 공격
                 return self.execute_action(
                     enemy,
                     ActionType.BRV_ATTACK,

@@ -267,24 +267,40 @@ class CombatUI:
             )
         
         # 소비 아이템만 필터링 (요리 아이템 제외)
-        from src.equipment.item_system import Consumable
+        from src.equipment.item_system import Consumable, ItemType
         from src.cooking.recipe import CookedFood
+        from src.core.logger import get_logger, Loggers
+        
+        logger = get_logger(Loggers.UI)
+        
+        logger.info(f"[전투 아이템 메뉴] 인벤토리 슬롯 수: {len(self.inventory.slots)}")
         
         for slot_index, slot in enumerate(self.inventory.slots):
             if not slot or not slot.item:
+                logger.debug(f"[전투 아이템 메뉴] 슬롯 {slot_index}: 빈 슬롯")
                 continue
             
             item = slot.item
+            item_name = getattr(item, 'name', '알 수 없는 아이템')
+            item_type = getattr(item, 'item_type', None)
+            item_class = type(item).__name__
+            
+            logger.debug(f"[전투 아이템 메뉴] 슬롯 {slot_index}: {item_name} (타입: {item_type}, 클래스: {item_class})")
             
             # 요리 아이템은 전투 중 사용 불가
             if isinstance(item, CookedFood):
+                logger.debug(f"[전투 아이템 메뉴] {item_name}: CookedFood로 필터링됨")
                 continue
             
-            # Consumable만 표시
-            if not isinstance(item, Consumable):
+            # Consumable 또는 item_type이 CONSUMABLE인 아이템만 표시
+            is_consumable = isinstance(item, Consumable) or item_type == ItemType.CONSUMABLE
+            
+            if not is_consumable:
+                logger.debug(f"[전투 아이템 메뉴] {item_name}: Consumable이 아님 (isinstance: {isinstance(item, Consumable)}, item_type: {item_type})")
                 continue
             
-            item_name = getattr(item, 'name', '알 수 없는 아이템')
+            logger.info(f"[전투 아이템 메뉴] {item_name}: 메뉴에 추가됨")
+            
             item_desc = getattr(item, 'description', '')
             quantity = slot.quantity
             
@@ -465,21 +481,35 @@ class CombatUI:
                     item_data = selected_item.value
                     if isinstance(item_data, tuple) and len(item_data) == 2:
                         self.selected_item_index, self.selected_item = item_data
+                        # 아이템 사용 행동 설정
+                        self.selected_action = ActionType.ITEM
                         # 아이템 효과에 따라 대상 선택 필요 여부 결정
-                        from src.equipment.item_system import Consumable
-                        if isinstance(self.selected_item, Consumable):
+                        from src.equipment.item_system import Consumable, ItemType
+                        item_type = getattr(self.selected_item, 'item_type', None)
+                        is_consumable = isinstance(self.selected_item, Consumable) or item_type == ItemType.CONSUMABLE
+                        
+                        if is_consumable:
                             effect_type = getattr(self.selected_item, 'effect_type', 'heal_hp')
-                            # 공격적 아이템은 적 대상 선택, 수비적 아이템은 아군 대상 선택
-                            if effect_type in ["damage", "aoe_fire", "aoe_ice", "single_lightning", "poison_bomb", "debuff_attack", "debuff_defense", "debuff_speed", "break_brv"]:
-                                # 적 대상 선택
+                            # AOE 공격 아이템은 타겟 선택 없이 바로 실행
+                            if effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade", "debuff_attack", "debuff_defense", "debuff_speed", "smoke_bomb", "break_brv"]:
+                                # AOE 아이템: 타겟 선택 없이 바로 실행 (target=None)
+                                self.selected_target = None
+                                self._execute_current_action()
+                            elif effect_type in ["single_lightning", "acid_flask", "damage"]:
+                                # 단일 타겟 공격: 적 대상 선택
                                 self.current_target_list = self.combat_manager.enemies
                                 self.target_cursor = 0
                                 self.state = CombatUIState.TARGET_SELECT
                             else:
-                                # 아군 대상 선택 (또는 자기 자신)
+                                # 회복/버프 아이템: 아군 대상 선택
                                 self.current_target_list = self.combat_manager.party
                                 self.target_cursor = 0
                                 self.state = CombatUIState.TARGET_SELECT
+                        else:
+                            # Consumable이 아닌 경우도 대상 선택으로 진행
+                            self.current_target_list = self.combat_manager.party
+                            self.target_cursor = 0
+                            self.state = CombatUIState.TARGET_SELECT
         elif action == GameAction.CANCEL:
             self.state = CombatUIState.ACTION_MENU
 
@@ -706,6 +736,86 @@ class CombatUI:
             else:
                 error = result.get("error", "사용 실패")
                 self.add_message(f"❌ {skill_name}: {error}", (255, 100, 100))
+
+        elif action == "item":
+            item_name = result.get("item_name", "아이템")
+            success = result.get("success", False)
+            effect_type = result.get("effect_type", "")
+
+            if not success:
+                error = result.get("error", "사용 실패")
+                self.add_message(f"❌ {item_name}: {error}", (255, 100, 100))
+            else:
+                # 효과 타입별 메시지 표시
+                if effect_type == "heal_hp":
+                    healing = result.get("healing", 0)
+                    target_name = result.get("target", "대상")
+                    self.add_message(f"{item_name} 사용! {target_name} HP +{healing}", (100, 255, 100))
+                elif effect_type == "heal_mp":
+                    mp_healing = result.get("mp_healing", 0)
+                    target_name = result.get("target", "대상")
+                    self.add_message(f"{item_name} 사용! {target_name} MP +{mp_healing}", (100, 200, 255))
+                elif effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade"]:
+                    aoe_damage = result.get("aoe_damage", 0)
+                    targets_hit = result.get("targets_hit", 0)
+                    effect_names = {
+                        "aoe_fire": "🔥 화염",
+                        "aoe_ice": "❄ 냉기",
+                        "poison_bomb": "☠ 독",
+                        "thunder_grenade": "⚡ 번개"
+                    }
+                    effect_name = effect_names.get(effect_type, "데미지")
+                    if targets_hit > 0:
+                        self.add_message(f"{item_name} 사용! {effect_name} 데미지 {aoe_damage} (적 {targets_hit}명)", (255, 150, 50))
+                    else:
+                        self.add_message(f"{item_name} 사용! 하지만 적이 없습니다.", (200, 200, 200))
+                elif effect_type in ["single_lightning", "acid_flask"]:
+                    damage = result.get("damage", 0)
+                    target_name = result.get("target", "적")
+                    effect_names = {
+                        "single_lightning": "⚡ 번개",
+                        "acid_flask": "💧 산성"
+                    }
+                    effect_name = effect_names.get(effect_type, "데미지")
+                    self.add_message(f"{item_name} 사용! {target_name}에게 {effect_name} 데미지 {damage}", (255, 150, 50))
+                elif effect_type in ["debuff_attack", "debuff_defense", "debuff_speed", "smoke_bomb"]:
+                    targets_debuffed = result.get("targets_debuffed", 0)
+                    debuff_names = {
+                        "debuff_attack": "공격력 감소",
+                        "debuff_defense": "방어력 감소",
+                        "debuff_speed": "속도 감소",
+                        "smoke_bomb": "명중률 감소"
+                    }
+                    debuff_name = debuff_names.get(effect_type, "디버프")
+                    if targets_debuffed > 0:
+                        self.add_message(f"{item_name} 사용! 적 {targets_debuffed}명에게 {debuff_name}", (255, 200, 100))
+                    else:
+                        self.add_message(f"{item_name} 사용! 하지만 적이 없습니다.", (200, 200, 200))
+                elif effect_type == "break_brv":
+                    brv_loss = result.get("brv_loss", 0)
+                    if brv_loss > 0:
+                        self.add_message(f"{item_name} 사용! 적 전체 BRV -{brv_loss}", (255, 150, 50))
+                    else:
+                        self.add_message(f"{item_name} 사용! 하지만 적이 없습니다.", (200, 200, 200))
+                elif effect_type in ["barrier_crystal", "haste_crystal", "power_tonic", "defense_elixir", "regen_crystal", "mp_regen_crystal"]:
+                    target_name = result.get("target", "대상")
+                    buff_names = {
+                        "barrier_crystal": "방어력 상승",
+                        "haste_crystal": "속도 상승",
+                        "power_tonic": "공격력 상승",
+                        "defense_elixir": "방어력 상승",
+                        "regen_crystal": "HP 재생",
+                        "mp_regen_crystal": "MP 재생"
+                    }
+                    buff_name = buff_names.get(effect_type, "버프")
+                    self.add_message(f"{item_name} 사용! {target_name}에게 {buff_name}", (100, 255, 255))
+                elif effect_type == "status_cleanse" or effect_type == "cure":
+                    if result.get("status_cured"):
+                        target_name = result.get("target", "대상")
+                        self.add_message(f"{item_name} 사용! {target_name}의 상태이상 치료", (100, 255, 255))
+                else:
+                    # 기본 메시지
+                    self.add_message(f"{item_name} 사용!", (200, 200, 200))
 
     def update(self, delta_time: float = 1.0):
         """업데이트 (매 프레임)"""

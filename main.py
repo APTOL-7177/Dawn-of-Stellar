@@ -99,6 +99,20 @@ def main() -> int:
         logger.info(f"디버그 모드: {config.debug_mode}")
         logger.info("=" * 60)
 
+        # 핫 리로드 시스템 초기화 (개발 모드일 때만)
+        hot_reload_enabled = config.development_mode or args.dev
+        if hot_reload_enabled:
+            try:
+                from src.core.hot_reload import start_hot_reload
+                start_hot_reload(enabled=True)
+                logger.info("🔥 핫 리로드 활성화됨 - 코드 변경 시 자동 반영")
+            except Exception as e:
+                logger.warning(f"핫 리로드 초기화 실패: {e}")
+                logger.info("핫 리로드 없이 계속 실행합니다")
+                hot_reload_enabled = False
+        else:
+            hot_reload_enabled = False
+
         # TCOD 디스플레이 초기화
         from src.ui.tcod_display import get_display
         from src.ui.main_menu import run_main_menu, MenuResult
@@ -158,6 +172,16 @@ def main() -> int:
 
         # 메인 게임 루프
         while True:
+            # 핫 리로드 체크 (개발 모드일 때만)
+            if hot_reload_enabled:
+                try:
+                    from src.core.hot_reload import check_and_reload
+                    reloaded = check_and_reload()
+                    if reloaded:
+                        logger.info(f"📦 재로드된 모듈: {', '.join(reloaded)}")
+                except Exception as e:
+                    logger.debug(f"핫 리로드 체크 중 오류 (무시): {e}")
+            
             # 메인 메뉴 실행
             menu_result = run_main_menu(display.console, display.context)
             logger.info(f"메인 메뉴 결과: {menu_result.value}")
@@ -750,6 +774,14 @@ def main() -> int:
                 continue
 
         # 정리
+        # 핫 리로드 중지
+        if hot_reload_enabled:
+            try:
+                from src.core.hot_reload import stop_hot_reload
+                stop_hot_reload()
+            except Exception as e:
+                logger.debug(f"핫 리로드 중지 중 오류 (무시): {e}")
+        
         display.close()
 
         logger.info("게임 종료")

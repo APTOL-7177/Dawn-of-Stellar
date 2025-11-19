@@ -6,8 +6,9 @@ M 메뉴에서 언제든지 접근 가능한 기본 상점
 """
 
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Dict
 import tcod
+import random
 
 from src.ui.input_handler import InputHandler, GameAction
 from src.core.logger import get_logger, Loggers
@@ -18,6 +19,9 @@ from src.equipment.item_system import (
 
 
 logger = get_logger(Loggers.UI)
+
+# 층별 상점 아이템 캐시 (층 번호 -> 아이템 딕셔너리)
+_shop_items_cache: Dict[int, Dict] = {}
 
 
 class GoldShopTab(Enum):
@@ -30,17 +34,18 @@ class GoldShopTab(Enum):
 class GoldShopItem:
     """골드 상점 아이템"""
 
-    def __init__(self, name: str, description: str, price: int, item_obj=None, item_type: str = "consumable"):
+    def __init__(self, name: str, description: str, price: int, item_obj=None, item_type: str = "consumable", stock: int = 1):
         self.name = name
         self.description = description
         self.price = price
         self.item_obj = item_obj  # 실제 아이템 객체
         self.item_type = item_type  # "consumable", "equipment", "special"
+        self.stock = stock  # 재고 (0이면 매진)
 
 
 def get_gold_shop_items(floor_level: int = 1) -> dict:
     """
-    골드 상점 아이템 목록 생성
+    골드 상점 아이템 목록 생성 (층별로 캐싱됨)
 
     Args:
         floor_level: 현재 층수 (장비 등급 결정)
@@ -48,20 +53,31 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     Returns:
         탭별 아이템 딕셔너리
     """
+    global _shop_items_cache
+    
+    # 캐시 확인: 같은 층에서는 같은 아이템 반환
+    if floor_level in _shop_items_cache:
+        logger.debug(f"상점 아이템 캐시 사용 (층 {floor_level})")
+        return _shop_items_cache[floor_level]
+    
     items = {
         GoldShopTab.CONSUMABLES: [],
         GoldShopTab.EQUIPMENT: [],
         GoldShopTab.SPECIAL: []
     }
+    
+    # 층별로 고정된 시드 설정 (같은 층에서는 같은 랜덤 결과)
+    random.seed(floor_level * 12345)  # 층별 고유 시드
 
     # === 소모품 (회복 아이템) ===
-    # 템플릿에서 소모품 생성
-    consumable_items = [
+    # 층별로 다른 소모품 풀 선택
+    all_consumable_items = [
         ("health_potion", 50),
         ("mega_health_potion", 120),
         ("super_health_potion", 250),
         ("mana_potion", 60),
         ("mega_mana_potion", 140),
+        ("super_mana_potion", 300),
         ("elixir", 500),
         # BRV/상처 관련 소모품
         ("wound_salve", 80),
@@ -69,7 +85,17 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
         ("phoenix_tears", 450),
         ("brave_crystal", 200),
         ("mega_brave_crystal", 400),
+        # 추가 소모품
+        ("antidote", 40),
+        ("cure_poison", 60),
+        ("strength_tonic", 150),
+        ("speed_tonic", 150),
+        ("defense_tonic", 150),
     ]
+    
+    # 층별로 6~8개의 소모품 랜덤 선택
+    num_consumables = random.randint(6, 8)
+    consumable_items = random.sample(all_consumable_items, min(num_consumables, len(all_consumable_items)))
 
     for item_id, price in consumable_items:
         # ItemGenerator를 사용하여 일관된 아이템 생성 (스택 문제 해결)
@@ -80,23 +106,28 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             # 템플릿이 없으면 스킵
             continue
         
+        # 소모품 재고: 1~3개 랜덤
+        stock = random.randint(1, 3)
+        
         items[GoldShopTab.CONSUMABLES].append(
             GoldShopItem(
                 consumable.name,
                 consumable.description,
                 price,
                 consumable,
-                "consumable"
+                "consumable",
+                stock=stock
             )
         )
 
     # === 장비 (층수에 맞는 장비) ===
     # floor_level에 따라 적절한 등급의 장비 제공
-    equipment_items = []
-
+    # 층별로 다른 장비 풀 선택
+    all_equipment_pools = []
+    
     if floor_level <= 3:
         # 초반 (1~3층): 기본 장비
-        equipment_items = [
+        all_equipment_pools = [
             ("iron_sword", 100),
             ("wooden_staff", 120),
             ("hunting_bow", 90),
@@ -105,10 +136,13 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             ("mana_ring", 100),
             ("apprentice_robe", 110),
             ("iron_greatsword", 150),
+            ("bronze_sword", 90),
+            ("cloth_armor", 70),
+            ("basic_amulet", 80),
         ]
     elif floor_level <= 7:
         # 중반 (4~7층): 중급 장비
-        equipment_items = [
+        all_equipment_pools = [
             ("steel_sword", 300),
             ("crystal_staff", 350),
             ("longbow", 280),
@@ -118,10 +152,13 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             ("wisdom_tome", 400),
             ("vampire_dagger", 420),
             ("eagle_eye_amulet", 350),  # +1 시야
+            ("silver_sword", 350),
+            ("enchanted_bow", 320),
+            ("steel_armor", 300),
         ]
     elif floor_level <= 12:
         # 후반 (8~12층): 고급 장비
-        equipment_items = [
+        all_equipment_pools = [
             ("mithril_sword", 800),
             ("archmagus_staff", 900),
             ("assassin_dagger", 750),
@@ -133,10 +170,12 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             ("berserker_axe", 950),
             ("far_sight_lens", 700),  # +1 시야
             ("wound_ward_armor", 850),  # 상처 감소
+            ("demon_blade", 1000),
+            ("sage_robe", 900),
         ]
     else:
         # 최후반 (13층+): 최상급 장비
-        equipment_items = [
+        all_equipment_pools = [
             ("dragon_slayer", 2500),
             ("excalibur", 5000),
             ("staff_of_cosmos", 3000),
@@ -147,7 +186,13 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             ("apocalypse_blade", 4500),
             ("owls_pendant", 2000),  # +2 시야
             ("immortal_ring", 3200),  # 상처 면역
+            ("godslayer", 4000),
+            ("cosmic_armor", 3000),
         ]
+    
+    # 층별로 4~6개의 장비 랜덤 선택
+    num_equipment = random.randint(4, 6)
+    equipment_items = random.sample(all_equipment_pools, min(num_equipment, len(all_equipment_pools)))
 
     for item_id, price in equipment_items:
         # 무기 템플릿 확인
@@ -165,8 +210,9 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
                 equip_slot=EquipSlot.WEAPON,
                 unique_effect=template.get("unique_effect")  # 특수 효과 추가
             )
+            # 장비 재고: 1개 고정
             items[GoldShopTab.EQUIPMENT].append(
-                GoldShopItem(equipment.name, equipment.description, price, equipment, "equipment")
+                GoldShopItem(equipment.name, equipment.description, price, equipment, "equipment", stock=1)
             )
         # 방어구 템플릿 확인
         elif item_id in ARMOR_TEMPLATES:
@@ -183,8 +229,9 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
                 equip_slot=EquipSlot.ARMOR,
                 unique_effect=template.get("unique_effect")  # 특수 효과 추가
             )
+            # 장비 재고: 1개 고정
             items[GoldShopTab.EQUIPMENT].append(
-                GoldShopItem(equipment.name, equipment.description, price, equipment, "equipment")
+                GoldShopItem(equipment.name, equipment.description, price, equipment, "equipment", stock=1)
             )
         # 장신구 템플릿 확인
         elif item_id in ACCESSORY_TEMPLATES:
@@ -201,19 +248,29 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
                 equip_slot=EquipSlot.ACCESSORY,
                 unique_effect=template.get("unique_effect")  # 특수 효과 추가
             )
+            # 장비 재고: 1개 고정
             items[GoldShopTab.EQUIPMENT].append(
-                GoldShopItem(equipment.name, equipment.description, price, equipment, "equipment")
+                GoldShopItem(equipment.name, equipment.description, price, equipment, "equipment", stock=1)
             )
 
     # === 특수 아이템 ===
-    special_items = [
+    # 층별로 다른 특수 아이템 풀 선택
+    all_special_items = [
         ("town_portal", 200),
         ("dungeon_key", 150),
         ("phoenix_down", 350),
         ("revival_essence", 400),
         ("wound_cure_essence", 350),
         ("brv_shield_elixir", 280),
+        ("escape_rope", 100),
+        ("treasure_map", 250),
+        ("monster_repellent", 180),
+        ("lucky_charm", 300),
     ]
+    
+    # 층별로 3~4개의 특수 아이템 랜덤 선택
+    num_special = random.randint(3, 4)
+    special_items = random.sample(all_special_items, min(num_special, len(all_special_items)))
 
     for item_id, price in special_items:
         # ItemGenerator를 사용하여 일관된 아이템 생성 (스택 문제 해결)
@@ -224,10 +281,24 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             # 템플릿이 없으면 스킵
             continue
         
+        # 특수 아이템 재고: 1~3개 랜덤 (소모품과 동일)
+        stock = random.randint(1, 3)
+        
         items[GoldShopTab.SPECIAL].append(
-            GoldShopItem(consumable.name, consumable.description, price, consumable, "special")
+            GoldShopItem(consumable.name, consumable.description, price, consumable, "special", stock=stock)
         )
 
+    # 캐시에 저장 (깊은 복사하여 원본 보호)
+    import copy
+    cached_items = {
+        GoldShopTab.CONSUMABLES: copy.deepcopy(items[GoldShopTab.CONSUMABLES]),
+        GoldShopTab.EQUIPMENT: copy.deepcopy(items[GoldShopTab.EQUIPMENT]),
+        GoldShopTab.SPECIAL: copy.deepcopy(items[GoldShopTab.SPECIAL])
+    }
+    _shop_items_cache[floor_level] = cached_items
+    
+    logger.info(f"상점 아이템 생성 완료 (층 {floor_level}): 소모품 {len(items[GoldShopTab.CONSUMABLES])}개, 장비 {len(items[GoldShopTab.EQUIPMENT])}개, 특수 {len(items[GoldShopTab.SPECIAL])}개")
+    
     return items
 
 
@@ -245,9 +316,12 @@ class GoldShopUI:
 
         # UI 상태
         self.current_tab = GoldShopTab.CONSUMABLES
-        self.selected_index = 0
         self.tabs = list(GoldShopTab)
         self.tab_index = 0
+        # 재고가 있는 첫 번째 아이템으로 선택
+        current_items = self.shop_items[self.current_tab]
+        valid_items = [i for i, item in enumerate(current_items) if item.stock > 0]
+        self.selected_index = valid_items[0] if valid_items else 0
 
     def handle_input(self, action: GameAction) -> bool:
         """
@@ -260,21 +334,37 @@ class GoldShopUI:
             # 탭 이동
             self.tab_index = max(0, self.tab_index - 1)
             self.current_tab = self.tabs[self.tab_index]
-            self.selected_index = 0
+            # 재고가 있는 첫 번째 아이템으로 선택
+            current_items = self.shop_items[self.current_tab]
+            valid_items = [i for i, item in enumerate(current_items) if item.stock > 0]
+            self.selected_index = valid_items[0] if valid_items else 0
 
         elif action == GameAction.MOVE_RIGHT:
             # 탭 이동
             self.tab_index = min(len(self.tabs) - 1, self.tab_index + 1)
             self.current_tab = self.tabs[self.tab_index]
-            self.selected_index = 0
+            # 재고가 있는 첫 번째 아이템으로 선택
+            current_items = self.shop_items[self.current_tab]
+            valid_items = [i for i, item in enumerate(current_items) if item.stock > 0]
+            self.selected_index = valid_items[0] if valid_items else 0
 
         elif action == GameAction.MOVE_UP:
             current_items = self.shop_items[self.current_tab]
-            self.selected_index = max(0, self.selected_index - 1)
+            # 재고가 있는 아이템만 세기
+            valid_items = [i for i, item in enumerate(current_items) if item.stock > 0]
+            if valid_items:
+                current_pos = valid_items.index(self.selected_index) if self.selected_index in valid_items else 0
+                new_pos = max(0, current_pos - 1)
+                self.selected_index = valid_items[new_pos]
 
         elif action == GameAction.MOVE_DOWN:
             current_items = self.shop_items[self.current_tab]
-            self.selected_index = min(len(current_items) - 1, self.selected_index + 1)
+            # 재고가 있는 아이템만 세기
+            valid_items = [i for i, item in enumerate(current_items) if item.stock > 0]
+            if valid_items:
+                current_pos = valid_items.index(self.selected_index) if self.selected_index in valid_items else 0
+                new_pos = min(len(valid_items) - 1, current_pos + 1)
+                self.selected_index = valid_items[new_pos]
 
         elif action == GameAction.CONFIRM:
             # 아이템 구매
@@ -296,6 +386,11 @@ class GoldShopUI:
 
         selected_item = current_items[self.selected_index]
 
+        # 재고 확인
+        if selected_item.stock <= 0:
+            logger.warning(f"{selected_item.name}은(는) 매진되었습니다")
+            return
+
         # 골드 확인
         if self.inventory.gold < selected_item.price:
             logger.warning(f"골드가 부족합니다. (필요: {selected_item.price}G, 보유: {self.inventory.gold}G)")
@@ -309,8 +404,11 @@ class GoldShopUI:
         # 구매
         self.inventory.remove_gold(selected_item.price)
         self.inventory.add_item(selected_item.item_obj)
+        
+        # 재고 감소
+        selected_item.stock -= 1
 
-        logger.info(f"구매 완료: {selected_item.name} ({selected_item.price}G)")
+        logger.info(f"구매 완료: {selected_item.name} ({selected_item.price}G) - 재고: {selected_item.stock}개")
 
     def render(self, console: tcod.console.Console):
         """상점 렌더링"""
@@ -365,34 +463,54 @@ class GoldShopUI:
         item_y = shop_y + 7
 
         for i, item in enumerate(current_items):
+            # 재고가 0이면 건너뛰기 (매진 아이템은 표시하지 않음)
+            if item.stock <= 0:
+                continue
+                
             if i == self.selected_index:
                 # 선택된 아이템
                 console.print(shop_x + 2, item_y, "►", fg=(255, 255, 100))
-                console.print(shop_x + 4, item_y, item.name, fg=(255, 255, 100))
+                
+                # 아이템 이름과 재고
+                if item.stock > 1:
+                    item_name = f"{item.name} (재고: {item.stock})"
+                else:
+                    item_name = item.name
+                console.print(shop_x + 4, item_y, item_name, fg=(255, 255, 100))
 
-                # 가격 (골드 부족 시 빨간색)
-                price_color = (255, 255, 100) if self.inventory.gold >= item.price else (255, 100, 100)
+                # 가격 (골드 부족 시 빨간색, 재고 없으면 회색)
+                if item.stock > 0:
+                    price_color = (255, 255, 100) if self.inventory.gold >= item.price else (255, 100, 100)
+                else:
+                    price_color = (100, 100, 100)
                 console.print(shop_x + shop_width - 12, item_y, f"{item.price}G", fg=price_color)
             else:
                 # 일반 아이템
-                console.print(shop_x + 4, item_y, item.name, fg=(200, 200, 200))
+                # 아이템 이름과 재고
+                if item.stock > 1:
+                    item_name = f"{item.name} (재고: {item.stock})"
+                else:
+                    item_name = item.name
+                console.print(shop_x + 4, item_y, item_name, fg=(200, 200, 200))
                 console.print(shop_x + shop_width - 12, item_y, f"{item.price}G", fg=(200, 200, 200))
 
             item_y += 1
 
         # 선택된 아이템 설명
-        if current_items:
+        if current_items and self.selected_index < len(current_items):
             selected_item = current_items[self.selected_index]
-            desc_y = shop_y + shop_height - 8
+            # 재고가 있는 아이템만 설명 표시
+            if selected_item.stock > 0:
+                desc_y = shop_y + shop_height - 8
 
-            console.print(shop_x + 2, desc_y, "[ 설명 ]", fg=(150, 200, 255))
-            desc_y += 1
-
-            # 설명 텍스트 (여러 줄 가능)
-            desc_lines = self._wrap_text(selected_item.description, shop_width - 6)
-            for line in desc_lines:
-                console.print(shop_x + 4, desc_y, line, fg=(200, 200, 200))
+                console.print(shop_x + 2, desc_y, "[ 설명 ]", fg=(150, 200, 255))
                 desc_y += 1
+
+                # 설명 텍스트 (여러 줄 가능)
+                desc_lines = self._wrap_text(selected_item.description, shop_width - 6)
+                for line in desc_lines:
+                    console.print(shop_x + 4, desc_y, line, fg=(200, 200, 200))
+                    desc_y += 1
 
         # 조작법
         help_text = "←→: 탭 이동  ↑↓: 아이템 선택  Enter: 구매  ESC: 닫기"

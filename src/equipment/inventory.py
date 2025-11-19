@@ -169,17 +169,21 @@ class Inventory:
             )
             return False
 
-        # 소비 아이템과 식재료는 스택 가능
+        # 모든 아이템은 스택 가능 (Equipment 제외 - 같은 아이템이라도 다른 속성을 가질 수 있음)
         from src.gathering.ingredient import Ingredient
-        is_stackable = isinstance(item, Consumable) or isinstance(item, Ingredient) or item.item_type == ItemType.MATERIAL
+        from src.cooking.recipe import CookedFood
+        # Equipment는 스택 불가, 나머지는 모두 스택 가능
+        is_stackable = not isinstance(item, Equipment)
         
         if is_stackable:
             # 같은 아이템이 있는지 확인
             item_id = getattr(item, 'item_id', id(item))
             for slot in self.slots:
+                # Equipment는 스택 불가
+                if isinstance(slot.item, Equipment):
+                    continue
                 slot_item_id = getattr(slot.item, 'item_id', id(slot.item))
-                slot_is_stackable = isinstance(slot.item, Consumable) or isinstance(slot.item, Ingredient) or getattr(slot.item, 'item_type', None) == ItemType.MATERIAL
-                if slot_is_stackable and slot_item_id == item_id:
+                if slot_item_id == item_id:
                     slot.quantity += quantity
                     logger.info(
                         f"아이템 추가: {item_name} x{quantity} (총 {slot.quantity}개). "
@@ -212,9 +216,11 @@ class Inventory:
 
         slot = self.slots[slot_index]
 
-        # 소비 아이템과 식재료는 수량 감소
+        # 모든 아이템은 스택 가능 (Equipment 제외)
         from src.gathering.ingredient import Ingredient
-        is_stackable = isinstance(slot.item, Consumable) or isinstance(slot.item, Ingredient) or getattr(slot.item, 'item_type', None) == ItemType.MATERIAL
+        from src.cooking.recipe import CookedFood
+        # Equipment는 스택 불가, 나머지는 모두 스택 가능
+        is_stackable = not isinstance(slot.item, Equipment)
         
         if is_stackable:
             slot.quantity -= quantity

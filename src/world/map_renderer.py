@@ -65,10 +65,17 @@ class MapRenderer:
                 if not tile.explored:
                     continue
 
-                # 타일 표시
-                char = tile.char
-                fg = tile.fg_color
-                bg = tile.bg_color
+                # 함정은 작동하기 전까지 숨김 (일반 바닥처럼 표시)
+                if tile.tile_type in [TileType.TRAP, TileType.SPIKE_TRAP, TileType.FIRE_TRAP, TileType.POISON_GAS]:
+                    # 함정은 일반 바닥처럼 표시
+                    char = "."
+                    fg = (100, 100, 100)
+                    bg = (0, 0, 0)
+                else:
+                    # 타일 표시
+                    char = tile.char
+                    fg = tile.fg_color
+                    bg = tile.bg_color
 
                 # 탐험됐지만 현재 보이지 않는 경우 어둡게
                 if not tile.visible:
