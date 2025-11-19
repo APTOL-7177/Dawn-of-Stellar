@@ -77,6 +77,11 @@ class ATBGauge:
 
     def increase(self, amount: float) -> None:
         """게이지 증가"""
+        # 죽은 캐릭터는 ATB 증가하지 않음
+        is_alive = getattr(self.owner, 'is_alive', True)
+        if not is_alive:
+            return
+        
         # 캐스팅 중이면 증가하지 않음
         if self.is_casting:
             return
@@ -147,15 +152,21 @@ class ATBSystem:
             self._update_average_speed()
 
     def _update_average_speed(self) -> None:
-        """모든 전투원의 평균 속도 계산"""
+        """모든 전투원의 평균 속도 계산 (살아있는 전투원만)"""
         if not self.combatants:
             self._average_speed = 1.0
             return
 
-        total_speed = sum(getattr(c, "speed", 10) for c in self.combatants)
-        self._average_speed = total_speed / len(self.combatants)
+        # 살아있는 전투원만 계산
+        alive_combatants = [c for c in self.combatants if getattr(c, 'is_alive', True)]
+        if not alive_combatants:
+            self._average_speed = 1.0
+            return
 
-        self.logger.debug(f"평균 속도 업데이트: {self._average_speed:.2f}")
+        total_speed = sum(getattr(c, "speed", 10) for c in alive_combatants)
+        self._average_speed = total_speed / len(alive_combatants)
+
+        self.logger.debug(f"평균 속도 업데이트: {self._average_speed:.2f} (살아있는 전투원: {len(alive_combatants)}명)")
 
     def calculate_atb_increase(self, combatant: Any, is_player_turn: bool = False) -> float:
         """
@@ -207,6 +218,13 @@ class ATBSystem:
         casting_system = get_casting_system()
 
         for combatant, gauge in self.gauges.items():
+            # 죽은 캐릭터는 ATB 업데이트 건너뛰기
+            is_alive = getattr(combatant, 'is_alive', True)
+            if not is_alive:
+                # 죽은 캐릭터의 ATB는 0으로 유지
+                gauge.current = 0
+                continue
+            
             # 상태이상 효과가 반영된 속도 사용
             effective_speed = gauge.get_effective_speed()
 

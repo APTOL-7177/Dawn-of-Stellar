@@ -92,8 +92,7 @@ class EnemyAI:
                 # 대상 선택
                 target = self._select_target(selected_skill, allies, enemies)
                 if target:
-                    # 쿨다운 활성화
-                    selected_skill.activate_cooldown()
+                    # 쿨다운 활성화는 combat_manager에서 처리됨 (중복 방지)
 
                     # 대상 이름 결정 (리스트인 경우 처리)
                     if isinstance(target, list):

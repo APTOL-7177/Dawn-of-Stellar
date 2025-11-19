@@ -151,6 +151,22 @@ class GimmickUpdater:
             # 스탠스 변경 스킬 사용 시 스탠스 효과 재적용
             if skill.metadata.get("stance"):
                 GimmickUpdater._apply_stance_effects(character)
+        elif gimmick_type == "shapeshifting_system":
+            # 드루이드: 변신 스킬 사용 시 형태 변경
+            form = skill.metadata.get("form")
+            if form:
+                character.current_form = form
+                form_names = {
+                    "bear": "곰",
+                    "cat": "표범",
+                    "panther": "표범",
+                    "eagle": "독수리",
+                    "wolf": "늑대",
+                    "primal": "진 변신",
+                    "elemental": "원소"
+                }
+                form_name = form_names.get(form, form)
+                logger.info(f"{character.name} {form_name} 형태로 변신!")
 
     @staticmethod
     def on_ally_attack(attacker, all_allies, target=None):

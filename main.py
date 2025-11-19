@@ -240,8 +240,8 @@ def main() -> int:
                         logger.error(f"파티 데이터: {loaded_state.get('party', [])}")
                         raise
 
-                    # 던전 복원
-                    dungeon = deserialize_dungeon(loaded_state["dungeon"])
+                    # 던전 복원 (적 포함)
+                    dungeon, enemies = deserialize_dungeon(loaded_state["dungeon"])
                     floor_number = loaded_state.get("floor_number", 1)
 
                     # 디버그: 채집 오브젝트 복원 확인
@@ -266,6 +266,9 @@ def main() -> int:
                     exploration.player.x = player_pos["x"]
                     exploration.player.y = player_pos["y"]
 
+                    # 적 복원
+                    exploration.enemies = enemies
+                    
                     # 키 복원
                     exploration.player_keys = loaded_state.get("keys", [])
 
@@ -283,6 +286,28 @@ def main() -> int:
 
                     # 탐험 시스템에 게임 통계 전달
                     exploration.game_stats = game_stats
+
+                    # 층별 던전 상태 저장 딕셔너리 (층 이동 시 재사용)
+                    floors_dungeons = {}
+                    # 현재 층 던전 저장
+                    floors_dungeons[floor_number] = {
+                        "dungeon": dungeon,
+                        "enemies": enemies,
+                        "player_x": player_pos["x"],
+                        "player_y": player_pos["y"]
+                    }
+                    
+                    # 저장된 모든 층의 던전 상태 복원 (있는 경우)
+                    if "floors" in loaded_state:
+                        for floor_num, floor_data in loaded_state["floors"].items():
+                            if floor_num != floor_number:  # 현재 층은 이미 복원됨
+                                floor_dungeon, floor_enemies = deserialize_dungeon(floor_data)
+                                floors_dungeons[int(floor_num)] = {
+                                    "dungeon": floor_dungeon,
+                                    "enemies": floor_enemies,
+                                    "player_x": floor_data.get("player_position", {}).get("x", 0),
+                                    "player_y": floor_data.get("player_position", {}).get("y", 0)
+                                }
 
                     # 탐험 계속 (새 게임과 동일한 루프)
                     while True:
@@ -409,24 +434,78 @@ def main() -> int:
                                 continue
 
                         elif result == "floor_down":
+                            # 현재 층 상태 저장
+                            floors_dungeons[floor_number] = {
+                                "dungeon": exploration.dungeon,
+                                "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
+                                "player_x": exploration.player.x,
+                                "player_y": exploration.player.y
+                            }
+                            
                             floor_number += 1
                             exploration.game_stats["max_floor_reached"] = max(exploration.game_stats["max_floor_reached"], floor_number)
                             logger.info(f"⬇ 다음 층: {floor_number}층 (최대: {exploration.game_stats['max_floor_reached']}층)")
-                            from src.world.dungeon_generator import DungeonGenerator
-                            dungeon_gen = DungeonGenerator(width=80, height=50)
-                            dungeon = dungeon_gen.generate(floor_number)
+                            
+                            # 기존 던전이 있으면 재사용, 없으면 생성
+                            if floor_number in floors_dungeons:
+                                floor_data = floors_dungeons[floor_number]
+                                dungeon = floor_data["dungeon"]
+                                saved_enemies = floor_data["enemies"]
+                                saved_x = floor_data["player_x"]
+                                saved_y = floor_data["player_y"]
+                                logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
+                            else:
+                                from src.world.dungeon_generator import DungeonGenerator
+                                dungeon_gen = DungeonGenerator(width=80, height=50)
+                                dungeon = dungeon_gen.generate(floor_number)
+                                saved_enemies = []
+                                saved_x = None
+                                saved_y = None
+                                logger.info(f"새 {floor_number}층 던전 생성")
+                            
                             exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                            exploration.enemies = saved_enemies
+                            if saved_x is not None and saved_y is not None:
+                                exploration.player.x = saved_x
+                                exploration.player.y = saved_y
                             # 층 변경 시 BGM 재생
                             play_dungeon_bgm = True
                             continue
                         elif result == "floor_up":
                             if floor_number > 1:
+                                # 현재 층 상태 저장
+                                floors_dungeons[floor_number] = {
+                                    "dungeon": exploration.dungeon,
+                                    "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
+                                    "player_x": exploration.player.x,
+                                    "player_y": exploration.player.y
+                                }
+                                
                                 floor_number -= 1
                                 logger.info(f"⬆ 이전 층: {floor_number}층")
-                                from src.world.dungeon_generator import DungeonGenerator
-                                dungeon_gen = DungeonGenerator(width=80, height=50)
-                                dungeon = dungeon_gen.generate(floor_number)
+                                
+                                # 기존 던전이 있으면 재사용, 없으면 생성
+                                if floor_number in floors_dungeons:
+                                    floor_data = floors_dungeons[floor_number]
+                                    dungeon = floor_data["dungeon"]
+                                    saved_enemies = floor_data["enemies"]
+                                    saved_x = floor_data["player_x"]
+                                    saved_y = floor_data["player_y"]
+                                    logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
+                                else:
+                                    from src.world.dungeon_generator import DungeonGenerator
+                                    dungeon_gen = DungeonGenerator(width=80, height=50)
+                                    dungeon = dungeon_gen.generate(floor_number)
+                                    saved_enemies = []
+                                    saved_x = None
+                                    saved_y = None
+                                    logger.info(f"새 {floor_number}층 던전 생성")
+                                
                                 exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                exploration.enemies = saved_enemies
+                                if saved_x is not None and saved_y is not None:
+                                    exploration.player.x = saved_x
+                                    exploration.player.y = saved_y
                                 # 층 변경 시 BGM 재생
                                 play_dungeon_bgm = True
                                 continue
@@ -573,6 +652,15 @@ def main() -> int:
                     dungeon = dungeon_gen.generate(floor_number)
                     exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
 
+                    # 층별 던전 상태 저장 딕셔너리 (층 이동 시 재사용)
+                    floors_dungeons = {}
+                    floors_dungeons[floor_number] = {
+                        "dungeon": dungeon,
+                        "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
+                        "player_x": exploration.player.x,
+                        "player_y": exploration.player.y
+                    }
+
                     # BGM 제어 플래그 (첫 탐험 시작 및 층 변경 시에만 재생)
                     play_dungeon_bgm = True
 
@@ -705,28 +793,79 @@ def main() -> int:
                                         continue
 
                                 elif result == "floor_down":
+                                    # 현재 층 상태 저장
+                                    floors_dungeons[floor_number] = {
+                                        "dungeon": exploration.dungeon,
+                                        "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
+                                        "player_x": exploration.player.x,
+                                        "player_y": exploration.player.y
+                                    }
+                                    
                                     floor_number += 1
                                     exploration.game_stats["max_floor_reached"] = max(exploration.game_stats["max_floor_reached"], floor_number)
                                     logger.info(f"⬇ 다음 층: {floor_number}층 (최대: {exploration.game_stats['max_floor_reached']}층)")
-                                    # 새 던전 생성
-                                    dungeon = dungeon_gen.generate(floor_number)
+                                    
+                                    # 기존 던전이 있으면 재사용, 없으면 생성
+                                    if floor_number in floors_dungeons:
+                                        floor_data = floors_dungeons[floor_number]
+                                        dungeon = floor_data["dungeon"]
+                                        saved_enemies = floor_data["enemies"]
+                                        saved_x = floor_data["player_x"]
+                                        saved_y = floor_data["player_y"]
+                                        logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
+                                    else:
+                                        dungeon = dungeon_gen.generate(floor_number)
+                                        saved_enemies = []
+                                        saved_x = None
+                                        saved_y = None
+                                        logger.info(f"새 {floor_number}층 던전 생성")
+                                    
                                     exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                    exploration.enemies = saved_enemies
+                                    if saved_x is not None and saved_y is not None:
+                                        exploration.player.x = saved_x
+                                        exploration.player.y = saved_y
                                     # 층 변경 시 BGM 재생
                                     play_dungeon_bgm = True
                                     continue
                                 elif result == "floor_up":
                                     if floor_number > 1:
+                                        # 현재 층 상태 저장
+                                        floors_dungeons[floor_number] = {
+                                            "dungeon": exploration.dungeon,
+                                            "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
+                                            "player_x": exploration.player.x,
+                                            "player_y": exploration.player.y
+                                        }
+                                        
                                         floor_number -= 1
                                         logger.info(f"⬆ 이전 층: {floor_number}층")
-                                        # 새 던전 생성
-                                        dungeon = dungeon_gen.generate(floor_number)
+                                        
+                                        # 기존 던전이 있으면 재사용, 없으면 생성
+                                        if floor_number in floors_dungeons:
+                                            floor_data = floors_dungeons[floor_number]
+                                            dungeon = floor_data["dungeon"]
+                                            saved_enemies = floor_data["enemies"]
+                                            saved_x = floor_data["player_x"]
+                                            saved_y = floor_data["player_y"]
+                                            logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
+                                        else:
+                                            dungeon = dungeon_gen.generate(floor_number)
+                                            saved_enemies = []
+                                            saved_x = None
+                                            saved_y = None
+                                            logger.info(f"새 {floor_number}층 던전 생성")
+                                        
                                         exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        exploration.enemies = saved_enemies
+                                        if saved_x is not None and saved_y is not None:
+                                            exploration.player.x = saved_x
+                                            exploration.player.y = saved_y
                                         # 층 변경 시 BGM 재생
                                         play_dungeon_bgm = True
                                         continue
                                     else:
                                         logger.info("🎉 던전 탈출 성공!")
-
                                         # 게임 정산 (승리)
                                         from src.ui.game_result_ui import show_game_result
                                         show_game_result(

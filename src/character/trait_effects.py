@@ -140,8 +140,8 @@ class TraitEffectManager:
                 TraitEffect(
                     trait_id="quick_step",
                     effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=1.10,
-                    target_stat="speed"
+                    value=1.15,
+                    target_stat="max_brv"
                 )
             ],
 
@@ -2700,6 +2700,88 @@ class TraitEffectManager:
         
         # 최대 90%까지 감소 가능
         return min(total_reduction, 0.90)
+
+    def calculate_lifesteal(self, character: Any) -> float:
+        """
+        특성에 의한 생명력 흡수율 계산
+
+        Args:
+            character: 캐릭터
+
+        Returns:
+            생명력 흡수율 (0.10 = 10%)
+        """
+        if not hasattr(character, 'active_traits'):
+            return 0.0
+
+        lifesteal_rate = 0.0
+
+        for trait_data in character.active_traits:
+            trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+            effects = self.get_trait_effects(trait_id)
+
+            for effect in effects:
+                if effect.effect_type == TraitEffectType.LIFESTEAL:
+                    if self._check_condition(character, effect.condition or "", {}):
+                        lifesteal_rate += effect.value
+                        self.logger.debug(f"[{trait_id}] 생명력 흡수: +{effect.value * 100:.0f}%")
+
+        return lifesteal_rate
+
+    def calculate_mana_leech(self, character: Any) -> float:
+        """
+        특성에 의한 마력 흡수율 계산
+
+        Args:
+            character: 캐릭터
+
+        Returns:
+            마력 흡수율 (0.05 = 5%)
+        """
+        if not hasattr(character, 'active_traits'):
+            return 0.0
+
+        mana_leech_rate = 0.0
+
+        for trait_data in character.active_traits:
+            trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+            effects = self.get_trait_effects(trait_id)
+
+            for effect in effects:
+                if effect.effect_type == TraitEffectType.MANA_LEECH:
+                    if self._check_condition(character, effect.condition or "", {}):
+                        mana_leech_rate += effect.value
+                        self.logger.debug(f"[{trait_id}] 마력 흡수: +{effect.value * 100:.0f}%")
+
+        return mana_leech_rate
+
+    def calculate_critical_damage(self, character: Any) -> float:
+        """
+        특성에 의한 크리티컬 데미지 배율 계산
+
+        Args:
+            character: 캐릭터
+
+        Returns:
+            크리티컬 데미지 배율 (1.0 = 100%, 1.5 = 150%)
+        """
+        if not hasattr(character, 'active_traits'):
+            return 1.0
+
+        critical_damage_mult = 1.0
+
+        for trait_data in character.active_traits:
+            trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+            effects = self.get_trait_effects(trait_id)
+
+            for effect in effects:
+                if effect.effect_type == TraitEffectType.CRITICAL_DAMAGE:
+                    if self._check_condition(character, effect.condition or "", {}):
+                        # 배율은 곱셈 (1.0 + (value - 1.0))
+                        critical_damage_mult *= effect.value
+                        self.logger.debug(f"[{trait_id}] 크리티컬 데미지 배율: {effect.value:.2f}x")
+
+        return critical_damage_mult
 
     def apply_turn_start_effects(self, character: Any):
         """

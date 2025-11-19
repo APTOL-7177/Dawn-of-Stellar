@@ -125,6 +125,7 @@ def create_cleric_skills():
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 5)
     ]
     holy_judgment.costs = [MPCost(10), StackCost("faith_points", 5)]
+    holy_judgment.target_type = "all_enemies"
     holy_judgment.is_aoe = True
     # holy_judgment.cooldown = 6  # 쿨다운 시스템 제거됨
     holy_judgment.sfx = "146"  # 짧은 광역 마법

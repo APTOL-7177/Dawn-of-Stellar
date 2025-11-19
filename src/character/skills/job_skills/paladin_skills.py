@@ -125,6 +125,7 @@ def create_paladin_skills():
     ]
     holy_retribution.costs = [MPCost(10), StackCost("holy_power", 4)]
     # holy_retribution.cooldown = 6  # 쿨다운 시스템 제거됨
+    holy_retribution.target_type = "all_enemies"
     holy_retribution.is_aoe = True
     holy_retribution.sfx = "504"
     holy_retribution.metadata = {"holy_power_cost": 4, "holy_power_scaling": True, "debuff": True, "aoe": True}
@@ -143,6 +144,7 @@ def create_paladin_skills():
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
+    ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.sfx = "514"
     ultimate.metadata = {"ultimate": True, "holy_power_refill": True, "healing": True, "party": True}

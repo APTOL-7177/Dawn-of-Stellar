@@ -110,6 +110,7 @@ def create_alchemist_skills():
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 4)
     ]
     chain_explosion.costs = [MPCost(12), StackCost("potion_stock", 4)]
+    chain_explosion.target_type = "all_enemies"
     chain_explosion.sfx = "146"  # 짧은 폭발
     # chain_explosion.cooldown = 5  # 쿨다운 시스템 제거됨
     chain_explosion.metadata = {"potion_cost": 4, "potion_scaling": True, "chain": True}

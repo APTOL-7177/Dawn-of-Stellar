@@ -438,10 +438,14 @@ class Inventory:
         target_name = getattr(target, 'name', '알 수 없는 대상')
 
         if effect_type == "heal_hp":
-            # HP 회복
-            healed = target.heal(effect_value)
+            # HP 회복 (죽은 아군도 회복 가능)
+            was_dead = not getattr(target, 'is_alive', True)
+            healed = target.heal(effect_value, can_revive=True)
             if healed > 0:
-                logger.info(f"{target_name}: {item_name} 사용 → HP +{healed}")
+                if was_dead:
+                    logger.info(f"{target_name}: {item_name} 사용 → 부활! HP {target.current_hp}")
+                else:
+                    logger.info(f"{target_name}: {item_name} 사용 → HP +{healed}")
                 success = True
         elif effect_type == "heal_mp":
             # MP 회복
@@ -450,11 +454,15 @@ class Inventory:
                 logger.info(f"{target_name}: {item_name} 사용 → MP +{restored}")
                 success = True
         elif effect_type == "heal_both":
-            # HP/MP 모두 회복
-            healed = target.heal(effect_value)
+            # HP/MP 모두 회복 (죽은 아군도 회복 가능)
+            was_dead = not getattr(target, 'is_alive', True)
+            healed = target.heal(effect_value, can_revive=True)
             restored = target.restore_mp(effect_value)
             if healed > 0 or restored > 0:
-                logger.info(f"{target_name}: {item_name} 사용 → HP +{healed}, MP +{restored}")
+                if was_dead and healed > 0:
+                    logger.info(f"{target_name}: {item_name} 사용 → 부활! HP {target.current_hp}, MP +{restored}")
+                else:
+                    logger.info(f"{target_name}: {item_name} 사용 → HP +{healed}, MP +{restored}")
                 success = True
         elif effect_type == "revive":
             # 부활
@@ -509,12 +517,16 @@ class Inventory:
         for member in targets:
             member_name = getattr(member, 'name', '알 수 없는 대상')
             
-            # HP 회복
+            # HP 회복 (죽은 아군도 회복 가능)
             hp_restore = getattr(food, 'hp_restore', 0)
             if hp_restore > 0:
-                healed = member.heal(hp_restore)
+                was_dead = not getattr(member, 'is_alive', True)
+                healed = member.heal(hp_restore, can_revive=True)
                 if healed > 0:
-                    logger.info(f"{member_name}: {item_name} 사용 → HP +{healed}")
+                    if was_dead:
+                        logger.info(f"{member_name}: {item_name} 사용 → 부활! HP {member.current_hp}")
+                    else:
+                        logger.info(f"{member_name}: {item_name} 사용 → HP +{healed}")
                     success = True
 
             # MP 회복

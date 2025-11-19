@@ -114,6 +114,7 @@ def create_druid_skills():
     ]
     wolf_form.costs = [MPCost(9), StackCost("nature_points", 4)]
     # wolf_form.cooldown = 5  # 쿨다운 시스템 제거됨
+    wolf_form.target_type = "all_enemies"
     wolf_form.is_aoe = True
     wolf_form.sfx = "385"
     wolf_form.metadata = {"form": "wolf", "nature_cost": 4, "nature_scaling": True, "aoe": True}
@@ -130,6 +131,7 @@ def create_druid_skills():
     ]
     natures_wrath.costs = [MPCost(11), StackCost("nature_points", 5)]
     # natures_wrath.cooldown = 6  # 쿨다운 시스템 제거됨
+    natures_wrath.target_type = "all_enemies"
     natures_wrath.is_aoe = True
     natures_wrath.sfx = "390"
     natures_wrath.metadata = {"form": "elemental", "nature_cost": 5, "nature_scaling": True, "debuff": True}
@@ -148,6 +150,7 @@ def create_druid_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = "396"
