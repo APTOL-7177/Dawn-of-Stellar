@@ -21,6 +21,7 @@ class MenuItem:
     enabled: bool = True
     description: str = ""
     value: Any = None  # 추가 데이터 저장용
+    is_selected: bool = False  # 선택된 항목인지 표시 (색상 구분용)
 
     @property
     def data(self):
@@ -224,7 +225,14 @@ class CursorMenu:
             if not item.enabled:
                 color = Colors.DARK_GRAY
             elif actual_index == self.cursor_index:
-                color = Colors.UI_TEXT_SELECTED
+                # 커서가 있는 항목은 선택 여부에 관계없이 강조 색상
+                if item.is_selected:
+                    color = (150, 255, 150)  # 더 밝은 초록색 (커서 + 선택됨)
+                else:
+                    color = Colors.UI_TEXT_SELECTED
+            elif item.is_selected:
+                # 선택된 항목 (초록색 계열, 커서가 없을 때)
+                color = (100, 255, 100)  # 밝은 초록색
             else:
                 color = Colors.UI_TEXT
 

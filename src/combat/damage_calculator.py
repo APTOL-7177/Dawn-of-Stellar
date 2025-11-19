@@ -85,15 +85,38 @@ class DamageCalculator:
         stat_modifier = attacker_atk / (defender_def + 1.0)
         base_damage = max(1, int(stat_modifier * skill_multiplier * self.brv_damage_multiplier))
 
+        # 특성 효과: HP 비례 공격력 (berserker_rage 등)
+        from src.character.trait_effects import get_trait_effect_manager
+        trait_manager = get_trait_effect_manager()
+        hp_scaling_mult = 1.0
+        if hasattr(attacker, 'active_traits'):
+            for trait_data in attacker.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                effects = trait_manager.get_trait_effects(trait_id)
+                for effect in effects:
+                    if effect.effect_type.value == "hp_scaling_attack":
+                        # HP가 낮을수록 공격력 증가
+                        if hasattr(attacker, 'current_hp') and hasattr(attacker, 'max_hp'):
+                            hp_percent = attacker.current_hp / attacker.max_hp if attacker.max_hp > 0 else 1.0
+                            max_bonus = effect.metadata.get("max_bonus", effect.value) if effect.metadata else effect.value
+                            # HP 0%일 때 최대 보너스, HP 100%일 때 보너스 없음
+                            bonus_mult = 1.0 + (max_bonus * (1.0 - hp_percent))
+                            hp_scaling_mult *= bonus_mult
+        
+        base_damage = int(base_damage * hp_scaling_mult)
+
         # 랜덤 변수 (90% ~ 110%)
         variance = random.uniform(0.9, 1.1)
         damage = base_damage * variance
 
         # 크리티컬 판정
         is_critical = self._check_critical(attacker)
+        critical_dmg_mult = 1.0
         if is_critical:
-            damage *= self.critical_multiplier
-            self.logger.debug(f"크리티컬 히트! {attacker.name}")
+            # 크리티컬 데미지 배율 (critical_master 등)
+            critical_dmg_mult = trait_manager.calculate_critical_damage(attacker)
+            damage *= (self.critical_multiplier * critical_dmg_mult)
+            self.logger.debug(f"크리티컬 히트! {attacker.name} (배율: {self.critical_multiplier * critical_dmg_mult:.2f}x)")
 
         final_damage = max(1, int(damage))
 
@@ -175,18 +198,54 @@ class DamageCalculator:
 
         damage = base_damage
 
+        # 특성 효과: HP 비례 공격력 (berserker_rage 등)
+        from src.character.trait_effects import get_trait_effect_manager
+        trait_manager = get_trait_effect_manager()
+        hp_scaling_mult = 1.0
+        if hasattr(attacker, 'active_traits'):
+            for trait_data in attacker.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                effects = trait_manager.get_trait_effects(trait_id)
+                for effect in effects:
+                    if effect.effect_type.value == "hp_scaling_attack":
+                        # HP가 낮을수록 공격력 증가
+                        if hasattr(attacker, 'current_hp') and hasattr(attacker, 'max_hp'):
+                            hp_percent = attacker.current_hp / attacker.max_hp if attacker.max_hp > 0 else 1.0
+                            max_bonus = effect.metadata.get("max_bonus", effect.value) if effect.metadata else effect.value
+                            # HP 0%일 때 최대 보너스, HP 100%일 때 보너스 없음
+                            bonus_mult = 1.0 + (max_bonus * (1.0 - hp_percent))
+                            hp_scaling_mult *= bonus_mult
+        
+        damage = int(damage * hp_scaling_mult)
+
         # 크리티컬 판정
         is_critical = self._check_critical(attacker)
+        critical_dmg_mult = 1.0
         if is_critical:
-            damage = int(damage * self.critical_multiplier)
-            self.logger.info(f"⚡ 크리티컬 HP 공격! {attacker.name}")
+            # 크리티컬 데미지 배율 (critical_master 등)
+            critical_dmg_mult = trait_manager.calculate_critical_damage(attacker)
+            damage = int(damage * self.critical_multiplier * critical_dmg_mult)
+            self.logger.info(f"⚡ 크리티컬 HP 공격! {attacker.name} (배율: {self.critical_multiplier * critical_dmg_mult:.2f}x)")
 
         # BREAK 보너스
         if is_break:
-            damage = int(damage * self.break_damage_bonus)
-            self.logger.info(f"⚡ BREAK 보너스 데미지! {damage} ({self.break_damage_bonus}x)")
+            # 브레이크 보너스 계산 (break_master 등)
+            break_bonus = trait_manager.calculate_break_bonus(attacker)
+            if break_bonus > 0:
+                # break_bonus는 추가 배율 (1.5 = 150%)
+                break_mult = 1.0 + (break_bonus - 1.0)
+            else:
+                break_mult = self.break_damage_bonus
+            damage = int(damage * break_mult)
+            self.logger.info(f"⚡ BREAK 보너스 데미지! {damage} ({break_mult:.2f}x)")
 
         final_damage = max(5, damage)
+        
+        # 피해 감소 적용 (damage_reduction, brave_soul 등)
+        damage_reduction = trait_manager.calculate_damage_reduction(defender, is_defending=kwargs.get("is_defending", False))
+        if damage_reduction > 0:
+            final_damage = int(final_damage * (1.0 - damage_reduction))
+            self.logger.debug(f"[{defender.name}] 피해 감소 적용: {damage_reduction * 100:.1f}% → 최종 피해: {final_damage}")
 
         # 난이도 보정 (플레이어가 공격자인 경우)
         from src.core.difficulty import get_difficulty_system

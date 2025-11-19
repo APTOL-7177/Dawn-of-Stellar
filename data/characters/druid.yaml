@@ -48,7 +48,7 @@ traits:
     bind_brv_damage: 0.2
 - id: natural_balance
   name: 자연의 균형
-  description: 변신 상태에 따라 능력치 보너스 (곰: 방어력 +25%, 표범: 공격력 +25%, 독수리: 속도 +25%)
+  description: "변신 상태에 따라 능력치 보너스 (곰: 방어력 +25%, 표범: 공격력 +25%, 독수리: 속도 +25%)"
   type: conditional
   conditions:
     in_animal_form: true

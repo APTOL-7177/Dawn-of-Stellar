@@ -71,6 +71,11 @@ class MapRenderer:
                     char = "."
                     fg = (100, 100, 100)
                     bg = (0, 0, 0)
+                # 퍼즐은 해결되면 일반 바닥처럼 표시
+                elif tile.tile_type == TileType.PUZZLE and getattr(tile, 'puzzle_solved', False):
+                    char = "."
+                    fg = (100, 100, 100)
+                    bg = (0, 0, 0)
                 else:
                     # 타일 표시
                     char = tile.char

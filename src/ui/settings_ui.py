@@ -22,11 +22,9 @@ class SettingOption(Enum):
     """설정 옵션"""
     VOLUME_BGM = "bgm_volume"
     VOLUME_SFX = "sfx_volume"
-    LANGUAGE = "language"
-    DIFFICULTY = "difficulty"
-    AUTO_SAVE = "auto_save"
-    SHOW_DAMAGE_NUMBERS = "show_damage"
-    COMBAT_SPEED = "combat_speed"
+    FULLSCREEN = "fullscreen"
+    SHOW_FPS = "show_fps"
+    FPS_LIMIT = "fps_limit"
     TUTORIAL = "tutorial"
     BACK = "back"
 
@@ -59,25 +57,19 @@ class SettingsUI:
         # 10의 배수로 반올림
         self.bgm_volume = round(self.bgm_volume / 10) * 10
         self.sfx_volume = round(self.sfx_volume / 10) * 10
-        self.language = config.get("game.language", "ko")
-        self.difficulty = config.get("game.difficulty", "normal")
-        self.auto_save = config.get("save.auto_save", True)
-        self.show_damage_numbers = config.get("ui.show_damage_numbers", True)
-        self.combat_speed = config.get("combat.speed", "normal")
+        self.fullscreen = config.get("display.fullscreen", False)
+        self.show_fps = config.get("display.show_fps", False)
+        self.fps_limit = config.get("display.fps_limit", 60)
 
         self.options = [
             ("BGM 볼륨", SettingOption.VOLUME_BGM),
             ("효과음 볼륨", SettingOption.VOLUME_SFX),
-            ("난이도", SettingOption.DIFFICULTY),
-            ("자동 저장", SettingOption.AUTO_SAVE),
-            ("데미지 숫자 표시", SettingOption.SHOW_DAMAGE_NUMBERS),
-            ("전투 속도", SettingOption.COMBAT_SPEED),
+            ("전체화면", SettingOption.FULLSCREEN),
+            ("FPS 표시", SettingOption.SHOW_FPS),
+            ("FPS 제한", SettingOption.FPS_LIMIT),
             ("튜토리얼 다시보기", SettingOption.TUTORIAL),
             ("돌아가기", SettingOption.BACK),
         ]
-
-        # 언어는 한국어 고정
-        self.language = "ko"
 
     def handle_input(self, action: GameAction) -> Optional[str]:
         """
@@ -137,31 +129,27 @@ class SettingsUI:
                 logger.debug(f"SFX 볼륨 조정: {self.sfx_volume}")
             except Exception as e:
                 logger.warning(f"SFX 볼륨 조정 실패: {e}")
-        elif option == SettingOption.DIFFICULTY:
-            difficulties = ["easy", "normal", "hard", "extreme"]
-            current_idx = difficulties.index(self.difficulty) if self.difficulty in difficulties else 1
-            new_idx = (current_idx + direction) % len(difficulties)
-            self.difficulty = difficulties[new_idx]
-        elif option == SettingOption.AUTO_SAVE:
-            self.auto_save = not self.auto_save
-        elif option == SettingOption.SHOW_DAMAGE_NUMBERS:
-            self.show_damage_numbers = not self.show_damage_numbers
-        elif option == SettingOption.COMBAT_SPEED:
-            speeds = ["slow", "normal", "fast", "instant"]
-            current_idx = speeds.index(self.combat_speed) if self.combat_speed in speeds else 1
-            new_idx = (current_idx + direction) % len(speeds)
-            self.combat_speed = speeds[new_idx]
+        elif option == SettingOption.FULLSCREEN:
+            self.fullscreen = not self.fullscreen
+            # 전체화면 변경은 재시작 필요
+            logger.info(f"전체화면 설정: {self.fullscreen} (재시작 필요)")
+        elif option == SettingOption.SHOW_FPS:
+            self.show_fps = not self.show_fps
+        elif option == SettingOption.FPS_LIMIT:
+            # 30, 60, 120, 144, 240, 0 (무제한)
+            fps_options = [30, 60, 120, 144, 240, 0]
+            current_idx = fps_options.index(self.fps_limit) if self.fps_limit in fps_options else 1
+            new_idx = (current_idx + direction) % len(fps_options)
+            self.fps_limit = fps_options[new_idx]
 
     def save_settings(self):
         """설정 저장"""
         config = get_config()
-        config.set("audio.bgm_volume", self.bgm_volume)
-        config.set("audio.sfx_volume", self.sfx_volume)
-        config.set("game.language", self.language)
-        config.set("game.difficulty", self.difficulty)
-        config.set("save.auto_save", self.auto_save)
-        config.set("ui.show_damage_numbers", self.show_damage_numbers)
-        config.set("combat.speed", self.combat_speed)
+        config.set("audio.bgm_volume", self.bgm_volume / 100.0)  # 0.0-1.0 범위로 저장
+        config.set("audio.sfx_volume", self.sfx_volume / 100.0)  # 0.0-1.0 범위로 저장
+        config.set("display.fullscreen", self.fullscreen)
+        config.set("display.show_fps", self.show_fps)
+        config.set("display.fps_limit", self.fps_limit)
 
         logger.info("설정 저장됨")
 
@@ -200,19 +188,14 @@ class SettingsUI:
                 value = f"{int(sfx_vol)}%"
                 bar = self._render_volume_bar(int(sfx_vol))
                 console.print(value_x, y, f"{bar} {value}", fg=value_color)
-            elif option == SettingOption.DIFFICULTY:
-                diff_names = {"easy": "쉬움", "normal": "보통", "hard": "어려움", "extreme": "익스트림"}
-                value = diff_names.get(self.difficulty, self.difficulty)
-                console.print(value_x, y, f"< {value} >", fg=value_color)
-            elif option == SettingOption.AUTO_SAVE:
-                value = "켜짐" if self.auto_save else "꺼짐"
+            elif option == SettingOption.FULLSCREEN:
+                value = "켜짐" if self.fullscreen else "꺼짐"
                 console.print(value_x, y, f"[ {value} ]", fg=value_color)
-            elif option == SettingOption.SHOW_DAMAGE_NUMBERS:
-                value = "켜짐" if self.show_damage_numbers else "꺼짐"
+            elif option == SettingOption.SHOW_FPS:
+                value = "켜짐" if self.show_fps else "꺼짐"
                 console.print(value_x, y, f"[ {value} ]", fg=value_color)
-            elif option == SettingOption.COMBAT_SPEED:
-                speed_names = {"slow": "느림", "normal": "보통", "fast": "빠름", "instant": "즉시"}
-                value = speed_names.get(self.combat_speed, self.combat_speed)
+            elif option == SettingOption.FPS_LIMIT:
+                value = f"{self.fps_limit} FPS" if self.fps_limit > 0 else "무제한"
                 console.print(value_x, y, f"< {value} >", fg=value_color)
             elif option == SettingOption.TUTORIAL:
                 # 튜토리얼 다시보기
@@ -227,12 +210,11 @@ class SettingsUI:
         explanations = {
             0: "배경 음악의 볼륨을 조절합니다",
             1: "효과음의 볼륨을 조절합니다",
-            2: "게임 난이도를 조절합니다",
-            3: "자동 저장 기능을 켜거나 끕니다",
-            4: "전투 중 데미지 숫자 표시 여부",
-            5: "전투 애니메이션 속도를 조절합니다",
-            6: "튜토리얼을 다시 볼 수 있습니다 (게임 기본 조작법, 전투 시스템 등)",
-            7: "메뉴로 돌아갑니다",
+            2: "전체화면 모드로 게임을 실행합니다 (재시작 필요)",
+            3: "화면에 프레임 레이트(FPS)를 표시합니다",
+            4: "게임의 최대 프레임 레이트를 제한합니다 (0 = 무제한)",
+            5: "튜토리얼을 다시 볼 수 있습니다 (게임 기본 조작법, 전투 시스템 등)",
+            6: "메뉴로 돌아갑니다",
         }
 
         explanation = explanations.get(self.selected_index, "")

@@ -185,10 +185,8 @@ class RewardDisplay:
                 if hasattr(item, 'affixes') and item.affixes:
                     affix_texts = []
                     for affix in item.affixes[:3]:  # 최대 3개만 표시
-                        if affix.is_percentage:
-                            affix_texts.append(f"{affix.name} +{affix.value}%")
-                        else:
-                            affix_texts.append(f"{affix.name} +{int(affix.value)}")
+                        # get_description() 메서드를 사용하여 올바른 형식으로 표시
+                        affix_texts.append(affix.get_description())
 
                     if affix_texts:
                         console.print(
