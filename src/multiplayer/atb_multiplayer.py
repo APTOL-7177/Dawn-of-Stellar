@@ -3,7 +3,7 @@
 
 실시간 전투를 위한 ATB 시스템 개조
 - 항상 ATB 증가
-- 행동 선택 중 1/50 감소
+- 행동 선택 중 1/30 감소
 - 1.5초 대기 예외 처리
 """
 
@@ -31,6 +31,10 @@ class MultiplayerATBSystem(ATBSystem):
         # 설정 값
         self.action_wait_time = MultiplayerConfig.action_wait_time  # 1.5초
         self.atb_reduction_multiplier = MultiplayerConfig.atb_reduction_multiplier  # 1/50 = 0.02
+        
+        # 불릿타임 모드 업데이트 주기 (30배 늦춤)
+        self.bullet_time_update_counter = 0
+        self.bullet_time_update_interval = 30  # 30번 호출에 1번만 업데이트
     
     def set_player_selecting(self, player_id: str, is_selecting: bool):
         """
@@ -98,17 +102,16 @@ class MultiplayerATBSystem(ATBSystem):
         ATB 증가량 계산 (멀티플레이 규칙 적용)
         
         멀티플레이 규칙:
-        1. 행동 선택 중인 플레이어가 있으면 모든 ATB가 1/50로 감소
-        2. 캐스팅 중인 경우도 1/50로 감소
-        3. 액션 확인 후 1.5초 대기 중이면 모든 플레이어와 적의 ATB가 정지됨
+        1. 액션 확인 후 1.5초 대기 중이면 모든 플레이어와 적의 ATB가 정지됨
+        2. 행동 선택 중인 플레이어가 있는 경우는 업데이트 주기로 처리 (1/30 속도)
         
         Args:
-            combatant: 전투원
+            combatant: 전투원 (플레이어 또는 적)
             delta_time: 경과 시간
             is_player_turn: 플레이어 턴 중인지 (멀티플레이에서는 무시됨)
             
         Returns:
-            ATB 증가량
+            ATB 증가량 (원래 증가량 유지, 업데이트 주기로 속도 조절)
         """
         # 기본 증가량 계산 (부모 클래스 메서드 사용)
         base_increase = super().calculate_atb_increase(combatant, is_player_turn=False)
@@ -125,22 +128,32 @@ class MultiplayerATBSystem(ATBSystem):
         if self.is_in_action_wait():
             return 0.0
         
-        # 2. 행동 선택 중인 플레이어가 있으면 1/50로 감소
-        if self.players_selecting_action:
-            base_increase *= self.atb_reduction_multiplier
-        
-        # 3. 캐스팅 중인 경우도 1/50로 감소
-        if gauge and gauge.is_casting:
-            base_increase *= self.atb_reduction_multiplier
-        
+        # 증가량은 그대로 반환 (업데이트 주기로 속도 조절)
         return base_increase
+    
+    def _is_bullet_time_active(self) -> bool:
+        """
+        불릿타임 모드가 활성화되어 있는지 확인
+        
+        Returns:
+            불릿타임 모드 활성화 여부
+        """
+        # 행동 선택 중인 플레이어가 있으면 불릿타임 활성화
+        # 캐스팅 중인 것은 행동 선택 중이 아니므로 불릿타임이 활성화되지 않음
+        if self.players_selecting_action:
+            return True
+        
+        return False
     
     def update(self, delta_time: float = 1.0, is_player_turn: bool = False) -> None:
         """
         ATB 업데이트 (멀티플레이 - 항상 진행)
         
         멀티플레이에서는 is_player_turn이 True여도 ATB가 증가합니다.
-        단, 멀티플레이 규칙(행동 선택 중 감소, 1.5초 대기 등)이 적용됩니다.
+        단, 멀티플레이 규칙(행동 선택 중 1/30 속도, 1.5초 대기 등)이 적용됩니다.
+        
+        불릿타임 모드(행동 선택 중)일 때는 업데이트 주기를 30배로 늘림.
+        즉, 30번 호출에 1번만 실제로 업데이트하여 1/30 속도로 느리게 흐르게 함.
         
         Args:
             delta_time: 경과 시간
@@ -151,6 +164,30 @@ class MultiplayerATBSystem(ATBSystem):
         
         # 오래된 대기 시간 정리 (1.5초 이상 지난 경우)
         self.cleanup_old_waits()
+        
+        # 불릿타임 모드 확인
+        is_bullet_time = self._is_bullet_time_active()
+        
+        # 불릿타임 모드일 때는 업데이트 주기를 30배로 늘림
+        if is_bullet_time:
+            self.bullet_time_update_counter += 1
+            # 30번 호출에 1번만 실제로 업데이트
+            if self.bullet_time_update_counter < self.bullet_time_update_interval:
+                # 로그: 처음 몇 번과 주기적으로
+                if self.bullet_time_update_counter <= 3 or self.bullet_time_update_counter % 10 == 0:
+                    self.logger.info(
+                        f"⏸ 불릿타임: 업데이트 건너뛰기 "
+                        f"({self.bullet_time_update_counter}/{self.bullet_time_update_interval})"
+                    )
+                return  # 업데이트 건너뛰기
+            # 카운터 리셋
+            self.bullet_time_update_counter = 0
+            self.logger.info("▶ 불릿타임: 실제 업데이트 실행 (30번 중 1번)")
+        else:
+            # 불릿타임 모드가 아니면 카운터 리셋
+            if self.bullet_time_update_counter > 0:
+                self.logger.info("불릿타임 모드 해제: 카운터 리셋")
+            self.bullet_time_update_counter = 0
         
         # 멀티플레이에서는 항상 ATB 증가 (is_player_turn 무시)
         # 캐스팅 시스템 가져오기
@@ -165,6 +202,7 @@ class MultiplayerATBSystem(ATBSystem):
                 continue
             
             # ATB 증가량 계산 (멀티플레이 규칙 적용)
+            # 증가량은 원래대로 유지 (업데이트 주기로 속도 조절)
             increase = self.calculate_atb_increase(combatant, delta_time, is_player_turn=False)
             
             # 캐스팅 중인지 확인
@@ -172,11 +210,11 @@ class MultiplayerATBSystem(ATBSystem):
             gauge.is_casting = is_casting
             
             if is_casting:
-                # 캐스팅 중이면 캐스팅 진행도 업데이트 (ATB는 증가하지 않음)
-                # 단, 멀티플레이 규칙(1/50 감소)이 이미 calculate_atb_increase에서 적용됨
+                # 캐스팅 중이면 캐스팅 진행도 업데이트
                 casting_system.update(combatant, int(increase))
-            else:
-                # ATB 증가
+            elif not gauge.can_act:
+                # 행동 불가능한 경우에만 ATB 증가 (can_act가 True가 되면 더 이상 증가하지 않음)
+                # 불릿타임 중에도 이미 100%를 넘으면 증가하지 않음
                 gauge.increase(increase)
                 
                 # 행동 가능 상태가 되면 이벤트 발행

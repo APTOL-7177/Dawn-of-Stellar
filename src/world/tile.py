@@ -223,13 +223,8 @@ class Tile:
             self.walkable = True
             self.transparent = True
             self.char = "@"
-            # NPC 타입에 따라 색상 변경
-            if self.npc_type == "helpful":
-                self.fg_color = (100, 255, 100)  # 초록색 (도움)
-            elif self.npc_type == "harmful":
-                self.fg_color = (255, 100, 100)  # 빨간색 (손해)
-            else:
-                self.fg_color = (200, 200, 255)  # 파란색 (중립)
+            # NPC는 흰색 고정
+            self.fg_color = (255, 255, 255)
 
         elif self.tile_type == TileType.ALTAR:
             self.walkable = True

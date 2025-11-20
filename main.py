@@ -262,9 +262,10 @@ def main() -> int:
                             logger.info(f"멀티플레이 세션 생성 완료: {session.session_id}")
                             # 로컬 네트워크 IP 주소 가져오기
                             local_ip = network_manager.local_ip
-                            logger.info(f"호스트 서버 시작됨: ws://0.0.0.0:5000")
-                            logger.info(f"로컬 네트워크 접속 주소: ws://{local_ip}:5000")
-                            logger.info(f"같은 네트워크의 플레이어들은 이 주소로 연결하세요: {local_ip}:5000")
+                            actual_port = network_manager.port  # 실제 사용된 포트
+                            logger.info(f"호스트 서버 시작됨: ws://0.0.0.0:{actual_port}")
+                            logger.info(f"로컬 네트워크 접속 주소: ws://{local_ip}:{actual_port}")
+                            logger.info(f"같은 네트워크의 플레이어들은 이 주소로 연결하세요: {local_ip}:{actual_port}")
                             logger.info("참고: 외부 네트워크에서 접속하려면 공인 IP와 포트 포워딩이 필요합니다")
                             
                             # 서버 루프는 별도 스레드에서 실행 (게임 루프와 병렬)
@@ -336,6 +337,17 @@ def main() -> int:
                         # 로컬 플레이어의 파티 설정
                         local_player.party = party_members
                         
+                        # 패시브 선택 (호스트만)
+                        from src.ui.passive_selection import run_passive_selection
+                        passive_selection = run_passive_selection(display.console, display.context)
+                        
+                        if not passive_selection:
+                            logger.info("패시브 선택 취소")
+                            continue
+                        
+                        # 패시브 객체 리스트를 ID 리스트로 변환
+                        selected_passives = [passive.id for passive in passive_selection.passives] if passive_selection else []
+                        
                         # 난이도 선택
                         from src.core.difficulty import DifficultySystem, DifficultyLevel, set_difficulty_system
                         difficulty_system = DifficultySystem(config)
@@ -378,10 +390,57 @@ def main() -> int:
                         
                         logger.info(f"던전 생성 완료: {floor_number}층 (시드: {dungeon_seed})")
                         
-                        # 탐험 시스템 생성 (멀티플레이)
+                        # PartyMember를 Character 객체로 변환 (특성/패시브 정보 포함)
+                        from src.character.character import Character
+                        from src.persistence.meta_progress import get_meta_progress
+                        character_party = []
+                        for idx, member in enumerate(party_members):
+                            char = Character(
+                                name=member.character_name,
+                                character_class=member.job_id,
+                                level=1
+                            )
+                            # 경험치 초기화
+                            char.experience = 0
+                            
+                            # 멀티플레이: 캐릭터에 플레이어 ID 할당
+                            # PartyMember에 player_id가 있으면 사용, 없으면 local_player_id 사용
+                            if hasattr(member, 'player_id') and member.player_id:
+                                char.player_id = member.player_id
+                            else:
+                                # 로컬 플레이어의 캐릭터에 할당
+                                char.player_id = local_player_id
+                            logger.debug(f"{member.character_name}에 player_id 할당: {char.player_id}")
+                            
+                            # 파티 구성에서 선택된 특성 적용
+                            if member.selected_traits:
+                                for trait_id in member.selected_traits:
+                                    if char.activate_trait(trait_id):
+                                        logger.debug(f"{member.character_name}에 특성 추가: {trait_id}")
+                            
+                            character_party.append(char)
+                        
+                        # 선택된 패시브를 모든 캐릭터에 적용 (파티 전체 공통)
+                        if selected_passives:
+                            for passive_id in selected_passives:
+                                for char in character_party:
+                                    if char.activate_trait(passive_id):
+                                        logger.debug(f"{char.name}에 패시브 추가: {passive_id}")
+                            logger.info(f"패시브 적용 완료: {', '.join(selected_passives)}")
+                        
+                        # 파티 강화 업그레이드 적용 (HP/MP 증가)
+                        host_meta = get_meta_progress()  # 호스트의 메타 진행
+                        from src.character.upgrade_applier import UpgradeApplier
+                        UpgradeApplier.apply_to_characters(character_party, meta_progress=host_meta, is_host=True)
+                        logger.info("파티 강화 업그레이드 적용 완료")
+                        
+                        # 로컬 플레이어의 파티를 Character 객체 리스트로 업데이트 (전투 참여자 수집용)
+                        local_player.party = character_party
+                        
+                        # 탐험 시스템 생성 (멀티플레이) - Character 객체 리스트 전달
                         exploration = MultiplayerExplorationSystem(
                             dungeon=dungeon,
-                            party=party_members,
+                            party=character_party,  # PartyMember가 아닌 Character 객체 리스트
                             floor_number=floor_number,
                             inventory=inventory,
                             game_stats=game_stats,
@@ -430,7 +489,7 @@ def main() -> int:
                                 display.context,
                                 exploration,
                                 inventory,
-                                party_members,
+                                character_party,  # PartyMember가 아닌 Character 객체 리스트
                                 play_bgm_on_start=play_dungeon_bgm
                             )
                             
@@ -446,12 +505,12 @@ def main() -> int:
                                 if data and isinstance(data, dict):
                                     num_enemies = data.get("num_enemies", 0)
                                     map_enemies = data.get("enemies", [])
-                                    combat_party = data.get("participants", party_members)
+                                    combat_party = data.get("participants", character_party)
                                     combat_position = data.get("position", (local_player.x, local_player.y))
                                 else:
                                     num_enemies = 0
                                     map_enemies = []
-                                    combat_party = party_members
+                                    combat_party = character_party
                                     combat_position = (local_player.x, local_player.y)
                                 
                                 if num_enemies > 0:
@@ -625,6 +684,22 @@ def main() -> int:
                                     exploration.game_stats["max_floor_reached"],
                                     floor_number
                                 )
+                                
+                                # 멀티플레이 모드 유지 확인 (층 변경 후에도 멀티플레이 상태 유지)
+                                if hasattr(exploration, 'is_multiplayer'):
+                                    # MultiplayerExplorationSystem인 경우 is_multiplayer는 이미 True로 설정되어 있음
+                                    # 하지만 확실하게 하기 위해 재확인
+                                    if session:
+                                        exploration.is_multiplayer = True
+                                    else:
+                                        from src.multiplayer.game_mode import get_game_mode_manager
+                                        game_mode_manager = get_game_mode_manager()
+                                        if game_mode_manager:
+                                            exploration.is_multiplayer = game_mode_manager.is_multiplayer()
+                                
+                                # FOV 업데이트 (층 변경 후 필수)
+                                if hasattr(exploration, 'update_fov'):
+                                    exploration.update_fov()
                                 
                                 # 네트워크 매니저에 현재 층 정보 업데이트 (새로 연결된 클라이언트에게 전송용)
                                 if network_manager:
@@ -1174,6 +1249,22 @@ def main() -> int:
                                         exploration.game_stats["max_floor_reached"],
                                         floor_number
                                     )
+                                    
+                                    # 멀티플레이 모드 유지 확인 (층 변경 후에도 멀티플레이 상태 유지)
+                                    if hasattr(exploration, 'is_multiplayer'):
+                                        # MultiplayerExplorationSystem인 경우 is_multiplayer는 이미 True로 설정되어 있음
+                                        # 하지만 확실하게 하기 위해 재확인
+                                        if session:
+                                            exploration.is_multiplayer = True
+                                        else:
+                                            from src.multiplayer.game_mode import get_game_mode_manager
+                                            game_mode_manager = get_game_mode_manager()
+                                            if game_mode_manager:
+                                                exploration.is_multiplayer = game_mode_manager.is_multiplayer()
+                                    
+                                    # FOV 업데이트 (층 변경 후 필수)
+                                    if hasattr(exploration, 'update_fov'):
+                                        exploration.update_fov()
                                     play_dungeon_bgm = True
                                     continue
                         finally:
@@ -1200,6 +1291,157 @@ def main() -> int:
 
                 if loaded_state:
                     logger.info("게임 불러오기 성공")
+                    
+                    # 멀티플레이 세이브 여부 확인 및 처리
+                    is_multiplayer_load = loaded_state.get("is_multiplayer", False)
+                    session = None
+                    network_manager = None
+                    local_player_id = None
+                    local_player = None
+                    assignments = None
+                    
+                    if is_multiplayer_load:
+                        # 멀티플레이 세이브: 무조건 호스트 모드로 진행 (호스트만 저장 가능)
+                        logger.info(f"멀티플레이 세이브 불러오기 감지: is_multiplayer={is_multiplayer_load} (호스트 모드로 진행)")
+                        
+                        # 호스트 모드로 강제 설정 (멀티플레이 게임을 불러올 때는 호스트만 저장할 수 있으므로)
+                        mode = "host"
+                        
+                        # 멀티플레이 세션 설정 (호스트/조인)
+                        from src.multiplayer.game_mode import get_game_mode_manager
+                        from src.multiplayer.session import MultiplayerSession
+                        from src.multiplayer.network import HostNetworkManager, ClientNetworkManager
+                        from src.multiplayer.player import MultiplayerPlayer
+                        from uuid import uuid4
+                        import asyncio
+                        
+                        game_mode_manager = get_game_mode_manager()
+                        
+                        # 멀티플레이 게임을 불러올 때는 무조건 호스트 모드 (호스트만 저장 가능)
+                        # 호스트 모드 설정
+                        logger.info("멀티플레이 세이브: 호스트 모드로 재개 (호스트만 저장 가능)")
+                        local_player_id = str(uuid4())[:8]
+                        session = MultiplayerSession(max_players=4)
+                        session.host_id = local_player_id
+                        game_mode_manager.local_player_id = local_player_id
+                        game_mode_manager.is_host = True
+                        
+                        local_player = MultiplayerPlayer(
+                            player_id=local_player_id,
+                            player_name="호스트",
+                            x=0,
+                            y=0,
+                            party=[],
+                            is_host=True
+                        )
+                        session.add_player(local_player)
+                        session.local_player_id = local_player_id
+                        
+                        network_manager = HostNetworkManager(port=0, session=session)  # 포트 자동 할당
+                        network_manager.player_id = local_player_id
+                        
+                        # 서버 시작
+                        server_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(server_loop)
+                        server_task = server_loop.create_task(network_manager.start_server())
+                        server_loop.run_until_complete(asyncio.sleep(0.5))
+                        
+                        logger.info(f"멀티플레이 세션 재개 (호스트): {session.session_id}")
+                        logger.info(f"로컬 네트워크 접속 주소: ws://{network_manager.local_ip}:{network_manager.port}")
+                        
+                        # 주석: 조인 모드는 멀티플레이 게임을 불러올 때 사용하지 않음 (호스트만 저장 가능)
+                        # elif mode == "join":
+                        #     # 조인 모드
+                        #     host_address = multiplayer_result.get("host_address")
+                        #     port = multiplayer_result.get("port", 5000)
+                        #     
+                        #     if not host_address:
+                        #         logger.error("호스트 주소가 없습니다")
+                        #         continue
+                        #     
+                        #     logger.info(f"멀티플레이 세이브: 조인 모드로 재개 - {host_address}:{port}")
+                        #     local_player_id = str(uuid4())[:8]
+                        #     network_manager = ClientNetworkManager(host_address, port)
+                        #     network_manager.player_id = local_player_id
+                        #     game_mode_manager.local_player_id = local_player_id
+                        #     game_mode_manager.is_host = False
+                        #     
+                        #     # 연결 대기
+                        #     try:
+                        #         loop = asyncio.new_event_loop()
+                        #         asyncio.set_event_loop(loop)
+                        #         loop.run_until_complete(network_manager.connect())
+                        #         
+                        #         # 세션 데이터 수신 대기
+                        #         import time
+                        #         timeout = 5.0
+                        #         start_time = time.time()
+                        #         while not hasattr(network_manager, 'session') or network_manager.session is None:
+                        #             if time.time() - start_time > timeout:
+                        #                 logger.error("세션 데이터 수신 타임아웃")
+                        #                 break
+                        #             loop.run_until_complete(asyncio.sleep(0.1))
+                        #         
+                        #         if hasattr(network_manager, 'session') and network_manager.session:
+                        #             session = network_manager.session
+                        #             local_player = session.get_player(local_player_id)
+                        #             logger.info(f"멀티플레이 세션 재개 (조인): {session.session_id}")
+                        #         else:
+                        #             logger.error("세션 데이터 수신 실패")
+                        #             continue
+                        #     except Exception as e:
+                        #         logger.error(f"조인 실패: {e}", exc_info=True)
+                        #         continue
+                        
+                        # 멀티플레이 세션 설정 완료 후 플레이어 재할당 UI 표시
+                        if session and local_player_id:
+                            logger.info(f"멀티플레이 세션 설정 완료: session={session.session_id}, local_player_id={local_player_id}")
+                            from src.ui.multiplayer_character_reassignment_ui import show_character_reassignment
+                            
+                            # 현재 접속한 플레이어 목록 생성
+                            current_players = []
+                            if hasattr(session, 'players') and session.players:
+                                logger.info(f"세션 플레이어 수: {len(session.players)}")
+                                for pid, player in session.players.items():
+                                    if player:
+                                        current_players.append({
+                                            "player_id": pid,
+                                            "player_name": getattr(player, 'player_name', '플레이어')
+                                        })
+                                        logger.debug(f"플레이어 추가: {pid} ({getattr(player, 'player_name', '플레이어')})")
+                            
+                            # 플레이어가 없으면 로컬 플레이어만 추가 (호스트만 있는 경우)
+                            if not current_players and local_player:
+                                logger.info(f"플레이어 목록이 비어있음 - 로컬 플레이어 추가: {local_player_id}")
+                                current_players.append({
+                                    "player_id": local_player_id,
+                                    "player_name": getattr(local_player, 'player_name', '호스트')
+                                })
+                            
+                            logger.info(f"재할당 UI 표시 준비: {len(current_players)}명 플레이어, {len(loaded_state.get('party', []))}명 캐릭터")
+                            
+                            # 재할당 UI 표시 (파티 복원 전에 표시)
+                            if current_players:
+                                assignments = show_character_reassignment(
+                                    display.console,
+                                    display.context,
+                                    loaded_state.get("party", []),  # 불러온 캐릭터 정보 (player_id 포함)
+                                    current_players
+                                )
+                                
+                                if assignments:
+                                    logger.info(f"플레이어 재할당 완료: {len(assignments)}명 플레이어에게 할당")
+                                else:
+                                    logger.warning("플레이어 재할당 취소됨")
+                                    continue
+                            else:
+                                logger.error("재할당할 플레이어가 없습니다 - 세션 설정 문제 가능성")
+                                # 플레이어가 없어도 계속 진행 (싱글플레이처럼)
+                                assignments = {}
+                        else:
+                            logger.warning(f"멀티플레이 세션 설정 실패: session={session is not None}, local_player_id={local_player_id is not None}")
+                            assignments = {}
+                    
                     # 불러온 데이터로 게임 재개
                     from src.persistence.save_system import (
                         deserialize_party_member,
@@ -1231,10 +1473,31 @@ def main() -> int:
                     set_difficulty_system(difficulty_system)
                     logger.info(f"난이도 시스템 복원: {difficulty_str}")
 
-                    # 파티 복원
+                    # 파티 복원 (player_id 포함, 멀티플레이 재할당 적용)
                     try:
-                        party = [deserialize_party_member(member_data) for member_data in loaded_state.get("party", [])]
-                        logger.info(f"파티 복원 완료: {len(party)}명")
+                        loaded_party_data = loaded_state.get("party", [])
+                        
+                        # 멀티플레이: 재할당 결과를 먼저 적용한 후 파티 복원
+                        if is_multiplayer_load and assignments:
+                            # 재할당 결과를 불러온 파티 데이터에 적용
+                            for player_id, character_indices in assignments.items():
+                                for char_idx in character_indices:
+                                    if char_idx < len(loaded_party_data):
+                                        loaded_party_data[char_idx]["player_id"] = player_id
+                                        logger.debug(
+                                            f"캐릭터 데이터 재할당: {loaded_party_data[char_idx].get('name', 'Unknown')} -> "
+                                            f"플레이어 {player_id}"
+                                        )
+                        
+                        # 파티 복원
+                        party = [deserialize_party_member(member_data) for member_data in loaded_party_data]
+                        logger.info(f"파티 복원 완료: {len(party)}명 (멀티플레이: {is_multiplayer_load})")
+                        
+                        # 멀티플레이: 재할당된 player_id 확인
+                        if is_multiplayer_load:
+                            for char in party:
+                                if hasattr(char, 'player_id') and char.player_id:
+                                    logger.debug(f"{char.name}의 player_id: {char.player_id}")
                     except Exception as e:
                         logger.error(f"파티 복원 실패: {e}", exc_info=True)
                         logger.error(f"파티 데이터: {loaded_state.get('party', [])}")
@@ -1261,20 +1524,6 @@ def main() -> int:
                     # 플레이어 위치 복원
                     player_pos = loaded_state.get("player_position", {"x": 0, "y": 0})
 
-                    # 탐험 시스템 초기화
-                    exploration = ExplorationSystem(dungeon, party, floor_number, inventory)
-                    exploration.player.x = player_pos["x"]
-                    exploration.player.y = player_pos["y"]
-
-                    # 적 복원
-                    exploration.enemies = enemies
-                    
-                    # 키 복원
-                    exploration.player_keys = loaded_state.get("keys", [])
-
-                    # BGM 제어 플래그 (첫 탐험 시작 및 층 변경 시에만 재생)
-                    play_dungeon_bgm = True
-
                     # 게임 통계 초기화 (불러온 게임용)
                     game_stats = {
                         "enemies_defeated": loaded_state.get("enemies_defeated", 0),
@@ -1284,8 +1533,45 @@ def main() -> int:
                         "save_slot": loaded_state.get("save_slot", None)
                     }
 
-                    # 탐험 시스템에 게임 통계 전달
-                    exploration.game_stats = game_stats
+                    # 탐험 시스템 초기화 (멀티플레이/싱글플레이 구분)
+                    if is_multiplayer_load and session and network_manager and local_player_id:
+                        # 멀티플레이 탐험 시스템
+                        from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                        exploration = MultiplayerExplorationSystem(
+                            dungeon=dungeon,
+                            party=party,  # Character 객체 리스트
+                            floor_number=floor_number,
+                            inventory=inventory,
+                            game_stats=game_stats,  # 게임 통계 전달
+                            session=session,
+                            network_manager=network_manager,
+                            local_player_id=local_player_id
+                        )
+                        exploration.player.x = player_pos["x"]
+                        exploration.player.y = player_pos["y"]
+                        
+                        # 로컬 플레이어 위치 설정
+                        if local_player:
+                            local_player.x = player_pos["x"]
+                            local_player.y = player_pos["y"]
+                            local_player.party = party  # 로컬 플레이어의 파티 설정
+                        
+                        logger.info(f"멀티플레이 탐험 시스템 생성 완료 (is_multiplayer={exploration.is_multiplayer})")
+                    else:
+                        # 싱글플레이 탐험 시스템
+                        exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                        exploration.player.x = player_pos["x"]
+                        exploration.player.y = player_pos["y"]
+                        logger.info("싱글플레이 탐험 시스템 생성 완료")
+
+                    # 적 복원
+                    exploration.enemies = enemies
+                    
+                    # 키 복원
+                    exploration.player_keys = loaded_state.get("keys", [])
+                    
+                    # BGM 제어 플래그 (첫 탐험 시작 및 층 변경 시에만 재생)
+                    play_dungeon_bgm = True
 
                     # 층별 던전 상태 저장 딕셔너리 (층 이동 시 재사용)
                     floors_dungeons = {}

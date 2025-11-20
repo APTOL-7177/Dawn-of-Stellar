@@ -15,6 +15,7 @@ from src.core.logger import get_logger
 from src.multiplayer.session import MultiplayerSession
 from src.multiplayer.network import HostNetworkManager, ClientNetworkManager
 from src.multiplayer.player import MultiplayerPlayer
+from src.audio import play_bgm
 
 
 logger = get_logger("multiplayer.lobby")
@@ -286,6 +287,13 @@ def show_multiplayer_lobby(
         완료 시 딕셔너리 {"completed": True, "cancelled": False} 또는
         취소 시 {"completed": False, "cancelled": True} 또는 None
     """
+    # 멀티플레이 로비 BGM 재생
+    try:
+        play_bgm("party_setup", loop=True)
+        logger.info("멀티플레이 로비 BGM 재생")
+    except Exception as e:
+        logger.warning(f"멀티플레이 로비 BGM 재생 실패: {e}")
+    
     lobby = MultiplayerLobby(
         screen_width=console.width,
         screen_height=console.height,

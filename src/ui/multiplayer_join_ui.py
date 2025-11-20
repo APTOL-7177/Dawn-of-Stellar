@@ -29,13 +29,18 @@ def show_join_game_screen(
     screen_width = console.width
     screen_height = console.height
     
+    # 두 입력 박스를 더 넓게 배치 (간격 확보)
+    box_width = 40
+    box_height = 6
+    box_spacing = 3  # 박스 사이 간격
+    
     ip_input = TextInputBox(
         title="호스트 IP 주소 입력",
         prompt="IP 주소:",
         max_length=15,
-        x=(screen_width - 40) // 2,
-        y=(screen_height - 10) // 2,
-        width=40,
+        x=(screen_width - box_width) // 2,
+        y=(screen_height - (box_height * 2 + box_spacing)) // 2,
+        width=box_width,
         default_text="127.0.0.1"  # 기본값으로 localhost 설정
     )
     
@@ -43,9 +48,9 @@ def show_join_game_screen(
         title="호스트 포트 입력",
         prompt="포트:",
         max_length=5,
-        x=(screen_width - 40) // 2,
-        y=(screen_height - 10) // 2 + 6,
-        width=40,
+        x=(screen_width - box_width) // 2,
+        y=(screen_height - (box_height * 2 + box_spacing)) // 2 + box_height + box_spacing,
+        width=box_width,
         default_text="5000"
     )
     
@@ -64,25 +69,27 @@ def show_join_game_screen(
             fg=Colors.UI_TEXT_SELECTED
         )
         
+        # 먼저 두 입력 박스를 모두 렌더링 (비활성화 상태로)
         # IP 입력 박스 렌더링
         ip_input.render(console)
-        
         # 포트 입력 박스 렌더링
         port_input.render(console)
         
-        # 현재 활성화된 입력 박스 강조
+        # 그 다음 활성화된 박스의 테두리만 다시 그리기 (강조)
         if current_input == ip_input:
+            # IP 활성화: 밝은 노란색 테두리로 덮어쓰기
             console.draw_frame(
                 ip_input.x, ip_input.y, ip_input.width, 6,
                 ip_input.title,
-                fg=Colors.YELLOW,  # 강조 색상
+                fg=Colors.YELLOW,
                 bg=Colors.UI_BG
             )
         elif current_input == port_input:
+            # 포트 활성화: 밝은 노란색 테두리로 덮어쓰기
             console.draw_frame(
                 port_input.x, port_input.y, port_input.width, 6,
                 port_input.title,
-                fg=Colors.YELLOW,  # 강조 색상
+                fg=Colors.YELLOW,
                 bg=Colors.UI_BG
             )
         

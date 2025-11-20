@@ -259,6 +259,11 @@ def open_game_menu(
                             # MultiplayerExplorationSystem인 경우
                             is_multiplayer = True
                         
+                        # 멀티플레이: 세션 정보 가져오기
+                        session = None
+                        if is_multiplayer and hasattr(exploration, 'session'):
+                            session = exploration.session
+                        
                         game_state = serialize_game_state(
                             party=party if party else [],
                             floor_number=exploration.floor_number,
@@ -271,7 +276,8 @@ def open_game_menu(
                             passives=[],  # 패시브도 파티 구성 시점에 저장됨
                             difficulty=current_difficulty,
                             exploration=exploration,
-                            is_multiplayer=is_multiplayer
+                            is_multiplayer=is_multiplayer,
+                            session=session
                         )
                         
                         # 게임 통계 추가

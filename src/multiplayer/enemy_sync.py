@@ -1,7 +1,7 @@
 """
 적 이동 동기화 시스템
 
-멀티플레이에서 적의 2초 간격 움직임을 관리합니다.
+멀티플레이에서 적의 0.65초 간격 움직임을 관리합니다.
 """
 
 import time
@@ -35,7 +35,7 @@ class EnemySyncManager:
         self.is_host = is_host
         self.logger = get_logger("multiplayer.enemy_sync")
         
-        # 적 이동 간격 (2초)
+        # 적 이동 간격 (0.65초)
         self.move_interval = MultiplayerConfig.SYNC_INTERVAL_ENEMY
         self.last_move_time = 0.0
         
@@ -72,7 +72,7 @@ class EnemySyncManager:
         if not self.is_host:
             return False
         
-        # 2초 간격 체크
+        # 0.65초 간격 체크
         if current_time - self.last_move_time < self.move_interval:
             return False
         
