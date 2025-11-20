@@ -2,7 +2,7 @@
 
 > Final Fantasy 스타일의 ATB + BRV 전투 시스템을 가진 로그라이크 RPG
 
-![Version](https://img.shields.io/badge/version-5.0.0-blue)
+![Version](https://img.shields.io/badge/version-6.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 
@@ -30,7 +30,7 @@
 - **절차적 던전 생성** - 매번 다른 도전
 - **메타 진행 시스템** - 별조각으로 새로운 직업 해금
 - **요리 & 제작 시스템** - Don't Starve 스타일의 서바이벌 요소
-- **Final Fantasy VII OST** - 오리지널 BGM과 효과음
+- **멀티플레이어 시스템** - 최대 4인 협동 멀티플레이
 
 ### 장르
 
@@ -188,7 +188,7 @@ BRV 공격 → BRV 축적 → HP 공격 → 실제 데미지
 ### 프로젝트 정보
 
 - **프로젝트명**: Dawn of Stellar (별빛의 여명)
-- **버전**: 5.0.0
+- **버전**: 6.0.0
 - **개발 언어**: Python 3.10+
 - **게임 엔진**: TCOD (libtcod)
 - **저장소**: https://github.com/APTOL-7176/Dos

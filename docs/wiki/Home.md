@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Dawn of Stellar Banner](https://img.shields.io/badge/Dawn%20of%20Stellar-5.0.0-blue?style=for-the-badge)
+![Dawn of Stellar Banner](https://img.shields.io/badge/Dawn%20of%20Stellar-6.0.0-blue?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.10+-green?style=for-the-badge&logo=python)
 ![Genre](https://img.shields.io/badge/Genre-Roguelike%20RPG-red?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
@@ -29,8 +29,8 @@
 | 🏰 **절차적 던전** | BSP 알고리즘으로 매번 다른 던전 생성 |
 | ⭐ **메타 진행** | 별조각으로 새로운 직업과 패시브 스킬 해금 |
 | 🍳 **요리 & 제작** | Don't Starve 스타일의 52개 레시피 |
-| 🎵 **FF VII OST** | 오리지널 Final Fantasy VII 배경음악과 효과음 |
 | 🌍 **완전 한국어** | 모든 UI, 텍스트, 튜토리얼 한국어 지원 |
+| 🌐 **멀티플레이어** | 최대 4인 협동 멀티플레이 |
 
 ---
 
@@ -200,14 +200,6 @@ HP 공격 (축적된 BRV로 실제 HP 데미지)
 
 ---
 
-## 🎵 사운드트랙
-
-Final Fantasy VII 오리지널 사운드트랙 사용:
-- **전투 BGM**: "Those Who Fight", "Still More Fighting"
-- **보스 BGM**: "One-Winged Angel", "Birth of a God"
-- **던전 BGM**: "Shinra Company", "Mako Reactor"
-- **효과음**: FF VII 오리지널 효과음
-
 ---
 
 ## 🔗 유용한 링크
@@ -255,12 +247,18 @@ MIT License - 자유롭게 사용, 수정, 배포 가능합니다.
 
 ## 🌟 최신 업데이트
 
+### 버전 6.0.0 (2025-01-XX)
+- 🎉 멀티플레이 시스템 완성
+- ✨ 플레이어 간 위치 실시간 동기화
+- ⚔️ 멀티플레이 전투 시스템 개선
+- 🎮 불릿타임 시스템 구현
+- 📝 버전 6.0.0으로 업데이트
+
 ### 버전 5.0.0 (2025-11-15)
 - ✅ 33개 직업 시스템 완성
 - ✅ 195개 스킬 구현
 - ✅ 52개 요리 레시피 추가
 - ✅ 메타 진행 시스템 구현
-- ✅ Final Fantasy VII OST 통합
 - ✅ 패시브 스킬 시스템 완성
 
 ---

@@ -1,6 +1,6 @@
 [project]
 name = "dawn-of-stellar"
-version = "5.0.0"
+version = "6.0.0"
 description = "Python-based Roguelike RPG with Final Fantasy-style Brave Combat"
 readme = "README.md"
 requires-python = ">=3.10"

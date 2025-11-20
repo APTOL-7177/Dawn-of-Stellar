@@ -1,6 +1,6 @@
 # ⭐ Dawn of Stellar (별빛의 여명)
 
-![Version](https://img.shields.io/badge/version-5.1.0-blue)
+![Version](https://img.shields.io/badge/version-6.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -77,9 +77,6 @@ ATB 게이지 충전 → BRV 공격으로 축적 → HP 공격으로 피해 → 
 - **52개 레시피**: 한식, 일식, 양식, 중식, 디저트
 - **버프 효과**: 공격력 증가, 방어력 증가, 속도 증가
 - **품질 시스템**: Poor / Normal / Good / Excellent
-
-### 🎵 Final Fantasy VII OST
-오리지널 BGM과 효과음으로 몰입감 극대화
 
 ### 💾 메타 진행 시스템
 - **별조각**: 전투 승리 시 획득
@@ -346,6 +343,13 @@ _준비 중..._
 
 ## 📝 버전 히스토리
 
+### v6.0.0 (2025-01-XX)
+- 🎉 멀티플레이 시스템 완성
+- ✨ 플레이어 간 위치 실시간 동기화
+- ⚔️ 멀티플레이 전투 시스템 개선
+- 🎮 불릿타임 시스템 구현
+- 📝 버전 6.0.0으로 업데이트
+
 ### v5.1.0 (2025-01-16)
 - ✅ GitHub Actions 자동 빌드 추가
 - ✅ Windows/Linux/macOS 동시 빌드
@@ -381,7 +385,6 @@ _준비 중..._
 ## 🙏 감사의 말
 
 - **python-tcod**: 로그라이크 개발 프레임워크
-- **Final Fantasy VII**: 전투 시스템 영감
 - **Dissidia Final Fantasy**: BRV 시스템 영감
 - **Don't Starve**: 요리/제작 시스템 영감
 
