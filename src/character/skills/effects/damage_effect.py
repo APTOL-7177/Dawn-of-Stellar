@@ -46,25 +46,30 @@ class DamageEffect(SkillEffect):
             context['_aoe_hp_initial_brv'] = initial_brv
             context['_aoe_hp_target_index'] = 0  # 첫 번째 타겟 추적
         
+        # 실제로 처리된 살아있는 타겟 추적
+        alive_targets_processed = 0
+        
         for i, single_target in enumerate(targets):
             if not single_target.is_alive:
                 continue
             
             # AOE HP 공격의 경우, 첫 번째 타겟이 아닌 경우 BRV를 초기값으로 복원
             # (첫 번째 타겟에서 BRV가 소모되므로, 나머지 타겟들에는 초기 BRV를 사용)
-            if is_aoe_hp and initial_brv is not None and i > 0:
+            if is_aoe_hp and initial_brv is not None and alive_targets_processed > 0:
                 user.current_brv = initial_brv
             
             # 타겟 인덱스 업데이트
             if is_aoe_hp:
-                context['_aoe_hp_target_index'] = i
+                context['_aoe_hp_target_index'] = alive_targets_processed
             
             single_result = self._execute_single(user, single_target, context)
             result.merge(single_result)
+            
+            # 살아있는 타겟이 처리되었음을 기록
+            alive_targets_processed += 1
         
-        # AOE HP 공격의 경우, 첫 번째 타겟에서만 BRV를 소모했으므로
-        # 모든 타겟 처리 후 BRV를 0으로 설정 (첫 번째 타겟에서 소모된 BRV)
-        if is_aoe_hp and initial_brv is not None and len(targets) > 0:
+        # AOE HP 공격의 경우, 살아있는 타겟이 실제로 처리된 경우에만 BRV를 소모
+        if is_aoe_hp and initial_brv is not None and alive_targets_processed > 0:
             # 첫 번째 타겟에서 이미 BRV가 소모되었으므로, BRV를 0으로 설정
             user.current_brv = 0
         
