@@ -550,22 +550,22 @@ def main() -> int:
                                     biome_track = f"biome_{biome_index}"
                                     play_bgm(biome_track, loop=True, fade_in=True)
                                     play_dungeon_bgm = False
-                                    elif combat_result == CombatState.DEFEAT:
-                                        logger.info("❌ 패배... 게임 오버")
-                                        from src.ui.game_result_ui import show_game_result
-                                        # 멀티플레이어 여부 확인 (클라이언트 모드)
-                                        is_multiplayer = True  # 클라이언트 모드이므로 멀티플레이
-                                        show_game_result(
-                                            display.console,
-                                            display.context,
-                                            is_victory=False,
-                                            max_floor=exploration.game_stats["max_floor_reached"],
-                                            enemies_defeated=exploration.game_stats["enemies_defeated"],
-                                            total_gold=exploration.game_stats["total_gold_earned"],
-                                            total_exp=exploration.game_stats["total_exp_earned"],
-                                            save_slot=None,
-                                            is_multiplayer=is_multiplayer
-                                        )
+                                elif combat_result == CombatState.DEFEAT:
+                                    logger.info("❌ 패배... 게임 오버")
+                                    from src.ui.game_result_ui import show_game_result
+                                    # 멀티플레이어 여부 확인 (클라이언트 모드)
+                                    is_multiplayer = True  # 클라이언트 모드이므로 멀티플레이
+                                    show_game_result(
+                                        display.console,
+                                        display.context,
+                                        is_victory=False,
+                                        max_floor=exploration.game_stats["max_floor_reached"],
+                                        enemies_defeated=exploration.game_stats["enemies_defeated"],
+                                        total_gold=exploration.game_stats["total_gold_earned"],
+                                        total_exp=exploration.game_stats["total_exp_earned"],
+                                        save_slot=None,
+                                        is_multiplayer=is_multiplayer
+                                    )
                                     break
                             elif result == "floor_up" or result == "floor_down":
                                 # 층 이동 처리 (멀티플레이)
