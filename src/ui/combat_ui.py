@@ -768,9 +768,50 @@ class CombatUI:
 
             # 행동 후 대기 시간 설정 (1.5초)
             self.action_delay_frames = self.action_delay_max
+            
+            # 현재 액터의 플레이어 ID 저장 (다음 아군 확인 전에 저장)
+            current_actor_player_id = getattr(self.current_actor, 'player_id', None) if self.current_actor else None
+            
+            # 상태 초기화 (다음 아군 확인을 위해 먼저 초기화)
+            self.current_actor = None
 
-        # 상태 초기화
-        self.current_actor = None
+            # 멀티플레이: 다음 행동 가능한 아군 확인
+            if is_multiplayer and self.session and hasattr(self.combat_manager.atb, 'set_player_selecting'):
+                # 다음 행동 가능한 아군이 있는지 확인
+                ready_combatants = self.combat_manager.atb.get_action_order()
+                next_ally = None
+                for combatant in ready_combatants:
+                    if combatant in self.combat_manager.allies:
+                        next_ally = combatant
+                        break
+                
+                if next_ally:
+                    # 다음 아군이 있으면 불릿타임 유지하고 바로 다음 턴으로 전환
+                    # 현재 액터의 불릿타임은 해제하지만, 다음 아군의 불릿타임을 즉시 활성화
+                    if current_actor_player_id:
+                        self.combat_manager.atb.set_player_selecting(current_actor_player_id, False)
+                        logger.debug(f"플레이어 {current_actor_player_id} 행동 선택 완료 → 다음 아군 턴으로 전환")
+                    
+                    # 다음 아군의 턴 즉시 시작 (불릿타임 유지)
+                    self.current_actor = next_ally
+                    self.action_menu = self._create_action_menu(self.current_actor)
+                    self.state = CombatUIState.ACTION_MENU
+                    self.add_message(f"{next_ally.name}의 턴!", (100, 255, 255))
+                    play_sfx("ui", "cursor_select")
+                    
+                    # 다음 아군의 불릿타임 활성화
+                    next_ally_player_id = getattr(next_ally, 'player_id', None)
+                    if next_ally_player_id:
+                        self.combat_manager.atb.set_player_selecting(next_ally_player_id, True)
+                        logger.info(f"🔫 불릿타임 유지: 다음 아군 플레이어 {next_ally_player_id} 행동 선택 시작")
+                    
+                    # 상태 초기화는 건너뛰고 바로 반환
+                    return
+                else:
+                    # 다음 아군이 없으면 불릿타임 해제
+                    if current_actor_player_id:
+                        self.combat_manager.atb.set_player_selecting(current_actor_player_id, False)
+                        logger.debug(f"플레이어 {current_actor_player_id} 행동 선택 완료 (마지막 아군, 1.5초 정지)")
         self.selected_action = None
         self.selected_skill = None
         self.selected_target = None
@@ -978,18 +1019,41 @@ class CombatUI:
             CombatUIState.EXECUTING  # 행동 실행 후 대기 중에도 시간 정지
         ]
 
-        # 플레이어가 선택 중이거나 대기 중일 때는 ATB 증가를 멈춤
-        if is_player_selecting:
-            # ATB 업데이트 스킵 (시간 정지)
-            # 플레이어 턴으로 표시하여 ATB 증가 방지
-            self.combat_manager.state = CombatState.PLAYER_TURN
+        # 멀티플레이 모드 확인
+        from src.multiplayer.game_mode import get_game_mode_manager
+        game_mode_manager = get_game_mode_manager()
+        is_multiplayer = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
+
+        # 멀티플레이가 아닐 때만 시간 정지 로직 적용
+        # 멀티플레이에서는 불릿타임 모드로 속도 조절
+        if not is_multiplayer:
+            # 플레이어가 선택 중이거나 대기 중일 때는 ATB 증가를 멈춤
+            if is_player_selecting:
+                # ATB 업데이트 스킵 (시간 정지)
+                # 플레이어 턴으로 표시하여 ATB 증가 방지
+                self.combat_manager.state = CombatState.PLAYER_TURN
+            else:
+                # 일반 진행
+                if self.combat_manager.state == CombatState.PLAYER_TURN:
+                    self.combat_manager.state = CombatState.IN_PROGRESS
         else:
-            # 일반 진행
+            # 멀티플레이: 항상 IN_PROGRESS 상태 유지 (불릿타임 모드로 속도 조절)
             if self.combat_manager.state == CombatState.PLAYER_TURN:
                 self.combat_manager.state = CombatState.IN_PROGRESS
 
         # 전투 매니저 업데이트
         self.combat_manager.update(delta_time)
+
+        # ATB 업데이트 직후 즉시 턴 체크 (ATB가 100%가 되는 순간 바로 처리)
+        # 멀티플레이: 행동 가능한 적 확인 (아군이 행동 선택 중일 때도 적은 행동 가능)
+        if is_multiplayer:
+            self._check_ready_enemies()
+
+        # 아군 턴 체크 (ATB 업데이트 직후 즉시 체크)
+        # WAITING_ATB 상태일 때 다음 아군 턴으로 전환
+        # ATB가 100%가 되는 순간 바로 턴이 와야 하므로 업데이트 직후 즉시 체크
+        if self.state == CombatUIState.WAITING_ATB:
+            self._check_ready_allies()
 
         # 전투 종료 확인
         if self.combat_manager.state in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
@@ -1004,12 +1068,45 @@ class CombatUI:
             msg.frames_remaining -= 1
         # 메시지는 제거하지 않음 (스크롤로 항상 볼 수 있도록)
 
-        # ATB 대기 중 - 턴 체크
-        if self.state == CombatUIState.WAITING_ATB:
-            self._check_ready_combatants()
+        # 불릿타임 해제 체크: 행동 선택이 완료되면 불릿타임 해제
+        if is_multiplayer and hasattr(self.combat_manager.atb, 'set_player_selecting'):
+            # 행동 선택 중인 상태 (ACTION_MENU, SKILL_MENU, TARGET_SELECT, ITEM_MENU)
+            is_selecting_action = self.state in [
+                CombatUIState.ACTION_MENU,
+                CombatUIState.SKILL_MENU,
+                CombatUIState.TARGET_SELECT,
+                CombatUIState.ITEM_MENU
+            ]
+            
+            if self.current_actor:
+                actor_player_id = getattr(self.current_actor, 'player_id', None)
+                if actor_player_id:
+                    # 행동 선택 중이 아니면 불릿타임 해제 (EXECUTING, WAITING_ATB 등)
+                    if not is_selecting_action:
+                        self.combat_manager.atb.set_player_selecting(actor_player_id, False)
+                        logger.debug(f"불릿타임 해제: 플레이어 {actor_player_id} (상태: {self.state.value})")
+            elif not is_selecting_action:
+                # current_actor가 없고 행동 선택 중이 아니면 모든 플레이어의 불릿타임 해제
+                if hasattr(self.combat_manager.atb, 'players_selecting_action'):
+                    for player_id in list(self.combat_manager.atb.players_selecting_action):
+                        self.combat_manager.atb.set_player_selecting(player_id, False)
+                        logger.debug(f"불릿타임 해제: 플레이어 {player_id} (액터 없음, 상태: {self.state.value})")
 
-    def _check_ready_combatants(self):
-        """행동 가능한 전투원 확인"""
+    def _check_ready_enemies(self):
+        """행동 가능한 적 확인 (항상 체크)"""
+        ready = self.combat_manager.atb.get_action_order()
+
+        if not ready:
+            return
+
+        # 적군 턴 (AI) - 아군이 행동 선택 중일 때도 실행 가능
+        for combatant in ready:
+            if combatant in self.combat_manager.enemies:
+                self._execute_enemy_turn(combatant)
+                return
+
+    def _check_ready_allies(self):
+        """행동 가능한 아군 확인 (WAITING_ATB 상태일 때만)"""
         ready = self.combat_manager.atb.get_action_order()
 
         if not ready:
@@ -1025,12 +1122,29 @@ class CombatUI:
                 self.action_menu = self._create_action_menu(self.current_actor)  # actor 전달
                 self.state = CombatUIState.ACTION_MENU
                 self.add_message(f"{combatant.name}의 턴!", (100, 255, 255))
-                return
-
-        # 적군 턴 (AI)
-        for combatant in ready:
-            if combatant in self.combat_manager.enemies:
-                self._execute_enemy_turn(combatant)
+                
+                # 멀티플레이: 행동 선택 시작 알림 (불릿타임 모드 진입)
+                # 현재 액터가 어떤 플레이어의 캐릭터든 불릿타임 활성화
+                # 멀티플레이 모드 확인
+                from src.multiplayer.game_mode import get_game_mode_manager
+                game_mode_manager = get_game_mode_manager()
+                is_multiplayer_mode = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
+                
+                if is_multiplayer_mode and hasattr(self.combat_manager.atb, 'set_player_selecting'):
+                    # 현재 액터의 플레이어 ID 확인
+                    actor_player_id = getattr(combatant, 'player_id', None)
+                    if actor_player_id:
+                        # 어떤 플레이어든 행동 선택 중이면 불릿타임 활성화
+                        self.combat_manager.atb.set_player_selecting(actor_player_id, True)
+                        logger.info(f"🔫 불릿타임 활성화 요청: 플레이어 {actor_player_id} 행동 선택 시작")
+                    else:
+                        # 플레이어 ID가 없으면 (AI나 싱글플레이) 로그만 출력
+                        logger.warning(f"⚠️ 플레이어 ID 없음 - combatant={combatant.name}, 불릿타임 비활성화")
+                elif not is_multiplayer_mode:
+                    logger.debug("싱글플레이 모드 - 불릿타임 비활성화")
+                elif not hasattr(self.combat_manager.atb, 'set_player_selecting'):
+                    logger.error(f"❌ ATB 시스템에 set_player_selecting 메서드 없음: {type(self.combat_manager.atb).__name__}")
+                
                 return
 
     def _execute_enemy_turn(self, enemy: Any):
@@ -3752,6 +3866,11 @@ def run_combat(
 
     play_bgm(selected_bgm, loop=True, fade_in=True)
 
+    # 멀티플레이 모드 확인
+    from src.multiplayer.game_mode import get_game_mode_manager
+    game_mode_manager = get_game_mode_manager()
+    is_multiplayer = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
+    
     # 전투 매니저 생성
     combat_manager = CombatManager()
     
@@ -3764,16 +3883,37 @@ def run_combat(
         combat_id = hashlib.md5(position_str.encode()).hexdigest()[:8]
         combat_manager.combat_id = combat_id
     
+    # 멀티플레이 모드일 때 ATB 시스템을 MultiplayerATBSystem으로 교체
+    if is_multiplayer:
+        from src.multiplayer.atb_multiplayer import MultiplayerATBSystem
+        if not isinstance(combat_manager.atb, MultiplayerATBSystem):
+            # 기존 게이지와 전투원 보존
+            old_gauges = combat_manager.atb.gauges.copy()
+            old_combatants = combat_manager.atb.combatants.copy()
+            old_enabled = combat_manager.atb.enabled
+            
+            # 새 멀티플레이 ATB 시스템 생성
+            new_atb = MultiplayerATBSystem()
+            # 기존 설정 복원
+            new_atb.enabled = old_enabled
+            
+            # 게이지와 전투원 복원
+            new_atb.gauges = old_gauges
+            new_atb.combatants = old_combatants
+            # 평균 속도 재계산
+            new_atb._update_average_speed()
+            
+            # ATB 시스템 교체
+            combat_manager.atb = new_atb
+            logger.info(f"🔧 멀티플레이 전투: ATB 시스템을 MultiplayerATBSystem으로 교체 (게이지 {len(old_gauges)}개 복원)")
+        else:
+            logger.info("멀티플레이 ATB 시스템 이미 활성화됨")
+    
     combat_manager.start_combat(party, enemies)
     
     # 인벤토리 설정 (전투 매니저에도 전달)
     if inventory:
         combat_manager.inventory = inventory
-
-    # 멀티플레이 모드 확인
-    from src.multiplayer.game_mode import get_game_mode_manager
-    game_mode_manager = get_game_mode_manager()
-    is_multiplayer = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
 
     # 전투 UI 생성 (멀티플레이 모드일 경우 session과 network_manager 전달)
     if is_multiplayer and session and network_manager:

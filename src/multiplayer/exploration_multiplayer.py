@@ -76,9 +76,9 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         self.last_position_sync = 0.0
         self.position_sync_interval = MultiplayerConfig.SYNC_INTERVAL_POSITION
         
-        # 적 이동 타이머 (2초 간격)
+        # 적 이동 타이머 (0.65초 간격)
         self.last_enemy_move = 0.0
-        self.enemy_move_interval = 2.0  # 멀티플레이: 2초 간격
+        self.enemy_move_interval = 0.65  # 멀티플레이: 0.65초 간격
         
         # 이동 동기화 관리자
         self.movement_sync: Optional[MovementSyncManager] = None
@@ -213,10 +213,12 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             for player_id, player in self.session.players.items():
                 try:
                     if not player:
+                        self.logger.debug(f"플레이어 {player_id}: None")
                         continue
                     
                     # 플레이어 위치 확인
                     if not hasattr(player, 'x') or not hasattr(player, 'y'):
+                        self.logger.warning(f"플레이어 {player_id}: 위치 속성 없음")
                         continue
                     
                     try:
@@ -231,10 +233,17 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     # 거리 계산 (맨하탄 거리)
                     distance = abs(player_position[0] - combat_position[0]) + abs(player_position[1] - combat_position[1])
                     
+                    self.logger.debug(
+                        f"플레이어 {player_id} 체크: 위치=({player_x}, {player_y}), "
+                        f"전투 위치={combat_position}, 거리={distance}, "
+                        f"파티 있음={hasattr(player, 'party')}, 파티 길이={len(player.party) if hasattr(player, 'party') and player.party else 0}"
+                    )
+                    
                     # 5타일 반경 내에 있는지 확인
                     if distance <= participation_radius:
                         # 플레이어의 파티 캐릭터 추가
                         if hasattr(player, 'party') and player.party:
+                            party_count = 0
                             for character in player.party:
                                 if character:
                                     is_alive = getattr(character, 'is_alive', True)
@@ -246,15 +255,30 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                                             # 플레이어 ID 설정 실패 시 로깅만 (속성이 없는 경우 등)
                                             self.logger.debug(f"캐릭터 {getattr(character, 'name', 'Unknown')}에 플레이어 ID 설정 실패: {e}")
                                         participants.append(character)
+                                        party_count += 1
                             self.logger.info(
-                                f"플레이어 {player_id} 전투 참여: {len([c for c in player.party if getattr(c, 'is_alive', True)])}명 "
-                                f"(거리: {distance}타일)"
+                                f"플레이어 {player_id} 전투 참여: {party_count}명 "
+                                f"(거리: {distance}타일, 파티 총 {len(player.party)}명)"
+                            )
+                        else:
+                            self.logger.warning(
+                                f"플레이어 {player_id}: 파티 없음 또는 비어있음 "
+                                f"(hasattr party={hasattr(player, 'party')}, "
+                                f"party={player.party if hasattr(player, 'party') else None})"
                             )
                 except Exception as e:
                     self.logger.error(f"플레이어 {player_id} 참여자 수집 실패: {e}", exc_info=True)
                     continue
             
-            self.logger.info(f"전투 참여자: {len(participants)}명 (반경: {participation_radius}타일)")
+            self.logger.info(f"전투 참여자: {len(participants)}명 (반경: {participation_radius}타일, 총 플레이어: {len(self.session.players)}명)")
+            
+            # 참여자가 없으면 기본 파티 반환 (싱글플레이 호환성)
+            if len(participants) == 0:
+                self.logger.warning("전투 참여자가 0명입니다. 기본 파티를 사용합니다.")
+                if hasattr(self, 'player') and hasattr(self.player, 'party') and self.player.party:
+                    self.logger.info(f"기본 파티 사용: {len(self.player.party)}명")
+                    return self.player.party
+            
             return participants
         except Exception as e:
             self.logger.error(f"근처 참여자 수집 실패: {e}", exc_info=True)
@@ -489,7 +513,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         """
         모든 적 이동 (부모 클래스 메서드 오버라이드)
         
-        멀티플레이에서는 호스트만 실행하고, 2초 간격으로 제한됩니다.
+        멀티플레이에서는 호스트만 실행하고, 0.65초 간격으로 제한됩니다.
         """
         if not self.is_multiplayer:
             # 싱글플레이: 부모 클래스 로직 사용
@@ -803,7 +827,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
     
     async def update_enemy_movement(self, current_time: float):
         """
-        적 이동 업데이트 (2초 간격)
+        적 이동 업데이트 (0.65초 간격)
         
         멀티플레이에서는 호스트만 적을 이동시키고, 클라이언트에게 동기화합니다.
         

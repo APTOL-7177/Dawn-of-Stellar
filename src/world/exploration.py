@@ -305,8 +305,10 @@ class ExplorationSystem:
         tile = self.dungeon.get_tile(new_x, new_y)
         result = self._check_tile_event(tile)
 
-        # 플레이어가 움직인 후 모든 적 움직임
-        self._move_all_enemies()
+        # 플레이어가 움직인 후 모든 적 움직임 (싱글플레이만, 멀티플레이는 시간 기반)
+        # 멀티플레이는 MultiplayerExplorationSystem에서 시간 기반으로 처리
+        if not hasattr(self, 'is_multiplayer') or not self.is_multiplayer:
+            self._move_all_enemies()
 
         # NPC 이동 (플레이어 이동 후)
         self._move_npcs()

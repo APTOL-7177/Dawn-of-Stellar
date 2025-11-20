@@ -270,9 +270,46 @@ class HostNetworkManager(NetworkManager):
         self.server: Optional[Any] = None
         self._local_ip: Optional[str] = None
     
+    @staticmethod
+    def find_available_port(start_port: int = 5000, max_attempts: int = 100) -> int:
+        """
+        사용 가능한 포트 찾기
+        
+        Args:
+            start_port: 시작 포트
+            max_attempts: 최대 시도 횟수
+            
+        Returns:
+            사용 가능한 포트 번호
+        """
+        for port in range(start_port, start_port + max_attempts):
+            try:
+                # 포트가 사용 가능한지 확인
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    s.bind(("0.0.0.0", port))
+                    return port
+            except OSError:
+                # 포트가 사용 중이면 다음 포트 시도
+                continue
+        
+        # 사용 가능한 포트를 찾지 못한 경우
+        raise RuntimeError(f"사용 가능한 포트를 찾을 수 없습니다 ({start_port}~{start_port + max_attempts - 1})")
+    
     async def start_server(self):
-        """서버 시작"""
-        self.logger.info(f"호스트 서버 시작: 포트 {self.port}")
+        """서버 시작 (사용 가능한 포트 자동 검색)"""
+        original_port = self.port
+        
+        # 사용 가능한 포트 찾기
+        try:
+            self.port = HostNetworkManager.find_available_port(self.port)
+            if self.port != original_port:
+                self.logger.info(f"포트 {original_port}가 사용 중입니다. 포트 {self.port}로 자동 변경되었습니다.")
+            else:
+                self.logger.info(f"호스트 서버 시작: 포트 {self.port}")
+        except RuntimeError as e:
+            self.logger.error(f"서버 시작 실패: {e}")
+            raise
         
         async def handle_client(websocket: ServerConnection):
             """클라이언트 연결 처리"""
@@ -387,9 +424,22 @@ class HostNetworkManager(NetworkManager):
                     
                     self.logger.info(f"클라이언트 연결 종료: {client_id}")
         
-        # 서버 시작
-        self.server = await websockets.serve(handle_client, "0.0.0.0", self.port)
-        self.connection_state = ConnectionState.CONNECTED
+        # 서버 시작 (포트 바인딩 실패 시 재시도)
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                self.server = await websockets.serve(handle_client, "0.0.0.0", self.port)
+                self.connection_state = ConnectionState.CONNECTED
+                break
+            except OSError as e:
+                if attempt < max_retries - 1:
+                    # 포트가 갑자기 사용 불가능해진 경우 다른 포트 찾기
+                    old_port = self.port
+                    self.port = HostNetworkManager.find_available_port(self.port + 1)
+                    self.logger.warning(f"포트 {old_port} 바인딩 실패. 포트 {self.port}로 재시도합니다.")
+                else:
+                    self.logger.error(f"서버 시작 실패: 포트 바인딩 실패 ({self.port})")
+                    raise
         
         # 로컬 네트워크 IP 주소 가져오기
         local_ip = HostNetworkManager.get_local_ip()

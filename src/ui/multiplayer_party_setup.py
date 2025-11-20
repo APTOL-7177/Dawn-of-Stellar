@@ -296,9 +296,11 @@ class MultiplayerPartySetup:
         traits = get_traits(job_id)
         
         # 해금된 특성만 필터링
+        # traits는 딕셔너리 리스트: [{'id': 'xxx', 'name': 'xxx', 'description': 'xxx'}, ...]
         available_traits = []
         for trait in traits:
-            if dev_mode or meta.is_trait_unlocked(job_id, trait.id):
+            trait_id = trait.get('id') if isinstance(trait, dict) else trait
+            if trait_id and (dev_mode or meta.is_trait_unlocked(job_id, trait_id)):
                 available_traits.append(trait)
         
         if not available_traits:
@@ -310,14 +312,20 @@ class MultiplayerPartySetup:
         selected_trait_ids = set(member.selected_traits or [])
         
         for trait in available_traits:
-            is_selected = trait.id in selected_trait_ids
-            text = f"{'✓ ' if is_selected else '  '}{trait.name}"
+            # trait은 딕셔너리
+            trait_id = trait.get('id') if isinstance(trait, dict) else trait
+            trait_name = trait.get('name', '알 수 없는 특성') if isinstance(trait, dict) else str(trait)
+            trait_desc = trait.get('description', '') if isinstance(trait, dict) else ''
+            
+            is_selected = trait_id in selected_trait_ids
+            text = f"{'* ' if is_selected else '  '}{trait_name}"
             
             menu_items.append(
                 MenuItem(
                     text=text,
                     value=trait,
-                    description=trait.description
+                    description=trait_desc,
+                    is_selected=is_selected  # 선택 상태 표시 (색상 변경용)
                 )
             )
         
@@ -341,7 +349,7 @@ class MultiplayerPartySetup:
         elif self.state == "name_input":
             return self._handle_name_input(action, key_event)
         elif self.state == "trait_select":
-            return self._handle_trait_select(action)
+            return self._handle_trait_select(action, key_event)
         
         return False
     
@@ -367,7 +375,8 @@ class MultiplayerPartySetup:
                     job_name=job['name'],
                     character_name="",
                     stats=job['stats'],
-                    selected_traits=[]
+                    selected_traits=[],
+                    player_id=self.local_player_id  # 로컬 플레이어의 캐릭터로 설정
                 )
                 self.party.append(member)
                 
@@ -416,10 +425,9 @@ class MultiplayerPartySetup:
         if not self.name_input:
             return False
         
-        if key_event:
-            self.name_input.handle_input(action, key_event)
-        
-        if action == GameAction.CONFIRM:
+        # 엔터 키(Return) 확인
+        if key_event and key_event.sym == tcod.event.KeySym.RETURN:
+            # 엔터 키로 입력 완료
             name = self.name_input.text.strip()
             
             # 빈 이름이면 랜덤 이름 사용
@@ -444,9 +452,13 @@ class MultiplayerPartySetup:
             self.name_input = None
             return False
         
+        # 일반 키 입력 처리 (엔터 키가 아닐 때만)
+        if key_event and key_event.sym != tcod.event.KeySym.RETURN:
+            self.name_input.handle_input(action, key_event)
+        
         return False
     
-    def _handle_trait_select(self, action: GameAction) -> bool:
+    def _handle_trait_select(self, action: GameAction, key_event: Optional[tcod.event.KeyDown] = None) -> bool:
         """특성 선택 상태 입력 처리"""
         if not self.trait_menu:
             self._create_trait_menu()
@@ -457,27 +469,73 @@ class MultiplayerPartySetup:
         member = self.party[self.current_slot]
         selected_traits = member.selected_traits or []
         
-        if action == GameAction.CONFIRM:
+        # 특성 선택이 완료된 상태에서 엔터를 누르면 다음 캐릭터로 넘어가기
+        if (action == GameAction.CONFIRM) or (key_event and key_event.sym == tcod.event.KeySym.RETURN):
+            # 이미 2개 선택 완료된 상태에서 엔터를 누르면 다음 캐릭터로
+            if len(selected_traits) >= 2:
+                # 다음 캐릭터로 또는 완료
+                if len(self.party) < self.character_allocation:
+                    # 다음 캐릭터 선택
+                    self.current_slot = len(self.party)
+                    self.state = "job_select"
+                    self._create_job_menu()
+                    self.logger.info(f"다음 캐릭터 선택으로 이동")
+                else:
+                    # 모든 캐릭터 선택 완료
+                    self.completed = True
+                    self.logger.info("모든 캐릭터 선택 완료")
+                    return True
+                return False
+            
+            # 특성 선택/해제
             selected = self.trait_menu.get_selected_item()
             if selected and selected.value:
                 trait = selected.value
+                # trait은 딕셔너리
+                trait_id = trait.get('id') if isinstance(trait, dict) else trait
                 
-                if trait.id in selected_traits:
+                if not trait_id:
+                    self.logger.warning(f"특성 ID가 없습니다: {trait}")
+                    return False
+                
+                if trait_id in selected_traits:
                     # 선택 해제
-                    selected_traits.remove(trait.id)
+                    selected_traits.remove(trait_id)
+                    self.logger.info(f"특성 선택 해제: {trait_id}")
                 elif len(selected_traits) < 2:
                     # 선택
-                    selected_traits.append(trait.id)
+                    selected_traits.append(trait_id)
+                    self.logger.info(f"특성 선택: {trait_id} ({len(selected_traits)}/2)")
+                else:
+                    # 이미 2개 선택됨
+                    self.logger.warning(f"이미 2개의 특성을 선택했습니다")
+                    return False
                 
-                member.selected_traits = selected_traits
+                # 선택 상태 업데이트
+                member.selected_traits = list(selected_traits)  # 리스트로 저장
+                
+                # 메뉴 갱신 (선택 표시 업데이트)
                 self._create_trait_menu()
                 
-                # 2개 선택 완료 또는 ESC로 넘어가기 가능
+                # 2개 선택 완료 시 자동으로 다음 캐릭터로 넘어가기
                 if len(selected_traits) >= 2:
-                    # 자동으로 다음 단계로
-                    pass
+                    self.logger.info(f"특성 선택 완료: {member.character_name} - {', '.join(selected_traits)}")
+                    # 자동으로 다음 캐릭터로 넘어가기
+                    if len(self.party) < self.character_allocation:
+                        # 다음 캐릭터 선택
+                        self.current_slot = len(self.party)
+                        self.state = "job_select"
+                        self._create_job_menu()
+                        self.logger.info(f"자동으로 다음 캐릭터 선택으로 이동")
+                    else:
+                        # 모든 캐릭터 선택 완료
+                        self.completed = True
+                        self.logger.info("모든 캐릭터 선택 완료")
+                        return True
+            
+            return False
         
-        elif action == GameAction.CANCEL or (action == GameAction.CONFIRM and len(selected_traits) >= 0):
+        elif action == GameAction.CANCEL:
             # 다음 캐릭터로 또는 완료
             if len(self.party) < self.character_allocation:
                 # 다음 캐릭터 선택
@@ -505,12 +563,14 @@ class MultiplayerPartySetup:
                 job_id,
                 self.local_player_id
             )
-            if self.is_host:
-                # 호스트는 모든 클라이언트에게 브로드캐스트
-                self.network_manager.broadcast(message)
-            else:
-                # 클라이언트는 호스트에게 전송
-                self.network_manager.send_to_host(message)
+            # 비동기 호출 (현재는 동기 함수이므로 로그만 남기고 나중에 통합)
+            # TODO: 네트워크 메시지 전송을 별도 스레드나 큐로 처리
+            self.logger.debug(f"직업 선택 메시지 전송 (비동기 처리 필요): {job_id}")
+            # 일단 네트워크 전송은 나중에 구현
+            # if self.is_host:
+            #     await self.network_manager.broadcast(message)
+            # else:
+            #     await self.network_manager.send_to_host(message)
         except Exception as e:
             self.logger.error(f"직업 선택 메시지 전송 실패: {e}", exc_info=True)
     
@@ -521,10 +581,14 @@ class MultiplayerPartySetup:
                 job_id,
                 self.local_player_id
             )
-            if self.is_host:
-                self.network_manager.broadcast(message)
-            else:
-                self.network_manager.send_to_host(message)
+            # 비동기 호출 (현재는 동기 함수이므로 로그만 남기고 나중에 통합)
+            # TODO: 네트워크 메시지 전송을 별도 스레드나 큐로 처리
+            self.logger.debug(f"직업 해제 메시지 전송 (비동기 처리 필요): {job_id}")
+            # 일단 네트워크 전송은 나중에 구현
+            # if self.is_host:
+            #     await self.network_manager.broadcast(message)
+            # else:
+            #     await self.network_manager.send_to_host(message)
         except Exception as e:
             self.logger.error(f"직업 해제 메시지 전송 실패: {e}", exc_info=True)
     

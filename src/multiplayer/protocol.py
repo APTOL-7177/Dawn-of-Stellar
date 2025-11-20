@@ -50,6 +50,7 @@ class MessageType(Enum):
     # 상태 동기화
     CHARACTER_STATES_UPDATE = "character_states_update"
     STATE_SYNC = "state_sync"
+    STATE_UPDATE = "state_update"  # 전투 상태 업데이트 (클라이언트 동기화용)
     
     # 인벤토리
     INVENTORY_UPDATE = "inventory_update"

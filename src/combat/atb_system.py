@@ -39,7 +39,10 @@ class ATBGauge:
     @property
     def percentage(self) -> float:
         """게이지 퍼센트 (0.0 ~ 1.0)"""
-        return self.current / self.max_gauge if self.max_gauge > 0 else 0.0
+        if self.max_gauge <= 0:
+            return 0.0
+        # 1.0을 넘지 않도록 클램핑
+        return min(1.0, self.current / self.max_gauge)
 
     @property
     def can_act(self) -> bool:
@@ -91,8 +94,18 @@ class ATBGauge:
         # 캐스팅 중이면 증가하지 않음
         if self.is_casting:
             return
+        
+        # 이미 threshold를 넘었으면 더 이상 증가하지 않음 (100% 초과 방지)
+        if self.current >= self.threshold:
+            # 안전 장치: 이미 넘어간 경우 max_gauge로 제한
+            self.current = min(self.current, self.max_gauge)
+            return
 
-        self.current = min(self.current + amount, self.max_gauge)
+        # max_gauge를 넘지 않도록 클램핑 (안전 장치)
+        new_current = self.current + amount
+        self.current = min(new_current, self.max_gauge)
+        # 추가 안전 장치: 음수 방지
+        self.current = max(0.0, self.current)
 
     def consume(self, amount: int) -> None:
         """게이지 소비 (행동 후)"""
@@ -431,6 +444,37 @@ _atb_system: Optional[ATBSystem] = None
 def get_atb_system() -> ATBSystem:
     """전역 ATB 시스템 인스턴스"""
     global _atb_system
+    
+    # 멀티플레이 모드 확인
+    try:
+        from src.multiplayer.game_mode import get_game_mode_manager
+        game_mode_manager = get_game_mode_manager()
+        is_multiplayer = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
+        
+        if is_multiplayer:
+            # 멀티플레이 모드: MultiplayerATBSystem 사용
+            from src.multiplayer.atb_multiplayer import MultiplayerATBSystem
+            if _atb_system is None or not isinstance(_atb_system, MultiplayerATBSystem):
+                _atb_system = MultiplayerATBSystem()
+                logger = get_logger("atb")
+                logger.info("멀티플레이 ATB 시스템 초기화 (MultiplayerATBSystem)")
+            return _atb_system
+    except Exception as e:
+        # 멀티플레이 모드 확인 실패 시 일반 시스템 사용
+        logger = get_logger("atb")
+        logger.debug(f"멀티플레이 모드 확인 실패: {e}, 일반 ATB 시스템 사용")
+    
+    # 싱글플레이 모드: 일반 ATBSystem 사용
     if _atb_system is None:
         _atb_system = ATBSystem()
+    else:
+        # 이미 멀티플레이 시스템이 설정되어 있으면 그대로 사용 (전투 중일 수 있음)
+        try:
+            from src.multiplayer.atb_multiplayer import MultiplayerATBSystem
+            if isinstance(_atb_system, MultiplayerATBSystem):
+                # 멀티플레이 모드가 아니면 일반 시스템으로 교체하지 않음 (전투 중일 수 있음)
+                pass
+        except ImportError:
+            pass
+    
     return _atb_system

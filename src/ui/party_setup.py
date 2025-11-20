@@ -30,6 +30,7 @@ class PartyMember:
     stats: Dict[str, Any]
     traits_auto: bool = True  # 특성 자동 선택 여부
     selected_traits: List[str] = None  # 선택된 특성 목록 (멤버별)
+    player_id: str = None  # 멀티플레이: 이 캐릭터를 제어하는 플레이어 ID (싱글플레이: None)
     
     def __post_init__(self):
         if self.selected_traits is None:

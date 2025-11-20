@@ -4,7 +4,7 @@
 플레이어가 던전을 돌아다니는 화면
 """
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import tcod
 
 from src.world.exploration import ExplorationSystem, ExplorationEvent, ExplorationResult
@@ -57,6 +57,10 @@ class WorldUI:
         # 종료 확인
         self.quit_confirm_mode = False
         self.quit_confirm_yes = False  # True: 예, False: 아니오
+        
+        # 멀티플레이 이동 쿨타임 (초당 4회 = 0.25초 간격)
+        self.last_move_time = 0.0
+        self.move_cooldown = 0.25  # 0.25초 = 초당 4회 이동
 
     def add_message(self, text: str):
         """메시지 추가"""
@@ -141,8 +145,42 @@ class WorldUI:
             dx = 1
 
         if dx != 0 or dy != 0:
+            # 멀티플레이: 이동 쿨타임 체크 (초당 4회 제한)
+            import time
+            current_time = time.time()
+            # 멀티플레이 모드 확인 (여러 방법으로 확인)
+            is_multiplayer = False
+            if hasattr(self.exploration, 'is_multiplayer'):
+                is_multiplayer = self.exploration.is_multiplayer
+            elif hasattr(self.exploration, 'session') and self.exploration.session:
+                is_multiplayer = True
+            else:
+                # game_mode_manager로 확인 (가장 확실한 방법)
+                from src.multiplayer.game_mode import get_game_mode_manager
+                game_mode_manager = get_game_mode_manager()
+                if game_mode_manager:
+                    is_multiplayer = game_mode_manager.is_multiplayer()
+            
+            if is_multiplayer:
+                # 쿨타임 체크
+                if current_time - self.last_move_time < self.move_cooldown:
+                    # 쿨타임 중이면 이동 무시
+                    return False
+                # 쿨타임 통과 시 이동 시간 업데이트
+                self.last_move_time = current_time
+            
             result = self.exploration.move_player(dx, dy)
-            logger.warning(f"[DEBUG] 이동 결과: event={result.event}")
+            if result is None:
+                logger.warning(f"[DEBUG] 이동 결과: None (이벤트 없음)")
+                # None인 경우 기본 결과 생성
+                from src.world.exploration import ExplorationResult, ExplorationEvent
+                result = ExplorationResult(
+                    success=True,
+                    event=ExplorationEvent.NONE,
+                    message=""
+                )
+            else:
+                logger.warning(f"[DEBUG] 이동 결과: event={result.event}")
             self._handle_exploration_result(result, console, context)
             # 전투가 트리거되면 즉시 루프 탈출
             if self.combat_requested:
@@ -401,10 +439,82 @@ class WorldUI:
                 console.print(harv_screen_x, harv_screen_y, harvestable.char, fg=harvestable.color)
 
         # 플레이어 위치 표시 (적 위에 덮어씀)
-        screen_x = player.x - camera_x
-        screen_y = 5 + (player.y - camera_y)
-        if 0 <= screen_x < self.screen_width and 0 <= screen_y < 40:
-            console.print(screen_x, screen_y, "@", fg=(255, 255, 100))
+        # 멀티플레이: 모든 파티 멤버 렌더링 (플레이어별 색상)
+        # 멀티플레이 모드 확인 (여러 방법으로 확인)
+        is_multiplayer = False
+        if hasattr(self.exploration, 'is_multiplayer'):
+            is_multiplayer = self.exploration.is_multiplayer
+        elif hasattr(self.exploration, 'session') and self.exploration.session:
+            is_multiplayer = True
+        else:
+            # game_mode_manager로 확인 (가장 확실한 방법)
+            from src.multiplayer.game_mode import get_game_mode_manager
+            game_mode_manager = get_game_mode_manager()
+            if game_mode_manager:
+                is_multiplayer = game_mode_manager.is_multiplayer()
+        
+        if is_multiplayer:
+            # 멀티플레이: 모든 플레이어 위치 렌더링 (시야와 관계없이 항상 표시)
+            # session.players에서 모든 플레이어 위치 가져오기
+            all_players = []
+            if hasattr(self.exploration, 'session') and self.exploration.session:
+                # session.players에서 모든 플레이어 가져오기
+                for player_id, mp_player in self.exploration.session.players.items():
+                    if hasattr(mp_player, 'x') and hasattr(mp_player, 'y'):
+                        all_players.append({
+                            'player_id': player_id,
+                            'x': mp_player.x,
+                            'y': mp_player.y
+                        })
+            
+            # player_positions도 확인 (백업)
+            if hasattr(self.exploration, 'player_positions') and self.exploration.player_positions:
+                for player_id, (pos_x, pos_y) in self.exploration.player_positions.items():
+                    # 이미 추가된 플레이어는 건너뛰기
+                    if not any(p['player_id'] == player_id for p in all_players):
+                        all_players.append({
+                            'player_id': player_id,
+                            'x': pos_x,
+                            'y': pos_y
+                        })
+            
+            # 로컬 플레이어도 추가 (party에서 가져오기)
+            local_player_id = None
+            if hasattr(self.exploration, 'local_player_id'):
+                local_player_id = self.exploration.local_player_id
+            elif hasattr(self.exploration, 'session') and self.exploration.session:
+                local_player_id = getattr(self.exploration.session, 'local_player_id', None)
+            
+            for member in self.exploration.player.party:
+                member_player_id = getattr(member, 'player_id', None)
+                # 이미 추가된 플레이어는 건너뛰기
+                if not any(p['player_id'] == member_player_id for p in all_players) if member_player_id else True:
+                    all_players.append({
+                        'player_id': member_player_id,
+                        'x': getattr(member, 'x', player.x),
+                        'y': getattr(member, 'y', player.y)
+                    })
+            
+            # 모든 플레이어 위치 렌더링 (시야 체크 없이 항상 표시)
+            for player_data in all_players:
+                player_x = player_data['x']
+                player_y = player_data['y']
+                player_id = player_data['player_id']
+                
+                screen_x = player_x - camera_x
+                screen_y = 5 + (player_y - camera_y)
+                
+                # 화면 범위 내에만 렌더링 (시야 체크 없이)
+                if 0 <= screen_x < self.screen_width and 0 <= screen_y < 40:
+                    # 플레이어 ID 기반 색상 할당
+                    player_color = self._get_player_color(player_id)
+                    console.print(screen_x, screen_y, "@", fg=player_color)
+        else:
+            # 싱글플레이: 기본 플레이어 위치 렌더링
+            screen_x = player.x - camera_x
+            screen_y = 5 + (player.y - camera_y)
+            if 0 <= screen_x < self.screen_width and 0 <= screen_y < 40:
+                console.print(screen_x, screen_y, "@", fg=(255, 255, 100))
 
         # 파티 상태 (우측 상단)
         self._render_party_status(console)
@@ -516,6 +626,38 @@ class WorldUI:
             "← →: 선택  Z: 확인  X: 취소",
             fg=(150, 150, 150)
         )
+
+    def _get_player_color(self, player_id: Optional[str] = None) -> Tuple[int, int, int]:
+        """
+        플레이어 ID 기반 색상 할당
+        
+        Args:
+            player_id: 플레이어 ID (None이면 첫 번째 플레이어 색상)
+        
+        Returns:
+            RGB 튜플 색상
+        """
+        # 플레이어별 색상 팔레트 (구분하기 쉬운 색상들)
+        color_palette = [
+            (255, 100, 100),  # 빨간색
+            (100, 255, 100),  # 초록색
+            (100, 100, 255),  # 파란색
+            (255, 255, 100),  # 노란색
+            (255, 100, 255),  # 마젠타
+            (100, 255, 255),  # 시안
+            (255, 150, 100),  # 주황색
+            (200, 100, 255),  # 보라색
+        ]
+        
+        if player_id is None:
+            # player_id가 없으면 첫 번째 색상 사용
+            return color_palette[0]
+        
+        # player_id를 기반으로 색상 선택 (해시 사용)
+        # 같은 player_id는 항상 같은 색상을 가짐
+        hash_value = hash(player_id)
+        color_index = abs(hash_value) % len(color_palette)
+        return color_palette[color_index]
 
     def _get_npc_name(self, npc_subtype: str) -> str:
         """NPC 서브타입에 따른 이름 반환"""
@@ -678,6 +820,9 @@ def run_exploration(
         logger.info(f"층 {floor} -> 바이옴 {biome_index}, BGM: {biome_track}")
         play_bgm(biome_track)
 
+    import time
+    last_enemy_update = time.time()
+    
     while True:
         # 핫 리로드 체크 (개발 모드일 때만)
         try:
@@ -691,12 +836,21 @@ def run_exploration(
         except Exception:
             pass  # 핫 리로드 오류는 무시
         
+        # 멀티플레이: 시간 기반 적 이동 업데이트 (2초마다)
+        current_time = time.time()
+        if hasattr(exploration, 'is_multiplayer') and exploration.is_multiplayer:
+            if hasattr(exploration, 'enemy_sync') and exploration.enemy_sync:
+                if current_time - last_enemy_update >= 2.0:
+                    if exploration.is_host and hasattr(exploration, '_move_all_enemies'):
+                        exploration._move_all_enemies()
+                    last_enemy_update = current_time
+        
         # 렌더링
         ui.render(console)
         context.present(console)
-
+        
         # 입력 처리
-        for event in tcod.event.wait():
+        for event in tcod.event.wait(timeout=0.05):
             action = handler.dispatch(event)
 
             if action:

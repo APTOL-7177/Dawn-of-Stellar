@@ -70,16 +70,29 @@ class Inventory:
             total_level = 0
 
             for member in self.party:
-                # 힘 스탯
-                strength = getattr(member, 'strength', 0)
-                total_strength += strength
-
+                # 힘 스탯 (프로퍼티로 접근)
+                try:
+                    # Character 객체인 경우 strength 프로퍼티 사용
+                    if hasattr(member, 'strength'):
+                        strength = member.strength
+                    elif hasattr(member, 'stat_manager'):
+                        # StatManager를 통해 직접 접근
+                        from src.character.stats import Stats
+                        strength = int(member.stat_manager.get_value(Stats.STRENGTH))
+                    else:
+                        strength = getattr(member, 'strength', 0)
+                    total_strength += strength
+                except Exception as e:
+                    logger.debug(f"캐릭터 힘 스탯 계산 실패: {member.name if hasattr(member, 'name') else 'Unknown'}, {e}")
+                    strength = 0
+                
                 # 레벨
                 level = getattr(member, 'level', 1)
                 total_level += level
 
             # 힘 보너스: 1 STR = +0.05kg
             total += total_strength * 0.05
+            logger.debug(f"인벤토리 무게 계산: 총 힘 {total_strength}, 힘 보너스 {total_strength * 0.05}kg")
 
             # 레벨 보너스: 1 Level = +0.1kg
             total += total_level * 0.1
@@ -141,13 +154,27 @@ class Inventory:
         }
 
         if self.party:
-            breakdown["party_count"] = len(self.party) * 10.0
+            breakdown["party_count"] = len(self.party) * 1.0
 
-            total_strength = sum(getattr(m, 'strength', 0) for m in self.party)
-            breakdown["strength_bonus"] = total_strength * 0.5
+            # 힘 스탯 합계 (프로퍼티로 접근)
+            total_strength = 0
+            for member in self.party:
+                try:
+                    if hasattr(member, 'strength'):
+                        # Character 객체의 strength 프로퍼티 직접 접근
+                        total_strength += member.strength
+                    elif hasattr(member, 'stat_manager'):
+                        # StatManager를 통해 직접 접근
+                        from src.character.stats import Stats
+                        total_strength += int(member.stat_manager.get_value(Stats.STRENGTH))
+                    else:
+                        total_strength += getattr(member, 'strength', 0)
+                except Exception:
+                    total_strength += getattr(member, 'strength', 0)
+            breakdown["strength_bonus"] = total_strength * 0.05
 
             total_level = sum(getattr(m, 'level', 1) for m in self.party)
-            breakdown["level_bonus"] = total_level * 1.0
+            breakdown["level_bonus"] = total_level * 0.1
 
         return breakdown
 

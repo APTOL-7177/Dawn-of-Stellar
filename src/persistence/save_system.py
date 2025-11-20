@@ -297,7 +297,7 @@ def serialize_party_member(member: Any) -> Dict[str, Any]:
     elif hasattr(member, 'status_effects') and member.status_effects:
         status_effects_data = serialize_status_effects(member.status_effects)
     
-    return {
+    result = {
         "name": member.name,
         "character_class": getattr(member, 'character_class', getattr(member, 'job_id', 'unknown')),
         "job_name": getattr(member, 'job_name', 'Unknown'),
@@ -314,6 +314,12 @@ def serialize_party_member(member: Any) -> Dict[str, Any]:
         "active_buffs": active_buffs_data,  # 요리 버프 포함
         "gimmick_state": gimmick_state,
     }
+    
+    # 멀티플레이: player_id 저장
+    if hasattr(member, 'player_id') and member.player_id:
+        result["player_id"] = member.player_id
+    
+    return result
 
 
 def serialize_gimmick_state(member: Any) -> Dict[str, Any]:
@@ -588,7 +594,8 @@ def serialize_game_state(
     difficulty: Optional[str] = None,
     exploration: Any = None,
     all_floors_dungeons: Dict[int, Any] = None,
-    is_multiplayer: bool = False
+    is_multiplayer: bool = False,
+    session: Any = None
 ) -> Dict[str, Any]:
     """전체 게임 상태 직렬화"""
 
@@ -685,7 +692,7 @@ def serialize_game_state(
         for p in passives
     ]
 
-    return {
+    result = {
         "party": party_data,
         "floor_number": floor_number,
         "dungeon": dungeon_data,  # 현재 층 던전 (하위 호환성)
@@ -698,6 +705,30 @@ def serialize_game_state(
         "difficulty": difficulty if difficulty else "보통",  # 난이도 추가
         "is_multiplayer": is_multiplayer,  # 멀티플레이어 여부
     }
+    
+    # 멀티플레이: 세션 정보 저장 (플레이어 재할당용)
+    if is_multiplayer and session:
+        session_data = {
+            "host_id": getattr(session, 'host_id', None),
+            "max_players": getattr(session, 'max_players', 4),
+            "players": []
+        }
+        
+        # 각 플레이어 정보 저장 (player_id, player_name)
+        if hasattr(session, 'players'):
+            for player_id, player in session.players.items():
+                if player:
+                    session_data["players"].append({
+                        "player_id": player_id,
+                        "player_name": getattr(player, 'player_name', '플레이어'),
+                        "x": getattr(player, 'x', 0),
+                        "y": getattr(player, 'y', 0)
+                    })
+        
+        result["session"] = session_data
+        logger.debug(f"멀티플레이 세션 정보 저장: {len(session_data['players'])}명 플레이어")
+    
+    return result
 
 
 def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
@@ -1027,6 +1058,11 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
     # 기믹 상태 복원
     if member_data.get("gimmick_state"):
         deserialize_gimmick_state(char, member_data["gimmick_state"])
+    
+    # 멀티플레이: player_id 복원 (재할당 전 원래 값 저장용)
+    if member_data.get("player_id"):
+        char.player_id = member_data["player_id"]
+        logger.debug(f"{char.name}의 원래 player_id 복원: {char.player_id}")
 
     # 장비 복원
     if member_data.get("equipment"):

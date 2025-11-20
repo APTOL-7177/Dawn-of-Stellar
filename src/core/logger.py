@@ -119,3 +119,4 @@ class Loggers:
     SAVE = "save"
     DEBUG = "debug"
     UI = "ui"
+    CHARACTER = "character"
