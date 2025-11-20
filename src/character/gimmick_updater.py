@@ -604,11 +604,11 @@ class GimmickUpdater:
     @staticmethod
     def _update_iaijutsu_system(character):
         """사무라이: 거합 시스템 업데이트"""
-        # 의지 게이지 자연 증가 (매 턴 +10) - YAML: max_will_gauge
+        # 의지 게이지 자연 증가 (매 턴 +1) - YAML: max_will_gauge
         will_gauge = getattr(character, 'will_gauge', 0)
-        max_will = getattr(character, 'max_will_gauge', 100)
-        character.will_gauge = min(max_will, will_gauge + 10)
-        logger.debug(f"{character.name} 의지 게이지 증가: +10 (총: {character.will_gauge})")
+        max_will = getattr(character, 'max_will_gauge', 10)
+        character.will_gauge = min(max_will, will_gauge + 1)
+        logger.debug(f"{character.name} 의지 게이지 증가: +1 (총: {character.will_gauge})")
 
     @staticmethod
     def _update_dragon_marks(character):

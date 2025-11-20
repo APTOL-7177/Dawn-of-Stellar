@@ -155,8 +155,8 @@ def create_time_mage_skills():
     wave.costs = [MPCost(30)]
     wave.target_type = "all_enemies"
     wave.is_ultimate = True
+    wave.cooldown = 15  # 궁극기 쿨타임 15턴
     wave.is_aoe = True
-    # wave.cooldown = 8  # 쿨다운 시스템 제거됨
     wave.metadata = {"timeline_shift": "reset", "skill_type": "ultimate"}
 
     return [time_bolt, time_shock, slow, stop, rewind, repeat,

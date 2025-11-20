@@ -129,8 +129,8 @@ def create_berserker_skills():
     ]
     ultimate.costs = [MPCost(30), HPCost(percentage=0.99)]  # HP 99% 소모 (1% 남김)
     ultimate.is_ultimate = True
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "rampage": True, "hp_to_1_percent": True}
 
     return [slash, smash, reckless_strike, self_harm, battle_cry,

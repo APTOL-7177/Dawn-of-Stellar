@@ -141,6 +141,7 @@ def create_bard_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.cast_time = 0.8  # ATB 80% 캐스팅 (궁극기)

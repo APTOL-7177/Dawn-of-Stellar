@@ -139,9 +139,9 @@ def create_dragon_knight_skills():
     ]
     ultimate.costs = [MPCost(30), StackCost("dragon_power", 1)]
     ultimate.is_ultimate = True
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "dragon_consume_all": True, "dragon_scaling": True, "aoe": True, "buff": True}
     skills.append(ultimate)

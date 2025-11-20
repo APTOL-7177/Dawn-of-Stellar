@@ -115,8 +115,8 @@ def create_sniper_skills():
     ]
     deadeye.costs = [MPCost(30)]
     deadeye.is_ultimate = True
+    deadeye.cooldown = 15  # 궁극기 쿨타임 15턴
     deadeye.sfx = ("skill", "gun_shot")  # 총소리
-    # deadeye.cooldown = 8  # 쿨다운 시스템 제거됨
     deadeye.metadata = {"uses_all_bullets": True, "deadeye": True}
 
     return [precise_shot, headshot, double_tap, reload,

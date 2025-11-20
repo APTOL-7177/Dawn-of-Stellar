@@ -1549,7 +1549,7 @@ class CombatUI:
         elif gimmick_type == "iaijutsu_system":
             # 사무라이 - 거합
             will = getattr(character, 'will_gauge', 0)
-            max_will = getattr(character, 'max_will_gauge', 100)
+            max_will = getattr(character, 'max_will_gauge', 10)
             return f"[기합:{will}/{max_will}]"
 
         elif gimmick_type == "enchant_system":

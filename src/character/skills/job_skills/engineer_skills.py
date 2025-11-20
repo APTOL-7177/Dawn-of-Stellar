@@ -122,7 +122,7 @@ def create_engineer_skills():
     ]
     mega_blaster.costs = [MPCost(30)]
     mega_blaster.is_ultimate = True
-    # mega_blaster.cooldown = 8  # 쿨다운 시스템 제거됨
+    mega_blaster.cooldown = 15  # 궁극기 쿨타임 15턴
     mega_blaster.metadata = {"heat_change": 60, "heat_scaling": True}
 
     return [turret_shot, rocket_punch, overload_blast, emp_explosion,

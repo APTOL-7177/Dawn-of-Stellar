@@ -120,7 +120,7 @@ def create_monk_skills():
     ]
     taichi_ultimate.costs = [MPCost(30)]
     taichi_ultimate.is_ultimate = True
-    # taichi_ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
+    taichi_ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     taichi_ultimate.target_type = "single_enemy"
     taichi_ultimate.metadata = {"ultimate": True, "ki_reset": True}
 

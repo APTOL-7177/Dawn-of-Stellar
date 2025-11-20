@@ -344,7 +344,7 @@ class Character:
         # 사무라이 - 거합
         elif gimmick_type == "iaijutsu_system":
             self.will_gauge = 0
-            self.max_will_gauge = self.gimmick_data.get("max_will_gauge", 100)
+            self.max_will_gauge = self.gimmick_data.get("max_will_gauge", 10)
 
         # 마검사 - 마력 부여
         elif gimmick_type == "enchant_system":
@@ -753,7 +753,15 @@ class Character:
             "character": self,
             "damage": damage,
             "old_hp": old_hp,
-            "new_hp": None  # 아직 피해가 적용되지 않았음을 나타냄
+            "new_hp": None,  # 아직 피해가 적용되지 않았음을 나타냄
+            # 보호 효과를 위해 원본 정보 저장
+            "original_damage": getattr(self, "_last_original_damage", None),  # 방어력 적용 전 원본 데미지
+            "attacker": getattr(self, "_last_attacker", None),  # 마지막 공격자 정보
+            "damage_type": getattr(self, "_last_damage_type", "physical"),  # 마지막 데미지 타입
+            "brv_points": getattr(self, "_last_brv_points", 0),  # 마지막 BRV 포인트
+            "hp_multiplier": getattr(self, "_last_hp_multiplier", 1.0),  # 마지막 HP 배율
+            "is_break": getattr(self, "_last_is_break", False),  # 마지막 BREAK 상태
+            "damage_kwargs": getattr(self, "_last_damage_kwargs", {})  # 마지막 데미지 kwargs
         }
         event_bus.publish(Events.COMBAT_DAMAGE_TAKEN, damage_event_data)
         

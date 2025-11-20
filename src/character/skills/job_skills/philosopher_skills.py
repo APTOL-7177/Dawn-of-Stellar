@@ -147,10 +147,10 @@ def create_philosopher_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "choice_scaling": True}
 
     return [philosophical_strike, truth_strike, choose_power, choose_wisdom, choose_sacrifice,

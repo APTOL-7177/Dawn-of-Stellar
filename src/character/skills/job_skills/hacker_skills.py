@@ -147,9 +147,9 @@ def create_hacker_skills():
     ultimate.costs = [MPCost(30)]
     ultimate.target_type = "all_enemies"
     ultimate.is_ultimate = True
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.is_aoe = True
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "multithread_rampage": True}
 
     return [code_injection, data_breach, run_virus, run_backdoor, run_ddos,

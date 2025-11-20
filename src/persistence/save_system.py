@@ -558,8 +558,55 @@ def serialize_game_state(
         # 기존 방식: 현재 층만 저장
         floors_data[floor_number] = dungeon_data
 
-    # 인벤토리
-    inventory_data = [serialize_item(item) for item in inventory]
+    # 인벤토리 (딕셔너리 형식으로 저장)
+    # inventory가 Inventory 객체인지 리스트인지 확인
+    if hasattr(inventory, 'gold') and hasattr(inventory, 'slots'):
+        # Inventory 객체인 경우
+        items_list = []
+        for slot in inventory.slots:
+            # InventorySlot은 dataclass이므로 item과 quantity 속성 사용
+            if slot and hasattr(slot, 'item'):
+                # quantity 정보 포함하여 저장
+                items_list.append({
+                    "item": serialize_item(slot.item),
+                    "quantity": getattr(slot, 'quantity', 1)
+                })
+        
+        inventory_data = {
+            "gold": getattr(inventory, 'gold', 0),
+            "items": items_list,
+            "cooking_cooldown_turn": getattr(inventory, 'cooking_cooldown_turn', None),
+            "cooking_cooldown_duration": getattr(inventory, 'cooking_cooldown_duration', 0)
+        }
+    elif isinstance(inventory, list):
+        # 리스트인 경우 (구버전 형식 - 하위 호환성)
+        # 리스트의 각 항목이 아이템인지 확인
+        items_list = []
+        for item in inventory:
+            if hasattr(item, 'item_id') or hasattr(item, 'name'):
+                # 아이템 객체인 경우
+                items_list.append({
+                    "item": serialize_item(item),
+                    "quantity": 1
+                })
+            elif isinstance(item, dict):
+                # 이미 직렬화된 딕셔너리인 경우
+                items_list.append(item)
+        
+        inventory_data = {
+            "gold": 0,
+            "items": items_list,
+            "cooking_cooldown_turn": None,
+            "cooking_cooldown_duration": 0
+        }
+    else:
+        # 알 수 없는 형식
+        inventory_data = {
+            "gold": 0,
+            "items": [],
+            "cooking_cooldown_turn": None,
+            "cooking_cooldown_duration": 0
+        }
 
     # 특성
     traits_data = []
@@ -1004,6 +1051,17 @@ def deserialize_inventory(inventory_data: Dict[str, Any], party: List[Any] = Non
     # 디버그: 인벤토리 데이터 확인
     logger.warning(f"[DESERIALIZE] inventory_data 타입: {type(inventory_data)}")
     logger.warning(f"[DESERIALIZE] inventory_data 내용: {inventory_data}")
+    
+    # inventory_data가 리스트인 경우 (구버전 형식 또는 오류) 빈 딕셔너리로 처리
+    if isinstance(inventory_data, list):
+        logger.warning(f"[DESERIALIZE] inventory_data가 리스트입니다. 빈 인벤토리로 초기화합니다.")
+        inventory_data = {}
+    
+    # 딕셔너리가 아닌 경우도 처리
+    if not isinstance(inventory_data, dict):
+        logger.warning(f"[DESERIALIZE] inventory_data가 딕셔너리가 아닙니다 ({type(inventory_data)}). 빈 인벤토리로 초기화합니다.")
+        inventory_data = {}
+    
     logger.warning(f"[DESERIALIZE] 골드 값: {inventory_data.get('gold', 0)}")
 
     # 골드 복원

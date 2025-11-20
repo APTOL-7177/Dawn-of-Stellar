@@ -133,7 +133,7 @@ def create_rogue_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "item_refill": True, "buff": True, "critical": True}
     skills.append(ultimate)

@@ -62,7 +62,7 @@ def create_samurai_skills():
     # 5. 무사의 명예
     samurai_honor = Skill("samurai_samurai_honor", "무사의 명예", "의지 최대 회복")
     samurai_honor.effects = [
-        GimmickEffect(GimmickOperation.SET, "will_gauge", 5),
+        GimmickEffect(GimmickOperation.SET, "will_gauge", 10, max_value=10),  # 최대치로 설정
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=4),
         BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=4)
     ]
@@ -138,7 +138,7 @@ def create_samurai_skills():
     ]
     ultimate.costs = [MPCost(30), StackCost("will_gauge", 1)]
     ultimate.is_ultimate = True
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "will_dump": True, "supreme_strike": True}
     skills.append(ultimate)
