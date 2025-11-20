@@ -144,9 +144,9 @@ def create_pirate_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "gold_scaling": True, "gold_refill": True, "aoe": True}
     skills.append(ultimate)

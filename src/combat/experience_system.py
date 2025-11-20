@@ -243,8 +243,8 @@ class RewardCalculator:
                 if random.random() < 0.05:  # 5%
                     items.append(RewardCalculator._generate_combat_consumable_drop())
                 
-                # 적 타입에 따른 식재료 드롭 (40% 확률)
-                if random.random() < 0.40:  # 40%
+                # 적 타입에 따른 식재료 드롭 (20% 확률, 보스는 제외)
+                if random.random() < 0.20:  # 20% (절반으로 감소)
                     ingredient = RewardCalculator._generate_ingredient_drop(enemy)
                     if ingredient:
                         items.append(ingredient)

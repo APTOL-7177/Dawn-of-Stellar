@@ -69,10 +69,10 @@ def create_time_mage_skills():
 
     # 6. 과거 반복 - 과거 스킬 (MP 대량 회복으로 이전 스킬 재사용 가능)
     repeat = Skill("time_mage_repeat", "과거 반복",
-                  "MP 30 회복 + 공격력 +30%, 타임라인 -1 (과거)")
+                  "MP 30 회복 + 마법력 +30%, 타임라인 -1 (과거)")
     repeat.effects = [
         HealEffect(heal_type=HealType.MP, base_amount=30),
-        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=2),
+        BuffEffect(BuffType.MAGIC_UP, 0.3, duration=2),
         GimmickEffect(GimmickOperation.ADD, "timeline", -1, min_value=-5)
     ]
     repeat.costs = [MPCost(6)]
@@ -155,8 +155,8 @@ def create_time_mage_skills():
     wave.costs = [MPCost(30)]
     wave.target_type = "all_enemies"
     wave.is_ultimate = True
+    wave.cooldown = 15  # 궁극기 쿨타임 15턴
     wave.is_aoe = True
-    # wave.cooldown = 8  # 쿨다운 시스템 제거됨
     wave.metadata = {"timeline_shift": "reset", "skill_type": "ultimate"}
 
     return [time_bolt, time_shock, slow, stop, rewind, repeat,

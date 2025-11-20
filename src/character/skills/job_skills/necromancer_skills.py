@@ -135,6 +135,7 @@ def create_necromancer_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.sfx = ("skill", "limit_break")  # 궁극기

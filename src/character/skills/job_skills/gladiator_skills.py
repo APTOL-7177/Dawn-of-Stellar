@@ -132,8 +132,8 @@ def create_gladiator_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.metadata = {"ultimate": True, "invincible": True}
 
     return [arena_strike, honor_strike, spectacular_attack, taunt_crowd, risky_stunt,

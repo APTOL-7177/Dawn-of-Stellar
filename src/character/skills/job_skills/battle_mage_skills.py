@@ -134,7 +134,7 @@ def create_battle_mage_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.metadata = {"ultimate": True, "elemental_cataclysm": True}

@@ -236,6 +236,10 @@ class BraveSystem:
             # BREAK 상태 플래그 설정
             defender.is_broken = True
 
+            # BREAK 전용 효과음 재생
+            from src.audio import play_sfx
+            play_sfx("combat", "break")
+
             event_bus.publish("brave.break", {
                 "attacker": attacker,
                 "defender": defender,
@@ -344,8 +348,33 @@ class BraveSystem:
                             if actual_brv_regen > 0:
                                 self.logger.info(f"[{trait_id}] {defender.name} BRV 회복: +{actual_brv_regen} ({brv_regen * 100:.0f}%)")
         
+        # 보호 효과를 위해 원본 공격 정보 저장
+        defender._last_attacker = attacker
+        defender._last_damage_type = damage_type
+        defender._last_brv_points = attacker.current_brv
+        defender._last_hp_multiplier = brv_multiplier
+        defender._last_is_break = is_defender_broken
+        defender._last_damage_kwargs = kwargs.copy()
+        defender._last_original_damage = damage_result.base_damage  # 방어력 적용 전 원본 데미지
+        
         # HP 데미지 적용 (피해 감소는 take_damage 내부에서 처리)
         hp_damage = defender.take_damage(damage_result.final_damage)
+        
+        # 보호 효과 처리 후 원본 정보 제거
+        if hasattr(defender, '_last_attacker'):
+            delattr(defender, '_last_attacker')
+        if hasattr(defender, '_last_damage_type'):
+            delattr(defender, '_last_damage_type')
+        if hasattr(defender, '_last_brv_points'):
+            delattr(defender, '_last_brv_points')
+        if hasattr(defender, '_last_hp_multiplier'):
+            delattr(defender, '_last_hp_multiplier')
+        if hasattr(defender, '_last_is_break'):
+            delattr(defender, '_last_is_break')
+        if hasattr(defender, '_last_damage_kwargs'):
+            delattr(defender, '_last_damage_kwargs')
+        if hasattr(defender, '_last_original_damage'):
+            delattr(defender, '_last_original_damage')
         
         # 상처 데미지 적용 (HP 데미지의 일부가 상처로 전환)
         # WoundSystem의 이벤트 핸들러는 플래그로 인해 무시됨

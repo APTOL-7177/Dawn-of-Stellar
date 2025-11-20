@@ -142,7 +142,7 @@ def create_knight_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "duty_scaling": True, "duty_refill": True, "shield": True, "attack_multiplier": 1.4}  # 공격력의 140%
     skills.append(ultimate)

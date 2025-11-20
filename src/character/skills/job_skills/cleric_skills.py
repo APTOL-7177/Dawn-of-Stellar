@@ -143,9 +143,9 @@ def create_cleric_skills():
     ]
     ultimate.costs = [MPCost(30), StackCost("faith_points", 1)]
     ultimate.is_ultimate = True
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.target_type = "party"
     ultimate.is_aoe = True
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "faith_consume_all": True, "healing": True, "party_wide": True, "buff": True}
     skills.append(ultimate)

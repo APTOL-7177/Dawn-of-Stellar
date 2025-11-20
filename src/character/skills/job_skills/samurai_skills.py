@@ -15,7 +15,7 @@ def create_samurai_skills():
     iaido = Skill("samurai_iaido", "거합 베기", "의지 게이지 획득")
     iaido.effects = [
         DamageEffect(DamageType.BRV, 1.6),
-        GimmickEffect(GimmickOperation.ADD, "will_gauge", 1, max_value=5)
+        GimmickEffect(GimmickOperation.ADD, "will_gauge", 1, max_value=10)
     ]
     iaido.costs = []  # 기본 공격은 MP 소모 없음
     iaido.sfx = ("combat", "attack_physical")  # 거합 베기
@@ -36,7 +36,7 @@ def create_samurai_skills():
     # 3. 명경지수
     clear_mind = Skill("samurai_clear_mind", "명경지수", "의지 2게이지 획득")
     clear_mind.effects = [
-        GimmickEffect(GimmickOperation.ADD, "will_gauge", 2, max_value=5),
+        GimmickEffect(GimmickOperation.ADD, "will_gauge", 2, max_value=10),
         BuffEffect(BuffType.ACCURACY_UP, 0.5, duration=3)
     ]
     clear_mind.costs = []
@@ -62,7 +62,7 @@ def create_samurai_skills():
     # 5. 무사의 명예
     samurai_honor = Skill("samurai_samurai_honor", "무사의 명예", "의지 최대 회복")
     samurai_honor.effects = [
-        GimmickEffect(GimmickOperation.SET, "will_gauge", 5),
+        GimmickEffect(GimmickOperation.SET, "will_gauge", 10, max_value=10),  # 최대치로 설정
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=4),
         BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=4)
     ]
@@ -117,7 +117,7 @@ def create_samurai_skills():
     infinite_slash.effects = [
         DamageEffect(DamageType.BRV_HP, 2.0),
         BuffEffect(BuffType.SPEED_UP, 0.3, duration=3),
-        GimmickEffect(GimmickOperation.ADD, "will_gauge", 1, max_value=5)
+        GimmickEffect(GimmickOperation.ADD, "will_gauge", 1, max_value=10)
     ]
     infinite_slash.costs = [MPCost(12)]
     # infinite_slash.cooldown = 5  # 쿨다운 시스템 제거됨
@@ -138,7 +138,7 @@ def create_samurai_skills():
     ]
     ultimate.costs = [MPCost(30), StackCost("will_gauge", 1)]
     ultimate.is_ultimate = True
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
+    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "will_dump": True, "supreme_strike": True}
     skills.append(ultimate)

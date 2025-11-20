@@ -1621,16 +1621,43 @@ class CombatManager:
                 if (guardian in self.allies and
                     hasattr(guardian, 'is_alive') and guardian.is_alive and 
                     guardian != defender):
-                    # 보호자가 모든 피해를 대신 받음
-                    protected_damage = damage
+                    # 보호자가 피해를 대신 받음 (보호자의 방어력으로 재계산)
                     data["damage"] = 0  # 원래 대상은 피해를 받지 않음
+                    
+                    # 원본 공격 정보를 사용하여 보호자의 방어력으로 재계산
+                    attacker = data.get("attacker")
+                    original_damage = data.get("original_damage")
+                    damage_type = data.get("damage_type", "physical")
+                    brv_points = data.get("brv_points", 0)
+                    hp_multiplier = data.get("hp_multiplier", 1.0)
+                    is_break = data.get("is_break", False)
+                    damage_kwargs = data.get("damage_kwargs", {})
+                    
+                    if attacker and original_damage is not None:
+                        # 보호자의 방어력으로 데미지 재계산
+                        from src.combat.damage_calculator import get_damage_calculator
+                        damage_calc = get_damage_calculator()
+                        
+                        damage_result, wound_damage = damage_calc.calculate_hp_damage(
+                            attacker=attacker,
+                            defender=guardian,  # 보호자가 방어자
+                            brv_points=brv_points,
+                            hp_multiplier=hp_multiplier,
+                            is_break=is_break,
+                            damage_type=damage_type,
+                            **damage_kwargs
+                        )
+                        protected_damage = damage_result.final_damage
+                    else:
+                        # 원본 정보가 없으면 기존 데미지 사용 (하위 호환성)
+                        protected_damage = damage
                     
                     # 보호자가 피해를 받음
                     if hasattr(guardian, 'take_damage'):
                         guardian_actual_damage = guardian.take_damage(protected_damage)
                         self.logger.info(
                             f"[수호의 맹세] {guardian.name}이(가) {defender.name}의 피해를 대신 받음: "
-                            f"{protected_damage} → 실제 {guardian_actual_damage}"
+                            f"{protected_damage} → 실제 {guardian_actual_damage} (보호자 방어력 적용)"
                         )
                     
                     return  # 한 명만 수호
@@ -1928,6 +1955,28 @@ class CombatManager:
             행동 결과
         """
         try:
+            # 적이 행동할 수 있는지 확인 (기절, 수면 등 상태이상 체크)
+            if hasattr(enemy, 'status_manager'):
+                if not enemy.status_manager.can_act():
+                    # 행동 불가능 상태 - 상태이상 지속시간만 감소
+                    expired = enemy.status_manager.update_duration()
+                    if expired:
+                        self.logger.debug(f"{enemy.name}: {len(expired)}개 상태 효과 만료")
+                    
+                    # 턴 종료 처리 (재생 효과 등)
+                    self._on_turn_end(enemy)
+                    
+                    # ATB 소비 (행동은 하지 못함)
+                    self.atb.consume_atb(enemy)
+                    
+                    return {
+                        "action": "skip",
+                        "actor": enemy,
+                        "success": False,
+                        "error": "행동 불가능 상태",
+                        "message": f"{enemy.name}은(는) 행동 불가능 상태!"
+                    }
+
             from src.ai.enemy_ai import create_ai_for_enemy
 
             # 적 AI 생성
