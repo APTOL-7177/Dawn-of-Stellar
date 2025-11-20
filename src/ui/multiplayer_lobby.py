@@ -15,7 +15,7 @@ from src.core.logger import get_logger
 from src.multiplayer.session import MultiplayerSession
 from src.multiplayer.network import HostNetworkManager, ClientNetworkManager
 from src.multiplayer.player import MultiplayerPlayer
-from src.audio import play_bgm
+from src.audio import play_bgm, play_sfx
 
 
 logger = get_logger("multiplayer.lobby")
@@ -100,6 +100,7 @@ class MultiplayerLobby:
             완료 여부 (모든 플레이어 준비 완료 시 True)
         """
         if action == GameAction.CANCEL:
+            play_sfx("ui", "cursor_cancel")
             self.cancelled = True
             return True
         

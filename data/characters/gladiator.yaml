@@ -104,6 +104,6 @@ skills:
 - arena_roar
 - final_counter
 bonuses:
-  counter_rate: 0.4
-  physical_resistance: 0.25
-  low_hp_defense: 1.5
+  counter_rate: 0.15
+  physical_resistance: 0.1
+  low_hp_defense: 1.2

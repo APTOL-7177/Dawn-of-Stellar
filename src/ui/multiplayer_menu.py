@@ -107,6 +107,7 @@ class MultiplayerMenu:
             self.menu.execute_selected()
             return self.result is not None
         elif action == GameAction.ESCAPE:
+            play_sfx("ui", "cursor_cancel")
             self.result = MultiplayerMenuResult.BACK
             return True
         
@@ -186,7 +187,9 @@ def show_multiplayer_menu(
                 join_result = show_join_game_screen(console, context)
                 if join_result:
                     return join_result
-                # 취소된 경우 None 반환하여 메뉴로 돌아감
+                # 취소된 경우 메뉴 결과 초기화하고 메뉴로 돌아감
+                menu.result = None
+                continue
     
     return None
 

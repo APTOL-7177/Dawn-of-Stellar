@@ -133,5 +133,5 @@ skills:
 - vampire_blood_satiation
 - vampire_ultimate
 bonuses:
-  lifesteal: 0.3
-  low_hp_bonus: 1.8
+  lifesteal: 0.12
+  low_hp_bonus: 1.2

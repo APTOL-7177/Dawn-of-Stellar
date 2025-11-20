@@ -7,9 +7,9 @@ base_stats:
   init_brv: 145
   speed: 74
   physical_attack: 64
-  physical_defense: 22
+  physical_defense: 35
   magic_attack: 13
-  magic_defense: 21
+  magic_defense: 28
   max_brv: 505
 stat_growth:
   hp: 15
@@ -93,6 +93,6 @@ skills:
 - berserker_controlled_fury
 - berserker_ultimate
 bonuses:
-  low_hp_damage: 1.15
-  hp_multiplier: 1.15
-  reckless_bonus: 1.8
+  low_hp_damage: 1.1
+  hp_multiplier: 1.1
+  reckless_bonus: 1.2

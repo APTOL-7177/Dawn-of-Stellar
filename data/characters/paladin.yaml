@@ -9,7 +9,7 @@ base_stats:
   physical_attack: 67
   physical_defense: 76
   magic_attack: 38
-  magic_defense: 62
+  magic_defense: 70
   max_brv: 495
 stat_growth:
   hp: 14
@@ -58,7 +58,7 @@ skills:
 - smite_evil
 - holy_judgment
 bonuses:
-  hp_multiplier: 1.08
-  defense_bonus: 15
-  spirit_bonus: 20
-  healing_received: 1.2
+  hp_multiplier: 1.05
+  defense_bonus: 8
+  spirit_bonus: 10
+  healing_received: 1.1

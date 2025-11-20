@@ -5,11 +5,11 @@ base_stats:
   hp: 210
   mp: 32
   init_brv: 135
-  physical_attack: 60
-  physical_defense: 60
-  magic_attack: 40
-  magic_defense: 60
-  speed: 60
+  physical_attack: 68
+  physical_defense: 68
+  magic_attack: 48
+  magic_defense: 68
+  speed: 68
   max_brv: 490
 stat_growth:
   hp: 15
@@ -79,5 +79,5 @@ skills:
 - defensive_stance
 - ultimate_slash
 bonuses:
-  hp_multiplier: 1.1
-  physical_damage: 1.1
+  hp_multiplier: 1.05
+  physical_damage: 1.05

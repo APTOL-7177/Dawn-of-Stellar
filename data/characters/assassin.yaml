@@ -87,7 +87,7 @@ skills:
 - throat_cut
 - silent_kill
 bonuses:
-  critical_rate: 1.6
-  critical_damage: 1.8
-  stealth_bonus: 0.5
-  assassination_rate: 0.2
+  critical_rate: 1.2
+  critical_damage: 1.25
+  stealth_bonus: 0.15
+  assassination_rate: 0.1

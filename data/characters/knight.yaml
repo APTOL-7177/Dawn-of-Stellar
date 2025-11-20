@@ -7,7 +7,7 @@ base_stats:
   init_brv: 130
   speed: 48
   physical_attack: 79
-  physical_defense: 72
+  physical_defense: 85
   magic_attack: 46
   magic_defense: 54
   max_brv: 485
@@ -58,6 +58,6 @@ skills:
 - glory_charge
 - heroic_stand
 bonuses:
-  party_attack_bonus: 0.15
-  party_defense_bonus: 0.15
-  protect_reduction: 0.2
+  party_attack_bonus: 0.08
+  party_defense_bonus: 0.08
+  protect_reduction: 0.1

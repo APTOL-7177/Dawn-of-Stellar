@@ -11,6 +11,7 @@ from typing import List, Dict, Any, Optional
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler
 from src.core.logger import get_logger
+from src.audio import play_sfx
 
 
 logger = get_logger("reward_ui")
@@ -55,6 +56,8 @@ class RewardDisplay:
             완료 여부
         """
         if action == GameAction.CONFIRM or action == GameAction.ESCAPE:
+            if action == GameAction.ESCAPE:
+                play_sfx("ui", "cursor_cancel")
             self.completed = True
             return True
         elif action == GameAction.MOVE_UP:

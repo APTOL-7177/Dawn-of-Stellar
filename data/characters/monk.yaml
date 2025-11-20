@@ -5,11 +5,11 @@ base_stats:
   hp: 172
   mp: 58
   init_brv: 122
-  speed: 76
-  physical_attack: 82
+  speed: 73
+  physical_attack: 75
   physical_defense: 59
-  magic_attack: 51
-  magic_defense: 64
+  magic_attack: 62
+  magic_defense: 55
   max_brv: 462
 stat_growth:
   hp: 11
@@ -90,6 +90,6 @@ skills:
 - monk_enlightenment
 - monk_taichi_ultimate
 bonuses:
-  mp_multiplier: 1.3
-  spirit_multiplier: 1.2
-  status_resistance: 1.5
+  mp_multiplier: 1.1
+  spirit_multiplier: 1.05
+  status_resistance: 1.2

@@ -15,6 +15,7 @@ from src.ui.input_handler import InputHandler, GameAction
 from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.core.config import get_config
+from src.audio import play_sfx
 
 
 logger = get_logger(Loggers.UI)
@@ -143,6 +144,7 @@ class PassiveSelectionUI:
             True면 선택 완료/취소
         """
         if action == GameAction.CANCEL:
+            play_sfx("ui", "cursor_cancel")
             self.cancelled = True
             return True
 

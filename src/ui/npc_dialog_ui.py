@@ -11,6 +11,7 @@ from typing import Optional, List, Dict, Any, Callable
 from src.ui.input_handler import InputHandler, GameAction
 from src.ui.tcod_display import Colors
 from src.core.logger import get_logger
+from src.audio import play_sfx
 
 logger = get_logger("npc_dialog")
 
@@ -152,11 +153,13 @@ def show_npc_dialog(
                             logger.error(f"NPC 선택지 콜백 실행 오류: {e}")
                     return selected_index
                 elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+                    play_sfx("ui", "cursor_cancel")
                     return None
             else:
                 if action == GameAction.CONFIRM:
                     return 0
                 elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+                    play_sfx("ui", "cursor_cancel")
                     return None
             
             # 윈도우 닫기

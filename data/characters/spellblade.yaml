@@ -58,6 +58,6 @@ skills:
 - arcane_burst
 - ultimate_fusion
 bonuses:
-  hybrid_damage: 1.25
-  spell_cast_speed: 1.5
+  hybrid_damage: 1.1
+  spell_cast_speed: 1.2
   dual_scaling: 1.0

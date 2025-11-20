@@ -58,7 +58,7 @@ skills:
 - resurrection
 - divine_judgment
 bonuses:
-  healing_power: 1.5
-  mp_multiplier: 1.3
-  critical_taken_reduction: 0.2
+  healing_power: 1.2
+  mp_multiplier: 1.1
+  critical_taken_reduction: 0.1
   status_immunity: 1.0

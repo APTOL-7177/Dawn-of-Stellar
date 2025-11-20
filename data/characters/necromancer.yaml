@@ -93,6 +93,6 @@ skills:
 - necromancer_mass_summon
 - necromancer_ultimate
 bonuses:
-  mp_multiplier: 1.4
-  debuff_power: 1.4
-  debuff_duration: 1.5
+  mp_multiplier: 1.15
+  debuff_power: 1.15
+  debuff_duration: 1.2

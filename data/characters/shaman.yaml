@@ -58,7 +58,7 @@ skills:
 - vision_quest
 - soul_harvest
 bonuses:
-  vision_range: 2.0
-  treasure_find: 1.5
+  vision_range: 1.5
+  treasure_find: 1.2
   trap_detection: 1.0
-  critical_resistance: 0.5
+  critical_resistance: 0.2

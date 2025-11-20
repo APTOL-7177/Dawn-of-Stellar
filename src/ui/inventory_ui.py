@@ -15,6 +15,7 @@ from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.core.logger import get_logger
+from src.audio import play_sfx
 
 
 logger = get_logger("inventory_ui")
@@ -181,6 +182,7 @@ class InventoryUI:
                             # 일반 소비품: 사용 모드로 전환
                             self.mode = InventoryMode.USE_ITEM
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+            play_sfx("ui", "cursor_cancel")
             self.closed = True
             return True
         elif action == GameAction.MOVE_LEFT:

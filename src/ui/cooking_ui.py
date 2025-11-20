@@ -16,6 +16,7 @@ from src.cooking.recipe import RecipeDatabase, CookedFood
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler
 from src.core.logger import get_logger
+from src.audio import play_sfx
 
 
 logger = get_logger("cooking_ui")
@@ -117,6 +118,7 @@ class CookingPotUI:
                 self.mode = CookingMode.CONFIRM_COOK
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 모든 재료 반환하고 닫기
+            play_sfx("ui", "cursor_cancel")
             self._return_all_ingredients()
             self.closed = True
             return True
@@ -147,6 +149,7 @@ class CookingPotUI:
                 self.mode = CookingMode.SELECT_SLOT
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 슬롯 선택 모드로 복귀
+            play_sfx("ui", "cursor_cancel")
             self.mode = CookingMode.SELECT_SLOT
 
         return False
@@ -159,6 +162,7 @@ class CookingPotUI:
             self.mode = CookingMode.SHOW_RESULT
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 슬롯 선택 모드로 복귀
+            play_sfx("ui", "cursor_cancel")
             self.mode = CookingMode.SELECT_SLOT
 
         return False
@@ -167,6 +171,8 @@ class CookingPotUI:
         """결과 표시 모드"""
         if action == GameAction.CONFIRM or action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 냄비 닫기 (요리 결과는 인벤토리에 추가됨)
+            if action != GameAction.CONFIRM:  # CONFIRM은 요리 완료이므로 다른 효과음
+                play_sfx("ui", "cursor_cancel")
             self.closed = True
             return True
 

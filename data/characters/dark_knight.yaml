@@ -58,6 +58,6 @@ skills:
 - vengeful_strike
 - abyss_blade
 bonuses:
-  lifesteal_rate: 0.25
-  critical_damage: 1.3
-  low_hp_bonus: 1.25
+  lifesteal_rate: 0.1
+  critical_damage: 1.1
+  low_hp_bonus: 1.1
