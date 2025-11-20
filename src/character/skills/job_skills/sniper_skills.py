@@ -15,6 +15,7 @@ def create_sniper_skills():
                     conditional_bonus={"condition": "last_bullet", "multiplier": 1.3})
     ]
     precise_shot.costs = []  # 기본 공격은 MP 소모 없음
+    precise_shot.sfx = ("skill", "gun_shot")  # 총소리
     precise_shot.metadata = {"bullets_used": 1, "uses_magazine": True}
 
     # 2. 기본 HP: 헤드샷 (탄환 1발 소모, 크리티컬 확정)
@@ -24,6 +25,7 @@ def create_sniper_skills():
                     conditional_bonus={"condition": "last_bullet", "multiplier": 1.3})
     ]
     headshot.costs = []  # 기본 공격은 MP 소모 없음
+    headshot.sfx = ("skill", "gun_shot")  # 총소리
     headshot.metadata = {"bullets_used": 1, "uses_magazine": True, "crit_guaranteed": True}
 
     # 3. 더블 탭 (2발 연속 사격)
@@ -33,6 +35,7 @@ def create_sniper_skills():
         DamageEffect(DamageType.BRV, 1.8)
     ]
     double_tap.costs = []
+    double_tap.sfx = ("skill", "gun_shot")  # 총소리
     double_tap.metadata = {"bullets_used": 2, "uses_magazine": True}
 
     # 4. 재장전 (탄창 6발 충전)
@@ -47,7 +50,7 @@ def create_sniper_skills():
 
     # 5. 관통탄 장전 (2발)
     load_penetrating = Skill("sniper_load_penetrating", "관통탄 장전",
-                            "관통탄 2발 장전 (방어 무시 50%)")
+                            "관통탄 2발 장전 (공격력의 15% 고정 관통)")
     load_penetrating.effects = [
         GimmickEffect(GimmickOperation.LOAD_BULLETS, "magazine", 2,
                      bullet_type="penetrating")
@@ -98,6 +101,7 @@ def create_sniper_skills():
     ]
     set_trap.costs = [MPCost(7)]
     set_trap.target_type = "single_enemy"
+    set_trap.sfx = ("skill", "gun_shot")  # 총소리
     # set_trap.cooldown = 3  # 쿨다운 시스템 제거됨
     set_trap.metadata = {"trap": True}
 
@@ -111,6 +115,7 @@ def create_sniper_skills():
     ]
     deadeye.costs = [MPCost(30)]
     deadeye.is_ultimate = True
+    deadeye.sfx = ("skill", "gun_shot")  # 총소리
     # deadeye.cooldown = 8  # 쿨다운 시스템 제거됨
     deadeye.metadata = {"uses_all_bullets": True, "deadeye": True}
 

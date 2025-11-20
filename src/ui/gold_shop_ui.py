@@ -258,7 +258,6 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     # 층별로 다른 특수 아이템 풀 선택
     all_special_items = [
         ("town_portal", 200),
-        ("dungeon_key", 150),
         ("phoenix_down", 350),
         ("revival_essence", 400),
         ("wound_cure_essence", 350),

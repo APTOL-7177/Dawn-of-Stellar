@@ -270,7 +270,8 @@ class BraveSystem:
         attacker: Any,
         defender: Any,
         brv_multiplier: float = 1.0,
-        damage_type: str = "physical"
+        damage_type: str = "physical",
+        **kwargs
     ) -> Dict[str, Any]:
         """
         HP 공격
@@ -304,7 +305,8 @@ class BraveSystem:
             brv_points=attacker.current_brv,
             hp_multiplier=brv_multiplier,
             is_break=is_defender_broken,
-            damage_type=damage_type
+            damage_type=damage_type,
+            **kwargs  # 관통탄 방어 관통력 등 전달
         )
 
         # HP 데미지 적용 전에 상처 적용 플래그 설정 (중복 방지)

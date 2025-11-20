@@ -232,7 +232,7 @@ class Character:
             # 탄환 타입 정보 저장
             self.bullet_types = {
                 "normal": {"name": "기본 탄환", "multiplier": 2.0},
-                "penetrating": {"name": "관통탄", "multiplier": 2.5, "defense_pierce": 0.5},
+                "penetrating": {"name": "관통탄", "multiplier": 2.5, "defense_pierce_fixed": 0.15},  # 공격력의 15% 고정수치
                 "explosive": {"name": "폭발탄", "multiplier": 1.8, "aoe": True},
                 "frost": {"name": "빙결탄", "multiplier": 1.8, "status": "frozen"},
                 "fire": {"name": "화염탄", "multiplier": 2.0, "status": "burn"},

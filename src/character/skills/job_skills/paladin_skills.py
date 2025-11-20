@@ -38,14 +38,14 @@ def create_paladin_skills():
     # 3. 신성한 보호막
     divine_shield = Skill("paladin_divine_shield", "신성한 보호막", "성력으로 강력한 보호막")
     divine_shield.effects = [
-        ShieldEffect(base_amount=50, multiplier=1.0, stat_name="holy_power"),
+        ShieldEffect(base_amount=0),  # 공격력 기반으로 계산 (base_amount는 0)
         GimmickEffect(GimmickOperation.CONSUME, "holy_power", 2)
     ]
     divine_shield.costs = []
     divine_shield.target_type = "self"
     # divine_shield.cooldown = 4  # 쿨다운 시스템 제거됨
     divine_shield.sfx = ("skill", "shell")  # 신성한 보호막
-    divine_shield.metadata = {"holy_power_cost": 2, "shield": True, "holy_power_scaling": True}
+    divine_shield.metadata = {"holy_power_cost": 2, "shield": True, "attack_multiplier": 0.7, "replace_shield": True}  # 공격력의 70%, 중첩 방지
     skills.append(divine_shield)
 
     # 4. 신성화

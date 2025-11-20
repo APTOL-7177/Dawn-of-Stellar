@@ -65,33 +65,33 @@ def create_knight_skills():
     # 5. 불굴의 의지
     iron_will = Skill("knight_iron_will", "불굴의 의지", "생존 + 의무")
     iron_will.effects = [
-        ShieldEffect(base_amount=100),
+        ShieldEffect(base_amount=0),  # 공격력 기반으로 계산
         GimmickEffect(GimmickOperation.ADD, "duty_stacks", 2, max_value=5)
     ]
     iron_will.costs = [MPCost(6)]
     iron_will.target_type = "self"
     # iron_will.cooldown = 5  # 쿨다운 시스템 제거됨
     iron_will.sfx = ("skill", "shell")  # 방어막
-    iron_will.metadata = {"shield": True, "duty_gain": 2}
+    iron_will.metadata = {"shield": True, "duty_gain": 2, "attack_multiplier": 0.8}  # 공격력의 80%
     skills.append(iron_will)
 
     # 6. 방패 강타
     shield_bash = Skill("knight_bash", "방패 강타", "방어 + 공격")
     shield_bash.effects = [
         DamageEffect(DamageType.BRV, 1.8, gimmick_bonus={"field": "duty_stacks", "multiplier": 0.2}),
-        ShieldEffect(base_amount=40),
+        ShieldEffect(base_amount=0),  # 공격력 기반으로 계산
         GimmickEffect(GimmickOperation.ADD, "duty_stacks", 1, max_value=5)
     ]
     shield_bash.costs = [MPCost(4)]
     # shield_bash.cooldown = 2  # 쿨다운 시스템 제거됨
     shield_bash.sfx = ("combat", "attack_physical")  # 방패 강타
-    shield_bash.metadata = {"shield": True, "duty_gain": 1, "duty_scaling": True}
+    shield_bash.metadata = {"shield": True, "duty_gain": 1, "duty_scaling": True, "attack_multiplier": 0.6}  # 공격력의 60%
     skills.append(shield_bash)
 
     # 7. 최후의 보루
     last_stand = Skill("knight_last_stand", "최후의 보루", "의무 3 소비, 생존")
     last_stand.effects = [
-        ShieldEffect(base_amount=150),
+        ShieldEffect(base_amount=0),  # 공격력 기반으로 계산
         BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=3),
         GimmickEffect(GimmickOperation.CONSUME, "duty_stacks", 3)
     ]
@@ -99,13 +99,13 @@ def create_knight_skills():
     last_stand.target_type = "self"
     # last_stand.cooldown = 6  # 쿨다운 시스템 제거됨
     last_stand.sfx = ("combat", "damage_high")  # 최후의 보루
-    last_stand.metadata = {"shield": True, "duty_cost": 3, "defensive": True}
+    last_stand.metadata = {"shield": True, "duty_cost": 3, "defensive": True, "attack_multiplier": 1.2}  # 공격력의 120%
     skills.append(last_stand)
 
     # 8. 헌신
     devotion = Skill("knight_devotion", "헌신", "파티 전체 보호")
     devotion.effects = [
-        ShieldEffect(base_amount=80),
+        ShieldEffect(base_amount=0),  # 공격력 기반으로 계산
         BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=4, is_party_wide=True),
         GimmickEffect(GimmickOperation.ADD, "duty_stacks", 1, max_value=5)
     ]
@@ -113,13 +113,13 @@ def create_knight_skills():
     devotion.target_type = "party"
     # devotion.cooldown = 6  # 쿨다운 시스템 제거됨
     devotion.sfx = ("character", "status_buff")  # 파티 보호
-    devotion.metadata = {"shield": True, "party": True, "duty_gain": 1}
+    devotion.metadata = {"shield": True, "party": True, "duty_gain": 1, "attack_multiplier": 0.9}  # 공격력의 90%
     skills.append(devotion)
 
     # 9. 기사의 맹세 (NEW - 10번째 스킬 전)
     knight_pledge = Skill("knight_pledge", "기사의 맹세", "의무 4 소비, 강력한 보호와 반격")
     knight_pledge.effects = [
-        ShieldEffect(base_amount=180),
+        ShieldEffect(base_amount=0),  # 공격력 기반으로 계산
         BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=4),
         BuffEffect(BuffType.COUNTER, 0.6, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "duty_stacks", 4)
@@ -128,7 +128,7 @@ def create_knight_skills():
     knight_pledge.target_type = "self"
     # knight_pledge.cooldown = 7  # 쿨다운 시스템 제거됨
     knight_pledge.sfx = ("combat", "break")  # 기사의 맹세
-    knight_pledge.metadata = {"shield": True, "duty_cost": 4, "counter": True}
+    knight_pledge.metadata = {"shield": True, "duty_cost": 4, "counter": True, "attack_multiplier": 1.4}  # 공격력의 140%
     skills.append(knight_pledge)
 
     # 10. 궁극기: 성스러운 돌격
@@ -136,7 +136,7 @@ def create_knight_skills():
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "duty_stacks", "multiplier": 0.5}),
         DamageEffect(DamageType.HP, 3.0),
-        ShieldEffect(base_amount=200),
+        ShieldEffect(base_amount=0),  # 공격력 기반으로 계산
         BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5),
         GimmickEffect(GimmickOperation.SET, "duty_stacks", 5)
     ]
@@ -144,7 +144,7 @@ def create_knight_skills():
     ultimate.is_ultimate = True
     # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
-    ultimate.metadata = {"ultimate": True, "duty_scaling": True, "duty_refill": True, "shield": True}
+    ultimate.metadata = {"ultimate": True, "duty_scaling": True, "duty_refill": True, "shield": True, "attack_multiplier": 1.4}  # 공격력의 140%
     skills.append(ultimate)
 
     return skills

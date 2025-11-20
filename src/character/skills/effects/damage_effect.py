@@ -34,12 +34,32 @@ class DamageEffect(SkillEffect):
         # 타겟 리스트 처리
         targets = target if isinstance(target, list) else [target]
         
+        # HP 공격이 여러 타겟에 적용되는 경우, 시작 시점의 BRV를 저장
+        # (첫 번째 타겟에서 BRV가 소모되어 이후 타겟들에 영향을 주지 않도록)
+        is_aoe_hp = (self.damage_type == DamageType.HP and len(targets) > 1)
+        initial_brv = None
+        if is_aoe_hp:
+            initial_brv = user.current_brv
+            # context에 저장하여 _execute_single에서 사용
+            if context is None:
+                context = {}
+            context['_aoe_hp_initial_brv'] = initial_brv
+        
         for single_target in targets:
             if not single_target.is_alive:
                 continue
             
+            # HP 공격이 여러 타겟에 적용되는 경우, 각 타겟에 대해 BRV를 복원
+            if is_aoe_hp and initial_brv is not None:
+                user.current_brv = initial_brv
+            
             single_result = self._execute_single(user, single_target, context)
             result.merge(single_result)
+        
+        # AOE HP 공격의 경우, 마지막에 한 번만 BRV 소모 (첫 번째 타겟에서 소모된 것과 동일)
+        if is_aoe_hp and initial_brv is not None and len(targets) > 0:
+            # BRV를 원래 소모량만큼만 감소 (첫 번째 타겟에서 이미 소모되었으므로)
+            pass  # BRV는 각 타겟에 대해 복원되었으므로, 마지막 타겟에서 소모된 상태를 유지
         
         return result
     
@@ -143,10 +163,15 @@ class DamageEffect(SkillEffect):
         
         if self.damage_type == DamageType.BRV:
             # 물리/마법 구분
+            # 탄환 정보를 kwargs에 전달 (관통탄 방어 관통력용)
+            calc_kwargs = {}
+            if context and 'defense_pierce_fixed' in context:
+                calc_kwargs['defense_pierce_fixed'] = context['defense_pierce_fixed']
+            
             if self.stat_type == "magical":
-                dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult)
+                dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult, **calc_kwargs)
             else:
-                dmg_result = self.damage_calculator.calculate_brv_damage(user, target, final_mult)
+                dmg_result = self.damage_calculator.calculate_brv_damage(user, target, final_mult, **calc_kwargs)
 
             brv_result = self.brave_system.brv_attack(user, target, dmg_result.final_damage)
             result.brv_damage = brv_result['brv_stolen']
@@ -157,7 +182,27 @@ class DamageEffect(SkillEffect):
         
         elif self.damage_type == DamageType.HP:
             # 물리/마법 구분하여 HP 공격
-            hp_result = self.brave_system.hp_attack(user, target, final_mult, damage_type=self.stat_type)
+            # 탄환 정보를 전달 (관통탄 방어 관통력용)
+            hp_kwargs = {}
+            if context and 'defense_pierce_fixed' in context:
+                hp_kwargs['defense_pierce_fixed'] = context['defense_pierce_fixed']
+            
+            # AOE HP 공격의 경우, 시작 시점의 BRV를 사용하도록 설정
+            # (context에 저장된 초기 BRV가 있으면 사용, 없으면 현재 BRV 사용)
+            use_initial_brv = context and '_aoe_hp_initial_brv' in context
+            if use_initial_brv:
+                # 임시로 BRV를 초기값으로 설정
+                saved_brv = user.current_brv
+                user.current_brv = context['_aoe_hp_initial_brv']
+            
+            hp_result = self.brave_system.hp_attack(user, target, final_mult, damage_type=self.stat_type, **hp_kwargs)
+            
+            # AOE HP 공격의 경우, BRV를 복원 (소모는 마지막 타겟에서만)
+            if use_initial_brv:
+                # 소모된 BRV만 계산하고, 나머지는 복원
+                brv_consumed = context['_aoe_hp_initial_brv'] - user.current_brv
+                user.current_brv = saved_brv - brv_consumed  # 원래 BRV에서 소모량만 빼기
+            
             result.hp_damage = hp_result['hp_damage']
             result.damage_dealt = hp_result['hp_damage']
             result.message = f"HP 공격! {result.hp_damage}"

@@ -844,6 +844,16 @@ class CombatManager:
         # 쿨다운 활성화
         skill.activate_cooldown()
 
+        # SFX 재생
+        if hasattr(skill, 'sfx') and skill.sfx:
+            play_sfx(skill.sfx[0], skill.sfx[1])
+        else:
+            # 기본 SFX (물리/마법 구분)
+            if skill.is_magical:
+                play_sfx("skill", "magic_cast")
+            else:
+                play_sfx("combat", "attack_physical")
+
         # 대상 결정
         targets = []
         if skill.target_type == SkillTargetType.SELF:
@@ -912,25 +922,68 @@ class CombatManager:
                         target_result["special"] = "hp_to_1"
                 else:
                     # 일반 데미지 계산
+                    # 계수 조정 (실행 시점에서 통일):
+                    # - BRV 공격만 있는 경우: 2배로 조정
+                    # - HP 공격만 있는 경우: 0.75배로 조정
+                    # - 복합 스킬(BRV+HP): BRV는 2배, HP는 0.75배로 조정
+                    effective_multiplier = skill.damage_multiplier
+                    brv_multiplier = skill.damage_multiplier
+                    hp_multiplier = skill.damage_multiplier
+                    
+                    if skill.brv_damage > 0 and not skill.hp_attack:
+                        # BRV 공격만 있는 경우: 2배로 조정
+                        brv_multiplier = skill.damage_multiplier * 2.0
+                        effective_multiplier = brv_multiplier
+                    elif skill.hp_attack and not skill.brv_damage:
+                        # HP 공격만 있는 경우: 0.75배로 조정
+                        effective_multiplier = skill.damage_multiplier * 0.75
+                        hp_multiplier = effective_multiplier
+                    elif skill.hp_attack and skill.brv_damage:
+                        # 복합 스킬: BRV는 2배, HP는 0.75배로
+                        brv_multiplier = skill.damage_multiplier * 2.0
+                        hp_multiplier = skill.damage_multiplier * 0.75
+                        effective_multiplier = brv_multiplier  # BRV 데미지 계산용
+                    
                     if skill.is_magical:
-                        base_damage = int(skill.damage + actor.magic_attack * skill.damage_multiplier)
+                        base_damage = int(skill.damage + actor.magic_attack * effective_multiplier)
                         defense = getattr(tgt, 'magic_defense', 0)
                     else:
-                        base_damage = int(skill.damage + actor.physical_attack * skill.damage_multiplier)
+                        base_damage = int(skill.damage + actor.physical_attack * effective_multiplier)
                         defense = getattr(tgt, 'physical_defense', 0)
 
                     # 방어력 적용
                     final_damage = max(1, base_damage - defense // 2)
 
-                    # BRV 데미지
+                    # BRV 데미지 계산 (복합 스킬의 경우 BRV 계수는 2배 적용)
                     if skill.brv_damage > 0:
+                        # BRV 데미지를 계수에 맞게 계산
+                        if skill.is_magical:
+                            brv_base_damage = int(skill.damage + actor.magic_attack * brv_multiplier)
+                            brv_defense = getattr(tgt, 'magic_defense', 0)
+                        else:
+                            brv_base_damage = int(skill.damage + actor.physical_attack * brv_multiplier)
+                            brv_defense = getattr(tgt, 'physical_defense', 0)
+                        
+                        # 방어력 적용 (BRV 데미지)
+                        brv_final_damage = max(1, brv_base_damage - brv_defense // 2)
+                        
                         if hasattr(tgt, 'current_brv'):
-                            brv_dmg = min(skill.brv_damage, tgt.current_brv)
+                            brv_dmg = min(brv_final_damage, tgt.current_brv)
                             tgt.current_brv = max(0, tgt.current_brv - brv_dmg)
                             target_result["brv_damage"] = brv_dmg
 
-                    # HP 데미지
+                    # HP 데미지 (HP 공격만 있거나 둘 다 있는 경우)
                     if skill.hp_attack or not skill.brv_damage:
+                        # 둘 다 있는 경우: HP 데미지는 별도 계산
+                        if skill.hp_attack and skill.brv_damage:
+                            if skill.is_magical:
+                                hp_base_damage = int(skill.damage + actor.magic_attack * hp_multiplier)
+                                hp_defense = getattr(tgt, 'magic_defense', 0)
+                            else:
+                                hp_base_damage = int(skill.damage + actor.physical_attack * hp_multiplier)
+                                hp_defense = getattr(tgt, 'physical_defense', 0)
+                            hp_final_damage = max(1, hp_base_damage - hp_defense // 2)
+                            final_damage = hp_final_damage
                         if hasattr(tgt, 'take_damage'):
                             actual_damage = tgt.take_damage(final_damage)
                         elif hasattr(tgt, 'current_hp'):
@@ -1054,6 +1107,50 @@ class CombatManager:
                                 status_mgr.add_status(status_effect)
 
             result["targets"].append(target_result)
+
+        # damage=0이고 BRV 시스템을 사용하는 스킬 처리 (damage > 0 블록 밖에서)
+        if skill.damage == 0 and skill.brv_damage > 0:
+            # BRV 시스템을 사용하는 적 스킬
+            from src.combat.damage_calculator import get_damage_calculator
+            damage_calc = get_damage_calculator()
+            
+            # BRV 공격 계수 조정 (BRV만: 2배, 복합: BRV 2배)
+            brv_multiplier = skill.damage_multiplier
+            if skill.brv_damage > 0 and not skill.hp_attack:
+                # BRV 공격만 있는 경우: 2배로 조정
+                brv_multiplier = skill.damage_multiplier * 2.0
+            elif skill.brv_damage > 0 and skill.hp_attack:
+                # 복합 스킬: BRV는 2배
+                brv_multiplier = skill.damage_multiplier * 2.0
+            
+            # 대상이 리스트인 경우 처리
+            targets_list = targets if isinstance(targets, list) else [targets]
+            
+            for tgt in targets_list:
+                if not getattr(tgt, 'is_alive', True):
+                    continue
+                
+                target_result = {"target": getattr(tgt, 'name', 'Unknown')}
+                
+                # BRV 데미지 계산
+                if skill.is_magical:
+                    dmg_result = damage_calc.calculate_magic_damage(actor, tgt, brv_multiplier)
+                else:
+                    dmg_result = damage_calc.calculate_brv_damage(actor, tgt, brv_multiplier)
+                
+                # BRV 공격 실행
+                brv_result = self.brave.brv_attack(actor, tgt, dmg_result.final_damage)
+                target_result["brv_damage"] = brv_result['brv_stolen']
+                
+                # HP 공격이 있는 경우
+                if skill.hp_attack:
+                    # HP 공격 계수는 0.75배로 조정
+                    hp_multiplier = skill.damage_multiplier * 0.75
+                    hp_result = self.brave.hp_attack(actor, tgt, hp_multiplier, 
+                                                     damage_type="magical" if skill.is_magical else "physical")
+                    target_result["hp_damage"] = hp_result['hp_damage']
+                
+                result["targets"].append(target_result)
 
         return result
 

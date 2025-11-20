@@ -4,8 +4,9 @@
 BSP 알고리즘을 사용한 절차적 던전 생성
 """
 
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict, Any, Set
 from dataclasses import dataclass
+from collections import deque
 import random
 
 from src.world.tile import Tile, TileType
@@ -386,30 +387,37 @@ class DungeonGenerator:
     def _place_keys_and_locks(self, dungeon: DungeonMap, num_keys: int):
         """열쇠와 잠긴 문 배치"""
         # 계단이 있는 방 찾기
-        stairs_rooms = set()
+        stairs_rooms: List[Rect] = []
         if dungeon.stairs_up:
             stairs_up_room = self._find_room_containing_point(dungeon, dungeon.stairs_up)
             if stairs_up_room:
-                stairs_rooms.add(id(stairs_up_room))
+                stairs_rooms.append(stairs_up_room)
         if dungeon.stairs_down:
             stairs_down_room = self._find_room_containing_point(dungeon, dungeon.stairs_down)
-            if stairs_down_room:
-                stairs_rooms.add(id(stairs_down_room))
+            if stairs_down_room and stairs_down_room not in stairs_rooms:
+                stairs_rooms.append(stairs_down_room)
         
-        # 계단이 있는 방과 연결된 복도 타일 찾기 (제외할 복도)
-        excluded_corridors = set()
+        # BFS를 사용하여 계단 방에서 다른 모든 방으로 가는 경로 추적
+        excluded_corridors = self._find_corridors_on_paths_to_stairs(dungeon, stairs_rooms)
+        
+        # 계단 방 자체의 모든 타일 제외
+        excluded_tiles: Set[Tuple[int, int]] = set()
         for stairs_room in stairs_rooms:
-            room = next((r for r in dungeon.rooms if id(r) == stairs_room), None)
-            if room:
-                # 방의 경계 근처 복도 타일 찾기
-                for corridor_pos in dungeon.corridors:
-                    cx, cy = corridor_pos
-                    # 방의 경계에서 일정 거리 내에 있는 복도는 제외
-                    if (room.x1 - 2 <= cx <= room.x2 + 2 and room.y1 - 2 <= cy <= room.y2 + 2):
-                        excluded_corridors.add(corridor_pos)
+            for y in range(stairs_room.y1, stairs_room.y2):
+                for x in range(stairs_room.x1, stairs_room.x2):
+                    excluded_tiles.add((x, y))
+            
+            # 계단 방 경계의 인접 타일도 제외
+            for y in range(stairs_room.y1 - 1, stairs_room.y2 + 1):
+                for x in range(stairs_room.x1 - 1, stairs_room.x2 + 1):
+                    if not (stairs_room.x1 <= x < stairs_room.x2 and stairs_room.y1 <= y < stairs_room.y2):
+                        excluded_tiles.add((x, y))
         
-        # 잠긴 문을 배치할 수 있는 복도 목록 (계단 방과 연결된 복도 제외)
-        available_corridors = [pos for pos in dungeon.corridors if pos not in excluded_corridors]
+        # 잠긴 문을 배치할 수 있는 복도 목록
+        available_corridors = [
+            pos for pos in dungeon.corridors 
+            if pos not in excluded_corridors and pos not in excluded_tiles
+        ]
         
         for i in range(num_keys):
             key_id = f"key_{i}"
@@ -421,18 +429,139 @@ class DungeonGenerator:
                 dungeon.set_tile(key_pos[0], key_pos[1], TileType.KEY, key_id=key_id)
                 dungeon.keys.append((key_pos[0], key_pos[1], key_id))
 
-            # 복도에 잠긴 문 배치 (계단 방과 연결된 복도 제외)
+            # 복도에 잠긴 문 배치
             if len(available_corridors) > 0:
                 lock_pos = random.choice(available_corridors)
-                dungeon.set_tile(
-                    lock_pos[0], lock_pos[1],
-                    TileType.LOCKED_DOOR,
-                    key_id=key_id,
-                    locked=True
-                )
-                dungeon.locked_doors.append((lock_pos[0], lock_pos[1], key_id))
-                # 이미 사용한 복도는 제외 (중복 방지)
-                available_corridors.remove(lock_pos)
+                
+                # 최종 확인: 잠긴 문이 계단 방 근처나 경로 상에 있는지 확인
+                if lock_pos not in excluded_corridors and lock_pos not in excluded_tiles:
+                    dungeon.set_tile(
+                        lock_pos[0], lock_pos[1],
+                        TileType.LOCKED_DOOR,
+                        key_id=key_id,
+                        locked=True
+                    )
+                    dungeon.locked_doors.append((lock_pos[0], lock_pos[1], key_id))
+                    # 이미 사용한 복도는 제외 (중복 방지)
+                    available_corridors.remove(lock_pos)
+    
+    def _find_corridors_on_paths_to_stairs(
+        self, 
+        dungeon: DungeonMap, 
+        stairs_rooms: List[Rect]
+    ) -> Set[Tuple[int, int]]:
+        """
+        BFS를 사용하여 계단 방에서 다른 모든 방으로 가는 경로 상의 복도 타일을 찾습니다.
+        
+        Args:
+            dungeon: 던전 맵
+            stairs_rooms: 계단이 있는 방 리스트
+            
+        Returns:
+            경로 상에 있는 복도 타일들의 집합
+        """
+        if not stairs_rooms:
+            return set()
+        
+        excluded_corridors: Set[Tuple[int, int]] = set()
+        
+        # 모든 계단 방에서 시작하여 다른 모든 방으로의 경로 찾기
+        for stairs_room in stairs_rooms:
+            # 플레이어 시작 방(첫 번째 방)에서 계단 방으로의 경로
+            if dungeon.rooms:
+                start_room = dungeon.rooms[0]
+                if start_room != stairs_room:
+                    path = self._find_path_between_rooms(dungeon, start_room, stairs_room)
+                    excluded_corridors.update(path)
+            
+            # 다른 모든 방에서 계단 방으로의 경로
+            for other_room in dungeon.rooms:
+                if other_room != stairs_room:
+                    path = self._find_path_between_rooms(dungeon, other_room, stairs_room)
+                    excluded_corridors.update(path)
+        
+        return excluded_corridors
+    
+    def _find_path_between_rooms(
+        self, 
+        dungeon: DungeonMap, 
+        start_room: Rect, 
+        target_room: Rect
+    ) -> Set[Tuple[int, int]]:
+        """
+        두 방 사이의 경로를 찾아 그 경로 상의 복도 타일들을 반환합니다.
+        BFS를 사용하여 최단 경로를 찾습니다.
+        
+        Args:
+            dungeon: 던전 맵
+            start_room: 시작 방
+            target_room: 목표 방
+            
+        Returns:
+            경로 상에 있는 복도 타일들의 집합
+        """
+        # 방 중심점을 시작점과 목표점으로 사용
+        start = start_room.center
+        target = target_room.center
+        
+        # BFS 초기화
+        queue = deque([start])
+        visited = {start}
+        parent: Dict[Tuple[int, int], Optional[Tuple[int, int]]] = {start: None}
+        
+        # 4방향 이동
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        
+        # BFS 실행
+        target_reached = None
+        while queue:
+            current = queue.popleft()
+            
+            # 목표 방에 도달했는지 확인
+            if target_room.x1 <= current[0] < target_room.x2 and target_room.y1 <= current[1] < target_room.y2:
+                target_reached = current
+                break
+            
+            # 인접 타일 탐색
+            for dx, dy in directions:
+                nx, ny = current[0] + dx, current[1] + dy
+                neighbor = (nx, ny)
+                
+                # 맵 범위 체크
+                if not (0 <= nx < dungeon.width and 0 <= ny < dungeon.height):
+                    continue
+                
+                # 이미 방문했으면 스킵
+                if neighbor in visited:
+                    continue
+                
+                # 이동 가능한 타일인지 확인 (바닥, 복도, 문)
+                tile = dungeon.get_tile(nx, ny)
+                if tile and tile.tile_type in [TileType.FLOOR, TileType.DOOR, TileType.STAIRS_UP, TileType.STAIRS_DOWN]:
+                    visited.add(neighbor)
+                    parent[neighbor] = current
+                    queue.append(neighbor)
+        
+        # 경로 복원 (목표 지점에서 시작 지점으로 역추적)
+        path_corridors: Set[Tuple[int, int]] = set()
+        if target_reached is not None:
+            current = target_reached
+            while current is not None:
+                # 복도 타일인 경우에만 추가
+                if current in dungeon.corridors:
+                    path_corridors.add(current)
+                
+                # 부모로 이동
+                current = parent.get(current)
+                
+                # 시작 방에 도달했으면 중단
+                if current and start_room.x1 <= current[0] < start_room.x2 and start_room.y1 <= current[1] < start_room.y2:
+                    # 시작 방의 복도 타일도 추가
+                    if current in dungeon.corridors:
+                        path_corridors.add(current)
+                    break
+        
+        return path_corridors
     
     def _find_room_containing_point(self, dungeon: DungeonMap, point: Tuple[int, int]) -> Optional[Rect]:
         """특정 좌표를 포함하는 방 찾기"""

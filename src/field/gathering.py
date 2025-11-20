@@ -38,7 +38,9 @@ class GatheringSystem:
         # 설정 로드
         self.enabled = self.config.get("field_systems.gathering.enabled", True)
         self.stamina_cost = self.config.get("field_systems.gathering.stamina_cost", 10)
-        self.base_success_chance = self.config.get("field_systems.gathering.success_base_chance", 0.7)
+        # 채집 성공 확률 30% 상승: 0.7 * 1.3 = 0.91 (최대 1.0)
+        base_chance = self.config.get("field_systems.gathering.success_base_chance", 0.7)
+        self.base_success_chance = min(base_chance * 1.3, 1.0)
         self.stat_bonus = self.config.get("field_systems.gathering.stat_bonus", "dexterity")
         self.yield_range = self.config.get("field_systems.gathering.yield_multiplier_range", [1, 3])
 

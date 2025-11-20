@@ -263,6 +263,18 @@ class Skill:
         # 보호막 중첩 방지 설정 (metadata에서 가져오기)
         if self.metadata and 'replace_shield' in self.metadata:
             context['replace_shield'] = self.metadata['replace_shield']
+        
+        # 저격수 탄환 정보를 context에 추가 (데미지 계산 전에)
+        if hasattr(user, 'gimmick_type') and user.gimmick_type == "magazine_system":
+            if hasattr(user, 'magazine') and user.magazine:
+                current_bullet = user.magazine[0]  # 다음 발사할 탄환
+                if hasattr(user, 'bullet_types') and current_bullet in user.bullet_types:
+                    bullet_info = user.bullet_types[current_bullet]
+                    context['current_bullet'] = current_bullet
+                    context['bullet_info'] = bullet_info
+                    # 관통탄 방어 관통력 정보 전달
+                    if 'defense_pierce_fixed' in bullet_info:
+                        context['defense_pierce_fixed'] = bullet_info['defense_pierce_fixed']
 
         for effect in self.effects:
             if hasattr(effect, 'execute'):

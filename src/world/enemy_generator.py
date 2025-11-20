@@ -594,11 +594,12 @@ class SimpleEnemy:
         self.evasion = int(base_evasion)
 
         # BRV: 레벨당 기초 BRV의 25% 성장 (플레이어 20% * 1.25)
+        # 적의 BRV는 모두 1/2로 조정
         brv_growth = template.max_brv * 0.25 * (level - 1)
-        base_max_brv = (template.max_brv + brv_growth) * boss_stat_mult * stat_variance
+        base_max_brv = (template.max_brv + brv_growth) * boss_stat_mult * stat_variance * 0.5
         self.max_brv = int(base_max_brv)
         init_brv_growth = template.init_brv * 0.25 * (level - 1)
-        base_init_brv = (template.init_brv + init_brv_growth) * boss_stat_mult * stat_variance
+        base_init_brv = (template.init_brv + init_brv_growth) * boss_stat_mult * stat_variance * 0.5
         self.current_brv = int(base_init_brv)
 
         # 상태

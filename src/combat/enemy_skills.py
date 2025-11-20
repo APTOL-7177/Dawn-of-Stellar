@@ -5,7 +5,7 @@
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Callable, Optional
+from typing import List, Dict, Any, Callable, Optional, Tuple
 from enum import Enum
 import random
 
@@ -77,6 +77,9 @@ class EnemySkill:
     max_hp_percent: float = 1.0  # 최대 HP 퍼센트
     requires_ally_count: int = 0  # 필요한 아군 수
 
+    # 사운드 효과
+    sfx: Optional[Tuple[str, str]] = None  # (category, sfx_name) 튜플
+
     def can_use(self, user: Any) -> bool:
         """
         스킬 사용 가능 여부
@@ -144,7 +147,8 @@ class EnemySkillDatabase:
                 status_effects=["poison"],
                 status_duration=3,
                 use_probability=0.35,
-                cooldown=2
+                cooldown=2,
+                sfx=("skill", "poison")
             ),
 
             # 고블린 - 도망
@@ -157,7 +161,8 @@ class EnemySkillDatabase:
                 use_probability=0.5,
                 min_hp_percent=0.0,
                 max_hp_percent=0.3,  # HP 30% 이하일 때만
-                cooldown=99  # 한 번만 사용
+                cooldown=99,  # 한 번만 사용
+                sfx=("character", "status_buff")
             ),
 
             # 오크 - 강타
@@ -171,7 +176,8 @@ class EnemySkillDatabase:
                 brv_damage=1,  # BRV 공격
                 hp_attack=True,  # HP 공격도 가능
                 use_probability=0.25,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "damage_high")
             ),
 
             # 오크 - 전투 함성
@@ -182,7 +188,8 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.ALL_ALLIES,
                 buff_stats={"strength": 1.3, "defense": 1.2},
                 use_probability=0.2,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "roar")
             ),
 
             # 트롤 - 재생
@@ -195,7 +202,8 @@ class EnemySkillDatabase:
                 use_probability=0.4,
                 min_hp_percent=0.0,
                 max_hp_percent=0.5,  # HP 50% 이하일 때
-                cooldown=4
+                cooldown=4,
+                sfx=("character", "hp_heal")
             ),
 
             # 늑대 - 물어뜯기
@@ -211,7 +219,8 @@ class EnemySkillDatabase:
                 status_effects=["bleed"],
                 status_duration=3,
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("combat", "attack_physical")
             ),
 
             # 늑대 - 무리 사냥
@@ -555,7 +564,7 @@ class EnemySkillDatabase:
                 name="감염된 일격",
                 description="감염된 손톱으로 공격하여 질병을 일으킨다.",
                 target_type=SkillTargetType.SINGLE_ENEMY,
-                damage_multiplier=1.6,
+                damage_multiplier=3.2,
                 brv_damage=1,
                 status_effects=["disease", "weakness"],
                 status_duration=4,
@@ -1041,7 +1050,7 @@ class EnemySkillDatabase:
                 name="독액 분사",
                 description="독액을 뿌려 적들을 중독시킨다.",
                 target_type=SkillTargetType.ALL_ENEMIES,
-                damage_multiplier=1.4,
+                damage_multiplier=2.8,
                 brv_damage=1,
                 status_effects=["poison", "weakness"],
                 status_duration=4,
