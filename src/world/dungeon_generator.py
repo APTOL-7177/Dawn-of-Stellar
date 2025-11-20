@@ -129,17 +129,25 @@ class DungeonGenerator:
         self.max_room_size = max_room_size
         self.max_depth = max_depth
 
-    def generate(self, floor_number: int = 1) -> DungeonMap:
+    def generate(self, floor_number: int = 1, seed: Optional[int] = None) -> DungeonMap:
         """
         던전 생성
 
         Args:
             floor_number: 층 번호
+            seed: 랜덤 시드 (None이면 랜덤, 멀티플레이 동기화용)
 
         Returns:
             DungeonMap
         """
-        logger.info(f"던전 생성 시작: {self.width}x{self.height}, 층 {floor_number}")
+        # 시드 설정 (멀티플레이 동기화용)
+        if seed is not None:
+            # 층별로 다른 시드를 사용하도록 보정 (같은 시드로 다른 층 생성)
+            floor_seed = seed + floor_number * 1000
+            random.seed(floor_seed)
+            logger.info(f"던전 생성 시작: {self.width}x{self.height}, 층 {floor_number}, 시드 {floor_seed}")
+        else:
+            logger.info(f"던전 생성 시작: {self.width}x{self.height}, 층 {floor_number} (랜덤 시드)")
 
         dungeon = DungeonMap(self.width, self.height)
 

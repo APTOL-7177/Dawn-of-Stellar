@@ -237,6 +237,32 @@ pylint src/
 mypy src/
 ```
 
+### 실행 파일 빌드
+
+게임을 실행 파일로 만들어 배포할 수 있습니다:
+
+#### Windows
+
+```bash
+# 빌드 스크립트 실행
+build_executable.bat
+
+# 또는 수동 빌드
+pip install pyinstaller
+python -m PyInstaller build.spec --clean --noconfirm
+```
+
+빌드 완료 후 `dist` 폴더에 `DawnOfStellar.exe`가 생성됩니다.
+
+#### 빌드 옵션
+
+`build.spec` 파일을 수정하여 빌드 옵션을 변경할 수 있습니다:
+- 콘솔 창 숨기기: `console=False`
+- 아이콘 추가: `icon="경로/아이콘.ico"`
+- UPX 압축 비활성화: `upx=False`
+
+자세한 내용은 [배포 가이드](DEPLOYMENT_README.md)를 참조하세요.
+
 ### 빌드
 
 ```bash

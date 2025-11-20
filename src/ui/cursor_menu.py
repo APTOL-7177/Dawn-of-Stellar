@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import tcod.console
 
 from src.ui.tcod_display import Colors
+from src.ui.input_handler import GameAction
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
@@ -429,6 +430,20 @@ class TextInputBox:
             fg=Colors.GRAY
         )
 
+    def handle_input(self, action: GameAction, event: Optional[tcod.event.KeyDown] = None) -> None:
+        """입력 처리"""
+        if action == GameAction.CONFIRM:
+            self.handle_confirm()
+        elif action == GameAction.CANCEL:
+            self.handle_cancel()
+        elif event and isinstance(event, tcod.event.KeyDown):
+            # 문자 입력
+            if event.sym == tcod.event.KeySym.BACKSPACE:
+                self.handle_backspace()
+            elif 32 <= event.sym <= 126:  # ASCII 문자 범위 (공백~~)
+                char = chr(event.sym)
+                self.handle_char_input(char)
+    
     def get_result(self) -> Optional[str]:
         """입력 결과 반환 (확인된 경우만)"""
         if self.confirmed:

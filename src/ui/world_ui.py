@@ -50,6 +50,8 @@ class WorldUI:
         self.combat_requested = False
         self.combat_enemies = None  # 전투에 참여할 적들 (맵에서 제거용)
         self.combat_num_enemies = 0  # 실제 전투 적 수
+        self.combat_participants = None  # 멀티플레이: 전투 참여자
+        self.combat_position = None  # 멀티플레이: 전투 시작 위치
         self.floor_change_requested = None  # "up" or "down"
 
         # 종료 확인
@@ -254,6 +256,13 @@ class WorldUI:
                 if "enemies" in result.data:
                     self.combat_enemies = result.data["enemies"]
                     logger.warning(f"[DEBUG] 맵 적 엔티티: {len(self.combat_enemies)}개")
+                # 멀티플레이: 참여자 정보 저장
+                if "participants" in result.data:
+                    self.combat_participants = result.data["participants"]
+                    logger.info(f"멀티플레이 전투 참여자: {len(self.combat_participants)}명")
+                # 멀티플레이: 전투 위치 저장
+                if hasattr(self.exploration, 'player'):
+                    self.combat_position = (self.exploration.player.x, self.exploration.player.y)
 
         elif result.event == ExplorationEvent.TRAP_TRIGGERED:
             # 함정 데미지는 exploration 시스템에서 이미 적용됨
@@ -712,10 +721,12 @@ def run_exploration(
             return ("quit", None)
         elif ui.combat_requested:
             logger.warning(f"[DEBUG] 전투 반환! 적 {ui.combat_num_enemies}마리 (맵 엔티티: {len(ui.combat_enemies) if ui.combat_enemies else 0}개)")
-            # 전투 데이터 반환: (적 수, 맵 적 엔티티)
+            # 전투 데이터 반환: (적 수, 맵 적 엔티티, 참여자, 위치)
             combat_data = {
                 "num_enemies": ui.combat_num_enemies,
-                "enemies": ui.combat_enemies
+                "enemies": ui.combat_enemies,
+                "participants": getattr(ui, 'combat_participants', None),
+                "position": getattr(ui, 'combat_position', None)
             }
             return ("combat", combat_data)
         elif ui.floor_change_requested:
