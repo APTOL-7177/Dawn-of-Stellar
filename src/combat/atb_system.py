@@ -4,7 +4,7 @@ ATB System - Active Time Battle 시스템
 상대적 속도 기반 ATB 시스템
 ATB 증가량 = (해당 전투원의 SPD / 모든 전투원의 평균 SPD) * base_rate
 
-속도 기반 게이지 증가 (effective_speed * delta_time / 5.0)
+속도 기반 게이지 증가 (effective_speed * delta_time / 10.0)
 상태이상 효과 반영 (기절/마비/헤이스트/슬로우)
 """
 
@@ -247,8 +247,8 @@ class ATBSystem:
             # 상태이상 효과가 반영된 속도 사용
             effective_speed = gauge.get_effective_speed()
 
-            # ATB 업데이트 속도를 1/5로 느리게 조정 (로그라이크_2 방식)
-            increase = (effective_speed * delta_time) / 5.0
+            # ATB 업데이트 속도를 1/10로 느리게 조정 (1/2로 감소)
+            increase = (effective_speed * delta_time) / 10.0
 
             # 캐스팅 중인지 확인
             is_casting = casting_system.is_casting(combatant)

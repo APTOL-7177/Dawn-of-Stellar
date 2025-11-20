@@ -4,7 +4,7 @@
 픽셀 단위 부드러운 게이지 (그라디언트 색상 활용)
 """
 
-from typing import Tuple
+from typing import Tuple, List, Optional
 import tcod.console
 
 
@@ -388,69 +388,236 @@ class GaugeRenderer:
         console.print(text_x, y, text, fg=(255, 255, 255))
 
     @staticmethod
-    def render_status_icons(status_effects) -> str:
+    def render_status_icons(status_effects, buffs=None, debuffs=None) -> List[Tuple[str, Tuple[int, int, int]]]:
         """
-        상태이상 아이콘 렌더링
+        상태이상/버프/디버프 아이콘 렌더링 (컬러풀하게, 대괄호 제거, 최대 3줄)
 
         Args:
             status_effects: 딕셔너리 {status_name: turns_remaining} 또는 리스트
+            buffs: 버프 딕셔너리 {buff_name: buff_data}
+            debuffs: 디버프 딕셔너리 {debuff_name: debuff_data}
 
         Returns:
-            아이콘 문자열
+            [(텍스트, 색상), ...] 리스트 (최대 3줄)
         """
-        icon_map = {
-            "poison": "[독]",
-            "burn": "[화상]",
-            "freeze": "[빙결]",
-            "stun": "[기절]",
-            "sleep": "[수면]",
-            "silence": "[침묵]",
-            "blind": "[암흑]",
-            "berserk": "[광폭]",
-            "haste": "[가속]",
-            "slow": "[감속]",
-            "regen": "[재생]",
-            "reflect": "[반사]",
-            "barrier": "[방벽]",
-            "break": "[브레이크]",
-            "doom": "[죽음]",
-            "rune": "[룬]",
-            "curse": "[저주]",
-            "blessing": "[축복]",
-            "mark": "[표식]",
-            "weaken": "[약화]",
-            "strengthen": "[강화]",
-            "defense_down": "[방↓]",
-            "defense_up": "[방↑]",
-            "attack_down": "[공↓]",
-            "attack_up": "[공↑]",
+        from src.combat.status_effects import StatusType
+        
+        # 한글 이름 및 컬러 매핑
+        status_info = {
+            # 상태이상 - DOT (녹색 계열)
+            "poison": ("독", (100, 255, 100)),
+            "burn": ("화상", (255, 100, 50)),
+            "bleed": ("출혈", (200, 0, 0)),
+            "corrode": ("부식", (100, 150, 50)),
+            "corrosion": ("부식", (100, 150, 50)),
+            "disease": ("질병", (150, 100, 50)),
+            "necrosis": ("괴사", (100, 50, 50)),
+            "mp_drain": ("MP소모", (150, 100, 255)),
+            "chill": ("냉기", (100, 200, 255)),
+            "shock": ("감전", (255, 255, 100)),
+            "nature_curse": ("자연저주", (100, 150, 100)),
+            # 행동 제약 - CC (빨강 계열)
+            "stun": ("기절", (255, 50, 50)),
+            "sleep": ("수면", (150, 150, 255)),
+            "silence": ("침묵", (150, 100, 150)),
+            "blind": ("실명", (100, 100, 100)),
+            "paralyze": ("마비", (200, 200, 100)),
+            "freeze": ("빙결", (100, 200, 255)),
+            "petrify": ("석화", (150, 150, 150)),
+            "charm": ("매혹", (255, 150, 255)),
+            "dominate": ("지배", (200, 100, 200)),
+            "root": ("속박", (150, 100, 50)),
+            "slow": ("둔화", (100, 150, 200)),
+            "entangle": ("속박술", (100, 150, 100)),
+            "madness": ("광기", (200, 50, 50)),
+            "taunt": ("도발", (255, 150, 100)),
+            # 버프 (초록 계열)
+            "boost_atk": ("공↑", (100, 255, 100)),
+            "boost_def": ("방↑", (100, 255, 150)),
+            "boost_spd": ("속↑", (150, 255, 150)),
+            "boost_accuracy": ("명중↑", (100, 255, 100)),
+            "boost_crit": ("치명↑", (150, 255, 150)),
+            "boost_dodge": ("회피↑", (100, 255, 150)),
+            "boost_all_stats": ("전능↑", (150, 255, 200)),
+            "boost_magic_atk": ("마공↑", (100, 255, 150)),
+            "boost_magic_def": ("마방↑", (100, 255, 150)),
+            "blessing": ("축복", (150, 255, 200)),
+            "regeneration": ("재생", (100, 255, 150)),
+            "mp_regen": ("MP재생", (100, 255, 200)),
+            "invincible": ("무적", (150, 255, 200)),
+            "reflect": ("반사", (150, 255, 200)),
+            "haste": ("가속", (100, 255, 150)),
+            "focus": ("집중", (150, 255, 200)),
+            "rage": ("분노", (150, 255, 100)),
+            "inspiration": ("영감", (150, 255, 200)),
+            "guardian": ("수호", (100, 255, 150)),
+            "strengthen": ("강화", (150, 255, 200)),
+            "evasion_up": ("회피↑", (100, 255, 150)),
+            "foresight": ("예지", (150, 255, 200)),
+            "enlightenment": ("깨달음", (150, 255, 200)),
+            "wisdom": ("지혜", (150, 255, 200)),
+            "mana_regeneration": ("마나재생", (100, 255, 200)),
+            "mana_infinite": ("무한마나", (150, 255, 200)),
+            "holy_blessing": ("성축복", (150, 255, 200)),
+            "barrier": ("보호막", (100, 255, 200)),
+            "shield": ("보호막", (100, 255, 200)),
+            "magic_barrier": ("마법보호막", (100, 255, 200)),
+            "mana_shield": ("마나실드", (100, 255, 200)),
+            "fire_shield": ("화염방패", (150, 255, 150)),
+            "ice_shield": ("빙결방패", (100, 255, 200)),
+            "holy_shield": ("성방패", (150, 255, 200)),
+            "shadow_shield": ("그림자방패", (100, 255, 150)),
+            # 디버프 (보라 계열)
+            "reduce_atk": ("공↓", (200, 100, 255)),
+            "reduce_def": ("방↓", (200, 100, 255)),
+            "reduce_spd": ("속↓", (200, 100, 255)),
+            "reduce_accuracy": ("명중↓", (200, 100, 255)),
+            "reduce_all_stats": ("전능↓", (200, 100, 255)),
+            "reduce_magic_atk": ("마공↓", (200, 100, 255)),
+            "reduce_magic_def": ("마방↓", (200, 100, 255)),
+            "reduce_speed": ("속도↓", (200, 100, 255)),
+            "vulnerable": ("취약", (200, 100, 255)),
+            "exposed": ("노출", (200, 100, 255)),
+            "weakness": ("허약", (200, 100, 255)),
+            "weaken": ("약화", (200, 100, 255)),
+            "confusion": ("혼란", (200, 150, 255)),
+            "terror": ("공포", (200, 100, 255)),
+            "fear": ("공포", (200, 100, 255)),
+            "despair": ("절망", (150, 50, 200)),
+            "holy_weakness": ("성약점", (200, 100, 255)),
+            "weakness_exposure": ("약점노출", (200, 100, 255)),
+            # 특수 상태
+            "curse": ("저주", (150, 0, 150)),
+            "stealth": ("은신", (100, 100, 150)),
+            "berserk": ("광폭", (255, 50, 50)),
+            "counter": ("반격", (255, 255, 100)),
+            "counter_attack": ("반격", (255, 255, 100)),
+            "vampire": ("흡혈", (200, 0, 0)),
+            "spirit_link": ("정신연결", (200, 150, 255)),
+            "soul_bond": ("영혼유대", (200, 150, 255)),
+            "time_stop": ("시간정지", (200, 255, 255)),
+            "time_marked": ("시간기록", (150, 200, 255)),
+            "time_savepoint": ("시간저장", (150, 200, 255)),
+            "time_distortion": ("시간왜곡", (150, 200, 255)),
+            "phase": ("위상변화", (200, 150, 255)),
+            "transcendence": ("초월", (255, 255, 255)),
+            "analyze": ("분석", (200, 200, 200)),
+            "auto_turret": ("자동포탑", (255, 200, 100)),
+            "repair_drone": ("수리드론", (100, 255, 200)),
+            "absolute_evasion": ("절대회피", (255, 255, 200)),
+            "temporary_invincible": ("일시무적", (255, 255, 150)),
+            "existence_denial": ("존재부정", (150, 150, 150)),
+            "truth_revelation": ("진리계시", (255, 255, 200)),
+            "ghost_fleet": ("유령함대", (150, 150, 200)),
+            "animal_form": ("동물변신", (139, 69, 19)),
+            "divine_punishment": ("신벌", (255, 200, 100)),
+            "divine_judgment": ("신심판", (255, 255, 100)),
+            "heaven_gate": ("천국문", (255, 255, 200)),
+            "purification": ("정화", (255, 255, 255)),
+            "martyrdom": ("순교", (255, 200, 200)),
+            "elemental_weapon": ("원소무기", (255, 200, 100)),
+            "elemental_immunity": ("원소면역", (200, 255, 200)),
+            "magic_field": ("마법진", (200, 150, 255)),
+            "transmutation": ("변환술", (200, 200, 255)),
+            "philosophers_stone": ("현자의돌", (255, 215, 0)),
+            "undead_minion": ("언데드", (150, 0, 150)),
+            "shadow_clone": ("그림자분신", (100, 50, 150)),
+            "shadow_stack": ("그림자축적", (100, 50, 150)),
+            "shadow_echo": ("그림자메아리", (100, 50, 150)),
+            "shadow_empowered": ("그림자강화", (150, 100, 200)),
+            "extra_turn": ("추가턴", (255, 255, 100)),
+            "holy_mark": ("성표식", (255, 255, 200)),
+            "holy_aura": ("성기운", (255, 255, 200)),
+            "dragon_form": ("용변신", (255, 100, 100)),
+            "warrior_stance": ("전사자세", (255, 200, 100)),
+            "afterimage": ("잔상", (200, 200, 200)),
         }
 
-        icons = []
+        status_items = []  # (name, color, duration)
+        buff_items = []  # (name, color, duration)
+        debuff_items = []  # (name, color, duration)
 
-        # 딕셔너리인 경우
-        if isinstance(status_effects, dict):
-            for status, turns in status_effects.items():
-                icon = icon_map.get(status.lower(), f"[{status[:2]}]")
-                icons.append(f"{icon}{turns}")
-        # 리스트인 경우
-        elif isinstance(status_effects, list):
-            for effect in status_effects:
-                if hasattr(effect, 'name'):
-                    status_name = effect.name.lower()
-                    turns = getattr(effect, 'duration', '')
-                    icon = icon_map.get(status_name, f"[{effect.name[:2]}]")
-                    if turns:
-                        icons.append(f"{icon}{turns}")
+        # 상태이상 처리
+        if status_effects:
+            if isinstance(status_effects, dict):
+                for status, turns in status_effects.items():
+                    status_key = status.lower().replace(' ', '_').replace('-', '_')
+                    name, color = status_info.get(status_key, (status[:2], (200, 200, 200)))
+                    status_items.append((name, color, turns))
+            elif isinstance(status_effects, list):
+                for effect in status_effects:
+                    if hasattr(effect, 'status_type'):
+                        # StatusEffect 객체
+                        status_type = effect.status_type
+                        if isinstance(status_type, StatusType):
+                            status_key = status_type.name.lower()
+                        else:
+                            status_key = str(status_type).lower().replace(' ', '_')
+                        name, color = status_info.get(status_key, (effect.name[:2] if hasattr(effect, 'name') else str(effect)[:2], (200, 200, 200)))
+                        turns = getattr(effect, 'duration', '')
+                        status_items.append((name, color, turns))
+                    elif hasattr(effect, 'name'):
+                        status_name = effect.name.lower().replace(' ', '_')
+                        turns = getattr(effect, 'duration', '')
+                        name, color = status_info.get(status_name, (effect.name[:2], (200, 200, 200)))
+                        status_items.append((name, color, turns))
                     else:
-                        icons.append(icon)
-                else:
-                    # 문자열인 경우
-                    status_name = str(effect).lower()
-                    icon = icon_map.get(status_name, f"[{str(effect)[:2]}]")
-                    icons.append(icon)
-
-        return " ".join(icons) if icons else ""
+                        status_name = str(effect).lower().replace(' ', '_')
+                        name, color = status_info.get(status_name, (str(effect)[:2], (200, 200, 200)))
+                        status_items.append((name, color, ''))
+        
+        # 버프 처리 (초록 계열)
+        if buffs:
+            for buff_name, buff_data in buffs.items():
+                if isinstance(buff_data, dict):
+                    duration = buff_data.get('duration', '')
+                    status_key = buff_name.lower().replace(' ', '_').replace('-', '_')
+                    name, color = status_info.get(status_key, (buff_name[:2], (100, 255, 100)))
+                    buff_items.append((name, color, duration))
+        
+        # 디버프 처리 (보라 계열)
+        if debuffs:
+            for debuff_name, debuff_data in debuffs.items():
+                if isinstance(debuff_data, dict):
+                    duration = debuff_data.get('duration', '')
+                    status_key = debuff_name.lower().replace(' ', '_').replace('-', '_')
+                    name, color = status_info.get(status_key, (debuff_name[:2], (200, 100, 255)))
+                    debuff_items.append((name, color, duration))
+        
+        # 모든 아이템 합치기 (상태이상, 버프, 디버프 순서)
+        all_items = status_items + buff_items + debuff_items
+        
+        if not all_items:
+            return []
+        
+        # 최대 3줄로 나누기 (한 줄당 최대 6개 아이템)
+        max_items_per_line = 6
+        max_lines = 3
+        lines = []
+        
+        for line_idx in range(max_lines):
+            start_idx = line_idx * max_items_per_line
+            end_idx = start_idx + max_items_per_line
+            line_items = all_items[start_idx:end_idx]
+            
+            if not line_items:
+                break
+            
+            # 한 줄의 텍스트와 색상 리스트 생성
+            line_text_parts = []
+            line_colors = []
+            
+            for name, color, duration in line_items:
+                text = f"{name}{duration if duration else ''}"
+                line_text_parts.append(text)
+                line_colors.append(color)
+            
+            line_text = " ".join(line_text_parts)
+            # 줄의 평균 색상 계산 (또는 첫 번째 색상 사용)
+            avg_color = line_colors[0] if line_colors else (200, 200, 200)
+            lines.append((line_text, avg_color))
+        
+        return lines
 
     @staticmethod
     def render_wound_indicator(

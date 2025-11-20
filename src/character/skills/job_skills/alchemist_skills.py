@@ -38,7 +38,7 @@ def create_alchemist_skills():
     # 3. 회복 포션
     healing_potion = Skill("alchemist_heal_potion", "회복 포션", "강력한 회복")
     healing_potion.effects = [
-        HealEffect(HealType.HP, percentage=0.42),  # 회복 포션
+        HealEffect(HealType.HP, percentage=0.50),  # 회복 포션 (0.42 → 0.50 증가)
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 2)
     ]
     healing_potion.costs = []

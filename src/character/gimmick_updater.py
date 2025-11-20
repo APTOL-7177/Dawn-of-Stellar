@@ -55,8 +55,8 @@ class GimmickUpdater:
             GimmickUpdater._update_shapeshifting_system(character)
         elif gimmick_type == "enchant_system":
             GimmickUpdater._update_enchant_system(character)
-        elif gimmick_type == "totem_system":
-            GimmickUpdater._update_totem_system(character)
+        elif gimmick_type == "curse_system" or gimmick_type == "totem_system":
+            GimmickUpdater._update_curse_system(character)
         elif gimmick_type == "melody_system":
             GimmickUpdater._update_melody_system(character)
         elif gimmick_type == "break_system":
@@ -811,10 +811,16 @@ class GimmickUpdater:
         pass
 
     @staticmethod
-    def _update_totem_system(character):
-        """무당: 토템 시스템 업데이트"""
-        # 토템은 스킬로만 설치/제거, 자동 업데이트 없음
-        # 최대 3개까지 유지
+    def _update_curse_system(character):
+        """무당: 저주 시스템 업데이트 (하위 호환성을 위해 기존 totem_system 지원)"""
+        # 저주 스택 자동 업데이트 없음 (스킬로만 변경)
+        # 최대 저주 스택 유지
+        curse_stacks = getattr(character, 'curse_stacks', 0)
+        max_curse_stacks = getattr(character, 'max_curse_stacks', 10)
+        if curse_stacks > max_curse_stacks:
+            character.curse_stacks = max_curse_stacks
+        
+        # 하위 호환성: 토템 시스템이 있으면 처리 (더 이상 사용되지 않음)
         totems = getattr(character, 'active_totems', [])
         if len(totems) > 3:
             character.active_totems = totems[:3]

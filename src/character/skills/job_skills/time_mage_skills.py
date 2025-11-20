@@ -59,7 +59,7 @@ def create_time_mage_skills():
     rewind = Skill("time_mage_rewind", "시간 역행",
                   "HP 20% 회복, 디버프 제거, 타임라인 -2 (과거)")
     rewind.effects = [
-        HealEffect(percentage=0.29),  # 시간 되돌리기
+        HealEffect(percentage=0.38),  # 시간 되돌리기 (0.29 → 0.38 증가)
         GimmickEffect(GimmickOperation.ADD, "timeline", -2, min_value=-5)
     ]
     rewind.costs = [MPCost(7)]
@@ -87,7 +87,7 @@ def create_time_mage_skills():
                  "타임라인을 0(현재)으로 리셋, HP 20% 회복")
     align.effects = [
         GimmickEffect(GimmickOperation.SET, "timeline", 0),
-        HealEffect(percentage=0.29)  # 시간 정렬
+        HealEffect(percentage=0.38)  # 시간 정렬 (0.29 → 0.38 증가)
     ]
     align.costs = [MPCost(5)]
     align.target_type = "self"

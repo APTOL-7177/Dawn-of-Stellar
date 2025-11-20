@@ -64,7 +64,7 @@ def create_paladin_skills():
     # 5. 성스러운 빛
     holy_light = Skill("paladin_holy_light", "성스러운 빛", "아군 치유 + 성력")
     holy_light.effects = [
-        HealEffect(HealType.HP, percentage=0.35),  # 성스러운 빛
+        HealEffect(HealType.HP, percentage=0.48),  # 성스러운 빛 (0.35 → 0.48 증가)
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
     holy_light.costs = [MPCost(5)]

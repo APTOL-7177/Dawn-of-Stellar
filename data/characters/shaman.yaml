@@ -46,9 +46,9 @@ traits:
   description: 미니맵에 모든 적/아이템/출구 표시
   type: passive
 gimmick:
-  type: totem_system
-  name: 토템의 저주
-  description: 토템을 설치하고 저주를 축적하여 강력한 주술 사용
+  type: curse_system
+  name: 저주 축적
+  description: 저주를 축적하여 강력한 주술 사용
   max_curse_stacks: 10
 skills:
 - spirit_bolt

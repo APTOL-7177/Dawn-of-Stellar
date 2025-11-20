@@ -37,7 +37,7 @@ def create_cleric_skills():
     # 3. 치유
     heal = Skill("cleric_heal", "치유", "신앙 1포인트 소비, 단일 치유")
     heal.effects = [
-        HealEffect(HealType.HP, percentage=0.28),  # 기본 치유
+        HealEffect(HealType.HP, percentage=0.40),  # 기본 치유 (0.28 → 0.40 증가)
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 1)
     ]
     heal.costs = []
