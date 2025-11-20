@@ -228,8 +228,10 @@ class BraveSystem:
         actual_gain = attacker.current_brv - old_attacker_brv
 
         # BREAK 판정: 이미 BRV가 0인 상태에서 추가 공격을 받으면 BREAK
+        # 단, 이미 BREAK 상태라면 추가 BREAK 면역
         is_break = False
-        if was_broken and actual_damage > 0:
+        already_broken = self.is_broken(defender)
+        if was_broken and actual_damage > 0 and not already_broken:
             is_break = True
             self.logger.info(f"⚡ BREAK! {attacker.name} → {defender.name} (BRV 획득: {brv_gain})")
 
@@ -245,6 +247,9 @@ class BraveSystem:
                 "defender": defender,
                 "brv_stolen": brv_stolen
             })
+        elif was_broken and actual_damage > 0 and already_broken:
+            # 이미 BREAK 상태라면 추가 BREAK 면역 (로그만 출력)
+            self.logger.debug(f"{defender.name}은(는) 이미 BREAK 상태여서 추가 BREAK 면역")
 
         # 이벤트 발행
         event_bus.publish(Events.CHARACTER_BRV_CHANGE, {

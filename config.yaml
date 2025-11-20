@@ -1,649 +1,507 @@
-# Dawn of Stellar - 게임 설정 파일
-
-# 게임 기본 설정
-game:
-  title: "Dawn of Stellar - 별빛의 여명"
-  version: "6.0.0"
-  language: "ko"  # ko, en
-
-# 개발 모드
-development:
-  enabled: false  # true로 설정하면 개발자 기능 활성화
-  unlock_all_classes: false
-  unlimited_essence: false
-  debug_mode: false
-  show_damage_calculations: false
-
-# 디스플레이 설정 (python-tcod)
-display:
-  # 콘솔 크기 (문자 단위)
-  screen_width: 80
-  screen_height: 45
-
-  # 한글 폰트 설정
-  font_size: 60  # 셀 크기 = 폰트 크기 (픽셀)
-  char_spacing_adjust: 0  # 폰트 너비 조정 (0 = 정사각형, 양수 = 더 넓게, 음수 = 더 좁게)
-  tileset: "assets/fonts/dejavu10x10_gs_tc.png"  # tcod 기본 타일셋 (사용 안 함)
-
-  # 렌더링
-  renderer: "opengl2"  # auto, sdl2, opengl, opengl2 (opengl2 권장 - 더 나은 폰트 렌더링)
-  fullscreen: false
-  fps_limit: 60
-  show_fps: false
-  vsync: true
-
-  # 패널 레이아웃
-  panels:
-    map_width: 50      # 맵 영역 너비
-    map_height: 33     # 맵 영역 높이
-    sidebar_width: 20  # 사이드바 너비
-    message_height: 7  # 메시지 로그 높이
-
-  # UI 설정
-  ui:
-    animation_speed: 0.3
-    message_scroll_speed: 50
-    show_tooltips: true
-    color_scheme: "classic"  # classic, modern, high_contrast
-
-# 전투 시스템 설정
-combat:
-  # ATB 설정 (상대적 속도 기반)
-  atb:
+accessibility:
+  colorblind_mode: false
+  flash_reduction: false
+  high_contrast: false
+  screen_shake: true
+  text_to_speech: false
+ai:
+  companion:
+    decision_delay: 0.5
+    default_personality: balanced
     enabled: true
-    max_gauge: 2000
-    action_threshold: 1000
-    # ATB 증가량 = (해당 전투원의 SPD / 모든 전투원의 평균 SPD) * base_rate
-    base_rate: 50      # 기본 증가율 (평균 속도일 때 50씩 증가)
-    animation_enabled: true
-    animation_fps: 60
-    frame_delay: 0.016  # ~60 FPS
-    show_percentage: true
-    # 플레이어 턴 동안 적 ATB 속도 배율
-    player_turn_enemy_atb_rate: 0.3  # 플레이어 턴 중 적 ATB는 30%로 감소
-
-  # Brave 시스템
-  brave:
-    base_brv: 1000
-    max_brv_multiplier: 1.5  # 최대 BRV = base_brv * multiplier
-    break_bonus: 1.5  # BREAK 시 HP 공격 보너스
-    break_stun_duration: 1  # BREAK 스턴 지속시간 (턴)
-
-  # 데미지 계산
-  damage:
-    brv_multiplier: 75.0  # BRV 공격 기본 배율 (1.5 × 50배)
-    hp_multiplier: 0.125  # HP 공격 기본 배율 (1/8로 감소 - 절반으로 조정)
-    physical_defense_reduction: 0.5  # 방어력 1당 데미지 감소
-    magical_defense_reduction: 0.5  # 정신력 1당 데미지 감소
-    critical_multiplier: 1.5  # 크리티컬 데미지 배율
-    critical_chance: 0.1  # 기본 크리티컬 확률
-    break_bonus: 1.5  # BREAK 시 HP 공격 보너스
-    wound_rate: 0.25  # 상처 데미지 비율 (HP 데미지의 25%)
-    elemental_weakness_bonus: 1.5  # 속성 약점 보너스
-    elemental_resistance_reduction: 0.5  # 속성 저항 감소
-
-  # 상태 효과
-  status:
-    max_stacks: 5  # 상태 효과 최대 중첩
-    dot_tick_interval: 1.0  # DoT 틱 간격 (초)
-
-  # 전투 난이도
-  difficulty:
-    player_turn_enemy_atb_multiplier:
-      평온: 0.1
-      보통: 0.2
-      도전: 0.3
-      악몽: 0.4
-      지옥: 0.5
-
-# 난이도 설정
-difficulty:
-  default: "보통"
-
-  levels:
-    평온:
-      name: "안정된 차원 항해"
-      description: "차원의 흐름이 안정되어 여유로운 탐험이 가능"
-      enemy_hp_multiplier: 0.7
-      enemy_damage_multiplier: 0.6
-      player_damage_multiplier: 1.3
-      exp_multiplier: 1.2
-      drop_rate_multiplier: 1.3
-
-    보통:
-      name: "균형잡힌 차원 항해"
-      description: "적절한 도전과 보상의 균형"
-      enemy_hp_multiplier: 1.0
-      enemy_damage_multiplier: 1.0
-      player_damage_multiplier: 1.0
-      exp_multiplier: 1.0
-      drop_rate_multiplier: 1.0
-
-    도전:
-      name: "불안정한 차원 항해"
-      description: "차원의 흐름이 불안정하여 더 강력한 적 출현"
-      enemy_hp_multiplier: 1.3
-      enemy_damage_multiplier: 1.3
-      player_damage_multiplier: 0.9
-      exp_multiplier: 1.3
-      drop_rate_multiplier: 1.2
-
-    악몽:
-      name: "왜곡된 차원 항해"
-      description: "차원이 크게 왜곡되어 매우 강력한 적 출현"
-      enemy_hp_multiplier: 1.6
-      enemy_damage_multiplier: 1.6
-      player_damage_multiplier: 0.8
-      exp_multiplier: 1.6
-      drop_rate_multiplier: 1.5
-
-    지옥:
-      name: "붕괴 직전의 차원 항해"
-      description: "차원이 붕괴 직전, 최강의 적들과 싸워야 함"
-      enemy_hp_multiplier: 2.0
-      enemy_damage_multiplier: 2.0
-      player_damage_multiplier: 0.7
-      exp_multiplier: 2.0
-      drop_rate_multiplier: 2.0
-
-# 맵 설정
-world:
-  map_sizes:
-    작은맵:
-      width: 40
-      height: 20
-      rooms: 5-8
-    보통맵:
-      width: 60
-      height: 30
-      rooms: 8-12
-    큰맵:
-      width: 80
-      height: 40
-      rooms: 12-16
-    거대맵:
-      width: 100
-      height: 50
-      rooms: 16-20
-
-  default_size: "보통맵"
-
-  # 던전 생성
-  dungeon:
-    min_room_size: 4
-    max_room_size: 10
-    corridor_width: 1
-    enemy_spawn_chance: 0.3
-    item_spawn_chance: 0.2
-    treasure_spawn_chance: 0.1
-
-    # 적 생성 수량
-    enemy_count:
-      min_enemies: 2  # 최소 적 수
-      max_enemies: 4  # 최대 적 수
-
-# 캐릭터 설정
+    personality_types:
+    - aggressive
+    - defensive
+    - balanced
+    - support
+  enemy:
+    chase_duration: 10
+    random_movement_chance: 0.3
+    vision_range: 5
+audio:
+  bgm:
+    enabled: true
+    fade_duration: 1.0
+    tracks:
+      battle_birth_of_god: boss
+      battle_boss: boss
+      battle_final_boss: boss
+      battle_jenova: battle
+      battle_jenova_absolute: battle
+      battle_normal: battle
+      battle_sephiroth: sephiroth
+      battle_weapon: boss
+      biome_0: caves
+      biome_1: forest
+      biome_2: devillands
+      biome_3: badlands
+      biome_4: desert
+      biome_5: frostlands
+      biome_6: highlands
+      biome_7: icelands
+      biome_8: warlands
+      biome_9: caves
+      danger: warlands
+      dungeon_dark: devillands
+      dungeon_normal: caves
+      dungeon_search: forest
+      escape: devillands
+      game_over: gameover
+      hope: menu
+      intro: intro
+      main_menu: menu
+      menu: menu2
+      party_setup: party_setup
+      rest: inn1
+      sad: menu2
+      shop: menu2
+      suspense: devillands
+      town: highlands
+      triumph: fanfare
+      tutorial: menu
+      victory: fanfare
+      world_map: worldmap
+  bgm_volume: 0.6
+  master_volume: 0.8
+  sfx:
+    categories:
+    - ui
+    - combat
+    - character
+    - skill
+    - item
+    - world
+    character:
+      death: Collapse1
+      faint: Paralyze1
+      hp_heal: Recovery
+      hp_heal_high: Recovery
+      hp_heal_max: Recovery
+      level_up: Powerup
+      mp_heal: Recovery
+      revive: Raise1
+      status_buff: Up1
+      status_debuff: Down1
+    combat:
+      attack_gun: Gun1
+      attack_magic: Magic1
+      attack_physical: Sword1
+      battle_start: Battle1
+      break: Break
+      critical: Critical
+      damage_high: Damage3
+      damage_low: Damage1
+      dodge: Evasion1
+      escape: Run
+      guard: Parry
+      miss: Miss
+      turn_start: Cursor2
+    enabled: true
+    item:
+      buy: Shop1
+      elixir: Heal5
+      equip: Equip1
+      get_gil: Coin
+      get_item: Item1
+      grenade: Explosion1
+      high_potion: Heal3
+      open_chest: Chest1
+      phoenix_down: Raise1
+      potion: Heal1
+      use_item: Item2
+    skill:
+      bell: Bell1
+      bolt: Thunder1
+      bolt2: Thunder2
+      bolt3: Thunder3
+      cannon: Explosion2
+      cast_complete: Magic2
+      cast_start: Magic1
+      computer: Computer
+      confusion: Confusion1
+      cure: Heal1
+      cure2: Heal1
+      cure3: Heal1
+      dark: Dark1
+      earth: Earth1
+      fire: Fire1
+      fire2: Fire2
+      fire3: Fire3
+      flare: Explosion3
+      gun_reload: Gun2
+      gun_shot: Gun1
+      haste: Up2
+      holy: Heal4
+      ice: Ice1
+      ice3: Ice3
+      laser: Laser1
+      limit_break: Critical
+      load: Load1
+      machine: Machine
+      poison: Poison1
+      protect: Barrier
+      reflect: Reflection
+      roar: Roar1
+      save: Save1
+      shell: Barrier
+      slash: Slash1
+      slash2: Slash2
+      slow: Down2
+      sound1: Sound1
+      sound2: Sound2
+      sound3: Sound3
+      summon: Summon
+      switch: Switch1
+      sword: Sword2
+      ultima: Explosion4
+      wind: Wind1
+    ui:
+      cursor_cancel: Cancel1
+      cursor_error: Buzzer1
+      cursor_move: Cursor1
+      cursor_select: Decision1
+      menu_close: Cancel1
+      menu_open: Cursor1
+    world:
+      alert: Siren
+      break_open: Hammer
+      button: Switch1
+      chest_open: Chest1
+      door_close: Close1
+      door_open: Door1
+      door_unlock: Key
+      fall: Fall
+      footstep: Move1
+      gate_open: Gate1
+      gate_unlock: Key
+      gathering: Item2
+      item_discover: Item1
+      jump: Jump1
+      key_pickup: Item1
+      land: Move2
+      lever: Switch1
+      pressure_plate: Switch1
+      save: Save1
+      stairs: Move1
+      stairs_down: Move1
+      stairs_up: Move1
+      switch_off: Switch2
+      switch_on: Switch1
+      teleport: Move2
+      trap_trigger: Buzzer1
+  sfx_volume: 0.6
 character:
   max_level: 99
-
-  # 확장 가능한 스탯 시스템
-  stats:
-    base_stats:
-      - hp            # 체력
-      - mp            # 마나
-      - init_brv      # 초기 브레이브 (전투 시작 시 BRV)
-      - strength      # 물리 공격력
-      - defense       # 물리 방어력
-      - magic         # 마법 공격력
-      - spirit        # 마법 방어력
-      - speed         # 속도 (ATB 속도)
-      - luck          # 행운 (크리티컬)
-      - accuracy      # 명중률
-      - evasion       # 회피율
-
-    # 추가 스탯 (확장 가능)
-    extended_stats:
-      - stamina       # 스태미나 (필드 활동)
-      - vitality      # 생명력 (상처 회복)
-      - dexterity     # 손재주 (채집, 요리)
-      - perception    # 지각력 (탐지, 발견)
-      - endurance     # 인내력 (상태이상 저항)
-      - charisma      # 매력 (NPC 상호작용)
-
-    # 스탯 성장 타입 (확장 가능)
-    growth_types:
-      - linear        # 선형 성장
-      - exponential   # 지수 성장
-      - logarithmic   # 로그 성장
-      - custom        # 커스텀 공식
-
-  # 파티 설정
   party:
+    default_formation: 균형
     max_size: 4
-    default_formation: "균형"
-
-  # 스킬 설정 (확장 가능)
   skills:
+    casting_interrupt_damage_threshold: 0.2
     max_equipped: 6
     mp_regeneration_rate: 0.05
-    casting_interrupt_damage_threshold: 0.2
-
-    # 스킬 타입 (확장 가능)
     skill_types:
       combat:
-        - brv_attack
-        - hp_attack
-        - brv_hp_attack
-        - support
-        - debuff
-        - ultimate
-
-      field:
-        - lockpicking    # 자물쇠 해제
-        - detection      # 탐지
-        - stealth        # 은신
-        - tracking       # 추적
-        - healing_magic  # 치유 마법
-
+      - brv_attack
+      - hp_attack
+      - brv_hp_attack
+      - support
+      - debuff
+      - ultimate
       crafting:
-        - cooking        # 요리
-        - alchemy        # 연금술
-        - smithing       # 대장장이
-        - enchanting     # 마법 부여
-
-# 상처 시스템
-wound_system:
+      - cooking
+      - alchemy
+      - smithing
+      - enchanting
+      field:
+      - lockpicking
+      - detection
+      - stealth
+      - tracking
+      - healing_magic
+  stats:
+    base_stats:
+    - hp
+    - mp
+    - init_brv
+    - strength
+    - defense
+    - magic
+    - spirit
+    - speed
+    - luck
+    - accuracy
+    - evasion
+    extended_stats:
+    - stamina
+    - vitality
+    - dexterity
+    - perception
+    - endurance
+    - charisma
+    growth_types:
+    - linear
+    - exponential
+    - logarithmic
+    - custom
+combat:
+  atb:
+    action_threshold: 1000
+    animation_enabled: true
+    animation_fps: 60
+    base_rate: 50
+    enabled: true
+    frame_delay: 0.016
+    max_gauge: 2000
+    player_turn_enemy_atb_rate: 0.3
+    show_percentage: true
+  brave:
+    base_brv: 1000
+    break_bonus: 1.5
+    break_stun_duration: 1
+    max_brv_multiplier: 1.5
+  damage:
+    break_bonus: 1.5
+    brv_multiplier: 75.0
+    critical_chance: 0.1
+    critical_multiplier: 1.5
+    elemental_resistance_reduction: 0.5
+    elemental_weakness_bonus: 1.5
+    hp_multiplier: 0.125
+    magical_defense_reduction: 0.5
+    physical_defense_reduction: 0.5
+    wound_rate: 0.25
+  difficulty:
+    player_turn_enemy_atb_multiplier:
+      도전: 0.3
+      보통: 0.2
+      악몽: 0.4
+      지옥: 0.5
+      평온: 0.1
+  status:
+    dot_tick_interval: 1.0
+    max_stacks: 5
+development:
+  debug_mode: true
   enabled: true
-  wound_threshold: 0.25  # 데미지의 25%가 상처로 전환
-  natural_healing_rate: 0.01  # 턴당 최대 HP의 1% 자연 회복
-  max_wound_percentage: 0.5  # 최대 HP의 50%까지 상처 누적 가능
-  healing_items_efficiency: 1.5  # 치유 아이템 효율
-
-# 필드 시스템
+  show_damage_calculations: false
+  unlimited_essence: false
+  unlock_all_classes: true
+difficulty:
+  default: 보통
+  levels:
+    도전:
+      description: 차원의 흐름이 불안정하여 더 강력한 적 출현
+      drop_rate_multiplier: 1.2
+      enemy_damage_multiplier: 1.3
+      enemy_hp_multiplier: 1.3
+      exp_multiplier: 1.3
+      name: 불안정한 차원 항해
+      player_damage_multiplier: 0.9
+    보통:
+      description: 적절한 도전과 보상의 균형
+      drop_rate_multiplier: 1.0
+      enemy_damage_multiplier: 1.0
+      enemy_hp_multiplier: 1.0
+      exp_multiplier: 1.0
+      name: 균형잡힌 차원 항해
+      player_damage_multiplier: 1.0
+    악몽:
+      description: 차원이 크게 왜곡되어 매우 강력한 적 출현
+      drop_rate_multiplier: 1.5
+      enemy_damage_multiplier: 1.6
+      enemy_hp_multiplier: 1.6
+      exp_multiplier: 1.6
+      name: 왜곡된 차원 항해
+      player_damage_multiplier: 0.8
+    지옥:
+      description: 차원이 붕괴 직전, 최강의 적들과 싸워야 함
+      drop_rate_multiplier: 2.0
+      enemy_damage_multiplier: 2.0
+      enemy_hp_multiplier: 2.0
+      exp_multiplier: 2.0
+      name: 붕괴 직전의 차원 항해
+      player_damage_multiplier: 0.7
+    평온:
+      description: 차원의 흐름이 안정되어 여유로운 탐험이 가능
+      drop_rate_multiplier: 1.3
+      enemy_damage_multiplier: 0.6
+      enemy_hp_multiplier: 0.7
+      exp_multiplier: 1.2
+      name: 안정된 차원 항해
+      player_damage_multiplier: 1.3
+display:
+  char_spacing_adjust: 0
+  font_size: 60
+  fps_limit: 60
+  fullscreen: false
+  panels:
+    map_height: 33
+    map_width: 50
+    message_height: 7
+    sidebar_width: 20
+  renderer: opengl2
+  screen_height: 45
+  screen_width: 80
+  show_fps: false
+  tileset: assets/fonts/dejavu10x10_gs_tc.png
+  ui:
+    animation_speed: 0.3
+    color_scheme: classic
+    message_scroll_speed: 50
+    show_tooltips: true
+  vsync: true
+equipment:
+  drop_rates:
+    artifact: 0.01
+    common: 0.5
+    legendary: 0.04
+    rare: 0.15
+    uncommon: 0.3
+  durability_enabled: true
+  durability_loss_rate: 0.7
+  max_slots: 3
+experimental:
+  advanced_ai: false
+  hot_reload: false
+  procedural_story: false
 field_systems:
-  # 채집 시스템
+  cooking:
+    enabled: true
+    failure_chance: 0.1
+    quality_tiers:
+    - poor
+    - normal
+    - good
+    - excellent
+    stamina_cost: 15
+    stat_bonus: dexterity
+  field_skills:
+    detection:
+      enabled: true
+      radius_base: 5
+      stat_bonus: perception
+    lockpicking:
+      difficulty_levels:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      enabled: true
+      stat_bonus: dexterity
+    stealth:
+      detection_radius_reduction: 0.5
+      enabled: true
+      stat_bonus: speed
   gathering:
     enabled: true
     stamina_cost: 10
-    success_base_chance: 0.91  # 0.7에서 30% 상승 (0.7 * 1.3 = 0.91)
-    stat_bonus: "dexterity"  # 손재주가 성공률에 영향
-    yield_multiplier_range: [1, 3]  # 1-3개 획득
-
-  # 요리 시스템
-  cooking:
-    enabled: true
-    stamina_cost: 15
-    failure_chance: 0.1  # 실패 시 재료 손실
-    stat_bonus: "dexterity"
-
-    # 요리 품질 등급
-    quality_tiers:
-      - poor      # 효과 50%
-      - normal    # 효과 100%
-      - good      # 효과 150%
-      - excellent # 효과 200% + 추가 효과
-
-  # 필드 스킬
-  field_skills:
-    lockpicking:
-      enabled: true
-      stat_bonus: "dexterity"
-      difficulty_levels: [1, 2, 3, 4, 5]
-
-    detection:
-      enabled: true
-      stat_bonus: "perception"
-      radius_base: 5
-
-    stealth:
-      enabled: true
-      stat_bonus: "speed"
-      detection_radius_reduction: 0.5
-
-# 장비 시스템
-equipment:
-  max_slots: 3  # 무기, 방어구, 악세사리
-  durability_enabled: true
-  durability_loss_rate: 0.7  # 30% 감소된 내구도 손실
-
-  # 장비 등급별 드롭률
-  drop_rates:
-    common: 0.50
-    uncommon: 0.30
-    rare: 0.15
-    legendary: 0.04
-    artifact: 0.01
-
-# AI 시스템
-ai:
-  # AI 동료 설정
-  companion:
-    enabled: true
-    decision_delay: 0.5  # AI 의사결정 딜레이 (초)
-    personality_types:
-      - aggressive
-      - defensive
-      - balanced
-      - support
-    default_personality: "balanced"
-
-  # 적 AI 설정
-  enemy:
-    vision_range: 5  # 타일
-    chase_duration: 10  # 추적 지속 시간 (턴)
-    random_movement_chance: 0.3
-
-# 오디오 설정
-audio:
-  master_volume: 0.8
-  bgm_volume: 0.6
-  sfx_volume: 0.7
-
-  # BGM 설정 (RPG MAKER MZ BGM/ME, bg 폴더 우선)
-  bgm:
-    enabled: true
-    fade_duration: 1.0  # 페이드 인/아웃 시간 (초)
-
-    # BGM 매핑 (RPG MAKER MZ 기반, bg > me > bgm 순서로 검색)
-    tracks:
-      # 메인 메뉴 & UI
-      intro: "intro"                                            # 인트로 스토리
-      main_menu: "menu"                                         # 메인 메뉴
-      menu: "menu2"                                             # 메뉴
-      party_setup: "party_setup"                                # 파티 설정
-
-      # 월드 & 던전
-      world_map: "worldmap"                                     # 월드 맵
-      
-      # 바이옴별 던전 BGM (5층마다 바뀜)
-      biome_0: "caves"                                          # 바이옴 0 (1-5층): 동굴
-      biome_1: "forest"                                         # 바이옴 1 (6-10층): 숲
-      biome_2: "devillands"                                     # 바이옴 2 (11-15층): 악마의 땅
-      biome_3: "badlands"                                       # 바이옴 3 (16-20층): 황무지
-      biome_4: "desert"                                         # 바이옴 4 (21-25층): 사막
-      biome_5: "frostlands"                                     # 바이옴 5 (26-30층): 얼음 땅
-      biome_6: "highlands"                                      # 바이옴 6 (31-35층): 고원
-      biome_7: "icelands"                                       # 바이옴 7 (36-40층): 빙원
-      biome_8: "warlands"                                       # 바이옴 8 (41-45층): 전쟁의 땅
-      biome_9: "caves"                                          # 바이옴 9 (46-50층): 동굴 (순환)
-      
-      # 레거시 던전 BGM (하위 호환성)
-      dungeon_normal: "caves"                                   # 일반 던전 (기본값)
-      dungeon_dark: "devillands"                                # 어두운 던전
-      dungeon_search: "forest"                                  # 탐색 던전
-
-      # 전투
-      battle_normal: "battle"                                   # 일반 전투
-      battle_boss: "boss"                                       # 보스 전투
-      battle_jenova: "battle"                                   # 젠노바 전투
-      battle_jenova_absolute: "battle"                          # 젠노바 절대 전투
-      battle_birth_of_god: "boss"                               # 신의 탄생 전투
-      battle_sephiroth: "sephiroth"                             # 세피로스 전투
-      battle_weapon: "boss"                                     # 웨폰 전투
-      battle_final_boss: "boss"                                 # 최종 보스 전투
-
-      # 전투 결과
-      victory: "fanfare"                                        # 승리 (bg 우선, 없으면 me/Fanfare1-3 검색)
-      game_over: "gameover"                                     # 게임 오버
-
-      # 휴식 & 이벤트
-      rest: "inn1"                                              # 휴식 (me/Inn1)
-      town: "highlands"                                         # 마을
-      shop: "menu2"                                             # 상점
-      tutorial: "menu"                                          # 튜토리얼
-
-      # 특수 상황
-      escape: "devillands"                                         # 도주
-      danger: "warlands"                                        # 위험
-      suspense: "devillands"                                    # 긴장감
-
-      # 감정적 장면
-      sad: "menu2"                                              # 슬픔
-      hope: "menu"                                              # 희망
-      triumph: "fanfare"                                        # 승리감
-
-  # SFX 설정 (RPG MAKER MZ SE Sound Effects)
-  sfx:
-    enabled: true
-
-    # UI 효과음 (RPG MAKER MZ SE)
-    ui:
-      cursor_move: "Cursor1"       # 커서 이동
-      cursor_select: "Decision1"   # 메뉴 선택/확인
-      cursor_cancel: "Cancel1"     # 메뉴 취소/뒤로
-      cursor_error: "Buzzer1"      # 불가능한 행동
-      menu_open: "Cursor1"         # 메뉴 열기
-      menu_close: "Cancel1"        # 메뉴 닫기
-
-    # 전투 효과음
-    combat:
-      attack_physical: "Sword1"    # 물리 공격
-      attack_gun: "Gun1"           # 총 공격
-      attack_magic: "Magic1"       # 마법 공격
-      damage_low: "Damage1"        # 낮은 데미지
-      damage_high: "Damage3"       # 높은 데미지
-      critical: "Critical"         # 크리티컬 히트
-      miss: "Miss"                 # 회피/빗나감
-      dodge: "Evasion1"            # 회피
-      break: "Break"               # BRV BREAK/보스 죽음
-      guard: "Parry"               # 방어
-      battle_start: "Battle1"      # 전투 시작
-      escape: "Run"                # 도주
-      turn_start: "Cursor2"        # 턴 시작
-
-    # 캐릭터 상태
-    character:
-      hp_heal: "Recovery"             # HP 회복
-      hp_heal_high: "Recovery"        # 높은 HP 회복
-      hp_heal_max: "Recovery"         # 최대 HP 회복
-      mp_heal: "Recovery"          # MP 회복
-      level_up: "Powerup"          # 레벨업
-      status_buff: "Up1"           # 버프 적용
-      status_debuff: "Down1"       # 디버프 적용
-      death: "Collapse1"           # 전투불능
-      revive: "Raise1"             # 부활
-      faint: "Paralyze1"           # 기절
-
-    # 스킬 효과음
-    skill:
-      cast_start: "Magic1"         # 스킬 시전 시작
-      cast_complete: "Magic2"      # 스킬 시전 완료
-      fire: "Fire1"                # 파이어
-      fire2: "Fire2"               # 파이어2
-      fire3: "Fire3"               # 파이어3
-      bolt: "Thunder1"             # 볼트
-      bolt2: "Thunder2"            # 볼트2
-      bolt3: "Thunder3"            # 볼트3
-      ice: "Ice1"                  # 아이스
-      ice3: "Ice3"                 # 아이스3
-      cure: "Heal1"                # 케어
-      cure2: "Heal1"               # 케어2
-      cure3: "Heal1"               # 케어3
-      haste: "Up2"                 # 헤이스트
-      slow: "Down2"                # 슬로우
-      shell: "Barrier"             # 쉘
-      protect: "Barrier"           # 프로텍트
-      reflect: "Reflection"        # 리플렉트
-      ultima: "Explosion4"         # 알테마
-      flare: "Explosion3"          # 플레어
-      summon: "Summon"             # 소환
-      limit_break: "Critical"      # 리미트 브레이크
-      # 유니크 SFX (직업별 특화)
-      computer: "Computer"         # 컴퓨터 (해커)
-      machine: "Machine"           # 기계
-      laser: "Laser1"              # 레이저
-      switch: "Switch1"            # 스위치
-      load: "Load1"                # 로드
-      save: "Save1"                # 세이브
-      bell: "Bell1"                # 벨 (바드)
-      sound1: "Sound1"             # 사운드1
-      sound2: "Sound2"             # 사운드2
-      sound3: "Sound3"             # 사운드3
-      roar: "Roar1"                # 포효 (드래곤나이트)
-      slash: "Slash1"              # 베기
-      slash2: "Slash2"             # 베기2
-      sword: "Sword2"              # 검
-      gun_shot: "Gun1"             # 총 발사
-      gun_reload: "Gun2"           # 총 장전 (해적)
-      cannon: "Explosion2"         # 대포 (해적)
-      wind: "Wind1"                # 바람
-      earth: "Earth1"              # 땅
-      holy: "Heal4"                # 성스러운 (팔라딘)
-      dark: "Dark1"                # 어둠 (다크나이트)
-      poison: "Poison1"            # 독
-      confusion: "Confusion1"      # 혼란
-
-    # 아이템 효과음
-    item:
-      get_item: "Item1"            # 아이템 획득
-      use_item: "Item2"            # 아이템 사용
-      open_chest: "Chest1"         # 상자 열기
-      get_gil: "Coin"              # 길 획득
-      equip: "Equip1"              # 장비 착용
-      buy: "Shop1"                 # 구매
-      potion: "Heal1"              # 포션
-      high_potion: "Heal3"         # 하이 포션
-      elixir: "Heal5"              # 엘릭서
-      phoenix_down: "Raise1"       # 부활약
-      grenade: "Explosion1"        # 수류탄
-
-    # 월드 효과음
-    world:
-      door_open: "Door1"           # 문 열림
-      door_close: "Close1"         # 문 닫힘
-      door_unlock: "Key"           # 문 잠금 해제
-      gate_open: "Gate1"           # 게이트 열기
-      gate_unlock: "Key"           # 게이트 잠금 해제
-      stairs: "Move1"              # 계단 이동
-      stairs_up: "Move1"           # 위층으로 올라가기
-      stairs_down: "Move1"         # 아래층으로 내려가기
-      save: "Save1"                # 세이브
-      gathering: "Item2"           # 채집
-      jump: "Jump1"                # 점프
-      land: "Move2"                # 착지
-      fall: "Fall"                 # 낙하
-      switch_on: "Switch1"         # 스위치 켜기
-      switch_off: "Switch2"        # 스위치 끄기
-      lever: "Switch1"             # 레버 당기기
-      button: "Switch1"            # 버튼 누르기
-      pressure_plate: "Switch1"    # 압력판 밟기
-      trap_trigger: "Buzzer1"      # 함정 발동
-      teleport: "Move2"            # 텔레포트
-      footstep: "Move1"            # 발소리 (이동)
-      item_discover: "Item1"       # 아이템 발견
-      chest_open: "Chest1"         # 상자 열기
-      key_pickup: "Item1"          # 열쇠 획득
-      alert: "Siren"               # 경보
-      break_open: "Hammer"         # 부수기
-
-    categories:
-      - ui
-      - combat
-      - character
-      - skill
-      - item
-      - world
-
-# 저장 시스템
-save:
-  auto_save_enabled: true
-  auto_save_interval: 300  # 5분 (초)
-  max_save_slots: 10
-  save_directory: "saves/"
-  backup_enabled: true
-  max_backups: 3
-
-# 메타 진행 시스템
-meta_progression:
-  enabled: true
-  star_fragment_drop_rate: 0.1
-  max_star_fragments: 9999
-
-  # 잠금 해제 비용
-  unlock_costs:
-    basic_class: 0  # 기본 클래스는 무료
-    advanced_class: 100
-    special_class: 500
-    ultimate_class: 1000
-
-# 멀티플레이어 설정
-multiplayer:
-  enabled: true
-  default_port: 5000
-  max_players: 4
-
-  modes:
-    - hotseat      # 핫시트 (로컬)
-    - cooperative  # 협동
-    - competitive  # 대전
-
-# 모바일 설정
-mobile:
-  enabled: false
-  server_mode: "web_ui"  # web_ui, flutter_backend
-  touch_controls: true
-  virtual_joystick: true
-
-# 로깅 설정
+    stat_bonus: dexterity
+    success_base_chance: 0.91
+    yield_multiplier_range:
+    - 1
+    - 3
+game:
+  language: ko
+  title: Dawn of Stellar - 별빛의 여명
+  version: 6.0.0
 logging:
-  enabled: true
-  log_directory: "logs/"
-
-  levels:
-    console: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-    file: "DEBUG"
-
-  # 로그 카테고리
   categories:
     combat: true
-    player: true
-    enemy: true
-    world: true
-    system: true
-    error: true
     debug: true
-
-  # 로그 로테이션
+    enemy: true
+    error: true
+    player: true
+    system: true
+    world: true
+  enabled: true
+  levels:
+    console: INFO
+    file: DEBUG
+  log_directory: logs/
   rotation:
     enabled: true
-    max_size_mb: 10
     max_files: 5
-
-# 스토리 및 테마
+    max_size_mb: 10
+meta_progression:
+  enabled: true
+  max_star_fragments: 9999
+  star_fragment_drop_rate: 0.1
+  unlock_costs:
+    advanced_class: 100
+    basic_class: 0
+    special_class: 500
+    ultimate_class: 1000
+mobile:
+  enabled: false
+  server_mode: web_ui
+  touch_controls: true
+  virtual_joystick: true
+multiplayer:
+  default_port: 5000
+  enabled: true
+  max_players: 4
+  modes:
+  - hotseat
+  - cooperative
+  - competitive
+performance:
+  animation_quality: high
+  cache_enabled: true
+  cache_size_mb: 100
+  enable_profiling: false
+  max_particles: 100
+save:
+  auto_save_enabled: true
+  auto_save_interval: 300
+  backup_enabled: true
+  max_backups: 3
+  max_save_slots: 10
+  save_directory: saves/
 story:
-  theme: "차원 항해사"
-  terminology:
-    location: "차원 공간"
-    boss: "차원 지배자"
-    exploration: "차원 항해"
-
-  # 특수 모드 (개발자 전용)
   glitch_mode:
     enabled: false
     force_glitch: false
-
+  terminology:
+    boss: 차원 지배자
+    exploration: 차원 항해
+    location: 차원 공간
+  theme: 차원 항해사
   true_ending:
     enabled: true
     requirements_met: false
-
-# 성능 설정
-performance:
-  enable_profiling: false
-  max_particles: 100
-  animation_quality: "high"  # low, medium, high
-  cache_enabled: true
-  cache_size_mb: 100
-
-# 접근성
-accessibility:
-  colorblind_mode: false
-  high_contrast: false
-  text_to_speech: false
-  screen_shake: true
-  flash_reduction: false
-
-# 실험적 기능
-experimental:
-  hot_reload: false  # 코드 핫 리로드 (개발 전용)
-  advanced_ai: false  # 고급 AI (실험적)
-  procedural_story: false  # 절차적 스토리 생성
+world:
+  default_size: 보통맵
+  dungeon:
+    corridor_width: 1
+    enemy_count:
+      max_enemies: 4
+      min_enemies: 2
+    enemy_spawn_chance: 0.3
+    item_spawn_chance: 0.2
+    max_room_size: 10
+    min_room_size: 4
+    treasure_spawn_chance: 0.1
+  map_sizes:
+    거대맵:
+      height: 50
+      rooms: 16-20
+      width: 100
+    보통맵:
+      height: 30
+      rooms: 8-12
+      width: 60
+    작은맵:
+      height: 20
+      rooms: 5-8
+      width: 40
+    큰맵:
+      height: 40
+      rooms: 12-16
+      width: 80
+wound_system:
+  enabled: true
+  healing_items_efficiency: 1.5
+  max_wound_percentage: 0.5
+  natural_healing_rate: 0.01
+  wound_threshold: 0.25

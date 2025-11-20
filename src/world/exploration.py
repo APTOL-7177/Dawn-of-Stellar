@@ -307,7 +307,9 @@ class ExplorationSystem:
 
         # 플레이어가 움직인 후 모든 적 움직임 (싱글플레이만, 멀티플레이는 시간 기반)
         # 멀티플레이는 MultiplayerExplorationSystem에서 시간 기반으로 처리
-        if not hasattr(self, 'is_multiplayer') or not self.is_multiplayer:
+        is_multiplayer = getattr(self, 'is_multiplayer', False)
+        if not is_multiplayer:
+            logger.debug(f"[적 이동] 싱글플레이 모드 - 적 {len(self.enemies)}마리 이동 처리")
             self._move_all_enemies()
 
         # NPC 이동 (플레이어 이동 후)
@@ -834,6 +836,10 @@ class ExplorationSystem:
 
     def _move_all_enemies(self):
         """모든 적 움직임 처리"""
+        if not self.enemies:
+            logger.debug("[적 이동] 이동할 적이 없습니다")
+            return
+        logger.debug(f"[적 이동] {len(self.enemies)}마리 적 이동 시작")
         for enemy in self.enemies:
             self._move_enemy(enemy)
 
@@ -844,6 +850,8 @@ class ExplorationSystem:
 
         # 플레이어 감지
         if distance <= enemy.detection_range:
+            if not enemy.is_chasing:
+                logger.debug(f"[적 이동] {enemy.name}이(가) 플레이어 감지 (거리: {distance})")
             enemy.is_chasing = True
             enemy.chase_turns = 0
 
@@ -875,6 +883,8 @@ class ExplorationSystem:
 
     def _move_enemy_towards(self, enemy: Enemy, target_x: int, target_y: int):
         """적을 목표 위치로 한 칸 이동"""
+        old_x, old_y = enemy.x, enemy.y
+        
         # 이동 방향 결정 (맨하탄 거리 기반)
         dx = 0
         dy = 0
@@ -907,6 +917,11 @@ class ExplorationSystem:
             if not self.get_enemy_at(new_x, new_y) and not (new_x == self.player.x and new_y == self.player.y):
                 enemy.x = new_x
                 enemy.y = new_y
+                logger.debug(f"[적 이동] {enemy.name} 이동: ({old_x}, {old_y}) -> ({new_x}, {new_y})")
+            else:
+                logger.debug(f"[적 이동] {enemy.name} 이동 실패: 목표 타일이 차있음 ({new_x}, {new_y})")
+        else:
+            logger.debug(f"[적 이동] {enemy.name} 이동 실패: 목표 타일이 이동 불가능 ({new_x}, {new_y})")
 
     def _handle_puzzle(self, tile: Tile) -> ExplorationResult:
         """퍼즐 처리"""
