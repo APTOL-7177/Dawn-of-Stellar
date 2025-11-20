@@ -35,7 +35,7 @@ class DamageEffect(SkillEffect):
         targets = target if isinstance(target, list) else [target]
         
         # HP 공격이 여러 타겟에 적용되는 경우, 시작 시점의 BRV를 저장
-        # (첫 번째 타겟에서 BRV가 소모되어 이후 타겟들에 영향을 주지 않도록)
+        # (첫 번째 타겟에서만 BRV를 소모하고, 나머지 타겟들에는 초기 BRV로 복원)
         is_aoe_hp = (self.damage_type == DamageType.HP and len(targets) > 1)
         initial_brv = None
         if is_aoe_hp:
@@ -44,22 +44,29 @@ class DamageEffect(SkillEffect):
             if context is None:
                 context = {}
             context['_aoe_hp_initial_brv'] = initial_brv
+            context['_aoe_hp_target_index'] = 0  # 첫 번째 타겟 추적
         
-        for single_target in targets:
+        for i, single_target in enumerate(targets):
             if not single_target.is_alive:
                 continue
             
-            # HP 공격이 여러 타겟에 적용되는 경우, 각 타겟에 대해 BRV를 복원
-            if is_aoe_hp and initial_brv is not None:
+            # AOE HP 공격의 경우, 첫 번째 타겟이 아닌 경우 BRV를 초기값으로 복원
+            # (첫 번째 타겟에서 BRV가 소모되므로, 나머지 타겟들에는 초기 BRV를 사용)
+            if is_aoe_hp and initial_brv is not None and i > 0:
                 user.current_brv = initial_brv
+            
+            # 타겟 인덱스 업데이트
+            if is_aoe_hp:
+                context['_aoe_hp_target_index'] = i
             
             single_result = self._execute_single(user, single_target, context)
             result.merge(single_result)
         
-        # AOE HP 공격의 경우, 마지막에 한 번만 BRV 소모 (첫 번째 타겟에서 소모된 것과 동일)
+        # AOE HP 공격의 경우, 첫 번째 타겟에서만 BRV를 소모했으므로
+        # 모든 타겟 처리 후 BRV를 0으로 설정 (첫 번째 타겟에서 소모된 BRV)
         if is_aoe_hp and initial_brv is not None and len(targets) > 0:
-            # BRV를 원래 소모량만큼만 감소 (첫 번째 타겟에서 이미 소모되었으므로)
-            pass  # BRV는 각 타겟에 대해 복원되었으므로, 마지막 타겟에서 소모된 상태를 유지
+            # 첫 번째 타겟에서 이미 BRV가 소모되었으므로, BRV를 0으로 설정
+            user.current_brv = 0
         
         return result
     
@@ -187,21 +194,26 @@ class DamageEffect(SkillEffect):
             if context and 'defense_pierce_fixed' in context:
                 hp_kwargs['defense_pierce_fixed'] = context['defense_pierce_fixed']
             
-            # AOE HP 공격의 경우, 시작 시점의 BRV를 사용하도록 설정
-            # (context에 저장된 초기 BRV가 있으면 사용, 없으면 현재 BRV 사용)
-            use_initial_brv = context and '_aoe_hp_initial_brv' in context
-            if use_initial_brv:
-                # 임시로 BRV를 초기값으로 설정
+            # AOE HP 공격의 경우, 첫 번째 타겟에서만 실제로 BRV를 소모
+            # 나머지 타겟들에는 초기 BRV를 사용하되, 실제 소모는 하지 않음
+            is_aoe_hp = context and '_aoe_hp_initial_brv' in context
+            target_index = context.get('_aoe_hp_target_index', 0) if context else 0
+            is_first_target = (is_aoe_hp and target_index == 0)
+            
+            # 첫 번째 타겟이 아닌 경우, BRV를 임시로 초기값으로 설정 (데미지 계산용)
+            # 하지만 실제 소모는 하지 않음 (hp_attack 후 복원)
+            saved_brv = None
+            if is_aoe_hp and not is_first_target:
                 saved_brv = user.current_brv
                 user.current_brv = context['_aoe_hp_initial_brv']
             
             hp_result = self.brave_system.hp_attack(user, target, final_mult, damage_type=self.stat_type, **hp_kwargs)
             
-            # AOE HP 공격의 경우, BRV를 복원 (소모는 마지막 타겟에서만)
-            if use_initial_brv:
-                # 소모된 BRV만 계산하고, 나머지는 복원
-                brv_consumed = context['_aoe_hp_initial_brv'] - user.current_brv
-                user.current_brv = saved_brv - brv_consumed  # 원래 BRV에서 소모량만 빼기
+            # 첫 번째 타겟이 아닌 경우, BRV를 복원 (실제로 소모하지 않음)
+            # 첫 번째 타겟에서는 BRV가 0이 되어야 하므로 그대로 둠
+            if is_aoe_hp and not is_first_target and saved_brv is not None:
+                # BRV를 복원 (실제로 소모하지 않았으므로 초기값 유지)
+                user.current_brv = context['_aoe_hp_initial_brv']
             
             result.hp_damage = hp_result['hp_damage']
             result.damage_dealt = hp_result['hp_damage']
