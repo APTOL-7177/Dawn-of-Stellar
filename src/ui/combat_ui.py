@@ -1045,8 +1045,12 @@ class CombatUI:
         self.combat_manager.update(delta_time)
 
         # ATB 업데이트 직후 즉시 턴 체크 (ATB가 100%가 되는 순간 바로 처리)
-        # 멀티플레이: 행동 가능한 적 확인 (아군이 행동 선택 중일 때도 적은 행동 가능)
+        # 행동 가능한 적 확인 (멀티플레이: 아군이 행동 선택 중일 때도 실행 가능, 싱글플레이: WAITING_ATB 상태일 때만)
         if is_multiplayer:
+            # 멀티플레이: 아군이 행동 선택 중일 때도 적은 행동 가능
+            self._check_ready_enemies()
+        elif self.state == CombatUIState.WAITING_ATB:
+            # 싱글플레이: WAITING_ATB 상태일 때만 적 턴 체크
             self._check_ready_enemies()
 
         # 아군 턴 체크 (ATB 업데이트 직후 즉시 체크)
