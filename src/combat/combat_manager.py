@@ -137,8 +137,12 @@ class CombatManager:
 
         # 이벤트 발행
         event_bus.publish(Events.COMBAT_START, {
-            "allies": allies,
-            "enemies": enemies
+            "allies": [a.id for a in allies if hasattr(a, 'id')],
+            "enemies": [e.id for e in enemies if hasattr(e, 'id')],
+            "turn_count": self.turn_count,
+            "combat_manager": self,  # 멀티플레이 합류 시스템용
+            "combat_id": getattr(self, 'combat_id', None),  # 전투 ID
+            "position": getattr(self, 'combat_position', None)  # 전투 위치
         })
 
         self.logger.debug(

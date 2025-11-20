@@ -251,6 +251,14 @@ def open_game_menu(
                                 if slot.item:
                                     inventory_items.append(slot.item)
                         
+                        # 멀티플레이어 여부 확인
+                        is_multiplayer = False
+                        if hasattr(exploration, 'is_multiplayer'):
+                            is_multiplayer = exploration.is_multiplayer
+                        elif hasattr(exploration, 'session'):
+                            # MultiplayerExplorationSystem인 경우
+                            is_multiplayer = True
+                        
                         game_state = serialize_game_state(
                             party=party if party else [],
                             floor_number=exploration.floor_number,
@@ -262,7 +270,8 @@ def open_game_menu(
                             traits=[],  # 특성은 파티 구성 시점에 저장됨
                             passives=[],  # 패시브도 파티 구성 시점에 저장됨
                             difficulty=current_difficulty,
-                            exploration=exploration
+                            exploration=exploration,
+                            is_multiplayer=is_multiplayer
                         )
                         
                         # 게임 통계 추가
@@ -285,7 +294,7 @@ def open_game_menu(
 
                         logger.warning(f"[SAVE] game_state['inventory']: {game_state['inventory']}")
 
-                        success = show_save_screen(console, context, game_state)
+                        success = show_save_screen(console, context, game_state, is_multiplayer=is_multiplayer)
                         if success:
                             show_message(console, context, "저장 완료!")
                         continue

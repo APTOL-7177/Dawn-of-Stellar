@@ -265,17 +265,19 @@ class SaveLoadUI:
                 save_time = save_info["save_time"]
                 floor = save_info.get("floor", 1)
                 party_size = save_info.get("party_size", 0)
+                save_type = save_info.get("save_type", "싱글플레이")
 
-                # 이름
+                # 이름과 타입
+                display_name = f"{save_type} - {floor}층"
                 console.print(
                     10,
                     y,
-                    f"{prefix} {save_name}",
+                    f"{prefix} {display_name}",
                     fg=Colors.UI_TEXT_SELECTED if is_selected else Colors.UI_TEXT
                 )
 
                 # 정보
-                info_text = f"  {floor}층, 파티 {party_size}명"
+                info_text = f"  파티 {party_size}명"
                 console.print(
                     15,
                     y + 1,
@@ -389,7 +391,8 @@ class SaveLoadUI:
 def show_save_screen(
     console: tcod.console.Console,
     context: tcod.context.Context,
-    game_state: Dict[str, Any]
+    game_state: Dict[str, Any],
+    is_multiplayer: bool = False
 ) -> bool:
     """
     저장 화면 표시 (로그라이크 방식 - 현재 파일만 덮어쓰기)
@@ -398,34 +401,25 @@ def show_save_screen(
         console: TCOD 콘솔
         context: TCOD 컨텍스트
         game_state: 저장할 게임 상태
+        is_multiplayer: 멀티플레이어 여부
 
     Returns:
         저장 성공 여부
     """
     save_system = SaveSystem()
 
-    # 현재 세이브 슬롯 가져오기 (없으면 새 슬롯 생성)
-    current_slot = game_state.get("save_slot", None)
+    # 게임 타입에 따라 자동으로 파일명 결정 (save_name은 사용하지 않음)
+    save_name = "save_single" if not is_multiplayer else "save_multiplayer"
+    
+    # 게임 상태에 멀티플레이어 정보 추가
+    game_state["is_multiplayer"] = is_multiplayer
 
-    if current_slot is None:
-        # 새 게임이면 빈 슬롯 찾기
-        for i in range(1, 11):  # 최대 10개 슬롯
-            if not save_system.save_exists(i):
-                current_slot = i
-                game_state["save_slot"] = i
-                break
-
-        if current_slot is None:
-            # 빈 슬롯이 없으면 슬롯 1 사용
-            current_slot = 1
-            game_state["save_slot"] = 1
-
-    # 현재 슬롯에 바로 저장 (UI 없이)
-    success = save_system.save_game(current_slot, game_state)
+    # 저장 실행
+    success = save_system.save_game(save_name, game_state, is_multiplayer=is_multiplayer)
     if success:
-        logger.info(f"게임 저장 완료: 슬롯 {current_slot}")
+        logger.info(f"게임 저장 완료: {save_name} (타입: {'멀티플레이' if is_multiplayer else '싱글플레이'})")
     else:
-        logger.error(f"게임 저장 실패: 슬롯 {current_slot}")
+        logger.error(f"게임 저장 실패: {save_name}")
 
     return success
 
@@ -465,9 +459,11 @@ def show_load_screen(
                     if ui.selected_save:
                         game_state = save_system.load_game(ui.selected_save)
                         if game_state:
-                            # 슬롯 번호 추가 (게임 오버 시 세이브 파일 삭제용)
+                            # 게임 타입 정보 저장 (게임 오버 시 세이브 파일 삭제용)
+                            is_multiplayer = game_state.get("is_multiplayer", False)
                             game_state["save_slot"] = ui.selected_save
-                            logger.info(f"게임 로드 완료: {ui.selected_save}, 슬롯 번호 저장")
+                            game_state["_is_multiplayer"] = is_multiplayer  # 삭제 시 사용
+                            logger.info(f"게임 로드 완료: {ui.selected_save} (타입: {'멀티플레이' if is_multiplayer else '싱글플레이'})")
                         return game_state
                     return None
 

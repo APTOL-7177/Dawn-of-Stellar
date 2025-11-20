@@ -73,11 +73,11 @@ class Logger:
             message = f"{message} | {extra}"
         self.logger.warning(message)
 
-    def error(self, message: str, extra: Optional[Dict[str, Any]] = None) -> None:
+    def error(self, message: str, extra: Optional[Dict[str, Any]] = None, exc_info: bool = False) -> None:
         """에러 로그"""
         if extra:
             message = f"{message} | {extra}"
-        self.logger.error(message)
+        self.logger.error(message, exc_info=exc_info)
 
     def critical(self, message: str, extra: Optional[Dict[str, Any]] = None) -> None:
         """치명적 에러 로그"""

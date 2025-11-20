@@ -1,5 +1,5 @@
 {
-  "star_fragments": 20,
+  "star_fragments": 44,
   "unlocked_traits": {
     "alchemist": [
       "potion_mastery",
@@ -134,12 +134,12 @@
   "purchased_upgrades": [],
   "purchased_passives": [],
   "unlocked_jobs": [
-    "archmage",
-    "warrior",
+    "cleric",
     "archer",
-    "rogue",
+    "warrior",
     "knight",
-    "cleric"
+    "rogue",
+    "archmage"
   ],
   "intro_shown": true,
   "tutorial_offered": true

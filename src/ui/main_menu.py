@@ -20,6 +20,7 @@ class MenuResult(Enum):
     """메뉴 결과"""
     NEW_GAME = "new_game"
     CONTINUE = "continue"
+    MULTIPLAYER = "multiplayer"  # 멀티플레이
     SHOP = "shop"
     SETTINGS = "settings"
     QUIT = "quit"
@@ -32,6 +33,7 @@ class MainMenu:
 
     - 새 게임
     - 계속하기
+    - 멀티플레이
     - 상점
     - 설정
     - 종료
@@ -180,6 +182,11 @@ class MainMenu:
                 description="저장된 게임을 불러옵니다"
             ),
             MenuItem(
+                text="멀티플레이",
+                action=self._open_multiplayer,
+                description="다른 플레이어와 함께 모험하기"
+            ),
+            MenuItem(
                 text="상점",
                 action=self._open_shop,
                 description="별빛의 파편으로 직업과 패시브를 구매합니다"
@@ -219,6 +226,11 @@ class MainMenu:
         """게임 계속하기"""
         self.logger.info("계속하기 선택")
         self.result = MenuResult.CONTINUE
+
+    def _open_multiplayer(self) -> None:
+        """멀티플레이 메뉴 열기"""
+        self.logger.info("멀티플레이 선택")
+        self.result = MenuResult.MULTIPLAYER
 
     def _open_shop(self) -> None:
         """상점 열기"""

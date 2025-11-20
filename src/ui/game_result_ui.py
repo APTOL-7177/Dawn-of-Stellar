@@ -10,7 +10,7 @@ import tcod.console
 import tcod.event
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 from src.ui.input_handler import InputHandler, GameAction
 from src.ui.tcod_display import render_space_background
@@ -33,7 +33,7 @@ class GameResultUI:
         enemies_defeated: int,
         total_gold: int,
         total_exp: int,
-        save_slot: Optional[int] = None
+        save_slot: Optional[Any] = None
     ):
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -199,32 +199,22 @@ class GameResultUI:
 
         logger.info(f"별의 파편 {self.star_fragments} 지급 (총: {meta.star_fragments})")
 
-        # 세이브 파일 삭제
-        if self.save_slot is not None:
-            # save_slot이 이미 "save_slot_1" 형식이면 그대로 사용, 숫자면 "save_slot_{숫자}" 형식으로 변환
-            if isinstance(self.save_slot, str) and self.save_slot.startswith("save_slot_"):
-                # 이미 파일 이름 형식
-                save_file = Path(f"saves/{self.save_slot}.json")
-            else:
-                # 슬롯 번호만 있는 경우
-                save_file = Path(f"saves/save_slot_{self.save_slot}.json")
-
-            if save_file.exists():
-                try:
-                    os.remove(save_file)
-                    logger.info(f"세이브 파일 삭제: {save_file}")
-                except Exception as e:
-                    logger.error(f"세이브 파일 삭제 실패: {e}")
-        else:
-            # 슬롯 번호가 없으면 모든 임시 세이브 파일 삭제
-            saves_dir = Path("saves")
-            if saves_dir.exists():
-                for save_file in saves_dir.glob("save_slot_*.json"):
-                    try:
-                        os.remove(save_file)
-                        logger.info(f"세이브 파일 삭제: {save_file}")
-                    except Exception as e:
-                        logger.error(f"세이브 파일 삭제 실패: {e}")
+        # 세이브 파일 삭제 (게임 타입에 따라)
+        from src.persistence.save_system import SaveSystem
+        save_system = SaveSystem()
+        
+        # save_slot에서 게임 타입 정보 추출
+        is_multiplayer = False
+        if isinstance(self.save_slot, dict):
+            # 딕셔너리인 경우 (게임 상태에서 전달된 경우)
+            is_multiplayer = self.save_slot.get("is_multiplayer", False)
+        elif isinstance(self.save_slot, str):
+            # 문자열인 경우 "save_multiplayer"인지 확인
+            is_multiplayer = "multiplayer" in self.save_slot.lower()
+        
+        # SaveSystem의 delete_save_by_type 사용
+        save_system.delete_save_by_type(is_multiplayer)
+        save_system.delete_save_by_type(is_multiplayer)
 
 
 def show_game_result(
@@ -235,7 +225,8 @@ def show_game_result(
     enemies_defeated: int,
     total_gold: int = 0,
     total_exp: int = 0,
-    save_slot: Optional[int] = None
+    save_slot: Optional[Any] = None,
+    is_multiplayer: bool = False
 ):
     """
     게임 정산 화면 표시
@@ -248,8 +239,18 @@ def show_game_result(
         enemies_defeated: 처치한 적 수
         total_gold: 총 골드
         total_exp: 총 경험치
-        save_slot: 세이브 슬롯 번호 (None이면 모든 임시 파일 삭제)
+        save_slot: 세이브 슬롯 정보 (딕셔너리 또는 문자열, None 가능)
+        is_multiplayer: 멀티플레이어 여부
     """
+    # save_slot이 딕셔너리가 아니면 딕셔너리로 변환
+    if save_slot is not None and not isinstance(save_slot, dict):
+        save_slot = {"is_multiplayer": is_multiplayer}
+    elif save_slot is None:
+        save_slot = {"is_multiplayer": is_multiplayer}
+    else:
+        # 딕셔너리인 경우 is_multiplayer 추가
+        save_slot["is_multiplayer"] = save_slot.get("is_multiplayer", is_multiplayer)
+    
     ui = GameResultUI(
         console.width,
         console.height,

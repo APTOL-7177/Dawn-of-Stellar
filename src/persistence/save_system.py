@@ -22,31 +22,44 @@ class SaveSystem:
         self.save_dir = Path(save_directory)
         self.save_dir.mkdir(exist_ok=True)
 
-    def save_game(self, save_name: str, game_state: Dict[str, Any]) -> bool:
+    def save_game(self, save_name: str, game_state: Dict[str, Any], is_multiplayer: bool = False) -> bool:
         """
         게임 저장
 
         Args:
-            save_name: 저장 파일 이름
+            save_name: 저장 파일 이름 (사용되지 않음, 게임 타입에 따라 자동 결정)
             game_state: 전체 게임 상태 딕셔너리
+            is_multiplayer: 멀티플레이어 여부
 
         Returns:
             성공 여부
         """
         try:
-            save_path = self.save_dir / f"{save_name}.json"
+            # 게임 타입에 따라 파일명 결정
+            if is_multiplayer:
+                save_filename = "save_multiplayer.json"
+            else:
+                save_filename = "save_single.json"
+            
+            save_path = self.save_dir / save_filename
 
             # 저장 시간 추가
             game_state["save_time"] = datetime.now().isoformat()
             game_state["version"] = "5.0.0"
+            game_state["is_multiplayer"] = is_multiplayer
 
             # JSON 직렬화 전에 모든 데이터 검증 및 정리
             cleaned_state = self._clean_for_json(game_state)
 
+            # 같은 타입의 기존 파일 삭제 (최대 2개 유지)
+            if save_path.exists():
+                save_path.unlink()
+                logger.info(f"기존 세이브 파일 삭제: {save_path}")
+
             with open(save_path, 'w', encoding='utf-8') as f:
                 json.dump(cleaned_state, f, indent=2, ensure_ascii=False, default=self._json_default)
 
-            logger.info(f"게임 저장 완료: {save_path}")
+            logger.info(f"게임 저장 완료: {save_path} (타입: {'멀티플레이' if is_multiplayer else '싱글플레이'})")
             return True
 
         except Exception as e:
@@ -143,12 +156,15 @@ class SaveSystem:
             return None
 
     def list_saves(self) -> List[Dict[str, Any]]:
-        """저장 파일 목록"""
+        """저장 파일 목록 (싱글플레이와 멀티플레이 구분)"""
         saves = []
 
-        for save_file in self.save_dir.glob("*.json"):
-            # meta_progress.json은 게임 세이브 파일이 아니므로 제외
-            if save_file.stem == "meta_progress":
+        # 고정된 파일명 확인
+        single_save = self.save_dir / "save_single.json"
+        multiplayer_save = self.save_dir / "save_multiplayer.json"
+
+        for save_file in [single_save, multiplayer_save]:
+            if not save_file.exists():
                 continue
 
             try:
@@ -160,11 +176,16 @@ class SaveSystem:
                     logger.debug(f"게임 세이브 파일이 아님: {save_file.name}")
                     continue
 
+                is_multiplayer = data.get("is_multiplayer", False)
+                save_type = "멀티플레이" if is_multiplayer else "싱글플레이"
+
                 saves.append({
                     "name": save_file.stem,
                     "save_time": data.get("save_time", "Unknown"),
                     "floor": data.get("floor_number", 1),
-                    "party_size": len(data.get("party", []))
+                    "party_size": len(data.get("party", [])),
+                    "is_multiplayer": is_multiplayer,
+                    "save_type": save_type
                 })
 
             except Exception as e:
@@ -175,7 +196,12 @@ class SaveSystem:
     def delete_save(self, save_name: str) -> bool:
         """저장 파일 삭제"""
         try:
-            save_path = self.save_dir / f"{save_name}.json"
+            # save_name이 "save_single" 또는 "save_multiplayer"인 경우 직접 처리
+            if save_name == "save_single" or save_name == "save_multiplayer":
+                save_path = self.save_dir / f"{save_name}.json"
+            else:
+                save_path = self.save_dir / f"{save_name}.json"
+            
             if save_path.exists():
                 save_path.unlink()
                 logger.info(f"저장 파일 삭제: {save_path}")
@@ -184,6 +210,32 @@ class SaveSystem:
 
         except Exception as e:
             logger.error(f"저장 파일 삭제 실패: {e}")
+            return False
+    
+    def delete_save_by_type(self, is_multiplayer: bool) -> bool:
+        """
+        게임 타입에 따라 세이브 파일 삭제
+        
+        Args:
+            is_multiplayer: 멀티플레이어 여부
+            
+        Returns:
+            삭제 성공 여부
+        """
+        try:
+            if is_multiplayer:
+                save_path = self.save_dir / "save_multiplayer.json"
+            else:
+                save_path = self.save_dir / "save_single.json"
+            
+            if save_path.exists():
+                save_path.unlink()
+                logger.info(f"세이브 파일 삭제: {save_path} (타입: {'멀티플레이' if is_multiplayer else '싱글플레이'})")
+                return True
+            return False
+
+        except Exception as e:
+            logger.error(f"세이브 파일 삭제 실패: {e}")
             return False
 
     def save_exists(self, slot: int) -> bool:
@@ -535,7 +587,8 @@ def serialize_game_state(
     passives: List[Any],
     difficulty: Optional[str] = None,
     exploration: Any = None,
-    all_floors_dungeons: Dict[int, Any] = None
+    all_floors_dungeons: Dict[int, Any] = None,
+    is_multiplayer: bool = False
 ) -> Dict[str, Any]:
     """전체 게임 상태 직렬화"""
 
@@ -643,6 +696,7 @@ def serialize_game_state(
         "traits": traits_data,
         "passives": passives_data,
         "difficulty": difficulty if difficulty else "보통",  # 난이도 추가
+        "is_multiplayer": is_multiplayer,  # 멀티플레이어 여부
     }
 
 
@@ -1052,15 +1106,45 @@ def deserialize_inventory(inventory_data: Dict[str, Any], party: List[Any] = Non
     logger.warning(f"[DESERIALIZE] inventory_data 타입: {type(inventory_data)}")
     logger.warning(f"[DESERIALIZE] inventory_data 내용: {inventory_data}")
     
-    # inventory_data가 리스트인 경우 (구버전 형식 또는 오류) 빈 딕셔너리로 처리
+    # inventory_data가 리스트인 경우 (구버전 형식) 새 형식으로 마이그레이션
     if isinstance(inventory_data, list):
-        logger.warning(f"[DESERIALIZE] inventory_data가 리스트입니다. 빈 인벤토리로 초기화합니다.")
-        inventory_data = {}
+        logger.warning(f"[DESERIALIZE] 구버전 리스트 형식 감지. 새 형식으로 마이그레이션합니다.")
+        # 리스트의 각 항목을 새 형식으로 변환
+        items_list = []
+        for item_entry in inventory_data:
+            if isinstance(item_entry, dict):
+                # 이미 직렬화된 딕셔너리인 경우
+                if "item" in item_entry:
+                    # 새 형식 이미 ({"item": {...}, "quantity": ...})
+                    items_list.append(item_entry)
+                else:
+                    # 구버전: 직접 item_data 딕셔너리
+                    items_list.append({
+                        "item": item_entry,
+                        "quantity": 1
+                    })
+            else:
+                # 아이템 객체인 경우 (역직렬화 시에는 발생하지 않아야 함, 안전장치)
+                logger.warning(f"[DESERIALIZE] 리스트에 예상치 못한 타입 발견: {type(item_entry)}, 건너뜀")
+        
+        # 새 형식으로 마이그레이션
+        inventory_data = {
+            "gold": 0,
+            "items": items_list,
+            "cooking_cooldown_turn": None,
+            "cooking_cooldown_duration": 0
+        }
+        logger.warning(f"[DESERIALIZE] 마이그레이션 완료: {len(items_list)}개 아이템 복원")
     
     # 딕셔너리가 아닌 경우도 처리
     if not isinstance(inventory_data, dict):
         logger.warning(f"[DESERIALIZE] inventory_data가 딕셔너리가 아닙니다 ({type(inventory_data)}). 빈 인벤토리로 초기화합니다.")
-        inventory_data = {}
+        inventory_data = {
+            "gold": 0,
+            "items": [],
+            "cooking_cooldown_turn": None,
+            "cooking_cooldown_duration": 0
+        }
     
     logger.warning(f"[DESERIALIZE] 골드 값: {inventory_data.get('gold', 0)}")
 

@@ -54,12 +54,16 @@ class CombatUI:
         screen_width: int,
         screen_height: int,
         combat_manager: CombatManager,
-        inventory: Optional[Any] = None
+        inventory: Optional[Any] = None,
+        session: Optional[Any] = None,
+        network_manager: Optional[Any] = None
     ):
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.combat_manager = combat_manager
         self.inventory = inventory  # 전투 중 아이템 사용을 위한 인벤토리
+        self.session = session  # 멀티플레이 세션
+        self.network_manager = network_manager  # 네트워크 관리자
 
         # UI 상태
         self.state = CombatUIState.WAITING_ATB
@@ -93,6 +97,16 @@ class CombatUI:
         # 행동 후 대기 시간 (프레임 단위, 60 FPS 기준)
         self.action_delay_frames = 0
         self.action_delay_max = 90  # 1.5초 대기
+
+        # 멀티플레이 전투 동기화 관리자
+        self.combat_sync_manager: Optional[Any] = None
+        if session and network_manager:
+            from src.multiplayer.game_mode import get_game_mode_manager
+            from src.multiplayer.combat_sync import CombatSyncManager
+            game_mode_manager = get_game_mode_manager()
+            if game_mode_manager and game_mode_manager.is_multiplayer():
+                self.combat_sync_manager = CombatSyncManager(session, network_manager, combat_manager)
+                logger.info("멀티플레이 전투 동기화 관리자 초기화 완료")
 
         logger.info("전투 UI 초기화")
 
@@ -661,25 +675,99 @@ class CombatUI:
         if isinstance(self.selected_action, tuple):
             action_type = ActionType.SKILL  # 기본 공격 스킬도 스킬로 실행
 
-        # 아이템 사용인 경우 아이템 정보 전달
-        kwargs = {}
-        if action_type == ActionType.ITEM and self.selected_item:
-            kwargs['item'] = self.selected_item
-            kwargs['item_index'] = self.selected_item_index
+        # 멀티플레이 모드 확인
+        from src.multiplayer.game_mode import get_game_mode_manager
+        game_mode_manager = get_game_mode_manager()
+        is_multiplayer = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
         
-        result = self.combat_manager.execute_action(
-            actor=self.current_actor,
-            action_type=action_type,
-            target=self.selected_target,
-            skill=self.selected_skill,
-            **kwargs
-        )
+        # 호스트 여부 확인
+        is_host = False
+        if self.session and game_mode_manager:
+            local_player_id = getattr(game_mode_manager, 'local_player_id', None) or (
+                self.session.host_id if hasattr(self.session, 'host_id') else None
+            )
+            if local_player_id and hasattr(self.session, 'host_id'):
+                is_host = self.session.host_id == local_player_id
 
-        # 결과 메시지 표시
-        self._show_action_result(result)
+        # 멀티플레이 모드에서 클라이언트인 경우 호스트로 액션 전송
+        if is_multiplayer and self.combat_sync_manager and self.session and not is_host:
+            # 클라이언트: 호스트로 액션 요청 전송
+            if not self.current_actor:
+                logger.error("멀티플레이 액션 실행 실패: 현재 액터가 없습니다.")
+                self.state = CombatUIState.ACTION_MENU
+                return
 
-        # 행동 후 대기 시간 설정 (1.5초)
-        self.action_delay_frames = self.action_delay_max
+            actor_id = getattr(self.current_actor, 'id', None)
+            if not actor_id:
+                logger.error("멀티플레이 액션 실행 실패: 액터 ID를 찾을 수 없습니다.")
+                self.state = CombatUIState.ACTION_MENU
+                return
+
+            local_player_id = getattr(self.session, 'local_player_id', None) or (
+                self.session.host_id if hasattr(self.session, 'host_id') else None
+            )
+            if not local_player_id:
+                logger.error("멀티플레이 액션 실행 실패: 로컬 플레이어 ID를 찾을 수 없습니다.")
+                self.state = CombatUIState.ACTION_MENU
+                return
+
+            action_data = {
+                "action_type": action_type.value if hasattr(action_type, 'value') else str(action_type),
+                "target_id": getattr(self.selected_target, 'id', None) if self.selected_target else None,
+                "skill_id": getattr(self.selected_skill, 'id', None) if self.selected_skill else None,
+                "item_id": getattr(self.selected_item, 'id', None) if self.selected_item else None,
+                "item_index": self.selected_item_index,
+            }
+
+            # 비동기 액션 요청 전송
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.create_task(self.combat_sync_manager.request_action(local_player_id, actor_id, action_data))
+                else:
+                    asyncio.run(self.combat_sync_manager.request_action(local_player_id, actor_id, action_data))
+            except RuntimeError:
+                # 이벤트 루프가 없으면 동기적으로 처리
+                logger.warning("비동기 이벤트 루프 없음, 동기 처리 시도")
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(self.combat_sync_manager.request_action(local_player_id, actor_id, action_data))
+                    loop.close()
+                except Exception as e:
+                    logger.error(f"멀티플레이 액션 전송 실패: {e}", exc_info=True)
+
+            logger.info(f"멀티플레이 액션 요청 전송: {local_player_id} - {actor_id} - {action_type.value if hasattr(action_type, 'value') else action_type}")
+
+            # 클라이언트는 액션 요청 후 ATB 대기 상태로 전환
+            self.state = CombatUIState.WAITING_ATB
+            if hasattr(self.combat_manager.atb, 'set_player_selecting'):
+                self.combat_manager.atb.set_player_selecting(local_player_id, False)
+            if hasattr(self.combat_manager.atb, 'set_action_confirmed'):
+                self.combat_manager.atb.set_action_confirmed(local_player_id)
+
+        else:
+            # 싱글플레이 모드 또는 멀티플레이 호스트 (직접 실행)
+            # 아이템 사용인 경우 아이템 정보 전달
+            kwargs = {}
+            if action_type == ActionType.ITEM and self.selected_item:
+                kwargs['item'] = self.selected_item
+                kwargs['item_index'] = self.selected_item_index
+            
+            result = self.combat_manager.execute_action(
+                actor=self.current_actor,
+                action_type=action_type,
+                target=self.selected_target,
+                skill=self.selected_skill,
+                **kwargs
+            )
+
+            # 결과 메시지 표시
+            self._show_action_result(result)
+
+            # 행동 후 대기 시간 설정 (1.5초)
+            self.action_delay_frames = self.action_delay_max
 
         # 상태 초기화
         self.current_actor = None
@@ -3618,7 +3706,10 @@ def run_combat(
     context: tcod.context.Context,
     party: List[Any],
     enemies: List[Any],
-    inventory: Optional[Any] = None
+    inventory: Optional[Any] = None,
+    session: Optional[Any] = None,
+    network_manager: Optional[Any] = None,
+    combat_position: Optional[Tuple[int, int]] = None
 ) -> CombatState:
     """
     전투 실행
@@ -3629,6 +3720,9 @@ def run_combat(
         party: 아군 파티
         enemies: 적군 리스트
         inventory: 인벤토리 (아이템 사용용)
+        session: 멀티플레이 세션 (선택적)
+        network_manager: 네트워크 관리자 (선택적)
+        combat_position: 전투 시작 위치 (선택적, 멀티플레이용)
 
     Returns:
         전투 결과 (승리/패배/도주)
@@ -3660,14 +3754,41 @@ def run_combat(
 
     # 전투 매니저 생성
     combat_manager = CombatManager()
+    
+    # 전투 위치 설정 (멀티플레이용)
+    if combat_position:
+        combat_manager.combat_position = combat_position
+        # 전투 ID 생성 (위치 기반)
+        import hashlib
+        position_str = f"{combat_position[0]},{combat_position[1]}"
+        combat_id = hashlib.md5(position_str.encode()).hexdigest()[:8]
+        combat_manager.combat_id = combat_id
+    
     combat_manager.start_combat(party, enemies)
     
     # 인벤토리 설정 (전투 매니저에도 전달)
     if inventory:
         combat_manager.inventory = inventory
 
-    # 전투 UI 생성
-    ui = CombatUI(console.width, console.height, combat_manager, inventory=inventory)
+    # 멀티플레이 모드 확인
+    from src.multiplayer.game_mode import get_game_mode_manager
+    game_mode_manager = get_game_mode_manager()
+    is_multiplayer = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
+
+    # 전투 UI 생성 (멀티플레이 모드일 경우 session과 network_manager 전달)
+    if is_multiplayer and session and network_manager:
+        ui = CombatUI(
+            console.width, 
+            console.height, 
+            combat_manager, 
+            inventory=inventory,
+            session=session,
+            network_manager=network_manager
+        )
+        logger.info(f"멀티플레이 전투 UI 생성: 세션={session.session_id if session else None}")
+    else:
+        ui = CombatUI(console.width, console.height, combat_manager, inventory=inventory)
+    
     handler = InputHandler()
 
     logger.info(f"전투 시작: 아군 {len(party)}명 vs 적군 {len(enemies)}명 (BGM: {selected_bgm})")
