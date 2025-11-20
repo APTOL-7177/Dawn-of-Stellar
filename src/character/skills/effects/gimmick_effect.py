@@ -153,19 +153,45 @@ class GimmickEffect(SkillEffect):
         if not hasattr(user, 'magazine'):
             return EffectResult(effect_type=EffectType.GIMMICK, success=False)
 
+        from src.core.logger import get_logger
+        logger = get_logger("gimmick_effect")
+
         bullet_type = self.extra_params.get('bullet_type', 'normal')
         amount = self.value
         max_mag = getattr(user, 'max_magazine', 6)
 
+        # bullet_type이 제대로 전달되었는지 확인
+        if bullet_type == 'normal' and 'bullet_type' not in self.extra_params:
+            # bullet_type이 명시적으로 전달되지 않았을 때만 경고
+            logger.warning(f"[_load_bullets] bullet_type이 전달되지 않아 기본값 'normal' 사용: extra_params={self.extra_params}")
+
+        # 탄창이 None이거나 리스트가 아닌 경우 초기화
+        if not isinstance(user.magazine, list):
+            user.magazine = []
+
+        # 디버깅: 탄창 상태와 bullet_type 확인
+        logger.debug(f"[_load_bullets] 탄창 상태: {user.magazine}, bullet_type={bullet_type}, amount={amount}, max_mag={max_mag}")
+
         # 현재 탄창에 추가
+        loaded_count = 0
         for _ in range(amount):
             if len(user.magazine) < max_mag:
                 user.magazine.append(bullet_type)
+                loaded_count += 1
+            else:
+                logger.debug(f"[_load_bullets] 탄창이 가득 참 ({len(user.magazine)}/{max_mag}), 더 이상 장전 불가")
+
+        # bullet_type 한글명 가져오기
+        bullet_name = bullet_type  # 기본값은 원본
+        if hasattr(user, 'bullet_types') and bullet_type in user.bullet_types:
+            bullet_name = user.bullet_types[bullet_type].get('name', bullet_type)
+
+        logger.info(f"[_load_bullets] {bullet_name} {loaded_count}발 장전 완료. 현재 탄창: {user.magazine}")
 
         return EffectResult(
             effect_type=EffectType.GIMMICK,
             success=True,
-            message=f"{bullet_type} {amount}발 장전"
+            message=f"{bullet_name} {loaded_count}발 장전"
         )
     
     def _auto_stance(self, user, context) -> EffectResult:

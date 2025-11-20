@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import random
+import time
 
 from src.world.dungeon_generator import DungeonMap
 from src.world.tile import Tile, TileType
@@ -159,6 +160,9 @@ class ExplorationSystem:
         event_bus.subscribe(Events.EQUIPMENT_EQUIPPED, self._on_equipment_changed)
         event_bus.subscribe(Events.EQUIPMENT_UNEQUIPPED, self._on_equipment_changed)
 
+        # 발소리 SFX 간격 추적 (최소 5초)
+        self.last_footstep_time = 0.0
+
         logger.info(f"탐험 시작: 층 {self.floor_number}, 위치 ({self.player.x}, {self.player.y})")
 
     def update_fov(self):
@@ -281,10 +285,14 @@ class ExplorationSystem:
             logger.warning(f"[DEBUG] 전투 결과: event={combat_result.event}")
             return combat_result
 
-        # 이동 발소리 (간헐적으로만 재생)
-        import random
-        if random.random() < 0.15:  # 15% 확률로 발소리 재생
+        # 이동 발소리 (간헐적으로만 재생, 최소 5초 간격)
+        current_time = time.time()
+        time_since_last_footstep = current_time - self.last_footstep_time
+        
+        # 최소 5초 간격이 지났고 5% 확률로 발소리 재생
+        if time_since_last_footstep >= 5.0 and random.random() < 0.05:  # 5% 확률
             play_sfx("world", "footstep", volume_multiplier=0.5)
+            self.last_footstep_time = current_time
         
         # 이동
         self.player.x = new_x

@@ -81,6 +81,13 @@ class DamageCalculator:
         attacker_atk = self._get_attack_stat(attacker)
         defender_def = self._get_defense_stat(defender)
 
+        # 관통탄 방어 관통력 적용 (공격력의 15% 고정수치)
+        if kwargs.get('defense_pierce_fixed'):
+            pierce_amount = int(attacker_atk * kwargs['defense_pierce_fixed'])
+            # 방어력을 고정수치만큼 감소
+            defender_def = max(0, defender_def - pierce_amount)
+            self.logger.debug(f"[관통탄] 방어 관통: {pierce_amount} (공격력 {attacker_atk}의 {kwargs['defense_pierce_fixed']*100}%)")
+
         # 기본 데미지 계산: 공격력 / 방어력 비율
         stat_modifier = attacker_atk / (defender_def + 1.0)
         base_damage = max(1, int(stat_modifier * skill_multiplier * self.brv_damage_multiplier))
@@ -184,6 +191,13 @@ class DamageCalculator:
         else:  # physical
             attacker_stat = self._get_attack_stat(attacker)
             defender_stat = self._get_defense_stat(defender)
+
+        # 관통탄 방어 관통력 적용 (공격력의 15% 고정수치)
+        if kwargs.get('defense_pierce_fixed'):
+            pierce_amount = int(attacker_stat * kwargs['defense_pierce_fixed'])
+            # 방어력을 고정수치만큼 감소
+            defender_stat = max(0, defender_stat - pierce_amount)
+            self.logger.debug(f"[관통탄] HP 공격 방어 관통: {pierce_amount} (공격력 {attacker_stat}의 {kwargs['defense_pierce_fixed']*100}%)")
 
         # 스탯 보정 계산: 공격자 스탯 / (방어자 스탯 + 1)
         stat_modifier = attacker_stat / (defender_stat + 1.0)

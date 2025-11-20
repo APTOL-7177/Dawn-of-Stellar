@@ -303,7 +303,7 @@ class GimmickUpdater:
         """기계공학자: 열 관리 시스템 업데이트"""
         # 자동 냉각 특성 (매 턴 -5)
         if hasattr(character, 'active_traits'):
-            if any(t.get('id') == 'auto_cooling' for t in character.active_traits):
+            if any((t if isinstance(t, str) else t.get('id')) == 'auto_cooling' for t in character.active_traits):
                 character.heat = max(0, character.heat - 5)
                 logger.debug(f"{character.name} 자동 냉각: 열 -5")
 
@@ -428,7 +428,7 @@ class GimmickUpdater:
 
         # 탄환 절약 특성 체크
         if hasattr(character, 'active_traits'):
-            if any(t.get('id') == 'bullet_conservation' for t in character.active_traits):
+            if any((t if isinstance(t, str) else t.get('id')) == 'bullet_conservation' for t in character.active_traits):
                 import random
                 if random.random() < 0.3:  # 30% 확률로 탄환 소모 안 함
                     logger.info(f"{character.name} 탄환 절약 발동!")

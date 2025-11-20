@@ -6,6 +6,7 @@
 
 from typing import List, Dict, Any
 import math
+import random
 
 from src.core.logger import get_logger, Loggers
 
@@ -226,6 +227,12 @@ class RewardCalculator:
             # 보스는 추가로 전투용 소비 아이템 0~1개 드롭
             if random.random() < 0.5:  # 50% 확률
                 items.append(RewardCalculator._generate_combat_consumable_drop())
+            # 보스도 식재료 드롭 (70% 확률)
+            for enemy in enemies:
+                if random.random() < 0.7:  # 70% 확률
+                    ingredient = RewardCalculator._generate_ingredient_drop(enemy)
+                    if ingredient:
+                        items.append(ingredient)
         else:
             # 일반 적: 각 적마다 20% 확률
             for enemy in enemies:
@@ -235,6 +242,12 @@ class RewardCalculator:
                 # 일반 적도 5% 확률로 전투용 소비 아이템 드롭
                 if random.random() < 0.05:  # 5%
                     items.append(RewardCalculator._generate_combat_consumable_drop())
+                
+                # 적 타입에 따른 식재료 드롭 (40% 확률)
+                if random.random() < 0.40:  # 40%
+                    ingredient = RewardCalculator._generate_ingredient_drop(enemy)
+                    if ingredient:
+                        items.append(ingredient)
 
         # 골드 획득량 50% 감소
         total_gold = int(total_gold * 0.5)
@@ -307,6 +320,83 @@ class RewardCalculator:
         ]
         chosen_consumable = random.choice(combat_consumables)
         return ItemGenerator.create_consumable(chosen_consumable)
+
+    @staticmethod
+    def _generate_ingredient_drop(enemy: Any) -> Any:
+        """
+        적 타입에 따른 식재료 드롭 생성
+
+        Args:
+            enemy: 처치한 적
+
+        Returns:
+            식재료 아이템 또는 None
+        """
+        from src.gathering.ingredient import IngredientDatabase
+        
+        # 적 ID 가져오기 (보스는 base_enemy_id 사용)
+        enemy_id = getattr(enemy, 'enemy_id', '')
+        if enemy_id.startswith('boss_'):
+            enemy_id = enemy_id[5:]  # "boss_" 제거
+        
+        # 적 타입별 식재료 매핑
+        ingredient_mapping = {
+            # 고기 계열
+            "goblin": ["monster_meat"],
+            "orc": ["monster_meat", "monster_meat"],
+            "ogre": ["monster_meat", "beast_meat"],
+            "wolf": ["beast_meat"],
+            "troll": ["beast_meat", "monster_meat"],
+            
+            # 드래곤 계열
+            "dragon": ["dragon_meat"],
+            "wyvern": ["beast_meat", "dragon_meat"],
+            
+            # 슬라임 계열
+            "slime": ["blue_mushroom", "red_mushroom"],
+            
+            # 생선 계열
+            "kraken": ["fish"],
+            "siren": ["fish"],
+            
+            # 언데드 계열 (식재료 드롭 안함)
+            "skeleton": [],
+            "zombie": [],
+            "ghoul": [],
+            "banshee": [],
+            "death_knight": [],
+            "mummy": [],
+            "wraith": [],
+            "lich": [],
+            "vampire": [],
+            
+            # 엘리멘탈 계열
+            "fire_spirit": ["magic_herb", "spice"],
+            "ice_spirit": ["ice"],
+            "thunder_spirit": ["magic_herb"],
+            "earth_spirit": ["potato", "carrot"],
+            
+            # 새 계열
+            "harpy": ["berry"],
+            "griffin": ["beast_meat"],
+            
+            # 식물 계열
+            "treant": ["carrot", "potato", "berry"],
+            "thorn_bush": ["berry"],
+            
+            # 특수
+            "mimic": ["magic_herb", "spice"],
+            "nightmare": [],
+        }
+        
+        # 매핑에서 식재료 선택
+        possible_ingredients = ingredient_mapping.get(enemy_id, ["monster_meat"])  # 기본값: monster_meat
+        
+        if not possible_ingredients:
+            return None  # 드롭 안함
+        
+        ingredient_id = random.choice(possible_ingredients)
+        return IngredientDatabase.get_ingredient(ingredient_id)
 
 
 def distribute_party_experience(party: List[Any], total_exp: int) -> Dict[Any, List[Dict[str, Any]]]:

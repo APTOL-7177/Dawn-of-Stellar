@@ -34,12 +34,44 @@ class DamageEffect(SkillEffect):
         # 타겟 리스트 처리
         targets = target if isinstance(target, list) else [target]
         
-        for single_target in targets:
+        # HP 공격이 여러 타겟에 적용되는 경우, 시작 시점의 BRV를 저장
+        # (첫 번째 타겟에서만 BRV를 소모하고, 나머지 타겟들에는 초기 BRV로 복원)
+        is_aoe_hp = (self.damage_type == DamageType.HP and len(targets) > 1)
+        initial_brv = None
+        if is_aoe_hp:
+            initial_brv = user.current_brv
+            # context에 저장하여 _execute_single에서 사용
+            if context is None:
+                context = {}
+            context['_aoe_hp_initial_brv'] = initial_brv
+            context['_aoe_hp_target_index'] = 0  # 첫 번째 타겟 추적
+        
+        # 실제로 처리된 살아있는 타겟 추적
+        alive_targets_processed = 0
+        
+        for i, single_target in enumerate(targets):
             if not single_target.is_alive:
                 continue
             
+            # AOE HP 공격의 경우, 첫 번째 타겟이 아닌 경우 BRV를 초기값으로 복원
+            # (첫 번째 타겟에서 BRV가 소모되므로, 나머지 타겟들에는 초기 BRV를 사용)
+            if is_aoe_hp and initial_brv is not None and alive_targets_processed > 0:
+                user.current_brv = initial_brv
+            
+            # 타겟 인덱스 업데이트
+            if is_aoe_hp:
+                context['_aoe_hp_target_index'] = alive_targets_processed
+            
             single_result = self._execute_single(user, single_target, context)
             result.merge(single_result)
+            
+            # 살아있는 타겟이 처리되었음을 기록
+            alive_targets_processed += 1
+        
+        # AOE HP 공격의 경우, 살아있는 타겟이 실제로 처리된 경우에만 BRV를 소모
+        if is_aoe_hp and initial_brv is not None and alive_targets_processed > 0:
+            # 첫 번째 타겟에서 이미 BRV가 소모되었으므로, BRV를 0으로 설정
+            user.current_brv = 0
         
         return result
     
@@ -143,10 +175,15 @@ class DamageEffect(SkillEffect):
         
         if self.damage_type == DamageType.BRV:
             # 물리/마법 구분
+            # 탄환 정보를 kwargs에 전달 (관통탄 방어 관통력용)
+            calc_kwargs = {}
+            if context and 'defense_pierce_fixed' in context:
+                calc_kwargs['defense_pierce_fixed'] = context['defense_pierce_fixed']
+            
             if self.stat_type == "magical":
-                dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult)
+                dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult, **calc_kwargs)
             else:
-                dmg_result = self.damage_calculator.calculate_brv_damage(user, target, final_mult)
+                dmg_result = self.damage_calculator.calculate_brv_damage(user, target, final_mult, **calc_kwargs)
 
             brv_result = self.brave_system.brv_attack(user, target, dmg_result.final_damage)
             result.brv_damage = brv_result['brv_stolen']
@@ -157,7 +194,32 @@ class DamageEffect(SkillEffect):
         
         elif self.damage_type == DamageType.HP:
             # 물리/마법 구분하여 HP 공격
-            hp_result = self.brave_system.hp_attack(user, target, final_mult, damage_type=self.stat_type)
+            # 탄환 정보를 전달 (관통탄 방어 관통력용)
+            hp_kwargs = {}
+            if context and 'defense_pierce_fixed' in context:
+                hp_kwargs['defense_pierce_fixed'] = context['defense_pierce_fixed']
+            
+            # AOE HP 공격의 경우, 첫 번째 타겟에서만 실제로 BRV를 소모
+            # 나머지 타겟들에는 초기 BRV를 사용하되, 실제 소모는 하지 않음
+            is_aoe_hp = context and '_aoe_hp_initial_brv' in context
+            target_index = context.get('_aoe_hp_target_index', 0) if context else 0
+            is_first_target = (is_aoe_hp and target_index == 0)
+            
+            # 첫 번째 타겟이 아닌 경우, BRV를 임시로 초기값으로 설정 (데미지 계산용)
+            # 하지만 실제 소모는 하지 않음 (hp_attack 후 복원)
+            saved_brv = None
+            if is_aoe_hp and not is_first_target:
+                saved_brv = user.current_brv
+                user.current_brv = context['_aoe_hp_initial_brv']
+            
+            hp_result = self.brave_system.hp_attack(user, target, final_mult, damage_type=self.stat_type, **hp_kwargs)
+            
+            # 첫 번째 타겟이 아닌 경우, BRV를 복원 (실제로 소모하지 않음)
+            # 첫 번째 타겟에서는 BRV가 0이 되어야 하므로 그대로 둠
+            if is_aoe_hp and not is_first_target and saved_brv is not None:
+                # BRV를 복원 (실제로 소모하지 않았으므로 초기값 유지)
+                user.current_brv = context['_aoe_hp_initial_brv']
+            
             result.hp_damage = hp_result['hp_damage']
             result.damage_dealt = hp_result['hp_damage']
             result.message = f"HP 공격! {result.hp_damage}"
