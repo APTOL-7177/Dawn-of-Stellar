@@ -2637,8 +2637,8 @@ class TraitEffectManager:
                 reduction_rate += effect.value
                 self.logger.debug(f"[{trait_id}] MP 감소: {effect.value * 100}%")
 
-        # 최대 100% 감소
-        reduction_rate = min(1.0, reduction_rate)
+        # 최대 75% 감소로 제한
+        reduction_rate = min(0.75, reduction_rate)
 
         final_cost = int(base_cost * (1.0 - reduction_rate))
 

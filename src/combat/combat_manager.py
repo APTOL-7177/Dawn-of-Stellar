@@ -1955,6 +1955,28 @@ class CombatManager:
             행동 결과
         """
         try:
+            # 적이 행동할 수 있는지 확인 (기절, 수면 등 상태이상 체크)
+            if hasattr(enemy, 'status_manager'):
+                if not enemy.status_manager.can_act():
+                    # 행동 불가능 상태 - 상태이상 지속시간만 감소
+                    expired = enemy.status_manager.update_duration()
+                    if expired:
+                        self.logger.debug(f"{enemy.name}: {len(expired)}개 상태 효과 만료")
+                    
+                    # 턴 종료 처리 (재생 효과 등)
+                    self._on_turn_end(enemy)
+                    
+                    # ATB 소비 (행동은 하지 못함)
+                    self.atb.consume_atb(enemy)
+                    
+                    return {
+                        "action": "skip",
+                        "actor": enemy,
+                        "success": False,
+                        "error": "행동 불가능 상태",
+                        "message": f"{enemy.name}은(는) 행동 불가능 상태!"
+                    }
+
             from src.ai.enemy_ai import create_ai_for_enemy
 
             # 적 AI 생성

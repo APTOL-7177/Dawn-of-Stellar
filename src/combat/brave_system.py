@@ -236,6 +236,10 @@ class BraveSystem:
             # BREAK 상태 플래그 설정
             defender.is_broken = True
 
+            # BREAK 전용 효과음 재생
+            from src.audio import play_sfx
+            play_sfx("combat", "break")
+
             event_bus.publish("brave.break", {
                 "attacker": attacker,
                 "defender": defender,

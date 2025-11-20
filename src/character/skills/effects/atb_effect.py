@@ -26,15 +26,33 @@ class ATBEffect(SkillEffect):
         result = EffectResult(effect_type=self.effect_type, success=True)
 
         # ATB 시스템 가져오기
-        atb_system = get_atb_system()
+        try:
+            atb_system = get_atb_system()
+        except Exception as e:
+            self.logger.error(f"[ATB_EFFECT] ATB 시스템 가져오기 실패: {e}")
+            result.success = False
+            result.message = "ATB 효과 적용 실패"
+            return result
         
-        # ATB 게이지 가져오기
+        # ATB 게이지 가져오기 (없으면 등록)
         gauge = atb_system.get_gauge(target)
         if not gauge:
-            result.success = False
-            result.message = f"{target.name}은(는) ATB를 가지고 있지 않음"
-            self.logger.warning(f"[ATB_EFFECT] {target.name}에게 ATB 속성이 없음")
-            return result
+            # 전투 중이 아닐 수 있으므로 경고만 하고 실패 반환
+            self.logger.warning(f"[ATB_EFFECT] {getattr(target, 'name', 'Unknown')}에게 ATB 게이지가 없음 - 등록 시도")
+            try:
+                # combat_manager가 있는 경우에만 등록 시도
+                combat_manager = context.get('combat_manager')
+                if combat_manager and hasattr(combat_manager, 'atb'):
+                    atb_system.register_combatant(target)
+                    gauge = atb_system.get_gauge(target)
+            except Exception as e:
+                self.logger.warning(f"[ATB_EFFECT] ATB 등록 시도 실패: {e}")
+            
+            # 그래도 없으면 실패
+            if not gauge:
+                result.success = False
+                result.message = f"{getattr(target, 'name', 'Unknown')}은(는) ATB를 가지고 있지 않음"
+                return result
 
         # ATB 변경량 계산
         if self.is_percentage:
@@ -61,22 +79,28 @@ class ATBEffect(SkillEffect):
         actual_change = new_atb - old_atb
 
         # 실제로 변경이 있었는지 확인
-        if actual_change == 0 and change != 0:
-            # 변경이 없었는데 change가 0이 아니면 (이미 최대치/최소치인 경우)
-            result.success = False
-            if change > 0:
-                result.message = f"{target.name}의 ATB는 이미 최대치입니다"
+        target_name = getattr(target, 'name', 'Unknown')
+        try:
+            if actual_change == 0 and change != 0:
+                # 변경이 없었는데 change가 0이 아니면 (이미 최대치/최소치인 경우)
+                result.success = False
+                if change > 0:
+                    result.message = f"{target_name}의 ATB는 이미 최대치입니다"
+                else:
+                    result.message = f"{target_name}의 ATB는 이미 최소치입니다"
+            elif actual_change == 0:
+                # change == 0인 경우 (변경 없음)
+                result.success = True
+                result.message = f"{target_name}의 ATB 변경 없음"
             else:
-                result.message = f"{target.name}의 ATB는 이미 최소치입니다"
-        elif actual_change == 0:
-            # change == 0인 경우 (변경 없음)
-            result.success = True
-            result.message = f"{target.name}의 ATB 변경 없음"
-        else:
-            # 정상적으로 변경됨
-            result.success = True
-            result.message = f"{target.name}의 ATB {'+' if actual_change > 0 else ''}{actual_change} ({old_atb} → {new_atb})"
+                # 정상적으로 변경됨
+                result.success = True
+                result.message = f"{target_name}의 ATB {'+' if actual_change > 0 else ''}{actual_change} ({old_atb} → {new_atb})"
 
-        self.logger.debug(f"[ATB_EFFECT] {target.name}: {old_atb} → {new_atb} (변경: {actual_change})")
+            self.logger.debug(f"[ATB_EFFECT] {target_name}: {old_atb} → {new_atb} (변경: {actual_change})")
+        except Exception as e:
+            self.logger.error(f"[ATB_EFFECT] 메시지 생성 중 오류: {e}")
+            result.success = True  # ATB는 변경되었으므로 성공으로 처리
+            result.message = f"ATB {actual_change} 변경"
 
         return result
