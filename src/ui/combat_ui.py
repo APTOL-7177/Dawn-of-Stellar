@@ -1290,12 +1290,32 @@ class CombatUI:
 
             console.print(3, y, turn_indicator, fg=indicator_color)
 
-            console.print(5, y, f"{i+1}. {ally.name}", fg=name_color)
-
+            # 이름 표시
+            name_str = f"{i+1}. {ally.name}"
+            console.print(5, y, name_str, fg=name_color)
+            
+            # 기계공학자: 이름 오른쪽에 열 표시
+            gimmick_type = getattr(ally, 'gimmick_type', None)
+            if gimmick_type == "heat_gauge" or gimmick_type == "heat_management":
+                heat = getattr(ally, 'heat', 0)
+                max_heat = getattr(ally, 'max_heat', 100)
+                # 이름 오른쪽에 열 표시
+                heat_text = f" 열:{heat}"
+                name_end_x = 5 + len(name_str)
+                console.print(name_end_x, y, heat_text, fg=(255, 150, 50))
+            
             # 직업 및 기믹 상태 표시
-            gimmick_text = self._get_gimmick_display(ally)
+            gimmick_result = self._get_gimmick_display(ally)
+            if isinstance(gimmick_result, tuple):
+                gimmick_text, gimmick_color = gimmick_result
+            else:
+                # 하위 호환성 (구버전 문자열)
+                gimmick_text = gimmick_result
+                gimmick_color = (150, 255, 200)
             if gimmick_text:
-                console.print(5 + len(f"{i+1}. {ally.name}") + 2, y, gimmick_text, fg=(150, 255, 200))
+                # 기계공학자는 이미 열이 표시되었으므로 건너뛰기
+                if gimmick_type != "heat_gauge" and gimmick_type != "heat_management":
+                    console.print(5 + len(f"{i+1}. {ally.name}") + 2, y, gimmick_text, fg=gimmick_color)
 
             # HP 게이지 (정밀)
             console.print(8, y + 1, "HP:", fg=(200, 200, 200))
@@ -1357,12 +1377,29 @@ class CombatUI:
             is_casting = cast_info is not None
             cast_progress = cast_info.progress if cast_info else 0.0
 
-            # 상태이상 아이콘 (ATB 게이지 바로 위)
-            status_effects = getattr(ally, 'status_effects', {})
-            if status_effects:
-                status_text = gauge_renderer.render_status_icons(status_effects)
-                if status_text:
-                    console.print(28, y, status_text, fg=(200, 200, 255))
+            # 상태이상/버프/디버프 아이콘 (ATB 게이지 바로 위, 최대 3줄)
+            status_effects = getattr(ally, 'status_effects', [])
+            active_buffs = getattr(ally, 'active_buffs', {})
+            # status_manager에서 상태이상 가져오기
+            if hasattr(ally, 'status_manager'):
+                status_effects = ally.status_manager.status_effects
+            
+            if status_effects or active_buffs:
+                status_lines = gauge_renderer.render_status_icons(status_effects, buffs=active_buffs)
+                if isinstance(status_lines, list):
+                    # 여러 줄 렌더링 (최대 3줄)
+                    for line_idx, (line_text, line_color) in enumerate(status_lines[:3]):
+                        if line_text:
+                            console.print(28, y - 1 + line_idx, line_text, fg=line_color)
+                elif isinstance(status_lines, tuple):
+                    # 하위 호환성 (구버전 튜플)
+                    status_text, status_colors = status_lines
+                    if status_text:
+                        console.print(28, y, status_text, fg=status_colors[0] if status_colors else (200, 200, 255))
+                else:
+                    # 하위 호환성 (구버전 문자열)
+                    if status_lines:
+                        console.print(28, y, status_lines, fg=(200, 200, 255))
             
             console.print(28, y + 1, "ATB:", fg=(200, 200, 200))
             gauge_renderer.render_atb_with_cast(
@@ -1436,16 +1473,39 @@ class CombatUI:
             console.print(x + 2, y, f"{chr(65+i)}. {enemy.name}", fg=name_color)
 
             # 기믹 상태 표시 (룬 스택 등)
-            gimmick_text = self._get_gimmick_display(enemy)
+            gimmick_result = self._get_gimmick_display(enemy)
+            if isinstance(gimmick_result, tuple):
+                gimmick_text, gimmick_color = gimmick_result
+            else:
+                # 하위 호환성 (구버전 문자열)
+                gimmick_text = gimmick_result
+                gimmick_color = (150, 255, 200)
             if gimmick_text:
-                console.print(x + 2 + len(f"{chr(65+i)}. {enemy.name}") + 1, y, gimmick_text, fg=(150, 255, 200))
+                console.print(x + 2 + len(f"{chr(65+i)}. {enemy.name}") + 1, y, gimmick_text, fg=gimmick_color)
 
-            # 상태이상 (HP 게이지 바로 위)
+            # 상태이상/버프/디버프 (HP 게이지 바로 위, 최대 3줄)
             status_effects = getattr(enemy, 'status_effects', [])
-            if status_effects:
-                status_text = gauge_renderer.render_status_icons(status_effects)
-                if status_text:
-                    console.print(x + 3, y + 1, status_text, fg=(200, 200, 255))
+            active_buffs = getattr(enemy, 'active_buffs', {})
+            # status_manager에서 상태이상 가져오기
+            if hasattr(enemy, 'status_manager'):
+                status_effects = enemy.status_manager.status_effects
+            
+            if status_effects or active_buffs:
+                status_lines = gauge_renderer.render_status_icons(status_effects, buffs=active_buffs)
+                if isinstance(status_lines, list):
+                    # 여러 줄 렌더링 (최대 2줄)
+                    for line_idx, (line_text, line_color) in enumerate(status_lines[:2]):
+                        if line_text:
+                            console.print(x + 3, y + 1 + line_idx, line_text, fg=line_color)
+                elif isinstance(status_lines, tuple):
+                    # 하위 호환성 (구버전 튜플)
+                    status_text, status_colors = status_lines
+                    if status_text:
+                        console.print(x + 3, y + 1, status_text, fg=status_colors[0] if status_colors else (200, 200, 255))
+                else:
+                    # 하위 호환성 (구버전 문자열)
+                    if status_lines:
+                        console.print(x + 3, y + 1, status_lines, fg=(200, 200, 200))
             
             # HP 게이지
             console.print(x + 3, y + 2, "HP:", fg=(200, 200, 200))
@@ -1540,24 +1600,30 @@ class CombatUI:
             fg=(180, 180, 180)
         )
 
-    def _get_gimmick_display(self, character: Any) -> str:
-        """캐릭터의 기믹 상태를 문자열로 반환"""
+    def _get_gimmick_display(self, character: Any) -> Tuple[str, Tuple[int, int, int]]:
+        """캐릭터의 기믹 상태를 (텍스트, 색상) 튜플로 반환"""
         # 적에게 새겨진 룬 표시 (배틀메이지의 룬 새기기)
         if hasattr(character, 'carved_runes') and character.carved_runes:
             rune_display = []
+            rune_colors = {"fire": (255, 100, 50), "ice": (100, 200, 255), "lightning": (255, 255, 100), 
+                          "earth": (139, 69, 19), "arcane": (200, 100, 255)}
             rune_names = {"fire": "화", "ice": "냉", "lightning": "번", "earth": "대", "arcane": "비"}
+            colored_parts = []
             for rune_type, count in character.carved_runes.items():
                 if count > 0:
                     name = rune_names.get(rune_type, rune_type[0].upper())
-                    rune_display.append(f"{name}{count}")
-            if rune_display:
-                return f"[룬: {', '.join(rune_display)}]"
+                    colored_parts.append((f"{name}{count}", rune_colors.get(rune_type, (255, 255, 255))))
+            if colored_parts:
+                # 평균 색상 계산
+                avg_color = tuple(sum(c[i] for _, c in colored_parts) // len(colored_parts) for i in range(3))
+                text = f"룬: {', '.join(t for t, _ in colored_parts)}"
+                return (text, avg_color)
         
         gimmick_type = getattr(character, 'gimmick_type', None)
         if not gimmick_type:
-            return ""
+            return ("", (255, 255, 255))
 
-        # 기믹 타입별 상태 표시
+        # 기믹 타입별 상태 표시 (컬러풀하게, 대괄호 제거)
         if gimmick_type == "stance_system":
             # 전사 - 스탠스
             stance = getattr(character, 'current_stance', 0)
@@ -1582,17 +1648,20 @@ class CombatUI:
                 6: 5   # speed -> 신속
             }
             stance_names = ["중립", "공격", "방어", "광전사", "수호자", "신속"]
+            stance_colors = [(200, 200, 200), (255, 100, 100), (100, 150, 255), (255, 50, 50), (100, 200, 255), (255, 255, 100)]
             if isinstance(stance, int):
                 array_index = stance_to_array_index.get(stance, 0)
                 if 0 <= array_index < len(stance_names):
-                    return f"[{stance_names[array_index]}]"
+                    return (stance_names[array_index], stance_colors[array_index])
 
         elif gimmick_type == "elemental_counter":
             # 아크메이지 - 원소 카운터
             fire = getattr(character, 'fire_element', 0)
             ice = getattr(character, 'ice_element', 0)
             lightning = getattr(character, 'lightning_element', 0)
-            return f"[화염{fire} 냉기{ice} 번개{lightning}]"
+            # 평균 색상 (화염: 빨강, 냉기: 파랑, 번개: 노랑)
+            avg_color = (150, 150, 100) if (fire + ice + lightning) > 0 else (255, 255, 255)
+            return (f"화염{fire} 냉기{ice} 번개{lightning}", avg_color)
 
         elif gimmick_type == "support_fire_system" or gimmick_type == "support_fire":
             # 궁수 - 지원사격
@@ -1617,158 +1686,158 @@ class CombatUI:
                     if has_mark:
                         marked += 1
 
-            return f"[지원:{marked}/3 콤보:{combo}]"
+            return (f"지원:{marked}/3 콤보:{combo}", (255, 200, 100))
 
         elif gimmick_type == "magazine_system":
             # 저격수 - 탄창
             magazine = getattr(character, 'magazine', [])
-            return f"[탄창:{len(magazine)}/6]"
+            return (f"탄창:{len(magazine)}/6", (150, 150, 200))
 
         elif gimmick_type == "venom_system":
             # 도적 - 베놈
             venom = getattr(character, 'venom_power', 0)
-            return f"[독:{venom}]"
+            return (f"독:{venom}", (100, 255, 100))
 
         elif gimmick_type == "shadow_system":
             # 암살자 - 그림자
             shadows = getattr(character, 'shadow_count', 0)
             max_shadows = getattr(character, 'max_shadow_count', 5)
-            return f"[그림자:{shadows}/{max_shadows}]"
+            return (f"그림자:{shadows}/{max_shadows}", (100, 50, 150))
 
         elif gimmick_type == "sword_aura":
             # 검성 - 검기
             aura = getattr(character, 'sword_aura', 0)
             max_aura = getattr(character, 'max_sword_aura', 5)
-            return f"[검기:{aura}/{max_aura}]"
+            return (f"검기:{aura}/{max_aura}", (255, 255, 150))
 
         elif gimmick_type == "rage_system":
             # 광전사 - 분노
             rage = getattr(character, 'rage_stacks', 0)
             max_rage = getattr(character, 'max_rage_stacks', 10)
-            return f"[분노:{rage}/{max_rage}]"
+            return (f"분노:{rage}/{max_rage}", (255, 50, 50))
 
         elif gimmick_type == "ki_system":
             # 몽크 - 기
             ki = getattr(character, 'ki_energy', 0)
             max_ki = getattr(character, 'max_ki_energy', 100)
-            return f"[기:{ki}/{max_ki}]"
+            return (f"기:{ki}/{max_ki}", (255, 215, 0))
 
         elif gimmick_type == "melody_system":
             # 바드 - 멜로디
             melody = getattr(character, 'melody_stacks', 0)
             max_melody = getattr(character, 'max_melody_stacks', 7)
-            return f"[♪:{melody}/{max_melody}]"
+            return (f"♪:{melody}/{max_melody}", (255, 150, 255))
 
         elif gimmick_type == "necro_system":
             # 네크로맨서 - 네크로 에너지
             necro = getattr(character, 'necro_energy', 0)
             max_necro = getattr(character, 'max_necro_energy', 50)
-            return f"[사령:{necro}/{max_necro}]"
+            return (f"사령:{necro}/{max_necro}", (150, 0, 150))
 
-        elif gimmick_type == "totem_system":
-            # 무당 - 저주
+        elif gimmick_type == "curse_system" or gimmick_type == "totem_system":
+            # 무당 - 저주 (하위 호환성을 위해 totem_system도 지원)
             curses = getattr(character, 'curse_stacks', 0)
             max_curses = getattr(character, 'max_curse_stacks', 10)
-            return f"[저주:{curses}/{max_curses}]"
+            return (f"저주:{curses}/{max_curses}", (150, 100, 0))
 
         elif gimmick_type == "wisdom_system":
             # 철학자 - 지혜
             knowledge = getattr(character, 'knowledge_stacks', 0)
             max_knowledge = getattr(character, 'max_knowledge_stacks', 10)
-            return f"[지혜:{knowledge}/{max_knowledge}]"
+            return (f"지혜:{knowledge}/{max_knowledge}", (200, 150, 255))
 
         elif gimmick_type == "time_system":
             # 시간술사 - 시간 기록점
             time = getattr(character, 'time_marks', 0)
             max_time = getattr(character, 'max_time_marks', 7)
-            return f"[시간:{time}/{max_time}]"
+            return (f"시간:{time}/{max_time}", (200, 255, 255))
 
         elif gimmick_type == "alchemy_system":
             # 연금술사 - 물약
             potions = getattr(character, 'potion_stock', 0)
             max_potions = getattr(character, 'max_potion_stock', 10)
-            return f"[물약:{potions}/{max_potions}]"
+            return (f"물약:{potions}/{max_potions}", (100, 200, 100))
 
         elif gimmick_type == "blood_system":
             # 흡혈귀 - 혈액
             blood = getattr(character, 'blood_pool', 0)
             max_blood = getattr(character, 'max_blood_pool', 100)
-            return f"[혈액:{blood}/{max_blood}]"
+            return (f"혈액:{blood}/{max_blood}", (200, 0, 0))
 
         elif gimmick_type == "hack_system":
             # 해커 - 해킹
             hacks = getattr(character, 'hack_stacks', 0)
             max_hacks = getattr(character, 'max_hack_stacks', 5)
-            return f"[해킹:{hacks}/{max_hacks}]"
+            return (f"해킹:{hacks}/{max_hacks}", (0, 200, 200))
 
         elif gimmick_type == "darkness_system":
             # 암흑기사 - 어둠
             darkness = getattr(character, 'darkness', 0)
-            return f"[어둠:{darkness}]"
+            return (f"어둠:{darkness}", (50, 50, 100))
 
         elif gimmick_type == "holy_system":
             # 성기사/신관 - 신성력
             holy = getattr(character, 'holy_power', 0)
             max_holy = getattr(character, 'max_holy_power', 100)
-            return f"[신성:{holy}/{max_holy}]"
+            return (f"신성:{holy}/{max_holy}", (255, 255, 200))
 
         elif gimmick_type == "rune_system":
             # 전투마법사 - 룬
             runes = getattr(character, 'rune_stacks', 0)
             max_runes = getattr(character, 'max_rune_stacks', 8)
-            return f"[룬:{runes}/{max_runes}]"
+            return (f"룬:{runes}/{max_runes}", (200, 100, 255))
 
         elif gimmick_type == "dimension_system":
             # 차원술사 - 차원력
             dimension = getattr(character, 'dimension_points', 0)
             max_dimension = getattr(character, 'max_dimension_points', 100)
-            return f"[차원:{dimension}/{max_dimension}]"
+            return (f"차원:{dimension}/{max_dimension}", (150, 150, 255))
 
         elif gimmick_type == "construct_system":
             # 기계공학자 - 부품
             parts = getattr(character, 'machine_parts', 0)
             max_parts = getattr(character, 'max_machine_parts', 5)
-            return f"[부품:{parts}/{max_parts}]"
+            return (f"부품:{parts}/{max_parts}", (255, 150, 50))
 
         elif gimmick_type == "duty_system":
             # 기사 - 의무
             duty = getattr(character, 'duty_stacks', 0)
             max_duty = getattr(character, 'max_duty_stacks', 10)
-            return f"[의무:{duty}/{max_duty}]"
+            return (f"의무:{duty}/{max_duty}", (200, 200, 255))
 
         elif gimmick_type == "stealth_system":
             # 암살자 - 은신
             stealth = getattr(character, 'stealth_points', 0)
             max_stealth = getattr(character, 'max_stealth_points', 5)
-            return f"[은신:{stealth}/{max_stealth}]"
+            return (f"은신:{stealth}/{max_stealth}", (100, 100, 150))
 
         elif gimmick_type == "theft_system":
             # 도적 - 절도
             stolen = getattr(character, 'stolen_items', 0)
-            return f"[절도:{stolen}]"
+            return (f"절도:{stolen}", (150, 200, 150))
 
         elif gimmick_type == "plunder_system":
             # 해적 - 약탈
             gold = getattr(character, 'gold', 0)
-            return f"[골드:{gold}]"
+            return (f"골드:{gold}", (255, 215, 0))
 
         elif gimmick_type == "iaijutsu_system":
             # 사무라이 - 거합
             will = getattr(character, 'will_gauge', 0)
             max_will = getattr(character, 'max_will_gauge', 10)
-            return f"[기합:{will}/{max_will}]"
+            return (f"기합:{will}/{max_will}", (255, 100, 150))
 
         elif gimmick_type == "enchant_system":
             # 마검사 - 마력 부여
             mana = getattr(character, 'mana_blade', 0)
             max_mana = getattr(character, 'max_mana_blade', 100)
-            return f"[마검:{mana}/{max_mana}]"
+            return (f"마검:{mana}/{max_mana}", (100, 150, 255))
 
         elif gimmick_type == "divinity_system":
             # 프리스트/클레릭 - 신성력
             judgment = getattr(character, 'judgment_points', 0)
             faith = getattr(character, 'faith_points', 0)
-            return f"[심판:{judgment} 신앙:{faith}]"
+            return (f"심판:{judgment} 신앙:{faith}", (255, 255, 150))
 
         elif gimmick_type == "shapeshifting_system":
             # 드루이드 - 변신
@@ -1785,42 +1854,42 @@ class CombatUI:
                     "elemental": "원소"
                 }
                 form_name = form_names.get(form, form)
-                return f"[{form_name}형태 {nature}]"
-            return f"[자연:{nature}]"
+                return (f"{form_name}형태 {nature}", (139, 69, 19))
+            return (f"자연:{nature}", (139, 69, 19))
 
         elif gimmick_type == "spirit_bond":
             # 정령술사 - 정령 친화도
             bond = getattr(character, 'spirit_bond', 0)
             max_bond = getattr(character, 'max_spirit_bond', 25)
             spirits = getattr(character, 'spirit_count', 0)
-            return f"[친화:{bond}/{max_bond} 정령:{spirits}]"
+            return (f"친화:{bond}/{max_bond} 정령:{spirits}", (150, 255, 200))
 
         elif gimmick_type == "dragon_marks":
             # 용기사 - 용의 표식
             marks = getattr(character, 'dragon_marks', 0)
             max_marks = getattr(character, 'max_dragon_marks', 3)
             power = getattr(character, 'dragon_power', 0)
-            return f"[용표:{marks}/{max_marks} 용력:{power}]"
+            return (f"용표:{marks}/{max_marks} 용력:{power}", (255, 100, 100))
 
         elif gimmick_type == "arena_system":
             # 검투사 - 투기장
             arena = getattr(character, 'arena_points', 0)
             glory = getattr(character, 'glory_points', 0)
             kills = getattr(character, 'kill_count', 0)
-            return f"[투기:{arena} 영광:{glory} 처치:{kills}]"
+            return (f"투기:{arena} 영광:{glory} 처치:{kills}", (255, 200, 100))
 
         elif gimmick_type == "break_system":
             # 브레이커 - 파괴력
             break_power = getattr(character, 'break_power', 0)
             max_break = getattr(character, 'max_break_power', 10)
-            return f"[파괴:{break_power}/{max_break}]"
+            return (f"파괴:{break_power}/{max_break}", (200, 100, 100))
 
         # === 15개 신규 기믹 시스템 (간략 표시) ===
 
         elif gimmick_type == "yin_yang_flow":
             # 몽크 - 음양 흐름 (간략: 게이지만)
             ki = getattr(character, 'ki_gauge', 50)
-            return f"[기:{ki}]"
+            return (f"기:{ki}", (255, 215, 0))
 
         elif gimmick_type == "rune_resonance":
             # 배틀메이지 - 룬 공명 (간략: 총합)
@@ -1830,27 +1899,27 @@ class CombatUI:
             earth = getattr(character, 'rune_earth', 0)
             arcane = getattr(character, 'rune_arcane', 0)
             total = fire + ice + lightning + earth + arcane
-            return f"[룬:{total}]"
+            return (f"룬:{total}", (200, 100, 255))
 
         elif gimmick_type == "probability_distortion":
             # 차원술사 - 확률 왜곡 (간략: 게이지)
             gauge = getattr(character, 'distortion_gauge', 0)
-            return f"[왜곡:{gauge}]"
+            return (f"왜곡:{gauge}", (150, 150, 255))
 
         elif gimmick_type == "heat_gauge":
-            # 엔지니어 - 열 게이지 (간략: 상태)
+            # 엔지니어 - 열 게이지 (간략: 상태) - 이미 이름 옆에 표시됨
             heat = getattr(character, 'heat', 0)
-            return f"[열:{heat}]"
+            return ("", (255, 255, 255))  # 빈 문자열 반환 (이미 이름 옆에 표시됨)
 
         elif gimmick_type == "thirst_gauge":
             # 뱀파이어 - 갈증 (간략: 게이지)
             thirst = getattr(character, 'thirst', 0)
-            return f"[갈증:{thirst}]"
+            return (f"갈증:{thirst}", (200, 0, 0))
 
         elif gimmick_type == "madness_gauge":
             # 버서커 - 광기 (간략: 게이지)
             madness = getattr(character, 'madness', 0)
-            return f"[광기:{madness}]"
+            return (f"광기:{madness}", (200, 50, 50))
 
         elif gimmick_type == "madness_threshold":
             # 광전사 - 광기 임계치
@@ -1862,11 +1931,11 @@ class CombatUI:
             
             # 위험 구간 표시
             if madness >= danger_min:
-                return f"[위험광기:{madness}/{max_madness}]"
+                return (f"위험광기:{madness}/{max_madness}", (255, 50, 50))
             elif madness >= optimal_min:
-                return f"[최적광기:{madness}/{max_madness}]"
+                return (f"최적광기:{madness}/{max_madness}", (255, 200, 100))
             else:
-                return f"[광기:{madness}/{max_madness}]"
+                return (f"광기:{madness}/{max_madness}", (200, 50, 50))
 
         elif gimmick_type == "spirit_resonance":
             # 정령술사 - 정령 (간략: 활성 정령 수)
@@ -1875,12 +1944,15 @@ class CombatUI:
             wind = getattr(character, 'spirit_wind', 0)
             earth = getattr(character, 'spirit_earth', 0)
             active = sum([1 for s in [fire, water, wind, earth] if s > 0])
-            return f"[정령:{active}]"
+            return (f"정령:{active}", (150, 255, 200))
 
         elif gimmick_type == "stealth_mastery":
             # 암살자 - 은신 (간략: 상태만)
             stealth_active = getattr(character, 'stealth_active', False)
-            return "[은신]" if stealth_active else "[노출]"
+            if stealth_active:
+                return ("은신", (100, 100, 150))
+            else:
+                return ("노출", (255, 150, 150))
 
         elif gimmick_type == "dilemma_choice":
             # 철학자 - 선택 (간략: 총 선택 수)
@@ -1889,17 +1961,17 @@ class CombatUI:
             sacrifice = getattr(character, 'choice_sacrifice', 0)
             truth = getattr(character, 'choice_truth', 0)
             total = power + wisdom + sacrifice + truth
-            return f"[선택:{total}]"
+            return (f"선택:{total}", (200, 150, 255))
 
         elif gimmick_type == "support_fire":
             # 궁수 - 지원사격 (간략: 콤보)
             combo = getattr(character, 'support_fire_combo', 0)
-            return f"[지원:{combo}]"
+            return (f"지원:{combo}", (255, 200, 100))
 
         elif gimmick_type == "hack_threading":
             # 해커 - 스레드 (간략: 스레드 수)
             threads = getattr(character, 'active_threads', 0)
-            return f"[스레드:{threads}]"
+            return (f"스레드:{threads}", (0, 200, 200))
 
         elif gimmick_type == "multithread_system":
             # 해커 - 멀티스레드 시스템
@@ -1912,21 +1984,21 @@ class CombatUI:
             ransomware = getattr(character, 'program_ransomware', 0)
             spyware = getattr(character, 'program_spyware', 0)
             total = virus + backdoor + ddos + ransomware + spyware
-            return f"[프로그램:{total}]"
+            return (f"프로그램:{total}", (0, 200, 200))
 
         elif gimmick_type == "cheer_gauge":
             # 검투사 - 환호 (간략: 게이지)
             cheer = getattr(character, 'cheer', 0)
             if cheer > 70:
-                return f"[열광:{cheer}]"
+                return (f"열광:{cheer}", (255, 200, 100))
             else:
-                return f"[환호:{cheer}]"
+                return (f"환호:{cheer}", (255, 200, 100))
 
         elif gimmick_type == "crowd_cheer":
             # 검투사 - 군중의 환호
             cheer = getattr(character, 'cheer', 0)
             max_cheer = getattr(character, 'max_cheer', 100)
-            return f"[환호:{cheer}/{max_cheer}]"
+            return (f"환호:{cheer}/{max_cheer}", (255, 200, 100))
 
         elif gimmick_type == "timeline_system":
             # 시간술사 - 타임라인
@@ -1934,11 +2006,11 @@ class CombatUI:
             min_timeline = getattr(character, 'min_timeline', -5)
             max_timeline = getattr(character, 'max_timeline', 5)
             if timeline < 0:
-                return f"[과거:{timeline}]"
+                return (f"과거:{timeline}", (200, 200, 255))
             elif timeline > 0:
-                return f"[미래:{timeline}]"
+                return (f"미래:{timeline}", (255, 200, 255))
             else:
-                return f"[현재:{timeline}]"
+                return (f"현재:{timeline}", (200, 255, 255))
 
         elif gimmick_type == "undead_legion":
             # 네크로맨서 - 언데드 군단
@@ -1947,7 +2019,7 @@ class CombatUI:
             ghost = getattr(character, 'undead_ghost', 0)
             total = skeleton + zombie + ghost
             max_undead = getattr(character, 'max_undead_total', 5)
-            return f"[언데드:{total}/{max_undead}]"
+            return (f"언데드:{total}/{max_undead}", (150, 0, 150))
 
         elif gimmick_type == "stealth_exposure":
             # 암살자 - 은신-노출
@@ -1955,11 +2027,11 @@ class CombatUI:
             max_stealth = getattr(character, 'max_stealth_points', 5)
             exposed = getattr(character, 'exposed', False)
             if exposed:
-                return f"[노출:{stealth}/{max_stealth}]"
+                return (f"노출:{stealth}/{max_stealth}", (255, 150, 150))
             else:
-                return f"[은신:{stealth}/{max_stealth}]"
+                return (f"은신:{stealth}/{max_stealth}", (100, 100, 150))
 
-        return ""
+        return ("", (255, 255, 255))
 
     def _render_gimmick_view(self, console: tcod.console.Console):
         """기믹 상세 보기 렌더링 (박스 스타일)"""
@@ -1971,8 +2043,15 @@ class CombatUI:
 
         # 박스 위치 및 크기
         box_width = 50
-        # 배틀메이지의 경우 룬 5개 + 공명 정보를 위해 높이 증가
-        box_height = 22
+        # 기믹 타입에 따라 높이 조정
+        if gimmick_type == "dilemma_choice":
+            # 철학자 - 딜레마 선택: 더 많은 공간 필요 (제목 + 구분선 + 4가지 선택 + 구분선 + 경향 + 하단 안내)
+            box_height = 28
+        elif gimmick_type == "rune_resonance":
+            # 배틀메이지의 경우 룬 5개 + 공명 정보를 위해 높이 증가
+            box_height = 22
+        else:
+            box_height = 22
         box_x = (self.screen_width - box_width) // 2
         box_y = (self.screen_height - box_height) // 2
 
@@ -3625,15 +3704,14 @@ class CombatUI:
             else:
                 details.append("❌ 부여 없음")
 
-        # 무당 - 토템 시스템 (YAML: totem_system)
-        elif gimmick_type == "totem_system":
-            totems = getattr(character, 'active_totems', [])
-            details.append("=== 토템 시스템 ===")
-            totem_bar = self._create_gauge_bar(len(totems), 3, width=10, optimal_min=2, optimal_max=3)
-            details.append(f"활성 토템: {totem_bar}")
-            if totems:
-                for totem in totems:
-                    details.append(f"  🗿 {totem}")
+        # 무당 - 저주 시스템 (YAML: curse_system, 하위 호환: totem_system)
+        elif gimmick_type == "curse_system" or gimmick_type == "totem_system":
+            curses = getattr(character, 'curse_stacks', 0)
+            max_curses = getattr(character, 'max_curse_stacks', 10)
+            details.append("=== 저주 시스템 ===")
+            curse_bar = self._create_gauge_bar(curses, max_curses, width=10)
+            details.append(f"저주 스택: {curse_bar} ({curses}/{max_curses})")
+            details.append(" 저주 스택을 소비하여 강력한 주술 사용 가능")
 
         # 바드 - 선율 시스템 (YAML: melody_system)
         elif gimmick_type == "melody_system":

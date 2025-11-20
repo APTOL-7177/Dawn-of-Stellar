@@ -92,7 +92,7 @@ def create_gladiator_skills():
     # 8. 불굴의 투지 (HP 회복 + 환호 회복)
     indomitable_will = Skill("gladiator_will", "불굴의 투지", "HP 30% 회복 + 환호 +25")
     indomitable_will.effects = [
-        HealEffect(percentage=0.45),  # 불굴의 투지
+        HealEffect(percentage=0.53),  # 불굴의 투지 (0.45 → 0.53 증가)
         GimmickEffect(GimmickOperation.ADD, "cheer", 25, max_value=100),  # 환호 +25
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3)
     ]

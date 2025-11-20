@@ -86,7 +86,7 @@ def create_dimensionist_skills():
         # 쿨다운 리셋 효과 (메타데이터로 표시)
         BuffEffect(BuffType.SPEED_UP, 0.8, duration=2),
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=2),
-        HealEffect(percentage=0.33)  # 시간 되돌리기
+        HealEffect(percentage=0.42)  # 시간 되돌리기 (0.33 → 0.42 증가)
     ]
     time_rewind.costs = [MPCost(10)]
     time_rewind.target_type = "self"

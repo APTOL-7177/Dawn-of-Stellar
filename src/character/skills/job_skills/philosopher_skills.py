@@ -57,7 +57,7 @@ def create_philosopher_skills():
     choose_sacrifice = Skill("philosopher_choose_sacrifice", "희생 선택", "아군 HP 30% 회복")
     choose_sacrifice.effects = [
         GimmickEffect(GimmickOperation.ADD, "choice_sacrifice", 1, max_value=99),  # 희생 선택 카운트 +1
-        HealEffect(percentage=0.36),  # 희생 선택
+        HealEffect(percentage=0.44),  # 희생 선택 (0.36 → 0.44 증가)
         BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=3)
     ]
     choose_sacrifice.costs = [MPCost(7)]
@@ -70,7 +70,7 @@ def create_philosopher_skills():
     choose_survival = Skill("philosopher_choose_survival", "생존 선택", "자신 HP 30% 회복")
     choose_survival.effects = [
         GimmickEffect(GimmickOperation.ADD, "choice_survival", 1, max_value=99),  # 생존 선택 카운트 +1
-        HealEffect(percentage=0.36),  # 생존 선택
+        HealEffect(percentage=0.44),  # 생존 선택 (0.36 → 0.44 증가)
         BuffEffect(BuffType.EVASION_UP, 0.3, duration=3)
     ]
     choose_survival.costs = [MPCost(7)]

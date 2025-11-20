@@ -78,7 +78,7 @@ def create_engineer_skills():
     emergency_repair = Skill("engineer_emergency_repair", "긴급 수리",
                             "HP 30% 회복, 열 -40")
     emergency_repair.effects = [
-        HealEffect(percentage=0.52),  # 긴급 수리
+        HealEffect(percentage=0.60),  # 긴급 수리 (0.52 → 0.60 증가)
         GimmickEffect(GimmickOperation.ADD, "heat", -40, min_value=0)
     ]
     emergency_repair.costs = [MPCost(9)]

@@ -50,7 +50,7 @@ def create_priest_skills():
     # 4. 성스러운 치유
     holy_heal = Skill("priest_holy_heal", "성스러운 치유", "심판 2포인트 소비, 회복")
     holy_heal.effects = [
-        HealEffect(HealType.HP, percentage=0.32),  # 성스러운 치유
+        HealEffect(HealType.HP, percentage=0.45),  # 성스러운 치유 (0.32 → 0.45 증가)
         GimmickEffect(GimmickOperation.CONSUME, "judgment_points", 2)
     ]
     holy_heal.costs = [MPCost(5), StackCost("judgment_points", 2)]

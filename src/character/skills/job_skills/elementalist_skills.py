@@ -45,7 +45,7 @@ def create_elementalist_skills():
     summon_water.effects = [
         GimmickEffect(GimmickOperation.ADD, "spirit_water", 1, max_value=1),
         BuffEffect(BuffType.MP_REGEN, 5, duration=99),
-        HealEffect(percentage=0.27)  # 물 정령 소환
+        HealEffect(percentage=0.36)  # 물 정령 소환 (0.27 → 0.36 증가)
     ]
     summon_water.costs = [MPCost(4)]
     summon_water.target_type = "self"

@@ -3,7 +3,8 @@
 
 실시간 전투를 위한 ATB 시스템 개조
 - 항상 ATB 증가
-- 행동 선택 중 1/30 감소
+- 불릿타임 상시 적용 (1/4 속도)
+- ATB 증가량 1/2로 감소
 - 1.5초 대기 예외 처리
 """
 
@@ -32,9 +33,9 @@ class MultiplayerATBSystem(ATBSystem):
         self.action_wait_time = MultiplayerConfig.action_wait_time  # 1.5초
         self.atb_reduction_multiplier = MultiplayerConfig.atb_reduction_multiplier  # 1/50 = 0.02
         
-        # 불릿타임 모드 업데이트 주기 (30배 늦춤)
+        # 불릿타임 모드 업데이트 주기 (상시 적용, 속도 조정)
         self.bullet_time_update_counter = 0
-        self.bullet_time_update_interval = 30  # 30번 호출에 1번만 업데이트
+        self.bullet_time_update_interval = 4  # 4번 호출에 1번만 업데이트 (1/4 속도)
     
     def set_player_selecting(self, player_id: str, is_selecting: bool):
         """
@@ -120,8 +121,8 @@ class MultiplayerATBSystem(ATBSystem):
         gauge = self.get_gauge(combatant)
         if gauge:
             effective_speed = gauge.get_effective_speed()
-            # 속도 기반 증가량 (기존 로직과 동일)
-            speed_based_increase = (effective_speed * delta_time) / 5.0
+            # 속도 기반 증가량 (1/2로 감소)
+            speed_based_increase = (effective_speed * delta_time) / 10.0
             base_increase = speed_based_increase
         
         # 1. 액션 확인 후 1.5초 대기 중이면 모든 플레이어와 적의 ATB가 정지됨
@@ -136,14 +137,10 @@ class MultiplayerATBSystem(ATBSystem):
         불릿타임 모드가 활성화되어 있는지 확인
         
         Returns:
-            불릿타임 모드 활성화 여부
+            불릿타임 모드 활성화 여부 (멀티플레이에서는 항상 True)
         """
-        # 행동 선택 중인 플레이어가 있으면 불릿타임 활성화
-        # 캐스팅 중인 것은 행동 선택 중이 아니므로 불릿타임이 활성화되지 않음
-        if self.players_selecting_action:
-            return True
-        
-        return False
+        # 멀티플레이에서는 불릿타임을 상시 적용
+        return True
     
     def update(self, delta_time: float = 1.0, is_player_turn: bool = False) -> None:
         """
@@ -152,8 +149,8 @@ class MultiplayerATBSystem(ATBSystem):
         멀티플레이에서는 is_player_turn이 True여도 ATB가 증가합니다.
         단, 멀티플레이 규칙(행동 선택 중 1/30 속도, 1.5초 대기 등)이 적용됩니다.
         
-        불릿타임 모드(행동 선택 중)일 때는 업데이트 주기를 30배로 늘림.
-        즉, 30번 호출에 1번만 실제로 업데이트하여 1/30 속도로 느리게 흐르게 함.
+        불릿타임 모드(행동 선택 중)일 때는 업데이트 주기를 4배로 늘림.
+        즉, 4번 호출에 1번만 실제로 업데이트하여 1/4 속도로 느리게 흐르게 함.
         
         Args:
             delta_time: 경과 시간
@@ -165,28 +162,17 @@ class MultiplayerATBSystem(ATBSystem):
         # 오래된 대기 시간 정리 (1.5초 이상 지난 경우)
         self.cleanup_old_waits()
         
-        # 불릿타임 모드 확인
+        # 불릿타임 모드 확인 (상시 활성화)
         is_bullet_time = self._is_bullet_time_active()
         
-        # 불릿타임 모드일 때는 업데이트 주기를 30배로 늘림
+        # 불릿타임 모드일 때는 업데이트 주기를 늘림 (상시 적용)
         if is_bullet_time:
             self.bullet_time_update_counter += 1
-            # 30번 호출에 1번만 실제로 업데이트
+            # 4번 호출에 1번만 실제로 업데이트 (1/4 속도)
             if self.bullet_time_update_counter < self.bullet_time_update_interval:
-                # 로그: 처음 몇 번과 주기적으로
-                if self.bullet_time_update_counter <= 3 or self.bullet_time_update_counter % 10 == 0:
-                    self.logger.info(
-                        f"⏸ 불릿타임: 업데이트 건너뛰기 "
-                        f"({self.bullet_time_update_counter}/{self.bullet_time_update_interval})"
-                    )
+                # 로그 최소화 (너무 많은 로그 방지)
                 return  # 업데이트 건너뛰기
             # 카운터 리셋
-            self.bullet_time_update_counter = 0
-            self.logger.info("▶ 불릿타임: 실제 업데이트 실행 (30번 중 1번)")
-        else:
-            # 불릿타임 모드가 아니면 카운터 리셋
-            if self.bullet_time_update_counter > 0:
-                self.logger.info("불릿타임 모드 해제: 카운터 리셋")
             self.bullet_time_update_counter = 0
         
         # 멀티플레이에서는 항상 ATB 증가 (is_player_turn 무시)

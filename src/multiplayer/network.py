@@ -337,18 +337,22 @@ class HostNetworkManager(NetworkManager):
                         )
                         await self._send_raw(accept_msg.to_json().encode('utf-8'), websocket)
                         
-                        # 세션 정보 전송 (호스트가 게임을 시작한 경우)
-                        if self.session and self.current_dungeon and self.current_floor is not None:
+                        # 세션 시드는 항상 전송 (게임 시작 전이라도 세션 시드는 필요)
+                        if self.session:
                             try:
-                                # 1. 세션 시드 전송
                                 seed_msg = MessageBuilder.session_seed(
                                     self.session.session_seed,
                                     self.session.session_id
                                 )
                                 await self._send_raw(seed_msg.to_json().encode('utf-8'), websocket)
                                 self.logger.info(f"세션 시드 전송: {self.session.session_seed}")
-                                
-                                # 2. 던전 데이터 전송
+                            except Exception as e:
+                                self.logger.error(f"세션 시드 전송 실패: {e}", exc_info=True)
+                        
+                        # 던전 데이터 전송 (호스트가 게임을 시작한 경우)
+                        if self.session and self.current_dungeon and self.current_floor is not None:
+                            try:
+                                # 던전 데이터 전송 (세션 시드는 이미 위에서 전송됨)
                                 from src.persistence.save_system import serialize_dungeon
                                 dungeon_seed = self.session.generate_dungeon_seed_for_floor(self.current_floor)
                                 enemies = self.current_exploration.enemies if self.current_exploration else []

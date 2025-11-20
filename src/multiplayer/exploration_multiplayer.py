@@ -96,6 +96,16 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             # 세션의 플레이어들을 초기 위치 설정
             self._initialize_player_positions()
             
+            # 로컬 플레이어 위치 동기화 및 FOV 초기화
+            if self.local_player_id and self.local_player_id in self.session.players:
+                mp_player = self.session.players[self.local_player_id]
+                if hasattr(mp_player, 'x') and hasattr(mp_player, 'y'):
+                    self.player.x = mp_player.x
+                    self.player.y = mp_player.y
+            
+            # FOV 초기 업데이트
+            self.update_fov()
+            
             # 이동 동기화 관리자 초기화
             if network_manager:
                 self.movement_sync = MovementSyncManager(
@@ -403,12 +413,20 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                         player.x = new_x
                         player.y = new_y
                         self.player_positions[player_id] = (new_x, new_y)
+                        # 로컬 플레이어인 경우 player 객체도 업데이트
+                        if player_id == self.local_player_id:
+                            self.player.x = new_x
+                            self.player.y = new_y
                     return True
                 else:
                     # 실행 중이지 않은 루프: 동기 실행
                     success = loop.run_until_complete(
                         self.movement_sync.request_move(player_id, dx, dy)
                     )
+                    # 로컬 플레이어인 경우 위치 업데이트
+                    if success and player_id == self.local_player_id and hasattr(player, 'x') and hasattr(player, 'y'):
+                        self.player.x = player.x
+                        self.player.y = player.y
                     return success
             except RuntimeError:
                 # 이벤트 루프가 없는 경우: 직접 처리
@@ -418,6 +436,10 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     player.x = new_x
                     player.y = new_y
                     self.player_positions[player_id] = (new_x, new_y)
+                    # 로컬 플레이어인 경우 player 객체도 업데이트
+                    if player_id == self.local_player_id:
+                        self.player.x = new_x
+                        self.player.y = new_y
                     # 비동기 브로드캐스트는 나중에 처리
                     return True
         
@@ -430,6 +452,10 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             player.x = new_x
             player.y = new_y
             self.player_positions[player_id] = (new_x, new_y)
+            # 로컬 플레이어인 경우 player 객체도 업데이트
+            if player_id == self.local_player_id:
+                self.player.x = new_x
+                self.player.y = new_y
             
             # 모든 클라이언트에게 이동 브로드캐스트
             if self.network_manager:
@@ -491,6 +517,108 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     continue
         
         return True
+    
+    def move_player(self, dx: int, dy: int):
+        """
+        플레이어 이동 (멀티플레이 오버라이드)
+        
+        Args:
+            dx: X 방향 이동량
+            dy: Y 방향 이동량
+            
+        Returns:
+            ExplorationResult
+        """
+        if not self.is_multiplayer or not self.session or not self.local_player_id:
+            # 싱글플레이 모드: 부모 클래스 로직 사용
+            return super().move_player(dx, dy)
+        
+        # 멀티플레이 모드: update_player_movement 사용
+        if self.local_player_id not in self.session.players:
+            self.logger.warning(f"로컬 플레이어 {self.local_player_id}가 세션에 없습니다")
+            return super().move_player(dx, dy)
+        
+        # 목적지 위치 계산
+        mp_player = self.session.players[self.local_player_id]
+        if not hasattr(mp_player, 'x') or not hasattr(mp_player, 'y'):
+            from src.world.exploration import ExplorationResult, ExplorationEvent
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="플레이어 위치 정보가 없습니다"
+            )
+        
+        new_x = mp_player.x + dx
+        new_y = mp_player.y + dy
+        
+        # 이동 가능 체크
+        from src.world.tile import TileType
+        if not self.dungeon.is_walkable(new_x, new_y):
+            tile = self.dungeon.get_tile(new_x, new_y)
+            if tile and tile.tile_type == TileType.LOCKED_DOOR:
+                return self._handle_locked_door(tile)
+            from src.world.exploration import ExplorationResult, ExplorationEvent
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이동할 수 없습니다"
+            )
+        
+        # 적과의 충돌 확인 (이동 전에!)
+        enemy = self.get_enemy_at(new_x, new_y)
+        if enemy:
+            self.logger.info(f"적 발견! 전투 트리거 at ({enemy.x}, {enemy.y})")
+            # 플레이어는 이동하지 않고 전투만 트리거
+            return self._trigger_combat_with_enemy(enemy)
+        
+        # 이동 업데이트
+        success = self.update_player_movement(self.local_player_id, dx, dy)
+        
+        if not success:
+            # 이동 실패
+            from src.world.exploration import ExplorationResult, ExplorationEvent
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이동할 수 없습니다"
+            )
+        
+        # 로컬 플레이어 위치도 업데이트 (렌더링 및 FOV 계산용)
+        if hasattr(mp_player, 'x') and hasattr(mp_player, 'y'):
+            old_x, old_y = self.player.x, self.player.y
+            self.player.x = mp_player.x
+            self.player.y = mp_player.y
+            
+            # 위치가 변경되었거나 초기화 후라면 FOV 업데이트
+            if old_x != self.player.x or old_y != self.player.y:
+                self.update_fov()
+            # 항상 FOV 업데이트 (안전장치)
+            self.update_fov()
+        
+        # 타일 이벤트 체크
+        tile = self.dungeon.get_tile(self.player.x, self.player.y)
+        result = self._check_tile_event(tile) if tile else None
+        
+        # NPC 이동 (플레이어 이동 후)
+        self._move_npcs()
+        
+        # 적 움직임 후 플레이어 위치에 적이 있는지 다시 체크 (호스트만)
+        if self.is_host:
+            enemy_at_player = self.get_enemy_at(self.player.x, self.player.y)
+            if enemy_at_player:
+                self.logger.info(f"적이 플레이어에게 접근! 전투 시작")
+                return self._trigger_combat_with_enemy(enemy_at_player)
+        
+        if result is None:
+            # 기본 결과 반환
+            from src.world.exploration import ExplorationResult, ExplorationEvent
+            result = ExplorationResult(
+                success=True,
+                event=ExplorationEvent.NONE,
+                message=""
+            )
+        
+        return result
     
     def _handle_single_player_movement(self, dx: int, dy: int) -> bool:
         """

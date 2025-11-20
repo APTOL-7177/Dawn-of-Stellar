@@ -365,8 +365,8 @@ class Character:
             self.current_form = None
             self.available_forms = self.gimmick_data.get("forms", ["bear", "panther", "eagle"])
 
-        # 샤먼 - 토템
-        elif gimmick_type == "totem_system":
+        # 샤먼 - 저주 (하위 호환성을 위해 totem_system도 지원)
+        elif gimmick_type == "curse_system" or gimmick_type == "totem_system":
             self.curse_stacks = 0
             self.max_curse_stacks = self.gimmick_data.get("max_curse_stacks", 10)
 

@@ -95,7 +95,7 @@ def create_berserker_skills():
     healing_roar = Skill("berserker_healing_roar", "치유의 포효",
                         "HP 30% 회복 + BRV 50% 회복 (광기↓)")
     healing_roar.effects = [
-        HealEffect(percentage=0.48),  # 치유의 포효
+        HealEffect(percentage=0.56),  # 치유의 포효 (0.48 → 0.56 증가)
         # BRV 회복 효과 추가 필요 (구현 시)
     ]
     healing_roar.costs = [MPCost(9)]

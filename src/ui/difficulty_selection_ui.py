@@ -130,7 +130,7 @@ class DifficultySelectionUI:
         }
 
         for idx, difficulty in enumerate(self.difficulties):
-            y = menu_y + idx * 7
+            y = menu_y + idx * 5
 
             # 난이도 정보 가져오기
             info = self.difficulty_system.get_difficulty_info(difficulty)
@@ -144,9 +144,9 @@ class DifficultySelectionUI:
                 pulse = math.sin(self.animation_frame / 10.0) * 10 + 20
                 bg_color = (int(pulse), int(pulse), int(pulse * 2))
 
-                # 박스 그리기 (배경색만 설정) - tcod는 [y, x] 순서 사용
+                # 박스 그리기 (배경색만 설정) - tcod는 [y, x] 순서 사용 (4줄: y ~ y+3)
                 for dx in range(menu_width):
-                    for dy in range(6):
+                    for dy in range(4):
                         console.bg[y + dy, menu_x + dx] = bg_color
 
             # 난이도 이름

@@ -111,8 +111,8 @@ def create_warrior_skills():
     # 10. 전쟁의 함성
     war_cry = Skill("warrior_war_cry", "전쟁의 함성", "적 약화 + 파티 강화")
     war_cry.effects = [
-        BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=3),
-        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3)
+        BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=3),  # 적 전체 디버프
+        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3, is_party_wide=True)  # 아군 전체 버프
     ]
     war_cry.costs = [MPCost(9)]
     war_cry.target_type = "all_enemies"

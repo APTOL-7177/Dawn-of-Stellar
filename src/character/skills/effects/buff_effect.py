@@ -59,7 +59,21 @@ class BuffEffect(SkillEffect):
         if self.target == "self":
             targets = [user]
         elif self.is_party_wide:
-            targets = context.get('party_members', [target]) if context else [target]
+            # 파티 전체 버프: combat_manager에서 allies 가져오기
+            if context:
+                combat_manager = context.get('combat_manager')
+                if combat_manager and hasattr(combat_manager, 'allies'):
+                    # user가 allies에 속하면 allies 전체, 아니면 enemies 전체
+                    if user in combat_manager.allies:
+                        targets = [a for a in combat_manager.allies if getattr(a, 'is_alive', True)]
+                    elif hasattr(combat_manager, 'enemies') and user in combat_manager.enemies:
+                        targets = [e for e in combat_manager.enemies if getattr(e, 'is_alive', True)]
+                    else:
+                        targets = context.get('party_members', [target]) if context else [target]
+                else:
+                    targets = context.get('party_members', [target]) if context else [target]
+            else:
+                targets = [target] if not isinstance(target, list) else target
         else:
             targets = target if isinstance(target, list) else [target]
 
