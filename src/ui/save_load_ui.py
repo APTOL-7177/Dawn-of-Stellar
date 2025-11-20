@@ -115,6 +115,8 @@ class SaveLoadUI:
                     self.closed = True
                     return True
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+            from src.audio import play_sfx
+            play_sfx("ui", "cursor_cancel")
             self.closed = True
             return True
 
@@ -141,6 +143,8 @@ class SaveLoadUI:
                     return True
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 취소
+            from src.audio import play_sfx
+            play_sfx("ui", "cursor_cancel")
             self.creating_new_save = False
             self.name_input = None
         elif event and event.sym == tcod.event.KeySym.BACKSPACE:

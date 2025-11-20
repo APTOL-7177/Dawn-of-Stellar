@@ -12,6 +12,7 @@ import random
 
 from src.ui.input_handler import InputHandler, GameAction
 from src.core.logger import get_logger, Loggers
+from src.audio import play_sfx
 from src.equipment.item_system import (
     Consumable, Equipment, ItemType, ItemRarity, EquipSlot,
     CONSUMABLE_TEMPLATES, WEAPON_TEMPLATES, ARMOR_TEMPLATES, ACCESSORY_TEMPLATES
@@ -372,6 +373,7 @@ class GoldShopUI:
 
         elif action == GameAction.ESCAPE or action == GameAction.MENU:
             # 상점 닫기
+            play_sfx("ui", "cursor_cancel")
             return True
 
         return False

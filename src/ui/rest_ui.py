@@ -13,6 +13,7 @@ from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler
 from src.ui.cooking_ui import open_cooking_pot
 from src.core.logger import get_logger
+from src.audio import play_sfx
 
 
 logger = get_logger("rest_ui")
@@ -157,6 +158,7 @@ def open_rest_menu(
                     return "cancel"
             elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
                 logger.info("휴식 취소")
+                play_sfx("ui", "cursor_cancel")
                 return "cancel"
 
             # 윈도우 닫기
@@ -265,6 +267,8 @@ def show_message_box(
             action = handler.dispatch(event)
 
             if action in [GameAction.CONFIRM, GameAction.CANCEL, GameAction.ESCAPE]:
+                if action != GameAction.CONFIRM:  # CONFIRM은 확인이므로 다른 효과음
+                    play_sfx("ui", "cursor_cancel")
                 return
 
             # 윈도우 닫기

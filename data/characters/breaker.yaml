@@ -58,6 +58,6 @@ skills:
 - break_enhance
 - mega_crush
 bonuses:
-  brv_damage: 1.4
-  break_bonus: 2.0
-  shield_penetration: 0.4
+  brv_damage: 1.15
+  break_bonus: 1.4
+  shield_penetration: 0.15

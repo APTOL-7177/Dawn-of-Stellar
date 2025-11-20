@@ -3,7 +3,7 @@
 # 게임 기본 설정
 game:
   title: "Dawn of Stellar - 별빛의 여명"
-  version: "5.0.0"
+  version: "6.0.0"
   language: "ko"  # ko, en
 
 # 개발 모드

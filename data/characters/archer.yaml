@@ -129,6 +129,6 @@ skills:
 - archer_mark_holy
 - archer_ultimate
 bonuses:
-  accuracy_bonus: 20
-  critical_rate: 1.2
-  range_damage: 1.15
+  accuracy_bonus: 10
+  critical_rate: 1.1
+  range_damage: 1.08

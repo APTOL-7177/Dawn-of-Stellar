@@ -447,7 +447,7 @@ class MainMenu:
         console.print(self.screen_width // 2 + 2, title_start_y + 17, "✦", fg=(bottom_brightness, bottom_brightness, 255))
 
         # 버전 정보
-        version = "v5.0.0"
+        version = "v6.0.0"
         console.print(
             self.screen_width - len(version) - 2,
             self.screen_height - 2,

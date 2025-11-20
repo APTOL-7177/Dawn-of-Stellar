@@ -59,6 +59,6 @@ skills:
 - cannonball
 - treasure_call
 bonuses:
-  gold_bonus: 1.5
-  item_drop: 1.4
-  luck_to_crit: 0.01
+  gold_bonus: 1.2
+  item_drop: 1.15
+  luck_to_crit: 0.005

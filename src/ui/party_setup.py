@@ -17,7 +17,7 @@ from src.ui.input_handler import GameAction, InputHandler
 from src.core.logger import get_logger
 from src.core.config import get_config
 from src.persistence.meta_progress import get_meta_progress
-from src.audio import play_bgm
+from src.audio import play_bgm, play_sfx
 import random
 
 
@@ -901,6 +901,7 @@ class PartySetup:
                     self.logger.debug(f"메뉴 재생성 후: 커서 위치={self.trait_menu.cursor_index if self.trait_menu else None}, 선택된 특성={member.selected_traits}")
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 이전 단계로 (이름 입력 - 현재 슬롯)
+            play_sfx("ui", "cursor_cancel")
             self.state = "name_input"
             self._create_name_input()
         
@@ -1090,6 +1091,7 @@ class PartySetup:
                         self.passive_menu.cursor_index = current_cursor
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 이전 단계로 (마지막 멤버의 특성 선택)
+            play_sfx("ui", "cursor_cancel")
             self.current_slot = 3
             self.state = "trait_select"
             self.trait_menu = None
@@ -1148,6 +1150,7 @@ class PartySetup:
 
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 이전 슬롯으로 또는 취소
+            play_sfx("ui", "cursor_cancel")
             if self.current_slot > 0:
                 self.current_slot -= 1
                 if self.current_slot < len(self.party):
@@ -1250,6 +1253,7 @@ class PartySetup:
             return True
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 마지막 멤버 수정
+            play_sfx("ui", "cursor_cancel")
             self.current_slot = 3
             self.state = "name_input"
             self._create_name_input()

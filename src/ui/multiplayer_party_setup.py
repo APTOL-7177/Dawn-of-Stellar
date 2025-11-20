@@ -25,6 +25,7 @@ from src.ui.party_setup import PartyMember
 from src.multiplayer.session import MultiplayerSession
 from src.multiplayer.network import HostNetworkManager, ClientNetworkManager
 from src.multiplayer.protocol import MessageType, MessageBuilder
+from src.audio import play_sfx
 
 
 logger = get_logger("multiplayer.party_setup")
@@ -399,6 +400,7 @@ class MultiplayerPartySetup:
         
         elif action == GameAction.CANCEL:
             # 이전 슬롯으로 돌아가기
+            play_sfx("ui", "cursor_cancel")
             if len(self.party) > 0:
                 # 마지막 선택한 직업 해제
                 last_member = self.party.pop()

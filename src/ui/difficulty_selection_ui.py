@@ -13,6 +13,7 @@ from src.core.difficulty import DifficultyLevel, DifficultySystem
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction
 from src.core.logger import get_logger
+from src.audio import play_sfx
 
 
 logger = get_logger("difficulty_ui")
@@ -73,6 +74,7 @@ class DifficultySelectionUI:
             return True
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 취소 시 기본 난이도 (보통)
+            play_sfx("ui", "cursor_cancel")
             self.selected_difficulty = DifficultyLevel.NORMAL
             self.difficulty_system.set_difficulty(self.selected_difficulty)
             self.closed = True

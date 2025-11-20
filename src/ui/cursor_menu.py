@@ -412,12 +412,11 @@ class TextInputBox:
             bg=Colors.DARK_GRAY
         )
 
-        # 입력된 텍스트
-        display_text = self.text + "_"  # 커서 표시
+        # 입력된 텍스트 (커서 표시 없이 - 활성화된 박스는 호출자가 별도로 처리)
         console.print(
             self.x + 3,
             self.y + 3,
-            display_text[:input_bg_width - 2],
+            self.text[:input_bg_width - 2],
             fg=Colors.WHITE
         )
 

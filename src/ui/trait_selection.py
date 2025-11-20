@@ -18,6 +18,7 @@ from src.ui.input_handler import GameAction, InputHandler
 from src.core.logger import get_logger
 from src.core.config import get_config
 from src.persistence.meta_progress import get_meta_progress
+from src.audio import play_sfx
 
 
 @dataclass
@@ -236,6 +237,7 @@ class TraitSelection:
                 self._create_trait_menu()
 
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+            play_sfx("ui", "cursor_cancel")
             if self.selected_count > 0:
                 # 선택 초기화
                 self.temp_selected.clear()

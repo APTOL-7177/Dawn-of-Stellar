@@ -14,6 +14,7 @@ from src.ui.input_handler import InputHandler, GameAction
 from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.persistence.meta_progress import get_meta_progress, save_meta_progress
+from src.audio import play_sfx
 
 
 logger = get_logger(Loggers.UI)
@@ -357,6 +358,7 @@ class ShopUI:
         elif action == GameAction.CONFIRM:
             return "purchase"
         elif action == GameAction.ESCAPE or action == GameAction.MENU:
+            play_sfx("ui", "cursor_cancel")
             return "close"
 
         return None

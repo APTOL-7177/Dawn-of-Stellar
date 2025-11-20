@@ -63,6 +63,8 @@ class GameMenu:
             return self.menu_options[self.selected_index][1]
         elif action == GameAction.ESCAPE:
             # ESC로 메뉴 닫기
+            from src.audio import play_sfx
+            play_sfx("ui", "cursor_cancel")
             return MenuOption.RETURN
 
         return None

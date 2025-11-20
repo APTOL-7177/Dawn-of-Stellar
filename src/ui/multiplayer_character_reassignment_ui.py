@@ -13,6 +13,7 @@ from src.ui.input_handler import GameAction, InputHandler
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.tcod_display import Colors, render_space_background
 from src.core.logger import get_logger
+from src.audio import play_sfx
 
 logger = get_logger("multiplayer.reassignment")
 
@@ -161,6 +162,7 @@ class MultiplayerCharacterReassignmentUI:
                             # 아직 할당되지 않은 캐릭터가 있으면 첫 번째로 돌아가기
                             self.selected_character_index = 0
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+            play_sfx("ui", "cursor_cancel")
             self.cancelled = True
             return True
         

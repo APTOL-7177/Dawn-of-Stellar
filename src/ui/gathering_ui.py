@@ -14,6 +14,7 @@ from src.equipment.inventory import Inventory
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, InputHandler
 from src.core.logger import get_logger
+from src.audio import play_sfx
 
 
 logger = get_logger("gathering_ui")
@@ -166,6 +167,7 @@ def show_gathering_prompt(
             if action == GameAction.CONFIRM:
                 return True
             elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+                play_sfx("ui", "cursor_cancel")
                 return False
 
             # 윈도우 닫기
@@ -251,6 +253,8 @@ def show_multi_line_message(
             action = handler.dispatch(event)
 
             if action in [GameAction.CONFIRM, GameAction.CANCEL, GameAction.ESCAPE]:
+                if action != GameAction.CONFIRM:  # CONFIRM은 확인이므로 다른 효과음
+                    play_sfx("ui", "cursor_cancel")
                 return
 
             # 윈도우 닫기

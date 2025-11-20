@@ -69,13 +69,13 @@ def show_join_game_screen(
             fg=Colors.UI_TEXT_SELECTED
         )
         
-        # 먼저 두 입력 박스를 모두 렌더링 (비활성화 상태로)
+        # 먼저 두 입력 박스를 모두 렌더링 (기본 상태)
         # IP 입력 박스 렌더링
         ip_input.render(console)
         # 포트 입력 박스 렌더링
         port_input.render(console)
         
-        # 그 다음 활성화된 박스의 테두리만 다시 그리기 (강조)
+        # 활성화된 박스의 내용과 테두리를 다시 렌더링 (강조)
         if current_input == ip_input:
             # IP 활성화: 밝은 노란색 테두리로 덮어쓰기
             console.draw_frame(
@@ -84,6 +84,31 @@ def show_join_game_screen(
                 fg=Colors.YELLOW,
                 bg=Colors.UI_BG
             )
+            # 프롬프트 다시 렌더링 (테두리 위에)
+            console.print(
+                ip_input.x + 2,
+                ip_input.y + 1,
+                ip_input.prompt,
+                fg=Colors.UI_TEXT
+            )
+            # IP 입력 필드 다시 렌더링 (커서 표시)
+            input_bg_width = ip_input.width - 4
+            console.draw_rect(
+                ip_input.x + 2,
+                ip_input.y + 3,
+                input_bg_width,
+                1,
+                ord(" "),
+                bg=Colors.DARK_GRAY
+            )
+            # 입력된 텍스트 + 커서 표시
+            display_text = ip_input.text + "_"
+            console.print(
+                ip_input.x + 3,
+                ip_input.y + 3,
+                display_text[:input_bg_width - 2],
+                fg=Colors.WHITE
+            )
         elif current_input == port_input:
             # 포트 활성화: 밝은 노란색 테두리로 덮어쓰기
             console.draw_frame(
@@ -91,6 +116,31 @@ def show_join_game_screen(
                 port_input.title,
                 fg=Colors.YELLOW,
                 bg=Colors.UI_BG
+            )
+            # 프롬프트 다시 렌더링 (테두리 위에)
+            console.print(
+                port_input.x + 2,
+                port_input.y + 1,
+                port_input.prompt,
+                fg=Colors.UI_TEXT
+            )
+            # 포트 입력 필드 다시 렌더링 (커서 표시)
+            input_bg_width = port_input.width - 4
+            console.draw_rect(
+                port_input.x + 2,
+                port_input.y + 3,
+                input_bg_width,
+                1,
+                ord(" "),
+                bg=Colors.DARK_GRAY
+            )
+            # 입력된 텍스트 + 커서 표시
+            display_text = port_input.text + "_"
+            console.print(
+                port_input.x + 3,
+                port_input.y + 3,
+                display_text[:input_bg_width - 2],
+                fg=Colors.WHITE
             )
         
         # 안내 메시지
@@ -106,6 +156,16 @@ def show_join_game_screen(
         
         # 입력 처리
         for event in tcod.event.wait():
+            # ESC 키 즉시 처리 (취소) - action 처리 전에 먼저 체크
+            if isinstance(event, tcod.event.KeyDown) and event.sym == tcod.event.KeySym.ESCAPE:
+                logger.info("게임 참가 취소 (ESC)")
+                play_sfx("ui", "cursor_cancel")
+                return None
+            
+            # 윈도우 닫기
+            if isinstance(event, tcod.event.Quit):
+                return None
+            
             action = handler.dispatch(event)
             
             # 문자 입력 처리
@@ -151,9 +211,6 @@ def show_join_game_screen(
                             logger.warning("IP 주소를 입력해주세요")
                             play_sfx("ui", "cursor_error")
                             continue
-                    elif action == GameAction.CANCEL:
-                        logger.info("게임 참가 취소")
-                        return None
                 
                 # 포트 입력 중
                 elif current_input == port_input:
@@ -198,11 +255,3 @@ def show_join_game_screen(
                             "host_address": host_address,
                             "port": port
                         }
-                    
-                    elif action == GameAction.CANCEL:
-                        logger.info("게임 참가 취소")
-                        return None
-            
-            # 윈도우 닫기
-            if isinstance(event, tcod.event.Quit):
-                return None

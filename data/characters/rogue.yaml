@@ -58,6 +58,6 @@ skills:
 - vanish
 - death_mark
 bonuses:
-  speed_multiplier: 1.3
-  critical_rate: 1.5
-  evasion_bonus: 25
+  speed_multiplier: 1.1
+  critical_rate: 1.2
+  evasion_bonus: 12

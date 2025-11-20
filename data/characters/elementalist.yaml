@@ -110,6 +110,6 @@ skills:
 - elemental_fury
 - spirit_storm
 bonuses:
-  mp_multiplier: 1.3
-  magic_damage: 1.15
-  spell_cost_reduction: 0.85
+  mp_multiplier: 1.1
+  magic_damage: 1.08
+  spell_cost_reduction: 0.92

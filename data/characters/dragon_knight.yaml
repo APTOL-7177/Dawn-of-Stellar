@@ -58,6 +58,6 @@ skills:
 - dragon_rage
 - inferno_burst
 bonuses:
-  fire_damage: 1.35
-  fire_resistance: 0.5
-  burn_chance: 0.5
+  fire_damage: 1.15
+  fire_resistance: 0.2
+  burn_chance: 0.2

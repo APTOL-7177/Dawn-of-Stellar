@@ -12,7 +12,7 @@ from src.ui.input_handler import InputHandler, GameAction
 from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.core.config import get_config
-from src.audio import get_audio_manager
+from src.audio import get_audio_manager, play_sfx
 
 
 logger = get_logger(Loggers.UI)
@@ -99,6 +99,7 @@ class SettingsUI:
                 # Enter로도 값 토글/증가
                 self._adjust_setting(1)
         elif action == GameAction.ESCAPE or action == GameAction.MENU:
+            play_sfx("ui", "cursor_cancel")
             return "close"
 
         return None
@@ -150,8 +151,13 @@ class SettingsUI:
         config.set("display.fullscreen", self.fullscreen)
         config.set("display.show_fps", self.show_fps)
         config.set("display.fps_limit", self.fps_limit)
-
-        logger.info("설정 저장됨")
+        
+        # 설정 파일에 실제로 저장
+        try:
+            config.save()
+            logger.info("설정이 파일에 저장되었습니다")
+        except Exception as e:
+            logger.error(f"설정 저장 실패: {e}", exc_info=True)
 
     def render(self, console: tcod.console.Console):
         """설정 렌더링"""

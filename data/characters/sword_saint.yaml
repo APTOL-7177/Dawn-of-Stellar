@@ -58,6 +58,6 @@ skills:
 - ultimate_blade
 - thousand_cuts
 bonuses:
-  critical_rate: 1.4
-  critical_damage: 1.5
-  single_target_bonus: 1.4
+  critical_rate: 1.15
+  critical_damage: 1.2
+  single_target_bonus: 1.15

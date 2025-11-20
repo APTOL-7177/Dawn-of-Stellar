@@ -9,7 +9,7 @@ base_stats:
   physical_attack: 33
   physical_defense: 28
   magic_attack: 88
-  magic_defense: 72
+  magic_defense: 96
   max_brv: 422
 stat_growth:
   hp: 8.8
@@ -86,6 +86,6 @@ skills:
 - dimensional_rift
 - reality_warp
 bonuses:
-  luck_multiplier: 1.5
-  retry_chance: 0.3
-  critical_rate: 1.3
+  luck_multiplier: 1.15
+  retry_chance: 0.12
+  critical_rate: 1.1

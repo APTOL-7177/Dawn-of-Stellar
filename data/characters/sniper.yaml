@@ -69,6 +69,6 @@ skills:
 - sniper_perfect_aim
 - sniper_deadeye
 bonuses:
-  critical_rate: 1.8
-  critical_damage: 2.5
-  single_target_bonus: 1.6
+  critical_rate: 1.25
+  critical_damage: 1.5
+  single_target_bonus: 1.2
