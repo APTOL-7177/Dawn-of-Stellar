@@ -88,8 +88,7 @@ class CombatManager:
         """
         self.logger.info("전투 시작!")
 
-        # 전투원 설정
-        self.allies = allies
+        # 전투원 설정 (PartyMember 변환은 아래에서 처리)
         self.enemies = enemies
         self.turn_count = 0
         self.state = CombatState.IN_PROGRESS
@@ -107,12 +106,55 @@ class CombatManager:
             self.cooking_cooldown_turn = None
             self.cooking_cooldown_duration = 0
 
+        # PartyMember를 Character로 변환 (unhashable 타입 문제 해결)
+        from src.ui.party_setup import PartyMember
+        from src.character.character import Character
+        converted_allies = []
+        for ally in allies:
+            if isinstance(ally, PartyMember):
+                # PartyMember를 Character로 변환
+                char = Character(
+                    name=ally.character_name,
+                    character_class=ally.job_id,
+                    level=getattr(ally, 'level', 1)
+                )
+                # PartyMember의 속성을 Character에 복사
+                if hasattr(ally, 'player_id'):
+                    char.player_id = ally.player_id
+                if hasattr(ally, 'selected_traits') and ally.selected_traits:
+                    for trait_id in ally.selected_traits:
+                        char.activate_trait(trait_id)
+                # 스탯 복사 (stats가 StatManager인 경우)
+                if hasattr(ally, 'stats') and ally.stats:
+                    from src.character.stats import Stats
+                    # stats가 딕셔너리인 경우 StatManager에 적용
+                    if isinstance(ally.stats, dict):
+                        for stat_name, value in ally.stats.items():
+                            try:
+                                stat_enum = Stats[stat_name.upper()]
+                                char.stat_manager.set_value(stat_enum, value)
+                            except (KeyError, AttributeError):
+                                pass
+                    elif hasattr(ally.stats, 'get_value'):
+                        # StatManager 객체인 경우 복사
+                        for stat in Stats:
+                            try:
+                                value = ally.stats.get_value(stat)
+                                char.stat_manager.set_value(stat, value)
+                            except:
+                                pass
+                converted_allies.append(char)
+            else:
+                converted_allies.append(ally)
+        
+        self.allies = converted_allies
+        
         # 보호 관계 초기화 (이전 전투의 오래된 참조 제거)
-        self._clear_protection_relationships(allies)
+        self._clear_protection_relationships(self.allies)
         
         # ATB 시스템에 전투원 등록
         import random
-        for ally in allies:
+        for ally in self.allies:
             self.atb.register_combatant(ally)
             self.brave.initialize_brv(ally)
             # ATB 게이지를 0~50% 랜덤하게 채우기

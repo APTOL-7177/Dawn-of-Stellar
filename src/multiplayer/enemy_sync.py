@@ -214,8 +214,23 @@ class EnemySyncManager:
         if hasattr(enemy, 'id') and enemy.id:
             return str(enemy.id)
         
-        # 없으면 위치 기반 ID (임시)
-        return f"enemy_{enemy.x}_{enemy.y}"
+        # SimpleEnemy의 경우 enemy_id 사용
+        if hasattr(enemy, 'enemy_id') and enemy.enemy_id:
+            # 전투 중인 적은 위치 기반 ID와 enemy_id를 결합
+            if hasattr(enemy, 'x') and hasattr(enemy, 'y'):
+                return f"{enemy.enemy_id}_{enemy.x}_{enemy.y}"
+            return str(enemy.enemy_id)
+        
+        # 없으면 spawn 위치 기반 ID (안정적)
+        if hasattr(enemy, 'spawn_x') and hasattr(enemy, 'spawn_y'):
+            return f"enemy_{enemy.spawn_x}_{enemy.spawn_y}"
+        
+        # 최후의 수단: 현재 위치 기반 ID
+        if hasattr(enemy, 'x') and hasattr(enemy, 'y'):
+            return f"enemy_{enemy.x}_{enemy.y}"
+        
+        # ID를 생성할 수 없으면 기본값
+        return f"enemy_unknown_{id(enemy)}"
     
     def get_enemy_position(self, enemy_id: str) -> Optional[Tuple[int, int]]:
         """

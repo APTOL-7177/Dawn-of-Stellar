@@ -47,6 +47,7 @@ class Enemy:
     level: int
     name: str = "적"  # 적 이름
     is_boss: bool = False
+    id: Optional[str] = None  # 고유 ID (멀티플레이 동기화용)
 
     # AI 상태
     spawn_x: int = None  # 생성 위치 X
@@ -62,6 +63,10 @@ class Enemy:
             self.spawn_x = self.x
         if self.spawn_y is None:
             self.spawn_y = self.y
+        # 고유 ID가 없으면 생성 (spawn 위치 기반)
+        if self.id is None:
+            import uuid
+            self.id = f"enemy_{self.spawn_x}_{self.spawn_y}_{uuid.uuid4().hex[:8]}"
 
 
 @dataclass
