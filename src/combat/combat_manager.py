@@ -1821,8 +1821,32 @@ class CombatManager:
 
         # 모든 아군이 죽었는가?
         if all(self._is_defeated(ally) for ally in self.allies):
-            self._end_combat(CombatState.DEFEAT)
-            return
+            # 멀티플레이 모드: 모든 플레이어의 모든 캐릭터가 죽었는지 확인
+            if hasattr(self, 'session') and self.session:
+                all_players_dead = True
+                for player_id, player in self.session.players.items():
+                    if hasattr(player, 'party') and player.party:
+                        # 플레이어의 파티 중 살아있는 캐릭터가 있는지 확인
+                        has_alive = False
+                        for char in player.party:
+                            if hasattr(char, 'is_alive') and char.is_alive:
+                                has_alive = True
+                                break
+                            elif hasattr(char, 'current_hp') and char.current_hp > 0:
+                                has_alive = True
+                                break
+                        if has_alive:
+                            all_players_dead = False
+                            break
+                
+                if all_players_dead:
+                    self.logger.info("모든 플레이어의 모든 캐릭터가 죽었습니다. 게임오버.")
+                    self._end_combat(CombatState.DEFEAT)
+                    return
+            else:
+                # 싱글플레이 모드: 전투 참여자만 체크
+                self._end_combat(CombatState.DEFEAT)
+                return
 
     def _is_defeated(self, character: Any) -> bool:
         """캐릭터가 전투 불능 상태인지 확인"""
@@ -1842,7 +1866,8 @@ class CombatManager:
         Args:
             characters: 현재 전투에 참여하는 캐릭터 리스트
         """
-        character_set = set(characters)
+        # PartyMember는 hashable하지 않으므로 리스트로 비교
+        character_list = list(characters)
         
         for character in characters:
             # protected_allies: 이 캐릭터가 보호하는 아군 목록
@@ -1851,10 +1876,10 @@ class CombatManager:
                 if not isinstance(character.protected_allies, list):
                     character.protected_allies = []
                 else:
-                    # 현재 전투에 참여하는 캐릭터만 유지
+                    # 현재 전투에 참여하는 캐릭터만 유지 (리스트로 비교)
                     character.protected_allies = [
                         ally for ally in character.protected_allies
-                        if ally in character_set
+                        if ally in character_list
                     ]
             
             # protected_by: 이 캐릭터를 보호하는 캐릭터 목록
@@ -1863,10 +1888,10 @@ class CombatManager:
                 if not isinstance(character.protected_by, list):
                     character.protected_by = []
                 else:
-                    # 현재 전투에 참여하는 캐릭터만 유지
+                    # 현재 전투에 참여하는 캐릭터만 유지 (리스트로 비교)
                     character.protected_by = [
                         guardian for guardian in character.protected_by
-                        if guardian in character_set
+                        if guardian in character_list
                     ]
 
     def _end_combat(self, state: CombatState) -> None:

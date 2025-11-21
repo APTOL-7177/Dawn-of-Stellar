@@ -30,6 +30,8 @@ class TileType(Enum):
     PUZZLE = "puzzle"  # 퍼즐
     SHOP = "shop"  # 상점
     ITEM = "item"  # 떨어진 아이템/장비
+    DROPPED_ITEM = "dropped_item"  # 플레이어가 드롭한 아이템
+    GOLD = "gold"  # 떨어진 골드
     INGREDIENT = "ingredient"  # 채집 가능한 식재료
     SWITCH = "switch"  # 스위치
     PRESSURE_PLATE = "pressure_plate"  # 압력판
@@ -74,6 +76,8 @@ class Tile:
     loot_id: Optional[str] = None  # 전리품 ID (상자)
     ingredient_id: Optional[str] = None  # 식재료 ID
     harvested: bool = False  # 수확 여부
+    dropped_item: Optional[Any] = None  # 드롭된 아이템 객체
+    gold_amount: int = 0  # 드롭된 골드 양
     puzzle_type: Optional[str] = None  # 퍼즐 타입
     puzzle_solved: bool = False  # 퍼즐 해결 여부
     switch_active: bool = False  # 스위치 활성화 여부
@@ -194,6 +198,18 @@ class Tile:
             self.transparent = True
             self.char = "i"
             self.fg_color = (255, 255, 100)
+
+        elif self.tile_type == TileType.DROPPED_ITEM:
+            self.walkable = True
+            self.transparent = True
+            self.char = "%"
+            self.fg_color = (255, 200, 100)
+
+        elif self.tile_type == TileType.GOLD:
+            self.walkable = True
+            self.transparent = True
+            self.char = "$"
+            self.fg_color = (255, 215, 0)
 
         elif self.tile_type == TileType.INGREDIENT:
             self.walkable = True

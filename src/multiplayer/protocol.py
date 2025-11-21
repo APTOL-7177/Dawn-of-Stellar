@@ -27,11 +27,15 @@ class MessageType(Enum):
     PLAYER_LEFT = "player_left"
     
     # 파티 설정 관련
+    LOBBY_COMPLETE = "lobby_complete"  # 로비 완료 (파티 설정 시작)
     JOB_SELECTED = "job_selected"
     JOB_DESELECTED = "job_deselected"
+    JOB_SELECTION_COMPLETE = "job_selection_complete"  # 플레이어가 직업 선택 완료
+    TURN_CHANGED = "turn_changed"  # 직업 선택 턴 변경
     REQUEST_JOB = "request_job"
     RELEASE_JOB = "release_job"
     PASSIVES_SET = "passives_set"
+    GAME_START = "game_start"  # 게임 시작 (호스트가 패시브/난이도 선택 완료 후)
     
     # 캐릭터 상태
     CHARACTER_DEATH = "character_death"
@@ -60,6 +64,9 @@ class MessageType(Enum):
     # 적 관련
     ENEMY_MOVE = "enemy_move"
     
+    # NPC 관련
+    NPC_MOVE = "npc_move"
+    
     # 전투 합류
     COMBAT_AUTO_JOIN = "combat_auto_join"
     
@@ -73,6 +80,11 @@ class MessageType(Enum):
     # 던전
     DUNGEON_DATA = "dungeon_data"
     FLOOR_CHANGE = "floor_change"
+    
+    # 채집/아이템
+    HARVEST = "harvest"  # 채집 오브젝트 수집
+    ITEM_DROPPED = "item_dropped"  # 아이템 드롭
+    GOLD_DROPPED = "gold_dropped"  # 골드 드롭
 
 
 @dataclass
@@ -105,7 +117,30 @@ class NetworkMessage:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "NetworkMessage":
         """딕셔너리에서 메시지 생성"""
-        msg_type = MessageType(data["type"])
+        # 타입 파싱 (문자열 또는 이미 MessageType인 경우 처리)
+        type_value = data.get("type")
+        if isinstance(type_value, MessageType):
+            msg_type = type_value
+        elif isinstance(type_value, str):
+            try:
+                # 먼저 직접 변환 시도
+                msg_type = MessageType(type_value)
+            except ValueError:
+                # "MessageType.CONNECT" 같은 형식일 수 있음
+                if "MessageType." in type_value:
+                    enum_name = type_value.split(".")[-1]
+                    # CONNECT -> connect로 변환
+                    enum_name_lower = enum_name.lower()
+                    msg_type = MessageType(enum_name_lower)
+                else:
+                    # 소문자로 변환 시도
+                    try:
+                        msg_type = MessageType(type_value.lower())
+                    except ValueError:
+                        raise ValueError(f"Cannot parse message type: {type_value}")
+        else:
+            raise ValueError(f"Invalid message type: {type_value}")
+        
         return cls(
             type=msg_type,
             player_id=data.get("player_id"),
@@ -321,6 +356,23 @@ class MessageBuilder:
         )
     
     @staticmethod
+    def npc_move(npc_positions: Dict[str, Dict[str, Any]]) -> NetworkMessage:
+        """
+        NPC 이동 메시지 생성
+        
+        Args:
+            npc_positions: {npc_id: {"x": int, "y": int, "old_x": int, "old_y": int}}
+        """
+        import time
+        return NetworkMessage(
+            type=MessageType.NPC_MOVE,
+            timestamp=time.time(),
+            data={
+                "npcs": npc_positions
+            }
+        )
+    
+    @staticmethod
     def ping_request() -> NetworkMessage:
         """핑 요청 메시지 생성"""
         return NetworkMessage(
@@ -350,6 +402,21 @@ class MessageBuilder:
         )
     
     @staticmethod
+    def lobby_complete(player_count: int) -> NetworkMessage:
+        """
+        로비 완료 메시지 생성 (파티 설정 시작)
+        
+        Args:
+            player_count: 현재 플레이어 수
+        """
+        return NetworkMessage(
+            type=MessageType.LOBBY_COMPLETE,
+            data={
+                "player_count": player_count
+            }
+        )
+    
+    @staticmethod
     def job_selected(job_id: str, player_id: str) -> NetworkMessage:
         """직업 선택 메시지 생성"""
         return NetworkMessage(
@@ -369,6 +436,45 @@ class MessageBuilder:
             data={
                 "job_id": job_id
             }
+        )
+    
+    @staticmethod
+    def job_selection_complete(player_id: str) -> NetworkMessage:
+        """직업 선택 완료 메시지 생성"""
+        return NetworkMessage(
+            type=MessageType.JOB_SELECTION_COMPLETE,
+            player_id=player_id,
+            data={}
+        )
+    
+    @staticmethod
+    def turn_changed(current_player_id: str, player_order: List[str]) -> NetworkMessage:
+        """턴 변경 메시지 생성"""
+        return NetworkMessage(
+            type=MessageType.TURN_CHANGED,
+            data={
+                "current_player_id": current_player_id,
+                "player_order": player_order
+            }
+        )
+    
+    @staticmethod
+    def game_start(dungeon_data: Dict[str, Any], floor_number: int, dungeon_seed: int, difficulty: str, passives: Optional[List[str]] = None, player_positions: Optional[Dict[str, Tuple[int, int]]] = None) -> NetworkMessage:
+        """게임 시작 메시지 생성"""
+        data = {
+            "dungeon": dungeon_data,
+            "floor_number": floor_number,
+            "seed": dungeon_seed,
+            "difficulty": difficulty
+        }
+        if passives:
+            data["passives"] = passives
+        if player_positions:
+            # 플레이어 위치를 딕셔너리로 변환 (JSON 직렬화 가능하도록)
+            data["player_positions"] = {pid: {"x": pos[0], "y": pos[1]} for pid, pos in player_positions.items()}
+        return NetworkMessage(
+            type=MessageType.GAME_START,
+            data=data
         )
     
     @staticmethod
@@ -402,6 +508,53 @@ class MessageBuilder:
             player_id=player_id,
             data={
                 "is_visible": is_visible
+            }
+        )
+    
+    @staticmethod
+    def harvest(x: int, y: int, object_type: str) -> NetworkMessage:
+        """채집 메시지 생성"""
+        return NetworkMessage(
+            type=MessageType.HARVEST,
+            data={
+                "x": x,
+                "y": y,
+                "object_type": object_type
+            }
+        )
+    
+    @staticmethod
+    def item_picked_up(x: int, y: int) -> NetworkMessage:
+        """아이템 획득 메시지 생성"""
+        return NetworkMessage(
+            type=MessageType.ITEM_PICKED_UP,
+            data={
+                "x": x,
+                "y": y
+            }
+        )
+    
+    @staticmethod
+    def item_dropped(x: int, y: int, item_data: Dict[str, Any]) -> NetworkMessage:
+        """아이템 드롭 메시지 생성"""
+        return NetworkMessage(
+            type=MessageType.ITEM_DROPPED,
+            data={
+                "x": x,
+                "y": y,
+                "item": item_data
+            }
+        )
+    
+    @staticmethod
+    def gold_dropped(x: int, y: int, amount: int) -> NetworkMessage:
+        """골드 드롭 메시지 생성"""
+        return NetworkMessage(
+            type=MessageType.GOLD_DROPPED,
+            data={
+                "x": x,
+                "y": y,
+                "amount": amount
             }
         )
 

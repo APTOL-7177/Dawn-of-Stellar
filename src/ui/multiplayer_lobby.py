@@ -231,7 +231,7 @@ class MultiplayerLobby:
             # 깜빡이는 "시작" 메시지
             if int(self.blink_timer * 2) % 2 == 0:
                 if player_count >= 1:
-                    start_msg = "ENTER: 게임 시작"
+                    start_msg = "Z: 게임 시작"
                     console.print(
                         self.screen_width // 2 - len(start_msg) // 2,
                         y,
@@ -239,7 +239,7 @@ class MultiplayerLobby:
                         fg=Colors.UI_TEXT_SELECTED
                     )
             
-            cancel_msg = "ESC: 취소"
+            cancel_msg = "X: 취소"
             console.print(
                 self.screen_width // 2 - len(cancel_msg) // 2,
                 y + 2,
@@ -256,7 +256,7 @@ class MultiplayerLobby:
                     fg=Colors.UI_TEXT
                 )
             
-            cancel_msg = "ESC: 나가기"
+            cancel_msg = "X: 나가기"
             console.print(
                 self.screen_width // 2 - len(cancel_msg) // 2,
                 y + 2,
@@ -271,7 +271,9 @@ def show_multiplayer_lobby(
     session: MultiplayerSession,
     network_manager: Any,
     local_player_id: str,
-    is_host: bool
+    is_host: bool,
+    dungeon_data_check: Optional[Dict[str, Any]] = None,
+    lobby_complete_check: Optional[Dict[str, bool]] = None
 ) -> Optional[Dict[str, Any]]:
     """
     멀티플레이 로비 화면 표시
@@ -307,6 +309,10 @@ def show_multiplayer_lobby(
     handler = InputHandler()
     last_time = time.time()
     
+    # 디버그: 호스트 연결 상태 체크 주기 (5초마다 한 번)
+    last_connection_check = 0.0
+    connection_check_interval = 5.0
+    
     while True:
         current_time = time.time()
         delta_time = current_time - last_time
@@ -315,9 +321,75 @@ def show_multiplayer_lobby(
         # 로비 업데이트
         lobby.update(delta_time)
         
+        # 클라이언트가 던전 데이터를 받았는지 확인 (게임 시작 전 연결)
+        if not is_host and dungeon_data_check is not None:
+            if dungeon_data_check.get("dungeon_data") is not None:
+                # 던전 데이터를 받았으면 자동 완료
+                logger.info("던전 데이터 수신됨! 로비 자동 완료")
+                lobby.completed = True
+        
+        # 클라이언트가 로비 완료 메시지를 받았는지 확인 (파티 설정 시작)
+        if not is_host and lobby_complete_check is not None:
+            # 스레드 안전성을 위해 값 복사
+            try:
+                if lobby_complete_check.get("value", False):
+                    # 로비 완료 메시지를 받았으면 자동 완료 (파티 설정으로 이동)
+                    logger.info("로비 완료 메시지 수신됨! 파티 설정으로 이동")
+                    lobby.completed = True
+            except Exception as e:
+                logger.debug(f"로비 완료 체크 중 오류 (무시): {e}")
+        
+        # 클라이언트: 호스트 연결 상태 및 세션 플레이어 목록 확인 (5초마다 또는 매 프레임 체크)
+        if not is_host:
+            host_disconnected = False
+            
+            # 연결 상태 체크 (5초마다 또는 매 프레임)
+            should_check = (current_time - last_connection_check) >= connection_check_interval
+            
+            # 1. 네트워크 연결 상태 확인
+            if network_manager:
+                from src.multiplayer.network import ConnectionState
+                if network_manager.connection_state == ConnectionState.DISCONNECTED:
+                    logger.warning("호스트 연결이 끊어졌습니다. 로비를 종료합니다.")
+                    host_disconnected = True
+                elif should_check:
+                    logger.debug(f"호스트 연결 상태 확인: {network_manager.connection_state.value}")
+            
+            # 2. 세션에서 호스트가 제거되었는지 확인 (5초마다 또는 매 프레임)
+            if session and not host_disconnected:
+                # 호스트 ID 확인
+                host_id = getattr(session, 'host_id', None)
+                if host_id and host_id not in session.players:
+                    logger.warning("세션에서 호스트가 제거되었습니다. 로비를 종료합니다.")
+                    host_disconnected = True
+                # 또는 모든 플레이어가 제거되었는지 확인
+                elif len(session.players) == 0:
+                    logger.warning("세션에 플레이어가 없습니다. 로비를 종료합니다.")
+                    host_disconnected = True
+                elif should_check:
+                    logger.debug(f"세션 플레이어 수: {len(session.players)}명 (호스트: {host_id})")
+            
+            if should_check:
+                last_connection_check = current_time
+            
+            if host_disconnected:
+                return {"completed": False, "cancelled": True, "host_disconnected": True}
+        
         # 렌더링
         lobby.render(console)
         context.present(console)
+        
+        # 로비 완료 상태 확인 (렌더링 후 즉시 반환)
+        if lobby.completed:
+            return {
+                "completed": True,
+                "cancelled": False,
+                "player_count": len(session.players),
+                "local_allocation": get_character_allocation(
+                    len(session.players),
+                    is_host
+                )
+            }
         
         # 입력 처리
         for event in tcod.event.wait(timeout=0.05):

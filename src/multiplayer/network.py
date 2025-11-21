@@ -52,6 +52,9 @@ class NetworkManager:
         # 클라이언트 연결 (호스트일 때만)
         self.clients: Dict[str, ServerConnection] = {}
         
+        # 서버 이벤트 루프 참조 (동기 코드에서 브로드캐스트용)
+        self._server_event_loop: Optional[Any] = None
+        
         # 메시지 핸들러
         self.message_handlers: Dict[MessageType, List[Callable]] = {}
         
@@ -104,12 +107,19 @@ class NetworkManager:
     
     async def _send_raw(self, data: bytes, target: Optional[Any] = None):
         """원시 데이터 전송"""
-        if target:
-            await target.send(data)
-        elif self.websocket:
-            await self.websocket.send(data)
-        else:
-            self.logger.warning("전송할 연결이 없습니다")
+        try:
+            if target:
+                await target.send(data)
+            elif self.websocket:
+                await self.websocket.send(data)
+            else:
+                self.logger.warning("전송할 연결이 없습니다")
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError) as e:
+            # 연결이 이미 끊어진 경우는 예상되는 상황이므로 경고만 출력
+            self.logger.debug(f"연결이 끊어진 상태에서 메시지 전송 시도 (무시): {e}")
+        except Exception as e:
+            self.logger.error(f"데이터 전송 오류: {e}", exc_info=True)
+            raise
     
     async def send(self, message: NetworkMessage, target_id: Optional[str] = None):
         """
@@ -136,11 +146,13 @@ class NetworkManager:
                     if target_id in self.clients:
                         await self._send_raw(data, self.clients[target_id])
                 else:
-                    # 브로드캐스트
+                    # 브로드캐스트 (연결이 끊어진 클라이언트는 자동으로 예외 처리됨)
                     if self.clients:
-                        await asyncio.gather(*[
+                        # gather의 return_exceptions=True로 각 전송 실패가 전체를 중단시키지 않도록 함
+                        results = await asyncio.gather(*[
                             self._send_raw(data, client) for client in self.clients.values()
-                        ])
+                        ], return_exceptions=True)
+                        # 예외가 발생한 결과는 로그로만 기록 (이미 _send_raw에서 처리됨)
             else:
                 # 클라이언트: 호스트에게 전송
                 if self.websocket:
@@ -151,14 +163,16 @@ class NetworkManager:
     
     async def broadcast(self, message: NetworkMessage, exclude: Optional[str] = None):
         """
-        브로드캐스트 (호스트만 사용)
+        브로드캐스트 (쌍방향 동기화 - 모든 플레이어 사용 가능)
         
         Args:
             message: 브로드캐스트할 메시지
             exclude: 제외할 플레이어 ID
         """
+        # 클라이언트는 호스트에게만 전송 (호스트가 모든 클라이언트에게 브로드캐스트)
         if not self.is_host:
-            self.logger.warning("클라이언트는 브로드캐스트할 수 없습니다")
+            # 클라이언트는 호스트에게만 전송
+            await self.send(message)
             return
         
         if exclude:
@@ -197,7 +211,12 @@ class NetworkManager:
             try:
                 if self.is_host and self.clients:
                     # 호스트: 모든 클라이언트에게 핑 요청
-                    for client_id in self.clients.keys():
+                    # 딕셔너리 크기 변경 방지를 위해 리스트로 복사
+                    client_ids = list(self.clients.keys())
+                    for client_id in client_ids:
+                        # 클라이언트가 아직 연결되어 있는지 확인
+                        if client_id not in self.clients:
+                            continue
                         ping_msg = MessageBuilder.ping_request()
                         ping_msg.player_id = self.player_id
                         ping_msg.data["target_id"] = client_id
@@ -298,8 +317,15 @@ class HostNetworkManager(NetworkManager):
     
     async def start_server(self):
         """서버 시작 (사용 가능한 포트 자동 검색)"""
-        original_port = self.port
+        # 현재 실행 중인 이벤트 루프 저장 (동기 코드에서 브로드캐스트용)
+        try:
+            self._server_event_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # 이벤트 루프가 실행 중이 아니면 None으로 유지
+            self._server_event_loop = None
         
+        original_port = self.port
+
         # 사용 가능한 포트 찾기
         try:
             self.port = HostNetworkManager.find_available_port(self.port)
@@ -320,53 +346,112 @@ class HostNetworkManager(NetworkManager):
                 # 클라이언트로부터 연결 메시지 수신 대기
                 try:
                     data = await asyncio.wait_for(websocket.recv(), timeout=10.0)
+                    self.logger.debug(f"클라이언트로부터 데이터 수신: {len(data)} bytes")
                     message = await self._receive_message(data)
                     
-                    if message and message.type == MessageType.CONNECT:
-                        client_id = message.player_id
-                        self.clients[client_id] = websocket
-                        self.ping_history[client_id] = []
-                        
-                        self.logger.info(f"클라이언트 연결 승인: {client_id}")
-                        
-                        # 연결 승인 메시지 전송
-                        session_id = self.session.session_id if self.session else "unknown"
-                        accept_msg = MessageBuilder.connection_accepted(
-                            client_id,
-                            session_id
+                    if message is None:
+                        self.logger.warning(f"메시지 파싱 실패: 받은 데이터를 파싱할 수 없음 (데이터 길이: {len(data)})")
+                        await websocket.close(code=1008, reason="Invalid message format")
+                        return  # continue 대신 return 사용
+                    
+                    # 타입 확인 (디버깅용 로그 추가)
+                    self.logger.debug(f"받은 메시지 타입: {message.type}, 타입 클래스: {type(message.type)}, 값: {message.type.value if hasattr(message.type, 'value') else message.type}")
+                    self.logger.debug(f"예상 타입: {MessageType.CONNECT}, 타입 클래스: {type(MessageType.CONNECT)}, 값: {MessageType.CONNECT.value}")
+                    
+                    # 타입 비교 (값으로 비교)
+                    received_type_value = message.type.value if hasattr(message.type, 'value') else str(message.type)
+                    expected_type_value = MessageType.CONNECT.value
+                    
+                    self.logger.debug(f"메시지 타입 체크: 받은={received_type_value}, 예상={expected_type_value}, 타입 객체={message.type}, MessageType.CONNECT={MessageType.CONNECT}")
+                    
+                    # 타입이 MessageType.CONNECT인지 확인
+                    if message.type != MessageType.CONNECT:
+                        self.logger.warning(f"올바른 연결 메시지가 아닙니다: 받은 타입={received_type_value} ({message.type}), 예상={expected_type_value} ({MessageType.CONNECT})")
+                        await websocket.close(code=1008, reason=f"Expected CONNECT message, got {received_type_value}")
+                        return  # continue 대신 return 사용
+                    
+                    # CONNECT 메시지 처리
+                    client_id = message.player_id
+                    client_name = message.data.get("player_name", "플레이어")
+                    self.clients[client_id] = websocket
+                    self.ping_history[client_id] = []
+                    
+                    self.logger.info(f"클라이언트 연결 승인: {client_id} ({client_name})")
+                    
+                    # 세션에 플레이어 추가 (호스트가 세션이 있고, 플레이어가 아직 없는 경우)
+                    if self.session and client_id not in self.session.players:
+                        from src.multiplayer.player import MultiplayerPlayer
+                        new_player = MultiplayerPlayer(
+                            player_id=client_id,
+                            player_name=client_name,
+                            x=0,
+                            y=0,
+                            party=[],
+                            is_host=False
                         )
-                        await self._send_raw(accept_msg.to_json().encode('utf-8'), websocket)
-                        
-                        # 세션 시드는 항상 전송 (게임 시작 전이라도 세션 시드는 필요)
+                        self.session.add_player(new_player)
+                        self.logger.info(f"세션에 플레이어 추가: {client_name} ({client_id})")
+                    
+                    # 연결 승인 메시지 전송
+                    session_id = self.session.session_id if self.session else "unknown"
+                    accept_msg = MessageBuilder.connection_accepted(
+                        client_id,
+                        session_id
+                    )
+                    await self._send_raw(accept_msg.to_json().encode('utf-8'), websocket)
+                    
+                    # 세션 시드는 항상 전송 (게임 시작 전이라도 세션 시드는 필요)
+                    if self.session:
+                        try:
+                            seed_msg = MessageBuilder.session_seed(
+                                self.session.session_seed,
+                                self.session.session_id
+                            )
+                            await self._send_raw(seed_msg.to_json().encode('utf-8'), websocket)
+                            self.logger.info(f"세션 시드 전송: {self.session.session_seed}")
+                        except Exception as e:
+                            self.logger.error(f"세션 시드 전송 실패: {e}", exc_info=True)
+                    
+                    # 던전 데이터 전송 (호스트가 게임을 시작한 경우)
+                    if self.session and self.current_dungeon and self.current_floor is not None:
+                        try:
+                            # 던전 데이터 전송 (세션 시드는 이미 위에서 전송됨)
+                            from src.persistence.save_system import serialize_dungeon
+                            dungeon_seed = self.session.generate_dungeon_seed_for_floor(self.current_floor)
+                            enemies = self.current_exploration.enemies if self.current_exploration else []
+                            dungeon_data = serialize_dungeon(self.current_dungeon, enemies=enemies)
+                            
+                            dungeon_msg = MessageBuilder.dungeon_data(
+                                dungeon_data,
+                                self.current_floor,
+                                dungeon_seed
+                            )
+                            await self._send_raw(dungeon_msg.to_json().encode('utf-8'), websocket)
+                            self.logger.info(f"던전 데이터 전송: {self.current_floor}층")
+                            
+                            # 3. 기존 플레이어 목록 및 위치 전송
+                            players_data = []
+                            for player_id, player in self.session.players.items():
+                                players_data.append({
+                                    "player_id": player.player_id,
+                                    "player_name": player.player_name,
+                                    "x": player.x,
+                                    "y": player.y,
+                                    "is_host": player.is_host,
+                                    "party_count": len(player.party) if player.party else 0
+                                })
+                            
+                            if players_data:
+                                player_list_msg = MessageBuilder.player_list(players_data)
+                                await self._send_raw(player_list_msg.to_json().encode('utf-8'), websocket)
+                                self.logger.info(f"플레이어 목록 전송: {len(players_data)}명")
+                            
+                        except Exception as e:
+                            self.logger.error(f"세션 정보 전송 실패: {e}", exc_info=True)
+                    else:
+                        # 게임 시작 전 연결이어도 플레이어 목록은 전송
                         if self.session:
                             try:
-                                seed_msg = MessageBuilder.session_seed(
-                                    self.session.session_seed,
-                                    self.session.session_id
-                                )
-                                await self._send_raw(seed_msg.to_json().encode('utf-8'), websocket)
-                                self.logger.info(f"세션 시드 전송: {self.session.session_seed}")
-                            except Exception as e:
-                                self.logger.error(f"세션 시드 전송 실패: {e}", exc_info=True)
-                        
-                        # 던전 데이터 전송 (호스트가 게임을 시작한 경우)
-                        if self.session and self.current_dungeon and self.current_floor is not None:
-                            try:
-                                # 던전 데이터 전송 (세션 시드는 이미 위에서 전송됨)
-                                from src.persistence.save_system import serialize_dungeon
-                                dungeon_seed = self.session.generate_dungeon_seed_for_floor(self.current_floor)
-                                enemies = self.current_exploration.enemies if self.current_exploration else []
-                                dungeon_data = serialize_dungeon(self.current_dungeon, enemies=enemies)
-                                
-                                dungeon_msg = MessageBuilder.dungeon_data(
-                                    dungeon_data,
-                                    self.current_floor,
-                                    dungeon_seed
-                                )
-                                await self._send_raw(dungeon_msg.to_json().encode('utf-8'), websocket)
-                                self.logger.info(f"던전 데이터 전송: {self.current_floor}층")
-                                
-                                # 3. 기존 플레이어 목록 및 위치 전송
                                 players_data = []
                                 for player_id, player in self.session.players.items():
                                     players_data.append({
@@ -381,50 +466,97 @@ class HostNetworkManager(NetworkManager):
                                 if players_data:
                                     player_list_msg = MessageBuilder.player_list(players_data)
                                     await self._send_raw(player_list_msg.to_json().encode('utf-8'), websocket)
-                                    self.logger.info(f"플레이어 목록 전송: {len(players_data)}명")
-                                
+                                    self.logger.info(f"플레이어 목록 전송 (로비): {len(players_data)}명")
                             except Exception as e:
-                                self.logger.error(f"세션 정보 전송 실패: {e}", exc_info=True)
-                        else:
-                            self.logger.warning("세션 정보가 아직 준비되지 않음 (게임 시작 전 클라이언트 연결)")
-                        
-                        # 연결 이벤트 발생
-                        await self._handle_message(message, client_id)
-                        
-                        # 메시지 수신 루프
-                        while True:
-                            try:
-                                data = await websocket.recv()
-                                message = await self._receive_message(data, client_id)
-                                if message:
-                                    await self._handle_message(message, client_id)
-                            except websockets.exceptions.ConnectionClosed:
-                                break
-                            except Exception as e:
-                                self.logger.error(f"메시지 수신 오류: {e}", exc_info=True)
-                                break
-                    else:
-                        self.logger.warning("올바른 연결 메시지가 아닙니다")
+                                self.logger.error(f"플레이어 목록 전송 실패: {e}", exc_info=True)
+                    
+                    # 연결 이벤트 발생
+                    await self._handle_message(message, client_id)
+                    
+                    # 모든 클라이언트에게 새 플레이어 추가 알림 (브로드캐스트)
+                    if self.session:
+                        player_joined_msg = MessageBuilder.player_list([
+                            {
+                                "player_id": local_player.player_id,
+                                "player_name": local_player.player_name,
+                                "x": local_player.x,
+                                "y": local_player.y,
+                                "is_host": local_player.is_host,
+                                "party_count": len(local_player.party) if local_player.party else 0
+                            } for local_player in self.session.players.values()
+                        ])
+                        await self.broadcast(player_joined_msg)
+                        self.logger.info(f"플레이어 목록 브로드캐스트: {len(self.session.players)}명")
+                    
+                    # 메시지 수신 루프
+                    while True:
+                        try:
+                            data = await websocket.recv()
+                            message = await self._receive_message(data, client_id)
+                            if message:
+                                await self._handle_message(message, client_id)
+                        except websockets.exceptions.ConnectionClosed:
+                            self.logger.info(f"클라이언트 연결 종료: {client_id}")
+                            break
+                        except websockets.exceptions.ConnectionClosedOK:
+                            self.logger.info(f"클라이언트 연결 정상 종료: {client_id}")
+                            break
+                        except websockets.exceptions.ConnectionClosedError as e:
+                            self.logger.warning(f"클라이언트 연결 종료 오류: {client_id}, {e}")
+                            break
+                        except Exception as e:
+                            self.logger.error(f"메시지 수신 오류: {e}", exc_info=True)
+                            break
                 
+                except websockets.exceptions.ConnectionClosed:
+                    self.logger.info("클라이언트가 연결 메시지 전에 연결을 종료했습니다")
+                    return  # continue 대신 return 사용
+                except websockets.exceptions.ConnectionClosedOK:
+                    self.logger.info("클라이언트가 연결 메시지 전에 연결을 정상 종료했습니다")
+                    return  # continue 대신 return 사용
+                except websockets.exceptions.ConnectionClosedError as e:
+                    self.logger.warning(f"클라이언트 연결 종료 오류: {e}")
+                    return  # continue 대신 return 사용
                 except asyncio.TimeoutError:
-                    self.logger.warning("연결 타임아웃")
+                    self.logger.warning("연결 타임아웃: 클라이언트로부터 연결 메시지를 받지 못했습니다")
+                    try:
+                        await websocket.close(code=1008, reason="Connection timeout")
+                    except Exception:
+                        pass
+                    return  # continue 대신 return 사용
             
             except Exception as e:
                 self.logger.error(f"클라이언트 처리 오류: {e}", exc_info=True)
             finally:
                 # 클라이언트 제거
                 if client_id:
-                    if client_id in self.clients:
+                    # 먼저 세션에서 플레이어 제거
+                    player_was_in_session = False
+                    if self.session and client_id in self.session.players:
+                        self.session.remove_player(client_id)
+                        player_was_in_session = True
+                        self.logger.info(f"세션에서 플레이어 제거: {client_id}")
+                    
+                    # 클라이언트를 딕셔너리에서 제거
+                    was_in_clients = client_id in self.clients
+                    if was_in_clients:
                         del self.clients[client_id]
                     if client_id in self.ping_history:
                         del self.ping_history[client_id]
                     
-                    # 연결 종료 메시지
-                    disconnect_msg = NetworkMessage(
-                        type=MessageType.PLAYER_LEFT,
-                        player_id=client_id
-                    )
-                    await self.broadcast(disconnect_msg)
+                    # 연결 종료 메시지 브로드캐스트 (다른 클라이언트들에게만, 연결이 끊어진 클라이언트 제외)
+                    # 플레이어가 세션에 있었고 다른 클라이언트가 남아있는 경우에만 브로드캐스트
+                    if player_was_in_session and self.clients:
+                        try:
+                            disconnect_msg = NetworkMessage(
+                                type=MessageType.PLAYER_LEFT,
+                                player_id=client_id
+                            )
+                            # 연결이 끊어진 클라이언트를 제외하고 브로드캐스트
+                            await self.broadcast(disconnect_msg)
+                        except Exception as e:
+                            # 연결 종료 중일 때는 메시지 전송 실패가 흔할 수 있으므로 경고만 출력
+                            self.logger.debug(f"연결 종료 메시지 브로드캐스트 실패 (무시 가능): {e}")
                     
                     self.logger.info(f"클라이언트 연결 종료: {client_id}")
         
@@ -551,33 +683,75 @@ class ClientNetworkManager(NetworkManager):
             
             # WebSocket 연결
             self.websocket = await websockets.connect(self.ws_url)
-            self.connection_state = ConnectionState.CONNECTED
+            self.logger.info("WebSocket 연결 성공")
             
             # 연결 메시지 전송
             connect_msg = MessageBuilder.connect(player_id, player_name)
-            await self._send_raw(connect_msg.to_json().encode('utf-8'), self.websocket)
+            connect_data = connect_msg.to_json().encode('utf-8')
+            self.logger.debug(f"연결 메시지 전송: {len(connect_data)} bytes, 타입={connect_msg.type}, player_id={player_id}")
+            await self._send_raw(connect_data, self.websocket)
+            self.logger.debug("연결 메시지 전송 완료, 응답 대기 중...")
             
-            # 연결 승인 대기
+            # 연결 승인 메시지 수신 (메시지 수신 루프 시작 전에 먼저 수신)
             try:
                 data = await asyncio.wait_for(self.websocket.recv(), timeout=10.0)
+                self.logger.debug(f"호스트로부터 데이터 수신: {len(data)} bytes")
                 message = await self._receive_message(data)
+                self.logger.debug(f"메시지 파싱 완료: message={message}, type={message.type if message else None}")
                 
-                if message and message.type == MessageType.CONNECTION_ACCEPTED:
+                if message is None:
+                    self.logger.error("메시지 파싱 실패: None 반환")
+                    raise Exception("호스트로부터 받은 메시지를 파싱할 수 없습니다")
+                
+                if message.type == MessageType.CONNECTION_ACCEPTED:
                     self.logger.info("호스트 연결 승인됨")
                     session_id = message.data.get("session_id", "unknown")
                     self.logger.info(f"세션 ID: {session_id}")
                     await self._handle_message(message)
+                    self.connection_state = ConnectionState.CONNECTED
+                    
+                    # 세션 시드 메시지도 바로 수신 (호스트가 바로 보냄)
+                    try:
+                        seed_data = await asyncio.wait_for(self.websocket.recv(), timeout=5.0)
+                        seed_message = await self._receive_message(seed_data)
+                        if seed_message:
+                            await self._handle_message(seed_message, "host")
+                            self.logger.info(f"세션 시드 메시지 처리 완료: {seed_message.type}")
+                    except asyncio.TimeoutError:
+                        self.logger.warning("세션 시드 메시지 타임아웃 (백그라운드 루프에서 수신 예정)")
                 else:
-                    raise Exception("연결 거부됨")
+                    # 예상하지 못한 메시지 타입
+                    raise Exception(f"연결 거부됨: 받은 메시지 타입={message.type} (예상: {MessageType.CONNECTION_ACCEPTED})")
             
+            except websockets.exceptions.ConnectionClosedOK as e:
+                self.logger.warning(f"호스트 연결 정상 종료: {e}")
+                self.connection_state = ConnectionState.DISCONNECTED
+                raise Exception("호스트가 연결을 종료했습니다")
+            except websockets.exceptions.ConnectionClosedError as e:
+                self.logger.error(f"호스트 연결 종료 오류: {e}")
+                self.connection_state = ConnectionState.DISCONNECTED
+                raise Exception(f"호스트 연결 종료: {e}")
             except asyncio.TimeoutError:
-                raise Exception("연결 타임아웃")
+                self.logger.error("연결 승인 메시지 타임아웃: 호스트로부터 응답이 없습니다")
+                self.connection_state = ConnectionState.DISCONNECTED
+                if self.websocket:
+                    try:
+                        await self.websocket.close()
+                    except Exception:
+                        pass
+                raise Exception("연결 타임아웃: 호스트로부터 응답이 없습니다")
             
             # 핑 루프 시작
             await self.start_ping_loop()
             
             # 메시지 수신 루프 시작
             asyncio.create_task(self._receive_loop())
+            
+            # 클라이언트 이벤트 루프 참조 저장 (동기 코드에서 전송용)
+            try:
+                self._client_event_loop = asyncio.get_running_loop()
+            except RuntimeError:
+                self.logger.warning("실행 중인 이벤트 루프를 찾을 수 없습니다")
         
         except Exception as e:
             self.connection_state = ConnectionState.DISCONNECTED

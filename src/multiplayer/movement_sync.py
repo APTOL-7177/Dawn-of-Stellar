@@ -34,6 +34,7 @@ class MovementSyncManager:
         self.network_manager = network_manager
         self.is_host = is_host
         self.logger = get_logger("multiplayer.movement_sync")
+        self.exploration = None  # MultiplayerExplorationSystem 참조 (나중에 설정됨)
         
         # 이동 요청 큐 (클라이언트용)
         self.move_request_queue: list[Tuple[str, int, int, float]] = []  # [(player_id, dx, dy, timestamp)]
@@ -51,178 +52,87 @@ class MovementSyncManager:
         if not self.network_manager:
             return
         
-        # 이동 요청 핸들러 (호스트만)
+        # 호스트는 먼저 릴레이 핸들러를 등록 (클라이언트 메시지를 릴레이하기 위해)
         if self.is_host:
             self.network_manager.register_handler(
-                MessageType.MOVE_REQUEST,
-                self._handle_move_request
+                MessageType.PLAYER_MOVE,
+                self._relay_player_move
             )
         
-        # 플레이어 이동 메시지 핸들러 (모두)
+        # 플레이어 이동 메시지 핸들러 (쌍방향 동기화)
+        # 호스트: 클라이언트로부터 받은 메시지를 릴레이 후 위치 업데이트
+        # 클라이언트: 호스트로부터 받은 메시지로 위치 업데이트
         self.network_manager.register_handler(
             MessageType.PLAYER_MOVE,
             self._handle_player_move
         )
-        
-        # 위치 동기화 메시지 핸들러 (클라이언트만)
-        if not self.is_host:
-            self.network_manager.register_handler(
-                MessageType.POSITION_SYNC,
-                self._handle_position_sync
-            )
     
-    async def request_move(
+    async def broadcast_move(
         self,
         player_id: str,
-        dx: int,
-        dy: int
+        x: int,
+        y: int
     ) -> bool:
         """
-        이동 요청 (클라이언트에서 호스트로)
+        이동 메시지 전송 (쌍방향 동기화)
+        - 모든 플레이어가 직접 브로드캐스트
         
         Args:
             player_id: 플레이어 ID
-            dx: X 방향 이동량 (-1, 0, 1)
-            dy: Y 방향 이동량 (-1, 0, 1)
+            x: 새로운 X 좌표
+            y: 새로운 Y 좌표
             
         Returns:
-            요청 전송 성공 여부
+            전송 성공 여부
         """
-        if self.is_host:
-            # 호스트는 직접 처리
-            return await self._process_move(player_id, dx, dy)
-        
         if not self.network_manager:
-            self.logger.warning("네트워크 관리자가 없어 이동 요청을 보낼 수 없습니다")
+            self.logger.warning("네트워크 관리자가 없어 이동을 전송할 수 없습니다")
             return False
         
-        # 클라이언트: 호스트에게 이동 요청 전송
-        message = MessageBuilder.move_request(
+        message = MessageBuilder.player_move(
             player_id=player_id,
-            dx=dx,
-            dy=dy
+            x=x,
+            y=y
         )
         
         try:
-            await self.network_manager.send(message)
-            self.logger.debug(f"이동 요청 전송: {player_id} ({dx}, {dy})")
+            # 모든 플레이어가 직접 브로드캐스트 (쌍방향 동기화)
+            await self.network_manager.broadcast(message)
+            self.logger.debug(f"이동 브로드캐스트: {player_id} -> ({x}, {y})")
             return True
         except Exception as e:
-            self.logger.error(f"이동 요청 전송 실패: {e}", exc_info=True)
+            self.logger.error(f"이동 전송 실패: {e}", exc_info=True)
             return False
     
-    async def _handle_move_request(
+    async def _relay_player_move(
         self,
         message: NetworkMessage,
         sender_id: Optional[str] = None
     ):
         """
-        이동 요청 처리 (호스트)
+        플레이어 이동 메시지 릴레이 (호스트만)
+        클라이언트로부터 받은 이동 메시지를 모든 클라이언트에게 브로드캐스트
         
         Args:
-            message: 이동 요청 메시지
-            sender_id: 발신자 ID
+            message: 플레이어 이동 메시지
+            sender_id: 발신자 ID (클라이언트 ID)
         """
-        if not self.is_host:
+        if not self.is_host or not self.network_manager:
             return
         
-        player_id = message.player_id or sender_id
-        if not player_id:
-            self.logger.warning("이동 요청에 플레이어 ID가 없습니다")
+        # sender_id가 없으면 호스트가 직접 브로드캐스트한 것이므로 릴레이 불필요
+        if not sender_id:
+            self.logger.debug(f"호스트 자신의 이동 메시지 - 릴레이 불필요 (이미 브로드캐스트됨)")
             return
         
-        dx = message.data.get("dx", 0)
-        dy = message.data.get("dy", 0)
-        
-        # 이동 처리 및 브로드캐스트
-        await self._process_move(player_id, dx, dy)
-    
-    async def _process_move(
-        self,
-        player_id: str,
-        dx: int,
-        dy: int
-    ) -> bool:
-        """
-        이동 처리 및 브로드캐스트 (호스트)
-        
-        Args:
-            player_id: 플레이어 ID
-            dx: X 방향 이동량
-            dy: Y 방향 이동량
-            
-        Returns:
-            이동 성공 여부
-        """
+        # 클라이언트로부터 받은 메시지를 모든 클라이언트에게 브로드캐스트 (발신자 제외)
         try:
-            if not player_id or not isinstance(player_id, str):
-                self.logger.warning(f"잘못된 플레이어 ID: {player_id}")
-                return False
-            
-            if not isinstance(dx, int) or not isinstance(dy, int):
-                self.logger.warning(f"잘못된 이동량: dx={dx}, dy={dy}")
-                return False
-            
-            if player_id not in self.session.players:
-                self.logger.warning(f"플레이어 {player_id}가 세션에 없습니다")
-                return False
-            
-            player = self.session.players[player_id]
-            if not player:
-                self.logger.error(f"플레이어 {player_id} 객체가 None입니다")
-                return False
-            
-            if not hasattr(player, 'x') or not hasattr(player, 'y'):
-                self.logger.error(f"플레이어 {player_id}에 위치 속성이 없습니다")
-                return False
-            
-            try:
-                current_x = int(player.x)
-                current_y = int(player.y)
-                new_x = current_x + dx
-                new_y = current_y + dy
-            except (ValueError, TypeError, AttributeError) as e:
-                self.logger.error(f"플레이어 {player_id}의 위치를 읽을 수 없음: {e}")
-                return False
-            
-            # 위치 업데이트
-            if hasattr(player, 'update_position'):
-                try:
-                    player.update_position(new_x, new_y)
-                except Exception as e:
-                    self.logger.error(f"플레이어 위치 업데이트 실패: {e}", exc_info=True)
-                    return False
-            else:
-                # update_position 메서드가 없으면 직접 설정
-                try:
-                    player.x = new_x
-                    player.y = new_y
-                except Exception as e:
-                    self.logger.error(f"플레이어 위치 직접 설정 실패: {e}", exc_info=True)
-                    return False
-            
-            # 모든 클라이언트에게 이동 브로드캐스트
-            if self.network_manager:
-                try:
-                    move_message = MessageBuilder.player_move(
-                        player_id=player_id,
-                        x=new_x,
-                        y=new_y
-                    )
-                    await self.network_manager.broadcast(move_message)
-                except Exception as e:
-                    self.logger.error(f"이동 브로드캐스트 실패: {e}", exc_info=True)
-            
-            player_name = getattr(player, 'player_name', player_id)
-            self.logger.debug(
-                f"플레이어 {player_name} 이동: "
-                f"({current_x}, {current_y}) -> ({new_x}, {new_y})"
-            )
-            
-            return True
+            await self.network_manager.broadcast(message, exclude=sender_id)
+            player_name = getattr(self.session.players.get(message.player_id), 'player_name', message.player_id) if message.player_id in self.session.players else message.player_id
+            self.logger.info(f"플레이어 이동 메시지 릴레이: {player_name} ({message.player_id}) -> 모든 클라이언트 (발신자 제외: {sender_id})")
         except Exception as e:
-            self.logger.error(f"이동 처리 실패: {e}", exc_info=True)
-            return False
+            self.logger.error(f"플레이어 이동 메시지 릴레이 실패: {e}", exc_info=True)
+    
     
     async def _handle_player_move(
         self,
@@ -230,11 +140,14 @@ class MovementSyncManager:
         sender_id: Optional[str] = None
     ):
         """
-        플레이어 이동 메시지 처리 (모든 클라이언트)
+        플레이어 이동 메시지 처리
+        - 호스트: 클라이언트로부터 받은 메시지를 처리하고 위치 업데이트
+        - 클라이언트: 호스트로부터 받은 메시지로 위치 업데이트
+        호스트의 위치는 항상 우선시됩니다.
         
         Args:
             message: 플레이어 이동 메시지
-            sender_id: 발신자 ID (호스트)
+            sender_id: 발신자 ID
         """
         player_id = message.player_id
         if not player_id:
@@ -247,22 +160,64 @@ class MovementSyncManager:
         
         player = self.session.players[player_id]
         
-        # 로컬 플레이어는 이미 처리되었으므로 무시 (호스트에서 처리)
-        if self.is_host and player_id == self.session.host_id:
-            return
+        # 호스트 여부 확인 (호스트의 위치는 항상 우선시)
+        is_host_player = hasattr(self.session, 'host_id') and player_id == self.session.host_id
+        
+        # 로컬 플레이어 여부 확인
+        is_local_player = hasattr(self, '_local_player_id') and player_id == getattr(self, '_local_player_id', None)
         
         # 위치 업데이트
         x = message.data.get("x", player.x)
         y = message.data.get("y", player.y)
         timestamp = message.timestamp
         
-        # 타임스탬프 기반 예측 보간 (선택적)
-        player.update_position(x, y)
-        
-        self.logger.debug(
-            f"플레이어 {player.player_name} 위치 동기화: ({x}, {y}) "
-            f"(타임스탬프: {timestamp})"
-        )
+        # 호스트의 이동 메시지는 항상 우선시 (로컬 플레이어가 아니거나, 호스트가 아닌 클라이언트인 경우)
+        if is_host_player and not is_local_player:
+            # 호스트의 위치는 항상 업데이트 (우선순위 최우선)
+            old_x = player.x
+            old_y = player.y
+            
+            if hasattr(player, 'update_position'):
+                player.update_position(x, y)
+            else:
+                player.x = x
+                player.y = y
+            
+            # exploration 시스템의 player_positions도 업데이트 (렌더링용)
+            if self.exploration and hasattr(self.exploration, 'player_positions'):
+                self.exploration.player_positions[player_id] = (x, y)
+            
+            player_name = getattr(player, 'player_name', player_id)
+            self.logger.info(
+                f"[호스트 우선] 플레이어 {player_name} 위치 동기화: ({old_x}, {old_y}) -> ({x}, {y}) "
+                f"(발신자: {sender_id}, 타임스탬프: {timestamp})"
+            )
+        elif is_local_player:
+            # 로컬 플레이어의 이동 메시지는 위치 업데이트 건너뛰기 (이미 처리됨)
+            self.logger.debug(f"로컬 플레이어 {player_id}의 이동 메시지 - 위치 업데이트 건너뛰기 (이미 처리됨)")
+            # 로컬 플레이어의 메시지는 위치 업데이트 불필요 (이미 로컬에서 처리됨)
+            return
+        else:
+            # 일반 클라이언트 플레이어의 이동 메시지 처리
+            old_x = player.x
+            old_y = player.y
+            
+            # 위치 업데이트
+            if hasattr(player, 'update_position'):
+                player.update_position(x, y)
+            else:
+                player.x = x
+                player.y = y
+            
+            # exploration 시스템의 player_positions도 업데이트 (렌더링용)
+            if self.exploration and hasattr(self.exploration, 'player_positions'):
+                self.exploration.player_positions[player_id] = (x, y)
+            
+            player_name = getattr(player, 'player_name', player_id)
+            self.logger.info(
+                f"플레이어 {player_name} 위치 동기화: ({old_x}, {old_y}) -> ({x}, {y}) "
+                f"(발신자: {sender_id}, 타임스탬프: {timestamp})"
+            )
     
     async def _handle_position_sync(
         self,

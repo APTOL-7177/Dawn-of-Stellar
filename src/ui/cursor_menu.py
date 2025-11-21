@@ -421,7 +421,7 @@ class TextInputBox:
         )
 
         # 도움말
-        help_text = "Enter: 확인  ESC: 취소  Backspace: 삭제"
+        help_text = "Z: 확인  X: 취소  Backspace: 삭제"
         console.print(
             self.x + 2,
             self.y + 4,

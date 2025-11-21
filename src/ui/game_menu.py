@@ -181,7 +181,7 @@ def open_game_menu(
                     if result == MenuOption.INVENTORY:
                         if inventory is not None and party is not None:
                             from src.ui.inventory_ui import open_inventory
-                            open_inventory(console, context, inventory, party)
+                            open_inventory(console, context, inventory, party, exploration)
                             # 인벤토리에서 돌아온 후 메뉴 계속
                             continue
                         else:
@@ -200,7 +200,7 @@ def open_game_menu(
                             continue
 
                     elif result == MenuOption.PARTY_STATUS and party:
-                        open_party_status_menu(console, context, party)
+                        open_party_status_menu(console, context, party, exploration=exploration)
                         # 파티 상태에서 돌아온 후 메뉴 계속
                         continue
 
@@ -332,7 +332,8 @@ def open_game_menu(
 def open_party_status_menu(
     console: tcod.console.Console,
     context: tcod.context.Context,
-    party: List
+    party: List,
+    exploration=None
 ):
     """
     파티 상태 화면 (캐릭터 선택 가능)
@@ -341,6 +342,7 @@ def open_party_status_menu(
         console: TCOD 콘솔
         context: TCOD 컨텍스트
         party: 파티 멤버 리스트
+        exploration: 탐험 상태 (멀티플레이어에서 다른 플레이어 정보 가져오기용)
     """
     from src.ui.gauge_renderer import GaugeRenderer
     gauge_renderer = GaugeRenderer()
@@ -348,7 +350,40 @@ def open_party_status_menu(
 
     logger.info("파티 상태 화면 열림")
 
+    # 멀티플레이어에서 모든 플레이어의 파티 정보 수집
+    all_party_members = []
+    player_sections = []  # 각 플레이어 섹션의 시작 인덱스
+    
+    # 로컬 플레이어의 파티
+    local_player_name = "나의 파티"
+    if exploration and hasattr(exploration, 'session') and exploration.session:
+        local_player_id = getattr(exploration.session, 'local_player_id', None)
+        if local_player_id and local_player_id in exploration.session.players:
+            local_player_name = f"{exploration.session.players[local_player_id].player_name}의 파티"
+    
+    all_party_members.extend(party)
+    player_sections.append((0, len(party), local_player_name))
+    
+    # 멀티플레이어: 다른 플레이어의 파티 정보 추가
+    if exploration and hasattr(exploration, 'session') and exploration.session:
+        session = exploration.session
+        local_player_id = getattr(session, 'local_player_id', None)
+        
+        for player_id, mp_player in session.players.items():
+            # 로컬 플레이어는 이미 추가했으므로 건너뛰기
+            if player_id == local_player_id:
+                continue
+            
+            # 다른 플레이어의 파티 정보가 있는지 확인
+            if hasattr(mp_player, 'party') and mp_player.party:
+                start_idx = len(all_party_members)
+                all_party_members.extend(mp_player.party)
+                end_idx = len(all_party_members)
+                player_name = getattr(mp_player, 'player_name', f"플레이어 {player_id}")
+                player_sections.append((start_idx, end_idx, f"{player_name}의 파티"))
+    
     selected_index = 0
+    max_index = len(all_party_members) - 1 if all_party_members else 0
 
     while True:
         render_space_background(console, console.width, console.height)
@@ -359,33 +394,55 @@ def open_party_status_menu(
 
         # 파티원 정보 (간략)
         y = 5
-        for i, member in enumerate(party):
-            # 선택 커서
-            if i == selected_index:
-                console.print(3, y, "►", fg=(255, 255, 100))
-
-            # 이름과 직업
-            name_color = (255, 255, 255) if i == selected_index else (200, 200, 200)
-            console.print(5, y, f"{i+1}. {member.name}", fg=name_color)
-            console.print(30, y, f"Lv.{member.level}", fg=name_color)
-
-            if hasattr(member, 'job_name'):
-                console.print(40, y, member.job_name, fg=(150, 200, 255))
-            elif hasattr(member, 'character_class'):
-                console.print(40, y, member.character_class, fg=(150, 200, 255))
-
+        
+        # 플레이어 섹션별로 표시
+        current_section_idx = 0
+        for section_start, section_end, section_name in player_sections:
+            # 섹션 헤더
+            section_color = (100, 200, 255)
+            console.print(3, y, f"━━━ {section_name} ━━━", fg=section_color)
             y += 1
+            
+            # 해당 섹션의 파티원들 표시
+            for i in range(section_start, section_end):
+                if i >= len(all_party_members):
+                    break
+                
+                member = all_party_members[i]
+                
+                # 선택 커서
+                if i == selected_index:
+                    console.print(3, y, "►", fg=(255, 255, 100))
 
-            # HP
-            if hasattr(member, 'current_hp') and hasattr(member, 'max_hp'):
-                console.print(7, y, "HP:", fg=(200, 200, 200))
-                gauge_renderer.render_bar(
-                    console, 11, y, 15,
-                    member.current_hp, member.max_hp, show_numbers=True
-                )
+                # 이름과 직업
+                name_color = (255, 255, 255) if i == selected_index else (200, 200, 200)
+                member_name = getattr(member, 'name', getattr(member, 'character_name', 'Unknown'))
+                console.print(5, y, f"{i+1}. {member_name}", fg=name_color)
+                
+                level = getattr(member, 'level', 1)
+                console.print(30, y, f"Lv.{level}", fg=name_color)
+
+                if hasattr(member, 'job_name'):
+                    console.print(40, y, member.job_name, fg=(150, 200, 255))
+                elif hasattr(member, 'character_class'):
+                    console.print(40, y, member.character_class, fg=(150, 200, 255))
+
                 y += 1
 
-            y += 1  # 다음 파티원과 간격
+                # HP
+                current_hp = getattr(member, 'current_hp', 0)
+                max_hp = getattr(member, 'max_hp', 1)
+                if current_hp is not None and max_hp is not None:
+                    console.print(7, y, "HP:", fg=(200, 200, 200))
+                    gauge_renderer.render_bar(
+                        console, 11, y, 15,
+                        current_hp, max_hp, show_numbers=True
+                    )
+                    y += 1
+
+                y += 1  # 다음 파티원과 간격
+            
+            y += 1  # 섹션 간 간격
 
         # 조작법
         console.print(
@@ -404,10 +461,11 @@ def open_party_status_menu(
             if action == GameAction.MOVE_UP:
                 selected_index = max(0, selected_index - 1)
             elif action == GameAction.MOVE_DOWN:
-                selected_index = min(len(party) - 1, selected_index + 1)
+                selected_index = min(max_index, selected_index + 1)
             elif action == GameAction.CONFIRM:
                 # 선택한 캐릭터 상세 정보 표시
-                show_character_detail(console, context, party[selected_index])
+                if all_party_members and selected_index < len(all_party_members):
+                    show_character_detail(console, context, all_party_members[selected_index])
             elif action == GameAction.ESCAPE or action == GameAction.MENU:
                 return
 
@@ -437,13 +495,14 @@ def show_character_detail(
         render_space_background(console, console.width, console.height)
 
         # 제목
-        title = f"=== {character.name} 상세 정보 ==="
+        character_name = getattr(character, 'name', getattr(character, 'character_name', 'Unknown'))
+        title = f"=== {character_name} 상세 정보 ==="
         console.print((console.width - len(title)) // 2, 2, title, fg=(255, 255, 100))
 
         y = 5
 
         # 기본 정보
-        console.print(10, y, f"이름: {character.name}", fg=(255, 255, 255))
+        console.print(10, y, f"이름: {character_name}", fg=(255, 255, 255))
         y += 1
         console.print(10, y, f"레벨: {character.level}", fg=(200, 200, 200))
         y += 1

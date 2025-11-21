@@ -144,7 +144,7 @@ def show_join_game_screen(
             )
         
         # 안내 메시지
-        help_text = "Tab: 포트/IP 전환  Enter: 연결  ESC: 취소"
+        help_text = "Tab: 포트/IP 전환  Z: 연결  X: 취소"
         console.print(
             (screen_width - len(help_text)) // 2,
             screen_height - 3,

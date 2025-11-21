@@ -61,7 +61,7 @@ audio:
       tutorial: menu
       victory: fanfare
       world_map: worldmap
-  bgm_volume: 0.0
+  bgm_volume: 0.5
   master_volume: 0.8
   sfx:
     categories:
@@ -189,7 +189,7 @@ audio:
       switch_on: Switch1
       teleport: Move2
       trap_trigger: Buzzer1
-  sfx_volume: 0.0
+  sfx_volume: 0.5
 character:
   max_level: 99
   party:

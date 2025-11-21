@@ -10,6 +10,8 @@ import tcod.console
 import tcod.event
 from typing import Optional, Tuple
 from pathlib import Path
+import platform
+import sys
 
 from src.core.config import get_config
 from src.core.logger import get_logger
@@ -69,9 +71,33 @@ class TCODDisplay:
         self.logger = get_logger("display")
         self.config = get_config()
 
-        # 화면 크기
-        self.screen_width = self.config.get("display.screen_width", 80)
-        self.screen_height = self.config.get("display.screen_height", 50)
+        # 화면 크기 (기본값)
+        base_width = self.config.get("display.screen_width", 80)
+        base_height = self.config.get("display.screen_height", 50)
+        
+        # 현재 디스플레이의 종횡비 가져오기
+        display_aspect_ratio = self._get_display_aspect_ratio()
+        
+        if display_aspect_ratio:
+            # 디스플레이 종횡비에 맞춰 콘솔 크기 조정
+            current_aspect = base_width / base_height
+            
+            if abs(current_aspect - display_aspect_ratio) > 0.01:  # 종횡비가 다르면 조정
+                # 디스플레이 종횡비로 맞춤 (높이 기준)
+                self.screen_width = int(base_height * display_aspect_ratio)
+                self.screen_height = base_height
+                self.logger.info(
+                    f"콘솔 크기를 디스플레이 종횡비({display_aspect_ratio:.4f})로 조정: "
+                    f"{base_width}x{base_height} -> {self.screen_width}x{self.screen_height}"
+                )
+            else:
+                self.screen_width = base_width
+                self.screen_height = base_height
+        else:
+            # 종횡비를 가져올 수 없으면 기본값 사용
+            self.screen_width = base_width
+            self.screen_height = base_height
+            self.logger.info("디스플레이 종횡비를 가져올 수 없어 기본 크기 사용")
 
         # 패널 크기
         self.map_width = self.config.get("display.panels.map_width", 60)
@@ -88,6 +114,10 @@ class TCODDisplay:
         self.map_console: Optional[tcod.console.Console] = None
         self.sidebar_console: Optional[tcod.console.Console] = None
         self.message_console: Optional[tcod.console.Console] = None
+        
+        # 종횡비 유지 관련
+        self._last_window_size = None
+        self._aspect_ratio_check_counter = 0  # 프레임 카운터 (너무 자주 확인하지 않기 위해)
 
         self._initialize_tcod()
 
@@ -224,19 +254,65 @@ class TCODDisplay:
             }
             renderer = renderer_map.get(renderer_name.lower(), None)
 
+            # 타일 크기 가져오기
+            self._tile_width = getattr(self.tileset, 'tile_width', 10) if self.tileset else 10
+            self._tile_height = getattr(self.tileset, 'tile_height', 13) if self.tileset else 13
+            
+            # 디스플레이 종횡비 (콘솔 크기를 디스플레이 종횡비로 맞췄으므로, 타일 크기만으로 창도 해당 종횡비가 됨)
+            display_aspect_ratio = self._get_display_aspect_ratio()
+            if display_aspect_ratio:
+                self._aspect_ratio = display_aspect_ratio
+            else:
+                # 종횡비를 가져올 수 없으면 콘솔의 종횡비 사용
+                self._aspect_ratio = self.screen_width / self.screen_height
+            
+            # 콘솔 크기와 종횡비 확인
+            console_aspect = self.screen_width / self.screen_height
+            self.logger.info(
+                f"콘솔 크기: {self.screen_width}x{self.screen_height}, "
+                f"종횡비: {console_aspect:.4f} (목표: {self._aspect_ratio:.4f})"
+            )
+
             context_kwargs = {
                 "columns": self.screen_width,
                 "rows": self.screen_height,
                 "tileset": self.tileset,
                 "title": "Dawn of Stellar - 별빛의 여명",
-                "vsync": self.config.get("display.vsync", True)
+                "vsync": self.config.get("display.vsync", True),
             }
 
             if renderer is not None:
                 context_kwargs["renderer"] = renderer
                 self.logger.info(f"렌더러 사용: {renderer_name}")
 
-            self.context = tcod.context.new(**context_kwargs)
+            # 콘솔 크기를 16:9로 맞췄으므로, 타일 크기만으로 창도 자동으로 16:9가 됨
+            # TCOD는 타일 크기 * 콘솔 크기 = 창 크기를 계산하므로
+            # 콘솔이 16:9이면 창도 16:9가 됨
+            try:
+                # context 생성
+                self.context = tcod.context.new(**context_kwargs)
+                
+                # 콘솔 크기가 디스플레이 종횡비로 설정되어 있으므로, 창도 자동으로 해당 종횡비가 됨
+                # 창 크기 변경 시에도 콘솔 크기는 유지되므로 종횡비 유지
+                # 추가로 SDL 종횡비 제약 설정 (백업)
+                if display_aspect_ratio:
+                    self._set_aspect_ratio_constraint(display_aspect_ratio)
+                else:
+                    # 종횡비를 가져오지 못했어도 현재 종횡비로 설정
+                    self._set_aspect_ratio_constraint()
+                
+                self.logger.info(
+                    f"디스플레이 종횡비({self._aspect_ratio:.4f})로 초기화 완료 "
+                    f"(콘솔: {self.screen_width}x{self.screen_height}, "
+                    f"타일: {self._tile_width}x{self._tile_height})"
+                )
+                
+            except Exception as e:
+                self.logger.warning(f"컨텍스트 생성 중 오류: {e}, 기본 설정 사용")
+                try:
+                    self.context = tcod.context.new(**context_kwargs)
+                except:
+                    pass
         else:
             self.context = tcod.context.new_terminal(
                 self.screen_width,
@@ -488,7 +564,433 @@ class TCODDisplay:
     def present(self) -> None:
         """화면에 표시"""
         if self.context and self.console:
+            # 창 크기 변경 이벤트 처리
+            # 콘솔 크기가 16:9로 고정되어 있으므로, 창 크기가 변경되어도 
+            # TCOD가 콘솔 크기에 맞춰 스케일링하므로 종횡비 유지됨
+            self._handle_window_resize_events()
+            
+            # 기본 렌더링 (TCOD가 자동으로 종횡비 유지)
             self.context.present(self.console)
+            
+            # 백업: 주기적으로 종횡비 확인 (덜 자주)
+            self._aspect_ratio_check_counter += 1
+            if self._aspect_ratio_check_counter >= 60:  # 1초마다 (60fps 기준)
+                self._set_aspect_ratio_constraint()
+                self._aspect_ratio_check_counter = 0
+    
+    def _get_display_aspect_ratio(self) -> Optional[float]:
+        """현재 디스플레이의 종횡비 가져오기"""
+        try:
+            if platform.system() == "Windows":
+                try:
+                    import ctypes
+                    # Windows API 사용
+                    user32 = ctypes.windll.user32
+                    width = user32.GetSystemMetrics(0)  # SM_CXSCREEN
+                    height = user32.GetSystemMetrics(1)  # SM_CYSCREEN
+                    
+                    if width > 0 and height > 0:
+                        aspect_ratio = width / height
+                        self.logger.info(f"Windows: 디스플레이 해상도 {width}x{height}, 종횡비 {aspect_ratio:.4f}")
+                        return aspect_ratio
+                except Exception as e:
+                    self.logger.debug(f"Windows 디스플레이 종횡비 가져오기 실패: {e}")
+            
+            elif platform.system() == "Linux":
+                try:
+                    import subprocess
+                    # xrandr 사용
+                    result = subprocess.run(
+                        ["xrandr", "--current"],
+                        capture_output=True,
+                        text=True,
+                        timeout=1
+                    )
+                    if result.returncode == 0:
+                        for line in result.stdout.split('\n'):
+                            if '*' in line:  # 현재 해상도 (별표 표시)
+                                # 예: "   1920x1080      60.00*"
+                                parts = line.split()
+                                for part in parts:
+                                    if 'x' in part and '*' in part:
+                                        res = part.replace('*', '')
+                                        width, height = map(int, res.split('x'))
+                                        if width > 0 and height > 0:
+                                            aspect_ratio = width / height
+                                            self.logger.info(f"Linux: 디스플레이 해상도 {width}x{height}, 종횡비 {aspect_ratio:.4f}")
+                                            return aspect_ratio
+                except Exception as e:
+                    self.logger.debug(f"Linux 디스플레이 종횡비 가져오기 실패: {e}")
+            
+            elif platform.system() == "Darwin":  # macOS
+                try:
+                    import subprocess
+                    # system_profiler 사용
+                    result = subprocess.run(
+                        ["system_profiler", "SPDisplaysDataType"],
+                        capture_output=True,
+                        text=True,
+                        timeout=2
+                    )
+                    if result.returncode == 0:
+                        # 해상도 정보 파싱
+                        for line in result.stdout.split('\n'):
+                            if 'Resolution:' in line or 'UI Looks like:' in line:
+                                # 예: "Resolution: 2560 x 1440 @ 60 Hz"
+                                import re
+                                match = re.search(r'(\d+)\s*x\s*(\d+)', line)
+                                if match:
+                                    width, height = int(match.group(1)), int(match.group(2))
+                                    if width > 0 and height > 0:
+                                        aspect_ratio = width / height
+                                        self.logger.info(f"macOS: 디스플레이 해상도 {width}x{height}, 종횡비 {aspect_ratio:.4f}")
+                                        return aspect_ratio
+                except Exception as e:
+                    self.logger.debug(f"macOS 디스플레이 종횡비 가져오기 실패: {e}")
+            
+            # 폴백: tkinter 사용 (더 호환성이 높음)
+            try:
+                import tkinter as tk
+                root = tk.Tk()
+                root.withdraw()  # 창 표시 안 함
+                width = root.winfo_screenwidth()
+                height = root.winfo_screenheight()
+                root.destroy()
+                
+                if width > 0 and height > 0:
+                    aspect_ratio = width / height
+                    self.logger.info(f"tkinter: 디스플레이 해상도 {width}x{height}, 종횡비 {aspect_ratio:.4f}")
+                    return aspect_ratio
+            except Exception as e:
+                self.logger.debug(f"tkinter 디스플레이 종횡비 가져오기 실패: {e}")
+        
+        except Exception as e:
+            self.logger.debug(f"디스플레이 종횡비 가져오기 실패: {e}")
+        
+        return None
+    
+    def _float_to_ratio(self, value: float, max_denominator: int = 100) -> Tuple[int, int]:
+        """부동소수점 종횡비를 정수 비율로 변환 (예: 1.777... -> 16:9)"""
+        from fractions import Fraction
+        
+        # Fraction을 사용하여 근사값 찾기
+        fraction = Fraction(value).limit_denominator(max_denominator)
+        return fraction.numerator, fraction.denominator
+    
+    def _set_aspect_ratio_constraint(self, aspect_ratio: Optional[float] = None) -> None:
+        """SDL 창에 종횡비 제약 설정 - SDL_SetWindowAspectRatio 사용"""
+        if not self.context:
+            return
+        
+        # 종횡비 가져오기
+        if aspect_ratio is None:
+            if hasattr(self, '_aspect_ratio'):
+                aspect_ratio = self._aspect_ratio
+            else:
+                return
+        
+        if not aspect_ratio or aspect_ratio <= 0:
+            return
+        
+        try:
+            import ctypes
+            import sys
+            
+            # SDL2 라이브러리 로드
+            try:
+                if sys.platform == "win32":
+                    sdl2 = ctypes.CDLL("SDL2.dll")
+                elif sys.platform == "darwin":
+                    sdl2 = ctypes.CDLL("libSDL2.dylib")
+                else:
+                    sdl2 = ctypes.CDLL("libSDL2.so")
+            except OSError:
+                # SDL2를 찾을 수 없으면 tcod.lib를 통해 시도
+                try:
+                    import tcod.lib
+                    if hasattr(tcod.lib, 'SDL_SetWindowAspectRatio'):
+                        window_p = self._get_sdl_window_pointer()
+                        if window_p:
+                            numerator, denominator = self._float_to_ratio(aspect_ratio)
+                            tcod.lib.SDL_SetWindowAspectRatio(window_p, numerator, denominator)
+                except:
+                    pass
+                return
+            
+            # SDL_SetWindowAspectRatio 함수 타입 지정
+            sdl2.SDL_SetWindowAspectRatio.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+            sdl2.SDL_SetWindowAspectRatio.restype = None
+            
+            # SDL 창 포인터 가져오기
+            window_ptr = self._get_sdl_window_pointer()
+            if not window_ptr:
+                return
+            
+            # 포인터를 ctypes.c_void_p로 변환
+            if isinstance(window_ptr, int):
+                window_void_p = ctypes.c_void_p(window_ptr)
+            else:
+                # 이미 포인터인 경우
+                window_void_p = ctypes.c_void_p(int(window_ptr))
+            
+            # 종횡비 설정 (SDL 2.0.5+ 필요)
+            # 종횡비를 정수 비율로 변환 (예: 1.777... -> 16:9)
+            numerator, denominator = self._float_to_ratio(aspect_ratio)
+            
+            try:
+                sdl2.SDL_SetWindowAspectRatio(window_void_p, numerator, denominator)
+                # 성공적으로 설정되었는지 로그는 처음 한 번만
+                if not hasattr(self, '_aspect_ratio_set_logged'):
+                    self.logger.info(
+                        f"SDL_SetWindowAspectRatio로 종횡비 {aspect_ratio:.4f} "
+                        f"({numerator}:{denominator}) 고정 활성화"
+                    )
+                    self._aspect_ratio_set_logged = True
+            except Exception as e:
+                if not hasattr(self, '_aspect_ratio_set_error_logged'):
+                    self.logger.warning(f"SDL_SetWindowAspectRatio 호출 실패: {e}")
+                    self._aspect_ratio_set_error_logged = True
+            
+        except (AttributeError, ImportError, Exception) as e:
+            # 첫 번째 오류만 로그
+            if not hasattr(self, '_aspect_ratio_constraint_error_logged'):
+                self.logger.debug(f"SDL 창 종횡비 제약 설정 실패: {e}")
+                self._aspect_ratio_constraint_error_logged = True
+    
+    def _get_sdl_window_pointer(self) -> Optional[int]:
+        """SDL 창 포인터 가져오기 (여러 방법 시도) - OpenGL2 렌더러도 지원"""
+        if not self.context:
+            return None
+        
+        try:
+            # 방법 1: 직접 속성 접근 (일반적인 방법)
+            attr_names = [
+                'sdl_window_p', '_sdl_window_p', 'sdl_window',
+                'window', '_window', 'sdl_window_ptr'
+            ]
+            for attr_name in attr_names:
+                if hasattr(self.context, attr_name):
+                    ptr = getattr(self.context, attr_name)
+                    if ptr and ptr != 0:
+                        try:
+                            return int(ptr) if not isinstance(ptr, int) else ptr
+                        except (ValueError, TypeError):
+                            continue
+            
+            # 방법 2: 내부 context 객체 접근 (OpenGL2 렌더러일 수 있음)
+            inner_attrs = ['_context', 'context', '_impl', 'impl']
+            for inner_attr in inner_attrs:
+                if hasattr(self.context, inner_attr):
+                    inner = getattr(self.context, inner_attr)
+                    if inner:
+                        for attr_name in attr_names:
+                            if hasattr(inner, attr_name):
+                                ptr = getattr(inner, attr_name)
+                                if ptr and ptr != 0:
+                                    try:
+                                        return int(ptr) if not isinstance(ptr, int) else ptr
+                                    except (ValueError, TypeError):
+                                        continue
+            
+            # 방법 3: tcod.lib를 통한 접근
+            try:
+                import tcod.lib
+                if hasattr(tcod.lib, 'ffi'):
+                    ffi = tcod.lib.ffi
+                    # context의 내부 구조 탐색
+                    if hasattr(self.context, '__dict__'):
+                        # 모든 속성을 순회하며 포인터 찾기
+                        for key, value in self.context.__dict__.items():
+                            if 'window' in key.lower() or 'sdl' in key.lower():
+                                if value and value != 0:
+                                    try:
+                                        ptr_int = int(value)
+                                        if ptr_int > 0:
+                                            return ptr_int
+                                    except (ValueError, TypeError):
+                                        pass
+            except:
+                pass
+            
+            # 방법 4: context.sdl_window 속성 직접 확인 (OpenGL2에서도 가능)
+            # TCOD는 모든 렌더러에서 SDL 창을 사용하므로, 숨겨진 속성일 수 있음
+            try:
+                # dir()로 모든 속성 확인
+                all_attrs = dir(self.context)
+                for attr in all_attrs:
+                    if not attr.startswith('__') and ('window' in attr.lower() or 'sdl' in attr.lower()):
+                        try:
+                            value = getattr(self.context, attr)
+                            if value and value != 0:
+                                if isinstance(value, int) and value > 1000:  # 합리적인 포인터 값
+                                    return value
+                                elif hasattr(value, '__int__'):
+                                    ptr_int = int(value)
+                                    if ptr_int > 1000:
+                                        return ptr_int
+                        except:
+                            continue
+            except:
+                pass
+            
+        except Exception as e:
+            # 디버그 로그 (너무 많이 출력되지 않도록)
+            if not hasattr(self, '_window_pointer_error_logged'):
+                self.logger.debug(f"SDL 창 포인터 가져오기 시도 중 오류: {e}")
+                self._window_pointer_error_logged = True
+        
+        return None
+    
+    def _float_to_ratio(self, value: float, max_denominator: int = 100) -> Tuple[int, int]:
+        """부동소수점 종횡비를 정수 비율로 변환 (예: 1.777... -> 16:9)"""
+        from fractions import Fraction
+        
+        # Fraction을 사용하여 근사값 찾기
+        fraction = Fraction(value).limit_denominator(max_denominator)
+        return fraction.numerator, fraction.denominator
+    
+    def _handle_window_resize_events(self) -> None:
+        """창 크기 변경 시 종횡비 유지 (매 프레임 확인)"""
+        if not self.context or not hasattr(self, '_aspect_ratio'):
+            return
+        
+        try:
+            # 이벤트 큐에서 창 크기 변경 이벤트 확인
+            for event in tcod.event.get():
+                if isinstance(event, tcod.event.WindowResized):
+                    # 창 크기 변경 이벤트 발생 시 종횡비 강제 조정
+                    new_width = event.width
+                    new_height = event.height
+                    
+                    if new_height <= 0:
+                        continue
+                    
+                    # 현재 종횡비 계산
+                    current_aspect = new_width / new_height
+                    
+                    # 종횡비가 다르면 조정 (임계값: 0.02)
+                    if abs(current_aspect - self._aspect_ratio) > 0.02:
+                        # 종횡비에 맞춰 크기 계산
+                        # 더 많이 변경된 축을 기준으로 계산
+                        expected_width = int(new_height * self._aspect_ratio)
+                        expected_height = int(new_width / self._aspect_ratio)
+                        
+                        width_diff = abs(new_width - expected_width)
+                        height_diff = abs(new_height - expected_height)
+                        
+                        if width_diff > height_diff:
+                            # 높이 기준으로 너비 조정
+                            adjusted_width = int(new_height * self._aspect_ratio)
+                            adjusted_height = new_height
+                        else:
+                            # 너비 기준으로 높이 조정
+                            adjusted_width = new_width
+                            adjusted_height = int(new_width / self._aspect_ratio)
+                        
+                        # 창 크기 조정 (SDL 직접 호출)
+                        self._set_window_size_direct(adjusted_width, adjusted_height)
+                        self._last_window_size = (adjusted_width, adjusted_height)
+                    else:
+                        self._last_window_size = (new_width, new_height)
+                        
+        except (AttributeError, ImportError, Exception) as e:
+            # 오류 발생 시 무시
+            pass
+    
+    def _enforce_aspect_ratio(self) -> None:
+        """종횡비 강제 확인 (백업 메커니즘)"""
+        if not self.context or not hasattr(self, '_aspect_ratio'):
+            return
+        
+        try:
+            import tcod.lib
+            
+            # SDL 창 포인터 가져오기
+            window_p = None
+            if hasattr(self.context, 'sdl_window_p'):
+                window_p = self.context.sdl_window_p
+            elif hasattr(self.context, '_sdl_window_p'):
+                window_p = self.context._sdl_window_p
+            
+            if not window_p or not hasattr(tcod.lib, 'ffi'):
+                return
+            
+            ffi = tcod.lib.ffi
+            
+            # 현재 창 크기 가져오기
+            width_ptr = ffi.new("int*")
+            height_ptr = ffi.new("int*")
+            
+            if not hasattr(tcod.lib, 'SDL_GetWindowSize'):
+                return
+                
+            tcod.lib.SDL_GetWindowSize(window_p, width_ptr, height_ptr)
+            
+            current_width = width_ptr[0]
+            current_height = height_ptr[0]
+            
+            if current_height <= 0:
+                return
+            
+            # 현재 크기가 마지막 저장된 크기와 같으면 스킵
+            current_size = (current_width, current_height)
+            if self._last_window_size == current_size:
+                return
+            
+            # 현재 종횡비 계산
+            current_aspect = current_width / current_height
+            
+            # 종횡비가 다르면 조정 (임계값: 0.02)
+            if abs(current_aspect - self._aspect_ratio) > 0.02:
+                # 종횡비에 맞춰 크기 계산
+                expected_width = int(current_height * self._aspect_ratio)
+                expected_height = int(current_width / self._aspect_ratio)
+                
+                width_diff = abs(current_width - expected_width)
+                height_diff = abs(current_height - expected_height)
+                
+                if width_diff > height_diff:
+                    # 높이 기준으로 너비 조정
+                    adjusted_width = int(current_height * self._aspect_ratio)
+                    adjusted_height = current_height
+                else:
+                    # 너비 기준으로 높이 조정
+                    adjusted_width = current_width
+                    adjusted_height = int(current_width / self._aspect_ratio)
+                
+                # 창 크기 조정
+                if hasattr(tcod.lib, 'SDL_SetWindowSize'):
+                    tcod.lib.SDL_SetWindowSize(window_p, adjusted_width, adjusted_height)
+                    self._last_window_size = (adjusted_width, adjusted_height)
+            else:
+                self._last_window_size = current_size
+                
+        except (AttributeError, ImportError, Exception):
+            # 오류 발생 시 무시
+            pass
+    
+    def _set_window_size_direct(self, width: int, height: int) -> None:
+        """SDL을 통해 창 크기 직접 설정 (종횡비 유지용)"""
+        try:
+            import tcod.lib
+            
+            # SDL 창 포인터 가져오기
+            window_p = None
+            if hasattr(self.context, 'sdl_window_p'):
+                window_p = self.context.sdl_window_p
+            elif hasattr(self.context, 'sdl_window'):
+                window_p = self.context.sdl_window
+            elif hasattr(self.context, '_sdl_window_p'):
+                window_p = self.context._sdl_window_p
+            
+            if not window_p:
+                return
+            
+            # 창 크기 설정
+            if hasattr(tcod.lib, 'SDL_SetWindowSize') and hasattr(tcod.lib, 'ffi'):
+                tcod.lib.SDL_SetWindowSize(window_p, width, height)
+        except (AttributeError, ImportError, Exception):
+            pass
 
     def close(self) -> None:
         """TCOD 종료"""

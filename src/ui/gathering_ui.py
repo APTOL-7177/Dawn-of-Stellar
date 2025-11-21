@@ -24,7 +24,8 @@ def harvest_object(
     console: tcod.console.Console,
     context: tcod.context.Context,
     harvestable: HarvestableObject,
-    inventory: Inventory
+    inventory: Inventory,
+    exploration=None
 ) -> bool:
     """
     채집 오브젝트 수확
@@ -34,6 +35,7 @@ def harvest_object(
         context: TCOD 컨텍스트
         harvestable: 채집 오브젝트
         inventory: 인벤토리
+        exploration: 탐험 시스템 (멀티플레이어 동기화용)
 
     Returns:
         채집 성공 여부
@@ -46,7 +48,8 @@ def harvest_object(
     from src.audio import play_sfx
     play_sfx("world", "gathering")
     
-    # 채집 실행
+    # 채집 실행 (harvest() 내부에서 harvested = True로 설정됨)
+    # 멀티플레이에서는 개인보상이므로 동기화하지 않음
     results = harvestable.harvest()
 
     if not results:

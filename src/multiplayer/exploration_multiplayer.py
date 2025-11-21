@@ -100,8 +100,19 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             if self.local_player_id and self.local_player_id in self.session.players:
                 mp_player = self.session.players[self.local_player_id]
                 if hasattr(mp_player, 'x') and hasattr(mp_player, 'y'):
-                    self.player.x = mp_player.x
-                    self.player.y = mp_player.y
+                    # 이동 가능한 위치인지 확인
+                    if (0 <= mp_player.x < self.dungeon.width and 
+                        0 <= mp_player.y < self.dungeon.height and
+                        self.dungeon.is_walkable(mp_player.x, mp_player.y)):
+                        self.player.x = mp_player.x
+                        self.player.y = mp_player.y
+                    else:
+                        # 이동 불가능한 위치면 기본 위치 사용
+                        self.logger.warning(
+                            f"로컬 플레이어 초기 위치 ({mp_player.x}, {mp_player.y})가 "
+                            f"이동 불가능합니다. 기본 위치로 조정합니다."
+                        )
+                        # _initialize_player_positions에서 올바른 위치로 설정됨
             
             # FOV 초기 업데이트
             self.update_fov()
@@ -113,6 +124,8 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     network_manager=network_manager,
                     is_host=self.is_host
                 )
+                # exploration 참조 전달 (위치 동기화용)
+                self.movement_sync.exploration = self
                 if local_player_id:
                     self.movement_sync.set_local_player_id(local_player_id)
                 
@@ -120,7 +133,8 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 self.enemy_sync = EnemySyncManager(
                     session=session,
                     network_manager=network_manager,
-                    is_host=self.is_host
+                    is_host=self.is_host,
+                    exploration=self  # exploration 참조 전달
                 )
                 
                 # 전투 합류 관리자 초기화
@@ -128,6 +142,161 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 
                 # 전투 이벤트 구독 (멀티플레이 모드에서만)
                 self._subscribe_to_combat_events()
+                
+                # 채집물은 개인보상이므로 동기화 제거
+                # self._register_harvest_handler()
+                
+                # 아이템 획득 동기화 핸들러 등록 (드롭된 아이템은 개인보상이므로 제거)
+                # self._register_item_pickup_handler()  # 드롭된 아이템은 개인보상
+                
+                # NPC 위치 동기화 핸들러 등록
+                self._register_npc_move_handler()
+                
+                # 드롭된 아이템/골드 동기화 핸들러 등록
+                self._register_drop_handlers()
+    
+    def _register_harvest_handler(self):
+        """채집 동기화 핸들러 등록"""
+        if not self.network_manager:
+            return
+        
+        from src.multiplayer.protocol import MessageType
+        
+        async def handle_harvest(message, sender_id=None):
+            """채집 메시지 처리 (다른 플레이어가 채집했을 때)"""
+            try:
+                x = message.data.get("x")
+                y = message.data.get("y")
+                object_type_str = message.data.get("object_type")
+                
+                if x is None or y is None or not object_type_str:
+                    self.logger.warning(f"채집 메시지에 필수 데이터가 없습니다: x={x}, y={y}, object_type={object_type_str}")
+                    return
+                
+                # 해당 위치의 harvestable 찾기
+                from src.gathering.harvestable import HarvestableType
+                try:
+                    object_type = HarvestableType(object_type_str)
+                except ValueError:
+                    self.logger.warning(f"알 수 없는 채집 타입: {object_type_str}")
+                    return
+                
+                # 던전의 harvestable 목록에서 찾기
+                found = False
+                for harvestable in self.dungeon.harvestables:
+                    if (harvestable.x == x and harvestable.y == y and 
+                        harvestable.object_type == object_type):
+                        found = True
+                        # 이미 채집되었는지 확인 (중복 방지)
+                        if not harvestable.harvested:
+                            harvestable.harvested = True
+                            player_name = getattr(self.session.players.get(sender_id), 'player_name', sender_id) if sender_id and self.session and sender_id in self.session.players else sender_id or "알 수 없음"
+                            self.logger.info(f"채집 동기화: {player_name}가 ({x}, {y}) {object_type_str} 채집 - harvested=True")
+                        else:
+                            self.logger.debug(f"채집 동기화: ({x}, {y}) {object_type_str}는 이미 채집됨")
+                        break
+                
+                if not found:
+                    self.logger.warning(f"채집 동기화: ({x}, {y}) {object_type_str}를 찾을 수 없음")
+            except Exception as e:
+                self.logger.error(f"채집 동기화 처리 실패: {e}", exc_info=True)
+        
+        self.network_manager.register_handler(MessageType.HARVEST, handle_harvest)
+        self.logger.debug("채집 동기화 핸들러 등록 완료")
+    
+    def _register_item_pickup_handler(self):
+        """아이템 획득 동기화 핸들러 등록"""
+        if not self.network_manager:
+            return
+        
+        from src.multiplayer.protocol import MessageType
+        from src.world.tile import TileType
+        
+        async def handle_item_pickup(message, sender_id=None):
+            """아이템 획득 메시지 처리 (다른 플레이어가 아이템을 주웠을 때)"""
+            try:
+                x = message.data.get("x")
+                y = message.data.get("y")
+                
+                if x is None or y is None:
+                    self.logger.warning(f"아이템 획득 메시지에 필수 데이터가 없습니다: x={x}, y={y}")
+                    return
+                
+                # 해당 위치의 타일 찾기
+                if 0 <= x < self.dungeon.width and 0 <= y < self.dungeon.height:
+                    tile = self.dungeon.get_tile(x, y)
+                    if tile and tile.tile_type == TileType.ITEM:
+                        # 아이템 타일을 FLOOR로 변경 (아이템 제거)
+                        tile.tile_type = TileType.FLOOR
+                        tile.loot_id = None
+                        player_name = getattr(self.session.players.get(sender_id), 'player_name', sender_id) if sender_id and self.session and sender_id in self.session.players else sender_id or "알 수 없음"
+                        self.logger.info(f"아이템 획득 동기화: {player_name}가 ({x}, {y}) 아이템 획득 - 타일 제거")
+                    else:
+                        self.logger.debug(f"아이템 획득 동기화: ({x}, {y})는 아이템 타일이 아님 (타입: {tile.tile_type if tile else None})")
+                else:
+                    self.logger.warning(f"아이템 획득 동기화: ({x}, {y})는 맵 범위를 벗어남")
+            except Exception as e:
+                self.logger.error(f"아이템 획득 동기화 처리 실패: {e}", exc_info=True)
+        
+        self.network_manager.register_handler(MessageType.ITEM_PICKED_UP, handle_item_pickup)
+        self.logger.debug("아이템 획득 동기화 핸들러 등록 완료")
+    
+    def _register_npc_move_handler(self):
+        """NPC 이동 동기화 핸들러 등록"""
+        if not self.network_manager:
+            return
+        
+        from src.multiplayer.protocol import MessageType
+        from src.world.tile import TileType
+        
+        async def handle_npc_move(message, sender_id=None):
+            """NPC 이동 메시지 처리 (클라이언트)"""
+            try:
+                npc_positions = message.data.get("npcs", {})
+                
+                if not npc_positions:
+                    return
+                
+                # 각 NPC 위치 업데이트
+                for npc_id, pos_data in npc_positions.items():
+                    old_x = pos_data.get("old_x")
+                    old_y = pos_data.get("old_y")
+                    new_x = pos_data.get("x")
+                    new_y = pos_data.get("y")
+                    
+                    if old_x is None or old_y is None or new_x is None or new_y is None:
+                        continue
+                    
+                    # 기존 위치의 타일 확인
+                    if 0 <= old_x < self.dungeon.width and 0 <= old_y < self.dungeon.height:
+                        old_tile = self.dungeon.get_tile(old_x, old_y)
+                        if old_tile and old_tile.tile_type == TileType.NPC and old_tile.npc_id == npc_id:
+                            # 기존 위치를 FLOOR로 변경
+                            self.dungeon.set_tile(old_x, old_y, TileType.FLOOR)
+                    
+                    # 새 위치에 NPC 배치
+                    if 0 <= new_x < self.dungeon.width and 0 <= new_y < self.dungeon.height:
+                        new_tile = self.dungeon.get_tile(new_x, new_y)
+                        if new_tile and new_tile.tile_type != TileType.NPC:
+                            # NPC 정보 가져오기 (기존 타일에서)
+                            npc_type = pos_data.get("npc_type")
+                            npc_subtype = pos_data.get("npc_subtype")
+                            npc_interacted = pos_data.get("npc_interacted", False)
+                            
+                            self.dungeon.set_tile(
+                                new_x, new_y,
+                                TileType.NPC,
+                                npc_id=npc_id,
+                                npc_type=npc_type,
+                                npc_subtype=npc_subtype,
+                                npc_interacted=npc_interacted
+                            )
+                            self.logger.debug(f"NPC 이동 동기화: {npc_id} ({old_x}, {old_y}) -> ({new_x}, {new_y})")
+            except Exception as e:
+                self.logger.error(f"NPC 이동 동기화 처리 실패: {e}", exc_info=True)
+        
+        self.network_manager.register_handler(MessageType.NPC_MOVE, handle_npc_move)
+        self.logger.debug("NPC 이동 동기화 핸들러 등록 완료")
     
     def _subscribe_to_combat_events(self):
         """전투 이벤트 구독 (멀티플레이 전투 합류 시스템용)"""
@@ -345,24 +514,94 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         # 기본 플레이어 위치를 시작점으로 설정
         start_x, start_y = self.player.x, self.player.y
         
+        import random
         for player_id, mp_player in self.session.players.items():
-            # 시작 위치 근처에 배치 (5 타일 반경 내)
-            import random
-            offset_x = random.randint(-2, 2)
-            offset_y = random.randint(-2, 2)
+            # 이미 위치가 설정되어 있고 이동 가능한 위치면 그대로 사용
+            if hasattr(mp_player, 'x') and hasattr(mp_player, 'y'):
+                current_x = int(mp_player.x)
+                current_y = int(mp_player.y)
+                # 이동 가능한 위치인지 확인
+                if (0 <= current_x < self.dungeon.width and 
+                    0 <= current_y < self.dungeon.height and
+                    self.dungeon.is_walkable(current_x, current_y)):
+                    # 이미 올바른 위치에 있으면 그대로 사용
+                    self.player_positions[player_id] = (current_x, current_y)
+                    self.logger.info(
+                        f"플레이어 {mp_player.player_name} 초기 위치 유지: "
+                        f"({current_x}, {current_y})"
+                    )
+                    continue
             
-            mp_player.x = start_x + offset_x
-            mp_player.y = start_y + offset_y
+            # 위치가 없거나 이동 불가능한 위치면 새로 찾기
+            spawn_x, spawn_y = start_x, start_y
             
-            # 맵 경계 체크
+            # 첫 방에서 안전한 위치 찾기
+            if self.dungeon.rooms:
+                first_room = self.dungeon.rooms[0]
+                # 방 안에서 이동 가능한 위치 찾기
+                found = False
+                for _ in range(50):  # 최대 50번 시도
+                    test_x = first_room.x + random.randint(2, max(2, first_room.width - 3))
+                    test_y = first_room.y + random.randint(2, max(2, first_room.height - 3))
+                    if self.dungeon.is_walkable(test_x, test_y):
+                        spawn_x, spawn_y = test_x, test_y
+                        found = True
+                        break
+                
+                # 방에서 못 찾으면 시작 위치 근처에서 찾기
+                if not found:
+                    for _ in range(50):
+                        offset_x = random.randint(-5, 5)
+                        offset_y = random.randint(-5, 5)
+                        test_x = start_x + offset_x
+                        test_y = start_y + offset_y
+                        test_x = max(0, min(self.dungeon.width - 1, test_x))
+                        test_y = max(0, min(self.dungeon.height - 1, test_y))
+                        if self.dungeon.is_walkable(test_x, test_y):
+                            spawn_x, spawn_y = test_x, test_y
+                            found = True
+                            break
+            else:
+                # 방이 없으면 시작 위치 근처에서 이동 가능한 위치 찾기
+                for _ in range(50):  # 최대 50번 시도
+                    offset_x = random.randint(-5, 5)
+                    offset_y = random.randint(-5, 5)
+                    test_x = start_x + offset_x
+                    test_y = start_y + offset_y
+                    # 맵 경계 체크
+                    test_x = max(0, min(self.dungeon.width - 1, test_x))
+                    test_y = max(0, min(self.dungeon.height - 1, test_y))
+                    if self.dungeon.is_walkable(test_x, test_y):
+                        spawn_x, spawn_y = test_x, test_y
+                        break
+            
+            mp_player.x = spawn_x
+            mp_player.y = spawn_y
+            
+            # 맵 경계 체크 (안전장치)
             mp_player.x = max(0, min(self.dungeon.width - 1, mp_player.x))
             mp_player.y = max(0, min(self.dungeon.height - 1, mp_player.y))
             
+            # 최종 확인: 이동 가능한 위치인지
+            if not self.dungeon.is_walkable(mp_player.x, mp_player.y):
+                # 이동 불가능한 위치면 기본 위치 사용
+                self.logger.warning(
+                    f"플레이어 {mp_player.player_name}의 초기 위치 ({mp_player.x}, {mp_player.y})가 "
+                    f"이동 불가능합니다. 기본 위치로 조정합니다."
+                )
+                mp_player.x = start_x
+                mp_player.y = start_y
+            
             self.player_positions[player_id] = (mp_player.x, mp_player.y)
+            
+            # 로컬 플레이어인 경우 player 객체도 업데이트
+            if player_id == self.local_player_id:
+                self.player.x = mp_player.x
+                self.player.y = mp_player.y
             
             self.logger.info(
                 f"플레이어 {mp_player.player_name} 초기 위치: "
-                f"({mp_player.x}, {mp_player.y})"
+                f"({mp_player.x}, {mp_player.y}) (이동 가능: {self.dungeon.is_walkable(mp_player.x, mp_player.y)})"
             )
     
     def update_player_movement(
@@ -394,54 +633,45 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         new_x = player.x + dx
         new_y = player.y + dy
         
-        # 이동 동기화 관리자를 통한 이동 처리
+        # 이동 동기화 관리자를 통한 이동 처리 (쌍방향 동기화)
         if self.movement_sync:
+            # 이동 가능 여부 확인
+            if not self._can_move_to(new_x, new_y):
+                return False
+            
+            # 위치 업데이트 (로컬 플레이어)
+            player.x = new_x
+            player.y = new_y
+            self.player_positions[player_id] = (new_x, new_y)
+            # 로컬 플레이어인 경우 player 객체도 업데이트
+            if player_id == self.local_player_id:
+                self.player.x = new_x
+                self.player.y = new_y
+            
+            # 모든 플레이어가 직접 브로드캐스트 (호스트/클라이언트 구분 없음)
             import asyncio
             try:
-                # 비동기 호출 (이미 이벤트 루프가 실행 중인 경우)
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
                     # 실행 중인 루프: 태스크로 실행
                     asyncio.create_task(
-                        self.movement_sync.request_move(player_id, dx, dy)
+                        self.movement_sync.broadcast_move(player_id, new_x, new_y)
                     )
-                    # 이동 가능 여부 확인
-                    if self.is_host:
-                        if not self._can_move_to(new_x, new_y):
-                            return False
-                        # 예측 이동 (실제 이동은 네트워크 응답 대기)
-                        player.x = new_x
-                        player.y = new_y
-                        self.player_positions[player_id] = (new_x, new_y)
-                        # 로컬 플레이어인 경우 player 객체도 업데이트
-                        if player_id == self.local_player_id:
-                            self.player.x = new_x
-                            self.player.y = new_y
-                    return True
                 else:
                     # 실행 중이지 않은 루프: 동기 실행
-                    success = loop.run_until_complete(
-                        self.movement_sync.request_move(player_id, dx, dy)
+                    loop.run_until_complete(
+                        self.movement_sync.broadcast_move(player_id, new_x, new_y)
                     )
-                    # 로컬 플레이어인 경우 위치 업데이트
-                    if success and player_id == self.local_player_id and hasattr(player, 'x') and hasattr(player, 'y'):
-                        self.player.x = player.x
-                        self.player.y = player.y
-                    return success
             except RuntimeError:
-                # 이벤트 루프가 없는 경우: 직접 처리
-                if self.is_host:
-                    if not self._can_move_to(new_x, new_y):
-                        return False
-                    player.x = new_x
-                    player.y = new_y
-                    self.player_positions[player_id] = (new_x, new_y)
-                    # 로컬 플레이어인 경우 player 객체도 업데이트
-                    if player_id == self.local_player_id:
-                        self.player.x = new_x
-                        self.player.y = new_y
-                    # 비동기 브로드캐스트는 나중에 처리
-                    return True
+                # 이벤트 루프가 없는 경우: 새 루프 생성
+                try:
+                    asyncio.run(
+                        self.movement_sync.broadcast_move(player_id, new_x, new_y)
+                    )
+                except Exception as e:
+                    self.logger.error(f"이동 브로드캐스트 실패: {e}", exc_info=True)
+            
+            return True
         
         # 이동 동기화 관리자가 없는 경우: 기본 처리
         if self.is_host:
@@ -466,14 +696,9 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     x=new_x,
                     y=new_y
                 )
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        asyncio.create_task(self.network_manager.broadcast(message))
-                    else:
-                        loop.run_until_complete(self.network_manager.broadcast(message))
-                except RuntimeError:
-                    pass  # 이벤트 루프가 없으면 나중에 처리
+                # 이동 동기화는 movement_sync를 통해 처리하므로 여기서는 브로드캐스트하지 않음
+                # (movement_sync.broadcast_move에서 호스트는 broadcast, 클라이언트는 send 사용)
+                pass
         
         return True
     
@@ -599,8 +824,12 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         tile = self.dungeon.get_tile(self.player.x, self.player.y)
         result = self._check_tile_event(tile) if tile else None
         
-        # NPC 이동 (플레이어 이동 후)
-        self._move_npcs()
+        # NPC 이동 (플레이어 이동 후, 멀티플레이에서는 호스트만)
+        if self.is_multiplayer:
+            if self.is_host:
+                self._move_npcs_multiplayer()
+        else:
+            self._move_npcs()
         
         # 적 움직임 후 플레이어 위치에 적이 있는지 다시 체크 (호스트만)
         if self.is_host:
@@ -663,16 +892,23 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     try:
                         loop = asyncio.get_event_loop()
                         if loop.is_running():
-                            asyncio.create_task(
+                            # 이미 실행 중인 루프에서는 create_task 사용
+                            task = asyncio.create_task(
                                 self.enemy_sync.sync_enemy_positions(self.enemies)
                             )
+                            # 태스크가 백그라운드에서 실행되도록 함 (경고 방지)
+                            # 태스크는 네트워크 매니저의 이벤트 루프에서 실행됨
                         else:
+                            # 실행 중인 루프가 없으면 run_until_complete 사용
                             loop.run_until_complete(
                                 self.enemy_sync.sync_enemy_positions(self.enemies)
                             )
                     except RuntimeError as e:
-                        # 이벤트 루프가 없으면 나중에 처리
+                        # 이벤트 루프가 없으면 나중에 처리 (비동기 함수 호출 불가)
                         self.logger.debug(f"비동기 브로드캐스트 실패 (이벤트 루프 없음): {e}")
+                    except Exception as e:
+                        # 기타 예외는 로그만 남기고 계속 진행
+                        self.logger.debug(f"적 위치 동기화 오류 (무시): {e}")
                 
                 # 이동 시간 업데이트
                 self.enemy_sync.update_move_time(current_time)
@@ -983,4 +1219,151 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         # 기존 타이머 업데이트 (백업)
         if current_time - self.last_enemy_move >= self.enemy_move_interval:
             self.last_enemy_move = current_time
+    
+    def _move_npcs_multiplayer(self):
+        """
+        NPC 이동 처리 (멀티플레이 - 호스트만)
+        
+        NPC 이동 후 동기화 메시지를 클라이언트에게 전송합니다.
+        """
+        if not self.is_host or not self.is_multiplayer:
+            return
+        
+        from src.world.tile import TileType
+        import random
+        
+        # 던전 전체를 스캔하여 NPC 타일 찾기
+        npc_positions = []
+        for y in range(self.dungeon.height):
+            for x in range(self.dungeon.width):
+                tile = self.dungeon.get_tile(x, y)
+                if tile and tile.tile_type == TileType.NPC:
+                    npc_positions.append((x, y, tile))
+        
+        # 이동한 NPC 정보 수집
+        moved_npcs = {}
+        
+        # 각 NPC를 랜덤하게 이동
+        for x, y, npc_tile in npc_positions:
+            # NPC는 상호작용하지 않은 경우에만 이동 (상인 등은 제외)
+            if npc_tile.npc_interacted:
+                continue
+            
+            # 30% 확률로 이동 (적보다 덜 자주 이동)
+            if random.random() < 0.3:
+                directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+                random.shuffle(directions)  # 랜덤 순서
+                
+                for dx, dy in directions:
+                    new_x = x + dx
+                    new_y = y + dy
+                    
+                    # 이동 가능한 위치인지 확인
+                    if self.dungeon.is_walkable(new_x, new_y):
+                        new_tile = self.dungeon.get_tile(new_x, new_y)
+                        # 다른 NPC나 적, 플레이어와 겹치지 않도록 체크
+                        if (new_tile and new_tile.tile_type != TileType.NPC and
+                            not self.get_enemy_at(new_x, new_y) and
+                            (new_x, new_y) != (self.player.x, self.player.y)):
+                            
+                            # 기존 위치를 FLOOR로 변경
+                            self.dungeon.set_tile(x, y, TileType.FLOOR)
+                            
+                            # 새 위치에 NPC 배치
+                            self.dungeon.set_tile(
+                                new_x, new_y,
+                                TileType.NPC,
+                                npc_id=npc_tile.npc_id,
+                                npc_type=npc_tile.npc_type,
+                                npc_subtype=npc_tile.npc_subtype,
+                                npc_interacted=npc_tile.npc_interacted
+                            )
+                            
+                            # 이동한 NPC 정보 저장
+                            npc_id = npc_tile.npc_id or f"npc_{x}_{y}"
+                            moved_npcs[npc_id] = {
+                                "x": new_x,
+                                "y": new_y,
+                                "old_x": x,
+                                "old_y": y,
+                                "npc_type": npc_tile.npc_type,
+                                "npc_subtype": npc_tile.npc_subtype,
+                                "npc_interacted": npc_tile.npc_interacted
+                            }
+                            
+                            self.logger.debug(f"NPC 이동: {npc_tile.npc_subtype} ({x}, {y}) -> ({new_x}, {new_y})")
+                            break  # 이동 성공하면 중단
+        
+        # 이동한 NPC가 있으면 동기화 메시지 전송
+        if moved_npcs and self.network_manager:
+            from src.multiplayer.protocol import MessageBuilder
+            import asyncio
+            try:
+                npc_move_msg = MessageBuilder.npc_move(moved_npcs)
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.create_task(self.network_manager.broadcast(npc_move_msg))
+                else:
+                    loop.run_until_complete(self.network_manager.broadcast(npc_move_msg))
+                self.logger.debug(f"NPC 이동 동기화 메시지 전송: {len(moved_npcs)}개")
+            except Exception as e:
+                self.logger.error(f"NPC 이동 동기화 메시지 전송 실패: {e}", exc_info=True)
+    
+    def _register_drop_handlers(self):
+        """드롭된 아이템/골드 동기화 핸들러 등록"""
+        if not self.network_manager:
+            return
+        
+        from src.multiplayer.protocol import MessageType
+        from src.world.tile import TileType
+        from src.equipment.item_system import ItemGenerator
+        
+        async def handle_item_dropped(message, sender_id=None):
+            """아이템 드롭 메시지 처리"""
+            if self.is_host and sender_id is None:
+                return  # 호스트는 자신의 메시지를 처리하지 않음
+            
+            x = message.data.get("x")
+            y = message.data.get("y")
+            item_data = message.data.get("item", {})
+            
+            if x is None or y is None:
+                self.logger.warning(f"아이템 드롭 메시지에 필수 데이터가 없습니다: x={x}, y={y}")
+                return
+            
+            # 해당 위치의 타일 찾기
+            if 0 <= x < self.dungeon.width and 0 <= y < self.dungeon.height:
+                tile = self.dungeon.get_tile(x, y)
+                if tile:
+                    # 아이템 재생성 (간단한 버전 - 실제로는 더 복잡할 수 있음)
+                    # 여기서는 타일만 표시하고, 실제 아이템은 플레이어가 주울 때 생성
+                    tile.tile_type = TileType.DROPPED_ITEM
+                    # dropped_item은 실제로는 클라이언트가 주울 때 생성되므로 None으로 설정
+                    # 또는 아이템 데이터를 저장해두고 나중에 사용
+                    self.logger.debug(f"아이템 드롭 동기화: ({x}, {y})")
+        
+        async def handle_gold_dropped(message, sender_id=None):
+            """골드 드롭 메시지 처리"""
+            if self.is_host and sender_id is None:
+                return  # 호스트는 자신의 메시지를 처리하지 않음
+            
+            x = message.data.get("x")
+            y = message.data.get("y")
+            amount = message.data.get("amount", 0)
+            
+            if x is None or y is None or amount <= 0:
+                self.logger.warning(f"골드 드롭 메시지에 필수 데이터가 없습니다: x={x}, y={y}, amount={amount}")
+                return
+            
+            # 해당 위치의 타일 찾기
+            if 0 <= x < self.dungeon.width and 0 <= y < self.dungeon.height:
+                tile = self.dungeon.get_tile(x, y)
+                if tile:
+                    tile.tile_type = TileType.GOLD
+                    tile.gold_amount = amount
+                    self.logger.debug(f"골드 드롭 동기화: ({x}, {y}) {amount}G")
+        
+        self.network_manager.register_handler(MessageType.ITEM_DROPPED, handle_item_dropped)
+        self.network_manager.register_handler(MessageType.GOLD_DROPPED, handle_gold_dropped)
+        self.logger.debug("드롭된 아이템/골드 동기화 핸들러 등록 완료")
 
