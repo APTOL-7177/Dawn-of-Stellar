@@ -6,7 +6,7 @@
 
 from enum import Enum
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 
 
 class TileType(Enum):
