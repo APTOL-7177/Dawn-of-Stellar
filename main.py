@@ -2830,6 +2830,9 @@ def main() -> int:
 
                     # BGM 제어 플래그 (첫 탐험 시작 및 층 변경 시에만 재생)
                     play_dungeon_bgm = True
+                    
+                    # 싱글플레이 모드: local_player_id는 None
+                    local_player_id = None
 
                     while True:
                                 # 탐험 시작 (기존 exploration 객체 재사용)
