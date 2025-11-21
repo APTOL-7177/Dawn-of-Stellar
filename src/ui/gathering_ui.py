@@ -40,7 +40,13 @@ def harvest_object(
     Returns:
         채집 성공 여부
     """
-    if harvestable.harvested:
+    # 멀티플레이: 플레이어 ID 가져오기
+    player_id = None
+    if exploration and hasattr(exploration, 'local_player_id'):
+        player_id = exploration.local_player_id
+    
+    # 채집 가능 여부 확인 (플레이어별)
+    if not harvestable.can_harvest(player_id):
         show_message(console, context, "이미 채집한 곳입니다.", Colors.GRAY)
         return False
 
@@ -48,9 +54,8 @@ def harvest_object(
     from src.audio import play_sfx
     play_sfx("world", "gathering")
     
-    # 채집 실행 (harvest() 내부에서 harvested = True로 설정됨)
-    # 멀티플레이에서는 개인보상이므로 동기화하지 않음
-    results = harvestable.harvest()
+    # 채집 실행 (멀티플레이에서는 개인보상이므로 플레이어별로 독립적으로 채집 가능)
+    results = harvestable.harvest(player_id)
 
     if not results:
         show_message(console, context, "채집할 것이 없습니다.", Colors.GRAY)

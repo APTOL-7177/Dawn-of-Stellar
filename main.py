@@ -396,14 +396,37 @@ def main() -> int:
                         from src.core.difficulty import DifficultySystem, DifficultyLevel, set_difficulty_system
                         difficulty_system = DifficultySystem(config)
                         
-                        from src.ui.difficulty_selection_ui import show_difficulty_selection
-                        difficulty_result = show_difficulty_selection(display.console, display.context, difficulty_system)
+                        # 봇이 호스트인지 확인 (봇은 항상 보통 선택)
+                        is_bot_host = False
+                        bot_manager = None
+                        try:
+                            from src.multiplayer.ai_bot_advanced import AdvancedBotManager
+                            # 봇 관리자 확인 (세션에 저장되어 있을 수 있음)
+                            if hasattr(session, 'bot_manager'):
+                                bot_manager = session.bot_manager
+                                if bot_manager and local_player_id in bot_manager.bots:
+                                    bot = bot_manager.get_bot(local_player_id)
+                                    if bot and bot.is_host:
+                                        is_bot_host = True
+                        except Exception as e:
+                            logger.debug(f"봇 확인 실패 (정상): {e}")
                         
-                        if not difficulty_result:
-                            continue
-                        
-                        difficulty_system.set_difficulty(difficulty_result)
-                        set_difficulty_system(difficulty_system)
+                        if is_bot_host:
+                            # 봇 호스트: 자동으로 보통 선택
+                            difficulty_result = DifficultyLevel.NORMAL
+                            difficulty_system.set_difficulty(difficulty_result)
+                            set_difficulty_system(difficulty_system)
+                            logger.info(f"봇 호스트 난이도 자동 선택: {difficulty_result.value}")
+                        else:
+                            # 일반 호스트: UI로 선택
+                            from src.ui.difficulty_selection_ui import show_difficulty_selection
+                            difficulty_result = show_difficulty_selection(display.console, display.context, difficulty_system)
+                            
+                            if not difficulty_result:
+                                continue
+                            
+                            difficulty_system.set_difficulty(difficulty_result)
+                            set_difficulty_system(difficulty_system)
                         
                         # 인벤토리 생성 (멀티플레이: 호스트 기준)
                         from src.equipment.inventory import Inventory
@@ -478,8 +501,73 @@ def main() -> int:
                         UpgradeApplier.apply_to_characters(character_party, meta_progress=host_meta, is_host=True)
                         logger.info("파티 강화 업그레이드 적용 완료")
                         
+                        # 특성/패시브/업그레이드 적용 후 HP/MP를 최대값으로 보정 (게임 시작 시)
+                        for char in character_party:
+                            char.current_hp = char.max_hp
+                            char.current_mp = char.max_mp
+                            char.is_alive = True
+                            logger.debug(f"{char.name} HP/MP 초기화: HP={char.current_hp}/{char.max_hp}, MP={char.current_mp}/{char.max_mp}")
+                        
                         # 로컬 플레이어의 파티를 Character 객체 리스트로 업데이트 (전투 참여자 수집용)
                         local_player.party = character_party
+                        
+                        # 다른 플레이어(봇 포함)의 파티도 Character 객체로 변환
+                        for player_id, mp_player in session.players.items():
+                            # 로컬 플레이어는 이미 처리했으므로 건너뛰기
+                            if player_id == local_player_id:
+                                continue
+                            
+                            # 다른 플레이어의 파티가 PartyMember 리스트인 경우 Character로 변환
+                            if hasattr(mp_player, 'party') and mp_player.party:
+                                other_character_party = []
+                                for member in mp_player.party:
+                                    # 이미 Character 객체인 경우 건너뛰기
+                                    from src.character.character import Character
+                                    if isinstance(member, Character):
+                                        other_character_party.append(member)
+                                        continue
+                                    
+                                    # PartyMember를 Character로 변환
+                                    if hasattr(member, 'character_name') and hasattr(member, 'job_id'):
+                                        char = Character(
+                                            name=member.character_name,
+                                            character_class=member.job_id,
+                                            level=1
+                                        )
+                                        char.experience = 0
+                                        
+                                        # 플레이어 ID 할당
+                                        if hasattr(member, 'player_id') and member.player_id:
+                                            char.player_id = member.player_id
+                                        else:
+                                            char.player_id = player_id
+                                        
+                                        # 특성 적용
+                                        if hasattr(member, 'selected_traits') and member.selected_traits:
+                                            for trait_id in member.selected_traits:
+                                                char.activate_trait(trait_id)
+                                        
+                                        # 패시브 적용
+                                        if selected_passives:
+                                            for passive_id in selected_passives:
+                                                char.activate_trait(passive_id)
+                                        
+                                        # 업그레이드 적용
+                                        UpgradeApplier.apply_to_characters([char], meta_progress=host_meta, is_host=False)
+                                        
+                                        # HP/MP 초기화
+                                        char.current_hp = char.max_hp
+                                        char.current_mp = char.max_mp
+                                        char.is_alive = True
+                                        
+                                        logger.debug(f"{char.name} (봇) HP/MP 초기화: HP={char.current_hp}/{char.max_hp}, MP={char.current_mp}/{char.max_mp}")
+                                        
+                                        other_character_party.append(char)
+                                
+                                # 변환된 Character 리스트로 업데이트
+                                if other_character_party:
+                                    mp_player.party = other_character_party
+                                    logger.info(f"플레이어 {mp_player.player_name}의 파티를 Character 객체로 변환 완료: {len(other_character_party)}명")
                         
                         # 탐험 시스템 생성 (멀티플레이) - Character 객체 리스트 전달
                         exploration = MultiplayerExplorationSystem(
@@ -497,6 +585,26 @@ def main() -> int:
                         network_manager.current_floor = floor_number
                         network_manager.current_dungeon = dungeon
                         network_manager.current_exploration = exploration
+                        
+                        # 세션에 exploration 저장 (봇이 접근할 수 있도록)
+                        session.exploration = exploration
+                        
+                        # 봇 매니저 시작 (봇이 있는 경우)
+                        if hasattr(session, 'bot_manager') and session.bot_manager:
+                            bot_manager = session.bot_manager
+                            if bot_manager and len(bot_manager.bots) > 0:
+                                bot_manager.start_all()
+                                logger.info(f"봇 매니저 시작: {len(bot_manager.bots)}개의 봇 활성화")
+                                
+                                # 봇들에게 탐험 시스템 참조 전달
+                                for bot_id, bot in bot_manager.bots.items():
+                                    # 봇의 초기 위치를 세션 플레이어에서 가져오기
+                                    if bot_id in session.players:
+                                        bot_player = session.players[bot_id]
+                                        if hasattr(bot_player, 'x') and hasattr(bot_player, 'y'):
+                                            bot.current_x = bot_player.x
+                                            bot.current_y = bot_player.y
+                                            logger.info(f"봇 {bot.bot_name} 초기 위치: ({bot.current_x}, {bot.current_y})")
                         
                         # 플레이어 초기 위치 설정 (모든 플레이어)
                         # exploration._initialize_player_positions()가 이미 호출되었으므로
@@ -623,6 +731,11 @@ def main() -> int:
                                             enemies.append(boss)
                                 
                                 # 멀티플레이 전투 실행
+                                # 봇 관리자 가져오기 (세션에서)
+                                bot_manager_for_combat = None
+                                if hasattr(session, 'bot_manager'):
+                                    bot_manager_for_combat = session.bot_manager
+                                
                                 combat_result = run_combat(
                                     display.console,
                                     display.context,
@@ -631,7 +744,9 @@ def main() -> int:
                                     inventory=inventory,
                                     session=session,
                                     network_manager=network_manager,
-                                    combat_position=combat_position
+                                    combat_position=combat_position,
+                                    bot_manager=bot_manager_for_combat,
+                                    local_player_id=local_player_id
                                 )
                                 
                                 if combat_result == CombatState.VICTORY:
@@ -704,22 +819,51 @@ def main() -> int:
                                     play_bgm(biome_track, loop=True, fade_in=True)
                                     play_dungeon_bgm = False
                                 elif combat_result == CombatState.DEFEAT:
-                                    logger.info("❌ 패배... 게임 오버")
-                                    from src.ui.game_result_ui import show_game_result
-                                    # 멀티플레이어 여부 확인 (클라이언트 모드)
-                                    is_multiplayer = True  # 클라이언트 모드이므로 멀티플레이
-                                    show_game_result(
-                                        display.console,
-                                        display.context,
-                                        is_victory=False,
-                                        max_floor=exploration.game_stats["max_floor_reached"],
-                                        enemies_defeated=exploration.game_stats["enemies_defeated"],
-                                        total_gold=exploration.game_stats["total_gold_earned"],
-                                        total_exp=exploration.game_stats["total_exp_earned"],
-                                        save_slot=None,
-                                        is_multiplayer=is_multiplayer
-                                    )
-                                    break
+                                    # 전투 참여 파티원만 죽었는지, 모든 플레이어의 모든 캐릭터가 죽었는지 확인
+                                    is_game_over = False
+                                    if session:
+                                        all_players_dead = True
+                                        for player_id, player in session.players.items():
+                                            if hasattr(player, 'party') and player.party:
+                                                has_alive = False
+                                                for char in player.party:
+                                                    if hasattr(char, 'is_alive') and char.is_alive:
+                                                        has_alive = True
+                                                        break
+                                                    elif hasattr(char, 'current_hp') and char.current_hp > 0:
+                                                        has_alive = True
+                                                        break
+                                                if has_alive:
+                                                    all_players_dead = False
+                                                    break
+                                        is_game_over = all_players_dead
+                                    
+                                    if is_game_over:
+                                        logger.info("❌ 패배... 게임 오버")
+                                        from src.ui.game_result_ui import show_game_result
+                                        is_multiplayer = True  # 클라이언트 모드이므로 멀티플레이
+                                        show_game_result(
+                                            display.console,
+                                            display.context,
+                                            is_victory=False,
+                                            max_floor=exploration.game_stats["max_floor_reached"],
+                                            enemies_defeated=exploration.game_stats["enemies_defeated"],
+                                            total_gold=exploration.game_stats["total_gold_earned"],
+                                            total_exp=exploration.game_stats["total_exp_earned"],
+                                            save_slot=None,
+                                            is_multiplayer=is_multiplayer
+                                        )
+                                        break
+                                    else:
+                                        logger.info("❌ 패배... 맵으로 복귀")
+                                        from src.audio import play_bgm
+                                        floor = exploration.floor_number
+                                        biome_index = (floor - 1) // 5
+                                        biome_index = biome_index % 10
+                                        biome_track = f"biome_{biome_index}"
+                                        play_bgm(biome_track, loop=True, fade_in=True)
+                                        play_dungeon_bgm = False
+                                        continue
                             elif result == "floor_up" or result == "floor_down":
                                 # 층 이동 처리 (멀티플레이)
                                 if result == "floor_up":
@@ -1587,6 +1731,11 @@ def main() -> int:
                                                         else:
                                                             enemies.append(boss)
                                                 
+                                                # 봇 관리자 가져오기
+                                                bot_manager_for_combat = None
+                                                if hasattr(session, 'bot_manager'):
+                                                    bot_manager_for_combat = session.bot_manager
+                                                
                                                 # 멀티플레이 전투 실행
                                                 combat_result = run_combat(
                                                     display.console,
@@ -1596,7 +1745,9 @@ def main() -> int:
                                                     inventory=inventory,
                                                     session=session,
                                                     network_manager=network_manager,
-                                                    combat_position=combat_position
+                                                    combat_position=combat_position,
+                                                    bot_manager=bot_manager_for_combat,
+                                                    local_player_id=local_player_id
                                                 )
                                                 
                                                 if combat_result == CombatState.VICTORY:
@@ -1670,22 +1821,51 @@ def main() -> int:
                                                     play_bgm(biome_track, loop=True, fade_in=True)
                                                     play_dungeon_bgm = False
                                                 elif combat_result == CombatState.DEFEAT:
-                                                    logger.info("❌ 패배... 게임 오버")
-                                                    from src.ui.game_result_ui import show_game_result
-                                                    # 멀티플레이어 여부 확인
-                                                    is_multiplayer = hasattr(exploration, 'session') or (hasattr(exploration, 'is_multiplayer') and exploration.is_multiplayer)
-                                                    show_game_result(
-                                                        display.console,
-                                                        display.context,
-                                                        is_victory=False,
-                                                        max_floor=exploration.game_stats["max_floor_reached"],
-                                                        enemies_defeated=exploration.game_stats["enemies_defeated"],
-                                                        total_gold=exploration.game_stats["total_gold_earned"],
-                                                        total_exp=exploration.game_stats["total_exp_earned"],
-                                                        save_slot=None,
-                                                        is_multiplayer=is_multiplayer
-                                                    )
-                                                    break
+                                                    # 전투 참여 파티원만 죽었는지, 모든 플레이어의 모든 캐릭터가 죽었는지 확인
+                                                    is_game_over = False
+                                                    if session:
+                                                        all_players_dead = True
+                                                        for player_id, player in session.players.items():
+                                                            if hasattr(player, 'party') and player.party:
+                                                                has_alive = False
+                                                                for char in player.party:
+                                                                    if hasattr(char, 'is_alive') and char.is_alive:
+                                                                        has_alive = True
+                                                                        break
+                                                                    elif hasattr(char, 'current_hp') and char.current_hp > 0:
+                                                                        has_alive = True
+                                                                        break
+                                                                if has_alive:
+                                                                    all_players_dead = False
+                                                                    break
+                                                        is_game_over = all_players_dead
+                                                    
+                                                    if is_game_over:
+                                                        logger.info("❌ 패배... 게임 오버")
+                                                        from src.ui.game_result_ui import show_game_result
+                                                        is_multiplayer = hasattr(exploration, 'session') or (hasattr(exploration, 'is_multiplayer') and exploration.is_multiplayer)
+                                                        show_game_result(
+                                                            display.console,
+                                                            display.context,
+                                                            is_victory=False,
+                                                            max_floor=exploration.game_stats["max_floor_reached"],
+                                                            enemies_defeated=exploration.game_stats["enemies_defeated"],
+                                                            total_gold=exploration.game_stats["total_gold_earned"],
+                                                            total_exp=exploration.game_stats["total_exp_earned"],
+                                                            save_slot=None,
+                                                            is_multiplayer=is_multiplayer
+                                                        )
+                                                        break
+                                                    else:
+                                                        logger.info("❌ 패배... 맵으로 복귀")
+                                                        from src.audio import play_bgm
+                                                        floor = exploration.floor_number
+                                                        biome_index = (floor - 1) // 5
+                                                        biome_index = biome_index % 10
+                                                        biome_track = f"biome_{biome_index}"
+                                                        play_bgm(biome_track, loop=True, fade_in=True)
+                                                        play_dungeon_bgm = False
+                                                        continue
                                             elif result == "floor_up" or result == "floor_down":
                                                 # 층 이동 처리 (멀티플레이)
                                                 if result == "floor_up":
@@ -1962,6 +2142,18 @@ def main() -> int:
                                 
                                 if assignments:
                                     logger.info(f"플레이어 재할당 완료: {len(assignments)}명 플레이어에게 할당")
+                            
+                            # 봇 할당 UI 표시 (멀티플레이 로드 시)
+                            if session and is_multiplayer_load:
+                                from src.ui.multiplayer_lobby import show_bot_assignment_ui
+                                bot_assigned = show_bot_assignment_ui(
+                                    display.console,
+                                    display.context,
+                                    session,
+                                    network_manager
+                                )
+                                if bot_assigned:
+                                    logger.info("봇 할당 완료")
                                 else:
                                     logger.warning("플레이어 재할당 취소됨")
                                     continue
@@ -2088,6 +2280,11 @@ def main() -> int:
                             local_player.party = party  # 로컬 플레이어의 파티 설정
                         
                         logger.info(f"멀티플레이 탐험 시스템 생성 완료 (is_multiplayer={exploration.is_multiplayer})")
+                        
+                        # 세션에 exploration 설정 (봇이 접근할 수 있도록)
+                        if session:
+                            session.exploration = exploration
+                            logger.info("세션에 탐험 시스템 설정 완료")
                     else:
                         # 싱글플레이 탐험 시스템
                         exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
@@ -2194,14 +2391,51 @@ def main() -> int:
                             network_manager_for_combat = None
                             combat_position = None
                             
+                            # 파티 설정 (싱글플레이 또는 멀티플레이)
+                            # 멀티플레이: 전투 데이터에서 참여자 가져오기
                             if is_multiplayer and data and isinstance(data, dict):
                                 if "participants" in data:
-                                    party = data["participants"]  # 참여자로 교체
+                                    combat_party = data["participants"]  # 참여자로 교체
+                                else:
+                                    # participants가 없으면 exploration.player.party 사용
+                                    if hasattr(exploration, 'player') and hasattr(exploration.player, 'party'):
+                                        combat_party = exploration.player.party
+                                    else:
+                                        combat_party = []
                                 if "position" in data:
                                     combat_position = data["position"]
-                                # 세션 및 네트워크 매니저 가져오기 (TODO: 실제 세션에서 가져오기)
-                                # 현재는 싱글플레이 모드로 처리
-                                pass
+                            else:
+                                # 싱글플레이: exploration의 player.party 사용 (가장 확실한 방법)
+                                if hasattr(exploration, 'player') and hasattr(exploration.player, 'party'):
+                                    combat_party = exploration.player.party
+                                else:
+                                    # player.party가 없으면 상위 스코프의 party 변수 사용 시도
+                                    try:
+                                        # 상위 스코프에서 party 변수 확인
+                                        combat_party = party if 'party' in locals() and party is not None else []
+                                    except NameError:
+                                        combat_party = []
+                                
+                                if not combat_party or combat_party is None:
+                                    logger.error("싱글플레이 전투: 파티를 찾을 수 없습니다. 빈 리스트 사용")
+                                    combat_party = []
+                            
+                            # 파티가 None이거나 빈 리스트이면 오류
+                            if combat_party is None:
+                                logger.error("싱글플레이 전투: 파티가 None입니다. exploration.player.party 사용 시도")
+                                if hasattr(exploration, 'player') and hasattr(exploration.player, 'party'):
+                                    combat_party = exploration.player.party or []
+                                else:
+                                    logger.error("exploration.player.party도 없습니다. 빈 리스트 사용")
+                                    combat_party = []
+                            
+                            # 파티를 전투용 변수에 할당 (None 체크)
+                            party = combat_party if combat_party is not None else []
+                            
+                            # 봇 관리자 가져오기
+                            bot_manager_for_combat = None
+                            if session_for_combat and hasattr(session_for_combat, 'bot_manager'):
+                                bot_manager_for_combat = session_for_combat.bot_manager
                             
                             combat_result = run_combat(
                                 display.console,
@@ -2211,7 +2445,9 @@ def main() -> int:
                                 inventory=inventory,
                                 session=session_for_combat,
                                 network_manager=network_manager_for_combat,
-                                combat_position=combat_position
+                                combat_position=combat_position,
+                                bot_manager=bot_manager_for_combat,
+                                local_player_id=local_player_id
                             )
 
                             logger.info(f"전투 결과: {combat_result}")
@@ -2269,29 +2505,49 @@ def main() -> int:
                                 play_dungeon_bgm = False
                                 continue
                             elif combat_result == CombatState.DEFEAT:
-                                logger.info("❌ 패배... 게임 오버")
-
-                                # 게임 정산 (패배)
-                                from src.ui.game_result_ui import show_game_result
-                                # 불러온 게임 상태에서 멀티플레이어 여부 확인
-                                is_multiplayer = loaded_state.get("is_multiplayer", False) if loaded_state else False
-                                save_slot_info = exploration.game_stats.get("save_slot", None)
-                                if save_slot_info is None:
-                                    save_slot_info = {"is_multiplayer": is_multiplayer}
-                                elif isinstance(save_slot_info, dict):
-                                    save_slot_info["is_multiplayer"] = is_multiplayer
-                                show_game_result(
-                                    display.console,
-                                    display.context,
-                                    is_victory=False,
-                                    max_floor=exploration.game_stats["max_floor_reached"],
-                                    enemies_defeated=exploration.game_stats["enemies_defeated"],
-                                    total_gold=exploration.game_stats["total_gold_earned"],
-                                    total_exp=exploration.game_stats["total_exp_earned"],
-                                    save_slot=save_slot_info,
-                                    is_multiplayer=is_multiplayer
-                                )
-                                break
+                                # 전투 참여 파티원만 죽었는지, 모든 플레이어의 모든 캐릭터가 죽었는지 확인
+                                is_game_over = getattr(combat_manager, 'is_game_over', False)
+                                
+                                if is_game_over:
+                                    # 모든 플레이어의 모든 캐릭터가 죽었으면 게임오버
+                                    logger.info("❌ 패배... 게임 오버")
+                                    
+                                    # 게임 정산 (패배)
+                                    from src.ui.game_result_ui import show_game_result
+                                    # 불러온 게임 상태에서 멀티플레이어 여부 확인
+                                    is_multiplayer = loaded_state.get("is_multiplayer", False) if loaded_state else False
+                                    save_slot_info = exploration.game_stats.get("save_slot", None)
+                                    if save_slot_info is None:
+                                        save_slot_info = {"is_multiplayer": is_multiplayer}
+                                    elif isinstance(save_slot_info, dict):
+                                        save_slot_info["is_multiplayer"] = is_multiplayer
+                                    show_game_result(
+                                        display.console,
+                                        display.context,
+                                        is_victory=False,
+                                        max_floor=exploration.game_stats["max_floor_reached"],
+                                        enemies_defeated=exploration.game_stats["enemies_defeated"],
+                                        total_gold=exploration.game_stats["total_gold_earned"],
+                                        total_exp=exploration.game_stats["total_exp_earned"],
+                                        save_slot=save_slot_info,
+                                        is_multiplayer=is_multiplayer
+                                    )
+                                    break
+                                else:
+                                    # 전투 참여 파티원만 죽었으면 패배 (맵으로 복귀)
+                                    logger.info("❌ 패배... 맵으로 복귀")
+                                    
+                                    # 던전 BGM 재생 (바이옴별 BGM)
+                                    from src.audio import play_bgm
+                                    floor = exploration.floor_number
+                                    # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
+                                    biome_index = (floor - 1) // 5
+                                    biome_index = biome_index % 10  # 10개 바이옴 순환
+                                    biome_track = f"biome_{biome_index}"
+                                    play_bgm(biome_track, loop=True, fade_in=True)
+                                    logger.info(f"던전 BGM 재생 (층수: {floor}, 바이옴: {biome_index}, BGM: {biome_track})")
+                                    play_dungeon_bgm = False
+                                    continue
                             else:
                                 logger.info("🏃 도망쳤다")
                                 # 도망 후 던전 BGM 재생 (바이옴별 BGM)
@@ -2574,6 +2830,9 @@ def main() -> int:
 
                     # BGM 제어 플래그 (첫 탐험 시작 및 층 변경 시에만 재생)
                     play_dungeon_bgm = True
+                    
+                    # 싱글플레이 모드: local_player_id는 None
+                    local_player_id = None
 
                     while True:
                                 # 탐험 시작 (기존 exploration 객체 재사용)
@@ -2669,6 +2928,11 @@ def main() -> int:
                                     else:
                                         combat_party = party
                                     
+                                    # 봇 관리자 가져오기
+                                    bot_manager_for_combat = None
+                                    if session_for_combat and hasattr(session_for_combat, 'bot_manager'):
+                                        bot_manager_for_combat = session_for_combat.bot_manager
+                                    
                                     combat_result = run_combat(
                                         display.console,
                                         display.context,
@@ -2677,7 +2941,9 @@ def main() -> int:
                                         inventory=inventory,
                                         session=session_for_combat,
                                         network_manager=network_manager_for_combat,
-                                        combat_position=combat_position
+                                        combat_position=combat_position,
+                                        bot_manager=bot_manager_for_combat,
+                                        local_player_id=local_player_id
                                     )
 
                                     logger.info(f"전투 결과: {combat_result}")

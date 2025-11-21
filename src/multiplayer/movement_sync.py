@@ -163,16 +163,26 @@ class MovementSyncManager:
         # 호스트 여부 확인 (호스트의 위치는 항상 우선시)
         is_host_player = hasattr(self.session, 'host_id') and player_id == self.session.host_id
         
-        # 로컬 플레이어 여부 확인
-        is_local_player = hasattr(self, '_local_player_id') and player_id == getattr(self, '_local_player_id', None)
+        # 로컬 플레이어 여부 확인 (여러 방법으로 확인)
+        is_local_player = False
+        if hasattr(self, '_local_player_id'):
+            is_local_player = player_id == getattr(self, '_local_player_id', None)
+        elif hasattr(self, 'exploration') and self.exploration:
+            if hasattr(self.exploration, 'local_player_id'):
+                is_local_player = player_id == self.exploration.local_player_id
         
         # 위치 업데이트
         x = message.data.get("x", player.x)
         y = message.data.get("y", player.y)
         timestamp = message.timestamp
         
+        # 로컬 플레이어의 이동 메시지는 위치 업데이트 건너뛰기 (이미 로컬에서 처리됨)
+        if is_local_player:
+            self.logger.debug(f"로컬 플레이어 {player_id}의 이동 메시지 - 위치 업데이트 건너뛰기 (이미 처리됨)")
+            return
+        
         # 호스트의 이동 메시지는 항상 우선시 (로컬 플레이어가 아니거나, 호스트가 아닌 클라이언트인 경우)
-        if is_host_player and not is_local_player:
+        if is_host_player:
             # 호스트의 위치는 항상 업데이트 (우선순위 최우선)
             old_x = player.x
             old_y = player.y
@@ -192,11 +202,6 @@ class MovementSyncManager:
                 f"[호스트 우선] 플레이어 {player_name} 위치 동기화: ({old_x}, {old_y}) -> ({x}, {y}) "
                 f"(발신자: {sender_id}, 타임스탬프: {timestamp})"
             )
-        elif is_local_player:
-            # 로컬 플레이어의 이동 메시지는 위치 업데이트 건너뛰기 (이미 처리됨)
-            self.logger.debug(f"로컬 플레이어 {player_id}의 이동 메시지 - 위치 업데이트 건너뛰기 (이미 처리됨)")
-            # 로컬 플레이어의 메시지는 위치 업데이트 불필요 (이미 로컬에서 처리됨)
-            return
         else:
             # 일반 클라이언트 플레이어의 이동 메시지 처리
             old_x = player.x

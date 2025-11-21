@@ -563,14 +563,14 @@ class SimpleEnemy:
         
         # 공격력: 레벨당 기초 공격력의 25% 성장, 최종값 12% 증가 후 25% 감소 (0.75배)
         # (플레이어 20% * 1.25, 최종 1.12배 * 0.75 = 0.84배)
-        # 추가로 공격력을 1/2로 조정
+        # 추가로 공격력을 1/2로 조정하고, 25% 추가 감소 적용 (0.5 * 0.75 = 0.375)
         attack_growth = template.physical_attack * 0.25 * (level - 1)
         base_physical_attack = (template.physical_attack + attack_growth) * 1.12 * 0.75 * boss_stat_mult * stat_variance
-        self.physical_attack = int(base_physical_attack) * difficulty_dmg_mult * 0.5
+        self.physical_attack = int(base_physical_attack) * difficulty_dmg_mult * 0.5 * 0.75
         
         magic_attack_growth = template.magic_attack * 0.25 * (level - 1)
         base_magic_attack = (template.magic_attack + magic_attack_growth) * 1.12 * 0.75 * boss_stat_mult * stat_variance
-        self.magic_attack = int(base_magic_attack) * difficulty_dmg_mult * 0.5
+        self.magic_attack = int(base_magic_attack) * difficulty_dmg_mult * 0.5 * 0.75
         
         # 방어력: 레벨당 기초 방어력의 25% 성장, 최종값 15% 증가 (플레이어 20% * 1.25, 최종 0.75 * 1.15 = 0.8625배)
         defense_growth = template.physical_defense * 0.25 * (level - 1)
@@ -582,10 +582,10 @@ class SimpleEnemy:
         self.magic_defense = int(base_magic_defense)
         
         # 속도: 레벨당 기초 속도의 25% 성장 (플레이어 20% * 1.25)
-        # 추가로 속도를 1.5배로 조정
+        # 추가로 속도를 1.5배로 조정하고, 30% 감소 적용 (1.5 * 0.7 = 1.05)
         speed_growth = template.speed * 0.25 * (level - 1)
         base_speed = (template.speed + speed_growth) * boss_stat_mult * stat_variance
-        self.speed = int(base_speed * 1.5)
+        self.speed = int(base_speed * 1.5 * 0.7)
         
         # 행운, 명중, 회피는 레벨에 따라 약간 증가
         base_luck = (template.luck + (level - 1) * 0.5) * boss_stat_mult * stat_variance

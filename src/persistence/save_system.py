@@ -541,18 +541,22 @@ def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]
     harvestables_data = []
     if hasattr(dungeon, 'harvestables'):
         for harvestable in dungeon.harvestables:
-            harvestables_data.append({
+            harvestable_dict = {
                 "object_type": harvestable.object_type.value,
                 "x": harvestable.x,
                 "y": harvestable.y,
-                "harvested": harvestable.harvested
-            })
+                "harvested": harvestable.harvested  # 싱글플레이 호환성
+            }
+            # 멀티플레이: 플레이어별 채집 상태 저장
+            if hasattr(harvestable, 'harvested_by') and harvestable.harvested_by:
+                harvestable_dict["harvested_by"] = list(harvestable.harvested_by)
+            harvestables_data.append(harvestable_dict)
 
     # 적(enemies) 직렬화
     enemies_data = []
     if enemies:
         for enemy in enemies:
-            enemies_data.append({
+            enemy_data = {
                 "x": enemy.x,
                 "y": enemy.y,
                 "level": enemy.level,
@@ -565,7 +569,11 @@ def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]
                 "max_chase_turns": getattr(enemy, 'max_chase_turns', 15),
                 "max_chase_distance": getattr(enemy, 'max_chase_distance', 15),
                 "detection_range": getattr(enemy, 'detection_range', 5)
-            })
+            }
+            # 적 ID 포함 (멀티플레이 동기화용)
+            if hasattr(enemy, 'id') and enemy.id:
+                enemy_data["id"] = enemy.id
+            enemies_data.append(enemy_data)
 
     return {
         "width": dungeon.width,
@@ -744,15 +752,34 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
     for tile_data in dungeon_data["tiles"]:
         x, y = tile_data["x"], tile_data["y"]
         tile_type = TileType(tile_data["type"])
+        loot_id = tile_data.get("loot_id")
 
-        dungeon.set_tile(
-            x, y, tile_type,
-            locked=tile_data.get("locked", False),
-            key_id=tile_data.get("key_id"),
-            trap_damage=tile_data.get("trap_damage", 0),
-            teleport_target=tuple(tile_data["teleport_target"]) if tile_data.get("teleport_target") else None,
-            loot_id=tile_data.get("loot_id")
-        )
+        # loot_id가 None이 아니면 아이템/상자가 있는 타일로 복원
+        # (이미 주운 아이템은 loot_id가 None이므로 복원되지 않음)
+        if loot_id and tile_type in [TileType.ITEM, TileType.CHEST]:
+            # 아이템/상자 타일로 복원 (loot_id 포함)
+            dungeon.set_tile(
+                x, y, tile_type,
+                locked=tile_data.get("locked", False),
+                key_id=tile_data.get("key_id"),
+                trap_damage=tile_data.get("trap_damage", 0),
+                teleport_target=tuple(tile_data["teleport_target"]) if tile_data.get("teleport_target") else None,
+                loot_id=loot_id
+            )
+        else:
+            # 일반 타일로 복원 (아이템/상자는 이미 주운 것으로 간주)
+            # 만약 원래 타입이 ITEM이나 CHEST였지만 loot_id가 None이면 FLOOR로 변경
+            if tile_type in [TileType.ITEM, TileType.CHEST]:
+                tile_type = TileType.FLOOR
+            
+            dungeon.set_tile(
+                x, y, tile_type,
+                locked=tile_data.get("locked", False),
+                key_id=tile_data.get("key_id"),
+                trap_damage=tile_data.get("trap_damage", 0),
+                teleport_target=tuple(tile_data["teleport_target"]) if tile_data.get("teleport_target") else None,
+                loot_id=None  # 아이템을 주웠으므로 loot_id는 None
+            )
 
         tile = dungeon.get_tile(x, y)
         tile.explored = tile_data.get("explored", False)
@@ -780,8 +807,11 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
             object_type=HarvestableType(harv_data["object_type"]),
             x=harv_data["x"],
             y=harv_data["y"],
-            harvested=harv_data.get("harvested", False)
+            harvested=harv_data.get("harvested", False)  # 싱글플레이 호환성
         )
+        # 멀티플레이: 플레이어별 채집 상태 복원
+        if "harvested_by" in harv_data:
+            harvestable.harvested_by = set(harv_data["harvested_by"])
         harvestables.append(harvestable)
     dungeon.harvestables = harvestables
 
@@ -793,7 +823,8 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
             y=enemy_data["y"],
             level=enemy_data.get("level", 1),
             name=enemy_data.get("name", "적"),
-            is_boss=enemy_data.get("is_boss", False)
+            is_boss=enemy_data.get("is_boss", False),
+            id=enemy_data.get("id")  # 적 ID 복원 (멀티플레이 동기화용)
         )
         enemy.spawn_x = enemy_data.get("spawn_x", enemy.x)
         enemy.spawn_y = enemy_data.get("spawn_y", enemy.y)

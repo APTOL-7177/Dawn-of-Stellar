@@ -57,6 +57,9 @@ class MultiplayerSession:
         self.logger = get_logger("multiplayer.session")
         self.created_at = time.time()
         self.is_active = True
+        
+        # 다음 층 이동 준비 상태 (모든 플레이어가 준비해야 이동 가능)
+        self.floor_ready_players: Set[str] = set()
     
     def add_player(self, player: MultiplayerPlayer) -> bool:
         """
@@ -252,6 +255,36 @@ class MultiplayerSession:
             "created_at": self.created_at,
             "is_active": self.is_active
         }
+    
+    def set_floor_ready(self, player_id: str, ready: bool = True) -> None:
+        """
+        다음 층 이동 준비 상태 설정
+        
+        Args:
+            player_id: 플레이어 ID
+            ready: 준비 여부
+        """
+        if ready:
+            self.floor_ready_players.add(player_id)
+        else:
+            self.floor_ready_players.discard(player_id)
+        self.logger.debug(f"플레이어 {player_id} 층 이동 준비 상태: {ready} (준비: {len(self.floor_ready_players)}/{self.player_count})")
+    
+    def is_all_ready_for_floor_change(self) -> bool:
+        """
+        모든 플레이어가 다음 층 이동 준비가 되었는지 확인
+        
+        Returns:
+            모든 플레이어가 준비되었으면 True
+        """
+        # 모든 플레이어(봇 포함)가 준비 상태인지 확인
+        all_players = set(self.players.keys())
+        return len(self.floor_ready_players) > 0 and self.floor_ready_players == all_players
+    
+    def reset_floor_ready(self) -> None:
+        """다음 층 이동 준비 상태 초기화 (층 이동 후)"""
+        self.floor_ready_players.clear()
+        self.logger.debug("층 이동 준비 상태 초기화")
     
     def __repr__(self) -> str:
         return (

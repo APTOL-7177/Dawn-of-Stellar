@@ -535,26 +535,28 @@ class MessageBuilder:
         )
     
     @staticmethod
-    def item_dropped(x: int, y: int, item_data: Dict[str, Any]) -> NetworkMessage:
+    def item_dropped(x: int, y: int, item_data: Dict[str, Any], dropped_by_player_id: Optional[str] = None) -> NetworkMessage:
         """아이템 드롭 메시지 생성"""
         return NetworkMessage(
             type=MessageType.ITEM_DROPPED,
             data={
                 "x": x,
                 "y": y,
-                "item": item_data
+                "item": item_data,
+                "dropped_by_player_id": dropped_by_player_id
             }
         )
     
     @staticmethod
-    def gold_dropped(x: int, y: int, amount: int) -> NetworkMessage:
+    def gold_dropped(x: int, y: int, amount: int, dropped_by_player_id: Optional[str] = None) -> NetworkMessage:
         """골드 드롭 메시지 생성"""
         return NetworkMessage(
             type=MessageType.GOLD_DROPPED,
             data={
                 "x": x,
                 "y": y,
-                "amount": amount
+                "amount": amount,
+                "dropped_by_player_id": dropped_by_player_id
             }
         )
 

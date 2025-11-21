@@ -51,6 +51,7 @@ audio:
       intro: intro
       main_menu: menu
       menu: menu2
+      multiplayer_lobby: party_setup
       party_setup: party_setup
       rest: inn1
       sad: menu2

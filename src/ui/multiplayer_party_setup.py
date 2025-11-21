@@ -26,6 +26,7 @@ from src.multiplayer.session import MultiplayerSession
 from src.multiplayer.network import HostNetworkManager, ClientNetworkManager
 from src.multiplayer.protocol import MessageType, MessageBuilder
 from src.audio import play_sfx
+from src.ui.multiplayer_lobby import get_character_allocation
 
 
 logger = get_logger("multiplayer.party_setup")
@@ -241,10 +242,335 @@ class MultiplayerPartySetup:
                 # 직업 선택 상태면 메뉴 갱신
                 if self.state == "job_select":
                     self._create_job_menu()
+                
+                # 봇의 턴이면 자동 선택 트리거
+                self._check_and_auto_select_for_bot()
             else:
                 self.logger.warning("턴 변경 메시지에 current_player_id가 없습니다")
         except Exception as e:
             self.logger.error(f"턴 변경 메시지 처리 실패: {e}", exc_info=True)
+    
+    def _check_and_auto_select_for_bot(self):
+        """봇의 턴이면 자동 선택 (호스트만 처리)"""
+        if not self.is_host or not self.current_turn_player_id:
+            return
+        
+        # 봇 관리자 확인
+        if not hasattr(self.session, 'bot_manager') or not self.session.bot_manager:
+            return
+        
+        bot_manager = self.session.bot_manager
+        bot = bot_manager.get_bot(self.current_turn_player_id)
+        
+        if not bot:
+            return
+        
+        # 이미 완료한 봇은 건너뛰기
+        if self.current_turn_player_id in self.players_completed:
+            return
+        
+        # 이미 처리 중인지 확인 (중복 방지)
+        if hasattr(self, '_bot_processing') and self._bot_processing.get(self.current_turn_player_id, False):
+            return
+        
+        # 봇의 턴이면 자동 선택 시작
+        self.logger.info(f"봇 {bot.bot_name}의 턴 - 자동 선택 시작")
+        
+        # 처리 중 플래그 설정
+        if not hasattr(self, '_bot_processing'):
+            self._bot_processing = {}
+        self._bot_processing[self.current_turn_player_id] = True
+        
+        # 약간의 지연 후 자동 선택 (다음 프레임에서 실행)
+        import threading
+        def auto_select_delayed():
+            try:
+                time.sleep(0.5)  # 0.5초 지연
+                self._auto_select_for_bot(bot)
+            finally:
+                # 처리 완료 후 플래그 해제
+                if hasattr(self, '_bot_processing'):
+                    self._bot_processing[self.current_turn_player_id] = False
+        
+        thread = threading.Thread(target=auto_select_delayed, daemon=True)
+        thread.start()
+    
+    def _auto_select_for_bot(self, bot):
+        """봇을 위한 자동 선택 (호스트가 봇 대신 처리)"""
+        try:
+            # 이미 완료한 봇은 처리하지 않음
+            if bot.bot_id in self.players_completed:
+                self.logger.debug(f"봇 {bot.bot_name}은 이미 완료했습니다. 건너뜀")
+                return
+            
+            # 봇의 파티 정보 가져오기 (없으면 생성)
+            bot_party = []
+            if bot.bot_id in self.session.players:
+                bot_player = self.session.players[bot.bot_id]
+                if hasattr(bot_player, 'party') and bot_player.party:
+                    bot_party = bot_player.party
+                else:
+                    bot_party = []
+            
+            # 봇의 할당된 캐릭터 수 확인
+            player_count = len(self.session.players)
+            bot_allocation = get_character_allocation(player_count, False)  # 봇은 호스트가 아니므로 False
+            
+            # 봇이 아직 선택을 시작하지 않았으면 직업 선택부터
+            if len(bot_party) < bot_allocation:
+                # 직업 자동 선택
+                available_jobs = [job.get('id', '') for job in self.jobs if job.get('unlocked', True)]
+                # 현재 봇이 이미 선택한 직업들도 피해야 함
+                bot_selected_jobs = {member.job_id for member in bot_party if hasattr(member, 'job_id')}
+                # 다른 플레이어/봇이 선택한 직업 + 현재 봇이 이미 선택한 직업
+                all_selected_jobs = self.other_players_jobs | bot_selected_jobs
+                selected_job = bot.auto_select_job(available_jobs, all_selected_jobs)
+                
+                if selected_job:
+                    self.logger.info(f"봇 {bot.bot_name} 직업 자동 선택: {selected_job}")
+                    # 직업 선택 처리 (봇의 파티에 추가)
+                    self._handle_bot_job_select(selected_job, bot.bot_id, bot_allocation)
+                else:
+                    self.logger.warning(f"봇 {bot.bot_name} 직업 선택 실패 (사용 가능한 직업 없음)")
+            else:
+                # 모든 캐릭터 선택 완료
+                self.logger.info(f"봇 {bot.bot_name} 모든 캐릭터 선택 완료")
+                # 완료 메시지 전송 및 처리 (봇 대신 호스트가 전송)
+                self._send_bot_job_selection_complete(bot.bot_id)
+        except Exception as e:
+            self.logger.error(f"봇 자동 선택 실패: {e}", exc_info=True)
+    
+    def _handle_bot_job_select(self, job_id: str, bot_id: str, bot_allocation: int):
+        """봇의 직업 선택 처리"""
+        # 직업 데이터 찾기
+        job_data = None
+        for job in self.jobs:
+            if job.get('id') == job_id:
+                job_data = job
+                break
+        
+        if not job_data:
+            self.logger.error(f"직업 데이터를 찾을 수 없습니다: {job_id}")
+            return
+        
+        # 이미 선택된 직업인지 확인
+        if job_id in self.other_players_jobs:
+            self.logger.warning(f"이미 선택된 직업입니다: {job_id}")
+            # 다른 직업 선택 시도
+            available_jobs = [job.get('id', '') for job in self.jobs if job.get('unlocked', True) and job.get('id') not in self.other_players_jobs]
+            if available_jobs:
+                import random
+                job_id = random.choice(available_jobs)
+                job_data = next((job for job in self.jobs if job.get('id') == job_id), None)
+                if not job_data:
+                    return
+            else:
+                return
+        
+        # 봇 플레이어 가져오기
+        if bot_id not in self.session.players:
+            return
+        
+        bot_player = self.session.players[bot_id]
+        
+        # 봇의 파티 가져오기
+        if not hasattr(bot_player, 'party') or bot_player.party is None:
+            bot_player.party = []
+        
+        # 이름 자동 생성
+        import random
+        if self.random_names:
+            bot_name = random.choice(self.random_names)
+        else:
+            bot_name = f"{bot_player.player_name}{len(bot_player.party) + 1}"
+        
+        # 특성 자동 선택
+        traits = job_data.get('traits', [])
+        available_traits = [t.get('id', '') if isinstance(t, dict) else t for t in traits if t]
+        
+        # 봇 관리자에서 봇 가져오기
+        bot = None
+        if hasattr(self.session, 'bot_manager') and self.session.bot_manager:
+            bot = self.session.bot_manager.get_bot(bot_id)
+        
+        if bot:
+            selected_traits = bot.auto_select_traits(job_id, available_traits)
+        else:
+            # 봇이 없으면 랜덤 선택
+            if len(available_traits) >= 2:
+                selected_traits = random.sample(available_traits, 2)
+            else:
+                selected_traits = available_traits[:2]
+        
+        # 파티 멤버 생성
+        job_name = job_data.get('name', job_id)
+        stats = job_data.get('base_stats', {})
+        
+        member = PartyMember(
+            job_id=job_id,
+            job_name=job_name,
+            character_name=bot_name,
+            stats=stats,
+            selected_traits=selected_traits[:2] if selected_traits else [],
+            player_id=bot_id
+        )
+        
+        # 봇의 파티에 추가
+        bot_player.party.append(member)
+        
+        # 선택된 직업으로 표시
+        self.other_players_jobs.add(job_id)
+        self.selected_job_ids.add(job_id)
+        
+        # 네트워크로 직업 선택 전송 (봇 대신 호스트가 전송)
+        self._send_job_selected_for_bot(job_id, bot_id)
+        
+        self.logger.info(f"봇 {bot_id} 직업 선택 완료: {job_id}, 이름: {bot_name}, 특성: {selected_traits}")
+        
+        # 다음 캐릭터 선택 또는 완료
+        if len(bot_player.party) >= bot_allocation:
+            # 모든 캐릭터 선택 완료
+            self._send_bot_job_selection_complete(bot_id)
+        else:
+            # 다음 캐릭터 선택 (재귀 호출)
+            time.sleep(0.3)  # 짧은 지연
+            self._auto_select_for_bot(bot)
+    
+    def _send_job_selected_for_bot(self, job_id: str, bot_id: str):
+        """봇의 직업 선택 메시지 전송 (호스트가 대신 전송)"""
+        try:
+            message = MessageBuilder.job_selected(job_id, bot_id)
+            # 비동기 브로드캐스트
+            import asyncio
+            server_loop = getattr(self.network_manager, '_server_event_loop', None)
+            if server_loop and server_loop.is_running():
+                asyncio.run_coroutine_threadsafe(
+                    self.network_manager.broadcast(message),
+                    server_loop
+                )
+        except Exception as e:
+            self.logger.error(f"봇 직업 선택 메시지 전송 실패: {e}", exc_info=True)
+    
+    def _send_bot_job_selection_complete(self, bot_id: str):
+        """봇의 직업 선택 완료 메시지 전송 및 처리 (호스트가 대신 전송)"""
+        try:
+            # 호스트에서 직접 처리 (네트워크 메시지 없이)
+            if self.is_host:
+                # 완료한 플레이어 추가
+                if bot_id not in self.players_completed:
+                    self.players_completed.add(bot_id)
+                    self.logger.info(f"봇 {bot_id} 완료 추가: {self.players_completed}, 전체 플레이어: {list(self.session.players.keys())}")
+                
+                # 다음 턴으로 넘기기 (현재 턴이 완료한 봇의 턴인 경우에만)
+                if self.current_turn_player_id == bot_id:
+                    self.logger.info(f"봇 {bot_id}의 턴 완료 - 다음 턴으로 넘김")
+                    self._advance_to_next_turn()
+                else:
+                    self.logger.info(f"봇 {bot_id} 완료했지만 현재 턴이 아님 (현재 턴: {self.current_turn_player_id})")
+                
+                # 모든 플레이어가 완료했는지 확인
+                all_players = set(self.session.players.keys())
+                if all_players.issubset(self.players_completed):
+                    self.logger.info("모든 플레이어의 직업 선택 완료! 호스트도 완료 처리")
+                    # 호스트 자신도 완료했고 모든 플레이어가 완료했으면 completed = True
+                    if self.local_completed:
+                        self.completed = True
+                else:
+                    # 아직 완료하지 않은 플레이어가 있으면 completed는 False로 유지
+                    self.logger.info(f"다른 플레이어 대기 중... 완료: {self.players_completed}, 전체: {all_players}")
+            
+            # 클라이언트에게도 브로드캐스트 (동기화용)
+            message = MessageBuilder.job_selection_complete(bot_id)
+            import asyncio
+            server_loop = getattr(self.network_manager, '_server_event_loop', None)
+            if server_loop and server_loop.is_running():
+                asyncio.run_coroutine_threadsafe(
+                    self.network_manager.broadcast(message),
+                    server_loop
+                )
+            self.logger.info(f"봇 {bot_id} 직업 선택 완료 메시지 전송 및 처리 완료")
+        except Exception as e:
+            self.logger.error(f"봇 직업 선택 완료 메시지 전송 실패: {e}", exc_info=True)
+    
+    def _handle_job_select_internal(self, job_id: str, player_id: str):
+        """직업 선택 내부 처리 (봇용)"""
+        # 직업 데이터 찾기
+        job_data = None
+        for job in self.jobs:
+            if job.get('id') == job_id:
+                job_data = job
+                break
+        
+        if not job_data:
+            self.logger.error(f"직업 데이터를 찾을 수 없습니다: {job_id}")
+            return
+        
+        # 이미 선택된 직업인지 확인
+        if job_id in self.other_players_jobs:
+            self.logger.warning(f"이미 선택된 직업입니다: {job_id}")
+            return
+        
+        # 파티 멤버 생성
+        job_name = job_data.get('name', job_id)
+        stats = job_data.get('base_stats', {})
+        
+        member = PartyMember(
+            job_id=job_id,
+            job_name=job_name,
+            character_name="",  # 이름은 다음 단계에서 입력
+            stats=stats,
+            player_id=player_id
+        )
+        
+        # 파티에 추가
+        self.party.append(member)
+        self.current_slot = len(self.party)
+        
+        # 선택된 직업으로 표시
+        self.other_players_jobs.add(job_id)
+        self.selected_job_ids.add(job_id)
+        
+        # 네트워크로 직업 선택 전송
+        self._send_job_selected(job_id)
+        
+        # 이름 입력 단계로 이동
+        self.state = "name_input"
+        self._create_name_input()
+        
+        self.logger.info(f"봇 {player_id} 직업 선택 완료: {job_id}")
+    
+    def _handle_name_input_internal(self, name: str):
+        """이름 입력 내부 처리 (봇용)"""
+        if not self.party or self.current_slot >= len(self.party):
+            return
+        
+        member = self.party[self.current_slot]
+        member.character_name = name
+        
+        # 특성 선택 단계로 이동
+        self.state = "trait_select"
+        self._create_trait_menu()
+        
+        self.logger.info(f"봇 이름 입력 완료: {name}")
+    
+    def _handle_trait_select_internal(self, trait_ids: List[str]):
+        """특성 선택 내부 처리 (봇용)"""
+        if not self.party or self.current_slot >= len(self.party):
+            return
+        
+        member = self.party[self.current_slot]
+        member.selected_traits = trait_ids[:2]  # 최대 2개
+        
+        # 다음 캐릭터로 또는 완료
+        if len(self.party) < self.character_allocation:
+            # 다음 캐릭터 선택
+            self.current_slot = len(self.party)
+            self.state = "job_select"
+            self._create_job_menu()
+        else:
+            # 모든 캐릭터 선택 완료
+            self._send_job_selection_complete()
+            self.logger.info(f"봇 {member.player_id} 모든 캐릭터 선택 완료")
     
     def _handle_player_left(self, message: Any, sender_id: Optional[str] = None):
         """플레이어가 나갔을 때"""
@@ -1130,6 +1456,10 @@ def run_multiplayer_party_setup(
             last_turn_broadcast = current_time
             if setup.current_turn_player_id and setup.player_order:
                 setup._broadcast_turn_change()
+        
+        # 봇의 턴 확인 및 자동 선택 (매 프레임 체크)
+        if setup.current_turn_player_id:
+            setup._check_and_auto_select_for_bot()
         
         # 연결 상태 확인 (주기적으로)
         if current_time - last_connection_check >= connection_check_interval:

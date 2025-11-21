@@ -5,8 +5,8 @@
 """
 
 from enum import Enum
-from dataclasses import dataclass
-from typing import List, Dict, Tuple
+from dataclasses import dataclass, field
+from typing import List, Dict, Tuple, Set
 import random
 
 from src.gathering.ingredient import IngredientDatabase
@@ -60,11 +60,13 @@ class HarvestableObject:
     채집 가능한 오브젝트
 
     던전 맵에 배치되며, 플레이어가 채집할 수 있음
+    멀티플레이에서는 개인 보상이므로 각 플레이어가 독립적으로 채집 가능
     """
     object_type: HarvestableType
     x: int
     y: int
-    harvested: bool = False
+    harvested: bool = False  # 싱글플레이 호환성을 위해 유지 (deprecated)
+    harvested_by: Set[str] = field(default_factory=set)  # 채집한 플레이어 ID 집합 (멀티플레이용)
 
     # 획득 가능한 재료 (ingredient_id, 최소 개수, 최대 개수)
     loot_table: List[Tuple[str, int, int]] = None
@@ -112,17 +114,27 @@ class HarvestableObject:
         }
         return loot_tables.get(self.object_type, [])
 
-    def harvest(self) -> Dict[str, int]:
+    def harvest(self, player_id: str = None) -> Dict[str, int]:
         """
         채집 실행
+
+        Args:
+            player_id: 플레이어 ID (멀티플레이용, None이면 싱글플레이)
 
         Returns:
             획득한 재료 딕셔너리 {ingredient_id: quantity}
         """
-        if self.harvested:
-            return {}
+        # 멀티플레이: 플레이어별 채집 상태 확인
+        if player_id:
+            if player_id in self.harvested_by:
+                return {}  # 이미 이 플레이어가 채집함
+            self.harvested_by.add(player_id)
+        else:
+            # 싱글플레이: 기존 로직 (하위 호환성)
+            if self.harvested:
+                return {}
+            self.harvested = True
 
-        self.harvested = True
         results = {}
 
         for ingredient_id, min_qty, max_qty in self.loot_table:
@@ -134,9 +146,22 @@ class HarvestableObject:
 
         return results
 
-    def can_harvest(self) -> bool:
-        """채집 가능 여부"""
-        return not self.harvested
+    def can_harvest(self, player_id: str = None) -> bool:
+        """
+        채집 가능 여부
+        
+        Args:
+            player_id: 플레이어 ID (멀티플레이용, None이면 싱글플레이)
+        
+        Returns:
+            채집 가능 여부
+        """
+        if player_id:
+            # 멀티플레이: 이 플레이어가 채집했는지 확인
+            return player_id not in self.harvested_by
+        else:
+            # 싱글플레이: 기존 로직
+            return not self.harvested
 
     @property
     def char(self) -> str:

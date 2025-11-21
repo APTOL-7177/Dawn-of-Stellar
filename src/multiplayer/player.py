@@ -24,6 +24,9 @@ class MultiplayerPlayer:
     # 호스트 여부
     is_host: bool = False
     
+    # 봇 여부
+    is_bot: bool = False
+    
     # 네트워크 동기화용
     last_update_time: float = field(default_factory=time.time)
     velocity_x: float = 0.0  # 예측용 속도
@@ -60,7 +63,8 @@ class MultiplayerPlayer:
             "character_id": self.character_id,
             "party_count": len(self.party),
             "is_connected": self.is_connected,
-            "ping": self.ping
+            "ping": self.ping,
+            "is_bot": self.is_bot
         }
     
     @classmethod
@@ -73,6 +77,7 @@ class MultiplayerPlayer:
             y=data.get("y", 0),
             character_id=data.get("character_id"),
             is_connected=data.get("is_connected", True),
-            ping=data.get("ping", 0.0)
+            ping=data.get("ping", 0.0),
+            is_bot=data.get("is_bot", False)
         )
 

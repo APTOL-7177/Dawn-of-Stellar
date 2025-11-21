@@ -78,6 +78,7 @@ class Tile:
     harvested: bool = False  # 수확 여부
     dropped_item: Optional[Any] = None  # 드롭된 아이템 객체
     gold_amount: int = 0  # 드롭된 골드 양
+    dropped_by_player_id: Optional[str] = None  # 드롭한 플레이어 ID (봇이 자신이 드롭한 아이템을 줍지 않도록)
     puzzle_type: Optional[str] = None  # 퍼즐 타입
     puzzle_solved: bool = False  # 퍼즐 해결 여부
     switch_active: bool = False  # 스위치 활성화 여부

@@ -651,25 +651,39 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             # 모든 플레이어가 직접 브로드캐스트 (호스트/클라이언트 구분 없음)
             import asyncio
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # 실행 중인 루프: 태스크로 실행
-                    asyncio.create_task(
-                        self.movement_sync.broadcast_move(player_id, new_x, new_y)
+                # network_manager의 서버 이벤트 루프 사용
+                server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                if server_loop and server_loop.is_running():
+                    # 서버 이벤트 루프가 실행 중이면 run_coroutine_threadsafe 사용
+                    asyncio.run_coroutine_threadsafe(
+                        self.movement_sync.broadcast_move(player_id, new_x, new_y),
+                        server_loop
                     )
                 else:
-                    # 실행 중이지 않은 루프: 동기 실행
-                    loop.run_until_complete(
-                        self.movement_sync.broadcast_move(player_id, new_x, new_y)
+                    # 서버 이벤트 루프가 없으면 동기 브로드캐스트 (movement_sync 사용)
+                    from src.multiplayer.protocol import MessageBuilder
+                    import time
+                    move_message = MessageBuilder.player_move(
+                        player_id=player_id,
+                        x=new_x,
+                        y=new_y,
+                        timestamp=time.time()
                     )
-            except RuntimeError:
-                # 이벤트 루프가 없는 경우: 새 루프 생성
+                    self.network_manager.broadcast(move_message)
+            except Exception as e:
+                # 이벤트 루프가 없는 경우: 동기 브로드캐스트
                 try:
-                    asyncio.run(
-                        self.movement_sync.broadcast_move(player_id, new_x, new_y)
+                    from src.multiplayer.protocol import MessageBuilder
+                    import time
+                    move_message = MessageBuilder.player_move(
+                        player_id=player_id,
+                        x=new_x,
+                        y=new_y,
+                        timestamp=time.time()
                     )
-                except Exception as e:
-                    self.logger.error(f"이동 브로드캐스트 실패: {e}", exc_info=True)
+                    self.network_manager.broadcast(move_message)
+                except Exception as e2:
+                    self.logger.error(f"이동 브로드캐스트 실패: {e2}", exc_info=True)
             
             return True
         
@@ -758,10 +772,26 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             # 싱글플레이 모드: 부모 클래스 로직 사용
             return super().move_player(dx, dy)
         
-        # 멀티플레이 모드: update_player_movement 사용
+        # 멀티플레이 모드: 로컬 플레이어 ID 확인 (다른 플레이어 컨트롤 방지)
         if self.local_player_id not in self.session.players:
-            self.logger.warning(f"로컬 플레이어 {self.local_player_id}가 세션에 없습니다")
-            return super().move_player(dx, dy)
+            self.logger.warning(f"로컬 플레이어 {self.local_player_id}가 세션에 없습니다. 이동 무시.")
+            from src.world.exploration import ExplorationResult, ExplorationEvent
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="플레이어가 세션에 없습니다"
+            )
+        
+        # 로컬 플레이어만 이동 가능 (보안 체크)
+        mp_player = self.session.players[self.local_player_id]
+        if not hasattr(mp_player, 'x') or not hasattr(mp_player, 'y'):
+            self.logger.warning(f"로컬 플레이어 {self.local_player_id}의 위치 정보가 없습니다. 이동 무시.")
+            from src.world.exploration import ExplorationResult, ExplorationEvent
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="플레이어 위치 정보가 없습니다"
+            )
         
         # 목적지 위치 계산
         mp_player = self.session.players[self.local_player_id]
@@ -890,21 +920,20 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 if self.enemy_sync and hasattr(self, 'enemies') and self.enemies:
                     import asyncio
                     try:
-                        loop = asyncio.get_event_loop()
-                        if loop.is_running():
-                            # 이미 실행 중인 루프에서는 create_task 사용
-                            task = asyncio.create_task(
-                                self.enemy_sync.sync_enemy_positions(self.enemies)
+                        # network_manager의 서버 이벤트 루프 사용
+                        server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                        if server_loop and server_loop.is_running():
+                            # 서버 이벤트 루프가 실행 중이면 run_coroutine_threadsafe 사용
+                            asyncio.run_coroutine_threadsafe(
+                                self.enemy_sync.sync_enemy_positions(self.enemies),
+                                server_loop
                             )
-                            # 태스크가 백그라운드에서 실행되도록 함 (경고 방지)
-                            # 태스크는 네트워크 매니저의 이벤트 루프에서 실행됨
                         else:
-                            # 실행 중인 루프가 없으면 run_until_complete 사용
-                            loop.run_until_complete(
-                                self.enemy_sync.sync_enemy_positions(self.enemies)
-                            )
-                    except RuntimeError as e:
-                        # 이벤트 루프가 없으면 나중에 처리 (비동기 함수 호출 불가)
+                            # 서버 이벤트 루프가 없으면 스킵 (동기 실행 불가)
+                            self.logger.debug("서버 이벤트 루프가 없어 적 위치 동기화 스킵")
+                    except Exception as e:
+                        # 이벤트 루프 관련 오류는 무시 (동기 모드일 수 있음)
+                        self.logger.debug(f"적 위치 동기화 실패: {e}")
                         self.logger.debug(f"비동기 브로드캐스트 실패 (이벤트 루프 없음): {e}")
                     except Exception as e:
                         # 기타 예외는 로그만 남기고 계속 진행
@@ -985,16 +1014,20 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         # 비동기 태스크로 실행
         import asyncio
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # 이미 실행 중인 이벤트 루프가 있으면 태스크 생성
-                asyncio.create_task(self._check_combat_auto_join())
+            # network_manager의 서버 이벤트 루프 사용
+            server_loop = getattr(self.network_manager, '_server_event_loop', None)
+            if server_loop and server_loop.is_running():
+                # 서버 이벤트 루프가 실행 중이면 run_coroutine_threadsafe 사용
+                asyncio.run_coroutine_threadsafe(
+                    self._check_combat_auto_join(),
+                    server_loop
+                )
             else:
-                # 이벤트 루프가 없으면 새로 생성하여 실행
-                asyncio.run(self._check_combat_auto_join())
-        except RuntimeError as e:
+                # 서버 이벤트 루프가 없으면 스킵 (동기 실행 불가)
+                self.logger.debug("서버 이벤트 루프가 없어 전투 자동 합류 체크 스킵")
+        except Exception as e:
             # 이벤트 루프 관련 오류는 무시 (동기 모드일 수 있음)
-            self.logger.debug(f"비동기 전투 자동 합류 체크 실패 (이벤트 루프 없음): {e}")
+            self.logger.debug(f"비동기 전투 자동 합류 체크 실패: {e}")
         except Exception as e:
             self.logger.warning(f"전투 자동 합류 체크 실패: {e}")
     
@@ -1300,11 +1333,17 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             import asyncio
             try:
                 npc_move_msg = MessageBuilder.npc_move(moved_npcs)
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    asyncio.create_task(self.network_manager.broadcast(npc_move_msg))
+                # network_manager의 서버 이벤트 루프 사용
+                server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                if server_loop and server_loop.is_running():
+                    # 서버 이벤트 루프가 실행 중이면 run_coroutine_threadsafe 사용
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.broadcast(npc_move_msg),
+                        server_loop
+                    )
                 else:
-                    loop.run_until_complete(self.network_manager.broadcast(npc_move_msg))
+                    # 서버 이벤트 루프가 없으면 동기 브로드캐스트
+                    self.network_manager.broadcast(npc_move_msg)
                 self.logger.debug(f"NPC 이동 동기화 메시지 전송: {len(moved_npcs)}개")
             except Exception as e:
                 self.logger.error(f"NPC 이동 동기화 메시지 전송 실패: {e}", exc_info=True)
@@ -1326,6 +1365,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             x = message.data.get("x")
             y = message.data.get("y")
             item_data = message.data.get("item", {})
+            dropped_by_player_id = message.data.get("dropped_by_player_id")
             
             if x is None or y is None:
                 self.logger.warning(f"아이템 드롭 메시지에 필수 데이터가 없습니다: x={x}, y={y}")
@@ -1338,9 +1378,10 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     # 아이템 재생성 (간단한 버전 - 실제로는 더 복잡할 수 있음)
                     # 여기서는 타일만 표시하고, 실제 아이템은 플레이어가 주울 때 생성
                     tile.tile_type = TileType.DROPPED_ITEM
+                    tile.dropped_by_player_id = dropped_by_player_id
                     # dropped_item은 실제로는 클라이언트가 주울 때 생성되므로 None으로 설정
                     # 또는 아이템 데이터를 저장해두고 나중에 사용
-                    self.logger.debug(f"아이템 드롭 동기화: ({x}, {y})")
+                    self.logger.debug(f"아이템 드롭 동기화: ({x}, {y}) by {dropped_by_player_id}")
         
         async def handle_gold_dropped(message, sender_id=None):
             """골드 드롭 메시지 처리"""
@@ -1350,6 +1391,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             x = message.data.get("x")
             y = message.data.get("y")
             amount = message.data.get("amount", 0)
+            dropped_by_player_id = message.data.get("dropped_by_player_id")
             
             if x is None or y is None or amount <= 0:
                 self.logger.warning(f"골드 드롭 메시지에 필수 데이터가 없습니다: x={x}, y={y}, amount={amount}")
@@ -1361,7 +1403,8 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 if tile:
                     tile.tile_type = TileType.GOLD
                     tile.gold_amount = amount
-                    self.logger.debug(f"골드 드롭 동기화: ({x}, {y}) {amount}G")
+                    tile.dropped_by_player_id = dropped_by_player_id
+                    self.logger.debug(f"골드 드롭 동기화: ({x}, {y}) {amount}G by {dropped_by_player_id}")
         
         self.network_manager.register_handler(MessageType.ITEM_DROPPED, handle_item_dropped)
         self.network_manager.register_handler(MessageType.GOLD_DROPPED, handle_gold_dropped)
