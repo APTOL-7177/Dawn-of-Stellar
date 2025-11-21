@@ -535,15 +535,26 @@ class Inventory:
         Returns:
             성공 여부
         """
-        # 아군 전체 가져오기
-        targets = self.party if self.party else []
+        # 멀티플레이어에서는 개인별로 적용 (target만 적용)
+        # 싱글플레이어에서는 파티 전체에 적용
+        from src.multiplayer.game_mode import get_game_mode_manager
+        game_mode_manager = get_game_mode_manager()
+        is_multiplayer = game_mode_manager.is_multiplayer()
+        
+        if is_multiplayer:
+            # 멀티플레이어: target만 적용
+            targets = [target] if target else []
+        else:
+            # 싱글플레이어: 파티 전체에 적용
+            targets = self.party if self.party else []
+        
         if not targets:
-            logger.warning(f"{item_name} 사용 실패: 아군이 없습니다")
+            logger.warning(f"{item_name} 사용 실패: 대상이 없습니다")
             return False
         
         success = False
 
-        # 모든 아군에게 효과 적용
+        # 대상에게 효과 적용
         for member in targets:
             member_name = getattr(member, 'name', '알 수 없는 대상')
             

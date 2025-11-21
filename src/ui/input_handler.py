@@ -48,6 +48,8 @@ class GameAction(Enum):
 
     # 인벤토리 전용
     INVENTORY_DESTROY = "inventory_destroy"
+    INVENTORY_DROP = "inventory_drop"  # 아이템 드롭
+    INVENTORY_DROP_GOLD = "inventory_drop_gold"  # 골드 드롭
     USE_CONSUMABLE = "use_consumable"  # 음식/소비품 사용
 
     # 전투 전용
@@ -123,6 +125,8 @@ class InputHandler(tcod.event.EventDispatch[Optional[GameAction]]):
 
             # 인벤토리
             'v': GameAction.INVENTORY_DESTROY,  # 파괴/버리기
+            'd': GameAction.INVENTORY_DROP,  # 아이템 드롭
+            'g': GameAction.INVENTORY_DROP_GOLD,  # 골드 드롭
             'f': GameAction.USE_CONSUMABLE,  # 음식/소비품 사용
 
             # 시스템 (Z = 선택, X = 취소)

@@ -28,7 +28,9 @@ class WorldUI:
         screen_height: int,
         exploration: ExplorationSystem,
         inventory=None,
-        party=None
+        party=None,
+        network_manager=None,
+        local_player_id=None
     ):
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -37,6 +39,8 @@ class WorldUI:
         self.party = party
         self.map_renderer = MapRenderer(map_x=0, map_y=5)
         self.gauge_renderer = GaugeRenderer()
+        self.network_manager = network_manager  # 멀티플레이: 네트워크 관리자
+        self.local_player_id = local_player_id  # 멀티플레이: 로컬 플레이어 ID
 
         # 초기화 로그
         logger.info(f"WorldUI 초기화 - inventory: {inventory is not None}, party: {party is not None}, party members: {len(party) if party else 0}")
@@ -61,6 +65,11 @@ class WorldUI:
         # 멀티플레이 이동 쿨타임 (초당 4회 = 0.25초 간격)
         self.last_move_time = 0.0
         self.move_cooldown = 0.25  # 0.25초 = 초당 4회 이동
+        
+        # 채팅 입력 상태
+        self.chat_input_active = False
+        self.chat_input_text = ""
+        self.chat_input_max_length = 60
 
     def add_message(self, text: str):
         """메시지 추가"""
@@ -69,7 +78,7 @@ class WorldUI:
             self.messages.pop(0)
         logger.debug(f"메시지: {text}")
 
-    def handle_input(self, action: GameAction, console=None, context=None) -> bool:
+    def handle_input(self, action: GameAction, console=None, context=None, key_event=None) -> bool:
         """
         입력 처리
 
@@ -77,6 +86,44 @@ class WorldUI:
             True면 종료
         """
         logger.warning(f"[DEBUG] handle_input 호출됨: action={action}")
+
+        # 채팅 입력 모드
+        if self.chat_input_active:
+            if isinstance(key_event, tcod.event.KeyDown):
+                if key_event.sym == tcod.event.KeySym.RETURN:
+                    # Enter: 메시지 전송
+                    if self.chat_input_text.strip() and self.network_manager and self.local_player_id:
+                        self._send_chat_message(self.chat_input_text.strip())
+                        self.chat_input_text = ""
+                    self.chat_input_active = False
+                    return False
+                elif key_event.sym == tcod.event.KeySym.ESCAPE:
+                    # ESC: 취소
+                    self.chat_input_text = ""
+                    self.chat_input_active = False
+                    return False
+                elif key_event.sym == tcod.event.KeySym.BACKSPACE:
+                    # Backspace: 삭제
+                    if self.chat_input_text:
+                        self.chat_input_text = self.chat_input_text[:-1]
+                elif len(self.chat_input_text) < self.chat_input_max_length:
+                    # 문자 입력
+                    if 32 <= key_event.sym <= 126:  # ASCII 문자 범위
+                        char = chr(key_event.sym)
+                        self.chat_input_text += char
+            return False
+
+        # T 키로 채팅 입력 시작 (멀티플레이어일 때만)
+        if isinstance(key_event, tcod.event.KeyDown) and key_event.sym == tcod.event.KeySym.t:
+            is_multiplayer = (
+                self.network_manager is not None or
+                (hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer) or
+                (hasattr(self.exploration, 'session') and self.exploration.session is not None)
+            )
+            if is_multiplayer:
+                self.chat_input_active = True
+                self.chat_input_text = ""
+                return False
 
         # 종료 확인 모드
         if self.quit_confirm_mode:
@@ -127,7 +174,7 @@ class WorldUI:
             if self.inventory is not None and self.party is not None and console is not None and context is not None:
                 from src.ui.inventory_ui import open_inventory
                 logger.warning("[DEBUG] 인벤토리 열기 시도")
-                open_inventory(console, context, self.inventory, self.party)
+                open_inventory(console, context, self.inventory, self.party, self.exploration)
                 return False
             else:
                 logger.warning(f"인벤토리를 열 수 없음 - inventory={self.inventory is not None}, party={self.party is not None}, console={console is not None}, context={context is not None}")
@@ -213,8 +260,8 @@ class WorldUI:
 
                     # 채집 확인 프롬프트
                     if show_gathering_prompt(console, context, nearby_harvestable):
-                        # 채집 실행
-                        success = harvest_object(console, context, nearby_harvestable, self.inventory)
+                        # 채집 실행 (멀티플레이어 동기화를 위해 exploration 전달)
+                        success = harvest_object(console, context, nearby_harvestable, self.inventory, exploration=self.exploration)
                         if success:
                             logger.info(f"채집 성공: {nearby_harvestable.object_type.display_name}")
                         return False
@@ -523,12 +570,24 @@ class WorldUI:
         self._render_messages(console)
 
         # 조작법 (하단)
+        help_text = "방향키: 이동  Z: 계단 이용  M: 메뉴  I: 인벤토리  ESC: 종료"
+        is_multiplayer = (
+            self.network_manager is not None or
+            (hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer) or
+            (hasattr(self.exploration, 'session') and self.exploration.session is not None)
+        )
+        if is_multiplayer:
+            help_text += "  T: 채팅"
         console.print(
             5,
             self.screen_height - 2,
-            "방향키: 이동  Z: 계단 이용  M: 메뉴  I: 인벤토리  ESC: 종료",
+            help_text,
             fg=(180, 180, 180)
         )
+
+        # 채팅 입력창
+        if self.chat_input_active:
+            self._render_chat_input(console)
 
         # 종료 확인 대화상자
         if self.quit_confirm_mode:
@@ -545,13 +604,24 @@ class WorldUI:
             my = y + 2 + i * 2
 
             # 이름과 HP 게이지를 한 줄에 표시
-            console.print(x, my, f"{i+1}. {member.name[:10]}", fg=(255, 255, 255))
+            # Character 객체는 name을, PartyMember 객체는 character_name을 사용
+            member_name = getattr(member, 'name', getattr(member, 'character_name', 'Unknown'))
+            console.print(x, my, f"{i+1}. {member_name[:10]}", fg=(255, 255, 255))
 
             # HP 게이지 (가로, 간단)
+            # Character 객체는 current_hp/max_hp를, PartyMember 객체는 stats를 사용
+            current_hp = getattr(member, 'current_hp', None)
+            max_hp = getattr(member, 'max_hp', None)
+            if current_hp is None or max_hp is None:
+                # PartyMember 객체인 경우 stats에서 가져오기
+                stats = getattr(member, 'stats', {})
+                current_hp = stats.get('hp', 100)
+                max_hp = stats.get('max_hp', 100)
+            
             console.print(x + 14, my, "HP:", fg=(200, 200, 200))
             self.gauge_renderer.render_bar(
                 console, x + 17, my, 10,
-                member.current_hp, member.max_hp, show_numbers=False
+                current_hp, max_hp, show_numbers=False
             )
 
         # 인벤토리 정보
@@ -626,6 +696,72 @@ class WorldUI:
             "← →: 선택  Z: 확인  X: 취소",
             fg=(150, 150, 150)
         )
+
+    def _render_chat_input(self, console: tcod.console.Console):
+        """채팅 입력창 렌더링"""
+        box_width = min(70, self.screen_width - 10)
+        box_height = 5
+        box_x = (self.screen_width - box_width) // 2
+        box_y = self.screen_height - box_height - 5
+        
+        # 배경 박스
+        console.draw_frame(
+            box_x, box_y, box_width, box_height,
+            "채팅",
+            fg=(100, 200, 255),
+            bg=(0, 0, 0)
+        )
+        
+        # 입력 텍스트 표시 (커서 포함)
+        input_text = self.chat_input_text + "_"
+        display_text = input_text[-box_width + 6:] if len(input_text) > box_width - 6 else input_text
+        console.print(
+            box_x + 2,
+            box_y + 2,
+            display_text,
+            fg=(255, 255, 255)
+        )
+        
+        # 안내 텍스트
+        console.print(
+            box_x + 2,
+            box_y + box_height - 2,
+            "Enter: 전송  ESC: 취소",
+            fg=(150, 150, 150)
+        )
+    
+    def _send_chat_message(self, message: str):
+        """채팅 메시지 전송"""
+        if not self.network_manager or not self.local_player_id:
+            return
+        
+        try:
+            from src.multiplayer.protocol import MessageBuilder
+            import asyncio
+            
+            chat_msg = MessageBuilder.chat_message(self.local_player_id, message)
+            
+            # 비동기 전송
+            if self.network_manager.is_host:
+                # 호스트: 브로드캐스트
+                if hasattr(self.network_manager, '_server_event_loop') and self.network_manager._server_event_loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.broadcast(chat_msg),
+                        self.network_manager._server_event_loop
+                    )
+                else:
+                    logger.warning("서버 이벤트 루프를 찾을 수 없습니다. 채팅 메시지 전송 스킵")
+            else:
+                # 클라이언트: 호스트에게 전송
+                if hasattr(self.network_manager, '_client_event_loop') and self.network_manager._client_event_loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.send(chat_msg),
+                        self.network_manager._client_event_loop
+                    )
+                else:
+                    logger.warning("클라이언트 이벤트 루프를 찾을 수 없습니다. 채팅 메시지 전송 스킵")
+        except Exception as e:
+            logger.error(f"채팅 메시지 전송 실패: {e}", exc_info=True)
 
     def _get_player_color(self, player_id: Optional[str] = None) -> Tuple[int, int, int]:
         """
@@ -789,7 +925,9 @@ def run_exploration(
     exploration: ExplorationSystem,
     inventory=None,
     party=None,
-    play_bgm_on_start: bool = True
+    play_bgm_on_start: bool = True,
+    network_manager=None,
+    local_player_id=None
 ) -> str:
     """
     탐험 실행
@@ -800,21 +938,65 @@ def run_exploration(
     Returns:
         "quit", "combat", "floor_up", "floor_down"
     """
-    ui = WorldUI(console.width, console.height, exploration, inventory, party)
+    ui = WorldUI(console.width, console.height, exploration, inventory, party, network_manager, local_player_id)
     handler = InputHandler()
 
     logger.info(f"탐험 시작: {exploration.floor_number}층")
 
+    # 채팅 메시지 수신 핸들러 등록 (멀티플레이어일 때만)
+    if network_manager:
+        from src.multiplayer.protocol import MessageType
+        host_disconnected = {"value": False}
+        
+        def handle_chat_message(msg, sender_id):
+            """채팅 메시지 수신 핸들러"""
+            player_id = msg.player_id
+            message = msg.data.get("message", "")
+        
+        def handle_player_left(msg, sender_id):
+            """플레이어 나감 핸들러"""
+            try:
+                player_id = msg.data.get("player_id") or msg.player_id
+                if player_id and hasattr(exploration, 'session') and exploration.session:
+                    if player_id in exploration.session.players:
+                        removed_player = exploration.session.players[player_id]
+                        is_host_player = removed_player.is_host
+                        player_name = getattr(removed_player, 'player_name', f"플레이어 {player_id}")
+                        exploration.session.remove_player(player_id)
+                        logger.info(f"플레이어 나감: {player_name} ({player_id})")
+                        
+                        # 알림 메시지 추가
+                        if is_host_player:
+                            ui.add_message(f"⚠ 호스트({player_name})가 나갔습니다!")
+                            host_disconnected["value"] = True
+                        else:
+                            ui.add_message(f"⚠ {player_name}이(가) 나갔습니다!")
+            except Exception as e:
+                logger.error(f"플레이어 나감 핸들러 오류: {e}", exc_info=True)
+            
+            # 플레이어 이름 가져오기
+            player_name = "플레이어"
+            if hasattr(exploration, 'session') and exploration.session:
+                if player_id in exploration.session.players:
+                    player_name = exploration.session.players[player_id].player_name
+            
+            # 채팅 메시지 표시
+            chat_text = f"[{player_name}]: {message}"
+            ui.add_message(chat_text)
+            logger.info(f"채팅 메시지 수신: {chat_text}")
+        
+        network_manager.register_handler(MessageType.CHAT_MESSAGE, handle_chat_message)
+        network_manager.register_handler(MessageType.PLAYER_LEFT, handle_player_left)
+        logger.info("채팅 메시지 및 플레이어 나감 핸들러 등록 완료")
+
     # 남은 이벤트 제거 (불러오기 등에서 남은 키 입력 방지)
     tcod.event.get()
 
-    # 바이옴별 BGM 재생 (5층마다 바뀜, 전투 후 복귀 시에는 재생하지 않음)
+    # 바이옴별 BGM 재생 (매 층마다 바뀜, 전투 후 복귀 시에는 재생하지 않음)
     if play_bgm_on_start:
         floor = exploration.floor_number
-        # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
-        biome_index = (floor - 1) // 5
-        # 바이옴 9 이상은 순환 (10개 바이옴 순환)
-        biome_index = biome_index % 10
+        # 바이옴 계산 (매 층마다 변경: 10개 바이옴 순환)
+        biome_index = (floor - 1) % 10
         biome_track = f"biome_{biome_index}"
         
         logger.info(f"층 {floor} -> 바이옴 {biome_index}, BGM: {biome_track}")
@@ -852,10 +1034,11 @@ def run_exploration(
         # 입력 처리
         for event in tcod.event.wait(timeout=0.05):
             action = handler.dispatch(event)
+            key_event = event if isinstance(event, tcod.event.KeyDown) else None
 
-            if action:
+            if action or key_event:
                 logger.warning(f"[DEBUG] 액션 수신: {action}")
-                done = ui.handle_input(action, console, context)
+                done = ui.handle_input(action, console, context, key_event)
                 logger.warning(f"[DEBUG] handle_input 반환값: {done}")
                 if done:
                     logger.warning(f"[DEBUG] 루프 탈출 - done=True")
@@ -869,6 +1052,21 @@ def run_exploration(
             if isinstance(event, tcod.event.Quit):
                 return ("quit", None)
 
+        # 호스트 나감 체크 (멀티플레이어)
+        if network_manager and 'host_disconnected' in locals() and host_disconnected.get("value", False):
+            logger.warning("호스트가 나갔습니다. 메인 메뉴로 돌아갑니다.")
+            # 연결 종료
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.create_task(network_manager.disconnect())
+                else:
+                    loop.run_until_complete(network_manager.disconnect())
+            except Exception as e:
+                logger.error(f"연결 종료 오류: {e}", exc_info=True)
+            return ("quit", None)
+        
         # 상태 체크
         logger.warning(f"[DEBUG] 상태 체크: quit={ui.quit_requested}, combat={ui.combat_requested}, floor_change={ui.floor_change_requested}")
         if ui.quit_requested:

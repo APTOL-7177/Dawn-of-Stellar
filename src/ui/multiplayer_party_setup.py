@@ -72,6 +72,11 @@ class MultiplayerPartySetup:
         self.state = "job_select"  # job_select, name_input, trait_select
         self.completed = False
         self.cancelled = False
+        self.player_left = False  # 플레이어가 나갔는지 여부
+        
+        # 멀티플레이: 플레이어별 완료 상태 추적 (호스트만 사용)
+        self.players_completed: Set[str] = set()  # 직업 선택을 완료한 플레이어 ID 집합
+        self.local_completed = False  # 로컬 플레이어가 완료했는지 여부
         
         # 직업 데이터 로드 (로컬 플레이어의 메타 진행 기준)
         self.jobs = self._load_jobs()
@@ -88,6 +93,11 @@ class MultiplayerPartySetup:
         self.selected_job_ids: Set[str] = set()
         self.other_players_jobs: Set[str] = set()  # 다른 플레이어들이 선택한 직업
         
+        # 순차 직업 선택 관련
+        self.player_order: List[str] = []  # 플레이어 순서 (1P, 2P, 3P, 4P)
+        self.current_turn_player_id: Optional[str] = None  # 현재 직업 선택 턴인 플레이어 ID
+        self._initialize_player_order()  # 플레이어 순서 초기화
+        
         # 네트워크 메시지 핸들러 등록
         self._register_message_handlers()
         
@@ -98,20 +108,57 @@ class MultiplayerPartySetup:
         self.error_message = ""
         self.error_timer = 0.0
     
+    def _initialize_player_order(self):
+        """플레이어 순서 초기화 (1P = 호스트, 이후 연결 순서)"""
+        # 호스트를 첫 번째로
+        if self.session.host_id and self.session.host_id in self.session.players:
+            self.player_order = [self.session.host_id]
+            # 나머지 플레이어는 연결 순서대로 (딕셔너리 순서는 Python 3.7+에서 삽입 순서 보장)
+            for player_id in self.session.players.keys():
+                if player_id != self.session.host_id:
+                    self.player_order.append(player_id)
+        else:
+            # 호스트가 없으면 모든 플레이어를 순서대로
+            self.player_order = list(self.session.players.keys())
+        
+        # 호스트는 첫 번째 플레이어를 현재 턴으로 설정하고 브로드캐스트
+        if self.is_host:
+            if self.player_order:
+                self.current_turn_player_id = self.player_order[0]
+                self._broadcast_turn_change()
+                self.logger.info(f"호스트: 초기 턴 설정 = {self.current_turn_player_id}, 순서 = {self.player_order}")
+        else:
+            # 클라이언트는 호스트로부터 턴 변경 메시지를 받을 때까지 대기
+            # 초기값은 None으로 설정 (호스트의 메시지를 받으면 업데이트됨)
+            self.current_turn_player_id = None
+            self.logger.info(f"클라이언트: 턴 정보 대기 중... (호스트 메시지 대기)")
+    
     def _register_message_handlers(self):
         """네트워크 메시지 핸들러 등록"""
         # 다른 플레이어의 직업 선택/해제 메시지 수신
-        if hasattr(self.network_manager, 'register_message_handler'):
-            self.network_manager.register_message_handler(
+        if hasattr(self.network_manager, 'register_handler'):
+            self.network_manager.register_handler(
                 MessageType.JOB_SELECTED,
                 self._handle_job_selected
             )
-            self.network_manager.register_message_handler(
+            self.network_manager.register_handler(
                 MessageType.JOB_DESELECTED,
                 self._handle_job_deselected
             )
+            self.network_manager.register_handler(
+                MessageType.JOB_SELECTION_COMPLETE,
+                self._handle_job_selection_complete
+            )
+            self.network_manager.register_handler(
+                MessageType.TURN_CHANGED,
+                self._handle_turn_changed
+            )
+            self.network_manager.register_handler(
+                MessageType.PLAYER_LEFT,
+                self._handle_player_left
+            )
     
-    def _handle_job_selected(self, message: Any):
+    def _handle_job_selected(self, message: Any, sender_id: Optional[str] = None):
         """다른 플레이어가 직업을 선택했을 때"""
         try:
             player_id = message.player_id
@@ -127,7 +174,7 @@ class MultiplayerPartySetup:
         except Exception as e:
             self.logger.error(f"직업 선택 메시지 처리 실패: {e}", exc_info=True)
     
-    def _handle_job_deselected(self, message: Any):
+    def _handle_job_deselected(self, message: Any, sender_id: Optional[str] = None):
         """다른 플레이어가 직업을 해제했을 때"""
         try:
             player_id = message.player_id
@@ -144,6 +191,179 @@ class MultiplayerPartySetup:
                     self._create_job_menu()
         except Exception as e:
             self.logger.error(f"직업 해제 메시지 처리 실패: {e}", exc_info=True)
+    
+    def _handle_job_selection_complete(self, message: Any, sender_id: Optional[str] = None):
+        """다른 플레이어가 직업 선택을 완료했을 때"""
+        try:
+            player_id = message.player_id
+            self.logger.info(f"플레이어 {player_id}가 직업 선택 완료")
+            
+            # 호스트만 다음 턴으로 넘기는 로직 처리 및 완료 상태 추적
+            if self.is_host:
+                # 완료한 플레이어 추가
+                if player_id not in self.players_completed:
+                    self.players_completed.add(player_id)
+                    self.logger.info(f"완료한 플레이어: {self.players_completed}, 전체 플레이어: {list(self.session.players.keys())}")
+                
+                # 다음 턴으로 넘기기 (현재 턴이 완료한 플레이어의 턴인 경우에만)
+                if self.current_turn_player_id == player_id:
+                    self.logger.info(f"플레이어 {player_id}의 턴 완료 - 다음 턴으로 넘김")
+                    self._advance_to_next_turn()
+                else:
+                    self.logger.info(f"플레이어 {player_id} 완료했지만 현재 턴이 아님 (현재 턴: {self.current_turn_player_id})")
+                
+                # 모든 플레이어가 완료했는지 확인
+                all_players = set(self.session.players.keys())
+                if all_players.issubset(self.players_completed):
+                    self.logger.info("모든 플레이어의 직업 선택 완료! 호스트도 완료 처리")
+                    # 호스트 자신도 완료했고 모든 플레이어가 완료했으면 completed = True
+                    if self.local_completed:
+                        self.completed = True
+                else:
+                    # 아직 완료하지 않은 플레이어가 있으면 completed는 False로 유지
+                    self.logger.info(f"다른 플레이어 대기 중... 완료: {self.players_completed}, 전체: {all_players}")
+            # 클라이언트는 완료 메시지를 받아도 completed를 True로 설정하지 않음 (호스트 게임 시작 대기)
+        except Exception as e:
+            self.logger.error(f"직업 선택 완료 메시지 처리 실패: {e}", exc_info=True)
+    
+    def _handle_turn_changed(self, message: Any, sender_id: Optional[str] = None):
+        """턴이 변경되었을 때"""
+        try:
+            current_player_id = message.data.get("current_player_id")
+            player_order = message.data.get("player_order", [])
+            
+            if current_player_id:
+                old_turn = self.current_turn_player_id
+                self.current_turn_player_id = current_player_id
+                if player_order:
+                    self.player_order = player_order
+                self.logger.info(f"턴 변경 수신: {old_turn} -> {current_player_id}, 순서 = {player_order}, 로컬 플레이어 = {self.local_player_id}")
+                # 직업 선택 상태면 메뉴 갱신
+                if self.state == "job_select":
+                    self._create_job_menu()
+            else:
+                self.logger.warning("턴 변경 메시지에 current_player_id가 없습니다")
+        except Exception as e:
+            self.logger.error(f"턴 변경 메시지 처리 실패: {e}", exc_info=True)
+    
+    def _handle_player_left(self, message: Any, sender_id: Optional[str] = None):
+        """플레이어가 나갔을 때"""
+        try:
+            player_id = message.data.get("player_id") or getattr(message, 'player_id', None)
+            if not player_id:
+                self.logger.warning("플레이어 나감 메시지에 player_id가 없습니다")
+                return
+            
+            self.logger.warning(f"플레이어 {player_id}가 나갔습니다!")
+            
+            # 호스트가 나갔는지 확인
+            if player_id == self.session.host_id:
+                self.logger.error("호스트가 나갔습니다! 게임을 중단합니다.")
+                self.cancelled = True
+                self.error_message = "호스트가 게임을 나갔습니다. 게임을 종료합니다."
+                self.error_timer = 5.0
+                return
+            
+            # 나간 플레이어가 현재 턴이었는지 확인
+            if player_id == self.current_turn_player_id:
+                # 호스트만 다음 턴으로 넘기기
+                if self.is_host:
+                    self.logger.info(f"현재 턴 플레이어 {player_id}가 나갔으므로 다음 턴으로 넘깁니다.")
+                    self._advance_to_next_turn()
+                else:
+                    # 클라이언트는 호스트가 턴을 넘길 때까지 대기
+                    self.logger.info(f"현재 턴 플레이어 {player_id}가 나갔습니다. 호스트가 턴을 넘길 때까지 대기합니다.")
+            
+            # 나간 플레이어의 직업 선택 해제
+            if player_id in self.session.players:
+                player = self.session.players[player_id]
+                if hasattr(player, 'party') and player.party:
+                    for member in player.party:
+                        if hasattr(member, 'job_id') and member.job_id:
+                            job_id = member.job_id
+                            self.other_players_jobs.discard(job_id)
+                            self.selected_job_ids.discard(job_id)
+                            self.logger.info(f"나간 플레이어의 직업 {job_id} 해제")
+            
+            # 플레이어 순서에서 제거
+            if player_id in self.player_order:
+                self.player_order.remove(player_id)
+                # 현재 턴이 유효한지 확인
+                if self.current_turn_player_id not in self.player_order:
+                    # 현재 턴이 유효하지 않으면 첫 번째 플레이어로 설정
+                    if self.player_order:
+                        self.current_turn_player_id = self.player_order[0]
+                        if self.is_host:
+                            self._broadcast_turn_change()
+            
+            # 직업 메뉴 갱신
+            if self.state == "job_select":
+                self._create_job_menu()
+        except Exception as e:
+            self.logger.error(f"플레이어 나감 메시지 처리 실패: {e}", exc_info=True)
+    
+    def _advance_to_next_turn(self):
+        """다음 플레이어로 턴 넘기기 (호스트만 호출) - 이미 완료한 플레이어는 건너뜀"""
+        if not self.is_host:
+            return
+        
+        # 모든 플레이어가 완료했는지 확인
+        all_players = set(self.session.players.keys())
+        if all_players.issubset(self.players_completed):
+            self.logger.info("모든 플레이어가 완료했습니다. 턴 진행 중지")
+            return
+        
+        # 현재 턴 플레이어의 인덱스 찾기
+        try:
+            current_index = self.player_order.index(self.current_turn_player_id)
+            
+            # 다음 미완료 플레이어 찾기
+            next_index = current_index + 1
+            while next_index < len(self.player_order):
+                next_player_id = self.player_order[next_index]
+                # 이미 완료한 플레이어는 건너뛰기
+                if next_player_id not in self.players_completed:
+                    self.current_turn_player_id = next_player_id
+                    self._broadcast_turn_change()
+                    self.logger.info(f"다음 턴: {self.current_turn_player_id} (완료한 플레이어 건너뜀)")
+                    return
+                next_index += 1
+            
+            # 모든 플레이어를 순회했지만 미완료 플레이어가 없음 (이론적으로는 발생하지 않아야 함)
+            # 다시 처음부터 찾기
+            for i, player_id in enumerate(self.player_order):
+                if player_id not in self.players_completed:
+                    self.current_turn_player_id = player_id
+                    self._broadcast_turn_change()
+                    self.logger.info(f"다음 턴 (순환): {self.current_turn_player_id}")
+                    return
+            
+            # 모든 플레이어가 완료했지만 아직 확인되지 않음
+            self.logger.warning("모든 플레이어가 완료한 것으로 보이지만 확인되지 않았습니다. 완료 대기 중...")
+        except (ValueError, IndexError) as e:
+            self.logger.error(f"다음 턴으로 넘기기 실패: {e}", exc_info=True)
+    
+    def _broadcast_turn_change(self):
+        """턴 변경 브로드캐스트 (호스트만 호출)"""
+        if not self.is_host:
+            return
+        
+        try:
+            message = MessageBuilder.turn_changed(
+                self.current_turn_player_id,
+                self.player_order
+            )
+            # 비동기 브로드캐스트
+            import asyncio
+            server_loop = getattr(self.network_manager, '_server_event_loop', None)
+            if server_loop and server_loop.is_running():
+                asyncio.run_coroutine_threadsafe(
+                    self.network_manager.broadcast(message),
+                    server_loop
+                )
+                self.logger.info(f"턴 변경 브로드캐스트: {self.current_turn_player_id}")
+        except Exception as e:
+            self.logger.error(f"턴 변경 브로드캐스트 실패: {e}", exc_info=True)
     
     def _load_jobs(self) -> List[Dict[str, Any]]:
         """직업 데이터 로드 (로컬 플레이어의 메타 진행 기준)"""
@@ -208,8 +428,23 @@ class MultiplayerPartySetup:
                     "미아", "알렉스", "소피아", "마커스", "이리스", "테오", "엠마", "노아"]
     
     def _create_job_menu(self):
-        """직업 선택 메뉴 생성 (중복 방지)"""
+        """직업 선택 메뉴 생성 (중복 방지 및 턴 체크)"""
         available_jobs = [job for job in self.jobs if job['unlocked']]
+        
+        # 현재 턴이 설정되지 않았으면 처리
+        if self.current_turn_player_id is None:
+            if self.is_host:
+                # 호스트는 첫 번째 플레이어로 초기화
+                if self.player_order:
+                    self.current_turn_player_id = self.player_order[0]
+                    self.logger.warning("_create_job_menu: 호스트의 current_turn_player_id가 None이었습니다. 첫 번째 플레이어로 초기화합니다.")
+                    self._broadcast_turn_change()
+            else:
+                # 클라이언트는 호스트 메시지 대기 중
+                self.logger.warning("_create_job_menu: 클라이언트의 current_turn_player_id가 None입니다. 호스트 메시지 대기 중...")
+        
+        # 현재 턴인지 확인
+        is_my_turn = (self.current_turn_player_id == self.local_player_id) if self.current_turn_player_id else False
         
         # 이미 선택한 직업 제외
         my_selected_jobs = {member.job_id for member in self.party if hasattr(member, 'job_id') and member.job_id}
@@ -235,12 +470,25 @@ class MultiplayerPartySetup:
                         description=job.get('description', '')
                     )
                 )
+            elif not is_my_turn:
+                # 현재 턴이 아니면 모든 직업 비활성화
+                current_player = self.session.players.get(self.current_turn_player_id)
+                player_name = current_player.player_name if current_player else "다른 플레이어"
+                menu_items.append(
+                    MenuItem(
+                        text=f"{job['name']} [대기 중]",
+                        value=job,
+                        enabled=False,
+                        description=f"{player_name}의 턴입니다. 기다려주세요..."
+                    )
+                )
             else:
-                # 선택 가능한 항목
+                # 선택 가능한 항목 (현재 턴이고 중복되지 않은 직업)
                 menu_items.append(
                     MenuItem(
                         text=job['name'],
                         value=job,
+                        enabled=True,
                         description=job.get('description', '')
                     )
                 )
@@ -356,18 +604,80 @@ class MultiplayerPartySetup:
     
     def _handle_job_select(self, action: GameAction) -> bool:
         """직업 선택 상태 입력 처리"""
+        # 현재 턴이 설정되지 않았으면 처리
+        if self.current_turn_player_id is None:
+            if self.is_host:
+                # 호스트는 첫 번째 플레이어로 초기화
+                if self.player_order:
+                    self.current_turn_player_id = self.player_order[0]
+                    self.logger.warning("_handle_job_select: 호스트의 current_turn_player_id가 None이었습니다. 첫 번째 플레이어로 초기화합니다.")
+                    self._broadcast_turn_change()
+                    # 메뉴 재생성 (턴 정보 반영)
+                    self._create_job_menu()
+            else:
+                # 클라이언트는 호스트 메시지 대기 중
+                if action == GameAction.CONFIRM:
+                    self.error_message = "턴 정보를 기다리는 중입니다. 잠시 후 다시 시도해주세요."
+                    self.error_timer = 2.0
+                return False
+        
+        # 현재 턴인지 확인
+        is_my_turn = (self.current_turn_player_id == self.local_player_id) if self.current_turn_player_id else False
+        
         if not self.job_menu:
             self._create_job_menu()
         
+        # 커서 이동은 항상 허용
+        if action == GameAction.MOVE_UP:
+            if self.job_menu:
+                self.job_menu.move_cursor_up()
+            return False
+        elif action == GameAction.MOVE_DOWN:
+            if self.job_menu:
+                self.job_menu.move_cursor_down()
+            return False
+        
+        # CONFIRM 액션은 현재 턴일 때만 허용
         if action == GameAction.CONFIRM:
+            # 턴 체크 (강력한 검증)
+            if not is_my_turn:
+                current_player = self.session.players.get(self.current_turn_player_id)
+                player_name = current_player.player_name if current_player else "다른 플레이어"
+                self.error_message = f"{player_name}의 턴입니다. 기다려주세요..."
+                self.error_timer = 2.0
+                self.logger.warning(f"턴 체크 실패: 현재 턴={self.current_turn_player_id}, 로컬 플레이어={self.local_player_id}")
+                return False
+            
             selected = self.job_menu.get_selected_item()
-            if selected and selected.enabled and selected.value:
+            if selected and selected.value:
+                # enabled 체크 (메뉴에서 이미 비활성화되어 있을 수 있음)
+                if not selected.enabled:
+                    self.error_message = "이 직업은 선택할 수 없습니다"
+                    self.error_timer = 1.0
+                    return False
+                
                 job = selected.value
+                
+                # 턴 체크 (다시 한 번 확인)
+                if not is_my_turn:
+                    self.error_message = "현재 당신의 턴이 아닙니다"
+                    self.error_timer = 1.0
+                    self.logger.warning(f"턴 체크 실패 (선택 시): 현재 턴={self.current_turn_player_id}, 로컬 플레이어={self.local_player_id}")
+                    return False
                 
                 # 중복 확인 (다시 한 번 확인)
                 if job['id'] in self.other_players_jobs:
                     self.error_message = f"{job['name']}은(는) 이미 다른 플레이어가 선택했습니다"
                     self.error_timer = 2.0
+                    return False
+                
+                # 최종 턴 체크 (로그 포함)
+                if self.current_turn_player_id != self.local_player_id:
+                    self.error_message = "턴이 변경되었습니다. 다시 시도해주세요."
+                    self.error_timer = 2.0
+                    self.logger.error(f"최종 턴 체크 실패: 현재 턴={self.current_turn_player_id}, 로컬 플레이어={self.local_player_id}")
+                    # 메뉴 재생성 (턴 정보 업데이트)
+                    self._create_job_menu()
                     return False
                 
                 # 파티 멤버 추가
@@ -384,7 +694,7 @@ class MultiplayerPartySetup:
                 # 네트워크로 직업 선택 전송
                 self._send_job_selected(job['id'])
                 
-                self.logger.info(f"직업 선택: {job['name']} ({job['id']})")
+                self.logger.info(f"직업 선택 성공: {job['name']} ({job['id']}) - 현재 턴={self.current_turn_player_id}, 로컬 플레이어={self.local_player_id}")
                 
                 # 이름 입력으로 이동
                 self.current_slot = len(self.party) - 1
@@ -392,14 +702,12 @@ class MultiplayerPartySetup:
                 self._create_name_input()
                 
                 # 모든 캐릭터 선택 완료 확인
-                if len(self.party) >= self.character_allocation:
-                    # 마지막 캐릭터 이름 입력 후 특성 선택으로
-                    pass
+                # (직업 선택 완료는 모든 캐릭터의 특성까지 선택 완료되었을 때 보냄)
                 
                 return False
         
         elif action == GameAction.CANCEL:
-            # 이전 슬롯으로 돌아가기
+            # 이전 슬롯으로 돌아가기 (턴 체크 없음 - 취소는 항상 가능)
             play_sfx("ui", "cursor_cancel")
             if len(self.party) > 0:
                 # 마지막 선택한 직업 해제
@@ -412,13 +720,6 @@ class MultiplayerPartySetup:
             else:
                 self.cancelled = True
                 return True
-        
-        elif action == GameAction.MOVE_UP:
-            if self.job_menu:
-                self.job_menu.move_cursor_up()
-        elif action == GameAction.MOVE_DOWN:
-            if self.job_menu:
-                self.job_menu.move_cursor_down()
         
         return False
     
@@ -483,10 +784,12 @@ class MultiplayerPartySetup:
                     self._create_job_menu()
                     self.logger.info(f"다음 캐릭터 선택으로 이동")
                 else:
-                    # 모든 캐릭터 선택 완료
-                    self.completed = True
-                    self.logger.info("모든 캐릭터 선택 완료")
-                    return True
+                    # 모든 캐릭터 선택 완료 (직업 선택 완료 메시지 전송)
+                    self._send_job_selection_complete()
+                    # completed는 _send_job_selection_complete에서 설정됨 (호스트는 모든 플레이어 완료 시, 클라이언트는 호스트 게임 시작 대기)
+                    self.logger.info("로컬 플레이어의 모든 캐릭터 선택 완료 (특성 선택 완료 - CANCEL)")
+                    # 호스트는 다른 플레이어 대기, 클라이언트는 호스트 게임 시작 대기
+                    return False
                 return False
             
             # 특성 선택/해제
@@ -530,10 +833,17 @@ class MultiplayerPartySetup:
                         self._create_job_menu()
                         self.logger.info(f"자동으로 다음 캐릭터 선택으로 이동")
                     else:
-                        # 모든 캐릭터 선택 완료
-                        self.completed = True
-                        self.logger.info("모든 캐릭터 선택 완료")
-                        return True
+                        # 모든 캐릭터 선택 완료 (직업 선택 완료 메시지 전송)
+                        self._send_job_selection_complete()
+                        # completed는 _send_job_selection_complete에서 설정됨 (호스트는 모든 플레이어 완료 시, 클라이언트는 호스트 게임 시작 대기)
+                        self.logger.info("로컬 플레이어의 모든 캐릭터 선택 완료")
+                        # 호스트는 다른 플레이어 대기, 클라이언트는 호스트 게임 시작 대기
+                        if self.is_host:
+                            # 호스트는 다른 플레이어들이 완료할 때까지 대기 (completed는 _send_job_selection_complete에서 설정)
+                            return False
+                        else:
+                            # 클라이언트는 호스트가 게임을 시작할 때까지 대기 (completed는 False로 유지)
+                            return False
             
             return False
         
@@ -545,9 +855,12 @@ class MultiplayerPartySetup:
                 self.state = "job_select"
                 self._create_job_menu()
             else:
-                # 모든 캐릭터 선택 완료
-                self.completed = True
-                return True
+                # 모든 캐릭터 선택 완료 (직업 선택 완료 메시지 전송)
+                self._send_job_selection_complete()
+                # completed는 _send_job_selection_complete에서 설정됨 (호스트는 모든 플레이어 완료 시, 클라이언트는 호스트 게임 시작 대기)
+                self.logger.info("로컬 플레이어의 모든 캐릭터 선택 완료 (CANCEL)")
+                # 호스트는 다른 플레이어 대기, 클라이언트는 호스트 게임 시작 대기
+                return False
         
         elif action == GameAction.MOVE_UP:
             if self.trait_menu:
@@ -565,14 +878,22 @@ class MultiplayerPartySetup:
                 job_id,
                 self.local_player_id
             )
-            # 비동기 호출 (현재는 동기 함수이므로 로그만 남기고 나중에 통합)
-            # TODO: 네트워크 메시지 전송을 별도 스레드나 큐로 처리
-            self.logger.debug(f"직업 선택 메시지 전송 (비동기 처리 필요): {job_id}")
-            # 일단 네트워크 전송은 나중에 구현
-            # if self.is_host:
-            #     await self.network_manager.broadcast(message)
-            # else:
-            #     await self.network_manager.send_to_host(message)
+            # 비동기 브로드캐스트
+            import asyncio
+            if self.is_host:
+                server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                if server_loop and server_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.broadcast(message),
+                        server_loop
+                    )
+            else:
+                client_loop = getattr(self.network_manager, '_client_event_loop', None)
+                if client_loop and client_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.send(message),
+                        client_loop
+                    )
         except Exception as e:
             self.logger.error(f"직업 선택 메시지 전송 실패: {e}", exc_info=True)
     
@@ -583,16 +904,68 @@ class MultiplayerPartySetup:
                 job_id,
                 self.local_player_id
             )
-            # 비동기 호출 (현재는 동기 함수이므로 로그만 남기고 나중에 통합)
-            # TODO: 네트워크 메시지 전송을 별도 스레드나 큐로 처리
-            self.logger.debug(f"직업 해제 메시지 전송 (비동기 처리 필요): {job_id}")
-            # 일단 네트워크 전송은 나중에 구현
-            # if self.is_host:
-            #     await self.network_manager.broadcast(message)
-            # else:
-            #     await self.network_manager.send_to_host(message)
+            # 비동기 브로드캐스트
+            import asyncio
+            if self.is_host:
+                server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                if server_loop and server_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.broadcast(message),
+                        server_loop
+                    )
+            else:
+                client_loop = getattr(self.network_manager, '_client_event_loop', None)
+                if client_loop and client_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.send(message),
+                        client_loop
+                    )
         except Exception as e:
             self.logger.error(f"직업 해제 메시지 전송 실패: {e}", exc_info=True)
+    
+    def _send_job_selection_complete(self):
+        """직업 선택 완료 메시지 전송 (로컬 플레이어의 모든 직업 선택 완료 시)"""
+        try:
+            # 로컬 플레이어 완료 표시
+            self.local_completed = True
+            
+            message = MessageBuilder.job_selection_complete(self.local_player_id)
+            # 비동기 브로드캐스트
+            import asyncio
+            if self.is_host:
+                # 호스트 자신도 완료 목록에 추가
+                self.players_completed.add(self.local_player_id)
+                self.logger.info(f"호스트 완료! 완료한 플레이어: {self.players_completed}, 전체 플레이어: {list(self.session.players.keys())}")
+                
+                server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                if server_loop and server_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.broadcast(message),
+                        server_loop
+                    )
+                    # 호스트는 다음 턴으로 넘김 (현재 턴이 자신의 턴인 경우에만)
+                    if self.current_turn_player_id == self.local_player_id:
+                        self.logger.info(f"호스트 자신의 턴 완료 - 다음 턴으로 넘김")
+                        self._advance_to_next_turn()
+                    else:
+                        self.logger.info(f"호스트 완료했지만 현재 턴이 아님 (현재 턴: {self.current_turn_player_id})")
+                    
+                    # 모든 플레이어가 완료했는지 확인
+                    all_players = set(self.session.players.keys())
+                    if all_players.issubset(self.players_completed):
+                        self.logger.info("모든 플레이어의 직업 선택 완료! 호스트도 완료 처리")
+                        self.completed = True
+                    else:
+                        self.logger.info(f"다른 플레이어 대기 중... 완료: {self.players_completed}, 전체: {all_players}")
+            else:
+                client_loop = getattr(self.network_manager, '_client_event_loop', None)
+                if client_loop and client_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.send(message),
+                        client_loop
+                    )
+        except Exception as e:
+            self.logger.error(f"직업 선택 완료 메시지 전송 실패: {e}", exc_info=True)
     
     def render(self, console: tcod.console.Console):
         """렌더링"""
@@ -616,6 +989,24 @@ class MultiplayerPartySetup:
             fg=Colors.UI_TEXT
         )
         
+        # 현재 턴 정보 (직업 선택 중일 때만)
+        if self.state == "job_select":
+            if self.current_turn_player_id == self.local_player_id:
+                turn_msg = "▶ 현재 당신의 턴입니다"
+                turn_color = Colors.UI_TEXT_SELECTED
+            else:
+                current_player = self.session.players.get(self.current_turn_player_id)
+                player_name = current_player.player_name if current_player else "다른 플레이어"
+                turn_msg = f"⏳ {player_name}의 턴입니다... (대기 중)"
+                turn_color = Colors.DARK_GRAY
+            
+            console.print(
+                self.screen_width // 2 - len(turn_msg) // 2,
+                6,
+                turn_msg,
+                fg=turn_color
+            )
+        
         # 현재 상태에 따라 렌더링
         if self.state == "job_select" and self.job_menu:
             self.job_menu.render(console)
@@ -633,18 +1024,59 @@ class MultiplayerPartySetup:
                 fg=Colors.RED
             )
         
+        # 호스트가 완료했지만 다른 플레이어 대기 중인 경우
+        if self.is_host and self.local_completed and not self.completed:
+            wait_msg = f"다른 플레이어 대기 중... ({len(self.players_completed)}/{len(self.session.players)})"
+            console.print(
+                self.screen_width // 2 - len(wait_msg) // 2,
+                self.screen_height - 4,
+                wait_msg,
+                fg=Colors.UI_TEXT
+            )
+            # 완료하지 않은 플레이어 목록 표시
+            all_players = set(self.session.players.keys())
+            waiting_players = all_players - self.players_completed
+            if waiting_players:
+                waiting_names = [self.session.players[pid].player_name for pid in waiting_players if pid in self.session.players]
+                if waiting_names:
+                    waiting_text = f"대기 중: {', '.join(waiting_names)}"
+                    console.print(
+                        self.screen_width // 2 - len(waiting_text) // 2,
+                        self.screen_height - 3,
+                        waiting_text,
+                        fg=Colors.DARK_GRAY
+                    )
+        
+        # 클라이언트가 완료했지만 호스트 게임 시작 대기 중인 경우
+        if not self.is_host and self.local_completed and not self.completed:
+            wait_msg = "호스트가 게임을 시작할 때까지 대기 중..."
+            console.print(
+                self.screen_width // 2 - len(wait_msg) // 2,
+                self.screen_height - 4,
+                wait_msg,
+                fg=Colors.UI_TEXT
+            )
+        
         # 안내 메시지
-        help_text = "ESC: 취소" if not self.completed else "모든 캐릭터 선택 완료!"
+        if self.completed:
+            help_text = "모든 플레이어의 직업 선택 완료!" if self.is_host else "준비 완료!"
+        elif self.local_completed and self.is_host:
+            help_text = "다른 플레이어를 기다리는 중..."
+        elif self.local_completed and not self.is_host:
+            help_text = "호스트가 게임을 시작할 때까지 대기 중..."
+        else:
+            help_text = "ESC: 취소"
         console.print(
             self.screen_width // 2 - len(help_text) // 2,
-            self.screen_height - 3,
+            self.screen_height - 2 if ((self.is_host and self.local_completed and not self.completed) or (not self.is_host and self.local_completed)) else self.screen_height - 3,
             help_text,
             fg=Colors.UI_TEXT
         )
     
     def get_party(self) -> Optional[List[PartyMember]]:
         """선택된 파티 반환"""
-        if self.completed and len(self.party) == self.character_allocation:
+        # 호스트는 모든 플레이어 완료 시, 클라이언트는 로컬 플레이어 완료 시 파티 반환
+        if (self.completed or (not self.is_host and self.local_completed)) and len(self.party) == self.character_allocation:
             return self.party
         return None
 
@@ -684,14 +1116,77 @@ def run_multiplayer_party_setup(
     )
     
     handler = InputHandler()
+    import time
+    last_connection_check = time.time()
+    connection_check_interval = 1.0  # 1초마다 연결 상태 확인
+    last_turn_broadcast = time.time()
+    turn_broadcast_interval = 2.0  # 2초마다 턴 정보 브로드캐스트 (호스트만)
     
     while True:
+        current_time = time.time()
+        
+        # 호스트가 주기적으로 턴 정보 브로드캐스트 (클라이언트 동기화 보장)
+        if is_host and current_time - last_turn_broadcast >= turn_broadcast_interval:
+            last_turn_broadcast = current_time
+            if setup.current_turn_player_id and setup.player_order:
+                setup._broadcast_turn_change()
+        
+        # 연결 상태 확인 (주기적으로)
+        if current_time - last_connection_check >= connection_check_interval:
+            last_connection_check = current_time
+            
+            # 호스트 연결 상태 확인 (클라이언트만)
+            if not is_host and network_manager:
+                from src.multiplayer.network import ConnectionState
+                if network_manager.connection_state == ConnectionState.DISCONNECTED:
+                    setup.logger.error("호스트 연결이 끊어졌습니다!")
+                    setup.cancelled = True
+                    setup.error_message = "호스트 연결이 끊어졌습니다. 게임을 종료합니다."
+                    setup.error_timer = 5.0
+            
+            # 세션에서 호스트가 제거되었는지 확인
+            if session:
+                host_id = getattr(session, 'host_id', None)
+                if host_id and host_id not in session.players:
+                    setup.logger.error("세션에서 호스트가 제거되었습니다!")
+                    setup.cancelled = True
+                    setup.error_message = "호스트가 게임을 나갔습니다. 게임을 종료합니다."
+                    setup.error_timer = 5.0
+                # 호스트가 나갔는지 확인 (호스트 자신인 경우)
+                elif is_host and local_player_id not in session.players:
+                    setup.logger.error("호스트가 세션에서 제거되었습니다!")
+                    setup.cancelled = True
+                    setup.error_message = "연결이 끊어졌습니다. 게임을 종료합니다."
+                    setup.error_timer = 5.0
+        
+        # 플레이어가 나갔거나 취소되었는지 확인
+        if setup.cancelled:
+            return None
+        
+        # 호스트가 모든 플레이어 완료를 확인했는지 체크 (비동기적으로 설정될 수 있음)
+        # 메시지 핸들러에서 completed가 True로 설정될 수 있으므로 매 프레임 체크
+        if setup.is_host and setup.completed:
+            party = setup.get_party()
+            if party:
+                setup.logger.info(f"모든 플레이어 완료 확인! 파티 반환: {len(party)}명")
+                # 패시브는 호스트가 선택 (나중에 별도 처리)
+                return (party, [])
+            else:
+                setup.logger.warning(f"completed=True이지만 get_party()가 None 반환. party 길이: {len(setup.party)}, allocation: {setup.character_allocation}")
+        
+        # 클라이언트가 완료했는지 체크 (호스트 게임 시작 대기 - main.py에서 처리)
+        if not setup.is_host and setup.local_completed:
+            party = setup.get_party()
+            if party:
+                setup.logger.info(f"클라이언트 완료! 파티 반환: {len(party)}명 (호스트 게임 시작 대기)")
+                return (party, [])
+        
         # 렌더링
         setup.render(console)
         context.present(console)
         
         # 입력 처리
-        for event in tcod.event.wait():
+        for event in tcod.event.wait(timeout=0.05):
             if isinstance(event, tcod.event.Quit):
                 return None
             
@@ -704,8 +1199,16 @@ def run_multiplayer_party_setup(
                 if setup.handle_input(action, key_event):
                     if setup.cancelled:
                         return None
-                    elif setup.completed:
+                    # 호스트만 completed가 True일 때 반환 (모든 플레이어 완료)
+                    # 클라이언트는 local_completed가 True일 때 반환 (호스트 게임 시작 대기 - main.py에서 처리)
+                    elif setup.completed and setup.is_host:
                         party = setup.get_party()
-                        # 패시브는 호스트가 선택 (나중에 별도 처리)
-                        return (party, [])
+                        if party:
+                            # 패시브는 호스트가 선택 (나중에 별도 처리)
+                            return (party, [])
+                    elif setup.local_completed and not setup.is_host:
+                        # 클라이언트는 완료했으면 반환 (main.py에서 호스트 게임 시작 메시지 대기)
+                        party = setup.get_party()
+                        if party:
+                            return (party, [])
 

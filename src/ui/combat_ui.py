@@ -3956,6 +3956,10 @@ def run_combat(
     # 전투 매니저 생성
     combat_manager = CombatManager()
     
+    # 멀티플레이 세션 설정 (게임오버 조건 체크용)
+    if is_multiplayer and session:
+        combat_manager.session = session
+    
     # 전투 위치 설정 (멀티플레이용)
     if combat_position:
         combat_manager.combat_position = combat_position

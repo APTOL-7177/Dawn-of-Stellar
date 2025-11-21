@@ -20,7 +20,8 @@ class EnemySyncManager:
         self,
         session: MultiplayerSession,
         network_manager: Optional[NetworkManager] = None,
-        is_host: bool = False
+        is_host: bool = False,
+        exploration: Optional[Any] = None
     ):
         """
         초기화
@@ -29,10 +30,12 @@ class EnemySyncManager:
             session: 멀티플레이 세션
             network_manager: 네트워크 관리자
             is_host: 호스트 여부
+            exploration: 탐험 시스템 (적 위치 업데이트용)
         """
         self.session = session
         self.network_manager = network_manager
         self.is_host = is_host
+        self.exploration = exploration
         self.logger = get_logger("multiplayer.enemy_sync")
         
         # 적 이동 간격 (0.65초)
@@ -174,13 +177,26 @@ class EnemySyncManager:
         
         enemy_positions = message.data.get("enemies", {})
         
-        # 적 위치 업데이트는 ExplorationSystem에서 처리
-        # 여기서는 캐시만 업데이트
+        # 캐시 업데이트
         self.enemy_positions = {}
         for enemy_id, pos_data in enemy_positions.items():
             x = pos_data.get("x", 0)
             y = pos_data.get("y", 0)
             self.enemy_positions[enemy_id] = (x, y)
+        
+        # 실제 exploration.enemies 위치 업데이트
+        if hasattr(self, 'exploration') and self.exploration:
+            if hasattr(self.exploration, 'enemies'):
+                for enemy in self.exploration.enemies:
+                    # 적 ID 생성
+                    enemy_id = self._get_enemy_id(enemy)
+                    if enemy_id in self.enemy_positions:
+                        new_x, new_y = self.enemy_positions[enemy_id]
+                        old_x, old_y = enemy.x, enemy.y
+                        enemy.x = new_x
+                        enemy.y = new_y
+                        if old_x != new_x or old_y != new_y:
+                            self.logger.debug(f"적 {enemy_id} 위치 업데이트: ({old_x}, {old_y}) -> ({new_x}, {new_y})")
         
         self.logger.debug(f"적 위치 동기화 수신: {len(enemy_positions)}마리")
     

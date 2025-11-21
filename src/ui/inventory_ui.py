@@ -30,6 +30,8 @@ class InventoryMode(Enum):
     CHARACTER_EQUIPMENT = "character_equipment"  # 캐릭터 장비 보기
     UNEQUIP = "unequip"  # 장비 해제
     CONFIRM_DESTROY = "confirm_destroy"  # 파괴 확인
+    DROP_ITEM = "drop_item"  # 아이템 드롭
+    DROP_GOLD = "drop_gold"  # 골드 드롭
 
 
 class InventoryUI:
@@ -40,7 +42,8 @@ class InventoryUI:
         screen_width: int,
         screen_height: int,
         inventory: Inventory,
-        party: List[Any]
+        party: List[Any],
+        exploration: Optional[Any] = None
     ):
         """
         Args:
@@ -48,11 +51,13 @@ class InventoryUI:
             screen_height: 화면 높이
             inventory: 인벤토리
             party: 파티 멤버 리스트
+            exploration: 탐험 시스템 (드롭 위치를 알기 위해)
         """
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.inventory = inventory
         self.party = party
+        self.exploration = exploration
 
         self.mode = InventoryMode.BROWSE
         self.cursor = 0  # 아이템 커서
@@ -79,6 +84,13 @@ class InventoryUI:
         self.confirm_yes = False
         self.destroy_quantity: int = 1  # 파괴할 개수
         self.destroy_quantity_input_mode: bool = False  # 개수 입력 모드
+
+        # 드롭 관련
+        self.drop_item_index: Optional[int] = None
+        self.drop_quantity: int = 1
+        self.drop_quantity_input_mode: bool = False
+        self.drop_gold_amount: int = 0
+        self.drop_gold_input_mode: bool = False
 
         # 장비 비교 모드
         self.show_comparison = False
@@ -111,6 +123,10 @@ class InventoryUI:
             return self._handle_unequip(action)
         elif self.mode == InventoryMode.CONFIRM_DESTROY:
             return self._handle_confirm_destroy(action)
+        elif self.mode == InventoryMode.DROP_ITEM:
+            return self._handle_drop_item(action)
+        elif self.mode == InventoryMode.DROP_GOLD:
+            return self._handle_drop_gold(action)
 
         return False
 
@@ -209,6 +225,21 @@ class InventoryUI:
                 self.mode = InventoryMode.CONFIRM_DESTROY
                 self.confirm_yes = False
                 self.show_comparison = False
+        elif action == GameAction.INVENTORY_DROP:
+            # 아이템 드롭 ('D' 키)
+            if len(self.inventory) > 0 and self.exploration:
+                actual_index = self._get_actual_slot_index(self.cursor)
+                self.drop_item_index = actual_index
+                self.drop_quantity = 1
+                self.drop_quantity_input_mode = False
+                self.mode = InventoryMode.DROP_ITEM
+                self.show_comparison = False
+        elif action == GameAction.INVENTORY_DROP_GOLD:
+            # 골드 드롭 ('G' 키)
+            if self.exploration and self.inventory.gold > 0:
+                self.drop_gold_amount = 0
+                self.drop_gold_input_mode = True
+                self.mode = InventoryMode.DROP_GOLD
 
         return False
 
@@ -414,6 +445,197 @@ class InventoryUI:
             self.destroy_quantity = 1
             self.destroy_quantity_input_mode = False
 
+        return False
+
+    def _handle_drop_item(self, action: GameAction) -> bool:
+        """아이템 드롭 모드 입력"""
+        if self.drop_item_index is None or not self.exploration:
+            self.mode = InventoryMode.BROWSE
+            return False
+        
+        item = self.inventory.get_item(self.drop_item_index)
+        if not item:
+            self.mode = InventoryMode.BROWSE
+            return False
+        
+        # 스택 가능 여부 확인
+        slot = self.inventory.slots[self.drop_item_index]
+        is_stackable = slot.quantity > 1
+        max_quantity = slot.quantity
+        
+        # 개수 입력 모드
+        if self.drop_quantity_input_mode:
+            if action == GameAction.MOVE_UP:
+                self.drop_quantity = min(max_quantity, self.drop_quantity + 1)
+            elif action == GameAction.MOVE_DOWN:
+                self.drop_quantity = max(1, self.drop_quantity - 1)
+            elif action == GameAction.MOVE_LEFT:
+                self.drop_quantity = max(1, self.drop_quantity - 10)
+            elif action == GameAction.MOVE_RIGHT:
+                self.drop_quantity = min(max_quantity, self.drop_quantity + 10)
+            elif action == GameAction.CONFIRM:
+                # 드롭 실행
+                drop_qty = self.drop_quantity
+                dropped_item = self.inventory.remove_item(self.drop_item_index, drop_qty)
+                if dropped_item:
+                    # 플레이어 위치에 아이템 드롭
+                    player_x = self.exploration.player.x
+                    player_y = self.exploration.player.y
+                    tile = self.exploration.dungeon.get_tile(player_x, player_y)
+                    if tile:
+                        from src.world.tile import TileType
+                    tile.tile_type = TileType.DROPPED_ITEM
+                    tile.dropped_item = dropped_item
+                    item_name = getattr(dropped_item, 'name', '알 수 없는 아이템')
+                    logger.info(f"{item_name} {drop_qty}개 드롭됨 ({player_x}, {player_y})")
+                    
+                    # 멀티플레이어: 드롭 동기화
+                    if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                        if hasattr(self.exploration, 'network_manager') and self.exploration.network_manager:
+                            from src.multiplayer.protocol import MessageBuilder
+                            import asyncio
+                            try:
+                                # 아이템 데이터 직렬화
+                                item_data = {
+                                    "name": item_name,
+                                    "item_id": getattr(dropped_item, 'item_id', None),
+                                    "item_type": getattr(dropped_item, 'item_type', None).value if hasattr(getattr(dropped_item, 'item_type', None), 'value') else str(getattr(dropped_item, 'item_type', None)),
+                                }
+                                drop_msg = MessageBuilder.item_dropped(player_x, player_y, item_data)
+                                loop = asyncio.get_event_loop()
+                                if loop.is_running():
+                                    asyncio.create_task(self.exploration.network_manager.broadcast(drop_msg))
+                                else:
+                                    loop.run_until_complete(self.exploration.network_manager.broadcast(drop_msg))
+                                logger.debug(f"아이템 드롭 동기화 메시지 전송: ({player_x}, {player_y})")
+                            except Exception as e:
+                                logger.error(f"아이템 드롭 동기화 메시지 전송 실패: {e}", exc_info=True)
+                
+                # 모드 복귀
+                self.mode = InventoryMode.BROWSE
+                self.drop_item_index = None
+                self.drop_quantity = 1
+                self.drop_quantity_input_mode = False
+            elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+                # 취소
+                self.drop_quantity_input_mode = False
+                self.drop_quantity = 1
+            return False
+        
+        # 일반 확인 모드
+        if is_stackable and max_quantity > 1:
+            # 개수 입력 모드로 전환
+            self.drop_quantity_input_mode = True
+            self.drop_quantity = 1
+        else:
+            # 바로 드롭
+            dropped_item = self.inventory.remove_item(self.drop_item_index, 1)
+            if dropped_item:
+                player_x = self.exploration.player.x
+                player_y = self.exploration.player.y
+                tile = self.exploration.dungeon.get_tile(player_x, player_y)
+                if tile:
+                    from src.world.tile import TileType
+                    tile.tile_type = TileType.DROPPED_ITEM
+                    tile.dropped_item = dropped_item
+                    item_name = getattr(dropped_item, 'name', '알 수 없는 아이템')
+                    logger.info(f"{item_name} 드롭됨 ({player_x}, {player_y})")
+                    
+                    # 멀티플레이어: 드롭 동기화
+                    if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                        if hasattr(self.exploration, 'network_manager') and self.exploration.network_manager:
+                            from src.multiplayer.protocol import MessageBuilder
+                            import asyncio
+                            try:
+                                # 아이템 데이터 직렬화
+                                item_data = {
+                                    "name": item_name,
+                                    "item_id": getattr(dropped_item, 'item_id', None),
+                                    "item_type": getattr(dropped_item, 'item_type', None).value if hasattr(getattr(dropped_item, 'item_type', None), 'value') else str(getattr(dropped_item, 'item_type', None)),
+                                }
+                                drop_msg = MessageBuilder.item_dropped(player_x, player_y, item_data)
+                                loop = asyncio.get_event_loop()
+                                if loop.is_running():
+                                    asyncio.create_task(self.exploration.network_manager.broadcast(drop_msg))
+                                else:
+                                    loop.run_until_complete(self.exploration.network_manager.broadcast(drop_msg))
+                                logger.debug(f"아이템 드롭 동기화 메시지 전송: ({player_x}, {player_y})")
+                            except Exception as e:
+                                logger.error(f"아이템 드롭 동기화 메시지 전송 실패: {e}", exc_info=True)
+            
+            # 모드 복귀
+            self.mode = InventoryMode.BROWSE
+            self.drop_item_index = None
+            self.drop_quantity = 1
+        
+        if action == GameAction.CANCEL or action == GameAction.ESCAPE:
+            # 취소
+            self.mode = InventoryMode.BROWSE
+            self.drop_item_index = None
+            self.drop_quantity = 1
+            self.drop_quantity_input_mode = False
+        
+        return False
+
+    def _handle_drop_gold(self, action: GameAction) -> bool:
+        """골드 드롭 모드 입력"""
+        if not self.exploration:
+            self.mode = InventoryMode.BROWSE
+            return False
+        
+        max_gold = self.inventory.gold
+        
+        # 골드 입력 모드
+        if self.drop_gold_input_mode:
+            if action == GameAction.MOVE_UP:
+                self.drop_gold_amount = min(max_gold, self.drop_gold_amount + 1)
+            elif action == GameAction.MOVE_DOWN:
+                self.drop_gold_amount = max(0, self.drop_gold_amount - 1)
+            elif action == GameAction.MOVE_LEFT:
+                self.drop_gold_amount = max(0, self.drop_gold_amount - 10)
+            elif action == GameAction.MOVE_RIGHT:
+                self.drop_gold_amount = min(max_gold, self.drop_gold_amount + 10)
+            elif action == GameAction.CONFIRM:
+                # 골드 드롭 실행
+                if self.drop_gold_amount > 0 and self.drop_gold_amount <= max_gold:
+                    self.inventory.gold -= self.drop_gold_amount
+                    # 플레이어 위치에 골드 드롭
+                    player_x = self.exploration.player.x
+                    player_y = self.exploration.player.y
+                    tile = self.exploration.dungeon.get_tile(player_x, player_y)
+                    if tile:
+                        from src.world.tile import TileType
+                        tile.tile_type = TileType.GOLD
+                        tile.gold_amount = self.drop_gold_amount
+                        logger.info(f"골드 {self.drop_gold_amount}G 드롭됨 ({player_x}, {player_y})")
+                        
+                        # 멀티플레이어: 골드 드롭 동기화
+                        if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                            if hasattr(self.exploration, 'network_manager') and self.exploration.network_manager:
+                                from src.multiplayer.protocol import MessageBuilder
+                                import asyncio
+                                try:
+                                    gold_msg = MessageBuilder.gold_dropped(player_x, player_y, self.drop_gold_amount)
+                                    loop = asyncio.get_event_loop()
+                                    if loop.is_running():
+                                        asyncio.create_task(self.exploration.network_manager.broadcast(gold_msg))
+                                    else:
+                                        loop.run_until_complete(self.exploration.network_manager.broadcast(gold_msg))
+                                    logger.debug(f"골드 드롭 동기화 메시지 전송: ({player_x}, {player_y}) {self.drop_gold_amount}G")
+                                except Exception as e:
+                                    logger.error(f"골드 드롭 동기화 메시지 전송 실패: {e}", exc_info=True)
+                
+                # 모드 복귀
+                self.mode = InventoryMode.BROWSE
+                self.drop_gold_amount = 0
+                self.drop_gold_input_mode = False
+            elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+                # 취소
+                self.mode = InventoryMode.BROWSE
+                self.drop_gold_amount = 0
+                self.drop_gold_input_mode = False
+            return False
+        
         return False
 
     def _handle_sort_menu(self, action: GameAction) -> bool:
@@ -739,6 +961,12 @@ class InventoryUI:
         if self.mode == InventoryMode.CONFIRM_DESTROY:
             self._render_destroy_confirm(console)
 
+        # 드롭 모드
+        if self.mode == InventoryMode.DROP_ITEM:
+            self._render_drop_item(console)
+        elif self.mode == InventoryMode.DROP_GOLD:
+            self._render_drop_gold(console)
+
         # 정렬 메뉴
         if self.sort_menu:
             self.sort_menu.render(console)
@@ -752,7 +980,7 @@ class InventoryUI:
         # 도움말
         help_y = self.screen_height - 2
         if self.mode == InventoryMode.BROWSE:
-            help_text = "F: 먹기  Z: 사용/비교  C: 캐릭터 장비  V: 파괴  M: 정렬  ←→: 필터  X: 닫기"
+            help_text = "F: 먹기  Z: 사용/비교  C: 캐릭터 장비  V: 파괴  D: 드롭  G: 골드드롭  M: 정렬  ←→: 필터  X: 닫기"
             console.print(2, help_y, help_text, fg=Colors.GRAY)
         elif self.mode == InventoryMode.CHARACTER_EQUIPMENT:
             help_text = "↑↓: 캐릭터 선택  Z: 확인  X: 취소"
@@ -766,6 +994,18 @@ class InventoryUI:
                 help_text = "↑↓: ±1  ←→: ±10  Z: 확인  X: 취소"
             else:
                 help_text = "←→: 선택  Z: 확인/개수선택  X: 취소"
+            console.print(2, help_y, help_text, fg=Colors.GRAY)
+        elif self.mode == InventoryMode.DROP_ITEM:
+            if self.drop_quantity_input_mode:
+                help_text = "↑↓: ±1  ←→: ±10  Z: 드롭  X: 취소"
+            else:
+                help_text = "Z: 드롭  X: 취소"
+            console.print(2, help_y, help_text, fg=Colors.GRAY)
+        elif self.mode == InventoryMode.DROP_GOLD:
+            if self.drop_gold_input_mode:
+                help_text = f"↑↓: ±1  ←→: ±10  Z: 드롭 ({self.drop_gold_amount}G)  X: 취소"
+            else:
+                help_text = "골드 액수 입력 중..."
             console.print(2, help_y, help_text, fg=Colors.GRAY)
         elif self.mode in [InventoryMode.USE_ITEM, InventoryMode.EQUIP]:
             help_text = "↑↓: 대상 선택  Z: 확인  X: 취소"
@@ -1106,6 +1346,70 @@ class InventoryUI:
                         )
             y += 2
 
+    def _render_drop_item(self, console: tcod.console.Console):
+        """아이템 드롭 대화상자"""
+        if self.drop_item_index is None:
+            return
+        
+        item = self.inventory.get_item(self.drop_item_index)
+        if not item:
+            return
+        
+        slot = self.inventory.slots[self.drop_item_index]
+        max_quantity = slot.quantity
+        
+        box_width = 50
+        box_height = 8 if self.drop_quantity_input_mode else 6
+        box_x = (self.screen_width - box_width) // 2
+        box_y = (self.screen_height - box_height) // 2
+        
+        console.draw_frame(
+            box_x, box_y, box_width, box_height,
+            "아이템 드롭",
+            fg=Colors.UI_BORDER,
+            bg=Colors.UI_BG
+        )
+        
+        y = box_y + 2
+        item_name = getattr(item, 'name', '알 수 없는 아이템')
+        console.print(box_x + 2, y, f"{item_name}을(를) 드롭하시겠습니까?", fg=Colors.UI_TEXT)
+        y += 1
+        
+        if self.drop_quantity_input_mode:
+            console.print(box_x + 2, y, f"개수: {self.drop_quantity}/{max_quantity}", fg=Colors.UI_TEXT_SELECTED)
+            y += 1
+            console.print(box_x + 2, y, "↑↓: ±1  ←→: ±10", fg=Colors.GRAY)
+        else:
+            if max_quantity > 1:
+                console.print(box_x + 2, y, "Z: 개수 선택", fg=Colors.GRAY)
+            else:
+                console.print(box_x + 2, y, "Z: 드롭", fg=Colors.GRAY)
+    
+    def _render_drop_gold(self, console: tcod.console.Console):
+        """골드 드롭 대화상자"""
+        max_gold = self.inventory.gold
+        
+        box_width = 50
+        box_height = 8
+        box_x = (self.screen_width - box_width) // 2
+        box_y = (self.screen_height - box_height) // 2
+        
+        console.draw_frame(
+            box_x, box_y, box_width, box_height,
+            "골드 드롭",
+            fg=Colors.UI_BORDER,
+            bg=Colors.UI_BG
+        )
+        
+        y = box_y + 2
+        console.print(box_x + 2, y, f"보유 골드: {max_gold}G", fg=Colors.UI_TEXT)
+        y += 1
+        console.print(box_x + 2, y, f"드롭할 골드: {self.drop_gold_amount}G", fg=Colors.UI_TEXT_SELECTED)
+        y += 1
+        console.print(box_x + 2, y, "↑↓: ±1  ←→: ±10", fg=Colors.GRAY)
+        y += 1
+        console.print(box_x + 2, y, "Z: 드롭  X: 취소", fg=Colors.GRAY)
+
     def _render_destroy_confirm(self, console: tcod.console.Console):
         """파괴 확인 대화상자"""
         if self.confirm_destroy_item is None:
@@ -1321,7 +1625,8 @@ def open_inventory(
     console: tcod.console.Console,
     context: tcod.context.Context,
     inventory: Inventory,
-    party: List[Any]
+    party: List[Any],
+    exploration: Optional[Any] = None
 ) -> None:
     """
     인벤토리 열기
@@ -1331,8 +1636,9 @@ def open_inventory(
         context: TCOD 컨텍스트
         inventory: 인벤토리
         party: 파티 멤버
+        exploration: 탐험 시스템 (드롭 기능용)
     """
-    ui = InventoryUI(console.width, console.height, inventory, party)
+    ui = InventoryUI(console.width, console.height, inventory, party, exploration)
     handler = InputHandler()
 
     logger.info("인벤토리 열기")

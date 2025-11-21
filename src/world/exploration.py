@@ -182,16 +182,24 @@ class ExplorationSystem:
                 # 장비 효과로 인한 vision_bonus 확인
                 member_vision_bonus = getattr(member, 'vision_bonus', 0)
                 if member_vision_bonus > 0:
-                    logger.info(f"{member.name} vision_bonus: {member_vision_bonus}")
+                    member_name = getattr(member, 'name', getattr(member, 'character_name', 'Unknown'))
+                    logger.info(f"{member_name} vision_bonus: {member_vision_bonus}")
                 vision_bonus += member_vision_bonus
                 
                 # 직업 보너스에서 시야 증가 확인 (예: 무당의 vision_range: 2.0)
                 from src.character.character_loader import get_bonuses
-                bonuses = get_bonuses(member.character_class)
-                if bonuses and 'vision_range' in bonuses:
-                    vision_range_bonus = bonuses.get('vision_range', 0)
-                    if isinstance(vision_range_bonus, (int, float)):
-                        skill_bonus += int(vision_range_bonus)
+                # Character 객체는 character_class를, PartyMember 객체는 job_name을 사용
+                character_class = getattr(member, 'character_class', None)
+                if character_class is None:
+                    # PartyMember 객체인 경우 job_name 사용
+                    character_class = getattr(member, 'job_name', None)
+                
+                if character_class:
+                    bonuses = get_bonuses(character_class)
+                    if bonuses and 'vision_range' in bonuses:
+                        vision_range_bonus = bonuses.get('vision_range', 0)
+                        if isinstance(vision_range_bonus, (int, float)):
+                            skill_bonus += int(vision_range_bonus)
                 
         # 최종 시야 반지름 계산: 기본 3 + 장비 vision_bonus + 스킬/특성/보너스
         final_radius = base_radius + vision_bonus + skill_bonus
@@ -361,6 +369,12 @@ class ExplorationSystem:
 
         elif tile.tile_type == TileType.ITEM:
             return self._handle_item(tile)
+
+        elif tile.tile_type == TileType.DROPPED_ITEM:
+            return self._handle_dropped_item(tile)
+
+        elif tile.tile_type == TileType.GOLD:
+            return self._handle_gold(tile)
 
         elif tile.tile_type == TileType.BOSS_ROOM:
             return ExplorationResult(
@@ -635,12 +649,115 @@ class ExplorationSystem:
         # 아이템 제거
         tile.tile_type = TileType.FLOOR
         tile.loot_id = None
+        
+        # 멀티플레이어: 아이템 획득 동기화
+        if hasattr(self, 'is_multiplayer') and self.is_multiplayer:
+            if hasattr(self, 'network_manager') and self.network_manager:
+                from src.multiplayer.protocol import MessageBuilder
+                import asyncio
+                try:
+                    item_pickup_msg = MessageBuilder.item_picked_up(
+                        x=self.player.x,
+                        y=self.player.y
+                    )
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        asyncio.create_task(self.network_manager.broadcast(item_pickup_msg))
+                    else:
+                        loop.run_until_complete(self.network_manager.broadcast(item_pickup_msg))
+                    logger.debug(f"아이템 획득 동기화 메시지 전송: ({self.player.x}, {self.player.y})")
+                except Exception as e:
+                    logger.error(f"아이템 획득 동기화 메시지 전송 실패: {e}", exc_info=True)
 
         return ExplorationResult(
             success=True,
             event=ExplorationEvent.ITEM_FOUND,
             message=f"✨ 아이템 발견! {item.name} 획득!",
             data={"item": item}
+        )
+
+    def _handle_dropped_item(self, tile: Tile) -> ExplorationResult:
+        """드롭된 아이템 처리"""
+        if not tile.dropped_item:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="아이템이 없습니다"
+            )
+        
+        item = tile.dropped_item
+        
+        # 인벤토리에 추가
+        if self.inventory is None:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message=f"✨ {item.name} 발견! 하지만 인벤토리가 없어서 가져갈 수 없다..."
+            )
+        
+        success = self.inventory.add_item(item)
+        
+        if not success:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message=f"✨ {item.name} 발견! 하지만 인벤토리가 가득 차서 가져갈 수 없다..."
+            )
+        
+        # 아이템 발견 SFX
+        play_sfx("world", "item_discover")
+        play_sfx("item", "get_item")
+        
+        item_name = getattr(item, 'name', '알 수 없는 아이템')
+        logger.info(f"드롭된 아이템 획득: {item_name}")
+        
+        # 타일 정리
+        tile.tile_type = TileType.FLOOR
+        tile.dropped_item = None
+        
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.ITEM_FOUND,
+            message=f"✨ {item_name} 획득!",
+            data={"item": item}
+        )
+
+    def _handle_gold(self, tile: Tile) -> ExplorationResult:
+        """드롭된 골드 처리"""
+        if tile.gold_amount <= 0:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="골드가 없습니다"
+            )
+        
+        gold_amount = tile.gold_amount
+        
+        # 인벤토리에 골드 추가
+        if self.inventory is None:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message=f"💰 {gold_amount}G 발견! 하지만 인벤토리가 없어서 가져갈 수 없다..."
+            )
+        
+        self.inventory.gold += gold_amount
+        
+        # 골드 획득 SFX
+        play_sfx("world", "item_discover")
+        play_sfx("item", "get_item")
+        
+        logger.info(f"드롭된 골드 획득: {gold_amount}G")
+        
+        # 타일 정리
+        tile.tile_type = TileType.FLOOR
+        tile.gold_amount = 0
+        
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.ITEM_FOUND,
+            message=f"💰 {gold_amount}G 획득!",
+            data={"gold": gold_amount}
         )
 
     def _handle_key(self, tile: Tile) -> ExplorationResult:
