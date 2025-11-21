@@ -487,7 +487,17 @@ class InventoryUI:
                     tile.tile_type = TileType.DROPPED_ITEM
                     tile.dropped_item = dropped_item
                     item_name = getattr(dropped_item, 'name', '알 수 없는 아이템')
-                    logger.info(f"{item_name} {drop_qty}개 드롭됨 ({player_x}, {player_y})")
+                    
+                    # 멀티플레이어: 드롭한 플레이어 ID 설정
+                    dropped_by_player_id = None
+                    if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                        if hasattr(self.exploration, 'local_player_id'):
+                            dropped_by_player_id = self.exploration.local_player_id
+                        elif hasattr(self.exploration, 'session') and self.exploration.session:
+                            dropped_by_player_id = getattr(self.exploration.session, 'local_player_id', None)
+                    tile.dropped_by_player_id = dropped_by_player_id
+                    
+                    logger.info(f"{item_name} {drop_qty}개 드롭됨 ({player_x}, {player_y}) by {dropped_by_player_id}")
                     
                     # 멀티플레이어: 드롭 동기화
                     if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
@@ -501,7 +511,7 @@ class InventoryUI:
                                     "item_id": getattr(dropped_item, 'item_id', None),
                                     "item_type": getattr(dropped_item, 'item_type', None).value if hasattr(getattr(dropped_item, 'item_type', None), 'value') else str(getattr(dropped_item, 'item_type', None)),
                                 }
-                                drop_msg = MessageBuilder.item_dropped(player_x, player_y, item_data)
+                                drop_msg = MessageBuilder.item_dropped(player_x, player_y, item_data, dropped_by_player_id)
                                 loop = asyncio.get_event_loop()
                                 if loop.is_running():
                                     asyncio.create_task(self.exploration.network_manager.broadcast(drop_msg))
@@ -607,7 +617,17 @@ class InventoryUI:
                         from src.world.tile import TileType
                         tile.tile_type = TileType.GOLD
                         tile.gold_amount = self.drop_gold_amount
-                        logger.info(f"골드 {self.drop_gold_amount}G 드롭됨 ({player_x}, {player_y})")
+                        
+                        # 멀티플레이어: 드롭한 플레이어 ID 설정
+                        dropped_by_player_id = None
+                        if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                            if hasattr(self.exploration, 'local_player_id'):
+                                dropped_by_player_id = self.exploration.local_player_id
+                            elif hasattr(self.exploration, 'session') and self.exploration.session:
+                                dropped_by_player_id = getattr(self.exploration.session, 'local_player_id', None)
+                        tile.dropped_by_player_id = dropped_by_player_id
+                        
+                        logger.info(f"골드 {self.drop_gold_amount}G 드롭됨 ({player_x}, {player_y}) by {dropped_by_player_id}")
                         
                         # 멀티플레이어: 골드 드롭 동기화
                         if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
@@ -615,7 +635,7 @@ class InventoryUI:
                                 from src.multiplayer.protocol import MessageBuilder
                                 import asyncio
                                 try:
-                                    gold_msg = MessageBuilder.gold_dropped(player_x, player_y, self.drop_gold_amount)
+                                    gold_msg = MessageBuilder.gold_dropped(player_x, player_y, self.drop_gold_amount, dropped_by_player_id)
                                     loop = asyncio.get_event_loop()
                                     if loop.is_running():
                                         asyncio.create_task(self.exploration.network_manager.broadcast(gold_msg))

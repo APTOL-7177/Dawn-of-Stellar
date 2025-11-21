@@ -56,7 +56,9 @@ class CombatUI:
         combat_manager: CombatManager,
         inventory: Optional[Any] = None,
         session: Optional[Any] = None,
-        network_manager: Optional[Any] = None
+        network_manager: Optional[Any] = None,
+        bot_manager: Optional[Any] = None,  # 봇 관리자 (자동 전투용)
+        local_player_id: Optional[str] = None  # 로컬 플레이어 ID (다른 플레이어 컨트롤 방지)
     ):
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -64,6 +66,8 @@ class CombatUI:
         self.inventory = inventory  # 전투 중 아이템 사용을 위한 인벤토리
         self.session = session  # 멀티플레이 세션
         self.network_manager = network_manager  # 네트워크 관리자
+        self.bot_manager = bot_manager  # 봇 관리자
+        self.local_player_id = local_player_id  # 로컬 플레이어 ID
 
         # UI 상태
         self.state = CombatUIState.WAITING_ATB
@@ -381,6 +385,11 @@ class CombatUI:
         if self.state == CombatUIState.BATTLE_END:
             return True
 
+        # 멀티플레이 모드에서 다른 플레이어의 캐릭터 컨트롤 방지
+        if self._should_block_input():
+            logger.debug(f"다른 플레이어의 캐릭터 컨트롤 시도 차단: current_actor={getattr(self.current_actor, 'name', None) if self.current_actor else None}")
+            return False
+
         # 행동 메뉴
         if self.state == CombatUIState.ACTION_MENU:
             return self._handle_action_menu(action)
@@ -418,6 +427,62 @@ class CombatUI:
             self.log_scroll_offset = max(0, self.log_scroll_offset - 3)
             return False
 
+        return False
+
+    def _should_block_input(self) -> bool:
+        """
+        멀티플레이 모드에서 다른 플레이어의 캐릭터 컨트롤을 차단할지 확인
+        
+        Returns:
+            True면 입력 차단, False면 입력 허용
+        """
+        # 멀티플레이 모드 확인
+        from src.multiplayer.game_mode import get_game_mode_manager
+        game_mode_manager = get_game_mode_manager()
+        is_multiplayer = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
+        
+        if not is_multiplayer:
+            # 싱글플레이 모드면 차단 안 함
+            return False
+        
+        # current_actor가 없으면 차단 안 함 (대기 상태 등)
+        if not self.current_actor:
+            return False
+        
+        # 로컬 플레이어 ID 확인
+        local_player_id = self.local_player_id
+        if not local_player_id:
+            # 로컬 플레이어 ID를 여러 방법으로 확인
+            if self.session:
+                local_player_id = getattr(self.session, 'local_player_id', None)
+                if not local_player_id and hasattr(self.session, 'host_id'):
+                    # 호스트인 경우 host_id를 로컬 플레이어 ID로 사용
+                    if game_mode_manager:
+                        game_local_id = getattr(game_mode_manager, 'local_player_id', None)
+                        if game_local_id:
+                            local_player_id = game_local_id
+        
+        if not local_player_id:
+            # 로컬 플레이어 ID를 찾을 수 없으면 차단 안 함 (에러 로그만)
+            logger.warning("멀티플레이 모드에서 로컬 플레이어 ID를 찾을 수 없습니다")
+            return False
+        
+        # current_actor의 플레이어 ID 확인
+        current_actor_player_id = getattr(self.current_actor, 'player_id', None)
+        
+        # 플레이어 ID가 없으면 (AI 캐릭터 등) 차단 안 함
+        if not current_actor_player_id:
+            return False
+        
+        # 로컬 플레이어의 캐릭터가 아니면 차단
+        if current_actor_player_id != local_player_id:
+            logger.warning(
+                f"다른 플레이어의 캐릭터 컨트롤 시도 차단: "
+                f"로컬 플레이어={local_player_id}, 현재 액터 플레이어={current_actor_player_id}, "
+                f"캐릭터={getattr(self.current_actor, 'name', 'Unknown')}"
+            )
+            return True
+        
         return False
 
     def _handle_action_menu(self, action: GameAction) -> bool:
@@ -1119,35 +1184,193 @@ class CombatUI:
         # 아군 턴
         for combatant in ready:
             if combatant in self.combat_manager.allies:
+                # 행동 불가능 상태 확인 (paralyze, stun 등)
+                if hasattr(combatant, 'status_manager'):
+                    if not combatant.status_manager.can_act():
+                        # 행동 불가능 상태이상 확인
+                        from src.combat.status_effects import StatusType
+                        blocking_status = None
+                        status_name = None
+                        
+                        for effect in combatant.status_manager.status_effects:
+                            if effect.status_type in [
+                                StatusType.STUN, StatusType.SLEEP, StatusType.FREEZE,
+                                StatusType.PETRIFY, StatusType.PARALYZE, StatusType.TIME_STOP
+                            ]:
+                                blocking_status = effect.status_type
+                                status_name = effect.name
+                                break
+                        
+                        if blocking_status:
+                            # 행동 불가능 상태이상: 자동으로 턴 넘기기
+                            actor_name = getattr(combatant, 'name', 'Unknown')
+                            logger.info(f"{actor_name}은(는) {status_name}로 인해 행동할 수 없습니다. 턴 자동 넘김.")
+                            
+                            # 메시지 표시
+                            self.add_message(f"{actor_name}은(는) {status_name}로 인해 행동할 수 없습니다.", (200, 100, 100))
+                            
+                            # ATB 소비 (턴 넘기기)
+                            self.combat_manager.atb.consume_atb(combatant)
+                            
+                            # 멀티플레이: 플레이어 선택 상태 해제
+                            actor_player_id = getattr(combatant, 'player_id', None)
+                            if actor_player_id and hasattr(self.combat_manager.atb, 'set_player_selecting'):
+                                self.combat_manager.atb.set_player_selecting(actor_player_id, False)
+                            
+                            # 상태이상 지속 시간 감소 (턴 소모)
+                            if hasattr(combatant, 'status_manager'):
+                                expired_effects = combatant.status_manager.update_duration()
+                                if expired_effects:
+                                    for effect in expired_effects:
+                                        logger.info(f"{actor_name}의 {effect.name} 효과가 해제되었습니다.")
+                            
+                            # WAITING_ATB 상태 유지 (다음 턴 대기)
+                            return
+                
+                # 봇인지 확인 (봇 관리자가 있고, 플레이어 ID가 봇 목록에 있는지)
+                actor_player_id = getattr(combatant, 'player_id', None)
+                is_bot = False
+                bot = None
+                
+                if self.bot_manager and actor_player_id:
+                    bot = self.bot_manager.get_bot(actor_player_id)
+                    if bot:
+                        is_bot = True
+                        # 봇의 전투 관리자 설정
+                        bot.set_combat_manager(self.combat_manager, self)
+                
+                if is_bot and bot:
+                    # 봇 자동 전투: 즉시 액션 선택 및 실행
+                    logger.info(f"봇 {combatant.name}의 턴 - 자동 액션 선택")
+                    self.current_actor = combatant
+                    
+                    # 봇이 자동으로 액션 선택
+                    action_data = bot.auto_combat_action(
+                        actor=combatant,
+                        allies=self.combat_manager.allies,
+                        enemies=self.combat_manager.enemies
+                    )
+                    
+                    if action_data:
+                        # 액션 실행
+                        action_type_str = action_data.get("type", "brv_attack")
+                        target = action_data.get("target")
+                        skill_id = action_data.get("skill_id")
+                        
+                        # ActionType 변환
+                        if action_type_str == "skill" and skill_id:
+                            # 스킬 사용
+                            from src.character.skills.skill_manager import get_skill_manager
+                            skill_manager = get_skill_manager()
+                            skill = skill_manager.get_skill(skill_id)
+                            if skill:
+                                result = self.combat_manager.execute_action(
+                                    actor=combatant,
+                                    action_type=ActionType.SKILL,
+                                    target=target,
+                                    skill=skill
+                                )
+                                if result:
+                                    self._show_action_result(result)
+                        else:
+                            # 기본 공격
+                            action_type = ActionType.BRV_ATTACK
+                            if action_type_str == "hp_attack":
+                                action_type = ActionType.HP_ATTACK
+                            elif action_type_str == "brv_hp_attack":
+                                action_type = ActionType.BRV_HP_ATTACK
+                            
+                            result = self.combat_manager.execute_action(
+                                actor=combatant,
+                                action_type=action_type,
+                                target=target
+                            )
+                            if result:
+                                self._show_action_result(result)
+                        
+                        # 상태 초기화
+                        self.current_actor = None
+                        self.state = CombatUIState.WAITING_ATB
+                    else:
+                        # 액션 선택 실패 시 기본 공격
+                        alive_enemies = [e for e in self.combat_manager.enemies if getattr(e, 'is_alive', True)]
+                        if alive_enemies:
+                            import random
+                            target = random.choice(alive_enemies)
+                            result = self.combat_manager.execute_action(
+                                actor=combatant,
+                                action_type=ActionType.BRV_ATTACK,
+                                target=target
+                            )
+                            if result:
+                                self._show_action_result(result)
+                        self.current_actor = None
+                        self.state = CombatUIState.WAITING_ATB
+                    
+                    return
+                
+                # 일반 플레이어 턴
                 # 아군 턴 시작 SFX (선택 SFX와 동일)
                 play_sfx("ui", "cursor_select")
 
-                self.current_actor = combatant
-                self.action_menu = self._create_action_menu(self.current_actor)  # actor 전달
-                self.state = CombatUIState.ACTION_MENU
-                self.add_message(f"{combatant.name}의 턴!", (100, 255, 255))
+                # 멀티플레이 모드에서 로컬 플레이어의 캐릭터만 current_actor로 설정
+                # (다른 플레이어의 캐릭터는 컨트롤하지 않음)
+                should_set_actor = True
                 
-                # 멀티플레이: 행동 선택 시작 알림 (불릿타임 모드 진입)
-                # 현재 액터가 어떤 플레이어의 캐릭터든 불릿타임 활성화
                 # 멀티플레이 모드 확인
                 from src.multiplayer.game_mode import get_game_mode_manager
                 game_mode_manager = get_game_mode_manager()
                 is_multiplayer_mode = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
                 
-                if is_multiplayer_mode and hasattr(self.combat_manager.atb, 'set_player_selecting'):
+                if is_multiplayer_mode:
+                    # 로컬 플레이어 ID 확인
+                    local_player_id = self.local_player_id
+                    if not local_player_id:
+                        if self.session:
+                            local_player_id = getattr(self.session, 'local_player_id', None)
+                    
                     # 현재 액터의 플레이어 ID 확인
                     actor_player_id = getattr(combatant, 'player_id', None)
-                    if actor_player_id:
-                        # 어떤 플레이어든 행동 선택 중이면 불릿타임 활성화
-                        self.combat_manager.atb.set_player_selecting(actor_player_id, True)
-                        logger.info(f"🔫 불릿타임 활성화 요청: 플레이어 {actor_player_id} 행동 선택 시작")
-                    else:
-                        # 플레이어 ID가 없으면 (AI나 싱글플레이) 로그만 출력
-                        logger.warning(f"⚠️ 플레이어 ID 없음 - combatant={combatant.name}, 불릿타임 비활성화")
-                elif not is_multiplayer_mode:
-                    logger.debug("싱글플레이 모드 - 불릿타임 비활성화")
-                elif not hasattr(self.combat_manager.atb, 'set_player_selecting'):
-                    logger.error(f"❌ ATB 시스템에 set_player_selecting 메서드 없음: {type(self.combat_manager.atb).__name__}")
+                    
+                    # 로컬 플레이어의 캐릭터가 아니면 current_actor 설정하지 않음
+                    if actor_player_id and local_player_id and actor_player_id != local_player_id:
+                        should_set_actor = False
+                        logger.debug(
+                            f"다른 플레이어의 캐릭터 턴: {combatant.name} (플레이어={actor_player_id}, "
+                            f"로컬 플레이어={local_player_id}) - current_actor 설정 안 함"
+                        )
+                        # 다른 플레이어의 캐릭터는 자동으로 행동 선택 (ATB 대기 상태 유지)
+                        self.state = CombatUIState.WAITING_ATB
+                        self.current_actor = None
+                        
+                        # 다른 플레이어의 행동 선택 시작 알림 (불릿타임 모드 진입)
+                        if hasattr(self.combat_manager.atb, 'set_player_selecting') and actor_player_id:
+                            self.combat_manager.atb.set_player_selecting(actor_player_id, True)
+                            logger.info(f"🔫 불릿타임 활성화 요청: 플레이어 {actor_player_id} 행동 선택 시작")
+                        
+                        return
+                
+                if should_set_actor:
+                    self.current_actor = combatant
+                    self.action_menu = self._create_action_menu(self.current_actor)  # actor 전달
+                    self.state = CombatUIState.ACTION_MENU
+                    self.add_message(f"{combatant.name}의 턴!", (100, 255, 255))
+                    
+                    # 멀티플레이: 행동 선택 시작 알림 (불릿타임 모드 진입)
+                    # 현재 액터가 어떤 플레이어의 캐릭터든 불릿타임 활성화
+                    if is_multiplayer_mode and hasattr(self.combat_manager.atb, 'set_player_selecting'):
+                        # 현재 액터의 플레이어 ID 확인
+                        if actor_player_id:
+                            # 어떤 플레이어든 행동 선택 중이면 불릿타임 활성화
+                            self.combat_manager.atb.set_player_selecting(actor_player_id, True)
+                            logger.info(f"🔫 불릿타임 활성화 요청: 플레이어 {actor_player_id} 행동 선택 시작")
+                        else:
+                            # 플레이어 ID가 없으면 (AI나 싱글플레이) 로그만 출력
+                            logger.warning(f"⚠️ 플레이어 ID 없음 - combatant={combatant.name}, 불릿타임 비활성화")
+                    elif not is_multiplayer_mode:
+                        logger.debug("싱글플레이 모드 - 불릿타임 비활성화")
+                    elif not hasattr(self.combat_manager.atb, 'set_player_selecting'):
+                        logger.error(f"❌ ATB 시스템에 set_player_selecting 메서드 없음: {type(self.combat_manager.atb).__name__}")
                 
                 return
 
@@ -3905,7 +4128,9 @@ def run_combat(
     inventory: Optional[Any] = None,
     session: Optional[Any] = None,
     network_manager: Optional[Any] = None,
-    combat_position: Optional[Tuple[int, int]] = None
+    combat_position: Optional[Tuple[int, int]] = None,
+    bot_manager: Optional[Any] = None,  # 봇 관리자 (자동 전투용)
+    local_player_id: Optional[str] = None  # 로컬 플레이어 ID (다른 플레이어 컨트롤 방지)
 ) -> CombatState:
     """
     전투 실행
@@ -4001,6 +4226,13 @@ def run_combat(
     if inventory:
         combat_manager.inventory = inventory
 
+    # 로컬 플레이어 ID 확인
+    if not local_player_id:
+        if session:
+            local_player_id = getattr(session, 'local_player_id', None)
+        if not local_player_id and game_mode_manager:
+            local_player_id = getattr(game_mode_manager, 'local_player_id', None)
+    
     # 전투 UI 생성 (멀티플레이 모드일 경우 session과 network_manager 전달)
     if is_multiplayer and session and network_manager:
         ui = CombatUI(
@@ -4009,11 +4241,20 @@ def run_combat(
             combat_manager, 
             inventory=inventory,
             session=session,
-            network_manager=network_manager
+            network_manager=network_manager,
+            bot_manager=bot_manager,  # 봇 관리자 전달
+            local_player_id=local_player_id  # 로컬 플레이어 ID 전달
         )
-        logger.info(f"멀티플레이 전투 UI 생성: 세션={session.session_id if session else None}")
+        logger.info(f"멀티플레이 전투 UI 생성: 세션={session.session_id if session else None}, 로컬 플레이어={local_player_id}")
     else:
-        ui = CombatUI(console.width, console.height, combat_manager, inventory=inventory)
+        ui = CombatUI(
+            console.width, 
+            console.height, 
+            combat_manager, 
+            inventory=inventory,
+            bot_manager=bot_manager,  # 봇 관리자 전달
+            local_player_id=local_player_id  # 로컬 플레이어 ID 전달 (싱글플레이도 전달)
+        )
     
     handler = InputHandler()
 

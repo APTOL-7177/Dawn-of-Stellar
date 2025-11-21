@@ -54,6 +54,9 @@ class GameAction(Enum):
 
     # 전투 전용
     GIMMICK_DETAIL = "gimmick_detail"
+    
+    # 멀티플레이 전용
+    ADD_BOT = "add_bot"  # 봇 추가
 
 
 class InputHandler(tcod.event.EventDispatch[Optional[GameAction]]):

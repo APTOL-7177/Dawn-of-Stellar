@@ -131,8 +131,10 @@ class CombatManager:
                     if isinstance(ally.stats, dict):
                         for stat_name, value in ally.stats.items():
                             try:
-                                stat_enum = Stats[stat_name.upper()]
-                                char.stat_manager.set_value(stat_enum, value)
+                                # Stats는 클래스이므로 getattr 사용
+                                stat_enum = getattr(Stats, stat_name.upper(), None)
+                                if stat_enum:
+                                    char.stat_manager.set_value(stat_enum, value)
                             except (KeyError, AttributeError):
                                 pass
                     elif hasattr(ally.stats, 'get_value'):
@@ -1863,6 +1865,7 @@ class CombatManager:
 
         # 모든 아군이 죽었는가?
         if all(self._is_defeated(ally) for ally in self.allies):
+            # 전투 참여한 파티원이 모두 죽었으면 패배 (맵으로 복귀)
             # 멀티플레이 모드: 모든 플레이어의 모든 캐릭터가 죽었는지 확인
             if hasattr(self, 'session') and self.session:
                 all_players_dead = True
@@ -1882,11 +1885,21 @@ class CombatManager:
                             break
                 
                 if all_players_dead:
+                    # 모든 플레이어의 모든 캐릭터가 죽었으면 게임오버
                     self.logger.info("모든 플레이어의 모든 캐릭터가 죽었습니다. 게임오버.")
-                    self._end_combat(CombatState.DEFEAT)
-                    return
+                    # 게임오버 플래그 설정 (main.py에서 게임오버로 처리)
+                    self.is_game_over = True
+                else:
+                    # 전투 참여 파티원만 죽었으면 패배 (맵으로 복귀)
+                    self.logger.info("전투 참여 파티원이 모두 죽었습니다. 패배 (맵으로 복귀).")
+                    self.is_game_over = False
+                
+                self._end_combat(CombatState.DEFEAT)
+                return
             else:
-                # 싱글플레이 모드: 전투 참여자만 체크
+                # 싱글플레이 모드: 전투 참여자만 체크 (패배, 맵으로 복귀)
+                self.logger.info("전투 참여 파티원이 모두 죽었습니다. 패배 (맵으로 복귀).")
+                self.is_game_over = False
                 self._end_combat(CombatState.DEFEAT)
                 return
 

@@ -124,6 +124,55 @@ class WorldUI:
                 self.chat_input_active = True
                 self.chat_input_text = ""
                 return False
+        
+        # 숫자 키로 봇 명령 (1-7)
+        if isinstance(key_event, tcod.event.KeyDown):
+            key_char = None
+            
+            # 숫자 키 감지 방법 1: event.char 사용 (가장 확실한 방법)
+            if hasattr(key_event, 'char') and key_event.char:
+                if key_event.char in '1234567':
+                    key_char = key_event.char
+            
+            # 숫자 키 감지 방법 2: ASCII 코드로 확인 (보조)
+            if not key_char:
+                # ASCII 코드로 숫자 키 확인 ('1' = 49, '2' = 50, ..., '7' = 55)
+                if ord('1') <= key_event.sym <= ord('7'):
+                    try:
+                        key_char = chr(key_event.sym)
+                    except (ValueError, OverflowError):
+                        pass
+            
+            # 숫자 키 감지 방법 3: KeySym의 숫자 키패드 확인
+            if not key_char:
+                # 숫자 키패드 (KP_1 ~ KP_7)
+                keypad_map = {
+                    tcod.event.KeySym.KP_1: '1',
+                    tcod.event.KeySym.KP_2: '2',
+                    tcod.event.KeySym.KP_3: '3',
+                    tcod.event.KeySym.KP_4: '4',
+                    tcod.event.KeySym.KP_5: '5',
+                    tcod.event.KeySym.KP_6: '6',
+                    tcod.event.KeySym.KP_7: '7',
+                }
+                if key_event.sym in keypad_map:
+                    key_char = keypad_map[key_event.sym]
+            
+            if key_char and self.exploration and hasattr(self.exploration, 'session'):
+                session = getattr(self.exploration, 'session', None)
+                if session and hasattr(session, 'bot_manager'):
+                    bot_manager = session.bot_manager
+                    if bot_manager:
+                        # 모든 봇에게 명령 전달
+                        command_handled = False
+                        for bot_id, bot in bot_manager.bots.items():
+                            if bot.handle_command_key(key_char):
+                                command_handled = True
+                        
+                        if command_handled:
+                            # 명령 처리되었다는 메시지 표시 (옵션)
+                            logger.info(f"봇 명령 전달: {key_char}")
+                        return False
 
         # 종료 확인 모드
         if self.quit_confirm_mode:
@@ -195,20 +244,64 @@ class WorldUI:
             # 멀티플레이: 이동 쿨타임 체크 (초당 4회 제한)
             import time
             current_time = time.time()
-            # 멀티플레이 모드 확인 (여러 방법으로 확인)
+            # 멀티플레이 모드 확인 (엄격한 확인)
             is_multiplayer = False
-            if hasattr(self.exploration, 'is_multiplayer'):
-                is_multiplayer = self.exploration.is_multiplayer
-            elif hasattr(self.exploration, 'session') and self.exploration.session:
-                is_multiplayer = True
-            else:
-                # game_mode_manager로 확인 (가장 확실한 방법)
+            try:
                 from src.multiplayer.game_mode import get_game_mode_manager
                 game_mode_manager = get_game_mode_manager()
-                if game_mode_manager:
-                    is_multiplayer = game_mode_manager.is_multiplayer()
+                
+                # game_mode_manager가 없으면 싱글플레이
+                if not game_mode_manager:
+                    is_multiplayer = False
+                else:
+                    # game_mode_manager가 명시적으로 True를 반환하고
+                    game_mode_is_multiplayer = game_mode_manager.is_multiplayer()
+                    
+                    # exploration도 멀티플레이로 설정되어 있어야 함
+                    exploration_is_multiplayer = getattr(self.exploration, 'is_multiplayer', False)
+                    
+                    # 둘 다 True여야만 멀티플레이로 확정
+                    is_multiplayer = bool(game_mode_is_multiplayer) and bool(exploration_is_multiplayer)
+                    
+                    # 디버그 로그
+                    if game_mode_is_multiplayer or exploration_is_multiplayer:
+                        logger.debug(
+                            f"멀티플레이 모드 확인: "
+                            f"game_mode={game_mode_is_multiplayer}, "
+                            f"exploration={exploration_is_multiplayer}, "
+                            f"최종={is_multiplayer}"
+                        )
+            except Exception as e:
+                # game_mode_manager가 없거나 오류가 있으면 싱글플레이로 간주
+                logger.debug(f"game_mode_manager 확인 실패: {e}, 싱글플레이로 간주")
+                is_multiplayer = False
             
+            # 멀티플레이 모드에서만 로컬 플레이어 ID 확인
             if is_multiplayer:
+                # 로컬 플레이어 ID 확인
+                local_player_id = None
+                if hasattr(self.exploration, 'local_player_id'):
+                    local_player_id = self.exploration.local_player_id
+                elif self.local_player_id:
+                    local_player_id = self.local_player_id
+                elif hasattr(self.exploration, 'session') and self.exploration.session:
+                    local_player_id = getattr(self.exploration.session, 'local_player_id', None)
+                
+                # 로컬 플레이어 ID가 없으면 이동 불가 (멀티플레이 모드에서만)
+                if not local_player_id:
+                    logger.error(
+                        f"멀티플레이 모드에서 로컬 플레이어 ID가 없어 이동할 수 없습니다. "
+                        f"(exploration.is_multiplayer={getattr(self.exploration, 'is_multiplayer', None)}, "
+                        f"session={getattr(self.exploration, 'session', None)})"
+                    )
+                    return False
+                
+                # 세션에 로컬 플레이어가 있는지 확인
+                if hasattr(self.exploration, 'session') and self.exploration.session:
+                    if local_player_id not in self.exploration.session.players:
+                        logger.warning(f"로컬 플레이어 {local_player_id}가 세션에 없어 이동할 수 없습니다")
+                        return False
+                
                 # 쿨타임 체크
                 if current_time - self.last_move_time < self.move_cooldown:
                     # 쿨타임 중이면 이동 무시
@@ -281,11 +374,63 @@ class WorldUI:
                     from src.audio import play_sfx
                     if tile.tile_type == TileType.STAIRS_DOWN:
                         play_sfx("world", "stairs_down")
+                        
+                        # 멀티플레이: 모든 플레이어 준비 확인
+                        if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                            if hasattr(self.exploration, 'session') and self.exploration.session:
+                                session = self.exploration.session
+                                local_player_id = None
+                                if hasattr(self.exploration, 'local_player_id'):
+                                    local_player_id = self.exploration.local_player_id
+                                
+                                # 로컬 플레이어 준비 상태 설정
+                                if local_player_id:
+                                    session.set_floor_ready(local_player_id, True)
+                                
+                                # 모든 플레이어 준비 확인
+                                if session.is_all_ready_for_floor_change():
+                                    self.floor_change_requested = "floor_down"
+                                    self.add_message("모든 플레이어가 준비되었습니다. 아래층으로 내려갑니다...")
+                                    session.reset_floor_ready()  # 준비 상태 초기화
+                                    return True
+                                else:
+                                    ready_count = len(session.floor_ready_players)
+                                    total_count = len(session.players)
+                                    self.add_message(f"다음 층으로 이동 대기 중... ({ready_count}/{total_count} 준비)")
+                                    return False
+                        
+                        # 싱글플레이: 즉시 이동
                         self.floor_change_requested = "floor_down"
                         self.add_message("아래층으로 내려갑니다...")
                         return True
                     elif tile.tile_type == TileType.STAIRS_UP:
                         play_sfx("world", "stairs_up")
+                        
+                        # 멀티플레이: 모든 플레이어 준비 확인
+                        if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                            if hasattr(self.exploration, 'session') and self.exploration.session:
+                                session = self.exploration.session
+                                local_player_id = None
+                                if hasattr(self.exploration, 'local_player_id'):
+                                    local_player_id = self.exploration.local_player_id
+                                
+                                # 로컬 플레이어 준비 상태 설정
+                                if local_player_id:
+                                    session.set_floor_ready(local_player_id, True)
+                                
+                                # 모든 플레이어 준비 확인
+                                if session.is_all_ready_for_floor_change():
+                                    self.floor_change_requested = "floor_up"
+                                    self.add_message("모든 플레이어가 준비되었습니다. 위층으로 올라갑니다...")
+                                    session.reset_floor_ready()  # 준비 상태 초기화
+                                    return True
+                                else:
+                                    ready_count = len(session.floor_ready_players)
+                                    total_count = len(session.players)
+                                    self.add_message(f"다음 층으로 이동 대기 중... ({ready_count}/{total_count} 준비)")
+                                    return False
+                        
+                        # 싱글플레이: 즉시 이동
                         self.floor_change_requested = "floor_up"
                         self.add_message("위층으로 올라갑니다...")
                         return True
@@ -386,8 +531,11 @@ class WorldUI:
             if harvestable.object_type == HarvestableType.COOKING_POT:
                 continue
 
-            # 이미 채집한 오브젝트는 제외
-            if harvestable.harvested:
+            # 이미 이 플레이어가 채집한 오브젝트는 제외 (멀티플레이: 개인 보상)
+            player_id = None
+            if hasattr(self.exploration, 'local_player_id'):
+                player_id = self.exploration.local_player_id
+            if not harvestable.can_harvest(player_id):
                 continue
 
             # 맨하탄 거리 계산
@@ -578,12 +726,33 @@ class WorldUI:
         )
         if is_multiplayer:
             help_text += "  T: 채팅"
+        
+        # 봇 명령 도움말 (봇이 있을 때만 표시)
+        has_bots = False
+        bot_command_help = ""
+        if is_multiplayer and self.exploration and hasattr(self.exploration, 'session'):
+            session = getattr(self.exploration, 'session', None)
+            if session and hasattr(session, 'bot_manager') and session.bot_manager:
+                bot_manager = session.bot_manager
+                if bot_manager and len(bot_manager.bots) > 0:
+                    has_bots = True
+                    bot_command_help = "  [봇명령] 1:도움요청 2:아이템확인 3:아이템요청 4:골드요청 5:탐험요청 6:따라가기 7:전투회피(토글)"
+        
         console.print(
             5,
             self.screen_height - 2,
             help_text,
             fg=(180, 180, 180)
         )
+        
+        # 봇 명령 도움말 (별도 줄에 표시)
+        if has_bots:
+            console.print(
+                5,
+                self.screen_height - 1,
+                bot_command_help,
+                fg=(150, 200, 255)
+            )
 
         # 채팅 입력창
         if self.chat_input_active:
@@ -1026,6 +1195,53 @@ def run_exploration(
                     if exploration.is_host and hasattr(exploration, '_move_all_enemies'):
                         exploration._move_all_enemies()
                     last_enemy_update = current_time
+            
+            # 봇 업데이트 (매 프레임)
+            if hasattr(exploration, 'session') and exploration.session:
+                session = exploration.session
+                if hasattr(session, 'bot_manager') and session.bot_manager:
+                    bot_manager = session.bot_manager
+                    if bot_manager:
+                        if not bot_manager.is_running:
+                            # 봇 매니저가 실행 중이 아니면 시작
+                            logger.info(f"봇 매니저 시작 중... (봇 수: {len(bot_manager.bots)})")
+                            bot_manager.start_all()
+                            logger.info(f"봇 매니저 시작 완료: {len(bot_manager.bots)}개의 봇 (is_running={bot_manager.is_running})")
+                        
+                        if bot_manager.is_running:
+                            try:
+                                bot_manager.update(current_time)
+                                
+                                # 봇의 전투 트리거 확인 (적 충돌)
+                                for bot_id, bot in bot_manager.bots.items():
+                                    if hasattr(bot, 'pending_combat_trigger') and bot.pending_combat_trigger:
+                                        combat_info = bot.pending_combat_trigger
+                                        enemy = combat_info.get("enemy")
+                                        position = combat_info.get("position")
+                                        
+                                        if enemy and position and hasattr(exploration, '_trigger_combat_with_enemy'):
+                                            logger.info(f"봇 {bot.bot_name} 적 충돌! 전투 트리거 at ({position[0]}, {position[1]})")
+                                            # 전투 트리거 (봇도 플레이어처럼)
+                                            try:
+                                                result = exploration._trigger_combat_with_enemy(enemy)
+                                                # 전투 트리거 후 플래그 초기화
+                                                bot.pending_combat_trigger = None
+                                                
+                                                # 전투 결과 처리 (main.py의 전투 루프로 전달 필요)
+                                                # 여기서는 전투 트리거만 수행하고, 실제 전투는 main.py에서 처리
+                                                logger.info(f"봇 {bot.bot_name} 전투 트리거 완료: {result.event if result else 'None'}")
+                                            except Exception as e:
+                                                logger.error(f"봇 {bot.bot_name} 전투 트리거 실패: {e}", exc_info=True)
+                                                bot.pending_combat_trigger = None
+                            except Exception as e:
+                                logger.error(f"봇 업데이트 오류: {e}", exc_info=True)
+                        else:
+                            logger.debug(f"봇 매니저가 실행 중이 아님 (봇 수: {len(bot_manager.bots)})")
+                else:
+                    # 봇 매니저가 없는 경우 로그 (첫 몇 번만)
+                    if not hasattr(exploration, '_bot_manager_warning_logged'):
+                        logger.debug(f"봇 매니저 없음 (session.bot_manager: {getattr(session, 'bot_manager', None)})")
+                        exploration._bot_manager_warning_logged = True
         
         # 렌더링
         ui.render(console)

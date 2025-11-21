@@ -504,7 +504,8 @@ def show_character_detail(
         # 기본 정보
         console.print(10, y, f"이름: {character_name}", fg=(255, 255, 255))
         y += 1
-        console.print(10, y, f"레벨: {character.level}", fg=(200, 200, 200))
+        level = getattr(character, 'level', 1)
+        console.print(10, y, f"레벨: {level}", fg=(200, 200, 200))
         y += 1
 
         if hasattr(character, 'job_name'):

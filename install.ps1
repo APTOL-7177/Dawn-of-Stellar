@@ -865,14 +865,47 @@ function Start-Installation {
 
 # 스크립트 실행
 try {
-    # PowerShell 실행 정책 확인
+    # PowerShell 실행 정책 확인 및 안내
     $executionPolicy = Get-ExecutionPolicy
-    if ($executionPolicy -eq "Restricted") {
+    if ($executionPolicy -eq "Restricted" -or $executionPolicy -eq "AllSigned") {
+        Clear-Host
+        Write-Header "⚠ 실행 정책 경고"
         Write-Warning "PowerShell 실행 정책이 제한되어 있습니다."
-        Write-Info "관리자 권한으로 다음 명령어를 실행하세요:"
-        Write-ColorOutput Yellow "  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser"
+        Write-Info "현재 정책: $executionPolicy"
         Write-Output ""
-        Read-Host "계속하려면 Enter를 누르세요"
+        Write-ColorOutput Cyan "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        Write-ColorOutput Cyan "해결 방법"
+        Write-ColorOutput Cyan "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        Write-Output ""
+        Write-Info "방법 1: 실행 정책 변경 (영구적, 권장)"
+        Write-ColorOutput Yellow "  PowerShell을 관리자 권한으로 열고:"
+        Write-ColorOutput Green "  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser"
+        Write-Output ""
+        Write-Info "방법 2: 이번 세션만 우회 (일시적)"
+        Write-ColorOutput Yellow "  PowerShell에서 다음 명령어 실행:"
+        Write-ColorOutput Green "  powershell.exe -ExecutionPolicy Bypass -File .\install.ps1"
+        Write-Output ""
+        Write-Info "방법 3: 계속 진행 (시도)"
+        Write-ColorOutput Yellow "  아래에서 Y를 선택하면 계속 진행합니다"
+        Write-Output ""
+        
+        $continue = Read-Host "계속 진행하시겠습니까? (Y/N)"
+        if ($continue -ne "Y" -and $continue -ne "y") {
+            Write-Info "설치가 취소되었습니다."
+            Write-Info "위의 방법 중 하나를 사용하여 다시 시도하세요."
+            Read-Host "종료하려면 Enter를 누르세요"
+            exit 0
+        }
+        
+        # 실행 정책 우회 시도
+        try {
+            Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue
+            Write-Success "이번 세션의 실행 정책을 우회했습니다"
+        } catch {
+            Write-Warning "실행 정책 우회 실패 (계속 진행합니다)"
+        }
+        Write-Output ""
+        Start-Sleep -Seconds 1
     }
     
     Start-Installation

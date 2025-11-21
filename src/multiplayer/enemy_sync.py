@@ -187,16 +187,40 @@ class EnemySyncManager:
         # 실제 exploration.enemies 위치 업데이트
         if hasattr(self, 'exploration') and self.exploration:
             if hasattr(self.exploration, 'enemies'):
+                updated_count = 0
                 for enemy in self.exploration.enemies:
-                    # 적 ID 생성
+                    # 적 ID 생성 (여러 방법 시도)
                     enemy_id = self._get_enemy_id(enemy)
+                    
+                    # ID로 직접 매칭 시도
                     if enemy_id in self.enemy_positions:
                         new_x, new_y = self.enemy_positions[enemy_id]
                         old_x, old_y = enemy.x, enemy.y
                         enemy.x = new_x
                         enemy.y = new_y
+                        updated_count += 1
                         if old_x != new_x or old_y != new_y:
                             self.logger.debug(f"적 {enemy_id} 위치 업데이트: ({old_x}, {old_y}) -> ({new_x}, {new_y})")
+                    else:
+                        # ID로 매칭 실패 시, 위치 기반으로 매칭 시도 (같은 위치의 적)
+                        # 이는 임시 방편이며, 정확한 ID 매칭이 더 중요함
+                        for msg_enemy_id, (msg_x, msg_y) in self.enemy_positions.items():
+                            # 현재 적의 위치와 메시지의 위치가 같으면 매칭
+                            if abs(enemy.x - msg_x) <= 1 and abs(enemy.y - msg_y) <= 1:
+                                # 같은 위치의 적이 여러 마리일 수 있으므로, spawn 위치도 확인
+                                if hasattr(enemy, 'spawn_x') and hasattr(enemy, 'spawn_y'):
+                                    # spawn 위치가 메시지 ID에 포함되어 있는지 확인
+                                    if f"{enemy.spawn_x}_{enemy.spawn_y}" in msg_enemy_id:
+                                        enemy.x = msg_x
+                                        enemy.y = msg_y
+                                        updated_count += 1
+                                        self.logger.debug(f"적 위치 기반 매칭: ({enemy.x}, {enemy.y}) -> ({msg_x}, {msg_y})")
+                                        break
+                
+                if updated_count == 0:
+                    self.logger.warning(f"적 위치 동기화 실패: {len(self.exploration.enemies)}마리 중 0마리 업데이트됨")
+                    self.logger.debug(f"수신한 적 ID: {list(self.enemy_positions.keys())}")
+                    self.logger.debug(f"로컬 적 ID: {[self._get_enemy_id(e) for e in self.exploration.enemies]}")
         
         self.logger.debug(f"적 위치 동기화 수신: {len(enemy_positions)}마리")
     
