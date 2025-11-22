@@ -2857,8 +2857,45 @@ class TraitEffectManager:
                     if hasattr(character, 'restore_mp'):
                         actual = character.restore_mp(mp_amount)
                         self.logger.info(
-                            f"[{trait_id}] {character.name} MP 회복: {actual} ({effect.value * 100}%)"
                         )
+
+    def apply_on_kill_effects(self, attacker: Any, defender: Any):
+        """
+        처치 시 특성 효과 적용 (kill_bonus 등)
+
+        Args:
+            attacker: 공격자 (처치한 캐릭터)
+            defender: 방어자 (처치된 캐릭터)
+        """
+        if not hasattr(attacker, 'active_traits'):
+            return
+
+        for trait_data in attacker.active_traits:
+            trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+            effects = self.get_trait_effects(trait_id)
+
+            for effect in effects:
+                if effect.effect_type == TraitEffectType.KILL_BONUS:
+                    # 처치 보너스 적용 (예: 공격력 증가, HP 회복 등)
+                    # metadata에 구체적인 효과 정의
+                    if not effect.metadata:
+                        continue
+                        
+                    # HP 회복
+                    if "hp_regen" in effect.metadata:
+                        regen = effect.metadata["hp_regen"]
+                        heal_amount = int(attacker.max_hp * regen)
+                        if hasattr(attacker, 'heal'):
+                            actual = attacker.heal(heal_amount)
+                            self.logger.info(f"[{trait_id}] 처치 보너스: HP 회복 +{actual}")
+
+                    # BRV 회복
+                    if "brv_regen" in effect.metadata:
+                        regen = effect.metadata["brv_regen"]
+                        brv_amount = int(attacker.max_brv * regen)
+                        if hasattr(attacker, 'current_brv'):
+                            attacker.current_brv = min(attacker.current_brv + brv_amount, attacker.max_brv)
+                            self.logger.info(f"[{trait_id}] 처치 보너스: BRV 회복 +{brv_amount}")
 
     def _check_condition(
         self,
@@ -3171,6 +3208,9 @@ class TraitEffectManager:
 
         # 기본적으로 조건 만족
         return True
+
+
+
 
 
 # 전역 인스턴스

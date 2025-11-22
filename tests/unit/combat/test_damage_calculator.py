@@ -16,6 +16,8 @@ class MockCharacter:
         self.magic_defense = 40
         self.luck = 5
         self.current_brv = 500
+        self.accuracy = 200  # Ensure hits for testing
+        self.evasion = 0
 
 
 def test_damage_calculator_initialization():

@@ -17,6 +17,7 @@ from src.multiplayer.movement_sync import MovementSyncManager
 from src.multiplayer.enemy_sync import EnemySyncManager
 from src.multiplayer.combat_join import CombatJoinHandler
 from src.core.logger import get_logger
+from src.audio import play_sfx
 
 
 class MultiplayerExplorationSystem(ExplorationSystem):
@@ -714,6 +715,39 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 # (movement_sync.broadcast_move에서 호스트는 broadcast, 클라이언트는 send 사용)
                 pass
         
+        # 호스트인 경우: 이동한 플레이어가 자원을 밟았는지 확인 (자동 채집)
+        # 단, 로컬 플레이어는 move_player에서 직접 처리하므로 제외
+        if self.is_host and player_id != self.local_player_id:
+            # check_and_harvest 호출 (부모 클래스 메서드)
+            harvest_data = self.check_and_harvest(new_x, new_y, player_id)
+            if harvest_data:
+                _, object_type_str = harvest_data
+                
+                # 채집 메시지 브로드캐스트
+                if self.network_manager:
+                    from src.multiplayer.protocol import MessageBuilder
+                    import asyncio
+                    try:
+                        harvest_msg = MessageBuilder.harvest(
+                            x=new_x,
+                            y=new_y,
+                            object_type=object_type_str
+                        )
+                        
+                        # network_manager의 서버 이벤트 루프 사용
+                        server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                        if server_loop and server_loop.is_running():
+                            asyncio.run_coroutine_threadsafe(
+                                self.network_manager.broadcast(harvest_msg),
+                                server_loop
+                            )
+                        else:
+                            self.network_manager.broadcast(harvest_msg)
+                            
+                        self.logger.info(f"플레이어 {player_id} 자동 채집: ({new_x}, {new_y}) {object_type_str}")
+                    except Exception as e:
+                        self.logger.error(f"자동 채집 브로드캐스트 실패: {e}", exc_info=True)
+        
         return True
     
     def _can_move_to(self, x: int, y: int) -> bool:
@@ -850,9 +884,93 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             # 항상 FOV 업데이트 (안전장치)
             self.update_fov()
         
+        # 밟으면 자동 채집 (Walk-over Harvest) - 로컬 플레이어용
+        harvest_data = self.check_and_harvest(self.player.x, self.player.y, self.local_player_id)
+        
+        if harvest_data:
+            harvest_results, object_type_str = harvest_data
+            
+            # 획득한 아이템 처리
+            items_gained = []
+            if self.inventory:
+                from src.equipment.item_system import ItemGenerator
+                for item_id, qty in harvest_results.items():
+                    items_gained.append(f"{item_id} x{qty}")
+                    # 실제 아이템 추가 시도
+                    try:
+                        item_obj = ItemGenerator.create_consumable(item_id)
+                    except:
+                        try:
+                            item_obj = ItemGenerator.create_weapon(item_id)
+                        except:
+                            try:
+                                item_obj = ItemGenerator.create_armor(item_id)
+                            except:
+                                try:
+                                    item_obj = ItemGenerator.create_accessory(item_id)
+                                except:
+                                    # 다 실패하면 랜덤
+                                    item_obj = ItemGenerator.create_random_drop(1)
+
+                    if item_obj:
+                        self.inventory.add_item(item_obj, qty)
+            
+            play_sfx("world", "pickup_item")
+            
+            # 채집물 이름 찾기
+            from src.gathering.harvestable import HarvestableType
+            try:
+                obj_type = HarvestableType(object_type_str)
+                obj_name = obj_type.display_name
+            except:
+                obj_name = "자원"
+            
+            harvest_msg = f"채집 성공: {obj_name} ({', '.join(items_gained)})"
+            self.logger.info(harvest_msg)
+            
+            # 결과 업데이트
+            from src.world.exploration import ExplorationResult, ExplorationEvent
+            # 기존 result가 없거나 NONE이면 덮어씀
+            # (주의: move_player 초반에 result 변수가 없으므로 새로 생성하거나 기존 변수 활용)
+            # 여기서는 아직 result가 생성되지 않은 시점이므로 (tile 이벤트 체크 전)
+            # tile 이벤트 체크 후의 result와 병합할 수 있도록 임시 변수에 저장하거나
+            # 바로 반환하지 않고 로깅만 하다가, tile 이벤트가 없으면 반환하도록 로직 구성 필요
+            # 하지만 구조상 result를 반환해야 함.
+            
+            # 호스트인 경우 브로드캐스트
+            if self.is_host and self.network_manager:
+                try:
+                    from src.multiplayer.protocol import MessageBuilder
+                    import asyncio
+                    
+                    harvest_msg_net = MessageBuilder.harvest(
+                        x=self.player.x,
+                        y=self.player.y,
+                        object_type=object_type_str
+                    )
+                    
+                    server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                    if server_loop and server_loop.is_running():
+                        asyncio.run_coroutine_threadsafe(
+                            self.network_manager.broadcast(harvest_msg_net),
+                            server_loop
+                        )
+                    else:
+                        self.network_manager.broadcast(harvest_msg_net)
+                except Exception as e:
+                    self.logger.error(f"채집 브로드캐스트 실패: {e}", exc_info=True)
+                    
         # 타일 이벤트 체크
         tile = self.dungeon.get_tile(self.player.x, self.player.y)
         result = self._check_tile_event(tile) if tile else None
+        
+        # 채집 결과가 있고 타일 이벤트가 없으면 채집 결과를 반환하도록 병합
+        if harvest_data and (result is None or result.event == ExplorationEvent.NONE):
+            result = ExplorationResult(
+                success=True,
+                event=ExplorationEvent.ITEM_FOUND,
+                message=harvest_msg
+            )
         
         # NPC 이동 (플레이어 이동 후, 멀티플레이에서는 호스트만)
         if self.is_multiplayer:

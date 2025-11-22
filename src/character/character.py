@@ -769,9 +769,27 @@ class Character:
         # 수호 효과가 적용되면 이벤트 핸들러에서 damage_event_data["damage"]를 수정함
         final_damage = damage_event_data.get("damage", damage)
         
-        # 보호막이 있으면 먼저 보호막이 데미지를 흡수
+        # 1. 상태이상: 마나 실드 (MP로 피해 흡수) - 효율: MP 1당 HP 3
+        # 일반 보호막보다 먼저 적용하여 MP를 소모하게 함 (선택적)
+        if self.status_manager.has_status(StatusType.MANA_SHIELD) and self.current_mp > 0:
+            # 막을 수 있는 최대 피해량 (MP * 3)
+            max_absorb = self.current_mp * 3
+            # 실제로 막을 피해량
+            absorb_damage = min(final_damage, max_absorb)
+            
+            # 소모될 MP (올림 처리)
+            mp_cost = (absorb_damage + 2) // 3
+            
+            if absorb_damage > 0:
+                self.consume_mp(mp_cost)
+                final_damage -= absorb_damage
+                logger.info(f"🛡️ {self.name}의 마나 실드가 {absorb_damage} 데미지를 흡수했습니다! (소모 MP: {mp_cost})")
+                
+                # 마나 실드가 깨졌는지(MP 소진) 확인 - 이미 consume_mp에서 처리됨
+
+        # 2. 일반 보호막이 있으면 데미지 흡수
         shield_amount = getattr(self, 'shield_amount', 0)
-        if shield_amount > 0:
+        if shield_amount > 0 and final_damage > 0:
             shield_absorbed = min(shield_amount, final_damage)
             self.shield_amount -= shield_absorbed
             final_damage -= shield_absorbed

@@ -19,6 +19,15 @@ class MockCharacter:
         self.is_broken = False
         self.brv_efficiency = 1.0
         self.brv_loss_resistance = 1.0
+        self.accuracy = 200  # Ensure hits for testing
+        self.evasion = 0
+        self.init_brv = 100  # Explicit init_brv to avoid config fallback
+        # Add stats for DamageCalculator
+        self.physical_attack = 100
+        self.physical_defense = 50
+        self.magic_attack = 80
+        self.magic_defense = 40
+        self.luck = 5
 
     def take_damage(self, damage: int) -> int:
         """HP 데미지 적용"""

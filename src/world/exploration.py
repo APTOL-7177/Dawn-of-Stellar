@@ -317,7 +317,61 @@ class ExplorationSystem:
         # 타일 이벤트 체크
         tile = self.dungeon.get_tile(new_x, new_y)
         result = self._check_tile_event(tile)
+        
+        # 밟으면 자동 채집 (Walk-over Harvest)
+        player_id = getattr(self, 'local_player_id', None)
+        harvest_data = self.check_and_harvest(new_x, new_y, player_id)
+        
+        if harvest_data:
+            harvest_results, object_type_str = harvest_data
+            
+            # 획득한 아이템 처리
+            items_gained = []
+            if self.inventory:
+                from src.equipment.item_system import ItemGenerator
+                for item_id, qty in harvest_results.items():
+                    items_gained.append(f"{item_id} x{qty}")
+                    # 실제 아이템 추가 시도
+                    try:
+                        item_obj = ItemGenerator.create_consumable(item_id)
+                    except:
+                        try:
+                            item_obj = ItemGenerator.create_weapon(item_id)
+                        except:
+                            try:
+                                item_obj = ItemGenerator.create_armor(item_id)
+                            except:
+                                try:
+                                    item_obj = ItemGenerator.create_accessory(item_id)
+                                except:
+                                    # 다 실패하면 랜덤
+                                    item_obj = ItemGenerator.create_random_drop(1)
 
+                    if item_obj:
+                        self.inventory.add_item(item_obj, qty)
+            
+            play_sfx("world", "pickup_item")
+            # 채집물 이름 찾기 (메시지용)
+            obj_name = "자원"
+            # object_type_str을 사용하여 표시 이름 찾기 시도
+            from src.gathering.harvestable import HarvestableType
+            try:
+                obj_type = HarvestableType(object_type_str)
+                obj_name = obj_type.display_name
+            except:
+                pass
+                        
+            harvest_msg = f"채집 성공: {obj_name} ({', '.join(items_gained)})"
+            logger.info(harvest_msg)
+            
+            # 결과 업데이트 (이벤트가 NONE이면 덮어씀)
+            if result.event == ExplorationEvent.NONE:
+                result = ExplorationResult(
+                    success=True,
+                    event=ExplorationEvent.ITEM_FOUND,
+                    message=harvest_msg
+                )
+        
         # 플레이어가 움직인 후 모든 적 움직임 (싱글플레이만, 멀티플레이는 시간 기반)
         # 멀티플레이는 MultiplayerExplorationSystem에서 시간 기반으로 처리
         is_multiplayer = getattr(self, 'is_multiplayer', False)
@@ -329,6 +383,8 @@ class ExplorationSystem:
         self._move_npcs()
 
         # 적 움직임 후 플레이어 위치에 적이 있는지 다시 체크
+        # 싱글플레이어: 플레이어 위치에 적이 있으면 전투 시작
+        # 멀티플레이어: MultiplayerExplorationSystem에서 봇이 트리거하는 경우도 처리됨
         enemy_at_player = self.get_enemy_at(self.player.x, self.player.y)
         if enemy_at_player:
             logger.warning(f"[DEBUG] 적이 플레이어에게 접근! 전투 시작")
@@ -465,6 +521,31 @@ class ExplorationSystem:
             event=ExplorationEvent.NONE,
             message=""
         )
+
+    def check_and_harvest(self, x: int, y: int, player_id: Optional[str] = None) -> Optional[Tuple[Dict[str, int], str]]:
+        """
+        위치에서 채집 시도 및 실행
+        
+        Args:
+            x: X 좌표
+            y: Y 좌표
+            player_id: 채집하는 플레이어 ID
+            
+        Returns:
+            (획득한 아이템 딕셔너리, 채집물 타입 문자열) 또는 None
+        """
+        if not hasattr(self.dungeon, 'harvestables'):
+            return None
+            
+        for harvestable in self.dungeon.harvestables:
+            if harvestable.x == x and harvestable.y == y:
+                # 아직 채집 안 된 경우에만
+                if harvestable.can_harvest(player_id):
+                    # 자동 채집 실행
+                    results = harvestable.harvest(player_id)
+                    if results:
+                        return results, harvestable.object_type.value
+        return None
 
     def _handle_trap(self, tile: Tile) -> ExplorationResult:
         """함정 처리"""
@@ -943,12 +1024,41 @@ class ExplorationSystem:
 
     def get_enemy_at(self, x: int, y: int) -> Optional[Enemy]:
         """특정 위치의 적 가져오기"""
-        logger.warning(f"[DEBUG] get_enemy_at({x}, {y}) 호출 - 현재 적 {len(self.enemies)}마리")
+        # logger.warning(f"[DEBUG] get_enemy_at({x}, {y}) 호출 - 현재 적 {len(self.enemies)}마리")
         for enemy in self.enemies:
             if enemy.x == x and enemy.y == y:
-                logger.warning(f"[DEBUG] 적 발견! at ({x}, {y})")
+                # 죽은 적은 무시 (이동 가능, 상호작용 불가)
+                if not getattr(enemy, 'is_alive', True):
+                    continue
+                # logger.warning(f"[DEBUG] 적 발견! at ({x}, {y})")
                 return enemy
         return None
+
+    def _is_player_at(self, x: int, y: int) -> bool:
+        """해당 위치에 플레이어(봇 포함)가 있는지 확인"""
+        # 로컬 플레이어 (죽었으면 무시)
+        if self.player.x == x and self.player.y == y:
+            # 파티 전멸 확인
+            all_dead = True
+            if hasattr(self.player, 'party'):
+                for member in self.player.party:
+                    if getattr(member, 'is_alive', True) and getattr(member, 'current_hp', 0) > 0:
+                        all_dead = False
+                        break
+            if not all_dead:
+                return True
+            
+        # 멀티플레이 세션 플레이어
+        if hasattr(self, 'session') and self.session:
+            for pid, p in self.session.players.items():
+                if hasattr(p, 'x') and hasattr(p, 'y'):
+                    if p.x == x and p.y == y:
+                        # 죽은 플레이어는 무시 (통과 가능)
+                        # Player 객체에서 파티 정보 확인 필요
+                        # 여기서는 단순화를 위해 살아있다고 가정하되, 실제로는 파티 상태 확인 필요
+                        # TODO: 멀티플레이어 파티 상태 동기화 확인
+                        return True
+        return False
 
     def remove_enemy(self, enemy: Enemy):
         """적 제거 (전투 승리 후)"""
@@ -1004,7 +1114,12 @@ class ExplorationSystem:
                 self._move_enemy_towards(enemy, enemy.spawn_x, enemy.spawn_y)
 
     def _move_enemy_towards(self, enemy: Enemy, target_x: int, target_y: int):
-        """적을 목표 위치로 한 칸 이동"""
+        """적을 목표 위치로 한 칸 이동 (가장 가까운 플레이어 추적)"""
+        # 목표 재설정: 가장 가까운 플레이어(봇 포함) 찾기
+        target = self._find_nearest_target(enemy)
+        if target:
+            target_x, target_y = target.x, target.y
+            
         old_x, old_y = enemy.x, enemy.y
         
         # 이동 방향 결정 (맨하탄 거리 기반)
@@ -1036,7 +1151,10 @@ class ExplorationSystem:
         if self.dungeon.is_walkable(new_x, new_y):
             # 다른 적과 겹치지 않는지 확인
             # 플레이어 위치도 피함 (적이 플레이어 위로 이동하면 전투가 트리거되므로)
-            if not self.get_enemy_at(new_x, new_y) and not (new_x == self.player.x and new_y == self.player.y):
+            enemy_at_target = self.get_enemy_at(new_x, new_y)
+            player_at_target = self._is_player_at(new_x, new_y)
+            
+            if not enemy_at_target and not player_at_target:
                 enemy.x = new_x
                 enemy.y = new_y
                 logger.debug(f"[적 이동] {enemy.name} 이동: ({old_x}, {old_y}) -> ({new_x}, {new_y})")
@@ -1044,6 +1162,47 @@ class ExplorationSystem:
                 logger.debug(f"[적 이동] {enemy.name} 이동 실패: 목표 타일이 차있음 ({new_x}, {new_y})")
         else:
             logger.debug(f"[적 이동] {enemy.name} 이동 실패: 목표 타일이 이동 불가능 ({new_x}, {new_y})")
+
+    def _find_nearest_target(self, enemy: Enemy) -> Any:
+        """적에게 가장 가까운 대상(플레이어 또는 봇) 찾기"""
+        targets = []
+        
+        # 1. 로컬 플레이어
+        targets.append(self.player)
+        
+        # 2. 멀티플레이 세션 플레이어들 (봇 포함)
+        if hasattr(self, 'session') and self.session:
+            for pid, p in self.session.players.items():
+                # 로컬 플레이어는 이미 추가했으므로 제외 (PID 비교가 안전하지만 객체 비교도 가능)
+                if pid != getattr(self.player, 'player_id', None):
+                    targets.append(p)
+                    
+        # 가장 가까운 타겟 찾기
+        nearest = None
+        min_dist = float('inf')
+        
+        for t in targets:
+            if hasattr(t, 'x') and hasattr(t, 'y'):
+                dist = abs(enemy.x - t.x) + abs(enemy.y - t.y)
+                if dist < min_dist:
+                    min_dist = dist
+                    nearest = t
+                    
+        return nearest
+
+    def _is_player_at(self, x: int, y: int) -> bool:
+        """해당 위치에 플레이어(봇 포함)가 있는지 확인"""
+        # 로컬 플레이어
+        if self.player.x == x and self.player.y == y:
+            return True
+            
+        # 멀티플레이 세션 플레이어
+        if hasattr(self, 'session') and self.session:
+            for pid, p in self.session.players.items():
+                if hasattr(p, 'x') and hasattr(p, 'y'):
+                    if p.x == x and p.y == y:
+                        return True
+        return False
 
     def _handle_puzzle(self, tile: Tile) -> ExplorationResult:
         """퍼즐 처리"""

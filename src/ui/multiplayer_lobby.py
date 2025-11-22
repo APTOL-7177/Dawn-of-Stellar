@@ -111,13 +111,7 @@ class MultiplayerLobby:
                 
                 bot_id = f"bot_{uuid4().hex[:8]}"
                 
-                behaviors = [
-                    BotBehavior.EXPLORER,
-                    BotBehavior.AGGRESSIVE,
-                    BotBehavior.SUPPORT,
-                    BotBehavior.RANDOM
-                ]
-                behavior = random.choice(behaviors)
+                behavior = BotBehavior.EXPLORER
                 
                 bot = bot_manager.add_bot(
                     bot_id=bot_id,
@@ -374,13 +368,7 @@ def show_multiplayer_lobby(
                     
                     bot_id = f"bot_{uuid4().hex[:8]}"
                     
-                    behaviors = [
-                        BotBehavior.EXPLORER,
-                        BotBehavior.AGGRESSIVE,
-                        BotBehavior.SUPPORT,
-                        BotBehavior.RANDOM
-                    ]
-                    behavior = random.choice(behaviors)
+                    behavior = BotBehavior.EXPLORER
                     
                     bot = bot_manager.add_bot(
                         bot_id=bot_id,
@@ -588,13 +576,7 @@ def show_bot_assignment_ui(
                     bot_name = f"BOT{bot_number}"
                     bot_id = f"bot_{uuid4().hex[:8]}"
                     
-                    behaviors = [
-                        BotBehavior.EXPLORER,
-                        BotBehavior.AGGRESSIVE,
-                        BotBehavior.SUPPORT,
-                        BotBehavior.RANDOM
-                    ]
-                    behavior = random.choice(behaviors)
+                    behavior = BotBehavior.EXPLORER
                     
                     bot = bot_manager.add_bot(
                         bot_id=bot_id,

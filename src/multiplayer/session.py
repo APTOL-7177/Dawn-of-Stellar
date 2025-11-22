@@ -80,8 +80,9 @@ class MultiplayerSession:
             self.logger.error(f"세션 {self.session_id}: 플레이어가 None입니다")
             raise TypeError("player는 None일 수 없습니다")
         
-        # 타입 체크
-        if not isinstance(player, MultiplayerPlayer):
+        # 타입 체크 (Duck Typing으로 완화 - 모듈 리로딩 문제 회피)
+        # if not isinstance(player, MultiplayerPlayer):
+        if type(player).__name__ != 'MultiplayerPlayer':
             self.logger.error(f"세션 {self.session_id}: 잘못된 플레이어 타입: {type(player)}")
             raise TypeError(f"player는 MultiplayerPlayer 타입이어야 합니다 (받음: {type(player)})")
         

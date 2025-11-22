@@ -38,11 +38,29 @@ class MockCharacter:
 
         # 속성
         self.is_enemy = False
+        
+        # 명중/회피 및 특성
+        self.accuracy = 200
+        self.evasion = 0
+        self.active_traits = []
 
     def take_damage(self, damage: int) -> int:
         """HP 데미지 적용"""
         actual_damage = min(damage, self.current_hp)
         self.current_hp -= actual_damage
+        
+        # 사망 처리
+        if self.current_hp <= 0:
+            self.current_hp = 0
+            self.is_alive = False
+            
+            # 사망 이벤트 발행
+            from src.core.event_bus import event_bus, Events
+            event_bus.publish(Events.CHARACTER_DEATH, {
+                "character": self,
+                "name": self.name
+            })
+        
         return actual_damage
 
     def is_alive(self) -> bool:
@@ -257,10 +275,11 @@ def test_combat_full_battle_sequence():
     manager = CombatManager()
 
     player = MockCharacter("Player", speed=15)
-    player.physical_attack = 50
+    player = MockCharacter("Player", speed=15)
+    player.physical_attack = 100  # 공격력 증가
     enemy = MockCharacter("Enemy", speed=10)
     enemy.is_enemy = True
-    enemy.current_hp = 200
+    enemy.current_hp = 50  # HP 감소
 
     manager.start_combat([player], [enemy])
 
@@ -290,6 +309,7 @@ def test_combat_full_battle_sequence():
                 )
 
                 turns += 1
+                print(f"DEBUG: Turn {turns}, Actor: {actor.name}, Target: {target.name}, Enemy HP: {enemy.current_hp}, State: {manager.state}")
 
     # 전투가 종료되었는지 확인 (승리 또는 패배)
     assert manager.state in [CombatState.VICTORY, CombatState.DEFEAT]

@@ -1,0 +1,1086 @@
+.FFF.....F.....F............F..F.F.......F.............................. [ 35%]
+.............F....F.F..F.F..................F.FFF...........FF.....FF... [ 71%]
+..........................................................               [100%]
+================================== FAILURES ===================================
+___________________________ test_combat_brv_attack ____________________________
+
+    def test_combat_brv_attack():
+        """BRV 공격 테스트"""
+        manager = CombatManager()
+    
+        player = MockCharacter("Player", speed=10)
+        enemy = MockCharacter("Enemy", speed=8)
+        enemy.is_enemy = True
+    
+        manager.start_combat([player], [enemy])
+    
+        # ATB가 충분히 찰 때까지 업데이트
+        for _ in range(200):
+            manager.update(delta_time=1.0)
+    
+        # BRV 공격 실행
+        result = manager.execute_action(
+            player,
+            ActionType.BRV_ATTACK,
+            target=enemy
+        )
+    
+        assert result["action"] == "brv_attack"
+>       assert result["damage"] > 0
+E       assert 0 > 0
+
+tests\integration\test_combat_flow.py:90: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[INFO] combat: 전투 시작!
+[INFO] combat: [빗나감] 아군 Player의 공격이 적 Enemy에게 빗나갔다!
+[INFO] audio: pygame.mixer 초기화 완료
+------------------------------ Captured log call ------------------------------
+INFO     combat:logger.py:68 전투 시작!
+DEBUG    atb:logger.py:62 평균 속도 업데이트: 10.00 (살아있는 전투원: 1명)
+DEBUG    atb:logger.py:62 전투원 등록: Player | {'speed': 10}
+DEBUG    brave:logger.py:62 BRV 초기화: Player | {'int_brv': 1000, 'max_brv': 300}
+DEBUG    atb:logger.py:62 평균 속도 업데이트: 9.00 (살아있는 전투원: 2명)
+DEBUG    atb:logger.py:62 전투원 등록: Enemy | {'speed': 8}
+DEBUG    brave:logger.py:62 BRV 초기화: Enemy | {'int_brv': 1000, 'max_brv': 300}
+DEBUG    combat:logger.py:62 전투 참여자: 아군 1명, 적군 1명
+DEBUG    damage:logger.py:62 공격 회피! Enemy가 Player의 공격을 피했다
+INFO     combat:logger.py:68 [빗나감] 아군 Player의 공격이 적 Enemy에게 빗나갔다!
+INFO     audio:logger.py:68 pygame.mixer 초기화 완료
+DEBUG    audio:logger.py:62 SFX 재생: combat.miss
+DEBUG    atb:logger.py:62 ATB 소비: Player | {'amount': 1000, 'remaining': 0}
+____________________________ test_combat_hp_attack ____________________________
+
+    def test_combat_hp_attack():
+        """HP 공격 테스트"""
+        manager = CombatManager()
+    
+        player = MockCharacter("Player", speed=10)
+        enemy = MockCharacter("Enemy", speed=8)
+        enemy.is_enemy = True
+    
+        manager.start_combat([player], [enemy])
+    
+        # BRV 축적
+        player.current_brv = 500
+    
+        # HP 공격 실행
+        initial_hp = enemy.current_hp
+>       result = manager.execute_action(
+            player,
+            ActionType.HP_ATTACK,
+            target=enemy
+        )
+
+tests\integration\test_combat_flow.py:109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\combat\combat_manager.py:274: in execute_action
+    result = self._execute_hp_attack(actor, target, skill, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <src.combat.combat_manager.CombatManager object at 0x000001DD07CFBD90>
+attacker = <test_combat_flow.MockCharacter object at 0x000001DD06309220>
+defender = <test_combat_flow.MockCharacter object at 0x000001DD07D016D0>
+skill = None, trigger_gimmick = True, kwargs = {}, hp_multiplier = 1.0
+defend_stack_bonus = 0, is_break = False
+hp_result = {'brv_consumed': 500, 'damage_type': 'physical', 'hp_damage': 100, 'is_break_bonus': False, ...}
+wound_damage = 0
+get_trait_effect_manager = <function get_trait_effect_manager at 0x000001DD06387A60>
+
+    def _execute_hp_attack(
+        self,
+        attacker: Any,
+        defender: Any,
+        skill: Optional[Any] = None,
+        trigger_gimmick: bool = True,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """HP 공격 실행"""
+        if attacker.current_brv <= 0:
+            self.logger.warning(f"{attacker.name}: BRV가 0이라 HP 공격 불가")
+            return {"action": "hp_attack", "error": "no_brv"}
+    
+        # SFX 재생 (높은 데미지)
+        play_sfx("combat", "damage_high")
+    
+        # 스킬 배율
+        hp_multiplier = getattr(skill, "hp_multiplier", 1.0) if skill else 1.0
+    
+        # 방어 스택 보너스 적용 (집중의 힘 특성)
+        defend_stack_bonus = 0
+        if hasattr(attacker, 'defend_stack_count') and attacker.defend_stack_count > 0:
+            has_focus_power = any(
+                (t if isinstance(t, str) else t.get('id')) == 'focus_power'
+                for t in getattr(attacker, 'active_traits', [])
+            )
+    
+            if has_focus_power:
+                defend_stack_bonus = attacker.defend_stack_count * 0.50  # 스택당 50%
+                hp_multiplier *= (1.0 + defend_stack_bonus)
+                self.logger.info(
+                    f"[집중의 힘] {attacker.name} 스택 {attacker.defend_stack_count}개 소비 → 데미지 +{defend_stack_bonus * 100:.0f}%"
+                )
+    
+        # BREAK 상태 확인
+        is_break = self.brave.is_broken(defender)
+    
+        # HP 공격 적용 (BRV 소비 및 데미지 적용)
+        # brave.hp_attack()이 take_damage()를 내부적으로 호출함
+        hp_result = self.brave.hp_attack(attacker, defender, hp_multiplier)
+    
+        # HP 공격 후 BRV 0 확인 (안전장치)
+        if attacker.current_brv != 0:
+            self.logger.warning(f"[combat_manager] HP 공격 후 {attacker.name} BRV가 0이 아님 ({attacker.current_brv}), 강제 리셋")
+            attacker.current_brv = 0
+    
+        # wound damage 계산 (BREAK 보너스)
+        wound_damage = 0
+        if is_break and hp_result["hp_damage"] > 0:
+            wound_damage = int(hp_result["hp_damage"] * 0.2)  # 20% wound damage
+            if hasattr(defender, "wound_damage"):
+                defender.wound_damage += wound_damage
+    
+        # 공격 후 방어 스택 초기화
+        if hasattr(attacker, 'defend_stack_count') and attacker.defend_stack_count > 0:
+            attacker.defend_stack_count = 0
+    
+        # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
+        if trigger_gimmick and attacker in self.allies:
+            GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender)
+    
+        # 적 처치 확인 및 효과 적용 (battle_heal, battle_mp, bloodthirst 등)
+        if hasattr(defender, 'current_hp') and defender.current_hp <= 0:
+            if defender in self.enemies:
+                # 적 처치 확인
+                from src.character.trait_effects import get_trait_effect_manager
+                trait_manager = get_trait_effect_manager()
+    
+                # 모든 아군에게 처치 효과 적용
+                for ally in self.allies:
+                    if hasattr(ally, 'is_alive') and ally.is_alive:
+>                       trait_manager.apply_on_kill_effects(ally, defender)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E                       AttributeError: 'TraitEffectManager' object has no attribute 'apply_on_kill_effects'. Did you mean: 'apply_turn_start_effects'?
+
+src\combat\combat_manager.py:644: AttributeError
+---------------------------- Captured stdout call -----------------------------
+[INFO] combat: 전투 시작!
+[WARNING] damage: [HP 데미지 계산] BRV:500 × 스킬계수:1.00 × 스탯배율:1.82 × HP배율:0.125 = 113
+[INFO] brave: HP 공격: Player → Enemy | {'brv_consumed': 500, 'hp_damage': 100, 'wound_damage': 28, 'total_wound': 0, 'damage_type': 'physical', 'stat_modifier': 1.8181818181818181, 'is_critical': False, 'is_break_bonus': False, 'attacker_brv_after': 0}
+------------------------------ Captured log call ------------------------------
+INFO     combat:logger.py:68 전투 시작!
+DEBUG    atb:logger.py:62 평균 속도 업데이트: 10.00 (살아있는 전투원: 1명)
+DEBUG    atb:logger.py:62 전투원 등록: Player | {'speed': 10}
+DEBUG    brave:logger.py:62 BRV 초기화: Player | {'int_brv': 1000, 'max_brv': 300}
+DEBUG    atb:logger.py:62 평균 속도 업데이트: 9.00 (살아있는 전투원: 2명)
+DEBUG    atb:logger.py:62 전투원 등록: Enemy | {'speed': 8}
+DEBUG    brave:logger.py:62 BRV 초기화: Enemy | {'int_brv': 1000, 'max_brv': 300}
+DEBUG    combat:logger.py:62 전투 참여자: 아군 1명, 적군 1명
+DEBUG    audio:logger.py:62 SFX 재생: combat.damage_high
+WARNING  damage:logger.py:74 [HP 데미지 계산] BRV:500 × 스킬계수:1.00 × 스탯배율:1.82 × HP배율:0.125 = 113
+DEBUG    damage:logger.py:62 HP 데미지 계산: Player → Enemy | {'brv_points': 500, 'skill_multiplier': 1.0, 'base_damage': 113, 'stat_modifier': '1.82', 'attacker_stat': 20, 'defender_stat': 10, 'damage_type': 'physical', 'is_critical': False, 'final_damage': 113, 'wound_damage': 28, 'is_break': False}
+DEBUG    brave:logger.py:62 [HP 공격] Player BRV 소비: 500
+INFO     brave:logger.py:68 HP 공격: Player → Enemy | {'brv_consumed': 500, 'hp_damage': 100, 'wound_damage': 28, 'total_wound': 0, 'damage_type': 'physical', 'stat_modifier': 1.8181818181818181, 'is_critical': False, 'is_break_bonus': False, 'attacker_brv_after': 0}
+__________________________ test_combat_brv_hp_combo ___________________________
+
+    def test_combat_brv_hp_combo():
+        """BRV + HP 복합 공격 테스트"""
+        manager = CombatManager()
+    
+        player = MockCharacter("Player", speed=10)
+        enemy = MockCharacter("Enemy", speed=8)
+        enemy.is_enemy = True
+    
+        manager.start_combat([player], [enemy])
+    
+        # 복합 공격 실행
+>       result = manager.execute_action(
+            player,
+            ActionType.BRV_HP_ATTACK,
+            target=enemy
+        )
+
+tests\integration\test_combat_flow.py:131: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\combat\combat_manager.py:276: in execute_action
+    result = self._execute_brv_hp_attack(actor, target, skill, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\combat\combat_manager.py:700: in _execute_brv_hp_attack
+    hp_attack_result = self._execute_hp_attack(attacker, defender, skill, trigger_gimmick=False, **kwargs)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <src.combat.combat_manager.CombatManager object at 0x000001DD06308FC0>
+attacker = <test_combat_flow.MockCharacter object at 0x000001DD06CAA9C0>
+defender = <test_combat_flow.MockCharacter object at 0x000001DD06CAB8A0>
+skill = None, trigger_gimmick = False, kwargs = {}, hp_multiplier = 1.0
+defend_stack_bonus = 0, is_break = False
+hp_result = {'brv_consumed': 1000, 'damage_type': 'physical', 'hp_damage': 100, 'is_break_bonus': False, ...}
+wound_damage = 0
+get_trait_effect_manager = <function get_trait_effect_manager at 0x000001DD06387A60>
+
+    def _execute_hp_attack(
+        self,
+        attacker: Any,
+        defender: Any,
+        skill: Optional[Any] = None,
+        trigger_gimmick: bool = True,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """HP 공격 실행"""
+        if attacker.current_brv <= 0:
+            self.logger.warning(f"{attacker.name}: BRV가 0이라 HP 공격 불가")
+            return {"action": "hp_attack", "error": "no_brv"}
+    
+        # SFX 재생 (높은 데미지)
+        play_sfx("combat", "damage_high")
+    
+        # 스킬 배율
+        hp_multiplier = getattr(skill, "hp_multiplier", 1.0) if skill else 1.0
+    
+        # 방어 스택 보너스 적용 (집중의 힘 특성)
+        defend_stack_bonus = 0
+        if hasattr(attacker, 'defend_stack_count') and attacker.defend_stack_count > 0:
+            has_focus_power = any(
+                (t if isinstance(t, str) else t.get('id')) == 'focus_power'
+                for t in getattr(attacker, 'active_traits', [])
+            )
+    
+            if has_focus_power:
+                defend_stack_bonus = attacker.defend_stack_count * 0.50  # 스택당 50%
+                hp_multiplier *= (1.0 + defend_stack_bonus)
+                self.logger.info(
+                    f"[집중의 힘] {attacker.name} 스택 {attacker.defend_stack_count}개 소비 → 데미지 +{defend_stack_bonus * 100:.0f}%"
+                )
+    
+        # BREAK 상태 확인
+        is_break = self.brave.is_broken(defender)
+    
+        # HP 공격 적용 (BRV 소비 및 데미지 적용)
+        # brave.hp_attack()이 take_damage()를 내부적으로 호출함
+        hp_result = self.brave.hp_attack(attacker, defender, hp_multiplier)
+    
+        # HP 공격 후 BRV 0 확인 (안전장치)
+        if attacker.current_brv != 0:
+            self.logger.warning(f"[combat_manager] HP 공격 후 {attacker.name} BRV가 0이 아님 ({attacker.current_brv}), 강제 리셋")
+            attacker.current_brv = 0
+    
+        # wound damage 계산 (BREAK 보너스)
+        wound_damage = 0
+        if is_break and hp_result["hp_damage"] > 0:
+            wound_damage = int(hp_result["hp_damage"] * 0.2)  # 20% wound damage
+            if hasattr(defender, "wound_damage"):
+                defender.wound_damage += wound_damage
+    
+        # 공격 후 방어 스택 초기화
+        if hasattr(attacker, 'defend_stack_count') and attacker.defend_stack_count > 0:
+            attacker.defend_stack_count = 0
+    
+        # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
+        if trigger_gimmick and attacker in self.allies:
+            GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender)
+    
+        # 적 처치 확인 및 효과 적용 (battle_heal, battle_mp, bloodthirst 등)
+        if hasattr(defender, 'current_hp') and defender.current_hp <= 0:
+            if defender in self.enemies:
+                # 적 처치 확인
+                from src.character.trait_effects import get_trait_effect_manager
+                trait_manager = get_trait_effect_manager()
+    
+                # 모든 아군에게 처치 효과 적용
+                for ally in self.allies:
+                    if hasattr(ally, 'is_alive') and ally.is_alive:
+>                       trait_manager.apply_on_kill_effects(ally, defender)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E                       AttributeError: 'TraitEffectManager' object has no attribute 'apply_on_kill_effects'. Did you mean: 'apply_turn_start_effects'?
+
+src\combat\combat_manager.py:644: AttributeError
+---------------------------- Captured stdout call -----------------------------
+[INFO] combat: 전투 시작!
+[INFO] combat: [빗나감] 아군 Player의 공격이 적 Enemy에게 빗나갔다!
+[WARNING] damage: [HP 데미지 계산] BRV:1000 × 스킬계수:1.00 × 스탯배율:1.82 × HP배율:0.125 = 227
+[INFO] brave: HP 공격: Player → Enemy | {'brv_consumed': 1000, 'hp_damage': 100, 'wound_damage': 56, 'total_wound': 0, 'damage_type': 'physical', 'stat_modifier': 1.8181818181818181, 'is_critical': False, 'is_break_bonus': False, 'attacker_brv_after': 0}
+------------------------------ Captured log call ------------------------------
+INFO     combat:logger.py:68 전투 시작!
+DEBUG    atb:logger.py:62 평균 속도 업데이트: 10.00 (살아있는 전투원: 1명)
+DEBUG    atb:logger.py:62 전투원 등록: Player | {'speed': 10}
+DEBUG    brave:logger.py:62 BRV 초기화: Player | {'int_brv': 1000, 'max_brv': 300}
+DEBUG    atb:logger.py:62 평균 속도 업데이트: 9.00 (살아있는 전투원: 2명)
+DEBUG    atb:logger.py:62 전투원 등록: Enemy | {'speed': 8}
+DEBUG    brave:logger.py:62 BRV 초기화: Enemy | {'int_brv': 1000, 'max_brv': 300}
+DEBUG    combat:logger.py:62 전투 참여자: 아군 1명, 적군 1명
+DEBUG    damage:logger.py:62 공격 회피! Enemy가 Player의 공격을 피했다
+INFO     combat:logger.py:68 [빗나감] 아군 Player의 공격이 적 Enemy에게 빗나갔다!
+DEBUG    audio:logger.py:62 SFX 재생: combat.miss
+DEBUG    audio:logger.py:62 SFX 재생: combat.damage_high
+WARNING  damage:logger.py:74 [HP 데미지 계산] BRV:1000 × 스킬계수:1.00 × 스탯배율:1.82 × HP배율:0.125 = 227
+DEBUG    damage:logger.py:62 HP 데미지 계산: Player → Enemy | {'brv_points': 1000, 'skill_multiplier': 1.0, 'base_damage': 227, 'stat_modifier': '1.82', 'attacker_stat': 20, 'defender_stat': 10, 'damage_type': 'physical', 'is_critical': False, 'final_damage': 227, 'wound_damage': 56, 'is_break': False}
+DEBUG    brave:logger.py:62 [HP 공격] Player BRV 소비: 1000
+INFO     brave:logger.py:68 HP 공격: Player → Enemy | {'brv_consumed': 1000, 'hp_damage': 100, 'wound_damage': 56, 'total_wound': 0, 'damage_type': 'physical', 'stat_modifier': 1.8181818181818181, 'is_critical': False, 'is_break_bonus': False, 'attacker_brv_after': 0}
+______________________ test_combat_full_battle_sequence _______________________
+
+    def test_combat_full_battle_sequence():
+        """전체 전투 시퀀스 테스트"""
+        manager = CombatManager()
+    
+        player = MockCharacter("Player", speed=15)
+        player.physical_attack = 50
+        enemy = MockCharacter("Enemy", speed=10)
+        enemy.is_enemy = True
+        enemy.current_hp = 200
+    
+        manager.start_combat([player], [enemy])
+    
+        turn_limit = 100
+        turns = 0
+    
+        # 전투 진행
+        while manager.state == CombatState.IN_PROGRESS and turns < turn_limit:
+            # ATB 업데이트
+            manager.update(delta_time=1.0)
+    
+            # 행동 가능한 캐릭터 확인
+            order = manager.get_action_order()
+            if len(order) > 0:
+                actor = order[0]
+    
+                # 대상 선택
+                targets = manager.get_valid_targets(actor, ActionType.BRV_HP_ATTACK)
+                if targets:
+                    target = targets[0]
+    
+                    # 행동 실행
+>                   manager.execute_action(
+                        actor,
+                        ActionType.BRV_HP_ATTACK,
+                        target=target
+                    )
+
+tests\integration\test_combat_flow.py:286: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\combat\combat_manager.py:276: in execute_action
+    result = self._execute_brv_hp_attack(actor, target, skill, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\combat\combat_manager.py:700: in _execute_brv_hp_attack
+    hp_attack_result = self._execute_hp_attack(attacker, defender, skill, trigger_gimmick=False, **kwargs)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <src.combat.combat_manager.CombatManager object at 0x000001DD07D3E350>
+attacker = <test_combat_flow.MockCharacter object at 0x000001DD07DA6250>
+defender = <test_combat_flow.MockCharacter object at 0x000001DD07DA6360>
+skill = None, trigger_gimmick = False, kwargs = {}, hp_multiplier = 1.0
+defend_stack_bonus = 0, is_break = False
+hp_result = {'brv_consumed': 1000, 'damage_type': 'physical', 'hp_damage': 200, 'is_break_bonus': False, ...}
+wound_damage = 0
+get_trait_effect_manager = <function get_trait_effect_manager at 0x000001DD06387A60>
+
+    def _execute_hp_attack(
+        self,
+        attacker: Any,
+        defender: Any,
+        skill: Optional[Any] = None,
+        trigger_gimmick: bool = True,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """HP 공격 실행"""
+        if attacker.current_brv <= 0:
+            self.logger.warning(f"{attacker.name}: BRV가 0이라 HP 공격 불가")
+            return {"action": "hp_attack", "error": "no_brv"}
+    
+        # SFX 재생 (높은 데미지)
+        play_sfx("combat", "damage_high")
+    
+        # 스킬 배율
+        hp_multiplier = getattr(skill, "hp_multiplier", 1.0) if skill else 1.0
+    
+        # 방어 스택 보너스 적용 (집중의 힘 특성)
+        defend_stack_bonus = 0
+        if hasattr(attacker, 'defend_stack_count') and attacker.defend_stack_count > 0:
+            has_focus_power = any(
+                (t if isinstance(t, str) else t.get('id')) == 'focus_power'
+                for t in getattr(attacker, 'active_traits', [])
+            )
+    
+            if has_focus_power:
+                defend_stack_bonus = attacker.defend_stack_count * 0.50  # 스택당 50%
+                hp_multiplier *= (1.0 + defend_stack_bonus)
+                self.logger.info(
+                    f"[집중의 힘] {attacker.name} 스택 {attacker.defend_stack_count}개 소비 → 데미지 +{defend_stack_bonus * 100:.0f}%"
+                )
+    
+        # BREAK 상태 확인
+        is_break = self.brave.is_broken(defender)
+    
+        # HP 공격 적용 (BRV 소비 및 데미지 적용)
+        # brave.hp_attack()이 take_damage()를 내부적으로 호출함
+        hp_result = self.brave.hp_attack(attacker, defender, hp_multiplier)
+    
+        # HP 공격 후 BRV 0 확인 (안전장치)
+        if attacker.current_brv != 0:
+            self.logger.warning(f"[combat_manager] HP 공격 후 {attacker.name} BRV가 0이 아님 ({attacker.current_brv}), 강제 리셋")
+            attacker.current_brv = 0
+    
+        # wound damage 계산 (BREAK 보너스)
+        wound_damage = 0
+        if is_break and hp_result["hp_damage"] > 0:
+            wound_damage = int(hp_result["hp_damage"] * 0.2)  # 20% wound damage
+            if hasattr(defender, "wound_damage"):
+                defender.wound_damage += wound_damage
+    
+        # 공격 후 방어 스택 초기화
+        if hasattr(attacker, 'defend_stack_count') and attacker.defend_stack_count > 0:
+            attacker.defend_stack_count = 0
+    
+        # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
+        if trigger_gimmick and attacker in self.allies:
+            GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender)
+    
+        # 적 처치 확인 및 효과 적용 (battle_heal, battle_mp, bloodthirst 등)
+        if hasattr(defender, 'current_hp') and defender.current_hp <= 0:
+            if defender in self.enemies:
+                # 적 처치 확인
+                from src.character.trait_effects import get_trait_effect_manager
+                trait_manager = get_trait_effect_manager()
+    
+                # 모든 아군에게 처치 효과 적용
+                for ally in self.allies:
+                    if hasattr(ally, 'is_alive') and ally.is_alive:
+>                       trait_manager.apply_on_kill_effects(ally, defender)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E                       AttributeError: 'TraitEffectManager' object has no attribute 'apply_on_kill_effects'. Did you mean: 'apply_turn_start_effects'?
+
+src\combat\combat_manager.py:644: AttributeError
+---------------------------- Captured stdout call -----------------------------
+[INFO] combat: 전투 시작!
+[INFO] combat: [빗나감] 아군 Player의 공격이 적 Enemy에게 빗나갔다!
+[WARNING] damage: [HP 데미지 계산] BRV:1000 × 스킬계수:1.00 × 스탯배율:4.55 × HP배율:0.125 = 568
+[INFO] brave: HP 공격: Player → Enemy | {'brv_consumed': 1000, 'hp_damage': 200, 'wound_damage': 142, 'total_wound': 0, 'damage_type': 'physical', 'stat_modifier': 4.545454545454546, 'is_critical': False, 'is_break_bonus': False, 'attacker_brv_after': 0}
+------------------------------ Captured log call ------------------------------
+INFO     combat:logger.py:68 전투 시작!
+DEBUG    atb:logger.py:62 평균 속도 업데이트: 15.00 (살아있는 전투원: 1명)
+DEBUG    atb:logger.py:62 전투원 등록: Player | {'speed': 15}
+DEBUG    brave:logger.py:62 BRV 초기화: Player | {'int_brv': 1000, 'max_brv': 300}
+DEBUG    atb:logger.py:62 평균 속도 업데이트: 12.50 (살아있는 전투원: 2명)
+DEBUG    atb:logger.py:62 전투원 등록: Enemy | {'speed': 10}
+DEBUG    brave:logger.py:62 BRV 초기화: Enemy | {'int_brv': 1000, 'max_brv': 300}
+DEBUG    combat:logger.py:62 전투 참여자: 아군 1명, 적군 1명
+DEBUG    damage:logger.py:62 공격 회피! Enemy가 Player의 공격을 피했다
+INFO     combat:logger.py:68 [빗나감] 아군 Player의 공격이 적 Enemy에게 빗나갔다!
+DEBUG    audio:logger.py:62 SFX 재생: combat.miss
+DEBUG    audio:logger.py:62 SFX 재생: combat.damage_high
+WARNING  damage:logger.py:74 [HP 데미지 계산] BRV:1000 × 스킬계수:1.00 × 스탯배율:4.55 × HP배율:0.125 = 568
+DEBUG    damage:logger.py:62 HP 데미지 계산: Player → Enemy | {'brv_points': 1000, 'skill_multiplier': 1.0, 'base_damage': 568, 'stat_modifier': '4.55', 'attacker_stat': 50, 'defender_stat': 10, 'damage_type': 'physical', 'is_critical': False, 'final_damage': 568, 'wound_damage': 142, 'is_break': False}
+DEBUG    brave:logger.py:62 [HP 공격] Player BRV 소비: 1000
+INFO     brave:logger.py:68 HP 공격: Player → Enemy | {'brv_consumed': 1000, 'hp_damage': 200, 'wound_damage': 142, 'total_wound': 0, 'damage_type': 'physical', 'stat_modifier': 4.545454545454546, 'is_critical': False, 'is_break_bonus': False, 'attacker_brv_after': 0}
+___________________________ test_get_warrior_stats ____________________________
+
+    def test_get_warrior_stats():
+        """전사 기본 스탯 테스트"""
+        stats = get_base_stats("전사")
+        assert stats['hp'] == 210
+        assert stats['mp'] == 32
+>       assert stats['physical_attack'] == 60
+E       assert 68 == 60
+
+tests\test_character_loader.py:30: AssertionError
+_____________________________ test_create_warrior _____________________________
+
+    def test_create_warrior():
+        """전사 캐릭터 생성 테스트"""
+        char = Character("테스트전사", "전사")
+        assert char.name == "테스트전사"
+        assert char.character_class == "전사"
+        assert char.max_hp == 210
+        assert char.max_mp == 32
+>       assert char.strength == 60
+E       assert 68 == 60
+E        +  where 68 = Character(테스트전사, 전사, Lv.1).strength
+
+tests\test_character_yaml.py:15: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[WARNING] character: 전사(warrior_)의 스킬을 찾을 수 없습니다!
+[INFO] character: 캐릭터 생성: 테스트전사 (전사), 스킬: 0개
+------------------------------ Captured log call ------------------------------
+DEBUG    character:logger.py:62 전사 기믹 초기화: stance_system
+WARNING  character:logger.py:74 전사(warrior_)의 스킬을 찾을 수 없습니다!
+INFO     character:logger.py:68 캐릭터 생성: 테스트전사 (전사), 스킬: 0개
+____________________ test_archmage_gimmick_initialization _____________________
+
+    def test_archmage_gimmick_initialization():
+        """아크메이지 기믹 초기화 테스트"""
+        char = Character("메이지1", "아크메이지")
+>       assert hasattr(char, 'fire_count')
+E       AssertionError: assert False
+E        +  where False = hasattr(Character(메이지1, 아크메이지, Lv.1), 'fire_count')
+
+tests\test_character_yaml.py:44: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[WARNING] character: 아크메이지(archmage_)의 스킬을 찾을 수 없습니다!
+[INFO] character: 캐릭터 생성: 메이지1 (아크메이지), 스킬: 0개
+------------------------------ Captured log call ------------------------------
+DEBUG    character:logger.py:62 아크메이지 기믹 초기화: elemental_counter
+WARNING  character:logger.py:74 아크메이지(archmage_)의 스킬을 찾을 수 없습니다!
+INFO     character:logger.py:68 캐릭터 생성: 메이지1 (아크메이지), 스킬: 0개
+________________________ test_character_skills_loaded _________________________
+
+    def test_character_skills_loaded():
+        """캐릭터 스킬 로드 테스트"""
+        char = Character("전사1", "전사")
+        assert hasattr(char, 'skill_ids')
+>       assert len(char.skill_ids) > 0
+E       assert 0 > 0
+E        +  where 0 = len([])
+E        +    where [] = Character(전사1, 전사, Lv.1).skill_ids
+
+tests\test_character_yaml.py:63: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[WARNING] character: 전사(warrior_)의 스킬을 찾을 수 없습니다!
+[INFO] character: 캐릭터 생성: 전사1 (전사), 스킬: 0개
+------------------------------ Captured log call ------------------------------
+DEBUG    character:logger.py:62 전사 기믹 초기화: stance_system
+WARNING  character:logger.py:74 전사(warrior_)의 스킬을 찾을 수 없습니다!
+INFO     character:logger.py:68 캐릭터 생성: 전사1 (전사), 스킬: 0개
+___________________________ test_character_level_up ___________________________
+
+    def test_character_level_up():
+        """캐릭터 레벨업 테스트"""
+        char = Character("전사1", "전사")
+        old_hp = char.max_hp
+        char.level_up()
+        assert char.level == 2
+        assert char.max_hp > old_hp
+>       assert char.current_hp == char.max_hp
+E       assert 210 == 234
+E        +  where 210 = Character(전사1, 전사, Lv.2).current_hp
+E        +  and   234 = Character(전사1, 전사, Lv.2).max_hp
+
+tests\test_character_yaml.py:131: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[WARNING] character: 전사(warrior_)의 스킬을 찾을 수 없습니다!
+[INFO] character: 캐릭터 생성: 전사1 (전사), 스킬: 0개
+[INFO] stats: [레벨업] hp: base 210.0 → 234.2 (+24.2), total 210.0 → 234.2 (+24.2), 보너스: 0.0 (변화 없음)
+[INFO] stats: [레벨업] mp: base 32.0 → 33.6 (+1.6), total 32.0 → 33.6 (+1.6), 보너스: 0.0 (변화 없음)
+[INFO] stats: [레벨업] init_brv: base 135.0 → 162.0 (+27.0), total 135.0 → 162.0 (+27.0), 보너스: 0.0 (변화 없음)
+[INFO] stats: [레벨업] max_brv: base 490.0 → 588.0 (+98.0), total 490.0 → 588.0 (+98.0), 보너스: 0.0 (변화 없음)
+[INFO] stats: [레벨업] strength: base 68.0 → 81.6 (+13.6), total 68.0 → 81.6 (+13.6), 보너스: 0.0 (변화 없음)
+[INFO] stats: [레벨업] defense: base 68.0 → 81.6 (+13.6), total 68.0 → 81.6 (+13.6), 보너스: 0.0 (변화 없음)
+[INFO] stats: [레벨업] magic: base 48.0 → 57.6 (+9.6), total 48.0 → 57.6 (+9.6), 보너스: 0.0 (변화 없음)
+[INFO] stats: [레벨업] spirit: base 68.0 → 81.6 (+13.6), total 68.0 → 81.6 (+13.6), 보너스: 0.0 (변화 없음)
+[INFO] stats: [레벨업] speed: base 68.0 → 81.6 (+13.6), total 68.0 → 81.6 (+13.6), 보너스: 0.0 (변화 없음)
+[INFO] stats: [레벨업] luck: base 5.0 → 5.5 (+0.5), total 5.0 → 5.5 (+0.5), 보너스: 0.0 (변화 없음)
+[INFO] stats: [레벨업] accuracy: base 100.0 → 102.2 (+2.2), total 100.0 → 102.2 (+2.2), 보너스: 0.0 (변화 없음)
+[INFO] stats: [레벨업] evasion: base 10.0 → 11.1 (+1.1), total 10.0 → 11.1 (+1.1), 보너스: 0.0 (변화 없음)
+[INFO] character: 전사1 레벨업: 1 → 2
+------------------------------ Captured log call ------------------------------
+DEBUG    character:logger.py:62 전사 기믹 초기화: stance_system
+WARNING  character:logger.py:74 전사(warrior_)의 스킬을 찾을 수 없습니다!
+INFO     character:logger.py:68 캐릭터 생성: 전사1 (전사), 스킬: 0개
+INFO     stats:logger.py:68 [레벨업] hp: base 210.0 → 234.2 (+24.2), total 210.0 → 234.2 (+24.2), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 24.15
+INFO     stats:logger.py:68 [레벨업] mp: base 32.0 → 33.6 (+1.6), total 32.0 → 33.6 (+1.6), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 1.60
+INFO     stats:logger.py:68 [레벨업] init_brv: base 135.0 → 162.0 (+27.0), total 135.0 → 162.0 (+27.0), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 27.00
+INFO     stats:logger.py:68 [레벨업] max_brv: base 490.0 → 588.0 (+98.0), total 490.0 → 588.0 (+98.0), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 98.00
+INFO     stats:logger.py:68 [레벨업] strength: base 68.0 → 81.6 (+13.6), total 68.0 → 81.6 (+13.6), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 13.60
+INFO     stats:logger.py:68 [레벨업] defense: base 68.0 → 81.6 (+13.6), total 68.0 → 81.6 (+13.6), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 13.60
+INFO     stats:logger.py:68 [레벨업] magic: base 48.0 → 57.6 (+9.6), total 48.0 → 57.6 (+9.6), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 9.60
+INFO     stats:logger.py:68 [레벨업] spirit: base 68.0 → 81.6 (+13.6), total 68.0 → 81.6 (+13.6), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 13.60
+INFO     stats:logger.py:68 [레벨업] speed: base 68.0 → 81.6 (+13.6), total 68.0 → 81.6 (+13.6), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 13.60
+INFO     stats:logger.py:68 [레벨업] luck: base 5.0 → 5.5 (+0.5), total 5.0 → 5.5 (+0.5), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 0.50
+INFO     stats:logger.py:68 [레벨업] accuracy: base 100.0 → 102.2 (+2.2), total 100.0 → 102.2 (+2.2), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: logarithmic, growth_rate: 2.00
+INFO     stats:logger.py:68 [레벨업] evasion: base 10.0 → 11.1 (+1.1), total 10.0 → 11.1 (+1.1), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: logarithmic, growth_rate: 1.00
+INFO     character:logger.py:68 전사1 레벨업: 1 → 2
+________________________________ test_paladin _________________________________
+
+    def test_paladin():
+        print("="*60)
+        print("\u2694\ufe0f \ud314\ub77c\ub518 \uc2a4\ud0ac \uc2dc\uc2a4\ud15c \ud14c\uc2a4\ud2b8")
+        print("="*60)
+    
+        initialize_config()
+        skill_manager = get_skill_manager()
+        brave_system = get_brave_system()
+    
+        # 팔라딘 스킬 등록
+        skill_ids = register_paladin_skills(skill_manager)
+        print(f"\\n\u2705 \ud314\ub77c\ub518 \uc2a4\ud0ac {len(skill_ids)}\uac1c \ub4f1\ub85d \uc644\ub8cc")
+        for skill_id in skill_ids:
+            skill = skill_manager.get_skill(skill_id)
+            print(f"   - {skill.name}")
+    
+        # 캐릭터 생성
+        paladin = Character("팔라딘", "paladin", level=10)
+        paladin.skill_ids = skill_ids
+        paladin.holy_power = 0
+        paladin.shield_amount = 0
+        paladin.current_mp = 500
+        paladin.active_buffs = {}
+    
+        ally = Character("전사", "warrior", level=10)
+        ally.active_buffs = {}
+    
+>       enemy = Character("언데드", "undead", level=5)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_paladin.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = Character(언데드, undead, Lv.5), name = '언데드', character_class = 'undead'
+level = 5, stats_config = None
+
+    def __init__(
+        self,
+        name: str,
+        character_class: str,
+        level: int = 1,
+        stats_config: Optional[Dict[str, Any]] = None
+    ) -> None:
+        self.name = name
+        self.character_class = character_class
+        self.job_id = character_class  # job_id는 character_class의 별칭
+        self.level = level
+    
+        self.logger = get_logger("character")
+    
+        # YAML에서 직업 데이터 로드
+        self.class_data = load_character_data(character_class)
+    
+        # job_name 설정 (YAML의 class_name)
+>       self.job_name = self.class_data.get('class_name', character_class)
+                        ^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'get'
+
+src\character\character.py:51: AttributeError
+---------------------------- Captured stdout call -----------------------------
+============================================================\n\u2694\ufe0f \ud314\ub77c\ub518 \uc2a4\ud0ac \uc2dc\uc2a4\ud15c \ud14c\uc2a4\ud2b8\n============================================================\n\n\u2705 \ud314\ub77c\ub518 \uc2a4\ud0ac 10\uac1c \ub4f1\ub85d \uc644\ub8cc\n   - \uc131\uc2a4\ub7ec\uc6b4 \uc77c\uaca9\n   - \uc2e0\uc131\ud55c \uc2ec\ud310\n   - \uc2e0\uc131\ud55c \ubcf4\ud638\ub9c9\n   - \uc2e0\uc131\ud654\n   - \uc131\uc2a4\ub7ec\uc6b4 \ube5b\n   - \uc815\uc758\uc758 \ub9dd\uce58\n   - \ucd95\ubcf5\n   - \ubcf5\uc218\uc758 \uaca9\ub178\n   - \uc131\uc2a4\ub7ec\uc6b4 \uc9d5\ubc8c\n   - \uc2e0\uc131\ud55c \ud3ed\ud48d\n[INFO] stats: [\ub808\ubca8\uc5c5] hp: base 197.0 \u2192 400.9 (+203.9), total 197.0 \u2192 400.9 (+203.9), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] mp: base 67.0 \u2192 97.2 (+30.2), total 67.0 \u2192 97.2 (+30.2), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] init_brv: base 138.0 \u2192 386.4 (+248.4), total 138.0 \u2192 386.4 (+248.4), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] max_brv: base 495.0 \u2192 1386.0 (+891.0), total 495.0 \u2192 1386.0 (+891.0), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] strength: base 67.0 \u2192 187.6 (+120.6), total 67.0 \u2192 187.6 (+120.6), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] defense: base 76.0 \u2192 212.8 (+136.8), total 76.0 \u2192 212.8 (+136.8), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] magic: base 38.0 \u2192 106.4 (+68.4), total 38.0 \u2192 106.4 (+68.4), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] spirit: base 70.0 \u2192 196.0 (+126.0), total 70.0 \u2192 196.0 (+126.0), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] speed: base 43.0 \u2192 120.4 (+77.4), total 43.0 \u2192 120.4 (+77.4), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] luck: base 5.0 \u2192 9.5 (+4.5), total 5.0 \u2192 9.5 (+4.5), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] accuracy: base 100.0 \u2192 104.8 (+4.8), total 100.0 \u2192 104.8 (+4.8), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] evasion: base 10.0 \u2192 12.4 (+2.4), total 10.0 \u2192 12.4 (+2.4), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] character: \uce90\ub9ad\ud130 \uc0dd\uc131: \ud314\ub77c\ub518 (paladin), \uc2a4\ud0ac: 10\uac1c\n[INFO] stats: [\ub808\ubca8\uc5c5] hp: base 210.0 \u2192 427.4 (+217.4), total 210.0 \u2192 427.4 (+217.4), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] mp: base 32.0 \u2192 46.4 (+14.4), total 32.0 \u2192 46.4 (+14.4), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] init_brv: base 135.0 \u2192 378.0 (+243.0), total 135.0 \u2192 378.0 (+243.0), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] max_brv: base 490.0 \u2192 1372.0 (+882.0), total 490.0 \u2192 1372.0 (+882.0), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] strength: base 68.0 \u2192 190.4 (+122.4), total 68.0 \u2192 190.4 (+122.4), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] defense: base 68.0 \u2192 190.4 (+122.4), total 68.0 \u2192 190.4 (+122.4), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] magic: base 48.0 \u2192 134.4 (+86.4), total 48.0 \u2192 134.4 (+86.4), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] spirit: base 68.0 \u2192 190.4 (+122.4), total 68.0 \u2192 190.4 (+122.4), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] speed: base 68.0 \u2192 190.4 (+122.4), total 68.0 \u2192 190.4 (+122.4), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] luck: base 5.0 \u2192 9.5 (+4.5), total 5.0 \u2192 9.5 (+4.5), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] accuracy: base 100.0 \u2192 104.8 (+4.8), total 100.0 \u2192 104.8 (+4.8), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[INFO] stats: [\ub808\ubca8\uc5c5] evasion: base 10.0 \u2192 12.4 (+2.4), total 10.0 \u2192 12.4 (+2.4), \ubcf4\ub108\uc2a4: 0.0 (\ubcc0\ud654 \uc5c6\uc74c)\n[WARNING] character: warrior(warrior_)\uc758 \uc2a4\ud0ac\uc744 \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4!\n[INFO] character: \uce90\ub9ad\ud130 \uc0dd\uc131: \uc804\uc0ac (warrior), \uc2a4\ud0ac: 0\uac1c\n[WARNING] character_loader: \uce90\ub9ad\ud130 \ub370\uc774\ud130 \ud30c\uc77c \uc5c6\uc74c: x:\\develop\\Dawn-of-Stellar\\data\\characters\\undead.yaml
+------------------------------ Captured log call ------------------------------
+DEBUG    skill_manager:logger.py:62 스킬 등록: 성스러운 일격
+DEBUG    skill_manager:logger.py:62 스킬 등록: 신성한 심판
+DEBUG    skill_manager:logger.py:62 스킬 등록: 신성한 보호막
+DEBUG    skill_manager:logger.py:62 스킬 등록: 신성화
+DEBUG    skill_manager:logger.py:62 스킬 등록: 성스러운 빛
+DEBUG    skill_manager:logger.py:62 스킬 등록: 정의의 망치
+DEBUG    skill_manager:logger.py:62 스킬 등록: 축복
+DEBUG    skill_manager:logger.py:62 스킬 등록: 복수의 격노
+DEBUG    skill_manager:logger.py:62 스킬 등록: 성스러운 징벌
+DEBUG    skill_manager:logger.py:62 스킬 등록: 신성한 폭풍
+DEBUG    character_loader:logger.py:62 캐릭터 데이터 로드 완료: paladin
+INFO     stats:logger.py:68 [레벨업] hp: base 197.0 → 400.9 (+203.9), total 197.0 → 400.9 (+203.9), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 22.66
+INFO     stats:logger.py:68 [레벨업] mp: base 67.0 → 97.2 (+30.2), total 67.0 → 97.2 (+30.2), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 3.35
+INFO     stats:logger.py:68 [레벨업] init_brv: base 138.0 → 386.4 (+248.4), total 138.0 → 386.4 (+248.4), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 27.60
+INFO     stats:logger.py:68 [레벨업] max_brv: base 495.0 → 1386.0 (+891.0), total 495.0 → 1386.0 (+891.0), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 99.00
+INFO     stats:logger.py:68 [레벨업] strength: base 67.0 → 187.6 (+120.6), total 67.0 → 187.6 (+120.6), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 13.40
+INFO     stats:logger.py:68 [레벨업] defense: base 76.0 → 212.8 (+136.8), total 76.0 → 212.8 (+136.8), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 15.20
+INFO     stats:logger.py:68 [레벨업] magic: base 38.0 → 106.4 (+68.4), total 38.0 → 106.4 (+68.4), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 7.60
+INFO     stats:logger.py:68 [레벨업] spirit: base 70.0 → 196.0 (+126.0), total 70.0 → 196.0 (+126.0), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 14.00
+INFO     stats:logger.py:68 [레벨업] speed: base 43.0 → 120.4 (+77.4), total 43.0 → 120.4 (+77.4), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 8.60
+INFO     stats:logger.py:68 [레벨업] luck: base 5.0 → 9.5 (+4.5), total 5.0 → 9.5 (+4.5), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 0.50
+INFO     stats:logger.py:68 [레벨업] accuracy: base 100.0 → 104.8 (+4.8), total 100.0 → 104.8 (+4.8), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: logarithmic, growth_rate: 2.00
+INFO     stats:logger.py:68 [레벨업] evasion: base 10.0 → 12.4 (+2.4), total 10.0 → 12.4 (+2.4), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: logarithmic, growth_rate: 1.00
+DEBUG    character:logger.py:62 paladin 기믹 초기화: holy_system
+DEBUG    character:logger.py:62 paladin(paladin_)의 스킬: 10개
+INFO     character:logger.py:68 캐릭터 생성: 팔라딘 (paladin), 스킬: 10개
+INFO     stats:logger.py:68 [레벨업] hp: base 210.0 → 427.4 (+217.4), total 210.0 → 427.4 (+217.4), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 24.15
+INFO     stats:logger.py:68 [레벨업] mp: base 32.0 → 46.4 (+14.4), total 32.0 → 46.4 (+14.4), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 1.60
+INFO     stats:logger.py:68 [레벨업] init_brv: base 135.0 → 378.0 (+243.0), total 135.0 → 378.0 (+243.0), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 27.00
+INFO     stats:logger.py:68 [레벨업] max_brv: base 490.0 → 1372.0 (+882.0), total 490.0 → 1372.0 (+882.0), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 98.00
+INFO     stats:logger.py:68 [레벨업] strength: base 68.0 → 190.4 (+122.4), total 68.0 → 190.4 (+122.4), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 13.60
+INFO     stats:logger.py:68 [레벨업] defense: base 68.0 → 190.4 (+122.4), total 68.0 → 190.4 (+122.4), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 13.60
+INFO     stats:logger.py:68 [레벨업] magic: base 48.0 → 134.4 (+86.4), total 48.0 → 134.4 (+86.4), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 9.60
+INFO     stats:logger.py:68 [레벨업] spirit: base 68.0 → 190.4 (+122.4), total 68.0 → 190.4 (+122.4), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 13.60
+INFO     stats:logger.py:68 [레벨업] speed: base 68.0 → 190.4 (+122.4), total 68.0 → 190.4 (+122.4), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 13.60
+INFO     stats:logger.py:68 [레벨업] luck: base 5.0 → 9.5 (+4.5), total 5.0 → 9.5 (+4.5), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: linear, growth_rate: 0.50
+INFO     stats:logger.py:68 [레벨업] accuracy: base 100.0 → 104.8 (+4.8), total 100.0 → 104.8 (+4.8), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: logarithmic, growth_rate: 2.00
+INFO     stats:logger.py:68 [레벨업] evasion: base 10.0 → 12.4 (+2.4), total 10.0 → 12.4 (+2.4), 보너스: 0.0 (변화 없음)
+DEBUG    stats:logger.py:62   - growth_type: logarithmic, growth_rate: 1.00
+DEBUG    character:logger.py:62 warrior 기믹 초기화: stance_system
+WARNING  character:logger.py:74 warrior(warrior_)의 스킬을 찾을 수 없습니다!
+INFO     character:logger.py:68 캐릭터 생성: 전사 (warrior), 스킬: 0개
+WARNING  character_loader:logger.py:74 캐릭터 데이터 파일 없음: x:\develop\Dawn-of-Stellar\data\characters\undead.yaml
+___________________ TestTraitEffects.test_passive_mp_boost ____________________
+
+self = <test_trait_effects.TestTraitEffects object at 0x000001DD06C70E90>
+
+    def test_passive_mp_boost(self):
+        """패시브 특성: MP 증폭 테스트"""
+>       char = Character("테스트 마법사", "mage", level=1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_trait_effects.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = Character(테스트 마법사, mage, Lv.1), name = '테스트 마법사'
+character_class = 'mage', level = 1, stats_config = None
+
+    def __init__(
+        self,
+        name: str,
+        character_class: str,
+        level: int = 1,
+        stats_config: Optional[Dict[str, Any]] = None
+    ) -> None:
+        self.name = name
+        self.character_class = character_class
+        self.job_id = character_class  # job_id는 character_class의 별칭
+        self.level = level
+    
+        self.logger = get_logger("character")
+    
+        # YAML에서 직업 데이터 로드
+        self.class_data = load_character_data(character_class)
+    
+        # job_name 설정 (YAML의 class_name)
+>       self.job_name = self.class_data.get('class_name', character_class)
+                        ^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'get'
+
+src\character\character.py:51: AttributeError
+---------------------------- Captured stdout call -----------------------------
+[WARNING] character_loader: 캐릭터 데이터 파일 없음: x:\develop\Dawn-of-Stellar\data\characters\mage.yaml
+------------------------------ Captured log call ------------------------------
+WARNING  character_loader:logger.py:74 캐릭터 데이터 파일 없음: x:\develop\Dawn-of-Stellar\data\characters\mage.yaml
+_____________ TestTraitEffects.test_damage_multiplier_magic_power _____________
+
+self = <test_trait_effects.TestTraitEffects object at 0x000001DD06CB6F90>
+
+    def test_damage_multiplier_magic_power(self):
+        """데미지 배율 특성: 마법 공격력 증가 테스트"""
+        trait_manager = get_trait_effect_manager()
+>       char = Character("테스트 마법사", "mage", level=1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_trait_effects.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = Character(테스트 마법사, mage, Lv.1), name = '테스트 마법사'
+character_class = 'mage', level = 1, stats_config = None
+
+    def __init__(
+        self,
+        name: str,
+        character_class: str,
+        level: int = 1,
+        stats_config: Optional[Dict[str, Any]] = None
+    ) -> None:
+        self.name = name
+        self.character_class = character_class
+        self.job_id = character_class  # job_id는 character_class의 별칭
+        self.level = level
+    
+        self.logger = get_logger("character")
+    
+        # YAML에서 직업 데이터 로드
+        self.class_data = load_character_data(character_class)
+    
+        # job_name 설정 (YAML의 class_name)
+>       self.job_name = self.class_data.get('class_name', character_class)
+                        ^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'get'
+
+src\character\character.py:51: AttributeError
+---------------------------- Captured stdout call -----------------------------
+[WARNING] character_loader: 캐릭터 데이터 파일 없음: x:\develop\Dawn-of-Stellar\data\characters\mage.yaml
+------------------------------ Captured log call ------------------------------
+WARNING  character_loader:logger.py:74 캐릭터 데이터 파일 없음: x:\develop\Dawn-of-Stellar\data\characters\mage.yaml
+_______________ TestTraitEffects.test_break_bonus_break_master ________________
+
+self = <test_trait_effects.TestTraitEffects object at 0x000001DD06BEA250>
+
+    def test_break_bonus_break_master(self):
+        """브레이크 보너스 특성: 브레이크 달인 테스트"""
+        trait_manager = get_trait_effect_manager()
+        char = Character("테스트 전사", "warrior", level=1)
+    
+        # break_master 특성 활성화
+        char.activate_trait("break_master")
+    
+        # 브레이크 보너스 계산
+        bonus = trait_manager.calculate_break_bonus(char)
+    
+        # 브레이크 보너스가 1.5 증가했는지 확인
+>       assert bonus == 1.5, f"브레이크 보너스가 1.5여야 하는데 {bonus}입니다"
+E       AssertionError: 브레이크 보너스가 1.5여야 하는데 2.0입니다
+E       assert 2.0 == 1.5
+
+tests\test_trait_effects.py:125: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[WARNING] character: warrior(warrior_)의 스킬을 찾을 수 없습니다!
+[INFO] character: 캐릭터 생성: 테스트 전사 (warrior), 스킬: 0개
+[INFO] character: 특성 활성화: break_master
+------------------------------ Captured log call ------------------------------
+DEBUG    character:logger.py:62 warrior 기믹 초기화: stance_system
+WARNING  character:logger.py:74 warrior(warrior_)의 스킬을 찾을 수 없습니다!
+INFO     character:logger.py:68 캐릭터 생성: 테스트 전사 (warrior), 스킬: 0개
+INFO     character:logger.py:68 특성 활성화: break_master
+DEBUG    trait_effects:logger.py:62 [break_master] 브레이크 보너스: +2.0
+_________________ TestTraitEffects.test_mp_regen_mp_recovery __________________
+
+self = <test_trait_effects.TestTraitEffects object at 0x000001DD06C7D130>
+
+    def test_mp_regen_mp_recovery(self):
+        """MP 회복 특성: 마력 회복 테스트"""
+        trait_manager = get_trait_effect_manager()
+>       char = Character("테스트 마법사", "mage", level=1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_trait_effects.py:153: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = Character(테스트 마법사, mage, Lv.1), name = '테스트 마법사'
+character_class = 'mage', level = 1, stats_config = None
+
+    def __init__(
+        self,
+        name: str,
+        character_class: str,
+        level: int = 1,
+        stats_config: Optional[Dict[str, Any]] = None
+    ) -> None:
+        self.name = name
+        self.character_class = character_class
+        self.job_id = character_class  # job_id는 character_class의 별칭
+        self.level = level
+    
+        self.logger = get_logger("character")
+    
+        # YAML에서 직업 데이터 로드
+        self.class_data = load_character_data(character_class)
+    
+        # job_name 설정 (YAML의 class_name)
+>       self.job_name = self.class_data.get('class_name', character_class)
+                        ^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'get'
+
+src\character\character.py:51: AttributeError
+---------------------------- Captured stdout call -----------------------------
+[WARNING] character_loader: 캐릭터 데이터 파일 없음: x:\develop\Dawn-of-Stellar\data\characters\mage.yaml
+------------------------------ Captured log call ------------------------------
+WARNING  character_loader:logger.py:74 캐릭터 데이터 파일 없음: x:\develop\Dawn-of-Stellar\data\characters\mage.yaml
+______________________ test_brave_system_initialization _______________________
+
+    def test_brave_system_initialization():
+        """Brave 시스템 초기화 테스트"""
+        system = BraveSystem()
+        char = MockCharacter("Test")
+    
+        system.initialize_brv(char)
+    
+        assert char.current_brv > 0
+        assert char.int_brv > 0
+>       assert char.max_brv > char.int_brv
+E       assert 300 > 1000
+E        +  where 300 = <test_brave_system.MockCharacter object at 0x000001DD07D934D0>.max_brv
+E        +  and   1000 = <test_brave_system.MockCharacter object at 0x000001DD07D934D0>.int_brv
+
+tests\unit\combat\test_brave_system.py:39: AssertionError
+------------------------------ Captured log call ------------------------------
+DEBUG    brave:logger.py:62 BRV 초기화: Test | {'int_brv': 1000, 'max_brv': 300}
+___________________________ test_calculate_max_brv ____________________________
+
+    def test_calculate_max_brv():
+        """MAX BRV 계산 테스트"""
+        system = BraveSystem()
+        char = MockCharacter("Test", level=5)
+    
+        max_brv = system.calculate_max_brv(char)
+    
+        # INT BRV의 3배 이상
+        int_brv = system.calculate_int_brv(char)
+>       assert max_brv >= int_brv * 2
+E       assert 500 >= (1040 * 2)
+
+tests\unit\combat\test_brave_system.py:62: AssertionError
+_______________________________ test_brv_attack _______________________________
+
+    def test_brv_attack():
+        """BRV 공격 테스트"""
+        system = BraveSystem()
+        attacker = MockCharacter("Attacker")
+        defender = MockCharacter("Defender")
+    
+        system.initialize_brv(attacker)
+        system.initialize_brv(defender)
+    
+        initial_attacker_brv = attacker.current_brv
+        initial_defender_brv = defender.current_brv
+    
+        # BRV 공격
+        result = system.brv_attack(attacker, defender, damage=100)
+    
+        # 공격자 BRV 증가 확인
+>       assert attacker.current_brv > initial_attacker_brv
+E       assert 300 > 1000
+E        +  where 300 = <test_brave_system.MockCharacter object at 0x000001DD07E24640>.current_brv
+
+tests\unit\combat\test_brave_system.py:81: AssertionError
+------------------------------ Captured log call ------------------------------
+DEBUG    brave:logger.py:62 BRV 초기화: Attacker | {'int_brv': 1000, 'max_brv': 300}
+DEBUG    brave:logger.py:62 BRV 초기화: Defender | {'int_brv': 1000, 'max_brv': 300}
+____________________________ test_brv_attack_break ____________________________
+
+    def test_brv_attack_break():
+        """BRV 공격 BREAK 테스트"""
+        system = BraveSystem()
+        attacker = MockCharacter("Attacker")
+        defender = MockCharacter("Defender")
+    
+        system.initialize_brv(attacker)
+        system.initialize_brv(defender)
+    
+        # 방어자 BRV를 낮춤
+        defender.current_brv = 10
+    
+        # 큰 데미지로 BREAK 유발
+        result = system.brv_attack(attacker, defender, damage=1000)
+    
+        # BREAK 확인
+>       assert result["is_break"] is True
+E       assert False is True
+
+tests\unit\combat\test_brave_system.py:105: AssertionError
+------------------------------ Captured log call ------------------------------
+DEBUG    brave:logger.py:62 BRV 초기화: Attacker | {'int_brv': 1000, 'max_brv': 300}
+DEBUG    brave:logger.py:62 BRV 초기화: Defender | {'int_brv': 1000, 'max_brv': 300}
+_______________________ test_calculate_brv_damage_basic _______________________
+
+    def test_calculate_brv_damage_basic():
+        """기본 BRV 데미지 계산 테스트"""
+        calc = DamageCalculator()
+        attacker = MockCharacter("Attacker")
+        defender = MockCharacter("Defender")
+    
+        result = calc.calculate_brv_damage(attacker, defender, skill_multiplier=1.0)
+    
+        assert isinstance(result, DamageResult)
+>       assert result.final_damage > 0
+E       AssertionError: assert 0 > 0
+E        +  where 0 = DamageResult(base_damage=0, final_damage=0, is_critical=False, multiplier=0, variance=0, details={'miss': True}).final_damage
+
+tests\unit\combat\test_damage_calculator.py:39: AssertionError
+------------------------------ Captured log call ------------------------------
+DEBUG    damage:logger.py:62 공격 회피! Defender가 Attacker의 공격을 피했다
+__________________ test_calculate_brv_damage_with_multiplier __________________
+
+    def test_calculate_brv_damage_with_multiplier():
+        """BRV 데미지 스킬 배율 테스트"""
+        calc = DamageCalculator()
+        attacker = MockCharacter("Attacker")
+        defender = MockCharacter("Defender")
+    
+        result1 = calc.calculate_brv_damage(attacker, defender, skill_multiplier=1.0)
+        result2 = calc.calculate_brv_damage(attacker, defender, skill_multiplier=2.0)
+    
+        # 배율 2배면 데미지도 대략 2배
+>       assert result2.final_damage > result1.final_damage
+E       AssertionError: assert 0 > 0
+E        +  where 0 = DamageResult(base_damage=0, final_damage=0, is_critical=False, multiplier=0, variance=0, details={'miss': True}).final_damage
+E        +  and   0 = DamageResult(base_damage=0, final_damage=0, is_critical=False, multiplier=0, variance=0, details={'miss': True}).final_damage
+
+tests\unit\combat\test_damage_calculator.py:53: AssertionError
+------------------------------ Captured log call ------------------------------
+DEBUG    damage:logger.py:62 공격 회피! Defender가 Attacker의 공격을 피했다
+DEBUG    damage:logger.py:62 공격 회피! Defender가 Attacker의 공격을 피했다
+_________________________ test_calculate_magic_damage _________________________
+
+    def test_calculate_magic_damage():
+        """마법 데미지 계산 테스트"""
+        calc = DamageCalculator()
+        attacker = MockCharacter("Attacker")
+        defender = MockCharacter("Defender")
+    
+        result = calc.calculate_magic_damage(attacker, defender, skill_multiplier=1.5)
+    
+>       assert result.final_damage > 0
+E       AssertionError: assert 0 > 0
+E        +  where 0 = DamageResult(base_damage=0, final_damage=0, is_critical=False, multiplier=0, variance=0, details={'miss': True}).final_damage
+
+tests\unit\combat\test_damage_calculator.py:147: AssertionError
+------------------------------ Captured log call ------------------------------
+DEBUG    damage:logger.py:62 공격 회피! Defender가 Attacker의 공격을 피했다
+__________________ test_calculate_magic_damage_with_element ___________________
+
+    def test_calculate_magic_damage_with_element():
+        """속성 마법 데미지 계산 테스트"""
+        calc = DamageCalculator()
+        attacker = MockCharacter("Attacker")
+        defender = MockCharacter("Defender")
+    
+        result = calc.calculate_magic_damage(
+            attacker, defender, skill_multiplier=1.0, element="fire"
+        )
+    
+>       assert result.final_damage > 0
+E       AssertionError: assert 0 > 0
+E        +  where 0 = DamageResult(base_damage=0, final_damage=0, is_critical=False, multiplier=0, variance=0, details={'miss': True}).final_damage
+
+tests\unit\combat\test_damage_calculator.py:161: AssertionError
+------------------------------ Captured log call ------------------------------
+DEBUG    damage:logger.py:62 공격 회피! Defender가 Attacker의 공격을 피했다
+============================== warnings summary ===============================
+C:\Users\pc\AppData\Local\Programs\Python\Python313\Lib\site-packages\pygame\pkgdata.py:25
+  C:\Users\pc\AppData\Local\Programs\Python\Python313\Lib\site-packages\pygame\pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    from pkg_resources import resource_stream, resource_exists
+
+src\ui\input_handler.py:62
+  x:\develop\Dawn-of-Stellar\src\ui\input_handler.py:62: DeprecationWarning: Event dispatch should be handled via a single custom method in a Protocol instead of this class.
+    class InputHandler(tcod.event.EventDispatch[Optional[GameAction]]):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/integration/test_combat_flow.py::test_combat_brv_attack - assert...
+FAILED tests/integration/test_combat_flow.py::test_combat_hp_attack - Attribu...
+FAILED tests/integration/test_combat_flow.py::test_combat_brv_hp_combo - Attr...
+FAILED tests/integration/test_combat_flow.py::test_combat_full_battle_sequence
+FAILED tests/test_character_loader.py::test_get_warrior_stats - assert 68 == 60
+FAILED tests/test_character_yaml.py::test_create_warrior - assert 68 == 60
+FAILED tests/test_character_yaml.py::test_archmage_gimmick_initialization - A...
+FAILED tests/test_character_yaml.py::test_character_skills_loaded - assert 0 > 0
+FAILED tests/test_character_yaml.py::test_character_level_up - assert 210 == 234
+FAILED tests/test_paladin.py::test_paladin - AttributeError: 'NoneType' objec...
+FAILED tests/test_trait_effects.py::TestTraitEffects::test_passive_mp_boost
+FAILED tests/test_trait_effects.py::TestTraitEffects::test_damage_multiplier_magic_power
+FAILED tests/test_trait_effects.py::TestTraitEffects::test_break_bonus_break_master
+FAILED tests/test_trait_effects.py::TestTraitEffects::test_mp_regen_mp_recovery
+FAILED tests/unit/combat/test_brave_system.py::test_brave_system_initialization
+FAILED tests/unit/combat/test_brave_system.py::test_calculate_max_brv - asser...
+FAILED tests/unit/combat/test_brave_system.py::test_brv_attack - assert 300 >...
+FAILED tests/unit/combat/test_brave_system.py::test_brv_attack_break - assert...
+FAILED tests/unit/combat/test_damage_calculator.py::test_calculate_brv_damage_basic
+FAILED tests/unit/combat/test_damage_calculator.py::test_calculate_brv_damage_with_multiplier
+FAILED tests/unit/combat/test_damage_calculator.py::test_calculate_magic_damage
+FAILED tests/unit/combat/test_damage_calculator.py::test_calculate_magic_damage_with_element
+22 failed, 180 passed, 2 warnings in 2.55s

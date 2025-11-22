@@ -637,6 +637,7 @@ class CombatManager:
                 # 적 처치 확인
                 from src.character.trait_effects import get_trait_effect_manager
                 trait_manager = get_trait_effect_manager()
+                print(f"DEBUG: trait_manager attributes: {dir(trait_manager)}")
                 
                 # 모든 아군에게 처치 효과 적용
                 for ally in self.allies:
@@ -1555,6 +1556,9 @@ class CombatManager:
         
         # 일반적인 사망 후 처리
         self._handle_general_death(character)
+        
+        # 전투 종료 체크
+        self._check_battle_end()
     
     def _handle_hacker_death(self, hacker: Any) -> None:
         """

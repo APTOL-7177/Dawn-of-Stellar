@@ -9,9 +9,11 @@ import tcod
 
 from src.world.exploration import ExplorationSystem, ExplorationEvent, ExplorationResult
 from src.world.map_renderer import MapRenderer
+from src.world.field_skills import FieldSkillManager
 from src.ui.input_handler import InputHandler, GameAction
 from src.ui.gauge_renderer import GaugeRenderer
 from src.ui.tcod_display import render_space_background
+from src.ui.field_skill_ui import FieldSkillUI
 from src.core.logger import get_logger, Loggers
 from src.audio.audio_manager import play_bgm
 
@@ -42,12 +44,20 @@ class WorldUI:
         self.network_manager = network_manager  # 멀티플레이: 네트워크 관리자
         self.local_player_id = local_player_id  # 멀티플레이: 로컬 플레이어 ID
 
+        # 필드 스킬 매니저 및 UI 초기화
+        self.field_skill_manager = FieldSkillManager(exploration)
+        self.field_skill_ui = FieldSkillUI(screen_width, screen_height, self.field_skill_manager)
+
         # 초기화 로그
         logger.info(f"WorldUI 초기화 - inventory: {inventory is not None}, party: {party is not None}, party members: {len(party) if party else 0}")
 
         # 메시지 로그
         self.messages: List[str] = []
         self.max_messages = 5
+        
+        # 봇 도움말 UI
+        from src.ui.bot_help_ui import BotHelpUI
+        self.bot_help_ui = BotHelpUI()
 
         # 상태
         self.quit_requested = False
@@ -113,31 +123,46 @@ class WorldUI:
                         self.chat_input_text += char
             return False
 
+        # 필드 스킬 UI 입력 처리
+        if self.field_skill_ui.is_active:
+            done, msg = self.field_skill_ui.handle_input(action)
+            if done:
+                if msg:
+                    self.add_message(msg)
+            return False
+
         # T 키로 채팅 입력 시작 (멀티플레이어일 때만)
-        if isinstance(key_event, tcod.event.KeyDown) and key_event.sym == tcod.event.KeySym.t:
-            is_multiplayer = (
-                self.network_manager is not None or
-                (hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer) or
-                (hasattr(self.exploration, 'session') and self.exploration.session is not None)
-            )
-            if is_multiplayer:
-                self.chat_input_active = True
-                self.chat_input_text = ""
-                return False
+        if isinstance(key_event, tcod.event.KeyDown):
+            # 필드 스킬 UI (F 키)
+            if key_event.sym == tcod.event.KeySym.f:
+                if self.party:
+                    self.field_skill_ui.show(self.party)
+                    return False
+
+            if key_event.sym == tcod.event.KeySym.t:
+                is_multiplayer = (
+                    self.network_manager is not None or
+                    (hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer) or
+                    (hasattr(self.exploration, 'session') and self.exploration.session is not None)
+                )
+                if is_multiplayer:
+                    self.chat_input_active = True
+                    self.chat_input_text = ""
+                    return False
         
-        # 숫자 키로 봇 명령 (1-7)
+        # 숫자 키로 봇 명령 (1-7) 또는 도움말 토글
         if isinstance(key_event, tcod.event.KeyDown):
             key_char = None
             
             # 숫자 키 감지 방법 1: event.char 사용 (가장 확실한 방법)
             if hasattr(key_event, 'char') and key_event.char:
-                if key_event.char in '1234567':
+                if key_event.char in '1234567890':
                     key_char = key_event.char
             
             # 숫자 키 감지 방법 2: ASCII 코드로 확인 (보조)
             if not key_char:
-                # ASCII 코드로 숫자 키 확인 ('1' = 49, '2' = 50, ..., '7' = 55)
-                if ord('1') <= key_event.sym <= ord('7'):
+                # ASCII 코드로 숫자 키 확인 ('0' = 48, '1' = 49, ..., '9' = 57)
+                if ord('0') <= key_event.sym <= ord('9'):
                     try:
                         key_char = chr(key_event.sym)
                     except (ValueError, OverflowError):
@@ -145,8 +170,9 @@ class WorldUI:
             
             # 숫자 키 감지 방법 3: KeySym의 숫자 키패드 확인
             if not key_char:
-                # 숫자 키패드 (KP_1 ~ KP_7)
+                # 숫자 키패드 (KP_0 ~ KP_9)
                 keypad_map = {
+                    tcod.event.KeySym.KP_0: '0',
                     tcod.event.KeySym.KP_1: '1',
                     tcod.event.KeySym.KP_2: '2',
                     tcod.event.KeySym.KP_3: '3',
@@ -154,25 +180,54 @@ class WorldUI:
                     tcod.event.KeySym.KP_5: '5',
                     tcod.event.KeySym.KP_6: '6',
                     tcod.event.KeySym.KP_7: '7',
+                    tcod.event.KeySym.KP_8: '8',
+                    tcod.event.KeySym.KP_9: '9',
                 }
                 if key_event.sym in keypad_map:
                     key_char = keypad_map[key_event.sym]
             
-            if key_char and self.exploration and hasattr(self.exploration, 'session'):
-                session = getattr(self.exploration, 'session', None)
-                if session and hasattr(session, 'bot_manager'):
-                    bot_manager = session.bot_manager
-                    if bot_manager:
-                        # 모든 봇에게 명령 전달
-                        command_handled = False
-                        for bot_id, bot in bot_manager.bots.items():
-                            if bot.handle_command_key(key_char):
-                                command_handled = True
-                        
-                        if command_handled:
-                            # 명령 처리되었다는 메시지 표시 (옵션)
-                            logger.info(f"봇 명령 전달: {key_char}")
+            if key_char:
+                # '1'번 키: 도움말 UI 토글 (봇 명령과 별개로 UI도 띄움)
+                if key_char == '1':
+                    self.bot_help_ui.toggle()
+                    # 명령 전달은 계속 진행 (봇도 도움말을 채팅으로 띄우므로)
+                
+                # '2'번 키: 봇 인벤토리 UI 토글
+                elif key_char == '2':
+                    # 봇 매니저가 있고, 실행 중인지 확인
+                    if self.exploration and hasattr(self.exploration, 'session'):
+                        session = getattr(self.exploration, 'session', None)
+                        if session and hasattr(session, 'bot_manager') and session.bot_manager:
+                            # 별도의 봇 인벤토리 UI를 열어야 함
+                            from src.ui.bot_inventory_ui import open_bot_inventory_ui
+                            # 첫 번째 봇을 대상으로 함 (임시)
+                            if session.bot_manager.bots:
+                                target_bot = list(session.bot_manager.bots.values())[0]
+                                # on_update 콜백 전달
+                                open_bot_inventory_ui(console, context, target_bot, on_update=update_game_state)
+                                return False
+            
+                # 도움말 UI가 켜져있으면 입력 처리
+                if self.bot_help_ui.is_visible:
+                    if self.bot_help_ui.handle_input(key_event):
                         return False
+                    return False
+
+                if self.exploration and hasattr(self.exploration, 'session'):
+                    session = getattr(self.exploration, 'session', None)
+                    if session and hasattr(session, 'bot_manager'):
+                        bot_manager = session.bot_manager
+                        if bot_manager:
+                            # 모든 봇에게 명령 전달
+                            command_handled = False
+                            for bot_id, bot in bot_manager.bots.items():
+                                if bot.handle_command_key(key_char):
+                                    command_handled = True
+                            
+                            if command_handled:
+                                # 명령 처리되었다는 메시지 표시 (옵션)
+                                logger.info(f"봇 명령 전달: {key_char}")
+                            return False
 
         # 종료 확인 모드
         if self.quit_confirm_mode:
@@ -223,7 +278,8 @@ class WorldUI:
             if self.inventory is not None and self.party is not None and console is not None and context is not None:
                 from src.ui.inventory_ui import open_inventory
                 logger.warning("[DEBUG] 인벤토리 열기 시도")
-                open_inventory(console, context, self.inventory, self.party, self.exploration)
+                # on_update 콜백 전달
+                open_inventory(console, context, self.inventory, self.party, self.exploration, on_update=update_game_state)
                 return False
             else:
                 logger.warning(f"인벤토리를 열 수 없음 - inventory={self.inventory is not None}, party={self.party is not None}, console={console is not None}, context={context is not None}")
@@ -531,27 +587,33 @@ class WorldUI:
             if harvestable.object_type == HarvestableType.COOKING_POT:
                 continue
 
-            # 이미 이 플레이어가 채집한 오브젝트는 제외 (멀티플레이: 개인 보상)
-            player_id = None
-            if hasattr(self.exploration, 'local_player_id'):
-                player_id = self.exploration.local_player_id
-            if not harvestable.can_harvest(player_id):
-                continue
-
             # 맨하탄 거리 계산
-            distance = abs(harvestable.x - player_x) + abs(harvestable.y - player_y)
+            dx = abs(harvestable.x - player_x)
+            dy = abs(harvestable.y - player_y)
+            
+            # 대각선 거리도 포함하여 정확한 인접 체크 (체비쇼프 거리)
+            # 맨하탄 거리(dx+dy) 대신 max(dx, dy)를 사용하여 대각선도 거리 1로 처리
+            chebyshev_distance = max(dx, dy)
 
             # 범위 내이고 더 가까우면 선택
-            if distance <= max_distance and distance < closest_distance:
+            if chebyshev_distance <= max_distance and chebyshev_distance < closest_distance:
+                # 이미 이 플레이어가 채집한 오브젝트는 제외 (멀티플레이: 개인 보상)
+                # 중요: 거리 조건 먼저 체크 후 채집 가능 여부 확인 (최적화)
+                player_id = None
+                if hasattr(self.exploration, 'local_player_id'):
+                    player_id = self.exploration.local_player_id
+                if not harvestable.can_harvest(player_id):
+                    continue
+                    
                 closest_harvestable = harvestable
-                closest_distance = distance
+                closest_distance = chebyshev_distance
 
         return closest_harvestable
 
     def _find_nearby_cooking_pot(self):
         """
         플레이어 주변의 요리솥 찾기
-
+        
         Returns:
             가장 가까운 요리솥 HarvestableObject 또는 None
         """
@@ -569,10 +631,14 @@ class WorldUI:
                 continue
 
             # 맨하탄 거리 계산
-            distance = abs(harvestable.x - player_x) + abs(harvestable.y - player_y)
+            dx = abs(harvestable.x - player_x)
+            dy = abs(harvestable.y - player_y)
+            
+            # 대각선 포함 거리 (체비쇼프 거리)
+            chebyshev_distance = max(dx, dy)
 
             # 범위 내이면 반환
-            if distance <= max_distance:
+            if chebyshev_distance <= max_distance:
                 return harvestable
 
         return None
@@ -701,9 +767,32 @@ class WorldUI:
                 
                 # 화면 범위 내에만 렌더링 (시야 체크 없이)
                 if 0 <= screen_x < self.screen_width and 0 <= screen_y < 40:
+                    # 죽은 플레이어 체크 (session 참조)
+                    is_dead = False
+                    if hasattr(self.exploration, 'session') and self.exploration.session:
+                        if player_id in self.exploration.session.players:
+                            p = self.exploration.session.players[player_id]
+                            # 파티 전멸 여부 확인
+                            # (Player 객체 구조에 따라 다름, 여기서는 간단히 가정)
+                            # 만약 Player 객체에 is_alive 속성이 없으면 생존으로 간주
+                            if hasattr(p, 'is_party_alive'):
+                                # is_party_alive가 메서드인지 속성인지 확인
+                                if callable(p.is_party_alive):
+                                    if not p.is_party_alive():
+                                        is_dead = True
+                                else:
+                                    if not p.is_party_alive:
+                                        is_dead = True
+                    
                     # 플레이어 ID 기반 색상 할당
                     player_color = self._get_player_color(player_id)
-                    console.print(screen_x, screen_y, "@", fg=player_color)
+                    char = "@"
+                    
+                    if is_dead:
+                        player_color = (100, 100, 100) # 회색 (유령)
+                        char = "@" # 유령 아이콘 대신 @ 사용 (회색)
+                    
+                    console.print(screen_x, screen_y, char, fg=player_color)
         else:
             # 싱글플레이: 기본 플레이어 위치 렌더링
             screen_x = player.x - camera_x
@@ -729,14 +818,12 @@ class WorldUI:
         
         # 봇 명령 도움말 (봇이 있을 때만 표시)
         has_bots = False
-        bot_command_help = ""
         if is_multiplayer and self.exploration and hasattr(self.exploration, 'session'):
             session = getattr(self.exploration, 'session', None)
             if session and hasattr(session, 'bot_manager') and session.bot_manager:
                 bot_manager = session.bot_manager
                 if bot_manager and len(bot_manager.bots) > 0:
                     has_bots = True
-                    bot_command_help = "  [봇명령] 1:도움요청 2:아이템확인 3:아이템요청 4:골드요청 5:탐험요청 6:따라가기 7:전투회피(토글)"
         
         console.print(
             5,
@@ -745,14 +832,22 @@ class WorldUI:
             fg=(180, 180, 180)
         )
         
-        # 봇 명령 도움말 (별도 줄에 표시)
+        # 봇 명령 안내 (별도 줄에 표시)
         if has_bots:
             console.print(
                 5,
                 self.screen_height - 1,
-                bot_command_help,
+                "[1]키를 눌러 봇 명령어 도움말을 확인하세요.",
                 fg=(150, 200, 255)
             )
+
+        # 봇 도움말 UI (최상위 렌더링)
+        if hasattr(self, 'bot_help_ui'):
+            self.bot_help_ui.draw(console)
+
+        # 필드 스킬 UI
+        if self.field_skill_ui.is_active:
+            self.field_skill_ui.render(console)
 
         # 채팅 입력창
         if self.chat_input_active:
@@ -1171,10 +1266,9 @@ def run_exploration(
         logger.info(f"층 {floor} -> 바이옴 {biome_index}, BGM: {biome_track}")
         play_bgm(biome_track)
 
-    import time
-    last_enemy_update = time.time()
-    
-    while True:
+    # 업데이트 콜백 함수 정의
+    def update_game_state():
+        """게임 상태 업데이트 (백그라운드)"""
         # 핫 리로드 체크 (개발 모드일 때만)
         try:
             from src.core.config import get_config
@@ -1188,13 +1282,25 @@ def run_exploration(
             pass  # 핫 리로드 오류는 무시
         
         # 멀티플레이: 시간 기반 적 이동 업데이트 (2초마다)
+        # 함수 내부 변수에 접근하기 위해 nonlocal 사용 (필요시)
+        # 하지만 여기서는 직접 exploration 객체를 참조하므로 nonlocal 불필요할 수 있음
+        # 단, last_enemy_update는 run_exploration의 로컬 변수이므로 주의 필요.
+        # 간단하게 현재 시간을 매번 구해서 처리하거나, 별도 상태 관리 필요.
+        # 여기서는 exploration 객체에 상태를 저장하는 것이 안전함.
+        
         current_time = time.time()
+        
+        # 적 이동 업데이트 (호스트만)
         if hasattr(exploration, 'is_multiplayer') and exploration.is_multiplayer:
             if hasattr(exploration, 'enemy_sync') and exploration.enemy_sync:
-                if current_time - last_enemy_update >= 2.0:
+                # last_enemy_update를 exploration에 저장하여 유지
+                if not hasattr(exploration, '_last_enemy_update'):
+                    exploration._last_enemy_update = 0.0
+                
+                if current_time - exploration._last_enemy_update >= 2.0:
                     if exploration.is_host and hasattr(exploration, '_move_all_enemies'):
                         exploration._move_all_enemies()
-                    last_enemy_update = current_time
+                    exploration._last_enemy_update = current_time
             
             # 봇 업데이트 (매 프레임)
             if hasattr(exploration, 'session') and exploration.session:
@@ -1203,45 +1309,28 @@ def run_exploration(
                     bot_manager = session.bot_manager
                     if bot_manager:
                         if not bot_manager.is_running:
-                            # 봇 매니저가 실행 중이 아니면 시작
-                            logger.info(f"봇 매니저 시작 중... (봇 수: {len(bot_manager.bots)})")
                             bot_manager.start_all()
-                            logger.info(f"봇 매니저 시작 완료: {len(bot_manager.bots)}개의 봇 (is_running={bot_manager.is_running})")
                         
                         if bot_manager.is_running:
                             try:
                                 bot_manager.update(current_time)
                                 
-                                # 봇의 전투 트리거 확인 (적 충돌)
-                                for bot_id, bot in bot_manager.bots.items():
-                                    if hasattr(bot, 'pending_combat_trigger') and bot.pending_combat_trigger:
-                                        combat_info = bot.pending_combat_trigger
-                                        enemy = combat_info.get("enemy")
-                                        position = combat_info.get("position")
-                                        
-                                        if enemy and position and hasattr(exploration, '_trigger_combat_with_enemy'):
-                                            logger.info(f"봇 {bot.bot_name} 적 충돌! 전투 트리거 at ({position[0]}, {position[1]})")
-                                            # 전투 트리거 (봇도 플레이어처럼)
-                                            try:
-                                                result = exploration._trigger_combat_with_enemy(enemy)
-                                                # 전투 트리거 후 플래그 초기화
-                                                bot.pending_combat_trigger = None
-                                                
-                                                # 전투 결과 처리 (main.py의 전투 루프로 전달 필요)
-                                                # 여기서는 전투 트리거만 수행하고, 실제 전투는 main.py에서 처리
-                                                logger.info(f"봇 {bot.bot_name} 전투 트리거 완료: {result.event if result else 'None'}")
-                                            except Exception as e:
-                                                logger.error(f"봇 {bot.bot_name} 전투 트리거 실패: {e}", exc_info=True)
-                                                bot.pending_combat_trigger = None
+                                # 봇의 전투 트리거 확인 (적 충돌) - UI가 열려있을 때는 전투 시작을 보류할 수도 있으나,
+                                # 요구사항 "시간이 멈추면 안됨"에 따라 전투 트리거도 체크해야 함.
+                                # 단, UI 루프 내에서는 반환값을 처리하기 어려우므로,
+                                # pending_combat_trigger 상태만 유지하고 UI가 닫힌 후 처리되도록 하거나,
+                                # 여기서 강제로 UI를 닫게 하는 방법(예외 발생 등)이 있음.
+                                # 하지만 인벤토리 보는 중에 갑자기 전투 걸리는 건 사용자 경험상 좋지 않을 수 있음.
+                                # 일단 업데이트는 계속 돌리되, 전투 진입은 메인 루프에서 처리하도록 둠.
+                                pass 
                             except Exception as e:
                                 logger.error(f"봇 업데이트 오류: {e}", exc_info=True)
-                        else:
-                            logger.debug(f"봇 매니저가 실행 중이 아님 (봇 수: {len(bot_manager.bots)})")
-                else:
-                    # 봇 매니저가 없는 경우 로그 (첫 몇 번만)
-                    if not hasattr(exploration, '_bot_manager_warning_logged'):
-                        logger.debug(f"봇 매니저 없음 (session.bot_manager: {getattr(session, 'bot_manager', None)})")
-                        exploration._bot_manager_warning_logged = True
+
+    while True:
+        # 메인 루프에서도 업데이트 실행
+        update_game_state()
+        
+        # ... (기존 코드) ...
         
         # 렌더링
         ui.render(console)

@@ -67,7 +67,19 @@ class GimmickEffect(SkillEffect):
             else:
                 new_value = old_value
         elif self.operation == GimmickOperation.SET:
+            # SET operation: 값 타입 유지 (문자열이면 문자열, 숫자면 숫자)
             new_value = self.value
+            # 숫자로 변환 가능한 문자열인 경우 변환 시도 (선택적)
+            if isinstance(new_value, str) and self.field != "current_stance":
+                try:
+                    # 정수로 변환 가능하면 정수로, 아니면 float로
+                    if '.' not in new_value and '-' not in new_value[1:]:
+                        new_value = int(new_value)
+                    else:
+                        new_value = float(new_value)
+                except (ValueError, AttributeError):
+                    # 변환 불가능하면 원래 값 유지 (문자열)
+                    pass
         elif self.operation == GimmickOperation.CONSUME:
             # 타입 체크
             if isinstance(old_value, (int, float)) and isinstance(self.value, (int, float)):
@@ -75,19 +87,21 @@ class GimmickEffect(SkillEffect):
             else:
                 new_value = old_value
 
-        # 최대값 제한
-        max_field_name = f"max_{self.field}"
-        if hasattr(entity, max_field_name):
-            actual_max = getattr(entity, max_field_name)
-            new_value = min(new_value, actual_max)
-        elif self.max_value is not None:
-            new_value = min(new_value, self.max_value)
+        # 최대값 제한 (숫자 타입인 경우에만)
+        if isinstance(new_value, (int, float)):
+            max_field_name = f"max_{self.field}"
+            if hasattr(entity, max_field_name):
+                actual_max = getattr(entity, max_field_name)
+                if isinstance(actual_max, (int, float)):
+                    new_value = min(new_value, actual_max)
+            elif self.max_value is not None and isinstance(self.max_value, (int, float)):
+                new_value = min(new_value, self.max_value)
 
-        # 최소값 제한
-        if self.min_value is not None:
-            new_value = max(new_value, self.min_value)
-        else:
-            new_value = max(new_value, 0)
+            # 최소값 제한 (숫자 타입인 경우에만)
+            if self.min_value is not None and isinstance(self.min_value, (int, float)):
+                new_value = max(new_value, self.min_value)
+            else:
+                new_value = max(new_value, 0)
 
         setattr(entity, self.field, new_value)
 

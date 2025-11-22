@@ -67,6 +67,22 @@ class MultiplayerPlayer:
             "is_bot": self.is_bot
         }
     
+    @property
+    def is_party_alive(self) -> bool:
+        """파티 생존 여부 확인"""
+        if not self.party:
+            return True # 파티가 없으면 살아있는 것으로 간주 (또는 로직에 따라 False)
+            
+        for member in self.party:
+            # member는 Character 객체 또는 딕셔너리(직렬화된 경우)
+            if isinstance(member, dict):
+                if member.get('current_hp', 0) > 0:
+                    return True
+            else:
+                if getattr(member, 'current_hp', 0) > 0 and getattr(member, 'is_alive', True):
+                    return True
+        return False
+
     @classmethod
     def deserialize(cls, data: Dict[str, Any]) -> "MultiplayerPlayer":
         """역직렬화"""
@@ -80,4 +96,3 @@ class MultiplayerPlayer:
             ping=data.get("ping", 0.0),
             is_bot=data.get("is_bot", False)
         )
-
