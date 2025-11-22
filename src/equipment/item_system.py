@@ -2509,7 +2509,7 @@ AFFIX_POOL = {
     # 공격 관련
     "of_destruction": ItemAffix("of_destruction", "파괴의", "critical_damage", 0.30, True),
     "piercing": ItemAffix("piercing", "관통하는", "armor_penetration", 0.15, True),
-    "vampiric": ItemAffix("vampic", "흡혈의", "lifesteal", 0.05, True),
+    "vampiric": ItemAffix("vampiric", "흡혈의", "lifesteal", 0.05, True),
     "soul_stealing": ItemAffix("soul_stealing", "영혼 강탈의", "mana_steal", 0.05, True),
     "bloodthirsty": ItemAffix("bloodthirsty", "피에 굶주린", "heal_on_kill", 20, False),
     

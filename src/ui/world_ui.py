@@ -566,11 +566,12 @@ class WorldUI:
                         # 유일한 방법: Character 객체가 inventory를 참조하고 있다고 가정.
                         # (BotInventoryUI 등에서 보듯이 character.inventory가 존재할 수 있음)
                         
-                        if hasattr(self.exploration.player, 'inventory') and self.exploration.player.inventory:
-                            open_anvil_ui(console, context, self.exploration.player.inventory, player_tile)
+                        # inventory가 None이 아닌지 확인한 후 open_anvil_ui 호출
+                        if inventory is not None:
+                            open_anvil_ui(console, context, inventory, player_tile)
                             return True
                         else:
-                            # 플레이어 객체에 인벤토리가 없으면 메시지 출력
+                            # 인벤토리를 찾을 수 없으면 메시지 출력
                             self.add_message("인벤토리를 열 수 없습니다.")
                             return True
 
