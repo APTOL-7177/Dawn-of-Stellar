@@ -53,7 +53,7 @@ class TileType(Enum):
     RIDDLE_STONE = "riddle_stone"  # 수수께끼 돌
     MAGIC_CIRCLE = "magic_circle"  # 마법진
     SACRIFICE_ALTAR = "sacrifice_altar"  # 희생 제단
-
+    ANVIL = "anvil"  # 모루 (수리)
 
 @dataclass
 class Tile:
@@ -87,6 +87,7 @@ class Tile:
     npc_type: Optional[str] = None  # NPC 타입 (helpful/harmful/neutral/complex)
     npc_subtype: Optional[str] = None  # NPC 서브타입 (스토리별 분류)
     npc_interacted: bool = False  # NPC와 상호작용했는지 여부
+    used: bool = False  # 1회성 기믹 사용 여부 (모루 등)
 
     # 시각적
     char: str = "."  # 표시 문자
@@ -341,6 +342,12 @@ class Tile:
             self.transparent = True
             self.char = "A"
             self.fg_color = (200, 50, 50)
+
+        elif self.tile_type == TileType.ANVIL:
+            self.walkable = True
+            self.transparent = True
+            self.char = "T"  # 망치 모양이나 유사한 것
+            self.fg_color = (100, 100, 120)  # 강철색
 
     def unlock(self):
         """문 잠금 해제"""

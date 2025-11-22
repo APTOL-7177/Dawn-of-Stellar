@@ -191,6 +191,12 @@ class FieldSkillManager:
                 "func": self._skill_pirate_plunder,
                 "desc": "층 내의 모든 아이템/골드 위치 표시"
             },
+            "engineer_repair": {
+                "name": "긴급 수리", 
+                "mp": 0,  # 가변 소모 (코드에서 처리)
+                "func": self._skill_engineer_repair,
+                "desc": "MP를 소모하여 파티원의 모든 장비 수리"
+            },
             "engineer_disarm": {
                 "name": "함정 해체", 
                 "mp": 8,  # 10 -> 8
@@ -260,7 +266,7 @@ class FieldSkillManager:
             "rogue": "rogue_unlock",
             "assassin": "assassin_poison",
             "pirate": "pirate_plunder",
-            "engineer": "engineer_disarm",
+            "engineer": "engineer_repair",
             "hacker": "hacker_hack",
             "alchemist": "alchemist_brew",
             "monk": "monk_inner_peace",
@@ -630,6 +636,56 @@ class FieldSkillManager:
                         tile.explored = True
                         count += 1
         return True, f"보물 냄새를 맡았습니다! ({count}개 발견)"
+
+    def _skill_engineer_repair(self, user: Character) -> Tuple[bool, str]:
+        total_cost_units = 0
+        items_to_repair = []
+        
+        party = self.exploration.player.party
+        for member in party:
+            for slot, item in member.equipment.items():
+                if item and hasattr(item, 'current_durability') and hasattr(item, 'max_durability'):
+                    missing = item.max_durability - item.current_durability
+                    if missing > 0:
+                        # 등급별 수리 비용 계수
+                        multiplier = 1.0
+                        rarity_name = getattr(item.rarity, 'name', 'COMMON')
+                        if rarity_name == 'UNCOMMON': multiplier = 1.5
+                        elif rarity_name == 'RARE': multiplier = 2.0
+                        elif rarity_name == 'EPIC': multiplier = 3.0
+                        elif rarity_name == 'LEGENDARY': multiplier = 5.0
+                        
+                        cost = missing * multiplier
+                        total_cost_units += cost
+                        items_to_repair.append((item, member, slot))
+
+        if total_cost_units == 0:
+            return False, "수리할 장비가 없습니다."
+
+        # MP 소모량 계산 (비용 단위당 0.2 MP, 최소 1)
+        mp_cost = int(total_cost_units * 0.2)
+        if mp_cost < 1: mp_cost = 1
+
+        # use_skill에서 기본 MP 체크를 통과했더라도, 여기서 실제 계산된 비용으로 재확인
+        if user.current_mp < mp_cost:
+            return False, f"MP가 부족합니다. (필요: {mp_cost}, 보유: {user.current_mp})"
+
+        # 수리 실행
+        for item, member, slot in items_to_repair:
+            item.current_durability = item.max_durability
+            # 스탯 업데이트 (파괴 상태였을 수 있으므로)
+            if hasattr(member, 'update_equipment_stats'):
+                member.update_equipment_stats(slot)
+
+        # MP 소모 (use_skill에서 고정 MP를 차감하므로, 차이만큼 여기서 추가 처리하거나
+        # use_skill의 반환값 메시지에 MP 소모량을 포함시키기 위해 여기서 직접 차감하고
+        # use_skill에는 0 소모로 처리되게 할 수 있음. 
+        # 하지만 use_skill 구조상 base_mp를 먼저 체크하므로, 
+        # 여기서는 추가 차감 방식을 사용해야 함.
+        # 단, engineer_repair의 base_mp는 0으로 설정했으므로 여기서 전액 차감하면 됨.)
+        user.current_mp -= mp_cost
+
+        return True, f"모든 장비를 수리했습니다. (MP {mp_cost} 소모)"
 
     def _skill_engineer_disarm(self, user: Character) -> Tuple[bool, str]:
         px, py = self.exploration.player.x, self.exploration.player.y
