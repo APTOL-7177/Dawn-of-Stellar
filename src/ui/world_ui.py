@@ -50,6 +50,9 @@ class WorldUI:
         # 필드 스킬 매니저 및 UI 초기화
         self.field_skill_manager = FieldSkillManager(exploration)
         self.field_skill_ui = FieldSkillUI(screen_width, screen_height, self.field_skill_manager)
+        
+        # 봇 인벤토리 뷰 인덱스
+        self.current_bot_view_index = 0
 
         # 초기화 로그
         logger.info(f"WorldUI 초기화 - inventory: {inventory is not None}, party: {party is not None}, party members: {len(party) if party else 0}")
@@ -193,28 +196,46 @@ class WorldUI:
                 # '1'번 키: 도움말 UI 토글 (봇 명령과 별개로 UI도 띄움)
                 if key_char == '1':
                     self.bot_help_ui.toggle()
-                    # 명령 전달은 계속 진행 (봇도 도움말을 채팅으로 띄우므로)
+                    # 1번 키는 여기서 UI 토글을 처리했으므로, 아래 handle_input에는 전달하지 않음
+                    # 단, 봇에게 명령은 전달되어야 함
                 
                 # '2'번 키: 봇 인벤토리 UI 토글
                 elif key_char == '2':
+                    logger.info("2번 키 입력 감지: 봇 인벤토리 열기 시도")
                     # 봇 매니저가 있고, 실행 중인지 확인
                     if self.exploration and hasattr(self.exploration, 'session'):
                         session = getattr(self.exploration, 'session', None)
                         if session and hasattr(session, 'bot_manager') and session.bot_manager:
                             # 별도의 봇 인벤토리 UI를 열어야 함
                             from src.ui.bot_inventory_ui import open_bot_inventory_ui
-                            # 첫 번째 봇을 대상으로 함 (임시)
-                            if session.bot_manager.bots:
-                                target_bot = list(session.bot_manager.bots.values())[0]
+                            
+                            bots_list = list(session.bot_manager.bots.values())
+                            if bots_list:
+                                # 인덱스 순환
+                                if self.current_bot_view_index >= len(bots_list):
+                                    self.current_bot_view_index = 0
+                                
                                 # on_update 콜백 전달
-                                open_bot_inventory_ui(console, context, target_bot, on_update=self.on_update)
+                                target_bot = bots_list[self.current_bot_view_index]
+                                bot_name = getattr(target_bot, 'name', 'Unknown Bot')
+                                if hasattr(target_bot, 'character') and hasattr(target_bot.character, 'name'):
+                                    bot_name = target_bot.character.name
+                                
+                                logger.info(f"봇 인벤토리 열기: {bot_name}")
+                                open_bot_inventory_ui(console, context, bots_list, self.current_bot_view_index, on_update=self.on_update)
                                 return False
+                            else:
+                                logger.warning("봇 매니저에 봇이 없습니다.")
+                        else:
+                            logger.warning("봇 매니저를 찾을 수 없습니다.")
+                    else:
+                        logger.warning("탐험 세션이 없습니다.")
             
-                # 도움말 UI가 켜져있으면 입력 처리
-                if self.bot_help_ui.is_visible:
-                    if self.bot_help_ui.handle_input(key_event):
-                        return False
-                    return False
+                # 도움말 UI가 켜져있으면 입력 처리 (스크롤 등)
+                # 단, 숫자 키 명령은 봇에게도 전달되어야 하므로 여기서 리턴하지 않음
+                # 중요: 1번 키는 이미 위에서 처리했으므로 중복 처리 방지
+                if self.bot_help_ui.is_visible and key_char != '1':
+                    self.bot_help_ui.handle_input(key_event)
 
                 if self.exploration and hasattr(self.exploration, 'session'):
                     session = getattr(self.exploration, 'session', None)
@@ -403,20 +424,25 @@ class WorldUI:
                     self.add_message("요리솥을 사용할 수 없습니다.")
                     return False
 
-            # 우선순위 2: 채집 오브젝트
-            nearby_harvestable = self._find_nearby_harvestable()
-            if nearby_harvestable:
-                # 채집 오브젝트가 있으면 채집 실행
+            # 우선순위 2: 채집 오브젝트 (일괄 채집)
+            nearby_harvestables = self._find_all_nearby_harvestables()
+            if nearby_harvestables:
+                # 채집 오브젝트가 있으면 일괄 채집 실행
                 if console is not None and context is not None and self.inventory is not None:
-                    from src.ui.gathering_ui import harvest_object, show_gathering_prompt
-
-                    # 채집 확인 프롬프트
-                    if show_gathering_prompt(console, context, nearby_harvestable):
+                    from src.ui.gathering_ui import harvest_object
+                    
+                    harvest_count = 0
+                    for harvestable in nearby_harvestables:
                         # 채집 실행 (멀티플레이어 동기화를 위해 exploration 전달)
-                        success = harvest_object(console, context, nearby_harvestable, self.inventory, exploration=self.exploration)
+                        success = harvest_object(console, context, harvestable, self.inventory, exploration=self.exploration)
                         if success:
-                            logger.info(f"채집 성공: {nearby_harvestable.object_type.display_name}")
-                        return False
+                            harvest_count += 1
+                            logger.info(f"채집 성공: {harvestable.object_type.display_name}")
+                    
+                    if harvest_count > 0:
+                        # 메시지는 harvest_object 내부에서 출력되거나 시스템 메시지로 처리됨
+                        pass
+                    return False
                 else:
                     logger.warning("채집 불가: console, context, inventory가 필요합니다")
                 return False
@@ -565,6 +591,49 @@ class WorldUI:
 
         elif result.event == ExplorationEvent.TELEPORT:
             self.add_message(f"위치: ({self.exploration.player.x}, {self.exploration.player.y})")
+
+    def _find_all_nearby_harvestables(self):
+        """
+        플레이어 주변의 모든 채집 가능한 오브젝트 찾기
+        (요리솥은 제외)
+
+        Returns:
+            채집 가능한 HarvestableObject 리스트
+        """
+        from src.gathering.harvestable import HarvestableType
+
+        player_x = self.exploration.player.x
+        player_y = self.exploration.player.y
+
+        # 인접 범위 (맨하탄 거리 1~2칸)
+        max_distance = 2
+        
+        found_harvestables = []
+
+        for harvestable in self.exploration.dungeon.harvestables:
+            # 요리솥은 채집이 아니라 요리 UI를 열어야 함
+            if harvestable.object_type == HarvestableType.COOKING_POT:
+                continue
+
+            # 맨하탄 거리 계산
+            dx = abs(harvestable.x - player_x)
+            dy = abs(harvestable.y - player_y)
+            
+            # 대각선 거리도 포함하여 정확한 인접 체크 (체비쇼프 거리)
+            chebyshev_distance = max(dx, dy)
+
+            # 범위 내이면 추가
+            if chebyshev_distance <= max_distance:
+                # 이미 이 플레이어가 채집한 오브젝트는 제외
+                player_id = None
+                if hasattr(self.exploration, 'local_player_id'):
+                    player_id = self.exploration.local_player_id
+                if not harvestable.can_harvest(player_id):
+                    continue
+                    
+                found_harvestables.append(harvestable)
+
+        return found_harvestables
 
     def _find_nearby_harvestable(self):
         """
@@ -1255,6 +1324,21 @@ def run_exploration(
         network_manager.register_handler(MessageType.CHAT_MESSAGE, handle_chat_message)
         network_manager.register_handler(MessageType.PLAYER_LEFT, handle_player_left)
         logger.info("채팅 메시지 및 플레이어 나감 핸들러 등록 완료")
+
+    # 봇 채팅 메시지 이벤트 핸들러
+    def handle_bot_chat_message(data):
+        """봇 채팅 메시지 수신 핸들러 (로컬)"""
+        player_id = data.get("player_id")
+        message = data.get("message")
+        player_name = data.get("player_name", "Bot")
+        
+        # 채팅 메시지 표시
+        chat_text = f"[{player_name}]: {message}"
+        ui.add_message(chat_text)
+        logger.info(f"봇 채팅 메시지 수신 (로컬): {chat_text}")
+
+    from src.core.event_bus import event_bus, Events
+    event_bus.subscribe(Events.CHAT_MESSAGE_RECEIVED, handle_bot_chat_message)
 
     # 남은 이벤트 제거 (불러오기 등에서 남은 키 입력 방지)
     tcod.event.get()

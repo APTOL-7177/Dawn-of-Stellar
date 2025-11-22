@@ -15,11 +15,40 @@ logger = get_logger("bot_inventory_ui")
 class BotInventoryUI:
     """봇 인벤토리 UI"""
     
-    def __init__(self, bot: Any):
-        self.bot = bot
+    def __init__(self, bot_list: list, current_index: int = 0):
+        self.bot_list = bot_list
+        self.current_index = current_index
+        self.bot = self.bot_list[self.current_index] if self.bot_list else None
+        
         self.selected_index = 0
         self.scroll_offset = 0
         self.items_per_page = 15
+        
+        logger.info(f"BotInventoryUI 초기화: bot={self.bot}, total_bots={len(self.bot_list)}")
+
+    def next_bot(self):
+        """다음 봇으로 전환"""
+        if not self.bot_list:
+            return
+        
+        self.current_index = (self.current_index + 1) % len(self.bot_list)
+        self.bot = self.bot_list[self.current_index]
+        # 봇이 바뀌면 선택 초기화
+        self.selected_index = 0
+        self.scroll_offset = 0
+        logger.info(f"봇 전환: {self.bot}")
+
+    def prev_bot(self):
+        """이전 봇으로 전환"""
+        if not self.bot_list:
+            return
+        
+        self.current_index = (self.current_index - 1) % len(self.bot_list)
+        self.bot = self.bot_list[self.current_index]
+        # 봇이 바뀌면 선택 초기화
+        self.selected_index = 0
+        self.scroll_offset = 0
+        logger.info(f"봇 전환 (이전): {self.bot}")
         
     def render(self, console: tcod.console.Console):
         """렌더링"""
@@ -28,17 +57,20 @@ class BotInventoryUI:
         x = (console.width - width) // 2
         y = (console.height - height) // 2
         
+        # 봇 이름 안전하게 가져오기
+        bot_name = getattr(self.bot, 'bot_name', getattr(self.bot, 'name', 'Unknown Bot'))
+        
         # 프레임 그리기
         console.draw_frame(
             x, y, width, height,
-            title=f" {self.bot.bot_name}의 인벤토리 ",
+            title=f" {bot_name}의 인벤토리 ",
             fg=Colors.WHITE,
             bg=Colors.BLACK
         )
         
         # 봇 정보 표시
         inventory = self._get_inventory()
-        if not inventory:
+        if inventory is None:
             console.print(x + 2, y + 2, "인벤토리를 확인할 수 없습니다.", fg=Colors.RED)
             return
             
@@ -95,6 +127,20 @@ class BotInventoryUI:
             if event.sym == tcod.event.KeySym.ESCAPE:
                 return True
             
+            # 봇 전환 키 (인벤토리 유무와 상관없이 작동해야 함)
+            if event.sym == tcod.event.KeySym.N2 or event.sym == tcod.event.KeySym.KP_2:
+                self.next_bot()
+                return False
+            
+            elif event.sym == tcod.event.KeySym.RIGHT:
+                self.next_bot()
+                return False
+                
+            elif event.sym == tcod.event.KeySym.LEFT:
+                self.prev_bot()
+                return False
+
+            # 인벤토리 조작 키 (인벤토리가 있어야 함)
             inventory = self._get_inventory()
             if not inventory:
                 return False
@@ -117,42 +163,64 @@ class BotInventoryUI:
                 # 아이템 가져오기 (구현 필요)
                 # self._take_item_from_bot()
                 pass
-                
+            
         return False
 
     def _get_inventory(self):
         """봇 인벤토리 객체 가져오기"""
+        # 1. bot.bot_inventory
         if hasattr(self.bot, 'bot_inventory'):
             return self.bot.bot_inventory
-        # 봇 인벤토리가 없으면 캐릭터 인벤토리 시도 (구조에 따라 다름)
+            
+        # 2. bot.inventory
         if hasattr(self.bot, 'inventory'):
             return self.bot.inventory
+            
+        # 3. bot.character.inventory (캐릭터 객체 내부)
+        if hasattr(self.bot, 'character') and hasattr(self.bot.character, 'inventory'):
+            return self.bot.character.inventory
+            
+        # 4. bot_manager.get_inventory(bot_id) 등 외부 참조가 필요할 수도 있음
+        # (여기서는 봇 객체만으로 해결 시도)
+        
+        logger.warning(f"봇 인벤토리를 찾을 수 없음. 봇 속성: {dir(self.bot)}")
+        if hasattr(self.bot, 'character'):
+            logger.warning(f"봇 캐릭터 속성: {dir(self.bot.character)}")
+            
         return None
 
-def open_bot_inventory_ui(console, context, bot, on_update=None):
+def open_bot_inventory_ui(console, context, bot_list, current_index=0, on_update=None):
     """봇 인벤토리 UI 열기 함수"""
-    ui = BotInventoryUI(bot)
-    
-    while True:
-        # 백그라운드 업데이트 실행
-        if on_update:
-            on_update()
+    logger.info(f"open_bot_inventory_ui 시작: {len(bot_list)} bots")
+    try:
+        ui = BotInventoryUI(bot_list, current_index)
+        
+        while True:
+            # 백그라운드 업데이트 실행
+            if on_update:
+                on_update()
 
-        tcod.console.Console.clear(console)
-        
-        # 배경 (기존 화면)은 유지하고 위에 그리기 위해 clear 대신 덮어쓰기 방식 사용 가능
-        # 하지만 간단하게 구현하기 위해 clear 후 다시 그리는 방식 사용
-        # (실제 게임에서는 WorldUI 렌더링 후 이 UI 렌더링 필요)
-        
-        ui.render(console)
-        context.present(console)
-        
-        # 논블로킹 대기 (0.05초 타임아웃)
-        for event in tcod.event.wait(timeout=0.05):
-            if ui.handle_input(event):
-                return
+            tcod.console.Console.clear(console)
             
-            # 창 닫기 이벤트
-            if isinstance(event, tcod.event.Quit):
-                raise SystemExit()
+            try:
+                ui.render(console)
+            except Exception as e:
+                logger.error(f"BotInventoryUI 렌더링 오류: {e}", exc_info=True)
+                console.print(2, 2, f"렌더링 오류: {e}", fg=Colors.RED)
+            
+            context.present(console)
+            
+            # 논블로킹 대기 (0.05초 타임아웃)
+            for event in tcod.event.wait(timeout=0.05):
+                if ui.handle_input(event):
+                    logger.info("open_bot_inventory_ui 종료 (사용자 입력)")
+                    return
+                
+                # 창 닫기 이벤트
+                if isinstance(event, tcod.event.Quit):
+                    raise SystemExit()
+    except Exception as e:
+        logger.error(f"open_bot_inventory_ui 치명적 오류: {e}", exc_info=True)
+    finally:
+        logger.info("open_bot_inventory_ui 함수 리턴")
 

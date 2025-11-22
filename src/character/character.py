@@ -63,6 +63,10 @@ class Character:
         # 현재 HP/MP (StatManager와 별도 관리)
         self.current_hp = self.max_hp
         self.current_mp = self.max_mp
+        
+        # 바라보는 방향 (필드 스킬용)
+        self.dx = 0
+        self.dy = 1  # 기본 아래쪽
 
         # 상처 시스템 (HP 데미지의 일부가 상처로 전환)
         self.wound = 0  # 누적된 상처 (최대 HP 감소)

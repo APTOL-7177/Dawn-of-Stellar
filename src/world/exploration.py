@@ -274,6 +274,10 @@ class ExplorationSystem:
         Returns:
             ExplorationResult
         """
+        # 플레이어 방향 업데이트 (필드 스킬용)
+        self.player.dx = dx
+        self.player.dy = dy
+
         new_x = self.player.x + dx
         new_y = self.player.y + dy
 

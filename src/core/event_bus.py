@@ -143,6 +143,7 @@ class Events:
     UI_MENU_OPEN = "ui.menu_open"
     UI_MENU_CLOSE = "ui.menu_close"
     UI_DIALOG_SHOW = "ui.dialog_show"
+    CHAT_MESSAGE_RECEIVED = "ui.chat_message"  # 채팅 메시지 수신
 
     # Audio Events
     AUDIO_BGM_CHANGE = "audio.bgm_change"

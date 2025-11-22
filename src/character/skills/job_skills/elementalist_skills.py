@@ -27,11 +27,11 @@ def create_elementalist_skills():
     spirit_burst.sfx = ("skill", "cast_complete")  # 정령 폭발
     spirit_burst.metadata = {}
 
-    # 3. 화염 정령 소환 (공격력 +20%, 화상)
-    summon_fire = Skill("elementalist_summon_fire", "화염 정령 소환", "공격력 +20%, 화상 피해")
+    # 3. 화염 정령 소환 (마법 공격력 +20%, 화상)
+    summon_fire = Skill("elementalist_summon_fire", "화염 정령 소환", "마법 공격력 +20%, 화상 피해")
     summon_fire.effects = [
         GimmickEffect(GimmickOperation.ADD, "spirit_fire", 1, max_value=1),  # 화염 정령 소환
-        BuffEffect(BuffType.ATTACK_UP, 0.2, duration=99),  # 정령 소환 중 지속
+        BuffEffect(BuffType.MAGIC_UP, 0.2, duration=99),  # 정령 소환 중 지속
         DamageEffect(DamageType.BRV, 1.8, stat_type="magical")
     ]
     summon_fire.costs = []

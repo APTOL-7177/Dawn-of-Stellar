@@ -612,8 +612,10 @@ class StatusManager:
                 modifiers['evasion'] *= (1.0 + intensity * 0.2)
             elif effect.status_type == StatusType.BOOST_MAGIC_ATK:
                 modifiers['magic_attack'] *= (1.0 + intensity * 0.25)
+                modifiers['physical_attack'] *= (1.0 + intensity * 0.25)
             elif effect.status_type == StatusType.BOOST_MAGIC_DEF:
                 modifiers['magic_defense'] *= (1.0 + intensity * 0.25)
+                modifiers['physical_defense'] *= (1.0 + intensity * 0.25)
             elif effect.status_type == StatusType.BOOST_ALL_STATS:
                 for key in modifiers:
                     modifiers[key] *= (1.0 + intensity * 0.15)
@@ -655,7 +657,9 @@ class StatusManager:
                 modifiers['critical_rate'] *= 1.2
             elif effect.status_type == StatusType.RAGE:
                 modifiers['physical_attack'] *= 1.4
+                modifiers['magic_attack'] *= 1.4
                 modifiers['physical_defense'] *= 0.8
+                modifiers['magic_defense'] *= 0.8
             elif effect.status_type == StatusType.BERSERK:
                 modifiers['physical_attack'] *= 1.6
                 modifiers['magic_attack'] *= 1.6

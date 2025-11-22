@@ -27,6 +27,7 @@ from src.core.logger import get_logger
 from src.persistence.meta_progress import get_meta_progress
 from src.multiplayer.bot_communication import get_communication_network
 from src.multiplayer.bot_tasks import TaskQueue, TaskType, BotTask
+from src.core.event_bus import event_bus, Events
 
 
 class BotBehavior(Enum):
@@ -2990,7 +2991,7 @@ class AdvancedAIBot:
                 # message_log 시스템이 있다면 추가
                 pass
         
-        elif command == BotCommand.ITEM_CHECK:
+        elif command == BotCommand.SHOW_INVENTORY:
             self.logger.info(f"봇 {self.bot_name} 아이템 확인 요청")
             self._send_chat_message(f"{self.bot_name}: 아이템을 확인해주세요")
         
@@ -3126,8 +3127,13 @@ class AdvancedAIBot:
                 self.network_manager.broadcast(chat_msg)
                 
                 # 2. 호스트의 로컬 채팅창(UI)에도 메시지 추가 (중요)
-                # 호스트는 네트워크 패킷을 받아 처리하는 루프 외에
-                # 자신이 보낸 메시지를 직접 UI에 반영해야 할 수 있음
+                # 이벤트 버스를 통해 UI에 알림
+                event_bus.publish(Events.CHAT_MESSAGE_RECEIVED, {
+                    "player_id": self.bot_id,
+                    "message": message,
+                    "player_name": self.bot_name
+                })
+                
                 if hasattr(self.session, 'add_chat_message'):
                     self.session.add_chat_message(self.bot_id, message)
                 else:
@@ -3940,6 +3946,17 @@ class AdvancedAIBot:
         
         # nearby_players나 세션에서 최신 위치 확인
         exploration = self._get_exploration_system()
+        
+        # 0. exploration.player 직접 확인 (가장 확실한 로컬 플레이어 위치)
+        if exploration and hasattr(exploration, 'player'):
+            # 로컬 플레이어 위치
+            local_pos = (exploration.player.x, exploration.player.y)
+            if local_pos != self.target_position:
+                target_x, target_y = local_pos
+                self.target_position = local_pos
+                target_changed = True
+                # self.logger.debug(f"봇 {self.bot_name} 따라가기 목표 위치(로컬) 업데이트: {local_pos}")
+
         if exploration and hasattr(exploration, 'local_player_id'):
             local_player_id = exploration.local_player_id
             # nearby_players에서 최신 위치 확인
@@ -3973,9 +3990,38 @@ class AdvancedAIBot:
         
         # 목표 위치가 변경되었거나 경로가 없으면 새로운 경로 계산
         if target_changed or not self.path_to_target or (self.current_x, self.current_y) not in self.path_to_target:
+            # 목표 위치가 플레이어 위치라면, 플레이어와 겹치지 않도록 인접한 타일을 목표로 설정
+            actual_target = (target_x, target_y)
+            
+            # 목표 위치가 장애물(플레이어 등)일 수 있으므로 인접한 타일 중 가장 가까운 곳을 찾음
+            if (target_x, target_y) != (self.current_x, self.current_y):
+                min_dist = float('inf')
+                best_adj = None
+                
+                # 8방향 확인 (대각선 포함)
+                for dy in range(-1, 2):
+                    for dx in range(-1, 2):
+                        if dx == 0 and dy == 0: continue
+                        
+                        adj_x, adj_y = target_x + dx, target_y + dy
+                        
+                        # 맵 범위 및 이동 가능 확인
+                        if (0 <= adj_x < dungeon.width and 
+                            0 <= adj_y < dungeon.height and 
+                            dungeon.is_walkable(adj_x, adj_y)):
+                            
+                            dist = abs(self.current_x - adj_x) + abs(self.current_y - adj_y)
+                            if dist < min_dist:
+                                min_dist = dist
+                                best_adj = (adj_x, adj_y)
+                
+                if best_adj:
+                    actual_target = best_adj
+                    # self.logger.debug(f"봇 {self.bot_name} 따라가기 목표 조정: {self.target_position} -> {actual_target}")
+
             self.path_to_target = self._find_safe_path(
                 (self.current_x, self.current_y),
-                (target_x, target_y),
+                actual_target,
                 dungeon,
                 exploration
             )
