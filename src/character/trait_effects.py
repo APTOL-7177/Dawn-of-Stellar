@@ -2857,6 +2857,7 @@ class TraitEffectManager:
                     if hasattr(character, 'restore_mp'):
                         actual = character.restore_mp(mp_amount)
                         self.logger.info(
+                            f"[{trait_id}] {character.name} MP 회복: {actual} ({effect.value * 100}%)"
                         )
 
     def apply_on_kill_effects(self, attacker: Any, defender: Any):

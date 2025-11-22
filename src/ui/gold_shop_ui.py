@@ -313,8 +313,8 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     items[GoldShopTab.SERVICE].append(
         GoldShopItem(
             "장비 재연마",
-            "장비의 추가 옵션을 무작위로 변경합니다. (비용: 500 G)",
-            500,
+            "장비의 추가 옵션을 무작위로 변경합니다. (비용: 250 G)",
+            250,
             None,
             "service_reforge",
             stock=-1  # 무제한
@@ -634,7 +634,7 @@ class GoldShopUI:
 
         # 커서 메뉴 생성
         self.reforge_menu = CursorMenu(
-            title="재연마할 장비 선택 (비용: 500G)",
+            title="재연마할 장비 선택 (비용: 250G)",
             items=menu_items,
             x=(self.screen_width - 60) // 2,
             y=(self.screen_height - 30) // 2,
@@ -645,7 +645,7 @@ class GoldShopUI:
 
     def _execute_reforge(self, item):
         """재연마 실행"""
-        cost = 500
+        cost = 250
         if self.inventory.gold < cost:
             logger.warning(f"골드가 부족합니다. (필요: {cost}G)")
             return
