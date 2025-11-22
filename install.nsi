@@ -92,103 +92,91 @@ InstType "Minimal Installation"
 ;--------------------------------
 ; Sections
 
-Section "Game Files" SEC01
+Section "Git Repository Clone" SEC01
     SectionIn RO 1 2
     
-    SetOutPath "$INSTDIR"
+    DetailPrint "Checking Git installation..."
     
-    ; Essential Files (Root Level)
-    File "main.py"
-    File "config.yaml"
-    File "requirements.txt"
-    File "README.md"
-    File "pyproject.toml"
-    File "name.txt"
-    IfFileExists "LICENSE" 0 NoLicense
-    File "LICENSE"
-    NoLicense:
-    IfFileExists "build.spec" 0 NoBuildSpec
-    File "build.spec"
-    NoBuildSpec:
+    ; Find Git Path
+    ClearErrors
+    ReadEnvStr $GitPath "GIT"
+    IfErrors 0 GitFound
     
-    ; Launcher Files
-    IfFileExists "launcher.py" 0 NoLauncher
-    File "launcher.py"
-    NoLauncher:
-    IfFileExists "launcher.bat" 0 NoLauncherBat
-    File "launcher.bat"
-    NoLauncherBat:
-    IfFileExists "launcher_cli.py" 0 NoLauncherCLI
-    File "launcher_cli.py"
-    NoLauncherCLI:
+    ; Find Git in PATH
+    ClearErrors
+    ExecWait 'git --version' $0
+    IfErrors 0 GitFound
     
-    ; Update Scripts
-    IfFileExists "update.ps1" 0 NoUpdatePS1
-    File "update.ps1"
-    NoUpdatePS1:
-    IfFileExists "update.bat" 0 NoUpdateBat
-    File "update.bat"
-    NoUpdateBat:
+    ; Check Common Git Installation Path
+    IfFileExists "$PROGRAMFILES\Git\cmd\git.exe" 0 GitNotFound
+    StrCpy $GitPath "$PROGRAMFILES\Git\cmd\git.exe"
+    Goto GitFound
     
-    ; Font Files
-    IfFileExists "D2Coding.ttc" 0 NoD2CodingTTC
-    File "D2Coding.ttc"
-    NoD2CodingTTC:
-    IfFileExists "D2Coding.ttf" 0 NoD2CodingTTF
-    File "D2Coding.ttf"
-    NoD2CodingTTF:
-    IfFileExists "dalmoori.ttf" 0 NoDalmoori
-    File "dalmoori.ttf"
-    NoDalmoori:
-    IfFileExists "DOSMyungjo.ttf" 0 NoDOSMyungjo
-    File "DOSMyungjo.ttf"
-    NoDOSMyungjo:
-    IfFileExists "GalmuriMono9.ttf" 0 NoGalmuriMono9
-    File "GalmuriMono9.ttf"
-    NoGalmuriMono9:
-    IfFileExists "GalmuriMono9.bdf" 0 NoGalmuriMono9BDF
-    File "GalmuriMono9.bdf"
-    NoGalmuriMono9BDF:
+GitNotFound:
+    DetailPrint "Git is not installed."
+    MessageBox MB_YESNO|MB_ICONSTOP "Git is required to download game files.$\n$\nOpen Git download page?" IDYES OpenGitDownload IDNO CancelInstall
+    OpenGitDownload:
+        ExecShell "open" "https://git-scm.com/download/win"
+        MessageBox MB_OK "Please install Git and run this installer again."
+    CancelInstall:
+    Abort "Git is required for installation"
     
-    ; Source Code
-    SetOutPath "$INSTDIR\src"
-    File /r "src\*.*"
+GitFound:
+    DetailPrint "Git found: $GitPath"
     
-    ; Data Files
-    SetOutPath "$INSTDIR\data"
-    File /r "data\*.*"
+    ; Clone Repository to Temporary Directory First
+    DetailPrint "Cloning repository from GitHub..."
+    DetailPrint "This may take a few minutes..."
     
-    ; Config Files
-    SetOutPath "$INSTDIR\config"
-    File /r "config\*.*"
+    ; Create temporary directory for cloning
+    GetTempFileName $0
+    Delete $0
+    CreateDirectory "$0\clone"
+    StrCpy $1 "$0\clone"
     
-    ; Assets (Audio, Images, etc.)
-    SetOutPath "$INSTDIR\assets"
-    File /r "assets\*.*"
+    ; Clone repository to temporary directory
+    ExecWait 'git clone https://github.com/APTOL-7177/Dawn-of-Stellar.git "$1\Dawn-of-Stellar"' $2
+    IfErrors 0 CloneSuccess
+    DetailPrint "Repository clone failed"
+    RMDir /r "$0"
+    MessageBox MB_OK|MB_ICONSTOP "Failed to clone repository.$\n$\nPlease check your internet connection and try again.$\n$\nError code: $2"
+    Abort "Repository clone failed"
     
-    ; Documentation
-    SetOutPath "$INSTDIR\docs"
-    File /r "docs\*.*"
+CloneSuccess:
+    DetailPrint "Repository clone complete!"
     
-    ; Examples
-    IfFileExists "examples\*.*" 0 NoExamples
-    SetOutPath "$INSTDIR\examples"
-    File /r "examples\*.*"
-    NoExamples:
+    ; Verify essential files in cloned directory
+    IfFileExists "$1\Dawn-of-Stellar\main.py" 0 CloneFailed
+    IfFileExists "$1\Dawn-of-Stellar\requirements.txt" 0 CloneFailed
+    IfFileExists "$1\Dawn-of-Stellar\src" 0 CloneFailed
+    Goto CloneVerified
     
-    ; Scripts (Optional, for development)
-    IfFileExists "scripts\*.*" 0 NoScripts
-    SetOutPath "$INSTDIR\scripts"
-    File /r "scripts\*.*"
-    NoScripts:
+CloneFailed:
+    DetailPrint "Cloned repository is missing essential files"
+    RMDir /r "$0"
+    MessageBox MB_OK|MB_ICONSTOP "Cloned repository is incomplete.$\n$\nPlease try again or contact support."
+    Abort "Repository clone incomplete"
     
-    ; Web Files (Optional)
-    IfFileExists "web\*.*" 0 NoWeb
-    SetOutPath "$INSTDIR\web"
-    File /r "web\*.*"
-    NoWeb:
+CloneVerified:
+    DetailPrint "Repository verified successfully"
     
-    ; Start Scripts
+    ; Remove existing installation directory if exists
+    IfFileExists "$INSTDIR" 0 NoExistingDir
+    DetailPrint "Removing existing installation directory..."
+    RMDir /r "$INSTDIR"
+    NoExistingDir:
+    
+    ; Move cloned files to installation directory
+    DetailPrint "Moving files to installation directory..."
+    CreateDirectory "$INSTDIR"
+    CopyFiles /SILENT "$1\Dawn-of-Stellar\*.*" "$INSTDIR\"
+    
+    ; Clean up temporary directory
+    RMDir /r "$0"
+    
+    DetailPrint "Files moved to installation directory"
+    
+    ; Start Scripts (created after Git clone)
     SetOutPath "$INSTDIR"
     FileOpen $0 "$INSTDIR\start_game.bat" w
     FileWrite $0 "@echo off$\r$\n"
@@ -220,13 +208,13 @@ Section "Game Files" SEC01
     FileWrite $0 "pause$\r$\n"
     FileClose $0
     
+    ; Create Uninstaller (before moving to cloned directory)
+    WriteUninstaller "$INSTDIR\uninstall.exe"
+    
     ; Registry Keys
     WriteRegStr HKCR "${PRODUCT_DIR_REGKEY}" "" "$INSTDIR\main.py"
     WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_DIR_REGKEY}" "" "$INSTDIR\main.py"
     WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_ROOT_KEY}\${PRODUCT_NAME}" "Path" "$INSTDIR"
-    
-    ; Create Uninstaller
-    WriteUninstaller "$INSTDIR\uninstall.exe"
     
     ; Uninstaller Registry Keys
     WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayName" "$(^Name)"
@@ -392,77 +380,21 @@ SectionEnd
 Section "Update Feature" SEC04
     SectionIn 1
     
-    ; Copy Update Scripts
-    SetOutPath "$INSTDIR"
-    IfFileExists "update.ps1" 0 NoUpdatePS1
-    File "update.ps1"
-    NoUpdatePS1:
-    IfFileExists "update.bat" 0 NoUpdateBat
-    File "update.bat"
+    ; Update scripts are already in cloned repository
+    ; Create Update Shortcut (update.bat should exist in cloned repo)
+    IfFileExists "$INSTDIR\update.bat" 0 NoUpdateBat
+    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Update Game.lnk" "$INSTDIR\update.bat" "" "$INSTDIR\logo.ico" 0
     NoUpdateBat:
-    
-    ; Create Update Shortcut
-    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Update Game.lnk" "$INSTDIR\update.bat" "" "$INSTDIR\update.ps1" 0
-SectionEnd
-
-Section "Git Repository Clone (Optional)" SEC05
-    SectionIn 1
-    
-    DetailPrint "Checking Git installation..."
-    
-    ; Find Git Path
-    ClearErrors
-    ReadEnvStr $GitPath "GIT"
-    IfErrors 0 GitFound
-    
-    ; Find Git in PATH
-    ClearErrors
-    ExecWait 'git --version' $0
-    IfErrors 0 GitFound
-    
-    ; Check Common Git Installation Path
-    IfFileExists "$PROGRAMFILES\Git\cmd\git.exe" 0 GitNotFound
-    StrCpy $GitPath "$PROGRAMFILES\Git\cmd\git.exe"
-    Goto GitFound
-    
-GitNotFound:
-    DetailPrint "Git is not installed."
-    MessageBox MB_YESNO|MB_ICONQUESTION "Git is useful for source code updates (optional).$\n$\nOpen Git download page?" IDYES OpenGitDownload IDNO SkipGit
-    OpenGitDownload:
-        ExecShell "open" "https://git-scm.com/download/win"
-    SkipGit:
-    Goto GitCheckDone
-    
-GitFound:
-    DetailPrint "Git found: $GitPath"
-    
-    ; Ask to Clone Repository
-    MessageBox MB_YESNO|MB_ICONQUESTION "Clone latest source code from GitHub?$\n$\n(You can skip if already installed)" IDYES CloneRepository IDNO SkipClone
-    
-CloneRepository:
-    DetailPrint "Cloning repository..."
-    ExecWait 'git clone https://github.com/APTOL-7177/Dawn-of-Stellar.git "$INSTDIR\source"' $0
-    IfErrors 0 CloneSuccess
-    DetailPrint "Repository clone failed"
-    MessageBox MB_OK "Repository clone failed.$\n$\nTo clone manually:$\ngit clone https://github.com/APTOL-7177/Dawn-of-Stellar.git"
-    Goto GitCheckDone
-    
-CloneSuccess:
-    DetailPrint "Repository clone complete!"
-    
-SkipClone:
-GitCheckDone:
 SectionEnd
 
 ;--------------------------------
 ; Descriptions
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-  !insertmacro MUI_DESCRIPTION_TEXT ${SEC01} "Install all files required to run the game. (Includes launcher)"
+  !insertmacro MUI_DESCRIPTION_TEXT ${SEC01} "Download all game files from GitHub repository. (Git required)"
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC02} "Create launcher shortcuts in Start Menu and Desktop."
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC03} "Automatically install Python packages. (Python 3.10+ required)"
-  !insertmacro MUI_DESCRIPTION_TEXT ${SEC04} "Install game update scripts. (Git repository required)"
-  !insertmacro MUI_DESCRIPTION_TEXT ${SEC05} "Clone latest source code from GitHub. (Optional)"
+  !insertmacro MUI_DESCRIPTION_TEXT ${SEC04} "Create update shortcut. (Update scripts included in repository)"
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;--------------------------------
@@ -472,37 +404,14 @@ Section "Uninstall"
     ; Delete Uninstaller
     Delete "$INSTDIR\uninstall.exe"
     
-    ; Delete Game Files
-    RMDir /r "$INSTDIR\src"
-    RMDir /r "$INSTDIR\data"
-    RMDir /r "$INSTDIR\config"
-    RMDir /r "$INSTDIR\docs"
-    RMDir /r "$INSTDIR\assets"
-    RMDir /r "$INSTDIR\examples"
-    RMDir /r "$INSTDIR\scripts"
-    RMDir /r "$INSTDIR\web"
-    RMDir /r "$INSTDIR\source"
-    Delete "$INSTDIR\main.py"
-    Delete "$INSTDIR\launcher.py"
-    Delete "$INSTDIR\launcher.bat"
-    Delete "$INSTDIR\launcher_cli.py"
-    Delete "$INSTDIR\update.ps1"
-    Delete "$INSTDIR\update.bat"
-    Delete "$INSTDIR\config.yaml"
-    Delete "$INSTDIR\requirements.txt"
-    Delete "$INSTDIR\README.md"
-    Delete "$INSTDIR\pyproject.toml"
-    Delete "$INSTDIR\name.txt"
-    Delete "$INSTDIR\LICENSE"
-    Delete "$INSTDIR\build.spec"
+    ; Delete all files (everything was cloned from Git)
+    ; Delete generated scripts first
     Delete "$INSTDIR\start_game.bat"
     Delete "$INSTDIR\start_game_direct.bat"
     Delete "$INSTDIR\start_game_dev.bat"
-    Delete "$INSTDIR\logo.ico"
-    Delete "$INSTDIR\logo.png"
-    Delete "$INSTDIR\*.ttc"
-    Delete "$INSTDIR\*.ttf"
-    Delete "$INSTDIR\*.bdf"
+    
+    ; Delete entire directory (contains all cloned files)
+    RMDir /r "$INSTDIR"
     
     ; Delete Start Menu Shortcuts
     RMDir /r "$SMPROGRAMS\${PRODUCT_NAME}"
