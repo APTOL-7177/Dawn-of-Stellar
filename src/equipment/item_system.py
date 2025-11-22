@@ -6,7 +6,7 @@
 
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 import random
 
 # Equipment effects 임포트 (순환 참조 방지를 위해 lazy import 사용)
@@ -79,9 +79,18 @@ class ItemAffix:
         }
         display_stat = stat_names.get(self.stat, self.stat.upper())
         
+        # 등급 표시 (값의 크기에 따라)
+        grade = ""
         if self.is_percentage:
-            return f"{display_stat} +{int(self.value * 100)}%"
+            val = self.value * 100
+            if val >= 20: grade = "(S)"
+            elif val >= 15: grade = "(A)"
+            elif val >= 10: grade = "(B)"
+            else: grade = "(C)"
+            return f"{display_stat} +{int(val)}% {grade}"
         else:
+            # 고정값은 스탯 종류에 따라 기준이 다름 (대략적인 구분)
+            grade = ""
             return f"{display_stat} +{int(self.value)}"
 
 
@@ -100,9 +109,27 @@ class Item:
     stack_size: int = 1
     sell_price: int = 0
     weight: float = 1.0  # 무게 (kg)
+    max_durability: int = 100  # 최대 내구도
+    current_durability: int = 100  # 현재 내구도
+
+    def __post_init__(self):
+        """초기화 후 처리"""
+        # 등급에 따른 최대 내구도 설정 (기본값 100에서 덮어쓰기)
+        durability_map = {
+            ItemRarity.COMMON: 50,
+            ItemRarity.UNCOMMON: 80,
+            ItemRarity.RARE: 120,
+            ItemRarity.EPIC: 200,
+            ItemRarity.LEGENDARY: 300,
+            ItemRarity.UNIQUE: 500
+        }
+        # 생성 시 max_durability가 명시적으로 주어지지 않았거나 기본값인 경우 재설정
+        if self.max_durability == 100:
+            self.max_durability = durability_map.get(self.rarity, 100)
+            self.current_durability = self.max_durability
 
     def get_total_stats(self) -> Dict[str, float]:
-        """기본 스탯 + 접사 스탯 합계"""
+        """기본 스탯 + 접사 스탯 합계 (내구도 0일 때 50% 패널티)"""
         total = self.base_stats.copy()
 
         for affix in self.affixes:
@@ -113,7 +140,12 @@ class Item:
                     total[affix.stat] += affix.value
             else:
                 total[affix.stat] = affix.value
-
+        
+        # 내구도가 0이면 스탯 50% 감소
+        if self.current_durability <= 0:
+            for stat in total:
+                total[stat] *= 0.5
+                
         return total
 
     def get_full_description(self) -> List[str]:
@@ -2472,6 +2504,32 @@ AFFIX_POOL = {
     # 명중/크리
     "of_accuracy": ItemAffix("of_accuracy", "정확의", "accuracy", 10, False),
     "of_luck": ItemAffix("of_luck", "행운의", "luck", 5, False),
+
+    # === 추가 옵션 확장 ===
+    # 공격 관련
+    "of_destruction": ItemAffix("of_destruction", "파괴의", "critical_damage", 0.30, True),
+    "piercing": ItemAffix("piercing", "관통하는", "armor_penetration", 0.15, True),
+    "vampiric": ItemAffix("vampic", "흡혈의", "lifesteal", 0.05, True),
+    "soul_stealing": ItemAffix("soul_stealing", "영혼 강탈의", "mana_steal", 0.05, True),
+    "bloodthirsty": ItemAffix("bloodthirsty", "피에 굶주린", "heal_on_kill", 20, False),
+    
+    # 속성 공격
+    "flaming": ItemAffix("flaming", "화염의", "fire_damage", 15, False),
+    "freezing": ItemAffix("freezing", "빙결의", "ice_damage", 15, False),
+    "shocking": ItemAffix("shocking", "전격의", "lightning_damage", 15, False),
+
+    # 방어 관련
+    "iron_wall": ItemAffix("iron_wall", "철벽의", "physical_damage_reduction", 0.10, True),
+    "antimagic": ItemAffix("antimagic", "마법 차단의", "magic_damage_reduction", 0.10, True),
+    "regenerating": ItemAffix("regenerating", "재생의", "hp_regen", 5, False),
+    "meditating": ItemAffix("meditating", "명상의", "mp_regen", 3, False),
+    "unyielding": ItemAffix("unyielding", "불굴의", "status_resistance", 0.20, True),
+
+    # 유틸리티
+    "enlightened": ItemAffix("enlightened", "깨달음의", "exp_bonus", 0.10, True),
+    "wealthy": ItemAffix("wealthy", "부유한", "gold_bonus", 0.15, True),
+    "farsight": ItemAffix("farsight", "천리안의", "vision_bonus", 1, False),
+    "cautious": ItemAffix("cautious", "신중한", "trap_disarm", 0.20, True),
 }
 
 
@@ -2479,26 +2537,88 @@ class ItemGenerator:
     """아이템 생성기"""
 
     @staticmethod
-    def generate_random_affixes(rarity: ItemRarity) -> List[ItemAffix]:
-        """등급에 따라 랜덤 접사 생성"""
-        num_affixes = {
-            ItemRarity.COMMON: 0,
-            ItemRarity.UNCOMMON: 1,
-            ItemRarity.RARE: 2,
-            ItemRarity.EPIC: 3,
-            ItemRarity.LEGENDARY: 4,
-            ItemRarity.UNIQUE: 0  # 유니크는 고정 능력
+    def generate_random_affixes(rarity: ItemRarity, level: int = 1) -> List[ItemAffix]:
+        """
+        등급과 레벨에 따라 랜덤 접사 생성
+        
+        Args:
+            rarity: 아이템 등급
+            level: 아이템 레벨 (수치 스케일링용)
+        """
+        # 등급별 접사 개수 (최소~최대)
+        affix_counts = {
+            ItemRarity.COMMON: (1, 1),      # 일반도 1개 부여
+            ItemRarity.UNCOMMON: (1, 2),
+            ItemRarity.RARE: (2, 3),
+            ItemRarity.EPIC: (3, 4),
+            ItemRarity.LEGENDARY: (4, 5),
+            ItemRarity.UNIQUE: (0, 0)       # 유니크는 고정
         }
 
-        count = num_affixes.get(rarity, 0)
-        if count == 0:
+        min_cnt, max_cnt = affix_counts.get(rarity, (0, 0))
+        if max_cnt == 0:
             return []
+            
+        count = random.randint(min_cnt, max_cnt)
 
-        # 랜덤 접사 선택
+        # 랜덤 접사 선택 및 수치 조정
         available_affixes = list(AFFIX_POOL.values())
-        selected = random.sample(available_affixes, min(count, len(available_affixes)))
+        selected_base = random.sample(available_affixes, min(count, len(available_affixes)))
+        
+        final_affixes = []
+        for base_affix in selected_base:
+            # 레벨에 따른 수치 보정 (기본값 + 레벨 * 계수)
+            # 등급에 따른 추가 보정 (등급이 높으면 더 높은 수치가 나올 확률 증가)
+            
+            # 변동폭: 0.8 ~ 1.5 (등급 보너스 추가)
+            rarity_bonus = {
+                ItemRarity.COMMON: 0.0,
+                ItemRarity.UNCOMMON: 0.1,
+                ItemRarity.RARE: 0.2,
+                ItemRarity.EPIC: 0.3,
+                ItemRarity.LEGENDARY: 0.5
+            }.get(rarity, 0.0)
+            
+            variance = random.uniform(0.8, 1.2) + rarity_bonus
+            
+            # 레벨 스케일링 (레벨 10당 2배)
+            level_multiplier = 1.0 + (level * 0.1)
+            
+            new_value = base_affix.value * variance * level_multiplier
+            
+            # 퍼센트 옵션은 최대치 제한 (밸런스)
+            if base_affix.is_percentage:
+                new_value = min(new_value, 0.50)  # 최대 50%
+            
+            new_affix = ItemAffix(
+                id=base_affix.id,
+                name=base_affix.name,
+                stat=base_affix.stat,
+                value=new_value,
+                is_percentage=base_affix.is_percentage
+            )
+            final_affixes.append(new_affix)
 
-        return selected
+        return final_affixes
+
+    @staticmethod
+    def reforge_item(item: Equipment, gold_cost: int = 0) -> Tuple[bool, str]:
+        """
+        아이템 재연마 (접사 재부여)
+        
+        Args:
+            item: 대상 아이템
+            gold_cost: 소모 골드 (외부에서 확인)
+            
+        Returns:
+            (성공 여부, 메시지)
+        """
+        if item.rarity == ItemRarity.UNIQUE:
+            return False, "유니크 아이템은 재연마할 수 없습니다."
+            
+        new_affixes = ItemGenerator.generate_random_affixes(item.rarity, item.level_requirement)
+        item.affixes = new_affixes
+        return True, "아이템의 옵션이 변경되었습니다."
 
     @staticmethod
     def create_weapon(template_id: str, add_random_affixes: bool = True) -> Equipment:
@@ -2509,7 +2629,7 @@ class ItemGenerator:
 
         affixes = []
         if add_random_affixes:
-            affixes = ItemGenerator.generate_random_affixes(template["rarity"])
+            affixes = ItemGenerator.generate_random_affixes(template["rarity"], template["level_requirement"])
 
         # 무게 계산: 등급에 따라 3~15kg
         rarity_weight = {
@@ -2545,7 +2665,7 @@ class ItemGenerator:
 
         affixes = []
         if add_random_affixes:
-            affixes = ItemGenerator.generate_random_affixes(template["rarity"])
+            affixes = ItemGenerator.generate_random_affixes(template["rarity"], template["level_requirement"])
 
         # 무게 계산: 등급에 따라 5~25kg (방어구는 무거움)
         rarity_weight = {
@@ -2581,7 +2701,7 @@ class ItemGenerator:
 
         affixes = []
         if add_random_affixes:
-            affixes = ItemGenerator.generate_random_affixes(template["rarity"])
+            affixes = ItemGenerator.generate_random_affixes(template["rarity"], template["level_requirement"])
 
         # 무게 계산: 0.1~0.5kg (가벼움)
         rarity_weight = {

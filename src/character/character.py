@@ -808,6 +808,17 @@ class Character:
         actual_damage = min(final_damage, self.current_hp)
         self.current_hp -= actual_damage
 
+        # 내구도 감소 (피해를 입었을 때)
+        if actual_damage > 0:
+            # 1. 방어구 내구도 감소 (모든 피해)
+            if self.equipment.get("armor"):
+                self.degrade_equipment("armor", 1)
+            
+            # 2. 장신구 내구도 감소 (마법 피해일 때만)
+            damage_type = damage_event_data.get("damage_type", "physical")
+            if damage_type == "magical" and self.equipment.get("accessory"):
+                self.degrade_equipment("accessory", 1)
+
         # 특성 효과: 보복 (retaliation) - 피해 받을 때마다 공격력 증가
         if actual_damage > 0 and hasattr(self, 'active_traits'):
             from src.character.trait_effects import TraitEffectType
@@ -1084,6 +1095,85 @@ class Character:
         })
 
         return item
+
+    def update_equipment_stats(self, slot: str) -> None:
+        """장비 스탯 재계산 (내구도 변경 시 호출)"""
+        item = self.equipment.get(slot)
+        
+        # 1. 기존 보너스 제거
+        # 스탯 이름 매핑
+        stat_mapping = {
+            "physical_attack": Stats.STRENGTH,
+            "physical_defense": Stats.DEFENSE,
+            "magic_attack": Stats.MAGIC,
+            "magic_defense": Stats.SPIRIT,
+            "hp": Stats.HP,
+            "mp": Stats.MP,
+            "speed": Stats.SPEED,
+            "accuracy": Stats.ACCURACY,
+            "evasion": Stats.EVASION,
+            "luck": Stats.LUCK,
+            "init_brv": Stats.INIT_BRV,
+            "max_brv": Stats.MAX_BRV,
+            "strength": Stats.STRENGTH,
+            "defense": Stats.DEFENSE,
+            "magic": Stats.MAGIC,
+            "spirit": Stats.SPIRIT,
+        }
+
+        # 모든 가능한 스탯에 대해 보너스 제거 시도 (어떤 스탯이 있었는지 모르므로)
+        # 또는 StatManager의 bonuses 딕셔너리를 순회하며 해당 source를 가진 보너스 제거가 이상적이나
+        # 현재 StatManager 구조상 remove_bonus는 key가 필요함.
+        # 따라서 일반적인 스탯들을 모두 순회하며 제거 시도.
+        for stat_enum in Stats:
+            self.stat_manager.remove_bonus(stat_enum, f"equipment_{slot}")
+
+        if not item:
+            return
+
+        # 2. 새 보너스 적용 (내구도 반영된 get_total_stats 사용)
+        if hasattr(item, "get_total_stats"):
+            total_stats = item.get_total_stats()
+            for stat_name, bonus in total_stats.items():
+                mapped_stat = stat_mapping.get(stat_name, stat_name)
+                self.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}", bonus)
+
+    def degrade_equipment(self, slot: str, amount: int = 1) -> bool:
+        """
+        장비 내구도 감소
+        
+        Args:
+            slot: 장비 슬롯
+            amount: 감소량
+            
+        Returns:
+            파괴 여부 (True if broken this time)
+        """
+        item = self.equipment.get(slot)
+        if not item:
+            return False
+            
+        if not hasattr(item, 'current_durability'):
+            return False
+            
+        if item.current_durability <= 0:
+            return False
+            
+        old_state = item.current_durability > 0
+        item.current_durability = max(0, item.current_durability - amount)
+        new_state = item.current_durability > 0
+        
+        # 내구도가 0이 되어 파괴된 경우 (또는 그 반대) 스탯 업데이트
+        if old_state != new_state:
+            if not new_state:
+                # 내구도 0 -> 파괴됨
+                self.logger.warning(f"{self.name}의 {item.name}이(가) 내구도가 다해 파괴되었습니다!")
+                self.unequip_item(slot)  # 장착 해제 (인벤토리로 돌아가지 않고 소멸됨)
+                return True
+            else:
+                self.update_equipment_stats(slot)
+                
+        return False
 
     # ===== Trait (특성) 관련 =====
 

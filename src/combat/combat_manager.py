@@ -259,6 +259,11 @@ class CombatManager:
                 status_name = blocking_status or "행동 불가 상태"
                 self.logger.warning(f"{getattr(actor, 'name', 'Unknown')}은(는) {status_name}로 인해 행동할 수 없습니다. (턴 스킵)")
                 
+                # 행동 불가 상태에서도 상태이상 지속시간은 감소해야 함
+                expired = actor.status_manager.update_duration()
+                if expired:
+                    self.logger.debug(f"{getattr(actor, 'name', 'Unknown')}: {len(expired)}개 상태 효과 만료 (행동 불가 중)")
+
                 # 턴 스킵 처리 (ATB 소비 및 턴 종료)
                 self.atb.consume_atb(actor)
                 self._on_turn_end(actor)
@@ -552,6 +557,10 @@ class CombatManager:
         else:
             # 명중 SFX 재생
             play_sfx("combat", "attack_physical")
+            
+            # 무기 내구도 감소 (명중 시에만, skip_degrade 플래그 확인)
+            if hasattr(attacker, 'degrade_equipment') and not kwargs.get('skip_degrade', False):
+                attacker.degrade_equipment("weapon", 1)
 
         # BRV 공격 적용
         brv_result = self.brave.brv_attack(attacker, defender, damage_result.final_damage)
@@ -616,6 +625,11 @@ class CombatManager:
         # HP 공격 적용 (BRV 소비 및 데미지 적용)
         # brave.hp_attack()이 take_damage()를 내부적으로 호출함
         hp_result = self.brave.hp_attack(attacker, defender, hp_multiplier)
+
+        # 무기 내구도 감소 (skip_degrade 플래그 확인)
+        # HP 공격은 빗나감이 없으므로(BRV 0이면 0데미지지만 공격 자체는 성공) 항상 내구도 감소 시도
+        if hasattr(attacker, 'degrade_equipment') and not kwargs.get('skip_degrade', False):
+            attacker.degrade_equipment("weapon", 1)
 
         # HP 공격 후 BRV 0 확인 (안전장치)
         if attacker.current_brv != 0:
@@ -702,9 +716,11 @@ class CombatManager:
         # 1. BRV 공격 (기믹 트리거 안 함)
         brv_attack_result = self._execute_brv_attack(attacker, defender, skill, trigger_gimmick=False, **kwargs)
 
-        # 2. HP 공격 (BRV가 있으면, 기믹 트리거 안 함)
+        # 2. HP 공격 (BRV가 있으면, 기믹 트리거 안 함, 내구도 중복 감소 방지)
         if attacker.current_brv > 0:
-            hp_attack_result = self._execute_hp_attack(attacker, defender, skill, trigger_gimmick=False, **kwargs)
+            hp_kwargs = kwargs.copy()
+            hp_kwargs['skip_degrade'] = True
+            hp_attack_result = self._execute_hp_attack(attacker, defender, skill, trigger_gimmick=False, **hp_kwargs)
         else:
             hp_attack_result = {"hp_damage": 0, "wound_damage": 0, "brv_consumed": 0}
 

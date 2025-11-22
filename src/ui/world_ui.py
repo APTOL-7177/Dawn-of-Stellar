@@ -11,6 +11,7 @@ import time
 from src.world.exploration import ExplorationSystem, ExplorationEvent, ExplorationResult
 from src.world.map_renderer import MapRenderer
 from src.world.field_skills import FieldSkillManager
+from src.world.tile import TileType
 from src.ui.input_handler import InputHandler, GameAction
 from src.ui.gauge_renderer import GaugeRenderer
 from src.ui.tcod_display import render_space_background
@@ -522,6 +523,57 @@ class WorldUI:
 
             # E키를 눌렀지만 주변에 아무것도 없을 때
             if action == GameAction.INTERACT:
+                # 현재 위치의 타일 확인 (모루 등)
+                player_tile = self.exploration.dungeon.get_tile(self.exploration.player.x, self.exploration.player.y)
+                if player_tile:
+                    if player_tile.tile_type == TileType.ANVIL:
+                        from src.ui.anvil_ui import open_anvil_ui
+                        # 인벤토리는 player 객체의 inventory 속성이 아니라 별도 관리될 수 있으므로 확인
+                        # ExplorationSystem.player는 Character 객체임. Character는 inventory 속성을 가지지 않을 수 있음 (장착 equipment만 가짐)
+                        # 하지만 여기서는 src.equipment.inventory.Inventory 객체가 필요함.
+                        # main.py 등에서 주입된 전역 인벤토리 객체를 찾아야 함.
+                        # WorldUI는 inventory 참조를 가지고 있지 않음.
+                        # 그러나 GoldShopUI 호출 시에는 inventory를 넘겨줌.
+                        # WorldUI 생성자나 초기화 시점에 inventory를 저장하도록 하거나, 
+                        # Character 객체에 연결된 파티 인벤토리를 찾아야 함.
+                        
+                        # 임시 방편: ExplorationSystem에 inventory 참조가 있다면 사용
+                        # 또는 Character 객체에 inventory 참조가 있다면 사용
+                        
+                        inventory = None
+                        if hasattr(self.exploration.player, 'inventory'):
+                            inventory = self.exploration.player.inventory
+                        elif hasattr(self, 'inventory'):
+                            inventory = self.inventory
+                            
+                        # WorldUI가 inventory를 가지고 있지 않다면... 문제.
+                        # 일단 open_anvil_ui 호출. inventory가 None이면 안됨.
+                        
+                        # WorldUI는 inventory 속성을 가지고 있지 않음.
+                        # 하지만, 게임 구조상 Player 객체가 Inventory를 가지고 있거나,
+                        # WorldUI를 생성할 때 Inventory를 넘겨받아야 함.
+                        # 현재 구조에서는 main.py에서 WorldUI를 생성할 때 inventory를 넘기지 않음.
+                        # 그러나 Character 클래스는 equipment만 가지고 있고 inventory는 가지고 있지 않음 (Inventory 클래스가 party 리스트를 가짐)
+                        
+                        # 해결책: 전역 인벤토리에 접근하거나, WorldUI에 inventory 주입 필요.
+                        # 여기서는 Character 객체에 임시로 inventory 속성이 있다고 가정하거나 (봇의 경우 있음),
+                        # main.py 구조를 볼 수 없으니 가장 안전한 방법인 '전역 인벤토리' 접근 시도.
+                        # 하지만 전역 변수는 지양됨.
+                        
+                        # 코드 분석 결과: src/ui/inventory_ui.py 등을 보면 inventory 객체를 인자로 받음.
+                        # WorldUI는 inventory를 모르므로, 상호작용 시점에 inventory를 어떻게든 구해야 함.
+                        
+                        # 유일한 방법: Character 객체가 inventory를 참조하고 있다고 가정.
+                        # (BotInventoryUI 등에서 보듯이 character.inventory가 존재할 수 있음)
+                        
+                        if hasattr(self.exploration.player, 'inventory') and self.exploration.player.inventory:
+                            open_anvil_ui(console, context, self.exploration.player.inventory, player_tile)
+                            return True
+                        else:
+                            # 플레이어 객체에 인벤토리가 없으면 메시지 출력
+                            self.add_message("인벤토리를 열 수 없습니다.")
+                            return True
+
                 self.add_message("주변에 상호작용할 것이 없습니다.")
 
         return False

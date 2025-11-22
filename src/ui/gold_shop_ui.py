@@ -17,6 +17,7 @@ from src.equipment.item_system import (
     Consumable, Equipment, ItemType, ItemRarity, EquipSlot,
     CONSUMABLE_TEMPLATES, WEAPON_TEMPLATES, ARMOR_TEMPLATES, ACCESSORY_TEMPLATES
 )
+from src.ui.cursor_menu import CursorMenu, MenuItem
 
 
 logger = get_logger(Loggers.UI)
@@ -25,11 +26,19 @@ logger = get_logger(Loggers.UI)
 _shop_items_cache: Dict[int, Dict] = {}
 
 
+class ShopState(Enum):
+    """상점 상태"""
+    SHOPPING = "shopping"
+    REFORGE_SELECT = "reforge_select"
+    REPAIR_SELECT = "repair_select"
+
+
 class GoldShopTab(Enum):
     """상점 탭"""
     CONSUMABLES = "소모품"
     EQUIPMENT = "장비"
     SPECIAL = "특수 아이템"
+    SERVICE = "서비스"
 
 
 class GoldShopItem:
@@ -40,8 +49,8 @@ class GoldShopItem:
         self.description = description
         self.price = price
         self.item_obj = item_obj  # 실제 아이템 객체
-        self.item_type = item_type  # "consumable", "equipment", "special"
-        self.stock = stock  # 재고 (0이면 매진)
+        self.item_type = item_type  # "consumable", "equipment", "special", "service"
+        self.stock = stock  # 재고 (0이면 매진, -1이면 무제한)
 
 
 def get_gold_shop_items(floor_level: int = 1) -> dict:
@@ -64,7 +73,8 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     items = {
         GoldShopTab.CONSUMABLES: [],
         GoldShopTab.EQUIPMENT: [],
-        GoldShopTab.SPECIAL: []
+        GoldShopTab.SPECIAL: [],
+        GoldShopTab.SERVICE: []
     }
     
     # 층별로 고정된 시드를 사용하는 별도의 Random 인스턴스 생성
@@ -289,16 +299,39 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             GoldShopItem(consumable.name, consumable.description, price, consumable, "special", stock=stock)
         )
 
+    # === 서비스 항목 ===
+    items[GoldShopTab.SERVICE].append(
+        GoldShopItem(
+            "장비 수리",
+            "보유한 모든 장비의 내구도를 수리합니다. 비용은 손상도에 따라 달라집니다.",
+            0,  # 가격은 동적 계산
+            None,
+            "service_repair",
+            stock=-1  # 무제한
+        )
+    )
+    items[GoldShopTab.SERVICE].append(
+        GoldShopItem(
+            "장비 재연마",
+            "장비의 추가 옵션을 무작위로 변경합니다. (비용: 500 G)",
+            500,
+            None,
+            "service_reforge",
+            stock=-1  # 무제한
+        )
+    )
+
     # 캐시에 저장 (깊은 복사하여 원본 보호)
     import copy
     cached_items = {
         GoldShopTab.CONSUMABLES: copy.deepcopy(items[GoldShopTab.CONSUMABLES]),
         GoldShopTab.EQUIPMENT: copy.deepcopy(items[GoldShopTab.EQUIPMENT]),
-        GoldShopTab.SPECIAL: copy.deepcopy(items[GoldShopTab.SPECIAL])
+        GoldShopTab.SPECIAL: copy.deepcopy(items[GoldShopTab.SPECIAL]),
+        GoldShopTab.SERVICE: copy.deepcopy(items[GoldShopTab.SERVICE])
     }
     _shop_items_cache[floor_level] = cached_items
     
-    logger.info(f"상점 아이템 생성 완료 (층 {floor_level}): 소모품 {len(items[GoldShopTab.CONSUMABLES])}개, 장비 {len(items[GoldShopTab.EQUIPMENT])}개, 특수 {len(items[GoldShopTab.SPECIAL])}개")
+    logger.info(f"상점 아이템 생성 완료 (층 {floor_level}): 소모품 {len(items[GoldShopTab.CONSUMABLES])}개, 장비 {len(items[GoldShopTab.EQUIPMENT])}개, 특수 {len(items[GoldShopTab.SPECIAL])}개, 서비스 {len(items[GoldShopTab.SERVICE])}개")
     
     return items
 
@@ -316,13 +349,20 @@ class GoldShopUI:
         self.shop_items = get_gold_shop_items(floor_level)
 
         # UI 상태
+        self.state = ShopState.SHOPPING
         self.current_tab = GoldShopTab.CONSUMABLES
         self.tabs = list(GoldShopTab)
         self.tab_index = 0
+        
         # 재고가 있는 첫 번째 아이템으로 선택
         current_items = self.shop_items[self.current_tab]
-        valid_items = [i for i, item in enumerate(current_items) if item.stock > 0]
+        valid_items = [i for i, item in enumerate(current_items) if item.stock != 0]
         self.selected_index = valid_items[0] if valid_items else 0
+        
+        # 재연마 메뉴
+        self.reforge_menu: Optional[CursorMenu] = None
+        # 수리 메뉴
+        self.repair_menu: Optional[CursorMenu] = None
 
     def handle_input(self, action: GameAction) -> bool:
         """
@@ -331,13 +371,53 @@ class GoldShopUI:
         Returns:
             True: 상점 종료
         """
+        # 수리 선택 상태
+        if self.state == ShopState.REPAIR_SELECT:
+            if self.repair_menu:
+                if action == GameAction.MOVE_UP:
+                    self.repair_menu.move_cursor_up()
+                elif action == GameAction.MOVE_DOWN:
+                    self.repair_menu.move_cursor_down()
+                elif action == GameAction.CONFIRM:
+                    # 수리 실행 후 메뉴 갱신을 위해 결과 확인
+                    result = self.repair_menu.execute_selected()
+                    if result == "refresh":
+                        self._handle_repair() # 메뉴 갱신
+                    elif result == "close":
+                        self.state = ShopState.SHOPPING
+                        self.repair_menu = None
+                elif action == GameAction.ESCAPE or action == GameAction.CANCEL:
+                    self.state = ShopState.SHOPPING
+                    self.repair_menu = None
+                    play_sfx("ui", "cursor_cancel")
+            return False
+
+        # 재연마 선택 상태
+        if self.state == ShopState.REFORGE_SELECT:
+            if self.reforge_menu:
+                if action == GameAction.MOVE_UP:
+                    self.reforge_menu.move_cursor_up()
+                elif action == GameAction.MOVE_DOWN:
+                    self.reforge_menu.move_cursor_down()
+                elif action == GameAction.CONFIRM:
+                    self.reforge_menu.execute_selected()
+                    # 재연마 후 쇼핑 상태로 복귀 (성공 여부 상관없이)
+                    self.state = ShopState.SHOPPING
+                    self.reforge_menu = None
+                elif action == GameAction.ESCAPE or action == GameAction.CANCEL:
+                    self.state = ShopState.SHOPPING
+                    self.reforge_menu = None
+                    play_sfx("ui", "cursor_cancel")
+            return False
+
+        # 일반 쇼핑 상태
         if action == GameAction.MOVE_LEFT:
             # 탭 이동
             self.tab_index = max(0, self.tab_index - 1)
             self.current_tab = self.tabs[self.tab_index]
             # 재고가 있는 첫 번째 아이템으로 선택
             current_items = self.shop_items[self.current_tab]
-            valid_items = [i for i, item in enumerate(current_items) if item.stock > 0]
+            valid_items = [i for i, item in enumerate(current_items) if item.stock != 0]
             self.selected_index = valid_items[0] if valid_items else 0
 
         elif action == GameAction.MOVE_RIGHT:
@@ -346,13 +426,13 @@ class GoldShopUI:
             self.current_tab = self.tabs[self.tab_index]
             # 재고가 있는 첫 번째 아이템으로 선택
             current_items = self.shop_items[self.current_tab]
-            valid_items = [i for i, item in enumerate(current_items) if item.stock > 0]
+            valid_items = [i for i, item in enumerate(current_items) if item.stock != 0]
             self.selected_index = valid_items[0] if valid_items else 0
 
         elif action == GameAction.MOVE_UP:
             current_items = self.shop_items[self.current_tab]
             # 재고가 있는 아이템만 세기
-            valid_items = [i for i, item in enumerate(current_items) if item.stock > 0]
+            valid_items = [i for i, item in enumerate(current_items) if item.stock != 0]
             if valid_items:
                 current_pos = valid_items.index(self.selected_index) if self.selected_index in valid_items else 0
                 new_pos = max(0, current_pos - 1)
@@ -361,7 +441,7 @@ class GoldShopUI:
         elif action == GameAction.MOVE_DOWN:
             current_items = self.shop_items[self.current_tab]
             # 재고가 있는 아이템만 세기
-            valid_items = [i for i, item in enumerate(current_items) if item.stock > 0]
+            valid_items = [i for i, item in enumerate(current_items) if item.stock != 0]
             if valid_items:
                 current_pos = valid_items.index(self.selected_index) if self.selected_index in valid_items else 0
                 new_pos = min(len(valid_items) - 1, current_pos + 1)
@@ -379,7 +459,7 @@ class GoldShopUI:
         return False
 
     def _purchase_item(self):
-        """아이템 구매"""
+        """아이템 구매 또는 서비스 이용"""
         current_items = self.shop_items[self.current_tab]
 
         if not current_items:
@@ -387,6 +467,14 @@ class GoldShopUI:
             return
 
         selected_item = current_items[self.selected_index]
+
+        # 서비스 항목 처리
+        if selected_item.item_type == "service_repair":
+            self._handle_repair()
+            return
+        elif selected_item.item_type == "service_reforge":
+            self._handle_reforge()
+            return
 
         # 재고 확인
         if selected_item.stock <= 0:
@@ -398,8 +486,8 @@ class GoldShopUI:
             logger.warning(f"골드가 부족합니다. (필요: {selected_item.price}G, 보유: {self.inventory.gold}G)")
             return
 
-        # 인벤토리 공간 확인
-        if not self.inventory.can_add_item(selected_item.item_obj):
+        # 인벤토리 공간 확인 (서비스 제외)
+        if selected_item.item_type != "service" and not self.inventory.can_add_item(selected_item.item_obj):
             logger.warning("인벤토리가 가득 찼습니다")
             return
 
@@ -412,8 +500,183 @@ class GoldShopUI:
 
         logger.info(f"구매 완료: {selected_item.name} ({selected_item.price}G) - 재고: {selected_item.stock}개")
 
+    def _handle_repair(self):
+        """장비 수리 서비스 (선택 수리)"""
+        items_to_repair = []
+        
+        # 수리 대상 수집 함수
+        def collect_repairable_items(item, owner_name, slot_name=""):
+            if item and hasattr(item, 'current_durability') and hasattr(item, 'max_durability'):
+                missing = item.max_durability - item.current_durability
+                if missing > 0:
+                    # 비용 계산
+                    multiplier = 1.0
+                    rarity_name = getattr(item.rarity, 'name', 'COMMON')
+                    if rarity_name == 'UNCOMMON': multiplier = 1.5
+                    elif rarity_name == 'RARE': multiplier = 2.0
+                    elif rarity_name == 'EPIC': multiplier = 3.0
+                    elif rarity_name == 'LEGENDARY': multiplier = 5.0
+                    
+                    cost = int(missing * 2 * multiplier)
+                    items_to_repair.append({
+                        "item": item,
+                        "cost": cost,
+                        "missing": missing,
+                        "owner": owner_name,
+                        "slot": slot_name
+                    })
+
+        # 인벤토리 내 장비
+        for slot in self.inventory.slots:
+            collect_repairable_items(slot.item, "인벤토리")
+                    
+        # 장착 중인 장비 (파티원)
+        if self.inventory.party:
+            for member in self.inventory.party:
+                for slot_name, item in member.equipment.items():
+                    collect_repairable_items(item, member.name, slot_name)
+
+        if not items_to_repair:
+            # 수리할 것이 없으면 알림 후 복귀
+            # 하지만 메뉴가 떠있어야 하므로 빈 메뉴 대신 메시지만 출력하고 상태 변경 안함
+            # 만약 메뉴 갱신 중이었다면...
+            if self.state == ShopState.REPAIR_SELECT:
+                # 메뉴 닫기
+                self.state = ShopState.SHOPPING
+                self.repair_menu = None
+            logger.info("수리할 장비가 없습니다.")
+            return
+
+        # 메뉴 아이템 생성
+        menu_items = []
+        for data in items_to_repair:
+            item = data["item"]
+            cost = data["cost"]
+            owner = data["owner"]
+            
+            # 텍스트: [주인] 아이템명 (내구도/최대) - 비용G
+            text = f"[{owner}] {item.name} ({item.current_durability}/{item.max_durability}) - {cost}G"
+            
+            # 콜백
+            action = lambda i=item, c=cost, o=data.get("owner_obj"): self._execute_repair_single(i, c)
+            
+            menu_items.append(MenuItem(text, action=action))
+
+        menu_items.append(MenuItem("돌아가기", action=lambda: "close"))
+
+        # 커서 메뉴 생성
+        self.repair_menu = CursorMenu(
+            title="수리할 장비 선택",
+            items=menu_items,
+            x=(self.screen_width - 70) // 2,
+            y=(self.screen_height - 30) // 2,
+            width=70,
+            show_description=False
+        )
+        self.state = ShopState.REPAIR_SELECT
+
+    def _execute_repair_single(self, item, cost):
+        """단일 장비 수리 실행"""
+        if self.inventory.gold < cost:
+            logger.warning(f"골드가 부족합니다. (필요: {cost}G)")
+            return "fail"
+
+        self.inventory.remove_gold(cost)
+        item.current_durability = item.max_durability
+        
+        # 파티원이 장착 중인 경우 스탯 업데이트 (어느 파티원인지 찾아서 업데이트)
+        if self.inventory.party:
+            for member in self.inventory.party:
+                for slot_name, equipped_item in member.equipment.items():
+                    if equipped_item == item:
+                        member.update_equipment_stats(slot_name)
+                        
+        logger.info(f"{item.name} 수리 완료. (비용: {cost}G)")
+        play_sfx("ui", "repair_success")
+        return "refresh"
+
+    def _handle_reforge(self):
+        """장비 재연마 서비스 (메뉴 생성)"""
+        reforgeable_items = []
+        
+        # 인벤토리 아이템
+        for i, slot in enumerate(self.inventory.slots):
+            item = slot.item
+            if item.item_type in [ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY] and item.rarity != ItemRarity.UNIQUE:
+                reforgeable_items.append(item)
+                
+        # 장착 중인 아이템 (파티원)
+        if self.inventory.party:
+            for member in self.inventory.party:
+                for slot_name, item in member.equipment.items():
+                    if item and item.item_type in [ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY] and item.rarity != ItemRarity.UNIQUE:
+                        reforgeable_items.append(item)
+
+        if not reforgeable_items:
+            logger.warning("재연마할 수 있는 장비가 없습니다.")
+            return
+
+        # 메뉴 아이템 생성
+        menu_items = []
+        for item in reforgeable_items:
+            # 아이템 이름 + 현재 옵션 요약
+            affix_desc = f" ({len(item.affixes)}옵션)" if item.affixes else " (옵션 없음)"
+            text = f"[{item.rarity.display_name}] {item.name}{affix_desc}"
+            
+            # 콜백 함수 (클로저 주의: item을 인자로 바인딩)
+            action = lambda i=item: self._execute_reforge(i)
+            
+            menu_items.append(MenuItem(text, action=action))
+
+        menu_items.append(MenuItem("돌아가기", action=lambda: None))
+
+        # 커서 메뉴 생성
+        self.reforge_menu = CursorMenu(
+            title="재연마할 장비 선택 (비용: 500G)",
+            items=menu_items,
+            x=(self.screen_width - 60) // 2,
+            y=(self.screen_height - 30) // 2,
+            width=60,
+            show_description=False
+        )
+        self.state = ShopState.REFORGE_SELECT
+
+    def _execute_reforge(self, item):
+        """재연마 실행"""
+        cost = 500
+        if self.inventory.gold < cost:
+            logger.warning(f"골드가 부족합니다. (필요: {cost}G)")
+            return
+
+        self.inventory.remove_gold(cost)
+        
+        from src.equipment.item_system import ItemGenerator
+        success, msg = ItemGenerator.reforge_item(item)
+        
+        if success:
+            logger.info(f"{item.name} 재연마 성공! {msg}")
+            play_sfx("ui", "upgrade_success")
+            
+            # 파티원이 장착 중인 경우 스탯 업데이트 필요
+            if self.inventory.party:
+                for member in self.inventory.party:
+                    for slot_name, equipped_item in member.equipment.items():
+                        if equipped_item == item:
+                            member.update_equipment_stats(slot_name)
+                            logger.debug(f"{member.name}의 {item.name} 스탯 업데이트됨")
+        else:
+            logger.warning(f"재연마 실패: {msg}")
+
     def render(self, console: tcod.console.Console):
         """상점 렌더링"""
+        # 모달 메뉴 렌더링 (상태에 따라)
+        if self.state == ShopState.REFORGE_SELECT and self.reforge_menu:
+            self.reforge_menu.render(console)
+            return
+        elif self.state == ShopState.REPAIR_SELECT and self.repair_menu:
+            self.repair_menu.render(console)
+            return
+
         # 배경 어둡게
         for y in range(self.screen_height):
             for x in range(self.screen_width):
