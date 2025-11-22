@@ -6,6 +6,7 @@
 
 from typing import List, Optional, Tuple
 import tcod
+import time
 
 from src.world.exploration import ExplorationSystem, ExplorationEvent, ExplorationResult
 from src.world.map_renderer import MapRenderer
