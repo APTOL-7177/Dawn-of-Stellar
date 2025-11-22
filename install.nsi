@@ -45,8 +45,10 @@ SetCompressorDictSize 32
 !ifdef LICENSE
 !insertmacro MUI_PAGE_LICENSE "${LICENSE}"
 !endif
-!insertmacro MUI_PAGE_COMPONENTS
+!define MUI_PAGE_CUSTOMFUNCTION_PRE DirectoryPre
+!define MUI_PAGE_CUSTOMFUNCTION_LEAVE DirectoryLeave
 !insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
 
@@ -82,6 +84,8 @@ ShowUnInstDetails show
 
 Var PythonPath
 Var GitPath
+Var IsUpdateMode
+Var ExistingInstallDir
 
 ;--------------------------------
 ; Install Types
@@ -92,7 +96,7 @@ InstType "Minimal Installation"
 ;--------------------------------
 ; Sections
 
-Section "Git Repository Clone" SEC01
+Section "Git Repository Clone/Update" SEC01
     SectionIn RO 1 2
     
     DetailPrint "Checking Git installation..."
@@ -124,8 +128,64 @@ GitNotFound:
 GitFound:
     DetailPrint "Git found: $GitPath"
     
-    ; Clone Repository to Temporary Directory First
-    DetailPrint "Cloning repository from GitHub..."
+    ; Check if update mode
+    IntCmp $IsUpdateMode 1 UpdateMode NewInstall
+    
+UpdateMode:
+    DetailPrint "Update mode: Updating existing installation..."
+    
+    ; Check if .git directory exists
+    IfFileExists "$INSTDIR\.git" 0 NotGitRepo
+    
+    ; Stash local changes if any
+    DetailPrint "Checking for local changes..."
+    ExecWait 'git -C "$INSTDIR" status --porcelain' $0
+    IntCmp $0 0 NoLocalChanges
+    DetailPrint "Local changes detected. Stashing..."
+    ExecWait 'git -C "$INSTDIR" stash push -m "Auto-stash before update $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")"' $0
+    
+NoLocalChanges:
+    ; Fetch latest changes
+    DetailPrint "Fetching latest changes from GitHub..."
+    ExecWait 'git -C "$INSTDIR" fetch origin' $0
+    IfErrors 0 FetchSuccess
+    DetailPrint "Failed to fetch updates"
+    MessageBox MB_OK|MB_ICONSTOP "Failed to fetch updates.$\n$\nPlease check your internet connection."
+    Abort "Update fetch failed"
+    
+FetchSuccess:
+    ; Pull latest changes (git will use current branch)
+    DetailPrint "Pulling latest changes..."
+    ExecWait 'git -C "$INSTDIR" pull origin' $0
+    IfErrors 0 PullSuccess
+    DetailPrint "Failed to pull updates"
+    MessageBox MB_OK|MB_ICONSTOP "Failed to pull updates.$\n$\nError code: $0"
+    Abort "Update pull failed"
+    
+PullSuccess:
+    DetailPrint "Update complete!"
+    
+    ; Verify essential files
+    IfFileExists "$INSTDIR\main.py" 0 UpdateFailed
+    IfFileExists "$INSTDIR\requirements.txt" 0 UpdateFailed
+    IfFileExists "$INSTDIR\src" 0 UpdateFailed
+    Goto UpdateVerified
+    
+UpdateFailed:
+    DetailPrint "Updated repository is missing essential files"
+    MessageBox MB_OK|MB_ICONSTOP "Updated repository is incomplete.$\n$\nPlease try again or contact support."
+    Abort "Update incomplete"
+    
+UpdateVerified:
+    DetailPrint "Update verified successfully"
+    Goto GitOperationDone
+    
+NotGitRepo:
+    DetailPrint "Existing installation is not a Git repository. Reinstalling..."
+    Goto NewInstall
+    
+NewInstall:
+    DetailPrint "Install mode: Cloning repository from GitHub..."
     DetailPrint "This may take a few minutes..."
     
     ; Create temporary directory for cloning
@@ -160,7 +220,7 @@ CloneFailed:
 CloneVerified:
     DetailPrint "Repository verified successfully"
     
-    ; Remove existing installation directory if exists
+    ; Remove existing installation directory if exists (only for new install)
     IfFileExists "$INSTDIR" 0 NoExistingDir
     DetailPrint "Removing existing installation directory..."
     RMDir /r "$INSTDIR"
@@ -175,6 +235,8 @@ CloneVerified:
     RMDir /r "$0"
     
     DetailPrint "Files moved to installation directory"
+    
+GitOperationDone:
     
     ; Start Scripts (created after Git clone)
     SetOutPath "$INSTDIR"
@@ -262,6 +324,18 @@ SectionEnd
 Section "Python Environment Setup" SEC03
     SectionIn 1 2
     
+    ; In update mode, check if requirements.txt changed
+    IntCmp $IsUpdateMode 1 CheckRequirements UpdateInstall
+    
+CheckRequirements:
+    DetailPrint "Update mode: Checking if Python packages need update..."
+    ; Check if requirements.txt exists and was modified
+    IfFileExists "$INSTDIR\requirements.txt" 0 UpdateInstall
+    ; For now, always reinstall in update mode (can be optimized later)
+    DetailPrint "Reinstalling Python packages after update..."
+    Goto UpdateInstall
+    
+UpdateInstall:
     DetailPrint "Checking Python installation..."
     
     ; Find Python Path
@@ -391,7 +465,7 @@ SectionEnd
 ; Descriptions
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-  !insertmacro MUI_DESCRIPTION_TEXT ${SEC01} "Download all game files from GitHub repository. (Git required)"
+  !insertmacro MUI_DESCRIPTION_TEXT ${SEC01} "Download or update game files from GitHub repository. (Git required)"
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC02} "Create launcher shortcuts in Start Menu and Desktop."
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC03} "Automatically install Python packages. (Python 3.10+ required)"
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC04} "Create update shortcut. (Update scripts included in repository)"
@@ -437,16 +511,90 @@ SectionEnd
 ; Installer Initialization
 
 Function .onInit
-    ; Set Install Directory
+    ; Initialize update mode flag
+    StrCpy $IsUpdateMode 0
+    
+    ; Set default install directory first
     StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCT_NAME}"
+    
+    ; Check for existing installation in multiple ways
+    ; Method 1: Check registry
+    ClearErrors
+    ReadRegStr $ExistingInstallDir ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "Path"
+    IfErrors 0 CheckRegistryPath
+    
+    ; Method 2: Check default installation directory
+    IfFileExists "$PROGRAMFILES\${PRODUCT_NAME}\main.py" 0 CheckGitRepo
+    StrCpy $ExistingInstallDir "$PROGRAMFILES\${PRODUCT_NAME}"
+    Goto FoundInstallation
+    
+CheckRegistryPath:
+    ; If registry path exists, verify it
+    StrCmp $ExistingInstallDir "" CheckGitRepo
+    IfFileExists "$ExistingInstallDir\main.py" FoundInstallation CheckGitRepo
+    
+CheckGitRepo:
+    ; Method 3: Check if default directory is a git repo
+    IfFileExists "$PROGRAMFILES\${PRODUCT_NAME}\.git" 0 NewInstall
+    IfFileExists "$PROGRAMFILES\${PRODUCT_NAME}\main.py" 0 NewInstall
+    StrCpy $ExistingInstallDir "$PROGRAMFILES\${PRODUCT_NAME}"
+    Goto FoundInstallation
+    
+FoundInstallation:
+    ; Existing installation found - ask for update
+    MessageBox MB_YESNO|MB_ICONQUESTION "Existing installation found at:$\n$ExistingInstallDir$\n$\nWould you like to UPDATE the game?$\n$\nClick 'Yes' to UPDATE (recommended)$\nClick 'No' to install to a new location" IDYES UpdateMode IDNO NewInstall
+    
+UpdateMode:
+    ; Set update mode
+    StrCpy $IsUpdateMode 1
+    StrCpy $INSTDIR $ExistingInstallDir
+    Goto InitDone
+    
+NewInstall:
+    ; Set Install Directory for new installation
+    StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCT_NAME}"
+    
+InitDone:
+FunctionEnd
+
+;--------------------------------
+; Directory Page Functions
+
+Function DirectoryPre
+    ; If in update mode, skip directory page
+    IntCmp $IsUpdateMode 1 SkipDirectory 0
+    Return
+    
+SkipDirectory:
+    ; Skip directory selection page in update mode
+    Abort
+FunctionEnd
+
+Function DirectoryLeave
+    ; If in update mode, don't allow changing directory
+    IntCmp $IsUpdateMode 1 UpdateModeDir 0
+    Return
+    
+UpdateModeDir:
+    ; Force directory to existing installation
+    StrCpy $INSTDIR $ExistingInstallDir
+    Return
 FunctionEnd
 
 ;--------------------------------
 ; After Installation
 
 Function .onInstSuccess
+    IntCmp $IsUpdateMode 1 UpdateSuccess InstallSuccess
+    
+UpdateSuccess:
+    MessageBox MB_YESNO|MB_ICONQUESTION "Update complete!$\n$\nRun game launcher now?" IDYES LaunchGame IDNO Done
+    Goto LaunchGame
+    
+InstallSuccess:
     MessageBox MB_YESNO|MB_ICONQUESTION "Installation complete!$\n$\nRun game launcher now?" IDYES LaunchGame IDNO Done
-    LaunchGame:
-        ExecShell "open" "$INSTDIR\launcher.bat"
+    
+LaunchGame:
+    ExecShell "open" "$INSTDIR\launcher.bat"
     Done:
 FunctionEnd
