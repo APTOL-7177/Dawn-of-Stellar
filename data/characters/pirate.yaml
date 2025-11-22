@@ -35,7 +35,7 @@ traits:
   type: passive
 - id: greed
   name: 탐욕
-  description: 골드 보유량이 많을수록 스탯 증가 (1000골드당 +2%)
+  description: 골드 보유량이 많을수록 스탯 증가 (70골드당 +2%)
   type: passive
 - id: pirate_fortune
   name: 해적의 행운

@@ -97,6 +97,38 @@ class InventoryUI:
 
         self.closed = False
 
+    def _get_durability_info(self, item: Item) -> tuple[str, tuple[int, int, int]]:
+        """
+        아이템 내구도 정보 및 색상 반환
+        Returns:
+            (text, color)
+        """
+        if not hasattr(item, 'current_durability') or not hasattr(item, 'max_durability'):
+            return "", Colors.UI_TEXT
+        
+        # 장비 아이템이 아니면 내구도 표시 안 함 (선택 사항)
+        if not isinstance(item, Equipment):
+             return "", Colors.UI_TEXT
+
+        current = item.current_durability
+        maximum = item.max_durability
+        
+        if maximum <= 0:
+            return "", Colors.UI_TEXT
+            
+        percent = current / maximum
+        
+        text = f"[{current}/{maximum}]"
+        
+        if percent > 0.5:
+            color = (100, 255, 100)  # 녹색
+        elif percent > 0.2:
+            color = (255, 255, 100)  # 노란색
+        else:
+            color = (255, 100, 100)  # 빨간색
+            
+        return text, color
+
     def handle_input(self, action: GameAction) -> bool:
         """
         입력 처리
@@ -943,12 +975,26 @@ class InventoryUI:
             if hasattr(item, 'level_requirement') and item.level_requirement > 1:
                 item_name += f" (Lv.{item.level_requirement})"
 
+            # 내구도 표시
+            dur_text, dur_color = self._get_durability_info(item)
+            
+            # 아이템 이름 출력
             console.print(
                 5,
                 y,
                 f"{prefix} {item_name}",
                 fg=rarity_color if is_selected else Colors.UI_TEXT
             )
+            
+            # 내구도 출력 (이름 뒤에)
+            if dur_text:
+                name_len = len(f"{prefix} {item_name}")
+                console.print(
+                    5 + name_len + 1,
+                    y,
+                    dur_text,
+                    fg=dur_color
+                )
 
             y += 1
 
@@ -1061,6 +1107,12 @@ class InventoryUI:
         # 무게
         console.print(x, y, f"무게: {item.weight}kg", fg=Colors.DARK_GRAY)
         y += 1
+
+        # 내구도 (상세 정보창)
+        dur_text, dur_color = self._get_durability_info(item)
+        if dur_text:
+            console.print(x, y, f"내구도: {dur_text}", fg=dur_color)
+            y += 1
 
         # 장비 정보
         if isinstance(item, Equipment):
@@ -1349,6 +1401,17 @@ class InventoryUI:
                 item_name,
                 fg=rarity_color
             )
+            
+            # 내구도 표시 (장비 해제 창)
+            if item:
+                dur_text, dur_color = self._get_durability_info(item)
+                if dur_text:
+                    console.print(
+                        box_x + 15 + len(item_name) + 1, 
+                        y,
+                        dur_text,
+                        fg=dur_color
+                    )
 
             # 장비 스탯 표시
             if item and is_selected:
@@ -1572,12 +1635,23 @@ class InventoryUI:
             rarity_display = '일반'
             rarity_color = Colors.UI_TEXT
 
-        item_name = f"{new_item_name} [{rarity_display}]"
+            item_name = f"{new_item_name} [{rarity_display}]"
         console.print(
             box_x + 4, y,
             item_name,
             fg=rarity_color
         )
+        
+        # 새 아이템 내구도
+        dur_text, dur_color = self._get_durability_info(new_item)
+        if dur_text:
+            console.print(
+                box_x + 4 + len(item_name) + 1,
+                y,
+                dur_text,
+                fg=dur_color
+            )
+            
         y += 2
 
         # 스탯 표시
@@ -1607,11 +1681,23 @@ class InventoryUI:
             current_item = character.equipment.get(slot)
 
             if current_item:
+                current_item_name = getattr(current_item, 'name', '???')
                 console.print(
                     box_x + 4, y,
-                    f"{char_name}: {getattr(current_item, 'name', '???')}",
+                    f"{char_name}: {current_item_name}",
                     fg=Colors.UI_TEXT
                 )
+                
+                # 현재 장비 내구도
+                dur_text, dur_color = self._get_durability_info(current_item)
+                if dur_text:
+                    console.print(
+                        box_x + 4 + len(f"{char_name}: {current_item_name}") + 1,
+                        y,
+                        dur_text,
+                        fg=dur_color
+                    )
+                
                 y += 1
 
                 # 스탯 차이 표시

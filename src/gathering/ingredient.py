@@ -82,7 +82,7 @@ class Ingredient(Item):
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환"""
-        return {
+        data = {
             "item_id": self.item_id,
             "name": self.name,
             "description": self.description,
@@ -96,13 +96,17 @@ class Ingredient(Item):
             "spoil_time": self.spoil_time,
             "edible_raw": self.edible_raw,
             "raw_hp_restore": self.raw_hp_restore,
-            "raw_mp_restore": self.raw_mp_restore
+            "raw_mp_restore": self.raw_mp_restore,
+            # Item 클래스 속성 추가
+            "max_durability": self.max_durability,
+            "current_durability": self.current_durability
         }
+        return data
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Ingredient":
         """딕셔너리에서 복원"""
-        return cls(
+        ing = cls(
             item_id=data["item_id"],
             name=data["name"],
             description=data["description"],
@@ -118,6 +122,10 @@ class Ingredient(Item):
             raw_hp_restore=data.get("raw_hp_restore", 0),
             raw_mp_restore=data.get("raw_mp_restore", 0)
         )
+        # Item 속성 복원
+        ing.max_durability = data.get("max_durability", 100)
+        ing.current_durability = data.get("current_durability", 100)
+        return ing
 
 
 class IngredientDatabase:
