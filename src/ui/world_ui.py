@@ -33,7 +33,8 @@ class WorldUI:
         inventory=None,
         party=None,
         network_manager=None,
-        local_player_id=None
+        local_player_id=None,
+        on_update=None
     ):
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -44,6 +45,7 @@ class WorldUI:
         self.gauge_renderer = GaugeRenderer()
         self.network_manager = network_manager  # 멀티플레이: 네트워크 관리자
         self.local_player_id = local_player_id  # 멀티플레이: 로컬 플레이어 ID
+        self.on_update = on_update  # 업데이트 콜백
 
         # 필드 스킬 매니저 및 UI 초기화
         self.field_skill_manager = FieldSkillManager(exploration)
@@ -205,7 +207,7 @@ class WorldUI:
                             if session.bot_manager.bots:
                                 target_bot = list(session.bot_manager.bots.values())[0]
                                 # on_update 콜백 전달
-                                open_bot_inventory_ui(console, context, target_bot, on_update=update_game_state)
+                                open_bot_inventory_ui(console, context, target_bot, on_update=self.on_update)
                                 return False
             
                 # 도움말 UI가 켜져있으면 입력 처리
@@ -280,7 +282,7 @@ class WorldUI:
                 from src.ui.inventory_ui import open_inventory
                 logger.warning("[DEBUG] 인벤토리 열기 시도")
                 # on_update 콜백 전달
-                open_inventory(console, context, self.inventory, self.party, self.exploration, on_update=update_game_state)
+                open_inventory(console, context, self.inventory, self.party, self.exploration, on_update=self.on_update)
                 return False
             else:
                 logger.warning(f"인벤토리를 열 수 없음 - inventory={self.inventory is not None}, party={self.party is not None}, console={console is not None}, context={context is not None}")
@@ -1283,12 +1285,6 @@ def run_exploration(
             pass  # 핫 리로드 오류는 무시
         
         # 멀티플레이: 시간 기반 적 이동 업데이트 (2초마다)
-        # 함수 내부 변수에 접근하기 위해 nonlocal 사용 (필요시)
-        # 하지만 여기서는 직접 exploration 객체를 참조하므로 nonlocal 불필요할 수 있음
-        # 단, last_enemy_update는 run_exploration의 로컬 변수이므로 주의 필요.
-        # 간단하게 현재 시간을 매번 구해서 처리하거나, 별도 상태 관리 필요.
-        # 여기서는 exploration 객체에 상태를 저장하는 것이 안전함.
-        
         current_time = time.time()
         
         # 적 이동 업데이트 (호스트만)
@@ -1315,17 +1311,11 @@ def run_exploration(
                         if bot_manager.is_running:
                             try:
                                 bot_manager.update(current_time)
-                                
-                                # 봇의 전투 트리거 확인 (적 충돌) - UI가 열려있을 때는 전투 시작을 보류할 수도 있으나,
-                                # 요구사항 "시간이 멈추면 안됨"에 따라 전투 트리거도 체크해야 함.
-                                # 단, UI 루프 내에서는 반환값을 처리하기 어려우므로,
-                                # pending_combat_trigger 상태만 유지하고 UI가 닫힌 후 처리되도록 하거나,
-                                # 여기서 강제로 UI를 닫게 하는 방법(예외 발생 등)이 있음.
-                                # 하지만 인벤토리 보는 중에 갑자기 전투 걸리는 건 사용자 경험상 좋지 않을 수 있음.
-                                # 일단 업데이트는 계속 돌리되, 전투 진입은 메인 루프에서 처리하도록 둠.
-                                pass 
                             except Exception as e:
                                 logger.error(f"봇 업데이트 오류: {e}", exc_info=True)
+
+    # WorldUI에 업데이트 콜백 설정
+    ui.on_update = update_game_state
 
     while True:
         # 메인 루프에서도 업데이트 실행
