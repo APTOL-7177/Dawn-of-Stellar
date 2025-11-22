@@ -97,29 +97,40 @@ Section "Game Files" SEC01
     
     SetOutPath "$INSTDIR"
     
-    ; Essential Files
+    ; Essential Files (Root Level)
     File "main.py"
     File "config.yaml"
     File "requirements.txt"
     File "README.md"
+    File "pyproject.toml"
+    File "name.txt"
     IfFileExists "LICENSE" 0 NoLicense
     File "LICENSE"
     NoLicense:
+    IfFileExists "build.spec" 0 NoBuildSpec
+    File "build.spec"
+    NoBuildSpec:
     
-    ; Source Code
-    SetOutPath "$INSTDIR\src"
-    File /r "src\*.*"
+    ; Launcher Files
+    IfFileExists "launcher.py" 0 NoLauncher
+    File "launcher.py"
+    NoLauncher:
+    IfFileExists "launcher.bat" 0 NoLauncherBat
+    File "launcher.bat"
+    NoLauncherBat:
+    IfFileExists "launcher_cli.py" 0 NoLauncherCLI
+    File "launcher_cli.py"
+    NoLauncherCLI:
     
-    ; Data Files
-    SetOutPath "$INSTDIR\data"
-    File /r "data\*.*"
-    
-    ; Config Files
-    SetOutPath "$INSTDIR\config"
-    File /r "config\*.*"
+    ; Update Scripts
+    IfFileExists "update.ps1" 0 NoUpdatePS1
+    File "update.ps1"
+    NoUpdatePS1:
+    IfFileExists "update.bat" 0 NoUpdateBat
+    File "update.bat"
+    NoUpdateBat:
     
     ; Font Files
-    SetOutPath "$INSTDIR"
     IfFileExists "D2Coding.ttc" 0 NoD2CodingTTC
     File "D2Coding.ttc"
     NoD2CodingTTC:
@@ -135,35 +146,47 @@ Section "Game Files" SEC01
     IfFileExists "GalmuriMono9.ttf" 0 NoGalmuriMono9
     File "GalmuriMono9.ttf"
     NoGalmuriMono9:
+    IfFileExists "GalmuriMono9.bdf" 0 NoGalmuriMono9BDF
+    File "GalmuriMono9.bdf"
+    NoGalmuriMono9BDF:
     
-    ; Logo/Icon File
-    IfFileExists "assets\logo.ico" 0 NoLogoICO
-    File "assets\logo.ico"
-    NoLogoICO:
-    IfFileExists "assets\logo.png" 0 NoLogo
-    File "assets\logo.png"
-    NoLogo:
+    ; Source Code
+    SetOutPath "$INSTDIR\src"
+    File /r "src\*.*"
+    
+    ; Data Files
+    SetOutPath "$INSTDIR\data"
+    File /r "data\*.*"
+    
+    ; Config Files
+    SetOutPath "$INSTDIR\config"
+    File /r "config\*.*"
+    
+    ; Assets (Audio, Images, etc.)
+    SetOutPath "$INSTDIR\assets"
+    File /r "assets\*.*"
     
     ; Documentation
     SetOutPath "$INSTDIR\docs"
     File /r "docs\*.*"
     
-    ; Launcher Files
-    SetOutPath "$INSTDIR"
-    IfFileExists "launcher.py" 0 NoLauncher
-    File "launcher.py"
-    NoLauncher:
-    IfFileExists "launcher.bat" 0 NoLauncherBat
-    File "launcher.bat"
-    NoLauncherBat:
+    ; Examples
+    IfFileExists "examples\*.*" 0 NoExamples
+    SetOutPath "$INSTDIR\examples"
+    File /r "examples\*.*"
+    NoExamples:
     
-    ; Update Scripts
-    IfFileExists "update.ps1" 0 NoUpdatePS1
-    File "update.ps1"
-    NoUpdatePS1:
-    IfFileExists "update.bat" 0 NoUpdateBat
-    File "update.bat"
-    NoUpdateBat:
+    ; Scripts (Optional, for development)
+    IfFileExists "scripts\*.*" 0 NoScripts
+    SetOutPath "$INSTDIR\scripts"
+    File /r "scripts\*.*"
+    NoScripts:
+    
+    ; Web Files (Optional)
+    IfFileExists "web\*.*" 0 NoWeb
+    SetOutPath "$INSTDIR\web"
+    File /r "web\*.*"
+    NoWeb:
     
     ; Start Scripts
     SetOutPath "$INSTDIR"
@@ -454,16 +477,24 @@ Section "Uninstall"
     RMDir /r "$INSTDIR\data"
     RMDir /r "$INSTDIR\config"
     RMDir /r "$INSTDIR\docs"
+    RMDir /r "$INSTDIR\assets"
+    RMDir /r "$INSTDIR\examples"
+    RMDir /r "$INSTDIR\scripts"
+    RMDir /r "$INSTDIR\web"
     RMDir /r "$INSTDIR\source"
     Delete "$INSTDIR\main.py"
     Delete "$INSTDIR\launcher.py"
     Delete "$INSTDIR\launcher.bat"
+    Delete "$INSTDIR\launcher_cli.py"
     Delete "$INSTDIR\update.ps1"
     Delete "$INSTDIR\update.bat"
     Delete "$INSTDIR\config.yaml"
     Delete "$INSTDIR\requirements.txt"
     Delete "$INSTDIR\README.md"
+    Delete "$INSTDIR\pyproject.toml"
+    Delete "$INSTDIR\name.txt"
     Delete "$INSTDIR\LICENSE"
+    Delete "$INSTDIR\build.spec"
     Delete "$INSTDIR\start_game.bat"
     Delete "$INSTDIR\start_game_direct.bat"
     Delete "$INSTDIR\start_game_dev.bat"
@@ -471,6 +502,7 @@ Section "Uninstall"
     Delete "$INSTDIR\logo.png"
     Delete "$INSTDIR\*.ttc"
     Delete "$INSTDIR\*.ttf"
+    Delete "$INSTDIR\*.bdf"
     
     ; Delete Start Menu Shortcuts
     RMDir /r "$SMPROGRAMS\${PRODUCT_NAME}"
