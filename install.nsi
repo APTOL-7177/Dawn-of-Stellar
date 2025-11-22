@@ -129,6 +129,10 @@ Section "게임 파일" SEC01
     File "launcher.py"
     File "launcher.bat"
     
+    ; 업데이트 스크립트 복사
+    File "update.ps1"
+    File "update.bat"
+    
     ; 시작 스크립트 생성 (런처 사용)
     SetOutPath "$INSTDIR"
     FileOpen $0 "$INSTDIR\start_game.bat" w
@@ -176,6 +180,7 @@ Section "바로가기" SEC02
     CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} (런처).lnk" "$INSTDIR\launcher.bat" "" "$INSTDIR\launcher.py" 0
     CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} (직접 실행).lnk" "$INSTDIR\start_game_direct.bat" "" "$INSTDIR\main.py" 0
     CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} (개발 모드).lnk" "$INSTDIR\start_game_dev.bat" "" "$INSTDIR\main.py" 0
+    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\게임 업데이트.lnk" "$INSTDIR\update.bat" "" "$INSTDIR\update.ps1" 0
     CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\제거.lnk" "$INSTDIR\uninstall.exe"
     CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\웹사이트.lnk" "${PRODUCT_WEB_SITE}"
     
@@ -301,7 +306,19 @@ PythonVersionError:
 PythonCheckDone:
 SectionEnd
 
-Section "Git 저장소 클론 (선택)" SEC04
+Section "업데이트 기능" SEC04
+    SectionIn 1
+    
+    ; 업데이트 스크립트 복사
+    SetOutPath "$INSTDIR"
+    File "update.ps1"
+    File "update.bat"
+    
+    ; 업데이트 바로가기 생성
+    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\게임 업데이트.lnk" "$INSTDIR\update.bat" "" "$INSTDIR\update.ps1" 0
+SectionEnd
+
+Section "Git 저장소 클론 (선택)" SEC05
     SectionIn 1
     
     DetailPrint "Git 설치 확인 중..."
@@ -357,7 +374,8 @@ SectionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC01} "게임 실행에 필요한 모든 파일을 설치합니다. (런처 포함)"
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC02} "시작 메뉴와 바탕화면에 런처 바로가기를 생성합니다."
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC03} "Python 패키지를 자동으로 설치합니다. (Python 3.10 이상 필요)"
-  !insertmacro MUI_DESCRIPTION_TEXT ${SEC04} "GitHub에서 최신 소스 코드를 클론합니다. (선택 사항)"
+  !insertmacro MUI_DESCRIPTION_TEXT ${SEC04} "게임 업데이트 스크립트를 설치합니다. (Git 저장소 필요)"
+  !insertmacro MUI_DESCRIPTION_TEXT ${SEC05} "GitHub에서 최신 소스 코드를 클론합니다. (선택 사항)"
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;--------------------------------
@@ -376,6 +394,8 @@ Section "Uninstall"
     Delete "$INSTDIR\main.py"
     Delete "$INSTDIR\launcher.py"
     Delete "$INSTDIR\launcher.bat"
+    Delete "$INSTDIR\update.ps1"
+    Delete "$INSTDIR\update.bat"
     Delete "$INSTDIR\config.yaml"
     Delete "$INSTDIR\requirements.txt"
     Delete "$INSTDIR\README.md"

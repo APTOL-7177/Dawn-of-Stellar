@@ -85,14 +85,87 @@ class AnvilUI:
 
     def _repair_item(self, item):
         """아이템 수리"""
-        item.current_durability = item.max_durability
+        # 아이템이 어디에 있는지 확인 (장착되어 있는지, 인벤토리에 있는지)
+        item_location = None  # "equipped" or "inventory"
+        item_owner = None
+        item_slot = None
         
-        # 스탯 업데이트
+        # 장착된 아이템인지 확인
         if self.inventory.party:
             for member in self.inventory.party:
                 for slot, equipped in member.equipment.items():
                     if equipped == item:
-                        member.update_equipment_stats(slot)
+                        item_location = "equipped"
+                        item_owner = member
+                        item_slot = slot
+                        break
+                if item_location:
+                    break
+        
+        # 인벤토리에 있는 아이템인지 확인
+        if not item_location:
+            for slot in self.inventory.slots:
+                if slot.item == item:
+                    item_location = "inventory"
+                    break
+        
+        # 아이템 수리
+        item.current_durability = item.max_durability
+        
+        # 스탯 업데이트: 장착된 아이템인 경우만
+        if item_location == "equipped" and item_owner and item_slot:
+            item_owner.update_equipment_stats(item_slot)
+        
+        # 내구도가 0이었던 아이템이 인벤토리에 있고, 해당 파티원의 슬롯이 비어있으면 자동 재장착 시도
+        # 모든 파티원을 확인하여 해당 아이템의 슬롯 타입과 일치하는 비어있는 슬롯을 찾음
+        if item_location == "inventory" and self.inventory.party:
+            from src.equipment.item_system import EquipSlot
+            item_equip_slot = getattr(item, 'equip_slot', None)
+            if item_equip_slot:
+                # 슬롯 이름 결정
+                slot_name = None
+                if hasattr(item_equip_slot, 'value'):
+                    slot_value = item_equip_slot.value
+                    slot_name = slot_value if isinstance(slot_value, str) else None
+                elif isinstance(item_equip_slot, str):
+                    slot_name = item_equip_slot
+                elif hasattr(item_equip_slot, 'name'):
+                    # EquipSlot enum 직접 매핑
+                    slot_map = {
+                        EquipSlot.WEAPON: "weapon",
+                        EquipSlot.ARMOR: "armor",
+                        EquipSlot.ACCESSORY: "accessory"
+                    }
+                    slot_name = slot_map.get(item_equip_slot)
+                
+                # 모든 파티원 중 해당 슬롯이 비어있는 파티원을 찾아 자동 재장착 시도
+                if slot_name:
+                    for member in self.inventory.party:
+                        if not member.equipment.get(slot_name):
+                            try:
+                                # equip_item 메서드가 있으면 사용
+                                if hasattr(member, 'equip_item'):
+                                    if member.equip_item(item):
+                                        # 인벤토리에서 아이템 제거
+                                        for inv_slot in self.inventory.slots:
+                                            if inv_slot.item == item:
+                                                self.inventory.slots.remove(inv_slot)
+                                                break
+                                        logger.info(f"{item.name}이(가) {member.name}에게 수리 후 자동으로 재장착되었습니다.")
+                                        break
+                                else:
+                                    # 직접 장착
+                                    member.equipment[slot_name] = item
+                                    member.update_equipment_stats(slot_name)
+                                    # 인벤토리에서 아이템 제거
+                                    for inv_slot in self.inventory.slots:
+                                        if inv_slot.item == item:
+                                            self.inventory.slots.remove(inv_slot)
+                                            break
+                                    logger.info(f"{item.name}이(가) {member.name}에게 수리 후 자동으로 재장착되었습니다.")
+                                    break
+                            except Exception as e:
+                                logger.warning(f"자동 재장착 실패: {e}")
                         
         # 모루 사용 처리
         self.target_tile.used = True
