@@ -613,12 +613,18 @@ class GimmickUpdater:
     @staticmethod
     def _update_dragon_marks(character):
         """용기사: 드래곤 마크 시스템 업데이트"""
-        # 각인은 스킬로만 축적, 자동 업데이트 없음
-        # 각인 5개 도달 시 드래곤 변신 가능 상태 표시
+        # 용표는 용력이 최대치에 도달할 때 자동 획득 (GimmickEffect에서 처리)
+        # 용표 3개 도달 시 드래곤 변신 가능 상태 표시
         marks = getattr(character, 'dragon_marks', 0)
-        if marks >= 5:
+        max_marks = getattr(character, 'max_dragon_marks', 3)
+        if marks >= max_marks:
             character.dragon_transform_ready = True
-            logger.info(f"{character.name} 드래곤 변신 준비 완료!")
+            if not hasattr(character, '_dragon_transform_notified') or not character._dragon_transform_notified:
+                logger.info(f"{character.name} 드래곤 변신 준비 완료! (용표 {marks}/{max_marks})")
+                character._dragon_transform_notified = True
+        else:
+            character.dragon_transform_ready = False
+            character._dragon_transform_notified = False
 
     @staticmethod
     def _update_holy_system(character):
