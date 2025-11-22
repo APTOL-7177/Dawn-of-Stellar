@@ -218,6 +218,27 @@ class MovementSyncManager:
             if self.exploration and hasattr(self.exploration, 'player_positions'):
                 self.exploration.player_positions[player_id] = (x, y)
             
+            # 호스트인 경우: 이동한 플레이어가 자원을 밟았는지 확인 (자동 채집)
+            if self.is_host and self.exploration:
+                harvest_data = self.exploration.check_and_harvest(x, y, player_id)
+                if harvest_data:
+                    _, object_type_str = harvest_data
+                    
+                    # 채집 메시지 브로드캐스트
+                    if self.network_manager:
+                        try:
+                            harvest_msg = MessageBuilder.harvest(
+                                x=x,
+                                y=y,
+                                object_type=object_type_str
+                            )
+                            import asyncio
+                            asyncio.create_task(self.network_manager.broadcast(harvest_msg))
+                                
+                            self.logger.info(f"플레이어 {player_id} 자동 채집: ({x}, {y}) {object_type_str}")
+                        except Exception as e:
+                            self.logger.error(f"자동 채집 브로드캐스트 실패: {e}", exc_info=True)
+            
             player_name = getattr(player, 'player_name', player_id)
             self.logger.info(
                 f"플레이어 {player_name} 위치 동기화: ({old_x}, {old_y}) -> ({x}, {y}) "

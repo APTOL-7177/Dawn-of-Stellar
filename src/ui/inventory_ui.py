@@ -1646,7 +1646,8 @@ def open_inventory(
     context: tcod.context.Context,
     inventory: Inventory,
     party: List[Any],
-    exploration: Optional[Any] = None
+    exploration: Optional[Any] = None,
+    on_update: Optional[Any] = None
 ) -> None:
     """
     인벤토리 열기
@@ -1657,6 +1658,7 @@ def open_inventory(
         inventory: 인벤토리
         party: 파티 멤버
         exploration: 탐험 시스템 (드롭 기능용)
+        on_update: 매 프레임 호출할 업데이트 함수 (봇 등 백그라운드 로직용)
     """
     ui = InventoryUI(console.width, console.height, inventory, party, exploration)
     handler = InputHandler()
@@ -1664,12 +1666,16 @@ def open_inventory(
     logger.info("인벤토리 열기")
 
     while not ui.closed:
+        # 백그라운드 업데이트 실행
+        if on_update:
+            on_update()
+
         # 렌더링
         ui.render(console)
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
+        # 입력 처리 (논블로킹)
+        for event in tcod.event.wait(timeout=0.05):
             action = handler.dispatch(event)
 
             if action:

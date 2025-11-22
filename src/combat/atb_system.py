@@ -427,7 +427,7 @@ class ATBSystem:
             if gauge:
                 gauge.reset()
                 self.logger.info(
-                    f"⚡ BREAK! {getattr(defender, 'name', 'Unknown')}의 ATB 게이지 초기화"
+                    f"[BREAK] {getattr(defender, 'name', 'Unknown')}의 ATB 게이지 초기화"
                 )
 
     def clear(self) -> None:

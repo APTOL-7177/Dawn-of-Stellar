@@ -227,13 +227,15 @@ class BraveSystem:
         )
         actual_gain = attacker.current_brv - old_attacker_brv
 
-        # BREAK 판정: 이미 BRV가 0인 상태에서 추가 공격을 받으면 BREAK
-        # 단, 이미 BREAK 상태라면 추가 BREAK 면역
+        # BREAK 판정: BRV가 0이 되었고, 아직 BREAK 상태가 아니라면 BREAK
+        # (HP 공격 후 0이 된 상태에서 맞거나, BRV 깎여서 0이 된 경우 모두 포함)
         is_break = False
         already_broken = self.is_broken(defender)
-        if was_broken and actual_damage > 0 and not already_broken:
+        
+        # 데미지를 입어서 BRV가 0이 됨 (또는 0인 상태에서 맞음)
+        if defender.current_brv == 0 and actual_damage > 0 and not already_broken:
             is_break = True
-            self.logger.info(f"⚡ BREAK! {attacker.name} → {defender.name} (BRV 획득: {brv_gain})")
+            self.logger.info(f"[BREAK] {attacker.name} -> {defender.name} (BRV 획득: {brv_gain})")
 
             # BREAK 상태 플래그 설정
             defender.is_broken = True
@@ -417,8 +419,6 @@ class BraveSystem:
                 actual_mp = attacker.restore_mp(mp_amount)
                 if actual_mp > 0:
                     self.logger.info(f"[마력 흡수] {attacker.name} MP 회복: +{actual_mp} ({mana_leech_rate * 100:.0f}%)")
-
-        # BRV 소비
         brv_consumed = attacker.current_brv
         self.logger.debug(f"[HP 공격] {attacker.name} BRV 소비: {brv_consumed}")
         attacker.current_brv = 0

@@ -51,13 +51,13 @@ class Inventory:
     @property
     def max_weight(self) -> float:
         """
-        최대 무게 계산 (동적) - 1/2.5로 추가 조정 (더 빡빡하게)
+        최대 무게 계산 (동적) - 멀티플레이 환경을 위해 대폭 상향 조정
 
         계산 방식:
-        - 기본 무게: 5kg → 2kg (1/2.5)
-        - 파티원 1명당: +1kg → +0.4kg (1/2.5)
-        - 힘(Strength) 1당: +0.05kg → +0.02kg (1/2.5)
-        - 레벨 1당: +0.1kg → +0.04kg (1/2.5)
+        - 기본 무게: 5kg → 2kg (기존 1/2.5) → 상향 조정 필요
+        - 파티원 1명당: +1kg → +0.4kg
+        - 힘(Strength) 1당: +0.05kg → +0.02kg
+        - 레벨 1당: +0.1kg → +0.04kg
         """
         total = self.base_weight
 
@@ -97,8 +97,10 @@ class Inventory:
             # 레벨 보너스: 1 Level = +0.1kg
             total += total_level * 0.1
 
-        # 1/2.5로 추가 조정 (더 빡빡하게)
-        total = total / 2.5
+        # 1/2.5로 추가 조정 (더 빡빡하게) -> 완화 (x1.5배)
+        # 기존: total = total / 2.5
+        # 수정: total = (total / 2.5) * 1.5 = total * 0.6
+        total = total * 0.6
 
         return round(total, 1)
 

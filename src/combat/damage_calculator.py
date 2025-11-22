@@ -239,7 +239,7 @@ class DamageCalculator:
             # 크리티컬 데미지 배율 (critical_master 등)
             critical_dmg_mult = trait_manager.calculate_critical_damage(attacker)
             damage = int(damage * self.critical_multiplier * critical_dmg_mult)
-            self.logger.info(f"⚡ 크리티컬 HP 공격! {attacker.name} (배율: {self.critical_multiplier * critical_dmg_mult:.2f}x)")
+            self.logger.info(f"[CRITICAL] HP 공격! {attacker.name} (배율: {self.critical_multiplier * critical_dmg_mult:.2f}x)")
 
         # BREAK 보너스
         if is_break:
@@ -251,7 +251,7 @@ class DamageCalculator:
             else:
                 break_mult = self.break_damage_bonus
             damage = int(damage * break_mult)
-            self.logger.info(f"⚡ BREAK 보너스 데미지! {damage} ({break_mult:.2f}x)")
+            self.logger.info(f"[BREAK BONUS] 데미지! {damage} ({break_mult:.2f}x)")
 
         final_damage = max(5, damage)
         
@@ -472,8 +472,18 @@ class DamageCalculator:
     def check_hit(self, attacker: Any, defender: Any) -> bool:
         """
         명중 판정
-
-        공식: 명중률 - 회피율 = 최종 명중률 (최소 5%, 최대 95%)
+        
+        새로운 공식:
+        - 기본 명중률: 85%
+        - 명중률 보너스: (명중 - 100) * 0.3%
+        - 회피율 페널티: 회피 * 0.5%
+        - 최종 명중률 = max(25%, min(98%, 기본 + 보너스 - 페널티))
+        
+        예시:
+        - 명중 100, 회피 0: 85%
+        - 명중 150, 회피 0: 85% + 15% = 100% → 98% (상한선)
+        - 명중 50, 회피 20: 85% - 15% - 10% = 60%
+        - 명중 50, 회피 100: 85% - 15% - 50% = 20% → 25% (하한선)
 
         Args:
             attacker: 공격자
@@ -485,19 +495,37 @@ class DamageCalculator:
         accuracy = self._get_accuracy_stat(attacker)
         evasion = self._get_evasion_stat(defender)
 
-        # 최종 명중률 계산 (명중률 - 회피율)
-        hit_chance = accuracy - evasion
+        # 기본 명중률 (평균 상황)
+        base_hit_rate = 85.0
+        
+        # 명중률 보너스 (100 기준: 100을 넘으면 보너스, 미만이면 페널티)
+        # 명중 1당 0.3% 추가/감소
+        accuracy_bonus = (accuracy - 100) * 0.3
+        
+        # 회피율 페널티 (회피 1당 0.5% 감소)
+        evasion_penalty = evasion * 0.5
+        
+        # 최종 명중률 계산
+        final_hit_rate = base_hit_rate + accuracy_bonus - evasion_penalty
 
-        # 최소/최대 제한 (5% ~ 95%)
-        hit_chance = max(5, min(95, hit_chance))
+        # 최소/최대 제한 (25% ~ 98%)
+        final_hit_rate = max(25.0, min(98.0, final_hit_rate))
 
         # 확률 변환 (0.0 ~ 1.0)
-        hit_chance_pct = hit_chance / 100.0
+        hit_chance_pct = final_hit_rate / 100.0
 
         is_hit = random.random() < hit_chance_pct
 
         if not is_hit:
-            self.logger.debug(f"공격 회피! {defender.name}가 {attacker.name}의 공격을 피했다")
+            self.logger.debug(
+                f"공격 회피! {getattr(defender, 'name', 'Unknown')}가 "
+                f"{getattr(attacker, 'name', 'Unknown')}의 공격을 피했다 "
+                f"(명중률: {final_hit_rate:.1f}%, 명중: {accuracy}, 회피: {evasion})"
+            )
+        else:
+            self.logger.debug(
+                f"공격 명중! (명중률: {final_hit_rate:.1f}%, 명중: {accuracy}, 회피: {evasion})"
+            )
 
         return is_hit
 
@@ -547,7 +575,7 @@ class DamageCalculator:
             spirit = getattr(defender, "spirit", 10)
             # spirit 10당 2% 저항 (최대 20% at spirit 100)
             resistance_bonus = min(0.2, spirit * 0.002)
-            return 1.0 + resistance_bonus
+            return 1.0 - resistance_bonus
 
         return 1.0
 

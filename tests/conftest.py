@@ -31,3 +31,7 @@ def reset_systems():
 
     # Damage Calculator 리셋
     damage_calculator._damage_calculator = None
+
+    # Trait Effect Manager 리셋
+    from src.character import trait_effects
+    trait_effects._trait_effect_manager = None

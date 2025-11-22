@@ -859,16 +859,27 @@ class CombatUI:
                     
                     # 다음 아군의 턴 즉시 시작 (불릿타임 유지)
                     self.current_actor = next_ally
-                    self.action_menu = self._create_action_menu(self.current_actor)
-                    self.state = CombatUIState.ACTION_MENU
-                    self.add_message(f"{next_ally.name}의 턴!", (100, 255, 255))
-                    play_sfx("ui", "cursor_select")
                     
-                    # 다음 아군의 불릿타임 활성화
+                    # 봇인지 확인 (player_id가 "bot_"으로 시작)
                     next_ally_player_id = getattr(next_ally, 'player_id', None)
+                    is_bot = next_ally_player_id and str(next_ally_player_id).startswith('bot_')
+                    
+                    if is_bot:
+                        # 봇 턴: UI 표시하지 않고 WAITING_ATB 상태 유지
+                        self.state = CombatUIState.WAITING_ATB
+                        self.add_message(f"{next_ally.name}(봇)의 턴 - 자동 행동", (150, 150, 255))
+                        logger.info(f"봇 {next_ally.name} 턴: UI 건너뛰고 자동 행동 대기")
+                    else:
+                        # 플레이어 턴: 일반 UI 표시
+                        self.action_menu = self._create_action_menu(self.current_actor)
+                        self.state = CombatUIState.ACTION_MENU
+                        self.add_message(f"{next_ally.name}의 턴!", (100, 255, 255))
+                        play_sfx("ui", "cursor_select")
+                    
+                    # 불릿타임 활성화
                     if next_ally_player_id:
                         self.combat_manager.atb.set_player_selecting(next_ally_player_id, True)
-                        logger.info(f"🔫 불릿타임 유지: 다음 아군 플레이어 {next_ally_player_id} 행동 선택 시작")
+                        logger.info(f"🔫 불릿타임 유지: 다음 {'봇' if is_bot else '플레이어'} {next_ally_player_id} 행동 선택 시작")
                     
                     # 상태 초기화는 건너뛰고 바로 반환
                     return
@@ -1109,29 +1120,44 @@ class CombatUI:
         # 전투 매니저 업데이트
         self.combat_manager.update(delta_time)
 
-        # ATB 업데이트 직후 즉시 턴 체크 (ATB가 100%가 되는 순간 바로 처리)
-        # 행동 가능한 적 확인 (멀티플레이: 아군이 행동 선택 중일 때도 실행 가능, 싱글플레이: WAITING_ATB 상태일 때만)
-        if is_multiplayer:
-            # 멀티플레이: 아군이 행동 선택 중일 때도 적은 행동 가능
-            self._check_ready_enemies()
-        elif self.state == CombatUIState.WAITING_ATB:
-            # 싱글플레이: WAITING_ATB 상태일 때만 적 턴 체크
-            self._check_ready_enemies()
+        # ATB 업데이트 직후 즉시 턴 체크
+        # 행동 가능한 캐릭터 확인
+        ready = self.combat_manager.atb.get_action_order()
 
-        # 아군 턴 체크 (ATB 업데이트 직후 즉시 체크)
-        # WAITING_ATB 상태일 때 다음 아군 턴으로 전환
-        # ATB가 100%가 되는 순간 바로 턴이 와야 하므로 업데이트 직후 즉시 체크
-        if self.state == CombatUIState.WAITING_ATB:
-            self._check_ready_allies()
+        if ready and not self.action_delay_frames:
+            # 다음 행동자
+            actor = ready[0]
+            
+            # 캐릭터 타입 확인
+            actor_player_id = getattr(actor, 'player_id', None)
+            is_bot = actor_player_id and str(actor_player_id).startswith('bot_')
+            
+            if actor in self.combat_manager.enemies:
+                # 적 턴: 기존 EnemyAI 처리
+                self._execute_enemy_turn(actor)
+                
+            elif is_bot:
+                # 봇 턴: AI가 자동으로 행동
+                logger.info(f"봇 {actor.name} 턴 시작 - AI 행동 결정")
+                self._process_bot_turn(actor)
+                
+            elif actor in self.combat_manager.allies:
+                # 플레이어 턴: UI 표시 (WAITING_ATB 상태일 때만)
+                if self.state == CombatUIState.WAITING_ATB:
+                    self.current_actor = actor
+                    self.action_menu = self._create_action_menu(actor)
+                    self.state = CombatUIState.ACTION_MENU
+                    self.add_message(f"{actor.name}의 턴!", (100, 255, 255))
+                    play_sfx("ui", "cursor_select")
 
-        # 전투 종료 확인
+        # 전투 종료 체크
         if self.combat_manager.state in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
             if not self.battle_ended:
+                logger.debug(f"전투 종료: {self.combat_manager.state}")
                 self.battle_ended = True
                 self.battle_result = self.combat_manager.state
                 self.state = CombatUIState.BATTLE_END
-                logger.info(f"전투 종료 감지: {self.battle_result.value}")
-
+    
         # 메시지 타이머 감소 (표시용이지만, 메시지는 사라지지 않고 계속 저장됨)
         for msg in self.messages:
             msg.frames_remaining -= 1
@@ -1160,6 +1186,145 @@ class CombatUI:
                     for player_id in list(self.combat_manager.atb.players_selecting_action):
                         self.combat_manager.atb.set_player_selecting(player_id, False)
                         logger.debug(f"불릿타임 해제: 플레이어 {player_id} (액터 없음, 상태: {self.state.value})")
+
+    def _get_bot_instance(self, character: Any) -> Any:
+        """
+        캐릭터의 봇 인스턴스 찾기
+        
+        Args:
+            character: 봇이 조종하는 캐릭터
+        
+        Returns:
+            AdvancedAIBot 인스턴스 또는 None
+        """
+        if not self.session:
+            return None
+        
+        bot_id = getattr(character, 'player_id', None)
+        if not bot_id:
+            return None
+            
+        if not str(bot_id).startswith('bot_'):
+            return None
+        
+        # 1. Session.bot_manager에서 찾기 (AdvancedBotManager) - 최우선
+        if hasattr(self.session, 'bot_manager') and self.session.bot_manager:
+            if bot_id in self.session.bot_manager.bots:
+                return self.session.bot_manager.bots[bot_id]
+        
+        # 2. Session.bots에서 찾기 (이전 호환성)
+        if hasattr(self.session, 'bots'):
+            return self.session.bots.get(bot_id)
+        
+        return None
+    
+    def _process_bot_turn(self, actor: Any):
+        """
+        봇 턴 처리 - AI가 행동 결정 및 실행
+        
+        Args:
+            actor: 봇이 조종하는 캐릭터
+        """
+        # 봇 인스턴스 찾기
+        bot = self._get_bot_instance(actor)
+        
+        if not bot:
+            logger.warning(f"봇 인스턴스를 찾을 수 없음: {actor.name}")
+            # Fallback: 기본 BRV 공격
+            self._execute_default_bot_action(actor)
+            return
+        
+        try:
+            # 봇 AI로 행동 결정
+            action = bot.decide_action(
+                character=actor,
+                allies=self.combat_manager.allies,
+                enemies=self.combat_manager.enemies
+            )
+            
+            # 행동 실행
+            self._execute_bot_action(actor, action)
+            
+        except Exception as e:
+            logger.error(f"봇 턴 처리 실패: {e}", exc_info=True)
+            # Fallback
+            self._execute_default_bot_action(actor)
+    
+    def _execute_bot_action(self, actor: Any, action: dict):
+        """
+        봇이 결정한 행동 실행
+        
+        Args:
+            actor: 행동자
+            action: 행동 정보 {type, skill, target}
+        """
+        action_type = action.get("type")
+        target = action.get("target")
+        skill = action.get("skill")
+        
+        logger.debug(f"봇 행동 실행: {actor.name} → {action_type}")
+        
+        # ActionType 변환
+        if action_type == "skill" and skill:
+            result = self.combat_manager.execute_action(
+                actor=actor,
+                action_type=ActionType.SKILL,
+                target=target,
+                skill=skill
+            )
+        elif action_type == "hp_attack":
+            result = self.combat_manager.execute_action(
+                actor=actor,
+                action_type=ActionType.HP_ATTACK,
+                target=target
+            )
+        elif action_type == "attack":  # BRV 공격
+            result = self.combat_manager.execute_action(
+                actor=actor,
+                action_type=ActionType.BRV_ATTACK,
+                target=target
+            )
+        elif action_type == "defend":
+            result = self.combat_manager.execute_action(
+                actor=actor,
+                action_type=ActionType.DEFEND
+            )
+        else:
+            logger.warning(f"알 수 없는 행동 타입: {action_type}")
+            result = {}
+        
+        # 결과 메시지 표시
+        self._show_action_result(result)
+        
+        # 행동 후 대기 시간
+        self.action_delay_frames = self.action_delay_max
+    
+    def _execute_default_bot_action(self, actor: Any):
+        """
+        봇 Fallback 행동 (기본 BRV 공격)
+        
+        Args:
+            actor: 행동자
+        """
+        # 살아있는 적 찾기
+        alive_enemies = [e for e in self.combat_manager.enemies if getattr(e, 'is_alive', True)]
+        
+        if not alive_enemies:
+            return
+        
+        # 랜덤 타겟
+        import random
+        target = random.choice(alive_enemies)
+        
+        # BRV 공격
+        result = self.combat_manager.execute_action(
+            actor=actor,
+            action_type=ActionType.BRV_ATTACK,
+            target=target
+        )
+        
+        self._show_action_result(result)
+        self.action_delay_frames = self.action_delay_max
 
     def _check_ready_enemies(self):
         """행동 가능한 적 확인 (항상 체크)"""
@@ -1232,80 +1397,65 @@ class CombatUI:
                 is_bot = False
                 bot = None
                 
-                if self.bot_manager and actor_player_id:
-                    bot = self.bot_manager.get_bot(actor_player_id)
+                # 1. self.bot_manager 사용 (일반 봇 매니저)
+                if hasattr(self, 'bot_manager') and self.bot_manager and actor_player_id:
+                    # get_bot이 없으면 bots 딕셔너리 확인
+                    if hasattr(self.bot_manager, 'get_bot'):
+                        bot = self.bot_manager.get_bot(actor_player_id)
+                    elif hasattr(self.bot_manager, 'bots'):
+                        bot = self.bot_manager.bots.get(actor_player_id)
+                        
                     if bot:
                         is_bot = True
-                        # 봇의 전투 관리자 설정
-                        bot.set_combat_manager(self.combat_manager, self)
+                        if hasattr(bot, 'set_combat_manager'):
+                            bot.set_combat_manager(self.combat_manager, self)
                 
+                # 2. _get_bot_instance 사용 (AdvancedBotManager 및 Session 통합 검색) - 이게 더 확실함
+                if not bot:
+                    bot_instance = self._get_bot_instance(combatant)
+                    if bot_instance:
+                        is_bot = True
+                        bot = bot_instance
+                        if hasattr(bot, 'set_combat_manager'):
+                            bot.set_combat_manager(self.combat_manager, self)
+
                 if is_bot and bot:
                     # 봇 자동 전투: 즉시 액션 선택 및 실행
-                    logger.info(f"봇 {combatant.name}의 턴 - 자동 액션 선택")
+                    logger.info(f"봇 {getattr(combatant, 'name', 'Unknown')}의 턴 - 자동 액션 선택 (ID: {actor_player_id})")
                     self.current_actor = combatant
                     
-                    # 봇이 자동으로 액션 선택
-                    action_data = bot.auto_combat_action(
-                        actor=combatant,
-                        allies=self.combat_manager.allies,
-                        enemies=self.combat_manager.enemies
-                    )
-                    
-                    if action_data:
-                        # 액션 실행
-                        action_type_str = action_data.get("type", "brv_attack")
-                        target = action_data.get("target")
-                        skill_id = action_data.get("skill_id")
-                        
-                        # ActionType 변환
-                        if action_type_str == "skill" and skill_id:
-                            # 스킬 사용
-                            from src.character.skills.skill_manager import get_skill_manager
-                            skill_manager = get_skill_manager()
-                            skill = skill_manager.get_skill(skill_id)
-                            if skill:
-                                result = self.combat_manager.execute_action(
-                                    actor=combatant,
-                                    action_type=ActionType.SKILL,
-                                    target=target,
-                                    skill=skill
-                                )
-                                if result:
-                                    self._show_action_result(result)
+                    try:
+                        # 봇 행동 결정 메서드 호출 (decide_action 우선, 없으면 auto_combat_action)
+                        if hasattr(bot, 'decide_action'):
+                            action_data = bot.decide_action(
+                                character=combatant,
+                                allies=self.combat_manager.allies,
+                                enemies=self.combat_manager.enemies
+                            )
+                        elif hasattr(bot, 'auto_combat_action'):
+                            action_data = bot.auto_combat_action(
+                                actor=combatant,
+                                allies=self.combat_manager.allies,
+                                enemies=self.combat_manager.enemies
+                            )
                         else:
-                            # 기본 공격
-                            action_type = ActionType.BRV_ATTACK
-                            if action_type_str == "hp_attack":
-                                action_type = ActionType.HP_ATTACK
-                            elif action_type_str == "brv_hp_attack":
-                                action_type = ActionType.BRV_HP_ATTACK
+                            logger.error(f"봇 {actor_player_id}에 행동 결정 메서드가 없습니다.")
+                            action_data = None
                             
-                            result = self.combat_manager.execute_action(
-                                actor=combatant,
-                                action_type=action_type,
-                                target=target
-                            )
-                            if result:
-                                self._show_action_result(result)
-                        
-                        # 상태 초기화
-                        self.current_actor = None
-                        self.state = CombatUIState.WAITING_ATB
-                    else:
-                        # 액션 선택 실패 시 기본 공격
-                        alive_enemies = [e for e in self.combat_manager.enemies if getattr(e, 'is_alive', True)]
-                        if alive_enemies:
-                            import random
-                            target = random.choice(alive_enemies)
-                            result = self.combat_manager.execute_action(
-                                actor=combatant,
-                                action_type=ActionType.BRV_ATTACK,
-                                target=target
-                            )
-                            if result:
-                                self._show_action_result(result)
-                        self.current_actor = None
-                        self.state = CombatUIState.WAITING_ATB
+                        if action_data:
+                            # decide_action은 {type, skill, target} 반환
+                            # auto_combat_action은 {type, skill_id, target} 반환
+                            
+                            # 공통 처리
+                            self._execute_bot_action(combatant, action_data)
+                        else:
+                            # 행동 결정 실패 시 기본 행동
+                            logger.warning(f"봇 행동 결정 실패 (None 반환). 기본 행동 수행.")
+                            self._execute_default_bot_action(combatant)
+                            
+                    except Exception as e:
+                        logger.error(f"봇 턴 처리 중 오류 발생: {e}", exc_info=True)
+                        self._execute_default_bot_action(combatant)
                     
                     return
                 

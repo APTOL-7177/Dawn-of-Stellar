@@ -143,8 +143,28 @@ class HarvestableObject:
             qty = max(0, int(qty * 0.25))
             if qty > 0:
                 results[ingredient_id] = results.get(ingredient_id, 0) + qty
+        
+        # 봇 전용: 채집 결과가 비어있으면 최소 1개 보장 (무한 시도 방지용)
+        # (봇 ID는 보통 'bot_'으로 시작한다고 가정)
+        if player_id and player_id.startswith('bot_') and not results:
+            # 기본 재료라도 하나 줌
+            default_item = self.loot_table[0][0] if self.loot_table else "stick"
+            results[default_item] = 1
 
         return results
+
+    def harvest_by_bot(self, bot_id: str) -> Dict[str, int]:
+        """
+        봇 전용 채집 (간소화된 프로세스)
+        
+        Args:
+            bot_id: 봇 ID
+            
+        Returns:
+            획득한 재료
+        """
+        # 거리 체크나 기타 검증 없이 즉시 채집 (AI 로직에서 이미 확인했다고 가정)
+        return self.harvest(bot_id)
 
     def can_harvest(self, player_id: str = None) -> bool:
         """
