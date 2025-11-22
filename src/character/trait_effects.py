@@ -1394,8 +1394,8 @@ class TraitEffectManager:
                     effect_type=TraitEffectType.STAT_MULTIPLIER,
                     value=1.20,
                     condition="spirit_fire_active",
-                    target_stat="attack",
-                    metadata={"description": "화염 정령 소환 시 공격력 +20%"}
+                    target_stat="magic_attack",
+                    metadata={"description": "화염 정령 소환 시 마법 공격력 +20%"}
                 )
             ],
             "water_spirit_regeneration": [

@@ -257,9 +257,15 @@ class CombatManager:
                         break
                 
                 status_name = blocking_status or "행동 불가 상태"
-                self.logger.warning(f"{getattr(actor, 'name', 'Unknown')}은(는) {status_name}로 인해 행동할 수 없습니다.")
+                self.logger.warning(f"{getattr(actor, 'name', 'Unknown')}은(는) {status_name}로 인해 행동할 수 없습니다. (턴 스킵)")
+                
+                # 턴 스킵 처리 (ATB 소비 및 턴 종료)
+                self.atb.consume_atb(actor)
+                self._on_turn_end(actor)
+                
                 return {
-                    "action": "error",
+                    "action": "skip",
+                    "success": False,
                     "error": "actor_cannot_act",
                     "message": f"{status_name}로 인해 행동할 수 없습니다."
                 }

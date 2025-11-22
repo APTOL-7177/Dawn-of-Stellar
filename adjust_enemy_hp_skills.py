@@ -37,7 +37,7 @@ while i < len(lines):
             
             # HP 공격만 있는 경우: 1/2
             if hp and not brv:
-                new_val = val * 0.5
+                new_val = round(val * 0.5, 2)
                 changes += 1
                 lines[i] = re.sub(r'damage_multiplier=[\d.]+', f'damage_multiplier={new_val}', line)
                 print(f"변경 (HP만): {line.strip()} -> {lines[i].strip()}")

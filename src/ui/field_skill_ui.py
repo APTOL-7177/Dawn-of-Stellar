@@ -102,9 +102,9 @@ class FieldSkillUI:
         if not self.is_active or not self.menu:
             return False, None
 
-        if action == GameAction.UP:
+        if action == GameAction.MOVE_UP:
             self.menu.move_cursor_up()
-        elif action == GameAction.DOWN:
+        elif action == GameAction.MOVE_DOWN:
             self.menu.move_cursor_down()
         elif action == GameAction.CANCEL:
             self.hide()
