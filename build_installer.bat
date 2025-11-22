@@ -60,6 +60,15 @@ if not exist "LICENSE" (
     echo. > LICENSE
 )
 
+REM 로고를 ICO로 변환
+if not exist "assets\logo.ico" (
+    echo 로고를 ICO 형식으로 변환합니다...
+    python convert_logo_to_ico.py
+    if %ERRORLEVEL% NEQ 0 (
+        echo [경고] ICO 변환 실패. PNG를 직접 사용합니다.
+    )
+)
+
 echo 설치 프로그램을 빌드합니다...
 echo.
 
