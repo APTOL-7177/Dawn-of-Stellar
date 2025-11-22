@@ -3,6 +3,15 @@
 ; Version: 1.0.0
 
 ;--------------------------------
+; Logo/Icon Settings
+
+!if /FileExists "assets\logo.ico"
+!define LOGO_ICO "assets\logo.ico"
+!else
+!define LOGO_ICO "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
+!endif
+
+;--------------------------------
 ; General Settings
 
 !define PRODUCT_NAME "Dawn of Stellar"
@@ -28,8 +37,8 @@ SetCompressorDictSize 32
 ; MUI Settings
 
 !define MUI_ABORTWARNING
-!define MUI_ICON "assets\logo.png"
-!define MUI_UNICON "assets\logo.png"
+!define MUI_ICON "${LOGO_ICO}"
+!define MUI_UNICON "${LOGO_ICO}"
 
 ; Installer Pages
 !insertmacro MUI_PAGE_WELCOME
@@ -128,6 +137,9 @@ Section "Game Files" SEC01
     NoGalmuriMono9:
     
     ; Logo/Icon File
+    IfFileExists "assets\logo.ico" 0 NoLogoICO
+    File "assets\logo.ico"
+    NoLogoICO:
     IfFileExists "assets\logo.png" 0 NoLogo
     File "assets\logo.png"
     NoLogo:
@@ -196,7 +208,15 @@ Section "Game Files" SEC01
     ; Uninstaller Registry Keys
     WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayName" "$(^Name)"
     WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "UninstallString" "$INSTDIR\uninstall.exe"
+    ; DisplayIcon (prefer ICO)
+    IfFileExists "$INSTDIR\logo.ico" 0 UsePNGIcon
+    WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayIcon" "$INSTDIR\logo.ico"
+    Goto IconDone
+    UsePNGIcon:
+    IfFileExists "$INSTDIR\logo.png" 0 NoIconReg
     WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayIcon" "$INSTDIR\logo.png"
+    NoIconReg:
+    IconDone:
     WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
     WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}"
     WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
@@ -207,16 +227,25 @@ Section "Shortcuts" SEC02
     
     ; Start Menu Shortcuts
     CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
-    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\start_game.bat" "" "$INSTDIR\logo.png" 0
-    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} (Launcher).lnk" "$INSTDIR\launcher.bat" "" "$INSTDIR\logo.png" 0
-    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} (Direct Run).lnk" "$INSTDIR\start_game_direct.bat" "" "$INSTDIR\logo.png" 0
-    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} (Dev Mode).lnk" "$INSTDIR\start_game_dev.bat" "" "$INSTDIR\logo.png" 0
-    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Update Game.lnk" "$INSTDIR\update.bat" "" "$INSTDIR\logo.png" 0
-    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\logo.png" 0
-    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Website.lnk" "${PRODUCT_WEB_SITE}" "" "$INSTDIR\logo.png" 0
+    ; Icon path (prefer ICO, fallback to PNG)
+    StrCpy $0 "$INSTDIR\logo.ico"
+    IfFileExists "$INSTDIR\logo.ico" 0 UsePNGIcon
+    Goto SetIconPath
+    UsePNGIcon:
+    StrCpy $0 "$INSTDIR\logo.png"
+    IfFileExists "$INSTDIR\logo.png" 0 NoIconPath
+    SetIconPath:
+    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\start_game.bat" "" $0 0
+    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} (Launcher).lnk" "$INSTDIR\launcher.bat" "" $0 0
+    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} (Direct Run).lnk" "$INSTDIR\start_game_direct.bat" "" $0 0
+    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} (Dev Mode).lnk" "$INSTDIR\start_game_dev.bat" "" $0 0
+    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Update Game.lnk" "$INSTDIR\update.bat" "" $0 0
+    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" $0 0
+    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Website.lnk" "${PRODUCT_WEB_SITE}" "" $0 0
     
     ; Desktop Shortcut
-    CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\start_game.bat" "" "$INSTDIR\logo.png" 0
+    CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\start_game.bat" "" $0 0
+    NoIconPath:
 SectionEnd
 
 Section "Python Environment Setup" SEC03
@@ -438,6 +467,7 @@ Section "Uninstall"
     Delete "$INSTDIR\start_game.bat"
     Delete "$INSTDIR\start_game_direct.bat"
     Delete "$INSTDIR\start_game_dev.bat"
+    Delete "$INSTDIR\logo.ico"
     Delete "$INSTDIR\logo.png"
     Delete "$INSTDIR\*.ttc"
     Delete "$INSTDIR\*.ttf"
