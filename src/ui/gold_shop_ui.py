@@ -730,8 +730,8 @@ class GoldShopUI:
         item_y = shop_y + 7
 
         for i, item in enumerate(current_items):
-            # 재고가 0이면 건너뛰기 (매진 아이템은 표시하지 않음)
-            if item.stock <= 0:
+            # 재고가 0이면 건너뛰기 (매진 아이템은 표시하지 않음, -1은 무제한)
+            if item.stock == 0:
                 continue
                 
             if i == self.selected_index:
@@ -746,7 +746,7 @@ class GoldShopUI:
                 console.print(shop_x + 4, item_y, item_name, fg=(255, 255, 100))
 
                 # 가격 (골드 부족 시 빨간색, 재고 없으면 회색)
-                if item.stock > 0:
+                if item.stock != 0:  # 0이 아니면 (양수 또는 -1 무제한)
                     price_color = (255, 255, 100) if self.inventory.gold >= item.price else (255, 100, 100)
                 else:
                     price_color = (100, 100, 100)
@@ -766,8 +766,8 @@ class GoldShopUI:
         # 선택된 아이템 설명
         if current_items and self.selected_index < len(current_items):
             selected_item = current_items[self.selected_index]
-            # 재고가 있는 아이템만 설명 표시
-            if selected_item.stock > 0:
+            # 재고가 있는 아이템만 설명 표시 (0이 아니면, -1은 무제한)
+            if selected_item.stock != 0:
                 desc_y = shop_y + shop_height - 8
 
                 console.print(shop_x + 2, desc_y, "[ 설명 ]", fg=(150, 200, 255))
