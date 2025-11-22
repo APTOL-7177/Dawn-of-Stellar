@@ -492,8 +492,10 @@ class GoldShopUI:
             return
 
         # 구매
+        import copy
+        item_to_add = copy.deepcopy(selected_item.item_obj)
         self.inventory.remove_gold(selected_item.price)
-        self.inventory.add_item(selected_item.item_obj)
+        self.inventory.add_item(item_to_add)
         
         # 재고 감소
         selected_item.stock -= 1

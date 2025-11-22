@@ -3354,6 +3354,150 @@ class AdvancedAIBot:
             if target.get("priority", 0) >= 10 and random.random() < 0.3:
                  self._send_chat_message(f"{self.bot_name}: 찾았다!")
 
+    def _check_equipment_durability(self) -> bool:
+        """장비 내구도 확인 (30% 미만이면 True)"""
+        if not hasattr(self, 'bot_inventory') or not self.bot_inventory:
+            return False
+            
+        inventory = self.bot_inventory
+        if not hasattr(inventory, 'party') or not inventory.party:
+            return False
+            
+        # 봇의 캐릭터 (첫 번째 멤버)
+        if len(inventory.party) == 0:
+            return False
+            
+        character = inventory.party[0]
+        
+        if not hasattr(character, 'equipment'):
+            return False
+            
+        for slot, item in character.equipment.items():
+            if item and hasattr(item, 'current_durability') and hasattr(item, 'max_durability'):
+                if item.current_durability < item.max_durability * 0.3:
+                    return True
+        return False
+
+    def _check_and_repair(self) -> Optional[Dict[str, Any]]:
+        """장비 수리 행동 결정 (모루/상점 이용)"""
+        # 1. 내구도 체크
+        if not self._check_equipment_durability():
+            return None
+            
+        exploration = self._get_exploration_system()
+        if not exploration or not hasattr(exploration, 'dungeon'):
+            return None
+            
+        dungeon = exploration.dungeon
+        
+        # 2. 현재 위치가 수리 가능한 곳인지 확인
+        current_tile = dungeon.get_tile(self.current_x, self.current_y)
+        if current_tile:
+            from src.world.tile import TileType
+            # 모루 (무료, 1회성)
+            if current_tile.tile_type == TileType.ANVIL and not getattr(current_tile, 'used', False):
+                # 즉시 수리 수행 (상호작용 불필요, 봇 특권)
+                self._perform_repair(current_tile)
+                return None # 행동 완료
+                
+            # 상점 (유료)
+            elif current_tile.tile_type == TileType.SHOP:
+                # 골드 확인 (최소 100G 가정)
+                if self.bot_inventory.gold >= 100:
+                    self._perform_repair(current_tile, use_gold=True)
+                    return None
+
+        # 3. 주변(시야 내) 수리 시설 탐색 및 이동
+        repair_target = None
+        min_dist = float('inf')
+        
+        # 시야 내 타일 스캔 (반경 15칸)
+        scan_radius = 15
+        for dy in range(-scan_radius, scan_radius + 1):
+            for dx in range(-scan_radius, scan_radius + 1):
+                nx, ny = self.current_x + dx, self.current_y + dy
+                if 0 <= nx < dungeon.width and 0 <= ny < dungeon.height:
+                    tile = dungeon.get_tile(nx, ny)
+                    if not tile or not tile.explored:
+                        continue
+                        
+                    from src.world.tile import TileType
+                    is_target = False
+                    
+                    # 사용하지 않은 모루
+                    if tile.tile_type == TileType.ANVIL and not getattr(tile, 'used', False):
+                        is_target = True
+                    # 상점 (골드 있을 때)
+                    elif tile.tile_type == TileType.SHOP and self.bot_inventory.gold >= 100:
+                        is_target = True
+                        
+                    if is_target:
+                        dist = abs(self.current_x - nx) + abs(self.current_y - ny)
+                        if dist < min_dist:
+                            min_dist = dist
+                            repair_target = (nx, ny)
+                            
+        if repair_target:
+            # 이동 명령 반환
+            tx, ty = repair_target
+            self.logger.info(f"봇 {self.bot_name} 수리 시설({tx},{ty})로 이동 (내구도 부족)")
+            path = self._find_path((self.current_x, self.current_y), repair_target)
+            if len(path) > 1:
+                next_step = path[1]
+                return {"x": next_step[0], "y": next_step[1]}
+                
+        return None
+
+    def _perform_repair(self, tile, use_gold=False):
+        """수리 실행"""
+        inventory = self.bot_inventory
+        if not inventory or not inventory.party:
+            return
+            
+        character = inventory.party[0]
+        
+        # 수리 대상 아이템 수집
+        items = []
+        for slot, item in character.equipment.items():
+            if item and hasattr(item, 'current_durability'):
+                items.append(item)
+        # 인벤토리는 생략 (봇은 장착 장비가 중요)
+                
+        if not items:
+            return
+
+        if use_gold:
+            # 상점 수리 (전체 수리)
+            total_cost = 0
+            repair_list = []
+            
+            for item in items:
+                if not hasattr(item, 'max_durability'): continue
+                missing = item.max_durability - item.current_durability
+                if missing > 0:
+                    # 비용 계산 (약식)
+                    cost = int(missing * 2) 
+                    total_cost += cost
+                    repair_list.append(item)
+            
+            if total_cost > 0 and inventory.gold >= total_cost:
+                inventory.remove_gold(total_cost)
+                for item in repair_list:
+                    item.current_durability = item.max_durability
+                    # 스탯 업데이트 필요 시 호출
+                    
+                self.logger.info(f"봇 {self.bot_name} 상점에서 {len(repair_list)}개 아이템 수리 완료 (비용: {total_cost}G)")
+        else:
+            # 모루 수리 (가장 급한 1개)
+            # 내구도 비율이 가장 낮은 아이템 선택
+            repairable_items = [i for i in items if hasattr(i, 'max_durability') and i.current_durability < i.max_durability]
+            
+            if repairable_items:
+                target_item = min(repairable_items, key=lambda i: i.current_durability / max(1, i.max_durability))
+                target_item.current_durability = target_item.max_durability
+                tile.used = True
+                self.logger.info(f"봇 {self.bot_name} 모루에서 {target_item.name} 수리 완료")
+
     def _decide_next_action_intelligent(self):
         """지능형 행동 결정 (우선순위 기반)"""
         # 전투 중이거나 전투 트리거 대기 중이면 탐험/채집 로직 중단
@@ -3370,7 +3514,14 @@ class AdvancedAIBot:
                 self.in_combat = False
             else:
                 return
-            
+        
+        # 0. 장비 수리 체크 (전투 전 최우선)
+        repair_action = self._check_and_repair()
+        if repair_action:
+            if repair_action.get("type") == "move":
+                self._execute_move(repair_action)
+            return
+
         # 1. 전투 상황 평가 (전투 중이 아니더라도 적이 근처에 있으면)
         if self.nearby_enemies:
             combat_action = self._evaluate_combat_situation()

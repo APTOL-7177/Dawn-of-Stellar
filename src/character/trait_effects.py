@@ -1989,7 +1989,7 @@ class TraitEffectManager:
                     effect_type=TraitEffectType.STAT_MULTIPLIER,
                     value=1.02,
                     target_stat="stats_per_1000gold",
-                    metadata={"description": "골드 보유량이 많을수록 스탯 증가 (250골드당 +2%, 최대 +50%)"}
+                    metadata={"description": "골드 보유량이 많을수록 스탯 증가 (70골드당 +2%, 최대 +50%)"}
                 )
             ],
             "pirate_fortune": [
@@ -2520,9 +2520,9 @@ class TraitEffectManager:
                             except:
                                 pass
                         
-                        # 250골드당 +2% (기존: 1000골드당 +2%)
-                        gold_units = gold_amount // 250
-                        bonus_multiplier = 1.0 + (gold_units * 0.02)  # 250골드당 +2%
+                        # 70골드당 +2% (기존: 250골드당 +2%)
+                        gold_units = gold_amount // 70
+                        bonus_multiplier = 1.0 + (gold_units * 0.02)  # 70골드당 +2%
                         
                         # 최대값 50%로 제한
                         max_multiplier = 1.50  # 최대 +50%
@@ -2531,7 +2531,7 @@ class TraitEffectManager:
                         if bonus_multiplier > 1.0:
                             final_value *= bonus_multiplier
                             self.logger.debug(
-                                f"[{trait_id}] {stat_name} 골드 보너스 적용: {gold_amount}골드 ({gold_units}×250) → x{bonus_multiplier:.3f} → {final_value}"
+                                f"[{trait_id}] {stat_name} 골드 보너스 적용: {gold_amount}골드 ({gold_units}×70) → x{bonus_multiplier:.3f} → {final_value}"
                             )
                     continue
 
