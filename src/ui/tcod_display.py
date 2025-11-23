@@ -71,33 +71,23 @@ class TCODDisplay:
         self.logger = get_logger("display")
         self.config = get_config()
 
-        # 화면 크기 (기본값)
-        base_width = self.config.get("display.screen_width", 80)
-        base_height = self.config.get("display.screen_height", 50)
+        # 화면 크기 (기본값 - 콘솔 크기는 고정)
+        self.screen_width = self.config.get("display.screen_width", 80)
+        self.screen_height = self.config.get("display.screen_height", 50)
         
-        # 현재 디스플레이의 종횡비 가져오기
+        # 현재 디스플레이의 종횡비 가져오기 (창 크기 조정용)
         display_aspect_ratio = self._get_display_aspect_ratio()
         
         if display_aspect_ratio:
-            # 디스플레이 종횡비에 맞춰 콘솔 크기 조정
-            current_aspect = base_width / base_height
-            
-            if abs(current_aspect - display_aspect_ratio) > 0.01:  # 종횡비가 다르면 조정
-                # 디스플레이 종횡비로 맞춤 (높이 기준)
-                self.screen_width = int(base_height * display_aspect_ratio)
-                self.screen_height = base_height
-                self.logger.info(
-                    f"콘솔 크기를 디스플레이 종횡비({display_aspect_ratio:.4f})로 조정: "
-                    f"{base_width}x{base_height} -> {self.screen_width}x{self.screen_height}"
-                )
-            else:
-                self.screen_width = base_width
-                self.screen_height = base_height
+            self.logger.info(
+                f"콘솔 크기: {self.screen_width}x{self.screen_height}, "
+                f"모니터 종횡비: {display_aspect_ratio:.4f} (검은색 띠로 조정)"
+            )
         else:
-            # 종횡비를 가져올 수 없으면 기본값 사용
-            self.screen_width = base_width
-            self.screen_height = base_height
-            self.logger.info("디스플레이 종횡비를 가져올 수 없어 기본 크기 사용")
+            self.logger.info(
+                f"콘솔 크기: {self.screen_width}x{self.screen_height} "
+                "(디스플레이 종횡비를 가져올 수 없음)"
+            )
 
         # 패널 크기
         self.map_width = self.config.get("display.panels.map_width", 60)
@@ -258,7 +248,7 @@ class TCODDisplay:
             self._tile_width = getattr(self.tileset, 'tile_width', 10) if self.tileset else 10
             self._tile_height = getattr(self.tileset, 'tile_height', 13) if self.tileset else 13
             
-            # 디스플레이 종횡비 (콘솔 크기를 디스플레이 종횡비로 맞췄으므로, 타일 크기만으로 창도 해당 종횡비가 됨)
+            # 디스플레이 종횡비 설정 (창 크기 조정용 - 검은색 띠 생성)
             display_aspect_ratio = self._get_display_aspect_ratio()
             if display_aspect_ratio:
                 self._aspect_ratio = display_aspect_ratio
@@ -269,8 +259,9 @@ class TCODDisplay:
             # 콘솔 크기와 종횡비 확인
             console_aspect = self.screen_width / self.screen_height
             self.logger.info(
-                f"콘솔 크기: {self.screen_width}x{self.screen_height}, "
-                f"종횡비: {console_aspect:.4f} (목표: {self._aspect_ratio:.4f})"
+                f"콘솔 크기: {self.screen_width}x{self.screen_height} (고정), "
+                f"콘솔 종횡비: {console_aspect:.4f}, "
+                f"창 종횡비: {self._aspect_ratio:.4f} (모니터에 맞춤, 검은색 띠 사용)"
             )
 
             context_kwargs = {
@@ -285,26 +276,24 @@ class TCODDisplay:
                 context_kwargs["renderer"] = renderer
                 self.logger.info(f"렌더러 사용: {renderer_name}")
 
-            # 콘솔 크기를 16:9로 맞췄으므로, 타일 크기만으로 창도 자동으로 16:9가 됨
-            # TCOD는 타일 크기 * 콘솔 크기 = 창 크기를 계산하므로
-            # 콘솔이 16:9이면 창도 16:9가 됨
+            # 콘솔 크기는 고정하고, 창 크기는 모니터 종횡비에 맞춤
+            # TCOD는 콘솔을 중앙에 배치하고, 종횡비가 맞지 않으면 검은색 배경으로 띠를 만듦
             try:
                 # context 생성
                 self.context = tcod.context.new(**context_kwargs)
                 
-                # 콘솔 크기가 디스플레이 종횡비로 설정되어 있으므로, 창도 자동으로 해당 종횡비가 됨
-                # 창 크기 변경 시에도 콘솔 크기는 유지되므로 종횡비 유지
-                # 추가로 SDL 종횡비 제약 설정 (백업)
+                # 모니터 종횡비에 맞춰 창 크기 조정 (검은색 띠 생성)
+                # SDL 종횡비 제약 설정으로 자동으로 띠 생성
                 if display_aspect_ratio:
                     self._set_aspect_ratio_constraint(display_aspect_ratio)
                 else:
-                    # 종횡비를 가져오지 못했어도 현재 종횡비로 설정
+                    # 종횡비를 가져오지 못했어도 콘솔 종횡비로 설정
                     self._set_aspect_ratio_constraint()
                 
                 self.logger.info(
-                    f"디스플레이 종횡비({self._aspect_ratio:.4f})로 초기화 완료 "
-                    f"(콘솔: {self.screen_width}x{self.screen_height}, "
-                    f"타일: {self._tile_width}x{self._tile_height})"
+                    f"창 크기를 모니터 종횡비({self._aspect_ratio:.4f})로 설정 완료. "
+                    f"콘솔({self.screen_width}x{self.screen_height})은 중앙에 배치되고 "
+                    f"좌우 또는 상하에 검은색 띠가 표시됩니다."
                 )
                 
             except Exception as e:
@@ -565,11 +554,10 @@ class TCODDisplay:
         """화면에 표시"""
         if self.context and self.console:
             # 창 크기 변경 이벤트 처리
-            # 콘솔 크기가 16:9로 고정되어 있으므로, 창 크기가 변경되어도 
-            # TCOD가 콘솔 크기에 맞춰 스케일링하므로 종횡비 유지됨
+            # 모니터 종횡비에 맞춰 창 크기 조정 (검은색 띠 유지)
             self._handle_window_resize_events()
             
-            # 기본 렌더링 (TCOD가 자동으로 종횡비 유지)
+            # 기본 렌더링 (TCOD가 자동으로 콘솔을 중앙에 배치하고 검은색 띠 생성)
             self.context.present(self.console)
             
             # 백업: 주기적으로 종횡비 확인 (덜 자주)
@@ -850,7 +838,7 @@ class TCODDisplay:
         return fraction.numerator, fraction.denominator
     
     def _handle_window_resize_events(self) -> None:
-        """창 크기 변경 시 종횡비 유지 (매 프레임 확인)"""
+        """창 크기 변경 시 모니터 종횡비 유지 (검은색 띠 유지)"""
         if not self.context or not hasattr(self, '_aspect_ratio'):
             return
         
@@ -858,7 +846,7 @@ class TCODDisplay:
             # 이벤트 큐에서 창 크기 변경 이벤트 확인
             for event in tcod.event.get():
                 if isinstance(event, tcod.event.WindowResized):
-                    # 창 크기 변경 이벤트 발생 시 종횡비 강제 조정
+                    # 창 크기 변경 이벤트 발생 시 모니터 종횡비 강제 조정
                     new_width = event.width
                     new_height = event.height
                     
@@ -870,7 +858,7 @@ class TCODDisplay:
                     
                     # 종횡비가 다르면 조정 (임계값: 0.02)
                     if abs(current_aspect - self._aspect_ratio) > 0.02:
-                        # 종횡비에 맞춰 크기 계산
+                        # 모니터 종횡비에 맞춰 크기 계산
                         # 더 많이 변경된 축을 기준으로 계산
                         expected_width = int(new_height * self._aspect_ratio)
                         expected_height = int(new_width / self._aspect_ratio)
@@ -888,6 +876,7 @@ class TCODDisplay:
                             adjusted_height = int(new_width / self._aspect_ratio)
                         
                         # 창 크기 조정 (SDL 직접 호출)
+                        # 콘솔은 중앙에 배치되고 검은색 띠가 자동으로 생성됨
                         self._set_window_size_direct(adjusted_width, adjusted_height)
                         self._last_window_size = (adjusted_width, adjusted_height)
                     else:
@@ -1116,22 +1105,55 @@ def render_space_background(
     top_color = gradient["top"]
     bottom_color = gradient["bottom"]
     
+    # 실제 콘솔 크기 확인 (안전성을 위해)
+    # console 속성 사용 (가장 안전한 방법)
+    try:
+        actual_console_width = console.width
+        actual_console_height = console.height
+    except (AttributeError, TypeError):
+        # 속성을 가져올 수 없으면 전달된 값 사용
+        actual_console_width = width
+        actual_console_height = height
+    
+    # 전달된 크기와 실제 콘솔 크기 중 작은 값 사용 (안전성)
+    # 범위를 넘지 않도록 확실히 제한
+    actual_width = min(width, actual_console_width)
+    actual_height = min(height, actual_console_height)
+    
+    # 추가 안전성: range를 직접 제한
+    actual_width = max(0, min(actual_width, actual_console_width))
+    actual_height = max(0, min(actual_height, actual_console_height))
+    
     # 그라데이션 렌더링
-    for y in range(height):
-        # 선형 보간 (0.0 ~ 1.0)
-        ratio = y / max(1, height - 1)
-        
-        # RGB 보간
-        r = int(top_color[0] + (bottom_color[0] - top_color[0]) * ratio)
-        g = int(top_color[1] + (bottom_color[1] - top_color[1]) * ratio)
-        b = int(top_color[2] + (bottom_color[2] - top_color[2]) * ratio)
-        
-        # 클램핑
-        r = max(0, min(255, r))
-        g = max(0, min(255, g))
-        b = max(0, min(255, b))
-        
-        # 배경색 설정
-        for x in range(width):
-            console.rgb[y, x] = (ord(' '), (r, g, b), (r, g, b))
+    # draw_rect를 사용하여 안전하게 렌더링 (범위 체크 자동)
+    if actual_height > 0 and actual_width > 0:
+        for y in range(actual_height):
+            # 범위 체크 (이중 체크)
+            if y >= actual_console_height:
+                break
+                
+            # 선형 보간 (0.0 ~ 1.0)
+            ratio = y / max(1, actual_height - 1)
+            
+            # RGB 보간
+            r = int(top_color[0] + (bottom_color[0] - top_color[0]) * ratio)
+            g = int(top_color[1] + (bottom_color[1] - top_color[1]) * ratio)
+            b = int(top_color[2] + (bottom_color[2] - top_color[2]) * ratio)
+            
+            # 클램핑
+            r = max(0, min(255, r))
+            g = max(0, min(255, g))
+            b = max(0, min(255, b))
+            
+            # 배경색 설정 - draw_rect 사용 (범위 자동 체크)
+            bg_color = (r, g, b)
+            try:
+                # 한 줄씩 그리기 (draw_rect가 내부적으로 범위 체크)
+                # draw_width도 한 번 더 체크
+                draw_width = min(actual_width, actual_console_width - 0)  # x는 0부터 시작
+                if draw_width > 0 and y < actual_console_height:
+                    console.draw_rect(0, y, draw_width, 1, ord(' '), bg=bg_color)
+            except (IndexError, ValueError, TypeError, AttributeError):
+                # 범위를 벗어나면 해당 줄 건너뛰기
+                continue
 

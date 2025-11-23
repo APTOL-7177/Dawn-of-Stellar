@@ -131,11 +131,19 @@ class StorageUI:
                     if self.context:
                         from src.ui.quantity_selector_ui import select_quantity
                         selected_qty = select_quantity(tcod.console.Console(self.screen_width, self.screen_height, order="F"), self.context, item_name, count)
+                        # 취소했으면 None 반환
+                        if selected_qty is None:
+                            play_sfx("ui", "cursor_cancel")
+                            return False
                     else:
                         # context가 없으면 전부 출고
                         selected_qty = count
                     
-                    if selected_qty and selected_qty > 0 and group:
+                    if selected_qty and selected_qty > 0:
+                        if not group:
+                            play_sfx("ui", "cursor_cancel")
+                            logger.warning("출고할 아이템 데이터를 찾을 수 없습니다")
+                            return False
                         from src.persistence.save_system import deserialize_item
                         
                         # 인벤토리에 추가 시도
@@ -161,7 +169,8 @@ class StorageUI:
                             # storage에서 제거 (역순으로 제거하여 인덱스 변화 방지)
                             indices_to_remove.sort(reverse=True)
                             for idx in indices_to_remove:
-                                del self.hub_storage[idx]
+                                if 0 <= idx < len(self.hub_storage):
+                                    del self.hub_storage[idx]
                             
                             # town_manager의 storage 업데이트
                             if hasattr(self.town_manager, 'hub_storage'):
@@ -171,12 +180,14 @@ class StorageUI:
                             self.storage_items = self._get_storage_items()
                             play_sfx("ui", "confirm")
                             logger.info(f"아이템 출고 완료: {item_name} x{added_count}")
+                            return False  # UI 갱신을 위해 반복 계속
                         else:
                             play_sfx("ui", "cursor_cancel")
                             logger.info("인벤토리가 가득 찼습니다")
-                    elif not group:
+                    else:
+                        # selected_qty가 0이거나 유효하지 않음
                         play_sfx("ui", "cursor_cancel")
-                        logger.warning("출고할 아이템 데이터를 찾을 수 없습니다")
+                        logger.info("출고할 수량이 없습니다")
                 elif self.current_tab == 1:  # 인벤토리에서 보관
                     slot = current_list[self.cursor]
                     if slot and slot.item:
@@ -190,11 +201,15 @@ class StorageUI:
                         if self.context:
                             from src.ui.quantity_selector_ui import select_quantity
                             selected_qty = select_quantity(tcod.console.Console(self.screen_width, self.screen_height, order="F"), self.context, item_name, slot.quantity)
+                            # 취소했으면 None 반환
+                            if selected_qty is None:
+                                play_sfx("ui", "cursor_cancel")
+                                return False
                         else:
                             # context가 없으면 전부 보관
                             selected_qty = slot.quantity
                         
-                        if selected_qty:
+                        if selected_qty and selected_qty > 0:
                             # 보관 로직 - 아이템을 직렬화해서 저장
                             items_to_store = []
                             
@@ -218,18 +233,23 @@ class StorageUI:
                                 # 인벤토리에서 수량만큼 감소
                                 if selected_qty >= slot.quantity:
                                     # 전부 보관
-                                    self.inventory.remove_item_by_slot(self.cursor)
+                                    self.inventory.remove_item(self.cursor, slot.quantity)
                                 else:
                                     # 일부만 보관
-                                    slot.quantity -= selected_qty
+                                    self.inventory.remove_item(self.cursor, selected_qty)
                                 
                                 # UI 업데이트
                                 self.storage_items = self._get_storage_items()
                                 play_sfx("ui", "confirm")
                                 logger.info(f"아이템 보관 완료: {item_name} x{len(items_to_store)}")
+                                return False  # UI 갱신을 위해 반복 계속
                             else:
                                 play_sfx("ui", "cursor_cancel")
                                 logger.warning(f"아이템 보관 실패: {item_name}")
+                        else:
+                            # selected_qty가 0이거나 유효하지 않음
+                            play_sfx("ui", "cursor_cancel")
+                            logger.info("보관할 수량이 없습니다")
         
         elif action == GameAction.ESCAPE or action == GameAction.MENU:
             play_sfx("ui", "cursor_cancel")
