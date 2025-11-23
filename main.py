@@ -100,7 +100,9 @@ def main() -> int:
         logger.info("=" * 60)
 
         # 핫 리로드 시스템 초기화 (개발 모드일 때만)
-        hot_reload_enabled = config.development_mode or args.dev
+        # experimental.hot_reload 설정도 확인
+        hot_reload_config = config.get("experimental.hot_reload", False)
+        hot_reload_enabled = (config.development_mode or args.dev) and hot_reload_config
         if hot_reload_enabled:
             try:
                 from src.core.hot_reload import start_hot_reload
@@ -112,6 +114,11 @@ def main() -> int:
                 hot_reload_enabled = False
         else:
             hot_reload_enabled = False
+            if config.development_mode or args.dev:
+                if not hot_reload_config:
+                    logger.info("💡 핫 리로드 비활성화됨 (config.yaml의 experimental.hot_reload를 true로 설정하세요)")
+            else:
+                logger.debug("핫 리로드 비활성화됨 (개발 모드 아님)")
 
         # TCOD 디스플레이 초기화
         from src.ui.tcod_display import get_display
