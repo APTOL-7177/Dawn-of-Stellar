@@ -169,12 +169,25 @@ class MetaProgress:
         """
         시설 레벨 가져오기 (메타 진행)
         
+        개발 모드에서는 모든 시설이 만렙(4)으로 설정됩니다.
+        
         Args:
             facility_type: 시설 타입 문자열 (예: "kitchen", "blacksmith")
             
         Returns:
-            시설 레벨 (기본값 1)
+            시설 레벨 (기본값 1, 개발 모드: 4)
         """
+        # 개발 모드 확인
+        try:
+            from src.core.config import get_config
+            config = get_config()
+            if config.development_mode:
+                # 개발 모드: 모든 시설 만렙
+                return 4
+        except:
+            # Config가 없으면 일반 모드로 처리
+            pass
+        
         return self.facility_levels.get(facility_type, 1)
     
     def set_facility_level(self, facility_type: str, level: int):
