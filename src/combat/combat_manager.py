@@ -664,6 +664,16 @@ class CombatManager:
                     if hasattr(ally, 'is_alive') and ally.is_alive:
                         trait_manager.apply_on_kill_effects(ally, defender)
                         
+                        # 용기사: 적 처치 시 용표 획득 (30% 확률)
+                        if (hasattr(ally, 'gimmick_type') and ally.gimmick_type == "dragon_marks"):
+                            import random
+                            if random.random() < 0.3:  # 30% 확률
+                                current_marks = getattr(ally, 'dragon_marks', 0)
+                                max_marks = getattr(ally, 'max_dragon_marks', 3)
+                                if current_marks < max_marks:
+                                    ally.dragon_marks = min(current_marks + 1, max_marks)
+                                    self.logger.info(f"{ally.name} 적 처치로 용표 획득! (현재: {ally.dragon_marks}/{max_marks})")
+                        
                         # 처치 보너스 (bloodthirst) - 스택 누적
                         if hasattr(ally, 'active_traits'):
                             from src.character.trait_effects import TraitEffectType

@@ -56,7 +56,13 @@ skills:
 - fire_breath
 - burning_strike
 - dragon_rage
+- dragon_scales
 - inferno_burst
+- dragon_wings
+- dragon_roar
+- dragon_mark_strike
+- dragon_storm
+- ultimate
 bonuses:
   fire_damage: 1.15
   fire_resistance: 0.2

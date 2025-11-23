@@ -127,23 +127,51 @@ def create_dragon_knight_skills():
     dragon_roar.metadata = {"dragon_power_gain": 3, "buff": True, "party_wide": True}
     skills.append(dragon_roar)
 
-    # 10. 궁극기: 진 드래곤
-    ultimate = Skill("dragon_knight_ultimate", "진 드래곤", "용으로 변신하여 파멸의 불길")
-    ultimate.effects = [
-        DamageEffect(DamageType.BRV, 1.8, gimmick_bonus={"field": "dragon_power", "multiplier": 0.3}),
-        DamageEffect(DamageType.BRV, 1.8, gimmick_bonus={"field": "dragon_power", "multiplier": 0.3}),
-        DamageEffect(DamageType.HP, 2.5, gimmick_bonus={"field": "dragon_power", "multiplier": 0.5}),
-        BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5),
-        BuffEffect(BuffType.CRITICAL_UP, 0.5, duration=5),
-        GimmickEffect(GimmickOperation.SET, "dragon_power", 0)
+    # 10. 용의 각인 (용표 1개 소비 - 강력한 단일 공격)
+    dragon_mark_strike = Skill("dragon_knight_dragon_mark_strike", "용의 각인", "용표 1개 소비하여 강력한 일격")
+    dragon_mark_strike.effects = [
+        DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "dragon_power", "multiplier": 0.4}),
+        DamageEffect(DamageType.HP, 2.0, gimmick_bonus={"field": "dragon_power", "multiplier": 0.5}),
+        GimmickEffect(GimmickOperation.CONSUME, "dragon_marks", 1)
     ]
-    ultimate.costs = [MPCost(30), StackCost("dragon_power", 1)]
+    dragon_mark_strike.costs = [MPCost(8), StackCost("dragon_marks", 1)]
+    dragon_mark_strike.sfx = ("combat", "critical")  # 용의 각인
+    dragon_mark_strike.metadata = {"dragon_mark_cost": 1, "dragon_scaling": True, "high_damage": True}
+    skills.append(dragon_mark_strike)
+
+    # 11. 용의 폭풍 (용표 2개 소비 - 광역 공격)
+    dragon_storm = Skill("dragon_knight_dragon_storm", "용의 폭풍", "용표 2개 소비하여 광역 화염 폭풍")
+    dragon_storm.effects = [
+        DamageEffect(DamageType.BRV, 2.2, gimmick_bonus={"field": "dragon_power", "multiplier": 0.3}),
+        DamageEffect(DamageType.HP, 1.8, gimmick_bonus={"field": "dragon_power", "multiplier": 0.4}),
+        GimmickEffect(GimmickOperation.CONSUME, "dragon_marks", 2)
+    ]
+    dragon_storm.costs = [MPCost(12), StackCost("dragon_marks", 2)]
+    dragon_storm.target_type = "all_enemies"
+    dragon_storm.is_aoe = True
+    dragon_storm.sfx = ("skill", "flare")  # 용의 폭풍
+    dragon_storm.metadata = {"dragon_mark_cost": 2, "dragon_scaling": True, "aoe": True}
+    skills.append(dragon_storm)
+
+    # 12. 궁극기: 진 드래곤 (용표 3개 소비 - 드래곤 변신)
+    ultimate = Skill("dragon_knight_ultimate", "진 드래곤", "용표 3개로 용으로 변신하여 파멸의 불길")
+    ultimate.effects = [
+        DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "dragon_power", "multiplier": 0.4}),
+        DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "dragon_power", "multiplier": 0.4}),
+        DamageEffect(DamageType.HP, 3.0, gimmick_bonus={"field": "dragon_power", "multiplier": 0.6}),
+        BuffEffect(BuffType.ATTACK_UP, 0.8, duration=6),
+        BuffEffect(BuffType.CRITICAL_UP, 0.6, duration=6),
+        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=6),
+        GimmickEffect(GimmickOperation.SET, "dragon_power", 5),  # 용력 최대치로 회복
+        GimmickEffect(GimmickOperation.CONSUME, "dragon_marks", 3)  # 용표 소비
+    ]
+    ultimate.costs = [MPCost(25), StackCost("dragon_marks", 3)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
+    ultimate.cooldown = 20  # 궁극기 쿨타임 20턴
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
-    ultimate.metadata = {"ultimate": True, "dragon_consume_all": True, "dragon_scaling": True, "aoe": True, "buff": True}
+    ultimate.metadata = {"ultimate": True, "dragon_transform": True, "dragon_mark_cost": 3, "dragon_scaling": True, "aoe": True, "buff": True}
     skills.append(ultimate)
 
     return skills
