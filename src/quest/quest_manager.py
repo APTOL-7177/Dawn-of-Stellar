@@ -157,9 +157,9 @@ class QuestDatabase:
         # 보상 계산
         base_reward = player_level * 10
         reward = QuestReward(
-            gold=base_reward * count,
-            experience=base_reward * 2 * count,
-            star_fragments=count // 3
+            gold=(base_reward * count) * 5,  # 5배 증가
+            experience=(base_reward * 2 * count) * 5,  # 5배 증가
+            star_fragments=(count // 3) * 20  # 20배 증가
         )
         
         return Quest(
@@ -204,9 +204,9 @@ class QuestDatabase:
         # 보상
         base_reward = player_level * 15
         reward = QuestReward(
-            gold=base_reward * count,
-            star_fragments=count // 2,
-            items=["greater_health_potion"] if difficulty == QuestDifficulty.HARD else []
+            gold=(base_reward * count) * 5,  # 5배 증가
+            star_fragments=(count // 2) * 20,  # 20배 증가
+            items=["greater_health_potion"] if difficulty == QuestDifficulty.HARD else []  # 아이템은 그대로
         )
         
         return Quest(
@@ -243,9 +243,9 @@ class QuestDatabase:
         # 보상
         base_reward = target_floor * 50
         reward = QuestReward(
-            gold=base_reward,
-            experience=base_reward * 3,
-            star_fragments=target_floor // 2
+            gold=base_reward * 5,  # 5배 증가
+            experience=(base_reward * 3) * 5,  # 5배 증가
+            star_fragments=(target_floor // 2) * 20  # 20배 증가
         )
         
         return Quest(
@@ -271,10 +271,10 @@ class QuestDatabase:
         boss = random.choice(bosses)
         
         reward = QuestReward(
-            gold=player_level * 100,
-            experience=player_level * 50,
-            star_fragments=10,
-            items=["stardust", "philosophers_stone_fragment"]
+            gold=(player_level * 100) * 5,  # 5배 증가
+            experience=(player_level * 50) * 5,  # 5배 증가
+            star_fragments=10 * 20,  # 20배 증가
+            items=["stardust", "philosophers_stone_fragment"]  # 아이템은 그대로
         )
         
         return Quest(
@@ -293,9 +293,9 @@ class QuestDatabase:
         turns = random.randint(50, 100)
         
         reward = QuestReward(
-            gold=turns * 10,
-            experience=turns * 5,
-            star_fragments=turns // 20
+            gold=(turns * 10) * 5,  # 5배 증가
+            experience=(turns * 5) * 5,  # 5배 증가
+            star_fragments=(turns // 20) * 20  # 20배 증가
         )
         
         return Quest(
@@ -315,9 +315,9 @@ class QuestDatabase:
         time_limit = target_floor * 10
         
         reward = QuestReward(
-            gold=target_floor * 150,
-            experience=target_floor * 100,
-            star_fragments=target_floor
+            gold=(target_floor * 150) * 5,  # 5배 증가
+            experience=(target_floor * 100) * 5,  # 5배 증가
+            star_fragments=target_floor * 20  # 20배 증가
         )
         
         return Quest(
@@ -350,10 +350,10 @@ class QuestDatabase:
         ]
         
         reward = QuestReward(
-            gold=player_level * 80,
-            experience=player_level * 40,
-            star_fragments=5,
-            items=["greater_mana_potion"]
+            gold=(player_level * 80) * 5,  # 5배 증가
+            experience=(player_level * 40) * 5,  # 5배 증가
+            star_fragments=5 * 20,  # 20배 증가
+            items=["greater_mana_potion"]  # 아이템은 그대로
         )
         
         return Quest(
@@ -377,8 +377,8 @@ class QuestDatabase:
         dish_id, dish_name, count = random.choice(dishes)
         
         reward = QuestReward(
-            gold=player_level * 50,
-            star_fragments=3
+            gold=(player_level * 50) * 5,  # 5배 증가
+            star_fragments=3 * 20  # 20배 증가
         )
         
         return Quest(
@@ -402,8 +402,8 @@ class QuestDatabase:
         potion_id, potion_name, count = random.choice(potions)
         
         reward = QuestReward(
-            gold=player_level * 60,
-            star_fragments=4
+            gold=(player_level * 60) * 5,  # 5배 증가
+            star_fragments=4 * 20  # 20배 증가
         )
         
         return Quest(
@@ -422,9 +422,9 @@ class QuestDatabase:
         target_floor = player_level // 3 + 1
         
         reward = QuestReward(
-            gold=target_floor * 200,
-            experience=target_floor * 150,
-            star_fragments=target_floor * 2
+            gold=(target_floor * 200) * 5,  # 5배 증가
+            experience=(target_floor * 150) * 5,  # 5배 증가
+            star_fragments=(target_floor * 2) * 20  # 20배 증가
         )
         
         return Quest(

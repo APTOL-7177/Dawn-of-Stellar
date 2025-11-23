@@ -790,8 +790,8 @@ def main() -> int:
                                     
                                     inventory.add_gold(rewards.get("gold", 0))
                                     
-                                    # 전투 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
-                                    play_dungeon_bgm = False
+                                    # 전투 후 복귀 시 필드 BGM 재생
+                                    play_dungeon_bgm = True
                                 elif combat_result == CombatState.DEFEAT:
                                     # 전투 참여 파티원만 죽었는지, 모든 플레이어의 모든 캐릭터가 죽었는지 확인
                                     is_game_over = False
@@ -830,8 +830,8 @@ def main() -> int:
                                         break
                                     else:
                                         logger.info("❌ 패배... 맵으로 복귀")
-                                        # 전투 패배 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
-                                        play_dungeon_bgm = False
+                                        # 전투 패배 후 복귀 시 필드 BGM 재생
+                                        play_dungeon_bgm = True
                                         continue
                             elif result == "floor_up" or result == "floor_down":
                                 # 층 이동 처리 (멀티플레이)
@@ -1776,8 +1776,8 @@ def main() -> int:
                                                     
                                                     inventory.add_gold(rewards.get("gold", 0))
                                                     
-                                                    # 전투 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
-                                                    play_dungeon_bgm = False
+                                                    # 전투 후 복귀 시 필드 BGM 재생
+                                                    play_dungeon_bgm = True
                                                 elif combat_result == CombatState.DEFEAT:
                                                     # 전투 참여 파티원만 죽었는지, 모든 플레이어의 모든 캐릭터가 죽었는지 확인
                                                     is_game_over = False
@@ -1816,8 +1816,8 @@ def main() -> int:
                                                         break
                                                     else:
                                                         logger.info("❌ 패배... 맵으로 복귀")
-                                                        # 전투 패배 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
-                                                        play_dungeon_bgm = False
+                                                        # 전투 패배 후 복귀 시 필드 BGM 재생
+                                                        play_dungeon_bgm = True
                                                         continue
                                             elif result == "floor_up" or result == "floor_down":
                                                 # 층 이동 처리 (멀티플레이)
@@ -2428,8 +2428,8 @@ def main() -> int:
 
                                 # 별의 파편은 게임 정산 시에만 지급 (로그라이크 방식)
 
-                                # 전투 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
-                                play_dungeon_bgm = False
+                                # 전투 후 복귀 시 필드 BGM 재생
+                                play_dungeon_bgm = True
                                 continue
                             elif combat_result == CombatState.DEFEAT:
                                 # 전투 참여 파티원만 죽었는지, 모든 플레이어의 모든 캐릭터가 죽었는지 확인
@@ -2464,13 +2464,13 @@ def main() -> int:
                                     # 전투 참여 파티원만 죽었으면 패배 (맵으로 복귀)
                                     logger.info("❌ 패배... 맵으로 복귀")
                                     
-                                    # 전투 패배 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
-                                    play_dungeon_bgm = False
+                                    # 전투 패배 후 복귀 시 필드 BGM 재생
+                                    play_dungeon_bgm = True
                                     continue
                             else:
                                 logger.info("🏃 도망쳤다")
-                                # 도망 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
-                                play_dungeon_bgm = False
+                                # 도망 후 복귀 시 필드 BGM 재생
+                                play_dungeon_bgm = True
                                 continue
 
                         elif result == "floor_down":
@@ -3146,8 +3146,8 @@ def main() -> int:
 
                                         # 별의 파편은 게임 정산 시에만 지급 (로그라이크 방식)
 
-                                        # 전투 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
-                                        play_dungeon_bgm = False
+                                        # 전투 후 복귀 시 필드 BGM 재생
+                                        play_dungeon_bgm = True
                                         continue  # 탐험 계속
                                     elif combat_result == CombatState.DEFEAT:
                                         logger.info("❌ 패배... 게임 오버")
@@ -3174,8 +3174,8 @@ def main() -> int:
                                         break
                                     else:
                                         logger.info("🏃 도망쳤다")
-                                        # 도망 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
-                                        play_dungeon_bgm = False
+                                        # 도망 후 복귀 시 필드 BGM 재생
+                                        play_dungeon_bgm = True
                                         continue
 
                                 elif result == "floor_down":
