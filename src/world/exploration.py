@@ -410,13 +410,8 @@ class ExplorationSystem:
         elif tile.tile_type == TileType.HEALING_SPRING:
             return self._handle_healing_spring(tile)
 
-        elif tile.tile_type == TileType.STAIRS_UP:
-            play_sfx("world", "stairs_up")
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.STAIRS_UP,
-                message="위층으로 올라가는 계단입니다"
-            )
+        # 올라가는 계단 제거됨 (마을로 돌아갈 수 없음)
+        # elif tile.tile_type == TileType.STAIRS_UP: 제거
 
         elif tile.tile_type == TileType.STAIRS_DOWN:
             play_sfx("world", "stairs_down")

@@ -329,11 +329,11 @@ class DungeonGenerator:
                             break
 
     def _place_stairs(self, dungeon: DungeonMap, floor_number: int):
-        """계단 배치 - 다음 층으로만 진행 (이전 층 불가)"""
+        """계단 배치 - 다음 층으로만 진행 (올라가는 계단 제거)"""
         if not dungeon.rooms:
             return
 
-        # 이전 층으로 돌아가는 계단은 제거됨 (마을 시스템으로 대체)
+        # 올라가는 계단은 제거됨 (마을로 돌아갈 수 없음)
         # 플레이어는 다음 층으로만 진행 가능
         
         # 내려가는 계단 - 마지막 방 (다음 층으로 진행)
@@ -341,6 +341,9 @@ class DungeonGenerator:
         x, y = last_room.center
         dungeon.set_tile(x, y, TileType.STAIRS_DOWN)
         dungeon.stairs_down = (x, y)
+        
+        # 올라가는 계단 제거 (마을로 돌아갈 수 없음)
+        dungeon.stairs_up = None
 
     def _place_gimmicks(self, dungeon: DungeonMap, floor_number: int):
         """기믹 배치"""
@@ -390,12 +393,9 @@ class DungeonGenerator:
 
     def _place_keys_and_locks(self, dungeon: DungeonMap, num_keys: int):
         """열쇠와 잠긴 문 배치"""
-        # 계단이 있는 방 찾기
+        # 계단이 있는 방 찾기 (올라가는 계단 제거됨)
         stairs_rooms: List[Rect] = []
-        if dungeon.stairs_up:
-            stairs_up_room = self._find_room_containing_point(dungeon, dungeon.stairs_up)
-            if stairs_up_room:
-                stairs_rooms.append(stairs_up_room)
+        # stairs_up은 제거되었으므로 확인하지 않음
         if dungeon.stairs_down:
             stairs_down_room = self._find_room_containing_point(dungeon, dungeon.stairs_down)
             if stairs_down_room and stairs_down_room not in stairs_rooms:
@@ -416,6 +416,13 @@ class DungeonGenerator:
                 for x in range(stairs_room.x1 - 1, stairs_room.x2 + 1):
                     if not (stairs_room.x1 <= x < stairs_room.x2 and stairs_room.y1 <= y < stairs_room.y2):
                         excluded_tiles.add((x, y))
+        
+        # 스폰 방(첫 번째 방) 자체의 모든 타일도 제외
+        if dungeon.rooms:
+            start_room = dungeon.rooms[0]
+            for y in range(start_room.y1, start_room.y2):
+                for x in range(start_room.x1, start_room.x2):
+                    excluded_tiles.add((x, y))
         
         # 잠긴 문을 배치할 수 있는 복도 목록
         available_corridors = [
@@ -455,7 +462,8 @@ class DungeonGenerator:
         stairs_rooms: List[Rect]
     ) -> Set[Tuple[int, int]]:
         """
-        BFS를 사용하여 계단 방에서 다른 모든 방으로 가는 경로 상의 복도 타일을 찾습니다.
+        BFS를 사용하여 계단 방으로 가는 경로 상의 복도 타일을 찾습니다.
+        특히 스폰 방(첫 번째 방)에서 계단 방으로의 경로는 무조건 제외됩니다.
         
         Args:
             dungeon: 던전 맵
@@ -469,20 +477,20 @@ class DungeonGenerator:
         
         excluded_corridors: Set[Tuple[int, int]] = set()
         
-        # 모든 계단 방에서 시작하여 다른 모든 방으로의 경로 찾기
-        for stairs_room in stairs_rooms:
-            # 플레이어 시작 방(첫 번째 방)에서 계단 방으로의 경로
-            if dungeon.rooms:
-                start_room = dungeon.rooms[0]
+        # 스폰 방(첫 번째 방)에서 계단 방으로의 경로는 무조건 제외
+        if dungeon.rooms:
+            start_room = dungeon.rooms[0]
+            for stairs_room in stairs_rooms:
                 if start_room != stairs_room:
+                    # 스폰 방에서 계단 방으로의 경로 찾기
                     path = self._find_path_between_rooms(dungeon, start_room, stairs_room)
                     excluded_corridors.update(path)
+                    logger.debug(f"스폰 방 -> 계단 방 경로 제외: {len(path)}개 타일")
             
-            # 다른 모든 방에서 계단 방으로의 경로
-            for other_room in dungeon.rooms:
-                if other_room != stairs_room:
-                    path = self._find_path_between_rooms(dungeon, other_room, stairs_room)
-                    excluded_corridors.update(path)
+            # 스폰 방 자체의 모든 타일도 제외
+            for y in range(start_room.y1, start_room.y2):
+                for x in range(start_room.x1, start_room.x2):
+                    excluded_corridors.add((x, y))
         
         return excluded_corridors
     

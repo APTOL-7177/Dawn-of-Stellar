@@ -437,25 +437,32 @@ def main() -> int:
                         base_weight = 5.0 + (inventory_weight_bonus / 2.5)  # 인벤토리 확장 보너스 적용
                         inventory = Inventory(base_weight=base_weight, party=party_members)
                         
-                        # 게임 통계 초기화
+                        # 게임 통계 초기화 (마을에서 시작하므로 max_floor_reached는 0)
                         game_stats = {
                             "enemies_defeated": 0,
-                            "max_floor_reached": 1,
+                            "max_floor_reached": 0,
                             "total_gold_earned": 0,
                             "total_exp_earned": 0,
-                            "save_slot": None
+                            "save_slot": None,
+                            "next_dungeon_floor": 1  # 다음 던전 번호 (0->1->0->2->0->3...)
                         }
                         
-                        # 던전 생성 (시드 기반)
+                        # 게임 시작은 마을(floor 0)에서 시작
                         from src.world.dungeon_generator import DungeonGenerator
                         from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
                         
-                        floor_number = 1
-                        dungeon_seed = session.generate_dungeon_seed_for_floor(floor_number)
-                        generator = DungeonGenerator()
-                        dungeon = generator.generate(floor_number, seed=dungeon_seed)
+                        floor_number = 0
                         
-                        logger.info(f"던전 생성 완료: {floor_number}층 (시드: {dungeon_seed})")
+                        # 각 플레이어마다 자신의 마을 맵 생성 (멀티플레이)
+                        from src.town.town_map import TownMap, create_town_dungeon_map
+                        from src.town.town_manager import TownManager
+                        
+                        # 로컬 플레이어의 마을 맵 생성 (각 플레이어는 자신의 마을을 가짐)
+                        town_map = TownMap()  # 전역 인스턴스 대신 새 인스턴스 생성
+                        town_manager = TownManager()
+                        dungeon = create_town_dungeon_map(town_map)
+                        
+                        logger.info(f"마을 맵 생성 완료 (멀티플레이, 플레이어 {local_player_id})")
                         
                         # PartyMember를 Character 객체로 변환 (특성/패시브 정보 포함)
                         from src.character.character import Character
@@ -584,6 +591,16 @@ def main() -> int:
                             network_manager=network_manager,
                             local_player_id=local_player_id
                         )
+                        
+                        # 마을 플레이어 스폰 위치 설정
+                        spawn_x, spawn_y = town_map.player_spawn
+                        exploration.player.x = spawn_x
+                        exploration.player.y = spawn_y
+                        
+                        # 마을 표시 플래그 추가
+                        exploration.is_town = True
+                        exploration.town_map = town_map
+                        exploration.town_manager = town_manager
                         
                         # 네트워크 매니저에 현재 게임 상태 저장 (클라이언트 연결 시 전송용)
                         network_manager.current_floor = floor_number
@@ -2523,52 +2540,278 @@ def main() -> int:
                                 continue
 
                         elif result == "floor_down":
-                            # 현재 층 상태 저장
-                            floors_dungeons[floor_number] = {
-                                "dungeon": exploration.dungeon,
-                                "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
-                                "player_x": exploration.player.x,
-                                "player_y": exploration.player.y
-                            }
-                            
-                            floor_number += 1
-                            exploration.game_stats["max_floor_reached"] = max(exploration.game_stats["max_floor_reached"], floor_number)
-                            logger.info(f"⬇ 다음 층: {floor_number}층 (최대: {exploration.game_stats['max_floor_reached']}층)")
-                            
-                            # 기존 던전이 있으면 재사용, 없으면 생성
-                            if floor_number in floors_dungeons:
-                                floor_data = floors_dungeons[floor_number]
-                                dungeon = floor_data["dungeon"]
-                                # dungeon이 튜플인 경우 언패킹 (하위 호환성)
-                                if isinstance(dungeon, tuple):
-                                    dungeon, saved_enemies = dungeon
+                            # 마을(0층)에서 나가면 다음 던전으로 이동
+                            if floor_number == 0:
+                                # 마을 상태 저장
+                                floors_dungeons[floor_number] = {
+                                    "dungeon": exploration.dungeon,
+                                    "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
+                                    "player_x": exploration.player.x,
+                                    "player_y": exploration.player.y
+                                }
+                                
+                                # 다음 던전 번호로 이동
+                                next_dungeon_floor = game_stats.get("next_dungeon_floor", 1)
+                                floor_number = next_dungeon_floor
+                                exploration.game_stats["max_floor_reached"] = max(exploration.game_stats["max_floor_reached"], floor_number)
+                                logger.info(f"⬇ 마을에서 던전 {floor_number}층으로 이동 (멀티플레이)")
+                                
+                                # 던전 생성 (기존 던전이 있으면 재사용, 없으면 생성)
+                                if floor_number in floors_dungeons:
+                                    floor_data = floors_dungeons[floor_number]
+                                    dungeon = floor_data["dungeon"]
+                                    if isinstance(dungeon, tuple):
+                                        dungeon, saved_enemies = dungeon
+                                    else:
+                                        saved_enemies = floor_data["enemies"]
+                                    saved_x = floor_data["player_x"]
+                                    saved_y = floor_data["player_y"]
+                                    logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
                                 else:
-                                    saved_enemies = floor_data["enemies"]
-                                saved_x = floor_data["player_x"]
-                                saved_y = floor_data["player_y"]
-                                logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
+                                    from src.world.dungeon_generator import DungeonGenerator
+                                    dungeon_seed = session.generate_dungeon_seed_for_floor(floor_number)
+                                    dungeon_gen = DungeonGenerator(width=80, height=50)
+                                    dungeon = dungeon_gen.generate(floor_number, seed=dungeon_seed)
+                                    saved_enemies = []
+                                    saved_x = None
+                                    saved_y = None
+                                    logger.info(f"새 {floor_number}층 던전 생성 (시드: {dungeon_seed})")
+                                
+                                from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                                exploration = MultiplayerExplorationSystem(
+                                    dungeon=dungeon,
+                                    party=character_party,
+                                    floor_number=floor_number,
+                                    inventory=inventory,
+                                    game_stats=game_stats,
+                                    session=session,
+                                    network_manager=network_manager,
+                                    local_player_id=local_player_id
+                                )
+                                if saved_enemies:
+                                    exploration.enemies = saved_enemies
+                                if saved_x is not None and saved_y is not None:
+                                    exploration.player.x = saved_x
+                                    exploration.player.y = saved_y
+                                
+                                # 마을 플래그 제거
+                                if hasattr(exploration, 'is_town'):
+                                    delattr(exploration, 'is_town')
+                                
+                                network_manager.current_floor = floor_number
+                                network_manager.current_dungeon = dungeon
+                                network_manager.current_exploration = exploration
+                                play_dungeon_bgm = True
+                                continue
                             else:
-                                from src.world.dungeon_generator import DungeonGenerator
-                                dungeon_gen = DungeonGenerator(width=80, height=50)
-                                dungeon = dungeon_gen.generate(floor_number)
-                                saved_enemies = []
-                                saved_x = None
-                                saved_y = None
-                                logger.info(f"새 {floor_number}층 던전 생성")
-                            
-                            exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
-                            # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
-                            if saved_enemies:
-                                exploration.enemies = saved_enemies
-                            # 새 던전인 경우 _spawn_enemies()가 이미 호출되어 적이 생성됨
-                            if saved_x is not None and saved_y is not None:
-                                exploration.player.x = saved_x
-                                exploration.player.y = saved_y
-                            # 층 변경 시 BGM 재생
-                            play_dungeon_bgm = True
-                            continue
+                                # 던전에서 내려가는 계단을 밟으면 마을로 복귀하고 다음 던전 번호 증가
+                                # 현재 층 상태 저장
+                                floors_dungeons[floor_number] = {
+                                    "dungeon": exploration.dungeon,
+                                    "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
+                                    "player_x": exploration.player.x,
+                                    "player_y": exploration.player.y
+                                }
+                                
+                                # 마을로 복귀
+                                floor_number = 0
+                                # 다음 던전 번호 증가
+                                current_dungeon = game_stats.get("next_dungeon_floor", 1)
+                                game_stats["next_dungeon_floor"] = current_dungeon + 1
+                                logger.info(f"던전 클리어! 마을로 복귀. 다음 던전: {game_stats['next_dungeon_floor']}층 (멀티플레이)")
+                                
+                                # 마을 맵 재사용
+                                if floor_number in floors_dungeons:
+                                    floor_data = floors_dungeons[floor_number]
+                                    dungeon = floor_data["dungeon"]
+                                    if isinstance(dungeon, tuple):
+                                        dungeon, saved_enemies = dungeon
+                                    else:
+                                        saved_enemies = floor_data.get("enemies", [])
+                                    saved_x = floor_data.get("player_x")
+                                    saved_y = floor_data.get("player_y")
+                                    logger.info(f"기존 마을 맵 재사용")
+                                else:
+                                    # 각 플레이어마다 자신의 마을 맵 생성 (멀티플레이)
+                                    from src.town.town_map import TownMap, create_town_dungeon_map
+                                    from src.town.town_manager import TownManager
+                                    # 로컬 플레이어의 마을 맵 생성 (각 플레이어는 자신의 마을을 가짐)
+                                    town_map_local = TownMap()  # 전역 인스턴스 대신 새 인스턴스 생성
+                                    town_manager_local = TownManager()
+                                    dungeon = create_town_dungeon_map(town_map_local)
+                                    saved_enemies = []
+                                    saved_x = None
+                                    saved_y = None
+                                    logger.info(f"새 마을 맵 생성 (멀티플레이, 플레이어 {local_player_id})")
+                                
+                                from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                                exploration = MultiplayerExplorationSystem(
+                                    dungeon=dungeon,
+                                    party=character_party,
+                                    floor_number=floor_number,
+                                    inventory=inventory,
+                                    game_stats=game_stats,
+                                    session=session,
+                                    network_manager=network_manager,
+                                    local_player_id=local_player_id
+                                )
+                                # 마을 플레이어 스폰 위치 설정
+                                if saved_x is not None and saved_y is not None:
+                                    exploration.player.x = saved_x
+                                    exploration.player.y = saved_y
+                                else:
+                                    # 로컬 플레이어의 마을 맵 사용
+                                    if 'town_map_local' not in locals():
+                                        from src.town.town_map import TownMap
+                                        town_map_local = TownMap()
+                                    spawn_x, spawn_y = town_map_local.player_spawn
+                                    exploration.player.x = spawn_x
+                                    exploration.player.y = spawn_y
+                                
+                                # 마을 표시 플래그 추가
+                                if 'town_map_local' not in locals():
+                                    from src.town.town_map import TownMap
+                                    from src.town.town_manager import TownManager
+                                    town_map_local = TownMap()
+                                    town_manager_local = TownManager()
+                                exploration.is_town = True
+                                exploration.town_map = town_map_local
+                                exploration.town_manager = town_manager_local
+                                
+                                network_manager.current_floor = floor_number
+                                network_manager.current_dungeon = dungeon
+                                network_manager.current_exploration = exploration
+                                play_dungeon_bgm = True
+                                continue
+                                exploration.game_stats["max_floor_reached"] = max(exploration.game_stats["max_floor_reached"], floor_number)
+                                logger.info(f"⬇ 다음 층: {floor_number}층 (최대: {exploration.game_stats['max_floor_reached']}층)")
+                                
+                                # 기존 던전이 있으면 재사용, 없으면 생성
+                                if floor_number in floors_dungeons:
+                                    floor_data = floors_dungeons[floor_number]
+                                    dungeon = floor_data["dungeon"]
+                                    # dungeon이 튜플인 경우 언패킹 (하위 호환성)
+                                    if isinstance(dungeon, tuple):
+                                        dungeon, saved_enemies = dungeon
+                                    else:
+                                        saved_enemies = floor_data["enemies"]
+                                    saved_x = floor_data["player_x"]
+                                    saved_y = floor_data["player_y"]
+                                    logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
+                                else:
+                                    from src.world.dungeon_generator import DungeonGenerator
+                                    dungeon_seed = session.generate_dungeon_seed_for_floor(floor_number)
+                                    dungeon_gen = DungeonGenerator(width=80, height=50)
+                                    dungeon = dungeon_gen.generate(floor_number, seed=dungeon_seed)
+                                    saved_enemies = []
+                                    saved_x = None
+                                    saved_y = None
+                                    logger.info(f"새 {floor_number}층 던전 생성 (시드: {dungeon_seed})")
+                                
+                                from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                                exploration = MultiplayerExplorationSystem(
+                                    dungeon=dungeon,
+                                    party=character_party,
+                                    floor_number=floor_number,
+                                    inventory=inventory,
+                                    game_stats=game_stats,
+                                    session=session,
+                                    network_manager=network_manager,
+                                    local_player_id=local_player_id
+                                )
+                                # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
+                                if saved_enemies:
+                                    exploration.enemies = saved_enemies
+                                # 새 던전인 경우 _spawn_enemies()가 이미 호출되어 적이 생성됨
+                                if saved_x is not None and saved_y is not None:
+                                    exploration.player.x = saved_x
+                                    exploration.player.y = saved_y
+                                
+                                network_manager.current_floor = floor_number
+                                network_manager.current_dungeon = dungeon
+                                network_manager.current_exploration = exploration
+                                # 층 변경 시 BGM 재생
+                                play_dungeon_bgm = True
+                                continue
                         elif result == "floor_up":
-                            if floor_number > 1:
+                            if floor_number == 1:
+                                # 던전 1층에서 위로 올라가면 마을(0층)로 복귀
+                                # 현재 층 상태 저장
+                                floors_dungeons[floor_number] = {
+                                    "dungeon": exploration.dungeon,
+                                    "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
+                                    "player_x": exploration.player.x,
+                                    "player_y": exploration.player.y
+                                }
+                                
+                                # 마을로 복귀
+                                floor_number = 0
+                                logger.info(f"⬆ 던전에서 마을로 복귀 (멀티플레이)")
+                                
+                                # 마을 맵 재사용
+                                if floor_number in floors_dungeons:
+                                    floor_data = floors_dungeons[floor_number]
+                                    dungeon = floor_data["dungeon"]
+                                    if isinstance(dungeon, tuple):
+                                        dungeon, saved_enemies = dungeon
+                                    else:
+                                        saved_enemies = floor_data.get("enemies", [])
+                                    saved_x = floor_data.get("player_x")
+                                    saved_y = floor_data.get("player_y")
+                                    logger.info(f"기존 마을 맵 재사용")
+                                else:
+                                    # 각 플레이어마다 자신의 마을 맵 생성 (멀티플레이)
+                                    from src.town.town_map import TownMap, create_town_dungeon_map
+                                    from src.town.town_manager import TownManager
+                                    # 로컬 플레이어의 마을 맵 생성 (각 플레이어는 자신의 마을을 가짐)
+                                    town_map_local = TownMap()  # 전역 인스턴스 대신 새 인스턴스 생성
+                                    town_manager_local = TownManager()
+                                    dungeon = create_town_dungeon_map(town_map_local)
+                                    saved_enemies = []
+                                    saved_x = None
+                                    saved_y = None
+                                    logger.info(f"새 마을 맵 생성 (멀티플레이, 플레이어 {local_player_id})")
+                                
+                                from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                                exploration = MultiplayerExplorationSystem(
+                                    dungeon=dungeon,
+                                    party=character_party,
+                                    floor_number=floor_number,
+                                    inventory=inventory,
+                                    game_stats=game_stats,
+                                    session=session,
+                                    network_manager=network_manager,
+                                    local_player_id=local_player_id
+                                )
+                                # 마을 플레이어 스폰 위치 설정
+                                if saved_x is not None and saved_y is not None:
+                                    exploration.player.x = saved_x
+                                    exploration.player.y = saved_y
+                                else:
+                                    # 로컬 플레이어의 마을 맵 사용
+                                    if 'town_map_local' not in locals():
+                                        from src.town.town_map import TownMap
+                                        town_map_local = TownMap()
+                                    spawn_x, spawn_y = town_map_local.player_spawn
+                                    exploration.player.x = spawn_x
+                                    exploration.player.y = spawn_y
+                                
+                                # 마을 표시 플래그 추가
+                                if 'town_map_local' not in locals():
+                                    from src.town.town_map import TownMap
+                                    from src.town.town_manager import TownManager
+                                    town_map_local = TownMap()
+                                    town_manager_local = TownManager()
+                                exploration.is_town = True
+                                exploration.town_map = town_map_local
+                                exploration.town_manager = town_manager_local
+                                
+                                network_manager.current_floor = floor_number
+                                network_manager.current_dungeon = dungeon
+                                network_manager.current_exploration = exploration
+                                play_dungeon_bgm = True
+                                continue
+                            elif floor_number > 1:
                                 # 현재 층 상태 저장
                                 floors_dungeons[floor_number] = {
                                     "dungeon": exploration.dungeon,
@@ -2767,21 +3010,44 @@ def main() -> int:
                         f"총 {inventory.max_weight}kg"
                     )
 
-                    floor_number = 1
+                    # 게임 시작은 마을(floor 0)에서 시작
+                    floor_number = 0
 
                     # 게임 통계 초기화
                     game_stats = {
                         "enemies_defeated": 0,
-                        "max_floor_reached": 1,
+                        "max_floor_reached": 0,
                         "total_gold_earned": 0,
                         "total_exp_earned": 0,
-                        "save_slot": None
+                        "save_slot": None,
+                        "next_dungeon_floor": 1  # 다음 던전 번호 (0->1->0->2->0->3...)
                     }
 
-                    # 던전 및 탐험 초기화 (층 변경 시에만 재생성)
-                    dungeon_gen = DungeonGenerator(width=80, height=50)
-                    dungeon = dungeon_gen.generate(floor_number)
+                    # 마을 맵 생성 및 던전 맵으로 변환
+                    from src.town.town_map import get_town_map, create_town_dungeon_map
+                    from src.town.town_manager import TownManager
+                    from src.town.floor_transition import get_floor_transition_manager
+                    
+                    # 마을 관련 객체 전역 저장 (층 이동 시 재사용)
+                    town_map = get_town_map()
+                    town_manager = TownManager()
+                    dungeon = create_town_dungeon_map(town_map)
+                    
+                    # 탐험 시스템 초기화 (마을)
                     exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                    # 마을 플레이어 스폰 위치 설정
+                    spawn_x, spawn_y = town_map.player_spawn
+                    exploration.player.x = spawn_x
+                    exploration.player.y = spawn_y
+                    
+                    # 마을 표시 플래그 추가
+                    exploration.is_town = True
+                    exploration.town_map = town_map
+                    exploration.town_manager = town_manager
+                    
+                    # FloorTransitionManager 초기화
+                    floor_transition = get_floor_transition_manager("single_player")
+                    floor_transition.current_floor = 0
 
                     # 층별 던전 상태 저장 딕셔너리 (층 이동 시 재사용)
                     floors_dungeons = {}
@@ -2991,50 +3257,205 @@ def main() -> int:
                                         continue
 
                                 elif result == "floor_down":
-                                    # 현재 층 상태 저장
-                                    floors_dungeons[floor_number] = {
-                                        "dungeon": exploration.dungeon,
-                                        "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
-                                        "player_x": exploration.player.x,
-                                        "player_y": exploration.player.y
-                                    }
-                                    
-                                    floor_number += 1
-                                    exploration.game_stats["max_floor_reached"] = max(exploration.game_stats["max_floor_reached"], floor_number)
-                                    logger.info(f"⬇ 다음 층: {floor_number}층 (최대: {exploration.game_stats['max_floor_reached']}층)")
-                                    
-                                    # 기존 던전이 있으면 재사용, 없으면 생성
-                                    if floor_number in floors_dungeons:
-                                        floor_data = floors_dungeons[floor_number]
-                                        dungeon = floor_data["dungeon"]
-                                        # dungeon이 튜플인 경우 언패킹 (하위 호환성)
-                                        if isinstance(dungeon, tuple):
-                                            dungeon, saved_enemies = dungeon
+                                    # 마을(0층)에서 나가면 다음 던전으로 이동
+                                    if floor_number == 0:
+                                        # 마을 상태 저장
+                                        floors_dungeons[floor_number] = {
+                                            "dungeon": exploration.dungeon,
+                                            "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
+                                            "player_x": exploration.player.x,
+                                            "player_y": exploration.player.y
+                                        }
+                                        
+                                        # 다음 던전 번호로 이동
+                                        next_dungeon_floor = game_stats.get("next_dungeon_floor", 1)
+                                        floor_number = next_dungeon_floor
+                                        exploration.game_stats["max_floor_reached"] = max(exploration.game_stats["max_floor_reached"], floor_number)
+                                        logger.info(f"⬇ 마을에서 던전 {floor_number}층으로 이동")
+                                        
+                                        # 던전 생성 (기존 던전이 있으면 재사용, 없으면 생성)
+                                        if floor_number in floors_dungeons:
+                                            floor_data = floors_dungeons[floor_number]
+                                            dungeon = floor_data["dungeon"]
+                                            if isinstance(dungeon, tuple):
+                                                dungeon, saved_enemies = dungeon
+                                            else:
+                                                saved_enemies = floor_data["enemies"]
+                                            saved_x = floor_data["player_x"]
+                                            saved_y = floor_data["player_y"]
+                                            logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
                                         else:
-                                            saved_enemies = floor_data["enemies"]
-                                        saved_x = floor_data["player_x"]
-                                        saved_y = floor_data["player_y"]
-                                        logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
+                                            dungeon = dungeon_gen.generate(floor_number)
+                                            saved_enemies = []
+                                            saved_x = None
+                                            saved_y = None
+                                            logger.info(f"새 {floor_number}층 던전 생성")
+                                        
+                                        exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        if saved_enemies:
+                                            exploration.enemies = saved_enemies
+                                        if saved_x is not None and saved_y is not None:
+                                            exploration.player.x = saved_x
+                                            exploration.player.y = saved_y
+                                        
+                                        # 마을 플래그 제거
+                                        if hasattr(exploration, 'is_town'):
+                                            delattr(exploration, 'is_town')
+                                        
+                                        play_dungeon_bgm = True
+                                        continue
                                     else:
-                                        dungeon = dungeon_gen.generate(floor_number)
-                                        saved_enemies = []
-                                        saved_x = None
-                                        saved_y = None
-                                        logger.info(f"새 {floor_number}층 던전 생성")
-                                    
-                                    exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
-                                    # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
-                                    if saved_enemies:
-                                        exploration.enemies = saved_enemies
-                                    # 새 던전인 경우 _spawn_enemies()가 이미 호출되어 적이 생성됨
-                                    if saved_x is not None and saved_y is not None:
-                                        exploration.player.x = saved_x
-                                        exploration.player.y = saved_y
-                                    # 층 변경 시 BGM 재생
-                                    play_dungeon_bgm = True
-                                    continue
+                                        # 던전에서 내려가는 계단을 밟으면 마을로 복귀하고 다음 던전 번호 증가
+                                        # 현재 층 상태 저장
+                                        floors_dungeons[floor_number] = {
+                                            "dungeon": exploration.dungeon,
+                                            "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
+                                            "player_x": exploration.player.x,
+                                            "player_y": exploration.player.y
+                                        }
+                                        
+                                        # 마을로 복귀
+                                        floor_number = 0
+                                        # 다음 던전 번호 증가
+                                        current_dungeon = game_stats.get("next_dungeon_floor", 1)
+                                        game_stats["next_dungeon_floor"] = current_dungeon + 1
+                                        logger.info(f"던전 클리어! 마을로 복귀. 다음 던전: {game_stats['next_dungeon_floor']}층")
+                                        
+                                        # 마을 맵 재사용
+                                        if floor_number in floors_dungeons:
+                                            floor_data = floors_dungeons[floor_number]
+                                            dungeon = floor_data["dungeon"]
+                                            if isinstance(dungeon, tuple):
+                                                dungeon, saved_enemies = dungeon
+                                            else:
+                                                saved_enemies = floor_data.get("enemies", [])
+                                            saved_x = floor_data.get("player_x")
+                                            saved_y = floor_data.get("player_y")
+                                            logger.info(f"기존 마을 맵 재사용")
+                                        else:
+                                            # 마을 맵 생성
+                                            from src.town.town_map import get_town_map, create_town_dungeon_map
+                                            from src.town.town_manager import TownManager
+                                            town_map_local = get_town_map()
+                                            town_manager_local = TownManager()
+                                            dungeon = create_town_dungeon_map(town_map_local)
+                                            saved_enemies = []
+                                            saved_x = None
+                                            saved_y = None
+                                            logger.info(f"새 마을 맵 생성")
+                                        
+                                        exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        # 마을 플레이어 스폰 위치 설정
+                                        if saved_x is not None and saved_y is not None:
+                                            exploration.player.x = saved_x
+                                            exploration.player.y = saved_y
+                                        else:
+                                            # town_map이 없으면 가져오기
+                                            if 'town_map' not in locals():
+                                                from src.town.town_map import get_town_map
+                                                town_map = get_town_map()
+                                            spawn_x, spawn_y = town_map.player_spawn
+                                            exploration.player.x = spawn_x
+                                            exploration.player.y = spawn_y
+                                        
+                                        # 마을 표시 플래그 추가
+                                        exploration.is_town = True
+                                        exploration.town_map = town_map
+                                        exploration.town_manager = town_manager
+                                        
+                                        play_dungeon_bgm = True
+                                        continue
+                                        
+                                        # 기존 던전이 있으면 재사용, 없으면 생성
+                                        if floor_number in floors_dungeons:
+                                            floor_data = floors_dungeons[floor_number]
+                                            dungeon = floor_data["dungeon"]
+                                            # dungeon이 튜플인 경우 언패킹 (하위 호환성)
+                                            if isinstance(dungeon, tuple):
+                                                dungeon, saved_enemies = dungeon
+                                            else:
+                                                saved_enemies = floor_data["enemies"]
+                                            saved_x = floor_data["player_x"]
+                                            saved_y = floor_data["player_y"]
+                                            logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
+                                        else:
+                                            dungeon = dungeon_gen.generate(floor_number)
+                                            saved_enemies = []
+                                            saved_x = None
+                                            saved_y = None
+                                            logger.info(f"새 {floor_number}층 던전 생성")
+                                        
+                                        exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
+                                        if saved_enemies:
+                                            exploration.enemies = saved_enemies
+                                        # 새 던전인 경우 _spawn_enemies()가 이미 호출되어 적이 생성됨
+                                        if saved_x is not None and saved_y is not None:
+                                            exploration.player.x = saved_x
+                                            exploration.player.y = saved_y
+                                        # 층 변경 시 BGM 재생
+                                        play_dungeon_bgm = True
+                                        continue
                                 elif result == "floor_up":
-                                    if floor_number > 1:
+                                    if floor_number == 1:
+                                        # 던전 1층에서 위로 올라가면 마을(0층)로 복귀
+                                        # 현재 층 상태 저장
+                                        floors_dungeons[floor_number] = {
+                                            "dungeon": exploration.dungeon,
+                                            "enemies": exploration.enemies.copy() if hasattr(exploration, 'enemies') else [],
+                                            "player_x": exploration.player.x,
+                                            "player_y": exploration.player.y
+                                        }
+                                        
+                                        # 마을로 복귀
+                                        floor_number = 0
+                                        logger.info(f"⬆ 던전에서 마을로 복귀")
+                                        
+                                        # 마을 맵 재사용
+                                        if floor_number in floors_dungeons:
+                                            floor_data = floors_dungeons[floor_number]
+                                            dungeon = floor_data["dungeon"]
+                                            if isinstance(dungeon, tuple):
+                                                dungeon, saved_enemies = dungeon
+                                            else:
+                                                saved_enemies = floor_data.get("enemies", [])
+                                            saved_x = floor_data.get("player_x")
+                                            saved_y = floor_data.get("player_y")
+                                            logger.info(f"기존 마을 맵 재사용")
+                                        else:
+                                            # 마을 맵 생성
+                                            from src.town.town_map import get_town_map, create_town_dungeon_map
+                                            from src.town.town_manager import TownManager
+                                            town_map_local = get_town_map()
+                                            town_manager_local = TownManager()
+                                            dungeon = create_town_dungeon_map(town_map_local)
+                                            saved_enemies = []
+                                            saved_x = None
+                                            saved_y = None
+                                            logger.info(f"새 마을 맵 생성")
+                                        
+                                        exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        # 마을 플레이어 스폰 위치 설정
+                                        if saved_x is not None and saved_y is not None:
+                                            exploration.player.x = saved_x
+                                            exploration.player.y = saved_y
+                                        else:
+                                            # 마을 맵 스폰 위치 사용
+                                            town_map_local = get_town_map()
+                                            spawn_x, spawn_y = town_map_local.player_spawn
+                                            exploration.player.x = spawn_x
+                                            exploration.player.y = spawn_y
+                                        
+                                        # 마을 표시 플래그 추가
+                                        from src.town.town_map import get_town_map
+                                        from src.town.town_manager import TownManager
+                                        exploration.is_town = True
+                                        exploration.town_map = get_town_map()
+                                        exploration.town_manager = TownManager()
+                                        
+                                        play_dungeon_bgm = True
+                                        continue
+                                    elif floor_number > 1:
                                         # 현재 층 상태 저장
                                         floors_dungeons[floor_number] = {
                                             "dungeon": exploration.dungeon,

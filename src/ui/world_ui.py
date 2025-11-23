@@ -140,8 +140,13 @@ class WorldUI:
 
         # T 키로 채팅 입력 시작 (멀티플레이어일 때만)
         if isinstance(key_event, tcod.event.KeyDown):
-            # 필드 스킬 UI (F 키)
+            # 필드 스킬 UI (F 키) - 마을에서는 사용 불가
             if key_event.sym == tcod.event.KeySym.f:
+                # 마을인지 확인
+                is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
+                if is_town:
+                    self.add_message("마을에서는 필드스킬을 사용할 수 없습니다.")
+                    return False
                 if self.party:
                     self.field_skill_ui.show(self.party)
                     return False
@@ -463,68 +468,98 @@ class WorldUI:
                     if tile.tile_type == TileType.STAIRS_DOWN:
                         play_sfx("world", "stairs_down")
                         
-                        # 멀티플레이: 모든 플레이어 준비 확인
-                        if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
-                            if hasattr(self.exploration, 'session') and self.exploration.session:
-                                session = self.exploration.session
-                                local_player_id = None
-                                if hasattr(self.exploration, 'local_player_id'):
-                                    local_player_id = self.exploration.local_player_id
-                                
-                                # 로컬 플레이어 준비 상태 설정
-                                if local_player_id:
-                                    session.set_floor_ready(local_player_id, True)
-                                
-                                # 모든 플레이어 준비 확인
-                                if session.is_all_ready_for_floor_change():
-                                    self.floor_change_requested = "floor_down"
-                                    self.add_message("모든 플레이어가 준비되었습니다. 아래층으로 내려갑니다...")
-                                    session.reset_floor_ready()  # 준비 상태 초기화
-                                    return True
-                                else:
-                                    ready_count = len(session.floor_ready_players)
-                                    total_count = len(session.players)
-                                    self.add_message(f"다음 층으로 이동 대기 중... ({ready_count}/{total_count} 준비)")
-                                    return False
+                        # 마을인지 확인
+                        is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
                         
-                        # 싱글플레이: 즉시 이동
-                        self.floor_change_requested = "floor_down"
-                        self.add_message("아래층으로 내려갑니다...")
-                        return True
-                    elif tile.tile_type == TileType.STAIRS_UP:
-                        play_sfx("world", "stairs_up")
-                        
-                        # 멀티플레이: 모든 플레이어 준비 확인
-                        if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
-                            if hasattr(self.exploration, 'session') and self.exploration.session:
-                                session = self.exploration.session
-                                local_player_id = None
-                                if hasattr(self.exploration, 'local_player_id'):
-                                    local_player_id = self.exploration.local_player_id
-                                
-                                # 로컬 플레이어 준비 상태 설정
-                                if local_player_id:
-                                    session.set_floor_ready(local_player_id, True)
-                                
-                                # 모든 플레이어 준비 확인
-                                if session.is_all_ready_for_floor_change():
-                                    self.floor_change_requested = "floor_up"
-                                    self.add_message("모든 플레이어가 준비되었습니다. 위층으로 올라갑니다...")
-                                    session.reset_floor_ready()  # 준비 상태 초기화
-                                    return True
-                                else:
-                                    ready_count = len(session.floor_ready_players)
-                                    total_count = len(session.players)
-                                    self.add_message(f"다음 층으로 이동 대기 중... ({ready_count}/{total_count} 준비)")
-                                    return False
-                        
-                        # 싱글플레이: 즉시 이동
-                        self.floor_change_requested = "floor_up"
-                        self.add_message("위층으로 올라갑니다...")
-                        return True
+                        if is_town:
+                            # 마을에서 던전으로 나가는 경우
+                            # 멀티플레이: 모든 플레이어 준비 확인
+                            if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                                if hasattr(self.exploration, 'session') and self.exploration.session:
+                                    session = self.exploration.session
+                                    local_player_id = None
+                                    if hasattr(self.exploration, 'local_player_id'):
+                                        local_player_id = self.exploration.local_player_id
+                                    
+                                    # 로컬 플레이어 준비 상태 설정
+                                    if local_player_id:
+                                        session.set_floor_ready(local_player_id, True)
+                                    
+                                    # 모든 플레이어 준비 확인
+                                    if session.is_all_ready_for_floor_change():
+                                        self.floor_change_requested = "floor_down"
+                                        self.add_message("모든 플레이어가 준비되었습니다. 던전으로 이동합니다...")
+                                        session.reset_floor_ready()  # 준비 상태 초기화
+                                        return True
+                                    else:
+                                        ready_count = len(session.floor_ready_players)
+                                        total_count = len(session.players)
+                                        self.add_message(f"던전으로 이동 대기 중... ({ready_count}/{total_count} 준비)")
+                                        return False
+                            
+                            # 싱글플레이: 즉시 이동
+                            self.floor_change_requested = "floor_down"
+                            self.add_message("던전으로 이동합니다...")
+                            return True
+                        else:
+                            # 던전에서 아래층으로 이동하는 경우
+                            # 멀티플레이: 모든 플레이어 준비 확인
+                            if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                                if hasattr(self.exploration, 'session') and self.exploration.session:
+                                    session = self.exploration.session
+                                    local_player_id = None
+                                    if hasattr(self.exploration, 'local_player_id'):
+                                        local_player_id = self.exploration.local_player_id
+                                    
+                                    # 로컬 플레이어 준비 상태 설정
+                                    if local_player_id:
+                                        session.set_floor_ready(local_player_id, True)
+                                    
+                                    # 모든 플레이어 준비 확인
+                                    if session.is_all_ready_for_floor_change():
+                                        self.floor_change_requested = "floor_down"
+                                        self.add_message("모든 플레이어가 준비되었습니다. 아래층으로 내려갑니다...")
+                                        session.reset_floor_ready()  # 준비 상태 초기화
+                                        return True
+                                    else:
+                                        ready_count = len(session.floor_ready_players)
+                                        total_count = len(session.players)
+                                        self.add_message(f"다음 층으로 이동 대기 중... ({ready_count}/{total_count} 준비)")
+                                        return False
+                            
+                            # 싱글플레이: 즉시 이동
+                            self.floor_change_requested = "floor_down"
+                            self.add_message("아래층으로 내려갑니다...")
+                            return True
+                    # 올라가는 계단 제거됨 (마을로 돌아갈 수 없음)
+                    # elif tile.tile_type == TileType.STAIRS_UP: 제거
 
             # E키를 눌렀지만 주변에 아무것도 없을 때
             if action == GameAction.INTERACT:
+                # 마을인지 확인
+                is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
+                
+                if is_town:
+                    # 마을에서 건물과 상호작용
+                    from src.town.town_map import TownInteractionHandler
+                    town_map = getattr(self.exploration, 'town_map', None)
+                    town_manager = getattr(self.exploration, 'town_manager', None)
+                    
+                    if town_map and town_manager:
+                        # 현재 위치의 건물 확인
+                        building = town_map.get_building_at(self.exploration.player.x, self.exploration.player.y)
+                        if building:
+                            # 건물과 상호작용
+                            result = TownInteractionHandler.interact_with_building(
+                                building, 
+                                self.exploration.player, 
+                                town_manager
+                            )
+                            logger.info(f"건물 상호작용: {building.name} - {result.get('message', '')}")
+                            self.add_message(result.get('message', f"{building.name}에 입장했습니다."))
+                            # TODO: 건물별 UI 열기 (주방, 대장간 등)
+                            return False
+                
                 # 현재 위치의 타일 확인 (모루 등)
                 player_tile = self.exploration.dungeon.get_tile(self.exploration.player.x, self.exploration.player.y)
                 if player_tile:
