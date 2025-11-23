@@ -89,7 +89,7 @@ def get_job_unlock_items() -> List[ShopItem]:
                     items.append(ShopItem(
                         name=f"[직업] {job_name_kr}",
                         description=f"{archetype} - {description}",
-                        price=1000,  # 직업 해금 가격
+                        price=200,  # 1000 * 0.2 (80% 할인)
                         category=ShopCategory.JOB_UNLOCKS,
                         item_id=f"job_{job_id}",
                         job_id=job_id
@@ -142,7 +142,7 @@ def get_trait_unlock_items() -> List[ShopItem]:
                         items.append(ShopItem(
                             name=f"[{job_name_kr}] {trait_name}",
                             description=trait.get('description', '') + f" (특성 {i}/5)",
-                            price=100 * i,  # 3번째 300, 4번째 400, 5번째 500
+                            price=int(100 * i * 0.2),  # 3번째 60, 4번째 80, 5번째 100
                             category=ShopCategory.TRAIT_UNLOCKS,
                             item_id=f"{job_id}_{trait_id}",
                             job_id=job_id,
@@ -181,6 +181,11 @@ def get_building_items() -> List[ShopItem]:
             ("창고 Lv.3", "최대 무게 +8", 1800),
             ("창고 Lv.4", "아이템 무게 20% 감소 (효율적 포장)", 4500),
         ]),
+        ("shop", "상점", [
+            ("상점 Lv.2", "품목 종류 추가 (동시에 판매하는 아이템 종류 수 추가)", 240),  # 1200 / 5
+            ("상점 Lv.3", "재고량 증가 (1.5배 또는 2배)", 600),  # 3000 / 5
+            ("상점 Lv.4", "일부 상품 세일 (가격 20% 할인)", 1400),  # 7000 / 5
+        ]),
     ]
     
     for facility_id, facility_name, upgrades in facilities:
@@ -195,7 +200,7 @@ def get_building_items() -> List[ShopItem]:
                 items.append(ShopItem(
                     name=f"[{facility_name}] {name}",
                     description=description,
-                    price=price,
+                    price=int(price * 0.2),  # 80% 할인
                     category=ShopCategory.BUILDINGS,
                     item_id=f"building_{facility_id}_level_{target_level}",
                     job_id=facility_id  # facility_id를 저장하기 위해 job_id 필드 재활용
@@ -216,61 +221,61 @@ def get_shop_items() -> List[ShopItem]:
         ShopItem(
             "HP 증가 I",
             "파티원 전체의 최대 HP +10% (영구)",
-            500,
+            100,  # 500 * 0.2
             ShopCategory.PERMANENT_UPGRADES
         ),
         ShopItem(
             "HP 증가 II",
             "파티원 전체의 최대 HP +20% (영구)",
-            1500,
+            300,  # 1500 * 0.2
             ShopCategory.PERMANENT_UPGRADES
         ),
         ShopItem(
             "MP 증가 I",
             "파티원 전체의 최대 MP +10% (영구)",
-            500,
+            100,  # 500 * 0.2
             ShopCategory.PERMANENT_UPGRADES
         ),
         ShopItem(
             "MP 증가 II",
             "파티원 전체의 최대 MP +20% (영구)",
-            1500,
+            300,  # 1500 * 0.2
             ShopCategory.PERMANENT_UPGRADES
         ),
         ShopItem(
             "경험치 부스트 I",
             "획득 경험치 +10% (영구)",
-            800,
+            160,  # 800 * 0.2
             ShopCategory.PERMANENT_UPGRADES
         ),
         ShopItem(
             "경험치 부스트 II",
             "획득 경험치 +25% (영구)",
-            2000,
+            400,  # 2000 * 0.2
             ShopCategory.PERMANENT_UPGRADES
         ),
         ShopItem(
             "골드 부스트",
             "획득 골드 +20% (영구)",
-            1000,
+            200,  # 1000 * 0.2
             ShopCategory.PERMANENT_UPGRADES
         ),
         ShopItem(
             "인벤토리 확장 I",
             "무게 제한 +20kg (영구)",
-            600,
+            120,  # 600 * 0.2
             ShopCategory.PERMANENT_UPGRADES
         ),
         ShopItem(
             "인벤토리 확장 II",
             "무게 제한 +50kg (영구)",
-            1800,
+            360,  # 1800 * 0.2
             ShopCategory.PERMANENT_UPGRADES
         ),
         ShopItem(
             "시작 레벨 증가",
             "새 캐릭터 시작 레벨 +1 (영구)",
-            3000,
+            600,  # 3000 * 0.2
             ShopCategory.PERMANENT_UPGRADES
         ),
     ])
@@ -286,25 +291,25 @@ def get_shop_items() -> List[ShopItem]:
         ShopItem(
             "엘릭서",
             "HP와 MP를 완전히 회복",
-            100,
+            20,  # 100 * 0.2
             ShopCategory.CONSUMABLES
         ),
         ShopItem(
             "하이포션",
             "HP 500 회복",
-            50,
+            10,  # 50 * 0.2
             ShopCategory.CONSUMABLES
         ),
         ShopItem(
             "하이이더",
             "MP 100 회복",
-            50,
+            10,  # 50 * 0.2
             ShopCategory.CONSUMABLES
         ),
         ShopItem(
             "피닉스의 깃털",
             "전투 중 사망 시 자동 부활 (1회)",
-            200,
+            40,  # 200 * 0.2
             ShopCategory.CONSUMABLES
         ),
     ])
@@ -314,19 +319,19 @@ def get_shop_items() -> List[ShopItem]:
         ShopItem(
             "던전 스킵 티켓",
             "특정 층을 스킵하고 다음 층으로",
-            300,
+            60,  # 300 * 0.2
             ShopCategory.SPECIAL
         ),
         ShopItem(
             "보스 레이더",
             "현재 층의 보스 위치를 미니맵에 표시",
-            150,
+            30,  # 150 * 0.2
             ShopCategory.SPECIAL
         ),
         ShopItem(
             "보물 탐지기",
             "현재 층의 모든 보물 위치를 미니맵에 표시",
-            100,
+            20,  # 100 * 0.2
             ShopCategory.SPECIAL
         ),
     ])
@@ -521,7 +526,7 @@ class ShopUI:
         render_space_background(console, self.screen_width, self.screen_height)
 
         # 제목
-        title = "=== 상점 (메타 진행) ==="
+        title = "=== 메타 진행 ==="
         console.print((self.screen_width - len(title)) // 2, 2, title, fg=(255, 215, 0))
 
         # 별의 파편 표시

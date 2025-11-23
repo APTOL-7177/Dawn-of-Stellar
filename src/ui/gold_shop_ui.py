@@ -74,22 +74,26 @@ def refresh_shop():
     logger.info("상점 아이템 캐시 초기화 완료 (새로운 물품 입고 준비)")
 
 
-def get_gold_shop_items(floor_level: int = 1) -> dict:
+def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1) -> dict:
     """
     골드 상점 아이템 목록 생성 (층별로 캐싱됨)
 
     Args:
         floor_level: 현재 층수 (장비 등급 결정)
+        shop_level: 상점 레벨 (1~4, 레벨에 따라 혜택 제공)
 
     Returns:
         탭별 아이템 딕셔너리
     """
     global _shop_items_cache
     
-    # 캐시 확인: 같은 층에서는 같은 아이템 반환
-    if floor_level in _shop_items_cache:
-        logger.debug(f"상점 아이템 캐시 사용 (층 {floor_level})")
-        return _shop_items_cache[floor_level]
+    # 캐시 키에 shop_level 포함 (레벨별로 다른 아이템 제공)
+    cache_key = (floor_level, shop_level)
+    
+    # 캐시 확인: 같은 층과 상점 레벨에서는 같은 아이템 반환
+    if cache_key in _shop_items_cache:
+        logger.debug(f"상점 아이템 캐시 사용 (층 {floor_level}, 상점 레벨 {shop_level})")
+        return _shop_items_cache[cache_key]
     
     items = {
         GoldShopTab.CONSUMABLES: [],
@@ -106,35 +110,42 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     floor_random = random.Random(seed)  # 층별 + 시간별 고유 시드
 
     # === 소모품 (회복 아이템) ===
-    # 층별로 다른 소모품 풀 선택
-    all_consumable_items = [
-        ("health_potion", 50),
-        ("mega_health_potion", 120),
-        ("super_health_potion", 250),
-        ("mana_potion", 60),
-        ("mega_mana_potion", 140),
-        ("super_mana_potion", 300),
-        ("elixir", 500),
-        # BRV/상처 관련 소모품
-        ("wound_salve", 80),
-        ("greater_wound_salve", 180),
-        ("phoenix_tears", 450),
-        ("brave_crystal", 200),
-        ("mega_brave_crystal", 400),
-        # 추가 소모품
-        ("antidote", 40),
-        ("cure_poison", 60),
-        ("strength_tonic", 150),
-        ("speed_tonic", 150),
-        ("defense_tonic", 150),
-    ]
+    # 실제 게임의 CONSUMABLE_TEMPLATES에서 아이템 가져오기
+    from src.equipment.item_system import CONSUMABLE_TEMPLATES
     
-    # 층별로 6~8개의 소모품 랜덤 선택
-    num_consumables = floor_random.randint(6, 8)
+    # 기본 소모품 풀 (모든 레벨에서 사용 가능)
+    base_consumable_pool = []
+    for item_id, template in CONSUMABLE_TEMPLATES.items():
+        # 기본 가격은 sell_price 사용
+        base_price = template.get("sell_price", 50)
+        base_consumable_pool.append((item_id, base_price))
+    
+    # 상점 레벨에 따른 풀 필터링
+    # Lv.1: 기본 소모품만 (COMMON, UNCOMMON)
+    # Lv.2+: 모든 소모품 포함 (RARE, EPIC 등도 추가)
+    if shop_level >= 2:
+        all_consumable_items = base_consumable_pool.copy()
+    else:
+        # Lv.1: COMMON, UNCOMMON만
+        from src.equipment.item_system import ItemRarity
+        all_consumable_items = [
+            (item_id, price) for item_id, price in base_consumable_pool
+            if CONSUMABLE_TEMPLATES[item_id].get("rarity") in [ItemRarity.COMMON, ItemRarity.UNCOMMON]
+        ]
+    
+    # 아이템 종류 수 결정: Lv.1은 5종류, Lv.2+는 8종류
+    if shop_level >= 2:
+        num_consumables = floor_random.randint(8, 12)  # 8~12종류
+    else:
+        num_consumables = floor_random.randint(5, 7)  # 5~7종류
+    
     consumable_items = floor_random.sample(all_consumable_items, min(num_consumables, len(all_consumable_items)))
 
     # 인플레이션 배율 계산
     inflation = get_inflation_multiplier(floor_level)
+    
+    # 상점 레벨 4: 가격 20% 할인
+    discount_multiplier = 0.8 if shop_level >= 4 else 1.0
     
     for item_id, price in consumable_items:
         # ItemGenerator를 사용하여 일관된 아이템 생성 (스택 문제 해결)
@@ -146,10 +157,15 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             continue
         
         # 인플레이션 적용 가격 계산
-        inflated_price = int(price * inflation)
+        inflated_price = int(price * inflation * discount_multiplier)
         
-        # 소모품 재고: 1~3개 랜덤
-        stock = floor_random.randint(1, 3)
+        # 소모품 재고: 1~3개 랜덤 (Lv.3 이상이면 1.5배 또는 2배)
+        base_stock = floor_random.randint(1, 3)
+        if shop_level >= 3:
+            stock_multiplier = floor_random.choice([1.5, 2.0])
+            stock = max(1, int(base_stock * stock_multiplier))
+        else:
+            stock = base_stock
         
         items[GoldShopTab.CONSUMABLES].append(
             GoldShopItem(
@@ -163,162 +179,105 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
         )
 
     # === 장비 (층수에 맞는 장비) ===
-    # floor_level에 따라 적절한 등급의 장비 제공
-    # 층별로 다른 장비 풀 선택
+    # 실제 게임의 WEAPON_TEMPLATES, ARMOR_TEMPLATES, ACCESSORY_TEMPLATES에서 아이템 가져오기
+    from src.equipment.item_system import WEAPON_TEMPLATES, ARMOR_TEMPLATES, ACCESSORY_TEMPLATES, ItemRarity
+    
+    # 층수에 맞는 장비 필터링
     all_equipment_pools = []
     
-    if floor_level <= 3:
-        # 초반 (1~3층): 기본 장비
-        all_equipment_pools = [
-            ("iron_sword", 100),
-            ("wooden_staff", 120),
-            ("hunting_bow", 90),
-            ("leather_armor", 80),
-            ("health_ring", 100),
-            ("mana_ring", 100),
-            ("apprentice_robe", 110),
-            ("iron_greatsword", 150),
-            ("bronze_sword", 90),
-            ("cloth_armor", 70),
-            ("basic_amulet", 80),
-        ]
-    elif floor_level <= 7:
-        # 중반 (4~7층): 중급 장비
-        all_equipment_pools = [
-            ("steel_sword", 300),
-            ("crystal_staff", 350),
-            ("longbow", 280),
-            ("chainmail", 250),
-            ("battle_mage_robe", 320),
-            ("regeneration_ring", 380),
-            ("wisdom_tome", 400),
-            ("vampire_dagger", 420),
-            ("eagle_eye_amulet", 350),  # +1 시야
-            ("silver_sword", 350),
-            ("enchanted_bow", 320),
-            ("steel_armor", 300),
-        ]
-    elif floor_level <= 12:
-        # 후반 (8~12층): 고급 장비
-        all_equipment_pools = [
-            ("mithril_sword", 800),
-            ("archmagus_staff", 900),
-            ("assassin_dagger", 750),
-            ("plate_armor", 700),
-            ("phoenix_ring", 850),
-            ("sorcerer_vestments", 880),
-            ("elemental_scepter", 920),
-            ("lifesteal_blade", 1000),
-            ("berserker_axe", 950),
-            ("far_sight_lens", 700),  # +1 시야
-            ("wound_ward_armor", 850),  # 상처 감소
-            ("demon_blade", 1000),
-            ("sage_robe", 900),
-        ]
-    else:
-        # 최후반 (13층+): 최상급 장비
-        all_equipment_pools = [
-            ("dragon_slayer", 2500),
-            ("excalibur", 5000),
-            ("staff_of_cosmos", 3000),
-            ("dragon_armor", 2000),
-            ("ring_of_gods", 2500),
-            ("elemental_master_robe", 2800),
-            ("meteor_staff", 3500),
-            ("apocalypse_blade", 4500),
-            ("owls_pendant", 2000),  # +2 시야
-            ("immortal_ring", 3200),  # 상처 면역
-            ("godslayer", 4000),
-            ("cosmic_armor", 3000),
-        ]
+    # 모든 템플릿을 합침
+    all_templates = {}
+    all_templates.update(WEAPON_TEMPLATES)
+    all_templates.update(ARMOR_TEMPLATES)
+    all_templates.update(ACCESSORY_TEMPLATES)
     
-    # 층별로 4~6개의 장비 랜덤 선택
-    num_equipment = floor_random.randint(4, 6)
-    equipment_items = floor_random.sample(all_equipment_pools, min(num_equipment, len(all_equipment_pools)))
-
-    for item_id, base_price in equipment_items:
-        # 인플레이션 적용 가격 계산
-        price = int(base_price * inflation)
+    # 층수에 맞는 레벨 제한 계산 (층당 레벨 1 증가 가정)
+    max_level = floor_level
+    
+    for item_id, template in all_templates.items():
+        level_req = template.get("level_requirement", 1)
+        rarity = template.get("rarity", ItemRarity.COMMON)
         
-        # 무기 템플릿 확인
-        if item_id in WEAPON_TEMPLATES:
-            template = WEAPON_TEMPLATES[item_id]
-            equipment = Equipment(
-                item_id=item_id,
-                name=template["name"],
-                description=template["description"],
-                item_type=ItemType.WEAPON,
-                rarity=template["rarity"],
-                level_requirement=template["level_requirement"],
-                base_stats=template["base_stats"],
-                sell_price=template["sell_price"],
-                equip_slot=EquipSlot.WEAPON,
-                unique_effect=template.get("unique_effect")  # 특수 효과 추가
-            )
-            # 장비 재고: 1개 고정
+        # 층수에 맞는 장비만 선택
+        if level_req <= max_level:
+            # 가격은 sell_price 사용
+            base_price = template.get("sell_price", 100)
+            all_equipment_pools.append((item_id, base_price, template))
+    
+    # 상점 레벨에 따른 아이템 종류 수 결정
+    # Lv.1: 4~5종류, Lv.2+: 6~8종류
+    if shop_level >= 2:
+        num_equipment = floor_random.randint(6, 8)
+    else:
+        num_equipment = floor_random.randint(4, 5)
+    
+    # 랜덤 선택
+    selected_equipment = floor_random.sample(
+        list(range(len(all_equipment_pools))), 
+        min(num_equipment, len(all_equipment_pools))
+    )
+    equipment_items = [all_equipment_pools[i] for i in selected_equipment]
+
+    for item_id, base_price, template in equipment_items:
+        # 인플레이션 적용 가격 계산 (Lv.4 할인 적용)
+        price = int(base_price * inflation * discount_multiplier)
+        
+        # ItemGenerator를 사용하여 일관된 아이템 생성
+        from src.equipment.item_system import ItemGenerator, ItemType, EquipSlot
+        
+        try:
+            if item_id in WEAPON_TEMPLATES:
+                equipment = ItemGenerator.create_weapon(item_id, add_random_affixes=True)
+            elif item_id in ARMOR_TEMPLATES:
+                equipment = ItemGenerator.create_armor(item_id, add_random_affixes=True)
+            elif item_id in ACCESSORY_TEMPLATES:
+                equipment = ItemGenerator.create_accessory(item_id, add_random_affixes=True)
+            else:
+                continue
+            
+            # 장비 재고: 1개 고정 (Lv.3 이상이면 1.5배 또는 2배)
+            if shop_level >= 3:
+                stock = floor_random.choice([1, 2])  # 1개 또는 2개
+            else:
+                stock = 1
+            
             items[GoldShopTab.EQUIPMENT].append(
-                GoldShopItem(equipment.name, equipment.description, price, equipment, "equipment", stock=1)
+                GoldShopItem(equipment.name, equipment.description, price, equipment, "equipment", stock=stock)
             )
-        # 방어구 템플릿 확인
-        elif item_id in ARMOR_TEMPLATES:
-            template = ARMOR_TEMPLATES[item_id]
-            equipment = Equipment(
-                item_id=item_id,
-                name=template["name"],
-                description=template["description"],
-                item_type=ItemType.ARMOR,
-                rarity=template["rarity"],
-                level_requirement=template["level_requirement"],
-                base_stats=template["base_stats"],
-                sell_price=template["sell_price"],
-                equip_slot=EquipSlot.ARMOR,
-                unique_effect=template.get("unique_effect")  # 특수 효과 추가
-            )
-            # 장비 재고: 1개 고정
-            items[GoldShopTab.EQUIPMENT].append(
-                GoldShopItem(equipment.name, equipment.description, price, equipment, "equipment", stock=1)
-            )
-        # 장신구 템플릿 확인
-        elif item_id in ACCESSORY_TEMPLATES:
-            template = ACCESSORY_TEMPLATES[item_id]
-            equipment = Equipment(
-                item_id=item_id,
-                name=template["name"],
-                description=template["description"],
-                item_type=ItemType.ACCESSORY,
-                rarity=template["rarity"],
-                level_requirement=template["level_requirement"],
-                base_stats=template["base_stats"],
-                sell_price=template["sell_price"],
-                equip_slot=EquipSlot.ACCESSORY,
-                unique_effect=template.get("unique_effect")  # 특수 효과 추가
-            )
-            # 장비 재고: 1개 고정
-            items[GoldShopTab.EQUIPMENT].append(
-                GoldShopItem(equipment.name, equipment.description, price, equipment, "equipment", stock=1)
-            )
+        except (ValueError, KeyError) as e:
+            logger.warning(f"장비 생성 실패 ({item_id}): {e}")
+            continue
 
     # === 특수 아이템 ===
-    # 층별로 다른 특수 아이템 풀 선택
-    all_special_items = [
-        ("town_portal", 200),
-        ("phoenix_down", 350),
-        ("revival_essence", 400),
-        ("wound_cure_essence", 350),
-        ("brv_shield_elixir", 280),
-        ("escape_rope", 100),
-        ("treasure_map", 250),
-        ("monster_repellent", 180),
-        ("lucky_charm", 300),
+    # 실제 게임의 CONSUMABLE_TEMPLATES에서 특수 아이템 필터링
+    # 특수 아이템: town_portal, phoenix_down 등 특수 효과 아이템
+    special_item_ids = [
+        "town_portal", "phoenix_down", "dungeon_key",
+        "barrier_crystal", "haste_crystal", "power_tonic", "defense_elixir",
+        "regen_crystal", "mp_regen_crystal", "status_cleanse", "revive_crystal",
+        "poison_bomb", "thunder_grenade", "acid_flask", "smoke_bomb"
     ]
     
-    # 층별로 3~4개의 특수 아이템 랜덤 선택
-    num_special = floor_random.randint(3, 4)
+    # 실제 템플릿에 존재하는 특수 아이템만 필터링
+    all_special_items = []
+    for item_id in special_item_ids:
+        if item_id in CONSUMABLE_TEMPLATES:
+            template = CONSUMABLE_TEMPLATES[item_id]
+            base_price = template.get("sell_price", 200)
+            all_special_items.append((item_id, base_price))
+    
+    # 상점 레벨에 따른 아이템 종류 수 결정
+    # Lv.1: 3~4종류, Lv.2+: 5~6종류
+    if shop_level >= 2:
+        num_special = floor_random.randint(5, 6)
+    else:
+        num_special = floor_random.randint(3, 4)
+    
     special_items = floor_random.sample(all_special_items, min(num_special, len(all_special_items)))
 
     for item_id, base_price in special_items:
-        # 인플레이션 적용 가격 계산
-        price = int(base_price * inflation)
+        # 인플레이션 적용 가격 계산 (Lv.4 할인 적용)
+        price = int(base_price * inflation * discount_multiplier)
         
         # ItemGenerator를 사용하여 일관된 아이템 생성 (스택 문제 해결)
         from src.equipment.item_system import ItemGenerator
@@ -328,8 +287,13 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             # 템플릿이 없으면 스킵
             continue
         
-        # 특수 아이템 재고: 1~3개 랜덤 (소모품과 동일)
-        stock = floor_random.randint(1, 3)
+        # 특수 아이템 재고: 1~3개 랜덤 (Lv.3 이상이면 1.5배 또는 2배)
+        base_stock = floor_random.randint(1, 3)
+        if shop_level >= 3:
+            stock_multiplier = floor_random.choice([1.5, 2.0])
+            stock = max(1, int(base_stock * stock_multiplier))
+        else:
+            stock = base_stock
         
         items[GoldShopTab.SPECIAL].append(
             GoldShopItem(consumable.name, consumable.description, price, consumable, "special", stock=stock)
@@ -370,9 +334,9 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
         GoldShopTab.SPECIAL: copy.deepcopy(items[GoldShopTab.SPECIAL]),
         GoldShopTab.SERVICE: copy.deepcopy(items[GoldShopTab.SERVICE])
     }
-    _shop_items_cache[floor_level] = cached_items
+    _shop_items_cache[cache_key] = cached_items
     
-    logger.info(f"상점 아이템 생성 완료 (층 {floor_level}): 소모품 {len(items[GoldShopTab.CONSUMABLES])}개, 장비 {len(items[GoldShopTab.EQUIPMENT])}개, 특수 {len(items[GoldShopTab.SPECIAL])}개, 서비스 {len(items[GoldShopTab.SERVICE])}개")
+    logger.info(f"상점 아이템 생성 완료 (층 {floor_level}, 상점 레벨 {shop_level}): 소모품 {len(items[GoldShopTab.CONSUMABLES])}개, 장비 {len(items[GoldShopTab.EQUIPMENT])}개, 특수 {len(items[GoldShopTab.SPECIAL])}개, 서비스 {len(items[GoldShopTab.SERVICE])}개")
     
     return items
 
@@ -387,8 +351,15 @@ class GoldShopUI:
         self.floor_level = floor_level
         self.shop_type = shop_type  # "shop" 또는 "blacksmith"
 
+        # TownManager를 통해 상점 레벨 가져오기
+        from src.town.town_manager import get_town_manager
+        town_manager = get_town_manager()
+        from src.town.town_manager import FacilityType
+        shop_facility = town_manager.get_facility(FacilityType.SHOP)
+        shop_level = shop_facility.level if shop_facility else 1
+
         # 상점 아이템
-        self.shop_items = get_gold_shop_items(floor_level)
+        self.shop_items = get_gold_shop_items(floor_level, shop_level)
 
         # UI 상태
         self.state = ShopState.SHOPPING
