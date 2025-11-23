@@ -380,19 +380,28 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
 class GoldShopUI:
     """골드 상점 UI"""
 
-    def __init__(self, screen_width: int, screen_height: int, inventory, floor_level: int = 1):
+    def __init__(self, screen_width: int, screen_height: int, inventory, floor_level: int = 1, shop_type: str = "shop"):
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.inventory = inventory
         self.floor_level = floor_level
+        self.shop_type = shop_type  # "shop" 또는 "blacksmith"
 
         # 상점 아이템
         self.shop_items = get_gold_shop_items(floor_level)
 
         # UI 상태
         self.state = ShopState.SHOPPING
-        self.current_tab = GoldShopTab.CONSUMABLES
-        self.tabs = list(GoldShopTab)
+        
+        # shop_type에 따라 사용 가능한 탭 설정
+        if shop_type == "blacksmith":
+            # 대장간: 장비와 서비스만 표시 (소모품, 특수 아이템 제거)
+            self.tabs = [GoldShopTab.EQUIPMENT, GoldShopTab.SERVICE]
+        else:
+            # 상점: 소모품과 특수 아이템만 표시 (장비, 서비스 제거)
+            self.tabs = [GoldShopTab.CONSUMABLES, GoldShopTab.SPECIAL]
+        
+        self.current_tab = self.tabs[0]  # 첫 번째 탭 선택
         self.tab_index = 0
         
         # 재고가 있는 첫 번째 아이템으로 선택
@@ -885,7 +894,8 @@ def open_gold_shop(
     console: tcod.console.Console,
     context: tcod.context.Context,
     inventory,
-    floor_level: int = 1
+    floor_level: int = 1,
+    shop_type: str = "shop"
 ):
     """
     골드 상점 열기
@@ -895,8 +905,9 @@ def open_gold_shop(
         context: TCOD 컨텍스트
         inventory: 인벤토리
         floor_level: 현재 층수 (장비 등급 결정)
+        shop_type: 상점 종류 ("shop" 또는 "blacksmith")
     """
-    shop_ui = GoldShopUI(console.width, console.height, inventory, floor_level)
+    shop_ui = GoldShopUI(console.width, console.height, inventory, floor_level, shop_type)
     handler = InputHandler()
 
     logger.info("골드 상점 열림")
