@@ -619,7 +619,8 @@ class WorldUI:
                                 # 대장간: 골드 상점 열기 (장비 수리/재련)
                                 if self.inventory is not None:
                                     from src.ui.gold_shop_ui import open_gold_shop
-                                    floor_level = self.exploration.floor_number if hasattr(self.exploration, 'floor_number') else 1
+                                    # 마을에서 대장간을 열 때는 최소 1층 이상으로 설정하여 기본 장비 판매 보장
+                                    floor_level = max(1, self.exploration.floor_number if hasattr(self.exploration, 'floor_number') and self.exploration.floor_number > 0 else 1)
                                     logger.info(f"[건물 상호작용] 대장간 UI 열기 (층수: {floor_level}, inventory type: {type(self.inventory)})")
                                     open_gold_shop(console, context, self.inventory, floor_level, shop_type="blacksmith")
                                 else:
@@ -713,7 +714,7 @@ class WorldUI:
                                 # 창고: 창고 UI 열기
                                 if self.inventory is not None and town_manager is not None:
                                     hub_storage = town_manager.get_hub_storage()
-                                    logger.info(f"[건물 상호작용] 창고 UI 열기 (보관 아이템: {len(hub_storage)}종류)")
+                                    logger.info(f"[건물 상호작용] 창고 UI 열기 (보관 아이템: {len(hub_storage)}개)")
                                     try:
                                         from src.ui.storage_ui import open_storage
                                         open_storage(console, context, self.inventory, hub_storage, town_manager)

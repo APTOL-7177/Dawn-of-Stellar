@@ -271,18 +271,22 @@ def show_game_result(
 
     logger.info("게임 정산 화면 표시")
 
-    # 게임 오버 시 재료 아이템 저장소로 이동
+    # 게임 오버 시 재료 아이템 저장소로 이동 및 재료가 아닌 아이템 제거
     if not is_victory:
         from src.town.town_manager import get_town_manager
         town_mgr = get_town_manager()
         
         if town_mgr and inventory:
             try:
+                # 1. 인벤토리의 재료를 허브 저장소로 이동
                 stored = town_mgr.store_all_materials_from_inventory(inventory)
                 if stored:
                     logger.info(f"게임 오버: {len(stored)}종류의 재료 아이템을 허브 저장소로 이동")
+                
+                # 2. 허브 저장소에서 재료가 아닌 아이템(요리, 장비, 소모품 등) 제거
+                town_mgr.clear_runtime_storage()
             except Exception as e:
-                logger.error(f"재료 저장 실패: {e}", exc_info=True)
+                logger.error(f"게임 오버 저장 처리 실패: {e}", exc_info=True)
 
     # 정산 완료 처리
     ui.finalize()

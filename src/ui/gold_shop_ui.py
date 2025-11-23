@@ -192,7 +192,8 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1) -> dict:
     all_templates.update(ACCESSORY_TEMPLATES)
     
     # 층수에 맞는 레벨 제한 계산 (층당 레벨 1 증가 가정)
-    max_level = floor_level
+    # 최소 레벨은 1로 보장 (마을/대장간에서도 기본 장비 판매 가능)
+    max_level = max(1, floor_level)
     
     for item_id, template in all_templates.items():
         level_req = template.get("level_requirement", 1)
@@ -211,12 +212,17 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1) -> dict:
     else:
         num_equipment = floor_random.randint(4, 5)
     
-    # 랜덤 선택
-    selected_equipment = floor_random.sample(
-        list(range(len(all_equipment_pools))), 
-        min(num_equipment, len(all_equipment_pools))
-    )
-    equipment_items = [all_equipment_pools[i] for i in selected_equipment]
+    # 랜덤 선택 (장비 풀이 비어있지 않은 경우에만)
+    if len(all_equipment_pools) > 0:
+        selected_equipment = floor_random.sample(
+            list(range(len(all_equipment_pools))), 
+            min(num_equipment, len(all_equipment_pools))
+        )
+        equipment_items = [all_equipment_pools[i] for i in selected_equipment]
+    else:
+        # 장비 풀이 비어있으면 빈 리스트 반환
+        logger.warning(f"장비 풀이 비어있습니다. (floor_level: {floor_level}, max_level: {max_level})")
+        equipment_items = []
 
     for item_id, base_price, template in equipment_items:
         # 인플레이션 적용 가격 계산 (Lv.4 할인 적용)

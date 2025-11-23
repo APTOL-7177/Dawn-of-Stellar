@@ -189,7 +189,9 @@ def get_building_items() -> List[ShopItem]:
     ]
     
     for facility_id, facility_name, upgrades in facilities:
-        current_level = meta.get_facility_level(facility_id)
+        # 개발 모드를 고려하지 않고 실제 저장된 레벨을 가져옴
+        # (상점에서는 실제 레벨 기반으로 아이템을 보여줘야 함)
+        current_level = meta.facility_levels.get(facility_id, 1)
         
         # 현재 레벨부터 최대 레벨(4)까지의 업그레이드 아이템 생성
         for level_offset, (name, description, price) in enumerate(upgrades, start=1):
@@ -612,7 +614,7 @@ class ShopUI:
 
         console.print(
             5,
-            self.screen_height - 4,
+            self.screen_height - 2,
             controls,
             fg=(180, 180, 180)
         )

@@ -77,62 +77,62 @@ class HarvestableObject:
             self.loot_table = self._get_default_loot_table()
 
     def _get_default_loot_table(self) -> List[Tuple[str, int, int]]:
-        """타입별 기본 루트 테이블 (드롭률 대폭 증가)"""
+        """타입별 기본 루트 테이블 (드롭률 감소, 최소 보장 제거)"""
         loot_tables = {
             HarvestableType.BERRY_BUSH: [
-                ("berry", 3, 6),
-                ("tomato", 1, 2),
+                ("berry", 0, 3),  # 최소 0개, 최대 3개
+                ("tomato", 0, 2),
                 ("star_fruit", 0, 1), # 희귀: 별모양 과일
             ],
             HarvestableType.MUSHROOM_PATCH: [
-                ("red_mushroom", 2, 4),
-                ("blue_mushroom", 1, 2),
+                ("red_mushroom", 0, 3),
+                ("blue_mushroom", 0, 2),
                 ("ginger", 0, 2),
                 ("truffle", 0, 1), # 희귀: 송로버섯
             ],
             HarvestableType.HERB_PLANT: [
-                ("carrot", 2, 4),
-                ("potato", 1, 3),
-                ("onion", 1, 3),
+                ("carrot", 0, 3),
+                ("potato", 0, 2),
+                ("onion", 0, 2),
                 ("magic_herb", 0, 2),
-                ("tea_leaf", 0, 2),
-                ("flour", 0, 2),
-                ("rice", 0, 2),
-                ("sugar", 0, 2),
+                ("tea_leaf", 0, 1),
+                ("flour", 0, 1),
+                ("rice", 0, 1),
+                ("sugar", 0, 1),
                 ("spice", 0, 1),
                 ("mana_blossom", 0, 1), # 연금술: 마력꽃
                 ("mandrake", 0, 1), # 희귀: 만드라고라
             ],
             HarvestableType.TREE: [
-                ("wood", 2, 5), # 목재 추가
-                ("stick", 1, 3),
-                ("apple", 1, 3),
-                ("egg", 0, 2),
-                ("berry", 1, 2),
+                ("wood", 0, 3), # 목재
+                ("stick", 0, 2),
+                ("apple", 0, 2),
+                ("egg", 0, 1),
+                ("berry", 0, 1),
                 ("golden_apple", 0, 1), # 전설: 황금 사과
             ],
             HarvestableType.ROCK: [
-                ("stone", 2, 5), # 석재
+                ("stone", 0, 3), # 석재
                 ("iron_ore", 0, 2), # 철광석
-                ("gunpowder", 0, 2), # 폭발물: 화약
-                ("metal_scrap", 1, 3), # 폭발물: 금속 파편
-                ("ice", 1, 3),
-                ("salt", 1, 3),
+                ("gunpowder", 0, 1), # 폭발물: 화약
+                ("metal_scrap", 0, 2), # 폭발물: 금속 파편
+                ("ice", 0, 2),
+                ("salt", 0, 2),
                 ("dragon_scale", 0, 1), # 전설: 용의 비늘
             ],
             HarvestableType.WATER: [
-                ("fish", 2, 5),
-                ("shellfish", 1, 3),
-                ("water", 2, 5),
-                ("pure_water", 0, 2), # 연금술: 정제수
-                ("glass_vial", 0, 1), # 연금술: 유리병 (모래에서)
-                ("ice", 1, 2),
-                ("slime_jelly", 0, 2), # 물가에 슬라임?
+                ("fish", 0, 3),
+                ("shellfish", 0, 2),
+                ("water", 0, 3),
+                ("pure_water", 0, 1), # 연금술: 정제수
+                ("glass_vial", 0, 1), # 연금술: 유리병
+                ("ice", 0, 1),
+                ("slime_jelly", 0, 1), # 물가에 슬라임?
             ],
             HarvestableType.CARCASS: [
-                ("monster_meat", 2, 4),
-                ("beast_meat", 1, 2),
-                ("milk", 0, 2),
+                ("monster_meat", 0, 3),
+                ("beast_meat", 0, 2),
+                ("milk", 0, 1),
                 ("dragon_meat", 0, 1),
                 ("phoenix_feather", 0, 1), # 전설: 불사조 깃털
             ],
@@ -164,15 +164,22 @@ class HarvestableObject:
             self.harvested = True
 
         results = {}
+        
+        # 기본 드롭률: 30% (70% 감소)
+        base_drop_rate = 0.3
 
         for ingredient_id, min_qty, max_qty in self.loot_table:
-            qty = random.randint(min_qty, max_qty)
+            # 드롭 확률 체크 (각 아이템마다 독립적으로)
+            if random.random() >= base_drop_rate:
+                continue  # 드롭 실패
             
-            # 재료 드롭률 25% 감소 (0.75배)
-            # 게임오버 시 재료가 저장소로 이동하므로 드롭률을 낮춰 밸런스 조정
-            qty = int(qty * 0.75)
-
-
+            # 드롭 성공 시 개수 결정 (최소 보장 없이 0부터 시작)
+            if max_qty > 0:
+                # 드롭률을 더 낮추기 위해 최대 개수도 감소
+                qty = random.randint(0, max(1, max_qty // 2))
+            else:
+                qty = 0
+            
             if qty > 0:
                 results[ingredient_id] = results.get(ingredient_id, 0) + qty
         

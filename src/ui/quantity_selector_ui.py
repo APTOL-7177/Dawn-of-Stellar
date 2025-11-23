@@ -34,22 +34,40 @@ def select_quantity(
     selected_quantity = 1
     handler = InputHandler()
     
+    # 콘솔 크기 확인 (안전성을 위해)
+    try:
+        console_width = console.width
+        console_height = console.height
+    except (AttributeError, TypeError):
+        # 기본값 사용
+        console_width = 80
+        console_height = 50
+    
     while True:
-        render_space_background(console, console.width, console.height)
+        # 배경 클리어 및 단순 배경 렌더링
+        console.clear()
+        # 어두운 배경색으로 전체 채우기
+        bg_color = (10, 10, 20)
+        try:
+            for y in range(min(console_height, console.height)):
+                console.draw_rect(0, y, min(console_width, console.width), 1, ord(' '), bg=bg_color)
+        except (IndexError, ValueError, TypeError):
+            # 오류 발생 시 단순히 clear만 사용
+            pass
         
         # 제목
         title = f"=== {item_name} 수량 선택 ==="
-        console.print((console.width - len(title)) // 2, 10, title, fg=(255, 215, 0))
+        console.print((console_width - len(title)) // 2, 10, title, fg=(255, 215, 0))
         
         # 현재 수량 표시
         quantity_text = f"수량: {selected_quantity} / {max_quantity}"
-        console.print((console.width - len(quantity_text)) // 2, 13, quantity_text, fg=(255, 255, 255))
+        console.print((console_width - len(quantity_text)) // 2, 13, quantity_text, fg=(255, 255, 255))
         
         # 게이지
         bar_width = 30
         filled = int((selected_quantity / max_quantity) * bar_width)
         bar = "█" * filled + "░" * (bar_width - filled)
-        console.print((console.width - bar_width) // 2, 15, bar, fg=(100, 200, 100))
+        console.print((console_width - bar_width) // 2, 15, bar, fg=(100, 200, 100))
         
         # 도움말
         help_lines = [
@@ -59,7 +77,7 @@ def select_quantity(
         ]
         y = 18
         for line in help_lines:
-            console.print((console.width - len(line)) // 2, y, line, fg=Colors.GRAY)
+            console.print((console_width - len(line)) // 2, y, line, fg=Colors.GRAY)
             y += 1
         
         context.present(console)
