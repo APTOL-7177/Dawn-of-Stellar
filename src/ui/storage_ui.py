@@ -28,13 +28,15 @@ class StorageUI:
         screen_height: int,
         inventory: Inventory,
         hub_storage: Dict[str, int],
-        town_manager: Any
+        town_manager: Any,
+        context: Any = None
     ):
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.inventory = inventory
         self.hub_storage = hub_storage.copy()  # 복사본 사용
         self.town_manager = town_manager
+        self.context = context  # context 저장
         
         # 선택된 탭 (0: 보관함, 1: 인벤토리)
         self.current_tab = 0
@@ -103,13 +105,40 @@ class StorageUI:
                         # 건설 자재만 보관 가능
                         ingredient = IngredientDatabase.get_ingredient(slot.item.item_id)
                         if ingredient and ingredient.category == IngredientCategory.CONSTRUCTION:
-                            # 보관 로직
-                            stored = self.town_manager.store_materials_from_inventory(self.inventory)
-                            if stored:
-                                self.hub_storage = self.town_manager.get_hub_storage()
+                            # 수량 선택
+                            if self.context:
+                                from src.ui.quantity_selector_ui import select_quantity
+                                selected_qty = select_quantity(tcod.console.Console(self.screen_width, self.screen_height, order="F"), self.context, ingredient.name, slot.quantity)
+                            else:
+                                # context가 없으면 전부 보관
+                                selected_qty = slot.quantity
+                            
+                            if selected_qty:
+                                # 보관 로직 - 직접 구현
+                                item_id = slot.item.item_id
+                                
+                                # 현재 storage에 추가
+                                if item_id in self.hub_storage:
+                                    self.hub_storage[item_id] += selected_qty
+                                else:
+                                    self.hub_storage[item_id] = selected_qty
+                                
+                                # town_manager의 storage 업데이트
+                                if hasattr(self.town_manager, 'hub_storage'):
+                                    self.town_manager.hub_storage = self.hub_storage.copy()
+                                
+                                # 인벤토리에서 수량만큼 감소
+                                if selected_qty >= slot.quantity:
+                                    # 전부 보관
+                                    self.inventory.remove_item_by_slot(self.cursor)
+                                else:
+                                    # 일부만 보관
+                                    slot.quantity -= selected_qty
+                                
+                                # UI 업데이트
                                 self.storage_items = self._get_storage_items()
                                 play_sfx("ui", "confirm")
-                                logger.info("건설 자재 보관 완료")
+                                logger.info(f"건설 자재 보관 완료: {ingredient.name} x{selected_qty}")
                         else:
                             play_sfx("ui", "cursor_cancel")
                             logger.info("건설 자재만 보관 가능합니다")
@@ -186,7 +215,7 @@ def open_storage(
     town_manager: Any
 ):
     """창고 열기"""
-    ui = StorageUI(console.width, console.height, inventory, hub_storage, town_manager)
+    ui = StorageUI(console.width, console.height, inventory, hub_storage, town_manager, context)
     handler = InputHandler()
     
     logger.info("창고 열기")

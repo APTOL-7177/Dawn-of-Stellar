@@ -447,8 +447,20 @@ class QuestManager:
         self.available_quests: List[Quest] = []  # 수락 가능한 퀘스트
         self.active_quests: List[Quest] = []     # 진행 중인 퀘스트
         self.completed_quests: List[Quest] = []  # 완료된 퀘스트
-        self.max_active_quests = 5
+        self.max_active_quests = 3
     
+    def refresh_quests(self, player_level: int, count: int = 5):
+        """
+        퀘스트 목록 갱신 (기존 목록 초기화 후 재생성)
+        
+        Args:
+            player_level: 플레이어 레벨
+            count: 생성할 퀘스트 수
+        """
+        self.available_quests.clear()
+        self.generate_quests(player_level, count)
+        logger.info(f"퀘스트 목록 갱신 완료 (레벨 {player_level})")
+
     def generate_quests(self, player_level: int, count: int = 5):
         """
         퀘스트 생성
@@ -457,7 +469,8 @@ class QuestManager:
             player_level: 플레이어 레벨
             count: 생성할 퀘스트 수
         """
-        self.available_quests.clear()
+        # 기존 목록 유지 (refresh_quests 사용 시만 초기화)
+        # self.available_quests.clear()  <-- 제거됨 (refresh_quests로 이동)
         
         # 각 타입별로 퀘스트 생성 (가중치 기반)
         quest_generators = [

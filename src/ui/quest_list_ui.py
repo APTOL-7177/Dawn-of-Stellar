@@ -1,0 +1,132 @@
+"""
+퀘스트 목록 UI
+
+현재 진행 중인 퀘스트와 진행 상황을 보여줌
+"""
+
+import tcod.console
+import tcod.event
+from typing import List, Any
+
+from src.ui.tcod_display import Colors, render_space_background
+from src.ui.input_handler import GameAction, InputHandler
+from src.core.logger import get_logger
+from src.audio import play_sfx
+
+
+logger = get_logger("quest_list_ui")
+
+
+def open_quest_list(
+    console: tcod.console.Console,
+    context: tcod.context.Context,
+    quest_manager: Any
+):
+    """
+    퀘스트 목록 UI 열기
+    
+    Args:
+        console: TCOD 콘솔
+        context: TCOD 컨텍스트
+        quest_manager: QuestManager 인스턴스
+    """
+    active_quests = quest_manager.get_active_quests()
+    cursor = 0
+    scroll_offset = 0
+    max_visible = 10
+    handler = InputHandler()
+    
+    logger.info(f"퀘스트 목록 열기 - 활성 퀘스트: {len(active_quests)}개")
+    
+    while True:
+        render_space_background(console, console.width, console.height)
+        
+        # 제목
+        title = "=== 진행 중인 퀘스트 ==="
+        console.print((console.width - len(title)) // 2, 2, title, fg=(255, 215, 0))
+        
+        # 퀘스트 개수 표시
+        count_text = f"({len(active_quests)} / {quest_manager.max_active_quests})"
+        console.print((console.width - len(count_text)) // 2, 4, count_text, fg=(150, 150, 150))
+        
+        if not active_quests:
+            message = "진행 중인 퀘스트가 없습니다."
+            console.print((console.width - len(message)) // 2, 10, message, fg=(150, 150, 150))
+        else:
+            # 퀘스트 목록
+            list_y = 7
+            visible_quests = active_quests[scroll_offset:scroll_offset + max_visible]
+            
+            for i, quest in enumerate(visible_quests):
+                y = list_y + i * 5
+                cursor_index = scroll_offset + i
+                
+                # 커서
+                if cursor_index == cursor:
+                    console.print(3, y, "►", fg=(255, 255, 100))
+                
+                # 퀘스트 이름
+                name_color = (255, 255, 100) if cursor_index == cursor else (200, 200, 200)
+                console.print(5, y, quest.name, fg=name_color)
+                
+                # 퀘스트 타입 및 레벨
+                type_text = f"[{quest.quest_type.value}] Lv.{quest.level}"
+                console.print(5, y + 1, type_text, fg=(150, 150, 150))
+                
+                # 진행 상황
+                progress_parts = []
+                if hasattr(quest, 'progress'):
+                    for key, value in quest.progress.items():
+                        if hasattr(quest, 'requirements') and key in quest.requirements:
+                            required = quest.requirements[key]
+                            current = value
+                            progress_parts.append(f"{key}: {current}/{required}")
+                
+                if progress_parts:
+                    progress_text = ", ".join(progress_parts)
+                    console.print(5, y + 2, progress_text, fg=(100, 200, 100))
+                
+                # 보상
+                if hasattr(quest, 'rewards'):
+                    rewards = quest.rewards
+                    reward_text = f"보상: "
+                    reward_parts = []
+                    if 'gold' in rewards and rewards['gold'] > 0:
+                        reward_parts.append(f"{rewards['gold']}G")
+                    if 'exp' in rewards and rewards['exp'] > 0:
+                        reward_parts.append(f"{rewards['exp']}EXP")
+                    if 'star_fragments' in rewards and rewards['star_fragments'] > 0:
+                        reward_parts.append(f"{rewards['star_fragments']}★")
+                    reward_text += ", ".join(reward_parts)
+                    console.print(5, y + 3, reward_text, fg=(255, 215, 0))
+        
+        # 도움말
+        help_text = "↑↓: 선택  Z: 확인  X: 닫기"
+        console.print((console.width - len(help_text)) // 2, console.height - 2, help_text, fg=Colors.GRAY)
+        
+        context.present(console)
+        
+        # 입력 처리
+        for event in tcod.event.wait():
+            action = handler.dispatch(event)
+            
+            if action == GameAction.MOVE_UP:
+                if active_quests:
+                    cursor = max(0, cursor - 1)
+                    if cursor < scroll_offset:
+                        scroll_offset = cursor
+                    play_sfx("ui", "cursor_move")
+            
+            elif action == GameAction.MOVE_DOWN:
+                if active_quests:
+                    cursor = min(len(active_quests) - 1, cursor + 1)
+                    if cursor >= scroll_offset + max_visible:
+                        scroll_offset = cursor - max_visible + 1
+                    play_sfx("ui", "cursor_move")
+            
+            elif action == GameAction.CONFIRM or action == GameAction.CANCEL or action == GameAction.ESCAPE:
+                play_sfx("ui", "cursor_cancel")
+                return
+            
+            if isinstance(event, tcod.event.Quit):
+                return

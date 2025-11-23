@@ -260,6 +260,46 @@ class TownManager:
         
         return stored_materials
     
+    def store_all_materials_from_inventory(self, inventory: Any) -> Dict[str, int]:
+        """
+        게임 오버 시 인벤토리의 모든 재료 아이템을 허브 저장소로 이동
+        
+        Args:
+            inventory: Inventory 객체
+            
+        Returns:
+            저장된 재료 목록 {item_id: count}
+        """
+        from src.gathering.ingredient import IngredientDatabase
+        
+        stored_materials = {}
+        
+        if not hasattr(inventory, 'slots'):
+            logger.warning("인벤토리에 slots 속성이 없습니다")
+            return stored_materials
+        
+        # 인벤토리의 모든 슬롯 확인
+        for slot in inventory.slots:
+            if not slot or not slot.item:
+                continue
+            
+            # item_id 가져오기
+            item_id = getattr(slot.item, 'item_id', None)
+            if not item_id:
+                continue
+            
+            # 재료 아이템인지 확인
+            ingredient = IngredientDatabase.get_ingredient(item_id)
+            if ingredient:
+                # 허브 저장소에 추가
+                quantity = getattr(slot, 'quantity', 1)
+                self.hub_storage[item_id] = self.hub_storage.get(item_id, 0) + quantity
+                stored_materials[item_id] = stored_materials.get(item_id, 0) + quantity
+                logger.info(f"허브 저장소에 보관 (게임오버): {ingredient.name} x{quantity}")
+        
+        return stored_materials
+
+    
     def get_hub_storage(self) -> Dict[str, int]:
         """허브 저장소 내용 가져오기"""
         return self.hub_storage.copy()

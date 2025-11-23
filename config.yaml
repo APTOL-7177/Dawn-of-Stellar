@@ -86,7 +86,7 @@ audio:
     combat:
       attack_gun: Gun1
       attack_magic: Magic1
-      attack_physical: Sword1
+      attack_physical: Damage3
       battle_start: Battle1
       break: Break
       critical: Critical

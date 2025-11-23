@@ -669,6 +669,7 @@ def main() -> int:
                         
                         # 멀티플레이 게임 루프
                         while True:
+                            logger.info(f"run_exploration 호출 전: network_manager={network_manager}, local_player_id={local_player_id}")
                             result, data = run_exploration(
                                 display.console,
                                 display.context,
@@ -825,7 +826,8 @@ def main() -> int:
                                             total_gold=exploration.game_stats["total_gold_earned"],
                                             total_exp=exploration.game_stats["total_exp_earned"],
                                             save_slot=None,
-                                            is_multiplayer=is_multiplayer
+                                            is_multiplayer=is_multiplayer,
+                                            inventory=inventory
                                         )
                                         break
                                     else:
@@ -1654,6 +1656,7 @@ def main() -> int:
                                     try:
                                         # 클라이언트 게임 루프 (호스트와 동일)
                                         while True:
+                                            logger.info(f"클라이언트 run_exploration 호출 전: network_manager={network_manager}, local_player_id={local_player_id}")
                                             result, data = run_exploration(
                                                 display.console,
                                                 display.context,
@@ -1690,7 +1693,6 @@ def main() -> int:
                                                 else:
                                                     enemies = EnemyGenerator.generate_enemies(floor_number)
                                                 
-                                                is_boss_fight = any(e.is_boss for e in map_enemies) if map_enemies else False
                                                 if is_boss_fight and map_enemies:
                                                     boss_entity = next((e for e in map_enemies if e.is_boss), None)
                                                     if boss_entity:
@@ -1821,7 +1823,8 @@ def main() -> int:
                                                             total_gold=exploration.game_stats["total_gold_earned"],
                                                             total_exp=exploration.game_stats["total_exp_earned"],
                                                             save_slot=None,
-                                                            is_multiplayer=is_multiplayer
+                                                            is_multiplayer=is_multiplayer,
+                                                            inventory=inventory
                                                         )
                                                         break
                                                     else:
@@ -2286,6 +2289,7 @@ def main() -> int:
 
                     # 탐험 계속 (새 게임과 동일한 루프)
                     while True:
+                        logger.info(f"싱글플레이 run_exploration 호출 전: network_manager=None, local_player_id={local_player_id}")
                         result, data = run_exploration(
                             display.console,
                             display.context,
@@ -2487,7 +2491,8 @@ def main() -> int:
                                         total_gold=exploration.game_stats["total_gold_earned"],
                                         total_exp=exploration.game_stats["total_exp_earned"],
                                         save_slot=save_slot_info,
-                                        is_multiplayer=is_multiplayer
+                                        is_multiplayer=is_multiplayer,
+                                        inventory=inventory
                                     )
                                     break
                                 else:
@@ -2553,7 +2558,13 @@ def main() -> int:
                                     logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
                                 else:
                                     from src.world.dungeon_generator import DungeonGenerator
-                                    dungeon_seed = session.generate_dungeon_seed_for_floor(floor_number)
+                                    # session이 None일 수 있으므로 체크
+                                    if session:
+                                        dungeon_seed = session.generate_dungeon_seed_for_floor(floor_number)
+                                    else:
+                                        # 싱글플레이어 fallback - 시간 기반 시드
+                                        import time
+                                        dungeon_seed = floor_number * 1000 + int(time.time() * 1000) % 1000
                                     dungeon_gen = DungeonGenerator(width=80, height=50)
                                     dungeon = dungeon_gen.generate(floor_number, seed=dungeon_seed)
                                     saved_enemies = []
@@ -2896,7 +2907,8 @@ def main() -> int:
                                     total_gold=exploration.game_stats["total_gold_earned"],
                                     total_exp=exploration.game_stats["total_exp_earned"],
                                     save_slot=save_slot_info,
-                                    is_multiplayer=is_multiplayer
+                                    is_multiplayer=is_multiplayer,
+                                    inventory=inventory
                                 )
                                 break
                 else:
@@ -3271,7 +3283,8 @@ def main() -> int:
                                             total_gold=exploration.game_stats["total_gold_earned"],
                                             total_exp=exploration.game_stats["total_exp_earned"],
                                             save_slot=save_slot_info,
-                                            is_multiplayer=False
+                                            is_multiplayer=False,
+                                            inventory=inventory
                                         )
                                         break
                                     else:
@@ -3552,7 +3565,8 @@ def main() -> int:
                                             total_gold=exploration.game_stats["total_gold_earned"],
                                             total_exp=exploration.game_stats["total_exp_earned"],
                                             save_slot=save_slot_info,
-                                            is_multiplayer=False
+                                            is_multiplayer=False,
+                                            inventory=inventory
                                         )
                                         break
                 else:

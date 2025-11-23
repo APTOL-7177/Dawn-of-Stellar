@@ -44,7 +44,15 @@ class WorldUI:
         self.party = party
         self.map_renderer = MapRenderer(map_x=0, map_y=5)
         self.gauge_renderer = GaugeRenderer()
-        self.network_manager = network_manager  # 멀티플레이: 네트워크 관리자
+        self.network_manager = network_manager
+        if self.network_manager is None:
+            from src.core.logger import get_logger
+            logger = get_logger("world_ui")
+            logger.debug("WorldUI initialized with network_manager=None")
+        else:
+            from src.core.logger import get_logger
+            logger = get_logger("world_ui")
+            logger.debug(f"WorldUI initialized with network_manager={network_manager}")  # 멀티플레이: 네트워크 관리자
         self.local_player_id = local_player_id  # 멀티플레이: 로컬 플레이어 ID
         self.on_update = on_update  # 업데이트 콜백
 
@@ -643,9 +651,17 @@ class WorldUI:
                                 logger.info(f"[건물 상호작용] 여관 체크 - inventory={self.inventory is not None}, party={party_for_rest is not None}, inventory type={type(self.inventory) if self.inventory is not None else None}, party type={type(party_for_rest) if party_for_rest is not None else None}")
                                 
                                 if self.inventory is not None and party_for_rest is not None:
-                                    from src.ui.rest_ui import open_rest_menu
+                                    from src.ui.rest_ui import open_inn_menu
                                     logger.info(f"[건물 상호작용] 여관 UI 열기")
-                                    open_rest_menu(console, context, party_for_rest, self.inventory)
+                                    
+                                    # max_floor_reached 가져오기
+                                    max_floor = 1
+                                    if hasattr(self.exploration, 'game_stats') and 'max_floor_reached' in self.exploration.game_stats:
+                                        max_floor = self.exploration.game_stats['max_floor_reached']
+                                    elif hasattr(self.exploration, 'floor_number'):
+                                        max_floor = self.exploration.floor_number
+                                    
+                                    open_inn_menu(console, context, party_for_rest, self.inventory, max_floor)
                                 else:
                                     logger.warning(f"[건물 상호작용] 여관을 열 수 없습니다. inventory={self.inventory is not None}, party={party_for_rest is not None}")
                                     self.add_message("파티 정보가 없어 여관을 사용할 수 없습니다.")

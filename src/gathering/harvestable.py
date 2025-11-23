@@ -168,9 +168,9 @@ class HarvestableObject:
         for ingredient_id, min_qty, max_qty in self.loot_table:
             qty = random.randint(min_qty, max_qty)
             
-            # 식재료 드롭률 35% 감소 (0.5 * 0.7 = 0.35배, 최종적으로 30% 추가 감소)
-            # 0개가 나올 수 있음 (의도된 사항)
-            qty = int(qty * 0.35)
+            # 재료 드롭률 25% 감소 (0.75배)
+            # 게임오버 시 재료가 저장소로 이동하므로 드롭률을 낮춰 밸런스 조정
+            qty = int(qty * 0.75)
 
             if qty > 0:
                 results[ingredient_id] = results.get(ingredient_id, 0) + qty

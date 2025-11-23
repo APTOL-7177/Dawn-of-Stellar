@@ -67,6 +67,13 @@ class GoldShopItem:
         self.stock = stock  # 재고 (0이면 매진, -1이면 무제한)
 
 
+def refresh_shop():
+    """상점 아이템 캐시 초기화 (새로운 아이템 입고)"""
+    global _shop_items_cache
+    _shop_items_cache.clear()
+    logger.info("상점 아이템 캐시 초기화 완료 (새로운 물품 입고 준비)")
+
+
 def get_gold_shop_items(floor_level: int = 1) -> dict:
     """
     골드 상점 아이템 목록 생성 (층별로 캐싱됨)
@@ -93,7 +100,10 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     
     # 층별로 고정된 시드를 사용하는 별도의 Random 인스턴스 생성
     # 전역 random 상태를 변경하지 않도록 독립적인 인스턴스 사용
-    floor_random = random.Random(floor_level * 12345)  # 층별 고유 시드
+    # refresh_shop 호출 시 캐시가 지워지므로 새로운 아이템이 생성됨 (시간 기반 시드 추가 가능)
+    import time
+    seed = floor_level * 12345 + int(time.time())  # 시간 기반 시드 추가로 매번 다르게
+    floor_random = random.Random(seed)  # 층별 + 시간별 고유 시드
 
     # === 소모품 (회복 아이템) ===
     # 층별로 다른 소모품 풀 선택
