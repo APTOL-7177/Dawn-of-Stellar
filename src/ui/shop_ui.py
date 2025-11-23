@@ -614,7 +614,7 @@ class ShopUI:
 
         console.print(
             5,
-            self.screen_height - 4,
+            self.screen_height - 2,
             controls,
             fg=(180, 180, 180)
         )
