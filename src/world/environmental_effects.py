@@ -175,16 +175,42 @@ class EnvironmentalEffectManager:
         Args:
             effect: 환경 효과
             player: 플레이어 객체
-            is_movement: 이동 시 적용 여부 (True면 이동 시 데미지, False면 시간당 데미지)
+            is_movement: 이동 시 적용 여부 (True면 이동 시 데미지, False면 시간당 데미지/회복)
         """
+        # === 시간당 지속 피해 효과 ===
         if effect.effect_type == EnvironmentalEffectType.POISON_SWAMP:
-            # 독 늪: 시간당 피해 (이동 시에는 적용 안 함)
+            # 독 늪: 시간당 피해
             if not is_movement:
                 damage = int(player.max_hp * 0.02 * effect.intensity)  # 2% HP 감소
                 player.current_hp = max(1, player.current_hp - damage)
                 return f"독 늪이 당신을 침식합니다! ({damage} 데미지)"
             return None
         
+        elif effect.effect_type == EnvironmentalEffectType.RADIATION_ZONE:
+            # 방사능 구역: 시간당 피해
+            if not is_movement:
+                damage = int(12 * effect.intensity)
+                player.current_hp = max(1, player.current_hp - damage)
+                return f"방사능이 당신을 해칩니다! ({damage} 데미지)"
+            return None
+        
+        elif effect.effect_type == EnvironmentalEffectType.CURSED_ZONE:
+            # 저주받은 구역: 시간당 피해
+            if not is_movement:
+                damage = int(player.max_hp * 0.015 * effect.intensity)  # 1.5% HP 감소
+                player.current_hp = max(1, player.current_hp - damage)
+                return f"저주의 기운이 당신을 갉아먹습니다! ({damage} 데미지)"
+            return "저주받은 기운이 당신을 약화시킵니다..."
+        
+        elif effect.effect_type == EnvironmentalEffectType.BLOOD_MOON:
+            # 피의 달: 시간당 피해 (피의 저주)
+            if not is_movement:
+                damage = int(player.max_hp * 0.025 * effect.intensity)  # 2.5% HP 감소
+                player.current_hp = max(1, player.current_hp - damage)
+                return f"피의 달의 저주가 당신을 괴롭힙니다! ({damage} 데미지)"
+            return "피의 달이 전투 본능을 자극합니다..."
+        
+        # === 이동 시 즉시 피해 효과 ===
         elif effect.effect_type == EnvironmentalEffectType.BURNING_FLOOR:
             # 불타는 바닥: 이동 시마다 데미지
             if is_movement:
@@ -193,40 +219,63 @@ class EnvironmentalEffectManager:
                 return f"불타는 바닥! ({damage} 화상 데미지)"
             return None
         
-        elif effect.effect_type == EnvironmentalEffectType.HOLY_GROUND:
-            heal = int(player.max_hp * 0.03 * effect.intensity)  # 3% HP 회복
-            if hasattr(player, 'heal'):
-                player.heal(heal)
-            else:
-                player.current_hp = min(player.max_hp, player.current_hp + heal)
-            return f"신성한 땅이 당신을 치유합니다. (+{heal} HP)"
+        elif effect.effect_type == EnvironmentalEffectType.ELECTRIC_FIELD:
+            # 전기장: 이동 시마다 감전 데미지
+            if is_movement:
+                damage = int(10 * effect.intensity)
+                player.current_hp = max(1, player.current_hp - damage)
+                return f"전기장이 당신을 감전시킵니다! ({damage} 데미지)"
+            return None
         
-        elif effect.effect_type == EnvironmentalEffectType.CURSED_ZONE:
-            return "저주받은 기운이 당신을 약화시킵니다..."
+        # === 시간당 지속 회복 효과 ===
+        elif effect.effect_type == EnvironmentalEffectType.HOLY_GROUND:
+            # 신성한 땅: 시간당 회복
+            if not is_movement:
+                heal = int(player.max_hp * 0.03 * effect.intensity)  # 3% HP 회복
+                if hasattr(player, 'heal'):
+                    player.heal(heal)
+                else:
+                    player.current_hp = min(player.max_hp, player.current_hp + heal)
+                return f"신성한 땅이 당신을 치유합니다. (+{heal} HP)"
+            return None
         
         elif effect.effect_type == EnvironmentalEffectType.BLESSED_SANCTUARY:
+            # 축복받은 성역: 시간당 회복
+            if not is_movement:
+                heal = int(player.max_hp * 0.04 * effect.intensity)  # 4% HP 회복
+                if hasattr(player, 'heal'):
+                    player.heal(heal)
+                else:
+                    player.current_hp = min(player.max_hp, player.current_hp + heal)
+                return f"축복받은 성역이 당신을 회복시킵니다! (+{heal} HP)"
             return "축복받은 성역이 당신을 강화합니다!"
         
-        elif effect.effect_type == EnvironmentalEffectType.ELECTRIC_FIELD:
-            damage = int(10 * effect.intensity)
-            player.current_hp = max(1, player.current_hp - damage)
-            return f"전기장이 당신을 감전시킵니다! ({damage} 데미지)"
-        
-        elif effect.effect_type == EnvironmentalEffectType.RADIATION_ZONE:
-            damage = int(12 * effect.intensity)
-            player.current_hp = max(1, player.current_hp - damage)
-            # 최대 HP 감소는 별도로 처리 필요
-            return f"방사능이 당신을 해칩니다! ({damage} 데미지)"
+        elif effect.effect_type == EnvironmentalEffectType.HALLOWED_LIGHT:
+            # 신성한 빛: 시간당 회복
+            if not is_movement:
+                heal = int(player.max_hp * 0.025 * effect.intensity)  # 2.5% HP 회복
+                if hasattr(player, 'heal'):
+                    player.heal(heal)
+                else:
+                    player.current_hp = min(player.max_hp, player.current_hp + heal)
+                return f"신성한 빛이 당신을 치유합니다! (+{heal} HP)"
+            return "신성한 빛이 당신을 보호합니다."
         
         elif effect.effect_type == EnvironmentalEffectType.MANA_VORTEX:
-            # MP 회복은 별도로 처리 필요
+            # 마나 소용돌이: 시간당 MP 회복
+            if not is_movement:
+                if hasattr(player, 'current_mp') and hasattr(player, 'max_mp'):
+                    mp_restore = int(player.max_mp * 0.05 * effect.intensity)  # 5% MP 회복
+                    if hasattr(player, 'restore_mp'):
+                        player.restore_mp(mp_restore)
+                    else:
+                        player.current_mp = min(player.max_mp, player.current_mp + mp_restore)
+                    return f"마나 소용돌이가 마력을 회복시킵니다! (+{mp_restore} MP)"
             return "마나 소용돌이가 마력을 증폭시킵니다."
         
-        elif effect.effect_type == EnvironmentalEffectType.BLOOD_MOON:
-            return "피의 달이 전투 본능을 자극합니다..."
-        
-        elif effect.effect_type == EnvironmentalEffectType.HALLOWED_LIGHT:
-            return "신성한 빛이 당신을 보호합니다."
+        # === 스탯 수정만 있는 효과 (피해/회복 없음) ===
+        # DENSE_FOG, DARKNESS, ICY_TERRAIN, GRAVITY_ANOMALY, WINDSTORM 등은
+        # 스탯 수정만 하므로 여기서는 None 반환
         
         return None
     

@@ -2305,11 +2305,11 @@ class CombatManager:
         if not effects:
             return
         
-        # 각 효과 적용
+        # 각 효과 적용 (전투 중에는 턴당으로 적용)
         for effect in effects:
             from src.world.environmental_effects import EnvironmentalEffectType
             
-            # 즉시 데미지/회복 효과
+            # === 턴당 지속 피해 효과 ===
             if effect.effect_type == EnvironmentalEffectType.POISON_SWAMP:
                 damage = int(actor.max_hp * 0.02 * effect.intensity)
                 if hasattr(actor, 'take_damage'):
@@ -2318,6 +2318,31 @@ class CombatManager:
                     actor.current_hp = max(1, actor.current_hp - damage)
                 self.logger.info(f"{actor.name} 독 늪 피해: {damage}")
             
+            elif effect.effect_type == EnvironmentalEffectType.RADIATION_ZONE:
+                damage = int(12 * effect.intensity)
+                if hasattr(actor, 'take_damage'):
+                    actor.take_damage(damage)
+                else:
+                    actor.current_hp = max(1, actor.current_hp - damage)
+                self.logger.info(f"{actor.name} 방사능 피해: {damage}")
+            
+            elif effect.effect_type == EnvironmentalEffectType.CURSED_ZONE:
+                damage = int(actor.max_hp * 0.015 * effect.intensity)
+                if hasattr(actor, 'take_damage'):
+                    actor.take_damage(damage)
+                else:
+                    actor.current_hp = max(1, actor.current_hp - damage)
+                self.logger.info(f"{actor.name} 저주 구역 피해: {damage}")
+            
+            elif effect.effect_type == EnvironmentalEffectType.BLOOD_MOON:
+                damage = int(actor.max_hp * 0.025 * effect.intensity)
+                if hasattr(actor, 'take_damage'):
+                    actor.take_damage(damage)
+                else:
+                    actor.current_hp = max(1, actor.current_hp - damage)
+                self.logger.info(f"{actor.name} 피의 달 저주 피해: {damage}")
+            
+            # === 이동 시 데미지 효과 (전투 중에는 턴 시작 시에도 적용) ===
             elif effect.effect_type == EnvironmentalEffectType.BURNING_FLOOR:
                 damage = int(15 * effect.intensity)
                 if hasattr(actor, 'take_damage'):
@@ -2325,14 +2350,6 @@ class CombatManager:
                 else:
                     actor.current_hp = max(1, actor.current_hp - damage)
                 self.logger.info(f"{actor.name} 불타는 바닥 피해: {damage}")
-            
-            elif effect.effect_type == EnvironmentalEffectType.HOLY_GROUND:
-                heal = int(actor.max_hp * 0.03 * effect.intensity)
-                if hasattr(actor, 'heal'):
-                    actor.heal(heal)
-                else:
-                    actor.current_hp = min(actor.max_hp, actor.current_hp + heal)
-                self.logger.info(f"{actor.name} 신성한 땅 회복: {heal}")
             
             elif effect.effect_type == EnvironmentalEffectType.ELECTRIC_FIELD:
                 damage = int(10 * effect.intensity)
@@ -2342,13 +2359,30 @@ class CombatManager:
                     actor.current_hp = max(1, actor.current_hp - damage)
                 self.logger.info(f"{actor.name} 전기장 피해: {damage}")
             
-            elif effect.effect_type == EnvironmentalEffectType.RADIATION_ZONE:
-                damage = int(12 * effect.intensity)
-                if hasattr(actor, 'take_damage'):
-                    actor.take_damage(damage)
+            # === 턴당 지속 회복 효과 ===
+            elif effect.effect_type == EnvironmentalEffectType.HOLY_GROUND:
+                heal = int(actor.max_hp * 0.03 * effect.intensity)
+                if hasattr(actor, 'heal'):
+                    actor.heal(heal)
                 else:
-                    actor.current_hp = max(1, actor.current_hp - damage)
-                self.logger.info(f"{actor.name} 방사능 피해: {damage}")
+                    actor.current_hp = min(actor.max_hp, actor.current_hp + heal)
+                self.logger.info(f"{actor.name} 신성한 땅 회복: {heal}")
+            
+            elif effect.effect_type == EnvironmentalEffectType.BLESSED_SANCTUARY:
+                heal = int(actor.max_hp * 0.04 * effect.intensity)
+                if hasattr(actor, 'heal'):
+                    actor.heal(heal)
+                else:
+                    actor.current_hp = min(actor.max_hp, actor.current_hp + heal)
+                self.logger.info(f"{actor.name} 축복받은 성역 회복: {heal}")
+            
+            elif effect.effect_type == EnvironmentalEffectType.HALLOWED_LIGHT:
+                heal = int(actor.max_hp * 0.025 * effect.intensity)
+                if hasattr(actor, 'heal'):
+                    actor.heal(heal)
+                else:
+                    actor.current_hp = min(actor.max_hp, actor.current_hp + heal)
+                self.logger.info(f"{actor.name} 신성한 빛 회복: {heal}")
             
             elif effect.effect_type == EnvironmentalEffectType.MANA_VORTEX:
                 if hasattr(actor, 'current_mp') and hasattr(actor, 'max_mp'):
