@@ -2396,13 +2396,15 @@ class CombatUI:
 
         elif gimmick_type == "stealth_exposure":
             # 암살자 - 은신-노출
-            stealth = getattr(character, 'stealth_points', 0)
-            max_stealth = getattr(character, 'max_stealth_points', 5)
-            exposed = getattr(character, 'exposed', False)
-            if exposed:
-                return (f"노출:{stealth}/{max_stealth}", (255, 150, 150))
+            stealth_active = getattr(character, 'stealth_active', False)
+            exposed_turns = getattr(character, 'exposed_turns', 0)
+            restealth_cooldown = getattr(character, 'restealth_cooldown', 3)
+            
+            if stealth_active:
+                return ("은신", (100, 100, 255))
             else:
-                return (f"은신:{stealth}/{max_stealth}", (100, 100, 150))
+                remaining = max(0, restealth_cooldown - exposed_turns)
+                return (f"노출:{exposed_turns}/{restealth_cooldown}", (255, 150, 150))
 
         return ("", (255, 255, 255))
 

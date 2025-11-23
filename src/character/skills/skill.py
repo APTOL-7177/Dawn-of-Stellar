@@ -172,6 +172,22 @@ class Skill:
                     
                     if current_spirits >= max_spirits and current_spirit_value == 0:
                         return False, f"최대 정령 수 도달! (현재: {current_spirits}/{max_spirits}) 기존 정령을 해제하거나 대체해야 합니다"
+            
+            # 암살자: 은신 스킬 조건 체크 (노출 상태에서 3턴 경과 후에만 사용 가능)
+            if self.metadata.get("enter_stealth"):
+                if hasattr(user, 'gimmick_type') and user.gimmick_type == "stealth_exposure":
+                    stealth_active = getattr(user, 'stealth_active', False)
+                    exposed_turns = getattr(user, 'exposed_turns', 0)
+                    restealth_cooldown = getattr(user, 'restealth_cooldown', 3)
+                    
+                    # 이미 은신 상태면 은신 스킬 사용 불가
+                    if stealth_active:
+                        return False, "이미 은신 상태입니다"
+                    
+                    # 노출 상태에서 쿨다운이 지나지 않았으면 사용 불가
+                    if exposed_turns < restealth_cooldown:
+                        remaining = restealth_cooldown - exposed_turns
+                        return False, f"재은신 쿨다운 중입니다 ({remaining}턴 남음)"
         
         return True, ""
 
