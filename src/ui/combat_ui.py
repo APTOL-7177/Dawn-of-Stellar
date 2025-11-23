@@ -1586,7 +1586,7 @@ class CombatUI:
 
     def render(self, console: tcod.console.Console):
         """렌더링"""
-        render_space_background(console, self.screen_width, self.screen_height)
+        render_space_background(console, self.screen_width, self.screen_height, context="combat")
 
         # 제목
         console.print(

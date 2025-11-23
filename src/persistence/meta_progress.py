@@ -31,6 +31,14 @@ class MetaProgress:
 
     # 해금된 직업 (job_id 목록)
     unlocked_jobs: Set[str] = field(default_factory=set)
+    
+    # 마을 시설 레벨 (영구 보존 - 게임 오버 후에도 유지)
+    facility_levels: Dict[str, int] = field(default_factory=lambda: {
+        "kitchen": 1,
+        "blacksmith": 1,
+        "alchemy_lab": 1,
+        "storage": 1
+    })
 
     # 게임 초기 설정
     intro_shown: bool = False  # 인트로 스토리 표시 여부
@@ -156,6 +164,28 @@ class MetaProgress:
     def is_job_unlocked(self, job_id: str) -> bool:
         """직업 해금 여부 확인"""
         return job_id in self.unlocked_jobs
+    
+    def get_facility_level(self, facility_type: str) -> int:
+        """
+        시설 레벨 가져오기 (메타 진행)
+        
+        Args:
+            facility_type: 시설 타입 문자열 (예: "kitchen", "blacksmith")
+            
+        Returns:
+            시설 레벨 (기본값 1)
+        """
+        return self.facility_levels.get(facility_type, 1)
+    
+    def set_facility_level(self, facility_type: str, level: int):
+        """
+        시설 레벨 설정 (메타 진행 - 영구 저장)
+        
+        Args:
+            facility_type: 시설 타입 문자열
+            level: 설정할 레벨
+        """
+        self.facility_levels[facility_type] = level
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환 (저장용)"""
@@ -165,6 +195,7 @@ class MetaProgress:
             "purchased_upgrades": list(self.purchased_upgrades),
             "purchased_passives": list(self.purchased_passives),
             "unlocked_jobs": list(self.unlocked_jobs),
+            "facility_levels": self.facility_levels,  # 시설 레벨 저장
             "intro_shown": self.intro_shown,
             "tutorial_offered": self.tutorial_offered
         }
@@ -178,6 +209,12 @@ class MetaProgress:
             purchased_upgrades=set(data.get("purchased_upgrades", [])),
             purchased_passives=set(data.get("purchased_passives", [])),
             unlocked_jobs=set(data.get("unlocked_jobs", [])),
+            facility_levels=data.get("facility_levels", {
+                "kitchen": 1,
+                "blacksmith": 1,
+                "alchemy_lab": 1,
+                "storage": 1
+            }),
             intro_shown=data.get("intro_shown", False),
             tutorial_offered=data.get("tutorial_offered", False)
         )

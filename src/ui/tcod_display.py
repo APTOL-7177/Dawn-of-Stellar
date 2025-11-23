@@ -1011,20 +1011,127 @@ def get_display() -> TCODDisplay:
     return _display
 
 
-def render_space_background(console: tcod.console.Console, width: int, height: int) -> None:
+def render_space_background(
+    console: tcod.console.Console, 
+    width: int, 
+    height: int,
+    context: str = "default",
+    floor: int = 1
+) -> None:
     """
-    우주 느낌의 그라데이션 배경 렌더링
-
+    바이옴/상황별 그라데이션 배경 렌더링
+    
     Args:
         console: 렌더링할 콘솔
         width: 콘솔 너비
         height: 콘솔 높이
+        context: 상황 ("town", "dungeon", "combat", "menu", "default")
+        floor: 던전 층 번호 (바이옴 계산용)
     """
+    # 바이옴별 그라데이션 색상 정의 (상단 → 하단)
+    # BGM 테마에 맞춰 조정 + 전체적으로 어둡고 부드러운 색조
+    biome_gradients = {
+        # biome_0: caves (동굴) - 어두운 회색/보라
+        0: {
+            "top": (8, 8, 15),        # 깊은 회색
+            "bottom": (18, 15, 25)     # 어두운 보라
+        },
+        # biome_1: forest (숲) - 짙은 초록
+        1: {
+            "top": (5, 12, 8),         # 깊은 초록
+            "bottom": (10, 22, 15)     # 어두운 숲 초록
+        },
+        # biome_2: devillands (악마의 땅) - 어두운 빨강/검정
+        2: {
+            "top": (20, 5, 5),         # 어두운 핏빛
+            "bottom": (30, 8, 8)       # 짙은 빨강
+        },
+        # biome_3: badlands (황무지) - 회갈색
+        3: {
+            "top": (12, 10, 8),        # 어두운 갈색
+            "bottom": (22, 18, 12)     # 황무지 갈색
+        },
+        # biome_4: desert (사막) - 어두운 모래색
+        4: {
+            "top": (18, 15, 10),       # 어두운 황토색
+            "bottom": (28, 22, 15)     # 사막 모래색
+        },
+        # biome_5: frostlands (서리의 땅) - 차가운 청록
+        5: {
+            "top": (8, 12, 15),        # 깊은 청록
+            "bottom": (15, 22, 28)     # 얼음 청록
+        },
+        # biome_6: highlands (고원) - 회색/녹색
+        6: {
+            "top": (10, 12, 10),       # 어두운 회녹색
+            "bottom": (18, 20, 18)     # 고원 녹회색
+        },
+        # biome_7: icelands (얼음의 땅) - 차가운 파랑/흰색
+        7: {
+            "top": (10, 15, 20),       # 깊은 한랭색
+            "bottom": (18, 25, 32)     # 얼음 파랑
+        },
+        # biome_8: warlands (전쟁터) - 어두운 주황/회색
+        8: {
+            "top": (20, 12, 8),        # 어두운 전쟁 주황
+            "bottom": (28, 18, 12)     # 황폐한 주황갈색
+        },
+        # biome_9: caves (동굴) - biome_0과 동일
+        9: {
+            "top": (8, 8, 15),         # 깊은 회색
+            "bottom": (18, 15, 25)     # 어두운 보라
+        }
+    }
+    
+    # 상황별 색상 (더 부드럽게 조정)
+    context_gradients = {
+        "town": {  # 마을 - 따뜻하지만 차분한 색
+            "top": (20, 15, 10),       # 차분한 갈색
+            "bottom": (35, 25, 18)     # 부드러운 황갈색
+        },
+        "combat": {  # 전투 - 긴장감 있지만 너무 밝지 않은 빨강
+            "top": (18, 5, 5),
+            "bottom": (28, 10, 10)
+        },
+        "menu": {  # 메뉴 - 우주 테마 (부드러운 파랑)
+            "top": (8, 8, 15),
+            "bottom": (15, 12, 25)
+        },
+        "default": {  # 기본
+            "top": (8, 8, 15),
+            "bottom": (15, 12, 22)
+        }
+    }
+    
+    # 상황에 따라 그라데이션 선택
+    if context == "dungeon":
+        # 던전: 바이옴 인덱스 계산 (층별)
+        biome_index = (floor - 1) % 10
+        gradient = biome_gradients.get(biome_index, biome_gradients[0])
+    elif context in context_gradients:
+        gradient = context_gradients[context]
+    else:
+        gradient = context_gradients["default"]
+    
+    top_color = gradient["top"]
+    bottom_color = gradient["bottom"]
+    
+    # 그라데이션 렌더링
     for y in range(height):
-        gradient_intensity = max(0, int(10 + (y / height) * 20))
-        r = max(0, min(255, gradient_intensity // 3))
-        g = max(0, min(255, gradient_intensity // 4))
-        b = max(0, min(255, gradient_intensity))
-
+        # 선형 보간 (0.0 ~ 1.0)
+        ratio = y / max(1, height - 1)
+        
+        # RGB 보간
+        r = int(top_color[0] + (bottom_color[0] - top_color[0]) * ratio)
+        g = int(top_color[1] + (bottom_color[1] - top_color[1]) * ratio)
+        b = int(top_color[2] + (bottom_color[2] - top_color[2]) * ratio)
+        
+        # 클램핑
+        r = max(0, min(255, r))
+        g = max(0, min(255, g))
+        b = max(0, min(255, b))
+        
+        # 배경색 설정
         for x in range(width):
             console.rgb[y, x] = (ord(' '), (r, g, b), (r, g, b))
+

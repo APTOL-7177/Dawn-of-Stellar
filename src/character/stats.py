@@ -85,22 +85,34 @@ class Stat:
 
     def calculate_growth(self, level: int) -> float:
         """
-        레벨에 따른 스탯 성장 계산
+        레벨에 따른 스탯 성장 계산 (증분 적용)
+        
+        주의: 이 메서드는 현재 _base_value를 기준으로 다음 레벨의 값을 계산합니다.
+        따라서 순차적인 레벨업(1->2->3...) 시에만 올바르게 작동합니다.
 
         Args:
-            level: 현재 레벨
+            level: 새로운 레벨 (도달하는 레벨)
 
         Returns:
-            성장된 스탯 값
+            성장된 스탯 값 (새로운 base_value)
         """
         if self.growth_type == GrowthType.LINEAR:
-            return self._base_value + (level - 1) * self.growth_rate
+            # 선형 성장: 매 레벨마다 growth_rate만큼 증가
+            return self._base_value + self.growth_rate
 
         elif self.growth_type == GrowthType.EXPONENTIAL:
-            return self._base_value * math.pow(1 + self.growth_rate, level - 1)
+            # 지수 성장: 매 레벨마다 growth_rate 비율만큼 증가 (복리)
+            return self._base_value * (1.0 + self.growth_rate)
 
         elif self.growth_type == GrowthType.LOGARITHMIC:
-            return self._base_value + self.growth_rate * math.log(level + 1)
+            # 로그 성장: 레벨이 오를수록 증가폭 감소
+            # log(L+1) - log(L) 만큼의 비율로 증가하도록 근사
+            # 이전 값 + rate * (log(level+1) - log(level))
+            # level은 새로운 레벨. 이전 레벨은 level-1
+            if level > 1:
+                delta = math.log(level + 1) - math.log(level)
+                return self._base_value + self.growth_rate * delta * 10 # 스케일 보정
+            return self._base_value
 
         elif self.growth_type == GrowthType.CUSTOM and self.custom_growth_func:
             return self.custom_growth_func(level, self._base_value)

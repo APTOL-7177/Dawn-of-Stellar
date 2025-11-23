@@ -102,7 +102,7 @@ class WorldUI:
         Returns:
             True면 종료
         """
-        logger.warning(f"[DEBUG] handle_input 호출됨: action={action}")
+        # Debug: handle_input 호출
 
         # 채팅 입력 모드
         if self.chat_input_active:
@@ -281,10 +281,10 @@ class WorldUI:
 
         # 메뉴 열기 (M키)
         if action == GameAction.MENU:
-            logger.warning(f"[DEBUG] 메뉴 열기 요청")
+            # Debug: 메뉴 열기
             if self.inventory is not None and self.party is not None and console is not None and context is not None:
                 from src.ui.game_menu import open_game_menu, MenuOption
-                logger.warning("[DEBUG] 게임 메뉴 열기")
+                # Debug: 게임 메뉴
                 result = open_game_menu(console, context, self.inventory, self.party, self.exploration)
                 if result == MenuOption.QUIT:
                     self.quit_requested = True
@@ -299,10 +299,10 @@ class WorldUI:
 
         # 인벤토리 열기 (I키)
         if action == GameAction.OPEN_INVENTORY:
-            logger.warning(f"[DEBUG] 인벤토리 열기 요청")
+            # Debug: 인벤토리 열기
             if self.inventory is not None and self.party is not None and console is not None and context is not None:
                 from src.ui.inventory_ui import open_inventory
-                logger.warning("[DEBUG] 인벤토리 열기 시도")
+                # Debug: 인벤토리 시도
                 # on_update 콜백 전달
                 open_inventory(console, context, self.inventory, self.party, self.exploration, on_update=self.on_update)
                 return False
@@ -392,7 +392,7 @@ class WorldUI:
             
             result = self.exploration.move_player(dx, dy)
             if result is None:
-                logger.warning(f"[DEBUG] 이동 결과: None (이벤트 없음)")
+                # Debug: 이동 결과 None
                 # None인 경우 기본 결과 생성
                 from src.world.exploration import ExplorationResult, ExplorationEvent
                 result = ExplorationResult(
@@ -401,11 +401,13 @@ class WorldUI:
                     message=""
                 )
             else:
-                logger.warning(f"[DEBUG] 이동 결과: event={result.event}")
+                # Debug: 이동 결과 이벤트
+                pass
+            
             self._handle_exploration_result(result, console, context)
             # 전투가 트리거되면 즉시 루프 탈출
             if self.combat_requested:
-                logger.warning(f"[DEBUG] 전투 요청됨! 루프 탈출")
+                # Debug: 전투 요청
                 return True
 
         # 상호작용 (E키 또는 Z키)
@@ -581,7 +583,7 @@ class WorldUI:
 
     def _handle_exploration_result(self, result: ExplorationResult, console=None, context=None):
         """탐험 결과 처리"""
-        logger.warning(f"[DEBUG] 탐험 결과: event={result.event}, message={result.message}")
+        # Debug: 탐험 결과
 
         # NPC 상호작용은 대화 창으로 처리 (로그에 표시하지 않음)
         if result.event == ExplorationEvent.NPC_INTERACTION:
@@ -614,16 +616,16 @@ class WorldUI:
             self.add_message(result.message)
 
         if result.event == ExplorationEvent.COMBAT:
-            logger.warning(f"[DEBUG] 전투 이벤트 감지! combat_requested를 True로 설정")
+            # Debug: 전투 이벤트 감지
             self.combat_requested = True
             # 전투에 참여할 적들 저장
             if result.data:
                 if "num_enemies" in result.data:
                     self.combat_num_enemies = result.data["num_enemies"]
-                    logger.warning(f"[DEBUG] 전투 적 수: {self.combat_num_enemies}마리")
+                    # Debug: 전투 적 수
                 if "enemies" in result.data:
                     self.combat_enemies = result.data["enemies"]
-                    logger.warning(f"[DEBUG] 맵 적 엔티티: {len(self.combat_enemies)}개")
+                    # Debug: 맵 적 엔티티
                 # 멀티플레이: 참여자 정보 저장
                 if "participants" in result.data:
                     self.combat_participants = result.data["participants"]
@@ -770,7 +772,14 @@ class WorldUI:
 
     def render(self, console: tcod.console.Console):
         """렌더링"""
-        render_space_background(console, self.screen_width, self.screen_height)
+        # 바이옴별 배경 (던전 층에 따라 다름)
+        render_space_background(
+            console, 
+            self.screen_width, 
+            self.screen_height,
+            context="dungeon",
+            floor=self.exploration.floor_number
+        )
 
         # 제목
         console.print(
@@ -1470,11 +1479,11 @@ def run_exploration(
             key_event = event if isinstance(event, tcod.event.KeyDown) else None
 
             if action or key_event:
-                logger.warning(f"[DEBUG] 액션 수신: {action}")
+                # Debug: 액션 수신
                 done = ui.handle_input(action, console, context, key_event)
-                logger.warning(f"[DEBUG] handle_input 반환값: {done}")
+                # Debug: handle_input 반환
                 if done:
-                    logger.warning(f"[DEBUG] 루프 탈출 - done=True")
+                    # Debug: 루프 탈출
                     break
             else:
                 # action이 None인 경우 (키 입력 없음)
@@ -1501,11 +1510,11 @@ def run_exploration(
             return ("quit", None)
         
         # 상태 체크
-        logger.warning(f"[DEBUG] 상태 체크: quit={ui.quit_requested}, combat={ui.combat_requested}, floor_change={ui.floor_change_requested}")
+        # Debug: 상태 체크
         if ui.quit_requested:
             return ("quit", None)
         elif ui.combat_requested:
-            logger.warning(f"[DEBUG] 전투 반환! 적 {ui.combat_num_enemies}마리 (맵 엔티티: {len(ui.combat_enemies) if ui.combat_enemies else 0}개)")
+            # Debug: 전투 반환
             # 전투 데이터 반환: (적 수, 맵 적 엔티티, 참여자, 위치)
             combat_data = {
                 "num_enemies": ui.combat_num_enemies,

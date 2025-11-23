@@ -97,10 +97,10 @@ class Inventory:
             # 레벨 보너스: 1 Level = +0.1kg
             total += total_level * 0.1
 
-        # 1/2.5로 추가 조정 (더 빡빡하게) -> 완화 (x1.5배)
-        # 기존: total = total / 2.5
-        # 수정: total = (total / 2.5) * 1.5 = total * 0.6
-        total = total * 0.6
+        # 1/3 곱적용 (창고 시스템 도입으로 인벤토리 축소)
+        # 기존: total = total * 0.6
+        # 수정: total = total * 0.6 * (1/3) = total * 0.2
+        total = total * 0.2
 
         return round(total, 1)
 

@@ -329,18 +329,14 @@ class DungeonGenerator:
                             break
 
     def _place_stairs(self, dungeon: DungeonMap, floor_number: int):
-        """계단 배치"""
+        """계단 배치 - 다음 층으로만 진행 (이전 층 불가)"""
         if not dungeon.rooms:
             return
 
-        # 올라가는 계단 - 첫 번째 방 (1층이 아닐 때만)
-        if floor_number > 1:
-            first_room = dungeon.rooms[0]
-            x, y = first_room.center
-            dungeon.set_tile(x, y, TileType.STAIRS_UP)
-            dungeon.stairs_up = (x, y)
-
-        # 내려가는 계단 - 마지막 방
+        # 이전 층으로 돌아가는 계단은 제거됨 (마을 시스템으로 대체)
+        # 플레이어는 다음 층으로만 진행 가능
+        
+        # 내려가는 계단 - 마지막 방 (다음 층으로 진행)
         last_room = dungeon.rooms[-1]
         x, y = last_room.center
         dungeon.set_tile(x, y, TileType.STAIRS_DOWN)
