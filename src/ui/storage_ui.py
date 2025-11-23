@@ -27,7 +27,7 @@ class StorageUI:
         screen_width: int,
         screen_height: int,
         inventory: Inventory,
-        hub_storage: Dict[str, int],
+        hub_storage: List[Dict[str, Any]],
         town_manager: Any,
         context: Any = None
     ):
@@ -49,19 +49,41 @@ class StorageUI:
         
         self.closed = False
         
-        # 보관함 아이템 목록 (건설 자재만)
+        # 보관함 아이템 목록 (모든 아이템)
         self.storage_items = self._get_storage_items()
         
         logger.info(f"창고 열기 - 보관 아이템: {len(self.storage_items)}종류")
 
     def _get_storage_items(self) -> List[tuple]:
-        """보관함 아이템 목록 가져오기 (건설 자재만)"""
+        """보관함 아이템 목록 가져오기 (모든 아이템)"""
+        from src.persistence.save_system import deserialize_item
+        
+        # 아이템을 item_id별로 그룹화
+        item_groups = {}  # {item_id: [(item_data, index), ...]}
+        
+        for idx, item_data in enumerate(self.hub_storage):
+            item_id = item_data.get("item_id", "")
+            if item_id not in item_groups:
+                item_groups[item_id] = []
+            item_groups[item_id].append((item_data, idx))
+        
+        # 그룹화된 아이템을 리스트로 변환
         items = []
-        for item_id, count in self.hub_storage.items():
-            ingredient = IngredientDatabase.get_ingredient(item_id)
-            if ingredient and ingredient.category == IngredientCategory.CONSTRUCTION:
-                items.append((item_id, count, ingredient))
-        return sorted(items, key=lambda x: x[2].name if x[2] else x[0])
+        for item_id, group in item_groups.items():
+            count = len(group)
+            # 첫 번째 아이템으로 객체 생성 (이름 표시용)
+            try:
+                first_item = deserialize_item(group[0][0])
+                item_name = getattr(first_item, 'name', item_id)
+                ingredient = IngredientDatabase.get_ingredient(item_id) if IngredientDatabase.get_ingredient(item_id) else None
+            except Exception as e:
+                logger.warning(f"아이템 역직렬화 실패: {item_id} - {e}")
+                item_name = item_id
+                ingredient = None
+            
+            items.append((item_id, count, ingredient, item_name, group))  # group은 출고 시 사용
+        
+        return sorted(items, key=lambda x: (x[3] if len(x) > 3 and x[3] else (x[2].name if x[2] else x[0])))
 
     def handle_input(self, action: GameAction) -> bool:
         """입력 처리"""
@@ -96,32 +118,98 @@ class StorageUI:
         elif action == GameAction.CONFIRM:
             if current_list and 0 <= self.cursor < len(current_list):
                 if self.current_tab == 0:  # 보관함에서 출고
-                    item_id, count, ingredient = current_list[self.cursor]
-                    # 출고 로직은 나중에 구현
-                    logger.info(f"보관함에서 출고: {ingredient.name if ingredient else item_id} x{count}")
+                    item_data = current_list[self.cursor]
+                    if len(item_data) >= 5:
+                        item_id, count, ingredient, item_name, group = item_data
+                    else:
+                        # 호환성을 위한 폴백
+                        item_id, count, ingredient = item_data[:3]
+                        item_name = ingredient.name if ingredient else item_id
+                        group = None
+                    
+                    # 수량 선택
+                    if self.context:
+                        from src.ui.quantity_selector_ui import select_quantity
+                        selected_qty = select_quantity(tcod.console.Console(self.screen_width, self.screen_height, order="F"), self.context, item_name, count)
+                    else:
+                        # context가 없으면 전부 출고
+                        selected_qty = count
+                    
+                    if selected_qty and selected_qty > 0 and group:
+                        from src.persistence.save_system import deserialize_item
+                        
+                        # 인벤토리에 추가 시도
+                        added_count = 0
+                        indices_to_remove = []  # 제거할 인덱스 (역순으로)
+                        
+                        # 선택한 수량만큼 역직렬화해서 인벤토리에 추가
+                        for i in range(min(selected_qty, len(group))):
+                            item_data_dict, storage_idx = group[i]
+                            try:
+                                item = deserialize_item(item_data_dict)
+                                if self.inventory.add_item(item):
+                                    added_count += 1
+                                    indices_to_remove.append(storage_idx)
+                                else:
+                                    # 인벤토리 가득 참
+                                    break
+                            except Exception as e:
+                                logger.error(f"아이템 역직렬화 실패: {item_id} - {e}", exc_info=True)
+                                break
+                        
+                        if added_count > 0:
+                            # storage에서 제거 (역순으로 제거하여 인덱스 변화 방지)
+                            indices_to_remove.sort(reverse=True)
+                            for idx in indices_to_remove:
+                                del self.hub_storage[idx]
+                            
+                            # town_manager의 storage 업데이트
+                            if hasattr(self.town_manager, 'hub_storage'):
+                                self.town_manager.hub_storage = self.hub_storage.copy()
+                            
+                            # UI 업데이트
+                            self.storage_items = self._get_storage_items()
+                            play_sfx("ui", "confirm")
+                            logger.info(f"아이템 출고 완료: {item_name} x{added_count}")
+                        else:
+                            play_sfx("ui", "cursor_cancel")
+                            logger.info("인벤토리가 가득 찼습니다")
+                    elif not group:
+                        play_sfx("ui", "cursor_cancel")
+                        logger.warning("출고할 아이템 데이터를 찾을 수 없습니다")
                 elif self.current_tab == 1:  # 인벤토리에서 보관
                     slot = current_list[self.cursor]
                     if slot and slot.item:
-                        # 건설 자재만 보관 가능
-                        ingredient = IngredientDatabase.get_ingredient(slot.item.item_id)
-                        if ingredient and ingredient.category == IngredientCategory.CONSTRUCTION:
-                            # 수량 선택
-                            if self.context:
-                                from src.ui.quantity_selector_ui import select_quantity
-                                selected_qty = select_quantity(tcod.console.Console(self.screen_width, self.screen_height, order="F"), self.context, ingredient.name, slot.quantity)
-                            else:
-                                # context가 없으면 전부 보관
-                                selected_qty = slot.quantity
+                        # 모든 아이템 보관 가능
+                        from src.persistence.save_system import serialize_item
+                        
+                        item = slot.item
+                        item_name = getattr(item, 'name', slot.item.item_id)
+                        
+                        # 수량 선택
+                        if self.context:
+                            from src.ui.quantity_selector_ui import select_quantity
+                            selected_qty = select_quantity(tcod.console.Console(self.screen_width, self.screen_height, order="F"), self.context, item_name, slot.quantity)
+                        else:
+                            # context가 없으면 전부 보관
+                            selected_qty = slot.quantity
+                        
+                        if selected_qty:
+                            # 보관 로직 - 아이템을 직렬화해서 저장
+                            items_to_store = []
                             
-                            if selected_qty:
-                                # 보관 로직 - 직접 구현
-                                item_id = slot.item.item_id
-                                
-                                # 현재 storage에 추가
-                                if item_id in self.hub_storage:
-                                    self.hub_storage[item_id] += selected_qty
-                                else:
-                                    self.hub_storage[item_id] = selected_qty
+                            # 수량만큼 직렬화
+                            for _ in range(selected_qty):
+                                try:
+                                    serialized = serialize_item(item)
+                                    items_to_store.append(serialized)
+                                except Exception as e:
+                                    logger.error(f"아이템 직렬화 실패: {item_name} - {e}", exc_info=True)
+                                    break
+                            
+                            if items_to_store:
+                                # storage에 추가
+                                self.hub_storage.extend(items_to_store)
                                 
                                 # town_manager의 storage 업데이트
                                 if hasattr(self.town_manager, 'hub_storage'):
@@ -138,10 +226,10 @@ class StorageUI:
                                 # UI 업데이트
                                 self.storage_items = self._get_storage_items()
                                 play_sfx("ui", "confirm")
-                                logger.info(f"건설 자재 보관 완료: {ingredient.name} x{selected_qty}")
-                        else:
-                            play_sfx("ui", "cursor_cancel")
-                            logger.info("건설 자재만 보관 가능합니다")
+                                logger.info(f"아이템 보관 완료: {item_name} x{len(items_to_store)}")
+                            else:
+                                play_sfx("ui", "cursor_cancel")
+                                logger.warning(f"아이템 보관 실패: {item_name}")
         
         elif action == GameAction.ESCAPE or action == GameAction.MENU:
             play_sfx("ui", "cursor_cancel")
@@ -189,8 +277,13 @@ class StorageUI:
                 
                 # 아이템 표시
                 if self.current_tab == 0:  # 보관함
-                    item_id, count, ingredient = item_data
-                    name = ingredient.name if ingredient else item_id
+                    if len(item_data) >= 5:
+                        item_id, count, ingredient, item_name, group = item_data
+                        name = item_name
+                    else:
+                        # 호환성을 위한 폴백
+                        item_id, count, ingredient = item_data[:3]
+                        name = ingredient.name if ingredient else item_id
                     color = (255, 255, 255) if cursor_index == self.cursor else (200, 200, 200)
                     console.print(5, y, f"{name} x{count}", fg=color)
                 else:  # 인벤토리
@@ -211,7 +304,7 @@ def open_storage(
     console: tcod.console.Console,
     context: tcod.context.Context,
     inventory: Inventory,
-    hub_storage: Dict[str, int],
+    hub_storage: List[Dict[str, Any]],
     town_manager: Any
 ):
     """창고 열기"""

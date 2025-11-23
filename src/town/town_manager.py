@@ -158,9 +158,9 @@ class TownManager:
             for f_type in FacilityType
         }
         
-        # 허브 영구 저장소 (게임 오버 시에도 보존되는 건축 자재)
-        # 건설 자재만 저장 (CONSTRUCTION category)
-        self.hub_storage: Dict[str, int] = {}  # {item_id: count}
+        # 허브 영구 저장소 (게임 오버 시에도 보존되는 아이템)
+        # 모든 아이템을 직렬화된 형태로 저장
+        self.hub_storage: List[Dict[str, Any]] = []  # List[serialize_item(item) 결과]
         
     def get_facility(self, facility_type: FacilityType) -> Optional[Facility]:
         """시설 가져오기"""
@@ -260,7 +260,7 @@ class TownManager:
 
     def store_construction_materials(self, player_inventory: Dict[str, int]) -> Dict[str, int]:
         """
-        게임 오버 시 플레이어의 건축 자재를 허브 저장소로 이동
+        게임 오버 시 플레이어의 건축 자재를 허브 저장소로 이동 (레거시 메서드)
         
         Args:
             player_inventory: 플레이어 인벤토리 {item_id: count}
@@ -268,19 +268,10 @@ class TownManager:
         Returns:
             저장된 자재 목록 {item_id: count}
         """
-        from src.gathering.ingredient import IngredientDatabase, IngredientCategory
-        
-        stored_materials = {}
-        
-        for item_id, count in list(player_inventory.items()):
-            ingredient = IngredientDatabase.get_ingredient(item_id)
-            if ingredient and ingredient.category == IngredientCategory.CONSTRUCTION:
-                # 허브 저장소에 추가
-                self.hub_storage[item_id] = self.hub_storage.get(item_id, 0) + count
-                stored_materials[item_id] = count
-                logger.info(f"허브 저장소에 보관: {ingredient.name} x{count}")
-        
-        return stored_materials
+        # 이 메서드는 더 이상 사용되지 않지만 호환성을 위해 유지
+        # 실제로는 store_all_materials_from_inventory를 사용해야 함
+        logger.warning("store_construction_materials는 레거시 메서드입니다. store_all_materials_from_inventory를 사용하세요.")
+        return {}
     
     def store_all_materials_from_inventory(self, inventory: Any) -> Dict[str, int]:
         """
@@ -293,6 +284,7 @@ class TownManager:
             저장된 재료 목록 {item_id: count}
         """
         from src.gathering.ingredient import IngredientDatabase
+        from src.persistence.save_system import serialize_item
         
         stored_materials = {}
         
@@ -313,50 +305,53 @@ class TownManager:
             # 재료 아이템인지 확인
             ingredient = IngredientDatabase.get_ingredient(item_id)
             if ingredient:
-                # 허브 저장소에 추가
+                # 허브 저장소에 추가 (직렬화해서 저장)
                 quantity = getattr(slot, 'quantity', 1)
-                self.hub_storage[item_id] = self.hub_storage.get(item_id, 0) + quantity
+                item = slot.item
+                for _ in range(quantity):
+                    serialized = serialize_item(item)
+                    self.hub_storage.append(serialized)
+                
                 stored_materials[item_id] = stored_materials.get(item_id, 0) + quantity
                 logger.info(f"허브 저장소에 보관 (게임오버): {ingredient.name} x{quantity}")
         
         return stored_materials
 
     
-    def get_hub_storage(self) -> Dict[str, int]:
+    def get_hub_storage(self) -> List[Dict[str, Any]]:
         """허브 저장소 내용 가져오기"""
         return self.hub_storage.copy()
-    
-    def withdraw_from_hub(self, item_id: str, count: int) -> int:
-        """
-        허브 저장소에서 자재 꺼내기
-        
-        Args:
-            item_id: 아이템 ID
-            count: 꺼낼 수량
-            
-        Returns:
-            실제로 꺼낸 수량
-        """
-        available = self.hub_storage.get(item_id, 0)
-        actual_count = min(count, available)
-        
-        if actual_count > 0:
-            self.hub_storage[item_id] -= actual_count
-            if self.hub_storage[item_id] <= 0:
-                del self.hub_storage[item_id]
-            logger.info(f"허브 저장소에서 꺼냄: {item_id} x{actual_count}")
-        
-        return actual_count
     
     def clear_runtime_storage(self):
         """
         런타임 임시 저장소 비우기 (게임 오버 시)
-        허브 저장소(hub_storage)는 건설 자재만 보관하므로 유지됨
+        재료가 아닌 아이템(요리, 장비, 소모품 등)은 제거하고, 재료만 유지
         """
-        # 현재는 hub_storage가 건설 자재만 보관하므로 추가 작업 불필요
-        # 일반 아이템 임시 저장소가 있다면 여기서 비움
-        logger.info("런타임 저장소 초기화 (건설 자재는 보존)")
-        pass
+        from src.gathering.ingredient import IngredientDatabase
+        
+        items_to_keep = []
+        removed_count = 0
+        
+        # hub_storage에서 재료만 필터링
+        for item_data in self.hub_storage:
+            item_id = item_data.get("item_id", "")
+            ingredient = IngredientDatabase.get_ingredient(item_id)
+            if ingredient:
+                # 재료 아이템은 유지
+                items_to_keep.append(item_data)
+            else:
+                # 재료가 아닌 아이템(요리, 장비, 소모품 등)은 제거
+                removed_count += 1
+                item_name = item_data.get("name", item_id)
+                logger.info(f"게임오버: 재료가 아닌 아이템 제거 - {item_name}")
+        
+        # 재료만 남김
+        self.hub_storage = items_to_keep
+        
+        if removed_count > 0:
+            logger.info(f"런타임 저장소 초기화 완료: {removed_count}개의 아이템 제거, {len(items_to_keep)}개의 재료 유지")
+        else:
+            logger.info("런타임 저장소 초기화 완료: 모든 아이템이 재료입니다")
 
     def to_dict(self) -> Dict[str, Any]:
         """저장용 딕셔너리 변환 - 시설 레벨은 메타 진행에 저장됨"""
@@ -387,10 +382,33 @@ class TownManager:
             save_meta_progress()
             logger.info("기존 시설 레벨 마이그레이션 완료 (메타 진행으로 영구 저장)")
         
-        # 허브 저장소 복원
+        # 허브 저장소 복원 (마이그레이션 포함)
         if "hub_storage" in data:
-            manager.hub_storage = data["hub_storage"].copy()
-            logger.info(f"허브 저장소 복원: {len(manager.hub_storage)}종류의 자재")
+            storage_data = data["hub_storage"]
+            
+            # 기존 형태 ({item_id: count})인 경우 마이그레이션
+            if isinstance(storage_data, dict):
+                from src.gathering.ingredient import IngredientDatabase
+                from src.persistence.save_system import serialize_item
+                
+                # 딕셔너리 형태를 리스트 형태로 변환
+                manager.hub_storage = []
+                for item_id, count in storage_data.items():
+                    ingredient = IngredientDatabase.get_ingredient(item_id)
+                    if ingredient:
+                        # 재료는 직렬화해서 저장
+                        for _ in range(count):
+                            serialized = serialize_item(ingredient)
+                            manager.hub_storage.append(serialized)
+                
+                logger.info(f"허브 저장소 마이그레이션 완료: {len(storage_data)}종류의 재료 → {len(manager.hub_storage)}개 아이템")
+            elif isinstance(storage_data, list):
+                # 새로운 형태 (List[Dict])인 경우
+                manager.hub_storage = storage_data.copy()
+                logger.info(f"허브 저장소 복원: {len(manager.hub_storage)}개의 아이템")
+            else:
+                logger.warning(f"알 수 없는 hub_storage 형태: {type(storage_data)}")
+                manager.hub_storage = []
         
         return manager
 
