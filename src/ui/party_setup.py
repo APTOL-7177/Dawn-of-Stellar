@@ -208,6 +208,8 @@ class PartySetup:
             "cleric": ["힐러"],
             "priest": ["힐러", "서포터"],
             "druid": ["힐러", "서포터"],
+            "alchemist": ["힐러", "서포터"],
+            "bard": ["힐러", "서포터"],
             
             # 하이브리드
             "spellblade": ["하이브리드", "물리 딜러", "마법 딜러"],
@@ -215,11 +217,9 @@ class PartySetup:
             "monk": ["하이브리드", "물리 딜러"],
             
             # 서포터
-            "bard": ["서포터"],
             "shaman": ["서포터"],
             "hacker": ["서포터"],
             "engineer": ["서포터"],
-            "alchemist": ["서포터"],
             
             # 특수 (유니크한 전투 방식)
             "vampire": ["탱커", "특수"],  # 생존 특화
