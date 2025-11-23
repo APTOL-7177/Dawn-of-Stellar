@@ -100,6 +100,25 @@ class MapRenderer:
                     fg = tuple(c // 4 for c in fg)
                     bg = tuple(c // 4 for c in bg)
 
+                # 환경 효과 색상 오버레이 적용 (마을이 아닌 경우만)
+                if hasattr(dungeon, 'environment_effect_manager') and not (hasattr(dungeon, 'is_town') and dungeon.is_town):
+                    effects = dungeon.environment_effect_manager.get_effects_at_tile(map_x, map_y)
+                    if effects:
+                        # 가장 강한 효과의 색상 사용 (첫 번째 효과)
+                        effect = effects[0]
+                        overlay_color = effect.color_overlay
+                        
+                        # 색상 블렌딩 (50% 오버레이)
+                        fg = tuple(
+                            int(fg[i] * 0.5 + overlay_color[i] * 0.5)
+                            for i in range(3)
+                        )
+                        # 배경색도 약간 블렌딩
+                        bg = tuple(
+                            int(bg[i] * 0.7 + overlay_color[i] * 0.3)
+                            for i in range(3)
+                        )
+
                 console.print(screen_x, screen_y, char, fg=fg, bg=bg)
 
     def render_minimap(

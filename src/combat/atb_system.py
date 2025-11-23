@@ -52,10 +52,24 @@ class ATBGauge:
         if not is_alive:
             return False
 
-        return (self.current >= self.threshold and
-                not self.is_stunned and
-                not self.is_sleeping and
-                not self.is_casting)
+        # ATB 게이지가 threshold를 넘지 않았으면 행동 불가
+        if self.current < self.threshold:
+            return False
+        
+        # 캐스팅 중이면 행동 불가
+        if self.is_casting:
+            return False
+        
+        # status_manager가 있으면 실제 상태이상 상태 확인
+        if hasattr(self.owner, 'status_manager'):
+            if not self.owner.status_manager.can_act():
+                return False
+        
+        # 레거시 플래그 확인 (status_manager가 없는 경우)
+        if self.is_stunned or self.is_sleeping or self.is_paralyzed:
+            return False
+
+        return True
 
     def get_effective_speed(self) -> float:
         """실제 속도 계산 (버프/디버프 포함)"""
@@ -64,8 +78,8 @@ class ATBGauge:
         if not is_alive:
             return 0.0
 
-        if self.is_stunned or self.is_paralyzed or self.is_sleeping:
-            return 0.0
+        # 기절/마비/수면 상태에서도 ATB는 증가해야 함 (기절이 풀리면 바로 행동할 수 있도록)
+        # 상태이상은 can_act에서만 행동 불가능을 체크함
 
         base_speed = getattr(self.owner, "speed", 10)
 
@@ -76,11 +90,14 @@ class ATBGauge:
         if self.is_confused:
             speed_modifier *= 0.7
 
-        # 버프 적용 (speed_up)
+        # 버프/디버프 적용 (speed_up, speed_down)
         if hasattr(self.owner, 'active_buffs') and self.owner.active_buffs:
             if 'speed_up' in self.owner.active_buffs:
                 buff_value = self.owner.active_buffs['speed_up'].get('value', 0.0)
                 speed_modifier *= (1.0 + buff_value)
+            if 'speed_down' in self.owner.active_buffs:
+                debuff_value = self.owner.active_buffs['speed_down'].get('value', 0.0)
+                speed_modifier *= (1.0 - debuff_value)
 
         return base_speed * speed_modifier
 
@@ -257,8 +274,9 @@ class ATBSystem:
             if is_casting:
                 # 캐스팅 중이면 캐스팅 진행도 업데이트 (ATB는 증가하지 않음)
                 casting_system.update(combatant, int(increase))
-            elif not gauge.can_act:
-                # 캐스팅 중이 아니고 행동 불가능한 경우에만 ATB 증가
+            else:
+                # 캐스팅 중이 아니면 항상 ATB 증가 (기절/수면 상태에서도 ATB는 증가해야 함)
+                # 기절이 풀리면 바로 행동할 수 있도록 ATB를 미리 채워둠
                 gauge.increase(increase)
 
                 # 행동 가능 상태가 되면 이벤트 발행

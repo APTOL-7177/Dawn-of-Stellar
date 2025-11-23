@@ -4,7 +4,7 @@ Combat Manager - 전투 관리자
 ATB, Brave, Damage 시스템을 통합하여 전투 흐름 제어
 """
 
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable, Tuple
 from enum import Enum
 
 from src.core.config import get_config
@@ -68,6 +68,10 @@ class CombatManager:
         # 요리 쿨타임 (전투 턴 기준)
         self.cooking_cooldown_turn: Optional[int] = None  # 요리 사용한 턴
         self.cooking_cooldown_duration: int = 0  # 쿨타임 지속 턴 수
+        
+        # 환경 효과를 위한 던전 정보
+        self.dungeon: Optional[Any] = None  # DungeonMap
+        self.combat_position: Optional[Tuple[int, int]] = None  # 전투 시작 위치 (x, y)
 
         # 콜백
         self.on_combat_end: Optional[Callable[[CombatState], None]] = None
@@ -78,13 +82,15 @@ class CombatManager:
         event_bus.subscribe(Events.CHARACTER_DEATH, self._on_character_death)
         event_bus.subscribe(Events.COMBAT_DAMAGE_TAKEN, self._on_damage_taken)
 
-    def start_combat(self, allies: List[Any], enemies: List[Any]) -> None:
+    def start_combat(self, allies: List[Any], enemies: List[Any], dungeon: Optional[Any] = None, combat_position: Optional[Tuple[int, int]] = None) -> None:
         """
         전투 시작
 
         Args:
             allies: 아군 리스트
             enemies: 적군 리스트
+            dungeon: 던전 맵 (환경 효과용)
+            combat_position: 전투 시작 위치 (x, y)
         """
         self.logger.info("전투 시작!")
 
@@ -92,6 +98,10 @@ class CombatManager:
         self.enemies = enemies
         self.turn_count = 0
         self.state = CombatState.IN_PROGRESS
+        
+        # 던전 정보 저장 (환경 효과용)
+        self.dungeon = dungeon
+        self.combat_position = combat_position
         
         # 요리 쿨타임 초기화 (인벤토리에서 쿨타임 정보 가져오기)
         # 전투 시작 시 현재 쿨타임 턴을 설정
@@ -459,7 +469,11 @@ class CombatManager:
                         actor.is_alive = False
                     self.logger.warning(f"{actor.name}이(가) DoT로 사망!")
         
-        # 3-1. 랜섬웨어 효과 처리 (적의 턴 시작 시)
+        # 3-1. 환경 효과 처리 (전투 위치의 환경 효과 적용)
+        if self.dungeon and self.combat_position:
+            self._apply_environmental_effects(actor)
+        
+        # 3-2. 랜섬웨어 효과 처리 (적의 턴 시작 시)
         if actor in self.enemies:
             self._process_ransomware_damage(actor)
         
@@ -1567,6 +1581,16 @@ class CombatManager:
         if not character:
             return
         
+        # 전투가 이미 종료된 상태라면 처리하지 않음 (무한 루프 방지)
+        if self.state in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
+            return
+        
+        # 이미 사망 처리된 캐릭터는 중복 처리하지 않음
+        if not hasattr(character, '_death_processed'):
+            character._death_processed = True
+        else:
+            return
+        
         character_name = data.get("name", getattr(character, "name", "Unknown"))
         self.logger.info(f"{character_name} 사망 처리 시작")
         
@@ -1589,8 +1613,9 @@ class CombatManager:
         # 일반적인 사망 후 처리
         self._handle_general_death(character)
         
-        # 전투 종료 체크
-        self._check_battle_end()
+        # 전투 종료 체크 (전투가 아직 진행 중일 때만)
+        if self.state not in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
+            self._check_battle_end()
     
     def _handle_hacker_death(self, hacker: Any) -> None:
         """
@@ -1894,6 +1919,10 @@ class CombatManager:
 
     def _check_battle_end(self) -> None:
         """승리/패배 판정"""
+        # 전투가 이미 종료된 상태라면 체크하지 않음
+        if self.state in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
+            return
+        
         # 모든 적이 죽었는가?
         if all(self._is_defeated(enemy) for enemy in self.enemies):
             self._end_combat(CombatState.VICTORY)
@@ -2248,6 +2277,90 @@ class CombatManager:
         }
 
         return status_mapping.get(status_name.lower())
+    
+    def _apply_environmental_effects(self, actor: Any) -> None:
+        """
+        전투 위치의 환경 효과를 캐릭터에게 적용
+        
+        Args:
+            actor: 효과를 받을 캐릭터 (아군 또는 적)
+        """
+        if not self.dungeon or not self.combat_position:
+            return
+        
+        # 던전의 환경 효과 관리자 확인 (두 가지 속성명 모두 지원)
+        effect_manager = None
+        if hasattr(self.dungeon, 'environmental_effect_manager'):
+            effect_manager = self.dungeon.environmental_effect_manager
+        elif hasattr(self.dungeon, 'environment_effect_manager'):
+            effect_manager = self.dungeon.environment_effect_manager
+        
+        if not effect_manager:
+            return
+        
+        # 전투 위치에서 환경 효과 확인
+        combat_x, combat_y = self.combat_position
+        effects = effect_manager.get_effects_at_tile(combat_x, combat_y)
+        
+        if not effects:
+            return
+        
+        # 각 효과 적용
+        for effect in effects:
+            from src.world.environmental_effects import EnvironmentalEffectType
+            
+            # 즉시 데미지/회복 효과
+            if effect.effect_type == EnvironmentalEffectType.POISON_SWAMP:
+                damage = int(actor.max_hp * 0.02 * effect.intensity)
+                if hasattr(actor, 'take_damage'):
+                    actor.take_damage(damage)
+                else:
+                    actor.current_hp = max(1, actor.current_hp - damage)
+                self.logger.info(f"{actor.name} 독 늪 피해: {damage}")
+            
+            elif effect.effect_type == EnvironmentalEffectType.BURNING_FLOOR:
+                damage = int(15 * effect.intensity)
+                if hasattr(actor, 'take_damage'):
+                    actor.take_damage(damage)
+                else:
+                    actor.current_hp = max(1, actor.current_hp - damage)
+                self.logger.info(f"{actor.name} 불타는 바닥 피해: {damage}")
+            
+            elif effect.effect_type == EnvironmentalEffectType.HOLY_GROUND:
+                heal = int(actor.max_hp * 0.03 * effect.intensity)
+                if hasattr(actor, 'heal'):
+                    actor.heal(heal)
+                else:
+                    actor.current_hp = min(actor.max_hp, actor.current_hp + heal)
+                self.logger.info(f"{actor.name} 신성한 땅 회복: {heal}")
+            
+            elif effect.effect_type == EnvironmentalEffectType.ELECTRIC_FIELD:
+                damage = int(10 * effect.intensity)
+                if hasattr(actor, 'take_damage'):
+                    actor.take_damage(damage)
+                else:
+                    actor.current_hp = max(1, actor.current_hp - damage)
+                self.logger.info(f"{actor.name} 전기장 피해: {damage}")
+            
+            elif effect.effect_type == EnvironmentalEffectType.RADIATION_ZONE:
+                damage = int(12 * effect.intensity)
+                if hasattr(actor, 'take_damage'):
+                    actor.take_damage(damage)
+                else:
+                    actor.current_hp = max(1, actor.current_hp - damage)
+                self.logger.info(f"{actor.name} 방사능 피해: {damage}")
+            
+            elif effect.effect_type == EnvironmentalEffectType.MANA_VORTEX:
+                if hasattr(actor, 'current_mp') and hasattr(actor, 'max_mp'):
+                    mp_restore = int(actor.max_mp * 0.05 * effect.intensity)
+                    if hasattr(actor, 'restore_mp'):
+                        actor.restore_mp(mp_restore)
+                    else:
+                        actor.current_mp = min(actor.max_mp, actor.current_mp + mp_restore)
+                    self.logger.info(f"{actor.name} 마나 소용돌이 MP 회복: {mp_restore}")
+            
+            # 스탯 수정 효과는 별도로 처리 (현재 턴에는 데미지/회복만)
+            # 스탯 수정은 get_stat_modifiers로 별도 계산되어 데미지 계산에 반영되어야 함
 
 
 # 전역 인스턴스

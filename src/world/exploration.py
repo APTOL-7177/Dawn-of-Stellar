@@ -176,6 +176,11 @@ class ExplorationSystem:
 
         # 발소리 SFX 간격 추적 (최소 5초)
         self.last_footstep_time = 0.0
+        
+        # 환경 효과 시간 추적 (시간당 지속 피해용)
+        import time
+        self.last_environment_effect_time = time.time()
+        self.environment_effect_interval = 3.0  # 3초마다 체크
 
         logger.info(f"탐험 시작: 층 {self.floor_number}, 위치 ({self.player.x}, {self.player.y})")
 
@@ -257,6 +262,13 @@ class ExplorationSystem:
         
         # 곱셈 적용
         final_radius = int(final_radius * vision_multiplier)
+        
+        # 환경 효과 시야 수정 (플레이어가 있는 타일 기준)
+        if hasattr(self.dungeon, 'environment_effect_manager') and not (hasattr(self, 'is_town') and self.is_town):
+            env_vision_modifier = self.dungeon.environment_effect_manager.get_vision_modifier(
+                self.player, self.player.x, self.player.y
+            )
+            final_radius = int(final_radius * env_vision_modifier)
         
         # 최소 1, 최대 10
         final_radius = max(1, min(10, final_radius))
@@ -346,6 +358,57 @@ class ExplorationSystem:
         # 타일 이벤트 체크
         tile = self.dungeon.get_tile(new_x, new_y)
         result = self._check_tile_event(tile)
+        
+        # 환경 효과 적용 (마을이 아닌 경우만)
+        # 이동 시 즉시 데미지를 주는 효과 적용 (불타는 바닥 등)
+        if hasattr(self.dungeon, 'environment_effect_manager') and not (hasattr(self, 'is_town') and self.is_town):
+            effect_manager = None
+            if hasattr(self.dungeon, 'environment_effect_manager'):
+                effect_manager = self.dungeon.environment_effect_manager
+            elif hasattr(self.dungeon, 'environmental_effect_manager'):
+                effect_manager = self.dungeon.environmental_effect_manager
+            
+            if effect_manager and self.player.party:
+                # 이동 시 즉시 데미지를 주는 효과 적용 (불타는 바닥 등)
+                effect_messages = []
+                for member in self.player.party:
+                    messages = effect_manager.apply_tile_effects(
+                        member, new_x, new_y, is_movement=True
+                    )
+                    if messages:
+                        effect_messages.extend(messages)
+                
+                # 효과 메시지가 있으면 결과에 추가
+                if effect_messages:
+                    # 여러 메시지가 있으면 첫 번째 것만 표시하거나 모두 합침
+                    if result.message:
+                        result.message = f"{result.message}\n{effect_messages[0]}"
+                    else:
+                        result.message = effect_messages[0]
+                
+                # 시간당 지속 피해 체크 (독 늪 등)
+                current_time = time.time()
+                time_since_last_check = current_time - self.last_environment_effect_time
+                
+                if time_since_last_check >= self.environment_effect_interval:
+                    # 시간 간격이 지나면 시간당 지속 피해 적용
+                    dot_messages = []
+                    for member in self.player.party:
+                        messages = effect_manager.apply_tile_effects(
+                            member, new_x, new_y, is_movement=False  # 시간당 피해
+                        )
+                        if messages:
+                            dot_messages.extend(messages)
+                    
+                    # 지속 피해 메시지 추가
+                    if dot_messages:
+                        if result.message:
+                            result.message = f"{result.message}\n{dot_messages[0]}"
+                        else:
+                            result.message = dot_messages[0]
+                    
+                    # 시간 업데이트
+                    self.last_environment_effect_time = current_time
         
         # 밟으면 자동 채집 (Walk-over Harvest)
         player_id = getattr(self, 'local_player_id', None)
@@ -1012,7 +1075,9 @@ class ExplorationSystem:
                 "floor": self.floor_number,
                 "enemy_level": enemy.level,  # 조우한 적의 레벨 전달
                 "is_boss": has_boss,
-                "enemies": combat_enemies  # 전투 승리 후 제거할 적 엔티티 전달 (실제 참여한 적들)
+                "enemies": combat_enemies,  # 전투 승리 후 제거할 적 엔티티 전달 (실제 참여한 적들)
+                "combat_position": (self.player.x, self.player.y),  # 전투 시작 위치
+                "dungeon": self.dungeon  # 던전 맵 정보
             }
         )
 

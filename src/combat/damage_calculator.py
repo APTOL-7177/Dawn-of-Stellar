@@ -393,11 +393,14 @@ class DamageCalculator:
                 base_stat = getattr(character, attr)
                 break
         
-        # 버프 적용 (attack_up)
+        # 버프/디버프 적용 (attack_up, attack_down)
         if hasattr(character, 'active_buffs') and character.active_buffs:
             if 'attack_up' in character.active_buffs:
                 buff_value = character.active_buffs['attack_up'].get('value', 0.0)
                 base_stat = int(base_stat * (1.0 + buff_value))
+            if 'attack_down' in character.active_buffs:
+                debuff_value = character.active_buffs['attack_down'].get('value', 0.0)
+                base_stat = int(base_stat * (1.0 - debuff_value))
         
         return base_stat
 
@@ -409,11 +412,14 @@ class DamageCalculator:
                 base_stat = getattr(character, attr)
                 break
         
-        # 버프 적용 (defense_up)
+        # 버프/디버프 적용 (defense_up, defense_down)
         if hasattr(character, 'active_buffs') and character.active_buffs:
             if 'defense_up' in character.active_buffs:
                 buff_value = character.active_buffs['defense_up'].get('value', 0.0)
                 base_stat = int(base_stat * (1.0 + buff_value))
+            if 'defense_down' in character.active_buffs:
+                debuff_value = character.active_buffs['defense_down'].get('value', 0.0)
+                base_stat = int(base_stat * (1.0 - debuff_value))
         
         return base_stat
 
@@ -425,11 +431,14 @@ class DamageCalculator:
                 base_stat = getattr(character, attr)
                 break
         
-        # 버프 적용 (magic_up)
+        # 버프/디버프 적용 (magic_up, magic_down)
         if hasattr(character, 'active_buffs') and character.active_buffs:
             if 'magic_up' in character.active_buffs:
                 buff_value = character.active_buffs['magic_up'].get('value', 0.0)
                 base_stat = int(base_stat * (1.0 + buff_value))
+            if 'magic_down' in character.active_buffs:
+                debuff_value = character.active_buffs['magic_down'].get('value', 0.0)
+                base_stat = int(base_stat * (1.0 - debuff_value))
         
         return base_stat
 
@@ -448,11 +457,14 @@ class DamageCalculator:
                 base_stat = getattr(character, attr)
                 break
         
-        # 버프 적용 (accuracy_up이 있다면)
+        # 버프/디버프 적용 (accuracy_up, accuracy_down)
         if hasattr(character, 'active_buffs') and character.active_buffs:
             if 'accuracy_up' in character.active_buffs:
                 buff_value = character.active_buffs['accuracy_up'].get('value', 0.0)
                 base_stat = int(base_stat * (1.0 + buff_value))
+            if 'accuracy_down' in character.active_buffs:
+                debuff_value = character.active_buffs['accuracy_down'].get('value', 0.0)
+                base_stat = int(base_stat * (1.0 - debuff_value))
         
         return base_stat
 

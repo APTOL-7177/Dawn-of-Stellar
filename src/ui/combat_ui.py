@@ -1586,7 +1586,22 @@ class CombatUI:
 
     def render(self, console: tcod.console.Console):
         """렌더링"""
-        render_space_background(console, self.screen_width, self.screen_height, context="combat")
+        # 필드 효과에 따른 배경 색상 변경
+        dungeon = None
+        combat_position = None
+        if hasattr(self.combat_manager, 'dungeon') and self.combat_manager.dungeon:
+            dungeon = self.combat_manager.dungeon
+        if hasattr(self.combat_manager, 'combat_position') and self.combat_manager.combat_position:
+            combat_position = self.combat_manager.combat_position
+        
+        render_space_background(
+            console, 
+            self.screen_width, 
+            self.screen_height, 
+            context="combat",
+            dungeon=dungeon,
+            combat_position=combat_position
+        )
 
         # 제목
         console.print(
@@ -4281,6 +4296,7 @@ def run_combat(
     session: Optional[Any] = None,
     network_manager: Optional[Any] = None,
     combat_position: Optional[Tuple[int, int]] = None,
+    dungeon: Optional[Any] = None,  # 던전 맵 (환경 효과용)
     bot_manager: Optional[Any] = None,  # 봇 관리자 (자동 전투용)
     local_player_id: Optional[str] = None  # 로컬 플레이어 ID (다른 플레이어 컨트롤 방지)
 ) -> CombatState:
@@ -4346,6 +4362,10 @@ def run_combat(
         combat_id = hashlib.md5(position_str.encode()).hexdigest()[:8]
         combat_manager.combat_id = combat_id
     
+    # 던전 정보 설정 (환경 효과용)
+    if dungeon:
+        combat_manager.dungeon = dungeon
+    
     # 멀티플레이 모드일 때 ATB 시스템을 MultiplayerATBSystem으로 교체
     if is_multiplayer:
         from src.multiplayer.atb_multiplayer import MultiplayerATBSystem
@@ -4372,7 +4392,7 @@ def run_combat(
         else:
             logger.info("멀티플레이 ATB 시스템 이미 활성화됨")
     
-    combat_manager.start_combat(party, enemies)
+    combat_manager.start_combat(party, enemies, dungeon=dungeon, combat_position=combat_position)
     
     # 인벤토리 설정 (전투 매니저에도 전달)
     if inventory:
