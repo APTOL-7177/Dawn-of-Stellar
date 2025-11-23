@@ -406,7 +406,7 @@ field_systems:
 game:
   language: ko
   title: Dawn of Stellar - 별빛의 여명
-  version: 6.0.0
+  version: 6.1.0
 logging:
   categories:
     combat: true
