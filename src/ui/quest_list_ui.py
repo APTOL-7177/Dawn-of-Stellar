@@ -72,8 +72,8 @@ def open_quest_list(
                 quest_name = quest.name[:max_name_width] if len(quest.name) > max_name_width else quest.name
                 console.print(5, y, quest_name, fg=name_color)
                 
-                # 퀘스트 타입 및 레벨
-                type_text = f"[{quest.quest_type.value}] Lv.{quest.level}"
+                # 퀘스트 타입 및 난이도
+                type_text = f"[{quest.quest_type.value}] {quest.difficulty.value.upper()}"
                 console.print(5, y + 1, type_text, fg=(150, 150, 150))
                 
                 # 진행 상황 (타입/레벨 아래에 별도 줄로 표시 - y + 3에서 확실히 분리)

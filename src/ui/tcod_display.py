@@ -79,11 +79,11 @@ class TCODDisplay:
         display_aspect_ratio = self._get_display_aspect_ratio()
         
         if display_aspect_ratio:
-            self.logger.info(
+                self.logger.info(
                 f"콘솔 크기: {self.screen_width}x{self.screen_height}, "
                 f"모니터 종횡비: {display_aspect_ratio:.4f} (검은색 띠로 조정)"
-            )
-        else:
+                )
+            else:
             self.logger.info(
                 f"콘솔 크기: {self.screen_width}x{self.screen_height} "
                 "(디스플레이 종횡비를 가져올 수 없음)"
@@ -1132,19 +1132,19 @@ def render_space_background(
             if y >= actual_console_height:
                 break
                 
-            # 선형 보간 (0.0 ~ 1.0)
+        # 선형 보간 (0.0 ~ 1.0)
             ratio = y / max(1, actual_height - 1)
-            
-            # RGB 보간
-            r = int(top_color[0] + (bottom_color[0] - top_color[0]) * ratio)
-            g = int(top_color[1] + (bottom_color[1] - top_color[1]) * ratio)
-            b = int(top_color[2] + (bottom_color[2] - top_color[2]) * ratio)
-            
-            # 클램핑
-            r = max(0, min(255, r))
-            g = max(0, min(255, g))
-            b = max(0, min(255, b))
-            
+        
+        # RGB 보간
+        r = int(top_color[0] + (bottom_color[0] - top_color[0]) * ratio)
+        g = int(top_color[1] + (bottom_color[1] - top_color[1]) * ratio)
+        b = int(top_color[2] + (bottom_color[2] - top_color[2]) * ratio)
+        
+        # 클램핑
+        r = max(0, min(255, r))
+        g = max(0, min(255, g))
+        b = max(0, min(255, b))
+        
             # 배경색 설정 - draw_rect 사용 (범위 자동 체크)
             bg_color = (r, g, b)
             try:
