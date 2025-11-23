@@ -1113,6 +1113,19 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
             else:
                 char.equipment[slot] = None
 
+        # 장비 효과 재적용 (Events.EQUIPMENT_EQUIPPED 발행)
+        # StatManager는 이미 stats 데이터를 통해 복원되었으므로 스탯은 재적용되지 않지만,
+        # EquipmentEffectManager(시야, 특수효과 등)는 이 이벤트를 통해 효과를 다시 적용해야 함
+        from src.core.event_bus import event_bus, Events
+        for slot, item in char.equipment.items():
+            if item:
+                event_bus.publish(Events.EQUIPMENT_EQUIPPED, {
+                    "character": char,
+                    "slot": slot,
+                    "item": item
+                })
+                logger.debug(f"장비 효과 재적용 이벤트 발행: {char.name} - {getattr(item, 'name', 'Unknown')}")
+
     return char
 
 

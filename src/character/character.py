@@ -871,7 +871,7 @@ class Character:
 
     def heal(self, amount: int, can_revive: bool = False) -> int:
         """
-        HP를 회복합니다
+        HP를 회복합니다 (상처 시스템 적용)
 
         Args:
             amount: 회복량
@@ -884,11 +884,47 @@ class Character:
         was_dead = not getattr(self, 'is_alive', True)
         
         # 죽은 캐릭터 회복 처리
-        if was_dead and can_revive and amount > 0:
-            self.is_alive = True
-            self.current_hp = min(amount, self.max_hp)
-        else:
-            self.current_hp = min(self.current_hp + amount, self.max_hp)
+        if was_dead:
+            if can_revive and amount > 0:
+                self.is_alive = True
+                # 부활 시에는 상처를 고려하지 않고 일단 회복 (혹은 부활 로직에 따라 다름)
+                # 여기서는 일단 1로 부활 후 일반 회복 로직을 태우거나, 
+                # 단순히 amount만큼 회복하되 상처 제한을 받을지 결정해야 함.
+                # 보통 부활은 상처 영향을 받음.
+                self.current_hp = 0 # 0에서 시작
+            else:
+                return 0
+
+        # 상처 시스템 적용
+        wound = getattr(self, 'wound', 0)
+        effective_max_hp = self.max_hp - wound
+        
+        # 1. 일반 회복 (상처 제한까지)
+        healable_amount = max(0, effective_max_hp - self.current_hp)
+        normal_heal = min(amount, healable_amount)
+        
+        self.current_hp += normal_heal
+        remaining_heal = amount - normal_heal
+        
+        # 2. 초과 회복량으로 상처 치료 (1/4 효율)
+        wound_healed = 0
+        if remaining_heal > 0 and wound > 0:
+            # 남은 회복량의 1/4만큼 상처가 사라짐
+            wound_cure_amount = int(remaining_heal * 0.25)
+            
+            if wound_cure_amount > 0:
+                actual_wound_cure = min(wound_cure_amount, wound)
+                self.wound -= actual_wound_cure
+                wound_healed = actual_wound_cure
+                
+                # 상처가 사라진 만큼 HP도 추가 회복 (상처가 사라져서 최대 체력이 늘어났으므로)
+                # "상처가 사라지고 그만큼 회복이 되어야 해" -> 상처 치료량만큼 HP도 증가
+                self.current_hp += actual_wound_cure
+                
+                logger.info(f"{self.name} 상처 치료: -{actual_wound_cure} (초과 회복 {remaining_heal}의 1/4)")
+
+        # 최대 HP 보정 (혹시 모를 오버플로우 방지)
+        self.current_hp = min(self.current_hp, self.max_hp - getattr(self, 'wound', 0))
         
         actual_heal = self.current_hp - old_hp
 
@@ -896,7 +932,8 @@ class Character:
             "character": self,
             "change": actual_heal,
             "current": self.current_hp,
-            "max": self.max_hp
+            "max": self.max_hp,
+            "wound_healed": wound_healed
         })
 
         return actual_heal
