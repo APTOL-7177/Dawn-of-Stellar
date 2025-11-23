@@ -24,6 +24,7 @@ class IngredientCategory(Enum):
     SPICE = "spice"         # 향신료
     SWEETENER = "sweetener" # 감미료 (꿀, 설탕 등)
     FILLER = "filler"       # 필러 (나뭇가지, 얼음 등)
+    PREPARED_DISH = "prepared_dish" # 조리된 음식 (재료로 사용 시)
 
     @property
     def display_name(self) -> str:
@@ -39,7 +40,8 @@ class IngredientCategory(Enum):
             IngredientCategory.GRAIN: "곡물",
             IngredientCategory.SPICE: "향신료",
             IngredientCategory.SWEETENER: "감미료",
-            IngredientCategory.FILLER: "필러"
+            IngredientCategory.FILLER: "필러",
+            IngredientCategory.PREPARED_DISH: "요리"
         }
         return names.get(self, "???")
 
@@ -365,20 +367,290 @@ class IngredientDatabase:
             raw_mp_restore=5
         ),
 
-        "stick": Ingredient(
-            item_id="stick",
-            name="나뭇가지",
-            description="마른 나뭇가지. 연료나 요리 재료로 쓸 수 있다.",
+        # === 곡물 ===
+        "flour": Ingredient(
+            item_id="flour",
+            name="밀가루",
+            description="곱게 빻은 밀가루. 반죽의 주재료.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.5,
+            sell_price=5,
+            category=IngredientCategory.GRAIN,
+            food_value=1.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "rice": Ingredient(
+            item_id="rice",
+            name="쌀",
+            description="도정한 쌀. 밥을 지을 수 있다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.5,
+            sell_price=5,
+            category=IngredientCategory.GRAIN,
+            food_value=1.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        # === 유제품 ===
+        "milk": Ingredient(
+            item_id="milk",
+            name="우유",
+            description="신선한 우유.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.5,
+            sell_price=10,
+            category=IngredientCategory.DAIRY,
+            food_value=1.0,
+            spoil_time=50,
+            edible_raw=True,
+            raw_hp_restore=5
+        ),
+
+        # === 채소 추가 ===
+        "tomato": Ingredient(
+            item_id="tomato",
+            name="토마토",
+            description="잘 익은 토마토.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.2,
+            sell_price=5,
+            category=IngredientCategory.VEGETABLE,
+            food_value=1.0,
+            spoil_time=100,
+            edible_raw=True,
+            raw_hp_restore=5
+        ),
+
+        "onion": Ingredient(
+            item_id="onion",
+            name="양파",
+            description="매운 맛이 나는 양파.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.2,
+            sell_price=5,
+            category=IngredientCategory.VEGETABLE,
+            food_value=1.0,
+            spoil_time=150,
+            edible_raw=True,
+            raw_hp_restore=2
+        ),
+
+        "tea_leaf": Ingredient(
+            item_id="tea_leaf",
+            name="찻잎",
+            description="향긋한 찻잎.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.UNCOMMON,
+            weight=0.1,
+            sell_price=15,
+            category=IngredientCategory.VEGETABLE,
+            food_value=0.5,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "ginger": Ingredient(
+            item_id="ginger",
+            name="생강",
+            description="알싸한 맛의 생강.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.UNCOMMON,
+            weight=0.1,
+            sell_price=15,
+            category=IngredientCategory.SPICE,
+            food_value=0.5,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        # === 달걀 ===
+        "egg": Ingredient(
+            item_id="egg",
+            name="달걀",
+            description="신선한 달걀.",
             item_type=ItemType.MATERIAL,
             rarity=ItemRarity.COMMON,
             weight=0.1,
-            sell_price=1,
-            category=IngredientCategory.FILLER,
+            sell_price=5,
+            category=IngredientCategory.EGG,
+            food_value=1.0,
+            spoil_time=80,
+            edible_raw=True,
+            raw_hp_restore=5
+        ),
+
+        # === 조미료 ===
+        "salt": Ingredient(
+            item_id="salt",
+            name="소금",
+            description="짠맛을 내는 소금.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.1,
+            sell_price=5,
+            category=IngredientCategory.SPICE,
             food_value=0.0,
             spoil_time=0,
-            edible_raw=False,
+            edible_raw=False
+        ),
+
+        "sugar": Ingredient(
+            item_id="sugar",
+            name="설탕",
+            description="단맛을 내는 설탕.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.1,
+            sell_price=5,
+            category=IngredientCategory.SWEETENER,
+            food_value=0.5,
+            spoil_time=0,
+            edible_raw=True,
+            raw_hp_restore=2
+        ),
+
+        # === 해산물 ===
+        "shellfish": Ingredient(
+            item_id="shellfish",
+            name="조개",
+            description="단단한 껍질의 조개.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.3,
+            sell_price=10,
+            category=IngredientCategory.FISH,
+            food_value=1.0,
+            spoil_time=60,
+            edible_raw=False
+        ),
+
+        # === 물 ===
+        "water": Ingredient(
+            item_id="water",
+            name="물",
+            description="깨끗한 물.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.5,
+            sell_price=1,
+            category=IngredientCategory.FILLER,
+            food_value=0.5,
+            spoil_time=0,
+            edible_raw=True,
             raw_hp_restore=0,
-            raw_mp_restore=0
+            raw_mp_restore=5
+        ),
+
+        # === 희귀 재료 (Rare Ingredients) ===
+        "golden_apple": Ingredient(
+            item_id="golden_apple",
+            name="황금 사과",
+            description="황금빛으로 빛나는 사과. 강력한 마력이 느껴진다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.LEGENDARY,
+            weight=0.5,
+            sell_price=100,
+            category=IngredientCategory.FRUIT,
+            food_value=5.0,
+            spoil_time=0, # 썩지 않음
+            edible_raw=True,
+            raw_hp_restore=100,
+            raw_mp_restore=100
+        ),
+
+        "truffle": Ingredient(
+            item_id="truffle",
+            name="송로버섯",
+            description="땅속의 다이아몬드라 불리는 버섯.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.EPIC,
+            weight=0.2,
+            sell_price=80,
+            category=IngredientCategory.MUSHROOM,
+            food_value=3.0,
+            spoil_time=100,
+            edible_raw=True,
+            raw_hp_restore=20
+        ),
+
+        "star_fruit": Ingredient(
+            item_id="star_fruit",
+            name="별모양 과일",
+            description="별을 닮은 신비한 과일.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=0.3,
+            sell_price=40,
+            category=IngredientCategory.FRUIT,
+            food_value=2.0,
+            spoil_time=80,
+            edible_raw=True,
+            raw_mp_restore=50
+        ),
+
+        "mandrake": Ingredient(
+            item_id="mandrake",
+            name="만드라고라",
+            description="비명을 지르는 뿌리 식물. 약효가 뛰어나다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.EPIC,
+            weight=0.5,
+            sell_price=60,
+            category=IngredientCategory.VEGETABLE,
+            food_value=2.0,
+            spoil_time=0,
+            edible_raw=False # 기절함
+        ),
+
+        "slime_jelly": Ingredient(
+            item_id="slime_jelly",
+            name="슬라임 젤리",
+            description="슬라임의 체액. 쫄깃하다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.2,
+            sell_price=5,
+            category=IngredientCategory.MEAT, # 고기 취급?
+            food_value=0.5,
+            spoil_time=0,
+            edible_raw=True,
+            raw_hp_restore=5
+        ),
+
+        "dragon_scale": Ingredient(
+            item_id="dragon_scale",
+            name="용의 비늘",
+            description="드래곤의 단단한 비늘. 갈아서 약재로 쓴다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.LEGENDARY,
+            weight=1.0,
+            sell_price=200,
+            category=IngredientCategory.SPICE,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "phoenix_feather": Ingredient(
+            item_id="phoenix_feather",
+            name="불사조의 깃털",
+            description="영원히 타오르는 깃털.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.LEGENDARY,
+            weight=0.1,
+            sell_price=300,
+            category=IngredientCategory.SPICE,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
         ),
     }
 

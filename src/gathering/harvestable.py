@@ -80,33 +80,53 @@ class HarvestableObject:
         """타입별 기본 루트 테이블 (드롭률 대폭 증가)"""
         loot_tables = {
             HarvestableType.BERRY_BUSH: [
-                ("berry", 3, 6),  # 2-4 → 3-6
+                ("berry", 3, 6),
+                ("tomato", 1, 2),
+                ("star_fruit", 0, 1), # 희귀: 별모양 과일
             ],
             HarvestableType.MUSHROOM_PATCH: [
-                ("red_mushroom", 2, 4),  # 1-2 → 2-4
-                ("blue_mushroom", 1, 2),  # 0-1 → 1-2 (확률적 → 확정)
+                ("red_mushroom", 2, 4),
+                ("blue_mushroom", 1, 2),
+                ("ginger", 0, 2),
+                ("truffle", 0, 1), # 희귀: 송로버섯
             ],
             HarvestableType.HERB_PLANT: [
-                ("carrot", 2, 4),  # 1-2 → 2-4
-                ("potato", 1, 3),  # 0-2 → 1-3
-                ("magic_herb", 0, 2),  # 0-1 → 0-2
+                ("carrot", 2, 4),
+                ("potato", 1, 3),
+                ("onion", 1, 3),
+                ("magic_herb", 0, 2),
+                ("tea_leaf", 0, 2),
+                ("flour", 0, 2),
+                ("rice", 0, 2),
+                ("sugar", 0, 2),
+                ("spice", 0, 1),
+                ("mandrake", 0, 1), # 희귀: 만드라고라
             ],
             HarvestableType.TREE: [
-                ("stick", 2, 5),  # 1-3 → 2-5
-                ("apple", 1, 3),  # 0-2 → 1-3
-                ("berry", 1, 2),  # 0-1 → 1-2
+                ("stick", 2, 5),
+                ("apple", 1, 3),
+                ("egg", 0, 2),
+                ("berry", 1, 2),
+                ("golden_apple", 0, 1), # 전설: 황금 사과
             ],
             HarvestableType.ROCK: [
-                ("ice", 2, 4),  # 1-2 → 2-4
+                ("ice", 2, 4),
+                ("salt", 1, 3),
+                ("dragon_scale", 0, 1), # 전설: 용의 비늘 (광맥에서 발견?)
             ],
             HarvestableType.WATER: [
-                ("fish", 2, 5),  # 1-3 → 2-5
-                ("ice", 1, 2),  # 0-1 → 1-2
+                ("fish", 2, 5),
+                ("shellfish", 1, 3),
+                ("water", 2, 5),
+                ("ice", 1, 2),
+                ("slime_jelly", 0, 2), # 물가에 슬라임?
             ],
             HarvestableType.CARCASS: [
-                ("monster_meat", 2, 4),  # 1-2 → 2-4
-                ("beast_meat", 1, 2),  # 0-1 → 1-2 (확정)
-                ("dragon_meat", 0, 1),  # 추가: 희귀 드롭
+                ("monster_meat", 2, 4),
+                ("beast_meat", 1, 2),
+                ("milk", 0, 2),
+                ("dragon_meat", 0, 1),
+                ("phoenix_feather", 0, 1), # 전설: 불사조 깃털
             ],
             HarvestableType.COOKING_POT: [
                 # 요리솥은 채집 대상이 아니라 상호작용 오브젝트

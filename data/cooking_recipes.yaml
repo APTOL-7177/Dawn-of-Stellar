@@ -1,0 +1,930 @@
+# Cooking Recipes Data
+# Format:
+# - id: unique_id
+#   name: Display Name
+#   ingredients: {item_id_or_category: count_or_value, ...}
+#   effects: {effect_type: value, ...}
+#   difficulty: 1-10 (Higher is harder, better rewards)
+#   description: Flavor text
+#   priority: LOW/MEDIUM/HIGH/VERY_HIGH (optional)
+#   result_category: prepared_dish (optional)
+#   food_value: float (optional, default 1.0)
+
+# ==========================================
+# 0. 중간 재료 (Intermediate Ingredients)
+# 직접 먹기보다는 다른 요리의 재료로 사용됨
+# ==========================================
+
+- id: "dough"
+  name: "반죽"
+  ingredients:
+    flour: 1
+    water: 1
+  effects:
+    hp_heal: 5
+  difficulty: 1
+  result_category: grain
+  food_value: 1.0
+  description: "밀가루와 물을 섞어 만든 반죽. 빵이나 면의 재료."
+
+- id: "butter"
+  name: "버터"
+  ingredients:
+    milk: 2
+    salt: 1
+  effects:
+    hp_heal: 10
+  difficulty: 2
+  result_category: dairy
+  food_value: 1.0
+  description: "우유를 저어 만든 고소한 버터."
+
+- id: "cheese"
+  name: "치즈"
+  ingredients:
+    milk: 2
+  effects:
+    hp_heal: 20
+    brv_heal: 10
+  difficulty: 2
+  result_category: dairy
+  food_value: 1.0
+  description: "우유를 발효시켜 만든 치즈."
+
+- id: "cream"
+  name: "생크림"
+  ingredients:
+    milk: 1
+    sugar: 1
+  effects:
+    hp_heal: 15
+    brv_heal: 15
+  difficulty: 2
+  result_category: dairy
+  food_value: 1.0
+  description: "달콤하고 부드러운 크림."
+
+- id: "tomato_sauce"
+  name: "토마토 소스"
+  ingredients:
+    tomato: 2
+    herb: 1
+    salt: 1
+  effects:
+    hp_heal: 15
+  difficulty: 2
+  result_category: vegetable
+  food_value: 1.0
+  description: "토마토를 으깨 만든 기본 소스."
+
+- id: "meat_stock"
+  name: "고기 육수"
+  ingredients:
+    meat: 1
+    water: 2
+    onion: 1
+  effects:
+    hp_heal: 30
+  difficulty: 2
+  result_category: meat
+  food_value: 1.0
+  description: "고기를 푹 끓여낸 진한 육수."
+
+- id: "fish_stock"
+  name: "생선 육수"
+  ingredients:
+    fish: 1
+    water: 2
+    herb: 1
+  effects:
+    hp_heal: 25
+    mp_heal: 10
+  difficulty: 2
+  result_category: fish
+  food_value: 1.0
+  description: "생선 뼈를 우려낸 시원한 육수."
+
+- id: "apple_jam"
+  name: "사과 잼"
+  ingredients:
+    apple: 2
+    honey: 1
+  effects:
+    hp_heal: 50
+    brv_heal: 20
+  difficulty: 2
+  result_category: sweetener
+  food_value: 1.0
+  description: "사과를 졸여 만든 달콤한 잼."
+
+- id: "berry_jam"
+  name: "베리 잼"
+  ingredients:
+    wild_berry: 3
+    sugar: 1
+  effects:
+    hp_heal: 40
+    brv_heal: 30
+  difficulty: 2
+  result_category: sweetener
+  food_value: 1.0
+  description: "베리의 상큼함이 살아있는 잼."
+
+- id: "boiled_egg"
+  name: "삶은 달걀"
+  ingredients:
+    egg: 1
+    water: 1
+  effects:
+    hp_heal: 40
+  difficulty: 1
+  result_category: egg
+  food_value: 1.0
+  description: "간단하게 삶은 달걀."
+
+# ==========================================
+# 1. 초급 요리 (Tier 1) - 생존 및 기본 회복
+# Target: ~50 HP / ~25 MP
+# ==========================================
+
+- id: "herb_soup"
+  name: "약초 수프"
+  ingredients:
+    herb: 2
+  effects:
+    hp_heal: 50
+    mp_heal: 20
+  difficulty: 1
+  description: "따뜻하게 데운 약초 물."
+
+- id: "mushroom_stew"
+  name: "버섯 스튜"
+  ingredients:
+    mushroom: 3.0
+  effects:
+    hp_heal: 40
+    mp_heal: 40
+    buff: "magic"
+    duration: 5
+  difficulty: 1
+  description: "버섯의 풍미가 살아있는 걸쭉한 스튜."
+
+- id: "grilled_fish"
+  name: "생선 구이"
+  ingredients:
+    fish: 1.0
+    meat: 0.0
+  effects:
+    hp_heal: 60
+    mp_heal: 10
+  difficulty: 1
+  description: "신선한 생선을 구운 요리."
+
+- id: "roasted_meat"
+  name: "구운 고기"
+  ingredients:
+    meat: 1.0
+  effects:
+    hp_heal: 50
+  difficulty: 1
+  description: "간단하게 구운 고기."
+
+- id: "fruit_salad"
+  name: "과일 샐러드"
+  ingredients:
+    fruit: 3.0
+  effects:
+    hp_heal: 30
+    mp_heal: 30
+  difficulty: 1
+  description: "신선한 과일로 만든 샐러드."
+
+- id: "egg_fry"
+  name: "계란 프라이"
+  ingredients:
+    egg: 1
+  effects:
+    hp_heal: 45
+    brv_heal: 10
+  difficulty: 1
+  description: "노른자가 살아있는 계란 프라이."
+
+- id: "toast"
+  name: "토스트"
+  ingredients:
+    bread: 1
+  effects:
+    hp_heal: 30
+    brv_heal: 20
+  difficulty: 1
+  description: "바삭하게 구운 식빵."
+
+# ==========================================
+# 2. 중급 요리 (Tier 2) - 본격적인 탐험
+# Target: ~200 HP / ~100 MP
+# ==========================================
+
+- id: "meatballs"
+  name: "미트볼"
+  ingredients:
+    meat: 2.0
+    dough: 1 # Requires intermediate
+  effects:
+    hp_heal: 180
+    brv_heal: 60
+  difficulty: 3
+  description: "다진 고기와 반죽을 섞어 만든 미트볼."
+
+- id: "honey_bread"
+  name: "꿀빵"
+  ingredients:
+    dough: 1
+    honey: 1
+  effects:
+    hp_heal: 100
+    brv_heal: 100
+  difficulty: 2
+  result_category: grain
+  description: "꿀을 발라 구운 달콤한 빵."
+
+- id: "vegetable_soup_rich"
+  name: "진한 야채 스프"
+  ingredients:
+    vegetable: 2.0
+    butter: 1 # Requires intermediate
+    milk: 1
+  effects:
+    hp_heal: 150
+    mp_heal: 80
+    buff: "defense"
+    duration: 8
+  difficulty: 3
+  description: "버터로 풍미를 더한 야채 스프."
+
+- id: "fish_and_chips"
+  name: "피쉬 앤 칩스"
+  ingredients:
+    fish: 1
+    potato: 2
+    dough: 1
+  effects:
+    hp_heal: 220
+    buff: "speed"
+    duration: 8
+  difficulty: 3
+  description: "생선 튀김과 감자 튀김."
+
+- id: "omurice"
+  name: "오므라이스"
+  ingredients:
+    rice: 1
+    egg: 2
+    tomato_sauce: 1 # Requires intermediate
+  effects:
+    hp_heal: 250
+    mp_heal: 50
+  difficulty: 3
+  description: "계란으로 감싼 볶음밥."
+
+- id: "cream_pasta"
+  name: "크림 파스타"
+  ingredients:
+    dough: 1 # Pasta noodle
+    cream: 1
+    milk: 1
+  effects:
+    hp_heal: 200
+    mp_heal: 100
+    buff: "defense"
+    duration: 10
+  difficulty: 3
+  description: "부드러운 크림 소스 파스타."
+
+- id: "tomato_pasta"
+  name: "토마토 파스타"
+  ingredients:
+    dough: 1
+    tomato_sauce: 1
+    herb: 1
+  effects:
+    hp_heal: 180
+    mp_heal: 80
+    buff: "agility"
+    duration: 8
+  difficulty: 3
+  description: "새콤한 토마토 소스 파스타."
+
+# ==========================================
+# 3. 고급 요리 (Tier 3) - 복합 요리
+# Target: ~550 HP / ~250 MP
+# ==========================================
+
+- id: "pizza"
+  name: "콤비네이션 피자"
+  ingredients:
+    dough: 1
+    tomato_sauce: 1
+    cheese: 1
+    meat: 1.0
+  effects:
+    hp_heal: 600
+    brv_heal: 200
+    buff: "defense"
+    duration: 15
+  difficulty: 5
+  description: "토핑이 가득한 피자. 한 조각만 먹어도 배부르다."
+
+- id: "carbonara"
+  name: "까르보나라"
+  ingredients:
+    dough: 1
+    cream: 1
+    egg: 1
+    meat: 1 # Bacon
+  effects:
+    hp_heal: 550
+    mp_heal: 150
+    buff: "stamina"
+    duration: 12
+  difficulty: 5
+  description: "계란 노른자와 크림으로 맛을 낸 정통 파스타."
+
+- id: "steak_dinner"
+  name: "스테이크 정식"
+  ingredients:
+    steak: 1 # Requires cooked steak
+    roasted_vegetables: 1 # Requires cooked veg
+    wine: 1
+  effects:
+    hp_heal: 800
+    mp_heal: 100
+    buff: "attack"
+    duration: 20
+  difficulty: 6
+  description: "스테이크와 가니쉬, 와인이 곁들여진 정식."
+
+- id: "seafood_paella"
+  name: "해산물 파에야"
+  ingredients:
+    rice: 2
+    fish_stock: 1
+    shellfish: 2
+    spice: 1
+  effects:
+    hp_heal: 500
+    mp_heal: 300
+    buff: "magic"
+    duration: 15
+  difficulty: 5
+  description: "해산물의 풍미가 쌀알에 배어든 요리."
+
+- id: "beef_stew_royal"
+  name: "궁중 갈비찜"
+  ingredients:
+    meat: 3
+    meat_stock: 1
+    vegetable: 2
+    soy_sauce: 1
+  effects:
+    hp_heal: 700
+    mp_heal: 100
+    max_hp_bonus: 50
+    duration: 15
+  difficulty: 6
+  description: "최상급 갈비를 육수에 졸여 만든 궁중 요리."
+
+- id: "jam_sandwich"
+  name: "잼 샌드위치"
+  ingredients:
+    honey_bread: 1
+    apple_jam: 1
+  effects:
+    hp_heal: 300
+    mp_heal: 150
+    buff: "speed"
+    duration: 10
+  difficulty: 3
+  description: "달콤한 잼을 바른 샌드위치."
+
+- id: "club_sandwich"
+  name: "클럽 샌드위치"
+  ingredients:
+    toast: 2 # Requires cooked toast
+    roasted_meat: 1
+    vegetable: 1
+    cheese: 1
+  effects:
+    hp_heal: 500
+    brv_heal: 150
+    buff: "accuracy"
+    duration: 12
+  difficulty: 5
+  description: "여러 층으로 쌓아 올린 푸짐한 샌드위치."
+
+# ==========================================
+# 4. 디저트 & 음료 (Desserts & Drinks)
+# MP 회복 및 특수 버프 위주
+# ==========================================
+
+- id: "cheesecake"
+  name: "치즈 케이크"
+  ingredients:
+    cheese: 2
+    cream: 1
+    egg: 1
+    sugar: 1
+  effects:
+    hp_heal: 200
+    mp_heal: 400
+    buff: "magic"
+    duration: 15
+  difficulty: 5
+  description: "진한 치즈의 풍미가 느껴지는 케이크."
+
+- id: "fruit_tart"
+  name: "과일 타르트"
+  ingredients:
+    dough: 1
+    cream: 1
+    fruit: 2.0
+  effects:
+    mp_heal: 350
+    buff: "luck"
+    duration: 12
+  difficulty: 4
+  description: "상큼한 과일이 올라간 타르트."
+
+- id: "pancakes"
+  name: "팬케이크"
+  ingredients:
+    dough: 1
+    milk: 1
+    egg: 1
+    honey: 1
+  effects:
+    hp_heal: 250
+    mp_heal: 150
+    buff: "speed"
+    duration: 10
+  difficulty: 3
+  description: "폭신폭신한 팬케이크."
+
+- id: "royal_milk_tea"
+  name: "로얄 밀크티"
+  ingredients:
+    tea_leaf: 1
+    milk: 2
+    honey: 1
+  effects:
+    mp_heal: 300
+    cure_status: "silence"
+    buff: "magic_defense"
+    duration: 10
+  difficulty: 3
+  description: "우유를 듬뿍 넣어 끓인 홍차."
+
+- id: "fruit_punch"
+  name: "과일 펀치"
+  ingredients:
+    fruit: 3.0
+    water: 1
+    sugar: 1
+  effects:
+    mp_heal: 250
+    brv_heal: 100
+  difficulty: 2
+  description: "여러 가지 과일을 섞어 만든 시원한 음료."
+
+# ==========================================
+# 5. 최상급 요리 (Tier 4) - 전설의 요리
+# Target: ~1000+ HP / Full MP / Unique Buffs
+# ==========================================
+
+- id: "beef_wellington"
+  name: "비프 웰링턴"
+  ingredients:
+    steak: 1
+    dough: 1
+    mushroom_stew: 1 # Mushroom duxelles substitute
+    butter: 1
+  effects:
+    hp_heal: 1000 # Capped from 1500
+    brv_heal: 500
+    max_hp_bonus: 200
+    buff: "all_stats"
+    duration: 30
+  difficulty: 8
+  priority: VERY_HIGH
+  description: "스테이크를 페이스트리 반죽으로 감싸 구운 최고의 요리."
+
+- id: "seafood_platter_deluxe"
+  name: "황제 해산물 플래터"
+  ingredients:
+    grilled_fish: 2
+    seafood_soup: 1
+    kraken_tentacle: 1
+    butter: 1
+  effects:
+    hp_heal: 1000 # Capped from 1200
+    mp_heal: 800
+    buff: "water_absorb"
+    duration: 25
+  difficulty: 8
+  priority: VERY_HIGH
+  description: "바다의 모든 진미를 모아놓은 플래터."
+
+- id: "dragon_feast"
+  name: "용의 연회"
+  ingredients:
+    dragon_steak: 1
+    dragon_stew: 1
+    wine: 2
+  effects:
+    hp_heal: 1000 # Capped from 3000
+    mp_heal: 1000
+    brv_heal: 1000
+    buff: "dragon_power"
+    duration: 40
+  difficulty: 9
+  priority: VERY_HIGH
+  description: "용 사냥꾼들만이 즐길 수 있다는 전설의 연회."
+
+- id: "ambrosia"
+  name: "암브로시아"
+  ingredients:
+    fruit_tart: 1
+    honey_cake: 1
+    royal_milk_tea: 1
+    phoenix_feather: 1
+  effects:
+    hp_heal: 1000 # Capped from 9999
+    mp_heal: 1000 # Capped from 9999
+    cure_status: "all"
+    buff: "immortality"
+    duration: 50
+  difficulty: 10
+  priority: VERY_HIGH
+  description: "신들의 음식. 먹는 순간 불멸에 가까운 힘을 얻는다."
+
+# ==========================================
+# 6. 상태 이상 회복 요리
+# ==========================================
+
+- id: "antidote_salad"
+  name: "해독 샐러드"
+  ingredients:
+    herb: 2
+    vegetable: 1.0
+  effects:
+    hp_heal: 100
+    cure_status: "poison"
+  difficulty: 2
+  description: "독소를 배출해주는 샐러드."
+
+- id: "clarity_soup"
+  name: "맑은 정신 수프"
+  ingredients:
+    fish_stock: 1
+    mint: 1
+  effects:
+    mp_heal: 200
+    cure_status: "confusion"
+  difficulty: 3
+  description: "머리를 맑게 해주는 시원한 국물."
+
+- id: "warm_ginger_tea"
+  name: "따뜻한 생강차"
+  ingredients:
+    ginger: 1
+    honey: 1
+    water: 1
+  effects:
+    hp_heal: 50
+    cure_status: "freeze"
+    buff: "cold_resistance"
+  difficulty: 2
+  description: "몸을 따뜻하게 녹여주는 차."
+
+# ==========================================
+# 7. 실패 요리 (Fallback)
+# ==========================================
+
+- id: "wet_goop"
+  name: "축축한 음식"
+  ingredients: {} 
+  effects:
+    hp_heal: 5
+    mp_heal: 0
+  difficulty: 0
+  priority: FALLBACK
+  description: "뭔가 잘못된 요리... 먹을 수는 있지만..."
+
+- id: "monster_lasagna"
+  name: "몬스터 라자냐"
+  ingredients:
+    monster_meat: 2
+    dough: 1
+    cheese: 1
+  effects:
+    hp_heal: 50
+    is_poison: true
+    poison_damage: 50
+  difficulty: 3
+  priority: HIGH
+  description: "몬스터 고기를 듬뿍 넣은 라자냐. 위험해 보인다."
+
+# ==========================================
+# 8. 특수 효과 요리 (Special Effects)
+# Critical, Cooldown, XP, Resistance
+# ==========================================
+
+- id: "golden_apple_pie"
+  name: "황금 사과 파이"
+  ingredients:
+    golden_apple: 1
+    dough: 1
+    honey: 1
+    butter: 1
+  effects:
+    hp_heal: 1000
+    mp_heal: 500
+    critical_rate: 0.2 # +20% Critical
+    buff: "luck"
+    duration: 30
+  difficulty: 7
+  priority: VERY_HIGH
+  description: "황금 사과로 만든 전설적인 파이. 행운과 치명타율이 상승한다."
+
+- id: "assassins_stew"
+  name: "암살자의 스튜"
+  ingredients:
+    monster_meat: 2
+    red_mushroom: 2
+    spice: 1
+  effects:
+    hp_heal: 200
+    critical_rate: 0.15 # +15% Critical
+    buff: "accuracy"
+    duration: 20
+  difficulty: 5
+  description: "치명적인 일격을 위한 스튜."
+
+- id: "time_warp_tea"
+  name: "시간 왜곡 차"
+  ingredients:
+    tea_leaf: 2
+    magic_herb: 1
+    water: 1
+  effects:
+    mp_heal: 300
+    cooldown_reduction: 0.2 # -20% Cooldown
+    buff: "speed"
+    duration: 20
+  difficulty: 6
+  description: "시간의 흐름을 느리게 느끼게 하는 차. 스킬 쿨타임이 감소한다."
+
+- id: "quickstep_salad"
+  name: "신속의 샐러드"
+  ingredients:
+    vegetable: 3.0
+    berry: 2
+  effects:
+    hp_heal: 150
+    cooldown_reduction: 0.1 # -10% Cooldown
+    buff: "evasion"
+    duration: 15
+  difficulty: 4
+  description: "몸을 가볍게 해주는 샐러드."
+
+- id: "scholars_porridge"
+  name: "학자의 죽"
+  ingredients:
+    rice: 2
+    fish: 1
+    water: 2
+  effects:
+    hp_heal: 200
+    mp_heal: 200
+    xp_bonus: 0.2 # +20% XP
+    duration: 30
+  difficulty: 4
+  description: "머리가 좋아지는 죽. 경험치 획득량이 증가한다."
+
+- id: "wisdom_soup"
+  name: "지혜의 수프"
+  ingredients:
+    mandrake: 1
+    magic_herb: 2
+    milk: 1
+  effects:
+    mp_heal: 500
+    xp_bonus: 0.5 # +50% XP
+    max_mp_bonus: 100
+    duration: 40
+  difficulty: 8
+  priority: VERY_HIGH
+  description: "고대의 지혜가 담긴 수프. 깨달음을 얻게 해준다."
+
+- id: "fireproof_chili"
+  name: "화염 저항 칠리"
+  ingredients:
+    meat: 2.0
+    spice: 2
+    tomato_sauce: 1
+  effects:
+    hp_heal: 300
+    elemental_resist:
+      fire: 0.5 # +50% Fire Resist
+    buff: "defense"
+    duration: 20
+  difficulty: 5
+  description: "이열치열. 불에 대한 저항력을 높여준다."
+
+- id: "ice_cream_warding"
+  name: "수호의 아이스크림"
+  ingredients:
+    ice: 2
+    cream: 1
+    sugar: 1
+    berry: 1
+  effects:
+    mp_heal: 200
+    elemental_resist:
+      ice: 0.5 # +50% Ice Resist
+    cure_status: "burn"
+    duration: 20
+  difficulty: 4
+  description: "차가운 기운으로 냉기 저항력을 높여준다."
+
+- id: "truffle_risotto"
+  name: "송로버섯 리조또"
+  ingredients:
+    rice: 2
+    truffle: 1
+    cream: 1
+    cheese: 1
+  effects:
+    hp_heal: 800
+    mp_heal: 300
+    buff: "all_stats"
+    duration: 25
+  difficulty: 7
+  description: "송로버섯의 깊은 향이 배어있는 고급 리조또."
+
+- id: "star_fruit_tart"
+  name: "별빛 타르트"
+  ingredients:
+    dough: 1
+    cream: 1
+    star_fruit: 2
+  effects:
+    mp_heal: 600
+    max_mp_bonus: 150
+    buff: "magic"
+    duration: 20
+  difficulty: 6
+  description: "반짝이는 별빛을 담은 타르트."
+
+- id: "slime_pudding"
+  name: "슬라임 푸딩"
+  ingredients:
+    slime_jelly: 2
+    sugar: 1
+    milk: 1
+  effects:
+    hp_heal: 200
+    buff: "defense" # Physical resist conceptually
+    elemental_resist:
+      physical: 0.1
+    duration: 15
+  difficulty: 3
+  description: "탱글탱글한 슬라임 푸딩."
+
+- id: "dragon_scale_soup"
+  name: "용비늘 국"
+  ingredients:
+    dragon_scale: 1
+    water: 3
+    spice: 1
+  effects:
+    hp_heal: 500
+    elemental_resist:
+      fire: 0.8
+      ice: 0.8
+      lightning: 0.8
+    buff: "defense"
+    duration: 30
+  difficulty: 8
+  priority: VERY_HIGH
+  description: "용의 비늘을 우려낸 국물. 모든 속성 저항이 크게 증가한다."
+
+- id: "phoenix_tear_tea"
+  name: "불사조의 눈물 차"
+  ingredients:
+    phoenix_feather: 1
+    water: 2
+    honey: 1
+  effects:
+    hp_heal: 1000
+    mp_heal: 1000
+    cure_status: "all"
+    buff: "regeneration" # Custom buff logic needed elsewhere or handled as generic
+    duration: 30
+  difficulty: 9
+  priority: VERY_HIGH
+  description: "불사조의 깃털을 우려낸 차. 놀라운 치유력이 있다."
+
+- id: "ginger_ale"
+  name: "진저 에일"
+  ingredients:
+    ginger: 2
+    sugar: 1
+    water: 1
+  effects:
+    mp_heal: 150
+    cure_status: "nausea" # Conceptually
+    buff: "digestion"
+    duration: 10
+  difficulty: 3
+  description: "생강으로 만든 시원한 음료."
+
+- id: "seafood_pasta"
+  name: "해산물 파스타"
+  ingredients:
+    dough: 1
+    shellfish: 2
+    tomato_sauce: 1
+  effects:
+    hp_heal: 400
+    mp_heal: 100
+    buff: "water_breath" # Conceptually
+    duration: 15
+  difficulty: 5
+  description: "신선한 조개가 들어간 파스타."
+
+- id: "egg_tart"
+  name: "에그 타르트"
+  ingredients:
+    dough: 1
+    egg: 2
+    cream: 1
+    sugar: 1
+  effects:
+    hp_heal: 300
+    mp_heal: 200
+    buff: "happiness"
+    duration: 10
+  difficulty: 4
+  description: "부드러운 커스터드 크림이 듬뿍."
+
+- id: "sushi_premium"
+  name: "특급 초밥"
+  ingredients:
+    rice: 1
+    fish: 1
+    shellfish: 1
+  effects:
+    hp_heal: 500
+    mp_heal: 100
+    buff: "dexterity"
+    duration: 15
+  difficulty: 5
+  description: "엄선된 재료로 만든 초밥."
+
+- id: "rice_ball"
+  name: "주먹밥"
+  ingredients:
+    rice: 1
+    salt: 1
+  effects:
+    hp_heal: 100
+    brv_heal: 50
+  difficulty: 1
+  description: "간단하게 뭉친 주먹밥."
+
+- id: "fried_rice_special"
+  name: "특제 볶음밥"
+  ingredients:
+    rice: 1
+    egg: 1
+    meat: 1
+    vegetable: 1
+  effects:
+    hp_heal: 400
+    buff: "all_stats"
+    duration: 10
+  difficulty: 4
+  description: "다양한 재료가 들어간 볶음밥."
+
+- id: "milk_tea"
+  name: "밀크티"
+  ingredients:
+    tea_leaf: 1
+    milk: 1
+    sugar: 1
+  effects:
+    mp_heal: 150
+    buff: "calm"
+    duration: 10
+  difficulty: 2
+  description: "달콤하고 부드러운 밀크티."
