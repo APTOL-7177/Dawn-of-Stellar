@@ -41,6 +41,7 @@ class Inventory:
         self.party = party or []
         self.slots: List[InventorySlot] = []
         self.gold = 0
+        self.storage_bonus = 0.0  # 창고 시설 보너스 (무게 추가)
         
         # 요리 쿨타임 (전투 턴 기준)
         self.cooking_cooldown_turn: Optional[int] = None  # 요리 사용한 전투 턴
@@ -97,10 +98,13 @@ class Inventory:
             # 레벨 보너스: 1 Level = +0.1kg
             total += total_level * 0.1
 
+        # 창고 보너스 추가 (시설 레벨 업그레이드에 따라 증가)
+        total += self.storage_bonus
+
         # 1/3 곱적용 (창고 시스템 도입으로 인벤토리 축소)
         # 기존: total = total * 0.6
-        # 수정: total = total * 0.6 * (1/3) = total * 0.2
-        total = total * 0.2
+        # 수정: total = total * 0.6 * (1/2) = total * 0.3 (1.5배 증가)
+        total = total * 0.3
 
         return round(total, 1)
 

@@ -864,46 +864,34 @@ class DungeonGenerator:
                 logger.debug(f"특수 함정 배치: {trap_type.value} at {pos}")
 
     def _place_environmental_effects(self, dungeon: DungeonMap, floor_number: int):
-        """환경 효과 배치 (겹치지 않도록)"""
+        """환경 효과 배치 (바이옴 방식)"""
         from src.world.environmental_effects import EnvironmentalEffectGenerator
         
-        # 이미 사용된 타일 추적 (모든 효과가 겹치지 않도록)
-        used_tiles = set()
+        # 환경 효과 생성 (한 번 호출로 모든 바이옴 생성)
+        effects = EnvironmentalEffectGenerator.generate_for_floor(
+            floor_number, 
+            dungeon.width, 
+            dungeon.height
+        )
         
-        # 층에 따라 여러 효과 생성 시도 (최대 2-3개)
-        max_attempts = 2 if floor_number <= 5 else 3
         added_effects = []
         
-        for attempt in range(max_attempts):
-            # 환경 효과 생성
-            effects = EnvironmentalEffectGenerator.generate_for_floor(
-                floor_number, 
-                dungeon.width, 
-                dungeon.height
-            )
+        for effect in effects:
+            # 이동 가능한 타일에만 효과 적용 (벽 제외)
+            filtered_tiles = set()
+            for x, y in effect.affected_tiles:
+                tile = dungeon.get_tile(x, y)
+                if tile and tile.walkable and tile.tile_type == TileType.FLOOR:
+                    filtered_tiles.add((x, y))
             
-            # 생성된 효과 중 겹치지 않는 것만 추가
-            for effect in effects:
-                # 이동 가능한 타일에만 효과 적용
-                filtered_tiles = set()
-                for x, y in effect.affected_tiles:
-                    tile = dungeon.get_tile(x, y)
-                    if tile and tile.walkable and tile.tile_type == TileType.FLOOR:
-                        filtered_tiles.add((x, y))
-                
-                if not filtered_tiles:
-                    continue
-                
-                # 이미 사용된 타일과 겹치는지 확인
-                overlap = filtered_tiles & used_tiles
-                if not overlap:
-                    # 겹치지 않으면 추가
-                    effect.affected_tiles = filtered_tiles
-                    dungeon.environment_effect_manager.add_effect(effect)
-                    used_tiles.update(filtered_tiles)
-                    added_effects.append(effect)
-                    logger.info(f"환경 효과 배치: {effect.name} ({len(filtered_tiles)} 타일)")
-                    break
+            if not filtered_tiles:
+                continue
+            
+            # 필터링된 타일로 업데이트
+            effect.affected_tiles = filtered_tiles
+            dungeon.environment_effect_manager.add_effect(effect)
+            added_effects.append(effect)
+            logger.info(f"환경 효과 배치: {effect.name} ({len(filtered_tiles)} 타일)")
         
         if added_effects:
-            logger.info(f"환경 효과 {len(added_effects)}개 배치 완료 (겹침 없음)")
+            logger.info(f"환경 효과 {len(added_effects)}개 배치 완료")

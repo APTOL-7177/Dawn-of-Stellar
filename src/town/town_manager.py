@@ -241,17 +241,18 @@ class TownManager:
         """시설 효과 적용 (업그레이드 시 호출)"""
         if facility.type == FacilityType.STORAGE:
             # 인벤토리 무게 제한 확장 (기본 무게 + 시설 레벨에 따른 보너스)
-            # Lv 1: +0, Lv 2: +4, Lv 3: +8, Lv 4: 무게 20% 감소 (효율적 포장)
+            # Lv 1: +0, Lv 2: +4, Lv 3: +8, Lv 4: +12 (무게 20% 감소는 레벨 4 추가 보너스로 별도 구현 가능)
             bonus_weight = (facility.level - 1) * 4
-            if hasattr(player, 'max_weight'):
-                # 기본 무게(예: 50)에 보너스 추가. 
-                # 주의: 이 방식은 player.max_weight가 '기본값'인지 '현재값'인지에 따라 다름.
-                # 안전하게 StatManager를 통해 보너스를 주는 것이 좋음.
-                if hasattr(player, 'stat_manager'):
-                    player.stat_manager.add_bonus("max_weight", "town_storage", bonus_weight)
+            
+            # 인벤토리 객체의 storage_bonus 속성에 직접 설정
+            if hasattr(player, 'inventory'):
+                if hasattr(player.inventory, 'storage_bonus'):
+                    player.inventory.storage_bonus = bonus_weight
+                    logger.info(f"창고 보너스 적용: +{bonus_weight}kg (창고 Lv.{facility.level})")
                 else:
-                    # StatManager가 없으면 직접 수정 (덜 안전함)
-                    player.max_weight += 10 # 단순 증가 (임시)
+                    logger.warning("인벤토리에 storage_bonus 속성이 없습니다")
+            else:
+                logger.warning("플레이어에 inventory 속성이 없습니다")
                 
     def apply_all_effects(self, player: Any):
         """모든 시설 효과 적용 (게임 로드 시 호출)"""

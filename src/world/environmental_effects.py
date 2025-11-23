@@ -179,20 +179,27 @@ class EnvironmentalEffectManager:
         """
         # === 시간당 지속 피해 효과 ===
         if effect.effect_type == EnvironmentalEffectType.POISON_SWAMP:
-            # 독 늪: 시간당 피해
+            # 독 늪: 시간당 피해 + 이동 시 소량 피해
             if not is_movement:
                 damage = int(player.max_hp * 0.02 * effect.intensity)  # 2% HP 감소
                 player.current_hp = max(1, player.current_hp - damage)
                 return f"독 늪이 당신을 침식합니다! ({damage} 데미지)"
-            return None
+            else:
+                # 이동 시에도 소량 데미지 (메시지 없음)
+                damage = max(1, int(player.max_hp * 0.005 * effect.intensity))
+                player.current_hp = max(1, player.current_hp - damage)
+                return None  # 메시지 제거
         
         elif effect.effect_type == EnvironmentalEffectType.RADIATION_ZONE:
-            # 방사능 구역: 시간당 피해
+            # 방사능 구역: 시간당 피해 + 이동 시 소량 피해
             if not is_movement:
                 damage = int(12 * effect.intensity)
                 player.current_hp = max(1, player.current_hp - damage)
                 return f"방사능이 당신을 해칩니다! ({damage} 데미지)"
-            return None
+            else:
+                damage = max(1, int(3 * effect.intensity))
+                player.current_hp = max(1, player.current_hp - damage)
+                return None  # 메시지 제거
         
         elif effect.effect_type == EnvironmentalEffectType.CURSED_ZONE:
             # 저주받은 구역: 시간당 피해
@@ -200,7 +207,7 @@ class EnvironmentalEffectManager:
                 damage = int(player.max_hp * 0.015 * effect.intensity)  # 1.5% HP 감소
                 player.current_hp = max(1, player.current_hp - damage)
                 return f"저주의 기운이 당신을 갉아먹습니다! ({damage} 데미지)"
-            return "저주받은 기운이 당신을 약화시킵니다..."
+            return None  # 메시지 제거
         
         elif effect.effect_type == EnvironmentalEffectType.BLOOD_MOON:
             # 피의 달: 시간당 피해 (피의 저주)
@@ -208,23 +215,23 @@ class EnvironmentalEffectManager:
                 damage = int(player.max_hp * 0.025 * effect.intensity)  # 2.5% HP 감소
                 player.current_hp = max(1, player.current_hp - damage)
                 return f"피의 달의 저주가 당신을 괴롭힙니다! ({damage} 데미지)"
-            return "피의 달이 전투 본능을 자극합니다..."
+            return None  # 메시지 제거
         
         # === 이동 시 즉시 피해 효과 ===
         elif effect.effect_type == EnvironmentalEffectType.BURNING_FLOOR:
-            # 불타는 바닥: 이동 시마다 데미지
+            # 불타는 바닥: 이동 시마다 데미지 (메시지는 제거)
             if is_movement:
                 damage = int(15 * effect.intensity)
                 player.current_hp = max(1, player.current_hp - damage)
-                return f"불타는 바닥! ({damage} 화상 데미지)"
+                return None  # 메시지 제거
             return None
         
         elif effect.effect_type == EnvironmentalEffectType.ELECTRIC_FIELD:
-            # 전기장: 이동 시마다 감전 데미지
+            # 전기장: 이동 시마다 감전 데미지 (메시지는 제거)
             if is_movement:
                 damage = int(10 * effect.intensity)
                 player.current_hp = max(1, player.current_hp - damage)
-                return f"전기장이 당신을 감전시킵니다! ({damage} 데미지)"
+                return None  # 메시지 제거
             return None
         
         # === 시간당 지속 회복 효과 ===
@@ -237,7 +244,7 @@ class EnvironmentalEffectManager:
                 else:
                     player.current_hp = min(player.max_hp, player.current_hp + heal)
                 return f"신성한 땅이 당신을 치유합니다. (+{heal} HP)"
-            return None
+            return None  # 메시지 제거
         
         elif effect.effect_type == EnvironmentalEffectType.BLESSED_SANCTUARY:
             # 축복받은 성역: 시간당 회복
@@ -248,7 +255,7 @@ class EnvironmentalEffectManager:
                 else:
                     player.current_hp = min(player.max_hp, player.current_hp + heal)
                 return f"축복받은 성역이 당신을 회복시킵니다! (+{heal} HP)"
-            return "축복받은 성역이 당신을 강화합니다!"
+            return None  # 메시지 제거
         
         elif effect.effect_type == EnvironmentalEffectType.HALLOWED_LIGHT:
             # 신성한 빛: 시간당 회복
@@ -259,7 +266,7 @@ class EnvironmentalEffectManager:
                 else:
                     player.current_hp = min(player.max_hp, player.current_hp + heal)
                 return f"신성한 빛이 당신을 치유합니다! (+{heal} HP)"
-            return "신성한 빛이 당신을 보호합니다."
+            return None  # 메시지 제거
         
         elif effect.effect_type == EnvironmentalEffectType.MANA_VORTEX:
             # 마나 소용돌이: 시간당 MP 회복
@@ -271,11 +278,20 @@ class EnvironmentalEffectManager:
                     else:
                         player.current_mp = min(player.max_mp, player.current_mp + mp_restore)
                     return f"마나 소용돌이가 마력을 회복시킵니다! (+{mp_restore} MP)"
-            return "마나 소용돌이가 마력을 증폭시킵니다."
-        
-        # === 스탯 수정만 있는 효과 (피해/회복 없음) ===
-        # DENSE_FOG, DARKNESS, ICY_TERRAIN, GRAVITY_ANOMALY, WINDSTORM 등은
-        # 스탯 수정만 하므로 여기서는 None 반환
+            return None  # 메시지 제거
+            
+        # === 기타 효과 ===
+        elif effect.effect_type == EnvironmentalEffectType.ICY_TERRAIN:
+            # 메시지 제거
+            return None
+            
+        elif effect.effect_type == EnvironmentalEffectType.DENSE_FOG:
+            # 메시지 제거
+            return None
+            
+        elif effect.effect_type == EnvironmentalEffectType.DARKNESS:
+            # 메시지 제거
+            return None
         
         return None
     
@@ -354,7 +370,7 @@ class EnvironmentalEffectGenerator:
     @staticmethod
     def generate_for_floor(floor_number: int, map_width: int, map_height: int) -> list:
         """
-        층별 환경 효과 생성 (겹치지 않도록)
+        층별 환경 효과 생성 (바이옴 방식)
         
         Args:
             floor_number: 던전 층
@@ -366,29 +382,27 @@ class EnvironmentalEffectGenerator:
         """
         effects = []
         
-        # 50% 확률로 환경 효과 없음
-        if random.random() < 0.5:
-            return effects
-        
-        # 층에 따른 효과 타입 선택
+        # 층에 따른 효과 타입 풀 설정
         if floor_number <= 3:
-            effect_types = [
+            available_types = [
                 EnvironmentalEffectType.DENSE_FOG,
                 EnvironmentalEffectType.HOLY_GROUND,
                 EnvironmentalEffectType.BLESSED_SANCTUARY,
                 EnvironmentalEffectType.MANA_VORTEX,
+                EnvironmentalEffectType.ICY_TERRAIN, # 저층에도 얼음 추가
             ]
         elif floor_number <= 7:
-            effect_types = [
+            available_types = [
                 EnvironmentalEffectType.POISON_SWAMP,
                 EnvironmentalEffectType.DENSE_FOG,
                 EnvironmentalEffectType.ICY_TERRAIN,
                 EnvironmentalEffectType.BURNING_FLOOR,
                 EnvironmentalEffectType.ELECTRIC_FIELD,
                 EnvironmentalEffectType.WINDSTORM,
+                EnvironmentalEffectType.GRAVITY_ANOMALY,
             ]
         else:
-            effect_types = [
+            available_types = [
                 EnvironmentalEffectType.DARKNESS,
                 EnvironmentalEffectType.CURSED_ZONE,
                 EnvironmentalEffectType.BURNING_FLOOR,
@@ -399,34 +413,103 @@ class EnvironmentalEffectGenerator:
                 EnvironmentalEffectType.HALLOWED_LIGHT,
             ]
         
-        # 랜덤 효과 선택
-        effect_type = random.choice(effect_types)
+        # 최소 3가지 이상의 효과 타입 선택
+        num_biomes = random.randint(3, min(5, len(available_types)))
+        selected_types = random.sample(available_types, num_biomes)
         
-        # 효과가 적용될 타일 생성 (맵의 일부 영역)
-        effect = EnvironmentalEffect(
-            effect_type=effect_type,
-            intensity=random.uniform(0.8, 1.5)
-        )
+        # 전체 맵 크기
+        total_tiles = map_width * map_height
         
-        # 이미 사용된 타일 추적 (겹치지 않도록)
+        # 효과가 적용될 총 타일 수 (층에 따라 5% ~ 20%로 증가)
+        # 1층: 5%, 15층 이상: 20%
+        min_ratio = 0.05
+        max_ratio = 0.2
+        max_floor_scaling = 15
+        
+        current_floor_capped = min(floor_number, max_floor_scaling)
+        
+        if max_floor_scaling > 1:
+            progress = (current_floor_capped - 1) / (max_floor_scaling - 1)
+        else:
+            progress = 1.0
+            
+        ratio = min_ratio + (max_ratio - min_ratio) * progress
+        
+        target_effect_tiles = int(total_tiles * ratio)
+        logger.info(f"층 {floor_number} 환경 효과 비율 목표: {ratio*100:.1f}% ({target_effect_tiles} 타일)")
+        
+        # 각 바이옴당 할당할 타일 수 (약간의 랜덤성 부여)
+        tiles_per_biome = []
+        remaining_tiles = target_effect_tiles
+        for i in range(num_biomes - 1):
+            # 평균의 0.8 ~ 1.2배
+            avg_tiles = target_effect_tiles // num_biomes
+            count = int(random.uniform(0.8, 1.2) * avg_tiles)
+            tiles_per_biome.append(count)
+            remaining_tiles -= count
+        tiles_per_biome.append(remaining_tiles) # 나머지는 마지막 바이옴에
+        
+        # 이미 사용된 타일 추적
         used_tiles = set()
-        num_tiles = int(map_width * map_height * random.uniform(0.2, 0.4))
-        max_attempts = num_tiles * 10  # 최대 시도 횟수
         
-        attempts = 0
-        while len(effect.affected_tiles) < num_tiles and attempts < max_attempts:
-            x = random.randint(1, map_width - 2)
-            y = random.randint(1, map_height - 2)
+        # 각 바이옴 생성
+        for i, effect_type in enumerate(selected_types):
+            target_count = tiles_per_biome[i]
+            if target_count <= 0:
+                continue
+                
+            effect = EnvironmentalEffect(
+                effect_type=effect_type,
+                intensity=random.uniform(0.8, 1.5)
+            )
             
-            # 이미 다른 효과에 사용된 타일이면 건너뜀
-            if (x, y) not in used_tiles:
-                effect.affected_tiles.add((x, y))
-                used_tiles.add((x, y))
+            # 시드 포인트 선택 (랜덤 위치)
+            # 맵 가장자리는 피함
+            seed_x = random.randint(2, map_width - 3)
+            seed_y = random.randint(2, map_height - 3)
             
-            attempts += 1
-        
-        if len(effect.affected_tiles) > 0:
-            effects.append(effect)
-            logger.info(f"환경 효과 생성: {effect.name} (영향 타일: {len(effect.affected_tiles)})")
+            # 영역 확장 (Region Growing)
+            # 큐를 사용하여 덩어리감 있게 확장
+            candidates = [(seed_x, seed_y)]
+            current_biome_tiles = set()
+            
+            attempts = 0
+            max_attempts = target_count * 5
+            
+            while len(current_biome_tiles) < target_count and candidates and attempts < max_attempts:
+                attempts += 1
+                
+                # 랜덤하게 후보 선택 (불규칙한 모양을 위해)
+                idx = random.randint(0, len(candidates) - 1)
+                cx, cy = candidates[idx]
+                
+                # 이미 처리된 후보는 제거 (단, 확률적으로 남겨두어 뭉치게 할 수도 있음)
+                if (cx, cy) in current_biome_tiles or (cx, cy) in used_tiles:
+                    candidates.pop(idx)
+                    continue
+                
+                # 타일 추가
+                current_biome_tiles.add((cx, cy))
+                used_tiles.add((cx, cy))
+                
+                # 인접 타일 후보에 추가
+                # 4방향 + 대각선(확률적)으로 자연스럽게
+                directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+                if random.random() < 0.3: # 30% 확률로 대각선 확장
+                    directions.extend([(1, 1), (1, -1), (-1, 1), (-1, -1)])
+                
+                for dx, dy in directions:
+                    nx, ny = cx + dx, cy + dy
+                    
+                    # 맵 범위 체크
+                    if 1 <= nx < map_width - 1 and 1 <= ny < map_height - 1:
+                        if (nx, ny) not in used_tiles and (nx, ny) not in current_biome_tiles:
+                            # 이미 후보에 있는지는 체크하지 않음 (확률 높이기 위해)
+                            candidates.append((nx, ny))
+            
+            if current_biome_tiles:
+                effect.affected_tiles = current_biome_tiles
+                effects.append(effect)
+                logger.info(f"바이옴 생성: {effect.name} (타일 {len(current_biome_tiles)}개)")
         
         return effects
