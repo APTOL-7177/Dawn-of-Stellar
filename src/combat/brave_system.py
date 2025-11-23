@@ -550,38 +550,41 @@ class BraveSystem:
 
             # BREAK 상태를 1턴 동안만 유지
             if character.break_turn_count >= 1:
-                # BREAK 해제 및 BRV 회복
+                # BREAK 해제 및 BRV 회복 (init_brv 사용)
+                # init_brv는 초기 BRV 값 (stat_manager 또는 적 속성)
+                init_brv_value = self.calculate_int_brv(character)  # 실제 초기 BRV 계산
                 character.is_broken = False
                 character.break_turn_count = 0
-                character.current_brv = character.int_brv
+                character.current_brv = init_brv_value
 
-                self.logger.info(f"{character.name} BREAK 해제 및 BRV 회복: {character.int_brv}")
+                self.logger.info(f"{character.name} BREAK 해제 및 BRV 회복: {init_brv_value}")
 
                 event_bus.publish(Events.CHARACTER_BRV_CHANGE, {
                     "character": character,
-                    "change": character.int_brv,
+                    "change": init_brv_value,
                     "current": character.current_brv,
                     "max": character.max_brv
                 })
 
-                return character.int_brv
+                return init_brv_value
             else:
                 # 아직 BREAK 상태 유지
                 self.logger.debug(f"{character.name} BREAK 상태 유지")
                 return 0
 
-        # 일반적인 경우: BRV가 0일 때만 회복
+        # 일반적인 경우: BRV가 0일 때만 회복 (init_brv 사용)
         if character.current_brv <= 0:
-            character.current_brv = character.int_brv
+            init_brv_value = self.calculate_int_brv(character)  # 실제 초기 BRV 계산
+            character.current_brv = init_brv_value
 
             event_bus.publish(Events.CHARACTER_BRV_CHANGE, {
                 "character": character,
-                "change": character.int_brv,
+                "change": init_brv_value,
                 "current": character.current_brv,
                 "max": character.max_brv
             })
 
-            return character.int_brv
+            return init_brv_value
 
         return 0
 

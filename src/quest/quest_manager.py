@@ -612,6 +612,75 @@ class QuestManager:
             "is_active": quest.is_active,
             "is_complete": quest.is_complete
         }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "QuestManager":
+        """딕셔너리에서 복원"""
+        manager = cls()
+        
+        # 활성 퀘스트 복원
+        for quest_data in data.get("active_quests", []):
+            quest = cls._quest_from_dict(quest_data)
+            if quest:
+                manager.active_quests.append(quest)
+        
+        # 수락 가능한 퀘스트 복원
+        for quest_data in data.get("available_quests", []):
+            quest = cls._quest_from_dict(quest_data)
+            if quest:
+                manager.available_quests.append(quest)
+        
+        # 완료된 퀘스트 복원
+        for quest_data in data.get("completed_quests", []):
+            quest = cls._quest_from_dict(quest_data)
+            if quest:
+                manager.completed_quests.append(quest)
+        
+        logger.info(f"퀘스트 매니저 로드: 활성 {len(manager.active_quests)}, 가능 {len(manager.available_quests)}, 완료 {len(manager.completed_quests)}")
+        return manager
+    
+    @staticmethod
+    def _quest_from_dict(data: Dict[str, Any]) -> Optional[Quest]:
+        """딕셔너리에서 퀘스트 복원"""
+        try:
+            # Objectives 복원
+            objectives = [
+                QuestObjective(
+                    description=obj["description"],
+                    target=obj["target"],
+                    current=obj.get("current", 0),
+                    required=obj.get("required", 1)
+                )
+                for obj in data.get("objectives", [])
+            ]
+            
+            # Reward 복원
+            reward_data = data.get("reward", {})
+            reward = QuestReward(
+                gold=reward_data.get("gold", 0),
+                experience=reward_data.get("experience", 0),
+                items=reward_data.get("items", []),
+                star_fragments=reward_data.get("star_fragments", 0),
+                reputation=reward_data.get("reputation", 0)
+            )
+            
+            # Quest 복원
+            quest = Quest(
+                quest_id=data.get("quest_id", ""),
+                name=data.get("name", ""),
+                description=data.get("description", ""),
+                quest_type=QuestType(data.get("quest_type", "bounty_hunt")),
+                difficulty=QuestDifficulty(data.get("difficulty", "normal")),
+                objectives=objectives,
+                reward=reward,
+                is_active=data.get("is_active", False),
+                is_complete=data.get("is_complete", False)
+            )
+            
+            return quest
+        except Exception as e:
+            logger.error(f"퀘스트 복원 실패: {e}")
+            return None
 
 
 # 전역 인스턴스

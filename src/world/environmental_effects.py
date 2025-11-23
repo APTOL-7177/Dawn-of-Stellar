@@ -1,18 +1,3 @@
-"""
-환경 효과 시스템 (Environmental Effects)
-
-던전의 특정 구역에 적용되는 환경 효과
-"""
-
-from enum import Enum
-from dataclasses import dataclass
-from typing import Dict, Any, Set
-import random
-
-from src.core.logger import get_logger
-
-logger = get_logger("dungeon_events")
-
 
 class EnvironmentalEffectType(Enum):
     """환경 효과 타입"""
@@ -368,7 +353,7 @@ class EnvironmentalEffectGenerator:
     """환경 효과 생성기"""
     
     @staticmethod
-    def generate_for_floor(floor_number: int, map_width: int, map_height: int) -> list:
+    def generate_for_floor(floor_number: int, map_width: int, map_height: int, seed: Optional[int] = None) -> list:
         """
         층별 환경 효과 생성 (바이옴 방식)
         
@@ -376,10 +361,17 @@ class EnvironmentalEffectGenerator:
             floor_number: 던전 층
             map_width: 맵 너비
             map_height: 맵 높이
+            seed: 랜덤 시드 (None이면 랜덤, 동일 시드 사용 시 동일한 환경 효과 생성)
             
         Returns:
             환경 효과 리스트
         """
+        # 시드 설정 (던전 생성과 구분하기 위해 다른 오프셋 사용)
+        if seed is not None:
+            env_seed = seed + floor_number * 1000 + 50000  # 환경 효과용 오프셋
+            random.seed(env_seed)
+            logger.info(f"환경 효과 생성 시드: {env_seed} (floor={floor_number})")
+        
         effects = []
         
         # 층에 따른 효과 타입 풀 설정

@@ -91,6 +91,9 @@ class DungeonMap:
         # 하위 호환성을 위한 별칭
         self.environmental_effect_manager = self.environment_effect_manager
 
+        # 생성 시드 (재생성용)
+        self.generation_seed: Optional[int] = None
+
         # 타일 초기화
         self._initialize_tiles()
 
@@ -177,9 +180,12 @@ class DungeonGenerator:
         # 채집 오브젝트 배치
         self._place_harvestables(dungeon, floor_number)
 
+        # 시드 저장 (로드 시 재생성용)
+        dungeon.generation_seed = seed
+
         # 환경 효과 배치 (마을이 아닌 경우만)
         if not hasattr(dungeon, 'is_town') or not dungeon.is_town:
-            self._place_environmental_effects(dungeon, floor_number)
+            self._place_environmental_effects(dungeon, floor_number, seed)
 
         logger.info(f"던전 생성 완료: {len(dungeon.rooms)}개 방")
         return dungeon
@@ -863,15 +869,16 @@ class DungeonGenerator:
                 dungeon.set_tile(pos[0], pos[1], trap_type, trap_damage=damage)
                 logger.debug(f"특수 함정 배치: {trap_type.value} at {pos}")
 
-    def _place_environmental_effects(self, dungeon: DungeonMap, floor_number: int):
+    def _place_environmental_effects(self, dungeon: DungeonMap, floor_number: int, seed: Optional[int] = None):
         """환경 효과 배치 (바이옴 방식)"""
         from src.world.environmental_effects import EnvironmentalEffectGenerator
         
-        # 환경 효과 생성 (한 번 호출로 모든 바이옴 생성)
+        # 환경 효과 생성 (한 번 호출로 모든 바이옴 생성, 시드 전달)
         effects = EnvironmentalEffectGenerator.generate_for_floor(
             floor_number, 
             dungeon.width, 
-            dungeon.height
+            dungeon.height,
+            seed  # 시드 전달
         )
         
         added_effects = []

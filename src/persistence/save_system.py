@@ -51,6 +51,10 @@ class SaveSystem:
             # TownManager 저장
             from src.town.town_manager import get_town_manager
             game_state["town_manager"] = get_town_manager().to_dict()
+            
+            # QuestManager 저장
+            from src.quest.quest_manager import get_quest_manager
+            game_state["quest_manager"] = get_quest_manager().to_dict()
 
             # JSON 직렬화 전에 모든 데이터 검증 및 정리
             cleaned_state = self._clean_for_json(game_state)
@@ -162,6 +166,18 @@ class SaveSystem:
                 loaded_manager = TownManager.from_dict(game_state["town_manager"])
                 manager.facilities = loaded_manager.facilities
                 logger.info("마을 데이터 복원 완료")
+            
+            # QuestManager 복원
+            if "quest_manager" in game_state:
+                from src.quest.quest_manager import get_quest_manager, QuestManager
+                # 전역 인스턴스를 로드된 매니저로 교체
+                loaded_quest_manager = QuestManager.from_dict(game_state["quest_manager"])
+                # 전역 인스턴스 업데이트
+                quest_manager = get_quest_manager()
+                quest_manager.available_quests = loaded_quest_manager.available_quests
+                quest_manager.active_quests = loaded_quest_manager.active_quests
+                quest_manager.completed_quests = loaded_quest_manager.completed_quests
+                logger.info(f"퀘스트 데이터 복원 완료: 활성 {len(quest_manager.active_quests)}개")
             
             return game_state
 

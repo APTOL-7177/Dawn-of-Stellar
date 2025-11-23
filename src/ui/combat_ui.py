@@ -1144,11 +1144,41 @@ class CombatUI:
             elif actor in self.combat_manager.allies:
                 # 플레이어 턴: UI 표시 (WAITING_ATB 상태일 때만)
                 if self.state == CombatUIState.WAITING_ATB:
-                    self.current_actor = actor
-                    self.action_menu = self._create_action_menu(actor)
-                    self.state = CombatUIState.ACTION_MENU
-                    self.add_message(f"{actor.name}의 턴!", (100, 255, 255))
-                    play_sfx("ui", "cursor_select")
+                    # 기절/마비/수면 등 행동 불가 상태 확인
+                    if hasattr(actor, 'status_manager') and not actor.status_manager.can_act():
+                        # 행동 불가 상태: 턴 자동 스킵
+                        from src.combat.status_effects import StatusType as StatusTypeEnum
+                        
+                        blocking_status = None
+                        for effect in actor.status_manager.status_effects:
+                            if effect.status_type in [StatusTypeEnum.STUN, StatusTypeEnum.SLEEP, StatusTypeEnum.FREEZE,
+                                                     StatusTypeEnum.PETRIFY, StatusTypeEnum.PARALYZE, StatusTypeEnum.TIME_STOP]:
+                                blocking_status = effect.name
+                                break
+                        
+                        status_name = blocking_status or "행동 불가 상태"
+                        self.add_message(f"{actor.name}(은)는 {status_name}로 인해 행동할 수 없습니다...", (200, 100, 100))
+                        logger.info(f"{actor.name} 턴 자동 스킵: {status_name}")
+                        
+                        # 상태이상 지속시간 감소
+                        expired = actor.status_manager.update_duration()
+                        if expired:
+                            logger.debug(f"{actor.name}: {len(expired)}개 상태 효과 만료 (행동 불가 중)")
+                        
+                        # ATB 소비 및 턴 스킵
+                        self.combat_manager.atb.consume_atb(actor)
+                        self.combat_manager._on_turn_end(actor)
+                        
+                        # 상태는 WAITING_ATB로 유지하여 다음 턴으로 넘어감
+                        # 행동 지연 타이머 설정 (0.5초 대기)
+                        self.action_delay_frames = 15  # 0.5초 (30 FPS 기준)
+                    else:
+                        # 행동 가능: 정상적으로 UI 표시
+                        self.current_actor = actor
+                        self.action_menu = self._create_action_menu(actor)
+                        self.state = CombatUIState.ACTION_MENU
+                        self.add_message(f"{actor.name}의 턴!", (100, 255, 255))
+                        play_sfx("ui", "cursor_select")
 
         # 전투 종료 체크
         if self.combat_manager.state in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
