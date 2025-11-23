@@ -71,7 +71,17 @@ class HotReloadManager:
             enabled: 핫 리로드 활성화 여부
         """
         self.enabled = enabled and WATCHDOG_AVAILABLE
-        self.src_dir = src_dir or Path(__file__).parent.parent
+        # src_dir가 지정되지 않으면 src/ 디렉토리 찾기
+        if src_dir is None:
+            # src/core/hot_reload.py -> src/
+            current_file = Path(__file__)
+            # src/core -> src
+            self.src_dir = current_file.parent.parent
+        else:
+            self.src_dir = src_dir
+        
+        # 프로젝트 루트 (src의 부모 디렉토리)
+        self.project_root = self.src_dir.parent
         
         # 변경된 파일 큐 (스레드 안전)
         self._changed_files: deque = deque()
@@ -118,11 +128,12 @@ class HotReloadManager:
         try:
             self.observer = Observer()
             handler = CodeChangeHandler(self)
-            self.observer.schedule(handler, str(self.src_dir.parent), recursive=True)
+            # 프로젝트 루트를 감시 (src/ 포함)
+            self.observer.schedule(handler, str(self.project_root), recursive=True)
             self.observer.start()
             self._running = True
             
-            logger.info(f"🔥 핫 리로드 활성화됨: {self.src_dir.parent} 감시 중")
+            logger.info(f"🔥 핫 리로드 활성화됨: {self.project_root} 감시 중")
         except Exception as e:
             logger.error(f"핫 리로드 시작 실패: {e}")
             self.enabled = False
@@ -197,15 +208,13 @@ class HotReloadManager:
         try:
             file_path = Path(file_path_str)
             
-            # src/ 디렉토리 기준으로 모듈 경로 계산
-            src_dir = self.src_dir.parent if self.src_dir.name != 'src' else self.src_dir
-            
+            # 프로젝트 루트 기준으로 상대 경로 계산
             try:
-                relative_path = file_path.relative_to(src_dir.parent)
+                relative_path = file_path.relative_to(self.project_root)
             except ValueError:
                 # 절대 경로로 변환 후 다시 시도
                 try:
-                    relative_path = file_path.resolve().relative_to(src_dir.parent.resolve())
+                    relative_path = file_path.resolve().relative_to(self.project_root.resolve())
                 except ValueError:
                     return None
                     

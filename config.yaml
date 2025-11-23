@@ -364,7 +364,7 @@ equipment:
   max_slots: 3
 experimental:
   advanced_ai: false
-  hot_reload: false
+  hot_reload: true
   procedural_story: false
 field_systems:
   cooking:
@@ -427,7 +427,7 @@ logging:
     max_size_mb: 10
 meta_progression:
   enabled: true
-  max_star_fragments: 9999
+  max_star_fragments: 999999
   star_fragment_drop_rate: 0.1
   unlock_costs:
     advanced_class: 100
