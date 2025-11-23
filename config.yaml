@@ -182,6 +182,7 @@ audio:
       land: Move2
       lever: Switch1
       pressure_plate: Switch1
+      rest: Inn1
       save: Save1
       stairs: Move1
       stairs_down: Move1

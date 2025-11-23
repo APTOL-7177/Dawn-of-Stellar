@@ -293,8 +293,8 @@ class QuestDatabase:
         turns = random.randint(50, 100)
         
         reward = QuestReward(
-            gold=(turns * 10) * 5,  # 5배 증가
-            experience=(turns * 5) * 5,  # 5배 증가
+            gold=(turns * 10) * 5 // 4,  # 5배 증가 후 1/4로 조정
+            experience=(turns * 5) * 5 // 4,  # 5배 증가 후 1/4로 조정
             star_fragments=(turns // 20) * 20  # 20배 증가
         )
         

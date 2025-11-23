@@ -375,9 +375,10 @@ def perform_inn_rest(
         context: TCOD 컨텍스트
         party: 파티 멤버
     """
-    # Inn 사운드 재생
+    # Inn 사운드 재생 (테스트용: recovery 사운드 사용)
     from src.audio import play_sfx
-    play_sfx("world", "inn")
+    play_sfx("character", "hp_heal_max")  # Recovery 사운드로 테스트
+    logger.info("여관 SFX 재생 시도")
     
     recovery_messages = ["푹 쉬었습니다!", ""]
 
