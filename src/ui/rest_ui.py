@@ -235,7 +235,7 @@ def open_inn_menu(
     inflation_multiplier = 1.0 + (max_floor_reached - 1) * 0.25
     cost = int(base_cost * inflation_multiplier)
     
-    current_gold = inventory.gold if inventory else 0
+    current_gold = inventory.gold if inventory is not None else 0
     
     menu_items = [
         f"휴식하기 ({cost}G)",
@@ -364,7 +364,7 @@ def open_inn_menu(
 
 def perform_inn_rest(
     console: tcod.console.Console,
-    context: tcod.context.Console,
+    context: tcod.context.Context,
     party: List[Any]
 ):
     """
@@ -376,8 +376,8 @@ def perform_inn_rest(
         party: 파티 멤버
     """
     # Inn 사운드 재생
-    from src.audio import play_me
-    play_me("Inn1")
+    from src.audio import play_sfx
+    play_sfx("world", "inn")
     
     recovery_messages = ["푹 쉬었습니다!", ""]
 

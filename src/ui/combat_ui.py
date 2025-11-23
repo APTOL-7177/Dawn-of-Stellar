@@ -81,7 +81,7 @@ class CombatUI:
         # 메시지 로그 (스크롤 형식, 제한 없이 저장)
         self.messages: List[CombatMessage] = []
         self.log_scroll_offset = 0  # 스크롤 오프셋 (0이면 최신 메시지)
-        self.log_visible_lines = 8  # 화면에 표시할 메시지 라인 수
+        self.log_visible_lines = 12  # 화면에 표시할 메시지 라인 수 (8 -> 12로 증가)
 
         # 메뉴
         self.action_menu: Optional[CursorMenu] = None
@@ -1910,12 +1910,12 @@ class CombatUI:
 
     def _render_messages(self, console: tcod.console.Console):
         """메시지 로그 렌더링 (오른쪽에 배치, 스크롤 형식)"""
-        # 커맨드 창(action_menu)과 같은 높이: y=33
-        msg_y = 33
+        # 커맨드 창(action_menu)과 같은 높이: y=30으로 위로 이동 (33 -> 30)
+        msg_y = 30
         
-        # 오른쪽에 배치: action_menu가 x=5, width=35이므로 x=42부터 시작
-        msg_x = 42
-        msg_width = self.screen_width - msg_x - 3  # 오른쪽 여백 3 (스크롤 인디케이터 공간)
+        # 오른쪽에 배치: x=40으로 왼쪽으로 이동하여 너비 증가 (42 -> 40)
+        msg_x = 40
+        msg_width = self.screen_width - msg_x - 2  # 오른쪽 여백 2 (스크롤 인디케이터 공간, 3 -> 2로 감소)
         
         # 구분선과 로그 제목
         separator = "─" * (msg_width - 12)  # "[전투 로그]" 공간 확보
@@ -4433,7 +4433,13 @@ def run_combat(
             # if isinstance(event, tcod.event.Quit):
             #     return CombatState.FLED
 
+
     logger.info(f"전투 종료: {ui.battle_result.value if ui.battle_result else 'unknown'}")
+
+    # Combat BGM fade out before field BGM starts
+    from src.audio import stop_bgm
+    stop_bgm(fade_out=True)
 
     # BGM은 main.py에서 처리 (필드 BGM으로 전환하기 위해)
     return ui.battle_result or CombatState.FLED
+

@@ -172,16 +172,10 @@ class HarvestableObject:
             # 게임오버 시 재료가 저장소로 이동하므로 드롭률을 낮춰 밸런스 조정
             qty = int(qty * 0.75)
 
+
             if qty > 0:
                 results[ingredient_id] = results.get(ingredient_id, 0) + qty
         
-        # 봇 전용: 채집 결과가 비어있으면 최소 1개 보장 (무한 시도 방지용)
-        # (봇 ID는 보통 'bot_'으로 시작한다고 가정)
-        if player_id and player_id.startswith('bot_') and not results:
-            # 기본 재료라도 하나 줌
-            default_item = self.loot_table[0][0] if self.loot_table else "stick"
-            results[default_item] = 1
-
         return results
 
     def harvest_by_bot(self, bot_id: str) -> Dict[str, int]:
