@@ -39,7 +39,6 @@ class GameMenu:
         self.menu_options = [
             ("파티 상태", MenuOption.PARTY_STATUS),
             ("인벤토리", MenuOption.INVENTORY),
-            ("요리", MenuOption.COOKING),
             ("상점", MenuOption.SHOP),
             ("게임 저장", MenuOption.SAVE_GAME),
             ("게임 불러오기", MenuOption.LOAD_GAME),

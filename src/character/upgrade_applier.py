@@ -226,14 +226,33 @@ class UpgradeApplier:
         if meta_progress is None:
             meta_progress = get_meta_progress()
         
+        logger.info("=" * 60)
+        logger.info("시작 장비 지급 함수 호출됨!")
+        logger.info("=" * 60)
+        
+        if not characters:
+            logger.warning("시작 장비 지급: 캐릭터 리스트가 비어있습니다.")
+            return
+        
+        logger.info(f"시작 장비 지급 시작: 캐릭터 수 {len(characters)}")
+        for i, char in enumerate(characters):
+            logger.info(f"  캐릭터 {i+1}: {char.name} (직업: {char.character_class}, 레벨: {char.level})")
+        
         # 대장간 레벨 확인
         blacksmith_level = meta_progress.get_facility_level("blacksmith")
+        logger.info(f"대장간 레벨: {blacksmith_level}")
+        
+        if blacksmith_level < 1:
+            logger.warning(f"대장간 레벨이 1 미만입니다: {blacksmith_level}, 기본값 1로 설정")
+            blacksmith_level = 1
         
         # 대장간 레벨에 따른 장비 등급 결정
         if blacksmith_level >= 4:
             target_rarity = "uncommon"
         else:
             target_rarity = "common"
+        
+        logger.info(f"목표 장비 등급: {target_rarity} (대장간 Lv.{blacksmith_level})")
         
         from src.equipment.item_system import (
             ItemGenerator, ItemRarity, Equipment
@@ -269,19 +288,27 @@ class UpgradeApplier:
         target_rarity_enum = rarity_map.get(target_rarity, ItemRarity.COMMON)
         
         for character in characters:
-            # 캐릭터가 이미 장비를 가지고 있으면 스킵
-            if (character.equipment.get("weapon") or 
-                character.equipment.get("armor") or 
-                character.equipment.get("accessory")):
-                logger.debug(f"{character.name}은(는) 이미 장비를 가지고 있어 스킵")
+            logger.info(f"시작 장비 지급 처리 시작: {character.name} (직업: {character.character_class})")
+            
+            # 캐릭터가 이미 장비를 가지고 있는지 확인
+            existing_weapon = character.equipment.get("weapon")
+            existing_armor = character.equipment.get("armor")
+            existing_accessory = character.equipment.get("accessory")
+            
+            logger.debug(f"{character.name} 현재 장비 상태 - 무기: {existing_weapon is not None}, 방어구: {existing_armor is not None}, 악세서리: {existing_accessory is not None}")
+            
+            # 캐릭터가 이미 모든 장비를 가지고 있으면 스킵
+            if existing_weapon and existing_armor and existing_accessory:
+                logger.info(f"{character.name}은(는) 이미 모든 장비를 가지고 있어 스킵")
                 continue
             
             # 캐릭터 데이터 로드하여 아키타입 확인
             try:
                 char_data = load_character_data(character.character_class)
                 archetype = char_data.get("archetype", "특수")
+                logger.debug(f"{character.name} 아키타입: {archetype} (직업: {character.character_class})")
             except Exception as e:
-                logger.warning(f"{character.name}의 아키타입 로드 실패: {e}, 기본값 사용")
+                logger.warning(f"{character.name}의 아키타입 로드 실패: {e}, 기본값 사용", exc_info=True)
                 archetype = "특수"
             
             # 역할군별 시작 장비 템플릿 ID 가져오기
@@ -294,27 +321,43 @@ class UpgradeApplier:
             weapon_id, armor_id, accessory_id = equipment_ids
             
             # 시작 장비 생성 및 지급
+            logger.info(f"{character.name} 장비 생성 시작: 무기={weapon_id}, 방어구={armor_id}, 악세서리={accessory_id}")
+            
             try:
                 from src.equipment.item_system import WEAPON_TEMPLATES, ARMOR_TEMPLATES, ACCESSORY_TEMPLATES
                 
-                # 무기 생성
+                # 템플릿 확인
+                logger.debug(f"템플릿 확인: 무기 템플릿 수={len(WEAPON_TEMPLATES)}, 방어구 템플릿 수={len(ARMOR_TEMPLATES)}, 악세서리 템플릿 수={len(ACCESSORY_TEMPLATES)}")
+                
+                # 무기 생성 (등급을 먼저 설정하고 나서 생성하면 안 되므로, 생성 후 수정)
+                if weapon_id not in WEAPON_TEMPLATES:
+                    logger.error(f"무기 템플릿을 찾을 수 없음: {weapon_id}, 사용 가능한 템플릿: {list(WEAPON_TEMPLATES.keys())[:5]}...")
+                    raise ValueError(f"무기 템플릿을 찾을 수 없음: {weapon_id}")
+                
+                logger.debug(f"무기 템플릿 찾음: {weapon_id}")
                 if weapon_id in WEAPON_TEMPLATES:
-                    weapon = ItemGenerator.create_weapon(weapon_id, add_random_affixes=True)
+                    weapon = ItemGenerator.create_weapon(weapon_id, add_random_affixes=False)
                 else:
                     raise ValueError(f"무기 템플릿을 찾을 수 없음: {weapon_id}")
                 
+                # 등급과 속성 설정
                 weapon.rarity = target_rarity_enum
                 weapon.weight = 0.1  # 무게 0.1kg
-                weapon.max_durability = 100  # 내구도 100
+                # 내구도 100으로 설정 (__post_init__는 이미 실행되었으므로 직접 수정)
+                weapon.max_durability = 100
                 weapon.current_durability = 100
-                # 랜덤 옵션 재생성 (등급에 맞게)
+                # 랜덤 옵션 생성 (등급에 맞게)
                 weapon.affixes = ItemGenerator.generate_random_affixes(target_rarity_enum, 1)
                 
+                logger.debug(f"무기 생성 완료: {weapon.name} (등급: {weapon.rarity.display_name}, 무게: {weapon.weight}kg, 내구도: {weapon.current_durability}/{weapon.max_durability})")
+                
                 # 방어구 생성
-                if armor_id in ARMOR_TEMPLATES:
-                    armor = ItemGenerator.create_armor(armor_id, add_random_affixes=True)
-                else:
+                if armor_id not in ARMOR_TEMPLATES:
+                    logger.error(f"방어구 템플릿을 찾을 수 없음: {armor_id}, 사용 가능한 템플릿: {list(ARMOR_TEMPLATES.keys())[:5]}...")
                     raise ValueError(f"방어구 템플릿을 찾을 수 없음: {armor_id}")
+                
+                logger.debug(f"방어구 템플릿 찾음: {armor_id}")
+                armor = ItemGenerator.create_armor(armor_id, add_random_affixes=False)
                 
                 armor.rarity = target_rarity_enum
                 armor.weight = 0.1
@@ -322,11 +365,15 @@ class UpgradeApplier:
                 armor.current_durability = 100
                 armor.affixes = ItemGenerator.generate_random_affixes(target_rarity_enum, 1)
                 
+                logger.debug(f"방어구 생성 완료: {armor.name} (등급: {armor.rarity.display_name}, 무게: {armor.weight}kg, 내구도: {armor.current_durability}/{armor.max_durability})")
+                
                 # 악세서리 생성
-                if accessory_id in ACCESSORY_TEMPLATES:
-                    accessory = ItemGenerator.create_accessory(accessory_id, add_random_affixes=True)
-                else:
+                if accessory_id not in ACCESSORY_TEMPLATES:
+                    logger.error(f"악세서리 템플릿을 찾을 수 없음: {accessory_id}, 사용 가능한 템플릿: {list(ACCESSORY_TEMPLATES.keys())[:5]}...")
                     raise ValueError(f"악세서리 템플릿을 찾을 수 없음: {accessory_id}")
+                
+                logger.debug(f"악세서리 템플릿 찾음: {accessory_id}")
+                accessory = ItemGenerator.create_accessory(accessory_id, add_random_affixes=False)
                 
                 accessory.rarity = target_rarity_enum
                 accessory.weight = 0.1
@@ -334,21 +381,52 @@ class UpgradeApplier:
                 accessory.current_durability = 100
                 accessory.affixes = ItemGenerator.generate_random_affixes(target_rarity_enum, 1)
                 
-                # 장비 장착
-                character.equipment["weapon"] = weapon
-                character.equipment["armor"] = armor
-                character.equipment["accessory"] = accessory
+                logger.debug(f"악세서리 생성 완료: {accessory.name} (등급: {accessory.rarity.display_name}, 무게: {accessory.weight}kg, 내구도: {accessory.current_durability}/{accessory.max_durability})")
                 
-                # 장비 스탯 적용
-                character.update_equipment_stats("weapon")
-                character.update_equipment_stats("armor")
-                character.update_equipment_stats("accessory")
+                # 장비 장착 (equip_item 메서드 사용)
+                logger.debug(f"{character.name} 장비 장착 시작...")
+                character.equip_item("weapon", weapon)
+                logger.debug(f"{character.name} 무기 장착 완료: {weapon.name}")
                 
-                logger.info(
-                    f"{character.name} 시작 장비 지급: {weapon.name}, {armor.name}, {accessory.name} "
-                    f"(등급: {target_rarity_enum.display_name}, 대장간 Lv.{blacksmith_level})"
-                )
+                character.equip_item("armor", armor)
+                logger.debug(f"{character.name} 방어구 장착 완료: {armor.name}")
+                
+                character.equip_item("accessory", accessory)
+                logger.debug(f"{character.name} 악세서리 장착 완료: {accessory.name}")
+                
+                # 장착 확인
+                final_weapon = character.equipment.get("weapon")
+                final_armor = character.equipment.get("armor")
+                final_accessory = character.equipment.get("accessory")
+                
+                if not final_weapon:
+                    logger.error(f"{character.name} 무기 장착 실패! weapon={final_weapon}")
+                else:
+                    logger.info(f"{character.name} 무기 장착 확인: {final_weapon.name}")
+                    
+                if not final_armor:
+                    logger.error(f"{character.name} 방어구 장착 실패! armor={final_armor}")
+                else:
+                    logger.info(f"{character.name} 방어구 장착 확인: {final_armor.name}")
+                    
+                if not final_accessory:
+                    logger.error(f"{character.name} 악세서리 장착 실패! accessory={final_accessory}")
+                else:
+                    logger.info(f"{character.name} 악세서리 장착 확인: {final_accessory.name}")
+                
+                if final_weapon and final_armor and final_accessory:
+                    logger.info(
+                        f"{character.name} 시작 장비 지급 완료: {weapon.name}, {armor.name}, {accessory.name} "
+                        f"(등급: {target_rarity_enum.display_name}, 대장간 Lv.{blacksmith_level})"
+                    )
+                else:
+                    logger.error(
+                        f"{character.name} 시작 장비 지급 불완전: 무기={'O' if final_weapon else 'X'}, "
+                        f"방어구={'O' if final_armor else 'X'}, 악세서리={'O' if final_accessory else 'X'}"
+                    )
                 
             except Exception as e:
                 logger.error(f"{character.name} 시작 장비 지급 실패: {e}", exc_info=True)
+                import traceback
+                logger.error(f"상세 오류:\n{traceback.format_exc()}")
 

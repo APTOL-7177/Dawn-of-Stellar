@@ -334,6 +334,64 @@ class TownInteractionHandler:
         }
 
 
+def create_town_dungeon_map(town_map: 'TownMap') -> Any:
+    """
+    TownMap을 DungeonMap으로 변환
+    
+    Args:
+        town_map: TownMap 인스턴스
+        
+    Returns:
+        DungeonMap 인스턴스
+    """
+    from src.world.dungeon_generator import DungeonMap
+    from src.world.tile import Tile, TileType
+    from src.world.dungeon_generator import Rect
+    
+    # 던전 맵 생성
+    dungeon = DungeonMap(town_map.width, town_map.height)
+    
+    # 마을 타일을 던전 타일로 변환
+    for y in range(town_map.height):
+        for x in range(town_map.width):
+            tile_char = town_map.tiles[y][x]
+            
+            # 타일 문자를 타일 타입으로 변환
+            if tile_char == " " or tile_char == ".":
+                # 빈 공간이나 도로는 FLOOR
+                dungeon.set_tile(x, y, TileType.FLOOR)
+            elif tile_char == "#":
+                # 벽은 WALL
+                dungeon.set_tile(x, y, TileType.WALL)
+            elif tile_char in ["T", "t", "*"]:
+                # 장식은 FLOOR (이동 가능)
+                dungeon.set_tile(x, y, TileType.FLOOR)
+            else:
+                # 건물 심볼도 FLOOR (이동 가능, 상호작용 가능)
+                dungeon.set_tile(x, y, TileType.FLOOR)
+    
+    # 마을 출입구를 계단으로 설정 (하단 중앙, 던전으로 나가는 계단)
+    exit_x, exit_y = town_map.width // 2, town_map.height - 2
+    dungeon.set_tile(exit_x, exit_y, TileType.STAIRS_DOWN)
+    dungeon.stairs_down = (exit_x, exit_y)
+    
+    # 빈 방 리스트 (마을은 방 구조가 없으므로)
+    dungeon.rooms = []
+    
+    # 건물 위치를 "방"으로 간주 (필요 시)
+    for building in town_map.buildings:
+        # 건물 위치를 간단한 방으로 추가 (시각화용)
+        from src.world.dungeon_generator import Rect
+        rect = Rect(building.x - 1, building.y - 1, 3, 3)
+        dungeon.rooms.append(rect)
+    
+    # 마을 표시 플래그 추가
+    dungeon.is_town = True
+    dungeon.town_map = town_map  # 원본 마을 맵 참조 저장
+    
+    return dungeon
+
+
 # 전역 인스턴스
 _town_map = TownMap()
 
