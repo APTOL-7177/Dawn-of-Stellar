@@ -44,7 +44,15 @@ class WorldUI:
         self.party = party
         self.map_renderer = MapRenderer(map_x=0, map_y=5)
         self.gauge_renderer = GaugeRenderer()
-        self.network_manager = network_manager  # 멀티플레이: 네트워크 관리자
+        self.network_manager = network_manager
+        if self.network_manager is None:
+            from src.core.logger import get_logger
+            logger = get_logger("world_ui")
+            logger.debug("WorldUI initialized with network_manager=None")
+        else:
+            from src.core.logger import get_logger
+            logger = get_logger("world_ui")
+            logger.debug(f"WorldUI initialized with network_manager={network_manager}")  # 멀티플레이: 네트워크 관리자
         self.local_player_id = local_player_id  # 멀티플레이: 로컬 플레이어 ID
         self.on_update = on_update  # 업데이트 콜백
 
@@ -613,7 +621,7 @@ class WorldUI:
                                     from src.ui.gold_shop_ui import open_gold_shop
                                     floor_level = self.exploration.floor_number if hasattr(self.exploration, 'floor_number') else 1
                                     logger.info(f"[건물 상호작용] 대장간 UI 열기 (층수: {floor_level}, inventory type: {type(self.inventory)})")
-                                    open_gold_shop(console, context, self.inventory, floor_level)
+                                    open_gold_shop(console, context, self.inventory, floor_level, shop_type="blacksmith")
                                 else:
                                     logger.warning(f"[건물 상호작용] 인벤토리가 없어 대장간을 열 수 없습니다. inventory={self.inventory}")
                                     self.add_message("인벤토리가 없어 대장간을 사용할 수 없습니다.")
@@ -625,7 +633,7 @@ class WorldUI:
                                     floor_level = self.exploration.floor_number if hasattr(self.exploration, 'floor_number') else 1
                                     logger.info(f"[건물 상호작용] 잡화점 UI 열기 (층수: {floor_level}, inventory type: {type(self.inventory)})")
                                     try:
-                                        open_gold_shop(console, context, self.inventory, floor_level)
+                                        open_gold_shop(console, context, self.inventory, floor_level, shop_type="shop")
                                         logger.info(f"[건물 상호작용] 잡화점 UI 열기 성공")
                                     except Exception as ui_error:
                                         logger.error(f"[건물 상호작용] 잡화점 UI 열기 오류: {ui_error}", exc_info=True)
@@ -643,9 +651,17 @@ class WorldUI:
                                 logger.info(f"[건물 상호작용] 여관 체크 - inventory={self.inventory is not None}, party={party_for_rest is not None}, inventory type={type(self.inventory) if self.inventory is not None else None}, party type={type(party_for_rest) if party_for_rest is not None else None}")
                                 
                                 if self.inventory is not None and party_for_rest is not None:
-                                    from src.ui.rest_ui import open_rest_menu
+                                    from src.ui.rest_ui import open_inn_menu
                                     logger.info(f"[건물 상호작용] 여관 UI 열기")
-                                    open_rest_menu(console, context, party_for_rest, self.inventory)
+                                    
+                                    # max_floor_reached 가져오기
+                                    max_floor = 1
+                                    if hasattr(self.exploration, 'game_stats') and 'max_floor_reached' in self.exploration.game_stats:
+                                        max_floor = self.exploration.game_stats['max_floor_reached']
+                                    elif hasattr(self.exploration, 'floor_number'):
+                                        max_floor = self.exploration.floor_number
+                                    
+                                    open_inn_menu(console, context, party_for_rest, self.inventory, max_floor)
                                 else:
                                     logger.warning(f"[건물 상호작용] 여관을 열 수 없습니다. inventory={self.inventory is not None}, party={party_for_rest is not None}")
                                     self.add_message("파티 정보가 없어 여관을 사용할 수 없습니다.")
@@ -715,11 +731,34 @@ class WorldUI:
                                 logger.info(f"[건물 상호작용] 모험가 길드")
                                 show_message(console, context, guild_message)
                             elif building.building_type == BuildingType.FOUNTAIN:
-                                # 분수대: 간단한 메시지만 표시
+                                # 분수대: 파티 전체 HP/MP 20% 회복 (부활 포함)
                                 from src.ui.game_menu import show_message
-                                fountain_message = interaction_result.get('message', '중앙 분수대에 입장했습니다. 마을의 중심입니다.')
-                                logger.info(f"[건물 상호작용] 분수대")
-                                show_message(console, context, fountain_message)
+                                from src.audio import play_sfx
+                                
+                                # 파티 정보 가져오기
+                                party_to_heal = self.party
+                                if not party_to_heal and hasattr(self.exploration, 'player') and hasattr(self.exploration.player, 'party'):
+                                    party_to_heal = self.exploration.player.party
+                                
+                                if party_to_heal:
+                                    recovered_count = 0
+                                    for member in party_to_heal:
+                                        # HP 20% 회복 (최소 1)
+                                        heal_amount = max(1, int(member.max_hp * 0.2))
+                                        member.heal(heal_amount, can_revive=True)
+                                        
+                                        # MP 20% 회복 (최소 1)
+                                        mp_amount = max(1, int(member.max_mp * 0.2))
+                                        member.restore_mp(mp_amount)
+                                        
+                                        recovered_count += 1
+                                    
+                                    play_sfx("ui", "heal")
+                                    logger.info(f"[건물 상호작용] 분수대 - 파티원 {recovered_count}명 회복 완료")
+                                    show_message(console, context, "분수대의 신비한 힘으로 파티원의 HP와 MP가 회복되었습니다.\n(HP/MP 20% 회복, 부활 포함)")
+                                else:
+                                    logger.warning("[건물 상호작용] 분수대 - 파티 정보 없음")
+                                    show_message(console, context, "분수대의 맑은 물이 흐르고 있습니다.")
                             else:
                                 # 기타 건물은 메시지만 표시
                                 from src.ui.game_menu import show_message

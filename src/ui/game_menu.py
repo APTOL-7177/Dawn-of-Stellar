@@ -20,6 +20,7 @@ class MenuOption(Enum):
     """메뉴 옵션"""
     PARTY_STATUS = "party_status"
     INVENTORY = "inventory"
+    QUEST_LIST = "quest_list"  # 퀘스트 목록
     COOKING = "cooking"  # 요리
     SAVE_GAME = "save"
     LOAD_GAME = "load"
@@ -39,6 +40,7 @@ class GameMenu:
         self.menu_options = [
             ("파티 상태", MenuOption.PARTY_STATUS),
             ("인벤토리", MenuOption.INVENTORY),
+            ("퀘스트 목록", MenuOption.QUEST_LIST),
             ("게임 저장", MenuOption.SAVE_GAME),
             ("게임 불러오기", MenuOption.LOAD_GAME),
             ("설정", MenuOption.OPTIONS),
@@ -220,6 +222,17 @@ def open_game_menu(
                         else:
                             show_message(console, context, "인벤토리가 없어서 요리를 할 수 없습니다.")
                             continue
+
+                    elif result == MenuOption.QUEST_LIST:
+                        # 퀘스트 목록 UI
+                        from src.quest.quest_manager import get_quest_manager
+                        quest_manager = get_quest_manager()
+                        if quest_manager:
+                            from src.ui.quest_list_ui import open_quest_list
+                            open_quest_list(console, context, quest_manager)
+                        else:
+                            show_message(console, context, "퀘스트 관리자를 찾을 수 없습니다.")
+                        continue
 
                     elif result == MenuOption.PARTY_STATUS and party:
                         open_party_status_menu(console, context, party, exploration=exploration)

@@ -86,7 +86,7 @@ audio:
     combat:
       attack_gun: Gun1
       attack_magic: Magic1
-      attack_physical: Sword1
+      attack_physical: Damage3
       battle_start: Battle1
       break: Break
       critical: Critical
@@ -182,6 +182,7 @@ audio:
       land: Move2
       lever: Switch1
       pressure_plate: Switch1
+      rest: Inn1
       save: Save1
       stairs: Move1
       stairs_down: Move1

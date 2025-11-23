@@ -229,7 +229,8 @@ def show_game_result(
     total_gold: int = 0,
     total_exp: int = 0,
     save_slot: Optional[Any] = None,
-    is_multiplayer: bool = False
+    is_multiplayer: bool = False,
+    inventory: Optional[Any] = None
 ):
     """
     게임 정산 화면 표시
@@ -244,6 +245,7 @@ def show_game_result(
         total_exp: 총 경험치
         save_slot: 세이브 슬롯 정보 (딕셔너리 또는 문자열, None 가능)
         is_multiplayer: 멀티플레이어 여부
+        inventory: 인벤토리 (게임 오버 시 재료 저장용)
     """
     # save_slot이 딕셔너리가 아니면 딕셔너리로 변환
     if save_slot is not None and not isinstance(save_slot, dict):
@@ -268,6 +270,19 @@ def show_game_result(
     handler = InputHandler()
 
     logger.info("게임 정산 화면 표시")
+
+    # 게임 오버 시 재료 아이템 저장소로 이동
+    if not is_victory:
+        from src.town.town_manager import get_town_manager
+        town_mgr = get_town_manager()
+        
+        if town_mgr and inventory:
+            try:
+                stored = town_mgr.store_all_materials_from_inventory(inventory)
+                if stored:
+                    logger.info(f"게임 오버: {len(stored)}종류의 재료 아이템을 허브 저장소로 이동")
+            except Exception as e:
+                logger.error(f"재료 저장 실패: {e}", exc_info=True)
 
     # 정산 완료 처리
     ui.finalize()

@@ -382,27 +382,24 @@ class TownInteractionHandler:
     @staticmethod
     def _interact_inn(player: Any) -> Dict[str, Any]:
         """여관 상호작용 - 파티 전체 회복 + 인플레이션"""
-        # 인플레이션: 파티 평균 레벨에 따라 가격 증가
+        # 인플레이션: 도달한 최고 층수에 따라 가격 증가 (층당 25%)
         base_cost = 100
-        level = 1  # 기본값
         
-        # Player 객체에서 파티의 첫 번째 멤버 레벨 가져오기
-        if hasattr(player, 'party') and player.party:
-            first_member = player.party[0]
-            if hasattr(first_member, 'level'):
-                level = first_member.level
-        # 또는 직접 level 속성이 있는 경우 (Character 객체 등)
-        elif hasattr(player, 'level'):
-            level = player.level
+        # 최고 도달 층수 가져오기
+        max_floor = 1
+        if hasattr(player, 'max_floor_reached'):
+            max_floor = player.max_floor_reached
         
-        level_multiplier = 2 ** (level // 5)  # 5레벨마다 2배 증가
-        cost = int(base_cost * level_multiplier)
+        # 인플레이션 배율 적용 (1층=1.0, 층당 +0.25)
+        # 예: 1층=100G, 5층=200G, 10층=325G
+        inflation_multiplier = 1.0 + (max_floor - 1) * 0.25
+        cost = int(base_cost * inflation_multiplier)
         
         return {
             "message": "여관에 오신 것을 환영합니다!",
             "options": ["휴식하기 (파티 전체 HP/MP 완전 회복 + 부활)", "나가기"],
             "cost": cost,
-            "level_multiplier": level_multiplier
+            "level_multiplier": inflation_multiplier  # 이름은 유지하되 의미는 인플레이션 배율
         }
     
     @staticmethod

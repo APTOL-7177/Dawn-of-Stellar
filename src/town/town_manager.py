@@ -19,6 +19,7 @@ class FacilityType(Enum):
     BLACKSMITH = "blacksmith"   # 대장간 (시작 장비 강화)
     ALCHEMY_LAB = "alchemy_lab" # 연금술 실험실 (포션 효율)
     STORAGE = "storage"         # 창고 (인벤토리 확장)
+    SHOP = "shop"               # 상점 (잡화점)
 
 
 @dataclass
@@ -50,6 +51,17 @@ class Facility:
             costs = {"wood": 30, "stone": 20, "iron_ore": 10, "gold": 500}
         elif self.level == 3:
             costs = {"wood": 100, "stone": 50, "iron_ore": 30, "gold": 2000}
+        
+        # 상점 업그레이드 비용 (별의 파편 사용)
+        if self.type == FacilityType.SHOP:
+            if self.level == 1:
+                costs = {}  # 별의 파편으로 구매하므로 재료 불필요
+            elif self.level == 2:
+                costs = {}  # 별의 파편으로 구매
+            elif self.level == 3:
+                costs = {}  # 별의 파편으로 구매
+            elif self.level == 4:
+                costs = {}  # 별의 파편으로 구매
             
         return costs
         
@@ -83,6 +95,13 @@ class Facility:
                 "최대 무게 +8",
                 "아이템 무게 20% 감소 (효율적 포장)"
             ]
+        elif self.type == FacilityType.SHOP:
+            effects = [
+                "기본 상점 운영",
+                "품목 종류 추가 (동시에 판매하는 아이템 종류 수 추가)",
+                "재고량 증가 (1.5배 또는 2배)",
+                "일부 상품 세일 (가격 20% 할인)"
+            ]
         else:
             return "알 수 없는 효과"
             
@@ -109,7 +128,8 @@ class TownManager:
                     FacilityType.KITCHEN: 4,
                     FacilityType.BLACKSMITH: 4,
                     FacilityType.ALCHEMY_LAB: 4,
-                    FacilityType.STORAGE: 4
+                    FacilityType.STORAGE: 4,
+                    FacilityType.SHOP: 4
                 }
                 logger.info("마을 시설 초기화: 개발 모드 (Lv.4)")
             else:
@@ -118,7 +138,8 @@ class TownManager:
                     FacilityType.KITCHEN: meta.get_facility_level("kitchen"),
                     FacilityType.BLACKSMITH: meta.get_facility_level("blacksmith"),
                     FacilityType.ALCHEMY_LAB: meta.get_facility_level("alchemy_lab"),
-                    FacilityType.STORAGE: meta.get_facility_level("storage")
+                    FacilityType.STORAGE: meta.get_facility_level("storage"),
+                    FacilityType.SHOP: meta.get_facility_level("shop")
                 }
                 logger.info(f"마을 시설 초기화: 메타 진행에서 로드 (주방 Lv.{initial_levels[FacilityType.KITCHEN]})")
         except:
@@ -127,7 +148,8 @@ class TownManager:
                 FacilityType.KITCHEN: 1,
                 FacilityType.BLACKSMITH: 1,
                 FacilityType.ALCHEMY_LAB: 1,
-                FacilityType.STORAGE: 1
+                FacilityType.STORAGE: 1,
+                FacilityType.SHOP: 1
             }
             logger.warning("Config/Meta 미초기화 - 마을 시설 기본 레벨(1)로 시작")
         
@@ -259,6 +281,46 @@ class TownManager:
                 logger.info(f"허브 저장소에 보관: {ingredient.name} x{count}")
         
         return stored_materials
+    
+    def store_all_materials_from_inventory(self, inventory: Any) -> Dict[str, int]:
+        """
+        게임 오버 시 인벤토리의 모든 재료 아이템을 허브 저장소로 이동
+        
+        Args:
+            inventory: Inventory 객체
+            
+        Returns:
+            저장된 재료 목록 {item_id: count}
+        """
+        from src.gathering.ingredient import IngredientDatabase
+        
+        stored_materials = {}
+        
+        if not hasattr(inventory, 'slots'):
+            logger.warning("인벤토리에 slots 속성이 없습니다")
+            return stored_materials
+        
+        # 인벤토리의 모든 슬롯 확인
+        for slot in inventory.slots:
+            if not slot or not slot.item:
+                continue
+            
+            # item_id 가져오기
+            item_id = getattr(slot.item, 'item_id', None)
+            if not item_id:
+                continue
+            
+            # 재료 아이템인지 확인
+            ingredient = IngredientDatabase.get_ingredient(item_id)
+            if ingredient:
+                # 허브 저장소에 추가
+                quantity = getattr(slot, 'quantity', 1)
+                self.hub_storage[item_id] = self.hub_storage.get(item_id, 0) + quantity
+                stored_materials[item_id] = stored_materials.get(item_id, 0) + quantity
+                logger.info(f"허브 저장소에 보관 (게임오버): {ingredient.name} x{quantity}")
+        
+        return stored_materials
+
     
     def get_hub_storage(self) -> Dict[str, int]:
         """허브 저장소 내용 가져오기"""

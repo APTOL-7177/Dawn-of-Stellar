@@ -669,6 +669,7 @@ def main() -> int:
                         
                         # 멀티플레이 게임 루프
                         while True:
+                            logger.info(f"run_exploration 호출 전: network_manager={network_manager}, local_player_id={local_player_id}")
                             result, data = run_exploration(
                                 display.console,
                                 display.context,
@@ -825,7 +826,8 @@ def main() -> int:
                                             total_gold=exploration.game_stats["total_gold_earned"],
                                             total_exp=exploration.game_stats["total_exp_earned"],
                                             save_slot=None,
-                                            is_multiplayer=is_multiplayer
+                                            is_multiplayer=is_multiplayer,
+                                            inventory=inventory
                                         )
                                         break
                                     else:
@@ -1654,6 +1656,7 @@ def main() -> int:
                                     try:
                                         # 클라이언트 게임 루프 (호스트와 동일)
                                         while True:
+                                            logger.info(f"클라이언트 run_exploration 호출 전: network_manager={network_manager}, local_player_id={local_player_id}")
                                             result, data = run_exploration(
                                                 display.console,
                                                 display.context,
@@ -1690,7 +1693,6 @@ def main() -> int:
                                                 else:
                                                     enemies = EnemyGenerator.generate_enemies(floor_number)
                                                 
-                                                is_boss_fight = any(e.is_boss for e in map_enemies) if map_enemies else False
                                                 if is_boss_fight and map_enemies:
                                                     boss_entity = next((e for e in map_enemies if e.is_boss), None)
                                                     if boss_entity:
@@ -1777,6 +1779,16 @@ def main() -> int:
                                                     inventory.add_gold(rewards.get("gold", 0))
                                                     
                                                     # 전투 후 복귀 시 필드 BGM 재생
+                                                    from src.audio import play_bgm
+                                                    if hasattr(exploration, 'is_town') and exploration.is_town:
+                                                        # 마을인 경우 마을 BGM 재생
+                                                        play_bgm("town", loop=True, fade_in=True)
+                                                    else:
+                                                        # 던전인 경우 바이옴별 BGM 재생
+                                                        floor = exploration.floor_number
+                                                        biome_index = (floor - 1) % 10
+                                                        biome_track = f"biome_{biome_index}"
+                                                        play_bgm(biome_track)
                                                     play_dungeon_bgm = True
                                                 elif combat_result == CombatState.DEFEAT:
                                                     # 전투 참여 파티원만 죽었는지, 모든 플레이어의 모든 캐릭터가 죽었는지 확인
@@ -1811,12 +1823,23 @@ def main() -> int:
                                                             total_gold=exploration.game_stats["total_gold_earned"],
                                                             total_exp=exploration.game_stats["total_exp_earned"],
                                                             save_slot=None,
-                                                            is_multiplayer=is_multiplayer
+                                                            is_multiplayer=is_multiplayer,
+                                                            inventory=inventory
                                                         )
                                                         break
                                                     else:
                                                         logger.info("❌ 패배... 맵으로 복귀")
                                                         # 전투 패배 후 복귀 시 필드 BGM 재생
+                                                        from src.audio import play_bgm
+                                                        if hasattr(exploration, 'is_town') and exploration.is_town:
+                                                            # 마을인 경우 마을 BGM 재생
+                                                            play_bgm("town", loop=True, fade_in=True)
+                                                        else:
+                                                            # 던전인 경우 바이옴별 BGM 재생
+                                                            floor = exploration.floor_number
+                                                            biome_index = (floor - 1) % 10
+                                                            biome_track = f"biome_{biome_index}"
+                                                            play_bgm(biome_track)
                                                         play_dungeon_bgm = True
                                                         continue
                                             elif result == "floor_up" or result == "floor_down":
@@ -2266,6 +2289,7 @@ def main() -> int:
 
                     # 탐험 계속 (새 게임과 동일한 루프)
                     while True:
+                        logger.info(f"싱글플레이 run_exploration 호출 전: network_manager=None, local_player_id={local_player_id}")
                         result, data = run_exploration(
                             display.console,
                             display.context,
@@ -2429,6 +2453,16 @@ def main() -> int:
                                 # 별의 파편은 게임 정산 시에만 지급 (로그라이크 방식)
 
                                 # 전투 후 복귀 시 필드 BGM 재생
+                                from src.audio import play_bgm
+                                if hasattr(exploration, 'is_town') and exploration.is_town:
+                                    # 마을인 경우 마을 BGM 재생
+                                    play_bgm("town", loop=True, fade_in=True)
+                                else:
+                                    # 던전인 경우 바이옴별 BGM 재생
+                                    floor = exploration.floor_number
+                                    biome_index = (floor - 1) % 10
+                                    biome_track = f"biome_{biome_index}"
+                                    play_bgm(biome_track)
                                 play_dungeon_bgm = True
                                 continue
                             elif combat_result == CombatState.DEFEAT:
@@ -2457,7 +2491,8 @@ def main() -> int:
                                         total_gold=exploration.game_stats["total_gold_earned"],
                                         total_exp=exploration.game_stats["total_exp_earned"],
                                         save_slot=save_slot_info,
-                                        is_multiplayer=is_multiplayer
+                                        is_multiplayer=is_multiplayer,
+                                        inventory=inventory
                                     )
                                     break
                                 else:
@@ -2465,11 +2500,31 @@ def main() -> int:
                                     logger.info("❌ 패배... 맵으로 복귀")
                                     
                                     # 전투 패배 후 복귀 시 필드 BGM 재생
+                                    from src.audio import play_bgm
+                                    if hasattr(exploration, 'is_town') and exploration.is_town:
+                                        # 마을인 경우 마을 BGM 재생
+                                        play_bgm("town", loop=True, fade_in=True)
+                                    else:
+                                        # 던전인 경우 바이옴별 BGM 재생
+                                        floor = exploration.floor_number
+                                        biome_index = (floor - 1) % 10
+                                        biome_track = f"biome_{biome_index}"
+                                        play_bgm(biome_track)
                                     play_dungeon_bgm = True
                                     continue
                             else:
                                 logger.info("🏃 도망쳤다")
                                 # 도망 후 복귀 시 필드 BGM 재생
+                                from src.audio import play_bgm
+                                if hasattr(exploration, 'is_town') and exploration.is_town:
+                                    # 마을인 경우 마을 BGM 재생
+                                    play_bgm("town", loop=True, fade_in=True)
+                                else:
+                                    # 던전인 경우 바이옴별 BGM 재생
+                                    floor = exploration.floor_number
+                                    biome_index = (floor - 1) % 10
+                                    biome_track = f"biome_{biome_index}"
+                                    play_bgm(biome_track)
                                 play_dungeon_bgm = True
                                 continue
 
@@ -2503,7 +2558,13 @@ def main() -> int:
                                     logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
                                 else:
                                     from src.world.dungeon_generator import DungeonGenerator
-                                    dungeon_seed = session.generate_dungeon_seed_for_floor(floor_number)
+                                    # session이 None일 수 있으므로 체크
+                                    if session:
+                                        dungeon_seed = session.generate_dungeon_seed_for_floor(floor_number)
+                                    else:
+                                        # 싱글플레이어 fallback - 시간 기반 시드
+                                        import time
+                                        dungeon_seed = floor_number * 1000 + int(time.time() * 1000) % 1000
                                     dungeon_gen = DungeonGenerator(width=80, height=50)
                                     dungeon = dungeon_gen.generate(floor_number, seed=dungeon_seed)
                                     saved_enemies = []
@@ -2511,11 +2572,21 @@ def main() -> int:
                                     saved_y = None
                                     logger.info(f"새 {floor_number}층 던전 생성 (시드: {dungeon_seed})")
                                 
-                                # 기존 파티 가져오기 (exploration.party 사용)
-                                current_party = exploration.party if hasattr(exploration, 'party') and exploration.party else None
+                                # 기존 파티 가져오기 (exploration.player.party 사용)
+                                current_party = None
+                                if hasattr(exploration, 'player') and hasattr(exploration.player, 'party'):
+                                    current_party = exploration.player.party
+                                elif hasattr(exploration, 'party'):
+                                    current_party = exploration.party
+                                
                                 if not current_party:
-                                    logger.error("파티를 찾을 수 없습니다. exploration.party 확인 필요")
-                                    current_party = []
+                                    # 파티를 찾을 수 없으면 스코프에서 가져오기 시도
+                                    logger.warning("파티를 찾을 수 없습니다. 스코프에서 가져오기 시도")
+                                    if 'party_members' in locals() and party_members:
+                                        current_party = party_members
+                                    else:
+                                        logger.error("파티를 찾을 수 없습니다. exploration.player.party 확인 필요")
+                                        current_party = []
                                 
                                 from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
                                 exploration = MultiplayerExplorationSystem(
@@ -2538,9 +2609,12 @@ def main() -> int:
                                 if hasattr(exploration, 'is_town'):
                                     delattr(exploration, 'is_town')
                                 
-                                network_manager.current_floor = floor_number
-                                network_manager.current_dungeon = dungeon
-                                network_manager.current_exploration = exploration
+                                # network_manager 업데이트 (멀티플레이어 모드에서만)
+                                if network_manager:
+                                    network_manager.current_floor = floor_number
+                                    network_manager.current_dungeon = dungeon
+                                    network_manager.current_exploration = exploration
+                                # 싱글플레이 모드에서는 network_manager가 None이므로 업데이트 건너뜀
                                 play_dungeon_bgm = True
                                 continue
                             else:
@@ -2553,23 +2627,33 @@ def main() -> int:
                                     "player_y": exploration.player.y
                                 }
                                 
-                                # 기존 파티 가져오기 (exploration.party 사용)
-                                current_party = exploration.party if hasattr(exploration, 'party') and exploration.party else None
-                                if not current_party:
-                                    # 파티를 찾을 수 없으면 오류 로그
-                                    logger.error("파티를 찾을 수 없습니다. exploration.party 확인 필요")
-                                    # 임시로 빈 리스트 사용 (오류 방지)
-                                    current_party = []
+                                # 기존 파티 가져오기 (exploration.player.party 사용)
+                                current_party = None
+                                if hasattr(exploration, 'player') and hasattr(exploration.player, 'party'):
+                                    current_party = exploration.player.party
+                                elif hasattr(exploration, 'party'):
+                                    current_party = exploration.party
                                 
-                                # 기존 network_manager 가져오기 (exploration에서 가져오거나 스코프에서)
-                                current_network_manager = getattr(exploration, 'network_manager', None) if hasattr(exploration, 'network_manager') else network_manager
+                                if not current_party:
+                                    # 파티를 찾을 수 없으면 스코프에서 가져오기 시도
+                                    logger.warning("파티를 찾을 수 없습니다. 스코프에서 가져오기 시도")
+                                    if 'party_members' in locals() and party_members:
+                                        current_party = party_members
+                                    else:
+                                        logger.error("파티를 찾을 수 없습니다. exploration.player.party 확인 필요")
+                                        current_party = []
+                                
+                                # 기존 network_manager 가져오기 (스코프에서 가져오기)
+                                # 멀티플레이어 모드에서만 network_manager가 필요함
+                                current_network_manager = network_manager
                                 if not current_network_manager:
-                                    logger.error("network_manager를 찾을 수 없습니다. 이전 exploration에서 가져오기 시도")
-                                    # 스코프에서 network_manager 찾기
-                                    current_network_manager = network_manager
+                                    # exploration에서 가져오기 시도
+                                    current_network_manager = getattr(exploration, 'network_manager', None) if hasattr(exploration, 'network_manager') else None
+                                
+                                # network_manager가 None이어도 게임 계속 진행 (싱글플레이 모드 지원)
+                                # 멀티플레이어 모드에서만 network_manager 업데이트
                                 if not current_network_manager:
-                                    logger.error("network_manager가 None입니다. 게임 루프를 종료합니다.")
-                                    break
+                                    logger.warning("network_manager가 None입니다. 싱글플레이 모드이거나 멀티플레이어 연결이 끊어진 상태입니다.")
                                 
                                 # 마을로 복귀
                                 floor_number = 0
@@ -2639,13 +2723,12 @@ def main() -> int:
                                 # 마을에서는 적 제거
                                 exploration.enemies = []
                                 
-                                # network_manager 업데이트
+                                # network_manager 업데이트 (멀티플레이어 모드에서만)
                                 if current_network_manager:
                                     current_network_manager.current_floor = floor_number
                                     current_network_manager.current_dungeon = dungeon
                                     current_network_manager.current_exploration = exploration
-                                else:
-                                    logger.error("network_manager가 None입니다. 업데이트를 건너뜁니다.")
+                                # 싱글플레이 모드에서는 network_manager가 None이므로 업데이트 건너뜀
                                 
                                 # 마을 BGM 재생을 위해 플래그 설정
                                 play_dungeon_bgm = True
@@ -2689,11 +2772,32 @@ def main() -> int:
                                     saved_y = None
                                     logger.info(f"새 마을 맵 생성 (멀티플레이, 플레이어 {local_player_id})")
                                 
-                                # 기존 파티 가져오기 (exploration.party 사용)
-                                current_party = exploration.party if hasattr(exploration, 'party') and exploration.party else None
+                                # 기존 파티 가져오기 (exploration.player.party 사용)
+                                current_party = None
+                                if hasattr(exploration, 'player') and hasattr(exploration.player, 'party'):
+                                    current_party = exploration.player.party
+                                elif hasattr(exploration, 'party'):
+                                    current_party = exploration.party
+                                
                                 if not current_party:
-                                    logger.error("파티를 찾을 수 없습니다. exploration.party 확인 필요")
-                                    current_party = []
+                                    # 파티를 찾을 수 없으면 스코프에서 가져오기 시도
+                                    logger.warning("파티를 찾을 수 없습니다. 스코프에서 가져오기 시도")
+                                    if 'party_members' in locals() and party_members:
+                                        current_party = party_members
+                                    else:
+                                        logger.error("파티를 찾을 수 없습니다. exploration.player.party 확인 필요")
+                                        current_party = []
+                                
+                                # 기존 network_manager 가져오기 (스코프에서 가져오기)
+                                # 멀티플레이어 모드에서만 network_manager가 필요함
+                                current_network_manager = network_manager
+                                if not current_network_manager:
+                                    # exploration에서 가져오기 시도
+                                    current_network_manager = getattr(exploration, 'network_manager', None) if hasattr(exploration, 'network_manager') else None
+                                
+                                # network_manager가 None이어도 게임 계속 진행 (싱글플레이 모드 지원)
+                                if not current_network_manager:
+                                    logger.warning("network_manager가 None입니다. 싱글플레이 모드이거나 멀티플레이어 연결이 끊어진 상태입니다.")
                                 
                                 from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
                                 exploration = MultiplayerExplorationSystem(
@@ -2729,13 +2833,12 @@ def main() -> int:
                                 exploration.town_map = town_map_local
                                 exploration.town_manager = town_manager_local
                                 
-                                # network_manager 업데이트
+                                # network_manager 업데이트 (멀티플레이어 모드에서만)
                                 if current_network_manager:
                                     current_network_manager.current_floor = floor_number
                                     current_network_manager.current_dungeon = dungeon
                                     current_network_manager.current_exploration = exploration
-                                else:
-                                    logger.error("network_manager가 None입니다. 업데이트를 건너뜁니다.")
+                                # 싱글플레이 모드에서는 network_manager가 None이므로 업데이트 건너뜀
                                 
                                 play_dungeon_bgm = True
                                 continue
@@ -2804,7 +2907,8 @@ def main() -> int:
                                     total_gold=exploration.game_stats["total_gold_earned"],
                                     total_exp=exploration.game_stats["total_exp_earned"],
                                     save_slot=save_slot_info,
-                                    is_multiplayer=is_multiplayer
+                                    is_multiplayer=is_multiplayer,
+                                    inventory=inventory
                                 )
                                 break
                 else:
@@ -3147,6 +3251,16 @@ def main() -> int:
                                         # 별의 파편은 게임 정산 시에만 지급 (로그라이크 방식)
 
                                         # 전투 후 복귀 시 필드 BGM 재생
+                                        from src.audio import play_bgm
+                                        if hasattr(exploration, 'is_town') and exploration.is_town:
+                                            # 마을인 경우 마을 BGM 재생
+                                            play_bgm("town", loop=True, fade_in=True)
+                                        else:
+                                            # 던전인 경우 바이옴별 BGM 재생
+                                            floor = exploration.floor_number
+                                            biome_index = (floor - 1) % 10
+                                            biome_track = f"biome_{biome_index}"
+                                            play_bgm(biome_track)
                                         play_dungeon_bgm = True
                                         continue  # 탐험 계속
                                     elif combat_result == CombatState.DEFEAT:
@@ -3169,12 +3283,23 @@ def main() -> int:
                                             total_gold=exploration.game_stats["total_gold_earned"],
                                             total_exp=exploration.game_stats["total_exp_earned"],
                                             save_slot=save_slot_info,
-                                            is_multiplayer=False
+                                            is_multiplayer=False,
+                                            inventory=inventory
                                         )
                                         break
                                     else:
                                         logger.info("🏃 도망쳤다")
                                         # 도망 후 복귀 시 필드 BGM 재생
+                                        from src.audio import play_bgm
+                                        if hasattr(exploration, 'is_town') and exploration.is_town:
+                                            # 마을인 경우 마을 BGM 재생
+                                            play_bgm("town", loop=True, fade_in=True)
+                                        else:
+                                            # 던전인 경우 바이옴별 BGM 재생
+                                            floor = exploration.floor_number
+                                            biome_index = (floor - 1) % 10
+                                            biome_track = f"biome_{biome_index}"
+                                            play_bgm(biome_track)
                                         play_dungeon_bgm = True
                                         continue
 
@@ -3440,7 +3565,8 @@ def main() -> int:
                                             total_gold=exploration.game_stats["total_gold_earned"],
                                             total_exp=exploration.game_stats["total_exp_earned"],
                                             save_slot=save_slot_info,
-                                            is_multiplayer=False
+                                            is_multiplayer=False,
+                                            inventory=inventory
                                         )
                                         break
                 else:

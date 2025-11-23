@@ -1109,21 +1109,53 @@ class Character:
             "spirit": Stats.SPIRIT,
         }
 
+        # HP/MP 증가 효과가 있는지 확인 (제거 후 현재값이 최대값을 초과할 수 있으므로)
+        had_hp_bonus = False
+        had_mp_bonus = False
+        old_max_hp = self.max_hp
+        old_max_mp = self.max_mp
+        
         # 장비 보너스 제거 (get_total_stats 메서드 사용)
         if hasattr(item, "get_total_stats"):
             total_stats = item.get_total_stats()
             for stat_name in total_stats.keys():
                 # 매핑된 스탯 이름 사용
                 mapped_stat = stat_mapping.get(stat_name, stat_name)
+                # HP/MP 보너스 확인
+                if stat_name in ("hp", "HP") or mapped_stat == Stats.HP:
+                    had_hp_bonus = True
+                if stat_name in ("mp", "MP") or mapped_stat == Stats.MP:
+                    had_mp_bonus = True
+                
                 self.stat_manager.remove_bonus(mapped_stat, f"equipment_{slot}")
                 self.logger.debug(f"장비 스탯 제거: {self.name} - {stat_name} → {mapped_stat} ({slot})")
         elif hasattr(item, "stat_bonuses"):
             # 구 방식 호환성 유지
             for stat_name in item.stat_bonuses.keys():
                 mapped_stat = stat_mapping.get(stat_name, stat_name)
+                # HP/MP 보너스 확인
+                if stat_name in ("hp", "HP") or mapped_stat == Stats.HP:
+                    had_hp_bonus = True
+                if stat_name in ("mp", "MP") or mapped_stat == Stats.MP:
+                    had_mp_bonus = True
+                
                 self.stat_manager.remove_bonus(mapped_stat, f"equipment_{slot}")
 
         self.equipment[slot] = None
+
+        # 최대 HP/MP가 줄어든 경우, 현재 HP/MP가 새로운 최대값을 초과하면 제한
+        new_max_hp = self.max_hp
+        new_max_mp = self.max_mp
+        
+        if had_hp_bonus and new_max_hp < old_max_hp:
+            if self.current_hp > new_max_hp:
+                self.logger.debug(f"{self.name} HP 제한: {self.current_hp} → {new_max_hp} (최대값 감소)")
+                self.current_hp = new_max_hp
+        
+        if had_mp_bonus and new_max_mp < old_max_mp:
+            if self.current_mp > new_max_mp:
+                self.logger.debug(f"{self.name} MP 제한: {self.current_mp} → {new_max_mp} (최대값 감소)")
+                self.current_mp = new_max_mp
 
         event_bus.publish(Events.EQUIPMENT_UNEQUIPPED, {
             "character": self,

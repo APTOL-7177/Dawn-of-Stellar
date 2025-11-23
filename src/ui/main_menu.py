@@ -187,7 +187,7 @@ class MainMenu:
                 description="다른 플레이어와 함께 모험하기"
             ),
             MenuItem(
-                text="상점",
+                text="메타 진행",
                 action=self._open_shop,
                 description="별빛의 파편으로 직업과 패시브를 구매합니다"
             ),
