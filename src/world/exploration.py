@@ -37,6 +37,7 @@ class ExplorationEvent(Enum):
     PUZZLE_SOLVED = "puzzle_solved"
     SWITCH_ACTIVATED = "switch_activated"
     NPC_INTERACTION = "npc_interaction"
+    BUILDING_INTERACTION = "building_interaction"  # 마을 건물 상호작용
 
 
 @dataclass
@@ -147,15 +148,23 @@ class ExplorationSystem:
         else:
             logger.error(f"[INIT] ⚠️ 인벤토리가 None입니다!")
 
-        # 채집 오브젝트 확인
-        harvestables_count = len(dungeon.harvestables) if hasattr(dungeon, 'harvestables') else 0
-        logger.warning(f"[INIT] 던전 채집 오브젝트: {harvestables_count}개")
-        if hasattr(dungeon, 'harvestables') and dungeon.harvestables:
-            for i, h in enumerate(dungeon.harvestables[:3]):  # 처음 3개만 로깅
-                logger.warning(f"[INIT]   {i+1}. {h.object_type.value} at ({h.x}, {h.y}), harvested={h.harvested}")
-
-        # 적 배치
-        self._spawn_enemies()
+        # 마을 여부 확인 (던전에 is_town 플래그가 있는 경우)
+        if hasattr(dungeon, 'is_town') and dungeon.is_town:
+            self.is_town = True
+            logger.info("[INIT] 마을 맵으로 인식됨 - 적 스폰 건너뜀")
+            # 마을에서는 적 스폰하지 않음
+            self.enemies = []
+        else:
+            self.is_town = False
+            # 채집 오브젝트 확인
+            harvestables_count = len(dungeon.harvestables) if hasattr(dungeon, 'harvestables') else 0
+            logger.warning(f"[INIT] 던전 채집 오브젝트: {harvestables_count}개")
+            if hasattr(dungeon, 'harvestables') and dungeon.harvestables:
+                for i, h in enumerate(dungeon.harvestables[:3]):  # 처음 3개만 로깅
+                    logger.warning(f"[INIT]   {i+1}. {h.object_type.value} at ({h.x}, {h.y}), harvested={h.harvested}")
+            
+            # 적 배치
+            self._spawn_enemies()
 
         # 초기 FOV 계산
         self.update_fov()
@@ -172,6 +181,22 @@ class ExplorationSystem:
 
     def update_fov(self):
         """시야 업데이트"""
+        # 마을에서는 모든 타일을 보이게 함
+        if hasattr(self, 'is_town') and self.is_town:
+            # 모든 타일을 visible과 explored로 설정
+            for y in range(self.dungeon.height):
+                for x in range(self.dungeon.width):
+                    tile = self.dungeon.get_tile(x, y)
+                    if tile:
+                        tile.visible = True
+                        tile.explored = True
+            # explored_tiles에도 추가
+            for y in range(self.dungeon.height):
+                for x in range(self.dungeon.width):
+                    self.explored_tiles.add((x, y))
+            logger.debug("[update_fov] 마을: 모든 타일을 보이게 설정")
+            return
+        
         # 이전 visible 초기화
         self.fov_system.clear_visibility(self.dungeon)
 
@@ -398,6 +423,40 @@ class ExplorationSystem:
 
     def _check_tile_event(self, tile: Tile) -> ExplorationResult:
         """타일 이벤트 확인"""
+        # 마을 건물 상호작용 체크 (우선순위 높음, 적과 조우와 동일한 방식)
+        if hasattr(self, 'is_town') and self.is_town:
+            # 타일에 building 속성이 있으면 건물 상호작용
+            if hasattr(tile, 'building') and tile.building:
+                building = tile.building
+                logger.info(f"[건물 조우] {building.name}에 도달했습니다. (위치: {self.player.x}, {self.player.y})")
+                return ExplorationResult(
+                    success=True,
+                    event=ExplorationEvent.BUILDING_INTERACTION,
+                    message=f"🏛 {building.name}에 도착했습니다",
+                    data={
+                        "building": building,
+                        "building_type": building.building_type.value,
+                        "building_name": building.name
+                    }
+                )
+            # 타일의 char가 건물 심볼인 경우도 확인
+            elif hasattr(tile, 'char') and tile.char in ['K', 'B', 'A', 'S', 'Q', '$', 'I', 'G', 'F']:
+                # town_map에서 건물 찾기
+                if hasattr(self, 'town_map') and self.town_map:
+                    building = self.town_map.get_building_at(self.player.x, self.player.y)
+                    if building:
+                        logger.info(f"[건물 조우] {building.name}에 도달했습니다. (위치: {self.player.x}, {self.player.y})")
+                        return ExplorationResult(
+                            success=True,
+                            event=ExplorationEvent.BUILDING_INTERACTION,
+                            message=f"🏛 {building.name}에 도착했습니다",
+                            data={
+                                "building": building,
+                                "building_type": building.building_type.value,
+                                "building_name": building.name
+                            }
+                        )
+        
         if tile.tile_type == TileType.TRAP:
             return self._handle_trap(tile)
 
@@ -973,6 +1032,12 @@ class ExplorationSystem:
 
     def _spawn_enemies(self):
         """적 배치"""
+        # 마을에서는 적 스폰하지 않음
+        if hasattr(self, 'is_town') and self.is_town:
+            logger.info("[_spawn_enemies] 마을에서는 적을 스폰하지 않습니다.")
+            self.enemies = []  # 적 리스트 초기화
+            return
+        
         # 층 수에 따라 적 수 결정 (4-15마리로 감소)
         base_enemies = 4
         additional = self.floor_number * 1

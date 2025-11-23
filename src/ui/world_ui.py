@@ -542,12 +542,45 @@ class WorldUI:
                 if is_town:
                     # 마을에서 건물과 상호작용
                     from src.town.town_map import TownInteractionHandler
-                    town_map = getattr(self.exploration, 'town_map', None)
+                    # town_map은 dungeon 객체에 있거나 exploration 객체에 직접 설정됨
+                    town_map = getattr(self.exploration, 'town_map', None) or getattr(self.exploration.dungeon, 'town_map', None)
                     town_manager = getattr(self.exploration, 'town_manager', None)
+                    
+                    if not town_map:
+                        # town_map이 없으면 dungeon에서 가져오기 시도
+                        if hasattr(self.exploration.dungeon, 'town_map'):
+                            town_map = self.exploration.dungeon.town_map
                     
                     if town_map and town_manager:
                         # 현재 위치의 건물 확인
-                        building = town_map.get_building_at(self.exploration.player.x, self.exploration.player.y)
+                        player_x = self.exploration.player.x
+                        player_y = self.exploration.player.y
+                        player_tile = self.exploration.dungeon.get_tile(player_x, player_y)
+                        
+                        building = None
+                        
+                        # 방법 1: 타일의 building 속성 사용 (우선순위 높음)
+                        if player_tile and hasattr(player_tile, 'building') and player_tile.building:
+                            building = player_tile.building
+                            logger.debug(f"[상호작용] 타일의 building 속성에서 건물 찾음: {building.name} at ({player_x}, {player_y})")
+                        
+                        # 방법 2: town_map에서 직접 건물 찾기
+                        if not building:
+                            building = town_map.get_building_at(player_x, player_y)
+                            if building:
+                                logger.debug(f"[상호작용] town_map.get_building_at에서 건물 찾음: {building.name} at ({player_x}, {player_y})")
+                        
+                        # 방법 3: 타일의 char가 건물 심볼인 경우 town_map에서 찾기
+                        if not building and player_tile and player_tile.char in ['K', 'B', 'A', 'S', 'Q', '$', 'I', 'G', 'F']:
+                            logger.debug(f"[상호작용] 타일 char가 건물 심볼 ({player_tile.char}), town_map.buildings에서 찾기 시도 (총 {len(town_map.buildings)}개 건물)")
+                            # 모든 건물을 순회하며 위치 확인
+                            for b in town_map.buildings:
+                                logger.debug(f"  건물 체크: {b.name} at ({b.x}, {b.y}) vs 플레이어 ({player_x}, {player_y})")
+                                if b.x == player_x and b.y == player_y:
+                                    building = b
+                                    logger.debug(f"[상호작용] town_map.buildings에서 건물 찾음: {building.name}")
+                                    break
+                        
                         if building:
                             # 건물과 상호작용
                             result = TownInteractionHandler.interact_with_building(
@@ -555,10 +588,26 @@ class WorldUI:
                                 self.exploration.player, 
                                 town_manager
                             )
-                            logger.info(f"건물 상호작용: {building.name} - {result.get('message', '')}")
+                            logger.info(f"[상호작용 성공] {building.name} (위치: {player_x}, {player_y}) - {result.get('message', '')}")
                             self.add_message(result.get('message', f"{building.name}에 입장했습니다."))
                             # TODO: 건물별 UI 열기 (주방, 대장간 등)
                             return False
+                        else:
+                            # 건물이 없는 위치에서 상호작용 시도
+                            tile_char = player_tile.char if player_tile else 'None'
+                            logger.warning(f"[상호작용 실패] 위치 ({player_x}, {player_y})에 건물이 없습니다. (타일 char: {tile_char}, town_map.buildings 개수: {len(town_map.buildings)})")
+                            # 건물 목록 로그
+                            if town_map.buildings:
+                                for b in town_map.buildings:
+                                    logger.warning(f"  건물: {b.name} at ({b.x}, {b.y})")
+                            self.add_message("주변에 상호작용할 건물이 없습니다.")
+                            return True
+                    else:
+                        logger.warning(f"town_map={town_map is not None}, town_manager={town_manager is not None}")
+                        if not town_map:
+                            logger.error("town_map을 찾을 수 없습니다.")
+                        if not town_manager:
+                            logger.error("town_manager를 찾을 수 없습니다.")
                 
                 # 현재 위치의 타일 확인 (모루 등)
                 player_tile = self.exploration.dungeon.get_tile(self.exploration.player.x, self.exploration.player.y)
@@ -620,6 +669,30 @@ class WorldUI:
         """탐험 결과 처리"""
         # Debug: 탐험 결과
 
+        # 마을 건물 상호작용 처리 (적과 조우와 동일한 방식)
+        if result.event == ExplorationEvent.BUILDING_INTERACTION:
+            if result.data:
+                building = result.data.get("building")
+                if building and console and context:
+                    # 마을에서 건물과 상호작용
+                    from src.town.town_map import TownInteractionHandler
+                    town_manager = getattr(self.exploration, 'town_manager', None)
+                    
+                    if town_manager:
+                        # 건물과 상호작용
+                        interaction_result = TownInteractionHandler.interact_with_building(
+                            building, 
+                            self.exploration.player, 
+                            town_manager
+                        )
+                        logger.info(f"[건물 상호작용] {building.name} - {interaction_result.get('message', '')}")
+                        self.add_message(interaction_result.get('message', f"{building.name}에 입장했습니다."))
+                        # TODO: 건물별 UI 열기 (주방, 대장간 등)
+                    else:
+                        logger.warning("town_manager를 찾을 수 없습니다.")
+                        self.add_message(f"{building.name}에 입장했습니다.")
+            return
+        
         # NPC 상호작용은 대화 창으로 처리 (로그에 표시하지 않음)
         if result.event == ExplorationEvent.NPC_INTERACTION:
             if console and context and result.data:
@@ -816,11 +889,16 @@ class WorldUI:
             floor=self.exploration.floor_number
         )
 
-        # 제목
+        # 제목 - 마을인 경우 "마을"로 표시, 그 외는 층수로 표시
+        is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
+        if is_town:
+            floor_label = "던전 탐험 - 마을"
+        else:
+            floor_label = f"던전 탐험 - {self.exploration.floor_number}층"
         console.print(
             self.screen_width // 2 - 15,
             1,
-            f"던전 탐험 - {self.exploration.floor_number}층",
+            floor_label,
             fg=(255, 255, 100)
         )
 
@@ -1440,15 +1518,29 @@ def run_exploration(
     # 남은 이벤트 제거 (불러오기 등에서 남은 키 입력 방지)
     tcod.event.get()
 
-    # 바이옴별 BGM 재생 (매 층마다 바뀜, 전투 후 복귀 시에는 재생하지 않음)
+    # BGM 재생 (매 층마다 바뀜, 전투 후 복귀 시에는 재생하지 않음)
     if play_bgm_on_start:
-        floor = exploration.floor_number
-        # 바이옴 계산 (매 층마다 변경: 10개 바이옴 순환)
-        biome_index = (floor - 1) % 10
-        biome_track = f"biome_{biome_index}"
-        
-        logger.info(f"층 {floor} -> 바이옴 {biome_index}, BGM: {biome_track}")
-        play_bgm(biome_track)
+        # 마을인 경우 마을 BGM 재생
+        if hasattr(exploration, 'is_town') and exploration.is_town:
+            logger.info("마을 BGM 재생: town.ogg")
+            # town.ogg 파일 직접 재생
+            from src.audio.audio_manager import get_audio_manager
+            audio_manager = get_audio_manager()
+            # config.yaml에 "town" 트랙이 정의되어 있으면 사용, 없으면 직접 파일명 사용
+            if audio_manager.config.get("audio.bgm.tracks.town"):
+                play_bgm("town", loop=True, fade_in=True)
+            else:
+                # 직접 파일명 사용
+                audio_manager.play_bgm_file("town.ogg", loop=True, fade_in=True)
+        else:
+            # 던전인 경우 바이옴별 BGM 재생
+            floor = exploration.floor_number
+            # 바이옴 계산 (매 층마다 변경: 10개 바이옴 순환)
+            biome_index = (floor - 1) % 10
+            biome_track = f"biome_{biome_index}"
+            
+            logger.info(f"층 {floor} -> 바이옴 {biome_index}, BGM: {biome_track}")
+            play_bgm(biome_track)
 
     # 업데이트 콜백 함수 정의
     def update_game_state():

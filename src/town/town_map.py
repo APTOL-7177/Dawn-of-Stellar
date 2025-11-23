@@ -90,8 +90,8 @@ class TownMap:
         # 건물 배치
         self._place_buildings()
         
-        # 장식 요소
-        self._add_decorations()
+        # 장식 요소 제거 (사용자 요청)
+        # self._add_decorations()
     
     def _create_roads(self):
         """도로 생성"""
@@ -111,23 +111,63 @@ class TownMap:
                 self.tiles[y][x] = "."
     
     def _place_buildings(self):
-        """건물 배치"""
+        """건물 배치 - 각 건물 타입은 하나씩만, 고정 위치"""
+        # 이미 배치된 건물 타입 추적 (중복 방지)
+        placed_types = set()
+        
+        # 건물 배치 정의: (타입, 고정 x 좌표, 고정 y 좌표, 이름, 설명)
+        # 맵 크기에 상관없이 고정 위치 사용 (30x20 기준으로 설계)
         building_placements = [
-            # (타입, x비율, y비율, 이름, 설명)
-            (BuildingType.QUEST_BOARD, 0.5, 0.2, "퀘스트 게시판", "의뢰를 확인할 수 있습니다"),
-            (BuildingType.KITCHEN, 0.25, 0.3, "별빛 주방", "요리와 식사를 할 수 있습니다"),
-            (BuildingType.BLACKSMITH, 0.75, 0.3, "대장간", "장비를 강화할 수 있습니다"),
-            (BuildingType.ALCHEMY_LAB, 0.25, 0.6, "연금술 실험실", "포션과 폭탄을 제작할 수 있습니다"),
-            (BuildingType.STORAGE, 0.75, 0.6, "창고", "아이템을 보관할 수 있습니다"),
-            (BuildingType.SHOP, 0.5, 0.7, "잡화점", "아이템을 사고팔 수 있습니다"),
-            (BuildingType.INN, 0.2, 0.8, "여관", "휴식을 취할 수 있습니다"),
-            (BuildingType.GUILD_HALL, 0.8, 0.8, "모험가 길드", "정보를 얻을 수 있습니다"),
-            (BuildingType.FOUNTAIN, 0.5, 0.5, "중앙 분수대", "마을의 중심입니다")
+            # 상단 중앙
+            (BuildingType.QUEST_BOARD, 15, 4, "퀘스트 게시판", "의뢰를 확인할 수 있습니다"),
+            # 상단 좌우
+            (BuildingType.KITCHEN, 7, 6, "별빛 주방", "요리와 식사를 할 수 있습니다"),
+            (BuildingType.BLACKSMITH, 22, 6, "대장간", "장비를 강화할 수 있습니다"),
+            # 중앙 좌우
+            (BuildingType.ALCHEMY_LAB, 7, 12, "연금술 실험실", "포션과 폭탄을 제작할 수 있습니다"),
+            (BuildingType.STORAGE, 22, 12, "창고", "아이템을 보관할 수 있습니다"),
+            # 중앙
+            (BuildingType.FOUNTAIN, 15, 10, "중앙 분수대", "마을의 중심입니다"),
+            # 하단
+            (BuildingType.SHOP, 15, 14, "잡화점", "아이템을 사고팔 수 있습니다"),
+            (BuildingType.INN, 6, 16, "여관", "휴식을 취할 수 있습니다"),
+            (BuildingType.GUILD_HALL, 24, 16, "모험가 길드", "정보를 얻을 수 있습니다")
         ]
         
-        for building_type, x_ratio, y_ratio, name, desc in building_placements:
-            x = int(self.width * x_ratio)
-            y = int(self.height * y_ratio)
+        # 맵 크기에 맞게 좌표 스케일링 (30x20 기준)
+        base_width = 30
+        base_height = 20
+        scale_x = self.width / base_width
+        scale_y = self.height / base_height
+        
+        for building_type, base_x, base_y, name, desc in building_placements:
+            # 이미 배치된 건물 타입은 건너뜀 (중복 방지)
+            if building_type in placed_types:
+                logger.warning(f"건물 타입 {building_type.value}가 이미 배치되어 있습니다. 건너뜁니다.")
+                continue
+            
+            # 스케일링된 좌표 계산 (맵 크기에 따라 조정)
+            x = int(base_x * scale_x)
+            y = int(base_y * scale_y)
+            
+            # 좌표 범위 체크
+            if x < 0 or x >= self.width or y < 0 or y >= self.height:
+                logger.warning(f"건물 {name}의 좌표 ({x}, {y})가 맵 범위를 벗어났습니다. 건너뜁니다.")
+                continue
+            
+            # 이미 다른 건물이 있는 위치인지 확인 (도로는 덮어쓸 수 있음)
+            # 같은 위치에 건물이 이미 있는지 확인
+            existing_building = self.get_building_at(x, y)
+            if existing_building:
+                logger.warning(f"건물 {name}의 위치 ({x}, {y})에 이미 다른 건물({existing_building.name})이 있습니다. 건너뜁니다.")
+                continue
+            
+            # 타일이 건물 심볼인 경우도 건너뜀 (중복 방지)
+            if self.tiles[y][x] not in [" ", "."]:
+                # 건물 심볼인 경우
+                if self.tiles[y][x] in ['K', 'B', 'A', 'S', 'Q', '$', 'I', 'G', 'F']:
+                    logger.warning(f"건물 {name}의 위치 ({x}, {y})에 이미 건물이 있습니다. (타일: {self.tiles[y][x]}) 건너뜁니다.")
+                    continue
             
             building = Building(
                 building_type=building_type,
@@ -139,16 +179,42 @@ class TownMap:
             
             self.buildings.append(building)
             self.tiles[y][x] = building.symbol
+            placed_types.add(building_type)  # 배치된 타입 기록
     
     def _add_decorations(self):
-        """장식 추가"""
-        # 나무와 잔디 추가 (랜덤)
-        for _ in range(20):
-            x = random.randint(0, self.width - 1)
-            y = random.randint(0, self.height - 1)
-            
+        """장식 추가 - 건물과 도로 위치를 피해서 배치"""
+        # 건물 위치 저장 (중복 배치 방지)
+        building_positions = {(building.x, building.y) for building in self.buildings}
+        
+        # 도로 위치 저장 (도로에는 장식 배치하지 않음)
+        road_positions = set()
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.tiles[y][x] == ".":
+                    road_positions.add((x, y))
+        
+        # 사용 가능한 위치만 필터링 (빈 공간만)
+        available_positions = []
+        for y in range(self.height):
+            for x in range(self.width):
+                # 건물 위치, 도로 위치, 이미 장식이 있는 위치는 제외
+                if (x, y) not in building_positions and (x, y) not in road_positions and self.tiles[y][x] == " ":
+                    available_positions.append((x, y))
+        
+        # 사용 가능한 위치가 없으면 장식 추가 안 함
+        if not available_positions:
+            logger.warning("장식을 배치할 위치가 없습니다.")
+            return
+        
+        # 장식 배치 (최대 20개, 또는 사용 가능한 위치 수만큼)
+        decoration_count = min(20, len(available_positions))
+        decoration_positions = random.sample(available_positions, decoration_count)
+        
+        for x, y in decoration_positions:
+            # 각 위치에 하나씩만 장식 배치 (중복 방지)
             if self.tiles[y][x] == " ":
                 self.tiles[y][x] = random.choice(["T", "t", "*"])  # T=나무, t=작은나무, *=꽃
+                logger.debug(f"장식 배치: ({x}, {y}) = {self.tiles[y][x]}")
     
     def get_building_at(self, x: int, y: int) -> Optional[Building]:
         """특정 위치의 건물 가져오기"""
@@ -169,7 +235,7 @@ class TownMap:
             return False
         
         tile = self.tiles[y][x]
-        return tile in [" ", ".", "T", "t", "*"]  # 빈 공간, 도로, 장식은 이동 가능
+        return tile in [" ", "."]  # 빈 공간, 도로만 이동 가능 (장식 제거)
     
     def render_ascii(self, player_x: int, player_y: int) -> str:
         """ASCII 렌더링"""
@@ -351,23 +417,55 @@ def create_town_dungeon_map(town_map: 'TownMap') -> Any:
     # 던전 맵 생성
     dungeon = DungeonMap(town_map.width, town_map.height)
     
+    # 건물 위치를 딕셔너리로 저장 (렌더링용)
+    building_positions = {}
+    for building in town_map.buildings:
+        building_positions[(building.x, building.y)] = building
+    
     # 마을 타일을 던전 타일로 변환
     for y in range(town_map.height):
         for x in range(town_map.width):
             tile_char = town_map.tiles[y][x]
             
-            # 타일 문자를 타일 타입으로 변환
-            if tile_char == " " or tile_char == ".":
-                # 빈 공간이나 도로는 FLOOR
+            # 건물 위치인 경우
+            if (x, y) in building_positions:
+                building = building_positions[(x, y)]
+                # 건물 타일: FLOOR로 설정하고 건물 정보 저장
+                # 타일을 먼저 설정한 후 속성 추가
                 dungeon.set_tile(x, y, TileType.FLOOR)
+                tile = dungeon.get_tile(x, y)
+                if tile:
+                    # 건물 정보를 타일에 저장 (렌더링용)
+                    tile.building_symbol = building.symbol
+                    tile.building_color = building.color
+                    tile.building = building  # 건물 객체 참조 저장
+                    # 건물 문자가 기본 타일 문자보다 우선되도록 설정
+                    tile.char = building.symbol
+                    tile.fg_color = building.color
+                    # 마을 타일은 탐험됨과 보임 상태로 설정 (전체 시야)
+                    tile.explored = True
+                    tile.visible = True
+            elif tile_char == ".":
+                # 도로는 FLOOR로 설정하고 도로 표시
+                dungeon.set_tile(x, y, TileType.FLOOR)
+                tile = dungeon.get_tile(x, y)
+                if tile:
+                    tile.char = "."  # 도로 문자
+                    tile.fg_color = (150, 150, 150)  # 도로 색상
+            elif tile_char == " ":
+                # 빈 공간은 FLOOR
+                dungeon.set_tile(x, y, TileType.FLOOR)
+                tile = dungeon.get_tile(x, y)
+                if tile:
+                    tile.char = " "  # 빈 공간
+                    tile.fg_color = (80, 80, 80)  # 어두운 색상
             elif tile_char == "#":
                 # 벽은 WALL
                 dungeon.set_tile(x, y, TileType.WALL)
-            elif tile_char in ["T", "t", "*"]:
-                # 장식은 FLOOR (이동 가능)
-                dungeon.set_tile(x, y, TileType.FLOOR)
+            # 장식 요소 제거 (T, t, * 제거)
+            # elif tile_char in ["T", "t", "*"]: 제거됨
             else:
-                # 건물 심볼도 FLOOR (이동 가능, 상호작용 가능)
+                # 기타는 FLOOR
                 dungeon.set_tile(x, y, TileType.FLOOR)
     
     # 마을 출입구를 계단으로 설정 (하단 중앙, 던전으로 나가는 계단)

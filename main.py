@@ -682,6 +682,9 @@ def main() -> int:
                             "player_y": local_player.y
                         }
                         
+                        # 게임 루프에서 사용할 파티 변수 저장 (층 변경 시 재사용)
+                        # character_party는 게임 루프 시작 전에 정의되어 있어야 함
+                        
                         play_dungeon_bgm = True
                         
                         # 호스트 채팅 메시지 핸들러 등록 (클라이언트로부터 받은 메시지를 모든 클라이언트에게 브로드캐스트)
@@ -2577,10 +2580,16 @@ def main() -> int:
                                     saved_y = None
                                     logger.info(f"새 {floor_number}층 던전 생성 (시드: {dungeon_seed})")
                                 
+                                # 기존 파티 가져오기 (exploration.party 사용)
+                                current_party = exploration.party if hasattr(exploration, 'party') and exploration.party else None
+                                if not current_party:
+                                    logger.error("파티를 찾을 수 없습니다. exploration.party 확인 필요")
+                                    current_party = []
+                                
                                 from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
                                 exploration = MultiplayerExplorationSystem(
                                     dungeon=dungeon,
-                                    party=character_party,
+                                    party=current_party,  # 기존 파티 재사용
                                     floor_number=floor_number,
                                     inventory=inventory,
                                     game_stats=game_stats,
@@ -2612,6 +2621,24 @@ def main() -> int:
                                     "player_x": exploration.player.x,
                                     "player_y": exploration.player.y
                                 }
+                                
+                                # 기존 파티 가져오기 (exploration.party 사용)
+                                current_party = exploration.party if hasattr(exploration, 'party') and exploration.party else None
+                                if not current_party:
+                                    # 파티를 찾을 수 없으면 오류 로그
+                                    logger.error("파티를 찾을 수 없습니다. exploration.party 확인 필요")
+                                    # 임시로 빈 리스트 사용 (오류 방지)
+                                    current_party = []
+                                
+                                # 기존 network_manager 가져오기 (exploration에서 가져오거나 스코프에서)
+                                current_network_manager = getattr(exploration, 'network_manager', None) if hasattr(exploration, 'network_manager') else network_manager
+                                if not current_network_manager:
+                                    logger.error("network_manager를 찾을 수 없습니다. 이전 exploration에서 가져오기 시도")
+                                    # 스코프에서 network_manager 찾기
+                                    current_network_manager = network_manager
+                                if not current_network_manager:
+                                    logger.error("network_manager가 None입니다. 게임 루프를 종료합니다.")
+                                    break
                                 
                                 # 마을로 복귀
                                 floor_number = 0
@@ -2647,7 +2674,7 @@ def main() -> int:
                                 from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
                                 exploration = MultiplayerExplorationSystem(
                                     dungeon=dungeon,
-                                    party=character_party,
+                                    party=current_party,  # 기존 파티 재사용
                                     floor_number=floor_number,
                                     inventory=inventory,
                                     game_stats=game_stats,
@@ -2678,59 +2705,18 @@ def main() -> int:
                                 exploration.town_map = town_map_local
                                 exploration.town_manager = town_manager_local
                                 
-                                network_manager.current_floor = floor_number
-                                network_manager.current_dungeon = dungeon
-                                network_manager.current_exploration = exploration
-                                play_dungeon_bgm = True
-                                continue
-                                exploration.game_stats["max_floor_reached"] = max(exploration.game_stats["max_floor_reached"], floor_number)
-                                logger.info(f"⬇ 다음 층: {floor_number}층 (최대: {exploration.game_stats['max_floor_reached']}층)")
+                                # 마을에서는 적 제거
+                                exploration.enemies = []
                                 
-                                # 기존 던전이 있으면 재사용, 없으면 생성
-                                if floor_number in floors_dungeons:
-                                    floor_data = floors_dungeons[floor_number]
-                                    dungeon = floor_data["dungeon"]
-                                    # dungeon이 튜플인 경우 언패킹 (하위 호환성)
-                                    if isinstance(dungeon, tuple):
-                                        dungeon, saved_enemies = dungeon
-                                    else:
-                                        saved_enemies = floor_data["enemies"]
-                                    saved_x = floor_data["player_x"]
-                                    saved_y = floor_data["player_y"]
-                                    logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
+                                # network_manager 업데이트
+                                if current_network_manager:
+                                    current_network_manager.current_floor = floor_number
+                                    current_network_manager.current_dungeon = dungeon
+                                    current_network_manager.current_exploration = exploration
                                 else:
-                                    from src.world.dungeon_generator import DungeonGenerator
-                                    dungeon_seed = session.generate_dungeon_seed_for_floor(floor_number)
-                                    dungeon_gen = DungeonGenerator(width=80, height=50)
-                                    dungeon = dungeon_gen.generate(floor_number, seed=dungeon_seed)
-                                    saved_enemies = []
-                                    saved_x = None
-                                    saved_y = None
-                                    logger.info(f"새 {floor_number}층 던전 생성 (시드: {dungeon_seed})")
+                                    logger.error("network_manager가 None입니다. 업데이트를 건너뜁니다.")
                                 
-                                from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
-                                exploration = MultiplayerExplorationSystem(
-                                    dungeon=dungeon,
-                                    party=character_party,
-                                    floor_number=floor_number,
-                                    inventory=inventory,
-                                    game_stats=game_stats,
-                                    session=session,
-                                    network_manager=network_manager,
-                                    local_player_id=local_player_id
-                                )
-                                # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
-                                if saved_enemies:
-                                    exploration.enemies = saved_enemies
-                                # 새 던전인 경우 _spawn_enemies()가 이미 호출되어 적이 생성됨
-                                if saved_x is not None and saved_y is not None:
-                                    exploration.player.x = saved_x
-                                    exploration.player.y = saved_y
-                                
-                                network_manager.current_floor = floor_number
-                                network_manager.current_dungeon = dungeon
-                                network_manager.current_exploration = exploration
-                                # 층 변경 시 BGM 재생
+                                # 마을 BGM 재생을 위해 플래그 설정
                                 play_dungeon_bgm = True
                                 continue
                         elif result == "floor_up":
@@ -2772,15 +2758,21 @@ def main() -> int:
                                     saved_y = None
                                     logger.info(f"새 마을 맵 생성 (멀티플레이, 플레이어 {local_player_id})")
                                 
+                                # 기존 파티 가져오기 (exploration.party 사용)
+                                current_party = exploration.party if hasattr(exploration, 'party') and exploration.party else None
+                                if not current_party:
+                                    logger.error("파티를 찾을 수 없습니다. exploration.party 확인 필요")
+                                    current_party = []
+                                
                                 from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
                                 exploration = MultiplayerExplorationSystem(
                                     dungeon=dungeon,
-                                    party=character_party,
+                                    party=current_party,  # 기존 파티 재사용
                                     floor_number=floor_number,
                                     inventory=inventory,
                                     game_stats=game_stats,
                                     session=session,
-                                    network_manager=network_manager,
+                                    network_manager=current_network_manager,  # 기존 network_manager 재사용
                                     local_player_id=local_player_id
                                 )
                                 # 마을 플레이어 스폰 위치 설정
@@ -2806,9 +2798,14 @@ def main() -> int:
                                 exploration.town_map = town_map_local
                                 exploration.town_manager = town_manager_local
                                 
-                                network_manager.current_floor = floor_number
-                                network_manager.current_dungeon = dungeon
-                                network_manager.current_exploration = exploration
+                                # network_manager 업데이트
+                                if current_network_manager:
+                                    current_network_manager.current_floor = floor_number
+                                    current_network_manager.current_dungeon = dungeon
+                                    current_network_manager.current_exploration = exploration
+                                else:
+                                    logger.error("network_manager가 None입니다. 업데이트를 건너뜁니다.")
+                                
                                 play_dungeon_bgm = True
                                 continue
                             elif floor_number > 1:
@@ -3285,6 +3282,8 @@ def main() -> int:
                                             saved_y = floor_data["player_y"]
                                             logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
                                         else:
+                                            from src.world.dungeon_generator import DungeonGenerator
+                                            dungeon_gen = DungeonGenerator(width=80, height=50)
                                             dungeon = dungeon_gen.generate(floor_number)
                                             saved_enemies = []
                                             saved_x = None
