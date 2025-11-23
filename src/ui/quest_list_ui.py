@@ -33,7 +33,7 @@ def open_quest_list(
     active_quests = quest_manager.get_active_quests()
     cursor = 0
     scroll_offset = 0
-    max_visible = 10
+    max_visible = 8  # 간격이 커져서 보이는 개수 감소
     handler = InputHandler()
     
     logger.info(f"퀘스트 목록 열기 - 활성 퀘스트: {len(active_quests)}개")
@@ -58,24 +58,32 @@ def open_quest_list(
             visible_quests = active_quests[scroll_offset:scroll_offset + max_visible]
             
             for i, quest in enumerate(visible_quests):
-                y = list_y + i * 5
+                y = list_y + i * 6  # 간격을 5에서 6으로 증가
                 cursor_index = scroll_offset + i
                 
                 # 커서
                 if cursor_index == cursor:
                     console.print(3, y, "►", fg=(255, 255, 100))
                 
-                # 퀘스트 이름
+                # 퀘스트 이름 (길이 제한 - 진행도와 겹치지 않도록)
                 name_color = (255, 255, 100) if cursor_index == cursor else (200, 200, 200)
-                console.print(5, y, quest.name, fg=name_color)
+                # 퀘스트 이름 길이 제한 (진행도와 겹치지 않도록 충분히 짧게)
+                max_name_width = min(45, console.width - 20)
+                quest_name = quest.name[:max_name_width] if len(quest.name) > max_name_width else quest.name
+                console.print(5, y, quest_name, fg=name_color)
                 
                 # 퀘스트 타입 및 레벨
                 type_text = f"[{quest.quest_type.value}] Lv.{quest.level}"
                 console.print(5, y + 1, type_text, fg=(150, 150, 150))
                 
-                # 진행 상황
+                # 진행 상황 (타입/레벨 아래에 별도 줄로 표시 - y + 3에서 확실히 분리)
                 progress_parts = []
-                if hasattr(quest, 'progress'):
+                if hasattr(quest, 'objectives'):
+                    # objectives를 사용하는 경우
+                    for obj in quest.objectives:
+                        progress_parts.append(f"{obj.description}: {obj.progress_text}")
+                elif hasattr(quest, 'progress'):
+                    # progress 딕셔너리를 사용하는 경우 (레거시)
                     for key, value in quest.progress.items():
                         if hasattr(quest, 'requirements') and key in quest.requirements:
                             required = quest.requirements[key]
@@ -83,10 +91,16 @@ def open_quest_list(
                             progress_parts.append(f"{key}: {current}/{required}")
                 
                 if progress_parts:
-                    progress_text = ", ".join(progress_parts)
-                    console.print(5, y + 2, progress_text, fg=(100, 200, 100))
+                    # 진행도 텍스트 앞에 라벨 추가하여 명확하게 표시
+                    progress_text = "진행: " + " | ".join(progress_parts)
+                    # 텍스트가 너무 길면 자르기
+                    max_progress_width = console.width - 10
+                    if len(progress_text) > max_progress_width:
+                        progress_text = progress_text[:max_progress_width - 3] + "..."
+                    # 진행도를 y + 3으로 이동하여 퀘스트 이름(y)과 타입(y+1)과 확실히 분리
+                    console.print(5, y + 3, progress_text, fg=(100, 200, 100))
                 
-                # 보상
+                # 보상 (진행도 아래로 이동)
                 if hasattr(quest, 'rewards'):
                     rewards = quest.rewards
                     reward_text = f"보상: "
@@ -97,8 +111,11 @@ def open_quest_list(
                         reward_parts.append(f"{rewards['exp']}EXP")
                     if 'star_fragments' in rewards and rewards['star_fragments'] > 0:
                         reward_parts.append(f"{rewards['star_fragments']}★")
-                    reward_text += ", ".join(reward_parts)
-                    console.print(5, y + 3, reward_text, fg=(255, 215, 0))
+                    if reward_parts:
+                        reward_text += ", ".join(reward_parts)
+                        # 진행도가 있으면 y + 4, 없으면 y + 3
+                        reward_y = y + 4 if progress_parts else y + 3
+                        console.print(5, reward_y, reward_text, fg=(255, 215, 0))
         
         # 도움말
         help_text = "↑↓: 선택  Z: 확인  X: 닫기"
