@@ -52,19 +52,12 @@ class WorldUI:
         self.field_skill_manager = FieldSkillManager(exploration)
         self.field_skill_ui = FieldSkillUI(screen_width, screen_height, self.field_skill_manager)
         
-        # 봇 인벤토리 뷰 인덱스
-        self.current_bot_view_index = 0
-
         # 초기화 로그
         logger.info(f"WorldUI 초기화 - inventory: {inventory is not None}, party: {party is not None}, party members: {len(party) if party else 0}")
 
         # 메시지 로그
         self.messages: List[str] = []
         self.max_messages = 5
-        
-        # 봇 도움말 UI
-        from src.ui.bot_help_ui import BotHelpUI
-        self.bot_help_ui = BotHelpUI()
 
         # 상태
         self.quit_requested = False
@@ -162,102 +155,7 @@ class WorldUI:
                     self.chat_input_text = ""
                     return False
         
-        # 숫자 키로 봇 명령 (1-7) 또는 도움말 토글
-        if isinstance(key_event, tcod.event.KeyDown):
-            key_char = None
-            
-            # 숫자 키 감지 방법 1: event.char 사용 (가장 확실한 방법)
-            if hasattr(key_event, 'char') and key_event.char:
-                if key_event.char in '1234567890':
-                    key_char = key_event.char
-            
-            # 숫자 키 감지 방법 2: ASCII 코드로 확인 (보조)
-            if not key_char:
-                # ASCII 코드로 숫자 키 확인 ('0' = 48, '1' = 49, ..., '9' = 57)
-                if ord('0') <= key_event.sym <= ord('9'):
-                    try:
-                        key_char = chr(key_event.sym)
-                    except (ValueError, OverflowError):
-                        pass
-            
-            # 숫자 키 감지 방법 3: KeySym의 숫자 키패드 확인
-            if not key_char:
-                # 숫자 키패드 (KP_0 ~ KP_9)
-                keypad_map = {
-                    tcod.event.KeySym.KP_0: '0',
-                    tcod.event.KeySym.KP_1: '1',
-                    tcod.event.KeySym.KP_2: '2',
-                    tcod.event.KeySym.KP_3: '3',
-                    tcod.event.KeySym.KP_4: '4',
-                    tcod.event.KeySym.KP_5: '5',
-                    tcod.event.KeySym.KP_6: '6',
-                    tcod.event.KeySym.KP_7: '7',
-                    tcod.event.KeySym.KP_8: '8',
-                    tcod.event.KeySym.KP_9: '9',
-                }
-                if key_event.sym in keypad_map:
-                    key_char = keypad_map[key_event.sym]
-            
-            if key_char:
-                # '1'번 키: 도움말 UI 토글 (봇 명령과 별개로 UI도 띄움)
-                if key_char == '1':
-                    self.bot_help_ui.toggle()
-                    # 1번 키는 여기서 UI 토글을 처리했으므로, 아래 handle_input에는 전달하지 않음
-                    # 단, 봇에게 명령은 전달되어야 함
-                
-                # '2'번 키: 봇 인벤토리 UI 토글
-                elif key_char == '2':
-                    logger.info("2번 키 입력 감지: 봇 인벤토리 열기 시도")
-                    # 봇 매니저가 있고, 실행 중인지 확인
-                    if self.exploration and hasattr(self.exploration, 'session'):
-                        session = getattr(self.exploration, 'session', None)
-                        if session and hasattr(session, 'bot_manager') and session.bot_manager:
-                            # 별도의 봇 인벤토리 UI를 열어야 함
-                            from src.ui.bot_inventory_ui import open_bot_inventory_ui
-                            
-                            bots_list = list(session.bot_manager.bots.values())
-                            if bots_list:
-                                # 인덱스 순환
-                                if self.current_bot_view_index >= len(bots_list):
-                                    self.current_bot_view_index = 0
-                                
-                                # on_update 콜백 전달
-                                target_bot = bots_list[self.current_bot_view_index]
-                                bot_name = getattr(target_bot, 'name', 'Unknown Bot')
-                                if hasattr(target_bot, 'character') and hasattr(target_bot.character, 'name'):
-                                    bot_name = target_bot.character.name
-                                
-                                logger.info(f"봇 인벤토리 열기: {bot_name}")
-                                open_bot_inventory_ui(console, context, bots_list, self.current_bot_view_index, on_update=self.on_update)
-                                return False
-                            else:
-                                logger.warning("봇 매니저에 봇이 없습니다.")
-                        else:
-                            logger.warning("봇 매니저를 찾을 수 없습니다.")
-                    else:
-                        logger.warning("탐험 세션이 없습니다.")
-            
-                # 도움말 UI가 켜져있으면 입력 처리 (스크롤 등)
-                # 단, 숫자 키 명령은 봇에게도 전달되어야 하므로 여기서 리턴하지 않음
-                # 중요: 1번 키는 이미 위에서 처리했으므로 중복 처리 방지
-                if self.bot_help_ui.is_visible and key_char != '1':
-                    self.bot_help_ui.handle_input(key_event)
-
-                if self.exploration and hasattr(self.exploration, 'session'):
-                    session = getattr(self.exploration, 'session', None)
-                    if session and hasattr(session, 'bot_manager'):
-                        bot_manager = session.bot_manager
-                        if bot_manager:
-                            # 모든 봇에게 명령 전달
-                            command_handled = False
-                            for bot_id, bot in bot_manager.bots.items():
-                                if bot.handle_command_key(key_char):
-                                    command_handled = True
-                            
-                            if command_handled:
-                                # 명령 처리되었다는 메시지 표시 (옵션)
-                                logger.info(f"봇 명령 전달: {key_char}")
-                            return False
+        # 봇 관련 코드 제거됨
 
         # 종료 확인 모드
         if self.quit_confirm_mode:
@@ -542,12 +440,45 @@ class WorldUI:
                 if is_town:
                     # 마을에서 건물과 상호작용
                     from src.town.town_map import TownInteractionHandler
-                    town_map = getattr(self.exploration, 'town_map', None)
+                    # town_map은 dungeon 객체에 있거나 exploration 객체에 직접 설정됨
+                    town_map = getattr(self.exploration, 'town_map', None) or getattr(self.exploration.dungeon, 'town_map', None)
                     town_manager = getattr(self.exploration, 'town_manager', None)
+                    
+                    if not town_map:
+                        # town_map이 없으면 dungeon에서 가져오기 시도
+                        if hasattr(self.exploration.dungeon, 'town_map'):
+                            town_map = self.exploration.dungeon.town_map
                     
                     if town_map and town_manager:
                         # 현재 위치의 건물 확인
-                        building = town_map.get_building_at(self.exploration.player.x, self.exploration.player.y)
+                        player_x = self.exploration.player.x
+                        player_y = self.exploration.player.y
+                        player_tile = self.exploration.dungeon.get_tile(player_x, player_y)
+                        
+                        building = None
+                        
+                        # 방법 1: 타일의 building 속성 사용 (우선순위 높음)
+                        if player_tile and hasattr(player_tile, 'building') and player_tile.building:
+                            building = player_tile.building
+                            logger.debug(f"[상호작용] 타일의 building 속성에서 건물 찾음: {building.name} at ({player_x}, {player_y})")
+                        
+                        # 방법 2: town_map에서 직접 건물 찾기
+                        if not building:
+                            building = town_map.get_building_at(player_x, player_y)
+                            if building:
+                                logger.debug(f"[상호작용] town_map.get_building_at에서 건물 찾음: {building.name} at ({player_x}, {player_y})")
+                        
+                        # 방법 3: 타일의 char가 건물 심볼인 경우 town_map에서 찾기
+                        if not building and player_tile and player_tile.char in ['K', 'B', 'A', 'S', 'Q', '$', 'I', 'G', 'F']:
+                            logger.debug(f"[상호작용] 타일 char가 건물 심볼 ({player_tile.char}), town_map.buildings에서 찾기 시도 (총 {len(town_map.buildings)}개 건물)")
+                            # 모든 건물을 순회하며 위치 확인
+                            for b in town_map.buildings:
+                                logger.debug(f"  건물 체크: {b.name} at ({b.x}, {b.y}) vs 플레이어 ({player_x}, {player_y})")
+                                if b.x == player_x and b.y == player_y:
+                                    building = b
+                                    logger.debug(f"[상호작용] town_map.buildings에서 건물 찾음: {building.name}")
+                                    break
+                        
                         if building:
                             # 건물과 상호작용
                             result = TownInteractionHandler.interact_with_building(
@@ -555,10 +486,26 @@ class WorldUI:
                                 self.exploration.player, 
                                 town_manager
                             )
-                            logger.info(f"건물 상호작용: {building.name} - {result.get('message', '')}")
+                            logger.info(f"[상호작용 성공] {building.name} (위치: {player_x}, {player_y}) - {result.get('message', '')}")
                             self.add_message(result.get('message', f"{building.name}에 입장했습니다."))
                             # TODO: 건물별 UI 열기 (주방, 대장간 등)
                             return False
+                        else:
+                            # 건물이 없는 위치에서 상호작용 시도
+                            tile_char = player_tile.char if player_tile else 'None'
+                            logger.warning(f"[상호작용 실패] 위치 ({player_x}, {player_y})에 건물이 없습니다. (타일 char: {tile_char}, town_map.buildings 개수: {len(town_map.buildings)})")
+                            # 건물 목록 로그
+                            if town_map.buildings:
+                                for b in town_map.buildings:
+                                    logger.warning(f"  건물: {b.name} at ({b.x}, {b.y})")
+                            self.add_message("주변에 상호작용할 건물이 없습니다.")
+                            return True
+                    else:
+                        logger.warning(f"town_map={town_map is not None}, town_manager={town_manager is not None}")
+                        if not town_map:
+                            logger.error("town_map을 찾을 수 없습니다.")
+                        if not town_manager:
+                            logger.error("town_manager를 찾을 수 없습니다.")
                 
                 # 현재 위치의 타일 확인 (모루 등)
                 player_tile = self.exploration.dungeon.get_tile(self.exploration.player.x, self.exploration.player.y)
@@ -601,7 +548,7 @@ class WorldUI:
                         # WorldUI는 inventory를 모르므로, 상호작용 시점에 inventory를 어떻게든 구해야 함.
                         
                         # 유일한 방법: Character 객체가 inventory를 참조하고 있다고 가정.
-                        # (BotInventoryUI 등에서 보듯이 character.inventory가 존재할 수 있음)
+                        # character.inventory가 존재할 수 있음
                         
                         # inventory가 None이 아닌지 확인한 후 open_anvil_ui 호출
                         if inventory is not None:
@@ -620,6 +567,172 @@ class WorldUI:
         """탐험 결과 처리"""
         # Debug: 탐험 결과
 
+        # 마을 건물 상호작용 처리 (적과 조우와 동일한 방식)
+        if result.event == ExplorationEvent.BUILDING_INTERACTION:
+            logger.info(f"[건물 상호작용] 이벤트 수신 - result.data={result.data}, console={console is not None}, context={context is not None}, console_type={type(console)}, context_type={type(context)}")
+            if result.data:
+                building = result.data.get("building")
+                logger.info(f"[건물 상호작용] building 객체 확인 - building={building}, building is not None={building is not None}")
+                if building is not None and console is not None and context is not None:
+                    # 마을에서 건물과 상호작용
+                    from src.town.town_map import TownInteractionHandler, BuildingType
+                    town_manager = getattr(self.exploration, 'town_manager', None)
+                    
+                    if town_manager:
+                        # 건물과 상호작용
+                        interaction_result = TownInteractionHandler.interact_with_building(
+                            building, 
+                            self.exploration.player, 
+                            town_manager
+                        )
+                        logger.info(f"[건물 상호작용] {building.name} - {interaction_result.get('message', '')}")
+                        logger.info(f"[건물 상호작용] 디버그 - console={console is not None}, context={context is not None}, inventory={self.inventory is not None}, building_type={building.building_type}")
+                        
+                        # 건물별 실제 UI 열기
+                        try:
+                            # console과 context가 None이면 UI를 열 수 없음
+                            if console is None or context is None:
+                                logger.warning(f"[건물 상호작용] console 또는 context가 없습니다. console={console is not None}, context={context is not None}")
+                                self.add_message(interaction_result.get('message', f"{building.name}에 입장했습니다."))
+                                # UI를 열 수 없지만 메시지는 표시했으므로 계속 진행
+                            
+                            # 건물 타입별 UI 열기
+                            if building.building_type == BuildingType.KITCHEN:
+                                # 주방: 요리 UI 열기
+                                if self.inventory is not None:
+                                    from src.ui.cooking_ui import open_cooking_pot
+                                    logger.info(f"[건물 상호작용] 주방 UI 열기 (inventory type: {type(self.inventory)})")
+                                    # 주방에서는 요리솥 보너스 적용
+                                    open_cooking_pot(console, context, self.inventory, is_cooking_pot=True)
+                                else:
+                                    logger.warning(f"[건물 상호작용] 인벤토리가 없어 주방을 열 수 없습니다. inventory={self.inventory}")
+                                    self.add_message("인벤토리가 없어 주방을 사용할 수 없습니다.")
+                            elif building.building_type == BuildingType.BLACKSMITH:
+                                # 대장간: 골드 상점 열기 (장비 수리/재련)
+                                if self.inventory is not None:
+                                    from src.ui.gold_shop_ui import open_gold_shop
+                                    floor_level = self.exploration.floor_number if hasattr(self.exploration, 'floor_number') else 1
+                                    logger.info(f"[건물 상호작용] 대장간 UI 열기 (층수: {floor_level}, inventory type: {type(self.inventory)})")
+                                    open_gold_shop(console, context, self.inventory, floor_level)
+                                else:
+                                    logger.warning(f"[건물 상호작용] 인벤토리가 없어 대장간을 열 수 없습니다. inventory={self.inventory}")
+                                    self.add_message("인벤토리가 없어 대장간을 사용할 수 없습니다.")
+                            elif building.building_type == BuildingType.SHOP:
+                                # 상점: 골드 상점 열기
+                                logger.info(f"[건물 상호작용] 잡화점 - inventory 체크 직전: inventory={self.inventory}, is not None={self.inventory is not None}, type={type(self.inventory)}")
+                                if self.inventory is not None:
+                                    from src.ui.gold_shop_ui import open_gold_shop
+                                    floor_level = self.exploration.floor_number if hasattr(self.exploration, 'floor_number') else 1
+                                    logger.info(f"[건물 상호작용] 잡화점 UI 열기 (층수: {floor_level}, inventory type: {type(self.inventory)})")
+                                    try:
+                                        open_gold_shop(console, context, self.inventory, floor_level)
+                                        logger.info(f"[건물 상호작용] 잡화점 UI 열기 성공")
+                                    except Exception as ui_error:
+                                        logger.error(f"[건물 상호작용] 잡화점 UI 열기 오류: {ui_error}", exc_info=True)
+                                        self.add_message(f"상점을 열 수 없습니다: {ui_error}")
+                                else:
+                                    logger.warning(f"[건물 상호작용] 인벤토리가 없어 잡화점을 열 수 없습니다. inventory={self.inventory}, is not None={self.inventory is not None}")
+                                    self.add_message("인벤토리가 없어 잡화점을 사용할 수 없습니다.")
+                            elif building.building_type == BuildingType.INN:
+                                # 여관: 휴식 메뉴 열기
+                                # party는 self.party 또는 exploration.player.party에서 가져오기
+                                party_for_rest = self.party
+                                if not party_for_rest and hasattr(self.exploration, 'player') and hasattr(self.exploration.player, 'party'):
+                                    party_for_rest = self.exploration.player.party
+                                
+                                logger.info(f"[건물 상호작용] 여관 체크 - inventory={self.inventory is not None}, party={party_for_rest is not None}, inventory type={type(self.inventory) if self.inventory is not None else None}, party type={type(party_for_rest) if party_for_rest is not None else None}")
+                                
+                                if self.inventory is not None and party_for_rest is not None:
+                                    from src.ui.rest_ui import open_rest_menu
+                                    logger.info(f"[건물 상호작용] 여관 UI 열기")
+                                    open_rest_menu(console, context, party_for_rest, self.inventory)
+                                else:
+                                    logger.warning(f"[건물 상호작용] 여관을 열 수 없습니다. inventory={self.inventory is not None}, party={party_for_rest is not None}")
+                                    self.add_message("파티 정보가 없어 여관을 사용할 수 없습니다.")
+                            elif building.building_type == BuildingType.ALCHEMY_LAB:
+                                # 연금술 실험실: 연금술 UI 열기
+                                if self.inventory is not None:
+                                    from src.ui.alchemy_ui import open_alchemy_lab
+                                    floor_level = self.exploration.floor_number if hasattr(self.exploration, 'floor_number') else 1
+                                    
+                                    # 파티 정보 가져오기
+                                    party_for_alchemy = self.party
+                                    if not party_for_alchemy and hasattr(self.exploration, 'player') and hasattr(self.exploration.player, 'party'):
+                                        party_for_alchemy = self.exploration.player.party
+                                    
+                                    logger.info(f"[건물 상호작용] 연금술 실험실 UI 열기 (층수: {floor_level})")
+                                    try:
+                                        open_alchemy_lab(console, context, self.inventory, floor_level, party=party_for_alchemy)
+                                        logger.info(f"[건물 상호작용] 연금술 실험실 UI 열기 성공")
+                                    except Exception as ui_error:
+                                        logger.error(f"[건물 상호작용] 연금술 실험실 UI 열기 오류: {ui_error}", exc_info=True)
+                                        self.add_message(f"연금술 실험실을 열 수 없습니다: {ui_error}")
+                                else:
+                                    logger.warning(f"[건물 상호작용] 인벤토리가 없어 연금술 실험실을 열 수 없습니다.")
+                                    self.add_message("인벤토리가 없어 연금술 실험실을 사용할 수 없습니다.")
+                            elif building.building_type == BuildingType.QUEST_BOARD:
+                                # 퀘스트 게시판: 퀘스트 UI 열기
+                                from src.quest.quest_manager import get_quest_manager
+                                quest_manager = get_quest_manager()
+                                
+                                # 플레이어 레벨 가져오기
+                                player_level = 1
+                                if hasattr(self.exploration, 'player') and hasattr(self.exploration.player, 'party'):
+                                    if self.exploration.player.party:
+                                        first_member = self.exploration.player.party[0]
+                                        if hasattr(first_member, 'level'):
+                                            player_level = first_member.level
+                                elif hasattr(self.exploration, 'player') and hasattr(self.exploration.player, 'level'):
+                                    player_level = self.exploration.player.level
+                                
+                                logger.info(f"[건물 상호작용] 퀘스트 게시판 UI 열기 (플레이어 레벨: {player_level})")
+                                try:
+                                    from src.ui.quest_board_ui import open_quest_board
+                                    open_quest_board(console, context, quest_manager, player_level)
+                                    logger.info(f"[건물 상호작용] 퀘스트 게시판 UI 열기 성공")
+                                except Exception as ui_error:
+                                    logger.error(f"[건물 상호작용] 퀘스트 게시판 UI 열기 오류: {ui_error}", exc_info=True)
+                                    self.add_message(f"퀘스트 게시판을 열 수 없습니다: {ui_error}")
+                            elif building.building_type == BuildingType.STORAGE:
+                                # 창고: 창고 UI 열기
+                                if self.inventory is not None and town_manager is not None:
+                                    hub_storage = town_manager.get_hub_storage()
+                                    logger.info(f"[건물 상호작용] 창고 UI 열기 (보관 아이템: {len(hub_storage)}종류)")
+                                    try:
+                                        from src.ui.storage_ui import open_storage
+                                        open_storage(console, context, self.inventory, hub_storage, town_manager)
+                                        logger.info(f"[건물 상호작용] 창고 UI 열기 성공")
+                                    except Exception as ui_error:
+                                        logger.error(f"[건물 상호작용] 창고 UI 열기 오류: {ui_error}", exc_info=True)
+                                        self.add_message(f"창고를 열 수 없습니다: {ui_error}")
+                                else:
+                                    logger.warning(f"[건물 상호작용] 인벤토리 또는 town_manager가 없어 창고를 열 수 없습니다.")
+                                    self.add_message("창고를 사용할 수 없습니다.")
+                            elif building.building_type == BuildingType.GUILD_HALL:
+                                # 모험가 길드: 정보 UI 열기 (간단한 메시지 박스)
+                                from src.ui.game_menu import show_message
+                                guild_message = interaction_result.get('message', '모험가 길드에 오신 것을 환영합니다!')
+                                logger.info(f"[건물 상호작용] 모험가 길드")
+                                show_message(console, context, guild_message)
+                            elif building.building_type == BuildingType.FOUNTAIN:
+                                # 분수대: 간단한 메시지만 표시
+                                from src.ui.game_menu import show_message
+                                fountain_message = interaction_result.get('message', '중앙 분수대에 입장했습니다. 마을의 중심입니다.')
+                                logger.info(f"[건물 상호작용] 분수대")
+                                show_message(console, context, fountain_message)
+                            else:
+                                # 기타 건물은 메시지만 표시
+                                from src.ui.game_menu import show_message
+                                message = interaction_result.get('message', f"{building.name}에 입장했습니다.")
+                                show_message(console, context, message)
+                        except Exception as e:
+                            logger.error(f"[건물 상호작용] UI 열기 오류: {e}", exc_info=True)
+                            self.add_message(f"{building.name} 상호작용 중 오류가 발생했습니다: {e}")
+                    else:
+                        logger.warning("town_manager를 찾을 수 없습니다.")
+                        self.add_message(f"{building.name}에 입장했습니다.")
+            return
+        
         # NPC 상호작용은 대화 창으로 처리 (로그에 표시하지 않음)
         if result.event == ExplorationEvent.NPC_INTERACTION:
             if console and context and result.data:
@@ -816,11 +929,16 @@ class WorldUI:
             floor=self.exploration.floor_number
         )
 
-        # 제목
+        # 제목 - 마을인 경우 "마을"로 표시, 그 외는 층수로 표시
+        is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
+        if is_town:
+            floor_label = "던전 탐험 - 마을"
+        else:
+            floor_label = f"던전 탐험 - {self.exploration.floor_number}층"
         console.print(
             self.screen_width // 2 - 15,
             1,
-            f"던전 탐험 - {self.exploration.floor_number}층",
+            floor_label,
             fg=(255, 255, 100)
         )
 
@@ -975,7 +1093,7 @@ class WorldUI:
         # 메시지 로그 (하단)
         self._render_messages(console)
 
-        # 조작법 (하단)
+        # 조작법 (최하단, 로그 패널 밖)
         help_text = "방향키: 이동  Z: 계단 이용  M: 메뉴  I: 인벤토리  ESC: 종료"
         is_multiplayer = (
             self.network_manager is not None or
@@ -985,34 +1103,13 @@ class WorldUI:
         if is_multiplayer:
             help_text += "  T: 채팅"
         
-        # 봇 명령 도움말 (봇이 있을 때만 표시)
-        has_bots = False
-        if is_multiplayer and self.exploration and hasattr(self.exploration, 'session'):
-            session = getattr(self.exploration, 'session', None)
-            if session and hasattr(session, 'bot_manager') and session.bot_manager:
-                bot_manager = session.bot_manager
-                if bot_manager and len(bot_manager.bots) > 0:
-                    has_bots = True
-        
+        # 조작 가이드를 최하단에 배치 (로그 패널 아래)
         console.print(
-            5,
+            2,
             self.screen_height - 2,
             help_text,
             fg=(180, 180, 180)
         )
-        
-        # 봇 명령 안내 (별도 줄에 표시)
-        if has_bots:
-            console.print(
-                5,
-                self.screen_height - 1,
-                "[1]키를 눌러 봇 명령어 도움말을 확인하세요.",
-                fg=(150, 200, 255)
-            )
-
-        # 봇 도움말 UI (최상위 렌더링)
-        if hasattr(self, 'bot_help_ui'):
-            self.bot_help_ui.draw(console)
 
         # 필드 스킬 UI
         if self.field_skill_ui.is_active:
@@ -1066,12 +1163,36 @@ class WorldUI:
         console.print(x + 2, inv_y + 2, f"아이템: {item_count}개", fg=(200, 200, 200))
 
     def _render_messages(self, console: tcod.console.Console):
-        """메시지 로그"""
-        msg_y = 40
-        console.print(0, msg_y, "─" * self.screen_width, fg=(100, 100, 100))
-
-        for i, msg in enumerate(self.messages[-self.max_messages:]):
-            console.print(2, msg_y + 1 + i, msg, fg=(200, 200, 200))
+        """메시지 로그 - 별도 패널로 표시"""
+        # 로그 패널 설정 (좌측 하단에 별도 창으로 표시)
+        log_panel_width = min(60, self.screen_width // 2)
+        log_panel_height = 8
+        log_panel_x = 2
+        log_panel_y = self.screen_height - log_panel_height - 3  # 조작 가이드 위에 배치
+        
+        # 로그 패널 테두리
+        console.draw_frame(
+            log_panel_x - 1,
+            log_panel_y - 1,
+            log_panel_width + 2,
+            log_panel_height + 2,
+            "[로그]",
+            fg=(150, 150, 150),
+            bg=(0, 0, 0)
+        )
+        
+        # 로그 메시지 표시
+        visible_messages = self.messages[-self.max_messages:]
+        for i, msg in enumerate(visible_messages):
+            # 메시지가 패널 너비를 초과하면 자르기
+            if len(msg) > log_panel_width - 2:
+                msg = msg[:log_panel_width - 5] + "..."
+            console.print(
+                log_panel_x, 
+                log_panel_y + i, 
+                msg, 
+                fg=(200, 200, 200)
+            )
 
     def _render_quit_confirm(self, console: tcod.console.Console):
         """종료 확인 대화상자"""
@@ -1383,8 +1504,22 @@ def run_exploration(
         
         def handle_chat_message(msg, sender_id):
             """채팅 메시지 수신 핸들러"""
-            player_id = msg.player_id
-            message = msg.data.get("message", "")
+            try:
+                player_id = msg.player_id
+                message = msg.data.get("message", "")
+                
+                # 플레이어 이름 가져오기
+                player_name = "플레이어"
+                if hasattr(exploration, 'session') and exploration.session:
+                    if player_id in exploration.session.players:
+                        player_name = exploration.session.players[player_id].player_name
+                
+                # 채팅 메시지 표시
+                chat_text = f"[{player_name}]: {message}"
+                ui.add_message(chat_text)
+                logger.info(f"채팅 메시지 수신: {chat_text}")
+            except Exception as e:
+                logger.error(f"채팅 메시지 핸들러 오류: {e}", exc_info=True)
         
         def handle_player_left(msg, sender_id):
             """플레이어 나감 핸들러"""
@@ -1406,49 +1541,39 @@ def run_exploration(
                             ui.add_message(f"⚠ {player_name}이(가) 나갔습니다!")
             except Exception as e:
                 logger.error(f"플레이어 나감 핸들러 오류: {e}", exc_info=True)
-            
-            # 플레이어 이름 가져오기
-            player_name = "플레이어"
-            if hasattr(exploration, 'session') and exploration.session:
-                if player_id in exploration.session.players:
-                    player_name = exploration.session.players[player_id].player_name
-            
-            # 채팅 메시지 표시
-            chat_text = f"[{player_name}]: {message}"
-            ui.add_message(chat_text)
-            logger.info(f"채팅 메시지 수신: {chat_text}")
         
         network_manager.register_handler(MessageType.CHAT_MESSAGE, handle_chat_message)
         network_manager.register_handler(MessageType.PLAYER_LEFT, handle_player_left)
         logger.info("채팅 메시지 및 플레이어 나감 핸들러 등록 완료")
 
-    # 봇 채팅 메시지 이벤트 핸들러
-    def handle_bot_chat_message(data):
-        """봇 채팅 메시지 수신 핸들러 (로컬)"""
-        player_id = data.get("player_id")
-        message = data.get("message")
-        player_name = data.get("player_name", "Bot")
-        
-        # 채팅 메시지 표시
-        chat_text = f"[{player_name}]: {message}"
-        ui.add_message(chat_text)
-        logger.info(f"봇 채팅 메시지 수신 (로컬): {chat_text}")
-
-    from src.core.event_bus import event_bus, Events
-    event_bus.subscribe(Events.CHAT_MESSAGE_RECEIVED, handle_bot_chat_message)
+    # 봇 관련 코드 제거됨
 
     # 남은 이벤트 제거 (불러오기 등에서 남은 키 입력 방지)
     tcod.event.get()
 
-    # 바이옴별 BGM 재생 (매 층마다 바뀜, 전투 후 복귀 시에는 재생하지 않음)
+    # BGM 재생 (매 층마다 바뀜, 전투 후 복귀 시에는 재생하지 않음)
     if play_bgm_on_start:
-        floor = exploration.floor_number
-        # 바이옴 계산 (매 층마다 변경: 10개 바이옴 순환)
-        biome_index = (floor - 1) % 10
-        biome_track = f"biome_{biome_index}"
-        
-        logger.info(f"층 {floor} -> 바이옴 {biome_index}, BGM: {biome_track}")
-        play_bgm(biome_track)
+        # 마을인 경우 마을 BGM 재생
+        if hasattr(exploration, 'is_town') and exploration.is_town:
+            logger.info("마을 BGM 재생: town.ogg")
+            # town.ogg 파일 직접 재생
+            from src.audio.audio_manager import get_audio_manager
+            audio_manager = get_audio_manager()
+            # config.yaml에 "town" 트랙이 정의되어 있으면 사용, 없으면 직접 파일명 사용
+            if audio_manager.config.get("audio.bgm.tracks.town"):
+                play_bgm("town", loop=True, fade_in=True)
+            else:
+                # 직접 파일명 사용
+                audio_manager.play_bgm_file("town.ogg", loop=True, fade_in=True)
+        else:
+            # 던전인 경우 바이옴별 BGM 재생
+            floor = exploration.floor_number
+            # 바이옴 계산 (매 층마다 변경: 10개 바이옴 순환)
+            biome_index = (floor - 1) % 10
+            biome_track = f"biome_{biome_index}"
+            
+            logger.info(f"층 {floor} -> 바이옴 {biome_index}, BGM: {biome_track}")
+            play_bgm(biome_track)
 
     # 업데이트 콜백 함수 정의
     def update_game_state():
@@ -1480,20 +1605,7 @@ def run_exploration(
                         exploration._move_all_enemies()
                     exploration._last_enemy_update = current_time
             
-            # 봇 업데이트 (매 프레임)
-            if hasattr(exploration, 'session') and exploration.session:
-                session = exploration.session
-                if hasattr(session, 'bot_manager') and session.bot_manager:
-                    bot_manager = session.bot_manager
-                    if bot_manager:
-                        if not bot_manager.is_running:
-                            bot_manager.start_all()
-                        
-                        if bot_manager.is_running:
-                            try:
-                                bot_manager.update(current_time)
-                            except Exception as e:
-                                logger.error(f"봇 업데이트 오류: {e}", exc_info=True)
+            # 봇 관련 코드 제거됨
 
     # WorldUI에 업데이트 콜백 설정
     ui.on_update = update_game_state

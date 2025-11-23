@@ -21,7 +21,6 @@ class MenuOption(Enum):
     PARTY_STATUS = "party_status"
     INVENTORY = "inventory"
     COOKING = "cooking"  # 요리
-    SHOP = "shop"  # 골드 상점
     SAVE_GAME = "save"
     LOAD_GAME = "load"
     OPTIONS = "options"
@@ -32,19 +31,24 @@ class MenuOption(Enum):
 class GameMenu:
     """게임 내 메뉴"""
 
-    def __init__(self, screen_width: int, screen_height: int):
+    def __init__(self, screen_width: int, screen_height: int, exploration=None):
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.exploration = exploration
         self.selected_index = 0
         self.menu_options = [
             ("파티 상태", MenuOption.PARTY_STATUS),
             ("인벤토리", MenuOption.INVENTORY),
-            ("상점", MenuOption.SHOP),
             ("게임 저장", MenuOption.SAVE_GAME),
             ("게임 불러오기", MenuOption.LOAD_GAME),
             ("설정", MenuOption.OPTIONS),
             ("돌아가기", MenuOption.RETURN),
         ]
+        
+        # 마을에서 저장 비활성화 여부 확인
+        self.is_town = False
+        if exploration and hasattr(exploration, 'is_town'):
+            self.is_town = exploration.is_town
 
     def handle_input(self, action: GameAction) -> Optional[MenuOption]:
         """
@@ -59,7 +63,15 @@ class GameMenu:
             self.selected_index = min(len(self.menu_options) - 1, self.selected_index + 1)
         elif action == GameAction.CONFIRM or action == GameAction.MENU:
             # Enter 또는 M키로 선택
-            return self.menu_options[self.selected_index][1]
+            selected_option = self.menu_options[self.selected_index][1]
+            
+            # 마을에서 저장 옵션 비활성화
+            if selected_option == MenuOption.SAVE_GAME and self.is_town:
+                from src.audio import play_sfx
+                play_sfx("ui", "cursor_cancel")
+                return None  # 선택 불가능 (메뉴에서 처리)
+            
+            return selected_option
         elif action == GameAction.ESCAPE:
             # ESC로 메뉴 닫기
             from src.audio import play_sfx
@@ -94,15 +106,26 @@ class GameMenu:
         )
 
         # 메뉴 옵션
-        for i, (label, _) in enumerate(self.menu_options):
+        for i, (label, option) in enumerate(self.menu_options):
             y = menu_y + 4 + i
+            
+            # 마을에서 저장 옵션 비활성화 표시
+            is_disabled = (option == MenuOption.SAVE_GAME and self.is_town)
+            
             if i == self.selected_index:
                 # 선택된 항목
-                console.print(menu_x + 2, y, "►", fg=(255, 255, 100))
-                console.print(menu_x + 4, y, label, fg=(255, 255, 100))
+                if is_disabled:
+                    console.print(menu_x + 2, y, "►", fg=(150, 150, 150))
+                    console.print(menu_x + 4, y, f"{label} (마을에서 불가)", fg=(150, 150, 150))
+                else:
+                    console.print(menu_x + 2, y, "►", fg=(255, 255, 100))
+                    console.print(menu_x + 4, y, label, fg=(255, 255, 100))
             else:
                 # 일반 항목
-                console.print(menu_x + 4, y, label, fg=(200, 200, 200))
+                if is_disabled:
+                    console.print(menu_x + 4, y, f"{label} (마을에서 불가)", fg=(100, 100, 100))
+                else:
+                    console.print(menu_x + 4, y, label, fg=(200, 200, 200))
 
         # 조작법
         help_text = "↑↓: 선택  Enter/M: 확인  ESC: 닫기"
@@ -157,10 +180,10 @@ def open_game_menu(
     Returns:
         선택된 메뉴 옵션
     """
-    menu = GameMenu(console.width, console.height)
+    menu = GameMenu(console.width, console.height, exploration=exploration)
     handler = InputHandler()
 
-    logger.info("게임 메뉴 열림")
+    logger.info(f"게임 메뉴 열림 (마을: {menu.is_town})")
 
     while True:
         # 렌더링
@@ -203,20 +226,14 @@ def open_game_menu(
                         # 파티 상태에서 돌아온 후 메뉴 계속
                         continue
 
-                    elif result == MenuOption.SHOP:
-                        if inventory is not None and exploration is not None:
-                            from src.ui.gold_shop_ui import open_gold_shop
-                            floor_level = exploration.floor_number if hasattr(exploration, 'floor_number') else 1
-                            open_gold_shop(console, context, inventory, floor_level)
-                            # 상점에서 돌아온 후 메뉴 계속
-                            continue
-                        else:
-                            show_message(console, context, "상점을 열 수 없습니다.")
-                            continue
-
                     elif result == MenuOption.SAVE_GAME:
                         if exploration is None:
                             show_message(console, context, "저장할 수 없습니다.")
+                            continue
+                        
+                        # 마을에서는 저장 불가
+                        if hasattr(exploration, 'is_town') and exploration.is_town:
+                            show_message(console, context, "마을에서는 저장할 수 없습니다.")
                             continue
 
                         from src.ui.save_load_ui import show_save_screen

@@ -65,8 +65,21 @@ class MapRenderer:
                 if not tile.explored:
                     continue
 
+                # 마을 건물 표시 (우선순위 높음)
+                # building_symbol이 있으면 사용, 없으면 타일의 char와 fg_color를 사용 (이미 건물 심볼로 설정됨)
+                if hasattr(tile, 'building_symbol') and tile.building_symbol:
+                    char = tile.building_symbol
+                    fg = getattr(tile, 'building_color', tile.fg_color)
+                    bg = (0, 0, 0)
+                # 타일의 char가 건물 심볼인 경우 (K, B, A, S, Q, $, I, G, F)
+                elif tile.char in ['K', 'B', 'A', 'S', 'Q', '$', 'I', 'G', 'F'] and hasattr(dungeon, 'is_town') and dungeon.is_town:
+                    char = tile.char
+                    fg = tile.fg_color
+                    bg = (0, 0, 0)
+                # 마을 장식 제거 (더 이상 사용하지 않음)
+                # elif hasattr(tile, 'decoration_char') and tile.decoration_char: 제거됨
                 # 함정은 작동하기 전까지 숨김 (일반 바닥처럼 표시)
-                if tile.tile_type in [TileType.TRAP, TileType.SPIKE_TRAP, TileType.FIRE_TRAP, TileType.POISON_GAS]:
+                elif tile.tile_type in [TileType.TRAP, TileType.SPIKE_TRAP, TileType.FIRE_TRAP, TileType.POISON_GAS]:
                     # 함정은 일반 바닥처럼 표시
                     char = "."
                     fg = (100, 100, 100)

@@ -396,37 +396,15 @@ def main() -> int:
                         from src.core.difficulty import DifficultySystem, DifficultyLevel, set_difficulty_system
                         difficulty_system = DifficultySystem(config)
                         
-                        # 봇이 호스트인지 확인 (봇은 항상 보통 선택)
-                        is_bot_host = False
-                        bot_manager = None
-                        try:
-                            from src.multiplayer.ai_bot_advanced import AdvancedBotManager
-                            # 봇 관리자 확인 (세션에 저장되어 있을 수 있음)
-                            if hasattr(session, 'bot_manager'):
-                                bot_manager = session.bot_manager
-                                if bot_manager and local_player_id in bot_manager.bots:
-                                    bot = bot_manager.get_bot(local_player_id)
-                                    if bot and bot.is_host:
-                                        is_bot_host = True
-                        except Exception as e:
-                            logger.debug(f"봇 확인 실패 (정상): {e}")
+                        # 일반 호스트: UI로 선택
+                        from src.ui.difficulty_selection_ui import show_difficulty_selection
+                        difficulty_result = show_difficulty_selection(display.console, display.context, difficulty_system)
                         
-                        if is_bot_host:
-                            # 봇 호스트: 자동으로 보통 선택
-                            difficulty_result = DifficultyLevel.NORMAL
-                            difficulty_system.set_difficulty(difficulty_result)
-                            set_difficulty_system(difficulty_system)
-                            logger.info(f"봇 호스트 난이도 자동 선택: {difficulty_result.value}")
-                        else:
-                            # 일반 호스트: UI로 선택
-                            from src.ui.difficulty_selection_ui import show_difficulty_selection
-                            difficulty_result = show_difficulty_selection(display.console, display.context, difficulty_system)
-                            
-                            if not difficulty_result:
-                                continue
-                            
-                            difficulty_system.set_difficulty(difficulty_result)
-                            set_difficulty_system(difficulty_system)
+                        if not difficulty_result:
+                            continue
+                        
+                        difficulty_system.set_difficulty(difficulty_result)
+                        set_difficulty_system(difficulty_system)
                         
                         # 인벤토리 생성 (멀티플레이: 호스트 기준)
                         from src.equipment.inventory import Inventory
@@ -522,7 +500,7 @@ def main() -> int:
                         # 로컬 플레이어의 파티를 Character 객체 리스트로 업데이트 (전투 참여자 수집용)
                         local_player.party = character_party
                         
-                        # 다른 플레이어(봇 포함)의 파티도 Character 객체로 변환
+                        # 다른 플레이어의 파티도 Character 객체로 변환
                         for player_id, mp_player in session.players.items():
                             # 로컬 플레이어는 이미 처리했으므로 건너뛰기
                             if player_id == local_player_id:
@@ -571,7 +549,7 @@ def main() -> int:
                                         char.current_mp = char.max_mp
                                         char.is_alive = True
                                         
-                                        logger.debug(f"{char.name} (봇) HP/MP 초기화: HP={char.current_hp}/{char.max_hp}, MP={char.current_mp}/{char.max_mp}")
+                                        logger.debug(f"{char.name} HP/MP 초기화: HP={char.current_hp}/{char.max_hp}, MP={char.current_mp}/{char.max_mp}")
                                         
                                         other_character_party.append(char)
                                 
@@ -607,25 +585,8 @@ def main() -> int:
                         network_manager.current_dungeon = dungeon
                         network_manager.current_exploration = exploration
                         
-                        # 세션에 exploration 저장 (봇이 접근할 수 있도록)
+                        # 세션에 exploration 저장
                         session.exploration = exploration
-                        
-                        # 봇 매니저 시작 (봇이 있는 경우)
-                        if hasattr(session, 'bot_manager') and session.bot_manager:
-                            bot_manager = session.bot_manager
-                            if bot_manager and len(bot_manager.bots) > 0:
-                                bot_manager.start_all()
-                                logger.info(f"봇 매니저 시작: {len(bot_manager.bots)}개의 봇 활성화")
-                                
-                                # 봇들에게 탐험 시스템 참조 전달
-                                for bot_id, bot in bot_manager.bots.items():
-                                    # 봇의 초기 위치를 세션 플레이어에서 가져오기
-                                    if bot_id in session.players:
-                                        bot_player = session.players[bot_id]
-                                        if hasattr(bot_player, 'x') and hasattr(bot_player, 'y'):
-                                            bot.current_x = bot_player.x
-                                            bot.current_y = bot_player.y
-                                            logger.info(f"봇 {bot.bot_name} 초기 위치: ({bot.current_x}, {bot.current_y})")
                         
                         # 플레이어 초기 위치 설정 (모든 플레이어)
                         # exploration._initialize_player_positions()가 이미 호출되었으므로
@@ -681,6 +642,9 @@ def main() -> int:
                             "player_x": local_player.x,
                             "player_y": local_player.y
                         }
+                        
+                        # 게임 루프에서 사용할 파티 변수 저장 (층 변경 시 재사용)
+                        # character_party는 게임 루프 시작 전에 정의되어 있어야 함
                         
                         play_dungeon_bgm = True
                         
@@ -752,11 +716,6 @@ def main() -> int:
                                             enemies.append(boss)
                                 
                                 # 멀티플레이 전투 실행
-                                # 봇 관리자 가져오기 (세션에서)
-                                bot_manager_for_combat = None
-                                if hasattr(session, 'bot_manager'):
-                                    bot_manager_for_combat = session.bot_manager
-                                
                                 combat_result = run_combat(
                                     display.console,
                                     display.context,
@@ -766,7 +725,6 @@ def main() -> int:
                                     session=session,
                                     network_manager=network_manager,
                                     combat_position=combat_position,
-                                    bot_manager=bot_manager_for_combat,
                                     local_player_id=local_player_id
                                 )
                                 
@@ -1742,11 +1700,6 @@ def main() -> int:
                                                         else:
                                                             enemies.append(boss)
                                                 
-                                                # 봇 관리자 가져오기
-                                                bot_manager_for_combat = None
-                                                if hasattr(session, 'bot_manager'):
-                                                    bot_manager_for_combat = session.bot_manager
-                                                
                                                 # 멀티플레이 전투 실행
                                                 combat_result = run_combat(
                                                     display.console,
@@ -1757,7 +1710,6 @@ def main() -> int:
                                                     session=session,
                                                     network_manager=network_manager,
                                                     combat_position=combat_position,
-                                                    bot_manager=bot_manager_for_combat,
                                                     local_player_id=local_player_id
                                                 )
                                                 
@@ -2144,19 +2096,7 @@ def main() -> int:
                                 if assignments:
                                     logger.info(f"플레이어 재할당 완료: {len(assignments)}명 플레이어에게 할당")
                             
-                            # 봇 할당 UI 표시 (멀티플레이 로드 시)
-                            if session and is_multiplayer_load:
-                                from src.ui.multiplayer_lobby import show_bot_assignment_ui
-                                bot_assigned = show_bot_assignment_ui(
-                                    display.console,
-                                    display.context,
-                                    session,
-                                    network_manager
-                                )
-                                if bot_assigned:
-                                    logger.info("봇 할당 완료")
-                                else:
-                                    logger.warning("플레이어 재할당 취소됨")
+                            # 봇 할당 UI 제거됨
                                     continue
                             else:
                                 logger.error("재할당할 플레이어가 없습니다 - 세션 설정 문제 가능성")
@@ -2282,7 +2222,7 @@ def main() -> int:
                         
                         logger.info(f"멀티플레이 탐험 시스템 생성 완료 (is_multiplayer={exploration.is_multiplayer})")
                         
-                        # 세션에 exploration 설정 (봇이 접근할 수 있도록)
+                        # 세션에 exploration 설정
                         if session:
                             session.exploration = exploration
                             logger.info("세션에 탐험 시스템 설정 완료")
@@ -2433,11 +2373,6 @@ def main() -> int:
                             # 파티를 전투용 변수에 할당 (None 체크)
                             party = combat_party if combat_party is not None else []
                             
-                            # 봇 관리자 가져오기
-                            bot_manager_for_combat = None
-                            if session_for_combat and hasattr(session_for_combat, 'bot_manager'):
-                                bot_manager_for_combat = session_for_combat.bot_manager
-                            
                             combat_result = run_combat(
                                 display.console,
                                 display.context,
@@ -2447,7 +2382,6 @@ def main() -> int:
                                 session=session_for_combat,
                                 network_manager=network_manager_for_combat,
                                 combat_position=combat_position,
-                                bot_manager=bot_manager_for_combat,
                                 local_player_id=local_player_id
                             )
 
@@ -2577,10 +2511,16 @@ def main() -> int:
                                     saved_y = None
                                     logger.info(f"새 {floor_number}층 던전 생성 (시드: {dungeon_seed})")
                                 
+                                # 기존 파티 가져오기 (exploration.party 사용)
+                                current_party = exploration.party if hasattr(exploration, 'party') and exploration.party else None
+                                if not current_party:
+                                    logger.error("파티를 찾을 수 없습니다. exploration.party 확인 필요")
+                                    current_party = []
+                                
                                 from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
                                 exploration = MultiplayerExplorationSystem(
                                     dungeon=dungeon,
-                                    party=character_party,
+                                    party=current_party,  # 기존 파티 재사용
                                     floor_number=floor_number,
                                     inventory=inventory,
                                     game_stats=game_stats,
@@ -2612,6 +2552,24 @@ def main() -> int:
                                     "player_x": exploration.player.x,
                                     "player_y": exploration.player.y
                                 }
+                                
+                                # 기존 파티 가져오기 (exploration.party 사용)
+                                current_party = exploration.party if hasattr(exploration, 'party') and exploration.party else None
+                                if not current_party:
+                                    # 파티를 찾을 수 없으면 오류 로그
+                                    logger.error("파티를 찾을 수 없습니다. exploration.party 확인 필요")
+                                    # 임시로 빈 리스트 사용 (오류 방지)
+                                    current_party = []
+                                
+                                # 기존 network_manager 가져오기 (exploration에서 가져오거나 스코프에서)
+                                current_network_manager = getattr(exploration, 'network_manager', None) if hasattr(exploration, 'network_manager') else network_manager
+                                if not current_network_manager:
+                                    logger.error("network_manager를 찾을 수 없습니다. 이전 exploration에서 가져오기 시도")
+                                    # 스코프에서 network_manager 찾기
+                                    current_network_manager = network_manager
+                                if not current_network_manager:
+                                    logger.error("network_manager가 None입니다. 게임 루프를 종료합니다.")
+                                    break
                                 
                                 # 마을로 복귀
                                 floor_number = 0
@@ -2647,7 +2605,7 @@ def main() -> int:
                                 from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
                                 exploration = MultiplayerExplorationSystem(
                                     dungeon=dungeon,
-                                    party=character_party,
+                                    party=current_party,  # 기존 파티 재사용
                                     floor_number=floor_number,
                                     inventory=inventory,
                                     game_stats=game_stats,
@@ -2678,59 +2636,18 @@ def main() -> int:
                                 exploration.town_map = town_map_local
                                 exploration.town_manager = town_manager_local
                                 
-                                network_manager.current_floor = floor_number
-                                network_manager.current_dungeon = dungeon
-                                network_manager.current_exploration = exploration
-                                play_dungeon_bgm = True
-                                continue
-                                exploration.game_stats["max_floor_reached"] = max(exploration.game_stats["max_floor_reached"], floor_number)
-                                logger.info(f"⬇ 다음 층: {floor_number}층 (최대: {exploration.game_stats['max_floor_reached']}층)")
+                                # 마을에서는 적 제거
+                                exploration.enemies = []
                                 
-                                # 기존 던전이 있으면 재사용, 없으면 생성
-                                if floor_number in floors_dungeons:
-                                    floor_data = floors_dungeons[floor_number]
-                                    dungeon = floor_data["dungeon"]
-                                    # dungeon이 튜플인 경우 언패킹 (하위 호환성)
-                                    if isinstance(dungeon, tuple):
-                                        dungeon, saved_enemies = dungeon
-                                    else:
-                                        saved_enemies = floor_data["enemies"]
-                                    saved_x = floor_data["player_x"]
-                                    saved_y = floor_data["player_y"]
-                                    logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
+                                # network_manager 업데이트
+                                if current_network_manager:
+                                    current_network_manager.current_floor = floor_number
+                                    current_network_manager.current_dungeon = dungeon
+                                    current_network_manager.current_exploration = exploration
                                 else:
-                                    from src.world.dungeon_generator import DungeonGenerator
-                                    dungeon_seed = session.generate_dungeon_seed_for_floor(floor_number)
-                                    dungeon_gen = DungeonGenerator(width=80, height=50)
-                                    dungeon = dungeon_gen.generate(floor_number, seed=dungeon_seed)
-                                    saved_enemies = []
-                                    saved_x = None
-                                    saved_y = None
-                                    logger.info(f"새 {floor_number}층 던전 생성 (시드: {dungeon_seed})")
+                                    logger.error("network_manager가 None입니다. 업데이트를 건너뜁니다.")
                                 
-                                from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
-                                exploration = MultiplayerExplorationSystem(
-                                    dungeon=dungeon,
-                                    party=character_party,
-                                    floor_number=floor_number,
-                                    inventory=inventory,
-                                    game_stats=game_stats,
-                                    session=session,
-                                    network_manager=network_manager,
-                                    local_player_id=local_player_id
-                                )
-                                # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
-                                if saved_enemies:
-                                    exploration.enemies = saved_enemies
-                                # 새 던전인 경우 _spawn_enemies()가 이미 호출되어 적이 생성됨
-                                if saved_x is not None and saved_y is not None:
-                                    exploration.player.x = saved_x
-                                    exploration.player.y = saved_y
-                                
-                                network_manager.current_floor = floor_number
-                                network_manager.current_dungeon = dungeon
-                                network_manager.current_exploration = exploration
-                                # 층 변경 시 BGM 재생
+                                # 마을 BGM 재생을 위해 플래그 설정
                                 play_dungeon_bgm = True
                                 continue
                         elif result == "floor_up":
@@ -2772,15 +2689,21 @@ def main() -> int:
                                     saved_y = None
                                     logger.info(f"새 마을 맵 생성 (멀티플레이, 플레이어 {local_player_id})")
                                 
+                                # 기존 파티 가져오기 (exploration.party 사용)
+                                current_party = exploration.party if hasattr(exploration, 'party') and exploration.party else None
+                                if not current_party:
+                                    logger.error("파티를 찾을 수 없습니다. exploration.party 확인 필요")
+                                    current_party = []
+                                
                                 from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
                                 exploration = MultiplayerExplorationSystem(
                                     dungeon=dungeon,
-                                    party=character_party,
+                                    party=current_party,  # 기존 파티 재사용
                                     floor_number=floor_number,
                                     inventory=inventory,
                                     game_stats=game_stats,
                                     session=session,
-                                    network_manager=network_manager,
+                                    network_manager=current_network_manager,  # 기존 network_manager 재사용
                                     local_player_id=local_player_id
                                 )
                                 # 마을 플레이어 스폰 위치 설정
@@ -2806,9 +2729,14 @@ def main() -> int:
                                 exploration.town_map = town_map_local
                                 exploration.town_manager = town_manager_local
                                 
-                                network_manager.current_floor = floor_number
-                                network_manager.current_dungeon = dungeon
-                                network_manager.current_exploration = exploration
+                                # network_manager 업데이트
+                                if current_network_manager:
+                                    current_network_manager.current_floor = floor_number
+                                    current_network_manager.current_dungeon = dungeon
+                                    current_network_manager.current_exploration = exploration
+                                else:
+                                    logger.error("network_manager가 None입니다. 업데이트를 건너뜁니다.")
+                                
                                 play_dungeon_bgm = True
                                 continue
                             elif floor_number > 1:
@@ -3158,11 +3086,6 @@ def main() -> int:
                                     else:
                                         combat_party = party
                                     
-                                    # 봇 관리자 가져오기
-                                    bot_manager_for_combat = None
-                                    if session_for_combat and hasattr(session_for_combat, 'bot_manager'):
-                                        bot_manager_for_combat = session_for_combat.bot_manager
-                                    
                                     combat_result = run_combat(
                                         display.console,
                                         display.context,
@@ -3172,7 +3095,6 @@ def main() -> int:
                                         session=session_for_combat,
                                         network_manager=network_manager_for_combat,
                                         combat_position=combat_position,
-                                        bot_manager=bot_manager_for_combat,
                                         local_player_id=local_player_id
                                     )
 
@@ -3285,6 +3207,8 @@ def main() -> int:
                                             saved_y = floor_data["player_y"]
                                             logger.info(f"기존 {floor_number}층 던전 재사용 (적 {len(saved_enemies)}마리)")
                                         else:
+                                            from src.world.dungeon_generator import DungeonGenerator
+                                            dungeon_gen = DungeonGenerator(width=80, height=50)
                                             dungeon = dungeon_gen.generate(floor_number)
                                             saved_enemies = []
                                             saved_x = None
