@@ -25,6 +25,9 @@ class IngredientCategory(Enum):
     SWEETENER = "sweetener" # 감미료 (꿀, 설탕 등)
     FILLER = "filler"       # 필러 (나뭇가지, 얼음 등)
     PREPARED_DISH = "prepared_dish" # 조리된 음식 (재료로 사용 시)
+    CONSTRUCTION = "construction"   # 건설 자재 (나무, 돌, 철 등)
+    ALCHEMY = "alchemy"             # 연금술 재료 (포션 제작용)
+    EXPLOSIVE = "explosive"         # 폭발물 재료 (폭탄 제작용)
 
     @property
     def display_name(self) -> str:
@@ -41,7 +44,10 @@ class IngredientCategory(Enum):
             IngredientCategory.SPICE: "향신료",
             IngredientCategory.SWEETENER: "감미료",
             IngredientCategory.FILLER: "필러",
-            IngredientCategory.PREPARED_DISH: "요리"
+            IngredientCategory.PREPARED_DISH: "요리",
+            IngredientCategory.CONSTRUCTION: "건설 자재",
+            IngredientCategory.ALCHEMY: "연금술 재료",
+            IngredientCategory.EXPLOSIVE: "폭발물 재료"
         }
         return names.get(self, "???")
 
@@ -648,6 +654,665 @@ class IngredientDatabase:
             weight=0.1,
             sell_price=300,
             category=IngredientCategory.SPICE,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        # === 건설 자재 (Construction Materials) ===
+        "wood": Ingredient(
+            item_id="wood",
+            name="목재",
+            description="단단한 나무. 건물을 짓거나 도구를 만들 때 쓰인다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=1.0,
+            sell_price=2,
+            category=IngredientCategory.CONSTRUCTION,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "stone": Ingredient(
+            item_id="stone",
+            name="석재",
+            description="단단한 돌. 건물의 기초가 된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=2.0,
+            sell_price=2,
+            category=IngredientCategory.CONSTRUCTION,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "iron_ore": Ingredient(
+            item_id="iron_ore",
+            name="철광석",
+            description="제련하면 철이 되는 광석. 대장간의 필수 재료.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.UNCOMMON,
+            weight=3.0,
+            sell_price=10,
+            category=IngredientCategory.CONSTRUCTION,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        # === 연금술 재료 (Alchemy Materials) ===
+        "glass_vial": Ingredient(
+            item_id="glass_vial",
+            name="유리병",
+            description="투명한 유리병. 포션을 담는 데 필수적이다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.2,
+            sell_price=5,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "alchemical_catalyst": Ingredient(
+            item_id="alchemical_catalyst",
+            name="연금술 촉매",
+            description="마법적 반응을 촉진하는 분말. 슬라임에서 추출한다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.UNCOMMON,
+            weight=0.1,
+            sell_price=15,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "pure_water": Ingredient(
+            item_id="pure_water",
+            name="정제수",
+            description="불순물이 제거된 깨끗한 물. 포션의 기본 용매.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.5,
+            sell_price=3,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=True,
+            raw_hp_restore=0,
+            raw_mp_restore=5
+        ),
+
+        "fire_essence": Ingredient(
+            item_id="fire_essence",
+            name="화염의 정수",
+            description="불의 정령에서 추출한 에센스. 폭발물과 포션에 사용한다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=0.1,
+            sell_price=30,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "ice_essence": Ingredient(
+            item_id="ice_essence",
+            name="빙항의 정수",
+            description="얼음의 정령에서 추출한 에센스. 냉각 효과를 준다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=0.1,
+            sell_price=30,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "lightning_essence": Ingredient(
+            item_id="lightning_essence",
+            name="뇌전의 정수",
+            description="번개의 정령에서 추출한 에센스. 전기 충격을 부여한다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=0.1,
+            sell_price=30,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "mana_blossom": Ingredient(
+            item_id="mana_blossom",
+            name="마력꽃",
+            description="마력이 응축된 신비한 꽃. MP 회복 포션의 핵심 재료.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=0.1,
+            sell_price=40,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=100,
+            edible_raw=True,
+            raw_hp_restore=0,
+            raw_mp_restore=30
+        ),
+
+        # === 폭발물 재료 (Explosive Materials) ===
+        "gunpowder": Ingredient(
+            item_id="gunpowder",
+            name="화약",
+            description="검은 분말. 폭발성이 강하다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.UNCOMMON,
+            weight=0.3,
+            sell_price=20,
+            category=IngredientCategory.EXPLOSIVE,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "metal_scrap": Ingredient(
+            item_id="metal_scrap",
+            name="금속 파편",
+            description="부서진 금속 조각. 폭탄 케이싱을 만드는 데 사용한다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.5,
+            sell_price=5,
+            category=IngredientCategory.EXPLOSIVE,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "explosive_crystal": Ingredient(
+            item_id="explosive_crystal",
+            name="폭발 결정",
+            description="불안정한 에너지를 품은 결정. 강력한 폭발력을 지녔다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=0.2,
+            sell_price=50,
+            category=IngredientCategory.EXPLOSIVE,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "fuse": Ingredient(
+            item_id="fuse",
+            name="도화선",
+            description="천천히 타는 심지. 폭탄에 불을 붙이는 데 사용한다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.1,
+            sell_price=3,
+            category=IngredientCategory.EXPLOSIVE,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "bomb_casing": Ingredient(
+            item_id="bomb_casing",
+            name="폭탄 케이싱",
+            description="금속으로 만든 폭탄 외피. 내부에 화약을 넣을 수 있다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.5,
+            sell_price=10,
+            category=IngredientCategory.EXPLOSIVE,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        # === 광물 자원 (Mineral Resources) ===
+        "copper_ore": Ingredient(
+            item_id="copper_ore",
+            name="구리 광석",
+            description="구리가 함유된 광석. 제련하면 구리가 된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=2.0,
+            sell_price=8,
+            category=IngredientCategory.CONSTRUCTION,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "silver_ore": Ingredient(
+            item_id="silver_ore",
+            name="은 광석",
+            description="은이 함유된 광석. 귀금속 제작에 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.UNCOMMON,
+            weight=2.5,
+            sell_price=25,
+            category=IngredientCategory.CONSTRUCTION,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "gold_ore": Ingredient(
+            item_id="gold_ore",
+            name="금 광석",
+            description="금이 함유된 광석. 매우 귀하다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=3.0,
+            sell_price=100,
+            category=IngredientCategory.CONSTRUCTION,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "mithril_ore": Ingredient(
+            item_id="mithril_ore",
+            name="미스릴 광석",
+            description="전설의 금속 미스릴이 담긴 광석. 가볍고 강하다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.EPIC,
+            weight=1.5,
+            sell_price=200,
+            category=IngredientCategory.CONSTRUCTION,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "obsidian": Ingredient(
+            item_id="obsidian",
+            name="흑요석",
+            description="날카롭고 단단한 화산암. 무기 제작에 탁월하다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.UNCOMMON,
+            weight=2.0,
+            sell_price=30,
+            category=IngredientCategory.CONSTRUCTION,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "crystal_shard": Ingredient(
+            item_id="crystal_shard",
+            name="수정 파편",
+            description="투명하게 빛나는 수정. 마법 물품 제작에 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=0.3,
+            sell_price=50,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        # === 몬스터 부위 (Monster Parts) ===
+        "ghost_essence": Ingredient(
+            item_id="ghost_essence",
+            name="유령의 정수",
+            description="유령에서 추출한 에테르 정수. 투명화 포션에 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=0.1,
+            sell_price=40,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "golem_core": Ingredient(
+            item_id="golem_core",
+            name="골렘의 핵",
+            description="골렘의 동력원. 강력한 마법 에너지를 담고 있다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.EPIC,
+            weight=5.0,
+            sell_price=150,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "demon_horn": Ingredient(
+            item_id="demon_horn",
+            name="악마의 뿔",
+            description="악마의 뿔. 저주받은 아이템 제작에 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=1.0,
+            sell_price=80,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "vampire_fang": Ingredient(
+            item_id="vampire_fang",
+            name="흡혈귀의 송곳니",
+            description="뾰족한 송곳니. 생명력 흡수 효과를 부여한다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.EPIC,
+            weight=0.2,
+            sell_price=120,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "dragon_bone": Ingredient(
+            item_id="dragon_bone",
+            name="용의 뼈",
+            description="드래곤의 뼈. 강력한 무기와 방어구 제작에 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.LEGENDARY,
+            weight=8.0,
+            sell_price=500,
+            category=IngredientCategory.CONSTRUCTION,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        # === 희귀 식물 (Rare Plants) ===
+        "moonflower": Ingredient(
+            item_id="moonflower",
+            name="달빛 꽃",
+            description="달빛 아래서만 피는 신비한 꽃. 강력한 마법 효과를 지닌다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=0.1,
+            sell_price=60,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=50,
+            edible_raw=False
+        ),
+
+        "sunblossom": Ingredient(
+            item_id="sunblossom",
+            name="태양 꽃",
+            description="태양의 기운을 머금은 꽃. 회복 효과가 탁월하다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=0.1,
+            sell_price=60,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=50,
+            edible_raw=True,
+            raw_hp_restore=30
+        ),
+
+        "ancient_root": Ingredient(
+            item_id="ancient_root",
+            name="고대의 뿌리",
+            description="수백 년 된 나무의 뿌리. 생명력이 응축되어 있다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.EPIC,
+            weight=0.5,
+            sell_price=100,
+            category=IngredientCategory.VEGETABLE,
+            food_value=3.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "void_lotus": Ingredient(
+            item_id="void_lotus",
+            name="공허의 연꽃",
+            description="어둠 속에서 자라는 연꽃. 어둠의 힘을 담고 있다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.EPIC,
+            weight=0.2,
+            sell_price=150,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        # === 추가 원소 정수 (Elemental Essences) ===
+        "earth_essence": Ingredient(
+            item_id="earth_essence",
+            name="대지의 정수",
+            description="대지 정령에서 추출한 에센스. 방어 효과를 부여한다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=0.1,
+            sell_price=30,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "wind_essence": Ingredient(
+            item_id="wind_essence",
+            name="바람의 정수",
+            description="바람 정령에서 추출한 에센스. 속도 증가 효과를 부여한다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.RARE,
+            weight=0.05,
+            sell_price=30,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "light_essence": Ingredient(
+            item_id="light_essence",
+            name="빛의 정수",
+            description="빛의 정령에서 추출한 에센스. 정화와 회복 효과를 준다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.EPIC,
+            weight=0.05,
+            sell_price=80,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "dark_essence": Ingredient(
+            item_id="dark_essence",
+            name="어둠의 정수",
+            description="어둠의 정령에서 추출한 에센스. 저주와 약화 효과를 부여한다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.EPIC,
+            weight=0.05,
+            sell_price=80,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        # === 제작 중간재 (Crafting Intermediates) ===
+        "oil": Ingredient(
+            item_id="oil",
+            name="기름",
+            description="식물성 기름. 연료나 용매로 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.5,
+            sell_price=5,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "wax": Ingredient(
+            item_id="wax",
+            name="밀랍",
+            description="벌집에서 얻은 밀랍. 봉인과 코팅에 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.3,
+            sell_price=8,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "resin": Ingredient(
+            item_id="resin",
+            name="수지",
+            description="나무에서 나온 끈적한 액체. 접착과 코팅에 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.3,
+            sell_price=5,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "charcoal": Ingredient(
+            item_id="charcoal",
+            name="목탄",
+            description="나무를 탄화시켜 만든 연료. 제련과 화약 제작에 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.2,
+            sell_price=3,
+            category=IngredientCategory.EXPLOSIVE,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "sulfur": Ingredient(
+            item_id="sulfur",
+            name="유황",
+            description="노란 광물. 강력한 폭발물 제작에 필수적이다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.UNCOMMON,
+            weight=0.5,
+            sell_price=15,
+            category=IngredientCategory.EXPLOSIVE,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        # === 희귀 재료 (Rare Materials) ===
+        "stardust": Ingredient(
+            item_id="stardust",
+            name="별가루",
+            description="하늘에서 떨어진 별의 가루. 기적의 물약을 만들 수 있다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.LEGENDARY,
+            weight=0.01,
+            sell_price=500,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "philosophers_stone_fragment": Ingredient(
+            item_id="philosophers_stone_fragment",
+            name="현자의 돌 파편",
+            description="전설의 현자의 돌 파편. 물질 변환의 힘을 지녔다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.LEGENDARY,
+            weight=0.1,
+            sell_price=1000,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "ether": Ingredient(
+            item_id="ether",
+            name="에테르",
+            description="순수한 마법 에너지가 결정화된 물질.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.EPIC,
+            weight=0.1,
+            sell_price=100,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "cursed_relic": Ingredient(
+            item_id="cursed_relic",
+            name="저주받은 유물",
+            description="불길한 기운이 감도는 고대 유물. 위험하지만 강력하다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.EPIC,
+            weight=1.0,
+            sell_price=150,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        # === 동물 부산물 (Animal Byproducts) ===
+        "leather": Ingredient(
+            item_id="leather",
+            name="가죽",
+            description="동물 가죽. 방어구 제작에 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.5,
+            sell_price=10,
+            category=IngredientCategory.CONSTRUCTION,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "sinew": Ingredient(
+            item_id="sinew",
+            name="힘줄",
+            description="동물의 힘줄. 활시위나 봉합에 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.1,
+            sell_price=5,
+            category=IngredientCategory.CONSTRUCTION,
+            food_value=0.0,
+            spoil_time=100,
+            edible_raw=False
+        ),
+
+        "bone": Ingredient(
+            item_id="bone",
+            name="뼈",
+            description="동물의 뼈. 도구나 장식품 제작에 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.3,
+            sell_price=3,
+            category=IngredientCategory.CONSTRUCTION,
             food_value=0.0,
             spoil_time=0,
             edible_raw=False

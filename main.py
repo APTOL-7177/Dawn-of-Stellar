@@ -811,12 +811,7 @@ def main() -> int:
                                     
                                     inventory.add_gold(rewards.get("gold", 0))
                                     
-                                    from src.audio import play_bgm
-                                    floor = exploration.floor_number
-                                    biome_index = (floor - 1) // 5
-                                    biome_index = biome_index % 10
-                                    biome_track = f"biome_{biome_index}"
-                                    play_bgm(biome_track, loop=True, fade_in=True)
+                                    # 전투 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
                                     play_dungeon_bgm = False
                                 elif combat_result == CombatState.DEFEAT:
                                     # 전투 참여 파티원만 죽었는지, 모든 플레이어의 모든 캐릭터가 죽었는지 확인
@@ -856,12 +851,7 @@ def main() -> int:
                                         break
                                     else:
                                         logger.info("❌ 패배... 맵으로 복귀")
-                                        from src.audio import play_bgm
-                                        floor = exploration.floor_number
-                                        biome_index = (floor - 1) // 5
-                                        biome_index = biome_index % 10
-                                        biome_track = f"biome_{biome_index}"
-                                        play_bgm(biome_track, loop=True, fade_in=True)
+                                        # 전투 패배 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
                                         play_dungeon_bgm = False
                                         continue
                             elif result == "floor_up" or result == "floor_down":
@@ -1813,12 +1803,7 @@ def main() -> int:
                                                     
                                                     inventory.add_gold(rewards.get("gold", 0))
                                                     
-                                                    from src.audio import play_bgm
-                                                    floor = exploration.floor_number
-                                                    biome_index = (floor - 1) // 5
-                                                    biome_index = biome_index % 10
-                                                    biome_track = f"biome_{biome_index}"
-                                                    play_bgm(biome_track, loop=True, fade_in=True)
+                                                    # 전투 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
                                                     play_dungeon_bgm = False
                                                 elif combat_result == CombatState.DEFEAT:
                                                     # 전투 참여 파티원만 죽었는지, 모든 플레이어의 모든 캐릭터가 죽었는지 확인
@@ -1858,12 +1843,7 @@ def main() -> int:
                                                         break
                                                     else:
                                                         logger.info("❌ 패배... 맵으로 복귀")
-                                                        from src.audio import play_bgm
-                                                        floor = exploration.floor_number
-                                                        biome_index = (floor - 1) // 5
-                                                        biome_index = biome_index % 10
-                                                        biome_track = f"biome_{biome_index}"
-                                                        play_bgm(biome_track, loop=True, fade_in=True)
+                                                        # 전투 패배 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
                                                         play_dungeon_bgm = False
                                                         continue
                                             elif result == "floor_up" or result == "floor_down":
@@ -2493,15 +2473,7 @@ def main() -> int:
 
                                 # 별의 파편은 게임 정산 시에만 지급 (로그라이크 방식)
 
-                                # 전투 후 던전 BGM 재생 (바이옴별 BGM)
-                                from src.audio import play_bgm
-                                floor = exploration.floor_number
-                                # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
-                                biome_index = (floor - 1) // 5
-                                biome_index = biome_index % 10  # 10개 바이옴 순환
-                                biome_track = f"biome_{biome_index}"
-                                play_bgm(biome_track, loop=True, fade_in=True)
-                                logger.info(f"던전 BGM 재생 (층수: {floor}, 바이옴: {biome_index}, BGM: {biome_track})")
+                                # 전투 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
                                 play_dungeon_bgm = False
                                 continue
                             elif combat_result == CombatState.DEFEAT:
@@ -2537,28 +2509,12 @@ def main() -> int:
                                     # 전투 참여 파티원만 죽었으면 패배 (맵으로 복귀)
                                     logger.info("❌ 패배... 맵으로 복귀")
                                     
-                                    # 던전 BGM 재생 (바이옴별 BGM)
-                                    from src.audio import play_bgm
-                                    floor = exploration.floor_number
-                                    # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
-                                    biome_index = (floor - 1) // 5
-                                    biome_index = biome_index % 10  # 10개 바이옴 순환
-                                    biome_track = f"biome_{biome_index}"
-                                    play_bgm(biome_track, loop=True, fade_in=True)
-                                    logger.info(f"던전 BGM 재생 (층수: {floor}, 바이옴: {biome_index}, BGM: {biome_track})")
+                                    # 전투 패배 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
                                     play_dungeon_bgm = False
                                     continue
                             else:
                                 logger.info("🏃 도망쳤다")
-                                # 도망 후 던전 BGM 재생 (바이옴별 BGM)
-                                from src.audio import play_bgm
-                                floor = exploration.floor_number
-                                # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
-                                biome_index = (floor - 1) // 5
-                                biome_index = biome_index % 10  # 10개 바이옴 순환
-                                biome_track = f"biome_{biome_index}"
-                                play_bgm(biome_track, loop=True, fade_in=True)
-                                logger.info(f"던전 BGM 재생 (층수: {floor}, 바이옴: {biome_index}, BGM: {biome_track})")
+                                # 도망 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
                                 play_dungeon_bgm = False
                                 continue
 
@@ -2994,15 +2950,7 @@ def main() -> int:
 
                                         # 별의 파편은 게임 정산 시에만 지급 (로그라이크 방식)
 
-                                        # 전투 후 던전 BGM 재생 (바이옴별 BGM)
-                                        from src.audio import play_bgm
-                                        floor = exploration.floor_number
-                                        # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
-                                        biome_index = (floor - 1) // 5
-                                        biome_index = biome_index % 10  # 10개 바이옴 순환
-                                        biome_track = f"biome_{biome_index}"
-                                        play_bgm(biome_track, loop=True, fade_in=True)
-                                        logger.info(f"던전 BGM 재생 (층수: {floor}, 바이옴: {biome_index}, BGM: {biome_track})")
+                                        # 전투 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
                                         play_dungeon_bgm = False
                                         continue  # 탐험 계속
                                     elif combat_result == CombatState.DEFEAT:
@@ -3030,15 +2978,7 @@ def main() -> int:
                                         break
                                     else:
                                         logger.info("🏃 도망쳤다")
-                                        # 도망 후 던전 BGM 재생 (바이옴별 BGM)
-                                        from src.audio import play_bgm
-                                        floor = exploration.floor_number
-                                        # 바이옴 계산 (5층마다 변경: 1-5층=바이옴0, 6-10층=바이옴1, ...)
-                                        biome_index = (floor - 1) // 5
-                                        biome_index = biome_index % 10  # 10개 바이옴 순환
-                                        biome_track = f"biome_{biome_index}"
-                                        play_bgm(biome_track, loop=True, fade_in=True)
-                                        logger.info(f"던전 BGM 재생 (층수: {floor}, 바이옴: {biome_index}, BGM: {biome_track})")
+                                        # 도망 후 복귀 시 BGM 재생하지 않음 (기존 던전 BGM 유지)
                                         play_dungeon_bgm = False
                                         continue
 

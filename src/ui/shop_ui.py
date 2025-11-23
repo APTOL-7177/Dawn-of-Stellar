@@ -26,6 +26,7 @@ class ShopCategory(Enum):
     PERMANENT_UPGRADES = "permanent"  # 영구 업그레이드
     TRAIT_UNLOCKS = "traits"  # 특성 해금
     CONSUMABLES = "consumables"  # 소모품
+    BUILDINGS = "buildings"  # 건물 시설
     SPECIAL = "special"  # 특수 아이템
 
 
@@ -153,6 +154,56 @@ def get_trait_unlock_items() -> List[ShopItem]:
     return items
 
 
+def get_building_items() -> List[ShopItem]:
+    """건물 시설 아이템 동적 생성"""
+    meta = get_meta_progress()
+    items = []
+    
+    # town 시스템의 시설 타입들
+    facilities = [
+        ("kitchen", "주방", [
+            ("주방 Lv.2", "요리 버프 지속시간 +20%", 800),
+            ("주방 Lv.3", "고급(Gourmet) 레시피 해금", 2000),
+            ("주방 Lv.4", "요리 회복량 +50%", 5000),
+        ]),
+        ("blacksmith", "대장간", [
+            ("대장간 Lv.2", "시작 장비 등급: 일반(Common)", 1000),
+            ("대장간 Lv.3", "장비 재련(옵션 변경) 해금", 3000),
+            ("대장간 Lv.4", "시작 장비 등급: 고급(Uncommon)", 8000),
+        ]),
+        ("alchemy_lab", "연금술 실험실", [
+            ("연금술실 Lv.2", "포션 회복량 +20%", 900),
+            ("연금술실 Lv.3", "폭탄 제작 해금", 2500),
+            ("연금술실 Lv.4", "포션 회복량 +50%", 6000),
+        ]),
+        ("storage", "창고", [
+            ("창고 Lv.2", "최대 무게 +4", 700),
+            ("창고 Lv.3", "최대 무게 +8", 1800),
+            ("창고 Lv.4", "아이템 무게 20% 감소 (효율적 포장)", 4500),
+        ]),
+    ]
+    
+    for facility_id, facility_name, upgrades in facilities:
+        current_level = meta.get_facility_level(facility_id)
+        
+        # 현재 레벨부터 최대 레벨(4)까지의 업그레이드 아이템 생성
+        for level_offset, (name, description, price) in enumerate(upgrades, start=1):
+            target_level = current_level + level_offset
+            
+            # 최대 레벨(4)을 넘지 않는 경우만 추가
+            if target_level <= 4:
+                items.append(ShopItem(
+                    name=f"[{facility_name}] {name}",
+                    description=description,
+                    price=price,
+                    category=ShopCategory.BUILDINGS,
+                    item_id=f"building_{facility_id}_level_{target_level}",
+                    job_id=facility_id  # facility_id를 저장하기 위해 job_id 필드 재활용
+                ))
+    
+    return items
+
+
 def get_shop_items() -> List[ShopItem]:
     """상점 아이템 목록 생성"""
     items = []
@@ -226,6 +277,9 @@ def get_shop_items() -> List[ShopItem]:
 
     # === 특성 해금 (동적 생성) ===
     items.extend(get_trait_unlock_items())
+
+    # === 건물 시설 ===
+    items.extend(get_building_items())
 
     # === 소모품 ===
     items.extend([
@@ -424,6 +478,31 @@ class ShopUI:
             logger.info(f"영구 업그레이드 구매: {item.name} ({item.price} 별의 파편)")
             return True, f"{item.name} 구매 완료!"
 
+        # 건물 시설 업그레이드
+        elif item.category == ShopCategory.BUILDINGS:
+            # 이미 구매했는지 확인 (시설 레벨 체크)
+            facility_id = item.job_id  # job_id 필드에 facility_id 저장
+            if not facility_id:
+                return False, "시설 ID를 찾을 수 없습니다."
+            
+            target_level = int(item.item_id.split("_")[-1])  # item_id에서 레벨 추출
+            current_level = self.meta.get_facility_level(facility_id)
+            
+            if current_level >= target_level:
+                return False, f"이미 해당 레벨 이상입니다. (현재: Lv.{current_level})"
+            
+            # 별의 파편 확인
+            if self.meta.star_fragments < item.price:
+                return False, f"별의 파편이 부족합니다. (필요: {item.price}, 보유: {self.meta.star_fragments})"
+            
+            # 구매 처리
+            self.meta.spend_star_fragments(item.price)
+            self.meta.set_facility_level(facility_id, target_level)
+            save_meta_progress()
+            
+            logger.info(f"건물 시설 업그레이드: {facility_id} Lv.{target_level} ({item.price} 별의 파편)")
+            return True, f"{item.name} 업그레이드 완료! (Lv.{current_level} → Lv.{target_level})"
+        
         # 소모품 및 기타
         else:
             # 별의 파편 확인
@@ -457,15 +536,16 @@ class ShopUI:
             ShopCategory.PERMANENT_UPGRADES: "영구 업그레이드",
             ShopCategory.TRAIT_UNLOCKS: "특성 해금",
             ShopCategory.CONSUMABLES: "소모품",
+            ShopCategory.BUILDINGS: "건물 시설",
             ShopCategory.SPECIAL: "특수"
         }
 
         for i, category in enumerate(self.categories):
             name = category_names.get(category, category.value)
             if i == self.category_index:
-                console.print(tab_x + i * 18, tab_y, f"[{name}]", fg=(255, 255, 100))
+                console.print(tab_x + i * 14, tab_y, f"[{name}]", fg=(255, 255, 100))
             else:
-                console.print(tab_x + i * 18, tab_y, f" {name} ", fg=(150, 150, 150))
+                console.print(tab_x + i * 14, tab_y, f" {name} ", fg=(150, 150, 150))
 
         # 아이템 목록 (페이징)
         paged_items, current_page, total_pages = self.get_paged_items()
@@ -499,6 +579,15 @@ class ShopUI:
                     if self.meta.is_trait_unlocked(item.job_id, item.trait_id):
                         item_color = (100, 100, 100)
                         item_name = f"{item.name} [해금 완료]"
+                elif item.category == ShopCategory.BUILDINGS:
+                    # 건물 시설: 현재 레벨이 타겟 레벨 이상이면 구매 완료
+                    if item.job_id:  # facility_id가 저장되어 있음
+                        facility_id = item.job_id
+                        target_level = int(item.item_id.split("_")[-1])
+                        current_level = self.meta.get_facility_level(facility_id)
+                        if current_level >= target_level:
+                            item_color = (100, 100, 100)
+                            item_name = f"{item.name} [업그레이드 완료]"
 
                 # 아이템 이름
                 console.print(5, y, item_name[:55], fg=item_color)
@@ -571,6 +660,10 @@ def open_shop(
                         success, msg = shop.purchase_item(selected_item)
                         message = msg
                         message_timer = 60  # 60 프레임 동안 표시
+                        
+                        # 구매 성공 시 아이템 목록 다시 로드 (건물 시설 등 동적 아이템 반영)
+                        if success:
+                            shop.all_items = get_shop_items()
 
                 elif result == "close":
                     logger.info("상점 닫힘")

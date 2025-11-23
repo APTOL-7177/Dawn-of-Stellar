@@ -105,19 +105,25 @@ class GimmickEffect(SkillEffect):
 
         # 용기사: 용력이 최대치에 도달하면 용표 획득 및 용력 감소 (setattr 전에 체크)
         if (hasattr(entity, 'gimmick_type') and entity.gimmick_type == "dragon_marks" and 
-            self.field == "dragon_power" and self.operation == GimmickOperation.ADD):
-            # 용력이 최대치(5)에 도달했고, 이전에는 최대치가 아니었을 때 용표 획득
+            self.field == "dragon_power" and 
+            (self.operation == GimmickOperation.ADD or self.operation == GimmickOperation.SET)):
+            # 용력이 최대치(5)에 도달했을 때 용표 획득
             max_dragon_power = 5
-            if new_value >= max_dragon_power and old_value < max_dragon_power:
-                current_marks = getattr(entity, 'dragon_marks', 0)
-                max_marks = getattr(entity, 'max_dragon_marks', 3)
-                if current_marks < max_marks:
-                    entity.dragon_marks = min(current_marks + 1, max_marks)
-                    # 용표 획득 후 용력을 0으로 초기화
-                    new_value = 0
-                    from src.core.logger import get_logger
-                    logger = get_logger("gimmick_effect")
-                    logger.info(f"{getattr(entity, 'name', '용기사')} 용표 획득! (용력 최대치 도달) - 현재 용표: {entity.dragon_marks}/{max_marks}, 용력 초기화")
+            # ADD: 용력이 증가하여 5에 도달한 경우
+            # SET: 용력을 5로 설정한 경우 (이미 5이더라도 스킬 사용으로 최대치 도달로 간주)
+            if new_value >= max_dragon_power:
+                # 이전 값이 최대치보다 작았거나, SET operation으로 최대치로 설정한 경우
+                should_gain_mark = (old_value < max_dragon_power) or (self.operation == GimmickOperation.SET and new_value == max_dragon_power)
+                if should_gain_mark:
+                    current_marks = getattr(entity, 'dragon_marks', 0)
+                    max_marks = getattr(entity, 'max_dragon_marks', 3)
+                    if current_marks < max_marks:
+                        entity.dragon_marks = min(current_marks + 1, max_marks)
+                        # 용표 획득 후 용력을 0으로 초기화
+                        new_value = 0
+                        from src.core.logger import get_logger
+                        logger = get_logger("gimmick_effect")
+                        logger.info(f"{getattr(entity, 'name', '용기사')} 용표 획득! (용력 최대치 도달) - 현재 용표: {entity.dragon_marks}/{max_marks}, 용력 초기화")
 
         setattr(entity, self.field, new_value)
 

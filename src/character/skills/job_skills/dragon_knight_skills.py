@@ -61,16 +61,16 @@ def create_dragon_knight_skills():
     skills.append(burning_strike)
 
     # 5. 용의 분노
-    dragon_rage = Skill("dragon_knight_dragon_rage", "용의 분노", "용의 힘 최대 회복 + 버프")
+    dragon_rage = Skill("dragon_knight_dragon_rage", "용의 분노", "용표 1개 획득 + 버프")
     dragon_rage.effects = [
-        GimmickEffect(GimmickOperation.SET, "dragon_power", 5),
+        GimmickEffect(GimmickOperation.ADD, "dragon_marks", 1, max_value=3),
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=4)
     ]
     dragon_rage.costs = [MPCost(6)]
     dragon_rage.target_type = "self"
     # dragon_rage.cooldown = 5  # 쿨다운 시스템 제거됨
     dragon_rage.sfx = ("character", "status_buff")  # 용의 분노
-    dragon_rage.metadata = {"dragon_power_max": True, "buff": True}
+    dragon_rage.metadata = {"dragon_mark_gain": 1, "buff": True}
     skills.append(dragon_rage)
 
     # 6. 용의 비늘
@@ -162,7 +162,7 @@ def create_dragon_knight_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.8, duration=6),
         BuffEffect(BuffType.CRITICAL_UP, 0.6, duration=6),
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=6),
-        GimmickEffect(GimmickOperation.SET, "dragon_power", 5),  # 용력 최대치로 회복
+        GimmickEffect(GimmickOperation.ADD, "dragon_marks", 1, max_value=3),  # 용표 1개 획득
         GimmickEffect(GimmickOperation.CONSUME, "dragon_marks", 3)  # 용표 소비
     ]
     ultimate.costs = [MPCost(25), StackCost("dragon_marks", 3)]
@@ -171,7 +171,7 @@ def create_dragon_knight_skills():
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
-    ultimate.metadata = {"ultimate": True, "dragon_transform": True, "dragon_mark_cost": 3, "dragon_scaling": True, "aoe": True, "buff": True}
+    ultimate.metadata = {"ultimate": True, "dragon_transform": True, "dragon_mark_cost": 3, "dragon_mark_gain": 1, "dragon_scaling": True, "aoe": True, "buff": True}
     skills.append(ultimate)
 
     return skills

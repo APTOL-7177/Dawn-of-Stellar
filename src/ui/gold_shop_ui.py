@@ -26,6 +26,20 @@ logger = get_logger(Loggers.UI)
 _shop_items_cache: Dict[int, Dict] = {}
 
 
+def get_inflation_multiplier(floor_level: int) -> float:
+    """
+    층수에 따른 골드 인플레이션 배율 계산
+    
+    Args:
+        floor_level: 현재 층수
+    
+    Returns:
+        인플레이션 배율 (1층=1.0, 층당 25% 증가)
+    """
+    # 1층: 1.0x, 2층: 1.25x, 3층: 1.5x, 5층: 2.0x, 10층: 3.25x
+    return 1.0 + (floor_level - 1) * 0.25
+
+
 class ShopState(Enum):
     """상점 상태"""
     SHOPPING = "shopping"
@@ -109,6 +123,9 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     num_consumables = floor_random.randint(6, 8)
     consumable_items = floor_random.sample(all_consumable_items, min(num_consumables, len(all_consumable_items)))
 
+    # 인플레이션 배율 계산
+    inflation = get_inflation_multiplier(floor_level)
+    
     for item_id, price in consumable_items:
         # ItemGenerator를 사용하여 일관된 아이템 생성 (스택 문제 해결)
         from src.equipment.item_system import ItemGenerator
@@ -118,6 +135,9 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             # 템플릿이 없으면 스킵
             continue
         
+        # 인플레이션 적용 가격 계산
+        inflated_price = int(price * inflation)
+        
         # 소모품 재고: 1~3개 랜덤
         stock = floor_random.randint(1, 3)
         
@@ -125,7 +145,7 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
             GoldShopItem(
                 consumable.name,
                 consumable.description,
-                price,
+                inflated_price,
                 consumable,
                 "consumable",
                 stock=stock
@@ -206,7 +226,10 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     num_equipment = floor_random.randint(4, 6)
     equipment_items = floor_random.sample(all_equipment_pools, min(num_equipment, len(all_equipment_pools)))
 
-    for item_id, price in equipment_items:
+    for item_id, base_price in equipment_items:
+        # 인플레이션 적용 가격 계산
+        price = int(base_price * inflation)
+        
         # 무기 템플릿 확인
         if item_id in WEAPON_TEMPLATES:
             template = WEAPON_TEMPLATES[item_id]
@@ -283,7 +306,10 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     num_special = floor_random.randint(3, 4)
     special_items = floor_random.sample(all_special_items, min(num_special, len(all_special_items)))
 
-    for item_id, price in special_items:
+    for item_id, base_price in special_items:
+        # 인플레이션 적용 가격 계산
+        price = int(base_price * inflation)
+        
         # ItemGenerator를 사용하여 일관된 아이템 생성 (스택 문제 해결)
         from src.equipment.item_system import ItemGenerator
         try:
@@ -300,6 +326,11 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
         )
 
     # === 서비스 항목 ===
+    # 인플레이션 배율 계산
+    service_inflation = get_inflation_multiplier(floor_level)
+    reforge_base_price = 250
+    reforge_price = int(reforge_base_price * service_inflation)
+    
     items[GoldShopTab.SERVICE].append(
         GoldShopItem(
             "장비 수리",
@@ -312,9 +343,9 @@ def get_gold_shop_items(floor_level: int = 1) -> dict:
     )
     items[GoldShopTab.SERVICE].append(
         GoldShopItem(
-            "장비 재연마",
-            "장비의 추가 옵션을 무작위로 변경합니다. (비용: 250 G)",
-            250,
+            f"장비 재연마",
+            f"장비의 추가 옵션을 무작위로 변경합니다. (비용: {reforge_price} G)",
+            reforge_price,
             None,
             "service_reforge",
             stock=-1  # 무제한
@@ -519,7 +550,9 @@ class GoldShopUI:
                     elif rarity_name == 'EPIC': multiplier = 3.0
                     elif rarity_name == 'LEGENDARY': multiplier = 5.0
                     
-                    cost = int(missing * 2 * multiplier)
+                    # 인플레이션 적용 비용 계산
+                    base_cost = int(missing * 2 * multiplier)
+                    cost = int(base_cost * get_inflation_multiplier(self.floor_level))
                     items_to_repair.append({
                         "item": item,
                         "cost": cost,
@@ -632,9 +665,12 @@ class GoldShopUI:
 
         menu_items.append(MenuItem("돌아가기", action=lambda: None))
 
+        # 인플레이션 적용 재연마 비용 계산
+        reforge_cost = int(250 * get_inflation_multiplier(self.floor_level))
+
         # 커서 메뉴 생성
         self.reforge_menu = CursorMenu(
-            title="재연마할 장비 선택 (비용: 250G)",
+            title=f"재연마할 장비 선택 (비용: {reforge_cost}G)",
             items=menu_items,
             x=(self.screen_width - 60) // 2,
             y=(self.screen_height - 30) // 2,
@@ -645,7 +681,8 @@ class GoldShopUI:
 
     def _execute_reforge(self, item):
         """재연마 실행"""
-        cost = 250
+        # 인플레이션 적용 비용 계산
+        cost = int(250 * get_inflation_multiplier(self.floor_level))
         if self.inventory.gold < cost:
             logger.warning(f"골드가 부족합니다. (필요: {cost}G)")
             return

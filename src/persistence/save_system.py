@@ -47,6 +47,10 @@ class SaveSystem:
             game_state["save_time"] = datetime.now().isoformat()
             game_state["version"] = "5.0.0"
             game_state["is_multiplayer"] = is_multiplayer
+            
+            # TownManager 저장
+            from src.town.town_manager import get_town_manager
+            game_state["town_manager"] = get_town_manager().to_dict()
 
             # JSON 직렬화 전에 모든 데이터 검증 및 정리
             cleaned_state = self._clean_for_json(game_state)
@@ -149,6 +153,16 @@ class SaveSystem:
                 game_state = json.load(f)
 
             logger.info(f"게임 로드 완료: {save_path}")
+            
+            # TownManager 복원
+            if "town_manager" in game_state:
+                from src.town.town_manager import get_town_manager, TownManager
+                # 전역 인스턴스 업데이트
+                manager = get_town_manager()
+                loaded_manager = TownManager.from_dict(game_state["town_manager"])
+                manager.facilities = loaded_manager.facilities
+                logger.info("마을 데이터 복원 완료")
+            
             return game_state
 
         except Exception as e:

@@ -100,24 +100,32 @@ class HarvestableObject:
                 ("rice", 0, 2),
                 ("sugar", 0, 2),
                 ("spice", 0, 1),
+                ("mana_blossom", 0, 1), # 연금술: 마력꽃
                 ("mandrake", 0, 1), # 희귀: 만드라고라
             ],
             HarvestableType.TREE: [
-                ("stick", 2, 5),
+                ("wood", 2, 5), # 목재 추가
+                ("stick", 1, 3),
                 ("apple", 1, 3),
                 ("egg", 0, 2),
                 ("berry", 1, 2),
                 ("golden_apple", 0, 1), # 전설: 황금 사과
             ],
             HarvestableType.ROCK: [
-                ("ice", 2, 4),
+                ("stone", 2, 5), # 석재
+                ("iron_ore", 0, 2), # 철광석
+                ("gunpowder", 0, 2), # 폭발물: 화약
+                ("metal_scrap", 1, 3), # 폭발물: 금속 파편
+                ("ice", 1, 3),
                 ("salt", 1, 3),
-                ("dragon_scale", 0, 1), # 전설: 용의 비늘 (광맥에서 발견?)
+                ("dragon_scale", 0, 1), # 전설: 용의 비늘
             ],
             HarvestableType.WATER: [
                 ("fish", 2, 5),
                 ("shellfish", 1, 3),
                 ("water", 2, 5),
+                ("pure_water", 0, 2), # 연금술: 정제수
+                ("glass_vial", 0, 1), # 연금술: 유리병 (모래에서)
                 ("ice", 1, 2),
                 ("slime_jelly", 0, 2), # 물가에 슬라임?
             ],
@@ -160,9 +168,9 @@ class HarvestableObject:
         for ingredient_id, min_qty, max_qty in self.loot_table:
             qty = random.randint(min_qty, max_qty)
             
-            # 식재료 드롭률 50% 감소 (0.5배)
+            # 식재료 드롭률 35% 감소 (0.5 * 0.7 = 0.35배, 최종적으로 30% 추가 감소)
             # 0개가 나올 수 있음 (의도된 사항)
-            qty = int(qty * 0.5)
+            qty = int(qty * 0.35)
 
             if qty > 0:
                 results[ingredient_id] = results.get(ingredient_id, 0) + qty

@@ -294,12 +294,12 @@ class ExplorationSystem:
 
         # 적과의 충돌 확인 (이동 전에!)
         enemy = self.get_enemy_at(new_x, new_y)
-        logger.warning(f"[DEBUG] 적 충돌 체크 at ({new_x}, {new_y}): enemy={enemy is not None}")
+        # Debug: 적 충돌 체크
         if enemy:
-            logger.warning(f"[DEBUG] 적 발견! 전투 트리거 at ({enemy.x}, {enemy.y})")
+            pass  # 전투 트리거
             # 플레이어는 이동하지 않고 전투만 트리거
             combat_result = self._trigger_combat_with_enemy(enemy)
-            logger.warning(f"[DEBUG] 전투 결과: event={combat_result.event}")
+            # Debug: 전투 결과
             return combat_result
 
         # 이동 발소리 (간헐적으로만 재생, 최소 5초 간격)
@@ -391,7 +391,7 @@ class ExplorationSystem:
         # 멀티플레이어: MultiplayerExplorationSystem에서 봇이 트리거하는 경우도 처리됨
         enemy_at_player = self.get_enemy_at(self.player.x, self.player.y)
         if enemy_at_player:
-            logger.warning(f"[DEBUG] 적이 플레이어에게 접근! 전투 시작")
+            # Debug: 적이 플레이어에게 접근
             return self._trigger_combat_with_enemy(enemy_at_player)
 
         return result
@@ -931,9 +931,8 @@ class ExplorationSystem:
             distance = abs(other_enemy.x - enemy.x) + abs(other_enemy.y - enemy.y)
             if distance <= combat_range:
                 combat_enemies.append(other_enemy)
-                logger.warning(f"[DEBUG] 주변 적 추가: ({other_enemy.x}, {other_enemy.y}), 거리={distance}")
-
-        logger.warning(f"[DEBUG] 맵 엔티티: {len(combat_enemies)}마리")
+                pass  # 주변 적 추가
+        # logger.warning(f"[DEBUG] 맵 엔티티: {len(combat_enemies)}마리")
 
         # Config에서 적 수 범위 가져오기
         from src.core.config import get_config
@@ -947,7 +946,7 @@ class ExplorationSystem:
 
         has_boss = any(e.is_boss for e in combat_enemies)
 
-        logger.warning(f"[DEBUG] 전투 생성: 맵 엔티티 {len(combat_enemies)}마리 → 실제 전투 {num_enemies}마리 (추가 적 소환)")
+        # Debug: 전투 생성 (맵 엔티티 → 실제 전투)
         logger.info(f"적과 조우! {num_enemies}마리 (레벨 {enemy.level})")
 
         return ExplorationResult(

@@ -227,9 +227,9 @@ class RewardCalculator:
             # 보스는 추가로 전투용 소비 아이템 0~1개 드롭
             if random.random() < 0.5:  # 50% 확률
                 items.append(RewardCalculator._generate_combat_consumable_drop())
-            # 보스도 식재료 드롭 (70% 확률)
+            # 보스도 식재료 드롭 (49% 확률, 30% 감소)
             for enemy in enemies:
-                if random.random() < 0.7:  # 70% 확률
+                if random.random() < 0.49:  # 49% 확률 (70% * 0.7)
                     ingredient = RewardCalculator._generate_ingredient_drop(enemy)
                     if ingredient:
                         items.append(ingredient)
@@ -243,8 +243,8 @@ class RewardCalculator:
                 if random.random() < 0.05:  # 5%
                     items.append(RewardCalculator._generate_combat_consumable_drop())
                 
-                # 적 타입에 따른 식재료 드롭 (20% 확률, 보스는 제외)
-                if random.random() < 0.20:  # 20% (절반으로 감소)
+                # 적 타입에 따른 식재료 드롭 (14% 확률, 보스는 제외, 30% 감소)
+                if random.random() < 0.14:  # 14% (20% * 0.7)
                     ingredient = RewardCalculator._generate_ingredient_drop(enemy)
                     if ingredient:
                         items.append(ingredient)
@@ -252,8 +252,8 @@ class RewardCalculator:
         # 골드 획득량 50% 감소
         total_gold = int(total_gold * 0.5)
         
-        # 경험치 획득량 30% 감소
-        total_exp = int(total_exp * 0.7)
+        # 경험치 획득량 30% 감소 후 추가로 2/3으로 감소 (전체적으로 약 46% 수준)
+        total_exp = int(total_exp * 0.7 * (2/3))
 
         return {
             "experience": total_exp,
@@ -353,7 +353,7 @@ class RewardCalculator:
             "wyvern": ["beast_meat", "dragon_meat"],
             
             # 슬라임 계열
-            "slime": ["blue_mushroom", "red_mushroom"],
+            "slime": ["blue_mushroom", "red_mushroom", "alchemical_catalyst"],
             
             # 생선 계열
             "kraken": ["fish"],
@@ -371,9 +371,9 @@ class RewardCalculator:
             "vampire": [],
             
             # 엘리멘탈 계열
-            "fire_spirit": ["magic_herb", "spice"],
-            "ice_spirit": ["ice"],
-            "thunder_spirit": ["magic_herb"],
+            "fire_spirit": ["magic_herb", "spice", "fire_essence"],
+            "ice_spirit": ["ice", "ice_essence"],
+            "thunder_spirit": ["magic_herb", "lightning_essence"],
             "earth_spirit": ["potato", "carrot"],
             
             # 새 계열
