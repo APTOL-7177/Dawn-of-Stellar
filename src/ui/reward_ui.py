@@ -245,7 +245,7 @@ def show_reward_screen(
         rewards: 보상 정보
         level_ups: 레벨업 정보
     """
-    # 승리 BGM 재생
+    # 승리 BGM 재생 (한 번만 재생, 반복 없음)
     from src.audio import play_bgm
     play_bgm("victory", loop=False, fade_in=False)
     logger.info("승리 BGM 재생")
@@ -274,8 +274,18 @@ def show_reward_screen(
 
             if action:
                 if display.handle_input(action):
+                    # 보상 화면 종료 시 승리 BGM 정지 (필드 BGM으로 전환하기 위해)
+                    from src.audio.audio_manager import get_audio_manager
+                    audio_manager = get_audio_manager()
+                    audio_manager.stop_bgm(fade_out=False)
+                    logger.info("보상 화면 종료 - 승리 BGM 정지")
                     return
 
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
+                # 보상 화면 종료 시 승리 BGM 정지
+                from src.audio.audio_manager import get_audio_manager
+                audio_manager = get_audio_manager()
+                audio_manager.stop_bgm(fade_out=False)
+                logger.info("보상 화면 종료 (Quit) - 승리 BGM 정지")
                 return

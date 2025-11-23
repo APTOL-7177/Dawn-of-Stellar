@@ -2561,11 +2561,21 @@ def main() -> int:
                                     saved_y = None
                                     logger.info(f"새 {floor_number}층 던전 생성 (시드: {dungeon_seed})")
                                 
-                                # 기존 파티 가져오기 (exploration.party 사용)
-                                current_party = exploration.party if hasattr(exploration, 'party') and exploration.party else None
+                                # 기존 파티 가져오기 (exploration.player.party 사용)
+                                current_party = None
+                                if hasattr(exploration, 'player') and hasattr(exploration.player, 'party'):
+                                    current_party = exploration.player.party
+                                elif hasattr(exploration, 'party'):
+                                    current_party = exploration.party
+                                
                                 if not current_party:
-                                    logger.error("파티를 찾을 수 없습니다. exploration.party 확인 필요")
-                                    current_party = []
+                                    # 파티를 찾을 수 없으면 스코프에서 가져오기 시도
+                                    logger.warning("파티를 찾을 수 없습니다. 스코프에서 가져오기 시도")
+                                    if 'party_members' in locals() and party_members:
+                                        current_party = party_members
+                                    else:
+                                        logger.error("파티를 찾을 수 없습니다. exploration.player.party 확인 필요")
+                                        current_party = []
                                 
                                 from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
                                 exploration = MultiplayerExplorationSystem(
@@ -2603,22 +2613,29 @@ def main() -> int:
                                     "player_y": exploration.player.y
                                 }
                                 
-                                # 기존 파티 가져오기 (exploration.party 사용)
-                                current_party = exploration.party if hasattr(exploration, 'party') and exploration.party else None
-                                if not current_party:
-                                    # 파티를 찾을 수 없으면 오류 로그
-                                    logger.error("파티를 찾을 수 없습니다. exploration.party 확인 필요")
-                                    # 임시로 빈 리스트 사용 (오류 방지)
-                                    current_party = []
+                                # 기존 파티 가져오기 (exploration.player.party 사용)
+                                current_party = None
+                                if hasattr(exploration, 'player') and hasattr(exploration.player, 'party'):
+                                    current_party = exploration.player.party
+                                elif hasattr(exploration, 'party'):
+                                    current_party = exploration.party
                                 
-                                # 기존 network_manager 가져오기 (exploration에서 가져오거나 스코프에서)
-                                current_network_manager = getattr(exploration, 'network_manager', None) if hasattr(exploration, 'network_manager') else network_manager
+                                if not current_party:
+                                    # 파티를 찾을 수 없으면 스코프에서 가져오기 시도
+                                    logger.warning("파티를 찾을 수 없습니다. 스코프에서 가져오기 시도")
+                                    if 'party_members' in locals() and party_members:
+                                        current_party = party_members
+                                    else:
+                                        logger.error("파티를 찾을 수 없습니다. exploration.player.party 확인 필요")
+                                        current_party = []
+                                
+                                # 기존 network_manager 가져오기 (스코프에서 가져오기)
+                                current_network_manager = network_manager
                                 if not current_network_manager:
-                                    logger.error("network_manager를 찾을 수 없습니다. 이전 exploration에서 가져오기 시도")
-                                    # 스코프에서 network_manager 찾기
-                                    current_network_manager = network_manager
+                                    # exploration에서 가져오기 시도
+                                    current_network_manager = getattr(exploration, 'network_manager', None) if hasattr(exploration, 'network_manager') else None
                                 if not current_network_manager:
-                                    logger.error("network_manager가 None입니다. 게임 루프를 종료합니다.")
+                                    logger.error("network_manager를 찾을 수 없습니다. 게임 루프를 종료합니다.")
                                     break
                                 
                                 # 마을로 복귀
@@ -2739,11 +2756,30 @@ def main() -> int:
                                     saved_y = None
                                     logger.info(f"새 마을 맵 생성 (멀티플레이, 플레이어 {local_player_id})")
                                 
-                                # 기존 파티 가져오기 (exploration.party 사용)
-                                current_party = exploration.party if hasattr(exploration, 'party') and exploration.party else None
+                                # 기존 파티 가져오기 (exploration.player.party 사용)
+                                current_party = None
+                                if hasattr(exploration, 'player') and hasattr(exploration.player, 'party'):
+                                    current_party = exploration.player.party
+                                elif hasattr(exploration, 'party'):
+                                    current_party = exploration.party
+                                
                                 if not current_party:
-                                    logger.error("파티를 찾을 수 없습니다. exploration.party 확인 필요")
-                                    current_party = []
+                                    # 파티를 찾을 수 없으면 스코프에서 가져오기 시도
+                                    logger.warning("파티를 찾을 수 없습니다. 스코프에서 가져오기 시도")
+                                    if 'party_members' in locals() and party_members:
+                                        current_party = party_members
+                                    else:
+                                        logger.error("파티를 찾을 수 없습니다. exploration.player.party 확인 필요")
+                                        current_party = []
+                                
+                                # 기존 network_manager 가져오기 (스코프에서 가져오기)
+                                current_network_manager = network_manager
+                                if not current_network_manager:
+                                    # exploration에서 가져오기 시도
+                                    current_network_manager = getattr(exploration, 'network_manager', None) if hasattr(exploration, 'network_manager') else None
+                                if not current_network_manager:
+                                    logger.error("network_manager를 찾을 수 없습니다. 게임 루프를 종료합니다.")
+                                    break
                                 
                                 from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
                                 exploration = MultiplayerExplorationSystem(
@@ -2778,6 +2814,12 @@ def main() -> int:
                                 exploration.is_town = True
                                 exploration.town_map = town_map_local
                                 exploration.town_manager = town_manager_local
+                                
+                                # 기존 network_manager 가져오기 (스코프에서 가져오기)
+                                current_network_manager = network_manager
+                                if not current_network_manager:
+                                    # exploration에서 가져오기 시도
+                                    current_network_manager = getattr(exploration, 'network_manager', None) if hasattr(exploration, 'network_manager') else None
                                 
                                 # network_manager 업데이트
                                 if current_network_manager:
