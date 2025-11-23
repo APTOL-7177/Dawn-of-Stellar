@@ -2598,9 +2598,12 @@ def main() -> int:
                                 if hasattr(exploration, 'is_town'):
                                     delattr(exploration, 'is_town')
                                 
-                                network_manager.current_floor = floor_number
-                                network_manager.current_dungeon = dungeon
-                                network_manager.current_exploration = exploration
+                                # network_manager 업데이트 (멀티플레이어 모드에서만)
+                                if network_manager:
+                                    network_manager.current_floor = floor_number
+                                    network_manager.current_dungeon = dungeon
+                                    network_manager.current_exploration = exploration
+                                # 싱글플레이 모드에서는 network_manager가 None이므로 업데이트 건너뜀
                                 play_dungeon_bgm = True
                                 continue
                             else:
@@ -2630,13 +2633,16 @@ def main() -> int:
                                         current_party = []
                                 
                                 # 기존 network_manager 가져오기 (스코프에서 가져오기)
+                                # 멀티플레이어 모드에서만 network_manager가 필요함
                                 current_network_manager = network_manager
                                 if not current_network_manager:
                                     # exploration에서 가져오기 시도
                                     current_network_manager = getattr(exploration, 'network_manager', None) if hasattr(exploration, 'network_manager') else None
+                                
+                                # network_manager가 None이어도 게임 계속 진행 (싱글플레이 모드 지원)
+                                # 멀티플레이어 모드에서만 network_manager 업데이트
                                 if not current_network_manager:
-                                    logger.error("network_manager를 찾을 수 없습니다. 게임 루프를 종료합니다.")
-                                    break
+                                    logger.warning("network_manager가 None입니다. 싱글플레이 모드이거나 멀티플레이어 연결이 끊어진 상태입니다.")
                                 
                                 # 마을로 복귀
                                 floor_number = 0
@@ -2706,13 +2712,12 @@ def main() -> int:
                                 # 마을에서는 적 제거
                                 exploration.enemies = []
                                 
-                                # network_manager 업데이트
+                                # network_manager 업데이트 (멀티플레이어 모드에서만)
                                 if current_network_manager:
                                     current_network_manager.current_floor = floor_number
                                     current_network_manager.current_dungeon = dungeon
                                     current_network_manager.current_exploration = exploration
-                                else:
-                                    logger.error("network_manager가 None입니다. 업데이트를 건너뜁니다.")
+                                # 싱글플레이 모드에서는 network_manager가 None이므로 업데이트 건너뜀
                                 
                                 # 마을 BGM 재생을 위해 플래그 설정
                                 play_dungeon_bgm = True
@@ -2773,13 +2778,15 @@ def main() -> int:
                                         current_party = []
                                 
                                 # 기존 network_manager 가져오기 (스코프에서 가져오기)
+                                # 멀티플레이어 모드에서만 network_manager가 필요함
                                 current_network_manager = network_manager
                                 if not current_network_manager:
                                     # exploration에서 가져오기 시도
                                     current_network_manager = getattr(exploration, 'network_manager', None) if hasattr(exploration, 'network_manager') else None
+                                
+                                # network_manager가 None이어도 게임 계속 진행 (싱글플레이 모드 지원)
                                 if not current_network_manager:
-                                    logger.error("network_manager를 찾을 수 없습니다. 게임 루프를 종료합니다.")
-                                    break
+                                    logger.warning("network_manager가 None입니다. 싱글플레이 모드이거나 멀티플레이어 연결이 끊어진 상태입니다.")
                                 
                                 from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
                                 exploration = MultiplayerExplorationSystem(
@@ -2815,19 +2822,12 @@ def main() -> int:
                                 exploration.town_map = town_map_local
                                 exploration.town_manager = town_manager_local
                                 
-                                # 기존 network_manager 가져오기 (스코프에서 가져오기)
-                                current_network_manager = network_manager
-                                if not current_network_manager:
-                                    # exploration에서 가져오기 시도
-                                    current_network_manager = getattr(exploration, 'network_manager', None) if hasattr(exploration, 'network_manager') else None
-                                
-                                # network_manager 업데이트
+                                # network_manager 업데이트 (멀티플레이어 모드에서만)
                                 if current_network_manager:
                                     current_network_manager.current_floor = floor_number
                                     current_network_manager.current_dungeon = dungeon
                                     current_network_manager.current_exploration = exploration
-                                else:
-                                    logger.error("network_manager가 None입니다. 업데이트를 건너뜁니다.")
+                                # 싱글플레이 모드에서는 network_manager가 None이므로 업데이트 건너뜀
                                 
                                 play_dungeon_bgm = True
                                 continue
