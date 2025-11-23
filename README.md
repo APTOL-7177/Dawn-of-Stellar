@@ -1,6 +1,6 @@
 # ⭐ Dawn of Stellar (별빛의 여명)
 
-![Version](https://img.shields.io/badge/version-6.0.0-blue)
+![Version](https://img.shields.io/badge/version-6.1.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -348,7 +348,7 @@ _준비 중..._
 - ✨ 플레이어 간 위치 실시간 동기화
 - ⚔️ 멀티플레이 전투 시스템 개선
 - 🎮 불릿타임 시스템 구현
-- 📝 버전 6.0.0으로 업데이트
+- 📝 버전 6.1.0으로 업데이트
 
 ### v5.1.0 (2025-11-16)
 - ✅ GitHub Actions 자동 빌드 추가
