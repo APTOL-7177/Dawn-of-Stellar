@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Dawn of Stellar Banner](https://img.shields.io/badge/Dawn%20of%20Stellar-6.0.0-blue?style=for-the-badge)
+![Dawn of Stellar Banner](https://img.shields.io/badge/Dawn%20of%20Stellar-6.1.0-blue?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.10+-green?style=for-the-badge&logo=python)
 ![Genre](https://img.shields.io/badge/Genre-Roguelike%20RPG-red?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
@@ -247,12 +247,12 @@ MIT License - 자유롭게 사용, 수정, 배포 가능합니다.
 
 ## 🌟 최신 업데이트
 
-### 버전 6.0.0 (2025-01-XX)
+### 버전 6.1.0 (2025-01-XX)
 - 🎉 멀티플레이 시스템 완성
 - ✨ 플레이어 간 위치 실시간 동기화
 - ⚔️ 멀티플레이 전투 시스템 개선
 - 🎮 불릿타임 시스템 구현
-- 📝 버전 6.0.0으로 업데이트
+- 📝 버전 6.1.0으로 업데이트
 
 ### 버전 5.0.0 (2025-11-15)
 - ✅ 33개 직업 시스템 완성
