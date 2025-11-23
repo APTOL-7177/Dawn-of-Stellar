@@ -304,6 +304,9 @@ class TownInteractionHandler:
         elif building.building_type == BuildingType.GUILD_HALL:
             return TownInteractionHandler._interact_guild(player)
         
+        elif building.building_type == BuildingType.FOUNTAIN:
+            return TownInteractionHandler._interact_fountain(player)
+        
         return {"message": f"{building.name}에 입장했습니다."}
     
     @staticmethod
@@ -379,9 +382,20 @@ class TownInteractionHandler:
     @staticmethod
     def _interact_inn(player: Any) -> Dict[str, Any]:
         """여관 상호작용 - 파티 전체 회복 + 인플레이션"""
-        # 인플레이션: 플레이어 레벨에 따라 가격 증가
-        base_cost = 150
-        level_multiplier = 1 + (player.level // 5) * 0.5  # 5레벨마다 50% 증가
+        # 인플레이션: 파티 평균 레벨에 따라 가격 증가
+        base_cost = 100
+        level = 1  # 기본값
+        
+        # Player 객체에서 파티의 첫 번째 멤버 레벨 가져오기
+        if hasattr(player, 'party') and player.party:
+            first_member = player.party[0]
+            if hasattr(first_member, 'level'):
+                level = first_member.level
+        # 또는 직접 level 속성이 있는 경우 (Character 객체 등)
+        elif hasattr(player, 'level'):
+            level = player.level
+        
+        level_multiplier = 2 ** (level // 5)  # 5레벨마다 2배 증가
         cost = int(base_cost * level_multiplier)
         
         return {
@@ -397,6 +411,13 @@ class TownInteractionHandler:
         return {
             "message": "모험가 길드에 오신 것을 환영합니다!",
             "options": ["정보 확인", "랭킹 보기", "나가기"]
+        }
+    
+    @staticmethod
+    def _interact_fountain(player: Any) -> Dict[str, Any]:
+        """분수대 상호작용 (장식)"""
+        return {
+            "message": "중앙 분수대에 입장했습니다. 마을의 중심입니다."
         }
 
 
