@@ -88,6 +88,10 @@ class WorldUI:
         self.chat_input_active = False
         self.chat_input_text = ""
         self.chat_input_max_length = 60
+        
+        # 분수대 사용 여부 (마을 방문마다 리셋)
+        self.fountain_used = False
+        self.was_in_town = False  # 이전 프레임의 마을 상태 추적
 
     def add_message(self, text: str):
         """메시지 추가"""
@@ -97,6 +101,13 @@ class WorldUI:
         logger.debug(f"메시지: {text}")
 
     def handle_input(self, action: GameAction, console=None, context=None, key_event=None) -> bool:
+        # 마을 입장 시 분수대 사용 플래그 리셋
+        is_in_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
+        if is_in_town and not self.was_in_town:
+            # 마을에 새로 입장한 경우
+            self.fountain_used = False
+            logger.debug("[분수대] 마을 입장 - 분수대 사용 플래그 리셋")
+        self.was_in_town = is_in_town
         """
         입력 처리
 
@@ -733,33 +744,41 @@ class WorldUI:
                                 show_message(console, context, guild_message)
                             elif building.building_type == BuildingType.FOUNTAIN:
                                 # 분수대: 파티 전체 HP/MP 20% 회복 (부활 포함)
+                                # 마을 방문마다 1번만 사용 가능
                                 from src.ui.game_menu import show_message
                                 from src.audio import play_sfx
                                 
-                                # 파티 정보 가져오기
-                                party_to_heal = self.party
-                                if not party_to_heal and hasattr(self.exploration, 'player') and hasattr(self.exploration.player, 'party'):
-                                    party_to_heal = self.exploration.player.party
-                                
-                                if party_to_heal:
-                                    recovered_count = 0
-                                    for member in party_to_heal:
-                                        # HP 20% 회복 (최소 1)
-                                        heal_amount = max(1, int(member.max_hp * 0.2))
-                                        member.heal(heal_amount, can_revive=True)
-                                        
-                                        # MP 20% 회복 (최소 1)
-                                        mp_amount = max(1, int(member.max_mp * 0.2))
-                                        member.restore_mp(mp_amount)
-                                        
-                                        recovered_count += 1
-                                    
-                                    play_sfx("ui", "heal")
-                                    logger.info(f"[건물 상호작용] 분수대 - 파티원 {recovered_count}명 회복 완료")
-                                    show_message(console, context, "분수대의 신비한 힘으로 파티원의 HP와 MP가 회복되었습니다.\n(HP/MP 20% 회복, 부활 포함)")
+                                if self.fountain_used:
+                                    # 이미 사용한 경우
+                                    show_message(console, context, "분수대의 힘이 이미 소진되었습니다.\n다음 마을 방문 시 다시 사용할 수 있습니다.")
+                                    logger.info("[건물 상호작용] 분수대 - 이미 사용됨")
                                 else:
-                                    logger.warning("[건물 상호작용] 분수대 - 파티 정보 없음")
-                                    show_message(console, context, "분수대의 맑은 물이 흐르고 있습니다.")
+                                    # 파티 정보 가져오기
+                                    party_to_heal = self.party
+                                    if not party_to_heal and hasattr(self.exploration, 'player') and hasattr(self.exploration.player, 'party'):
+                                        party_to_heal = self.exploration.player.party
+                                    
+                                    if party_to_heal:
+                                        recovered_count = 0
+                                        for member in party_to_heal:
+                                            # HP 20% 회복 (최소 1)
+                                            heal_amount = max(1, int(member.max_hp * 0.2))
+                                            member.heal(heal_amount, can_revive=True)
+                                            
+                                            # MP 20% 회복 (최소 1)
+                                            mp_amount = max(1, int(member.max_mp * 0.2))
+                                            member.restore_mp(mp_amount)
+                                            
+                                            recovered_count += 1
+                                        
+                                        # 사용 플래그 설정
+                                        self.fountain_used = True
+                                        play_sfx("ui", "heal")
+                                        logger.info(f"[건물 상호작용] 분수대 - 파티원 {recovered_count}명 회복 완료 (사용 플래그 설정)")
+                                        show_message(console, context, "분수대의 신비한 힘으로 파티원의 HP와 MP가 회복되었습니다.\n(HP/MP 20% 회복, 부활 포함)")
+                                    else:
+                                        logger.warning("[건물 상호작용] 분수대 - 파티 정보 없음")
+                                        show_message(console, context, "분수대의 맑은 물이 흐르고 있습니다.")
                             else:
                                 # 기타 건물은 메시지만 표시
                                 from src.ui.game_menu import show_message

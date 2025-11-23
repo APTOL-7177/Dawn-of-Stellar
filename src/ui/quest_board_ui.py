@@ -44,7 +44,7 @@ class QuestBoardUI:
         # 커서 위치
         self.cursor = 0
         self.scroll_offset = 0
-        self.max_visible = 10
+        self.max_visible = 8  # 진행 중인 퀘스트는 더 많은 공간 필요하므로 감소
         
         self.closed = False
         
@@ -140,16 +140,21 @@ class QuestBoardUI:
             console.print(10, list_y, message, fg=(150, 150, 150))
         else:
             for i, quest in enumerate(visible_quests):
-                y = list_y + i
+                # 진행 중인 퀘스트는 더 많은 공간 필요 (진행도 표시)
+                item_spacing = 4 if self.current_tab == 1 else 2
+                y = list_y + i * item_spacing
                 cursor_index = self.scroll_offset + i
                 
                 # 커서
                 if cursor_index == self.cursor:
                     console.print(3, y, "►", fg=(255, 255, 100))
                 
-                # 퀘스트 이름
+                # 퀘스트 이름 (길이 제한 - 진행도와 겹치지 않도록)
                 color = (255, 255, 255) if cursor_index == self.cursor else (200, 200, 200)
-                console.print(5, y, quest.name, fg=color)
+                # 퀘스트 이름 길이 제한
+                max_name_width = min(45, self.screen_width - 40)  # 오른쪽에 난이도 표시 공간 확보
+                quest_name = quest.name[:max_name_width] if len(quest.name) > max_name_width else quest.name
+                console.print(5, y, quest_name, fg=color)
                 
                 # 난이도 표시
                 difficulty_colors = {
@@ -161,12 +166,17 @@ class QuestBoardUI:
                 difficulty_color = difficulty_colors.get(quest.difficulty.value, (255, 255, 255))
                 console.print(self.screen_width - 30, y, f"[{quest.difficulty.value.upper()}]", fg=difficulty_color)
                 
-                # 진행 중인 퀘스트는 진행률 표시
+                # 진행 중인 퀘스트는 진행률 표시 (퀘스트 이름 아래 별도 줄로)
                 if self.current_tab == 1:
                     progress_text = f"진행: "
                     for obj in quest.objectives:
                         progress_text += f"{obj.progress_text} "
-                    console.print(5, y + 1, progress_text, fg=(150, 255, 150))
+                    # 진행도 텍스트 길이 제한
+                    max_progress_width = self.screen_width - 10
+                    if len(progress_text) > max_progress_width:
+                        progress_text = progress_text[:max_progress_width - 3] + "..."
+                    # y + 2로 이동하여 퀘스트 이름(y)과 확실히 분리
+                    console.print(5, y + 2, progress_text, fg=(150, 255, 150))
         
         # 선택된 퀘스트 상세 정보
         if current_list and 0 <= self.cursor < len(current_list):

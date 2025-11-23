@@ -701,12 +701,14 @@ def main() -> int:
                                     num_enemies = data.get("num_enemies", 0)
                                     map_enemies = data.get("enemies", [])
                                     combat_party = data.get("participants", character_party)
-                                    combat_position = data.get("position", (local_player.x, local_player.y))
+                                    combat_position = data.get("combat_position", data.get("position", (local_player.x, local_player.y)))
+                                    combat_dungeon = data.get("dungeon", exploration.dungeon if hasattr(exploration, 'dungeon') else None)
                                 else:
                                     num_enemies = 0
                                     map_enemies = []
                                     combat_party = character_party
                                     combat_position = (local_player.x, local_player.y)
+                                    combat_dungeon = exploration.dungeon if hasattr(exploration, 'dungeon') else None
                                 
                                 if num_enemies > 0:
                                     enemies = EnemyGenerator.generate_enemies(floor_number, num_enemies)
@@ -733,6 +735,7 @@ def main() -> int:
                                     session=session,
                                     network_manager=network_manager,
                                     combat_position=combat_position,
+                                    dungeon=combat_dungeon,
                                     local_player_id=local_player_id
                                 )
                                 
@@ -1719,6 +1722,7 @@ def main() -> int:
                                                     session=session,
                                                     network_manager=network_manager,
                                                     combat_position=combat_position,
+                                                    dungeon=exploration.dungeon if hasattr(exploration, 'dungeon') else None,
                                                     local_player_id=local_player_id
                                                 )
                                                 
@@ -2413,6 +2417,7 @@ def main() -> int:
                                 session=session_for_combat,
                                 network_manager=network_manager_for_combat,
                                 combat_position=combat_position,
+                                dungeon=exploration.dungeon if hasattr(exploration, 'dungeon') else None,
                                 local_player_id=local_player_id
                             )
 
@@ -3206,6 +3211,7 @@ def main() -> int:
                                         session=session_for_combat,
                                         network_manager=network_manager_for_combat,
                                         combat_position=combat_position,
+                                        dungeon=exploration.dungeon if hasattr(exploration, 'dungeon') else None,
                                         local_player_id=local_player_id
                                     )
 

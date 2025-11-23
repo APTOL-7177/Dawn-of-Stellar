@@ -8,7 +8,7 @@ import tcod
 import tcod.context
 import tcod.console
 import tcod.event
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 from pathlib import Path
 import platform
 import sys
@@ -1005,7 +1005,9 @@ def render_space_background(
     width: int, 
     height: int,
     context: str = "default",
-    floor: int = 1
+    floor: int = 1,
+    dungeon: Optional[Any] = None,
+    combat_position: Optional[Tuple[int, int]] = None
 ) -> None:
     """
     바이옴/상황별 그라데이션 배경 렌더링
@@ -1078,9 +1080,9 @@ def render_space_background(
             "top": (20, 15, 10),       # 차분한 갈색
             "bottom": (35, 25, 18)     # 부드러운 황갈색
         },
-        "combat": {  # 전투 - 긴장감 있지만 너무 밝지 않은 빨강
-            "top": (18, 5, 5),
-            "bottom": (28, 10, 10)
+        "combat": {  # 전투 - 기본 검정/진한 남색
+            "top": (5, 5, 10),
+            "bottom": (10, 10, 20)
         },
         "menu": {  # 메뉴 - 우주 테마 (부드러운 파랑)
             "top": (8, 8, 15),
@@ -1102,8 +1104,54 @@ def render_space_background(
     else:
         gradient = context_gradients["default"]
     
-    top_color = gradient["top"]
-    bottom_color = gradient["bottom"]
+    # 전투 컨텍스트일 때 필드 효과에 따라 색상 변경
+    if context == "combat" and dungeon and combat_position:
+        effects = []
+        # 환경 효과 관리자 확인 (두 가지 속성명 모두 지원)
+        effect_manager = None
+        if hasattr(dungeon, 'environmental_effect_manager'):
+            effect_manager = dungeon.environmental_effect_manager
+        elif hasattr(dungeon, 'environment_effect_manager'):
+            effect_manager = dungeon.environment_effect_manager
+        
+        if effect_manager:
+            effects = effect_manager.get_effects_at_tile(combat_position[0], combat_position[1])
+        
+        # 가장 강한 효과의 색상으로 배경 변경
+        if effects:
+            effect = effects[0]
+            overlay_color = effect.color_overlay
+            
+            # 오버레이 색상을 배경 그라데이션에 혼합
+            # 기존 그라데이션에 효과 색상을 30% 혼합
+            top_color_base = gradient["top"]
+            bottom_color_base = gradient["bottom"]
+            
+            # 오버레이 색상을 약간 어둡게 조정 (배경용)
+            overlay_r, overlay_g, overlay_b = overlay_color
+            overlay_dark = (
+                max(5, overlay_r // 4),
+                max(5, overlay_g // 4),
+                max(5, overlay_b // 4)
+            )
+            
+            # 혼합 (70% 기본색 + 30% 효과색)
+            top_color = (
+                int(top_color_base[0] * 0.7 + overlay_dark[0] * 0.3),
+                int(top_color_base[1] * 0.7 + overlay_dark[1] * 0.3),
+                int(top_color_base[2] * 0.7 + overlay_dark[2] * 0.3)
+            )
+            bottom_color = (
+                int(bottom_color_base[0] * 0.5 + overlay_dark[0] * 0.5),
+                int(bottom_color_base[1] * 0.5 + overlay_dark[1] * 0.5),
+                int(bottom_color_base[2] * 0.5 + overlay_dark[2] * 0.5)
+            )
+        else:
+            top_color = gradient["top"]
+            bottom_color = gradient["bottom"]
+    else:
+        top_color = gradient["top"]
+        bottom_color = gradient["bottom"]
     
     # 실제 콘솔 크기 확인 (안전성을 위해)
     # console 속성 사용 (가장 안전한 방법)
@@ -1131,7 +1179,7 @@ def render_space_background(
             # 범위 체크 (이중 체크)
             if y >= actual_console_height:
                 break
-                
+            
             # 선형 보간 (0.0 ~ 1.0)
             ratio = y / max(1, actual_height - 1)
             
