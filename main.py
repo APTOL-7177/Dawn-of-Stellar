@@ -501,6 +501,10 @@ def main() -> int:
                         UpgradeApplier.apply_to_characters(character_party, meta_progress=host_meta, is_host=True)
                         logger.info("파티 강화 업그레이드 적용 완료")
                         
+                        # 시작 장비 지급 (대장간 레벨에 따라 등급 결정)
+                        UpgradeApplier.give_starting_equipment(character_party, meta_progress=host_meta, is_host=True)
+                        logger.info("시작 장비 지급 완료")
+                        
                         # 특성/패시브/업그레이드 적용 후 HP/MP를 최대값으로 보정 (게임 시작 시)
                         for char in character_party:
                             char.current_hp = char.max_hp
@@ -2725,6 +2729,10 @@ def main() -> int:
                     host_meta = get_meta_progress() if is_host else None
                     UpgradeApplier.apply_to_characters(character_party, meta_progress=host_meta, is_host=is_host)
                     logger.info("파티 강화 업그레이드 적용 완료")
+                    
+                    # 시작 장비 지급 (대장간 레벨에 따라 등급 결정)
+                    UpgradeApplier.give_starting_equipment(character_party, meta_progress=host_meta, is_host=is_host)
+                    logger.info("시작 장비 지급 완료")
 
                     # 게임 시작!
                     logger.info("=== 게임 시작! ===")
