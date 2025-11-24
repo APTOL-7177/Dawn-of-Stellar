@@ -1798,6 +1798,11 @@ class CombatUI:
             
             console.print(28, y + 1, "ATB:", fg=(200, 200, 200))
             ally_id = getattr(ally, 'id', None) or getattr(ally, 'name', f'ally_{i}')
+            # 현재 행동 중인 아군인지 확인
+            is_current = (self.current_actor is not None and 
+                         self.current_actor is ally and
+                         self.state in [CombatUIState.ACTION_MENU, CombatUIState.SKILL_MENU, 
+                                       CombatUIState.ITEM_MENU, CombatUIState.TARGET_SELECT])
             gauge_renderer.render_atb_with_cast(
                 console, 33, y + 1, 15,
                 atb_current=atb_value,
@@ -1805,7 +1810,8 @@ class CombatUI:
                 atb_maximum=2000,
                 cast_progress=cast_progress,
                 is_casting=is_casting,
-                entity_id=f"ally_{ally_id}"
+                entity_id=f"ally_{ally_id}",
+                is_current_actor=is_current
             )
 
             # 상처 표시

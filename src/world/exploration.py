@@ -763,6 +763,16 @@ class ExplorationSystem:
             # 랜덤 아이템 생성 (보물상자는 보스 드롭 취급)
             item = ItemGenerator.create_random_drop(self.floor_number, boss_drop=True)
 
+        # 아이템 생성 실패 시 처리
+        if item is None:
+            logger.warning("[CHEST] 아이템 생성 실패 - 상자가 비어있음")
+            tile.tile_type = TileType.FLOOR
+            return ExplorationResult(
+                success=True,
+                event=ExplorationEvent.CHEST,
+                message="📦 보물상자를 열었지만 비어있었다..."
+            )
+        
         # 디버그 로그
         logger.warning(f"[CHEST] 보물상자 처리 시작: {item.name}")
         logger.warning(f"[CHEST] 인벤토리 존재 여부: {self.inventory is not None}")

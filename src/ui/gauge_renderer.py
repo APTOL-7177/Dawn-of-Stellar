@@ -4,7 +4,7 @@
 픽셀 단위 부드러운 게이지 (커스텀 타일셋 기반 32분할)
 + 애니메이션 시스템 (천천히 변화하는 효과)
 + 증가/감소 모두 트레일 애니메이션
-+ 글씨 테두리 효과 (가독성 향상)
++ 배경 밝기 기반 텍스트 색상 자동 조정
 """
 
 from typing import Tuple, List, Optional, Dict, Any
@@ -12,18 +12,34 @@ import tcod.console
 import time
 
 
-def print_outlined_text(console: tcod.console.Console, x: int, y: int, text: str, 
-                        fg: Tuple[int, int, int] = (255, 255, 255),
-                        outline: Tuple[int, int, int] = (0, 0, 0)) -> None:
-    """테두리가 있는 텍스트 출력 (가독성 향상)"""
-    # 검은 테두리 (8방향)
-    for dx in [-1, 0, 1]:
-        for dy in [-1, 0, 1]:
-            if dx == 0 and dy == 0:
-                continue
-            console.print(x + dx, y + dy, text, fg=outline)
-    # 메인 텍스트
-    console.print(x, y, text, fg=fg)
+def get_contrast_text_color(bg_color: Tuple[int, int, int]) -> Tuple[int, int, int]:
+    """배경색 밝기에 따라 가독성 좋은 텍스트 색상 반환
+    
+    밝은 배경 → 검은 텍스트
+    어두운 배경 → 흰색 텍스트
+    """
+    # 밝기 계산 (인간 눈의 색상 감도 반영)
+    brightness = 0.299 * bg_color[0] + 0.587 * bg_color[1] + 0.114 * bg_color[2]
+    
+    if brightness > 140:
+        # 밝은 배경 → 진한 색 텍스트
+        return (20, 20, 20)
+    else:
+        # 어두운 배경 → 흰색 텍스트
+        return (255, 255, 255)
+
+
+def get_contrast_secondary_color(bg_color: Tuple[int, int, int]) -> Tuple[int, int, int]:
+    """배경색에 따른 보조 텍스트 색상 (최대값 표시용, 더 어둡게)"""
+    brightness = 0.299 * bg_color[0] + 0.587 * bg_color[1] + 0.114 * bg_color[2]
+    
+    if brightness > 140:
+        # 밝은 배경 → 더 어두운 회색
+        return (80, 80, 80)
+    else:
+        # 어두운 배경 → 어두운 회색
+        return (130, 130, 130)
+
 
 # 게이지 타일셋 임포트 (지연 임포트로 순환 참조 방지)
 _gauge_tileset_loaded = False
@@ -543,7 +559,7 @@ class GaugeRenderer:
                     )
                     console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
         
-        # 숫자 표시 (테두리 효과로 가독성 향상)
+        # 숫자 표시 (배경 밝기에 따른 가독성 좋은 색상)
         if show_numbers:
             current_text = f"{display_number}"
             if wound_damage > 0:
@@ -551,14 +567,18 @@ class GaugeRenderer:
             else:
                 max_text = f"{int(max_hp)}"
             
+            # 배경색에 따른 텍스트 색상 선택
+            text_color = get_contrast_text_color(fg_color)
+            secondary_color = get_contrast_secondary_color(fg_color)
+            
             min_width_needed = len(current_text) + len(max_text) + 3
             
             if width >= min_width_needed:
-                print_outlined_text(console, x + 1, y, current_text, fg=(255, 255, 255), outline=(0, 0, 0))
+                console.print(x + 1, y, current_text, fg=text_color)
                 max_text_x = x + width - len(max_text) - 1
-                print_outlined_text(console, max_text_x, y, max_text, fg=(200, 200, 200), outline=(0, 0, 0))
+                console.print(max_text_x, y, max_text, fg=secondary_color)
             elif width >= len(current_text) + 2:
-                print_outlined_text(console, x + 1, y, current_text, fg=(255, 255, 255), outline=(0, 0, 0))
+                console.print(x + 1, y, current_text, fg=text_color)
 
     @staticmethod
     def render_animated_mp_bar(
@@ -711,19 +731,22 @@ class GaugeRenderer:
                     )
                     console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
         
-        # 숫자 - 테두리 효과
+        # 숫자 - 배경색 기반 가독성 색상
         if show_numbers:
             current_text = f"{display_number}"
             max_text = f"{int(max_mp)}"
             
+            text_color = get_contrast_text_color(fg_color)
+            secondary_color = get_contrast_secondary_color(fg_color)
+            
             min_width_needed = len(current_text) + len(max_text) + 3
             
             if width >= min_width_needed:
-                print_outlined_text(console, x + 1, y, current_text, fg=(255, 255, 255), outline=(0, 0, 0))
+                console.print(x + 1, y, current_text, fg=text_color)
                 max_text_x = x + width - len(max_text) - 1
-                print_outlined_text(console, max_text_x, y, max_text, fg=(180, 200, 255), outline=(0, 0, 0))
+                console.print(max_text_x, y, max_text, fg=secondary_color)
             elif width >= len(current_text) + 2:
-                print_outlined_text(console, x + 1, y, current_text, fg=(255, 255, 255), outline=(0, 0, 0))
+                console.print(x + 1, y, current_text, fg=text_color)
 
     @staticmethod
     def render_animated_brv_bar(
@@ -895,19 +918,24 @@ class GaugeRenderer:
                 text = "BREAK!"
                 text_x = x + (width - len(text)) // 2
                 if text_x >= x:
-                    print_outlined_text(console, text_x, y, text, fg=(255, 100, 100), outline=(40, 0, 0))
+                    # BREAK 상태는 빨간 배경이므로 흰색 텍스트
+                    console.print(text_x, y, text, fg=(255, 255, 255))
             else:
                 current_text = f"{display_number}"
                 max_text = f"{int(max_brv)}"
                 
+                # 배경색 기반 텍스트 색상
+                text_color = get_contrast_text_color(fg_color)
+                secondary_color = get_contrast_secondary_color(fg_color)
+                
                 min_width_needed = len(current_text) + len(max_text) + 3
                 
                 if width >= min_width_needed:
-                    print_outlined_text(console, x + 1, y, current_text, fg=(255, 255, 255), outline=(0, 0, 0))
+                    console.print(x + 1, y, current_text, fg=text_color)
                     max_text_x = x + width - len(max_text) - 1
-                    print_outlined_text(console, max_text_x, y, max_text, fg=(255, 230, 150), outline=(0, 0, 0))
+                    console.print(max_text_x, y, max_text, fg=secondary_color)
                 elif width >= len(current_text) + 2:
-                    print_outlined_text(console, x + 1, y, current_text, fg=(255, 255, 255), outline=(0, 0, 0))
+                    console.print(x + 1, y, current_text, fg=text_color)
 
     @staticmethod
     def render_percentage_bar(
@@ -1172,7 +1200,7 @@ class GaugeRenderer:
         threshold_ratio = threshold / maximum if maximum > 0 else 0
         threshold_x = x + int(threshold_ratio * width)
         if 0 <= threshold_x < x + width:
-            print_outlined_text(console, threshold_x, y, "|", fg=(255, 255, 100), outline=(0, 0, 0))
+            console.print(threshold_x, y, "|", fg=(255, 255, 100))
 
     @staticmethod
     def render_atb_with_cast(
@@ -1185,7 +1213,8 @@ class GaugeRenderer:
         atb_maximum: float,
         cast_progress: float = 0.0,
         is_casting: bool = False,
-        entity_id: str = None
+        entity_id: str = None,
+        is_current_actor: bool = False
     ) -> None:
         """
         ATB 게이지와 캐스팅 진행도를 함께 렌더링 (애니메이션 지원)
@@ -1200,7 +1229,9 @@ class GaugeRenderer:
             cast_progress: 캐스팅 진행도 (0.0 ~ 1.0)
             is_casting: 캐스팅 중 여부
             entity_id: 엔티티 ID (애니메이션 추적용)
+            is_current_actor: 현재 행동 중인 아군 여부 (반짝임 효과)
         """
+        import math
         anim_mgr = get_animation_manager()
         
         # ATB 애니메이션
@@ -1219,12 +1250,33 @@ class GaugeRenderer:
             atb_ratio = min(2.0, atb_current / atb_threshold)
             display_ratio = min(2.0, display_atb / atb_threshold)
 
-        # ATB 색상 (연한 하늘색)
-        atb_fg = (135, 206, 235)
-        atb_bg = (67, 103, 117)
-
-        # 오버플로우 색상 (밝은 하늘색)
-        overflow_fg = (173, 216, 230)
+        # 반짝임 효과 계산 (현재 행동 중인 아군)
+        pulse = 0.0
+        if is_current_actor:
+            # 사인파로 0.3 ~ 1.0 사이를 빠르게 진동 (초당 3회)
+            pulse = 0.35 + 0.35 * math.sin(time.time() * 6 * math.pi)
+        
+        # ATB 색상 (현재 행동자면 밝은 금색으로 반짝임)
+        if is_current_actor:
+            # 금색 계열로 반짝임
+            base_fg = (255, 215, 100)
+            base_bg = (100, 85, 40)
+            atb_fg = (
+                int(base_fg[0] * (0.7 + pulse * 0.3)),
+                int(base_fg[1] * (0.7 + pulse * 0.3)),
+                int(min(255, base_fg[2] * (0.5 + pulse * 0.5)))
+            )
+            atb_bg = (
+                int(base_bg[0] * (0.8 + pulse * 0.2)),
+                int(base_bg[1] * (0.8 + pulse * 0.2)),
+                int(base_bg[2] * (0.8 + pulse * 0.2))
+            )
+            overflow_fg = (255, 240, 150)
+        else:
+            # 일반 ATB 색상 (연한 하늘색)
+            atb_fg = (135, 206, 235)
+            atb_bg = (67, 103, 117)
+            overflow_fg = (173, 216, 230)
 
         # 캐스팅 색상 (보라색/자홍색)
         cast_fg = (200, 100, 255)
