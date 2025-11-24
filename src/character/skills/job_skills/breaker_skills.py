@@ -11,7 +11,7 @@ def create_breaker_skills():
     skills = []
 
     # 1. 기본 BRV: 파쇄 타격
-    crush_strike = Skill("breaker_crush", "파쇄 타격", "BRV 파괴 공격")
+    crush_strike = Skill("breaker_crush", "파쇄 타격", "BRV 피해 + 파괴력 축적")
     crush_strike.effects = [
         DamageEffect(DamageType.BRV, 2.0),
         GimmickEffect(GimmickOperation.ADD, "break_power", 1, max_value=10)
@@ -22,7 +22,7 @@ def create_breaker_skills():
     skills.append(crush_strike)
 
     # 2. 기본 HP: 파괴의 일격
-    break_hit = Skill("breaker_break_hit", "파괴의 일격", "BREAK 보너스")
+    break_hit = Skill("breaker_break_hit", "파괴의 일격", "파괴력 비례 HP 피해, 파괴력 소모")
     break_hit.effects = [
         DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "break_power", "multiplier": 0.2}),
         GimmickEffect(GimmickOperation.CONSUME, "break_power", 1)
@@ -33,7 +33,7 @@ def create_breaker_skills():
     skills.append(break_hit)
     
     # 3. BRV 집중
-    brv_focus = Skill("breaker_brv_focus", "BRV 집중", "BRV 공격력 증가")
+    brv_focus = Skill("breaker_brv_focus", "BRV 집중", "공격력 버프 + 파괴력 축적")
     brv_focus.effects = [
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=4),
         GimmickEffect(GimmickOperation.ADD, "break_power", 2, max_value=10)
@@ -46,7 +46,7 @@ def create_breaker_skills():
     skills.append(brv_focus)
 
     # 4. 연타
-    multi_strike = Skill("breaker_multi", "연타", "3연속 BRV 공격")
+    multi_strike = Skill("breaker_multi", "연타", "3회 연속 BRV 피해 + 파괴력 축적")
     multi_strike.effects = [
         DamageEffect(DamageType.BRV, 1.5),
         DamageEffect(DamageType.BRV, 1.5),
@@ -60,7 +60,7 @@ def create_breaker_skills():
     skills.append(multi_strike)
 
     # 5. 파괴 강화
-    break_enhance = Skill("breaker_enhance", "파괴 강화", "BREAK 위력 증폭")
+    break_enhance = Skill("breaker_enhance", "파괴 강화", "파괴력 대량 축적 + 크리티컬 버프")
     break_enhance.effects = [
         GimmickEffect(GimmickOperation.ADD, "break_power", 5, max_value=10),
         BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=3)
@@ -73,7 +73,7 @@ def create_breaker_skills():
     skills.append(break_enhance)
 
     # 6. 대파쇄
-    mega_crush = Skill("breaker_mega_crush", "대파쇄", "초강력 BRV 공격")
+    mega_crush = Skill("breaker_mega_crush", "대파쇄", "파괴력 비례 강력한 BRV 피해")
     mega_crush.effects = [
         DamageEffect(DamageType.BRV, 3.0, gimmick_bonus={"field": "break_power", "multiplier": 0.3}),
         GimmickEffect(GimmickOperation.ADD, "break_power", 1, max_value=10)
@@ -85,7 +85,7 @@ def create_breaker_skills():
     skills.append(mega_crush)
 
     # 7. 파괴 충격파
-    break_wave = Skill("breaker_wave", "파괴 충격파", "광역 BRV 공격")
+    break_wave = Skill("breaker_wave", "파괴 충격파", "전체 BRV 피해, 파괴력 3 소모")
     break_wave.effects = [
         DamageEffect(DamageType.BRV, 2.2, gimmick_bonus={"field": "break_power", "multiplier": 0.25}),
         GimmickEffect(GimmickOperation.CONSUME, "break_power", 3)
@@ -99,7 +99,7 @@ def create_breaker_skills():
     skills.append(break_wave)
 
     # 8. 완전 파괴
-    total_break = Skill("breaker_total", "완전 파괴", "절대 BREAK")
+    total_break = Skill("breaker_total", "완전 파괴", "BRV+HP 피해, 파괴력 5 소모")
     total_break.effects = [
         DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "break_power", "multiplier": 0.4}),
         GimmickEffect(GimmickOperation.CONSUME, "break_power", 5)
@@ -111,7 +111,7 @@ def create_breaker_skills():
     skills.append(total_break)
 
     # 9. 파괴의 화신 (NEW - 10번째 스킬로 만들기 위해 추가)
-    devastation = Skill("breaker_devastation", "파괴의 화신", "최대 BREAK 전환 + 대공격")
+    devastation = Skill("breaker_devastation", "파괴의 화신", "파괴력 최대치로 충전 + 공격/크리 버프")
     devastation.effects = [
         GimmickEffect(GimmickOperation.SET, "break_power", 10),
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=4),
@@ -125,7 +125,7 @@ def create_breaker_skills():
     skills.append(devastation)
 
     # 10. 궁극기: 절대 파괴
-    ultimate = Skill("breaker_ultimate", "절대 파괴", "모든 것을 파괴")
+    ultimate = Skill("breaker_ultimate", "절대 파괴", "전체 다중 BRV+HP 피해, 모든 파괴력 소모")
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 3.5, gimmick_bonus={"field": "break_power", "multiplier": 0.5}),
         DamageEffect(DamageType.BRV, 3.0, gimmick_bonus={"field": "break_power", "multiplier": 0.4}),

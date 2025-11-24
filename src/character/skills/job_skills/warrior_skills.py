@@ -11,7 +11,7 @@ def create_warrior_skills():
     skills = []
 
     # 1. 기본 BRV: 강타
-    power_strike = Skill("warrior_power_strike", "강타", "현재 스탠스 유지")
+    power_strike = Skill("warrior_power_strike", "강타", "BRV 피해를 주는 기본 공격")
     power_strike.effects = [
         DamageEffect(DamageType.BRV, 1.6)
     ]
@@ -21,7 +21,7 @@ def create_warrior_skills():
     skills.append(power_strike)
 
     # 2. 기본 HP: 방패 강타
-    shield_bash = Skill("warrior_shield_bash", "방패 강타", "HP 공격")
+    shield_bash = Skill("warrior_shield_bash", "방패 강타", "방패로 적을 가격해 HP 피해")
     shield_bash.effects = [
         DamageEffect(DamageType.HP, 1.1)
     ]
@@ -31,7 +31,7 @@ def create_warrior_skills():
     skills.append(shield_bash)
 
     # 3. 중립 자세
-    balanced_stance = Skill("warrior_balanced_stance", "중립 자세", "모든 스탯 균형 유지")
+    balanced_stance = Skill("warrior_balanced_stance", "중립 자세", "공방 균형 잡힌 기본 자세로 전환")
     balanced_stance.effects = [
         GimmickEffect(GimmickOperation.SET, "current_stance", 0)  # 0=balanced
     ]
@@ -42,7 +42,7 @@ def create_warrior_skills():
     skills.append(balanced_stance)
 
     # 4. 공격 자세
-    attack_stance = Skill("warrior_attack_stance", "공격 자세", "공격력 상승 자세")
+    attack_stance = Skill("warrior_attack_stance", "공격 자세", "공격력 대폭 증가, 방어력 감소")
     attack_stance.effects = [
         GimmickEffect(GimmickOperation.SET, "current_stance", 1)  # 1=attack
     ]
@@ -53,7 +53,7 @@ def create_warrior_skills():
     skills.append(attack_stance)
 
     # 5. 방어 자세
-    defensive_stance = Skill("warrior_defensive_stance", "방어 자세", "방어력 상승 자세")
+    defensive_stance = Skill("warrior_defensive_stance", "방어 자세", "방어력 대폭 증가, 공격력 감소")
     defensive_stance.effects = [
         GimmickEffect(GimmickOperation.SET, "current_stance", 2)  # 2=defense
     ]
@@ -64,7 +64,7 @@ def create_warrior_skills():
     skills.append(defensive_stance)
 
     # 6. 광전사 자세
-    berserker_rage = Skill("warrior_berserker_rage", "광전사 자세", "극한의 공격력")
+    berserker_rage = Skill("warrior_berserker_rage", "광전사 자세", "BRV 피해 + 극한 공격 모드 전환")
     berserker_rage.effects = [
         DamageEffect(DamageType.BRV, 2.0),
         GimmickEffect(GimmickOperation.SET, "current_stance", 4)  # 4=berserker
@@ -76,7 +76,7 @@ def create_warrior_skills():
     skills.append(berserker_rage)
 
     # 7. 수호자 자세
-    guardian_stance = Skill("warrior_guardian_stance", "수호자 자세", "절대 방어")
+    guardian_stance = Skill("warrior_guardian_stance", "수호자 자세", "아군 보호 + 피해 대폭 감소")
     guardian_stance.effects = [
         GimmickEffect(GimmickOperation.SET, "current_stance", 5)  # 5=guardian
     ]
@@ -87,7 +87,7 @@ def create_warrior_skills():
     skills.append(guardian_stance)
 
     # 8. 속도 자세
-    speed_stance = Skill("warrior_speed_stance", "속도 자세", "속도 및 ATB 상승")
+    speed_stance = Skill("warrior_speed_stance", "속도 자세", "속도와 ATB 충전 속도 증가")
     speed_stance.effects = [
         GimmickEffect(GimmickOperation.SET, "current_stance", 6)  # 6=speed
     ]
@@ -98,7 +98,7 @@ def create_warrior_skills():
     skills.append(speed_stance)
 
     # 9. 적응형 전환 (자동 스탠스 전환)
-    adaptive_stance = Skill("warrior_adaptive_stance", "적응형 전환", "상황에 맞는 자세로 자동 전환")
+    adaptive_stance = Skill("warrior_adaptive_stance", "적응형 전환", "HP 상태에 따라 자동으로 최적 자세 전환")
     adaptive_stance.effects = [
         GimmickEffect(GimmickOperation.AUTO_STANCE, "current_stance", None)  # 자동 전환
     ]
@@ -109,7 +109,7 @@ def create_warrior_skills():
     skills.append(adaptive_stance)
 
     # 10. 전쟁의 함성
-    war_cry = Skill("warrior_war_cry", "전쟁의 함성", "적 약화 + 파티 강화")
+    war_cry = Skill("warrior_war_cry", "전쟁의 함성", "적 전체 공격력 저하, 아군 전체 공격력 증가")
     war_cry.effects = [
         BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=3),  # 적 전체 디버프
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3, is_party_wide=True)  # 아군 전체 버프
@@ -122,7 +122,7 @@ def create_warrior_skills():
     skills.append(war_cry)
 
     # 11. 격노의 일격
-    furious_strike = Skill("warrior_furious_strike", "격노의 일격", "스탠스 기반 강력한 공격")
+    furious_strike = Skill("warrior_furious_strike", "격노의 일격", "BRV+HP 피해 + 공격력 증가 버프")
     furious_strike.effects = [
         DamageEffect(DamageType.BRV_HP, 2.6),
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=3),
@@ -135,7 +135,7 @@ def create_warrior_skills():
     skills.append(furious_strike)
 
     # 12. 궁극기: 완전체 각성
-    ultimate = Skill("warrior_ultimate", "완전체 각성", "모든 스탠스의 힘 융합")
+    ultimate = Skill("warrior_ultimate", "완전체 각성", "다중 BRV+HP 피해 + 공방속 대폭 증가")
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 2.5),
         DamageEffect(DamageType.BRV, 2.5),

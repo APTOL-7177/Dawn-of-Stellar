@@ -15,7 +15,7 @@ def create_time_mage_skills():
 
     # 1. 기본 BRV: 시간 가속
     time_bolt = Skill("time_mage_time_bolt", "시간 탄환",
-                     "기본 마법 공격")
+                     "시간 에너지로 BRV 피해")
     time_bolt.effects = [
         DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
     ]
@@ -23,7 +23,7 @@ def create_time_mage_skills():
 
     # 2. 기본 HP: 시간 충격
     time_shock = Skill("time_mage_time_shock", "시간 충격",
-                      "시간의 힘으로 강타")
+                      "시간의 힘으로 HP 피해")
     time_shock.effects = [
         DamageEffect(DamageType.HP, 1.2, stat_type="magical")
     ]

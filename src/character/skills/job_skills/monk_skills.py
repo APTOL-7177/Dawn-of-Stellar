@@ -10,7 +10,7 @@ def create_monk_skills():
     """몽크 10개 스킬 생성 (음양 기 흐름 시스템)"""
 
     # 1. 기본 BRV: 장타격 (균형 유지)
-    palm_strike = Skill("monk_palm_strike", "장타격", "기본 공격, 음양 균형 유지")
+    palm_strike = Skill("monk_palm_strike", "장타격", "BRV 피해를 주는 장풍 공격")
     palm_strike.effects = [
         DamageEffect(DamageType.BRV, 1.5, stat_type="physical")
     ]
@@ -18,7 +18,7 @@ def create_monk_skills():
     palm_strike.metadata = {}
 
     # 2. 기본 HP: 기공파 (균형 유지)
-    energy_blast = Skill("monk_energy_blast", "기공파", "내공을 실은 강타")
+    energy_blast = Skill("monk_energy_blast", "기공파", "내공을 실은 HP 피해 공격")
     energy_blast.effects = [
         DamageEffect(DamageType.HP, 1.2, stat_type="physical")
     ]

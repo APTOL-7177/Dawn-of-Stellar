@@ -32,11 +32,11 @@ def create_assassin_skills():
     assassinate.metadata = {"breaks_stealth": True, "stealth_bonus_high": True}
 
     # 3. 은신 (다시 은신 상태로 전환)
-    vanish = Skill("assassin_vanish", "은신", "은신 상태로 전환 (회피 +80%, 크리티컬 확정)")
+    vanish = Skill("assassin_vanish", "은신", "은신 전환 - 회피 대폭 증가, 다음 공격 강화")
     vanish.effects = [
         GimmickEffect(GimmickOperation.SET, "stealth_active", 1),  # 은신 활성화
         GimmickEffect(GimmickOperation.SET, "exposed_turns", 0),  # 노출 턴 리셋
-        BuffEffect(BuffType.EVASION_UP, 0.8, duration=99)  # 은신 중 지속
+        BuffEffect(BuffType.EVASION_UP, 0.8, duration=5)  # 은신 버프 (적절한 지속시간)
     ]
     vanish.costs = []
     vanish.target_type = "self"

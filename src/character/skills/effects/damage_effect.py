@@ -141,7 +141,7 @@ class DamageEffect(SkillEffect):
             elif condition == "at_present":
                 # 현재 타임라인 (타임라인 == 0)
                 condition_met = getattr(user, 'timeline', 0) == 0
-            elif condition == "stealth":
+            elif condition == "stealth" or condition == "stealth_active":
                 # 은신 중
                 condition_met = getattr(user, 'stealth_active', False)
             elif condition == "madness_high":
@@ -150,6 +150,14 @@ class DamageEffect(SkillEffect):
             elif condition == "in_berserker_mode":
                 # 버서커 모드 (광기 >= 40)
                 condition_met = getattr(user, 'madness', 0) >= 40
+            elif condition == "in_yin_state":
+                # 몽크 음 상태 (기 게이지 <= 30)
+                ki = getattr(user, 'ki_gauge', 50)
+                condition_met = ki <= 30
+            elif condition == "in_yang_state":
+                # 몽크 양 상태 (기 게이지 >= 70)
+                ki = getattr(user, 'ki_gauge', 50)
+                condition_met = ki >= 70
             elif condition == "hp_below_30":
                 # HP 30% 이하
                 current_hp = getattr(user, 'current_hp', 0)
@@ -160,7 +168,10 @@ class DamageEffect(SkillEffect):
                 current_hp = getattr(user, 'current_hp', 0)
                 max_hp = getattr(user, 'max_hp', 1)
                 condition_met = (current_hp / max_hp) <= 0.50 if max_hp > 0 else False
-            # 더 많은 조건을 여기에 추가 가능
+            elif condition == "last_bullet":
+                # 저격수 마지막 탄환 (탄창이 1개 남았을 때)
+                magazine = getattr(user, 'magazine', [])
+                condition_met = len(magazine) == 1
 
             if condition_met:
                 final_mult *= bonus_mult

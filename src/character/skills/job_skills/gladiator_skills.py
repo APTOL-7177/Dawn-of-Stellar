@@ -10,7 +10,7 @@ def create_gladiator_skills():
     """검투사 10개 스킬 생성 (군중의 환호 시스템)"""
 
     # 1. 기본 BRV: 투기장 타격
-    arena_strike = Skill("gladiator_arena_strike", "투기장 타격", "기본 공격 (환호 +5)")
+    arena_strike = Skill("gladiator_arena_strike", "투기장 타격", "BRV 피해 + 군중의 환호 축적")
     arena_strike.effects = [
         DamageEffect(DamageType.BRV, 1.5, stat_type="physical"),
         GimmickEffect(GimmickOperation.ADD, "cheer", 5, max_value=100)  # 환호 +5
@@ -20,7 +20,7 @@ def create_gladiator_skills():
     arena_strike.metadata = {"cheer_gain": 5}
 
     # 2. 기본 HP: 명예의 일격
-    honor_strike = Skill("gladiator_honor_strike", "명예의 일격", "HP 공격 (환호 +10)")
+    honor_strike = Skill("gladiator_honor_strike", "명예의 일격", "HP 피해 + 환호 대량 축적")
     honor_strike.effects = [
         DamageEffect(DamageType.HP, 1.2, stat_type="physical"),
         GimmickEffect(GimmickOperation.ADD, "cheer", 10, max_value=100)  # 환호 +10

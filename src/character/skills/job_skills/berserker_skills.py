@@ -10,7 +10,7 @@ def create_berserker_skills():
     """광전사 10개 스킬 생성 (광기 역치 시스템 - HP↓ → 광기↑)"""
 
     # 1. 기본 BRV: 베기
-    slash = Skill("berserker_slash", "베기", "기본 물리 공격")
+    slash = Skill("berserker_slash", "베기", "BRV 피해를 주는 기본 공격")
     slash.effects = [
         DamageEffect(DamageType.BRV, 1.5, stat_type="physical")
     ]
@@ -19,7 +19,7 @@ def create_berserker_skills():
     slash.metadata = {}
 
     # 2. 기본 HP: 강타
-    smash = Skill("berserker_smash", "강타", "강력한 HP 공격")
+    smash = Skill("berserker_smash", "강타", "HP 피해를 주는 강력한 일격")
     smash.effects = [
         DamageEffect(DamageType.HP, 1.3, stat_type="physical")
     ]

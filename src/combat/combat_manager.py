@@ -594,6 +594,93 @@ class CombatManager:
             # 아군 공격 시 기믹 트리거 (지원사격 등)
             GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender)
 
+        # BRV 공격 상태이상 효과 (스킬 메타데이터 기반)
+        if not is_miss and skill and hasattr(skill, 'metadata'):
+            # stun_chance (기절 확률)
+            if skill.metadata.get('stun_chance'):
+                import random
+                stun_chance = skill.metadata['stun_chance']
+                if random.random() < stun_chance:
+                    from src.combat.status_effects import StatusEffect, StatusType
+                    stun = StatusEffect("기절", StatusType.STUN, duration=1, intensity=1.0)
+                    if hasattr(defender, 'status_manager'):
+                        defender.status_manager.add_status(stun)
+                        self.logger.info(f"[기절] {defender.name} 기절! ({stun_chance*100:.0f}% 확률)")
+
+            # freeze_chance (빙결 확률)
+            if skill.metadata.get('freeze_chance'):
+                import random
+                freeze_chance = skill.metadata['freeze_chance']
+                freeze_duration = skill.metadata.get('freeze_duration', 1)
+                if random.random() < freeze_chance:
+                    from src.combat.status_effects import StatusEffect, StatusType
+                    freeze = StatusEffect("빙결", StatusType.FREEZE, duration=min(freeze_duration, 2), intensity=1.0)
+                    if hasattr(defender, 'status_manager'):
+                        defender.status_manager.add_status(freeze)
+                        self.logger.info(f"[빙결] {defender.name} 빙결! ({freeze_chance*100:.0f}% 확률)")
+
+            # blind_chance (실명 확률)
+            if skill.metadata.get('blind_chance'):
+                import random
+                blind_chance = skill.metadata['blind_chance']
+                blind_duration = skill.metadata.get('blind_duration', 2)
+                if random.random() < blind_chance:
+                    from src.combat.status_effects import StatusEffect, StatusType
+                    blind = StatusEffect("실명", StatusType.BLIND, duration=blind_duration, intensity=1.0)
+                    if hasattr(defender, 'status_manager'):
+                        defender.status_manager.add_status(blind)
+                        self.logger.info(f"[실명] {defender.name} 실명! ({blind_chance*100:.0f}% 확률)")
+
+            # silence_chance (침묵 확률)
+            if skill.metadata.get('silence_chance'):
+                import random
+                silence_chance = skill.metadata['silence_chance']
+                silence_duration = skill.metadata.get('silence_duration', 2)
+                if random.random() < silence_chance:
+                    from src.combat.status_effects import StatusEffect, StatusType
+                    silence = StatusEffect("침묵", StatusType.SILENCE, duration=min(silence_duration, 2), intensity=1.0)
+                    if hasattr(defender, 'status_manager'):
+                        defender.status_manager.add_status(silence)
+                        self.logger.info(f"[침묵] {defender.name} 침묵! ({silence_chance*100:.0f}% 확률)")
+
+        # combo_multiplier (콤보 배율 처리)
+        combo_bonus = 0
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('combo_multiplier'):
+            combo_mult = skill.metadata['combo_multiplier']
+            combo_key = f"_combo_count_{getattr(skill, 'skill_id', 'default')}"
+            current_combo = getattr(attacker, combo_key, 0) + 1
+            
+            # 콤보 최대치 제한
+            max_combo = skill.metadata.get('combo_max', 10)
+            current_combo = min(current_combo, max_combo)
+            setattr(attacker, combo_key, current_combo)
+            
+            # 콤보 보너스 계산
+            combo_bonus = (current_combo - 1) * combo_mult
+            if combo_bonus > 0:
+                self.logger.debug(f"[콤보] {attacker.name} 콤보 {current_combo}회 → 데미지 +{combo_bonus*100:.0f}%")
+            
+            # combo_reset: 다른 스킬 사용 시 콤보 리셋 여부
+            if not skill.metadata.get('combo_reset', False):
+                # 다른 스킬의 콤보 초기화
+                for attr in dir(attacker):
+                    if attr.startswith('_combo_count_') and attr != combo_key:
+                        setattr(attacker, attr, 0)
+
+        # first_strike_bonus (선제공격 보너스)
+        first_strike_bonus = 0
+        if self.turn_count == 0 and skill and hasattr(skill, 'metadata') and skill.metadata.get('first_strike_bonus'):
+            first_strike_bonus = skill.metadata['first_strike_bonus']
+            self.logger.info(f"[선제 공격] {attacker.name} 첫 턴 공격! 데미지 +{first_strike_bonus*100:.0f}%")
+
+        # revenge_bonus (복수 보너스 - 피격 후 공격)
+        revenge_bonus = 0
+        if hasattr(attacker, '_recently_damaged') and attacker._recently_damaged:
+            if skill and hasattr(skill, 'metadata') and skill.metadata.get('revenge_bonus'):
+                revenge_bonus = skill.metadata['revenge_bonus']
+                self.logger.info(f"[복수] {attacker.name} 복수 공격! 데미지 +{revenge_bonus*100:.0f}%")
+            attacker._recently_damaged = False  # 복수 후 초기화
+
         return {
             "action": "brv_attack",
             "damage": damage_result.final_damage,
@@ -602,6 +689,9 @@ class CombatManager:
             "actual_gain": brv_result["actual_gain"],
             "is_break": brv_result["is_break"],
             "defend_stack_bonus": defend_stack_bonus,
+            "combo_bonus": combo_bonus,
+            "first_strike_bonus": first_strike_bonus,
+            "revenge_bonus": revenge_bonus,
             "is_miss": is_miss
         }
 
@@ -827,6 +917,170 @@ class CombatManager:
                     else:
                         actual_damage = splash_damage
                     self.logger.info(f"[범위 피해] {splash_target.name}에게 {actual_damage} 피해! (본 피해의 {splash_ratio*100:.0f}%)")
+
+        # cleave (광역 베기) - 전방 적들에게 피해
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('cleave'):
+            cleave_ratio = skill.metadata.get('cleave', 0.6)  # 기본 60%
+            cleave_targets = skill.metadata.get('cleave_targets', 2)  # 기본 2명
+
+            all_enemies = self.enemies if attacker in self.allies else self.allies
+            cleave_target_list = [e for e in all_enemies if e != defender and hasattr(e, 'is_alive') and e.is_alive]
+
+            if cleave_target_list:
+                cleave_damage = int(hp_result["hp_damage"] * cleave_ratio)
+                for cleave_target in cleave_target_list[:cleave_targets]:
+                    if hasattr(cleave_target, 'take_damage'):
+                        actual_damage = cleave_target.take_damage(cleave_damage)
+                    elif hasattr(cleave_target, 'current_hp'):
+                        actual_damage = min(cleave_damage, cleave_target.current_hp)
+                        cleave_target.current_hp = max(0, cleave_target.current_hp - actual_damage)
+                    else:
+                        actual_damage = cleave_damage
+                    self.logger.info(f"[광역 베기] {cleave_target.name}에게 {actual_damage} 피해! (본 피해의 {cleave_ratio*100:.0f}%)")
+
+        # chain_lightning (연쇄 공격) - 다음 대상으로 전파
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('chain_lightning'):
+            chain_ratio = skill.metadata.get('chain_lightning', 0.7)  # 기본 70%
+            bounce_count = skill.metadata.get('bounce_count', 3)  # 기본 3회 연쇄
+
+            all_enemies = self.enemies if attacker in self.allies else self.allies
+            chain_targets = [e for e in all_enemies if e != defender and hasattr(e, 'is_alive') and e.is_alive]
+
+            current_damage = hp_result["hp_damage"]
+            hit_targets = [defender]  # 이미 맞은 대상
+
+            for i in range(min(bounce_count, len(chain_targets))):
+                # 아직 맞지 않은 대상 중 랜덤 선택
+                available_targets = [t for t in chain_targets if t not in hit_targets]
+                if not available_targets:
+                    break
+
+                import random
+                chain_target = random.choice(available_targets)
+                chain_damage = int(current_damage * chain_ratio)
+
+                if chain_damage > 0:
+                    if hasattr(chain_target, 'take_damage'):
+                        actual_damage = chain_target.take_damage(chain_damage)
+                    elif hasattr(chain_target, 'current_hp'):
+                        actual_damage = min(chain_damage, chain_target.current_hp)
+                        chain_target.current_hp = max(0, chain_target.current_hp - actual_damage)
+                    else:
+                        actual_damage = chain_damage
+                    self.logger.info(f"[연쇄 번개] {chain_target.name}에게 {actual_damage} 피해! (연쇄 {i+1}회)")
+                    hit_targets.append(chain_target)
+                    current_damage = chain_damage  # 다음 연쇄는 더 약해짐
+
+        # on_crit_effect (크리티컬 시 추가 효과)
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('on_crit_effect') and hp_result.get('is_critical', False):
+            crit_effect = skill.metadata.get('on_crit_effect')
+            if isinstance(crit_effect, dict):
+                effect_type = crit_effect.get('type', 'damage')
+                effect_value = crit_effect.get('value', 1.0)
+                
+                if effect_type == 'damage':
+                    # 추가 데미지
+                    bonus_damage = int(hp_result["hp_damage"] * effect_value)
+                    if hasattr(defender, 'take_damage'):
+                        actual_damage = defender.take_damage(bonus_damage)
+                    elif hasattr(defender, 'current_hp'):
+                        actual_damage = min(bonus_damage, defender.current_hp)
+                        defender.current_hp = max(0, defender.current_hp - actual_damage)
+                    else:
+                        actual_damage = bonus_damage
+                    self.logger.info(f"[크리티컬 추가 효과] {defender.name}에게 {actual_damage} 추가 피해!")
+                elif effect_type == 'stun':
+                    # 기절 확률
+                    import random
+                    if random.random() < effect_value:
+                        from src.combat.status_effects import StatusEffect, StatusType
+                        stun = StatusEffect("기절", StatusType.STUN, duration=1, intensity=1.0)
+                        if hasattr(defender, 'status_manager'):
+                            defender.status_manager.add_status(stun)
+                            self.logger.info(f"[크리티컬 기절] {defender.name} 기절!")
+                elif effect_type == 'heal':
+                    # HP 회복
+                    heal_amount = int(hp_result["hp_damage"] * effect_value)
+                    if hasattr(attacker, 'heal'):
+                        actual_heal = attacker.heal(heal_amount)
+                    else:
+                        actual_heal = min(heal_amount, attacker.max_hp - attacker.current_hp) if hasattr(attacker, 'max_hp') else heal_amount
+                        attacker.current_hp = min(attacker.max_hp, attacker.current_hp + actual_heal) if hasattr(attacker, 'max_hp') else attacker.current_hp + actual_heal
+                    self.logger.info(f"[크리티컬 흡혈] {attacker.name} HP +{actual_heal}")
+
+        # on_break_effect (브레이크 시 추가 효과)
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('on_break_effect') and is_break:
+            break_effect = skill.metadata.get('on_break_effect')
+            if isinstance(break_effect, dict):
+                effect_type = break_effect.get('type', 'damage')
+                effect_value = break_effect.get('value', 0.5)
+                
+                if effect_type == 'damage':
+                    # 추가 데미지
+                    bonus_damage = int(hp_result["hp_damage"] * effect_value)
+                    if hasattr(defender, 'take_damage'):
+                        actual_damage = defender.take_damage(bonus_damage)
+                    else:
+                        actual_damage = min(bonus_damage, defender.current_hp) if hasattr(defender, 'current_hp') else bonus_damage
+                        if hasattr(defender, 'current_hp'):
+                            defender.current_hp = max(0, defender.current_hp - actual_damage)
+                    self.logger.info(f"[브레이크 추가 효과] {defender.name}에게 {actual_damage} 추가 피해!")
+                elif effect_type == 'brv_bonus':
+                    # BRV 보너스 획득
+                    brv_bonus = int(effect_value)
+                    if hasattr(attacker, 'current_brv') and hasattr(attacker, 'max_brv'):
+                        actual_brv = min(brv_bonus, attacker.max_brv - attacker.current_brv)
+                        attacker.current_brv += actual_brv
+                        self.logger.info(f"[브레이크 BRV 보너스] {attacker.name} BRV +{actual_brv}")
+
+        # freeze_chance (빙결 확률)
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('freeze_chance'):
+            import random
+            freeze_chance = skill.metadata['freeze_chance']
+            freeze_duration = skill.metadata.get('freeze_duration', 1)
+            if random.random() < freeze_chance:
+                from src.combat.status_effects import StatusEffect, StatusType
+                freeze = StatusEffect("빙결", StatusType.FREEZE, duration=min(freeze_duration, 2), intensity=1.0)
+                if hasattr(defender, 'status_manager'):
+                    defender.status_manager.add_status(freeze)
+                    self.logger.info(f"[빙결] {defender.name} 빙결! ({freeze_chance*100:.0f}% 확률)")
+
+        # blind_chance (실명 확률)
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('blind_chance'):
+            import random
+            blind_chance = skill.metadata['blind_chance']
+            blind_duration = skill.metadata.get('blind_duration', 2)
+            if random.random() < blind_chance:
+                from src.combat.status_effects import StatusEffect, StatusType
+                blind = StatusEffect("실명", StatusType.BLIND, duration=blind_duration, intensity=1.0)
+                if hasattr(defender, 'status_manager'):
+                    defender.status_manager.add_status(blind)
+                    self.logger.info(f"[실명] {defender.name} 실명! ({blind_chance*100:.0f}% 확률)")
+
+        # silence_chance (침묵 확률)
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('silence_chance'):
+            import random
+            silence_chance = skill.metadata['silence_chance']
+            silence_duration = skill.metadata.get('silence_duration', 2)
+            if random.random() < silence_chance:
+                from src.combat.status_effects import StatusEffect, StatusType
+                silence = StatusEffect("침묵", StatusType.SILENCE, duration=min(silence_duration, 2), intensity=1.0)
+                if hasattr(defender, 'status_manager'):
+                    defender.status_manager.add_status(silence)
+                    self.logger.info(f"[침묵] {defender.name} 침묵! ({silence_chance*100:.0f}% 확률)")
+
+        # slow_percent / slow_duration (둔화)
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('slow_percent'):
+            import random
+            slow_chance = skill.metadata.get('slow_chance', 1.0)  # 기본 100%
+            if random.random() < slow_chance:
+                slow_percent = skill.metadata['slow_percent']
+                slow_duration = skill.metadata.get('slow_duration', 2)
+                from src.combat.status_effects import StatusEffect, StatusType
+                slow = StatusEffect("둔화", StatusType.SLOW, duration=slow_duration, intensity=slow_percent)
+                if hasattr(defender, 'status_manager'):
+                    defender.status_manager.add_status(slow)
+                    self.logger.info(f"[둔화] {defender.name} 속도 -{slow_percent*100:.0f}%! ({slow_duration}턴)")
 
         # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
         if trigger_gimmick and attacker in self.allies:
@@ -1086,12 +1340,9 @@ class CombatManager:
                                         # 데미지 적용 (take_damage 메서드 사용하여 이벤트 핸들러 등 시스템 통합)
                                         if hasattr(splash_target, 'take_damage'):
                                             actual_damage = splash_target.take_damage(final_damage)
-                                        elif hasattr(splash_target, 'current_hp'):
-                                            actual_damage = min(final_damage, splash_target.current_hp)
-                                            splash_target.current_hp = max(0, splash_target.current_hp - actual_damage)
+                                            self.logger.info(f"[폭발적 힘] {actor.name}의 충격파 → {splash_target.name}에게 {actual_damage} 피해!")
                                         else:
-                                            actual_damage = final_damage
-                                        self.logger.info(f"[폭발적 힘] {actor.name}의 충격파 → {splash_target.name}에게 {actual_damage} 피해!")
+                                            self.logger.warning(f"[폭발적 힘] {splash_target.name}에 take_damage 메서드가 없어 충격파 피해를 적용할 수 없습니다.")
 
             # 스킬 메타데이터: stun_chance (기절 확률)
             if target and hasattr(skill, 'metadata') and skill.metadata.get('stun_chance'):
@@ -1930,7 +2181,7 @@ class CombatManager:
     
     def _on_damage_taken(self, data: Dict[str, Any]) -> None:
         """
-        피해 받은 이벤트 처리 (수호 효과)
+        피해 받은 이벤트 처리 (수호 효과, 복수 보너스 등)
         
         Args:
             data: 이벤트 데이터 (character, damage 등)
@@ -1940,6 +2191,32 @@ class CombatManager:
         
         if not defender or damage <= 0:
             return
+        
+        # 복수 보너스 플래그 설정 (아군/적 모두)
+        defender._recently_damaged = True
+        
+        # thorns (가시 효과) - 피격 시 반격 데미지
+        attacker = data.get("attacker")
+        if attacker and hasattr(defender, 'active_traits'):
+            from src.character.trait_effects import get_trait_effect_manager, TraitEffectType
+            trait_manager = get_trait_effect_manager()
+            for trait_data in defender.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                if trait_id == 'thorns' or trait_id == 'retaliation':
+                    effects = trait_manager.get_trait_effects(trait_id)
+                    for effect in effects:
+                        # 반격/반사 데미지 계산
+                        reflect_ratio = effect.value
+                        reflect_damage = int(damage * reflect_ratio)
+                        if reflect_damage > 0:
+                            if hasattr(attacker, 'take_damage'):
+                                actual_damage = attacker.take_damage(reflect_damage)
+                            elif hasattr(attacker, 'current_hp'):
+                                actual_damage = min(reflect_damage, attacker.current_hp)
+                                attacker.current_hp = max(0, attacker.current_hp - actual_damage)
+                            else:
+                                actual_damage = reflect_damage
+                            self.logger.info(f"[반사 피해] {defender.name}의 가시 효과로 {attacker.name}에게 {actual_damage} 반사 피해!")
         
         # 아군이 피해를 받았는지 확인
         if defender not in self.allies:

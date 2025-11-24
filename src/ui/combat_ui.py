@@ -2040,6 +2040,30 @@ class CombatUI:
         gimmick_type = getattr(character, 'gimmick_type', None)
         if not gimmick_type:
             return ("", (255, 255, 255))
+        
+        # 기믹 타입 별칭 통합 (중복 기믹 타입 처리)
+        gimmick_aliases = {
+            # 암살자 기믹 통합
+            "shadow_system": "stealth_exposure",
+            "stealth_system": "stealth_exposure",
+            "stealth_mastery": "stealth_exposure",
+            # 해커 기믹 통합
+            "hack_system": "multithread_system",
+            "hack_threading": "multithread_system",
+            # 검투사 기믹 통합
+            "arena_system": "crowd_cheer",
+            "cheer_gauge": "crowd_cheer",
+            # 몽크 기믹 통합
+            "ki_system": "yin_yang_flow",
+            # 궁수 기믹 통합
+            "support_fire_system": "support_fire",
+            # 광전사 기믹 통합
+            "rage_system": "madness_threshold",
+            "madness_gauge": "madness_threshold",
+            # 뱀파이어 기믹 통합
+            "blood_system": "thirst_gauge",
+        }
+        gimmick_type = gimmick_aliases.get(gimmick_type, gimmick_type)
 
         # 기믹 타입별 상태 표시 (컬러풀하게, 대괄호 제거)
         if gimmick_type == "stance_system":

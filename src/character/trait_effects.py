@@ -481,6 +481,44 @@ class TraitEffectManager:
                     condition="turn_start"
                 )
             ],
+            
+            # 새로운 특성들 (미구현 목록에서 추가)
+            "thorns": [
+                TraitEffect(
+                    trait_id="thorns",
+                    effect_type=TraitEffectType.COUNTER,
+                    value=0.15,  # 15% 반사 피해
+                    condition="on_damaged",
+                    metadata={"reflect_type": "damage", "description": "피격 시 받은 피해의 15%를 공격자에게 반사"}
+                )
+            ],
+            "first_strike_master": [
+                TraitEffect(
+                    trait_id="first_strike_master",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=1.30,
+                    condition="first_turn",
+                    metadata={"description": "전투 첫 턴 데미지 30% 증가"}
+                )
+            ],
+            "revenge_strike": [
+                TraitEffect(
+                    trait_id="revenge_strike",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=1.25,
+                    condition="recently_damaged",
+                    metadata={"description": "피격 직후 공격 시 데미지 25% 증가"}
+                )
+            ],
+            "combo_master": [
+                TraitEffect(
+                    trait_id="combo_master",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=1.05,
+                    condition="combo_attack",
+                    metadata={"per_combo": 0.05, "max_combo": 10, "description": "연속 공격 시 콤보당 데미지 5% 증가 (최대 50%)"}
+                )
+            ],
         }
 
         # 직업별 특성 정의
