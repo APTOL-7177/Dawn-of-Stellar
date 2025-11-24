@@ -872,6 +872,133 @@ WEAPON_TEMPLATES = {
         "unique_effect": "on_kill:restore_all|stack_buff:permanent|reaper:0.30",
         "sell_price": 12000
     },
+
+    # === Steampunk Weapons ===
+    "steam_powered_hammer": {
+        "name": "증기 동력 망치",
+        "description": "증기 압력으로 강력한 타격을 가하는 망치",
+        "rarity": ItemRarity.RARE,
+        "level_requirement": 4,
+        "base_stats": {"physical_attack": 65, "strength": 10, "speed": -5},
+        "unique_effect": "stun_chance:0.25|steam_blast:damage:20",
+        "sell_price": 850
+    },
+    "clockwork_crossbow": {
+        "name": "태엽 석궁",
+        "description": "정교한 태엽 장치로 자동 재장전되는 석궁",
+        "rarity": ItemRarity.UNCOMMON,
+        "level_requirement": 3,
+        "base_stats": {"physical_attack": 40, "accuracy": 15, "speed": 5},
+        "unique_effect": "multi_strike:0.20|auto_reload",
+        "sell_price": 450
+    },
+    "tesla_coil_wand": {
+        "name": "테슬라 코일 완드",
+        "description": "고전압 전류를 방출하여 적들을 감전시킨다",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 6,
+        "base_stats": {"magic_attack": 85, "mp": 60, "lightning_power": 30},
+        "unique_effect": "chain_lightning:0.40|status_shock:0.30",
+        "sell_price": 2200
+    },
+
+    # === Apocalypse Weapons ===
+    "stop_sign_axe": {
+        "name": "정지 표지판 도끼",
+        "description": "도로 표지판을 날카롭게 갈아 만든 도끼",
+        "rarity": ItemRarity.UNCOMMON,
+        "level_requirement": 2,
+        "base_stats": {"physical_attack": 38, "hp": 30},
+        "unique_effect": "durability_bonus:0.50",
+        "sell_price": 150
+    },
+    "spiked_bat": {
+        "name": "못 박힌 방망이",
+        "description": "녹슨 못이 박힌 야구 방망이",
+        "rarity": ItemRarity.COMMON,
+        "level_requirement": 1,
+        "base_stats": {"physical_attack": 20, "critical": 5},
+        "unique_effect": "status_bleed:0.15",
+        "sell_price": 60
+    },
+    "chainsaw_sword": {
+        "name": "체인소드",
+        "description": "엔진이 달린 톱날 검. 무시무시한 소리를 낸다",
+        "rarity": ItemRarity.RARE,
+        "level_requirement": 5,
+        "base_stats": {"physical_attack": 75, "speed": -2},
+        "unique_effect": "multi_hit:3|bleed_stack:0.20|low_durability",
+        "sell_price": 1100
+    },
+
+    # === Sci-Fi/Future Weapons ===
+    "laser_saber": {
+        "name": "레이저 사벨",
+        "description": "고열의 플라즈마 검날을 가진 무기",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 8,
+        "base_stats": {"physical_attack": 90, "accuracy": 20, "speed": 10},
+        "unique_effect": "ignore_armor:0.50|element:energy",
+        "sell_price": 3500
+    },
+    "plasma_rifle": {
+        "name": "플라즈마 라이플",
+        "description": "초고온의 플라즈마 탄환을 발사한다",
+        "rarity": ItemRarity.RARE,
+        "level_requirement": 6,
+        "base_stats": {"physical_attack": 60, "magic_attack": 60, "accuracy": 15},
+        "unique_effect": "status_burn:0.40|armor_melt:0.20",
+        "sell_price": 1800
+    },
+    "nano_swarm_staff": {
+        "name": "나노 스웜 스태프",
+        "description": "나노봇 군단을 조종하여 적을 내부에서 파괴한다",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 10,
+        "base_stats": {"magic_attack": 110, "mp": 100, "spirit": 20},
+        "unique_effect": "dot_damage:nano_virus|debuff_all:0.15",
+        "sell_price": 8500
+    },
+
+    # === Fantasy/Past Weapons ===
+    "obsidian_macuahuitl": {
+        "name": "흑요석 마쿠아후이틀",
+        "description": "날카로운 흑요석 조각이 박힌 나무 검",
+        "rarity": ItemRarity.RARE,
+        "level_requirement": 3,
+        "base_stats": {"physical_attack": 65, "critical": 20},
+        "unique_effect": "status_bleed:0.50|fragile",
+        "sell_price": 700
+    },
+    "mjolnir_replica": {
+        "name": "묠니르 레플리카",
+        "description": "천둥의 신이 사용하던 망치의 정교한 모조품",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 9,
+        "base_stats": {"physical_attack": 125, "strength": 25, "lightning_power": 50},
+        "unique_effect": "element:lightning|return_to_hand|stun_chance:0.40",
+        "sell_price": 9000
+    },
+
+    # === Crossover/Other Weapons ===
+    "portal_gun": {
+        "name": "포털 건",
+        "description": "공간을 이어주는 장치. 적을 혼란시킨다",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 7,
+        "base_stats": {"magic_attack": 70, "evasion": 30, "speed": 15},
+        "unique_effect": "teleport_dodge|status_confusion:0.30",
+        "sell_price": 4000
+    },
+    "crowbar": {
+        "name": "빠루",
+        "description": "물리학자의 무기. 외계 생명체에게 효과적",
+        "rarity": ItemRarity.UNCOMMON,
+        "level_requirement": 2,
+        "base_stats": {"physical_attack": 35, "accuracy": 10},
+        "unique_effect": "bonus_vs_alien:0.50|crate_breaker",
+        "sell_price": 300
+    },
 }
 
 ARMOR_TEMPLATES = {
@@ -1368,6 +1495,66 @@ ARMOR_TEMPLATES = {
         "unique_effect": "all_element_resist:0.50|wound_immunity|mp_regen:15|spell_power:0.30",
         "sell_price": 13000
     },
+
+    # === Steampunk Armor ===
+    "brass_plate_armor": {
+        "name": "황동 판금 갑옷",
+        "description": "증기 기관의 열기와 압력을 견디는 황동 갑옷",
+        "rarity": ItemRarity.RARE,
+        "level_requirement": 4,
+        "base_stats": {"physical_defense": 60, "hp": 100, "fire_resist": 20, "water_resist": 20},
+        "unique_effect": "steam_resistance:0.30",
+        "sell_price": 900
+    },
+    "aviator_jacket": {
+        "name": "비행사 자켓",
+        "description": "하늘을 나는 비행사들의 가죽 자켓",
+        "rarity": ItemRarity.UNCOMMON,
+        "level_requirement": 3,
+        "base_stats": {"physical_defense": 25, "speed": 10, "wind_resist": 15},
+        "unique_effect": "speed_boost:0.10",
+        "sell_price": 400
+    },
+
+    # === Apocalypse Armor ===
+    "tire_tread_armor": {
+        "name": "타이어 갑옷",
+        "description": "폐타이어를 엮어 만든 투박한 갑옷",
+        "rarity": ItemRarity.UNCOMMON,
+        "level_requirement": 2,
+        "base_stats": {"physical_defense": 45, "magic_defense": 5, "hp": 60},
+        "unique_effect": "melee_reflect:0.10",
+        "sell_price": 250
+    },
+    "hazmat_suit": {
+        "name": "방호복",
+        "description": "유해 물질로부터 신체를 보호하는 수트",
+        "rarity": ItemRarity.RARE,
+        "level_requirement": 4,
+        "base_stats": {"physical_defense": 20, "magic_defense": 20, "hp": 50},
+        "unique_effect": "status_immunity:poison,acid,radiation",
+        "sell_price": 800
+    },
+
+    # === Sci-Fi/Future Armor ===
+    "energy_shield_suit": {
+        "name": "에너지 실드 수트",
+        "description": "피격을 감지하여 에너지 방어막을 전개한다",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 7,
+        "base_stats": {"physical_defense": 30, "magic_defense": 30, "mp": 50},
+        "unique_effect": "energy_shield:hp:200|regen_shield",
+        "sell_price": 2500
+    },
+    "power_armor_mk1": {
+        "name": "파워 아머 MK-1",
+        "description": "근력을 증폭시키는 강화 외골격 슈트",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 10,
+        "base_stats": {"physical_defense": 120, "magic_defense": 80, "strength": 30, "hp": 250, "speed": -10},
+        "unique_effect": "strength_boost:0.20|carry_weight:50",
+        "sell_price": 10000
+    },
 }
 
 ACCESSORY_TEMPLATES = {
@@ -1594,19 +1781,6 @@ ACCESSORY_TEMPLATES = {
     },
     "scar_healer_amulet": {
         "name": "흉터 치유 목걸이",
-        "description": "턴당 상처 8 회복. 회복량 +15%",
-        "rarity": ItemRarity.EPIC,
-        "level_requirement": 4,
-        "base_stats": {"hp": 100, "spirit": 15},
-        "unique_effect": "wound_regen:8|heal_boost:0.15",
-        "sell_price": 1400
-    },
-    "flawless_gem": {
-        "name": "무결점의 보석",
-        "description": "상처 면역. 최대 HP -10%",
-        "rarity": ItemRarity.EPIC,
-        "level_requirement": 5,
-        "base_stats": {"hp": -50, "all_stats": 5},
         "unique_effect": "wound_immunity",
         "sell_price": 1800
     },
@@ -2018,6 +2192,66 @@ ACCESSORY_TEMPLATES = {
         "base_stats": {"critical": 50, "accuracy": 100, "luck": 30},
         "unique_effect": "vision:2|true_sight|omniscient|critical_chance:0.50",
         "sell_price": 12000
+    },
+
+    # === Steampunk Accessories ===
+    "pocket_watch_of_time": {
+        "name": "시간의 회중시계",
+        "description": "시간의 흐름을 미세하게 조작한다",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 6,
+        "base_stats": {"speed": 20, "accuracy": 10},
+        "unique_effect": "cooldown_reduction:0.20|haste_start",
+        "sell_price": 2000
+    },
+    "goggles_of_insight": {
+        "name": "통찰의 고글",
+        "description": "숨겨진 장치나 약점을 찾아낸다",
+        "rarity": ItemRarity.RARE,
+        "level_requirement": 3,
+        "base_stats": {"accuracy": 25, "luck": 10},
+        "unique_effect": "detect_hidden|critical_chance:0.10",
+        "sell_price": 750
+    },
+
+    # === Apocalypse Accessories ===
+    "geiger_counter": {
+        "name": "가이거 계수기",
+        "description": "위험 지역을 탐지한다",
+        "rarity": ItemRarity.UNCOMMON,
+        "level_requirement": 2,
+        "base_stats": {"luck": 15},
+        "unique_effect": "detect_radiation|loot_bonus:0.10",
+        "sell_price": 300
+    },
+    "survival_kit": {
+        "name": "생존 키트",
+        "description": "응급 처치 도구와 생존 물품",
+        "rarity": ItemRarity.COMMON,
+        "level_requirement": 1,
+        "base_stats": {"hp": 30},
+        "unique_effect": "hp_regen:0.02|inventory_space:5",
+        "sell_price": 100
+    },
+
+    # === Sci-Fi/Future Accessories ===
+    "holographic_visor": {
+        "name": "홀로그램 바이저",
+        "description": "전술 정보를 시각화하여 보여준다",
+        "rarity": ItemRarity.RARE,
+        "level_requirement": 5,
+        "base_stats": {"accuracy": 30, "critical": 15},
+        "unique_effect": "analyze_enemy|critical_damage:0.20",
+        "sell_price": 1200
+    },
+    "gravity_boots": {
+        "name": "중력 부츠",
+        "description": "중력을 제어하여 공중을 걷거나 충격을 흡수한다",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 8,
+        "base_stats": {"speed": 15, "evasion": 20},
+        "unique_effect": "immune_ground_effects|fall_damage_immune",
+        "sell_price": 2800
     },
 }
 

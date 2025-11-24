@@ -69,6 +69,8 @@ class TestOrganicTraits(unittest.TestCase):
         # Note: My implementation checks condition="magic_skill". 
         # In _check_condition, "magic_skill" checks context.get('skill').is_magic or skill_type == MAGIC
         skill.skill_type = "MAGIC"
+        skill.damage_type = "magic" # _check_condition checks for damage_type="magic"
+        skill.damage_type = "magic" # _check_condition checks for damage_type="magic"
         
         rate = self.trait_manager.calculate_lifesteal(self.character, skill=skill)
         print(f"Magic Skill Lifesteal Rate: {rate} (Expected 0.20)")
@@ -96,7 +98,7 @@ class TestOrganicTraits(unittest.TestCase):
         
         effect = LifestealEffect(value=0.5) # 50% lifesteal
         # Mock context
-        context = {'damage_dealt': 100} # 50 heal
+        context = {'last_damage': 100} # 50 heal
         
         # Execute effect
         result = effect.execute(self.character, None, context)
