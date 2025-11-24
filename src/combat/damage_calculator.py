@@ -81,6 +81,12 @@ class DamageCalculator:
         attacker_atk = self._get_attack_stat(attacker)
         defender_def = self._get_defense_stat(defender)
 
+        # pierce: 방어 무시 (%) - 방어력을 %만큼 무시
+        if kwargs.get('pierce'):
+            pierce_percent = kwargs['pierce']  # 0.3 = 30% 방어 무시
+            defender_def = int(defender_def * (1.0 - pierce_percent))
+            self.logger.debug(f"[관통] 방어 {pierce_percent*100:.0f}% 무시 → 유효 방어력: {defender_def}")
+
         # 관통탄 방어 관통력 적용 (공격력의 15% 고정수치)
         if kwargs.get('defense_pierce_fixed'):
             pierce_amount = int(attacker_atk * kwargs['defense_pierce_fixed'])
@@ -192,6 +198,12 @@ class DamageCalculator:
             attacker_stat = self._get_attack_stat(attacker)
             defender_stat = self._get_defense_stat(defender)
 
+        # pierce: 방어 무시 (%) - 방어력을 %만큼 무시
+        if kwargs.get('pierce'):
+            pierce_percent = kwargs['pierce']  # 0.3 = 30% 방어 무시
+            defender_stat = int(defender_stat * (1.0 - pierce_percent))
+            self.logger.debug(f"[관통] HP 공격 방어 {pierce_percent*100:.0f}% 무시 → 유효 방어력: {defender_stat}")
+
         # 관통탄 방어 관통력 적용 (공격력의 15% 고정수치)
         if kwargs.get('defense_pierce_fixed'):
             pierce_amount = int(attacker_stat * kwargs['defense_pierce_fixed'])
@@ -231,6 +243,14 @@ class DamageCalculator:
                             hp_scaling_mult *= bonus_mult
         
         damage = int(damage * hp_scaling_mult)
+
+        # 언데드 추가 피해 (undead_bonus)
+        if kwargs.get('undead_bonus'):
+            is_undead = getattr(defender, 'is_undead', False) or getattr(defender, 'race', '') == 'undead'
+            if is_undead:
+                undead_mult = 1.0 + kwargs['undead_bonus']  # 0.5 = +50% 데미지
+                damage = int(damage * undead_mult)
+                self.logger.info(f"[언데드 추가 피해] {attacker.name} → {defender.name} (언데드): 데미지 +{kwargs['undead_bonus']*100:.0f}%")
 
         # 크리티컬 판정
         is_critical = self._check_critical(attacker)

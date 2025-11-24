@@ -141,7 +141,7 @@ class GatheringSystem:
         if not resource:
             return False
 
-        # 스킬 레벨 확인 (임시로 dexterity 사용)
+        # 스킬 레벨 확인 (스탯 기반)
         skill_level = getattr(character, self.stat_bonus, 0)
         if skill_level < resource.required_skill_level:
             return False

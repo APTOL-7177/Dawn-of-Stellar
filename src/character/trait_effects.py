@@ -727,6 +727,22 @@ class TraitEffectManager:
                     metadata={"max_bonus": 1.30, "description": "마킹된 아군 수에 비례하여 명중률 +10% (최대 +30%)"}
                 )
             ],
+            "combo_momentum": [
+                TraitEffect(
+                    trait_id="combo_momentum",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=0.03,
+                    target_stat="accuracy_per_combo",
+                    metadata={"description": "연속 지원 사격 시 콤보당 명중률 +3%"}
+                ),
+                TraitEffect(
+                    trait_id="combo_momentum",
+                    effect_type=TraitEffectType.CRITICAL_BONUS,
+                    value=0.03,
+                    condition="support_fire_combo",
+                    metadata={"per_combo": 0.03, "description": "콤보당 크리티컬 확률 +3%"}
+                )
+            ],
             "combo_breaker_penalty": [
                 TraitEffect(
                     trait_id="combo_breaker_penalty",
@@ -1168,54 +1184,177 @@ class TraitEffectManager:
                 )
             ],
 
-            # === DARK_KNIGHT (다크나이트) ===
-            "lifesteal": [
+            # === DARK_KNIGHT (암흑기사) ===
+            "perfect_strike": [
                 TraitEffect(
-                    trait_id="lifesteal",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=0.25,
-                    target_stat="lifesteal",
-                    metadata={"description": "물리 데미지의 25% HP 회복"}
-                )
-            ],
-            "dark_pact": [
-                TraitEffect(
-                    trait_id="dark_pact",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=3.0,
-                    condition="hp_consumed",
-                    target_stat="attack_per_hp",
-                    metadata={"description": "자신의 HP를 소모하여 공격력 증가 (HP 10% = 공격력 +30%)"}
-                )
-            ],
-            "blood_rage": [
-                TraitEffect(
-                    trait_id="blood_rage",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=1.25,
-                    condition="hp_below_50",
-                    target_stat="attack_speed",
-                    metadata={"description": "HP 50% 이하일 때 공격 속도 +25%"}
-                )
-            ],
-            "undying_will": [
-                TraitEffect(
-                    trait_id="undying_will",
-                    effect_type=TraitEffectType.REVIVE,
-                    value=0.30,
-                    condition="on_death",
-                    metadata={"max_uses": 1, "description": "전투 중 1회, 치명상 시 HP 30%로 생존"}
-                )
-            ],
-            "cursed_blade": [
-                TraitEffect(
-                    trait_id="cursed_blade",
+                    trait_id="perfect_strike",
                     effect_type=TraitEffectType.STAT_MULTIPLIER,
                     value=0.15,
-                    condition="on_attack",
-                    target_stat="bleed_chance",
-                    metadata={"description": "공격 시 15% 확률로 적에게 출혈 부여 (턴당 BRV 감소)"}
+                    condition="charge_full",
+                    target_stat="instant_kill",
+                    metadata={"description": "완전 충전 시 15% 확률로 즉사"}
+                ),
+                TraitEffect(
+                    trait_id="perfect_strike",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=1.50,
+                    condition="charge_full_boss",
+                    metadata={"description": "완전 충전 시 보스에게 데미지 +50%"}
                 )
+            ],
+            "charge_acceleration": [
+                TraitEffect(
+                    trait_id="charge_acceleration",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.50,
+                    target_stat="charge_gain",
+                    metadata={"description": "충전 획득량 +50%"}
+                )
+            ],
+            "survival_instinct": [
+                TraitEffect(
+                    trait_id="survival_instinct",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.50,
+                    condition="hp_low_scaling",
+                    target_stat="defense",
+                    metadata={"description": "HP가 낮을수록 방어력 증가 (최대 +50%)"}
+                ),
+                TraitEffect(
+                    trait_id="survival_instinct",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.30,
+                    target_stat="healing_received",
+                    metadata={"description": "받는 회복 효과 +30%"}
+                )
+            ],
+            "explosive_power": [
+                TraitEffect(
+                    trait_id="explosive_power",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.0,
+                    condition="charge_decisive_min",
+                    target_stat="splash_damage",
+                    metadata={"description": "충전 75% 이상 시 주변 적에게 충격파 피해"}
+                )
+            ],
+            "overflowing_darkness": [
+                TraitEffect(
+                    trait_id="overflowing_darkness",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=0.10,
+                    condition="turn_start_charge_50",
+                    target_stat="brv_regen",
+                    metadata={"description": "턴 시작 시 충전 50% 이상이면 BRV 10% 회복"}
+                )
+            ],
+            
+            # 암흑기사 충전 기믹 (대폭 하향)
+            "dark_knight_charge_gimmick": [
+                # 1. 집중 (25-49): 물공 +10%, 치명타율 +5%
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.10,
+                    condition="charge_focus",
+                    target_stat="physical_attack",
+                    metadata={"description": "집중: 물공 +10%"}
+                ),
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.CRITICAL_BONUS,
+                    value=0.05,
+                    condition="charge_focus",
+                    metadata={"description": "집중: 치명타율 +5%"}
+                ),
+
+                # 2. 강화 (50-74): 물공 +20%, 치명타율 +10%, 치명타 피해 +20%
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.20,
+                    condition="charge_enhance",
+                    target_stat="physical_attack",
+                    metadata={"description": "강화: 물공 +20%"}
+                ),
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.CRITICAL_BONUS,
+                    value=0.10,
+                    condition="charge_enhance",
+                    metadata={"description": "강화: 치명타율 +10%"}
+                ),
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.CRITICAL_DAMAGE,
+                    value=1.20,
+                    condition="charge_enhance",
+                    metadata={"description": "강화: 치명타 피해 +20%"}
+                ),
+
+                # 3. 결정타 (75-99): 물공 +35%, 치명타율 +20%, 치명타 피해 +40%, 방어 무시 +10%
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.35,
+                    condition="charge_decisive",
+                    target_stat="physical_attack",
+                    metadata={"description": "결정타: 물공 +35%"}
+                ),
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.CRITICAL_BONUS,
+                    value=0.20,
+                    condition="charge_decisive",
+                    metadata={"description": "결정타: 치명타율 +20%"}
+                ),
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.CRITICAL_DAMAGE,
+                    value=1.40,
+                    condition="charge_decisive",
+                    metadata={"description": "결정타: 치명타 피해 +40%"}
+                ),
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=0.10,
+                    condition="charge_decisive",
+                    target_stat="defense_penetration",
+                    metadata={"description": "결정타: 방어 무시 +10%"}
+                ),
+
+                # 4. 완전충전 (100): 물공 +60%, 치명타율 +40%, 치명타 피해 +60%, 방어 무시 +20%
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.60,
+                    condition="charge_full",
+                    target_stat="physical_attack",
+                    metadata={"description": "완전충전: 물공 +60%"}
+                ),
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.CRITICAL_BONUS,
+                    value=0.40,
+                    condition="charge_full",
+                    metadata={"description": "완전충전: 치명타율 +40%"}
+                ),
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.CRITICAL_DAMAGE,
+                    value=1.60,
+                    condition="charge_full",
+                    metadata={"description": "완전충전: 치명타 피해 +60%"}
+                ),
+                TraitEffect(
+                    trait_id="dark_knight_charge_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=0.20,
+                    condition="charge_full",
+                    target_stat="defense_penetration",
+                    metadata={"description": "완전충전: 방어 무시 +20%"}
+                ),
             ],
 
             # === DIMENSIONIST (차원술사) ===
@@ -1797,16 +1936,6 @@ class TraitEffectManager:
                     condition="undead_min_3",
                     target_stat="undead_power",
                     metadata={"description": "언데드 3마리 이상 보유 시 모든 언데드 능력 +50%"}
-                )
-            ],
-            "death_harvest": [
-                TraitEffect(
-                    trait_id="death_harvest",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=1.0,
-                    condition="on_kill",
-                    target_stat="corpse_gain",
-                    metadata={"description": "적 처치 시 시체 자동 획득 (스켈레톤 소환 재료)"}
                 )
             ],
             "necromantic_power": [
@@ -2672,6 +2801,579 @@ class TraitEffectManager:
                     metadata={"description": "턴 시작 시 HP 30% 미만이면 은신 상태 돌입 (전투당 1회)", "buff": "stealth", "once_per_battle": True}
                 )
             ],
+            "blood_empowerment": [
+                TraitEffect(
+                    trait_id="blood_empowerment",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.0,
+                    condition="on_lifesteal",
+                    target_stat="buff_on_lifesteal",
+                    metadata={"chance": 0.30, "duration": 3, "attack_buff": 0.20, "speed_buff": 0.15, "description": "흡혈 시 30% 확률로 공격력/속도 버프"}
+                )
+            ],
+
+            # === 도적 (Rogue) ===
+            "shadow_step": [
+                TraitEffect(
+                    trait_id="shadow_step",
+                    effect_type=TraitEffectType.CRITICAL_BONUS,
+                    value=0.50,
+                    condition="after_evade",
+                    metadata={"description": "회피 성공 시 다음 공격 치명타 확률 +50%"}
+                )
+            ],
+            "swift_strikes": [
+                TraitEffect(
+                    trait_id="swift_strikes",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.30,
+                    target_stat="speed",
+                    metadata={"description": "공격 속도 +30%"}
+                )
+            ],
+            "evasion_master": [
+                TraitEffect(
+                    trait_id="evasion_master",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.25,
+                    target_stat="evasion",
+                    metadata={"description": "회피율 +25%"}
+                )
+            ],
+            "critical_finesse": [
+                TraitEffect(
+                    trait_id="critical_finesse",
+                    effect_type=TraitEffectType.CRITICAL_DAMAGE,
+                    value=1.50,
+                    metadata={"description": "크리티컬 데미지 +50%"}
+                )
+            ],
+
+            # === 사무라이 (Samurai) ===
+            "honor_vow": [
+                TraitEffect(
+                    trait_id="honor_vow",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.20,
+                    target_stat="all_stats",
+                    condition="above_50_hp",
+                    metadata={"description": "HP 50% 이상일 때 모든 스탯 +20%"}
+                )
+            ],
+            "meditation": [
+                TraitEffect(
+                    trait_id="meditation",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=0.05,
+                    condition="turn_start",
+                    metadata={"mp_restore": 0.05, "brv_restore": 0.10, "description": "턴 시작 시 MP 5%, BRV 10% 회복"}
+                )
+            ],
+            "iron_will": [
+                TraitEffect(
+                    trait_id="iron_will",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=0.50,
+                    metadata={"status_resistance": 0.50, "description": "모든 상태이상 저항 +50%"}
+                )
+            ],
+
+            # === 검성 (Sword Saint) ===
+            "sword_energy": [
+                TraitEffect(
+                    trait_id="sword_energy",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=1.0,
+                    metadata={"ranged_attacks": True, "description": "검기로 원거리 공격 가능"}
+                )
+            ],
+            "rapid_slash": [
+                TraitEffect(
+                    trait_id="rapid_slash",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=1.30,
+                    condition="consecutive_attacks",
+                    metadata={"multi_hit": True, "description": "연속 공격 시 데미지 +30%"}
+                )
+            ],
+            "focus_strike": [
+                TraitEffect(
+                    trait_id="focus_strike",
+                    effect_type=TraitEffectType.CRITICAL_DAMAGE,
+                    value=2.00,
+                    condition="full_atb",
+                    metadata={"description": "ATB 100%에서 공격 시 크리티컬 데미지 2배"}
+                )
+            ],
+            "counter_blade": [
+                TraitEffect(
+                    trait_id="counter_blade",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=0.30,
+                    condition="on_evade",
+                    metadata={"counter_chance": 0.30, "counter_damage": 1.50, "description": "회피 시 30% 확률로 반격"}
+                )
+            ],
+
+            # === 성직자 (Cleric) ===
+            "faith_shield": [
+                TraitEffect(
+                    trait_id="faith_shield",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=0.15,
+                    condition="on_heal",
+                    metadata={"shield_ratio": 0.15, "duration": 3, "description": "아군 치유 시 회복량의 15%만큼 보호막"}
+                )
+            ],
+            "resurrection_master": [
+                TraitEffect(
+                    trait_id="resurrection_master",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=0.50,
+                    metadata={"revive_hp_ratio": 0.50, "success_rate": 1.0, "description": "부활 성공률 100%, 대상 HP 50%"}
+                )
+            ],
+
+            # === 신관 (Priest) ===
+            "divine_miracle": [
+                TraitEffect(
+                    trait_id="divine_miracle",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=2.00,
+                    condition="critical_heal",
+                    metadata={"chance": 0.10, "description": "10% 확률로 회복량 2배"}
+                )
+            ],
+            "healing_mastery": [
+                TraitEffect(
+                    trait_id="healing_mastery",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.30,
+                    target_stat="healing_power",
+                    metadata={"description": "모든 회복 효과 +30%"}
+                )
+            ],
+            "holy_protection": [
+                TraitEffect(
+                    trait_id="holy_protection",
+                    effect_type=TraitEffectType.DAMAGE_REDUCTION,
+                    value=0.20,
+                    condition="party_wide",
+                    metadata={"description": "아군 전체 받는 피해 -20%"}
+                )
+            ],
+            "resurrection": [
+                TraitEffect(
+                    trait_id="resurrection",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=0.30,
+                    metadata={"revive_hp_ratio": 0.30, "description": "부활 스킬로 HP 30%로 부활"}
+                )
+            ],
+
+            # === 성기사 (Paladin) ===
+            "divine_protection": [
+                TraitEffect(
+                    trait_id="divine_protection",
+                    effect_type=TraitEffectType.DAMAGE_REDUCTION,
+                    value=0.25,
+                    metadata={"description": "받는 피해 -25%"}
+                )
+            ],
+            "holy_aura": [
+                TraitEffect(
+                    trait_id="holy_aura",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.15,
+                    target_stat="all_stats",
+                    condition="party_wide",
+                    metadata={"description": "아군 전체 모든 스탯 +15%"}
+                )
+            ],
+            "martyr_spirit": [
+                TraitEffect(
+                    trait_id="martyr_spirit",
+                    effect_type=TraitEffectType.GUARDIAN,
+                    value=0.50,
+                    metadata={"protection_ratio": 0.70, "description": "50% 확률로 아군 피해 70% 대신 받기"}
+                )
+            ],
+            "healing_light": [
+                TraitEffect(
+                    trait_id="healing_light",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=0.03,
+                    condition="turn_start",
+                    metadata={"heal_ratio": 0.03, "description": "턴 시작 시 HP 3% 자동 회복"}
+                )
+            ],
+            "righteous_fury": [
+                TraitEffect(
+                    trait_id="righteous_fury",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.40,
+                    target_stat="strength",
+                    condition="low_hp_ally",
+                    metadata={"threshold": 0.30, "description": "아군 HP 30% 이하 시 공격력 +40%"}
+                )
+            ],
+
+            # === 기사 (Knight) ===
+            "glory_vow": [
+                TraitEffect(
+                    trait_id="glory_vow",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=10,
+                    condition="on_protect",
+                    metadata={"duty_gain": 10, "description": "아군 보호 시 의무 게이지 +10"}
+                )
+            ],
+            "honor_guard": [
+                TraitEffect(
+                    trait_id="honor_guard",
+                    effect_type=TraitEffectType.GUARDIAN,
+                    value=0.30,
+                    metadata={"protection_ratio": 1.0, "description": "30% 확률로 아군 피해 100% 대신 받기"}
+                )
+            ],
+            "chivalry": [
+                TraitEffect(
+                    trait_id="chivalry",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.10,
+                    target_stat="all_stats",
+                    condition="party_wide",
+                    metadata={"description": "아군 전체 모든 스탯 +10%"}
+                )
+            ],
+            "leadership": [
+                TraitEffect(
+                    trait_id="leadership",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.15,
+                    target_stat="all_stats",
+                    condition="party_leader",
+                    metadata={"description": "파티 리더일 때 전체 스탯 +15%"}
+                )
+            ],
+            "heroic_sacrifice": [
+                TraitEffect(
+                    trait_id="heroic_sacrifice",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=1.0,
+                    condition="on_death",
+                    metadata={"party_buff": 0.50, "duration": 5, "description": "사망 시 아군 전체 모든 스탯 +50% (5턴)"}
+                )
+            ],
+
+            # === 브레이커 (Breaker) ===
+            "ruthless_breaker": [
+                TraitEffect(
+                    trait_id="ruthless_breaker",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=1.50,
+                    condition="target_broken",
+                    metadata={"description": "브레이크 상태 적에게 추가 데미지 +50%"}
+                )
+            ],
+            "momentum_crush": [
+                TraitEffect(
+                    trait_id="momentum_crush",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=0.10,
+                    condition="consecutive_breaks",
+                    metadata={"power_per_break": 0.10, "max_stacks": 5, "description": "연속 브레이크 시 파워 +10% (최대 5스택)"}
+                )
+            ],
+
+            # === 암살자 (Assassin) ===
+            "shadow_mobility": [
+                TraitEffect(
+                    trait_id="shadow_mobility",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.50,
+                    target_stat="speed",
+                    condition="stealth_active",
+                    metadata={"description": "은신 중 이동력 +50%"}
+                )
+            ],
+            "quick_restealth": [
+                TraitEffect(
+                    trait_id="quick_restealth",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=-2,
+                    metadata={"cooldown_reduction": 2, "description": "재은신 쿨다운 -2턴"}
+                )
+            ],
+            "shadow_mastery": [
+                TraitEffect(
+                    trait_id="shadow_mastery",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=3,
+                    metadata={"duration_increase": 3, "description": "은신 지속시간 +3턴"}
+                )
+            ],
+
+            # === 배틀메이지 (Battle Mage) ===
+            "hybrid_strike": [
+                TraitEffect(
+                    trait_id="hybrid_strike",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=1.25,
+                    condition="physical_magic_combo",
+                    metadata={"description": "물리+마법 하이브리드 공격 데미지 +25%"}
+                )
+            ],
+            "rune_combination": [
+                TraitEffect(
+                    trait_id="rune_combination",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=1.50,
+                    condition="multiple_runes",
+                    metadata={"description": "2가지 이상 룬 사용 시 데미지 +50%"}
+                )
+            ],
+            "elemental_harmony": [
+                TraitEffect(
+                    trait_id="elemental_harmony",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.20,
+                    target_stat="magic_attack",
+                    condition="elemental_diversity",
+                    metadata={"description": "다양한 원소 사용 시 마법 공격력 +20%"}
+                )
+            ],
+
+            # === 용기사 (Dragon Knight) ===
+            "flame_wings": [
+                TraitEffect(
+                    trait_id="flame_wings",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.30,
+                    target_stat="evasion",
+                    condition="dragon_marks_3",
+                    metadata={"description": "용표 3개일 때 회피율 +30%"}
+                )
+            ],
+            "inferno": [
+                TraitEffect(
+                    trait_id="inferno",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=2.00,
+                    condition="burn_stacks_max",
+                    metadata={"burn_stacks": 5, "description": "화상 5스택 시 데미지 2배"}
+                )
+            ],
+
+            # === 드루이드 (Druid) ===
+            "animal_affinity": [
+                TraitEffect(
+                    trait_id="animal_affinity",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.25,
+                    target_stat="all_stats",
+                    condition="animal_form",
+                    metadata={"description": "동물 형태 시 모든 스탯 +25%"}
+                )
+            ],
+            "plant_control": [
+                TraitEffect(
+                    trait_id="plant_control",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=0.15,
+                    condition="nature_terrain",
+                    metadata={"enemy_slow": 0.15, "description": "자연 지형에서 적 속도 -15%"}
+                )
+            ],
+            "natural_balance": [
+                TraitEffect(
+                    trait_id="natural_balance",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.15,
+                    target_stat="all_stats",
+                    condition="hp_50_to_80",
+                    metadata={"description": "HP 50-80%일 때 모든 스탯 +15%"}
+                )
+            ],
+            "wild_instinct": [
+                TraitEffect(
+                    trait_id="wild_instinct",
+                    effect_type=TraitEffectType.CRITICAL_BONUS,
+                    value=0.20,
+                    condition="low_hp",
+                    metadata={"threshold": 0.30, "description": "HP 30% 이하일 때 크리티컬 확률 +20%"}
+                )
+            ],
+
+            # === 무당 (Shaman) ===
+            "spirit_sight": [
+                TraitEffect(
+                    trait_id="spirit_sight",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.20,
+                    target_stat="accuracy",
+                    metadata={"ignore_evasion": True, "description": "명중률 +20%, 회피 무시"}
+                )
+            ],
+            "spirit_communion": [
+                TraitEffect(
+                    trait_id="spirit_communion",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.30,
+                    target_stat="magic_attack",
+                    condition="totem_active",
+                    metadata={"description": "토템 활성 시 마법 공격력 +30%"}
+                )
+            ],
+            "fortune_telling": [
+                TraitEffect(
+                    trait_id="fortune_telling",
+                    effect_type=TraitEffectType.CRITICAL_BONUS,
+                    value=0.15,
+                    metadata={"luck_bonus": 0.15, "description": "크리티컬 확률 +15%, 행운 증가"}
+                )
+            ],
+            "spirit_guide": [
+                TraitEffect(
+                    trait_id="spirit_guide",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=0.10,
+                    condition="turn_start",
+                    metadata={"mp_restore": 0.10, "description": "턴 시작 시 MP 10% 회복"}
+                )
+            ],
+
+            # === 철학자 (Philosopher) ===
+            "power_mastery": [
+                TraitEffect(
+                    trait_id="power_mastery",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.40,
+                    target_stat="strength",
+                    condition="choice_power",
+                    metadata={"description": "힘의 길 선택 시 공격력 +40%"}
+                )
+            ],
+            "wisdom_mastery": [
+                TraitEffect(
+                    trait_id="wisdom_mastery",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.40,
+                    target_stat="magic_attack",
+                    condition="choice_wisdom",
+                    metadata={"description": "지혜의 길 선택 시 마법 공격력 +40%"}
+                )
+            ],
+            "sacrifice_mastery": [
+                TraitEffect(
+                    trait_id="sacrifice_mastery",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=2.00,
+                    condition="choice_sacrifice",
+                    metadata={"hp_cost_multiplier": 1.50, "description": "희생의 길 선택 시 데미지 2배, HP 소모 1.5배"}
+                )
+            ],
+            "truth_mastery": [
+                TraitEffect(
+                    trait_id="truth_mastery",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.20,
+                    target_stat="all_stats",
+                    condition="choice_truth",
+                    metadata={"description": "진리의 길 선택 시 모든 스탯 +20%"}
+                )
+            ],
+
+            # === 해적 (Pirate) ===
+            "treasure_hunter": [
+                TraitEffect(
+                    trait_id="treasure_hunter",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=1.50,
+                    metadata={"gold_multiplier": 1.50, "item_drop": 1.30, "description": "골드 획득 1.5배, 아이템 드롭률 1.3배"}
+                )
+            ],
+            "lucky_strike": [
+                TraitEffect(
+                    trait_id="lucky_strike",
+                    effect_type=TraitEffectType.CRITICAL_BONUS,
+                    value=0.25,
+                    metadata={"description": "크리티컬 확률 +25%"}
+                )
+            ],
+            "greed": [
+                TraitEffect(
+                    trait_id="greed",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.0,
+                    target_stat="stats_per_1000gold",
+                    metadata={"description": "보유 골드에 비례해 스탯 증가"}
+                )
+            ],
+            "pirate_fortune": [
+                TraitEffect(
+                    trait_id="pirate_fortune",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=0.10,
+                    metadata={"luck_proc": 0.10, "description": "10% 확률로 추가 행운 효과"}
+                )
+            ],
+            "dirty_fighting": [
+                TraitEffect(
+                    trait_id="dirty_fighting",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=0.30,
+                    condition="on_attack",
+                    metadata={"debuff_chance": 0.30, "description": "공격 시 30% 확률로 디버프"}
+                )
+            ],
+
+            # === 네크로맨서 (Necromancer) ===
+            "undead_commander": [
+                TraitEffect(
+                    trait_id="undead_commander",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.30,
+                    target_stat="undead_damage",
+                    metadata={"max_undead_bonus": 2, "description": "언데드 수에 비례해 피해 +30%"}
+                )
+            ],
+            "death_harvest": [
+                TraitEffect(
+                    trait_id="death_harvest",
+                    effect_type=TraitEffectType.KILL_BONUS,
+                    value=0.20,
+                    condition="on_kill",
+                    metadata={"hp_restore": 0.20, "mp_restore": 0.15, "description": "처치 시 HP 20%, MP 15% 회복"}
+                )
+            ],
+            "necromantic_power": [
+                TraitEffect(
+                    trait_id="necromantic_power",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.50,
+                    target_stat="magic_attack",
+                    condition="undead_active",
+                    metadata={"description": "언데드 활성 시 마법 공격력 +50%"}
+                )
+            ],
+            "undead_sacrifice": [
+                TraitEffect(
+                    trait_id="undead_sacrifice",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=2.50,
+                    condition="sacrifice_undead",
+                    metadata={"description": "언데드 희생 시 데미지 2.5배"}
+                )
+            ],
+            "legion_master": [
+                TraitEffect(
+                    trait_id="legion_master",
+                    effect_type=TraitEffectType.PASSIVE,
+                    value=3,
+                    metadata={"max_undead_increase": 3, "description": "최대 언데드 수 +3"}
+                )
+            ],
         }
 
         # 통합
@@ -2717,6 +3419,24 @@ class TraitEffectManager:
                 # 조건 확인
                 if effect.condition and not self._check_condition(character, effect.condition):
                     continue
+
+                # hp_low_scaling 조건은 target_stat과 독립적으로 체크 (HP 비례 스케일링)
+                if effect.condition == "hp_low_scaling":
+                    if hasattr(character, 'current_hp') and hasattr(character, 'max_hp') and character.max_hp > 0:
+                        hp_ratio = character.current_hp / character.max_hp
+                        # HP가 낮을수록 증가 (1.0 - hp_ratio)
+                        # effect.value가 1.50이면 최대 50% 증가
+                        # 최종 배율 = 1.0 + (value - 1.0) * (1 - hp_ratio)
+                        bonus = (effect.value - 1.0) * (1.0 - hp_ratio)
+                        scaling_multiplier = 1.0 + bonus
+
+                        # target_stat이 현재 stat_name과 일치하는지 확인
+                        if effect.target_stat == stat_name or effect.target_stat == "all_stats":
+                            final_value *= scaling_multiplier
+                            self.logger.debug(
+                                f"[{trait_id}] {stat_name} HP 스케일링 적용: HP {hp_ratio*100:.1f}% → x{scaling_multiplier:.3f} → {final_value}"
+                            )
+                    continue  # hp_low_scaling 처리 후 다음 효과로
 
                 # 스탯 타겟 확인
                 if effect.target_stat and effect.target_stat != stat_name:
@@ -3192,16 +3912,28 @@ class TraitEffectManager:
                         continue
                         
                     # HP 회복
-                    if "hp_regen" in effect.metadata:
-                        regen = effect.metadata["hp_regen"]
+                    if "hp_restore" in effect.metadata or "hp_regen" in effect.metadata:
+                        regen = effect.metadata.get("hp_restore", effect.metadata.get("hp_regen", 0))
                         heal_amount = int(attacker.max_hp * regen)
                         if hasattr(attacker, 'heal'):
                             actual = attacker.heal(heal_amount)
                             self.logger.info(f"[{trait_id}] 처치 보너스: HP 회복 +{actual}")
 
+                    # MP 회복
+                    if "mp_restore" in effect.metadata or "mp_regen" in effect.metadata:
+                        regen = effect.metadata.get("mp_restore", effect.metadata.get("mp_regen", 0))
+                        mp_amount = int(attacker.max_mp * regen)
+                        if hasattr(attacker, 'restore_mp'):
+                            actual = attacker.restore_mp(mp_amount)
+                            self.logger.info(f"[{trait_id}] 처치 보너스: MP 회복 +{actual}")
+                        elif hasattr(attacker, 'current_mp') and hasattr(attacker, 'max_mp'):
+                            actual = min(mp_amount, attacker.max_mp - attacker.current_mp)
+                            attacker.current_mp = min(attacker.current_mp + mp_amount, attacker.max_mp)
+                            self.logger.info(f"[{trait_id}] 처치 보너스: MP 회복 +{actual}")
+
                     # BRV 회복
-                    if "brv_regen" in effect.metadata:
-                        regen = effect.metadata["brv_regen"]
+                    if "brv_restore" in effect.metadata or "brv_regen" in effect.metadata:
+                        regen = effect.metadata.get("brv_restore", effect.metadata.get("brv_regen", 0))
                         brv_amount = int(attacker.max_brv * regen)
                         if hasattr(attacker, 'current_brv'):
                             attacker.current_brv = min(attacker.current_brv + brv_amount, attacker.max_brv)
@@ -3540,6 +4272,59 @@ class TraitEffectManager:
                 from src.combat.status_effects import StatusType
                 return target.status_manager.has_status(StatusType.BLEED)
             return False
+
+        # 암흑기사 충전 조건
+        elif condition == "charge_focus":
+            # 집중 단계 (25-49)
+            if hasattr(character, 'charge_gauge'):
+                return 25 <= character.charge_gauge <= 49
+            return False
+
+        elif condition == "charge_enhance":
+            # 강화 단계 (50-74)
+            if hasattr(character, 'charge_gauge'):
+                return 50 <= character.charge_gauge <= 74
+            return False
+
+        elif condition == "charge_decisive":
+            # 결정타 단계 (75-99)
+            if hasattr(character, 'charge_gauge'):
+                return 75 <= character.charge_gauge <= 99
+            return False
+
+        elif condition == "charge_full":
+            # 완전 충전 (100)
+            if hasattr(character, 'charge_gauge'):
+                return character.charge_gauge >= 100
+            return False
+
+        elif condition == "charge_full_boss":
+            # 완전 충전 + 보스 대상
+            if hasattr(character, 'charge_gauge') and character.charge_gauge >= 100:
+                target = context.get("target")
+                if target:
+                    return getattr(target, 'is_boss', False)
+            return False
+
+        elif condition == "charge_decisive_min":
+            # 결정타 단계 이상 (>= 75)
+            if hasattr(character, 'charge_gauge'):
+                return character.charge_gauge >= 75
+            return False
+
+        elif condition == "turn_start_charge_50":
+            # 턴 시작 시 충전 50% 이상
+            if hasattr(character, 'charge_gauge') and context.get("turn_start", False):
+                return character.charge_gauge >= 50
+            return False
+
+        elif condition == "hp_low_scaling":
+            # HP가 낮을수록 효과 증가 (항상 참, 계산은 calculate_stat_bonus에서)
+            return True
+
+        elif condition == "on_lifesteal":
+            # 흡혈 시
+            return context.get("on_lifesteal", False)
 
         # 기본적으로 조건 만족
         return True

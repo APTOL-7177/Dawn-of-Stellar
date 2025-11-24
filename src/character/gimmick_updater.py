@@ -75,6 +75,8 @@ class GimmickUpdater:
             GimmickUpdater._update_dilemma_choice(character)
         elif gimmick_type == "rune_resonance":
             GimmickUpdater._update_rune_resonance(character)
+        elif gimmick_type == "charge_system":
+            GimmickUpdater._update_charge_system_turn_end(character)
 
     @staticmethod
     def on_turn_start(character, context=None):
@@ -126,6 +128,95 @@ class GimmickUpdater:
         # 네크로맨서 - 언데드 자동 공격
         elif gimmick_type == "undead_legion":
             GimmickUpdater._undead_auto_attack(character, context)
+
+        # 암흑기사 - 충전 시스템 턴 시작
+        elif gimmick_type == "charge_system":
+            GimmickUpdater._update_charge_system_turn_start(character)
+
+        # 일반 특성 처리 (기믹과 무관한 특성들)
+        GimmickUpdater._process_turn_start_traits(character, context)
+
+    @staticmethod
+    def _process_turn_start_traits(character, context):
+        """턴 시작 시 특성 효과 처리"""
+        if not hasattr(character, 'active_traits'):
+            return
+
+        # prayer_blessing: 매 턴 아군 전체 HP 5% 회복 (성직자)
+        has_prayer_blessing = any(
+            (t if isinstance(t, str) else t.get('id')) == 'prayer_blessing'
+            for t in character.active_traits
+        )
+        if has_prayer_blessing and context and 'combat_manager' in context:
+            combat_manager = context['combat_manager']
+            if hasattr(combat_manager, 'allies'):
+                # 모든 아군에게 최대 HP의 5% 회복
+                for ally in combat_manager.allies:
+                    if hasattr(ally, 'is_alive') and ally.is_alive:
+                        if hasattr(ally, 'max_hp') and hasattr(ally, 'current_hp'):
+                            heal_amount = int(ally.max_hp * 0.05)
+                            if hasattr(ally, 'heal'):
+                                actual_heal = ally.heal(heal_amount)
+                            else:
+                                actual_heal = min(heal_amount, ally.max_hp - ally.current_hp)
+                                ally.current_hp = min(ally.max_hp, ally.current_hp + actual_heal)
+                            if actual_heal > 0:
+                                logger.info(f"[기도의 축복] {ally.name} HP +{actual_heal} (최대 HP의 5%)")
+
+        # meditation: 턴 시작 시 MP 5%, BRV 10% 회복 (사무라이)
+        has_meditation = any(
+            (t if isinstance(t, str) else t.get('id')) == 'meditation'
+            for t in character.active_traits
+        )
+        if has_meditation:
+            if hasattr(character, 'max_mp') and hasattr(character, 'current_mp'):
+                mp_restore = int(character.max_mp * 0.05)
+                if hasattr(character, 'restore_mp'):
+                    actual_mp = character.restore_mp(mp_restore)
+                else:
+                    actual_mp = min(mp_restore, character.max_mp - character.current_mp)
+                    character.current_mp += actual_mp
+                if actual_mp > 0:
+                    logger.info(f"[명상] {character.name} MP +{actual_mp} (최대 MP의 5%)")
+
+            if hasattr(character, 'max_brv') and hasattr(character, 'current_brv'):
+                brv_restore = int(character.max_brv * 0.10)
+                actual_brv = min(brv_restore, character.max_brv - character.current_brv)
+                character.current_brv += actual_brv
+                if actual_brv > 0:
+                    logger.info(f"[명상] {character.name} BRV +{actual_brv} (최대 BRV의 10%)")
+
+        # healing_light: 턴 시작 시 HP 3% 자동 회복 (성기사)
+        has_healing_light = any(
+            (t if isinstance(t, str) else t.get('id')) == 'healing_light'
+            for t in character.active_traits
+        )
+        if has_healing_light:
+            if hasattr(character, 'max_hp') and hasattr(character, 'current_hp'):
+                heal_amount = int(character.max_hp * 0.03)
+                if hasattr(character, 'heal'):
+                    actual_heal = character.heal(heal_amount)
+                else:
+                    actual_heal = min(heal_amount, character.max_hp - character.current_hp)
+                    character.current_hp = min(character.max_hp, character.current_hp + actual_heal)
+                if actual_heal > 0:
+                    logger.info(f"[치유의 빛] {character.name} HP +{actual_heal} (최대 HP의 3%)")
+
+        # spirit_guide: 턴 시작 시 MP 10% 회복 (무당)
+        has_spirit_guide = any(
+            (t if isinstance(t, str) else t.get('id')) == 'spirit_guide'
+            for t in character.active_traits
+        )
+        if has_spirit_guide:
+            if hasattr(character, 'max_mp') and hasattr(character, 'current_mp'):
+                mp_restore = int(character.max_mp * 0.10)
+                if hasattr(character, 'restore_mp'):
+                    actual_mp = character.restore_mp(mp_restore)
+                else:
+                    actual_mp = min(mp_restore, character.max_mp - character.current_mp)
+                    character.current_mp += actual_mp
+                if actual_mp > 0:
+                    logger.info(f"[영혼 안내] {character.name} MP +{actual_mp} (최대 MP의 10%)")
 
     @staticmethod
     def on_skill_use(character, skill):
@@ -948,9 +1039,24 @@ class GimmickUpdater:
 
     @staticmethod
     def check_choice_mastery(character, choice_type: str) -> bool:
-        """딜레마틱: 선택 숙련도 확인"""
-        # TODO: 구현 필요
-        return False
+        """
+        딜레마틱: 선택 숙련도 확인
+
+        Args:
+            character: 캐릭터 (철학자)
+            choice_type: 선택 타입 (power, wisdom, sacrifice, survival, truth, lie, order, chaos)
+
+        Returns:
+            해당 선택이 숙련(5회 이상)되었는지 여부
+        """
+        if character.gimmick_type != "dilemma_choice":
+            return False
+
+        choice_attr = f"choice_{choice_type}"
+        choice_count = getattr(character, choice_attr, 0)
+        accumulation_threshold = getattr(character, 'accumulation_threshold', 5)
+
+        return choice_count >= accumulation_threshold
 
 
 class GimmickStateChecker:
@@ -1031,9 +1137,92 @@ class GimmickStateChecker:
             return getattr(character, 'support_fire_combo', 0)
         return 0
 
-        """선택 숙달 달성 여부 체크 (철학자)"""
-        if character.gimmick_type == "dilemma_choice":
-            count = getattr(character, f'choice_{choice_type}', 0)
-            threshold = getattr(character, 'accumulation_threshold', 5)
-            return count >= threshold
-        return False
+    # ============================================================
+    # 암흑기사 - 충전 시스템
+    # ============================================================
+
+    @staticmethod
+    def _update_charge_system_turn_start(character):
+        """충전 시스템 턴 시작 업데이트"""
+        # 충전량 50% 이상일 때 BRV 회복 (특성: overflowing_darkness)
+        charge_gauge = getattr(character, 'charge_gauge', 0)
+
+        if charge_gauge >= 50:
+            # BRV 회복 (최대 BRV의 10%)
+            if hasattr(character, 'max_brv') and hasattr(character, 'current_brv'):
+                brv_restore = int(character.max_brv * 0.1)
+                character.current_brv = min(character.max_brv, character.current_brv + brv_restore)
+                logger.debug(f"{character.name} 충전 {charge_gauge}% - BRV +{brv_restore} (턴 시작)")
+
+    @staticmethod
+    def _update_charge_system_turn_end(character):
+        """충전 시스템 턴 종료 업데이트"""
+        # 자연 충전 감소 (선택적, 현재는 없음)
+        # 필요 시 구현
+        pass
+
+    @staticmethod
+    def on_charge_gained(character, amount: int, reason: str = ""):
+        """충전 획득 처리"""
+        if not hasattr(character, 'charge_gauge'):
+            character.charge_gauge = 0
+
+        # charge_acceleration 특성 확인: 모든 충전 획득량 배율 적용
+        from src.character.trait_effects import get_trait_effect_manager, TraitEffectType
+        trait_manager = get_trait_effect_manager()
+        
+        # charge_gain은 표준 스탯이 아니므로 직접 특성 효과 확인
+        charge_multiplier = 1.0
+        if hasattr(character, 'active_traits'):
+            for trait_data in character.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                if trait_id == 'charge_acceleration':
+                    effects = trait_manager.get_trait_effects(trait_id)
+                    for effect in effects:
+                        if effect.effect_type == TraitEffectType.STAT_MULTIPLIER and effect.target_stat == "charge_gain":
+                            # 조건 확인
+                            if not effect.condition or trait_manager._check_condition(character, effect.condition):
+                                charge_multiplier = effect.value
+                                logger.debug(f"[충전 가속] {character.name} 충전 획득량 배율: x{charge_multiplier}")
+                                break
+        
+        if charge_multiplier > 1.0:
+            amount = int(amount * charge_multiplier)
+            logger.debug(f"[충전 가속] {character.name} 충전 획득량 {charge_multiplier}배 적용 → {amount}")
+
+        max_charge = getattr(character, 'max_charge', 100)
+        old_charge = character.charge_gauge
+        character.charge_gauge = min(max_charge, character.charge_gauge + amount)
+
+        actual_gain = character.charge_gauge - old_charge
+        if actual_gain > 0:
+            logger.info(f"{character.name} 충전 +{actual_gain} ({reason}) - 총: {character.charge_gauge}%")
+
+    @staticmethod
+    def on_take_damage_charge(character, damage: int):
+        """피격 시 충전 획득 (방어 태세 배율 적용)"""
+        if getattr(character, 'gimmick_type', None) != "charge_system":
+            return
+
+        # 기본 충전 획득 (YAML의 take_damage_gain)
+        base_gain = getattr(character, 'take_damage_gain', 10)
+
+        # 방어 태세 버프가 있는지 확인 (메타데이터에서)
+        multiplier = 1.0
+        if hasattr(character, 'active_buffs'):
+            for buff in character.active_buffs:
+                if hasattr(buff, 'metadata') and buff.metadata.get('on_hit_charge_multiplier'):
+                    multiplier = buff.metadata['on_hit_charge_multiplier']
+                    break
+
+        charge_gain = int(base_gain * multiplier)
+        GimmickUpdater.on_charge_gained(character, charge_gain, f"피격 ({damage} 데미지)")
+
+    @staticmethod
+    def on_kill_charge(character):
+        """적 처치 시 충전 획득"""
+        if getattr(character, 'gimmick_type', None) != "charge_system":
+            return
+
+        kill_gain = getattr(character, 'kill_gain', 20)
+        GimmickUpdater.on_charge_gained(character, kill_gain, "적 처치")

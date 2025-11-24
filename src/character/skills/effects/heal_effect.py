@@ -203,6 +203,39 @@ class HealEffect(SkillEffect):
                 if hasattr(target, 'max_brv'):
                     amount += int(target.max_brv * self.percentage)
 
+        # 회복 보너스는 가산적으로 적용 (+40%, +30%, +30% = 총 +100%)
+        heal_bonus_multiplier = 1.0
+        
+        # 시전자의 healing_power 특성: 모든 회복 효과 +40%
+        if hasattr(user, 'active_traits'):
+            has_healing_power = any(
+                (t if isinstance(t, str) else t.get('id')) == 'healing_power'
+                for t in user.active_traits
+            )
+            if has_healing_power:
+                heal_bonus_multiplier += 0.4
+
+            # healing_mastery 특성: 모든 회복 효과 +30%
+            has_healing_mastery = any(
+                (t if isinstance(t, str) else t.get('id')) == 'healing_mastery'
+                for t in user.active_traits
+            )
+            if has_healing_mastery:
+                heal_bonus_multiplier += 0.3
+
+        # 대상의 survival_instinct 특성: 받는 회복 효과 +30%
+        if hasattr(target, 'active_traits'):
+            has_survival_instinct = any(
+                (t if isinstance(t, str) else t.get('id')) == 'survival_instinct'
+                for t in target.active_traits
+            )
+            if has_survival_instinct:
+                heal_bonus_multiplier += 0.3
+        
+        # 가산적 보너스 적용
+        if heal_bonus_multiplier > 1.0:
+            amount = int(amount * heal_bonus_multiplier)
+
         # 최소 회복량 보장
         return max(1, amount)
 

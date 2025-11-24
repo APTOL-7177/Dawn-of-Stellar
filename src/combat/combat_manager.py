@@ -189,6 +189,9 @@ class CombatManager:
         casting_system = get_casting_system()
         casting_system.clear()
 
+        # 파티 버프 특성 적용 (holy_aura, chivalry 등)
+        self._apply_party_wide_traits()
+
         # 이벤트 발행
         event_bus.publish(Events.COMBAT_START, {
             "allies": [a.id for a in allies if hasattr(a, 'id')],
@@ -568,6 +571,9 @@ class CombatManager:
             self.logger.info(f"[빗나감] {attacker_type} {attacker.name}의 공격이 {defender_type} {defender.name}에게 빗나갔다!")
             # SFX 재생 (회피 사운드)
             play_sfx("combat", "miss")
+
+            # 회피 후 특성 처리
+            self._process_evade_traits(defender, attacker)
         else:
             # 명중 SFX 재생
             play_sfx("combat", "attack_physical")
@@ -633,12 +639,56 @@ class CombatManager:
                     f"[집중의 힘] {attacker.name} 스택 {attacker.defend_stack_count}개 소비 → 데미지 +{defend_stack_bonus * 100:.0f}%"
                 )
 
+        # 어둠기사 execute 효과: 적 HP 비례 추가 데미지
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('execute'):
+            if hasattr(defender, 'current_hp') and hasattr(defender, 'max_hp') and defender.max_hp > 0:
+                hp_ratio = defender.current_hp / defender.max_hp
+                low_hp_bonus = skill.metadata.get('low_hp_bonus', 2.0)
+                if hp_ratio <= 0.3:  # HP 30% 이하
+                    hp_multiplier *= low_hp_bonus
+                    self.logger.info(f"[처형] {defender.name} HP {hp_ratio*100:.1f}% → 데미지 x{low_hp_bonus}")
+
+        # 어둠기사 perfect_strike 효과: 완전충전 시 즉사/보스 추가 피해
+        instant_kill_attempted = False
+        if hasattr(attacker, 'gimmick_type') and attacker.gimmick_type == "charge_system":
+            if hasattr(attacker, 'charge_gauge') and attacker.charge_gauge >= 100:
+                # perfect_strike 특성 확인
+                has_perfect_strike = any(
+                    (t if isinstance(t, str) else t.get('id')) == 'perfect_strike'
+                    for t in getattr(attacker, 'active_traits', [])
+                )
+
+                if has_perfect_strike:
+                    is_boss = getattr(defender, 'is_boss', False)
+                    if is_boss:
+                        # 보스에게 50% 추가 피해
+                        hp_multiplier *= 1.50
+                        self.logger.info(f"[완벽한 일격] {attacker.name} 완전충전 → 보스에게 데미지 +50%")
+                    else:
+                        # 일반 몬스터 15% 즉사 확률
+                        import random
+                        if random.random() < 0.15:
+                            instant_kill_attempted = True
+                            self.logger.info(f"[완벽한 일격] {attacker.name} 완전충전 → {defender.name} 즉사!")
+
         # BREAK 상태 확인
         is_break = self.brave.is_broken(defender)
 
-        # HP 공격 적용 (BRV 소비 및 데미지 적용)
-        # brave.hp_attack()이 take_damage()를 내부적으로 호출함
-        hp_result = self.brave.hp_attack(attacker, defender, hp_multiplier)
+        # 즉사 효과 적용
+        if instant_kill_attempted:
+            # 즉사: 현재 HP를 모두 제거
+            if hasattr(defender, 'current_hp'):
+                defender.current_hp = 0
+            hp_result = {
+                "hp_damage": 9999,
+                "brv_consumed": attacker.current_brv,
+                "is_break_bonus": is_break
+            }
+            attacker.current_brv = 0  # BRV 소비
+        else:
+            # HP 공격 적용 (BRV 소비 및 데미지 적용)
+            # brave.hp_attack()이 take_damage()를 내부적으로 호출함
+            hp_result = self.brave.hp_attack(attacker, defender, hp_multiplier)
 
         # 무기 내구도 감소 (skip_degrade 플래그 확인)
         # HP 공격은 빗나감이 없으므로(BRV 0이면 0데미지지만 공격 자체는 성공) 항상 내구도 감소 시도
@@ -660,6 +710,123 @@ class CombatManager:
         # 공격 후 방어 스택 초기화
         if hasattr(attacker, 'defend_stack_count') and attacker.defend_stack_count > 0:
             attacker.defend_stack_count = 0
+
+        # lifesteal (흡혈) 효과 + 뱀파이어 특성 처리
+        lifesteal_ratio = 0
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('lifesteal'):
+            lifesteal_ratio = skill.metadata['lifesteal']  # 0.3 = 30% 흡혈
+
+        # sanguine_arts: 마법 공격 시 추가 흡혈 20%
+        if hasattr(attacker, 'active_traits'):
+            has_sanguine_arts = any(
+                (t if isinstance(t, str) else t.get('id')) == 'sanguine_arts'
+                for t in attacker.active_traits
+            )
+            if has_sanguine_arts and skill and hasattr(skill, 'metadata'):
+                # 마법 스킬인지 확인 (damage_type이 magical이거나 magic 관련)
+                is_magic_skill = skill.metadata.get('damage_type') == 'magical' or skill.metadata.get('magic_based', False)
+                if is_magic_skill:
+                    lifesteal_ratio += 0.20  # 추가 20% 흡혈
+                    self.logger.debug(f"[혈기술] {attacker.name} 마법 공격 → 흡혈 +20%")
+
+        if lifesteal_ratio > 0:
+            heal_amount = int(hp_result["hp_damage"] * lifesteal_ratio)
+            if heal_amount > 0:
+                overflow_amount = 0  # 초과 흡혈량
+
+                if hasattr(attacker, 'heal'):
+                    actual_heal = attacker.heal(heal_amount)
+                elif hasattr(attacker, 'current_hp') and hasattr(attacker, 'max_hp'):
+                    actual_heal = min(heal_amount, attacker.max_hp - attacker.current_hp)
+                    attacker.current_hp += actual_heal
+
+                    # vitality_overflow: 최대 HP일 때 초과 흡혈량 → BRV 전환
+                    if attacker.current_hp >= attacker.max_hp:
+                        has_vitality_overflow = any(
+                            (t if isinstance(t, str) else t.get('id')) == 'vitality_overflow'
+                            for t in getattr(attacker, 'active_traits', [])
+                        )
+                        if has_vitality_overflow:
+                            overflow_amount = heal_amount - actual_heal
+                            if overflow_amount > 0 and hasattr(attacker, 'current_brv') and hasattr(attacker, 'max_brv'):
+                                brv_gain = min(overflow_amount, attacker.max_brv - attacker.current_brv)
+                                attacker.current_brv += brv_gain
+                                self.logger.info(f"[생명력 과부하] {attacker.name} 초과 흡혈 {overflow_amount} → BRV +{brv_gain}")
+                else:
+                    actual_heal = heal_amount
+
+                if actual_heal > 0:
+                    self.logger.info(f"[흡혈] {attacker.name} HP 회복: {actual_heal} (피해의 {lifesteal_ratio*100:.0f}%)")
+
+                # blood_empowerment: 흡혈 성공 시 30% 확률로 버프
+                if actual_heal > 0:
+                    has_blood_empowerment = any(
+                        (t if isinstance(t, str) else t.get('id')) == 'blood_empowerment'
+                        for t in getattr(attacker, 'active_traits', [])
+                    )
+                    if has_blood_empowerment:
+                        import random
+                        if random.random() < 0.30:  # 30% 확률
+                            # 공격력 +20%, 속도 +15% 버프 (3턴)
+                            from src.combat.status_effects import StatusEffect, StatusType
+                            attack_buff = StatusEffect(StatusType.ATTACK_UP, duration=3, value=0.20, source=attacker)
+                            speed_buff = StatusEffect(StatusType.SPEED_UP, duration=3, value=0.15, source=attacker)
+                            if hasattr(attacker, 'add_status_effect'):
+                                attacker.add_status_effect(attack_buff)
+                                attacker.add_status_effect(speed_buff)
+                            self.logger.info(f"[혈액 강화] {attacker.name} 공격력 +20%, 속도 +15% (3턴)!")
+
+        # heal_on_hit (타격 시 HP 회복)
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('heal_on_hit'):
+            heal_amount = skill.metadata['heal_on_hit']
+            if hasattr(attacker, 'heal'):
+                actual_heal = attacker.heal(heal_amount)
+            elif hasattr(attacker, 'current_hp') and hasattr(attacker, 'max_hp'):
+                actual_heal = min(heal_amount, attacker.max_hp - attacker.current_hp)
+                attacker.current_hp += actual_heal
+            else:
+                actual_heal = heal_amount
+            self.logger.info(f"[타격 회복] {attacker.name} HP +{actual_heal}")
+
+        # mp_on_hit (타격 시 MP 회복)
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('mp_on_hit'):
+            mp_amount = skill.metadata['mp_on_hit']
+            if hasattr(attacker, 'restore_mp'):
+                actual_mp = attacker.restore_mp(mp_amount)
+            elif hasattr(attacker, 'current_mp') and hasattr(attacker, 'max_mp'):
+                actual_mp = min(mp_amount, attacker.max_mp - attacker.current_mp)
+                attacker.current_mp += actual_mp
+            else:
+                actual_mp = mp_amount
+            self.logger.info(f"[타격 회복] {attacker.name} MP +{actual_mp}")
+
+        # brv_on_hit (타격 시 BRV 회복)
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('brv_on_hit'):
+            brv_amount = skill.metadata['brv_on_hit']
+            if hasattr(attacker, 'current_brv') and hasattr(attacker, 'max_brv'):
+                actual_brv = min(brv_amount, attacker.max_brv - attacker.current_brv)
+                attacker.current_brv += actual_brv
+                self.logger.info(f"[타격 회복] {attacker.name} BRV +{actual_brv}")
+
+        # splash_damage (범위 피해) - 주변 적들에게 추가 피해
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('splash_damage'):
+            splash_ratio = skill.metadata.get('splash_damage', 0.5)  # 기본 50%
+            splash_radius = skill.metadata.get('splash_radius', 999)  # 기본 전체
+
+            all_enemies = self.enemies if attacker in self.allies else self.allies
+            splash_targets = [e for e in all_enemies if e != defender and hasattr(e, 'is_alive') and e.is_alive]
+
+            if splash_targets:
+                splash_damage = int(hp_result["hp_damage"] * splash_ratio)
+                for splash_target in splash_targets[:splash_radius]:  # 반경 제한
+                    if hasattr(splash_target, 'take_damage'):
+                        actual_damage = splash_target.take_damage(splash_damage)
+                    elif hasattr(splash_target, 'current_hp'):
+                        actual_damage = min(splash_damage, splash_target.current_hp)
+                        splash_target.current_hp = max(0, splash_target.current_hp - actual_damage)
+                    else:
+                        actual_damage = splash_damage
+                    self.logger.info(f"[범위 피해] {splash_target.name}에게 {actual_damage} 피해! (본 피해의 {splash_ratio*100:.0f}%)")
 
         # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
         if trigger_gimmick and attacker in self.allies:
@@ -687,7 +854,12 @@ class CombatManager:
                                 if current_marks < max_marks:
                                     ally.dragon_marks = min(current_marks + 1, max_marks)
                                     self.logger.info(f"{ally.name} 적 처치로 용표 획득! (현재: {ally.dragon_marks}/{max_marks})")
-                        
+
+                        # 암흑기사: 적 처치 시 충전 획득
+                        if (hasattr(ally, 'gimmick_type') and ally.gimmick_type == "charge_system"):
+                            from src.character.gimmick_updater import GimmickUpdater
+                            GimmickUpdater.on_kill_charge(ally)
+
                         # 처치 보너스 (bloodthirst) - 스택 누적
                         if hasattr(ally, 'active_traits'):
                             from src.character.trait_effects import TraitEffectType
@@ -821,8 +993,8 @@ class CombatManager:
             # 스킬을 다시 찾아보기 (skill_ids에서 직접 가져오기)
             if hasattr(actor, 'skill_ids') and skill_id in actor.skill_ids:
                 # 스킬이 actor의 skill_ids에 있지만 등록되지 않은 경우
-                # 스킬을 다시 등록 시도 (임시 해결책)
-                self.logger.warning(f"스킬 {skill_id}가 등록되지 않았지만 actor의 skill_ids에 있습니다. 스킬을 다시 등록합니다.")
+                # fallback: 스킬 객체를 직접 실행 (방어 로직)
+                self.logger.warning(f"스킬 {skill_id}가 등록되지 않았지만 actor의 skill_ids에 있습니다. 스킬을 직접 실행합니다.")
                 # skill 객체를 직접 사용
                 if hasattr(skill, 'execute'):
                     # Skill 객체를 직접 실행
@@ -875,6 +1047,63 @@ class CombatManager:
                 # 데미지 효과가 있으면 공격 스킬로 간주하고 on_ally_attack 호출
                 if has_damage:
                     GimmickUpdater.on_ally_attack(actor, self.allies, target=target)
+
+            # 어둠기사 explosive_power 특성: 충전 75% 이상에서 스킬 사용 시 충격파
+            if hasattr(actor, 'gimmick_type') and actor.gimmick_type == "charge_system":
+                if hasattr(skill, 'metadata') and skill.metadata.get('charge_cost', 0) > 0:
+                    # 충전을 소모하는 스킬인지 확인
+                    charge_cost = skill.metadata.get('charge_cost', 0)
+                    if charge_cost > 0:
+                        # 특성 확인
+                        has_explosive_power = any(
+                            (t if isinstance(t, str) else t.get('id')) == 'explosive_power'
+                            for t in getattr(actor, 'active_traits', [])
+                        )
+
+                        if has_explosive_power:
+                            # 스킬 사용 전 충전량 확인 (75% 이상이었는지)
+                            # 충전은 이미 소모되었으므로, charge_cost + 현재 충전량으로 계산
+                            charge_before_use = getattr(actor, 'charge_gauge', 0) + charge_cost
+                            if charge_before_use >= 75:
+                                # 주변 적들에게 충격파 피해 (소모한 충전량 비례)
+                                # 공격력의 50~100% (충전 75%: 50%, 100%: 100%)
+                                damage_ratio = 0.5 + (charge_before_use - 75) / 25 * 0.5
+                                damage_ratio = min(1.0, damage_ratio)
+
+                                all_enemies = self.enemies if actor in self.allies else self.allies
+                                splash_targets = [e for e in all_enemies if e != target and hasattr(e, 'is_alive') and e.is_alive]
+
+                                if splash_targets:
+                                    from src.character.stats import Stats
+                                    base_attack = actor.stat_manager.get_value(Stats.STRENGTH) if hasattr(actor, 'stat_manager') else getattr(actor, 'physical_attack', 50)
+                                    splash_damage = int(base_attack * damage_ratio)
+
+                                    for splash_target in splash_targets:
+                                        # 방어력 적용
+                                        defense = splash_target.stat_manager.get_value(Stats.DEFENSE) if hasattr(splash_target, 'stat_manager') else getattr(splash_target, 'physical_defense', 30)
+                                        final_damage = max(1, splash_damage - defense // 2)
+
+                                        # 데미지 적용 (take_damage 메서드 사용하여 이벤트 핸들러 등 시스템 통합)
+                                        if hasattr(splash_target, 'take_damage'):
+                                            actual_damage = splash_target.take_damage(final_damage)
+                                        elif hasattr(splash_target, 'current_hp'):
+                                            actual_damage = min(final_damage, splash_target.current_hp)
+                                            splash_target.current_hp = max(0, splash_target.current_hp - actual_damage)
+                                        else:
+                                            actual_damage = final_damage
+                                        self.logger.info(f"[폭발적 힘] {actor.name}의 충격파 → {splash_target.name}에게 {actual_damage} 피해!")
+
+            # 스킬 메타데이터: stun_chance (기절 확률)
+            if target and hasattr(skill, 'metadata') and skill.metadata.get('stun_chance'):
+                import random
+                stun_chance = skill.metadata['stun_chance']
+                if random.random() < stun_chance:
+                    # 기절 상태 적용 (1턴)
+                    from src.combat.status_effects import StatusEffect, StatusType
+                    stun_effect = StatusEffect(StatusType.STUN, duration=1, source=actor)
+                    if hasattr(target, 'add_status_effect'):
+                        target.add_status_effect(stun_effect)
+                        self.logger.info(f"[{skill.name}] {target.name} 기절! (확률 {stun_chance*100:.0f}%)")
         else:
             result["success"] = False
             result["error"] = skill_result.message
@@ -1813,6 +2042,65 @@ class CombatManager:
                             
                             return  # 한 명만 수호
 
+        # 패링 메커니즘: 캐스팅 중 피격 시 카운터 (충전 획득 전에 처리)
+        if hasattr(self, 'casting_system'):
+            cast_info = self.casting_system.get_cast_info(defender)
+            if cast_info and cast_info.state.value == "casting":
+                skill = cast_info.skill
+                attacker = data.get("attacker")
+
+                # 패링 스킬인지 확인
+                if skill and hasattr(skill, 'metadata') and skill.metadata.get('parry'):
+                    # 피해 무효화
+                    data["damage"] = 0
+                    if hasattr(defender, 'take_damage'):
+                        # 실제 HP 감소 방지
+                        pass
+
+                    # 카운터 데미지 발동
+                    if attacker:
+                        parry_multiplier = skill.metadata.get('parry_damage_multiplier', 3.0)
+                        parry_charge_gain = skill.metadata.get('parry_charge_gain', 30)
+
+                        # 카운터 데미지 계산 (기본 스킬 데미지 × 패링 배율)
+                        from src.combat.damage_calculator import get_damage_calculator
+                        damage_calc = get_damage_calculator()
+
+                        # 패링 데미지 (BRV+HP)
+                        counter_result = damage_calc.calculate_physical_damage(
+                            attacker=defender,
+                            defender=attacker,
+                            multiplier=parry_multiplier
+                        )
+
+                        # BRV 데미지
+                        self.brave.brv_attack(defender, attacker, counter_result.final_damage)
+
+                        # HP 데미지
+                        if hasattr(defender, 'current_brv') and defender.current_brv > 0:
+                            hp_result = self.brave.hp_attack(defender, attacker)
+
+                            self.logger.info(
+                                f"[패링!] {defender.name}이(가) {attacker.name}의 공격을 막고 카운터! "
+                                f"BRV: {counter_result.final_damage}, HP: {hp_result.get('hp_damage', 0)}"
+                            )
+
+                        # 충전 획득 (암흑기사)
+                        if hasattr(defender, 'gimmick_type') and defender.gimmick_type == "charge_system":
+                            from src.character.gimmick_updater import GimmickUpdater
+                            GimmickUpdater.on_charge_gained(defender, parry_charge_gain, "패링 성공")
+
+                        # 캐스팅 완료 처리 (패링 성공 시 스킬 시전 안 함)
+                        self.casting_system.cancel_cast(defender, "패링 성공")
+                        return  # 패링 성공 시 피해를 받지 않으므로 충전 획득 없음
+
+        # 암흑기사: 피격 시 충전 획득 (패링으로 막히지 않은 경우에만)
+        # 패링이 성공하면 위에서 return되므로 여기 도달하지 않음
+        final_damage = data.get("damage", damage)
+        if final_damage > 0 and hasattr(defender, 'gimmick_type') and defender.gimmick_type == "charge_system":
+            from src.character.gimmick_updater import GimmickUpdater
+            GimmickUpdater.on_take_damage_charge(defender, final_damage)
+
     def _on_turn_end(self, actor: Any) -> None:
         """
         턴 종료 처리
@@ -1916,6 +2204,117 @@ class CombatManager:
                     "target": target,
                     "result": result
                 })
+
+    def _process_evade_traits(self, evader: Any, attacker: Any) -> None:
+        """
+        회피 성공 후 특성 처리
+
+        Args:
+            evader: 회피한 캐릭터
+            attacker: 공격한 캐릭터
+        """
+        if not hasattr(evader, 'active_traits'):
+            return
+
+        import random
+        from src.combat.status_effects import StatusEffect, StatusType
+
+        # shadow_step (Rogue): 회피 후 다음 공격 크리티컬 확률 +50%
+        has_shadow_step = any(
+            (t if isinstance(t, str) else t.get('id')) == 'shadow_step'
+            for t in evader.active_traits
+        )
+        if has_shadow_step:
+            crit_buff = StatusEffect(
+                status_type=StatusType.BOOST_CRIT,
+                duration=1,  # 다음 턴까지
+                value=0.50,
+                source=evader
+            )
+            if hasattr(evader, 'add_status_effect'):
+                evader.add_status_effect(crit_buff)
+                self.logger.info(f"[그림자 이동] {evader.name} 회피 후 크리티컬 확률 +50%!")
+
+        # counter_blade (Sword Saint): 회피 시 30% 확률로 반격
+        has_counter_blade = any(
+            (t if isinstance(t, str) else t.get('id')) == 'counter_blade'
+            for t in evader.active_traits
+        )
+        if has_counter_blade and random.random() < 0.30:
+            # 반격 실행 (BRV 공격)
+            self.logger.info(f"[반격 검술] {evader.name}이(가) 반격합니다!")
+            counter_result = self.brv_attack(evader, attacker, trigger_gimmick=False)
+            # 반격 데미지 로그는 brv_attack에서 처리
+
+    def _apply_party_wide_traits(self) -> None:
+        """
+        전투 시작 시 파티 전체 버프 특성 적용 (holy_aura, chivalry 등)
+        """
+        from src.character.stats import Stats
+
+        # 각 아군의 파티 버프 특성 확인
+        for ally in self.allies:
+            if not hasattr(ally, 'active_traits') or not hasattr(ally, 'stat_manager'):
+                continue
+
+            # holy_aura (Paladin): 파티 전체 모든 스탯 +15%
+            has_holy_aura = any(
+                (t if isinstance(t, str) else t.get('id')) == 'holy_aura'
+                for t in ally.active_traits
+            )
+            if has_holy_aura:
+                # 모든 아군에게 스탯 보너스 적용
+                for target in self.allies:
+                    if not hasattr(target, 'stat_manager'):
+                        continue
+                    self._apply_all_stats_bonus(target, 'holy_aura', 0.15)
+                self.logger.info(f"[신성한 기운] {ally.name}의 파티 버프: 모든 스탯 +15%")
+
+            # chivalry (Knight): 파티 전체 모든 스탯 +10%
+            has_chivalry = any(
+                (t if isinstance(t, str) else t.get('id')) == 'chivalry'
+                for t in ally.active_traits
+            )
+            if has_chivalry:
+                # 모든 아군에게 스탯 보너스 적용
+                for target in self.allies:
+                    if not hasattr(target, 'stat_manager'):
+                        continue
+                    self._apply_all_stats_bonus(target, 'chivalry', 0.10)
+                self.logger.info(f"[기사도] {ally.name}의 파티 버프: 모든 스탯 +10%")
+
+            # leadership (Knight): 파티 리더일 때 전체 스탯 +15%
+            has_leadership = any(
+                (t if isinstance(t, str) else t.get('id')) == 'leadership'
+                for t in ally.active_traits
+            )
+            if has_leadership:
+                # 파티 리더 확인 (첫 번째 아군을 리더로 간주)
+                is_leader = ally == self.allies[0]
+                if is_leader:
+                    self._apply_all_stats_bonus(ally, 'leadership', 0.15)
+                    self.logger.info(f"[지휘] {ally.name} 파티 리더 버프: 모든 스탯 +15%")
+
+    def _apply_all_stats_bonus(self, character: Any, source: str, multiplier: float) -> None:
+        """
+        모든 스탯에 비율 보너스 적용
+
+        Args:
+            character: 대상 캐릭터
+            source: 보너스 출처 (특성 ID)
+            multiplier: 배율 (0.15 = 15%)
+        """
+        if not hasattr(character, 'stat_manager'):
+            return
+
+        from src.character.stats import Stats
+
+        # 모든 스탯에 대해 보너스 계산 및 적용
+        for stat in Stats:
+            base_value = character.stat_manager.get_value(stat, use_total=False)
+            bonus_value = int(base_value * multiplier)
+            if bonus_value > 0:
+                character.stat_manager.add_bonus(stat, source, bonus_value)
 
     def _check_battle_end(self) -> None:
         """승리/패배 판정"""

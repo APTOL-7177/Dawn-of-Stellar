@@ -1,149 +1,197 @@
-"""Dark Knight Skills - 암흑기사 (어둠 흡수)"""
+"""Dark Knight Skills - 암흑기사 (충전 시스템)"""
 from src.character.skills.skill import Skill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
-from src.character.skills.effects.lifesteal_effect import LifestealEffect
+from src.character.skills.effects.heal_effect import HealEffect
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
 def create_dark_knight_skills():
-    """암흑기사 10개 스킬 생성 (어둠 흡수 시스템)"""
+    """암흑기사 10개 스킬 생성 (충전 시스템)"""
     skills = []
 
-    # 1. 기본 BRV: 어둠 베기
-    dark_slash = Skill("dk_dark_slash", "어둠 베기", "어둠 스택 획득")
-    dark_slash.effects = [
-        DamageEffect(DamageType.BRV, 1.6),
-        GimmickEffect(GimmickOperation.ADD, "darkness", 1, max_value=10)
-    ]
-    dark_slash.costs = []  # 기본 공격은 MP 소모 없음
-    dark_slash.sfx = ("combat", "attack_physical")  # 어둠 베기
-    dark_slash.metadata = {"darkness_gain": 1}
-    skills.append(dark_slash)
+    # ============================================================
+    # BUILDERS (충전 쌓기)
+    # ============================================================
 
-    # 2. 기본 HP: 흡혈 강타
-    drain = Skill("dk_drain", "흡혈 강타", "어둠 소비 HP공격")
-    drain.effects = [
-        DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "darkness", "multiplier": 0.25}),
-        LifestealEffect(0.5),
-        GimmickEffect(GimmickOperation.CONSUME, "darkness", 1)
+    # 1. 기본 BRV: 충전 강타
+    charge_strike = Skill("dk_charge_strike", "충전 강타", "BRV 축적 + 충전 +15 (충전 0: 0.8배 → 100: 1.8배)")
+    charge_strike.effects = [
+        DamageEffect(DamageType.BRV, 0.8, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.01}),  # 충전 1%당 +1% 데미지
+        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 15, max_value=100)
     ]
-    drain.costs = []  # 기본 공격은 MP 소모 없음
-    drain.sfx = ("character", "hp_heal")  # 흡혈 강타
-    drain.metadata = {"darkness_cost": 1, "darkness_scaling": True, "lifesteal": True}
-    skills.append(drain)
-    
-    # 3. 어둠의 오라
-    dark_aura = Skill("dk_dark_aura", "어둠의 오라", "지속 피해")
-    dark_aura.effects = [
-        DamageEffect(DamageType.BRV, 1.0),
-        DamageEffect(DamageType.BRV, 1.0),
-        DamageEffect(DamageType.BRV, 1.0),
-        GimmickEffect(GimmickOperation.ADD, "darkness", 2, max_value=10)
-    ]
-    dark_aura.costs = []
-    # dark_aura.cooldown = 3  # 쿨다운 시스템 제거됨
-    dark_aura.sfx = ("character", "status_debuff")  # 어둠의 오라
-    dark_aura.metadata = {"multi_hit": 3, "darkness_gain": 2}
-    skills.append(dark_aura)
+    charge_strike.costs = []  # 기본 공격은 MP 소모 없음
+    charge_strike.sfx = ("combat", "attack_physical")
+    charge_strike.metadata = {"basic_attack": True, "charge_gain": 15, "builder": True}
+    skills.append(charge_strike)
 
-    # 4. 어둠의 보호막
-    dark_shield = Skill("dk_dark_shield", "어둠의 보호막", "어둠으로 보호")
-    dark_shield.effects = [
-        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=4),
-        GimmickEffect(GimmickOperation.CONSUME, "darkness", 2)
+    # 2. 기본 HP: 분쇄 타격
+    crushing_blow = Skill("dk_crushing_blow", "분쇄 타격", "HP 공격 + 충전 +10 (충전 0: 0.5배 → 100: 2.0배)")
+    crushing_blow.effects = [
+        DamageEffect(DamageType.HP, 0.5, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.015}),  # 충전 1%당 +1.5% 데미지
+        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 10, max_value=100)
     ]
-    dark_shield.costs = [MPCost(4), StackCost("darkness", 2)]
-    dark_shield.target_type = "self"
-    # dark_shield.cooldown = 4  # 쿨다운 시스템 제거됨
-    dark_shield.sfx = ("skill", "protect")  # 어둠의 보호막
-    dark_shield.metadata = {"darkness_cost": 2, "buff": True}
-    skills.append(dark_shield)
+    crushing_blow.costs = []  # 기본 공격은 MP 소모 없음
+    crushing_blow.sfx = ("combat", "attack_physical")
+    crushing_blow.metadata = {"basic_attack": True, "charge_gain": 10, "builder": True}
+    skills.append(crushing_blow)
 
-    # 5. 어둠의 파동
-    dark_wave = Skill("dk_dark_wave", "어둠의 파동", "광역 공격")
-    dark_wave.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.8, gimmick_bonus={"field": "darkness", "multiplier": 0.3}),
-        LifestealEffect(0.4),
-        GimmickEffect(GimmickOperation.CONSUME, "darkness", 3)
+    # 3. 방어 태세
+    defensive_stance = Skill("dk_defensive_stance", "방어 태세", "방어력 증가 + 피격 시 충전 2배")
+    defensive_stance.effects = [
+        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3),
+        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 5, max_value=100)  # 기본 충전 +5
     ]
-    dark_wave.costs = [MPCost(6), StackCost("darkness", 3)]
-    # dark_wave.cooldown = 4  # 쿨다운 시스템 제거됨
-    dark_wave.target_type = "all_enemies"
-    dark_wave.is_aoe = True
-    dark_wave.sfx = ("skill", "cast_complete")  # 어둠의 파동
-    dark_wave.metadata = {"darkness_cost": 3, "darkness_scaling": True, "lifesteal": True, "aoe": True}
-    skills.append(dark_wave)
+    defensive_stance.costs = [MPCost(6)]  # MP 8 → 6
+    defensive_stance.target_type = "self"
+    defensive_stance.sfx = ("skill", "protect")
+    defensive_stance.metadata = {
+        "defensive": True,
+        "charge_gain": 5,
+        "on_hit_charge_multiplier": 2.0,  # 피격 시 충전 2배 (기믹 업데이터에서 처리)
+        "builder": True
+    }
+    skills.append(defensive_stance)
 
-    # 6. 어둠의 검
-    dark_blade = Skill("dk_dark_blade", "어둠의 검", "강력한 BRV 공격")
-    dark_blade.effects = [
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "darkness", "multiplier": 0.2}),
-        GimmickEffect(GimmickOperation.ADD, "darkness", 1, max_value=10)
+    # 4. 반격 태세
+    counter_stance = Skill("dk_counter_stance", "반격 태세", "회피율 증가 + 회피 시 반격 및 충전")
+    counter_stance.effects = [
+        BuffEffect(BuffType.EVASION_UP, 0.5, duration=3),
+        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 5, max_value=100)  # 기본 충전 +5
     ]
-    dark_blade.costs = [MPCost(6)]
-    # dark_blade.cooldown = 2  # 쿨다운 시스템 제거됨
-    dark_blade.sfx = ("combat", "attack_physical")  # 어둠의 검
-    dark_blade.metadata = {"darkness_scaling": True, "darkness_gain": 1}
-    skills.append(dark_blade)
+    counter_stance.costs = [MPCost(8)]  # MP 10 → 8
+    counter_stance.target_type = "self"
+    counter_stance.sfx = ("skill", "protect")
+    counter_stance.metadata = {
+        "counter": True,
+        "charge_gain": 5,
+        "on_evade_counter": True,  # 회피 시 반격 (기믹 업데이터에서 처리)
+        "on_evade_charge": 20,  # 회피 시 충전 +20
+        "builder": True
+    }
+    skills.append(counter_stance)
 
-    # 7. 영혼 포식
-    soul_eater = Skill("dk_soul_eater", "영혼 포식", "HP 흡수 공격")
-    soul_eater.effects = [
-        DamageEffect(DamageType.HP, 1.5, gimmick_bonus={"field": "darkness", "multiplier": 0.3}),
-        LifestealEffect(0.6),
-        GimmickEffect(GimmickOperation.CONSUME, "darkness", 2)
-    ]
-    soul_eater.costs = [MPCost(6), StackCost("darkness", 2)]
-    # soul_eater.cooldown = 3  # 쿨다운 시스템 제거됨
-    soul_eater.sfx = ("character", "hp_heal")  # 영혼 포식
-    soul_eater.metadata = {"darkness_cost": 2, "darkness_scaling": True, "lifesteal": True}
-    skills.append(soul_eater)
+    # ============================================================
+    # SPENDERS (충전 사용 - 한방딜, 캐스트 타임 있음)
+    # ============================================================
 
-    # 8. 어둠 파쇄
-    dark_buster = Skill("dk_dark_buster", "어둠 파쇄", "방어 무시 공격")
-    dark_buster.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "darkness", "multiplier": 0.4}),
-        GimmickEffect(GimmickOperation.CONSUME, "darkness", 4)
+    # 5. 강타
+    power_strike = Skill("dk_power_strike", "강타", "충전 30 소모 (충전 30: 1.6배 → 100: 3.6배)")
+    power_strike.effects = [
+        DamageEffect(DamageType.BRV_HP, 1.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.02}),  # 충전 1%당 +2% 데미지
+        GimmickEffect(GimmickOperation.CONSUME, "charge_gauge", 30)
     ]
-    dark_buster.costs = [MPCost(7), StackCost("darkness", 4)]
-    # dark_buster.cooldown = 5  # 쿨다운 시스템 제거됨
-    dark_buster.sfx = ("combat", "damage_high")  # 어둠 파쇄
-    dark_buster.metadata = {"darkness_cost": 4, "darkness_scaling": True}
-    skills.append(dark_buster)
+    power_strike.costs = [MPCost(12), StackCost("charge_gauge", 30)]
+    power_strike.cast_time = 0.3  # ATB 30% 캐스트 타임
+    power_strike.sfx = ("combat", "damage_high")
+    power_strike.metadata = {
+        "charge_cost": 30,
+        "spender": True,
+        "cast_time": 0.3
+    }
+    skills.append(power_strike)
 
-    # 9. 어둠 폭발
-    dark_explosion = Skill("dk_dark_explosion", "어둠 폭발", "광역 어둠 폭발")
-    dark_explosion.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "darkness", "multiplier": 0.5}),
-        LifestealEffect(0.3),
-        GimmickEffect(GimmickOperation.CONSUME, "darkness", 5)
+    # 6. 심연의 폭발
+    abyssal_burst = Skill("dk_abyssal_burst", "심연의 폭발", "충전 50 소모 (충전 50: 1.8배 → 100: 2.8배)")
+    abyssal_burst.effects = [
+        DamageEffect(DamageType.BRV_HP, 0.8, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.02}),
+        GimmickEffect(GimmickOperation.CONSUME, "charge_gauge", 50)
     ]
-    dark_explosion.costs = [MPCost(10), StackCost("darkness", 5)]
-    dark_explosion.target_type = "all_enemies"
-    # dark_explosion.cooldown = 6  # 쿨다운 시스템 제거됨
-    dark_explosion.is_aoe = True
-    dark_explosion.sfx = ("skill", "ultima")  # 어둠 폭발
-    dark_explosion.metadata = {"darkness_cost": 5, "darkness_scaling": True, "lifesteal": True, "aoe": True}
-    skills.append(dark_explosion)
-    
-    # 10. 궁극기: 어둠의 지배자
-    ultimate = Skill("dk_ultimate", "어둠의 지배자", "궁극 어둠")
+    abyssal_burst.costs = [MPCost(18), StackCost("charge_gauge", 50)]
+    abyssal_burst.cast_time = 0.5  # ATB 50% 캐스트 타임
+    abyssal_burst.target_type = "all_enemies"
+    abyssal_burst.is_aoe = True
+    abyssal_burst.sfx = ("skill", "cast_complete")
+    abyssal_burst.metadata = {
+        "charge_cost": 50,
+        "spender": True,
+        "cast_time": 0.5,
+        "aoe": True,
+        "stun_chance": 0.3  # 30% 기절 확률
+    }
+    skills.append(abyssal_burst)
+
+    # 7. 처형
+    execution = Skill("dk_execution", "처형", "충전 100 소모 (충전 100: 5.5배, 적 체력 비례 추가 데미지)")
+    execution.effects = [
+        DamageEffect(DamageType.BRV_HP, 1.5, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.04}),  # 충전 1%당 +4% 데미지
+        GimmickEffect(GimmickOperation.SET, "charge_gauge", 0)  # 충전 완전 소모
+    ]
+    execution.costs = [MPCost(30), StackCost("charge_gauge", 100)]
+    execution.cast_time = 1.0  # ATB 100% 캐스트 타임 (매우 긴 시전)
+    execution.sfx = ("skill", "ultima")
+    execution.metadata = {
+        "charge_cost": 100,
+        "spender": True,
+        "cast_time": 1.0,
+        "execute": True,  # 적 체력이 낮을수록 추가 데미지
+        "low_hp_bonus": 2.0  # 적 HP 30% 이하일 때 데미지 2배
+    }
+    skills.append(execution)
+
+    # ============================================================
+    # SPECIAL - 패링 기술
+    # ============================================================
+
+    # 8. 복수의 패링 (원래 dark_slash)
+    vengeful_parry = Skill("dk_vengeful_parry", "복수의 패링", "캐스트 중 피격 시 카운터 (MP 8)")
+    vengeful_parry.effects = [
+        DamageEffect(DamageType.BRV_HP, 1.0),  # 기본 피해 (캐스트 완료 시) 1.5 → 1.0
+        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 5, max_value=100)  # 충전 10 → 5
+    ]
+    vengeful_parry.costs = [MPCost(8)]  # MP 15 → 8
+    vengeful_parry.cast_time = 0.7  # ATB 70% 캐스트 타임 (긴 시전)
+    vengeful_parry.sfx = ("combat", "attack_physical")
+    vengeful_parry.metadata = {
+        "parry": True,  # 패링 기술
+        "parry_damage_multiplier": 2.5,  # 패링 성공 시 데미지 3배 → 2.5배
+        "parry_charge_gain": 25,  # 패링 성공 시 충전 30 → 25
+        "cast_time": 0.7,
+        "interruptible": True,  # 중단 가능
+        "counter_on_interrupt": True  # 캐스트 중 피격 시 카운터
+    }
+    skills.append(vengeful_parry)
+
+    # ============================================================
+    # UTILITY
+    # ============================================================
+
+    # 9. 어둠의 재생
+    dark_regeneration = Skill("dk_dark_regeneration", "어둠의 재생", "충전 20 소모하여 HP/BRV 회복")
+    dark_regeneration.effects = [
+        HealEffect(heal_multiplier=1.5, max_hp_percent=0.3),  # 최대 HP의 30% 회복
+        GimmickEffect(GimmickOperation.CONSUME, "charge_gauge", 20)
+    ]
+    dark_regeneration.costs = [MPCost(10), StackCost("charge_gauge", 20)]
+    dark_regeneration.target_type = "self"
+    dark_regeneration.sfx = ("character", "hp_heal")
+    dark_regeneration.metadata = {
+        "charge_cost": 20,
+        "heal": True,
+        "brv_restore": True  # BRV도 회복
+    }
+    skills.append(dark_regeneration)
+
+    # 10. 궁극기: 불굴의 힘
+    ultimate = Skill("dk_ultimate", "불굴의 힘", "모든 충전 소모. 막강한 피해 + 생존 버프")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "darkness", "multiplier": 0.5}),
-        DamageEffect(DamageType.HP, 3.5),
-        LifestealEffect(1.0),
+        DamageEffect(DamageType.BRV, 3.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.03}),
+        DamageEffect(DamageType.HP, 5.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.04}),
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
-        GimmickEffect(GimmickOperation.SET, "darkness", 0)
+        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=5),
+        GimmickEffect(GimmickOperation.SET, "charge_gauge", 0)  # 충전 완전 소모
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(40)]
     ultimate.is_ultimate = True
     ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
-    ultimate.target_type = "all_enemies"
-    ultimate.is_aoe = True
-    ultimate.sfx = ("skill", "limit_break")  # 궁극기
-    ultimate.metadata = {"ultimate": True, "darkness_consume_all": True, "darkness_scaling": True, "lifesteal": True, "aoe": True}
+    ultimate.target_type = "single_enemy"
+    ultimate.sfx = ("skill", "limit_break")
+    ultimate.metadata = {
+        "ultimate": True,
+        "charge_consume_all": True,
+        "last_stand": True  # 사망 위기 시 충전 100 소모하여 생존 (특성으로 처리)
+    }
     skills.append(ultimate)
 
     return skills

@@ -26,24 +26,24 @@ stat_growth:
   max_brv: 92.0
 traits:
   - id: "sanguine_arts"
-    name: "혈기술 (Sanguine Arts)"
+    name: "혈기술"
     description: "마법 공격 시 데미지의 20%를 흡혈하고, 마법 공격력이 15% 증가합니다."
-    cost: 3
     
   - id: "vitality_overflow"
-    name: "생명력 과부하 (Vitality Overflow)"
+    name: "생명력 과부하"
     description: "최대 체력일 때 초과되는 흡혈량이 BRV 회복으로 전환됩니다."
-    cost: 3
     
   - id: "bleeding_heart"
-    name: "출혈의 심장 (Bleeding Heart)"
+    name: "출혈의 심장"
     description: "출혈 상태인 적에게 크리티컬 확률 +30%, 크리티컬 데미지 +30% 증가합니다."
-    cost: 3
     
   - id: "shadow_veil"
-    name: "그림자 장막 (Shadow Veil)"
+    name: "그림자 장막"
     description: "회피율이 15% 증가하며, 턴 시작 시 HP가 30% 미만이면 은신 상태가 됩니다 (전투당 1회)."
-    cost: 4
+    
+  - id: "blood_empowerment"
+    name: "혈액 강화"
+    description: "흡혈 성공 시 30% 확률로 3턴간 공격력 +20%, 속도 +15% 버프를 획득합니다."
 
 gimmick:
   type: thirst_gauge

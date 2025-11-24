@@ -1,63 +1,112 @@
 class_name: 암흑기사
-description: 적의 생명력을 흡수하여 끝없이 싸우는 어둠의 전사
-archetype: 흡혈 딜러
+description: 모든 것을 하나의 일격에 쏟아붓는 완벽한 타이밍의 전사
+archetype: 원샷 딜러
 base_stats:
-  hp: 189
-  mp: 53
-  init_brv: 132
-  speed: 52
-  physical_attack: 71
-  physical_defense: 58
-  magic_attack: 54
-  magic_defense: 51
-  max_brv: 488
+  hp: 205
+  mp: 45
+  init_brv: 145
+  speed: 55
+  physical_attack: 74
+  physical_defense: 61
+  magic_attack: 42
+  magic_defense: 55
+  max_brv: 550
 stat_growth:
-  hp: 12
-  mp: 4
-  init_brv: 26.4
-  strength: 5.0
-  defense: 3.2
-  magic: 2.5
-  spirit: 3.0
-  speed: 3.8
-  luck: 2.2
-  accuracy: 2.0
-  evasion: 1.5
-  max_brv: 97.6
+  hp: 15
+  mp: 3
+  init_brv: 29
+  strength: 6
+  defense: 5
+  magic: 2
+  spirit: 4
+  speed: 3
+  luck: 3
+  accuracy: 3
+  evasion: 2
+  max_brv: 110
+
 traits:
-- id: lifesteal
-  name: 생명 흡수
-  description: 물리 데미지의 25% HP 회복
-  type: passive
-- id: dark_pact
-  name: 어둠의 계약
-  description: 자신의 HP를 소모하여 공격력 증가 (HP 10% = 공격력 +30%)
-  type: trigger
-- id: blood_rage
-  name: 피의 광기
-  description: HP 50% 이하일 때 공격 속도 +25%
-  type: trigger
-- id: undying_will
-  name: 불사의 의지
-  description: 전투 중 1회, 치명상 시 HP 30%로 생존
-  type: trigger
-- id: cursed_blade
-  name: 저주받은 검
-  description: 공격 시 15% 확률로 적에게 출혈 부여 (턴당 BRV 감소)
-  type: trigger
+  - id: "perfect_strike"
+    name: "완벽한 일격"
+    description: "완전 충전(100%) 상태에서 공격 시 15% 확률로 일반 몬스터를 즉사시키고, 보스에게는 50% 추가 피해를 입힙니다."
+    
+  - id: "charge_acceleration"
+    name: "충전 가속"
+    description: "모든 행동으로 얻는 충전량이 50% 증가합니다."
+    
+  - id: "survival_instinct"
+    name: "생존 본능"
+    description: "HP가 낮을수록 방어력이 증가하며(최대 +50%), 받는 회복 효과가 30% 증가합니다."
+    
+  - id: "explosive_power"
+    name: "폭발적 힘"
+    description: "충전 75% 이상에서 스킬 사용 시, 소모한 충전량에 비례하여 주변 적들에게 충격파 피해(공격력의 50~100%)를 입힙니다."
+
+  - id: "overflowing_darkness"
+    name: "넘치는 어둠"
+    description: "턴 시작 시 충전량이 50% 이상이라면, 자신의 BRV를 최대 BRV의 10%만큼 회복합니다."
+
 gimmick:
-  type: darkness_system
-  name: 어둠의 힘
-  description: 자신의 HP를 소모하여 어둠의 힘을 얻고 강력한 암흑 마법 사용
-  max_darkness: 100
+  type: charge_system
+  name: 충전 시스템
+  description: >
+    공격과 방어로 '충전'을 쌓고, 강력한 스킬로 '방출'하는 메커니즘입니다.
+    충전 단계가 높을수록 스탯이 상승하지만, 스킬 사용 시 충전이 소모됩니다.
+  min_charge: 0
+  max_charge: 100
+  start_charge: 0
+  charge_zones:
+    준비:
+      min: 0
+      max: 24
+      description: 준비 단계 (효과 없음)
+    집중:
+      min: 25
+      max: 49
+      description: 일격 준비 (물공 +10%, 치명타율 +5%)
+    강화:
+      min: 50
+      max: 74
+      description: 힘의 집중 (물공 +20%, 치명타율 +10%, 치명타 피해 +20%)
+    결정타:
+      min: 75
+      max: 99
+      description: 결정타 준비 (물공 +35%, 치명타율 +20%, 치명타 피해 +40%, 방어 무시 +10%)
+    완전충전:
+      min: 100
+      max: 100
+      description: 완전 충전 (물공 +60%, 치명타율 +40%, 치명타 피해 +60%, 방어 무시 +20%)
+  
+  charge_mechanics:
+    # 충전 획득 (Builders)
+    basic_attack_gain: 15
+    defend_gain: 25
+    take_damage_gain: 10
+    kill_gain: 20
+    
+    # 충전 소모 (Spenders)
+    # 스킬별 소모량은 스킬 데이터에서 정의하거나 여기서 전역 설정
+    skill_cost_multiplier: 1.0  # 기본 소모 배율
+
 skills:
-- dark_slash
-- blood_drain
-- shadow_step
-- dark_sacrifice
-- vengeful_strike
-- abyss_blade
+# Builders (충전 쌓기)
+- dk_charge_strike     # 기본 BRV 공격, 충전 +15
+- dk_crushing_blow     # 기본 HP 공격, 충전 +10
+- dk_defensive_stance  # 방어 태세, 방어력 증가 + 피격 시 충전 2배
+- dk_counter_stance    # 반격 태세, 회피율 증가 + 회피 시 반격 및 충전 +20
+
+# Spenders (충전 사용 - 한방딜, 캐스트 타임 있음)
+- dk_power_strike      # 강타, 충전 30 소모. 강력한 단일 피해 (캐스트 0.3)
+- dk_abyssal_burst     # 심연의 폭발, 충전 50 소모. 광역 피해 + 기절 (캐스트 0.5)
+- dk_execution         # 처형, 충전 100 소모. 극대화된 단일 피해 (캐스트 1.0)
+
+# Special - 패링
+- dk_vengeful_parry    # 복수의 패링, 캐스트 중 피격 시 카운터 (캐스트 0.7)
+
+# Utility
+- dk_dark_regeneration # 어둠의 재생, 충전 20 소모하여 HP/BRV 회복
+- dk_ultimate          # 궁극기: 불굴의 힘
+
 bonuses:
-  lifesteal_rate: 0.1
-  critical_damage: 1.1
-  low_hp_bonus: 1.1
+  critical_damage: 1.5
+  counter_damage: 1.3
