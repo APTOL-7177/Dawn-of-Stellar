@@ -27,7 +27,7 @@ def create_vampire_skills():
     ]
     blood_drain.costs = []  # 기본 공격은 MP 소모 없음
     blood_drain.sfx = ("character", "hp_heal")  # 피의 흡수
-    blood_drain.metadata = {"basic_attack": True, "thirst_reduction": -20, "lifesteal": 0.4}
+    blood_drain.metadata = {"basic_attack": True, "thirst_reduction": -20, "lifesteal": 0.75}
 
     # 3. 피의 창 (갈증에 비례한 강력한 공격, 갈증 증가)
     blood_lance = Skill("vampire_blood_lance", "피의 창", "갈증에 비례한 강력한 공격, 갈증 증가")
@@ -94,7 +94,7 @@ def create_vampire_skills():
     life_tap = Skill("vampire_life_tap", "생명력 착취", "적의 생명력을 대량 흡수, 갈증 -30")
     life_tap.effects = [
         DamageEffect(DamageType.HP, 2.5, stat_type="magical"),
-        HealEffect(percentage=0.4),  # 생명력 착취 (흡혈 보너스)
+        HealEffect(percentage=0.9),  # 생명력 착취 (흡혈 보너스)
         GimmickEffect(GimmickOperation.ADD, "thirst", -30, min_value=0)  # 갈증 -30
     ]
     life_tap.costs = [MPCost(9)]
@@ -106,7 +106,7 @@ def create_vampire_skills():
     blood_satiation = Skill("vampire_blood_satiation", "혈액 만족", "갈증을 0으로 리셋 (만족 상태)")
     blood_satiation.effects = [
         GimmickEffect(GimmickOperation.SET, "thirst", 0),  # 갈증 0으로 리셋
-        HealEffect(percentage=0.38),  # 혈액 만족
+        HealEffect(percentage=0.6),  # 혈액 만족
         BuffEffect(BuffType.SPEED_UP, 0.3, duration=3)
     ]
     blood_satiation.costs = [MPCost(10)]

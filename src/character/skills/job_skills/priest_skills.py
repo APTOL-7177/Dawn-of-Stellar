@@ -50,7 +50,7 @@ def create_priest_skills():
     # 4. 성스러운 치유
     holy_heal = Skill("priest_holy_heal", "성스러운 치유", "심판 2포인트 소비, 회복")
     holy_heal.effects = [
-        HealEffect(HealType.HP, percentage=0.45),  # 성스러운 치유 (0.32 → 0.45 증가)
+        HealEffect(HealType.HP, percentage=1.25),  # 성스러운 치유 (0.32 → 1.25 증가)
         GimmickEffect(GimmickOperation.CONSUME, "judgment_points", 2)
     ]
     holy_heal.costs = [MPCost(5), StackCost("judgment_points", 2)]
@@ -118,7 +118,7 @@ def create_priest_skills():
     # 9. 신의 은총 (NEW - 10번째 스킬 전)
     divine_grace = Skill("priest_divine_grace", "신의 은총", "심판 4포인트 소비, 파티 치유와 버프")
     divine_grace.effects = [
-        HealEffect(HealType.HP, percentage=0.28, is_party_wide=True),  # 신의 은총 (파티 힐)
+        HealEffect(HealType.HP, percentage=0.82, is_party_wide=True),  # 신의 은총 (파티 힐)
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=4, is_party_wide=True),
         BuffEffect(BuffType.SPIRIT_UP, 0.4, duration=4, is_party_wide=True),
         BuffEffect(BuffType.REGEN, 0.24, duration=4, is_party_wide=True),

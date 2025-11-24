@@ -30,7 +30,7 @@ def create_alchemist_skills():
         DamageEffect(DamageType.HP, 1.2, gimmick_bonus={"field": "potion_stock", "multiplier": 0.2}, stat_type="magical"),
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 1)
     ]
-    explosive_potion.costs = []  # 기본 공격은 MP 소모 없음
+    explosive_potion.costs = []  # 기본 공격은 포션 없어도 사용 가능
     explosive_potion.sfx = ("item", "grenade")  # 폭발 포션
     explosive_potion.metadata = {"potion_cost": 1, "potion_scaling": True}
     skills.append(explosive_potion)
@@ -38,10 +38,10 @@ def create_alchemist_skills():
     # 3. 회복 포션
     healing_potion = Skill("alchemist_heal_potion", "회복 포션", "강력한 회복")
     healing_potion.effects = [
-        HealEffect(HealType.HP, percentage=0.50),  # 회복 포션 (0.42 → 0.50 증가)
+        HealEffect(HealType.HP, percentage=0.95),  # 회복 포션 (0.42 → 0.95 증가)
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 2)
     ]
-    healing_potion.costs = []
+    healing_potion.costs = [StackCost("potion_stock", 2)]
     healing_potion.target_type = "ally"
     healing_potion.sfx = ("character", "hp_heal")  # 회복 포션
     # healing_potion.cooldown = 2  # 쿨다운 시스템 제거됨
@@ -93,7 +93,7 @@ def create_alchemist_skills():
     # 7. 마나 포션
     mana_potion = Skill("alchemist_mana_potion", "마나 포션", "MP 대량 회복")
     mana_potion.effects = [
-        HealEffect(HealType.MP, base_amount=50),
+        HealEffect(HealType.MP, base_amount=30),
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 2)
     ]
     mana_potion.costs = [MPCost(2), StackCost("potion_stock", 2)]

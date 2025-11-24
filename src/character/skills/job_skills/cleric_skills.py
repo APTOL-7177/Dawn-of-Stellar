@@ -37,7 +37,7 @@ def create_cleric_skills():
     # 3. 치유
     heal = Skill("cleric_heal", "치유", "신앙 1포인트 소비, 단일 치유")
     heal.effects = [
-        HealEffect(HealType.HP, percentage=0.40),  # 기본 치유 (0.28 → 0.40 증가)
+        HealEffect(HealType.HP, percentage=1.15),  # 기본 치유 (0.28 → 1.15 증가)
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 1)
     ]
     heal.costs = []
@@ -50,7 +50,7 @@ def create_cleric_skills():
     # 4. 대치유
     greater_heal = Skill("cleric_greater_heal", "대치유", "신앙 2포인트 소비, 강력한 치유")
     greater_heal.effects = [
-        HealEffect(HealType.HP, percentage=0.65),  # 대치유
+        HealEffect(HealType.HP, percentage=1.85),  # 대치유
         BuffEffect(BuffType.REGEN, 0.18, duration=3),
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 2)
     ]
@@ -64,7 +64,7 @@ def create_cleric_skills():
     # 5. 집단 치유
     mass_heal = Skill("cleric_mass_heal", "집단 치유", "신앙 3포인트 소비, 파티 치유")
     mass_heal.effects = [
-        HealEffect(HealType.HP, percentage=0.25, is_party_wide=True),  # 집단 치유 (파티 힐은 낮게)
+        HealEffect(HealType.HP, percentage=0.72, is_party_wide=True),  # 집단 치유 (파티 힐은 낮게)
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 3)
     ]
     mass_heal.costs = [MPCost(6), StackCost("faith_points", 3)]
@@ -135,7 +135,7 @@ def create_cleric_skills():
     # 10. 궁극기: 신의 은총
     ultimate = Skill("cleric_ultimate", "신의 은총", "모든 신앙으로 완전한 치유")
     ultimate.effects = [
-        HealEffect(HealType.HP, percentage=1.15, is_party_wide=True),  # 궁극기
+        HealEffect(HealType.HP, percentage=2.15, is_party_wide=True),  # 궁극기
         BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5, is_party_wide=True),
         BuffEffect(BuffType.REGEN, 0.42, duration=5, is_party_wide=True),
         DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "faith_points", "multiplier": 0.3}, stat_type="magical"),
