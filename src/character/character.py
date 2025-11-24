@@ -91,6 +91,7 @@ class Character:
         # 직업 기믹 초기화
         self.gimmick_data = get_gimmick(character_class)
         self.gimmick_type = self.gimmick_data.get("type") if self.gimmick_data else None
+        self.system_traits: List[str] = []  # 시스템/기믹에 의해 자동 적용되는 특성
         self._initialize_gimmick()
 
         # 특성 (Trait) - YAML에서 로드
@@ -441,10 +442,31 @@ class Character:
         elif gimmick_type == "thirst_gauge":
             self.thirst = self.gimmick_data.get("start_thirst", 0)  # 갈증 게이지 (0-100)
             self.max_thirst = self.gimmick_data.get("max_thirst", 100)
-            self.satisfied_max = self.gimmick_data.get("satisfied_max", 29)  # 만족 구간
-            self.normal_min = self.gimmick_data.get("normal_min", 30)  # 보통 구간
-            self.normal_max = self.gimmick_data.get("normal_max", 69)
-            self.starving_min = self.gimmick_data.get("starving_min", 70)  # 굶주림 구간
+            # YAML의 thirst_zones에서 구간 정보 읽기
+            thirst_zones = self.gimmick_data.get("thirst_zones", {})
+            satisfied_zone = thirst_zones.get("satisfied", {})
+            thirsty_zone = thirst_zones.get("thirsty", {})
+            extreme_zone = thirst_zones.get("extreme", {})
+            frenzy_zone = thirst_zones.get("frenzy", {})
+            # 만족 구간 (0-30)
+            self.satisfied_max = satisfied_zone.get("max", 30)
+            # 갈증 구간 (31-60)
+            self.thirsty_min = thirsty_zone.get("min", 31)
+            self.thirsty_max = thirsty_zone.get("max", 60)
+            # 극심한 갈증 구간 (61-90)
+            self.extreme_min = extreme_zone.get("min", 61)
+            self.extreme_max = extreme_zone.get("max", 90)
+            # 혈액 광란 구간 (91-100)
+            self.frenzy_min = frenzy_zone.get("min", 91)
+            self.frenzy_max = frenzy_zone.get("max", 100)
+            # 하위 호환성을 위한 레거시 변수들 (deprecated)
+            self.normal_min = self.thirsty_min
+            self.normal_max = self.extreme_max
+            self.starving_min = self.frenzy_min
+            
+            # 뱀파이어 기믹 특성 자동 추가
+            if "vampire_thirst_gimmick" not in self.system_traits:
+                self.system_traits.append("vampire_thirst_gimmick")
 
         # 해커 - 멀티스레드 시스템 (신버전)
         elif gimmick_type == "multithread_system":

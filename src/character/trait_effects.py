@@ -49,6 +49,8 @@ class TraitEffectType(Enum):
     COOLDOWN_REDUCTION = "cooldown_reduction" # 쿨타임 감소
     DEFEND_BOOST = "defend_boost"            # 방어 보너스
     ALL_STATS_MULTIPLIER = "all_stats_multiplier"  # 모든 스탯 배율
+    LIFESTEAL_MULTIPLIER = "lifesteal_multiplier"  # 흡혈 배율
+    PASSIVE = "passive"                            # 패시브 (로직 처리용)
 
 
 @dataclass
@@ -2412,14 +2414,280 @@ class TraitEffectManager:
                     metadata={"description": "매 턴 갈증 +10 자동 증가"}
                 )
             ],
+
+            # === VAMPIRE (뱀파이어) ===
+            "vampire_thirst_gimmick": [
+                # 1. 만족 (0-30): 모든 스탯 +10%, 받는 피해 -15%, 흡혈 1.25배
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.ALL_STATS_MULTIPLIER,
+                    value=1.10,
+                    condition="thirst_satisfied",
+                    metadata={"description": "만족: 모든 스탯 +10%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.DAMAGE_REDUCTION,
+                    value=0.15,
+                    condition="thirst_satisfied",
+                    metadata={"description": "만족: 받는 피해 -15%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.LIFESTEAL_MULTIPLIER,
+                    value=1.25,
+                    condition="thirst_satisfied",
+                    metadata={"description": "만족: 흡혈 1.25배"}
+                ),
+                
+                # 2. 갈증 (31-60): 공/마 +15%, 흡혈 1.5배, 크리 +15%, 방/마방 -10%
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.15,
+                    condition="thirst_thirsty",
+                    target_stat="physical_attack",
+                    metadata={"description": "갈증: 공격력 +15%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.15,
+                    condition="thirst_thirsty",
+                    target_stat="magic_attack",
+                    metadata={"description": "갈증: 마법 공격력 +15%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.LIFESTEAL_MULTIPLIER,
+                    value=1.5,
+                    condition="thirst_thirsty",
+                    metadata={"description": "갈증: 흡혈 1.5배"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.CRITICAL_BONUS,
+                    value=0.15,
+                    condition="thirst_thirsty",
+                    metadata={"description": "갈증: 크리티컬 +15%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=0.90, # -10%
+                    condition="thirst_thirsty",
+                    target_stat="physical_defense",
+                    metadata={"description": "갈증: 방어력 -10%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=0.90, # -10%
+                    condition="thirst_thirsty",
+                    target_stat="magic_defense",
+                    metadata={"description": "갈증: 마법 방어력 -10%"}
+                ),
+
+                # 3. 극심한 갈증 (61-90): 공/마 +35%, 흡혈 2.0배, 속도 +50%, 크리뎀 +40%, 방/마방 -20%
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.35,
+                    condition="thirst_extreme",
+                    target_stat="physical_attack",
+                    metadata={"description": "극심: 공격력 +35%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.35,
+                    condition="thirst_extreme",
+                    target_stat="magic_attack",
+                    metadata={"description": "극심: 마법 공격력 +35%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.LIFESTEAL_MULTIPLIER,
+                    value=2.0,
+                    condition="thirst_extreme",
+                    metadata={"description": "극심: 흡혈 2.0배"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.50,
+                    condition="thirst_extreme",
+                    target_stat="speed",
+                    metadata={"description": "극심: 속도 +50%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.CRITICAL_DAMAGE,
+                    value=1.40, 
+                    condition="thirst_extreme",
+                    metadata={"description": "극심: 크리티컬 데미지 +40%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=0.80, # -20%
+                    condition="thirst_extreme",
+                    target_stat="physical_defense",
+                    metadata={"description": "극심: 방어력 -20%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=0.80, # -20%
+                    condition="thirst_extreme",
+                    target_stat="magic_defense",
+                    metadata={"description": "극심: 마법 방어력 -20%"}
+                ),
+
+                # 4. 혈액 광란 (91-100): 공/마 +75%, 흡혈 2.75배, 속도 +100%, 크리 +50%, 크리뎀 +100%, 받는 피해 +50%, 방/마방 -30% (capped)
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.75,
+                    condition="thirst_frenzy",
+                    target_stat="physical_attack",
+                    metadata={"description": "광란: 공격력 +75%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.75,
+                    condition="thirst_frenzy",
+                    target_stat="magic_attack",
+                    metadata={"description": "광란: 마법 공격력 +75%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.LIFESTEAL_MULTIPLIER,
+                    value=2.75,
+                    condition="thirst_frenzy",
+                    metadata={"description": "광란: 흡혈 2.75배"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=2.00,
+                    condition="thirst_frenzy",
+                    target_stat="speed",
+                    metadata={"description": "광란: 속도 +100%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.CRITICAL_BONUS,
+                    value=0.50,
+                    condition="thirst_frenzy",
+                    metadata={"description": "광란: 크리티컬 +50%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.CRITICAL_DAMAGE,
+                    value=2.00,
+                    condition="thirst_frenzy",
+                    metadata={"description": "광란: 크리티컬 데미지 +100%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.DAMAGE_REDUCTION,
+                    value=-0.50, # Negative reduction = increased damage taken
+                    condition="thirst_frenzy",
+                    metadata={"description": "광란: 받는 피해 +50%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=0.70, # -30% (Capped)
+                    condition="thirst_frenzy",
+                    target_stat="physical_defense",
+                    metadata={"description": "광란: 방어력 -30%"}
+                ),
+                TraitEffect(
+                    trait_id="vampire_thirst_gimmick",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=0.70, # -30% (Capped)
+                    condition="thirst_frenzy",
+                    target_stat="magic_defense",
+                    metadata={"description": "광란: 마법 방어력 -30%"}
+                ),
+            ],
+            
+            # === VAMPIRE SELECTABLE TRAITS (REVISED) ===
+            "sanguine_arts": [
+                TraitEffect(
+                    trait_id="sanguine_arts",
+                    effect_type=TraitEffectType.LIFESTEAL,
+                    value=0.20,
+                    condition="magic_skill",
+                    metadata={"description": "마법 공격 시 데미지의 20% 흡혈"}
+                ),
+                TraitEffect(
+                    trait_id="sanguine_arts",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.15,
+                    target_stat="magic_attack",
+                    metadata={"description": "마법 공격력 +15%"}
+                )
+            ],
+            "vitality_overflow": [
+                TraitEffect(
+                    trait_id="vitality_overflow",
+                    effect_type=TraitEffectType.PASSIVE, # Logic handled in Skill/LifestealEffect
+                    value=0.0,
+                    metadata={"description": "최대 체력 시 흡혈량이 BRV 회복으로 전환"}
+                )
+            ],
+            "bleeding_heart": [
+                TraitEffect(
+                    trait_id="bleeding_heart",
+                    effect_type=TraitEffectType.CRITICAL_BONUS,
+                    value=0.30,
+                    condition="target_debuff_bleed",
+                    metadata={"description": "출혈 상태 적에게 크리티컬 확률 +30%"}
+                ),
+                TraitEffect(
+                    trait_id="bleeding_heart",
+                    effect_type=TraitEffectType.CRITICAL_DAMAGE,
+                    value=1.30,
+                    condition="target_debuff_bleed",
+                    metadata={"description": "출혈 상태 적에게 크리티컬 데미지 +30%"}
+                )
+            ],
+            "shadow_veil": [
+                TraitEffect(
+                    trait_id="shadow_veil",
+                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    value=1.15,
+                    target_stat="evasion",
+                    metadata={"description": "회피율 +15%"}
+                ),
+                TraitEffect(
+                    trait_id="shadow_veil",
+                    effect_type=TraitEffectType.PERIODIC_BUFF,
+                    value=1.0,
+                    condition="turn_start_low_hp",
+                    metadata={"description": "턴 시작 시 HP 30% 미만이면 은신 상태 돌입 (전투당 1회)", "buff": "stealth", "once_per_battle": True}
+                )
+            ],
         }
 
         # 통합
         return {**passives, **job_traits}
-
     def get_trait_effects(self, trait_id: str) -> List[TraitEffect]:
         """특성 ID로 효과 리스트 가져오기"""
         return self.trait_definitions.get(trait_id, [])
+
+    def _get_all_traits(self, character: Any) -> List[Any]:
+        """캐릭터의 모든 활성 특성 (선택 + 시스템) 반환"""
+        traits = []
+        if hasattr(character, 'active_traits'):
+            traits.extend(character.active_traits)
+        if hasattr(character, 'system_traits'):
+            traits.extend(character.system_traits)
+        return traits
 
     def calculate_stat_bonus(
         self,
@@ -2438,12 +2706,10 @@ class TraitEffectManager:
         Returns:
             보너스 적용된 최종 값
         """
-        if not hasattr(character, 'active_traits'):
-            return base_value
-
         final_value = base_value
+        all_traits = self._get_all_traits(character)
 
-        for trait_data in character.active_traits:
+        for trait_data in all_traits:
             trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
             effects = self.get_trait_effects(trait_id)
 
@@ -2546,6 +2812,11 @@ class TraitEffectManager:
                     self.logger.debug(
                         f"[{trait_id}] {stat_name} 고정값 적용: +{effect.value} → {final_value}"
                     )
+                elif effect.effect_type == TraitEffectType.ALL_STATS_MULTIPLIER:
+                    final_value *= effect.value
+                    self.logger.debug(
+                        f"[{trait_id}] {stat_name} 모든 스탯 배율 적용: x{effect.value} → {final_value}"
+                    )
 
         return final_value
 
@@ -2566,12 +2837,10 @@ class TraitEffectManager:
         Returns:
             총 데미지 배율 (1.0 = 100%)
         """
-        if not hasattr(character, 'active_traits'):
-            return 1.0
-
         total_multiplier = 1.0
+        all_traits = self._get_all_traits(character)
 
-        for trait_data in character.active_traits:
+        for trait_data in all_traits:
             trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
             effects = self.get_trait_effects(trait_id)
 
@@ -2617,12 +2886,10 @@ class TraitEffectManager:
         Returns:
             최종 MP 소모
         """
-        if not hasattr(character, 'active_traits'):
-            return base_cost
-
         reduction_rate = 0.0
+        all_traits = self._get_all_traits(character)
 
-        for trait_data in character.active_traits:
+        for trait_data in all_traits:
             trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
             effects = self.get_trait_effects(trait_id)
 
@@ -2659,12 +2926,10 @@ class TraitEffectManager:
         Returns:
             크리티컬 확률 보너스 (0.15 = +15%)
         """
-        if not hasattr(character, 'active_traits'):
-            return 0.0
-
         bonus = 0.0
+        all_traits = self._get_all_traits(character)
 
-        for trait_data in character.active_traits:
+        for trait_data in all_traits:
             trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
             effects = self.get_trait_effects(trait_id)
 
@@ -2685,12 +2950,10 @@ class TraitEffectManager:
         Returns:
             브레이크 보너스 배율 (1.5 = 150%)
         """
-        if not hasattr(character, 'active_traits'):
-            return 0.0
-
         bonus = 0.0
+        all_traits = self._get_all_traits(character)
 
-        for trait_data in character.active_traits:
+        for trait_data in all_traits:
             trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
             effects = self.get_trait_effects(trait_id)
 
@@ -2712,12 +2975,10 @@ class TraitEffectManager:
         Returns:
             총 피해 감소율 (0.0 = 0%, 0.5 = 50%)
         """
-        if not hasattr(character, 'active_traits'):
-            return 0.0
-        
         total_reduction = 0.0
+        all_traits = self._get_all_traits(character)
         
-        for trait_data in character.active_traits:
+        for trait_data in all_traits:
             trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
             effects = self.get_trait_effects(trait_id)
             
@@ -2741,32 +3002,56 @@ class TraitEffectManager:
         # 최대 90%까지 감소 가능
         return min(total_reduction, 0.90)
 
-    def calculate_lifesteal(self, character: Any) -> float:
+    def calculate_lifesteal(self, character: Any, **context) -> float:
         """
         특성에 의한 생명력 흡수율 계산
 
         Args:
             character: 캐릭터
+            **context: 컨텍스트 정보 (스킬 등)
 
         Returns:
             생명력 흡수율 (0.10 = 10%)
         """
-        if not hasattr(character, 'active_traits'):
-            return 0.0
-
         lifesteal_rate = 0.0
+        all_traits = self._get_all_traits(character)
 
-        for trait_data in character.active_traits:
+        for trait_data in all_traits:
             trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
             effects = self.get_trait_effects(trait_id)
 
             for effect in effects:
                 if effect.effect_type == TraitEffectType.LIFESTEAL:
-                    if self._check_condition(character, effect.condition or "", {}):
+                    if self._check_condition(character, effect.condition or "", context):
                         lifesteal_rate += effect.value
                         self.logger.debug(f"[{trait_id}] 생명력 흡수: +{effect.value * 100:.0f}%")
 
         return lifesteal_rate
+
+    def calculate_lifesteal_multiplier(self, character: Any) -> float:
+        """
+        특성에 의한 생명력 흡수 배율 계산
+        
+        Args:
+            character: 캐릭터
+            
+        Returns:
+            생명력 흡수 배율 (1.0 = 100%, 2.0 = 200%)
+        """
+        multiplier = 1.0
+        all_traits = self._get_all_traits(character)
+        
+        for trait_data in all_traits:
+            trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+            effects = self.get_trait_effects(trait_id)
+            
+            for effect in effects:
+                if effect.effect_type == TraitEffectType.LIFESTEAL_MULTIPLIER:
+                    if self._check_condition(character, effect.condition or "", {}):
+                        multiplier *= effect.value
+                        self.logger.debug(f"[{trait_id}] 생명력 흡수 배율: x{effect.value}")
+                        
+        return multiplier
 
     def calculate_mana_leech(self, character: Any) -> float:
         """
@@ -2778,12 +3063,10 @@ class TraitEffectManager:
         Returns:
             마력 흡수율 (0.05 = 5%)
         """
-        if not hasattr(character, 'active_traits'):
-            return 0.0
-
         mana_leech_rate = 0.0
+        all_traits = self._get_all_traits(character)
 
-        for trait_data in character.active_traits:
+        for trait_data in all_traits:
             trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
             effects = self.get_trait_effects(trait_id)
 
@@ -2805,12 +3088,10 @@ class TraitEffectManager:
         Returns:
             크리티컬 데미지 배율 (1.0 = 100%, 1.5 = 150%)
         """
-        if not hasattr(character, 'active_traits'):
-            return 1.0
-
         critical_damage_mult = 1.0
+        all_traits = self._get_all_traits(character)
 
-        for trait_data in character.active_traits:
+        for trait_data in all_traits:
             trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
             effects = self.get_trait_effects(trait_id)
 
@@ -2830,10 +3111,9 @@ class TraitEffectManager:
         Args:
             character: 캐릭터
         """
-        if not hasattr(character, 'active_traits'):
-            return
+        all_traits = self._get_all_traits(character)
 
-        for trait_data in character.active_traits:
+        for trait_data in all_traits:
             trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
             effects = self.get_trait_effects(trait_id)
 
@@ -2859,6 +3139,36 @@ class TraitEffectManager:
                         self.logger.info(
                             f"[{trait_id}] {character.name} MP 회복: {actual} ({effect.value * 100}%)"
                         )
+                
+                # 주기적 버프 (은신 등)
+                elif effect.effect_type == TraitEffectType.PERIODIC_BUFF:
+                    if effect.condition == "turn_start_low_hp":
+                        # HP 30% 미만 체크
+                        hp_percent = character.current_hp / character.max_hp
+                        if hp_percent < 0.3:
+                            # 전투당 1회 체크
+                            if effect.metadata.get("once_per_battle"):
+                                # 캐릭터에 플래그 저장
+                                flag_name = f"_trait_used_{trait_id}"
+                                if getattr(character, flag_name, False):
+                                    continue
+                                setattr(character, flag_name, True)
+                            
+                            # 버프 적용
+                            buff_name = effect.metadata.get("buff")
+                            if buff_name == "stealth" and hasattr(character, 'status_manager'):
+                                from src.combat.status_effects import StatusEffect, StatusType
+                                # 은신 상태 추가 (2턴)
+                                character.status_manager.add_status(
+                                    StatusEffect(
+                                        name="은신",
+                                        status_type=StatusType.STEALTH,
+                                        duration=2,
+                                        intensity=1.0,
+                                        source_id=trait_id
+                                    )
+                                )
+                                self.logger.info(f"[{trait_id}] {character.name} 은신 발동 (HP {hp_percent*100:.0f}%)")
 
     def apply_on_kill_effects(self, attacker: Any, defender: Any):
         """
@@ -2868,10 +3178,9 @@ class TraitEffectManager:
             attacker: 공격자 (처치한 캐릭터)
             defender: 방어자 (처치된 캐릭터)
         """
-        if not hasattr(attacker, 'active_traits'):
-            return
+        all_traits = self._get_all_traits(attacker)
 
-        for trait_data in attacker.active_traits:
+        for trait_data in all_traits:
             trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
             effects = self.get_trait_effects(trait_id)
 
@@ -3038,11 +3347,28 @@ class TraitEffectManager:
                 return character.thirst <= character.satisfied_max
             return False
 
-        elif condition == "thirst_normal":
+        elif condition == "thirst_thirsty":
             if hasattr(character, 'thirst'):
-                normal_min = getattr(character, 'normal_min', 30)
-                normal_max = getattr(character, 'normal_max', 69)
-                return normal_min <= character.thirst <= normal_max
+                # character의 thirsty_min, thirsty_max 사용 (YAML에서 로드됨)
+                thirsty_min = getattr(character, 'thirsty_min', 31)
+                thirsty_max = getattr(character, 'thirsty_max', 60)
+                return thirsty_min <= character.thirst <= thirsty_max
+            return False
+
+        elif condition == "thirst_extreme":
+            if hasattr(character, 'thirst'):
+                # character의 extreme_min, extreme_max 사용 (YAML에서 로드됨)
+                extreme_min = getattr(character, 'extreme_min', 61)
+                extreme_max = getattr(character, 'extreme_max', 90)
+                return extreme_min <= character.thirst <= extreme_max
+            return False
+
+        elif condition == "thirst_frenzy":
+            if hasattr(character, 'thirst'):
+                # character의 frenzy_min, frenzy_max 사용 (YAML에서 로드됨)
+                frenzy_min = getattr(character, 'frenzy_min', 91)
+                frenzy_max = getattr(character, 'frenzy_max', 100)
+                return frenzy_min <= character.thirst <= frenzy_max
             return False
 
         elif condition == "thirst_starving":
@@ -3206,6 +3532,14 @@ class TraitEffectManager:
         elif condition == "using_potion":
             # context에서 아이템 사용 정보 확인
             return context.get("using_potion", False) if context else False
+
+        # 출혈 상태 적 조건
+        elif condition == "target_debuff_bleed":
+            target = context.get("target")
+            if target and hasattr(target, 'status_manager'):
+                from src.combat.status_effects import StatusType
+                return target.status_manager.has_status(StatusType.BLEED)
+            return False
 
         # 기본적으로 조건 만족
         return True

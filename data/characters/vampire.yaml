@@ -25,82 +25,30 @@ stat_growth:
   evasion: 2.8
   max_brv: 92.0
 traits:
-- id: blood_satisfaction
-  name: 피의 만족
-  description: 갈증 0-30일 때 모든 스탯 +10%, 받는 데미지 -15%
-  type: conditional
-  conditions:
-    thirst_min: 0
-    thirst_max: 30
-  effects:
-    all_stats_multiplier: 1.1
-    damage_taken_multiplier: 0.85
-- id: thirsty_state
-  name: 갈증 상태
-  description: 갈증 31-60일 때 공격력/마법력 +15%, 흡혈 효과 2배, 크리티컬 확률 +15%
-  type: conditional
-  conditions:
-    thirst_min: 31
-    thirst_max: 60
-  effects:
-    attack_multiplier: 1.15
-    magic_multiplier: 1.15
-    lifesteal_multiplier: 2.0
-    critical_rate_bonus: 0.15
-- id: extreme_thirst
-  name: 극심한 갈증
-  description: 갈증 61-90일 때 공격력/마법력 +35%, 흡혈 3배, 속도 +50%, 크리티컬 데미지 +40%
-  type: conditional
-  conditions:
-    thirst_min: 61
-    thirst_max: 90
-  effects:
-    attack_multiplier: 1.35
-    magic_multiplier: 1.35
-    lifesteal_multiplier: 3.0
-    speed_multiplier: 1.5
-    critical_damage_bonus: 0.4
-- id: controlled_frenzy
-  name: 통제된 광란
-  description: 갈증 91-95일 때 공격력/마법력 +60%, 흡혈 4배, 속도 +80%, 크리티컬 확률 +30%, 받는 데미지 +30%
-  type: conditional
-  conditions:
-    thirst_min: 91
-    thirst_max: 95
-  effects:
-    attack_multiplier: 1.6
-    magic_multiplier: 1.6
-    lifesteal_multiplier: 4.0
-    speed_multiplier: 1.8
-    critical_rate_bonus: 0.3
-    damage_taken_multiplier: 1.3
-- id: blood_frenzy
-  name: 혈액 광란
-  description: 갈증 96-100일 때 공격력/마법력 +75%, 흡혈 5배, 속도 +100%, 크리티컬 확률 +50%, 크리티컬 데미지 +100%,
-    받는 데미지 +50%, 매 턴 HP 10% 감소
-  type: conditional
-  conditions:
-    thirst_min: 96
-    thirst_max: 100
-  effects:
-    attack_multiplier: 1.75
-    magic_multiplier: 1.75
-    lifesteal_multiplier: 5.0
-    speed_multiplier: 2.0
-    critical_rate_bonus: 0.5
-    critical_damage_bonus: 1.0
-    damage_taken_multiplier: 1.5
-- id: blood_control
-  name: 피의 통제
-  description: 매 턴 갈증 +5 자동 증가 (기존 10에서 감소), 흡혈 성공 시 갈증 감소량 +50%
-  type: passive
-  effects:
-    thirst_per_turn: 5
-    thirst_reduction_on_lifesteal: 1.5
+  - id: "sanguine_arts"
+    name: "혈기술 (Sanguine Arts)"
+    description: "마법 공격 시 데미지의 20%를 흡혈하고, 마법 공격력이 15% 증가합니다."
+    cost: 3
+    
+  - id: "vitality_overflow"
+    name: "생명력 과부하 (Vitality Overflow)"
+    description: "최대 체력일 때 초과되는 흡혈량이 BRV 회복으로 전환됩니다."
+    cost: 3
+    
+  - id: "bleeding_heart"
+    name: "출혈의 심장 (Bleeding Heart)"
+    description: "출혈 상태인 적에게 크리티컬 확률 +30%, 크리티컬 데미지 +30% 증가합니다."
+    cost: 3
+    
+  - id: "shadow_veil"
+    name: "그림자 장막 (Shadow Veil)"
+    description: "회피율이 15% 증가하며, 턴 시작 시 HP가 30% 미만이면 은신 상태가 됩니다 (전투당 1회)."
+    cost: 4
+
 gimmick:
   type: thirst_gauge
   name: 갈증 관리 시스템
-  description: 갈증(0-100)이 높을수록 강력하지만 통제 불가 위험. 피 흡수로 갈증 감소
+  description: 갈증(0-100)에 따라 능력치 변화. 갈증이 높을수록 공격적이지만 방어력이 감소함.
   min_thirst: 0
   max_thirst: 100
   start_thirst: 30
@@ -108,19 +56,19 @@ gimmick:
     satisfied:
       min: 0
       max: 30
-      description: 만족 (정상)
+      description: 만족 (모든 스탯 +10%, 받는 피해 -15%, 흡혈 1.25배)
     thirsty:
       min: 31
       max: 60
-      description: 갈증 (공격력 +30%, 흡혈 2배)
+      description: 갈증 (공/마 +15%, 흡혈 1.5배, 크리 +15%, 방/마방 -10%)
     extreme:
       min: 61
       max: 90
-      description: 극심한 갈증 (+70% 공격, 흡혈 3배, 속도 +50%)
+      description: 극심한 갈증 (공/마 +35%, 흡혈 2.0배, 속도 +50%, 크리뎀 +40%, 방/마방 -20%)
     frenzy:
       min: 91
       max: 100
-      description: 혈액 광란 (통제 불가)
+      description: 혈액 광란 (공/마 +75%, 흡혈 2.75배, 속도 +100%, 크리 +50%, 크리뎀 +100%, 받는 피해 +50%, 방/마방 -30%)
   thirst_changes:
     blood_drain: -20
     turn_elapsed: 5

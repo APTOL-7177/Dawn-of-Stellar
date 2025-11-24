@@ -328,21 +328,62 @@ class Skill:
                         total_dmg += aoe_result.damage_dealt
                         logger.debug(f"AOE 피해: {aoe_result.damage_dealt}")
 
-        # 스킬 메타데이터의 lifesteal 처리 (흡혈귀 등)
+        # 스킬 메타데이터 및 특성 lifesteal 처리
+        trait_lifesteal_rate = 0.0
+        trait_manager = None  # 초기화
+        # 특성 매니저 가져오기 (순환 참조 방지)
+        try:
+            from src.character.trait_effects import get_trait_effect_manager
+            trait_manager = get_trait_effect_manager()
+            # context에 스킬 정보 포함
+            lifesteal_context = {'skill': self, 'target': target}
+            trait_lifesteal_rate = trait_manager.calculate_lifesteal(user, **lifesteal_context)
+        except ImportError:
+            pass
+
+        metadata_lifesteal_rate = 0.0
         if self.metadata and 'lifesteal' in self.metadata:
-            lifesteal_rate = self.metadata.get('lifesteal')
-            if lifesteal_rate and total_dmg > 0:
-                # lifesteal_rate가 숫자인 경우 (비율)
-                if isinstance(lifesteal_rate, (int, float)) and lifesteal_rate > 0:
-                    heal_amount = int(total_dmg * lifesteal_rate)
-                    if heal_amount > 0:
-                        if hasattr(user, 'heal'):
-                            actual_heal = user.heal(heal_amount)
-                            total_heal += actual_heal
-                            from src.core.logger import get_logger
-                            logger = get_logger("skill")
-                            logger.info(f"[생명력 흡수] {user.name} HP 회복: +{actual_heal} (피해의 {lifesteal_rate * 100:.0f}%)")
-                            effect_messages.append(f"생명력 흡수 +{actual_heal}")
+            rate = self.metadata.get('lifesteal')
+            if isinstance(rate, (int, float)) and rate > 0:
+                metadata_lifesteal_rate = rate
+
+        total_lifesteal_rate = trait_lifesteal_rate + metadata_lifesteal_rate
+        
+        if total_lifesteal_rate > 0 and total_dmg > 0:
+            # 흡혈 배율 적용
+            multiplier = 1.0
+            if trait_manager:
+                 multiplier = trait_manager.calculate_lifesteal_multiplier(user)
+            
+            lifesteal_amount = int(total_dmg * total_lifesteal_rate * multiplier)
+            
+            if lifesteal_amount > 0:
+                if hasattr(user, 'heal'):
+                    actual_heal = user.heal(lifesteal_amount)
+                    total_heal += actual_heal
+                    
+                    msg = f"생명력 흡수 +{actual_heal}"
+                    
+                    # Vitality Overflow Logic (Duplicate of LifestealEffect logic, but needed here for metadata/trait lifesteal)
+                    has_overflow = False
+                    if hasattr(user, 'active_traits') and 'vitality_overflow' in user.active_traits:
+                        has_overflow = True
+                    elif hasattr(user, 'system_traits') and 'vitality_overflow' in user.system_traits:
+                        has_overflow = True
+                        
+                    if has_overflow:
+                        overheal = lifesteal_amount - actual_heal
+                        if overheal > 0 and hasattr(user, 'current_brv') and hasattr(user, 'max_brv'):
+                            old_brv = user.current_brv
+                            user.current_brv = min(user.current_brv + overheal, user.max_brv)
+                            brv_gain = user.current_brv - old_brv
+                            if brv_gain > 0:
+                                msg += f", BRV 전환 +{brv_gain}"
+
+                    from src.core.logger import get_logger
+                    logger = get_logger("skill")
+                    logger.info(f"[생명력 흡수] {user.name} HP 회복: +{actual_heal} (피해의 {total_lifesteal_rate * multiplier * 100:.0f}%)")
+                    effect_messages.append(msg)
 
         # 최종 메시지 구성 (ISSUE-003: 상세 피드백)
         base_message = f"{user.name}이(가) {self.name} 사용!"
