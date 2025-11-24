@@ -1,3 +1,12 @@
+from enum import Enum
+from dataclasses import dataclass
+from typing import Set, Dict, Any, Optional
+import random
+
+from src.core.logger import get_logger
+
+logger = get_logger("environmental_effects")
+
 
 class EnvironmentalEffectType(Enum):
     """환경 효과 타입"""

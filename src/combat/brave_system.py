@@ -363,8 +363,16 @@ class BraveSystem:
         defender._last_damage_kwargs = kwargs.copy()
         defender._last_original_damage = damage_result.base_damage  # 방어력 적용 전 원본 데미지
         
+        # 치명적 피해 면역 확인 (last_stand 특성 등)
+        final_hp_damage = damage_result.final_damage
+        immunity_triggered = False
+        if hasattr(defender, 'active_traits'):
+            immunity_triggered, final_hp_damage = trait_manager.check_fatal_damage_immunity(
+                defender, damage_result.final_damage
+            )
+        
         # HP 데미지 적용 (피해 감소는 take_damage 내부에서 처리)
-        hp_damage = defender.take_damage(damage_result.final_damage)
+        hp_damage = defender.take_damage(final_hp_damage)
         
         # 보호 효과 처리 후 원본 정보 제거
         if hasattr(defender, '_last_attacker'):

@@ -1,15 +1,151 @@
 """
 게이지 렌더러
 
-픽셀 단위 부드러운 게이지 (그라디언트 색상 활용)
+픽셀 단위 부드러운 게이지 (커스텀 타일셋 기반 16분할)
++ 애니메이션 시스템 (천천히 변화하는 효과)
 """
 
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Dict, Any
 import tcod.console
+import time
+
+# 게이지 타일셋 임포트 (지연 임포트로 순환 참조 방지)
+_gauge_tileset_loaded = False
+_gauge_tile_manager = None
+
+def _get_tile_manager():
+    """게이지 타일 관리자 가져오기 (지연 로드)"""
+    global _gauge_tileset_loaded, _gauge_tile_manager
+    if not _gauge_tileset_loaded:
+        try:
+            from src.ui.gauge_tileset import get_gauge_tile_manager
+            _gauge_tile_manager = get_gauge_tile_manager()
+            _gauge_tileset_loaded = True
+        except ImportError:
+            _gauge_tile_manager = None
+            _gauge_tileset_loaded = True
+    return _gauge_tile_manager
+
+
+class AnimatedValue:
+    """애니메이션 값 - 시간에 따라 부드럽게 변화"""
+    
+    def __init__(self, initial_value: float = 0, duration: float = 0.5):
+        """
+        Args:
+            initial_value: 초기 값
+            duration: 변화에 걸리는 시간 (초)
+        """
+        self.current = initial_value  # 현재 표시 값
+        self.target = initial_value   # 목표 값
+        self.previous = initial_value # 이전 값 (데미지 표시용)
+        self.duration = duration
+        self.start_time = time.time()
+        self.change_time = time.time()  # 마지막 변화 시간
+        
+    def set_target(self, new_target: float):
+        """새로운 목표 값 설정"""
+        if new_target != self.target:
+            self.previous = self.current
+            self.target = new_target
+            self.start_time = time.time()
+            self.change_time = time.time()
+    
+    def update(self) -> float:
+        """애니메이션 업데이트 후 현재 표시 값 반환"""
+        if self.current == self.target:
+            return self.current
+        
+        elapsed = time.time() - self.start_time
+        if elapsed >= self.duration:
+            self.current = self.target
+        else:
+            # 이징 함수 (ease-out)
+            t = elapsed / self.duration
+            t = 1 - (1 - t) ** 3  # cubic ease-out
+            self.current = self.previous + (self.target - self.previous) * t
+        
+        return self.current
+    
+    def get_damage_trail(self) -> Tuple[float, float]:
+        """데미지 트레일 범위 반환 (데미지 받은 부분 표시용)"""
+        # 데미지를 받았을 때 이전 값에서 현재 값까지의 범위
+        if self.target < self.previous:
+            # HP 감소 (데미지)
+            trail_start = self.target
+            trail_end = self.current
+            return (trail_start, trail_end)
+        return (self.current, self.current)
+    
+    def is_animating(self) -> bool:
+        """애니메이션 중인지 확인"""
+        return abs(self.current - self.target) > 0.1
+
+
+class GaugeAnimationManager:
+    """게이지 애니메이션 관리자"""
+    
+    def __init__(self):
+        self._values: Dict[str, AnimatedValue] = {}
+        self._display_numbers: Dict[str, float] = {}  # 표시용 숫자 (빠르게 증감)
+        self._number_speed = 50  # 초당 변화량
+    
+    def get_animated_value(self, key: str, actual_value: float, max_value: float, duration: float = 0.8) -> AnimatedValue:
+        """애니메이션 값 가져오기 또는 생성"""
+        if key not in self._values:
+            self._values[key] = AnimatedValue(actual_value, duration)
+        
+        anim = self._values[key]
+        anim.set_target(actual_value)
+        return anim
+    
+    def get_display_number(self, key: str, actual_value: float, delta_time: float = 0.016) -> int:
+        """빠르게 증감하는 표시용 숫자 반환"""
+        if key not in self._display_numbers:
+            self._display_numbers[key] = actual_value
+        
+        current = self._display_numbers[key]
+        diff = actual_value - current
+        
+        if abs(diff) < 1:
+            self._display_numbers[key] = actual_value
+        else:
+            # 차이에 비례해서 빠르게 이동 (최소 1, 최대 diff의 30%)
+            speed = max(1, min(abs(diff) * 0.3, self._number_speed * delta_time * abs(diff)))
+            if diff > 0:
+                self._display_numbers[key] = min(actual_value, current + speed)
+            else:
+                self._display_numbers[key] = max(actual_value, current - speed)
+        
+        return int(self._display_numbers[key])
+    
+    def update_all(self):
+        """모든 애니메이션 업데이트"""
+        for anim in self._values.values():
+            anim.update()
+    
+    def clear(self):
+        """모든 애니메이션 초기화"""
+        self._values.clear()
+        self._display_numbers.clear()
+
+
+# 전역 애니메이션 관리자
+_animation_manager: Optional[GaugeAnimationManager] = None
+
+def get_animation_manager() -> GaugeAnimationManager:
+    """전역 애니메이션 관리자 반환"""
+    global _animation_manager
+    if _animation_manager is None:
+        _animation_manager = GaugeAnimationManager()
+    return _animation_manager
 
 
 class GaugeRenderer:
-    """게이지 렌더러 - draw_rect() 기반"""
+    """게이지 렌더러 - 커스텀 타일셋 기반 픽셀 단위 렌더링"""
+    
+    # 분할 수 (타일셋과 동일해야 함)
+    DIVISIONS = 32
 
     @staticmethod
     def render_bar(
@@ -43,7 +179,6 @@ class GaugeRenderer:
 
         # 색상 계산
         if custom_color:
-            # 커스텀 색상 사용
             fg_color = custom_color
             bg_color = tuple(c // 2 for c in custom_color)
         elif color_gradient:
@@ -60,33 +195,506 @@ class GaugeRenderer:
             fg_color = (150, 150, 150)
             bg_color = (50, 50, 50)
 
-        # 배경 (빈 부분)
-        console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
-
-        # 픽셀 단위 채우기
-        filled_exact = ratio * width  # 정확한 픽셀 위치
-        filled_full = int(filled_exact)  # 완전히 채워진 칸 수
-        filled_partial = filled_exact - filled_full  # 부분 채움 비율 (0.0~1.0)
-
-        # 완전히 채워진 부분
-        if filled_full > 0:
-            console.draw_rect(x, y, filled_full, 1, ord(" "), bg=fg_color)
-
-        # 부분적으로 채워진 마지막 칸 (그라디언트 색상)
-        if filled_partial > 0.0 and filled_full < width:
-            # fg_color와 bg_color 사이의 중간 색상 계산
-            partial_color = (
-                int(bg_color[0] + (fg_color[0] - bg_color[0]) * filled_partial),
-                int(bg_color[1] + (fg_color[1] - bg_color[1]) * filled_partial),
-                int(bg_color[2] + (fg_color[2] - bg_color[2]) * filled_partial)
+        # 타일 관리자 가져오기
+        tile_manager = _get_tile_manager()
+        
+        # 커스텀 타일셋 사용 가능한지 확인
+        use_tiles = tile_manager is not None and tile_manager.is_initialized()
+        
+        if use_tiles:
+            # === 커스텀 타일셋 기반 픽셀 단위 렌더링 ===
+            GaugeRenderer._render_pixel_bar(
+                console, x, y, width, ratio, fg_color, bg_color
             )
-            console.draw_rect(x + filled_full, y, 1, 1, ord(" "), bg=partial_color)
+        else:
+            # === 폴백: draw_rect 기반 색상 그라디언트 ===
+            # 배경 (빈 부분)
+            console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
 
+            # 픽셀 단위 채우기
+            filled_exact = ratio * width
+            filled_full = int(filled_exact)
+            filled_partial = filled_exact - filled_full
+
+            # 완전히 채워진 부분
+            if filled_full > 0:
+                console.draw_rect(x, y, filled_full, 1, ord(" "), bg=fg_color)
+
+            # 부분적으로 채워진 마지막 칸 (그라디언트 색상)
+            if filled_partial > 0.0 and filled_full < width:
+                partial_color = (
+                    int(bg_color[0] + (fg_color[0] - bg_color[0]) * filled_partial),
+                    int(bg_color[1] + (fg_color[1] - bg_color[1]) * filled_partial),
+                    int(bg_color[2] + (fg_color[2] - bg_color[2]) * filled_partial)
+                )
+                console.draw_rect(x + filled_full, y, 1, 1, ord(" "), bg=partial_color)
+
+        # 숫자 표시 - 왼쪽에 현재값, 오른쪽에 최대값
+        if show_numbers:
+            current_text = f"{int(current)}"
+            max_text = f"{int(maximum)}"
+            
+            min_width_needed = len(current_text) + len(max_text) + 3
+            
+            if width >= min_width_needed:
+                console.print(x + 1, y, current_text, fg=(255, 255, 255))
+                max_text_x = x + width - len(max_text) - 1
+                console.print(max_text_x, y, max_text, fg=(200, 200, 200))
+            elif width >= len(current_text) + 2:
+                console.print(x + 1, y, current_text, fg=(255, 255, 255))
+
+    @staticmethod
+    def _render_pixel_bar(
+        console: tcod.console.Console,
+        x: int, y: int, width: int,
+        ratio: float,
+        fg_color: Tuple[int, int, int],
+        bg_color: Tuple[int, int, int]
+    ) -> None:
+        """픽셀 단위 게이지 렌더링 (커스텀 타일셋 기반)
+        
+        각 셀을 DIVISIONS 단계로 나누어 부분 채움 표현
+        """
+        tile_manager = _get_tile_manager()
+        use_tiles = tile_manager is not None and tile_manager.is_initialized()
+        divisions = GaugeRenderer.DIVISIONS
+        
+        # 전체 픽셀 수 (width * divisions)
+        total_pixels = width * divisions
+        filled_pixels = int(ratio * total_pixels)
+        
+        for i in range(width):
+            cell_start = i * divisions
+            
+            # 이 셀에서 채워진 픽셀 수
+            cell_filled = max(0, min(divisions, filled_pixels - cell_start))
+            
+            if cell_filled == 0:
+                # 빈 셀 - 배경색만
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=bg_color)
+            elif cell_filled >= divisions:
+                # 완전히 채워진 셀 - 전경색
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
+            else:
+                # 부분 채움 - 커스텀 타일 사용
+                fill_ratio = cell_filled / divisions
+                
+                if use_tiles:
+                    color_name = GaugeRenderer._get_color_name(fg_color)
+                    tile_char = tile_manager.get_tile_char(color_name, fill_ratio)
+                    # fg와 bg 모두 print에 전달하여 투명 영역 처리
+                    console.print(x + i, y, tile_char, fg=fg_color, bg=bg_color)
+                else:
+                    # 폴백: 그라디언트 색상
+                    partial_color = (
+                        int(bg_color[0] + (fg_color[0] - bg_color[0]) * fill_ratio),
+                        int(bg_color[1] + (fg_color[1] - bg_color[1]) * fill_ratio),
+                        int(bg_color[2] + (fg_color[2] - bg_color[2]) * fill_ratio)
+                    )
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+
+    @staticmethod
+    def _get_color_name(color: Tuple[int, int, int]) -> str:
+        """색상값으로부터 타일 색상 이름 결정"""
+        r, g, b = color
+        
+        # 초록 계열 (HP 높음)
+        if g > r and g > b:
+            return 'hp_high'
+        # 노랑 계열 (HP 중간)
+        elif r > 150 and g > 150 and b < 100:
+            return 'hp_mid'
+        # 빨강 계열 (HP 낮음)
+        elif r > g and r > b:
+            return 'hp_low'
+        # 파랑 계열 (MP)
+        elif b > r and b > g:
+            return 'mp_fill'
+        # 금색 계열 (BRV)
+        elif r > 180 and g > 140 and b < 100:
+            return 'brv_fill'
+        # 기본값
+        return 'hp_high'
+
+    @staticmethod
+    def render_animated_hp_bar(
+        console: tcod.console.Console,
+        x: int,
+        y: int,
+        width: int,
+        current_hp: float,
+        max_hp: float,
+        entity_id: str,
+        wound_damage: float = 0,
+        show_numbers: bool = True
+    ) -> None:
+        """
+        애니메이션 HP 게이지 렌더링 (픽셀 단위 + 데미지 트레일 + 상처 표시)
+        
+        Args:
+            console: TCOD 콘솔
+            x, y: 게이지 위치
+            width: 게이지 너비
+            current_hp: 현재 HP
+            max_hp: 최대 HP
+            entity_id: 엔티티 고유 ID (애니메이션 추적용)
+            wound_damage: 상처 데미지 (최대 HP 제한)
+            show_numbers: 숫자 표시 여부
+        """
+        anim_mgr = get_animation_manager()
+        tile_manager = _get_tile_manager()
+        use_tiles = tile_manager is not None and tile_manager.is_initialized()
+        divisions = GaugeRenderer.DIVISIONS
+        
+        # 유효 최대 HP (상처로 제한됨)
+        effective_max_hp = max(1, max_hp - wound_damage)
+        
+        # 애니메이션 값 가져오기
+        anim = anim_mgr.get_animated_value(f"{entity_id}_hp", current_hp, max_hp, duration=0.8)
+        display_hp = anim.update()
+        
+        # 표시용 숫자 (빠르게 증감)
+        display_number = anim_mgr.get_display_number(f"{entity_id}_hp_num", current_hp, 0.016)
+        
+        # 비율 계산
+        if max_hp <= 0:
+            ratio = 0.0
+            display_ratio = 0.0
+            wound_ratio = 0.0
+        else:
+            ratio = min(1.0, current_hp / max_hp)
+            display_ratio = min(1.0, display_hp / max_hp)
+            wound_ratio = wound_damage / max_hp
+        
+        # 색상 계산 (HP 비율 기준)
+        if ratio > 0.6:
+            fg_color = (50, 220, 50)
+            bg_color = (20, 80, 20)
+            color_name = 'hp_high'
+        elif ratio > 0.3:
+            fg_color = (220, 220, 50)
+            bg_color = (80, 80, 20)
+            color_name = 'hp_mid'
+        else:
+            fg_color = (220, 50, 50)
+            bg_color = (80, 20, 20)
+            color_name = 'hp_low'
+        
+        trail_color = (200, 100, 50)
+        wound_color = (40, 30, 30)
+        
+        # === 레이어 방식 렌더링 ===
+        # 레이어 1 (바닥): 배경
+        # 레이어 2: 상처 (오른쪽에서, 최소 1픽셀 보장)
+        # 레이어 3: 트레일 (데미지 애니메이션)
+        # 레이어 4 (최상단): 현재 HP
+        
+        total_pixels = width * divisions
+        hp_pixels = int(ratio * total_pixels)
+        display_pixels = int(display_ratio * total_pixels)
+        # 상처가 있으면 최소 1픽셀 보장
+        wound_pixels = max(1, int(wound_ratio * total_pixels)) if wound_damage > 0 else 0
+        
+        # 레이어 1: 전체 배경 그리기
+        console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
+        
+        # 레이어 2: 상처 영역 (오른쪽에서 왼쪽으로)
+        if wound_pixels > 0:
+            wound_start_pixel = total_pixels - wound_pixels
+            for i in range(width):
+                cell_start = i * divisions
+                cell_end = (i + 1) * divisions
+                
+                # 이 셀과 상처 영역이 겹치는 부분
+                overlap_start = max(cell_start, wound_start_pixel)
+                overlap_end = min(cell_end, total_pixels)
+                cell_wound = max(0, overlap_end - overlap_start)
+                
+                if cell_wound >= divisions:
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=wound_color)
+                elif cell_wound > 0:
+                    fill_ratio = cell_wound / divisions
+                    if use_tiles:
+                        tile_char = tile_manager.get_tile_char('wound', fill_ratio)
+                        console.print(x + i, y, tile_char, fg=wound_color, bg=bg_color)
+                    else:
+                        partial_color = (
+                            int(bg_color[0] + (wound_color[0] - bg_color[0]) * fill_ratio),
+                            int(bg_color[1] + (wound_color[1] - bg_color[1]) * fill_ratio),
+                            int(bg_color[2] + (wound_color[2] - bg_color[2]) * fill_ratio)
+                        )
+                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+        
+        # 레이어 3: 트레일 (데미지 애니메이션 - HP 감소 시)
+        if display_pixels > hp_pixels:
+            for i in range(width):
+                cell_start = i * divisions
+                cell_end = (i + 1) * divisions
+                
+                # HP 이후, 트레일 이전 영역
+                trail_start = max(cell_start, hp_pixels)
+                trail_end = min(cell_end, display_pixels)
+                cell_trail = max(0, trail_end - trail_start)
+                
+                if cell_trail >= divisions:
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
+                elif cell_trail > 0:
+                    fill_ratio = cell_trail / divisions
+                    # 기존 배경 위에 트레일 오버레이
+                    if use_tiles:
+                        tile_char = tile_manager.get_tile_char('damage_trail', fill_ratio)
+                        console.print(x + i, y, tile_char, fg=trail_color, bg=bg_color)
+                    else:
+                        partial_color = (
+                            int(bg_color[0] + (trail_color[0] - bg_color[0]) * fill_ratio),
+                            int(bg_color[1] + (trail_color[1] - bg_color[1]) * fill_ratio),
+                            int(bg_color[2] + (trail_color[2] - bg_color[2]) * fill_ratio)
+                        )
+                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+        
+        # 레이어 4: 현재 HP (왼쪽에서 오른쪽으로, 최상단)
+        for i in range(width):
+            cell_start = i * divisions
+            cell_end = (i + 1) * divisions
+            
+            cell_hp = max(0, min(divisions, hp_pixels - cell_start))
+            
+            if cell_hp >= divisions:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
+            elif cell_hp > 0:
+                fill_ratio = cell_hp / divisions
+                if use_tiles:
+                    tile_char = tile_manager.get_tile_char(color_name, fill_ratio)
+                    # HP 타일 뒤 배경은 트레일 또는 기본 배경
+                    has_trail = display_pixels > cell_end
+                    base = trail_color if has_trail else bg_color
+                    console.print(x + i, y, tile_char, fg=fg_color, bg=base)
+                else:
+                    has_trail = display_pixels > cell_end
+                    base = trail_color if has_trail else bg_color
+                    partial_color = (
+                        int(base[0] + (fg_color[0] - base[0]) * fill_ratio),
+                        int(base[1] + (fg_color[1] - base[1]) * fill_ratio),
+                        int(base[2] + (fg_color[2] - base[2]) * fill_ratio)
+                    )
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+        
         # 숫자 표시
         if show_numbers:
-            text = f"{int(current)}/{int(maximum)}"
-            text_x = x + (width - len(text)) // 2
-            console.print(text_x, y, text, fg=(255, 255, 255))
+            current_text = f"{display_number}"
+            if wound_damage > 0:
+                max_text = f"{int(effective_max_hp)}"
+            else:
+                max_text = f"{int(max_hp)}"
+            
+            min_width_needed = len(current_text) + len(max_text) + 3
+            
+            if width >= min_width_needed:
+                console.print(x + 1, y, current_text, fg=(255, 255, 255))
+                max_text_x = x + width - len(max_text) - 1
+                console.print(max_text_x, y, max_text, fg=(200, 200, 200))
+            elif width >= len(current_text) + 2:
+                console.print(x + 1, y, current_text, fg=(255, 255, 255))
+
+    @staticmethod
+    def render_animated_mp_bar(
+        console: tcod.console.Console,
+        x: int,
+        y: int,
+        width: int,
+        current_mp: float,
+        max_mp: float,
+        entity_id: str,
+        show_numbers: bool = True
+    ) -> None:
+        """애니메이션 MP 게이지 렌더링 (타일셋 기반)"""
+        anim_mgr = get_animation_manager()
+        tile_manager = _get_tile_manager()
+        use_tiles = tile_manager is not None and tile_manager.is_initialized()
+        divisions = GaugeRenderer.DIVISIONS
+        
+        # 애니메이션 값
+        anim = anim_mgr.get_animated_value(f"{entity_id}_mp", current_mp, max_mp, duration=0.5)
+        display_mp = anim.update()
+        display_number = anim_mgr.get_display_number(f"{entity_id}_mp_num", current_mp, 0.016)
+        
+        if max_mp <= 0:
+            ratio = 0.0
+            display_ratio = 0.0
+        else:
+            ratio = min(1.0, current_mp / max_mp)
+            display_ratio = min(1.0, display_mp / max_mp)
+        
+        # MP 색상 (파란색 계열)
+        if ratio > 0.6:
+            fg_color = (80, 150, 255)
+            bg_color = (30, 60, 120)
+        elif ratio > 0.3:
+            fg_color = (60, 120, 200)
+            bg_color = (25, 50, 90)
+        else:
+            fg_color = (40, 90, 150)
+            bg_color = (20, 40, 70)
+        
+        trail_color = (100, 130, 180)
+        
+        # === 픽셀 단위 렌더링 (그라디언트 방식) ===
+        total_pixels = width * divisions
+        mp_pixels = int(ratio * total_pixels)
+        display_pixels = int(display_ratio * total_pixels)
+        
+        for i in range(width):
+            cell_start = i * divisions
+            
+            cell_mp = max(0, min(divisions, mp_pixels - cell_start))
+            cell_trail = max(0, min(divisions, display_pixels - cell_start)) - max(0, min(divisions, mp_pixels - cell_start))
+            
+            if cell_mp >= divisions:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
+            elif cell_mp > 0:
+                # MP 부분 채움 - 타일 사용
+                fill_ratio = cell_mp / divisions
+                base = trail_color if cell_trail > 0 else bg_color
+                
+                if use_tiles:
+                    tile_char = tile_manager.get_tile_char('mp_fill', fill_ratio)
+                    console.print(x + i, y, tile_char, fg=fg_color, bg=base)
+                else:
+                    partial_color = (
+                        int(base[0] + (fg_color[0] - base[0]) * fill_ratio),
+                        int(base[1] + (fg_color[1] - base[1]) * fill_ratio),
+                        int(base[2] + (fg_color[2] - base[2]) * fill_ratio)
+                    )
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+            elif cell_trail > 0:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
+            else:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=bg_color)
+        
+        # 숫자 - 왼쪽에 현재값, 오른쪽에 최대값
+        if show_numbers:
+            current_text = f"{display_number}"
+            max_text = f"{int(max_mp)}"
+            
+            min_width_needed = len(current_text) + len(max_text) + 3
+            
+            if width >= min_width_needed:
+                console.print(x + 1, y, current_text, fg=(255, 255, 255))
+                max_text_x = x + width - len(max_text) - 1
+                console.print(max_text_x, y, max_text, fg=(180, 200, 255))
+            elif width >= len(current_text) + 2:
+                console.print(x + 1, y, current_text, fg=(255, 255, 255))
+
+    @staticmethod
+    def render_animated_brv_bar(
+        console: tcod.console.Console,
+        x: int,
+        y: int,
+        width: int,
+        current_brv: float,
+        max_brv: float,
+        entity_id: str,
+        is_broken: bool = False,
+        show_numbers: bool = True
+    ) -> None:
+        """애니메이션 BRV 게이지 렌더링 (타일셋 기반)"""
+        anim_mgr = get_animation_manager()
+        tile_manager = _get_tile_manager()
+        use_tiles = tile_manager is not None and tile_manager.is_initialized()
+        divisions = GaugeRenderer.DIVISIONS
+        
+        # 애니메이션 값
+        anim = anim_mgr.get_animated_value(f"{entity_id}_brv", current_brv, max_brv, duration=0.4)
+        display_brv = anim.update()
+        display_number = anim_mgr.get_display_number(f"{entity_id}_brv_num", current_brv, 0.016)
+        
+        if max_brv <= 0:
+            ratio = 0.0
+            display_ratio = 0.0
+        else:
+            ratio = min(1.0, current_brv / max_brv)
+            display_ratio = min(1.0, display_brv / max_brv)
+        
+        # BRV 색상 (노란색 계열, BREAK 시 빨간색)
+        if is_broken:
+            fg_color = (150, 50, 50)
+            bg_color = (60, 20, 20)
+            trail_color = (100, 40, 40)
+        elif ratio > 0.8:
+            fg_color = (255, 220, 80)
+            bg_color = (100, 85, 30)
+            trail_color = (180, 150, 60)
+        elif ratio > 0.5:
+            fg_color = (240, 200, 60)
+            bg_color = (90, 75, 25)
+            trail_color = (160, 130, 50)
+        elif ratio > 0.2:
+            fg_color = (200, 160, 50)
+            bg_color = (75, 60, 20)
+            trail_color = (140, 110, 40)
+        else:
+            fg_color = (150, 120, 40)
+            bg_color = (55, 45, 15)
+            trail_color = (100, 80, 30)
+        
+        # === 픽셀 단위 렌더링 (타일셋 기반) ===
+        total_pixels = width * divisions
+        brv_pixels = int(ratio * total_pixels)
+        display_pixels = int(display_ratio * total_pixels)
+        
+        for i in range(width):
+            cell_start = i * divisions
+            
+            cell_brv = max(0, min(divisions, brv_pixels - cell_start))
+            
+            # 트레일 계산 (증가/감소 모두)
+            if display_ratio > ratio:
+                cell_trail = max(0, min(divisions, display_pixels - cell_start)) - cell_brv
+            else:
+                cell_trail = cell_brv - max(0, min(divisions, display_pixels - cell_start))
+                cell_trail = max(0, cell_trail)
+            
+            if cell_brv >= divisions:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
+            elif cell_brv > 0:
+                # BRV 부분 채움 - 타일 사용
+                fill_ratio = cell_brv / divisions
+                base = trail_color if cell_trail > 0 else bg_color
+                
+                if use_tiles:
+                    tile_char = tile_manager.get_tile_char('brv_fill', fill_ratio)
+                    console.print(x + i, y, tile_char, fg=fg_color, bg=base)
+                else:
+                    partial_color = (
+                        int(base[0] + (fg_color[0] - base[0]) * fill_ratio),
+                        int(base[1] + (fg_color[1] - base[1]) * fill_ratio),
+                        int(base[2] + (fg_color[2] - base[2]) * fill_ratio)
+                    )
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+            elif cell_trail > 0:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
+            else:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=bg_color)
+        
+        # 숫자 - 왼쪽에 현재값, 오른쪽에 최대값
+        if show_numbers:
+            if is_broken:
+                text = "BREAK!"
+                text_x = x + (width - len(text)) // 2
+                if text_x >= x:
+                    console.print(text_x, y, text, fg=(255, 100, 100))
+            else:
+                current_text = f"{display_number}"
+                max_text = f"{int(max_brv)}"
+                
+                min_width_needed = len(current_text) + len(max_text) + 3
+                
+                if width >= min_width_needed:
+                    console.print(x + 1, y, current_text, fg=(255, 255, 255))
+                    max_text_x = x + width - len(max_text) - 1
+                    console.print(max_text_x, y, max_text, fg=(255, 230, 150))
+                elif width >= len(current_text) + 2:
+                    console.print(x + 1, y, current_text, fg=(255, 255, 255))
 
     @staticmethod
     def render_percentage_bar(
@@ -99,7 +707,7 @@ class GaugeRenderer:
         custom_color: Tuple[int, int, int] = None
     ) -> None:
         """
-        퍼센트 게이지 렌더링 (픽셀 단위 부드러운 효과)
+        퍼센트 게이지 렌더링 (픽셀 단위)
 
         Args:
             console: TCOD 콘솔
@@ -109,6 +717,10 @@ class GaugeRenderer:
             show_percent: 퍼센트 표시 여부
             custom_color: 커스텀 색상
         """
+        tile_manager = _get_tile_manager()
+        use_tiles = tile_manager is not None and tile_manager.is_initialized()
+        divisions = GaugeRenderer.DIVISIONS
+        
         ratio = min(1.0, max(0.0, percentage))
 
         # 색상
@@ -116,7 +728,6 @@ class GaugeRenderer:
             fg_color = custom_color
             bg_color = tuple(c // 2 for c in custom_color)
         else:
-            # 기본 그라디언트
             if ratio > 0.6:
                 fg_color = (0, 200, 0)
                 bg_color = (0, 100, 0)
@@ -127,26 +738,33 @@ class GaugeRenderer:
                 fg_color = (200, 0, 0)
                 bg_color = (100, 0, 0)
 
-        # 배경
-        console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
-
-        # 픽셀 단위 채우기
-        filled_exact = ratio * width
-        filled_full = int(filled_exact)
-        filled_partial = filled_exact - filled_full
-
-        # 완전히 채워진 부분
-        if filled_full > 0:
-            console.draw_rect(x, y, filled_full, 1, ord(" "), bg=fg_color)
-
-        # 부분적으로 채워진 마지막 칸
-        if filled_partial > 0.0 and filled_full < width:
-            partial_color = (
-                int(bg_color[0] + (fg_color[0] - bg_color[0]) * filled_partial),
-                int(bg_color[1] + (fg_color[1] - bg_color[1]) * filled_partial),
-                int(bg_color[2] + (fg_color[2] - bg_color[2]) * filled_partial)
-            )
-            console.draw_rect(x + filled_full, y, 1, 1, ord(" "), bg=partial_color)
+        # === 픽셀 단위 렌더링 ===
+        total_pixels = width * divisions
+        filled_pixels = int(ratio * total_pixels)
+        
+        for i in range(width):
+            cell_start = i * divisions
+            cell_filled = max(0, min(divisions, filled_pixels - cell_start))
+            
+            if cell_filled >= divisions:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
+            elif cell_filled > 0:
+                if use_tiles:
+                    fill_ratio = cell_filled / divisions
+                    color_name = GaugeRenderer._get_color_name(fg_color)
+                    tile_char = tile_manager.get_tile_char(color_name, fill_ratio)
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=bg_color)
+                    console.print(x + i, y, tile_char, fg=fg_color)
+                else:
+                    partial_ratio = cell_filled / divisions
+                    partial_color = (
+                        int(bg_color[0] + (fg_color[0] - bg_color[0]) * partial_ratio),
+                        int(bg_color[1] + (fg_color[1] - bg_color[1]) * partial_ratio),
+                        int(bg_color[2] + (fg_color[2] - bg_color[2]) * partial_ratio)
+                    )
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+            else:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=bg_color)
 
         # 퍼센트 표시
         if show_percent:
@@ -164,7 +782,7 @@ class GaugeRenderer:
         skill_name: str = ""
     ) -> None:
         """
-        캐스팅 게이지 렌더링 (픽셀 단위 부드러운 효과)
+        캐스팅 게이지 렌더링 (픽셀 단위)
 
         Args:
             console: TCOD 콘솔
@@ -173,6 +791,10 @@ class GaugeRenderer:
             progress: 진행도 (0.0 ~ 1.0)
             skill_name: 스킬 이름
         """
+        tile_manager = _get_tile_manager()
+        use_tiles = tile_manager is not None and tile_manager.is_initialized()
+        divisions = GaugeRenderer.DIVISIONS
+        
         ratio = min(1.0, max(0.0, progress))
 
         # 캐스팅은 보라색
@@ -188,26 +810,32 @@ class GaugeRenderer:
             bar_x = x
             bar_width = width
 
-        # 배경
-        console.draw_rect(bar_x, y, bar_width, 1, ord(" "), bg=bg_color)
-
-        # 픽셀 단위 채우기
-        filled_exact = ratio * bar_width
-        filled_full = int(filled_exact)
-        filled_partial = filled_exact - filled_full
-
-        # 완전히 채워진 부분
-        if filled_full > 0:
-            console.draw_rect(bar_x, y, filled_full, 1, ord(" "), bg=fg_color)
-
-        # 부분적으로 채워진 마지막 칸
-        if filled_partial > 0.0 and filled_full < bar_width:
-            partial_color = (
-                int(bg_color[0] + (fg_color[0] - bg_color[0]) * filled_partial),
-                int(bg_color[1] + (fg_color[1] - bg_color[1]) * filled_partial),
-                int(bg_color[2] + (fg_color[2] - bg_color[2]) * filled_partial)
-            )
-            console.draw_rect(bar_x + filled_full, y, 1, 1, ord(" "), bg=partial_color)
+        # === 픽셀 단위 렌더링 ===
+        total_pixels = bar_width * divisions
+        filled_pixels = int(ratio * total_pixels)
+        
+        for i in range(bar_width):
+            cell_start = i * divisions
+            cell_filled = max(0, min(divisions, filled_pixels - cell_start))
+            
+            if cell_filled >= divisions:
+                console.draw_rect(bar_x + i, y, 1, 1, ord(" "), bg=fg_color)
+            elif cell_filled > 0:
+                if use_tiles:
+                    fill_ratio = cell_filled / divisions
+                    tile_char = tile_manager.get_tile_char('cast_fill', fill_ratio)
+                    console.draw_rect(bar_x + i, y, 1, 1, ord(" "), bg=bg_color)
+                    console.print(bar_x + i, y, tile_char, fg=fg_color)
+                else:
+                    partial_ratio = cell_filled / divisions
+                    partial_color = (
+                        int(bg_color[0] + (fg_color[0] - bg_color[0]) * partial_ratio),
+                        int(bg_color[1] + (fg_color[1] - bg_color[1]) * partial_ratio),
+                        int(bg_color[2] + (fg_color[2] - bg_color[2]) * partial_ratio)
+                    )
+                    console.draw_rect(bar_x + i, y, 1, 1, ord(" "), bg=partial_color)
+            else:
+                console.draw_rect(bar_x + i, y, 1, 1, ord(" "), bg=bg_color)
 
         # 진행도 표시
         percent_text = f"{int(ratio * 100)}%"
@@ -225,7 +853,7 @@ class GaugeRenderer:
         maximum: float
     ) -> None:
         """
-        ATB 게이지 렌더링 (픽셀 단위 부드러운 효과)
+        ATB 게이지 렌더링 (픽셀 단위)
 
         Args:
             console: TCOD 콘솔
@@ -235,35 +863,44 @@ class GaugeRenderer:
             threshold: 행동 가능 임계값
             maximum: 최대 ATB 값
         """
+        tile_manager = _get_tile_manager()
+        use_tiles = tile_manager is not None and tile_manager.is_initialized()
+        divisions = GaugeRenderer.DIVISIONS
+        
         if maximum <= 0:
             ratio = 0.0
         else:
             ratio = min(1.0, current / maximum)
 
-        # ATB 색상 (파란색)
         fg_color = (100, 150, 255)
         bg_color = (50, 75, 125)
 
-        # 배경
-        console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
-
-        # 픽셀 단위 채우기
-        filled_exact = ratio * width
-        filled_full = int(filled_exact)
-        filled_partial = filled_exact - filled_full
-
-        # 완전히 채워진 부분
-        if filled_full > 0:
-            console.draw_rect(x, y, filled_full, 1, ord(" "), bg=fg_color)
-
-        # 부분적으로 채워진 마지막 칸
-        if filled_partial > 0.0 and filled_full < width:
-            partial_color = (
-                int(bg_color[0] + (fg_color[0] - bg_color[0]) * filled_partial),
-                int(bg_color[1] + (fg_color[1] - bg_color[1]) * filled_partial),
-                int(bg_color[2] + (fg_color[2] - bg_color[2]) * filled_partial)
-            )
-            console.draw_rect(x + filled_full, y, 1, 1, ord(" "), bg=partial_color)
+        # === 픽셀 단위 렌더링 ===
+        total_pixels = width * divisions
+        filled_pixels = int(ratio * total_pixels)
+        
+        for i in range(width):
+            cell_start = i * divisions
+            cell_filled = max(0, min(divisions, filled_pixels - cell_start))
+            
+            if cell_filled >= divisions:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
+            elif cell_filled > 0:
+                if use_tiles:
+                    fill_ratio = cell_filled / divisions
+                    tile_char = tile_manager.get_tile_char('atb_fill', fill_ratio)
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=bg_color)
+                    console.print(x + i, y, tile_char, fg=fg_color)
+                else:
+                    partial_ratio = cell_filled / divisions
+                    partial_color = (
+                        int(bg_color[0] + (fg_color[0] - bg_color[0]) * partial_ratio),
+                        int(bg_color[1] + (fg_color[1] - bg_color[1]) * partial_ratio),
+                        int(bg_color[2] + (fg_color[2] - bg_color[2]) * partial_ratio)
+                    )
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+            else:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=bg_color)
 
         # 행동 가능 임계값 표시 (세로선)
         threshold_ratio = threshold / maximum

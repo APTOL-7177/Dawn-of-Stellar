@@ -1183,38 +1183,62 @@ class WorldUI:
             self._render_quit_confirm(console)
 
     def _render_party_status(self, console: tcod.console.Console):
-        """파티 상태 렌더링 (간단)"""
+        """파티 상태 렌더링 (전투 UI와 동일한 스타일)"""
+        from src.ui.gauge_renderer import get_animation_manager
+        
         x = self.screen_width - 30
         y = 3
 
         console.print(x, y, "[파티 상태]", fg=(100, 255, 100))
 
         for i, member in enumerate(self.exploration.player.party[:4]):
-            my = y + 2 + i * 2
+            # 아군 사이 간격: 3줄 (이름 1줄 + HP 1줄 + MP 1줄 + 여백 1줄 = 4줄씩)
+            my = y + 2 + i * 4
 
-            # 이름과 HP 게이지를 한 줄에 표시
+            # 이름
             # Character 객체는 name을, PartyMember 객체는 character_name을 사용
             member_name = getattr(member, 'name', getattr(member, 'character_name', 'Unknown'))
             console.print(x, my, f"{i+1}. {member_name[:10]}", fg=(255, 255, 255))
 
-            # HP 게이지 (가로, 간단)
+            # HP/MP 값 가져오기
             # Character 객체는 current_hp/max_hp를, PartyMember 객체는 stats를 사용
             current_hp = getattr(member, 'current_hp', None)
             max_hp = getattr(member, 'max_hp', None)
+            current_mp = getattr(member, 'current_mp', None)
+            max_mp = getattr(member, 'max_mp', None)
+            
             if current_hp is None or max_hp is None:
                 # PartyMember 객체인 경우 stats에서 가져오기
                 stats = getattr(member, 'stats', {})
                 current_hp = stats.get('hp', 100)
                 max_hp = stats.get('max_hp', 100)
             
-            console.print(x + 14, my, "HP:", fg=(200, 200, 200))
-            self.gauge_renderer.render_bar(
-                console, x + 17, my, 10,
-                current_hp, max_hp, show_numbers=False
+            if current_mp is None or max_mp is None:
+                stats = getattr(member, 'stats', {})
+                current_mp = stats.get('mp', 50)
+                max_mp = stats.get('max_mp', 50)
+            
+            wound_damage = getattr(member, 'wound_damage', 0)
+            entity_id = f"field_ally_{i}_{member_name}"
+            
+            # HP 게이지 (전투 UI와 동일 - 애니메이션 + 상처 표시 + 숫자)
+            console.print(x, my + 1, "HP:", fg=(200, 200, 200))
+            self.gauge_renderer.render_animated_hp_bar(
+                console, x + 4, my + 1, 15,
+                current_hp, max_hp, entity_id,
+                wound_damage=wound_damage, show_numbers=True
+            )
+            
+            # MP 게이지 (전투 UI와 동일 - 애니메이션 + 숫자)
+            console.print(x, my + 2, "MP:", fg=(200, 200, 200))
+            self.gauge_renderer.render_animated_mp_bar(
+                console, x + 4, my + 2, 15,
+                current_mp, max_mp, entity_id,
+                show_numbers=True
             )
 
-        # 인벤토리 정보
-        inv_y = y + 15
+        # 인벤토리 정보 (파티 상태 아래로 이동)
+        inv_y = y + 2 + 4 * min(4, len(self.exploration.player.party)) + 1
         console.print(x, inv_y, "[소지품]", fg=(200, 200, 255))
         console.print(x + 2, inv_y + 1, f"열쇠: {len(self.exploration.player.keys)}개", fg=(255, 215, 0))
         # 실제 인벤토리 객체의 아이템 수 표시 (slots 사용)

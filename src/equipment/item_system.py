@@ -3546,7 +3546,7 @@ CONSUMABLE_TEMPLATES = {
     # HP 회복
     "health_potion": {
         "name": "체력 물약",
-        "description": "",
+        "description": "HP를 50 회복합니다.",
                 "rarity": ItemRarity.COMMON,
         "effect_type": "heal_hp",
         "effect_value": 50,
@@ -3554,7 +3554,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "mega_health_potion": {
         "name": "대형 체력 물약",
-        "description": "",
+        "description": "HP를 200 회복합니다.",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "heal_hp",
         "effect_value": 200,
@@ -3562,7 +3562,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "super_health_potion": {
         "name": "최상급 체력 물약",
-        "description": "",
+        "description": "HP를 500 회복합니다.",
                 "rarity": ItemRarity.RARE,
         "effect_type": "heal_hp",
         "effect_value": 500,
@@ -3572,7 +3572,7 @@ CONSUMABLE_TEMPLATES = {
     # MP 회복
     "mana_potion": {
         "name": "마나 물약",
-        "description": "",
+        "description": "MP를 30 회복합니다.",
                 "rarity": ItemRarity.COMMON,
         "effect_type": "heal_mp",
         "effect_value": 30,
@@ -3580,7 +3580,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "mega_mana_potion": {
         "name": "대형 마나 물약",
-        "description": "",
+        "description": "MP를 80 회복합니다.",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "heal_mp",
         "effect_value": 80,
@@ -3588,7 +3588,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "mana_crystal": {
         "name": "마나 크리스탈",
-        "description": "",
+        "description": "MP를 100 회복합니다.",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "heal_mp",
         "effect_value": 100,
@@ -3596,7 +3596,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "super_mana_potion": {
         "name": "최상급 마나 물약",
-        "description": "",
+        "description": "MP를 150 회복합니다.",
                 "rarity": ItemRarity.RARE,
         "effect_type": "heal_mp",
         "effect_value": 150,
@@ -3606,7 +3606,7 @@ CONSUMABLE_TEMPLATES = {
     # 완전 회복
     "elixir": {
         "name": "엘릭서",
-        "description": "",
+        "description": "HP와 MP를 완전히 회복합니다.",
                 "rarity": ItemRarity.RARE,
         "effect_type": "full_restore",
         "effect_value": 0,
@@ -3616,7 +3616,7 @@ CONSUMABLE_TEMPLATES = {
     # 특수 아이템
     "phoenix_down": {
         "name": "불사조의 깃털",
-        "description": "",
+        "description": "쓰러진 아군을 HP 50%로 부활.",
                 "rarity": ItemRarity.RARE,
         "effect_type": "revive",
         "effect_value": 0.5,
@@ -3624,7 +3624,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "town_portal": {
         "name": "마을 귀환 두루마리",
-        "description": "",
+        "description": "즉시 마을로 귀환합니다.",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "escape",
         "effect_value": 0,
@@ -3632,7 +3632,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "dungeon_key": {
         "name": "던전 열쇠",
-        "description": "",
+        "description": "잠긴 던전 문을 열 수 있습니다.",
                 "rarity": ItemRarity.COMMON,
         "effect_type": "key",
         "effect_value": 1,
@@ -3642,7 +3642,7 @@ CONSUMABLE_TEMPLATES = {
     # 버프 아이템
     "strength_tonic": {
         "name": "힘의 강장제",
-        "description": "",
+        "description": "공격력 +20% (5턴 지속).",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "buff_attack",
         "effect_value": 0.2,
@@ -3650,7 +3650,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "magic_tonic": {
         "name": "마법의 강장제",
-        "description": "",
+        "description": "마법력 +20% (5턴 지속).",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "buff_magic",
         "effect_value": 0.2,
@@ -3658,7 +3658,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "speed_tonic": {
         "name": "민첩의 강장제",
-        "description": "",
+        "description": "속도 +30% (5턴 지속).",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "buff_speed",
         "effect_value": 0.3,
@@ -3666,7 +3666,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "defense_tonic": {
         "name": "방어의 강장제",
-        "description": "",
+        "description": "방어력 +25% (5턴 지속).",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "buff_defense",
         "effect_value": 0.25,
@@ -3676,7 +3676,7 @@ CONSUMABLE_TEMPLATES = {
     # 공격 아이템
     "fire_bomb": {
         "name": "화염 폭탄",
-        "description": "",
+        "description": "적 전체에게 150 화염 피해.",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "aoe_fire",
         "effect_value": 150,
@@ -3684,7 +3684,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "ice_bomb": {
         "name": "냉기 폭탄",
-        "description": "",
+        "description": "적 전체에게 130 냉기 피해.",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "aoe_ice",
         "effect_value": 130,
@@ -3692,7 +3692,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "lightning_bolt": {
         "name": "번개 구슬",
-        "description": "",
+        "description": "적 하나에게 300 번개 피해.",
                 "rarity": ItemRarity.RARE,
         "effect_type": "single_lightning",
         "effect_value": 300,
@@ -3702,7 +3702,7 @@ CONSUMABLE_TEMPLATES = {
     # === 상처 치료 아이템 ===
     "wound_salve": {
         "name": "상처 연고",
-        "description": "",
+        "description": "상처를 30 치료합니다.",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "heal_wound",
         "effect_value": 30,
@@ -3710,7 +3710,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "scar_remover": {
         "name": "흉터 제거제",
-        "description": "",
+        "description": "상처를 100 치료합니다.",
                 "rarity": ItemRarity.RARE,
         "effect_type": "heal_wound",
         "effect_value": 100,
@@ -3718,7 +3718,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "perfect_heal": {
         "name": "완전 치유",
-        "description": "",
+        "description": "모든 상처를 완전히 치료합니다.",
                 "rarity": ItemRarity.EPIC,
         "effect_type": "heal_wound_full",
         "effect_value": 0,
@@ -3726,7 +3726,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "regeneration_potion": {
         "name": "재생 물약",
-        "description": "",
+        "description": "매턴 상처 15씩 자동 회복 버프.",
                 "rarity": ItemRarity.RARE,
         "effect_type": "wound_regen_buff",
         "effect_value": 15,
@@ -3736,7 +3736,7 @@ CONSUMABLE_TEMPLATES = {
     # === BRV 관련 아이템 ===
     "brave_shard": {
         "name": "브레이브 파편",
-        "description": "",
+        "description": "BRV를 100 회복합니다.",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "brv_restore",
         "effect_value": 100,
@@ -3744,7 +3744,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "brave_crystal": {
         "name": "브레이브 크리스탈",
-        "description": "",
+        "description": "BRV를 300 회복합니다.",
                 "rarity": ItemRarity.RARE,
         "effect_type": "brv_restore",
         "effect_value": 300,
@@ -3752,7 +3752,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "break_guard": {
         "name": "브레이크 가드",
-        "description": "",
+        "description": "3턴간 브레이크 보호 버프.",
                 "rarity": ItemRarity.RARE,
         "effect_type": "brv_protect_buff",
         "effect_value": 3,
@@ -3760,7 +3760,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "brave_boost": {
         "name": "브레이브 부스트",
-        "description": "",
+        "description": "BRV 획득량 +50% 버프.",
                 "rarity": ItemRarity.EPIC,
         "effect_type": "brv_bonus_buff",
         "effect_value": 0.50,
@@ -3770,7 +3770,7 @@ CONSUMABLE_TEMPLATES = {
     # === 복합 회복 아이템 ===
     "panacea": {
         "name": "만병통치약",
-        "description": "",
+        "description": "모든 상태이상 해제 + HP 50 회복.",
                 "rarity": ItemRarity.EPIC,
         "effect_type": "panacea",
         "effect_value": 50,
@@ -3778,7 +3778,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "megalixir": {
         "name": "메가엘릭서",
-        "description": "",
+        "description": "파티 전체 HP/MP 완전 회복.",
                 "rarity": ItemRarity.LEGENDARY,
         "effect_type": "party_full_restore",
         "effect_value": 0,
@@ -3786,7 +3786,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "heroes_drink": {
         "name": "영웅의 음료",
-        "description": "",
+        "description": "HP 200 회복 + 모든 스탯 +10% 버프.",
                 "rarity": ItemRarity.EPIC,
         "effect_type": "hero_buff",
         "effect_value": 200,
@@ -3796,7 +3796,7 @@ CONSUMABLE_TEMPLATES = {
     # === 특수 상태 아이템 ===
     "invincibility_potion": {
         "name": "무적 물약",
-        "description": "",
+        "description": "2턴간 모든 피해 무효화.",
                 "rarity": ItemRarity.LEGENDARY,
         "effect_type": "invincible",
         "effect_value": 2,
@@ -3804,7 +3804,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "haste_potion": {
         "name": "가속 물약",
-        "description": "",
+        "description": "5턴간 행동 속도 대폭 증가.",
                 "rarity": ItemRarity.RARE,
         "effect_type": "haste",
         "effect_value": 5,
@@ -3812,7 +3812,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "berserk_potion": {
         "name": "광폭화 물약",
-        "description": "",
+        "description": "공격력 +100%, 방어력 -50% (3턴).",
                 "rarity": ItemRarity.RARE,
         "effect_type": "berserk",
         "effect_value": 5,
@@ -3822,7 +3822,7 @@ CONSUMABLE_TEMPLATES = {
     # === 공격적 아이템 (전투용) ===
     "poison_bomb": {
         "name": "독 폭탄",
-        "description": "",
+        "description": "적 전체에게 100 피해 + 독 상태 (5턴).",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "poison_bomb",
         "effect_value": 100,
@@ -3830,7 +3830,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "thunder_grenade": {
         "name": "천둥 수류탄",
-        "description": "",
+        "description": "적 전체에게 200 번개 피해 + 기절 확률.",
                 "rarity": ItemRarity.RARE,
         "effect_type": "thunder_grenade",
         "effect_value": 200,
@@ -3838,7 +3838,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "acid_flask": {
         "name": "산성 플라스크",
-        "description": "",
+        "description": "적 전체에게 180 피해 + 방어력 감소.",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "acid_flask",
         "effect_value": 180,
@@ -3846,7 +3846,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "debuff_attack": {
         "name": "공격 약화 폭탄",
-        "description": "",
+        "description": "적 전체 공격력 -30% (5턴).",
                 "rarity": ItemRarity.RARE,
         "effect_type": "debuff_attack",
         "effect_value": 0.3,
@@ -3854,7 +3854,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "debuff_defense": {
         "name": "방어 약화 폭탄",
-        "description": "",
+        "description": "적 전체 방어력 -40% (5턴).",
                 "rarity": ItemRarity.RARE,
         "effect_type": "debuff_defense",
         "effect_value": 0.4,
@@ -3862,7 +3862,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "debuff_speed": {
         "name": "속도 약화 폭탄",
-        "description": "",
+        "description": "적 전체 속도 -35% (5턴).",
                 "rarity": ItemRarity.RARE,
         "effect_type": "debuff_speed",
         "effect_value": 0.35,
@@ -3870,7 +3870,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "break_brv": {
         "name": "BRV 파괴 폭탄",
-        "description": "",
+        "description": "적 전체 BRV 200 감소.",
                 "rarity": ItemRarity.EPIC,
         "effect_type": "break_brv",
         "effect_value": 200,
@@ -3878,7 +3878,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "smoke_bomb": {
         "name": "연막탄",
-        "description": "",
+        "description": "적 전체 명중률 -50% (3턴).",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "smoke_bomb",
         "effect_value": 0.5,
@@ -3888,7 +3888,7 @@ CONSUMABLE_TEMPLATES = {
     # === 수비적 아이템 (전투용) ===
     "barrier_crystal": {
         "name": "방어 크리스탈",
-        "description": "",
+        "description": "아군 전체 받는 피해 -30% (3턴).",
                 "rarity": ItemRarity.RARE,
         "effect_type": "barrier_crystal",
         "effect_value": 0.3,
@@ -3896,7 +3896,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "haste_crystal": {
         "name": "가속 크리스탈",
-        "description": "",
+        "description": "아군 전체 속도 +40% (3턴).",
                 "rarity": ItemRarity.RARE,
         "effect_type": "haste_crystal",
         "effect_value": 0.4,
@@ -3904,7 +3904,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "power_tonic": {
         "name": "힘의 비약",
-        "description": "",
+        "description": "아군 전체 공격력 +35% (5턴).",
                 "rarity": ItemRarity.EPIC,
         "effect_type": "power_tonic",
         "effect_value": 0.35,
@@ -3912,7 +3912,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "defense_elixir": {
         "name": "방어 엘릭서",
-        "description": "",
+        "description": "아군 전체 방어력 +40% (5턴).",
                 "rarity": ItemRarity.EPIC,
         "effect_type": "defense_elixir",
         "effect_value": 0.4,
@@ -3920,7 +3920,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "regen_crystal": {
         "name": "재생 크리스탈",
-        "description": "",
+        "description": "아군 전체 매턴 HP 50 회복 (5턴).",
                 "rarity": ItemRarity.RARE,
         "effect_type": "regen_crystal",
         "effect_value": 50,
@@ -3928,7 +3928,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "mp_regen_crystal": {
         "name": "MP 재생 크리스탈",
-        "description": "",
+        "description": "아군 전체 매턴 MP 20 회복 (5턴).",
                 "rarity": ItemRarity.RARE,
         "effect_type": "mp_regen_crystal",
         "effect_value": 20,
@@ -3936,7 +3936,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "status_cleanse": {
         "name": "정화 물약",
-        "description": "",
+        "description": "모든 디버프 상태를 해제합니다.",
                 "rarity": ItemRarity.UNCOMMON,
         "effect_type": "status_cleanse",
         "effect_value": 0,
@@ -3944,7 +3944,7 @@ CONSUMABLE_TEMPLATES = {
     },
     "revive_crystal": {
         "name": "부활 크리스탈",
-        "description": "",
+        "description": "쓰러진 아군을 HP 30%로 부활.",
                 "rarity": ItemRarity.EPIC,
         "effect_type": "revive_crystal",
         "effect_value": 0.3,
@@ -4296,62 +4296,62 @@ class ItemGenerator:
 
 CONSUMABLE_TEMPLATES = {
     # === HP 포션 ===
-    "minor_hp_potion": {"name": "소형 HP 물약", "description": "", "effect_type": "heal_hp", "effect_value": 50, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 10},
-    "hp_potion": {"name": "HP 물약", "description": "", "effect_type": "heal_hp", "effect_value": 150, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 30},
-    "greater_hp_potion": {"name": "상급 HP 물약", "description": "", "effect_type": "heal_hp", "effect_value": 300, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 80},
-    "superior_hp_potion": {"name": "최상급 HP 물약", "description": "", "effect_type": "heal_hp", "effect_value": 600, "rarity": ItemRarity.RARE, "stack_size": 99, "sell_price": 200},
-    "max_hp_potion": {"name": "완전 HP 물약", "description": "", "effect_type": "heal_hp_full", "effect_value": 0, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 500},
+    "minor_hp_potion": {"name": "소형 HP 물약", "description": "HP를 50 회복합니다.", "effect_type": "heal_hp", "effect_value": 50, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 10},
+    "hp_potion": {"name": "HP 물약", "description": "HP를 150 회복합니다.", "effect_type": "heal_hp", "effect_value": 150, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 30},
+    "greater_hp_potion": {"name": "상급 HP 물약", "description": "HP를 300 회복합니다.", "effect_type": "heal_hp", "effect_value": 300, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 80},
+    "superior_hp_potion": {"name": "최상급 HP 물약", "description": "HP를 600 회복합니다.", "effect_type": "heal_hp", "effect_value": 600, "rarity": ItemRarity.RARE, "stack_size": 99, "sell_price": 200},
+    "max_hp_potion": {"name": "완전 HP 물약", "description": "HP를 완전히 회복합니다.", "effect_type": "heal_hp_full", "effect_value": 0, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 500},
     
     # === MP 포션 ===
-    "minor_mp_potion": {"name": "소형 MP 물약", "description": "", "effect_type": "heal_mp", "effect_value": 30, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 15},
-    "mp_potion": {"name": "MP 물약", "description": "", "effect_type": "heal_mp", "effect_value": 80, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 40},
-    "greater_mp_potion": {"name": "상급 MP 물약", "description": "", "effect_type": "heal_mp", "effect_value": 180, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 100},
-    "superior_mp_potion": {"name": "최상급 MP 물약", "description": "", "effect_type": "heal_mp", "effect_value": 350, "rarity": ItemRarity.RARE, "stack_size": 99, "sell_price": 250},
-    "max_mp_potion": {"name": "완전 MP 물약", "description": "", "effect_type": "heal_mp_full", "effect_value": 0, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 600},
+    "minor_mp_potion": {"name": "소형 MP 물약", "description": "MP를 30 회복합니다.", "effect_type": "heal_mp", "effect_value": 30, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 15},
+    "mp_potion": {"name": "MP 물약", "description": "MP를 80 회복합니다.", "effect_type": "heal_mp", "effect_value": 80, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 40},
+    "greater_mp_potion": {"name": "상급 MP 물약", "description": "MP를 180 회복합니다.", "effect_type": "heal_mp", "effect_value": 180, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 100},
+    "superior_mp_potion": {"name": "최상급 MP 물약", "description": "MP를 350 회복합니다.", "effect_type": "heal_mp", "effect_value": 350, "rarity": ItemRarity.RARE, "stack_size": 99, "sell_price": 250},
+    "max_mp_potion": {"name": "완전 MP 물약", "description": "MP를 완전히 회복합니다.", "effect_type": "heal_mp_full", "effect_value": 0, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 600},
     
     # === 만능 물약 ===
-    "elixir": {"name": "엘릭서", "description": "", "effect_type": "heal_both", "effect_value": 200, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 300},
-    "mega_elixir": {"name": "메가 엘릭서", "description": "", "effect_type": "heal_both_full", "effect_value": 0, "rarity": ItemRarity.EPIC, "stack_size": 10, "sell_price": 1000},
+    "elixir": {"name": "엘릭서", "description": "HP와 MP를 각각 200씩 회복합니다.", "effect_type": "heal_both", "effect_value": 200, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 300},
+    "mega_elixir": {"name": "메가 엘릭서", "description": "HP와 MP를 완전히 회복합니다.", "effect_type": "heal_both_full", "effect_value": 0, "rarity": ItemRarity.EPIC, "stack_size": 10, "sell_price": 1000},
     
     # === 상처 치료 ===
-    "bandage": {"name": "붕대", "description": "", "effect_type": "heal_wound", "effect_value": 10, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 20},
-    "ointment": {"name": "연고", "description": "", "effect_type": "heal_wound", "effect_value": 30, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 60},
-    "healing_salve": {"name": "치유 연고", "description": "", "effect_type": "heal_wound", "effect_value": 60, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 150},
+    "bandage": {"name": "붕대", "description": "상처를 10 치료합니다.", "effect_type": "heal_wound", "effect_value": 10, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 20},
+    "ointment": {"name": "연고", "description": "상처를 30 치료합니다.", "effect_type": "heal_wound", "effect_value": 30, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 60},
+    "healing_salve": {"name": "치유 연고", "description": "상처를 60 치료합니다.", "effect_type": "heal_wound", "effect_value": 60, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 150},
     
     # === 상태 이상 치료 ===
-    "antidote": {"name": "해독제", "description": "", "effect_type": "cure_poison", "effect_value": 0, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 25},
-    "panacea": {"name": "만병통치약", "description": "", "effect_type": "cure_all_status", "effect_value": 0, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 200},
-    "remedy": {"name": "치료제", "description": "", "effect_type": "cure_debuff", "effect_value": 0, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 80},
+    "antidote": {"name": "해독제", "description": "독 상태를 치료합니다.", "effect_type": "cure_poison", "effect_value": 0, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 25},
+    "panacea": {"name": "만병통치약", "description": "모든 상태 이상을 치료합니다.", "effect_type": "cure_all_status", "effect_value": 0, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 200},
+    "remedy": {"name": "치료제", "description": "디버프 상태를 치료합니다.", "effect_type": "cure_debuff", "effect_value": 0, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 80},
     
     # === 강화 물약 ===
-    "strength_tonic": {"name": "힘의 강장제", "description": "", "effect_type": "buff_strength", "effect_value": 10, "rarity": ItemRarity.UNCOMMON, "stack_size": 50, "sell_price": 100},
-    "magic_tonic": {"name": "마법의 강장제", "description": "", "effect_type": "buff_magic", "effect_value": 10, "rarity": ItemRarity.UNCOMMON, "stack_size": 50, "sell_price": 100},
-    "speed_tonic": {"name": "속도의 강장제", "description": "", "effect_type": "buff_speed", "effect_value": 10, "rarity": ItemRarity.UNCOMMON, "stack_size": 50, "sell_price": 100},
-    "defense_tonic": {"name": "방어의 강장제", "description": "", "effect_type": "buff_defense", "effect_value": 10, "rarity": ItemRarity.UNCOMMON, "stack_size": 50, "sell_price": 100},
+    "strength_tonic": {"name": "힘의 강장제", "description": "공격력 +10 버프 (5턴 지속).", "effect_type": "buff_strength", "effect_value": 10, "rarity": ItemRarity.UNCOMMON, "stack_size": 50, "sell_price": 100},
+    "magic_tonic": {"name": "마법의 강장제", "description": "마법력 +10 버프 (5턴 지속).", "effect_type": "buff_magic", "effect_value": 10, "rarity": ItemRarity.UNCOMMON, "stack_size": 50, "sell_price": 100},
+    "speed_tonic": {"name": "속도의 강장제", "description": "속도 +10 버프 (5턴 지속).", "effect_type": "buff_speed", "effect_value": 10, "rarity": ItemRarity.UNCOMMON, "stack_size": 50, "sell_price": 100},
+    "defense_tonic": {"name": "방어의 강장제", "description": "방어력 +10 버프 (5턴 지속).", "effect_type": "buff_defense", "effect_value": 10, "rarity": ItemRarity.UNCOMMON, "stack_size": 50, "sell_price": 100},
     
     # === 폭탄류 (공격 아이템) ===
-    "fire_bomb": {"name": "화염 폭탄", "description": "", "effect_type": "attack_fire", "effect_value": 100, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 50},
-    "ice_bomb": {"name": "냉기 폭탄", "description": "", "effect_type": "attack_ice", "effect_value": 100, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 50},
-    "thunder_bomb": {"name": "번개 폭탄", "description": "", "effect_type": "attack_lightning", "effect_value": 120, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 60},
-    "poison_bomb": {"name": "독 폭탄", "description": "", "effect_type": "attack_poison", "effect_value": 80, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 45},
-    "explosive_bomb": {"name": "폭발 폭탄", "description": "", "effect_type": "attack_explosive", "effect_value": 200, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 150},
+    "fire_bomb": {"name": "화염 폭탄", "description": "적 전체에게 100 화염 피해.", "effect_type": "attack_fire", "effect_value": 100, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 50},
+    "ice_bomb": {"name": "냉기 폭탄", "description": "적 전체에게 100 냉기 피해.", "effect_type": "attack_ice", "effect_value": 100, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 50},
+    "thunder_bomb": {"name": "번개 폭탄", "description": "적 전체에게 120 번개 피해.", "effect_type": "attack_lightning", "effect_value": 120, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 60},
+    "poison_bomb": {"name": "독 폭탄", "description": "적 전체에게 80 피해 + 독 상태 부여.", "effect_type": "attack_poison", "effect_value": 80, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 45},
+    "explosive_bomb": {"name": "폭발 폭탄", "description": "적 전체에게 200 물리 피해.", "effect_type": "attack_explosive", "effect_value": 200, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 150},
     
     # === 수류탄 ===
-    "frag_grenade": {"name": "파편 수류탄", "description": "", "effect_type": "attack_aoe", "effect_value": 150, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 120},
-    "flash_grenade": {"name": "섬광탄", "description": "", "effect_type": "debuff_blind", "effect_value": 0, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 70},
-    "smoke_grenade": {"name": "연막탄", "description": "", "effect_type": "buff_evasion", "effect_value": 30, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 60},
+    "frag_grenade": {"name": "파편 수류탄", "description": "적 전체에게 150 관통 피해.", "effect_type": "attack_aoe", "effect_value": 150, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 120},
+    "flash_grenade": {"name": "섬광탄", "description": "적 전체에게 실명 상태 부여 (3턴).", "effect_type": "debuff_blind", "effect_value": 0, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 70},
+    "smoke_grenade": {"name": "연막탄", "description": "아군 전체 회피율 +30% (3턴).", "effect_type": "buff_evasion", "effect_value": 30, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 60},
     
     # === 특수 아이템 ===
-    "phoenix_down": {"name": "불사조의 깃털", "description": "", "effect_type": "revive", "effect_value": 0.5, "rarity": ItemRarity.EPIC, "stack_size": 10, "sell_price": 1000},
-    "mega_phoenix": {"name": "메가 불사조의 깃털", "description": "", "effect_type": "revive_full", "effect_value": 1.0, "rarity": ItemRarity.LEGENDARY, "stack_size": 5, "sell_price": 5000},
-    "warp_stone": {"name": "귀환석", "description": "", "effect_type": "warp_town", "effect_value": 0, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 50},
-    "tent": {"name": "텐트", "description": "", "effect_type": "camp_rest", "effect_value": 0, "rarity": ItemRarity.UNCOMMON, "stack_size": 20, "sell_price": 200},
+    "phoenix_down": {"name": "불사조의 깃털", "description": "쓰러진 아군을 HP 50%로 부활.", "effect_type": "revive", "effect_value": 0.5, "rarity": ItemRarity.EPIC, "stack_size": 10, "sell_price": 1000},
+    "mega_phoenix": {"name": "메가 불사조의 깃털", "description": "쓰러진 아군을 HP 100%로 부활.", "effect_type": "revive_full", "effect_value": 1.0, "rarity": ItemRarity.LEGENDARY, "stack_size": 5, "sell_price": 5000},
+    "warp_stone": {"name": "귀환석", "description": "마을로 즉시 귀환합니다.", "effect_type": "warp_town", "effect_value": 0, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 50},
+    "tent": {"name": "텐트", "description": "야영 후 전체 HP/MP 50% 회복.", "effect_type": "camp_rest", "effect_value": 0, "rarity": ItemRarity.UNCOMMON, "stack_size": 20, "sell_price": 200},
     
     # === BRV 아이템 ===
-    "brv_crystal": {"name": "BRV 크리스탈", "description": "", "effect_type": "restore_brv", "effect_value": 500, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 150},
-    "break_guard": {"name": "브레이크 가드", "description": "", "effect_type": "prevent_break", "effect_value": 1, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 800},
+    "brv_crystal": {"name": "BRV 크리스탈", "description": "BRV를 500 회복합니다.", "effect_type": "restore_brv", "effect_value": 500, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 150},
+    "break_guard": {"name": "브레이크 가드", "description": "다음 1회 브레이크를 방지합니다.", "effect_type": "prevent_break", "effect_value": 1, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 800},
     
     # === 경험치/골드 아이템 ===
-    "exp_crystal": {"name": "경험치 크리스탈", "description": "", "effect_type": "bonus_exp", "effect_value": 100, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 300},
-    "gold_nugget": {"name": "금 덩어리", "description": "", "effect_type": "bonus_gold", "effect_value": 1000, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 500},
+    "exp_crystal": {"name": "경험치 크리스탈", "description": "경험치 100을 즉시 획득합니다.", "effect_type": "bonus_exp", "effect_value": 100, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 300},
+    "gold_nugget": {"name": "금 덩어리", "description": "골드 1000을 즉시 획득합니다.", "effect_type": "bonus_gold", "effect_value": 1000, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 500},
 }

@@ -25,56 +25,58 @@ stat_growth:
   evasion: 1.0
   max_brv: 101.0
 traits:
-- id: madness_threshold
-  name: 광기 역치
-  description: HP 낮을수록 광기↑ (광기 = (1-HP비율)*100)
+# 기믹 기본 효과: 광기 30-70(최적): 공/속+40/20%, 71-99(위험): 공/속+80/40%+크리+20%+피해+30%, 100(폭주): 공+150%+통제불가
+- id: rage_control
+  name: 분노 제어
+  description: 광기 자연 감소량 -50%, 최적 구간 확장 (30-70 → 25-75)
   type: passive
   effects:
-    madness_calculation: hp_based
-- id: berserker_mode
-  name: 광전사 모드
-  description: 광기 30-70 시 공격력 +60%, 속도 +30%
+    madness_decay_multiplier: 0.5
+    optimal_range_extension: 5
+- id: bloodlust
+  name: 피의 욕망
+  description: 적 처치 시 HP 15% 회복, 광기 20 감소
+  type: on_kill
+  effects:
+    hp_restore_percent: 0.15
+    madness_reduction: 20
+- id: last_stand
+  name: 최후의 저항
+  description: HP 15% 이하로 떨어지는 치명적 피해 1회 회피 (전투당 1회), 광기 50 감소
   type: conditional
   conditions:
-    madness_min: 30
-    madness_max: 70
+    fatal_damage: true
+    once_per_combat: true
   effects:
-    attack_multiplier: 1.6
-    speed_multiplier: 1.3
-- id: danger_zone
-  name: 위험 구간
-  description: 광기 71-99 시 공격력 +100%, 크리티컬 +30%, 받는 피해 +50%
+    damage_immunity: true
+    survival_hp_percent: 0.01
+    madness_reduction: 50
+- id: berserker_rush
+  name: 광전사 돌진
+  description: 광기 50 소모하여 같은 턴 추가 행동 (턴당 1회, 추가 행동 피해 -30%)
+  type: active
+  conditions:
+    madness_min: 50
+    once_per_turn: true
+  effects:
+    extra_action: true
+    madness_cost: 50
+    damage_penalty: 0.7
+- id: pain_to_power
+  name: 고통을 힘으로
+  description: 피격 시 '고통' 스택 +1 (최대 10스택), 공격 시 스택당 피해 +5% (최대 +50%), 공격 후 스택 소모
   type: conditional
   conditions:
-    madness_min: 71
-    madness_max: 99
+    on_damaged: true
   effects:
-    attack_multiplier: 2.0
-    critical_rate_bonus: 0.3
-    damage_taken_multiplier: 1.5
-- id: controlled_rampage
-  name: 통제된 폭주
-  description: 광기 100 시 2턴간 공격력 +200%, 크리티컬 확률 +50%, 받는 데미지 +30% (통제 가능, 무작위 공격 없음)
-  type: conditional
-  conditions:
-    madness_exact: 100
-  effects:
-    attack_multiplier: 3.0
-    critical_rate_bonus: 0.5
-    damage_taken_multiplier: 1.3
-    duration: 2
-- id: pain_tolerance
-  name: 고통 내성
-  description: HP 30% 이하 시 받는 피해 -20%
-  type: conditional
-  conditions:
-    hp_percent_max: 0.3
-  effects:
-    damage_taken_multiplier: 0.8
+    pain_stack_gain: 1
+    max_pain_stacks: 10
+    damage_per_stack: 0.05
+    consume_on_attack: true
 gimmick:
   type: madness_threshold
   name: 광기 역치 시스템
-  description: HP가 낮을수록 광기 증가 (광기 = (1-HP비율)*100). 30-70 최적, 100 폭주
+  description: HP가 낮을수록 광기 증가. 30-70 최적(공+40%,속+20%), 71-99 위험(공+80%,크리+20%,피해+30%,HP-5%/턴), 100 폭주(공+150%,크리+30%,피해+50%,HP-10%/턴)
   min_madness: 0
   max_madness: 100
   optimal_min: 30

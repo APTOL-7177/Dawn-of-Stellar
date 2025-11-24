@@ -160,7 +160,7 @@ def create_dark_knight_skills():
     # 9. 어둠의 재생
     dark_regeneration = Skill("dk_dark_regeneration", "어둠의 재생", "충전 20 소모하여 HP/BRV 회복")
     dark_regeneration.effects = [
-        HealEffect(heal_multiplier=1.5, max_hp_percent=0.3),  # 최대 HP의 30% 회복
+        HealEffect(stat_scaling='max_attack', multiplier=1.5, percentage=0.3),  # 공격력 기반 회복 + 30% 추가
         GimmickEffect(GimmickOperation.CONSUME, "charge_gauge", 20)
     ]
     dark_regeneration.costs = [MPCost(10), StackCost("charge_gauge", 20)]

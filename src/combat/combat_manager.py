@@ -324,6 +324,10 @@ class CombatManager:
         # 0. 특성 효과: 턴 시작 효과 적용
         from src.character.trait_effects import get_trait_effect_manager
         trait_manager = get_trait_effect_manager()
+        
+        # 턴 시작 시 특성 플래그 초기화 (berserker_rush 등)
+        trait_manager.reset_turn_flags(actor)
+        
         trait_manager.apply_turn_start_effects(actor)
         
         # 0-1. 특성 효과: 주기적 버프 (tactical_genius 등)
@@ -509,6 +513,39 @@ class CombatManager:
                 self._on_turn_end(actor)
                 return result
 
+        # 추가 행동 확인 (berserker_rush 특성 등)
+        extra_action_available, extra_action_cost = trait_manager.check_extra_action(actor)
+        is_extra_action = getattr(actor, '_is_extra_action', False)
+        
+        if extra_action_available and not is_extra_action:
+            # 추가 행동 가능! - ATB를 소비하지 않고 추가 턴 부여
+            # NOTE: 의도적으로 _on_turn_end()를 호출하지 않음
+            # - berserker_rush는 같은 턴에 두 번 행동하는 것이므로 버프/디버프 지속시간이 한 번만 감소해야 함
+            # - 기믹 업데이트(광기 감소 등)도 추가 행동 후에 한 번만 실행됨
+            # - 턴 카운트도 한 번만 증가함
+            trait_manager.activate_extra_action(actor, extra_action_cost)
+            actor._is_extra_action = True  # 다음 행동은 추가 행동임을 표시
+            result["extra_action_granted"] = True
+            self.logger.info(f"[추가 행동] {actor.name}이(가) 추가 행동을 획득했습니다!")
+            
+            # 콜백 호출
+            if self.on_action_complete:
+                self.on_action_complete(actor, result)
+            
+            # 이벤트 발행 (턴 종료 없이)
+            event_bus.publish(Events.COMBAT_ACTION, {
+                "actor": actor,
+                "action_type": action_type.value,
+                "target": target,
+                "result": result
+            })
+            
+            return result  # 턴 종료 없이 반환 (추가 행동 대기)
+        
+        # 추가 행동 플래그 초기화
+        if is_extra_action:
+            actor._is_extra_action = False
+        
         # ATB 소비 (행동 성공 시)
         self.atb.consume_atb(actor)
 
@@ -556,6 +593,52 @@ class CombatManager:
                 self.logger.info(
                     f"[집중의 힘] {attacker.name} 스택 {attacker.defend_stack_count}개 소비 → 데미지 +{defend_stack_bonus * 100:.0f}%"
                 )
+
+        # combo_multiplier (콤보 배율 처리) - 데미지 계산 전에 적용
+        combo_bonus = 0
+        if skill and hasattr(skill, 'metadata') and skill.metadata.get('combo_multiplier'):
+            combo_mult = skill.metadata['combo_multiplier']
+            combo_key = f"_combo_count_{getattr(skill, 'skill_id', 'default')}"
+            current_combo = getattr(attacker, combo_key, 0) + 1
+            
+            # 콤보 최대치 제한
+            max_combo = skill.metadata.get('combo_max', 10)
+            current_combo = min(current_combo, max_combo)
+            setattr(attacker, combo_key, current_combo)
+            
+            # 콤보 보너스 계산 및 적용
+            combo_bonus = (current_combo - 1) * combo_mult
+            if combo_bonus > 0:
+                skill_multiplier *= (1.0 + combo_bonus)
+                self.logger.debug(f"[콤보] {attacker.name} 콤보 {current_combo}회 → 데미지 +{combo_bonus*100:.0f}%")
+            
+            # combo_reset: 다른 스킬 사용 시 콤보 리셋 여부
+            # True(기본값): 다른 스킬 콤보 초기화 / False: 다른 스킬 콤보 유지
+            if skill.metadata.get('combo_reset', True):
+                # 다른 스킬의 콤보 초기화 (vars 사용으로 성능 개선)
+                try:
+                    attacker_vars = vars(attacker)
+                except TypeError:
+                    attacker_vars = getattr(attacker, '__dict__', {})
+                for attr in list(attacker_vars.keys()):
+                    if attr.startswith('_combo_count_') and attr != combo_key:
+                        setattr(attacker, attr, 0)
+
+        # first_strike_bonus (선제공격 보너스) - 데미지 계산 전에 적용
+        first_strike_bonus = 0
+        if self.turn_count == 0 and skill and hasattr(skill, 'metadata') and skill.metadata.get('first_strike_bonus'):
+            first_strike_bonus = skill.metadata['first_strike_bonus']
+            skill_multiplier *= (1.0 + first_strike_bonus)
+            self.logger.info(f"[선제 공격] {attacker.name} 첫 턴 공격! 데미지 +{first_strike_bonus*100:.0f}%")
+
+        # revenge_bonus (복수 보너스 - 피격 후 공격) - 데미지 계산 전에 적용
+        revenge_bonus = 0
+        if hasattr(attacker, '_recently_damaged') and attacker._recently_damaged:
+            if skill and hasattr(skill, 'metadata') and skill.metadata.get('revenge_bonus'):
+                revenge_bonus = skill.metadata['revenge_bonus']
+                skill_multiplier *= (1.0 + revenge_bonus)
+                self.logger.info(f"[복수] {attacker.name} 복수 공격! 데미지 +{revenge_bonus*100:.0f}%")
+            attacker._recently_damaged = False  # 복수 후 초기화
 
         # 데미지 계산
         damage_result = self.damage_calc.calculate_brv_damage(
@@ -642,44 +725,6 @@ class CombatManager:
                     if hasattr(defender, 'status_manager'):
                         defender.status_manager.add_status(silence)
                         self.logger.info(f"[침묵] {defender.name} 침묵! ({silence_chance*100:.0f}% 확률)")
-
-        # combo_multiplier (콤보 배율 처리)
-        combo_bonus = 0
-        if skill and hasattr(skill, 'metadata') and skill.metadata.get('combo_multiplier'):
-            combo_mult = skill.metadata['combo_multiplier']
-            combo_key = f"_combo_count_{getattr(skill, 'skill_id', 'default')}"
-            current_combo = getattr(attacker, combo_key, 0) + 1
-            
-            # 콤보 최대치 제한
-            max_combo = skill.metadata.get('combo_max', 10)
-            current_combo = min(current_combo, max_combo)
-            setattr(attacker, combo_key, current_combo)
-            
-            # 콤보 보너스 계산
-            combo_bonus = (current_combo - 1) * combo_mult
-            if combo_bonus > 0:
-                self.logger.debug(f"[콤보] {attacker.name} 콤보 {current_combo}회 → 데미지 +{combo_bonus*100:.0f}%")
-            
-            # combo_reset: 다른 스킬 사용 시 콤보 리셋 여부
-            if not skill.metadata.get('combo_reset', False):
-                # 다른 스킬의 콤보 초기화
-                for attr in dir(attacker):
-                    if attr.startswith('_combo_count_') and attr != combo_key:
-                        setattr(attacker, attr, 0)
-
-        # first_strike_bonus (선제공격 보너스)
-        first_strike_bonus = 0
-        if self.turn_count == 0 and skill and hasattr(skill, 'metadata') and skill.metadata.get('first_strike_bonus'):
-            first_strike_bonus = skill.metadata['first_strike_bonus']
-            self.logger.info(f"[선제 공격] {attacker.name} 첫 턴 공격! 데미지 +{first_strike_bonus*100:.0f}%")
-
-        # revenge_bonus (복수 보너스 - 피격 후 공격)
-        revenge_bonus = 0
-        if hasattr(attacker, '_recently_damaged') and attacker._recently_damaged:
-            if skill and hasattr(skill, 'metadata') and skill.metadata.get('revenge_bonus'):
-                revenge_bonus = skill.metadata['revenge_bonus']
-                self.logger.info(f"[복수] {attacker.name} 복수 공격! 데미지 +{revenge_bonus*100:.0f}%")
-            attacker._recently_damaged = False  # 복수 후 초기화
 
         return {
             "action": "brv_attack",
@@ -1341,8 +1386,14 @@ class CombatManager:
                                         if hasattr(splash_target, 'take_damage'):
                                             actual_damage = splash_target.take_damage(final_damage)
                                             self.logger.info(f"[폭발적 힘] {actor.name}의 충격파 → {splash_target.name}에게 {actual_damage} 피해!")
+                                        elif hasattr(splash_target, 'current_hp'):
+                                            # fallback: take_damage가 없는 경우 직접 HP 수정
+                                            actual_damage = min(final_damage, splash_target.current_hp)
+                                            splash_target.current_hp = max(0, splash_target.current_hp - actual_damage)
+                                            self.logger.info(f"[폭발적 힘] {actor.name}의 충격파 → {splash_target.name}에게 {actual_damage} 피해!")
                                         else:
-                                            self.logger.warning(f"[폭발적 힘] {splash_target.name}에 take_damage 메서드가 없어 충격파 피해를 적용할 수 없습니다.")
+                                            # 피해를 적용할 수 없는 대상 - 경고만 출력
+                                            self.logger.warning(f"[폭발적 힘] {splash_target.name}에게 피해를 적용할 수 없습니다 (take_damage/current_hp 없음)")
 
             # 스킬 메타데이터: stun_chance (기절 확률)
             if target and hasattr(skill, 'metadata') and skill.metadata.get('stun_chance'):
@@ -2586,8 +2637,13 @@ class CombatManager:
 
         from src.character.stats import Stats
 
-        # 모든 스탯에 대해 보너스 계산 및 적용
-        for stat in Stats:
+        # 모든 주요 스탯에 대해 보너스 계산 및 적용
+        all_stats = [
+            Stats.STRENGTH, Stats.DEFENSE, Stats.MAGIC, Stats.SPIRIT,
+            Stats.SPEED, Stats.LUCK, Stats.ACCURACY, Stats.EVASION,
+            Stats.HP, Stats.MP, Stats.MAX_BRV
+        ]
+        for stat in all_stats:
             base_value = character.stat_manager.get_value(stat, use_total=False)
             bonus_value = int(base_value * multiplier)
             if bonus_value > 0:

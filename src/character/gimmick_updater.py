@@ -446,22 +446,105 @@ class GimmickUpdater:
 
     @staticmethod
     def _update_madness_threshold(character):
-        """버서커: 광기 임계치 시스템 업데이트"""
-        # 광기 자연 감소 (최적 구간 이하에서만)
-        if character.madness < character.optimal_max:
-            character.madness = max(0, character.madness - 5)
-            logger.debug(f"{character.name} 광기 자연 감소: -5 (총: {character.madness})")
-
-        # 위험 구간에서는 자연 증가
-        elif character.madness >= character.danger_min:
+        """버서커: 광기 임계치 시스템 업데이트
+        
+        기본 효과 (특성 불필요):
+        - 광기 30-70 (최적): 공격력 +40%, 속도 +20%
+        - 광기 71-99 (위험): 공격력 +80%, 속도 +40%, 크리티컬 +20%, 받는 피해 +30%
+        - 광기 100 (폭주): 공격력 +150%, 통제 불가, 무작위 공격
+        """
+        from src.character.stat_manager import Stats
+        
+        # 먼저 기존 광기 관련 스탯 보너스 제거
+        try:
+            character.stat_manager.remove_bonus(Stats.STRENGTH, "madness_bonus")
+            character.stat_manager.remove_bonus(Stats.SPEED, "madness_bonus")
+        except (AttributeError, KeyError):
+            pass
+        
+        # === rage_control 특성 확인 (광기 감소량 조절 + 구간 확장) ===
+        decay_mult = 1.0  # 기본 감소 배율
+        optimal_min_adj = 0  # 최적 구간 시작 조절
+        optimal_max_adj = 0  # 최적 구간 끝 조절
+        
+        if hasattr(character, 'active_traits'):
+            for trait_data in character.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                if trait_id == "rage_control":
+                    decay_mult = 0.50  # 감소량 50%로
+                    optimal_min_adj = -5  # 최적 구간 25-75로 확장
+                    optimal_max_adj = 5
+                    break
+        
+        # 특성 적용된 최적/위험 구간
+        effective_optimal_min = character.optimal_min + optimal_min_adj
+        effective_optimal_max = character.optimal_max + optimal_max_adj
+        effective_danger_min = effective_optimal_max + 1
+        
+        # 광기 자연 감소/증가 계산
+        base_decay = 5
+        actual_decay = int(base_decay * decay_mult)
+        
+        if character.madness < effective_optimal_min:
+            # 최적 구간 미만: 자연 감소
+            character.madness = max(0, character.madness - actual_decay)
+            logger.debug(f"{character.name} 광기 자연 감소: -{actual_decay} (총: {character.madness})")
+        elif character.madness >= effective_danger_min:
+            # 위험 구간: 자연 증가
             character.madness = min(character.max_madness, character.madness + 10)
             logger.warning(f"{character.name} 광기 위험 증가: +10 (총: {character.madness})")
-
-        # 사망 임계치 체크 (rampage_threshold 사용)
-        rampage_threshold = getattr(character, 'rampage_threshold', 100)
-        if character.madness >= rampage_threshold:
-            logger.critical(f"{character.name} 광기 {rampage_threshold} 도달! 사망 위험!")
-            # 실제 사망 처리는 combat_manager에서 수행
+        
+        # === 기본 효과 적용 (특성 불필요) ===
+        madness = character.madness
+        base_attack = character.stat_manager.get_base_value(Stats.STRENGTH)
+        base_speed = character.stat_manager.get_base_value(Stats.SPEED)
+        
+        # 폭주 상태 (광기 100) - 통제 가능하지만 대가가 큼
+        if madness >= character.rampage_threshold:
+            character.stat_manager.add_bonus(Stats.STRENGTH, "madness_bonus", base_attack * 1.50)
+            # 폭주 상태에서는 속도 보너스 없음 (공격력 +150%, 크리티컬 +30%만 적용)
+            character._is_rampaging = True
+            character._rampage_turns = getattr(character, '_rampage_turns', 0) + 1
+            character._madness_zone = "rampage"
+            character._madness_crit_bonus = 0.30  # 크리티컬 +30%
+            character._madness_damage_taken_mult = 1.50  # 받는 피해 +50%
+            
+            # 매턴 HP 10% 감소 (폭주의 대가)
+            hp_loss = int(character.max_hp * 0.10)
+            character.current_hp = max(1, character.current_hp - hp_loss)
+            logger.critical(f"{character.name} 폭주 상태! 공격력 +150%, 받는 피해 +50%, HP -{hp_loss} (잔여: {character.current_hp})")
+            
+        # 위험 구간 (effective_danger_min ~ 99)
+        elif madness >= effective_danger_min:
+            character.stat_manager.add_bonus(Stats.STRENGTH, "madness_bonus", base_attack * 0.80)
+            character.stat_manager.add_bonus(Stats.SPEED, "madness_bonus", base_speed * 0.40)
+            character._is_rampaging = False
+            character._madness_zone = "danger"
+            character._madness_crit_bonus = 0.20  # 크리티컬 +20%
+            character._madness_damage_taken_mult = 1.30  # 받는 피해 +30%
+            
+            # 매턴 HP 5% 감소 (위험의 대가)
+            hp_loss = int(character.max_hp * 0.05)
+            character.current_hp = max(1, character.current_hp - hp_loss)
+            logger.warning(f"{character.name} 위험 구간! 공격력 +80%, 받는 피해 +30%, HP -{hp_loss} (잔여: {character.current_hp})")
+            
+        # 최적 구간 (effective_optimal_min ~ effective_optimal_max)
+        elif madness >= effective_optimal_min:
+            character.stat_manager.add_bonus(Stats.STRENGTH, "madness_bonus", base_attack * 0.40)
+            character.stat_manager.add_bonus(Stats.SPEED, "madness_bonus", base_speed * 0.20)
+            character._is_rampaging = False
+            character._madness_zone = "optimal"
+            character._madness_crit_bonus = 0
+            character._madness_damage_taken_mult = 1.0
+            logger.info(f"{character.name} 최적 구간! 공격력 +40%, 속도 +20%")
+            
+        # 안전 구간 (0 ~ effective_optimal_min-1)
+        else:
+            character._is_rampaging = False
+            character._madness_zone = "safe"
+            character._madness_crit_bonus = 0
+            character._madness_damage_taken_mult = 1.0
+            logger.debug(f"{character.name} 안전 구간. 보너스 없음.")
 
     @staticmethod
     def _update_thirst_gauge(character):

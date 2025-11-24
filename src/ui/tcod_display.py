@@ -15,6 +15,7 @@ import sys
 
 from src.core.config import get_config
 from src.core.logger import get_logger
+from src.ui.gauge_tileset import initialize_gauge_tiles
 
 
 class Colors:
@@ -206,6 +207,13 @@ class TCODDisplay:
                         f"  ✓ TrueType 폰트 로드 성공: {font_path}\n"
                         f"    셀 크기: {char_width}x{char_height}"
                     )
+
+                # 게이지 타일셋 초기화 (픽셀 단위 게이지용)
+                try:
+                    initialize_gauge_tiles(self.tileset)
+                    self.logger.info("  ✓ 게이지 타일셋 초기화 완료")
+                except Exception as gauge_e:
+                    self.logger.warning(f"  게이지 타일셋 초기화 실패: {gauge_e}")
 
                 break
 

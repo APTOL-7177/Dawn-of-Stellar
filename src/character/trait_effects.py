@@ -24,6 +24,7 @@ class TraitEffectType(Enum):
     STAT_FLAT = "stat_flat"                  # 스탯 고정값 증가
     DAMAGE_MULTIPLIER = "damage_multiplier"  # 데미지 배율 증가
     DAMAGE_REDUCTION = "damage_reduction"    # 받는 피해 감소
+    DAMAGE_IMMUNITY = "damage_immunity"      # 피해 면역 (치명적 피해 회피)
     MP_COST_REDUCTION = "mp_cost_reduction"  # MP 소모 감소
     HP_REGEN = "hp_regen"                    # HP 회복
     MP_REGEN = "mp_regen"                    # MP 회복
@@ -51,6 +52,8 @@ class TraitEffectType(Enum):
     ALL_STATS_MULTIPLIER = "all_stats_multiplier"  # 모든 스탯 배율
     LIFESTEAL_MULTIPLIER = "lifesteal_multiplier"  # 흡혈 배율
     PASSIVE = "passive"                            # 패시브 (로직 처리용)
+    GIMMICK_MODIFIER = "gimmick_modifier"          # 기믹 시스템 수정
+    EXTRA_ACTION = "extra_action"                  # 추가 행동
 
 
 @dataclass
@@ -1037,76 +1040,101 @@ class TraitEffectManager:
             ],
 
             # === BERSERKER (버서커) ===
-            "madness_threshold": [
+            # 기본 기믹 효과: 광기 30-70(최적): 공/속+40/20%, 71-99(위험): 공/속+80/40%+크리+20%+피해+30%, 100(폭주): 공+150%+통제불가
+            
+            # 특성 1: 분노 제어 - 광기 관리 최적화
+            "rage_control": [
                 TraitEffect(
-                    trait_id="madness_threshold",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    trait_id="rage_control",
+                    effect_type=TraitEffectType.GIMMICK_MODIFIER,
+                    value=0.50,
+                    target_stat="madness_decay_rate",
+                    metadata={"description": "광기 자연 감소량 -50% (5→2.5)", "madness_decay_mult": 0.50}
+                ),
+                TraitEffect(
+                    trait_id="rage_control",
+                    effect_type=TraitEffectType.GIMMICK_MODIFIER,
+                    value=5.0,
+                    target_stat="optimal_range_extension",
+                    metadata={"description": "최적 구간 확장 (30-70 → 25-75)", "optimal_min_adj": -5, "optimal_max_adj": 5}
+                )
+            ],
+            
+            # 특성 2: 피의 욕망 - 적 처치 시 보상
+            "bloodlust": [
+                TraitEffect(
+                    trait_id="bloodlust",
+                    effect_type=TraitEffectType.ON_KILL,
+                    value=0.15,
+                    target_stat="hp_restore",
+                    metadata={"description": "적 처치 시 HP 15% 회복", "heal_percent": 0.15}
+                ),
+                TraitEffect(
+                    trait_id="bloodlust",
+                    effect_type=TraitEffectType.ON_KILL,
+                    value=-20.0,
+                    target_stat="madness_adjust",
+                    metadata={"description": "적 처치 시 광기 20 감소", "madness_reduction": 20}
+                )
+            ],
+            
+            # 특성 3: 최후의 저항 - 치명적 상황에서 생존
+            "last_stand": [
+                TraitEffect(
+                    trait_id="last_stand",
+                    effect_type=TraitEffectType.DAMAGE_IMMUNITY,
                     value=1.0,
-                    target_stat="madness_calculation",
-                    metadata={"description": "HP 낮을수록 광기↑ (광기 = (1-HP비율)*100)"}
+                    condition="hp_below_15_once",
+                    target_stat="fatal_damage",
+                    metadata={"description": "HP 15% 이하에서 1회 치명타 회피 (전투당 1회)", "once_per_combat": True}
+                ),
+                TraitEffect(
+                    trait_id="last_stand",
+                    effect_type=TraitEffectType.GIMMICK_MODIFIER,
+                    value=-50.0,
+                    condition="last_stand_triggered",
+                    target_stat="madness_adjust",
+                    metadata={"description": "최후의 저항 발동 시 광기 50 감소", "madness_reduction": 50}
                 )
             ],
-            "berserker_mode": [
+            
+            # 특성 4: 광전사 돌진 - 광기 소모로 추가 행동
+            "berserker_rush": [
                 TraitEffect(
-                    trait_id="berserker_mode",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=1.60,
-                    condition="madness_safe",
-                    target_stat="attack",
-                    metadata={"description": "광기 30-70 시 공격력 +60%"}
+                    trait_id="berserker_rush",
+                    effect_type=TraitEffectType.EXTRA_ACTION,
+                    value=1.0,
+                    condition="madness_above_50",
+                    target_stat="additional_action",
+                    metadata={"description": "광기 50 소모하여 같은 턴 추가 행동 (턴당 1회)", "madness_cost": 50, "once_per_turn": True}
                 ),
                 TraitEffect(
-                    trait_id="berserker_mode",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=1.30,
-                    condition="madness_safe",
-                    target_stat="speed",
-                    metadata={"description": "속도 +30%"}
-                )
-            ],
-            "danger_zone": [
-                TraitEffect(
-                    trait_id="danger_zone",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=2.00,
-                    condition="madness_danger",
-                    target_stat="attack",
-                    metadata={"description": "광기 71-99 시 공격력 +100%"}
-                ),
-                TraitEffect(
-                    trait_id="danger_zone",
-                    effect_type=TraitEffectType.CRITICAL_BONUS,
-                    value=0.30,
-                    condition="madness_danger",
-                    metadata={"description": "크리티컬 +30%"}
-                ),
-                TraitEffect(
-                    trait_id="danger_zone",
+                    trait_id="berserker_rush",
                     effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
-                    value=1.50,
-                    condition="madness_danger",
-                    target_stat="damage_taken",
-                    metadata={"description": "받는 피해 +50%"}
+                    value=0.70,
+                    condition="berserker_rush_active",
+                    target_stat="damage_dealt",
+                    metadata={"description": "추가 행동 시 피해량 -30%", "damage_mult": 0.70}
                 )
             ],
-            "rampage_state": [
+            
+            # 특성 5: 고통을 힘으로 - 피격 시 스택 획득, 데미지 증가
+            "pain_to_power": [
                 TraitEffect(
-                    trait_id="rampage_state",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=3.00,
-                    condition="madness_100",
-                    target_stat="attack",
-                    metadata={"description": "광기 100 시 3턴간 통제 불가, 공격력 +200%, 무작위 공격"}
-                )
-            ],
-            "pain_tolerance": [
+                    trait_id="pain_to_power",
+                    effect_type=TraitEffectType.RETALIATION,
+                    value=1.0,
+                    condition="on_damaged",
+                    target_stat="pain_stack",
+                    metadata={"description": "피격 시 '고통' 스택 +1 (최대 10스택)", "max_stacks": 10, "stack_per_hit": 1}
+                ),
                 TraitEffect(
-                    trait_id="pain_tolerance",
+                    trait_id="pain_to_power",
                     effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
-                    value=0.80,
-                    condition="hp_below_30",
-                    target_stat="damage_taken",
-                    metadata={"description": "HP 30% 이하 시 받는 피해 -20%"}
+                    value=1.05,
+                    condition="has_pain_stacks",
+                    target_stat="damage_dealt",
+                    metadata={"description": "스택당 피해량 +5% (최대 +50%)", "per_stack_bonus": 0.05, "consume_on_attack": True}
                 )
             ],
 
@@ -3760,6 +3788,127 @@ class TraitEffectManager:
         # 최대 90%까지 감소 가능
         return min(total_reduction, 0.90)
 
+    def check_fatal_damage_immunity(self, character: Any, incoming_damage: int) -> tuple[bool, int]:
+        """
+        치명적 피해 면역 확인 (last_stand 특성 등)
+        
+        Args:
+            character: 피해를 받는 캐릭터
+            incoming_damage: 들어오는 피해량
+            
+        Returns:
+            (면역 발동 여부, 조정된 피해량)
+        """
+        all_traits = self._get_all_traits(character)
+        
+        for trait_data in all_traits:
+            trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+            effects = self.get_trait_effects(trait_id)
+            
+            for effect in effects:
+                if effect.effect_type == TraitEffectType.DAMAGE_IMMUNITY:
+                    # HP 15% 이하 체크
+                    current_hp = getattr(character, 'current_hp', 0)
+                    max_hp = getattr(character, 'max_hp', 1)
+                    hp_ratio = current_hp / max(1, max_hp)
+                    
+                    # 피해를 받으면 HP 15% 이하가 되는지 확인
+                    hp_after_damage = current_hp - incoming_damage
+                    hp_after_ratio = hp_after_damage / max(1, max_hp)
+                    
+                    # 조건: 1회 사용 가능 + HP 15% 이하로 떨어지는 치명적 피해
+                    once_per_combat = effect.metadata.get("once_per_combat", False)
+                    already_used = getattr(character, '_last_stand_used', False)
+                    
+                    if once_per_combat and already_used:
+                        continue
+                    
+                    # HP가 15% 이하로 떨어지거나 사망할 때 발동
+                    if hp_after_ratio <= 0.15 or hp_after_damage <= 0:
+                        # 면역 발동! HP를 1로 설정하고 피해 무효화
+                        character._last_stand_used = True
+                        
+                        # 광기 50 감소 (last_stand의 두 번째 효과)
+                        if hasattr(character, 'madness'):
+                            reduction = effect.metadata.get("madness_reduction", 50)
+                            old_madness = character.madness
+                            character.madness = max(0, character.madness - reduction)
+                            self.logger.info(f"[{trait_id}] 최후의 저항! 광기 {old_madness} → {character.madness}")
+                        
+                        # HP를 max_hp의 1%로 설정 (최소 1)
+                        survival_hp = max(1, int(max_hp * 0.01))
+                        adjusted_damage = max(0, current_hp - survival_hp)
+                        
+                        self.logger.info(f"[{trait_id}] 최후의 저항 발동! 치명적 피해 회피! (HP → {survival_hp})")
+                        return True, adjusted_damage
+        
+        return False, incoming_damage
+
+    def check_extra_action(self, character: Any) -> tuple[bool, int]:
+        """
+        추가 행동 가능 여부 확인 (berserker_rush 특성 등)
+        
+        Args:
+            character: 캐릭터
+            
+        Returns:
+            (추가 행동 가능 여부, 소모할 리소스량)
+        """
+        all_traits = self._get_all_traits(character)
+        
+        for trait_data in all_traits:
+            trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+            effects = self.get_trait_effects(trait_id)
+            
+            for effect in effects:
+                if effect.effect_type == TraitEffectType.EXTRA_ACTION:
+                    # 조건 확인: 광기 50 이상
+                    madness = getattr(character, 'madness', 0)
+                    madness_cost = effect.metadata.get("madness_cost", 50)
+                    
+                    if madness < madness_cost:
+                        continue
+                    
+                    # 턴당 1회 제한
+                    once_per_turn = effect.metadata.get("once_per_turn", True)
+                    already_used_this_turn = getattr(character, '_berserker_rush_used_this_turn', False)
+                    
+                    if once_per_turn and already_used_this_turn:
+                        continue
+                    
+                    self.logger.info(f"[{trait_id}] 추가 행동 가능! (광기 {madness} → {madness - madness_cost})")
+                    return True, madness_cost
+        
+        return False, 0
+
+    def activate_extra_action(self, character: Any, cost: int):
+        """
+        추가 행동 발동 (리소스 소모)
+        
+        Args:
+            character: 캐릭터
+            cost: 소모할 광기량
+        """
+        if hasattr(character, 'madness'):
+            character.madness = max(0, character.madness - cost)
+        character._berserker_rush_used_this_turn = True
+        character._berserker_rush_damage_penalty = 0.70  # 피해량 70%로 감소
+        self.logger.info(f"[berserker_rush] 광전사 돌진! 광기 -{cost}, 추가 행동 획득!")
+
+    def reset_turn_flags(self, character: Any):
+        """
+        턴 시작 시 특성 관련 플래그 초기화
+        
+        Args:
+            character: 캐릭터
+        """
+        # 추가 행동 중이면 damage penalty를 유지 (berserker_rush의 피해 감소 효과 보존)
+        is_extra_action = getattr(character, '_is_extra_action', False)
+        if not is_extra_action:
+            character._berserker_rush_used_this_turn = False
+            character._berserker_rush_damage_penalty = 1.0
+        # 추가 행동 중에는 _berserker_rush_used_this_turn만 리셋하지 않음 (턴당 1회 제한 유지)
+
     def calculate_lifesteal(self, character: Any, **context) -> float:
         """
         특성에 의한 생명력 흡수율 계산
@@ -3930,7 +4079,7 @@ class TraitEffectManager:
 
     def apply_on_kill_effects(self, attacker: Any, defender: Any):
         """
-        처치 시 특성 효과 적용 (kill_bonus 등)
+        처치 시 특성 효과 적용 (kill_bonus, on_kill 등)
 
         Args:
             attacker: 공격자 (처치한 캐릭터)
@@ -3943,6 +4092,32 @@ class TraitEffectManager:
             effects = self.get_trait_effects(trait_id)
 
             for effect in effects:
+                # ON_KILL 효과 (광전사 bloodlust 등)
+                if effect.effect_type == TraitEffectType.ON_KILL:
+                    if not effect.metadata:
+                        continue
+                    
+                    # HP 회복 (heal_percent)
+                    if effect.target_stat == "hp_restore" and "heal_percent" in effect.metadata:
+                        heal_pct = effect.metadata["heal_percent"]
+                        heal_amount = int(attacker.max_hp * heal_pct)
+                        if hasattr(attacker, 'heal'):
+                            actual = attacker.heal(heal_amount)
+                            self.logger.info(f"[{trait_id}] 처치 보상: HP {actual} 회복!")
+                        elif hasattr(attacker, 'current_hp'):
+                            actual = min(heal_amount, attacker.max_hp - attacker.current_hp)
+                            attacker.current_hp = attacker.current_hp + actual
+                            self.logger.info(f"[{trait_id}] 처치 보상: HP {actual} 회복!")
+                    
+                    # 광기 조절 (madness_reduction)
+                    if effect.target_stat == "madness_adjust" and "madness_reduction" in effect.metadata:
+                        reduction = effect.metadata["madness_reduction"]
+                        if hasattr(attacker, 'madness'):
+                            old_madness = attacker.madness
+                            attacker.madness = max(0, attacker.madness - reduction)
+                            self.logger.info(f"[{trait_id}] 처치 보상: 광기 {old_madness} → {attacker.madness} (-{reduction})")
+                
+                # KILL_BONUS 효과 (기존)
                 if effect.effect_type == TraitEffectType.KILL_BONUS:
                     # 처치 보너스 적용 (예: 공격력 증가, HP 회복 등)
                     # metadata에 구체적인 효과 정의

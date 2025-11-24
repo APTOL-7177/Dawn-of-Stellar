@@ -13,7 +13,7 @@ import random
 
 from src.ui.input_handler import InputHandler, GameAction
 from src.ui.cursor_menu import CursorMenu, MenuItem
-from src.ui.gauge_renderer import GaugeRenderer
+from src.ui.gauge_renderer import GaugeRenderer, get_animation_manager
 from src.ui.tcod_display import render_space_background
 from src.combat.combat_manager import CombatManager, CombatState, ActionType
 from src.combat.casting_system import get_casting_system, CastingSystem
@@ -1735,56 +1735,33 @@ class CombatUI:
                 if gimmick_type != "heat_gauge" and gimmick_type != "heat_management":
                     console.print(5 + len(f"{i+1}. {ally.name}") + 2, y, gimmick_text, fg=gimmick_color)
 
-            # HP 게이지 (정밀)
+            # HP 게이지 (애니메이션 + 상처 표시 + 숫자는 게이지 안에)
             console.print(8, y + 1, "HP:", fg=(200, 200, 200))
-            gauge_renderer.render_bar(
+            wound_damage = getattr(ally, 'wound_damage', 0)
+            entity_id = f"ally_{i}_{getattr(ally, 'name', i)}"
+            gauge_renderer.render_animated_hp_bar(
                 console, 12, y + 1, 15,
-                ally.current_hp, ally.max_hp, show_numbers=True
+                ally.current_hp, ally.max_hp, entity_id,
+                wound_damage=wound_damage, show_numbers=True
             )
 
-            # MP 게이지 (파란색)
+            # MP 게이지 (애니메이션 + 숫자는 게이지 안에)
             console.print(28, y + 2, "MP:", fg=(200, 200, 200))
-            # MP 게이지: 파란색 계열
-            mp_ratio = ally.current_mp / max(1, ally.max_mp)
-            if mp_ratio > 0.6:
-                mp_fg = (100, 150, 255)  # 밝은 파랑
-                mp_bg = (50, 75, 150)
-            elif mp_ratio > 0.3:
-                mp_fg = (80, 120, 200)  # 중간 파랑
-                mp_bg = (40, 60, 100)
-            else:
-                mp_fg = (60, 90, 150)  # 어두운 파랑
-                mp_bg = (30, 45, 75)
-            console.draw_rect(32, y + 2, 10, 1, ord(" "), bg=mp_bg)
-            filled_mp = int(mp_ratio * 10)
-            if filled_mp > 0:
-                console.draw_rect(32, y + 2, filled_mp, 1, ord(" "), bg=mp_fg)
-            mp_text = f"{ally.current_mp}/{ally.max_mp}"
-            console.print(32 + (10 - len(mp_text)) // 2, y + 2, mp_text, fg=(255, 255, 255))
+            gauge_renderer.render_animated_mp_bar(
+                console, 32, y + 2, 10,
+                ally.current_mp, ally.max_mp, entity_id,
+                show_numbers=True
+            )
 
-            # BRV 게이지 (노란색)
+            # BRV 게이지 (애니메이션 + 숫자는 게이지 안에)
             max_brv = getattr(ally, 'max_brv', 999)
+            is_broken = self.combat_manager.brave.is_broken(ally) if hasattr(self.combat_manager, 'brave') else False
             console.print(8, y + 2, "BRV:", fg=(200, 200, 200))
-            # BRV 게이지: 노란색 계열
-            brv_ratio = ally.current_brv / max(1, max_brv)
-            if brv_ratio > 0.8:
-                brv_fg = (255, 220, 100)  # 황금색
-                brv_bg = (150, 130, 50)
-            elif brv_ratio > 0.5:
-                brv_fg = (255, 200, 80)  # 밝은 노랑
-                brv_bg = (120, 100, 40)
-            elif brv_ratio > 0.2:
-                brv_fg = (200, 160, 60)  # 중간 노랑
-                brv_bg = (100, 80, 30)
-            else:
-                brv_fg = (150, 120, 40)  # 어두운 노랑
-                brv_bg = (75, 60, 20)
-            console.draw_rect(13, y + 2, 10, 1, ord(" "), bg=brv_bg)
-            filled_brv = int(brv_ratio * 10)
-            if filled_brv > 0:
-                console.draw_rect(13, y + 2, filled_brv, 1, ord(" "), bg=brv_fg)
-            brv_text = f"{int(ally.current_brv)}/{int(max_brv)}"
-            console.print(13 + (10 - len(brv_text)) // 2, y + 2, brv_text, fg=(255, 255, 255))
+            gauge_renderer.render_animated_brv_bar(
+                console, 13, y + 2, 10,
+                ally.current_brv, max_brv, entity_id,
+                is_broken=is_broken, show_numbers=True
+            )
 
             # ATB 게이지 (캐스팅 진행도 포함)
             gauge = self.combat_manager.atb.get_gauge(ally)
@@ -1925,19 +1902,24 @@ class CombatUI:
                     if status_lines:
                         console.print(x + 3, y + 1, status_lines, fg=(200, 200, 200))
             
-            # HP 게이지
+            # HP 게이지 (애니메이션 + 상처 표시) - 플레이어와 동일 (15칸)
             console.print(x + 3, y + 2, "HP:", fg=(200, 200, 200))
-            gauge_renderer.render_bar(
-                console, x + 7, y + 2, 12,
-                enemy.current_hp, enemy.max_hp, show_numbers=True
+            enemy_id = f"enemy_{i}_{getattr(enemy, 'name', i)}"
+            enemy_wound = getattr(enemy, 'wound_damage', 0)
+            gauge_renderer.render_animated_hp_bar(
+                console, x + 7, y + 2, 15,
+                enemy.current_hp, enemy.max_hp, enemy_id,
+                wound_damage=enemy_wound, show_numbers=True
             )
 
-            # BRV 게이지
+            # BRV 게이지 (애니메이션) - 플레이어와 동일 (15칸)
             max_brv = getattr(enemy, 'max_brv', 9999)
+            is_broken = self.combat_manager.brave.is_broken(enemy) if hasattr(self.combat_manager, 'brave') else False
             console.print(x + 3, y + 3, "BRV:", fg=(200, 200, 200))
-            gauge_renderer.render_bar(
-                console, x + 8, y + 3, 10,
-                enemy.current_brv, max_brv, show_numbers=True, color_gradient=False
+            gauge_renderer.render_animated_brv_bar(
+                console, x + 8, y + 3, 15,
+                enemy.current_brv, max_brv, enemy_id,
+                is_broken=is_broken, show_numbers=True
             )
 
             # BREAK 상태 표시
