@@ -134,7 +134,10 @@ class GaugeTileManager:
                 self._create_tile(color_index, fill_level, color)
     
     def _create_tile(self, color_index: int, fill_level: int, color: Tuple[int, int, int]) -> None:
-        """단일 타일 생성"""
+        """단일 타일 생성
+        
+        타일은 흰색(255,255,255)으로 생성하여 fg 파라미터로 색상 적용 가능하게 함
+        """
         if self.tileset is None:
             return
         
@@ -149,15 +152,15 @@ class GaugeTileManager:
         # 채움 픽셀 수 계산
         fill_pixels = int((fill_level / self.divisions) * self.tile_width)
         
-        # 채움 영역 (왼쪽에서 오른쪽으로)
+        # 채움 영역 - 흰색으로 생성 (fg 파라미터가 색상을 결정)
         if fill_pixels > 0:
-            tile[:, :fill_pixels, 0] = color[0]  # R
-            tile[:, :fill_pixels, 1] = color[1]  # G
-            tile[:, :fill_pixels, 2] = color[2]  # B
-            tile[:, :fill_pixels, 3] = 255       # A (불투명)
+            tile[:, :fill_pixels, 0] = 255  # R = 흰색
+            tile[:, :fill_pixels, 1] = 255  # G = 흰색
+            tile[:, :fill_pixels, 2] = 255  # B = 흰색
+            tile[:, :fill_pixels, 3] = 255  # A (불투명)
         
-        # 빈 영역 (투명으로 처리 - 배경색 표시용)
-        # 투명 영역은 콘솔의 배경색이 표시됨
+        # 빈 영역 (투명 - bg 파라미터가 색상을 결정)
+        # alpha = 0 이므로 console.print()의 bg 색상이 표시됨
         
         # 타일 등록
         try:

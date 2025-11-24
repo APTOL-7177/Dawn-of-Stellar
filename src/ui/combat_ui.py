@@ -1797,13 +1797,15 @@ class CombatUI:
                         console.print(28, y, status_lines, fg=(200, 200, 255))
             
             console.print(28, y + 1, "ATB:", fg=(200, 200, 200))
+            ally_id = getattr(ally, 'id', None) or getattr(ally, 'name', f'ally_{i}')
             gauge_renderer.render_atb_with_cast(
                 console, 33, y + 1, 15,
                 atb_current=atb_value,
                 atb_threshold=1000,
                 atb_maximum=2000,
                 cast_progress=cast_progress,
-                is_casting=is_casting
+                is_casting=is_casting,
+                entity_id=f"ally_{ally_id}"
             )
 
             # 상처 표시
@@ -1811,12 +1813,8 @@ class CombatUI:
             if wound_damage > 0:
                 gauge_renderer.render_wound_indicator(console, 33, y + 2, wound_damage)
 
-            # BREAK 상태 표시 (캐스팅보다 우선)
-            if self.combat_manager.brave.is_broken(ally):
-                console.print(8, y + 3, "💔 BREAK!", fg=(255, 50, 50))
-            
-            # 캐스팅 중이면 스킬 이름 표시 (BREAK가 없을 때만)
-            elif cast_info:
+            # 캐스팅 중이면 스킬 이름 표시 (BREAK는 게이지 안에만 표시)
+            if cast_info:
                 skill_name = getattr(cast_info.skill, 'name', 'Unknown')
                 console.print(8, y + 3, f"⏳ 시전: {skill_name}", fg=(200, 100, 255))
 
@@ -1922,11 +1920,7 @@ class CombatUI:
                 is_broken=is_broken, show_numbers=True
             )
 
-            # BREAK 상태 표시
-            if self.combat_manager.brave.is_broken(enemy):
-                console.print(x + 3, y + 4, "💔 BREAK!", fg=(255, 50, 50))
-
-            # 캐스팅 표시
+            # 캐스팅 표시 (BREAK는 게이지 안에만 표시)
             cast_info = casting_system.get_cast_info(enemy)
             if cast_info:
                 skill_name = getattr(cast_info.skill, 'name', 'Unknown')

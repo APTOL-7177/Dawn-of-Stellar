@@ -1141,85 +1141,6 @@ class GimmickUpdater:
 
         return choice_count >= accumulation_threshold
 
-
-class GimmickStateChecker:
-    """기믹 상태 체크 (조건부 보너스 등)"""
-
-    @staticmethod
-    def is_in_optimal_zone(character) -> bool:
-        """최적 구간인지 체크"""
-        if character.gimmick_type == "heat_management":
-            return character.optimal_min <= character.heat < character.optimal_max
-        elif character.gimmick_type == "timeline_system":
-            return character.timeline == character.optimal_point
-        elif character.gimmick_type == "yin_yang_flow":
-            return 40 <= getattr(character, 'ki_gauge', 50) <= 60
-        return False
-
-    @staticmethod
-    def is_in_danger_zone(character) -> bool:
-        """위험 구간인지 체크"""
-        if character.gimmick_type == "heat_management":
-            return character.danger_min <= character.heat < character.danger_max
-        elif character.gimmick_type == "madness_threshold":
-            return character.madness >= character.danger_min
-        elif character.gimmick_type == "thirst_gauge":
-            return character.thirst >= character.starving_min
-        return False
-
-    @staticmethod
-    def is_last_bullet(character) -> bool:
-        """마지막 탄환인지 체크 (저격수)"""
-        if character.gimmick_type == "magazine_system":
-            return len(getattr(character, 'magazine', [])) == 1
-        return False
-
-    @staticmethod
-    def is_at_present(character) -> bool:
-        """현재(0) 타임라인인지 체크 (시간술사)"""
-        if character.gimmick_type == "timeline_system":
-            return getattr(character, 'timeline', 0) == 0
-        return False
-
-    @staticmethod
-    def get_active_spirits_count(character) -> int:
-        """활성화된 정령 수 반환 (정령술사)"""
-        if character.gimmick_type == "elemental_spirits":
-            return sum([
-                getattr(character, 'spirit_fire', 0),
-                getattr(character, 'spirit_water', 0),
-                getattr(character, 'spirit_wind', 0),
-                getattr(character, 'spirit_earth', 0)
-            ])
-        return 0
-
-    @staticmethod
-    def get_rune_resonance_bonus(character) -> float:
-        """룬 공명 보너스 반환 (배틀메이지)"""
-        if character.gimmick_type == "rune_resonance":
-            fire = getattr(character, 'rune_fire', 0)
-            ice = getattr(character, 'rune_ice', 0)
-            lightning = getattr(character, 'rune_lightning', 0)
-
-            # 3개 동일 룬 = 공명 보너스 +50%
-            if fire == 3 or ice == 3 or lightning == 3:
-                return 0.5
-        return 0.0
-
-    @staticmethod
-    def is_in_stealth(character) -> bool:
-        """은신 상태인지 체크 (암살자)"""
-        if character.gimmick_type == "stealth_exposure":
-            return getattr(character, 'stealth_active', False)
-        return False
-
-    @staticmethod
-    def get_support_fire_combo(character) -> int:
-        """지원사격 콤보 수 반환 (궁수)"""
-        if character.gimmick_type == "support_fire":
-            return getattr(character, 'support_fire_combo', 0)
-        return 0
-
     # ============================================================
     # 암흑기사 - 충전 시스템
     # ============================================================
@@ -1309,3 +1230,82 @@ class GimmickStateChecker:
 
         kill_gain = getattr(character, 'kill_gain', 20)
         GimmickUpdater.on_charge_gained(character, kill_gain, "적 처치")
+
+
+class GimmickStateChecker:
+    """기믹 상태 체크 (조건부 보너스 등)"""
+
+    @staticmethod
+    def is_in_optimal_zone(character) -> bool:
+        """최적 구간인지 체크"""
+        if character.gimmick_type == "heat_management":
+            return character.optimal_min <= character.heat < character.optimal_max
+        elif character.gimmick_type == "timeline_system":
+            return character.timeline == character.optimal_point
+        elif character.gimmick_type == "yin_yang_flow":
+            return 40 <= getattr(character, 'ki_gauge', 50) <= 60
+        return False
+
+    @staticmethod
+    def is_in_danger_zone(character) -> bool:
+        """위험 구간인지 체크"""
+        if character.gimmick_type == "heat_management":
+            return character.danger_min <= character.heat < character.danger_max
+        elif character.gimmick_type == "madness_threshold":
+            return character.madness >= character.danger_min
+        elif character.gimmick_type == "thirst_gauge":
+            return character.thirst >= character.starving_min
+        return False
+
+    @staticmethod
+    def is_last_bullet(character) -> bool:
+        """마지막 탄환인지 체크 (저격수)"""
+        if character.gimmick_type == "magazine_system":
+            return len(getattr(character, 'magazine', [])) == 1
+        return False
+
+    @staticmethod
+    def is_at_present(character) -> bool:
+        """현재(0) 타임라인인지 체크 (시간술사)"""
+        if character.gimmick_type == "timeline_system":
+            return getattr(character, 'timeline', 0) == 0
+        return False
+
+    @staticmethod
+    def get_active_spirits_count(character) -> int:
+        """활성화된 정령 수 반환 (정령술사)"""
+        if character.gimmick_type == "elemental_spirits":
+            return sum([
+                getattr(character, 'spirit_fire', 0),
+                getattr(character, 'spirit_water', 0),
+                getattr(character, 'spirit_wind', 0),
+                getattr(character, 'spirit_earth', 0)
+            ])
+        return 0
+
+    @staticmethod
+    def get_rune_resonance_bonus(character) -> float:
+        """룬 공명 보너스 반환 (배틀메이지)"""
+        if character.gimmick_type == "rune_resonance":
+            fire = getattr(character, 'rune_fire', 0)
+            ice = getattr(character, 'rune_ice', 0)
+            lightning = getattr(character, 'rune_lightning', 0)
+
+            # 3개 동일 룬 = 공명 보너스 +50%
+            if fire == 3 or ice == 3 or lightning == 3:
+                return 0.5
+        return 0.0
+
+    @staticmethod
+    def is_in_stealth(character) -> bool:
+        """은신 상태인지 체크 (암살자)"""
+        if character.gimmick_type == "stealth_exposure":
+            return getattr(character, 'stealth_active', False)
+        return False
+
+    @staticmethod
+    def get_support_fire_combo(character) -> int:
+        """지원사격 콤보 수 반환 (궁수)"""
+        if character.gimmick_type == "support_fire":
+            return getattr(character, 'support_fire_combo', 0)
+        return 0
