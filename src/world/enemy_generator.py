@@ -6,6 +6,10 @@
 
 from typing import List, Dict, Any
 import random
+from src.core.logger import get_logger
+
+# 로거 설정
+logger = get_logger("enemy")
 
 
 class EnemyTemplate:
@@ -163,7 +167,7 @@ ENEMY_TEMPLATES = {
         luck=18, accuracy=75, evasion=22
     ),
     "wyvern": EnemyTemplate(
-        "wyvern", "와이번 (강력 보스)", 1,
+        "wyvern", "와이번", 1,
         hp=210, mp=40,  # 속도 특화 - 낮은 HP
         physical_attack=64, physical_defense=45,
         magic_attack=56, magic_defense=42,
@@ -175,7 +179,7 @@ ENEMY_TEMPLATES = {
     # === 최상급 적 (던전 보스급) ===
     # BRV: 극도로 높은 max_brv, 매우 높은 init_brv (30-35%)
     "demon": EnemyTemplate(
-        "demon", "악마 (강력 보스)", 1,
+        "demon", "악마", 1,
         hp=225, mp=46,  # 균형 잡힌 타입
         physical_attack=66, physical_defense=52,
         magic_attack=66, magic_defense=52,  # 물리/마법 균형
@@ -196,7 +200,7 @@ ENEMY_TEMPLATES = {
     # === 강력 보스 (일반 몹 수준 스탯) ===
     # BRV: 일반 몹 수준으로 조정
     "boss_chimera": EnemyTemplate(
-        "boss_chimera", "키메라 (강력 보스)", 1,
+        "boss_chimera", "키메라", 1,
         hp=240, mp=45,  # 균형형 - 약간 높은 HP
         physical_attack=68, physical_defense=55,
         magic_attack=62, magic_defense=48,
@@ -205,7 +209,7 @@ ENEMY_TEMPLATES = {
         luck=13, accuracy=70, evasion=13
     ),
     "boss_lich": EnemyTemplate(
-        "boss_lich", "리치 (강력 보스)", 1,
+        "boss_lich", "리치", 1,
         hp=190, mp=60,  # 마법 특화 - 낮은 HP, 높은 MP
         physical_attack=50, physical_defense=42,
         magic_attack=78, magic_defense=65,  # 마법 공격/방어 특화
@@ -214,7 +218,7 @@ ENEMY_TEMPLATES = {
         luck=15, accuracy=72, evasion=10
     ),
     "boss_dragon_king": EnemyTemplate(
-        "boss_dragon_king", "드래곤 킹 (강력 보스)", 1,
+        "boss_dragon_king", "드래곤 킹", 1,
         hp=250, mp=38,  # 물리 특화 - 높은 HP
         physical_attack=72, physical_defense=58,  # 물리 공격/방어 특화
         magic_attack=52, magic_defense=45,
@@ -400,7 +404,7 @@ ENEMY_TEMPLATES = {
 
     # === 드래곤 타입 (4종) ===
     "fire_dragon": EnemyTemplate(
-        "fire_dragon", "화염 드래곤 (강력 보스)", 1,
+        "fire_dragon", "화염 드래곤", 1,
         hp=235, mp=48,  # 화염 특화 - 약간 높은 HP
         physical_attack=63, physical_defense=50,
         magic_attack=76, magic_defense=52,  # 마법 공격 특화
@@ -427,7 +431,7 @@ ENEMY_TEMPLATES = {
         luck=19, accuracy=76, evasion=16
     ),
     "elder_dragon": EnemyTemplate(
-        "elder_dragon", "고룡 (강력 보스)", 1,
+        "elder_dragon", "고룡", 1,
         hp=230, mp=42,  # 방어 특화 - 약간 높은 HP/MP
         physical_attack=65, physical_defense=62,  # 높은 물리 방어
         magic_attack=58, magic_defense=58,  # 높은 마법 방어
@@ -456,7 +460,7 @@ ENEMY_TEMPLATES = {
         luck=20, accuracy=76, evasion=22
     ),
     "balrog": EnemyTemplate(
-        "balrog", "발록 (강력 보스)", 1,
+        "balrog", "발록", 1,
         hp=220, mp=50,  # 공격 특화 - 약간 높은 MP
         physical_attack=75, physical_defense=48,  # 높은 물리 공격
         magic_attack=68, magic_defense=50,
@@ -465,7 +469,7 @@ ENEMY_TEMPLATES = {
         luck=13, accuracy=71, evasion=12
     ),
     "archfiend": EnemyTemplate(
-        "archfiend", "대악마 (강력 보스)", 1,
+        "archfiend", "대악마", 1,
         hp=200, mp=55,  # 마법 공격 특화 - 높은 MP
         physical_attack=52, physical_defense=45,
         magic_attack=80, magic_defense=55,  # 높은 마법 공격
@@ -787,39 +791,39 @@ class EnemyGenerator:
                 boss_enemy_id = "sephiroth"
             elif floor_number >= 45:
                 template = ENEMY_TEMPLATES["boss_dragon_king"]
-                boss_name = "드래곤 킹 (강력 보스)"
+                boss_name = "드래곤 킹"
                 boss_enemy_id = "boss_dragon_king"
             elif floor_number >= 40:
                 template = ENEMY_TEMPLATES["elder_dragon"]
-                boss_name = "고룡 (강력 보스)"
+                boss_name = "고룡"
                 boss_enemy_id = "elder_dragon"
             elif floor_number >= 35:
                 template = ENEMY_TEMPLATES["archfiend"]
-                boss_name = "대악마 (강력 보스)"
+                boss_name = "대악마"
                 boss_enemy_id = "archfiend"
             elif floor_number >= 30:
                 template = ENEMY_TEMPLATES["balrog"]
-                boss_name = "발록 (강력 보스)"
+                boss_name = "발록"
                 boss_enemy_id = "balrog"
             elif floor_number >= 25:
                 template = ENEMY_TEMPLATES["boss_lich"]
-                boss_name = "리치 (강력 보스)"
+                boss_name = "리치"
                 boss_enemy_id = "boss_lich"
             elif floor_number >= 20:
                 template = ENEMY_TEMPLATES["fire_dragon"]
-                boss_name = "화염 드래곤 (강력 보스)"
+                boss_name = "화염 드래곤"
                 boss_enemy_id = "fire_dragon"
             elif floor_number >= 15:
                 template = ENEMY_TEMPLATES["demon"]
-                boss_name = "악마 (강력 보스)"
+                boss_name = "악마"
                 boss_enemy_id = "demon"
             elif floor_number >= 10:
                 template = ENEMY_TEMPLATES["boss_chimera"]
-                boss_name = "키메라 (강력 보스)"
+                boss_name = "키메라"
                 boss_enemy_id = "boss_chimera"
             else:  # 5층
                 template = ENEMY_TEMPLATES["wyvern"]
-                boss_name = "와이번 (강력 보스)"
+                boss_name = "와이번"
                 boss_enemy_id = "wyvern"
 
             # 층 보스는 일반 보스보다 더 강력함 (2.5배 스탯, 5배 HP)
