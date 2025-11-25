@@ -204,6 +204,9 @@ class EquipmentEffectManager:
             # CRITICAL_RATE는 CRITICAL_CHANCE와 동일하게 처리 (호환성)
             EffectType.CRITICAL_CHANCE: self._handle_critical_chance,
             EffectType.CRITICAL_RATE: self._handle_critical_chance,
+            EffectType.DODGE_CHANCE: self._handle_dodge_chance,
+            EffectType.BLOCK_CHANCE: self._handle_block_chance,
+            EffectType.MULTI_STRIKE: self._handle_multi_strike,
             # HEALING_BONUS는 HEAL_BOOST와 동일하게 처리
             EffectType.HEAL_BOOST: self._handle_heal_boost,
             EffectType.HEALING_BONUS: self._handle_heal_boost,
@@ -211,6 +214,7 @@ class EquipmentEffectManager:
             EffectType.OVERHEAL: self._handle_overheal,
             EffectType.OVERHEAL_SHIELD: self._handle_overheal,
             # 상태 면역 효과 (핸들러 없으면 로그만)
+            EffectType.STATUS_IMMUNITY: self._handle_status_immunity,
             EffectType.POISON_IMMUNITY: self._handle_status_immunity,
             EffectType.STUN_IMMUNITY: self._handle_status_immunity,
             EffectType.SILENCE_IMMUNITY: self._handle_status_immunity,
@@ -502,6 +506,30 @@ class EquipmentEffectManager:
         # 크리티컬 확률은 StatManager나 다른 시스템에서 처리될 수 있음
         # 여기서는 로그만 남김
         logger.debug(f"{character.name} 크리티컬 확률 +{effect.value * 100:.1f}%")
+
+    def _handle_dodge_chance(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """회피 확률 증가"""
+        # 캐릭터에 회피 확률 보너스 저장
+        if not hasattr(character, "dodge_chance_bonus"):
+            character.dodge_chance_bonus = 0
+        character.dodge_chance_bonus += effect.value
+        logger.debug(f"{character.name} 회피 확률 +{effect.value * 100:.1f}% (총: {character.dodge_chance_bonus * 100:.1f}%)")
+
+    def _handle_block_chance(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """블록 확률 증가"""
+        # 캐릭터에 블록 확률 보너스 저장
+        if not hasattr(character, "block_chance_bonus"):
+            character.block_chance_bonus = 0
+        character.block_chance_bonus += effect.value
+        logger.debug(f"{character.name} 블록 확률 +{effect.value * 100:.1f}% (총: {character.block_chance_bonus * 100:.1f}%)")
+
+    def _handle_multi_strike(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """연속 공격 확률"""
+        # 캐릭터에 연속 공격 확률 저장
+        if not hasattr(character, "multi_strike_chance"):
+            character.multi_strike_chance = 0
+        character.multi_strike_chance += effect.value
+        logger.debug(f"{character.name} 연속 공격 확률 +{effect.value * 100:.1f}% (총: {character.multi_strike_chance * 100:.1f}%)")
         
     def _handle_heal_boost(self, character: Any, effect: EquipmentEffect, context: Dict):
         """회복량 보너스 (HEAL_BOOST와 HEALING_BONUS 모두 처리)"""
@@ -885,6 +913,8 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
             "critical_damage": (EffectType.CRITICAL_DAMAGE, EffectTrigger.PASSIVE),
             "critical_rate": (EffectType.CRITICAL_RATE, EffectTrigger.PASSIVE),
             "dodge_chance": (EffectType.DODGE_CHANCE, EffectTrigger.PASSIVE),
+            "block_chance": (EffectType.BLOCK_CHANCE, EffectTrigger.PASSIVE),
+            "multi_strike": (EffectType.MULTI_STRIKE, EffectTrigger.PASSIVE),
             "counter_attack": (EffectType.COUNTER_ATTACK, EffectTrigger.ON_DAMAGED),
             "first_strike": (EffectType.FIRST_STRIKE, EffectTrigger.PASSIVE),
 
@@ -897,6 +927,7 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
             "overheal_shield": (EffectType.OVERHEAL_SHIELD, EffectTrigger.PASSIVE),
 
             # Status
+            "status_immunity": (EffectType.STATUS_IMMUNITY, EffectTrigger.PASSIVE),
             "poison_immunity": (EffectType.POISON_IMMUNITY, EffectTrigger.PASSIVE),
             "stun_immunity": (EffectType.STUN_IMMUNITY, EffectTrigger.PASSIVE),
             "silence_immunity": (EffectType.SILENCE_IMMUNITY, EffectTrigger.PASSIVE),
