@@ -35,15 +35,6 @@ class SaveSystem:
             성공 여부
         """
         try:
-            # DEBUG: 저장되는 game_state 확인
-            has_town_manager = "town_manager" in game_state
-            town_manager_items = 0
-            if has_town_manager:
-                tm_data = game_state["town_manager"]
-                if isinstance(tm_data, dict) and "storage_inventory" in tm_data:
-                    town_manager_items = len(tm_data["storage_inventory"])
-            logger.info(f"[DEBUG] 저장 시작 - town_manager 포함: {has_town_manager}, 아이템 수: {town_manager_items}")
-
             # 게임 타입에 따라 파일명 결정
             if is_multiplayer:
                 save_filename = "save_multiplayer.json"
@@ -178,14 +169,13 @@ class SaveSystem:
             
             # TownManager 복원
             if "town_manager" in game_state:
-                logger.info(f"[DEBUG] game_state에 town_manager 발견: {type(game_state['town_manager'])}")
                 from src.town.town_manager import TownManager
                 # 전역 인스턴스를 로드된 매니저로 완전히 교체
                 loaded_town_manager = TownManager.from_dict(game_state["town_manager"])
                 # 전역 인스턴스 직접 업데이트 (참조 교체)
                 import src.town.town_manager as town_module
                 town_module._town_manager = loaded_town_manager
-                logger.info(f"[DEBUG] 마을 데이터 복원 완료 - hub_storage: {len(loaded_town_manager.hub_storage)}개, storage_inventory: {len(loaded_town_manager.storage_inventory)}개")
+                logger.info(f"마을 데이터 복원 완료 - 창고 아이템: {len(loaded_town_manager.hub_storage)}개")
 
                 # 마을 창고 아이템 로드 로그
                 storage_inventory = loaded_town_manager.get_storage_inventory()
@@ -195,9 +185,7 @@ class SaveSystem:
                         item_name = item_data.get("name", item_data.get("item_id", "알 수 없는 아이템"))
                         logger.info(f"  - {item_name}")
                 else:
-                    logger.warning("[DEBUG] 마을 창고: 불러온 아이템 없음")
-            else:
-                logger.warning("[DEBUG] game_state에 town_manager가 없음!")
+                    logger.info("마을 창고: 불러온 아이템 없음")
             
             # QuestManager 복원
             if "quest_manager" in game_state:
@@ -768,17 +756,12 @@ def serialize_game_state(
     town_manager_data = None
     if exploration and hasattr(exploration, 'town_manager') and exploration.town_manager:
         town_manager_data = exploration.town_manager.to_dict()
-        logger.info(f"[DEBUG] exploration.town_manager에서 저장: storage_inventory {len(town_manager_data.get('storage_inventory', []))}개")
     else:
-        logger.warning("[DEBUG] exploration.town_manager 없음, 전역 town_manager 사용 시도")
         # 폴백: 전역 town_manager
         from src.town.town_manager import get_town_manager
         global_tm = get_town_manager()
         if global_tm:
             town_manager_data = global_tm.to_dict()
-            logger.info(f"[DEBUG] 전역 town_manager에서 저장: storage_inventory {len(town_manager_data.get('storage_inventory', []))}개")
-        else:
-            logger.error("[DEBUG] 전역 town_manager도 없음!")
 
     result = {
         "party": party_data,

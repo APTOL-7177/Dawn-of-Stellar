@@ -2315,12 +2315,7 @@ def main() -> int:
                         global_town_manager = get_town_manager()
                         if global_town_manager:
                             exploration.town_manager = global_town_manager
-                            storage_count = len(global_town_manager.get_storage_inventory())
-                            logger.info(f"[DEBUG] 로딩 후 exploration에 town_manager 설정 완료 - storage_inventory: {storage_count}개")
-                        else:
-                            logger.error("[DEBUG] 전역 town_manager가 None임!")
-                    else:
-                        logger.warning("[DEBUG] loaded_state에 town_manager가 없음")
+                            logger.info(f"로딩 후 exploration에 town_manager 설정 완료")
                     
                     # BGM 제어 플래그 (첫 탐험 시작 및 층 변경 시에만 재생)
                     play_dungeon_bgm = True
@@ -2353,12 +2348,7 @@ def main() -> int:
                         global_town_manager = get_town_manager()
                         if global_town_manager:
                             exploration.town_manager = global_town_manager
-                            storage_count = len(global_town_manager.get_storage_inventory())
-                            logger.info(f"[DEBUG] 로딩 후 exploration에 town_manager 설정 완료 - storage_inventory: {storage_count}개")
-                        else:
-                            logger.error("[DEBUG] 전역 town_manager가 None임!")
-                    else:
-                        logger.warning("[DEBUG] loaded_state에 town_manager가 없음")
+                            logger.info(f"로딩 후 exploration에 town_manager 설정 완료")
 
                     # 탐험 계속 (새 게임과 동일한 루프)
                     while True:
