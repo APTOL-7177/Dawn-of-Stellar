@@ -149,8 +149,8 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1) -> dict:
 
     # shop_type에 따른 추가 가격 조정
     if shop_type == "blacksmith":
-        # 대장간: 장비 가격 1/6
-        type_multiplier = 1.0 / 6.0
+        # 대장간: 장비 가격 1/6 * 2/3 = 1/9
+        type_multiplier = (1.0 / 6.0) * (2.0 / 3.0)
     elif shop_type == "shop":
         # 잡화점: 소모품 가격 1/3
         type_multiplier = 1.0 / 3.0
