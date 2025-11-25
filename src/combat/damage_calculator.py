@@ -38,6 +38,7 @@ class DamageCalculator:
         # 밸런스 설정
         self.brv_damage_multiplier = self.config.get("combat.damage.brv_multiplier", 1.5)
         self.hp_damage_multiplier = self.config.get("combat.damage.hp_multiplier", 0.15)
+        self.level_scaling_per_level = self.config.get("combat.damage.level_scaling_per_level", 0.3)
         self.break_damage_bonus = self.config.get("combat.damage.break_bonus", 1.5)
         self.wound_damage_rate = self.config.get("combat.damage.wound_rate", 0.25)
         self.critical_multiplier = self.config.get("combat.damage.critical_multiplier", 1.5)
@@ -214,13 +215,19 @@ class DamageCalculator:
         # 스탯 보정 계산: 공격자 스탯 / (방어자 스탯 + 1)
         stat_modifier = attacker_stat / (defender_stat + 1.0)
 
-        # HP 데미지 계산: BRV × 스킬계수 × 스탯배율 × HP배율
+        # HP 데미지 계산: BRV × 스킬계수 × 스탯배율 × HP배율 × 레벨보정
         # hp_multiplier: 스킬 계수 (기본 1.0 + 기믹 보너스)
         # stat_modifier: 공격/방어 비율
         # hp_damage_multiplier: HP 데미지 조정 계수 (config에서 설정)
-        base_damage = int(brv_points * hp_multiplier * stat_modifier * self.hp_damage_multiplier)
+        # level_scaling: 공격자 레벨에 따른 피해량 증가 (레벨당 30%)
 
-        self.logger.warning(f"[HP 데미지 계산] BRV:{brv_points} × 스킬계수:{hp_multiplier:.2f} × 스탯배율:{stat_modifier:.2f} × HP배율:{self.hp_damage_multiplier} = {base_damage}")
+        # 공격자 레벨에 따른 피해량 증가
+        attacker_level = getattr(attacker, 'level', 1)
+        level_scaling = 1.0 + (attacker_level - 1) * self.level_scaling_per_level
+
+        base_damage = int(brv_points * hp_multiplier * stat_modifier * self.hp_damage_multiplier * level_scaling)
+
+        self.logger.warning(f"[HP 데미지 계산] BRV:{brv_points} × 스킬계수:{hp_multiplier:.2f} × 스탯배율:{stat_modifier:.2f} × HP배율:{self.hp_damage_multiplier} × 레벨보정:{level_scaling:.2f} = {base_damage}")
 
         damage = base_damage
 
@@ -296,6 +303,7 @@ class DamageCalculator:
             {
                 "brv_points": brv_points,
                 "skill_multiplier": hp_multiplier,
+                "level_scaling": level_scaling,
                 "base_damage": base_damage,
                 "stat_modifier": f"{stat_modifier:.2f}",
                 "attacker_stat": attacker_stat,

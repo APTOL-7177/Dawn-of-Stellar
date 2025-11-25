@@ -268,7 +268,8 @@ combat:
     critical_multiplier: 1.5
     elemental_resistance_reduction: 0.5
     elemental_weakness_bonus: 1.5
-    hp_multiplier: 0.125
+    hp_multiplier: 0.15
+    level_scaling_per_level: 0.3
     magical_defense_reduction: 0.5
     physical_defense_reduction: 0.5
     wound_rate: 0.25
