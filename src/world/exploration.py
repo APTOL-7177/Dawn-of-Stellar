@@ -581,29 +581,30 @@ class ExplorationSystem:
         elif tile.tile_type == TileType.GOLD:
             return self._handle_gold(tile)
 
-        elif tile.tile_type == TileType.BOSS_ROOM:
-            # 보스방 진입 시 주변 보스를 찾아서 전투 시작
-            # BOSS_ROOM 영역 내 또는 근처의 보스 찾기
-            boss_enemy = None
-            for enemy in self.enemies:
-                if enemy.is_boss:
-                    # 플레이어 주변 5칸 이내의 보스 찾기
-                    distance = abs(enemy.x - self.player.x) + abs(enemy.y - self.player.y)
-                    if distance <= 5:
-                        boss_enemy = enemy
-                        break
-
-            # 보스를 찾았으면 전투 시작
-            if boss_enemy:
-                logger.info(f"[보스방 진입] 층 보스 발견! {boss_enemy.name}와의 전투 시작!")
-                return self._trigger_combat_with_enemy(boss_enemy)
-            else:
-                # 보스가 없으면 (이미 처치했거나) 경고 메시지만 표시
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.BOSS_ROOM,
-                    message="⚠ 보스의 기운이 느껴집니다..."
-                )
+        # BOSS_ROOM 이벤트 제거 (요청에 따라)
+        # elif tile.tile_type == TileType.BOSS_ROOM:
+        #     # 보스방 진입 시 주변 보스를 찾아서 전투 시작
+        #     # BOSS_ROOM 영역 내 또는 근처의 보스 찾기
+        #     boss_enemy = None
+        #     for enemy in self.enemies:
+        #         if enemy.is_boss:
+        #             # 플레이어 주변 5칸 이내의 보스 찾기
+        #             distance = abs(enemy.x - self.player.x) + abs(enemy.y - self.player.y)
+        #             if distance <= 5:
+        #                 boss_enemy = enemy
+        #                 break
+        #
+        #     # 보스를 찾았으면 전투 시작
+        #     if boss_enemy:
+        #         logger.info(f"[보스방 진입] 층 보스 발견! {boss_enemy.name}와의 전투 시작!")
+        #         return self._trigger_combat_with_enemy(boss_enemy)
+        #     else:
+        #         # 보스가 없으면 (이미 처치했거나) 경고 메시지만 표시
+        #         return ExplorationResult(
+        #             success=True,
+        #             event=ExplorationEvent.BOSS_ROOM,
+        #             message="⚠ 보스의 기운이 느껴집니다..."
+        #         )
 
         elif tile.tile_type == TileType.PUZZLE:
             return self._handle_puzzle(tile)

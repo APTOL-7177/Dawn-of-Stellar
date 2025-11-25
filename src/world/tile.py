@@ -171,11 +171,12 @@ class Tile:
             self.char = "H"
             self.fg_color = (100, 255, 255)
 
-        elif self.tile_type == TileType.BOSS_ROOM:
-            self.walkable = True
-            self.transparent = True
-            self.char = "B"
-            self.fg_color = (255, 50, 50)
+        # BOSS_ROOM 타일 표시 제거 (요청에 따라)
+        # elif self.tile_type == TileType.BOSS_ROOM:
+        #     self.walkable = True
+        #     self.transparent = True
+        #     self.char = "B"
+        #     self.fg_color = (255, 50, 50)
 
         elif self.tile_type == TileType.KEY:
             self.walkable = True
