@@ -490,6 +490,11 @@ class WorldUI:
                     # town_map은 dungeon 객체에 있거나 exploration 객체에 직접 설정됨
                     town_map = getattr(self.exploration, 'town_map', None) or getattr(self.exploration.dungeon, 'town_map', None)
                     town_manager = getattr(self.exploration, 'town_manager', None)
+                    if town_manager is None:
+                        # exploration에 town_manager가 없으면 전역 town_manager 사용
+                        from src.town.town_manager import get_town_manager
+                        town_manager = get_town_manager()
+                        logger.debug("전역 town_manager 사용")
                     
                     if not town_map:
                         # town_map이 없으면 dungeon에서 가져오기 시도
@@ -624,6 +629,11 @@ class WorldUI:
                     # 마을에서 건물과 상호작용
                     from src.town.town_map import TownInteractionHandler, BuildingType
                     town_manager = getattr(self.exploration, 'town_manager', None)
+                    if town_manager is None:
+                        # exploration에 town_manager가 없으면 전역 town_manager 사용
+                        from src.town.town_manager import get_town_manager
+                        town_manager = get_town_manager()
+                        logger.debug("전역 town_manager 사용")
                     
                     if town_manager:
                         # 건물과 상호작용

@@ -40,7 +40,9 @@ class StorageUI:
 
         # 마을 창고 인벤토리 사용 (필수)
         self.storage_inventory = []
-        if hasattr(town_manager, 'get_storage_inventory'):
+        if town_manager is None:
+            logger.error("town_manager가 None입니다. 창고 기능을 사용할 수 없습니다.")
+        elif hasattr(town_manager, 'get_storage_inventory'):
             self.storage_inventory = town_manager.get_storage_inventory().copy()
             logger.info(f"마을 창고 초기화: {len(self.storage_inventory)}개 아이템")
         else:
@@ -49,6 +51,8 @@ class StorageUI:
             if hasattr(town_manager, 'get_hub_storage'):
                 self.storage_inventory = town_manager.get_hub_storage().copy()
                 logger.info(f"하위 호환 모드: hub_storage 사용 ({len(self.storage_inventory)}개 아이템)")
+            else:
+                logger.error("town_manager에 저장소 관련 메서드가 없습니다.")
         
         # 선택된 탭 (0: 보관함, 1: 인벤토리)
         self.current_tab = 0
