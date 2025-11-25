@@ -27,22 +27,28 @@ class StorageUI:
         screen_width: int,
         screen_height: int,
         inventory: Inventory,
-        hub_storage: List[Dict[str, Any]],
+        hub_storage: List[Dict[str, Any]],  # 하위 호환성용 (사용하지 않음)
         town_manager: Any,
         context: Any = None
     ):
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.inventory = inventory
-        self.hub_storage = hub_storage.copy()  # 복사본 사용 (하위 호환성)
+        self.hub_storage = hub_storage.copy() if hub_storage is not None else []  # 하위 호환성 (사용하지 않음)
         self.town_manager = town_manager
         self.context = context  # context 저장
 
-        # 마을 창고 인벤토리 사용 (우선순위 높음)
+        # 마을 창고 인벤토리 사용 (필수)
         self.storage_inventory = []
         if hasattr(town_manager, 'get_storage_inventory'):
             self.storage_inventory = town_manager.get_storage_inventory().copy()
-            logger.info(f"마을 창고 사용: {len(self.storage_inventory)}개 아이템")
+            logger.info(f"마을 창고 초기화: {len(self.storage_inventory)}개 아이템")
+        else:
+            logger.warning("town_manager에 get_storage_inventory 메서드가 없습니다. 하위 호환 모드로 작동합니다.")
+            # 하위 호환성: hub_storage 사용
+            if hasattr(town_manager, 'get_hub_storage'):
+                self.storage_inventory = town_manager.get_hub_storage().copy()
+                logger.info(f"하위 호환 모드: hub_storage 사용 ({len(self.storage_inventory)}개 아이템)")
         
         # 선택된 탭 (0: 보관함, 1: 인벤토리)
         self.current_tab = 0
@@ -372,7 +378,7 @@ def open_storage(
     console: tcod.console.Console,
     context: tcod.context.Context,
     inventory: Inventory,
-    hub_storage: List[Dict[str, Any]],
+    hub_storage: Optional[List[Dict[str, Any]]],  # 하위 호환성용 (사용하지 않음)
     town_manager: Any
 ):
     """창고 열기"""

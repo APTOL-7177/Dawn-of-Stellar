@@ -757,11 +757,21 @@ class WorldUI:
                             elif building.building_type == BuildingType.STORAGE:
                                 # 창고: 창고 UI 열기
                                 if self.inventory is not None and town_manager is not None:
-                                    hub_storage = town_manager.get_hub_storage()
-                                    logger.info(f"[건물 상호작용] 창고 UI 열기 (보관 아이템: {len(hub_storage)}개)")
+                                    # 마을 창고 우선 확인
+                                    storage_inventory = []
+                                    if hasattr(town_manager, 'get_storage_inventory'):
+                                        storage_inventory = town_manager.get_storage_inventory()
+                                        logger.info(f"[건물 상호작용] 마을 창고 UI 열기 (보관 아이템: {len(storage_inventory)}개)")
+                                    else:
+                                        # 하위 호환성
+                                        hub_storage = town_manager.get_hub_storage()
+                                        logger.info(f"[건물 상호작용] 창고 UI 열기 (보관 아이템: {len(hub_storage)}개)")
+                                        storage_inventory = hub_storage
+
                                     try:
                                         from src.ui.storage_ui import open_storage
-                                        open_storage(console, context, self.inventory, hub_storage, town_manager)
+                                        # StorageUI가 알아서 적절한 저장소를 사용할 것이므로 None 전달
+                                        open_storage(console, context, self.inventory, None, town_manager)
                                         logger.info(f"[건물 상호작용] 창고 UI 열기 성공")
                                     except Exception as ui_error:
                                         logger.error(f"[건물 상호작용] 창고 UI 열기 오류: {ui_error}", exc_info=True)
