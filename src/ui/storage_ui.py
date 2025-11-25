@@ -42,9 +42,11 @@ class StorageUI:
         self.storage_inventory = []
         if town_manager is None:
             logger.error("town_manager가 None입니다. 창고 기능을 사용할 수 없습니다.")
+            print(f"[STORAGE_UI] town_manager is None!")
         elif hasattr(town_manager, 'get_storage_inventory'):
             self.storage_inventory = town_manager.get_storage_inventory().copy()
             logger.info(f"마을 창고 초기화: {len(self.storage_inventory)}개 아이템")
+            print(f"[STORAGE_UI] 초기화됨 - town_manager id: {id(town_manager)}, storage: {len(self.storage_inventory)}")
         else:
             logger.warning("town_manager에 get_storage_inventory 메서드가 없습니다. 하위 호환 모드로 작동합니다.")
             # 하위 호환성: hub_storage 사용
