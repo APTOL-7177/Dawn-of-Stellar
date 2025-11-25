@@ -487,19 +487,25 @@ class TownManager:
         
         return manager
 
-# 전역 싱글톤 저장소 (핫 리로드 대응)
-_town_manager_singleton = {}
+# 강력한 싱글톤 구현 (클래스 기반)
+class TownManagerSingleton:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self):
+        if not self._initialized:
+            TownManager.__init__(self)
+            self._initialized = True
+            print(f"[TOWN_MANAGER] 싱글톤 TownManager 생성: id={id(self)}")
 
 def get_town_manager() -> TownManager:
-    """TownManager 싱글톤 인스턴스 반환 (강력한 핫 리로드 대응)"""
-    # 모듈 이름을 키로 사용하여 싱글톤 유지
-    key = __name__
-
-    if key not in _town_manager_singleton:
-        _town_manager_singleton[key] = TownManager()
-        print(f"[TOWN_MANAGER] 새 싱글톤 인스턴스 생성: id={id(_town_manager_singleton[key])}")
-
-    instance = _town_manager_singleton[key]
+    """TownManager 싱글톤 인스턴스 반환"""
+    instance = TownManagerSingleton()
 
     # DEBUG: 호출 추적
     import sys
