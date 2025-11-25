@@ -235,7 +235,8 @@ class StorageUI:
                         from src.persistence.save_system import serialize_item
                         
                         item = slot.item
-                        item_name = getattr(item, 'name', slot.item.item_id)
+                        # CookedFood는 name 사용, 다른 아이템은 item_id 사용
+                        item_name = getattr(item, 'name', getattr(item, 'item_id', '알 수 없는 아이템'))
                         
                         # 수량 선택
                         if self.context:
