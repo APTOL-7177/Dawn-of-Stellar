@@ -549,38 +549,38 @@ class SimpleEnemy:
         level = self.level
         enemy_growth_mult = 1.25  # 장비 차이 보정 (플레이어보다 25% 더 성장)
         
-        # HP: 레벨당 기초 HP의 14.4% 성장 (플레이어 11.5% * 1.25)
-        hp_growth = template.hp * 0.144 * (level - 1)
+        # HP: 레벨당 기초 HP의 18.72% 성장 (플레이어 11.5% * 1.25 * 1.3)
+        hp_growth = template.hp * 0.1872 * (level - 1)
         base_hp = (template.hp + hp_growth) * boss_hp_mult * stat_variance
         self.max_hp = int(base_hp) * difficulty_hp_mult
         self.current_hp = self.max_hp
         
-        # MP: 레벨당 기초 MP의 6.25% 성장 (플레이어 5% * 1.25)
-        mp_growth = template.mp * 0.0625 * (level - 1)
+        # MP: 레벨당 기초 MP의 8.125% 성장 (플레이어 5% * 1.25 * 1.3)
+        mp_growth = template.mp * 0.08125 * (level - 1)
         base_mp = (template.mp + mp_growth) * boss_stat_mult * stat_variance
         self.max_mp = int(base_mp)
         self.current_mp = self.max_mp
         
-        # 공격력: 레벨당 기초 공격력의 25% 성장
+        # 공격력: 레벨당 기초 공격력의 40% 성장 (더 공격적으로 강화)
         # 최종적으로 공격력을 30%로 조정 (밸런스 재조정)
-        attack_growth = template.physical_attack * 0.25 * (level - 1)
+        attack_growth = template.physical_attack * 0.40 * (level - 1)
         base_physical_attack = (template.physical_attack + attack_growth) * boss_stat_mult * stat_variance
         self.physical_attack = int(base_physical_attack * 0.3) * difficulty_dmg_mult
 
-        magic_attack_growth = template.magic_attack * 0.25 * (level - 1)
+        magic_attack_growth = template.magic_attack * 0.40 * (level - 1)
         base_magic_attack = (template.magic_attack + magic_attack_growth) * boss_stat_mult * stat_variance
         self.magic_attack = int(base_magic_attack * 0.3) * difficulty_dmg_mult
         
-        # 방어력: 레벨당 기초 방어력의 25% 성장, 최종값 15% 증가 (플레이어 20% * 1.25, 최종 0.75 * 1.15 = 0.8625배)
-        defense_growth = template.physical_defense * 0.25 * (level - 1)
+        # 방어력: 레벨당 기초 방어력의 40% 성장, 최종값 15% 증가 (플레이어 20% * 1.25 * 1.3, 최종 0.75 * 1.15 = 0.8625배)
+        defense_growth = template.physical_defense * 0.40 * (level - 1)
         base_physical_defense = (template.physical_defense + defense_growth) * 0.75 * 1.15 * boss_stat_mult * stat_variance
         self.physical_defense = int(base_physical_defense)
         
-        magic_defense_growth = template.magic_defense * 0.25 * (level - 1)
+        magic_defense_growth = template.magic_defense * 0.40 * (level - 1)
         base_magic_defense = (template.magic_defense + magic_defense_growth) * 0.75 * 1.15 * boss_stat_mult * stat_variance
         self.magic_defense = int(base_magic_defense)
         
-        # 속도: 레벨당 기초 속도의 25% 성장 (플레이어 20% * 1.25)
+        # 속도: 레벨당 기초 속도의 25% 성장 (약간 낮춰 밸런스 조정)
         # 추가로 속도를 1.5배로 조정하고, 30% 감소 적용 (1.5 * 0.7 = 1.05)
         speed_growth = template.speed * 0.25 * (level - 1)
         base_speed = (template.speed + speed_growth) * boss_stat_mult * stat_variance

@@ -434,8 +434,8 @@ class WorldUI:
                         return True
             return False
 
-        # 상호작용 (E키)
-        elif action == GameAction.INTERACT:
+        # 상호작용 (E키 또는 Z키)
+        elif action == GameAction.INTERACT or action == GameAction.CONFIRM:
             # 우선순위 1: 요리솥
             nearby_cooking_pot = self._find_nearby_cooking_pot()
             if nearby_cooking_pot:
