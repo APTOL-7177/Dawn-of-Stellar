@@ -200,8 +200,11 @@ class MapRenderer:
                     char = "@"
                     fg = (0, 255, 0)  # 초록색
                 # 계단 표시 (플레이어보다 낮지만 중요)
-                elif tile.tile_type in [TileType.STAIRS_UP, TileType.STAIRS_DOWN]:
-                    char = "S"
+                elif tile.tile_type == TileType.STAIRS_DOWN:
+                    char = ">"
+                    fg = (255, 255, 0)  # 노란색 (더 눈에 띄게)
+                elif tile.tile_type == TileType.STAIRS_UP:
+                    char = "<"
                     fg = (255, 255, 0)  # 노란색 (더 눈에 띄게)
                 # 보스 위치 표시 제거 (요청에 따라)
                 # elif (mx, my) in boss_minimap_positions:
