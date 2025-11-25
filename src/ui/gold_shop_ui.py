@@ -367,7 +367,9 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1) -> dict:
     # 인플레이션 배율 계산
     service_inflation = get_inflation_multiplier(floor_level)
     reforge_base_price = 250
-    reforge_price = int(reforge_base_price * service_inflation)
+    # 서비스 가격 1/10 적용 (대장간 한정)
+    service_price_multiplier = 0.1 if shop_type == "blacksmith" else 1.0
+    reforge_price = int(reforge_base_price * service_inflation * service_price_multiplier)
     
     items[GoldShopTab.SERVICE].append(
         GoldShopItem(
@@ -604,9 +606,10 @@ class GoldShopUI:
                     elif rarity_name == 'EPIC': multiplier = 3.0
                     elif rarity_name == 'LEGENDARY': multiplier = 5.0
                     
-                    # 인플레이션 적용 비용 계산
+                    # 인플레이션 적용 비용 계산 (서비스 가격 조정 포함)
                     base_cost = int(missing * 2 * multiplier)
-                    cost = int(base_cost * get_inflation_multiplier(self.floor_level))
+                    service_price_multiplier = 0.1 if self.shop_type == "blacksmith" else 1.0  # 대장간 수리비 1/10
+                    cost = int(base_cost * get_inflation_multiplier(self.floor_level) * service_price_multiplier)
                     items_to_repair.append({
                         "item": item,
                         "cost": cost,
@@ -719,8 +722,9 @@ class GoldShopUI:
 
         menu_items.append(MenuItem("돌아가기", action=lambda: None))
 
-        # 인플레이션 적용 재연마 비용 계산
-        reforge_cost = int(250 * get_inflation_multiplier(self.floor_level))
+        # 인플레이션 적용 재연마 비용 계산 (서비스 가격 조정 포함)
+        service_price_multiplier = 0.1 if self.shop_type == "blacksmith" else 1.0  # 대장간 서비스비 1/10
+        reforge_cost = int(250 * get_inflation_multiplier(self.floor_level) * service_price_multiplier)
 
         # 커서 메뉴 생성
         self.reforge_menu = CursorMenu(
