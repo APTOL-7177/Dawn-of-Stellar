@@ -212,15 +212,15 @@ class RewardCalculator:
             else:
                 total_exp += ExperienceSystem.calculate_enemy_experience(enemy_level, 1)
 
-        # 골드 계산 (2배 증가)
-        # 기본 골드: 적 레벨 * 20 ~ 40 (기존 10-20에서 2배)
+        # 골드 계산 (1/10로 감소)
+        # 기본 골드: 적 레벨 * 2 ~ 4 (기존 20-40에서 1/10)
         import random
         total_gold = 0
         for enemy in enemies:
             enemy_level = getattr(enemy, 'level', floor_number)
-            enemy_gold = random.randint(enemy_level * 20, enemy_level * 40)
+            enemy_gold = random.randint(enemy_level * 2, enemy_level * 4)
             if is_boss_fight:
-                enemy_gold *= 5  # 보스는 5배
+                enemy_gold *= 5  # 보스는 5배 (레벨 * 10 ~ 20)
             total_gold += enemy_gold
 
         # 아이템 드롭

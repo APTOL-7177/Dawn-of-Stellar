@@ -146,7 +146,17 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1) -> dict:
     
     # 상점 레벨 4: 가격 20% 할인
     discount_multiplier = 0.8 if shop_level >= 4 else 1.0
-    
+
+    # shop_type에 따른 추가 가격 조정
+    if shop_type == "blacksmith":
+        # 대장간: 장비 가격 1/6
+        type_multiplier = 1.0 / 6.0
+    elif shop_type == "shop":
+        # 잡화점: 소모품 가격 1/3
+        type_multiplier = 1.0 / 3.0
+    else:
+        type_multiplier = 1.0
+
     for item_id, price in consumable_items:
         # ItemGenerator를 사용하여 일관된 아이템 생성 (스택 문제 해결)
         from src.equipment.item_system import ItemGenerator
@@ -156,8 +166,8 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1) -> dict:
             # 템플릿이 없으면 스킵
             continue
         
-        # 인플레이션 적용 가격 계산
-        inflated_price = int(price * inflation * discount_multiplier)
+        # 인플레이션 적용 가격 계산 (타입별 가격 조정 포함)
+        inflated_price = int(price * inflation * discount_multiplier * type_multiplier)
         
         # 소모품 재고: 1~3개 랜덤 (Lv.3 이상이면 1.5배 또는 2배)
         base_stock = floor_random.randint(1, 3)
@@ -273,8 +283,8 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1) -> dict:
         equipment_items = []
 
     for item_id, base_price, template in equipment_items:
-        # 인플레이션 적용 가격 계산 (Lv.4 할인 적용)
-        price = int(base_price * inflation * discount_multiplier)
+        # 인플레이션 적용 가격 계산 (Lv.4 할인 적용 + 타입별 가격 조정)
+        price = int(base_price * inflation * discount_multiplier * type_multiplier)
         
         # ItemGenerator를 사용하여 일관된 아이템 생성
         from src.equipment.item_system import ItemGenerator, ItemType, EquipSlot
