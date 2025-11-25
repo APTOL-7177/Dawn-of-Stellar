@@ -1294,9 +1294,12 @@ class Character:
         # 또는 StatManager의 bonuses 딕셔너리를 순회하며 해당 source를 가진 보너스 제거가 이상적이나
         # 현재 StatManager 구조상 remove_bonus는 key가 필요함.
         # 따라서 일반적인 스탯들을 모두 순회하며 제거 시도.
-        for stat_enum in Stats:
-            self.stat_manager.remove_bonus(stat_enum, f"equipment_{slot}")
-            self.stat_manager.remove_bonus(stat_enum, f"equipment_{slot}_percent")  # 퍼센트 옵션도 제거
+        stat_keys = [Stats.HP, Stats.MP, Stats.INIT_BRV, Stats.MAX_BRV, Stats.STRENGTH, Stats.DEFENSE,
+                     Stats.MAGIC, Stats.SPIRIT, Stats.SPEED, Stats.LUCK, Stats.ACCURACY, Stats.EVASION,
+                     Stats.STAMINA, Stats.VITALITY, Stats.DEXTERITY, Stats.PERCEPTION, Stats.ENDURANCE, Stats.CHARISMA]
+        for stat_key in stat_keys:
+            self.stat_manager.remove_bonus(stat_key, f"equipment_{slot}")
+            self.stat_manager.remove_bonus(stat_key, f"equipment_{slot}_percent")  # 퍼센트 옵션도 제거
 
         if not item:
             return
