@@ -275,7 +275,7 @@ class StorageUI:
                                                 stored_count += 1
                                         except Exception as e:
                                             logger.error(f"창고 저장 실패: {e}")
-                                    logger.info(f"마을 창고에 {stored_count}개 아이템 저장")
+                                    logger.info(f"마을 창고에 {stored_count}개 아이템 저장 (town_manager id: {id(self.town_manager)})")
 
                                     # UI의 로컬 복사본 업데이트
                                     if hasattr(self.town_manager, 'get_storage_inventory'):
