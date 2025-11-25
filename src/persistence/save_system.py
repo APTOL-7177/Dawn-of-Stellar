@@ -869,6 +869,14 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
     # 계단, 열쇠, 문 복원
     dungeon.stairs_up = tuple(dungeon_data["stairs_up"]) if dungeon_data.get("stairs_up") else None
     dungeon.stairs_down = tuple(dungeon_data["stairs_down"]) if dungeon_data.get("stairs_down") else None
+
+    # 계단 위치에 STAIRS 타일 설정
+    if dungeon.stairs_up:
+        x, y = dungeon.stairs_up
+        dungeon.set_tile(x, y, TileType.STAIRS_UP)
+    if dungeon.stairs_down:
+        x, y = dungeon.stairs_down
+        dungeon.set_tile(x, y, TileType.STAIRS_DOWN)
     dungeon.keys = [tuple(k) if isinstance(k, list) else k for k in dungeon_data.get("keys", [])]
     dungeon.locked_doors = [tuple(d) if isinstance(d, list) else d for d in dungeon_data.get("locked_doors", [])]
 
