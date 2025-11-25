@@ -436,9 +436,11 @@ class WorldUI:
 
         # 상호작용 (E키 또는 Z키)
         elif action == GameAction.INTERACT or action == GameAction.CONFIRM:
+            logger.debug(f"상호작용 입력: {action}")
             # 우선순위 1: 요리솥
             nearby_cooking_pot = self._find_nearby_cooking_pot()
             if nearby_cooking_pot:
+                logger.info(f"요리솥 발견 및 사용 시도: 위치 ({nearby_cooking_pot.x}, {nearby_cooking_pot.y})")
                 if console is not None and context is not None and self.inventory is not None:
                     from src.ui.cooking_ui import open_cooking_pot
 
@@ -448,8 +450,11 @@ class WorldUI:
                     open_cooking_pot(console, context, self.inventory, is_cooking_pot=True)
                     return False
                 else:
+                    logger.warning("요리솥 사용 실패: 필요한 컴포넌트 없음 (console, context, inventory)")
                     self.add_message("요리솥을 사용할 수 없습니다.")
                     return False
+            else:
+                logger.debug("요리솥 없음 - 다른 상호작용으로 진행")
 
             # 우선순위 2: 채집 오브젝트 (일괄 채집)
             nearby_harvestables = self._find_all_nearby_harvestables()
@@ -975,7 +980,7 @@ class WorldUI:
     def _find_nearby_cooking_pot(self):
         """
         플레이어 주변의 요리솥 찾기
-        
+
         Returns:
             가장 가까운 요리솥 HarvestableObject 또는 None
         """
@@ -987,6 +992,8 @@ class WorldUI:
         # 인접 범위 (맨하탄 거리 1~2칸)
         max_distance = 2
 
+        logger.debug(f"요리솥 찾기 시작 - 플레이어 위치: ({player_x}, {player_y}), 채집 오브젝트 수: {len(self.exploration.dungeon.harvestables)}")
+
         for harvestable in self.exploration.dungeon.harvestables:
             # 요리솥만 찾기
             if harvestable.object_type != HarvestableType.COOKING_POT:
@@ -995,14 +1002,18 @@ class WorldUI:
             # 맨하탄 거리 계산
             dx = abs(harvestable.x - player_x)
             dy = abs(harvestable.y - player_y)
-            
+
             # 대각선 포함 거리 (체비쇼프 거리)
             chebyshev_distance = max(dx, dy)
 
+            logger.debug(f"요리솥 발견: 위치 ({harvestable.x}, {harvestable.y}), 거리: {chebyshev_distance}")
+
             # 범위 내이면 반환
             if chebyshev_distance <= max_distance:
+                logger.info(f"요리솥 사용 가능: 위치 ({harvestable.x}, {harvestable.y}), 거리: {chebyshev_distance}")
                 return harvestable
 
+        logger.debug("주변에 사용 가능한 요리솥 없음")
         return None
 
     def render(self, console: tcod.console.Console):
