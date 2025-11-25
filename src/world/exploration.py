@@ -1194,12 +1194,15 @@ class ExplorationSystem:
 
     def _spawn_enemies(self):
         """적 배치"""
+        from src.world.enemy_generator import EnemyGenerator
+        import random
+
         # 마을에서는 적 스폰하지 않음
         if hasattr(self, 'is_town') and self.is_town:
             logger.info("[_spawn_enemies] 마을에서는 적을 스폰하지 않습니다.")
             self.enemies = []  # 적 리스트 초기화
             return
-        
+
         # 층 수에 따라 적 수 결정 (4-15마리로 감소)
         base_enemies = 4
         additional = self.floor_number * 1
@@ -1216,9 +1219,6 @@ class ExplorationSystem:
 
         # 보스 먼저 배치 (층마다 한 마리씩 꼭 생성)
         if possible_positions:
-            from src.world.enemy_generator import EnemyGenerator
-            from src.world.tile import TileType
-            import random
 
             # 5층마다 층 보스 (더 강력함), 그 외에는 일반 보스
             is_floor_boss = (self.floor_number % 5 == 0)

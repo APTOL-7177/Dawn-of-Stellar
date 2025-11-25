@@ -46,9 +46,9 @@ class HarvestableType(Enum):
             HarvestableType.MUSHROOM_PATCH: "♠",
             HarvestableType.HERB_PLANT: "♦",
             HarvestableType.TREE: "♣",
-            HarvestableType.ROCK: "◙",
+            HarvestableType.ROCK: "O",  # 바위: O (더 일반적인 문자)
             HarvestableType.WATER: "≈",
-            HarvestableType.CARCASS: "☠",
+            HarvestableType.CARCASS: "X",  # 시체: X (더 일반적인 문자)
             HarvestableType.COOKING_POT: "Ω"
         }
         return symbols.get(self, "?")

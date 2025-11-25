@@ -191,19 +191,43 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1) -> dict:
     all_templates.update(ARMOR_TEMPLATES)
     all_templates.update(ACCESSORY_TEMPLATES)
     
-    # 층수에 맞는 레벨 제한 계산 (층당 레벨 1 증가 가정)
-    # 최소 레벨은 1로 보장 (마을/대장간에서도 기본 장비 판매 가능)
-    max_level = max(1, floor_level)
+    # 층수에 맞는 레벨 제한 계산: 층수/2-2 ~ 층수/2 범위
+    # 예: 10층 -> 레벨 3~5, 20층 -> 레벨 8~10
+    target_min_level = max(1, floor_level // 2 - 2)
+    target_max_level = max(1, floor_level // 2)
     
+    # 최대 레벨은 층수까지 허용 (보급형 고레벨 장비도 포함)
+    absolute_max_level = max(1, floor_level)
+    
+    # 타겟 범위의 장비와 보급형 고레벨 장비 모두 수집
     for item_id, template in all_templates.items():
         level_req = template.get("level_requirement", 1)
         rarity = template.get("rarity", ItemRarity.COMMON)
         
-        # 층수에 맞는 장비만 선택
-        if level_req <= max_level:
+        # 타겟 범위 내의 장비 또는 보급형 고레벨 장비 (COMMON/UNCOMMON이면서 레벨이 높은 경우)
+        is_in_target_range = target_min_level <= level_req <= target_max_level
+        is_supply_high_level = (level_req > target_max_level and 
+                               level_req <= absolute_max_level and 
+                               rarity in [ItemRarity.COMMON, ItemRarity.UNCOMMON])
+        
+        if is_in_target_range or is_supply_high_level:
             # 가격은 sell_price 사용
             base_price = template.get("sell_price", 100)
-            all_equipment_pools.append((item_id, base_price, template))
+            # 레벨과 등급을 함께 저장하여 우선순위 계산에 사용
+            all_equipment_pools.append((item_id, base_price, template, level_req, rarity))
+    
+    # 장비 풀이 비어있으면 레벨 제한을 완화
+    if len(all_equipment_pools) == 0:
+        logger.debug(f"타겟 범위 ({target_min_level}~{target_max_level})의 장비가 없어 레벨 제한을 완화합니다.")
+        all_equipment_pools = []
+        for item_id, template in all_templates.items():
+            level_req = template.get("level_requirement", 1)
+            rarity = template.get("rarity", ItemRarity.COMMON)
+            
+            # 최대 레벨 이하의 장비만 선택
+            if level_req <= absolute_max_level:
+                base_price = template.get("sell_price", 100)
+                all_equipment_pools.append((item_id, base_price, template, level_req, rarity))
     
     # 상점 레벨에 따른 아이템 종류 수 결정
     # Lv.1: 4~5종류, Lv.2+: 6~8종류
@@ -212,13 +236,37 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1) -> dict:
     else:
         num_equipment = floor_random.randint(4, 5)
     
-    # 랜덤 선택 (장비 풀이 비어있지 않은 경우에만)
+    # 층수에 따라 더 높은 레벨과 등급의 장비를 우선적으로 선택
     if len(all_equipment_pools) > 0:
-        selected_equipment = floor_random.sample(
-            list(range(len(all_equipment_pools))), 
-            min(num_equipment, len(all_equipment_pools))
-        )
-        equipment_items = [all_equipment_pools[i] for i in selected_equipment]
+        # 등급별 점수 (높을수록 좋음)
+        rarity_scores = {
+            ItemRarity.COMMON: 1,
+            ItemRarity.UNCOMMON: 2,
+            ItemRarity.RARE: 3,
+            ItemRarity.EPIC: 4,
+            ItemRarity.LEGENDARY: 5,
+            ItemRarity.UNIQUE: 6
+        }
+        
+        # 우선순위 계산 함수: (레벨 점수, 등급 점수) 튜플로 정렬
+        def get_priority(item_data):
+            item_id, base_price, template, level_req, rarity = item_data
+            # 타겟 범위 내인지 확인
+            is_in_target = target_min_level <= level_req <= target_max_level
+            # 레벨 점수: 타겟 범위 내면 높은 점수, 범위 밖이면 낮은 점수
+            level_score = level_req if is_in_target else level_req * 0.5
+            # 등급 점수
+            rarity_score = rarity_scores.get(rarity, 1)
+            return (level_score, rarity_score)
+        
+        # 우선순위에 따라 정렬 (높은 우선순위부터)
+        sorted_equipment = sorted(all_equipment_pools, key=get_priority, reverse=True)
+        
+        # 상위 장비 선택
+        equipment_items = sorted_equipment[:num_equipment]
+        
+        # 선택된 장비에서 템플릿 정보만 추출 (기존 형식 유지)
+        equipment_items = [(item_id, base_price, template) for item_id, base_price, template, _, _ in equipment_items]
     else:
         # 장비 풀이 비어있으면 빈 리스트 반환
         logger.warning(f"장비 풀이 비어있습니다. (floor_level: {floor_level}, max_level: {max_level})")
