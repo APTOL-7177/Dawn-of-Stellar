@@ -675,11 +675,17 @@ class CombatUI:
                 self._execute_current_action()
                 return
 
+            # "ALL_ALLIES" 타겟은 타겟 선택 건너뛰기 (아군 전체에 자동 적용)
+            if target_type == SkillTargetType.ALL_ALLIES or target_type == "all_allies":
+                # 아군 전체를 타겟으로 설정
+                self.selected_target = self.combat_manager.party
+                self._execute_current_action()
+                return
+
             # 문자열 target_type을 Enum으로 매핑 (하위 호환성)
             ally_targets = (
                 SkillTargetType.SINGLE_ALLY,
                 SkillTargetType.SELF,
-                SkillTargetType.ALL_ALLIES,
                 "ally",      # 문자열 지원
                 "party",     # 문자열 지원
             )

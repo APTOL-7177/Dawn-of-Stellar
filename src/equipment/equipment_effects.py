@@ -265,6 +265,29 @@ class EquipmentEffectManager:
 
         logger.info(f"[장비 착용] {character.name} - {item_name} (unique_effect: {unique_effect})")
 
+        # vision_bonus 재계산: 먼저 초기화하고 현재 장착된 모든 장비의 vision_bonus를 다시 계산
+        if hasattr(character, "vision_bonus"):
+            character.vision_bonus = 0
+            logger.debug(f"{character.name} vision_bonus 초기화")
+        
+        # 현재 장착된 모든 장비의 vision_bonus 효과 재계산
+        if hasattr(character, "equipment"):
+            for slot, equipped_item in character.equipment.items():
+                if equipped_item:
+                    # 장착된 장비의 vision_bonus 효과 찾기
+                    item_effects = []
+                    if hasattr(equipped_item, "special_effects") and equipped_item.special_effects:
+                        item_effects = equipped_item.special_effects
+                    elif hasattr(equipped_item, "unique_effect") and equipped_item.unique_effect:
+                        item_effects = parse_unique_effects(equipped_item.unique_effect)
+                    
+                    for eff in item_effects:
+                        if eff.effect_type == EffectType.VISION_BONUS and eff.trigger == EffectTrigger.ON_EQUIP:
+                            if not hasattr(character, "vision_bonus"):
+                                character.vision_bonus = 0
+                            character.vision_bonus += int(eff.value)
+                            logger.debug(f"{character.name} vision_bonus 재계산: {equipped_item.name} +{eff.value} (현재: {character.vision_bonus})")
+
         # 아이템의 특수 효과 파싱 및 적용
         effects = []
 
@@ -287,13 +310,17 @@ class EquipmentEffectManager:
             self.add_effect(character_id, effect)
             logger.info(f"효과 추가: {character.name} - {effect.effect_type.value} (트리거: {effect.trigger.value}, 값: {effect.value})")
 
-            # ON_EQUIP 트리거 효과 즉시 실행
+            # ON_EQUIP 트리거 효과 즉시 실행 (vision_bonus는 이미 재계산했으므로 스킵)
             if effect.trigger == EffectTrigger.ON_EQUIP:
-                logger.info(f"ON_EQUIP 효과 실행: {character.name} - {effect.effect_type.value} (값: {effect.value})")
-                try:
-                    self._execute_effect(character, effect, {})
-                except Exception as e:
-                    logger.error(f"ON_EQUIP 효과 실행 중 에러: {e}", exc_info=True)
+                if effect.effect_type == EffectType.VISION_BONUS:
+                    # vision_bonus는 이미 재계산했으므로 스킵
+                    logger.debug(f"ON_EQUIP vision_bonus 효과 스킵 (이미 재계산됨): {character.name} - {effect.value}")
+                else:
+                    logger.info(f"ON_EQUIP 효과 실행: {character.name} - {effect.effect_type.value} (값: {effect.value})")
+                    try:
+                        self._execute_effect(character, effect, {})
+                    except Exception as e:
+                        logger.error(f"ON_EQUIP 효과 실행 중 에러: {e}", exc_info=True)
 
     def _on_equipment_unequipped(self, data: Dict[str, Any]):
         """장비 해제 이벤트"""
@@ -317,15 +344,32 @@ class EquipmentEffectManager:
         for effect in effects:
             if effect.trigger == EffectTrigger.ON_UNEQUIP:
                 self._execute_effect(character, effect, {})
-            
-            # vision_bonus 효과 제거 (ON_EQUIP 트리거인 경우)
-            if effect.effect_type == EffectType.VISION_BONUS and effect.trigger == EffectTrigger.ON_EQUIP:
-                if hasattr(character, "vision_bonus"):
-                    character.vision_bonus = max(0, character.vision_bonus - int(effect.value))
-                    logger.debug(f"{character.name} 시야 -{effect.value} (장비 해제)")
 
         # 효과 제거
         self.remove_effects(character_id, item_id)
+        
+        # vision_bonus 재계산: 장비 해제 후 현재 장착된 모든 장비의 vision_bonus를 다시 계산
+        if hasattr(character, "vision_bonus"):
+            character.vision_bonus = 0
+            logger.debug(f"{character.name} vision_bonus 초기화 (장비 해제 후)")
+        
+        # 현재 장착된 모든 장비의 vision_bonus 효과 재계산
+        if hasattr(character, "equipment"):
+            for slot, equipped_item in character.equipment.items():
+                if equipped_item:
+                    # 장착된 장비의 vision_bonus 효과 찾기
+                    item_effects = []
+                    if hasattr(equipped_item, "special_effects") and equipped_item.special_effects:
+                        item_effects = equipped_item.special_effects
+                    elif hasattr(equipped_item, "unique_effect") and equipped_item.unique_effect:
+                        item_effects = parse_unique_effects(equipped_item.unique_effect)
+                    
+                    for eff in item_effects:
+                        if eff.effect_type == EffectType.VISION_BONUS and eff.trigger == EffectTrigger.ON_EQUIP:
+                            if not hasattr(character, "vision_bonus"):
+                                character.vision_bonus = 0
+                            character.vision_bonus += int(eff.value)
+                            logger.debug(f"{character.name} vision_bonus 재계산: {equipped_item.name} +{eff.value} (현재: {character.vision_bonus})")
 
     def _on_damage_dealt(self, data: Dict[str, Any]):
         """공격 성공 이벤트"""

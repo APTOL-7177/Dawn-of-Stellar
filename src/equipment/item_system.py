@@ -116,7 +116,7 @@ class Item:
         """초기화 후 처리"""
         # 등급에 따른 최대 내구도 설정 (기본값 100에서 덮어쓰기)
         durability_map = {
-            ItemRarity.COMMON: 50,
+            ItemRarity.COMMON: 75,
             ItemRarity.UNCOMMON: 80,
             ItemRarity.RARE: 120,
             ItemRarity.EPIC: 200,
@@ -183,6 +183,9 @@ class Equipment(Item):
     special_effects: List[Any] = field(default_factory=list)  # EquipmentEffect 리스트
 
     def __post_init__(self):
+        # 부모 클래스의 __post_init__ 먼저 호출하여 내구도 설정
+        super().__post_init__()
+
         if self.item_type not in [ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY]:
             self.item_type = ItemType.WEAPON
 

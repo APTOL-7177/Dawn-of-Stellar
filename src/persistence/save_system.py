@@ -160,13 +160,13 @@ class SaveSystem:
             
             # TownManager 복원
             if "town_manager" in game_state:
-                from src.town.town_manager import get_town_manager, TownManager
-                # 전역 인스턴스 업데이트
-                manager = get_town_manager()
-                loaded_manager = TownManager.from_dict(game_state["town_manager"])
-                manager.facilities = loaded_manager.facilities
-                manager.hub_storage = loaded_manager.hub_storage.copy()  # 창고 아이템 복원
-                logger.info(f"마을 데이터 복원 완료 - 창고 아이템: {len(manager.hub_storage)}개")
+                from src.town.town_manager import TownManager
+                # 전역 인스턴스를 로드된 매니저로 완전히 교체
+                loaded_town_manager = TownManager.from_dict(game_state["town_manager"])
+                # 전역 인스턴스 직접 업데이트 (참조 교체)
+                import src.town.town_manager as town_module
+                town_module._town_manager = loaded_town_manager
+                logger.info(f"마을 데이터 복원 완료 - 창고 아이템: {len(loaded_town_manager.hub_storage)}개")
             
             # QuestManager 복원
             if "quest_manager" in game_state:
@@ -492,7 +492,9 @@ def serialize_item(item: Any) -> Dict[str, Any]:
         "unique_effect": getattr(item, 'unique_effect', None),
         "equip_slot": equip_slot_value,
         "weight": getattr(item, 'weight', 1.0),
-        "sell_price": getattr(item, 'sell_price', 0)
+        "sell_price": getattr(item, 'sell_price', 0),
+        "max_durability": getattr(item, 'max_durability', 100),
+        "current_durability": getattr(item, 'current_durability', 100)
     }
     
     # Ingredient 특수 속성 저장
@@ -903,6 +905,8 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
 
     weight = item_data.get("weight", 1.0)
     sell_price = item_data.get("sell_price", 0)
+    max_durability = item_data.get("max_durability", 100)
+    current_durability = item_data.get("current_durability", 100)
 
     # CookedFood 복원 (is_cooked_food 플래그가 있으면)
     if item_data.get("is_cooked_food"):
@@ -953,7 +957,7 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
         raw_hp_restore = item_data.get("raw_hp_restore", ingredient_template.raw_hp_restore if ingredient_template else 0)
         raw_mp_restore = item_data.get("raw_mp_restore", ingredient_template.raw_mp_restore if ingredient_template else 0)
         
-        return Ingredient(
+        ingredient = Ingredient(
             item_id=item_data["item_id"],
             name=item_data["name"],
             description=item_data["description"],
@@ -973,6 +977,10 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
             raw_hp_restore=raw_hp_restore,
             raw_mp_restore=raw_mp_restore
         )
+        # 내구도 복원
+        ingredient.max_durability = max_durability
+        ingredient.current_durability = current_durability
+        return ingredient
 
     # 장비 vs 소비 아이템
     if item_type in [ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY]:
@@ -998,7 +1006,7 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
             else:  # ACCESSORY
                 equip_slot = EquipSlot.ACCESSORY
 
-        return Equipment(
+        equipment = Equipment(
             item_id=item_data["item_id"],
             name=item_data["name"],
             description=item_data["description"],
@@ -1012,9 +1020,13 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
             weight=weight,
             sell_price=sell_price
         )
+        # 내구도 복원
+        equipment.max_durability = max_durability
+        equipment.current_durability = current_durability
+        return equipment
     elif item_type == ItemType.CONSUMABLE or item_data.get("effect_type"):
         # Consumable 복원
-        return Consumable(
+        consumable = Consumable(
             item_id=item_data["item_id"],
             name=item_data["name"],
             description=item_data["description"],
@@ -1029,8 +1041,12 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
             weight=weight,
             sell_price=sell_price
         )
+        # 내구도 복원
+        consumable.max_durability = max_durability
+        consumable.current_durability = current_durability
+        return consumable
     else:
-        return Item(
+        item = Item(
             item_id=item_data["item_id"],
             name=item_data["name"],
             description=item_data["description"],
@@ -1043,6 +1059,10 @@ def deserialize_item(item_data: Dict[str, Any]) -> Any:
             weight=weight,
             sell_price=sell_price
         )
+        # 내구도 복원
+        item.max_durability = max_durability
+        item.current_durability = current_durability
+        return item
 
 
 def deserialize_gimmick_state(character: Any, gimmick_state: Dict[str, Any]) -> None:
@@ -1148,10 +1168,26 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
         # 장비 스탯 재적용 (equip_item 로직 사용)
         # StatManager는 이미 stats 데이터를 통해 복원되었지만, 장비 스탯은 별도로 재적용해야 함
         # 특히 퍼센트 옵션은 현재 최대 HP/MP를 기준으로 계산되므로 재적용 필요
+        # 먼저 기존 장비 스탯을 제거 (중복 적용 방지)
+        from src.character.stats import Stats
+        # Stats는 enum이 아니라 클래스이므로 모든 스탯 속성을 리스트로 만듦
+        all_stats = [
+            Stats.HP, Stats.MP, Stats.INIT_BRV, Stats.MAX_BRV,
+            Stats.STRENGTH, Stats.DEFENSE, Stats.MAGIC, Stats.SPIRIT,
+            Stats.SPEED, Stats.LUCK, Stats.ACCURACY, Stats.EVASION,
+            Stats.STAMINA, Stats.VITALITY, Stats.DEXTERITY, Stats.PERCEPTION,
+            Stats.ENDURANCE, Stats.CHARISMA, Stats.CRIT_RATE, Stats.CRIT_DAMAGE
+        ]
+        for slot in char.equipment.keys():
+            # 모든 가능한 스탯에 대해 장비 보너스 제거
+            for stat_enum in all_stats:
+                char.stat_manager.remove_bonus(stat_enum, f"equipment_{slot}")
+                char.stat_manager.remove_bonus(stat_enum, f"equipment_{slot}_percent")
+        
+        # 이제 장비 스탯 재적용
         for slot, item in char.equipment.items():
             if item:
                 # 장비 스탯 재적용 (equip_item의 스탯 적용 로직 사용)
-                from src.character.stats import Stats
                 stat_mapping = {
                     "physical_attack": Stats.STRENGTH,
                     "physical_defense": Stats.DEFENSE,
@@ -1176,7 +1212,7 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
                 # 장비 보너스 적용 (get_total_stats 메서드 사용)
                 if hasattr(item, "get_total_stats"):
                     total_stats = item.get_total_stats()
-                    # 현재 최대 HP/MP 값 (퍼센트 옵션 계산용)
+                    # 현재 최대 HP/MP 값 (퍼센트 옵션 계산용) - 장비 스탯 제거 후 계산
                     current_max_hp = char.max_hp
                     current_max_mp = char.max_mp
                     

@@ -117,7 +117,6 @@ class InputHandler(tcod.event.EventDispatch[Optional[GameAction]]):
             # 행동
             'e': GameAction.INTERACT,
             'p': GameAction.PICKUP,  # 변경: g -> p (기믹 커맨드를 위해)
-            'z': GameAction.HARVEST,  # 채집
 
             # 메뉴
             'i': GameAction.OPEN_INVENTORY,

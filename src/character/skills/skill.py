@@ -222,6 +222,26 @@ class Skill:
                     # combat_manager도 없으면 원래 target 유지 (하위 호환성)
                     pass
 
+        # target_type이 "ALL_ALLIES"인 경우, context에서 아군 전체 가져오기
+        from src.character.skill_types import SkillTargetType
+        if hasattr(self, 'target_type') and (self.target_type == SkillTargetType.ALL_ALLIES or self.target_type == "all_allies"):
+            combat_manager = context.get('combat_manager')
+            if combat_manager:
+                # 아군이 사용하는 경우 아군 전체, 적이 사용하는 경우 적 전체
+                if hasattr(combat_manager, 'allies') and user in getattr(combat_manager, 'allies', []):
+                    target = getattr(combat_manager, 'allies', [])
+                elif hasattr(combat_manager, 'enemies') and user in getattr(combat_manager, 'enemies', []):
+                    target = getattr(combat_manager, 'enemies', [])
+                else:
+                    # 기본값: 아군 전체
+                    target = getattr(combat_manager, 'allies', [])
+            elif isinstance(target, list):
+                # 이미 리스트로 전달된 경우 그대로 사용
+                pass
+            else:
+                # combat_manager도 없고 리스트도 아니면 단일 타겟을 리스트로 변환
+                target = [target] if target else []
+
         # 비용 소비
         # 스냅샷 컨텍스트가 있으면 캐스팅 완료 후이므로 StackCost 건너뛰기
         # (스택은 effects의 GimmickEffect.CONSUME에서 처리)

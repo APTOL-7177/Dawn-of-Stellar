@@ -1,0 +1,18 @@
+{
+  "item_id": "test_sword",
+  "name": "테스트 검",
+  "description": "테스트용 무기",
+  "item_type": "weapon",
+  "rarity": "rare",
+  "level_requirement": 1,
+  "base_stats": {
+    "physical_attack": 50
+  },
+  "affixes": [],
+  "unique_effect": null,
+  "equip_slot": "weapon",
+  "weight": 3.0,
+  "sell_price": 500,
+  "max_durability": 100,
+  "current_durability": 80
+}

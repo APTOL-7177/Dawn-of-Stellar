@@ -332,9 +332,9 @@ class WorldUI:
                 # Debug: 전투 요청
                 return True
 
-        # 채집 (Z키)
-        elif action == GameAction.HARVEST:
-            # 채집 오브젝트 찾기
+        # 채집 또는 계단 이동 (Z키/엔터키)
+        elif action == GameAction.CONFIRM:
+            # 먼저 채집 오브젝트 찾기
             nearby_harvestables = self._find_all_nearby_harvestables()
             if nearby_harvestables:
                 # 채집 오브젝트가 있으면 일괄 채집 실행
@@ -355,12 +355,9 @@ class WorldUI:
                     return False
                 else:
                     logger.warning("채집 불가: console, context, inventory가 필요합니다")
-            else:
-                self.add_message("주변에 채집할 것이 없습니다.")
-            return False
-
-        # 계단 이동 (엔터키)
-        elif action == GameAction.CONFIRM:
+                    return False
+            
+            # 채집 오브젝트가 없으면 계단 이동 체크
             tile = self.exploration.dungeon.get_tile(
                 self.exploration.player.x,
                 self.exploration.player.y

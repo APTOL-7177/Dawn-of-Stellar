@@ -32,9 +32,17 @@ class ExperienceSystem:
         if level <= 1:
             return 0
 
-        # 공식: 100 * (level - 1)^1.5
-        # Lv 2: 100, Lv 3: 283, Lv 4: 520, Lv 5: 800, Lv 10: 2700, Lv 20: 8285
-        return int(100 * math.pow(level - 1, 1.5))
+        # 초반 레벨 성장 최적화: 1~4레벨은 낮은 경험치 요구
+        if level == 2:
+            return 50
+        elif level == 3:
+            return 150
+        elif level == 4:
+            return 300
+        else:
+            # Lv 5 이상: 기존 지수 곡선 (Lv 4 기준으로 조정)
+            # Lv 5: 600, Lv 10: 2700, Lv 20: 8285
+            return int(100 * math.pow(level - 1, 1.5))
 
     @staticmethod
     def experience_to_next_level(current_level: int, current_exp: int) -> int:
@@ -251,9 +259,9 @@ class RewardCalculator:
 
         # 골드 획득량 50% 감소
         total_gold = int(total_gold * 0.5)
-        
-        # 경험치 획득량 30% 감소 후 추가로 2/3으로 감소 (전체적으로 약 46% 수준)
-        total_exp = int(total_exp * 0.7 * (2/3))
+
+        # 경험치 획득량 46%의 1/3으로 감소 (약 15.33%)
+        total_exp = int(total_exp * 0.46 * (1/3))
 
         return {
             "experience": total_exp,
