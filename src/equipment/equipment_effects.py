@@ -252,7 +252,7 @@ class EquipmentEffectManager:
         character = data.get("character")
         item = data.get("item")
 
-        logger.info(f"[장비 착용 이벤트] character={character.name if character else None}, item={getattr(item, 'name', None) if item else None}")
+        logger.debug(f"[장비 착용 이벤트] character={character.name if character else None}, item={getattr(item, 'name', None) if item else None}")
 
         if not character or not item:
             logger.warning(f"[장비 착용 이벤트] character 또는 item이 None입니다")
@@ -263,15 +263,15 @@ class EquipmentEffectManager:
         item_name = getattr(item, 'name', '알 수 없는 아이템')
         unique_effect = getattr(item, 'unique_effect', None)
 
-        logger.info(f"[장비 착용] {character.name} - {item_name} (unique_effect: {unique_effect})")
+        logger.debug(f"[장비 착용] {character.name} - {item_name} (unique_effect: {unique_effect})")
 
         # vision_bonus 재계산: 먼저 초기화하고 현재 장착된 모든 장비의 vision_bonus를 다시 계산
         if hasattr(character, "vision_bonus"):
             character.vision_bonus = 0
-            logger.debug(f"{character.name} vision_bonus 초기화")
-        
+
         # 현재 장착된 모든 장비의 vision_bonus 효과 재계산
         if hasattr(character, "equipment"):
+            total_vision_bonus = 0
             for slot, equipped_item in character.equipment.items():
                 if equipped_item:
                     # 장착된 장비의 vision_bonus 효과 찾기
@@ -280,13 +280,14 @@ class EquipmentEffectManager:
                         item_effects = equipped_item.special_effects
                     elif hasattr(equipped_item, "unique_effect") and equipped_item.unique_effect:
                         item_effects = parse_unique_effects(equipped_item.unique_effect)
-                    
+
                     for eff in item_effects:
                         if eff.effect_type == EffectType.VISION_BONUS and eff.trigger == EffectTrigger.ON_EQUIP:
-                            if not hasattr(character, "vision_bonus"):
-                                character.vision_bonus = 0
-                            character.vision_bonus += int(eff.value)
-                            logger.debug(f"{character.name} vision_bonus 재계산: {equipped_item.name} +{eff.value} (현재: {character.vision_bonus})")
+                            total_vision_bonus += int(eff.value)
+
+            character.vision_bonus = total_vision_bonus
+            if total_vision_bonus > 0:
+                logger.debug(f"{character.name} vision_bonus 재계산 완료: 총 +{total_vision_bonus}")
 
         # 아이템의 특수 효과 파싱 및 적용
         effects = []
@@ -294,29 +295,28 @@ class EquipmentEffectManager:
         # 1. special_effects 리스트가 있으면 그것을 사용
         if hasattr(item, "special_effects") and item.special_effects:
             effects = item.special_effects
-            logger.info(f"[장비 착용] special_effects 사용: {len(effects)}개")
+            logger.debug(f"[장비 착용] special_effects 사용: {len(effects)}개")
         # 2. unique_effect 문자열이 있으면 파싱
         elif hasattr(item, "unique_effect") and item.unique_effect:
-            logger.info(f"[장비 착용] unique_effect 파싱 시작: '{item.unique_effect}'")
+            logger.debug(f"[장비 착용] unique_effect 파싱 시작: '{item.unique_effect}'")
             effects = parse_unique_effects(item.unique_effect)
-            logger.info(f"[장비 착용] unique_effect 파싱 완료: {len(effects)}개 효과")
+            logger.debug(f"[장비 착용] unique_effect 파싱 완료: {len(effects)}개 효과")
             for i, eff in enumerate(effects):
-                logger.info(f"  효과 {i+1}: {eff.effect_type.value if hasattr(eff.effect_type, 'value') else eff.effect_type} (트리거: {eff.trigger.value if hasattr(eff.trigger, 'value') else eff.trigger}, 값: {eff.value})")
+                logger.debug(f"  효과 {i+1}: {eff.effect_type.value if hasattr(eff.effect_type, 'value') else eff.effect_type} (트리거: {eff.trigger.value if hasattr(eff.trigger, 'value') else eff.trigger}, 값: {eff.value})")
 
         # 효과 적용
         for effect in effects:
             # 효과에 source_id 추가 (제거용)
             effect.source_id = getattr(item, 'item_id', item.name)
             self.add_effect(character_id, effect)
-            logger.info(f"효과 추가: {character.name} - {effect.effect_type.value} (트리거: {effect.trigger.value}, 값: {effect.value})")
 
             # ON_EQUIP 트리거 효과 즉시 실행 (vision_bonus는 이미 재계산했으므로 스킵)
             if effect.trigger == EffectTrigger.ON_EQUIP:
                 if effect.effect_type == EffectType.VISION_BONUS:
                     # vision_bonus는 이미 재계산했으므로 스킵
-                    logger.debug(f"ON_EQUIP vision_bonus 효과 스킵 (이미 재계산됨): {character.name} - {effect.value}")
+                    pass
                 else:
-                    logger.info(f"ON_EQUIP 효과 실행: {character.name} - {effect.effect_type.value} (값: {effect.value})")
+                    logger.debug(f"ON_EQUIP 효과 실행: {character.name} - {effect.effect_type.value} (값: {effect.value})")
                     try:
                         self._execute_effect(character, effect, {})
                     except Exception as e:
@@ -351,10 +351,10 @@ class EquipmentEffectManager:
         # vision_bonus 재계산: 장비 해제 후 현재 장착된 모든 장비의 vision_bonus를 다시 계산
         if hasattr(character, "vision_bonus"):
             character.vision_bonus = 0
-            logger.debug(f"{character.name} vision_bonus 초기화 (장비 해제 후)")
-        
+
         # 현재 장착된 모든 장비의 vision_bonus 효과 재계산
         if hasattr(character, "equipment"):
+            total_vision_bonus = 0
             for slot, equipped_item in character.equipment.items():
                 if equipped_item:
                     # 장착된 장비의 vision_bonus 효과 찾기
@@ -363,13 +363,14 @@ class EquipmentEffectManager:
                         item_effects = equipped_item.special_effects
                     elif hasattr(equipped_item, "unique_effect") and equipped_item.unique_effect:
                         item_effects = parse_unique_effects(equipped_item.unique_effect)
-                    
+
                     for eff in item_effects:
                         if eff.effect_type == EffectType.VISION_BONUS and eff.trigger == EffectTrigger.ON_EQUIP:
-                            if not hasattr(character, "vision_bonus"):
-                                character.vision_bonus = 0
-                            character.vision_bonus += int(eff.value)
-                            logger.debug(f"{character.name} vision_bonus 재계산: {equipped_item.name} +{eff.value} (현재: {character.vision_bonus})")
+                            total_vision_bonus += int(eff.value)
+
+            character.vision_bonus = total_vision_bonus
+            if total_vision_bonus > 0:
+                logger.debug(f"{character.name} vision_bonus 재계산 완료 (장비 해제 후): 총 +{total_vision_bonus}")
 
     def _on_damage_dealt(self, data: Dict[str, Any]):
         """공격 성공 이벤트"""
@@ -431,17 +432,9 @@ class EquipmentEffectManager:
                 logger.error(f"잘못된 effect_type 타입: {type(effect.effect_type)}, 값: {effect.effect_type}")
                 return
             
-            # 디버깅: 등록된 핸들러 확인
-            logger.info(f"[_execute_effect] 등록된 핸들러 수: {len(self.effect_handlers)}")
-            logger.info(f"[_execute_effect] 찾는 effect_type: {effect.effect_type} (값: {effect.effect_type.value})")
-            logger.info(f"[_execute_effect] VISION_BONUS 핸들러 존재 여부: {EffectType.VISION_BONUS in self.effect_handlers}")
-            if EffectType.VISION_BONUS in self.effect_handlers:
-                logger.info(f"[_execute_effect] VISION_BONUS 핸들러: {self.effect_handlers[EffectType.VISION_BONUS]}")
-            logger.info(f"[_execute_effect] 등록된 핸들러 키들: {[k.value for k in list(self.effect_handlers.keys())[:10]]}")
-            
             handler = self.effect_handlers.get(effect.effect_type)
             if handler:
-                logger.info(f"효과 핸들러 실행: {character.name} - {effect.effect_type.value} (값: {effect.value})")
+                logger.debug(f"효과 핸들러 실행: {character.name} - {effect.effect_type.value} (값: {effect.value})")
                 handler(character, effect, context)
             else:
                 logger.warning(f"핸들러 없음: {effect.effect_type} (타입: {type(effect.effect_type)}, 등록된 핸들러: {list(self.effect_handlers.keys())[:5]}...)")
@@ -661,18 +654,21 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
             continue
         if ":" not in effect_str:
             logger.warning(f"[parse_unique_effects] ':' 구분자가 없음: '{effect_str}'")
-            continue
+            # 값이 없는 효과는 기본값 1.0으로 설정 (토글형 효과)
+            effect_name = effect_str.strip()
+            value = 1.0
+            logger.debug(f"[parse_unique_effects] 값 없는 효과 처리: '{effect_name}' = {value} (기본값)")
+        else:
+            effect_name, value_str = effect_str.split(":", 1)
+            effect_name = effect_name.strip()
+            value_str = value_str.strip()
+            logger.debug(f"[parse_unique_effects] 효과 파싱: '{effect_name}' = '{value_str}'")
 
-        effect_name, value_str = effect_str.split(":", 1)
-        effect_name = effect_name.strip()
-        value_str = value_str.strip()
-        logger.debug(f"[parse_unique_effects] 효과 파싱: '{effect_name}' = '{value_str}'")
-
-        try:
-            value = float(value_str)
-        except ValueError:
-            # 값이 숫자가 아니면 True/False일 수 있음
-            value = value_str.strip().lower() == "true" if value_str.strip().lower() in ["true", "false"] else value_str.strip()
+            try:
+                value = float(value_str)
+            except ValueError:
+                # 값이 숫자가 아니면 True/False일 수 있음
+                value = value_str.strip().lower() == "true" if value_str.strip().lower() in ["true", "false"] else value_str.strip()
 
         # 효과 타입 매핑
         effect_mapping = {
@@ -705,7 +701,9 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
             # Healing
             "hp_regen": (EffectType.HP_REGEN, EffectTrigger.ON_TURN_END),
             "mp_regen": (EffectType.MP_REGEN, EffectTrigger.ON_TURN_END),
+            "heal_boost": (EffectType.HEAL_BOOST, EffectTrigger.PASSIVE),
             "healing_bonus": (EffectType.HEALING_BONUS, EffectTrigger.PASSIVE),
+            "overheal": (EffectType.OVERHEAL, EffectTrigger.PASSIVE),
             "overheal_shield": (EffectType.OVERHEAL_SHIELD, EffectTrigger.PASSIVE),
 
             # Status
