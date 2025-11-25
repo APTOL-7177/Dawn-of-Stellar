@@ -199,6 +199,10 @@ class MapRenderer:
                 if player_mx == mx and player_my == my:
                     char = "@"
                     fg = (0, 255, 0)  # 초록색
+                # 계단 표시 (플레이어보다 낮지만 중요)
+                elif tile.tile_type in [TileType.STAIRS_UP, TileType.STAIRS_DOWN]:
+                    char = "S"
+                    fg = (255, 255, 0)  # 노란색 (더 눈에 띄게)
                 # 보스 위치 표시 제거 (요청에 따라)
                 # elif (mx, my) in boss_minimap_positions:
                 #     char = "B"
@@ -214,9 +218,6 @@ class MapRenderer:
                 elif tile.tile_type == TileType.WALL:
                     char = "#"
                     fg = (80, 80, 80)
-                elif tile.tile_type in [TileType.STAIRS_UP, TileType.STAIRS_DOWN]:
-                    char = "S"
-                    fg = (255, 255, 0)  # 노란색 (더 눈에 띄게)
                 # BOSS_ROOM 타일 표시 제거 (요청에 따라)
                 # elif tile.tile_type == TileType.BOSS_ROOM:
                 #     char = "B"
