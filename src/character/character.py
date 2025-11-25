@@ -1064,7 +1064,9 @@ class Character:
             "magic_attack": Stats.MAGIC,
             "magic_defense": Stats.SPIRIT,
             "hp": Stats.HP,
+            "max_hp": Stats.HP,  # max_hp도 HP로 매핑
             "mp": Stats.MP,
+            "max_mp": Stats.MP,  # max_mp도 MP로 매핑
             "speed": Stats.SPEED,
             "accuracy": Stats.ACCURACY,
             "evasion": Stats.EVASION,
@@ -1080,8 +1082,43 @@ class Character:
         # 장비 보너스 적용 (get_total_stats 메서드 사용)
         if hasattr(item, "get_total_stats"):
             total_stats = item.get_total_stats()
+            # 현재 최대 HP/MP 값 (퍼센트 옵션 계산용)
+            current_max_hp = self.max_hp
+            current_max_mp = self.max_mp
+            
+            # 추가옵션(affixes)에서 퍼센트 옵션 확인
+            if hasattr(item, "affixes"):
+                for affix in item.affixes:
+                    # 최대 HP % 증가 옵션 처리
+                    if affix.is_percentage and affix.stat in ["max_hp", "hp", "max_hp_percent", "hp_percent"]:
+                        # 캐릭터의 현재 최대 HP를 기준으로 계산
+                        actual_bonus = int(current_max_hp * affix.value)
+                        mapped_stat = Stats.HP
+                        self.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}_percent", actual_bonus)
+                        self.logger.debug(f"장비 스탯 적용 (퍼센트): {self.name} - {affix.stat} ({affix.value*100}%) → {mapped_stat} +{actual_bonus} (현재 최대 HP: {current_max_hp}, {slot})")
+                    # 최대 MP % 증가 옵션 처리
+                    elif affix.is_percentage and affix.stat in ["max_mp", "mp", "max_mp_percent", "mp_percent"]:
+                        # 캐릭터의 현재 최대 MP를 기준으로 계산
+                        actual_bonus = int(current_max_mp * affix.value)
+                        mapped_stat = Stats.MP
+                        self.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}_percent", actual_bonus)
+                        self.logger.debug(f"장비 스탯 적용 (퍼센트): {self.name} - {affix.stat} ({affix.value*100}%) → {mapped_stat} +{actual_bonus} (현재 최대 MP: {current_max_mp}, {slot})")
+            
+            # 일반 스탯 적용 (퍼센트 옵션이 아닌 것들)
             for stat_name, bonus in total_stats.items():
-                # 매핑된 스탯 이름 사용
+                # 퍼센트 옵션은 이미 위에서 처리했으므로 스킵
+                if stat_name in ["max_hp_percent", "hp_percent", "max_mp_percent", "mp_percent"]:
+                    continue
+                # 퍼센트 옵션이 기본 스탯에 없어서 그대로 들어간 경우도 스킵 (affixes에서 처리됨)
+                if hasattr(item, "affixes"):
+                    skip = False
+                    for affix in item.affixes:
+                        if affix.is_percentage and affix.stat == stat_name and stat_name in ["max_hp", "hp", "max_mp", "mp"]:
+                            skip = True
+                            break
+                    if skip:
+                        continue
+                
                 mapped_stat = stat_mapping.get(stat_name, stat_name)
                 self.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}", bonus)
                 self.logger.debug(f"장비 스탯 적용: {self.name} - {stat_name} → {mapped_stat} +{bonus} ({slot})")
@@ -1118,7 +1155,9 @@ class Character:
             "magic_attack": Stats.MAGIC,
             "magic_defense": Stats.SPIRIT,
             "hp": Stats.HP,
+            "max_hp": Stats.HP,  # max_hp도 HP로 매핑
             "mp": Stats.MP,
+            "max_mp": Stats.MP,  # max_mp도 MP로 매핑
             "speed": Stats.SPEED,
             "accuracy": Stats.ACCURACY,
             "evasion": Stats.EVASION,
@@ -1137,10 +1176,37 @@ class Character:
         old_max_hp = self.max_hp
         old_max_mp = self.max_mp
         
+        # 추가옵션(affixes)에서 퍼센트 옵션 제거
+        if hasattr(item, "affixes"):
+            for affix in item.affixes:
+                # 최대 HP % 증가 옵션 제거
+                if affix.is_percentage and affix.stat in ["max_hp", "hp", "max_hp_percent", "hp_percent"]:
+                    self.stat_manager.remove_bonus(Stats.HP, f"equipment_{slot}_percent")
+                    had_hp_bonus = True
+                    self.logger.debug(f"장비 스탯 제거 (퍼센트): {self.name} - {affix.stat} ({affix.value*100}%) → HP ({slot})")
+                # 최대 MP % 증가 옵션 제거
+                elif affix.is_percentage and affix.stat in ["max_mp", "mp", "max_mp_percent", "mp_percent"]:
+                    self.stat_manager.remove_bonus(Stats.MP, f"equipment_{slot}_percent")
+                    had_mp_bonus = True
+                    self.logger.debug(f"장비 스탯 제거 (퍼센트): {self.name} - {affix.stat} ({affix.value*100}%) → MP ({slot})")
+        
         # 장비 보너스 제거 (get_total_stats 메서드 사용)
         if hasattr(item, "get_total_stats"):
             total_stats = item.get_total_stats()
             for stat_name in total_stats.keys():
+                # 퍼센트 옵션은 이미 위에서 처리했으므로 스킵
+                if stat_name in ["max_hp_percent", "hp_percent", "max_mp_percent", "mp_percent"]:
+                    continue
+                # 퍼센트 옵션이 기본 스탯에 없어서 그대로 들어간 경우도 스킵 (affixes에서 처리됨)
+                if hasattr(item, "affixes"):
+                    skip = False
+                    for affix in item.affixes:
+                        if affix.is_percentage and affix.stat == stat_name and stat_name in ["max_hp", "hp", "max_mp", "mp"]:
+                            skip = True
+                            break
+                    if skip:
+                        continue
+                
                 # 매핑된 스탯 이름 사용
                 mapped_stat = stat_mapping.get(stat_name, stat_name)
                 # HP/MP 보너스 확인
@@ -1199,7 +1265,9 @@ class Character:
             "magic_attack": Stats.MAGIC,
             "magic_defense": Stats.SPIRIT,
             "hp": Stats.HP,
+            "max_hp": Stats.HP,  # max_hp도 HP로 매핑
             "mp": Stats.MP,
+            "max_mp": Stats.MP,  # max_mp도 MP로 매핑
             "speed": Stats.SPEED,
             "accuracy": Stats.ACCURACY,
             "evasion": Stats.EVASION,
@@ -1218,6 +1286,7 @@ class Character:
         # 따라서 일반적인 스탯들을 모두 순회하며 제거 시도.
         for stat_enum in Stats:
             self.stat_manager.remove_bonus(stat_enum, f"equipment_{slot}")
+            self.stat_manager.remove_bonus(stat_enum, f"equipment_{slot}_percent")  # 퍼센트 옵션도 제거
 
         if not item:
             return
@@ -1225,7 +1294,41 @@ class Character:
         # 2. 새 보너스 적용 (내구도 반영된 get_total_stats 사용)
         if hasattr(item, "get_total_stats"):
             total_stats = item.get_total_stats()
+            # 현재 최대 HP/MP 값 (퍼센트 옵션 계산용)
+            current_max_hp = self.max_hp
+            current_max_mp = self.max_mp
+            
+            # 추가옵션(affixes)에서 퍼센트 옵션 확인
+            if hasattr(item, "affixes"):
+                for affix in item.affixes:
+                    # 최대 HP % 증가 옵션 처리
+                    if affix.is_percentage and affix.stat in ["max_hp", "hp", "max_hp_percent", "hp_percent"]:
+                        actual_bonus = int(current_max_hp * affix.value)
+                        mapped_stat = Stats.HP
+                        self.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}_percent", actual_bonus)
+                        self.logger.debug(f"장비 스탯 재계산 (퍼센트): {self.name} - {affix.stat} ({affix.value*100}%) → {mapped_stat} +{actual_bonus} ({slot})")
+                    # 최대 MP % 증가 옵션 처리
+                    elif affix.is_percentage and affix.stat in ["max_mp", "mp", "max_mp_percent", "mp_percent"]:
+                        actual_bonus = int(current_max_mp * affix.value)
+                        mapped_stat = Stats.MP
+                        self.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}_percent", actual_bonus)
+                        self.logger.debug(f"장비 스탯 재계산 (퍼센트): {self.name} - {affix.stat} ({affix.value*100}%) → {mapped_stat} +{actual_bonus} ({slot})")
+            
+            # 일반 스탯 적용 (퍼센트 옵션이 아닌 것들)
             for stat_name, bonus in total_stats.items():
+                # 퍼센트 옵션은 이미 위에서 처리했으므로 스킵
+                if stat_name in ["max_hp_percent", "hp_percent", "max_mp_percent", "mp_percent"]:
+                    continue
+                # 퍼센트 옵션이 기본 스탯에 없어서 그대로 들어간 경우도 스킵 (affixes에서 처리됨)
+                if hasattr(item, "affixes"):
+                    skip = False
+                    for affix in item.affixes:
+                        if affix.is_percentage and affix.stat == stat_name and stat_name in ["max_hp", "hp", "max_mp", "mp"]:
+                            skip = True
+                            break
+                    if skip:
+                        continue
+                
                 mapped_stat = stat_mapping.get(stat_name, stat_name)
                 self.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}", bonus)
 

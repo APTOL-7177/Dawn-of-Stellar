@@ -4418,4 +4418,23 @@ CONSUMABLE_TEMPLATES = {
     # === 경험치/골드 아이템 ===
     "exp_crystal": {"name": "경험치 크리스탈", "description": "경험치 100을 즉시 획득합니다.", "effect_type": "bonus_exp", "effect_value": 100, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 300},
     "gold_nugget": {"name": "금 덩어리", "description": "골드 1000을 즉시 획득합니다. (판매 불가)", "effect_type": "bonus_gold", "effect_value": 1000, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 0},  # 판매 불가
+    
+    # === 전투용 공격 아이템 ===
+    "thunder_grenade": {"name": "천둥 수류탄", "description": "적 전체에게 200 번개 피해 + 기절 확률.", "effect_type": "thunder_grenade", "effect_value": 200, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 250},
+    "acid_flask": {"name": "산성 플라스크", "description": "적 전체에게 180 피해 + 방어력 감소.", "effect_type": "acid_flask", "effect_value": 180, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 160},
+    "debuff_attack": {"name": "공격 약화 폭탄", "description": "적 전체 공격력 -30% (5턴).", "effect_type": "debuff_attack", "effect_value": 0.3, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 200},
+    "debuff_defense": {"name": "방어 약화 폭탄", "description": "적 전체 방어력 -40% (5턴).", "effect_type": "debuff_defense", "effect_value": 0.4, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 220},
+    "debuff_speed": {"name": "속도 약화 폭탄", "description": "적 전체 속도 -35% (5턴).", "effect_type": "debuff_speed", "effect_value": 0.35, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 210},
+    "break_brv": {"name": "BRV 파괴 폭탄", "description": "적 전체 BRV 200 감소.", "effect_type": "break_brv", "effect_value": 200, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 350},
+    "smoke_bomb": {"name": "연막탄", "description": "적 전체 명중률 -50% (3턴).", "effect_type": "smoke_bomb", "effect_value": 0.5, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 120},
+    
+    # === 전투용 수비 아이템 ===
+    "barrier_crystal": {"name": "방어 크리스탈", "description": "아군 전체 받는 피해 -30% (3턴).", "effect_type": "barrier_crystal", "effect_value": 0.3, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 280},
+    "haste_crystal": {"name": "가속 크리스탈", "description": "아군 전체 속도 +40% (3턴).", "effect_type": "haste_crystal", "effect_value": 0.4, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 300},
+    "power_tonic": {"name": "힘의 비약", "description": "아군 전체 공격력 +35% (5턴).", "effect_type": "power_tonic", "effect_value": 0.35, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 400},
+    "defense_elixir": {"name": "방어 엘릭서", "description": "아군 전체 방어력 +40% (5턴).", "effect_type": "defense_elixir", "effect_value": 0.4, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 380},
+    "regen_crystal": {"name": "재생 크리스탈", "description": "아군 전체 매턴 HP 50 회복 (5턴).", "effect_type": "regen_crystal", "effect_value": 50, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 320},
+    "mp_regen_crystal": {"name": "MP 재생 크리스탈", "description": "아군 전체 매턴 MP 20 회복 (5턴).", "effect_type": "mp_regen_crystal", "effect_value": 20, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 300},
+    "status_cleanse": {"name": "정화 물약", "description": "모든 디버프 상태를 해제합니다.", "effect_type": "status_cleanse", "effect_value": 0, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 180},
+    "revive_crystal": {"name": "부활 크리스탈", "description": "쓰러진 아군을 HP 30%로 부활.", "effect_type": "revive_crystal", "effect_value": 0.3, "rarity": ItemRarity.EPIC, "stack_size": 10, "sell_price": 500},
 }

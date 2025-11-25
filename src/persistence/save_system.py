@@ -1141,18 +1141,89 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
             else:
                 char.equipment[slot] = None
 
-        # 장비 효과 재적용 (Events.EQUIPMENT_EQUIPPED 발행)
-        # StatManager는 이미 stats 데이터를 통해 복원되었으므로 스탯은 재적용되지 않지만,
-        # EquipmentEffectManager(시야, 특수효과 등)는 이 이벤트를 통해 효과를 다시 적용해야 함
-        from src.core.event_bus import event_bus, Events
+        # 장비 스탯 재적용 (equip_item 로직 사용)
+        # StatManager는 이미 stats 데이터를 통해 복원되었지만, 장비 스탯은 별도로 재적용해야 함
+        # 특히 퍼센트 옵션은 현재 최대 HP/MP를 기준으로 계산되므로 재적용 필요
         for slot, item in char.equipment.items():
             if item:
+                # 장비 스탯 재적용 (equip_item의 스탯 적용 로직 사용)
+                from src.character.stats import Stats
+                stat_mapping = {
+                    "physical_attack": Stats.STRENGTH,
+                    "physical_defense": Stats.DEFENSE,
+                    "magic_attack": Stats.MAGIC,
+                    "magic_defense": Stats.SPIRIT,
+                    "hp": Stats.HP,
+                    "max_hp": Stats.HP,
+                    "mp": Stats.MP,
+                    "max_mp": Stats.MP,
+                    "speed": Stats.SPEED,
+                    "accuracy": Stats.ACCURACY,
+                    "evasion": Stats.EVASION,
+                    "luck": Stats.LUCK,
+                    "init_brv": Stats.INIT_BRV,
+                    "max_brv": Stats.MAX_BRV,
+                    "strength": Stats.STRENGTH,
+                    "defense": Stats.DEFENSE,
+                    "magic": Stats.MAGIC,
+                    "spirit": Stats.SPIRIT,
+                }
+                
+                # 장비 보너스 적용 (get_total_stats 메서드 사용)
+                if hasattr(item, "get_total_stats"):
+                    total_stats = item.get_total_stats()
+                    # 현재 최대 HP/MP 값 (퍼센트 옵션 계산용)
+                    current_max_hp = char.max_hp
+                    current_max_mp = char.max_mp
+                    
+                    # 추가옵션(affixes)에서 퍼센트 옵션 확인
+                    if hasattr(item, "affixes"):
+                        for affix in item.affixes:
+                            # 최대 HP % 증가 옵션 처리
+                            if affix.is_percentage and affix.stat in ["max_hp", "hp", "max_hp_percent", "hp_percent"]:
+                                actual_bonus = int(current_max_hp * affix.value)
+                                mapped_stat = Stats.HP
+                                char.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}_percent", actual_bonus)
+                                logger.debug(f"장비 스탯 재적용 (퍼센트): {char.name} - {affix.stat} ({affix.value*100}%) → {mapped_stat} +{actual_bonus} ({slot})")
+                            # 최대 MP % 증가 옵션 처리
+                            elif affix.is_percentage and affix.stat in ["max_mp", "mp", "max_mp_percent", "mp_percent"]:
+                                actual_bonus = int(current_max_mp * affix.value)
+                                mapped_stat = Stats.MP
+                                char.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}_percent", actual_bonus)
+                                logger.debug(f"장비 스탯 재적용 (퍼센트): {char.name} - {affix.stat} ({affix.value*100}%) → {mapped_stat} +{actual_bonus} ({slot})")
+                    
+                    # 일반 스탯 적용 (퍼센트 옵션이 아닌 것들)
+                    for stat_name, bonus in total_stats.items():
+                        # 퍼센트 옵션은 이미 위에서 처리했으므로 스킵
+                        if stat_name in ["max_hp_percent", "hp_percent", "max_mp_percent", "mp_percent"]:
+                            continue
+                        # 퍼센트 옵션이 기본 스탯에 없어서 그대로 들어간 경우도 스킵 (affixes에서 처리됨)
+                        if hasattr(item, "affixes"):
+                            skip = False
+                            for affix in item.affixes:
+                                if affix.is_percentage and affix.stat == stat_name and stat_name in ["max_hp", "hp", "max_mp", "mp"]:
+                                    skip = True
+                                    break
+                            if skip:
+                                continue
+                        
+                        mapped_stat = stat_mapping.get(stat_name, stat_name)
+                        char.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}", bonus)
+                        logger.debug(f"장비 스탯 재적용: {char.name} - {stat_name} → {mapped_stat} +{bonus} ({slot})")
+                elif hasattr(item, "stat_bonuses"):
+                    # 구 방식 호환성 유지
+                    for stat_name, bonus in item.stat_bonuses.items():
+                        mapped_stat = stat_mapping.get(stat_name, stat_name)
+                        char.stat_manager.add_bonus(mapped_stat, f"equipment_{slot}", bonus)
+                
+                # 장비 특수 효과 재적용 (Events.EQUIPMENT_EQUIPPED 발행)
+                from src.core.event_bus import event_bus, Events
                 event_bus.publish(Events.EQUIPMENT_EQUIPPED, {
                     "character": char,
                     "slot": slot,
                     "item": item
                 })
-                logger.debug(f"장비 효과 재적용 이벤트 발행: {char.name} - {getattr(item, 'name', 'Unknown')}")
+                logger.debug(f"장비 특수 효과 재적용 이벤트 발행: {char.name} - {getattr(item, 'name', 'Unknown')}")
 
     return char
 

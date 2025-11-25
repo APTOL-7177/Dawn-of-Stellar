@@ -472,9 +472,10 @@ class GaugeRenderer:
         is_decreasing = display_pixels > hp_pixels
         is_increasing = display_pixels < hp_pixels
         
-        # 회복 시 색상 애니메이션 트리거
-        if is_increasing:
-            anim_mgr.trigger_heal_color_animation(f"{entity_id}_hp_color", duration=0.6)
+        # 회복 시 색상 애니메이션 트리거 (애니메이션이 진행 중이 아닐 때만)
+        heal_color_key = f"{entity_id}_hp_color"
+        if is_increasing and heal_color_key not in anim_mgr._color_animations:
+            anim_mgr.trigger_heal_color_animation(heal_color_key, duration=0.6)
         
         # HP 낮을 때 깜빡임 효과 (30% 이하)
         low_hp_blink_key = f"{entity_id}_hp_low_blink"
@@ -693,9 +694,10 @@ class GaugeRenderer:
         is_decreasing = display_pixels > mp_pixels
         is_increasing = display_pixels < mp_pixels
         
-        # 회복 시 색상 애니메이션 트리거
-        if is_increasing:
-            anim_mgr.trigger_heal_color_animation(f"{entity_id}_mp_color", duration=0.6)
+        # 회복 시 색상 애니메이션 트리거 (애니메이션이 진행 중이 아닐 때만)
+        heal_color_key = f"{entity_id}_mp_color"
+        if is_increasing and heal_color_key not in anim_mgr._color_animations:
+            anim_mgr.trigger_heal_color_animation(heal_color_key, duration=0.6)
         
         # 회복 색상 애니메이션 강도 가져오기
         heal_intensity = anim_mgr.get_heal_color_intensity(f"{entity_id}_mp_color")
@@ -869,9 +871,10 @@ class GaugeRenderer:
         is_decreasing = display_pixels > brv_pixels
         is_increasing = display_pixels < brv_pixels
         
-        # 회복 시 색상 애니메이션 트리거
-        if is_increasing:
-            anim_mgr.trigger_heal_color_animation(f"{entity_id}_brv_color", duration=0.6)
+        # 회복 시 색상 애니메이션 트리거 (애니메이션이 진행 중이 아닐 때만)
+        heal_color_key = f"{entity_id}_brv_color"
+        if is_increasing and heal_color_key not in anim_mgr._color_animations:
+            anim_mgr.trigger_heal_color_animation(heal_color_key, duration=0.6)
         
         # 회복 색상 애니메이션 강도 가져오기
         heal_intensity = anim_mgr.get_heal_color_intensity(f"{entity_id}_brv_color")
