@@ -606,29 +606,97 @@ class EquipmentEffectManager:
             logger.info(f"{character.name} 처치 회복: +{heal_amount} HP")
 
     def _handle_element(self, character: Any, effect: EquipmentEffect, context: Dict):
-        """속성 부여 (현재 구현 없음)"""
+        """속성 부여"""
+        if not hasattr(character, "element"):
+            character.element = effect.value
+        else:
+            character.element = effect.value  # 덮어쓰기
         logger.debug(f"{character.name} 속성 부여: {effect.value}")
 
     def _handle_status_effect(self, character: Any, effect: EquipmentEffect, context: Dict):
-        """상태 효과 부여 (현재 구현 없음)"""
-        logger.debug(f"{character.name} 상태 효과: {effect.effect_type.value} (확률: {effect.value * 100:.1f}%)")
+        """상태 효과 부여"""
+        from src.combat.status_effects import StatusType, StatusEffect
+
+        # 확률 계산 (effect.value는 0-1 사이의 확률)
+        if effect.value < 1.0:  # 1.0 미만이면 확률 적용
+            import random
+            if random.random() > effect.value:
+                return  # 확률 실패
+
+        # 효과 타입 매핑
+        status_mapping = {
+            EffectType.STATUS_BURN: StatusType.BURN,
+            EffectType.DEBUFF_SLOW: StatusType.SLOW,
+            EffectType.STATUS_SHOCK: StatusType.SHOCK,
+            EffectType.DEBUFF_SILENCE: StatusType.SILENCE,
+            EffectType.STUN_CHANCE: StatusType.STUN,
+        }
+
+        target = context.get("target")
+        if not target or not hasattr(target, "status_manager"):
+            return
+
+        if effect.effect_type in status_mapping:
+            status_type = status_mapping[effect.effect_type]
+
+            # 이미 같은 상태 효과가 있는지 확인
+            if not target.status_manager.has_status(status_type):
+                # 기본 지속시간 설정
+                duration = 3  # 3턴 기본
+                intensity = 1.0
+
+                # StatusEffect 생성 및 적용
+                status_effect = StatusEffect(
+                    name=f"{status_type.value}",
+                    status_type=status_type,
+                    duration=duration,
+                    intensity=intensity
+                )
+
+                target.status_manager.add_status(status_effect)
+                logger.info(f"{character.name} → {target.name}: {status_type.value} 상태 효과 적용 ({duration}턴)")
 
     def _handle_chain_lightning(self, character: Any, effect: EquipmentEffect, context: Dict):
-        """체인 라이트닝 (현재 구현 없음)"""
-        logger.debug(f"{character.name} 체인 라이트닝: {effect.value * 100:.1f}%")
+        """체인 라이트닝"""
+        # 캐릭터에 체인 라이트닝 속성 저장 (데미지 계산 시 사용)
+        if not hasattr(character, "chain_lightning_chance"):
+            character.chain_lightning_chance = 0
+        character.chain_lightning_chance += effect.value
+
+        logger.debug(f"{character.name} 체인 라이트닝 확률: {effect.value * 100:.1f}% (총: {character.chain_lightning_chance * 100:.1f}%)")
 
     def _handle_armor_penetration(self, character: Any, effect: EquipmentEffect, context: Dict):
         """방어 관통"""
-        logger.debug(f"{character.name} 방어 관통: {effect.value * 100:.1f}%")
+        # 캐릭터에 방어 관통 속성 저장 (데미지 계산 시 사용)
+        if not hasattr(character, "armor_penetration"):
+            character.armor_penetration = 0
+        character.armor_penetration += effect.value
+
+        logger.debug(f"{character.name} 방어 관통: {effect.value * 100:.1f}% (총: {character.armor_penetration * 100:.1f}%)")
 
     def _handle_mp_steal(self, character: Any, effect: EquipmentEffect, context: Dict):
         """MP 흡수"""
-        steal_amount = int(effect.value * 100)  # 백분율이므로 100을 곱해서 표시
-        logger.debug(f"{character.name} MP 흡수: {steal_amount}")
+        target = context.get("target")
+        if not target or not hasattr(target, "mp"):
+            return
+
+        # 백분율 기반 MP 흡수
+        steal_amount = int(target.max_mp * effect.value)
+        if steal_amount > 0 and target.mp > 0:
+            actual_steal = min(steal_amount, target.mp)
+            target.mp -= actual_steal
+            character.mp = min(character.max_mp, character.mp + actual_steal)
+            logger.info(f"{character.name} MP 흡수: {target.name}의 MP {actual_steal} 흡수")
 
     def _handle_bonus_vs_undead(self, character: Any, effect: EquipmentEffect, context: Dict):
-        """언데드 상대 보너스"""
-        logger.debug(f"{character.name} 언데드 보너스: +{effect.value * 100:.1f}%")
+        """언데드 상대 보너스 (데미지 계산 시 적용)"""
+        # 이 효과는 실제 데미지 계산 시 적용되어야 함
+        # 캐릭터에 언데드 보너스 저장
+        if not hasattr(character, "bonus_vs_undead"):
+            character.bonus_vs_undead = 0
+        character.bonus_vs_undead += effect.value
+
+        logger.debug(f"{character.name} 언데드 보너스: +{effect.value * 100:.1f}% (총: {character.bonus_vs_undead * 100:.1f}%)")
 
     def _handle_heal_on_hit(self, character: Any, effect: EquipmentEffect, context: Dict):
         """공격 시 회복"""
@@ -639,15 +707,36 @@ class EquipmentEffectManager:
 
     def _handle_accuracy_bonus(self, character: Any, effect: EquipmentEffect, context: Dict):
         """명중률 보너스"""
-        logger.debug(f"{character.name} 명중률 보너스: +{effect.value}")
+        # StatManager를 통해 명중률 보너스 적용
+        if hasattr(character, "stat_manager"):
+            from src.character.stats import Stats
+            character.stat_manager.add_bonus(Stats.ACCURACY, f"equipment_accuracy_{id(effect)}", int(effect.value))
+            logger.debug(f"{character.name} 명중률 보너스: +{effect.value}")
+        else:
+            # StatManager가 없는 경우 직접 속성 설정
+            if not hasattr(character, "accuracy_bonus"):
+                character.accuracy_bonus = 0
+            character.accuracy_bonus += int(effect.value)
+            logger.debug(f"{character.name} 명중률 보너스: +{effect.value} (총: {character.accuracy_bonus})")
 
     def _handle_double_strike(self, character: Any, effect: EquipmentEffect, context: Dict):
-        """더블 스트라이크 (현재 구현 없음)"""
+        """더블 스트라이크"""
+        # 캐릭터에 더블 스트라이크 속성 저장
+        character.double_strike = True
         logger.debug(f"{character.name} 더블 스트라이크 활성화")
 
     def _handle_strike_count(self, character: Any, effect: EquipmentEffect, context: Dict):
-        """공격 횟수 (현재 구현 없음)"""
-        logger.debug(f"{character.name} 공격 횟수: {effect.value}")
+        """공격 횟수"""
+        # 캐릭터에 공격 횟수 속성 저장 (예: "3-5" 형태의 문자열이면 파싱)
+        if isinstance(effect.value, str) and "-" in effect.value:
+            # 범위 형태 (예: "3-5")
+            min_count, max_count = map(int, effect.value.split("-"))
+            character.strike_count_range = (min_count, max_count)
+            logger.debug(f"{character.name} 공격 횟수 범위: {min_count}-{max_count}")
+        else:
+            # 고정 값
+            character.strike_count = int(effect.value)
+            logger.debug(f"{character.name} 공격 횟수: {effect.value}")
 
     def _handle_stun_chance(self, character: Any, effect: EquipmentEffect, context: Dict):
         """스턴 확률 (현재 구현 없음)"""
@@ -655,7 +744,12 @@ class EquipmentEffectManager:
 
     def _handle_damage_from_defense(self, character: Any, effect: EquipmentEffect, context: Dict):
         """방어력 기반 데미지"""
-        logger.debug(f"{character.name} 방어력 기반 데미지: {effect.value * 100:.1f}%")
+        # 캐릭터에 방어력 기반 데미지 속성 저장 (데미지 계산 시 사용)
+        if not hasattr(character, "damage_from_defense"):
+            character.damage_from_defense = 0
+        character.damage_from_defense += effect.value
+
+        logger.debug(f"{character.name} 방어력 기반 데미지: {effect.value * 100:.1f}% (총: {character.damage_from_defense * 100:.1f}%)")
 
 
 # 전역 인스턴스
