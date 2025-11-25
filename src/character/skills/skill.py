@@ -292,16 +292,57 @@ class Skill:
                     if 'defense_pierce_fixed' in bullet_info:
                         context['defense_pierce_fixed'] = bullet_info['defense_pierce_fixed']
 
-        for effect in self.effects:
-            if hasattr(effect, 'execute'):
-                result = effect.execute(user, target, context)
-                if hasattr(result, 'damage_dealt'):
-                    total_dmg += result.damage_dealt
-                if hasattr(result, 'heal_amount'):
-                    total_heal += result.heal_amount
-                # 효과 메시지 수집
-                if hasattr(result, 'message') and result.message:
-                    effect_messages.append(result.message)
+        # 암흑기사 한정: 효과 실행 순서 조정 (CONSUME/SET 연산은 데미지 계산 후에 실행)
+        # 충전 보너스가 데미지 계산에 반영되도록 하기 위함
+        is_dark_knight = (hasattr(user, 'gimmick_type') and user.gimmick_type == "charge_system") or \
+                        (hasattr(user, 'character_class') and 'dark_knight' in str(user.character_class).lower()) or \
+                        (hasattr(user, 'job_id') and 'dark_knight' in str(user.job_id).lower())
+        
+        if is_dark_knight:
+            from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
+            
+            # 효과를 두 그룹으로 분리: 데미지/힐 효과와 기믹 소모 효과
+            damage_heal_effects = []
+            gimmick_consume_effects = []
+            
+            for effect in self.effects:
+                # CONSUME 또는 SET 연산인 GimmickEffect는 나중에 실행
+                if isinstance(effect, GimmickEffect) and effect.operation in [GimmickOperation.CONSUME, GimmickOperation.SET]:
+                    gimmick_consume_effects.append(effect)
+                else:
+                    damage_heal_effects.append(effect)
+            
+            # 먼저 데미지/힐 효과 실행 (충전 보너스가 적용됨)
+            for effect in damage_heal_effects:
+                if hasattr(effect, 'execute'):
+                    result = effect.execute(user, target, context)
+                    if hasattr(result, 'damage_dealt'):
+                        total_dmg += result.damage_dealt
+                    if hasattr(result, 'heal_amount'):
+                        total_heal += result.heal_amount
+                    # 효과 메시지 수집
+                    if hasattr(result, 'message') and result.message:
+                        effect_messages.append(result.message)
+            
+            # 그 다음 기믹 소모 효과 실행 (데미지 계산 후)
+            for effect in gimmick_consume_effects:
+                if hasattr(effect, 'execute'):
+                    result = effect.execute(user, target, context)
+                    # 효과 메시지 수집
+                    if hasattr(result, 'message') and result.message:
+                        effect_messages.append(result.message)
+        else:
+            # 다른 직업은 기존 순서대로 실행
+            for effect in self.effects:
+                if hasattr(effect, 'execute'):
+                    result = effect.execute(user, target, context)
+                    if hasattr(result, 'damage_dealt'):
+                        total_dmg += result.damage_dealt
+                    if hasattr(result, 'heal_amount'):
+                        total_heal += result.heal_amount
+                    # 효과 메시지 수집
+                    if hasattr(result, 'message') and result.message:
+                        effect_messages.append(result.message)
 
         # AOE 효과 실행 (적 전체 대상)
         if hasattr(self, 'aoe_effect') and self.aoe_effect:

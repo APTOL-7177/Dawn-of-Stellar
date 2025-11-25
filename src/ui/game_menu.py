@@ -318,6 +318,7 @@ def open_game_menu(
                             "total_gold_earned": exploration.game_stats.get("total_gold_earned", 0),
                             "total_exp_earned": exploration.game_stats.get("total_exp_earned", 0),
                             "save_slot": exploration.game_stats.get("save_slot", None),
+                            "next_dungeon_floor": exploration.game_stats.get("next_dungeon_floor", 1),  # 다음 던전 층 번호 저장
                         })
                         
                         # 인벤토리 정보 추가 (기존 형식 유지)

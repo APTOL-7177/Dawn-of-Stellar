@@ -138,8 +138,12 @@ class ExplorationSystem:
             "max_floor_reached": floor_number,
             "total_gold_earned": 0,
             "total_exp_earned": 0,
-            "save_slot": None
+            "save_slot": None,
+            "next_dungeon_floor": max(floor_number + 1, 1)  # 다음 던전 층 번호 (기본값: 현재 층+1 또는 1)
         }
+        # game_stats에 next_dungeon_floor가 없으면 추가
+        if "next_dungeon_floor" not in self.game_stats:
+            self.game_stats["next_dungeon_floor"] = max(floor_number + 1, 1)
 
         # 인벤토리 초기화 확인 로그
         logger.error(f"[INIT] ExplorationSystem 초기화 - 인벤토리: {self.inventory}")

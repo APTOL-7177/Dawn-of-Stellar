@@ -564,13 +564,14 @@ class SimpleEnemy:
         # 공격력: 레벨당 기초 공격력의 25% 성장, 최종값 12% 증가 후 25% 감소 (0.75배)
         # (플레이어 20% * 1.25, 최종 1.12배 * 0.75 = 0.84배)
         # 추가로 공격력을 1/2로 조정하고, 25% 추가 감소 적용 (0.5 * 0.75 = 0.375)
+        # 최종적으로 공격력과 마법력을 2배로 증가 후 추가로 1.5배 증가 (총 3.0배)
         attack_growth = template.physical_attack * 0.25 * (level - 1)
         base_physical_attack = (template.physical_attack + attack_growth) * 1.12 * 0.75 * boss_stat_mult * stat_variance
-        self.physical_attack = int(base_physical_attack) * difficulty_dmg_mult * 0.5 * 0.75
+        self.physical_attack = int(base_physical_attack) * difficulty_dmg_mult * 0.5 * 0.75 * 2.0 * 1.5
         
         magic_attack_growth = template.magic_attack * 0.25 * (level - 1)
         base_magic_attack = (template.magic_attack + magic_attack_growth) * 1.12 * 0.75 * boss_stat_mult * stat_variance
-        self.magic_attack = int(base_magic_attack) * difficulty_dmg_mult * 0.5 * 0.75
+        self.magic_attack = int(base_magic_attack) * difficulty_dmg_mult * 0.5 * 0.75 * 2.0 * 1.5
         
         # 방어력: 레벨당 기초 방어력의 25% 성장, 최종값 15% 증가 (플레이어 20% * 1.25, 최종 0.75 * 1.15 = 0.8625배)
         defense_growth = template.physical_defense * 0.25 * (level - 1)

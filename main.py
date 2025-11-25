@@ -2228,7 +2228,8 @@ def main() -> int:
                         "max_floor_reached": loaded_state.get("max_floor_reached", floor_number),
                         "total_gold_earned": loaded_state.get("total_gold_earned", 0),
                         "total_exp_earned": loaded_state.get("total_exp_earned", 0),
-                        "save_slot": loaded_state.get("save_slot", None)
+                        "save_slot": loaded_state.get("save_slot", None),
+                        "next_dungeon_floor": loaded_state.get("next_dungeon_floor", max(floor_number + 1, 1))  # 다음 던전 층 번호 복원 (없으면 현재 층+1 또는 1)
                     }
 
                     # 탐험 시스템 초기화 (멀티플레이/싱글플레이 구분)
@@ -2551,10 +2552,12 @@ def main() -> int:
                                     "player_y": exploration.player.y
                                 }
                                 
-                                # 다음 던전 번호로 이동
-                                next_dungeon_floor = game_stats.get("next_dungeon_floor", 1)
+                                # 다음 던전 번호로 이동 (exploration.game_stats 사용)
+                                next_dungeon_floor = exploration.game_stats.get("next_dungeon_floor", game_stats.get("next_dungeon_floor", 1))
                                 floor_number = next_dungeon_floor
                                 exploration.game_stats["max_floor_reached"] = max(exploration.game_stats["max_floor_reached"], floor_number)
+                                # game_stats도 동기화
+                                game_stats["next_dungeon_floor"] = next_dungeon_floor
                                 logger.info(f"⬇ 마을에서 던전 {floor_number}층으로 이동 (멀티플레이)")
                                 
                                 # 던전 생성 (기존 던전이 있으면 재사용, 없으면 생성)
@@ -2669,10 +2672,12 @@ def main() -> int:
                                 
                                 # 마을로 복귀
                                 floor_number = 0
-                                # 다음 던전 번호 증가
-                                current_dungeon = game_stats.get("next_dungeon_floor", 1)
-                                game_stats["next_dungeon_floor"] = current_dungeon + 1
-                                logger.info(f"던전 클리어! 마을로 복귀. 다음 던전: {game_stats['next_dungeon_floor']}층 (멀티플레이)")
+                                # 다음 던전 번호 증가 (exploration.game_stats와 game_stats 모두 업데이트)
+                                current_dungeon = exploration.game_stats.get("next_dungeon_floor", game_stats.get("next_dungeon_floor", 1))
+                                next_dungeon = current_dungeon + 1
+                                exploration.game_stats["next_dungeon_floor"] = next_dungeon
+                                game_stats["next_dungeon_floor"] = next_dungeon
+                                logger.info(f"던전 클리어! 마을로 복귀. 다음 던전: {next_dungeon}층 (멀티플레이)")
                                 
                                 # 마을 맵 재사용
                                 if floor_number in floors_dungeons:
@@ -3378,10 +3383,12 @@ def main() -> int:
                                         
                                         # 마을로 복귀
                                         floor_number = 0
-                                        # 다음 던전 번호 증가
-                                        current_dungeon = game_stats.get("next_dungeon_floor", 1)
-                                        game_stats["next_dungeon_floor"] = current_dungeon + 1
-                                        logger.info(f"던전 클리어! 마을로 복귀. 다음 던전: {game_stats['next_dungeon_floor']}층")
+                                        # 다음 던전 번호 증가 (exploration.game_stats와 game_stats 모두 업데이트)
+                                        current_dungeon = exploration.game_stats.get("next_dungeon_floor", game_stats.get("next_dungeon_floor", 1))
+                                        next_dungeon = current_dungeon + 1
+                                        exploration.game_stats["next_dungeon_floor"] = next_dungeon
+                                        game_stats["next_dungeon_floor"] = next_dungeon
+                                        logger.info(f"던전 클리어! 마을로 복귀. 다음 던전: {next_dungeon}층")
                                         
                                         # 마을 맵 재사용
                                         if floor_number in floors_dungeons:

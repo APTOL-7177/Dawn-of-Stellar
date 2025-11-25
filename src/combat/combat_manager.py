@@ -1332,10 +1332,18 @@ class CombatManager:
             # ISSUE-003: 스킬 효과 상세 로그 출력
             self.logger.info(f"[스킬 효과] {skill_result.message}")
 
-            # 기믹 업데이트 (스킬 사용)
+            # 캐스팅이 시작된 경우 (시전 시작 메시지인 경우) 추가 처리를 하지 않음
+            # 실제 스킬 효과는 캐스팅 완료 후 _process_completed_casts에서 처리됨
+            is_casting_started = "시전 시작" in skill_result.message or "cast" in skill_result.message.lower()
+            
+            if is_casting_started:
+                # 캐스팅 시작만 처리하고 스킬 효과는 나중에 처리
+                return result
+
+            # 기믹 업데이트 (스킬 사용) - 캐스팅이 아닌 즉시 실행 스킬만
             GimmickUpdater.on_skill_use(actor, skill)
 
-            # 공격 스킬 사용 시 기믹 트리거 (지원사격 등)
+            # 공격 스킬 사용 시 기믹 트리거 (지원사격 등) - 캐스팅이 아닌 즉시 실행 스킬만
             if actor in self.allies and target:
                 # 스킬에 데미지 효과가 있는지 확인
                 has_damage = False
@@ -2280,13 +2288,18 @@ class CombatManager:
         
         # 스킬 효과: 수호의 맹세 - 기사가 아군을 보호
         # 보호받는 대상인지 확인
+        # 수호 효과 재귀 방지: 수호 중인 캐릭터는 다시 수호 효과를 받지 않음
+        if hasattr(defender, '_is_guarding') and defender._is_guarding:
+            return  # 수호 중인 캐릭터는 수호 효과를 받지 않음
+        
         if hasattr(defender, 'protected_by') and defender.protected_by:
             # 보호자가 있는 경우, 보호자가 대신 피해를 받음
             # 현재 전투에 참여하는 보호자만 확인 (오래된 참조 방지)
             for guardian in list(defender.protected_by):  # 리스트 복사하여 순회 중 수정 방지
                 if (guardian in self.allies and
                     hasattr(guardian, 'is_alive') and guardian.is_alive and 
-                    guardian != defender):
+                    guardian != defender and
+                    not getattr(guardian, '_is_guarding', False)):  # 수호 중이 아닌 경우만
                     # 보호자가 피해를 대신 받음 (보호자의 방어력으로 재계산)
                     data["damage"] = 0  # 원래 대상은 피해를 받지 않음
                     
@@ -2318,13 +2331,19 @@ class CombatManager:
                         # 원본 정보가 없으면 기존 데미지 사용 (하위 호환성)
                         protected_damage = damage
                     
-                    # 보호자가 피해를 받음
+                    # 보호자가 피해를 받음 (수호 효과 재귀 방지 플래그 설정)
                     if hasattr(guardian, 'take_damage'):
-                        guardian_actual_damage = guardian.take_damage(protected_damage)
-                        self.logger.info(
-                            f"[수호의 맹세] {guardian.name}이(가) {defender.name}의 피해를 대신 받음: "
-                            f"{protected_damage} → 실제 {guardian_actual_damage} (보호자 방어력 적용)"
-                        )
+                        # 수호 효과가 다시 트리거되지 않도록 플래그 설정
+                        guardian._is_guarding = True
+                        try:
+                            guardian_actual_damage = guardian.take_damage(protected_damage)
+                            self.logger.info(
+                                f"[수호의 맹세] {guardian.name}이(가) {defender.name}의 피해를 대신 받음: "
+                                f"{protected_damage} → 실제 {guardian_actual_damage} (보호자 방어력 적용)"
+                            )
+                        finally:
+                            # 플래그 제거
+                            guardian._is_guarding = False
                     
                     return  # 한 명만 수호
         
@@ -2334,7 +2353,9 @@ class CombatManager:
         
         # 다른 아군 중 수호 효과가 있는 캐릭터 찾기
         for ally in self.allies:
-            if ally == defender or not hasattr(ally, 'is_alive') or not ally.is_alive:
+            if (ally == defender or 
+                not hasattr(ally, 'is_alive') or not ally.is_alive or
+                getattr(ally, '_is_guarding', False)):  # 수호 중이 아닌 경우만
                 continue
             
             if not hasattr(ally, 'active_traits'):
@@ -2360,13 +2381,18 @@ class CombatManager:
                             # 데이터에 수정된 피해를 반영
                             data["damage"] = remaining_damage
                             
-                            # 수호자가 피해를 받음
+                            # 수호자가 피해를 받음 (수호 효과 재귀 방지 플래그 설정)
                             if hasattr(ally, 'take_damage'):
-                                guardian_actual_damage = ally.take_damage(protected_damage)
-                                self.logger.info(
-                                    f"[{trait_id}] {ally.name}이(가) {defender.name}의 피해를 대신 받음: "
-                                    f"{protected_damage} → 실제 {guardian_actual_damage} (원래 피해: {damage}, 남은 피해: {remaining_damage}, 보호 비율: {int(protection_ratio * 100)}%)"
-                                )
+                                ally._is_guarding = True
+                                try:
+                                    guardian_actual_damage = ally.take_damage(protected_damage)
+                                    self.logger.info(
+                                        f"[{trait_id}] {ally.name}이(가) {defender.name}의 피해를 대신 받음: "
+                                        f"{protected_damage} → 실제 {guardian_actual_damage} (원래 피해: {damage}, 남은 피해: {remaining_damage}, 보호 비율: {int(protection_ratio * 100)}%)"
+                                    )
+                                finally:
+                                    # 플래그 제거
+                                    ally._is_guarding = False
                             
                             return  # 한 명만 수호
 
@@ -2515,7 +2541,9 @@ class CombatManager:
             skill_manager = get_skill_manager()
 
             # 캐스팅이 완료되었으므로 실제 스킬 효과를 적용
-            result = skill.execute(caster, target, context={"combat_manager": self})
+            # context에 모든 적 정보 추가 (AOE 효과를 위해)
+            all_enemies = self.enemies if caster in self.allies else self.allies
+            result = skill.execute(caster, target, context={"combat_manager": self, "all_enemies": all_enemies})
 
             if result.success:
                 # SFX 재생
