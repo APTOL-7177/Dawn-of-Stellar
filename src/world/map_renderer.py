@@ -199,10 +199,10 @@ class MapRenderer:
                 if player_mx == mx and player_my == my:
                     char = "@"
                     fg = (0, 255, 0)  # 초록색
-                # 보스 위치 (우선)
-                elif (mx, my) in boss_minimap_positions:
-                    char = "B"
-                    fg = (255, 0, 0)  # 선명한 빨간색
+                # 보스 위치 표시 제거 (요청에 따라)
+                # elif (mx, my) in boss_minimap_positions:
+                #     char = "B"
+                #     fg = (255, 0, 0)  # 선명한 빨간색
                 # 일반 적 위치
                 elif (mx, my) in enemy_minimap_positions:
                     char = "E"
