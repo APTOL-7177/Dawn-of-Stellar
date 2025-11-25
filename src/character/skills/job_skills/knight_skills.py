@@ -63,29 +63,31 @@ def create_knight_skills():
     skills.append(chivalry)
 
     # 5. 불굴의 의지
-    iron_will = Skill("knight_iron_will", "불굴의 의지", "생존 + 의무")
+    iron_will = Skill("knight_iron_will", "불굴의 의지", "의무 1 소비, 강력한 보호막 + 의무 2 획득")
     iron_will.effects = [
         ShieldEffect(base_amount=0),  # 공격력 기반으로 계산
+        GimmickEffect(GimmickOperation.CONSUME, "duty_stacks", 1),
         GimmickEffect(GimmickOperation.ADD, "duty_stacks", 2, max_value=5)
     ]
-    iron_will.costs = [MPCost(6)]
+    iron_will.costs = [MPCost(6), StackCost("duty_stacks", 1)]
     iron_will.target_type = "self"
     # iron_will.cooldown = 5  # 쿨다운 시스템 제거됨
     iron_will.sfx = ("skill", "shell")  # 방어막
-    iron_will.metadata = {"shield": True, "duty_gain": 2, "attack_multiplier": 0.8}  # 공격력의 80%
+    iron_will.metadata = {"shield": True, "duty_cost": 1, "duty_gain": 2, "attack_multiplier": 0.8}  # 공격력의 80%
     skills.append(iron_will)
 
     # 6. 방패 강타
-    shield_bash = Skill("knight_bash", "방패 강타", "방어 + 공격")
+    shield_bash = Skill("knight_bash", "방패 강타", "의무 1 소비, 방어 + 공격 + 의무 1 획득")
     shield_bash.effects = [
         DamageEffect(DamageType.BRV, 1.8, gimmick_bonus={"field": "duty_stacks", "multiplier": 0.2}),
         ShieldEffect(base_amount=0),  # 공격력 기반으로 계산
+        GimmickEffect(GimmickOperation.CONSUME, "duty_stacks", 1),
         GimmickEffect(GimmickOperation.ADD, "duty_stacks", 1, max_value=5)
     ]
-    shield_bash.costs = [MPCost(4)]
+    shield_bash.costs = [MPCost(4), StackCost("duty_stacks", 1)]
     # shield_bash.cooldown = 2  # 쿨다운 시스템 제거됨
     shield_bash.sfx = ("combat", "attack_physical")  # 방패 강타
-    shield_bash.metadata = {"shield": True, "duty_gain": 1, "duty_scaling": True, "attack_multiplier": 0.6}  # 공격력의 60%
+    shield_bash.metadata = {"shield": True, "duty_cost": 1, "duty_gain": 1, "duty_scaling": True, "attack_multiplier": 0.6}  # 공격력의 60%
     skills.append(shield_bash)
 
     # 7. 최후의 보루
@@ -103,17 +105,18 @@ def create_knight_skills():
     skills.append(last_stand)
 
     # 8. 헌신
-    devotion = Skill("knight_devotion", "헌신", "파티 전체 보호")
+    devotion = Skill("knight_devotion", "헌신", "의무 2 소비, 파티 전체 보호 + 의무 1 획득")
     devotion.effects = [
         ShieldEffect(base_amount=0),  # 공격력 기반으로 계산
         BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=4, is_party_wide=True),
+        GimmickEffect(GimmickOperation.CONSUME, "duty_stacks", 2),
         GimmickEffect(GimmickOperation.ADD, "duty_stacks", 1, max_value=5)
     ]
-    devotion.costs = [MPCost(7)]
+    devotion.costs = [MPCost(7), StackCost("duty_stacks", 2)]
     devotion.target_type = "party"
     # devotion.cooldown = 6  # 쿨다운 시스템 제거됨
     devotion.sfx = ("character", "status_buff")  # 파티 보호
-    devotion.metadata = {"shield": True, "party": True, "duty_gain": 1, "attack_multiplier": 0.9}  # 공격력의 90%
+    devotion.metadata = {"shield": True, "party": True, "duty_cost": 2, "duty_gain": 1, "attack_multiplier": 0.9}  # 공격력의 90%
     skills.append(devotion)
 
     # 9. 기사의 맹세 (NEW - 10번째 스킬 전)

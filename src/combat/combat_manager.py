@@ -586,7 +586,12 @@ class CombatManager:
     ) -> Dict[str, Any]:
         """BRV 공격 실행"""
         # 스킬 배율
-        skill_multiplier = getattr(skill, "brv_multiplier", 1.0) if skill else 1.0
+        # 기본 공격(스킬 없음) 시: 플레이어는 1.0, 적은 2.25배 (밸런스 조정)
+        if skill:
+            skill_multiplier = getattr(skill, "brv_multiplier", 1.0)
+        else:
+            # 기본 공격: 적은 2.25배, 플레이어는 1.0배
+            skill_multiplier = 2.25 if attacker in self.enemies else 1.0
 
         # 방어 스택 보너스 적용 (집중의 힘 특성)
         defend_stack_bonus = 0
@@ -770,7 +775,12 @@ class CombatManager:
         play_sfx("combat", "damage_high")
 
         # 스킬 배율
-        hp_multiplier = getattr(skill, "hp_multiplier", 1.0) if skill else 1.0
+        # 기본 공격(스킬 없음) 시: 플레이어는 1.0, 적은 1.5배 (밸런스 조정)
+        if skill:
+            hp_multiplier = getattr(skill, "hp_multiplier", 1.0)
+        else:
+            # 기본 공격: 적은 1.5배, 플레이어는 1.0배
+            hp_multiplier = 2.25 if attacker in self.enemies else 1.0
 
         # 방어 스택 보너스 적용 (집중의 힘 특성)
         defend_stack_bonus = 0

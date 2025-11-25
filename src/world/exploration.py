@@ -438,51 +438,6 @@ class ExplorationSystem:
                     
                     # 시간 업데이트
                     self.last_environment_effect_time = current_time
-        
-        # 밟으면 자동 채집 (Walk-over Harvest)
-        player_id = getattr(self, 'local_player_id', None)
-        harvest_data = self.check_and_harvest(new_x, new_y, player_id)
-        
-        if harvest_data:
-            harvest_results, object_type_str = harvest_data
-            
-            # 획득한 아이템 처리
-            items_gained = []
-            if self.inventory:
-                from src.equipment.item_system import ItemGenerator
-                for item_id, qty in harvest_results.items():
-                    items_gained.append(f"{item_id} x{qty}")
-                    # 실제 아이템 추가 시도
-                    try:
-                        item_obj = ItemGenerator.create_consumable(item_id)
-                    except:
-                        try:
-                            item_obj = ItemGenerator.create_weapon(item_id)
-                        except:
-                            try:
-                                item_obj = ItemGenerator.create_armor(item_id)
-                            except:
-                                try:
-                                    item_obj = ItemGenerator.create_accessory(item_id)
-                                except:
-                                    # 다 실패하면 랜덤
-                                    item_obj = ItemGenerator.create_random_drop(1)
-                    
-                    # 인벤토리에 추가
-                    if item_obj:
-                        # 횟수만큼 추가
-                        for _ in range(qty):
-                            if self.inventory.add_item(item_obj):
-                                logger.info(f"채집 아이템 추가: {item_obj.name}")
-                            else:
-                                logger.warning(f"인벤토리 가득 참: {item_obj.name} 추가 실패")
-                                break
-                
-                # 채집 메시지 추가
-                if items_gained and not result.message:
-                    result.message = f"{object_type_str}에서 {', '.join(items_gained)} 획득!"
-                elif items_gained:
-                    result.message = f"{result.message}\n{object_type_str}에서 {', '.join(items_gained)} 획득!"
 
         # 플레이어가 움직인 후 모든 적 움직임 (싱글플레이만, 멀티플레이는 시간 기반)
         # 멀티플레이는 MultiplayerExplorationSystem에서 시간 기반으로 처리
@@ -1180,6 +1135,11 @@ class ExplorationSystem:
         """다음 층으로"""
         self.floor_number += 1
         logger.info(f"층 이동: {self.floor_number}층")
+
+        # 최대 도달 층수 업데이트
+        if self.floor_number > self.game_stats.get("max_floor_reached", 1):
+            self.game_stats["max_floor_reached"] = self.floor_number
+            logger.info(f"새로운 최대 도달 층수: {self.floor_number}층")
 
         # 새 던전 생성 필요
         # (이건 외부에서 처리)

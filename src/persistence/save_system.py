@@ -212,6 +212,7 @@ class SaveSystem:
                     "name": save_file.stem,
                     "save_time": data.get("save_time", "Unknown"),
                     "floor": data.get("floor_number", 1),
+                    "max_floor_reached": data.get("max_floor_reached", data.get("floor_number", 1)),
                     "party_size": len(data.get("party", [])),
                     "is_multiplayer": is_multiplayer,
                     "save_type": save_type
@@ -632,7 +633,8 @@ def serialize_game_state(
     exploration: Any = None,
     all_floors_dungeons: Dict[int, Any] = None,
     is_multiplayer: bool = False,
-    session: Any = None
+    session: Any = None,
+    max_floor_reached: int = 1
 ) -> Dict[str, Any]:
     """전체 게임 상태 직렬화"""
 
@@ -732,6 +734,7 @@ def serialize_game_state(
     result = {
         "party": party_data,
         "floor_number": floor_number,
+        "max_floor_reached": max_floor_reached,  # 최대 도달 층수
         "dungeon": dungeon_data,  # 현재 층 던전 (하위 호환성)
         "floors": floors_data,  # 모든 층의 던전 상태
         "player_position": {"x": player_x, "y": player_y},

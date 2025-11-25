@@ -295,6 +295,10 @@ def open_game_menu(
                         if is_multiplayer and hasattr(exploration, 'session'):
                             session = exploration.session
                         
+                        # max_floor_reached 계산 (현재 층과 기록 중 더 큰 값)
+                        max_floor = exploration.game_stats.get("max_floor_reached", exploration.floor_number)
+                        max_floor = max(max_floor, exploration.floor_number)
+
                         game_state = serialize_game_state(
                             party=party if party else [],
                             floor_number=exploration.floor_number,
@@ -308,13 +312,13 @@ def open_game_menu(
                             difficulty=current_difficulty,
                             exploration=exploration,
                             is_multiplayer=is_multiplayer,
-                            session=session
+                            session=session,
+                            max_floor_reached=max_floor
                         )
-                        
+
                         # 게임 통계 추가
                         game_state.update({
                             "enemies_defeated": exploration.game_stats.get("enemies_defeated", 0),
-                            "max_floor_reached": exploration.game_stats.get("max_floor_reached", exploration.floor_number),
                             "total_gold_earned": exploration.game_stats.get("total_gold_earned", 0),
                             "total_exp_earned": exploration.game_stats.get("total_exp_earned", 0),
                             "save_slot": exploration.game_stats.get("save_slot", None),

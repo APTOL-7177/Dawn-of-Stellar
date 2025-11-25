@@ -332,8 +332,113 @@ class WorldUI:
                 # Debug: 전투 요청
                 return True
 
-        # 상호작용 (E키 또는 Z키)
-        elif action == GameAction.INTERACT or action == GameAction.CONFIRM:
+        # 채집 (Z키)
+        elif action == GameAction.HARVEST:
+            # 채집 오브젝트 찾기
+            nearby_harvestables = self._find_all_nearby_harvestables()
+            if nearby_harvestables:
+                # 채집 오브젝트가 있으면 일괄 채집 실행
+                if console is not None and context is not None and self.inventory is not None:
+                    from src.ui.gathering_ui import harvest_object
+
+                    harvest_count = 0
+                    for harvestable in nearby_harvestables:
+                        # 채집 실행 (멀티플레이어 동기화를 위해 exploration 전달)
+                        success = harvest_object(console, context, harvestable, self.inventory, exploration=self.exploration)
+                        if success:
+                            harvest_count += 1
+                            logger.info(f"채집 성공: {harvestable.object_type.display_name}")
+
+                    if harvest_count > 0:
+                        # 메시지는 harvest_object 내부에서 출력되거나 시스템 메시지로 처리됨
+                        pass
+                    return False
+                else:
+                    logger.warning("채집 불가: console, context, inventory가 필요합니다")
+            else:
+                self.add_message("주변에 채집할 것이 없습니다.")
+            return False
+
+        # 계단 이동 (엔터키)
+        elif action == GameAction.CONFIRM:
+            tile = self.exploration.dungeon.get_tile(
+                self.exploration.player.x,
+                self.exploration.player.y
+            )
+
+            if tile:
+                from src.world.tile import TileType
+                from src.audio import play_sfx
+                if tile.tile_type == TileType.STAIRS_DOWN:
+                    play_sfx("world", "stairs_down")
+
+                    # 마을인지 확인
+                    is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
+
+                    if is_town:
+                        # 마을에서 던전으로 나가는 경우
+                        # 멀티플레이: 모든 플레이어 준비 확인
+                        if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                            if hasattr(self.exploration, 'session') and self.exploration.session:
+                                session = self.exploration.session
+                                local_player_id = None
+                                if hasattr(self.exploration, 'local_player_id'):
+                                    local_player_id = self.exploration.local_player_id
+
+                                # 로컬 플레이어 준비 상태 설정
+                                if local_player_id:
+                                    session.set_floor_ready(local_player_id, True)
+
+                                # 모든 플레이어 준비 확인
+                                if session.is_all_ready_for_floor_change():
+                                    self.floor_change_requested = "floor_down"
+                                    self.add_message("모든 플레이어가 준비되었습니다. 던전으로 이동합니다...")
+                                    session.reset_floor_ready()  # 준비 상태 초기화
+                                    return True
+                                else:
+                                    ready_count = len(session.floor_ready_players)
+                                    total_count = len(session.players)
+                                    self.add_message(f"던전으로 이동 대기 중... ({ready_count}/{total_count} 준비)")
+                                    return False
+
+                        # 싱글플레이: 즉시 이동
+                        self.floor_change_requested = "floor_down"
+                        self.add_message("던전으로 이동합니다...")
+                        return True
+                    else:
+                        # 던전에서 아래층으로 이동하는 경우
+                        # 멀티플레이: 모든 플레이어 준비 확인
+                        if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                            if hasattr(self.exploration, 'session') and self.exploration.session:
+                                session = self.exploration.session
+                                local_player_id = None
+                                if hasattr(self.exploration, 'local_player_id'):
+                                    local_player_id = self.exploration.local_player_id
+
+                                # 로컬 플레이어 준비 상태 설정
+                                if local_player_id:
+                                    session.set_floor_ready(local_player_id, True)
+
+                                # 모든 플레이어 준비 확인
+                                if session.is_all_ready_for_floor_change():
+                                    self.floor_change_requested = "floor_down"
+                                    self.add_message("모든 플레이어가 준비되었습니다. 아래층으로 내려갑니다...")
+                                    session.reset_floor_ready()  # 준비 상태 초기화
+                                    return True
+                                else:
+                                    ready_count = len(session.floor_ready_players)
+                                    total_count = len(session.players)
+                                    self.add_message(f"다음 층으로 이동 대기 중... ({ready_count}/{total_count} 준비)")
+                                    return False
+
+                        # 싱글플레이: 즉시 이동
+                        self.floor_change_requested = "floor_down"
+                        self.add_message("아래층으로 내려갑니다...")
+                        return True
+            return False
+
+        # 상호작용 (E키)
+        elif action == GameAction.INTERACT:
             # 우선순위 1: 요리솥
             nearby_cooking_pot = self._find_nearby_cooking_pot()
             if nearby_cooking_pot:
@@ -371,85 +476,6 @@ class WorldUI:
                 else:
                     logger.warning("채집 불가: console, context, inventory가 필요합니다")
                 return False
-
-            # 우선순위 3: 계단 이동 (Z키만)
-            if action == GameAction.CONFIRM:
-                tile = self.exploration.dungeon.get_tile(
-                    self.exploration.player.x,
-                    self.exploration.player.y
-                )
-
-                if tile:
-                    from src.world.tile import TileType
-                    from src.audio import play_sfx
-                    if tile.tile_type == TileType.STAIRS_DOWN:
-                        play_sfx("world", "stairs_down")
-                        
-                        # 마을인지 확인
-                        is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
-                        
-                        if is_town:
-                            # 마을에서 던전으로 나가는 경우
-                            # 멀티플레이: 모든 플레이어 준비 확인
-                            if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
-                                if hasattr(self.exploration, 'session') and self.exploration.session:
-                                    session = self.exploration.session
-                                    local_player_id = None
-                                    if hasattr(self.exploration, 'local_player_id'):
-                                        local_player_id = self.exploration.local_player_id
-                                    
-                                    # 로컬 플레이어 준비 상태 설정
-                                    if local_player_id:
-                                        session.set_floor_ready(local_player_id, True)
-                                    
-                                    # 모든 플레이어 준비 확인
-                                    if session.is_all_ready_for_floor_change():
-                                        self.floor_change_requested = "floor_down"
-                                        self.add_message("모든 플레이어가 준비되었습니다. 던전으로 이동합니다...")
-                                        session.reset_floor_ready()  # 준비 상태 초기화
-                                        return True
-                                    else:
-                                        ready_count = len(session.floor_ready_players)
-                                        total_count = len(session.players)
-                                        self.add_message(f"던전으로 이동 대기 중... ({ready_count}/{total_count} 준비)")
-                                        return False
-                            
-                            # 싱글플레이: 즉시 이동
-                            self.floor_change_requested = "floor_down"
-                            self.add_message("던전으로 이동합니다...")
-                            return True
-                        else:
-                            # 던전에서 아래층으로 이동하는 경우
-                            # 멀티플레이: 모든 플레이어 준비 확인
-                            if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
-                                if hasattr(self.exploration, 'session') and self.exploration.session:
-                                    session = self.exploration.session
-                                    local_player_id = None
-                                    if hasattr(self.exploration, 'local_player_id'):
-                                        local_player_id = self.exploration.local_player_id
-                                    
-                                    # 로컬 플레이어 준비 상태 설정
-                                    if local_player_id:
-                                        session.set_floor_ready(local_player_id, True)
-                                    
-                                    # 모든 플레이어 준비 확인
-                                    if session.is_all_ready_for_floor_change():
-                                        self.floor_change_requested = "floor_down"
-                                        self.add_message("모든 플레이어가 준비되었습니다. 아래층으로 내려갑니다...")
-                                        session.reset_floor_ready()  # 준비 상태 초기화
-                                        return True
-                                    else:
-                                        ready_count = len(session.floor_ready_players)
-                                        total_count = len(session.players)
-                                        self.add_message(f"다음 층으로 이동 대기 중... ({ready_count}/{total_count} 준비)")
-                                        return False
-                            
-                            # 싱글플레이: 즉시 이동
-                            self.floor_change_requested = "floor_down"
-                            self.add_message("아래층으로 내려갑니다...")
-                            return True
-                    # 올라가는 계단 제거됨 (마을로 돌아갈 수 없음)
-                    # elif tile.tile_type == TileType.STAIRS_UP: 제거
 
             # E키를 눌렀지만 주변에 아무것도 없을 때
             if action == GameAction.INTERACT:
@@ -630,9 +656,11 @@ class WorldUI:
                                 # 대장간: 골드 상점 열기 (장비 수리/재련)
                                 if self.inventory is not None:
                                     from src.ui.gold_shop_ui import open_gold_shop
-                                    # 마을에서 대장간을 열 때는 최소 1층 이상으로 설정하여 기본 장비 판매 보장
-                                    floor_level = max(1, self.exploration.floor_number if hasattr(self.exploration, 'floor_number') and self.exploration.floor_number > 0 else 1)
-                                    logger.info(f"[건물 상호작용] 대장간 UI 열기 (층수: {floor_level}, inventory type: {type(self.inventory)})")
+                                    # 마을에서 대장간을 열 때는 현재 층수 또는 최대 도달 층수 사용
+                                    current_floor = self.exploration.floor_number if hasattr(self.exploration, 'floor_number') else 1
+                                    max_floor = self.exploration.game_stats.get("max_floor_reached", current_floor) if hasattr(self.exploration, 'game_stats') else current_floor
+                                    floor_level = max(current_floor, max_floor)
+                                    logger.info(f"[건물 상호작용] 대장간 UI 열기 (현재 층: {current_floor}, 최대 층: {max_floor}, 사용 층수: {floor_level})")
                                     open_gold_shop(console, context, self.inventory, floor_level, shop_type="blacksmith")
                                 else:
                                     logger.warning(f"[건물 상호작용] 인벤토리가 없어 대장간을 열 수 없습니다. inventory={self.inventory}")
@@ -642,8 +670,11 @@ class WorldUI:
                                 logger.info(f"[건물 상호작용] 잡화점 - inventory 체크 직전: inventory={self.inventory}, is not None={self.inventory is not None}, type={type(self.inventory)}")
                                 if self.inventory is not None:
                                     from src.ui.gold_shop_ui import open_gold_shop
-                                    floor_level = self.exploration.floor_number if hasattr(self.exploration, 'floor_number') else 1
-                                    logger.info(f"[건물 상호작용] 잡화점 UI 열기 (층수: {floor_level}, inventory type: {type(self.inventory)})")
+                                    # 마을에서 잡화점을 열 때는 현재 층수 또는 최대 도달 층수 사용
+                                    current_floor = self.exploration.floor_number if hasattr(self.exploration, 'floor_number') else 1
+                                    max_floor = self.exploration.game_stats.get("max_floor_reached", current_floor) if hasattr(self.exploration, 'game_stats') else current_floor
+                                    floor_level = max(current_floor, max_floor)
+                                    logger.info(f"[건물 상호작용] 잡화점 UI 열기 (현재 층: {current_floor}, 최대 층: {max_floor}, 사용 층수: {floor_level})")
                                     try:
                                         open_gold_shop(console, context, self.inventory, floor_level, shop_type="shop")
                                         logger.info(f"[건물 상호작용] 잡화점 UI 열기 성공")
