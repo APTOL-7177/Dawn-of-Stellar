@@ -3445,8 +3445,8 @@ def main() -> int:
                                         # 마을에서 던전으로 이동 시 town_manager 유지
                                         from src.town.town_manager import get_town_manager
                                         global_town_manager = get_town_manager()
-                        if global_town_manager:
-                            exploration.town_manager = global_town_manager
+                                        if global_town_manager:
+                                            exploration.town_manager = global_town_manager
 
                                         # 마을 플래그 제거
                                         if hasattr(exploration, 'is_town'):
