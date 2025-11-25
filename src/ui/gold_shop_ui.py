@@ -74,25 +74,26 @@ def refresh_shop():
     logger.info("상점 아이템 캐시 초기화 완료 (새로운 물품 입고 준비)")
 
 
-def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1) -> dict:
+def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1, shop_type: str = "shop") -> dict:
     """
     골드 상점 아이템 목록 생성 (층별로 캐싱됨)
 
     Args:
         floor_level: 현재 층수 (장비 등급 결정)
         shop_level: 상점 레벨 (1~4, 레벨에 따라 혜택 제공)
+        shop_type: 상점 타입 ("shop" 또는 "blacksmith")
 
     Returns:
         탭별 아이템 딕셔너리
     """
     global _shop_items_cache
     
-    # 캐시 키에 shop_level 포함 (레벨별로 다른 아이템 제공)
-    cache_key = (floor_level, shop_level)
+    # 캐시 키에 shop_level과 shop_type 포함 (타입별로 다른 가격 적용)
+    cache_key = (floor_level, shop_level, shop_type)
     
-    # 캐시 확인: 같은 층과 상점 레벨에서는 같은 아이템 반환
+    # 캐시 확인: 같은 층, 상점 레벨, 타입에서는 같은 아이템 반환
     if cache_key in _shop_items_cache:
-        logger.debug(f"상점 아이템 캐시 사용 (층 {floor_level}, 상점 레벨 {shop_level})")
+        logger.debug(f"상점 아이템 캐시 사용 (층 {floor_level}, 상점 레벨 {shop_level}, 타입 {shop_type})")
         return _shop_items_cache[cache_key]
     
     items = {
@@ -425,7 +426,7 @@ class GoldShopUI:
         shop_level = shop_facility.level if shop_facility else 1
 
         # 상점 아이템
-        self.shop_items = get_gold_shop_items(floor_level, shop_level)
+        self.shop_items = get_gold_shop_items(floor_level, shop_level, shop_type)
 
         # UI 상태
         self.state = ShopState.SHOPPING
