@@ -35,6 +35,7 @@ class CastingInfo:
     accumulated_atb: int = 0  # 축적된 ATB 포인트
     state: CastingState = CastingState.CASTING
     interruptible: bool = True  # 중단 가능 여부
+    parry_success: bool = False  # 패링 성공 여부
 
     @property
     def progress(self) -> float:

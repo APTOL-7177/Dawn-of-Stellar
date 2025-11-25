@@ -295,6 +295,22 @@ class StatusManager:
                     gauge.current = 0
                     gauge.is_stunned = True
                     logger.info(f"{self.owner_name}: 기절 상태이상 적용 → ATB 0으로 리셋")
+            # 마비 상태이상 추가 시 ATB 게이지 플래그 설정
+            elif status_effect.status_type == StatusType.PARALYZE and self.owner:
+                from src.combat.atb_system import get_atb_system
+                atb_system = get_atb_system()
+                gauge = atb_system.get_gauge(self.owner)
+                if gauge:
+                    gauge.is_paralyzed = True
+                    logger.info(f"{self.owner_name}: 마비 상태이상 적용 → ATB 게이지 플래그 설정")
+            # 수면 상태이상 추가 시 ATB 게이지 플래그 설정
+            elif status_effect.status_type == StatusType.SLEEP and self.owner:
+                from src.combat.atb_system import get_atb_system
+                atb_system = get_atb_system()
+                gauge = atb_system.get_gauge(self.owner)
+                if gauge:
+                    gauge.is_sleeping = True
+                    logger.info(f"{self.owner_name}: 수면 상태이상 적용 → ATB 게이지 플래그 설정")
 
             # 이벤트 발행
             event_bus.publish(Events.STATUS_APPLIED, {
@@ -322,6 +338,29 @@ class StatusManager:
             self.effects = self.status_effects
 
             logger.info(f"{self.owner_name}: {effect.name} 제거")
+
+            # 기절/마비/수면 상태 제거 시 ATB 게이지 플래그도 업데이트
+            if status_type == StatusType.STUN and self.owner:
+                from src.combat.atb_system import get_atb_system
+                atb_system = get_atb_system()
+                gauge = atb_system.get_gauge(self.owner)
+                if gauge:
+                    gauge.is_stunned = False
+                    logger.debug(f"{self.owner_name}: 기절 상태 제거 → ATB 게이지 플래그 해제")
+            elif status_type == StatusType.PARALYZE and self.owner:
+                from src.combat.atb_system import get_atb_system
+                atb_system = get_atb_system()
+                gauge = atb_system.get_gauge(self.owner)
+                if gauge:
+                    gauge.is_paralyzed = False
+                    logger.debug(f"{self.owner_name}: 마비 상태 제거 → ATB 게이지 플래그 해제")
+            elif status_type == StatusType.SLEEP and self.owner:
+                from src.combat.atb_system import get_atb_system
+                atb_system = get_atb_system()
+                gauge = atb_system.get_gauge(self.owner)
+                if gauge:
+                    gauge.is_sleeping = False
+                    logger.debug(f"{self.owner_name}: 수면 상태 제거 → ATB 게이지 플래그 해제")
 
             # 이벤트 발행
             event_bus.publish(Events.STATUS_REMOVED, {
@@ -376,6 +415,29 @@ class StatusManager:
                 self.status_effects.remove(effect)
 
                 logger.debug(f"{self.owner_name}: {effect.name} 효과 만료")
+
+                # 기절/마비/수면 상태 만료 시 ATB 게이지 플래그도 업데이트
+                if effect.status_type == StatusType.STUN and self.owner:
+                    from src.combat.atb_system import get_atb_system
+                    atb_system = get_atb_system()
+                    gauge = atb_system.get_gauge(self.owner)
+                    if gauge:
+                        gauge.is_stunned = False
+                        logger.debug(f"{self.owner_name}: 기절 상태 만료 → ATB 게이지 플래그 해제")
+                elif effect.status_type == StatusType.PARALYZE and self.owner:
+                    from src.combat.atb_system import get_atb_system
+                    atb_system = get_atb_system()
+                    gauge = atb_system.get_gauge(self.owner)
+                    if gauge:
+                        gauge.is_paralyzed = False
+                        logger.debug(f"{self.owner_name}: 마비 상태 만료 → ATB 게이지 플래그 해제")
+                elif effect.status_type == StatusType.SLEEP and self.owner:
+                    from src.combat.atb_system import get_atb_system
+                    atb_system = get_atb_system()
+                    gauge = atb_system.get_gauge(self.owner)
+                    if gauge:
+                        gauge.is_sleeping = False
+                        logger.debug(f"{self.owner_name}: 수면 상태 만료 → ATB 게이지 플래그 해제")
 
                 # 이벤트 발행
                 event_bus.publish(Events.STATUS_REMOVED, {

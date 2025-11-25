@@ -198,9 +198,9 @@ class MultiplayerATBSystem(ATBSystem):
             if is_casting:
                 # 캐스팅 중이면 캐스팅 진행도 업데이트
                 casting_system.update(combatant, int(increase))
-            elif not gauge.can_act:
-                # 행동 불가능한 경우에만 ATB 증가 (can_act가 True가 되면 더 이상 증가하지 않음)
-                # 불릿타임 중에도 이미 100%를 넘으면 증가하지 않음
+            else:
+                # 캐스팅 중이 아니면 항상 ATB 증가 (기절/수면 상태에서도 ATB는 증가해야 함)
+                # 기절이 풀리면 바로 행동할 수 있도록 ATB를 미리 채워둠
                 gauge.increase(increase)
                 
                 # 행동 가능 상태가 되면 이벤트 발행

@@ -1123,8 +1123,51 @@ class CombatUI:
         # ATB 업데이트 직후 즉시 턴 체크
         # 행동 가능한 캐릭터 확인
         ready = self.combat_manager.atb.get_action_order()
-
-        if ready and not self.action_delay_frames:
+        
+        # 행동 불가능하지만 ATB 100%인 캐릭터도 확인 (마비, 기절 등)
+        all_combatants = self.combat_manager.allies + self.combat_manager.enemies
+        blocked_ready = []
+        for combatant in all_combatants:
+            gauge = self.combat_manager.atb.get_gauge(combatant)
+            if gauge and gauge.current >= gauge.threshold:
+                # ATB 100% 이상이지만 행동 불가능한 경우
+                if hasattr(combatant, 'status_manager') and not combatant.status_manager.can_act():
+                    blocked_ready.append((combatant, gauge.current))
+        
+        # 행동 불가능한 캐릭터를 우선 처리 (ATB 높은 순)
+        blocked_ready.sort(key=lambda x: x[1], reverse=True)
+        
+        if blocked_ready and not self.action_delay_frames:
+            # 행동 불가능한 캐릭터 처리
+            actor, _ = blocked_ready[0]
+            
+            # 상태이상 지속시간 감소
+            if hasattr(actor, 'status_manager'):
+                from src.combat.status_effects import StatusType as StatusTypeEnum
+                
+                blocking_status = None
+                for effect in actor.status_manager.status_effects:
+                    if effect.status_type in [StatusTypeEnum.STUN, StatusTypeEnum.SLEEP, StatusTypeEnum.FREEZE,
+                                             StatusTypeEnum.PETRIFY, StatusTypeEnum.PARALYZE, StatusTypeEnum.TIME_STOP]:
+                        blocking_status = effect.name
+                        break
+                
+                status_name = blocking_status or "행동 불가 상태"
+                self.add_message(f"{actor.name}(은)는 {status_name}로 인해 행동할 수 없습니다...", (200, 100, 100))
+                logger.info(f"{actor.name} 턴 자동 스킵: {status_name}")
+                
+                # 상태이상 지속시간 감소
+                expired = actor.status_manager.update_duration()
+                if expired:
+                    logger.debug(f"{actor.name}: {len(expired)}개 상태 효과 만료 (행동 불가 중)")
+            
+            # ATB 소비 및 턴 스킵
+            self.combat_manager.atb.consume_atb(actor)
+            self.combat_manager._on_turn_end(actor)
+            
+            # 행동 지연 타이머 설정 (0.5초 대기)
+            self.action_delay_frames = 15  # 0.5초 (30 FPS 기준)
+        elif ready and not self.action_delay_frames:
             # 다음 행동자
             actor = ready[0]
             
@@ -1144,7 +1187,7 @@ class CombatUI:
             elif actor in self.combat_manager.allies:
                 # 플레이어 턴: UI 표시 (WAITING_ATB 상태일 때만)
                 if self.state == CombatUIState.WAITING_ATB:
-                    # 기절/마비/수면 등 행동 불가 상태 확인
+                    # 기절/마비/수면 등 행동 불가 상태 확인 (이중 체크)
                     if hasattr(actor, 'status_manager') and not actor.status_manager.can_act():
                         # 행동 불가 상태: 턴 자동 스킵
                         from src.combat.status_effects import StatusType as StatusTypeEnum

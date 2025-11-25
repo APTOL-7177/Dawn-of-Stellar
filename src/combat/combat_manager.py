@@ -2418,9 +2418,12 @@ class CombatManager:
                             from src.character.gimmick_updater import GimmickUpdater
                             GimmickUpdater.on_charge_gained(defender, parry_charge_gain, "패링 성공")
 
-                        # 캐스팅 완료 처리 (패링 성공 시 스킬 시전 안 함)
-                        self.casting_system.cancel_cast(defender, "패링 성공")
-                        return  # 패링 성공 시 피해를 받지 않으므로 충전 획득 없음
+                        # 패링 성공 플래그 설정 (캐스팅 완료 시 스킬 효과 발동 방지용)
+                        cast_info.parry_success = True
+                        
+                        # 캐스팅은 계속 진행 (취소하지 않음)
+                        # 패링 성공 시 피해를 받지 않으므로 충전 획득 없음
+                        return
 
         # 암흑기사: 피격 시 충전 획득 (패링으로 막히지 않은 경우에만)
         # 패링이 성공하면 위에서 return되므로 여기 도달하지 않음
@@ -2503,7 +2506,8 @@ class CombatManager:
                 self.logger.info(f"{getattr(caster, 'name', 'Unknown')} 전투 불능으로 시전 취소")
                 continue
 
-            # 스킬 실행
+            # 패링 성공 시 스킬 효과는 발동 (패링은 즉시 카운터, 캐스팅 완료 시 스킬 효과 발동)
+            # 패링 성공 플래그가 있어도 스킬 효과는 정상적으로 발동
             self.logger.info(f"{getattr(caster, 'name', 'Unknown')}의 {skill.name} 발동!")
 
             # 스킬 실행 (SFX 포함)

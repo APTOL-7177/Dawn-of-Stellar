@@ -165,7 +165,8 @@ class SaveSystem:
                 manager = get_town_manager()
                 loaded_manager = TownManager.from_dict(game_state["town_manager"])
                 manager.facilities = loaded_manager.facilities
-                logger.info("마을 데이터 복원 완료")
+                manager.hub_storage = loaded_manager.hub_storage.copy()  # 창고 아이템 복원
+                logger.info(f"마을 데이터 복원 완료 - 창고 아이템: {len(manager.hub_storage)}개")
             
             # QuestManager 복원
             if "quest_manager" in game_state:

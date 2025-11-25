@@ -82,7 +82,7 @@ def create_dark_knight_skills():
         DamageEffect(DamageType.BRV_HP, 1.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.02}),  # 충전 1%당 +2% 데미지
         GimmickEffect(GimmickOperation.CONSUME, "charge_gauge", 30)
     ]
-    power_strike.costs = [MPCost(12), StackCost("charge_gauge", 30)]
+    power_strike.costs = [MPCost(3), StackCost("charge_gauge", 30)]
     power_strike.cast_time = 0.3  # ATB 30% 캐스트 타임
     power_strike.sfx = ("combat", "damage_high")
     power_strike.metadata = {
@@ -95,10 +95,10 @@ def create_dark_knight_skills():
     # 6. 심연의 폭발
     abyssal_burst = Skill("dk_abyssal_burst", "심연의 폭발", "충전 50 소모 (충전 50: 1.8배 → 100: 2.8배)")
     abyssal_burst.effects = [
-        DamageEffect(DamageType.BRV_HP, 0.8, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.02}),
+        DamageEffect(DamageType.BRV_HP, 0.8, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.02}),  # 충전 1%당 +2% 데미지
         GimmickEffect(GimmickOperation.CONSUME, "charge_gauge", 50)
     ]
-    abyssal_burst.costs = [MPCost(18), StackCost("charge_gauge", 50)]
+    abyssal_burst.costs = [MPCost(5), StackCost("charge_gauge", 50)]
     abyssal_burst.cast_time = 0.5  # ATB 50% 캐스트 타임
     abyssal_burst.target_type = "all_enemies"
     abyssal_burst.is_aoe = True
@@ -118,7 +118,7 @@ def create_dark_knight_skills():
         DamageEffect(DamageType.BRV_HP, 1.5, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.04}),  # 충전 1%당 +4% 데미지
         GimmickEffect(GimmickOperation.SET, "charge_gauge", 0)  # 충전 완전 소모
     ]
-    execution.costs = [MPCost(30), StackCost("charge_gauge", 100)]
+    execution.costs = [MPCost(7), StackCost("charge_gauge", 100)]
     execution.cast_time = 1.0  # ATB 100% 캐스트 타임 (매우 긴 시전)
     execution.sfx = ("skill", "ultima")
     execution.metadata = {
