@@ -2676,7 +2676,6 @@ def main() -> int:
                                 global_town_manager = get_town_manager()
                                 if global_town_manager:
                                     exploration.town_manager = global_town_manager
-                                    logger.info(f"[DEBUG] 마을→던전 이동(멀티): exploration에 town_manager 설정 (id: {id(global_town_manager)}, storage: {len(global_town_manager.get_storage_inventory())}개)")
 
                                 # 마을 플래그 제거
                                 if hasattr(exploration, 'is_town'):
@@ -3446,9 +3445,8 @@ def main() -> int:
                                         # 마을에서 던전으로 이동 시 town_manager 유지
                                         from src.town.town_manager import get_town_manager
                                         global_town_manager = get_town_manager()
-                                        if global_town_manager:
-                                            exploration.town_manager = global_town_manager
-                                            logger.info(f"[DEBUG] 마을→던전 이동: exploration에 town_manager 설정 (id: {id(global_town_manager)}, storage: {len(global_town_manager.get_storage_inventory())}개)")
+                        if global_town_manager:
+                            exploration.town_manager = global_town_manager
 
                                         # 마을 플래그 제거
                                         if hasattr(exploration, 'is_town'):
