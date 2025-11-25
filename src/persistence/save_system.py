@@ -169,23 +169,27 @@ class SaveSystem:
             
             # TownManager 복원
             if "town_manager" in game_state:
-                from src.town.town_manager import TownManager
-                # 전역 인스턴스를 로드된 매니저로 완전히 교체
-                loaded_town_manager = TownManager.from_dict(game_state["town_manager"])
-                # 전역 인스턴스 직접 업데이트 (참조 교체)
-                import src.town.town_manager as town_module
-                town_module._town_manager = loaded_town_manager
-                logger.info(f"[DEBUG] 마을 데이터 복원 완료 (id: {id(loaded_town_manager)}, hub_storage: {len(loaded_town_manager.hub_storage)}개, storage_inventory: {len(loaded_town_manager.get_storage_inventory())}개)")
+                from src.town.town_manager import TownManager, get_town_manager
+                # 싱글톤 인스턴스 가져오기
+                singleton_instance = get_town_manager()
+                # 싱글톤 인스턴스에 로드된 데이터 적용
+                loaded_data = game_state["town_manager"]
+                if isinstance(loaded_data, dict):
+                    # 기존 인스턴스의 속성을 로드된 데이터로 업데이트
+                    singleton_instance.hub_storage = loaded_data.get("hub_storage", [])
+                    singleton_instance.storage_inventory = loaded_data.get("storage_inventory", [])
+                    singleton_instance.facilities = loaded_data.get("facilities", {})
+                    logger.info(f"마을 데이터 복원 완료 - hub_storage: {len(singleton_instance.hub_storage)}개, storage_inventory: {len(singleton_instance.storage_inventory)}개")
 
-                # 마을 창고 아이템 로드 로그
-                storage_inventory = loaded_town_manager.get_storage_inventory()
-                if storage_inventory:
-                    logger.info(f"마을 창고에서 불러온 아이템 {len(storage_inventory)}개:")
-                    for item_data in storage_inventory:
-                        item_name = item_data.get("name", item_data.get("item_id", "알 수 없는 아이템"))
-                        logger.info(f"  - {item_name}")
-                else:
-                    logger.info("마을 창고: 불러온 아이템 없음")
+                    # 마을 창고 아이템 로드 로그
+                    storage_inventory = singleton_instance.get_storage_inventory()
+                    if storage_inventory:
+                        logger.info(f"마을 창고에서 불러온 아이템 {len(storage_inventory)}개:")
+                        for item_data in storage_inventory:
+                            item_name = item_data.get("name", item_data.get("item_id", "알 수 없는 아이템"))
+                            logger.info(f"  - {item_name}")
+                    else:
+                        logger.info("마을 창고: 불러온 아이템 없음")
             
             # QuestManager 복원
             if "quest_manager" in game_state:

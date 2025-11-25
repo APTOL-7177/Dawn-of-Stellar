@@ -2342,14 +2342,6 @@ def main() -> int:
                                     "player_y": floor_data.get("player_position", {}).get("y", 0)
                                 }
 
-                    # 로딩된 town_manager를 exploration에 설정
-                    if "town_manager" in loaded_state:
-                        from src.town.town_manager import get_town_manager
-                        global_town_manager = get_town_manager()
-                        if global_town_manager:
-                            exploration.town_manager = global_town_manager
-                            logger.info(f"로딩 후 exploration에 town_manager 설정 완료")
-
                     # 탐험 계속 (새 게임과 동일한 루프)
                     while True:
                         logger.info(f"싱글플레이 run_exploration 호출 전: network_manager=None, local_player_id={local_player_id}")

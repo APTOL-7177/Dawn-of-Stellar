@@ -501,17 +501,7 @@ class TownManagerSingleton(TownManager):
         if not hasattr(self, '_initialized'):
             super().__init__()
             self._initialized = True
-            print(f"[TOWN_MANAGER] 싱글톤 TownManager 생성: id={id(self)}")
 
 def get_town_manager() -> TownManager:
     """TownManager 싱글톤 인스턴스 반환"""
-    instance = TownManagerSingleton()
-
-    # DEBUG: 호출 추적
-    import sys
-    frame = sys._getframe(1)
-    caller_name = frame.f_code.co_name if frame else "unknown"
-    filename = frame.f_code.co_filename.split('\\')[-1] if frame else "unknown"
-    print(f"[TOWN_MANAGER] 호출 from {filename}:{caller_name}, id={id(instance)}, storage={len(instance.get_storage_inventory())}")
-
-    return instance
+    return TownManagerSingleton()
