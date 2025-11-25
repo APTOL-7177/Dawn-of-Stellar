@@ -847,7 +847,10 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
             # 만약 원래 타입이 ITEM이나 CHEST였지만 loot_id가 None이면 FLOOR로 변경
             if tile_type in [TileType.ITEM, TileType.CHEST]:
                 tile_type = TileType.FLOOR
-            
+            # BOSS_ROOM 타일은 FLOOR로 변경 (B 타일 제거 요청에 따라)
+            elif tile_type == TileType.BOSS_ROOM:
+                tile_type = TileType.FLOOR
+
             dungeon.set_tile(
                 x, y, tile_type,
                 locked=tile_data.get("locked", False),
