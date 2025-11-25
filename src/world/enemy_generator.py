@@ -193,34 +193,34 @@ ENEMY_TEMPLATES = {
         luck=20, accuracy=75, evasion=12
     ),
 
-    # === 보스 몬스터 ===
-    # BRV: 보스급 max_brv, 높은 init_brv (35-40%)
+    # === 강력 보스 (일반 몹 수준 스탯) ===
+    # BRV: 일반 몹 수준으로 조정
     "boss_chimera": EnemyTemplate(
-        "boss_chimera", "키메라 (보스)", 1,
-        hp=500, mp=150,  # 초반 보스
-        physical_attack=100, physical_defense=80,
-        magic_attack=95, magic_defense=75,
-        speed=68,
-        max_brv=3200, init_brv=1067,  # 초반 보스 BRV (9600÷3, 3200÷3)
-        luck=18, accuracy=75, evasion=15
+        "boss_chimera", "강력 보스", 1,
+        hp=220, mp=40,  # 일반 몹 수준
+        physical_attack=65, physical_defense=50,
+        magic_attack=60, magic_defense=45,
+        speed=55,
+        max_brv=900, init_brv=300,  # 일반 몹 BRV 수준
+        luck=12, accuracy=68, evasion=12
     ),
     "boss_lich": EnemyTemplate(
-        "boss_lich", "리치 (보스)", 1,
-        hp=600, mp=250,  # 중반 보스 - 마법 특화
-        physical_attack=90, physical_defense=70,
-        magic_attack=140, magic_defense=110,
-        speed=62,
-        max_brv=4000, init_brv=1333,  # 중반 보스 BRV (12000÷3, 4000÷3)
-        luck=22, accuracy=78, evasion=18
+        "boss_lich", "강력 보스", 1,
+        hp=200, mp=45,  # 일반 몹 수준 - 마법 특화
+        physical_attack=55, physical_defense=45,
+        magic_attack=70, magic_defense=55,
+        speed=52,
+        max_brv=850, init_brv=283,  # 일반 몹 BRV 수준
+        luck=11, accuracy=66, evasion=11
     ),
     "boss_dragon_king": EnemyTemplate(
-        "boss_dragon_king", "드래곤 킹 (보스)", 1,
-        hp=800, mp=300,  # 후반 보스
-        physical_attack=130, physical_defense=105,
-        magic_attack=125, magic_defense=100,
-        speed=70,
-        max_brv=4800, init_brv=1600,  # 후반 보스 BRV (14400÷3, 4800÷3)
-        luck=25, accuracy=80, evasion=14
+        "boss_dragon_king", "강력 보스", 1,
+        hp=210, mp=42,  # 일반 몹 수준
+        physical_attack=62, physical_defense=48,
+        magic_attack=58, magic_defense=48,
+        speed=58,
+        max_brv=880, init_brv=293,  # 일반 몹 BRV 수준
+        luck=13, accuracy=70, evasion=13
     ),
 
     # === 최종 보스 ===
