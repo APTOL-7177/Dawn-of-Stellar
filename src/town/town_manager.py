@@ -495,11 +495,9 @@ def get_town_manager() -> TownManager:
     if _town_manager is None:
         _town_manager = TownManager()
     # DEBUG: 싱글톤 확인
-    import logging
-    logger = logging.getLogger(__name__)
     import sys
     frame = sys._getframe(1)
     caller_name = frame.f_code.co_name if frame else "unknown"
     filename = frame.f_code.co_filename.split('\\')[-1] if frame else "unknown"
-    logger.info(f"[DEBUG] get_town_manager() called from {filename}:{caller_name}, returning id: {id(_town_manager)}")
+    print(f"[DEBUG] get_town_manager() called from {filename}:{caller_name}, returning id: {id(_town_manager)}, storage: {len(_town_manager.get_storage_inventory())}")
     return _town_manager
