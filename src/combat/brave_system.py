@@ -196,9 +196,17 @@ class BraveSystem:
                 "miss": True
             }
 
+        # 공격자 레벨에 따른 BRV 데미지 증가 (레벨당 30%)
+        attacker_level = getattr(attacker, 'level', 1)
+        from src.core.config import get_config
+        config = get_config()
+        level_scaling_per_level = config.get("combat.damage.level_scaling_per_level", 0.3)
+        level_scaling = 1.0 + (attacker_level - 1) * level_scaling_per_level
+        scaled_damage = int(damage * level_scaling)
+
         # 방어자의 BRV 저항 반영
         defender_resistance = getattr(defender, "brv_loss_resistance", 1.0)
-        actual_damage = int(damage / defender_resistance)
+        actual_damage = int(scaled_damage / defender_resistance)
 
         # BRV 감소 (최소 0)
         old_defender_brv = defender.current_brv
