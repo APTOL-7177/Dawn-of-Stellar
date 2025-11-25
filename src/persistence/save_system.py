@@ -54,10 +54,10 @@ class SaveSystem:
             game_state["town_manager"] = town_manager.to_dict()
 
             # 마을 창고 아이템 저장 로그
-            hub_storage = town_manager.get_hub_storage()
-            if hub_storage:
-                logger.info(f"마을 창고 아이템 {len(hub_storage)}개 저장됨:")
-                for item_data in hub_storage:
+            storage_inventory = town_manager.get_storage_inventory()
+            if storage_inventory:
+                logger.info(f"마을 창고 아이템 {len(storage_inventory)}개 저장됨:")
+                for item_data in storage_inventory:
                     item_name = item_data.get("name", item_data.get("item_id", "알 수 없는 아이템"))
                     logger.info(f"  - {item_name}")
             else:
@@ -180,10 +180,10 @@ class SaveSystem:
                 logger.info(f"마을 데이터 복원 완료 - 창고 아이템: {len(loaded_town_manager.hub_storage)}개")
 
                 # 마을 창고 아이템 로드 로그
-                hub_storage = loaded_town_manager.get_hub_storage()
-                if hub_storage:
-                    logger.info(f"마을 창고에서 불러온 아이템 {len(hub_storage)}개:")
-                    for item_data in hub_storage:
+                storage_inventory = loaded_town_manager.get_storage_inventory()
+                if storage_inventory:
+                    logger.info(f"마을 창고에서 불러온 아이템 {len(storage_inventory)}개:")
+                    for item_data in storage_inventory:
                         item_name = item_data.get("name", item_data.get("item_id", "알 수 없는 아이템"))
                         logger.info(f"  - {item_name}")
                 else:

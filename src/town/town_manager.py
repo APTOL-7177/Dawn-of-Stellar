@@ -161,6 +161,9 @@ class TownManager:
         # 허브 영구 저장소 (게임 오버 시에도 보존되는 아이템)
         # 모든 아이템을 직렬화된 형태로 저장
         self.hub_storage: List[Dict[str, Any]] = []  # List[serialize_item(item) 결과]
+
+        # 마을 창고 저장소 (플레이어가 직접 보관하는 아이템)
+        self.storage_inventory: List[Dict[str, Any]] = []  # 창고에 보관된 아이템들
         
     def get_facility(self, facility_type: FacilityType) -> Optional[Facility]:
         """시설 가져오기"""
@@ -322,6 +325,40 @@ class TownManager:
     def get_hub_storage(self) -> List[Dict[str, Any]]:
         """허브 저장소 내용 가져오기"""
         return self.hub_storage.copy()
+
+    def get_storage_inventory(self) -> List[Dict[str, Any]]:
+        """마을 창고 인벤토리 가져오기"""
+        return self.storage_inventory.copy()
+
+    def store_item_to_storage(self, item: Any) -> bool:
+        """아이템을 마을 창고에 저장"""
+        from src.persistence.save_system import serialize_item
+
+        try:
+            serialized_item = serialize_item(item)
+            self.storage_inventory.append(serialized_item)
+            logger.info(f"마을 창고에 아이템 저장: {getattr(item, 'name', '알 수 없는 아이템')}")
+            return True
+        except Exception as e:
+            logger.error(f"마을 창고 저장 실패: {e}")
+            return False
+
+    def retrieve_item_from_storage(self, index: int) -> Optional[Any]:
+        """마을 창고에서 아이템 꺼내기"""
+        from src.persistence.save_system import deserialize_item
+
+        if 0 <= index < len(self.storage_inventory):
+            try:
+                serialized_item = self.storage_inventory.pop(index)
+                item = deserialize_item(serialized_item)
+                logger.info(f"마을 창고에서 아이템 꺼냄: {getattr(item, 'name', '알 수 없는 아이템')}")
+                return item
+            except Exception as e:
+                logger.error(f"마을 창고 아이템 꺼내기 실패: {e}")
+                return None
+        else:
+            logger.warning(f"잘못된 창고 인덱스: {index}")
+            return None
     
     def clear_runtime_storage(self):
         """
@@ -358,7 +395,8 @@ class TownManager:
         """저장용 딕셔너리 변환 - 시설 레벨은 메타 진행에 저장됨"""
         return {
             # "facilities": {...},  # REMOVED - 이제 메타 진행에 저장
-            "hub_storage": self.hub_storage.copy()
+            "hub_storage": self.hub_storage.copy(),
+            "storage_inventory": self.storage_inventory.copy()  # 마을 창고 아이템 추가
         }
 
     @classmethod
@@ -386,12 +424,12 @@ class TownManager:
         # 허브 저장소 복원 (마이그레이션 포함)
         if "hub_storage" in data:
             storage_data = data["hub_storage"]
-            
+
             # 기존 형태 ({item_id: count})인 경우 마이그레이션
             if isinstance(storage_data, dict):
                 from src.gathering.ingredient import IngredientDatabase
                 from src.persistence.save_system import serialize_item
-                
+
                 # 딕셔너리 형태를 리스트 형태로 변환
                 manager.hub_storage = []
                 for item_id, count in storage_data.items():
@@ -401,7 +439,7 @@ class TownManager:
                         for _ in range(count):
                             serialized = serialize_item(ingredient)
                             manager.hub_storage.append(serialized)
-                
+
                 logger.info(f"허브 저장소 마이그레이션 완료: {len(storage_data)}종류의 재료 → {len(manager.hub_storage)}개 아이템")
             elif isinstance(storage_data, list):
                 # 새로운 형태 (List[Dict])인 경우
@@ -410,6 +448,18 @@ class TownManager:
             else:
                 logger.warning(f"알 수 없는 hub_storage 형태: {type(storage_data)}")
                 manager.hub_storage = []
+
+        # 마을 창고 인벤토리 복원
+        if "storage_inventory" in data:
+            storage_inv_data = data["storage_inventory"]
+            if isinstance(storage_inv_data, list):
+                manager.storage_inventory = storage_inv_data.copy()
+                logger.info(f"마을 창고 복원: {len(manager.storage_inventory)}개의 아이템")
+            else:
+                logger.warning(f"알 수 없는 storage_inventory 형태: {type(storage_inv_data)}")
+                manager.storage_inventory = []
+        else:
+            manager.storage_inventory = []
         
         return manager
 
