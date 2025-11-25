@@ -2308,6 +2308,14 @@ def main() -> int:
                     
                     # 키 복원
                     exploration.player_keys = loaded_state.get("keys", [])
+
+                    # 로딩된 town_manager를 exploration에 설정
+                    if "town_manager" in loaded_state:
+                        from src.town.town_manager import get_town_manager
+                        global_town_manager = get_town_manager()
+                        if global_town_manager:
+                            exploration.town_manager = global_town_manager
+                            logger.info(f"로딩 후 exploration에 town_manager 설정 완료")
                     
                     # BGM 제어 플래그 (첫 탐험 시작 및 층 변경 시에만 재생)
                     play_dungeon_bgm = True
@@ -2333,6 +2341,14 @@ def main() -> int:
                                     "player_x": floor_data.get("player_position", {}).get("x", 0),
                                     "player_y": floor_data.get("player_position", {}).get("y", 0)
                                 }
+
+                    # 로딩된 town_manager를 exploration에 설정
+                    if "town_manager" in loaded_state:
+                        from src.town.town_manager import get_town_manager
+                        global_town_manager = get_town_manager()
+                        if global_town_manager:
+                            exploration.town_manager = global_town_manager
+                            logger.info(f"로딩 후 exploration에 town_manager 설정 완료")
 
                     # 탐험 계속 (새 게임과 동일한 루프)
                     while True:
