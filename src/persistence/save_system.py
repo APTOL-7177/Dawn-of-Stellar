@@ -634,7 +634,6 @@ def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]
         "width": dungeon.width,
         "height": dungeon.height,
         "tiles": tiles_data,
-        "stairs_up": dungeon.stairs_up,
         "stairs_down": dungeon.stairs_down,
         "keys": dungeon.keys,
         "locked_doors": dungeon.locked_doors,
@@ -867,13 +866,9 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
         tile.harvested = tile_data.get("harvested", False)
 
     # 계단, 열쇠, 문 복원
-    dungeon.stairs_up = tuple(dungeon_data["stairs_up"]) if dungeon_data.get("stairs_up") else None
     dungeon.stairs_down = tuple(dungeon_data["stairs_down"]) if dungeon_data.get("stairs_down") else None
 
     # 계단 위치에 STAIRS 타일 설정
-    if dungeon.stairs_up:
-        x, y = dungeon.stairs_up
-        dungeon.set_tile(x, y, TileType.STAIRS_UP)
     if dungeon.stairs_down:
         x, y = dungeon.stairs_down
         dungeon.set_tile(x, y, TileType.STAIRS_DOWN)
