@@ -110,6 +110,24 @@ class EffectType(Enum):
     STANCE_POWER = "stance_power"              # 스탠스 위력 +X%
     ELEMENTAL_POWER = "elemental_power"         # 속성 위력 +X%
 
+    # === 추가 효과 (아이템 시스템에서 사용) ===
+    ON_KILL_HEAL = "on_kill_heal"              # 처치 시 회복
+    ELEMENT = "element"                        # 속성 부여
+    STATUS_BURN = "status_burn"                # 화상 상태 부여
+    DEBUFF_SLOW = "debuff_slow"                # 슬로우 디버프
+    STATUS_SHOCK = "status_shock"              # 감전 상태
+    DEBUFF_SILENCE = "debuff_silence"          # 침묵 디버프
+    CHAIN_LIGHTNING = "chain_lightning"        # 체인 라이트닝
+    ARMOR_PENETRATION = "armor_penetration"    # 방어 관통
+    MP_STEAL = "mp_steal"                      # MP 흡수
+    BONUS_VS_UNDEAD = "bonus_vs_undead"        # 언데드 상대 보너스
+    HEAL_ON_HIT = "heal_on_hit"                # 공격 시 회복
+    ACCURACY_BONUS = "accuracy_bonus"          # 명중률 보너스
+    DOUBLE_STRIKE = "double_strike"            # 더블 스트라이크
+    STRIKE_COUNT = "strike_count"              # 공격 횟수
+    STUN_CHANCE = "stun_chance"                # 스턴 확률
+    DAMAGE_FROM_DEFENSE = "damage_from_defense" # 방어력 기반 데미지
+
 
 @dataclass
 class EquipmentEffect:
@@ -199,6 +217,23 @@ class EquipmentEffectManager:
             EffectType.BURN_IMMUNITY: self._handle_status_immunity,
             EffectType.FREEZE_IMMUNITY: self._handle_status_immunity,
             # 더 많은 핸들러...
+            # 추가 효과 핸들러 (기본적으로 로그만)
+            EffectType.ON_KILL_HEAL: self._handle_on_kill_heal,
+            EffectType.ELEMENT: self._handle_element,
+            EffectType.STATUS_BURN: self._handle_status_effect,
+            EffectType.DEBUFF_SLOW: self._handle_status_effect,
+            EffectType.STATUS_SHOCK: self._handle_status_effect,
+            EffectType.DEBUFF_SILENCE: self._handle_status_effect,
+            EffectType.CHAIN_LIGHTNING: self._handle_chain_lightning,
+            EffectType.ARMOR_PENETRATION: self._handle_armor_penetration,
+            EffectType.MP_STEAL: self._handle_mp_steal,
+            EffectType.BONUS_VS_UNDEAD: self._handle_bonus_vs_undead,
+            EffectType.HEAL_ON_HIT: self._handle_heal_on_hit,
+            EffectType.ACCURACY_BONUS: self._handle_accuracy_bonus,
+            EffectType.DOUBLE_STRIKE: self._handle_double_strike,
+            EffectType.STRIKE_COUNT: self._handle_strike_count,
+            EffectType.STUN_CHANCE: self._handle_stun_chance,
+            EffectType.DAMAGE_FROM_DEFENSE: self._handle_damage_from_defense,
         }
         logger.info(f"[_register_handlers] 핸들러 등록 완료: {len(self.effect_handlers)}개 (VISION_BONUS 포함: {EffectType.VISION_BONUS in self.effect_handlers})")
         if EffectType.VISION_BONUS in self.effect_handlers:
@@ -561,6 +596,67 @@ class EquipmentEffectManager:
         character.mp = min(character.max_mp, character.mp + restore)
         logger.debug(f"{character.name} MP 재생: +{restore}")
 
+    # === 추가 효과 핸들러 ===
+
+    def _handle_on_kill_heal(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """처치 시 회복"""
+        heal_amount = int(effect.value)
+        if hasattr(character, "hp") and hasattr(character, "max_hp"):
+            character.hp = min(character.max_hp, character.hp + heal_amount)
+            logger.info(f"{character.name} 처치 회복: +{heal_amount} HP")
+
+    def _handle_element(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """속성 부여 (현재 구현 없음)"""
+        logger.debug(f"{character.name} 속성 부여: {effect.value}")
+
+    def _handle_status_effect(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """상태 효과 부여 (현재 구현 없음)"""
+        logger.debug(f"{character.name} 상태 효과: {effect.effect_type.value} (확률: {effect.value * 100:.1f}%)")
+
+    def _handle_chain_lightning(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """체인 라이트닝 (현재 구현 없음)"""
+        logger.debug(f"{character.name} 체인 라이트닝: {effect.value * 100:.1f}%")
+
+    def _handle_armor_penetration(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """방어 관통"""
+        logger.debug(f"{character.name} 방어 관통: {effect.value * 100:.1f}%")
+
+    def _handle_mp_steal(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """MP 흡수"""
+        steal_amount = int(effect.value * 100)  # 백분율이므로 100을 곱해서 표시
+        logger.debug(f"{character.name} MP 흡수: {steal_amount}")
+
+    def _handle_bonus_vs_undead(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """언데드 상대 보너스"""
+        logger.debug(f"{character.name} 언데드 보너스: +{effect.value * 100:.1f}%")
+
+    def _handle_heal_on_hit(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """공격 시 회복"""
+        heal_amount = int(effect.value)
+        if hasattr(character, "hp") and hasattr(character, "max_hp"):
+            character.hp = min(character.max_hp, character.hp + heal_amount)
+            logger.info(f"{character.name} 공격 회복: +{heal_amount} HP")
+
+    def _handle_accuracy_bonus(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """명중률 보너스"""
+        logger.debug(f"{character.name} 명중률 보너스: +{effect.value}")
+
+    def _handle_double_strike(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """더블 스트라이크 (현재 구현 없음)"""
+        logger.debug(f"{character.name} 더블 스트라이크 활성화")
+
+    def _handle_strike_count(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """공격 횟수 (현재 구현 없음)"""
+        logger.debug(f"{character.name} 공격 횟수: {effect.value}")
+
+    def _handle_stun_chance(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """스턴 확률 (현재 구현 없음)"""
+        logger.debug(f"{character.name} 스턴 확률: {effect.value * 100:.1f}%")
+
+    def _handle_damage_from_defense(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """방어력 기반 데미지"""
+        logger.debug(f"{character.name} 방어력 기반 데미지: {effect.value * 100:.1f}%")
+
 
 # 전역 인스턴스
 _equipment_effect_manager: Optional[EquipmentEffectManager] = None
@@ -724,6 +820,24 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
             "hack_damage": (EffectType.HACK_DAMAGE_BONUS, EffectTrigger.PASSIVE),
             "stance_power": (EffectType.STANCE_POWER, EffectTrigger.PASSIVE),
             "element_power": (EffectType.ELEMENTAL_POWER, EffectTrigger.PASSIVE),
+
+            # === 추가 효과 (아이템 시스템에서 사용) ===
+            "on_kill_heal": (EffectType.ON_KILL_HEAL, EffectTrigger.ON_KILL),
+            "element": (EffectType.ELEMENT, EffectTrigger.PASSIVE),
+            "status_burn": (EffectType.STATUS_BURN, EffectTrigger.ON_HIT),
+            "debuff_slow": (EffectType.DEBUFF_SLOW, EffectTrigger.ON_HIT),
+            "status_shock": (EffectType.STATUS_SHOCK, EffectTrigger.ON_HIT),
+            "debuff_silence": (EffectType.DEBUFF_SILENCE, EffectTrigger.ON_HIT),
+            "chain_lightning": (EffectType.CHAIN_LIGHTNING, EffectTrigger.ON_HIT),
+            "armor_penetration": (EffectType.ARMOR_PENETRATION, EffectTrigger.PASSIVE),
+            "mp_steal": (EffectType.MP_STEAL, EffectTrigger.ON_HIT),
+            "bonus_vs_undead": (EffectType.BONUS_VS_UNDEAD, EffectTrigger.PASSIVE),
+            "heal_on_hit": (EffectType.HEAL_ON_HIT, EffectTrigger.ON_HIT),
+            "accuracy_bonus": (EffectType.ACCURACY_BONUS, EffectTrigger.PASSIVE),
+            "double_strike": (EffectType.DOUBLE_STRIKE, EffectTrigger.ON_EQUIP),
+            "strike_count": (EffectType.STRIKE_COUNT, EffectTrigger.PASSIVE),
+            "stun_chance": (EffectType.STUN_CHANCE, EffectTrigger.ON_HIT),
+            "damage_from_defense": (EffectType.DAMAGE_FROM_DEFENSE, EffectTrigger.PASSIVE),
         }
 
         if effect_name in effect_mapping:
