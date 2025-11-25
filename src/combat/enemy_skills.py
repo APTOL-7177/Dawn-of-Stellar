@@ -2192,7 +2192,7 @@ class EnemySkillDatabase:
                 damage_multiplier=1.8,
                 brv_damage=1,
                 status_effects=["slow", "chill"],
-                status_duration=3,
+                status_duration=2,  # 3턴에서 2턴으로 감소
                 status_intensity=0.45,  # blizzard 조정
                 use_probability=0.35,
                 cooldown=3

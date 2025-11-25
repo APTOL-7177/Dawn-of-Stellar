@@ -21,22 +21,29 @@ class EnemyAI:
     전투 상황을 분석하여 최적의 행동 결정
     """
 
-    def __init__(self, enemy: Any, difficulty: str = "hard"):
+    def __init__(self, enemy: Any, difficulty: str = "도전"):
         """
         Args:
             enemy: 적 캐릭터
-            difficulty: 난이도 ("easy", "normal", "hard", "insane")
+            difficulty: 난이도 ("평온", "보통", "도전", "악몽", "지옥")
         """
         self.enemy = enemy
         self.difficulty = difficulty
 
-        # 난이도별 스킬 사용 확률 조정 (확률을 낮춤)
+        # 난이도별 스킬 사용 확률 조정 (확률을 적당히 낮춤)
         self.skill_use_multiplier = {
-            "easy": 0.8,     # 스킬 사용 0.8배 (20% 감소)
-            "normal": 1.2,   # 스킬 사용 1.2배
-            "hard": 1.5,     # 스킬 사용 1.5배
-            "insane": 2.0    # 스킬 사용 2배
-        }.get(difficulty, 1.5)  # 기본값 1.5배
+            "평온": 0.5,     # 스킬 사용 0.5배 (50% 감소)
+            "보통": 0.7,     # 스킬 사용 0.7배 (30% 감소)
+            "도전": 0.9,     # 스킬 사용 0.9배 (10% 감소)
+            "악몽": 1.2,     # 스킬 사용 1.2배
+            "지옥": 1.5,     # 스킬 사용 1.5배
+            # 영어 호환성 (레거시)
+            "easy": 0.5,
+            "normal": 0.7,
+            "hard": 0.9,
+            "insane": 1.2,
+            "hell": 1.5
+        }.get(difficulty, 0.9)  # 기본값 0.9배
 
     def decide_action(
         self,
@@ -85,8 +92,8 @@ class EnemyAI:
         if selected_skill:
             # 스킬 사용 확률 체크 (난이도 반영)
             adjusted_probability = selected_skill.use_probability * self.skill_use_multiplier
-            # 최소 확률 보장 (스킬이 있으면 최소 20% 확률로 사용, 기존 50%에서 낮춤)
-            adjusted_probability = max(adjusted_probability, 0.2)
+            # 최소 확률 보장 (스킬이 있으면 최소 12% 확률로 사용)
+            adjusted_probability = max(adjusted_probability, 0.12)
             if random.random() < min(adjusted_probability, 1.0):
                 # 대상 선택
                 target = self._select_target(selected_skill, allies, enemies)
@@ -354,18 +361,17 @@ class EnemyAI:
         base_agro = agro
         
         # 난이도별 지능 적용
-        if self.difficulty == "easy":
-            # easy: 기본 어그로만 사용, 랜덤성 높음
-            # 힐러/약한 적 약간 우선
+        if self.difficulty in ["평온", "easy"]:
+            # 평온: 기본 어그로만 사용, 랜덤성 높음
             job_name = getattr(enemy, 'job_name', '').lower()
             if any(keyword in job_name for keyword in ['heal', '힐', 'support', '지원', 'white', '백']):
                 agro += 10  # 힐러는 어그로 +10
             hp_percent = getattr(enemy, 'current_hp', 1000) / getattr(enemy, 'max_hp', 1000) if getattr(enemy, 'max_hp', 1000) > 0 else 1.0
             if hp_percent < 0.3:
                 agro += 10  # HP 30% 이하면 어그로 +10
-                
-        elif self.difficulty == "normal":
-            # normal: 기본 어그로 시스템
+
+        elif self.difficulty in ["보통", "normal"]:
+            # 보통: 기본 어그로 시스템
             job_name = getattr(enemy, 'job_name', '').lower()
             if any(keyword in job_name for keyword in ['heal', '힐', 'support', '지원', 'white', '백']):
                 agro += 30  # 힐러는 어그로 +30
@@ -374,16 +380,16 @@ class EnemyAI:
                 agro += 40  # HP 30% 이하면 어그로 +40
             elif hp_percent < 0.5:
                 agro += 20  # HP 50% 이하면 어그로 +20
-                
-        elif self.difficulty == "hard":
-            # hard: 더 지능적으로 타겟팅
+
+        elif self.difficulty in ["도전", "hard"]:
+            # 도전: 더 지능적으로 타겟팅
             job_name = getattr(enemy, 'job_name', '').lower()
             hp_percent = getattr(enemy, 'current_hp', 1000) / getattr(enemy, 'max_hp', 1000) if getattr(enemy, 'max_hp', 1000) > 0 else 1.0
-            
+
             # 힐러/서포터 매우 우선 (어그로 +50)
             if any(keyword in job_name for keyword in ['heal', '힐', 'support', '지원', 'white', '백']):
                 agro += 50
-            
+
             # 약한 적 우선 (어그로 +30~70)
             if hp_percent < 0.2:
                 agro += 70  # HP 20% 이하면 어그로 +70 (마무리 우선)
@@ -391,23 +397,23 @@ class EnemyAI:
                 agro += 50  # HP 30% 이하면 어그로 +50
             elif hp_percent < 0.5:
                 agro += 30  # HP 50% 이하면 어그로 +30
-            
+
             # 강력한 공격일 때 약한 적 더욱 우선
             if skill and skill.damage > 100:
                 if hp_percent < 0.3:
                     agro += 40  # 강력한 공격 + 약한 적 = 추가 어그로 +40
                 elif hp_percent < 0.5:
                     agro += 25  # 강력한 공격 + 중간 HP = 추가 어그로 +25
-            
-        elif self.difficulty == "insane":
-            # insane: 매우 지능적으로 타겟팅 (최적화된 선택)
+
+        elif self.difficulty in ["악몽", "insane"]:
+            # 악몽: 매우 지능적으로 타겟팅
             job_name = getattr(enemy, 'job_name', '').lower()
             hp_percent = getattr(enemy, 'current_hp', 1000) / getattr(enemy, 'max_hp', 1000) if getattr(enemy, 'max_hp', 1000) > 0 else 1.0
-            
+
             # 힐러/서포터 최우선 (어그로 +80)
             if any(keyword in job_name for keyword in ['heal', '힐', 'support', '지원', 'white', '백']):
                 agro += 80
-            
+
             # 약한 적 매우 우선 (어그로 +50~100)
             if hp_percent < 0.2:
                 agro += 100  # HP 20% 이하면 어그로 +100 (즉시 마무리)
@@ -415,21 +421,50 @@ class EnemyAI:
                 agro += 70  # HP 30% 이하면 어그로 +70
             elif hp_percent < 0.5:
                 agro += 50  # HP 50% 이하면 어그로 +50
-            
+
             # 강력한 공격일 때 약한 적 최우선
             if skill and skill.damage > 100:
                 if hp_percent < 0.3:
                     agro += 60  # 강력한 공격 + 약한 적 = 추가 어그로 +60
                 elif hp_percent < 0.5:
                     agro += 40  # 강력한 공격 + 중간 HP = 추가 어그로 +40
-            
+
             # BRV가 낮은 적도 우선 (BREAK 가능성)
             enemy_brv = getattr(enemy, 'current_brv', 1000)
             if enemy_brv < 200:
                 agro += 30  # BRV 낮으면 어그로 +30
-        
+
+        elif self.difficulty in ["지옥", "hell"]:
+            # 지옥: 완벽한 최적화 타겟팅
+            job_name = getattr(enemy, 'job_name', '').lower()
+            hp_percent = getattr(enemy, 'current_hp', 1000) / getattr(enemy, 'max_hp', 1000) if getattr(enemy, 'max_hp', 1000) > 0 else 1.0
+
+            # 힐러/서포터 절대 우선 (어그로 +100)
+            if any(keyword in job_name for keyword in ['heal', '힐', 'support', '지원', 'white', '백']):
+                agro += 100
+
+            # 약한 적 최우선 (어그로 +60~120)
+            if hp_percent < 0.2:
+                agro += 120  # HP 20% 이하면 어그로 +120 (절대 마무리)
+            elif hp_percent < 0.3:
+                agro += 90  # HP 30% 이하면 어그로 +90
+            elif hp_percent < 0.5:
+                agro += 60  # HP 50% 이하면 어그로 +60
+
+            # 강력한 공격일 때 약한 적 절대 우선
+            if skill and skill.damage > 100:
+                if hp_percent < 0.3:
+                    agro += 80  # 강력한 공격 + 약한 적 = 추가 어그로 +80
+                elif hp_percent < 0.5:
+                    agro += 50  # 강력한 공격 + 중간 HP = 추가 어그로 +50
+
+            # BRV가 낮은 적 매우 우선 (BREAK 가능성)
+            enemy_brv = getattr(enemy, 'current_brv', 1000)
+            if enemy_brv < 200:
+                agro += 50  # BRV 낮으면 어그로 +50
+
         else:
-            # 기본값: normal과 동일
+            # 기본값: 보통과 동일
             job_name = getattr(enemy, 'job_name', '').lower()
             if any(keyword in job_name for keyword in ['heal', '힐', 'support', '지원', 'white', '백']):
                 agro += 30
@@ -484,61 +519,65 @@ class EnemyAI:
                 return None
 
             # 난이도별 타겟 선택 전략
-            if self.difficulty == "insane":
-                # insane: 항상 최적 타겟 선택 (랜덤 없음)
+            if self.difficulty in ["지옥", "hell"]:
+                # 지옥: 항상 최적 타겟 선택 (랜덤 없음)
                 best_target = None
                 best_score = -1
-                
+
                 for enemy in alive_enemies:
                     agro_weight = self._calculate_agro_weight(enemy, skill)
                     if agro_weight > best_score:
                         best_score = agro_weight
                         best_target = enemy
-                
+
                 if best_target:
                     # 선택된 타겟의 어그로 증가
-                    best_target._agro_value = getattr(best_target, '_agro_value', 50) + random.randint(15, 25)
+                    best_target._agro_value = getattr(best_target, '_agro_value', 50) + random.randint(20, 30)
                     return best_target
                 return random.choice(alive_enemies)
-            
-            elif self.difficulty == "easy":
-                # easy: 높은 랜덤성 (50% 확률로 랜덤, 50% 확률로 어그로 기반)
-                if random.random() < 0.5:
+
+            elif self.difficulty in ["평온", "easy"]:
+                # 평온: 높은 랜덤성 (60% 확률로 랜덤, 40% 확률로 어그로 기반)
+                if random.random() < 0.6:
                     selected = random.choice(alive_enemies)
                 else:
                     # 어그로 기반 선택
                     enemy_weights = [self._calculate_agro_weight(e, skill) for e in alive_enemies]
-                    min_weight = max(10, min(enemy_weights) * 0.7)  # 더 균등하게
+                    min_weight = max(10, min(enemy_weights) * 0.8)  # 매우 균등하게
                     enemy_weights = [max(w, min_weight) for w in enemy_weights]
                     selected = random.choices(alive_enemies, weights=enemy_weights, k=1)[0]
-                
+
                 # 선택된 타겟의 어그로 증가 (적게 증가)
-                selected._agro_value = getattr(selected, '_agro_value', 50) + random.randint(5, 15)
+                selected._agro_value = getattr(selected, '_agro_value', 50) + random.randint(3, 10)
                 return selected
-            
+
             else:
-                # normal, hard: 어그로 가중치 기반 랜덤 선택
+                # 보통, 도전, 악몽: 어그로 가중치 기반 랜덤 선택
                 enemy_weights = []
                 for enemy in alive_enemies:
                     agro_weight = self._calculate_agro_weight(enemy, skill)
                     enemy_weights.append(agro_weight)
-                
+
                 # 가중치 기반 랜덤 선택
-                # hard는 더 편중되게, normal은 더 균등하게
-                if self.difficulty == "hard":
-                    min_weight = max(10, min(enemy_weights) * 0.4)  # hard: 더 편중
+                # 악몽은 매우 편중, 도전은 편중, 보통은 균등
+                if self.difficulty in ["악몽", "insane"]:
+                    min_weight = max(10, min(enemy_weights) * 0.3)  # 악몽: 매우 편중
+                elif self.difficulty in ["도전", "hard"]:
+                    min_weight = max(10, min(enemy_weights) * 0.5)  # 도전: 편중
                 else:
-                    min_weight = max(10, min(enemy_weights) * 0.6)  # normal: 더 균등
-                
+                    min_weight = max(10, min(enemy_weights) * 0.7)  # 보통: 균등
+
                 enemy_weights = [max(w, min_weight) for w in enemy_weights]
                 selected = random.choices(alive_enemies, weights=enemy_weights, k=1)[0]
-                
+
                 # 선택된 타겟의 어그로 증가
-                if self.difficulty == "hard":
+                if self.difficulty in ["악몽", "insane"]:
                     selected._agro_value = getattr(selected, '_agro_value', 50) + random.randint(15, 25)
+                elif self.difficulty in ["도전", "hard"]:
+                    selected._agro_value = getattr(selected, '_agro_value', 50) + random.randint(12, 20)
                 else:
-                    selected._agro_value = getattr(selected, '_agro_value', 50) + random.randint(10, 20)
-                
+                    selected._agro_value = getattr(selected, '_agro_value', 50) + random.randint(8, 15)
+
                 return selected
 
         elif skill.target_type == SkillTargetType.RANDOM_ENEMY:
@@ -573,11 +612,11 @@ class EnemyAI:
         
         try:
             # 난이도별 타겟 선택 전략
-            if self.difficulty == "insane":
-                # insane: 항상 최적 타겟 선택 (랜덤 없음)
+            if self.difficulty in ["지옥", "hell"]:
+                # 지옥: 항상 최적 타겟 선택 (랜덤 없음)
                 best_target = None
                 best_score = -1
-                
+
                 for enemy in alive_enemies:
                     try:
                         agro_weight = self._calculate_agro_weight(enemy, None)
@@ -587,22 +626,22 @@ class EnemyAI:
                     except Exception as e:
                         logger.warning(f"어그로 계산 오류: {e}")
                         continue
-                
+
                 if best_target:
                     target = best_target
-                    target._agro_value = getattr(target, '_agro_value', 50) + random.randint(15, 25)
+                    target._agro_value = getattr(target, '_agro_value', 50) + random.randint(20, 30)
                 else:
                     target = random.choice(alive_enemies)
-                    
-            elif self.difficulty == "easy":
-                # easy: 높은 랜덤성 (50% 확률로 랜덤, 50% 확률로 어그로 기반)
-                if random.random() < 0.5:
+
+            elif self.difficulty in ["평온", "easy"]:
+                # 평온: 높은 랜덤성 (60% 확률로 랜덤, 40% 확률로 어그로 기반)
+                if random.random() < 0.6:
                     target = random.choice(alive_enemies)
                 else:
                     try:
                         enemy_weights = [self._calculate_agro_weight(e, None) for e in alive_enemies]
                         if enemy_weights and min(enemy_weights) > 0:
-                            min_weight = max(10, min(enemy_weights) * 0.7)
+                            min_weight = max(10, min(enemy_weights) * 0.8)
                             enemy_weights = [max(w, min_weight) for w in enemy_weights]
                             target = random.choices(alive_enemies, weights=enemy_weights, k=1)[0]
                         else:
@@ -610,33 +649,37 @@ class EnemyAI:
                     except Exception as e:
                         logger.warning(f"어그로 기반 선택 오류: {e}")
                         target = random.choice(alive_enemies)
-                
+
                 if target:
-                    target._agro_value = getattr(target, '_agro_value', 50) + random.randint(5, 15)
-                
+                    target._agro_value = getattr(target, '_agro_value', 50) + random.randint(3, 10)
+
             else:
-                # normal, hard: 어그로 가중치 기반 랜덤 선택
+                # 보통, 도전, 악몽: 어그로 가중치 기반 랜덤 선택
                 try:
                     enemy_weights = [self._calculate_agro_weight(e, None) for e in alive_enemies]
-                    
+
                     if enemy_weights and min(enemy_weights) > 0:
-                        # hard는 더 편중되게, normal은 더 균등하게
-                        if self.difficulty == "hard":
-                            min_weight = max(10, min(enemy_weights) * 0.4)
+                        # 악몽은 매우 편중, 도전은 편중, 보통은 균등
+                        if self.difficulty in ["악몽", "insane"]:
+                            min_weight = max(10, min(enemy_weights) * 0.3)
+                        elif self.difficulty in ["도전", "hard"]:
+                            min_weight = max(10, min(enemy_weights) * 0.5)
                         else:
-                            min_weight = max(10, min(enemy_weights) * 0.6)
-                        
+                            min_weight = max(10, min(enemy_weights) * 0.7)
+
                         enemy_weights = [max(w, min_weight) for w in enemy_weights]
                         target = random.choices(alive_enemies, weights=enemy_weights, k=1)[0]
                     else:
                         target = random.choice(alive_enemies)
-                    
+
                     # 선택된 타겟의 어그로 증가
                     if target:
-                        if self.difficulty == "hard":
+                        if self.difficulty in ["악몽", "insane"]:
                             target._agro_value = getattr(target, '_agro_value', 50) + random.randint(15, 25)
+                        elif self.difficulty in ["도전", "hard"]:
+                            target._agro_value = getattr(target, '_agro_value', 50) + random.randint(12, 20)
                         else:
-                            target._agro_value = getattr(target, '_agro_value', 50) + random.randint(10, 20)
+                            target._agro_value = getattr(target, '_agro_value', 50) + random.randint(8, 15)
                 except Exception as e:
                     logger.warning(f"어그로 기반 선택 오류: {e}")
                     target = random.choice(alive_enemies)
@@ -705,8 +748,8 @@ class BossAI(EnemyAI):
     """
 
     def __init__(self, enemy: Any):
-        # 보스는 항상 "hard" 난이도
-        super().__init__(enemy, difficulty="hard")
+        # 보스는 항상 "악몽" 난이도 (높은 지능)
+        super().__init__(enemy, difficulty="악몽")
 
     def _select_skill(
         self,
@@ -756,7 +799,7 @@ class SephirothAI(BossAI):
 
     def __init__(self, enemy: Any):
         super().__init__(enemy)
-        self.skill_use_multiplier = 2.5  # 스킬 사용 확률 2.5배 (기존 5.0에서 낮춤)
+        self.skill_use_multiplier = 1.5  # 스킬 사용 확률 1.5배 (보스 특성)
         self.phase = 1
 
     def decide_action(
@@ -795,12 +838,13 @@ class SephirothAI(BossAI):
         return super().decide_action(allies, enemies)
 
 
-def create_ai_for_enemy(enemy: Any) -> EnemyAI:
+def create_ai_for_enemy(enemy: Any, game_difficulty: str = None) -> EnemyAI:
     """
     적에 맞는 AI 생성
 
     Args:
         enemy: 적 캐릭터
+        game_difficulty: 게임 난이도 (없으면 "도전" 사용)
 
     Returns:
         적절한 AI 인스턴스
@@ -815,5 +859,6 @@ def create_ai_for_enemy(enemy: Any) -> EnemyAI:
     if 'boss' in enemy_name or '보스' in enemy_name or 'dragon' in enemy_name or '드래곤' in enemy_name:
         return BossAI(enemy)
 
-    # 일반 적도 hard 난이도로 (더 공격적으로)
-    return EnemyAI(enemy, difficulty="hard")
+    # 일반 적은 게임 난이도 사용 (없으면 "도전" 기본값)
+    difficulty = game_difficulty if game_difficulty else "도전"
+    return EnemyAI(enemy, difficulty=difficulty)
