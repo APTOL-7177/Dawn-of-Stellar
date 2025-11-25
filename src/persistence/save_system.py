@@ -175,7 +175,7 @@ class SaveSystem:
                 # 전역 인스턴스 직접 업데이트 (참조 교체)
                 import src.town.town_manager as town_module
                 town_module._town_manager = loaded_town_manager
-                logger.info(f"마을 데이터 복원 완료 - 창고 아이템: {len(loaded_town_manager.hub_storage)}개")
+                logger.info(f"[DEBUG] 마을 데이터 복원 완료 (id: {id(loaded_town_manager)}, hub_storage: {len(loaded_town_manager.hub_storage)}개, storage_inventory: {len(loaded_town_manager.get_storage_inventory())}개)")
 
                 # 마을 창고 아이템 로드 로그
                 storage_inventory = loaded_town_manager.get_storage_inventory()
@@ -756,12 +756,17 @@ def serialize_game_state(
     town_manager_data = None
     if exploration and hasattr(exploration, 'town_manager') and exploration.town_manager:
         town_manager_data = exploration.town_manager.to_dict()
+        logger.info(f"[DEBUG] 저장: exploration.town_manager 사용 (id: {id(exploration.town_manager)}, storage: {len(exploration.town_manager.get_storage_inventory())}개)")
     else:
+        logger.warning("[DEBUG] 저장: exploration.town_manager 없음")
         # 폴백: 전역 town_manager
         from src.town.town_manager import get_town_manager
         global_tm = get_town_manager()
         if global_tm:
             town_manager_data = global_tm.to_dict()
+            logger.info(f"[DEBUG] 저장: 전역 town_manager 사용 (id: {id(global_tm)}, storage: {len(global_tm.get_storage_inventory())}개)")
+        else:
+            logger.error("[DEBUG] 저장: 전역 town_manager도 없음")
 
     result = {
         "party": party_data,
