@@ -494,10 +494,11 @@ def get_town_manager() -> TownManager:
     global _town_manager
     if _town_manager is None:
         _town_manager = TownManager()
+        print(f"[TOWN_MANAGER] 새로 생성됨: id={id(_town_manager)}")
     # DEBUG: 싱글톤 확인
     import sys
     frame = sys._getframe(1)
     caller_name = frame.f_code.co_name if frame else "unknown"
     filename = frame.f_code.co_filename.split('\\')[-1] if frame else "unknown"
-    print(f"[DEBUG] get_town_manager() called from {filename}:{caller_name}, returning id: {id(_town_manager)}, storage: {len(_town_manager.get_storage_inventory())}")
+    print(f"[TOWN_MANAGER] 호출됨 from {filename}:{caller_name}, id={id(_town_manager)}, storage={len(_town_manager.get_storage_inventory())}")
     return _town_manager
