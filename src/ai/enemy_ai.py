@@ -30,13 +30,13 @@ class EnemyAI:
         self.enemy = enemy
         self.difficulty = difficulty
 
-        # 난이도별 스킬 사용 확률 조정 (더욱 공격적으로 변경)
+        # 난이도별 스킬 사용 확률 조정 (확률을 낮춤)
         self.skill_use_multiplier = {
-            "easy": 1.0,     # 스킬 사용 기본
-            "normal": 2.5,   # 스킬 사용 2.5배
-            "hard": 4.0,     # 스킬 사용 4배 (훨씬 더 적극적)
-            "insane": 6.0    # 스킬 사용 6배
-        }.get(difficulty, 4.0)  # 기본값도 4.0으로
+            "easy": 0.8,     # 스킬 사용 0.8배 (20% 감소)
+            "normal": 1.2,   # 스킬 사용 1.2배
+            "hard": 1.5,     # 스킬 사용 1.5배
+            "insane": 2.0    # 스킬 사용 2배
+        }.get(difficulty, 1.5)  # 기본값 1.5배
 
     def decide_action(
         self,
@@ -84,10 +84,9 @@ class EnemyAI:
 
         if selected_skill:
             # 스킬 사용 확률 체크 (난이도 반영)
-            # 확률이 1.0을 초과할 수 있도록 처리 (항상 사용하거나 높은 확률)
             adjusted_probability = selected_skill.use_probability * self.skill_use_multiplier
-            # 최소 확률 보장 (스킬이 있으면 최소 50% 확률로 사용)
-            adjusted_probability = max(adjusted_probability, 0.5)
+            # 최소 확률 보장 (스킬이 있으면 최소 20% 확률로 사용, 기존 50%에서 낮춤)
+            adjusted_probability = max(adjusted_probability, 0.2)
             if random.random() < min(adjusted_probability, 1.0):
                 # 대상 선택
                 target = self._select_target(selected_skill, allies, enemies)
@@ -757,7 +756,7 @@ class SephirothAI(BossAI):
 
     def __init__(self, enemy: Any):
         super().__init__(enemy)
-        self.skill_use_multiplier = 5.0  # 스킬 사용 확률 5배 (2.5 -> 5.0)
+        self.skill_use_multiplier = 2.5  # 스킬 사용 확률 2.5배 (기존 5.0에서 낮춤)
         self.phase = 1
 
     def decide_action(

@@ -206,7 +206,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"physical_attack": 15, "accuracy": 5},
+        "base_stats": {"physical_attack": 10, "accuracy": 3},
         "sell_price": 50
     },
     "steel_sword": {
@@ -214,7 +214,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 30, "accuracy": 8},
+        "base_stats": {"physical_attack": 20, "accuracy": 5},
         "sell_price": 150
     },
     "mithril_sword": {
@@ -222,7 +222,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 50, "accuracy": 12, "speed": 3},
+        "base_stats": {"physical_attack": 32, "accuracy": 8, "speed": 2},
         "sell_price": 500
     },
     "dragon_slayer": {
@@ -230,7 +230,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"physical_attack": 85, "strength": 10},
+        "base_stats": {"physical_attack": 55, "strength": 6},
         "sell_price": 2000
     },
 
@@ -240,7 +240,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"magic_attack": 18, "mp": 10},
+        "base_stats": {"magic_attack": 12, "mp": 6},
         "sell_price": 60
     },
     "crystal_staff": {
@@ -248,7 +248,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"magic_attack": 60, "mp": 30, "spirit": 5},
+        "base_stats": {"magic_attack": 39, "mp": 20, "spirit": 3},
         "sell_price": 600
     },
     "archmagus_staff": {
@@ -256,7 +256,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 7,
-        "base_stats": {"magic_attack": 120, "mp": 60, "spirit": 15},
+        "base_stats": {"magic_attack": 78, "mp": 39, "spirit": 10},
         "sell_price": 5000
     },
 
@@ -266,7 +266,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"physical_attack": 12, "accuracy": 10},
+        "base_stats": {"physical_attack": 8, "accuracy": 6},
         "sell_price": 45
     },
     "longbow": {
@@ -274,7 +274,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 35, "accuracy": 15, "evasion": 3},
+        "base_stats": {"physical_attack": 23, "accuracy": 10, "evasion": 2},
         "sell_price": 200
     },
     "composite_bow": {
@@ -282,7 +282,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 55, "accuracy": 20, "critical_rate": 10},
+        "base_stats": {"physical_attack": 36, "accuracy": 13, "critical_rate": 6},
         "sell_price": 550
     },
 
@@ -292,7 +292,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"physical_attack": 10, "speed": 5, "evasion": 5},
+        "base_stats": {"physical_attack": 6, "speed": 3, "evasion": 3},
         "sell_price": 35
     },
     "assassin_dagger": {
@@ -300,7 +300,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 40, "speed": 10, "critical_rate": 20},
+        "base_stats": {"physical_attack": 26, "speed": 6, "critical_rate": 13},
         "sell_price": 450
     },
     "venom_fang": {
@@ -308,7 +308,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 65, "speed": 15, "critical_rate": 25},
+        "base_stats": {"physical_attack": 42, "speed": 10, "critical_rate": 16},
         "sell_price": 1800
     },
 
@@ -318,7 +318,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"physical_attack": 18, "strength": 3},
+        "base_stats": {"physical_attack": 12, "strength": 2},
         "sell_price": 55
     },
     "war_hammer": {
@@ -326,7 +326,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 45, "strength": 8, "physical_defense": 5},
+        "base_stats": {"physical_attack": 29, "strength": 5, "physical_defense": 3},
         "sell_price": 280
     },
     "titan_hammer": {
@@ -334,7 +334,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"physical_attack": 95, "strength": 15, "hp": 50},
+        "base_stats": {"physical_attack": 62, "strength": 10, "hp": 32},
         "sell_price": 2200
     },
 
@@ -344,7 +344,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"physical_attack": 14, "accuracy": 8},
+        "base_stats": {"physical_attack": 9, "accuracy": 5},
         "sell_price": 48
     },
     "halberd": {
@@ -352,7 +352,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 48, "accuracy": 12, "physical_defense": 8},
+        "base_stats": {"physical_attack": 31, "accuracy": 8, "physical_defense": 5},
         "sell_price": 320
     },
     "dragon_lance": {
@@ -360,7 +360,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 110, "accuracy": 20, "critical_rate": 15},
+        "base_stats": {"physical_attack": 72, "accuracy": 13, "critical_rate": 10},
         "sell_price": 6000
     },
 
@@ -370,7 +370,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"magic_attack": 40, "mp": 20},
+        "base_stats": {"magic_attack": 26, "mp": 13},
         "sell_price": 250
     },
     "ice_staff": {
@@ -378,7 +378,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"magic_attack": 40, "mp": 20},
+        "base_stats": {"magic_attack": 26, "mp": 13},
         "sell_price": 250
     },
     "staff_of_cosmos": {
@@ -386,7 +386,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 9,
-        "base_stats": {"magic_attack": 130, "mp": 80, "spirit": 20},
+        "base_stats": {"magic_attack": 84, "mp": 52, "spirit": 13},
         "sell_price": 7500
     },
 
@@ -396,7 +396,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 55, "speed": -2},
+        "base_stats": {"physical_attack": 36, "speed": -1},
         "unique_effect": "lifesteal:0.15",  # 15% 생명력 흡수
         "sell_price": 800
     },
@@ -405,7 +405,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"physical_attack": 95, "magic_attack": 30, "hp": -50},
+        "base_stats": {"physical_attack": 62, "magic_attack": 20, "hp": -32},
         "unique_effect": "lifesteal:0.25",  # 25% 생명력 흡수
         "sell_price": 2500
     },
@@ -414,7 +414,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 80, "critical": 15},
+        "base_stats": {"physical_attack": 52, "critical": 10},
         "unique_effect": "lifesteal:0.12|on_kill_heal:50",
         "sell_price": 1800
     },
@@ -425,7 +425,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 45, "speed": 3},
+        "base_stats": {"physical_attack": 29, "speed": 2},
         "unique_effect": "brv_bonus:0.30",  # BRV +30%
         "sell_price": 600
     },
@@ -434,7 +434,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 70, "luck": 10},
+        "base_stats": {"physical_attack": 46, "luck": 6},
         "unique_effect": "brv_break_bonus:0.50",  # BREAK 데미지 +50%
         "sell_price": 1500
     },
@@ -443,7 +443,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 60, "accuracy": 10},
+        "base_stats": {"physical_attack": 39, "accuracy": 6},
         "unique_effect": "brv_steal:0.20",  # BRV 흡수 +20%
         "sell_price": 1000
     },
@@ -454,7 +454,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 50, "critical": 20, "speed": 5},
+        "base_stats": {"physical_attack": 32, "critical": 13, "speed": 3},
         "unique_effect": "critical_damage:0.50",  # 크리티컬 데미지 +50%
         "sell_price": 700
     },
@@ -463,7 +463,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 10,
-        "base_stats": {"physical_attack": 85, "critical": 35, "luck": 15},
+        "base_stats": {"physical_attack": 55, "critical": 23, "luck": 10},
         "unique_effect": "critical_damage:0.75|critical_chance:0.15",
         "sell_price": 3000
     },
@@ -472,7 +472,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 55, "critical": 15, "speed": 8},
+        "base_stats": {"physical_attack": 36, "critical": 10, "speed": 5},
         "unique_effect": "execute:0.30",  # 적 HP 30% 이하 시 +30% 데미지
         "sell_price": 900
     },
@@ -483,7 +483,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 40, "magic_attack": 15},
+        "base_stats": {"physical_attack": 26, "magic_attack": 10},
         "unique_effect": "element:fire|status_burn:0.25",  # 25% 화상
         "sell_price": 350
     },
@@ -492,7 +492,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 38, "magic_attack": 18},
+        "base_stats": {"physical_attack": 25, "magic_attack": 12},
         "unique_effect": "element:ice|debuff_slow:0.30",
         "sell_price": 350
     },
@@ -501,7 +501,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 52, "magic_attack": 25, "speed": 4},
+        "base_stats": {"physical_attack": 34, "magic_attack": 16, "speed": 3},
         "unique_effect": "chain_lightning:0.25|status_shock:0.30|chain_lightning:0.20",
         "sell_price": 750
     },
@@ -510,7 +510,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 75, "strength": 12},
+        "base_stats": {"physical_attack": 49, "strength": 8},
         "unique_effect": "element:earth|armor_penetration:0.20",
         "sell_price": 1200
     },
@@ -519,7 +519,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 42, "speed": 8, "accuracy": 10},
+        "base_stats": {"physical_attack": 27, "speed": 5, "accuracy": 6},
         "unique_effect": "element:wind|multi_strike:0.15",  # 15% 2회 공격
         "sell_price": 400
     },
@@ -528,7 +528,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"physical_attack": 88, "magic_attack": 40, "mp": 50},
+        "base_stats": {"physical_attack": 57, "magic_attack": 26, "mp": 32},
         "unique_effect": "element:void|mp_steal:0.30|debuff_silence:0.20",
         "sell_price": 2200
     },
@@ -537,7 +537,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"physical_attack": 90, "magic_attack": 35, "spirit": 15},
+        "base_stats": {"physical_attack": 58, "magic_attack": 23, "spirit": 10},
         "unique_effect": "element:holy|bonus_vs_undead:0.50|heal_on_hit:5",
         "sell_price": 2500
     },
@@ -548,7 +548,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 58, "accuracy": 15},
+        "base_stats": {"physical_attack": 38, "accuracy": 10},
         "unique_effect": "armor_penetration:0.25",
         "sell_price": 800
     },
@@ -557,7 +557,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 82, "accuracy": 50},
+        "base_stats": {"physical_attack": 53, "accuracy": 32},
         "unique_effect": "accuracy_bonus:50|armor_penetration:0.15",
         "sell_price": 1800
     },
@@ -568,7 +568,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 32, "speed": 12, "accuracy": 8},
+        "base_stats": {"physical_attack": 21, "speed": 8, "accuracy": 5},
         "unique_effect": "multi_strike:0.25|dodge_chance:0.10",
         "sell_price": 300
     },
@@ -577,7 +577,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 40, "speed": 10, "critical": 10},
+        "base_stats": {"physical_attack": 26, "speed": 6, "critical": 6},
         "unique_effect": "double_strike|critical_chance:0.10",
         "sell_price": 650
     },
@@ -586,7 +586,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 50, "speed": 15, "critical": 15},
+        "base_stats": {"physical_attack": 32, "speed": 10, "critical": 10},
         "unique_effect": "multi_strike:1.0|strike_count:3-5",  # 100% 확률로 3~5회
         "sell_price": 2000
     },
@@ -597,7 +597,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 42, "defense": 8},
+        "base_stats": {"physical_attack": 27, "defense": 5},
         "unique_effect": "stun_chance:0.20|block_chance:0.10",
         "sell_price": 400
     },
@@ -606,7 +606,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 60, "defense": 20, "hp": 100},
+        "base_stats": {"physical_attack": 39, "defense": 13, "hp": 65},
         "unique_effect": "damage_from_defense:0.50|thorns:0.15",
         "sell_price": 1100
     },
@@ -615,7 +615,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"physical_attack": 78, "defense": 30, "hp": 150},
+        "base_stats": {"physical_attack": 51, "defense": 20, "hp": 98},
         "unique_effect": "block_chance:0.25|counter_attack:0.30",
         "sell_price": 2300
     },
@@ -626,7 +626,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 55, "magic_attack": 30, "mp": 50},
+        "base_stats": {"physical_attack": 36, "magic_attack": 20, "mp": 32},
         "unique_effect": "mp_to_damage:2.0|mp_cost_per_hit:10",  # MP 10당 20 추가 데미지
         "sell_price": 950
     },
@@ -635,7 +635,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"magic_attack": 60, "mp": 60, "spirit": 10},
+        "base_stats": {"magic_attack": 39, "mp": 39, "spirit": 6},
         "unique_effect": "mp_regen:5|skill_success:0.15",  # 턴당 MP+5, 스킬 성공률 +15%
         "sell_price": 750
     },
@@ -644,7 +644,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 9,
-        "base_stats": {"magic_attack": 100, "mp": 100, "luck": 20},
+        "base_stats": {"magic_attack": 65, "mp": 65, "luck": 13},
         "unique_effect": "all_element_damage:0.20|all_element_affinity:0.20|wild_magic:0.30",
         "sell_price": 2800
     },
@@ -653,7 +653,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"magic_attack": 55, "mp": 70, "spirit": 15},
+        "base_stats": {"magic_attack": 36, "mp": 46, "spirit": 10},
         "unique_effect": "spell_power:0.15|skill_success:0.20",
         "sell_price": 700
     },
@@ -662,7 +662,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"magic_attack": 85, "mp": 90, "all_element_power": 25},
+        "base_stats": {"magic_attack": 55, "mp": 58, "all_element_power": 16},
         "unique_effect": "elemental_mastery:0.25",
         "sell_price": 2100
     },
@@ -671,7 +671,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"magic_attack": 70, "mp": 60, "spirit": 12},
+        "base_stats": {"magic_attack": 46, "mp": 39, "spirit": 8},
         "unique_effect": "spell_power:0.30|mp_cost_mult:1.20",
         "sell_price": 1000
     },
@@ -680,7 +680,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"magic_attack": 90, "mp": 120, "spirit": 18},
+        "base_stats": {"magic_attack": 58, "mp": 78, "spirit": 12},
         "unique_effect": "mp_regen:10|spell_power:0.20",
         "sell_price": 2400
     },
@@ -689,7 +689,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 7,
-        "base_stats": {"magic_attack": 65, "mp": 80, "spirit": 25},
+        "base_stats": {"magic_attack": 42, "mp": 52, "spirit": 16},
         "unique_effect": "magic_from_spirit:0.50",  # Spirit의 50%를 마법 공격력에 추가
         "sell_price": 1300
     },
@@ -698,7 +698,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"magic_attack": 95, "mp": 100, "spirit": 20},
+        "base_stats": {"magic_attack": 62, "mp": 65, "spirit": 13},
         "unique_effect": "spell_echo:0.15",
         "sell_price": 2600
     },
@@ -707,7 +707,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 7,
-        "base_stats": {"magic_attack": 75, "mp": 90, "spirit": 15},
+        "base_stats": {"magic_attack": 49, "mp": 58, "spirit": 10},
         "unique_effect": "mp_steal:0.20|mp_regen:8",
         "sell_price": 1500
     },
@@ -716,7 +716,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"magic_attack": 68, "mp": 70, "fire_power": 40},
+        "base_stats": {"magic_attack": 44, "mp": 46, "fire_power": 26},
         "unique_effect": "fire_mastery:0.40|fire_weakness:0.20",
         "sell_price": 950
     },
@@ -725,7 +725,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"magic_attack": 68, "mp": 70, "ice_power": 40},
+        "base_stats": {"magic_attack": 44, "mp": 46, "ice_power": 26},
         "unique_effect": "ice_mastery:0.40|ice_weakness:0.20",
         "sell_price": 950
     },
@@ -734,7 +734,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"magic_attack": 68, "mp": 70, "lightning_power": 40},
+        "base_stats": {"magic_attack": 44, "mp": 46, "lightning_power": 26},
         "unique_effect": "lightning_mastery:0.40|lightning_weakness:0.20",
         "sell_price": 950
     },
@@ -745,7 +745,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 28, "accuracy": 12, "critical": 5},
+        "base_stats": {"physical_attack": 18, "accuracy": 8, "critical": 3},
         "unique_effect": "bonus_vs_beast:0.30|first_strike",
         "sell_price": 180
     },
@@ -754,7 +754,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 72, "accuracy": 40, "critical": 25},
+        "base_stats": {"physical_attack": 47, "accuracy": 26, "critical": 16},
         "unique_effect": "critical_damage:1.0|headshot:0.20",  # 20% 확률로 즉사
         "sell_price": 1400
     },
@@ -763,7 +763,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 35, "accuracy": 10, "speed": 5},
+        "base_stats": {"physical_attack": 23, "accuracy": 6, "speed": 3},
         "unique_effect": "triple_shot|ammo_efficiency:0.20",
         "sell_price": 550
     },
@@ -774,7 +774,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 35, "speed": 6},
+        "base_stats": {"physical_attack": 23, "speed": 4},
         "unique_effect": "status_poison:0.40|poison_damage:10",  # 40% 독, 턴당 10 데미지
         "sell_price": 320
     },
@@ -783,7 +783,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 85, "magic_attack": 40, "hp": -100},
+        "base_stats": {"physical_attack": 55, "magic_attack": 26, "hp": -65},
         "unique_effect": "debuff_master:0.30|curse_self:hp_max_reduction:0.10",
         "sell_price": 1300
     },
@@ -792,7 +792,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 44, "accuracy": 5},
+        "base_stats": {"physical_attack": 29, "accuracy": 3},
         "unique_effect": "debuff_defense_down:0.25|armor_break:0.30",
         "sell_price": 420
     },
@@ -801,7 +801,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 68, "magic_attack": 25, "critical": 15},
+        "base_stats": {"physical_attack": 44, "magic_attack": 16, "critical": 10},
         "unique_effect": "status_fear:0.35|accuracy_debuff:0.20|harvest_soul:0.10",
         "sell_price": 1100
     },
@@ -812,7 +812,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 70, "speed": 12, "critical": 10},
+        "base_stats": {"physical_attack": 46, "speed": 8, "critical": 6},
         "unique_effect": "combo_bonus:0.15|max_combo:5",  # 콤보당 +15%, 최대 75%
         "sell_price": 1900
     },
@@ -821,7 +821,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 60, "speed": 8},
+        "base_stats": {"physical_attack": 39, "speed": 5},
         "unique_effect": "berserk|low_hp_bonus:1.0",  # HP 낮을수록 최대 +100%
         "sell_price": 900
     },
@@ -830,7 +830,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"magic_attack": 110, "mp": 100, "spirit": 15},
+        "base_stats": {"magic_attack": 72, "mp": 65, "spirit": 10},
         "unique_effect": "overload:mp_cost:2.0|damage:2.5",
         "sell_price": 2600
     },
@@ -839,7 +839,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 80, "luck": 30},
+        "base_stats": {"physical_attack": 52, "luck": 20},
         "unique_effect": "random_damage:0.5-2.0|lucky_crit:0.20",
         "sell_price": 800
     },
@@ -850,7 +850,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 120, "critical": 50, "speed": 10},
+        "base_stats": {"physical_attack": 78, "critical": 32, "speed": 6},
         "unique_effect": "critical_chance:1.0|critical_damage:1.5|ignore_armor:0.30",
         "sell_price": 8000
     },
@@ -859,7 +859,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 13,
-        "base_stats": {"physical_attack": 140, "magic_attack": 80, "hp": 200, "mp": 100},
+        "base_stats": {"physical_attack": 91, "magic_attack": 52, "hp": 130, "mp": 65},
         "unique_effect": "full_hp_bonus:all_stats:0.50|invincible_at_full_hp",
         "sell_price": 15000
     },
@@ -868,7 +868,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 9,
-        "base_stats": {"physical_attack": 135, "magic_attack": 70, "all_stats": 15},
+        "base_stats": {"physical_attack": 88, "magic_attack": 46, "all_stats": 10},
         "unique_effect": "on_kill:restore_all|stack_buff:permanent|lifesteal:0.20",
         "sell_price": 12000
     },
@@ -879,7 +879,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 65, "strength": 10, "speed": -5},
+        "base_stats": {"physical_attack": 42, "strength": 6, "speed": -3},
         "unique_effect": "stun_chance:0.25|status_burn:0.20",
         "sell_price": 850
     },
@@ -888,7 +888,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 40, "accuracy": 15, "speed": 5},
+        "base_stats": {"physical_attack": 26, "accuracy": 10, "speed": 3},
         "unique_effect": "multi_strike:0.20|multi_strike:0.15",
         "sell_price": 450
     },
@@ -897,7 +897,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"magic_attack": 85, "mp": 60, "lightning_power": 30},
+        "base_stats": {"magic_attack": 55, "mp": 39, "lightning_power": 20},
         "unique_effect": "chain_lightning:0.40|status_shock:0.30",
         "sell_price": 2200
     },
@@ -908,7 +908,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 38, "hp": 30},
+        "base_stats": {"physical_attack": 25, "hp": 20},
         "unique_effect": "durability_bonus:0.50",
         "sell_price": 150
     },
@@ -917,7 +917,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"physical_attack": 20, "critical": 5},
+        "base_stats": {"physical_attack": 13, "critical": 3},
         "unique_effect": "status_bleed:0.15",
         "sell_price": 60
     },
@@ -926,7 +926,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 75, "speed": -2},
+        "base_stats": {"physical_attack": 49, "speed": -1},
         "unique_effect": "multi_hit:3|bleed_stack:0.20|low_durability",
         "sell_price": 1100
     },
@@ -937,7 +937,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"physical_attack": 90, "accuracy": 20, "speed": 10},
+        "base_stats": {"physical_attack": 58, "accuracy": 13, "speed": 6},
         "unique_effect": "ignore_armor:0.50|ignore_armor:0.30",
         "sell_price": 3500
     },
@@ -946,7 +946,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 6,
-        "base_stats": {"physical_attack": 60, "magic_attack": 60, "accuracy": 15},
+        "base_stats": {"physical_attack": 39, "magic_attack": 39, "accuracy": 10},
         "unique_effect": "status_burn:0.40|armor_melt:0.20",
         "sell_price": 1800
     },
@@ -955,7 +955,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 10,
-        "base_stats": {"magic_attack": 110, "mp": 100, "spirit": 20},
+        "base_stats": {"magic_attack": 72, "mp": 65, "spirit": 13},
         "unique_effect": "status_poison:0.40|status_burn:0.15",
         "sell_price": 8500
     },
@@ -966,7 +966,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 65, "critical": 20},
+        "base_stats": {"physical_attack": 42, "critical": 13},
         "unique_effect": "status_bleed:0.50|critical_damage:0.30",
         "sell_price": 700
     },
@@ -975,7 +975,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 9,
-        "base_stats": {"physical_attack": 125, "strength": 25, "lightning_power": 50},
+        "base_stats": {"physical_attack": 81, "strength": 16, "lightning_power": 32},
         "unique_effect": "chain_lightning:0.25|critical_chance:0.10|stun_chance:0.40",
         "sell_price": 9000
     },
@@ -986,7 +986,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"magic_attack": 70, "evasion": 30, "speed": 15},
+        "base_stats": {"magic_attack": 46, "evasion": 20, "speed": 10},
         "unique_effect": "teleport_dodge|status_confusion:0.30",
         "sell_price": 4000
     },
@@ -995,7 +995,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 35, "accuracy": 10},
+        "base_stats": {"physical_attack": 23, "accuracy": 6},
         "unique_effect": "bonus_vs_alien:0.50|crate_breaker",
         "sell_price": 300
     },
@@ -1006,7 +1006,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 32, "speed": 8, "critical": 10},
+        "base_stats": {"physical_attack": 21, "speed": 5, "critical": 6},
         "unique_effect": "lifesteal:0.10|steam_burn:0.15",
         "sell_price": 280
     },
@@ -1015,7 +1015,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 70, "physical_defense": 15},
+        "base_stats": {"physical_attack": 46, "physical_defense": 10},
         "unique_effect": "counter_attack:0.20|armor_shred:0.15",
         "sell_price": 1200
     },
@@ -1024,7 +1024,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 55, "speed": -8},
+        "base_stats": {"physical_attack": 36, "speed": -5},
         "unique_effect": "multi_strike:0.60|status_burn:0.20",
         "sell_price": 2800
     },
@@ -1033,7 +1033,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 10,
-        "base_stats": {"physical_attack": 95, "magic_attack": 65, "speed": 15},
+        "base_stats": {"physical_attack": 62, "magic_attack": 42, "speed": 10},
         "unique_effect": "cooldown_reduction:0.25|cooldown_reduction:0.15",
         "sell_price": 9500
     },
@@ -1042,7 +1042,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 58, "magic_attack": 22},
+        "base_stats": {"physical_attack": 38, "magic_attack": 14},
         "unique_effect": "status_burn:0.30|status_burn:0.15:15",
         "sell_price": 950
     },
@@ -1053,7 +1053,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"physical_attack": 18, "hp": 20},
+        "base_stats": {"physical_attack": 12, "hp": 13},
         "unique_effect": "durability:high",
         "sell_price": 45
     },
@@ -1062,7 +1062,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 42, "fire_power": 25},
+        "base_stats": {"physical_attack": 27, "fire_power": 16},
         "unique_effect": "status_burn:0.50|aoe:small",
         "sell_price": 580
     },
@@ -1071,7 +1071,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 38, "accuracy": 12, "critical": 8},
+        "base_stats": {"physical_attack": 25, "accuracy": 8, "critical": 5},
         "unique_effect": "critical_chance:0.15|scavenger_bonus:0.20",
         "sell_price": 320
     },
@@ -1080,7 +1080,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 52, "accuracy": 18, "speed": 6},
+        "base_stats": {"physical_attack": 34, "accuracy": 12, "speed": 4},
         "unique_effect": "status_bleed:0.40|piercing:0.25",
         "sell_price": 880
     },
@@ -1089,7 +1089,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 68, "speed": -6, "critical_damage": 30},
+        "base_stats": {"physical_attack": 44, "speed": -4, "critical_damage": 20},
         "unique_effect": "stun_chance:0.30|structure_damage:2.0",
         "sell_price": 420
     },
@@ -1098,7 +1098,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"physical_attack": 22, "accuracy": 5},
+        "base_stats": {"physical_attack": 14, "accuracy": 3},
         "unique_effect": "bonus_vs_vehicles:0.30",
         "sell_price": 90
     },
@@ -1109,7 +1109,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"magic_attack": 95, "mp": 80, "accuracy": 15},
+        "base_stats": {"magic_attack": 62, "mp": 52, "accuracy": 10},
         "unique_effect": "status_shock:0.50|shield_break|emp:0.30",
         "sell_price": 4200
     },
@@ -1118,7 +1118,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 11,
-        "base_stats": {"physical_attack": 115, "magic_attack": 85, "speed": 18},
+        "base_stats": {"physical_attack": 75, "magic_attack": 55, "speed": 12},
         "unique_effect": "ignore_armor:0.75|light_speed_strike|holy_damage:0.40",
         "sell_price": 11000
     },
@@ -1127,7 +1127,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 9,
-        "base_stats": {"physical_attack": 88, "magic_attack": 55, "critical": 25},
+        "base_stats": {"physical_attack": 57, "magic_attack": 36, "critical": 16},
         "unique_effect": "phase_through:0.20|quantum_crit:0.35",
         "sell_price": 5500
     },
@@ -1136,7 +1136,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 6,
-        "base_stats": {"magic_attack": 72, "ice_power": 35},
+        "base_stats": {"magic_attack": 47, "ice_power": 23},
         "unique_effect": "status_freeze:0.45|slow:0.30|shatter:0.20",
         "sell_price": 1900
     },
@@ -1145,7 +1145,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 12,
-        "base_stats": {"physical_attack": 140, "magic_attack": 60},
+        "base_stats": {"physical_attack": 91, "magic_attack": 39},
         "unique_effect": "annihilation:0.15|ignore_defense:0.80|critical_damage:0.30",
         "sell_price": 15000
     },
@@ -1154,7 +1154,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"physical_attack": 102, "strength": 18},
+        "base_stats": {"physical_attack": 66, "strength": 12},
         "unique_effect": "gravity_crush:0.25|stun_chance:0.35|slow_field",
         "sell_price": 4800
     },
@@ -1165,7 +1165,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"physical_attack": 25, "strength": 3},
+        "base_stats": {"physical_attack": 16, "strength": 2},
         "unique_effect": "reliable",
         "sell_price": 100
     },
@@ -1174,7 +1174,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 40, "speed": 12, "accuracy": 15},
+        "base_stats": {"physical_attack": 26, "speed": 8, "accuracy": 10},
         "unique_effect": "critical_chance:0.15|riposte:0.20",
         "sell_price": 480
     },
@@ -1183,7 +1183,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 65, "magic_attack": 30, "fire_power": 25},
+        "base_stats": {"physical_attack": 42, "magic_attack": 20, "fire_power": 16},
         "unique_effect": "status_burn:0.40|fire_slash",
         "sell_price": 1400
     },
@@ -1192,7 +1192,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 72, "ice_power": 28},
+        "base_stats": {"physical_attack": 47, "ice_power": 18},
         "unique_effect": "status_freeze:0.35|slow:0.40|ice_cleave",
         "sell_price": 1350
     },
@@ -1201,7 +1201,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 78, "magic_attack": 45, "lightning_power": 40},
+        "base_stats": {"physical_attack": 51, "magic_attack": 29, "lightning_power": 26},
         "unique_effect": "chain_lightning:0.50|status_shock:0.40",
         "sell_price": 3200
     },
@@ -1210,7 +1210,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"physical_attack": 75, "magic_attack": 35, "spirit": 15},
+        "base_stats": {"physical_attack": 49, "magic_attack": 23, "spirit": 10},
         "unique_effect": "holy_damage:0.30|undead_slayer:0.50|heal_on_hit:0.10",
         "sell_price": 2700
     },
@@ -1219,7 +1219,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"physical_attack": 55, "magic_attack": 48, "critical": 30},
+        "base_stats": {"physical_attack": 36, "magic_attack": 31, "critical": 20},
         "unique_effect": "lifesteal:0.20|curse:0.25|critical_damage:0.40",
         "sell_price": 2400
     },
@@ -1228,7 +1228,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 80, "strength": 12, "speed": -4},
+        "base_stats": {"physical_attack": 52, "strength": 8, "speed": -3},
         "unique_effect": "stun_chance:0.40|armor_crush:0.25",
         "sell_price": 980
     },
@@ -1237,7 +1237,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 62, "accuracy": 25, "critical": 15, "speed": 5},
+        "base_stats": {"physical_attack": 40, "accuracy": 16, "critical": 10, "speed": 3},
         "unique_effect": "piercing:0.30|wind_shot|nature_bonus:0.20",
         "sell_price": 1500
     },
@@ -1246,7 +1246,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 58, "strength": 8, "critical_damage": 25},
+        "base_stats": {"physical_attack": 38, "strength": 5, "critical_damage": 16},
         "unique_effect": "cleave|bleeding:0.25",
         "sell_price": 520
     },
@@ -1255,7 +1255,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 68, "speed": 10, "critical": 20},
+        "base_stats": {"physical_attack": 44, "speed": 6, "critical": 13},
         "unique_effect": "critical_damage:0.50|iaido|precision_strike",
         "sell_price": 1600
     },
@@ -1264,7 +1264,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 45, "speed": 8, "evasion": 10},
+        "base_stats": {"physical_attack": 29, "speed": 5, "evasion": 6},
         "unique_effect": "swift_strikes|parry:0.15",
         "sell_price": 460
     },
@@ -1273,7 +1273,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 85, "magic_attack": 40, "critical": 25},
+        "base_stats": {"physical_attack": 55, "magic_attack": 26, "critical": 16},
         "unique_effect": "lifesteal:0.20|soul_harvest|lifesteal:0.15",
         "sell_price": 3500
     },
@@ -1284,7 +1284,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"magic_attack": 100, "mp": 90, "fire_power": 50},
+        "base_stats": {"magic_attack": 65, "mp": 58, "fire_power": 32},
         "unique_effect": "status_burn:0.60|fire_explosion:0.30|spell_power:0.25",
         "sell_price": 4500
     },
@@ -1293,7 +1293,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"magic_attack": 95, "mp": 85, "ice_power": 55},
+        "base_stats": {"magic_attack": 62, "mp": 55, "ice_power": 36},
         "unique_effect": "status_freeze:0.55|ice_storm|mana_freeze:0.20",
         "sell_price": 4300
     },
@@ -1302,7 +1302,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 6,
-        "base_stats": {"magic_attack": 78, "mp": 75, "wind_power": 35},
+        "base_stats": {"magic_attack": 51, "mp": 49, "wind_power": 23},
         "unique_effect": "chain_lightning:0.40|tornado|knockback",
         "sell_price": 2100
     },
@@ -1311,7 +1311,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 70, "magic_attack": 30, "hp": 50},
+        "base_stats": {"physical_attack": 46, "magic_attack": 20, "hp": 32},
         "unique_effect": "earthquake:0.25|stun_chance:0.30|earth_shield",
         "sell_price": 1450
     },
@@ -1320,7 +1320,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 10,
-        "base_stats": {"physical_attack": 110, "magic_attack": 80, "dark_power": 60},
+        "base_stats": {"physical_attack": 72, "magic_attack": 52, "dark_power": 39},
         "unique_effect": "void_cut|mp_drain:0.15|existence_erasure:0.10",
         "sell_price": 10000
     },
@@ -1329,7 +1329,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"magic_attack": 88, "mp": 100, "spirit": 20},
+        "base_stats": {"magic_attack": 57, "mp": 65, "spirit": 13},
         "unique_effect": "holy_damage:0.40|heal_allies:0.15|dispel",
         "sell_price": 3800
     },
@@ -1338,7 +1338,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 52, "magic_attack": 38, "speed": 15, "evasion": 15},
+        "base_stats": {"physical_attack": 34, "magic_attack": 25, "speed": 10, "evasion": 10},
         "unique_effect": "backstab:2.0|stealth_bonus|critical_chance:0.20",
         "sell_price": 1550
     },
@@ -1347,7 +1347,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"magic_attack": 85, "mp": 80, "all_elements": 25},
+        "base_stats": {"magic_attack": 55, "mp": 52, "all_elements": 16},
         "unique_effect": "all_element_damage:0.20|critical_chance:0.20|critical_damage:0.40",
         "sell_price": 4000
     },
@@ -1356,7 +1356,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 6,
-        "base_stats": {"magic_attack": 75, "mp": 70, "spirit": 15, "hp": 40},
+        "base_stats": {"magic_attack": 49, "mp": 46, "spirit": 10, "hp": 26},
         "unique_effect": "hp_regen:0.03|status_poison:0.35|slow:0.25",
         "sell_price": 1800
     },
@@ -1365,7 +1365,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 65, "magic_attack": 55},
+        "base_stats": {"physical_attack": 42, "magic_attack": 36},
         "unique_effect": "lifesteal:0.30|status_bleed:0.50|lifesteal:0.15",
         "sell_price": 3300
     },
@@ -1376,7 +1376,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_attack": 32, "speed": 10, "critical": 12},
+        "base_stats": {"physical_attack": 21, "speed": 6, "critical": 8},
         "unique_effect": "critical_chance:0.15|bleeding:0.20|speed_boost:0.10",
         "sell_price": 280
     },
@@ -1385,7 +1385,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 68, "accuracy": 15, "speed": 3},
+        "base_stats": {"physical_attack": 44, "accuracy": 10, "speed": 2},
         "unique_effect": "multi_strike:0.30|slow:0.20",
         "sell_price": 1650
     },
@@ -1394,7 +1394,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 105, "accuracy": 35, "critical": 30, "speed": -5},
+        "base_stats": {"physical_attack": 68, "accuracy": 23, "critical": 20, "speed": -3},
         "unique_effect": "headshot:3.0|piercing:0.50|long_range",
         "sell_price": 3900
     },
@@ -1403,7 +1403,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 85, "speed": -3},
+        "base_stats": {"physical_attack": 55, "speed": -2},
         "unique_effect": "aoe_damage:small|knockback|close_range_bonus:0.40",
         "sell_price": 1200
     },
@@ -1412,7 +1412,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"physical_attack": 95, "fire_power": 40},
+        "base_stats": {"physical_attack": 62, "fire_power": 26},
         "unique_effect": "explosion:large|status_burn:0.40|aoe_damage",
         "sell_price": 4400
     },
@@ -1421,7 +1421,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 64, "critical": 18, "accuracy": 12},
+        "base_stats": {"physical_attack": 42, "critical": 12, "accuracy": 8},
         "unique_effect": "critical_chance:0.10|bleeding:0.30|armor_break:0.20",
         "sell_price": 1400
     },
@@ -1430,7 +1430,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_attack": 38, "magic_attack": 25},
+        "base_stats": {"physical_attack": 25, "magic_attack": 16},
         "unique_effect": "status_shock:0.50|stun_chance:0.35|nonlethal",
         "sell_price": 480
     },
@@ -1441,7 +1441,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 12,
-        "base_stats": {"physical_attack": 150, "magic_attack": 80, "all_stats": 20},
+        "base_stats": {"physical_attack": 98, "magic_attack": 52, "all_stats": 13},
         "unique_effect": "holy_damage:0.50|light_beam|auto_revive|all_stats_bonus:0.15",
         "sell_price": 25000
     },
@@ -1450,7 +1450,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 11,
-        "base_stats": {"physical_attack": 145, "critical": 40, "speed": 15},
+        "base_stats": {"physical_attack": 94, "critical": 26, "speed": 10},
         "unique_effect": "low_hp_damage:0.50|lifesteal:0.25|critical_damage:0.80|critical_damage:0.20",
         "sell_price": 20000
     },
@@ -1459,7 +1459,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 11,
-        "base_stats": {"physical_attack": 135, "magic_attack": 70, "accuracy": 50},
+        "base_stats": {"physical_attack": 88, "magic_attack": 46, "accuracy": 32},
         "unique_effect": "accuracy_bonus:50|critical_chance:0.10|piercing:0.80|magic_attack_bonus:0.20",
         "sell_price": 22000
     },
@@ -1468,7 +1468,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 12,
-        "base_stats": {"physical_attack": 140, "magic_attack": 90, "ice_power": 70},
+        "base_stats": {"physical_attack": 91, "magic_attack": 58, "ice_power": 46},
         "unique_effect": "lifesteal:0.25|status_freeze:0.70|lifesteal:0.30|summon_bonus:0.30",
         "sell_price": 28000
     },
@@ -1477,7 +1477,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 13,
-        "base_stats": {"physical_attack": 160, "magic_attack": 100, "all_stats": 25},
+        "base_stats": {"physical_attack": 104, "magic_attack": 65, "all_stats": 16},
         "unique_effect": "all_damage:0.40|ignore_armor:0.60|cooldown_reduction:0.10",
         "sell_price": 35000
     },
@@ -1486,7 +1486,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 10,
-        "base_stats": {"physical_attack": 128, "fire_power": 60, "strength": 25},
+        "base_stats": {"physical_attack": 83, "fire_power": 39, "strength": 16},
         "unique_effect": "status_burn:0.50|status_burn:0.60|physical_resist:0.25|fire_resist:1.0",
         "sell_price": 18000
     },
@@ -1495,7 +1495,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 11,
-        "base_stats": {"physical_attack": 125, "magic_attack": 95, "dark_power": 65},
+        "base_stats": {"physical_attack": 81, "magic_attack": 62, "dark_power": 42},
         "unique_effect": "lifesteal:0.30|soul_harvest|execute:0.30|lifesteal:0.25",
         "sell_price": 23000
     },
@@ -1504,7 +1504,7 @@ WEAPON_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 14,
-        "base_stats": {"physical_attack": 170, "magic_attack": 110, "all_stats": 30},
+        "base_stats": {"physical_attack": 110, "magic_attack": 72, "all_stats": 20},
         "unique_effect": "all_element_damage:0.50|all_element_damage:0.60|execute:0.40|holy_damage:0.50",
         "sell_price": 50000
     },
@@ -1513,24 +1513,24 @@ WEAPON_TEMPLATES = {
 
     
     # === Additional Common Weapons ===
-    "wooden_club": {"name": "나무 곤봉", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 8}, "sell_price": 15},
-    "stone_dagger": {"name": "돌 단검", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 9, "speed": 3}, "sell_price": 18},
-    "bone_club": {"name": "뼈 곤봉", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 10, "strength": 1}, "sell_price": 20},
-    "makeshift_spear": {"name": "임시 창", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 11}, "sell_price": 22},
-    "training_bow": {"name": "훈련용 활", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 7, "accuracy": 8}, "sell_price": 25},
-    "rusty_sword": {"name": "녹슨 검", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 12}, "sell_price": 20},
-    "cracked_staff": {"name": "금 간 지팡이", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"magic_attack": 14, "mp": 10}, "sell_price": 25},
-    "chipped_axe": {"name": "이빨 빠진 도끼", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 13}, "sell_price": 23},
+    "wooden_club": {"name": "나무 곤봉", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 5}, "sell_price": 15},
+    "stone_dagger": {"name": "돌 단검", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 6, "speed": 2}, "sell_price": 18},
+    "bone_club": {"name": "뼈 곤봉", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 6, "strength": 1}, "sell_price": 20},
+    "makeshift_spear": {"name": "임시 창", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 7}, "sell_price": 22},
+    "training_bow": {"name": "훈련용 활", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 5, "accuracy": 5}, "sell_price": 25},
+    "rusty_sword": {"name": "녹슨 검", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 8}, "sell_price": 20},
+    "cracked_staff": {"name": "금 간 지팡이", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"magic_attack": 9, "mp": 6}, "sell_price": 25},
+    "chipped_axe": {"name": "이빨 빠진 도끼", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_attack": 8}, "sell_price": 23},
     
     # === More Uncommon Weapons ===
-    "bronze_mace": {"name": "청동 메이스", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 2, "base_stats": {"physical_attack": 26, "strength": 4}, "sell_price": 120},
-    "steel_spear": {"name": "강철 창", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 3, "base_stats": {"physical_attack": 34, "accuracy": 10}, "sell_price": 180},
-    "oak_staff": {"name": "참나무 지팡이", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 2, "base_stats": {"magic_attack": 32, "mp": 30, "spirit": 5}, "sell_price": 150},
-    "short_sword": {"name": "짧은 검", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 2, "base_stats": {"physical_attack": 28, "speed": 5}, "sell_price": 130},
-    "war_bow": {"name": "전쟁 활", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 3, "base_stats": {"physical_attack": 36, "accuracy": 12}, "sell_price": 170},
-    "battle_axe": {"name": "전투 도끼", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 3, "base_stats": {"physical_attack": 40, "strength": 6, "speed": -2}, "sell_price": 200},
-    "light_crossbow": {"name": "경량 석궁", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 3, "base_stats": {"physical_attack": 35, "accuracy": 15}, "sell_price": 190},
-    "simple_wand": {"name": "단순 완드", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 2, "base_stats": {"magic_attack": 30, "mp": 25}, "sell_price": 140},
+    "bronze_mace": {"name": "청동 메이스", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 2, "base_stats": {"physical_attack": 17, "strength": 3}, "sell_price": 120},
+    "steel_spear": {"name": "강철 창", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 3, "base_stats": {"physical_attack": 22, "accuracy": 6}, "sell_price": 180},
+    "oak_staff": {"name": "참나무 지팡이", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 2, "base_stats": {"magic_attack": 21, "mp": 20, "spirit": 3}, "sell_price": 150},
+    "short_sword": {"name": "짧은 검", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 2, "base_stats": {"physical_attack": 18, "speed": 3}, "sell_price": 130},
+    "war_bow": {"name": "전쟁 활", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 3, "base_stats": {"physical_attack": 23, "accuracy": 8}, "sell_price": 170},
+    "battle_axe": {"name": "전투 도끼", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 3, "base_stats": {"physical_attack": 26, "strength": 4, "speed": -1}, "sell_price": 200},
+    "light_crossbow": {"name": "경량 석궁", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 3, "base_stats": {"physical_attack": 23, "accuracy": 10}, "sell_price": 190},
+    "simple_wand": {"name": "단순 완드", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 2, "base_stats": {"magic_attack": 20, "mp": 16}, "sell_price": 140},
 }
 
 ARMOR_TEMPLATES = {
@@ -1540,7 +1540,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"physical_defense": 10, "hp": 20},
+        "base_stats": {"physical_defense": 6, "hp": 13},
         "sell_price": 40
     },
     "plate_armor": {
@@ -1548,7 +1548,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_defense": 50, "hp": 80, "physical_attack": -5},
+        "base_stats": {"physical_defense": 32, "hp": 52, "physical_attack": -3},
         "sell_price": 600
     },
     "dragon_scale_armor": {
@@ -1556,7 +1556,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 7,
-        "base_stats": {"physical_defense": 90, "magic_defense": 70, "hp": 150},
+        "base_stats": {"physical_defense": 58, "magic_defense": 46, "hp": 98},
         "sell_price": 8000
     },
 
@@ -1566,7 +1566,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"magic_defense": 12, "mp": 15},
+        "base_stats": {"magic_defense": 8, "mp": 10},
         "sell_price": 50
     },
     "mage_robe": {
@@ -1574,7 +1574,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"magic_defense": 40, "mp": 50, "magic_attack": 10},
+        "base_stats": {"magic_defense": 26, "mp": 32, "magic_attack": 6},
         "sell_price": 500
     },
     "archmage_robe": {
@@ -1582,7 +1582,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"magic_defense": 70, "mp": 100, "magic_attack": 25},
+        "base_stats": {"magic_defense": 46, "mp": 65, "magic_attack": 16},
         "sell_price": 2000
     },
     "celestial_robes": {
@@ -1590,7 +1590,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 7,
-        "base_stats": {"magic_defense": 100, "mp": 150, "magic_attack": 40, "spirit": 15},
+        "base_stats": {"magic_defense": 65, "mp": 98, "magic_attack": 26, "spirit": 10},
         "sell_price": 7000
     },
 
@@ -1600,7 +1600,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"physical_defense": 8, "evasion": 5},
+        "base_stats": {"physical_defense": 5, "evasion": 3},
         "sell_price": 38
     },
     "studded_leather": {
@@ -1608,7 +1608,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_defense": 22, "evasion": 8, "hp": 30},
+        "base_stats": {"physical_defense": 14, "evasion": 5, "hp": 20},
         "sell_price": 180
     },
 
@@ -1618,7 +1618,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_defense": 35, "hp": 50, "strength": 5},
+        "base_stats": {"physical_defense": 23, "hp": 32, "strength": 3},
         "sell_price": 350
     },
     "dragon_armor": {
@@ -1626,7 +1626,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 11,
-        "base_stats": {"physical_defense": 95, "magic_defense": 75, "hp": 180, "strength": 12},
+        "base_stats": {"physical_defense": 62, "magic_defense": 49, "hp": 117, "strength": 8},
         "sell_price": 9000
     },
 
@@ -1636,7 +1636,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"magic_defense": 35, "spirit": 12, "hp": 80},
+        "base_stats": {"magic_defense": 23, "spirit": 8, "hp": 52},
         "unique_effect": "wound_reduction:0.30|heal_boost:0.20",
         "sell_price": 650
     },
@@ -1645,7 +1645,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_defense": 60, "hp": 150, "defense": 15},
+        "base_stats": {"physical_defense": 39, "hp": 98, "defense": 10},
         "unique_effect": "wound_regen:5|hp_regen:0.03",  # 턴당 상처 5, HP 3%
         "sell_price": 1800
     },
@@ -1654,7 +1654,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"physical_defense": 70, "magic_defense": 40, "hp": 120},
+        "base_stats": {"physical_defense": 46, "magic_defense": 26, "hp": 78},
         "unique_effect": "wound_immunity|damage_taken:0.10",
         "sell_price": 2200
     },
@@ -1663,7 +1663,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_defense": 45, "magic_defense": 30, "hp": 100},
+        "base_stats": {"physical_defense": 29, "magic_defense": 20, "hp": 65},
         "unique_effect": "wound_reduction:0.50",
         "sell_price": 850
     },
@@ -1674,7 +1674,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_defense": 40, "magic_defense": 35, "hp": 90},
+        "base_stats": {"physical_defense": 26, "magic_defense": 23, "hp": 58},
         "unique_effect": "brv_shield:0.30|brv_protect",  # BREAK 1회 방지
         "sell_price": 700
     },
@@ -1683,7 +1683,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_defense": 85, "hp": 200, "speed": -5},
+        "base_stats": {"physical_defense": 55, "hp": 130, "speed": -3},
         "unique_effect": "brv_shield:0.50|block_chance:0.20",
         "sell_price": 2000
     },
@@ -1692,7 +1692,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_defense": 35, "hp": 80},
+        "base_stats": {"physical_defense": 23, "hp": 52},
         "unique_effect": "brv_bonus:0.25|defense_reduction:0.20",
         "sell_price": 800
     },
@@ -1703,7 +1703,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"magic_defense": 12, "mp": 40, "magic_attack": 12},
+        "base_stats": {"magic_defense": 8, "mp": 26, "magic_attack": 8},
         "unique_effect": "mp_regen:3",
         "sell_price": 150
     },
@@ -1712,7 +1712,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"magic_defense": 40, "mp": 80, "magic_attack": 25, "spirit": 12},
+        "base_stats": {"magic_defense": 26, "mp": 52, "magic_attack": 16, "spirit": 8},
         "unique_effect": "spell_power:0.15|mp_cost_reduction:0.10",
         "sell_price": 750
     },
@@ -1721,7 +1721,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"magic_defense": 65, "mp": 120, "magic_attack": 35, "spirit": 18},
+        "base_stats": {"magic_defense": 42, "mp": 78, "magic_attack": 23, "spirit": 12},
         "unique_effect": "mp_regen:10|spell_power:0.10|magic_defense_boost:0.25",
         "sell_price": 2000
     },
@@ -1730,7 +1730,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"magic_defense": 48, "mp": 120, "spirit": 28, "magic_attack": 20},
+        "base_stats": {"magic_defense": 31, "mp": 78, "spirit": 18, "magic_attack": 13},
         "unique_effect": "spell_success:0.20",  # 스킬 성공률 +20%
         "sell_price": 950
     },
@@ -1739,7 +1739,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"magic_defense": 72, "mp": 130, "magic_attack": 40, "spirit": 20},
+        "base_stats": {"magic_defense": 47, "mp": 84, "magic_attack": 26, "spirit": 13},
         "unique_effect": "all_element_resist:0.20|elemental_mastery:0.25",
         "sell_price": 2400
     },
@@ -1748,7 +1748,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"magic_defense": 55, "mp": 100, "spirit": 15},
+        "base_stats": {"magic_defense": 36, "mp": 65, "spirit": 10},
         "unique_effect": "mp_cost_reduction:0.25|magic_defense_boost:0.30",
         "sell_price": 1100
     },
@@ -1757,7 +1757,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"magic_defense": 85, "mp": 110, "spirit": 22},
+        "base_stats": {"magic_defense": 55, "mp": 72, "spirit": 14},
         "unique_effect": "spell_reflect:0.30",
         "sell_price": 2700
     },
@@ -1768,7 +1768,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_defense": 38, "hp": 120},
+        "base_stats": {"physical_defense": 25, "hp": 78},
         "unique_effect": "hp_regen:0.05|weakness_fire",
         "sell_price": 600
     },
@@ -1777,7 +1777,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"physical_defense": 75, "magic_defense": 60, "hp": 150},
+        "base_stats": {"physical_defense": 49, "magic_defense": 39, "hp": 98},
         "unique_effect": "hp_regen:0.03|phoenix_rebirth",
         "sell_price": 2800
     },
@@ -1786,7 +1786,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"magic_defense": 45, "mp": 80, "magic_attack": 15},
+        "base_stats": {"magic_defense": 29, "mp": 52, "magic_attack": 10},
         "unique_effect": "mp_regen:8|mp_cost_reduction:0.10",
         "sell_price": 750
     },
@@ -1795,7 +1795,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"magic_defense": 70, "mp": 150, "magic_attack": 35, "spirit": 18},
+        "base_stats": {"magic_defense": 46, "mp": 98, "magic_attack": 23, "spirit": 12},
         "unique_effect": "mp_regen:12|spell_power:0.15|spell_reflect:0.20",
         "sell_price": 2500
     },
@@ -1806,7 +1806,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_defense": 32, "hp": 60},
+        "base_stats": {"physical_defense": 21, "hp": 39},
         "unique_effect": "thorns:0.25",
         "sell_price": 350
     },
@@ -1815,7 +1815,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"physical_defense": 72, "magic_defense": 55, "hp": 140},
+        "base_stats": {"physical_defense": 47, "magic_defense": 36, "hp": 91},
         "unique_effect": "thorns:0.40|spell_reflect:0.50",
         "sell_price": 2200
     },
@@ -1824,7 +1824,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_defense": 55, "hp": 110, "strength": 8},
+        "base_stats": {"physical_defense": 36, "hp": 72, "strength": 5},
         "unique_effect": "counter_attack:0.30|vengeance_damage:0.20",
         "sell_price": 1100
     },
@@ -1835,7 +1835,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_defense": 65, "hp": 150, "speed": -3},
+        "base_stats": {"physical_defense": 42, "hp": 98, "speed": -2},
         "unique_effect": "block_chance:0.30|block_perfect",
         "sell_price": 950
     },
@@ -1844,7 +1844,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 10,
-        "base_stats": {"physical_defense": 90, "magic_defense": 70, "hp": 200},
+        "base_stats": {"physical_defense": 58, "magic_defense": 46, "hp": 130},
         "unique_effect": "flat_damage_reduction:15|crit_immunity",
         "sell_price": 3200
     },
@@ -1853,7 +1853,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"physical_defense": 80, "magic_defense": 60, "hp": 180},
+        "base_stats": {"physical_defense": 52, "magic_defense": 39, "hp": 117},
         "unique_effect": "ally_protect:0.10|damage_redirect",
         "sell_price": 2400
     },
@@ -1864,7 +1864,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"magic_defense": 55, "evasion": 35, "speed": 12, "luck": 10},
+        "base_stats": {"magic_defense": 36, "evasion": 23, "speed": 8, "luck": 6},
         "unique_effect": "dodge_chance:0.35|dodge_counter",
         "sell_price": 2000
     },
@@ -1873,7 +1873,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"physical_defense": 35, "evasion": 20, "speed": 15},
+        "base_stats": {"physical_defense": 23, "evasion": 13, "speed": 10},
         "unique_effect": "dodge_chance:0.20|brv_steal:0.30",
         "sell_price": 800
     },
@@ -1884,7 +1884,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"physical_defense": 70, "magic_defense": 65, "hp": 140},
+        "base_stats": {"physical_defense": 46, "magic_defense": 42, "hp": 91},
         "unique_effect": "fire_resist:1.0|fire_absorb",
         "sell_price": 2300
     },
@@ -1893,7 +1893,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_defense": 58, "magic_defense": 50, "hp": 110},
+        "base_stats": {"physical_defense": 38, "magic_defense": 32, "hp": 72},
         "unique_effect": "ice_immunity|on_hit_slow:0.30",
         "sell_price": 1200
     },
@@ -1902,7 +1902,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_defense": 65, "magic_defense": 60, "hp": 120, "speed": 8},
+        "base_stats": {"physical_defense": 42, "magic_defense": 39, "hp": 78, "speed": 5},
         "unique_effect": "lightning_immunity|lightning_reflect",
         "sell_price": 1900
     },
@@ -1911,7 +1911,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"magic_defense": 75, "spirit": 20, "hp": 130, "mp": 80},
+        "base_stats": {"magic_defense": 49, "spirit": 13, "hp": 84, "mp": 52},
         "unique_effect": "all_element_resist:0.30",
         "sell_price": 2700
     },
@@ -1922,7 +1922,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"magic_defense": 48, "hp": 100, "spirit": 10},
+        "base_stats": {"magic_defense": 31, "hp": 65, "spirit": 6},
         "unique_effect": "status_immunity:poison,burn,bleed",
         "sell_price": 950
     },
@@ -1931,7 +1931,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"physical_defense": 72, "magic_defense": 65, "hp": 150, "spirit": 15},
+        "base_stats": {"physical_defense": 47, "magic_defense": 42, "hp": 98, "spirit": 10},
         "unique_effect": "debuff_duration:-0.50|cleanse_on_turn:0.30",  # 30% 확률로 디버프 제거
         "sell_price": 2300
     },
@@ -1940,7 +1940,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"physical_defense": 80, "hp": 180, "spirit": 12},
+        "base_stats": {"physical_defense": 52, "hp": 117, "spirit": 8},
         "unique_effect": "cc_immunity:stun,sleep,confusion",
         "sell_price": 2500
     },
@@ -1951,7 +1951,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 7,
-        "base_stats": {"physical_defense": 20, "magic_defense": 15},
+        "base_stats": {"physical_defense": 13, "magic_defense": 10},
         "unique_effect": "glass_cannon:damage:0.30|taken:0.50",
         "sell_price": 1200
     },
@@ -1960,7 +1960,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"physical_defense": 70, "hp": 150, "strength": 10},
+        "base_stats": {"physical_defense": 46, "hp": 98, "strength": 6},
         "unique_effect": "on_kill:max_hp:10|stack_max:10",
         "sell_price": 2600
     },
@@ -1969,7 +1969,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 9,
-        "base_stats": {"physical_defense": 75, "magic_defense": 75, "hp": 160},
+        "base_stats": {"physical_defense": 49, "magic_defense": 49, "hp": 104},
         "unique_effect": "adaptive_resistance:0.20|duration:3",
         "sell_price": 2900
     },
@@ -1980,7 +1980,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 9,
-        "base_stats": {"physical_defense": 120, "magic_defense": 110, "hp": 300, "all_stats": 15},
+        "base_stats": {"physical_defense": 78, "magic_defense": 72, "hp": 195, "all_stats": 10},
         "unique_effect": "block_chance:0.50|immortality:once|all_resist:0.30",
         "sell_price": 15000
     },
@@ -1989,7 +1989,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 7,
-        "base_stats": {"magic_defense": 110, "mp": 200, "spirit": 25, "magic_attack": 50},
+        "base_stats": {"magic_defense": 72, "mp": 130, "spirit": 16, "magic_attack": 32},
         "unique_effect": "all_element_resist:0.50|wound_immunity|mp_regen:15|spell_power:0.30",
         "sell_price": 13000
     },
@@ -2000,7 +2000,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_defense": 60, "hp": 100, "fire_resist": 20, "water_resist": 20},
+        "base_stats": {"physical_defense": 39, "hp": 65, "fire_resist": 13, "water_resist": 13},
         "unique_effect": "fire_resist:0.30",
         "sell_price": 900
     },
@@ -2009,7 +2009,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_defense": 25, "speed": 10, "wind_resist": 15},
+        "base_stats": {"physical_defense": 16, "speed": 6, "wind_resist": 10},
         "unique_effect": "speed_boost:0.10",
         "sell_price": 400
     },
@@ -2020,7 +2020,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_defense": 45, "magic_defense": 5, "hp": 60},
+        "base_stats": {"physical_defense": 29, "magic_defense": 3, "hp": 39},
         "unique_effect": "thorns:0.10",
         "sell_price": 250
     },
@@ -2029,7 +2029,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"physical_defense": 20, "magic_defense": 20, "hp": 50},
+        "base_stats": {"physical_defense": 13, "magic_defense": 13, "hp": 32},
         "unique_effect": "status_immunity:poison,acid,radiation",
         "sell_price": 800
     },
@@ -2040,7 +2040,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_defense": 30, "magic_defense": 30, "mp": 50},
+        "base_stats": {"physical_defense": 20, "magic_defense": 20, "mp": 32},
         "unique_effect": "energy_shield:hp:200|regen_shield",
         "sell_price": 2500
     },
@@ -2049,7 +2049,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 10,
-        "base_stats": {"physical_defense": 120, "magic_defense": 80, "strength": 30, "hp": 250, "speed": -10},
+        "base_stats": {"physical_defense": 78, "magic_defense": 52, "strength": 20, "hp": 162, "speed": -6},
         "unique_effect": "strength_boost:0.20|",
         "sell_price": 10000
     },
@@ -2060,7 +2060,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"magic_defense": 25, "mp": 30, "speed": 5},
+        "base_stats": {"magic_defense": 16, "mp": 20, "speed": 3},
         "unique_effect": "mp_regen:3",
         "sell_price": 200
     },
@@ -2069,7 +2069,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"magic_defense": 45, "mp": 70, "magic_attack": 25, "spirit": 10},
+        "base_stats": {"magic_defense": 29, "mp": 46, "magic_attack": 16, "spirit": 6},
         "unique_effect": "spell_power:0.15|mp_cost_reduction:0.10",
         "sell_price": 1100
     },
@@ -2078,7 +2078,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"magic_defense": 75, "mp": 150, "magic_attack": 45, "spirit": 20},
+        "base_stats": {"magic_defense": 49, "mp": 98, "magic_attack": 29, "spirit": 13},
         "unique_effect": "spell_power:0.30|mp_regen:10|spell_echo:0.15",
         "sell_price": 3800
     },
@@ -2087,7 +2087,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_defense": 30, "evasion": 25, "speed": 15},
+        "base_stats": {"physical_defense": 20, "evasion": 16, "speed": 10},
         "unique_effect": "stealth_bonus|dodge_chance:0.20|shadow_step",
         "sell_price": 1400
     },
@@ -2096,7 +2096,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"magic_defense": 60, "evasion": 30, "speed": 20, "wind_power": 35},
+        "base_stats": {"magic_defense": 39, "evasion": 20, "speed": 13, "wind_power": 23},
         "unique_effect": "dodge_chance:0.30|wind_evasion|tornado_shield",
         "sell_price": 3200
     },
@@ -2107,7 +2107,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 2,
-        "base_stats": {"physical_defense": 40, "hp": 50},
+        "base_stats": {"physical_defense": 26, "hp": 32},
         "unique_effect": "slash_resist:0.20",
         "sell_price": 250
     },
@@ -2116,7 +2116,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_defense": 55, "magic_defense": 20, "hp": 70},
+        "base_stats": {"physical_defense": 36, "magic_defense": 13, "hp": 46},
         "unique_effect": "melee_resist:0.15",
         "sell_price": 480
     },
@@ -2125,7 +2125,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_defense": 75, "magic_defense": 35, "hp": 100},
+        "base_stats": {"physical_defense": 49, "magic_defense": 23, "hp": 65},
         "unique_effect": "water_resist:0.30|scales_deflection:0.15",
         "sell_price": 1300
     },
@@ -2134,7 +2134,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 10,
-        "base_stats": {"physical_defense": 110, "magic_defense": 90, "hp": 250, "fire_resist": 50},
+        "base_stats": {"physical_defense": 72, "magic_defense": 58, "hp": 162, "fire_resist": 32},
         "unique_effect": "fire_resist:1.0|physical_resist:0.30|dragon_aura",
         "sell_price": 16000
     },
@@ -2143,7 +2143,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 6,
-        "base_stats": {"physical_defense": 70, "magic_defense": 40, "hp": 110, "strength": 10},
+        "base_stats": {"physical_defense": 46, "magic_defense": 26, "hp": 72, "strength": 6},
         "unique_effect": "counter_attack:0.25|honor_buff",
         "sell_price": 1700
     },
@@ -2154,7 +2154,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_defense": 65, "hp": 80, "speed": -3},
+        "base_stats": {"physical_defense": 42, "hp": 52, "speed": -2},
         "unique_effect": "physical_resist:0.10",
         "sell_price": 400
     },
@@ -2163,7 +2163,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_defense": 95, "hp": 150, "strength": 8, "speed": -5},
+        "base_stats": {"physical_defense": 62, "hp": 98, "strength": 5, "speed": -3},
         "unique_effect": "physical_resist:0.25|immovable",
         "sell_price": 1500
     },
@@ -2172,7 +2172,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_defense": 110, "magic_defense": 60, "hp": 180, "spirit": 15},
+        "base_stats": {"physical_defense": 72, "magic_defense": 39, "hp": 117, "spirit": 10},
         "unique_effect": "holy_protection|undead_resist:0.50|faith_shield",
         "sell_price": 3500
     },
@@ -2181,7 +2181,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 11,
-        "base_stats": {"physical_defense": 130, "magic_defense": 110, "hp": 280, "dark_power": 50},
+        "base_stats": {"physical_defense": 84, "magic_defense": 72, "hp": 182, "dark_power": 32},
         "unique_effect": "magic_reflect:0.30|curse_immunity|dark_absorption",
         "sell_price": 19000
     },
@@ -2190,7 +2190,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 12,
-        "base_stats": {"physical_defense": 150, "hp": 350, "strength": 35, "speed": -8},
+        "base_stats": {"physical_defense": 98, "hp": 228, "strength": 23, "speed": -5},
         "unique_effect": "giant_strength|knockback_immunity|earthquake_step",
         "sell_price": 22000
     },
@@ -2201,7 +2201,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"physical_defense": 85, "magic_defense": 95, "hp": 160, "ice_power": 50},
+        "base_stats": {"physical_defense": 55, "magic_defense": 62, "hp": 104, "ice_power": 32},
         "unique_effect": "ice_immunity|freeze_aura:0.20|slow_attackers:0.30",
         "sell_price": 4200
     },
@@ -2210,7 +2210,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"physical_defense": 90, "magic_defense": 80, "hp": 150, "lightning_power": 55},
+        "base_stats": {"physical_defense": 58, "magic_defense": 52, "hp": 98, "lightning_power": 36},
         "unique_effect": "lightning_immunity|shock_counter:0.40|speed_boost:0.15",
         "sell_price": 4100
     },
@@ -2219,7 +2219,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_defense": 120, "magic_defense": 50, "hp": 220, "earth_power": 40},
+        "base_stats": {"physical_defense": 78, "magic_defense": 32, "hp": 143, "earth_power": 26},
         "unique_effect": "earth_wall|hp_regen:0.02|immovable_stance",
         "sell_price": 3600
     },
@@ -2228,7 +2228,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 11,
-        "base_stats": {"physical_defense": 100, "magic_defense": 120, "hp": 200, "dark_power": 60, "void_power": 50},
+        "base_stats": {"physical_defense": 65, "magic_defense": 78, "hp": 130, "dark_power": 39, "void_power": 32},
         "unique_effect": "void_phase:0.25|damage_absorption:0.20|existence_denial",
         "sell_price": 20000
     },
@@ -2239,7 +2239,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_defense": 60, "hp": 130, "strength": 15},
+        "base_stats": {"physical_defense": 39, "hp": 84, "strength": 10},
         "unique_effect": "low_hp_damage:0.50|pain_tolerance|rage_boost",
         "sell_price": 1450
     },
@@ -2248,7 +2248,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"magic_defense": 80, "mp": 140, "magic_attack": 40, "dark_power": 45},
+        "base_stats": {"magic_defense": 52, "mp": 91, "magic_attack": 26, "dark_power": 29},
         "unique_effect": "undead_command|lifesteal:0.15|death_magic:0.30",
         "sell_price": 3900
     },
@@ -2257,7 +2257,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 6,
-        "base_stats": {"physical_defense": 50, "evasion": 30, "speed": 18, "critical": 15},
+        "base_stats": {"physical_defense": 32, "evasion": 20, "speed": 12, "critical": 10},
         "unique_effect": "stealth|backstab_damage:0.50|silent_movement",
         "sell_price": 1800
     },
@@ -2266,7 +2266,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 10,
-        "base_stats": {"physical_defense": 115, "magic_defense": 95, "hp": 240, "spirit": 30},
+        "base_stats": {"physical_defense": 75, "magic_defense": 62, "hp": 156, "spirit": 20},
         "unique_effect": "holy_protection|auto_revive:once|heal_aura:0.10|faith_barrier",
         "sell_price": 17000
     },
@@ -2275,7 +2275,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_defense": 45, "magic_defense": 35, "evasion": 35, "speed": 22},
+        "base_stats": {"physical_defense": 29, "magic_defense": 23, "evasion": 23, "speed": 14},
         "unique_effect": "invisibility:3turns|dodge_chance:0.35|ninjutsu_power:0.25",
         "sell_price": 3400
     },
@@ -2284,7 +2284,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"magic_defense": 70, "mp": 180, "magic_attack": 50, "dark_power": 40},
+        "base_stats": {"magic_defense": 46, "mp": 117, "magic_attack": 32, "dark_power": 26},
         "unique_effect": "curse_power:0.40|mp_drain:0.10|forbidden_magic:0.30",
         "sell_price": 4000
     },
@@ -2293,7 +2293,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 6,
-        "base_stats": {"physical_defense": 55, "magic_defense": 70, "hp": 110, "spirit": 20},
+        "base_stats": {"physical_defense": 36, "magic_defense": 46, "hp": 72, "spirit": 13},
         "unique_effect": "meditation:hp_mp_regen|counter_attack:0.30|inner_peace",
         "sell_price": 1650
     },
@@ -2304,7 +2304,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_defense": 50, "hp": 70},
+        "base_stats": {"physical_defense": 32, "hp": 46},
         "unique_effect": "dodge_chance:0.10|speed_boost:0.10",
         "sell_price": 520
     },
@@ -2313,7 +2313,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 9,
-        "base_stats": {"physical_defense": 100, "strength": 25, "hp": 200, "speed": -6},
+        "base_stats": {"physical_defense": 65, "strength": 16, "hp": 130, "speed": -4},
         "unique_effect": "strength_boost:0.30||status_burn:0.15_counter",
         "sell_price": 5200
     },
@@ -2324,7 +2324,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"physical_defense": 30, "hp": 40},
+        "base_stats": {"physical_defense": 20, "hp": 26},
         "unique_effect": "physical_resist:0.10",
         "sell_price": 150
     },
@@ -2333,7 +2333,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"physical_defense": 45, "hp": 60},
+        "base_stats": {"physical_defense": 29, "hp": 39},
         "unique_effect": "poison_immunity|poison_immunity",
         "sell_price": 600
     },
@@ -2342,7 +2342,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_defense": 65, "speed": 12, "critical": 10, "hp": 90},
+        "base_stats": {"physical_defense": 42, "speed": 8, "critical": 6, "hp": 58},
         "unique_effect": "gold_find:0.20|critical_chance:0.10",
         "sell_price": 1250
     },
@@ -2353,7 +2353,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 6,
-        "base_stats": {"physical_defense": 60, "magic_defense": 60, "hp": 100, "speed": 8},
+        "base_stats": {"physical_defense": 39, "magic_defense": 39, "hp": 65, "speed": 5},
         "unique_effect": "damage_reduction:0.15|hp_regen:0.02",
         "sell_price": 1900
     },
@@ -2362,7 +2362,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 12,
-        "base_stats": {"physical_defense": 125, "magic_defense": 125, "hp": 260, "evasion": 20},
+        "base_stats": {"physical_defense": 81, "magic_defense": 81, "hp": 169, "evasion": 13},
         "unique_effect": "quantum_evasion:0.30|superposition|reality_shift",
         "sell_price": 24000
     },
@@ -2371,7 +2371,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 9,
-        "base_stats": {"physical_defense": 70, "magic_defense": 100, "mp": 100},
+        "base_stats": {"physical_defense": 46, "magic_defense": 65, "mp": 65},
         "unique_effect": "plasma_shield:250|energy_absorb|burn_counter:0.35",
         "sell_price": 5000
     },
@@ -2380,7 +2380,7 @@ ARMOR_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 7,
-        "base_stats": {"physical_defense": 65, "magic_defense": 70, "hp": 120, "ice_power": 35},
+        "base_stats": {"physical_defense": 42, "magic_defense": 46, "hp": 78, "ice_power": 23},
         "unique_effect": "ice_immunity|freeze_aura:0.25|cold_storage",
         "sell_price": 2100
     },
@@ -2389,15 +2389,15 @@ ARMOR_TEMPLATES = {
 
     
     # === Additional Common Armor ===
-    "cloth_armor": {"name": "천 갑옷", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_defense": 8, "hp": 15}, "sell_price": 30},
-    "hide_armor": {"name": "가죽 갑옷", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_defense": 12, "hp": 20}, "sell_price": 40},
-    "simple_robe": {"name": "간단한 로브", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"magic_defense": 10, "mp": 20}, "sell_price": 35},
+    "cloth_armor": {"name": "천 갑옷", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_defense": 5, "hp": 10}, "sell_price": 30},
+    "hide_armor": {"name": "가죽 갑옷", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"physical_defense": 8, "hp": 13}, "sell_price": 40},
+    "simple_robe": {"name": "간단한 로브", "description": "", "rarity": ItemRarity.COMMON, "level_requirement": 1, "base_stats": {"magic_defense": 6, "mp": 13}, "sell_price": 35},
     
     # === More Uncommon Armor ===
-    "leather_vest": {"name": "가죽 조끼", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 2, "base_stats": {"physical_defense": 20, "evasion": 5, "hp": 35}, "sell_price": 100},
-    "bronze_plate": {"name": "청동 판금", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 3, "base_stats": {"physical_defense": 32, "hp": 60}, "sell_price": 180},
-    "apprentice_robes": {"name": "견습생 로브", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 2, "base_stats": {"magic_defense": 22, "mp": 50, "spirit": 5}, "sell_price": 120},
-    "banded_mail": {"name": "띠갑옷", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 3, "base_stats": {"physical_defense": 28, "hp": 50, "strength": 3}, "sell_price": 160},
+    "leather_vest": {"name": "가죽 조끼", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 2, "base_stats": {"physical_defense": 13, "evasion": 3, "hp": 23}, "sell_price": 100},
+    "bronze_plate": {"name": "청동 판금", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 3, "base_stats": {"physical_defense": 21, "hp": 39}, "sell_price": 180},
+    "apprentice_robes": {"name": "견습생 로브", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 2, "base_stats": {"magic_defense": 14, "mp": 32, "spirit": 3}, "sell_price": 120},
+    "banded_mail": {"name": "띠갑옷", "description": "", "rarity": ItemRarity.UNCOMMON, "level_requirement": 3, "base_stats": {"physical_defense": 18, "hp": 32, "strength": 2}, "sell_price": 160},
 }
 
 ACCESSORY_TEMPLATES = {
@@ -2407,7 +2407,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"hp": 30},
+        "base_stats": {"hp": 20},
         "sell_price": 60
     },
     "mana_ring": {
@@ -2415,7 +2415,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"mp": 20},
+        "base_stats": {"mp": 13},
         "sell_price": 60
     },
     "ring_of_strength": {
@@ -2423,7 +2423,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 1,
-        "base_stats": {"strength": 5, "physical_attack": 8},
+        "base_stats": {"strength": 3, "physical_attack": 5},
         "sell_price": 100
     },
     "ring_of_wisdom": {
@@ -2431,7 +2431,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 1,
-        "base_stats": {"magic_attack": 8, "mp": 20},
+        "base_stats": {"magic_attack": 5, "mp": 13},
         "sell_price": 100
     },
     "ring_of_agility": {
@@ -2439,7 +2439,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"speed": 8, "evasion": 10},
+        "base_stats": {"speed": 5, "evasion": 6},
         "sell_price": 120
     },
     "phoenix_ring": {
@@ -2447,7 +2447,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"hp": 120, "magic_defense": 20},
+        "base_stats": {"hp": 78, "magic_defense": 13},
         "sell_price": 1800
     },
     "ring_of_gods": {
@@ -2456,9 +2456,9 @@ ACCESSORY_TEMPLATES = {
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 10,
         "base_stats": {
-            "physical_attack": 20, "magic_attack": 20,
-            "physical_defense": 15, "magic_defense": 15,
-            "hp": 100, "mp": 50, "speed": 10
+            "physical_attack": 13, "magic_attack": 13,
+            "physical_defense": 10, "magic_defense": 10,
+            "hp": 65, "mp": 32, "speed": 6
         },
         "sell_price": 5000
     },
@@ -2469,7 +2469,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 2,
-        "base_stats": {"hp": 100, "physical_defense": 10},
+        "base_stats": {"hp": 65, "physical_defense": 6},
         "sell_price": 400
     },
     "amulet_of_mana": {
@@ -2477,7 +2477,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 2,
-        "base_stats": {"mp": 80, "magic_defense": 10},
+        "base_stats": {"mp": 52, "magic_defense": 6},
         "sell_price": 400
     },
     "dragon_pendant": {
@@ -2485,7 +2485,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 4,
-        "base_stats": {"physical_attack": 18, "magic_attack": 18, "hp": 70},
+        "base_stats": {"physical_attack": 12, "magic_attack": 12, "hp": 46},
         "sell_price": 1500
     },
     "phoenix_pendant": {
@@ -2493,7 +2493,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"hp": 150, "mp": 60, "magic_defense": 25},
+        "base_stats": {"hp": 98, "mp": 39, "magic_defense": 16},
         "sell_price": 1600
     },
     "lucky_charm": {
@@ -2501,7 +2501,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"luck": 10, "accuracy": 10, "evasion": 10, "critical_rate": 15},
+        "base_stats": {"luck": 6, "accuracy": 6, "evasion": 6, "critical_rate": 10},
         "sell_price": 1500
     },
 
@@ -2511,7 +2511,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"strength": 7, "physical_attack": 10},
+        "base_stats": {"strength": 5, "physical_attack": 6},
         "sell_price": 180
     },
     "sapphire_earring": {
@@ -2519,7 +2519,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"magic_attack": 12, "mp": 25},
+        "base_stats": {"magic_attack": 8, "mp": 16},
         "sell_price": 180
     },
     "emerald_earring": {
@@ -2527,7 +2527,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"hp": 60, "magic_defense": 8},
+        "base_stats": {"hp": 39, "magic_defense": 5},
         "sell_price": 170
     },
 
@@ -2537,7 +2537,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"strength": 8, "hp": 50, "physical_defense": 10},
+        "base_stats": {"strength": 5, "hp": 32, "physical_defense": 6},
         "sell_price": 280
     },
     "mages_sash": {
@@ -2545,7 +2545,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"magic_attack": 12, "mp": 40, "magic_defense": 10},
+        "base_stats": {"magic_attack": 8, "mp": 26, "magic_defense": 6},
         "sell_price": 300
     },
 
@@ -2555,7 +2555,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"accuracy": 15, "critical": 5},
+        "base_stats": {"accuracy": 10, "critical": 3},
         "unique_effect": "vision:1",
         "sell_price": 200
     },
@@ -2564,7 +2564,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"accuracy": 20, "luck": 8},
+        "base_stats": {"accuracy": 13, "luck": 5},
         "unique_effect": "vision:1|detect_enemy",
         "sell_price": 600
     },
@@ -2573,7 +2573,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"accuracy": 30, "spirit": 12, "luck": 10},
+        "base_stats": {"accuracy": 20, "spirit": 8, "luck": 6},
         "unique_effect": "vision:2",
         "sell_price": 1500
     },
@@ -2582,7 +2582,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 10,
-        "base_stats": {"accuracy": 50, "luck": 20, "all_stats": 8},
+        "base_stats": {"accuracy": 32, "luck": 13, "all_stats": 5},
         "unique_effect": "vision:2|true_sight|detect_hidden",
         "sell_price": 5000
     },
@@ -2591,7 +2591,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 2,
-        "base_stats": {"luck": 15},
+        "base_stats": {"luck": 10},
         "unique_effect": "vision:1|treasure_finder",
         "sell_price": 450
     },
@@ -2602,7 +2602,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"hp": 60, "spirit": 8},
+        "base_stats": {"hp": 39, "spirit": 5},
         "unique_effect": "wound_reduction:0.40",
         "sell_price": 550
     },
@@ -2612,7 +2612,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"strength": 5, "magic_attack": 5},
+        "base_stats": {"strength": 3, "magic_attack": 3},
         "unique_effect": "brv_bonus:0.20",
         "sell_price": 250
     },
@@ -2621,7 +2621,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"strength": 10, "luck": 12},
+        "base_stats": {"strength": 6, "luck": 8},
         "unique_effect": "brv_break_bonus:0.40|brv_steal:0.15",
         "sell_price": 800
     },
@@ -2630,7 +2630,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"defense": 12, "spirit": 10},
+        "base_stats": {"defense": 8, "spirit": 6},
         "unique_effect": "brv_shield:0.40|brv_protect",
         "sell_price": 700
     },
@@ -2639,7 +2639,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"strength": 12, "speed": 8},
+        "base_stats": {"strength": 8, "speed": 5},
         "unique_effect": "brv_regen:15|brv_bonus:0.15",
         "sell_price": 1600
     },
@@ -2650,7 +2650,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"hp": 70, "strength": 8},
+        "base_stats": {"hp": 46, "strength": 5},
         "unique_effect": "lifesteal:0.10|hp_regen:0.02",
         "sell_price": 600
     },
@@ -2659,7 +2659,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"hp": 150, "strength": 15},
+        "base_stats": {"hp": 98, "strength": 10},
         "unique_effect": "lifesteal:0.20",
         "sell_price": 1900
     },
@@ -2668,7 +2668,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"hp": 80, "mp": 40},
+        "base_stats": {"hp": 52, "mp": 26},
         "unique_effect": "lifesteal:0.08|mp_steal:0.08",
         "sell_price": 900
     },
@@ -2679,7 +2679,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"luck": 20, "critical": 10},
+        "base_stats": {"luck": 13, "critical": 6},
         "unique_effect": "critical_chance:0.15",
         "sell_price": 300
     },
@@ -2688,7 +2688,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"critical": 15, "luck": 15, "strength": 10},
+        "base_stats": {"critical": 10, "luck": 10, "strength": 6},
         "unique_effect": "critical_damage:0.60|execute:0.30",
         "sell_price": 1100
     },
@@ -2697,7 +2697,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"critical": 20, "accuracy": 30, "luck": 18},
+        "base_stats": {"critical": 13, "accuracy": 20, "luck": 12},
         "unique_effect": "critical_chance:0.25|accuracy_bonus:50_crit",  # 크리티컬은 절대 빗나가지 않음
         "sell_price": 2100
     },
@@ -2708,7 +2708,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 3,
-        "base_stats": {"evasion": 15, "speed": 8, "luck": 10},
+        "base_stats": {"evasion": 10, "speed": 5, "luck": 6},
         "unique_effect": "dodge_chance:0.15",
         "sell_price": 250
     },
@@ -2717,7 +2717,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"evasion": 30, "speed": 12, "luck": 12},
+        "base_stats": {"evasion": 20, "speed": 8, "luck": 8},
         "unique_effect": "dodge_chance:0.30|dodge_counter",
         "sell_price": 950
     },
@@ -2726,7 +2726,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"speed": 20, "evasion": 15},
+        "base_stats": {"speed": 13, "evasion": 10},
         "unique_effect": "first_strike|brv_steal:0.40",
         "sell_price": 750
     },
@@ -2735,7 +2735,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"speed": 25, "all_stats": 8},
+        "base_stats": {"speed": 16, "all_stats": 5},
         "unique_effect": "double_turn:0.10|first_strike",  # 10% 확률로 2회 행동, 선제공격
         "sell_price": 2400
     },
@@ -2746,7 +2746,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"defense": 15, "hp": 80},
+        "base_stats": {"defense": 10, "hp": 52},
         "unique_effect": "flat_damage_reduction:10",
         "sell_price": 800
     },
@@ -2755,7 +2755,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"hp": 250, "defense": 20},
+        "base_stats": {"hp": 162, "defense": 13},
         "unique_effect": "hp_regen:0.03|overheal_shield",  # 과다 회복 → 실드 전환
         "sell_price": 2600
     },
@@ -2764,7 +2764,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"hp": 120, "magic_defense": 25, "spirit": 15},
+        "base_stats": {"hp": 78, "magic_defense": 16, "spirit": 10},
         "unique_effect": "barrier_on_turn:0.20",
         "sell_price": 1900
     },
@@ -2775,7 +2775,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"mp": 60, "magic_attack": 18},
+        "base_stats": {"mp": 39, "magic_attack": 12},
         "unique_effect": "mp_regen:6|mp_cost_reduction:0.15",
         "sell_price": 650
     },
@@ -2784,7 +2784,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"mp": 100, "magic_attack": 30, "spirit": 15},
+        "base_stats": {"mp": 65, "magic_attack": 20, "spirit": 10},
         "unique_effect": "mp_regen:8|spell_power:0.15|barrier_on_turn:0.15",  # 턴 시작 시 최대 HP 15% 보호막
         "sell_price": 2200
     },
@@ -2793,7 +2793,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 11,
-        "base_stats": {"mp": 200, "magic_attack": 60, "spirit": 25},
+        "base_stats": {"mp": 130, "magic_attack": 39, "spirit": 16},
         "unique_effect": "mp_cost_reduction:0.50|spell_power:0.30|mana_overflow",
         "sell_price": 8000
     },
@@ -2804,7 +2804,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 2,
-        "base_stats": {"hp": 40, "spirit": 5},
+        "base_stats": {"hp": 26, "spirit": 3},
         "unique_effect": "status_immunity:poison,disease",
         "sell_price": 150
     },
@@ -2813,7 +2813,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"spirit": 18, "hp": 90},
+        "base_stats": {"spirit": 12, "hp": 58},
         "unique_effect": "cc_immunity:stun,sleep,confusion,fear",
         "sell_price": 1200
     },
@@ -2822,7 +2822,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"spirit": 25, "hp": -50, "magic_defense": 30},
+        "base_stats": {"spirit": 16, "hp": -32, "magic_defense": 20},
         "unique_effect": "status_immunity:all",
         "sell_price": 2800
     },
@@ -2831,7 +2831,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"spirit": 15, "mp": 50},
+        "base_stats": {"spirit": 10, "mp": 32},
         "unique_effect": "cleanse_on_turn:1|debuff_resist:0.30",
         "sell_price": 850
     },
@@ -2842,7 +2842,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"luck": 12},
+        "base_stats": {"luck": 8},
         "unique_effect": "gold_find:0.50",
         "sell_price": 300
     },
@@ -2851,7 +2851,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"luck": 18},
+        "base_stats": {"luck": 12},
         "unique_effect": "gold_find:1.00|shop_discount:0.10",
         "sell_price": 700
     },
@@ -2860,7 +2860,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 5,
-        "base_stats": {"luck": 25, "all_stats": 5},
+        "base_stats": {"luck": 16, "all_stats": 3},
         "unique_effect": "gold_find:1.50|item_rarity:0.30",
         "sell_price": 2500
     },
@@ -2869,7 +2869,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 1,
-        "base_stats": {"spirit": 8},
+        "base_stats": {"spirit": 5},
         "unique_effect": "exp_bonus:0.30",
         "sell_price": 250
     },
@@ -2878,7 +2878,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"spirit": 15, "all_stats": 3},
+        "base_stats": {"spirit": 10, "all_stats": 2},
         "unique_effect": "exp_bonus:0.50|skill_mastery:0.25",
         "sell_price": 800
     },
@@ -2887,7 +2887,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"luck": 25},
+        "base_stats": {"luck": 16},
         "unique_effect": "item_find:0.40|auto_pickup",
         "sell_price": 900
     },
@@ -2898,7 +2898,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 10,
-        "base_stats": {"hp": 150, "mp": 80, "all_stats": 8},
+        "base_stats": {"hp": 98, "mp": 52, "all_stats": 5},
         "unique_effect": "phoenix_rebirth:full",
         "sell_price": 3500
     },
@@ -2907,7 +2907,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 7,
-        "base_stats": {"hp": 100, "luck": 15},
+        "base_stats": {"hp": 65, "luck": 10},
         "unique_effect": "phoenix_rebirth:half|charges:2",
         "sell_price": 1600
     },
@@ -2916,7 +2916,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"strength": 15, "hp": 80},
+        "base_stats": {"strength": 10, "hp": 52},
         "unique_effect": "berserk|low_hp_bonus:0.80",
         "sell_price": 950
     },
@@ -2925,7 +2925,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"strength": 20, "magic_attack": 20},
+        "base_stats": {"strength": 13, "magic_attack": 13},
         "unique_effect": "glass_cannon:damage:0.50|defense:-0.30",
         "sell_price": 1100
     },
@@ -2934,7 +2934,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"all_stats": 12},
+        "base_stats": {"all_stats": 8},
         "unique_effect": "balanced_stats:0.15",  # 모든 스탯에 15% 보너스
         "sell_price": 2700
     },
@@ -2943,7 +2943,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"speed": 15, "strength": 12, "critical": 10},
+        "base_stats": {"speed": 10, "strength": 8, "critical": 6},
         "unique_effect": "combo_bonus:0.20|max_combo:5",
         "sell_price": 2000
     },
@@ -2952,7 +2952,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 9,
-        "base_stats": {"all_stats": 15},
+        "base_stats": {"all_stats": 10},
         "unique_effect": "overload:cost:2.0|effect:2.5",
         "sell_price": 2900
     },
@@ -2963,7 +2963,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"all_stats": 5},
+        "base_stats": {"all_stats": 3},
         "unique_effect": "gimmick_boost:0.30",
         "sell_price": 750
     },
@@ -2972,7 +2972,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"all_stats": 8},
+        "base_stats": {"all_stats": 5},
         "unique_effect": "max_gimmick_increase:2",
         "sell_price": 1800
     },
@@ -2981,7 +2981,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"mp": 60, "spirit": 12},
+        "base_stats": {"mp": 39, "spirit": 8},
         "unique_effect": "gimmick_cost_reduction:0.30|mp_cost_reduction:0.20",
         "sell_price": 1000
     },
@@ -2992,7 +2992,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 9,
-        "base_stats": {"all_stats": 30},
+        "base_stats": {"all_stats": 20},
         "unique_effect": "omnipotent:0.20",  # 모든 효과 20% 증폭
         "sell_price": 15000
     },
@@ -3001,7 +3001,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 13,
-        "base_stats": {"hp": 200, "mp": 300, "all_stats": 20},
+        "base_stats": {"hp": 130, "mp": 195, "all_stats": 13},
         "unique_effect": "infinite_resources|hp_regen:0.05|mp_cost:0",
         "sell_price": 20000
     },
@@ -3010,7 +3010,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 7,
-        "base_stats": {"critical": 50, "accuracy": 100, "luck": 30},
+        "base_stats": {"critical": 32, "accuracy": 65, "luck": 20},
         "unique_effect": "vision:2|true_sight|omniscient|critical_chance:0.50",
         "sell_price": 12000
     },
@@ -3021,7 +3021,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"speed": 20, "accuracy": 10},
+        "base_stats": {"speed": 13, "accuracy": 6},
         "unique_effect": "cooldown_reduction:0.20|haste_start",
         "sell_price": 2000
     },
@@ -3030,7 +3030,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"accuracy": 25, "luck": 10},
+        "base_stats": {"accuracy": 16, "luck": 6},
         "unique_effect": "detect_hidden|critical_chance:0.10",
         "sell_price": 750
     },
@@ -3041,7 +3041,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"luck": 15},
+        "base_stats": {"luck": 10},
         "unique_effect": "detect_radiation|loot_bonus:0.10",
         "sell_price": 300
     },
@@ -3050,7 +3050,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"hp": 30},
+        "base_stats": {"hp": 20},
         "unique_effect": "hp_regen:0.02|",
         "sell_price": 100
     },
@@ -3061,7 +3061,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"accuracy": 30, "critical": 15},
+        "base_stats": {"accuracy": 20, "critical": 10},
         "unique_effect": "analyze_enemy|critical_damage:0.20",
         "sell_price": 1200
     },
@@ -3070,7 +3070,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"speed": 15, "evasion": 20},
+        "base_stats": {"speed": 10, "evasion": 13},
         "unique_effect": "immune_ground_effects|fall_damage_immune",
         "sell_price": 2800
     },
@@ -3081,7 +3081,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"magic_attack": 20, "fire_power": 30},
+        "base_stats": {"magic_attack": 13, "fire_power": 20},
         "unique_effect": "fire_damage:0.40|status_burn:0.20",
         "sell_price": 1100
     },
@@ -3090,7 +3090,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"magic_attack": 20, "ice_power": 30},
+        "base_stats": {"magic_attack": 13, "ice_power": 20},
         "unique_effect": "ice_damage:0.40|slow:0.30",
         "sell_price": 1100
     },
@@ -3099,7 +3099,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"magic_attack": 20, "lightning_power": 30},
+        "base_stats": {"magic_attack": 13, "lightning_power": 20},
         "unique_effect": "lightning_damage:0.40|chain_lightning:0.15",
         "sell_price": 1100
     },
@@ -3108,7 +3108,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 6,
-        "base_stats": {"hp": 100, "physical_defense": 15, "magic_defense": 15},
+        "base_stats": {"hp": 65, "physical_defense": 10, "magic_defense": 10},
         "unique_effect": "damage_reduction:0.15",
         "sell_price": 1800
     },
@@ -3117,7 +3117,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"hp": 120, "strength": 12},
+        "base_stats": {"hp": 78, "strength": 8},
         "unique_effect": "lifesteal:0.15",
         "sell_price": 2200
     },
@@ -3126,7 +3126,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"speed": 25, "evasion": 10},
+        "base_stats": {"speed": 16, "evasion": 6},
         "unique_effect": "first_strike|speed_boost:0.15",
         "sell_price": 980
     },
@@ -3135,7 +3135,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"hp": 200, "strength": 20},
+        "base_stats": {"hp": 130, "strength": 13},
         "unique_effect": "hp_percent:0.15",
         "sell_price": 2400
     },
@@ -3144,7 +3144,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"mp": 100, "magic_attack": 30, "spirit": 15},
+        "base_stats": {"mp": 65, "magic_attack": 20, "spirit": 10},
         "unique_effect": "spell_power:0.20|mp_regen:5",
         "sell_price": 2500
     },
@@ -3153,7 +3153,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"critical": 20, "speed": 15},
+        "base_stats": {"critical": 13, "speed": 10},
         "unique_effect": "critical_chance:0.20|backstab:1.0",
         "sell_price": 2100
     },
@@ -3162,7 +3162,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"strength": 18, "hp": 80},
+        "base_stats": {"strength": 12, "hp": 52},
         "unique_effect": "low_hp_damage:0.60|berserk",
         "sell_price": 1200
     },
@@ -3173,7 +3173,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 10,
-        "base_stats": {"hp": 250, "spirit": 20},
+        "base_stats": {"hp": 162, "spirit": 13},
         "unique_effect": "hp_regen:0.05|wound_immunity",
         "sell_price": 8000
     },
@@ -3182,7 +3182,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"magic_attack": 35, "all_elements": 25},
+        "base_stats": {"magic_attack": 23, "all_elements": 16},
         "unique_effect": "all_element_damage:0.30",
         "sell_price": 3200
     },
@@ -3191,7 +3191,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"magic_attack": 30, "spirit": 25},
+        "base_stats": {"magic_attack": 20, "spirit": 16},
         "unique_effect": "holy_damage:0.50|undead_slayer:0.80",
         "sell_price": 2800
     },
@@ -3200,7 +3200,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 30, "magic_attack": 30},
+        "base_stats": {"physical_attack": 20, "magic_attack": 20},
         "unique_effect": "all_damage:0.40|damage_taken:0.20|critical_damage:0.20",
         "sell_price": 2200
     },
@@ -3209,7 +3209,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 6,
-        "base_stats": {"hp": 90, "mp": 60, "spirit": 15},
+        "base_stats": {"hp": 58, "mp": 39, "spirit": 10},
         "unique_effect": "on_kill_heal:0.15|soul_harvest",
         "sell_price": 1550
     },
@@ -3218,7 +3218,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"mp": 150, "magic_attack": 20, "spirit": 12},
+        "base_stats": {"mp": 98, "magic_attack": 13, "spirit": 8},
         "unique_effect": "mp_cost_reduction:0.20",
         "sell_price": 1400
     },
@@ -3227,7 +3227,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"physical_attack": 25, "physical_defense": 15, "strength": 10},
+        "base_stats": {"physical_attack": 16, "physical_defense": 10, "strength": 6},
         "unique_effect": "battle_cry",
         "sell_price": 1300
     },
@@ -3236,7 +3236,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"critical": 25, "accuracy": 20, "luck": 15},
+        "base_stats": {"critical": 16, "accuracy": 13, "luck": 10},
         "unique_effect": "critical_chance:0.15|critical_damage:0.50",
         "sell_price": 2900
     },
@@ -3247,7 +3247,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.COMMON,
         "level_requirement": 1,
-        "base_stats": {"hp": 50, "physical_defense": 10},
+        "base_stats": {"hp": 32, "physical_defense": 6},
         "sell_price": 80
     },
     "champion_belt": {
@@ -3255,7 +3255,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"hp": 100, "strength": 15, "physical_attack": 12},
+        "base_stats": {"hp": 65, "strength": 10, "physical_attack": 8},
         "unique_effect": "strength_boost:0.10",
         "sell_price": 1200
     },
@@ -3264,7 +3264,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"mp": 80, "spirit": 12, "magic_attack": 15},
+        "base_stats": {"mp": 52, "spirit": 8, "magic_attack": 10},
         "unique_effect": "mp_regen:5",
         "sell_price": 1150
     },
@@ -3273,7 +3273,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 6,
-        "base_stats": {"speed": 18, "critical": 15, "evasion": 12},
+        "base_stats": {"speed": 12, "critical": 10, "evasion": 8},
         "unique_effect": "critical_chance:0.12|speed_boost:0.10",
         "sell_price": 1350
     },
@@ -3282,7 +3282,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"hp": 180, "strength": 18, "physical_defense": 20},
+        "base_stats": {"hp": 117, "strength": 12, "physical_defense": 13},
         "unique_effect": "knockback_immunity|hp_percent:0.12",
         "sell_price": 2600
     },
@@ -3291,7 +3291,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"mp": 120, "magic_attack": 25, "spirit": 15},
+        "base_stats": {"mp": 78, "magic_attack": 16, "spirit": 10},
         "unique_effect": "spell_power:0.18|mp_cost_reduction:0.15",
         "sell_price": 2500
     },
@@ -3302,7 +3302,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 10,
-        "base_stats": {"evasion": 35, "speed": 20},
+        "base_stats": {"evasion": 23, "speed": 13},
         "unique_effect": "dodge_chance:0.25",
         "sell_price": 9500
     },
@@ -3311,7 +3311,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 12,
-        "base_stats": {"all_stats": 15, "hp": 150, "mp": 100},
+        "base_stats": {"all_stats": 10, "hp": 98, "mp": 65},
         "unique_effect": "leadership:0.25|all_stats_bonus:0.10",
         "sell_price": 12000
     },
@@ -3320,7 +3320,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"accuracy": 35, "critical": 18, "luck": 15},
+        "base_stats": {"accuracy": 23, "critical": 12, "luck": 10},
         "unique_effect": "true_sight|critical_chance:0.18",
         "sell_price": 2400
     },
@@ -3329,7 +3329,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"physical_attack": 35, "strength": 20},
+        "base_stats": {"physical_attack": 23, "strength": 13},
         "unique_effect": "piercing:0.25|stun_chance:0.15",
         "sell_price": 2700
     },
@@ -3338,7 +3338,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"physical_attack": 30, "magic_attack": 30},
+        "base_stats": {"physical_attack": 20, "magic_attack": 20},
         "unique_effect": "all_damage:0.30|hp_penalty:-0.15|critical_damage:0.20",
         "sell_price": 2200
     },
@@ -3347,7 +3347,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"hp": 140, "spirit": 20, "mp": 80},
+        "base_stats": {"hp": 91, "spirit": 13, "mp": 52},
         "unique_effect": "hp_regen:0.03|status_resist:0.30|holy_aura",
         "sell_price": 2800
     },
@@ -3356,7 +3356,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 4,
-        "base_stats": {"luck": 25, "speed": 10},
+        "base_stats": {"luck": 16, "speed": 6},
         "unique_effect": "gold_find:0.40|item_find:0.25",
         "sell_price": 1100
     },
@@ -3365,7 +3365,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 3,
-        "base_stats": {"mp": 60, "spirit": 10, "luck": 12},
+        "base_stats": {"mp": 39, "spirit": 6, "luck": 8},
         "unique_effect": "exp_bonus:0.50",
         "sell_price": 900
     },
@@ -3374,7 +3374,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"luck": 15},
+        "base_stats": {"luck": 10},
         "unique_effect": "treasure_find:0.35",
         "sell_price": 400
     },
@@ -3383,7 +3383,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"hp": 80, "mp": 80, "spirit": 12},
+        "base_stats": {"hp": 52, "mp": 52, "spirit": 8},
         "unique_effect": "potion_boost:0.30|hp_regen:0.02|mp_regen:3",
         "sell_price": 1450
     },
@@ -3392,7 +3392,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.UNCOMMON,
         "level_requirement": 2,
-        "base_stats": {"luck": 30, "critical": 8},
+        "base_stats": {"luck": 20, "critical": 5},
         "unique_effect": "critical_chance:0.10|rare_drop:0.15",
         "sell_price": 320
     },
@@ -3401,7 +3401,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"magic_attack": 32, "dark_power": 40, "mp": 90},
+        "base_stats": {"magic_attack": 21, "dark_power": 26, "mp": 58},
         "unique_effect": "dark_damage:0.45|mp_drain:0.10",
         "sell_price": 2950
     },
@@ -3410,7 +3410,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"hp": 200, "spirit": 18},
+        "base_stats": {"hp": 130, "spirit": 12},
         "unique_effect": "heal_boost:0.30|overheal_shield",
         "sell_price": 2450
     },
@@ -3419,7 +3419,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"mp": 200, "magic_attack": 25, "spirit": 18},
+        "base_stats": {"mp": 130, "magic_attack": 16, "spirit": 12},
         "unique_effect": "mp_regen:8|mp_percent:0.15",
         "sell_price": 2550
     },
@@ -3428,7 +3428,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 6,
-        "base_stats": {"hp": 110, "mp": 60},
+        "base_stats": {"hp": 72, "mp": 39},
         "unique_effect": "lifesteal:0.12|damage_to_mp:0.10",
         "sell_price": 1600
     },
@@ -3437,7 +3437,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"evasion": 20, "speed": 12, "critical": 10},
+        "base_stats": {"evasion": 13, "speed": 8, "critical": 6},
         "unique_effect": "stealth_bonus|dodge_counter",
         "sell_price": 1250
     },
@@ -3446,7 +3446,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"hp": 130, "defense": 25, "fire_power": 35},
+        "base_stats": {"hp": 84, "defense": 16, "fire_power": 23},
         "unique_effect": "fire_resist:1.0|fire_reflect:0.30",
         "sell_price": 2800
     },
@@ -3455,7 +3455,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 8,
-        "base_stats": {"speed": 25, "lightning_power": 40, "evasion": 15},
+        "base_stats": {"speed": 16, "lightning_power": 26, "evasion": 10},
         "unique_effect": "lightning_immunity|speed_boost:0.20",
         "sell_price": 2750
     },
@@ -3464,7 +3464,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 11,
-        "base_stats": {"hp": 180, "mp": 150, "dark_power": 50},
+        "base_stats": {"hp": 117, "mp": 98, "dark_power": 32},
         "unique_effect": "undead_command|phylactery_rebirth:0.50",
         "sell_price": 10000
     },
@@ -3473,7 +3473,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 6,
-        "base_stats": {"magic_attack": 28, "lightning_power": 30},
+        "base_stats": {"magic_attack": 18, "lightning_power": 20},
         "unique_effect": "lightning_explosion:0.15|chain_lightning:0.20",
         "sell_price": 1550
     },
@@ -3482,7 +3482,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.EPIC,
         "level_requirement": 7,
-        "base_stats": {"magic_attack": 28, "spirit": 22, "hp": 120},
+        "base_stats": {"magic_attack": 18, "spirit": 14, "hp": 78},
         "unique_effect": "holy_damage:0.40|hp_regen:0.02|radiant_aura",
         "sell_price": 2650
     },
@@ -3491,7 +3491,7 @@ ACCESSORY_TEMPLATES = {
         "description": "",
                 "rarity": ItemRarity.RARE,
         "level_requirement": 5,
-        "base_stats": {"magic_defense": 25, "evasion": 15, "spirit": 12},
+        "base_stats": {"magic_defense": 16, "evasion": 10, "spirit": 8},
         "unique_effect": "magic_evasion:0.20",
         "sell_price": 1350
     },
@@ -3504,7 +3504,7 @@ UNIQUE_ITEMS = {
         "description": "",
                 "rarity": ItemRarity.UNIQUE,
         "level_requirement": 13,
-        "base_stats": {"physical_attack": 150, "magic_attack": 50, "hp": 100, "mp": 50},
+        "base_stats": {"physical_attack": 98, "magic_attack": 32, "hp": 65, "mp": 32},
         "unique_effect": "HP 50% 이상 시 모든 공격력 +30%",
         "sell_price": 99999
     },
@@ -3513,7 +3513,7 @@ UNIQUE_ITEMS = {
         "description": "",
                 "rarity": ItemRarity.UNIQUE,
         "level_requirement": 9,
-        "base_stats": {"physical_attack": 140, "strength": 20},
+        "base_stats": {"physical_attack": 91, "strength": 13},
         "unique_effect": "공격 시 30% 확률로 번개 추가 데미지",
         "sell_price": 88888
     },
@@ -3523,9 +3523,9 @@ UNIQUE_ITEMS = {
                 "rarity": ItemRarity.UNIQUE,
         "level_requirement": 15,
         "base_stats": {
-            "physical_attack": 50, "magic_attack": 50,
-            "physical_defense": 30, "magic_defense": 30,
-            "hp": 200, "mp": 100
+            "physical_attack": 32, "magic_attack": 32,
+            "physical_defense": 20, "magic_defense": 20,
+            "hp": 130, "mp": 65
         },
         "unique_effect": "모든 스탯 +10%",
         "sell_price": 150000
@@ -3535,422 +3535,13 @@ UNIQUE_ITEMS = {
         "description": "",
                 "rarity": ItemRarity.UNIQUE,
         "level_requirement": 6,
-        "base_stats": {"hp": 150, "magic_defense": 40},
+        "base_stats": {"hp": 98, "magic_defense": 26},
         "unique_effect": "전투 중 1회 사망 시 HP 100%로 부활",
         "sell_price": 50000
     },
 }
 
-# 소비 아이템
-CONSUMABLE_TEMPLATES = {
-    # HP 회복
-    "health_potion": {
-        "name": "체력 물약",
-        "description": "HP를 50 회복합니다.",
-                "rarity": ItemRarity.COMMON,
-        "effect_type": "heal_hp",
-        "effect_value": 50,
-        "sell_price": 20
-    },
-    "mega_health_potion": {
-        "name": "대형 체력 물약",
-        "description": "HP를 200 회복합니다.",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "heal_hp",
-        "effect_value": 200,
-        "sell_price": 80
-    },
-    "super_health_potion": {
-        "name": "최상급 체력 물약",
-        "description": "HP를 500 회복합니다.",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "heal_hp",
-        "effect_value": 500,
-        "sell_price": 200
-    },
-
-    # MP 회복
-    "mana_potion": {
-        "name": "마나 물약",
-        "description": "MP를 30 회복합니다.",
-                "rarity": ItemRarity.COMMON,
-        "effect_type": "heal_mp",
-        "effect_value": 30,
-        "sell_price": 25
-    },
-    "mega_mana_potion": {
-        "name": "대형 마나 물약",
-        "description": "MP를 80 회복합니다.",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "heal_mp",
-        "effect_value": 80,
-        "sell_price": 90
-    },
-    "mana_crystal": {
-        "name": "마나 크리스탈",
-        "description": "MP를 100 회복합니다.",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "heal_mp",
-        "effect_value": 100,
-        "sell_price": 120
-    },
-    "super_mana_potion": {
-        "name": "최상급 마나 물약",
-        "description": "MP를 150 회복합니다.",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "heal_mp",
-        "effect_value": 150,
-        "sell_price": 180
-    },
-
-    # 완전 회복
-    "elixir": {
-        "name": "엘릭서",
-        "description": "HP와 MP를 완전히 회복합니다.",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "full_restore",
-        "effect_value": 0,
-        "sell_price": 500
-    },
-
-    # 특수 아이템
-    "phoenix_down": {
-        "name": "불사조의 깃털",
-        "description": "쓰러진 아군을 HP 50%로 부활.",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "revive",
-        "effect_value": 0.5,
-        "sell_price": 300
-    },
-    "town_portal": {
-        "name": "마을 귀환 두루마리",
-        "description": "즉시 마을로 귀환합니다.",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "escape",
-        "effect_value": 0,
-        "sell_price": 100
-    },
-    "dungeon_key": {
-        "name": "던전 열쇠",
-        "description": "잠긴 던전 문을 열 수 있습니다.",
-                "rarity": ItemRarity.COMMON,
-        "effect_type": "key",
-        "effect_value": 1,
-        "sell_price": 75
-    },
-
-    # 버프 아이템
-    "strength_tonic": {
-        "name": "힘의 강장제",
-        "description": "공격력 +20% (5턴 지속).",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "buff_attack",
-        "effect_value": 0.2,
-        "sell_price": 150
-    },
-    "magic_tonic": {
-        "name": "마법의 강장제",
-        "description": "마법력 +20% (5턴 지속).",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "buff_magic",
-        "effect_value": 0.2,
-        "sell_price": 150
-    },
-    "speed_tonic": {
-        "name": "민첩의 강장제",
-        "description": "속도 +30% (5턴 지속).",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "buff_speed",
-        "effect_value": 0.3,
-        "sell_price": 180
-    },
-    "defense_tonic": {
-        "name": "방어의 강장제",
-        "description": "방어력 +25% (5턴 지속).",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "buff_defense",
-        "effect_value": 0.25,
-        "sell_price": 160
-    },
-
-    # 공격 아이템
-    "fire_bomb": {
-        "name": "화염 폭탄",
-        "description": "적 전체에게 150 화염 피해.",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "aoe_fire",
-        "effect_value": 150,
-        "sell_price": 120
-    },
-    "ice_bomb": {
-        "name": "냉기 폭탄",
-        "description": "적 전체에게 130 냉기 피해.",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "aoe_ice",
-        "effect_value": 130,
-        "sell_price": 140
-    },
-    "lightning_bolt": {
-        "name": "번개 구슬",
-        "description": "적 하나에게 300 번개 피해.",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "single_lightning",
-        "effect_value": 300,
-        "sell_price": 200
-    },
-
-    # === 상처 치료 아이템 ===
-    "wound_salve": {
-        "name": "상처 연고",
-        "description": "상처를 30 치료합니다.",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "heal_wound",
-        "effect_value": 30,
-        "sell_price": 60
-    },
-    "scar_remover": {
-        "name": "흉터 제거제",
-        "description": "상처를 100 치료합니다.",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "heal_wound",
-        "effect_value": 100,
-        "sell_price": 180
-    },
-    "perfect_heal": {
-        "name": "완전 치유",
-        "description": "모든 상처를 완전히 치료합니다.",
-                "rarity": ItemRarity.EPIC,
-        "effect_type": "heal_wound_full",
-        "effect_value": 0,
-        "sell_price": 600
-    },
-    "regeneration_potion": {
-        "name": "재생 물약",
-        "description": "매턴 상처 15씩 자동 회복 버프.",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "wound_regen_buff",
-        "effect_value": 15,
-        "sell_price": 250
-    },
-
-    # === BRV 관련 아이템 ===
-    "brave_shard": {
-        "name": "브레이브 파편",
-        "description": "BRV를 100 회복합니다.",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "brv_restore",
-        "effect_value": 100,
-        "sell_price": 50
-    },
-    "brave_crystal": {
-        "name": "브레이브 크리스탈",
-        "description": "BRV를 300 회복합니다.",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "brv_restore",
-        "effect_value": 300,
-        "sell_price": 150
-    },
-    "break_guard": {
-        "name": "브레이크 가드",
-        "description": "3턴간 브레이크 보호 버프.",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "brv_protect_buff",
-        "effect_value": 3,
-        "sell_price": 200
-    },
-    "brave_boost": {
-        "name": "브레이브 부스트",
-        "description": "BRV 획득량 +50% 버프.",
-                "rarity": ItemRarity.EPIC,
-        "effect_type": "brv_bonus_buff",
-        "effect_value": 0.50,
-        "sell_price": 400
-    },
-
-    # === 복합 회복 아이템 ===
-    "panacea": {
-        "name": "만병통치약",
-        "description": "모든 상태이상 해제 + HP 50 회복.",
-                "rarity": ItemRarity.EPIC,
-        "effect_type": "panacea",
-        "effect_value": 50,
-        "sell_price": 800
-    },
-    "megalixir": {
-        "name": "메가엘릭서",
-        "description": "파티 전체 HP/MP 완전 회복.",
-                "rarity": ItemRarity.LEGENDARY,
-        "effect_type": "party_full_restore",
-        "effect_value": 0,
-        "sell_price": 2000
-    },
-    "heroes_drink": {
-        "name": "영웅의 음료",
-        "description": "HP 200 회복 + 모든 스탯 +10% 버프.",
-                "rarity": ItemRarity.EPIC,
-        "effect_type": "hero_buff",
-        "effect_value": 200,
-        "sell_price": 500
-    },
-
-    # === 특수 상태 아이템 ===
-    "invincibility_potion": {
-        "name": "무적 물약",
-        "description": "2턴간 모든 피해 무효화.",
-                "rarity": ItemRarity.LEGENDARY,
-        "effect_type": "invincible",
-        "effect_value": 2,
-        "sell_price": 3000
-    },
-    "haste_potion": {
-        "name": "가속 물약",
-        "description": "5턴간 행동 속도 대폭 증가.",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "haste",
-        "effect_value": 5,
-        "sell_price": 300
-    },
-    "berserk_potion": {
-        "name": "광폭화 물약",
-        "description": "공격력 +100%, 방어력 -50% (3턴).",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "berserk",
-        "effect_value": 5,
-        "sell_price": 280
-    },
-    
-    # === 공격적 아이템 (전투용) ===
-    "poison_bomb": {
-        "name": "독 폭탄",
-        "description": "적 전체에게 100 피해 + 독 상태 (5턴).",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "poison_bomb",
-        "effect_value": 100,
-        "sell_price": 150
-    },
-    "thunder_grenade": {
-        "name": "천둥 수류탄",
-        "description": "적 전체에게 200 번개 피해 + 기절 확률.",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "thunder_grenade",
-        "effect_value": 200,
-        "sell_price": 250
-    },
-    "acid_flask": {
-        "name": "산성 플라스크",
-        "description": "적 전체에게 180 피해 + 방어력 감소.",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "acid_flask",
-        "effect_value": 180,
-        "sell_price": 160
-    },
-    "debuff_attack": {
-        "name": "공격 약화 폭탄",
-        "description": "적 전체 공격력 -30% (5턴).",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "debuff_attack",
-        "effect_value": 0.3,
-        "sell_price": 200
-    },
-    "debuff_defense": {
-        "name": "방어 약화 폭탄",
-        "description": "적 전체 방어력 -40% (5턴).",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "debuff_defense",
-        "effect_value": 0.4,
-        "sell_price": 220
-    },
-    "debuff_speed": {
-        "name": "속도 약화 폭탄",
-        "description": "적 전체 속도 -35% (5턴).",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "debuff_speed",
-        "effect_value": 0.35,
-        "sell_price": 210
-    },
-    "break_brv": {
-        "name": "BRV 파괴 폭탄",
-        "description": "적 전체 BRV 200 감소.",
-                "rarity": ItemRarity.EPIC,
-        "effect_type": "break_brv",
-        "effect_value": 200,
-        "sell_price": 350
-    },
-    "smoke_bomb": {
-        "name": "연막탄",
-        "description": "적 전체 명중률 -50% (3턴).",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "smoke_bomb",
-        "effect_value": 0.5,
-        "sell_price": 120
-    },
-    
-    # === 수비적 아이템 (전투용) ===
-    "barrier_crystal": {
-        "name": "방어 크리스탈",
-        "description": "아군 전체 받는 피해 -30% (3턴).",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "barrier_crystal",
-        "effect_value": 0.3,
-        "sell_price": 280
-    },
-    "haste_crystal": {
-        "name": "가속 크리스탈",
-        "description": "아군 전체 속도 +40% (3턴).",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "haste_crystal",
-        "effect_value": 0.4,
-        "sell_price": 300
-    },
-    "power_tonic": {
-        "name": "힘의 비약",
-        "description": "아군 전체 공격력 +35% (5턴).",
-                "rarity": ItemRarity.EPIC,
-        "effect_type": "power_tonic",
-        "effect_value": 0.35,
-        "sell_price": 400
-    },
-    "defense_elixir": {
-        "name": "방어 엘릭서",
-        "description": "아군 전체 방어력 +40% (5턴).",
-                "rarity": ItemRarity.EPIC,
-        "effect_type": "defense_elixir",
-        "effect_value": 0.4,
-        "sell_price": 380
-    },
-    "regen_crystal": {
-        "name": "재생 크리스탈",
-        "description": "아군 전체 매턴 HP 50 회복 (5턴).",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "regen_crystal",
-        "effect_value": 50,
-        "sell_price": 320
-    },
-    "mp_regen_crystal": {
-        "name": "MP 재생 크리스탈",
-        "description": "아군 전체 매턴 MP 20 회복 (5턴).",
-                "rarity": ItemRarity.RARE,
-        "effect_type": "mp_regen_crystal",
-        "effect_value": 20,
-        "sell_price": 300
-    },
-    "status_cleanse": {
-        "name": "정화 물약",
-        "description": "모든 디버프 상태를 해제합니다.",
-                "rarity": ItemRarity.UNCOMMON,
-        "effect_type": "status_cleanse",
-        "effect_value": 0,
-        "sell_price": 180
-    },
-    "revive_crystal": {
-        "name": "부활 크리스탈",
-        "description": "쓰러진 아군을 HP 30%로 부활.",
-                "rarity": ItemRarity.EPIC,
-        "effect_type": "revive_crystal",
-        "effect_value": 0.3,
-        "sell_price": 500
-    },
-}
+# 소비 아이템 (첫 번째 정의 제거됨 - 두 번째 정의 사용)
 
 # 접사 풀 (랜덤 생성용)
 AFFIX_POOL = {
@@ -4360,18 +3951,18 @@ class ItemGenerator:
 
 CONSUMABLE_TEMPLATES = {
     # === HP 포션 ===
-    "minor_hp_potion": {"name": "소형 HP 물약", "description": "HP를 50 회복합니다.", "effect_type": "heal_hp", "effect_value": 50, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 10},
-    "hp_potion": {"name": "HP 물약", "description": "HP를 150 회복합니다.", "effect_type": "heal_hp", "effect_value": 150, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 30},
-    "greater_hp_potion": {"name": "상급 HP 물약", "description": "HP를 300 회복합니다.", "effect_type": "heal_hp", "effect_value": 300, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 80},
-    "superior_hp_potion": {"name": "최상급 HP 물약", "description": "HP를 600 회복합니다.", "effect_type": "heal_hp", "effect_value": 600, "rarity": ItemRarity.RARE, "stack_size": 99, "sell_price": 200},
-    "max_hp_potion": {"name": "완전 HP 물약", "description": "HP를 완전히 회복합니다.", "effect_type": "heal_hp_full", "effect_value": 0, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 500},
+    "minor_hp_potion": {"name": "소형 HP 물약", "description": "HP를 50 회복합니다.", "effect_type": "heal_hp", "effect_value": 50, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 40},
+    "hp_potion": {"name": "HP 물약", "description": "HP를 150 회복합니다.", "effect_type": "heal_hp", "effect_value": 150, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 80},
+    "greater_hp_potion": {"name": "상급 HP 물약", "description": "HP를 300 회복합니다.", "effect_type": "heal_hp", "effect_value": 300, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 150},
+    "superior_hp_potion": {"name": "최상급 HP 물약", "description": "HP를 600 회복합니다.", "effect_type": "heal_hp", "effect_value": 600, "rarity": ItemRarity.RARE, "stack_size": 99, "sell_price": 280},
+    "max_hp_potion": {"name": "엘리트 HP 물약", "description": "HP를 완전히 회복합니다.", "effect_type": "heal_hp_full", "effect_value": 0, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 600},
     
-    # === MP 포션 ===
-    "minor_mp_potion": {"name": "소형 MP 물약", "description": "MP를 30 회복합니다.", "effect_type": "heal_mp", "effect_value": 30, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 15},
-    "mp_potion": {"name": "MP 물약", "description": "MP를 80 회복합니다.", "effect_type": "heal_mp", "effect_value": 80, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 40},
-    "greater_mp_potion": {"name": "상급 MP 물약", "description": "MP를 180 회복합니다.", "effect_type": "heal_mp", "effect_value": 180, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 100},
-    "superior_mp_potion": {"name": "최상급 MP 물약", "description": "MP를 350 회복합니다.", "effect_type": "heal_mp", "effect_value": 350, "rarity": ItemRarity.RARE, "stack_size": 99, "sell_price": 250},
-    "max_mp_potion": {"name": "완전 MP 물약", "description": "MP를 완전히 회복합니다.", "effect_type": "heal_mp_full", "effect_value": 0, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 600},
+    # === MP 포션 (HP 포션보다 비싸게 설정) ===
+    "minor_mp_potion": {"name": "소형 MP 물약", "description": "MP를 30 회복합니다.", "effect_type": "heal_mp", "effect_value": 30, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 60},
+    "mp_potion": {"name": "MP 물약", "description": "MP를 80 회복합니다.", "effect_type": "heal_mp", "effect_value": 80, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 120},
+    "greater_mp_potion": {"name": "상급 MP 물약", "description": "MP를 180 회복합니다.", "effect_type": "heal_mp", "effect_value": 180, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 220},
+    "superior_mp_potion": {"name": "최상급 MP 물약", "description": "MP를 350 회복합니다.", "effect_type": "heal_mp", "effect_value": 350, "rarity": ItemRarity.RARE, "stack_size": 99, "sell_price": 420},
+    "max_mp_potion": {"name": "엘리트 MP 물약", "description": "MP를 완전히 회복합니다.", "effect_type": "heal_mp_full", "effect_value": 0, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 800},
     
     # === 만능 물약 ===
     "elixir": {"name": "엘릭서", "description": "HP와 MP를 각각 200씩 회복합니다.", "effect_type": "heal_both", "effect_value": 200, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 300},

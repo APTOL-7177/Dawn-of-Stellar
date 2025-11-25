@@ -223,7 +223,18 @@ class Skill:
                     pass
 
         # 비용 소비
+        # 암흑기사는 effects의 GimmickEffect.CONSUME로 충전을 소모하므로 costs의 StackCost는 건너뜀
+        is_dark_knight_for_cost = (hasattr(user, 'gimmick_type') and user.gimmick_type == "charge_system") or \
+                                  (hasattr(user, 'character_class') and 'dark_knight' in str(user.character_class).lower()) or \
+                                  (hasattr(user, 'job_id') and 'dark_knight' in str(user.job_id).lower())
+        
         for cost in self.costs:
+            # 암흑기사이고 StackCost인 경우 건너뛰기 (effects의 GimmickEffect.CONSUME에서 처리)
+            if is_dark_knight_for_cost:
+                from src.character.skills.costs.stack_cost import StackCost
+                if isinstance(cost, StackCost) and cost.field == "charge_gauge":
+                    continue  # StackCost는 건너뛰고 effects의 GimmickEffect.CONSUME에서 처리
+            
             if not cost.consume(user, context):
                 return SkillResult(success=False, message="비용 소비 실패")
 
