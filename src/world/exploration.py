@@ -509,34 +509,8 @@ class ExplorationSystem:
 
     def _check_tile_event(self, tile: Tile) -> ExplorationResult:
         """타일 이벤트 확인"""
-        # 마을 건물 상호작용 체크 (우선순위 높음, 적과 조우와 동일한 방식)
-        if hasattr(self, 'is_town') and self.is_town:
-            # 타일에 building 속성이 있으면 건물 상호작용
-            if hasattr(tile, 'building') and tile.building:
-                building = tile.building
-                logger.info(f"[건물 조우] {building.name}에 도달했습니다. (위치: {self.player.x}, {self.player.y})")
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.BUILDING_INTERACTION,
-                    message=f"🏛 {building.name}에 도착했습니다",
-                    data={
-                        "building": building,
-                        "building_type": building.building_type.value,
-                        "building_name": building.name
-                    }
-                )
-            # 타일의 char가 건물 심볼인 경우도 확인
-            elif hasattr(tile, 'char') and tile.char in ['K', 'B', 'A', 'S', 'Q', '$', 'I', 'G', 'F']:
-                # town_map에서 건물 찾기
-                if hasattr(self, 'town_map') and self.town_map:
-                    building = self.town_map.get_building_at(self.player.x, self.player.y)
-                    if building:
-                        logger.info(f"[건물 조우] {building.name}에 도달했습니다. (위치: {self.player.x}, {self.player.y})")
-                        return ExplorationResult(
-                            success=True,
-                            event=ExplorationEvent.BUILDING_INTERACTION,
-                            message=f"🏛 {building.name}에 도착했습니다",
-                            data={
+        # 마을 건물 상호작용은 handle_input에서 Z키로 처리하므로 여기서는 제거
+        # (자동 상호작용 대신 명시적 상호작용으로 변경)
                                 "building": building,
                                 "building_type": building.building_type.value,
                                 "building_name": building.name
