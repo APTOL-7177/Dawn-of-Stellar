@@ -19,36 +19,36 @@ def create_dark_knight_skills():
     charge_strike = Skill("dk_charge_strike", "충전 강타", "BRV 축적 + 충전 +15 (충전 0: 0.8배 → 100: 1.8배)")
     charge_strike.effects = [
         DamageEffect(DamageType.BRV, 0.8, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.01}),  # 충전 1%당 +1% 데미지
-        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 15, max_value=100)
+        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 3, max_value=100)  # 15 → 3 (1/5)
     ]
     charge_strike.costs = []  # 기본 공격은 MP 소모 없음
     charge_strike.sfx = ("combat", "attack_physical")
-    charge_strike.metadata = {"basic_attack": True, "charge_gain": 15, "builder": True}
+    charge_strike.metadata = {"basic_attack": True, "charge_gain": 3, "builder": True}  # 15 → 3 (1/5)
     skills.append(charge_strike)
 
     # 2. 기본 HP: 분쇄 타격
     crushing_blow = Skill("dk_crushing_blow", "분쇄 타격", "HP 공격 + 충전 +10 (충전 0: 0.5배 → 100: 2.0배)")
     crushing_blow.effects = [
         DamageEffect(DamageType.HP, 0.5, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.015}),  # 충전 1%당 +1.5% 데미지
-        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 10, max_value=100)
+        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 2, max_value=100)  # 10 → 2 (1/5)
     ]
     crushing_blow.costs = []  # 기본 공격은 MP 소모 없음
     crushing_blow.sfx = ("combat", "attack_physical")
-    crushing_blow.metadata = {"basic_attack": True, "charge_gain": 10, "builder": True}
+    crushing_blow.metadata = {"basic_attack": True, "charge_gain": 2, "builder": True}  # 10 → 2 (1/5)
     skills.append(crushing_blow)
 
     # 3. 방어 태세
     defensive_stance = Skill("dk_defensive_stance", "방어 태세", "방어력 증가 + 피격 시 충전 2배")
     defensive_stance.effects = [
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3),
-        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 5, max_value=100)  # 기본 충전 +5
+        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 1, max_value=100)  # 기본 충전 +1 (5 → 1, 1/5)
     ]
     defensive_stance.costs = [MPCost(6)]  # MP 8 → 6
     defensive_stance.target_type = "self"
     defensive_stance.sfx = ("skill", "protect")
     defensive_stance.metadata = {
         "defensive": True,
-        "charge_gain": 5,
+        "charge_gain": 1,  # 5 → 1 (1/5)
         "on_hit_charge_multiplier": 2.0,  # 피격 시 충전 2배 (기믹 업데이터에서 처리)
         "builder": True
     }
@@ -58,16 +58,16 @@ def create_dark_knight_skills():
     counter_stance = Skill("dk_counter_stance", "반격 태세", "회피율 증가 + 회피 시 반격 및 충전")
     counter_stance.effects = [
         BuffEffect(BuffType.EVASION_UP, 0.5, duration=3),
-        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 5, max_value=100)  # 기본 충전 +5
+        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 1, max_value=100)  # 기본 충전 +1 (5 → 1, 1/5)
     ]
     counter_stance.costs = [MPCost(8)]  # MP 10 → 8
     counter_stance.target_type = "self"
     counter_stance.sfx = ("skill", "protect")
     counter_stance.metadata = {
         "counter": True,
-        "charge_gain": 5,
+        "charge_gain": 1,  # 5 → 1 (1/5)
         "on_evade_counter": True,  # 회피 시 반격 (기믹 업데이터에서 처리)
-        "on_evade_charge": 20,  # 회피 시 충전 +20
+        "on_evade_charge": 4,  # 회피 시 충전 +4 (20 → 4, 1/5)
         "builder": True
     }
     skills.append(counter_stance)
@@ -138,7 +138,7 @@ def create_dark_knight_skills():
     vengeful_parry = Skill("dk_vengeful_parry", "복수의 패링", "캐스트 중 피격 시 카운터 (MP 8)")
     vengeful_parry.effects = [
         DamageEffect(DamageType.BRV_HP, 1.0),  # 기본 피해 (캐스트 완료 시) 1.5 → 1.0
-        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 5, max_value=100)  # 충전 10 → 5
+        GimmickEffect(GimmickOperation.ADD, "charge_gauge", 1, max_value=100)  # 충전 1 (5 → 1, 1/5)
     ]
     vengeful_parry.costs = [MPCost(8)]  # MP 15 → 8
     vengeful_parry.cast_time = 0.7  # ATB 70% 캐스트 타임 (긴 시전)
@@ -146,7 +146,7 @@ def create_dark_knight_skills():
     vengeful_parry.metadata = {
         "parry": True,  # 패링 기술
         "parry_damage_multiplier": 2.5,  # 패링 성공 시 데미지 3배 → 2.5배
-        "parry_charge_gain": 25,  # 패링 성공 시 충전 30 → 25
+        "parry_charge_gain": 5,  # 패링 성공 시 충전 5 (25 → 5, 1/5)
         "cast_time": 0.7,
         "interruptible": True,  # 중단 가능
         "counter_on_interrupt": True  # 캐스트 중 피격 시 카운터
