@@ -374,7 +374,7 @@ def serialize_gimmick_state(member: Any) -> Dict[str, Any]:
         "dragon_marks": ["dragon_marks", "max_dragon_marks", "dragon_power"],
         "arena_system": ["arena_points", "max_arena_points", "glory_points", "kill_count", "parry_active"],
         "break_system": ["break_power", "max_break_power"],
-        "darkness_system": ["darkness", "max_darkness"],
+        "charge_system": ["charge_gauge", "max_charge"],
         "duty_system": ["duty_stacks", "max_duty_stacks"],
         "holy_system": ["holy_power", "max_holy_power"],
         "theft_system": ["stolen_items", "max_stolen_items", "evasion_active"],

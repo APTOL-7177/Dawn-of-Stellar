@@ -223,7 +223,7 @@ class RewardCalculator:
             # 보스는 무조건 2~3개 드롭
             drop_count = random.randint(2, 3)
             for _ in range(drop_count):
-                items.append(RewardCalculator._generate_drop(floor_number, is_boss=True))
+                items.append(RewardCalculator._generate_drop(floor_number, is_boss=True, floor_number=floor_number))
             # 보스는 추가로 전투용 소비 아이템 0~1개 드롭
             if random.random() < 0.5:  # 50% 확률
                 items.append(RewardCalculator._generate_combat_consumable_drop())
@@ -238,7 +238,7 @@ class RewardCalculator:
             for enemy in enemies:
                 if random.random() < 0.2:  # 20%
                     enemy_level = getattr(enemy, 'level', floor_number)
-                    items.append(RewardCalculator._generate_drop(enemy_level))
+                    items.append(RewardCalculator._generate_drop(enemy_level, floor_number=floor_number))
                 # 일반 적도 5% 확률로 전투용 소비 아이템 드롭
                 if random.random() < 0.05:  # 5%
                     items.append(RewardCalculator._generate_combat_consumable_drop())
@@ -262,13 +262,14 @@ class RewardCalculator:
         }
 
     @staticmethod
-    def _generate_drop(level: int, is_boss: bool = False) -> Any:
+    def _generate_drop(level: int, is_boss: bool = False, floor_number: int = 1) -> Any:
         """
         아이템 드롭 생성
 
         Args:
             level: 적 레벨
             is_boss: 보스 드롭 여부
+            floor_number: 층 번호 (초반 등급 제한용)
 
         Returns:
             드롭 아이템
@@ -277,9 +278,9 @@ class RewardCalculator:
 
         # 보스는 높은 등급 확률 증가
         if is_boss:
-            return ItemGenerator.create_random_drop(level, boss_drop=True)
+            return ItemGenerator.create_random_drop(level, boss_drop=True, floor_number=floor_number)
         else:
-            return ItemGenerator.create_random_drop(level)
+            return ItemGenerator.create_random_drop(level, floor_number=floor_number)
 
     @staticmethod
     def _generate_consumable_drop() -> Any:

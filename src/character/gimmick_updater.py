@@ -45,8 +45,7 @@ class GimmickUpdater:
             GimmickUpdater._update_holy_system(character)
         elif gimmick_type == "divinity_system":
             GimmickUpdater._update_divinity_system(character)
-        elif gimmick_type == "darkness_system":
-            GimmickUpdater._update_darkness_system(character)
+        # charge_system은 별도로 처리됨 (on_turn_start, on_turn_end에서)
         elif gimmick_type == "undead_legion":
             GimmickUpdater._update_undead_legion(character)
         elif gimmick_type == "theft_system":

@@ -1609,8 +1609,8 @@ class CombatUI:
         msg = CombatMessage(text=text, color=color)
         self.messages.append(msg)
 
-        # 새로운 메시지가 추가되면 스크롤을 최신으로 (옵션)
-        # 사용자가 스크롤 중이면 그대로 유지하는 것이 나을 수도 있음
+        # 새로운 메시지가 추가되면 스크롤을 최신으로 리셋 (위에 있는 로그부터 사라지도록)
+        self.log_scroll_offset = 0
         
         logger.debug(f"전투 메시지: {text}")
 
@@ -2194,10 +2194,11 @@ class CombatUI:
             max_hacks = getattr(character, 'max_hack_stacks', 5)
             return (f"해킹:{hacks}/{max_hacks}", (0, 200, 200))
 
-        elif gimmick_type == "darkness_system":
-            # 암흑기사 - 어둠
-            darkness = getattr(character, 'darkness', 0)
-            return (f"어둠:{darkness}", (50, 50, 100))
+        elif gimmick_type == "charge_system":
+            # 암흑기사 - 충전 시스템
+            charge = getattr(character, 'charge_gauge', 0)
+            max_charge = getattr(character, 'max_charge', 100)
+            return (f"충전:{charge}/{max_charge}", (100, 50, 150))
 
         elif gimmick_type == "holy_system":
             # 성기사/신관 - 신성력
@@ -3463,30 +3464,41 @@ class CombatUI:
             else:
                 console.print(content_x, content_y + line, " 포션 부족 - 제작 필요", fg=(255, 200, 100))
 
-        elif gimmick_type == "darkness_system":
-            # 암흑기사 - 어둠
-            darkness = getattr(character, 'darkness', 0)
-            max_darkness = 100
+        elif gimmick_type == "charge_system":
+            # 암흑기사 - 충전 시스템
+            charge = getattr(character, 'charge_gauge', 0)
+            max_charge = getattr(character, 'max_charge', 100)
 
-            console.print(content_x, content_y + line, " 암흑기사 - 어둠", fg=(100, 100, 150))
+            console.print(content_x, content_y + line, " 암흑기사 - 충전 시스템", fg=(100, 50, 150))
             line += 1
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
-            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, darkness, max_darkness, show_numbers=True, custom_color=(100, 100, 150))
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, charge, max_charge, show_numbers=True, custom_color=(100, 50, 150))
             line += 2
 
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
-            if darkness >= 70:
-                console.print(content_x, content_y + line, " 어둠 가득!", fg=(150, 150, 200))
+            # 충전 단계별 정보 표시
+            if charge >= 100:
+                console.print(content_x, content_y + line, " 완전충전!", fg=(255, 200, 100))
                 line += 1
-                console.print(content_x, content_y + line, " HP 소모 스킬 +50%", fg=(255, 200, 255))
-            elif darkness >= 40:
-                console.print(content_x, content_y + line, " 어둠 축적 중", fg=(120, 120, 180))
+                console.print(content_x, content_y + line, " 물공 +60%, 치명타 확정", fg=(255, 255, 200))
+            elif charge >= 75:
+                console.print(content_x, content_y + line, " 결정타 단계", fg=(255, 150, 100))
+                line += 1
+                console.print(content_x, content_y + line, " 물공 +35%, 치명타율 +20%", fg=(255, 200, 150))
+            elif charge >= 50:
+                console.print(content_x, content_y + line, " 강화 단계", fg=(200, 150, 255))
+                line += 1
+                console.print(content_x, content_y + line, " 물공 +20%, 치명타율 +10%", fg=(200, 180, 255))
+            elif charge >= 25:
+                console.print(content_x, content_y + line, " 집중 단계", fg=(150, 100, 200))
+                line += 1
+                console.print(content_x, content_y + line, " 물공 +10%, 치명타율 +5%", fg=(180, 150, 220))
             else:
-                console.print(content_x, content_y + line, " 어둠 부족", fg=(150, 150, 150))
+                console.print(content_x, content_y + line, " 준비 단계", fg=(120, 120, 180))
 
         elif gimmick_type == "holy_system":
             # 성기사/신관 - 신성력
@@ -4202,14 +4214,25 @@ class CombatUI:
             details.append(f" 냉기: {ice_bar}")
             details.append(f" 번개: {lightning_bar}")
 
-        # 암흑기사 - 암흑 시스템 (YAML: darkness_system)
-        elif gimmick_type == "darkness_system":
-            darkness = getattr(character, 'darkness_gauge', 0)
-            details.append("=== 암흑 시스템 ===")
-            gauge_bar = self._create_gauge_bar(darkness, 100, width=10, danger_threshold=80)
-            details.append(f"암흑력: {gauge_bar}")
-            if darkness >= 80:
-                details.append(" 암흑 폭발 가능")
+        # 암흑기사 - 충전 시스템 (YAML: charge_system)
+        elif gimmick_type == "charge_system":
+            charge = getattr(character, 'charge_gauge', 0)
+            max_charge = getattr(character, 'max_charge', 100)
+            details.append("=== 충전 시스템 ===")
+            gauge_bar = self._create_gauge_bar(charge, max_charge, width=10)
+            details.append(f"충전량: {gauge_bar}")
+            
+            # 충전 단계별 정보 표시
+            if charge >= 100:
+                details.append(" 완전충전: 물공 +60%, 치명타 확정")
+            elif charge >= 75:
+                details.append(" 결정타: 물공 +35%, 치명타율 +20%")
+            elif charge >= 50:
+                details.append(" 강화: 물공 +20%, 치명타율 +10%")
+            elif charge >= 25:
+                details.append(" 집중: 물공 +10%, 치명타율 +5%")
+            else:
+                details.append(" 준비: 효과 없음")
 
         # 연금술사 - 연금 시스템 (YAML: alchemy_system)
         elif gimmick_type == "alchemy_system":

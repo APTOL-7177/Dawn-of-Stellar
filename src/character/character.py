@@ -306,10 +306,10 @@ class Character:
             self.break_power = 0
             self.max_break_power = self.gimmick_data.get("max_break_power", 10)
 
-        # 다크나이트 - 어둠의 힘
-        elif gimmick_type == "darkness_system":
-            self.darkness = 0
-            self.max_darkness = self.gimmick_data.get("max_darkness", 100)
+        # 다크나이트 - 충전 시스템
+        elif gimmick_type == "charge_system":
+            self.charge_gauge = self.gimmick_data.get("start_charge", 0)
+            self.max_charge = self.gimmick_data.get("max_charge", 100)
 
         # 기사 - 의무 스택
         elif gimmick_type == "duty_system":
