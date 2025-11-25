@@ -768,15 +768,16 @@ class WorldUI:
                                 # 창고: 창고 UI 열기
                                 if self.inventory is not None and town_manager is not None:
                                     # 마을 창고 우선 확인
-                                    storage_inventory = []
                                     if hasattr(town_manager, 'get_storage_inventory'):
                                         storage_inventory = town_manager.get_storage_inventory()
                                         logger.info(f"[건물 상호작용] 마을 창고 UI 열기 (보관 아이템: {len(storage_inventory)}개)")
-                                    else:
+                                    elif hasattr(town_manager, 'get_hub_storage'):
                                         # 하위 호환성
-                                        hub_storage = town_manager.get_hub_storage()
-                                        logger.info(f"[건물 상호작용] 창고 UI 열기 (보관 아이템: {len(hub_storage)}개)")
-                                        storage_inventory = hub_storage
+                                        storage_inventory = town_manager.get_hub_storage()
+                                        logger.info(f"[건물 상호작용] 창고 UI 열기 (보관 아이템: {len(storage_inventory)}개)")
+                                    else:
+                                        storage_inventory = []
+                                        logger.warning("[건물 상호작용] 창고 저장소 메서드를 찾을 수 없습니다")
 
                                     try:
                                         from src.ui.storage_ui import open_storage
