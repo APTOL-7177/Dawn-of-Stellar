@@ -88,38 +88,45 @@ class DamageEffect(SkillEffect):
             bonus_mult = self.gimmick_bonus.get('multiplier', 0)
             if field:
                 stacks = 0
-                # 계산된 필드 처리 (character에 직접 필드가 없는 경우)
-                if field == "total_runes":
-                    # 배틀메이지: 모든 룬 타입 합산
-                    if hasattr(user, 'gimmick_type') and user.gimmick_type == "rune_resonance":
-                        stacks = (
-                            getattr(user, 'rune_fire', 0) +
-                            getattr(user, 'rune_ice', 0) +
-                            getattr(user, 'rune_lightning', 0) +
-                            getattr(user, 'rune_earth', 0) +
-                            getattr(user, 'rune_arcane', 0)
-                        )
-                elif field == "total_undead":
-                    # 네크로맨서: 모든 언데드 타입 합산
-                    if hasattr(user, 'gimmick_type') and user.gimmick_type == "undead_legion":
-                        stacks = (
-                            getattr(user, 'undead_skeleton', 0) +
-                            getattr(user, 'undead_zombie', 0) +
-                            getattr(user, 'undead_ghost', 0)
-                        )
-                elif field == "total_programs":
-                    # 해커: 모든 프로그램 타입 합산
-                    if hasattr(user, 'gimmick_type') and user.gimmick_type == "program_execution":
-                        stacks = (
-                            getattr(user, 'program_virus', 0) +
-                            getattr(user, 'program_backdoor', 0) +
-                            getattr(user, 'program_ddos', 0) +
-                            getattr(user, 'program_ransomware', 0) +
-                            getattr(user, 'program_spyware', 0)
-                        )
-                elif hasattr(user, field):
-                    # 일반 필드 (기존 로직)
-                    stacks = getattr(user, field, 0)
+                
+                # 스냅샷 컨텍스트가 있으면 스냅샷된 값 사용 (캐스팅 스킬용)
+                snapshot_context = context.get('snapshot_context') if context else None
+                if snapshot_context and field in snapshot_context:
+                    stacks = snapshot_context[field]
+                else:
+                    # 스냅샷이 없으면 현재 값 사용 (즉시 실행 스킬)
+                    # 계산된 필드 처리 (character에 직접 필드가 없는 경우)
+                    if field == "total_runes":
+                        # 배틀메이지: 모든 룬 타입 합산
+                        if hasattr(user, 'gimmick_type') and user.gimmick_type == "rune_resonance":
+                            stacks = (
+                                getattr(user, 'rune_fire', 0) +
+                                getattr(user, 'rune_ice', 0) +
+                                getattr(user, 'rune_lightning', 0) +
+                                getattr(user, 'rune_earth', 0) +
+                                getattr(user, 'rune_arcane', 0)
+                            )
+                    elif field == "total_undead":
+                        # 네크로맨서: 모든 언데드 타입 합산
+                        if hasattr(user, 'gimmick_type') and user.gimmick_type == "undead_legion":
+                            stacks = (
+                                getattr(user, 'undead_skeleton', 0) +
+                                getattr(user, 'undead_zombie', 0) +
+                                getattr(user, 'undead_ghost', 0)
+                            )
+                    elif field == "total_programs":
+                        # 해커: 모든 프로그램 타입 합산
+                        if hasattr(user, 'gimmick_type') and user.gimmick_type == "program_execution":
+                            stacks = (
+                                getattr(user, 'program_virus', 0) +
+                                getattr(user, 'program_backdoor', 0) +
+                                getattr(user, 'program_ddos', 0) +
+                                getattr(user, 'program_ransomware', 0) +
+                                getattr(user, 'program_spyware', 0)
+                            )
+                    elif hasattr(user, field):
+                        # 일반 필드 (기존 로직)
+                        stacks = getattr(user, field, 0)
                 
                 if stacks > 0:
                     final_mult += stacks * bonus_mult
@@ -248,8 +255,8 @@ class DamageEffect(SkillEffect):
             result.brv_damage = brv_result['brv_stolen']
             result.brv_gained = brv_result['actual_gain']
             result.brv_broken = brv_result['is_break']
-            # HP 공격도 물리/마법 구분
-            hp_result = self.brave_system.hp_attack(user, target, 1.0, damage_type=self.stat_type)
+            # HP 공격도 물리/마법 구분 - final_mult 사용 (기믹 보너스 적용)
+            hp_result = self.brave_system.hp_attack(user, target, final_mult, damage_type=self.stat_type)
             result.hp_damage = hp_result['hp_damage']
             result.damage_dealt = hp_result['hp_damage']
             result.message = f"BRV+HP 공격! BRV:{result.brv_damage} HP:{result.hp_damage}"

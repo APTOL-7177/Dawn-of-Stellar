@@ -703,37 +703,63 @@ class StatusManager:
 
             # 특수 상태
             elif effect.status_type == StatusType.VULNERABLE:
-                modifiers['physical_defense'] *= 0.5
-                modifiers['magic_defense'] *= 0.5
+                # intensity = 감소율 (기본 0.5 = 50% 감소)
+                vuln_reduction = min(effect.intensity, 0.8)  # 최대 80% 감소
+                modifiers['physical_defense'] *= max(1.0 - vuln_reduction, 0.1)
+                modifiers['magic_defense'] *= max(1.0 - vuln_reduction, 0.1)
             elif effect.status_type == StatusType.EXPOSED:
-                modifiers['evasion'] *= 0.3
+                # intensity = 감소율 (기본 0.7 = 70% 감소)
+                exposed_reduction = min(effect.intensity, 0.9)  # 최대 90% 감소
+                modifiers['evasion'] *= max(1.0 - exposed_reduction, 0.05)
             elif effect.status_type == StatusType.WEAKNESS:
-                modifiers['physical_attack'] *= 0.7
-                modifiers['magic_attack'] *= 0.7
+                # intensity = 감소율 (기본 0.3 = 30% 감소)
+                weakness_reduction = min(effect.intensity, 0.5)  # 최대 50% 감소
+                modifiers['physical_attack'] *= max(1.0 - weakness_reduction, 0.5)
+                modifiers['magic_attack'] *= max(1.0 - weakness_reduction, 0.5)
             elif effect.status_type == StatusType.HASTE:
-                modifiers['speed'] *= 1.5
+                # intensity = 증가율 (기본 0.5 = 50% 증가)
+                haste_boost = min(effect.intensity, 1.0)  # 최대 100% 증가
+                modifiers['speed'] *= (1.0 + haste_boost)
             elif effect.status_type == StatusType.SLOW:
-                modifiers['speed'] *= 0.6
+                # intensity가 감소율 (0.5 = 50% 감소)
+                # 둔화는 최대 50%까지만 적용 (사용자 요청)
+                slow_reduction = min(effect.intensity, 0.5)  # 최대 50% 감소
+                modifiers['speed'] *= max(1.0 - slow_reduction, 0.5)  # 최소 50% 속도 유지
             elif effect.status_type == StatusType.FOCUS:
-                modifiers['accuracy'] *= 1.3
-                modifiers['critical_rate'] *= 1.2
+                # intensity = 증가율 (기본 0.3 = 30% 증가)
+                focus_boost_acc = min(effect.intensity * 0.3, 0.5)  # 최대 50% 증가
+                focus_boost_crit = min(effect.intensity * 0.2, 0.4)  # 최대 40% 증가
+                modifiers['accuracy'] *= (1.0 + focus_boost_acc)
+                modifiers['critical_rate'] *= (1.0 + focus_boost_crit)
             elif effect.status_type == StatusType.RAGE:
-                modifiers['physical_attack'] *= 1.4
-                modifiers['magic_attack'] *= 1.4
-                modifiers['physical_defense'] *= 0.8
-                modifiers['magic_defense'] *= 0.8
+                # intensity = 강도 (기본 1.0)
+                rage_atk_boost = min(effect.intensity * 0.4, 0.8)  # 최대 80% 증가
+                rage_def_reduction = min(effect.intensity * 0.2, 0.3)  # 최대 30% 감소
+                modifiers['physical_attack'] *= (1.0 + rage_atk_boost)
+                modifiers['magic_attack'] *= (1.0 + rage_atk_boost)
+                modifiers['physical_defense'] *= max(1.0 - rage_def_reduction, 0.7)
+                modifiers['magic_defense'] *= max(1.0 - rage_def_reduction, 0.7)
             elif effect.status_type == StatusType.BERSERK:
-                modifiers['physical_attack'] *= 1.6
-                modifiers['magic_attack'] *= 1.6
-                modifiers['physical_defense'] *= 0.6
-                modifiers['magic_defense'] *= 0.6
-                modifiers['accuracy'] *= 0.8
+                # intensity = 강도 (기본 1.0)
+                berserk_atk_boost = min(effect.intensity * 0.6, 1.0)  # 최대 100% 증가
+                berserk_def_reduction = min(effect.intensity * 0.4, 0.5)  # 최대 50% 감소
+                berserk_acc_reduction = min(effect.intensity * 0.2, 0.3)  # 최대 30% 감소
+                modifiers['physical_attack'] *= (1.0 + berserk_atk_boost)
+                modifiers['magic_attack'] *= (1.0 + berserk_atk_boost)
+                modifiers['physical_defense'] *= max(1.0 - berserk_def_reduction, 0.5)
+                modifiers['magic_defense'] *= max(1.0 - berserk_def_reduction, 0.5)
+                modifiers['accuracy'] *= max(1.0 - berserk_acc_reduction, 0.7)
             elif effect.status_type == StatusType.BLIND:
-                modifiers['accuracy'] *= 0.3
+                # intensity = 감소율 (기본 0.7 = 70% 감소)
+                blind_reduction = min(effect.intensity, 0.9)  # 최대 90% 감소
+                modifiers['accuracy'] *= max(1.0 - blind_reduction, 0.05)
             elif effect.status_type == StatusType.TERROR:
-                modifiers['physical_attack'] *= 0.6
-                modifiers['magic_attack'] *= 0.6
-                modifiers['speed'] *= 0.7
+                # intensity = 감소율 (기본 0.4 = 40% 감소)
+                terror_atk_reduction = min(effect.intensity * 0.4, 0.6)  # 최대 60% 감소
+                terror_spd_reduction = min(effect.intensity * 0.3, 0.5)  # 최대 50% 감소
+                modifiers['physical_attack'] *= max(1.0 - terror_atk_reduction, 0.4)
+                modifiers['magic_attack'] *= max(1.0 - terror_atk_reduction, 0.4)
+                modifiers['speed'] *= max(1.0 - terror_spd_reduction, 0.5)
 
         return modifiers
 

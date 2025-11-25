@@ -1763,7 +1763,8 @@ class CombatManager:
                         # status_effects는 List[str] 타입이므로 리스트를 반복
                         for effect_name in skill.status_effects:
                             duration = skill.status_duration  # 기본 duration 사용
-                            intensity = 1.0  # 기본 intensity
+                            # 스킬별 intensity 사용 (기본값: 0.5)
+                            intensity = getattr(skill, 'status_intensity', 0.5)
 
                             # 강력한 상태이상은 최대 2턴으로 제한
                             from src.combat.status_effects import StatusType as StatusTypeEnum
@@ -2587,7 +2588,16 @@ class CombatManager:
             # 캐스팅이 완료되었으므로 실제 스킬 효과를 적용
             # context에 모든 적 정보 추가 (AOE 효과를 위해)
             all_enemies = self.enemies if caster in self.allies else self.allies
-            result = skill.execute(caster, target, context={"combat_manager": self, "all_enemies": all_enemies})
+            
+            # 스냅샷 컨텍스트를 context에 추가 (기믹 보너스 계산용)
+            context = {
+                "combat_manager": self, 
+                "all_enemies": all_enemies
+            }
+            if cast_info.snapshot_context:
+                context["snapshot_context"] = cast_info.snapshot_context
+            
+            result = skill.execute(caster, target, context=context)
 
             if result.success:
                 # SFX 재생

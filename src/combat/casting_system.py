@@ -36,6 +36,7 @@ class CastingInfo:
     state: CastingState = CastingState.CASTING
     interruptible: bool = True  # 중단 가능 여부
     parry_success: bool = False  # 패링 성공 여부
+    snapshot_context: Optional[Dict[str, Any]] = None  # 캐스팅 시작 시점의 기믹 값 스냅샷
 
     @property
     def progress(self) -> float:
@@ -87,13 +88,51 @@ class CastingSystem:
         # 필요한 ATB 포인트 계산 (ATB 비율 * 임계값)
         required_atb = int(cast_time_ratio * atb_threshold)
 
+        # 기믹 값 스냅샷 생성 (스킬 효과 계산 시 사용)
+        snapshot = {}
+        
+        # skill의 effects를 검사하여 gimmick_bonus가 있는지 확인
+        if hasattr(skill, 'effects'):
+            for effect in skill.effects:
+                # DamageEffect의 gimmick_bonus 확인
+                if hasattr(effect, 'gimmick_bonus') and effect.gimmick_bonus:
+                    field = effect.gimmick_bonus.get('field')
+                    if field:
+                        # 계산된 필드 처리
+                        if field == "total_runes" and hasattr(caster, 'gimmick_type') and caster.gimmick_type == "rune_resonance":
+                            snapshot[field] = (
+                                getattr(caster, 'rune_fire', 0) +
+                                getattr(caster, 'rune_ice', 0) +
+                                getattr(caster, 'rune_lightning', 0) +
+                                getattr(caster, 'rune_earth', 0) +
+                                getattr(caster, 'rune_arcane', 0)
+                            )
+                        elif field == "total_undead" and hasattr(caster, 'gimmick_type') and caster.gimmick_type == "undead_legion":
+                            snapshot[field] = (
+                                getattr(caster, 'undead_skeleton', 0) +
+                                getattr(caster, 'undead_zombie', 0) +
+                                getattr(caster, 'undead_ghost', 0)
+                            )
+                        elif field == "total_programs" and hasattr(caster, 'gimmick_type') and caster.gimmick_type == "program_execution":
+                            snapshot[field] = (
+                                getattr(caster, 'program_virus', 0) +
+                                getattr(caster, 'program_backdoor', 0) +
+                                getattr(caster, 'program_ddos', 0) +
+                                getattr(caster, 'program_ransomware', 0) +
+                                getattr(caster, 'program_spyware', 0)
+                            )
+                        elif hasattr(caster, field):
+                            # 일반 필드 (charge_gauge 등)
+                            snapshot[field] = getattr(caster, field, 0)
+
         cast_info = CastingInfo(
             caster=caster,
             skill=skill,
             target=target,
             cast_time_ratio=cast_time_ratio,
             required_atb=required_atb,
-            interruptible=interruptible
+            interruptible=interruptible,
+            snapshot_context=snapshot if snapshot else None
         )
 
         self.active_casts[caster] = cast_info

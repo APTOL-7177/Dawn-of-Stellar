@@ -223,16 +223,18 @@ class Skill:
                     pass
 
         # 비용 소비
-        # 암흑기사는 effects의 GimmickEffect.CONSUME로 충전을 소모하므로 costs의 StackCost는 건너뜀
+        # 스냅샷 컨텍스트가 있으면 캐스팅 완료 후이므로 StackCost 건너뛰기
+        # (스택은 effects의 GimmickEffect.CONSUME에서 처리)
+        has_snapshot = 'snapshot_context' in context
         is_dark_knight_for_cost = (hasattr(user, 'gimmick_type') and user.gimmick_type == "charge_system") or \
                                   (hasattr(user, 'character_class') and 'dark_knight' in str(user.character_class).lower()) or \
                                   (hasattr(user, 'job_id') and 'dark_knight' in str(user.job_id).lower())
         
         for cost in self.costs:
-            # 암흑기사이고 StackCost인 경우 건너뛰기 (effects의 GimmickEffect.CONSUME에서 처리)
-            if is_dark_knight_for_cost:
+            # 스냅샷이 있거나 암흑기사이고 StackCost인 경우 건너뛰기
+            if has_snapshot or is_dark_knight_for_cost:
                 from src.character.skills.costs.stack_cost import StackCost
-                if isinstance(cost, StackCost) and cost.field == "charge_gauge":
+                if isinstance(cost, StackCost):
                     continue  # StackCost는 건너뛰고 effects의 GimmickEffect.CONSUME에서 처리
             
             if not cost.consume(user, context):

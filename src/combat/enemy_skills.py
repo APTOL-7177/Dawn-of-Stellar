@@ -52,9 +52,11 @@ class EnemySkill:
     brv_damage: int = 0  # BRV 데미지
     hp_attack: bool = False  # HP 공격 여부
 
+
     # 상태 효과
     status_effects: List[str] = field(default_factory=list)  # "poison", "stun", "burn" 등
     status_duration: int = 3  # 턴 수
+    status_intensity: float = 0.5  # 상태이상 강도 (기본값: 일반 강도)
 
     # 버프/디버프
     buff_stats: Dict[str, float] = field(default_factory=dict)  # {"strength": 1.2} 등
@@ -146,6 +148,7 @@ class EnemySkillDatabase:
                 brv_damage=1,  # BRV 공격 활성화
                 status_effects=["poison"],
                 status_duration=3,
+                status_intensity=0.3,  # poison_stab 조정
                 use_probability=0.35,
                 cooldown=2,
                 sfx=("skill", "poison")
@@ -218,6 +221,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["bleed"],
                 status_duration=3,
+                status_intensity=0.35,  # savage_bite 조정
                 use_probability=0.4,
                 cooldown=2,
                 sfx=("combat", "attack_physical")
@@ -276,6 +280,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.4,  # crush 조정
                 use_probability=0.2,
                 cooldown=4
             ),
@@ -338,6 +343,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["slow"],
                 status_duration=2,
+                status_intensity=0.4,  # soul_drain 조정
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -379,6 +385,7 @@ class EnemySkillDatabase:
                 is_magical=True,
                 status_effects=["poison", "weakness"],
                 status_duration=3,
+                status_intensity=0.25,  # poison_breath 조정
                 use_probability=0.3,
                 cooldown=4
             ),
@@ -441,6 +448,7 @@ class EnemySkillDatabase:
                 mp_cost=15,
                 status_effects=["burn"],
                 status_duration=2,
+                status_intensity=0.35,  # fireball 조정
                 use_probability=0.4,
                 cooldown=1
             ),
@@ -458,6 +466,7 @@ class EnemySkillDatabase:
                 mp_cost=25,
                 status_effects=["slow"],
                 status_duration=2,
+                status_intensity=0.35,  # ice_storm 조정
                 use_probability=0.25,
                 cooldown=3
             ),
@@ -496,6 +505,7 @@ class EnemySkillDatabase:
                 mp_cost=30,
                 status_effects=["burn"],
                 status_duration=3,
+                status_intensity=0.5,  # dragon_breath 조정
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -536,6 +546,7 @@ class EnemySkillDatabase:
                 mp_cost=40,
                 status_effects=["burn", "curse"],
                 status_duration=4,
+                status_intensity=0.5,  # hellfire 조정
                 use_probability=0.3,
                 cooldown=3
             ),
@@ -568,6 +579,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["disease", "weakness"],
                 status_duration=4,
+                status_intensity=0.3,  # infected_strike 조정
                 use_probability=0.4,
                 cooldown=2
             ),
@@ -581,6 +593,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["curse", "slow"],
                 status_duration=5,
+                status_intensity=0.3,  # zombify 조정
                 use_probability=0.3,
                 cooldown=4
             ),
@@ -640,6 +653,7 @@ class EnemySkillDatabase:
                 debuff_stats={"magic": 0.6, "spirit": 0.6},
                 status_effects=["confusion"],
                 status_duration=2,
+                status_intensity=0.4,  # wail 조정
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -654,6 +668,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["curse", "silence", "slow"],
                 status_duration=2,
+                status_intensity=0.425,  # cursed_scream 조정
                 use_probability=0.2,
                 cooldown=4
             ),
@@ -692,6 +707,7 @@ class EnemySkillDatabase:
                 mp_cost=30,
                 status_effects=["doom", "curse"],
                 status_duration=5,
+                status_intensity=0.45,  # death_sentence 조정
                 use_probability=0.25,
                 cooldown=6
             ),
@@ -727,6 +743,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["bind", "weakness"],
                 status_duration=3,
+                status_intensity=0.35,  # bandage_wrap 조정
                 use_probability=0.35,
                 cooldown=3
             ),
@@ -757,6 +774,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=3,
+                status_intensity=0.36,  # flame_burst 조정
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -783,6 +801,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn", "slow"],
                 status_duration=2,
+                status_intensity=0.45,  # lava_eruption 조정
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -800,6 +819,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["freeze", "slow"],
                 status_duration=2,
+                status_intensity=0.45,  # absolute_zero 조정
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -812,6 +832,7 @@ class EnemySkillDatabase:
                 mp_cost=20,
                 status_effects=["freeze", "bind"],
                 status_duration=2,
+                status_intensity=0.4,  # ice_prison 맞춤 강도
                 use_probability=0.25,
                 cooldown=3
             ),
@@ -826,6 +847,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["slow"],
                 status_duration=3,
+                status_intensity=0.45,  # blizzard 조정
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -843,6 +865,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["paralyze"],
                 status_duration=1,
+                status_intensity=0.38,  # chain_lightning 조정
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -868,6 +891,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["paralyze", "stun"],
                 status_duration=1,
+                status_intensity=0.4,  # static_field 조정
                 use_probability=0.2,
                 cooldown=3
             ),
@@ -906,6 +930,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["slow", "stun"],
                 status_duration=1,
+                status_intensity=0.5,  # earthquake 조정
                 use_probability=0.2,
                 cooldown=4
             ),
@@ -949,6 +974,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["confusion"],
                 status_duration=2,
+                status_intensity=0.45,  # tornado 조정
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -966,6 +992,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["darkness"],
                 status_duration=3,
+                status_intensity=0.42,  # dark_orb 맞춤 강도
                 use_probability=0.4,
                 cooldown=2
             ),
@@ -989,6 +1016,7 @@ class EnemySkillDatabase:
                 debuff_stats={"strength": 0.6, "magic": 0.6, "defense": 0.7, "spirit": 0.7},
                 status_effects=["curse"],
                 status_duration=4,
+                status_intensity=0.42,  # dark_curse 맞춤 강도
                 use_probability=0.35,
                 cooldown=5
             ),
@@ -1004,6 +1032,7 @@ class EnemySkillDatabase:
                 debuff_stats={"strength": 0.7, "defense": 0.7},
                 status_effects=["fear"],
                 status_duration=2,
+                status_intensity=0.4,  # bear_roar 맞춤 강도
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -1017,6 +1046,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["bleed"],
                 status_duration=3,
+                status_intensity=0.4,  # claw_barrage 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -1030,6 +1060,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.4,  # overwhelming_force 맞춤 강도
                 use_probability=0.3,
                 cooldown=4
             ),
@@ -1042,6 +1073,7 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SINGLE_ENEMY,
                 status_effects=["bind", "slow"],
                 status_duration=3,
+                status_intensity=0.35,  # web_trap 조정
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -1054,6 +1086,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["poison", "weakness"],
                 status_duration=4,
+                status_intensity=0.4,  # venom_spray 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -1067,6 +1100,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["poison"],
                 status_duration=5,
+                status_intensity=0.3,  # poisonous_fangs 맞춤 강도
                 use_probability=0.4,
                 cooldown=2
             ),
@@ -1082,6 +1116,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["poison", "paralyze"],
                 status_duration=2,
+                status_intensity=0.4,  # scorpion_sting 맞춤 강도
                 use_probability=0.25,
                 cooldown=3
             ),
@@ -1119,6 +1154,7 @@ class EnemySkillDatabase:
                 mp_cost=25,
                 status_effects=["petrify", "stun"],
                 status_duration=2,
+                status_intensity=0.44,  # petrifying_gaze 맞춤 강도
                 use_probability=0.2,
                 cooldown=5
             ),
@@ -1132,6 +1168,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["poison"],
                 status_duration=4,
+                status_intensity=0.4,  # viper_fangs 맞춤 강도
                 use_probability=0.4,
                 cooldown=2
             ),
@@ -1144,6 +1181,7 @@ class EnemySkillDatabase:
                 mp_cost=20,
                 status_effects=["paralyze", "slow"],
                 status_duration=2,
+                status_intensity=0.4,  # paralyzing_stare 맞춤 강도
                 use_probability=0.2,
                 cooldown=3
             ),
@@ -1172,6 +1210,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=3,
+                status_intensity=0.36,  # hellfire_breath 맞춤 강도
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -1219,6 +1258,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["poison", "weakness"],
                 status_duration=4,
+                status_intensity=0.4,  # toxic_breath 맞춤 강도
                 use_probability=0.35,
                 cooldown=3
             ),
@@ -1238,6 +1278,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=3,
+                status_intensity=0.36,  # fire_breath 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -1253,6 +1294,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn", "weakness"],
                 status_duration=3,
+                status_intensity=0.4,  # inferno 맞춤 강도
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -1281,6 +1323,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["freeze", "slow"],
                 status_duration=2,
+                status_intensity=0.4,  # frost_breath 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -1295,6 +1338,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["slow"],
                 status_duration=3,
+                status_intensity=0.4,  # snowstorm 맞춤 강도
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -1325,6 +1369,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["poison", "weakness"],
                 status_duration=5,
+                status_intensity=0.25,  # poison_breath 조정
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -1340,6 +1385,7 @@ class EnemySkillDatabase:
                 debuff_stats={"strength": 0.6, "defense": 0.6, "speed": 0.7},
                 status_effects=["poison"],
                 status_duration=4,
+                status_intensity=0.4,  # toxic_cloud 맞춤 강도
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -1354,6 +1400,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["curse", "disease"],
                 status_duration=4,
+                status_intensity=0.4,  # decay_breath 맞춤 강도
                 use_probability=0.35,
                 cooldown=3
             ),
@@ -1367,6 +1414,7 @@ class EnemySkillDatabase:
                 debuff_stats={"strength": 0.5, "defense": 0.5, "magic": 0.5, "spirit": 0.5, "speed": 0.6},
                 status_effects=["fear"],
                 status_duration=3,
+                status_intensity=0.5,  # elder_dragon_roar 맞춤 강도
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -1382,6 +1430,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn", "freeze", "poison"],
                 status_duration=2,
+                status_intensity=0.45,  # elemental_breath 맞춤 강도
                 use_probability=0.2,
                 cooldown=4
             ),
@@ -1412,6 +1461,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=2,
+                status_intensity=0.36,  # imp_fireball 맞춤 강도
                 use_probability=0.4,
                 cooldown=1
             ),
@@ -1449,6 +1499,7 @@ class EnemySkillDatabase:
                 mp_cost=25,
                 status_effects=["charm", "confusion"],
                 status_duration=3,
+                status_intensity=0.38,  # charm 맞춤 강도
                 use_probability=0.4,
                 cooldown=4
             ),
@@ -1478,6 +1529,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["curse", "charm", "weakness"],
                 status_duration=4,
+                status_intensity=0.5,  # demon_kiss 맞춤 강도
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -1495,6 +1547,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=3,
+                status_intensity=0.36,  # balrog_flame 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -1510,6 +1563,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn", "bleed"],
                 status_duration=3,
+                status_intensity=0.36,  # flame_whip 맞춤 강도
                 use_probability=0.35,
                 cooldown=3
             ),
@@ -1525,6 +1579,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn", "curse"],
                 status_duration=3,
+                status_intensity=0.4,  # infernal_explosion 맞춤 강도
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -1542,6 +1597,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["doom", "curse"],
                 status_duration=5,
+                status_intensity=0.42,  # hand_of_doom 맞춤 강도
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -1555,6 +1611,7 @@ class EnemySkillDatabase:
                 debuff_stats={"strength": 0.5, "defense": 0.5, "magic": 0.5, "spirit": 0.5, "speed": 0.5},
                 status_effects=["curse"],
                 status_duration=5,
+                status_intensity=0.4,  # corruption 맞춤 강도
                 use_probability=0.3,
                 cooldown=6
             ),
@@ -1585,6 +1642,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.4,  # steel_fist 맞춤 강도
                 use_probability=0.4,
                 cooldown=2
             ),
@@ -1607,6 +1665,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["slow"],
                 status_duration=2,
+                status_intensity=0.4,  # quake_slam 맞춤 강도
                 use_probability=0.3,
                 cooldown=4
             ),
@@ -1703,6 +1762,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.4,  # surprise_attack 맞춤 강도
                 use_probability=0.3,
                 cooldown=3
             ),
@@ -1716,6 +1776,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["confusion"],
                 status_duration=2,
+                status_intensity=0.4,  # treasure_lure 맞춤 강도
                 use_probability=0.35,
                 cooldown=3
             ),
@@ -1733,6 +1794,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["fear", "confusion", "curse"],
                 status_duration=3,
+                status_intensity=0.4,  # nightmare_vision 맞춤 강도
                 use_probability=0.4,
                 cooldown=4
             ),
@@ -1759,6 +1821,7 @@ class EnemySkillDatabase:
                 mp_cost=40,
                 status_effects=["sleep", "doom"],
                 status_duration=2,
+                status_intensity=0.38,  # sleep_eternal 맞춤 강도
                 use_probability=0.15,
                 cooldown=6
             ),
@@ -1779,6 +1842,7 @@ class EnemySkillDatabase:
                 mp_cost=50,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.4,  # supernova 맞춤 강도
                 use_probability=0.2,
                 cooldown=7
             ),
@@ -1825,6 +1889,7 @@ class EnemySkillDatabase:
                 mp_cost=35,
                 status_effects=["darkness", "silence"],
                 status_duration=2,
+                status_intensity=0.42,  # shadow_flare 맞춤 강도
                 use_probability=0.2,
                 cooldown=5
             ),
@@ -1863,6 +1928,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["disease", "poison"],
                 status_duration=3,
+                status_intensity=0.3,  # infected_strike 조정
                 use_probability=0.4,
                 cooldown=2,
                 sfx=("combat", "attack_physical")
@@ -1876,6 +1942,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["slow", "reduce_def"],
                 status_duration=4,
+                status_intensity=0.3,  # zombify 조정
                 use_probability=0.3,
                 cooldown=4
             ),
@@ -1938,6 +2005,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.4,  # wail 조정
                 use_probability=0.2,
                 cooldown=4,
                 sfx=("skill", "roar")
@@ -1953,6 +2021,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["curse", "silence"],
                 status_duration=2,
+                status_intensity=0.425,  # cursed_scream 조정
                 use_probability=0.2,
                 cooldown=4
             ),
@@ -1982,6 +2051,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["darkness"],
                 status_duration=3,
+                status_intensity=0.42,  # dark_slash 조정
                 use_probability=0.4,
                 cooldown=2
             ),
@@ -1993,6 +2063,7 @@ class EnemySkillDatabase:
                 is_magical=True,
                 status_effects=["doom"],
                 status_duration=5,
+                status_intensity=0.45,  # death_sentence 조정
                 use_probability=0.25,
                 cooldown=6
             ),
@@ -2017,6 +2088,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["curse", "slow", "reduce_def"],
                 status_duration=4,
+                status_intensity=0.425,  # ancient_curse 조정
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -2027,6 +2099,7 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SINGLE_ENEMY,
                 status_effects=["root", "blind"],
                 status_duration=2,
+                status_intensity=0.35,  # bandage_wrap 조정
                 use_probability=0.35,
                 cooldown=3
             ),
@@ -2047,6 +2120,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=3,
+                status_intensity=0.36,  # flame_burst 조정
                 use_probability=0.45,
                 cooldown=2,
                 sfx=("skill", "fire")
@@ -2073,6 +2147,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=2,
+                status_intensity=0.45,  # lava_eruption 조정
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -2089,6 +2164,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["freeze"],
                 status_duration=1,
+                status_intensity=0.45,  # absolute_zero 조정
                 use_probability=0.25,
                 cooldown=5,
                 sfx=("skill", "ice")
@@ -2103,6 +2179,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["freeze", "slow"],
                 status_duration=2,
+                status_intensity=0.4,  # ice_prison 맞춤 강도
                 use_probability=0.2,
                 cooldown=4
             ),
@@ -2116,6 +2193,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["slow", "chill"],
                 status_duration=3,
+                status_intensity=0.45,  # blizzard 조정
                 use_probability=0.35,
                 cooldown=3
             ),
@@ -2132,6 +2210,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["paralyze"],
                 status_duration=1,
+                status_intensity=0.38,  # chain_lightning 조정
                 use_probability=0.4,
                 cooldown=3,
                 sfx=("skill", "lightning")
@@ -2145,6 +2224,7 @@ class EnemySkillDatabase:
                 debuff_stats={"speed": 0.6},
                 status_effects=["shock"],
                 status_duration=3,
+                status_intensity=0.4,  # static_field 조정
                 use_probability=0.3,
                 cooldown=4
             ),
@@ -2159,6 +2239,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.38,  # thunderbolt 맞춤 강도
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -2174,6 +2255,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.4,  # rock_throw 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -2197,6 +2279,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.5,  # earthquake 조정
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -2212,6 +2295,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["silence"],
                 status_duration=2,
+                status_intensity=0.4,  # vacuum_wave 맞춤 강도
                 use_probability=0.2,
                 cooldown=3
             ),
@@ -2238,6 +2322,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["confusion"],
                 status_duration=2,
+                status_intensity=0.45,  # tornado 조정
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -2254,6 +2339,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["darkness", "curse"],
                 status_duration=3,
+                status_intensity=0.42,  # dark_orb 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -2275,6 +2361,7 @@ class EnemySkillDatabase:
                 debuff_stats={"strength": 0.6, "magic": 0.6, "defense": 0.7},
                 status_effects=["curse"],
                 status_duration=4,
+                status_intensity=0.42,  # dark_curse 맞춤 강도
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -2292,6 +2379,7 @@ class EnemySkillDatabase:
                 debuff_stats={"strength": 0.8, "defense": 0.8},
                 status_effects=["fear"],
                 status_duration=2,
+                status_intensity=0.4,  # bear_roar 맞춤 강도
                 use_probability=0.35,
                 cooldown=4,
                 sfx=("skill", "roar")
@@ -2306,6 +2394,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["bleed"],
                 status_duration=3,
+                status_intensity=0.4,  # claw_barrage 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -2319,6 +2408,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.4,  # overwhelming_force 맞춤 강도
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -2331,6 +2421,7 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SINGLE_ENEMY,
                 status_effects=["root", "slow"],
                 status_duration=3,
+                status_intensity=0.35,  # web_trap 조정
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -2344,6 +2435,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["poison"],
                 status_duration=4,
+                status_intensity=0.4,  # venom_spray 맞춤 강도
                 use_probability=0.35,
                 cooldown=4,
                 sfx=("skill", "poison")
@@ -2358,6 +2450,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["poison", "paralyze"],
                 status_duration=2,
+                status_intensity=0.3,  # poisonous_fangs 맞춤 강도
                 use_probability=0.4,
                 cooldown=2
             ),
@@ -2373,6 +2466,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["poison", "paralyze"],
                 status_duration=2,
+                status_intensity=0.4,  # scorpion_sting 맞춤 강도
                 use_probability=0.25,
                 cooldown=2
             ),
@@ -2386,6 +2480,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["reduce_def"],
                 status_duration=3,
+                status_intensity=0.4,  # pincer_attack 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -2396,6 +2491,7 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SINGLE_ENEMY,
                 status_effects=["poison", "necrosis"],
                 status_duration=5,
+                status_intensity=0.4,  # deadly_venom 맞춤 강도
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -2409,6 +2505,7 @@ class EnemySkillDatabase:
                 is_magical=True,
                 status_effects=["petrify"],
                 status_duration=2,
+                status_intensity=0.44,  # petrifying_gaze 맞춤 강도
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -2422,6 +2519,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["poison", "slow"],
                 status_duration=3,
+                status_intensity=0.4,  # viper_fangs 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -2433,6 +2531,7 @@ class EnemySkillDatabase:
                 is_magical=True,
                 status_effects=["paralyze", "fear"],
                 status_duration=2,
+                status_intensity=0.4,  # paralyzing_stare 맞춤 강도
                 use_probability=0.2,
                 cooldown=4
             ),
@@ -2448,6 +2547,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["bleed"],
                 status_duration=3,
+                status_intensity=0.4,  # triple_bite 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -2462,6 +2562,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=3,
+                status_intensity=0.36,  # hellfire_breath 맞춤 강도
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -2513,6 +2614,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["poison", "corrode"],
                 status_duration=4,
+                status_intensity=0.4,  # toxic_breath 맞춤 강도
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -2533,6 +2635,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=3,
+                status_intensity=0.36,  # fire_breath 맞춤 강도
                 use_probability=0.4,
                 cooldown=3,
                 sfx=("skill", "fire")
@@ -2548,6 +2651,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=4,
+                status_intensity=0.4,  # inferno 맞춤 강도
                 use_probability=0.25,
                 cooldown=6
             ),
@@ -2561,6 +2665,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.4,  # wing_attack 맞춤 강도
                 use_probability=0.35,
                 cooldown=3
             ),
@@ -2577,6 +2682,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["freeze", "slow"],
                 status_duration=2,
+                status_intensity=0.4,  # frost_breath 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -2604,6 +2710,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["freeze"],
                 status_duration=1,
+                status_intensity=0.4,  # ice_wing 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -2620,6 +2727,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["poison", "necrosis"],
                 status_duration=4,
+                status_intensity=0.5,  # poison_breath_dragon 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -2648,6 +2756,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["corrode", "disease"],
                 status_duration=4,
+                status_intensity=0.4,  # decay_breath 맞춤 강도
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -2677,6 +2786,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn", "freeze", "shock"],
                 status_duration=2,
+                status_intensity=0.45,  # elemental_breath 맞춤 강도
                 use_probability=0.2,
                 cooldown=5
             ),
@@ -2690,6 +2800,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=2,
+                status_intensity=0.5,  # dragon_dive 맞춤 강도
                 use_probability=0.2,
                 cooldown=5
             ),
@@ -2710,6 +2821,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=2,
+                status_intensity=0.36,  # imp_fireball 맞춤 강도
                 use_probability=0.45,
                 cooldown=2
             ),
@@ -2732,6 +2844,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["mp_drain"],
                 status_duration=3,
+                status_intensity=0.4,  # mana_steal 맞춤 강도
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -2745,6 +2858,7 @@ class EnemySkillDatabase:
                 is_magical=True,
                 status_effects=["charm"],
                 status_duration=2,
+                status_intensity=0.38,  # charm 맞춤 강도
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -2789,6 +2903,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=4,
+                status_intensity=0.36,  # balrog_flame 맞춤 강도
                 use_probability=0.35,
                 cooldown=4
             ),
@@ -2802,6 +2917,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn", "reduce_def"],
                 status_duration=3,
+                status_intensity=0.36,  # flame_whip 맞춤 강도
                 use_probability=0.4,
                 cooldown=3
             ),
@@ -2816,6 +2932,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn", "stun"],
                 status_duration=2,
+                status_intensity=0.4,  # infernal_explosion 맞춤 강도
                 use_probability=0.15,
                 cooldown=6
             ),
@@ -2832,6 +2949,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["doom"],
                 status_duration=4,
+                status_intensity=0.42,  # hand_of_doom 맞춤 강도
                 use_probability=0.3,
                 cooldown=6
             ),
@@ -2877,6 +2995,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.4,  # steel_fist 맞춤 강도
                 use_probability=0.25,
                 cooldown=3
             ),
@@ -2900,6 +3019,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
+                status_intensity=0.4,  # quake_slam 맞춤 강도
                 use_probability=0.3,
                 cooldown=5
             ),
@@ -2951,6 +3071,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn"],
                 status_duration=2,
+                status_intensity=0.4,  # laser_beam 맞춤 강도
                 use_probability=0.4,
                 cooldown=4
             ),
@@ -2977,6 +3098,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn", "stun"],
                 status_duration=2,
+                status_intensity=0.4,  # self_destruct_mode 맞춤 강도
                 use_probability=0.15,
                 min_hp_percent=0.0,
                 max_hp_percent=0.2,  # HP 20% 이하에서만 사용
