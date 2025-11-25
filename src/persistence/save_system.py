@@ -50,7 +50,18 @@ class SaveSystem:
             
             # TownManager 저장
             from src.town.town_manager import get_town_manager
-            game_state["town_manager"] = get_town_manager().to_dict()
+            town_manager = get_town_manager()
+            game_state["town_manager"] = town_manager.to_dict()
+
+            # 마을 창고 아이템 저장 로그
+            hub_storage = town_manager.get_hub_storage()
+            if hub_storage:
+                logger.info(f"마을 창고 아이템 {len(hub_storage)}개 저장됨:")
+                for item_data in hub_storage:
+                    item_name = item_data.get("name", item_data.get("item_id", "알 수 없는 아이템"))
+                    logger.info(f"  - {item_name}")
+            else:
+                logger.info("마을 창고: 저장된 아이템 없음")
             
             # QuestManager 저장
             from src.quest.quest_manager import get_quest_manager
@@ -167,6 +178,16 @@ class SaveSystem:
                 import src.town.town_manager as town_module
                 town_module._town_manager = loaded_town_manager
                 logger.info(f"마을 데이터 복원 완료 - 창고 아이템: {len(loaded_town_manager.hub_storage)}개")
+
+                # 마을 창고 아이템 로드 로그
+                hub_storage = loaded_town_manager.get_hub_storage()
+                if hub_storage:
+                    logger.info(f"마을 창고에서 불러온 아이템 {len(hub_storage)}개:")
+                    for item_data in hub_storage:
+                        item_name = item_data.get("name", item_data.get("item_id", "알 수 없는 아이템"))
+                        logger.info(f"  - {item_name}")
+                else:
+                    logger.info("마을 창고: 불러온 아이템 없음")
             
             # QuestManager 복원
             if "quest_manager" in game_state:
