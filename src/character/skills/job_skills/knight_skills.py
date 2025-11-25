@@ -140,7 +140,7 @@ def create_knight_skills():
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "duty_stacks", "multiplier": 0.5}),
         DamageEffect(DamageType.HP, 3.0),
         ShieldEffect(base_amount=0),  # 공격력 기반으로 계산
-        BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5),
+        BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "duty_stacks", 5)
     ]
     ultimate.costs = [MPCost(30)]

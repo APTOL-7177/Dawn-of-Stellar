@@ -640,7 +640,7 @@ class ExplorationSystem:
             return self._handle_trap(tile)
 
         elif tile.tile_type == TileType.POISON_GAS:
-            return self._handle_poison_gas(tile)
+            return self._handle_trap(tile)
 
         elif tile.tile_type == TileType.ICE_FLOOR:
             return self._handle_ice_floor(tile)
