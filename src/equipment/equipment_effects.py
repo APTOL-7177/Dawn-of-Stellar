@@ -657,7 +657,6 @@ class EquipmentEffectManager:
             EffectType.DEBUFF_SLOW: StatusType.SLOW,
             EffectType.STATUS_SHOCK: StatusType.SHOCK,
             EffectType.DEBUFF_SILENCE: StatusType.SILENCE,
-            EffectType.STUN_CHANCE: StatusType.STUN,
         }
 
         target = context.get("target")
@@ -767,8 +766,35 @@ class EquipmentEffectManager:
             logger.debug(f"{character.name} 공격 횟수: {effect.value}")
 
     def _handle_stun_chance(self, character: Any, effect: EquipmentEffect, context: Dict):
-        """스턴 확률 (현재 구현 없음)"""
-        logger.debug(f"{character.name} 스턴 확률: {effect.value * 100:.1f}%")
+        """스턴 확률"""
+        from src.combat.status_effects import StatusType, StatusEffect
+
+        # 확률 계산 (effect.value는 0-1 사이의 확률)
+        if effect.value < 1.0:  # 1.0 미만이면 확률 적용
+            import random
+            if random.random() > effect.value:
+                return  # 확률 실패
+
+        target = context.get("target")
+        if not target or not hasattr(target, "status_manager"):
+            return
+
+        # 스턴 상태 효과가 이미 있는지 확인
+        if not target.status_manager.has_status(StatusType.STUN):
+            # 기본 지속시간 설정
+            duration = 2  # 스턴은 2턴으로 설정 (다른 상태보다 짧게)
+            intensity = 1.0
+
+            # StatusEffect 생성 및 적용
+            status_effect = StatusEffect(
+                name="스턴",
+                status_type=StatusType.STUN,
+                duration=duration,
+                intensity=intensity
+            )
+
+            target.status_manager.add_status(status_effect)
+            logger.info(f"{character.name} → {target.name}: 스턴 상태 효과 적용 ({duration}턴)")
 
     def _handle_damage_from_defense(self, character: Any, effect: EquipmentEffect, context: Dict):
         """방어력 기반 데미지"""
