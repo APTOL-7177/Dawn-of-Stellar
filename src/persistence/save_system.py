@@ -48,20 +48,18 @@ class SaveSystem:
             game_state["version"] = "5.0.0"
             game_state["is_multiplayer"] = is_multiplayer
             
-            # TownManager 저장
-            from src.town.town_manager import get_town_manager
-            town_manager = get_town_manager()
-            game_state["town_manager"] = town_manager.to_dict()
-
-            # 마을 창고 아이템 저장 로그
-            storage_inventory = town_manager.get_storage_inventory()
-            if storage_inventory:
-                logger.info(f"마을 창고 아이템 {len(storage_inventory)}개 저장됨:")
-                for item_data in storage_inventory:
-                    item_name = item_data.get("name", item_data.get("item_id", "알 수 없는 아이템"))
-                    logger.info(f"  - {item_name}")
-            else:
-                logger.info("마을 창고: 저장된 아이템 없음")
+            # 마을 창고 아이템 저장 로그 (game_state에 town_manager가 포함된 경우)
+            if "town_manager" in game_state:
+                town_manager_data = game_state["town_manager"]
+                if isinstance(town_manager_data, dict) and "storage_inventory" in town_manager_data:
+                    storage_inventory = town_manager_data["storage_inventory"]
+                    if storage_inventory:
+                        logger.info(f"마을 창고 아이템 {len(storage_inventory)}개 저장됨:")
+                        for item_data in storage_inventory:
+                            item_name = item_data.get("name", item_data.get("item_id", "알 수 없는 아이템"))
+                            logger.info(f"  - {item_name}")
+                    else:
+                        logger.info("마을 창고: 저장된 아이템 없음")
             
             # QuestManager 저장
             from src.quest.quest_manager import get_quest_manager
@@ -754,6 +752,17 @@ def serialize_game_state(
         for p in passives
     ]
 
+    # TownManager 저장 (exploration에서 우선 가져옴)
+    town_manager_data = None
+    if exploration and hasattr(exploration, 'town_manager') and exploration.town_manager:
+        town_manager_data = exploration.town_manager.to_dict()
+    else:
+        # 폴백: 전역 town_manager
+        from src.town.town_manager import get_town_manager
+        global_tm = get_town_manager()
+        if global_tm:
+            town_manager_data = global_tm.to_dict()
+
     result = {
         "party": party_data,
         "floor_number": floor_number,
@@ -768,6 +777,9 @@ def serialize_game_state(
         "difficulty": difficulty if difficulty else "보통",  # 난이도 추가
         "is_multiplayer": is_multiplayer,  # 멀티플레이어 여부
     }
+
+    if town_manager_data:
+        result["town_manager"] = town_manager_data
     
     # 멀티플레이: 세션 정보 저장 (플레이어 재할당용)
     if is_multiplayer and session:

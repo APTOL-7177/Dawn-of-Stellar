@@ -31,7 +31,7 @@ audio:
       battle_normal: battle
       battle_sephiroth: sephiroth
       battle_weapon: boss
-      biome_0: caves
+      biome_0: worldmap
       biome_1: forest
       biome_2: devillands
       biome_3: badlands

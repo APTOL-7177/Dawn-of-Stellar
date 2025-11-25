@@ -187,12 +187,14 @@ class StorageUI:
                         if added_count > 0:
                             # 마을 창고에서 제거 (우선순위)
                             if hasattr(self.town_manager, 'retrieve_item_from_storage') and hasattr(self.town_manager, 'get_storage_inventory'):
-                                # town_manager를 통해 제거
+                                # town_manager를 통해 제거 (역순으로 제거하여 인덱스 밀림 방지)
                                 removed_count = 0
                                 storage_inv = self.town_manager.get_storage_inventory()
 
-                                # 선택된 그룹의 인덱스들을 town_manager의 storage_inventory에서 찾기
-                                for item_data, storage_idx in group[:added_count]:  # added_count만큼만
+                                # 선택된 그룹의 인덱스들을 내림차순으로 정렬하여 역순 제거
+                                indices_to_remove = sorted([storage_idx for item_data, storage_idx in group[:added_count]], reverse=True)
+
+                                for storage_idx in indices_to_remove:
                                     try:
                                         if 0 <= storage_idx < len(storage_inv):
                                             # town_manager에서 해당 인덱스의 아이템 제거
