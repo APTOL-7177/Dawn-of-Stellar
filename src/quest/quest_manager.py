@@ -159,7 +159,7 @@ class QuestDatabase:
         reward = QuestReward(
             gold=(base_reward * count) // 3,  # 1/3로 감소
             experience=(base_reward * 2 * count) // 2,  # 1/2로 감소
-            star_fragments=(count // 3)  # 유지
+            star_fragments=(count // 3) * 10  # 10배 증가
         )
         
         return Quest(
@@ -205,7 +205,7 @@ class QuestDatabase:
         base_reward = player_level * 15
         reward = QuestReward(
             gold=(base_reward * count) // 4,  # 1/4로 감소
-            star_fragments=(count // 2),  # 원래대로
+            star_fragments=(count // 2) * 10,  # 10배 증가
             items=["greater_health_potion"] if difficulty == QuestDifficulty.HARD else []
         )
         
@@ -245,7 +245,7 @@ class QuestDatabase:
         reward = QuestReward(
             gold=base_reward // 2,  # 1/2로 감소
             experience=base_reward,  # 원래대로
-            star_fragments=target_floor // 2  # 원래대로
+            star_fragments=(target_floor // 2) * 10  # 10배 증가
         )
         
         return Quest(
@@ -273,7 +273,7 @@ class QuestDatabase:
         reward = QuestReward(
             gold=(player_level * 100) // 2,  # 1/2로 감소
             experience=(player_level * 50),  # 원래대로
-            star_fragments=10,  # 원래대로
+            star_fragments=100,  # 10배 증가
             items=["stardust"]  # 아이템도 1개로 감소
         )
         
@@ -295,7 +295,7 @@ class QuestDatabase:
         reward = QuestReward(
             gold=(turns * 10) // 5,  # 1/5로 감소
             experience=(turns * 5) // 3,  # 1/3로 감소
-            star_fragments=(turns // 20)  # 원래대로
+            star_fragments=(turns // 20) * 10  # 10배 증가
         )
         
         return Quest(
@@ -317,7 +317,7 @@ class QuestDatabase:
         reward = QuestReward(
             gold=(target_floor * 150) // 3,  # 1/3로 감소
             experience=(target_floor * 100) // 2,  # 1/2로 감소
-            star_fragments=target_floor  # 원래대로
+            star_fragments=target_floor * 10  # 10배 증가
         )
         
         return Quest(
@@ -352,7 +352,7 @@ class QuestDatabase:
         reward = QuestReward(
             gold=(player_level * 80) // 3,  # 1/3로 감소
             experience=(player_level * 40) // 2,  # 1/2로 감소
-            star_fragments=5,  # 원래대로
+            star_fragments=50,  # 10배 증가
             items=[]  # 아이템 제거
         )
         
@@ -378,7 +378,7 @@ class QuestDatabase:
         
         reward = QuestReward(
             gold=(player_level * 50) // 4,  # 1/4로 감소
-            star_fragments=3  # 원래대로
+            star_fragments=30  # 10배 증가
         )
         
         return Quest(
@@ -403,7 +403,7 @@ class QuestDatabase:
         
         reward = QuestReward(
             gold=(player_level * 60) // 4,  # 1/4로 감소
-            star_fragments=4  # 원래대로
+            star_fragments=40  # 10배 증가
         )
         
         return Quest(
@@ -424,7 +424,7 @@ class QuestDatabase:
         reward = QuestReward(
             gold=(target_floor * 200) // 4,  # 1/4로 감소
             experience=(target_floor * 150) // 3,  # 1/3로 감소
-            star_fragments=target_floor * 2  # 원래대로
+            star_fragments=target_floor * 2 * 10  # 10배 증가
         )
         
         return Quest(
