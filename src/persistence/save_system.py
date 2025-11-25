@@ -169,15 +169,13 @@ class SaveSystem:
             
             # QuestManager 복원
             if "quest_manager" in game_state:
-                from src.quest.quest_manager import get_quest_manager, QuestManager
+                from src.quest.quest_manager import get_quest_manager, QuestManager, _quest_manager
                 # 전역 인스턴스를 로드된 매니저로 교체
                 loaded_quest_manager = QuestManager.from_dict(game_state["quest_manager"])
-                # 전역 인스턴스 업데이트
-                quest_manager = get_quest_manager()
-                quest_manager.available_quests = loaded_quest_manager.available_quests
-                quest_manager.active_quests = loaded_quest_manager.active_quests
-                quest_manager.completed_quests = loaded_quest_manager.completed_quests
-                logger.info(f"퀘스트 데이터 복원 완료: 활성 {len(quest_manager.active_quests)}개")
+                # 전역 인스턴스 직접 업데이트 (참조 교체)
+                import src.quest.quest_manager as quest_module
+                quest_module._quest_manager = loaded_quest_manager
+                logger.info(f"퀘스트 데이터 복원 완료: 활성 {len(loaded_quest_manager.active_quests)}개, 가능 {len(loaded_quest_manager.available_quests)}개, 완료 {len(loaded_quest_manager.completed_quests)}개")
             
             return game_state
 

@@ -30,15 +30,13 @@ def get_contrast_text_color(bg_color: Tuple[int, int, int]) -> Tuple[int, int, i
 
 
 def get_contrast_secondary_color(bg_color: Tuple[int, int, int]) -> Tuple[int, int, int]:
-    """배경색에 따른 보조 텍스트 색상 (최대값 표시용, 더 어둡게)"""
+    """배경색에 따른 보조 텍스트 색상 (최대값 표시용)"""
     brightness = 0.299 * bg_color[0] + 0.587 * bg_color[1] + 0.114 * bg_color[2]
     
     if brightness > 140:
-        # 밝은 배경 → 더 어두운 회색
-        return (80, 80, 80)
+        return (60, 60, 60)
     else:
-        # 어두운 배경 → 어두운 회색
-        return (130, 130, 130)
+        return (180, 180, 180)
 
 
 # 게이지 타일셋 임포트 (지연 임포트로 순환 참조 방지)
@@ -121,6 +119,7 @@ class GaugeAnimationManager:
         self._values: Dict[str, AnimatedValue] = {}
         self._display_numbers: Dict[str, float] = {}  # 표시용 숫자 (빠르게 증감)
         self._number_speed = 50  # 초당 변화량
+        self._color_animations: Dict[str, Tuple[float, float]] = {}  # 색상 애니메이션 (key: (start_time, duration))
     
     def get_animated_value(self, key: str, actual_value: float, max_value: float, duration: float = 0.8) -> AnimatedValue:
         """애니메이션 값 가져오기 또는 생성"""
@@ -156,10 +155,56 @@ class GaugeAnimationManager:
         for anim in self._values.values():
             anim.update()
     
+    def trigger_heal_color_animation(self, key: str, duration: float = 0.6):
+        """회복 시 색상 애니메이션 트리거"""
+        self._color_animations[key] = (time.time(), duration)
+    
+    def get_heal_color_intensity(self, key: str) -> float:
+        """회복 색상 애니메이션 강도 반환 (0.0 ~ 1.0)"""
+        if key not in self._color_animations:
+            return 0.0
+        
+        start_time, duration = self._color_animations[key]
+        elapsed = time.time() - start_time
+        
+        if elapsed >= duration:
+            # 애니메이션 완료
+            del self._color_animations[key]
+            return 0.0
+        
+        # 사인파로 펄스 효과 (0 → 1 → 0)
+        progress = elapsed / duration
+        intensity = abs(1.0 - 2.0 * progress)  # 삼각파 형태
+        return intensity
+    
+    def get_low_hp_blink_intensity(self, key: str) -> float:
+        """HP 낮을 때 깜빡임 강도 반환 (0.0 ~ 1.0) - 지속적으로 반복"""
+        if key not in self._color_animations:
+            return 0.0
+        
+        start_time, duration = self._color_animations[key]
+        elapsed = time.time() - start_time
+        
+        # 깜빡임 주기: duration * 2 = 한 주기 (밝아짐 + 어두워짐)
+        # 애니메이션이 계속 반복되도록 시간을 모듈로 연산
+        cycle_time = elapsed % (duration * 2)
+        
+        if cycle_time < duration:
+            # 밝아지는 구간 (0 → 1)
+            progress = cycle_time / duration
+            intensity = progress
+        else:
+            # 어두워지는 구간 (1 → 0)
+            progress = (cycle_time - duration) / duration
+            intensity = 1.0 - progress
+        
+        return intensity
+    
     def clear(self):
         """모든 애니메이션 초기화"""
         self._values.clear()
         self._display_numbers.clear()
+        self._color_animations.clear()
 
 
 # 전역 애니메이션 관리자
@@ -427,6 +472,52 @@ class GaugeRenderer:
         is_decreasing = display_pixels > hp_pixels
         is_increasing = display_pixels < hp_pixels
         
+        # 회복 시 색상 애니메이션 트리거
+        if is_increasing:
+            anim_mgr.trigger_heal_color_animation(f"{entity_id}_hp_color", duration=0.6)
+        
+        # HP 낮을 때 깜빡임 효과 (30% 이하)
+        low_hp_blink_key = f"{entity_id}_hp_low_blink"
+        if ratio <= 0.3:
+            # 깜빡임 애니메이션 시작 (없으면 시작, 있으면 계속 유지)
+            if low_hp_blink_key not in anim_mgr._color_animations:
+                anim_mgr._color_animations[low_hp_blink_key] = (time.time(), 0.5)
+        else:
+            # HP가 충분하면 깜빡임 중지
+            if low_hp_blink_key in anim_mgr._color_animations:
+                del anim_mgr._color_animations[low_hp_blink_key]
+        
+        # 회복 색상 애니메이션 강도 가져오기
+        heal_intensity = anim_mgr.get_heal_color_intensity(f"{entity_id}_hp_color")
+        
+        # HP 낮을 때 깜빡임 강도 가져오기
+        blink_intensity = anim_mgr.get_low_hp_blink_intensity(low_hp_blink_key) if ratio <= 0.3 else 0.0
+        
+        # 회복 시 색상 그라데이션 (밝게 했다가 원래대로)
+        if heal_intensity > 0:
+            # 밝은 색상으로 블렌딩
+            highlight_color = (
+                min(255, int(fg_color[0] + (255 - fg_color[0]) * heal_intensity * 0.5)),
+                min(255, int(fg_color[1] + (255 - fg_color[1]) * heal_intensity * 0.5)),
+                min(255, int(fg_color[2] + (255 - fg_color[2]) * heal_intensity * 0.5))
+            )
+            # 원래 색상과 블렌딩
+            fg_color = (
+                int(fg_color[0] * (1 - heal_intensity) + highlight_color[0] * heal_intensity),
+                int(fg_color[1] * (1 - heal_intensity) + highlight_color[1] * heal_intensity),
+                int(fg_color[2] * (1 - heal_intensity) + highlight_color[2] * heal_intensity)
+            )
+        
+        # HP 낮을 때 깜빡임 효과 적용
+        if blink_intensity > 0:
+            # 깜빡임: 밝아졌다가 어두워짐
+            blink_color = (
+                int(fg_color[0] * (0.3 + 0.7 * blink_intensity)),
+                int(fg_color[1] * (0.3 + 0.7 * blink_intensity)),
+                int(fg_color[2] * (0.3 + 0.7 * blink_intensity))
+            )
+            fg_color = blink_color
+        
         # 트레일 색상 선택
         trail_color = damage_trail_color if is_decreasing else heal_trail_color
         
@@ -459,7 +550,9 @@ class GaugeRenderer:
                         )
                         console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
         
-        # 레이어 3: 트레일 (감소 또는 증가 애니메이션)
+        # 레이어 3: 감소 트레일 (감소 시)
+        render_pixels = min(hp_pixels, display_pixels) if is_increasing else hp_pixels
+        
         if is_decreasing:
             # 감소: hp_pixels ~ display_pixels 범위에 트레일
             for i in range(width):
@@ -489,39 +582,7 @@ class GaugeRenderer:
                         )
                         console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
         
-        elif is_increasing:
-            # 증가: display_pixels ~ hp_pixels 범위에 회복 트레일 (HP 색상으로 차오름)
-            for i in range(width):
-                cell_start = i * divisions
-                cell_end = (i + 1) * divisions
-                
-                # display보다 앞이면 스킵
-                cell_display = max(0, min(divisions, display_pixels - cell_start))
-                if cell_display >= divisions:
-                    continue
-                
-                # 회복 트레일 영역: display ~ hp
-                trail_start = max(cell_start, display_pixels)
-                trail_end = min(cell_end, hp_pixels)
-                cell_trail = max(0, trail_end - trail_start)
-                
-                if cell_trail >= divisions:
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
-                elif cell_trail > 0:
-                    fill_ratio = cell_trail / divisions
-                    if use_tiles:
-                        tile_char = tile_manager.get_tile_char('hp_high', fill_ratio)
-                        console.print(x + i, y, tile_char, fg=trail_color, bg=bg_color)
-                    else:
-                        partial_color = (
-                            int(bg_color[0] + (trail_color[0] - bg_color[0]) * fill_ratio),
-                            int(bg_color[1] + (trail_color[1] - bg_color[1]) * fill_ratio),
-                            int(bg_color[2] + (trail_color[2] - bg_color[2]) * fill_ratio)
-                        )
-                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
-        
-        # 레이어 4: 현재 HP (애니메이션 중이면 display_pixels 사용)
-        render_pixels = min(hp_pixels, display_pixels) if is_increasing else hp_pixels
+        # 레이어 5: 현재 HP (최상단)
         
         for i in range(width):
             cell_start = i * divisions
@@ -631,12 +692,36 @@ class GaugeRenderer:
         
         is_decreasing = display_pixels > mp_pixels
         is_increasing = display_pixels < mp_pixels
+        
+        # 회복 시 색상 애니메이션 트리거
+        if is_increasing:
+            anim_mgr.trigger_heal_color_animation(f"{entity_id}_mp_color", duration=0.6)
+        
+        # 회복 색상 애니메이션 강도 가져오기
+        heal_intensity = anim_mgr.get_heal_color_intensity(f"{entity_id}_mp_color")
+        
+        # 회복 시 색상 그라데이션 (밝게 했다가 원래대로)
+        if heal_intensity > 0:
+            # 밝은 색상으로 블렌딩
+            highlight_color = (
+                min(255, int(fg_color[0] + (255 - fg_color[0]) * heal_intensity * 0.5)),
+                min(255, int(fg_color[1] + (255 - fg_color[1]) * heal_intensity * 0.5)),
+                min(255, int(fg_color[2] + (255 - fg_color[2]) * heal_intensity * 0.5))
+            )
+            # 원래 색상과 블렌딩
+            fg_color = (
+                int(fg_color[0] * (1 - heal_intensity) + highlight_color[0] * heal_intensity),
+                int(fg_color[1] * (1 - heal_intensity) + highlight_color[1] * heal_intensity),
+                int(fg_color[2] * (1 - heal_intensity) + highlight_color[2] * heal_intensity)
+            )
+        
         trail_color = damage_trail_color if is_decreasing else heal_trail_color
         
         # 레이어 1: 배경
         console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
         
-        # 레이어 2: 트레일
+        # 레이어 2: 감소 트레일 (감소 시)
+        render_pixels = min(mp_pixels, display_pixels) if is_increasing else mp_pixels
         if is_decreasing:
             for i in range(width):
                 cell_start = i * divisions
@@ -665,36 +750,7 @@ class GaugeRenderer:
                         )
                         console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
         
-        elif is_increasing:
-            for i in range(width):
-                cell_start = i * divisions
-                cell_end = (i + 1) * divisions
-                
-                cell_display = max(0, min(divisions, display_pixels - cell_start))
-                if cell_display >= divisions:
-                    continue
-                
-                trail_start = max(cell_start, display_pixels)
-                trail_end = min(cell_end, mp_pixels)
-                cell_trail = max(0, trail_end - trail_start)
-                
-                if cell_trail >= divisions:
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
-                elif cell_trail > 0:
-                    fill_ratio = cell_trail / divisions
-                    if use_tiles:
-                        tile_char = tile_manager.get_tile_char('mp_fill', fill_ratio)
-                        console.print(x + i, y, tile_char, fg=trail_color, bg=bg_color)
-                    else:
-                        partial_color = (
-                            int(bg_color[0] + (trail_color[0] - bg_color[0]) * fill_ratio),
-                            int(bg_color[1] + (trail_color[1] - bg_color[1]) * fill_ratio),
-                            int(bg_color[2] + (trail_color[2] - bg_color[2]) * fill_ratio)
-                        )
-                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
-        
-        # 레이어 3: 현재 MP
-        render_pixels = min(mp_pixels, display_pixels) if is_increasing else mp_pixels
+        # 레이어 4: 현재 MP (최상단)
         
         for i in range(width):
             cell_start = i * divisions
@@ -812,12 +868,36 @@ class GaugeRenderer:
         
         is_decreasing = display_pixels > brv_pixels
         is_increasing = display_pixels < brv_pixels
+        
+        # 회복 시 색상 애니메이션 트리거
+        if is_increasing:
+            anim_mgr.trigger_heal_color_animation(f"{entity_id}_brv_color", duration=0.6)
+        
+        # 회복 색상 애니메이션 강도 가져오기
+        heal_intensity = anim_mgr.get_heal_color_intensity(f"{entity_id}_brv_color")
+        
+        # 회복 시 색상 그라데이션 (밝게 했다가 원래대로)
+        if heal_intensity > 0:
+            # 밝은 색상으로 블렌딩
+            highlight_color = (
+                min(255, int(fg_color[0] + (255 - fg_color[0]) * heal_intensity * 0.5)),
+                min(255, int(fg_color[1] + (255 - fg_color[1]) * heal_intensity * 0.5)),
+                min(255, int(fg_color[2] + (255 - fg_color[2]) * heal_intensity * 0.5))
+            )
+            # 원래 색상과 블렌딩
+            fg_color = (
+                int(fg_color[0] * (1 - heal_intensity) + highlight_color[0] * heal_intensity),
+                int(fg_color[1] * (1 - heal_intensity) + highlight_color[1] * heal_intensity),
+                int(fg_color[2] * (1 - heal_intensity) + highlight_color[2] * heal_intensity)
+            )
+        
         trail_color = damage_trail_color if is_decreasing else heal_trail_color
         
         # 레이어 1: 배경
         console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
         
-        # 레이어 2: 트레일
+        # 레이어 2: 감소 트레일 (감소 시)
+        render_pixels = min(brv_pixels, display_pixels) if is_increasing else brv_pixels
         if is_decreasing:
             for i in range(width):
                 cell_start = i * divisions
@@ -846,36 +926,7 @@ class GaugeRenderer:
                         )
                         console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
         
-        elif is_increasing:
-            for i in range(width):
-                cell_start = i * divisions
-                cell_end = (i + 1) * divisions
-                
-                cell_display = max(0, min(divisions, display_pixels - cell_start))
-                if cell_display >= divisions:
-                    continue
-                
-                trail_start = max(cell_start, display_pixels)
-                trail_end = min(cell_end, brv_pixels)
-                cell_trail = max(0, trail_end - trail_start)
-                
-                if cell_trail >= divisions:
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
-                elif cell_trail > 0:
-                    fill_ratio = cell_trail / divisions
-                    if use_tiles:
-                        tile_char = tile_manager.get_tile_char('brv_fill', fill_ratio)
-                        console.print(x + i, y, tile_char, fg=trail_color, bg=bg_color)
-                    else:
-                        partial_color = (
-                            int(bg_color[0] + (trail_color[0] - bg_color[0]) * fill_ratio),
-                            int(bg_color[1] + (trail_color[1] - bg_color[1]) * fill_ratio),
-                            int(bg_color[2] + (trail_color[2] - bg_color[2]) * fill_ratio)
-                        )
-                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
-        
-        # 레이어 3: 현재 BRV
-        render_pixels = min(brv_pixels, display_pixels) if is_increasing else brv_pixels
+        # 레이어 4: 현재 BRV (최상단)
         
         for i in range(width):
             cell_start = i * divisions
@@ -1095,7 +1146,8 @@ class GaugeRenderer:
         entity_id: str = None
     ) -> None:
         """
-        ATB 게이지 렌더링 (픽셀 단위, 애니메이션 지원)
+        ATB 게이지 렌더링 (픽셀 단위, 커스텀 타일 기반)
+        감소할 때만 애니메이션 적용
 
         Args:
             console: TCOD 콘솔
@@ -1104,26 +1156,39 @@ class GaugeRenderer:
             current: 현재 ATB 값
             threshold: 행동 가능 임계값
             maximum: 최대 ATB 값
-            entity_id: 엔티티 ID (애니메이션 추적용)
+            entity_id: 엔티티 ID (감소 애니메이션 추적용)
         """
         anim_mgr = get_animation_manager()
         tile_manager = _get_tile_manager()
         use_tiles = tile_manager is not None and tile_manager.is_initialized()
         divisions = GaugeRenderer.DIVISIONS
         
-        # 애니메이션 (entity_id가 있으면 사용)
+        # 감소할 때만 애니메이션 사용
+        display_atb = current
         if entity_id:
-            anim = anim_mgr.get_animated_value(f"{entity_id}_atb", current, maximum, duration=0.15)
-            display_atb = anim.update()
-        else:
-            display_atb = current
+            anim_key = f"{entity_id}_atb"
+            if anim_key not in anim_mgr._values:
+                anim_mgr._values[anim_key] = AnimatedValue(current, duration=0.5)
+            
+            anim = anim_mgr._values[anim_key]
+            previous_display = anim.current
+            
+            # 감소 중이면 애니메이션, 증가/유지면 즉시 업데이트
+            if current < previous_display:
+                # 감소 중 → 애니메이션
+                anim.set_target(current)
+                display_atb = anim.update()
+            else:
+                # 증가/유지 → 즉시 표시
+                anim.current = current
+                anim.target = current
+                anim.previous = current
+                display_atb = current
         
         if maximum <= 0:
             ratio = 0.0
-            display_ratio = 0.0
         else:
-            ratio = min(1.0, current / maximum)
-            display_ratio = min(1.0, display_atb / maximum)
+            ratio = min(1.0, display_atb / maximum)
 
         # 행동 가능 여부에 따른 색상 변경
         is_ready = current >= threshold
@@ -1133,49 +1198,15 @@ class GaugeRenderer:
         else:
             fg_color = (100, 150, 255)  # 기본 파란색
             bg_color = (50, 75, 125)
-        
-        trail_color = (80, 180, 255)  # 증가 트레일 색상
 
-        # === 픽셀 단위 렌더링 (애니메이션 지원) ===
+        # === 픽셀 단위 렌더링 (커스텀 타일 기반) ===
         total_pixels = width * divisions
-        atb_pixels = int(display_ratio * total_pixels)
-        target_pixels = int(ratio * total_pixels)
+        atb_pixels = int(ratio * total_pixels)
         
-        is_increasing = target_pixels > atb_pixels
-        
-        # 레이어 1: 배경
+        # 배경
         console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
         
-        # 레이어 2: 증가 트레일 (ATB가 차오르는 효과)
-        if is_increasing:
-            for i in range(width):
-                cell_start = i * divisions
-                cell_end = (i + 1) * divisions
-                
-                cell_atb = max(0, min(divisions, atb_pixels - cell_start))
-                if cell_atb >= divisions:
-                    continue
-                
-                trail_start = max(cell_start, atb_pixels)
-                trail_end = min(cell_end, target_pixels)
-                cell_trail = max(0, trail_end - trail_start)
-                
-                if cell_trail >= divisions:
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
-                elif cell_trail > 0:
-                    fill_ratio = cell_trail / divisions
-                    if use_tiles:
-                        tile_char = tile_manager.get_tile_char('atb_fill', fill_ratio)
-                        console.print(x + i, y, tile_char, fg=trail_color, bg=bg_color)
-                    else:
-                        partial_color = (
-                            int(bg_color[0] + (trail_color[0] - bg_color[0]) * fill_ratio),
-                            int(bg_color[1] + (trail_color[1] - bg_color[1]) * fill_ratio),
-                            int(bg_color[2] + (trail_color[2] - bg_color[2]) * fill_ratio)
-                        )
-                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
-        
-        # 레이어 3: 현재 ATB
+        # 현재 ATB
         for i in range(width):
             cell_start = i * divisions
             cell_filled = max(0, min(divisions, atb_pixels - cell_start))
@@ -1217,7 +1248,8 @@ class GaugeRenderer:
         is_current_actor: bool = False
     ) -> None:
         """
-        ATB 게이지와 캐스팅 진행도를 함께 렌더링 (애니메이션 지원)
+        ATB 게이지와 캐스팅 진행도를 함께 렌더링 (커스텀 타일 기반)
+        감소할 때만 애니메이션 적용
 
         Args:
             console: TCOD 콘솔
@@ -1228,27 +1260,40 @@ class GaugeRenderer:
             atb_maximum: 최대 ATB 값
             cast_progress: 캐스팅 진행도 (0.0 ~ 1.0)
             is_casting: 캐스팅 중 여부
-            entity_id: 엔티티 ID (애니메이션 추적용)
+            entity_id: 엔티티 ID (감소 애니메이션 추적용)
             is_current_actor: 현재 행동 중인 아군 여부 (반짝임 효과)
         """
         import math
         anim_mgr = get_animation_manager()
         
-        # ATB 애니메이션
+        # 감소할 때만 애니메이션 사용
+        display_atb = atb_current
         if entity_id:
-            anim = anim_mgr.get_animated_value(f"{entity_id}_atb2", atb_current, atb_threshold * 2, duration=0.15)
-            display_atb = anim.update()
-        else:
-            display_atb = atb_current
+            anim_key = f"{entity_id}_atb2"
+            if anim_key not in anim_mgr._values:
+                anim_mgr._values[anim_key] = AnimatedValue(atb_current, duration=0.5)
+            
+            anim = anim_mgr._values[anim_key]
+            previous_display = anim.current
+            
+            # 감소 중이면 애니메이션, 증가/유지면 즉시 업데이트
+            if atb_current < previous_display:
+                # 감소 중 → 애니메이션
+                anim.set_target(atb_current)
+                display_atb = anim.update()
+            else:
+                # 증가/유지 → 즉시 표시
+                anim.current = atb_current
+                anim.target = atb_current
+                anim.previous = atb_current
+                display_atb = atb_current
         
         # ATB를 임계값(threshold) 기준으로 표시 (0~threshold = 0~100%)
         # threshold 이상은 오버플로우로 최대 2배까지 표시
         if atb_threshold <= 0:
             atb_ratio = 0.0
-            display_ratio = 0.0
         else:
-            atb_ratio = min(2.0, atb_current / atb_threshold)
-            display_ratio = min(2.0, display_atb / atb_threshold)
+            atb_ratio = min(2.0, display_atb / atb_threshold)
 
         # 반짝임 효과 계산 (현재 행동 중인 아군)
         pulse = 0.0
@@ -1282,65 +1327,99 @@ class GaugeRenderer:
         cast_fg = (200, 100, 255)
         cast_bg = (100, 50, 125)
 
-        # 배경
-        console.draw_rect(x, y, width, 1, ord(" "), bg=atb_bg)
-
-        # 애니메이션에 display_ratio 사용
-        # ATB 게이지 그리기 (100%까지)
-        normal_ratio = min(1.0, display_ratio)
-        atb_filled_exact = normal_ratio * width
-        atb_filled_full = int(atb_filled_exact)
-        atb_filled_partial = atb_filled_exact - atb_filled_full
-
-        # ATB 완전히 채워진 부분
-        if atb_filled_full > 0:
-            console.draw_rect(x, y, atb_filled_full, 1, ord(" "), bg=atb_fg)
-
-        # ATB 부분적으로 채워진 마지막 칸
-        if atb_filled_partial > 0.0 and atb_filled_full < width:
-            partial_color = (
-                int(atb_bg[0] + (atb_fg[0] - atb_bg[0]) * atb_filled_partial),
-                int(atb_bg[1] + (atb_fg[1] - atb_bg[1]) * atb_filled_partial),
-                int(atb_bg[2] + (atb_fg[2] - atb_bg[2]) * atb_filled_partial)
-            )
-            console.draw_rect(x + atb_filled_full, y, 1, 1, ord(" "), bg=partial_color)
-
-        # 오버플로우 게이지 (100% 초과분, 최대 200%까지)
-        if display_ratio > 1.0:
-            overflow_ratio = min(1.0, display_ratio - 1.0)
-            overflow_filled_exact = overflow_ratio * width
-            overflow_filled_full = int(overflow_filled_exact)
-            overflow_filled_partial = overflow_filled_exact - overflow_filled_full
-
-            if overflow_filled_full > 0:
-                console.draw_rect(x, y, overflow_filled_full, 1, ord(" "), bg=overflow_fg)
-
-            if overflow_filled_partial > 0.0 and overflow_filled_full < width:
-                partial_color = (
-                    int(atb_fg[0] + (overflow_fg[0] - atb_fg[0]) * overflow_filled_partial),
-                    int(atb_fg[1] + (overflow_fg[1] - atb_fg[1]) * overflow_filled_partial),
-                    int(atb_fg[2] + (overflow_fg[2] - atb_fg[2]) * overflow_filled_partial)
-                )
-                console.draw_rect(x + overflow_filled_full, y, 1, 1, ord(" "), bg=partial_color)
-
-        # 캐스팅 중이면 캐스팅 진행도를 오버레이
+        # 픽셀 단위 렌더링을 위한 설정
+        tile_manager = _get_tile_manager()
+        use_tiles = tile_manager is not None and tile_manager.is_initialized()
+        divisions = GaugeRenderer.DIVISIONS
+        
+        # === 픽셀 단위 렌더링 (커스텀 타일 기반) ===
+        total_pixels = width * divisions
+        
+        # ATB 게이지 (100%까지)
+        normal_ratio = min(1.0, atb_ratio)
+        atb_pixels = int(normal_ratio * total_pixels)
+        
+        # 오버플로우 (100% 초과분)
+        overflow_pixels = 0
+        if atb_ratio > 1.0:
+            overflow_ratio = min(1.0, atb_ratio - 1.0)
+            overflow_pixels = int(overflow_ratio * total_pixels)
+        
+        # 캐스팅 진행도
+        cast_pixels = 0
         if is_casting and cast_progress > 0.0:
-            cast_filled_exact = cast_progress * width
-            cast_filled_full = int(cast_filled_exact)
-            cast_filled_partial = cast_filled_exact - cast_filled_full
-
-            # 캐스팅 완전히 채워진 부분 (오버레이)
-            if cast_filled_full > 0:
-                console.draw_rect(x, y, cast_filled_full, 1, ord(" "), bg=cast_fg)
-
-            # 캐스팅 부분적으로 채워진 마지막 칸
-            if cast_filled_partial > 0.0 and cast_filled_full < width:
-                partial_color = (
-                    int(cast_bg[0] + (cast_fg[0] - cast_bg[0]) * cast_filled_partial),
-                    int(cast_bg[1] + (cast_fg[1] - cast_bg[1]) * cast_filled_partial),
-                    int(cast_bg[2] + (cast_fg[2] - cast_bg[2]) * cast_filled_partial)
-                )
-                console.draw_rect(x + cast_filled_full, y, 1, 1, ord(" "), bg=partial_color)
+            cast_pixels = int(cast_progress * total_pixels)
+        
+        # 레이어 1: 배경
+        console.draw_rect(x, y, width, 1, ord(" "), bg=atb_bg)
+        
+        # 레이어 2: 오버플로우 (100% 초과분, 최상단)
+        if overflow_pixels > 0:
+            for i in range(width):
+                cell_start = i * divisions
+                cell_end = (i + 1) * divisions
+                
+                cell_overflow = max(0, min(divisions, overflow_pixels - cell_start))
+                
+                if cell_overflow >= divisions:
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=overflow_fg)
+                elif cell_overflow > 0:
+                    fill_ratio = cell_overflow / divisions
+                    if use_tiles:
+                        tile_char = tile_manager.get_tile_char('atb_fill', fill_ratio)
+                        console.print(x + i, y, tile_char, fg=overflow_fg, bg=atb_bg)
+                    else:
+                        partial_color = (
+                            int(atb_bg[0] + (overflow_fg[0] - atb_bg[0]) * fill_ratio),
+                            int(atb_bg[1] + (overflow_fg[1] - atb_bg[1]) * fill_ratio),
+                            int(atb_bg[2] + (overflow_fg[2] - atb_bg[2]) * fill_ratio)
+                        )
+                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+        
+        # 레이어 3: ATB 게이지 (100%까지)
+        for i in range(width):
+            cell_start = i * divisions
+            cell_end = (i + 1) * divisions
+            
+            cell_atb = max(0, min(divisions, atb_pixels - cell_start))
+            
+            if cell_atb >= divisions:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=atb_fg)
+            elif cell_atb > 0:
+                fill_ratio = cell_atb / divisions
+                if use_tiles:
+                    tile_char = tile_manager.get_tile_char('atb_fill', fill_ratio)
+                    console.print(x + i, y, tile_char, fg=atb_fg, bg=atb_bg)
+                else:
+                    partial_color = (
+                        int(atb_bg[0] + (atb_fg[0] - atb_bg[0]) * fill_ratio),
+                        int(atb_bg[1] + (atb_fg[1] - atb_bg[1]) * fill_ratio),
+                        int(atb_bg[2] + (atb_fg[2] - atb_bg[2]) * fill_ratio)
+                    )
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+        
+        # 레이어 4: 캐스팅 진행도 (오버레이)
+        if cast_pixels > 0:
+            for i in range(width):
+                cell_start = i * divisions
+                cell_end = (i + 1) * divisions
+                
+                cell_cast = max(0, min(divisions, cast_pixels - cell_start))
+                
+                if cell_cast >= divisions:
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=cast_fg)
+                elif cell_cast > 0:
+                    fill_ratio = cell_cast / divisions
+                    if use_tiles:
+                        tile_char = tile_manager.get_tile_char('cast_fill', fill_ratio)
+                        console.print(x + i, y, tile_char, fg=cast_fg, bg=atb_bg)
+                    else:
+                        partial_color = (
+                            int(atb_bg[0] + (cast_fg[0] - atb_bg[0]) * fill_ratio),
+                            int(atb_bg[1] + (cast_fg[1] - atb_bg[1]) * fill_ratio),
+                            int(atb_bg[2] + (cast_fg[2] - atb_bg[2]) * fill_ratio)
+                        )
+                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
 
         # 텍스트 표시 (threshold 기준, 100% = 행동 가능)
         if is_casting:

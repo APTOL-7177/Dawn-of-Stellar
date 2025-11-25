@@ -4291,6 +4291,48 @@ class ItemGenerator:
 
         # 레벨에 맞는 템플릿 선택
         all_templates = {**WEAPON_TEMPLATES, **ARMOR_TEMPLATES, **ACCESSORY_TEMPLATES}
+        
+        # 레벨과 등급에 맞는 템플릿 필터링
+        import random
+        filtered_templates = []
+        for template_id, template in all_templates.items():
+            template_rarity = template.get("rarity", ItemRarity.COMMON)
+            template_level = template.get("level_requirement", 1)
+            
+            # 등급이 일치하고 레벨 요구사항이 충족되는 템플릿만 선택
+            if template_rarity == chosen_rarity and template_level <= level:
+                filtered_templates.append((template_id, template))
+        
+        # 필터링된 템플릿이 없으면 등급만 맞는 템플릿 선택
+        if not filtered_templates:
+            for template_id, template in all_templates.items():
+                template_rarity = template.get("rarity", ItemRarity.COMMON)
+                if template_rarity == chosen_rarity:
+                    filtered_templates.append((template_id, template))
+        
+        # 여전히 없으면 COMMON 등급 템플릿 선택
+        if not filtered_templates:
+            for template_id, template in all_templates.items():
+                template_level = template.get("level_requirement", 1)
+                if template_level <= level:
+                    filtered_templates.append((template_id, template))
+        
+        # 최종적으로 없으면 첫 번째 템플릿 사용
+        if not filtered_templates:
+            return None
+        
+        # 랜덤 템플릿 선택
+        template_id, template = random.choice(filtered_templates)
+        
+        # 아이템 타입 확인 및 생성
+        if template_id in WEAPON_TEMPLATES:
+            return ItemGenerator.create_weapon(template_id, add_random_affixes=True)
+        elif template_id in ARMOR_TEMPLATES:
+            return ItemGenerator.create_armor(template_id, add_random_affixes=True)
+        elif template_id in ACCESSORY_TEMPLATES:
+            return ItemGenerator.create_accessory(template_id, add_random_affixes=True)
+        else:
+            return None
 
 # ============= 소모품 템플릿 =============
 
@@ -4353,5 +4395,5 @@ CONSUMABLE_TEMPLATES = {
     
     # === 경험치/골드 아이템 ===
     "exp_crystal": {"name": "경험치 크리스탈", "description": "경험치 100을 즉시 획득합니다.", "effect_type": "bonus_exp", "effect_value": 100, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 300},
-    "gold_nugget": {"name": "금 덩어리", "description": "골드 1000을 즉시 획득합니다.", "effect_type": "bonus_gold", "effect_value": 1000, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 500},
+    "gold_nugget": {"name": "금 덩어리", "description": "골드 1000을 즉시 획득합니다. (판매 불가)", "effect_type": "bonus_gold", "effect_value": 1000, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 0},  # 판매 불가
 }

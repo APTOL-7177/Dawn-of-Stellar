@@ -811,6 +811,45 @@ class GoldShopUI:
                 for line in desc_lines:
                     console.print(shop_x + 4, desc_y, line, fg=(200, 200, 200))
                     desc_y += 1
+                
+                # 장비인 경우 효과 정보 추가 표시
+                # GoldShopItem의 item_obj가 Equipment인지 확인
+                equipment_obj = getattr(selected_item, 'item_obj', None)
+                if isinstance(equipment_obj, Equipment):
+                    # 기본 스탯
+                    if hasattr(equipment_obj, 'base_stats') and equipment_obj.base_stats:
+                        stat_texts = []
+                        for stat_name, value in equipment_obj.base_stats.items():
+                            if value != 0:
+                                stat_texts.append(f"{stat_name}+{int(value)}")
+                        if stat_texts:
+                            stat_line = "기본 능력: " + " ".join(stat_texts[:5])  # 최대 5개
+                            stat_lines = self._wrap_text(stat_line, shop_width - 6)
+                            for line in stat_lines:
+                                console.print(shop_x + 4, desc_y, line, fg=(150, 255, 150))
+                                desc_y += 1
+                    
+                    # 접사 (추가 능력)
+                    if hasattr(equipment_obj, 'affixes') and equipment_obj.affixes:
+                        for affix in equipment_obj.affixes:
+                            affix_desc = affix.get_description()
+                            affix_lines = self._wrap_text(f"추가: {affix_desc}", shop_width - 6)
+                            for line in affix_lines:
+                                console.print(shop_x + 4, desc_y, line, fg=(255, 200, 100))
+                                desc_y += 1
+                    
+                    # 유니크 효과
+                    if hasattr(equipment_obj, 'unique_effect') and equipment_obj.unique_effect:
+                        unique_lines = self._wrap_text(f"특수: {equipment_obj.unique_effect}", shop_width - 6)
+                        for line in unique_lines:
+                            console.print(shop_x + 4, desc_y, line, fg=(255, 150, 255))
+                            desc_y += 1
+                    
+                    # 레벨 제한
+                    if hasattr(equipment_obj, 'level_requirement') and equipment_obj.level_requirement > 0:
+                        level_text = f"레벨 제한: {equipment_obj.level_requirement}"
+                        console.print(shop_x + 4, desc_y, level_text, fg=(200, 200, 255))
+                        desc_y += 1
 
         # 조작법
         help_text = "←→: 탭 이동  ↑↓: 아이템 선택  Enter: 구매  ESC: 닫기"

@@ -130,13 +130,17 @@ class EnvironmentalEffectManager:
         effect = self.active_effects.get(effect_type)
         if not effect:
             return False
+        # affected_tiles가 None이 아니고 해당 좌표가 포함되어 있는지 확인
+        if effect.affected_tiles is None:
+            return False
         return (x, y) in effect.affected_tiles
     
     def get_effects_at_tile(self, x: int, y: int) -> list:
         """특정 타일의 모든 효과 가져오기"""
         effects = []
         for effect in self.active_effects.values():
-            if (x, y) in effect.affected_tiles:
+            # affected_tiles가 None이 아니고 해당 좌표가 포함되어 있는지 확인
+            if effect.affected_tiles is not None and (x, y) in effect.affected_tiles:
                 effects.append(effect)
         return effects
     

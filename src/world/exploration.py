@@ -333,7 +333,7 @@ class ExplorationSystem:
         enemy = self.get_enemy_at(new_x, new_y)
         # Debug: 적 충돌 체크
         if enemy:
-            pass  # 전투 트리거
+            logger.info(f"[전투 트리거] 플레이어가 적 위치로 이동 시도: ({new_x}, {new_y}) - 적: {enemy.name}")
             # 플레이어는 이동하지 않고 전투만 트리거
             combat_result = self._trigger_combat_with_enemy(enemy)
             # Debug: 전투 결과
@@ -479,7 +479,7 @@ class ExplorationSystem:
         # 멀티플레이어: MultiplayerExplorationSystem에서 봇이 트리거하는 경우도 처리됨
         enemy_at_player = self.get_enemy_at(self.player.x, self.player.y)
         if enemy_at_player:
-            # Debug: 적이 플레이어에게 접근
+            logger.info(f"[전투 트리거] 적이 플레이어 위치로 이동: ({self.player.x}, {self.player.y}) - 적: {enemy_at_player.name}")
             return self._trigger_combat_with_enemy(enemy_at_player)
 
         return result
@@ -769,7 +769,7 @@ class ExplorationSystem:
             tile.tile_type = TileType.FLOOR
             return ExplorationResult(
                 success=True,
-                event=ExplorationEvent.CHEST,
+                event=ExplorationEvent.CHEST_FOUND,
                 message="📦 보물상자를 열었지만 비어있었다..."
             )
         
@@ -1312,12 +1312,20 @@ class ExplorationSystem:
 
         # 이동 가능 여부 확인
         if self.dungeon.is_walkable(new_x, new_y):
-            # 다른 적과 겹치지 않는지 확인
-            # 플레이어 위치도 피함 (적이 플레이어 위로 이동하면 전투가 트리거되므로)
-            enemy_at_target = self.get_enemy_at(new_x, new_y)
+            # 플레이어 위치로 이동하려고 하면 전투 트리거
             player_at_target = self._is_player_at(new_x, new_y)
+            if player_at_target:
+                # 적이 플레이어 위치로 이동하려고 함 - 전투 트리거
+                # 이 적을 전투에 참여시키기 위해 플레이어 위치로 이동시킴
+                enemy.x = new_x
+                enemy.y = new_y
+                logger.info(f"[적 이동] {enemy.name}이(가) 플레이어 위치로 이동 - 전투 트리거 예정")
+                return  # 전투는 move_player에서 처리됨
             
-            if not enemy_at_target and not player_at_target:
+            # 다른 적과 겹치지 않는지 확인
+            enemy_at_target = self.get_enemy_at(new_x, new_y)
+            
+            if not enemy_at_target:
                 enemy.x = new_x
                 enemy.y = new_y
                 logger.debug(f"[적 이동] {enemy.name} 이동: ({old_x}, {old_y}) -> ({new_x}, {new_y})")
