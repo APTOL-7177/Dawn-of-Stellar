@@ -533,104 +533,13 @@ class WorldUI:
                         if building:
                             # 건물과 상호작용
                             result = TownInteractionHandler.interact_with_building(
-                                building,
-                                self.exploration.player,
+                                building, 
+                                self.exploration.player, 
                                 town_manager
                             )
                             logger.info(f"[상호작용 성공] {building.name} (위치: {player_x}, {player_y}) - {result.get('message', '')}")
                             self.add_message(result.get('message', f"{building.name}에 입장했습니다."))
-
-                            # 건물별 UI 열기
-                            try:
-                                # 건물 타입별 UI 열기
-                                if building.building_type == BuildingType.KITCHEN:
-                                    # 주방: 요리 UI 열기
-                                    if self.inventory is not None:
-                                        from src.ui.cooking_ui import open_cooking_pot
-                                        logger.info(f"[건물 상호작용] 주방 UI 열기 (inventory type: {type(self.inventory)})")
-                                        open_cooking_pot(console, context, self.inventory, is_cooking_pot=True)
-                                    else:
-                                        logger.warning(f"[건물 상호작용] 인벤토리가 없어 주방을 열 수 없습니다.")
-                                        self.add_message("인벤토리가 없어 주방을 사용할 수 없습니다.")
-                                elif building.building_type == BuildingType.BLACKSMITH:
-                                    # 대장간: 골드 상점 열기 (장비 수리/재련)
-                                    if self.inventory is not None:
-                                        from src.ui.gold_shop_ui import open_gold_shop
-                                        current_floor = self.exploration.floor_number if hasattr(self.exploration, 'floor_number') else 1
-                                        max_floor = self.exploration.game_stats.get("max_floor_reached", current_floor) if hasattr(self.exploration, 'game_stats') else current_floor
-                                        floor_level = max(current_floor, max_floor)
-                                        logger.info(f"[건물 상호작용] 대장간 UI 열기 (현재 층: {current_floor}, 최대 층: {max_floor}, 사용 층수: {floor_level})")
-                                        open_gold_shop(console, context, self.inventory, floor_level, shop_type="blacksmith")
-                                    else:
-                                        logger.warning(f"[건물 상호작용] 인벤토리가 없어 대장간을 열 수 없습니다.")
-                                        self.add_message("인벤토리가 없어 대장간을 사용할 수 없습니다.")
-                                elif building.building_type == BuildingType.SHOP:
-                                    # 잡화점: 골드 상점 열기 (소모품 판매)
-                                    if self.inventory is not None:
-                                        from src.ui.gold_shop_ui import open_gold_shop
-                                        current_floor = self.exploration.floor_number if hasattr(self.exploration, 'floor_number') else 1
-                                        max_floor = self.exploration.game_stats.get("max_floor_reached", current_floor) if hasattr(self.exploration, 'game_stats') else current_floor
-                                        floor_level = max(current_floor, max_floor)
-                                        logger.info(f"[건물 상호작용] 잡화점 UI 열기 (현재 층: {current_floor}, 최대 층: {max_floor}, 사용 층수: {floor_level})")
-                                        open_gold_shop(console, context, self.inventory, floor_level, shop_type="shop")
-                                    else:
-                                        logger.warning(f"[건물 상호작용] 인벤토리가 없어 잡화점을 열 수 없습니다.")
-                                        self.add_message("인벤토리가 없어 잡화점을 사용할 수 없습니다.")
-                                elif building.building_type == BuildingType.INN:
-                                    # 여관: 휴식 메뉴 열기
-                                    party_for_rest = self.party
-                                    if not party_for_rest and hasattr(self.exploration, 'player') and hasattr(self.exploration.player, 'party'):
-                                        party_for_rest = self.exploration.player.party
-
-                                    if self.inventory is not None and party_for_rest is not None:
-                                        from src.ui.rest_ui import open_inn_menu
-                                        logger.info(f"[건물 상호작용] 여관 UI 열기")
-                                        open_inn_menu(console, context, party_for_rest, self.inventory)
-                                    else:
-                                        logger.warning(f"[건물 상호작용] 인벤토리 또는 파티가 없어 여관을 열 수 없습니다.")
-                                        self.add_message("인벤토리 또는 파티가 없어 여관을 사용할 수 없습니다.")
-                                elif building.building_type == BuildingType.STORAGE:
-                                    # 창고: 창고 UI 열기
-                                    if self.inventory is not None and town_manager is not None:
-                                        # 마을 창고 우선 확인
-                                        if hasattr(town_manager, 'get_storage_inventory'):
-                                            storage_inventory = town_manager.get_storage_inventory()
-                                            logger.info(f"[건물 상호작용] 마을 창고 UI 열기 (보관 아이템: {len(storage_inventory)}개)")
-                                        elif hasattr(town_manager, 'get_hub_storage'):
-                                            # 하위 호환성
-                                            storage_inventory = town_manager.get_hub_storage()
-                                            logger.info(f"[건물 상호작용] 창고 UI 열기 (보관 아이템: {len(storage_inventory)}개)")
-                                        else:
-                                            storage_inventory = []
-                                            logger.warning("[건물 상호작용] 창고 저장소 메서드를 찾을 수 없습니다")
-
-                                        try:
-                                            from src.ui.storage_ui import open_storage
-                                            open_storage(console, context, self.inventory, None, town_manager)
-                                            logger.info(f"[건물 상호작용] 창고 UI 열기 성공")
-                                        except Exception as ui_error:
-                                            logger.error(f"[건물 상호작용] 창고 UI 열기 오류: {ui_error}", exc_info=True)
-                                            self.add_message(f"창고를 열 수 없습니다: {ui_error}")
-                                    else:
-                                        logger.warning(f"[건물 상호작용] 인벤토리 또는 town_manager가 없어 창고를 열 수 없습니다.")
-                                        self.add_message("인벤토리 또는 town_manager가 없어 창고를 사용할 수 없습니다.")
-                                elif building.building_type == BuildingType.QUEST_BOARD:
-                                    # 퀘스트 게시판: 퀘스트 UI 열기
-                                    if town_manager is not None:
-                                        from src.ui.quest_ui import open_quest_board
-                                        logger.info(f"[건물 상호작용] 퀘스트 게시판 UI 열기")
-                                        open_quest_board(console, context, town_manager)
-                                    else:
-                                        logger.warning(f"[건물 상호작용] town_manager가 없어 퀘스트 게시판을 열 수 없습니다.")
-                                        self.add_message("town_manager가 없어 퀘스트 게시판을 사용할 수 없습니다.")
-                                else:
-                                    # 기타 건물: 메시지만 표시
-                                    logger.info(f"[건물 상호작용] {building.name} - 특별한 UI 없음")
-                                    self.add_message(f"{building.name}에 입장했습니다.")
-                            except Exception as ui_error:
-                                logger.error(f"[건물 상호작용] UI 열기 오류: {ui_error}", exc_info=True)
-                                self.add_message(f"{building.name}을(를) 열 수 없습니다: {ui_error}")
-
+                            # TODO: 건물별 UI 열기 (주방, 대장간 등)
                             return False
                         else:
                             # 건물이 없는 위치에서 상호작용 시도
