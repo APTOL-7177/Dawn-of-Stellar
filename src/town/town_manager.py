@@ -487,18 +487,23 @@ class TownManager:
         
         return manager
 
-# 전역 인스턴스
-_town_manager = TownManager()
+# 전역 싱글톤 인스턴스 - None으로 초기화하여 핫 리로드 대응
+_town_manager_instance = None
 
 def get_town_manager() -> TownManager:
-    global _town_manager
-    if _town_manager is None:
-        _town_manager = TownManager()
-        print(f"[TOWN_MANAGER] 새로 생성됨: id={id(_town_manager)}")
-    # DEBUG: 싱글톤 확인
+    """TownManager 싱글톤 인스턴스 반환 (핫 리로드 대응)"""
+    global _town_manager_instance
+
+    # 싱글톤 생성 (최초 1회만)
+    if _town_manager_instance is None:
+        _town_manager_instance = TownManager()
+        print(f"[TOWN_MANAGER] 새 싱글톤 인스턴스 생성: id={id(_town_manager_instance)}")
+
+    # DEBUG: 호출 추적
     import sys
     frame = sys._getframe(1)
     caller_name = frame.f_code.co_name if frame else "unknown"
     filename = frame.f_code.co_filename.split('\\')[-1] if frame else "unknown"
-    print(f"[TOWN_MANAGER] 호출됨 from {filename}:{caller_name}, id={id(_town_manager)}, storage={len(_town_manager.get_storage_inventory())}")
-    return _town_manager
+    print(f"[TOWN_MANAGER] 호출 from {filename}:{caller_name}, id={id(_town_manager_instance)}, storage={len(_town_manager_instance.get_storage_inventory())}")
+
+    return _town_manager_instance
