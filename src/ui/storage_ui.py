@@ -34,9 +34,15 @@ class StorageUI:
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.inventory = inventory
-        self.hub_storage = hub_storage.copy()  # 복사본 사용
+        self.hub_storage = hub_storage.copy()  # 복사본 사용 (하위 호환성)
         self.town_manager = town_manager
         self.context = context  # context 저장
+
+        # 마을 창고 인벤토리 사용 (우선순위 높음)
+        self.storage_inventory = []
+        if hasattr(town_manager, 'get_storage_inventory'):
+            self.storage_inventory = town_manager.get_storage_inventory().copy()
+            logger.info(f"마을 창고 사용: {len(self.storage_inventory)}개 아이템")
         
         # 선택된 탭 (0: 보관함, 1: 인벤토리)
         self.current_tab = 0
@@ -57,16 +63,19 @@ class StorageUI:
     def _get_storage_items(self) -> List[tuple]:
         """보관함 아이템 목록 가져오기 (모든 아이템)"""
         from src.persistence.save_system import deserialize_item
-        
+
+        # 마을 창고 우선 사용, 없으면 hub_storage 사용
+        storage_source = self.storage_inventory if self.storage_inventory else self.hub_storage
+
         # 아이템을 item_id별로 그룹화
         item_groups = {}  # {item_id: [(item_data, index), ...]}
-        
-        for idx, item_data in enumerate(self.hub_storage):
+
+        for idx, item_data in enumerate(storage_source):
             item_id = item_data.get("item_id", "")
             if item_id not in item_groups:
                 item_groups[item_id] = []
             item_groups[item_id].append((item_data, idx))
-        
+
         # 그룹화된 아이템을 리스트로 변환
         items = []
         for item_id, group in item_groups.items():
@@ -80,9 +89,9 @@ class StorageUI:
                 logger.warning(f"아이템 역직렬화 실패: {item_id} - {e}")
                 item_name = item_id
                 ingredient = None
-            
+
             items.append((item_id, count, ingredient, item_name, group))  # group은 출고 시 사용
-        
+
         return sorted(items, key=lambda x: (x[3] if len(x) > 3 and x[3] else (x[2].name if x[2] else x[0])))
 
     def handle_input(self, action: GameAction) -> bool:
@@ -166,16 +175,38 @@ class StorageUI:
                                 break
                         
                         if added_count > 0:
-                            # storage에서 제거 (역순으로 제거하여 인덱스 변화 방지)
-                            indices_to_remove.sort(reverse=True)
-                            for idx in indices_to_remove:
-                                if 0 <= idx < len(self.hub_storage):
-                                    del self.hub_storage[idx]
-                            
-                            # town_manager의 storage 업데이트
-                            if hasattr(self.town_manager, 'hub_storage'):
-                                self.town_manager.hub_storage = self.hub_storage.copy()
-                            
+                            # 마을 창고에서 제거 (우선순위)
+                            if self.storage_inventory is not None:
+                                # town_manager의 storage_inventory에서 제거
+                                if hasattr(self.town_manager, 'retrieve_item_from_storage'):
+                                    removed_count = 0
+                                    for _ in range(added_count):
+                                        try:
+                                            # 마지막 아이템부터 제거 (LIFO)
+                                            if len(self.storage_inventory) > 0:
+                                                self.storage_inventory.pop()
+                                                removed_count += 1
+                                        except Exception as e:
+                                            logger.error(f"창고 아이템 제거 실패: {e}")
+                                            break
+                                    logger.info(f"마을 창고에서 {removed_count}개 아이템 제거")
+                                else:
+                                    logger.warning("town_manager에 retrieve_item_from_storage 메서드가 없습니다")
+                                    # 폴백: 직접 리스트에서 제거
+                                    indices_to_remove.sort(reverse=True)
+                                    for idx in indices_to_remove:
+                                        if 0 <= idx < len(self.storage_inventory):
+                                            del self.storage_inventory[idx]
+                            else:
+                                # 하위 호환성: hub_storage 사용
+                                indices_to_remove.sort(reverse=True)
+                                for idx in indices_to_remove:
+                                    if 0 <= idx < len(self.hub_storage):
+                                        del self.hub_storage[idx]
+
+                                if hasattr(self.town_manager, 'hub_storage'):
+                                    self.town_manager.hub_storage = self.hub_storage.copy()
+
                             # UI 업데이트
                             self.storage_items = self._get_storage_items()
                             play_sfx("ui", "confirm")
@@ -223,13 +254,30 @@ class StorageUI:
                                     break
                             
                             if items_to_store:
-                                # storage에 추가
-                                self.hub_storage.extend(items_to_store)
-                                
-                                # town_manager의 storage 업데이트
-                                if hasattr(self.town_manager, 'hub_storage'):
-                                    self.town_manager.hub_storage = self.hub_storage.copy()
-                                
+                                # 마을 창고에 추가 (우선순위)
+                                if self.storage_inventory is not None:
+                                    self.storage_inventory.extend(items_to_store)
+                                    # town_manager의 storage_inventory 업데이트
+                                    if hasattr(self.town_manager, 'store_item_to_storage'):
+                                        # 개별 아이템으로 저장 (메서드 재사용)
+                                        stored_count = 0
+                                        for serialized_item in items_to_store:
+                                            try:
+                                                from src.persistence.save_system import deserialize_item
+                                                item = deserialize_item(serialized_item)
+                                                if self.town_manager.store_item_to_storage(item):
+                                                    stored_count += 1
+                                            except Exception as e:
+                                                logger.error(f"창고 저장 실패: {e}")
+                                        logger.info(f"마을 창고에 {stored_count}개 아이템 저장")
+                                    else:
+                                        logger.warning("town_manager에 store_item_to_storage 메서드가 없습니다")
+                                else:
+                                    # 하위 호환성: hub_storage 사용
+                                    self.hub_storage.extend(items_to_store)
+                                    if hasattr(self.town_manager, 'hub_storage'):
+                                        self.town_manager.hub_storage = self.hub_storage.copy()
+
                                 # 인벤토리에서 수량만큼 감소
                                 if selected_qty >= slot.quantity:
                                     # 전부 보관
@@ -237,7 +285,7 @@ class StorageUI:
                                 else:
                                     # 일부만 보관
                                     self.inventory.remove_item(self.cursor, selected_qty)
-                                
+
                                 # UI 업데이트
                                 self.storage_items = self._get_storage_items()
                                 play_sfx("ui", "confirm")
@@ -348,12 +396,16 @@ def open_storage(
                     ui.closed = True
                     break
     finally:
-        # UI 종료 시 town_manager의 hub_storage를 최종 상태로 동기화
-        if hasattr(ui.town_manager, 'hub_storage'):
+        # UI 종료 시 town_manager의 storage를 최종 상태로 동기화
+        if ui.storage_inventory is not None:
+            # 마을 창고가 사용된 경우, 이미 town_manager에 동기화되어 있으므로 추가 동기화 불필요
+            logger.info(f"창고 UI 종료: 마을 창고 사용됨 ({len(ui.storage_inventory)}개 아이템)")
+        elif hasattr(ui.town_manager, 'hub_storage'):
+            # 하위 호환성: hub_storage 동기화
             ui.town_manager.hub_storage = ui.hub_storage.copy()
             logger.info(f"창고 UI 종료: town_manager.hub_storage 동기화 완료 ({len(ui.town_manager.hub_storage)}개 아이템)")
         else:
-            logger.warning("창고 UI 종료: town_manager에 hub_storage 속성이 없습니다. 동기화 실패.")
+            logger.warning("창고 UI 종료: 저장소 동기화 실패.")
     
     logger.info("창고 닫기")
 
