@@ -834,12 +834,22 @@ class Character:
         if actual_damage > 0:
             # 1. 방어구 내구도 감소 (모든 피해)
             if self.equipment.get("armor"):
-                self.degrade_equipment("armor", 1)
-            
+                self.degrade_equipment("armor", 3)  # 3배 증가
+
+                # 크리티컬 피해를 받았을 때 방어구 추가 내구도 감소
+                is_critical_hit = damage_event_data.get("is_critical", False)
+                if is_critical_hit:
+                    self.degrade_equipment("armor", 2)  # 크리티컬 피격 시 +2 추가 감소
+
             # 2. 장신구 내구도 감소 (마법 피해일 때만)
             damage_type = damage_event_data.get("damage_type", "physical")
             if damage_type == "magical" and self.equipment.get("accessory"):
-                self.degrade_equipment("accessory", 1)
+                self.degrade_equipment("accessory", 3)  # 3배 증가
+
+                # 크리티컬 마법 피해 시 장신구 추가 감소
+                is_critical_hit = damage_event_data.get("is_critical", False)
+                if is_critical_hit:
+                    self.degrade_equipment("accessory", 2)  # 크리티컬 피격 시 +2 추가 감소
 
         # 특성 효과: 보복 (retaliation) - 피해 받을 때마다 공격력 증가
         if actual_damage > 0 and hasattr(self, 'active_traits'):

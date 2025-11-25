@@ -759,8 +759,17 @@ class EnemyGenerator:
         return enemies
 
     @staticmethod
-    def generate_boss(floor_number: int) -> SimpleEnemy:
-        """보스 생성 (일반 몹의 강화 버전)"""
+    def generate_boss(floor_number: int, is_floor_boss: bool = False) -> SimpleEnemy:
+        """
+        보스 생성
+
+        Args:
+            floor_number: 층 번호
+            is_floor_boss: True면 5층마다 등장하는 강력한 층 보스, False면 일반 층의 보스
+
+        Returns:
+            보스 적
+        """
         # 난이도 시스템에서 배율 가져오기
         from src.core.difficulty import get_difficulty_system
         difficulty_system = get_difficulty_system()
@@ -771,26 +780,92 @@ class EnemyGenerator:
             difficulty_hp_mult = difficulty_system.get_enemy_hp_multiplier()
             difficulty_dmg_mult = difficulty_system.get_enemy_damage_multiplier()
 
-        # 층수에 맞는 일반 몹 템플릿 선택 (보스는 일반 몹의 강화 버전)
+        # 5층마다 등장하는 특별한 층 보스 (더 강력함)
+        if is_floor_boss or floor_number % 5 == 0:
+            # 층수에 따라 특별한 보스 템플릿 선택
+            if floor_number >= 50:
+                template = ENEMY_TEMPLATES["sephiroth"]
+                boss_name = "세피로스"
+                boss_enemy_id = "sephiroth"
+            elif floor_number >= 45:
+                template = ENEMY_TEMPLATES["boss_dragon_king"]
+                boss_name = "드래곤 킹 (층 보스)"
+                boss_enemy_id = "boss_dragon_king"
+            elif floor_number >= 40:
+                template = ENEMY_TEMPLATES["elder_dragon"]
+                boss_name = "고룡 (층 보스)"
+                boss_enemy_id = "elder_dragon"
+            elif floor_number >= 35:
+                template = ENEMY_TEMPLATES["archfiend"]
+                boss_name = "대악마 (층 보스)"
+                boss_enemy_id = "archfiend"
+            elif floor_number >= 30:
+                template = ENEMY_TEMPLATES["balrog"]
+                boss_name = "발록 (층 보스)"
+                boss_enemy_id = "balrog"
+            elif floor_number >= 25:
+                template = ENEMY_TEMPLATES["boss_lich"]
+                boss_name = "리치 (층 보스)"
+                boss_enemy_id = "boss_lich"
+            elif floor_number >= 20:
+                template = ENEMY_TEMPLATES["fire_dragon"]
+                boss_name = "화염 드래곤 (층 보스)"
+                boss_enemy_id = "fire_dragon"
+            elif floor_number >= 15:
+                template = ENEMY_TEMPLATES["demon"]
+                boss_name = "악마 (층 보스)"
+                boss_enemy_id = "demon"
+            elif floor_number >= 10:
+                template = ENEMY_TEMPLATES["boss_chimera"]
+                boss_name = "키메라 (층 보스)"
+                boss_enemy_id = "boss_chimera"
+            else:  # 5층
+                template = ENEMY_TEMPLATES["wyvern"]
+                boss_name = "와이번 (층 보스)"
+                boss_enemy_id = "wyvern"
+
+            # 층 보스는 일반 보스보다 더 강력함 (2.5배 스탯, 5배 HP)
+            level_modifier = floor_number * 0.8
+            boss = SimpleEnemy(template, level_modifier, difficulty_hp_mult, difficulty_dmg_mult, is_boss=True)
+
+            # 층 보스는 추가 강화 (HP 1.5배, 스탯 1.3배 추가)
+            boss.max_hp = int(boss.max_hp * 1.5)
+            boss.current_hp = boss.max_hp
+            boss.physical_attack = int(boss.physical_attack * 1.3)
+            boss.magic_attack = int(boss.magic_attack * 1.3)
+            boss.physical_defense = int(boss.physical_defense * 1.2)
+            boss.magic_defense = int(boss.magic_defense * 1.2)
+            boss.max_brv = int(boss.max_brv * 1.3)
+            boss.current_brv = int(boss.current_brv * 1.3)
+
+            boss.name = boss_name
+            boss.enemy_id = boss_enemy_id
+
+            # 스킬 추가
+            try:
+                from src.combat.enemy_skills import EnemySkillDatabase
+                boss.skills = EnemySkillDatabase.get_skills_for_enemy_type(boss_enemy_id)
+            except ImportError:
+                pass
+
+            return boss
+
+        # 일반 층의 보스 (일반 몹의 강화 버전)
         suitable_enemy_ids = EnemyGenerator.get_suitable_enemies_for_floor(floor_number)
         # 보스 템플릿 제외 (boss_로 시작하거나 sephiroth 제외)
         normal_enemy_ids = [eid for eid in suitable_enemy_ids if not eid.startswith("boss_") and eid != "sephiroth"]
-        
+
         # 일반 몹이 없으면 전체에서 선택 (보스 템플릿 제외)
         if not normal_enemy_ids:
             normal_enemy_ids = [eid for eid in ENEMY_TEMPLATES.keys() if not eid.startswith("boss_") and eid != "sephiroth"]
-        
+
         # 랜덤으로 일반 몹 템플릿 선택
         base_enemy_id = random.choice(normal_enemy_ids)
         template = ENEMY_TEMPLATES[base_enemy_id]
-        
+
         # 보스 이름 설정
         boss_name = f"{template.name} (보스)"
-        if floor_number == 15:
-            boss_name = "세피로스"
-            boss_enemy_id = "sephiroth"
-        else:
-            boss_enemy_id = f"boss_{base_enemy_id}"
+        boss_enemy_id = f"boss_{base_enemy_id}"
 
         # 레벨 스케일링 계수 (층수와 비슷하거나 조금 낮게)
         level_modifier = floor_number * 0.8
@@ -800,20 +875,11 @@ class EnemyGenerator:
         boss.name = boss_name
         boss.enemy_id = boss_enemy_id
 
-        # 세피로스일 경우 스킬 추가
-        if floor_number == 15:
-            try:
-                from src.combat.enemy_skills import EnemySkillDatabase
-                boss.skills = EnemySkillDatabase.get_skills_for_enemy_type("sephiroth")
-            except ImportError as e:
-                # EnemySkillDatabase가 없을 경우 기본 스킬로 작동
-                logger.warning(f"세피로스 스킬 로드 실패: {e} - 기본 스킬 사용")
-        else:
-            # 일반 보스는 기본 적 스킬 사용
-            try:
-                from src.combat.enemy_skills import EnemySkillDatabase
-                boss.skills = EnemySkillDatabase.get_skills_for_enemy_type(base_enemy_id)
-            except ImportError as e:
-                logger.debug(f"보스 스킬 로드 실패: {e} - 기본 스킬 사용")
+        # 일반 보스는 기본 적 스킬 사용
+        try:
+            from src.combat.enemy_skills import EnemySkillDatabase
+            boss.skills = EnemySkillDatabase.get_skills_for_enemy_type(base_enemy_id)
+        except ImportError:
+            pass
 
         return boss

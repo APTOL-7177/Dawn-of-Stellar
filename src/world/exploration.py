@@ -185,6 +185,10 @@ class ExplorationSystem:
         import time
         self.last_environment_effect_time = time.time()
         self.environment_effect_interval = 3.0  # 3초마다 체크
+        
+        # 환경 효과 메시지 표시 추적 (스팸 방지용)
+        self.last_effect_tile = None  # 마지막으로 효과 메시지를 표시한 타일 위치
+        self.last_effect_types = set()  # 마지막으로 표시한 효과 타입들
 
         logger.info(f"탐험 시작: 층 {self.floor_number}, 위치 ({self.player.x}, {self.player.y})")
 
@@ -373,6 +377,27 @@ class ExplorationSystem:
                 effect_manager = self.dungeon.environmental_effect_manager
             
             if effect_manager and self.player.party:
+                # 타일 효과 정보 가져오기
+                effects = effect_manager.get_effects_at_tile(new_x, new_y)
+                
+                # 새로운 타일로 이동했거나 효과가 변경된 경우 효과 정보 표시
+                current_tile = (new_x, new_y)
+                current_effect_types = {effect.effect_type for effect in effects}
+                
+                # 타일이 변경되었거나 효과가 변경된 경우에만 정보 표시
+                if current_tile != self.last_effect_tile or current_effect_types != self.last_effect_types:
+                    if effects:
+                        effect_names = [effect.name for effect in effects]
+                        effect_info = f"[환경 효과] {', '.join(effect_names)}"
+                        if result.message:
+                            result.message = f"{result.message}\n{effect_info}"
+                        else:
+                            result.message = effect_info
+                    
+                    # 마지막 타일 및 효과 타입 업데이트
+                    self.last_effect_tile = current_tile
+                    self.last_effect_types = current_effect_types
+                
                 # 이동 시 즉시 데미지를 주는 효과 적용 (불타는 바닥 등)
                 effect_messages = []
                 for member in self.player.party:
@@ -382,7 +407,7 @@ class ExplorationSystem:
                     if messages:
                         effect_messages.extend(messages)
                 
-                # 효과 메시지가 있으면 결과에 추가
+                # 효과 메시지가 있으면 결과에 추가 (데미지/회복 메시지)
                 if effect_messages:
                     # 여러 메시지가 있으면 첫 번째 것만 표시하거나 모두 합침
                     if result.message:
@@ -442,38 +467,32 @@ class ExplorationSystem:
                                 except:
                                     # 다 실패하면 랜덤
                                     item_obj = ItemGenerator.create_random_drop(1)
-
+                    
+                    # 인벤토리에 추가
                     if item_obj:
-                        self.inventory.add_item(item_obj, qty)
-            
-            play_sfx("world", "pickup_item")
-            # 채집물 이름 찾기 (메시지용)
-            obj_name = "자원"
-            # object_type_str을 사용하여 표시 이름 찾기 시도
-            from src.gathering.harvestable import HarvestableType
-            try:
-                obj_type = HarvestableType(object_type_str)
-                obj_name = obj_type.display_name
-            except:
-                pass
-                        
-            harvest_msg = f"채집 성공: {obj_name} ({', '.join(items_gained)})"
-            logger.info(harvest_msg)
-            
-            # 결과 업데이트 (이벤트가 NONE이면 덮어씀)
-            if result.event == ExplorationEvent.NONE:
-                result = ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.ITEM_FOUND,
-                    message=harvest_msg
-                )
-        
+                        # 횟수만큼 추가
+                        for _ in range(qty):
+                            if self.inventory.add_item(item_obj):
+                                logger.info(f"채집 아이템 추가: {item_obj.name}")
+                            else:
+                                logger.warning(f"인벤토리 가득 참: {item_obj.name} 추가 실패")
+                                break
+                
+                # 채집 메시지 추가
+                if items_gained and not result.message:
+                    result.message = f"{object_type_str}에서 {', '.join(items_gained)} 획득!"
+                elif items_gained:
+                    result.message = f"{result.message}\n{object_type_str}에서 {', '.join(items_gained)} 획득!"
+
         # 플레이어가 움직인 후 모든 적 움직임 (싱글플레이만, 멀티플레이는 시간 기반)
         # 멀티플레이는 MultiplayerExplorationSystem에서 시간 기반으로 처리
         is_multiplayer = getattr(self, 'is_multiplayer', False)
+        logger.info(f"[적 이동 체크] is_multiplayer={is_multiplayer}, 적 수={len(self.enemies)}")
         if not is_multiplayer:
-            logger.debug(f"[적 이동] 싱글플레이 모드 - 적 {len(self.enemies)}마리 이동 처리")
+            logger.info(f"[적 이동] 싱글플레이 모드 - 적 {len(self.enemies)}마리 이동 처리 시작")
             self._move_all_enemies()
+        else:
+            logger.warning(f"[적 이동] 멀티플레이 모드 - 적 이동 건너뜀 (시간 기반 처리)")
 
         # NPC 이동 (플레이어 이동 후)
         self._move_npcs()
@@ -487,6 +506,51 @@ class ExplorationSystem:
             return self._trigger_combat_with_enemy(enemy_at_player)
 
         return result
+
+    def update_environmental_effects(self) -> Optional[str]:
+        """
+        플레이어가 현재 타일에 머물러 있을 때 환경 효과 업데이트
+        
+        Returns:
+            효과 메시지 (있으면)
+        """
+        # 마을이 아닌 경우만
+        if hasattr(self, 'is_town') and self.is_town:
+            return None
+        
+        # 환경 효과 관리자 확인
+        effect_manager = None
+        if hasattr(self.dungeon, 'environment_effect_manager'):
+            effect_manager = self.dungeon.environment_effect_manager
+        elif hasattr(self.dungeon, 'environmental_effect_manager'):
+            effect_manager = self.dungeon.environmental_effect_manager
+        
+        if not effect_manager or not self.player.party:
+            return None
+        
+        # 시간 간격 체크
+        import time
+        current_time = time.time()
+        time_since_last_check = current_time - self.last_environment_effect_time
+        
+        if time_since_last_check >= self.environment_effect_interval:
+            # 시간 간격이 지나면 시간당 지속 피해/회복 적용
+            dot_messages = []
+            for member in self.player.party:
+                messages = effect_manager.apply_tile_effects(
+                    member, self.player.x, self.player.y, is_movement=False
+                )
+                if messages:
+                    dot_messages.extend(messages)
+            
+            # 시간 업데이트
+            self.last_environment_effect_time = current_time
+            
+            # 메시지 반환
+            if dot_messages:
+                return dot_messages[0]
+        
+        return None
 
     def _check_tile_event(self, tile: Tile) -> ExplorationResult:
         """타일 이벤트 확인"""
@@ -563,11 +627,28 @@ class ExplorationSystem:
             return self._handle_gold(tile)
 
         elif tile.tile_type == TileType.BOSS_ROOM:
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.BOSS_ROOM,
-                message="⚠ 보스의 기운이 느껴집니다..."
-            )
+            # 보스방 진입 시 주변 보스를 찾아서 전투 시작
+            # BOSS_ROOM 영역 내 또는 근처의 보스 찾기
+            boss_enemy = None
+            for enemy in self.enemies:
+                if enemy.is_boss:
+                    # 플레이어 주변 5칸 이내의 보스 찾기
+                    distance = abs(enemy.x - self.player.x) + abs(enemy.y - self.player.y)
+                    if distance <= 5:
+                        boss_enemy = enemy
+                        break
+
+            # 보스를 찾았으면 전투 시작
+            if boss_enemy:
+                logger.info(f"[보스방 진입] 층 보스 발견! {boss_enemy.name}와의 전투 시작!")
+                return self._trigger_combat_with_enemy(boss_enemy)
+            else:
+                # 보스가 없으면 (이미 처치했거나) 경고 메시지만 표시
+                return ExplorationResult(
+                    success=True,
+                    event=ExplorationEvent.BOSS_ROOM,
+                    message="⚠ 보스의 기운이 느껴집니다..."
+                )
 
         elif tile.tile_type == TileType.PUZZLE:
             return self._handle_puzzle(tile)
@@ -1136,20 +1217,75 @@ class ExplorationSystem:
         # 보스 먼저 배치 (층마다 한 마리씩 꼭 생성)
         if possible_positions:
             from src.world.enemy_generator import EnemyGenerator
-            boss = EnemyGenerator.generate_boss(self.floor_number)
-            # 보스를 위한 위치 선택 (가능한 위치 중 하나)
+            from src.world.tile import TileType
             import random
-            boss_positions = [pos for pos in possible_positions if pos[0] > self.dungeon.width // 3]  # 오른쪽 구역 우선
-            if not boss_positions:
-                boss_positions = possible_positions
-            
-            if boss_positions:
-                boss_x, boss_y = random.choice(boss_positions)
-                boss_enemy = Enemy(x=boss_x, y=boss_y, level=self.floor_number, is_boss=True)
-                boss_enemy.name = boss.name
-                self.enemies.append(boss_enemy)
-                possible_positions.remove((boss_x, boss_y))  # 보스 위치 제외
-                logger.info(f"[_spawn_enemies] 보스 배치: {boss_enemy.name} at ({boss_x}, {boss_y})")
+
+            # 5층마다 층 보스 (더 강력함), 그 외에는 일반 보스
+            is_floor_boss = (self.floor_number % 5 == 0)
+            boss = EnemyGenerator.generate_boss(self.floor_number, is_floor_boss=is_floor_boss)
+
+            # 보스를 위한 위치 선택
+            if is_floor_boss and self.dungeon.stairs_down:
+                # 5층마다: 계단 근처에 보스 배치
+                stairs_x, stairs_y = self.dungeon.stairs_down
+
+                # 계단 주변을 BOSS_ROOM 타일로 둘러싸기 (5x5 영역)
+                for dx in range(-2, 3):
+                    for dy in range(-2, 3):
+                        check_x, check_y = stairs_x + dx, stairs_y + dy
+                        if 0 <= check_x < self.dungeon.width and 0 <= check_y < self.dungeon.height:
+                            tile = self.dungeon.get_tile(check_x, check_y)
+                            # 계단 자체는 제외, 벽도 제외
+                            if tile and tile.tile_type == TileType.FLOOR:
+                                tile.tile_type = TileType.BOSS_ROOM
+
+                # 보스는 계단에서 2~3칸 떨어진 곳에 배치
+                boss_candidates = []
+                for dx in range(-3, 4):
+                    for dy in range(-3, 4):
+                        distance = abs(dx) + abs(dy)
+                        if 2 <= distance <= 3:  # 계단에서 2~3칸 거리
+                            boss_x, boss_y = stairs_x + dx, stairs_y + dy
+                            if 0 <= boss_x < self.dungeon.width and 0 <= boss_y < self.dungeon.height:
+                                tile = self.dungeon.get_tile(boss_x, boss_y)
+                                if tile and tile.tile_type == TileType.BOSS_ROOM:
+                                    if (boss_x, boss_y) in possible_positions:
+                                        boss_candidates.append((boss_x, boss_y))
+
+                # 보스 배치
+                if boss_candidates:
+                    boss_x, boss_y = random.choice(boss_candidates)
+                    boss_enemy = Enemy(x=boss_x, y=boss_y, level=self.floor_number, is_boss=True)
+                    boss_enemy.name = boss.name
+                    self.enemies.append(boss_enemy)
+                    if (boss_x, boss_y) in possible_positions:
+                        possible_positions.remove((boss_x, boss_y))
+                    logger.info(f"[_spawn_enemies] ⚠️ 층 보스 배치: {boss_enemy.name} at ({boss_x}, {boss_y}) [계단 봉쇄!]")
+                else:
+                    # 후보가 없으면 일반 위치에 배치
+                    boss_positions = [pos for pos in possible_positions if pos[0] > self.dungeon.width // 3]
+                    if not boss_positions:
+                        boss_positions = possible_positions
+                    if boss_positions:
+                        boss_x, boss_y = random.choice(boss_positions)
+                        boss_enemy = Enemy(x=boss_x, y=boss_y, level=self.floor_number, is_boss=True)
+                        boss_enemy.name = boss.name
+                        self.enemies.append(boss_enemy)
+                        possible_positions.remove((boss_x, boss_y))
+                        logger.warning(f"[_spawn_enemies] 층 보스 배치 (계단 근처 배치 실패): {boss_enemy.name} at ({boss_x}, {boss_y})")
+            else:
+                # 일반 층: 랜덤 위치에 보스 배치 (BOSS_ROOM 타일 없음)
+                boss_positions = [pos for pos in possible_positions if pos[0] > self.dungeon.width // 3]
+                if not boss_positions:
+                    boss_positions = possible_positions
+
+                if boss_positions:
+                    boss_x, boss_y = random.choice(boss_positions)
+                    boss_enemy = Enemy(x=boss_x, y=boss_y, level=self.floor_number, is_boss=True)
+                    boss_enemy.name = boss.name
+                    self.enemies.append(boss_enemy)
+                    possible_positions.remove((boss_x, boss_y))
+                    logger.info(f"[_spawn_enemies] 보스 배치: {boss_enemy.name} at ({boss_x}, {boss_y})")
 
         # 나머지 일반 적 배치
         if possible_positions:
@@ -1224,10 +1360,12 @@ class ExplorationSystem:
         # 플레이어와의 거리 계산
         distance = abs(enemy.x - self.player.x) + abs(enemy.y - self.player.y)
 
+        logger.debug(f"[적 이동] {enemy.name} 위치=({enemy.x}, {enemy.y}), 플레이어 위치=({self.player.x}, {self.player.y}), 거리={distance}, 감지범위={enemy.detection_range}")
+
         # 플레이어 감지
         if distance <= enemy.detection_range:
             if not enemy.is_chasing:
-                logger.debug(f"[적 이동] {enemy.name}이(가) 플레이어 감지 (거리: {distance})")
+                logger.info(f"[적 이동] ⚠️ {enemy.name}이(가) 플레이어 감지! (거리: {distance}) - 추적 시작")
             enemy.is_chasing = True
             enemy.chase_turns = 0
 

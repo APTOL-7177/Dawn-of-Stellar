@@ -217,19 +217,19 @@ class EnvironmentalEffectManager:
         
         # === 이동 시 즉시 피해 효과 ===
         elif effect.effect_type == EnvironmentalEffectType.BURNING_FLOOR:
-            # 불타는 바닥: 이동 시마다 데미지 (메시지는 제거)
+            # 불타는 바닥: 이동 시마다 데미지
             if is_movement:
                 damage = int(15 * effect.intensity)
                 player.current_hp = max(1, player.current_hp - damage)
-                return None  # 메시지 제거
+                return f"불타는 바닥이 당신을 태웁니다! ({damage} 데미지)"
             return None
         
         elif effect.effect_type == EnvironmentalEffectType.ELECTRIC_FIELD:
-            # 전기장: 이동 시마다 감전 데미지 (메시지는 제거)
+            # 전기장: 이동 시마다 감전 데미지
             if is_movement:
                 damage = int(10 * effect.intensity)
                 player.current_hp = max(1, player.current_hp - damage)
-                return None  # 메시지 제거
+                return f"전기장이 당신을 감전시킵니다! ({damage} 데미지)"
             return None
         
         # === 시간당 지속 회복 효과 ===

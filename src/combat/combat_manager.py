@@ -324,11 +324,20 @@ class CombatManager:
         # 0. 특성 효과: 턴 시작 효과 적용
         from src.character.trait_effects import get_trait_effect_manager
         trait_manager = get_trait_effect_manager()
-        
+
         # 턴 시작 시 특성 플래그 초기화 (berserker_rush 등)
         trait_manager.reset_turn_flags(actor)
-        
+
         trait_manager.apply_turn_start_effects(actor)
+
+        # 턴 시작 시 장비 내구도 소량 감소 (장기전 페널티)
+        if hasattr(actor, 'degrade_equipment'):
+            # 무기 소량 감소
+            if actor.equipment.get("weapon"):
+                actor.degrade_equipment("weapon", 1)
+            # 방어구 소량 감소
+            if actor.equipment.get("armor"):
+                actor.degrade_equipment("armor", 1)
         
         # 0-1. 특성 효과: 주기적 버프 (tactical_genius 등)
         if hasattr(actor, 'active_traits'):
@@ -663,7 +672,11 @@ class CombatManager:
             
             # 무기 내구도 감소 (명중 시에만, skip_degrade 플래그 확인)
             if hasattr(attacker, 'degrade_equipment') and not kwargs.get('skip_degrade', False):
-                attacker.degrade_equipment("weapon", 1)
+                attacker.degrade_equipment("weapon", 3)  # 3배 증가
+
+                # 크리티컬 공격 시 무기 추가 내구도 감소 (부담)
+                if damage_result.is_critical:
+                    attacker.degrade_equipment("weapon", 2)  # 크리티컬 시 +2 추가 감소
 
         # BRV 공격 적용
         brv_result = self.brave.brv_attack(attacker, defender, damage_result.final_damage)
@@ -828,7 +841,7 @@ class CombatManager:
         # 무기 내구도 감소 (skip_degrade 플래그 확인)
         # HP 공격은 빗나감이 없으므로(BRV 0이면 0데미지지만 공격 자체는 성공) 항상 내구도 감소 시도
         if hasattr(attacker, 'degrade_equipment') and not kwargs.get('skip_degrade', False):
-            attacker.degrade_equipment("weapon", 1)
+            attacker.degrade_equipment("weapon", 3)  # 3배 증가
 
         # HP 공격 후 BRV 0 확인 (안전장치)
         if attacker.current_brv != 0:
@@ -841,6 +854,13 @@ class CombatManager:
             wound_damage = int(hp_result["hp_damage"] * 0.2)  # 20% wound damage
             if hasattr(defender, "wound_damage"):
                 defender.wound_damage += wound_damage
+
+            # BREAK 당할 때 방어구/장신구 추가 내구도 감소 (심각한 피해)
+            if hasattr(defender, 'degrade_equipment'):
+                if defender.equipment.get("armor"):
+                    defender.degrade_equipment("armor", 3)  # BREAK 시 방어구 +3 추가 감소
+                if defender.equipment.get("accessory"):
+                    defender.degrade_equipment("accessory", 2)  # BREAK 시 장신구 +2 추가 감소
 
         # 공격 후 방어 스택 초기화
         if hasattr(attacker, 'defend_stack_count') and attacker.defend_stack_count > 0:
@@ -1251,6 +1271,20 @@ class CombatManager:
         """스킬 실행"""
         if not skill:
             return {"action": "skill", "error": "no_skill"}
+
+        # 스킬 사용 시 장비 내구도 감소 (강력한 스킬일수록 더 많이 소모)
+        if hasattr(actor, 'degrade_equipment'):
+            # 무기 내구도 감소 (공격/마법 스킬)
+            if hasattr(skill, 'effects') and skill.effects:
+                # 데미지 스킬이면 무기 내구도 감소
+                from src.character.skills.effects.damage_effect import DamageEffect
+                has_damage = any(isinstance(effect, DamageEffect) for effect in skill.effects)
+                if has_damage:
+                    actor.degrade_equipment("weapon", 1)  # 스킬 사용 시 기본 1 감소
+
+            # 장신구 내구도 감소 (모든 스킬 사용 시 소량)
+            if actor.equipment.get("accessory"):
+                actor.degrade_equipment("accessory", 1)  # 마나 소모 시 장신구도 소모
 
         result = {
             "action": "skill",

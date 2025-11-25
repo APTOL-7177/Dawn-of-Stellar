@@ -1689,6 +1689,14 @@ def run_exploration(
                     exploration._last_enemy_update = current_time
             
             # 봇 관련 코드 제거됨
+        
+        # 환경 효과 업데이트 (플레이어가 같은 타일에 머물러 있을 때도 적용)
+        try:
+            effect_message = exploration.update_environmental_effects()
+            if effect_message and hasattr(ui, 'add_message'):
+                ui.add_message(effect_message)
+        except Exception as e:
+            logger.warning(f"환경 효과 업데이트 오류: {e}")
 
     # WorldUI에 업데이트 콜백 설정
     ui.on_update = update_game_state
