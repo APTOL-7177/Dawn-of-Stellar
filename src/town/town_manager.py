@@ -366,28 +366,52 @@ class TownManager:
         재료가 아닌 아이템(요리, 장비, 소모품 등)은 제거하고, 재료만 유지
         """
         from src.gathering.ingredient import IngredientDatabase
-        
-        items_to_keep = []
-        removed_count = 0
-        
-        # hub_storage에서 재료만 필터링
+
+        # === hub_storage 처리 (하위 호환성) ===
+        hub_items_to_keep = []
+        hub_removed_count = 0
+
         for item_data in self.hub_storage:
             item_id = item_data.get("item_id", "")
             ingredient = IngredientDatabase.get_ingredient(item_id)
             if ingredient:
                 # 재료 아이템은 유지
-                items_to_keep.append(item_data)
+                hub_items_to_keep.append(item_data)
             else:
                 # 재료가 아닌 아이템(요리, 장비, 소모품 등)은 제거
-                removed_count += 1
+                hub_removed_count += 1
                 item_name = item_data.get("name", item_id)
-                logger.info(f"게임오버: 재료가 아닌 아이템 제거 - {item_name}")
-        
+                logger.info(f"게임오버: hub_storage에서 재료가 아닌 아이템 제거 - {item_name}")
+
         # 재료만 남김
-        self.hub_storage = items_to_keep
-        
-        if removed_count > 0:
-            logger.info(f"런타임 저장소 초기화 완료: {removed_count}개의 아이템 제거, {len(items_to_keep)}개의 재료 유지")
+        self.hub_storage = hub_items_to_keep
+
+        # === storage_inventory 처리 (마을 창고) ===
+        storage_items_to_keep = []
+        storage_removed_count = 0
+
+        for item_data in self.storage_inventory:
+            item_id = item_data.get("item_id", "")
+            ingredient = IngredientDatabase.get_ingredient(item_id)
+            if ingredient:
+                # 재료 아이템은 유지
+                storage_items_to_keep.append(item_data)
+            else:
+                # 재료가 아닌 아이템(요리, 장비, 소모품 등)은 제거
+                storage_removed_count += 1
+                item_name = item_data.get("name", item_id)
+                logger.info(f"게임오버: 마을 창고에서 재료가 아닌 아이템 제거 - {item_name}")
+
+        # 재료만 남김
+        self.storage_inventory = storage_items_to_keep
+
+        total_removed = hub_removed_count + storage_removed_count
+        total_kept = len(hub_items_to_keep) + len(storage_items_to_keep)
+
+        if total_removed > 0:
+            logger.info(f"런타임 저장소 초기화 완료: {total_removed}개의 아이템 제거, {total_kept}개의 재료 유지")
+            logger.info(f"  - hub_storage: {hub_removed_count}개 제거, {len(hub_items_to_keep)}개 유지")
+            logger.info(f"  - 마을 창고: {storage_removed_count}개 제거, {len(storage_items_to_keep)}개 유지")
         else:
             logger.info("런타임 저장소 초기화 완료: 모든 아이템이 재료입니다")
 
