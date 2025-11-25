@@ -4293,7 +4293,6 @@ class ItemGenerator:
         all_templates = {**WEAPON_TEMPLATES, **ARMOR_TEMPLATES, **ACCESSORY_TEMPLATES}
         
         # 레벨과 등급에 맞는 템플릿 필터링
-        import random
         filtered_templates = []
         for template_id, template in all_templates.items():
             template_rarity = template.get("rarity", ItemRarity.COMMON)
