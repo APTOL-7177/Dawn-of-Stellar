@@ -496,6 +496,9 @@ class WorldUI:
                         town_manager = get_town_manager()
                         # exploration에도 설정하여 저장 시 일관성 유지
                         self.exploration.town_manager = town_manager
+                        logger.info(f"[DEBUG] world_ui: 전역 town_manager 사용 및 exploration에 설정 (id: {id(town_manager)}, storage: {len(town_manager.get_storage_inventory())}개)")
+                    else:
+                        logger.info(f"[DEBUG] world_ui: 기존 exploration.town_manager 사용 (id: {id(town_manager)}, storage: {len(town_manager.get_storage_inventory())}개)")
                     
                     if not town_map:
                         # town_map이 없으면 dungeon에서 가져오기 시도
@@ -636,6 +639,9 @@ class WorldUI:
                         town_manager = get_town_manager()
                         # exploration에도 설정하여 저장 시 일관성 유지
                         self.exploration.town_manager = town_manager
+                        logger.info(f"[DEBUG] world_ui: 전역 town_manager 사용 및 exploration에 설정 (id: {id(town_manager)}, storage: {len(town_manager.get_storage_inventory())}개)")
+                    else:
+                        logger.info(f"[DEBUG] world_ui: 기존 exploration.town_manager 사용 (id: {id(town_manager)}, storage: {len(town_manager.get_storage_inventory())}개)")
                     
                     if town_manager:
                         # 건물과 상호작용
