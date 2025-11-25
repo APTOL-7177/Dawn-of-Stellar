@@ -1037,12 +1037,16 @@ class WorldUI:
 
     def render(self, console: tcod.console.Console):
         """렌더링"""
-        # 바이옴별 배경 (던전 층에 따라 다름)
+        # 마을인지 확인하여 컨텍스트 설정
+        is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
+        context = "town" if is_town else "dungeon"
+
+        # 배경 렌더링 (마을: 핑크 그라데이션, 던전: 바이옴별 배경)
         render_space_background(
-            console, 
-            self.screen_width, 
+            console,
+            self.screen_width,
             self.screen_height,
-            context="dungeon",
+            context=context,
             floor=self.exploration.floor_number
         )
 
