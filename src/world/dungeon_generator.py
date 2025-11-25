@@ -679,9 +679,9 @@ class DungeonGenerator:
         boss_room = dungeon.rooms[-1]
         dungeon.boss_room = boss_room
 
-        # 입구에 경고 타일
-        cx, cy = boss_room.center
-        dungeon.set_tile(cx, cy - 2, TileType.BOSS_ROOM)
+        # 입구에 경고 타일 제거 (요청에 따라)
+        # cx, cy = boss_room.center
+        # dungeon.set_tile(cx, cy - 2, TileType.BOSS_ROOM)
 
     def _get_random_floor_pos(
         self,

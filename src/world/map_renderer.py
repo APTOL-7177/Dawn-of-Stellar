@@ -217,9 +217,10 @@ class MapRenderer:
                 elif tile.tile_type in [TileType.STAIRS_UP, TileType.STAIRS_DOWN]:
                     char = "S"
                     fg = (255, 255, 0)  # 노란색 (더 눈에 띄게)
-                elif tile.tile_type == TileType.BOSS_ROOM:
-                    char = "B"
-                    fg = (255, 50, 50)
+                # BOSS_ROOM 타일 표시 제거 (요청에 따라)
+                # elif tile.tile_type == TileType.BOSS_ROOM:
+                #     char = "B"
+                #     fg = (255, 50, 50)
                 elif tile.tile_type == TileType.CHEST:
                     char = "C"
                     fg = (255, 215, 0)  # 금색
