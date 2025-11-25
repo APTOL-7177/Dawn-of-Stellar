@@ -333,17 +333,27 @@ def open_storage(
     
     logger.info("창고 열기")
     
-    while not ui.closed:
-        ui.render(console)
-        context.present(console)
-        
-        for event in tcod.event.wait():
-            action = handler.dispatch(event)
+    try:
+        while not ui.closed:
+            ui.render(console)
+            context.present(console)
             
-            if action:
-                ui.handle_input(action)
-            
-            if isinstance(event, tcod.event.Quit):
-                ui.closed = True
-                break
+            for event in tcod.event.wait():
+                action = handler.dispatch(event)
+                
+                if action:
+                    ui.handle_input(action)
+                
+                if isinstance(event, tcod.event.Quit):
+                    ui.closed = True
+                    break
+    finally:
+        # UI 종료 시 town_manager의 hub_storage를 최종 상태로 동기화
+        if hasattr(ui.town_manager, 'hub_storage'):
+            ui.town_manager.hub_storage = ui.hub_storage.copy()
+            logger.info(f"창고 UI 종료: town_manager.hub_storage 동기화 완료 ({len(ui.town_manager.hub_storage)}개 아이템)")
+        else:
+            logger.warning("창고 UI 종료: town_manager에 hub_storage 속성이 없습니다. 동기화 실패.")
+    
+    logger.info("창고 닫기")
 

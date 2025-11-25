@@ -276,7 +276,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
-                use_probability=0.3,
+                use_probability=0.2,
                 cooldown=4
             ),
 
@@ -653,8 +653,8 @@ class EnemySkillDatabase:
                 damage_multiplier=1.4,
                 brv_damage=1,
                 status_effects=["curse", "silence", "slow"],
-                status_duration=3,
-                use_probability=0.35,
+                status_duration=2,
+                use_probability=0.2,
                 cooldown=4
             ),
             "soul_steal": EnemySkill(
@@ -812,7 +812,7 @@ class EnemySkillDatabase:
                 mp_cost=20,
                 status_effects=["freeze", "bind"],
                 status_duration=2,
-                use_probability=0.4,
+                use_probability=0.25,
                 cooldown=3
             ),
             "blizzard": EnemySkill(
@@ -868,7 +868,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["paralyze", "stun"],
                 status_duration=1,
-                use_probability=0.35,
+                use_probability=0.2,
                 cooldown=3
             ),
 
@@ -906,7 +906,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["slow", "stun"],
                 status_duration=1,
-                use_probability=0.35,
+                use_probability=0.2,
                 cooldown=4
             ),
 
@@ -1081,8 +1081,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 status_effects=["poison", "paralyze"],
-                status_duration=3,
-                use_probability=0.4,
+                status_duration=2,
+                use_probability=0.25,
                 cooldown=3
             ),
             "pincer_attack": EnemySkill(
@@ -1119,7 +1119,7 @@ class EnemySkillDatabase:
                 mp_cost=25,
                 status_effects=["petrify", "stun"],
                 status_duration=2,
-                use_probability=0.35,
+                use_probability=0.2,
                 cooldown=5
             ),
             "viper_fangs": EnemySkill(
@@ -1144,7 +1144,7 @@ class EnemySkillDatabase:
                 mp_cost=20,
                 status_effects=["paralyze", "slow"],
                 status_duration=2,
-                use_probability=0.35,
+                use_probability=0.2,
                 cooldown=3
             ),
 
@@ -1382,7 +1382,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn", "freeze", "poison"],
                 status_duration=2,
-                use_probability=0.35,
+                use_probability=0.2,
                 cooldown=4
             ),
             "dragon_dive": EnemySkill(
@@ -1703,7 +1703,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
-                use_probability=0.5,
+                use_probability=0.3,
                 cooldown=3
             ),
             "treasure_lure": EnemySkill(
@@ -1758,8 +1758,8 @@ class EnemySkillDatabase:
                 is_magical=True,
                 mp_cost=40,
                 status_effects=["sleep", "doom"],
-                status_duration=4,
-                use_probability=0.3,
+                status_duration=2,
+                use_probability=0.15,
                 cooldown=6
             ),
 
@@ -1824,8 +1824,8 @@ class EnemySkillDatabase:
                 is_magical=True,
                 mp_cost=35,
                 status_effects=["darkness", "silence"],
-                status_duration=3,
-                use_probability=0.3,
+                status_duration=2,
+                use_probability=0.2,
                 cooldown=5
             ),
 
@@ -1938,7 +1938,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["stun"],
                 status_duration=1,
-                use_probability=0.35,
+                use_probability=0.2,
                 cooldown=4,
                 sfx=("skill", "roar")
             ),
@@ -1952,8 +1952,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 status_effects=["curse", "silence"],
-                status_duration=3,
-                use_probability=0.3,
+                status_duration=2,
+                use_probability=0.2,
                 cooldown=4
             ),
             "soul_steal": EnemySkill(
@@ -2103,7 +2103,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["freeze", "slow"],
                 status_duration=2,
-                use_probability=0.35,
+                use_probability=0.2,
                 cooldown=4
             ),
             "blizzard": EnemySkill(
@@ -2212,7 +2212,7 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 status_effects=["silence"],
                 status_duration=2,
-                use_probability=0.35,
+                use_probability=0.2,
                 cooldown=3
             ),
             "gust": EnemySkill(
@@ -2372,8 +2372,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 status_effects=["poison", "paralyze"],
-                status_duration=3,
-                use_probability=0.45,
+                status_duration=2,
+                use_probability=0.25,
                 cooldown=2
             ),
             "pincer_attack": EnemySkill(
@@ -2433,7 +2433,7 @@ class EnemySkillDatabase:
                 is_magical=True,
                 status_effects=["paralyze", "fear"],
                 status_duration=2,
-                use_probability=0.3,
+                use_probability=0.2,
                 cooldown=4
             ),
 
@@ -2677,7 +2677,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn", "freeze", "shock"],
                 status_duration=2,
-                use_probability=0.3,
+                use_probability=0.2,
                 cooldown=5
             ),
             "dragon_dive": EnemySkill(
@@ -2690,7 +2690,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=2,
-                use_probability=0.3,
+                use_probability=0.2,
                 cooldown=5
             ),
 
@@ -2816,7 +2816,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["burn", "stun"],
                 status_duration=2,
-                use_probability=0.25,
+                use_probability=0.15,
                 cooldown=6
             ),
 
@@ -2877,7 +2877,7 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 status_effects=["stun"],
                 status_duration=1,
-                use_probability=0.45,
+                use_probability=0.25,
                 cooldown=3
             ),
             "iron_wall": EnemySkill(

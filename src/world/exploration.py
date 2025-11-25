@@ -1100,32 +1100,9 @@ class ExplorationSystem:
         self.floor_number += 1
         logger.info(f"층 이동: {self.floor_number}층")
 
-        # 퀘스트 보드 갱신
-        try:
-            from src.quest.quest_manager import get_quest_manager
-            quest_manager = get_quest_manager()
-            # 플레이어 레벨 가져오기
-            player_level = getattr(self.player, 'level', 1)
-            if hasattr(self.player, 'party') and self.player.party:
-                # 파티의 평균 레벨 사용
-                levels = [getattr(member, 'level', 1) for member in self.player.party if hasattr(member, 'level')]
-                if levels:
-                    player_level = sum(levels) // len(levels)
-            quest_manager.refresh_quests(player_level, count=5)
-            logger.info(f"퀘스트 보드 갱신 완료 (층: {self.floor_number}, 레벨: {player_level})")
-        except Exception as e:
-            logger.warning(f"퀘스트 갱신 실패: {e}")
-
-        # 상점 상품 갱신 (대장간, 잡화점)
-        try:
-            from src.ui.gold_shop_ui import refresh_shop
-            refresh_shop()
-            logger.info(f"상점 상품 갱신 완료 (층: {self.floor_number})")
-        except Exception as e:
-            logger.warning(f"상점 갱신 실패: {e}")
-
         # 새 던전 생성 필요
         # (이건 외부에서 처리)
+        # 참고: 퀘스트 게시판과 상점 리뉴얼은 마을로 복귀할 때만 수행됨 (main.py의 renew_town_services 함수)
 
     def ascend_floor(self):
         """이전 층으로"""

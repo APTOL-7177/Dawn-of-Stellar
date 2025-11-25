@@ -67,6 +67,33 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def renew_town_services(player_level: int = 1):
+    """
+    마을 방문 시 서비스 리뉴얼 (퀘스트 게시판, 잡화상점, 대장간)
+    
+    Args:
+        player_level: 플레이어 레벨
+    """
+    logger = get_logger(Loggers.SYSTEM)
+    
+    # 퀘스트 게시판 리뉴얼
+    try:
+        from src.quest.quest_manager import get_quest_manager
+        quest_manager = get_quest_manager()
+        quest_manager.refresh_quests(player_level, count=5)
+        logger.info(f"퀘스트 게시판 리뉴얼 완료 (플레이어 레벨: {player_level})")
+    except Exception as e:
+        logger.warning(f"퀘스트 게시판 리뉴얼 실패: {e}")
+    
+    # 잡화상점 및 대장간 리뉴얼
+    try:
+        from src.ui.gold_shop_ui import refresh_shop
+        refresh_shop()
+        logger.info("잡화상점 및 대장간 상품 리뉴얼 완료")
+    except Exception as e:
+        logger.warning(f"상점 리뉴얼 실패: {e}")
+
+
 def main() -> int:
     """
     메인 함수
@@ -586,6 +613,14 @@ def main() -> int:
                         exploration.is_town = True
                         exploration.town_map = town_map
                         exploration.town_manager = town_manager
+                        
+                        # 게임 시작 시 마을 방문 - 서비스 리뉴얼
+                        player_level = 1
+                        if character_party:
+                            levels = [getattr(member, 'level', 1) for member in character_party if hasattr(member, 'level')]
+                            if levels:
+                                player_level = sum(levels) // len(levels)
+                        renew_town_services(player_level)
                         
                         # 네트워크 매니저에 현재 게임 상태 저장 (클라이언트 연결 시 전송용)
                         network_manager.current_floor = floor_number
@@ -2679,6 +2714,16 @@ def main() -> int:
                                 game_stats["next_dungeon_floor"] = next_dungeon
                                 logger.info(f"던전 클리어! 마을로 복귀. 다음 던전: {next_dungeon}층 (멀티플레이)")
                                 
+                                # 마을 방문 시 서비스 리뉴얼
+                                player_level = 1
+                                if hasattr(exploration, 'player') and hasattr(exploration.player, 'level'):
+                                    player_level = exploration.player.level
+                                elif hasattr(exploration, 'player') and hasattr(exploration.player, 'party') and exploration.player.party:
+                                    levels = [getattr(member, 'level', 1) for member in exploration.player.party if hasattr(member, 'level')]
+                                    if levels:
+                                        player_level = sum(levels) // len(levels)
+                                renew_town_services(player_level)
+                                
                                 # 마을 맵 재사용
                                 if floor_number in floors_dungeons:
                                     floor_data = floors_dungeons[floor_number]
@@ -2764,6 +2809,16 @@ def main() -> int:
                                 # 마을로 복귀
                                 floor_number = 0
                                 logger.info(f"⬆ 던전에서 마을로 복귀 (멀티플레이)")
+                                
+                                # 마을 방문 시 서비스 리뉴얼
+                                player_level = 1
+                                if hasattr(exploration, 'player') and hasattr(exploration.player, 'level'):
+                                    player_level = exploration.player.level
+                                elif hasattr(exploration, 'player') and hasattr(exploration.player, 'party') and exploration.player.party:
+                                    levels = [getattr(member, 'level', 1) for member in exploration.player.party if hasattr(member, 'level')]
+                                    if levels:
+                                        player_level = sum(levels) // len(levels)
+                                renew_town_services(player_level)
                                 
                                 # 마을 맵 재사용
                                 if floor_number in floors_dungeons:
@@ -3390,6 +3445,16 @@ def main() -> int:
                                         game_stats["next_dungeon_floor"] = next_dungeon
                                         logger.info(f"던전 클리어! 마을로 복귀. 다음 던전: {next_dungeon}층")
                                         
+                                        # 마을 방문 시 서비스 리뉴얼
+                                        player_level = 1
+                                        if hasattr(exploration, 'player') and hasattr(exploration.player, 'level'):
+                                            player_level = exploration.player.level
+                                        elif hasattr(exploration, 'player') and hasattr(exploration.player, 'party') and exploration.player.party:
+                                            levels = [getattr(member, 'level', 1) for member in exploration.player.party if hasattr(member, 'level')]
+                                            if levels:
+                                                player_level = sum(levels) // len(levels)
+                                        renew_town_services(player_level)
+                                        
                                         # 마을 맵 재사용
                                         if floor_number in floors_dungeons:
                                             floor_data = floors_dungeons[floor_number]
@@ -3479,6 +3544,16 @@ def main() -> int:
                                         # 마을로 복귀
                                         floor_number = 0
                                         logger.info(f"⬆ 던전에서 마을로 복귀")
+                                        
+                                        # 마을 방문 시 서비스 리뉴얼
+                                        player_level = 1
+                                        if hasattr(exploration, 'player') and hasattr(exploration.player, 'level'):
+                                            player_level = exploration.player.level
+                                        elif hasattr(exploration, 'player') and hasattr(exploration.player, 'party') and exploration.player.party:
+                                            levels = [getattr(member, 'level', 1) for member in exploration.player.party if hasattr(member, 'level')]
+                                            if levels:
+                                                player_level = sum(levels) // len(levels)
+                                        renew_town_services(player_level)
                                         
                                         # 마을 맵 재사용
                                         if floor_number in floors_dungeons:
