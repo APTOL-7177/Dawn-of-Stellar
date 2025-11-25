@@ -488,18 +488,18 @@ class TownManager:
         return manager
 
 # 강력한 싱글톤 구현 (클래스 기반)
-class TownManagerSingleton:
+class TownManagerSingleton(TownManager):
     _instance = None
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
         return cls._instance
 
     def __init__(self):
-        if not self._initialized:
-            TownManager.__init__(self)
+        # 싱글톤이므로 __init__은 한 번만 호출
+        if not hasattr(self, '_initialized'):
+            super().__init__()
             self._initialized = True
             print(f"[TOWN_MANAGER] 싱글톤 TownManager 생성: id={id(self)}")
 
