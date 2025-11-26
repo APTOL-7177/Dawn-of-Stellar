@@ -735,22 +735,46 @@ PythonFound:
 
     DetailPrint "Python verification successful"
     
-    ; Upgrade pip
+    ; For embedded Python, ensure pip is available
+    IfFileExists "$INSTDIR\python\python.exe" 0 UseSystemPip
+
+    ; Embedded Python setup
+    DetailPrint "Setting up pip for embedded Python..."
+
+    ; Ensure python311._pth includes pip and setuptools
+    FileOpen $3 "$INSTDIR\python\python311._pth" a
+    FileWrite $3 "import site$\r$\n"
+    FileWrite $3 "$INSTDIR\python\Lib\site-packages$\r$\n"
+    FileClose $3
+
+    ; Download get-pip.py using PowerShell
+    ExecWait 'powershell -Command "& {try {Invoke-WebRequest -Uri \"https://bootstrap.pypa.io/get-pip.py\" -OutFile \"$INSTDIR\get-pip.py\"} catch {exit 1}}"' $0
+
+    ; Install pip using the downloaded script
+    ExecWait '"$PythonPath" "$INSTDIR\get-pip.py" --no-warn-script-location' $0
+    Delete "$INSTDIR\get-pip.py"
+
+    Goto PipSetupDone
+
+UseSystemPip:
+    ; Upgrade pip for system/venv Python
     DetailPrint "Upgrading pip..."
-    ExecWait 'python -m pip install --upgrade pip' $0
+    ExecWait '"$PythonPath" -m pip install --upgrade pip' $0
     IfErrors 0 PipUpgraded
     DetailPrint "pip upgrade failed (continuing)"
     PipUpgraded:
-    
+
+PipSetupDone:
+
     ; Install requirements.txt
     DetailPrint "Installing Python packages..."
     DetailPrint "This may take several minutes..."
-    
+
     ; Create Temporary Batch File
     FileOpen $0 "$TEMP\install_packages.bat" w
     FileWrite $0 "@echo off$\r$\n"
     FileWrite $0 'cd /d "$INSTDIR"$\r$\n'
-    FileWrite $0 "python -m pip install -r requirements.txt --disable-pip-version-check$\r$\n"
+    FileWrite $0 '"$PythonPath" -m pip install -r requirements.txt --disable-pip-version-check$\r$\n'
     FileWrite $0 "if %ERRORLEVEL% NEQ 0 ($\r$\n"
     FileWrite $0 "    echo Package installation failed$\r$\n"
     FileWrite $0 "    pause$\r$\n"
