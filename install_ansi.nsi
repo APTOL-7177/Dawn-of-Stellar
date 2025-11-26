@@ -573,18 +573,30 @@ PythonFound:
     ExecWait '"$PythonPath" --version' $0
     IfErrors PythonVersionError 0
 
+    ; Get full version string for display
+    ExecWait '"$PythonPath" -c "import sys; print(f\"Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}\")"' $2
+
     ; Parse version number (basic check)
     ; Python version output format: "Python 3.X.Y"
     ExecWait '"$PythonPath" -c "import sys; print(sys.version_info.major * 10 + sys.version_info.minor)"' $1
     IntCmp $1 0 PythonVersionError 0  ; Check if version parsing failed
+
+    DetailPrint "Python version detected: $1 (parsed from $2)"
+
     IntCmp $1 310 VersionOK 0  ; Check if >= 3.10
     IntCmp $1 311 VersionOK 0
     IntCmp $1 312 VersionOK 0
     IntCmp $1 313 VersionOK 0
-    Goto PythonVersionTooOld
+    IntCmp $1 314 VersionOK 0
+    IntCmp $1 315 VersionOK 0
+
+    ; Version is too old
+    DetailPrint "Python version $1 is too old (need 3.10+)"
+    MessageBox MB_OK|MB_ICONSTOP "Python version is too old.$\n$\nDetected: $2$\nRequired: Python 3.10 or higher$\n$\nPlease update Python from:$\nhttps://www.python.org/downloads/"
+    Abort "Python version too old"
 
 VersionOK:
-    DetailPrint "Python version is OK: $1"
+    DetailPrint "Python version is OK: $2"
     
     ; Upgrade pip
     DetailPrint "Upgrading pip..."
@@ -660,11 +672,6 @@ PackagesInstalled:
     
 TestPassed:
     DetailPrint "All essential packages installed successfully!"
-    
-PythonVersionTooOld:
-    DetailPrint "Python version is too old"
-    MessageBox MB_OK|MB_ICONSTOP "Python 3.10 or higher is required.$\n$\nCurrent version is too old.$\n$\nPlease update Python from:$\nhttps://www.python.org/downloads/"
-    Abort "Python version too old"
 
 PythonVersionError:
     DetailPrint "Could not determine Python version"
