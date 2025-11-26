@@ -125,25 +125,25 @@ def get_shop_items() -> List[ShopItem]:
     ShopItem(
         "엘릭서",
         "HP와 MP를 완전히 회복",
-        100,
+        33,
         ShopCategory.CONSUMABLES
     ),
     ShopItem(
         "하이포션",
         "HP 500 회복",
-        50,
+        17,
         ShopCategory.CONSUMABLES
     ),
     ShopItem(
         "하이이더",
         "MP 100 회복",
-        50,
+        17,
         ShopCategory.CONSUMABLES
     ),
     ShopItem(
         "피닉스의 깃털",
         "전투 중 사망 시 자동 부활 (1회)",
-        200,
+        67,
         ShopCategory.CONSUMABLES
     ),
 

@@ -566,14 +566,14 @@ class SimpleEnemy:
         self.current_mp = self.max_mp
         
         # 공격력: 레벨당 기초 공격력의 40% 성장 (더 공격적으로 강화)
-        # 최종적으로 공격력을 30%로 조정 (밸런스 재조정)
+        # 최종적으로 공격력을 21%로 조정 (밸런스 재조정 - 30% 추가 감소)
         attack_growth = template.physical_attack * 0.40 * (level - 1)
         base_physical_attack = (template.physical_attack + attack_growth) * boss_stat_mult * stat_variance
-        self.physical_attack = int(base_physical_attack * 0.3) * difficulty_dmg_mult
+        self.physical_attack = int(base_physical_attack * 0.21) * difficulty_dmg_mult
 
         magic_attack_growth = template.magic_attack * 0.40 * (level - 1)
         base_magic_attack = (template.magic_attack + magic_attack_growth) * boss_stat_mult * stat_variance
-        self.magic_attack = int(base_magic_attack * 0.3) * difficulty_dmg_mult
+        self.magic_attack = int(base_magic_attack * 0.21) * difficulty_dmg_mult
         
         # 방어력: 레벨당 기초 방어력의 40% 성장, 최종값 15% 증가 (플레이어 20% * 1.25 * 1.3, 최종 0.75 * 1.15 = 0.8625배)
         defense_growth = template.physical_defense * 0.40 * (level - 1)
@@ -853,7 +853,35 @@ class EnemyGenerator:
             return boss
 
         # 일반 층의 보스 (일반 몹의 강화 버전)
-        suitable_enemy_ids = EnemyGenerator.get_suitable_enemies_for_floor(floor_number)
+        # 일반 보스로는 현재 층 티어보다 한 단계 낮은 티어를 사용 (너무 강한 보스 방지)
+        boss_tier_map = {
+            "elite": "very_strong",      # elite 티어 층에서는 very_strong 티어 보스
+            "very_strong": "strong",    # very_strong 티어 층에서는 strong 티어 보스
+            "strong": "normal",         # strong 티어 층에서는 normal 티어 보스
+            "normal": "weak",          # normal 티어 층에서는 weak 티어 보스
+            "weak": "weak"             # weak 티어 층에서는 weak 티어 보스
+        }
+
+        # 현재 층의 티어 결정
+        current_tier = None
+        if floor_number <= 3:
+            current_tier = "weak"
+        elif 2 <= floor_number <= 6:
+            current_tier = "normal"
+        elif 5 <= floor_number <= 9:
+            current_tier = "strong"
+        elif 8 <= floor_number <= 12:
+            current_tier = "very_strong"
+        elif 11 <= floor_number <= 15:
+            current_tier = "elite"
+        else:
+            current_tier = "elite"  # 15층 이상
+
+        # 일반 보스용 티어 선택 (한 단계 낮춤)
+        boss_tier = boss_tier_map.get(current_tier, "weak")
+
+        # 해당 티어의 적들 가져오기
+        suitable_enemy_ids = EnemyGenerator.ENEMY_TIERS.get(boss_tier, ["slime"])
         # 보스 템플릿 제외 (boss_로 시작하거나 sephiroth 제외)
         normal_enemy_ids = [eid for eid in suitable_enemy_ids if not eid.startswith("boss_") and eid != "sephiroth"]
 

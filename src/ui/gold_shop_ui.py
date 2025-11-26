@@ -153,8 +153,8 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1, shop_type: st
         # 대장간: 장비 가격 1/6 * 2/3 = 1/9
         type_multiplier = (1.0 / 6.0) * (2.0 / 3.0)
     elif shop_type == "shop":
-        # 잡화점: 소모품 가격 1/3
-        type_multiplier = 1.0 / 3.0
+        # 잡화점: 소모품 가격 1/9 (1/3 * 1/3)
+        type_multiplier = 1.0 / 9.0
     else:
         type_multiplier = 1.0
 
@@ -246,9 +246,16 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1, shop_type: st
         num_equipment = floor_random.randint(6, 8)
     else:
         num_equipment = floor_random.randint(4, 5)
-    
-    # 층수에 따라 더 높은 레벨과 등급의 장비를 우선적으로 선택
-    if len(all_equipment_pools) > 0:
+
+    # 각 장비 타입별로 분류 (균등하게 선택하기 위해)
+    weapon_pools = [item for item in all_equipment_pools if item[0] in WEAPON_TEMPLATES]
+    armor_pools = [item for item in all_equipment_pools if item[0] in ARMOR_TEMPLATES]
+    accessory_pools = [item for item in all_equipment_pools if item[0] in ACCESSORY_TEMPLATES]
+
+    # 각 타입별 우선순위 정렬
+    def sort_by_priority(equipment_list):
+        if not equipment_list:
+            return []
         # 등급별 점수 (높을수록 좋음)
         rarity_scores = {
             ItemRarity.COMMON: 1,
@@ -258,8 +265,7 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1, shop_type: st
             ItemRarity.LEGENDARY: 5,
             ItemRarity.UNIQUE: 6
         }
-        
-        # 우선순위 계산 함수: (레벨 점수, 등급 점수) 튜플로 정렬
+
         def get_priority(item_data):
             item_id, base_price, template, level_req, rarity = item_data
             # 타겟 범위 내인지 확인
@@ -269,15 +275,52 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1, shop_type: st
             # 등급 점수
             rarity_score = rarity_scores.get(rarity, 1)
             return (level_score, rarity_score)
-        
-        # 우선순위에 따라 정렬 (높은 우선순위부터)
-        sorted_equipment = sorted(all_equipment_pools, key=get_priority, reverse=True)
-        
-        # 상위 장비 선택
-        equipment_items = sorted_equipment[:num_equipment]
-        
+
+        return sorted(equipment_list, key=get_priority, reverse=True)
+
+    sorted_weapons = sort_by_priority(weapon_pools)
+    sorted_armors = sort_by_priority(armor_pools)
+    sorted_accessories = sort_by_priority(accessory_pools)
+
+    # 각 타입별로 균등하게 분배
+    equipment_items = []
+    types_available = []
+    if sorted_weapons:
+        types_available.append(('weapon', sorted_weapons))
+    if sorted_armors:
+        types_available.append(('armor', sorted_armors))
+    if sorted_accessories:
+        types_available.append(('accessory', sorted_accessories))
+
+    if types_available:
+        # 각 타입별로 할당할 개수 계산
+        items_per_type = num_equipment // len(types_available)
+        extra_items = num_equipment % len(types_available)
+
+        for i, (type_name, sorted_items) in enumerate(types_available):
+            # 각 타입별 할당량 (마지막 타입은 남은 개수 모두)
+            type_allocation = items_per_type + (1 if i < extra_items else 0)
+            selected_count = min(type_allocation, len(sorted_items))
+            equipment_items.extend(sorted_items[:selected_count])
+
+        # 아직 개수가 부족하면 랜덤으로 추가
+        if len(equipment_items) < num_equipment:
+            remaining_slots = num_equipment - len(equipment_items)
+            all_remaining = []
+            for type_name, sorted_items in types_available:
+                remaining_items = sorted_items[len(sorted_items)//2:]  # 상위 절반 제외하고 남은 것들
+                all_remaining.extend(remaining_items)
+
+            if all_remaining:
+                additional_items = floor_random.sample(all_remaining, min(remaining_slots, len(all_remaining)))
+                equipment_items.extend(additional_items)
+
         # 선택된 장비에서 템플릿 정보만 추출 (기존 형식 유지)
         equipment_items = [(item_id, base_price, template) for item_id, base_price, template, _, _ in equipment_items]
+    else:
+        # 장비 풀이 비어있으면 빈 리스트 반환
+        logger.warning(f"장비 풀이 비어있습니다. (floor_level: {floor_level}, max_level: {max_level})")
+        equipment_items = []
     else:
         # 장비 풀이 비어있으면 빈 리스트 반환
         logger.warning(f"장비 풀이 비어있습니다. (floor_level: {floor_level}, max_level: {max_level})")

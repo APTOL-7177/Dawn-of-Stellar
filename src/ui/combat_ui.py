@@ -1795,9 +1795,9 @@ class CombatUI:
             )
 
             # MP 게이지 (애니메이션 + 숫자는 게이지 안에)
-            console.print(28, y + 2, "MP:", fg=(200, 200, 200))
+            console.print(29, y + 2, "MP:", fg=(200, 200, 200))
             gauge_renderer.render_animated_mp_bar(
-                console, 32, y + 2, 10,
+                console, 33, y + 2, 15,
                 ally.current_mp, ally.max_mp, entity_id,
                 show_numbers=True
             )
@@ -1805,9 +1805,9 @@ class CombatUI:
             # BRV 게이지 (애니메이션 + 숫자는 게이지 안에)
             max_brv = getattr(ally, 'max_brv', 999)
             is_broken = self.combat_manager.brave.is_broken(ally) if hasattr(self.combat_manager, 'brave') else False
-            console.print(8, y + 2, "BRV:", fg=(200, 200, 200))
+            console.print(7, y + 2, "BRV:", fg=(200, 200, 200))
             gauge_renderer.render_animated_brv_bar(
-                console, 13, y + 2, 10,
+                console, 12, y + 2, 15,
                 ally.current_brv, max_brv, entity_id,
                 is_broken=is_broken, show_numbers=True
             )
@@ -1968,9 +1968,9 @@ class CombatUI:
             # BRV 게이지 (애니메이션) - 플레이어와 동일 (15칸)
             max_brv = getattr(enemy, 'max_brv', 9999)
             is_broken = self.combat_manager.brave.is_broken(enemy) if hasattr(self.combat_manager, 'brave') else False
-            console.print(x + 3, y + 3, "BRV:", fg=(200, 200, 200))
+            console.print(x + 2, y + 3, "BRV:", fg=(200, 200, 200))
             gauge_renderer.render_animated_brv_bar(
-                console, x + 8, y + 3, 15,
+                console, x + 7, y + 3, 15,
                 enemy.current_brv, max_brv, enemy_id,
                 is_broken=is_broken, show_numbers=True
             )
