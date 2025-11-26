@@ -37,6 +37,12 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--unlock-classes",
+        action="store_true",
+        help="모든 직업 잠금 해제 (개발 모드 표시 없음)"
+    )
+
+    parser.add_argument(
         "--log",
         type=str,
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
@@ -115,6 +121,11 @@ def main() -> int:
 
         if args.debug:
             config.set("development.debug_mode", True)
+
+        if args.unlock_classes:
+            config.set("development.unlock_all_classes", True)
+            config.set("development.enabled", False)  # 개발 모드 표시 없음
+            config.set("development.debug_mode", False)  # 디버그 모드 표시 없음
 
         # 로거 초기화
         logger = get_logger(Loggers.SYSTEM)

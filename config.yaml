@@ -288,7 +288,7 @@ development:
   enabled: true
   show_damage_calculations: false
   unlimited_essence: false
-  unlock_all_classes: true
+  unlock_all_classes: false
 difficulty:
   default: 보통
   levels:

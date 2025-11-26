@@ -67,7 +67,7 @@ if errorlevel 1 (
     echo.
     echo Try running the following commands manually:
     echo   "%PYTHON_EXE%" -m pip install -r requirements.txt
-    echo   "%PYTHON_EXE%" main.py
+        echo   "%PYTHON_EXE%" main.py
     echo.
     pause
 )
