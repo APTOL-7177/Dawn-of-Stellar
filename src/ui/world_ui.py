@@ -154,13 +154,18 @@ class WorldUI:
         if isinstance(key_event, tcod.event.KeyDown):
             # 필드 스킬 UI (F 키) - 마을에서는 사용 불가
             if key_event.sym == tcod.event.KeySym.f:
-                # 마을인지 확인
-                is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
-                if is_town:
-                    self.add_message("마을에서는 필드스킬을 사용할 수 없습니다.")
-                    return False
-                if self.party:
-                    self.field_skill_ui.show(self.party)
+                try:
+                    # 마을인지 확인
+                    is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
+                    if is_town:
+                        self.add_message("마을에서는 필드스킬을 사용할 수 없습니다.")
+                        return False
+                    if self.party:
+                        self.field_skill_ui.show(self.party)
+                        return False
+                except Exception as e:
+                    logger.error(f"F 키 처리 중 오류: {e}")
+                    self.add_message("필드 스킬 UI 오류가 발생했습니다.")
                     return False
 
             if key_event.sym == tcod.event.KeySym.t:

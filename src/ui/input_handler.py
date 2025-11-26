@@ -131,7 +131,7 @@ class InputHandler(tcod.event.EventDispatch[Optional[GameAction]]):
             'v': GameAction.INVENTORY_DESTROY,  # 파괴/버리기
             'd': GameAction.INVENTORY_DROP,  # 아이템 드롭
             'g': GameAction.INVENTORY_DROP_GOLD,  # 골드 드롭
-            'f': GameAction.USE_CONSUMABLE,  # 음식/소비품 사용
+            # 'f': GameAction.USE_CONSUMABLE,  # 음식/소비품 사용 (필드 스킬과 충돌하여 제거)
 
             # 시스템 (Z = 선택, X = 취소)
             'z': GameAction.CONFIRM,
