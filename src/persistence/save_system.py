@@ -18,9 +18,14 @@ logger = get_logger(Loggers.SYSTEM)
 class SaveSystem:
     """저장 시스템"""
 
-    def __init__(self, save_directory: str = "saves"):
+    def __init__(self, save_directory: Optional[str] = None):
+        if save_directory is None:
+            # Use game folder's user_data/saves directory
+            script_dir = Path(__file__).parent.parent.parent  # src/persistence/save_system.py -> src -> project_root
+            save_directory = script_dir / "user_data" / "saves"
+
         self.save_dir = Path(save_directory)
-        self.save_dir.mkdir(exist_ok=True)
+        self.save_dir.mkdir(parents=True, exist_ok=True)
 
     def save_game(self, save_name: str, game_state: Dict[str, Any], is_multiplayer: bool = False) -> bool:
         """

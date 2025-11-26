@@ -334,6 +334,12 @@ CloneVerified:
     
 GitOperationDone:
 
+    ; Create user data directories
+    DetailPrint "Creating user data directories..."
+    CreateDirectory "$INSTDIR\user_data"
+    CreateDirectory "$INSTDIR\user_data\logs"
+    CreateDirectory "$INSTDIR\user_data\saves"
+
     ; Download and extract embedded Python
     DetailPrint "Downloading embedded Python..."
     GetTempFileName $0

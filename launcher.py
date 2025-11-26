@@ -56,14 +56,14 @@ class GameLauncher:
 
     def __init__(self):
         self.root_dir = Path(__file__).parent
-        self.saves_dir = self.root_dir / "saves"
-        self.logs_dir = self.root_dir / "logs"
+        self.saves_dir = self.root_dir / "user_data" / "saves"
+        self.logs_dir = self.root_dir / "user_data" / "logs"
         self.config_file = self.root_dir / "config.yaml"
         self.main_script = self.root_dir / "main.py"
 
         # 디렉토리 생성
-        self.saves_dir.mkdir(exist_ok=True)
-        self.logs_dir.mkdir(exist_ok=True)
+        self.saves_dir.mkdir(parents=True, exist_ok=True)
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
 
         # 화면 설정
         self.screen_width = 100

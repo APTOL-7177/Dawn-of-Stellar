@@ -21,13 +21,12 @@ class Logger:
     def __init__(self, name: str, log_dir: Optional[str] = None) -> None:
         self.name = name
 
-        # Set default log directory to user's local app data
+        # Set default log directory to game folder's user_data/logs
         if log_dir is None:
             import os
-            if os.name == 'nt':  # Windows
-                log_dir = os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Dawn of Stellar', 'logs')
-            else:  # Unix-like systems
-                log_dir = os.path.join(os.path.expanduser('~'), '.dawn_of_stellar', 'logs')
+            # Get the directory where the main script is located (game root)
+            script_dir = Path(__file__).parent.parent.parent  # src/core/logger.py -> src -> project_root
+            log_dir = script_dir / "user_data" / "logs"
 
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -110,7 +109,7 @@ def get_logger(name: str) -> Logger:
         Logger 인스턴스
     """
     if name not in _loggers:
-        _loggers[name] = Logger(name)
+        _loggers[name] = Logger(name, log_dir=None)  # Explicitly pass None to use default user directory
     return _loggers[name]
 
 
