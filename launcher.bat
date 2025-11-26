@@ -2,7 +2,14 @@
 chcp 65001 > nul
 title Dawn of Stellar - Game Launcher
 
-REM Check for virtual environment first
+REM Check for embedded Python first
+if exist "python\python.exe" (
+    set "PYTHON_EXE=%~dp0python\python.exe"
+    echo Using embedded Python
+    goto RunLauncher
+)
+
+REM Check for virtual environment second
 if exist "venv\Scripts\python.exe" (
     set "PYTHON_EXE=%~dp0venv\Scripts\python.exe"
     echo Using virtual environment Python

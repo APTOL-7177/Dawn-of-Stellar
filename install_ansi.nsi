@@ -333,19 +333,73 @@ CloneVerified:
     DetailPrint "Files moved to installation directory"
     
 GitOperationDone:
-    
+
+    ; Download and extract embedded Python
+    DetailPrint "Downloading embedded Python..."
+    GetTempFileName $0
+    Delete $0
+    CreateDirectory "$0"
+    StrCpy $1 "$0\python-embeddable.zip"
+
+    ; Download Python embeddable (3.11)
+    ExecWait 'bitsadmin /transfer "PythonDownload" "https://www.python.org/ftp/python/3.11.8/python-3.11.8-embed-amd64.zip" "$1"' $2
+    IntCmp $2 0 DownloadPythonOK DownloadPythonFailed
+
+DownloadPythonFailed:
+    ExecWait 'powershell -Command "& {try {Invoke-WebRequest -Uri \"https://www.python.org/ftp/python/3.11.8/python-3.11.8-embed-amd64.zip\" -OutFile \"$1\"} catch {exit 1}}"' $2
+    IntCmp $2 0 DownloadPythonOK PythonEmbedFailed
+
+DownloadPythonOK:
+    ; Extract Python to installation directory
+    DetailPrint "Extracting embedded Python..."
+    CreateDirectory "$INSTDIR\python"
+    ; Use PowerShell to extract zip
+    ExecWait 'powershell -Command "& {try {Expand-Archive -Path \"$1\" -DestinationPath \"$INSTDIR\python\" -Force} catch {exit 1}}"' $2
+    Delete "$1"
+    RMDir /r "$0"
+
+    IntCmp $2 0 PythonExtractOK PythonEmbedFailed
+
+PythonExtractOK:
+    DetailPrint "Embedded Python extracted successfully"
+
+    ; Create python311._pth file to enable site-packages
+    FileOpen $3 "$INSTDIR\python\python311._pth" w
+    FileWrite $3 "python311.zip$\r$\n"
+    FileWrite $3 "python311.zip$\r$\n"
+    FileWrite $3 ".$\r$\n"
+    FileWrite $3 "import site$\r$\n"
+    FileClose $3
+
+    Goto PythonEmbedDone
+
+PythonEmbedFailed:
+    DetailPrint "Embedded Python setup failed, will use system Python"
+    RMDir /r "$0"
+
+PythonEmbedDone:
+
     ; Start Scripts (created after Git clone)
     SetOutPath "$INSTDIR"
 
-    ; Determine Python command to use (prefer venv)
+    ; Determine Python command to use (prefer embedded > venv > system)
     StrCpy $1 "python"  ; Default to python command
+
+    ; Priority 1: Embedded Python
+    IfFileExists "$INSTDIR\python\python.exe" 0 CheckVenvPython
+    StrCpy $1 "$INSTDIR\python\python.exe"
+    Goto UsePythonCommand
+
+    CheckVenvPython:
+    ; Priority 2: Virtual environment Python
     IfFileExists "$INSTDIR\venv\Scripts\python.exe" 0 CheckSystemPython
-    StrCpy $1 "$INSTDIR\venv\Scripts\python.exe"  ; Use venv Python
+    StrCpy $1 "$INSTDIR\venv\Scripts\python.exe"
     Goto UsePythonCommand
 
     CheckSystemPython:
+    ; Priority 3: System Python path
     StrCmp $PythonPath "" UsePythonCommand 0
-    StrCpy $1 "$PythonPath"  ; Use system Python path
+    StrCpy $1 "$PythonPath"
     UsePythonCommand:
 
     FileOpen $0 "$INSTDIR\start_game.bat" w
@@ -442,7 +496,16 @@ SectionEnd
 Section "Python Environment Setup" SEC03
     SectionIn 1 2
 
-    ; Create Python virtual environment
+    ; Check if using embedded Python
+    IfFileExists "$INSTDIR\python\python.exe" 0 CreateVenv
+
+    ; Using embedded Python - no venv needed
+    DetailPrint "Using embedded Python - skipping venv creation"
+    StrCpy $PythonPath "$INSTDIR\python\python.exe"
+    Goto SkipVenv
+
+CreateVenv:
+    ; Create Python virtual environment for system Python
     DetailPrint "Creating Python virtual environment..."
     SetOutPath "$INSTDIR"
     ExecWait '"$PythonPath" -m venv "$INSTDIR\venv"' $0
@@ -450,7 +513,6 @@ Section "Python Environment Setup" SEC03
 
 VenvFailed:
     DetailPrint "Failed to create virtual environment, using system Python"
-    StrCpy $PythonPath "$PythonPath"
     Goto SkipVenv
 
 VenvSuccess:
@@ -477,8 +539,15 @@ CheckRequirements:
 UpdateInstall:
     DetailPrint "Checking Python installation..."
     
-    ; Find Python Path - Multiple methods
-    DetailPrint "Searching for Python installation..."
+    ; Check if embedded Python exists
+    IfFileExists "$INSTDIR\python\python.exe" 0 CheckSystemPython
+    StrCpy $PythonPath "$INSTDIR\python\python.exe"
+    DetailPrint "Using embedded Python: $PythonPath"
+    Goto PythonFound
+
+CheckSystemPython:
+    ; Fallback to system Python search
+    DetailPrint "Embedded Python not found, searching for system Python..."
 
     ; Method 1: Check PYTHON environment variable
     ClearErrors
@@ -665,9 +734,6 @@ PythonFound:
     IfErrors PythonVersionError 0
 
     DetailPrint "Python verification successful"
-
-VersionOK:
-    DetailPrint "Python version is OK: $2"
     
     ; Upgrade pip
     DetailPrint "Upgrading pip..."
@@ -745,8 +811,9 @@ TestPassed:
     DetailPrint "All essential packages installed successfully!"
 
 PythonVersionError:
-    DetailPrint "Could not determine Python version"
-    MessageBox MB_OK|MB_ICONSTOP "Could not determine Python version.$\n$\nPlease ensure Python is properly installed."
+    DetailPrint "Python verification failed - will try to continue anyway"
+    MessageBox MB_OK|MB_ICONEXCLAMATION "Python verification failed.$\n$\nThe installer will try to continue, but some features may not work properly.$\n$\nIf you encounter issues, please ensure Python 3.10+ is properly installed."
+    ; Continue anyway - don't abort installation
     Goto PythonCheckDone
 
 PythonCheckDone:
