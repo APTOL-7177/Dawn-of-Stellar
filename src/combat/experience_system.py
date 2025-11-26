@@ -40,9 +40,9 @@ class ExperienceSystem:
         elif level == 4:
             return 300
         else:
-            # Lv 5 이상: 기존 지수 곡선 (Lv 4 기준으로 조정)
-            # Lv 5: 600, Lv 10: 2700, Lv 20: 8285
-            return int(100 * math.pow(level - 1, 1.5))
+            # Lv 5 이상: 후반 성장 난이도 증가 (지수 1.8 적용)
+            # Lv 5: 600, Lv 10: 4130, Lv 20: 15500
+            return int(100 * math.pow(level - 1, 1.8))
 
     @staticmethod
     def experience_to_next_level(current_level: int, current_exp: int) -> int:
