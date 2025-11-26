@@ -455,35 +455,136 @@ UpdateInstall:
     ClearErrors
     ReadEnvStr $PythonPath "PYTHON"
     IfErrors 0 PythonFound
-    
+
     ; Find Python in PATH
     ClearErrors
     ExecWait 'python --version' $0
     IfErrors 0 PythonFound
-    
-    ; Check Common Python Installation Paths
-    IfFileExists "$PROGRAMFILES\Python*\python.exe" 0 PythonNotFound
-    FindFirst $0 $1 "$PROGRAMFILES\Python*"
-    StrCpy $PythonPath "$PROGRAMFILES\$1\python.exe"
-    FindClose $0
+
+    ; Check Common Python Installation Paths (try multiple versions)
+    ; Python 3.11
+    IfFileExists "$PROGRAMFILES\Python311\python.exe" 0 CheckPython310
+    StrCpy $PythonPath "$PROGRAMFILES\Python311\python.exe"
+    Goto PythonFound
+
+    CheckPython310:
+    IfFileExists "$PROGRAMFILES\Python310\python.exe" 0 CheckPython312
+    StrCpy $PythonPath "$PROGRAMFILES\Python310\python.exe"
+    Goto PythonFound
+
+    CheckPython312:
+    IfFileExists "$PROGRAMFILES\Python312\python.exe" 0 CheckPython39
+    StrCpy $PythonPath "$PROGRAMFILES\Python312\python.exe"
+    Goto PythonFound
+
+    CheckPython39:
+    IfFileExists "$PROGRAMFILES\Python39\python.exe" 0 CheckPython38
+    StrCpy $PythonPath "$PROGRAMFILES\Python39\python.exe"
+    Goto PythonFound
+
+    CheckPython38:
+    IfFileExists "$PROGRAMFILES\Python38\python.exe" 0 CheckPython37
+    StrCpy $PythonPath "$PROGRAMFILES\Python38\python.exe"
+    Goto PythonFound
+
+    CheckPython37:
+    IfFileExists "$PROGRAMFILES\Python37\python.exe" 0 CheckPython36
+    StrCpy $PythonPath "$PROGRAMFILES\Python37\python.exe"
+    Goto PythonFound
+
+    CheckPython36:
+    IfFileExists "$PROGRAMFILES\Python36\python.exe" 0 CheckProgramFilesx86
+    StrCpy $PythonPath "$PROGRAMFILES\Python36\python.exe"
+    Goto PythonFound
+
+    CheckProgramFilesx86:
+    ; Check Program Files (x86) for 32-bit installations
+    IfFileExists "$PROGRAMFILES32\Python311\python.exe" 0 CheckPFx86310
+    StrCpy $PythonPath "$PROGRAMFILES32\Python311\python.exe"
+    Goto PythonFound
+
+    CheckPFx86310:
+    IfFileExists "$PROGRAMFILES32\Python310\python.exe" 0 PythonNotFound
+    StrCpy $PythonPath "$PROGRAMFILES32\Python310\python.exe"
     Goto PythonFound
     
 PythonNotFound:
-    DetailPrint "Python is not installed."
-    MessageBox MB_YESNO|MB_ICONQUESTION "Python 3.10 or higher is required.$\n$\nOpen Python download page?" IDYES OpenPythonDownload IDNO SkipPython
-    OpenPythonDownload:
+    DetailPrint "Python is not installed. Attempting automatic installation..."
+    MessageBox MB_YESNO|MB_ICONQUESTION "Python 3.10 or higher is required.$\n$\nWould you like to automatically download and install Python?$\n$\n(This will download ~25MB and may take several minutes)" IDYES AutoInstallPython IDNO ManualPythonInstall
+
+    AutoInstallPython:
+        DetailPrint "Downloading Python installer..."
+        ; Create temporary directory for download
+        GetTempFileName $0
+        Delete $0
+        CreateDirectory "$0"
+        StrCpy $1 "$0\Python-Installer.exe"
+
+        ; Download Python installer (3.11.x for Windows)
+        DetailPrint "Starting Python download..."
+        ExecWait 'bitsadmin /transfer "PythonDownload" "https://www.python.org/ftp/python/3.11.8/python-3.11.8-amd64.exe" "$1"' $2
+        IntCmp $2 0 DownloadPythonSuccess DownloadPythonFailed
+
+    DownloadPythonFailed:
+        DetailPrint "Failed to download Python installer with bitsadmin, trying PowerShell..."
+        ExecWait 'powershell -Command "& {try {Invoke-WebRequest -Uri \"https://www.python.org/ftp/python/3.11.8/python-3.11.8-amd64.exe\" -OutFile \"$1\"} catch {exit 1}}"' $2
+        IntCmp $2 0 DownloadPythonSuccess DownloadPythonPowerShellFailed
+
+    DownloadPythonPowerShellFailed:
+        DetailPrint "Failed to download Python installer"
+        RMDir /r "$0"
+        MessageBox MB_OK|MB_ICONSTOP "Failed to download Python installer.$\n$\nPlease download and install Python manually from:$\nhttps://www.python.org/downloads/"
+        Abort "Python download failed"
+
+    DownloadPythonSuccess:
+        DetailPrint "Python installer downloaded successfully"
+
+        ; Install Python silently
+        DetailPrint "Installing Python..."
+        ExecWait '"$1" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0 Include_pip=1 Include_doc=0 Include_launcher=1 InstallLauncherAllUsers=1' $2
+
+        ; Clean up installer
+        Delete "$1"
+        RMDir /r "$0"
+
+        ; Check if installation was successful
+        IfFileExists "$PROGRAMFILES\Python311\python.exe" PythonInstallSuccess PythonInstallFailed
+
+    PythonInstallFailed:
+        DetailPrint "Python installation failed"
+        MessageBox MB_OK|MB_ICONSTOP "Python installation failed.$\n$\nPlease install Python manually from:$\nhttps://www.python.org/downloads/"
+        Abort "Python installation failed"
+
+    PythonInstallSuccess:
+        DetailPrint "Python installed successfully"
+        StrCpy $PythonPath "$PROGRAMFILES\Python311\python.exe"
+        Goto PythonFound
+
+    ManualPythonInstall:
         ExecShell "open" "https://www.python.org/downloads/"
-        MessageBox MB_OK "Please check 'Add Python to PATH' during installation!$\n$\nRun this installer again after installing Python."
-    SkipPython:
-    Goto PythonCheckDone
+        MessageBox MB_OK "Please download and install Python 3.10 or higher.$\n$\nIMPORTANT: Check 'Add Python to PATH' during installation!$\n$\nRun this installer again after installing Python."
+        Abort "Python installation required"
     
 PythonFound:
     DetailPrint "Python found: $PythonPath"
-    
+
     ; Check Python Version
     ClearErrors
-    ExecWait 'python --version' $0
+    ExecWait '"$PythonPath" --version' $0
     IfErrors PythonVersionError 0
+
+    ; Parse version number (basic check)
+    ; Python version output format: "Python 3.X.Y"
+    ExecWait '"$PythonPath" -c "import sys; print(sys.version_info.major * 10 + sys.version_info.minor)"' $1
+    IntCmp $1 0 PythonVersionError 0  ; Check if version parsing failed
+    IntCmp $1 310 VersionOK 0  ; Check if >= 3.10
+    IntCmp $1 311 VersionOK 0
+    IntCmp $1 312 VersionOK 0
+    IntCmp $1 313 VersionOK 0
+    Goto PythonVersionTooOld
+
+VersionOK:
+    DetailPrint "Python version is OK: $1"
     
     ; Upgrade pip
     DetailPrint "Upgrading pip..."
@@ -560,7 +661,16 @@ PackagesInstalled:
 TestPassed:
     DetailPrint "All essential packages installed successfully!"
     
+PythonVersionTooOld:
+    DetailPrint "Python version is too old"
+    MessageBox MB_OK|MB_ICONSTOP "Python 3.10 or higher is required.$\n$\nCurrent version is too old.$\n$\nPlease update Python from:$\nhttps://www.python.org/downloads/"
+    Abort "Python version too old"
+
 PythonVersionError:
+    DetailPrint "Could not determine Python version"
+    MessageBox MB_OK|MB_ICONSTOP "Could not determine Python version.$\n$\nPlease ensure Python is properly installed."
+    Goto PythonCheckDone
+
 PythonCheckDone:
 SectionEnd
 
