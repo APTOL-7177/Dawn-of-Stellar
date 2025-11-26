@@ -2,23 +2,47 @@
 chcp 65001 > nul
 title Dawn of Stellar - Game Launcher
 
-REM Python 경로 확인 및 실행
-echo Checking Python installation...
-python --version >nul 2>&1
-if errorlevel 1 (
-    echo Error: Python is not found in PATH.
-    echo Please ensure Python 3.10+ is installed and added to PATH.
-    echo.
-    echo Press any key to continue...
-    pause >nul
-    exit /b 1
+REM Python 실행 파일 찾기
+set "PYTHON_EXE="
+if exist "python.exe" (
+    set "PYTHON_EXE=python.exe"
+) else (
+    REM Try to find Python in common locations
+    if exist "C:\Python*\python.exe" (
+        for /d %%i in ("C:\Python*") do if exist "%%i\python.exe" set "PYTHON_EXE=%%i\python.exe"
+    )
+    if exist "%PROGRAMFILES%\Python*\python.exe" (
+        for /d %%i in ("%PROGRAMFILES%\Python*") do if exist "%%i\python.exe" set "PYTHON_EXE=%%i\python.exe"
+    )
+    if exist "%PROGRAMFILES(x86)%\Python*\python.exe" (
+        for /d %%i in ("%PROGRAMFILES(x86)%\Python*") do if exist "%%i\python.exe" set "PYTHON_EXE=%%i\python.exe"
+    )
 )
 
+REM Check if Python is found
+if "%PYTHON_EXE%"=="" (
+    REM Last resort: try python command
+    python --version >nul 2>&1
+    if errorlevel 1 (
+        echo Error: Python is not found.
+        echo Please ensure Python 3.10+ is installed.
+        echo.
+        echo You can download it from: https://www.python.org/downloads/
+        echo Make sure to check "Add Python to PATH" during installation.
+        echo.
+        pause
+        exit /b 1
+    ) else (
+        set "PYTHON_EXE=python"
+    )
+)
+
+echo Using Python: %PYTHON_EXE%
 echo Starting game launcher...
 echo.
 
 REM 게임 런처 실행
-python launcher.py
+"%PYTHON_EXE%" launcher.py
 
 REM 오류 발생 시 대기
 if errorlevel 1 (
@@ -27,8 +51,8 @@ if errorlevel 1 (
     echo This might be due to missing dependencies or configuration issues.
     echo.
     echo Try running the following commands manually:
-    echo   pip install -r requirements.txt
-    echo   python main.py
+    echo   "%PYTHON_EXE%" -m pip install -r requirements.txt
+    echo   "%PYTHON_EXE%" main.py
     echo.
     pause
 )

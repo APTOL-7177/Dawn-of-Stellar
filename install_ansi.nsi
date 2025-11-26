@@ -336,40 +336,33 @@ GitOperationDone:
     
     ; Start Scripts (created after Git clone)
     SetOutPath "$INSTDIR"
-
-    ; Determine Python command to use
-    StrCpy $1 "python"  ; Default to python command
-    StrCmp $PythonPath "" UsePythonCommand 0
-    StrCpy $1 "$PythonPath"  ; Use full path if found
-    UsePythonCommand:
-
     FileOpen $0 "$INSTDIR\start_game.bat" w
     FileWrite $0 "@echo off$\r$\n"
     FileWrite $0 "chcp 65001 >nul$\r$\n"
     FileWrite $0 'cd /d "$INSTDIR"$\r$\n'
-    FileWrite $0 '"$1" launcher.py$\r$\n'
+    FileWrite $0 "python launcher.py$\r$\n"
     FileWrite $0 "if errorlevel 1 ($\r$\n"
     FileWrite $0 "    echo.$\r$\n"
     FileWrite $0 "    echo Error occurred.$\r$\n"
     FileWrite $0 "    pause$\r$\n"
     FileWrite $0 ")$\r$\n"
     FileClose $0
-
+    
     ; Direct Run Script
     FileOpen $0 "$INSTDIR\start_game_direct.bat" w
     FileWrite $0 "@echo off$\r$\n"
     FileWrite $0 "chcp 65001 >nul$\r$\n"
     FileWrite $0 'cd /d "$INSTDIR"$\r$\n'
-    FileWrite $0 '"$1" main.py$\r$\n'
+    FileWrite $0 "python main.py$\r$\n"
     FileWrite $0 "pause$\r$\n"
     FileClose $0
-
+    
     ; Dev Mode Script
     FileOpen $0 "$INSTDIR\start_game_dev.bat" w
     FileWrite $0 "@echo off$\r$\n"
     FileWrite $0 "chcp 65001 >nul$\r$\n"
     FileWrite $0 'cd /d "$INSTDIR"$\r$\n'
-    FileWrite $0 '"$1" main.py --dev$\r$\n'
+    FileWrite $0 "python main.py --dev$\r$\n"
     FileWrite $0 "pause$\r$\n"
     FileClose $0
     
