@@ -18,8 +18,17 @@ class Logger:
     카테고리별 로그 파일 및 콘솔 출력 지원
     """
 
-    def __init__(self, name: str, log_dir: str = "logs") -> None:
+    def __init__(self, name: str, log_dir: Optional[str] = None) -> None:
         self.name = name
+
+        # Set default log directory to user's local app data
+        if log_dir is None:
+            import os
+            if os.name == 'nt':  # Windows
+                log_dir = os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Dawn of Stellar', 'logs')
+            else:  # Unix-like systems
+                log_dir = os.path.join(os.path.expanduser('~'), '.dawn_of_stellar', 'logs')
+
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
