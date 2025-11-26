@@ -49,8 +49,8 @@ audio:
       game_over: gameover
       hope: menu
       intro: intro
-      menu: menu2
       main_menu: menu
+      menu: menu2
       multiplayer_lobby: party_setup
       party_setup: party_setup
       rest: inn1
@@ -288,7 +288,7 @@ development:
   enabled: false
   show_damage_calculations: false
   unlimited_essence: false
-  unlock_all_classes: false
+  unlock_all_classes: true
 difficulty:
   default: 보통
   levels:

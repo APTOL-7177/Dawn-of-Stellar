@@ -16,10 +16,7 @@ from src.world.fov import FOVSystem
 from src.core.logger import get_logger, Loggers
 from src.audio import play_sfx
 
-
-logger = get_logger(Loggers.WORLD)
-
-
+# ExplorationEvent를 먼저 정의하여 import 순서 문제 방지
 class ExplorationEvent(Enum):
     """탐험 이벤트"""
     NONE = "none"
@@ -38,6 +35,16 @@ class ExplorationEvent(Enum):
     SWITCH_ACTIVATED = "switch_activated"
     NPC_INTERACTION = "npc_interaction"
     BUILDING_INTERACTION = "building_interaction"  # 마을 건물 상호작용
+
+
+# 클래스 정의 전에 미리 참조하여 지역 변수 충돌 방지
+_EXPLORATION_EVENT_NONE = ExplorationEvent.NONE
+_EXPLORATION_EVENT_COMBAT = ExplorationEvent.COMBAT
+_EXPLORATION_EVENT_ITEM_FOUND = ExplorationEvent.ITEM_FOUND
+_EXPLORATION_EVENT_TRAP_TRIGGERED = ExplorationEvent.TRAP_TRIGGERED
+
+
+logger = get_logger(Loggers.WORLD)
 
 
 @dataclass

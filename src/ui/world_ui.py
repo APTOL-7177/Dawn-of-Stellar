@@ -8,7 +8,8 @@ from typing import List, Optional, Tuple
 import tcod
 import time
 
-from src.world.exploration import ExplorationSystem, ExplorationEvent, ExplorationResult
+# ExplorationEvent를 먼저 import하여 지역 변수 충돌 방지
+from src.world.exploration import ExplorationEvent, ExplorationResult, ExplorationSystem
 from src.world.map_renderer import MapRenderer
 from src.world.field_skills import FieldSkillManager
 from src.world.tile import TileType
@@ -321,7 +322,6 @@ class WorldUI:
             if result is None:
                 # Debug: 이동 결과 None
                 # None인 경우 기본 결과 생성
-                from src.world.exploration import ExplorationResult, ExplorationEvent
                 result = ExplorationResult(
                     success=True,
                     event=ExplorationEvent.NONE,

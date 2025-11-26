@@ -7,7 +7,8 @@
 from typing import List, Dict, Optional, Tuple, Any
 import time
 
-from src.world.exploration import ExplorationSystem, Player, Enemy
+# ExplorationEvent를 먼저 import하여 지역 변수 충돌 방지
+from src.world.exploration import ExplorationEvent, ExplorationResult, ExplorationSystem, Player, Enemy
 from src.multiplayer.player import MultiplayerPlayer
 from src.multiplayer.session import MultiplayerSession
 from src.multiplayer.network import NetworkManager
@@ -809,7 +810,6 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         # 멀티플레이 모드: 로컬 플레이어 ID 확인 (다른 플레이어 컨트롤 방지)
         if self.local_player_id not in self.session.players:
             self.logger.warning(f"로컬 플레이어 {self.local_player_id}가 세션에 없습니다. 이동 무시.")
-            from src.world.exploration import ExplorationResult, ExplorationEvent
             return ExplorationResult(
                 success=False,
                 event=ExplorationEvent.NONE,
@@ -820,7 +820,6 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         mp_player = self.session.players[self.local_player_id]
         if not hasattr(mp_player, 'x') or not hasattr(mp_player, 'y'):
             self.logger.warning(f"로컬 플레이어 {self.local_player_id}의 위치 정보가 없습니다. 이동 무시.")
-            from src.world.exploration import ExplorationResult, ExplorationEvent
             return ExplorationResult(
                 success=False,
                 event=ExplorationEvent.NONE,
@@ -830,7 +829,6 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         # 목적지 위치 계산
         mp_player = self.session.players[self.local_player_id]
         if not hasattr(mp_player, 'x') or not hasattr(mp_player, 'y'):
-            from src.world.exploration import ExplorationResult, ExplorationEvent
             return ExplorationResult(
                 success=False,
                 event=ExplorationEvent.NONE,
@@ -846,7 +844,6 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             tile = self.dungeon.get_tile(new_x, new_y)
             if tile and tile.tile_type == TileType.LOCKED_DOOR:
                 return self._handle_locked_door(tile)
-            from src.world.exploration import ExplorationResult, ExplorationEvent
             return ExplorationResult(
                 success=False,
                 event=ExplorationEvent.NONE,
@@ -865,7 +862,6 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         
         if not success:
             # 이동 실패
-            from src.world.exploration import ExplorationResult, ExplorationEvent
             return ExplorationResult(
                 success=False,
                 event=ExplorationEvent.NONE,
@@ -929,7 +925,6 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             self.logger.info(harvest_msg)
             
             # 결과 업데이트
-            from src.world.exploration import ExplorationResult, ExplorationEvent
             # 기존 result가 없거나 NONE이면 덮어씀
             # (주의: move_player 초반에 result 변수가 없으므로 새로 생성하거나 기존 변수 활용)
             # 여기서는 아직 result가 생성되지 않은 시점이므로 (tile 이벤트 체크 전)
@@ -988,7 +983,6 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         
         if result is None:
             # 기본 결과 반환
-            from src.world.exploration import ExplorationResult, ExplorationEvent
             result = ExplorationResult(
                 success=True,
                 event=ExplorationEvent.NONE,
