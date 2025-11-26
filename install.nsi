@@ -117,13 +117,75 @@ Section "Git Repository Clone/Update" SEC01
     Goto GitFound
     
 GitNotFound:
-    DetailPrint "Git is not installed."
-    MessageBox MB_YESNO|MB_ICONSTOP "Git is required to download game files.$\n$\nOpen Git download page?" IDYES OpenGitDownload IDNO CancelInstall
-    OpenGitDownload:
+    DetailPrint "Git is not installed. Attempting automatic installation..."
+    MessageBox MB_YESNO|MB_ICONQUESTION "Git is not installed.$\n$\nWould you like to automatically download and install Git?$\n$\n(This will download ~50MB and may take several minutes)" IDYES AutoInstallGit IDNO ManualInstallGit
+
+    AutoInstallGit:
+        DetailPrint "Downloading Git installer..."
+        ; Create temporary directory for download
+        GetTempFileName $0
+        Delete $0
+        CreateDirectory "$0"
+        StrCpy $1 "$0\Git-Installer.exe"
+
+        ; Download Git installer using bitsadmin (works on all Windows versions)
+        DetailPrint "Starting download with bitsadmin..."
+        ExecWait 'bitsadmin /transfer "GitDownload" "https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/Git-2.43.0-64-bit.exe" "$1"' $2
+        IntCmp $2 0 DownloadSuccess DownloadFailed
+
+    DownloadFailed:
+        DetailPrint "Failed to download Git installer with bitsadmin, trying wget..."
+        ; Try wget if available (might be installed via Chocolatey or other package managers)
+        ExecWait 'wget --no-check-certificate -O "$1" "https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/Git-2.43.0-64-bit.exe"' $2
+        IntCmp $2 0 DownloadSuccess WgetFailed
+
+    WgetFailed:
+        DetailPrint "Failed to download Git installer with wget, trying curl..."
+        ; Try curl (built-in on Windows 10 1803+)
+        ExecWait 'curl -L -o "$1" "https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/Git-2.43.0-64-bit.exe"' $2
+        IntCmp $2 0 DownloadSuccess CurlFailed
+
+    CurlFailed:
+        DetailPrint "Failed to download Git installer with curl, trying PowerShell..."
+        ; Try PowerShell as final fallback (Windows 7+ with PowerShell)
+        ; Use a simple PowerShell one-liner with proper escaping
+        ExecWait 'powershell -Command "try { Invoke-WebRequest -Uri \"https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/Git-2.43.0-64-bit.exe\" -OutFile \"$1\" } catch { exit 1 }"' $2
+        IntCmp $2 0 DownloadSuccess PSDownloadFailed
+
+    PSDownloadFailed:
+        DetailPrint "Failed to download Git installer"
+        RMDir /r "$0"
+        MessageBox MB_OK|MB_ICONSTOP "Failed to download Git installer.$\n$\nPlease download and install Git manually from:$\nhttps://git-scm.com/download/win"
+        Abort "Git download failed"
+
+    DownloadSuccess:
+        DetailPrint "Git installer downloaded successfully"
+
+        ; Install Git silently
+        DetailPrint "Installing Git..."
+        ExecWait '"$1" /VERYSILENT /NORESTART /NOCANCEL /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /COMPONENTS="icons,ext\reg\shellhere,assoc,assoc_sh" /DIR="$PROGRAMFILES\Git"' $2
+
+        ; Clean up installer
+        Delete "$1"
+        RMDir /r "$0"
+
+        ; Check if installation was successful
+        IfFileExists "$PROGRAMFILES\Git\cmd\git.exe" GitInstallSuccess GitInstallFailed
+
+    GitInstallFailed:
+        DetailPrint "Git installation failed"
+        MessageBox MB_OK|MB_ICONSTOP "Git installation failed.$\n$\nPlease install Git manually from:$\nhttps://git-scm.com/download/win"
+        Abort "Git installation failed"
+
+    GitInstallSuccess:
+        DetailPrint "Git installed successfully"
+        StrCpy $GitPath "$PROGRAMFILES\Git\cmd\git.exe"
+        Goto GitFound
+
+    ManualInstallGit:
         ExecShell "open" "https://git-scm.com/download/win"
         MessageBox MB_OK "Please install Git and run this installer again."
-    CancelInstall:
-    Abort "Git is required for installation"
+        Abort "Git is required for installation"
     
 GitFound:
     DetailPrint "Git found: $GitPath"
