@@ -124,9 +124,22 @@ class TCODDisplay:
         # OS별 시스템 폰트 경로 (한글 지원)
         font_paths = []
 
-        # 프로젝트 루트 경로
-        project_root = Path(__file__).parent.parent.parent
-        self.logger.info(f"프로젝트 루트: {project_root.absolute()}")
+        # 프로젝트 루트 경로 (PyInstaller 환경 고려)
+        if hasattr(sys, '_MEIPASS'):
+            # PyInstaller 패키징된 경우
+            exe_path = Path(sys.executable)
+            if exe_path.parent.name == '_internal':
+                # _internal 폴더 안에 있는 경우 (onedir 모드)
+                project_root = exe_path.parent.parent
+                self.logger.info(f"PyInstaller onedir 환경 - 프로젝트 루트: {project_root.absolute()}")
+            else:
+                # 일반적인 경우
+                project_root = exe_path.parent
+                self.logger.info(f"PyInstaller 환경 - 프로젝트 루트: {project_root.absolute()}")
+        else:
+            # 일반 실행인 경우
+            project_root = Path(__file__).parent.parent.parent
+            self.logger.info(f"일반 환경 - 프로젝트 루트: {project_root.absolute()}")
 
         if platform.system() == "Windows":
             # Windows 시스템 폰트 (고정폭 우선 - 공백 제거)

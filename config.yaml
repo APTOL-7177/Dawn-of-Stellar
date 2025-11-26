@@ -49,8 +49,8 @@ audio:
       game_over: gameover
       hope: menu
       intro: intro
-      main_menu: menu
       menu: menu2
+      main_menu: menu
       multiplayer_lobby: party_setup
       party_setup: party_setup
       rest: inn1

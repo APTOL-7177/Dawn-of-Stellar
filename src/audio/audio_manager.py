@@ -5,6 +5,7 @@ pygame.mixer를 사용한 BGM 및 SFX 재생 관리
 """
 
 import pygame.mixer
+import sys
 from pathlib import Path
 from typing import Optional, Dict, List
 from src.core.config import get_config
@@ -41,15 +42,29 @@ class AudioManager:
         # SFX 캐시 (자주 사용하는 SFX를 메모리에 보관)
         self.sfx_cache: Dict[str, pygame.mixer.Sound] = {}
 
+        # 오디오 경로 (PyInstaller 환경 고려)
+        if hasattr(sys, '_MEIPASS'):
+            # PyInstaller 패키징된 경우
+            exe_path = Path(sys.executable)
+            if exe_path.parent.name == '_internal':
+                # _internal 폴더 안에 있는 경우 (onedir 모드)
+                assets_dir = exe_path.parent.parent / "assets"
+            else:
+                # 일반적인 경우
+                assets_dir = exe_path.parent / "assets"
+        else:
+            # 일반 실행인 경우
+            assets_dir = Path(__file__).parent.parent.parent / "assets"
+
         # 오디오 경로 (우선순위 순서)
         self.bgm_dirs = [
-            Path("assets/audio/bg"),      # RPG MAKER MZ BGM (최우선)
-            Path("assets/audio/me"),      # RPG MAKER MZ ME (2순위)
-            Path("assets/audio/bgm")      # 기존 BGM (3순위, 아카이브)
+            assets_dir / "audio" / "bg",      # RPG MAKER MZ BGM (최우선)
+            assets_dir / "audio" / "me",      # RPG MAKER MZ ME (2순위)
+            assets_dir / "audio" / "bgm"      # 기존 BGM (3순위, 아카이브)
         ]
         self.sfx_dirs = [
-            Path("assets/audio/se"),      # RPG MAKER MZ SE (최우선)
-            Path("assets/audio/sfx")      # 기존 SFX (2순위, 아카이브)
+            assets_dir / "audio" / "se",      # RPG MAKER MZ SE (최우선)
+            assets_dir / "audio" / "sfx"      # 기존 SFX (2순위, 아카이브)
         ]
 
         # pygame.mixer 초기화

@@ -134,9 +134,9 @@ class TraitSelection:
 
         menu_items = []
 
-        for trait in self.available_traits:
-            # 해금 여부 확인 (개발 모드이면 모두 해금)
-            is_unlocked = dev_mode or meta.is_trait_unlocked(job_id, trait.id)
+        for i, trait in enumerate(self.available_traits):
+            # 해금 여부 확인 (개발 모드이면 모두 해금, 일반 모드에서는 처음 2개는 무료)
+            is_unlocked = dev_mode or (i < 2) or meta.is_trait_unlocked(job_id, trait.id)
 
             # 이미 선택된 특성 표시
             already_selected = trait in self.temp_selected

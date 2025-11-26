@@ -5,6 +5,7 @@ YAML 기반 설정 로딩 및 관리
 """
 
 import yaml
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -17,7 +18,34 @@ class Config:
     """
 
     def __init__(self, config_path: str = "config.yaml") -> None:
-        self.config_path = Path(config_path)
+        # PyInstaller 환경에서 내장된 파일 경로 설정
+        if hasattr(sys, '_MEIPASS'):
+            # PyInstaller 패키징된 경우
+            # --onedir 모드에서는 실행 파일이 _internal 폴더 안에 있으므로
+            # 두 단계 위의 디렉토리를 찾음
+            exe_path = Path(sys.executable)
+            if exe_path.parent.name == '_internal':
+                # _internal 폴더 안에 있는 경우 (onedir 모드)
+                game_dir = exe_path.parent.parent
+                external_config = game_dir / config_path
+                if external_config.exists():
+                    self.config_path = external_config
+                else:
+                    # _internal 폴더의 config.yaml 사용
+                    self.config_path = Path(sys._MEIPASS) / config_path
+            else:
+                # 일반적인 경우
+                exe_dir = exe_path.parent
+                external_config = exe_dir / config_path
+                if external_config.exists():
+                    self.config_path = external_config
+                else:
+                    self.config_path = Path(sys._MEIPASS) / config_path
+        else:
+            # 일반 실행인 경우
+            base_path = Path(__file__).parent.parent.parent
+            self.config_path = base_path / config_path
+
         self._config: Dict[str, Any] = {}
         self.load()
 
@@ -26,8 +54,29 @@ class Config:
         if not self.config_path.exists():
             raise FileNotFoundError(f"설정 파일을 찾을 수 없습니다: {self.config_path}")
 
-        with open(self.config_path, "r", encoding="utf-8") as f:
-            self._config = yaml.safe_load(f)
+        try:
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                self._config = yaml.safe_load(f)
+        except PermissionError:
+            # PyInstaller 환경에서 권한 문제가 발생할 수 있음
+            # 기본 설정으로 초기화
+            print(f"⚠️  설정 파일 권한 문제 발생: {self.config_path}")
+            print("기본 설정으로 초기화합니다.")
+            self._config = self._get_default_config()
+        except Exception as e:
+            print(f"⚠️  설정 파일 로드 중 에러 발생: {e}")
+            print("기본 설정으로 초기화합니다.")
+            self._config = self._get_default_config()
+
+    def _get_default_config(self) -> Dict[str, Any]:
+        """기본 설정 반환"""
+        return {
+            "development": {"enabled": False},
+            "game": {"version": "6.1.0"},
+            "display": {"width": 1200, "height": 800},
+            "audio": {"enabled": True, "volume": 0.7},
+            "controls": {"key_repeat": True}
+        }
 
     def save(self) -> None:
         """설정 파일 저장"""

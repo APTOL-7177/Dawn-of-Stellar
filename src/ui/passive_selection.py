@@ -15,6 +15,7 @@ from src.ui.input_handler import InputHandler, GameAction
 from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.core.config import get_config
+from src.persistence.meta_progress import get_meta_progress
 from src.audio import play_sfx
 
 
@@ -86,10 +87,14 @@ class PassiveSelectionUI:
             config = get_config()
             dev_mode = config.get("development.unlock_all_classes", False)
 
+            # 메타 진행 확인
+            meta = get_meta_progress()
+
             passives = []
             for passive_data in data.get('passives', []):
-                # 개발 모드이면 모든 패시브 해금
-                is_unlocked = dev_mode or passive_data.get('unlocked', False)
+                passive_id = passive_data['id']
+                # 개발 모드이거나 메타 진행에서 구매한 패시브만 해금
+                is_unlocked = dev_mode or meta.is_passive_purchased(passive_id)
 
                 passive = Passive(
                     id=passive_data['id'],
