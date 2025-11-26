@@ -96,9 +96,9 @@ def create_archmage_skills():
     # 7. 메테오
     meteor = Skill("archmage_meteor", "메테오", "3원소 소비 대마법")
     meteor.effects = [
-        DamageEffect(DamageType.BRV, 2.0,
+        DamageEffect(DamageType.BRV, 1.0,
                     gimmick_bonus={"field": "fire_element", "multiplier": 0.2}, stat_type="magical"),
-        DamageEffect(DamageType.BRV, 1.5,
+        DamageEffect(DamageType.BRV, 1.0,
                     gimmick_bonus={"field": "ice_element", "multiplier": 0.2}, stat_type="magical"),
         DamageEffect(DamageType.HP, 1.5,
                     gimmick_bonus={"field": "lightning_element", "multiplier": 0.3}, stat_type="magical")

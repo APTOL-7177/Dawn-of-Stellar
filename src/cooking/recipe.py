@@ -9,6 +9,7 @@ from typing import List, Dict, Optional, Callable
 from enum import Enum
 
 from src.gathering.ingredient import Ingredient, IngredientCategory
+from src.equipment.item_system import ItemType
 
 
 class RecipePriority(Enum):
@@ -185,7 +186,7 @@ class CookedFood:
     food_value: float = 1.0
     
     # 아이템 타입 (인벤토리 호환성)
-    item_type: str = "food" # ItemType.FOOD 대신 문자열 사용 (순환 참조 방지)
+    item_type: ItemType = ItemType.FOOD
 
     def __repr__(self) -> str:
         return f"{self.name} (HP+{self.hp_restore}, MP+{self.mp_restore})"

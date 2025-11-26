@@ -26,12 +26,14 @@ class QuestBoardUI:
         screen_width: int,
         screen_height: int,
         quest_manager: QuestManager,
-        player_level: int
+        player_level: int,
+        player: Any = None
     ):
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.quest_manager = quest_manager
         self.player_level = player_level
+        self.player = player
         
         # 퀘스트 목록
         self.available_quests = quest_manager.get_available_quests()
@@ -88,7 +90,7 @@ class QuestBoardUI:
         elif action == GameAction.CONFIRM:
             if current_list and 0 <= self.cursor < len(current_list):
                 quest = current_list[self.cursor]
-                
+
                 if self.current_tab == 0:  # 사용 가능한 퀘스트 수락
                     if self.quest_manager.accept_quest(quest.quest_id):
                         self.available_quests = self.quest_manager.get_available_quests()
@@ -101,7 +103,23 @@ class QuestBoardUI:
                     else:
                         play_sfx("ui", "cursor_cancel")
                         logger.warning("퀘스트 수락 실패 (활성 퀘스트 가득 참)")
-                # 진행 중인 퀘스트는 수락 불가 (정보만 보기)
+                elif self.current_tab == 1:  # 진행 중인 퀘스트 완료 처리
+                    if quest.is_complete:
+                        if self.player is None:
+                            logger.error("플레이어 객체가 없어 퀘스트 완료를 처리할 수 없습니다.")
+                            play_sfx("ui", "cursor_cancel")
+                        elif self.quest_manager.complete_quest(quest.quest_id, self.player):
+                            self.active_quests = self.quest_manager.get_active_quests()
+                            self.cursor = min(self.cursor, len(self.active_quests) - 1)
+                            if self.cursor < 0:
+                                self.cursor = 0
+                            play_sfx("ui", "item_get")
+                            logger.info(f"퀘스트 완료 보상 수령: {quest.name} - 보상: {quest.reward}")
+                            # 실제 게임에서는 여기에 보상 팝업 UI 표시
+                        else:
+                            play_sfx("ui", "cursor_cancel")
+                    else:
+                        play_sfx("ui", "cursor_cancel")
         
         elif action == GameAction.ESCAPE or action == GameAction.MENU:
             play_sfx("ui", "cursor_cancel")
@@ -168,15 +186,19 @@ class QuestBoardUI:
                 
                 # 진행 중인 퀘스트는 진행률 표시 (퀘스트 이름 아래 별도 줄로)
                 if self.current_tab == 1:
-                    progress_text = f"진행: "
-                    for obj in quest.objectives:
-                        progress_text += f"{obj.progress_text} "
-                    # 진행도 텍스트 길이 제한
-                    max_progress_width = self.screen_width - 10
-                    if len(progress_text) > max_progress_width:
-                        progress_text = progress_text[:max_progress_width - 3] + "..."
-                    # y + 2로 이동하여 퀘스트 이름(y)과 확실히 분리
-                    console.print(5, y + 2, progress_text, fg=(150, 255, 150))
+                    if quest.is_complete:
+                        # 완료된 퀘스트는 특별 표시
+                        console.print(5, y + 2, "★★★ 완료됨 - Z키로 보상 수령 ★★★", fg=(255, 215, 0))
+                    else:
+                        progress_text = f"진행: "
+                        for obj in quest.objectives:
+                            progress_text += f"{obj.progress_text} "
+                        # 진행도 텍스트 길이 제한
+                        max_progress_width = self.screen_width - 10
+                        if len(progress_text) > max_progress_width:
+                            progress_text = progress_text[:max_progress_width - 3] + "..."
+                        # y + 2로 이동하여 퀘스트 이름(y)과 확실히 분리
+                        console.print(5, y + 2, progress_text, fg=(150, 255, 150))
         
         # 선택된 퀘스트 상세 정보
         if current_list and 0 <= self.cursor < len(current_list):
@@ -208,7 +230,7 @@ class QuestBoardUI:
         if self.current_tab == 0:
             help_text = "←→: 탭 변경  ↑↓: 선택  Z: 수락  X: 닫기"
         else:
-            help_text = "←→: 탭 변경  ↑↓: 선택  X: 닫기"
+            help_text = "←→: 탭 변경  ↑↓: 선택  Z: 완료된 퀘스트 보상 수령  X: 닫기"
         console.print(2, help_y, help_text, fg=Colors.GRAY)
 
 
@@ -216,7 +238,8 @@ def open_quest_board(
     console: tcod.console.Console,
     context: tcod.context.Context,
     quest_manager: Optional[QuestManager] = None,
-    player_level: int = 1
+    player_level: int = 1,
+    player: Any = None
 ):
     """퀘스트 게시판 열기"""
     from src.quest.quest_manager import get_quest_manager
@@ -225,7 +248,7 @@ def open_quest_board(
     if quest_manager is None:
         quest_manager = get_quest_manager()
     
-    ui = QuestBoardUI(console.width, console.height, quest_manager, player_level)
+    ui = QuestBoardUI(console.width, console.height, quest_manager, player_level, player)
     handler = InputHandler()
     
     logger.info("퀘스트 게시판 열기")

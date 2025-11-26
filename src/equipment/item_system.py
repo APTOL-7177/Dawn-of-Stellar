@@ -38,6 +38,7 @@ class ItemType(Enum):
     CONSUMABLE = "consumable"
     MATERIAL = "material"
     KEY_ITEM = "key_item"
+    FOOD = "food"
 
 
 class EquipSlot(Enum):
