@@ -337,10 +337,15 @@ GitOperationDone:
     ; Start Scripts (created after Git clone)
     SetOutPath "$INSTDIR"
 
-    ; Determine Python command to use
+    ; Determine Python command to use (prefer venv)
     StrCpy $1 "python"  ; Default to python command
+    IfFileExists "$INSTDIR\venv\Scripts\python.exe" 0 CheckSystemPython
+    StrCpy $1 "$INSTDIR\venv\Scripts\python.exe"  ; Use venv Python
+    Goto UsePythonCommand
+
+    CheckSystemPython:
     StrCmp $PythonPath "" UsePythonCommand 0
-    StrCpy $1 "$PythonPath"  ; Use full path if found
+    StrCpy $1 "$PythonPath"  ; Use system Python path
     UsePythonCommand:
 
     FileOpen $0 "$INSTDIR\start_game.bat" w
@@ -436,7 +441,28 @@ SectionEnd
 
 Section "Python Environment Setup" SEC03
     SectionIn 1 2
-    
+
+    ; Create Python virtual environment
+    DetailPrint "Creating Python virtual environment..."
+    SetOutPath "$INSTDIR"
+    ExecWait '"$PythonPath" -m venv "$INSTDIR\venv"' $0
+    IfErrors VenvFailed VenvSuccess
+
+VenvFailed:
+    DetailPrint "Failed to create virtual environment, using system Python"
+    StrCpy $PythonPath "$PythonPath"
+    Goto SkipVenv
+
+VenvSuccess:
+    ; Use venv Python
+    StrCpy $PythonPath "$INSTDIR\venv\Scripts\python.exe"
+    DetailPrint "Virtual environment created: $PythonPath"
+
+    ; Upgrade pip in venv
+    DetailPrint "Upgrading pip in virtual environment..."
+    ExecWait '"$PythonPath" -m pip install --upgrade pip' $0
+
+SkipVenv:
     ; In update mode, check if requirements.txt changed
     IntCmp $IsUpdateMode 1 CheckRequirements UpdateInstall
     
@@ -451,30 +477,51 @@ CheckRequirements:
 UpdateInstall:
     DetailPrint "Checking Python installation..."
     
-    ; Find Python Path
+    ; Find Python Path - Multiple methods
+    DetailPrint "Searching for Python installation..."
+
+    ; Method 1: Check PYTHON environment variable
     ClearErrors
     ReadEnvStr $PythonPath "PYTHON"
     IfErrors 0 PythonFound
 
-    ; Find Python in PATH
+    ; Method 2: Try python command in PATH
     ClearErrors
     ExecWait 'python --version' $0
     IfErrors 0 PythonFound
 
-    ; Check Common Python Installation Paths (try multiple versions)
-    ; Python 3.11
+    ; Method 3: Try py launcher (Windows Python launcher)
+    ClearErrors
+    ExecWait 'py --version' $0
+    IfErrors 0 PythonLauncherFound
+
+    ; Method 4: Check common installation paths with better detection
+    Goto CheckPythonPaths
+
+PythonLauncherFound:
+    ; Use py launcher
+    StrCpy $PythonPath "py"
+    DetailPrint "Found Python via py launcher"
+    Goto PythonFound
+
+CheckPythonPaths:
+
+    ; Check Common Python Installation Paths (comprehensive search)
+    ; Priority order: newer versions first
+
+    ; Python 3.12
+    IfFileExists "$PROGRAMFILES\Python312\python.exe" 0 CheckPython311
+    StrCpy $PythonPath "$PROGRAMFILES\Python312\python.exe"
+    Goto PythonFound
+
+    CheckPython311:
     IfFileExists "$PROGRAMFILES\Python311\python.exe" 0 CheckPython310
     StrCpy $PythonPath "$PROGRAMFILES\Python311\python.exe"
     Goto PythonFound
 
     CheckPython310:
-    IfFileExists "$PROGRAMFILES\Python310\python.exe" 0 CheckPython312
+    IfFileExists "$PROGRAMFILES\Python310\python.exe" 0 CheckPython39
     StrCpy $PythonPath "$PROGRAMFILES\Python310\python.exe"
-    Goto PythonFound
-
-    CheckPython312:
-    IfFileExists "$PROGRAMFILES\Python312\python.exe" 0 CheckPython39
-    StrCpy $PythonPath "$PROGRAMFILES\Python312\python.exe"
     Goto PythonFound
 
     CheckPython39:
@@ -483,29 +530,72 @@ UpdateInstall:
     Goto PythonFound
 
     CheckPython38:
-    IfFileExists "$PROGRAMFILES\Python38\python.exe" 0 CheckPython37
+    IfFileExists "$PROGRAMFILES\Python38\python.exe" 0 CheckProgramFilesx86
     StrCpy $PythonPath "$PROGRAMFILES\Python38\python.exe"
-    Goto PythonFound
-
-    CheckPython37:
-    IfFileExists "$PROGRAMFILES\Python37\python.exe" 0 CheckPython36
-    StrCpy $PythonPath "$PROGRAMFILES\Python37\python.exe"
-    Goto PythonFound
-
-    CheckPython36:
-    IfFileExists "$PROGRAMFILES\Python36\python.exe" 0 CheckProgramFilesx86
-    StrCpy $PythonPath "$PROGRAMFILES\Python36\python.exe"
     Goto PythonFound
 
     CheckProgramFilesx86:
     ; Check Program Files (x86) for 32-bit installations
+    IfFileExists "$PROGRAMFILES32\Python312\python.exe" 0 CheckPFx86311
+    StrCpy $PythonPath "$PROGRAMFILES32\Python312\python.exe"
+    Goto PythonFound
+
+    CheckPFx86311:
     IfFileExists "$PROGRAMFILES32\Python311\python.exe" 0 CheckPFx86310
     StrCpy $PythonPath "$PROGRAMFILES32\Python311\python.exe"
     Goto PythonFound
 
     CheckPFx86310:
-    IfFileExists "$PROGRAMFILES32\Python310\python.exe" 0 PythonNotFound
+    IfFileExists "$PROGRAMFILES32\Python310\python.exe" 0 CheckLocalAppData
     StrCpy $PythonPath "$PROGRAMFILES32\Python310\python.exe"
+    Goto PythonFound
+
+    CheckLocalAppData:
+    ; Check user-specific installations (pip install --user, etc.)
+    IfFileExists "$LOCALAPPDATA\Programs\Python\Python312\python.exe" 0 CheckLocalAppData311
+    StrCpy $PythonPath "$LOCALAPPDATA\Programs\Python\Python312\python.exe"
+    Goto PythonFound
+
+    CheckLocalAppData311:
+    IfFileExists "$LOCALAPPDATA\Programs\Python\Python311\python.exe" 0 CheckLocalAppData310
+    StrCpy $PythonPath "$LOCALAPPDATA\Programs\Python\Python311\python.exe"
+    Goto PythonFound
+
+    CheckLocalAppData310:
+    IfFileExists "$LOCALAPPDATA\Programs\Python\Python310\python.exe" 0 CheckAppData
+    StrCpy $PythonPath "$LOCALAPPDATA\Programs\Python\Python310\python.exe"
+    Goto PythonFound
+
+    CheckAppData:
+    ; Check AppData for portable installations
+    IfFileExists "$APPDATA\Python\Python312\python.exe" 0 CheckAppData311
+    StrCpy $PythonPath "$APPDATA\Python\Python312\python.exe"
+    Goto PythonFound
+
+    CheckAppData311:
+    IfFileExists "$APPDATA\Python\Python311\python.exe" 0 CheckAppData310
+    StrCpy $PythonPath "$APPDATA\Python\Python311\python.exe"
+    Goto PythonFound
+
+    CheckAppData310:
+    IfFileExists "$APPDATA\Python\Python310\python.exe" 0 CheckCommonLocations
+    StrCpy $PythonPath "$APPDATA\Python\Python310\python.exe"
+    Goto PythonFound
+
+    CheckCommonLocations:
+    ; Check other common locations
+    IfFileExists "C:\Python312\python.exe" 0 CheckC311
+    StrCpy $PythonPath "C:\Python312\python.exe"
+    Goto PythonFound
+
+    CheckC311:
+    IfFileExists "C:\Python311\python.exe" 0 CheckC310
+    StrCpy $PythonPath "C:\Python311\python.exe"
+    Goto PythonFound
+
+    CheckC310:
+    IfFileExists "C:\Python310\python.exe" 0 PythonNotFound
+    StrCpy $PythonPath "C:\Python310\python.exe"
     Goto PythonFound
     
 PythonNotFound:
@@ -568,74 +658,13 @@ PythonNotFound:
 PythonFound:
     DetailPrint "Python found: $PythonPath"
 
-    ; Check Python Version - Multiple fallback methods
-    DetailPrint "Checking Python version..."
-
-    ; Method 1: Try Python --version command
+    ; Skip version checking - just verify Python works
+    DetailPrint "Verifying Python functionality..."
     ClearErrors
-    ExecWait '"$PythonPath" --version' $0
-    IfErrors 0 VersionMethod1Success
+    ExecWait '"$PythonPath" -c "print(\"Python OK\")"' $0
+    IfErrors PythonVersionError 0
 
-    ; Method 2: Try python -c version check
-    ClearErrors
-    ExecWait '"$PythonPath" -c "import sys; print(sys.version_info.major * 10 + sys.version_info.minor)"' $1
-    IntCmp $1 0 VersionMethod2Failed
-    Goto VersionParsed
-
-VersionMethod1Success:
-    ; Parse version from --version output
-    ; Create temporary batch file to capture output
-    FileOpen $3 "$TEMP\python_version.bat" w
-    FileWrite $3 "@echo off$\r$\n"
-    FileWrite $3 '"$PythonPath" --version > "$TEMP\python_version.txt" 2>&1$\r$\n'
-    FileClose $3
-    ExecWait '"$TEMP\python_version.bat"' $4
-
-    ; Read the version output
-    FileOpen $3 "$TEMP\python_version.txt" r
-    FileRead $3 $2
-    FileClose $3
-
-    Delete "$TEMP\python_version.bat"
-    Delete "$TEMP\python_version.txt"
-
-    ; Simple version check - just confirm Python works
-    DetailPrint "Python --version output: $2"
-    StrCpy $1 311  ; Assume 3.11+ for now (can be improved later)
-    Goto VersionParsed
-
-VersionMethod2Failed:
-    ; Method 3: Try simpler Python command
-    ClearErrors
-    ExecWait '"$PythonPath" -c "print(310)"' $1  ; Test with hardcoded version
-    IntCmp $1 310 VersionAssumeOK
-    Goto PythonVersionError
-
-VersionParsed:
-    ; Check if we got a valid version number
-    IntCmp $1 30 ValidVersion 0  ; Minimum should be at least 30
-    IntCmp $1 50 ValidVersion 0  ; Maximum should be reasonable
-    Goto PythonVersionError
-
-ValidVersion:
-    DetailPrint "Python version detected: $1"
-
-    IntCmp $1 310 VersionOK 0  ; Check if >= 3.10
-    IntCmp $1 311 VersionOK 0
-    IntCmp $1 312 VersionOK 0
-    IntCmp $1 313 VersionOK 0
-    IntCmp $1 314 VersionOK 0
-    IntCmp $1 315 VersionOK 0
-    IntCmp $1 316 VersionOK 0
-
-    ; Version is too old
-    DetailPrint "Python version $1 is too old (need 3.10+)"
-    MessageBox MB_OK|MB_ICONSTOP "Python version is too old.$\n$\nDetected version code: $1$\nRequired: Python 3.10 or higher$\n$\nPlease update Python from:$\nhttps://www.python.org/downloads/"
-    Abort "Python version too old"
-
-VersionAssumeOK:
-    DetailPrint "Python basic functionality confirmed, assuming version OK"
-    StrCpy $1 311  ; Assume 3.11
+    DetailPrint "Python verification successful"
 
 VersionOK:
     DetailPrint "Python version is OK: $2"

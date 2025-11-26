@@ -2,7 +2,14 @@
 chcp 65001 > nul
 title Dawn of Stellar - Game Launcher
 
-REM Python 실행 파일 찾기
+REM Check for virtual environment first
+if exist "venv\Scripts\python.exe" (
+    set "PYTHON_EXE=%~dp0venv\Scripts\python.exe"
+    echo Using virtual environment Python
+    goto RunLauncher
+)
+
+REM Fallback to system Python search
 set "PYTHON_EXE="
 if exist "python.exe" (
     set "PYTHON_EXE=python.exe"
@@ -37,6 +44,7 @@ if "%PYTHON_EXE%"=="" (
     )
 )
 
+:RunLauncher
 echo Using Python: %PYTHON_EXE%
 echo Starting game launcher...
 echo.
