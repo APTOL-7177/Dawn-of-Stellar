@@ -257,12 +257,42 @@ NewInstall:
     StrCpy $1 "$0\clone"
     
     ; Clone repository to temporary directory
+    DetailPrint "Cloning repository from GitHub..."
     ExecWait 'git clone https://github.com/APTOL-7177/Dawn-of-Stellar.git "$1\Dawn-of-Stellar"' $2
-    IfErrors 0 CloneSuccess
-    DetailPrint "Repository clone failed"
-    RMDir /r "$0"
-    MessageBox MB_OK|MB_ICONSTOP "Failed to clone repository.$\n$\nPlease check your internet connection and try again.$\n$\nError code: $2"
-    Abort "Repository clone failed"
+
+    ; Check exit code properly
+    IntCmp $2 0 CloneSuccess 0 CloneFailedWithCode
+
+    CloneFailedWithCode:
+        DetailPrint "Repository clone failed with exit code: $2"
+
+        ; Try alternative clone method (shallow clone for faster download)
+        DetailPrint "Trying shallow clone as fallback..."
+        ExecWait 'git clone --depth 1 https://github.com/APTOL-7177/Dawn-of-Stellar.git "$1\Dawn-of-Stellar"' $3
+        IntCmp $3 0 CloneSuccess 0 CloneFailedShallow
+
+    CloneFailedShallow:
+        DetailPrint "Shallow clone also failed"
+
+        ; Try with different URL format (HTTPS vs SSH)
+        DetailPrint "Trying with different URL format..."
+        ExecWait 'git clone https://github.com/APTOL-7177/Dawn-of-Stellar "$1\Dawn-of-Stellar"' $4
+        IntCmp $4 0 CloneSuccess 0 CloneFailedAlternative
+
+    CloneFailedAlternative:
+        DetailPrint "All clone attempts failed"
+        RMDir /r "$0"
+
+        ; Provide detailed error message
+        MessageBox MB_OKCANCEL|MB_ICONSTOP "Failed to clone repository from GitHub.$\n$\nPossible causes:$\n• No internet connection$\n• Firewall blocking Git$\n• Git proxy settings required$\n• Repository temporarily unavailable$\n$\nExit codes: Normal=$2, Shallow=$3, Alternative=$4$\n$\nWould you like to try manual installation?" IDOK ManualClone IDCANCEL AbortInstall
+
+    ManualClone:
+        ExecShell "open" "https://github.com/APTOL-7177/Dawn-of-Stellar/archive/main.zip"
+        MessageBox MB_OK "Please download the ZIP file, extract it, and run the installer again from the extracted folder."
+        Abort "Manual download required"
+
+    AbortInstall:
+        Abort "Repository clone failed"
     
 CloneSuccess:
     DetailPrint "Repository clone complete!"
