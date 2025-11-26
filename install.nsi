@@ -388,29 +388,39 @@ GitOperationDone:
 SectionEnd
 
 Section "Shortcuts" SEC02
-    SectionIn 1
-    
+    SectionIn 1 2  ; Include in both Full and Minimal installation
+
+    DetailPrint "Creating shortcuts..."
+
     ; Start Menu Shortcuts
     CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
-    ; Icon path (prefer ICO, fallback to PNG)
+
+    ; Icon path (prefer ICO, fallback to PNG, then no icon)
     StrCpy $0 "$INSTDIR\logo.ico"
-    IfFileExists "$INSTDIR\logo.ico" 0 UsePNGIcon
-    Goto SetIconPath
-    UsePNGIcon:
+    IfFileExists "$INSTDIR\logo.ico" SetIconPath 0
     StrCpy $0 "$INSTDIR\logo.png"
-    IfFileExists "$INSTDIR\logo.png" 0 NoIconPath
+    IfFileExists "$INSTDIR\logo.png" SetIconPath 0
+    StrCpy $0 ""  ; No icon
+
     SetIconPath:
+    ; Create shortcuts regardless of icon existence
     CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\start_game.bat" "" $0 0
     CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} (Launcher).lnk" "$INSTDIR\launcher.bat" "" $0 0
     CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} (Direct Run).lnk" "$INSTDIR\start_game_direct.bat" "" $0 0
     CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} (Dev Mode).lnk" "$INSTDIR\start_game_dev.bat" "" $0 0
+
+    ; Only create update shortcut if update.bat exists
+    IfFileExists "$INSTDIR\update.bat" 0 SkipUpdateShortcut
     CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Update Game.lnk" "$INSTDIR\update.bat" "" $0 0
+    SkipUpdateShortcut:
+
     CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" $0 0
     CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Website.lnk" "${PRODUCT_WEB_SITE}" "" $0 0
-    
-    ; Desktop Shortcut
+
+    ; Desktop Shortcut (always create)
     CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\start_game.bat" "" $0 0
-    NoIconPath:
+
+    DetailPrint "Shortcuts created successfully"
 SectionEnd
 
 Section "Python Environment Setup" SEC03
