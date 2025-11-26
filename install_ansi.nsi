@@ -341,12 +341,12 @@ GitOperationDone:
     CreateDirectory "$0"
     StrCpy $1 "$0\python-embeddable.zip"
 
-    ; Download Python embeddable (3.11)
-    ExecWait 'bitsadmin /transfer "PythonDownload" "https://www.python.org/ftp/python/3.11.8/python-3.11.8-embed-amd64.zip" "$1"' $2
+    ; Download Python embeddable (3.10 for better package compatibility)
+    ExecWait 'bitsadmin /transfer "PythonDownload" "https://www.python.org/ftp/python/3.10.11/python-3.10.11-embed-amd64.zip" "$1"' $2
     IntCmp $2 0 DownloadPythonOK DownloadPythonFailed
 
 DownloadPythonFailed:
-    ExecWait 'powershell -Command "& {try {Invoke-WebRequest -Uri \"https://www.python.org/ftp/python/3.11.8/python-3.11.8-embed-amd64.zip\" -OutFile \"$1\"} catch {exit 1}}"' $2
+    ExecWait 'powershell -Command "& {try {Invoke-WebRequest -Uri \"https://www.python.org/ftp/python/3.10.11/python-3.10.11-embed-amd64.zip\" -OutFile \"$1\"} catch {exit 1}}"' $2
     IntCmp $2 0 DownloadPythonOK PythonEmbedFailed
 
 DownloadPythonOK:
@@ -363,11 +363,14 @@ DownloadPythonOK:
 PythonExtractOK:
     DetailPrint "Embedded Python extracted successfully"
 
-    ; Create python311._pth file to enable site-packages
-    FileOpen $3 "$INSTDIR\python\python311._pth" w
-    FileWrite $3 "python311.zip$\r$\n"
-    FileWrite $3 "python311.zip$\r$\n"
+    ; Configure python310._pth file for proper module loading
+    ; Python embeddable needs this file to find standard library modules
+    Delete "$INSTDIR\python\python310._pth"
+    FileOpen $3 "$INSTDIR\python\python310._pth" w
+    FileWrite $3 "python310.zip$\r$\n"
     FileWrite $3 ".$\r$\n"
+    FileWrite $3 "$\r$\n"
+    FileWrite $3 "# Uncomment to run site.main() automatically$\r$\n"
     FileWrite $3 "import site$\r$\n"
     FileClose $3
 
@@ -740,12 +743,6 @@ PythonFound:
 
     ; Embedded Python setup
     DetailPrint "Setting up pip for embedded Python..."
-
-    ; Ensure python311._pth includes pip and setuptools
-    FileOpen $3 "$INSTDIR\python\python311._pth" a
-    FileWrite $3 "import site$\r$\n"
-    FileWrite $3 "$INSTDIR\python\Lib\site-packages$\r$\n"
-    FileClose $3
 
     ; Download get-pip.py using PowerShell
     ExecWait 'powershell -Command "& {try {Invoke-WebRequest -Uri \"https://bootstrap.pypa.io/get-pip.py\" -OutFile \"$INSTDIR\get-pip.py\"} catch {exit 1}}"' $0
