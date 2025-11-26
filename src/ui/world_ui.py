@@ -330,7 +330,18 @@ class WorldUI:
             else:
                 # Debug: 이동 결과 이벤트
                 pass
-            
+
+            # 이동 성공 시 요리솥 자동 열기 체크
+            if result and result.success and result.event == ExplorationEvent.NONE:
+                # 요리솥 위치에 도착했는지 체크
+                nearby_cooking_pot = self._find_nearby_cooking_pot()
+                if nearby_cooking_pot and console is not None and context is not None and self.inventory is not None:
+                    logger.info(f"이동으로 요리솥 위치 도착! 자동으로 요리솥 열기: 위치 ({nearby_cooking_pot.x}, {nearby_cooking_pot.y})")
+                    from src.ui.cooking_ui import open_cooking_pot
+                    # 요리솥에서 요리할 때는 보너스 적용
+                    open_cooking_pot(console, context, self.inventory, is_cooking_pot=True)
+                    return False
+
             self._handle_exploration_result(result, console, context)
             # 전투가 트리거되면 즉시 루프 탈출
             if self.combat_requested:
@@ -339,7 +350,24 @@ class WorldUI:
 
         # 채집 또는 계단 이동 (Z키/엔터키)
         elif action == GameAction.CONFIRM:
-            # 먼저 채집 오브젝트 찾기
+            # 우선순위 1: 요리솥 상호작용
+            nearby_cooking_pot = self._find_nearby_cooking_pot()
+            if nearby_cooking_pot:
+                logger.info(f"요리솥 발견 및 사용 시도: 위치 ({nearby_cooking_pot.x}, {nearby_cooking_pot.y})")
+                if console is not None and context is not None and self.inventory is not None:
+                    from src.ui.cooking_ui import open_cooking_pot
+
+                    # 요리 UI 열기
+                    logger.info("요리솥 발견! 요리 UI 열기")
+                    # 요리솥에서 요리할 때는 보너스 적용
+                    open_cooking_pot(console, context, self.inventory, is_cooking_pot=True)
+                    return False
+                else:
+                    logger.warning("요리솥 사용 실패: 필요한 컴포넌트 없음 (console, context, inventory)")
+                    self.add_message("요리솥을 사용할 수 없습니다.")
+                    return False
+
+            # 우선순위 2: 채집 오브젝트 찾기
             nearby_harvestables = self._find_all_nearby_harvestables()
             if nearby_harvestables:
                 # 채집 오브젝트가 있으면 일괄 채집 실행
@@ -361,8 +389,8 @@ class WorldUI:
                 else:
                     logger.warning("채집 불가: console, context, inventory가 필요합니다")
                     return False
-            
-            # 채집 오브젝트가 없으면 계단 이동 체크
+
+            # 우선순위 3: 계단 이동 체크
             tile = self.exploration.dungeon.get_tile(
                 self.exploration.player.x,
                 self.exploration.player.y
@@ -439,10 +467,10 @@ class WorldUI:
                         return True
             return False
 
-        # 상호작용 (E키 또는 Z키)
-        elif action == GameAction.INTERACT or action == GameAction.CONFIRM:
+        # 상호작용 (E키)
+        elif action == GameAction.INTERACT:
             logger.debug(f"상호작용 입력: {action}")
-            # 우선순위 1: 요리솥
+            # 우선순위 1: 요리솥 (CONFIRM과 동일하지만 E키로도 사용 가능)
             nearby_cooking_pot = self._find_nearby_cooking_pot()
             if nearby_cooking_pot:
                 logger.info(f"요리솥 발견 및 사용 시도: 위치 ({nearby_cooking_pot.x}, {nearby_cooking_pot.y})")
@@ -1228,7 +1256,12 @@ class WorldUI:
         )
         if is_multiplayer:
             help_text += "  T: 채팅"
-        
+
+        # 요리솥 근처에 있을 때 상호작용 힌트 추가
+        nearby_cooking_pot = self._find_nearby_cooking_pot()
+        if nearby_cooking_pot:
+            help_text += "  Z/E: 요리솥 사용"
+
         # 조작 가이드를 최하단에 배치 (로그 패널 아래)
         console.print(
             2,

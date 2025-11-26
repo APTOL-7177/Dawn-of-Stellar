@@ -321,10 +321,6 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1, shop_type: st
         # 장비 풀이 비어있으면 빈 리스트 반환
         logger.warning(f"장비 풀이 비어있습니다. (floor_level: {floor_level}, max_level: {max_level})")
         equipment_items = []
-    else:
-        # 장비 풀이 비어있으면 빈 리스트 반환
-        logger.warning(f"장비 풀이 비어있습니다. (floor_level: {floor_level}, max_level: {max_level})")
-        equipment_items = []
 
     for item_id, base_price, template in equipment_items:
         # 인플레이션 적용 가격 계산 (Lv.4 할인 적용 + 타입별 가격 조정)

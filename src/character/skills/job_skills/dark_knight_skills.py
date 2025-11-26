@@ -16,7 +16,7 @@ def create_dark_knight_skills():
     # ============================================================
 
     # 1. 기본 BRV: 충전 강타
-    charge_strike = Skill("dk_charge_strike", "충전 강타", "BRV 축적 + 충전 +15 (충전 0: 0.8배 → 100: 1.8배)")
+    charge_strike = Skill("dk_charge_strike", "충전 강타", "적의 BRV를 공격하면서 충전을 쌓는 기본 공격. 충전에 따라 위력이 증가합니다.")
     charge_strike.effects = [
         DamageEffect(DamageType.BRV, 0.8, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.01}),  # 충전 1%당 +1% 데미지
         GimmickEffect(GimmickOperation.ADD, "charge_gauge", 3, max_value=100)  # 15 → 3 (1/5)
@@ -27,7 +27,7 @@ def create_dark_knight_skills():
     skills.append(charge_strike)
 
     # 2. 기본 HP: 분쇄 타격
-    crushing_blow = Skill("dk_crushing_blow", "분쇄 타격", "HP 공격 + 충전 +10 (충전 0: 0.5배 → 100: 2.0배)")
+    crushing_blow = Skill("dk_crushing_blow", "분쇄 타격", "적의 HP를 직접 공격하면서 충전을 쌓는 강력한 타격. 충전에 따라 위력이 크게 증가합니다.")
     crushing_blow.effects = [
         DamageEffect(DamageType.HP, 0.5, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.015}),  # 충전 1%당 +1.5% 데미지
         GimmickEffect(GimmickOperation.ADD, "charge_gauge", 2, max_value=100)  # 10 → 2 (1/5)

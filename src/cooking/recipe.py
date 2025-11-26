@@ -71,8 +71,17 @@ class RecipeCondition:
 
         for ing in ingredients:
             category_values[ing.category] = category_values.get(ing.category, 0.0) + ing.food_value
-            ingredient_ids.add(ing.item_id)
-            ingredient_counts[ing.item_id] = ingredient_counts.get(ing.item_id, 0) + 1
+
+            # CookedFood 객체의 경우 item_id가 있으면 그것을, 없으면 name을 사용
+            # 다른 객체의 경우 item_id를 사용
+            if isinstance(ing, CookedFood):
+                ing_id = ing.item_id if ing.item_id else ing.name
+                ingredient_ids.add(ing_id)
+                ingredient_counts[ing_id] = ingredient_counts.get(ing_id, 0) + 1
+            else:
+                ingredient_ids.add(ing.item_id)
+                ingredient_counts[ing.item_id] = ingredient_counts.get(ing.item_id, 0) + 1
+
             total_value += ing.food_value
 
         # 1. 필수 재료 개수 확인 (YAML 레시피용 - 정확한 매칭)
@@ -130,6 +139,18 @@ class CookedFood:
     """요리된 음식"""
     name: str
     description: str
+    item_id: Optional[str] = None  # 선택적 item_id (없으면 name 사용)
+
+    # 요리솥 보너스 적용 전 원래 값 (중복 보너스 방지용)
+    original_hp_restore: Optional[int] = None
+    original_mp_restore: Optional[int] = None
+    original_buff_duration: Optional[int] = None
+
+    def __post_init__(self):
+        """초기화 후 처리"""
+        # item_id가 설정되지 않은 경우 name으로 설정
+        if self.item_id is None:
+            self.item_id = self.name
 
     # 효과
     hp_restore: int = 0

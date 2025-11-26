@@ -198,38 +198,57 @@ class CookingPotUI:
 
         self.cooked_food = recipe.result
 
-        # 요리솥 보너스 적용
-        if self.is_cooking_pot:
-            # 요리솥에서 요리 시 보너스:
+        # 요리솥 보너스 적용 (CookedFood 재료가 포함된 경우 적용하지 않음 - 효과 중복 방지)
+        has_cooked_food_ingredient = any(isinstance(ing, CookedFood) for ing in ingredients)
+        if self.is_cooking_pot and not has_cooked_food_ingredient:
+            # 요리솥에서 요리 시 보너스 (기본 재료만으로 요리할 때):
             # 1. HP/MP 회복량 20% 증가
             # 2. 버프 지속시간 20% 증가
             # 3. 추가 아이템 생성 (10% 확률로 같은 음식 1개 추가)
-            
+
+            # 보너스 적용 전 원래 값 저장
+            self.cooked_food.original_hp_restore = getattr(self.cooked_food, 'hp_restore', 0)
+            self.cooked_food.original_mp_restore = getattr(self.cooked_food, 'mp_restore', 0)
+            self.cooked_food.original_buff_duration = getattr(self.cooked_food, 'buff_duration', 0)
+
             # HP/MP 회복량 증가
             if hasattr(self.cooked_food, 'hp_restore') and self.cooked_food.hp_restore > 0:
                 self.cooked_food.hp_restore = int(self.cooked_food.hp_restore * 1.2)
                 logger.info(f"요리솥 보너스: HP 회복량 20% 증가! (현재: {self.cooked_food.hp_restore})")
-            
+
             if hasattr(self.cooked_food, 'mp_restore') and self.cooked_food.mp_restore > 0:
                 self.cooked_food.mp_restore = int(self.cooked_food.mp_restore * 1.2)
                 logger.info(f"요리솥 보너스: MP 회복량 20% 증가! (현재: {self.cooked_food.mp_restore})")
-            
+
             # 버프 지속시간 증가
             if hasattr(self.cooked_food, 'buff_duration') and self.cooked_food.buff_duration > 0:
                 self.cooked_food.buff_duration = int(self.cooked_food.buff_duration * 1.2)
                 logger.info(f"요리솥 보너스: 버프 지속시간 20% 증가! (현재: {self.cooked_food.buff_duration})")
-            
+
             # 추가 아이템 생성
             extra_item = random.random() < 0.1  # 10% 확률
             if extra_item:
                 # 같은 음식을 하나 더 추가
                 from copy import deepcopy
                 extra_food = deepcopy(recipe.result)
+                # 추가 아이템에도 보너스 적용
+                if hasattr(extra_food, 'hp_restore') and extra_food.hp_restore > 0:
+                    extra_food.hp_restore = int(extra_food.hp_restore * 1.2)
+                    extra_food.original_hp_restore = getattr(extra_food, 'hp_restore', 0) // 1.2
+                if hasattr(extra_food, 'mp_restore') and extra_food.mp_restore > 0:
+                    extra_food.mp_restore = int(extra_food.mp_restore * 1.2)
+                    extra_food.original_mp_restore = getattr(extra_food, 'mp_restore', 0) // 1.2
+                if hasattr(extra_food, 'buff_duration') and extra_food.buff_duration > 0:
+                    extra_food.buff_duration = int(extra_food.buff_duration * 1.2)
+                    extra_food.original_buff_duration = getattr(extra_food, 'buff_duration', 0) // 1.2
+
                 success_extra = self.inventory.add_item(extra_food, quantity=1)
                 if success_extra:
                     logger.info(f"요리솥 보너스: 추가 음식 생성! {extra_food.name}")
                 else:
                     logger.warning("요리솥 보너스: 추가 음식 생성 실패 (인벤토리 가득 참)")
+
+            logger.info(f"요리솥 보너스 적용 완료")
 
         logger.info(f"요리 완료: {self.cooked_food.name}")
 
@@ -293,7 +312,7 @@ class CookingPotUI:
                 total_quantity = getattr(slot, 'quantity', 1)
                 used_count = used_counts.get(i, 0)
                 remaining_quantity = total_quantity - used_count
-                
+
                 # 남은 quantity만큼만 목록에 추가
                 if remaining_quantity > 0:
                     for _ in range(remaining_quantity):

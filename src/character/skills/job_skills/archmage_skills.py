@@ -96,18 +96,18 @@ def create_archmage_skills():
     # 7. 메테오
     meteor = Skill("archmage_meteor", "메테오", "3원소 소비 대마법")
     meteor.effects = [
-        DamageEffect(DamageType.BRV, 2.5,
+        DamageEffect(DamageType.BRV, 2.0,
                     gimmick_bonus={"field": "fire_element", "multiplier": 0.2}, stat_type="magical"),
         DamageEffect(DamageType.BRV, 1.5,
                     gimmick_bonus={"field": "ice_element", "multiplier": 0.2}, stat_type="magical"),
-        DamageEffect(DamageType.HP, 2.0,
+        DamageEffect(DamageType.HP, 1.5,
                     gimmick_bonus={"field": "lightning_element", "multiplier": 0.3}, stat_type="magical")
     ]
-    meteor.costs = [MPCost(9), StackCost("fire_element", 1), StackCost("ice_element", 1), StackCost("lightning_element", 1)]
+    meteor.costs = [MPCost(12), StackCost("fire_element", 1), StackCost("ice_element", 1), StackCost("lightning_element", 1)]
     # meteor.cooldown = 5  # 쿨다운 시스템 제거됨
     meteor.target_type = "all_enemies"
     meteor.is_aoe = True
-    meteor.cast_time = 0.5  # ATB 50% 캐스팅 (강력한 마법)
+    meteor.cast_time = 0.75  # ATB 75% 캐스팅 (강력한 마법)
     meteor.sfx = ("skill", "ultima")  # 메테오
     meteor.metadata = {"fusion": True, "elements": ["fire", "ice", "lightning"], "element_cost": 3, "aoe": True}
     skills.append(meteor)
