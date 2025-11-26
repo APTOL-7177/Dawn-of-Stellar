@@ -57,7 +57,7 @@ echo Starting game launcher...
 echo.
 
 REM 게임 런처 실행
-"%PYTHON_EXE%" launcher.py
+"%PYTHON_EXE%" main.py
 
 REM 오류 발생 시 대기
 if errorlevel 1 (
