@@ -77,10 +77,17 @@ cd dist\DawnOfStellar
 REM config.yaml 복사
 copy ..\..\config.yaml config.yaml >nul
 
+REM 기본 메타 진행 파일 복사 (배포판용)
+if not exist user_data mkdir user_data
+copy ..\..\config\meta_progress.json user_data\meta_progress.json >nul
+
 REM 폰트 파일들 복사
 copy ..\..\*.ttf . >nul 2>&1
 copy ..\..\*.ttc . >nul 2>&1
 copy ..\..\*.bdf . >nul 2>&1
+
+REM data 폴더 복사
+if exist ..\..\data xcopy ..\..\data data /E /I /H /Y >nul
 
 REM assets 폴더 복사
 if exist ..\..\assets xcopy ..\..\assets assets /E /I /H /Y >nul

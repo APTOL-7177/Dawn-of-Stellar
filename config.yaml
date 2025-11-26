@@ -284,8 +284,8 @@ combat:
     dot_tick_interval: 1.0
     max_stacks: 5
 development:
-  debug_mode: true
-  enabled: true
+  debug_mode: false
+  enabled: false
   show_damage_calculations: false
   unlimited_essence: false
   unlock_all_classes: false

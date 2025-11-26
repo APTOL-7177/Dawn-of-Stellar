@@ -84,12 +84,12 @@ passives:
         stat: max_brv
         value: 1.15
 
-  # 코스트 3 패시브 (중급)
+  # 코스트 3 패시브 (중급) - 배포판에서는 잠금
   - id: physical_power
     name: 힘의 축복
     description: 물리 공격력 +20%
     cost: 3
-    unlocked: true
+    unlocked: false
     effects:
       - type: stat_multiplier
         stat: physical_attack
@@ -99,7 +99,7 @@ passives:
     name: 마력의 축복
     description: 마법 공격력 +20%
     cost: 3
-    unlocked: true
+    unlocked: false
     effects:
       - type: stat_multiplier
         stat: magic_attack
@@ -109,7 +109,7 @@ passives:
     name: 철벽 방어
     description: 물리 방어력 +20%
     cost: 3
-    unlocked: true
+    unlocked: false
     effects:
       - type: stat_multiplier
         stat: physical_defense
@@ -119,7 +119,7 @@ passives:
     name: 마법 장벽
     description: 마법 방어력 +20%
     cost: 3
-    unlocked: true
+    unlocked: false
     effects:
       - type: stat_multiplier
         stat: magic_defense
@@ -129,7 +129,7 @@ passives:
     name: 치명타 강화
     description: 크리티컬 확률 +15%
     cost: 3
-    unlocked: true
+    unlocked: false
     effects:
       - type: critical_bonus
         value: 0.15
@@ -138,7 +138,7 @@ passives:
     name: 카운터 자세
     description: 피격 시 15% 확률로 반격
     cost: 3
-    unlocked: true
+    unlocked: false
     effects:
       - type: counter
         value: 0.15
@@ -147,7 +147,7 @@ passives:
     name: 자동 재생
     description: 매 턴 HP 5% 회복
     cost: 3
-    unlocked: true
+    unlocked: false
     effects:
       - type: hp_regen
         value: 0.05
@@ -156,7 +156,7 @@ passives:
     name: 마력 회복
     description: 매 턴 MP 3% 회복
     cost: 3
-    unlocked: true
+    unlocked: false
     effects:
       - type: mp_regen
         value: 0.03
@@ -165,7 +165,7 @@ passives:
     name: 전투 치유
     description: 적 처치 시 HP 10% 회복
     cost: 3
-    unlocked: true
+    unlocked: false
     effects:
       - type: on_kill
         effect: heal_hp_percent
@@ -175,7 +175,7 @@ passives:
     name: 전투 마력
     description: 적 처치 시 MP 5% 회복
     cost: 3
-    unlocked: true
+    unlocked: false
     effects:
       - type: on_kill
         effect: heal_mp_percent
@@ -185,7 +185,7 @@ passives:
     name: 피해 감소
     description: 받는 모든 피해 -10%
     cost: 3
-    unlocked: true
+    unlocked: false
     effects:
       - type: damage_reduction
         value: 0.10
@@ -194,17 +194,17 @@ passives:
     name: 상태 저항
     description: 상태 이상 저항률 +15%
     cost: 3
-    unlocked: true
+    unlocked: false
     effects:
       - type: status_resist
         value: 0.15
 
-  # 코스트 4 패시브 (고급)
+  # 코스트 4 패시브 (고급) - 배포판에서는 잠금
   - id: first_strike
     name: 선제공격
     description: 전투 시작 시 ATB 게이지 +50%
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: combat_start
         effect: atb_boost
@@ -214,7 +214,7 @@ passives:
     name: 브레이크 달인
     description: BREAK 발동 시 보너스 데미지 +50%
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: break_bonus
         value: 1.50
@@ -223,7 +223,7 @@ passives:
     name: 기술 숙련
     description: 모든 스킬 MP 소모 -20%
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: mp_cost_reduction
         value: 0.20
@@ -232,7 +232,7 @@ passives:
     name: 위기일발
     description: HP 30% 이하 시 모든 공격력 +50%
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: damage_multiplier
         condition: hp_below_30
@@ -242,7 +242,7 @@ passives:
     name: 방패 숙련
     description: 방어 선택 시 BRV 피해 -50%, 방어 중 BRV 10% 회복
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: defend_boost
         damage_reduction: 0.50
@@ -252,7 +252,7 @@ passives:
     name: 속성 장악
     description: 모든 속성 공격 위력 +25%
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: damage_multiplier
         target: elemental
@@ -262,7 +262,7 @@ passives:
     name: 치명타 달인
     description: 크리티컬 데미지 +50%
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: critical_damage
         value: 1.50
@@ -271,7 +271,7 @@ passives:
     name: 이중 타격
     description: 일반 공격 시 25% 확률로 추가 공격
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: double_attack
         chance: 0.25
@@ -280,7 +280,7 @@ passives:
     name: 생명력 흡수
     description: 공격 데미지의 10%만큼 HP 회복
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: lifesteal
         value: 0.10
@@ -289,7 +289,7 @@ passives:
     name: 마력 흡수
     description: 공격 데미지의 5%만큼 MP 회복
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: mana_leech
         value: 0.05
@@ -298,7 +298,7 @@ passives:
     name: 보복
     description: 피해를 받을 때마다 공격력 +5% (최대 3중첩)
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: retaliation
         value: 0.05
@@ -308,7 +308,7 @@ passives:
     name: 광전사의 분노
     description: HP가 낮을수록 공격력 증가 (최대 +50%)
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: hp_scaling_attack
         max_bonus: 0.50
@@ -317,17 +317,17 @@ passives:
     name: 수호 천사
     description: 아군이 피해를 받을 때 20% 확률로 대신 받기
     cost: 4
-    unlocked: true
+    unlocked: false
     effects:
       - type: guardian
         chance: 0.20
 
-  # 코스트 5 패시브 (최상급)
+  # 코스트 5 패시브 (최상급) - 배포판에서는 잠금
   - id: phoenix_blessing
     name: 불사조의 가호
     description: 전투 중 1회 사망 시 HP 50%로 부활
     cost: 5
-    unlocked: true
+    unlocked: false
     effects:
       - type: revive
         value: 0.50
@@ -337,7 +337,7 @@ passives:
     name: 이중 시전
     description: 스킬 사용 시 10% 확률로 2회 시전
     cost: 5
-    unlocked: true
+    unlocked: false
     effects:
       - type: double_cast
         chance: 0.10
@@ -346,7 +346,7 @@ passives:
     name: 궁극의 힘
     description: 모든 공격력 +30%
     cost: 5
-    unlocked: true
+    unlocked: false
     effects:
       - type: stat_multiplier
         stat: physical_attack
@@ -359,7 +359,7 @@ passives:
     name: 궁극의 방어
     description: 모든 방어력 +30%
     cost: 5
-    unlocked: true
+    unlocked: false
     effects:
       - type: stat_multiplier
         stat: physical_defense
@@ -372,7 +372,7 @@ passives:
     name: 용맹한 영혼
     description: HP 50% 이상 시 받는 피해 -20%, BRV 공격 위력 +20%
     cost: 5
-    unlocked: true
+    unlocked: false
     effects:
       - type: damage_reduction
         condition: hp_above_50
@@ -386,7 +386,7 @@ passives:
     name: 전술의 천재
     description: 매 5턴마다 랜덤 버프 획득 (공격력/방어력/속도 +30%, 2턴)
     cost: 5
-    unlocked: true
+    unlocked: false
     effects:
       - type: periodic_buff
         interval: 5
@@ -397,7 +397,7 @@ passives:
     name: 시간의 지배자
     description: 모든 행동 속도 +25%, 쿨다운 -10%
     cost: 5
-    unlocked: true
+    unlocked: false
     effects:
       - type: stat_multiplier
         stat: speed
@@ -409,7 +409,7 @@ passives:
     name: 완벽한 형상
     description: 모든 스탯 +15%
     cost: 5
-    unlocked: true
+    unlocked: false
     effects:
       - type: all_stats_multiplier
         value: 1.15
@@ -418,7 +418,7 @@ passives:
     name: 무적의 의지
     description: 사망 직전 1회 한번 HP 1로 살아남음
     cost: 5
-    unlocked: true
+    unlocked: false
     effects:
       - type: last_stand
         once_per_battle: true
@@ -427,7 +427,7 @@ passives:
     name: 대가의 반격
     description: 피격 시 30% 확률로 반격, 반격 데미지 +100%
     cost: 5
-    unlocked: true
+    unlocked: false
     effects:
       - type: counter
         chance: 0.30
@@ -437,7 +437,7 @@ passives:
     name: 피의 갈망
     description: 적 처치 시 모든 스탯 +10% (최대 3중첩)
     cost: 5
-    unlocked: true
+    unlocked: false
     effects:
       - type: kill_bonus
         value: 0.10
@@ -447,7 +447,7 @@ passives:
     name: 영원한 불꽃
     description: 매 턴 HP/MP 10% 회복, 상태 이상 해제
     cost: 5
-    unlocked: true
+    unlocked: false
     effects:
       - type: hp_regen
         value: 0.10

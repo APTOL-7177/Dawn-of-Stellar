@@ -25,6 +25,7 @@ class ShopCategory(Enum):
     JOB_UNLOCKS = "jobs"  # 직업 해금
     PERMANENT_UPGRADES = "permanent"  # 영구 업그레이드
     TRAIT_UNLOCKS = "traits"  # 특성 해금
+    PASSIVE_UNLOCKS = "passives"  # 패시브 해금
     CONSUMABLES = "consumables"  # 소모품
     BUILDINGS = "buildings"  # 건물 시설
     SPECIAL = "special"  # 특수 아이템
@@ -41,7 +42,8 @@ class ShopItem:
         category: ShopCategory,
         item_id: str = None,
         job_id: str = None,  # 특성 해금용 또는 직업 해금용
-        trait_id: str = None  # 특성 해금용
+        trait_id: str = None,  # 특성 해금용
+        passive_id: str = None  # 패시브 해금용
     ):
         self.name = name
         self.description = description
@@ -50,6 +52,7 @@ class ShopItem:
         self.item_id = item_id or name.lower().replace(" ", "_").replace("(", "").replace(")", "")
         self.job_id = job_id
         self.trait_id = trait_id
+        self.passive_id = passive_id
 
 
 def get_job_unlock_items() -> List[ShopItem]:
@@ -150,6 +153,55 @@ def get_trait_unlock_items() -> List[ShopItem]:
                         ))
             except Exception as e:
                 logger.error(f"특성 로드 실패 ({job_id}): {e}")
+
+    return items
+
+
+def get_passive_unlock_items() -> List[ShopItem]:
+    """패시브 해금 아이템 동적 생성"""
+    meta = get_meta_progress()
+    items = []
+
+    # 패시브 데이터 로드
+    passives_file = Path("data/passives.yaml")
+    if not passives_file.exists():
+        return items
+
+    try:
+        with open(passives_file, 'r', encoding='utf-8') as f:
+            data = yaml.safe_load(f)
+            if not data or 'passives' not in data:
+                return items
+
+            passives_data = data['passives']
+            if isinstance(passives_data, dict):
+                passives = list(passives_data.values())
+            elif isinstance(passives_data, list):
+                passives = passives_data
+            else:
+                return items
+
+            for passive in passives:
+                passive_id = passive.get('id', '')
+                passive_name = passive.get('name', '')
+                passive_cost = passive.get('cost', 0)
+                unlocked = passive.get('unlocked', True)
+
+                # 잠긴 패시브만 판매 아이템으로 생성
+                if not unlocked:
+                    # 구매 가격은 코스트의 5배
+                    price = passive_cost * 5
+
+                    items.append(ShopItem(
+                        name=f"[패시브] {passive_name}",
+                        description=passive.get('description', '') + f" (코스트: {passive_cost})",
+                        price=price,
+                        category=ShopCategory.PASSIVE_UNLOCKS,
+                        item_id=f"passive_{passive_id}",
+                        passive_id=passive_id
+                    ))
+    except Exception as e:
+        logger.error(f"패시브 로드 실패: {e}")
 
     return items
 
@@ -284,6 +336,9 @@ def get_shop_items() -> List[ShopItem]:
 
     # === 특성 해금 (동적 생성) ===
     items.extend(get_trait_unlock_items())
+
+    # === 패시브 해금 (동적 생성) ===
+    items.extend(get_passive_unlock_items())
 
     # === 건물 시설 ===
     items.extend(get_building_items())
@@ -467,6 +522,23 @@ class ShopUI:
             logger.info(f"특성 해금: {item.job_id} - {item.trait_id} ({item.price} 별의 파편)")
             return True, f"{item.name} 해금 완료!"
 
+        elif item.category == ShopCategory.PASSIVE_UNLOCKS:
+            # 패시브는 purchased_passives에 추가
+            if item.passive_id in self.meta.purchased_passives:
+                return False, "이미 해금된 패시브입니다."
+
+            # 별의 파편 확인
+            if self.meta.star_fragments < item.price:
+                return False, f"별의 파편이 부족합니다. (필요: {item.price}, 보유: {self.meta.star_fragments})"
+
+            # 구매 처리
+            self.meta.spend_star_fragments(item.price)
+            self.meta.purchased_passives.append(item.passive_id)
+            save_meta_progress()
+
+            logger.info(f"패시브 해금: {item.passive_id} ({item.price} 별의 파편)")
+            return True, f"{item.name} 해금 완료!"
+
         # 영구 업그레이드
         elif item.category == ShopCategory.PERMANENT_UPGRADES:
             # 이미 구매했는지 확인
@@ -542,6 +614,7 @@ class ShopUI:
             ShopCategory.JOB_UNLOCKS: "직업 해금",
             ShopCategory.PERMANENT_UPGRADES: "영구 업그레이드",
             ShopCategory.TRAIT_UNLOCKS: "특성 해금",
+            ShopCategory.PASSIVE_UNLOCKS: "패시브 해금",
             ShopCategory.CONSUMABLES: "소모품",
             ShopCategory.BUILDINGS: "건물 시설",
             ShopCategory.SPECIAL: "특수"
@@ -550,9 +623,9 @@ class ShopUI:
         for i, category in enumerate(self.categories):
             name = category_names.get(category, category.value)
             if i == self.category_index:
-                console.print(tab_x + i * 14, tab_y, f"[{name}]", fg=(255, 255, 100))
+                console.print(tab_x + i * 10, tab_y, f"[{name}]", fg=(255, 255, 100))
             else:
-                console.print(tab_x + i * 14, tab_y, f" {name} ", fg=(150, 150, 150))
+                console.print(tab_x + i * 10, tab_y, f" {name} ", fg=(150, 150, 150))
 
         # 아이템 목록 (페이징)
         paged_items, current_page, total_pages = self.get_paged_items()
@@ -584,6 +657,10 @@ class ShopUI:
                         item_name = f"{item.name} [구매 완료]"
                 elif item.category == ShopCategory.TRAIT_UNLOCKS:
                     if self.meta.is_trait_unlocked(item.job_id, item.trait_id):
+                        item_color = (100, 100, 100)
+                        item_name = f"{item.name} [해금 완료]"
+                elif item.category == ShopCategory.PASSIVE_UNLOCKS:
+                    if item.passive_id in self.meta.purchased_passives:
                         item_color = (100, 100, 100)
                         item_name = f"{item.name} [해금 완료]"
                 elif item.category == ShopCategory.BUILDINGS:

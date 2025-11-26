@@ -74,6 +74,9 @@ class PartySetup:
         # 랜덤 이름 풀 로드
         self.random_names = self._load_random_names()
 
+        # 메타 진행 정보
+        self.meta = get_meta_progress()
+
         # 현재 메뉴/입력 박스
         self.job_menu: Optional[CursorMenu] = None
         self.name_input: Optional[TextInputBox] = None
@@ -484,7 +487,11 @@ class PartySetup:
             return
         
         from src.character.character_loader import get_traits
-        
+
+        # 개발 모드 확인
+        config = get_config()
+        dev_mode = config.get("development.unlock_all_classes", False)
+
         # 인덱스 범위 확인
         if not self.party or self.current_slot >= len(self.party):
             self.logger.error(f"특성 메뉴 생성 실패: party 길이={len(self.party)}, current_slot={self.current_slot}")
@@ -521,10 +528,18 @@ class PartySetup:
         
         # 직업의 특성 목록 로드
         traits = get_traits(member.job_id)
-        
-        self.logger.info(f"특성 메뉴 생성: 멤버 {self.current_slot + 1}/4 - {member.character_name} ({member.job_name}, job_id: {member.job_id}), 특성 수: {len(traits)}, 선택된 특성: {member.selected_traits}")
-        
-        if not traits:
+
+        # unlocked_traits에 있는 특성만 필터링
+        unlocked_traits = []
+        for trait in traits:
+            trait_id = trait.get('id', '')
+            is_unlocked = dev_mode or self.meta.is_trait_unlocked(member.job_id, trait_id)
+            if is_unlocked:
+                unlocked_traits.append(trait)
+
+        self.logger.info(f"특성 메뉴 생성: 멤버 {self.current_slot + 1}/4 - {member.character_name} ({member.job_name}, job_id: {member.job_id}), 해금된 특성 수: {len(unlocked_traits)} (총 {len(traits)}개 중), 선택된 특성: {member.selected_traits}")
+
+        if not unlocked_traits:
             self.logger.warning(f"특성이 없습니다: {member.job_id}")
             # 특성이 없어도 완료 항목은 표시
             menu_items = [
@@ -540,21 +555,21 @@ class PartySetup:
             # selected_traits 초기화 확인 (None 체크)
             if member.selected_traits is None:
                 member.selected_traits = []
-            
+
             selected_count = len(member.selected_traits)
             max_traits = 2  # 직업당 최대 특성 개수
             self.logger.info(f"특성 메뉴 생성: {member.character_name}, 선택된 특성 수: {selected_count}/{max_traits}, 선택된 특성: {member.selected_traits}")
-            
-            for trait in traits:
+
+            for trait in unlocked_traits:
                 trait_id = trait.get('id', '')
                 trait_name = trait.get('name', '알 수 없음')
                 trait_desc = trait.get('description', '')
-                
+
                 # 이미 선택된 특성인지 확인 (명시적으로 리스트에서 확인)
                 is_selected = False
                 if member.selected_traits:
                     is_selected = trait_id in member.selected_traits
-                
+
                 # 최대 2개 제한: 선택되지 않은 특성은 이미 2개가 선택되었으면 비활성화
                 is_enabled = True
                 if not is_selected and selected_count >= max_traits:
@@ -592,7 +607,7 @@ class PartySetup:
         
         max_traits = 2  # 직업당 최대 특성 개수
         self.trait_menu = CursorMenu(
-            title=f"{member.character_name} ({member.job_name}) - 특성 선택 ({selected_count}/{max_traits})",
+            title=f"{member.character_name} ({member.job_name}) - 특성 선택 ({selected_count}/{max_traits}, 해금: {len(unlocked_traits)}개)",
             items=menu_items,
             x=3,
             y=8,
@@ -953,19 +968,23 @@ class PartySetup:
             passive_desc = passive.get('description', '')
             passive_cost = passive.get('cost', 0)
             unlocked = passive.get('unlocked', True)
-            
+
+            # 잠긴 패시브는 표시하지 않음
+            if not unlocked:
+                continue
+
             # 이미 선택된 패시브인지 확인 (파티 전체 공통)
             is_selected = passive_id in self.selected_passives
-            
+
             # 선택 표시 (선택된 패시브는 [*]로 표시)
             if is_selected:
                 checkmark = "[*]"
             else:
                 checkmark = "[ ]"
             menu_text = f"{checkmark} {passive_name} (코스트: {passive_cost})"
-            
-            # 해금 여부 확인 (현재는 unlocked만 확인)
-            enabled = unlocked
+
+            # 해금 여부 확인 (항상 true - 이미 unlocked인 것만 표시)
+            enabled = True
             
             menu_items.append(MenuItem(
                 text=menu_text,

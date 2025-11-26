@@ -1,5 +1,5 @@
 {
-  "star_fragments": 224,
+  "star_fragments": 1000,
   "unlocked_traits": {
     "alchemist": [
       "potion_mastery",
@@ -49,7 +49,10 @@
       "dragon_breath",
       "burning_rage"
     ],
-    "druid": [],
+    "druid": [
+      "nature_magic",
+      "animal_companion"
+    ],
     "elementalist": [
       "fire_spirit_power",
       "water_spirit_regeneration"
@@ -134,12 +137,16 @@
   "purchased_upgrades": [],
   "purchased_passives": [],
   "unlocked_jobs": [
-    "rogue",
-    "archer",
     "warrior",
     "archmage",
+    "archer",
+    "rogue",
+    "cleric",
+    "priest",
     "knight",
-    "cleric"
+    "paladin",
+    "assassin",
+    "monk"
   ],
   "intro_shown": true,
   "tutorial_offered": true
