@@ -10,7 +10,7 @@ from typing import List, Optional, Dict
 import tcod
 import random
 
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.core.logger import get_logger, Loggers
 from src.audio import play_sfx
 from src.equipment.item_system import (
@@ -1026,7 +1026,6 @@ def open_gold_shop(
         shop_type: 상점 종류 ("shop" 또는 "blacksmith")
     """
     shop_ui = GoldShopUI(console.width, console.height, inventory, floor_level, shop_type)
-    handler = InputHandler()
 
     logger.info("골드 상점 열림")
 
@@ -1037,7 +1036,7 @@ def open_gold_shop(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 should_close = shop_ui.handle_input(action)

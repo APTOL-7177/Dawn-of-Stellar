@@ -11,7 +11,7 @@ from enum import Enum
 
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.tcod_display import Colors
-from src.ui.input_handler import GameAction
+from src.ui.input_handler import GameAction, unified_input_handler
 from src.core.logger import get_logger
 from src.audio import play_bgm
 
@@ -483,14 +483,12 @@ def run_main_menu(console: tcod.console.Console, context: tcod.context.Context) 
     Returns:
         메뉴 선택 결과
     """
-    from src.ui.input_handler import InputHandler
     import time
 
     # 메인 메뉴 BGM 재생
     play_bgm("main_menu")
 
     menu = MainMenu(console.width, console.height)
-    handler = InputHandler()
 
     # 애니메이션을 위한 시간 관리
     last_time = time.time()
@@ -529,7 +527,7 @@ def run_main_menu(console: tcod.console.Console, context: tcod.context.Context) 
 
         # 입력 처리 (논블로킹)
         for event in tcod.event.get():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 if menu.handle_input(action):

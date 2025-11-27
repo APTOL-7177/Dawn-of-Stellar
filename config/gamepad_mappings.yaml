@@ -19,6 +19,7 @@
 layout: xbox          # 게임패드 레이아웃 (자동 감지됨: xbox/playstation/nintendo/generic)
 deadzone: 0.3         # 아날로그 스틱 데드존 (0.0-1.0, 기본값: 0.3)
 
+# Xbox 360 컨트롤러 전용 매핑
 button_mappings:
   0: confirm          # A/✕/A 버튼 - 확인/선택
   1: cancel           # B/○/B 버튼 - 취소

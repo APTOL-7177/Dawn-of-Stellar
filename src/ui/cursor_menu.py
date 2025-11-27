@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import tcod.console
 
 from src.ui.tcod_display import Colors
-from src.ui.input_handler import GameAction
+from src.ui.input_handler import GameAction, unified_input_handler
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
@@ -325,8 +325,6 @@ def show_teleporter_choice_menu(console: tcod.console.Console, context: tcod.con
         False: 취소
         None: 메뉴 취소됨
     """
-    from src.ui.input_handler import InputHandler, GameAction
-
     # 메뉴 아이템 생성
     menu_items = [
         MenuItem(
@@ -350,8 +348,6 @@ def show_teleporter_choice_menu(console: tcod.console.Console, context: tcod.con
         width=40
     )
 
-    handler = InputHandler()
-
     # 메뉴 루프
     while True:
         # 화면 렌더링
@@ -361,7 +357,7 @@ def show_teleporter_choice_menu(console: tcod.console.Console, context: tcod.con
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
             if action:
                 if action == GameAction.CONFIRM:
                     selected = menu.get_selected_item()

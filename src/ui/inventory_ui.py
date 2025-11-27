@@ -12,7 +12,7 @@ from enum import Enum
 from src.equipment.inventory import Inventory
 from src.equipment.item_system import Item, Equipment, Consumable, ItemType
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.core.logger import get_logger
 from src.audio import play_sfx
@@ -1886,7 +1886,6 @@ def open_inventory(
         on_update: 매 프레임 호출할 업데이트 함수 (봇 등 백그라운드 로직용)
     """
     ui = InventoryUI(console.width, console.height, inventory, party, exploration)
-    handler = InputHandler()
 
     logger.info("인벤토리 열기")
 
@@ -1901,7 +1900,7 @@ def open_inventory(
 
         # 입력 처리 (논블로킹)
         for event in tcod.event.wait(timeout=0.05):
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 if ui.handle_input(action):

@@ -9,6 +9,16 @@ import sys
 import argparse
 from pathlib import Path
 
+# 강제 콘솔 출력 설정 (Windows에서 문제 있을 수 있음)
+import os
+if os.name == 'nt':  # Windows
+    import msvcrt
+    # stdout을 unbuffered로 설정
+    sys.stdout = open(sys.stdout.fileno(), 'w', buffering=1)
+    sys.stderr = open(sys.stderr.fileno(), 'w', buffering=1)
+
+print("=== GAME STARTING ===")  # 게임 시작 즉시 표시
+
 # 프로젝트 루트를 Python 경로에 추가
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -135,10 +145,40 @@ def main() -> int:
         try:
             import pygame
             pygame.init()
+            results = pygame.init()  # 초기화 결과 확인
+            logger.info(f"pygame 초기화 결과: {results}")
+
             pygame.joystick.init()
-            logger.info("pygame 초기화 완료 (게임패드 지원 활성화)")
+            joystick_count = pygame.joystick.get_count()
+            print(f"Joystick initialized, connected count: {joystick_count}")  # 콘솔 직접 출력
+            logger.info(f"조이스틱 초기화 완료, 연결된 수: {joystick_count}")
+
+            # 연결된 게임패드 정보 출력
+            for i in range(joystick_count):
+                try:
+                    joy = pygame.joystick.Joystick(i)
+                    joy.init()
+                    print(f"Gamepad {i}: {joy.get_name()}")  # 콘솔 직접 출력
+                    logger.info(f"게임패드 {i}: {joy.get_name()}")
+                except Exception as e:
+                    print(f"Gamepad {i} initialization failed: {e}")
+                    logger.error(f"게임패드 {i} 초기화 실패: {e}")
+
+            # 게임패드 이벤트 활성화
+            pygame.event.set_allowed([
+                pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP,
+                pygame.JOYHATMOTION, pygame.JOYAXISMOTION,
+                pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED
+            ])
+            print("pygame gamepad events enabled")  # 콘솔 직접 출력
+            logger.info("pygame gamepad events enabled")
+
+            print("pygame initialization complete (gamepad support enabled)")  # 콘솔 직접 출력
+            logger.info("pygame initialization complete (gamepad support enabled)")
         except Exception as e:
-            logger.warning(f"pygame 초기화 실패 (게임패드 지원 비활성화): {e}")
+            logger.warning(f"pygame initialization failed (gamepad support disabled): {e}")
+            import traceback
+            logger.debug(f"pygame 초기화 상세 오류: {traceback.format_exc()}")
         logger.info("=" * 60)
         logger.info("Dawn of Stellar - 별빛의 여명 시작")
         logger.info(f"버전: {config.get('game.version', '5.0.0')}")

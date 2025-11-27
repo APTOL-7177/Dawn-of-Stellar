@@ -9,7 +9,7 @@ import tcod.event
 from typing import Optional
 
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.audio import play_sfx
 
 
@@ -32,7 +32,6 @@ def select_quantity(
         선택된 수량, 취소 시 None
     """
     selected_quantity = 1
-    handler = InputHandler()
     
     # 콘솔 크기 확인 (안전성을 위해)
     try:
@@ -84,22 +83,24 @@ def select_quantity(
         
         # 입력 처리
         for event in tcod.event.wait():
-            if isinstance(event, tcod.event.KeyDown):
-                shift_pressed = event.mod & (tcod.event.KMOD_LSHIFT | tcod.event.KMOD_RSHIFT)
+            action = unified_input_handler.process_tcod_event(event)
+
+            if action:
+                shift_pressed = False  # 게임패드에서는 쉬프트 개념이 없으므로 기본값 사용
                 step = 10 if shift_pressed else 1
-                
-                if event.sym == tcod.event.KeySym.LEFT:
+
+                if action == GameAction.MOVE_LEFT:
                     selected_quantity = max(1, selected_quantity - step)
                     play_sfx("ui", "cursor_move")
-                elif event.sym == tcod.event.KeySym.RIGHT:
+                elif action == GameAction.MOVE_RIGHT:
                     selected_quantity = min(max_quantity, selected_quantity + step)
                     play_sfx("ui", "cursor_move")
-                elif event.sym == tcod.event.KeySym.z:
+                elif action == GameAction.CONFIRM:
                     play_sfx("ui", "confirm")
                     return selected_quantity
-                elif event.sym == tcod.event.KeySym.x or event.sym == tcod.event.KeySym.ESCAPE:
+                elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
                     play_sfx("ui", "cursor_cancel")
                     return None
-            
+
             if isinstance(event, tcod.event.Quit):
                 return None

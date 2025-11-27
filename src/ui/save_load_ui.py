@@ -12,7 +12,7 @@ from enum import Enum
 
 from src.persistence.save_system import SaveSystem
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.ui.cursor_menu import CursorMenu, MenuItem, TextInputBox
 from src.core.logger import get_logger
 
@@ -444,7 +444,6 @@ def show_load_screen(
     """
     save_system = SaveSystem()
     ui = SaveLoadUI(console.width, console.height, SaveLoadMode.LOAD, save_system)
-    handler = InputHandler()
 
     logger.info("불러오기 화면 표시")
 
@@ -455,7 +454,7 @@ def show_load_screen(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 if ui.handle_input(action):

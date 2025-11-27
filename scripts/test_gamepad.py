@@ -19,37 +19,61 @@ from src.ui.input_handler import GamepadHandler, GameAction
 
 def test_gamepad():
     """게임패드 연결 및 입력 테스트"""
-    print("게임패드 테스트 시작...")
+    print("=== 게임패드 테스트 시작 ===")
 
     try:
+        print("1. pygame 초기화 시도...")
         # pygame 초기화
-        print("pygame 초기화 중...")
         pygame.init()
+        print("   ✓ pygame.init() 성공")
+
         pygame.joystick.init()
-        print("pygame 초기화 완료")
+        print("   ✓ pygame.joystick.init() 성공")
 
-        # 게임패드 핸들러 생성
-        print("게임패드 핸들러 생성 중...")
-        handler = GamepadHandler()
-        print("게임패드 핸들러 생성 완료")
+        joystick_count = pygame.joystick.get_count()
+        print(f"   연결된 조이스틱 수: {joystick_count}")
 
-        print(f"pygame.joystick.get_count(): {pygame.joystick.get_count()}")
-        print(f"게임패드 연결 상태: {handler.connected}")
-
-        if not handler.connected:
-            print("게임패드가 연결되어 있지 않습니다.")
-            print("게임패드를 연결하고 다시 실행해주세요.")
-            print("\n연결 가능한 조이스틱 목록:")
-            for i in range(pygame.joystick.get_count()):
-                try:
-                    joy = pygame.joystick.Joystick(i)
-                    print(f"  {i}: {joy.get_name()}")
-                except Exception as e:
-                    print(f"  {i}: 연결 실패 - {e}")
+        if joystick_count == 0:
+            print("No gamepad connected.")
+            print("\nTroubleshooting:")
+            print("1. Check if gamepad is properly connected to PC")
+            print("2. Check if gamepad drivers are installed")
+            print("3. Test USB port with another device")
+            print("4. For Bluetooth gamepads, check pairing status")
             return
 
+        print("\n2. Gamepad information:")
+        for i in range(joystick_count):
+            try:
+                joy = pygame.joystick.Joystick(i)
+                joy.init()
+                print(f"   Joystick {i}: {joy.get_name()}")
+                print(f"     - Buttons: {joy.get_numbuttons()}")
+                print(f"     - Axes: {joy.get_numaxes()}")
+                print(f"     - Hats: {joy.get_numhats()}")
+            except Exception as e:
+                print(f"   Joystick {i}: initialization failed - {e}")
+
+        print("\n3. 게임패드 핸들러 생성...")
+        # 게임패드 핸들러 생성
+        handler = GamepadHandler()
+        print("   게임패드 핸들러 생성 완료")
+
+        print(f"   게임패드 연결 상태: {handler.connected}")
+        if hasattr(handler, 'current_layout'):
+            print(f"   감지된 레이아웃: {handler.current_layout.value}")
+
+        if not handler.connected:
+            print("❌ 게임패드 핸들러 연결 실패")
+            return
+
+    except ImportError as e:
+        print(f"❌ pygame 임포트 실패: {e}")
+        print("pygame이 설치되어 있는지 확인해주세요.")
+        print("설치: pip install pygame")
+        return
     except Exception as e:
-        print(f"초기화 중 오류 발생: {e}")
+        print(f"❌ 초기화 중 오류 발생: {e}")
         import traceback
         traceback.print_exc()
         return
@@ -62,12 +86,12 @@ def test_gamepad():
         print(f"  축 수: {joystick.get_numaxes()}")
         print(f"  햇 수: {joystick.get_numhats()}")
 
-    print("\n현재 버튼 매핑:")
+    print("\nCurrent button mapping:")
     for button_id, action in handler.button_mappings.items():
-        print(f"  버튼 {button_id}: {action.value}")
+        print(f"  Button {button_id}: {action.value}")
 
-    print("\n테스트 시작... 버튼을 눌러보세요 (10초간)")
-    print("Ctrl+C로 중단")
+    print("\nTest starting... Press buttons (10 seconds)")
+    print("Ctrl+C to stop")
 
     try:
         start_time = time.time()
@@ -85,7 +109,7 @@ def test_gamepad():
     except KeyboardInterrupt:
         print("\n테스트 중단")
 
-    print("테스트 완료")
+    print("Test completed")
 
 
 if __name__ == "__main__":

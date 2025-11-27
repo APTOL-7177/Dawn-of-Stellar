@@ -14,6 +14,14 @@ import threading
 import time
 
 from src.core.logger import get_logger
+
+# inputs 라이브러리 (pygame보다 나은 Windows 지원)
+try:
+    from inputs import get_gamepad
+    INPUTS_AVAILABLE = True
+except ImportError:
+    INPUTS_AVAILABLE = False
+    print("Warning: inputs 라이브러리를 사용할 수 없습니다. pygame만 사용합니다.")
 from src.core.vibration_system import vibration_manager, vibration_listener
 
 
@@ -212,13 +220,16 @@ class GamepadHandler:
 
     def __init__(self) -> None:
         self.logger = get_logger("gamepad")
+        print("GamepadHandler initializing...")  # 초기화 시작 로그
 
         # pygame 초기화 (이미 초기화되어 있다면 생략)
         if not pygame.get_init():
             pygame.init()
+            print("pygame.init() called")
 
         # joystick 초기화
         pygame.joystick.init()
+        print("pygame.joystick.init() called")
 
         # 게임패드 인스턴스
         self.joystick: Optional[pygame.joystick.Joystick] = None
@@ -337,6 +348,10 @@ class GamepadHandler:
         # 아날로그 스틱 데드존
         self.deadzone = 0.3
 
+        # 이동 쿨타임 (초)
+        self.move_cooldown = 0.4
+        self.last_move_time = 0
+
         # 게임패드 연결 시도
         self._initialize_joystick()
 
@@ -431,29 +446,65 @@ class GamepadHandler:
     def _initialize_joystick(self) -> None:
         """게임패드 초기화"""
         try:
-            if pygame.joystick.get_count() > 0:
+            print("🎮 Initializing gamepad...")  # 디버깅용
+
+            # pygame 이벤트 초기화 (중요!)
+            pygame.event.get()  # 기존 이벤트 비우기
+            print("✅ pygame events cleared")  # 디버깅용
+
+            joystick_count = pygame.joystick.get_count()
+            self.logger.info(f"감지된 조이스틱 수: {joystick_count}")
+            print(f"📊 Detected joysticks: {joystick_count}")  # 디버깅용
+
+            if joystick_count == 0:
+                print("❌ No gamepads detected")
+                print("💡 Xbox 360 controller troubleshooting:")
+                print("   1. Connect with USB cable")
+                print("   2. Press center X button to power on")
+                print("   3. Check Windows 'Game controller settings'")
+                print("   4. Install Xbox Accessories app")
+                return
+
+            if joystick_count > 0:
                 self.joystick = pygame.joystick.Joystick(0)
                 self.joystick.init()
-                self.connected = True
 
-                # 레이아웃 자동 감지
                 joystick_name = self.joystick.get_name()
-                self.current_layout = self._detect_layout(joystick_name)
-                self.default_button_mappings = self.layout_mappings[self.current_layout]
+                self.logger.info(f"게임패드 초기화 시도: {joystick_name}")
 
-                # 진동 시스템에 게임패드 설정
-                vibration_manager.set_joystick(self.joystick)
+                # 버튼 수, 축 수 확인
+                num_buttons = self.joystick.get_numbuttons()
+                num_axes = self.joystick.get_numaxes()
+                num_hats = self.joystick.get_numhats()
 
-                self.logger.info(f"게임패드 연결됨: {joystick_name} (레이아웃: {self.current_layout.value})")
+                self.logger.info(f"게임패드 정보: 버튼={num_buttons}, 축={num_axes}, 햇={num_hats}")
 
-                # 초기 상태 저장
-                self._update_states()
+                if num_buttons > 0:  # 버튼이 하나라도 있어야 게임패드로 인정
+                    self.connected = True
+
+                    # 레이아웃 자동 감지
+                    self.current_layout = self._detect_layout(joystick_name)
+                    self.default_button_mappings = self.layout_mappings[self.current_layout]
+
+                    # 진동 시스템에 게임패드 설정
+                    vibration_manager.set_joystick(self.joystick)
+
+                    self.logger.info(f"Gamepad connected: {joystick_name} (layout: {self.current_layout.value})")
+
+                    # 초기 상태 저장
+                    self._update_states()
+                else:
+                    self.logger.warning(f"게임패드에 버튼이 없음: {joystick_name}")
+                    self.connected = False
+                    vibration_manager.set_joystick(None)
             else:
                 self.connected = False
                 vibration_manager.set_joystick(None)
-                self.logger.debug("게임패드 없음")
+                self.logger.debug("연결된 게임패드 없음")
         except Exception as e:
             self.logger.error(f"게임패드 초기화 실패: {e}")
+            import traceback
+            self.logger.error(f"상세 오류: {traceback.format_exc()}")
             self.connected = False
 
     def _update_states(self) -> None:
@@ -486,32 +537,73 @@ class GamepadHandler:
         if not self.connected or not self.joystick:
             return None
 
-        # 버튼 입력 확인
-        for button_id, action in self.button_mappings.items():
-            if button_id < self.joystick.get_numbuttons():
-                current_state = self.joystick.get_button(button_id)
-                prev_state = self.prev_button_states.get(button_id, False)
+        try:
+            # pygame 이벤트 큐 업데이트 (중요!)
+            pygame.event.pump()
 
-                # 버튼이 눌렸을 때만 액션 반환
-                if current_state and not prev_state:
-                    self.logger.debug(f"게임패드 버튼 {button_id} -> {action.value}")
-                    return action
+            # Windows에서는 pygame 이벤트가 제대로 작동하지 않는 경우가 많으므로
+            # 폴링 방식을 우선 사용하고 이벤트 방식은 디버깅용으로만 사용
+            pygame_events = pygame.event.get()
+            if pygame_events:  # 이벤트가 있을 때만 처리
+                print(f"Gamepad events: {len(pygame_events)} detected")  # 디버깅용
+                for event in pygame_events:
+                    if event.type == pygame.JOYBUTTONDOWN:
+                        print(f"Event: JOYBUTTONDOWN, button {event.button}")  # 디버깅용
+                    elif event.type == pygame.JOYHATMOTION:
+                        print(f"Event: JOYHATMOTION, value {event.value}")  # 디버깅용
 
-        # D-pad 입력 확인
-        for hat_id in range(self.joystick.get_numhats()):
-            current_hat = self.joystick.get_hat(hat_id)
-            prev_hat = self.prev_hat_states.get(hat_id, (0, 0))
+            # 폴링 방식으로 입력 확인 (Windows에서 더 안정적)
+            # 버튼 입력 확인 (직접 폴링)
+            for button_id, action in self.button_mappings.items():
+                if button_id < self.joystick.get_numbuttons():
+                    current_state = self.joystick.get_button(button_id)
+                    prev_state = self.prev_button_states.get(button_id, False)
 
-            if current_hat != prev_hat and current_hat != (0, 0):
-                action = self.hat_mappings.get(current_hat)
-                if action:
-                    self.logger.debug(f"게임패드 D-pad {current_hat} -> {action.value}")
-                    return action
+                    # 디버깅: 버튼 상태 변화 출력
+                    if current_state != prev_state:
+                        print(f"Button {button_id} state change: {prev_state} -> {current_state}")
 
-        # 아날로그 스틱 입력 확인 (디지털 입력으로 변환)
-        action = self._get_analog_stick_action()
-        if action:
-            return action
+                    # 버튼이 눌렸을 때만 액션 반환
+                    if current_state and not prev_state:
+                        print(f"Gamepad button input (polling): {button_id} -> {action.value}")  # 콘솔 직접 출력
+                        self.logger.info(f"Gamepad button input (polling): {button_id} -> {action.value}")
+                        # 상태 업데이트 후 액션 반환
+                        self._update_states()
+                        return action
+
+            # D-pad 입력 확인 (직접 폴링)
+            for hat_id in range(self.joystick.get_numhats()):
+                current_hat = self.joystick.get_hat(hat_id)
+                prev_hat = self.prev_hat_states.get(hat_id, (0, 0))
+
+                # 디버깅: D-pad 상태 변화 출력
+                if current_hat != prev_hat:
+                    print(f"D-pad {hat_id} state change: {prev_hat} -> {current_hat}")
+
+                if current_hat != prev_hat and current_hat != (0, 0):
+                    action = self.hat_mappings.get(current_hat)
+                    if action:
+                        print(f"Gamepad D-pad input (polling): {current_hat} -> {action.value}")  # 콘솔 직접 출력
+                        self.logger.info(f"Gamepad D-pad input (polling): {current_hat} -> {action.value}")
+                        # 상태 업데이트 후 액션 반환
+                        self._update_states()
+                        return action
+
+            # 아날로그 스틱 입력 확인 (디지털 입력으로 변환)
+            action = self._get_analog_stick_action()
+            if action:
+                print(f"Gamepad analog stick input: {action.value}")  # 콘솔 직접 출력
+                self.logger.info(f"Gamepad analog stick input: {action.value}")
+                # 상태 업데이트 후 액션 반환
+                self._update_states()
+                return action
+
+        except Exception as e:
+            print(f"Gamepad input processing error: {e}")
+            self.logger.error(f"Gamepad input processing error: {e}")
+
+        # 상태 업데이트 (다음 입력 감지를 위해)
+        self._update_states()
 
         return None
 
@@ -520,45 +612,56 @@ class GamepadHandler:
         if not self.joystick:
             return None
 
+        # 이동 쿨타임 체크
+        current_time = time.time()
+        if current_time - self.last_move_time < self.move_cooldown:
+            return None
+
         # 왼쪽 스틱 (보통 axis 0=x, 1=y)
         if self.joystick.get_numaxes() >= 2:
             x_axis = self.joystick.get_axis(0)
             y_axis = self.joystick.get_axis(1)
 
-            # 데드존 적용
-            if abs(x_axis) > self.deadzone or abs(y_axis) > self.deadzone:
+            # 더 엄격한 데드존 적용 (0.5로 증가)
+            strict_deadzone = 0.5
+            if abs(x_axis) > strict_deadzone or abs(y_axis) > strict_deadzone:
                 # 8방향 입력 계산
-                if y_axis < -self.deadzone and x_axis < -self.deadzone:
+                if y_axis < -strict_deadzone and x_axis < -strict_deadzone:
+                    self.last_move_time = current_time
                     return GameAction.MOVE_UP_LEFT
-                elif y_axis < -self.deadzone and x_axis > self.deadzone:
+                elif y_axis < -strict_deadzone and x_axis > strict_deadzone:
+                    self.last_move_time = current_time
                     return GameAction.MOVE_UP_RIGHT
-                elif y_axis > self.deadzone and x_axis < -self.deadzone:
+                elif y_axis > strict_deadzone and x_axis < -strict_deadzone:
+                    self.last_move_time = current_time
                     return GameAction.MOVE_DOWN_LEFT
-                elif y_axis > self.deadzone and x_axis > self.deadzone:
+                elif y_axis > strict_deadzone and x_axis > strict_deadzone:
+                    self.last_move_time = current_time
                     return GameAction.MOVE_DOWN_RIGHT
-                elif y_axis < -self.deadzone:
+                elif y_axis < -strict_deadzone:
+                    self.last_move_time = current_time
                     return GameAction.MOVE_UP
-                elif y_axis > self.deadzone:
+                elif y_axis > strict_deadzone:
+                    self.last_move_time = current_time
                     return GameAction.MOVE_DOWN
-                elif x_axis < -self.deadzone:
+                elif x_axis < -strict_deadzone:
+                    self.last_move_time = current_time
                     return GameAction.MOVE_LEFT
-                elif x_axis > self.deadzone:
+                elif x_axis > strict_deadzone:
+                    self.last_move_time = current_time
                     return GameAction.MOVE_RIGHT
 
         return None
 
     def update(self) -> None:
-        """프레임마다 호출하여 상태 업데이트"""
-        if self.connected and self.joystick:
-            self._update_states()
-        else:
-            # 연결 상태 확인
-            if pygame.joystick.get_count() > 0 and not self.connected:
-                self._initialize_joystick()
-            elif pygame.joystick.get_count() == 0 and self.connected:
-                self.connected = False
-                self.joystick = None
-                self.logger.info("게임패드 연결 해제됨")
+        """프레임마다 호출하여 연결 상태 확인"""
+        # 연결 상태만 확인 (상태 업데이트는 get_action()에서 처리)
+        if pygame.joystick.get_count() > 0 and not self.connected:
+            self._initialize_joystick()
+        elif pygame.joystick.get_count() == 0 and self.connected:
+            self.connected = False
+            self.joystick = None
+            self.logger.info("게임패드 연결 해제됨")
 
     def get_direction(self, action: GameAction) -> Optional[Tuple[int, int]]:
         """
@@ -614,11 +717,14 @@ class UnifiedInputHandler:
 
     def process_tcod_event(self, event) -> Optional[GameAction]:
         """tcod 이벤트를 처리하여 액션 반환"""
+        # 게임패드 입력 우선 확인
+        gamepad_action = self.gamepad_handler.get_action()
+        if gamepad_action:
+            return gamepad_action
+
+        # 키보드 입력 처리
         return self.keyboard_handler.dispatch(event)
 
-    def update_gamepad(self) -> None:
-        """게임패드 상태 업데이트"""
-        self.gamepad_handler.update()
 
     def get_direction(self, action: GameAction) -> Optional[Tuple[int, int]]:
         """액션을 방향 벡터로 변환"""

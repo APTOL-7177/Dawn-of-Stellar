@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from enum import Enum
 import tcod
 import random
+import pygame
 
 from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.cursor_menu import CursorMenu, MenuItem
@@ -4702,8 +4703,9 @@ def run_combat(
 
     # 전투 루프
     while not ui.battle_ended:
-        # 게임패드 상태 업데이트
-        unified_input_handler.update_gamepad()
+        # pygame 이벤트 처리 (게임패드 입력을 위해) - 더 자주 호출
+        pygame.event.pump()  # pygame 이벤트 큐 업데이트
+        print("PUMP", end=' ')  # 간단한 디버깅 표시
 
         # 업데이트
         ui.update(delta_time=1.0)
@@ -4715,17 +4717,28 @@ def run_combat(
         # 입력 처리
         action = None
 
-        # tcod 이벤트 처리 (키보드/마우스)
-        for event in tcod.event.wait(timeout=0.016):  # ~60 FPS
-            action = handler.dispatch(event)
+        # 게임패드 입력 우선 확인
+        print("CHK_GP", end=' ')  # 간단한 디버깅 표시
+        action = unified_input_handler.get_action()
+        if action:
+            print(f"GAMEPAD_ACTION: {action.name}")  # 액션 감지 시 큰 표시
 
-            # 윈도우 닫기는 무시 (전투 중에는 도주 명령으로만 종료 가능)
-            # if isinstance(event, tcod.event.Quit):
-            #     return CombatState.FLED
-
-        # 게임패드 입력 확인 (tcod 이벤트가 없을 때만)
+        # tcod 이벤트 처리 (키보드/마우스) - 게임패드 입력이 없을 때만
         if not action:
-            action = unified_input_handler.gamepad_handler.get_action()
+            print("CHK_KB", end=' ')  # 간단한 디버깅 표시
+            # tcod 이벤트는 non-blocking으로 변경
+            events = tcod.event.get()  # wait 대신 get 사용
+            for event in events:
+                action = unified_input_handler.process_tcod_event(event)
+                if action:
+                    print(f"KEYBOARD_ACTION: {action.name}")  # 액션 감지 시 큰 표시
+                if action:
+                    print(f"✅ 키보드 액션 감지: {action}")  # 디버깅용
+                    break
+
+                # 윈도우 닫기는 무시 (전투 중에는 도주 명령으로만 종료 가능)
+                # if isinstance(event, tcod.event.Quit):
+                #     return CombatState.FLED
 
         if action:
             if ui.handle_input(action):

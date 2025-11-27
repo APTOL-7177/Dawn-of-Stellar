@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Optional, List
 import tcod
 
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 
@@ -184,7 +184,6 @@ def open_game_menu(
         선택된 메뉴 옵션
     """
     menu = GameMenu(console.width, console.height, exploration=exploration)
-    handler = InputHandler()
 
     logger.info(f"게임 메뉴 열림 (마을: {menu.is_town})")
 
@@ -195,7 +194,7 @@ def open_game_menu(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 result = menu.handle_input(action)
@@ -502,7 +501,7 @@ def open_party_status_menu(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action == GameAction.MOVE_UP:
                 selected_index = max(0, selected_index - 1)
@@ -639,7 +638,7 @@ def show_character_detail(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action == GameAction.ESCAPE or action == GameAction.MENU or action == GameAction.CONFIRM:
                 return

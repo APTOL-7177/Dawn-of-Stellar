@@ -2,7 +2,7 @@ from typing import Optional, List
 import tcod
 
 from src.ui.cursor_menu import CursorMenu, MenuItem
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.core.logger import get_logger, Loggers
 from src.audio import play_sfx
 from src.ui.tcod_display import render_popup_background
@@ -202,14 +202,13 @@ class AnvilUI:
 def open_anvil_ui(console, context, inventory, target_tile):
     """모루 UI 열기"""
     ui = AnvilUI(console.width, console.height, inventory, target_tile)
-    handler = InputHandler()
     
     while True:
         ui.render(console)
         context.present(console)
         
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
             if action:
                 if ui.handle_input(action):
                     return

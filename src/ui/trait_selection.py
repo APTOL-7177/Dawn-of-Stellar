@@ -14,7 +14,7 @@ from pathlib import Path
 
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.core.logger import get_logger
 from src.core.config import get_config
 from src.persistence.meta_progress import get_meta_progress
@@ -398,7 +398,6 @@ def run_trait_selection(
         선택된 특성 리스트 또는 None (취소 시)
     """
     selection = TraitSelection(party_members, console.width, console.height)
-    handler = InputHandler()
 
     while True:
         # 렌더링
@@ -407,7 +406,7 @@ def run_trait_selection(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 if selection.handle_input(action):

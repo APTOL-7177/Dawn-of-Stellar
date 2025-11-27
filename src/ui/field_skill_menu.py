@@ -8,7 +8,7 @@ from enum import Enum
 from typing import List, Optional
 import tcod
 
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.tcod_display import render_space_background, Colors
 from src.core.logger import get_logger, Loggers
 from src.field.field_skills import FieldSkillManager
@@ -75,7 +75,7 @@ class FieldSkillMenu:
             for i in range(max_display):
                 skill_type = self.field_skills[i]
                 skill_name = getattr(skill_type, 'name', str(skill_type))
-                console.print(6, skill_list_y + i, f"• {skill_name}", fg=Colors.LIGHT_BLUE)
+                console.print(6, skill_list_y + i, f"• {skill_name}", fg=Colors.CYAN)
 
             if len(self.field_skills) > max_display:
                 console.print(6, skill_list_y + max_display, f"... 외 {len(self.field_skills) - max_display}개", fg=Colors.GRAY)
@@ -114,12 +114,11 @@ def open_field_skill_menu(console: tcod.console.Console, context: tcod.context.C
     play_sfx("ui", "cursor_confirm")
 
     menu = FieldSkillMenu(console.width, console.height)
-    handler = InputHandler()
 
     while True:
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
             if action:
                 result = menu.handle_input(action)
                 if result == FieldSkillMenuOption.BACK:

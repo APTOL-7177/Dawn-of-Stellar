@@ -7,6 +7,7 @@
 from typing import List, Optional, Tuple
 import tcod
 import time
+import pygame
 
 # ExplorationEvent를 먼저 import하여 지역 변수 충돌 방지
 from src.world.exploration import ExplorationEvent, ExplorationResult, ExplorationSystem
@@ -1696,7 +1697,7 @@ def run_exploration(
     play_bgm_on_start: bool = True,
     network_manager=None,
     local_player_id=None
-) -> str:
+) -> tuple:
     """
     탐험 실행
 
@@ -1835,11 +1836,11 @@ def run_exploration(
     while True:
         # 메인 루프에서도 업데이트 실행
         update_game_state()
-        
-        # ... (기존 코드) ...
-        
-        # 게임패드 상태 업데이트
-        unified_input_handler.update_gamepad()
+
+        # pygame 이벤트 처리 (게임패드 입력을 위해) - 더 자주 호출
+        pygame.event.pump()  # pygame 이벤트 큐 업데이트
+        # print("🔄 pygame.event.pump() 호출됨", end='\r')  # 디버깅용 (필요시 활성화)
+
 
         # 렌더링
         ui.render(console)
@@ -1849,14 +1850,20 @@ def run_exploration(
         action = None
         key_event = None
 
-        # tcod 이벤트 처리 (키보드/마우스)
-        for event in tcod.event.wait(timeout=0.05):
-            action = handler.dispatch(event)
-            key_event = event if isinstance(event, tcod.event.KeyDown) else None
+        # 게임패드 입력 우선 확인
+        # print("🔍 게임패드 입력 확인 시작", end='\r')  # 디버깅용 (필요시 활성화)
+        action = unified_input_handler.get_action()
+        # if action:
+        #     print(f"✅ 게임패드 액션 감지: {action}")  # 디버깅용 (필요시 활성화)
 
-        # 게임패드 입력 확인 (tcod 이벤트가 없을 때만)
+        # tcod 이벤트 처리 (키보드/마우스) - 게임패드 입력이 없을 때만
         if not action:
-            action = unified_input_handler.gamepad_handler.get_action()
+            # print("⌨️ 키보드 입력 확인 시작", end='\r')  # 디버깅용 (필요시 활성화)
+            # tcod 이벤트는 non-blocking으로 변경
+            events = tcod.event.get()  # wait 대신 get 사용
+            for event in events:
+                action = unified_input_handler.process_tcod_event(event)
+                key_event = event if isinstance(event, tcod.event.KeyDown) else None
 
         if action or key_event:
             # Debug: 액션 수신
@@ -1917,3 +1924,6 @@ def run_exploration(
             return ("combat", combat_data)
         elif ui.floor_change_requested:
             return (ui.floor_change_requested, None)
+
+    # 기본값 반환 (예외 상황 대비)
+    return ("quit", None)
