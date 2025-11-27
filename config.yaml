@@ -89,7 +89,7 @@ audio:
       attack_physical: Damage3
       battle_start: Battle1
       break: Break
-      critical: Critical
+      critical: Damage5
       damage_high: Damage3
       damage_low: Damage1
       dodge: Evasion1
@@ -119,11 +119,11 @@ audio:
       cast_complete: Magic2
       cast_start: Magic1
       computer: Computer
-      confusion: Confusion1
+      confusion: Blind
       cure: Heal1
       cure2: Heal1
       cure3: Heal1
-      dark: Dark1
+      dark: Darkness3
       earth: Earth1
       fire: Fire1
       fire2: Fire2
@@ -136,13 +136,13 @@ audio:
       ice: Ice1
       ice3: Ice3
       laser: Laser1
-      limit_break: Critical
+      limit_break: Damage5
       load: Load1
       machine: Machine
-      poison: Poison1
+      poison: Poison
       protect: Barrier
       reflect: Reflection
-      roar: Roar1
+      roar: Blow10
       save: Save1
       shell: Barrier
       slash: Slash1
@@ -182,7 +182,7 @@ audio:
       land: Move2
       lever: Switch1
       pressure_plate: Switch1
-      rest: Inn1
+      rest: Recovery
       save: Save1
       stairs: Move1
       stairs_down: Move1
