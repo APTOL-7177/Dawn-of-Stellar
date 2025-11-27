@@ -234,9 +234,10 @@ def get_animation_manager() -> GaugeAnimationManager:
 
 class GaugeRenderer:
     """게이지 렌더러 - 커스텀 타일셋 기반 픽셀 단위 렌더링"""
-    
+
     # 분할 수 (타일셋과 동일해야 함)
     DIVISIONS = 32
+    _hp_bar_debug_logged = False  # 디버그 로깅 플래그
 
     @staticmethod
     def render_bar(
@@ -440,9 +441,9 @@ class GaugeRenderer:
         divisions = GaugeRenderer.DIVISIONS
 
         # 디버깅: tile_manager 상태 로깅 (한 번만)
-        if not hasattr(render_animated_hp_bar, '_debug_logged'):
+        if not GaugeRenderer._hp_bar_debug_logged:
             logger.info(f"[HP 게이지 렌더링] tile_manager={tile_manager is not None}, is_initialized={tile_manager.is_initialized() if tile_manager else False}, use_tiles={use_tiles}")
-            render_animated_hp_bar._debug_logged = True
+            GaugeRenderer._hp_bar_debug_logged = True
         
         # 유효 최대 HP (상처로 제한됨)
         effective_max_hp = max(1, max_hp - wound_damage)
@@ -637,7 +638,8 @@ class GaugeRenderer:
                 # 상처가 셀 전체를 채움 - 배경색 + 빗금 타일 오버레이로 픽셀 정확도
                 if use_tiles:
                     console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
-                    tile_char = tile_manager.get_tile_char('wound_stripe', i / divisions)
+                    # 절대 X 좌표로 빗금 연속성 보장
+                    tile_char = tile_manager.get_tile_char('wound_stripe', (x + i) % tile_manager.tile_width / tile_manager.tile_width)
                     console.print(x + i, y, tile_char, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
                 else:
                     stripe_bg = bg_color if i % 2 == 0 else wound_stripe_color
@@ -652,7 +654,8 @@ class GaugeRenderer:
                         hp_color=fg_color,
                         bg_color=bg_color,
                         wound_color=wound_bg_color,
-                        wound_stripe_color=wound_stripe_color
+                        wound_stripe_color=wound_stripe_color,
+                        cell_index=x + i  # 절대 화면 X 좌표로 빗금 연속성 보장
                     )
                     if boundary_tile and boundary_tile.strip():
                         console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_NONE)
@@ -695,7 +698,8 @@ class GaugeRenderer:
                         hp_color=fg_color,
                         bg_color=bg_color,
                         wound_color=wound_bg_color,
-                        wound_stripe_color=wound_stripe_color
+                        wound_stripe_color=wound_stripe_color,
+                        cell_index=x + i  # 절대 화면 X 좌표로 빗금 연속성 보장
                     )
                     if boundary_tile and boundary_tile.strip():
                         console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_NONE)

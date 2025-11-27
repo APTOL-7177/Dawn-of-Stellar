@@ -362,8 +362,8 @@ class GaugeTileManager:
         # E800 ~ EFFF 범위 사용 (기존 E000~E7FF 외)
         # 캐시 키는 양자화된 divisions 값 사용 (더 안정적, 애니메이션 중 변화 없음)
         # 색상 해시 충돌 방지: 실제 색상값 포함
-        # cell_index는 제거 (렌더링 시 동적으로 오프셋 보정) → 캐시 효율성 대폭 향상
-        cache_key = (hp_pixels, wound_pixels, hp_color, bg_color, wound_color, wound_stripe_color)
+        # cell_index % 5로 캐싱 (stripe_period=5이므로 5개만 캐시하면 됨) → 효율적이면서 빗금 연속성 보장
+        cache_key = (hp_pixels, wound_pixels, hp_color, bg_color, wound_color, wound_stripe_color, cell_index % 5)
         
         # 캐시된 코드포인트가 있으면 재용
         if not hasattr(self, '_boundary_tile_cache'):
@@ -442,10 +442,9 @@ class GaugeTileManager:
         stripe_gap = 3
         stripe_period = stripe_width + stripe_gap
 
-        # 빗금 오프셋: 기준점 0으로 사용 (렌더링 시 동적 오프셋 보정)
-        # 렌더링할 때 절대 화면 X 좌표를 이용해 오프셋을 동적으로 계산하므로
-        # 타일 자체는 고정된 오프셋으로 생성하면 화면 전체에서 연속된 패턴이 나타남
-        x_offset = 0
+        # 빗금 오프셋: cell_index % stripe_period로 패턴 위상 결정
+        # 절대 화면 X 좌표를 사용하여 계속된 빗금 패턴 보장
+        x_offset = cell_index % stripe_period
         
         # 상처 시작점 (오른쪽에서 actual_wound_pixels만큼)
         # 빈 HP 영역이 있을 수 있으므로 계산
