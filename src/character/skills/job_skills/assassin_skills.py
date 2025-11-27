@@ -4,6 +4,7 @@ from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.status_effect import StatusEffect
 from src.character.skills.costs.mp_cost import MPCost
 
 def create_assassin_skills():
@@ -157,7 +158,14 @@ def register_assassin_skills(skill_manager):
         "단일 대상 BRV+HP (2.0x → HP 변환) + 은신 상태로 전환 + 다음 공격 크리티컬률 +50%",
         gauge_cost=125
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 단일 대상 BRV+HP (2.0x → HP 변환)
+        DamageEffect(DamageType.BRV_HP, multiplier=2.0),
+        # 은신 상태로 전환
+        StatusEffect("STEALTH", duration=1),
+        # 다음 공격 크리티컬률 +50%
+        BuffEffect(BuffType.CRITICAL_UP, 0.5, duration=1)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

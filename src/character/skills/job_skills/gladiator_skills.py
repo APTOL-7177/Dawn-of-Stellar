@@ -153,7 +153,14 @@ def register_gladiator_skills(skill_manager):
         "단일 대상 BRV+HP (2.0x → HP 변환) + crowd_cheer 게이지 +30 + 자신 방어력 1.2배 (2턴)",
         gauge_cost=125
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 단일 대상 BRV+HP (2.0x → HP 변환)
+        DamageEffect(DamageType.BRV_HP, multiplier=2.0),
+        # crowd_cheer 게이지 +30
+        GimmickEffect(GimmickOperation.ADD, "crowd_cheer", 30),
+        # 자신 방어력 1.2배 (2턴)
+        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=2)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

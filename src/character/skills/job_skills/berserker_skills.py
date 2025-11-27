@@ -2,6 +2,7 @@
 from src.character.skills.skill import Skill
 from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
+from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.effects.heal_effect import HealEffect
 from src.character.skills.costs.mp_cost import MPCost
@@ -150,7 +151,14 @@ def register_berserker_skills(skill_manager):
         "단일 대상 BRV+HP (1.6x → HP 변환) + 광기 +20 + 자신 공격력 1.2배 (2턴)",
         gauge_cost=100
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 단일 대상 BRV+HP (1.6x → HP 변환)
+        DamageEffect(DamageType.BRV_HP, multiplier=1.6),
+        # 광기 +20
+        GimmickEffect(GimmickOperation.ADD, "rage", 20),
+        # 자신 공격력 1.2배 (2턴)
+        BuffEffect(BuffType.ATTACK_UP, 0.2, duration=2)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

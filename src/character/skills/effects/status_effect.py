@@ -18,6 +18,11 @@ class StatusType:
     DEFENSE_DOWN = "defense_down"
     ATTACK_DOWN = "attack_down"
 
+    # 팀워크 스킬용 특수 상태
+    STEALTH = "stealth"  # 은신
+    HP_RECOVERY_BLOCK = "hp_recovery_block"  # HP 회복 불가
+    CURSE_MARK = "curse_mark"  # 저주 낙인
+
     # 특수 마크
     RUNE = "rune"  # 룬 각인
     MARK = "mark"  # 표식
@@ -118,6 +123,9 @@ class StatusEffect(SkillEffect):
                 'haste': StatusType.HASTE,
                 'regen': StatusType.REGENERATION,
                 'regeneration': StatusType.REGENERATION,
+                'stealth': StatusType.STEALTH,
+                'hp_recovery_block': StatusType.HP_RECOVERY_BLOCK,
+                'curse_mark': StatusType.CURSE_MARK,
             }
 
             status_enum = status_type_map.get(self.status_type.lower())

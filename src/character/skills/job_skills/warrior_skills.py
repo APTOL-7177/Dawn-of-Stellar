@@ -161,8 +161,9 @@ def create_warrior_skills():
         gauge_cost=125
     )
     teamwork.effects = [
-        DamageEffect(DamageType.BRV, 2.2),
-        DamageEffect(DamageType.HP, 1.0),
+        # 단일 대상 BRV+HP 공격 (2.2x → HP 변환)
+        DamageEffect(DamageType.BRV_HP, multiplier=2.2),
+        # 현재 스탠스 유지 (메타데이터로 처리)
     ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")

@@ -165,7 +165,14 @@ def register_priest_skills(skill_manager):
         "아군 전체 최대 HP의 40% 회복 + 전체에 REGEN (최대 HP의 5%씩, 3턴) + 신성력 +2",
         gauge_cost=125
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 아군 전체 최대 HP의 40% 회복
+        HealEffect(percentage=0.4, is_party_wide=True),
+        # 전체에 REGEN (최대 HP의 5%씩, 3턴)
+        BuffEffect(BuffType.HP_REGEN, 0.05, duration=3, is_party_wide=True),
+        # 신성력 +2
+        GimmickEffect(GimmickOperation.ADD, "divine_power", 2)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}
