@@ -468,24 +468,24 @@ def open_party_status_menu(
                 max_hp = getattr(member, 'max_hp', 1)
                 if current_hp is not None and max_hp is not None:
                     console.print(7, y, "HP:", fg=(200, 200, 200))
-                    member_id = f"party_{i}_{getattr(member, 'id', id(member))}"
+                    hp_member_id = f"party_hp_{i}_{getattr(member, 'id', id(member))}"
                     wound_damage = getattr(member, 'wound', 0)
                     gauge_renderer.render_animated_hp_bar(
                         console, 11, y, 15,
-                        current_hp, max_hp, member_id,
+                        current_hp, max_hp, hp_member_id,
                         wound_damage=wound_damage, show_numbers=True
                     )
                     y += 1
-                
+
                 # MP (애니메이션 게이지)
                 current_mp = getattr(member, 'current_mp', 0)
                 max_mp = getattr(member, 'max_mp', 1)
                 if current_mp is not None and max_mp is not None:
                     console.print(7, y, "MP:", fg=(200, 200, 200))
-                    member_id = f"party_{i}_{getattr(member, 'id', id(member))}"
+                    mp_member_id = f"party_mp_{i}_{getattr(member, 'id', id(member))}"
                     gauge_renderer.render_animated_mp_bar(
                         console, 11, y, 15,
-                        current_mp, max_mp, member_id,
+                        current_mp, max_mp, mp_member_id,
                         show_numbers=True
                     )
                     y += 1
@@ -567,11 +567,11 @@ def show_character_detail(
         # HP (애니메이션 게이지 사용)
         if hasattr(character, 'current_hp') and hasattr(character, 'max_hp'):
             console.print(10, y, "HP:", fg=(200, 200, 200))
-            character_id = f"detail_{getattr(character, 'id', id(character))}"
+            hp_character_id = f"detail_hp_{getattr(character, 'id', id(character))}"
             wound_damage = getattr(character, 'wound', 0)
             gauge_renderer.render_animated_hp_bar(
                 console, 14, y, 30,
-                character.current_hp, character.max_hp, character_id,
+                character.current_hp, character.max_hp, hp_character_id,
                 wound_damage=wound_damage, show_numbers=True
             )
             y += 1
@@ -579,10 +579,10 @@ def show_character_detail(
         # MP (애니메이션 게이지 사용)
         if hasattr(character, 'current_mp') and hasattr(character, 'max_mp'):
             console.print(10, y, "MP:", fg=(200, 200, 200))
-            character_id = f"detail_{getattr(character, 'id', id(character))}"
+            mp_character_id = f"detail_mp_{getattr(character, 'id', id(character))}"
             gauge_renderer.render_animated_mp_bar(
                 console, 14, y, 30,
-                character.current_mp, character.max_mp, character_id,
+                character.current_mp, character.max_mp, mp_character_id,
                 show_numbers=True
             )
             y += 2

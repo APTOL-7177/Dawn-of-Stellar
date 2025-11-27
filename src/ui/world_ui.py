@@ -1345,7 +1345,13 @@ class WorldUI:
             
             wound_damage = getattr(member, 'wound', 0)  # Character 클래스의 wound 속성
             entity_id = f"field_ally_{i}_{member_name}"
-            
+
+            # 디버그: 모든 아군의 wound 값 로깅 (DEBUG 레벨로만 출력)
+            from src.core.logger import get_logger
+            logger = get_logger("world_ui")
+            if wound_damage > 0:  # 상처가 있는 경우만 로깅
+                logger.debug(f"[아군 상처] {member_name}: wound={wound_damage}")
+
             # HP 게이지 (전투 UI와 동일 - 애니메이션 + 상처 표시 + 숫자)
             console.print(x, my + 1, "HP:", fg=(200, 200, 200))
             self.gauge_renderer.render_animated_hp_bar(

@@ -86,7 +86,8 @@ class AnimatedValue:
             new_target: 목표 값
             delay: 애니메이션 시작 지연 시간 (초)
         """
-        if new_target != self.target:
+        # delay가 제공되면 항상 업데이트 (같은 값이어도 delay 적용)
+        if new_target != self.target or delay > 0.0:
             self.previous = self.current
             self.target = new_target
             self.start_time = time.time() + delay  # 지연 시간 추가
@@ -452,9 +453,13 @@ class GaugeRenderer:
         effective_max_hp = max(1, max_hp - wound_damage)
         
         # 애니메이션 값 가져오기
+        # 로거 초기화 (함수 시작 부분에서)
+        from src.core.logger import get_logger
+        logger_gauge = get_logger("gauge_debug")
+        
         anim = anim_mgr.get_animated_value(f"{entity_id}_hp", current_hp, max_hp, duration=0.8)
         
-        # 트레일 애니메이션 값 (HP와 같은 값)
+        # 트레일 애니메이션 값 (HP와 같은 값, HP 레이어 아래에 깔림)
         trail_anim = anim_mgr.get_animated_value(f"{entity_id}_hp_trail", current_hp, max_hp, duration=0.8)
         
         # 증가/감소 판단을 위해 이전 값 확인
@@ -462,18 +467,19 @@ class GaugeRenderer:
         is_healing = current_hp > prev_hp
         is_damaging = current_hp < prev_hp
         
-        # 감소 시: HP 먼저, 트레일 2초 지연
-        # 증가 시: 트레일 먼저, HP 2초 지연
-        if is_damaging:
-            # HP 먼저 움직임 (지연 없음)
-            anim.set_target(current_hp, delay=0.0)
-            # 트레일 2초 지연
-            trail_anim.set_target(current_hp, delay=2.0)
-        elif is_healing:
-            # 트레일 먼저 움직임 (지연 없음)
+        # 트레일 로직:
+        # - HP 증가(회복): 트레일 먼저 증가 → 2초 후 HP 따라옴
+        # - HP 감소(데미지): HP 먼저 감소 → 2초 후 트레일 따라옴
+        if is_healing:
+            # 회복: 트레일 먼저 (지연 없음)
             trail_anim.set_target(current_hp, delay=0.0)
             # HP 2초 지연
             anim.set_target(current_hp, delay=2.0)
+        elif is_damaging:
+            # 데미지: HP 먼저 (지연 없음)
+            anim.set_target(current_hp, delay=0.0)
+            # 트레일 2초 지연
+            trail_anim.set_target(current_hp, delay=2.0)
         else:
             # 변화 없음 - 둘 다 지연 없이 설정
             anim.set_target(current_hp, delay=0.0)
@@ -514,8 +520,6 @@ class GaugeRenderer:
         # 데미지 트레일 (감소) / 회복 트레일 (증가)
         damage_trail_color = (200, 100, 50)  # 주황색 (감소)
         heal_trail_color = (100, 255, 150)   # 밝은 녹색 (증가)
-        wound_color = (80, 35, 55)  # 어두운 보라빨간색 (상처 영역)
-        wound_bg_color = (15, 10, 12)  # 상처 영역 배경 (더 어둡게)
         
         # === 레이어 방식 렌더링 ===
         # 레이어 순서: 1.배경 → 2.HP바 → 3.상처(HP 위에 덮어씌움)
@@ -596,12 +600,66 @@ class GaugeRenderer:
         # 중간 지점 셀 인덱스 (오른쪽 절반 시작)
         half_cell_index = width // 2
         
-        # 레이어 2: HP 렌더링용 픽셀 계산
-        render_pixels = min(hp_pixels, display_pixels) if is_increasing else hp_pixels
+        # 트레일 픽셀 계산 (HP와 동일한 방식, 상처 제한도 동일)
+        trail_pixels = min(int(trail_ratio * total_pixels), wound_start_pixel) if wound_pixels > 0 else int(trail_ratio * total_pixels)
         
+        # HP 렌더링용 픽셀 계산
+        render_pixels = min(hp_pixels, display_pixels) if is_increasing else hp_pixels
+
+        # 레이어 2: 트레일 렌더링 (HP 레이어보다 아래에 위치, HP와 동일한 방식)
+        # 트레일은 HP와 동일한 게이지를 그리되, 색상만 다름
+        if trail_pixels > 0:
+            for i in range(width):
+                cell_start = i * divisions
+                cell_end = (i + 1) * divisions
+                
+                # 이 셀에서 트레일이 차지하는 픽셀 범위 (정확한 계산)
+                cell_trail_start = max(cell_start, 0)
+                cell_trail_end = min(cell_end, trail_pixels)
+                cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
+                
+                if cell_trail_pixels >= divisions:
+                    # 트레일이 셀 전체를 채움
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
+                elif cell_trail_pixels > 0:
+                    # 트레일이 셀을 부분적으로 채움
+                    fill_ratio = cell_trail_pixels / divisions
+                    if use_tiles:
+                        trail_tile_char = tile_manager.get_tile_char('hp_high', fill_ratio)
+                        console.print(x + i, y, trail_tile_char, fg=trail_color)
+                    else:
+                        partial_color = (
+                            int(bg_color[0] + (trail_color[0] - bg_color[0]) * fill_ratio),
+                            int(bg_color[1] + (trail_color[1] - bg_color[1]) * fill_ratio),
+                            int(bg_color[2] + (trail_color[2] - bg_color[2]) * fill_ratio)
+                        )
+                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+
         # 레이어 3: HP와 상처를 통합 렌더링 (픽셀 단위 정밀) - 테스트 파일 구조 따름
-        # 빗금 색상 (빗금만 보임, 배경은 게이지 배경색)
-        wound_stripe_color = (0, 0, 0)  # 빗금 색상 (검은색)
+        # 디버그: wound_pixels 값 확인
+        if wound_damage > 0 and wound_pixels == 0:
+            logger_gauge.warning(f"[HP 게이지] wound_damage={wound_damage:.3f}인데 wound_pixels=0! wound_ratio={wound_ratio:.3f}, total_pixels={total_pixels}")
+
+        # 빗금 색상 (상처가 있을 때만 애니메이션, 없으면 검은색)
+        if wound_pixels > 0:
+            # 상처가 있을 때: 검은색 ↔ 빨간색 부드러운 애니메이션
+            # 시간 기반 애니메이션 (0→1→0 부드러운 전환)
+            current_time = time.time()
+            animation_progress = (current_time * 2) % 1  # 0→1 범위로 0.5초 주기
+
+            # 부드러운 애니메이션: sin 곡선 사용
+            import math
+            smooth_progress = (math.sin(animation_progress * math.pi * 2) + 1) / 2  # 0→1→0
+
+            # 검은색(0,0,0)에서 빨간색(220,50,50)으로 부드럽게 변환
+            wound_stripe_color = (
+                int(0 + (220 - 0) * smooth_progress),
+                int(0 + (50 - 0) * smooth_progress),
+                int(0 + (50 - 0) * smooth_progress)
+            )
+        else:
+            # 상처가 없으면 검은색 (사용 안 함)
+            wound_stripe_color = (0, 0, 0)
         
         for i in range(width):
             cell_start = i * divisions
@@ -610,21 +668,21 @@ class GaugeRenderer:
             # 이 셀에서 HP가 차지하는 픽셀 수 (왼쪽에서)
             cell_hp_pixels = max(0, min(divisions, render_pixels - cell_start))
             
-            # 상처 픽셀 계산 (오른쪽 절반에만)
+            # 상처 픽셀 계산 (wound_start_pixel부터 오른쪽 끝까지)
             cell_wound_pixels = 0
-            if wound_pixels > 0 and i >= half_cell_index:
-                # 오른쪽 절반 셀에만 상처 렌더링
+            if wound_pixels > 0:
+                # 실제 상처 영역(wound_start_pixel ~ total_pixels)과 이 셀의 겹치는 부분 계산
                 wound_overlap_start = max(cell_start, wound_start_pixel)
                 wound_overlap_end = min(cell_end, total_pixels)
                 cell_wound_pixels = max(0, wound_overlap_end - wound_overlap_start)
             
             # 경계 셀 여부: HP와 상처가 모두 있는 경우 (둘 다 부분적이거나 하나는 전체)
             has_hp = cell_hp_pixels > 0
-            has_wound = cell_wound_pixels > 0
+            has_wound = cell_wound_pixels > 0 and wound_pixels > 0  # 전체 상처가 0이 아닐 때만
             is_hp_wound_boundary = has_hp and has_wound
             
             # 디버그: 전체 상처 셀 조건 확인
-            if cell_wound_pixels > 0 and i >= half_cell_index:
+            if cell_wound_pixels > 0:
                 from src.core.logger import get_logger
                 logger_debug = get_logger("gauge")
                 logger_debug.debug(
@@ -636,54 +694,66 @@ class GaugeRenderer:
             if cell_hp_pixels >= divisions and cell_wound_pixels == 0:
                 # HP가 셀 전체를 채움 (상처 없음) - draw_rect 사용 (타일 불필요)
                 console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
-            
-            elif cell_wound_pixels >= divisions and cell_hp_pixels == 0:
-                # 상처가 셀 전체를 채움 - 배경색 + 빗금 타일 오버레이로 픽셀 정확도
-                if use_tiles:
-                    console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
-                    # 절대 X 좌표로 빗금 연속성 보장
-                    tile_char = tile_manager.get_tile_char('wound_stripe', (x + i) % tile_manager.tile_width / tile_manager.tile_width)
-                    console.print(x + i, y, tile_char, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
-                else:
-                    stripe_bg = bg_color if i % 2 == 0 else wound_stripe_color
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=stripe_bg)
+
+            elif cell_wound_pixels >= divisions and cell_hp_pixels == 0 and wound_pixels > 0:
+                # 상처가 셀 전체를 채움 (전체 상처가 있을 때만) - 동적 타일로 픽셀 단위 정밀도
+                boundary_tile_char = tile_manager.create_boundary_tile(
+                    hp_pixels=0,
+                    wound_pixels=divisions,
+                    hp_color=fg_color,
+                    bg_color=bg_color,
+                    wound_stripe_color=wound_stripe_color,  # 애니메이션 색상 직접 전달
+                    cell_index=i,  # 셀 인덱스는 상대 인덱스 (i)
+                    cell_start=cell_start,  # 셀의 시작 픽셀 위치
+                    wound_start_pixel=wound_start_pixel  # 게이지 전체에서의 상처 시작점
+                )
+                # 경계 타일 렌더링 (fg는 사용하지 않음, 타일 내부에서 색상 직접 설정)
+                console.print(x + i, y, boundary_tile_char, fg=(255, 255, 255), bg=bg_color)
 
             elif is_hp_wound_boundary:
-                # 경계 셀: HP와 상처가 모두 있는 경우 - 동적 타일로 픽셀 정확도
-                if use_tiles:
-                    boundary_tile = tile_manager.create_boundary_tile(
-                        hp_pixels=cell_hp_pixels,
-                        wound_pixels=cell_wound_pixels,
-                        hp_color=fg_color,
-                        bg_color=bg_color,
-                        wound_color=wound_bg_color,
-                        wound_stripe_color=wound_stripe_color,
-                        cell_index=x + i  # 절대 화면 X 좌표로 빗금 연속성 보장
-                    )
-                    if boundary_tile and boundary_tile.strip():
-                        console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_NONE)
-                    else:
-                        # 폴백: 배경색 + 빗금 오버레이 (색상 블렌딩 금지)
-                        # HP와 상처의 조합을 배경색으로 표현하고 상처 영역에 빗금 추가
-                        console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
-                        # 상처 부분에만 빗금 오버레이
-                        wound_start_ratio = cell_hp_pixels / divisions
-                        if wound_start_ratio < 1.0 and cell_wound_pixels > 0:
-                            stripe_tile = tile_manager.get_tile_char('wound_stripe', cell_wound_pixels / divisions)
-                            console.print(x + i, y, stripe_tile, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
-                else:
-                    # 폴백: 배경색 + 빗금 오버레이 (색상 블렌딩 금지)
-                    console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
-                    stripe_tile = tile_manager.get_tile_char('wound_stripe', cell_wound_pixels / divisions)
-                    console.print(x + i, y, stripe_tile, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
+                # 경계 셀: HP와 상처가 모두 있는 경우 (동적 타일 생성, 색상 혼합 없음)
+                # 디버그: 경계 타일 호출 확인
+                if wound_pixels == 0:
+                    logger_gauge.error(f"[경계 타일 호출 오류] wound_pixels=0인데 경계 타일 호출! has_hp={has_hp}, has_wound={has_wound}, cell_hp_pixels={cell_hp_pixels}, cell_wound_pixels={cell_wound_pixels}, wound_stripe_color={wound_stripe_color}")
+
+                # 게이지 전체에서의 HP 끝점 계산: 실제 HP 끝점 사용
+                # hp_pixels는 이미 wound_start_pixel을 넘지 않도록 제한되어 있음
+                # cell_hp_pixels는 display_pixels 기준이므로, 실제 hp_pixels 기준으로 재계산
+                actual_hp_end = min(hp_pixels, wound_start_pixel) if wound_pixels > 0 else hp_pixels
+                # 셀 내에서의 실제 HP 픽셀 수 재계산
+                cell_actual_hp_pixels = max(0, min(divisions, actual_hp_end - cell_start))
+                hp_end_pixel = cell_start + cell_actual_hp_pixels
+                
+                boundary_tile_char = tile_manager.create_boundary_tile(
+                    hp_pixels=cell_hp_pixels,
+                    wound_pixels=cell_wound_pixels,
+                    hp_color=fg_color,
+                    bg_color=bg_color,
+                    wound_stripe_color=wound_stripe_color,  # 애니메이션 색상 직접 전달
+                    cell_index=i,  # 셀 인덱스는 상대 인덱스 (i)
+                    cell_start=cell_start,  # 셀의 시작 픽셀 위치
+                    wound_start_pixel=wound_start_pixel,  # 게이지 전체에서의 상처 시작점
+                    hp_end_pixel=hp_end_pixel  # 게이지 전체에서의 HP 끝점
+                )
+                # 경계 타일 렌더링 (fg는 사용하지 않음, 타일 내부에서 색상 직접 설정)
+                console.print(x + i, y, boundary_tile_char, fg=(255, 255, 255), bg=bg_color)
             
             elif cell_hp_pixels > 0:
                 # HP가 부분적으로 있음 (상처 없음)
                 fill_ratio = cell_hp_pixels / divisions
                 
                 if use_tiles:
-                    tile_char = tile_manager.get_tile_char(color_name, fill_ratio)
-                    console.print(x + i, y, tile_char, fg=fg_color, bg=bg_color)
+                    # 빗금(상처)이 스타트 지점(wound_start_pixel)보다 왼쪽인 경우에는 빗금 타일을 보여주지 않는다.
+                    # cell_end: 이 셀의 끝 픽셀 위치
+                    # wound_start_pixel: 상처 시작 픽셀 위치
+                    # 만약 이 셀이 전부 wound_start_pixel보다 왼쪽이면 빗금이 나오면 안됨.
+                    if cell_end <= wound_start_pixel:
+                        tile_char = tile_manager.get_tile_char(color_name, fill_ratio)
+                        console.print(x + i, y, tile_char, fg=fg_color, bg=bg_color)
+                    else:
+                        tile_char = tile_manager.get_tile_char(color_name, fill_ratio)
+                        # fg를 wound_stripe_color로 넣으면 빗금 칠해짐, fg_color 넣으면 그냥 컬러
+                        console.print(x + i, y, tile_char, fg=fg_color, bg=bg_color)
                 else:
                     partial_color = (
                         int(bg_color[0] + (fg_color[0] - bg_color[0]) * fill_ratio),
@@ -692,72 +762,24 @@ class GaugeRenderer:
                     )
                     console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
             
-            elif cell_wound_pixels > 0:
-                # 상처만 부분적으로 있음 (HP 없음) - 동적 타일로 픽셀 정확도
-                if use_tiles:
-                    boundary_tile = tile_manager.create_boundary_tile(
-                        hp_pixels=0,
-                        wound_pixels=cell_wound_pixels,
-                        hp_color=fg_color,
-                        bg_color=bg_color,
-                        wound_color=wound_bg_color,
-                        wound_stripe_color=wound_stripe_color,
-                        cell_index=x + i  # 절대 화면 X 좌표로 빗금 연속성 보장
-                    )
-                    if boundary_tile and boundary_tile.strip():
-                        console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_NONE)
-                    else:
-                        # 폴백: 배경색 + 빗금 오버레이 (색상 블렌딩 금지)
-                        console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
-                        stripe_tile = tile_manager.get_tile_char('wound_stripe', cell_wound_pixels / divisions)
-                        console.print(x + i, y, stripe_tile, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
-                else:
-                    # 타일 사용 안 함: 배경색 + 빗금 오버레이 (색상 블렌딩 금지)
-                    console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
-                    stripe_tile = tile_manager.get_tile_char('wound_stripe', cell_wound_pixels / divisions)
-                    console.print(x + i, y, stripe_tile, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
-        
-        # 레이어 4: 트레일 (HP와 상처 렌더링 이후, 별도로 계산) - 테스트 파일 구조 따름
-        # 트레일 계산
-        max_trail_pixel = wound_start_pixel if wound_pixels > 0 else total_pixels
-        trail_start_pixel = min(hp_pixels, trail_display_pixels)
-        trail_end_pixel = min(max(hp_pixels, trail_display_pixels), max_trail_pixel)
-        
-        # 트레일이 있는 경우에만 렌더링 (HP와 트레일이 다를 때, 상처 영역을 넘지 않을 때)
-        if hp_pixels != trail_display_pixels and trail_end_pixel <= max_trail_pixel:
-            for i in range(width):
-                cell_start = i * divisions
-                cell_end = (i + 1) * divisions
-                
-                # 트레일이 이 셀에서 시작하는 위치
-                cell_trail_start = max(cell_start, trail_start_pixel)
-                cell_trail_end = min(cell_end, trail_end_pixel, max_trail_pixel)
-                cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
-                
-                # 상처 픽셀 계산 (오른쪽 절반에만)
-                cell_wound_pixels = 0
-                if wound_pixels > 0 and i >= half_cell_index:
-                    wound_overlap_start = max(cell_start, wound_start_pixel)
-                    wound_overlap_end = min(cell_end, total_pixels)
-                    cell_wound_pixels = max(0, wound_overlap_end - wound_overlap_start)
-                
-                # 트레일이 이 셀에 있고, 상처 영역과 겹치지 않을 때만 렌더링
-                if cell_trail_pixels > 0 and cell_wound_pixels == 0:
-                    trail_ratio = cell_trail_pixels / divisions
-                    
-                    if use_tiles:
-                        # 트레일 타일 사용 - HP와 상처 위에 렌더링 (상처 영역 제외)
-                        trail_tile_char = tile_manager.get_tile_char('damage_trail', trail_ratio)
-                        console.print(x + i, y, trail_tile_char, fg=trail_color, bg_blend=libtcodpy.BKGND_NONE)
-                    else:
-                        # 색상 블렌딩으로 트레일 표시
-                        blended_color = (
-                            int(bg_color[0] + (trail_color[0] - bg_color[0]) * trail_ratio),
-                            int(bg_color[1] + (trail_color[1] - bg_color[1]) * trail_ratio),
-                            int(bg_color[2] + (trail_color[2] - bg_color[2]) * trail_ratio)
-                        )
-                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=blended_color)
-        
+            elif cell_wound_pixels > 0 and wound_pixels > 0:
+                # 상처만 부분적으로 있음 (HP 없음, 전체 상처가 있을 때만) - 동적 타일로 픽셀 단위 정밀도
+                boundary_tile_char = tile_manager.create_boundary_tile(
+                    hp_pixels=0,
+                    wound_pixels=cell_wound_pixels,
+                    hp_color=fg_color,
+                    bg_color=bg_color,
+                    wound_stripe_color=wound_stripe_color,  # 애니메이션 색상 직접 전달
+                    cell_index=i,  # 셀 인덱스는 상대 인덱스 (i)
+                    cell_start=cell_start,  # 셀의 시작 픽셀 위치
+                    wound_start_pixel=wound_start_pixel  # 게이지 전체에서의 상처 시작점
+                )
+                # 경계 타일 렌더링 (fg는 사용하지 않음, 타일 내부에서 색상 직접 설정)
+                console.print(x + i, y, boundary_tile_char, fg=(255, 255, 255), bg=bg_color)
+
+            else:
+                # 빈 셀 (HP도 상처도 없음) - 배경 색상으로 채움
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=bg_color)
         # 숫자 표시 (배경 밝기에 따른 가독성 좋은 색상) - 현재 HP만 표시
         if show_numbers:
             current_text = f"{display_number}"
@@ -797,18 +819,12 @@ class GaugeRenderer:
         is_healing = current_mp > prev_mp
         is_damaging = current_mp < prev_mp
         
-        # 감소 시: MP 먼저, 트레일 2초 지연
-        # 증가 시: 트레일 먼저, MP 2초 지연
-        if is_damaging:
+        # 데미지/회복 모두: MP 먼저, 트레일 2초 지연
+        if is_damaging or is_healing:
             # MP 먼저 움직임 (지연 없음)
             anim.set_target(current_mp, delay=0.0)
             # 트레일 2초 지연
             trail_anim.set_target(current_mp, delay=2.0)
-        elif is_healing:
-            # 트레일 먼저 움직임 (지연 없음)
-            trail_anim.set_target(current_mp, delay=0.0)
-            # MP 2초 지연
-            anim.set_target(current_mp, delay=2.0)
         else:
             # 변화 없음 - 둘 다 지연 없이 설정
             anim.set_target(current_mp, delay=0.0)
@@ -847,8 +863,8 @@ class GaugeRenderer:
         mp_pixels = int(ratio * total_pixels)
         display_pixels = int(display_ratio * total_pixels)
         
-        # 트레일 픽셀 계산 (MP와 같은 범위이지만 2초 늦게 반응)
-        trail_display_pixels = int(trail_ratio * total_pixels)
+        # 트레일 픽셀 계산 (HP와 동일한 방식)
+        trail_pixels = int(trail_ratio * total_pixels)
         
         is_decreasing = display_pixels > mp_pixels
         is_increasing = display_pixels < mp_pixels
@@ -881,7 +897,36 @@ class GaugeRenderer:
         
         # 레이어 1: 배경
         console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
-        
+
+        # 레이어 2: 트레일 렌더링 (MP 레이어보다 아래에 위치, HP와 동일한 방식)
+        # 트레일은 MP와 동일한 게이지를 그리되, 색상만 다름
+        if trail_pixels > 0:
+            for i in range(width):
+                cell_start = i * divisions
+                cell_end = (i + 1) * divisions
+                
+                # 이 셀에서 트레일이 차지하는 픽셀 범위 (정확한 계산)
+                cell_trail_start = max(cell_start, 0)
+                cell_trail_end = min(cell_end, trail_pixels)
+                cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
+                
+                if cell_trail_pixels >= divisions:
+                    # 트레일이 셀 전체를 채움
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
+                elif cell_trail_pixels > 0:
+                    # 트레일이 셀을 부분적으로 채움
+                    fill_ratio = cell_trail_pixels / divisions
+                    if use_tiles:
+                        trail_tile_char = tile_manager.get_tile_char('mp_fill', fill_ratio)
+                        console.print(x + i, y, trail_tile_char, fg=trail_color)
+                    else:
+                        partial_color = (
+                            int(bg_color[0] + (trail_color[0] - bg_color[0]) * fill_ratio),
+                            int(bg_color[1] + (trail_color[1] - bg_color[1]) * fill_ratio),
+                            int(bg_color[2] + (trail_color[2] - bg_color[2]) * fill_ratio)
+                        )
+                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+
         # 레이어 3: 현재 MP
         render_pixels = min(mp_pixels, display_pixels) if is_increasing else mp_pixels
         
@@ -918,52 +963,7 @@ class GaugeRenderer:
                         int(blended_bg[1] + (fg_color[1] - blended_bg[1]) * fill_ratio),
                         int(blended_bg[2] + (fg_color[2] - blended_bg[2]) * fill_ratio)
                     )
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
-        
-        # 레이어 4: 트레일 (MP와 같은 범위이지만 2초 늦게/빠르게 반응)
-        # 감소 시: mp_pixels가 먼저, trail_display_pixels가 2초 뒤
-        # 증가 시: trail_display_pixels가 먼저, mp_pixels가 2초 뒤
-        trail_start_pixel = min(mp_pixels, trail_display_pixels)
-        trail_end_pixel = max(mp_pixels, trail_display_pixels)
-        
-        # 트레일이 있는 경우에만 렌더링 (MP와 트레일이 다를 때)
-        if mp_pixels != trail_display_pixels:
-            for i in range(width):
-                cell_start = i * divisions
-                cell_end = (i + 1) * divisions
-                
-                # 이 셀에서 MP가 차지하는 픽셀 수
-                cell_mp_pixels = max(0, min(divisions, render_pixels - cell_start))
-                
-                # 트레일이 이 셀에서 시작하는 위치
-                cell_trail_start = max(cell_start, trail_start_pixel)
-                cell_trail_end = min(cell_end, trail_end_pixel)
-                cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
-                
-                # 트레일이 이 셀에 있는 경우
-                if cell_trail_pixels > 0:
-                    trail_start_offset = cell_trail_start - cell_start
-                    
-                    # MP 뒤의 트레일만 렌더링 (MP와 겹치지 않도록)
-                    if trail_start_offset >= cell_mp_pixels:
-                        trail_in_cell_start = max(trail_start_offset, cell_mp_pixels)
-                        trail_in_cell_end = cell_trail_end - cell_start
-                        trail_in_cell_pixels = max(0, trail_in_cell_end - trail_in_cell_start)
-                        
-                        if trail_in_cell_pixels > 0:
-                            trail_ratio = trail_in_cell_pixels / divisions
-                            
-                            if use_tiles:
-                                trail_tile_char = tile_manager.get_tile_char('damage_trail', trail_ratio)
-                                console.print(x + i, y, trail_tile_char, fg=trail_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
-                            else:
-                                blended_color = (
-                                    int(bg_color[0] + (trail_color[0] - bg_color[0]) * trail_ratio),
-                                    int(bg_color[1] + (trail_color[1] - bg_color[1]) * trail_ratio),
-                                    int(bg_color[2] + (trail_color[2] - bg_color[2]) * trail_ratio)
-                                )
-                                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=blended_color)
-        
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)        
         # 숫자 표시 - 현재 MP만 표시
         if show_numbers:
             current_text = f"{display_number}"
@@ -1001,18 +1001,12 @@ class GaugeRenderer:
         is_healing = current_brv > prev_brv
         is_damaging = current_brv < prev_brv
         
-        # 감소 시: BRV 먼저, 트레일 2초 지연
-        # 증가 시: 트레일 먼저, BRV 2초 지연
-        if is_damaging:
+        # 데미지/회복 모두: BRV 먼저, 트레일 2초 지연
+        if is_damaging or is_healing:
             # BRV 먼저 움직임 (지연 없음)
             anim.set_target(current_brv, delay=0.0)
             # 트레일 2초 지연
             trail_anim.set_target(current_brv, delay=2.0)
-        elif is_healing:
-            # 트레일 먼저 움직임 (지연 없음)
-            trail_anim.set_target(current_brv, delay=0.0)
-            # BRV 2초 지연
-            anim.set_target(current_brv, delay=2.0)
         else:
             # 변화 없음 - 둘 다 지연 없이 설정
             anim.set_target(current_brv, delay=0.0)
@@ -1063,8 +1057,8 @@ class GaugeRenderer:
         brv_pixels = int(ratio * total_pixels)
         display_pixels = int(display_ratio * total_pixels)
         
-        # 트레일 픽셀 계산 (BRV와 같은 범위이지만 2초 늦게 반응)
-        trail_display_pixels = int(trail_ratio * total_pixels)
+        # 트레일 픽셀 계산 (HP와 동일한 방식)
+        trail_pixels = int(trail_ratio * total_pixels)
         
         is_decreasing = display_pixels > brv_pixels
         is_increasing = display_pixels < brv_pixels
@@ -1097,29 +1091,28 @@ class GaugeRenderer:
         
         # 레이어 1: 배경
         console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
-        
-        # 레이어 2: 감소 트레일 (감소 시)
-        render_pixels = min(brv_pixels, display_pixels) if is_increasing else brv_pixels
-        if is_decreasing:
+
+        # 레이어 2: 트레일 렌더링 (BRV 레이어보다 아래에 위치, HP와 동일한 방식)
+        # 트레일은 BRV와 동일한 게이지를 그리되, 색상만 다름
+        if trail_pixels > 0:
             for i in range(width):
                 cell_start = i * divisions
                 cell_end = (i + 1) * divisions
                 
-                cell_brv = max(0, min(divisions, brv_pixels - cell_start))
-                if cell_brv > 0:
-                    continue
+                # 이 셀에서 트레일이 차지하는 픽셀 범위 (정확한 계산)
+                cell_trail_start = max(cell_start, 0)
+                cell_trail_end = min(cell_end, trail_pixels)
+                cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
                 
-                trail_start = max(cell_start, brv_pixels)
-                trail_end = min(cell_end, display_pixels)
-                cell_trail = max(0, trail_end - trail_start)
-                
-                if cell_trail >= divisions:
+                if cell_trail_pixels >= divisions:
+                    # 트레일이 셀 전체를 채움
                     console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
-                elif cell_trail > 0:
-                    fill_ratio = cell_trail / divisions
+                elif cell_trail_pixels > 0:
+                    # 트레일이 셀을 부분적으로 채움
+                    fill_ratio = cell_trail_pixels / divisions
                     if use_tiles:
-                        tile_char = tile_manager.get_tile_char('brv_fill', fill_ratio)
-                        console.print(x + i, y, tile_char, fg=trail_color, bg=bg_color)
+                        trail_tile_char = tile_manager.get_tile_char('brv_fill', fill_ratio)
+                        console.print(x + i, y, trail_tile_char, fg=trail_color)
                     else:
                         partial_color = (
                             int(bg_color[0] + (trail_color[0] - bg_color[0]) * fill_ratio),
@@ -1127,8 +1120,9 @@ class GaugeRenderer:
                             int(bg_color[2] + (trail_color[2] - bg_color[2]) * fill_ratio)
                         )
                         console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
-        
-        # 레이어 4: 현재 BRV (최상단)
+
+        # 레이어 3: 현재 BRV (트레일 위에 렌더링)
+        render_pixels = min(brv_pixels, display_pixels) if is_increasing else brv_pixels
         
         for i in range(width):
             cell_start = i * divisions
@@ -1140,19 +1134,7 @@ class GaugeRenderer:
                 console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
             elif cell_brv > 0:
                 fill_ratio = cell_brv / divisions
-                cell_unfilled = divisions - cell_brv
-                
-                if is_decreasing and cell_unfilled > 0:
-                    trail_end_in_cell = min(cell_end, display_pixels)
-                    trail_in_unfilled = max(0, trail_end_in_cell - (cell_start + cell_brv))
-                    trail_blend = trail_in_unfilled / cell_unfilled
-                    blended_bg = (
-                        int(bg_color[0] + (trail_color[0] - bg_color[0]) * trail_blend),
-                        int(bg_color[1] + (trail_color[1] - bg_color[1]) * trail_blend),
-                        int(bg_color[2] + (trail_color[2] - bg_color[2]) * trail_blend)
-                    )
-                else:
-                    blended_bg = bg_color
+                blended_bg = bg_color
                 
                 if use_tiles:
                     tile_char = tile_manager.get_tile_char('brv_fill', fill_ratio)

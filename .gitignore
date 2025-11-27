@@ -83,3 +83,4 @@ dmypy.json
 
 # Documentation build
 docs/_build/
+nul

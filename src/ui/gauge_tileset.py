@@ -43,7 +43,7 @@ class GaugeColors:
     
     # 상처 (wound)
     WOUND = (80, 30, 50)        # 어두운 보라빨강
-    WOUND_STRIPE = (120, 55, 75)  # 상처 빗금 (밝은 부분)
+    WOUND_STRIPE = (0, 0, 0)    # 상처 빗금 (검은색) - 픽셀 단위로 표시
     
     # ATB 게이지
     ATB_FILL = (100, 200, 255)  # 하늘색
@@ -184,32 +184,32 @@ class GaugeTileManager:
     
     def _create_stripe_tile(self, color_index: int, fill_level: int, color: Tuple[int, int, int]) -> None:
         """빗금 패턴 타일 생성 (상처 영역용)
-        
+
         fill_level을 오프셋으로 사용하여 인접 셀과 빗금 패턴이 연속되도록 함
         fg = 빗금 색상, bg = 투명 (이전 배경이 보임)
         """
         if self.tileset is None:
             return
-        
+
         codepoint = self._get_codepoint(color_index, fill_level)
-        
+
         if codepoint in self._created_tiles:
             return
-        
+
         # RGBA 타일 이미지 생성
         tile = np.zeros((self.tile_height, self.tile_width, 4), dtype=np.uint8)
         # 투명으로 초기화 (배경색은 console.print의 bg 파라미터로 지정됨)
         # 빗금 타일은 투명 배경을 사용하되, 빗금만 그리기
-        
+
         # 빗금 패턴 생성 (대각선)
         stripe_width = 2  # 빗금 두께
         stripe_gap = 3    # 빗금 간격
         stripe_period = stripe_width + stripe_gap
-        
+
         # fill_level을 셀 인덱스로 사용하여 x 오프셋 계산 (연속성 보장)
         # 각 셀은 tile_width 픽셀이므로, 셀 인덱스 * tile_width가 실제 x 위치
         x_offset = (fill_level * self.tile_width) % stripe_period
-        
+
         for py in range(self.tile_height):
             for px in range(self.tile_width):
                 # 대각선 빗금 패턴 (오프셋 적용으로 인접 셀과 연속)
@@ -219,7 +219,7 @@ class GaugeTileManager:
                     tile[py, px, 2] = 255  # B
                     tile[py, px, 3] = 255  # A (불투명)
                 # else: 빗금 사이는 투명 (alpha=0) -> console.print의 bg 색상이 보임
-        
+
         # 타일 등록
         try:
             self.tileset.set_tile(codepoint, tile)
@@ -268,21 +268,41 @@ class GaugeTileManager:
     
     def get_tile_char(self, color_name: str, fill_ratio: float) -> str:
         """채움 비율에 해당하는 타일 문자 반환
-        
+
         Args:
             color_name: 색상 이름 ('hp_high', 'mp_fill', 등)
             fill_ratio: 채움 비율 (0.0 ~ 1.0)
-        
+
         Returns:
             해당 타일의 유니코드 문자
         """
         if color_name not in self.color_map:
             return ' '
-        
+
         color_index = self.color_map[color_name]
         fill_level = int(fill_ratio * self.divisions)
         fill_level = max(0, min(self.divisions, fill_level))
-        
+
+        codepoint = self._get_codepoint(color_index, fill_level)
+        return chr(codepoint)
+
+    def get_tile_char_by_index(self, color_name: str, cell_index: int) -> str:
+        """셀 인덱스로 타일 문자 반환 (빗금 패턴용)
+
+        Args:
+            color_name: 색상 이름 ('wound_stripe' 등)
+            cell_index: 셀 인덱스 (연속성을 위한 오프셋)
+
+        Returns:
+            해당 타일의 유니코드 문자
+        """
+        if color_name not in self.color_map:
+            return ' '
+
+        color_index = self.color_map[color_name]
+        # 빗금 패턴은 5개 주기로 반복 (stripe_period = 5)
+        fill_level = cell_index % (self.divisions + 1)
+
         codepoint = self._get_codepoint(color_index, fill_level)
         return chr(codepoint)
     
@@ -301,9 +321,11 @@ class GaugeTileManager:
         wound_pixels: int,
         hp_color: Tuple[int, int, int],
         bg_color: Tuple[int, int, int],
-        wound_color: Tuple[int, int, int],
         wound_stripe_color: Tuple[int, int, int],
-        cell_index: int = 0
+        cell_index: int = 0,
+        cell_start: int = 0,
+        wound_start_pixel: int = 0,
+        hp_end_pixel: int = 0
     ) -> str:
         """
         경계 셀용 동적 타일 생성 (HP, 빈 공간, 상처가 한 셀에 있는 경우)
@@ -313,20 +335,23 @@ class GaugeTileManager:
             wound_pixels: 상처가 차지하는 픽셀 수 (오른쪽에서)
             hp_color: HP 색상
             bg_color: 빈 공간 (배경) 색상
-            wound_color: 상처 배경 색상 (빗금 사이)
             wound_stripe_color: 상처 빗금 색상
             cell_index: 셀 인덱스 (빗금 연속성을 위한 오프셋)
 
         Returns:
             동적 생성된 타일의 유니코드 문자
         """
-        # 함수 호출 로깅 (디버깅용)
-        logger.info(f"[경계 타일 생성 호출] hp_pixels={hp_pixels}, wound_pixels={wound_pixels}")
+        # 상처가 없으면 오류 (이 함수는 상처가 있을 때만 호출되어야 함)
+        if wound_pixels == 0:
+            logger.error(f"[경계 타일] wound_pixels=0인데 호출됨! hp_pixels={hp_pixels}, hp_color={hp_color}")
+            logger.error(f"[경계 타일] 호출 스택을 확인하세요 - 이 함수는 wound_pixels > 0일 때만 호출되어야 합니다")
+            # 빈 문자 반환 (폴백)
+            return ' '
 
         if self.tileset is None:
             logger.warning("경계 타일 생성 실패: tileset이 초기화되지 않음")
             return ' '
-        
+
         # 입력된 hp_pixels와 wound_pixels는 이미 양자화된 divisions 값
         # divisions(32) 기준 픽셀을 실제 tile_width 기준으로 스케일링
         scale = self.tile_width / self.divisions
@@ -362,14 +387,18 @@ class GaugeTileManager:
         # E800 ~ EFFF 범위 사용 (기존 E000~E7FF 외)
         # 캐시 키는 양자화된 divisions 값 사용 (더 안정적, 애니메이션 중 변화 없음)
         # 색상 해시 충돌 방지: 실제 색상값 포함
-        # cell_index % 5로 캐싱 (stripe_period=5이므로 5개만 캐시하면 됨) → 효율적이면서 빗금 연속성 보장
-        cache_key = (hp_pixels, wound_pixels, hp_color, bg_color, wound_color, wound_stripe_color, cell_index % 5)
+        # 실제 stripe offset 계산과 동일하게 캐싱하여 시각적 연속성 보장
+        # 빗금 색상은 애니메이션하므로 캐시 키에 포함하여 매 프레임마다 재생성
+        stripe_offset_for_cache = (cell_index * self.tile_width) % 5  # stripe_period = 5
+        # wound_stripe_color를 캐시 키에 포함하여 애니메이션 색상 반영
+        cache_key = (hp_pixels, wound_pixels, hp_color, bg_color, stripe_offset_for_cache, wound_stripe_color)
         
         # 캐시된 코드포인트가 있으면 재용
         if not hasattr(self, '_boundary_tile_cache'):
             self._boundary_tile_cache: Dict[tuple, int] = {}
-            # Private Use Area (U+E000 ~ U+F8FF) 사용: 6400개 범위
-            self._next_boundary_codepoint = 0xE000
+            # Supplementary Private Use Area-A (U+F0000 ~ U+FFFFD) 사용: 65534개 범위
+            # 기존 Private Use Area (U+E000 ~ U+F8FF)가 부족할 경우 확장
+            self._next_boundary_codepoint = 0xF0000
             self._boundary_tile_access_order: List[tuple] = []  # LRU를 위한 접근 순서
 
         if cache_key in self._boundary_tile_cache:
@@ -382,10 +411,10 @@ class GaugeTileManager:
             return chr(cached_codepoint)
 
         # 새 코드포인트 할당 (범위 체크 및 LRU 캐시 정리)
-        # Private Use Area (U+E000 ~ U+F8FF): 6400개
+        # Supplementary Private Use Area-A (U+F0000 ~ U+FFFFD): 65534개
         # 범위가 거의 찰 때 미리 정리 (90% 이상 사용 시)
-        max_codepoints = 0xF8FF - 0xE000 + 1  # 6400개
-        if self._next_boundary_codepoint >= 0xE000 + int(max_codepoints * 0.9):
+        max_codepoints = 0xFFFFD - 0xF0000 + 1  # 65534개
+        if self._next_boundary_codepoint >= 0xF0000 + int(max_codepoints * 0.9):
             # 캐시 크기가 90% 이상이면 가장 오래된 항목 10% 제거
             items_to_remove = max(1, len(self._boundary_tile_cache) // 10)
             for _ in range(items_to_remove):
@@ -397,7 +426,7 @@ class GaugeTileManager:
                             f"LRU 캐시 사전 정리: 오래된 타일 제거 (key={oldest_key}, codepoint=0x{old_codepoint:04X})"
                         )
         
-        if self._next_boundary_codepoint > 0xF8FF:
+        if self._next_boundary_codepoint > 0xFFFFD:
             # 범위 초과시 LRU 캐시에서 가장 오래된 항목 제거
             if len(self._boundary_tile_access_order) > 0:
                 oldest_key = self._boundary_tile_access_order.pop(0)
@@ -405,13 +434,13 @@ class GaugeTileManager:
                     # 오래된 타일의 코드포인트 재사용
                     codepoint = self._boundary_tile_cache.pop(oldest_key)
                     logger.debug(
-                        f"LRU 캐시 정리: 오래된 타일 제거 (key={oldest_key}, codepoint=0x{codepoint:04X}). "
+                        f"LRU 캐시 정리: 오래된 타일 제거 (key={oldest_key}, codepoint=0x{codepoint:05X}). "
                         f"캐시 크기: {len(self._boundary_tile_cache)}"
                     )
                 else:
                     # 캐시가 비어있으면 재사용 불가
                     logger.error(
-                        f"경계 타일 코드포인트 범위 초과 및 캐시 정리 불가 (0xE000~0xF8FF). "
+                        f"경계 타일 코드포인트 범위 초과 및 캐시 정리 불가 (0xF0000~0xFFFFD). "
                         f"캐시 크기: {len(self._boundary_tile_cache)}. "
                         f"폴백 블렌딩을 사용합니다."
                     )
@@ -419,7 +448,7 @@ class GaugeTileManager:
             else:
                 # 접근 순서가 없으면 재사용 불가
                 logger.error(
-                    f"경계 타일 코드포인트 범위 초과 (0xE000~0xF8FF). "
+                    f"경계 타일 코드포인트 범위 초과 (0xF0000~0xFFFFD). "
                     f"캐시 크기: {len(self._boundary_tile_cache)}. "
                     f"폴백 블렌딩을 사용합니다."
                 )
@@ -429,56 +458,97 @@ class GaugeTileManager:
             codepoint = self._next_boundary_codepoint
             self._next_boundary_codepoint += 1
         
-        # RGBA 타일 이미지 생성 (배경 색상으로 초기화)
+        # RGBA 타일 이미지 생성 (초기화는 bg_color로 설정하여 검은색 방지)
         tile = np.zeros((self.tile_height, self.tile_width, 4), dtype=np.uint8)
-        # 타일 전체를 배경 색상으로 초기화 (투명하지 않게)
-        tile[:, :, 0] = bg_color[0]  # R
-        tile[:, :, 1] = bg_color[1]  # G
-        tile[:, :, 2] = bg_color[2]  # B
-        tile[:, :, 3] = 255  # A (불투명)
-        
+        # 타일 전체를 bg_color로 초기화 (모든 픽셀이 명시적으로 설정되도록)
+        tile[:, :, 0] = bg_color[0]
+        tile[:, :, 1] = bg_color[1]
+        tile[:, :, 2] = bg_color[2]
+        tile[:, :, 3] = 255  # 불투명
+
         # 빗금 패턴 파라미터
         stripe_width = 2
         stripe_gap = 3
         stripe_period = stripe_width + stripe_gap
 
-        # 빗금 오프셋: cell_index % stripe_period로 패턴 위상 결정
-        # 절대 화면 X 좌표를 사용하여 계속된 빗금 패턴 보장
-        x_offset = cell_index % stripe_period
+        # 빗금 오프셋: 셀 인덱스를 픽셀 위치로 변환하여 패턴 연속성 보장
+        # 각 셀은 tile_width 픽셀을 가지므로, 셀 인덱스 * tile_width가 실제 픽셀 위치
+        x_offset = (cell_index * self.tile_width) % stripe_period
+
+        # 캐시 키 계산: 실제 stripe offset과 동일한 계산 사용
+        stripe_offset_for_cache = x_offset
+
+        # 상처 시작점: 게이지 전체에서의 상처 시작점을 셀 내 상대 위치로 변환 (tile_width 단위)
+        # wound_start_pixel이 셀 내에 있으면 그 위치부터, 셀보다 왼쪽에 있으면 0부터
+        if wound_start_pixel > 0:
+            if wound_start_pixel < cell_start:
+                # 상처 시작점이 셀보다 왼쪽에 있으면 상처는 셀 전체에 걸쳐 있음
+                wound_start_in_cell = 0
+            else:
+                # 상처 시작점이 셀 내에 있으면 셀 내 상대 위치로 변환 (divisions 단위)
+                wound_start_in_cell_divisions = wound_start_pixel - cell_start
+                # 스케일링 적용 (divisions -> tile_width)
+                scale = self.tile_width / self.divisions
+                wound_start_in_cell = max(0, min(self.tile_width, int(wound_start_in_cell_divisions * scale + 0.5)))
+        else:
+            # wound_start_pixel이 0이면 상처가 없음 (이 경우는 호출되지 않아야 함)
+            wound_start_in_cell = self.tile_width - actual_wound_pixels if actual_wound_pixels > 0 else self.tile_width
         
-        # 상처 시작점 (오른쪽에서 actual_wound_pixels만큼)
-        # 빈 HP 영역이 있을 수 있으므로 계산
-        wound_start = self.tile_width - actual_wound_pixels
-        hp_end = actual_hp_pixels  # HP가 끝나는 지점
+        # 상처는 wound_start_in_cell부터 셀 오른쪽 끝까지
+        # HP 끝 지점: 게이지 전체에서의 HP 끝점을 셀 내 상대 위치로 변환
+        # hp_end_pixel이 제공되면 그것을 사용, 아니면 actual_hp_pixels 사용
+        if hp_end_pixel > 0:
+            # 게이지 전체에서의 HP 끝점을 셀 내 상대 위치로 변환
+            if hp_end_pixel <= cell_start:
+                # HP 끝점이 셀 시작점 이하이면 HP는 셀에 없음
+                hp_end_in_cell = 0
+            elif hp_end_pixel >= cell_start + self.divisions:
+                # HP 끝점이 셀 끝점 이상이면 HP는 셀 전체를 채움
+                hp_end_in_cell = self.tile_width
+            else:
+                # HP 끝점이 셀 내에 있으면 셀 내 상대 위치로 변환 (divisions 단위)
+                hp_end_in_cell_divisions = hp_end_pixel - cell_start
+                # 스케일링 적용 (divisions -> tile_width)
+                scale = self.tile_width / self.divisions
+                hp_end_in_cell = max(0, min(self.tile_width, int(hp_end_in_cell_divisions * scale + 0.5)))
+        else:
+            # hp_end_pixel이 제공되지 않으면 actual_hp_pixels 사용
+            hp_end_in_cell = actual_hp_pixels
         
+        # HP 끝 지점: hp_end_in_cell 사용 (이미 hp_end_pixel에서 wound_start_pixel을 넘지 않도록 제한됨)
+        hp_end = hp_end_in_cell
+
+        # 각 영역을 명시적으로 설정
         for py in range(self.tile_height):
             for px in range(self.tile_width):
                 if px < hp_end:
-                    # HP 영역 (왼쪽)
+                    # HP 영역 (왼쪽) - hp_color로 불투명하게 설정
                     tile[py, px, 0] = hp_color[0]
                     tile[py, px, 1] = hp_color[1]
                     tile[py, px, 2] = hp_color[2]
-                    tile[py, px, 3] = 255
-                elif px >= wound_start:
-                    # 상처 영역 (오른쪽) - 빗금 패턴
+                    tile[py, px, 3] = 255  # 불투명
+                elif actual_wound_pixels > 0 and px >= wound_start_in_cell:
+                    # 상처 영역 (오른쪽) - 빗금 패턴 (상처가 있을 때만)
+                    # 빗금 부분은 wound_stripe_color로 직접 설정 (애니메이션 색상)
                     if ((x_offset + px) + py) % stripe_period < stripe_width:
-                        # 빗금: 검은색 선
+                        # 빗금: wound_stripe_color로 생성 (애니메이션 색상 직접 적용)
                         tile[py, px, 0] = wound_stripe_color[0]
                         tile[py, px, 1] = wound_stripe_color[1]
                         tile[py, px, 2] = wound_stripe_color[2]
-                        tile[py, px, 3] = 255
+                        tile[py, px, 3] = 255  # 불투명
                     else:
-                        # 빗금 사이: 게이지 배경색으로 채움 (HP 상태에 따라 짙은 초록/노랑/빨강)
-                        tile[py, px, 0] = bg_color[0]  # R
-                        tile[py, px, 1] = bg_color[1]  # G
-                        tile[py, px, 2] = bg_color[2]  # B
-                        tile[py, px, 3] = 255  # Alpha (불투명)
+                        # 빗금 사이: bg_color (게이지 배경색)
+                        tile[py, px, 0] = bg_color[0]
+                        tile[py, px, 1] = bg_color[1]
+                        tile[py, px, 2] = bg_color[2]
+                        tile[py, px, 3] = 255  # 불투명
                 else:
-                    # 빈 HP 영역 (중간, hp_end <= px < wound_start) - 배경 색상 명시적으로 설정
+                    # 빈 HP 영역 (중간, hp_end <= px < wound_start_in_cell)
+                    # bg_color로 불투명하게 설정 (투명하면 배경색이 보여서 초록 검정 패턴이 나타남)
                     tile[py, px, 0] = bg_color[0]
                     tile[py, px, 1] = bg_color[1]
                     tile[py, px, 2] = bg_color[2]
-                    tile[py, px, 3] = 255
+                    tile[py, px, 3] = 255  # 불투명
         
         # 타일 등록
         try:
@@ -489,12 +559,12 @@ class GaugeTileManager:
             right_x = self.tile_width - 1
             right_pixel = tile[center_y, right_x]
 
-            # 빗금 영역 샘플 확인 (wound_start 지점)
-            if wound_start < self.tile_width:
-                wound_sample = tile[center_y, wound_start]
-                # 빗금 사이 영역 샘플 (wound_start + 1, 빗금이 아닌 부분)
-                if wound_start + 1 < self.tile_width:
-                    wound_bg_sample = tile[center_y, wound_start + 1]
+            # 빗금 영역 샘플 확인 (wound_start_in_cell 지점)
+            if wound_start_in_cell < self.tile_width:
+                wound_sample = tile[center_y, wound_start_in_cell]
+                # 빗금 사이 영역 샘플 (wound_start_in_cell + 1, 빗금이 아닌 부분)
+                if wound_start_in_cell + 1 < self.tile_width:
+                    wound_bg_sample = tile[center_y, wound_start_in_cell + 1]
                 else:
                     wound_bg_sample = None
             else:
@@ -503,19 +573,17 @@ class GaugeTileManager:
 
             logger.debug(
                 f"[경계 타일 디버그] 타일 생성: hp_pixels={actual_hp_pixels}, wound_pixels={actual_wound_pixels}, "
-                f"bg_color={bg_color}, hp_color={hp_color}, wound_stripe_color={wound_stripe_color}, "
+                f"bg_color={bg_color}, hp_color={hp_color}, "
+                f"wound_start_in_cell={wound_start_in_cell}, hp_end={hp_end}, tile_width={self.tile_width}, "
                 f"중앙픽셀=RGBA({sample_pixel[0]},{sample_pixel[1]},{sample_pixel[2]},{sample_pixel[3]}), "
-                f"오른쪽픽셀=RGBA({right_pixel[0]},{right_pixel[1]},{right_pixel[2]},{right_pixel[3]}), "
-                f"wound_start={wound_start}, wound시작픽셀={f'RGBA({wound_sample[0]},{wound_sample[1]},{wound_sample[2]},{wound_sample[3]})' if wound_sample is not None else 'N/A'}, "
-                f"wound배경픽셀={f'RGBA({wound_bg_sample[0]},{wound_bg_sample[1]},{wound_bg_sample[2]},{wound_bg_sample[3]})' if wound_bg_sample is not None else 'N/A'}, "
-                f"hp_end={hp_end}"
+                f"HP시작픽셀=RGBA({tile[center_y, 0, 0]},{tile[center_y, 0, 1]},{tile[center_y, 0, 2]},{tile[center_y, 0, 3]})"
             )
 
             # 타일 복사본 생성 (참조 문제 방지 - numpy 배열이 재사용될 수 있음)
             tile_copy = tile.copy()
-            logger.info(f"[경계 타일] set_tile() 호출 직전: codepoint=0x{codepoint:04X}, tileset={self.tileset is not None}")
+            logger.debug(f"[경계 타일] set_tile() 호출 직전: codepoint=0x{codepoint:04X}, tileset={self.tileset is not None}")
             self.tileset.set_tile(codepoint, tile_copy)
-            logger.info(f"[경계 타일] set_tile() 호출 성공: codepoint=0x{codepoint:04X}")
+            logger.debug(f"[경계 타일] set_tile() 호출 성공: codepoint=0x{codepoint:04X}")
             self._boundary_tile_cache[cache_key] = codepoint
             # LRU: 새 항목을 접근 순서에 추가
             self._boundary_tile_access_order.append(cache_key)
@@ -524,7 +592,7 @@ class GaugeTileManager:
                 f"hp_pixels={actual_hp_pixels}/{self.tile_width}, "
                 f"wound_pixels={actual_wound_pixels}/{self.tile_width}, "
                 f"cell_index={cell_index}, "
-                f"wound_start={wound_start}, hp_end={hp_end}, "
+                f"wound_start_in_cell={wound_start_in_cell}, hp_end={hp_end}, "
                 f"bg_color={bg_color}, wound_stripe_color={wound_stripe_color}"
             )
         except Exception as e:
