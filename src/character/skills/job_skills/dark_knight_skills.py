@@ -198,7 +198,8 @@ def create_dark_knight_skills():
     return skills
 
 def register_dark_knight_skills(sm):
-    for s in create_dark_knight_skills():
+    skills = create_dark_knight_skills()
+    for s in skills:
         sm.register_skill(s)
 
     # 팀워크 스킬: 피의 계약
@@ -213,4 +214,4 @@ def register_dark_knight_skills(sm):
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}
     skills.append(teamwork)
-    return [s.skill_id for s in create_dark_knight_skills(), teamwork]
+    return skills

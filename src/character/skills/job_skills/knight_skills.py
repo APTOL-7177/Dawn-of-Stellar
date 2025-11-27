@@ -170,4 +170,4 @@ def register_knight_skills(skill_manager):
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}
     skills.append(teamwork)
-    return [s.skill_id for s in skills, teamwork]
+    return skills
