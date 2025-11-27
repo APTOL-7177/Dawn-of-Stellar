@@ -1,5 +1,6 @@
 class_name: 저격수
 description: 느리지만 압도적인 일격을 날리는 정밀 사수
+slogan: "한 발, 한 명. 그것으로 충분하다"
 archetype: 초고화력 원거리
 base_stats:
   hp: 151
@@ -61,14 +62,17 @@ gimmick:
   - headshot: 헤드샷 탄 (크리티컬 100%, 배율 5.0)
 skills:
 - teamwork
-- sniper_precise_shot
-- sniper_double_tap
-- sniper_reload
-- sniper_load_penetrating
-- sniper_load_explosive
-- sniper_headshot
-- sniper_perfect_aim
-- sniper_deadeye
+- precise_shot
+- headshot
+- double_tap
+- reload
+- load_penetrating
+- load_explosive
+- perfect_aim
+- smoke_grenade
+- set_trap
+- deadeye
+
 bonuses:
   critical_rate: 1.25
   critical_damage: 1.5

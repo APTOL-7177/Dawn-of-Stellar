@@ -112,8 +112,13 @@ class BuffEffect(SkillEffect):
         if not hasattr(target, 'active_buffs'):
             target.active_buffs = {}
         
+        # 방어 관통 (DEFENSE_DOWN, MAGIC_DEFENSE_DOWN) 최대 50% 제한
+        value = self.value
+        if self.buff_type in (BuffType.DEFENSE_DOWN, BuffType.MAGIC_DEFENSE_DOWN):
+            value = min(value, 0.5)  # 최대 50%
+        
         buff_data = {
-            'value': self.value,
+            'value': value,
             'duration': self.duration
         }
         

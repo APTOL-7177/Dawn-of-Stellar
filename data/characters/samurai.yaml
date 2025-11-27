@@ -1,5 +1,6 @@
 class_name: 사무라이
 description: 명예와 의리를 중시하는 진정한 무사
+slogan: "일도양단, 한 번의 베기에 모든 것을 건다"
 archetype: 명예의 전사
 base_stats:
   hp: 167
@@ -52,12 +53,17 @@ gimmick:
   max_will_gauge: 10
 skills:
 - teamwork
-- quick_draw
-- cross_slash
-- meditation
-- honor_strike
-- final_blow
-- samurai_spirit
+- iaido
+- moonlight_slash
+- clear_mind
+- battojutsu
+- samurai_honor
+- musou_ken
+- flying_swallow
+- true_battojutsu
+- infinite_slash
+- ultimate
+
 bonuses:
   status_immunity: 1.0
   duel_bonus: 1.1

@@ -1,5 +1,6 @@
 class_name: 기계공학자
 description: 장비와 기계를 극한까지 강화하는 기술의 달인
+slogan: "기계는 거짓말을 하지 않는다"
 archetype: 장비 강화
 base_stats:
   hp: 156
@@ -57,14 +58,17 @@ gimmick:
   overheat_threshold: 100
 skills:
 - teamwork
-- engineer_turret_shot
-- engineer_overload_blast
-- engineer_emp_explosion
-- engineer_cooling_vent
-- engineer_rocket_punch
-- engineer_overclock_mode
-- engineer_emergency_repair
-- engineer_mega_blaster
+- turret_shot
+- rocket_punch
+- overload_blast
+- emp_explosion
+- cooling_vent
+- overclock_mode
+- emergency_repair
+- shield_generator
+- deploy_drone
+- mega_blaster
+
 bonuses:
   equipment_bonus: 1.15
   special_proc_rate: 1.3

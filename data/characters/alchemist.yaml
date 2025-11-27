@@ -1,5 +1,6 @@
 class_name: 연금술사
 description: 포션과 연금술로 파티를 지원하는 화학의 달인
+slogan: "완벽한 조합은 천재의 영역, 폭발은 일상"
 archetype: 포션 마스터
 base_stats:
   hp: 135
@@ -47,17 +48,37 @@ traits:
   type: trigger
 gimmick:
   type: alchemy_system
-  name: 연금술 조합
-  description: 포션을 조합하고 투척하여 다양한 효과 발동
+  name: 포션 조합
+  description: |
+    [포션 시스템] 재료를 모아 포션 제조!
+    
+    - 공격/힐 스킬로 재료 획득 (최대 10개)
+    - 포션 소비해 강력한 효과 발동
+    - 회복/버프/폭발/산성 다양한 조합
+    
+    포션 비용:
+    - 회복 포션: 2재료
+    - 버프 포션: 3재료
+    - 폭발 연쇄: 4재료
   max_potion_stock: 10
+  potion_recipes:
+    heal: {cost: 2, effect: "HP 회복"}
+    buff: {cost: 3, effect: "올스탯 버프"}
+    bomb: {cost: 4, effect: "광역 폭발"}
+    acid: {cost: 3, effect: "방어 감소"}
 skills:
 - teamwork
 - throw_potion
-- acid_flask
-- healing_elixir
+- explosive
+- heal_potion
 - buff_potion
-- explosive_mixture
-- grand_elixir
+- poison_bomb
+- gather
+- mana_potion
+- chain
+- acid_flask
+- ultimate
+
 bonuses:
   potion_power: 1.2
   item_find: 1.1

@@ -1,5 +1,6 @@
 class_name: 몽크
 description: 내공과 정신력으로 싸우는 수행자
+slogan: "음과 양의 조화 속에 진정한 힘이 있다"
 archetype: 내공 전사
 base_stats:
   hp: 172
@@ -80,16 +81,17 @@ gimmick:
   start_ki: 50
 skills:
 - teamwork
-- monk_palm_strike
-- monk_energy_blast
-- monk_yin_strike
-- monk_yang_strike
-- monk_balance_restoration
-- monk_yin_extreme
-- monk_yang_extreme
-- monk_taichi_flow
-- monk_enlightenment
-- monk_taichi_ultimate
+- palm_strike
+- energy_blast
+- yin_strike
+- yang_strike
+- balance_restoration
+- yin_extreme
+- yang_extreme
+- taichi_flow
+- enlightenment
+- taichi_ultimate
+
 bonuses:
   mp_multiplier: 1.1
   spirit_multiplier: 1.05

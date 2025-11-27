@@ -176,6 +176,24 @@ def create_dragon_knight_skills():
     ultimate.metadata = {"ultimate": True, "dragon_transform": True, "dragon_mark_cost": 3, "dragon_mark_gain": 1, "dragon_scaling": True, "aoe": True, "buff": True}
     skills.append(ultimate)
 
+    # 팀워크 스킬: 드래곤의 포효
+    teamwork = TeamworkSkill(
+        "dragon_knight_teamwork",
+        "드래곤의 포효",
+        "전체 적 도발 (2턴, 저항 불가) + 자신 방어력/마방 1.4배 (3턴) + 반격 활성화",
+        gauge_cost=225)
+    teamwork.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.6, duration=3, is_party_wide=True),  # 공격력 +60%
+        DamageEffect(DamageType.HP, 1.5, stat_type="magical"),  # 모든 적에게 화염 피해
+        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=3, is_party_wide=True)  # 방어력 +30%
+    ]
+    teamwork.target_type = "all_enemies"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "dragon": True}
+    skills.append(teamwork)
+
     return skills
 
 def register_dragon_knight_skills(skill_manager):
@@ -185,4 +203,4 @@ def register_dragon_knight_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 드래곤의 포효
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

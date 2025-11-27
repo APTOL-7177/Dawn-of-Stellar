@@ -125,6 +125,10 @@ def main() -> int:
         # 설정 초기화
         config = initialize_config(args.config)
 
+        # 스킬 시스템 초기화 (팀워크 스킬 포함)
+        from src.character.skills.skill_initializer import initialize_all_skills
+        initialize_all_skills()
+
         # 명령줄 옵션으로 설정 오버라이드
         if args.dev:
             config.set("development.enabled", True)

@@ -1,5 +1,6 @@
 class_name: 암흑기사
 description: 모든 것을 하나의 일격에 쏟아붓는 완벽한 타이밍의 전사
+slogan: "한 번의 완벽한 일격, 그것이 전부다"
 archetype: 원샷 딜러
 base_stats:
   hp: 205
@@ -90,23 +91,16 @@ gimmick:
 
 skills:
 - teamwork
-# Builders (충전 쌓기)
-- dk_charge_strike     # 기본 BRV 공격, 충전 +15
-- dk_crushing_blow     # 기본 HP 공격, 충전 +10
-- dk_defensive_stance  # 방어 태세, 방어력 증가 + 피격 시 충전 2배
-- dk_counter_stance    # 반격 태세, 회피율 증가 + 회피 시 반격 및 충전 +20
-
-# Spenders (충전 사용 - 한방딜, 캐스트 타임 있음)
-- dk_power_strike      # 강타, 충전 30 소모. 강력한 단일 피해 (캐스트 0.3)
-- dk_abyssal_burst     # 심연의 폭발, 충전 50 소모. 광역 피해 + 기절 (캐스트 0.5)
-- dk_execution         # 처형, 충전 100 소모. 극대화된 단일 피해 (캐스트 1.0)
-
-# Special - 패링
-- dk_vengeful_parry    # 복수의 패링, 캐스트 중 피격 시 카운터 (캐스트 0.7)
-
-# Utility
-- dk_dark_regeneration # 어둠의 재생, 충전 20 소모하여 HP/BRV 회복
-- dk_ultimate          # 궁극기: 불굴의 힘
+- charge_strike
+- crushing_blow
+- defensive_stance
+- counter_stance
+- power_strike
+- abyssal_burst
+- execution
+- vengeful_parry
+- dark_regeneration
+- ultimate
 
 bonuses:
   critical_damage: 1.5

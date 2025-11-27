@@ -4,7 +4,8 @@ from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
-from src.character.skills.effects.heal_effect import HealEffect
+from src.character.skills.effects.heal_effect import HealEffect, HealType
+from src.character.skills.effects.atb_effect import AtbEffect
 from src.character.skills.costs.mp_cost import MPCost
 
 def create_monk_skills():
@@ -142,8 +143,26 @@ def create_monk_skills():
 def register_monk_skills(skill_manager):
     """몽크 스킬 등록"""
     skills = create_monk_skills()
+    
+    # 팀워크 스킬: 기의 흐름
+    teamwork = TeamworkSkill(
+        "monk_teamwork",
+        "음양 조화",
+        "음양 게이지를 50으로 조정 (균형) + 단일 대상 BRV+HP (1.6x → HP 변환) + 자신 회피 +30% (2턴)",
+        gauge_cost=100)
+    teamwork.effects = [
+        HealEffect(heal_type=HealType.BRV, base_amount=500, is_party_wide=True),  # BRV 500 회복
+        BuffEffect(BuffType.SPEED_UP, 0.8, duration=3, is_party_wide=True),  # 속도 +80%
+        AtbEffect(atb_change=600, is_party_wide=True)  # 아군 전체 ATB 증가
+    ]
+    teamwork.target_type = "party"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "speed_boost": True, "brv_heal": True}
+    skills.append(teamwork)
+
     for skill in skills:
         skill_manager.register_skill(skill)
 
-    # 팀워크 스킬: 음양 조화
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

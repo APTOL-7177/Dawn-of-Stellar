@@ -1,5 +1,6 @@
 class_name: 시간술사
 description: 시간을 조작하여 전장을 지배하는 시공의 마법사
+slogan: "시간을 다루는 자, 운명을 다룬다"
 archetype: 시간 조작
 base_stats:
   hp: 121
@@ -56,16 +57,19 @@ gimmick:
   future_threshold: 2
 skills:
 - teamwork
-- time_mage_slow
-- time_mage_stop
-- time_mage_rewind
-- time_mage_repeat
-- time_mage_align
-- time_mage_balance
-- time_mage_haste
-- time_mage_foresight
-- time_mage_leap
-- time_mage_wave
+- time_bolt
+- time_shock
+- slow
+- stop
+- rewind
+- repeat
+- align
+- balance
+- haste
+- foresight
+- leap
+- wave
+
 bonuses:
   speed_multiplier: 1.1
   atb_rate: 1.1

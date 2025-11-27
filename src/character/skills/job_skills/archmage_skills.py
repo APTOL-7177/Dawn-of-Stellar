@@ -172,6 +172,24 @@ def create_archmage_skills():
     ultimate.metadata = {"ultimate": True, "element_consume_all": True, "aoe": True, "element_scaling": True}
     skills.append(ultimate)
 
+    # 팀워크 스킬: 원소 대폭발
+    teamwork = TeamworkSkill(
+        "archmage_teamwork",
+        "원소 수렴",
+        "전체 적 무속성 마법 BRV+HP (4.5x) + 적 전체 속성 저항 -40% (3턴)",
+        gauge_cost=250)
+    teamwork.effects = [
+        DamageEffect(DamageType.BRV, 4.5),  # BRV 마법 공격 4.5x
+        DamageEffect(DamageType.HP, 1.0),  # HP 변환
+        BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.4, duration=3),  # 적 전체 속성 저항 -40%
+    ]
+    teamwork.target_type = "party"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "element": True}
+    skills.append(teamwork)
+
     return skills
 
 def register_archmage_skills(skill_manager):
@@ -181,4 +199,4 @@ def register_archmage_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 원소 수렴
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

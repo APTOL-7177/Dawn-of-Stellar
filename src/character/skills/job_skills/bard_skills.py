@@ -1,164 +1,297 @@
-"""Bard Skills - 바드 스킬 (멜로디/옥타브 시스템)"""
+"""Bard Skills - 바드 (악보 작곡 시스템)
+
+스킬 사용 시 음표가 악보에 추가되고,
+특정 패턴 완성 시 강력한 효과 발동!
+
+음표: A(공격), B(버프), S(서포트)
+"한 음 한 음이 전장의 운명을 바꾼다"
+"""
 from src.character.skills.skill import Skill
 from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
-from src.character.skills.effects.heal_effect import HealEffect, HealType
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
-from src.character.skills.effects.atb_effect import AtbEffect
+from src.character.skills.effects.heal_effect import HealEffect, HealType
+from src.character.skills.effects.status_effect import StatusEffect, StatusType
 from src.character.skills.costs.mp_cost import MPCost
-from src.character.skills.costs.stack_cost import StackCost
+from src.core.logger import get_logger
+
+logger = get_logger("bard_skills")
+
 
 def create_bard_skills():
-    """바드 10개 스킬 생성 (멜로디/옥타브 시스템)"""
-
+    """바드 11개 스킬 생성 (악보 작곡 시스템)"""
+    
     skills = []
-
-    # 1. 기본 BRV: 음표 공격
-    note_attack = Skill("bard_note_attack", "음표 공격", "음표로 적을 공격하고 멜로디 1음 획득")
-    note_attack.effects = [
-        DamageEffect(DamageType.BRV, 1.3, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "melody_stacks", 1, max_value=7)
+    
+    # ============================================================
+    # 1. 음표 타격 (기본 BRV + A 추가)
+    # ============================================================
+    note_strike = Skill(
+        "bard_note_strike",
+        "음표 타격",
+        "음파로 공격! 악보에 A 음표 추가."
+    )
+    note_strike.effects = [
+        DamageEffect(DamageType.BRV, 1.4, stat_type="magic"),
     ]
-    note_attack.costs = []  # 기본 공격은 MP 소모 없음
-    note_attack.sfx = ("skill", "bell")  # 음표 공격
-    note_attack.metadata = {"melody_gain": 1}
-    skills.append(note_attack)
-
-    # 2. 기본 HP: 화음 타격
-    chord_strike = Skill("bard_chord_strike", "화음 타격", "멜로디를 소비하여 HP 공격")
-    chord_strike.effects = [
-        DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "melody_stacks", "multiplier": 0.15}),
-        GimmickEffect(GimmickOperation.CONSUME, "melody_stacks", 1)
+    note_strike.costs = []
+    note_strike.sfx = ("combat", "attack_magic")
+    note_strike.metadata = {
+        "basic_attack": True,
+        "note_type": "attack",
+        "note_add": "A"
+    }
+    skills.append(note_strike)
+    
+    # ============================================================
+    # 2. 화음파 (기본 HP + B 추가)
+    # ============================================================
+    chord_wave = Skill(
+        "bard_chord_wave",
+        "화음파",
+        "화음의 파동! HP 피해 + 악보에 B 추가."
+    )
+    chord_wave.effects = [
+        DamageEffect(DamageType.HP, 1.0, stat_type="magic"),
     ]
-    chord_strike.costs = []  # 기본 공격은 MP 소모 없음
-    chord_strike.sfx = ("skill", "sound1")  # 화음 타격
-    chord_strike.metadata = {"melody_cost": 1, "melody_scaling": True}
-    skills.append(chord_strike)
-
-    # 3. 음계 상승
-    scale_up = Skill("bard_scale_up", "음계 상승", "멜로디 3음 획득")
-    scale_up.effects = [
-        GimmickEffect(GimmickOperation.ADD, "melody_stacks", 3, max_value=7)
+    chord_wave.costs = []
+    chord_wave.sfx = ("skill", "magic_cast")
+    chord_wave.metadata = {
+        "basic_attack": True,
+        "note_type": "buff",
+        "note_add": "B"
+    }
+    skills.append(chord_wave)
+    
+    # ============================================================
+    # 3. 전투 행진곡 (파티 버프 + B)
+    # ============================================================
+    battle_march = Skill(
+        "bard_battle_march",
+        "전투 행진곡",
+        "힘찬 행진곡! 파티 공격력/속도 UP + B 추가."
+    )
+    battle_march.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.25, duration=4, is_party_wide=True),
+        BuffEffect(BuffType.SPEED_UP, 0.2, duration=4, is_party_wide=True),
     ]
-    scale_up.costs = []
-    scale_up.target_type = "self"
-    # scale_up.cooldown = 3  # 쿨다운 시스템 제거됨
-    scale_up.sfx = ("skill", "haste")  # 음계 상승
-    scale_up.metadata = {"melody_gain": 3}
-    skills.append(scale_up)
-
-    # 4. 회복의 노래
-    healing_song = Skill("bard_healing_song", "회복의 노래", "아군 회복 + 멜로디 획득")
-    healing_song.effects = [
-        HealEffect(HealType.HP, percentage=0.55, is_party_wide=True),  # 회복의 노래 (파티 힐)
-        GimmickEffect(GimmickOperation.ADD, "melody_stacks", 1, max_value=7)
+    battle_march.costs = [MPCost(10)]
+    battle_march.target_type = "all_allies"
+    battle_march.sfx = ("character", "status_buff")
+    battle_march.metadata = {
+        "party_buff": True,
+        "note_type": "buff",
+        "note_add": "B"
+    }
+    skills.append(battle_march)
+    
+    # ============================================================
+    # 4. 치유의 선율 (파티 힐 + S)
+    # ============================================================
+    healing_melody = Skill(
+        "bard_healing_melody",
+        "치유의 선율",
+        "부드러운 선율로 파티 전체 회복 + S 추가."
+    )
+    healing_melody.effects = [
+        HealEffect(HealType.HP, percentage=0.25, is_party_wide=True),
     ]
-    healing_song.costs = [MPCost(5)]
-    healing_song.target_type = "party"
-    # healing_song.cooldown = 3  # 쿨다운 시스템 제거됨
-    healing_song.cast_time = 0.2  # ATB 20% 캐스팅
-    healing_song.sfx = ("skill", "bell")  # 회복의 노래
-    healing_song.metadata = {"healing": True, "party_wide": True, "melody_gain": 1}
-    skills.append(healing_song)
-
-    # 5. 전율 (크레센도)
-    crescendo = Skill("bard_crescendo", "전율", "멜로디에 비례한 BRV 공격")
-    crescendo.effects = [
-        DamageEffect(DamageType.BRV, 1.5, gimmick_bonus={"field": "melody_stacks", "multiplier": 0.3}, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "melody_stacks", 1, max_value=7)
-    ]
-    crescendo.costs = [MPCost(4)]
-    # crescendo.cooldown = 2  # 쿨다운 시스템 제거됨
-    crescendo.sfx = ("skill", "sound2")  # 전율
-    crescendo.metadata = {"melody_scaling": True, "melody_gain": 1}
-    skills.append(crescendo)
-
-    # 6. 공명 (파티 버프)
-    resonance = Skill("bard_resonance", "공명", "파티 전체 공격력 상승")
-    resonance.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.25, duration=3, is_party_wide=True),
-        GimmickEffect(GimmickOperation.ADD, "melody_stacks", 1, max_value=7)
-    ]
-    resonance.costs = [MPCost(6)]
-    resonance.target_type = "party"
-    # resonance.cooldown = 4  # 쿨다운 시스템 제거됨
-    resonance.sfx = ("skill", "sound1")  # 공명
-    resonance.metadata = {"buff": True, "party_wide": True, "melody_gain": 1}
-    skills.append(resonance)
-
-    # 7. 화음 완성 (옥타브 완성)
-    perfect_harmony = Skill("bard_perfect_harmony", "화음 완성", "7음 소비, 파티 전체 강화")
-    perfect_harmony.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=4, is_party_wide=True),
-        BuffEffect(BuffType.MAGIC_UP, 0.4, duration=4, is_party_wide=True),
-        BuffEffect(BuffType.SPEED_UP, 0.3, duration=4, is_party_wide=True),
-        GimmickEffect(GimmickOperation.ADD, "octave_completed", 1)
-    ]
-    perfect_harmony.costs = [MPCost(8), StackCost("melody_stacks", 7)]  # 멜로디 7음 필요
-    perfect_harmony.target_type = "party"
-    # perfect_harmony.cooldown = 5  # 쿨다운 시스템 제거됨
-    perfect_harmony.cast_time = 0.4  # ATB 40% 캐스팅
-    perfect_harmony.sfx = ("skill", "bell")  # 화음 완성
-    perfect_harmony.metadata = {"octave": True, "melody_cost": 7, "buff": True, "party_wide": True}
-    skills.append(perfect_harmony)
-
-    # 8. 불협화음 (디버프 공격)
-    discord = Skill("bard_discord", "불협화음", "멜로디 2음 소비, 적 약화 공격")
-    discord.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="magical"),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=3)
-    ]
-    discord.costs = [MPCost(7), StackCost("melody_stacks", 2)]  # 멜로디 2음 필요
-    # discord.cooldown = 3  # 쿨다운 시스템 제거됨
-    discord.sfx = ("skill", "sound3")  # 불협화음
-    discord.metadata = {"melody_cost": 2, "debuff": True}
-    skills.append(discord)
-
-    # 9. 강화 협주곡 (NEW - 10번째 스킬로 만들기 위해 추가)
-    fortissimo = Skill("bard_fortissimo", "강화 협주곡", "멜로디 4음 소비 대규모 버프")
-    fortissimo.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=4, is_party_wide=True),
-        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=4, is_party_wide=True),
+    healing_melody.costs = [MPCost(12)]
+    healing_melody.target_type = "all_allies"
+    healing_melody.sfx = ("character", "hp_heal")
+    healing_melody.metadata = {
+        "party_heal": True,
+        "note_type": "support",
+        "note_add": "S"
+    }
+    skills.append(healing_melody)
+    
+    # ============================================================
+    # 5. 영감의 노래 (크리티컬 버프 + B)
+    # ============================================================
+    inspire_song = Skill(
+        "bard_inspire_song",
+        "영감의 노래",
+        "영감을 불어넣는 노래! 파티 크리티컬 UP + B 추가."
+    )
+    inspire_song.effects = [
         BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=4, is_party_wide=True),
-        GimmickEffect(GimmickOperation.CONSUME, "melody_stacks", 4)
+        BuffEffect(BuffType.ACCURACY_UP, 0.2, duration=4, is_party_wide=True),
     ]
-    fortissimo.costs = [MPCost(9), StackCost("melody_stacks", 4)]
-    fortissimo.target_type = "party"
-    # fortissimo.cooldown = 5  # 쿨다운 시스템 제거됨
-    fortissimo.sfx = ("skill", "sound2")  # 강화 협주곡
-    fortissimo.metadata = {"melody_cost": 4, "buff": True, "party_wide": True}
-    skills.append(fortissimo)
-
-    # 10. 궁극기: 교향곡
-    ultimate = Skill("bard_ultimate", "교향곡", "모든 멜로디로 파티 강화 + 적 섬멸")
+    inspire_song.costs = [MPCost(8)]
+    inspire_song.target_type = "all_allies"
+    inspire_song.sfx = ("character", "status_buff")
+    inspire_song.metadata = {
+        "party_buff": True,
+        "note_type": "buff",
+        "note_add": "B"
+    }
+    skills.append(inspire_song)
+    
+    # ============================================================
+    # 6. 진혼곡 (적 약화 + S)
+    # ============================================================
+    requiem = Skill(
+        "bard_requiem",
+        "진혼곡",
+        "슬픈 진혼곡으로 적을 약화! 전체 디버프 + S 추가."
+    )
+    requiem.effects = [
+        DamageEffect(DamageType.BRV, 1.2, stat_type="magic"),
+        BuffEffect(BuffType.ATTACK_DOWN, 0.25, duration=3),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.2, duration=3),
+    ]
+    requiem.costs = [MPCost(10)]
+    requiem.target_type = "all_enemies"
+    requiem.is_aoe = True
+    requiem.sfx = ("character", "status_debuff")
+    requiem.metadata = {
+        "debuff": True,
+        "aoe": True,
+        "note_type": "support",
+        "note_add": "S"
+    }
+    skills.append(requiem)
+    
+    # ============================================================
+    # 7. 자장가 (적 수면 + S)
+    # ============================================================
+    lullaby = Skill(
+        "bard_lullaby",
+        "자장가",
+        "달콤한 자장가로 적을 재운다! 수면 + S 추가."
+    )
+    lullaby.effects = [
+        StatusEffect(StatusType.SLEEP, 2, 1.0),  # 2턴 수면
+        BuffEffect(BuffType.SPEED_DOWN, 0.4, duration=2),
+    ]
+    lullaby.costs = [MPCost(14)]
+    lullaby.target_type = "enemy"
+    lullaby.sfx = ("character", "status_debuff")
+    lullaby.metadata = {
+        "cc_skill": True,
+        "note_type": "support",
+        "note_add": "S"
+    }
+    skills.append(lullaby)
+    
+    # ============================================================
+    # 8. 작곡 (현재 악보 효과 발동)
+    # ============================================================
+    compose = Skill(
+        "bard_compose",
+        "작곡",
+        "완성된 악보를 연주한다! 음표 패턴에 따라 효과 발동."
+    )
+    compose.effects = [
+        # 효과는 execute_skill에서 음표 패턴에 따라 적용
+        BuffEffect(BuffType.ATTACK_UP, 0.1, duration=2),  # 기본 효과
+    ]
+    compose.costs = [MPCost(6)]
+    compose.target_type = "all_allies"
+    compose.sfx = ("skill", "magic_cast")
+    compose.metadata = {
+        "compose_skill": True,
+        "consume_notes": True,
+        "pattern_effects": {
+            "AAA": {"type": "attack_surge", "value": 0.8, "duration": 3},
+            "BBB": {"type": "buff_extend", "value": 2.0},
+            "SSS": {"type": "mass_heal", "value": 0.4},
+            "ABS": {"type": "all_stat_up", "value": 0.25, "duration": 4},
+            "SBA": {"type": "enemy_debuff", "value": 0.25, "duration": 3}
+        }
+    }
+    skills.append(compose)
+    
+    # ============================================================
+    # 9. 즉흥 연주 (랜덤 음표 3개)
+    # ============================================================
+    improvise = Skill(
+        "bard_improvise",
+        "즉흥 연주",
+        "즉흥적인 연주! 랜덤 음표 3개 추가."
+    )
+    improvise.effects = [
+        DamageEffect(DamageType.BRV, 1.6, stat_type="magic"),
+        BuffEffect(BuffType.SPEED_UP, 0.15, duration=2),
+    ]
+    improvise.costs = [MPCost(8)]
+    improvise.sfx = ("skill", "haste")
+    improvise.metadata = {
+        "random_notes": 3,
+        "improvise": True
+    }
+    skills.append(improvise)
+    
+    # ============================================================
+    # 10. 궁극기: 그랜드 피날레
+    # ============================================================
+    ultimate = Skill(
+        "bard_ultimate",
+        "그랜드 피날레",
+        "장엄한 피날레! 5음표 교향곡 확정 + 모든 효과 발동."
+    )
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "melody_stacks", "multiplier": 0.5}, stat_type="magical"),
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "octave_completed", "multiplier": 0.3}, stat_type="magical"),
-        DamageEffect(DamageType.HP, 2.5),
+        # 강력한 전체 공격
+        DamageEffect(DamageType.BRV, 2.5, stat_type="magic"),
+        DamageEffect(DamageType.HP, 2.0, stat_type="magic"),
+        # 파티 극강 버프
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, is_party_wide=True),
-        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=5, is_party_wide=True),
-        BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=5, is_party_wide=True),
-        GimmickEffect(GimmickOperation.SET, "melody_stacks", 0)
+        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5, is_party_wide=True),
+        BuffEffect(BuffType.SPEED_UP, 0.3, duration=5, is_party_wide=True),
+        BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=5, is_party_wide=True),
+        # 파티 힐
+        HealEffect(HealType.HP, percentage=0.35, is_party_wide=True),
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(35)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
-    ultimate.cast_time = 0.8  # ATB 80% 캐스팅 (궁극기)
-    ultimate.sfx = ("skill", "limit_break")  # 궁극기
-    # ultimate.cooldown = 8  # 쿨다운 시스템 제거됨
-    ultimate.metadata = {"ultimate": True, "melody_consume_all": True, "octave_scaling": True, "party_wide": True, "aoe": True}
+    ultimate.sfx = ("skill", "limit_break")
+    ultimate.metadata = {
+        "ultimate": True,
+        "aoe": True,
+        "symphony_guaranteed": True,
+        "all_effects": True
+    }
     skills.append(ultimate)
-
+    
+    # ============================================================
+    # 팀워크 스킬: 대합주
+    # ============================================================
+    teamwork = TeamworkSkill(
+        "bard_teamwork",
+        "대합주",
+        "파티 전원이 함께하는 대합주! 전체 버프 + 적 전체 피해.",
+        gauge_cost=175
+    )
+    teamwork.effects = [
+        DamageEffect(DamageType.BRV, 2.0, stat_type="magic"),
+        DamageEffect(DamageType.HP, 1.5, stat_type="magic"),
+        BuffEffect(BuffType.ATTACK_UP, 0.35, duration=4, is_party_wide=True),
+        BuffEffect(BuffType.SPEED_UP, 0.25, duration=4, is_party_wide=True),
+    ]
+    teamwork.target_type = "all_enemies"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {
+        "teamwork": True,
+        "chain": True,
+        "full_notes": True,  # 음표 5개로 채움
+        "aoe": True
+    }
+    skills.append(teamwork)
+    
     return skills
+
 
 def register_bard_skills(skill_manager):
     """바드 스킬 등록"""
     skills = create_bard_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-
-    # 팀워크 스킬: 용기의 노래
-\n    return [s.skill_id for s in skills]\n
+    
+    logger.info(f"바드 스킬 {len(skills)}개 등록 완료")
+    return [s.skill_id for s in skills]

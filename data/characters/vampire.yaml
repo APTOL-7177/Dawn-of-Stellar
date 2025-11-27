@@ -1,5 +1,6 @@
 class_name: 흡혈귀
 description: 피를 흡수하여 생존하는 불사의 존재
+slogan: "피는 생명이자 힘이다"
 archetype: 생존 특화
 base_stats:
   hp: 186
@@ -75,16 +76,17 @@ gimmick:
     take_damage: 15
 skills:
 - teamwork
-- vampire_vampiric_bite
-- vampire_blood_drain
-- vampire_blood_lance
-- vampire_thirst_surge
-- vampire_bat_swarm
-- vampire_mist_form
-- vampire_prepare_frenzy
-- vampire_life_tap
-- vampire_blood_satiation
-- vampire_ultimate
+- vampiric_bite
+- blood_drain
+- blood_lance
+- thirst_surge
+- bat_swarm
+- mist_form
+- prepare_frenzy
+- life_tap
+- blood_satiation
+- ultimate
+
 bonuses:
   lifesteal: 0.12
   low_hp_bonus: 1.2

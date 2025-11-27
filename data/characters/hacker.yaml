@@ -1,5 +1,6 @@
 class_name: 해커
 description: 시스템을 해킹하여 적을 약화시키는 트리키한 전투 전문가
+slogan: "시스템을 지배하는 자가 전장을 지배한다"
 archetype: 디버프 특화
 base_stats:
   hp: 142
@@ -89,16 +90,17 @@ traits:
     attack_multiplier: 1.5
 skills:
 - teamwork
-- hacker_port_scan
-- hacker_data_breach
-- hacker_crack_firewall
-- hacker_ddos
-- hacker_root_access
-- hacker_virus_upload
-- hacker_system_overload
-- hacker_backdoor_install
-- hacker_network_collapse
-- hacker_zero_day
+- code_injection
+- data_breach
+- run_virus
+- run_backdoor
+- run_ddos
+- run_ransomware
+- run_spyware
+- terminate_all
+- system_overload
+- ultimate
+
 bonuses:
   debuff_duration: 1.15
   status_effect_power: 1.1

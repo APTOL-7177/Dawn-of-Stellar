@@ -144,6 +144,24 @@ def create_samurai_skills():
     ultimate.metadata = {"ultimate": True, "will_dump": True, "supreme_strike": True}
     skills.append(ultimate)
 
+    # 팀워크 스킬: 사무라이의 정신
+    teamwork = TeamworkSkill(
+        "samurai_teamwork",
+        "거합: 섬광",
+        "단일 대상 HP 공격 (3.5x) + BREAK 시 wound damage 3배 + 거합 게이지 초기화",
+        gauge_cost=200)
+    teamwork.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=3, is_party_wide=True),  # 공격력 +50%
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=2, is_party_wide=True),  # 적 전체 방어력 -30%
+        GimmickEffect(GimmickOperation.SET, "resolve", 100),  # 의지(거합) 게이지 완전 회복
+    ]
+    teamwork.target_type = "party"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "will": True}
+    skills.append(teamwork)
+
     return skills
 
 def register_samurai_skills(skill_manager):
@@ -153,4 +171,4 @@ def register_samurai_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 거합: 섬광
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

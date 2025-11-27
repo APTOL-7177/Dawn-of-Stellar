@@ -1,5 +1,6 @@
 class_name: 마검사
 description: 마법과 검술이 완벽하게 융합된 전투의 예술가
+slogan: "검과 마법, 그 경계를 넘어서"
 archetype: 하이브리드 딜러
 base_stats:
   hp: 164
@@ -48,16 +49,39 @@ traits:
 gimmick:
   type: enchant_system
   name: 마력 부여
-  description: 검에 마력을 부여하여 원소 속성 공격 수행
+  description: |
+    [마검 시스템] 검에 원소 마력을 부여!
+    
+    - 마법 스킬로 마나 블레이드 충전 (최대 100)
+    - 물리 공격 시 마나 소비 + 추가 피해
+    - 원소 부여로 속성 공격
+    
+    원소 부여:
+    - 화염 부여: 화상 + 피해 증가
+    - 빙결 부여: 속도 감소 + 동결
+    - 번개 부여: 연쇄 피해 + 마비
+    
+    마검 오의:
+    - 크리티컬 시 물리+마법 동시 발동
+    - 마나 100 소비: 원소 폭풍 (광역)
   max_mana_blade: 100
+  enchant_types:
+    fire: {damage: 1.3, status: burn}
+    ice: {damage: 1.2, status: slow}
+    lightning: {damage: 1.25, status: paralyze}
 skills:
 - teamwork
 - magic_slash
-- enchant_blade
-- spell_strike
-- elemental_edge
-- arcane_burst
-- ultimate_fusion
+- elemental_slash
+- fire_infusion
+- ice_infusion
+- lightning_infusion
+- magic_blade_dance
+- mana_burst
+- elemental_storm
+- blade_spin
+- ultimate
+
 bonuses:
   hybrid_damage: 1.1
   spell_cast_speed: 1.2

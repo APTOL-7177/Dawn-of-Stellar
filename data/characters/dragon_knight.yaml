@@ -1,5 +1,6 @@
 class_name: 용기사
 description: 용의 화염으로 전장을 불태우는 화염의 기사
+slogan: "용의 피가 내 안에서 불타오른다"
 archetype: 화염 특화 딜러
 base_stats:
   hp: 181
@@ -64,6 +65,7 @@ skills:
 - dragon_mark_strike
 - dragon_storm
 - ultimate
+
 bonuses:
   fire_damage: 1.15
   fire_resistance: 0.2

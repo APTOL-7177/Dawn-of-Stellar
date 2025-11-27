@@ -156,8 +156,27 @@ def create_battle_mage_skills():
 def register_battle_mage_skills(skill_manager):
     """배틀메이지 스킬 등록"""
     skills = create_battle_mage_skills()
+    
+    # 팀워크 스킬: 전투 마법 진영
+    teamwork = TeamworkSkill(
+        "battle_mage_teamwork",
+        "마법검 난무",
+        "단일 대상 물리+마법 복합 BRV+HP (3.0x 합산) + 엔챈트 게이지 +30",
+        gauge_cost=150)
+    teamwork.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=3, is_party_wide=True),  # 물리 공격력 +40%
+        BuffEffect(BuffType.MAGIC_UP, 0.4, duration=3, is_party_wide=True),  # 마법 공격력 +40%
+        GimmickEffect(GimmickOperation.ADD, "enchant", 30, max_value=100),  # 엔챈트 게이지 +30
+        # 복합 속성 공격 (자동)
+    ]
+    teamwork.target_type = "party"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "hybrid": True}
+    skills.append(teamwork)
+
     for skill in skills:
         skill_manager.register_skill(skill)
 
-    # 팀워크 스킬: 마법검 난무
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

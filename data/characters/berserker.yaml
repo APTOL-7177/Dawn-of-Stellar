@@ -1,5 +1,6 @@
 class_name: 광전사
 description: 체력이 낮을수록 더 강해지는 광기의 전사
+slogan: "고통이 클수록 나는 강해진다"
 archetype: 하이리스크 하이리턴
 base_stats:
   hp: 327
@@ -85,16 +86,17 @@ gimmick:
   rampage_threshold: 100
 skills:
 - teamwork
-- berserker_slash
-- berserker_smash
-- berserker_reckless_strike
-- berserker_self_harm
-- berserker_battle_cry
-- berserker_blood_rage
-- berserker_desperate_assault
-- berserker_healing_roar
-- berserker_controlled_fury
-- berserker_ultimate
+- slash
+- smash
+- reckless_strike
+- self_harm
+- battle_cry
+- blood_rage
+- desperate_assault
+- healing_roar
+- controlled_fury
+- ultimate
+
 bonuses:
   low_hp_damage: 1.1
   hp_multiplier: 1.1

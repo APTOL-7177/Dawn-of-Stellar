@@ -26,7 +26,8 @@ logger = get_logger("test")
 class TestTeamworkSystem:
     """팀워크 게이지 시스템 테스트"""
 
-    def __init__(self):
+    def setup_method(self):
+        """테스트 설정"""
         self.passed = 0
         self.failed = 0
         self.tests = []

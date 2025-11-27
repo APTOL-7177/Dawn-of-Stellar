@@ -126,15 +126,26 @@ def create_engineer_skills():
     mega_blaster.cooldown = 15  # 궁극기 쿨타임 15턴
     mega_blaster.metadata = {"heat_change": 60, "heat_scaling": True}
 
+    teamwork = TeamworkSkill("engineer_teamwork", "긴급 냉각 시스템", "열 게이지 -70 + 단일 대상 화염 BRV+HP (2.8x) + 자신 속도 1.25배 (3턴)", gauge_cost=150)
+    teamwork.effects = [
+        GimmickEffect(GimmickOperation.ADD, "heat", -70, min_value=0),  # 열 게이지 -70
+        DamageEffect(DamageType.BRV, 2.8),  # 화염 BRV 공격 2.8x
+        DamageEffect(DamageType.HP, 1.0),  # HP 변환
+        BuffEffect(BuffType.SPEED_UP, 0.25, duration=3, target="self"),  # 자신 속도 1.25배
+    ]
+    teamwork.target_type = "party"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "engineer": True}
+
     return [turret_shot, rocket_punch, overload_blast, emp_explosion,
             cooling_vent, overclock_mode, emergency_repair, shield_generator,
-            deploy_drone, mega_blaster]
+            deploy_drone, mega_blaster, teamwork]
 
 def register_engineer_skills(skill_manager):
     """기계공학자 스킬 등록"""
     skills = create_engineer_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-
-    # 팀워크 스킬: 긴급 냉각 시스템
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

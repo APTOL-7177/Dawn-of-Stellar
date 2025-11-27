@@ -1,65 +1,169 @@
 class_name: 해적
-description: 보물과 황금에 집착하는 탐욕스러운 모험가
-archetype: 보물 사냥꾼
+description: 럼주와 도박을 사랑하는 바다의 무법자. 약탈한 보물로 전장을 지배한다.
+slogan: "인생은 도박이야, 럼주나 마셔"
+archetype: 도박사/버스터
+
 base_stats:
-  hp: 164
-  mp: 37
-  init_brv: 120
-  speed: 77
-  physical_attack: 74
-  physical_defense: 52
-  magic_attack: 34
-  magic_defense: 41
-  max_brv: 458
+  hp: 168
+  mp: 42
+  init_brv: 125
+  speed: 78
+  physical_attack: 76
+  physical_defense: 48
+  magic_attack: 32
+  magic_defense: 38
+  max_brv: 480
+
 stat_growth:
-  hp: 11.5
-  mp: 3.8
-  init_brv: 24.0
-  strength: 4.2
-  defense: 3.0
-  magic: 2.0
-  spirit: 2.5
-  speed: 4.0
-  luck: 5.0
-  accuracy: 2.2
-  evasion: 2.0
-  max_brv: 91.6
+  hp: 12.0
+  mp: 4.0
+  init_brv: 25.0
+  strength: 4.5
+  defense: 2.8
+  magic: 1.8
+  spirit: 2.2
+  speed: 4.2
+  luck: 5.5
+  accuracy: 2.0
+  evasion: 2.5
+  max_brv: 96.0
+
+# 특성 5개
 traits:
-- id: treasure_hunter
-  name: 보물 사냥꾼
-  description: 골드 획득 +50%, 아이템 드랍률 +40%
+- id: lucky_drunk
+  name: 행운의 주정뱅이
+  description: 럼주 효과 발동 시 긍정 효과 확률 +20% (기본 50% → 70%)
   type: passive
-- id: lucky_strike
-  name: 행운의 일격
-  description: 행운 수치만큼 크리티컬 확률 증가 (1행운 = 1%)
+  effects:
+    positive_rum_chance: 0.7
+
+- id: treasure_hoarder
+  name: 보물 수집가
+  description: 보물 최대 보유량 +2 (3→5), 같은 보물 중첩 시 효과 1.5배
   type: passive
-- id: greed
-  name: 탐욕
-  description: 골드 보유량이 많을수록 스탯 증가 (70골드당 +2%)
+  effects:
+    max_treasure: 5
+    stack_bonus: 1.5
+
+- id: sea_dog_instinct
+  name: 바다 늑대의 본능
+  description: HP 30% 이하 시 회피율 +40%, 럼주 효과가 항상 긍정적
+  type: conditional
+  conditions:
+    hp_below: 0.3
+  effects:
+    evasion_bonus: 0.4
+    rum_always_positive: true
+
+- id: plunder_master
+  name: 약탈의 대가
+  description: 적 처치 시 100% 보물 획득 (기본 60%), 보물 효과 +30%
   type: passive
-- id: pirate_fortune
-  name: 해적의 행운
-  description: 전투 승리 시 15% 확률로 추가 보물 상자
-  type: trigger
-- id: dirty_fighting
-  name: 비열한 전투
-  description: 공격 시 20% 확률로 적 디버프 (랜덤)
-  type: trigger
+  effects:
+    treasure_drop_rate: 1.0
+    treasure_effect_bonus: 1.3
+
+- id: pirate_kings_fortune
+  name: 해적왕의 행운
+  description: 모든 확률 기반 효과 +15%, 크리티컬 데미지 +25%
+  type: passive
+  effects:
+    luck_bonus: 0.15
+    critical_damage: 1.25
+
+# 럼주 & 보물 시스템
 gimmick:
-  type: plunder_system
-  name: 약탈과 재물
-  description: 전투에서 골드를 획득하고 소모하여 강력한 해적 기술 사용
-  gold_per_hit: 10
-  max_gold: 1000
+  type: rum_treasure_system
+  name: 럼주와 보물
+  description: |
+    [럼주] 마시면 랜덤 효과 발동 (도박!)
+    [보물] 적 처치 시 획득, 강력한 일회용 효과
+    
+    럼주 효과 (50% 긍정 / 50% 부정):
+    - 대박: 공격력 2배 (3턴)
+    - 취기: 명중 -30%, 회피 +50% (2턴)
+    - 불꽃: 매턴 자해 10%, 공격력 +80% (3턴)
+    - 블랙아웃: 1턴 기절, 다음 턴 2회 행동
+    
+    보물 종류:
+    - 금화 주머니: 즉시 BRV +50%
+    - 해적 권총: 추가 원거리 공격
+    - 저주받은 동전: 적 전체 디버프
+    - 행운의 주사위: 다음 스킬 효과 2배 or 0.5배
+    - 검은 진주: 궁극기 게이지 +50
+  
+  max_treasure: 3
+  rum_positive_chance: 0.5
+  treasure_drop_chance: 0.6
+  
+  rum_effects:
+    jackpot:
+      name: 대박
+      chance: 0.25
+      effect: attack_up_200
+      duration: 3
+    tipsy:
+      name: 취기
+      chance: 0.25
+      effect: accuracy_down_evasion_up
+      duration: 2
+    fire_blood:
+      name: 불꽃 피
+      chance: 0.25
+      effect: self_damage_attack_up
+      duration: 3
+    blackout:
+      name: 블랙아웃
+      chance: 0.25
+      effect: stun_then_double_action
+      duration: 1
+  
+  treasure_types:
+    gold_pouch:
+      name: 금화 주머니
+      effect: brv_boost_50
+      drop_weight: 30
+    pirate_pistol:
+      name: 해적 권총
+      effect: bonus_ranged_attack
+      drop_weight: 25
+    cursed_coin:
+      name: 저주받은 동전
+      effect: enemy_all_debuff
+      drop_weight: 20
+    lucky_dice:
+      name: 행운의 주사위
+      effect: next_skill_gamble
+      drop_weight: 15
+    black_pearl:
+      name: 검은 진주
+      effect: ultimate_charge_50
+      drop_weight: 10
+
+# 스킬 11개
 skills:
 - teamwork
-- cutlass_slash
-- pistol_shot
-- plunder
-- rum_bottle
-- cannonball
-- treasure_call
+# 기본 공격
+- cutlass_slash        # 커틀러스 베기 (BRV)
+- pistol_shot          # 권총 사격 (HP + 보물 확률)
+
+# 럼주 시스템
+- drink_rum            # 럼주 마시기 (랜덤 효과)
+- share_rum            # 럼주 나눠주기 (파티 랜덤 버프)
+- rum_splash           # 럼주 뿌리기 (적 디버프 + 화염)
+
+# 보물 시스템
+- plunder              # 약탈 (적에게 BRV 피해 + 보물 훔치기)
+- use_treasure         # 보물 사용 (보유 보물 효과 발동)
+- treasure_bomb        # 보물 폭탄 (보물 소비 → 전체 피해)
+
+# 해적 특기
+- cannon_barrage       # 함포 일제사격 (전체 HP 공격)
+- raise_flag           # 해적기 게양 (파티 공격력 + 약탈 확률 증가)
+- ultimate             # 해적왕의 유산 (모든 보물 효과 + 럼주 대박 확정)
+
 bonuses:
-  gold_bonus: 1.2
-  item_drop: 1.15
-  luck_to_crit: 0.005
+  luck_multiplier: 1.3
+  gold_bonus: 1.5
+  critical_damage: 1.2
+  treasure_effect: 1.15

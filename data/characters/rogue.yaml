@@ -1,5 +1,6 @@
 class_name: 도적
 description: 압도적인 속도와 회피로 적을 농락하는 암살자
+slogan: "정정당당? 그건 바보들이나 하는 거지"
 archetype: 속도형 딜러
 base_stats:
   hp: 150
@@ -48,16 +49,41 @@ traits:
 gimmick:
   type: theft_system
   name: 절도와 회피
-  description: 적의 아이템을 훔치고 회피 태세를 유지. 훔친 아이템으로 특수 기술 사용
+  description: |
+    [절도 시스템] 적에게서 아이템을 훔쳐라!
+    
+    - 훔치기 스킬로 아이템 획득
+    - 훔친 아이템 즉시 사용 가능
+    - 회피 성공 시 추가 보너스
+    
+    훔칠 수 있는 것:
+    - 골드 (즉시 획득)
+    - 포션 (즉시 사용)
+    - 버프 (적 버프 탈취)
+    - 희귀템 (확률적)
+    
+    회피 보너스:
+    - 회피 성공 시 크리 +50%
+    - 3연속 회피 시 은신 상태
   max_stolen_items: 10
+  steal_chances:
+    gold: 0.6
+    potion: 0.3
+    buff: 0.15
+    rare: 0.05
 skills:
 - teamwork
+- ambush
+- vital_strike
+- steal
+- smoke
+- use_item
+- poison
+- treasure
 - backstab
-- shadow_strike
-- smoke_bomb
-- poison_blade
-- vanish
-- death_mark
+- assassinate
+- ultimate
+
 bonuses:
   speed_multiplier: 1.1
   critical_rate: 1.2

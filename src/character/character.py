@@ -49,6 +49,10 @@ class Character:
 
         # job_name 설정 (YAML의 class_name)
         self.job_name = self.class_data.get('class_name', character_class)
+        
+        # 직업 설명 및 슬로건
+        self.job_description = self.class_data.get('description', '')
+        self.job_slogan = self.class_data.get('slogan', '')
 
         # StatManager 초기화
         if stats_config is None:
@@ -527,6 +531,38 @@ class Character:
             start_refraction = self.gimmick_data.get("start_refraction", 0)
             self.refraction_stacks = start_refraction  # 차원 굴절량 초기화
 
+        # 마술사 - 트릭 덱 시스템
+        elif gimmick_type == "trick_deck":
+            try:
+                from src.character.skills.job_skills.magician_skills import create_deck, shuffle_deck
+                self.card_deck = shuffle_deck(create_deck())  # 54장 덱 셔플
+                self.card_hand = []  # 손패 (최대 8장)
+                self.card_discard = []  # 버린 카드 더미
+                self.max_hand_size = self.gimmick_data.get("max_hand_size", 8)
+            except Exception as e:
+                self.logger.error(f"마술사 트릭 덱 초기화 실패: {e}", exc_info=True)
+                # 기본값으로 초기화
+                self.card_deck = []
+                self.card_hand = []
+                self.card_discard = []
+                self.max_hand_size = 8
+
+        # 해적 - 럼주 & 보물 시스템
+        elif gimmick_type == "rum_treasure_system":
+            self.treasure_inventory = []  # 보유 보물 목록 (최대 3개)
+            self.max_treasure = self.gimmick_data.get("max_treasure", 3)
+            self.rum_positive_chance = self.gimmick_data.get("rum_positive_chance", 0.5)
+            self.current_rum_effect = None  # 현재 럼주 효과
+            self.rum_effect_duration = 0  # 럼주 효과 남은 턴
+            self.lucky_dice_active = False  # 행운의 주사위 효과 활성화
+
+        # 바드 - 악보 작곡 시스템
+        elif gimmick_type == "score_composition":
+            self.music_notes = []  # 현재 악보의 음표들 (최대 5개)
+            self.max_notes = self.gimmick_data.get("max_notes", 5)
+            self.last_pattern = None  # 마지막으로 완성한 패턴
+            self.harmony_bonus = 1.0  # 화음 보너스 배율
+
         self.logger.debug(f"{self.character_class} 기믹 초기화: {gimmick_type}")
 
     def _get_class_skills(self, character_class: str) -> List[str]:
@@ -546,7 +582,7 @@ class Character:
             "궁수": "archer_",
             "도적": "rogue_",
             "성기사": "paladin_",
-            "암흑기사": "dk_",  # dark_knight 축약형
+            "암흑기사": "dark_knight_",  # dark_knight 축약형
             "몽크": "monk_",
             "바드": "bard_",
             "네크로맨서": "necromancer_",
@@ -575,13 +611,14 @@ class Character:
             "해커": "hacker_",
             "저격수": "sniper_",
             "흡혈귀": "vampire_",
+            "마술사": "magician_",
             # 영문 직업명 (하위호환성)
             "warrior": "warrior_",
             "archmage": "archmage_",
             "archer": "archer_",
             "rogue": "rogue_",
             "paladin": "paladin_",
-            "dark_knight": "dk_",
+            "dark_knight": "dark_knight_",
             "monk": "monk_",
             "bard": "bard_",
             "necromancer": "necromancer_",
@@ -610,6 +647,7 @@ class Character:
             "hacker": "hacker_",
             "sniper": "sniper_",
             "vampire": "vampire_",
+            "magician": "magician_",
         }
 
         # 스킬 접두사 가져오기
@@ -618,41 +656,42 @@ class Character:
             self.logger.warning(f"{character_class}의 스킬 접두사를 찾을 수 없습니다!")
             return []
 
-        # 영문 직업명을 한글로 변환해서 YAML에서 스킬 목록 가져오기
+        # 영문 직업명을 그대로 사용해서 YAML에서 스킬 목록 가져오기
         korean_class_map = {
-            "warrior": "전사",
-            "archmage": "아크메이지",
-            "archer": "궁수",
-            "rogue": "도적",
-            "paladin": "성기사",
-            "dark_knight": "암흑기사",
-            "monk": "몽크",
-            "bard": "바드",
-            "necromancer": "네크로맨서",
-            "dragon_knight": "용기사",
-            "sword_saint": "검성",
-            "elementalist": "정령술사",
-            "assassin": "암살자",
-            "engineer": "기계공학자",
-            "shaman": "무당",
-            "pirate": "해적",
-            "samurai": "사무라이",
-            "druid": "드루이드",
-            "philosopher": "철학자",
-            "time_mage": "시간술사",
-            "alchemist": "연금술사",
-            "gladiator": "검투사",
-            "knight": "기사",
-            "priest": "신관",
-            "spellblade": "마검사",
-            "dimensionist": "차원술사",
-            "berserker": "광전사",
-            "battle_mage": "배틀메이지",
-            "breaker": "브레이커",
-            "cleric": "클레릭",
-            "hacker": "해커",
-            "sniper": "저격수",
-            "vampire": "흡혈귀",
+            "warrior": "warrior",
+            "archmage": "archmage",
+            "archer": "archer",
+            "rogue": "rogue",
+            "paladin": "paladin",
+            "dark_knight": "dark_knight",
+            "monk": "monk",
+            "bard": "bard",
+            "necromancer": "necromancer",
+            "dragon_knight": "dragon_knight",
+            "sword_saint": "sword_saint",
+            "elementalist": "elementalist",
+            "assassin": "assassin",
+            "engineer": "engineer",
+            "shaman": "shaman",
+            "pirate": "pirate",
+            "samurai": "samurai",
+            "druid": "druid",
+            "philosopher": "philosopher",
+            "time_mage": "time_mage",
+            "alchemist": "alchemist",
+            "gladiator": "gladiator",
+            "knight": "knight",
+            "priest": "priest",
+            "spellblade": "spellblade",
+            "dimensionist": "dimensionist",
+            "berserker": "berserker",
+            "battle_mage": "battle_mage",
+            "breaker": "breaker",
+            "cleric": "cleric",
+            "hacker": "hacker",
+            "sniper": "sniper",
+            "vampire": "vampire",
+            "magician": "magician",
         }
 
         korean_class_name = korean_class_map.get(character_class, character_class)
@@ -667,7 +706,25 @@ class Character:
                 # 일반 스킬의 경우 접두사 + yaml_skill_id
                 actual_skill_id = skill_prefix + yaml_skill_id
 
-            skill_ids.append(actual_skill_id)
+            # 스킬 매니저에서 실제 존재하는 스킬인지 확인하고 추가
+            skill = skill_manager.get_skill(actual_skill_id)
+            if skill:
+                skill_ids.append(actual_skill_id)
+            else:
+                # 접두사 없이도 시도 (이전 버전 호환성)
+                fallback_id = yaml_skill_id
+                fallback_skill = skill_manager.get_skill(fallback_id)
+                if fallback_skill:
+                    skill_ids.append(fallback_id)
+                else:
+                    # 중복 접두사 시도 (hacker_hacker_port_scan 같은 경우)
+                    if yaml_skill_id.startswith(skill_prefix):
+                        double_prefix_id = skill_prefix + yaml_skill_id
+                        double_skill = skill_manager.get_skill(double_prefix_id)
+                        if double_skill:
+                            skill_ids.append(double_prefix_id)
+                    else:
+                        self.logger.warning(f"스킬을 찾을 수 없음: {yaml_skill_id} (시도: {actual_skill_id})")
 
         if not skill_ids:
             self.logger.warning(f"{character_class}({skill_prefix})의 스킬을 찾을 수 없습니다!")

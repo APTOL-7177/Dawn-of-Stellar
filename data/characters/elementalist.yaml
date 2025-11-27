@@ -1,5 +1,6 @@
 class_name: 정령술사
 description: 자연의 정령을 소환하고 원소 마법을 다루는 마법사
+slogan: "하나보다 둘, 둘보다 넷이 강하다"
 archetype: 마법 딜러/서포터
 base_stats:
   hp: 107
@@ -24,7 +25,22 @@ stat_growth:
 gimmick:
   type: elemental_spirits
   name: 4대 정령 소환
-  description: 화염/물/바람/대지 정령을 소환하여 고유 능력 부여. 2마리 소환 시 융합 스킬 해금
+  description: |
+    [정령 시스템] 정령을 소환해 능력 획득!
+    
+    - 최대 2마리 동시 소환
+    - 정령마다 고유 버프 부여
+    - 2마리 소환 시 융합 스킬 해금!
+    
+    정령 효과:
+    - 화염: 공격력 +20%, 화상
+    - 물: MP회복 +5/턴, 힐 +30%
+    - 바람: 속도 +30%, 회피 +15%
+    - 대지: 방어력 +30%, HP회복 +3/턴
+    
+    융합 조합:
+    - 화염+바람: 화염 돌풍 (광역)
+    - 물+대지: 진흙 속박 (디버프)
   max_spirits: 2
   spirit_types:
     fire:
@@ -104,12 +120,17 @@ traits:
     fusion_skills_unlocked: true
 skills:
 - teamwork
-- spirit_blast
-- summon_ifrit
-- summon_shiva
-- nature_heal
-- elemental_fury
-- spirit_storm
+- strike
+- spirit_burst
+- summon_fire
+- summon_water
+- summon_wind
+- summon_earth
+- fusion_firestorm
+- fusion_mudtrap
+- fusion_steam
+- ultimate
+
 bonuses:
   mp_multiplier: 1.1
   magic_damage: 1.08

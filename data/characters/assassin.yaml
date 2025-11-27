@@ -1,5 +1,6 @@
 class_name: 암살자
 description: 그림자에서 나타나 적을 단숨에 처치하는 완벽한 킬러
+slogan: "그림자 속에서 온 죽음, 소리 없이 사라진다"
 archetype: 암살 특화
 base_stats:
   hp: 134
@@ -81,12 +82,17 @@ gimmick:
   start_mode: stealth
 skills:
 - teamwork
-- backstab
-- shadow_strike
+- shadow_slash
+- assassinate
 - vanish
+- backstab
+- throat_slit
+- shadow_step
 - death_mark
-- throat_cut
-- silent_kill
+- shadow_clone
+- silent_execution
+- ultimate
+
 bonuses:
   critical_rate: 1.2
   critical_damage: 1.25

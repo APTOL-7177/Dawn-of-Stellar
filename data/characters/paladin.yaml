@@ -1,5 +1,6 @@
 class_name: 성기사
 description: 신성한 힘으로 아군을 수호하고 치유하는 성스러운 기사
+slogan: "신성한 빛이 어둠을 물리친다"
 archetype: 탱커/서포터
 base_stats:
   hp: 197
@@ -53,11 +54,16 @@ gimmick:
 skills:
 - teamwork
 - holy_strike
+- judgment
 - divine_shield
-- sanctuary
-- healing_prayer
-- smite_evil
-- holy_judgment
+- consecration
+- holy_light
+- hammer
+- blessing
+- wrath
+- retribution
+- ultimate
+
 bonuses:
   hp_multiplier: 1.05
   defense_bonus: 8

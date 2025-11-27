@@ -1,5 +1,6 @@
 class_name: 브레이커
 description: BRV를 파괴하는 것에 특화된 전사
+slogan: "부서진 것들이 나의 무기가 된다"
 archetype: BRV 파괴 특화
 base_stats:
   hp: 195
@@ -26,9 +27,21 @@ stat_growth:
   max_brv: 95.0
 gimmick:
   type: break_system
-  name: 브레이크 특화
-  description: BREAK를 유발하고 파괴력을 축적하는 시스템
+  name: 파괴력 축적
+  description: |
+    [파괴 시스템] BRV를 부수고 파괴력 축적!
+    
+    - BRV 공격 시 파괴력 +1~2 (최대 10)
+    - 파괴력 비례 피해 증가 (+20~50%/스택)
+    - 파괴력 소비해 강력한 일격
+    
+    파괴력 보너스:
+    - 5 스택: 피해 +100%
+    - 10 스택: 피해 +200%, 방어 관통
   max_break_power: 10
+  power_scaling:
+    per_stack: 0.2
+    max_bonus: 2.0
 traits:
 - id: brv_crusher
   name: BRV 파쇄자
@@ -52,12 +65,17 @@ traits:
   type: trigger
 skills:
 - teamwork
-- crush_strike
+- crush
 - break_hit
 - brv_focus
-- multi_strike
-- break_enhance
+- multi
+- enhance
 - mega_crush
+- wave
+- total
+- devastation
+- ultimate
+
 bonuses:
   brv_damage: 1.15
   break_bonus: 1.4

@@ -1,5 +1,6 @@
 class_name: 전사
 description: 강력한 물리 공격력과 높은 방어력을 가진 전장의 지배자
+slogan: "상황에 맞는 자세, 그것이 진정한 전사의 길"
 archetype: 물리 딜러/탱커
 base_stats:
   hp: 210
@@ -72,13 +73,20 @@ traits:
     all_stance_bonus: 0.15
     stance_change_bonus: 0.1
 skills:
+- teamwork
 - power_strike
 - shield_bash
-- war_cry
-- berserker_rage
+- balanced_stance
+- attack_stance
 - defensive_stance
-- ultimate_slash
-- teamwork
+- berserker_rage
+- guardian_stance
+- speed_stance
+- adaptive_stance
+- war_cry
+- furious_strike
+- ultimate
+
 bonuses:
   hp_multiplier: 1.05
   physical_damage: 1.05

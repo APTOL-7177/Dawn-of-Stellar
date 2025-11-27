@@ -1,5 +1,6 @@
 class_name: 드루이드
 description: 다양한 동물로 변신하여 상황에 맞게 대응하는 자연의 수호자
+slogan: "자연의 모든 모습이 나의 힘"
 archetype: 변신 술사
 base_stats:
   hp: 175
@@ -66,20 +67,36 @@ traits:
 gimmick:
   type: shapeshifting_system
   name: 자연의 변신
-  description: 자연의 힘을 모아 동물 형태로 변신. 형태마다 고유한 능력 보유
-  max_nature_points: 100
+  description: |
+    [변신 시스템] 자연 포인트로 동물 변신!
+    
+    - 스킬로 자연 포인트 획득 (최대 5)
+    - 포인트 소비해 변신 + 공격
+    
+    변신 형태:
+    - 곰 (0P): 방어력 +60%, 공격력 +30%
+    - 표범 (4MP): 속도 +70%, 회피 +40%
+    - 독수리 (3P): 강력한 공중 공격
+    - 늑대 (4P): 광역 피해 + 공격 버프
+  max_nature_points: 5
   forms:
-  - bear
-  - panther
-  - eagle
+    bear: {defense: 0.6, attack: 0.3}
+    panther: {speed: 0.7, evasion: 0.4}
+    eagle: {damage: 2.2, cost: 3}
+    wolf: {aoe: true, cost: 4}
 skills:
 - teamwork
+- nature_power
+- thorn_vine
 - bear_form
-- panther_form
+- cat_form
+- healing_forest
+- nature_blessing
 - eagle_form
+- wolf_form
 - natures_wrath
-- vine_prison
-- wild_growth
+- ultimate
+
 bonuses:
   hp_regen: 0.02
   transform_bonus: 1.1

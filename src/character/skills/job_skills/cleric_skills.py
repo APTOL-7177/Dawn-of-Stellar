@@ -151,6 +151,24 @@ def create_cleric_skills():
     ultimate.metadata = {"ultimate": True, "faith_consume_all": True, "healing": True, "party_wide": True, "buff": True}
     skills.append(ultimate)
 
+    # 팀워크 스킬: 기적의 기도
+    teamwork = TeamworkSkill(
+        "cleric_teamwork",
+        "치유의 기도",
+        "아군 1명 최대 HP의 60% 회복 + 리젠 (최대 HP의 10%씩, 3턴) + 신앙 +1",
+        gauge_cost=75)
+    teamwork.effects = [
+        HealEffect(percentage=0.6, is_party_wide=True),  # HP 60% 회복
+        BuffEffect(BuffType.DEFENSE_UP, 1.0, duration=1, is_party_wide=True),  # 방어력 +100% (임시 무효화 효과)
+        GimmickEffect(GimmickOperation.ADD, "faith", 1, max_value=10),  # 신앙 +1
+    ]
+    teamwork.target_type = "party"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "healing": True, "cleanse": True}
+    skills.append(teamwork)
+
     return skills
 
 def register_cleric_skills(skill_manager):
@@ -160,4 +178,4 @@ def register_cleric_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 치유의 기도
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

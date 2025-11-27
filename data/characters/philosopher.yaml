@@ -1,5 +1,6 @@
 class_name: 철학자
 description: 논리적 사고로 적을 혼란시키고 진리를 깨우치는 현자
+slogan: "진실과 거짓, 그 선택이 세상을 바꾼다"
 archetype: 논리 조작
 base_stats:
   hp: 107
@@ -119,12 +120,17 @@ gimmick:
   max_choices: 99
 skills:
 - teamwork
-- logical_argument
-- confuse_mind
-- truth_revelation
-- paradox_field
-- enlightenment_ray
-- existential_void
+- strike
+- truth_strike
+- choose_power
+- choose_wisdom
+- choose_sacrifice
+- choose_survival
+- choose_truth
+- choose_lie
+- balanced
+- ultimate
+
 bonuses:
   confusion_rate: 0.15
   magic_resistance: 0.2

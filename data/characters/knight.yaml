@@ -1,5 +1,6 @@
 class_name: 기사
 description: 영광의 맹세로 파티를 이끄는 고결한 지휘관
+slogan: "맹세는 지키되, 대가를 치른다"
 archetype: 지휘관/버퍼
 base_stats:
   hp: 216
@@ -48,16 +49,40 @@ traits:
 gimmick:
   type: duty_system
   name: 기사의 의무
-  description: 아군을 보호하고 피해를 받으며 의무 스택 획득. 의무로 강력한 수호 기술 사용
+  description: |
+    [의무 시스템] 파티를 보호하며 의무 축적!
+    
+    - 아군 대신 피해 받을 때 의무 +2
+    - 보호 스킬 사용 시 의무 +1
+    - 의무 소비해 강력한 수호 기술
+    
+    의무 효과:
+    - 5 스택: 보호 시 피해 -30%
+    - 10 스택: 파티 전체 보호막 발동
+    
+    맹세 스킬:
+    - 기사도 맹세: 의무 비례 버프
+    - 최후의 저항: 의무 전소비 무적
   max_duty_stacks: 10
+  duty_gain:
+    protect_ally: 2
+    use_guard_skill: 1
+  duty_effects:
+    5: {damage_reduction: 0.3}
+    10: {party_shield: true}
 skills:
 - teamwork
-- honorable_strike
-- rallying_cry
-- protect_ally
-- knights_honor
-- glory_charge
-- heroic_stand
+- lance
+- duty_strike
+- oath
+- chivalry
+- iron_will
+- bash
+- last_stand
+- devotion
+- pledge
+- ultimate
+
 bonuses:
   party_attack_bonus: 0.08
   party_defense_bonus: 0.08

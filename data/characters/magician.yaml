@@ -1,0 +1,231 @@
+# 마술사 (Magician) - 트릭스터 / 유틸리티 서포터
+# 트럼프 카드 기반 기믹으로 다양한 포커 조합 스킬 발동
+
+class_name: 마술사
+description: 트럼프 카드를 활용해 적을 농락하고 다양한 트릭으로 전장을 지배하는 트릭스터
+slogan: "카드 한 장에 운명이 담겨있다"
+archetype: 트릭스터 유틸리티
+
+base_stats:
+  hp: 125
+  mp: 85
+  init_brv: 95
+  speed: 68
+  physical_attack: 48
+  physical_defense: 48
+  magic_attack: 82
+  magic_defense: 72
+  max_brv: 380
+
+stat_growth:
+  hp: 9.0
+  mp: 6.0
+  init_brv: 19.0
+  strength: 2.8
+  defense: 2.5
+  magic: 4.8
+  spirit: 4.0
+  speed: 4.5
+  luck: 5.0
+  accuracy: 3.0
+  evasion: 3.5
+  max_brv: 76.0
+
+# 특성 5개
+traits:
+- id: sleight_of_hand
+  name: 손재주
+  description: 기본 공격 시 카드 드로우 +1장 (총 2장)
+  type: passive
+  unlock_level: 1
+  effects:
+    extra_draw_on_basic: 1
+
+- id: card_counter
+  name: 카드 카운터
+  description: 덱에 남은 카드 종류 확인 가능. 조합 완성 확률 표시
+  type: passive
+  unlock_level: 5
+  effects:
+    deck_visibility: true
+    combo_prediction: true
+
+- id: poker_face
+  name: 포커 페이스
+  description: 정신 상태이상(혼란, 공포, 매혹) 면역. 받는 디버프 지속시간 -1턴
+  type: passive
+  unlock_level: 10
+  effects:
+    mental_immunity: true
+    debuff_duration_reduction: 1
+
+- id: wild_card
+  name: 와일드 카드
+  description: 조커 카드 사용 시 스킬 효과 +50%, 데미지 +30%
+  type: passive
+  unlock_level: 15
+  effects:
+    joker_effect_bonus: 0.5
+    joker_damage_bonus: 0.3
+
+- id: royal_flush_ready
+  name: 로얄 플러시 대기
+  description: 손패가 5장 이상일 때 모든 스킬 데미지 +15%, 크리티컬 확률 +10%
+  type: conditional
+  unlock_level: 20
+  conditions:
+    hand_size_min: 5
+  effects:
+    damage_multiplier: 1.15
+    critical_rate_bonus: 0.1
+
+# 트릭 덱 기믹
+gimmick:
+  type: trick_deck
+  name: 트릭 덱 시스템
+  description: |
+    54장의 트럼프 카드 덱을 운용합니다.
+    기본 공격으로 카드를 드로우하고, 포커 조합을 완성하면 강력한 스킬을 발동할 수 있습니다.
+    덱이 소진되면 자동으로 셔플됩니다.
+  
+  # 덱 구성
+  deck_composition:
+    suits: ["spade", "heart", "diamond", "club"]
+    ranks: ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
+    jokers: 2
+    total_cards: 54
+  
+  # 손패 설정
+  hand_settings:
+    max_hand_size: 8
+    start_hand_size: 0
+    draw_on_brv_attack: 1
+    draw_on_hp_attack: 1
+  
+  # 포커 조합
+  poker_combinations:
+    pair:
+      name: 원페어
+      description: 같은 숫자 카드 2장
+      required_cards: 2
+      skill_unlock: magician_pair_trick
+    
+    two_pair:
+      name: 투페어
+      description: 서로 다른 숫자의 페어 2개
+      required_cards: 4
+      skill_unlock: magician_two_pair_swap
+    
+    triple:
+      name: 트리플
+      description: 같은 숫자 카드 3장
+      required_cards: 3
+      skill_unlock: magician_triple_illusion
+    
+    straight:
+      name: 스트레이트
+      description: 연속된 숫자 5장 (무늬 무관)
+      required_cards: 5
+      skill_unlock: magician_straight_fate
+    
+    flush:
+      name: 플러시
+      description: 같은 무늬 5장 (숫자 무관)
+      required_cards: 5
+      skill_unlock: magician_flush_element
+    
+    full_house:
+      name: 풀하우스
+      description: 트리플 + 페어 조합
+      required_cards: 5
+      skill_unlock: magician_full_house_reversal
+    
+    four_of_kind:
+      name: 포카드
+      description: 같은 숫자 카드 4장
+      required_cards: 4
+      skill_unlock: magician_four_of_kind_blast
+    
+    straight_flush:
+      name: 스트레이트 플러시
+      description: 같은 무늬의 연속 5장
+      required_cards: 5
+      skill_unlock: magician_straight_flush_storm
+    
+    royal_straight_flush:
+      name: 로얄 스트레이트 플러시
+      description: 같은 무늬의 10-J-Q-K-A
+      required_cards: 5
+      skill_unlock: magician_ultimate
+  
+  # 무늬별 속성 (트릭 샷 시 발동)
+  suit_elements:
+    spade:
+      name: 스페이드 ♠
+      element: dark
+      effect: 관통 - 방어력 30% 무시
+      bonus: defense_ignore_0.3
+    heart:
+      name: 하트 ♥
+      element: light
+      effect: 흡혈 - 피해량의 30% HP 회복
+      bonus: lifesteal_0.3
+    diamond:
+      name: 다이아 ♦
+      element: earth
+      effect: 부 - 추가 경험치/골드 +30%
+      bonus: gold_exp_0.3
+    club:
+      name: 클로버 ♣
+      element: poison
+      effect: 독 - 3턴간 매턴 5% HP 감소
+      bonus: poison_3turn
+  
+  # 숫자별 효과 (카드 슬래시 시 발동)
+  rank_effects:
+    A: {effect: first_strike, desc: "선제공격 - ATB +30%"}
+    2: {effect: double_edge, desc: "양날검 - 피해 2배, 자해 50%"}
+    3: {effect: triple_hit, desc: "3연타 - 0.4배 × 3회"}
+    4: {effect: stability, desc: "안정 - 다음 공격 필중"}
+    5: {effect: change, desc: "변환 - 적 버프 1개→디버프"}
+    6: {effect: curse, desc: "저주 - 3턴 HP회복 불가"}
+    7: {effect: lucky_seven, desc: "행운 - 크리티컬 확정"}
+    8: {effect: infinity, desc: "무한 - 다음 스킬 MP 0"}
+    9: {effect: max_power, desc: "극한 - 다음 스킬 +50%"}
+    10: {effect: completion, desc: "완성 - 최대까지 드로우"}
+    J: {effect: knight, desc: "기사 - 아군 1명 1회 보호"}
+    Q: {effect: queen, desc: "여왕 - 아군 전체 HP 15%"}
+    K: {effect: king, desc: "왕 - 적 전체 1턴 행동불가"}
+  
+  # 조커 특수 효과
+  joker_effects:
+    wildcard: true
+    bonus_on_use: 0.5  # 데미지 +50%
+    can_replace_any: true
+    black_joker: "적의 마지막 스킬 복사"
+    red_joker: "모든 확률 재계산 (운빠)"
+
+# 스킬 목록 (16개)
+skills:
+- teamwork
+- card_slash
+- trick_shot
+- double_or_nothing
+- mind_reading
+- reverse_card
+- stat_swap
+- mirror_force
+- time_bomb
+- card_counter
+- sleight_hand
+- fatal_flush
+- full_house_chaos
+- four_kind_overkill
+- joker_wild
+- ultimate
+
+bonuses:
+  evasion_bonus: 18
+  critical_rate: 1.15
+  luck_multiplier: 1.4
+  gamble_bonus: 1.2  # 도박 성공 시 보너스

@@ -1,73 +1,164 @@
 class_name: 바드
-description: 노래와 음악으로 파티 전체를 강화하는 지원가
-archetype: 파티 버퍼
+description: 악보를 작곡하여 전장의 흐름을 지배하는 음유시인. 화음과 불협화음으로 전투를 연출한다.
+slogan: "한 음 한 음이 전장의 운명을 바꾼다"
+archetype: 버퍼/디버퍼
+
 base_stats:
-  hp: 107
-  mp: 73
-  init_brv: 106
-  speed: 69
-  physical_attack: 43
-  physical_defense: 38
-  magic_attack: 66
-  magic_defense: 58
-  max_brv: 436
+  hp: 112
+  mp: 78
+  init_brv: 110
+  speed: 72
+  physical_attack: 45
+  physical_defense: 40
+  magic_attack: 70
+  magic_defense: 62
+  max_brv: 450
+
 stat_growth:
-  hp: 9
-  mp: 6
-  init_brv: 21.2
+  hp: 9.5
+  mp: 6.5
+  init_brv: 22.0
   strength: 2.5
-  defense: 2.0
-  magic: 3.5
-  spirit: 3.8
-  speed: 4.2
-  luck: 4.5
+  defense: 2.2
+  magic: 4.0
+  spirit: 4.0
+  speed: 4.5
+  luck: 4.8
   accuracy: 1.8
-  evasion: 2.0
-  max_brv: 87.2
+  evasion: 2.2
+  max_brv: 90.0
+
+# 특성 5개
 traits:
-- id: battle_song
-  name: 전투 노래
-  description: 파티원 전체 공격력 +12%, 속도 +10%
+- id: perfect_pitch
+  name: 절대음감
+  description: 화음 완성 시 효과 +50%, 불협화음 페널티 -30%
   type: passive
-- id: inspirational_melody
-  name: 영감의 선율
-  description: 파티원의 크리티컬 확률 +15%
-  type: passive
-- id: requiem
-  name: 진혼곡
-  description: 적 전체의 공격력 -10%, 명중률 -15%
-  type: trigger
-- id: harmony
-  name: 화음의 힘
-  description: 파티원 2명 이상 생존 시 모든 효과 +50%
-  type: trigger
+  effects:
+    harmony_bonus: 1.5
+    discord_penalty_reduction: 0.3
+
+- id: crescendo_master
+  name: 크레센도 마스터
+  description: 음표 3개 이상 시 모든 스킬 피해 +25%
+  type: conditional
+  conditions:
+    notes_min: 3
+  effects:
+    damage_bonus: 1.25
+
 - id: encore
   name: 앙코르
-  description: 버프 스킬 사용 시 20% 확률로 MP 환불
+  description: 악보 완성 시 25% 확률로 음표 유지 (리셋 안 됨)
   type: trigger
+  effects:
+    note_preserve_chance: 0.25
+
+- id: party_inspiration
+  name: 파티 영감
+  description: 파티 전체 크리티컬 +15%, MP 회복 +20%
+  type: passive
+  effects:
+    party_critical: 0.15
+    party_mp_regen: 0.2
+
+- id: battle_hymn
+  name: 전투 찬가
+  description: 전투 시작 시 음표 2개 자동 획득, 파티 공격력 +10%
+  type: passive
+  effects:
+    start_notes: 2
+    party_attack: 0.1
+
+# 악보 작곡 시스템
 gimmick:
-  type: melody_system
-  name: 음악의 선율
-  description: 음표를 모아 멜로디를 완성하고 강력한 버프 효과 발동
-  max_melody_notes: 8
-  octave_notes:
-  - 도
-  - 레
-  - 미
-  - 파
-  - 솔
-  - 라
-  - 시
-  - 도+
+  type: score_composition
+  name: 악보 작곡
+  description: |
+    스킬 사용 시 음표 추가 (최대 5개)
+    특정 패턴 완성 시 강력한 효과 발동!
+    
+    음표 종류: A(공격), B(버프), S(서포트)
+    
+    패턴 효과:
+    - 3음표 (소나타): 단일 대상 강화
+    - 4음표 (협주곡): 파티 중간 효과
+    - 5음표 (교향곡): 극강 전체 효과
+    
+    특수 조합:
+    - AAA (삼중주): 공격력 +80%
+    - BBB (버프 앙상블): 버프 지속 2배
+    - SSS (힐링 합창): 파티 HP 40%
+    - ABS (화음): 올스탯 +25%
+    - SBA (불협화음): 적 전체 약화
+  
+  max_notes: 5
+  note_types:
+    attack: "A"
+    buff: "B"
+    support: "S"
+  
+  patterns:
+    sonata:
+      length: 3
+      effect: single_enhance
+      description: 소나타 - 단일 강화
+    concerto:
+      length: 4
+      effect: party_medium
+      description: 협주곡 - 파티 중간 효과
+    symphony:
+      length: 5
+      effect: party_ultimate
+      description: 교향곡 - 극강 전체 효과
+  
+  special_combos:
+    triple_attack:
+      pattern: ["A", "A", "A"]
+      effect: attack_surge
+      description: 삼중주 - 공격력 +80% (3턴)
+    triple_buff:
+      pattern: ["B", "B", "B"]
+      effect: buff_extend
+      description: 버프 앙상블 - 모든 버프 지속 2배
+    triple_support:
+      pattern: ["S", "S", "S"]
+      effect: mass_heal
+      description: 힐링 합창 - 파티 HP 40% 회복
+    harmony:
+      pattern: ["A", "B", "S"]
+      effect: all_stat_up
+      description: 화음 - 올스탯 +25% (4턴)
+    discord:
+      pattern: ["S", "B", "A"]
+      effect: enemy_debuff
+      description: 불협화음 - 적 전체 올스탯 -25%
+
+# 스킬 11개
 skills:
 - teamwork
-- courage_anthem
-- healing_ballad
-- speed_march
-- mana_song
-- debuff_lullaby
-- grand_finale
+# 기본 공격 (음표 추가)
+- note_strike         # 음표 타격 (A 추가)
+- chord_wave          # 화음파 (B 추가)
+
+# 버프 스킬
+- battle_march        # 전투 행진곡 (파티 공/속 버프 + B)
+- healing_melody      # 치유의 선율 (파티 힐 + S)
+- inspire_song        # 영감의 노래 (크리 버프 + B)
+
+# 디버프 스킬
+- requiem             # 진혼곡 (적 약화 + S)
+- lullaby             # 자장가 (적 수면 + S)
+
+# 악보 완성 스킬
+- compose             # 작곡 (현재 악보 효과 발동)
+- improvise           # 즉흥 연주 (랜덤 음표 3개 추가)
+
+# 궁극기
+- ultimate            # 그랜드 피날레 (5음표 확정 + 극강 효과)
+
 bonuses:
-  party_attack_bonus: 0.05
-  party_speed_bonus: 0.05
-  buff_duration: 1.15
+  party_buff_effect: 1.2
+  buff_duration: 1.25
+  mp_cost_reduction: 0.1
+  harmony_damage: 1.15

@@ -1,5 +1,6 @@
 class_name: 신관
 description: 신의 기적을 일으켜 파티를 축복하는 성스러운 존재
+slogan: "구원할 것인가, 심판할 것인가"
 archetype: 기적/치유 특화
 base_stats:
   hp: 143
@@ -47,17 +48,42 @@ traits:
   type: trigger
 gimmick:
   type: divinity_system
-  name: 심판의 권능
-  description: 신의 심판을 내리고 치유하며 신성력 획득
+  name: 신성 권능
+  description: |
+    [신성 시스템] 치유와 심판으로 신성력 축적!
+    
+    - 치유 스킬: 신앙 +10
+    - 심판 스킬: 심판력 +15
+    - 신성력 소비해 기적 발동
+    
+    신성 기적:
+    - 50 신앙: 완전 회복 가능
+    - 100 심판: 신성 심판 (즉사급)
+    
+    특수 기적:
+    - 부활: 전투불능 부활 (1회)
+    - 신의 보호: 파티 무적 (1턴)
   max_judgment_points: 100
+  max_faith_points: 100
+  faith_gain:
+    heal: 10
+    buff: 5
+  judgment_gain:
+    smite: 15
+    damage: 10
 skills:
 - teamwork
-- healing_prayer
-- divine_light
-- holy_barrier
-- miracle_cure
-- resurrection
+- holy_smite
 - divine_judgment
+- light_bind
+- holy_heal
+- divine_protection
+- judgment_light
+- holy_beam
+- divine_wrath
+- divine_grace
+- ultimate
+
 bonuses:
   healing_power: 1.2
   mp_multiplier: 1.1

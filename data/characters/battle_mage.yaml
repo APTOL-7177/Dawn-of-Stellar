@@ -1,5 +1,6 @@
 class_name: 배틀메이지
 description: 룬 마법과 근접 전투를 결합한 마법 전사
+slogan: "검에 새긴 룬이 마법을 부른다"
 archetype: 하이브리드 딜러
 base_stats:
   hp: 168
@@ -86,16 +87,17 @@ gimmick:
       effect: MP 회복 +5/턴
 skills:
 - teamwork
-- battle_mage_carve_rune
-- battle_mage_rune_burst
-- battle_mage_fire_rune
-- battle_mage_ice_rune
-- battle_mage_lightning_rune
-- battle_mage_earth_rune
-- battle_mage_arcane_rune
-- battle_mage_rune_explosion
-- battle_mage_elemental_fusion
-- battle_mage_ultimate
+- carve_rune
+- rune_burst
+- fire_rune
+- ice_rune
+- lightning_rune
+- earth_rune
+- arcane_rune
+- rune_explosion
+- elemental_fusion
+- ultimate
+
 bonuses:
   hybrid_power: 1.15
   rune_efficiency: 1.15

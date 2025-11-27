@@ -1,5 +1,6 @@
 class_name: 무당
 description: 영혼과 소통하여 미래를 예견하고 파티를 보호하는 영매
+slogan: "조상의 목소리가 미래를 말해준다"
 archetype: 시야/정보 특화
 base_stats:
   hp: 121
@@ -48,16 +49,39 @@ traits:
 gimmick:
   type: curse_system
   name: 저주 축적
-  description: 저주를 축적하여 강력한 주술 사용
+  description: |
+    [저주 시스템] 저주를 모아 강력한 주술 발동!
+    
+    - 저주 스킬로 스택 축적 (최대 10)
+    - 저주 비례 피해 + 디버프 강화
+    - 저주 소비해 폭발적 효과
+    
+    저주 효과:
+    - 3 스택: DoT 피해 +50%
+    - 5 스택: 디버프 지속시간 2배
+    - 10 스택: 저주 폭발 (즉사급)
+    
+    영혼 교감:
+    - 적 약점 자동 탐지
+    - 숨겨진 함정/보물 발견
   max_curse_stacks: 10
+  curse_effects:
+    3: {dot_bonus: 0.5}
+    5: {debuff_duration: 2.0}
+    10: {curse_explosion: true}
 skills:
 - teamwork
-- spirit_bolt
-- protection_totem
-- ancestral_call
-- spirit_link
-- vision_quest
-- soul_harvest
+- curse
+- curse_burst
+- plague
+- curse_transfer
+- curse_accumulate
+- dark_magic
+- soul_drain
+- curse_mark
+- nightmare
+- ultimate
+
 bonuses:
   vision_range: 1.5
   treasure_find: 1.2

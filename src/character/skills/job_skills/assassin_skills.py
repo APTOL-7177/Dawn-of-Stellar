@@ -142,8 +142,28 @@ def create_assassin_skills():
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "perfect_stealth": True}
 
-    return [shadow_slash, assassinate, vanish, backstab, throat_slit,
-            shadow_step, death_mark, shadow_clone, silent_execution, ultimate]
+    skills = [shadow_slash, assassinate, vanish, backstab, throat_slit,
+              shadow_step, death_mark, shadow_clone, silent_execution, ultimate]
+
+    # 팀워크 스킬: 암습
+    teamwork = TeamworkSkill(
+        "assassin_teamwork",
+        "암습",
+        "단일 대상 BRV+HP (2.0x → HP 변환) + 은신 상태로 전환 + 다음 공격 크리티컬률 +50%",
+        gauge_cost=125)
+    teamwork.effects = [
+        DamageEffect(DamageType.BRV, 2.0),  # BRV 공격 2.0x
+        DamageEffect(DamageType.HP, 1.0),  # HP 변환
+        GimmickEffect(GimmickOperation.SET, "stealth_active", 1),  # 은신 상태 전환
+        BuffEffect(BuffType.CRITICAL_UP, 0.5, duration=1, target="self"),  # 다음 공격 크리티컬 +50%
+    ]
+    teamwork.target_type = "enemy"
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "stealth": True, "assassin": True}
+    skills.append(teamwork)
+
+    return skills
 
 def register_assassin_skills(skill_manager):
     """암살자 스킬 등록"""
@@ -152,4 +172,4 @@ def register_assassin_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 암습
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

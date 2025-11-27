@@ -139,13 +139,12 @@ def create_archer_skills():
         "archer_teamwork",
         "일제사격",
         "마킹된 모든 아군의 지원사격을 한꺼번에 발사 → 본인 HP 공격 (2.5x)",
-        gauge_cost=150
-    )
+        gauge_cost=150)
     teamwork.effects = [
         DamageEffect(DamageType.HP, 2.5),
     ]
     teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
+    teamwork.sfx = ("skill", "teamwork")
     teamwork.metadata = {"teamwork": True, "chain": True, "support_fire": True}
 
     return [direct_shot, power_shot, mark_normal, mark_piercing, mark_fire,
@@ -157,4 +156,4 @@ def register_archer_skills(skill_manager):
     for skill in skills:
         skill_manager.register_skill(skill)
     return skills
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

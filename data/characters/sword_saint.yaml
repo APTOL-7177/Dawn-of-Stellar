@@ -1,5 +1,6 @@
 class_name: 검성
 description: 검기로 폭발적인 피해를 입히는 검술의 대가
+slogan: "검기가 폭발하는 순간, 적은 이미 베였다"
 archetype: 폭발 딜러
 base_stats:
   hp: 164
@@ -52,12 +53,17 @@ gimmick:
   max_sword_aura: 5
 skills:
 - teamwork
-- swift_strike
-- blade_storm
-- focus_slash
-- sword_dance
-- ultimate_blade
-- thousand_cuts
+- kenkizan
+- ilseom
+- kenki_hadou
+- nitoryu
+- kenki_bakuhatsu
+- rapid_slash
+- will
+- bisect
+- sword_storm
+- ultimate
+
 bonuses:
   critical_rate: 1.15
   critical_damage: 1.2

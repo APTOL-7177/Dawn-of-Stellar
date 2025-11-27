@@ -188,7 +188,6 @@ class CombatUI:
 
         # 팀워크 스킬 추가 (항상 표시, 사용 가능 여부에 따라 회색으로 표시)
         teamwork_skills_in_menu = []
-
         # skills 리스트에서 팀워크 스킬 찾기
         for skill in skills:
             if hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill:

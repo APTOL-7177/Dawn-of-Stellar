@@ -1903,7 +1903,7 @@ def run_exploration(
         else:
             # action이 None인 경우 (키 입력 없음)
             # 다음 이벤트 처리로 넘어감
-                continue
+            continue
         
         # 입력 처리 후 즉시 상태 체크 (전투 요청 확인)
         if ui.combat_requested:
@@ -1915,11 +1915,6 @@ def run_exploration(
                 "position": getattr(ui, 'combat_position', None)
             }
             return ("combat", combat_data)
-
-
-            # 윈도우 닫기
-            if isinstance(event, tcod.event.Quit):
-                return ("quit", None)
 
         # 호스트 나감 체크 (멀티플레이어)
         if network_manager and 'host_disconnected' in locals() and host_disconnected.get("value", False):
@@ -1935,23 +1930,22 @@ def run_exploration(
             except Exception as e:
                 logger.error(f"연결 종료 오류: {e}", exc_info=True)
             return ("quit", None)
-        
-        # 상태 체크
-        # Debug: 상태 체크
-        if ui.quit_requested:
-            return ("quit", None)
-        elif ui.combat_requested:
-            # Debug: 전투 반환
-            # 전투 데이터 반환: (적 수, 맵 적 엔티티, 참여자, 위치)
-            combat_data = {
-                "num_enemies": ui.combat_num_enemies,
-                "enemies": ui.combat_enemies,
-                "participants": getattr(ui, 'combat_participants', None),
-                "position": getattr(ui, 'combat_position', None)
-            }
-            return ("combat", combat_data)
-        elif ui.floor_change_requested:
-            return (ui.floor_change_requested, None)
+
+    # 루프 탈출 후 상태 체크 (break로 나온 경우)
+    logger.debug(f"탐험 루프 탈출: quit={ui.quit_requested}, combat={ui.combat_requested}, floor={ui.floor_change_requested}")
+    
+    if ui.floor_change_requested:
+        return (ui.floor_change_requested, None)
+    elif ui.combat_requested:
+        combat_data = {
+            "num_enemies": ui.combat_num_enemies,
+            "enemies": ui.combat_enemies,
+            "participants": getattr(ui, 'combat_participants', None),
+            "position": getattr(ui, 'combat_position', None)
+        }
+        return ("combat", combat_data)
+    elif ui.quit_requested:
+        return ("quit", None)
 
     # 기본값 반환 (예외 상황 대비)
     return ("quit", None)

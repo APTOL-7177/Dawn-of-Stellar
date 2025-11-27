@@ -78,6 +78,8 @@ class GimmickUpdater:
             GimmickUpdater._update_charge_system_turn_end(character)
         elif gimmick_type == "dimension_refraction":
             GimmickUpdater._update_dimension_refraction(character)
+        elif gimmick_type == "trick_deck":
+            GimmickUpdater._update_trick_deck(character)
 
     @staticmethod
     def on_turn_start(character, context=None):
@@ -133,6 +135,10 @@ class GimmickUpdater:
         # 암흑기사 - 충전 시스템 턴 시작
         elif gimmick_type == "charge_system":
             GimmickUpdater._update_charge_system_turn_start(character)
+        
+        # 마술사 - 트릭 덱 시스템 턴 시작
+        elif gimmick_type == "trick_deck":
+            GimmickUpdater._update_trick_deck_turn_start(character)
 
         # 일반 특성 처리 (기믹과 무관한 특성들)
         GimmickUpdater._process_turn_start_traits(character, context)
@@ -1407,3 +1413,114 @@ class GimmickStateChecker:
         if character.gimmick_type == "support_fire":
             return getattr(character, 'support_fire_combo', 0)
         return 0
+
+    # ============================================================
+    # 마술사: 트릭 덱 시스템
+    # ============================================================
+
+    @staticmethod
+    def _update_trick_deck(character):
+        """마술사: 트릭 덱 시스템 턴 종료 업데이트"""
+        # 손패 확인 및 조합 체크
+        hand = getattr(character, 'card_hand', [])
+        
+        if hand:
+            from src.character.skills.job_skills.magician_skills import check_poker_combination, get_card_name
+            combo_type, combo_cards, score = check_poker_combination(hand)
+            
+            if combo_type:
+                combo_names = {
+                    "pair": "원페어",
+                    "two_pair": "투페어",
+                    "triple": "트리플",
+                    "straight": "스트레이트",
+                    "flush": "플러시",
+                    "full_house": "풀하우스",
+                    "four_of_kind": "포카드",
+                    "straight_flush": "스트레이트 플러시",
+                    "royal_straight_flush": "로얄 스트레이트 플러시"
+                }
+                logger.debug(f"{character.name} 현재 조합: {combo_names.get(combo_type, combo_type)}")
+
+    @staticmethod
+    def _update_trick_deck_turn_start(character):
+        """마술사: 트릭 덱 시스템 턴 시작 업데이트"""
+        # 덱 초기화 체크
+        if not hasattr(character, 'card_deck') or character.card_deck is None:
+            GimmickUpdater.initialize_trick_deck(character)
+        
+        # 손패 표시
+        hand = getattr(character, 'card_hand', [])
+        deck_count = len(getattr(character, 'card_deck', []))
+        
+        if hand:
+            from src.character.skills.job_skills.magician_skills import get_hand_display
+            logger.info(f"{character.name} {get_hand_display(character)} (덱: {deck_count}장)")
+        else:
+            logger.debug(f"{character.name} 손패 없음 (덱: {deck_count}장)")
+
+    @staticmethod
+    def initialize_trick_deck(character):
+        """마술사 트릭 덱 초기화"""
+        try:
+            from src.character.skills.job_skills.magician_skills import create_deck, shuffle_deck
+            
+            character.card_deck = shuffle_deck(create_deck())
+            character.card_hand = []
+            character.card_discard = []
+            character.max_hand_size = 8
+            
+            logger.info(f"{character.name} 트릭 덱 초기화 완료 (54장)")
+        except Exception as e:
+            logger.error(f"{character.name} 트릭 덱 초기화 실패: {e}", exc_info=True)
+            character.card_deck = []
+            character.card_hand = []
+            character.card_discard = []
+            character.max_hand_size = 8
+
+    @staticmethod
+    def get_trick_deck_hand_size(character) -> int:
+        """마술사 손패 크기 반환"""
+        if getattr(character, 'gimmick_type', None) == "trick_deck":
+            return len(getattr(character, 'card_hand', []))
+        return 0
+
+    @staticmethod
+    def get_trick_deck_combination(character):
+        """마술사 현재 손패 조합 반환"""
+        if getattr(character, 'gimmick_type', None) != "trick_deck":
+            return None, [], 0
+        
+        hand = getattr(character, 'card_hand', [])
+        if not hand:
+            return None, [], 0
+        
+        from src.character.skills.job_skills.magician_skills import check_poker_combination
+        return check_poker_combination(hand)
+
+    @staticmethod
+    def has_poker_combination(character, required_combo: str) -> bool:
+        """마술사가 특정 포커 조합을 가지고 있는지 확인"""
+        combo_type, _, _ = GimmickUpdater.get_trick_deck_combination(character)
+        
+        if combo_type is None:
+            return False
+        
+        # 조합 순위 (높은 조합은 낮은 조합을 포함)
+        combo_hierarchy = {
+            "royal_straight_flush": 9,
+            "straight_flush": 8,
+            "four_of_kind": 7,
+            "full_house": 6,
+            "flush": 5,
+            "straight": 4,
+            "triple": 3,
+            "two_pair": 2,
+            "pair": 1
+        }
+        
+        current_rank = combo_hierarchy.get(combo_type, 0)
+        required_rank = combo_hierarchy.get(required_combo, 0)
+        
+        # 현재 조합이 필요 조합보다 같거나 높으면 True
+        return current_rank >= required_rank

@@ -158,15 +158,14 @@ def create_warrior_skills():
         "warrior_teamwork",
         "전장의 돌격",
         "단일 대상 BRV+HP 공격 (2.2x → HP 변환) + 현재 스탠스 유지",
-        gauge_cost=125
-    )
+        gauge_cost=125)
     teamwork.effects = [
         # 단일 대상 BRV+HP 공격 (2.2x → HP 변환)
         DamageEffect(DamageType.BRV_HP, multiplier=2.2),
         # 현재 스탠스 유지 (메타데이터로 처리)
     ]
     teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
+    teamwork.sfx = ("skill", "teamwork")
     teamwork.metadata = {"teamwork": True, "chain": True}
     skills.append(teamwork)
 
@@ -177,5 +176,4 @@ def register_warrior_skills(skill_manager):
     skills = create_warrior_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return skills
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

@@ -475,6 +475,7 @@ class MultiplayerPartySetup:
                         'id': job_id,
                         'name': data.get('class_name', job_id),
                         'description': data.get('description', ''),
+                        'slogan': data.get('slogan', ''),
                         'archetype': data.get('archetype', ''),
                         'stats': data.get('base_stats', {}),
                         'unlocked': is_unlocked
@@ -548,7 +549,7 @@ class MultiplayerPartySetup:
                         text=f"{job['name']} [이미 선택됨]",
                         value=job,
                         enabled=False,
-                        description=job.get('description', '')
+                        description=f'"{job.get("slogan", "")}" - {job.get("description", "")}' if job.get('slogan') else job.get('description', '')
                     )
                 )
             elif not is_my_turn:
@@ -570,7 +571,7 @@ class MultiplayerPartySetup:
                         text=job['name'],
                         value=job,
                         enabled=True,
-                        description=job.get('description', '')
+                        description=f'"{job.get("slogan", "")}" - {job.get("description", "")}' if job.get('slogan') else job.get('description', '')
                     )
                 )
         

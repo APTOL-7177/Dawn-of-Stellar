@@ -465,6 +465,9 @@ def serialize_gimmick_state(member: Any) -> Dict[str, Any]:
         "dilemma_choice": ["choice_power", "choice_wisdom", "choice_sacrifice", "choice_survival", "choice_truth", "choice_lie", "choice_order", "choice_chaos", "accumulation_threshold"],
         "probability_distortion": ["distortion_gauge", "max_gauge", "start_gauge", "gauge_per_turn"],
         "dimension_refraction": ["refraction_stacks"],
+        "trick_deck": ["card_deck", "card_hand", "card_discard", "max_hand_size"],
+        "rum_treasure_system": ["treasure_inventory", "max_treasure", "rum_positive_chance", "current_rum_effect", "rum_effect_duration", "lucky_dice_active"],
+        "score_composition": ["music_notes", "max_notes", "last_pattern", "harmony_bonus"],
     }
     
     # 해당 기믹 타입의 속성들을 저장

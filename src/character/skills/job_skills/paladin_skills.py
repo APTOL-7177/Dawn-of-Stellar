@@ -151,6 +151,25 @@ def create_paladin_skills():
     ultimate.metadata = {"ultimate": True, "holy_power_refill": True, "healing": True, "party": True}
     skills.append(ultimate)
 
+    # 팀워크 스킬: 신성한 보호
+    teamwork = TeamworkSkill(
+        "paladin_teamwork",
+        "성스러운 수호",
+        "아군 전체 방어막 (자신 공격력 × 0.7, 3턴) + 신성 속성 버프",
+        gauge_cost=175)
+    teamwork.effects = [
+        BuffEffect(BuffType.DEFENSE_UP, 1.0, duration=1, is_party_wide=True),  # 방어력 +100% (임시 무효화 효과)
+        HealEffect(percentage=0.4, is_party_wide=True),  # HP 40% 회복
+        BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=3, is_party_wide=True),  # 방어력 +50%
+        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.5, duration=3, is_party_wide=True)  # 마법 방어력 +50%
+    ]
+    teamwork.target_type = "party"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "protection": True, "healing": True}
+    skills.append(teamwork)
+
     return skills
 
 def register_paladin_skills(skill_manager):
@@ -160,4 +179,4 @@ def register_paladin_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 성스러운 수호
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

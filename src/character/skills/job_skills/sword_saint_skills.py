@@ -152,8 +152,7 @@ def register_sword_saint_skills(skill_manager):
         "sword_saint_teamwork",
         "검기 폭발",
         "전체 대상 BRV+HP (3.5x) + 검기 게이지 완전 회복 + 아군 전체 공격력 1.2배 (2턴)",
-        gauge_cost=250
-    )
+        gauge_cost=250)
     teamwork.effects = [
         # 전체 대상 BRV+HP 공격 (3.5x)
         DamageEffect(
@@ -174,10 +173,10 @@ def register_sword_saint_skills(skill_manager):
     teamwork.target_type = "all_enemies"
     teamwork.is_aoe = True
     teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
+    teamwork.sfx = ("skill", "teamwork")
     teamwork.metadata = {"teamwork": True, "chain": True}
     skills.append(teamwork)
     skill_manager.register_skill(teamwork)
 
     return skills
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

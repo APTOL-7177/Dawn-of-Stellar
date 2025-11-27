@@ -149,8 +149,26 @@ def create_necromancer_skills():
 def register_necromancer_skills(skill_manager):
     """네크로맨서 스킬 등록"""
     skills = create_necromancer_skills()
+    
+    # 팀워크 스킬: 죽음의 속삭임
+    teamwork = TeamworkSkill(
+        "necromancer_teamwork",
+        "군단 소환",
+        "언데드 하수인 3기 즉시 소환 (최대 3기) + 적 전체에 저주 (HP 회복 불가, 3턴)",
+        gauge_cost=200)
+    teamwork.effects = [
+        DamageEffect(DamageType.HP, 0.2, stat_type="magical"),  # 적 전체 HP 20% 흡수
+        HealEffect(percentage=0.2, is_party_wide=True),  # 아군 전체 HP 20% 회복
+        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3, is_party_wide=True)  # 공격력 +30%
+    ]
+    teamwork.target_type = "all_enemies"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "drain": True, "buff": True}
+    skills.append(teamwork)
+
     for skill in skills:
         skill_manager.register_skill(skill)
 
-    # 팀워크 스킬: 군단 소환
     return [s.skill_id for s in skills]

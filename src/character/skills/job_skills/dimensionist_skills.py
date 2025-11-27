@@ -295,8 +295,25 @@ def create_dimensionist_skills():
 def register_dimensionist_skills(skill_manager):
     """차원술사 스킬 등록"""
     skills = create_dimensionist_skills()
+    
+    # 팀워크 스킬: 차원 붕괴
+    teamwork = TeamworkSkill(
+        "dimensionist_teamwork",
+        "차원 붕괴",
+        "축적된 차원 굴절의 50%를 방출하여 전체 적에게 고정 피해 + 나머지 굴절 완전 제거",
+        gauge_cost=225)
+    teamwork.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.55, duration=3, is_party_wide=True),
+        BuffEffect(BuffType.SPEED_DOWN, 0.6, duration=2, is_party_wide=True)
+    ]
+    teamwork.target_type = "party"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "dimension": True}
+    skills.append(teamwork)
+
     for skill in skills:
         skill_manager.register_skill(skill)
 
-    # 팀워크 스킬: 차원 붕괴
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

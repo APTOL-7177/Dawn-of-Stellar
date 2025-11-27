@@ -159,8 +159,28 @@ def create_hacker_skills():
 def register_hacker_skills(skill_manager):
     """해커 스킬 등록"""
     skills = create_hacker_skills()
+    skills.append(skills[-1])  # ultimate
+
+    # 팀워크 스킬: 해킹 공격
+    teamwork = TeamworkSkill(
+        "hacker_teamwork",
+        "시스템 오버라이드",
+        "적 전체 버프 제거 + 디버프 1개씩 부여 + 본인 프로그램 3개 즉시 실행",
+        gauge_cost=225)
+    teamwork.effects = [
+        BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.7, duration=2, is_party_wide=True),  # 적 전체 마법 방어력 -70%
+        GimmickEffect(GimmickOperation.ADD, "programs_executed", 3, max_value=10),  # 프로그램 3개 즉시 실행
+        # 디버프 부여 완료
+    ]
+    teamwork.target_type = "party"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "hack": True}
+    skills.append(teamwork)
+
     for skill in skills:
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 시스템 오버라이드
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

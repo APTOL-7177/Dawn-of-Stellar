@@ -160,8 +160,28 @@ def create_philosopher_skills():
 def register_philosopher_skills(skill_manager):
     """철학자 스킬 등록"""
     skills = create_philosopher_skills()
+    
+    # 팀워크 스킬: 철학적 깨달음
+    teamwork = TeamworkSkill(
+        "philosopher_teamwork",
+        "진리의 계시",
+        "현재까지 선택한 딜레마 경향에 따라 효과 변화 (최고의 강화 기술)",
+        gauge_cost=250)
+    teamwork.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.25, duration=4, is_party_wide=True),  # 공격력 +25%
+        BuffEffect(BuffType.DEFENSE_UP, 0.25, duration=4, is_party_wide=True),  # 방어력 +25%
+        BuffEffect(BuffType.MAGIC_UP, 0.25, duration=4, is_party_wide=True),  # 마법 공격력 +25%
+        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.25, duration=4, is_party_wide=True),  # 마법 방어력 +25%
+        GimmickEffect(GimmickOperation.ADD, "dilemma_power", 10, max_value=100),  # 딜레마 경향에 따른 강화
+    ]
+    teamwork.target_type = "party"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "philosophy": True}
+    skills.append(teamwork)
+
     for skill in skills:
         skill_manager.register_skill(skill)
 
-    # 팀워크 스킬: 진리의 계시
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

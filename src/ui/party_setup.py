@@ -119,6 +119,7 @@ class PartySetup:
                         'id': job_id,
                         'name': data.get('class_name', job_id),
                         'description': data.get('description', ''),
+                        'slogan': data.get('slogan', ''),
                         'archetype': data.get('archetype', ''),
                         'stats': data.get('base_stats', {}),
                         'unlocked': is_unlocked
@@ -418,11 +419,13 @@ class PartySetup:
             
             # AI 추천 옵션을 항상 맨 위에 추가 (해당 카테고리에 속하는 경우만)
             if recommended_job and recommended_job in jobs_in_category:
+                rec_slogan = recommended_job.get('slogan', '')
+                rec_desc = f'"{rec_slogan}" - {recommended_job["description"]}' if rec_slogan else f"AI 추천: {recommended_job['description']}"
                 menu_items.append(MenuItem(
                     text=f"  [AI 추천] {recommended_job['name']}",
                     value={"type": "ai_recommend", "job": recommended_job},
                     enabled=True,
-                    description=f"AI가 현재 파티 조합을 고려하여 추천하는 {category_name}"
+                    description=rec_desc
                 ))
             
             # 카테고리 내 직업들 추가 (AI 추천 제외)
@@ -432,7 +435,8 @@ class PartySetup:
                     continue
                     
                 already_selected = job['id'] in selected_job_ids
-                desc = f"{job['archetype']} - {job['description']}"
+                slogan = job.get('slogan', '')
+                desc = f'"{slogan}" - {job["description"]}' if slogan else f"{job['archetype']} - {job['description']}"
                 menu_items.append(MenuItem(
                     text=f"  {job['name']}",
                     value={"type": "job", "job": job},

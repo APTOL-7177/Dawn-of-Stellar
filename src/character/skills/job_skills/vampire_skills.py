@@ -136,8 +136,28 @@ def create_vampire_skills():
     ultimate.target_type = "single"
     ultimate.metadata = {"ultimate": True, "thirst_scaling_max": True, "thirst_increase": True}
 
-    return [vampiric_bite, blood_drain, blood_lance, thirst_surge, bat_swarm,
+    skills = [vampiric_bite, blood_drain, blood_lance, thirst_surge, bat_swarm,
             mist_form, prepare_frenzy, life_tap, blood_satiation, ultimate]
+
+    # 팀워크 스킬: 뱀파이어의 물림
+    teamwork = TeamworkSkill(
+        "vampire_teamwork",
+        "피의 향연",
+        "단일 대상 BRV+HP (2.5x → HP 변환) + 입힌 HP 데미지의 100% 흡혈 + 갈증 게이지 완전 충족",
+        gauge_cost=150)
+    teamwork.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=3, is_party_wide=True),  # 공격력 +50%
+        GimmickEffect(GimmickOperation.SET, "thirst", 100),  # 갈증 게이지 완전 충족
+        # 100% 흡혈 효과 적용
+    ]
+    teamwork.target_type = "party"
+    teamwork.is_aoe = True
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "teamwork")
+    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "vampire": True}
+    skills.append(teamwork)
+
+    return skills
 
 def register_vampire_skills(skill_manager):
     """흡혈귀 스킬 등록"""
@@ -145,25 +165,4 @@ def register_vampire_skills(skill_manager):
     for skill in skills:
         skill_manager.register_skill(skill)
 
-    # 팀워크 스킬: 피의 향연
-    teamwork = TeamworkSkill(
-        "vampire_teamwork",
-        "피의 향연",
-        "단일 대상 BRV+HP (2.5x → HP 변환) + 입힌 HP 데미지의 100% 흡혈 + 갈증 게이지 완전 충족",
-        gauge_cost=150
-    )
-    teamwork.effects = [
-        # 단일 대상 BRV+HP 공격 (2.5x)
-        DamageEffect(DamageType.BRV_HP, multiplier=2.5),
-        # 100% 흡혈
-        LifestealEffect(1.0),  # 100% 흡혈
-        # 갈증 게이지 완전 충족
-        GimmickEffect(GimmickOperation.SET, "bloodlust", 100)  # 최대치로 설정
-    ]
-    teamwork.target_type = "enemy"
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]

@@ -278,14 +278,14 @@ class CursorMenu:
                     self.x,
                     desc_y,
                     self.width,
-                    2,  # 2줄
+                    4,  # 4줄
                     ord(" "),
                     bg=(15, 15, 25)  # 더 어두운 배경
                 )
 
                 # 설명 텍스트 (여러 줄 지원)
                 desc_lines = self._wrap_text(selected.description, self.width - 4)
-                for i, line in enumerate(desc_lines[:2]):  # 최대 2줄
+                for i, line in enumerate(desc_lines[:4]):  # 최대 4줄
                     console.print(
                         self.x + 2,
                         desc_y + i,

@@ -1,5 +1,6 @@
 class_name: 검투사
 description: 적의 공격을 받아내고 반격하는 카운터의 달인
+slogan: "관중이 열광할수록 나는 강해진다"
 archetype: 반격 전문가
 base_stats:
   hp: 172
@@ -68,8 +69,20 @@ traits:
     cheer_on_damage: -10
 gimmick:
   type: crowd_cheer
-  name: 군중의 환호 시스템
-  description: 화려한 플레이로 관중의 환호 획득. 환호가 높을수록 강력해지며 100 도달 시 무적
+  name: 군중의 환호
+  description: |
+    [환호 시스템] 화려한 플레이로 관중을 열광시켜라!
+    
+    - 크리티컬 +10, 처치 +20, 생존 +30
+    - 피격 시 환호 -10 (관중 실망)
+    
+    환호 구간:
+    - 0~49 (보통): 기본 상태
+    - 50~79 (인기): 공격 +30%, 크리 +20%
+    - 80~99 (슈퍼스타): 공격 +60%, 광역화
+    - 100 (영광): 무적 3턴 발동!
+    
+    주의: 피격 시 환호가 떨어짐
   min_cheer: 0
   max_cheer: 100
   start_cheer: 0
@@ -98,12 +111,17 @@ gimmick:
       description: 검투사의 영광 (무적 3턴)
 skills:
 - teamwork
-- shield_bash
-- counter_stance
-- revenge_blow
-- last_stand
-- arena_roar
-- final_counter
+- arena_strike
+- honor_strike
+- spectacular
+- taunt
+- risky_stunt
+- glory_strike
+- excite
+- will
+- champion_roar
+- ultimate
+
 bonuses:
   counter_rate: 0.15
   physical_resistance: 0.1

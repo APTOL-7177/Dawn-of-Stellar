@@ -1,5 +1,6 @@
 class_name: 아크메이지
 description: 최강의 마법 공격력을 가진 원소의 지배자
+slogan: "세 가지 원소, 무한한 가능성"
 archetype: 마법 딜러
 base_stats:
   hp: 121
@@ -64,9 +65,14 @@ skills:
 - fireball
 - lightning_bolt
 - ice_storm
+- flame_lightning
+- ice_lightning
+- flame_ice
 - meteor
 - arcane_missile
-- time_stop
+- elemental_surge
+- ultimate
+
 bonuses:
   mp_multiplier: 1.2
   magic_damage: 1.1

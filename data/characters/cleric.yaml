@@ -1,5 +1,6 @@
 class_name: 성직자
 description: 신성한 치유의 힘으로 동료를 지키는 지원 전문가
+slogan: "신앙은 기적을 낳고, 기적은 승리를 부른다"
 archetype: 힐러/서포터
 base_stats:
   hp: 145
@@ -52,16 +53,17 @@ gimmick:
   max_faith_points: 100
 skills:
 - teamwork
-- cleric_pray
-- cleric_holy_attack
-- cleric_heal
-- cleric_greater_heal
-- cleric_mass_heal
-- cleric_faith_blessing
-- cleric_holy_barrier
-- cleric_resurrect
-- cleric_holy_judgment
-- cleric_ultimate
+- pray
+- holy_attack
+- heal
+- greater_heal
+- mass_heal
+- faith_blessing
+- holy_barrier
+- resurrect
+- holy_judgment
+- ultimate
+
 bonuses:
   healing_power: 1.15
   mp_efficiency: 0.9

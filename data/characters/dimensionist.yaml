@@ -1,5 +1,6 @@
 class_name: 차원술사
 description: 차원 굴절을 통해 피해를 지연시키고 굴절량을 활용하는 시공간 조작자
+slogan: "시간과 공간, 그 경계를 넘어서"
 archetype: 피해 지연 탱커-딜러
 base_stats:
   hp: 65          # 매우 낮은 HP (차원 굴절로 보완)
@@ -87,16 +88,16 @@ gimmick:
 # 스킬 10개
 skills:
 - teamwork
-- dimensionist_refraction_strike      # 1. 굴절 타격
-- dimensionist_refraction_release     # 2. 굴절 방출
-- dimensionist_dimension_regression   # 3. 차원 회귀
-- dimensionist_dimension_explosion    # 4. 차원 폭발
-- dimensionist_refraction_enhance     # 5. 굴절 강화
-- dimensionist_dimension_scatter      # 6. 차원 분산
-- dimensionist_refraction_conversion  # 7. 굴절 전환
-- dimensionist_dimension_barrier      # 8. 차원 보호막
-- dimensionist_dimension_backflow     # 9. 차원 역류
-- dimensionist_ultimate               # 10. 차원 붕괴 (궁극기)
+- refraction_strike
+- refraction_release
+- dimension_regression
+- dimension_explosion
+- refraction_enhance
+- dimension_scatter
+- refraction_conversion
+- dimension_barrier
+- dimension_backflow
+- ultimate
 
 bonuses:
   magic_multiplier: 1.12

@@ -1,5 +1,6 @@
 class_name: 네크로맨서
 description: 저주와 디버프로 적을 약화시키는 어둠의 마법사
+slogan: "죽음은 끝이 아니라 시작이다"
 archetype: 디버프 특화
 base_stats:
   hp: 134
@@ -83,16 +84,17 @@ gimmick:
       summon_cost: 25
 skills:
 - teamwork
-- necromancer_shadow_bolt
-- necromancer_drain_life
-- necromancer_summon_skeleton
-- necromancer_summon_zombie
-- necromancer_summon_ghost
-- necromancer_sacrifice_undead
-- necromancer_legion_command
-- necromancer_death_wave
-- necromancer_mass_summon
-- necromancer_ultimate
+- shadow_bolt
+- drain_life
+- summon_skeleton
+- summon_zombie
+- summon_ghost
+- sacrifice_undead
+- legion_command
+- death_wave
+- mass_summon
+- ultimate
+
 bonuses:
   mp_multiplier: 1.15
   debuff_power: 1.15

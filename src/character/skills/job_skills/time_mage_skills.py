@@ -160,22 +160,12 @@ def create_time_mage_skills():
     wave.is_aoe = True
     wave.metadata = {"timeline_shift": "reset", "skill_type": "ultimate"}
 
-    return [time_bolt, time_shock, slow, stop, rewind, repeat,
-            align, balance, haste, foresight, leap, wave]
-
-def register_time_mage_skills(skill_manager):
-    """시간술사 스킬 등록"""
-    skills = create_time_mage_skills()
-    for skill in skills:
-        skill_manager.register_skill(skill)
-
-    # 팀워크 스킬: 시간 정지
+    # 13. 팀워크 스킬: 시간 정지
     teamwork = TeamworkSkill(
         "time_mage_teamwork",
         "시간 정지",
-        "적 전체 기절 (1턴, 저항 불가) + ATB 초기화 + 아군 전체 ATB +500 + 타임라인 초기화",
-        gauge_cost=275
-    )
+        "적 전체 기절 (1턴, 저항 불가) + ATB 초기화 + 아군 전체 ATB +500",
+        gauge_cost=275)
     teamwork.effects = [
         # 적 전체 기절 (1턴, 저항 불가)
         StatusEffect("STUN", duration=1, cannot_resist=True),
@@ -189,8 +179,15 @@ def register_time_mage_skills(skill_manager):
     teamwork.target_type = "all_enemies"
     teamwork.is_aoe = True
     teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
+    teamwork.sfx = ("skill", "teamwork")
     teamwork.metadata = {"teamwork": True, "chain": True, "atb_reset_enemies": True, "atb_boost_allies": 500}
-    skills.append(teamwork)
-    return skills
-\n    return [s.skill_id for s in skills]\n
+
+    return [time_bolt, time_shock, slow, stop, rewind, repeat,
+            align, balance, haste, foresight, leap, wave, teamwork]
+
+def register_time_mage_skills(skill_manager):
+    """시간술사 스킬 등록"""
+    skills = create_time_mage_skills()
+    for skill in skills:
+        skill_manager.register_skill(skill)
+    return [s.skill_id for s in skills]

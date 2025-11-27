@@ -1,5 +1,6 @@
 class_name: 궁수
 description: 정확한 원거리 공격으로 적을 제압하는 명사수
+slogan: "한 발의 화살이 전장의 흐름을 바꾼다"
 archetype: 원거리 물리 딜러
 base_stats:
   hp: 164
@@ -119,16 +120,17 @@ gimmick:
       guaranteed_crit: true
 skills:
 - teamwork
-- archer_direct_shot
-- archer_power_shot
-- archer_mark_normal
-- archer_mark_piercing
-- archer_mark_fire
-- archer_mark_ice
-- archer_mark_poison
-- archer_mark_explosive
-- archer_mark_holy
-- archer_ultimate
+- direct_shot
+- power_shot
+- mark_normal
+- mark_piercing
+- mark_fire
+- mark_ice
+- mark_poison
+- mark_explosive
+- mark_holy
+- ultimate
+
 bonuses:
   accuracy_bonus: 10
   critical_rate: 1.1

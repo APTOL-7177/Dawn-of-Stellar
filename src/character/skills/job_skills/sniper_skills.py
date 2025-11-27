@@ -135,16 +135,18 @@ def register_sniper_skills(skill_manager):
         "sniper_teamwork",
         "완벽한 조준",
         "단일 대상 HP 공격 (3.0x) + 크리티컬 확정 + 탄창 소모 없음",
-        gauge_cost=175
-    )
+        gauge_cost=175)
     teamwork.effects = [
         # 단일 대상 HP 공격 (3.0x)
         DamageEffect(DamageType.HP, multiplier=3.0, stat_type="physical")
     ]
     teamwork.target_type = "enemy"
     teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
+    teamwork.sfx = ("skill", "teamwork")
     teamwork.metadata = {"teamwork": True, "chain": True, "guaranteed_critical": True, "no_ammo_cost": True}
     skills.append(teamwork)
-    return skills
-\n    return [s.skill_id for s in skills]\n
+    
+    for skill in skills:
+        skill_manager.register_skill(skill)
+    
+    return [s.skill_id for s in skills]
