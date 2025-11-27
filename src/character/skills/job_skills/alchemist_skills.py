@@ -135,9 +135,9 @@ def create_alchemist_skills():
     ultimate = Skill("alchemist_ultimate", "현자의 물약", "완벽한 물약으로 파티 강화")
     ultimate.effects = [
         HealEffect(HealType.HP, percentage=0.68, is_party_wide=True),  # 궁극기
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
-        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=5),
-        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5),
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, is_party_wide=True),
+        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=5, is_party_wide=True),
+        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "potion_stock", 10)
     ]
     ultimate.costs = [MPCost(30)]

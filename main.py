@@ -774,7 +774,7 @@ def main() -> int:
                                             enemies.append(boss)
                                 
                                 # 멀티플레이 전투 실행
-                                combat_result = run_combat(
+                                combat_result, _ = run_combat(
                                     display.console,
                                     display.context,
                                     combat_party,
@@ -1763,7 +1763,7 @@ def main() -> int:
                                                             enemies.append(boss)
                                                 
                                                 # 멀티플레이 전투 실행
-                                                combat_result = run_combat(
+                                                combat_result, _ = run_combat(
                                                     display.console,
                                                     display.context,
                                                     combat_party,
@@ -2469,7 +2469,7 @@ def main() -> int:
                             # 파티를 전투용 변수에 할당 (None 체크)
                             party = combat_party if combat_party is not None else []
                             
-                            combat_result = run_combat(
+                            combat_result, is_game_over = run_combat(
                                 display.console,
                                 display.context,
                                 party,
@@ -2540,7 +2540,7 @@ def main() -> int:
                                 continue
                             elif combat_result == CombatState.DEFEAT:
                                 # 전투 참여 파티원만 죽었는지, 모든 플레이어의 모든 캐릭터가 죽었는지 확인
-                                is_game_over = getattr(combat_manager, 'is_game_over', False)
+                                # is_game_over는 run_combat에서 반환됨
                                 
                                 if is_game_over:
                                     # 모든 플레이어의 모든 캐릭터가 죽었으면 게임오버
@@ -3300,7 +3300,7 @@ def main() -> int:
                                     else:
                                         combat_party = party
                                     
-                                    combat_result = run_combat(
+                                    combat_result, _ = run_combat(
                                         display.console,
                                         display.context,
                                         combat_party,

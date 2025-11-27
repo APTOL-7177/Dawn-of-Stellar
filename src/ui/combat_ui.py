@@ -4483,7 +4483,7 @@ def run_combat(
     dungeon: Optional[Any] = None,  # 던전 맵 (환경 효과용)
     bot_manager: Optional[Any] = None,  # 봇 관리자 (자동 전투용)
     local_player_id: Optional[str] = None  # 로컬 플레이어 ID (다른 플레이어 컨트롤 방지)
-) -> CombatState:
+) -> Tuple[CombatState, bool]:
     """
     전투 실행
 
@@ -4498,7 +4498,7 @@ def run_combat(
         combat_position: 전투 시작 위치 (선택적, 멀티플레이용)
 
     Returns:
-        전투 결과 (승리/패배/도주)
+        (전투 결과 (승리/패배/도주), 게임오버 여부)
     """
     # 전투 시작 SFX (Battle Swirl)
     play_sfx("combat", "battle_start")
@@ -4654,5 +4654,7 @@ def run_combat(
     stop_bgm(fade_out=True)
 
     # BGM은 main.py에서 처리 (필드 BGM으로 전환하기 위해)
-    return ui.battle_result or CombatState.FLED
+    # combat_manager의 is_game_over 플래그도 함께 반환
+    is_game_over = getattr(combat_manager, 'is_game_over', False)
+    return (ui.battle_result or CombatState.FLED, is_game_over)
 

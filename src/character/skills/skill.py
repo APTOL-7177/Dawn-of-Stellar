@@ -329,6 +329,13 @@ class Skill:
                         logger.info(f"{single_target.name}에게 {rune_name} 룬 새김! (총: {current_count + 1}/3)")
                     break  # 첫 번째 적에게만 적용
 
+        # 커스텀 데미지 처리 (차원 폭발 등) - effects 실행 전에 굴절량 저장
+        custom_damage_refraction = None
+        if self.metadata.get("custom_damage", False) and "refraction_consumption" in self.metadata:
+            # 굴절량 소모 전 값을 저장 (고정 피해 계산용)
+            if hasattr(user, 'gimmick_type') and user.gimmick_type == "dimension_refraction":
+                custom_damage_refraction = getattr(user, 'refraction_stacks', 0)
+
         # 효과 실행 (ISSUE-003: 효과 메시지 수집)
         total_dmg = 0
         total_heal = 0
@@ -496,6 +503,41 @@ class Skill:
                     logger = get_logger("skill")
                     logger.info(f"[생명력 흡수] {user.name} HP 회복: +{actual_heal} (피해의 {total_lifesteal_rate * multiplier * 100:.0f}%)")
                     effect_messages.append(msg)
+
+        # 커스텀 데미지 처리 (차원 폭발 등)
+        if self.metadata.get("custom_damage", False) and custom_damage_refraction is not None:
+            # 굴절량 소모량 계산
+            consumption_rate = self.metadata.get("refraction_consumption", 0)
+            consumed_refraction = int(custom_damage_refraction * consumption_rate)
+            
+            # 고정 피해 배율 적용
+            fixed_damage_multiplier = self.metadata.get("fixed_damage_multiplier", 1.0)
+            fixed_damage = int(consumed_refraction * fixed_damage_multiplier)
+            
+            # 적 전체에게 고정 피해 적용
+            from src.character.skills.effects.fixed_damage_effect import FixedDamageEffect
+            targets_list = target if isinstance(target, list) else [target]
+            alive_targets = [t for t in targets_list if hasattr(t, 'is_alive') and t.is_alive]
+            
+            if alive_targets and fixed_damage > 0:
+                from src.core.logger import get_logger
+                logger = get_logger("skill")
+                
+                for enemy in alive_targets:
+                    # 고정 피해 적용
+                    if hasattr(enemy, 'take_fixed_damage'):
+                        actual_damage = enemy.take_fixed_damage(fixed_damage)
+                    else:
+                        actual_damage = min(fixed_damage, enemy.current_hp)
+                        enemy.current_hp = max(0, enemy.current_hp - fixed_damage)
+                    
+                    logger.info(f"[차원 폭발] {user.name} → {enemy.name} 고정 피해: {actual_damage} (굴절량 {consumed_refraction} × {fixed_damage_multiplier})")
+                    total_dmg += actual_damage
+                
+                if len(alive_targets) > 1:
+                    effect_messages.append(f"적 전체 고정 피해 {fixed_damage} × {len(alive_targets)}명")
+                else:
+                    effect_messages.append(f"고정 피해 {fixed_damage}")
 
         # 커스텀 효과 처리 (차원술사 굴절 전환 등)
         if self.metadata.get("custom_effect", False):

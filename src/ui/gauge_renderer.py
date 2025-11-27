@@ -648,23 +648,10 @@ class GaugeRenderer:
         if wound_damage > 0 and wound_pixels == 0:
             logger_gauge.warning(f"[HP 게이지] wound_damage={wound_damage:.3f}인데 wound_pixels=0! wound_ratio={wound_ratio:.3f}, total_pixels={total_pixels}")
 
-        # 빗금 색상 (상처가 있을 때만 애니메이션, 없으면 검은색)
+        # 빗금 색상 (상처가 있을 때 고정 색상, 없으면 검은색)
         if wound_pixels > 0:
-            # 상처가 있을 때: 검은색 ↔ 빨간색 부드러운 애니메이션
-            # 시간 기반 애니메이션 (0→1→0 부드러운 전환)
-            current_time = time.time()
-            animation_progress = (current_time * 2) % 1  # 0→1 범위로 0.5초 주기
-
-            # 부드러운 애니메이션: sin 곡선 사용
-            import math
-            smooth_progress = (math.sin(animation_progress * math.pi * 2) + 1) / 2  # 0→1→0
-
-            # 검은색(0,0,0)에서 빨간색(220,50,50)으로 부드럽게 변환
-            wound_stripe_color = (
-                int(0 + (220 - 0) * smooth_progress),
-                int(0 + (50 - 0) * smooth_progress),
-                int(0 + (50 - 0) * smooth_progress)
-            )
+            # 상처가 있을 때: 고정 검은색 (깜빡임 없음)
+            wound_stripe_color = (0, 0, 0)
         else:
             # 상처가 없으면 검은색 (사용 안 함)
             wound_stripe_color = (0, 0, 0)

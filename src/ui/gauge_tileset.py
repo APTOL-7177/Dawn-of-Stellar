@@ -388,10 +388,11 @@ class GaugeTileManager:
         # 캐시 키는 양자화된 divisions 값 사용 (더 안정적, 애니메이션 중 변화 없음)
         # 색상 해시 충돌 방지: 실제 색상값 포함
         # 실제 stripe offset 계산과 동일하게 캐싱하여 시각적 연속성 보장
-        # 빗금 색상은 애니메이션하므로 캐시 키에 포함하여 매 프레임마다 재생성
+        # 빗금 색상은 애니메이션하므로 캐시 키에서 제외하고 타일 생성 시 직접 적용
+        # (캐시 효율성을 위해 색상 애니메이션은 타일 생성 시 처리)
         stripe_offset_for_cache = (cell_index * self.tile_width) % 5  # stripe_period = 5
-        # wound_stripe_color를 캐시 키에 포함하여 애니메이션 색상 반영
-        cache_key = (hp_pixels, wound_pixels, hp_color, bg_color, stripe_offset_for_cache, wound_stripe_color)
+        # wound_stripe_color는 애니메이션하므로 캐시 키에서 제외 (타일 생성 시 직접 적용)
+        cache_key = (hp_pixels, wound_pixels, hp_color, bg_color, stripe_offset_for_cache)
         
         # 캐시된 코드포인트가 있으면 재용
         if not hasattr(self, '_boundary_tile_cache'):
@@ -400,6 +401,11 @@ class GaugeTileManager:
             # 기존 Private Use Area (U+E000 ~ U+F8FF)가 부족할 경우 확장
             self._next_boundary_codepoint = 0xF0000
             self._boundary_tile_access_order: List[tuple] = []  # LRU를 위한 접근 순서
+            # 최대 캐시 크기 제한 (적극적인 캐시 관리)
+            self._max_cache_size = 15000  # 최대 15000개 캐시 항목
+            # 주기적 정리를 위한 카운터
+            self._tile_creation_count = 0  # 타일 생성 횟수 카운터
+            self._periodic_cleanup_interval = 500  # 500개 생성마다 주기적 정리
 
         if cache_key in self._boundary_tile_cache:
             cached_codepoint = self._boundary_tile_cache[cache_key]
@@ -412,19 +418,48 @@ class GaugeTileManager:
 
         # 새 코드포인트 할당 (범위 체크 및 LRU 캐시 정리)
         # Supplementary Private Use Area-A (U+F0000 ~ U+FFFFD): 65534개
-        # 범위가 거의 찰 때 미리 정리 (90% 이상 사용 시)
+        # 적극적인 캐시 관리: 최대 캐시 크기, 50% 사용, 또는 주기적 정리
         max_codepoints = 0xFFFFD - 0xF0000 + 1  # 65534개
-        if self._next_boundary_codepoint >= 0xF0000 + int(max_codepoints * 0.9):
-            # 캐시 크기가 90% 이상이면 가장 오래된 항목 10% 제거
-            items_to_remove = max(1, len(self._boundary_tile_cache) // 10)
+        cache_size = len(self._boundary_tile_cache)
+        self._tile_creation_count += 1
+        
+        # 주기적 정리: 일정 횟수마다 자동 정리
+        should_cleanup = False
+        items_to_remove = 0
+        
+        # 주기적 정리 (500개 생성마다)
+        if self._tile_creation_count >= self._periodic_cleanup_interval:
+            self._tile_creation_count = 0  # 카운터 리셋
+            if cache_size > 0:
+                # 주기적 정리: 20% 제거
+                should_cleanup = True
+                items_to_remove = max(1, cache_size // 5)
+                logger.debug(f"주기적 캐시 정리: 20% 제거 (캐시 크기: {cache_size})")
+        
+        # 최대 캐시 크기 초과 시
+        if cache_size >= self._max_cache_size:
+            # 최대 캐시 크기 초과 시 50% 제거
+            should_cleanup = True
+            items_to_remove = max(items_to_remove, cache_size // 2)
+            logger.debug(f"최대 캐시 크기 초과 ({cache_size}/{self._max_cache_size}), 50% 제거 시작")
+        # 코드포인트 50% 사용 시
+        elif self._next_boundary_codepoint >= 0xF0000 + int(max_codepoints * 0.5):
+            # 코드포인트 50% 사용 시 30% 제거
+            if not should_cleanup:
+                should_cleanup = True
+                items_to_remove = max(1, cache_size // 3)
+                logger.debug(f"코드포인트 50% 사용, 캐시 30% 제거 시작 (캐시 크기: {cache_size})")
+        
+        if should_cleanup and items_to_remove > 0:
             for _ in range(items_to_remove):
                 if len(self._boundary_tile_access_order) > 0:
                     oldest_key = self._boundary_tile_access_order.pop(0)
                     if oldest_key in self._boundary_tile_cache:
                         old_codepoint = self._boundary_tile_cache.pop(oldest_key)
                         logger.debug(
-                            f"LRU 캐시 사전 정리: 오래된 타일 제거 (key={oldest_key}, codepoint=0x{old_codepoint:04X})"
+                            f"LRU 캐시 적극 정리: 오래된 타일 제거 (key={oldest_key}, codepoint=0x{old_codepoint:05X})"
                         )
+            logger.info(f"캐시 정리 완료: {items_to_remove}개 제거, 남은 캐시: {len(self._boundary_tile_cache)}개")
         
         if self._next_boundary_codepoint > 0xFFFFD:
             # 범위 초과시 LRU 캐시에서 가장 오래된 항목 제거

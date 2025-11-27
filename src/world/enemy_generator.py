@@ -840,6 +840,23 @@ class EnemyGenerator:
             boss.magic_defense = int(boss.magic_defense * 1.2)
             boss.max_brv = int(boss.max_brv * 1.3)
             boss.current_brv = int(boss.current_brv * 1.3)
+            
+            # 5층마다 나오는 보스 20% 약화 (모든 스탯)
+            weaken_multiplier = 0.8
+            boss.max_hp = int(boss.max_hp * weaken_multiplier)
+            boss.current_hp = int(boss.current_hp * weaken_multiplier)
+            boss.physical_attack = int(boss.physical_attack * weaken_multiplier)
+            boss.magic_attack = int(boss.magic_attack * weaken_multiplier)
+            boss.physical_defense = int(boss.physical_defense * weaken_multiplier)
+            boss.magic_defense = int(boss.magic_defense * weaken_multiplier)
+            boss.max_brv = int(boss.max_brv * weaken_multiplier)
+            boss.current_brv = int(boss.current_brv * weaken_multiplier)
+            boss.speed = int(boss.speed * weaken_multiplier)
+            boss.luck = int(boss.luck * weaken_multiplier)
+            boss.accuracy = int(boss.accuracy * weaken_multiplier)
+            boss.evasion = int(boss.evasion * weaken_multiplier)
+            boss.max_mp = int(boss.max_mp * weaken_multiplier)
+            boss.current_mp = int(boss.current_mp * weaken_multiplier)
 
             boss.name = boss_name
             boss.enemy_id = boss_enemy_id
