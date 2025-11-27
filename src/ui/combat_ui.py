@@ -4671,26 +4671,47 @@ def run_combat(
     # 살아있는 캐릭터가 있는지 확인
     has_alive_member = False
     alive_members = []
+    invalid_members = []
 
     for i, member in enumerate(party):
         member_name = getattr(member, 'name', f'멤버{i+1}')
+        member_type = type(member).__name__
+
+        # 다양한 생존 상태 확인
         is_alive = getattr(member, 'is_alive', None)
         current_hp = getattr(member, 'current_hp', None)
         max_hp = getattr(member, 'max_hp', None)
 
-        logger.info(f"파티 멤버 {i+1}: {member_name} - HP: {current_hp}/{max_hp}, is_alive: {is_alive}")
+        # Player 객체인 경우 (싱글플레이어에서 exploration.player)
+        if member_type == 'Player':
+            logger.info(f"파티 멤버 {i+1}: Player 객체 - {member_name} (위치: {member.x}, {member.y})")
+            # Player 객체는 전투에 참여할 수 없으므로 무시
+            invalid_members.append(f"{member_name}(Player)")
+            continue
 
+        logger.info(f"파티 멤버 {i+1}: {member_name} ({member_type}) - HP: {current_hp}/{max_hp}, is_alive: {is_alive}")
+
+        # 생존 판정
         if is_alive is True:
             has_alive_member = True
             alive_members.append(member_name)
         elif current_hp is not None and current_hp > 0:
             has_alive_member = True
             alive_members.append(member_name)
+        elif hasattr(member, 'hp') and getattr(member, 'hp', 0) > 0:
+            # 다른 HP 속성명도 확인
+            has_alive_member = True
+            alive_members.append(member_name)
+        else:
+            invalid_members.append(member_name)
 
-    logger.info(f"살아있는 멤버: {len(alive_members)}명 - {', '.join(alive_members) if alive_members else '없음'}")
+    logger.info(f"유효한 멤버: {len(alive_members)}명 - {', '.join(alive_members) if alive_members else '없음'}")
+    if invalid_members:
+        logger.info(f"무효한 멤버: {len(invalid_members)}명 - {', '.join(invalid_members)}")
 
     if not has_alive_member:
-        logger.warning("전투 시작 실패: 파티에 살아있는 멤버가 없습니다")
+        logger.warning("전투 시작 실패: 파티에 살아있는 유효한 멤버가 없습니다")
+        logger.warning("Player 객체가 파티에 포함되어 있다면 Character 객체가 필요합니다")
         return (CombatState.FLED, False)
 
     combat_manager.start_combat(party, enemies, dungeon=dungeon, combat_position=combat_position)

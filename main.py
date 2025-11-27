@@ -2528,24 +2528,26 @@ def main() -> int:
                                 # 싱글플레이: 플레이어 캐릭터를 파티의 첫 번째 멤버로 설정
                                 combat_party = []
 
-                                # 플레이어 캐릭터가 있으면 파티에 추가
-                                if hasattr(exploration, 'player') and exploration.player:
-                                    combat_party.append(exploration.player)
-                                    player_name = getattr(exploration.player, 'name', 'Unknown')
-                                    player_hp = getattr(exploration.player, 'current_hp', 'N/A')
-                                    player_max_hp = getattr(exploration.player, 'max_hp', 'N/A')
-                                    logger.info(f"싱글플레이 전투: 플레이어 캐릭터를 파티에 추가 - {player_name} (HP: {player_hp}/{player_max_hp})")
-                                else:
-                                    logger.warning("싱글플레이 전투: exploration.player가 없거나 None입니다")
-
-                                # 추가 파티 멤버가 있으면 함께 추가
+                                # 1. exploration.player.party에서 파티 멤버 가져오기 (우선)
                                 if hasattr(exploration, 'player') and hasattr(exploration.player, 'party') and exploration.player.party:
-                                    for member in exploration.player.party:
-                                        if member not in combat_party:  # 중복 방지
-                                            combat_party.append(member)
-                                    logger.info(f"싱글플레이 전투: 추가 파티 멤버 {len(exploration.player.party)}명 추가")
-                                elif hasattr(exploration, 'player') and hasattr(exploration.player, 'party'):
-                                    logger.info("싱글플레이 전투: exploration.player.party가 없거나 빈 리스트입니다")
+                                    combat_party.extend(exploration.player.party)
+                                    logger.info(f"싱글플레이 전투: exploration.player.party에서 {len(exploration.player.party)}명 가져옴")
+
+                                # 2. party 파라미터에서 플레이어 캐릭터 가져오기 (백업)
+                                if not combat_party and 'party' in locals() and party:
+                                    # party의 첫 번째 멤버를 플레이어 캐릭터로 간주
+                                    combat_party.append(party[0])
+                                    logger.info(f"싱글플레이 전투: party 파라미터에서 플레이어 캐릭터 가져옴 - {getattr(party[0], 'name', 'Unknown')}")
+
+                                # 3. 그래도 없으면 오류
+                                if not combat_party:
+                                    logger.error("싱글플레이 전투: 파티 멤버를 찾을 수 없습니다!")
+                                    logger.error(f"exploration.player: {exploration.player if hasattr(exploration, 'player') else '없음'}")
+                                    if hasattr(exploration, 'player'):
+                                        logger.error(f"exploration.player.party: {exploration.player.party if hasattr(exploration.player, 'party') else '속성 없음'}")
+                                    if 'party' in locals():
+                                        logger.error(f"party 파라미터: {len(party) if party else 0}명")
+                                    combat_party = []
 
                                 # 파티가 여전히 비어있으면 상위 스코프의 party 변수 사용 시도
                                 if not combat_party:
