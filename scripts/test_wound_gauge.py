@@ -88,13 +88,34 @@ def main():
     # 콘솔 생성
     console = tcod.console.Console(SCREEN_WIDTH, SCREEN_HEIGHT)
     
-    # 컨텍스트 생성
+    # 컨텍스트 생성 (실제 게임과 동일한 렌더러 사용)
+    # config.yaml에서 렌더러 설정 읽기
+    renderer_name = "opengl2"  # 기본값 (실제 게임과 동일)
+    try:
+        import yaml
+        config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.yaml")
+        if os.path.exists(config_path):
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+                renderer_name = config.get("display", {}).get("renderer", "opengl2")
+    except Exception:
+        pass  # 설정을 읽지 못하면 기본값 사용
+    
+    renderer_map = {
+        "sdl2": tcod.context.RENDERER_SDL2,
+        "opengl": tcod.context.RENDERER_OPENGL,
+        "opengl2": tcod.context.RENDERER_OPENGL2,
+        "auto": None  # TCOD가 자동 선택
+    }
+    renderer = renderer_map.get(renderer_name.lower(), None)
+    
     with tcod.context.new(
         columns=SCREEN_WIDTH,
         rows=SCREEN_HEIGHT,
         tileset=tileset,
         title="HP 게이지 상처 표시 테스트",
         vsync=True,
+        renderer=renderer,
     ) as context:
         
         gauge_renderer = GaugeRenderer()

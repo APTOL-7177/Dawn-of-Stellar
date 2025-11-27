@@ -359,14 +359,16 @@ class GaugeTileManager:
         # E800 ~ EFFF 범위 사용 (기존 E000~E7FF 외)
         # 캐시 키는 양자화된 divisions 값 사용 (더 안정적, 애니메이션 중 변화 없음)
         # 색상 해시 충돌 방지: 실제 색상값 포함
-        cache_key = (hp_pixels, wound_pixels, hp_color, bg_color, wound_color, wound_stripe_color, cell_index)
+        # cell_index는 제거 (렌더링 시 동적으로 오프셋 보정) → 캐시 효율성 대폭 향상
+        cache_key = (hp_pixels, wound_pixels, hp_color, bg_color, wound_color, wound_stripe_color)
         
-        # 캐시된 코드포인트가 있으면 재사용
+        # 캐시된 코드포인트가 있으면 재용
         if not hasattr(self, '_boundary_tile_cache'):
             self._boundary_tile_cache: Dict[tuple, int] = {}
-            self._next_boundary_codepoint = 0xE800
+            # Private Use Area (U+E000 ~ U+F8FF) 사용: 6400개 범위
+            self._next_boundary_codepoint = 0xE000
             self._boundary_tile_access_order: List[tuple] = []  # LRU를 위한 접근 순서
-        
+
         if cache_key in self._boundary_tile_cache:
             cached_codepoint = self._boundary_tile_cache[cache_key]
             # LRU: 접근한 항목을 맨 뒤로 이동
@@ -374,11 +376,12 @@ class GaugeTileManager:
                 self._boundary_tile_access_order.remove(cache_key)
             self._boundary_tile_access_order.append(cache_key)
             return chr(cached_codepoint)
-        
+
         # 새 코드포인트 할당 (범위 체크 및 LRU 캐시 정리)
+        # Private Use Area (U+E000 ~ U+F8FF): 6400개
         # 범위가 거의 찰 때 미리 정리 (90% 이상 사용 시)
-        max_codepoints = 0xEFFF - 0xE800 + 1  # 2048개
-        if self._next_boundary_codepoint >= 0xE800 + int(max_codepoints * 0.9):
+        max_codepoints = 0xF8FF - 0xE000 + 1  # 6400개
+        if self._next_boundary_codepoint >= 0xE000 + int(max_codepoints * 0.9):
             # 캐시 크기가 90% 이상이면 가장 오래된 항목 10% 제거
             items_to_remove = max(1, len(self._boundary_tile_cache) // 10)
             for _ in range(items_to_remove):
@@ -390,7 +393,7 @@ class GaugeTileManager:
                             f"LRU 캐시 사전 정리: 오래된 타일 제거 (key={oldest_key}, codepoint=0x{old_codepoint:04X})"
                         )
         
-        if self._next_boundary_codepoint > 0xEFFF:
+        if self._next_boundary_codepoint > 0xF8FF:
             # 범위 초과시 LRU 캐시에서 가장 오래된 항목 제거
             if len(self._boundary_tile_access_order) > 0:
                 oldest_key = self._boundary_tile_access_order.pop(0)
@@ -404,7 +407,7 @@ class GaugeTileManager:
                 else:
                     # 캐시가 비어있으면 재사용 불가
                     logger.error(
-                        f"경계 타일 코드포인트 범위 초과 및 캐시 정리 불가 (0xE800~0xEFFF). "
+                        f"경계 타일 코드포인트 범위 초과 및 캐시 정리 불가 (0xE000~0xF8FF). "
                         f"캐시 크기: {len(self._boundary_tile_cache)}. "
                         f"폴백 블렌딩을 사용합니다."
                     )
@@ -412,7 +415,7 @@ class GaugeTileManager:
             else:
                 # 접근 순서가 없으면 재사용 불가
                 logger.error(
-                    f"경계 타일 코드포인트 범위 초과 (0xE800~0xEFFF). "
+                    f"경계 타일 코드포인트 범위 초과 (0xE000~0xF8FF). "
                     f"캐시 크기: {len(self._boundary_tile_cache)}. "
                     f"폴백 블렌딩을 사용합니다."
                 )
@@ -434,10 +437,11 @@ class GaugeTileManager:
         stripe_width = 2
         stripe_gap = 3
         stripe_period = stripe_width + stripe_gap
-        
-        # 빗금 오프셋 (셀 인덱스 기반으로 연속성 보장)
-        # 일반 빗금 타일과 동일한 방식으로 계산하여 패턴 연속성 보장
-        x_offset = (cell_index * self.tile_width) % stripe_period
+
+        # 빗금 오프셋: 기준점 0으로 사용 (렌더링 시 동적 오프셋 보정)
+        # 렌더링할 때 절대 화면 X 좌표를 이용해 오프셋을 동적으로 계산하므로
+        # 타일 자체는 고정된 오프셋으로 생성하면 화면 전체에서 연속된 패턴이 나타남
+        x_offset = 0
         
         # 상처 시작점 (오른쪽에서 actual_wound_pixels만큼)
         # 빈 HP 영역이 있을 수 있으므로 계산

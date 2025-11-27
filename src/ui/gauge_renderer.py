@@ -629,21 +629,11 @@ class GaugeRenderer:
                 console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
             
             elif cell_wound_pixels >= divisions and cell_hp_pixels == 0:
-                # 상처가 셀 전체를 채움 - 동적 타일로 픽셀 정확도
+                # 상처가 셀 전체를 채움 - 배경색 + 빗금 타일 오버레이로 픽셀 정확도
                 if use_tiles:
-                    boundary_tile = tile_manager.create_boundary_tile(
-                        hp_pixels=0,
-                        wound_pixels=divisions,
-                        hp_color=fg_color,
-                        bg_color=bg_color,
-                        wound_color=wound_bg_color,
-                        wound_stripe_color=wound_stripe_color,
-                        cell_index=i
-                    )
-                    if boundary_tile and boundary_tile.strip():
-                        console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_NONE)
-                    else:
-                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=bg_color)
+                    console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
+                    tile_char = tile_manager.get_tile_char('wound_stripe', i / divisions)
+                    console.print(x + i, y, tile_char, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
                 else:
                     stripe_bg = bg_color if i % 2 == 0 else wound_stripe_color
                     console.draw_rect(x + i, y, 1, 1, ord(" "), bg=stripe_bg)
@@ -657,8 +647,7 @@ class GaugeRenderer:
                         hp_color=fg_color,
                         bg_color=bg_color,
                         wound_color=wound_bg_color,
-                        wound_stripe_color=wound_stripe_color,
-                        cell_index=i
+                        wound_stripe_color=wound_stripe_color
                     )
                     if boundary_tile and boundary_tile.strip():
                         console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_NONE)
@@ -709,8 +698,7 @@ class GaugeRenderer:
                         hp_color=fg_color,
                         bg_color=bg_color,
                         wound_color=wound_bg_color,
-                        wound_stripe_color=wound_stripe_color,
-                        cell_index=i
+                        wound_stripe_color=wound_stripe_color
                     )
                     if boundary_tile and boundary_tile.strip():
                         console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_NONE)
