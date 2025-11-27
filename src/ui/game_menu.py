@@ -21,7 +21,6 @@ class MenuOption(Enum):
     PARTY_STATUS = "party_status"
     INVENTORY = "inventory"
     QUEST_LIST = "quest_list"  # 퀘스트 목록
-    FIELD_SKILLS = "field_skills"  # 필드스킬
     SAVE_GAME = "save"
     LOAD_GAME = "load"
     OPTIONS = "options"
@@ -41,7 +40,6 @@ class GameMenu:
             ("파티 상태", MenuOption.PARTY_STATUS),
             ("인벤토리", MenuOption.INVENTORY),
             ("퀘스트 목록", MenuOption.QUEST_LIST),
-            ("필드스킬", MenuOption.FIELD_SKILLS),
             ("게임 저장", MenuOption.SAVE_GAME),
             ("게임 불러오기", MenuOption.LOAD_GAME),
             ("설정", MenuOption.OPTIONS),
@@ -199,14 +197,16 @@ def open_game_menu(
         except:
             pass
 
-        # 게임패드 입력 우선 확인
-        gamepad_action = unified_input_handler.get_action()
-        if gamepad_action:
-            result = menu.handle_input(gamepad_action)
-            if result:
-                logger.info(f"메뉴 선택: {result.value}")
+        # 키보드 입력 우선 처리
+        for event in tcod.event.get():
+            action = unified_input_handler.process_tcod_event(event)
 
-                # 하위 메뉴로 이동
+            if action:
+                result = menu.handle_input(action)
+                if result:
+                    logger.info(f"메뉴 선택: {result.value}")
+
+                    # 하위 메뉴로 이동
                 if result == MenuOption.INVENTORY:
                         if inventory is not None and party is not None:
                             from src.ui.inventory_ui import open_inventory
@@ -226,12 +226,6 @@ def open_game_menu(
                             open_quest_list(console, context, quest_manager)
                         else:
                             show_message(console, context, "퀘스트 관리자를 찾을 수 없습니다.")
-                        continue
-
-                elif result == MenuOption.FIELD_SKILLS:
-                        # 필드스킬 메뉴
-                        from src.ui.field_skill_menu import open_field_skill_menu
-                        open_field_skill_menu(console, context)
                         continue
 
                 elif result == MenuOption.PARTY_STATUS and party:
@@ -362,6 +356,89 @@ def open_game_menu(
             for quit_event in tcod.event.get():
                 if isinstance(quit_event, tcod.event.Quit):
                     return MenuOption.QUIT
+
+        # 게임패드 입력 처리 (키보드 입력이 없었을 때만)
+        gamepad_action = unified_input_handler.get_action()
+        if gamepad_action:
+            result = menu.handle_input(gamepad_action)
+            if result:
+                logger.info(f"메뉴 선택: {result.value}")
+
+                # 하위 메뉴로 이동
+                if result == MenuOption.INVENTORY:
+                    if inventory is not None and party is not None:
+                        from src.ui.inventory_ui import open_inventory
+                        open_inventory(console, context, inventory, party, exploration)
+                        # 인벤토리에서 돌아온 후 메뉴 계속
+                        continue
+                    else:
+                        show_message(console, context, "인벤토리를 열 수 없습니다.")
+                        continue
+
+                elif result == MenuOption.QUEST_LIST:
+                    # 퀘스트 목록 UI
+                    from src.quest.quest_manager import get_quest_manager
+                    quest_manager = get_quest_manager()
+                    if quest_manager:
+                        from src.ui.quest_list_ui import open_quest_list
+                        open_quest_list(console, context, quest_manager, party)
+                        continue
+                    else:
+                        show_message(console, context, "퀘스트 목록을 열 수 없습니다.")
+                        continue
+
+                elif result == MenuOption.PARTY_STATUS and party:
+                    open_party_status_menu(console, context, party, exploration=exploration)
+                    # 파티 상태에서 돌아온 후 메뉴 계속
+                    continue
+
+                elif result == MenuOption.SAVE_GAME:
+                    # 저장 처리
+                    game_state = {}
+                    if exploration:
+                        game_state.update({
+                            "floor_number": exploration.floor_number,
+                            "player_pos": exploration.player_pos,
+                            "game_stats": exploration.game_stats,
+                            "next_dungeon_floor": exploration.game_stats.get("next_dungeon_floor", 1),  # 다음 던전 층 번호 저장
+                        })
+
+                    # 파티 정보 추가
+                    if party:
+                        game_state["party"] = [serialize_character(char) for char in party]
+
+                    # 인벤토리 정보 추가 (기존 형식 유지)
+                    if inventory:
+                        game_state["inventory"] = {
+                            "gold": inventory.gold if hasattr(inventory, 'gold') else 0,
+                            "items": [{"item": serialize_item(slot.item), "quantity": getattr(slot, 'quantity', 1)} for slot in inventory.slots] if hasattr(inventory, 'slots') else [],
+                            "cooking_cooldown_turn": inventory.cooking_cooldown_turn if hasattr(inventory, 'cooking_cooldown_turn') else None,
+                            "cooking_cooldown_duration": inventory.cooking_cooldown_duration if hasattr(inventory, 'cooking_cooldown_duration') else 0
+                        }
+
+                    logger.warning(f"[SAVE] game_state['inventory']: {game_state['inventory']}")
+
+                    success = show_save_screen(console, context, game_state, is_multiplayer=is_multiplayer)
+                    if success:
+                        show_message(console, context, "저장 완료!")
+                    continue
+
+                elif result == MenuOption.LOAD_GAME:
+                    from src.ui.save_load_ui import show_load_screen
+                    game_state = show_load_screen(console, context)
+                    if game_state:
+                        # 로드 성공 - 메뉴 닫고 게임 재시작
+                        return MenuOption.LOAD_GAME
+                    continue
+
+                elif result == MenuOption.OPTIONS:
+                    from src.ui.settings_ui import open_settings
+                    open_settings(console, context)
+                    # 설정에서 돌아온 후 메뉴 계속
+                    continue
+
+                elif result == MenuOption.RETURN:
+                    return result
 
         # CPU 사용률 낮추기 (논블로킹 모드에서 필요)
         import time

@@ -543,43 +543,40 @@ def run_main_menu(console: tcod.console.Console, context: tcod.context.Context) 
         except:
             pass
 
-        # 게임패드 입력 우선 확인
-        gamepad_action = unified_input_handler.get_action()
-        if gamepad_action:
-            print(f"MainMenu: Gamepad action received: {gamepad_action}")  # 디버깅
-            print(f"MainMenu: Gamepad connected: {unified_input_handler.gamepad_connected}")  # 디버깅
-            if gamepad_action == GameAction.CONFIRM:
-                # CONFIRM 액션 감지 시 강제로 첫 번째 메뉴 아이템 선택
-                print("MainMenu: Forcing menu selection for CONFIRM action")  # 디버깅
-                selected_item = menu.menu.get_selected_item()
-                if selected_item and selected_item.action:
-                    print(f"MainMenu: Executing action for: {selected_item.text}")  # 디버깅
-                    # 메뉴 선택 SFX 재생
-                    try:
-                        from src.audio import play_sfx
-                        play_sfx("ui", "cursor_select")
-                        print("MainMenu: SFX played")  # 디버깅
-                    except Exception as e:
-                        print(f"MainMenu: SFX play error: {e}")  # 디버깅
-                    selected_item.action()  # 액션 직접 실행
-                    return menu.result
-            elif menu.handle_input(gamepad_action):
-                print(f"MainMenu: Menu handle_input returned True, result: {menu.result}")  # 디버깅
-                return menu.result
-            else:
-                print(f"MainMenu: Menu handle_input returned False")  # 디버깅
-
-        # 키보드 입력 처리 (논블로킹)
+        # 키보드 입력 우선 처리
+        keyboard_processed = False
         for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
+                keyboard_processed = True
                 if menu.handle_input(action):
+                    # 메뉴 선택 SFX 재생 (키보드 입력 시)
+                    if action == GameAction.CONFIRM:
+                        try:
+                            from src.audio import play_sfx
+                            play_sfx("ui", "cursor_select")
+                        except Exception as e:
+                            pass
                     return menu.result
 
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return MenuResult.QUIT
+
+        # 게임패드 입력 처리 (키보드 입력이 없었을 때만)
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                if menu.handle_input(gamepad_action):
+                    # 메뉴 선택 SFX 재생 (게임패드 입력 시)
+                    if gamepad_action == GameAction.CONFIRM:
+                        try:
+                            from src.audio import play_sfx
+                            play_sfx("ui", "cursor_select")
+                        except Exception as e:
+                            pass
+                    return menu.result
 
         # CPU 사용률 낮추기
         time.sleep(0.01)

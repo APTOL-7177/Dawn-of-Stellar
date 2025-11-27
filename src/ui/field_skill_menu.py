@@ -116,8 +116,30 @@ def open_field_skill_menu(console: tcod.console.Console, context: tcod.context.C
     menu = FieldSkillMenu(console.width, console.height)
 
     while True:
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
+
+        # 게임패드 입력 우선 확인
+        gamepad_action = unified_input_handler.get_action()
+        if gamepad_action:
+            result = menu.handle_input(gamepad_action)
+            if result == FieldSkillMenuOption.BACK:
+                logger.info("필드스킬 메뉴 닫기")
+                # 메뉴 종료 사운드
+                play_sfx("ui", "cursor_cancel")
+                return
+            elif result == FieldSkillMenuOption.VIEW_SKILLS:
+                # 필드 스킬 목록 보기 (아직 구현되지 않음 - TODO)
+                logger.info("필드 스킬 목록 보기 선택")
+                play_sfx("ui", "cursor_confirm")
+                # TODO: 상세 스킬 목록 UI 구현
+
+        # 키보드 입력 처리
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
             if action:
                 result = menu.handle_input(action)
@@ -132,6 +154,15 @@ def open_field_skill_menu(console: tcod.console.Console, context: tcod.context.C
                     play_sfx("ui", "cursor_confirm")
                     # TODO: 상세 스킬 목록 UI 구현
 
+            # 윈도우 닫기
+            for quit_event in tcod.event.get():
+                if isinstance(quit_event, tcod.event.Quit):
+                    return
+
         # 렌더링
         menu.render(console)
         context.present(console)
+
+        # CPU 사용률 낮추기 (논블로킹 모드에서 필요)
+        import time
+        time.sleep(0.01)
