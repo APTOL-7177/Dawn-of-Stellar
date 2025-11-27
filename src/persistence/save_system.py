@@ -70,18 +70,7 @@ class SaveSystem:
             from src.quest.quest_manager import get_quest_manager
             game_state["quest_manager"] = get_quest_manager().to_dict()
 
-            # 도전과제 시스템 저장
-            try:
-                from src.achievement.achievement_manager import AchievementManager
-                # 글로벌 인스턴스가 있다면 사용 (없으면 새로 생성)
-                achievement_manager = getattr(self, '_achievement_manager', None)
-                if not achievement_manager:
-                    achievement_manager = AchievementManager()
-                    self._achievement_manager = achievement_manager
-                game_state["achievement_manager"] = achievement_manager.save_progress()
-                logger.info("도전과제 시스템 데이터 저장됨")
-            except Exception as e:
-                logger.warning(f"도전과제 시스템 저장 실패: {e}")
+            # 도전과제 시스템은 계정 수준에서 별도 관리되므로 게임 세이브에서 제외
 
             # 팀워크 게이지 저장
             try:
@@ -247,16 +236,7 @@ class SaveSystem:
 
             # 도전과제 시스템 복원
             if "achievement_manager" in game_state:
-                try:
-                    from src.achievement.achievement_manager import AchievementManager
-                    achievement_manager = getattr(self, '_achievement_manager', None)
-                    if not achievement_manager:
-                        achievement_manager = AchievementManager()
-                        self._achievement_manager = achievement_manager
-                    achievement_manager.load_progress(game_state["achievement_manager"])
-                    logger.info("도전과제 시스템 데이터 불러오기 완료")
-                except Exception as e:
-                    logger.warning(f"도전과제 시스템 불러오기 실패: {e}")
+                # 도전과제 시스템은 계정 수준에서 별도 관리되므로 게임 로드에서 제외
                 logger.info(f"퀘스트 데이터 복원 완료: 활성 {len(loaded_quest_manager.active_quests)}개, 가능 {len(loaded_quest_manager.available_quests)}개, 완료 {len(loaded_quest_manager.completed_quests)}개")
             
             return game_state
@@ -1506,3 +1486,85 @@ def deserialize_inventory(inventory_data: Dict[str, Any], party: List[Any] = Non
         logger.warning(f"[DESERIALIZE] 요리 쿨타임 복원: {inventory.cooking_cooldown_duration}턴")
 
     return inventory
+
+    # ===== 계정 수준 진행도 시스템 (도전과제 + 마일스톤) =====
+
+    def save_account_progress(self, achievement_manager) -> bool:
+        """
+        도전과제와 마일스톤 데이터를 별도 계정 파일로 저장
+        계정 수준에서 관리되므로 게임 세이브와 별개
+        """
+        try:
+            # 계정 파일 경로
+            script_dir = Path(__file__).parent.parent.parent
+            account_file = script_dir / "user_data" / "account_progress.json"
+
+            # 디렉토리 생성
+            account_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # 도전과제 + 마일스톤 데이터 저장
+            progress_data = achievement_manager.save_progress()
+
+            with open(account_file, 'w', encoding='utf-8') as f:
+                json.dump(progress_data, ensure_ascii=False, indent=2)
+
+            logger.info(f"계정 진행도 데이터 저장됨: {account_file}")
+            return True
+
+        except Exception as e:
+            logger.error(f"계정 진행도 데이터 저장 실패: {e}")
+            return False
+
+    def load_account_progress(self, achievement_manager) -> bool:
+        """
+        도전과제와 마일스톤 데이터를 계정 파일에서 로드
+        계정 수준에서 관리되므로 게임 로드와 별개
+        """
+        try:
+            # 계정 파일 경로들 (하위 호환성)
+            script_dir = Path(__file__).parent.parent.parent
+            account_file = script_dir / "user_data" / "account_progress.json"
+            legacy_file = script_dir / "user_data" / "achievements.json"  # 기존 파일
+
+            # 우선 새 파일 확인
+            if account_file.exists():
+                data_file = account_file
+                logger.info("새 계정 진행도 파일 발견")
+            elif legacy_file.exists():
+                # 기존 파일이 있으면 새 파일로 복사 (마이그레이션)
+                data_file = legacy_file
+                logger.info("기존 도전과제 파일을 발견하여 마이그레이션 진행")
+            else:
+                logger.info("계정 진행도 파일이 존재하지 않음 - 새로 시작")
+                return True
+
+            # 진행도 데이터 로드
+            with open(data_file, 'r', encoding='utf-8') as f:
+                progress_data = json.load(f)
+
+            achievement_manager.load_progress(progress_data)
+            logger.info(f"계정 진행도 데이터 불러오기 완료: {data_file}")
+
+            # 기존 파일에서 로드했다면 새 파일로 저장 (마이그레이션)
+            if data_file == legacy_file and account_file != legacy_file:
+                try:
+                    import shutil
+                    shutil.copy2(legacy_file, account_file)
+                    logger.info(f"기존 파일을 새 포맷으로 마이그레이션: {legacy_file} -> {account_file}")
+                except Exception as mig_e:
+                    logger.warning(f"마이그레이션 실패 (기존 파일 유지): {mig_e}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"계정 진행도 데이터 불러오기 실패: {e}")
+            return False
+
+    # 하위 호환성을 위한 별칭 메소드들
+    def save_achievements(self, achievement_manager) -> bool:
+        """기존 메소드 호환성을 위한 별칭"""
+        return self.save_account_progress(achievement_manager)
+
+    def load_achievements(self, achievement_manager) -> bool:
+        """기존 메소드 호환성을 위한 별칭"""
+        return self.load_account_progress(achievement_manager)

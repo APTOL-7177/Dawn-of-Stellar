@@ -4661,8 +4661,40 @@ def run_combat(
         else:
             logger.info("멀티플레이 ATB 시스템 이미 활성화됨")
     
+    # 파티 유효성 검사 - 최소 1명의 살아있는 캐릭터 필요
+    logger.info(f"전투 파티 검사 시작: 파티 크기 {len(party) if party else 0}")
+
+    if not party or len(party) == 0:
+        logger.warning("전투 시작 실패: 유효한 파티가 없습니다 (빈 리스트)")
+        return (CombatState.FLED, False)
+
+    # 살아있는 캐릭터가 있는지 확인
+    has_alive_member = False
+    alive_members = []
+
+    for i, member in enumerate(party):
+        member_name = getattr(member, 'name', f'멤버{i+1}')
+        is_alive = getattr(member, 'is_alive', None)
+        current_hp = getattr(member, 'current_hp', None)
+        max_hp = getattr(member, 'max_hp', None)
+
+        logger.info(f"파티 멤버 {i+1}: {member_name} - HP: {current_hp}/{max_hp}, is_alive: {is_alive}")
+
+        if is_alive is True:
+            has_alive_member = True
+            alive_members.append(member_name)
+        elif current_hp is not None and current_hp > 0:
+            has_alive_member = True
+            alive_members.append(member_name)
+
+    logger.info(f"살아있는 멤버: {len(alive_members)}명 - {', '.join(alive_members) if alive_members else '없음'}")
+
+    if not has_alive_member:
+        logger.warning("전투 시작 실패: 파티에 살아있는 멤버가 없습니다")
+        return (CombatState.FLED, False)
+
     combat_manager.start_combat(party, enemies, dungeon=dungeon, combat_position=combat_position)
-    
+
     # 인벤토리 설정 (전투 매니저에도 전달)
     if inventory:
         combat_manager.inventory = inventory

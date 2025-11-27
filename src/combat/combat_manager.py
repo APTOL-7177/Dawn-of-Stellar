@@ -66,7 +66,7 @@ class CombatManager:
         self.enemies: List[Any] = []
 
         # 팀워크 게이지 시스템
-        self.party: Optional[Any] = None  # Party 인스턴스
+        self._party: Optional[Any] = None  # Party 인스턴스
 
         # 요리 쿨타임 (전투 턴 기준)
         self.cooking_cooldown_turn: Optional[int] = None  # 요리 사용한 턴
@@ -3044,14 +3044,19 @@ class CombatManager:
         return self.atb.get_action_order()
 
     @property
-    def party(self) -> List[Any]:
+    def party(self) -> Optional[Any]:
         """
-        아군 파티 (allies의 별칭)
+        Party 객체 (팀워크 게이지 시스템용)
 
         Returns:
-            아군 리스트
+            Party 인스턴스 또는 None
         """
-        return self.allies
+        return self._party
+
+    @party.setter
+    def party(self, value: Optional[Any]):
+        """Party 객체 설정"""
+        self._party = value
 
     def is_player_turn(self, character: Any) -> bool:
         """플레이어 턴 여부"""

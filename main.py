@@ -191,12 +191,18 @@ def main() -> int:
             event_bus.subscribe(event_name, vibration_listener.handle_event)
         logger.info("진동 이벤트 리스너 등록됨")
 
-        # 도전과제 시스템 초기화
+        # 도전과제 시스템 초기화 (계정 수준)
         global_achievement_manager = None
         try:
             from src.achievement.achievement_manager import AchievementManager
+            from src.persistence.save_system import SaveSystem
+
             global_achievement_manager = AchievementManager()
             logger.info("🏆 도전과제 시스템 초기화됨")
+
+            # 계정 진행도 데이터 로드 (도전과제 + 마일스톤)
+            save_system = SaveSystem()
+            save_system.load_account_progress(global_achievement_manager)
 
             # 도전과제 이벤트 핸들러 등록
             from src.core.event_bus import Events
@@ -2519,20 +2525,49 @@ def main() -> int:
                                 if "position" in data:
                                     combat_position = data["position"]
                             else:
-                                # 싱글플레이: exploration의 player.party 사용 (가장 확실한 방법)
-                                if hasattr(exploration, 'player') and hasattr(exploration.player, 'party'):
-                                    combat_party = exploration.player.party
+                                # 싱글플레이: 플레이어 캐릭터를 파티의 첫 번째 멤버로 설정
+                                combat_party = []
+
+                                # 플레이어 캐릭터가 있으면 파티에 추가
+                                if hasattr(exploration, 'player') and exploration.player:
+                                    combat_party.append(exploration.player)
+                                    player_name = getattr(exploration.player, 'name', 'Unknown')
+                                    player_hp = getattr(exploration.player, 'current_hp', 'N/A')
+                                    player_max_hp = getattr(exploration.player, 'max_hp', 'N/A')
+                                    logger.info(f"싱글플레이 전투: 플레이어 캐릭터를 파티에 추가 - {player_name} (HP: {player_hp}/{player_max_hp})")
                                 else:
-                                    # player.party가 없으면 상위 스코프의 party 변수 사용 시도
+                                    logger.warning("싱글플레이 전투: exploration.player가 없거나 None입니다")
+
+                                # 추가 파티 멤버가 있으면 함께 추가
+                                if hasattr(exploration, 'player') and hasattr(exploration.player, 'party') and exploration.player.party:
+                                    for member in exploration.player.party:
+                                        if member not in combat_party:  # 중복 방지
+                                            combat_party.append(member)
+                                    logger.info(f"싱글플레이 전투: 추가 파티 멤버 {len(exploration.player.party)}명 추가")
+                                elif hasattr(exploration, 'player') and hasattr(exploration.player, 'party'):
+                                    logger.info("싱글플레이 전투: exploration.player.party가 없거나 빈 리스트입니다")
+
+                                # 파티가 여전히 비어있으면 상위 스코프의 party 변수 사용 시도
+                                if not combat_party:
                                     try:
                                         # 상위 스코프에서 party 변수 확인
-                                        combat_party = party if 'party' in locals() and party is not None else []
+                                        if 'party' in locals() and party:
+                                            combat_party = party[:]
+                                            logger.info(f"싱글플레이 전투: 상위 스코프 party 사용 - {len(combat_party)}명")
                                     except NameError:
-                                        combat_party = []
-                                
-                                if not combat_party or combat_party is None:
-                                    logger.error("싱글플레이 전투: 파티를 찾을 수 없습니다. 빈 리스트 사용")
+                                        pass
+
+                                if not combat_party:
+                                    logger.error("싱글플레이 전투: 파티를 구성할 수 없습니다. 최소 플레이어 캐릭터가 필요합니다.")
                                     combat_party = []
+
+                            # 파티 구성 결과 로깅
+                            logger.info(f"싱글플레이 전투 파티 구성 완료: {len(combat_party)}명")
+                            for i, member in enumerate(combat_party):
+                                member_name = getattr(member, 'name', f'멤버{i+1}')
+                                member_hp = getattr(member, 'current_hp', 'N/A')
+                                member_max_hp = getattr(member, 'max_hp', 'N/A')
+                                logger.info(f"  파티 멤버 {i+1}: {member_name} (HP: {member_hp}/{member_max_hp})")
                             
                             # 파티가 None이거나 빈 리스트이면 오류
                             if combat_party is None:
@@ -2545,7 +2580,12 @@ def main() -> int:
                             
                             # 파티를 전투용 변수에 할당 (None 체크)
                             party = combat_party if combat_party is not None else []
-                            
+
+                            logger.info(f"run_combat 호출 준비: 파티 {len(party)}명, 적군 {len(enemies)}명")
+                            for i, member in enumerate(party):
+                                member_name = getattr(member, 'name', f'멤버{i+1}')
+                                logger.info(f"  전투 파티 멤버 {i+1}: {member_name}")
+
                             combat_result, is_game_over = run_combat(
                                 display.console,
                                 display.context,
@@ -3819,6 +3859,16 @@ def main() -> int:
             except Exception as e:
                 logger.debug(f"핫 리로드 중지 중 오류 (무시): {e}")
         
+        # 게임 종료 전 계정 진행도 데이터 저장 (도전과제 + 마일스톤)
+        if global_achievement_manager:
+            try:
+                from src.persistence.save_system import SaveSystem
+                save_system = SaveSystem()
+                save_system.save_account_progress(global_achievement_manager)
+                logger.info("🏆 계정 진행도 데이터 저장됨 (도전과제 + 마일스톤)")
+            except Exception as e:
+                logger.error(f"계정 진행도 데이터 저장 실패: {e}")
+
         display.close()
 
         logger.info("게임 종료")
