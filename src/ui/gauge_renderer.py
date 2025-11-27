@@ -421,7 +421,7 @@ class GaugeRenderer:
     ) -> None:
         """
         애니메이션 HP 게이지 렌더링 (픽셀 단위 + 데미지 트레일 + 상처 표시)
-        
+
         Args:
             console: TCOD 콘솔
             x, y: 게이지 위치
@@ -433,11 +433,16 @@ class GaugeRenderer:
             show_numbers: 숫자 표시 여부
         """
         global _boundary_tile_fail_logged
-        
+
         anim_mgr = get_animation_manager()
         tile_manager = _get_tile_manager()
         use_tiles = tile_manager is not None and tile_manager.is_initialized()
         divisions = GaugeRenderer.DIVISIONS
+
+        # 디버깅: tile_manager 상태 로깅 (한 번만)
+        if not hasattr(render_animated_hp_bar, '_debug_logged'):
+            logger.info(f"[HP 게이지 렌더링] tile_manager={tile_manager is not None}, is_initialized={tile_manager.is_initialized() if tile_manager else False}, use_tiles={use_tiles}")
+            render_animated_hp_bar._debug_logged = True
         
         # 유효 최대 HP (상처로 제한됨)
         effective_max_hp = max(1, max_hp - wound_damage)
