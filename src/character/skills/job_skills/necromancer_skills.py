@@ -4,6 +4,7 @@ from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.status_effect import StatusEffect
 from src.character.skills.effects.heal_effect import HealEffect, HealType
 from src.character.skills.effects.lifesteal_effect import LifestealEffect
 from src.character.skills.costs.mp_cost import MPCost
@@ -158,7 +159,13 @@ def register_necromancer_skills(skill_manager):
         "언데드 하수인 3기 즉시 소환 (최대 3기) + 적 전체에 저주 (HP 회복 불가, 3턴)",
         gauge_cost=200
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 언데드 하수인 3기 즉시 소환 (최대 3기) (메타데이터로 처리)
+        # 적 전체에 저주 (HP 회복 불가, 3턴)
+        StatusEffect("HP_RECOVERY_BLOCK", duration=3),
+        # 자신 언데드 군단 게이지 +50 (어둠 게이지 대신)
+        GimmickEffect(GimmickOperation.ADD, "undead_count", 50)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

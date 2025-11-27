@@ -4,6 +4,7 @@ from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.status_effect import StatusEffect
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
@@ -166,7 +167,14 @@ def register_shaman_skills(skill_manager):
         "단일 대상 BRV+HP (2.5x → HP 변환) + 저주 낙인 부여 + 자신 저주 +3",
         gauge_cost=175
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 단일 대상 BRV+HP (2.5x → HP 변환)
+        DamageEffect(DamageType.BRV_HP, multiplier=2.5),
+        # 저주 낙인 부여 (적이 행동할 때마다 저주 +1, 3턴)
+        StatusEffect("CURSE_MARK", duration=3),
+        # 자신 저주 +3
+        GimmickEffect(GimmickOperation.ADD, "curse", 3)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

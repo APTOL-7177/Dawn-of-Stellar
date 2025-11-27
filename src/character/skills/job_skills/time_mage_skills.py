@@ -177,8 +177,10 @@ def register_time_mage_skills(skill_manager):
         gauge_cost=275
     )
     teamwork.effects = [
-        # 적 전체 기절 (1턴)
-        StatusEffect("STUN", duration=1),
+        # 적 전체 기절 (1턴, 저항 불가)
+        StatusEffect("STUN", duration=1, cannot_resist=True),
+        # ATB 초기화 (적 전체) (메타데이터로 처리)
+        # 아군 전체 ATB +500 (메타데이터로 처리)
         # 타임라인 초기화 (0으로 설정)
         GimmickEffect(GimmickOperation.SET, "timeline", 0)
     ]
