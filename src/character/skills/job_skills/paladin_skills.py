@@ -1,5 +1,6 @@
 """Paladin Skills - 팔라딘 스킬 (성력/신성 보호 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.heal_effect import HealEffect, HealType
@@ -157,4 +158,17 @@ def register_paladin_skills(skill_manager):
     skills = create_paladin_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 성스러운 수호
+    teamwork = TeamworkSkill(
+        "paladin_teamwork",
+        "성스러운 수호",
+        "아군 전체 방어막 (자신 공격력 × 0.7, 3턴) + 신성 속성 버프",
+        gauge_cost=175
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

@@ -1,5 +1,6 @@
 """Samurai Skills - 사무라이 스킬 (의지 게이지 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -150,4 +151,17 @@ def register_samurai_skills(skill_manager):
     skills = create_samurai_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 거합: 섬광
+    teamwork = TeamworkSkill(
+        "samurai_teamwork",
+        "거합: 섬광",
+        "단일 대상 HP 공격 (3.5x) + BREAK 시 wound damage 3배 + 거합 게이지 초기화",
+        gauge_cost=200
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

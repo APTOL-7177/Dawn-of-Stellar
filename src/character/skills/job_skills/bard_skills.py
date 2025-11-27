@@ -1,5 +1,6 @@
 """Bard Skills - 바드 스킬 (멜로디/옥타브 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.heal_effect import HealEffect, HealType
@@ -157,4 +158,17 @@ def register_bard_skills(skill_manager):
     skills = create_bard_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 용기의 노래
+    teamwork = TeamworkSkill(
+        "bard_teamwork",
+        "용기의 노래",
+        "아군 전체 공격력/마력 1.25배 (3턴) + ATB +250 + 선율 게이지 +30",
+        gauge_cost=125
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

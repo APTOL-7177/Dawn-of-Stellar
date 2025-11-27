@@ -1,5 +1,6 @@
 """Necromancer Skills - 네크로맨서 스킬 (언데드 군단 관리 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -149,4 +150,17 @@ def register_necromancer_skills(skill_manager):
     skills = create_necromancer_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 군단 소환
+    teamwork = TeamworkSkill(
+        "necromancer_teamwork",
+        "군단 소환",
+        "언데드 하수인 3기 즉시 소환 (최대 3기) + 적 전체에 저주 (HP 회복 불가, 3턴)",
+        gauge_cost=200
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

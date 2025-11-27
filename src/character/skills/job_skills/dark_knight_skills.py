@@ -1,5 +1,6 @@
 """Dark Knight Skills - 암흑기사 (충전 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.heal_effect import HealEffect
@@ -199,4 +200,17 @@ def create_dark_knight_skills():
 def register_dark_knight_skills(sm):
     for s in create_dark_knight_skills():
         sm.register_skill(s)
-    return [s.skill_id for s in create_dark_knight_skills()]
+
+    # 팀워크 스킬: 피의 계약
+    teamwork = TeamworkSkill(
+        "dark_knight_teamwork",
+        "피의 계약",
+        "아군 전체 현재 HP의 25% 흡수 → 자신 BRV로 변환 + 다음 공격 데미지 1.8배",
+        gauge_cost=200
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in create_dark_knight_skills(), teamwork]

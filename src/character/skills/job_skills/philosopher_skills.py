@@ -1,5 +1,6 @@
 """Philosopher Skills - 철학자 스킬 (딜레마 선택 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -161,4 +162,17 @@ def register_philosopher_skills(skill_manager):
     skills = create_philosopher_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 진리의 계시
+    teamwork = TeamworkSkill(
+        "philosopher_teamwork",
+        "진리의 계시",
+        "현재까지 선택한 딜레마 경향에 따라 효과 변화 (최고의 강화 기술)",
+        gauge_cost=250
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

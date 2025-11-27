@@ -1,5 +1,6 @@
 """Assassin Skills - 암살자 스킬 (은신-노출 딜레마)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -148,4 +149,17 @@ def register_assassin_skills(skill_manager):
     skills = create_assassin_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 암습
+    teamwork = TeamworkSkill(
+        "assassin_teamwork",
+        "암습",
+        "단일 대상 BRV+HP (2.0x → HP 변환) + 은신 상태로 전환 + 다음 공격 크리티컬률 +50%",
+        gauge_cost=125
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

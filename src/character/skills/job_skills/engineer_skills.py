@@ -1,5 +1,6 @@
 """Engineer Skills - 기계공학자 스킬 (열 관리 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -134,4 +135,17 @@ def register_engineer_skills(skill_manager):
     skills = create_engineer_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 긴급 냉각 시스템
+    teamwork = TeamworkSkill(
+        "engineer_teamwork",
+        "긴급 냉각 시스템",
+        "열 게이지 -70 + 단일 대상 화염 BRV+HP (2.8x) + 자신 속도 1.25배 (3턴)",
+        gauge_cost=150
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

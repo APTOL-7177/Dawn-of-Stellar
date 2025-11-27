@@ -1,0 +1,199 @@
+# 팀워크 스킬 정보 (33개 직업)
+
+warrior:
+  skill_id: warrior_teamwork
+  name: "전장의 돌격"
+  description: "단일 대상 BRV+HP 공격 (2.2x → HP 변환) + 현재 스탠스 유지"
+  gauge_cost: 125
+
+archer:
+  skill_id: archer_teamwork
+  name: "일제사격"
+  description: "마킹된 모든 아군의 지원사격을 한꺼번에 발사 → 본인 HP 공격 (2.5x)"
+  gauge_cost: 150
+
+sniper:
+  skill_id: sniper_teamwork
+  name: "완벽한 조준"
+  description: "단일 대상 HP 공격 (3.0x) + 크리티컬 확정 + 탄창 소모 없음"
+  gauge_cost: 175
+
+assassin:
+  skill_id: assassin_teamwork
+  name: "암습"
+  description: "단일 대상 BRV+HP (2.0x → HP 변환) + 은신 상태로 전환 + 다음 공격 크리티컬률 +50%"
+  gauge_cost: 125
+
+berserker:
+  skill_id: berserker_teamwork
+  name: "광란의 일격"
+  description: "단일 대상 BRV+HP (1.6x → HP 변환) + 광기 +20 + 자신 공격력 1.2배 (2턴)"
+  gauge_cost: 100
+
+gladiator:
+  skill_id: gladiator_teamwork
+  name: "군중의 환호"
+  description: "단일 대상 BRV+HP (2.0x → HP 변환) + crowd_cheer 게이지 +30 + 자신 방어력 1.2배 (2턴)"
+  gauge_cost: 125
+
+pirate:
+  skill_id: pirate_teamwork
+  name: "약탈의 일격"
+  description: "단일 대상 BRV+HP (2.5x → HP 변환) + 적 버프 1개 훔침"
+  gauge_cost: 150
+
+rogue:
+  skill_id: rogue_teamwork
+  name: "빠른 손놀림"
+  description: "단일 대상 BRV 공격 (1.2x) + 아이템 1개 훔침 (확률 60%) + ATB +300"
+  gauge_cost: 50
+
+samurai:
+  skill_id: samurai_teamwork
+  name: "거합: 섬광"
+  description: "단일 대상 HP 공격 (3.5x) + BREAK 시 wound damage 3배 + 거합 게이지 초기화"
+  gauge_cost: 200
+
+sword_saint:
+  skill_id: sword_saint_teamwork
+  name: "검기 폭발"
+  description: "전체 대상 BRV+HP (3.5x) + 검기 게이지 완전 회복 + 아군 전체 공격력 1.2배 (2턴)"
+  gauge_cost: 250
+
+breaker:
+  skill_id: breaker_teamwork
+  name: "쉘 브레이크"
+  description: "단일 대상 BRV 공격 (4.0x) + 적 BRV를 0으로 강제 (BREAK 확정) + 자신 BRV 추가 획득 (MAX BRV의 50%)"
+  gauge_cost: 175
+
+knight:
+  skill_id: knight_teamwork
+  name: "불굴의 방패"
+  description: "아군 전체에 방어막 부여 (자신 공격력 × 0.5, 2턴) + 의무 +2"
+  gauge_cost: 125
+
+paladin:
+  skill_id: paladin_teamwork
+  name: "성스러운 수호"
+  description: "아군 전체 방어막 (자신 공격력 × 0.7, 3턴) + 신성 속성 버프"
+  gauge_cost: 175
+
+dark_knight:
+  skill_id: dark_knight_teamwork
+  name: "피의 계약"
+  description: "아군 전체 현재 HP의 25% 흡수 → 자신 BRV로 변환 + 다음 공격 데미지 1.8배"
+  gauge_cost: 200
+
+dragon_knight:
+  skill_id: dragon_knight_teamwork
+  name: "드래곤의 포효"
+  description: "전체 적 도발 (2턴, 저항 불가) + 자신 방어력/마방 1.4배 (3턴) + 반격 활성화"
+  gauge_cost: 225
+
+cleric:
+  skill_id: cleric_teamwork
+  name: "치유의 기도"
+  description: "아군 1명 최대 HP의 60% 회복 + 리젠 (최대 HP의 10%씩, 3턴) + 신앙 +1"
+  gauge_cost: 75
+
+priest:
+  skill_id: priest_teamwork
+  name: "신성한 축복"
+  description: "아군 전체 최대 HP의 40% 회복 + 전체에 REGEN (최대 HP의 5%씩, 3턴) + 신성력 +2"
+  gauge_cost: 125
+
+bard:
+  skill_id: bard_teamwork
+  name: "용기의 노래"
+  description: "아군 전체 공격력/마력 1.25배 (3턴) + ATB +250 + 선율 게이지 +30"
+  gauge_cost: 125
+
+druid:
+  skill_id: druid_teamwork
+  name: "대자연의 축복"
+  description: "아군 전체 최대 HP의 50% 회복 + 자신 자연 포인트 +50 + 다음 변신 지속시간 2배"
+  gauge_cost: 150
+
+shaman:
+  skill_id: shaman_teamwork
+  name: "저주의 낙인"
+  description: "단일 대상 BRV+HP (2.5x → HP 변환) + 저주 낙인 부여 + 자신 저주 +3"
+  gauge_cost: 175
+
+alchemist:
+  skill_id: alchemist_teamwork
+  name: "비약 조합"
+  description: "즉시 희귀 물약 1개 생성 (랜덤: 대회복약/전투의 영약/폭탄) + 즉시 사용"
+  gauge_cost: 100
+
+archmage:
+  skill_id: archmage_teamwork
+  name: "원소 수렴"
+  description: "전체 적 무속성 마법 BRV+HP (4.5x) + 적 전체 속성 저항 -40% (3턴)"
+  gauge_cost: 250
+
+battle_mage:
+  skill_id: battle_mage_teamwork
+  name: "마법검 난무"
+  description: "단일 대상 물리+마법 복합 BRV+HP (3.0x 합산) + 엔챈트 게이지 +30"
+  gauge_cost: 150
+
+elementalist:
+  skill_id: elementalist_teamwork
+  name: "4대 정령 융합"
+  description: "소환된 정령 2마리를 융합시켜 융합 스킬 즉시 발동 + 정령 재소환 쿨다운 초기화"
+  gauge_cost: 200
+
+engineer:
+  skill_id: engineer_teamwork
+  name: "긴급 냉각 시스템"
+  description: "열 게이지 -70 + 단일 대상 화염 BRV+HP (2.8x) + 자신 속도 1.25배 (3턴)"
+  gauge_cost: 150
+
+hacker:
+  skill_id: hacker_teamwork
+  name: "시스템 오버라이드"
+  description: "적 전체 버프 제거 + 디버프 1개씩 부여 + 본인 프로그램 3개 즉시 실행"
+  gauge_cost: 225
+
+monk:
+  skill_id: monk_teamwork
+  name: "음양 조화"
+  description: "음양 게이지를 50으로 조정 (균형) + 단일 대상 BRV+HP (1.6x → HP 변환) + 자신 회피 +30% (2턴)"
+  gauge_cost: 100
+
+necromancer:
+  skill_id: necromancer_teamwork
+  name: "군단 소환"
+  description: "언데드 하수인 3기 즉시 소환 (최대 3기) + 적 전체에 저주 (HP 회복 불가, 3턴)"
+  gauge_cost: 200
+
+philosopher:
+  skill_id: philosopher_teamwork
+  name: "진리의 계시"
+  description: "현재까지 선택한 딜레마 경향에 따라 효과 변화 (최고의 강화 기술)"
+  gauge_cost: 250
+
+spellblade:
+  skill_id: spellblade_teamwork
+  name: "마력 방출"
+  description: "단일 대상 BRV+HP (2.0x + 엔챈트 속성 데미지 1.0x → HP 변환) + 엔챈트 유지"
+  gauge_cost: 125
+
+time_mage:
+  skill_id: time_mage_teamwork
+  name: "시간 정지"
+  description: "적 전체 기절 (1턴, 저항 불가) + ATB 초기화 + 아군 전체 ATB +500"
+  gauge_cost: 275
+
+vampire:
+  skill_id: vampire_teamwork
+  name: "피의 향연"
+  description: "단일 대상 BRV+HP (2.5x → HP 변환) + 입힌 HP 데미지의 100% 흡혈 + 갈증 게이지 완전 충족"
+  gauge_cost: 150
+
+dimensionist:
+  skill_id: dimensionist_teamwork
+  name: "차원 붕괴"
+  description: "축적된 차원 굴절의 50%를 방출하여 전체 적에게 고정 피해 + 나머지 굴절 완전 제거"
+  gauge_cost: 225

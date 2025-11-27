@@ -1,5 +1,6 @@
 """Warrior Skills - 전사 스킬 (6단계 스탠스 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -151,6 +152,22 @@ def create_warrior_skills():
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "all_stance_fusion": True, "party_buff": True}
     skills.append(ultimate)
+
+    # 팀워크 스킬: 전장의 돌격
+    teamwork = TeamworkSkill(
+        "warrior_teamwork",
+        "전장의 돌격",
+        "단일 대상 BRV+HP 공격 (2.2x → HP 변환) + 현재 스탠스 유지",
+        gauge_cost=125
+    )
+    teamwork.effects = [
+        DamageEffect(DamageType.BRV, 2.2),
+        DamageEffect(DamageType.HP, 1.0),
+    ]
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
 
     return skills
 

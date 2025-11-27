@@ -1,5 +1,6 @@
 """Dimensionist Skills - 차원술사 스킬 (차원 굴절 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.fixed_damage_effect import FixedDamageEffect
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
@@ -289,4 +290,17 @@ def register_dimensionist_skills(skill_manager):
     skills = create_dimensionist_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 차원 붕괴
+    teamwork = TeamworkSkill(
+        "dimensionist_teamwork",
+        "차원 붕괴",
+        "축적된 차원 굴절의 50%를 방출하여 전체 적에게 고정 피해 + 나머지 굴절 완전 제거",
+        gauge_cost=225
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

@@ -1,5 +1,6 @@
 """Knight Skills - 기사 스킬 (의무/수호 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.shield_effect import ShieldEffect
@@ -156,4 +157,17 @@ def register_knight_skills(skill_manager):
     skills = create_knight_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 불굴의 방패
+    teamwork = TeamworkSkill(
+        "knight_teamwork",
+        "불굴의 방패",
+        "아군 전체에 방어막 부여 (자신 공격력 × 0.5, 2턴) + 의무 +2",
+        gauge_cost=125
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

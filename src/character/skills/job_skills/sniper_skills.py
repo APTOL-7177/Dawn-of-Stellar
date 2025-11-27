@@ -1,5 +1,6 @@
 """Sniper Skills - 저격수 스킬 (탄창 재장전 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -128,4 +129,17 @@ def register_sniper_skills(skill_manager):
     skills = create_sniper_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 완벽한 조준
+    teamwork = TeamworkSkill(
+        "sniper_teamwork",
+        "완벽한 조준",
+        "단일 대상 HP 공격 (3.0x) + 크리티컬 확정 + 탄창 소모 없음",
+        gauge_cost=175
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

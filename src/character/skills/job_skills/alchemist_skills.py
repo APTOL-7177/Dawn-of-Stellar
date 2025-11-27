@@ -1,5 +1,6 @@
 """Alchemist Skills - 연금술사 스킬 (포션/폭탄 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.heal_effect import HealEffect, HealType
@@ -156,4 +157,17 @@ def register_alchemist_skills(skill_manager):
     skills = create_alchemist_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 비약 조합
+    teamwork = TeamworkSkill(
+        "alchemist_teamwork",
+        "비약 조합",
+        "즉시 희귀 물약 1개 생성 (랜덤: 대회복약/전투의 영약/폭탄) + 즉시 사용",
+        gauge_cost=100
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

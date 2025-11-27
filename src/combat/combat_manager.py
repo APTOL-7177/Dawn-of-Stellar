@@ -64,11 +64,14 @@ class CombatManager:
         # 전투원
         self.allies: List[Any] = []
         self.enemies: List[Any] = []
-        
+
+        # 팀워크 게이지 시스템
+        self.party: Optional[Any] = None  # Party 인스턴스
+
         # 요리 쿨타임 (전투 턴 기준)
         self.cooking_cooldown_turn: Optional[int] = None  # 요리 사용한 턴
         self.cooking_cooldown_duration: int = 0  # 쿨타임 지속 턴 수
-        
+
         # 환경 효과를 위한 던전 정보
         self.dungeon: Optional[Any] = None  # DungeonMap
         self.combat_position: Optional[Tuple[int, int]] = None  # 전투 시작 위치 (x, y)
@@ -191,6 +194,11 @@ class CombatManager:
 
         # 파티 버프 특성 적용 (holy_aura, chivalry 등)
         self._apply_party_wide_traits()
+
+        # 팀워크 게이지 시스템 초기화
+        from src.character.party import Party
+        self.party = Party(self.allies)
+        self.logger.debug(f"팀워크 게이지 시스템 초기화: {self.party.teamwork_gauge}/{self.party.max_teamwork_gauge}")
 
         # 이벤트 발행
         event_bus.publish(Events.COMBAT_START, {
@@ -560,6 +568,16 @@ class CombatManager:
 
         # 턴 종료 처리
         self._on_turn_end(actor)
+
+        # 팀워크 게이지 업데이트 (행동 성공 시에만)
+        if result.get("success", True) and self.party:
+            self.update_teamwork_gauge(
+                action_type=action_type,
+                is_critical=result.get("is_critical", False),
+                caused_break=result.get("caused_break", False),
+                healed_ally=result.get("healed", False),
+                was_hit=result.get("was_hit", False)
+            )
 
         # 콜백 호출
         if self.on_action_complete:
@@ -3365,6 +3383,151 @@ class CombatManager:
             
             # 스탯 수정 효과는 별도로 처리 (현재 턴에는 데미지/회복만)
             # 스탯 수정은 get_stat_modifiers로 별도 계산되어 데미지 계산에 반영되어야 함
+
+    def update_teamwork_gauge(
+        self,
+        action_type: ActionType,
+        **kwargs
+    ) -> None:
+        """
+        팀워크 게이지 업데이트
+
+        Args:
+            action_type: 행동 타입
+            **kwargs: 추가 옵션 (is_critical, caused_break, healed_ally, was_hit)
+        """
+        if not self.party:
+            return
+
+        gain = 0
+
+        # 기본 게이지 증가량 (행동 타입에 따라)
+        if action_type == ActionType.BRV_ATTACK:
+            gain = 5
+        elif action_type == ActionType.HP_ATTACK:
+            gain = 8
+        elif action_type == ActionType.BRV_HP_ATTACK:
+            gain = 10
+        elif action_type == ActionType.SKILL:
+            # 스킬 타입에 따라 다름 (일단 기본값)
+            gain = 6
+        elif action_type == ActionType.ITEM:
+            gain = 0  # 아이템 사용은 게이지 증가 없음
+        elif action_type == ActionType.DEFEND:
+            gain = 0  # 방어는 게이지 증가 없음
+
+        # 보너스 게이지 증가
+        if kwargs.get('is_critical'):
+            gain += 3
+        if kwargs.get('caused_break'):
+            gain += 15
+        if kwargs.get('healed_ally'):
+            gain += 8
+        if kwargs.get('was_hit'):
+            gain += 3
+
+        # 게이지 추가
+        if gain > 0:
+            self.party.add_teamwork_gauge(gain)
+
+    def restore_teamwork_gauge(self, teamwork_gauge: int = 0, max_teamwork_gauge: int = 600) -> None:
+        """
+        팀워크 게이지 복원 (로드 시 호출)
+
+        Args:
+            teamwork_gauge: 복원할 팀워크 게이지
+            max_teamwork_gauge: 최대 팀워크 게이지
+        """
+        if not self.party:
+            self.logger.warning("Party 인스턴스가 없습니다")
+            return
+
+        self.party.teamwork_gauge = teamwork_gauge
+        self.party.max_teamwork_gauge = max_teamwork_gauge
+        self.logger.info(f"팀워크 게이지 복원: {teamwork_gauge}/{max_teamwork_gauge}")
+
+    def execute_teamwork_skill(
+        self,
+        actor: Any,
+        skill: Any,
+        target: Optional[Any] = None,
+        is_chain_start: bool = True
+    ) -> bool:
+        """
+        팀워크 스킬 실행
+
+        Args:
+            actor: 스킬 사용자
+            skill: 팀워크 스킬
+            target: 대상
+            is_chain_start: 연쇄 시작 여부 (True=시작자, False=연쇄 이어받기)
+
+        Returns:
+            실행 성공 여부
+        """
+        if not self.party:
+            self.logger.warning("팀워크 게이지 시스템이 활성화되지 않았습니다")
+            return False
+
+        if not hasattr(skill, 'teamwork_cost'):
+            self.logger.warning(f"{skill.name}은(는) 팀워크 스킬이 아닙니다")
+            return False
+
+        if is_chain_start:
+            # ===== 연쇄 시작 =====
+            # 팀워크 게이지 소모
+            if not self.party.consume_teamwork_gauge(skill.teamwork_cost.gauge):
+                self.logger.warning(
+                    f"팀워크 게이지 부족! "
+                    f"(필요: {skill.teamwork_cost.gauge}, 현재: {self.party.teamwork_gauge})"
+                )
+                return False
+
+            # 연쇄 시작
+            self.party.start_chain(actor)
+            mp_cost = 0
+        else:
+            # ===== 연쇄 이어받기 =====
+            if not self.party.chain_active:
+                self.logger.warning("활성화된 연쇄가 없습니다!")
+                return False
+
+            # 팀워크 게이지 소모
+            if not self.party.consume_teamwork_gauge(skill.teamwork_cost.gauge):
+                self.logger.warning(
+                    f"팀워크 게이지 부족으로 연쇄 종료! "
+                    f"(필요: {skill.teamwork_cost.gauge}, 현재: {self.party.teamwork_gauge})"
+                )
+                self.party.end_chain()
+                return False
+
+            # MP 비용 계산 및 소모
+            mp_cost = self.party.continue_chain()
+            current_mp = actor.current_mp if hasattr(actor, 'current_mp') else 0
+            if current_mp < mp_cost:
+                self.logger.warning(
+                    f"MP 부족으로 연쇄 종료! "
+                    f"(필요: {mp_cost}, 현재: {current_mp})"
+                )
+                self.party.end_chain()
+                return False
+
+            actor.current_mp -= mp_cost
+            self.logger.info(f"{actor.name} MP 소모: -{mp_cost} (잔여: {actor.current_mp})")
+
+        # 스킬 효과 실행 (기존 스킬 실행 로직 사용)
+        # 임시로 execute_skill 호출
+        result = self._execute_skill(actor, target, skill)
+
+        # ATB 50% 회복
+        atb_recovery = 500  # ATB 최대치 2000의 25%
+        actor.atb_gauge = min(2000, actor.atb_gauge + atb_recovery)
+        self.logger.info(
+            f"💫 {actor.name}의 팀워크 스킬 '{skill.name}' "
+            f"(연쇄 {self.party.chain_count}단계, MP: {mp_cost}, ATB +500)"
+        )
+
+        return True
 
 
 # 전역 인스턴스

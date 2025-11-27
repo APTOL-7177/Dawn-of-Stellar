@@ -1,5 +1,6 @@
 """Monk Skills - 몽크 스킬 (음양 기 흐름 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -143,4 +144,17 @@ def register_monk_skills(skill_manager):
     skills = create_monk_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 음양 조화
+    teamwork = TeamworkSkill(
+        "monk_teamwork",
+        "음양 조화",
+        "음양 게이지를 50으로 조정 (균형) + 단일 대상 BRV+HP (1.6x → HP 변환) + 자신 회피 +30% (2턴)",
+        gauge_cost=100
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

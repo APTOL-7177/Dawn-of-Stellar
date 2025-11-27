@@ -1,5 +1,6 @@
 """Dragon Knight Skills - 용기사 스킬 (화염/용의 힘 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -181,4 +182,17 @@ def register_dragon_knight_skills(skill_manager):
     skills = create_dragon_knight_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 드래곤의 포효
+    teamwork = TeamworkSkill(
+        "dragon_knight_teamwork",
+        "드래곤의 포효",
+        "전체 적 도발 (2턴, 저항 불가) + 자신 방어력/마방 1.4배 (3턴) + 반격 활성화",
+        gauge_cost=225
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

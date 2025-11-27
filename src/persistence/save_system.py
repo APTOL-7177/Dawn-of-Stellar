@@ -83,6 +83,21 @@ class SaveSystem:
             except Exception as e:
                 logger.warning(f"도전과제 시스템 저장 실패: {e}")
 
+            # 팀워크 게이지 저장
+            try:
+                from src.combat.combat_manager import get_combat_manager
+                combat_manager = get_combat_manager()
+                if combat_manager and combat_manager.party:
+                    game_state["teamwork_gauge"] = combat_manager.party.teamwork_gauge
+                    game_state["max_teamwork_gauge"] = combat_manager.party.max_teamwork_gauge
+                    logger.info(f"팀워크 게이지 저장됨: {combat_manager.party.teamwork_gauge}/{combat_manager.party.max_teamwork_gauge}")
+                else:
+                    # 전투 중이 아니면 기본값 저장
+                    game_state.setdefault("teamwork_gauge", 0)
+                    game_state.setdefault("max_teamwork_gauge", 600)
+            except Exception as e:
+                logger.warning(f"팀워크 게이지 저장 실패: {e}")
+
             # JSON 직렬화 전에 모든 데이터 검증 및 정리
             cleaned_state = self._clean_for_json(game_state)
 
@@ -209,6 +224,18 @@ class SaveSystem:
                     else:
                         logger.info("마을 창고: 불러온 아이템 없음")
             
+            # 팀워크 게이지 복원
+            if "teamwork_gauge" in game_state:
+                try:
+                    from src.combat.combat_manager import get_combat_manager
+                    combat_manager = get_combat_manager()
+                    # 로드된 게이지 정보를 저장 (전투 시작 후 복원)
+                    game_state["_teamwork_gauge"] = game_state.get("teamwork_gauge", 0)
+                    game_state["_max_teamwork_gauge"] = game_state.get("max_teamwork_gauge", 600)
+                    logger.info(f"팀워크 게이지 복원 정보 준비됨: {game_state['_teamwork_gauge']}/{game_state['_max_teamwork_gauge']}")
+                except Exception as e:
+                    logger.warning(f"팀워크 게이지 복원 실패: {e}")
+
             # QuestManager 복원
             if "quest_manager" in game_state:
                 from src.quest.quest_manager import get_quest_manager, QuestManager, _quest_manager

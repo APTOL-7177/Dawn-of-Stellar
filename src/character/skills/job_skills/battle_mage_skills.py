@@ -1,5 +1,6 @@
 """Battle Mage Skills - 배틀메이지 스킬 (룬 공명 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -157,4 +158,17 @@ def register_battle_mage_skills(skill_manager):
     skills = create_battle_mage_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 마법검 난무
+    teamwork = TeamworkSkill(
+        "battle_mage_teamwork",
+        "마법검 난무",
+        "단일 대상 물리+마법 복합 BRV+HP (3.0x 합산) + 엔챈트 게이지 +30",
+        gauge_cost=150
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

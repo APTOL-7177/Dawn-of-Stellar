@@ -1,5 +1,6 @@
 """Elementalist Skills - 정령술사 스킬 (4대 정령 소환)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -157,4 +158,17 @@ def register_elementalist_skills(skill_manager):
     skills = create_elementalist_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 4대 정령 융합
+    teamwork = TeamworkSkill(
+        "elementalist_teamwork",
+        "4대 정령 융합",
+        "소환된 정령 2마리를 융합시켜 융합 스킬 즉시 발동 + 정령 재소환 쿨다운 초기화",
+        gauge_cost=200
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

@@ -1,5 +1,6 @@
 """Gladiator Skills - 검투사 스킬 (군중의 환호 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -144,4 +145,17 @@ def register_gladiator_skills(skill_manager):
     skills = create_gladiator_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 군중의 환호
+    teamwork = TeamworkSkill(
+        "gladiator_teamwork",
+        "군중의 환호",
+        "단일 대상 BRV+HP (2.0x → HP 변환) + crowd_cheer 게이지 +30 + 자신 방어력 1.2배 (2턴)",
+        gauge_cost=125
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

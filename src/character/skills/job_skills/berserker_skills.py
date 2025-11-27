@@ -1,5 +1,6 @@
 """Berserker Skills - 광전사 스킬 (광기 역치 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.effects.heal_effect import HealEffect
@@ -141,4 +142,17 @@ def register_berserker_skills(skill_manager):
     skills = create_berserker_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 광란의 일격
+    teamwork = TeamworkSkill(
+        "berserker_teamwork",
+        "광란의 일격",
+        "단일 대상 BRV+HP (1.6x → HP 변환) + 광기 +20 + 자신 공격력 1.2배 (2턴)",
+        gauge_cost=100
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

@@ -1,5 +1,6 @@
 """Archer Skills - 궁수 스킬 (지원사격 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -133,8 +134,22 @@ def create_archer_skills():
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "mark_all": True, "perfect_support": True}
 
+    # 팀워크 스킬: 일제사격
+    teamwork = TeamworkSkill(
+        "archer_teamwork",
+        "일제사격",
+        "마킹된 모든 아군의 지원사격을 한꺼번에 발사 → 본인 HP 공격 (2.5x)",
+        gauge_cost=150
+    )
+    teamwork.effects = [
+        DamageEffect(DamageType.HP, 2.5),
+    ]
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True, "support_fire": True}
+
     return [direct_shot, power_shot, mark_normal, mark_piercing, mark_fire,
-            mark_ice, mark_poison, mark_explosive, mark_holy, ultimate]
+            mark_ice, mark_poison, mark_explosive, mark_holy, ultimate, teamwork]
 
 def register_archer_skills(skill_manager):
     """궁수 스킬 등록"""

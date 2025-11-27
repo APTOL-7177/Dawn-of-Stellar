@@ -1,5 +1,6 @@
 """Sword Saint Skills - 검성 스킬 (검기 스택 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.costs.mp_cost import MPCost
@@ -144,4 +145,17 @@ def register_sword_saint_skills(skill_manager):
     skills = create_sword_saint_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 검기 폭발
+    teamwork = TeamworkSkill(
+        "sword_saint_teamwork",
+        "검기 폭발",
+        "전체 대상 BRV+HP (3.5x) + 검기 게이지 완전 회복 + 아군 전체 공격력 1.2배 (2턴)",
+        gauge_cost=250
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

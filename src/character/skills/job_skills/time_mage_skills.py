@@ -1,5 +1,6 @@
 """Time Mage Skills - 시간술사 스킬 (타임라인 균형 시스템)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -167,4 +168,17 @@ def register_time_mage_skills(skill_manager):
     skills = create_time_mage_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 시간 정지
+    teamwork = TeamworkSkill(
+        "time_mage_teamwork",
+        "시간 정지",
+        "적 전체 기절 (1턴, 저항 불가) + ATB 초기화 + 아군 전체 ATB +500",
+        gauge_cost=275
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]

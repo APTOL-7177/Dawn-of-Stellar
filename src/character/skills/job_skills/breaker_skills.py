@@ -1,5 +1,6 @@
 """Breaker Skills - 브레이커 스킬 (BRV 파괴 특화)"""
 from src.character.skills.skill import Skill
+from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -148,4 +149,17 @@ def register_breaker_skills(skill_manager):
     skills = create_breaker_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+
+    # 팀워크 스킬: 쉘 브레이크
+    teamwork = TeamworkSkill(
+        "breaker_teamwork",
+        "쉘 브레이크",
+        "단일 대상 BRV 공격 (4.0x) + 적 BRV를 0으로 강제 (BREAK 확정) + 자신 BRV 추가 획득 (MAX BRV의 50%)",
+        gauge_cost=175
+    )
+    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.costs = [MPCost(0)]
+    teamwork.sfx = ("skill", "limit_break")
+    teamwork.metadata = {"teamwork": True, "chain": True}
+    skills.append(teamwork)
+    return [s.skill_id for s in skills, teamwork]
