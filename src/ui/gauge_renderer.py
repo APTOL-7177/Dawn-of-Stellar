@@ -629,41 +629,63 @@ class GaugeRenderer:
                 console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
             
             elif cell_wound_pixels >= divisions and cell_hp_pixels == 0:
-                # 상처가 셀 전체를 채움 - 빗금만 표시
-                # 배경색으로 셀 채운 후 빗금 타일 오버레이 (안정적인 방식)
+                # 상처가 셀 전체를 채움 - 동적 타일로 픽셀 단위 정확도
                 if use_tiles:
-                    console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
-                    # 셀 인덱스를 기반으로 빗금 패턴 계산
-                    tile_char = tile_manager.get_tile_char('wound_stripe', i / divisions)
-                    console.print(x + i, y, tile_char, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
+                    # 동적 타일 생성 (전체 상처)
+                    boundary_tile = tile_manager.create_boundary_tile(
+                        hp_pixels=0,
+                        wound_pixels=divisions,  # 셀 전체
+                        hp_color=fg_color,
+                        bg_color=bg_color,
+                        wound_color=wound_bg_color,
+                        wound_stripe_color=wound_stripe_color,
+                        cell_index=i
+                    )
+                    if boundary_tile and boundary_tile.strip() and boundary_tile != ' ':
+                        # 동적 타일 렌더링
+                        console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_SET)
+                    else:
+                        # 폴백: 배경색으로 셀 채운 후 빗금 타일 오버레이
+                        console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
+                        tile_char = tile_manager.get_tile_char('wound_stripe', i / divisions)
+                        console.print(x + i, y, tile_char, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
                 else:
                     # 폴백: 홀수/짝수로 빗금 효과
                     stripe_bg = bg_color if i % 2 == 0 else wound_stripe_color
                     console.draw_rect(x + i, y, 1, 1, ord(" "), bg=stripe_bg)
             
             elif is_hp_wound_boundary:
-                # 경계 셀: HP와 상처가 모두 있는 경우
-                # HP 비율에 따른 색상 + 빗금 타일 오버레이 (안정적인 방식)
-                hp_ratio = cell_hp_pixels / divisions
-                wound_ratio = cell_wound_pixels / divisions
-                empty_ratio = 1.0 - hp_ratio - wound_ratio
-
-                # 배경색: HP + 빈 HP 영역의 혼합 (상처 영역은 포함하지 않음)
-                bg_for_cell = (
-                    int(fg_color[0] * hp_ratio + bg_color[0] * empty_ratio),
-                    int(fg_color[1] * hp_ratio + bg_color[1] * empty_ratio),
-                    int(fg_color[2] * hp_ratio + bg_color[2] * empty_ratio)
-                )
-
+                # 경계 셀: HP와 상처가 모두 있는 경우 - 동적 타일로 픽셀 단위 정확도
                 if use_tiles:
-                    # 먼저 배경색으로 셀 채운 후 빗금 타일 오버레이
-                    console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_for_cell)
-                    # 셀 인덱스를 기반으로 빗금 패턴 계산
-                    tile_char = tile_manager.get_tile_char('wound_stripe', i / divisions)
-                    # 빗금의 불투명한 부분만 보이고 투명 부분은 배경색이 보임
-                    console.print(x + i, y, tile_char, fg=wound_stripe_color, bg=bg_for_cell, bg_blend=libtcodpy.BKGND_NONE)
+                    # 동적 타일 생성 (정확한 hp_pixels, wound_pixels로)
+                    boundary_tile = tile_manager.create_boundary_tile(
+                        hp_pixels=cell_hp_pixels,
+                        wound_pixels=cell_wound_pixels,
+                        hp_color=fg_color,
+                        bg_color=bg_color,
+                        wound_color=wound_bg_color,
+                        wound_stripe_color=wound_stripe_color,
+                        cell_index=i
+                    )
+                    if boundary_tile and boundary_tile.strip() and boundary_tile != ' ':
+                        # 동적 타일 렌더링 (타일 내부에 모든 색상 정보 포함)
+                        console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_SET)
+                    else:
+                        # 폴백: HP, 빈 HP 영역, 상처를 모두 고려한 평균 색상
+                        hp_ratio = cell_hp_pixels / divisions
+                        wound_ratio = cell_wound_pixels / divisions
+                        empty_ratio = 1.0 - hp_ratio - wound_ratio
+                        avg_color = (
+                            int(fg_color[0] * hp_ratio + bg_color[0] * empty_ratio + wound_bg_color[0] * wound_ratio),
+                            int(fg_color[1] * hp_ratio + bg_color[1] * empty_ratio + wound_bg_color[1] * wound_ratio),
+                            int(fg_color[2] * hp_ratio + bg_color[2] * empty_ratio + wound_bg_color[2] * wound_ratio)
+                        )
+                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=avg_color)
                 else:
                     # 폴백: HP, 빈 HP 영역, 상처를 모두 고려한 평균 색상
+                    hp_ratio = cell_hp_pixels / divisions
+                    wound_ratio = cell_wound_pixels / divisions
+                    empty_ratio = 1.0 - hp_ratio - wound_ratio
                     avg_color = (
                         int(fg_color[0] * hp_ratio + bg_color[0] * empty_ratio + wound_bg_color[0] * wound_ratio),
                         int(fg_color[1] * hp_ratio + bg_color[1] * empty_ratio + wound_bg_color[1] * wound_ratio),
@@ -687,13 +709,26 @@ class GaugeRenderer:
                     console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
             
             elif cell_wound_pixels > 0:
-                # 상처만 부분적으로 있음 (HP 없음) - 모두 빗금으로 표현
+                # 상처만 부분적으로 있음 (HP 없음) - 동적 타일로 픽셀 단위 정확도
                 if use_tiles:
-                    # 배경색으로 셀 채운 후 빗금 타일 오버레이
-                    console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
-                    # 셀 인덱스를 기반으로 빗금 패턴 계산
-                    tile_char = tile_manager.get_tile_char('wound_stripe', i / divisions)
-                    console.print(x + i, y, tile_char, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
+                    # 동적 타일 생성 (정확한 wound_pixels로)
+                    boundary_tile = tile_manager.create_boundary_tile(
+                        hp_pixels=0,  # HP 없음
+                        wound_pixels=cell_wound_pixels,
+                        hp_color=fg_color,
+                        bg_color=bg_color,
+                        wound_color=wound_bg_color,
+                        wound_stripe_color=wound_stripe_color,
+                        cell_index=i
+                    )
+                    if boundary_tile and boundary_tile.strip() and boundary_tile != ' ':
+                        # 동적 타일 렌더링
+                        console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_SET)
+                    else:
+                        # 폴백: 배경색으로 셀 채운 후 빗금 타일 오버레이
+                        console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
+                        tile_char = tile_manager.get_tile_char('wound_stripe', i / divisions)
+                        console.print(x + i, y, tile_char, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
                 else:
                     # 폴백: 홀수/짝수 패턴
                     stripe_bg = bg_color if i % 2 == 0 else wound_stripe_color
