@@ -652,27 +652,19 @@ class GaugeRenderer:
                     if boundary_tile and boundary_tile.strip():
                         console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_NONE)
                     else:
-                        # 폴백: 평균 색상
-                        hp_ratio = cell_hp_pixels / divisions
-                        wound_ratio = cell_wound_pixels / divisions
-                        empty_ratio = 1.0 - hp_ratio - wound_ratio
-                        avg_color = (
-                            int(fg_color[0] * hp_ratio + bg_color[0] * empty_ratio + wound_bg_color[0] * wound_ratio),
-                            int(fg_color[1] * hp_ratio + bg_color[1] * empty_ratio + wound_bg_color[1] * wound_ratio),
-                            int(fg_color[2] * hp_ratio + bg_color[2] * empty_ratio + wound_bg_color[2] * wound_ratio)
-                        )
-                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=avg_color)
+                        # 폴백: 배경색 + 빗금 오버레이 (색상 블렌딩 금지)
+                        # HP와 상처의 조합을 배경색으로 표현하고 상처 영역에 빗금 추가
+                        console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
+                        # 상처 부분에만 빗금 오버레이
+                        wound_start_ratio = cell_hp_pixels / divisions
+                        if wound_start_ratio < 1.0 and cell_wound_pixels > 0:
+                            stripe_tile = tile_manager.get_tile_char('wound_stripe', cell_wound_pixels / divisions)
+                            console.print(x + i, y, stripe_tile, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
                 else:
-                    # 폴백: 평균 색상
-                    hp_ratio = cell_hp_pixels / divisions
-                    wound_ratio = cell_wound_pixels / divisions
-                    empty_ratio = 1.0 - hp_ratio - wound_ratio
-                    avg_color = (
-                        int(fg_color[0] * hp_ratio + bg_color[0] * empty_ratio + wound_bg_color[0] * wound_ratio),
-                        int(fg_color[1] * hp_ratio + bg_color[1] * empty_ratio + wound_bg_color[1] * wound_ratio),
-                        int(fg_color[2] * hp_ratio + bg_color[2] * empty_ratio + wound_bg_color[2] * wound_ratio)
-                    )
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=avg_color)
+                    # 폴백: 배경색 + 빗금 오버레이 (색상 블렌딩 금지)
+                    console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
+                    stripe_tile = tile_manager.get_tile_char('wound_stripe', cell_wound_pixels / divisions)
+                    console.print(x + i, y, stripe_tile, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
             
             elif cell_hp_pixels > 0:
                 # HP가 부분적으로 있음 (상처 없음)
@@ -703,11 +695,15 @@ class GaugeRenderer:
                     if boundary_tile and boundary_tile.strip():
                         console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_NONE)
                     else:
-                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=bg_color)
+                        # 폴백: 배경색 + 빗금 오버레이 (색상 블렌딩 금지)
+                        console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
+                        stripe_tile = tile_manager.get_tile_char('wound_stripe', cell_wound_pixels / divisions)
+                        console.print(x + i, y, stripe_tile, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
                 else:
-                    # 폴백: 홀수/짝수 패턴
-                    stripe_bg = bg_color if i % 2 == 0 else wound_stripe_color
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=stripe_bg)
+                    # 타일 사용 안 함: 배경색 + 빗금 오버레이 (색상 블렌딩 금지)
+                    console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
+                    stripe_tile = tile_manager.get_tile_char('wound_stripe', cell_wound_pixels / divisions)
+                    console.print(x + i, y, stripe_tile, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
         
         # 레이어 4: 트레일 (HP와 상처 렌더링 이후, 별도로 계산) - 테스트 파일 구조 따름
         # 트레일 계산

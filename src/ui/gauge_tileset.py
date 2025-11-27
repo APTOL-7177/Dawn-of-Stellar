@@ -307,7 +307,7 @@ class GaugeTileManager:
     ) -> str:
         """
         경계 셀용 동적 타일 생성 (HP, 빈 공간, 상처가 한 셀에 있는 경우)
-        
+
         Args:
             hp_pixels: HP가 차지하는 픽셀 수 (왼쪽에서)
             wound_pixels: 상처가 차지하는 픽셀 수 (오른쪽에서)
@@ -316,10 +316,13 @@ class GaugeTileManager:
             wound_color: 상처 배경 색상 (빗금 사이)
             wound_stripe_color: 상처 빗금 색상
             cell_index: 셀 인덱스 (빗금 연속성을 위한 오프셋)
-        
+
         Returns:
             동적 생성된 타일의 유니코드 문자
         """
+        # 함수 호출 로깅 (디버깅용)
+        logger.info(f"[경계 타일 생성 호출] hp_pixels={hp_pixels}, wound_pixels={wound_pixels}")
+
         if self.tileset is None:
             logger.warning("경계 타일 생성 실패: tileset이 초기화되지 않음")
             return ' '
@@ -375,6 +378,7 @@ class GaugeTileManager:
             if cache_key in self._boundary_tile_access_order:
                 self._boundary_tile_access_order.remove(cache_key)
             self._boundary_tile_access_order.append(cache_key)
+            logger.debug(f"[경계 타일 캐시 히트] codepoint=0x{cached_codepoint:04X}, hp={hp_pixels}, wound={wound_pixels}")
             return chr(cached_codepoint)
 
         # 새 코드포인트 할당 (범위 체크 및 LRU 캐시 정리)
