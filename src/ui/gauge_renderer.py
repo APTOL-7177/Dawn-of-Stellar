@@ -468,24 +468,31 @@ class GaugeRenderer:
         is_damaging = current_hp < prev_hp
         
         # 트레일 로직:
-        # - HP 증가(회복): 트레일 먼저 증가 → 2초 후 HP 따라옴
-        # - HP 감소(데미지): HP 먼저 감소 → 2초 후 트레일 따라옴
-        if is_healing:
-            # 회복: 트레일 먼저 (지연 없음)
-            trail_anim.set_target(current_hp, delay=0.0)
-            # HP 2초 지연
-            anim.set_target(current_hp, delay=2.0)
-        elif is_damaging:
-            # 데미지: HP 먼저 (지연 없음)
+        # - 데미지: HP 먼저, 트레일 0.3초 지연
+        # - 회복: 트레일이 HP의 현재 애니메이션 값을 따라감 (0.3초 지연)
+        if is_damaging:
+            # 데미지: HP 먼저 움직임 (지연 없음)
             anim.set_target(current_hp, delay=0.0)
-            # 트레일 2초 지연
-            trail_anim.set_target(current_hp, delay=2.0)
+            # 트레일 0.3초 지연
+            trail_anim.set_target(current_hp, delay=0.3)
+        elif is_healing:
+            # 회복: HP 먼저 움직임 (지연 없음)
+            anim.set_target(current_hp, delay=0.0)
+            # 트레일은 HP의 현재 애니메이션 값을 0.3초 지연 후 따라감
+            # (매 프레임마다 업데이트됨)
+            pass  # 트레일은 update() 후에 설정
         else:
             # 변화 없음 - 둘 다 지연 없이 설정
             anim.set_target(current_hp, delay=0.0)
             trail_anim.set_target(current_hp, delay=0.0)
         
         display_hp = anim.update()
+        
+        # 회복 시 트레일이 HP의 현재 애니메이션 값을 따라가도록 설정
+        if is_healing:
+            # 트레일의 목표값을 HP의 현재 애니메이션 값으로 설정 (0.3초 지연)
+            trail_anim.set_target(display_hp, delay=0.3)
+        
         display_trail_hp = trail_anim.update()
         
         # 표시용 숫자 (빠르게 증감)
@@ -517,9 +524,19 @@ class GaugeRenderer:
             bg_color = (80, 20, 20)
             color_name = 'hp_low'
         
-        # 데미지 트레일 (감소) / 회복 트레일 (증가)
-        damage_trail_color = (200, 100, 50)  # 주황색 (감소)
-        heal_trail_color = (100, 255, 150)   # 밝은 녹색 (증가)
+        # 트레일 색상: 게이지 색상(fg_color)을 기반으로 계산
+        # 데미지: 게이지 색상보다 약간 어둡게
+        # 회복: 게이지 색상보다 약간 밝게
+        damage_trail_color = (
+            max(0, int(fg_color[0] * 0.7)),
+            max(0, int(fg_color[1] * 0.7)),
+            max(0, int(fg_color[2] * 0.7))
+        )
+        heal_trail_color = (
+            min(255, int(fg_color[0] * 1.2)),
+            min(255, int(fg_color[1] * 1.2)),
+            min(255, int(fg_color[2] * 1.2))
+        )
         
         # === 레이어 방식 렌더링 ===
         # 레이어 순서: 1.배경 → 2.HP바 → 3.상처(HP 위에 덮어씌움)
@@ -625,7 +642,8 @@ class GaugeRenderer:
                     # 트레일이 셀을 부분적으로 채움
                     fill_ratio = cell_trail_pixels / divisions
                     if use_tiles:
-                        trail_tile_char = tile_manager.get_tile_char('hp_high', fill_ratio)
+                        # 게이지 색상에 맞는 타일 사용
+                        trail_tile_char = tile_manager.get_tile_char(color_name, fill_ratio)
                         console.print(x + i, y, trail_tile_char, fg=trail_color)
                     else:
                         partial_color = (
@@ -661,6 +679,9 @@ class GaugeRenderer:
             # 상처가 없으면 검은색 (사용 안 함)
             wound_stripe_color = (0, 0, 0)
         
+        # 각 셀의 배경 색상을 미리 계산하여 저장 (숫자 렌더링용)
+        cell_bg_colors = {}
+        
         for i in range(width):
             cell_start = i * divisions
             cell_end = (i + 1) * divisions
@@ -694,6 +715,7 @@ class GaugeRenderer:
             if cell_hp_pixels >= divisions and cell_wound_pixels == 0:
                 # HP가 셀 전체를 채움 (상처 없음) - draw_rect 사용 (타일 불필요)
                 console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
+                cell_bg_colors[i] = fg_color
 
             elif cell_wound_pixels >= divisions and cell_hp_pixels == 0 and wound_pixels > 0:
                 # 상처가 셀 전체를 채움 (전체 상처가 있을 때만) - 동적 타일로 픽셀 단위 정밀도
@@ -709,6 +731,8 @@ class GaugeRenderer:
                 )
                 # 경계 타일 렌더링 (fg는 사용하지 않음, 타일 내부에서 색상 직접 설정)
                 console.print(x + i, y, boundary_tile_char, fg=(255, 255, 255), bg=bg_color)
+                # 상처 셀은 배경 색상 사용 (빗금은 타일 내부에서 처리)
+                cell_bg_colors[i] = bg_color
 
             elif is_hp_wound_boundary:
                 # 경계 셀: HP와 상처가 모두 있는 경우 (동적 타일 생성, 색상 혼합 없음)
@@ -737,6 +761,8 @@ class GaugeRenderer:
                 )
                 # 경계 타일 렌더링 (fg는 사용하지 않음, 타일 내부에서 색상 직접 설정)
                 console.print(x + i, y, boundary_tile_char, fg=(255, 255, 255), bg=bg_color)
+                # 경계 셀은 배경 색상 사용 (HP와 상처는 타일 내부에서 처리)
+                cell_bg_colors[i] = bg_color
             
             elif cell_hp_pixels > 0:
                 # HP가 부분적으로 있음 (상처 없음)
@@ -750,10 +776,24 @@ class GaugeRenderer:
                     if cell_end <= wound_start_pixel:
                         tile_char = tile_manager.get_tile_char(color_name, fill_ratio)
                         console.print(x + i, y, tile_char, fg=fg_color, bg=bg_color)
+                        # 부분 HP 셀: HP 색상과 배경 색상의 혼합
+                        partial_bg = (
+                            int(bg_color[0] + (fg_color[0] - bg_color[0]) * fill_ratio),
+                            int(bg_color[1] + (fg_color[1] - bg_color[1]) * fill_ratio),
+                            int(bg_color[2] + (fg_color[2] - bg_color[2]) * fill_ratio)
+                        )
+                        cell_bg_colors[i] = partial_bg
                     else:
                         tile_char = tile_manager.get_tile_char(color_name, fill_ratio)
                         # fg를 wound_stripe_color로 넣으면 빗금 칠해짐, fg_color 넣으면 그냥 컬러
                         console.print(x + i, y, tile_char, fg=fg_color, bg=bg_color)
+                        # 부분 HP 셀: HP 색상과 배경 색상의 혼합
+                        partial_bg = (
+                            int(bg_color[0] + (fg_color[0] - bg_color[0]) * fill_ratio),
+                            int(bg_color[1] + (fg_color[1] - bg_color[1]) * fill_ratio),
+                            int(bg_color[2] + (fg_color[2] - bg_color[2]) * fill_ratio)
+                        )
+                        cell_bg_colors[i] = partial_bg
                 else:
                     partial_color = (
                         int(bg_color[0] + (fg_color[0] - bg_color[0]) * fill_ratio),
@@ -776,20 +816,50 @@ class GaugeRenderer:
                 )
                 # 경계 타일 렌더링 (fg는 사용하지 않음, 타일 내부에서 색상 직접 설정)
                 console.print(x + i, y, boundary_tile_char, fg=(255, 255, 255), bg=bg_color)
+                # 상처만 부분적으로 있는 셀: 배경 색상 사용
+                cell_bg_colors[i] = bg_color
 
             else:
                 # 빈 셀 (HP도 상처도 없음) - 배경 색상으로 채움
                 console.draw_rect(x + i, y, 1, 1, ord(" "), bg=bg_color)
+                cell_bg_colors[i] = bg_color
         # 숫자 표시 (배경 밝기에 따른 가독성 좋은 색상) - 현재 HP만 표시
+        # 배경을 투명하게 하여 트레일이 보이도록 함
         if show_numbers:
             current_text = f"{display_number}"
             
             # 배경색에 따른 텍스트 색상 선택
             text_color = get_contrast_text_color(fg_color)
             
-            # 현재 HP 표시 (왼쪽)
+            # 현재 HP 표시 (왼쪽) - 배경 투명하게 하여 트레일이 보이도록
             if width >= len(current_text) + 2:
-                console.print(x + 1, y, current_text, fg=text_color)
+                # 각 문자를 개별적으로 렌더링하여 배경을 유지
+                # 트레일이 애니메이션 중일 때도 트레일이 보이도록 항상 트레일 위치 확인
+                for i, char in enumerate(current_text):
+                    char_x = x + 1 + i
+                    # 숫자가 있는 셀의 인덱스 (게이지 내에서)
+                    cell_index = i  # x + 1부터 시작하므로, 셀 인덱스는 i
+                    if cell_index < width:
+                        # 해당 셀에 트레일이 있는지 확인 (트레일이 애니메이션 중일 때도 정확히 확인)
+                        cell_start = cell_index * divisions
+                        cell_end = (cell_index + 1) * divisions
+                        cell_trail_start = max(cell_start, 0)
+                        cell_trail_end = min(cell_end, trail_pixels)
+                        cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
+                        
+                        # 트레일이 있으면 트레일 색상을 배경으로 사용
+                        # 트레일이 없으면 기존 배경을 그대로 유지 (커스텀 타일셋의 복잡한 색상 패턴 보존)
+                        if cell_trail_pixels > 0:
+                            # 트레일 색상을 배경으로 사용
+                            console.rgb[y, char_x] = (ord(char), text_color, trail_color)
+                        else:
+                            # 기존 배경을 읽어서 그대로 유지 (커스텀 타일셋의 픽셀 단위 색상 패턴 보존)
+                            ch, fg_old, bg_old = console.rgb[y, char_x]
+                            console.rgb[y, char_x] = (ord(char), text_color, bg_old)
+                    else:
+                        # 범위를 벗어나면 기존 배경 유지
+                        ch, fg_old, bg_old = console.rgb[y, char_x]
+                        console.rgb[y, char_x] = (ord(char), text_color, bg_old)
 
     @staticmethod
     def render_animated_mp_bar(
@@ -819,18 +889,32 @@ class GaugeRenderer:
         is_healing = current_mp > prev_mp
         is_damaging = current_mp < prev_mp
         
-        # 데미지/회복 모두: MP 먼저, 트레일 2초 지연
-        if is_damaging or is_healing:
-            # MP 먼저 움직임 (지연 없음)
+        # 트레일 로직:
+        # - 데미지: MP 먼저, 트레일 0.3초 지연
+        # - 회복: 트레일이 MP의 현재 애니메이션 값을 따라감 (0.3초 지연)
+        if is_damaging:
+            # 데미지: MP 먼저 움직임 (지연 없음)
             anim.set_target(current_mp, delay=0.0)
-            # 트레일 2초 지연
-            trail_anim.set_target(current_mp, delay=2.0)
+            # 트레일 0.3초 지연
+            trail_anim.set_target(current_mp, delay=0.3)
+        elif is_healing:
+            # 회복: MP 먼저 움직임 (지연 없음)
+            anim.set_target(current_mp, delay=0.0)
+            # 트레일은 MP의 현재 애니메이션 값을 0.3초 지연 후 따라감
+            # (매 프레임마다 업데이트됨)
+            pass  # 트레일은 update() 후에 설정
         else:
             # 변화 없음 - 둘 다 지연 없이 설정
             anim.set_target(current_mp, delay=0.0)
             trail_anim.set_target(current_mp, delay=0.0)
         
         display_mp = anim.update()
+        
+        # 회복 시 트레일이 MP의 현재 애니메이션 값을 따라가도록 설정
+        if is_healing:
+            # 트레일의 목표값을 MP의 현재 애니메이션 값으로 설정 (0.3초 지연)
+            trail_anim.set_target(display_mp, delay=0.3)
+        
         display_trail_mp = trail_anim.update()
         display_number = anim_mgr.get_display_number(f"{entity_id}_mp_num", current_mp, 0.016)
         
@@ -854,9 +938,19 @@ class GaugeRenderer:
             fg_color = (40, 90, 150)
             bg_color = (20, 40, 70)
         
-        # 트레일 색상
-        damage_trail_color = (100, 130, 180)  # 감소 (연한 파랑)
-        heal_trail_color = (150, 200, 255)    # 증가 (밝은 하늘색)
+        # 트레일 색상: 게이지 색상(fg_color)을 기반으로 계산
+        # 데미지: 게이지 색상보다 약간 어둡게
+        # 회복: 게이지 색상보다 약간 밝게
+        damage_trail_color = (
+            max(0, int(fg_color[0] * 0.7)),
+            max(0, int(fg_color[1] * 0.7)),
+            max(0, int(fg_color[2] * 0.7))
+        )
+        heal_trail_color = (
+            min(255, int(fg_color[0] * 1.2)),
+            min(255, int(fg_color[1] * 1.2)),
+            min(255, int(fg_color[2] * 1.2))
+        )
         
         # === 픽셀 단위 렌더링 (레이어 방식) ===
         total_pixels = width * divisions
@@ -930,6 +1024,9 @@ class GaugeRenderer:
         # 레이어 3: 현재 MP
         render_pixels = min(mp_pixels, display_pixels) if is_increasing else mp_pixels
         
+        # 각 셀의 배경 색상을 미리 계산하여 저장 (숫자 렌더링용)
+        cell_bg_colors = {}
+        
         for i in range(width):
             cell_start = i * divisions
             cell_end = (i + 1) * divisions
@@ -938,6 +1035,7 @@ class GaugeRenderer:
             
             if cell_mp >= divisions:
                 console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
+                cell_bg_colors[i] = fg_color
             elif cell_mp > 0:
                 fill_ratio = cell_mp / divisions
                 cell_unfilled = divisions - cell_mp
@@ -963,14 +1061,52 @@ class GaugeRenderer:
                         int(blended_bg[1] + (fg_color[1] - blended_bg[1]) * fill_ratio),
                         int(blended_bg[2] + (fg_color[2] - blended_bg[2]) * fill_ratio)
                     )
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)        
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+                # 부분 MP 셀: MP 색상과 배경 색상의 혼합
+                partial_bg = (
+                    int(blended_bg[0] + (fg_color[0] - blended_bg[0]) * fill_ratio),
+                    int(blended_bg[1] + (fg_color[1] - blended_bg[1]) * fill_ratio),
+                    int(blended_bg[2] + (fg_color[2] - blended_bg[2]) * fill_ratio)
+                )
+                cell_bg_colors[i] = partial_bg
+            else:
+                # 빈 셀
+                cell_bg_colors[i] = bg_color
+        
         # 숫자 표시 - 현재 MP만 표시
+        # 배경을 투명하게 하여 트레일이 보이도록 함
         if show_numbers:
             current_text = f"{display_number}"
             text_color = get_contrast_text_color(fg_color)
             
             if width >= len(current_text) + 2:
-                console.print(x + 1, y, current_text, fg=text_color)
+                # 각 문자를 개별적으로 렌더링하여 배경을 유지
+                # 트레일이 애니메이션 중일 때도 트레일이 보이도록 항상 트레일 위치 확인
+                for i, char in enumerate(current_text):
+                    char_x = x + 1 + i
+                    # 숫자가 있는 셀의 인덱스 (게이지 내에서)
+                    cell_index = i  # x + 1부터 시작하므로, 셀 인덱스는 i
+                    if cell_index < width:
+                        # 해당 셀에 트레일이 있는지 확인 (트레일이 애니메이션 중일 때도 정확히 확인)
+                        cell_start = cell_index * divisions
+                        cell_end = (cell_index + 1) * divisions
+                        cell_trail_start = max(cell_start, 0)
+                        cell_trail_end = min(cell_end, trail_pixels)
+                        cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
+                        
+                        # 트레일이 있으면 트레일 색상을 배경으로 사용
+                        # 트레일이 없으면 기존 배경을 그대로 유지 (커스텀 타일셋의 복잡한 색상 패턴 보존)
+                        if cell_trail_pixels > 0:
+                            # 트레일 색상을 배경으로 사용
+                            console.rgb[y, char_x] = (ord(char), text_color, trail_color)
+                        else:
+                            # 기존 배경을 읽어서 그대로 유지 (커스텀 타일셋의 픽셀 단위 색상 패턴 보존)
+                            ch, fg_old, bg_old = console.rgb[y, char_x]
+                            console.rgb[y, char_x] = (ord(char), text_color, bg_old)
+                    else:
+                        # 범위를 벗어나면 기존 배경 유지
+                        ch, fg_old, bg_old = console.rgb[y, char_x]
+                        console.rgb[y, char_x] = (ord(char), text_color, bg_old)
 
     @staticmethod
     def render_animated_brv_bar(
@@ -1001,18 +1137,32 @@ class GaugeRenderer:
         is_healing = current_brv > prev_brv
         is_damaging = current_brv < prev_brv
         
-        # 데미지/회복 모두: BRV 먼저, 트레일 2초 지연
-        if is_damaging or is_healing:
-            # BRV 먼저 움직임 (지연 없음)
+        # 트레일 로직:
+        # - 데미지: BRV 먼저, 트레일 0.3초 지연
+        # - 회복: 트레일이 BRV의 현재 애니메이션 값을 따라감 (0.3초 지연)
+        if is_damaging:
+            # 데미지: BRV 먼저 움직임 (지연 없음)
             anim.set_target(current_brv, delay=0.0)
-            # 트레일 2초 지연
-            trail_anim.set_target(current_brv, delay=2.0)
+            # 트레일 0.3초 지연
+            trail_anim.set_target(current_brv, delay=0.3)
+        elif is_healing:
+            # 회복: BRV 먼저 움직임 (지연 없음)
+            anim.set_target(current_brv, delay=0.0)
+            # 트레일은 BRV의 현재 애니메이션 값을 0.3초 지연 후 따라감
+            # (매 프레임마다 업데이트됨)
+            pass  # 트레일은 update() 후에 설정
         else:
             # 변화 없음 - 둘 다 지연 없이 설정
             anim.set_target(current_brv, delay=0.0)
             trail_anim.set_target(current_brv, delay=0.0)
         
         display_brv = anim.update()
+        
+        # 회복 시 트레일이 BRV의 현재 애니메이션 값을 따라가도록 설정
+        if is_healing:
+            # 트레일의 목표값을 BRV의 현재 애니메이션 값으로 설정 (0.3초 지연)
+            trail_anim.set_target(display_brv, delay=0.3)
+        
         display_trail_brv = trail_anim.update()
         display_number = anim_mgr.get_display_number(f"{entity_id}_brv_num", current_brv, 0.016)
         
@@ -1029,28 +1179,32 @@ class GaugeRenderer:
         if is_broken:
             fg_color = (150, 50, 50)
             bg_color = (60, 20, 20)
-            damage_trail_color = (100, 40, 40)
-            heal_trail_color = (180, 80, 80)
         elif ratio > 0.8:
             fg_color = (255, 220, 80)
             bg_color = (100, 85, 30)
-            damage_trail_color = (180, 150, 60)
-            heal_trail_color = (255, 240, 150)
         elif ratio > 0.5:
             fg_color = (240, 200, 60)
             bg_color = (90, 75, 25)
-            damage_trail_color = (160, 130, 50)
-            heal_trail_color = (255, 230, 120)
         elif ratio > 0.2:
             fg_color = (200, 160, 50)
             bg_color = (75, 60, 20)
-            damage_trail_color = (140, 110, 40)
-            heal_trail_color = (230, 200, 100)
         else:
             fg_color = (150, 120, 40)
             bg_color = (55, 45, 15)
-            damage_trail_color = (100, 80, 30)
-            heal_trail_color = (200, 170, 80)
+        
+        # 트레일 색상: 게이지 색상(fg_color)을 기반으로 계산
+        # 데미지: 게이지 색상보다 약간 어둡게
+        # 회복: 게이지 색상보다 약간 밝게
+        damage_trail_color = (
+            max(0, int(fg_color[0] * 0.7)),
+            max(0, int(fg_color[1] * 0.7)),
+            max(0, int(fg_color[2] * 0.7))
+        )
+        heal_trail_color = (
+            min(255, int(fg_color[0] * 1.2)),
+            min(255, int(fg_color[1] * 1.2)),
+            min(255, int(fg_color[2] * 1.2))
+        )
         
         # === 픽셀 단위 렌더링 (레이어 방식) ===
         total_pixels = width * divisions
@@ -1124,6 +1278,9 @@ class GaugeRenderer:
         # 레이어 3: 현재 BRV (트레일 위에 렌더링)
         render_pixels = min(brv_pixels, display_pixels) if is_increasing else brv_pixels
         
+        # 각 셀의 배경 색상을 미리 계산하여 저장 (숫자 렌더링용)
+        cell_bg_colors = {}
+        
         for i in range(width):
             cell_start = i * divisions
             cell_end = (i + 1) * divisions
@@ -1132,6 +1289,7 @@ class GaugeRenderer:
             
             if cell_brv >= divisions:
                 console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
+                cell_bg_colors[i] = fg_color
             elif cell_brv > 0:
                 fill_ratio = cell_brv / divisions
                 blended_bg = bg_color
@@ -1146,21 +1304,63 @@ class GaugeRenderer:
                         int(blended_bg[2] + (fg_color[2] - blended_bg[2]) * fill_ratio)
                     )
                     console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+                # 부분 BRV 셀: BRV 색상과 배경 색상의 혼합
+                partial_bg = (
+                    int(blended_bg[0] + (fg_color[0] - blended_bg[0]) * fill_ratio),
+                    int(blended_bg[1] + (fg_color[1] - blended_bg[1]) * fill_ratio),
+                    int(blended_bg[2] + (fg_color[2] - blended_bg[2]) * fill_ratio)
+                )
+                cell_bg_colors[i] = partial_bg
+            else:
+                # 빈 셀
+                cell_bg_colors[i] = bg_color
         
         # 숫자 - 테두리 효과로 가독성 향상
+        # 배경을 투명하게 하여 트레일이 보이도록 함
         if show_numbers:
             if is_broken:
                 text = "BREAK!"
                 text_x = x + (width - len(text)) // 2
                 if text_x >= x:
                     # BREAK 상태는 빨간 배경이므로 흰색 텍스트
-                    console.print(text_x, y, text, fg=(255, 255, 255))
+                    # 배경을 투명하게 하여 트레일이 보이도록
+                    for i, char in enumerate(text):
+                        # 기존 배경을 읽어서 유지
+                        ch, fg_old, bg_old = console.rgb[y, text_x + i]
+                        # 문자와 전경색만 변경, 배경은 유지
+                        console.rgb[y, text_x + i] = (ord(char), (255, 255, 255), bg_old)
             else:
                 current_text = f"{display_number}"
                 text_color = get_contrast_text_color(fg_color)
                 
                 if width >= len(current_text) + 2:
-                    console.print(x + 1, y, current_text, fg=text_color)
+                    # 각 문자를 개별적으로 렌더링하여 배경을 유지
+                    # 트레일이 애니메이션 중일 때도 트레일이 보이도록 항상 트레일 위치 확인
+                    for i, char in enumerate(current_text):
+                        char_x = x + 1 + i
+                        # 숫자가 있는 셀의 인덱스 (게이지 내에서)
+                        cell_index = i  # x + 1부터 시작하므로, 셀 인덱스는 i
+                        if cell_index < width:
+                            # 해당 셀에 트레일이 있는지 확인 (트레일이 애니메이션 중일 때도 정확히 확인)
+                            cell_start = cell_index * divisions
+                            cell_end = (cell_index + 1) * divisions
+                            cell_trail_start = max(cell_start, 0)
+                            cell_trail_end = min(cell_end, trail_pixels)
+                            cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
+                            
+                            # 트레일이 있으면 항상 트레일 색상을 배경으로 사용
+                            # (트레일이 애니메이션 중일 때도 트레일이 보이도록)
+                            if cell_trail_pixels > 0:
+                                # 트레일 색상을 배경으로 사용
+                                console.rgb[y, char_x] = (ord(char), text_color, trail_color)
+                            else:
+                                # 기존 배경을 읽어서 그대로 유지 (커스텀 타일셋의 픽셀 단위 색상 패턴 보존)
+                                ch, fg_old, bg_old = console.rgb[y, char_x]
+                                console.rgb[y, char_x] = (ord(char), text_color, bg_old)
+                        else:
+                            # 범위를 벗어나면 기존 배경 유지
+                            ch, fg_old, bg_old = console.rgb[y, char_x]
+                            console.rgb[y, char_x] = (ord(char), text_color, bg_old)
 
     @staticmethod
     def render_percentage_bar(
@@ -1607,7 +1807,12 @@ class GaugeRenderer:
             else:
                 text = f"{percentage}%"
         text_x = x + (width - len(text)) // 2
-        console.print(text_x, y, text, fg=(255, 255, 255))
+        # 배경을 투명하게 하여 트레일이 보이도록 함
+        for i, char in enumerate(text):
+            # 기존 배경을 읽어서 유지
+            ch, fg_old, bg_old = console.rgb[y, text_x + i]
+            # 문자와 전경색만 변경, 배경은 유지
+            console.rgb[y, text_x + i] = (ord(char), (255, 255, 255), bg_old)
 
     @staticmethod
     def render_status_icons(status_effects, buffs=None, debuffs=None) -> List[Tuple[str, Tuple[int, int, int]]]:
