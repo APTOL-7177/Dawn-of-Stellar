@@ -192,16 +192,21 @@ def open_game_menu(
         menu.render(console)
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
-            action = unified_input_handler.process_tcod_event(event)
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
 
-            if action:
-                result = menu.handle_input(action)
-                if result:
-                    logger.info(f"메뉴 선택: {result.value}")
+        # 게임패드 입력 우선 확인
+        gamepad_action = unified_input_handler.get_action()
+        if gamepad_action:
+            result = menu.handle_input(gamepad_action)
+            if result:
+                logger.info(f"메뉴 선택: {result.value}")
 
-                    # 하위 메뉴로 이동
+                # 하위 메뉴로 이동
                     if result == MenuOption.INVENTORY:
                         if inventory is not None and party is not None:
                             from src.ui.inventory_ui import open_inventory
@@ -356,6 +361,10 @@ def open_game_menu(
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return MenuOption.QUIT
+
+        # CPU 사용률 낮추기 (논블로킹 모드에서 필요)
+        import time
+        time.sleep(0.01)
 
 
 def open_party_status_menu(

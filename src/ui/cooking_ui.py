@@ -678,8 +678,24 @@ def open_cooking_pot(
         ui.render(console)
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
+
+        # 게임패드 입력 우선 확인
+        gamepad_action = unified_input_handler.get_action()
+        if gamepad_action:
+            if ui.handle_input(gamepad_action):
+                # 요리 완료
+                if ui.cooked_food:
+                    logger.info(f"요리 완성: {ui.cooked_food.name}")
+                return ui.cooked_food
+
+        # 키보드 입력 처리
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
@@ -694,5 +710,9 @@ def open_cooking_pot(
             if isinstance(event, tcod.event.Quit):
                 ui.closed = True
                 return None
+
+        # CPU 사용률 낮추기 (논블로킹 모드에서 필요)
+        import time
+        time.sleep(0.01)
 
     return None

@@ -1455,8 +1455,24 @@ def run_party_setup(console: tcod.console.Console, context: tcod.context.Context
         setup.render(console)
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
+
+        # 게임패드 입력 우선 확인
+        gamepad_action = unified_input_handler.get_action()
+        if gamepad_action:
+            if setup.handle_input(gamepad_action, None):
+                # 완료 또는 취소
+                if setup.cancelled:
+                    return None
+                return setup.get_party_data()
+
+        # 키보드 입력 처리
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
             # KeyDown 이벤트 저장 (텍스트 입력용)
@@ -1475,3 +1491,7 @@ def run_party_setup(console: tcod.console.Console, context: tcod.context.Context
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return None
+
+        # CPU 사용률 낮추기 (논블로킹 모드에서 필요)
+        import time
+        time.sleep(0.01)

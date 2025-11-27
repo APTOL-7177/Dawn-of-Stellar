@@ -729,8 +729,38 @@ def open_shop(
 
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
+
+        # 게임패드 입력 우선 확인
+        gamepad_action = unified_input_handler.get_action()
+        if gamepad_action:
+            result = shop.handle_input(gamepad_action)
+
+            if result == "purchase":
+                paged_items, _, _ = shop.get_paged_items()
+                if paged_items and 0 <= shop.selected_index < len(paged_items):
+                    selected_item = paged_items[shop.selected_index]
+                    success, msg = shop.purchase_item(selected_item)
+                    message = msg
+                    message_timer = 60  # 60 프레임 동안 표시
+
+                    # 구매 성공 시 아이템 목록 다시 로드 (건물 시설 등 동적 아이템 반영)
+                    if success:
+                        shop.all_items = get_shop_items()
+                        shop.filter_items()
+                        shop.update_pagination()
+
+            elif result == "exit":
+                logger.info("상점 닫기")
+                return
+
+        # 키보드 입력 처리
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
@@ -755,3 +785,7 @@ def open_shop(
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return
+
+        # CPU 사용률 낮추기 (논블로킹 모드에서 필요)
+        import time
+        time.sleep(0.01)
