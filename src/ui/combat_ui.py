@@ -2030,7 +2030,7 @@ class CombatUI:
             # HP 게이지 (애니메이션 + 상처 표시) - 플레이어와 동일 (15칸)
             console.print(x + 3, y + 2, "HP:", fg=(200, 200, 200))
             enemy_id = f"enemy_{i}_{getattr(enemy, 'name', i)}"
-            enemy_wound = getattr(enemy, 'wound_damage', 0)
+            enemy_wound = getattr(enemy, 'wound', 0)  # Character 클래스의 wound 속성 사용 (wound_damage 아님!)
             gauge_renderer.render_animated_hp_bar(
                 console, x + 7, y + 2, 15,
                 enemy.current_hp, enemy.max_hp, enemy_id,
