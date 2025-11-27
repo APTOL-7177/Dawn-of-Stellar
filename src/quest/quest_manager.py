@@ -113,12 +113,16 @@ class Quest:
                 updated = True
                 logger.info(f"퀘스트 '{self.name}' 진행: {objective.description} ({objective.progress_text})")
         
-        # 모든 목표 완료 확인
+        # 모든 목표 완료 확인 (업데이트 후 항상 체크)
+        self._check_completion()
+        
+        return updated
+    
+    def _check_completion(self):
+        """퀘스트 완료 여부 확인 (내부 메서드)"""
         if self.all_objectives_complete and not self.is_complete:
             self.is_complete = True
             logger.info(f"퀘스트 '{self.name}' 완료!")
-        
-        return updated
 
 
 class QuestDatabase:
@@ -533,6 +537,15 @@ class QuestManager:
         """
         for quest in self.active_quests:
             quest.update_progress(target, amount)
+    
+    def check_all_quests_completion(self):
+        """
+        모든 활성 퀘스트의 완료 여부 확인
+        (update_progress가 호출되지 않았을 때를 대비한 안전장치)
+        """
+        for quest in self.active_quests:
+            if not quest.is_complete:
+                quest._check_completion()
     
     def complete_quest(self, quest_id: str, player: Any) -> bool:
         """

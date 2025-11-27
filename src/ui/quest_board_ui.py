@@ -55,6 +55,10 @@ class QuestBoardUI:
             quest_manager.generate_quests(player_level, count=5)
             self.available_quests = quest_manager.get_available_quests()
         
+        # 퀘스트 게시판을 열 때마다 완료 체크 (안전장치)
+        quest_manager.check_all_quests_completion()
+        self.active_quests = quest_manager.get_active_quests()  # 완료 체크 후 다시 가져오기
+        
         logger.info(f"퀘스트 게시판 열기 - 사용 가능: {len(self.available_quests)}개, 진행 중: {len(self.active_quests)}개")
 
     def handle_input(self, action: GameAction) -> bool:
@@ -132,6 +136,11 @@ class QuestBoardUI:
         """렌더링"""
         console.clear()
         render_space_background(console, self.screen_width, self.screen_height)
+        
+        # 렌더링 전에 완료 체크 (진행 중인 퀘스트 탭일 때만)
+        if self.current_tab == 1:
+            self.quest_manager.check_all_quests_completion()
+            self.active_quests = self.quest_manager.get_active_quests()
         
         # 제목
         title = "=== 퀘스트 게시판 ==="

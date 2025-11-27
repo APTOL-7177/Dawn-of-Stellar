@@ -36,6 +36,10 @@ def open_quest_list(
     max_visible = 8  # 간격이 커져서 보이는 개수 감소
     handler = InputHandler()
     
+    # 퀘스트 목록을 열 때마다 완료 체크 (안전장치)
+    quest_manager.check_all_quests_completion()
+    active_quests = quest_manager.get_active_quests()  # 완료 체크 후 다시 가져오기
+    
     logger.info(f"퀘스트 목록 열기 - 활성 퀘스트: {len(active_quests)}개")
     
     while True:
