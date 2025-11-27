@@ -462,10 +462,11 @@ class GaugeRenderer:
         # 트레일 애니메이션 값 (HP와 같은 값, HP 레이어 아래에 깔림)
         trail_anim = anim_mgr.get_animated_value(f"{entity_id}_hp_trail", current_hp, max_hp, duration=0.8)
         
-        # 증가/감소 판단을 위해 이전 값 확인
-        prev_hp = anim.current
-        is_healing = current_hp > prev_hp
-        is_damaging = current_hp < prev_hp
+        # 증가/감소 판단을 위해 목표값과 비교
+        # anim.target은 이전에 설정된 목표값, current_hp는 새로운 현재값
+        prev_target = anim.target
+        is_healing = current_hp > prev_target
+        is_damaging = current_hp < prev_target
         
         # 트레일 로직:
         # - 데미지: HP 먼저, 트레일 0.3초 지연
@@ -847,15 +848,10 @@ class GaugeRenderer:
                         cell_trail_end = min(cell_end, trail_pixels)
                         cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
                         
-                        # 트레일이 있으면 트레일 색상을 배경으로 사용
-                        # 트레일이 없으면 기존 배경을 그대로 유지 (커스텀 타일셋의 복잡한 색상 패턴 보존)
-                        if cell_trail_pixels > 0:
-                            # 트레일 색상을 배경으로 사용
-                            console.rgb[y, char_x] = (ord(char), text_color, trail_color)
-                        else:
-                            # 기존 배경을 읽어서 그대로 유지 (커스텀 타일셋의 픽셀 단위 색상 패턴 보존)
-                            ch, fg_old, bg_old = console.rgb[y, char_x]
-                            console.rgb[y, char_x] = (ord(char), text_color, bg_old)
+                        # 항상 기존 배경을 그대로 유지 (커스텀 타일셋의 복잡한 색상 패턴 보존)
+                        # 트레일이 있어도 게이지가 보이도록 배경 유지
+                        ch, fg_old, bg_old = console.rgb[y, char_x]
+                        console.rgb[y, char_x] = (ord(char), text_color, bg_old)
                     else:
                         # 범위를 벗어나면 기존 배경 유지
                         ch, fg_old, bg_old = console.rgb[y, char_x]
@@ -1094,15 +1090,10 @@ class GaugeRenderer:
                         cell_trail_end = min(cell_end, trail_pixels)
                         cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
                         
-                        # 트레일이 있으면 트레일 색상을 배경으로 사용
-                        # 트레일이 없으면 기존 배경을 그대로 유지 (커스텀 타일셋의 복잡한 색상 패턴 보존)
-                        if cell_trail_pixels > 0:
-                            # 트레일 색상을 배경으로 사용
-                            console.rgb[y, char_x] = (ord(char), text_color, trail_color)
-                        else:
-                            # 기존 배경을 읽어서 그대로 유지 (커스텀 타일셋의 픽셀 단위 색상 패턴 보존)
-                            ch, fg_old, bg_old = console.rgb[y, char_x]
-                            console.rgb[y, char_x] = (ord(char), text_color, bg_old)
+                        # 항상 기존 배경을 그대로 유지 (커스텀 타일셋의 복잡한 색상 패턴 보존)
+                        # 트레일이 있어도 게이지가 보이도록 배경 유지
+                        ch, fg_old, bg_old = console.rgb[y, char_x]
+                        console.rgb[y, char_x] = (ord(char), text_color, bg_old)
                     else:
                         # 범위를 벗어나면 기존 배경 유지
                         ch, fg_old, bg_old = console.rgb[y, char_x]
@@ -1175,22 +1166,18 @@ class GaugeRenderer:
             display_ratio = min(1.0, display_brv / max_brv)
             trail_ratio = min(1.0, display_trail_brv / max_brv)
         
-        # BRV 색상 (노란색 계열, BREAK 시 빨간색)
+        # BRV 색상 (노란색 계열 통일, 100%일 때만 핑크색, BREAK 시 빨간색)
         if is_broken:
             fg_color = (150, 50, 50)
             bg_color = (60, 20, 20)
-        elif ratio > 0.8:
-            fg_color = (255, 220, 80)
-            bg_color = (100, 85, 30)
-        elif ratio > 0.5:
-            fg_color = (240, 200, 60)
-            bg_color = (90, 75, 25)
-        elif ratio > 0.2:
-            fg_color = (200, 160, 50)
-            bg_color = (75, 60, 20)
+        elif ratio >= 1.0:
+            # 100%일 때 핑크색
+            fg_color = (255, 192, 203)  # 핑크색
+            bg_color = (120, 90, 95)
         else:
-            fg_color = (150, 120, 40)
-            bg_color = (55, 45, 15)
+            # 그 외에는 노란 계열 통일
+            fg_color = (255, 220, 80)  # 노란색
+            bg_color = (100, 85, 30)
         
         # 트레일 색상: 게이지 색상(fg_color)을 기반으로 계산
         # 데미지: 게이지 색상보다 약간 어둡게
@@ -1348,15 +1335,10 @@ class GaugeRenderer:
                             cell_trail_end = min(cell_end, trail_pixels)
                             cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
                             
-                            # 트레일이 있으면 항상 트레일 색상을 배경으로 사용
-                            # (트레일이 애니메이션 중일 때도 트레일이 보이도록)
-                            if cell_trail_pixels > 0:
-                                # 트레일 색상을 배경으로 사용
-                                console.rgb[y, char_x] = (ord(char), text_color, trail_color)
-                            else:
-                                # 기존 배경을 읽어서 그대로 유지 (커스텀 타일셋의 픽셀 단위 색상 패턴 보존)
-                                ch, fg_old, bg_old = console.rgb[y, char_x]
-                                console.rgb[y, char_x] = (ord(char), text_color, bg_old)
+                            # 항상 기존 배경을 그대로 유지 (커스텀 타일셋의 복잡한 색상 패턴 보존)
+                            # 트레일이 있어도 게이지가 보이도록 배경 유지
+                            ch, fg_old, bg_old = console.rgb[y, char_x]
+                            console.rgb[y, char_x] = (ord(char), text_color, bg_old)
                         else:
                             # 범위를 벗어나면 기존 배경 유지
                             ch, fg_old, bg_old = console.rgb[y, char_x]
