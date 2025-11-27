@@ -78,6 +78,7 @@ class AnimatedValue:
         self.duration = duration
         self.start_time = time.time()
         self.change_time = time.time()  # 마지막 변화 시간
+        self.last_trail_change_time = time.time()  # 트레일이 마지막으로 변경된 시간 (페이드용)
         
     def set_target(self, new_target: float, delay: float = 0.0):
         """새로운 목표 값 설정
@@ -93,6 +94,14 @@ class AnimatedValue:
             self.start_time = time.time() + delay  # 지연 시간 추가
             self.change_time = time.time()
             self.delay = delay
+    
+    def set_trail_target(self, new_target: float):
+        """트레일 목표값 설정 (즉시 설정, 애니메이션 없음)"""
+        if new_target != self.target:
+            self.previous = self.current
+            self.target = new_target
+            self.current = new_target  # 즉시 설정 (애니메이션 없음)
+            self.last_trail_change_time = time.time()  # 페이드 시작 시간 기록
     
     def update(self) -> float:
         """애니메이션 업데이트 후 현재 표시 값 반환"""
@@ -136,16 +145,20 @@ class GaugeAnimationManager:
     def __init__(self):
         self._values: Dict[str, AnimatedValue] = {}
         self._display_numbers: Dict[str, float] = {}  # 표시용 숫자 (빠르게 증감)
+        self._number_text_lengths: Dict[str, int] = {}  # 이전 숫자 텍스트 길이 (남은 문자 지우기용)
         self._number_speed = 50  # 초당 변화량
         self._color_animations: Dict[str, Tuple[float, float]] = {}  # 색상 애니메이션 (key: (start_time, duration))
     
     def get_animated_value(self, key: str, actual_value: float, max_value: float, duration: float = 0.8) -> AnimatedValue:
         """애니메이션 값 가져오기 또는 생성"""
         if key not in self._values:
-            self._values[key] = AnimatedValue(actual_value, duration)
+            anim = AnimatedValue(actual_value, duration)
+            self._values[key] = anim
+        else:
+            anim = self._values[key]
+            # duration 업데이트 (필요시)
+            anim.duration = duration
         
-        anim = self._values[key]
-        anim.set_target(actual_value)
         return anim
     
     def get_display_number(self, key: str, actual_value: float, delta_time: float = 0.016) -> int:
@@ -177,6 +190,10 @@ class GaugeAnimationManager:
         """회복 시 색상 애니메이션 트리거"""
         self._color_animations[key] = (time.time(), duration)
     
+    def trigger_damage_color_animation(self, key: str, duration: float = 0.3):
+        """데미지 시 색상 애니메이션 트리거"""
+        self._color_animations[key] = (time.time(), duration)
+    
     def get_heal_color_intensity(self, key: str) -> float:
         """회복 색상 애니메이션 강도 반환 (0.0 ~ 1.0)"""
         if key not in self._color_animations:
@@ -193,6 +210,39 @@ class GaugeAnimationManager:
         # 사인파로 펄스 효과 (0 → 1 → 0)
         progress = elapsed / duration
         intensity = abs(1.0 - 2.0 * progress)  # 삼각파 형태
+        return intensity
+    
+    def get_damage_color_intensity(self, key: str) -> float:
+        """데미지 색상 애니메이션 강도 반환 (0.0 ~ 1.0) - 0.35초 동안 5번 깜빡임"""
+        if key not in self._color_animations:
+            return 0.0
+        
+        start_time, duration = self._color_animations[key]
+        elapsed = time.time() - start_time
+        
+        if elapsed >= duration:
+            # 애니메이션 완료
+            del self._color_animations[key]
+            return 0.0
+        
+        # 0.35초 동안 5번 깜빡임 (주기: 0.07초)
+        blink_count = 5
+        blink_period = duration / blink_count  # 0.07초
+        progress = elapsed / duration
+        
+        # 현재 깜빡임 주기 내에서의 위치 (0.0 ~ 1.0)
+        cycle_position = (elapsed % blink_period) / blink_period
+        
+        # 삼각파 형태로 깜빡임 (0 → 1 → 0)
+        if cycle_position < 0.5:
+            intensity = cycle_position * 2.0  # 0 → 1
+        else:
+            intensity = 2.0 - (cycle_position * 2.0)  # 1 → 0
+        
+        # 전체 진행도에 따라 최종 강도 감소 (선형 감소)
+        overall_fade = 1.0 - progress
+        intensity = intensity * overall_fade
+        
         return intensity
     
     def get_low_hp_blink_intensity(self, key: str) -> float:
@@ -457,44 +507,28 @@ class GaugeRenderer:
         from src.core.logger import get_logger
         logger_gauge = get_logger("gauge_debug")
         
-        anim = anim_mgr.get_animated_value(f"{entity_id}_hp", current_hp, max_hp, duration=0.8)
-        
-        # 트레일 애니메이션 값 (HP와 같은 값, HP 레이어 아래에 깔림)
-        trail_anim = anim_mgr.get_animated_value(f"{entity_id}_hp_trail", current_hp, max_hp, duration=0.8)
+        # 게이지 증감 애니메이션 제거 - 즉시 current_hp 사용
+        # 이전 값 추적을 위해 anim을 사용 (트레일 페이드용)
+        anim = anim_mgr.get_animated_value(f"{entity_id}_hp", current_hp, max_hp, duration=0.35)
         
         # 증가/감소 판단을 위해 목표값과 비교
-        # anim.target은 이전에 설정된 목표값, current_hp는 새로운 현재값
         prev_target = anim.target
         is_healing = current_hp > prev_target
         is_damaging = current_hp < prev_target
         
-        # 트레일 로직:
-        # - 데미지: HP 먼저, 트레일 0.3초 지연
-        # - 회복: 트레일이 HP의 현재 애니메이션 값을 따라감 (0.3초 지연)
-        if is_damaging:
-            # 데미지: HP 먼저 움직임 (지연 없음)
-            anim.set_target(current_hp, delay=0.0)
-            # 트레일 0.3초 지연
-            trail_anim.set_target(current_hp, delay=0.3)
-        elif is_healing:
-            # 회복: HP 먼저 움직임 (지연 없음)
-            anim.set_target(current_hp, delay=0.0)
-            # 트레일은 HP의 현재 애니메이션 값을 0.3초 지연 후 따라감
-            # (매 프레임마다 업데이트됨)
-            pass  # 트레일은 update() 후에 설정
-        else:
-            # 변화 없음 - 둘 다 지연 없이 설정
-            anim.set_target(current_hp, delay=0.0)
-            trail_anim.set_target(current_hp, delay=0.0)
+        # 목표값 업데이트
+        anim.set_target(current_hp, delay=0.0)
         
+        # 게이지 애니메이션 - 부드럽게 오르내리기
         display_hp = anim.update()
         
-        # 회복 시 트레일이 HP의 현재 애니메이션 값을 따라가도록 설정
-        if is_healing:
-            # 트레일의 목표값을 HP의 현재 애니메이션 값으로 설정 (0.3초 지연)
-            trail_anim.set_target(display_hp, delay=0.3)
-        
-        display_trail_hp = trail_anim.update()
+        # 값 변경 시 반짝이는 효과 트리거
+        heal_color_key = f"{entity_id}_hp_heal"
+        damage_color_key = f"{entity_id}_hp_damage"
+        if is_healing and heal_color_key not in anim_mgr._color_animations:
+            anim_mgr.trigger_heal_color_animation(heal_color_key, duration=0.3)
+        if is_damaging and damage_color_key not in anim_mgr._color_animations:
+            anim_mgr.trigger_damage_color_animation(damage_color_key, duration=0.35)
         
         # 표시용 숫자 (빠르게 증감)
         display_number = anim_mgr.get_display_number(f"{entity_id}_hp_num", current_hp, 0.016)
@@ -503,12 +537,10 @@ class GaugeRenderer:
         if max_hp <= 0:
             ratio = 0.0
             display_ratio = 0.0
-            trail_ratio = 0.0
             wound_ratio = 0.0
         else:
             ratio = min(1.0, current_hp / max_hp)
             display_ratio = min(1.0, display_hp / max_hp)
-            trail_ratio = min(1.0, display_trail_hp / max_hp)  # 트레일 비율
             wound_ratio = wound_damage / max_hp
         
         # 색상 계산 (HP 비율 기준)
@@ -524,20 +556,6 @@ class GaugeRenderer:
             fg_color = (220, 50, 50)
             bg_color = (80, 20, 20)
             color_name = 'hp_low'
-        
-        # 트레일 색상: 게이지 색상(fg_color)을 기반으로 계산
-        # 데미지: 게이지 색상보다 약간 어둡게
-        # 회복: 게이지 색상보다 약간 밝게
-        damage_trail_color = (
-            max(0, int(fg_color[0] * 0.7)),
-            max(0, int(fg_color[1] * 0.7)),
-            max(0, int(fg_color[2] * 0.7))
-        )
-        heal_trail_color = (
-            min(255, int(fg_color[0] * 1.2)),
-            min(255, int(fg_color[1] * 1.2)),
-            min(255, int(fg_color[2] * 1.2))
-        )
         
         # === 레이어 방식 렌더링 ===
         # 레이어 순서: 1.배경 → 2.HP바 → 3.상처(HP 위에 덮어씌움)
@@ -555,17 +573,17 @@ class GaugeRenderer:
         hp_pixels = min(int(ratio * total_pixels), wound_start_pixel) if wound_pixels > 0 else int(ratio * total_pixels)
         display_pixels = min(int(display_ratio * total_pixels), wound_start_pixel) if wound_pixels > 0 else int(display_ratio * total_pixels)
         
-        # 트레일 픽셀 계산 (HP와 같은 범위이지만 2초 늦게 반응)
-        trail_display_pixels = min(int(trail_ratio * total_pixels), wound_start_pixel) if wound_pixels > 0 else int(trail_ratio * total_pixels)
-        
         # 증가/감소 판단
         is_decreasing = display_pixels > hp_pixels
         is_increasing = display_pixels < hp_pixels
         
-        # 회복 시 색상 애니메이션 트리거 (애니메이션이 진행 중이 아닐 때만)
-        heal_color_key = f"{entity_id}_hp_color"
-        if is_increasing and heal_color_key not in anim_mgr._color_animations:
-            anim_mgr.trigger_heal_color_animation(heal_color_key, duration=0.6)
+        # 값 변경 시 반짝이는 효과
+        heal_color_key = f"{entity_id}_hp_heal"
+        damage_color_key = f"{entity_id}_hp_damage"
+        
+        # 회복/데미지 색상 애니메이션 강도 가져오기
+        heal_intensity = anim_mgr.get_heal_color_intensity(heal_color_key)
+        damage_intensity = anim_mgr.get_damage_color_intensity(damage_color_key)
         
         # HP 낮을 때 깜빡임 효과 (30% 이하)
         low_hp_blink_key = f"{entity_id}_hp_low_blink"
@@ -578,13 +596,10 @@ class GaugeRenderer:
             if low_hp_blink_key in anim_mgr._color_animations:
                 del anim_mgr._color_animations[low_hp_blink_key]
         
-        # 회복 색상 애니메이션 강도 가져오기
-        heal_intensity = anim_mgr.get_heal_color_intensity(f"{entity_id}_hp_color")
-        
         # HP 낮을 때 깜빡임 강도 가져오기
         blink_intensity = anim_mgr.get_low_hp_blink_intensity(low_hp_blink_key) if ratio <= 0.3 else 0.0
         
-        # 회복 시 색상 그라데이션 (밝게 했다가 원래대로)
+        # 회복 시 색상 반짝임 (밝게 했다가 원래대로)
         if heal_intensity > 0:
             # 밝은 색상으로 블렌딩
             highlight_color = (
@@ -599,6 +614,16 @@ class GaugeRenderer:
                 int(fg_color[2] * (1 - heal_intensity) + highlight_color[2] * heal_intensity)
             )
         
+        # 데미지 시 색상 반짝임 (주황색/빨간색 계열)
+        if damage_intensity > 0:
+            # 주황색 계열로 블렌딩
+            damage_color = (255, 140, 0)  # 주황색
+            fg_color = (
+                int(fg_color[0] * (1 - damage_intensity) + damage_color[0] * damage_intensity),
+                int(fg_color[1] * (1 - damage_intensity) + damage_color[1] * damage_intensity),
+                int(fg_color[2] * (1 - damage_intensity) + damage_color[2] * damage_intensity)
+            )
+        
         # HP 낮을 때 깜빡임 효과 적용
         if blink_intensity > 0:
             # 깜빡임: 밝아졌다가 어두워짐
@@ -609,52 +634,16 @@ class GaugeRenderer:
             )
             fg_color = blink_color
         
-        # 트레일 색상 선택 - 실제 값의 변화 방향 사용
-        trail_color = damage_trail_color if is_damaging else heal_trail_color
-        
         # 레이어 1: 전체 배경 그리기
         console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
         
         # 중간 지점 셀 인덱스 (오른쪽 절반 시작)
         half_cell_index = width // 2
         
-        # 트레일 픽셀 계산 (HP와 동일한 방식, 상처 제한도 동일)
-        trail_pixels = min(int(trail_ratio * total_pixels), wound_start_pixel) if wound_pixels > 0 else int(trail_ratio * total_pixels)
-        
         # HP 렌더링용 픽셀 계산
         render_pixels = min(hp_pixels, display_pixels) if is_increasing else hp_pixels
 
-        # 레이어 2: 트레일 렌더링 (HP 레이어보다 아래에 위치, HP와 동일한 방식)
-        # 트레일은 HP와 동일한 게이지를 그리되, 색상만 다름
-        if trail_pixels > 0:
-            for i in range(width):
-                cell_start = i * divisions
-                cell_end = (i + 1) * divisions
-                
-                # 이 셀에서 트레일이 차지하는 픽셀 범위 (정확한 계산)
-                cell_trail_start = max(cell_start, 0)
-                cell_trail_end = min(cell_end, trail_pixels)
-                cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
-                
-                if cell_trail_pixels >= divisions:
-                    # 트레일이 셀 전체를 채움
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
-                elif cell_trail_pixels > 0:
-                    # 트레일이 셀을 부분적으로 채움
-                    fill_ratio = cell_trail_pixels / divisions
-                    if use_tiles:
-                        # 게이지 색상에 맞는 타일 사용
-                        trail_tile_char = tile_manager.get_tile_char(color_name, fill_ratio)
-                        console.print(x + i, y, trail_tile_char, fg=trail_color)
-                    else:
-                        partial_color = (
-                            int(bg_color[0] + (trail_color[0] - bg_color[0]) * fill_ratio),
-                            int(bg_color[1] + (trail_color[1] - bg_color[1]) * fill_ratio),
-                            int(bg_color[2] + (trail_color[2] - bg_color[2]) * fill_ratio)
-                        )
-                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
-
-        # 레이어 3: HP와 상처를 통합 렌더링 (픽셀 단위 정밀) - 테스트 파일 구조 따름
+        # 레이어 2: HP와 상처를 통합 렌더링 (픽셀 단위 정밀) - 테스트 파일 구조 따름
         # 디버그: wound_pixels 값 확인
         if wound_damage > 0 and wound_pixels == 0:
             logger_gauge.warning(f"[HP 게이지] wound_damage={wound_damage:.3f}인데 wound_pixels=0! wound_ratio={wound_ratio:.3f}, total_pixels={total_pixels}")
@@ -828,6 +817,19 @@ class GaugeRenderer:
         # 배경을 투명하게 하여 트레일이 보이도록 함
         if show_numbers:
             current_text = f"{display_number}"
+            number_key = f"{entity_id}_hp_num"
+            
+            # 이전 숫자 길이 확인 및 남은 문자 지우기
+            prev_length = anim_mgr._number_text_lengths.get(number_key, 0)
+            if len(current_text) < prev_length:
+                # 이전 숫자가 더 길었으면 남은 문자를 공백으로 지움
+                for i in range(len(current_text), prev_length):
+                    char_x = x + 1 + i
+                    if char_x < x + width:
+                        console.ch[y, char_x] = ord(" ")
+            
+            # 현재 숫자 길이 저장
+            anim_mgr._number_text_lengths[number_key] = len(current_text)
             
             # 배경색에 따른 텍스트 색상 선택
             text_color = get_contrast_text_color(fg_color)
@@ -835,27 +837,11 @@ class GaugeRenderer:
             # 현재 HP 표시 (왼쪽) - 배경 투명하게 하여 트레일이 보이도록
             if width >= len(current_text) + 2:
                 # 각 문자를 개별적으로 렌더링하여 배경을 유지
-                # 트레일이 애니메이션 중일 때도 트레일이 보이도록 항상 트레일 위치 확인
                 for i, char in enumerate(current_text):
                     char_x = x + 1 + i
-                    # 숫자가 있는 셀의 인덱스 (게이지 내에서)
-                    cell_index = i  # x + 1부터 시작하므로, 셀 인덱스는 i
-                    if cell_index < width:
-                        # 해당 셀에 트레일이 있는지 확인 (트레일이 애니메이션 중일 때도 정확히 확인)
-                        cell_start = cell_index * divisions
-                        cell_end = (cell_index + 1) * divisions
-                        cell_trail_start = max(cell_start, 0)
-                        cell_trail_end = min(cell_end, trail_pixels)
-                        cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
-                        
-                        # 항상 기존 배경을 그대로 유지 (커스텀 타일셋의 복잡한 색상 패턴 보존)
-                        # 트레일이 있어도 게이지가 보이도록 배경 유지
-                        ch, fg_old, bg_old = console.rgb[y, char_x]
-                        console.rgb[y, char_x] = (ord(char), text_color, bg_old)
-                    else:
-                        # 범위를 벗어나면 기존 배경 유지
-                        ch, fg_old, bg_old = console.rgb[y, char_x]
-                        console.rgb[y, char_x] = (ord(char), text_color, bg_old)
+                    # 배경을 건드리지 않고 문자와 전경색만 변경 (뒤의 게이지가 보이도록)
+                    console.ch[y, char_x] = ord(char)
+                    console.fg[y, char_x] = text_color
 
     @staticmethod
     def render_animated_mp_bar(
@@ -875,53 +861,34 @@ class GaugeRenderer:
         divisions = GaugeRenderer.DIVISIONS
         
         # 애니메이션 값
-        anim = anim_mgr.get_animated_value(f"{entity_id}_mp", current_mp, max_mp, duration=0.5)
+        anim = anim_mgr.get_animated_value(f"{entity_id}_mp", current_mp, max_mp, duration=0.35)
         
-        # 트레일 애니메이션 값 (MP와 같은 값)
-        trail_anim = anim_mgr.get_animated_value(f"{entity_id}_mp_trail", current_mp, max_mp, duration=0.5)
+        # 증가/감소 판단을 위해 목표값과 비교
+        prev_target_mp = anim.target
+        is_healing = current_mp > prev_target_mp
+        is_damaging = current_mp < prev_target_mp
         
-        # 증가/감소 판단을 위해 이전 값 확인
-        prev_mp = anim.current
-        is_healing = current_mp > prev_mp
-        is_damaging = current_mp < prev_mp
+        # 목표값 업데이트
+        anim.set_target(current_mp, delay=0.0)
         
-        # 트레일 로직:
-        # - 데미지: MP 먼저, 트레일 0.3초 지연
-        # - 회복: 트레일이 MP의 현재 애니메이션 값을 따라감 (0.3초 지연)
-        if is_damaging:
-            # 데미지: MP 먼저 움직임 (지연 없음)
-            anim.set_target(current_mp, delay=0.0)
-            # 트레일 0.3초 지연
-            trail_anim.set_target(current_mp, delay=0.3)
-        elif is_healing:
-            # 회복: MP 먼저 움직임 (지연 없음)
-            anim.set_target(current_mp, delay=0.0)
-            # 트레일은 MP의 현재 애니메이션 값을 0.3초 지연 후 따라감
-            # (매 프레임마다 업데이트됨)
-            pass  # 트레일은 update() 후에 설정
-        else:
-            # 변화 없음 - 둘 다 지연 없이 설정
-            anim.set_target(current_mp, delay=0.0)
-            trail_anim.set_target(current_mp, delay=0.0)
-        
+        # 게이지 애니메이션 - 부드럽게 오르내리기
         display_mp = anim.update()
         
-        # 회복 시 트레일이 MP의 현재 애니메이션 값을 따라가도록 설정
-        if is_healing:
-            # 트레일의 목표값을 MP의 현재 애니메이션 값으로 설정 (0.3초 지연)
-            trail_anim.set_target(display_mp, delay=0.3)
-        
-        display_trail_mp = trail_anim.update()
+        # 값 변경 시 반짝이는 효과 트리거
+        heal_color_key = f"{entity_id}_mp_heal"
+        damage_color_key = f"{entity_id}_mp_damage"
+        if is_healing and heal_color_key not in anim_mgr._color_animations:
+            anim_mgr.trigger_heal_color_animation(heal_color_key, duration=0.3)
+        if is_damaging and damage_color_key not in anim_mgr._color_animations:
+            anim_mgr.trigger_damage_color_animation(damage_color_key, duration=0.35)
         display_number = anim_mgr.get_display_number(f"{entity_id}_mp_num", current_mp, 0.016)
         
         if max_mp <= 0:
             ratio = 0.0
             display_ratio = 0.0
-            trail_ratio = 0.0
         else:
             ratio = min(1.0, current_mp / max_mp)
             display_ratio = min(1.0, display_mp / max_mp)
-            trail_ratio = min(1.0, display_trail_mp / max_mp)
         
         # MP 색상 (파란색 계열)
         if ratio > 0.6:
@@ -934,40 +901,23 @@ class GaugeRenderer:
             fg_color = (40, 90, 150)
             bg_color = (20, 40, 70)
         
-        # 트레일 색상: 게이지 색상(fg_color)을 기반으로 계산
-        # 데미지: 게이지 색상보다 약간 어둡게
-        # 회복: 게이지 색상보다 약간 밝게
-        damage_trail_color = (
-            max(0, int(fg_color[0] * 0.7)),
-            max(0, int(fg_color[1] * 0.7)),
-            max(0, int(fg_color[2] * 0.7))
-        )
-        heal_trail_color = (
-            min(255, int(fg_color[0] * 1.2)),
-            min(255, int(fg_color[1] * 1.2)),
-            min(255, int(fg_color[2] * 1.2))
-        )
-        
         # === 픽셀 단위 렌더링 (레이어 방식) ===
         total_pixels = width * divisions
         mp_pixels = int(ratio * total_pixels)
         display_pixels = int(display_ratio * total_pixels)
         
-        # 트레일 픽셀 계산 (HP와 동일한 방식)
-        trail_pixels = int(trail_ratio * total_pixels)
-        
         is_decreasing = display_pixels > mp_pixels
         is_increasing = display_pixels < mp_pixels
         
-        # 회복 시 색상 애니메이션 트리거 (애니메이션이 진행 중이 아닐 때만)
-        heal_color_key = f"{entity_id}_mp_color"
-        if is_increasing and heal_color_key not in anim_mgr._color_animations:
-            anim_mgr.trigger_heal_color_animation(heal_color_key, duration=0.6)
+        # 값 변경 시 반짝이는 효과
+        heal_color_key = f"{entity_id}_mp_heal"
+        damage_color_key = f"{entity_id}_mp_damage"
         
-        # 회복 색상 애니메이션 강도 가져오기
-        heal_intensity = anim_mgr.get_heal_color_intensity(f"{entity_id}_mp_color")
+        # 회복/데미지 색상 애니메이션 강도 가져오기
+        heal_intensity = anim_mgr.get_heal_color_intensity(heal_color_key)
+        damage_intensity = anim_mgr.get_damage_color_intensity(damage_color_key)
         
-        # 회복 시 색상 그라데이션 (밝게 했다가 원래대로)
+        # 회복 시 색상 반짝임 (밝게 했다가 원래대로)
         if heal_intensity > 0:
             # 밝은 색상으로 블렌딩
             highlight_color = (
@@ -982,42 +932,10 @@ class GaugeRenderer:
                 int(fg_color[2] * (1 - heal_intensity) + highlight_color[2] * heal_intensity)
             )
         
-        # 트레일 색상 선택 - 실제 값의 변화 방향 사용 (is_damaging, is_healing 사용)
-        trail_color = damage_trail_color if is_damaging else heal_trail_color
-        
         # 레이어 1: 배경
         console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
 
-        # 레이어 2: 트레일 렌더링 (MP 레이어보다 아래에 위치, HP와 동일한 방식)
-        # 트레일은 MP와 동일한 게이지를 그리되, 색상만 다름
-        if trail_pixels > 0:
-            for i in range(width):
-                cell_start = i * divisions
-                cell_end = (i + 1) * divisions
-                
-                # 이 셀에서 트레일이 차지하는 픽셀 범위 (정확한 계산)
-                cell_trail_start = max(cell_start, 0)
-                cell_trail_end = min(cell_end, trail_pixels)
-                cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
-                
-                if cell_trail_pixels >= divisions:
-                    # 트레일이 셀 전체를 채움
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
-                elif cell_trail_pixels > 0:
-                    # 트레일이 셀을 부분적으로 채움
-                    fill_ratio = cell_trail_pixels / divisions
-                    if use_tiles:
-                        trail_tile_char = tile_manager.get_tile_char('mp_fill', fill_ratio)
-                        console.print(x + i, y, trail_tile_char, fg=trail_color)
-                    else:
-                        partial_color = (
-                            int(bg_color[0] + (trail_color[0] - bg_color[0]) * fill_ratio),
-                            int(bg_color[1] + (trail_color[1] - bg_color[1]) * fill_ratio),
-                            int(bg_color[2] + (trail_color[2] - bg_color[2]) * fill_ratio)
-                        )
-                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
-
-        # 레이어 3: 현재 MP
+        # 레이어 2: 현재 MP
         render_pixels = min(mp_pixels, display_pixels) if is_increasing else mp_pixels
         
         # 각 셀의 배경 색상을 미리 계산하여 저장 (숫자 렌더링용)
@@ -1036,17 +954,7 @@ class GaugeRenderer:
                 fill_ratio = cell_mp / divisions
                 cell_unfilled = divisions - cell_mp
                 
-                if is_decreasing and cell_unfilled > 0:
-                    trail_end_in_cell = min(cell_end, display_pixels)
-                    trail_in_unfilled = max(0, trail_end_in_cell - (cell_start + cell_mp))
-                    trail_blend = trail_in_unfilled / cell_unfilled
-                    blended_bg = (
-                        int(bg_color[0] + (trail_color[0] - bg_color[0]) * trail_blend),
-                        int(bg_color[1] + (trail_color[1] - bg_color[1]) * trail_blend),
-                        int(bg_color[2] + (trail_color[2] - bg_color[2]) * trail_blend)
-                    )
-                else:
-                    blended_bg = bg_color
+                blended_bg = bg_color
                 
                 if use_tiles:
                     tile_char = tile_manager.get_tile_char('mp_fill', fill_ratio)
@@ -1073,31 +981,29 @@ class GaugeRenderer:
         # 배경을 투명하게 하여 트레일이 보이도록 함
         if show_numbers:
             current_text = f"{display_number}"
+            number_key = f"{entity_id}_mp_num"
+            
+            # 이전 숫자 길이 확인 및 남은 문자 지우기
+            prev_length = anim_mgr._number_text_lengths.get(number_key, 0)
+            if len(current_text) < prev_length:
+                # 이전 숫자가 더 길었으면 남은 문자를 공백으로 지움
+                for i in range(len(current_text), prev_length):
+                    char_x = x + 1 + i
+                    if char_x < x + width:
+                        console.ch[y, char_x] = ord(" ")
+            
+            # 현재 숫자 길이 저장
+            anim_mgr._number_text_lengths[number_key] = len(current_text)
+            
             text_color = get_contrast_text_color(fg_color)
             
             if width >= len(current_text) + 2:
                 # 각 문자를 개별적으로 렌더링하여 배경을 유지
-                # 트레일이 애니메이션 중일 때도 트레일이 보이도록 항상 트레일 위치 확인
                 for i, char in enumerate(current_text):
                     char_x = x + 1 + i
-                    # 숫자가 있는 셀의 인덱스 (게이지 내에서)
-                    cell_index = i  # x + 1부터 시작하므로, 셀 인덱스는 i
-                    if cell_index < width:
-                        # 해당 셀에 트레일이 있는지 확인 (트레일이 애니메이션 중일 때도 정확히 확인)
-                        cell_start = cell_index * divisions
-                        cell_end = (cell_index + 1) * divisions
-                        cell_trail_start = max(cell_start, 0)
-                        cell_trail_end = min(cell_end, trail_pixels)
-                        cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
-                        
-                        # 항상 기존 배경을 그대로 유지 (커스텀 타일셋의 복잡한 색상 패턴 보존)
-                        # 트레일이 있어도 게이지가 보이도록 배경 유지
-                        ch, fg_old, bg_old = console.rgb[y, char_x]
-                        console.rgb[y, char_x] = (ord(char), text_color, bg_old)
-                    else:
-                        # 범위를 벗어나면 기존 배경 유지
-                        ch, fg_old, bg_old = console.rgb[y, char_x]
-                        console.rgb[y, char_x] = (ord(char), text_color, bg_old)
+                    # 배경을 건드리지 않고 문자와 전경색만 변경 (뒤의 게이지가 보이도록)
+                    console.ch[y, char_x] = ord(char)
+                    console.fg[y, char_x] = text_color
 
     @staticmethod
     def render_animated_brv_bar(
@@ -1118,53 +1024,34 @@ class GaugeRenderer:
         divisions = GaugeRenderer.DIVISIONS
         
         # 애니메이션 값
-        anim = anim_mgr.get_animated_value(f"{entity_id}_brv", current_brv, max_brv, duration=0.4)
+        anim = anim_mgr.get_animated_value(f"{entity_id}_brv", current_brv, max_brv, duration=0.35)
         
-        # 트레일 애니메이션 값 (BRV와 같은 값)
-        trail_anim = anim_mgr.get_animated_value(f"{entity_id}_brv_trail", current_brv, max_brv, duration=0.4)
+        # 증가/감소 판단을 위해 목표값과 비교
+        prev_target_brv = anim.target
+        is_healing = current_brv > prev_target_brv
+        is_damaging = current_brv < prev_target_brv
         
-        # 증가/감소 판단을 위해 이전 값 확인
-        prev_brv = anim.current
-        is_healing = current_brv > prev_brv
-        is_damaging = current_brv < prev_brv
+        # 목표값 업데이트
+        anim.set_target(current_brv, delay=0.0)
         
-        # 트레일 로직:
-        # - 데미지: BRV 먼저, 트레일 0.3초 지연
-        # - 회복: 트레일이 BRV의 현재 애니메이션 값을 따라감 (0.3초 지연)
-        if is_damaging:
-            # 데미지: BRV 먼저 움직임 (지연 없음)
-            anim.set_target(current_brv, delay=0.0)
-            # 트레일 0.3초 지연
-            trail_anim.set_target(current_brv, delay=0.3)
-        elif is_healing:
-            # 회복: BRV 먼저 움직임 (지연 없음)
-            anim.set_target(current_brv, delay=0.0)
-            # 트레일은 BRV의 현재 애니메이션 값을 0.3초 지연 후 따라감
-            # (매 프레임마다 업데이트됨)
-            pass  # 트레일은 update() 후에 설정
-        else:
-            # 변화 없음 - 둘 다 지연 없이 설정
-            anim.set_target(current_brv, delay=0.0)
-            trail_anim.set_target(current_brv, delay=0.0)
-        
+        # 게이지 애니메이션 - 부드럽게 오르내리기
         display_brv = anim.update()
         
-        # 회복 시 트레일이 BRV의 현재 애니메이션 값을 따라가도록 설정
-        if is_healing:
-            # 트레일의 목표값을 BRV의 현재 애니메이션 값으로 설정 (0.3초 지연)
-            trail_anim.set_target(display_brv, delay=0.3)
-        
-        display_trail_brv = trail_anim.update()
+        # 값 변경 시 반짝이는 효과 트리거
+        heal_color_key = f"{entity_id}_brv_heal"
+        damage_color_key = f"{entity_id}_brv_damage"
+        if is_healing and heal_color_key not in anim_mgr._color_animations:
+            anim_mgr.trigger_heal_color_animation(heal_color_key, duration=0.3)
+        if is_damaging and damage_color_key not in anim_mgr._color_animations:
+            anim_mgr.trigger_damage_color_animation(damage_color_key, duration=0.35)
         display_number = anim_mgr.get_display_number(f"{entity_id}_brv_num", current_brv, 0.016)
         
         if max_brv <= 0:
             ratio = 0.0
             display_ratio = 0.0
-            trail_ratio = 0.0
         else:
             ratio = min(1.0, current_brv / max_brv)
             display_ratio = min(1.0, display_brv / max_brv)
-            trail_ratio = min(1.0, display_trail_brv / max_brv)
         
         # BRV 색상 (노란색 계열 통일, 100%일 때만 핑크색, BREAK 시 빨간색)
         if is_broken:
@@ -1179,40 +1066,23 @@ class GaugeRenderer:
             fg_color = (255, 220, 80)  # 노란색
             bg_color = (100, 85, 30)
         
-        # 트레일 색상: 게이지 색상(fg_color)을 기반으로 계산
-        # 데미지: 게이지 색상보다 약간 어둡게
-        # 회복: 게이지 색상보다 약간 밝게
-        damage_trail_color = (
-            max(0, int(fg_color[0] * 0.7)),
-            max(0, int(fg_color[1] * 0.7)),
-            max(0, int(fg_color[2] * 0.7))
-        )
-        heal_trail_color = (
-            min(255, int(fg_color[0] * 1.2)),
-            min(255, int(fg_color[1] * 1.2)),
-            min(255, int(fg_color[2] * 1.2))
-        )
-        
         # === 픽셀 단위 렌더링 (레이어 방식) ===
         total_pixels = width * divisions
         brv_pixels = int(ratio * total_pixels)
         display_pixels = int(display_ratio * total_pixels)
         
-        # 트레일 픽셀 계산 (HP와 동일한 방식)
-        trail_pixels = int(trail_ratio * total_pixels)
-        
         is_decreasing = display_pixels > brv_pixels
         is_increasing = display_pixels < brv_pixels
         
-        # 회복 시 색상 애니메이션 트리거 (애니메이션이 진행 중이 아닐 때만)
-        heal_color_key = f"{entity_id}_brv_color"
-        if is_increasing and heal_color_key not in anim_mgr._color_animations:
-            anim_mgr.trigger_heal_color_animation(heal_color_key, duration=0.6)
+        # 값 변경 시 반짝이는 효과
+        heal_color_key = f"{entity_id}_brv_heal"
+        damage_color_key = f"{entity_id}_brv_damage"
         
-        # 회복 색상 애니메이션 강도 가져오기
-        heal_intensity = anim_mgr.get_heal_color_intensity(f"{entity_id}_brv_color")
+        # 회복/데미지 색상 애니메이션 강도 가져오기
+        heal_intensity = anim_mgr.get_heal_color_intensity(heal_color_key)
+        damage_intensity = anim_mgr.get_damage_color_intensity(damage_color_key)
         
-        # 회복 시 색상 그라데이션 (밝게 했다가 원래대로)
+        # 회복 시 색상 반짝임 (밝게 했다가 원래대로)
         if heal_intensity > 0:
             # 밝은 색상으로 블렌딩
             highlight_color = (
@@ -1227,42 +1097,20 @@ class GaugeRenderer:
                 int(fg_color[2] * (1 - heal_intensity) + highlight_color[2] * heal_intensity)
             )
         
-        # 트레일 색상 선택 - 실제 값의 변화 방향 사용 (is_damaging, is_healing 사용)
-        trail_color = damage_trail_color if is_damaging else heal_trail_color
+        # 데미지 시 색상 반짝임 (주황색/빨간색 계열)
+        if damage_intensity > 0:
+            # 주황색 계열로 블렌딩
+            damage_color = (255, 140, 0)  # 주황색
+            fg_color = (
+                int(fg_color[0] * (1 - damage_intensity) + damage_color[0] * damage_intensity),
+                int(fg_color[1] * (1 - damage_intensity) + damage_color[1] * damage_intensity),
+                int(fg_color[2] * (1 - damage_intensity) + damage_color[2] * damage_intensity)
+            )
         
         # 레이어 1: 배경
         console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
 
-        # 레이어 2: 트레일 렌더링 (BRV 레이어보다 아래에 위치, HP와 동일한 방식)
-        # 트레일은 BRV와 동일한 게이지를 그리되, 색상만 다름
-        if trail_pixels > 0:
-            for i in range(width):
-                cell_start = i * divisions
-                cell_end = (i + 1) * divisions
-                
-                # 이 셀에서 트레일이 차지하는 픽셀 범위 (정확한 계산)
-                cell_trail_start = max(cell_start, 0)
-                cell_trail_end = min(cell_end, trail_pixels)
-                cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
-                
-                if cell_trail_pixels >= divisions:
-                    # 트레일이 셀 전체를 채움
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=trail_color)
-                elif cell_trail_pixels > 0:
-                    # 트레일이 셀을 부분적으로 채움
-                    fill_ratio = cell_trail_pixels / divisions
-                    if use_tiles:
-                        trail_tile_char = tile_manager.get_tile_char('brv_fill', fill_ratio)
-                        console.print(x + i, y, trail_tile_char, fg=trail_color)
-                    else:
-                        partial_color = (
-                            int(bg_color[0] + (trail_color[0] - bg_color[0]) * fill_ratio),
-                            int(bg_color[1] + (trail_color[1] - bg_color[1]) * fill_ratio),
-                            int(bg_color[2] + (trail_color[2] - bg_color[2]) * fill_ratio)
-                        )
-                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
-
-        # 레이어 3: 현재 BRV (트레일 위에 렌더링)
+        # 레이어 2: 현재 BRV (트레일 위에 렌더링)
         render_pixels = min(brv_pixels, display_pixels) if is_increasing else brv_pixels
         
         # 각 셀의 배경 색상을 미리 계산하여 저장 (숫자 렌더링용)
@@ -1318,31 +1166,29 @@ class GaugeRenderer:
                         console.rgb[y, text_x + i] = (ord(char), (255, 255, 255), bg_old)
             else:
                 current_text = f"{display_number}"
+                number_key = f"{entity_id}_brv_num"
+                
+                # 이전 숫자 길이 확인 및 남은 문자 지우기
+                prev_length = anim_mgr._number_text_lengths.get(number_key, 0)
+                if len(current_text) < prev_length:
+                    # 이전 숫자가 더 길었으면 남은 문자를 공백으로 지움
+                    for i in range(len(current_text), prev_length):
+                        char_x = x + 1 + i
+                        if char_x < x + width:
+                            console.ch[y, char_x] = ord(" ")
+                
+                # 현재 숫자 길이 저장
+                anim_mgr._number_text_lengths[number_key] = len(current_text)
+                
                 text_color = get_contrast_text_color(fg_color)
                 
                 if width >= len(current_text) + 2:
                     # 각 문자를 개별적으로 렌더링하여 배경을 유지
-                    # 트레일이 애니메이션 중일 때도 트레일이 보이도록 항상 트레일 위치 확인
                     for i, char in enumerate(current_text):
                         char_x = x + 1 + i
-                        # 숫자가 있는 셀의 인덱스 (게이지 내에서)
-                        cell_index = i  # x + 1부터 시작하므로, 셀 인덱스는 i
-                        if cell_index < width:
-                            # 해당 셀에 트레일이 있는지 확인 (트레일이 애니메이션 중일 때도 정확히 확인)
-                            cell_start = cell_index * divisions
-                            cell_end = (cell_index + 1) * divisions
-                            cell_trail_start = max(cell_start, 0)
-                            cell_trail_end = min(cell_end, trail_pixels)
-                            cell_trail_pixels = max(0, cell_trail_end - cell_trail_start)
-                            
-                            # 항상 기존 배경을 그대로 유지 (커스텀 타일셋의 복잡한 색상 패턴 보존)
-                            # 트레일이 있어도 게이지가 보이도록 배경 유지
-                            ch, fg_old, bg_old = console.rgb[y, char_x]
-                            console.rgb[y, char_x] = (ord(char), text_color, bg_old)
-                        else:
-                            # 범위를 벗어나면 기존 배경 유지
-                            ch, fg_old, bg_old = console.rgb[y, char_x]
-                            console.rgb[y, char_x] = (ord(char), text_color, bg_old)
+                        # 배경을 건드리지 않고 문자와 전경색만 변경 (뒤의 게이지가 보이도록)
+                        console.ch[y, char_x] = ord(char)
+                        console.fg[y, char_x] = text_color
 
     @staticmethod
     def render_percentage_bar(
@@ -1524,7 +1370,7 @@ class GaugeRenderer:
         if entity_id:
             anim_key = f"{entity_id}_atb"
             if anim_key not in anim_mgr._values:
-                anim_mgr._values[anim_key] = AnimatedValue(current, duration=0.5)
+                anim_mgr._values[anim_key] = AnimatedValue(current, duration=0.25)
             
             anim = anim_mgr._values[anim_key]
             previous_display = anim.current
@@ -1627,7 +1473,7 @@ class GaugeRenderer:
         if entity_id:
             anim_key = f"{entity_id}_atb2"
             if anim_key not in anim_mgr._values:
-                anim_mgr._values[anim_key] = AnimatedValue(atb_current, duration=0.5)
+                anim_mgr._values[anim_key] = AnimatedValue(atb_current, duration=0.25)
             
             anim = anim_mgr._values[anim_key]
             previous_display = anim.current

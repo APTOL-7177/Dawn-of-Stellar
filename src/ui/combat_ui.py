@@ -2338,6 +2338,11 @@ class CombatUI:
             max_dimension = getattr(character, 'max_dimension_points', 100)
             return (f"차원:{dimension}/{max_dimension}", (150, 150, 255))
 
+        elif gimmick_type == "dimension_refraction":
+            # 차원술사 - 차원 굴절
+            refraction = getattr(character, 'refraction_stacks', 0)
+            return (f"굴절: {refraction}", (200, 150, 255))
+
         elif gimmick_type == "construct_system":
             # 기계공학자 - 부품
             parts = getattr(character, 'machine_parts', 0)

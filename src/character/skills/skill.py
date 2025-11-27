@@ -188,6 +188,44 @@ class Skill:
                     if exposed_turns < restealth_cooldown:
                         remaining = restealth_cooldown - exposed_turns
                         return False, f"재은신 쿨다운 중입니다 ({remaining}턴 남음)"
+            
+            # 차원술사: 굴절 소모 스킬 조건 체크
+            if hasattr(user, 'gimmick_type') and user.gimmick_type == "dimension_refraction":
+                refraction_stacks = getattr(user, 'refraction_stacks', 0)
+                
+                # 굴절량 비율 소모 (refraction_consumption) - 현재 굴절량의 비율만큼 소모
+                if "refraction_consumption" in self.metadata:
+                    consumption_rate = self.metadata.get("refraction_consumption", 0)
+                    # 굴절량이 0이면 사용 불가
+                    if refraction_stacks <= 0:
+                        return False, f"굴절량 부족 (현재: {refraction_stacks})"
+                    # 비율만큼 소모 가능한지 확인 (최소 1 이상 필요)
+                    required_refraction = max(1, int(refraction_stacks * consumption_rate))
+                    if refraction_stacks < required_refraction:
+                        return False, f"굴절량 부족 (필요: {required_refraction}, 현재: {refraction_stacks})"
+                
+                # 최대 HP 비율만큼 굴절량 소모 (refraction_cost_hp_percent)
+                if "refraction_cost_hp_percent" in self.metadata:
+                    max_hp = getattr(user, 'max_hp', 100)
+                    required_refraction = int(max_hp * self.metadata.get("refraction_cost_hp_percent", 0))
+                    if refraction_stacks < required_refraction:
+                        return False, f"굴절량 부족 (필요: {required_refraction}, 현재: {refraction_stacks})"
+                
+                # 굴절량 비율 자해 (self_damage_refraction_percent) - 현재 굴절량의 비율만큼 자해
+                if "self_damage_refraction_percent" in self.metadata:
+                    damage_rate = self.metadata.get("self_damage_refraction_percent", 0)
+                    # 굴절량이 0이면 사용 불가
+                    if refraction_stacks <= 0:
+                        return False, f"굴절량 부족 (현재: {refraction_stacks})"
+                    # 비율만큼 소모 가능한지 확인 (최소 1 이상 필요)
+                    required_refraction = max(1, int(refraction_stacks * damage_rate))
+                    if refraction_stacks < required_refraction:
+                        return False, f"굴절량 부족 (필요: {required_refraction}, 현재: {refraction_stacks})"
+                
+                # 모든 굴절량 소모 (consume_all_refraction)
+                if self.metadata.get("consume_all_refraction", False):
+                    if refraction_stacks <= 0:
+                        return False, f"굴절량 부족 (현재: {refraction_stacks})"
         
         return True, ""
 

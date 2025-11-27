@@ -165,7 +165,7 @@ def create_dimensionist_skills():
     refraction_conversion = Skill(
         "dimensionist_refraction_conversion",
         "굴절 전환",
-        "최대 HP의 30%만큼 자해하여 동일량을 굴절량으로 전환 (2배 효율)"
+        "HP를 굴절량으로 전환"
     )
     refraction_conversion.effects = [
         # 자해 및 굴절 획득은 메타데이터로 처리
@@ -174,8 +174,8 @@ def create_dimensionist_skills():
     refraction_conversion.target_type = "self"
     refraction_conversion.sfx = ("combat", "critical")
     refraction_conversion.metadata = {
-        "self_damage_hp_percent": 0.30,
-        "refraction_gain_multiplier": 2.0,
+        "self_damage_hp_percent": 0.75,
+        "refraction_gain_multiplier": 3.5,
         "custom_effect": True
     }
 
