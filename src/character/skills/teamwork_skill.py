@@ -61,9 +61,13 @@ class TeamworkSkill(Skill):
         if chain_count == 1:
             return 0  # 시작자는 MP 소모 없음
 
-        # 2단계: 10, 3단계: 20, 4단계: 40...
-        # 공식: 10 × 2^(연쇄수-2)
-        mp_cost = self.teamwork_cost.base_mp * (2 ** (chain_count - 2))
+        # 팀워크 게이지 비용에 비례하는 MP 비용 계산
+        # 게이지 비용이 25(1셀)이면: 1 × 2^(연쇄수-2)
+        # 게이지 비용이 50(2셀)이면: 2 × 2^(연쇄수-2)
+        # 게이지 비용이 100(4셀)이면: 4 × 2^(연쇄수-2)
+        # 공식: (게이지 비용 / 25) × 2^(연쇄수-2)
+        base_multiplier = self.teamwork_cost.gauge // 25
+        mp_cost = base_multiplier * (2 ** (chain_count - 2))
         return mp_cost
 
     def can_use(

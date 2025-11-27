@@ -7,7 +7,8 @@ from src.audio.audio_manager import (
     get_audio_manager,
     play_bgm,
     stop_bgm,
-    play_sfx
+    play_sfx,
+    play_teamwork_sfx
 )
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "get_audio_manager",
     "play_bgm",
     "stop_bgm",
-    "play_sfx"
+    "play_sfx",
+    "play_teamwork_sfx"
 ]

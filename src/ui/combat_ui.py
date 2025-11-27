@@ -16,6 +16,7 @@ from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.gauge_renderer import GaugeRenderer, get_animation_manager
 from src.ui.tcod_display import render_space_background
+from src.ui.teamwork_gauge_display import TeamworkGaugeDisplay
 from src.combat.combat_manager import CombatManager, CombatState, ActionType
 from src.combat.casting_system import get_casting_system, CastingSystem
 from src.core.logger import get_logger, Loggers
@@ -1739,14 +1740,14 @@ class CombatUI:
                         if actor_player_id:
                             # 어떤 플레이어든 행동 선택 중이면 불릿타임 활성화
                             self.combat_manager.atb.set_player_selecting(actor_player_id, True)
-                            logger.info(f"🔫 불릿타임 활성화 요청: 플레이어 {actor_player_id} 행동 선택 시작")
+                            logger.info(f"[BULLETTIME] 불릿타임 활성화 요청: 플레이어 {actor_player_id} 행동 선택 시작")
                         else:
                             # 플레이어 ID가 없으면 (AI나 싱글플레이) 로그만 출력
-                            logger.warning(f"⚠️ 플레이어 ID 없음 - combatant={combatant.name}, 불릿타임 비활성화")
+                            logger.warning(f"[WARNING] 플레이어 ID 없음 - combatant={combatant.name}, 불릿타임 비활성화")
                     elif not is_multiplayer_mode:
                         logger.debug("싱글플레이 모드 - 불릿타임 비활성화")
                     elif not hasattr(self.combat_manager.atb, 'set_player_selecting'):
-                        logger.error(f"❌ ATB 시스템에 set_player_selecting 메서드 없음: {type(self.combat_manager.atb).__name__}")
+                        logger.error(f"[ERROR] ATB 시스템에 set_player_selecting 메서드 없음: {type(self.combat_manager.atb).__name__}")
                 
                 return
 
@@ -1845,6 +1846,9 @@ class CombatUI:
 
         # 메시지 로그
         self._render_messages(console)
+
+        # 팀워크 게이지 (행동 메뉴 위에 표시)
+        self._render_teamwork_gauge(console)
 
         # 상태별 UI
         if self.state == CombatUIState.ACTION_MENU and self.action_menu:
@@ -4546,6 +4550,27 @@ class CombatUI:
             fg=(180, 180, 180)
         )
 
+    def _render_teamwork_gauge(self, console: tcod.console.Console):
+        """팀워크 게이지 렌더링 (화면 하단 - 행동 메뉴 위)"""
+        if not self.combat_manager or not self.combat_manager.party:
+            return
+
+        # 게이지 정보 추출
+        party = self.combat_manager.party
+        teamwork_gauge = getattr(party, 'teamwork_gauge', 0)
+        max_teamwork_gauge = getattr(party, 'max_teamwork_gauge', 600)
+
+        # 게이지 포맷팅 (간단한 형식)
+        gauge_text = TeamworkGaugeDisplay.format_compact(teamwork_gauge, max_teamwork_gauge)
+
+        # 표시 위치: 화면 하단, 메시지 로그 왼쪽 (y=30 또는 31)
+        # 행동 메뉴는 y=33이므로, 그 위에 배치
+        gauge_y = 28  # 메시지 로그 상단(y=29) 위에 배치
+        gauge_x = 2   # 왼쪽 여백
+
+        # 게이지 텍스트 출력
+        console.print(gauge_x, gauge_y, gauge_text, fg=(100, 200, 255))
+
 
 def run_combat(
     console: tcod.console.Console,
@@ -4758,7 +4783,6 @@ def run_combat(
     while not ui.battle_ended:
         # pygame 이벤트 처리 (게임패드 입력을 위해) - 더 자주 호출
         pygame.event.pump()  # pygame 이벤트 큐 업데이트
-        print("PUMP", end=' ')  # 간단한 디버깅 표시
 
         # 업데이트
         ui.update(delta_time=1.0)
@@ -4771,14 +4795,12 @@ def run_combat(
         action = None
 
         # 게임패드 입력 우선 확인
-        print("CHK_GP", end=' ')  # 간단한 디버깅 표시
         action = unified_input_handler.get_action()
         if action:
             print(f"GAMEPAD_ACTION: {action.name}")  # 액션 감지 시 큰 표시
 
         # tcod 이벤트 처리 (키보드/마우스) - 게임패드 입력이 없을 때만
         if not action:
-            print("CHK_KB", end=' ')  # 간단한 디버깅 표시
             # tcod 이벤트는 non-blocking으로 변경
             events = tcod.event.get()  # wait 대신 get 사용
             for event in events:
@@ -4797,6 +4819,9 @@ def run_combat(
             if ui.handle_input(action):
                 break
 
+        # 프레임 레이트 제한 (약 60 FPS) - 디버그 프린트 제거로 인한 속도 증가 방지
+        import time
+        time.sleep(0.0167)  # 60 FPS로 제한
 
     logger.info(f"전투 종료: {ui.battle_result.value if ui.battle_result else 'unknown'}")
 

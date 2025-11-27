@@ -747,13 +747,13 @@ class Character:
                     # 미니언이 대신 받음 - 미니언 1마리 제거
                     if ghost > 0:
                         self.undead_ghost = max(0, ghost - 1)
-                        logger.info(f"👻 유령이 {self.name}를 대신 공격을 막았습니다! (남은 유령: {self.undead_ghost})")
+                        logger.info(f"[UNDEAD] 유령이 {self.name}를 대신 공격을 막았습니다! (남은 유령: {self.undead_ghost})")
                     elif zombie > 0:
                         self.undead_zombie = max(0, zombie - 1)
-                        logger.info(f"🧟 좀비가 {self.name}를 대신 공격을 막았습니다! (남은 좀비: {self.undead_zombie})")
+                        logger.info(f"[UNDEAD] 좀비가 {self.name}를 대신 공격을 막았습니다! (남은 좀비: {self.undead_zombie})")
                     elif skeleton > 0:
                         self.undead_skeleton = max(0, skeleton - 1)
-                        logger.info(f"💀 스켈레톤이 {self.name}를 대신 공격을 막았습니다! (남은 스켈레톤: {self.undead_skeleton})")
+                        logger.info(f"[UNDEAD] 스켈레톤이 {self.name}를 대신 공격을 막았습니다! (남은 스켈레톤: {self.undead_skeleton})")
                     
                     # 미니언이 대신 받았으므로 데미지 0
                     return 0
@@ -848,7 +848,7 @@ class Character:
             if absorb_damage > 0:
                 self.consume_mp(mp_cost)
                 final_damage -= absorb_damage
-                logger.info(f"🛡️ {self.name}의 마나 실드가 {absorb_damage} 데미지를 흡수했습니다! (소모 MP: {mp_cost})")
+                logger.info(f"[SHIELD] {self.name}의 마나 실드가 {absorb_damage} 데미지를 흡수했습니다! (소모 MP: {mp_cost})")
                 
                 # 마나 실드가 깨졌는지(MP 소진) 확인 - 이미 consume_mp에서 처리됨
 
@@ -860,7 +860,7 @@ class Character:
             final_damage -= shield_absorbed
             
             if shield_absorbed > 0:
-                logger.info(f"🛡️ {self.name}의 보호막이 {shield_absorbed} 데미지를 흡수했습니다! (남은 보호막: {self.shield_amount})")
+                logger.info(f"[SHIELD] {self.name}의 보호막이 {shield_absorbed} 데미지를 흡수했습니다! (남은 보호막: {self.shield_amount})")
             
             # 보호막이 모두 소진되면 0으로 설정
             if self.shield_amount <= 0:

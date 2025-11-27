@@ -344,10 +344,10 @@ class WorldUI:
                     return False
 
             self._handle_exploration_result(result, console, context)
-            # 전투가 트리거되면 즉시 루프 탈출
+            # 전투가 트리거되면 메인 루프의 상태 체크에서 처리하도록 False 반환
             if self.combat_requested:
-                # Debug: 전투 요청
-                return True
+                # Debug: 전투 요청 (run_exploration의 메인 루프에서 처리)
+                return False
 
         # 채집 또는 계단 이동 (Z키/엔터키)
         elif action == GameAction.CONFIRM:

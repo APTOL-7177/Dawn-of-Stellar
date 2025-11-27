@@ -817,10 +817,10 @@ class SephirothAI(BossAI):
         # 페이즈 전환
         if hp_percent < 0.3 and self.phase < 3:
             self.phase = 3
-            logger.warning(f"⚠️ {self.enemy.name}의 광기가 폭발한다!")
+            logger.warning(f"[WARNING] {self.enemy.name}의 광기가 폭발한다!")
         elif hp_percent < 0.6 and self.phase < 2:
             self.phase = 2
-            logger.warning(f"⚠️ {self.enemy.name}이(가) 진지해진다...")
+            logger.warning(f"[WARNING] {self.enemy.name}이(가) 진지해진다...")
 
         # 페이즈별 강제 스킬 사용
         if self.phase == 3:

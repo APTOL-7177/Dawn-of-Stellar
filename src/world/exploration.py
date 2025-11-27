@@ -158,7 +158,7 @@ class ExplorationSystem:
         if self.inventory is not None:
             logger.error(f"[INIT] 인벤토리 타입: {type(self.inventory)}, 슬롯: {len(self.inventory.slots)}, 골드: {self.inventory.gold}G")
         else:
-            logger.error(f"[INIT] ⚠️ 인벤토리가 None입니다!")
+            logger.error(f"[INIT] [WARNING] 인벤토리가 None입니다!")
 
         # 마을 여부 확인 (던전에 is_town 플래그가 있는 경우)
         if hasattr(dungeon, 'is_town') and dungeon.is_town:
@@ -1232,7 +1232,7 @@ class ExplorationSystem:
                     self.enemies.append(boss_enemy)
                     if (boss_x, boss_y) in possible_positions:
                         possible_positions.remove((boss_x, boss_y))
-                    logger.info(f"[_spawn_enemies] ⚠️ 층 보스 배치: {boss_enemy.name} at ({boss_x}, {boss_y}) [계단 봉쇄!]")
+                    logger.info(f"[_spawn_enemies] [WARNING] 층 보스 배치: {boss_enemy.name} at ({boss_x}, {boss_y}) [계단 봉쇄!]")
                 else:
                     # 후보가 없으면 일반 위치에 배치
                     boss_positions = [pos for pos in possible_positions if pos[0] > self.dungeon.width // 3]
@@ -1270,7 +1270,7 @@ class ExplorationSystem:
 
         logger.info(f"[_spawn_enemies] 적 {len(self.enemies)}마리 배치 완료 (요청: {num_enemies}마리, 가능한 위치: {len(possible_positions)}개)")
         if len(self.enemies) == 0:
-            logger.warning(f"[_spawn_enemies] ⚠️ 적이 스폰되지 않았습니다! possible_positions: {len(possible_positions)}개")
+            logger.warning(f"[_spawn_enemies] [WARNING] 적이 스폰되지 않았습니다! possible_positions: {len(possible_positions)}개")
         for i, enemy in enumerate(self.enemies[:5]):  # 처음 5마리만 로그
             logger.info(f"[_spawn_enemies] 적 {i+1}: {enemy.name} ({'보스' if enemy.is_boss else '일반'}) 위치 ({enemy.x}, {enemy.y})")
 
@@ -1337,7 +1337,7 @@ class ExplorationSystem:
         # 플레이어 감지
         if distance <= enemy.detection_range:
             if not enemy.is_chasing:
-                logger.info(f"[적 이동] ⚠️ {enemy.name}이(가) 플레이어 감지! (거리: {distance}) - 추적 시작")
+                logger.info(f"[적 이동] [WARNING] {enemy.name}이(가) 플레이어 감지! (거리: {distance}) - 추적 시작")
             enemy.is_chasing = True
             enemy.chase_turns = 0
 

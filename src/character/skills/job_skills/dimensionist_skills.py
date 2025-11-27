@@ -89,29 +89,36 @@ def create_dimensionist_skills():
     dimension_explosion = Skill(
         "dimensionist_dimension_explosion",
         "차원 폭발",
-        "굴절량의 25%를 소모하여 적 전체에게 소모량의 2.5배 고정 피해"
+        "굴절량의 20%를 소모하여 적 전체에게 마법력 기반 피해 + 소모량의 6배 고정 피해"
     )
 
-    # 고정 피해 효과 (스케일링: refraction_stacks × 0.25 × 2.5 = refraction_stacks × 0.625)
-    # 하지만 굴절량 소모를 먼저 해야 하므로, 메타데이터로 처리
+    # 마법력 기반 피해 + 고정 피해 효과 (굴절 보너스 강화)
     dimension_explosion.effects = [
-        # 실제 고정 피해는 custom_execute에서 처리
+        # 마법력 기반 피해 (기본 0.8배 + 굴절 보너스 0.03배)
+        DamageEffect(
+            DamageType.BRV,
+            multiplier=0.8,
+            stat_type="magical",
+            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.03}
+        ),
+        # 굴절량 소모 (20% → 80% 남김)
         GimmickEffect(
             GimmickOperation.MULTIPLY,
             "refraction_stacks",
-            0.75,  # 25% 소모 = 75%만 남김
+            0.8,  # 20% 소모 = 80%만 남김
             min_value=0
         )
     ]
-    dimension_explosion.costs = [MPCost(10)]
+    dimension_explosion.costs = [MPCost(12)]  # MP 소모 증가
     dimension_explosion.target_type = "all_enemies"
     dimension_explosion.is_aoe = True
-    dimension_explosion.cooldown = 4
+    dimension_explosion.cooldown = 5  # 쿨다운 증가
     dimension_explosion.sfx = ("skill", "explosion")
     dimension_explosion.metadata = {
-        "refraction_consumption": 0.25,
-        "fixed_damage_multiplier": 2.5,
-        "custom_damage": True  # 커스텀 데미지 처리 플래그
+        "refraction_consumption": 0.20,  # 소모율 감소 (20%)
+        "fixed_damage_multiplier": 6.0,  # 고정 피해 배율 대폭 증가 (2.5 → 6.0)
+        "custom_damage": True,  # 커스텀 데미지 처리 플래그
+        "magic_scaling": True   # 마법력 스케일링 추가
     }
 
     # ========================================

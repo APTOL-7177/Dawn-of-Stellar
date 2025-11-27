@@ -6,9 +6,19 @@ Logger - 로깅 시스템
 
 import logging
 import sys
+import io
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any
+
+# Windows 콘솔의 cp949 인코딩 문제 해결: stdout을 UTF-8로 처리
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    else:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+except Exception:
+    pass
 
 
 class Logger:

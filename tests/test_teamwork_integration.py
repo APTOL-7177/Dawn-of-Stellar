@@ -106,17 +106,23 @@ class TestTeamworkSystem:
         self.assert_equal(party.chain_count, 1, "1단계 시작")
         self.assert_equal(party.chain_starter, starter, "시작자 저장")
 
-        # 연쇄 계속
-        mp_cost = party.continue_chain()
+        # 연쇄 계속 - 각 참가자의 스킬 전달
+        # 게이지 100인 스킬 (4셀)
+        skill_100 = TeamworkSkill("test2", "test2", "", gauge_cost=100)
+        mp_cost = party.continue_chain(skill_100)
         self.assert_equal(party.chain_count, 2, "2단계")
-        self.assert_equal(mp_cost, 10, "2단계 MP 비용은 10")
+        self.assert_equal(mp_cost, 4, "2단계 MP는 4 (100/25 * 2^0)")
 
-        mp_cost = party.continue_chain()
+        # 게이지 50인 스킬 (2셀)
+        skill_50 = TeamworkSkill("test3", "test3", "", gauge_cost=50)
+        mp_cost = party.continue_chain(skill_50)
         self.assert_equal(party.chain_count, 3, "3단계")
-        self.assert_equal(mp_cost, 20, "3단계 MP 비용은 20")
+        self.assert_equal(mp_cost, 4, "3단계 MP는 4 (50/25 * 2^1)")
 
-        mp_cost = party.continue_chain()
-        self.assert_equal(mp_cost, 40, "4단계 MP 비용은 40")
+        # 게이지 75인 스킬 (3셀)
+        skill_75 = TeamworkSkill("test4", "test4", "", gauge_cost=75)
+        mp_cost = party.continue_chain(skill_75)
+        self.assert_equal(mp_cost, 12, "4단계 MP는 12 (75/25 * 2^2)")
 
         # 연쇄 종료
         party.end_chain()
@@ -155,18 +161,19 @@ class TestTeamworkSystem:
         mp_cost = skill.calculate_mp_cost(1)
         self.assert_equal(mp_cost, 0, "1단계 MP는 0")
 
-        # 2단계부터 지수적 증가
+        # 2단계부터 게이지 비용에 비례하는 지수적 증가
+        # 게이지 100 (4셀) -> MP: (100/25) * 2^(n-2) = 4 * 2^(n-2)
         mp_cost = skill.calculate_mp_cost(2)
-        self.assert_equal(mp_cost, 10, "2단계 MP는 10")
+        self.assert_equal(mp_cost, 4, "2단계 MP는 4 (100/25 * 2^0)")
 
         mp_cost = skill.calculate_mp_cost(3)
-        self.assert_equal(mp_cost, 20, "3단계 MP는 20")
+        self.assert_equal(mp_cost, 8, "3단계 MP는 8 (100/25 * 2^1)")
 
         mp_cost = skill.calculate_mp_cost(4)
-        self.assert_equal(mp_cost, 40, "4단계 MP는 40")
+        self.assert_equal(mp_cost, 16, "4단계 MP는 16 (100/25 * 2^2)")
 
         mp_cost = skill.calculate_mp_cost(5)
-        self.assert_equal(mp_cost, 80, "5단계 MP는 80")
+        self.assert_equal(mp_cost, 32, "5단계 MP는 32 (100/25 * 2^3)")
 
     # ========================================================================
     # 테스트: UI 표시

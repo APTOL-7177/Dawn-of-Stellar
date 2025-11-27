@@ -244,6 +244,55 @@ class AudioManager:
             self.logger.error(f"SFX 재생 실패 ({cache_key}): {e}")
             return False
 
+    def play_teamwork_sfx(self, category: str, sfx_name: str, chain_count: int = 1) -> bool:
+        """
+        팀워크 스킬 SFX 재생 (체인 단계에 따라 pitch와 volume 증가)
+
+        Args:
+            category: SFX 카테고리 (일반적으로 "skill" 또는 "combat")
+            sfx_name: 팀워크 스킬 SFX 이름 (config.yaml에 정의)
+            chain_count: 연쇄 단계 (1 = 시작자, 2 = 2번째, ...)
+
+        Returns:
+            재생 성공 여부
+        """
+        if not self.sfx_enabled:
+            return False
+
+        if chain_count < 1:
+            chain_count = 1
+
+        # 연쇄 단계에 따라 음향 증가
+        # 1단계: 1.0, 2단계: 1.05, 3단계: 1.10, 4단계: 1.15...
+        volume_multiplier = 1.0 + (0.05 * (chain_count - 1))
+
+        # 첫 재생
+        success = self.play_sfx(category, sfx_name, volume_multiplier)
+
+        # 2단계 이상: 음향 두께를 위해 약간의 시간 차이를 두고 재생
+        if success and chain_count >= 2:
+            # 고음역 효과: 음향을 두껍게 만들기 위해 같은 SFX를 여러 채널에서 재생
+            config_key = f"audio.sfx.{category}.{sfx_name}"
+            file_name = self.config.get(config_key)
+
+            if file_name:
+                cache_key = f"{category}.{sfx_name}"
+                if cache_key in self.sfx_cache:
+                    sound = self.sfx_cache[cache_key]
+                    try:
+                        # 약 30ms 후에 추가 음향 재생 (chorus/layering 효과)
+                        # volume을 약간 낮춤 (메인음향이 dominant하도록)
+                        extra_volume = volume_multiplier * 0.6
+                        volume = self.master_volume * self.sfx_volume * extra_volume
+                        sound.set_volume(volume)
+                        sound.play()
+
+                        self.logger.debug(f"팀워크 SFX 재생: {cache_key} (체인 {chain_count}단계, 음향 증가)")
+                    except Exception as e:
+                        self.logger.debug(f"팀워크 SFX 추가 음향 재생 실패: {e}")
+
+        return success
+
     def _find_audio_file(self, directory: Path, file_name: str) -> Optional[Path]:
         """
         오디오 파일 찾기 (여러 확장자 시도)
@@ -387,3 +436,20 @@ def play_sfx(category: str, sfx_name: str, volume_multiplier: float = 1.0) -> bo
         재생 성공 여부
     """
     return get_audio_manager().play_sfx(category, sfx_name, volume_multiplier)
+
+
+def play_teamwork_sfx(category: str, sfx_name: str, chain_count: int = 1) -> bool:
+    """
+    팀워크 스킬 SFX 재생 (편의 함수)
+
+    체인 단계에 따라 pitch와 volume이 증가합니다.
+
+    Args:
+        category: 카테고리
+        sfx_name: SFX 이름
+        chain_count: 연쇄 단계 (1 = 시작자, 2 = 2번째, ...)
+
+    Returns:
+        재생 성공 여부
+    """
+    return get_audio_manager().play_teamwork_sfx(category, sfx_name, chain_count)

@@ -196,7 +196,7 @@ class TCODDisplay:
                     tcod.tileset.set_default(self.tileset)
 
                     self.logger.info(
-                        f"  ✓ 비트맵 폰트 로드 성공: {font_path}\n"
+                        f"  [OK] 비트맵 폰트 로드 성공: {font_path}\n"
                         f"    셀 크기: {self.tileset.tile_width}x{self.tileset.tile_height}"
                     )
                 else:
@@ -224,7 +224,7 @@ class TCODDisplay:
                 # 게이지 타일셋 초기화 (픽셀 단위 게이지용)
                 try:
                     initialize_gauge_tiles(self.tileset)
-                    self.logger.info("  ✓ 게이지 타일셋 초기화 완료")
+                    self.logger.info("  [OK] 게이지 타일셋 초기화 완료")
                 except Exception as gauge_e:
                     self.logger.warning(f"  게이지 타일셋 초기화 실패: {gauge_e}")
 

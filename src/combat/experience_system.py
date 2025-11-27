@@ -171,7 +171,7 @@ class ExperienceSystem:
                     "stat_gains": stat_gains
                 })
 
-                logger.info(f"🎉 {character.name} 레벨업! Lv.{character.level}")
+                logger.info(f"[LEVEL UP] {character.name} 레벨업! Lv.{character.level}")
             else:
                 break
 

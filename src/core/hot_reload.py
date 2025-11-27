@@ -56,7 +56,7 @@ class CodeChangeHandler(FileSystemEventHandler):
             file_path = Path(event.src_path)
             if file_path.exists():
                 self.hot_reload_manager._add_changed_file(file_path)
-                logger.info(f"📝 파일 변경 감지: {file_path}")
+                logger.info(f"[FILE] 파일 변경 감지: {file_path}")
         except Exception as e:
             logger.warning(f"파일 변경 처리 오류: {e}")
 
@@ -132,8 +132,8 @@ class HotReloadManager:
             self.observer.schedule(handler, str(self.project_root), recursive=True)
             self.observer.start()
             self._running = True
-            
-            logger.info(f"🔥 핫 리로드 활성화됨: {self.project_root} 감시 중")
+
+            logger.info(f"[HOT RELOAD] 핫 리로드 활성화됨: {self.project_root} 감시 중")
         except Exception as e:
             logger.error(f"핫 리로드 시작 실패: {e}")
             self.enabled = False
@@ -260,7 +260,7 @@ class HotReloadManager:
             module = sys.modules[module_name]
             importlib.reload(module)
             
-            logger.info(f"✅ 모듈 재로드됨: {module_name}")
+            logger.info(f"[OK] 모듈 재로드됨: {module_name}")
             return True
             
         except Exception as e:

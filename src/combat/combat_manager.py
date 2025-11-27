@@ -2684,7 +2684,9 @@ class CombatManager:
         # BRV 회복은 다음 턴 시작 시에 처리됨
 
         # 버프 지속시간 감소 (모든 전투원)
-        all_combatants = self.party + self.enemies
+        # Party 객체의 members 속성에서 멤버 리스트 가져오기
+        party_members = self.party.members if hasattr(self.party, 'members') else self.party
+        all_combatants = party_members + self.enemies
         for combatant in all_combatants:
             if hasattr(combatant, 'active_buffs') and combatant.active_buffs:
                 expired_buffs = []
@@ -3489,8 +3491,12 @@ class CombatManager:
                 return False
 
             # 연쇄 시작
-            self.party.start_chain(actor)
+            self.party.start_chain(actor, skill)
             mp_cost = 0
+
+            # 팀워크 스킬 SFX 재생 (체인 1단계)
+            from src.audio import play_teamwork_sfx
+            play_teamwork_sfx("skill", "teamwork", chain_count=1)
         else:
             # ===== 연쇄 이어받기 =====
             if not self.party.chain_active:
@@ -3506,8 +3512,8 @@ class CombatManager:
                 self.party.end_chain()
                 return False
 
-            # MP 비용 계산 및 소모
-            mp_cost = self.party.continue_chain()
+            # MP 비용 계산 및 소모 (스킬을 전달하여 게이지 기반 MP 계산)
+            mp_cost = self.party.continue_chain(skill)
             current_mp = actor.current_mp if hasattr(actor, 'current_mp') else 0
             if current_mp < mp_cost:
                 self.logger.warning(
@@ -3520,6 +3526,10 @@ class CombatManager:
             actor.current_mp -= mp_cost
             self.logger.info(f"{actor.name} MP 소모: -{mp_cost} (잔여: {actor.current_mp})")
 
+            # 팀워크 스킬 SFX 재생 (체인 2단계 이상, pitch/volume 증가)
+            from src.audio import play_teamwork_sfx
+            play_teamwork_sfx("skill", "teamwork", chain_count=self.party.chain_count)
+
         # 스킬 효과 실행 (기존 스킬 실행 로직 사용)
         # 임시로 execute_skill 호출
         result = self._execute_skill(actor, target, skill)
@@ -3528,7 +3538,7 @@ class CombatManager:
         atb_recovery = 500  # ATB 최대치 2000의 25%
         actor.atb_gauge = min(2000, actor.atb_gauge + atb_recovery)
         self.logger.info(
-            f"💫 {actor.name}의 팀워크 스킬 '{skill.name}' "
+            f"[Teamwork] {actor.name}의 팀워크 스킬 '{skill.name}' "
             f"(연쇄 {self.party.chain_count}단계, MP: {mp_cost}, ATB +500)"
         )
 

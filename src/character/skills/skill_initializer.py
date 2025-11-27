@@ -97,11 +97,11 @@ def initialize_all_skills():
             total_skills += len(skill_ids)
             logger.debug(f"{register_func.__name__}: {len(skill_ids)}개 스킬 등록")
 
-        logger.info(f"✅ 스킬 초기화 완료: 총 {total_skills}개 스킬 등록됨")
+        logger.info(f"[OK] 스킬 초기화 완료: 총 {total_skills}개 스킬 등록됨")
         return True
 
     except Exception as e:
-        logger.error(f"❌ 스킬 초기화 실패: {e}")
+        logger.error(f"[FAIL] 스킬 초기화 실패: {e}")
         import traceback
         traceback.print_exc()
         return False

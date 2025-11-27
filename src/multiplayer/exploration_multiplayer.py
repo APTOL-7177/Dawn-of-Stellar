@@ -1328,7 +1328,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                         except Exception as e:
                             self.logger.error(f"합류 네트워크 동기화 실패: {e}", exc_info=True)
                     
-                    self.logger.info(f"✅ 플레이어 {player_id} 전투 {combat_id}에 자동 합류 ({len(new_allies)}명)")
+                    self.logger.info(f"[OK] 플레이어 {player_id} 전투 {combat_id}에 자동 합류 ({len(new_allies)}명)")
                 except Exception as e:
                     self.logger.error(f"합류 처리 완료 실패: {e}", exc_info=True)
         except Exception as e:
