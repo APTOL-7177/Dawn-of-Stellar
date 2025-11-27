@@ -12,6 +12,9 @@ import tcod
 import tcod.console
 from tcod import libtcodpy
 import time
+from src.core.logger import get_logger
+
+logger = get_logger("gauge")
 
 
 def get_contrast_text_color(bg_color: Tuple[int, int, int]) -> Tuple[int, int, int]:
