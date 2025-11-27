@@ -526,6 +526,17 @@ ENEMY_TEMPLATES = {
         max_brv=2080, init_brv=693,
         luck=22, accuracy=78, evasion=25
     ),
+
+    # === 투명한 적 (특수 타입) ===
+    "invisible_enemy": EnemyTemplate(
+        "invisible_enemy", "투명한 적", 1,
+        hp=200, mp=40,  # 일반적인 적과 동일한 스탯
+        physical_attack=55, physical_defense=45,
+        magic_attack=55, magic_defense=45,
+        speed=55,
+        max_brv=960, init_brv=320,
+        luck=10, accuracy=65, evasion=12
+    ),
 }
 
 
@@ -737,10 +748,26 @@ class EnemyGenerator:
         # 층수에 맞는 적 ID 가져오기
         suitable_enemy_ids = EnemyGenerator.get_suitable_enemies_for_floor(floor_number)
 
+        # 20층부터 투명한 적 2마리 추가 로직
+        invisible_enemy_count = 0
+        if floor_number >= 20:
+            invisible_enemy_count = min(2, num_enemies)  # 적 수가 2마리 미만이면 그 수만큼만
+
         # 랜덤 선택
         enemies = []
-        for _ in range(num_enemies):
-            enemy_id = random.choice(suitable_enemy_ids)
+        invisible_enemies_placed = 0
+
+        for i in range(num_enemies):
+            # 투명한 적을 배치할 차례인지 확인
+            is_invisible_enemy = (invisible_enemies_placed < invisible_enemy_count and
+                                (i >= num_enemies - invisible_enemy_count or random.random() < 0.3))
+
+            if is_invisible_enemy:
+                enemy_id = "invisible_enemy"
+                invisible_enemies_placed += 1
+            else:
+                enemy_id = random.choice(suitable_enemy_ids)
+
             template = ENEMY_TEMPLATES[enemy_id]
 
             # 레벨 스케일링 계수 (층수와 비슷하거나 조금 낮게)

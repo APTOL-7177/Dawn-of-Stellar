@@ -452,8 +452,31 @@ def show_load_screen(
         ui.render(console)
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
+
+        # 게임패드 입력 우선 확인
+        gamepad_action = unified_input_handler.get_action()
+        if gamepad_action:
+            if ui.handle_input(gamepad_action):
+                # 로드 실행
+                if ui.selected_save:
+                    game_state = save_system.load_game(ui.selected_save)
+                    if game_state:
+                        # 게임 타입 정보 저장 (게임 오버 시 세이브 파일 삭제용)
+                        is_multiplayer = game_state.get("is_multiplayer", False)
+                        game_state["save_slot"] = ui.selected_save
+                        game_state["_is_multiplayer"] = is_multiplayer  # 삭제 시 사용
+                        logger.info(f"게임 로드 완료: {ui.selected_save} (타입: {'멀티플레이' if is_multiplayer else '싱글플레이'})")
+                    return game_state
+                return None
+
+        # 키보드 입력 처리 (논블로킹)
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
@@ -473,5 +496,9 @@ def show_load_screen(
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return None
+
+        # CPU 사용률 낮추기 (논블로킹 모드에서 필요)
+        import time
+        time.sleep(0.01)
 
     return None

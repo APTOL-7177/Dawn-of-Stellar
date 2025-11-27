@@ -70,6 +70,19 @@ class SaveSystem:
             from src.quest.quest_manager import get_quest_manager
             game_state["quest_manager"] = get_quest_manager().to_dict()
 
+            # 도전과제 시스템 저장
+            try:
+                from src.achievement.achievement_manager import AchievementManager
+                # 글로벌 인스턴스가 있다면 사용 (없으면 새로 생성)
+                achievement_manager = getattr(self, '_achievement_manager', None)
+                if not achievement_manager:
+                    achievement_manager = AchievementManager()
+                    self._achievement_manager = achievement_manager
+                game_state["achievement_manager"] = achievement_manager.save_progress()
+                logger.info("도전과제 시스템 데이터 저장됨")
+            except Exception as e:
+                logger.warning(f"도전과제 시스템 저장 실패: {e}")
+
             # JSON 직렬화 전에 모든 데이터 검증 및 정리
             cleaned_state = self._clean_for_json(game_state)
 
@@ -204,6 +217,19 @@ class SaveSystem:
                 # 전역 인스턴스 직접 업데이트 (참조 교체)
                 import src.quest.quest_manager as quest_module
                 quest_module._quest_manager = loaded_quest_manager
+
+            # 도전과제 시스템 복원
+            if "achievement_manager" in game_state:
+                try:
+                    from src.achievement.achievement_manager import AchievementManager
+                    achievement_manager = getattr(self, '_achievement_manager', None)
+                    if not achievement_manager:
+                        achievement_manager = AchievementManager()
+                        self._achievement_manager = achievement_manager
+                    achievement_manager.load_progress(game_state["achievement_manager"])
+                    logger.info("도전과제 시스템 데이터 불러오기 완료")
+                except Exception as e:
+                    logger.warning(f"도전과제 시스템 불러오기 실패: {e}")
                 logger.info(f"퀘스트 데이터 복원 완료: 활성 {len(loaded_quest_manager.active_quests)}개, 가능 {len(loaded_quest_manager.available_quests)}개, 완료 {len(loaded_quest_manager.completed_quests)}개")
             
             return game_state

@@ -823,11 +823,28 @@ class WorldUI:
                                     logger.warning(f"[건물 상호작용] 인벤토리 또는 town_manager가 없어 창고를 열 수 없습니다.")
                                     self.add_message("창고를 사용할 수 없습니다.")
                             elif building.building_type == BuildingType.GUILD_HALL:
-                                # 모험가 길드: 정보 UI 열기 (간단한 메시지 박스)
-                                from src.ui.game_menu import show_message
-                                guild_message = interaction_result.get('message', '모험가 길드에 오신 것을 환영합니다!')
+                                # 모험가 길드: 도전과제 및 마일스톤 UI 열기
                                 logger.info(f"[건물 상호작용] 모험가 길드")
-                                show_message(console, context, guild_message)
+                                try:
+                                    from src.ui.guild_hall_ui import GuildHallUI
+                                    from src.achievement.achievement_manager import AchievementManager
+
+                                    # 도전과제 관리자 인스턴스 가져오기
+                                    # 글로벌 변수에서 가져오기 (main.py에서 초기화됨)
+                                    import __main__
+                                    achievement_manager = getattr(__main__, 'global_achievement_manager', None)
+                                    if not achievement_manager:
+                                        # 폴백: 새로 생성
+                                        achievement_manager = AchievementManager()
+
+                                    guild_ui = GuildHallUI()
+                                    guild_ui.set_achievement_manager(achievement_manager)
+                                    guild_ui.run(console, context)
+
+                                except Exception as e:
+                                    logger.error(f"길드 홀 UI 열기 오류: {e}")
+                                    from src.ui.game_menu import show_message
+                                    show_message(console, context, f"길드 홀에 접근할 수 없습니다: {e}")
                             elif building.building_type == BuildingType.FOUNTAIN:
                                 # 분수대: 파티 전체 HP/MP 20% 회복 (부활 포함)
                                 # 마을 방문마다 1번만 사용 가능
@@ -1143,12 +1160,23 @@ class WorldUI:
                 continue  # 탐험하지 않은 영역의 적은 표시하지 않음
             if tile and not tile.visible:
                 continue  # 벽 너머의 적은 표시하지 않음
-            
+
             enemy_screen_x = enemy.x - camera_x
             enemy_screen_y = 5 + (enemy.y - camera_y)
             if 0 <= enemy_screen_x < self.screen_width and 0 <= enemy_screen_y < 40:
-                # 적 색상: 보스는 선명한 빨강, 일반 적은 주황색
-                enemy_color = (255, 0, 0) if enemy.is_boss else (255, 150, 50)
+                # 적 색상 결정
+                if hasattr(enemy, 'enemy_id') and enemy.enemy_id == "invisible_enemy":
+                    # 투명한 적: 파란색, 깜빡임 효과
+                    enemy_color = (0, 100, 255)  # 파란색
+                    # 30초마다 깜빡임 (나타났다 사라졌다 함)
+                    current_time = time.time()
+                    should_display = (int(current_time / 30) % 2) == 0
+                    if not should_display:
+                        continue  # 표시하지 않음 (깜빡임 효과)
+                else:
+                    # 일반 적 색상: 보스는 선명한 빨강, 일반 적은 주황색
+                    enemy_color = (255, 0, 0) if enemy.is_boss else (255, 150, 50)
+
                 console.print(enemy_screen_x, enemy_screen_y, "E", fg=enemy_color)
 
         # 파밍 오브젝트 위치 표시 (채집 가능한 오브젝트)

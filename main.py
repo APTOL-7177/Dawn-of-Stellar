@@ -191,6 +191,27 @@ def main() -> int:
             event_bus.subscribe(event_name, vibration_listener.handle_event)
         logger.info("진동 이벤트 리스너 등록됨")
 
+        # 도전과제 시스템 초기화
+        global_achievement_manager = None
+        try:
+            from src.achievement.achievement_manager import AchievementManager
+            global_achievement_manager = AchievementManager()
+            logger.info("🏆 도전과제 시스템 초기화됨")
+
+            # 도전과제 이벤트 핸들러 등록
+            from src.core.event_bus import Events
+            event_bus.subscribe(Events.CHARACTER_DEATH, lambda data: _handle_achievement_events(global_achievement_manager, "enemy_killed", data))
+            event_bus.subscribe(Events.COMBAT_DAMAGE_DEALT, lambda data: _handle_achievement_events(global_achievement_manager, "damage_dealt", data))
+            event_bus.subscribe(Events.SKILL_EXECUTE, lambda data: _handle_achievement_events(global_achievement_manager, "skill_used", data))
+            event_bus.subscribe(Events.COMBAT_END, lambda data: _handle_achievement_events(global_achievement_manager, "battle_end", data))
+            event_bus.subscribe(Events.WORLD_FLOOR_CHANGE, lambda data: _handle_achievement_events(global_achievement_manager, "floor_change", data))
+            event_bus.subscribe(Events.WORLD_ITEM_PICKUP, lambda data: _handle_achievement_events(global_achievement_manager, "item_pickup", data))
+            event_bus.subscribe(Events.EQUIPMENT_EQUIPPED, lambda data: _handle_achievement_events(global_achievement_manager, "equipment_equipped", data))
+
+            logger.info("🏆 도전과제 이벤트 핸들러 등록됨")
+        except Exception as e:
+            logger.warning(f"도전과제 시스템 초기화 실패 (기능 비활성화): {e}")
+
         logger.info("=" * 60)
 
         # 핫 리로드 시스템 초기화 (개발 모드일 때만)
@@ -3809,6 +3830,68 @@ def main() -> int:
             import traceback
             traceback.print_exc()
         return 1
+
+
+def _handle_achievement_events(achievement_manager, event_type: str, data: dict):
+    """
+    도전과제 이벤트 핸들러
+
+    Args:
+        achievement_manager: 도전과제 관리자 인스턴스
+        event_type: 이벤트 타입
+        data: 이벤트 데이터
+    """
+    try:
+        if event_type == "enemy_killed":
+            # 적 처치 이벤트
+            enemy_type = data.get("enemy_type", "any")
+            damage_dealt = data.get("damage_dealt", 0)
+            newly_unlocked, newly_completed = achievement_manager.on_enemy_killed(enemy_type, damage_dealt)
+
+            # 새로 달성된 도전과제 알림
+            for achievement_id in newly_unlocked:
+                achievement = achievement_manager.achievement_system.get_achievement(achievement_id)
+                if achievement:
+                    logger.info(f"🏆 도전과제 달성: {achievement.name}")
+                    # TODO: UI 알림 표시
+
+        elif event_type == "damage_dealt":
+            # 데미지 입히기 이벤트
+            damage = data.get("damage", 0)
+            newly_unlocked, newly_completed = achievement_manager.on_damage_dealt(damage)
+
+        elif event_type == "skill_used":
+            # 스킬 사용 이벤트
+            skill_name = data.get("skill_name", "")
+            newly_unlocked, _ = achievement_manager.on_skill_used(skill_name)
+
+        elif event_type == "battle_end":
+            # 전투 종료 이벤트
+            battle_result = data.get("result", "unknown")
+            turns_survived = data.get("turns", 0)
+            newly_unlocked, _ = achievement_manager.on_battle_end(battle_result, turns_survived)
+
+        elif event_type == "floor_change":
+            # 층 변경 이벤트
+            floor = data.get("floor", 1)
+            newly_unlocked, newly_completed = achievement_manager.on_floor_reached(floor)
+
+        elif event_type == "item_pickup":
+            # 아이템 줍기 이벤트
+            item_type = data.get("item_type", "")
+            if item_type == "food":
+                newly_unlocked, newly_completed = achievement_manager.on_item_crafted("food")
+            elif item_type == "chest":
+                newly_unlocked, newly_completed = achievement_manager.on_chest_opened()
+
+        elif event_type == "equipment_equipped":
+            # 장비 착용 이벤트 (제작 이벤트로 취급)
+            equipment_type = data.get("equipment_type", "")
+            if equipment_type in ["weapon", "armor"]:
+                newly_unlocked, newly_completed = achievement_manager.on_item_crafted("equipment")
+
+    except Exception as e:
+        logger.debug(f"도전과제 이벤트 처리 중 오류: {e}")
 
 
 if __name__ == "__main__":
