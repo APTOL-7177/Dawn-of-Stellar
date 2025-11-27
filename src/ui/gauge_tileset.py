@@ -489,7 +489,7 @@ class GaugeTileManager:
             sample_pixel = tile[center_y, center_x]
             right_x = self.tile_width - 1
             right_pixel = tile[center_y, right_x]
-            
+
             # 빗금 영역 샘플 확인 (wound_start 지점)
             if wound_start < self.tile_width:
                 wound_sample = tile[center_y, wound_start]
@@ -501,7 +501,7 @@ class GaugeTileManager:
             else:
                 wound_sample = None
                 wound_bg_sample = None
-            
+
             logger.debug(
                 f"[경계 타일 디버그] 타일 생성: hp_pixels={actual_hp_pixels}, wound_pixels={actual_wound_pixels}, "
                 f"bg_color={bg_color}, hp_color={hp_color}, wound_stripe_color={wound_stripe_color}, "
@@ -511,10 +511,12 @@ class GaugeTileManager:
                 f"wound배경픽셀={f'RGBA({wound_bg_sample[0]},{wound_bg_sample[1]},{wound_bg_sample[2]},{wound_bg_sample[3]})' if wound_bg_sample is not None else 'N/A'}, "
                 f"hp_end={hp_end}"
             )
-            
+
             # 타일 복사본 생성 (참조 문제 방지 - numpy 배열이 재사용될 수 있음)
             tile_copy = tile.copy()
+            logger.info(f"[경계 타일] set_tile() 호출 직전: codepoint=0x{codepoint:04X}, tileset={self.tileset is not None}")
             self.tileset.set_tile(codepoint, tile_copy)
+            logger.info(f"[경계 타일] set_tile() 호출 성공: codepoint=0x{codepoint:04X}")
             self._boundary_tile_cache[cache_key] = codepoint
             # LRU: 새 항목을 접근 순서에 추가
             self._boundary_tile_access_order.append(cache_key)
