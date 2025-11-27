@@ -522,12 +522,58 @@ class Inventory:
             else:
                 logger.warning(f"{target_name}: {item_name} 사용 실패 - 대상이 이미 살아있음")
                 success = False
-        elif effect_type == "cure_status":
-            # 상태이상 치료
-            if hasattr(target, 'status_effects'):
+        elif effect_type == "cure_status" or effect_type == "cure_all_status":
+            # 상태이상 치료 (모든 상태이상)
+            if hasattr(target, 'status_manager'):
+                target.status_manager.clear_all_effects()
+                logger.info(f"{target_name}: {item_name} 사용 → 모든 상태이상 치료")
+                success = True
+            elif hasattr(target, 'status_effects'):
                 target.status_effects.clear()
                 logger.info(f"{target_name}: {item_name} 사용 → 상태이상 치료")
                 success = True
+        elif effect_type == "cure_poison":
+            # 독 치료
+            if hasattr(target, 'status_manager'):
+                from src.combat.status_effects import StatusType
+                target.status_manager.remove_status(StatusType.POISON)
+                logger.info(f"{target_name}: {item_name} 사용 → 독 치료")
+                success = True
+            elif hasattr(target, 'status_effects'):
+                target.status_effects = {k: v for k, v in target.status_effects.items() if 'poison' not in k.lower()}
+                logger.info(f"{target_name}: {item_name} 사용 → 독 치료")
+                success = True
+        elif effect_type == "cure_debuff":
+            # 디버프 치료
+            if hasattr(target, 'status_manager'):
+                from src.combat.status_effects import StatusType
+                # 모든 디버프 타입 제거
+                debuff_types = [StatusType.WEAK, StatusType.SLOW, StatusType.BLIND, StatusType.SILENCE, StatusType.STUN, StatusType.POISON]
+                for debuff_type in debuff_types:
+                    target.status_manager.remove_status(debuff_type)
+                logger.info(f"{target_name}: {item_name} 사용 → 디버프 치료")
+                success = True
+            elif hasattr(target, 'status_effects'):
+                # 디버프 관련 상태이상 제거
+                debuff_names = ['weak', 'slow', 'blind', 'silence', 'stun', 'poison']
+                target.status_effects = {k: v for k, v in target.status_effects.items() if not any(db in k.lower() for db in debuff_names)}
+                logger.info(f"{target_name}: {item_name} 사용 → 디버프 치료")
+                success = True
+        elif effect_type == "heal_wound":
+            # 상처 치료
+            if hasattr(target, 'wound'):
+                wound_before = target.wound
+                wound_healed = min(int(effect_value), target.wound)
+                target.wound = max(0, target.wound - wound_healed)
+                if wound_healed > 0:
+                    logger.info(f"{target_name}: {item_name} 사용 → 상처 {wound_healed} 치료 (남은 상처: {target.wound})")
+                    success = True
+                else:
+                    logger.warning(f"{target_name}: {item_name} 사용 실패 - 상처가 없음")
+                    success = False
+            else:
+                logger.warning(f"{target_name}: {item_name} 사용 실패 - 상처 시스템 없음")
+                success = False
 
         # 사용 성공 시 아이템 제거
         if success:

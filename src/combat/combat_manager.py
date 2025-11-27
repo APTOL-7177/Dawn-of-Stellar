@@ -1928,14 +1928,56 @@ class CombatManager:
                 # 버프 효과 (간단하게 처리)
                 result["buff_applied"] = True
 
-            elif effect_type == "cure" or effect_type == "status_cleanse":
-                # 상태이상 치료
+            elif effect_type == "cure" or effect_type == "status_cleanse" or effect_type == "cure_all_status":
+                # 상태이상 치료 (모든 상태이상)
                 if hasattr(tgt, 'status_manager'):
                     tgt.status_manager.clear_all_effects()
                     result["status_cured"] = True
                 elif hasattr(tgt, 'status_effects'):
                     tgt.status_effects.clear()
                     result["status_cured"] = True
+            
+            elif effect_type == "cure_poison":
+                # 독 치료
+                if hasattr(tgt, 'status_manager'):
+                    from src.combat.status_effects import StatusType
+                    tgt.status_manager.remove_status(StatusType.POISON)
+                    result["status_cured"] = True
+                    self.logger.info(f"[{item_name}] {getattr(tgt, 'name', 'Unknown')} 독 치료")
+                elif hasattr(tgt, 'status_effects'):
+                    tgt.status_effects = {k: v for k, v in tgt.status_effects.items() if 'poison' not in k.lower()}
+                    result["status_cured"] = True
+                    self.logger.info(f"[{item_name}] {getattr(tgt, 'name', 'Unknown')} 독 치료")
+            
+            elif effect_type == "cure_debuff":
+                # 디버프 치료
+                if hasattr(tgt, 'status_manager'):
+                    from src.combat.status_effects import StatusType
+                    # 모든 디버프 타입 제거
+                    debuff_types = [StatusType.WEAK, StatusType.SLOW, StatusType.BLIND, StatusType.SILENCE, StatusType.STUN, StatusType.POISON]
+                    for debuff_type in debuff_types:
+                        tgt.status_manager.remove_status(debuff_type)
+                    result["status_cured"] = True
+                    self.logger.info(f"[{item_name}] {getattr(tgt, 'name', 'Unknown')} 디버프 치료")
+                elif hasattr(tgt, 'status_effects'):
+                    # 디버프 관련 상태이상 제거
+                    debuff_names = ['weak', 'slow', 'blind', 'silence', 'stun', 'poison']
+                    tgt.status_effects = {k: v for k, v in tgt.status_effects.items() if not any(db in k.lower() for db in debuff_names)}
+                    result["status_cured"] = True
+                    self.logger.info(f"[{item_name}] {getattr(tgt, 'name', 'Unknown')} 디버프 치료")
+            
+            elif effect_type == "heal_wound":
+                # 상처 치료
+                if hasattr(tgt, 'wound'):
+                    wound_before = tgt.wound
+                    wound_healed = min(int(effect_value), tgt.wound)
+                    tgt.wound = max(0, tgt.wound - wound_healed)
+                    result["wound_healed"] = wound_healed
+                    result["remaining_wound"] = tgt.wound
+                    self.logger.info(f"[{item_name}] {getattr(tgt, 'name', 'Unknown')} 상처 {wound_healed} 치료 (남은 상처: {tgt.wound})")
+                else:
+                    result["wound_healed"] = 0
+                    self.logger.warning(f"[{item_name}] 상처 시스템이 없습니다")
             
             # === 공격적 아이템 효과 ===
             elif effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade"]:
