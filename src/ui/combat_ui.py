@@ -562,21 +562,38 @@ class CombatUI:
         # 저장된 타겟 리스트 사용
         targets = self.current_target_list
 
-        alive_indices = [i for i, e in enumerate(targets) if getattr(e, 'is_alive', True)]
+        # 부활 크리스탈 사용 시에는 죽은 파티원도 선택 가능
+        is_revive_crystal = False
+        if self.selected_action == ActionType.ITEM and self.selected_item:
+            effect_type = getattr(self.selected_item, 'effect_type', '')
+            if effect_type == 'revive_crystal':
+                is_revive_crystal = True
 
-        if not alive_indices:
+        # 부활 크리스탈이 아닌 경우에만 살아있는 대상만 필터링
+        if is_revive_crystal:
+            # 부활 크리스탈: 모든 타겟 선택 가능 (죽은 파티원 포함)
+            valid_indices = list(range(len(targets)))
+        else:
+            # 일반 아이템/스킬: 살아있는 대상만 선택 가능
+            valid_indices = [i for i, e in enumerate(targets) if getattr(e, 'is_alive', True)]
+
+        if not valid_indices:
             return False
 
+        # 커서가 유효한 범위를 벗어나면 첫 번째 유효한 인덱스로 조정
+        if self.target_cursor not in valid_indices:
+            self.target_cursor = valid_indices[0]
+
         if action == GameAction.MOVE_UP or action == GameAction.MOVE_LEFT:
-            # 이전 살아있는 대상으로 이동
-            current_pos = alive_indices.index(self.target_cursor) if self.target_cursor in alive_indices else 0
-            new_pos = (current_pos - 1) % len(alive_indices)
-            self.target_cursor = alive_indices[new_pos]
+            # 이전 대상으로 이동
+            current_pos = valid_indices.index(self.target_cursor) if self.target_cursor in valid_indices else 0
+            new_pos = (current_pos - 1) % len(valid_indices)
+            self.target_cursor = valid_indices[new_pos]
         elif action == GameAction.MOVE_DOWN or action == GameAction.MOVE_RIGHT:
-            # 다음 살아있는 대상으로 이동
-            current_pos = alive_indices.index(self.target_cursor) if self.target_cursor in alive_indices else 0
-            new_pos = (current_pos + 1) % len(alive_indices)
-            self.target_cursor = alive_indices[new_pos]
+            # 다음 대상으로 이동
+            current_pos = valid_indices.index(self.target_cursor) if self.target_cursor in valid_indices else 0
+            new_pos = (current_pos + 1) % len(valid_indices)
+            self.target_cursor = valid_indices[new_pos]
         elif action == GameAction.CONFIRM:
             self.selected_target = targets[self.target_cursor]
             # 아이템 사용인 경우 아이템 정보도 전달
@@ -1158,9 +1175,15 @@ class CombatUI:
         # 행동 후 대기 시간 처리
         if self.action_delay_frames > 0:
             self.action_delay_frames -= 1
-            if self.action_delay_frames == 0 and self.state == CombatUIState.EXECUTING:
-                # 대기 완료, WAITING_ATB로 전환
-                self.state = CombatUIState.WAITING_ATB
+            if self.action_delay_frames == 0:
+                # 대기 완료, WAITING_ATB로 전환 (EXECUTING 상태가 아니어도 전환)
+                if self.state == CombatUIState.EXECUTING:
+                    self.state = CombatUIState.WAITING_ATB
+                elif self.state not in [CombatUIState.ACTION_MENU, CombatUIState.SKILL_MENU, 
+                                        CombatUIState.TARGET_SELECT, CombatUIState.ITEM_MENU, 
+                                        CombatUIState.GIMMICK_VIEW]:
+                    # 다른 상태에서도 WAITING_ATB로 전환 (기절 스킵 후 다음 턴 대기)
+                    self.state = CombatUIState.WAITING_ATB
 
         # 플레이어가 선택 중인지 또는 대기 중인지 확인
         is_player_selecting = self.state in [
@@ -1239,8 +1262,20 @@ class CombatUI:
                     logger.debug(f"{actor.name}: {len(expired)}개 상태 효과 만료 (행동 불가 중)")
             
             # ATB 소비 및 턴 스킵
+            # 기절 상태일 때는 ATB를 완전히 소비하여 무한 루프 방지
+            gauge = self.combat_manager.atb.get_gauge(actor)
+            if gauge:
+                # ATB를 threshold 아래로 강제로 내림 (무한 루프 방지)
+                gauge.current = max(0, gauge.current - gauge.threshold)
+                # threshold보다 높으면 threshold만큼만 남기고 나머지 소비
+                if gauge.current >= gauge.threshold:
+                    gauge.current = gauge.threshold - 1
+            
             self.combat_manager.atb.consume_atb(actor)
             self.combat_manager._on_turn_end(actor)
+            
+            # 상태를 WAITING_ATB로 명확히 설정 (무한 대기 방지)
+            self.state = CombatUIState.WAITING_ATB
             
             # 행동 지연 타이머 설정 (0.5초 대기)
             self.action_delay_frames = 15  # 0.5초 (30 FPS 기준)
@@ -1286,10 +1321,21 @@ class CombatUI:
                             logger.debug(f"{actor.name}: {len(expired)}개 상태 효과 만료 (행동 불가 중)")
                         
                         # ATB 소비 및 턴 스킵
+                        # 기절 상태일 때는 ATB를 완전히 소비하여 무한 루프 방지
+                        gauge = self.combat_manager.atb.get_gauge(actor)
+                        if gauge:
+                            # ATB를 threshold 아래로 강제로 내림 (무한 루프 방지)
+                            gauge.current = max(0, gauge.current - gauge.threshold)
+                            # threshold보다 높으면 threshold만큼만 남기고 나머지 소비
+                            if gauge.current >= gauge.threshold:
+                                gauge.current = gauge.threshold - 1
+                        
                         self.combat_manager.atb.consume_atb(actor)
                         self.combat_manager._on_turn_end(actor)
                         
-                        # 상태는 WAITING_ATB로 유지하여 다음 턴으로 넘어감
+                        # 상태는 WAITING_ATB로 명확히 설정 (무한 대기 방지)
+                        self.state = CombatUIState.WAITING_ATB
+                        
                         # 행동 지연 타이머 설정 (0.5초 대기)
                         self.action_delay_frames = 15  # 0.5초 (30 FPS 기준)
                     else:
@@ -1525,7 +1571,17 @@ class CombatUI:
                             self.add_message(f"{actor_name}은(는) {status_name}로 인해 행동할 수 없습니다.", (200, 100, 100))
                             
                             # ATB 소비 (턴 넘기기)
+                            # 기절 상태일 때는 ATB를 완전히 소비하여 무한 루프 방지
+                            gauge = self.combat_manager.atb.get_gauge(combatant)
+                            if gauge:
+                                # ATB를 threshold 아래로 강제로 내림 (무한 루프 방지)
+                                gauge.current = max(0, gauge.current - gauge.threshold)
+                                # threshold보다 높으면 threshold만큼만 남기고 나머지 소비
+                                if gauge.current >= gauge.threshold:
+                                    gauge.current = gauge.threshold - 1
+                            
                             self.combat_manager.atb.consume_atb(combatant)
+                            self.combat_manager._on_turn_end(combatant)
                             
                             # 멀티플레이: 플레이어 선택 상태 해제
                             actor_player_id = getattr(combatant, 'player_id', None)
