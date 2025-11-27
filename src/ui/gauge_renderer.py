@@ -633,9 +633,8 @@ class GaugeRenderer:
                 # 배경색으로 셀 채운 후 빗금 타일 오버레이 (안정적인 방식)
                 if use_tiles:
                     console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
-                    # 절대 X 위치(x + i)를 고려하여 빗금 오프셋 계산 (게이지 위치와 무관하게 일관된 패턴)
-                    absolute_cell_index = (x + i) / tile_manager.tile_width if tile_manager else 0
-                    tile_char = tile_manager.get_tile_char('wound_stripe', absolute_cell_index / divisions) if tile_manager else ' '
+                    # 셀 인덱스를 기반으로 빗금 패턴 계산
+                    tile_char = tile_manager.get_tile_char('wound_stripe', i / divisions)
                     console.print(x + i, y, tile_char, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
                 else:
                     # 폴백: 홀수/짝수로 빗금 효과
@@ -659,9 +658,8 @@ class GaugeRenderer:
                 if use_tiles:
                     # 먼저 배경색으로 셀 채운 후 빗금 타일 오버레이
                     console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_for_cell)
-                    # 절대 X 위치(x + i)를 고려하여 빗금 오프셋 계산
-                    absolute_cell_index = (x + i) / tile_manager.tile_width if tile_manager else 0
-                    tile_char = tile_manager.get_tile_char('wound_stripe', absolute_cell_index / divisions) if tile_manager else ' '
+                    # 셀 인덱스를 기반으로 빗금 패턴 계산
+                    tile_char = tile_manager.get_tile_char('wound_stripe', i / divisions)
                     # 빗금의 불투명한 부분만 보이고 투명 부분은 배경색이 보임
                     console.print(x + i, y, tile_char, fg=wound_stripe_color, bg=bg_for_cell, bg_blend=libtcodpy.BKGND_NONE)
                 else:
@@ -689,13 +687,26 @@ class GaugeRenderer:
                     console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
             
             elif cell_wound_pixels > 0:
-                # 상처만 부분적으로 있음 (HP 없음) - 배경색 + 빗금 타일 오버레이 (안정적인 방식)
-                if use_tiles:
+                # 상처만 부분적으로 있음 (HP 없음)
+                wound_ratio = cell_wound_pixels / divisions
+
+                # 상처가 매우 작으면 색상으로, 크면 빗금 타일로 표현 (픽셀 정확도 향상)
+                # 상처가 3/32 미만(약 10%)이면 색상 혼합으로 표현
+                if wound_ratio < 0.1:
+                    # 매우 작은 상처: 색상으로 정교하게 표현
+                    # 배경색과 상처색의 혼합
+                    wound_color_for_small = (
+                        int(bg_color[0] * (1 - wound_ratio) + wound_bg_color[0] * wound_ratio),
+                        int(bg_color[1] * (1 - wound_ratio) + wound_bg_color[1] * wound_ratio),
+                        int(bg_color[2] * (1 - wound_ratio) + wound_bg_color[2] * wound_ratio)
+                    )
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=wound_color_for_small)
+                elif use_tiles:
+                    # 충분한 크기의 상처: 빗금 타일로 표현
                     # 배경색으로 셀 채운 후 빗금 타일 오버레이
                     console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
-                    # 절대 X 위치(x + i)를 고려하여 빗금 오프셋 계산
-                    absolute_cell_index = (x + i) / tile_manager.tile_width if tile_manager else 0
-                    tile_char = tile_manager.get_tile_char('wound_stripe', absolute_cell_index / divisions) if tile_manager else ' '
+                    # 셀 인덱스를 기반으로 빗금 패턴 계산
+                    tile_char = tile_manager.get_tile_char('wound_stripe', i / divisions)
                     console.print(x + i, y, tile_char, fg=wound_stripe_color, bg=bg_color, bg_blend=libtcodpy.BKGND_NONE)
                 else:
                     # 폴백: 홀수/짝수 패턴
