@@ -68,6 +68,7 @@ class CombatUI:
         self.network_manager = network_manager  # 네트워크 관리자
         self.bot_manager = bot_manager  # 봇 관리자
         self.local_player_id = local_player_id  # 로컬 플레이어 ID
+        self.logger = logger  # 로거 인스턴스
 
         # UI 상태
         self.state = CombatUIState.WAITING_ATB
@@ -307,32 +308,60 @@ class CombatUI:
         logger = get_logger(Loggers.UI)
         
         logger.info(f"[전투 아이템 메뉴] 인벤토리 슬롯 수: {len(self.inventory.slots)}")
-        
+
+        # 디버깅: revive_crystal이 없으면 강제로 추가
+        has_revive_crystal = False
+        revive_crystal_count = 0
+        for slot in self.inventory.slots:
+            if slot and slot.item:
+                item_id = getattr(slot.item, 'item_id', None)
+                item_name = getattr(slot.item, 'name', 'Unknown')
+                logger.debug(f"[인벤토리 확인] {item_name} (ID: {item_id})")
+                if item_id == 'revive_crystal':
+                    has_revive_crystal = True
+                    revive_crystal_count += slot.quantity
+
+        logger.info(f"[디버깅] revive_crystal 보유 개수: {revive_crystal_count}")
+
+        if not has_revive_crystal or revive_crystal_count < 1:
+            logger.info("[디버깅] revive_crystal이 없어서 강제로 추가합니다")
+            try:
+                from src.equipment.item_system import ItemGenerator
+                revive_crystal = ItemGenerator.create_consumable("revive_crystal")
+                success = self.inventory.add_item(revive_crystal)
+                if success:
+                    logger.info("[디버깅] revive_crystal 추가 성공")
+                else:
+                    logger.error("[디버깅] revive_crystal 추가 실패: 인벤토리 가득 참")
+            except Exception as e:
+                logger.error(f"[디버깅] revive_crystal 생성/추가 실패: {e}")
+
         for slot_index, slot in enumerate(self.inventory.slots):
             if not slot or not slot.item:
                 logger.debug(f"[전투 아이템 메뉴] 슬롯 {slot_index}: 빈 슬롯")
                 continue
-            
+
             item = slot.item
             item_name = getattr(item, 'name', '알 수 없는 아이템')
             item_type = getattr(item, 'item_type', None)
             item_class = type(item).__name__
-            
-            logger.debug(f"[전투 아이템 메뉴] 슬롯 {slot_index}: {item_name} (타입: {item_type}, 클래스: {item_class})")
-            
+            effect_type = getattr(item, 'effect_type', 'unknown')
+
+            logger.info(f"[전투 아이템 메뉴] 슬롯 {slot_index}: {item_name} (타입: {item_type}, 클래스: {item_class}, effect_type: {effect_type})")
+
             # 요리 아이템은 전투 중 사용 불가
             if isinstance(item, CookedFood):
                 logger.debug(f"[전투 아이템 메뉴] {item_name}: CookedFood로 필터링됨")
                 continue
-            
+
             # Consumable 또는 item_type이 CONSUMABLE인 아이템만 표시
             is_consumable = isinstance(item, Consumable) or item_type == ItemType.CONSUMABLE
-            
+
             if not is_consumable:
-                logger.debug(f"[전투 아이템 메뉴] {item_name}: Consumable이 아님 (isinstance: {isinstance(item, Consumable)}, item_type: {item_type})")
+                logger.warning(f"[전투 아이템 메뉴] {item_name}: Consumable이 아님 - 필터링됨 (isinstance: {isinstance(item, Consumable)}, item_type: {item_type})")
                 continue
-            
-            logger.info(f"[전투 아이템 메뉴] {item_name}: 메뉴에 추가됨")
+
+            logger.info(f"[전투 아이템 메뉴] {item_name}: 메뉴에 추가됨 (effect_type: {effect_type})")
             
             item_desc = getattr(item, 'description', '')
             quantity = slot.quantity
@@ -597,6 +626,9 @@ class CombatUI:
                         
                         if is_consumable:
                             effect_type = getattr(self.selected_item, 'effect_type', 'heal_hp')
+                            item_name = getattr(self.selected_item, 'name', 'Unknown')
+                            item_class = type(self.selected_item).__name__
+                            self.logger.info(f"아이템 사용: {item_name} (클래스: {item_class}), effect_type={effect_type}, is_consumable={is_consumable}")
                             # AOE 공격 아이템은 타겟 선택 없이 바로 실행
                             if effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade", "debuff_attack", "debuff_defense", "debuff_speed", "smoke_bomb", "break_brv"]:
                                 # AOE 아이템: 타겟 선택 없이 바로 실행 (target=None)
@@ -607,7 +639,32 @@ class CombatUI:
                                 self.current_target_list = self.combat_manager.enemies
                                 self.target_cursor = 0
                                 self.state = CombatUIState.TARGET_SELECT
+                            elif effect_type == "revive_crystal":
+                                # 부활 크리스탈: 죽은 아군만 대상으로 선택
+                                self.logger.info(f"=== 부활 크리스탈 타겟 선택 시작: {item_name} ===")
+                                dead_party_members = []
+                                for member in self.combat_manager.party:
+                                    is_alive = getattr(member, 'is_alive', True)
+                                    current_hp = getattr(member, 'current_hp', 1)
+                                    name = getattr(member, 'name', str(member))
+                                    self.logger.info(f"파티원 체크: {name}, is_alive={is_alive}, current_hp={current_hp}")
+                                    if not is_alive or current_hp <= 0:
+                                        dead_party_members.append(member)
+                                        self.logger.info(f"  -> 죽은 파티원으로 추가: {name}")
+                                self.logger.info(f"부활 크리스탈 사용: 죽은 파티원 {len(dead_party_members)}명 발견")
+                                if dead_party_members:
+                                    self.current_target_list = dead_party_members
+                                    self.target_cursor = 0
+                                    self.state = CombatUIState.TARGET_SELECT
+                                    self.logger.info(f"타겟 선택 모드로 전환: {len(dead_party_members)}명의 죽은 파티원")
+                                else:
+                                    # 죽은 아군이 없음
+                                    self.add_message("부활시킬 아군이 없습니다!")
+                                    self.state = CombatUIState.ACTION_MENU
+                                    self.logger.info("죽은 파티원이 없어 액션 메뉴로 복귀")
                             else:
+                                # revive_crystal이 아닌 다른 effect_type: 회복/버프 아이템으로 처리
+                                self.logger.info(f"부활 크리스탈이 아닌 다른 effect_type: {effect_type} - 회복 아이템으로 처리")
                                 # 회복/버프 아이템: 아군 대상 선택
                                 self.current_target_list = self.combat_manager.party
                                 self.target_cursor = 0
@@ -692,7 +749,21 @@ class CombatUI:
 
             # 아군 타겟팅 스킬 (회복 등)
             if target_type in ally_targets:
-                self.current_target_list = self.combat_manager.party
+                # 부활 스킬인 경우 죽은 아군만 대상으로
+                from src.multiplayer.skill_revival_handler import SkillRevivalHandler
+                revival_handler = SkillRevivalHandler(None)  # revival_system은 None으로도 동작
+                if revival_handler.is_revival_skill(self.selected_skill):
+                    # 죽은 아군만 대상으로
+                    dead_party_members = []
+                    for member in self.combat_manager.party:
+                        is_alive = getattr(member, 'is_alive', True)
+                        current_hp = getattr(member, 'current_hp', 1)
+                        if not is_alive or current_hp <= 0:
+                            dead_party_members.append(member)
+                    self.current_target_list = dead_party_members
+                    self.logger.info(f"부활 스킬 사용: 죽은 파티원 {len(dead_party_members)}명 대상")
+                else:
+                    self.current_target_list = self.combat_manager.party
             else:
                 # 적 타겟팅 스킬 (공격 등)
                 self.current_target_list = self.combat_manager.enemies
@@ -1786,7 +1857,7 @@ class CombatUI:
 
             # HP 게이지 (애니메이션 + 상처 표시 + 숫자는 게이지 안에)
             console.print(8, y + 1, "HP:", fg=(200, 200, 200))
-            wound_damage = getattr(ally, 'wound_damage', 0)
+            wound_damage = getattr(ally, 'wound', 0)  # Character 클래스의 wound 속성
             entity_id = f"ally_{i}_{getattr(ally, 'name', i)}"
             gauge_renderer.render_animated_hp_bar(
                 console, 12, y + 1, 15,
@@ -1883,10 +1954,11 @@ class CombatUI:
 
             # 이름 색상: 보스는 빨간색, 일반 적은 흰색
             is_boss = hasattr(enemy, 'enemy_id') and enemy.enemy_id.startswith("boss_") if hasattr(enemy, 'enemy_id') else False
+            is_floor_boss = hasattr(enemy, 'is_floor_boss') and enemy.is_floor_boss
             if not enemy.is_alive:
                 name_color = (100, 100, 100)
-            elif is_boss:
-                name_color = (255, 0, 0)  # 보스: 선명한 빨간색
+            elif is_boss or is_floor_boss:
+                name_color = (255, 0, 0)  # 보스 또는 5층 층 보스: 선명한 빨간색
             else:
                 name_color = (255, 255, 255)  # 일반 적: 흰색
 
@@ -4430,14 +4502,23 @@ def run_combat(
     # 적 타입에 따라 BGM 선택
     # 1. 세피로스 확인
     is_sephiroth = any(hasattr(e, 'enemy_id') and e.enemy_id == "sephiroth" for e in enemies)
-    # 2. 보스 확인 (enemy_id가 "boss_"로 시작)
+    # 2. 5층마다 나오는 층 보스 확인
+    is_floor_boss = any(hasattr(e, 'is_floor_boss') and e.is_floor_boss for e in enemies)
+    # 3. 일반 보스 확인 (enemy_id가 "boss_"로 시작)
     is_boss = any(hasattr(e, 'enemy_id') and e.enemy_id.startswith("boss_") for e in enemies)
 
-    if is_sephiroth:
-        # 세피로스전: One-Winged Angel 고정
+    # 디버깅 로그
+    logger.info(f"BGM 선택 - 세피로스: {is_sephiroth}, 층보스: {is_floor_boss}, 일반보스: {is_boss}")
+    for i, enemy in enumerate(enemies):
+        enemy_id = getattr(enemy, 'enemy_id', 'unknown')
+        floor_boss_flag = getattr(enemy, 'is_floor_boss', False)
+        logger.info(f"적 {i}: {enemy.name} (ID: {enemy_id}, 층보스: {floor_boss_flag})")
+
+    if is_sephiroth or is_floor_boss:
+        # 세피로스전 또는 5층 층 보스전: One-Winged Angel 고정
         selected_bgm = "battle_final_boss"
     elif is_boss:
-        # 보스전: battle_boss만 재생
+        # 일반 보스전: battle_boss만 재생
         selected_bgm = "battle_boss"
     else:
         # 일반 전투: 2개 중 랜덤 (battle_boss 제외)

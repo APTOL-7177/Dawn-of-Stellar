@@ -25,7 +25,7 @@ audio:
     tracks:
       battle_birth_of_god: boss
       battle_boss: boss
-      battle_final_boss: boss
+      battle_final_boss: sephiroth
       battle_jenova: battle
       battle_jenova_absolute: battle
       battle_normal: battle

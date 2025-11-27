@@ -474,15 +474,17 @@ class Inventory:
         target_name = getattr(target, 'name', '알 수 없는 대상')
 
         if effect_type == "heal_hp":
-            # HP 회복 (죽은 아군도 회복 가능)
-            was_dead = not getattr(target, 'is_alive', True)
-            healed = target.heal(effect_value, can_revive=True)
-            if healed > 0:
-                if was_dead:
-                    logger.info(f"{target_name}: {item_name} 사용 → 부활! HP {target.current_hp}")
-                else:
+            # HP 회복 (살아있는 아군만 회복 가능)
+            is_alive = getattr(target, 'is_alive', True)
+            current_hp = getattr(target, 'current_hp', 1)
+            if is_alive and current_hp > 0:
+                healed = target.heal(effect_value, can_revive=False)
+                if healed > 0:
                     logger.info(f"{target_name}: {item_name} 사용 → HP +{healed}")
-                success = True
+                    success = True
+            else:
+                logger.warning(f"{target_name}: {item_name} 사용 실패 - 대상이 죽어있음")
+                success = False
         elif effect_type == "heal_mp":
             # MP 회복
             restored = target.restore_mp(effect_value)
@@ -507,6 +509,19 @@ class Inventory:
                 target.current_hp = effect_value
                 logger.info(f"{target_name}: {item_name} 사용 → 부활! HP {effect_value}")
                 success = True
+        elif effect_type == "revive_crystal":
+            # 부활 크리스탈 - HP 30%로 부활
+            if not getattr(target, 'is_alive', True) or getattr(target, 'current_hp', 1) <= 0:
+                target.is_alive = True
+                if hasattr(target, 'max_hp'):
+                    target.current_hp = int(target.max_hp * effect_value)
+                else:
+                    target.current_hp = int(effect_value * 100)  # 기본값
+                logger.info(f"{target_name}: {item_name} 사용 → 부활! HP {target.current_hp} (30% 회복)")
+                success = True
+            else:
+                logger.warning(f"{target_name}: {item_name} 사용 실패 - 대상이 이미 살아있음")
+                success = False
         elif effect_type == "cure_status":
             # 상태이상 치료
             if hasattr(target, 'status_effects'):

@@ -7,6 +7,7 @@ class GimmickOperation(Enum):
     ADD = "add"
     SET = "set"
     CONSUME = "consume"
+    MULTIPLY = "multiply"  # 값에 배율 곱하기 (차원술사 굴절량 감소 등)
     RELOAD_MAGAZINE = "reload_magazine"  # 저격수: 탄창 재장전
     LOAD_BULLETS = "load_bullets"  # 저격수: 특수 탄환 장전
     AUTO_STANCE = "auto_stance"  # 전사: 상황에 맞는 자세로 자동 전환
@@ -84,6 +85,12 @@ class GimmickEffect(SkillEffect):
             # 타입 체크
             if isinstance(old_value, (int, float)) and isinstance(self.value, (int, float)):
                 new_value = old_value - self.value
+            else:
+                new_value = old_value
+        elif self.operation == GimmickOperation.MULTIPLY:
+            # 타입 체크
+            if isinstance(old_value, (int, float)) and isinstance(self.value, (int, float)):
+                new_value = int(old_value * self.value)
             else:
                 new_value = old_value
 

@@ -1,91 +1,103 @@
 class_name: 차원술사
-description: 차원과 확률을 조작하는 시공간의 지배자
-archetype: 확률 조작
+description: 차원 굴절을 통해 피해를 지연시키고 굴절량을 활용하는 시공간 조작자
+archetype: 피해 지연 탱커-딜러
 base_stats:
-  hp: 84
-  mp: 91
-  init_brv: 98
-  speed: 47
-  physical_attack: 33
-  physical_defense: 28
-  magic_attack: 88
-  magic_defense: 96
-  max_brv: 422
+  hp: 65          # 매우 낮은 HP (차원 굴절로 보완)
+  mp: 95          # MP 증가
+  init_brv: 75    # 초기 BRV 약간 감소
+  speed: 44       # 중간 속도
+  physical_attack: 28
+  physical_defense: 62   # 낮은 물리 방어
+  magic_attack: 98       # 높은 마법 공격
+  magic_defense: 115     # 매우 높은 마법 방어
+  max_brv: 360
 stat_growth:
-  hp: 8.8
-  mp: 6.5
-  init_brv: 19.6
-  strength: 2.2
-  defense: 2.0
-  magic: 4.8
-  spirit: 4.0
-  speed: 4.0
-  luck: 5.5
+  hp: 6.5         # 낮은 HP 성장
+  mp: 7.0         # 높은 MP 성장
+  init_brv: 15.0
+  strength: 1.8
+  defense: 3.2    # 낮은 방어 성장
+  magic: 5.5      # 높은 마법 성장
+  spirit: 6.0     # 매우 높은 마방 성장
+  speed: 3.8
+  luck: 4.5
   accuracy: 1.8
   evasion: 2.5
-  max_brv: 84.4
+  max_brv: 72.0
+
+# 특성 5개
 traits:
-- id: gauge_per_turn
-  name: 확률 왜곡 충전
-  description: 매 턴 시작 시 확률 왜곡 게이지 +10
-  type: trigger
-  effects:
-    distortion_per_turn: 10
-- id: critical_charge
-  name: 크리티컬 충전
-  description: 크리티컬 공격 시 확률 왜곡 게이지 +20
-  type: trigger
-  effects:
-    distortion_on_crit: 20
-- id: luck_amplifier
-  name: 행운 증폭
-  description: 행운 스탯에 비례하여 게이지 추가 획득 (행운 10당 +1)
+- id: dimensional_stabilization
+  name: 차원 안정화
+  description: 차원 굴절로 인해 받는 피해 15% → 7.5%로 감소, 매턴 굴절 감소율 35% → 25%
   type: passive
+  unlock_level: 5
   effects:
-    distortion_luck_bonus: 0.1
-- id: probability_master
-  name: 확률의 달인
-  description: 게이지 50+ 시 크리티컬 확률 +30%, 회피율 +20%
-  type: conditional
-  conditions:
-    distortion_gauge_min: 50
+    damage_reduction_improved: 0.925  # 85% → 92.5% 경감
+    decay_rate_reduced: 0.25  # 35% → 25% 감소
+
+- id: self_healing_mastery
+  name: 자가 치유 특화
+  description: 본인 스킬로 회복되는 양 200% 증가, 외부 회복 80% 감소
+  type: passive
+  unlock_level: 10
   effects:
-    critical_rate_bonus: 0.3
-    evasion_bonus: 0.2
-- id: dimensional_instability
-  name: 차원 불안정
-  description: 게이지 80+ 시 모든 공격 크리티컬 확률 +50%, 회피율 +25%, 데미지 +20%
-  type: conditional
-  conditions:
-    distortion_gauge_min: 80
+    self_heal_multiplier: 3.0  # 기본 1.0 + 보너스 2.0
+    external_heal_multiplier: 0.2  # 외부 회복 80% 감소
+
+- id: fixed_damage_amplification
+  name: 고정 피해 증폭
+  description: 고정 피해를 입히는 스킬의 피해량 +50%
+  type: passive
+  unlock_level: 15
   effects:
-    critical_rate_bonus: 0.5
-    evasion_bonus: 0.25
-    damage_multiplier: 1.2
+    fixed_damage_bonus: 1.5  # 고정 피해 ×1.5
+
+- id: double_refraction
+  name: 이중 차원
+  description: 받는 모든 피해 50% 추가 감소, 차원 굴절로 인한 피해 75% 증가
+  type: passive
+  unlock_level: 20
+  effects:
+    additional_damage_reduction: 0.5  # 모든 피해 추가 -50%
+    decay_damage_multiplier: 1.75  # 매턴 굴절 피해 ×1.75
+
+- id: undying_existence
+  name: 불멸의 존재
+  description: HP가 0이 되어도 행동 및 회복 가능. 다른 아군 모두 사망 시 게임 오버
+  type: special_passive
+  unlock_level: 25
+  effects:
+    can_act_at_zero_hp: true
+    requires_ally_alive: true
+
+# 차원 굴절 기믹
 gimmick:
-  type: probability_distortion
-  name: 확률 왜곡 게이지
-  description: 확률 왜곡 게이지(0-100) 소모로 확률 조작. 매턴 +10, 크리티컬 시 +20
-  min_gauge: 0
-  max_gauge: 100
-  start_gauge: 0
-  gauge_gain:
-    per_turn: 10
-    on_critical: 20
-    luck_multiplier: 0.1
-  distortion_costs:
-    critical_boost: 20
-    evasion_boost: 30
-    retry: 50
-    parallel_universe: 100
+  type: dimension_refraction
+  name: 차원 굴절
+  description: |
+    받는 HP 피해를 85% 경감하고 경감량만큼 차원 굴절 스택 축적.
+    매턴 차원 굴절의 35%씩 감소하며 감소량만큼 HP 고정 피해로 받음.
+  damage_reduction: 0.85  # 받는 피해 85% 경감
+  turn_decay_rate: 0.35   # 매턴 35% 감소
+  min_refraction: 0       # 최소 굴절량
+  max_refraction: null    # 최대 굴절량 제한 없음
+  start_refraction: 0     # 시작 굴절량
+
+# 스킬 10개
 skills:
-- dimension_slash
-- teleport_strike
-- probability_bolt
-- parallel_self
-- dimensional_rift
-- reality_warp
+- dimensionist_refraction_strike      # 1. 굴절 타격
+- dimensionist_refraction_release     # 2. 굴절 방출
+- dimensionist_dimension_regression   # 3. 차원 회귀
+- dimensionist_dimension_explosion    # 4. 차원 폭발
+- dimensionist_refraction_enhance     # 5. 굴절 강화
+- dimensionist_dimension_scatter      # 6. 차원 분산
+- dimensionist_refraction_conversion  # 7. 굴절 전환
+- dimensionist_dimension_barrier      # 8. 차원 보호막
+- dimensionist_dimension_backflow     # 9. 차원 역류
+- dimensionist_ultimate               # 10. 차원 붕괴 (궁극기)
+
 bonuses:
-  luck_multiplier: 1.15
-  retry_chance: 0.12
-  critical_rate: 1.1
+  magic_multiplier: 1.12
+  survivability_bonus: 1.25
+  hp_regeneration: 0.0  # 외부 회복 의존도 낮음

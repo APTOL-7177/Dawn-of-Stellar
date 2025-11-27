@@ -765,7 +765,9 @@ def main() -> int:
                                 if is_boss_fight and map_enemies:
                                     boss_entity = next((e for e in map_enemies if e.is_boss), None)
                                     if boss_entity:
-                                        boss = EnemyGenerator.generate_boss(floor_number)
+                                        # 5층마다 층 보스인지 확인
+                                        is_floor_boss = (floor_number % 5 == 0)
+                                        boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss)
                                         if enemies:
                                             enemies[0] = boss
                                         else:
@@ -1752,7 +1754,9 @@ def main() -> int:
                                                 if is_boss_fight and map_enemies:
                                                     boss_entity = next((e for e in map_enemies if e.is_boss), None)
                                                     if boss_entity:
-                                                        boss = EnemyGenerator.generate_boss(floor_number)
+                                                        # 5층마다 층 보스인지 확인
+                                                        is_floor_boss = (floor_number % 5 == 0)
+                                                        boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss)
                                                         if enemies:
                                                             enemies[0] = boss
                                                         else:
@@ -2405,7 +2409,9 @@ def main() -> int:
                                 boss_entity = next((e for e in map_enemies if e.is_boss), None)
                                 if boss_entity:
                                     from src.world.enemy_generator import EnemyGenerator
-                                    boss = EnemyGenerator.generate_boss(floor_number)
+                                    # 5층마다 층 보스인지 확인
+                                    is_floor_boss = (floor_number % 5 == 0)
+                                    boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss)
                                     # 보스를 적 리스트의 첫 번째에 추가 (또는 교체)
                                     if enemies:
                                         enemies[0] = boss
@@ -3247,7 +3253,9 @@ def main() -> int:
                                         boss_entity = next((e for e in map_enemies if e.is_boss), None)
                                         if boss_entity:
                                             from src.world.enemy_generator import EnemyGenerator
-                                            boss = EnemyGenerator.generate_boss(floor_number)
+                                            # 5층마다 층 보스인지 확인
+                                            is_floor_boss = (floor_number % 5 == 0)
+                                            boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss)
                                             # 보스를 적 리스트의 첫 번째에 추가 (또는 교체)
                                             if enemies:
                                                 enemies[0] = boss

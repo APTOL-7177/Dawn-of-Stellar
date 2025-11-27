@@ -76,6 +76,8 @@ class GimmickUpdater:
             GimmickUpdater._update_rune_resonance(character)
         elif gimmick_type == "charge_system":
             GimmickUpdater._update_charge_system_turn_end(character)
+        elif gimmick_type == "dimension_refraction":
+            GimmickUpdater._update_dimension_refraction(character)
 
     @staticmethod
     def on_turn_start(character, context=None):
@@ -1118,6 +1120,57 @@ class GimmickUpdater:
         """룬마스터: 룬 공명 시스템 업데이트"""
         # 룬은 스킬로만 축적, 자동 업데이트 없음
         pass
+
+    @staticmethod
+    def _update_dimension_refraction(character):
+        """차원술사: 차원 굴절 시스템 업데이트"""
+        refraction = getattr(character, 'refraction_stacks', 0)
+
+        if refraction <= 0:
+            return
+
+        # 매턴 감소율 (기본 35%)
+        decay_rate = getattr(character, 'turn_decay_rate', 0.35)
+
+        # 차원 안정화 특성 확인 (감소율 35% → 25%)
+        if hasattr(character, 'active_traits'):
+            if any((t if isinstance(t, str) else t.get('id')) == 'dimensional_stabilization'
+                   for t in character.active_traits):
+                decay_rate = 0.25
+                logger.debug(f"[차원 안정화] {character.name} 굴절 감소율: 25%")
+
+        # 이중 차원 특성 확인 (굴절 피해 +75%)
+        decay_damage_mult = 1.0
+        if hasattr(character, 'active_traits'):
+            if any((t if isinstance(t, str) else t.get('id')) == 'double_refraction'
+                   for t in character.active_traits):
+                decay_damage_mult = 1.75
+                logger.debug(f"[이중 차원] {character.name} 굴절 피해 배율: 1.75배")
+
+        # 감소량 계산
+        decay_amount = int(refraction * decay_rate)
+
+        if decay_amount <= 0:
+            return
+
+        # 굴절량 감소
+        character.refraction_stacks = max(0, refraction - decay_amount)
+
+        # 감소량만큼 고정 HP 피해
+        decay_damage = int(decay_amount * decay_damage_mult)
+
+        # 고정 피해 적용 (take_fixed_damage 메서드 사용)
+        if hasattr(character, 'take_fixed_damage'):
+            actual_damage = character.take_fixed_damage(decay_damage)
+        else:
+            # 메서드가 없으면 직접 HP 감소
+            actual_damage = min(decay_damage, character.current_hp)
+            character.current_hp = max(0, character.current_hp - decay_damage)
+
+        logger.warning(
+            f"[차원 굴절] {character.name} 지연 피해: {actual_damage} HP "
+            f"(굴절량 {refraction} → {character.refraction_stacks}, 감소율 {int(decay_rate*100)}%)"
+        )
 
     @staticmethod
     def check_choice_mastery(character, choice_type: str) -> bool:

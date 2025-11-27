@@ -753,6 +753,40 @@ class Character:
                     # 미니언이 대신 받았으므로 데미지 0
                     return 0
         
+        # ===== 차원술사: 차원 굴절 시스템 (특성 효과 전에 먼저 처리) =====
+        if hasattr(self, 'gimmick_type') and self.gimmick_type == "dimension_refraction":
+            # 피해 경감률 계산
+            reduction = getattr(self, 'damage_reduction', 0.85)
+
+            # 차원 안정화 특성 확인
+            if hasattr(self, 'active_traits'):
+                if any((t if isinstance(t, str) else t.get('id')) == 'dimensional_stabilization'
+                       for t in self.active_traits):
+                    reduction = 0.925  # 92.5% 경감
+
+            # 경감량 계산
+            refracted_amount = int(damage * reduction)
+            actual_damage_after_refraction = damage - refracted_amount
+
+            # 이중 차원 특성 확인 (추가 50% 경감)
+            if hasattr(self, 'active_traits'):
+                if any((t if isinstance(t, str) else t.get('id')) == 'double_refraction'
+                       for t in self.active_traits):
+                    actual_damage_after_refraction = int(actual_damage_after_refraction * 0.5)
+                    logger.debug(f"[이중 차원] {self.name} 추가 피해 경감 -50%")
+
+            # 굴절량 축적
+            if not hasattr(self, 'refraction_stacks'):
+                self.refraction_stacks = 0
+            self.refraction_stacks += refracted_amount
+
+            logger.info(
+                f"[차원 굴절] {self.name} 피해 {damage} → {actual_damage_after_refraction} "
+                f"(굴절량 +{refracted_amount}, 총 {self.refraction_stacks})"
+            )
+
+            damage = actual_damage_after_refraction
+
         # 특성 효과: 피해 감소 (damage_reduction, brave_soul 등)
         from src.character.trait_effects import get_trait_effect_manager
         trait_manager = get_trait_effect_manager()
@@ -885,7 +919,9 @@ class Character:
 
         if self.current_hp <= 0:
             self.current_hp = 0
-            self.is_alive = False
+            # 불멸의 존재 특성이 있으면 is_alive 유지
+            if not self._has_undying_existence():
+                self.is_alive = False
 
             event_bus.publish(Events.CHARACTER_DEATH, {
                 "character": self,
@@ -901,17 +937,128 @@ class Character:
 
         return actual_damage
 
-    def heal(self, amount: int, can_revive: bool = False) -> int:
+    def take_fixed_damage(self, damage: int) -> int:
+        """
+        고정 피해를 받습니다 (방어력 무시, 보호막 무시)
+
+        Args:
+            damage: 고정 피해량
+
+        Returns:
+            실제로 받은 피해
+        """
+        actual_damage = min(damage, self.current_hp)
+        self.current_hp -= actual_damage
+
+        # 상처 적용 (차원 굴절 지연 피해도 상처로 계산)
+        from src.systems.wound_system import get_wound_system
+        wound_system = get_wound_system()
+        if wound_system.enabled and actual_damage > 0:
+            wound_amount = int(actual_damage * wound_system.wound_threshold)
+            max_wound = int(self.max_hp * wound_system.max_wound_percentage)
+            current_wound = getattr(self, "wound", 0)
+
+            if current_wound + wound_amount > max_wound:
+                wound_amount = max(0, max_wound - current_wound)
+
+            if wound_amount > 0:
+                if not hasattr(self, "wound"):
+                    self.wound = 0
+                self.wound += wound_amount
+                logger.debug(f"[고정 피해 상처] {self.name} +{wound_amount} wound (총 {self.wound}/{max_wound})")
+
+            # 중복 적용 방지 플래그 설정
+            self._wound_applied_this_turn = True
+
+        if self.current_hp <= 0:
+            self.current_hp = 0
+            # 불멸의 존재 특성이 있으면 is_alive 유지
+            if not self._has_undying_existence():
+                self.is_alive = False
+
+            event_bus.publish(Events.CHARACTER_DEATH, {
+                "character": self,
+                "name": self.name
+            })
+
+        event_bus.publish(Events.CHARACTER_HP_CHANGE, {
+            "character": self,
+            "change": -actual_damage,
+            "current": self.current_hp,
+            "max": self.max_hp
+        })
+
+        # 플래그 해제
+        if hasattr(self, "_wound_applied_this_turn"):
+            self._wound_applied_this_turn = False
+
+        return actual_damage
+
+    def _has_undying_existence(self) -> bool:
+        """불멸의 존재 특성이 있는지 확인"""
+        if not hasattr(self, 'active_traits'):
+            return False
+
+        has_trait = any(
+            (t if isinstance(t, str) else t.get('id')) == 'undying_existence'
+            for t in self.active_traits
+        )
+
+        if not has_trait:
+            return False
+
+        # 차원 굴절 기믹이어야 함
+        if getattr(self, 'gimmick_type', None) != "dimension_refraction":
+            return False
+
+        # 다른 아군이 살아있는지 확인 (combat_manager가 있는 경우)
+        if hasattr(self, '_combat_manager') and self._combat_manager:
+            try:
+                allies = self._combat_manager.allies
+                other_allies_alive = any(
+                    ally != self and ally.current_hp > 0
+                    for ally in allies
+                )
+                return other_allies_alive
+            except:
+                return False
+
+        return False
+
+    def heal(self, amount: int, can_revive: bool = False, source_character=None, is_self_skill: bool = False) -> int:
         """
         HP를 회복합니다 (상처 시스템 적용)
 
         Args:
             amount: 회복량
             can_revive: 죽은 캐릭터도 회복 가능한지 여부 (음식 등)
+            source_character: 회복을 제공한 캐릭터 (자가 치유 특화 특성용)
+            is_self_skill: 본인 스킬로 인한 회복인지 여부
 
         Returns:
             실제로 회복한 양
         """
+        # ===== 차원술사: 자가 치유 특화 특성 =====
+        if hasattr(self, 'gimmick_type') and self.gimmick_type == "dimension_refraction":
+            if hasattr(self, 'active_traits'):
+                has_self_healing = any(
+                    (t if isinstance(t, str) else t.get('id')) == 'self_healing_mastery'
+                    for t in self.active_traits
+                )
+
+                if has_self_healing:
+                    # 본인 스킬인지 확인
+                    is_self = (source_character == self) or is_self_skill
+
+                    if is_self:
+                        # 본인 스킬: 200% 증가 (×3.0)
+                        amount = int(amount * 3.0)
+                        logger.info(f"[자가 치유] {self.name} 회복량 3배: {amount}")
+                    else:
+                        # 외부 회복: 80% 감소 (×0.2)
+                        amount = int(amount * 0.2)
+                        logger.info(f"[외부 회복 저항] {self.name} 회복량 80% 감소: {amount}")
+
         old_hp = self.current_hp
         was_dead = not getattr(self, 'is_alive', True)
         

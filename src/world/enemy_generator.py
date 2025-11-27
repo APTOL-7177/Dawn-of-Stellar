@@ -532,10 +532,11 @@ ENEMY_TEMPLATES = {
 class SimpleEnemy:
     """간단한 적 클래스 (전투용)"""
 
-    def __init__(self, template: EnemyTemplate, level_modifier: float = 1.0, difficulty_hp_mult: float = 1.0, difficulty_dmg_mult: float = 1.0, is_boss: bool = False):
+    def __init__(self, template: EnemyTemplate, level_modifier: float = 1.0, difficulty_hp_mult: float = 1.0, difficulty_dmg_mult: float = 1.0, is_boss: bool = False, is_floor_boss: bool = False):
         self.enemy_id = template.enemy_id  # 적 ID 저장 (BGM 선택용)
         self.name = template.name
         self.level = max(1, int(template.level * level_modifier))
+        self.is_floor_boss = is_floor_boss  # 5층마다 나오는 층 보스 여부
         
         # 보스 여부 확인 (enemy_id로도 확인)
         if not is_boss:
@@ -828,7 +829,7 @@ class EnemyGenerator:
 
             # 층 보스는 일반 보스보다 더 강력함 (2.5배 스탯, 5배 HP)
             level_modifier = floor_number * 0.8
-            boss = SimpleEnemy(template, level_modifier, difficulty_hp_mult, difficulty_dmg_mult, is_boss=True)
+            boss = SimpleEnemy(template, level_modifier, difficulty_hp_mult, difficulty_dmg_mult, is_boss=True, is_floor_boss=is_floor_boss)
 
             # 층 보스는 추가 강화 (HP 1.5배, 스탯 1.3배 추가)
             boss.max_hp = int(boss.max_hp * 1.5)

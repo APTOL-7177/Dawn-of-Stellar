@@ -9,7 +9,7 @@ class HealType(Enum):
 
 class HealEffect(SkillEffect):
     """회복 효과"""
-    def __init__(self, heal_type=HealType.HP, base_amount=0, percentage=0.0, stat_scaling=None, multiplier=1.0, is_party_wide=False, set_percent=None):
+    def __init__(self, heal_type=HealType.HP, base_amount=0, percentage=0.0, stat_scaling=None, multiplier=1.0, is_party_wide=False, set_percent=None, fixed_amount=None, metadata=None):
         super().__init__(EffectType.HEAL)
         self.heal_type = heal_type
         self.base_amount = base_amount
@@ -18,6 +18,8 @@ class HealEffect(SkillEffect):
         self.multiplier = multiplier
         self.is_party_wide = is_party_wide
         self.set_percent = set_percent  # HP/MP를 특정 %로 설정 (회복이 아닌 설정)
+        self.fixed_amount = fixed_amount  # 고정 회복량 (스케일링 없음)
+        self.metadata = metadata or {}  # 추가 메타데이터 (차원술사 굴절 회복 등)
 
     def execute(self, user, target, context):
         """회복 실행"""
@@ -49,12 +51,30 @@ class HealEffect(SkillEffect):
 
         for t in targets:
             # 죽은 대상은 스킵 (부활 스킬이 아닌 경우)
-            if not getattr(t, 'is_alive', True):
+            # 하지만 context에 revival 플래그가 있으면 부활 처리
+            is_reviving = False
+            if context and context.get('revival', False):
+                # 부활 스킬의 경우 죽은 대상도 처리
+                if not getattr(t, 'is_alive', True) or getattr(t, 'current_hp', 1) <= 0:
+                    is_reviving = True
+                    # 부활 처리: is_alive를 True로 설정
+                    t.is_alive = True
+            elif not getattr(t, 'is_alive', True):
+                # 일반 회복 스킬에서는 죽은 대상 스킵
                 continue
 
+            # 차원술사 굴절 회복인지 확인
+            if self.metadata.get('refraction_heal'):
+                # 굴절량 기반 회복
+                refraction_rate = self.metadata.get('refraction_rate', 0.75)
+                refraction_stacks = getattr(user, 'refraction_stacks', 0)
+                heal_amount = int(refraction_stacks * refraction_rate)
             # set_percent가 설정된 경우 HP/MP를 특정 %로 설정
-            if self.set_percent is not None:
+            elif self.set_percent is not None:
                 heal_amount = self._calculate_set_amount(t)
+            # 고정 회복량이 설정된 경우
+            elif self.fixed_amount is not None:
+                heal_amount = self.fixed_amount
             else:
                 heal_amount = self._calculate_heal_amount(user, t)
 
@@ -69,7 +89,8 @@ class HealEffect(SkillEffect):
                     else:
                         actual_heal = heal_amount
                 elif hasattr(t, 'heal'):
-                    actual_heal = t.heal(heal_amount)
+                    # 차원술사 자가 치유 특화를 위해 source_character 전달
+                    actual_heal = t.heal(heal_amount, source_character=user, is_self_skill=(user == t))
                 elif hasattr(t, 'current_hp') and hasattr(t, 'max_hp'):
                     actual_heal = min(heal_amount, t.max_hp - t.current_hp)
                     t.current_hp += actual_heal

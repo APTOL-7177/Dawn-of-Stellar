@@ -8,6 +8,7 @@
 """
 
 from typing import Tuple, List, Optional, Dict, Any
+import tcod
 import tcod.console
 import time
 
@@ -42,6 +43,7 @@ def get_contrast_secondary_color(bg_color: Tuple[int, int, int]) -> Tuple[int, i
 # 게이지 타일셋 임포트 (지연 임포트로 순환 참조 방지)
 _gauge_tileset_loaded = False
 _gauge_tile_manager = None
+_boundary_tile_fail_logged = False  # 경계 타일 실패 로깅 플래그
 
 def _get_tile_manager():
     """게이지 타일 관리자 가져오기 (지연 로드)"""
@@ -418,6 +420,8 @@ class GaugeRenderer:
             wound_damage: 상처 데미지 (최대 HP 제한)
             show_numbers: 숫자 표시 여부
         """
+        global _boundary_tile_fail_logged
+        
         anim_mgr = get_animation_manager()
         tile_manager = _get_tile_manager()
         use_tiles = tile_manager is not None and tile_manager.is_initialized()
@@ -460,13 +464,24 @@ class GaugeRenderer:
         # 데미지 트레일 (감소) / 회복 트레일 (증가)
         damage_trail_color = (200, 100, 50)  # 주황색 (감소)
         heal_trail_color = (100, 255, 150)   # 밝은 녹색 (증가)
-        wound_color = (40, 30, 30)
+        wound_color = (80, 35, 55)  # 어두운 보라빨간색 (상처 영역)
+        wound_bg_color = (15, 10, 12)  # 상처 영역 배경 (더 어둡게)
         
         # === 레이어 방식 렌더링 ===
+        # 레이어 순서: 1.배경 → 2.HP바 → 3.상처(HP 위에 덮어씌움)
+        # 상처 제한: 최대 HP의 50%이므로 오른쪽 절반(width/2)에만 상처 렌더링
         total_pixels = width * divisions
-        hp_pixels = int(ratio * total_pixels)
-        display_pixels = int(display_ratio * total_pixels)
+        half_pixels = total_pixels // 2  # 게이지 중간 지점
+        
+        # 상처 픽셀 계산 (오른쪽 절반에만)
         wound_pixels = max(1, int(wound_ratio * total_pixels)) if wound_damage > 0 else 0
+        # 상처는 최대 절반까지만 (50% 제한)
+        wound_pixels = min(wound_pixels, half_pixels)
+        wound_start_pixel = total_pixels - wound_pixels if wound_pixels > 0 else total_pixels
+        
+        # HP 픽셀 계산 (상처 시작 위치를 넘지 않도록 제한)
+        hp_pixels = min(int(ratio * total_pixels), wound_start_pixel) if wound_pixels > 0 else int(ratio * total_pixels)
+        display_pixels = min(int(display_ratio * total_pixels), wound_start_pixel) if wound_pixels > 0 else int(display_ratio * total_pixels)
         
         # 증가/감소 판단
         is_decreasing = display_pixels > hp_pixels
@@ -525,33 +540,7 @@ class GaugeRenderer:
         # 레이어 1: 전체 배경 그리기
         console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
         
-        # 레이어 2: 상처 영역 (오른쪽에서 왼쪽으로)
-        if wound_pixels > 0:
-            wound_start_pixel = total_pixels - wound_pixels
-            for i in range(width):
-                cell_start = i * divisions
-                cell_end = (i + 1) * divisions
-                
-                overlap_start = max(cell_start, wound_start_pixel)
-                overlap_end = min(cell_end, total_pixels)
-                cell_wound = max(0, overlap_end - overlap_start)
-                
-                if cell_wound >= divisions:
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=wound_color)
-                elif cell_wound > 0:
-                    fill_ratio = cell_wound / divisions
-                    if use_tiles:
-                        tile_char = tile_manager.get_tile_char('wound', fill_ratio)
-                        console.print(x + i, y, tile_char, fg=wound_color, bg=bg_color)
-                    else:
-                        partial_color = (
-                            int(bg_color[0] + (wound_color[0] - bg_color[0]) * fill_ratio),
-                            int(bg_color[1] + (wound_color[1] - bg_color[1]) * fill_ratio),
-                            int(bg_color[2] + (wound_color[2] - bg_color[2]) * fill_ratio)
-                        )
-                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
-        
-        # 레이어 3: 감소 트레일 (감소 시)
+        # 레이어 2: 감소 트레일 (감소 시)
         render_pixels = min(hp_pixels, display_pixels) if is_increasing else hp_pixels
         
         if is_decreasing:
@@ -583,24 +572,120 @@ class GaugeRenderer:
                         )
                         console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
         
-        # 레이어 5: 현재 HP (최상단)
+        # 레이어 3+4: HP와 상처를 통합 렌더링 (픽셀 단위 정밀)
+        # 빗금 색상 (빗금만 보임, 배경은 게이지 배경색)
+        wound_stripe_color = (0, 0, 0)  # 빗금 색상 (검은색)
+        
+        # 중간 지점 셀 인덱스 (오른쪽 절반 시작)
+        half_cell_index = width // 2
         
         for i in range(width):
             cell_start = i * divisions
             cell_end = (i + 1) * divisions
             
-            cell_hp = max(0, min(divisions, render_pixels - cell_start))
+            # 이 셀에서 HP가 차지하는 픽셀 수 (왼쪽에서)
+            cell_hp_pixels = max(0, min(divisions, render_pixels - cell_start))
             
-            if cell_hp >= divisions:
+            # 상처 픽셀 계산 (오른쪽 절반에만)
+            cell_wound_pixels = 0
+            if wound_pixels > 0 and i >= half_cell_index:
+                # 오른쪽 절반 셀에만 상처 렌더링
+                wound_overlap_start = max(cell_start, wound_start_pixel)
+                wound_overlap_end = min(cell_end, total_pixels)
+                cell_wound_pixels = max(0, wound_overlap_end - wound_overlap_start)
+            
+            # 경계 셀 여부: HP와 상처가 모두 있는 경우 (둘 다 부분적이거나 하나는 전체)
+            has_hp = cell_hp_pixels > 0
+            has_wound = cell_wound_pixels > 0
+            is_hp_wound_boundary = has_hp and has_wound
+            
+            if cell_hp_pixels >= divisions and cell_wound_pixels == 0:
+                # HP가 셀 전체를 채움 (상처 없음) - draw_rect 사용 (타일 불필요)
                 console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
-            elif cell_hp > 0:
-                fill_ratio = cell_hp / divisions
-                cell_unfilled = divisions - cell_hp
+            
+            elif cell_wound_pixels >= divisions and cell_hp_pixels == 0:
+                # 상처가 셀 전체를 채움 - 빗금만 표시
+                if use_tiles:
+                    # 셀 인덱스를 직접 사용하여 빗금 연속성 보장
+                    # fill_level = i가 되어 x_offset = (i * tile_width) % stripe_period
+                    tile_char = tile_manager.get_tile_char('wound_stripe', i / divisions)
+                    # bg는 게이지 배경색 (빗금 사이에 배경색 없음)
+                    # bg_blend=None으로 픽셀 단위 정밀 렌더링
+                    console.print(x + i, y, tile_char, fg=wound_stripe_color, bg=bg_color, bg_blend=tcod.BKGND_NONE)
+                else:
+                    # 폴백: 홀수/짝수로 빗금 효과 (배경색 없음)
+                    stripe_bg = bg_color if i % 2 == 0 else wound_stripe_color
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=stripe_bg)
+            
+            elif is_hp_wound_boundary:
+                # 경계 셀: HP와 상처가 모두 있는 경우 - 커스텀 타일 레이어링 사용
+                # 근본 해결: 경계 타일 대신 기존 타일을 레이어링
+                if use_tiles:
+                    # 경계 타일 생성 (상처 영역 빗금 사이를 HP 색상으로 채움)
+                    boundary_tile = tile_manager.create_boundary_tile(
+                        hp_pixels=cell_hp_pixels,
+                        wound_pixels=cell_wound_pixels,
+                        hp_color=fg_color,
+                        bg_color=bg_color,
+                        wound_color=wound_bg_color,
+                        wound_stripe_color=wound_stripe_color,
+                        cell_index=i
+                    )
+                    if boundary_tile and boundary_tile.strip() and boundary_tile != ' ':
+                        # 타일을 완전히 불투명하게 렌더링 (배경 블렌딩 없음)
+                        console.print(x + i, y, boundary_tile, bg=bg_color, bg_blend=tcod.BKGND_SET)
+                    else:
+                        # 타일 생성 실패 - 폴백 처리
+                        from src.core.logger import get_logger
+                        logger = get_logger("gauge")
+                        logger.debug(
+                            f"경계 타일 생성 실패, 폴백 사용: "
+                            f"cell={i}, hp_pixels={cell_hp_pixels}, wound_pixels={cell_wound_pixels}, "
+                            f"boundary_tile={repr(boundary_tile)}, use_tiles={use_tiles}"
+                        )
+                        # 타일 생성 실패 로깅 (첫 실패만)
+                        if not _boundary_tile_fail_logged:
+                            logger.warning(
+                                f"경계 타일 생성 실패, 폴백 사용: "
+                                f"cell={i}, hp_pixels={cell_hp_pixels}, wound_pixels={cell_wound_pixels}, "
+                                f"use_tiles={use_tiles}, tile_manager_initialized={tile_manager.is_initialized() if tile_manager else False}"
+                            )
+                            _boundary_tile_fail_logged = True
+                        
+                        # 폴백: HP 부분, 빈 HP 영역, 상처 부분을 색상으로 구분
+                        hp_ratio = cell_hp_pixels / divisions
+                        wound_ratio = cell_wound_pixels / divisions
+                        empty_ratio = 1.0 - hp_ratio - wound_ratio
+                        avg_color = (
+                            int(fg_color[0] * hp_ratio + bg_color[0] * (empty_ratio + wound_ratio)),
+                            int(fg_color[1] * hp_ratio + bg_color[1] * (empty_ratio + wound_ratio)),
+                            int(fg_color[2] * hp_ratio + bg_color[2] * (empty_ratio + wound_ratio))
+                        )
+                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=avg_color)
+                else:
+                    # 폴백: HP 부분, 빈 HP 영역, 상처 부분을 색상으로 구분
+                    hp_ratio = cell_hp_pixels / divisions
+                    wound_ratio = cell_wound_pixels / divisions
+                    empty_ratio = 1.0 - hp_ratio - wound_ratio
+                    
+                    # HP, 빈 HP 영역, 상처가 섞인 셀은 평균 색상으로 표시
+                    avg_color = (
+                        int(fg_color[0] * hp_ratio + bg_color[0] * empty_ratio + wound_bg_color[0] * wound_ratio),
+                        int(fg_color[1] * hp_ratio + bg_color[1] * empty_ratio + wound_bg_color[1] * wound_ratio),
+                        int(fg_color[2] * hp_ratio + bg_color[2] * empty_ratio + wound_bg_color[2] * wound_ratio)
+                    )
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=avg_color)
+            
+            elif cell_hp_pixels > 0:
+                # HP가 부분적으로 있음 (상처 없음)
+                fill_ratio = cell_hp_pixels / divisions
+                cell_unfilled = divisions - cell_hp_pixels
                 
-                # 트레일 블렌딩 (감소 시에만)
+                # 빈 부분 색상 결정
                 if is_decreasing and cell_unfilled > 0:
+                    # 트레일 블렌딩
                     trail_end_in_cell = min(cell_end, display_pixels)
-                    trail_in_unfilled = max(0, trail_end_in_cell - (cell_start + cell_hp))
+                    trail_in_unfilled = max(0, trail_end_in_cell - (cell_start + cell_hp_pixels))
                     trail_blend = trail_in_unfilled / cell_unfilled
                     blended_bg = (
                         int(bg_color[0] + (trail_color[0] - bg_color[0]) * trail_blend),
@@ -620,26 +705,52 @@ class GaugeRenderer:
                         int(blended_bg[2] + (fg_color[2] - blended_bg[2]) * fill_ratio)
                     )
                     console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+            
+            elif cell_wound_pixels > 0:
+                # 상처만 부분적으로 있음 (HP 없음) - 경계 타일로 빗금 표시
+                if use_tiles:
+                    boundary_tile = tile_manager.create_boundary_tile(
+                        hp_pixels=0,  # HP 없음
+                        wound_pixels=cell_wound_pixels,
+                        hp_color=fg_color,
+                        bg_color=bg_color,
+                        wound_color=wound_bg_color,
+                        wound_stripe_color=wound_stripe_color,
+                        cell_index=i
+                    )
+                    # 타일 생성 실패 시 폴백 처리
+                    if boundary_tile and boundary_tile.strip():
+                        # 타일을 완전히 불투명하게 렌더링 (배경 블렌딩 없음)
+                        console.print(x + i, y, boundary_tile, bg=bg_color, bg_blend=tcod.BKGND_SET)
+                    else:
+                        # 타일 생성 실패 로깅 (첫 실패만)
+                        if not _boundary_tile_fail_logged:
+                            from src.core.logger import get_logger
+                            logger = get_logger("gauge")
+                            logger.warning(
+                                f"경계 타일 생성 실패 (상처만), 폴백 사용: "
+                                f"cell={i}, wound_pixels={cell_wound_pixels}, "
+                                f"use_tiles={use_tiles}, tile_manager_initialized={tile_manager.is_initialized() if tile_manager else False}"
+                            )
+                            _boundary_tile_fail_logged = True
+                        
+                        # 폴백: 홀수/짝수 패턴 (배경색 없음)
+                        stripe_bg = bg_color if i % 2 == 0 else wound_stripe_color
+                        console.draw_rect(x + i, y, 1, 1, ord(" "), bg=stripe_bg)
+                else:
+                    # 폴백: 홀수/짝수 패턴 (배경색 없음)
+                    stripe_bg = bg_color if i % 2 == 0 else wound_stripe_color
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=stripe_bg)
         
-        # 숫자 표시 (배경 밝기에 따른 가독성 좋은 색상)
+        # 숫자 표시 (배경 밝기에 따른 가독성 좋은 색상) - 현재 HP만 표시
         if show_numbers:
             current_text = f"{display_number}"
-            if wound_damage > 0:
-                max_text = f"{int(effective_max_hp)}"
-            else:
-                max_text = f"{int(max_hp)}"
             
             # 배경색에 따른 텍스트 색상 선택
             text_color = get_contrast_text_color(fg_color)
-            secondary_color = get_contrast_secondary_color(fg_color)
             
-            min_width_needed = len(current_text) + len(max_text) + 3
-            
-            if width >= min_width_needed:
-                console.print(x + 1, y, current_text, fg=text_color)
-                max_text_x = x + width - len(max_text) - 1
-                console.print(max_text_x, y, max_text, fg=secondary_color)
-            elif width >= len(current_text) + 2:
+            # 현재 HP 표시 (왼쪽)
+            if width >= len(current_text) + 2:
                 console.print(x + 1, y, current_text, fg=text_color)
 
     @staticmethod
@@ -789,21 +900,12 @@ class GaugeRenderer:
                     )
                     console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
         
-        # 숫자 - 배경색 기반 가독성 색상
+        # 숫자 표시 - 현재 MP만 표시
         if show_numbers:
             current_text = f"{display_number}"
-            max_text = f"{int(max_mp)}"
-            
             text_color = get_contrast_text_color(fg_color)
-            secondary_color = get_contrast_secondary_color(fg_color)
             
-            min_width_needed = len(current_text) + len(max_text) + 3
-            
-            if width >= min_width_needed:
-                console.print(x + 1, y, current_text, fg=text_color)
-                max_text_x = x + width - len(max_text) - 1
-                console.print(max_text_x, y, max_text, fg=secondary_color)
-            elif width >= len(current_text) + 2:
+            if width >= len(current_text) + 2:
                 console.print(x + 1, y, current_text, fg=text_color)
 
     @staticmethod
@@ -976,19 +1078,9 @@ class GaugeRenderer:
                     console.print(text_x, y, text, fg=(255, 255, 255))
             else:
                 current_text = f"{display_number}"
-                max_text = f"{int(max_brv)}"
-                
-                # 배경색 기반 텍스트 색상
                 text_color = get_contrast_text_color(fg_color)
-                secondary_color = get_contrast_secondary_color(fg_color)
                 
-                min_width_needed = len(current_text) + len(max_text) + 3
-                
-                if width >= min_width_needed:
-                    console.print(x + 1, y, current_text, fg=text_color)
-                    max_text_x = x + width - len(max_text) - 1
-                    console.print(max_text_x, y, max_text, fg=secondary_color)
-                elif width >= len(current_text) + 2:
+                if width >= len(current_text) + 2:
                     console.print(x + 1, y, current_text, fg=text_color)
 
     @staticmethod

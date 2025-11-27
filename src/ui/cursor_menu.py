@@ -316,6 +316,68 @@ class CursorMenu:
         return lines
 
 
+def show_teleporter_choice_menu(console: tcod.console.Console, context: tcod.context.Context) -> Optional[bool]:
+    """
+    텔레포터 선택 메뉴 표시
+
+    Returns:
+        True: 텔레포트 실행
+        False: 취소
+        None: 메뉴 취소됨
+    """
+    from src.ui.input_handler import InputHandler, GameAction
+
+    # 메뉴 아이템 생성
+    menu_items = [
+        MenuItem(
+            text="텔레포트 하기",
+            description="텔레포터를 사용하여 이동합니다",
+            value=True
+        ),
+        MenuItem(
+            text="취소하기",
+            description="텔레포트를 취소합니다",
+            value=False
+        )
+    ]
+
+    # 메뉴 생성
+    menu = CursorMenu(
+        title="🌀 텔레포터",
+        items=menu_items,
+        x=console.width // 2 - 20,
+        y=console.height // 2 - 5,
+        width=40
+    )
+
+    handler = InputHandler()
+
+    # 메뉴 루프
+    while True:
+        # 화면 렌더링
+        console.clear()
+        menu.render(console)
+        context.present(console)
+
+        # 입력 처리
+        for event in tcod.event.wait():
+            action = handler.dispatch(event)
+            if action:
+                if action == GameAction.CONFIRM:
+                    selected = menu.get_selected_item()
+                    if selected and selected.value is not None:
+                        return selected.value
+                elif action == GameAction.CANCEL:
+                    return None
+                elif action == GameAction.MOVE_UP:
+                    menu.move_cursor_up()
+                elif action == GameAction.MOVE_DOWN:
+                    menu.move_cursor_down()
+
+            if isinstance(event, tcod.event.Quit):
+                raise SystemExit()
+
+
 class TextInputBox:
     """
     텍스트 입력 박스

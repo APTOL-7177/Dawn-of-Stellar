@@ -939,6 +939,31 @@ class WorldUI:
         elif result.event == ExplorationEvent.TELEPORT:
             self.add_message(f"위치: ({self.exploration.player.x}, {self.exploration.player.y})")
 
+        elif result.event == ExplorationEvent.TELEPORTER_FOUND:
+            # 텔레포터 선택 메뉴 표시
+            if console is not None and context is not None and result.data:
+                from src.ui.cursor_menu import show_teleporter_choice_menu
+                choice = show_teleporter_choice_menu(console, context)
+
+                if choice is True:
+                    # 텔레포트 실행
+                    target = result.data.get("target")
+                    tile = result.data.get("tile")
+                    if target and tile:
+                        from src.audio import play_sfx
+                        play_sfx("world", "teleport")
+                        self.exploration.player.x, self.exploration.player.y = target
+                        self.exploration.update_fov()
+                        self.add_message("🌀 텔레포트!")
+                        self.add_message(f"위치: ({self.exploration.player.x}, {self.exploration.player.y})")
+                        logger.info(f"텔레포트 실행: {target}")
+                    else:
+                        self.add_message("텔레포트 대상이 잘못되었습니다.")
+                elif choice is False:
+                    # 취소
+                    self.add_message("텔레포트를 취소했습니다.")
+                # choice가 None이면 메뉴가 취소됨 (아무 메시지도 표시하지 않음)
+
     def _find_all_nearby_harvestables(self):
         """
         플레이어 주변의 모든 채집 가능한 오브젝트 찾기
@@ -1318,7 +1343,7 @@ class WorldUI:
                 current_mp = stats.get('mp', 50)
                 max_mp = stats.get('max_mp', 50)
             
-            wound_damage = getattr(member, 'wound_damage', 0)
+            wound_damage = getattr(member, 'wound', 0)  # Character 클래스의 wound 속성
             entity_id = f"field_ally_{i}_{member_name}"
             
             # HP 게이지 (전투 UI와 동일 - 애니메이션 + 상처 표시 + 숫자)

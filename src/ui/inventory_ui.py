@@ -226,6 +226,23 @@ class InventoryUI:
                                 # 인덱스 조정
                                 if self.cursor >= len(self.inventory):
                                     self.cursor = max(0, len(self.inventory) - 1)
+                        elif isinstance(item, Consumable) and getattr(item, 'effect_type', '') == 'revive_crystal':
+                            # 부활 크리스탈: 죽은 아군만 대상으로 선택
+                            dead_party_members = []
+                            for member in self.party:
+                                is_alive = getattr(member, 'is_alive', True)
+                                current_hp = getattr(member, 'current_hp', 1)
+                                if not is_alive or current_hp <= 0:
+                                    dead_party_members.append(member)
+
+                            if dead_party_members:
+                                # 죽은 아군이 있으면 타겟 선택 모드로
+                                self.mode = InventoryMode.USE_ITEM
+                                logger.info(f"부활 크리스탈 사용: 죽은 파티원 {len(dead_party_members)}명 대상 선택 가능")
+                            else:
+                                # 죽은 아군이 없음
+                                logger.warning("부활 크리스탈 사용 실패: 죽은 파티원이 없습니다")
+                                # 메시지 표시 로직이 필요하지만 일단 로그만 출력
                         else:
                             # 일반 소비품: 사용 모드로 전환
                             self.mode = InventoryMode.USE_ITEM
@@ -275,11 +292,107 @@ class InventoryUI:
 
         return False
 
+    def _handle_general_consumable_use(self, action: GameAction, item: Any) -> bool:
+        """일반 소비 아이템 사용 모드 입력 (포션 등)"""
+        # 살아있는 파티원만 대상으로 선택
+        alive_party_members = []
+        for member in self.party:
+            is_alive = getattr(member, 'is_alive', True)
+            current_hp = getattr(member, 'current_hp', 1)
+            if is_alive and current_hp > 0:
+                alive_party_members.append(member)
+
+        if not alive_party_members:
+            # 살아있는 파티원이 없음
+            logger.warning("일반 소비 아이템 사용 실패: 살아있는 파티원이 없습니다")
+            self.mode = InventoryMode.BROWSE
+            self.selected_item_index = None
+            return False
+
+        # 타겟 선택
+        if action == GameAction.MOVE_UP:
+            self.target_cursor = max(0, self.target_cursor - 1)
+        elif action == GameAction.MOVE_DOWN:
+            self.target_cursor = min(len(alive_party_members) - 1, self.target_cursor + 1)
+        elif action == GameAction.CONFIRM:
+            # 선택된 살아있는 파티원에게 사용
+            target = alive_party_members[self.target_cursor]
+            success = self.inventory.use_consumable(self.selected_item_index, target)
+            if success:
+                item_name = getattr(item, 'name', '알 수 없는 아이템')
+                target_name = getattr(target, 'name', '알 수 없는 대상')
+                logger.info(f"{item_name} 사용 완료 (대상: {target_name})")
+                # 인덱스 조정
+                if self.cursor >= len(self.inventory):
+                    self.cursor = max(0, len(self.inventory) - 1)
+
+            # 모드 복귀
+            self.mode = InventoryMode.BROWSE
+            self.selected_item_index = None
+        elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+            # 취소: 모드 복귀
+            self.mode = InventoryMode.BROWSE
+            self.selected_item_index = None
+
+        return False
+
+    def _handle_revive_crystal_use(self, action: GameAction, item: Any) -> bool:
+        """부활 크리스탈 사용 모드 입력"""
+        # 죽은 파티원만 대상으로 선택
+        dead_party_members = []
+        for member in self.party:
+            is_alive = getattr(member, 'is_alive', True)
+            current_hp = getattr(member, 'current_hp', 1)
+            if not is_alive or current_hp <= 0:
+                dead_party_members.append(member)
+
+        if not dead_party_members:
+            # 죽은 파티원이 없음
+            logger.warning("부활 크리스탈 사용 실패: 죽은 파티원이 없습니다")
+            self.mode = InventoryMode.BROWSE
+            self.selected_item_index = None
+            return False
+
+        # 타겟 선택
+        if action == GameAction.MOVE_UP:
+            self.target_cursor = max(0, self.target_cursor - 1)
+        elif action == GameAction.MOVE_DOWN:
+            self.target_cursor = min(len(dead_party_members) - 1, self.target_cursor + 1)
+        elif action == GameAction.CONFIRM:
+            # 선택된 죽은 파티원에게 사용
+            target = dead_party_members[self.target_cursor]
+            success = self.inventory.use_consumable(self.selected_item_index, target)
+            if success:
+                item_name = getattr(item, 'name', '알 수 없는 아이템')
+                target_name = getattr(target, 'name', '알 수 없는 대상')
+                logger.info(f"{item_name} 사용 완료 (대상: {target_name})")
+                # 인덱스 조정
+                if self.cursor >= len(self.inventory):
+                    self.cursor = max(0, len(self.inventory) - 1)
+
+            # 모드 복귀
+            self.mode = InventoryMode.BROWSE
+            self.selected_item_index = None
+        elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+            # 취소: 모드 복귀
+            self.mode = InventoryMode.BROWSE
+            self.selected_item_index = None
+
+        return False
+
     def _handle_use_or_equip(self, action: GameAction) -> bool:
         """아이템 사용/장착 모드 입력"""
         from src.cooking.recipe import CookedFood
         item = self.inventory.get_item(self.selected_item_index)
-        
+
+        # revive_crystal인 경우 죽은 파티원만 대상으로 선택
+        if isinstance(item, Consumable) and getattr(item, 'effect_type', '') == 'revive_crystal':
+            return self._handle_revive_crystal_use(action, item)
+
+        # 일반 Consumable인 경우 살아있는 파티원만 대상으로 선택
+        if isinstance(item, Consumable):
+            return self._handle_general_consumable_use(action, item)
+
         # CookedFood인 경우 타겟 선택 없이 바로 사용 (아군 전체에 효과)
         if isinstance(item, CookedFood):
             if action == GameAction.CONFIRM:
@@ -1277,9 +1390,35 @@ class InventoryUI:
 
     def _render_target_selection(self, console: tcod.console.Console):
         """대상 선택 UI"""
+        # 아이템 타입에 따라 대상 필터링
+        item = self.inventory.get_item(self.selected_item_index) if self.selected_item_index is not None else None
+
+        if isinstance(item, Consumable) and getattr(item, 'effect_type', '') == 'revive_crystal':
+            # revive_crystal: 죽은 파티원만 대상으로
+            targets = []
+            for member in self.party:
+                is_alive = getattr(member, 'is_alive', True)
+                current_hp = getattr(member, 'current_hp', 1)
+                if not is_alive or current_hp <= 0:
+                    targets.append(member)
+            title = "부활 대상 선택"
+        elif isinstance(item, Consumable):
+            # 일반 Consumable: 살아있는 파티원만 대상으로
+            targets = []
+            for member in self.party:
+                is_alive = getattr(member, 'is_alive', True)
+                current_hp = getattr(member, 'current_hp', 1)
+                if is_alive and current_hp > 0:
+                    targets.append(member)
+            title = "대상 선택"
+        else:
+            # 장비 등의 경우 모든 파티원 대상으로
+            targets = self.party
+            title = "대상 선택"
+
         # 중앙에 대상 선택 창
         box_width = 40
-        box_height = 10 + len(self.party)
+        box_height = 10 + len(targets)
         box_x = (self.screen_width - box_width) // 2
         box_y = (self.screen_height - box_height) // 2
 
@@ -1289,14 +1428,14 @@ class InventoryUI:
             box_y,
             box_width,
             box_height,
-            "대상 선택",
+            title,
             fg=Colors.UI_BORDER,
             bg=Colors.UI_BG
         )
 
-        # 파티 멤버 목록
+        # 대상 목록
         y = box_y + 2
-        for i, character in enumerate(self.party):
+        for i, character in enumerate(targets):
             is_selected = (i == self.target_cursor)
             prefix = "►" if is_selected else " "
 

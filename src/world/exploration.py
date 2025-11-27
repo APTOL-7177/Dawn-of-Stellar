@@ -24,6 +24,7 @@ class ExplorationEvent(Enum):
     ITEM_FOUND = "item_found"
     TRAP_TRIGGERED = "trap_triggered"
     TELEPORT = "teleport"
+    TELEPORTER_FOUND = "teleporter_found"  # 텔레포터 발견 (선택 메뉴 표시용)
     HEAL = "heal"
     STAIRS_UP = "stairs_up"
     STAIRS_DOWN = "stairs_down"
@@ -744,17 +745,14 @@ class ExplorationSystem:
     def _handle_teleporter(self, tile: Tile) -> ExplorationResult:
         """텔레포터 처리"""
         if tile.teleport_target:
-            play_sfx("world", "teleport")
-            self.player.x, self.player.y = tile.teleport_target
-            self.update_fov()
-
-            logger.info(f"텔레포트: {tile.teleport_target}")
+            # 텔레포터 발견 이벤트 반환 (선택 메뉴 표시용)
+            logger.info(f"텔레포터 발견: {tile.teleport_target}")
 
             return ExplorationResult(
                 success=True,
-                event=ExplorationEvent.TELEPORT,
-                message="🌀 텔레포트!",
-                data={"target": tile.teleport_target}
+                event=ExplorationEvent.TELEPORTER_FOUND,
+                message="🌀 텔레포터를 발견했습니다! 텔레포트하시겠습니까?",
+                data={"target": tile.teleport_target, "tile": tile}
             )
 
         return ExplorationResult(success=True, event=ExplorationEvent.NONE)
@@ -1171,10 +1169,10 @@ class ExplorationSystem:
             self.enemies = []  # 적 리스트 초기화
             return
 
-        # 층 수에 따라 적 수 결정 (4-15마리로 감소)
-        base_enemies = 4
-        additional = self.floor_number * 1
-        num_enemies = min(15, base_enemies + additional)
+        # 층 수에 따라 적 수 결정 (5 + 층/2, 최대 10마리)
+        base_enemies = 5
+        additional = self.floor_number // 2
+        num_enemies = min(10, base_enemies + additional)
 
         # 플레이어 시작 위치 주변을 제외한 바닥 타일에 적 배치
         possible_positions = []

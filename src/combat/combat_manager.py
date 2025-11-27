@@ -1361,12 +1361,21 @@ class CombatManager:
             # context에 모든 적 정보 추가 (AOE 효과를 위해)
             all_enemies = self.enemies if actor in self.allies else self.allies
 
+            # revival 스킬인지 확인
+            from src.multiplayer.skill_revival_handler import SkillRevivalHandler
+            revival_handler = SkillRevivalHandler(None)  # revival_system은 None으로도 동작
+            is_reviving = revival_handler.is_revival_skill(skill)
+
             # SkillManager를 통해 스킬 실행
+            context = {"combat_manager": self, "all_enemies": all_enemies}
+            if is_reviving:
+                context["revival"] = True
+
             skill_result = skill_manager.execute_skill(
                 skill_id,
                 actor,
                 target,
-                context={"combat_manager": self, "all_enemies": all_enemies}
+                context=context
             )
 
         if skill_result.success:
@@ -1992,7 +2001,15 @@ class CombatManager:
             
             elif effect_type == "revive_crystal":
                 # 부활
-                if not getattr(tgt, 'is_alive', True):
+                self.logger.info(f"=== 부활 크리스탈 효과 처리 시작 ===")
+                target_name = getattr(tgt, 'name', str(tgt))
+                is_alive = getattr(tgt, 'is_alive', True)
+                current_hp = getattr(tgt, 'current_hp', 1)
+                max_hp = getattr(tgt, 'max_hp', 100)
+                self.logger.info(f"부활 크리스탈 사용: 대상={target_name}, is_alive={is_alive}, current_hp={current_hp}/{max_hp}, effect_value={effect_value}")
+
+                if not is_alive or current_hp <= 0:
+                    self.logger.info(f"부활 조건 만족: 대상 사망 또는 HP 0 이하")
                     tgt.is_alive = True
                     if hasattr(tgt, 'max_hp'):
                         tgt.current_hp = int(tgt.max_hp * effect_value)
@@ -2000,22 +2017,34 @@ class CombatManager:
                         tgt.current_hp = int(effect_value * 100)  # 기본값
                     result["revived"] = True
                     result["hp_restored"] = tgt.current_hp
+                    result["message"] = f"🌀 {target_name} 부활! HP {tgt.current_hp} 회복"
+                    self.logger.info(f"부활 성공: {target_name} HP {tgt.current_hp}로 부활 (max_hp: {max_hp}, effect_value: {effect_value})")
+                else:
+                    self.logger.info(f"부활 조건 불만족: 대상 살아있고 HP {current_hp} > 0")
+                    result["error"] = "대상이 이미 살아있습니다"
+                    result["message"] = "대상이 이미 살아있어 부활할 수 없습니다"
+                    self.logger.info(f"부활 실패: 대상이 이미 살아있음")
 
             # 인벤토리에서 아이템 제거
             item_index = kwargs.get('item_index')
             if item_index is not None:
+                self.logger.info(f"아이템 제거 시도: item_index={item_index}")
                 # 인벤토리에서 슬롯 인덱스로 제거
                 if hasattr(actor, 'inventory'):
                     try:
                         actor.inventory.remove_item(item_index, 1)
+                        self.logger.info(f"액터 인벤토리에서 아이템 제거 성공: 슬롯 {item_index}")
                     except Exception as e:
-                        self.logger.warning(f"아이템 제거 실패: {e}")
+                        self.logger.warning(f"액터 인벤토리에서 아이템 제거 실패: {e}")
                 # 또는 전역 인벤토리에서 제거
                 elif hasattr(self, 'inventory') and self.inventory:
                     try:
                         self.inventory.remove_item(item_index, 1)
+                        self.logger.info(f"전역 인벤토리에서 아이템 제거 성공: 슬롯 {item_index}")
                     except Exception as e:
-                        self.logger.warning(f"아이템 제거 실패: {e}")
+                        self.logger.warning(f"전역 인벤토리에서 아이템 제거 실패: {e}")
+                else:
+                    self.logger.warning(f"인벤토리를 찾을 수 없음: actor.hasattr(inventory)={hasattr(actor, 'inventory')}, self.hasattr(inventory)={hasattr(self, 'inventory')}")
 
             return result
         else:
@@ -2152,6 +2181,33 @@ class CombatManager:
             # 한 해커만 처리 (여러 해커가 있어도 한 번만)
             break
 
+    def _cleanup_protection_relations(self, character: Any) -> None:
+        """
+        죽은 캐릭터의 보호 관계를 정리합니다.
+
+        Args:
+            character: 죽은 캐릭터
+        """
+        character_name = getattr(character, 'name', 'Unknown')
+
+        # 1. 이 캐릭터가 보호하고 있던 아군들 정리
+        if hasattr(character, 'protected_allies') and character.protected_allies:
+            for protected_ally in list(character.protected_allies):  # 복사본으로 순회
+                if hasattr(protected_ally, 'protected_by') and character in protected_ally.protected_by:
+                    protected_ally.protected_by.remove(character)
+                    self.logger.debug(f"보호 관계 정리: {character_name} → {protected_ally.name} (보호자 사망)")
+            character.protected_allies.clear()
+
+        # 2. 이 캐릭터를 보호하고 있던 캐릭터들 정리
+        if hasattr(character, 'protected_by') and character.protected_by:
+            for protector in list(character.protected_by):  # 복사본으로 순회
+                if hasattr(protector, 'protected_allies') and character in protector.protected_allies:
+                    protector.protected_allies.remove(character)
+                    self.logger.debug(f"보호 관계 정리: {protector.name} → {character_name} (보호 대상 사망)")
+            character.protected_by.clear()
+
+        self.logger.info(f"{character_name}의 보호 관계 모두 정리됨")
+
     def _on_character_death(self, data: Dict[str, Any]) -> None:
         """
         캐릭터 사망 이벤트 처리
@@ -2177,7 +2233,10 @@ class CombatManager:
         
         character_name = data.get("name", getattr(character, "name", "Unknown"))
         self.logger.info(f"{character_name} 사망 처리 시작")
-        
+
+        # 보호 관계 정리 (죽은 캐릭터가 보호하거나 보호받는 관계 모두 정리)
+        self._cleanup_protection_relations(character)
+
         # 해커: 모든 프로그램 종료
         if hasattr(character, 'gimmick_type') and character.gimmick_type == "multithread_system":
             self._handle_hacker_death(character)
@@ -2342,9 +2401,10 @@ class CombatManager:
             # 현재 전투에 참여하는 보호자만 확인 (오래된 참조 방지)
             for guardian in list(defender.protected_by):  # 리스트 복사하여 순회 중 수정 방지
                 if (guardian in self.allies and
-                    hasattr(guardian, 'is_alive') and guardian.is_alive and 
+                    hasattr(guardian, 'is_alive') and guardian.is_alive and
                     guardian != defender and
-                    not getattr(guardian, '_is_guarding', False)):  # 수호 중이 아닌 경우만
+                    not getattr(guardian, '_is_guarding', False) and  # 수호 중이 아닌 경우만
+                    (not hasattr(guardian, 'status_manager') or guardian.status_manager.can_act())):  # 행동 가능한 경우만
                     # 보호자가 피해를 대신 받음 (보호자의 방어력으로 재계산)
                     data["damage"] = 0  # 원래 대상은 피해를 받지 않음
                     
@@ -2381,11 +2441,23 @@ class CombatManager:
                         # 수호 효과가 다시 트리거되지 않도록 플래그 설정
                         guardian._is_guarding = True
                         try:
+                            guardian_was_alive = getattr(guardian, 'is_alive', True)
                             guardian_actual_damage = guardian.take_damage(protected_damage)
                             self.logger.info(
                                 f"[수호의 맹세] {guardian.name}이(가) {defender.name}의 피해를 대신 받음: "
                                 f"{protected_damage} → 실제 {guardian_actual_damage} (보호자 방어력 적용)"
                             )
+
+                            # 보호자가 죽었으면 보호 관계 정리
+                            guardian_is_alive = getattr(guardian, 'is_alive', True)
+                            if guardian_was_alive and not guardian_is_alive:
+                                self.logger.info(f"[수호의 맹세] {guardian.name}이(가) 사망하여 보호 관계 정리")
+                                # 보호자의 보호 목록에서 죽은 대상 제거
+                                if hasattr(guardian, 'protected_allies') and defender in guardian.protected_allies:
+                                    guardian.protected_allies.remove(defender)
+                                # 보호받는 대상의 보호자 목록에서 제거
+                                if hasattr(defender, 'protected_by') and guardian in defender.protected_by:
+                                    defender.protected_by.remove(guardian)
                         finally:
                             # 플래그 제거
                             guardian._is_guarding = False
