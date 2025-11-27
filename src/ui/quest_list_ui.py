@@ -9,7 +9,7 @@ import tcod.event
 from typing import List, Any
 
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
@@ -34,7 +34,6 @@ def open_quest_list(
     cursor = 0
     scroll_offset = 0
     max_visible = 8  # 간격이 커져서 보이는 개수 감소
-    handler = InputHandler()
     
     # 퀘스트 목록을 열 때마다 완료 체크 (안전장치)
     quest_manager.check_all_quests_completion()
@@ -129,7 +128,7 @@ def open_quest_list(
         
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
             
             if action == GameAction.MOVE_UP:
                 if active_quests:

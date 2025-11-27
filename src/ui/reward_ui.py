@@ -9,7 +9,7 @@ import tcod.event
 from typing import List, Dict, Any, Optional
 
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
@@ -256,7 +256,6 @@ def show_reward_screen(
         rewards,
         level_ups
     )
-    handler = InputHandler()
 
     logger.info("보상 화면 표시")
     logger.info(f"  경험치: {rewards.get('experience', 0)}")
@@ -270,7 +269,7 @@ def show_reward_screen(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 if display.handle_input(action):

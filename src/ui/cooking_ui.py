@@ -14,7 +14,7 @@ from src.equipment.item_system import ItemType
 from src.gathering.ingredient import Ingredient, IngredientCategory
 from src.cooking.recipe import RecipeDatabase, CookedFood
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
@@ -670,7 +670,6 @@ def open_cooking_pot(
         요리된 음식 (취소 시 None)
     """
     ui = CookingPotUI(console.width, console.height, inventory, is_cooking_pot=is_cooking_pot)
-    handler = InputHandler()
 
     logger.info(f"요리 냄비 열기 (요리솥: {is_cooking_pot})")
 
@@ -681,7 +680,7 @@ def open_cooking_pot(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 if ui.handle_input(action):

@@ -15,7 +15,7 @@ from src.gathering.ingredient import Ingredient, IngredientCategory, IngredientD
 from src.cooking.potion_brewing import PotionDatabase, PotionRecipe, PotionBrewer, PotionType
 from src.cooking.bomb_crafting import BombDatabase, BombRecipe, BombCrafter, BombType
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.equipment.item_system import ItemGenerator
 from src.core.logger import get_logger
 from src.audio import play_sfx
@@ -698,7 +698,6 @@ def open_alchemy_lab(
 ):
     """연금술 실험실 열기"""
     ui = AlchemyUI(console.width, console.height, inventory, party=party)
-    handler = InputHandler()
     
     logger.info(f"연금술 실험실 열기 (층수: {floor_level}, 연금술사: {ui.has_alchemist})")
     
@@ -707,7 +706,7 @@ def open_alchemy_lab(
         context.present(console)
         
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
             
             if action:
                 ui.handle_input(action)

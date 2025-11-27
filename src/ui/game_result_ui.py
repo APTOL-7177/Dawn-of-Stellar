@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 from typing import Optional, Any
 
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.persistence.meta_progress import get_meta_progress, save_meta_progress
@@ -267,7 +267,6 @@ def show_game_result(
         save_slot
     )
 
-    handler = InputHandler()
 
     logger.info("게임 정산 화면 표시")
 
@@ -306,7 +305,7 @@ def show_game_result(
         context.present(console)
 
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 if ui.handle_input(action):

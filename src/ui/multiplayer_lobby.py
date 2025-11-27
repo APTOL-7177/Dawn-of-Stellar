@@ -11,7 +11,7 @@ import time
 import random
 
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.core.logger import get_logger
 from src.multiplayer.session import MultiplayerSession
 from src.multiplayer.network import HostNetworkManager, ClientNetworkManager
@@ -199,7 +199,7 @@ def show_multiplayer_lobby(
     Returns:
         로비 결과 딕셔너리
     """
-    from src.ui.input_handler import GameAction, InputHandler
+    from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
     from src.multiplayer.protocol import MessageType
     
     # 멀티플레이 로비 BGM 재생
@@ -220,7 +220,6 @@ def show_multiplayer_lobby(
         lobby_complete_check=lobby_complete_check
     )
     
-    handler = InputHandler()
     
     # 클라이언트: 로비 완료 메시지 핸들러 등록
     if not is_host and lobby_complete_check is not None:
@@ -255,7 +254,7 @@ def show_multiplayer_lobby(
                 break
             
             context.convert_event(event)
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
             
             if action:
                 if ui.handle_input(action):

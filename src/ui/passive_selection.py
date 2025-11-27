@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Optional
 import yaml
 import tcod
 
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.core.config import get_config
@@ -406,7 +406,6 @@ def run_passive_selection(
         선택된 패시브 또는 None (취소 시)
     """
     selection = PassiveSelectionUI(console.width, console.height)
-    handler = InputHandler()
 
     logger.info("패시브 선택 시작")
 
@@ -417,7 +416,7 @@ def run_passive_selection(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 if selection.handle_input(action):

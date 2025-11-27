@@ -9,7 +9,7 @@ import tcod.event
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.tcod_display import Colors, render_space_background
 from src.core.logger import get_logger
@@ -282,7 +282,6 @@ def show_character_reassignment(
         loaded_characters=loaded_characters,
         current_players=current_players
     )
-    handler = InputHandler()
     
     logger.info(f"캐릭터 재할당 UI 시작: {len(loaded_characters)}명 캐릭터, {len(current_players)}명 플레이어")
     
@@ -306,7 +305,7 @@ def show_character_reassignment(
             
             # 입력 처리
             for event in tcod.event.wait():
-                action = handler.dispatch(event)
+                action = unified_input_handler.process_tcod_event(event)
                 
                 if action:
                     if ui.handle_input(action):

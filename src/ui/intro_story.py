@@ -14,6 +14,7 @@ from typing import List, Tuple, Optional
 from dataclasses import dataclass
 
 from src.core.logger import get_logger, Loggers
+from src.ui.input_handler import unified_input_handler, GameAction
 
 
 logger = get_logger(Loggers.SYSTEM)
@@ -1008,7 +1009,24 @@ class IntroStorySystem:
         return True  # 타임아웃 - 정상 진행
 
     def _check_skip(self) -> bool:
-        """스킵 체크 (Enter 키)"""
+        """스킵 체크 (Enter 키 또는 A 버튼)"""
+        # 게임패드 버튼 직접 확인 (가장 안정적인 방법)
+        try:
+            import pygame
+            pygame.event.pump()
+            # 연결된 게임패드가 있으면 A 버튼 (버튼 0) 확인
+            joystick_count = pygame.joystick.get_count()
+            if joystick_count > 0:
+                joystick = pygame.joystick.Joystick(0)
+                joystick.init()
+                if joystick.get_button(0):  # A 버튼
+                    self.skip_requested = True
+                    return True
+        except Exception as e:
+            # pygame 관련 에러 무시하고 키보드 입력으로 진행
+            pass
+
+        # 키보드 입력 확인
         for event in tcod.event.get():
             if isinstance(event, tcod.event.KeyDown):
                 if event.sym == tcod.event.KeySym.RETURN or event.sym == tcod.event.KeySym.KP_ENTER:

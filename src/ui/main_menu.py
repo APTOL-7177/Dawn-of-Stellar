@@ -262,7 +262,18 @@ class MainMenu:
         elif action == GameAction.MOVE_DOWN:
             self.menu.move_cursor_down()
         elif action == GameAction.CONFIRM:
-            self.menu.execute_selected()
+            print(f"MainMenu: CONFIRM action received")  # 디버깅
+            # 메뉴 선택 SFX 재생
+            try:
+                from src.audio import play_sfx
+                play_sfx("ui", "cursor_select")
+                print("MainMenu: Keyboard SFX played")  # 디버깅
+            except Exception as e:
+                print(f"MainMenu: Keyboard SFX play error: {e}")  # 디버깅
+            result = self.menu.execute_selected()
+            print(f"MainMenu: execute_selected result: {result}")  # 디버깅
+            print(f"MainMenu: self.result after execute: {self.result}")  # 디버깅
+            # execute_selected가 None을 반환해도 self.result가 설정되어 있으면 종료
             return self.result != MenuResult.NONE
         elif action == GameAction.ESCAPE or action == GameAction.QUIT:
             self.result = MenuResult.QUIT
@@ -525,7 +536,40 @@ def run_main_menu(console: tcod.console.Console, context: tcod.context.Context) 
             menu.render(console)
             context.present(console)
 
-        # 입력 처리 (논블로킹)
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
+
+        # 게임패드 입력 우선 확인
+        gamepad_action = unified_input_handler.get_action()
+        if gamepad_action:
+            print(f"MainMenu: Gamepad action received: {gamepad_action}")  # 디버깅
+            print(f"MainMenu: Gamepad connected: {unified_input_handler.gamepad_connected}")  # 디버깅
+            if gamepad_action == GameAction.CONFIRM:
+                # CONFIRM 액션 감지 시 강제로 첫 번째 메뉴 아이템 선택
+                print("MainMenu: Forcing menu selection for CONFIRM action")  # 디버깅
+                selected_item = menu.menu.get_selected_item()
+                if selected_item and selected_item.action:
+                    print(f"MainMenu: Executing action for: {selected_item.text}")  # 디버깅
+                    # 메뉴 선택 SFX 재생
+                    try:
+                        from src.audio import play_sfx
+                        play_sfx("ui", "cursor_select")
+                        print("MainMenu: SFX played")  # 디버깅
+                    except Exception as e:
+                        print(f"MainMenu: SFX play error: {e}")  # 디버깅
+                    selected_item.action()  # 액션 직접 실행
+                    return menu.result
+            elif menu.handle_input(gamepad_action):
+                print(f"MainMenu: Menu handle_input returned True, result: {menu.result}")  # 디버깅
+                return menu.result
+            else:
+                print(f"MainMenu: Menu handle_input returned False")  # 디버깅
+
+        # 키보드 입력 처리 (논블로킹)
         for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 

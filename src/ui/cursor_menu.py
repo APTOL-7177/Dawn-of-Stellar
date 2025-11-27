@@ -163,6 +163,7 @@ class CursorMenu:
         if item and item.enabled and item.action:
             self.logger.debug(f"메뉴 아이템 실행: {item.text}")
             play_sfx("ui", "cursor_select")  # 선택 효과음
+            # play_sfx("ui", "cursor_select")  # MainMenu에서 처리하므로 제거
             return item.action()
         elif item and not item.enabled:
             play_sfx("ui", "cursor_error")  # 에러 효과음
@@ -493,6 +494,10 @@ class TextInputBox:
             self.handle_confirm()
         elif action == GameAction.CANCEL:
             self.handle_cancel()
+        elif action == GameAction.MOVE_UP:
+            self.move_cursor_up()
+        elif action == GameAction.MOVE_DOWN:
+            self.move_cursor_down()
         elif event and isinstance(event, tcod.event.KeyDown):
             # 문자 입력
             if event.sym == tcod.event.KeySym.BACKSPACE:

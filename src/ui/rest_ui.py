@@ -11,7 +11,7 @@ from typing import List, Any, Optional
 
 from src.equipment.inventory import Inventory
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.ui.cooking_ui import open_cooking_pot
 from src.core.logger import get_logger
 from src.audio import play_sfx
@@ -45,7 +45,6 @@ def open_rest_menu(
     ]
 
     cursor = 0
-    handler = InputHandler()
 
     logger.info("휴식 메뉴 열기")
 
@@ -118,7 +117,7 @@ def open_rest_menu(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action == GameAction.MOVE_UP:
                 cursor = max(0, cursor - 1)
@@ -243,7 +242,6 @@ def open_inn_menu(
     ]
 
     cursor = 0
-    handler = InputHandler()
 
     logger.info(f"여관 메뉴 열기 (가격: {cost}G, 보유 골드: {current_gold}G)")
 
@@ -329,7 +327,7 @@ def open_inn_menu(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action == GameAction.MOVE_UP:
                 cursor = max(0, cursor - 1)
@@ -468,7 +466,7 @@ def show_message_box(
 
         # 입력 대기
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action in [GameAction.CONFIRM, GameAction.CANCEL, GameAction.ESCAPE]:
                 if action != GameAction.CONFIRM:  # CONFIRM은 확인이므로 다른 효과음

@@ -13,7 +13,7 @@ from pathlib import Path
 
 from src.ui.cursor_menu import CursorMenu, MenuItem, TextInputBox
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.core.logger import get_logger
 from src.core.config import get_config
 from src.persistence.meta_progress import get_meta_progress
@@ -1449,7 +1449,6 @@ def run_party_setup(console: tcod.console.Console, context: tcod.context.Context
     play_bgm("party_setup")
 
     setup = PartySetup(console.width, console.height)
-    handler = InputHandler()
 
     while True:
         # 렌더링
@@ -1458,7 +1457,7 @@ def run_party_setup(console: tcod.console.Console, context: tcod.context.Context
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             # KeyDown 이벤트 저장 (텍스트 입력용)
             key_event = event if isinstance(event, tcod.event.KeyDown) else None

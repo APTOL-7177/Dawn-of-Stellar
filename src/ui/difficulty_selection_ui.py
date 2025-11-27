@@ -11,7 +11,7 @@ import math
 
 from src.core.difficulty import DifficultyLevel, DifficultySystem
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction
+from src.ui.input_handler import GameAction, unified_input_handler
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
@@ -231,11 +231,10 @@ def show_difficulty_selection(
     Returns:
         선택된 난이도 (취소 시 None)
     """
-    from src.ui.input_handler import InputHandler
+    # unified_input_handler is already imported
     import time
 
     ui = DifficultySelectionUI(console.width, console.height, difficulty_system)
-    handler = InputHandler()
 
     # 애니메이션을 위한 시간 관리
     last_time = time.time()
@@ -255,7 +254,7 @@ def show_difficulty_selection(
 
         # 입력 처리
         for event in tcod.event.get():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 if ui.handle_input(action):

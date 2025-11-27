@@ -2,7 +2,7 @@ import tcod.console
 import tcod.event
 from typing import Optional, Dict, Any
 
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.cursor_menu import TextInputBox
 from src.core.logger import get_logger
@@ -25,7 +25,6 @@ def show_join_game_screen(
     Returns:
         선택된 호스트 정보 (mode, host_address, port) 또는 취소 시 None
     """
-    handler = InputHandler()
     screen_width = console.width
     screen_height = console.height
     
@@ -166,7 +165,7 @@ def show_join_game_screen(
             if isinstance(event, tcod.event.Quit):
                 return None
             
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
             
             # 문자 입력 처리
             if isinstance(event, tcod.event.KeyDown):

@@ -9,7 +9,7 @@ import tcod.event
 from typing import List, Optional, Any
 
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.quest.quest_manager import QuestManager, Quest
 from src.core.logger import get_logger
 from src.audio import play_sfx
@@ -258,7 +258,6 @@ def open_quest_board(
         quest_manager = get_quest_manager()
     
     ui = QuestBoardUI(console.width, console.height, quest_manager, player_level, player)
-    handler = InputHandler()
     
     logger.info("퀘스트 게시판 열기")
     
@@ -267,7 +266,7 @@ def open_quest_board(
         context.present(console)
         
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
             
             if action:
                 ui.handle_input(action)

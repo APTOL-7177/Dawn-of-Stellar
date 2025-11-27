@@ -23,11 +23,11 @@ deadzone: 0.3         # 아날로그 스틱 데드존 (0.0-1.0, 기본값: 0.3)
 button_mappings:
   0: confirm          # A/✕/A 버튼 - 확인/선택
   1: cancel           # B/○/B 버튼 - 취소
-  0: attack           # X/□/X 버튼 - 공격
-  0: interact         # Y/△/Y 버튼 - 상호작용/수집
-  2: open_inventory   # LB/L1/L 버튼 - 인벤토리 열기
-  3: open_character   # RB/R1/R 버튼 - 캐릭터 창 열기
+  9: attack           # X/□/X 버튼 - 공격
+  2: interact         # Y/△/Y 버튼 - 상호작용/수집
+  3: open_inventory   # LB/L1/L 버튼 - 인벤토리 열기
+  4: open_character   # RB/R1/R 버튼 - 캐릭터 창 열기
   7: menu             # Back/Select/- 버튼 - 메뉴
-  1: escape           # Start/Start/+ 버튼 - 탈출/일시정지
-  4: open_skills      # Left Stick/L3 - 스킬 창
-  0: pickup           # Right Stick/R3 - 아이템 줍기
+  6: escape           # Start/Start/+ 버튼 - 탈출/일시정지
+  8: open_skills      # Left Stick/L3 - 스킬 창
+  5: pickup           # Right Stick/R3 - 아이템 줍기

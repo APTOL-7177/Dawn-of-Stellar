@@ -11,7 +11,7 @@ import tcod
 import yaml
 from pathlib import Path
 
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.core.logger import get_logger, Loggers
 from src.persistence.meta_progress import get_meta_progress, save_meta_progress
 
@@ -329,7 +329,6 @@ def open_shop(
     gold = inventory.gold if inventory and hasattr(inventory, 'gold') else 0
 
     shop = ShopUI(console.width, console.height, gold)
-    handler = InputHandler()
 
     logger.info(f"상점 열림 (골드: {gold})")
 
@@ -350,7 +349,7 @@ def open_shop(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 result = shop.handle_input(action)

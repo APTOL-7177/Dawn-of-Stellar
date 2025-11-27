@@ -348,9 +348,13 @@ class GamepadHandler:
         # 아날로그 스틱 데드존
         self.deadzone = 0.3
 
-        # 이동 쿨타임 (초)
-        self.move_cooldown = 0.4
+        # 이동 쿨타임 (키보드처럼 작동)
+        self.move_cooldown = 0.4  # 첫 번째 입력 후 대기 시간
+        self.repeat_cooldown = 0.1  # 연속 입력 간격
         self.last_move_time = 0
+        self.first_move_time = 0
+        self.is_first_move = True
+        self.last_action = None
 
         # 게임패드 연결 시도
         self._initialize_joystick()
@@ -567,27 +571,21 @@ class GamepadHandler:
                     if current_state and not prev_state:
                         print(f"Gamepad button input (polling): {button_id} -> {action.value}")  # 콘솔 직접 출력
                         self.logger.info(f"Gamepad button input (polling): {button_id} -> {action.value}")
+                        # CONFIRM 액션 특별 로깅
+                        if action == GameAction.CONFIRM:
+                            print(f"CONFIRM ACTION DETECTED FROM BUTTON {button_id}!")  # 특별 디버깅
                         # 상태 업데이트 후 액션 반환
                         self._update_states()
                         return action
 
-            # D-pad 입력 확인 (직접 폴링)
-            for hat_id in range(self.joystick.get_numhats()):
-                current_hat = self.joystick.get_hat(hat_id)
-                prev_hat = self.prev_hat_states.get(hat_id, (0, 0))
-
-                # 디버깅: D-pad 상태 변화 출력
-                if current_hat != prev_hat:
-                    print(f"D-pad {hat_id} state change: {prev_hat} -> {current_hat}")
-
-                if current_hat != prev_hat and current_hat != (0, 0):
-                    action = self.hat_mappings.get(current_hat)
-                    if action:
-                        print(f"Gamepad D-pad input (polling): {current_hat} -> {action.value}")  # 콘솔 직접 출력
-                        self.logger.info(f"Gamepad D-pad input (polling): {current_hat} -> {action.value}")
-                        # 상태 업데이트 후 액션 반환
-                        self._update_states()
-                        return action
+            # D-pad 입력 확인 (아날로그 스틱처럼 연속 입력)
+            action = self._get_dpad_action()
+            if action:
+                print(f"Gamepad D-pad input: {action.value}")  # 콘솔 직접 출력
+                self.logger.info(f"Gamepad D-pad input: {action.value}")
+                # 상태 업데이트 후 액션 반환
+                self._update_states()
+                return action
 
             # 아날로그 스틱 입력 확인 (디지털 입력으로 변환)
             action = self._get_analog_stick_action()
@@ -607,14 +605,51 @@ class GamepadHandler:
 
         return None
 
-    def _get_analog_stick_action(self) -> Optional[GameAction]:
-        """아날로그 스틱을 디지털 입력으로 변환"""
+    def _get_dpad_action(self) -> Optional[GameAction]:
+        """D-pad를 키보드처럼 연속 입력으로 변환"""
         if not self.joystick:
             return None
 
-        # 이동 쿨타임 체크
-        current_time = time.time()
-        if current_time - self.last_move_time < self.move_cooldown:
+        # D-pad (hat) 입력 확인
+        for hat_id in range(self.joystick.get_numhats()):
+            current_hat = self.joystick.get_hat(hat_id)
+
+            if current_hat != (0, 0):
+                current_time = time.time()
+
+                # 방향 계산
+                action = self.hat_mappings.get(current_hat)
+
+                if action:
+                    # 키보드처럼 연속 입력 처리
+                    time_since_last = current_time - self.last_move_time
+
+                    # 첫 번째 입력 또는 방향 변경 시
+                    if action != self.last_action:
+                        self.is_first_move = True
+                        self.first_move_time = current_time
+                        self.last_action = action
+                        self.last_move_time = current_time
+                        return action
+
+                    # 첫 번째 입력 후 0.5초 이내는 입력 무시
+                    if self.is_first_move and time_since_last < 0.5:
+                        return None
+
+                    # 첫 번째 입력 후 0.5초가 지나면 연속 입력 허용
+                    if self.is_first_move:
+                        self.is_first_move = False
+
+                    # 연속 입력은 0.1초마다 허용
+                    if time_since_last >= self.repeat_cooldown:
+                        self.last_move_time = current_time
+                        return action
+
+        return None
+
+    def _get_analog_stick_action(self) -> Optional[GameAction]:
+        """아날로그 스틱을 디지털 입력으로 변환 (키보드처럼 연속 입력)"""
+        if not self.joystick:
             return None
 
         # 왼쪽 스틱 (보통 axis 0=x, 1=y)
@@ -625,31 +660,51 @@ class GamepadHandler:
             # 더 엄격한 데드존 적용 (0.5로 증가)
             strict_deadzone = 0.5
             if abs(x_axis) > strict_deadzone or abs(y_axis) > strict_deadzone:
-                # 8방향 입력 계산
+                current_time = time.time()
+
+                # 방향 계산
+                action = None
                 if y_axis < -strict_deadzone and x_axis < -strict_deadzone:
-                    self.last_move_time = current_time
-                    return GameAction.MOVE_UP_LEFT
+                    action = GameAction.MOVE_UP_LEFT
                 elif y_axis < -strict_deadzone and x_axis > strict_deadzone:
-                    self.last_move_time = current_time
-                    return GameAction.MOVE_UP_RIGHT
+                    action = GameAction.MOVE_UP_RIGHT
                 elif y_axis > strict_deadzone and x_axis < -strict_deadzone:
-                    self.last_move_time = current_time
-                    return GameAction.MOVE_DOWN_LEFT
+                    action = GameAction.MOVE_DOWN_LEFT
                 elif y_axis > strict_deadzone and x_axis > strict_deadzone:
-                    self.last_move_time = current_time
-                    return GameAction.MOVE_DOWN_RIGHT
+                    action = GameAction.MOVE_DOWN_RIGHT
                 elif y_axis < -strict_deadzone:
-                    self.last_move_time = current_time
-                    return GameAction.MOVE_UP
+                    action = GameAction.MOVE_UP
                 elif y_axis > strict_deadzone:
-                    self.last_move_time = current_time
-                    return GameAction.MOVE_DOWN
+                    action = GameAction.MOVE_DOWN
                 elif x_axis < -strict_deadzone:
-                    self.last_move_time = current_time
-                    return GameAction.MOVE_LEFT
+                    action = GameAction.MOVE_LEFT
                 elif x_axis > strict_deadzone:
-                    self.last_move_time = current_time
-                    return GameAction.MOVE_RIGHT
+                    action = GameAction.MOVE_RIGHT
+
+                if action:
+                    # 키보드처럼 연속 입력 처리
+                    time_since_last = current_time - self.last_move_time
+
+                    # 첫 번째 입력 또는 방향 변경 시
+                    if action != self.last_action:
+                        self.is_first_move = True
+                        self.first_move_time = current_time
+                        self.last_action = action
+                        self.last_move_time = current_time
+                        return action
+
+                    # 첫 번째 입력 후 0.5초 이내는 입력 무시
+                    if self.is_first_move and time_since_last < 0.5:
+                        return None
+
+                    # 첫 번째 입력 후 0.5초가 지나면 연속 입력 허용
+                    if self.is_first_move:
+                        self.is_first_move = False
+
+                    # 연속 입력은 0.1초마다 허용
+                    if time_since_last >= self.repeat_cooldown:
+                        self.last_move_time = current_time
+                        return action
 
         return None
 

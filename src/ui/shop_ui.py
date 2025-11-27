@@ -10,7 +10,7 @@ import tcod
 import yaml
 from pathlib import Path
 
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.persistence.meta_progress import get_meta_progress, save_meta_progress
@@ -711,7 +711,6 @@ def open_shop(
         inventory: 인벤토리 (사용 안 함, 호환성 유지)
     """
     shop = ShopUI(console.width, console.height)
-    handler = InputHandler()
 
     logger.info(f"상점 열림 (별의 파편: {shop.meta.star_fragments})")
 
@@ -732,7 +731,7 @@ def open_shop(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 result = shop.handle_input(action)

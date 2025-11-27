@@ -11,7 +11,7 @@ from enum import Enum
 
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.core.logger import get_logger
 from src.audio import play_sfx, play_bgm
 
@@ -147,7 +147,6 @@ def show_multiplayer_menu(
         선택 결과 (None이면 취소)
     """
     menu = MultiplayerMenu(console.width, console.height)
-    handler = InputHandler()
     
     # BGM 재생 (메인 메뉴와 동일)
     play_bgm("main_menu", loop=True)
@@ -157,7 +156,7 @@ def show_multiplayer_menu(
         for event in tcod.event.wait():
             context.convert_event(event)
             
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
             if action:
                 if menu.handle_input(action):
                     break

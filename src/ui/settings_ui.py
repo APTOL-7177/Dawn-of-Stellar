@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Optional
 import tcod
 
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.core.config import get_config
@@ -259,7 +259,6 @@ def open_settings(
         context: TCOD 컨텍스트
     """
     settings = SettingsUI(console.width, console.height)
-    handler = InputHandler()
 
     logger.info("설정 메뉴 열림")
 
@@ -270,7 +269,7 @@ def open_settings(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 result = settings.handle_input(action)

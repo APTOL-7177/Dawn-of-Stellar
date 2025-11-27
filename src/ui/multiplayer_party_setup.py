@@ -17,7 +17,7 @@ import time
 
 from src.ui.cursor_menu import CursorMenu, MenuItem, TextInputBox
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.core.logger import get_logger
 from src.core.config import get_config
 from src.persistence.meta_progress import get_meta_progress
@@ -1196,7 +1196,6 @@ def run_multiplayer_party_setup(
         is_host=is_host
     )
     
-    handler = InputHandler()
     import time
     last_connection_check = time.time()
     connection_check_interval = 1.0  # 1초마다 연결 상태 확인
@@ -1272,7 +1271,7 @@ def run_multiplayer_party_setup(
                 return None
             
             context.convert_event(event)
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
             
             key_event = event if isinstance(event, tcod.event.KeyDown) else None
             

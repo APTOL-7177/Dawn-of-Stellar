@@ -12,7 +12,7 @@ from src.gathering.harvestable import HarvestableObject
 from src.gathering.ingredient import IngredientDatabase
 from src.equipment.inventory import Inventory
 from src.ui.tcod_display import Colors
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
@@ -140,7 +140,6 @@ def show_gathering_prompt(
     box_x = (console.width - box_width) // 2
     box_y = (console.height - box_height) // 2
 
-    handler = InputHandler()
 
     while True:
         # 배경 그리기
@@ -170,7 +169,7 @@ def show_gathering_prompt(
 
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action == GameAction.CONFIRM:
                 return True
@@ -223,7 +222,6 @@ def show_multi_line_message(
     box_x = (console.width - box_width) // 2
     box_y = (console.height - box_height) // 2
 
-    handler = InputHandler()
 
     while True:
         # 배경 그리기
@@ -258,7 +256,7 @@ def show_multi_line_message(
 
         # 입력 대기
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action in [GameAction.CONFIRM, GameAction.CANCEL, GameAction.ESCAPE]:
                 if action != GameAction.CONFIRM:  # CONFIRM은 확인이므로 다른 효과음

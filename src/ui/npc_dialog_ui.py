@@ -8,7 +8,7 @@ import tcod.console
 import tcod.event
 from typing import Optional, List, Dict, Any, Callable
 
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.tcod_display import Colors
 from src.core.logger import get_logger
 from src.audio import play_sfx
@@ -43,7 +43,6 @@ def show_npc_dialog(
     Returns:
         선택된 선택지 인덱스 (None이면 취소)
     """
-    handler = InputHandler()
     
     # 대화 텍스트를 줄 단위로 분리
     dialog_lines = dialog_text.split('\n')
@@ -137,7 +136,7 @@ def show_npc_dialog(
         
         # 입력 처리
         for event in tcod.event.wait():
-            action = handler.dispatch(event)
+            action = unified_input_handler.process_tcod_event(event)
             
             if has_choices:
                 if action == GameAction.MOVE_UP:

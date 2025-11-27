@@ -10,7 +10,7 @@ from typing import List, Optional, Any, Dict
 
 from src.equipment.inventory import Inventory
 from src.ui.tcod_display import Colors, render_space_background
-from src.ui.input_handler import GameAction, InputHandler
+from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.core.logger import get_logger
 from src.audio import play_sfx
 from src.gathering.ingredient import IngredientDatabase, IngredientCategory
@@ -388,7 +388,6 @@ def open_storage(
 ):
     """창고 열기"""
     ui = StorageUI(console.width, console.height, inventory, hub_storage, town_manager, context)
-    handler = InputHandler()
     
     logger.info("창고 열기")
     
@@ -398,7 +397,7 @@ def open_storage(
             context.present(console)
             
             for event in tcod.event.wait():
-                action = handler.dispatch(event)
+                action = unified_input_handler.process_tcod_event(event)
                 
                 if action:
                     ui.handle_input(action)
