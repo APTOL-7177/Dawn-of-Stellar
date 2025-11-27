@@ -463,11 +463,9 @@ class GaugeTileManager:
                         tile[py, px, 2] = wound_stripe_color[2]
                         tile[py, px, 3] = 255
                     else:
-                        # 빗금 사이: 투명 (아래 레이어 보임 - HP 색상 또는 배경)
-                        tile[py, px, 0] = 0  # R
-                        tile[py, px, 1] = 0  # G
-                        tile[py, px, 2] = 0  # B
-                        tile[py, px, 3] = 0  # A (투명)
+                        # 빗금 사이: 배경 색상 (타일 초기화 시 이미 설정됨, 명시적으로 유지)
+                        # 이미 배경 색상으로 초기화되어 있으므로 추가 설정 불필요
+                        pass
                 else:
                     # 빈 HP 영역 (중간, hp_end <= px < wound_start) - 배경 색상 명시적으로 설정
                     tile[py, px, 0] = bg_color[0]

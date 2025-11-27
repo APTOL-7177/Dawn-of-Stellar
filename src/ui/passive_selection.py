@@ -122,12 +122,16 @@ class PassiveSelectionUI:
         Returns:
             (선택가능여부, 이유)
         """
+        # 개발 모드 확인
+        config = get_config()
+        dev_mode = config.get("development.unlock_all_classes", False)
+        
         # 이미 선택됨
         if passive in self.selected_passives:
             return False, "이미 선택됨"
 
-        # 잠김
-        if not passive.unlocked:
+        # 잠김 (개발 모드에서는 무시)
+        if not dev_mode and not passive.unlocked:
             return False, f"잠김 (해금 비용: {passive.unlock_cost} 별빛의 파편)"
 
         # 최대 개수 초과

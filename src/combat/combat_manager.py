@@ -672,8 +672,14 @@ class CombatManager:
             # 회피 후 특성 처리
             self._process_evade_traits(defender, attacker)
         else:
-            # 명중 SFX 재생
-            play_sfx("combat", "attack_physical")
+            # 명중 SFX 재생 (스킬 SFX 우선 사용)
+            if skill and hasattr(skill, 'sfx') and skill.sfx:
+                if isinstance(skill.sfx, tuple):
+                    play_sfx(skill.sfx[0], skill.sfx[1])
+                else:
+                    play_sfx("combat", "attack_physical")
+            else:
+                play_sfx("combat", "attack_physical")
             
             # 무기 내구도 감소 (명중 시에만, skip_degrade 플래그 확인)
             if hasattr(attacker, 'degrade_equipment') and not kwargs.get('skip_degrade', False):
@@ -771,8 +777,14 @@ class CombatManager:
             self.logger.warning(f"{attacker.name}: BRV가 0이라 HP 공격 불가")
             return {"action": "hp_attack", "error": "no_brv"}
 
-        # SFX 재생 (높은 데미지)
-        play_sfx("combat", "damage_high")
+        # SFX 재생 (스킬 SFX 우선 사용, 없으면 기본 SFX)
+        if skill and hasattr(skill, 'sfx') and skill.sfx:
+            if isinstance(skill.sfx, tuple):
+                play_sfx(skill.sfx[0], skill.sfx[1])
+            else:
+                play_sfx("combat", "damage_high")
+        else:
+            play_sfx("combat", "damage_high")
 
         # 스킬 배율
         # 기본 공격(스킬 없음) 시: 플레이어는 1.0, 적은 1.5배 (밸런스 조정)

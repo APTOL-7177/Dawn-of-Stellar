@@ -545,6 +545,10 @@ class GaugeRenderer:
         
         if is_decreasing:
             # 감소: hp_pixels ~ display_pixels 범위에 트레일
+            # 단, 트레일은 현재 HP를 넘지 않고 상처 영역도 제외
+            max_trail_pixel = wound_start_pixel if wound_pixels > 0 else total_pixels
+            trail_end_limited = min(display_pixels, max_trail_pixel, hp_pixels)
+            
             for i in range(width):
                 cell_start = i * divisions
                 cell_end = (i + 1) * divisions
@@ -554,7 +558,7 @@ class GaugeRenderer:
                     continue
                 
                 trail_start = max(cell_start, hp_pixels)
-                trail_end = min(cell_end, display_pixels)
+                trail_end = min(cell_end, trail_end_limited)
                 cell_trail = max(0, trail_end - trail_start)
                 
                 if cell_trail >= divisions:
@@ -632,8 +636,8 @@ class GaugeRenderer:
                         cell_index=i
                     )
                     if boundary_tile and boundary_tile.strip() and boundary_tile != ' ':
-                        # 타일을 완전히 불투명하게 렌더링 (배경 블렌딩 없음)
-                        console.print(x + i, y, boundary_tile, bg=bg_color, bg_blend=tcod.BKGND_SET)
+                        # 타일 자체가 모든 색상을 포함하므로 bg 파라미터 없이 렌더링
+                        console.print(x + i, y, boundary_tile)
                     else:
                         # 타일 생성 실패 - 폴백 처리
                         from src.core.logger import get_logger
@@ -720,8 +724,8 @@ class GaugeRenderer:
                     )
                     # 타일 생성 실패 시 폴백 처리
                     if boundary_tile and boundary_tile.strip():
-                        # 타일을 완전히 불투명하게 렌더링 (배경 블렌딩 없음)
-                        console.print(x + i, y, boundary_tile, bg=bg_color, bg_blend=tcod.BKGND_SET)
+                        # 타일 자체가 모든 색상을 포함하므로 bg 파라미터 없이 렌더링
+                        console.print(x + i, y, boundary_tile)
                     else:
                         # 타일 생성 실패 로깅 (첫 실패만)
                         if not _boundary_tile_fail_logged:

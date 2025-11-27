@@ -14,6 +14,7 @@ def create_battle_mage_skills():
         DamageEffect(DamageType.BRV, 1.5, stat_type="hybrid")
     ]
     carve_rune.costs = []  # 기본 공격은 MP 소모 없음
+    carve_rune.sfx = ("combat", "attack_physical")  # 룬 새기기
     carve_rune.metadata = {"basic_attack": True, "rune_gain": True, "random_rune": True}
 
     # 2. 기본 HP: 룬 폭발 (보유 룬 소모하여 강력한 공격)
@@ -29,6 +30,7 @@ def create_battle_mage_skills():
         GimmickEffect(GimmickOperation.CONSUME, "rune_arcane", 1)
     ]
     rune_burst.costs = []  # 기본 공격은 MP 소모 없음
+    rune_burst.sfx = ("skill", "cast_complete")  # 룬 폭발
     rune_burst.metadata = {"basic_attack": True, "consumes_runes": True}
 
     # 3. 화염 룬 각인 (물리 공격력 +15% 버프)
@@ -40,6 +42,7 @@ def create_battle_mage_skills():
     ]
     fire_rune.costs = [MPCost(4)]  # 다른 룬들과 동일한 MP 비용
     fire_rune.target_type = "self"
+    fire_rune.sfx = ("skill", "fire")  # 화염 룬
     fire_rune.metadata = {"rune_type": "fire"}
 
     # 4. 냉기 룬 각인 (마법 공격력 +15% 버프)
@@ -51,6 +54,7 @@ def create_battle_mage_skills():
     ]
     ice_rune.costs = [MPCost(4)]
     ice_rune.target_type = "self"
+    ice_rune.sfx = ("skill", "ice")  # 냉기 룬
     ice_rune.metadata = {"rune_type": "ice"}
 
     # 5. 번개 룬 각인 (속도 +20% 버프)
@@ -62,6 +66,7 @@ def create_battle_mage_skills():
     ]
     lightning_rune.costs = [MPCost(4)]
     lightning_rune.target_type = "self"
+    lightning_rune.sfx = ("skill", "bolt")  # 번개 룬
     lightning_rune.metadata = {"rune_type": "lightning"}
 
     # 6. 대지 룬 각인 (방어력 +20% 버프)
@@ -73,6 +78,7 @@ def create_battle_mage_skills():
     ]
     earth_rune.costs = [MPCost(4)]
     earth_rune.target_type = "self"
+    earth_rune.sfx = ("skill", "earth")  # 대지 룬
     earth_rune.metadata = {"rune_type": "earth"}
 
     # 7. 비전 룬 각인 (MP 회복 버프)
@@ -84,6 +90,7 @@ def create_battle_mage_skills():
     ]
     arcane_rune.costs = [MPCost(4)]
     arcane_rune.target_type = "self"
+    arcane_rune.sfx = ("character", "status_buff")  # 비전 룬
     arcane_rune.metadata = {"rune_type": "arcane"}
 
     # 8. 룬 폭발 (보유 룬 개수에 비례한 대미지, 모든 룬 소모)
@@ -100,6 +107,7 @@ def create_battle_mage_skills():
     ]
     rune_explosion.costs = [MPCost(12)]
     # rune_explosion.cooldown = 4  # 쿨다운 시스템 제거됨
+    rune_explosion.sfx = ("skill", "ultima")  # 룬 폭발
     rune_explosion.metadata = {"consumes_all_runes": True}
 
     # 9. 원소 융합 (3가지 이상 다른 룬 보유 시 사용 가능, 강력한 융합 공격)
@@ -116,6 +124,7 @@ def create_battle_mage_skills():
     elemental_fusion.costs = [MPCost(15)]
     # elemental_fusion.cooldown = 5  # 쿨다운 시스템 제거됨
     elemental_fusion.target_type = "single_enemy"
+    elemental_fusion.sfx = ("skill", "cast_complete")  # 원소 융합
     elemental_fusion.metadata = {"requires_different_runes": 3}
 
     # 10. 궁극기: 원소 대재앙 (모든 룬을 융합하여 극한의 피해)
@@ -137,6 +146,7 @@ def create_battle_mage_skills():
     ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
+    ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "elemental_cataclysm": True}
 
     return [carve_rune, rune_burst, fire_rune, ice_rune, lightning_rune,

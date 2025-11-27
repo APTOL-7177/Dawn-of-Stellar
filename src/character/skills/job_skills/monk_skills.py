@@ -15,6 +15,7 @@ def create_monk_skills():
         DamageEffect(DamageType.BRV, 1.5, stat_type="physical")
     ]
     palm_strike.costs = []  # 기본 공격은 MP 소모 없음
+    palm_strike.sfx = ("combat", "attack_physical")  # 장타격
     palm_strike.metadata = {}
 
     # 2. 기본 HP: 기공파 (균형 유지)
@@ -23,6 +24,7 @@ def create_monk_skills():
         DamageEffect(DamageType.HP, 1.2, stat_type="physical")
     ]
     energy_blast.costs = []  # 기본 공격은 MP 소모 없음
+    energy_blast.sfx = ("combat", "damage_high")  # 기공파
     energy_blast.metadata = {}
 
     # 3. 음극 장 (음으로 이동, 마법 피해)
@@ -34,6 +36,7 @@ def create_monk_skills():
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", -15, min_value=0, max_value=100)
     ]
     yin_strike.costs = []
+    yin_strike.sfx = ("skill", "cast_start")  # 음극 장
     yin_strike.metadata = {"ki_shift": -15, "element": "yin"}
 
     # 4. 양극 권 (양으로 이동, 물리 피해)
@@ -45,6 +48,7 @@ def create_monk_skills():
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", 15, min_value=0, max_value=100)
     ]
     yang_strike.costs = [MPCost(5)]
+    yang_strike.sfx = ("combat", "attack_physical")  # 양극 권
     yang_strike.metadata = {"ki_shift": 15, "element": "yang"}
 
     # 5. 태극 회복 (균형으로 복귀, 회복)
@@ -56,6 +60,7 @@ def create_monk_skills():
     ]
     balance_restoration.costs = [MPCost(7)]
     balance_restoration.target_type = "self"
+    balance_restoration.sfx = ("character", "hp_heal")  # 태극 회복
     balance_restoration.metadata = {"ki_shift": "reset", "heal": True}
 
     # 6. 극음공 (음 극단 상태에서 강력한 마법 공격)
@@ -68,6 +73,7 @@ def create_monk_skills():
     ]
     yin_extreme.costs = [MPCost(9)]
     # yin_extreme.cooldown = 3  # 쿨다운 시스템 제거됨
+    yin_extreme.sfx = ("skill", "cast_complete")  # 극음공
     yin_extreme.metadata = {"requires_yin": True, "ki_shift": -10}
 
     # 7. 극양공 (양 극단 상태에서 강력한 물리 공격)
@@ -80,6 +86,7 @@ def create_monk_skills():
     ]
     yang_extreme.costs = [MPCost(9)]
     # yang_extreme.cooldown = 3  # 쿨다운 시스템 제거됨
+    yang_extreme.sfx = ("combat", "damage_high")  # 극양공
     yang_extreme.metadata = {"requires_yang": True, "ki_shift": 10}
 
     # 8. 태극 유전 (3턴간 자동 균형 이동 강화)
@@ -91,6 +98,7 @@ def create_monk_skills():
     taichi_flow.costs = [MPCost(7)]
     taichi_flow.target_type = "self"
     # taichi_flow.cooldown = 4  # 쿨다운 시스템 제거됨
+    taichi_flow.sfx = ("character", "status_buff")  # 태극 유전
     taichi_flow.metadata = {"buff": "enhanced_ki_flow"}
 
     # 9. 깨달음 (정확히 50에서만 사용 가능, 강력한 버프)
@@ -105,6 +113,7 @@ def create_monk_skills():
     enlightenment.costs = [MPCost(10)]
     enlightenment.target_type = "self"
     # enlightenment.cooldown = 5  # 쿨다운 시스템 제거됨
+    enlightenment.sfx = ("character", "status_buff")  # 깨달음
     enlightenment.metadata = {"requires_balance": True, "ki_exact": 50}
 
     # 10. 궁극기: 태극천지파 (음양을 모두 활용한 궁극기)
@@ -122,6 +131,7 @@ def create_monk_skills():
     taichi_ultimate.is_ultimate = True
     taichi_ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     taichi_ultimate.target_type = "single_enemy"
+    taichi_ultimate.sfx = ("skill", "limit_break")  # 궁극기
     taichi_ultimate.metadata = {"ultimate": True, "ki_reset": True}
 
     return [palm_strike, energy_blast, yin_strike, yang_strike,

@@ -522,6 +522,11 @@ class Character:
             self.start_gauge = self.gimmick_data.get("start_gauge", 0)
             self.gauge_per_turn = self.gimmick_data.get("gauge_gain", {}).get("per_turn", 10)
 
+        # 차원술사 - 차원 굴절 시스템
+        elif gimmick_type == "dimension_refraction":
+            start_refraction = self.gimmick_data.get("start_refraction", 0)
+            self.refraction_stacks = start_refraction  # 차원 굴절량 초기화
+
         self.logger.debug(f"{self.character_class} 기믹 초기화: {gimmick_type}")
 
     def _get_class_skills(self, character_class: str) -> List[str]:

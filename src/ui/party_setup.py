@@ -929,6 +929,10 @@ class PartySetup:
         
         # 패시브는 파티 전체 공통이므로 멤버별 확인 불필요
         
+        # 개발 모드 확인
+        config = get_config()
+        dev_mode = config.get("development.unlock_all_classes", False)
+        
         # 패시브 목록 로드
         passives_file = Path("data/passives.yaml")
         passives = []
@@ -969,8 +973,8 @@ class PartySetup:
             passive_cost = passive.get('cost', 0)
             unlocked = passive.get('unlocked', True)
 
-            # 잠긴 패시브는 표시하지 않음
-            if not unlocked:
+            # 개발 모드가 아니면 잠긴 패시브는 표시하지 않음
+            if not dev_mode and not unlocked:
                 continue
 
             # 이미 선택된 패시브인지 확인 (파티 전체 공통)

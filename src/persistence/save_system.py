@@ -363,6 +363,7 @@ def serialize_party_member(member: Any) -> Dict[str, Any]:
         "current_hp": getattr(member, 'current_hp', 100),
         "current_mp": getattr(member, 'current_mp', 50),
         "current_brv": getattr(member, 'current_brv', 0),
+        "wound": getattr(member, 'wound', 0),  # 상처량 저장
         "experience": getattr(member, 'experience', 0),
         "stats": stats_data,
         "equipment": serialize_equipment(member),
@@ -431,6 +432,7 @@ def serialize_gimmick_state(member: Any) -> Dict[str, Any]:
         "elemental_spirits": ["spirit_fire", "spirit_water", "spirit_wind", "spirit_earth", "max_spirits"],
         "dilemma_choice": ["choice_power", "choice_wisdom", "choice_sacrifice", "choice_survival", "choice_truth", "choice_lie", "choice_order", "choice_chaos", "accumulation_threshold"],
         "probability_distortion": ["distortion_gauge", "max_gauge", "start_gauge", "gauge_per_turn"],
+        "dimension_refraction": ["refraction_stacks"],
     }
     
     # 해당 기믹 타입의 속성들을 저장
@@ -1167,6 +1169,9 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
     char.current_hp = member_data["current_hp"]
     char.current_mp = member_data["current_mp"]
     char.current_brv = member_data.get("current_brv", 0)
+    
+    # 상처량 복원
+    char.wound = member_data.get("wound", 0)
 
     # 경험치 복원
     char.experience = member_data.get("experience", 0)
