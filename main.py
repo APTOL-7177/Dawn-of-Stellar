@@ -16,6 +16,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from src.core.config import initialize_config, get_config
 from src.core.logger import get_logger, Loggers
 from src.core.event_bus import event_bus
+from src.core.vibration_system import vibration_listener
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -127,14 +128,29 @@ def main() -> int:
             config.set("development.enabled", False)  # 개발 모드 표시 없음
             config.set("development.debug_mode", False)  # 디버그 모드 표시 없음
 
-        # 로거 초기화
+        # 로거 초기화 (먼저 해야 pygame 초기화에서 사용 가능)
         logger = get_logger(Loggers.SYSTEM)
+
+        # pygame 초기화 (게임패드 지원용)
+        try:
+            import pygame
+            pygame.init()
+            pygame.joystick.init()
+            logger.info("pygame 초기화 완료 (게임패드 지원 활성화)")
+        except Exception as e:
+            logger.warning(f"pygame 초기화 실패 (게임패드 지원 비활성화): {e}")
         logger.info("=" * 60)
         logger.info("Dawn of Stellar - 별빛의 여명 시작")
         logger.info(f"버전: {config.get('game.version', '5.0.0')}")
         logger.info(f"언어: {config.language}")
         logger.info(f"개발 모드: {config.development_mode}")
         logger.info(f"디버그 모드: {config.debug_mode}")
+
+        # 진동 시스템 이벤트 리스너 등록
+        for event_name in vibration_listener.event_mappings.keys():
+            event_bus.subscribe(event_name, vibration_listener.handle_event)
+        logger.info("진동 이벤트 리스너 등록됨")
+
         logger.info("=" * 60)
 
         # 핫 리로드 시스템 초기화 (개발 모드일 때만)

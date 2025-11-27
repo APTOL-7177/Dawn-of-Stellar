@@ -932,6 +932,9 @@ class ExplorationSystem:
                 except Exception as e:
                     logger.error(f"아이템 획득 동기화 메시지 전송 실패: {e}", exc_info=True)
 
+        # 아이템 획득 이벤트 발행 (진동용)
+        event_bus.publish(Events.WORLD_ITEM_PICKUP, {"item": item, "player": self.player})
+
         return ExplorationResult(
             success=True,
             event=ExplorationEvent.ITEM_FOUND,
@@ -1055,6 +1058,9 @@ class ExplorationSystem:
             play_sfx("world", "door_open")
             tile.unlock()
             logger.info(f"문 잠금 해제: {key_id}")
+
+            # 문 열기 이벤트 발행 (진동용)
+            event_bus.publish(Events.WORLD_DOOR_OPEN, {"tile": tile, "key_id": key_id, "player": self.player})
 
             return ExplorationResult(
                 success=True,

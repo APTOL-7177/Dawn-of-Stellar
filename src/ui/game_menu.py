@@ -21,7 +21,7 @@ class MenuOption(Enum):
     PARTY_STATUS = "party_status"
     INVENTORY = "inventory"
     QUEST_LIST = "quest_list"  # 퀘스트 목록
-    COOKING = "cooking"  # 요리
+    FIELD_SKILLS = "field_skills"  # 필드스킬
     SAVE_GAME = "save"
     LOAD_GAME = "load"
     OPTIONS = "options"
@@ -41,6 +41,7 @@ class GameMenu:
             ("파티 상태", MenuOption.PARTY_STATUS),
             ("인벤토리", MenuOption.INVENTORY),
             ("퀘스트 목록", MenuOption.QUEST_LIST),
+            ("필드스킬", MenuOption.FIELD_SKILLS),
             ("게임 저장", MenuOption.SAVE_GAME),
             ("게임 불러오기", MenuOption.LOAD_GAME),
             ("설정", MenuOption.OPTIONS),
@@ -212,17 +213,6 @@ def open_game_menu(
                             show_message(console, context, "인벤토리를 열 수 없습니다.")
                             continue
 
-                    elif result == MenuOption.COOKING:
-                        if inventory is not None:
-                            from src.ui.cooking_ui import open_cooking_pot
-                            # 메뉴에서 요리할 때는 요리솥 보너스 없음
-                            open_cooking_pot(console, context, inventory, is_cooking_pot=False)
-                            # 요리에서 돌아온 후 메뉴 계속
-                            continue
-                        else:
-                            show_message(console, context, "인벤토리가 없어서 요리를 할 수 없습니다.")
-                            continue
-
                     elif result == MenuOption.QUEST_LIST:
                         # 퀘스트 목록 UI
                         from src.quest.quest_manager import get_quest_manager
@@ -232,6 +222,12 @@ def open_game_menu(
                             open_quest_list(console, context, quest_manager)
                         else:
                             show_message(console, context, "퀘스트 관리자를 찾을 수 없습니다.")
+                        continue
+
+                    elif result == MenuOption.FIELD_SKILLS:
+                        # 필드스킬 메뉴
+                        from src.ui.field_skill_menu import open_field_skill_menu
+                        open_field_skill_menu(console, context)
                         continue
 
                     elif result == MenuOption.PARTY_STATUS and party:

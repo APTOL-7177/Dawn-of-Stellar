@@ -11,7 +11,7 @@ from enum import Enum
 import tcod
 import random
 
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.gauge_renderer import GaugeRenderer, get_animation_manager
 from src.ui.tcod_display import render_space_background
@@ -4702,6 +4702,9 @@ def run_combat(
 
     # 전투 루프
     while not ui.battle_ended:
+        # 게임패드 상태 업데이트
+        unified_input_handler.update_gamepad()
+
         # 업데이트
         ui.update(delta_time=1.0)
 
@@ -4710,16 +4713,23 @@ def run_combat(
         context.present(console)
 
         # 입력 처리
+        action = None
+
+        # tcod 이벤트 처리 (키보드/마우스)
         for event in tcod.event.wait(timeout=0.016):  # ~60 FPS
             action = handler.dispatch(event)
-
-            if action:
-                if ui.handle_input(action):
-                    break
 
             # 윈도우 닫기는 무시 (전투 중에는 도주 명령으로만 종료 가능)
             # if isinstance(event, tcod.event.Quit):
             #     return CombatState.FLED
+
+        # 게임패드 입력 확인 (tcod 이벤트가 없을 때만)
+        if not action:
+            action = unified_input_handler.gamepad_handler.get_action()
+
+        if action:
+            if ui.handle_input(action):
+                break
 
 
     logger.info(f"전투 종료: {ui.battle_result.value if ui.battle_result else 'unknown'}")

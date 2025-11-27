@@ -13,7 +13,7 @@ from src.world.exploration import ExplorationEvent, ExplorationResult, Explorati
 from src.world.map_renderer import MapRenderer
 from src.world.field_skills import FieldSkillManager
 from src.world.tile import TileType
-from src.ui.input_handler import InputHandler, GameAction
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.gauge_renderer import GaugeRenderer
 from src.ui.tcod_display import render_space_background
 from src.ui.field_skill_ui import FieldSkillUI
@@ -1838,25 +1838,36 @@ def run_exploration(
         
         # ... (기존 코드) ...
         
+        # 게임패드 상태 업데이트
+        unified_input_handler.update_gamepad()
+
         # 렌더링
         ui.render(console)
         context.present(console)
-        
+
         # 입력 처리
+        action = None
+        key_event = None
+
+        # tcod 이벤트 처리 (키보드/마우스)
         for event in tcod.event.wait(timeout=0.05):
             action = handler.dispatch(event)
             key_event = event if isinstance(event, tcod.event.KeyDown) else None
 
-            if action or key_event:
-                # Debug: 액션 수신
-                done = ui.handle_input(action, console, context, key_event)
-                # Debug: handle_input 반환
-                if done:
-                    # Debug: 루프 탈출
-                    break
-            else:
-                # action이 None인 경우 (키 입력 없음)
-                # 다음 이벤트 처리로 넘어감
+        # 게임패드 입력 확인 (tcod 이벤트가 없을 때만)
+        if not action:
+            action = unified_input_handler.gamepad_handler.get_action()
+
+        if action or key_event:
+            # Debug: 액션 수신
+            done = ui.handle_input(action, console, context, key_event)
+            # Debug: handle_input 반환
+            if done:
+                # Debug: 루프 탈출
+                break
+        else:
+            # action이 None인 경우 (키 입력 없음)
+            # 다음 이벤트 처리로 넘어감
                 continue
         
         # 입력 처리 후 즉시 상태 체크 (전투 요청 확인)

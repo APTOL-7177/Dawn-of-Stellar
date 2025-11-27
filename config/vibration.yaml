@@ -1,0 +1,51 @@
+# 게임패드 진동 설정
+# 진동의 강도와 활성화 상태를 조절할 수 있습니다.
+
+# 진동 시스템 활성화
+enabled: true
+
+# 전체 진동 강도 (0.0 = 꺼짐, 1.0 = 최대)
+global_intensity: 1.0
+
+# 개별 진동 패턴 강도 조절 (0.0-1.0)
+# 기본값을 기준으로 곱해집니다.
+pattern_intensities:
+  light_tap: 1.0
+  medium_tap: 1.0
+  heavy_tap: 1.0
+  success: 1.0
+  failure: 1.0
+  damage_light: 1.0
+  damage_medium: 1.0
+  damage_heavy: 1.0
+  death: 1.0
+  healing: 1.0
+  level_up: 1.0
+  boss_warning: 1.0
+  trap_trigger: 1.0
+  door_open: 1.0
+  item_pickup: 1.0
+  equipment_break: 1.0
+  skill_cast: 1.0
+  combat_start: 1.0
+  combat_end: 1.0
+
+# 이벤트별 진동 활성화/비활성화
+event_vibrations:
+  combat_damage: true      # 전투 피해
+  character_events: true   # 캐릭터 이벤트 (레벨업, 사망 등)
+  skill_casting: true      # 스킬 시전
+  world_interaction: true  # 세계 상호작용 (아이템 줍기, 문 열기)
+  equipment_events: true   # 장비 이벤트
+  ui_feedback: true        # UI 피드백 (메뉴 열기/닫기)
+
+# 고급 설정
+advanced:
+  # 진동 지속시간 배율 (1.0 = 기본값)
+  duration_multiplier: 1.0
+
+  # 페이드 효과 활성화
+  enable_fade_effects: true
+
+  # 최대 동시 진동 수 (성능 최적화)
+  max_concurrent_vibrations: 3
