@@ -167,8 +167,9 @@ def register_sword_saint_skills(skill_manager):
             5,  # 최대치로 설정
             min_value=0
         ),
-        # 아군 전체 공격력 1.2배 (2턴)
-        BuffEffect(BuffType.ATTACK_UP, 0.2, duration=2)
+        # 아군 전체 공격력/마법력 1.2배 (2턴)
+        BuffEffect(BuffType.ATTACK_UP, 0.2, duration=2),
+        BuffEffect(BuffType.MAGIC_UP, 0.2, duration=2)
     ]
     teamwork.target_type = "all_enemies"
     teamwork.is_aoe = True
@@ -178,4 +179,5 @@ def register_sword_saint_skills(skill_manager):
     skills.append(teamwork)
     skill_manager.register_skill(teamwork)
 
-    return [s.skill_id for s in skills]
+    return skills
+\n    return [s.skill_id for s in skills]\n

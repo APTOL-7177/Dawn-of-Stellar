@@ -147,21 +147,4 @@ def register_rogue_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 빠른 손놀림
-    teamwork = TeamworkSkill(
-        "rogue_teamwork",
-        "빠른 손놀림",
-        "단일 대상 BRV 공격 (1.2x) + 아이템 1개 훔침 (확률 60%) + ATB +300",
-        gauge_cost=50
-    )
-    teamwork.effects = [
-        # 단일 대상 BRV 공격 (1.2x)
-        DamageEffect(DamageType.BRV, multiplier=1.2),
-        # 아이템 1개 훔침 (확률 60%) (메타데이터로 처리)
-        # ATB +300
-        GimmickEffect(GimmickOperation.ADD, "atb_gauge", 300)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

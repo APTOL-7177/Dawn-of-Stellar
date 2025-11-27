@@ -163,22 +163,4 @@ def register_hacker_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 시스템 오버라이드
-    teamwork = TeamworkSkill(
-        "hacker_teamwork",
-        "시스템 오버라이드",
-        "적 전체 버프 제거 + 디버프 1개씩 부여 + 본인 프로그램 3개 즉시 실행",
-        gauge_cost=225
-    )
-    teamwork.effects = [
-        # 적 전체 버프 제거 (메타데이터로 처리 - 실제로는 BuffEffect로 구현하기 복잡)
-        # 디버프 1개씩 부여 (공격력/방어력/속도 중 -30%, 3턴)
-        BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=3, target="all_enemies"),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=3, target="all_enemies"),
-        BuffEffect(BuffType.SPEED_DOWN, 0.3, duration=3, target="all_enemies"),
-        # 본인 프로그램 3개 즉시 실행 (MP 소모 없음) (메타데이터로 처리)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

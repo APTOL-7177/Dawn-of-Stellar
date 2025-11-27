@@ -159,22 +159,4 @@ def register_priest_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 신성한 축복
-    teamwork = TeamworkSkill(
-        "priest_teamwork",
-        "신성한 축복",
-        "아군 전체 최대 HP의 40% 회복 + 전체에 REGEN (최대 HP의 5%씩, 3턴) + 신성력 +2",
-        gauge_cost=125
-    )
-    teamwork.effects = [
-        # 아군 전체 최대 HP의 40% 회복
-        HealEffect(percentage=0.4, is_party_wide=True),
-        # 전체에 REGEN (최대 HP의 5%씩, 3턴)
-        BuffEffect(BuffType.HP_REGEN, 0.05, duration=3, is_party_wide=True),
-        # 신성력 +2
-        GimmickEffect(GimmickOperation.ADD, "divine_power", 2)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

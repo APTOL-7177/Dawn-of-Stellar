@@ -137,23 +137,4 @@ def register_engineer_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 긴급 냉각 시스템
-    teamwork = TeamworkSkill(
-        "engineer_teamwork",
-        "긴급 냉각 시스템",
-        "열 게이지 -70 + 단일 대상 화염 BRV+HP (2.8x) + 자신 속도 1.25배 (3턴)",
-        gauge_cost=150
-    )
-    teamwork.effects = [
-        # 열 게이지 -70
-        GimmickEffect(GimmickOperation.CONSUME, "heat_gauge", 70),
-        # 단일 대상 화염 BRV+HP (2.8x)
-        DamageEffect(DamageType.BRV_HP, multiplier=2.8),
-        # 자신 속도 1.25배 (3턴)
-        BuffEffect(BuffType.SPEED_UP, 0.25, duration=3),
-        # 다음 공격 과열 무시 (메타데이터로 처리)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

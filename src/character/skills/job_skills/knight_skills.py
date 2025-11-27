@@ -159,20 +159,4 @@ def register_knight_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 불굴의 방패
-    teamwork = TeamworkSkill(
-        "knight_teamwork",
-        "불굴의 방패",
-        "아군 전체에 방어막 부여 (자신 공격력 × 0.5, 2턴) + 의무 +2",
-        gauge_cost=125
-    )
-    teamwork.effects = [
-        # 아군 전체에 방어막 (자신 공격력 × 0.5, 2턴)
-        BuffEffect(BuffType.BARRIER, 0.5, duration=2, is_party_wide=True),
-        # 의무 +2
-        GimmickEffect(GimmickOperation.ADD, "duty", 2)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

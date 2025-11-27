@@ -203,21 +203,4 @@ def register_dark_knight_skills(sm):
         sm.register_skill(s)
 
     # 팀워크 스킬: 피의 계약
-    teamwork = TeamworkSkill(
-        "dark_knight_teamwork",
-        "피의 계약",
-        "아군 전체 현재 HP의 25% 흡수 → 자신 BRV로 변환 (MAX BRV의 150%) + 다음 공격 데미지 1.8배 + 어둠 게이지 +50",
-        gauge_cost=200
-    )
-    teamwork.effects = [
-        # 아군 전체 HP 25% 흡수 → 자신 BRV로 변환 (커스텀 효과로 구현 필요)
-        # 일단 임시로 자신 공격력 버프 + 어둠 게이지 증가
-        BuffEffect(BuffType.ATTACK_UP, 0.8, duration=1),  # 다음 공격 데미지 1.8배 (기본 1.0 + 0.8)
-        GimmickEffect(GimmickOperation.ADD, "dark_power", 50)  # 어둠 게이지 +50
-    ]
-    teamwork.target_type = "self"
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True, "custom_hp_drain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

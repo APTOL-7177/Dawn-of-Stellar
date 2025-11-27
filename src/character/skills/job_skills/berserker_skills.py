@@ -145,22 +145,4 @@ def register_berserker_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 광란의 일격
-    teamwork = TeamworkSkill(
-        "berserker_teamwork",
-        "광란의 일격",
-        "단일 대상 BRV+HP (1.6x → HP 변환) + 광기 +20 + 자신 공격력 1.2배 (2턴)",
-        gauge_cost=100
-    )
-    teamwork.effects = [
-        # 단일 대상 BRV+HP (1.6x → HP 변환)
-        DamageEffect(DamageType.BRV_HP, multiplier=1.6),
-        # 광기 +20
-        GimmickEffect(GimmickOperation.ADD, "rage", 20),
-        # 자신 공격력 1.2배 (2턴)
-        BuffEffect(BuffType.ATTACK_UP, 0.2, duration=2)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

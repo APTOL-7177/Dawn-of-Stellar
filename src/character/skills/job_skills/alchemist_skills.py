@@ -159,23 +159,5 @@ def register_alchemist_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 비약 조합
-    teamwork = TeamworkSkill(
-        "alchemist_teamwork",
-        "비약 조합",
-        "즉시 희귀 물약 1개 생성 (랜덤: 대회복약/전투의 영약/폭탄) + 즉시 사용",
-        gauge_cost=100
-    )
-    teamwork.effects = [
-        # 즉시 희귀 물약 생성 및 사용 (메타데이터로 처리)
-        # - 대회복약: HP 60% 회복
-        # - 전투의 영약: 공격력/방어력 버프
-        # - 폭탄: 데미지
-        # 실제로는 랜덤으로 하나를 선택해서 효과 적용
-        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3),  # 임시: 전투의 영약 효과
-        HealEffect(percentage=0.6)  # 임시: 대회복약 효과
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+
+    return [s.skill_id for s in skills]

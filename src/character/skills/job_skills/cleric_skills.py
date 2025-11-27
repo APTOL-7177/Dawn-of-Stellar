@@ -160,22 +160,4 @@ def register_cleric_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 치유의 기도
-    teamwork = TeamworkSkill(
-        "cleric_teamwork",
-        "치유의 기도",
-        "아군 1명 최대 HP의 60% 회복 + 리젠 (최대 HP의 10%씩, 3턴) + 신앙 +1",
-        gauge_cost=75
-    )
-    teamwork.effects = [
-        # 아군 1명 최대 HP의 60% 회복
-        HealEffect(percentage=0.6),
-        # 리젠 (최대 HP의 10%씩, 3턴)
-        BuffEffect(BuffType.HP_REGEN, 0.1, duration=3),
-        # 신앙 +1
-        GimmickEffect(GimmickOperation.ADD, "faith", 1)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

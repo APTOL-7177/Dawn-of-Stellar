@@ -152,22 +152,4 @@ def register_assassin_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 암습
-    teamwork = TeamworkSkill(
-        "assassin_teamwork",
-        "암습",
-        "단일 대상 BRV+HP (2.0x → HP 변환) + 은신 상태로 전환 + 다음 공격 크리티컬률 +50%",
-        gauge_cost=125
-    )
-    teamwork.effects = [
-        # 단일 대상 BRV+HP (2.0x → HP 변환)
-        DamageEffect(DamageType.BRV_HP, multiplier=2.0),
-        # 은신 상태로 전환
-        StatusEffect("STEALTH", duration=1),
-        # 다음 공격 크리티컬률 +50%
-        BuffEffect(BuffType.CRITICAL_UP, 0.5, duration=1)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

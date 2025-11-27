@@ -152,20 +152,4 @@ def register_breaker_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 쉘 브레이크
-    teamwork = TeamworkSkill(
-        "breaker_teamwork",
-        "쉘 브레이크",
-        "단일 대상 BRV 공격 (4.0x) + 적 BRV를 0으로 강제 (BREAK 확정) + 자신 BRV 추가 획득 (MAX BRV의 50%)",
-        gauge_cost=175
-    )
-    teamwork.effects = [
-        # 단일 대상 BRV 공격 (4.0x)
-        DamageEffect(DamageType.BRV, multiplier=4.0),
-        # 적 BRV를 0으로 강제 (BREAK 확정) + 자신 BRV 추가 획득 (MAX BRV의 50%)
-        BreakEffect(force_break=True, brv_gain=50)  # MAX BRV의 50%를 백분율로 계산
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

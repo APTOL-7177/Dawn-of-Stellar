@@ -160,21 +160,4 @@ def register_battle_mage_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 마법검 난무
-    teamwork = TeamworkSkill(
-        "battle_mage_teamwork",
-        "마법검 난무",
-        "단일 대상 물리+마법 복합 BRV+HP (3.0x 합산) + 엔챈트 게이지 +30",
-        gauge_cost=150
-    )
-    teamwork.effects = [
-        # 단일 대상 물리+마법 복합 BRV+HP (3.0x 합산)
-        DamageEffect(DamageType.BRV_HP, multiplier=1.5, stat_type="physical"),
-        DamageEffect(DamageType.BRV_HP, multiplier=1.5, stat_type="magical"),
-        # 엔챈트 게이지 +30
-        GimmickEffect(GimmickOperation.ADD, "enchant_gauge", 30)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

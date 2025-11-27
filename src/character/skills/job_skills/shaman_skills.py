@@ -161,22 +161,4 @@ def register_shaman_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 저주의 낙인
-    teamwork = TeamworkSkill(
-        "shaman_teamwork",
-        "저주의 낙인",
-        "단일 대상 BRV+HP (2.5x → HP 변환) + 저주 낙인 부여 + 자신 저주 +3",
-        gauge_cost=175
-    )
-    teamwork.effects = [
-        # 단일 대상 BRV+HP (2.5x → HP 변환)
-        DamageEffect(DamageType.BRV_HP, multiplier=2.5),
-        # 저주 낙인 부여 (적이 행동할 때마다 저주 +1, 3턴)
-        StatusEffect("CURSE_MARK", duration=3),
-        # 자신 저주 +3
-        GimmickEffect(GimmickOperation.ADD, "curse", 3)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

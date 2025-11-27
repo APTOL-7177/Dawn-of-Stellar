@@ -147,22 +147,4 @@ def register_gladiator_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 군중의 환호
-    teamwork = TeamworkSkill(
-        "gladiator_teamwork",
-        "군중의 환호",
-        "단일 대상 BRV+HP (2.0x → HP 변환) + crowd_cheer 게이지 +30 + 자신 방어력 1.2배 (2턴)",
-        gauge_cost=125
-    )
-    teamwork.effects = [
-        # 단일 대상 BRV+HP (2.0x → HP 변환)
-        DamageEffect(DamageType.BRV_HP, multiplier=2.0),
-        # crowd_cheer 게이지 +30
-        GimmickEffect(GimmickOperation.ADD, "crowd_cheer", 30),
-        # 자신 방어력 1.2배 (2턴)
-        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=2)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

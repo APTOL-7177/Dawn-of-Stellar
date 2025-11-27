@@ -146,22 +146,4 @@ def register_monk_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 음양 조화
-    teamwork = TeamworkSkill(
-        "monk_teamwork",
-        "음양 조화",
-        "음양 게이지를 50으로 조정 (균형) + 단일 대상 BRV+HP (1.6x → HP 변환) + 자신 회피 +30% (2턴)",
-        gauge_cost=100
-    )
-    teamwork.effects = [
-        # 음양 게이지를 50으로 조정 (균형)
-        GimmickEffect(GimmickOperation.SET, "yin_yang_gauge", 50),
-        # 단일 대상 BRV+HP (1.6x → HP 변환)
-        DamageEffect(DamageType.BRV_HP, multiplier=1.6),
-        # 자신 회피 +30% (2턴)
-        BuffEffect(BuffType.EVASION_UP, 0.3, duration=2)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

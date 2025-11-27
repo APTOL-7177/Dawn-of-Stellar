@@ -166,3 +166,4 @@ def register_vampire_skills(skill_manager):
     teamwork.metadata = {"teamwork": True, "chain": True}
     skills.append(teamwork)
     return skills
+\n    return [s.skill_id for s in skills]\n

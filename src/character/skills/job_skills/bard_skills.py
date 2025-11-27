@@ -161,24 +161,4 @@ def register_bard_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 용기의 노래
-    teamwork = TeamworkSkill(
-        "bard_teamwork",
-        "용기의 노래",
-        "아군 전체 공격력/마력 1.25배 (3턴) + ATB +250 + 선율 게이지 +30",
-        gauge_cost=125
-    )
-    teamwork.effects = [
-        # 아군 전체 공격력 1.25배 (3턴)
-        BuffEffect(BuffType.ATTACK_UP, 0.25, duration=3, is_party_wide=True),
-        # 아군 전체 마력 1.25배 (3턴)
-        BuffEffect(BuffType.MAGIC_UP, 0.25, duration=3, is_party_wide=True),
-        # ATB +250 (아군 전체)
-        AtbEffect(atb_change=250, is_party_wide=True),
-        # 선율 게이지 +30
-        GimmickEffect(GimmickOperation.ADD, "melody_gauge", 30)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

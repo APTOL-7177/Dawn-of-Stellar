@@ -153,21 +153,4 @@ def register_samurai_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 거합: 섬광
-    teamwork = TeamworkSkill(
-        "samurai_teamwork",
-        "거합: 섬광",
-        "단일 대상 HP 공격 (3.5x) + BREAK 시 wound damage 3배 + 거합 게이지 초기화",
-        gauge_cost=200
-    )
-    teamwork.effects = [
-        # 단일 대상 HP 공격 (3.5x)
-        DamageEffect(DamageType.HP, multiplier=3.5),
-        # BREAK 시 wound damage 3배 (메타데이터로 처리)
-        # 거합 게이지 초기화
-        GimmickEffect(GimmickOperation.SET, "iaido_gauge", 0)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

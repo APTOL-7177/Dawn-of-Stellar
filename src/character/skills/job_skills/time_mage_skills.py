@@ -193,3 +193,4 @@ def register_time_mage_skills(skill_manager):
     teamwork.metadata = {"teamwork": True, "chain": True, "atb_reset_enemies": True, "atb_boost_allies": 500}
     skills.append(teamwork)
     return skills
+\n    return [s.skill_id for s in skills]\n

@@ -164,21 +164,4 @@ def register_philosopher_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 진리의 계시
-    teamwork = TeamworkSkill(
-        "philosopher_teamwork",
-        "진리의 계시",
-        "현재까지 선택한 딜레마 경향에 따라 효과 변화 (최고의 강화 기술)",
-        gauge_cost=250
-    )
-    teamwork.effects = [
-        # 딜레마 기반 효과 - 임시로 균형 효과로 처리
-        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3, is_party_wide=True),
-        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=3, is_party_wide=True),
-        BuffEffect(BuffType.MAGIC_UP, 0.3, duration=3, is_party_wide=True),
-        HealEffect(percentage=0.3, is_party_wide=True)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

@@ -147,3 +147,4 @@ def register_sniper_skills(skill_manager):
     teamwork.metadata = {"teamwork": True, "chain": True, "guaranteed_critical": True, "no_ammo_cost": True}
     skills.append(teamwork)
     return skills
+\n    return [s.skill_id for s in skills]\n

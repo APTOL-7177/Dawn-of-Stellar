@@ -162,20 +162,4 @@ def register_pirate_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 약탈의 일격
-    teamwork = TeamworkSkill(
-        "pirate_teamwork",
-        "약탈의 일격",
-        "단일 대상 BRV+HP (2.5x → HP 변환) + 적 버프 1개 훔침",
-        gauge_cost=150
-    )
-    teamwork.effects = [
-        # 단일 대상 BRV+HP (2.5x → HP 변환)
-        DamageEffect(DamageType.BRV_HP, multiplier=2.5),
-        # 적 버프 1개 훔침
-        StealBuffEffect()
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

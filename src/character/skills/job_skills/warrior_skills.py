@@ -177,4 +177,5 @@ def register_warrior_skills(skill_manager):
     skills = create_warrior_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    return [s.skill_id for s in skills]
+    return skills
+\n    return [s.skill_id for s in skills]\n

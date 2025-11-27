@@ -185,25 +185,4 @@ def register_dragon_knight_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 드래곤의 포효
-    teamwork = TeamworkSkill(
-        "dragon_knight_teamwork",
-        "드래곤의 포효",
-        "전체 적 도발 (2턴, 저항 불가) + 자신 방어력/마방 1.4배 (3턴) + 반격 활성화",
-        gauge_cost=225
-    )
-    teamwork.effects = [
-        # 전체 적 도발 (2턴, 저항 불가)
-        TauntEffect(duration=2, cannot_resist=True),
-        # 자신 방어력/마방 1.4배 (3턴)
-        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3),
-        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.4, duration=3),
-        # 반격 활성화 (피격 시 BRV 1.5x 자동 반격, 2턴) - 메타데이터로 처리
-        BuffEffect(BuffType.COUNTER, 0.5, duration=2),  # 반격 버프로 처리
-        # 드래곤 마크 +3
-        GimmickEffect(GimmickOperation.ADD, "dragon_mark", 3)
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n

@@ -160,19 +160,4 @@ def register_paladin_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 성스러운 수호
-    teamwork = TeamworkSkill(
-        "paladin_teamwork",
-        "성스러운 수호",
-        "아군 전체 방어막 (자신 공격력 × 0.7, 3턴) + 신성 속성 버프",
-        gauge_cost=175
-    )
-    teamwork.effects = [
-        # 아군 전체 방어막 (자신 공격력 × 0.7, 3턴)
-        BuffEffect(BuffType.BARRIER, 0.7, duration=3, is_party_wide=True),
-        # 신성 속성 버프 (적 언데드/악마에 데미지 1.5배, 3턴) - 메타데이터로 처리
-    ]
-    teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
-    skills.append(teamwork)
-    return skills
+\n    return [s.skill_id for s in skills]\n
