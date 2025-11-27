@@ -51,6 +51,7 @@ gimmick:
   description: 용의 힘을 축적하여 드래곤 브레스와 비상 기술 사용
   max_dragon_power: 100
 skills:
+- teamwork
 - flame_slash
 - dragon_dive
 - fire_breath

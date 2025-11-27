@@ -199,21 +199,38 @@ class TeamworkSkillSelector:
         Returns:
             사용 가능한 팀워크 스킬 리스트
         """
+        from src.core.logger import get_logger
+        logger = get_logger("teamwork_selector")
+
         available = []
+        teamwork_skills_found = 0
+
+        logger.debug(f"[TEAMWORK_SELECTOR] 스킬 검색 시작: {len(skills)}개 스킬 중 팀워크 스킬 찾기")
 
         for skill in skills:
-            if not (hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill):
-                continue
+            if hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill:
+                teamwork_skills_found += 1
+                logger.debug(f"[TEAMWORK_SELECTOR] 팀워크 스킬 발견: {skill.name} ({skill.teamwork_cost.gauge}게이지)")
 
-            can_use, _ = skill.can_use(
-                actor,
-                combat_manager.party,
-                chain_count=combat_manager.party.chain_count if combat_manager.party.chain_active else 1
-            )
+                # 파티 정보 확인
+                party = getattr(combat_manager, 'party', None)
+                if not party:
+                    logger.warning(f"[TEAMWORK_SELECTOR] 파티 정보 없음")
+                    continue
 
-            if can_use:
-                available.append(skill)
+                logger.debug(f"[TEAMWORK_SELECTOR] 팀워크 게이지: {party.teamwork_gauge}/{party.max_teamwork_gauge}")
 
+                chain_count = party.chain_count if getattr(party, 'chain_active', False) else 1
+                logger.debug(f"[TEAMWORK_SELECTOR] 연쇄 단계: {chain_count}")
+
+                can_use, reason = skill.can_use(actor, party, chain_count=chain_count)
+                logger.debug(f"[TEAMWORK_SELECTOR] {skill.name} 사용 가능: {can_use} (이유: {reason})")
+
+                if can_use:
+                    available.append(skill)
+                    logger.debug(f"[TEAMWORK_SELECTOR] {skill.name} 추가됨")
+
+        logger.debug(f"[TEAMWORK_SELECTOR] 결과: {teamwork_skills_found}개 팀워크 스킬 발견, {len(available)}개 사용 가능")
         return available
 
     @staticmethod

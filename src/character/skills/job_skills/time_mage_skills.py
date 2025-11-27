@@ -173,12 +173,19 @@ def register_time_mage_skills(skill_manager):
     teamwork = TeamworkSkill(
         "time_mage_teamwork",
         "시간 정지",
-        "적 전체 기절 (1턴, 저항 불가) + ATB 초기화 + 아군 전체 ATB +500",
+        "적 전체 기절 (1턴, 저항 불가) + ATB 초기화 + 아군 전체 ATB +500 + 타임라인 초기화",
         gauge_cost=275
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 적 전체 기절 (1턴)
+        StatusEffect("STUN", duration=1),
+        # 타임라인 초기화 (0으로 설정)
+        GimmickEffect(GimmickOperation.SET, "timeline", 0)
+    ]
+    teamwork.target_type = "all_enemies"
+    teamwork.is_aoe = True
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
-    teamwork.metadata = {"teamwork": True, "chain": True}
+    teamwork.metadata = {"teamwork": True, "chain": True, "atb_reset_enemies": True, "atb_boost_allies": 500}
     skills.append(teamwork)
     return skills

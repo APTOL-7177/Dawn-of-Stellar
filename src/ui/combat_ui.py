@@ -186,11 +186,36 @@ class CombatUI:
         skills = all_skills[2:] if len(all_skills) >= 2 else []
         logger.warning(f"[SKILL_MENU] 기본 공격 제외 후 스킬 개수: {len(skills)}")
 
+        # 팀워크 스킬 추가 (항상 표시, 사용 가능 여부에 따라 회색으로 표시)
+        teamwork_skills_in_menu = []
+
+        # skills 리스트에서 팀워크 스킬 찾기
+        for skill in skills:
+            if hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill:
+                teamwork_skills_in_menu.append(skill)
+
+        # skills 리스트에 없으면 actor의 모든 스킬에서 찾기
+        if not teamwork_skills_in_menu:
+            all_actor_skills = getattr(actor, 'skills', [])
+            for skill in all_actor_skills:
+                if hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill:
+                    teamwork_skills_in_menu.append(skill)
+                    if skill not in skills:
+                        skills.append(skill)
+
+        logger.warning(f"[SKILL_MENU] 메뉴에 표시할 팀워크 스킬: {len(teamwork_skills_in_menu)}개")
+        for skill in teamwork_skills_in_menu:
+            logger.warning(f"[SKILL_MENU] 팀워크 스킬: {skill.name} ({skill.teamwork_cost.gauge}게이지)")
+
         items = []
 
         for skill in skills:
             # 모든 비용 체크 (MP, Stack, HP 등)
-            can_use, reason = skill.can_use(actor)
+            # 팀워크 스킬은 party 정보도 필요함
+            if hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill:
+                can_use, reason = skill.can_use(actor, self.combat_manager.party)
+            else:
+                can_use, reason = skill.can_use(actor)
             
             # 빙결/기절 등 행동 불가 상태이상 체크 (스킬 목록에는 표시하되 사용 불가 표시)
             if hasattr(actor, 'status_manager') and not actor.status_manager.can_act():

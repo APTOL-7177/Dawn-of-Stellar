@@ -86,6 +86,7 @@ gimmick:
 
 # 스킬 10개
 skills:
+- teamwork
 - dimensionist_refraction_strike      # 1. 굴절 타격
 - dimensionist_refraction_release     # 2. 굴절 방출
 - dimensionist_dimension_regression   # 3. 차원 회귀

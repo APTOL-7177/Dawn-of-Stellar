@@ -60,6 +60,7 @@ gimmick:
   - flash: 섬광탄 (명중률 -50% 2턴)
   - headshot: 헤드샷 탄 (크리티컬 100%, 배율 5.0)
 skills:
+- teamwork
 - sniper_precise_shot
 - sniper_double_tap
 - sniper_reload

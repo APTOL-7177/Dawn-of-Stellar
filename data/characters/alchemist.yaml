@@ -51,6 +51,7 @@ gimmick:
   description: 포션을 조합하고 투척하여 다양한 효과 발동
   max_potion_stock: 10
 skills:
+- teamwork
 - throw_potion
 - acid_flask
 - healing_elixir

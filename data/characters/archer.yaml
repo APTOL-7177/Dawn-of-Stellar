@@ -118,6 +118,7 @@ gimmick:
       damage_bonus: 1.0
       guaranteed_crit: true
 skills:
+- teamwork
 - archer_direct_shot
 - archer_power_shot
 - archer_mark_normal

@@ -84,6 +84,7 @@ gimmick:
   danger_min: 71
   rampage_threshold: 100
 skills:
+- teamwork
 - berserker_slash
 - berserker_smash
 - berserker_reckless_strike

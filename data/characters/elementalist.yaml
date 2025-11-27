@@ -103,6 +103,7 @@ traits:
     all_stats_multiplier: 1.15
     fusion_skills_unlocked: true
 skills:
+- teamwork
 - spirit_blast
 - summon_ifrit
 - summon_shiva

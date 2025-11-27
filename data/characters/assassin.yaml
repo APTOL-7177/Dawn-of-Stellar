@@ -80,6 +80,7 @@ gimmick:
       turns_until_restealth: 3
   start_mode: stealth
 skills:
+- teamwork
 - backstab
 - shadow_strike
 - vanish

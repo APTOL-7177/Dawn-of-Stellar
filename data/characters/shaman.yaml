@@ -51,6 +51,7 @@ gimmick:
   description: 저주를 축적하여 강력한 주술 사용
   max_curse_stacks: 10
 skills:
+- teamwork
 - spirit_bolt
 - protection_totem
 - ancestral_call

@@ -85,6 +85,7 @@ gimmick:
       name: 비전 룬
       effect: MP 회복 +5/턴
 skills:
+- teamwork
 - battle_mage_carve_rune
 - battle_mage_rune_burst
 - battle_mage_fire_rune

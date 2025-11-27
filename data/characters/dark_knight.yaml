@@ -89,6 +89,7 @@ gimmick:
     skill_cost_multiplier: 1.0  # 기본 소모 배율
 
 skills:
+- teamwork
 # Builders (충전 쌓기)
 - dk_charge_strike     # 기본 BRV 공격, 충전 +15
 - dk_crushing_blow     # 기본 HP 공격, 충전 +10

@@ -79,6 +79,7 @@ gimmick:
   yang_threshold: 80
   start_ki: 50
 skills:
+- teamwork
 - monk_palm_strike
 - monk_energy_blast
 - monk_yin_strike

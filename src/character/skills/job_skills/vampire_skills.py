@@ -5,6 +5,7 @@ from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.effects.heal_effect import HealEffect
+from src.character.skills.effects.lifesteal_effect import LifestealEffect
 from src.character.skills.costs.mp_cost import MPCost
 
 def create_vampire_skills():
@@ -151,7 +152,15 @@ def register_vampire_skills(skill_manager):
         "단일 대상 BRV+HP (2.5x → HP 변환) + 입힌 HP 데미지의 100% 흡혈 + 갈증 게이지 완전 충족",
         gauge_cost=150
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 단일 대상 BRV+HP 공격 (2.5x)
+        DamageEffect(DamageType.BRV_HP, multiplier=2.5),
+        # 100% 흡혈
+        LifestealEffect(1.0),  # 100% 흡혈
+        # 갈증 게이지 완전 충족
+        GimmickEffect(GimmickOperation.SET, "bloodlust", 100)  # 최대치로 설정
+    ]
+    teamwork.target_type = "enemy"
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

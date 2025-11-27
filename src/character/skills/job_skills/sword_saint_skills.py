@@ -3,6 +3,7 @@ from src.character.skills.skill import Skill
 from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
+from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
@@ -153,9 +154,28 @@ def register_sword_saint_skills(skill_manager):
         "전체 대상 BRV+HP (3.5x) + 검기 게이지 완전 회복 + 아군 전체 공격력 1.2배 (2턴)",
         gauge_cost=250
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 전체 대상 BRV+HP 공격 (3.5x)
+        DamageEffect(
+            DamageType.BRV_HP,
+            multiplier=3.5
+        ),
+        # 검기 게이지 완전 회복
+        GimmickEffect(
+            GimmickOperation.SET,
+            "sword_aura",
+            5,  # 최대치로 설정
+            min_value=0
+        ),
+        # 아군 전체 공격력 1.2배 (2턴)
+        BuffEffect(BuffType.ATTACK_UP, 0.2, duration=2)
+    ]
+    teamwork.target_type = "all_enemies"
+    teamwork.is_aoe = True
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}
     skills.append(teamwork)
-    return skills
+    skill_manager.register_skill(teamwork)
+
+    return [s.skill_id for s in skills]

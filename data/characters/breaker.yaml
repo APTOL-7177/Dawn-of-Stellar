@@ -51,6 +51,7 @@ traits:
   description: BREAK 발동 시 다음 BRV 공격 위력 +60% (3턴)
   type: trigger
 skills:
+- teamwork
 - crush_strike
 - break_hit
 - brv_focus

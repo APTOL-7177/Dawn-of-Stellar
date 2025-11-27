@@ -52,6 +52,7 @@ gimmick:
   gold_per_hit: 10
   max_gold: 1000
 skills:
+- teamwork
 - cutlass_slash
 - pistol_shot
 - plunder

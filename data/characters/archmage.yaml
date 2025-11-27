@@ -60,6 +60,7 @@ traits:
   description: MP 70% 이상일 때 크리티컬 확률 20% 증가
   type: trigger
 skills:
+- teamwork
 - fireball
 - lightning_bolt
 - ice_storm

@@ -55,6 +55,7 @@ gimmick:
   past_threshold: -2
   future_threshold: 2
 skills:
+- teamwork
 - time_mage_slow
 - time_mage_stop
 - time_mage_rewind

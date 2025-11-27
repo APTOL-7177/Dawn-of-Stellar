@@ -330,13 +330,23 @@ class TutorialManager:
     def _on_combat_action(self, data: Dict[str, Any]) -> None:
         """전투 행동 이벤트 처리"""
         self.game_state["action_count"] += 1
-        self.game_state["action_sequence"].append(data)
+        # dict를 직접 저장하지 말고 필요한 정보만 추출
+        action_info = {
+            "action_type": data.get("action_type"),
+            "actor_name": getattr(data.get("actor"), "name", str(data.get("actor"))),
+            "target_name": getattr(data.get("target"), "name", str(data.get("target"))) if data.get("target") else None,
+            "skill_name": getattr(data.get("skill"), "name", str(data.get("skill"))) if data.get("skill") else None
+        }
+        self.game_state["action_sequence"].append(action_info)
 
     def _on_skill_execute(self, data: Dict[str, Any]) -> None:
         """스킬 사용 이벤트 처리"""
-        skill_type = data.get("skill_type")
-        if skill_type and skill_type not in self.game_state["used_skill_types"]:
-            self.game_state["used_skill_types"].append(skill_type)
+        skill = data.get("skill")
+        if skill:
+            # 스킬 이름이나 타입을 사용 (객체가 아니라 문자열로 저장)
+            skill_identifier = getattr(skill, "name", str(skill))
+            if skill_identifier not in self.game_state["used_skill_types"]:
+                self.game_state["used_skill_types"].append(skill_identifier)
 
     def _on_npc_interaction(self, data: Dict[str, Any]) -> None:
         """NPC 상호작용 이벤트 처리"""

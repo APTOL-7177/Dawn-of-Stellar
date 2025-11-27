@@ -51,6 +51,7 @@ gimmick:
   description: 의지를 집중하여 완벽한 발도 기술 수행. 의지 게이지로 특수 기술 사용
   max_will_gauge: 10
 skills:
+- teamwork
 - quick_draw
 - cross_slash
 - meditation

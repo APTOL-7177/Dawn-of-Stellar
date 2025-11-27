@@ -51,6 +51,7 @@ gimmick:
   description: 신앙심으로 강력한 치유와 보호 마법 사용
   max_faith_points: 100
 skills:
+- teamwork
 - cleric_pray
 - cleric_holy_attack
 - cleric_heal

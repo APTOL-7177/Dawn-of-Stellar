@@ -618,11 +618,56 @@ class Character:
             self.logger.warning(f"{character_class}의 스킬 접두사를 찾을 수 없습니다!")
             return []
 
-        # 해당 접두사로 시작하는 스킬 ID 필터링
+        # 영문 직업명을 한글로 변환해서 YAML에서 스킬 목록 가져오기
+        korean_class_map = {
+            "warrior": "전사",
+            "archmage": "아크메이지",
+            "archer": "궁수",
+            "rogue": "도적",
+            "paladin": "성기사",
+            "dark_knight": "암흑기사",
+            "monk": "몽크",
+            "bard": "바드",
+            "necromancer": "네크로맨서",
+            "dragon_knight": "용기사",
+            "sword_saint": "검성",
+            "elementalist": "정령술사",
+            "assassin": "암살자",
+            "engineer": "기계공학자",
+            "shaman": "무당",
+            "pirate": "해적",
+            "samurai": "사무라이",
+            "druid": "드루이드",
+            "philosopher": "철학자",
+            "time_mage": "시간술사",
+            "alchemist": "연금술사",
+            "gladiator": "검투사",
+            "knight": "기사",
+            "priest": "신관",
+            "spellblade": "마검사",
+            "dimensionist": "차원술사",
+            "berserker": "광전사",
+            "battle_mage": "배틀메이지",
+            "breaker": "브레이커",
+            "cleric": "클레릭",
+            "hacker": "해커",
+            "sniper": "저격수",
+            "vampire": "흡혈귀",
+        }
+
+        korean_class_name = korean_class_map.get(character_class, character_class)
+        yaml_skills = get_skills(korean_class_name)
+
         skill_ids = []
-        for skill_id in skill_manager._skills.keys():
-            if skill_id.startswith(skill_prefix):
-                skill_ids.append(skill_id)
+        for yaml_skill_id in yaml_skills:
+            if yaml_skill_id == "teamwork":
+                # 팀워크 스킬의 경우 접두사 + "teamwork"
+                actual_skill_id = skill_prefix + "teamwork"
+            else:
+                # 일반 스킬의 경우 접두사 + yaml_skill_id
+                actual_skill_id = skill_prefix + yaml_skill_id
+
+            skill_ids.append(actual_skill_id)
 
         if not skill_ids:
             self.logger.warning(f"{character_class}({skill_prefix})의 스킬을 찾을 수 없습니다!")

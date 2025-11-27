@@ -56,6 +56,7 @@ gimmick:
   danger_max: 99
   overheat_threshold: 100
 skills:
+- teamwork
 - engineer_turret_shot
 - engineer_overload_blast
 - engineer_emp_explosion

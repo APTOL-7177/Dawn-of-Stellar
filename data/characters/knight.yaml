@@ -51,6 +51,7 @@ gimmick:
   description: 아군을 보호하고 피해를 받으며 의무 스택 획득. 의무로 강력한 수호 기술 사용
   max_duty_stacks: 10
 skills:
+- teamwork
 - honorable_strike
 - rallying_cry
 - protect_ally

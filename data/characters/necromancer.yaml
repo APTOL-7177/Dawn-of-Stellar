@@ -82,6 +82,7 @@ gimmick:
       hp_cost: 20
       summon_cost: 25
 skills:
+- teamwork
 - necromancer_shadow_bolt
 - necromancer_drain_life
 - necromancer_summon_skeleton

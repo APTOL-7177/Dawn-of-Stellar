@@ -213,15 +213,14 @@ class SaveSystem:
                     else:
                         logger.info("마을 창고: 불러온 아이템 없음")
             
-            # 팀워크 게이지 복원
+            # 팀워크 게이지 복원 (모듈 레벨 변수에 저장 - 전투 시작 시 복원용)
             if "teamwork_gauge" in game_state:
                 try:
-                    from src.combat.combat_manager import get_combat_manager
-                    combat_manager = get_combat_manager()
-                    # 로드된 게이지 정보를 저장 (전투 시작 후 복원)
-                    game_state["_teamwork_gauge"] = game_state.get("teamwork_gauge", 0)
-                    game_state["_max_teamwork_gauge"] = game_state.get("max_teamwork_gauge", 600)
-                    logger.info(f"팀워크 게이지 복원 정보 준비됨: {game_state['_teamwork_gauge']}/{game_state['_max_teamwork_gauge']}")
+                    # 모듈 레벨 변수에 저장 (전투 시작 시 combat_manager에서 읽음)
+                    import src.persistence.save_system as save_module
+                    save_module._last_loaded_teamwork_gauge = game_state.get("teamwork_gauge", 0)
+                    save_module._last_loaded_max_teamwork_gauge = game_state.get("max_teamwork_gauge", 600)
+                    logger.info(f"팀워크 게이지 복원 정보 저장됨: {save_module._last_loaded_teamwork_gauge}/{save_module._last_loaded_max_teamwork_gauge}")
                 except Exception as e:
                     logger.warning(f"팀워크 게이지 복원 실패: {e}")
 

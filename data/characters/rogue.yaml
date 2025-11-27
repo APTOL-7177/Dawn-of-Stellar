@@ -51,6 +51,7 @@ gimmick:
   description: 적의 아이템을 훔치고 회피 태세를 유지. 훔친 아이템으로 특수 기술 사용
   max_stolen_items: 10
 skills:
+- teamwork
 - backstab
 - shadow_strike
 - smoke_bomb

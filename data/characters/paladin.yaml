@@ -51,6 +51,7 @@ gimmick:
   description: 적을 공격하고 아군을 치유하며 성력 획득. 성력으로 신성한 기술 사용
   max_holy_power: 100
 skills:
+- teamwork
 - holy_strike
 - divine_shield
 - sanctuary

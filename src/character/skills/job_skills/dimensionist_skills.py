@@ -302,11 +302,31 @@ def register_dimensionist_skills(skill_manager):
     teamwork = TeamworkSkill(
         "dimensionist_teamwork",
         "차원 붕괴",
-        "축적된 차원 굴절의 50%를 방출하여 전체 적에게 고정 피해 + 나머지 굴절 완전 제거",
+        "축적된 차원 굴절의 50%를 방출하여 전체 적에게 고정 피해 + 나머지 굴절 완전 제거 + 본인 최대 HP의 40% 회복",
         gauge_cost=225
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 굴절량의 50%를 고정 피해로 방출 (전체 적 대상)
+        FixedDamageEffect(
+            base_damage=0,
+            scaling_field="refraction_stacks",
+            scaling_multiplier=0.5,
+            target_all=True
+        ),
+        # 나머지 굴절량 완전 제거 (0으로 설정)
+        GimmickEffect(
+            GimmickOperation.SET,
+            "refraction_stacks",
+            0,
+            min_value=0
+        ),
+        # 본인 최대 HP의 40% 회복
+        HealEffect(
+            percentage=0.4
+        )
+    ]
     teamwork.costs = [MPCost(0)]
+    teamwork.target_type = "self"
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}
     skills.append(teamwork)

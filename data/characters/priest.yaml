@@ -51,6 +51,7 @@ gimmick:
   description: 신의 심판을 내리고 치유하며 신성력 획득
   max_judgment_points: 100
 skills:
+- teamwork
 - healing_prayer
 - divine_light
 - holy_barrier

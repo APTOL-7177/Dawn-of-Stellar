@@ -198,6 +198,27 @@ class CombatManager:
         # 팀워크 게이지 시스템 초기화
         from src.character.party import Party
         self.party = Party(self.allies)
+
+        # 저장된 팀워크 게이지 정보 복원 (게임 로드 시)
+        try:
+            from src.persistence.save_system import SaveSystem
+            save_system = SaveSystem()
+            # 최근에 로드된 게임 상태에서 팀워크 게이지 정보 확인
+            # (간단하게 모듈 레벨 변수에 저장된 정보를 사용)
+            import src.persistence.save_system as save_module
+            if hasattr(save_module, '_last_loaded_teamwork_gauge'):
+                saved_gauge = getattr(save_module, '_last_loaded_teamwork_gauge', 0)
+                saved_max_gauge = getattr(save_module, '_last_loaded_max_teamwork_gauge', 600)
+                self.party.teamwork_gauge = saved_gauge
+                self.party.max_teamwork_gauge = saved_max_gauge
+                self.logger.info(f"팀워크 게이지 복원됨: {saved_gauge}/{saved_max_gauge}")
+                # 복원 후 변수 초기화
+                delattr(save_module, '_last_loaded_teamwork_gauge')
+                if hasattr(save_module, '_last_loaded_max_teamwork_gauge'):
+                    delattr(save_module, '_last_loaded_max_teamwork_gauge')
+        except Exception as e:
+            self.logger.debug(f"팀워크 게이지 복원 실패 (무시): {e}")
+
         self.logger.debug(f"팀워크 게이지 시스템 초기화: {self.party.teamwork_gauge}/{self.party.max_teamwork_gauge}")
 
         # 이벤트 발행

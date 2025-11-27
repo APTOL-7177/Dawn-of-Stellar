@@ -51,6 +51,7 @@ gimmick:
   description: 검기를 축적하여 강력한 검술 사용. 검기는 공격 시 자동 획득
   max_sword_aura: 5
 skills:
+- teamwork
 - swift_strike
 - blade_storm
 - focus_slash

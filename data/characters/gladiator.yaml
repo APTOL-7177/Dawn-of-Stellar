@@ -97,6 +97,7 @@ gimmick:
       max: 100
       description: 검투사의 영광 (무적 3턴)
 skills:
+- teamwork
 - shield_bash
 - counter_stance
 - revenge_blow

@@ -51,6 +51,7 @@ gimmick:
   description: 검에 마력을 부여하여 원소 속성 공격 수행
   max_mana_blade: 100
 skills:
+- teamwork
 - magic_slash
 - enchant_blade
 - spell_strike

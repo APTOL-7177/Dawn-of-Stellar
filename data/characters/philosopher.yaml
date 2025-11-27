@@ -118,6 +118,7 @@ gimmick:
   accumulation_threshold: 5
   max_choices: 99
 skills:
+- teamwork
 - logical_argument
 - confuse_mind
 - truth_revelation

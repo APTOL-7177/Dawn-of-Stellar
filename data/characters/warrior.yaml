@@ -78,6 +78,7 @@ skills:
 - berserker_rage
 - defensive_stance
 - ultimate_slash
+- teamwork
 bonuses:
   hp_multiplier: 1.05
   physical_damage: 1.05
