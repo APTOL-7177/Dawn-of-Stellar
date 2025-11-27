@@ -76,7 +76,7 @@ def create_dimensionist_skills():
     dimension_regression.costs = [MPCost(8)]
     dimension_regression.target_type = "self"
     dimension_regression.cooldown = 3
-    dimension_regression.sfx = ("character", "heal")
+    dimension_regression.sfx = ("skill", "cast_complete")
     dimension_regression.metadata = {
         "self_heal": True,
         "refraction_consumption": 0.75

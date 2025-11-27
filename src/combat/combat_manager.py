@@ -1479,6 +1479,26 @@ class CombatManager:
                     if hasattr(target, 'add_status_effect'):
                         target.add_status_effect(stun_effect)
                         self.logger.info(f"[{skill.name}] {target.name} 기절! (확률 {stun_chance*100:.0f}%)")
+            
+            # 궁수 궁극기: 모든 아군에게 마킹 적용 (mark_all 메타데이터)
+            if hasattr(skill, 'metadata') and skill.metadata.get('mark_all') and actor in self.allies:
+                # 스킬 효과 실행 후 actor에서 설정된 값 가져오기
+                arrow_type = getattr(actor, 'ultimate_arrow_type', 'explosive')
+                shots = getattr(actor, 'mark_shots_ultimate', 5)
+                
+                # 모든 아군에게 폭발 화살 마킹 적용
+                for ally in self.allies:
+                    if hasattr(ally, 'is_alive') and ally.is_alive and ally != actor:
+                        # 폭발 화살 마킹 슬롯 추가
+                        mark_slot_field = f"mark_slot_{arrow_type}"
+                        current_slots = getattr(ally, mark_slot_field, 0)
+                        setattr(ally, mark_slot_field, min(3, current_slots + 1))
+                        
+                        # 지원 횟수 설정
+                        mark_shots_field = f"mark_shots_{arrow_type}"
+                        setattr(ally, mark_shots_field, shots)
+                        
+                        self.logger.info(f"[{skill.name}] {ally.name}에게 {arrow_type} 화살 마킹 적용 ({shots}회 지원)")
         else:
             result["success"] = False
             result["error"] = skill_result.message
@@ -2864,9 +2884,9 @@ class CombatManager:
                 self._end_combat(CombatState.DEFEAT)
                 return
             else:
-                # 싱글플레이 모드: 전투 참여자만 체크 (패배, 맵으로 복귀)
-                self.logger.info("전투 참여 파티원이 모두 죽었습니다. 패배 (맵으로 복귀).")
-                self.is_game_over = False
+                # 싱글플레이 모드: 전투 참여자만 체크 (게임 오버)
+                self.logger.info("전투 참여 파티원이 모두 죽었습니다. 게임오버.")
+                self.is_game_over = True
                 self._end_combat(CombatState.DEFEAT)
                 return
 
