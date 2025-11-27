@@ -687,22 +687,8 @@ class GaugeRenderer:
                     console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
             
             elif cell_wound_pixels > 0:
-                # 상처만 부분적으로 있음 (HP 없음)
-                wound_ratio = cell_wound_pixels / divisions
-
-                # 상처가 매우 작으면 색상으로, 크면 빗금 타일로 표현 (픽셀 정확도 향상)
-                # 상처가 3/32 미만(약 10%)이면 색상 혼합으로 표현
-                if wound_ratio < 0.1:
-                    # 매우 작은 상처: 색상으로 정교하게 표현
-                    # 배경색과 상처색의 혼합
-                    wound_color_for_small = (
-                        int(bg_color[0] * (1 - wound_ratio) + wound_bg_color[0] * wound_ratio),
-                        int(bg_color[1] * (1 - wound_ratio) + wound_bg_color[1] * wound_ratio),
-                        int(bg_color[2] * (1 - wound_ratio) + wound_bg_color[2] * wound_ratio)
-                    )
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=wound_color_for_small)
-                elif use_tiles:
-                    # 충분한 크기의 상처: 빗금 타일로 표현
+                # 상처만 부분적으로 있음 (HP 없음) - 모두 빗금으로 표현
+                if use_tiles:
                     # 배경색으로 셀 채운 후 빗금 타일 오버레이
                     console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
                     # 셀 인덱스를 기반으로 빗금 패턴 계산
