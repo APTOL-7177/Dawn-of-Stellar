@@ -226,6 +226,14 @@ class Skill:
                 if self.metadata.get("consume_all_refraction", False):
                     if refraction_stacks <= 0:
                         return False, f"굴절량 부족 (현재: {refraction_stacks})"
+            
+            # 시간술사: 타임라인 조건 체크
+            if hasattr(user, 'gimmick_type') and user.gimmick_type == "timeline_system":
+                if "requires_timeline" in self.metadata:
+                    required_timeline = self.metadata.get("requires_timeline")
+                    current_timeline = getattr(user, 'timeline', 0)
+                    if current_timeline != required_timeline:
+                        return False, f"타임라인 {required_timeline}에서만 사용 가능합니다 (현재: {current_timeline})"
         
         return True, ""
 

@@ -1184,6 +1184,8 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
     # 특성 복원
     if member_data.get("active_traits"):
         char.active_traits = member_data["active_traits"]
+        # 특성 보너스 재적용 (중복 방지를 위해 기존 보너스 제거 후 재적용)
+        char._apply_trait_stat_bonuses()
 
     # active_buffs 복원 (요리 버프 포함)
     if member_data.get("active_buffs"):

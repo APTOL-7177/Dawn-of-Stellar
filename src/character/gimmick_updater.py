@@ -338,18 +338,64 @@ class GimmickUpdater:
                         elif combo >= 2:
                             multiplier *= 1.2  # 콤보 2+: 데미지 +20%
 
-                        # BRV 데미지 계산 (물리 공격)
-                        damage_result = damage_calc.calculate_brv_damage(archer, target, skill_multiplier=multiplier)
-                        brv_damage = damage_result.final_damage
+                        # 폭발 화살: 광역 데미지 처리
+                        if arrow_type == 'explosive':
+                            # combat_manager에서 적 리스트 가져오기
+                            from src.combat.combat_manager import get_combat_manager
+                            combat_manager = get_combat_manager()
+                            
+                            if combat_manager and hasattr(combat_manager, 'enemies'):
+                                enemies = combat_manager.enemies
+                                aoe_percent = 0.5  # 광역 데미지 50%
+                                
+                                # 메인 타겟에게 100% 데미지
+                                damage_result = damage_calc.calculate_brv_damage(archer, target, skill_multiplier=multiplier)
+                                brv_damage = damage_result.final_damage
+                                
+                                from src.combat.brave_system import get_brave_system
+                                brave_system = get_brave_system()
+                                brv_result = brave_system.brv_attack(archer, target, brv_damage)
+                                
+                                logger.info(f"  → [폭발 화살] {target.name}에게 {brv_result['brv_stolen']} BRV 데미지! {archer.name} BRV +{brv_result['actual_gain']}")
+                                if brv_result['is_break']:
+                                    logger.info(f"  → [BREAK!] {target.name} BRV 파괴!")
+                                
+                                # 주변 적들에게 광역 데미지 (50%)
+                                aoe_damage = int(brv_damage * aoe_percent)
+                                aoe_targets = [e for e in enemies if e != target and hasattr(e, 'current_brv') and getattr(e, 'is_alive', True)]
+                                
+                                if aoe_targets:
+                                    logger.info(f"  → [폭발 화살 광역] 주변 {len(aoe_targets)}명의 적에게 {aoe_damage} BRV 데미지!")
+                                    for aoe_target in aoe_targets:
+                                        aoe_result = brave_system.brv_attack(archer, aoe_target, aoe_damage)
+                                        logger.info(f"    → {aoe_target.name}에게 {aoe_result['brv_stolen']} BRV 데미지!")
+                                        if aoe_result['is_break']:
+                                            logger.info(f"    → [BREAK!] {aoe_target.name} BRV 파괴!")
+                            else:
+                                # combat_manager를 찾을 수 없으면 일반 처리
+                                damage_result = damage_calc.calculate_brv_damage(archer, target, skill_multiplier=multiplier)
+                                brv_damage = damage_result.final_damage
+                                
+                                from src.combat.brave_system import get_brave_system
+                                brave_system = get_brave_system()
+                                brv_result = brave_system.brv_attack(archer, target, brv_damage)
+                                
+                                logger.info(f"  → {target.name}에게 {brv_result['brv_stolen']} BRV 데미지! {archer.name} BRV +{brv_result['actual_gain']}")
+                                if brv_result['is_break']:
+                                    logger.info(f"  → [BREAK!] {target.name} BRV 파괴!")
+                        else:
+                            # 일반 화살: 단일 타겟 데미지
+                            damage_result = damage_calc.calculate_brv_damage(archer, target, skill_multiplier=multiplier)
+                            brv_damage = damage_result.final_damage
 
-                        # brave_system을 사용하여 BRV 공격 적용 (BREAK 체크 포함)
-                        from src.combat.brave_system import get_brave_system
-                        brave_system = get_brave_system()
-                        brv_result = brave_system.brv_attack(archer, target, brv_damage)
+                            # brave_system을 사용하여 BRV 공격 적용 (BREAK 체크 포함)
+                            from src.combat.brave_system import get_brave_system
+                            brave_system = get_brave_system()
+                            brv_result = brave_system.brv_attack(archer, target, brv_damage)
 
-                        logger.info(f"  → {target.name}에게 {brv_result['brv_stolen']} BRV 데미지! {archer.name} BRV +{brv_result['actual_gain']}")
-                        if brv_result['is_break']:
-                            logger.info(f"  → [BREAK!] {target.name} BRV 파괴!")
+                            logger.info(f"  → {target.name}에게 {brv_result['brv_stolen']} BRV 데미지! {archer.name} BRV +{brv_result['actual_gain']}")
+                            if brv_result['is_break']:
+                                logger.info(f"  → [BREAK!] {target.name} BRV 파괴!")
 
                     # 남은 발사 횟수 감소
                     setattr(attacking_ally, shots_attr, shots_remaining - 1)

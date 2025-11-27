@@ -1642,10 +1642,14 @@ class Character:
             bonus_value = trait_manager.calculate_stat_bonus(self, stat_name, base_value)
 
             # 보너스가 있으면 StatManager에 적용
-            if bonus_value != base_value:
-                bonus_diff = bonus_value - base_value
-                stat_enum = self._stat_name_to_enum(stat_name)
-                if stat_enum:
+            stat_enum = self._stat_name_to_enum(stat_name)
+            if stat_enum:
+                # 기존 trait 보너스 제거 (중복 방지)
+                self.stat_manager.remove_bonus(stat_enum, f"trait_{stat_name}")
+                
+                # 새로운 보너스 적용
+                if bonus_value != base_value:
+                    bonus_diff = bonus_value - base_value
                     self.stat_manager.add_bonus(stat_enum, f"trait_{stat_name}", bonus_diff)
 
     def _stat_name_to_enum(self, stat_name: str) -> Optional[Stats]:
