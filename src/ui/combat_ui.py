@@ -647,7 +647,10 @@ class CombatUI:
                             item_class = type(self.selected_item).__name__
                             self.logger.info(f"아이템 사용: {item_name} (클래스: {item_class}), effect_type={effect_type}, is_consumable={is_consumable}")
                             # AOE 공격 아이템은 타겟 선택 없이 바로 실행
-                            if effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade", "debuff_attack", "debuff_defense", "debuff_speed", "smoke_bomb", "break_brv"]:
+                            if effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade", 
+                                               "attack_fire", "attack_ice", "attack_lightning", "attack_poison", 
+                                               "attack_explosive", "attack_aoe",
+                                               "debuff_attack", "debuff_defense", "debuff_speed", "smoke_bomb", "break_brv"]:
                                 # AOE 아이템: 타겟 선택 없이 바로 실행 (target=None)
                                 self.selected_target = None
                                 self._execute_current_action()
@@ -1108,14 +1111,30 @@ class CombatUI:
                     mp_healing = result.get("mp_healing", 0)
                     target_name = result.get("target", "대상")
                     self.add_message(f"{item_name} 사용! {target_name} MP +{mp_healing}", (100, 200, 255))
-                elif effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade"]:
+                elif effect_type == "heal_wound":
+                    wound_healed = result.get("wound_healed", 0)
+                    remaining_wound = result.get("remaining_wound", 0)
+                    target_name = result.get("target", "대상")
+                    if wound_healed > 0:
+                        self.add_message(f"{item_name} 사용! {target_name} 상처 {wound_healed} 치료 (남은 상처: {remaining_wound})", (150, 200, 255))
+                    else:
+                        self.add_message(f"{item_name} 사용! {target_name} 치료할 상처가 없습니다.", (200, 200, 200))
+                elif effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade",
+                                     "attack_fire", "attack_ice", "attack_lightning", "attack_poison", 
+                                     "attack_explosive", "attack_aoe"]:
                     aoe_damage = result.get("aoe_damage", 0)
                     targets_hit = result.get("targets_hit", 0)
                     effect_names = {
                         "aoe_fire": "🔥 화염",
                         "aoe_ice": "❄ 냉기",
                         "poison_bomb": "☠ 독",
-                        "thunder_grenade": "⚡ 번개"
+                        "thunder_grenade": "⚡ 번개",
+                        "attack_fire": "🔥 화염",
+                        "attack_ice": "❄ 냉기",
+                        "attack_lightning": "⚡ 번개",
+                        "attack_poison": "☠ 독",
+                        "attack_explosive": "💥 폭발",
+                        "attack_aoe": "💥 관통"
                     }
                     effect_name = effect_names.get(effect_type, "데미지")
                     if targets_hit > 0:

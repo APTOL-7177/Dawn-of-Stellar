@@ -1968,19 +1968,25 @@ class CombatManager:
             
             elif effect_type == "heal_wound":
                 # 상처 치료
-                if hasattr(tgt, 'wound'):
-                    wound_before = tgt.wound
-                    wound_healed = min(int(effect_value), tgt.wound)
-                    tgt.wound = max(0, tgt.wound - wound_healed)
-                    result["wound_healed"] = wound_healed
-                    result["remaining_wound"] = tgt.wound
-                    self.logger.info(f"[{item_name}] {getattr(tgt, 'name', 'Unknown')} 상처 {wound_healed} 치료 (남은 상처: {tgt.wound})")
-                else:
+                if tgt is None:
+                    self.logger.warning(f"[{item_name}] 타겟이 없습니다")
                     result["wound_healed"] = 0
-                    self.logger.warning(f"[{item_name}] 상처 시스템이 없습니다")
+                    result["success"] = False
+                else:
+                    from src.systems.wound_system import get_wound_system
+                    wound_system = get_wound_system()
+                    wound_healed = wound_system.heal_wound_item(tgt, int(effect_value))
+                    result["wound_healed"] = wound_healed
+                    result["remaining_wound"] = getattr(tgt, 'wound', 0)
+                    if wound_healed > 0:
+                        self.logger.info(f"[{item_name}] {getattr(tgt, 'name', 'Unknown')} 상처 {wound_healed} 치료 (남은 상처: {getattr(tgt, 'wound', 0)})")
+                    else:
+                        self.logger.info(f"[{item_name}] {getattr(tgt, 'name', 'Unknown')} 치료할 상처가 없습니다")
             
             # === 공격적 아이템 효과 ===
-            elif effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade"]:
+            elif effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade", 
+                                 "attack_fire", "attack_ice", "attack_lightning", "attack_poison", 
+                                 "attack_explosive", "attack_aoe"]:
                 # 적 전체 데미지
                 damage = int(effect_value)
                 total_damage = 0
@@ -1994,7 +2000,7 @@ class CombatManager:
                         total_damage += dmg
                         
                         # 상태이상 부여
-                        if effect_type == "poison_bomb" and hasattr(enemy, 'status_manager'):
+                        if effect_type in ["poison_bomb", "attack_poison"] and hasattr(enemy, 'status_manager'):
                             from src.combat.status_effects import StatusEffect, StatusType
                             poison = StatusEffect("독", StatusType.POISON, duration=3, intensity=1.0)
                             enemy.status_manager.add_status(poison)

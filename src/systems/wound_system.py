@@ -188,6 +188,45 @@ class WoundSystem:
         wound = getattr(character, "wound", 0)
         return wound / character.max_hp if character.max_hp > 0 else 0.0
 
+    def heal_wound_item(self, character: Any, heal_amount: int) -> int:
+        """
+        아이템으로 상처 직접 치료
+
+        Args:
+            character: 캐릭터
+            heal_amount: 치료할 상처 양
+
+        Returns:
+            실제로 치료된 상처 양
+        """
+        if not self.enabled:
+            return 0
+        
+        if not hasattr(character, "wound"):
+            character.wound = 0
+        
+        wound_before = character.wound
+        wound_healed = min(heal_amount, character.wound)
+        character.wound = max(0, character.wound - wound_healed)
+        
+        self.logger.info(
+            f"상처 아이템 치료: {getattr(character, 'name', 'Unknown')}",
+            {
+                "heal_amount": heal_amount,
+                "wound_healed": wound_healed,
+                "wound_before": wound_before,
+                "wound_after": character.wound
+            }
+        )
+        
+        event_bus.publish("wound.healed", {
+            "character": character,
+            "wound_healed": wound_healed,
+            "remaining_wound": character.wound
+        })
+        
+        return wound_healed
+
     def _on_hp_change(self, data: Dict[str, Any]) -> None:
         """HP 변화 이벤트 핸들러"""
         character = data.get("character")
