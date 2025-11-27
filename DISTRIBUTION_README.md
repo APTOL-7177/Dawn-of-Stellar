@@ -85,13 +85,69 @@ DawnOfStellar/
 - 폰트 파일들이 exe 파일과 같은 폴더에 있는지 확인
 - Windows 시스템 폰트를 사용하도록 자동 폴백
 
+## 🔄 업데이트 관리
+
+### 업데이트 파일들
+프로젝트 루트에 포함된 업데이트 관련 파일들:
+
+```
+Dawn-of-Stellar/
+├── build_final.bat           # 게임 패키징 스크립트
+├── update_backup.bat         # 백업 생성 도우미
+├── update_helper.bat         # 자동 업데이트 도우미
+├── UPDATE_GUIDE.md           # 업데이트 가이드 (마크다운)
+├── DawnOfStellar_Update_Guide.txt    # 업데이트 가이드 (텍스트)
+├── DawnOfStellar_Install_Guide.txt   # 설치 가이드 (텍스트)
+└── DawnOfStellar_Description.txt     # 게임 설명 (텍스트)
+```
+
+### 자동 업데이트 방법
+```bash
+# 1. 새 버전 ZIP 파일을 프로젝트 폴더에 다운로드
+# 예: DawnOfStellar_v6.2.0.zip
+
+# 2. 자동 업데이트 실행
+.\update_helper.bat
+
+# 완료! 새 버전이 자동으로 설치되고 데이터가 이전됩니다.
+```
+
+### 수동 업데이트 방법
+```bash
+# 1. 백업 생성
+.\update_backup.bat
+
+# 2. 새 버전 압축 해제
+# (수동으로 ZIP 파일 압축 해제)
+
+# 3. 데이터 이전
+xcopy "DawnOfStellar_Backup\user_data" "새버전폴더\user_data" /E /H /Y
+
+# 4. 폴더 교체
+# 기존 DawnOfStellar → DawnOfStellar_Old
+# 새 버전 폴더 → DawnOfStellar
+```
+
+### 백업 파일들
+- `DawnOfStellar_Backup/` - 자동 백업본
+- `DawnOfStellar_Old/` - 이전 버전 (업데이트 성공 시 삭제 가능)
+
 ## 📞 지원
 
 문제가 발생하면 로그 파일을 확인해주세요:
 - `user_data/logs/` 폴더의 로그 파일들
 - 게임 실행 시 콘솔 창의 오류 메시지
 
+### 버그 리포트
+- 게임 실행 중 오류 발생 시 `user_data/logs/` 폴더의 로그 파일 첨부
+- 업데이트 문제 시 백업본 상태 설명
+
 ---
 
 **Dawn of Stellar - 별빛의 여명**
 **버전 6.1.0** 🎮✨
+
+### 📋 파일 목록
+- **DawnOfStellar_Update_Guide.txt** - 플레이어용 업데이트 가이드
+- **DawnOfStellar_Install_Guide.txt** - 플레이어용 설치 가이드
+- **DawnOfStellar_Description.txt** - 스토어 페이지용 게임 설명
