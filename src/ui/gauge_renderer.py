@@ -643,7 +643,7 @@ class GaugeRenderer:
                     )
                     if boundary_tile and boundary_tile.strip() and boundary_tile != ' ':
                         # 동적 타일 렌더링
-                        console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_SET)
+                        console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_NONE)
                     else:
                         # 폴백: 배경색으로 셀 채운 후 빗금 타일 오버레이
                         console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
@@ -669,7 +669,7 @@ class GaugeRenderer:
                     )
                     if boundary_tile and boundary_tile.strip() and boundary_tile != ' ':
                         # 동적 타일 렌더링 (타일 내부에 모든 색상 정보 포함)
-                        console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_SET)
+                        console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_NONE)
                     else:
                         # 폴백: HP, 빈 HP 영역, 상처를 모두 고려한 평균 색상
                         hp_ratio = cell_hp_pixels / divisions
@@ -723,7 +723,7 @@ class GaugeRenderer:
                     )
                     if boundary_tile and boundary_tile.strip() and boundary_tile != ' ':
                         # 동적 타일 렌더링
-                        console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_SET)
+                        console.print(x + i, y, boundary_tile, bg_blend=libtcodpy.BKGND_NONE)
                     else:
                         # 폴백: 배경색으로 셀 채운 후 빗금 타일 오버레이
                         console.draw_rect(x + i, y, 1, 1, ch=ord(" "), bg=bg_color)
