@@ -153,4 +153,4 @@ def register_necromancer_skills(skill_manager):
         skill_manager.register_skill(skill)
 
     # 팀워크 스킬: 군단 소환
-\n    return [s.skill_id for s in skills]\n
+    return [s.skill_id for s in skills]
