@@ -357,11 +357,9 @@ class GaugeTileManager:
         
         # 경계 타일용 고유 코드포인트 생성 (캐시 키로 사용)
         # E800 ~ EFFF 범위 사용 (기존 E000~E7FF 외)
-        # 색상을 해시로 변환하여 캐시 키 크기 줄이기
         # 캐시 키는 양자화된 divisions 값 사용 (더 안정적, 애니메이션 중 변화 없음)
-        hp_color_hash = hash(hp_color) & 0xFFFF  # 16비트 해시
-        wound_color_hash = hash(wound_color) & 0xFFFF
-        cache_key = (hp_pixels, wound_pixels, hp_color_hash, wound_color_hash, cell_index)
+        # 색상 해시 충돌 방지: 실제 색상값 포함
+        cache_key = (hp_pixels, wound_pixels, hp_color, bg_color, wound_color, wound_stripe_color, cell_index)
         
         # 캐시된 코드포인트가 있으면 재사용
         if not hasattr(self, '_boundary_tile_cache'):
@@ -463,9 +461,11 @@ class GaugeTileManager:
                         tile[py, px, 2] = wound_stripe_color[2]
                         tile[py, px, 3] = 255
                     else:
-                        # 빗금 사이: 배경 색상 (타일 초기화 시 이미 설정됨, 명시적으로 유지)
-                        # 이미 배경 색상으로 초기화되어 있으므로 추가 설정 불필요
-                        pass
+                        # 빗금 사이: 게이지 배경색으로 채움 (HP 상태에 따라 짙은 초록/노랑/빨강)
+                        tile[py, px, 0] = bg_color[0]  # R
+                        tile[py, px, 1] = bg_color[1]  # G
+                        tile[py, px, 2] = bg_color[2]  # B
+                        tile[py, px, 3] = 255  # Alpha (불투명)
                 else:
                     # 빈 HP 영역 (중간, hp_end <= px < wound_start) - 배경 색상 명시적으로 설정
                     tile[py, px, 0] = bg_color[0]
@@ -475,7 +475,38 @@ class GaugeTileManager:
         
         # 타일 등록
         try:
-            self.tileset.set_tile(codepoint, tile)
+            # 디버그: 타일 내부 픽셀 샘플 확인 및 색상 검증
+            center_y = self.tile_height // 2
+            center_x = self.tile_width // 2
+            sample_pixel = tile[center_y, center_x]
+            right_x = self.tile_width - 1
+            right_pixel = tile[center_y, right_x]
+            
+            # 빗금 영역 샘플 확인 (wound_start 지점)
+            if wound_start < self.tile_width:
+                wound_sample = tile[center_y, wound_start]
+                # 빗금 사이 영역 샘플 (wound_start + 1, 빗금이 아닌 부분)
+                if wound_start + 1 < self.tile_width:
+                    wound_bg_sample = tile[center_y, wound_start + 1]
+                else:
+                    wound_bg_sample = None
+            else:
+                wound_sample = None
+                wound_bg_sample = None
+            
+            logger.debug(
+                f"[경계 타일 디버그] 타일 생성: hp_pixels={actual_hp_pixels}, wound_pixels={actual_wound_pixels}, "
+                f"bg_color={bg_color}, hp_color={hp_color}, wound_stripe_color={wound_stripe_color}, "
+                f"중앙픽셀=RGBA({sample_pixel[0]},{sample_pixel[1]},{sample_pixel[2]},{sample_pixel[3]}), "
+                f"오른쪽픽셀=RGBA({right_pixel[0]},{right_pixel[1]},{right_pixel[2]},{right_pixel[3]}), "
+                f"wound_start={wound_start}, wound시작픽셀={f'RGBA({wound_sample[0]},{wound_sample[1]},{wound_sample[2]},{wound_sample[3]})' if wound_sample is not None else 'N/A'}, "
+                f"wound배경픽셀={f'RGBA({wound_bg_sample[0]},{wound_bg_sample[1]},{wound_bg_sample[2]},{wound_bg_sample[3]})' if wound_bg_sample is not None else 'N/A'}, "
+                f"hp_end={hp_end}"
+            )
+            
+            # 타일 복사본 생성 (참조 문제 방지 - numpy 배열이 재사용될 수 있음)
+            tile_copy = tile.copy()
+            self.tileset.set_tile(codepoint, tile_copy)
             self._boundary_tile_cache[cache_key] = codepoint
             # LRU: 새 항목을 접근 순서에 추가
             self._boundary_tile_access_order.append(cache_key)
@@ -483,7 +514,9 @@ class GaugeTileManager:
                 f"경계 타일 생성 성공: codepoint=0x{codepoint:04X}, "
                 f"hp_pixels={actual_hp_pixels}/{self.tile_width}, "
                 f"wound_pixels={actual_wound_pixels}/{self.tile_width}, "
-                f"cell_index={cell_index}"
+                f"cell_index={cell_index}, "
+                f"wound_start={wound_start}, hp_end={hp_end}, "
+                f"bg_color={bg_color}, wound_stripe_color={wound_stripe_color}"
             )
         except Exception as e:
             import traceback
