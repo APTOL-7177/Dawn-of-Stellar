@@ -207,7 +207,7 @@ def open_game_menu(
                 logger.info(f"메뉴 선택: {result.value}")
 
                 # 하위 메뉴로 이동
-                    if result == MenuOption.INVENTORY:
+                if result == MenuOption.INVENTORY:
                         if inventory is not None and party is not None:
                             from src.ui.inventory_ui import open_inventory
                             open_inventory(console, context, inventory, party, exploration)
@@ -217,7 +217,7 @@ def open_game_menu(
                             show_message(console, context, "인벤토리를 열 수 없습니다.")
                             continue
 
-                    elif result == MenuOption.QUEST_LIST:
+                elif result == MenuOption.QUEST_LIST:
                         # 퀘스트 목록 UI
                         from src.quest.quest_manager import get_quest_manager
                         quest_manager = get_quest_manager()
@@ -228,18 +228,18 @@ def open_game_menu(
                             show_message(console, context, "퀘스트 관리자를 찾을 수 없습니다.")
                         continue
 
-                    elif result == MenuOption.FIELD_SKILLS:
+                elif result == MenuOption.FIELD_SKILLS:
                         # 필드스킬 메뉴
                         from src.ui.field_skill_menu import open_field_skill_menu
                         open_field_skill_menu(console, context)
                         continue
 
-                    elif result == MenuOption.PARTY_STATUS and party:
+                elif result == MenuOption.PARTY_STATUS and party:
                         open_party_status_menu(console, context, party, exploration=exploration)
                         # 파티 상태에서 돌아온 후 메뉴 계속
                         continue
 
-                    elif result == MenuOption.SAVE_GAME:
+                elif result == MenuOption.SAVE_GAME:
                         if exploration is None:
                             show_message(console, context, "저장할 수 없습니다.")
                             continue
@@ -341,7 +341,7 @@ def open_game_menu(
                             show_message(console, context, "저장 완료!")
                         continue
 
-                    elif result == MenuOption.LOAD_GAME:
+                elif result == MenuOption.LOAD_GAME:
                         from src.ui.save_load_ui import show_load_screen
                         game_state = show_load_screen(console, context)
                         if game_state:
@@ -349,13 +349,13 @@ def open_game_menu(
                             return MenuOption.LOAD_GAME
                         continue
 
-                    elif result == MenuOption.OPTIONS:
+                elif result == MenuOption.OPTIONS:
                         from src.ui.settings_ui import open_settings
                         open_settings(console, context)
                         # 설정에서 돌아온 후 메뉴 계속
                         continue
 
-                    elif result == MenuOption.RETURN:
+                elif result == MenuOption.RETURN:
                         return result
 
             # 윈도우 닫기
