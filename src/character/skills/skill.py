@@ -497,6 +497,38 @@ class Skill:
                     logger.info(f"[생명력 흡수] {user.name} HP 회복: +{actual_heal} (피해의 {total_lifesteal_rate * multiplier * 100:.0f}%)")
                     effect_messages.append(msg)
 
+        # 커스텀 효과 처리 (차원술사 굴절 전환 등)
+        if self.metadata.get("custom_effect", False):
+            # 자해 피해 처리 (self_damage_hp_percent)
+            if "self_damage_hp_percent" in self.metadata:
+                damage_percent = self.metadata.get("self_damage_hp_percent", 0)
+                max_hp = getattr(user, 'max_hp', 100)
+                self_damage = int(max_hp * damage_percent)
+                
+                # 고정 피해로 적용 (방어력 무시)
+                if hasattr(user, 'take_fixed_damage'):
+                    actual_damage = user.take_fixed_damage(self_damage)
+                else:
+                    # take_fixed_damage가 없으면 직접 HP 감소
+                    actual_damage = min(self_damage, user.current_hp)
+                    user.current_hp = max(1, user.current_hp - self_damage)  # 최소 1 HP 보장
+                
+                from src.core.logger import get_logger
+                logger = get_logger("skill")
+                logger.info(f"[자해] {user.name} 고정 피해: {actual_damage} (최대 HP의 {damage_percent * 100:.0f}%)")
+                effect_messages.append(f"자해 피해 {actual_damage}")
+                total_dmg += actual_damage  # 자해 피해도 total_damage에 포함
+                
+                # 굴절 전환: 자해 피해만큼 굴절량 획득 (refraction_gain_multiplier 적용)
+                if "refraction_gain_multiplier" in self.metadata:
+                    multiplier = self.metadata.get("refraction_gain_multiplier", 1.0)
+                    refraction_gain = int(self_damage * multiplier)
+                    if not hasattr(user, 'refraction_stacks'):
+                        user.refraction_stacks = 0
+                    user.refraction_stacks += refraction_gain
+                    logger.info(f"[굴절 전환] {user.name} 굴절량 획득: +{refraction_gain} (총: {user.refraction_stacks})")
+                    effect_messages.append(f"굴절량 +{refraction_gain}")
+
         # 최종 메시지 구성 (ISSUE-003: 상세 피드백)
         base_message = f"{user.name}이(가) {self.name} 사용!"
         if effect_messages:

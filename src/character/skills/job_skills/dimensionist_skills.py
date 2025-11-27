@@ -174,8 +174,8 @@ def create_dimensionist_skills():
     refraction_conversion.target_type = "self"
     refraction_conversion.sfx = ("combat", "critical")
     refraction_conversion.metadata = {
-        "self_damage_hp_percent": 0.75,
-        "refraction_gain_multiplier": 3.5,
+        "self_damage_hp_percent": 0.25,
+        "refraction_gain_multiplier": 2.5,
         "custom_effect": True
     }
 
