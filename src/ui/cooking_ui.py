@@ -707,9 +707,10 @@ def open_cooking_pot(
                     return None
 
             # 윈도우 닫기
-            if isinstance(event, tcod.event.Quit):
-                ui.closed = True
-                return None
+            for quit_event in tcod.event.get():
+                if isinstance(quit_event, tcod.event.Quit):
+                    ui.closed = True
+                    return None
 
         # CPU 사용률 낮추기 (논블로킹 모드에서 필요)
         import time

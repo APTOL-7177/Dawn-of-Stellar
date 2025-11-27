@@ -359,8 +359,9 @@ def open_game_menu(
                         return result
 
             # 윈도우 닫기
-            if isinstance(event, tcod.event.Quit):
-                return MenuOption.QUIT
+            for quit_event in tcod.event.get():
+                if isinstance(quit_event, tcod.event.Quit):
+                    return MenuOption.QUIT
 
         # CPU 사용률 낮추기 (논블로킹 모드에서 필요)
         import time
@@ -524,8 +525,9 @@ def open_party_status_menu(
                 return
 
             # 윈도우 닫기
-            if isinstance(event, tcod.event.Quit):
-                return
+            for quit_event in tcod.event.get():
+                if isinstance(quit_event, tcod.event.Quit):
+                    return
 
 
 def show_character_detail(
@@ -653,8 +655,9 @@ def show_character_detail(
                 return
 
             # 윈도우 닫기
-            if isinstance(event, tcod.event.Quit):
-                return
+            for quit_event in tcod.event.get():
+                if isinstance(quit_event, tcod.event.Quit):
+                    return
 
 
 def show_message(

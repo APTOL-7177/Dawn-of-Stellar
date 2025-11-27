@@ -1489,8 +1489,9 @@ def run_party_setup(console: tcod.console.Console, context: tcod.context.Context
                     return (party, passives)
 
             # 윈도우 닫기
-            if isinstance(event, tcod.event.Quit):
-                return None
+            for quit_event in tcod.event.get():
+                if isinstance(quit_event, tcod.event.Quit):
+                    return None
 
         # CPU 사용률 낮추기 (논블로킹 모드에서 필요)
         import time
