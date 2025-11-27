@@ -450,19 +450,19 @@ class GamepadHandler:
     def _initialize_joystick(self) -> None:
         """게임패드 초기화"""
         try:
-            print("🎮 Initializing gamepad...")  # 디버깅용
+            print("[INIT] Initializing gamepad...")  # 디버깅용
 
             # pygame 이벤트 초기화 (중요!)
             pygame.event.get()  # 기존 이벤트 비우기
-            print("✅ pygame events cleared")  # 디버깅용
+            print("[OK] pygame events cleared")  # 디버깅용
 
             joystick_count = pygame.joystick.get_count()
             self.logger.info(f"감지된 조이스틱 수: {joystick_count}")
-            print(f"📊 Detected joysticks: {joystick_count}")  # 디버깅용
+            print(f"[INFO] Detected joysticks: {joystick_count}")  # 디버깅용
 
             if joystick_count == 0:
-                print("❌ No gamepads detected")
-                print("💡 Xbox 360 controller troubleshooting:")
+                print("[FAIL] No gamepads detected")
+                print("[HINT] Xbox 360 controller troubleshooting:")
                 print("   1. Connect with USB cable")
                 print("   2. Press center X button to power on")
                 print("   3. Check Windows 'Game controller settings'")
