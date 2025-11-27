@@ -4,6 +4,7 @@ from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.taunt_effect import TauntEffect
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
@@ -190,7 +191,17 @@ def register_dragon_knight_skills(skill_manager):
         "전체 적 도발 (2턴, 저항 불가) + 자신 방어력/마방 1.4배 (3턴) + 반격 활성화",
         gauge_cost=225
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 전체 적 도발 (2턴, 저항 불가)
+        TauntEffect(duration=2, cannot_resist=True),
+        # 자신 방어력/마방 1.4배 (3턴)
+        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3),
+        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.4, duration=3),
+        # 반격 활성화 (피격 시 BRV 1.5x 자동 반격, 2턴) - 메타데이터로 처리
+        BuffEffect(BuffType.COUNTER, 0.5, duration=2),  # 반격 버프로 처리
+        # 드래곤 마크 +3
+        GimmickEffect(GimmickOperation.ADD, "dragon_mark", 3)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

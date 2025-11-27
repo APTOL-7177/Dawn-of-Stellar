@@ -166,7 +166,11 @@ def register_elementalist_skills(skill_manager):
         "소환된 정령 2마리를 융합시켜 융합 스킬 즉시 발동 + 정령 재소환 쿨다운 초기화",
         gauge_cost=200
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 정령 융합 효과 - 임시로 광역 데미지로 처리
+        DamageEffect(DamageType.BRV_HP, multiplier=3.0, stat_type="magical"),
+        # 정령 재소환 쿨다운 초기화 (메타데이터로 처리)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

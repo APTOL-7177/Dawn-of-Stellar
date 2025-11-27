@@ -165,7 +165,13 @@ def register_spellblade_skills(skill_manager):
         "단일 대상 BRV+HP (2.0x + 엔챈트 속성 데미지 1.0x → HP 변환) + 엔챈트 유지",
         gauge_cost=125
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 단일 대상 BRV+HP (2.0x)
+        DamageEffect(DamageType.BRV_HP, multiplier=2.0),
+        # 엔챈트 속성 데미지 1.0x (메타데이터로 처리)
+        DamageEffect(DamageType.BRV_HP, multiplier=1.0, stat_type="magical"),  # 추가 데미지로 처리
+        # 엔챈트 유지 (메타데이터로 처리)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

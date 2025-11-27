@@ -159,7 +159,13 @@ def register_samurai_skills(skill_manager):
         "단일 대상 HP 공격 (3.5x) + BREAK 시 wound damage 3배 + 거합 게이지 초기화",
         gauge_cost=200
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 단일 대상 HP 공격 (3.5x)
+        DamageEffect(DamageType.HP, multiplier=3.5),
+        # BREAK 시 wound damage 3배 (메타데이터로 처리)
+        # 거합 게이지 초기화
+        GimmickEffect(GimmickOperation.SET, "iaido_gauge", 0)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

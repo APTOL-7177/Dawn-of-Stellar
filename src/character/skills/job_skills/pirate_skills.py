@@ -4,6 +4,7 @@ from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.steal_buff_effect import StealBuffEffect
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
@@ -167,7 +168,12 @@ def register_pirate_skills(skill_manager):
         "단일 대상 BRV+HP (2.5x → HP 변환) + 적 버프 1개 훔침",
         gauge_cost=150
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 단일 대상 BRV+HP (2.5x → HP 변환)
+        DamageEffect(DamageType.BRV_HP, multiplier=2.5),
+        # 적 버프 1개 훔침
+        StealBuffEffect()
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

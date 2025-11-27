@@ -56,7 +56,8 @@ class StatusEffect(SkillEffect):
         stackable: bool = False,
         remove: bool = False,
         damage_stat: str = None,
-        damage_multiplier: float = 0
+        damage_multiplier: float = 0,
+        cannot_resist: bool = False
     ):
         super().__init__(EffectType.BUFF)  # 기존 BUFF 타입 재사용
         self.status_type = status_type
@@ -66,6 +67,7 @@ class StatusEffect(SkillEffect):
         self.remove = remove  # True면 상태 제거
         self.damage_stat = damage_stat  # DoT 데미지 계산에 사용할 스탯
         self.damage_multiplier = damage_multiplier  # DoT 데미지 배율
+        self.cannot_resist = cannot_resist  # 저항 불가 여부
 
     def can_execute(self, user, target, context):
         return True, ""

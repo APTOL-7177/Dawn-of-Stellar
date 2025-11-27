@@ -187,7 +187,15 @@ def register_archmage_skills(skill_manager):
         "전체 적 무속성 마법 BRV+HP (4.5x) + 적 전체 속성 저항 -40% (3턴)",
         gauge_cost=250
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 전체 적 무속성 마법 BRV+HP (4.5x)
+        DamageEffect(DamageType.BRV_HP, multiplier=4.5, stat_type="magical"),
+        # 적 전체 속성 저항 -40% (3턴)
+        BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.4, duration=3, target="all_enemies"),
+        BuffEffect(BuffType.SPIRIT_DOWN, 0.4, duration=3, target="all_enemies"),  # 추가 저항 감소
+        # 자신 원소 게이지 초기화
+        GimmickEffect(GimmickOperation.SET, "element_gauge", 0)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

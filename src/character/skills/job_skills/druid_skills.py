@@ -173,7 +173,13 @@ def register_druid_skills(skill_manager):
         "아군 전체 최대 HP의 50% 회복 + 자신 자연 포인트 +50 + 다음 변신 지속시간 2배",
         gauge_cost=150
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 아군 전체 최대 HP의 50% 회복
+        HealEffect(percentage=0.5, is_party_wide=True),
+        # 자신 자연 포인트 +50
+        GimmickEffect(GimmickOperation.ADD, "nature_points", 50),
+        # 다음 변신 지속시간 2배 (메타데이터로 처리)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

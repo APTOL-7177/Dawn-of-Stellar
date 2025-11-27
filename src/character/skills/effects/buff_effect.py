@@ -35,6 +35,9 @@ class BuffType:
     SKILL_SEAL = "skill_seal"  # 스킬 봉인
     CUSTOM = "custom"  # 커스텀 버프 (metadata 사용)
 
+    # 팀워크 전용 특수 효과
+    BARRIER = "barrier"  # 방어막 (방어 계산용)
+
 class BuffEffect(SkillEffect):
     """버프 효과"""
     def __init__(self, buff_type: str, value: float = None, duration: int = 3, is_party_wide: bool = False, multiplier: float = None, target: str = None, custom_stat: str = None):

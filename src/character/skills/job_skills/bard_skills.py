@@ -5,6 +5,7 @@ from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.heal_effect import HealEffect, HealType
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.atb_effect import AtbEffect
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
@@ -166,7 +167,16 @@ def register_bard_skills(skill_manager):
         "아군 전체 공격력/마력 1.25배 (3턴) + ATB +250 + 선율 게이지 +30",
         gauge_cost=125
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 아군 전체 공격력 1.25배 (3턴)
+        BuffEffect(BuffType.ATTACK_UP, 0.25, duration=3, is_party_wide=True),
+        # 아군 전체 마력 1.25배 (3턴)
+        BuffEffect(BuffType.MAGIC_UP, 0.25, duration=3, is_party_wide=True),
+        # ATB +250 (아군 전체)
+        AtbEffect(atb_change=250, is_party_wide=True),
+        # 선율 게이지 +30
+        GimmickEffect(GimmickOperation.ADD, "melody_gauge", 30)
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}

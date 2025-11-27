@@ -6,7 +6,7 @@ from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOp
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.effects.status_effect import StatusEffect, StatusType
 from src.character.skills.effects.heal_effect import HealEffect, HealType
-from src.character.skills.effects.atb_effect import ATBEffect
+from src.character.skills.effects.atb_effect import AtbEffect
 from src.character.skills.costs.mp_cost import MPCost
 
 def create_time_mage_skills():
@@ -36,7 +36,7 @@ def create_time_mage_skills():
     slow = Skill("time_mage_slow", "슬로우",
                 "적 ATB -50%, 속도 -50% 3턴, 타임라인 -1 (과거)")
     slow.effects = [
-        ATBEffect(-50, is_percentage=True),  # ATB -50% (즉시 감소)
+        AtbEffect(atb_change=-250),  # ATB 즉시 감소
         BuffEffect(BuffType.SPEED_DOWN, 0.5, duration=3),  # 속도도 감소 (지속)
         GimmickEffect(GimmickOperation.ADD, "timeline", -1, min_value=-5)
     ]
@@ -111,7 +111,7 @@ def create_time_mage_skills():
     haste = Skill("time_mage_haste", "헤이스트",
                  "아군 ATB +100%, 속도 +100% 3턴, 타임라인 +1 (미래)")
     haste.effects = [
-        ATBEffect(100, is_percentage=True),  # ATB +100% (즉시 증가)
+        AtbEffect(atb_change=500),  # ATB 즉시 증가
         BuffEffect(BuffType.SPEED_UP, 1.0, duration=3),  # 속도도 증가 (지속)
         GimmickEffect(GimmickOperation.ADD, "timeline", 1, max_value=5)
     ]
@@ -135,7 +135,7 @@ def create_time_mage_skills():
     leap = Skill("time_mage_leap", "시간 도약",
                 "ATB +150%, 속도 +200% 1턴 (거의 즉시 다음 턴), 타임라인 +2 (미래)")
     leap.effects = [
-        ATBEffect(150, is_percentage=True),  # ATB +150% (즉시 대폭 증가)
+        AtbEffect(atb_change=750),  # ATB 즉시 대폭 증가
         BuffEffect(BuffType.SPEED_UP, 2.0, duration=1),  # 속도 +200%
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=1),  # 공격력도 증가
         GimmickEffect(GimmickOperation.ADD, "timeline", 2, max_value=5)
@@ -179,8 +179,10 @@ def register_time_mage_skills(skill_manager):
     teamwork.effects = [
         # 적 전체 기절 (1턴, 저항 불가)
         StatusEffect("STUN", duration=1, cannot_resist=True),
-        # ATB 초기화 (적 전체) (메타데이터로 처리)
-        # 아군 전체 ATB +500 (메타데이터로 처리)
+        # ATB 초기화 (적 전체)
+        AtbEffect(atb_change=-999, target_all_enemies=True),  # 충분히 큰 음수로 ATB 0 만들기
+        # 아군 전체 ATB +500
+        AtbEffect(atb_change=500, is_party_wide=True),
         # 타임라인 초기화 (0으로 설정)
         GimmickEffect(GimmickOperation.SET, "timeline", 0)
     ]

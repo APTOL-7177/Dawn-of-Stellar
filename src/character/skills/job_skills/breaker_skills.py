@@ -4,6 +4,7 @@ from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.break_effect import BreakEffect
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
@@ -157,7 +158,12 @@ def register_breaker_skills(skill_manager):
         "단일 대상 BRV 공격 (4.0x) + 적 BRV를 0으로 강제 (BREAK 확정) + 자신 BRV 추가 획득 (MAX BRV의 50%)",
         gauge_cost=175
     )
-    teamwork.effects = []  # TODO: 효과 추가
+    teamwork.effects = [
+        # 단일 대상 BRV 공격 (4.0x)
+        DamageEffect(DamageType.BRV, multiplier=4.0),
+        # 적 BRV를 0으로 강제 (BREAK 확정) + 자신 BRV 추가 획득 (MAX BRV의 50%)
+        BreakEffect(force_break=True, brv_gain=50)  # MAX BRV의 50%를 백분율로 계산
+    ]
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "limit_break")
     teamwork.metadata = {"teamwork": True, "chain": True}
