@@ -315,38 +315,64 @@ class TutorialManager:
 
     def _on_player_move(self, data: Dict[str, Any]) -> None:
         """플레이어 이동 이벤트 처리"""
-        self.game_state["player_position"] = (data.get("x", 0), data.get("y", 0))
+        try:
+            self.game_state["player_position"] = (data.get("x", 0), data.get("y", 0))
+        except Exception:
+            pass
 
     def _on_combat_start(self, data: Dict[str, Any]) -> None:
         """전투 시작 이벤트 처리"""
-        self.game_state["action_count"] = 0
-        self.game_state["action_sequence"] = []
+        try:
+            self.game_state["action_count"] = 0
+            self.game_state["action_sequence"] = []
+        except Exception:
+            pass
 
     def _on_combat_end(self, data: Dict[str, Any]) -> None:
         """전투 종료 이벤트 처리"""
-        self.game_state["last_combat_result"] = data.get("result")
-        self.game_state["defeated_enemies"] = data.get("defeated_count", 0)
+        try:
+            self.game_state["last_combat_result"] = data.get("result")
+            self.game_state["defeated_enemies"] = data.get("defeated_count", 0)
+        except Exception:
+            pass
 
     def _on_combat_action(self, data: Dict[str, Any]) -> None:
         """전투 행동 이벤트 처리"""
-        self.game_state["action_count"] += 1
-        # dict를 직접 저장하지 말고 필요한 정보만 추출
-        action_info = {
-            "action_type": data.get("action_type"),
-            "actor_name": getattr(data.get("actor"), "name", str(data.get("actor"))),
-            "target_name": getattr(data.get("target"), "name", str(data.get("target"))) if data.get("target") else None,
-            "skill_name": getattr(data.get("skill"), "name", str(data.get("skill"))) if data.get("skill") else None
-        }
-        self.game_state["action_sequence"].append(action_info)
+        try:
+            self.game_state["action_count"] += 1
+            # 안전하게 이름 추출
+            actor = data.get("actor")
+            target = data.get("target")
+            skill = data.get("skill")
+            
+            action_info = {
+                "action_type": str(data.get("action_type", "")),
+                "actor_name": getattr(actor, "name", "unknown") if actor and not isinstance(actor, dict) else "unknown",
+                "target_name": getattr(target, "name", "unknown") if target and not isinstance(target, dict) else None,
+                "skill_name": getattr(skill, "name", "unknown") if skill and not isinstance(skill, dict) else None
+            }
+            self.game_state["action_sequence"].append(action_info)
+        except Exception:
+            pass
 
     def _on_skill_execute(self, data: Dict[str, Any]) -> None:
         """스킬 사용 이벤트 처리"""
-        skill = data.get("skill")
-        if skill:
-            # 스킬 이름이나 타입을 사용 (객체가 아니라 문자열로 저장)
-            skill_identifier = getattr(skill, "name", str(skill))
-            if skill_identifier not in self.game_state["used_skill_types"]:
-                self.game_state["used_skill_types"].append(skill_identifier)
+        try:
+            skill = data.get("skill")
+            if skill:
+                # 스킬 이름이나 타입을 사용 (객체가 아니라 문자열로 저장)
+                if isinstance(skill, dict):
+                    skill_identifier = skill.get("name", skill.get("id", "unknown"))
+                else:
+                    skill_identifier = getattr(skill, "name", None) or getattr(skill, "id", str(skill))
+                
+                # 항상 문자열로 변환
+                skill_identifier = str(skill_identifier)
+                
+                if skill_identifier not in self.game_state["used_skill_types"]:
+                    self.game_state["used_skill_types"].append(skill_identifier)
+        except Exception:
+            pass  # 튜토리얼 추적 실패는 무시
 
     def _on_npc_interaction(self, data: Dict[str, Any]) -> None:
         """NPC 상호작용 이벤트 처리"""

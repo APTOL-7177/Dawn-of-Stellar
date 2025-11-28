@@ -223,7 +223,7 @@ class TeamworkSkillSelector:
                 chain_count = party.chain_count if getattr(party, 'chain_active', False) else 1
                 logger.debug(f"[TEAMWORK_SELECTOR] 연쇄 단계: {chain_count}")
 
-                can_use, reason = skill.can_use(actor, party, chain_count=chain_count)
+                can_use, reason = skill.can_use(actor, {'party': party, 'chain_count': chain_count})
                 logger.debug(f"[TEAMWORK_SELECTOR] {skill.name} 사용 가능: {can_use} (이유: {reason})")
 
                 if can_use:

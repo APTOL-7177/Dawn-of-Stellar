@@ -1,0 +1,117 @@
+# 2장-3: BRV(용기) 시스템 기초
+id: story_06_brv_basics
+title: "용기의 힘: BRV"
+order: 6
+category: story
+chapter: "chapter_2"
+enabled: true
+skippable: true
+
+description: |
+  시공 교란으로 탄생한 새로운 전투 법칙.
+  BRV(Brave, 용기)를 축적하여 적에게 데미지를 준다.
+
+objective: "BRV를 축적하고 HP 공격을 성공시키세요"
+
+npc_guide: "karnos"
+
+# 전투 튜토리얼 설정
+combat_tutorial:
+  enabled: true
+  bgm: "battle.ogg"
+  spawn_enemy:
+    type: "training_dummy"
+    name: "훈련용 시간 왜곡체"
+    hp: 200
+    brv: 500
+    passive: true  # 반격 안 함
+    
+messages:
+  - text: "전투 훈련을 시작한다."
+    color: [255, 100, 100]
+    pause: 2.0
+    effect: "typing"
+
+npc_dialogue:
+  - npc: "karnos"
+    text: "잘 들어라. 시공 교란 이후, 전투의 법칙이 바뀌었다."
+    pause: 3.0
+    
+  - npc: "karnos"
+    text: "BRV... 'Brave', 용기의 힘이다."
+    pause: 2.5
+    color: [0, 255, 255]
+    
+  - npc: "karnos"
+    text: "직접 HP를 공격할 수 없다. 먼저 BRV를 축적해야 한다."
+    pause: 3.0
+    highlight: "brv_gauge"
+    
+  - npc: "karnos"
+    text: "행동 메뉴에서 'BRV 공격'을 선택하면 적의 BRV를 깎고, 그만큼 내 BRV가 오른다."
+    pause: 3.5
+    highlight: "brv_attack_button"
+    
+  - npc: "karnos"
+    text: "BRV가 충분히 쌓이면, 'HP 공격'을 선택해서 실제 피해를 준다."
+    pause: 3.5
+    highlight: "hp_attack_button"
+    
+  - npc: "karnos"
+    text: "HP 공격 후 BRV는 초기화된다. 다시 축적해야 해."
+    pause: 3.0
+    
+  - npc: "karnos"
+    text: "직접 해봐라. BRV 공격으로 충분히 쌓고 HP 공격으로 마무리해."
+    pause: 2.5
+    color: [255, 255, 0]
+
+# 완료 조건
+completion_condition:
+  type: "combat_action_sequence"
+  required_sequence:
+    - action: "brv_attack"
+      min_brv_gained: 300
+    - action: "hp_attack"
+      min_brv_used: 100
+  message: "훌륭하다! BRV 시스템을 이해했군."
+
+# 힌트
+hints:
+  - text: "메뉴에서 BRV 공격! 적의 BRV를 깎고 내 BRV를 올려요."
+    trigger_time: 10.0
+    npc: "karnos"
+    
+  - text: "BRV가 충분히 쌓였다면 HP 공격!"
+    trigger_time: 20.0
+    npc: "karnos"
+    
+  - text: "BRV가 최대치에 가까우면 HP 공격하세요. 넘치면 손해!"
+    trigger_time: 30.0
+    npc: "karnos"
+
+# UI 강조
+ui_highlights:
+  - element: "brv_gauge"
+    color: [0, 255, 255]
+    pulse: true
+    description: "BRV 게이지"
+    
+  - element: "action_menu"
+    color: [0, 255, 255]
+    pulse: true
+    description: "행동 메뉴 (↑↓ 선택, Z 확인)"
+
+# 플레이어블 튜토리얼 설정
+playable:
+  enabled: true
+  type: "combat"
+  objective: "BRV 축적 후 HP 공격"
+  victory_condition: "brv_hp_combo"
+
+# 보상
+rewards:
+  message: "BRV 시스템을 마스터했습니다!"
+
+# 다음 단계
+next_step: "story_07_break_mastery"

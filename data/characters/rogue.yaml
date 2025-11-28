@@ -26,26 +26,47 @@ stat_growth:
   evasion: 2.0
   max_brv: 88.4
 traits:
-- id: shadow_step
-  name: 그림자 걸음
-  description: 회피 성공 시 다음 공격 치명타 확률 50% 증가
+- id: master_thief
+  name: 도둑의 달인
+  description: 훔치기 성공률 +30%, 훔친 아이템 효과 +50%
+  type: passive
+  effects:
+    steal_success_bonus: 0.3
+    stolen_item_bonus: 1.5
+
+- id: treasure_sense
+  name: 보물 감지
+  description: 훔친 아이템 5개 이상 시 희귀 아이템 획득 확률 2배
+  type: conditional
+  conditions:
+    stolen_items_min: 5
+  effects:
+    rare_steal_chance: 2.0
+
+- id: shadow_evasion
+  name: 그림자 회피
+  description: 회피 성공 시 훔친 아이템 +1, 다음 공격 크리티컬 확정
   type: trigger
-- id: assassinate
-  name: 암살
-  description: HP 30% 이하 적 공격 시 즉사 확률 15%
+  effects:
+    stolen_on_evade: 1
+    guaranteed_crit: true
+
+- id: quick_fingers
+  name: 빠른 손놀림
+  description: 훔친 아이템 사용 시 50% 확률로 소비 안 함
   type: trigger
-- id: swift_strikes
-  name: 신속한 일격
-  description: 공격 속도 30% 증가, ATB 회복 빠름
-  type: passive
-- id: evasion_master
-  name: 회피의 달인
-  description: 회피율 +25%
-  type: passive
-- id: critical_finesse
-  name: 치명적 기교
-  description: 크리티컬 데미지 50% 증가
-  type: passive
+  effects:
+    item_preserve_chance: 0.5
+
+- id: assassin_instinct
+  name: 암살자의 본능
+  description: 훔친 아이템 MAX(10) 시 다음 공격이 HP 20% 이하 적 즉사
+  type: conditional
+  conditions:
+    stolen_items_exact: 10
+  effects:
+    execute_threshold: 0.2
+    instant_kill: true
 gimmick:
   type: theft_system
   name: 절도와 회피

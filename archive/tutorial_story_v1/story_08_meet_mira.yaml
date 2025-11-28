@@ -1,0 +1,78 @@
+# 3장-1: 시대를 떠도는 현자 미라
+id: story_08_meet_mira
+title: "시대를 떠도는 현자"
+order: 8
+category: story
+chapter: "chapter_3"
+enabled: true
+skippable: true
+
+description: |
+  시공을 떠도는 신비로운 현자 미라.
+  그녀는 당신의 숨겨진 재능을 깨울 수 있다.
+
+objective: "미라의 이야기를 들으세요"
+
+npc_guide: "mira"
+bgm: "menu2.ogg"
+
+messages:
+  - text: "어디선가 밝은 목소리가 들린다..."
+    color: [255, 200, 100]
+    pause: 2.0
+    effect: "fade_in"
+
+npc_dialogue:
+  - npc: "mira"
+    text: "안녕하세요~! 드디어 만났네요!"
+    pause: 2.0
+    portrait_animation: "phase_in"
+    
+  - npc: "mira"
+    text: "저는 미라예요. 시대를 떠도는 현자... 라고 하죠?"
+    pause: 2.5
+    
+  - npc: "selena"
+    text: "경고: 시간 좌표 불명. 출신 시대를 특정할 수 없습니다."
+    pause: 2.5
+    color: [255, 255, 0]
+    
+  - npc: "mira"
+    text: "아하하, 저도 제가 어디서 왔는지 모르거든요~"
+    pause: 2.0
+    
+  - npc: "mira"
+    text: "그냥 항상... 여기저기 있었어요. 모든 시대에."
+    pause: 2.5
+    color: [200, 150, 255]
+    
+  - npc: "karnos"
+    text: "...시공의 방랑자. 전설로만 들었다."
+    pause: 2.0
+    
+  - npc: "mira"
+    text: "어쨌든! 당신한테서 뭔가 느껴져요!"
+    pause: 2.0
+    color: [255, 255, 0]
+    
+  - npc: "mira"
+    text: "숨겨진 재능... 지금 깨워드릴까요?"
+    pause: 2.5
+    
+  - npc: "mira"
+    text: "어떤 힘이 당신에게 맞을지 제가 알려드릴게요!"
+    pause: 2.5
+    color: [0, 255, 255]
+
+completion_condition:
+  type: "dialogue_complete"
+  message: "미라가 당신의 재능을 깨울 준비를 합니다."
+
+rewards:
+  message: "새로운 동료를 만났습니다!"
+  unlock:
+    - type: "npc_bond"
+      npc: "mira"
+      level: 1
+
+next_step: "story_09_job_awakening"

@@ -26,26 +26,48 @@ stat_growth:
   evasion: 1.8
   max_brv: 90.6
 traits:
-- id: magic_blade_unity
-  name: 마검 일체
-  description: 물리 공격에 마법 데미지 추가 (마력의 50%)
+- id: mana_conduit
+  name: 마나 도관
+  description: 마나 블레이드 획득량 +50%, 최대 보유량 +20 (100→120)
   type: passive
-- id: dual_element
-  name: 이중 속성
-  description: 공격 시 물리/마법 중 높은 쪽으로 계산
+  effects:
+    mana_gain_bonus: 1.5
+    max_mana_blade: 120
+
+- id: elemental_mastery
+  name: 원소 숙련
+  description: 원소 부여 스킬 피해 +40%, 상태이상 지속시간 +1턴
   type: passive
-- id: spellblade_art
-  name: 마검 오의
-  description: 크리티컬 시 물리+마법 동시 발동 (데미지 150%씩)
+  effects:
+    enchant_damage_bonus: 1.4
+    status_duration_bonus: 1
+
+- id: blade_resonance
+  name: 검의 공명
+  description: 마나 50 이상 시 물리/마법 동시 피해 발동
+  type: conditional
+  conditions:
+    mana_blade_min: 50
+  effects:
+    dual_damage: true
+
+- id: arcane_overflow
+  name: 마력 과잉
+  description: 마나 MAX(100) 시 다음 스킬 MP 소비 0 + 피해 2배
   type: trigger
-- id: arcane_edge
-  name: 마력 예리화
-  description: 마법 시전 후 다음 물리 공격 데미지 +60%
+  conditions:
+    mana_blade_exact: 100
+  effects:
+    free_cast: true
+    damage_multiplier: 2.0
+
+- id: spell_chain
+  name: 주문 연쇄
+  description: 원소 스킬 연속 사용 시 마나 +10 추가, 피해 누적 +15%
   type: trigger
-- id: combat_casting
-  name: 전투 시전
-  description: 마법 시전 시간 -50%
-  type: passive
+  effects:
+    bonus_mana_on_chain: 10
+    chain_damage_bonus: 0.15
 gimmick:
   type: enchant_system
   name: 마력 부여

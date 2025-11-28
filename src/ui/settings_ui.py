@@ -96,7 +96,7 @@ class SettingsUI:
             elif option == SettingOption.TUTORIAL:
                 return "tutorial"
             else:
-                # Enter로도 값 토글/증가
+                # Z로도 값 토글/증가
                 self._adjust_setting(1)
         elif action == GameAction.ESCAPE or action == GameAction.MENU:
             play_sfx("ui", "cursor_cancel")
@@ -205,7 +205,7 @@ class SettingsUI:
                 console.print(value_x, y, f"< {value} >", fg=value_color)
             elif option == SettingOption.TUTORIAL:
                 # 튜토리얼 다시보기
-                console.print(value_x, y, "[ Enter로 시작 ]", fg=value_color)
+                console.print(value_x, y, "[ Z로 시작 ]", fg=value_color)
             elif option == SettingOption.BACK:
                 # 돌아가기는 값 표시 없음
                 console.print(value_x, y, "", fg=value_color)
@@ -236,7 +236,7 @@ class SettingsUI:
         console.print(
             5,
             self.screen_height - 4,
-            "↑↓: 선택  ←→: 값 조정  Enter: 확인  ESC: 저장하고 닫기",
+            "↑↓: 선택  ←→: 값 조정  Z: 확인  ESC: 저장하고 닫기",
             fg=(180, 180, 180)
         )
 
@@ -280,11 +280,18 @@ def open_settings(
                     logger.info("설정 메뉴 닫힘")
                     return
                 elif result == "tutorial":
-                    # 튜토리얼 뷰어 실행
-                    from src.tutorial.tutorial_viewer import run_tutorial_viewer
-                    logger.info("튜토리얼 뷰어 시작")
-                    run_tutorial_viewer(console, context)
-                    logger.info("튜토리얼 뷰어 종료")
+                    # 스토리 튜토리얼 실행
+                    from src.tutorial.story_runner import run_story_tutorial
+                    
+                    logger.info("스토리 튜토리얼 시작")
+                    
+                    # 튜토리얼 실행
+                    tutorial_result = run_story_tutorial(console, context)
+                    
+                    if tutorial_result.get("completed"):
+                        logger.info(f"스토리 튜토리얼 완료! 해금 직업: {tutorial_result.get('job_unlocked')}")
+                    else:
+                        logger.info("스토리 튜토리얼 건너뜀")
                     # 설정 화면으로 돌아옴
 
             # 윈도우 닫기

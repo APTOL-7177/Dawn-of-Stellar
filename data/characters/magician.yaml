@@ -205,13 +205,14 @@ gimmick:
     black_joker: "적의 마지막 스킬 복사"
     red_joker: "모든 확률 재계산 (운빠)"
 
-# 스킬 목록 (16개)
+# 스킬 목록 (17개)
 skills:
 - teamwork
 - card_slash
 - trick_shot
 - double_or_nothing
 - mind_reading
+- ace_in_the_hole
 - reverse_card
 - stat_swap
 - mirror_force

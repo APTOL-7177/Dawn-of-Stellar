@@ -27,25 +27,47 @@ stat_growth:
   max_brv: 89.2
 traits:
 - id: potion_mastery
-  name: 포션 제조
-  description: 모든 포션 효과 +50%, 사용 시 MP 소모 없음
+  name: 포션 달인
+  description: 포션 효과 +40%, 재료 소비 스킬 사용 시 20% 확률로 재료 유지
   type: passive
-- id: transmutation
-  name: 연금술 변환
-  description: 아이템을 다른 아이템으로 변환 가능
+  effects:
+    potion_effect_bonus: 1.4
+    material_preserve_chance: 0.2
+
+- id: efficient_brewing
+  name: 효율적 조합
+  description: 재료 획득량 +1, 최대 재료 보유량 +3 (10→13)
   type: passive
-- id: chemical_weapon
-  name: 화학 무기
-  description: 공격 시 랜덤 상태이상 부여 (독, 화상, 둔화)
+  effects:
+    material_gain_bonus: 1
+    max_materials: 13
+
+- id: chemical_expert
+  name: 화학 전문가
+  description: 독/화상 피해 +50%, 디버프 지속시간 +1턴
+  type: passive
+  effects:
+    dot_damage_bonus: 1.5
+    debuff_duration_bonus: 1
+
+- id: emergency_synthesis
+  name: 긴급 합성
+  description: HP 30% 이하 시 재료 3개 즉시 획득 + HP 30% 회복 (전투당 1회)
   type: trigger
-- id: emergency_elixir
-  name: 비상 영약
-  description: HP 30% 이하 시 자동으로 HP 50% 회복 (전투당 1회)
+  conditions:
+    hp_below: 0.3
+  effects:
+    material_grant: 3
+    heal_percent: 0.3
+
+- id: philosophers_touch
+  name: 현자의 손길
+  description: 턴 종료 시 재료 5개 이상이면 +2 추가 획득
   type: trigger
-- id: philosopher_stone
-  name: 현자의 돌
-  description: 턴 종료 시 5% 확률로 랜덤 포션 생성
-  type: trigger
+  conditions:
+    materials_min: 5
+  effects:
+    bonus_materials: 2
 gimmick:
   type: alchemy_system
   name: 포션 조합

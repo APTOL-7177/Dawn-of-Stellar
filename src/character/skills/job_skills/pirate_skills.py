@@ -338,9 +338,9 @@ def create_pirate_skills():
         DamageEffect(DamageType.BRV, 3.0),
         DamageEffect(DamageType.HP, 2.5),
         # 확정 대박 버프
-        BuffEffect(BuffType.ATTACK_UP, 1.0, duration=4),  # 공격력 2배
-        BuffEffect(BuffType.CRITICAL_UP, 0.5, duration=4),
-        BuffEffect(BuffType.SPEED_UP, 0.4, duration=4),
+        BuffEffect(BuffType.ATTACK_UP, 1.0, duration=4, target="self"),  # 공격력 2배
+        BuffEffect(BuffType.CRITICAL_UP, 0.5, duration=4, target="self"),
+        BuffEffect(BuffType.SPEED_UP, 0.4, duration=4, target="self"),
     ]
     ultimate.costs = [MPCost(35)]
     ultimate.is_ultimate = True

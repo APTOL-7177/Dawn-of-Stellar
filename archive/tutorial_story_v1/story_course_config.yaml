@@ -1,0 +1,209 @@
+# 스토리 연계 튜토리얼 코스 설정
+# Dawn of Stellar - 시공의 여명
+
+story_mode:
+  enabled: true
+  title: "시공의 여명"
+  
+# 메인 스토리 튜토리얼 순서
+story_chapters:
+  - id: "prologue"
+    title: "프롤로그: 시공의 각성"
+    tutorials:
+      - story_prologue
+    unlock_condition: null  # 항상 시작 가능
+    
+  - id: "chapter_1"
+    title: "1장: 뒤섞인 세계"
+    tutorials:
+      - story_01_awakening
+      - story_02_first_steps
+      - story_03_first_combat
+    unlock_condition: "complete_prologue"
+    
+  - id: "chapter_2"
+    title: "2장: 용기의 법칙"
+    tutorials:
+      - story_04_meet_karnos
+      - story_05_atb_system
+      - story_06_brv_basics
+      - story_07_break_mastery
+    unlock_condition: "complete_chapter_1"
+    
+  - id: "chapter_3"
+    title: "3장: 재능의 각성"
+    tutorials:
+      - story_08_meet_mira
+      - story_09_job_awakening
+    unlock_condition: "complete_chapter_2"
+    
+  - id: "chapter_4"
+    title: "4장: 시대를 넘은 동료"
+    description: "각기 다른 시대에서 온 영웅들과 파티를 구성한다"
+    tutorials:
+      - story_10_party_intro      # 파티 소개
+      - story_11_party_building   # 파티 구성
+    unlock_condition: "complete_chapter_3"
+    estimated_time: "5분"
+    
+  - id: "chapter_5"
+    title: "5장: 시공 정착촌"
+    description: "장비, 요리, 패시브 등 성장 시스템을 배운다"
+    tutorials:
+      - story_12_meet_tord        # 토르드 조우
+      - story_13_equipment_basics # 장비 기초
+      - story_14_meet_lina        # 리나 조우
+      - story_15_cooking_basics   # 요리 기초
+      - story_16_passive_skills   # 패시브 스킬
+    unlock_condition: "complete_chapter_4"
+    estimated_time: "10분"
+    
+  - id: "chapter_6"
+    title: "6장: 첫 번째 균열"
+    description: "시간 포식자를 물리치고 시공 균열을 봉인한다"
+    tutorials:
+      - story_17_dungeon_intro    # 던전 소개
+      - story_18_boss_preparation # 보스전 준비
+      - story_19_time_devourer_boss # 보스전!
+    unlock_condition: "complete_chapter_5"
+    estimated_time: "15분"
+    boss_chapter: true
+    
+  - id: "epilogue"
+    title: "에필로그: 시간의 각성"
+    tutorials:
+      - story_20_time_awakening
+    unlock_condition: "complete_chapter_6"
+    rewards:
+      job_unlock: "time_mage"
+      stellar_fragments: 100  # 별의 파편
+
+# NPC 가이드 설정
+npc_guides:
+  selena:
+    name: "셀레나"
+    title: "시공 관측소 AI"
+    origin_era: "2157년 (현재)"
+    portrait: "selena_ai.png"
+    color: [0, 200, 255]  # 시안
+    personality: "logical_warm"
+    
+  karnos:
+    name: "카르노"
+    title: "시공 전쟁 참전 용사"
+    origin_era: "3000년 (미래)"
+    portrait: "karnos_soldier.png"
+    color: [255, 100, 100]  # 붉은색
+    personality: "strict_experienced"
+    
+  mira:
+    name: "미라"
+    title: "시대를 떠도는 현자"
+    origin_era: "시대 불명"
+    portrait: "mira_wanderer.png"
+    color: [255, 200, 100]  # 주황색
+    personality: "curious_cheerful"
+    
+  tord:
+    name: "토르드"
+    title: "바이킹 대장장이"
+    origin_era: "800년 (과거)"
+    portrait: "tord_blacksmith.png"
+    color: [200, 150, 100]  # 갈색
+    personality: "gruff_adaptable"
+    
+  lina:
+    name: "리나"
+    title: "우주선 요리사"
+    origin_era: "2500년 (미래)"
+    portrait: "lina_chef.png"
+    color: [255, 150, 200]  # 분홍색
+    personality: "friendly_encouraging"
+    
+  mystery:
+    name: "???"
+    title: "시공 교란의 비밀을 아는 자"
+    origin_era: "???"
+    portrait: "mystery_figure.png"
+    color: [150, 100, 200]  # 보라색
+    personality: "mysterious"
+
+# 튜토리얼 완료 보상 - 직업 선택
+completion_reward:
+  enabled: true
+  title: "각성할 힘을 선택하세요"
+  description: "튜토리얼 완료 보상으로 해금 직업 1개를 무료로 획득합니다."
+  
+  choices:
+    - id: "time_mage"
+      name: "시간술사"
+      description: "시간을 조작하여 전장을 지배하는 시공의 마법사"
+      story_reason: "시공 균열 봉인으로 시간의 힘 각성"
+      recommended: true
+      
+    - id: "dimensionist"
+      name: "차원술사"
+      description: "차원과 확률을 조작하는 시공간의 지배자"
+      story_reason: "차원 항해 기술의 부작용으로 공간 조작력 획득"
+      recommended: false
+      
+    - id: "hacker"
+      name: "해커"
+      description: "시스템을 해킹하여 적을 약화시키는 트리키한 전투 전문가"
+      story_reason: "미래 기술과의 접촉으로 시스템 해킹 능력 습득"
+      recommended: false
+  
+  default_choice: "time_mage"
+  skip_timeout: 30  # 30초 후 기본 선택
+
+# 상황별 자동 추천 트리거
+auto_suggest_triggers:
+  - trigger: "first_break_fail"
+    condition: "enemy_brv_between_1_and_10"
+    suggest_tutorial: "story_07_break_mastery"
+    message: "BREAK에 거의 성공했어요! 다시 연습해볼까요?"
+    
+  - trigger: "brv_overflow"
+    condition: "brv_overflow_count >= 3"
+    suggest_tutorial: "story_06_brv_basics"
+    message: "BRV가 넘쳐흐르고 있어요. BRV 관리법을 복습해볼까요?"
+    
+  - trigger: "death_count_high"
+    condition: "death_count >= 3"
+    suggest_tutorial: "story_06_brv_basics"
+    message: "전투가 어려우신가요? 기본 전략을 다시 배워볼까요?"
+    
+  - trigger: "new_job_unlocked"
+    condition: "job_unlocked"
+    suggest_tutorial: "story_09_job_awakening"
+    message: "새 직업이 해금됐어요! 직업 시스템을 확인해볼까요?"
+    
+  - trigger: "boss_fail"
+    condition: "boss_fail_count >= 2"
+    suggest_tutorial: "story_18_boss_preparation"
+    message: "보스가 강하네요. 준비 전략을 복습해볼까요?"
+
+# BGM 매핑 (기존 에셋 활용)
+bgm_mapping:
+  prologue: "intro_.ogg"       # 프롤로그
+  story: "menu.ogg"            # 일반 스토리
+  npc_meet: "menu2.ogg"        # NPC 조우
+  party_setup: "party_setup.ogg"  # 파티 구성
+  town: "town.ogg"             # 정착촌/마을
+  dungeon: "caves.ogg"         # 던전
+  battle: "battle.ogg"         # 일반 전투
+  boss: "boss.ogg"             # 보스전
+  victory: "fanfare.ogg"       # 승리/완료
+  
+me_mapping:
+  victory: "Victory1.ogg"      # 전투 승리
+  fanfare: "Fanfare1.ogg"      # 팡파레
+  item: "Item.ogg"             # 아이템 획득
+  mystery: "Mystery.ogg"       # 미스터리/각성
+
+# 스킵 설정
+skip_options:
+  can_skip_story: true  # 스토리 스킵 가능
+  can_skip_tutorial: true  # 튜토리얼 스킵 가능
+  skip_warning: "스토리를 스킵하면 일부 보상을 받지 못할 수 있습니다."
+  still_grant_job_on_skip: true  # 스킵해도 직업 해금은 제공

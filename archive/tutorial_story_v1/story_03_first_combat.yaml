@@ -1,0 +1,90 @@
+# 1장-3: 첫 전투
+id: story_03_first_combat
+title: "첫 전투"
+order: 3
+category: story
+chapter: "chapter_1"
+enabled: true
+skippable: true
+
+description: |
+  시공 균열에서 나타난 왜곡체와의 첫 전투!
+  기본 공격 방법을 배웁니다.
+
+objective: "시간 왜곡체를 처치하세요"
+
+npc_guide: "selena"
+
+combat_tutorial:
+  enabled: true
+  bgm: "battle.ogg"
+  spawn_enemy:
+    type: "temporal_anomaly"
+    name: "시간 왜곡체"
+    hp: 50
+    brv: 100
+    passive: true
+    weak: true  # 매우 약한 적
+
+messages:
+  - text: "시공 균열에서 무언가가 나타난다!"
+    color: [255, 100, 100]
+    pause: 2.5
+    effect: "flash"
+    sound: "enemy_appear.ogg"
+
+npc_dialogue:
+  - npc: "selena"
+    text: "시간 왜곡체입니다! 시공 교란으로 생긴 존재예요."
+    pause: 2.5
+    color: [255, 255, 0]
+    
+  - npc: "selena"
+    text: "걱정 마세요, 약한 적이에요. 제가 전투 방법을 알려드릴게요."
+    pause: 3.0
+    
+  - npc: "selena"
+    text: "ATB가 차면 행동 메뉴가 열려요. 방향키로 선택, Z로 확인!"
+    pause: 2.5
+    highlight: "action_menu"
+    
+  - npc: "selena"
+    text: "먼저 'BRV 공격'으로 BRV를 쌓고, 'HP 공격'으로 마무리하세요!"
+    pause: 2.5
+
+completion_condition:
+  type: "enemy_defeated"
+  enemy_type: "temporal_anomaly"
+  count: 1
+  message: "첫 전투 승리!"
+
+hints:
+  - text: "메뉴에서 'BRV 공격'을 선택해 용기 에너지를 축적해요."
+    trigger_time: 8.0
+    npc: "selena"
+    
+  - text: "'HP 공격'을 선택해서 적에게 피해를 입혀요."
+    trigger_time: 15.0
+    npc: "selena"
+    
+  - text: "BRV가 높을수록 HP 공격 데미지가 커져요!"
+    trigger_time: 22.0
+    npc: "selena"
+
+ui_highlights:
+  - element: "action_menu"
+    color: [0, 255, 255]
+    pulse: true
+    description: "행동 메뉴 (↑↓ 선택, Z 확인)"
+    
+# 플레이어블 튜토리얼 설정
+playable:
+  enabled: true
+  type: "combat"
+  objective: "적을 처치하세요"
+  victory_condition: "enemy_defeated"
+
+rewards:
+  message: "첫 전투에서 승리했습니다!"
+
+next_step: "story_04_meet_karnos"

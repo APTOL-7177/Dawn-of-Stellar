@@ -212,10 +212,7 @@ class CombatManager:
                 self.party.teamwork_gauge = saved_gauge
                 self.party.max_teamwork_gauge = saved_max_gauge
                 self.logger.info(f"팀워크 게이지 복원됨: {saved_gauge}/{saved_max_gauge}")
-                # 복원 후 변수 초기화
-                delattr(save_module, '_last_loaded_teamwork_gauge')
-                if hasattr(save_module, '_last_loaded_max_teamwork_gauge'):
-                    delattr(save_module, '_last_loaded_max_teamwork_gauge')
+                # 캐시는 유지 (게임 저장 시 사용)
         except Exception as e:
             self.logger.debug(f"팀워크 게이지 복원 실패 (무시): {e}")
 
@@ -1365,6 +1362,19 @@ class CombatManager:
             # EnemySkill이 없으면 일반 스킬 시스템 사용
             self.logger.debug(f"적 스킬 시스템 미사용: {e}")
 
+        # 팀워크 스킬인지 확인
+        if hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill:
+            # 연쇄 시작 여부 확인
+            is_chain_start = not (self.party and self.party.chain_active)
+            success = self.execute_teamwork_skill(actor, skill, target, is_chain_start)
+            if success:
+                result["success"] = True
+                result["message"] = f"{actor.name}이(가) {skill.name} 사용!"
+            else:
+                result["success"] = False
+                result["error"] = "팀워크 스킬 실행 실패"
+            return result
+
         # 일반 스킬 실행 (플레이어 스킬)
         from src.character.skills.skill_manager import get_skill_manager
         skill_manager = get_skill_manager()
@@ -1392,7 +1402,9 @@ class CombatManager:
                 # skill 객체를 직접 사용
                 if hasattr(skill, 'execute'):
                     # Skill 객체를 직접 실행
-                    context = {"combat_manager": self, "all_enemies": self.enemies if actor in self.allies else self.allies}
+                    all_enemies = self.enemies if actor in self.allies else self.allies
+                    all_allies = self.allies if actor in self.allies else self.enemies
+                    context = {"combat_manager": self, "all_enemies": all_enemies, "all_allies": all_allies, "party": self.party}
                     skill_result = skill.execute(actor, target, context)
                 else:
                     return {
@@ -1418,9 +1430,13 @@ class CombatManager:
             is_reviving = revival_handler.is_revival_skill(skill)
 
             # SkillManager를 통해 스킬 실행
-            context = {"combat_manager": self, "all_enemies": all_enemies}
+            all_allies = self.allies if actor in self.allies else self.enemies
+            context = {"combat_manager": self, "all_enemies": all_enemies, "all_allies": all_allies, "party": self.party}
             if is_reviving:
                 context["revival"] = True
+
+            # 기믹 업데이트 (스킬 사용) - 스킬 실행 전에 호출하여 카드 효과 등이 데미지에 적용되도록 함
+            GimmickUpdater.on_skill_use(actor, skill)
 
             skill_result = skill_manager.execute_skill(
                 skill_id,
@@ -1444,8 +1460,7 @@ class CombatManager:
                 # 캐스팅 시작만 처리하고 스킬 효과는 나중에 처리
                 return result
 
-            # 기믹 업데이트 (스킬 사용) - 캐스팅이 아닌 즉시 실행 스킬만
-            GimmickUpdater.on_skill_use(actor, skill)
+            # 기믹 업데이트는 스킬 실행 전에 이미 호출됨 (카드 효과 등)
 
             # 공격 스킬 사용 시 기믹 트리거 (지원사격 등) - 캐스팅이 아닌 즉시 실행 스킬만
             if actor in self.allies and target:
@@ -1594,8 +1609,14 @@ class CombatManager:
             return result
 
         # MP/HP 코스트 지불
-        if hasattr(actor, 'current_mp'):
+        # 마술사 '무한(8)' 카드 효과: MP 무료
+        card_effects = getattr(actor, 'card_effects', {})
+        free_cast = card_effects.pop('free_cast', False)  # 1회용, 소모
+        
+        if hasattr(actor, 'current_mp') and not free_cast:
             actor.current_mp = max(0, actor.current_mp - skill.mp_cost)
+        elif free_cast:
+            self.logger.info(f"[마술사] {actor.name} 무한 효과! MP 소모 없음")
         if hasattr(actor, 'current_hp'):
             actor.current_hp = max(1, actor.current_hp - skill.hp_cost)
         
@@ -2779,13 +2800,15 @@ class CombatManager:
             skill_manager = get_skill_manager()
 
             # 캐스팅이 완료되었으므로 실제 스킬 효과를 적용
-            # context에 모든 적 정보 추가 (AOE 효과를 위해)
+            # context에 모든 적/아군 정보 추가 (AOE 효과를 위해)
             all_enemies = self.enemies if caster in self.allies else self.allies
+            all_allies = self.allies if caster in self.allies else self.enemies
             
             # 스냅샷 컨텍스트를 context에 추가 (기믹 보너스 계산용)
             context = {
                 "combat_manager": self, 
-                "all_enemies": all_enemies
+                "all_enemies": all_enemies,
+                "all_allies": all_allies
             }
             if cast_info.snapshot_context:
                 context["snapshot_context"] = cast_info.snapshot_context
@@ -3035,6 +3058,29 @@ class CombatManager:
         self.state = state
 
         self.logger.info(f"전투 종료: {state.value}")
+        
+        # 마술사 다이아 효과 (bonus_rewards) - 승리 시 추가 보상
+        if state == CombatState.VICTORY:
+            total_bonus = 0
+            for ally in self.allies:
+                card_effects = getattr(ally, 'card_effects', {})
+                bonus = card_effects.pop('bonus_rewards', 0)
+                if bonus > 0:
+                    total_bonus += bonus
+                    self.logger.info(f"[마술사] {ally.name} 다이아 효과! 추가 보상 +{int(bonus * 100)}%")
+            if total_bonus > 0:
+                # 보너스 정보 저장 (main.py에서 사용)
+                self.bonus_rewards_multiplier = 1.0 + total_bonus
+
+        # 팀워크 게이지 저장 (다음 전투에서 복원용)
+        if self.party:
+            try:
+                import src.persistence.save_system as save_module
+                save_module._last_loaded_teamwork_gauge = self.party.teamwork_gauge
+                save_module._last_loaded_max_teamwork_gauge = self.party.max_teamwork_gauge
+                self.logger.info(f"팀워크 게이지 저장됨: {self.party.teamwork_gauge}/{self.party.max_teamwork_gauge}")
+            except Exception as e:
+                self.logger.debug(f"팀워크 게이지 저장 실패: {e}")
 
         # 이벤트 발행
         event_bus.publish(Events.COMBAT_END, {
@@ -3120,6 +3166,24 @@ class CombatManager:
             행동 결과
         """
         try:
+            # 적 턴 시작 시 DoT (독, 화상 등) 처리
+            if hasattr(enemy, 'status_manager'):
+                dot_result = enemy.status_manager.process_dot_effects(enemy)
+                if dot_result["total_damage"] > 0:
+                    self.logger.info(
+                        f"{enemy.name}: DoT 피해 {dot_result['total_damage']}"
+                        f" (HP: {enemy.hp}/{enemy.max_hp})"
+                    )
+                    # 적이 DoT로 죽으면 처리
+                    if hasattr(enemy, 'is_alive') and not enemy.is_alive:
+                        self.logger.info(f"{enemy.name}이(가) DoT로 쓰러졌습니다!")
+                        return {
+                            "action": "defeated",
+                            "actor": enemy,
+                            "success": True,
+                            "message": f"{enemy.name}이(가) 지속 피해로 쓰러졌습니다!"
+                        }
+            
             # 적이 행동할 수 있는지 확인 (기절, 수면 등 상태이상 체크)
             if hasattr(enemy, 'status_manager'):
                 if not enemy.status_manager.can_act():
@@ -3551,13 +3615,31 @@ class CombatManager:
             from src.audio import play_teamwork_sfx
             play_teamwork_sfx("skill", "teamwork", chain_count=self.party.chain_count)
 
-        # 스킬 효과 실행 (기존 스킬 실행 로직 사용)
-        # 임시로 execute_skill 호출
-        result = self._execute_skill(actor, target, skill)
+        # 스킬 효과 직접 실행 (skill_manager 사용)
+        from src.character.skills.skill_manager import get_skill_manager
+        skill_manager = get_skill_manager()
+        
+        skill_id = getattr(skill, 'skill_id', None)
+        all_enemies = self.enemies if actor in self.allies else self.allies
+        all_allies = self.allies if actor in self.allies else self.enemies
+        context = {"combat_manager": self, "all_enemies": all_enemies, "all_allies": all_allies, "party": self.party}
+        
+        # 기믹 업데이트 (스킬 사용) - 스킬 실행 전에 호출
+        GimmickUpdater.on_skill_use(actor, skill)
+        
+        if skill_id:
+            skill_result = skill_manager.execute_skill(skill_id, actor, target, context=context)
+        else:
+            # 스킬 객체 직접 실행
+            skill_result = skill.execute(actor, target, context)
+        
+        if skill_result.success:
+            self.logger.info(f"[스킬 효과] {skill_result.message}")
 
-        # ATB 50% 회복
+        # ATB 25% 회복 (ATBSystem 통해)
         atb_recovery = 500  # ATB 최대치 2000의 25%
-        actor.atb_gauge = min(2000, actor.atb_gauge + atb_recovery)
+        if actor in self.atb.gauges:
+            self.atb.gauges[actor].increase(atb_recovery, force=True)
         self.logger.info(
             f"[Teamwork] {actor.name}의 팀워크 스킬 '{skill.name}' "
             f"(연쇄 {self.party.chain_count}단계, MP: {mp_cost}, ATB +500)"

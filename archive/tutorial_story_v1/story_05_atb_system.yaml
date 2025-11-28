@@ -1,0 +1,74 @@
+# 2장-2: ATB 시스템
+id: story_05_atb_system
+title: "시간의 흐름: ATB"
+order: 5
+category: story
+chapter: "chapter_2"
+enabled: true
+skippable: true
+
+description: |
+  ATB(Active Time Battle) 게이지를 이해합니다.
+  게이지가 차야 행동할 수 있습니다.
+
+objective: "ATB 게이지가 찰 때까지 기다린 후 행동하세요"
+
+npc_guide: "karnos"
+
+combat_tutorial:
+  enabled: true
+  spawn_enemy:
+    type: "training_dummy"
+    name: "훈련용 허수아비"
+    hp: 100
+    brv: 200
+    passive: true
+
+messages:
+  - text: "전투의 기본, ATB를 배운다."
+    color: [255, 100, 100]
+    pause: 2.0
+    effect: "typing"
+
+npc_dialogue:
+  - npc: "karnos"
+    text: "전투에서 시간은 중요하다."
+    pause: 2.0
+    
+  - npc: "karnos"
+    text: "ATB 게이지... 이게 차야 행동할 수 있다."
+    pause: 2.5
+    highlight: "atb_gauge"
+    
+  - npc: "karnos"
+    text: "게이지가 100%가 되면 행동 가능. 그 전엔 기다려야 해."
+    pause: 3.0
+    
+  - npc: "karnos"
+    text: "속도가 빠른 캐릭터는 ATB가 빨리 찬다. 기억해둬라."
+    pause: 3.0
+
+completion_condition:
+  type: "atb_action"
+  count: 3
+  message: "ATB 시스템을 이해했군."
+
+hints:
+  - text: "ATB 게이지가 100%가 되면 하단에 표시돼요."
+    trigger_time: 10.0
+    npc: "selena"
+    
+  - text: "속도(SPD) 스탯이 높으면 ATB가 빨리 차요."
+    trigger_time: 20.0
+    npc: "karnos"
+
+ui_highlights:
+  - element: "atb_gauge"
+    color: [0, 255, 0]
+    pulse: true
+    description: "ATB 게이지"
+
+rewards:
+  message: "ATB 시스템을 이해했습니다!"
+
+next_step: "story_06_brv_basics"

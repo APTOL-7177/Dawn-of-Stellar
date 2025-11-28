@@ -47,6 +47,7 @@ def create_sniper_skills():
     ]
     reload.costs = [MPCost(3)]
     reload.target_type = "self"
+    reload.sfx = ("item", "use_item")
     reload.metadata = {"reload": True, "bullet_type": "normal", "amount": 6}
 
     # 5. 관통탄 장전 (2발)
@@ -58,6 +59,7 @@ def create_sniper_skills():
     ]
     load_penetrating.costs = [MPCost(7)]
     load_penetrating.target_type = "self"
+    load_penetrating.sfx = ("item", "use_item")
     load_penetrating.metadata = {"load": True, "bullet_type": "penetrating", "amount": 2}
 
     # 6. 폭발탄 장전 (2발)
@@ -69,6 +71,7 @@ def create_sniper_skills():
     ]
     load_explosive.costs = [MPCost(9)]
     load_explosive.target_type = "self"
+    load_explosive.sfx = ("item", "use_item")
     load_explosive.metadata = {"load": True, "bullet_type": "explosive", "amount": 2}
 
     # 7. 완벽한 조준 (버프)
@@ -80,6 +83,7 @@ def create_sniper_skills():
     ]
     perfect_aim.costs = [MPCost(8)]
     perfect_aim.target_type = "self"
+    perfect_aim.sfx = ("character", "status_buff")
     # perfect_aim.cooldown = 4  # 쿨다운 시스템 제거됨
 
     # 8. 연막탄 (회피 버프)
@@ -90,6 +94,7 @@ def create_sniper_skills():
     ]
     smoke_grenade.costs = [MPCost(9)]
     smoke_grenade.target_type = "self"
+    smoke_grenade.sfx = ("skill", "haste")
     # smoke_grenade.cooldown = 4  # 쿨다운 시스템 제거됨
     smoke_grenade.metadata = {"smoke": True}
 

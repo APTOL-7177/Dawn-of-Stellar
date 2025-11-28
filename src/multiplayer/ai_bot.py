@@ -22,6 +22,7 @@ class BotBehavior(Enum):
     AGGRESSIVE = "aggressive"  # 공격적 (적을 찾아 공격)
     FOLLOW = "follow"  # 따라다니기 (다른 플레이어를 따라감)
     RANDOM = "random"  # 랜덤 행동
+    LLM_AI = "llm_ai"  # LLM 기반 AI (AutoPlayAI 사용)
 
 
 class AIBot:
@@ -64,8 +65,41 @@ class AIBot:
         self.target_position: Optional[tuple] = None
         self.last_direction = (0, 0)
         
+        # LLM AI (LLM_AI 행동 패턴일 때만 초기화)
+        self.llm_ai = None
+        self.party = []  # 봇이 조종하는 파티
+        self.inventory = None  # 인벤토리
+        self.exploration = None  # 탐험 시스템 참조
+        self.floor_number = 1
+        
+        if self.behavior == BotBehavior.LLM_AI:
+            self._init_llm_ai()
+        
         # 메시지 핸들러 등록
         self._register_handlers()
+    
+    def _init_llm_ai(self):
+        """LLM AI 초기화"""
+        try:
+            from src.multiplayer.llm_player_bot import create_auto_play_ai, PlayStyle
+            self.llm_ai = create_auto_play_ai(model="qwen3:0.6b", style=PlayStyle.BALANCED)
+            self.logger.info(f"봇 {self.bot_name}: LLM AI 초기화 완료")
+        except Exception as e:
+            self.logger.warning(f"LLM AI 초기화 실패, EXPLORER로 폴백: {e}")
+            self.behavior = BotBehavior.EXPLORER
+    
+    def set_party(self, party: List[Any]):
+        """파티 설정 (전투 AI용)"""
+        self.party = party
+    
+    def set_exploration(self, exploration: Any, floor_number: int = 1):
+        """탐험 시스템 참조 설정"""
+        self.exploration = exploration
+        self.floor_number = floor_number
+    
+    def set_inventory(self, inventory: Any):
+        """인벤토리 설정"""
+        self.inventory = inventory
     
     def _register_handlers(self):
         """네트워크 메시지 핸들러 등록"""
@@ -174,8 +208,167 @@ class AIBot:
                 return self._get_random_move()
             return None
         
+        elif self.behavior == BotBehavior.LLM_AI:
+            # LLM 기반 AI 행동
+            return self._get_llm_ai_move()
+        
         return None
     
+    def _get_llm_ai_move(self) -> Optional[Dict[str, Any]]:
+        """LLM AI 이동 행동 생성"""
+        if not self.llm_ai or not self.exploration:
+            return self._get_exploration_move()
+
+        try:
+            from src.multiplayer.llm_player_bot import ExplorationState
+
+            # 파티 상태 계산
+            alive = [c for c in self.party if hasattr(c, 'is_alive') and c.is_alive]
+            if not alive:
+                alive = self.party if self.party else []
+
+            party_hp = 100.0
+            party_mp = 100.0
+            if alive:
+                party_hp = sum(c.current_hp / c.max_hp * 100 for c in alive if hasattr(c, 'max_hp') and c.max_hp > 0) / len(alive)
+                party_mp = sum(c.current_mp / c.max_mp * 100 for c in alive if hasattr(c, 'max_mp') and c.max_mp > 0) / len(alive)
+
+            # 실제 시야(FOV) 기반 정보 수집
+            visible_tiles = []
+            nearby_enemies = []
+            nearby_items = []
+            unexplored_directions = []
+
+            # FOV 시야 내 적 감지
+            if hasattr(self.exploration, 'fov_map') and self.exploration.fov_map:
+                for e in self.exploration.enemies:
+                    if self.exploration.fov_map.visible[e.x, e.y]:
+                        nearby_enemies.append(f"{e.name}@({e.x},{e.y})")
+            else:
+                # FOV 없으면 거리 기반
+                nearby_enemies = [
+                    e.name for e in self.exploration.enemies
+                    if abs(e.x - self.current_x) <= 5 and abs(e.y - self.current_y) <= 5
+                ]
+
+            # 미탐험 방향 감지
+            directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+            if hasattr(self.exploration, 'dungeon') and self.exploration.dungeon:
+                for dx, dy in directions:
+                    nx, ny = self.current_x + dx, self.current_y + dy
+                    tile = self.exploration.dungeon.get_tile(nx, ny)
+                    if tile and tile.walkable and not tile.explored:
+                        unexplored_directions.append((dx, dy))
+
+            # 탐험 상태 구성
+            state = ExplorationState(
+                current_floor=self.floor_number,
+                current_position=(self.current_x, self.current_y),
+                visible_tiles=visible_tiles[:50],  # 최대 50개
+                discovered_rooms=len(self.explored_positions) // 10,
+                total_rooms=10,
+                nearby_enemies=nearby_enemies[:10],  # 최대 10개
+                nearby_items=nearby_items[:10],  # 최대 10개
+                nearby_exits=[],
+                party_hp_percent=party_hp,
+                party_mp_percent=party_mp,
+                has_healing_point=False,
+                floor_type="dungeon",
+                stairs_down_position=None,
+                unexplored_directions=unexplored_directions if unexplored_directions else directions
+            )
+
+            # AI 행동 결정
+            action = self.llm_ai.decide_exploration_action(state)
+
+            # 행동을 이동으로 변환
+            dx, dy = 0, 0
+
+            if action.action_type == "move" and action.direction:
+                dx, dy = action.direction
+            elif action.action_type == "fight" and nearby_enemies:
+                # 가장 가까운 적 방향으로
+                if self.exploration and hasattr(self.exploration, 'enemies'):
+                    closest = min(self.exploration.enemies,
+                        key=lambda e: abs(e.x - self.current_x) + abs(e.y - self.current_y))
+                    dx = 1 if closest.x > self.current_x else (-1 if closest.x < self.current_x else 0)
+                    dy = 1 if closest.y > self.current_y else (-1 if closest.y < self.current_y else 0)
+                else:
+                    dx, dy = random.choice([(0, -1), (0, 1), (-1, 0), (1, 0)])
+            elif action.action_type == "move" and action.target_position:
+                # 목표 위치로
+                tx, ty = action.target_position
+                dx = 1 if tx > self.current_x else (-1 if tx < self.current_x else 0)
+                dy = 1 if ty > self.current_y else (-1 if ty < self.current_y else 0)
+            else:
+                # 기본: 미탐험 방향으로
+                if unexplored_directions:
+                    dx, dy = random.choice(unexplored_directions)
+                else:
+                    dx, dy = random.choice(directions)
+
+            new_x = self.current_x + dx
+            new_y = self.current_y + dy
+
+            return {
+                "type": "move",
+                "dx": dx,
+                "dy": dy,
+                "x": new_x,
+                "y": new_y
+            }
+        except Exception as e:
+            self.logger.warning(f"LLM AI 행동 결정 오류: {e}")
+            return self._get_exploration_move()
+    
+    def get_combat_action(self, combat_manager: Any, current_char: Any) -> Optional[Dict[str, Any]]:
+        """
+        전투 AI 행동 결정 (외부에서 호출)
+
+        Args:
+            combat_manager: 전투 매니저
+            current_char: 현재 행동할 캐릭터
+
+        Returns:
+            전투 행동 딕셔너리
+        """
+        if self.behavior != BotBehavior.LLM_AI or not self.llm_ai:
+            # LLM AI가 아니면 기본 공격
+            return {"type": "brv_attack", "target_index": 0}
+
+        try:
+            from src.multiplayer.llm_player_bot import GameStateConverter
+            from src.combat.bot_action import BotActionType
+
+            combat_state = GameStateConverter.from_combat_manager(combat_manager, current_char, self.inventory)
+            bot = self.llm_ai.create_combat_bot(current_char)
+            action = bot.decide_combat_action(combat_state)
+
+            action_name = action.action_type.value if hasattr(action.action_type, 'value') else str(action.action_type)
+            self.logger.debug(f"봇 {self.bot_name} 전투 행동: {action_name}")
+
+            # BotActionType을 문자열로 변환
+            action_type = action_name if isinstance(action_name, str) else action.action_type.value
+
+            return {
+                "type": action_type,
+                "target_index": action.target_index if hasattr(action, 'target_index') else 0,
+                "skill_id": action.skill_id if hasattr(action, 'skill_id') else None
+            }
+        except Exception as e:
+            self.logger.warning(f"전투 AI 행동 결정 오류: {e}")
+            return {"type": "brv_attack", "target_index": 0}
+    
+    def shutdown(self):
+        """봇 종료 및 리소스 정리"""
+        self.stop()
+        if self.llm_ai:
+            try:
+                self.llm_ai.shutdown()
+            except:
+                pass
+            self.llm_ai = None
+
     def _get_random_move(self) -> Dict[str, Any]:
         """랜덤 이동 행동 생성"""
         directions = [
@@ -425,4 +618,38 @@ class BotManager:
     def get_all_bots(self) -> List[AIBot]:
         """모든 봇 가져오기"""
         return list(self.bots.values())
+    
+    def add_llm_ai_bot(
+        self,
+        bot_id: str,
+        bot_name: str,
+        party: List[Any] = None,
+        inventory: Any = None
+    ) -> AIBot:
+        """
+        LLM AI 봇 추가 (간편 메서드)
+        
+        Args:
+            bot_id: 봇 ID
+            bot_name: 봇 이름
+            party: 봇이 조종할 파티
+            inventory: 인벤토리
+            
+        Returns:
+            생성된 봇 객체
+        """
+        bot = self.add_bot(bot_id, bot_name, BotBehavior.LLM_AI)
+        if party:
+            bot.set_party(party)
+        if inventory:
+            bot.set_inventory(inventory)
+        return bot
+    
+    def shutdown_all(self):
+        """모든 봇 종료 및 리소스 정리"""
+        for bot in self.bots.values():
+            bot.shutdown()
+        self.bots.clear()
+        self.is_running = False
+        self.logger.info("모든 봇 종료 및 정리 완료")
 

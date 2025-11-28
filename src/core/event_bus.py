@@ -59,9 +59,9 @@ class EventBus:
         for callback in self._subscribers[event_name]:
             try:
                 callback(data)
-            except Exception as e:
-                # 콜백 실행 실패 시 로그 (Logger 순환 참조 방지를 위해 print 사용)
-                print(f"[EventBus] 이벤트 콜백 실행 실패: {event_name} - {str(e)}")
+            except Exception:
+                # 콜백 실행 실패 시 조용히 무시 (게임 진행에 영향 없음)
+                pass
 
     def clear_subscribers(self, event_name: str = None) -> None:
         """

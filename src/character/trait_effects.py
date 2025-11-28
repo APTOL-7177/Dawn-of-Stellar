@@ -54,6 +54,23 @@ class TraitEffectType(Enum):
     PASSIVE = "passive"                            # 패시브 (로직 처리용)
     GIMMICK_MODIFIER = "gimmick_modifier"          # 기믹 시스템 수정
     EXTRA_ACTION = "extra_action"                  # 추가 행동
+    
+    # === 새로운 기믹 연동 효과 타입 ===
+    GIMMICK_GAIN_BONUS = "gimmick_gain_bonus"      # 기믹 스택 획득량 보너스
+    GIMMICK_MAX_BONUS = "gimmick_max_bonus"        # 기믹 최대치 증가
+    GIMMICK_SCALING = "gimmick_scaling"            # 기믹 비례 피해/효과 보너스
+    GIMMICK_CONDITIONAL = "gimmick_conditional"    # 기믹 조건부 효과
+    GIMMICK_TRIGGER = "gimmick_trigger"            # 기믹 트리거 효과 (MAX 도달 등)
+    GIMMICK_PRESERVE = "gimmick_preserve"          # 기믹 소비 시 유지 확률
+    DEFENSE_PENETRATION = "defense_penetration"    # 방어 관통
+    HEAL_BONUS = "heal_bonus"                      # 힐 효과 증가
+    DEBUFF_DURATION = "debuff_duration"            # 디버프 지속시간 증가
+    DOT_DAMAGE_BONUS = "dot_damage_bonus"          # DoT 피해 증가
+    PARTY_BUFF = "party_buff"                      # 파티 버프
+    EXECUTE = "execute"                            # 처형 (낮은 HP 적 즉사)
+    INVINCIBLE_TRIGGER = "invincible_trigger"      # 무적 발동
+    AUTO_RESURRECT = "auto_resurrect"              # 자동 부활
+    SURVIVE_FATAL = "survive_fatal"                # 치명상 생존
 
 
 @dataclass
@@ -79,6 +96,9 @@ class TraitEffectManager:
 
         # 특성별 효과 정의
         self.trait_definitions = self._load_trait_definitions()
+        
+        # 기믹 연동 특성 로드
+        self._load_gimmick_traits()
 
     def _load_trait_definitions(self) -> Dict[str, List[TraitEffect]]:
         """특성별 효과 정의 로드"""
@@ -3444,6 +3464,29 @@ class TraitEffectManager:
 
         # 통합
         return {**passives, **job_traits}
+
+    def _load_gimmick_traits(self):
+        """기믹 연동 특성 로드 (12개 리워크 직업)"""
+        try:
+            from src.character.gimmick_trait_effects import get_gimmick_trait_definitions
+            gimmick_traits = get_gimmick_trait_definitions()
+            
+            for trait_id, effects in gimmick_traits.items():
+                if trait_id not in self.trait_definitions:
+                    self.trait_definitions[trait_id] = effects
+                else:
+                    # 기존 특성에 효과 추가 (중복 방지)
+                    existing_ids = {id(e) for e in self.trait_definitions[trait_id]}
+                    for effect in effects:
+                        if id(effect) not in existing_ids:
+                            self.trait_definitions[trait_id].append(effect)
+            
+            self.logger.info(f"기믹 특성 {len(gimmick_traits)}개 로드 완료")
+        except ImportError as e:
+            self.logger.warning(f"기믹 특성 로드 실패: {e}")
+        except Exception as e:
+            self.logger.error(f"기믹 특성 로드 중 오류: {e}")
+
     def get_trait_effects(self, trait_id: str) -> List[TraitEffect]:
         """특성 ID로 효과 리스트 가져오기"""
         return self.trait_definitions.get(trait_id, [])
@@ -4538,6 +4581,149 @@ class TraitEffectManager:
         elif condition == "on_lifesteal":
             # 흡혈 시
             return context.get("on_lifesteal", False)
+
+        # ============================================================
+        # === 12개 리워크 직업 기믹 조건 ===
+        # ============================================================
+        
+        # 파괴력 조건 (브레이커)
+        elif condition == "break_power_min_5":
+            return getattr(character, 'break_power', 0) >= 5
+        elif condition == "break_power_max":
+            return getattr(character, 'break_power', 0) >= 10
+        elif condition == "per_break_power":
+            return getattr(character, 'break_power', 0) > 0
+        elif condition == "on_break":
+            return context.get("on_break", False)
+        elif condition == "after_break":
+            return context.get("after_break", False)
+        elif condition == "enemy_brv_zero":
+            return context.get("enemy_brv_zero", False)
+            
+        # 자연 포인트 조건 (드루이드)
+        elif condition == "nature_points_min_3":
+            return getattr(character, 'nature_points', 0) >= 3
+        elif condition == "nature_points_max":
+            return getattr(character, 'nature_points', 0) >= getattr(character, 'max_nature_points', 5)
+        elif condition == "in_form":
+            return getattr(character, 'current_form', None) is not None
+        elif condition == "in_form_turn_start":
+            return getattr(character, 'current_form', None) is not None and context.get("turn_start", False)
+        elif condition == "using_transform":
+            return context.get("using_transform", False)
+            
+        # 정령 조건 (정령술사)
+        elif condition == "spirit_fire_active":
+            return getattr(character, 'spirit_fire', False)
+        elif condition == "spirit_water_active":
+            return getattr(character, 'spirit_water', False)
+        elif condition == "spirit_wind_active":
+            return getattr(character, 'spirit_wind', False)
+        elif condition == "spirit_earth_active":
+            return getattr(character, 'spirit_earth', False)
+        elif condition == "spirits_2":
+            spirits = sum([
+                getattr(character, 'spirit_fire', False),
+                getattr(character, 'spirit_water', False),
+                getattr(character, 'spirit_wind', False),
+                getattr(character, 'spirit_earth', False)
+            ])
+            return spirits >= 2
+            
+        # 환호 조건 (검투사)
+        elif condition == "cheer_min_50":
+            return getattr(character, 'cheer', 0) >= 50
+        elif condition == "cheer_min_80":
+            return getattr(character, 'cheer', 0) >= 80
+        elif condition == "cheer_100":
+            return getattr(character, 'cheer', 0) >= 100
+            
+        # 의무 조건 (기사)
+        elif condition == "duty_min_5":
+            return getattr(character, 'duty_stacks', 0) >= 5
+        elif condition == "duty_max":
+            return getattr(character, 'duty_stacks', 0) >= 10
+        elif condition == "per_duty":
+            return getattr(character, 'duty_stacks', 0) > 0
+        elif condition == "on_protect":
+            return context.get("on_protect", False)
+        elif condition == "protecting":
+            return context.get("protecting", False)
+        elif condition == "protecting_fatal":
+            return context.get("protecting_fatal", False)
+            
+        # 신앙/심판 조건 (신관)
+        elif condition == "judgment_min_50":
+            return getattr(character, 'judgment_points', 0) >= 50
+        elif condition == "judgment_100":
+            return getattr(character, 'judgment_points', 0) >= 100
+        elif condition == "faith_100":
+            return getattr(character, 'faith_points', 0) >= 100
+        elif condition == "faith_equals_judgment":
+            faith = getattr(character, 'faith_points', 0)
+            judgment = getattr(character, 'judgment_points', 0)
+            return faith == judgment and faith > 0
+        elif condition == "on_heal":
+            return context.get("on_heal", False)
+            
+        # 훔친 아이템 조건 (도적)
+        elif condition == "stolen_items_min_5":
+            return getattr(character, 'stolen_items', 0) >= 5
+        elif condition == "stolen_items_max":
+            return getattr(character, 'stolen_items', 0) >= 10
+        elif condition == "on_evade":
+            return context.get("on_evade", False)
+        elif condition == "using_stolen_item":
+            return context.get("using_stolen_item", False)
+            
+        # 마나 블레이드 조건 (마검사)
+        elif condition == "mana_blade_min_50":
+            return getattr(character, 'mana_blade', 0) >= 50
+        elif condition == "mana_blade_100":
+            return getattr(character, 'mana_blade', 0) >= 100
+        elif condition == "using_enchant":
+            return context.get("using_enchant", False)
+        elif condition == "enchant_chain":
+            return context.get("enchant_chain", False)
+            
+        # 저주 조건 (무당)
+        elif condition == "curse_min_5":
+            return getattr(character, 'curse_stacks', 0) >= 5
+        elif condition == "curse_max":
+            return getattr(character, 'curse_stacks', 0) >= 10
+            
+        # 포션 조건 (연금술사)
+        elif condition == "potion_stock_min_5":
+            return getattr(character, 'potion_stock', 0) >= 5
+        elif condition == "using_potion_skill":
+            return context.get("using_potion_skill", False)
+            
+        # 음표 조건 (바드)
+        elif condition == "notes_min_3":
+            notes = getattr(character, 'music_notes', [])
+            return len(notes) >= 3
+        elif condition == "harmony_complete":
+            return context.get("harmony_complete", False)
+        elif condition == "discord":
+            return context.get("discord", False)
+        elif condition == "score_complete":
+            return context.get("score_complete", False)
+            
+        # 보물 조건 (해적)
+        elif condition == "treasure_stacked":
+            return context.get("treasure_stacked", False)
+        elif condition == "using_treasure":
+            return context.get("using_treasure", False)
+            
+        # 범용 조건
+        elif condition == "on_critical":
+            return context.get("on_critical", False)
+        elif condition == "on_kill":
+            return context.get("on_kill", False)
+        elif condition == "on_damaged":
+            return context.get("on_damaged", False)
+        elif condition == "combat_start":
+            return context.get("combat_start", False)
 
         # 기본적으로 조건 만족
         return True

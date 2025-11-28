@@ -34,7 +34,7 @@ def create_rogue_skills():
     )
     ambush.effects = [
         DamageEffect(DamageType.BRV, 1.6, stat_type="physical"),
-        BuffEffect(BuffType.CRITICAL_UP, 0.15, duration=2)
+        BuffEffect(BuffType.CRITICAL_UP, 0.15, duration=2, target="self")
     ]
     ambush.costs = []
     ambush.sfx = ("combat", "attack_physical")
@@ -93,8 +93,8 @@ def create_rogue_skills():
         "연막으로 은신. 회피 +50%, 속도 +30% (3턴)."
     )
     smoke.effects = [
-        BuffEffect(BuffType.EVASION_UP, 0.50, duration=3),
-        BuffEffect(BuffType.SPEED_UP, 0.30, duration=3),
+        BuffEffect(BuffType.EVASION_UP, 0.50, duration=3, target="self"),
+        BuffEffect(BuffType.SPEED_UP, 0.30, duration=3, target="self"),
     ]
     smoke.costs = [MPCost(6)]
     smoke.target_type = "self"
@@ -179,7 +179,7 @@ def create_rogue_skills():
     )
     backstab.effects = [
         DamageEffect(DamageType.BRV_HP, 2.4, stat_type="physical"),
-        BuffEffect(BuffType.CRITICAL_UP, 0.40, duration=1),
+        BuffEffect(BuffType.CRITICAL_UP, 0.40, duration=1, target="self"),
     ]
     backstab.costs = [MPCost(9)]
     backstab.sfx = ("combat", "critical")
@@ -222,8 +222,8 @@ def create_rogue_skills():
         DamageEffect(DamageType.BRV, 2.5, stat_type="physical"),
         DamageEffect(DamageType.BRV, 2.5, stat_type="physical"),
         DamageEffect(DamageType.HP, 3.5, stat_type="physical"),
-        BuffEffect(BuffType.EVASION_UP, 0.60, duration=4),
-        BuffEffect(BuffType.CRITICAL_UP, 0.50, duration=4),
+        BuffEffect(BuffType.EVASION_UP, 0.60, duration=4, target="self"),
+        BuffEffect(BuffType.CRITICAL_UP, 0.50, duration=4, target="self"),
         GimmickEffect(GimmickOperation.ADD, "stolen_items", 5, max_value=10)
     ]
     ultimate.costs = [MPCost(30)]

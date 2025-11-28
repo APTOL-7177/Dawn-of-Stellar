@@ -43,6 +43,7 @@ class MetaProgress:
     # 게임 초기 설정
     intro_shown: bool = False  # 인트로 스토리 표시 여부
     tutorial_offered: bool = False  # 튜토리얼 권장 여부
+    tutorial_completed: bool = False  # 튜토리얼 던전 클리어 여부 (True면 재입장 불가)
 
     def __post_init__(self):
         """초기화 후 처리"""

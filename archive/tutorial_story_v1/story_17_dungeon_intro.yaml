@@ -1,0 +1,71 @@
+# 6장-1: 첫 번째 균열 - 던전 진입
+id: story_17_dungeon_intro
+title: "시공 균열 진입"
+order: 17
+category: story
+chapter: "chapter_6"
+enabled: true
+skippable: true
+
+description: |
+  드디어 첫 번째 시공 균열에 도전한다.
+  던전 탐험의 기본을 배운다.
+
+objective: "시공 균열에 진입하세요"
+
+npc_guide: "selena"
+bgm: "caves.ogg"
+
+messages:
+  - text: "거대한 시공 균열이 눈앞에 있다..."
+    color: [200, 150, 255]
+    pause: 2.5
+    effect: "fade_in"
+    screen_effect: "temporal_distortion"
+
+npc_dialogue:
+  - npc: "selena"
+    text: "시공 균열이에요. 저 안에 시간 포식자가 있어요."
+    pause: 2.5
+    
+  - npc: "selena"
+    text: "균열을 닫으려면 안에 있는 존재를 처치해야 해요."
+    pause: 3.0
+    
+  - npc: "karnos"
+    text: "던전 안에서는 매 선택이 중요하다."
+    pause: 2.5
+    
+  - npc: "karnos"
+    text: "적과 싸울지, 피할지, 아이템을 얻을지... 신중하게."
+    pause: 3.0
+    
+  - npc: "mira"
+    text: "보스 방까지 가려면 여러 층을 통과해야 해요!"
+    pause: 2.5
+    
+  - npc: "selena"
+    text: "준비가 됐으면 균열에 진입하세요."
+    pause: 2.5
+    highlight: "dungeon_entrance"
+
+completion_condition:
+  type: "dungeon_entered"
+  dungeon_id: "temporal_rift_1"
+  message: "시공 균열에 진입했습니다!"
+
+hints:
+  - text: "던전 입구에서 Enter키를 누르면 진입할 수 있어요."
+    trigger_time: 10.0
+    npc: "selena"
+
+ui_highlights:
+  - element: "dungeon_entrance"
+    color: [200, 100, 255]
+    pulse: true
+    description: "시공 균열 입구"
+
+rewards:
+  message: "던전 탐험을 시작합니다!"
+
+next_step: "story_18_boss_preparation"

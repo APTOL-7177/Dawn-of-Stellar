@@ -265,6 +265,123 @@ class GimmickUpdater:
                 }
                 form_name = form_names.get(form, form)
                 logger.info(f"{character.name} {form_name} 형태로 변신!")
+        
+        elif gimmick_type == "score_composition":
+            # 바드: 스킬 사용 시 음표 추가
+            note_add = skill.metadata.get("note_add")
+            if note_add:
+                if not hasattr(character, 'music_notes'):
+                    character.music_notes = []
+                max_notes = getattr(character, 'max_notes', 5)
+                if len(character.music_notes) < max_notes:
+                    character.music_notes.append(note_add)
+                    logger.info(f"{character.name} 악보에 {note_add} 음표 추가! (현재: {''.join(character.music_notes)})")
+                else:
+                    # 가장 오래된 음표 제거 후 추가
+                    character.music_notes.pop(0)
+                    character.music_notes.append(note_add)
+                    logger.info(f"{character.name} 악보 갱신: {''.join(character.music_notes)}")
+            
+            # 작곡 스킬: 패턴 효과 발동
+            if skill.metadata.get("compose_skill"):
+                GimmickUpdater._apply_bard_compose_effect(character, skill)
+        
+        elif gimmick_type == "trick_deck":
+            # 마술사: 스킬 사용 시 카드 드로우 및 효과 적용
+            card_draw = skill.metadata.get("card_draw", 0)
+            if card_draw > 0:
+                try:
+                    from src.character.skills.job_skills.magician_skills import draw_cards, get_card_name, discard_cards, RANK_EFFECTS, SUIT_EFFECTS
+                    drawn = draw_cards(character, card_draw)
+                    if drawn:
+                        card_names = [get_card_name(c) for c in drawn]
+                        logger.info(f"{character.name} 카드 드로우: {', '.join(card_names)}")
+                        
+                        # 카드 효과 적용
+                        cards_to_discard = []
+                        for card in drawn:
+                            # 숫자 효과 적용
+                            if skill.metadata.get("apply_rank_effect"):
+                                rank = card.get("rank", "")
+                                rank_effect = RANK_EFFECTS.get(rank, {})
+                                if rank_effect:
+                                    GimmickUpdater._apply_card_rank_effect(character, rank_effect, card)
+                                    cards_to_discard.append(card)
+                            
+                            # 무늬 효과 적용
+                            if skill.metadata.get("apply_suit_effect"):
+                                suit = card.get("suit", "")
+                                suit_effect = SUIT_EFFECTS.get(suit, {})
+                                if suit_effect:
+                                    GimmickUpdater._apply_card_suit_effect(character, suit_effect, card)
+                                    if card not in cards_to_discard:
+                                        cards_to_discard.append(card)
+                        
+                        # 사용한 카드 소모 (버리기)
+                        if cards_to_discard and skill.metadata.get("consume_drawn_cards", True):
+                            discard_cards(character, cards_to_discard)
+                            logger.info(f"{character.name} 카드 {len(cards_to_discard)}장 소모")
+                except Exception as e:
+                    logger.debug(f"카드 드로우 실패: {e}")
+            
+            # 카드 강화 발사 스킬: 손패에서 카드 선택하여 사용
+            if skill.metadata.get("select_card_from_hand"):
+                try:
+                    from src.character.skills.job_skills.magician_skills import get_card_name, discard_cards, RANK_EFFECTS, SUIT_EFFECTS
+                    hand = getattr(character, 'card_hand', [])
+                    
+                    # UI에서 선택한 카드가 있으면 사용, 없으면 자동 선택
+                    selected_card = skill.metadata.get('_selected_card')
+                    if selected_card and selected_card in hand:
+                        # UI에서 선택된 카드 사용
+                        pass
+                    elif hand:
+                        # 자동 선택 (가장 높은 랭크)
+                        rank_order = {"A": 14, "K": 13, "Q": 12, "J": 11, "10": 10, "9": 9, "8": 8, "7": 7, "6": 6, "5": 5, "4": 4, "3": 3, "2": 2, "JOKER": 15}
+                        selected_card = max(hand, key=lambda c: rank_order.get(c.get("rank", ""), 0))
+                    
+                    if selected_card and selected_card in hand:
+                        
+                        card_name = get_card_name(selected_card)
+                        logger.info(f"[마술사] {character.name} 카드 강화 발사! 선택: {card_name}")
+                        
+                        # 숫자 효과 적용
+                        if skill.metadata.get("apply_rank_effect"):
+                            rank = selected_card.get("rank", "")
+                            rank_effect = RANK_EFFECTS.get(rank, {})
+                            if rank_effect:
+                                GimmickUpdater._apply_card_rank_effect(character, rank_effect, selected_card)
+                        
+                        # 무늬 효과 적용
+                        if skill.metadata.get("apply_suit_effect"):
+                            suit = selected_card.get("suit", "")
+                            suit_effect = SUIT_EFFECTS.get(suit, {})
+                            if suit_effect:
+                                GimmickUpdater._apply_card_suit_effect(character, suit_effect, selected_card)
+                        
+                        # 카드 소모
+                        if skill.metadata.get("consume_selected_card"):
+                            discard_cards(character, [selected_card])
+                            logger.info(f"  -> {card_name} 소모됨")
+                        
+                        # 메타데이터 정리
+                        skill.metadata.pop('_selected_card', None)
+                    else:
+                        logger.info(f"[마술사] {character.name} 손패가 없어 카드 강화 발사 실패!")
+                except Exception as e:
+                    logger.debug(f"카드 강화 발사 실패: {e}")
+                finally:
+                    # 항상 메타데이터 정리
+                    if hasattr(skill, 'metadata'):
+                        skill.metadata.pop('_selected_card', None)
+            
+            # 선공 효과 (A) - ATB 보너스
+            card_effects = getattr(character, 'card_effects', {})
+            if card_effects.pop('first_strike', False):
+                # ATB 500 보너스 (다음 턴 빨리 오게)
+                if hasattr(character, 'atb_gauge'):
+                    character.atb_gauge = min(2000, getattr(character, 'atb_gauge', 0) + 500)
+                    logger.info(f"[마술사] {character.name} 선공 효과! ATB +500")
 
     @staticmethod
     def on_ally_attack(attacker, all_allies, target=None):
@@ -506,7 +623,7 @@ class GimmickUpdater:
         - 광기 71-99 (위험): 공격력 +80%, 속도 +40%, 크리티컬 +20%, 받는 피해 +30%
         - 광기 100 (폭주): 공격력 +150%, 통제 불가, 무작위 공격
         """
-        from src.character.stat_manager import Stats
+        from src.character.stats import Stats
         
         # 먼저 기존 광기 관련 스탯 보너스 제거
         try:
@@ -1335,6 +1452,293 @@ class GimmickUpdater:
         kill_gain = getattr(character, 'kill_gain', 20)
         GimmickUpdater.on_charge_gained(character, kill_gain, "적 처치")
 
+    # ============================================================
+    # 마술사: 트릭 덱 시스템
+    # ============================================================
+
+    @staticmethod
+    def _update_trick_deck(character):
+        """마술사: 트릭 덱 시스템 턴 종료 업데이트"""
+        hand = getattr(character, 'card_hand', [])
+        
+        if hand:
+            from src.character.skills.job_skills.magician_skills import check_poker_combination
+            combo_type, combo_cards, score = check_poker_combination(hand)
+            
+            if combo_type:
+                combo_names = {
+                    "pair": "원페어", "two_pair": "투페어", "triple": "트리플",
+                    "straight": "스트레이트", "flush": "플러시", "full_house": "풀하우스",
+                    "four_of_kind": "포카드", "straight_flush": "스트레이트 플러시",
+                    "royal_straight_flush": "로얄 스트레이트 플러시"
+                }
+                logger.debug(f"{character.name} 현재 조합: {combo_names.get(combo_type, combo_type)}")
+
+    @staticmethod
+    def _update_trick_deck_turn_start(character):
+        """마술사: 트릭 덱 시스템 턴 시작 업데이트"""
+        if not hasattr(character, 'card_deck') or character.card_deck is None:
+            GimmickUpdater.initialize_trick_deck(character)
+        
+        hand = getattr(character, 'card_hand', [])
+        deck_count = len(getattr(character, 'card_deck', []))
+        
+        if hand:
+            from src.character.skills.job_skills.magician_skills import get_hand_display
+            logger.info(f"{character.name} {get_hand_display(character)} (덱: {deck_count}장)")
+        else:
+            logger.debug(f"{character.name} 손패 없음 (덱: {deck_count}장)")
+
+    @staticmethod
+    def initialize_trick_deck(character):
+        """마술사 트릭 덱 초기화"""
+        try:
+            from src.character.skills.job_skills.magician_skills import create_deck, shuffle_deck
+            character.card_deck = shuffle_deck(create_deck())
+            character.card_hand = []
+            character.card_discard = []
+            character.max_hand_size = 8
+            logger.info(f"{character.name} 트릭 덱 초기화 완료 (54장)")
+        except Exception as e:
+            logger.error(f"{character.name} 트릭 덱 초기화 실패: {e}")
+            character.card_deck = []
+            character.card_hand = []
+            character.card_discard = []
+            character.max_hand_size = 8
+
+    @staticmethod
+    def get_trick_deck_hand_size(character) -> int:
+        """마술사 손패 크기 반환"""
+        if getattr(character, 'gimmick_type', None) == "trick_deck":
+            return len(getattr(character, 'card_hand', []))
+        return 0
+
+    @staticmethod
+    def get_trick_deck_combination(character):
+        """마술사 현재 손패 조합 반환"""
+        if getattr(character, 'gimmick_type', None) != "trick_deck":
+            return None, [], 0
+        
+        hand = getattr(character, 'card_hand', [])
+        if not hand:
+            return None, [], 0
+        
+        from src.character.skills.job_skills.magician_skills import check_poker_combination
+        return check_poker_combination(hand)
+
+    @staticmethod
+    def has_poker_combination(character, required_combo: str) -> bool:
+        """마술사가 특정 포커 조합을 가지고 있는지 확인"""
+        combo_type, _, _ = GimmickUpdater.get_trick_deck_combination(character)
+        
+        if combo_type is None:
+            return False
+        
+        combo_hierarchy = {
+            "royal_straight_flush": 9, "straight_flush": 8, "four_of_kind": 7,
+            "full_house": 6, "flush": 5, "straight": 4, "triple": 3,
+            "two_pair": 2, "pair": 1
+        }
+        
+        current_rank = combo_hierarchy.get(combo_type, 0)
+        required_rank = combo_hierarchy.get(required_combo, 0)
+        return current_rank >= required_rank
+    
+    # ============================================================
+    # 마술사 카드 효과 적용
+    # ============================================================
+    
+    @staticmethod
+    def _apply_card_rank_effect(character, rank_effect, card):
+        """마술사 카드 숫자 효과 적용"""
+        effect_type = rank_effect.get("effect", "")
+        effect_name = rank_effect.get("name", "")
+        
+        logger.info(f"[마술사] {effect_name} 효과 발동! ({rank_effect.get('desc', '')})")
+        
+        if not hasattr(character, 'active_buffs'):
+            character.active_buffs = {}
+        if not hasattr(character, 'card_effects'):
+            character.card_effects = {}
+        
+        if effect_type == "first_strike":
+            character.card_effects["first_strike"] = True
+        elif effect_type == "double_edge":
+            character.card_effects["double_edge"] = {"damage_mult": 2.0, "self_damage": 0.5}
+        elif effect_type == "triple_hit":
+            character.card_effects["triple_hit"] = {"hits": 3, "damage_mult": 0.4}
+        elif effect_type == "stability":
+            character.active_buffs["accuracy_up"] = {"value": 1.0, "duration": 1}
+        elif effect_type == "change":
+            character.card_effects["reverse_buff"] = True
+        elif effect_type == "curse":
+            character.card_effects["curse_target"] = {"duration": 3}
+        elif effect_type == "lucky_seven":
+            character.active_buffs["critical_up"] = {"value": 1.0, "duration": 1}
+            character.card_effects["lucky_drop"] = 0.5
+        elif effect_type == "infinity":
+            character.card_effects["free_cast"] = True
+        elif effect_type == "max_power":
+            character.card_effects["skill_power_up"] = 0.5
+        elif effect_type == "completion":
+            from src.character.skills.job_skills.magician_skills import draw_cards
+            max_hand = getattr(character, 'max_hand_size', 7)
+            current_hand = len(getattr(character, 'card_hand', []))
+            if current_hand < max_hand:
+                draw_cards(character, max_hand - current_hand)
+        elif effect_type == "knight":
+            # J: 아군 1명 보호 (1회 피해 대신 받음) - 버프로 설정
+            character.card_effects["protect_ally"] = True
+            character.active_buffs["protect_target"] = {"value": 1, "duration": 1}
+            logger.info(f"[마술사] {character.name}이(가) 아군 보호 태세!")
+        elif effect_type == "queen":
+            # Q: 아군 전체 HP 15% 회복 - 즉시 적용
+            try:
+                from src.combat.combat_manager import get_combat_manager
+                cm = get_combat_manager()
+                if cm and cm.party:
+                    heal_percent = 0.15
+                    for ally in cm.party.characters:
+                        if hasattr(ally, 'is_alive') and ally.is_alive:
+                            heal_amount = int(ally.max_hp * heal_percent)
+                            ally.hp = min(ally.hp + heal_amount, ally.max_hp)
+                            logger.info(f"[마술사] 퀸 효과: {ally.name} HP +{heal_amount} 회복!")
+            except Exception as e:
+                logger.warning(f"[마술사] 퀸 효과 적용 실패: {e}")
+            character.card_effects["party_heal"] = 0.15
+        elif effect_type == "king":
+            # K: 적 전체 1턴 행동불가 - 즉시 적용
+            try:
+                from src.combat.combat_manager import get_combat_manager
+                cm = get_combat_manager()
+                if cm and cm.enemies:
+                    for enemy in cm.enemies:
+                        if hasattr(enemy, 'is_alive') and enemy.is_alive:
+                            # 스턴 상태 적용
+                            if hasattr(enemy, 'status_manager'):
+                                from src.character.status_effect import StatusEffectType
+                                enemy.status_manager.add_effect(StatusEffectType.STUN, duration=1)
+                                logger.info(f"[마술사] 킹 효과: {enemy.name}에게 스턴 1턴!")
+                            elif hasattr(enemy, 'active_debuffs'):
+                                if not enemy.active_debuffs:
+                                    enemy.active_debuffs = {}
+                                enemy.active_debuffs["stun"] = {"duration": 1}
+                                logger.info(f"[마술사] 킹 효과: {enemy.name}에게 스턴 1턴!")
+            except Exception as e:
+                logger.warning(f"[마술사] 킹 효과 적용 실패: {e}")
+            character.card_effects["mass_stun"] = {"duration": 1}
+    
+    @staticmethod
+    def _apply_card_suit_effect(character, suit_effect, card):
+        """마술사 카드 무늬 효과 적용"""
+        effect_type = suit_effect.get("effect", "")
+        effect_name = suit_effect.get("name", "")
+        
+        logger.info(f"[마술사] {effect_name} 효과 발동! ({suit_effect.get('desc', '')})")
+        
+        if not hasattr(character, 'card_effects'):
+            character.card_effects = {}
+        
+        if effect_type == "pierce":
+            character.card_effects["armor_pierce"] = 0.3
+        elif effect_type == "lifesteal":
+            character.card_effects["lifesteal"] = 0.3
+        elif effect_type == "wealth":
+            character.card_effects["bonus_rewards"] = 0.3
+        elif effect_type == "toxic":
+            # ♣: 적에게 독 3턴 적용 - 즉시 적용
+            character.card_effects["poison_attack"] = {"duration": 3, "damage_percent": 0.05}
+            try:
+                from src.combat.combat_manager import get_combat_manager
+                cm = get_combat_manager()
+                # 현재 타겟이 있으면 타겟에게, 없으면 랜덤 적에게 적용
+                target = getattr(character, '_current_target', None)
+                if not target and cm and cm.enemies:
+                    alive_enemies = [e for e in cm.enemies if hasattr(e, 'is_alive') and e.is_alive]
+                    if alive_enemies:
+                        import random
+                        target = random.choice(alive_enemies)
+                
+                if target:
+                    if hasattr(target, 'status_manager'):
+                        from src.combat.status_effects import StatusType, StatusEffect
+                        poison_effect = StatusEffect(
+                            status_type=StatusType.POISON,
+                            name="독",
+                            duration=3,
+                            intensity=0.05  # 매턴 최대HP 5% 피해
+                        )
+                        target.status_manager.add_status(poison_effect, allow_refresh=True)
+                        logger.info(f"[마술사] 클로버 효과: {target.name}에게 독 3턴!")
+            except Exception as e:
+                logger.warning(f"[마술사] 클로버 효과 적용 실패: {e}")
+    
+    # ============================================================
+    # 바드 작곡 패턴 효과 적용
+    # ============================================================
+    
+    @staticmethod
+    def _apply_bard_compose_effect(character, skill):
+        """바드 작곡 스킬 패턴 효과 적용"""
+        if not hasattr(character, 'music_notes') or not character.music_notes:
+            logger.info(f"{character.name} 악보가 비어있어 기본 효과만 적용됩니다.")
+            return
+        
+        notes = ''.join(character.music_notes)
+        pattern_effects = skill.metadata.get("pattern_effects", {})
+        
+        matched_pattern = None
+        matched_effect = None
+        
+        for pattern, effect in pattern_effects.items():
+            if pattern in notes or (len(notes) >= 3 and notes[-3:] == pattern):
+                matched_pattern = pattern
+                matched_effect = effect
+                break
+        
+        if not hasattr(character, 'active_buffs'):
+            character.active_buffs = {}
+        
+        if matched_effect:
+            effect_type = matched_effect.get("type", "")
+            value = matched_effect.get("value", 0)
+            duration = matched_effect.get("duration", 3)
+            
+            logger.info(f"[바드] {matched_pattern} 패턴 완성! {effect_type} 효과 발동!")
+            
+            if effect_type == "attack_surge":
+                character.active_buffs["attack_up"] = {"value": value, "duration": duration}
+                logger.info(f"  -> 공격력 +{int(value*100)}% ({duration}턴)")
+            elif effect_type == "buff_extend":
+                for buff_name, buff_data in character.active_buffs.items():
+                    if isinstance(buff_data, dict) and "duration" in buff_data:
+                        buff_data["duration"] += int(value)
+                logger.info(f"  -> 모든 버프 지속시간 +{int(value)}턴")
+            elif effect_type == "mass_heal":
+                heal_amount = int(character.max_hp * value)
+                character.current_hp = min(character.max_hp, character.current_hp + heal_amount)
+                logger.info(f"  -> HP {heal_amount} 회복!")
+            elif effect_type == "all_stat_up":
+                character.active_buffs["attack_up"] = {"value": value, "duration": duration}
+                character.active_buffs["defense_up"] = {"value": value, "duration": duration}
+                character.active_buffs["speed_up"] = {"value": value, "duration": duration}
+                logger.info(f"  -> 공/방/속 +{int(value*100)}% ({duration}턴)")
+            elif effect_type == "enemy_debuff":
+                character.bard_debuff_pending = {"value": value, "duration": duration}
+                logger.info(f"  -> 적 공/방 -{int(value*100)}% ({duration}턴) 준비됨")
+            
+            if skill.metadata.get("consume_notes"):
+                if len(character.music_notes) >= 3:
+                    character.music_notes = character.music_notes[:-3]
+                else:
+                    character.music_notes = []
+                logger.info(f"  -> 악보 갱신: {''.join(character.music_notes) if character.music_notes else '(비어있음)'}")
+        else:
+            note_count = len(character.music_notes)
+            bonus = 0.1 * note_count
+            character.active_buffs["attack_up"] = {"value": bonus, "duration": 2}
+            logger.info(f"[바드] 패턴 미완성. 음표 {note_count}개 -> 공격력 +{int(bonus*100)}% (2턴)")
+
 
 class GimmickStateChecker:
     """기믹 상태 체크 (조건부 보너스 등)"""
@@ -1413,114 +1817,3 @@ class GimmickStateChecker:
         if character.gimmick_type == "support_fire":
             return getattr(character, 'support_fire_combo', 0)
         return 0
-
-    # ============================================================
-    # 마술사: 트릭 덱 시스템
-    # ============================================================
-
-    @staticmethod
-    def _update_trick_deck(character):
-        """마술사: 트릭 덱 시스템 턴 종료 업데이트"""
-        # 손패 확인 및 조합 체크
-        hand = getattr(character, 'card_hand', [])
-        
-        if hand:
-            from src.character.skills.job_skills.magician_skills import check_poker_combination, get_card_name
-            combo_type, combo_cards, score = check_poker_combination(hand)
-            
-            if combo_type:
-                combo_names = {
-                    "pair": "원페어",
-                    "two_pair": "투페어",
-                    "triple": "트리플",
-                    "straight": "스트레이트",
-                    "flush": "플러시",
-                    "full_house": "풀하우스",
-                    "four_of_kind": "포카드",
-                    "straight_flush": "스트레이트 플러시",
-                    "royal_straight_flush": "로얄 스트레이트 플러시"
-                }
-                logger.debug(f"{character.name} 현재 조합: {combo_names.get(combo_type, combo_type)}")
-
-    @staticmethod
-    def _update_trick_deck_turn_start(character):
-        """마술사: 트릭 덱 시스템 턴 시작 업데이트"""
-        # 덱 초기화 체크
-        if not hasattr(character, 'card_deck') or character.card_deck is None:
-            GimmickUpdater.initialize_trick_deck(character)
-        
-        # 손패 표시
-        hand = getattr(character, 'card_hand', [])
-        deck_count = len(getattr(character, 'card_deck', []))
-        
-        if hand:
-            from src.character.skills.job_skills.magician_skills import get_hand_display
-            logger.info(f"{character.name} {get_hand_display(character)} (덱: {deck_count}장)")
-        else:
-            logger.debug(f"{character.name} 손패 없음 (덱: {deck_count}장)")
-
-    @staticmethod
-    def initialize_trick_deck(character):
-        """마술사 트릭 덱 초기화"""
-        try:
-            from src.character.skills.job_skills.magician_skills import create_deck, shuffle_deck
-            
-            character.card_deck = shuffle_deck(create_deck())
-            character.card_hand = []
-            character.card_discard = []
-            character.max_hand_size = 8
-            
-            logger.info(f"{character.name} 트릭 덱 초기화 완료 (54장)")
-        except Exception as e:
-            logger.error(f"{character.name} 트릭 덱 초기화 실패: {e}", exc_info=True)
-            character.card_deck = []
-            character.card_hand = []
-            character.card_discard = []
-            character.max_hand_size = 8
-
-    @staticmethod
-    def get_trick_deck_hand_size(character) -> int:
-        """마술사 손패 크기 반환"""
-        if getattr(character, 'gimmick_type', None) == "trick_deck":
-            return len(getattr(character, 'card_hand', []))
-        return 0
-
-    @staticmethod
-    def get_trick_deck_combination(character):
-        """마술사 현재 손패 조합 반환"""
-        if getattr(character, 'gimmick_type', None) != "trick_deck":
-            return None, [], 0
-        
-        hand = getattr(character, 'card_hand', [])
-        if not hand:
-            return None, [], 0
-        
-        from src.character.skills.job_skills.magician_skills import check_poker_combination
-        return check_poker_combination(hand)
-
-    @staticmethod
-    def has_poker_combination(character, required_combo: str) -> bool:
-        """마술사가 특정 포커 조합을 가지고 있는지 확인"""
-        combo_type, _, _ = GimmickUpdater.get_trick_deck_combination(character)
-        
-        if combo_type is None:
-            return False
-        
-        # 조합 순위 (높은 조합은 낮은 조합을 포함)
-        combo_hierarchy = {
-            "royal_straight_flush": 9,
-            "straight_flush": 8,
-            "four_of_kind": 7,
-            "full_house": 6,
-            "flush": 5,
-            "straight": 4,
-            "triple": 3,
-            "two_pair": 2,
-            "pair": 1
-        }
-        
-        current_rank = combo_hierarchy.get(combo_type, 0)
-        required_rank = combo_hierarchy.get(required_combo, 0)
-        
-        # 현재 조합이 필요 조합보다 같거나 높으면 True
-        return current_rank >= required_rank

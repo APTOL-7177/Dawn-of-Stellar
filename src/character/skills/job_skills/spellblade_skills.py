@@ -238,9 +238,9 @@ def create_spellblade_skills():
         DamageEffect(DamageType.BRV, 2.5, stat_type="physical"),
         DamageEffect(DamageType.BRV, 2.5, stat_type="magic"),
         DamageEffect(DamageType.HP, 3.5, stat_type="physical"),
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
-        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=5),
-        BuffEffect(BuffType.SPEED_UP, 0.3, duration=5),
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="self"),
+        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=5, target="self"),
+        BuffEffect(BuffType.SPEED_UP, 0.3, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "mana_blade", 100)
     ]
     ultimate.costs = [MPCost(30)]
@@ -269,7 +269,7 @@ def create_spellblade_skills():
         DamageEffect(DamageType.BRV, 2.2, stat_type="physical"),
         DamageEffect(DamageType.HP, 1.8, stat_type="physical"),
         GimmickEffect(GimmickOperation.SET, "mana_blade", 100),
-        BuffEffect(BuffType.ATTACK_UP, 0.30, duration=3)
+        BuffEffect(BuffType.ATTACK_UP, 0.30, duration=3, target="self")
     ]
     teamwork.target_type = "all_enemies"
     teamwork.is_aoe = True

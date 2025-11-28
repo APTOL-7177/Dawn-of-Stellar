@@ -1,0 +1,746 @@
+"""
+LLM 기반 고급 플레이어 봇
+Dawn of Stellar
+
+Ollama를 사용하여 로컬 LLM으로 고급 플레이어처럼 게임을 플레이하는 AI 봇입니다.
+모든 게임 기능(전투, 스킬, 아이템, 요리, 직업 기믹)을 완벽히 활용합니다.
+"""
+
+import json
+import time
+import asyncio
+import httpx
+from typing import Dict, Any, Optional, List, Tuple
+from dataclasses import dataclass, field, asdict
+from enum import Enum
+
+from src.core.logger import get_logger
+from src.tutorial.tutorial_bot import JOB_DATABASE, COOKING_DATABASE, STATUS_EFFECTS
+
+logger = get_logger("llm_player_bot")
+
+
+# =============================================================================
+# 설정
+# =============================================================================
+
+class PlayStyle(Enum):
+    """플레이 스타일"""
+    AGGRESSIVE = "aggressive"      # 공격적 - 리스크 감수, 높은 딜
+    DEFENSIVE = "defensive"        # 방어적 - 안정적, 힐링 우선
+    BALANCED = "balanced"          # 균형 - 상황 대응
+    SPEEDRUN = "speedrun"          # 스피드런 - 빠른 클리어 우선
+    RESOURCE_SAVER = "resource"    # 자원 절약 - MP/아이템 아끼기
+
+
+@dataclass
+class LLMConfig:
+    """LLM 설정"""
+    base_url: str = "http://localhost:11434"  # Ollama 기본 주소
+    model: str = "qwen3:4b"  # 사용할 모델 (추천: qwen3:4b, qwen2.5:7b, llama3.2)
+    temperature: float = 0.3  # 낮을수록 일관된 결정
+    timeout: float = 60.0  # 타임아웃 (초) - thinking 모드용 증가
+    max_tokens: int = 2000  # 최대 토큰 - thinking 모드용 증가
+    retry_count: int = 2  # 재시도 횟수
+    enable_thinking: bool = True  # Qwen3 thinking 모드 활성화
+    play_style: PlayStyle = PlayStyle.BALANCED  # 플레이 스타일
+    enable_commentary: bool = True  # 실시간 해설 활성화
+    async_mode: bool = True  # 비동기 모드
+
+
+# =============================================================================
+# 게임 상태 직렬화
+# =============================================================================
+
+@dataclass
+class CombatantState:
+    """전투원 상태"""
+    name: str
+    job: str
+    hp: int
+    max_hp: int
+    mp: int
+    max_mp: int
+    brv: int
+    max_brv: int
+    atb_percent: float
+    is_alive: bool
+    is_broken: bool
+    status_effects: List[str] = field(default_factory=list)
+    # 직업 기믹 정보
+    gimmick_value: int = 0
+    gimmick_name: str = ""
+
+
+@dataclass
+class SkillInfo:
+    """스킬 정보"""
+    id: str
+    name: str
+    mp_cost: int
+    skill_type: str  # "brv", "hp", "brv_hp", "heal", "buff", "debuff"
+    element: str = "none"
+    target_type: str = "single"  # "single", "all", "self"
+    description: str = ""
+    cooldown_remaining: int = 0
+
+
+@dataclass  
+class ItemInfo:
+    """아이템 정보"""
+    id: str
+    name: str
+    quantity: int
+    effect: str
+
+
+@dataclass
+class CombatState:
+    """전투 상태 전체"""
+    turn_count: int
+    current_actor: str  # 현재 행동할 캐릭터 이름
+    allies: List[CombatantState]
+    enemies: List[CombatantState]
+    available_skills: List[SkillInfo]
+    available_items: List[ItemInfo]
+    can_flee: bool = True
+    environment: str = ""  # 던전 환경 (숲, 동굴 등)
+
+
+# =============================================================================
+# 행동 정의
+# =============================================================================
+
+class ActionType(Enum):
+    """행동 타입"""
+    BRV_ATTACK = "brv_attack"
+    HP_ATTACK = "hp_attack"
+    SKILL = "skill"
+    ITEM = "item"
+    DEFEND = "defend"
+    FLEE = "flee"
+
+
+@dataclass
+class BotAction:
+    """봇 행동"""
+    action_type: ActionType
+    target_name: Optional[str] = None
+    skill_id: Optional[str] = None
+    item_id: Optional[str] = None
+    reasoning: str = ""  # LLM의 판단 이유
+
+
+# =============================================================================
+# 프롬프트 템플릿
+# =============================================================================
+
+SYSTEM_PROMPT = """당신은 Dawn of Stellar 게임의 고급 플레이어입니다.
+ATB + BRV 전투 시스템을 완벽히 이해하고 최적의 전략을 구사합니다.
+
+## 핵심 전투 규칙
+1. **BRV (브레이브)**: BRV 공격으로 적 BRV를 깎고 내 BRV를 쌓음
+2. **HP 공격**: 쌓은 BRV만큼 적 HP에 피해, 공격 후 BRV는 0으로 초기화
+3. **BREAK**: 적 BRV가 0이 되면 BREAK 상태, 이때 HP 공격하면 보너스 데미지
+4. **ATB**: 게이지가 100%가 되면 행동 가능
+
+## 전략 우선순위
+1. 위험 상황 대응 (HP 20% 이하면 회복 우선)
+2. BREAK 기회 포착 (적 BRV 낮으면 BRV 공격으로 BREAK)
+3. BREAK 상태 적에게 HP 공격
+4. BRV가 충분히 쌓였으면 HP 공격
+5. 직업 기믹 최적 활용
+6. 아이템/스킬 적절히 사용
+
+## 응답 형식 (JSON)
+반드시 다음 형식으로만 응답하세요:
+```json
+{
+  "action": "brv_attack" | "hp_attack" | "skill" | "item" | "defend" | "flee",
+  "target": "대상 이름 (적 또는 아군)",
+  "skill_id": "스킬 ID (skill 선택 시)",
+  "item_id": "아이템 ID (item 선택 시)",
+  "reasoning": "짧은 판단 이유"
+}
+```
+"""
+
+
+def create_combat_prompt(state: CombatState, job_info: Dict[str, Any]) -> str:
+    """전투 상황 프롬프트 생성"""
+    
+    # 아군 상태
+    allies_text = ""
+    for ally in state.allies:
+        hp_percent = (ally.hp / ally.max_hp * 100) if ally.max_hp > 0 else 0
+        status = "💀사망" if not ally.is_alive else ("💥BREAK" if ally.is_broken else "정상")
+        gimmick_text = f", {ally.gimmick_name}: {ally.gimmick_value}" if ally.gimmick_name else ""
+        allies_text += f"- {ally.name} ({ally.job}): HP {ally.hp}/{ally.max_hp} ({hp_percent:.0f}%), MP {ally.mp}/{ally.max_mp}, BRV {ally.brv}/{ally.max_brv}, ATB {ally.atb_percent:.0f}%, 상태: {status}{gimmick_text}\n"
+        if ally.status_effects:
+            allies_text += f"  상태이상: {', '.join(ally.status_effects)}\n"
+    
+    # 적 상태
+    enemies_text = ""
+    for enemy in state.enemies:
+        hp_percent = (enemy.hp / enemy.max_hp * 100) if enemy.max_hp > 0 else 0
+        status = "💀사망" if not enemy.is_alive else ("💥BREAK" if enemy.is_broken else "정상")
+        enemies_text += f"- {enemy.name}: HP {enemy.hp}/{enemy.max_hp} ({hp_percent:.0f}%), BRV {enemy.brv}/{enemy.max_brv}, 상태: {status}\n"
+        if enemy.status_effects:
+            enemies_text += f"  상태이상: {', '.join(enemy.status_effects)}\n"
+    
+    # 스킬 목록
+    skills_text = ""
+    for skill in state.available_skills:
+        cd_text = f" (쿨다운: {skill.cooldown_remaining}턴)" if skill.cooldown_remaining > 0 else ""
+        skills_text += f"- {skill.id}: {skill.name} (MP {skill.mp_cost}, {skill.skill_type}, {skill.target_type}){cd_text}\n"
+    
+    # 아이템 목록
+    items_text = ""
+    for item in state.available_items:
+        items_text += f"- {item.id}: {item.name} x{item.quantity} - {item.effect}\n"
+    
+    # 직업 기믹 팁
+    job_tips = ""
+    if job_info:
+        job_tips = f"\n## 현재 직업 기믹 ({job_info.get('name', '?')})\n"
+        job_tips += f"- 기믹: {job_info.get('gimmick', '없음')} - {job_info.get('gimmick_desc', '')}\n"
+        tips = job_info.get('tips', [])
+        if tips:
+            job_tips += "- 팁:\n"
+            for tip in tips[:3]:  # 상위 3개만
+                job_tips += f"  * {tip}\n"
+    
+    prompt = f"""## 현재 전투 상황 (턴 {state.turn_count})
+현재 행동할 캐릭터: **{state.current_actor}**
+
+### 아군 파티
+{allies_text}
+### 적
+{enemies_text}
+### 사용 가능한 스킬
+{skills_text if skills_text else "없음"}
+### 보유 아이템
+{items_text if items_text else "없음"}
+{job_tips}
+## 최적의 행동을 JSON으로 선택하세요:"""
+    
+    return prompt
+
+
+# =============================================================================
+# Ollama 클라이언트
+# =============================================================================
+
+class OllamaClient:
+    """Ollama API 클라이언트"""
+    
+    def __init__(self, config: LLMConfig):
+        self.config = config
+        self.client = httpx.AsyncClient(timeout=config.timeout)
+    
+    async def generate(self, prompt: str, system_prompt: str = "") -> str:
+        """텍스트 생성"""
+        url = f"{self.config.base_url}/api/generate"
+        
+        payload = {
+            "model": self.config.model,
+            "prompt": prompt,
+            "system": system_prompt,
+            "stream": False,
+            "options": {
+                "temperature": self.config.temperature,
+                "num_predict": self.config.max_tokens,
+            }
+        }
+        
+        for attempt in range(self.config.retry_count + 1):
+            try:
+                response = await self.client.post(url, json=payload)
+                response.raise_for_status()
+                result = response.json()
+                return result.get("response", "")
+            except Exception as e:
+                logger.warning(f"Ollama 요청 실패 (시도 {attempt + 1}): {e}")
+                if attempt == self.config.retry_count:
+                    raise
+                await asyncio.sleep(1)
+        
+        return ""
+    
+    async def chat(self, messages: List[Dict[str, str]]) -> str:
+        """채팅 형식 생성"""
+        url = f"{self.config.base_url}/api/chat"
+        
+        payload = {
+            "model": self.config.model,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": self.config.temperature,
+                "num_predict": self.config.max_tokens,
+            }
+        }
+        
+        for attempt in range(self.config.retry_count + 1):
+            try:
+                response = await self.client.post(url, json=payload)
+                response.raise_for_status()
+                result = response.json()
+                return result.get("message", {}).get("content", "")
+            except Exception as e:
+                logger.warning(f"Ollama 채팅 요청 실패 (시도 {attempt + 1}): {e}")
+                if attempt == self.config.retry_count:
+                    raise
+                await asyncio.sleep(1)
+        
+        return ""
+    
+    async def close(self):
+        """클라이언트 종료"""
+        await self.client.aclose()
+
+
+# =============================================================================
+# 동기 래퍼 (게임 루프에서 사용)
+# =============================================================================
+
+class OllamaClientSync:
+    """동기 Ollama 클라이언트 (게임 루프용)"""
+    
+    def __init__(self, config: LLMConfig):
+        self.config = config
+    
+    def generate(self, prompt: str, system_prompt: str = "") -> str:
+        """동기 텍스트 생성"""
+        import httpx
+        
+        url = f"{self.config.base_url}/api/generate"
+        
+        payload = {
+            "model": self.config.model,
+            "prompt": prompt,
+            "system": system_prompt,
+            "stream": False,
+            "options": {
+                "temperature": self.config.temperature,
+                "num_predict": self.config.max_tokens,
+            }
+        }
+        
+        for attempt in range(self.config.retry_count + 1):
+            try:
+                with httpx.Client(timeout=self.config.timeout) as client:
+                    response = client.post(url, json=payload)
+                    response.raise_for_status()
+                    result = response.json()
+                    return result.get("response", "")
+            except Exception as e:
+                logger.warning(f"Ollama 요청 실패 (시도 {attempt + 1}): {e}")
+                if attempt == self.config.retry_count:
+                    raise
+                time.sleep(1)
+        
+        return ""
+
+
+# =============================================================================
+# 응답 파서
+# =============================================================================
+
+class ResponseParser:
+    """LLM 응답 파서"""
+    
+    @staticmethod
+    def parse_action(response: str) -> Optional[BotAction]:
+        """LLM 응답을 BotAction으로 파싱"""
+        try:
+            # JSON 블록 추출
+            json_str = response
+            if "```json" in response:
+                start = response.find("```json") + 7
+                end = response.find("```", start)
+                json_str = response[start:end].strip()
+            elif "```" in response:
+                start = response.find("```") + 3
+                end = response.find("```", start)
+                json_str = response[start:end].strip()
+            elif "{" in response:
+                start = response.find("{")
+                end = response.rfind("}") + 1
+                json_str = response[start:end]
+            
+            data = json.loads(json_str)
+            
+            # 액션 타입 파싱
+            action_str = data.get("action", "brv_attack").lower()
+            action_map = {
+                "brv_attack": ActionType.BRV_ATTACK,
+                "hp_attack": ActionType.HP_ATTACK,
+                "skill": ActionType.SKILL,
+                "item": ActionType.ITEM,
+                "defend": ActionType.DEFEND,
+                "flee": ActionType.FLEE,
+            }
+            action_type = action_map.get(action_str, ActionType.BRV_ATTACK)
+            
+            return BotAction(
+                action_type=action_type,
+                target_name=data.get("target"),
+                skill_id=data.get("skill_id"),
+                item_id=data.get("item_id"),
+                reasoning=data.get("reasoning", "")
+            )
+            
+        except Exception as e:
+            logger.error(f"응답 파싱 실패: {e}, 응답: {response[:200]}")
+            return None
+
+
+# =============================================================================
+# LLM 플레이어 봇
+# =============================================================================
+
+class LLMPlayerBot:
+    """LLM 기반 고급 플레이어 봇"""
+    
+    def __init__(
+        self,
+        bot_id: str,
+        bot_name: str,
+        job_id: str = "warrior",
+        config: Optional[LLMConfig] = None
+    ):
+        """
+        Args:
+            bot_id: 봇 ID
+            bot_name: 봇 이름
+            job_id: 직업 ID
+            config: LLM 설정
+        """
+        self.bot_id = bot_id
+        self.bot_name = bot_name
+        self.job_id = job_id
+        self.config = config or LLMConfig()
+        
+        self.client = OllamaClientSync(self.config)
+        self.parser = ResponseParser()
+        
+        # 직업 정보 캐싱
+        self.job_info = JOB_DATABASE.get(job_id, JOB_DATABASE.get("default", {}))
+        
+        # 전투 기록 (컨텍스트용)
+        self.combat_history: List[str] = []
+        self.max_history = 5
+        
+        # 통계
+        self.total_actions = 0
+        self.successful_parses = 0
+        self.fallback_actions = 0
+        
+        logger.info(f"LLM 플레이어 봇 생성: {bot_name} (직업: {job_id}, 모델: {self.config.model})")
+    
+    def decide_combat_action(
+        self,
+        combat_state: CombatState
+    ) -> BotAction:
+        """
+        전투 행동 결정
+        
+        Args:
+            combat_state: 현재 전투 상태
+            
+        Returns:
+            결정된 행동
+        """
+        self.total_actions += 1
+        
+        try:
+            # 프롬프트 생성
+            prompt = create_combat_prompt(combat_state, self.job_info)
+            
+            # 히스토리 추가 (선택사항)
+            if self.combat_history:
+                history_text = "\n## 최근 행동 기록\n" + "\n".join(self.combat_history[-3:])
+                prompt = history_text + "\n" + prompt
+            
+            # LLM 호출
+            response = self.client.generate(prompt, SYSTEM_PROMPT)
+            
+            # 응답 파싱
+            action = self.parser.parse_action(response)
+            
+            if action:
+                self.successful_parses += 1
+                # 히스토리 기록
+                self.combat_history.append(
+                    f"턴 {combat_state.turn_count}: {action.action_type.value} -> {action.target_name or 'N/A'} ({action.reasoning[:50]})"
+                )
+                if len(self.combat_history) > self.max_history:
+                    self.combat_history.pop(0)
+                
+                logger.info(f"[{self.bot_name}] 행동 결정: {action.action_type.value}, 타겟: {action.target_name}, 이유: {action.reasoning}")
+                return action
+            else:
+                return self._fallback_action(combat_state)
+                
+        except Exception as e:
+            logger.error(f"[{self.bot_name}] LLM 호출 오류: {e}")
+            return self._fallback_action(combat_state)
+    
+    def _fallback_action(self, combat_state: CombatState) -> BotAction:
+        """폴백 행동 (LLM 실패 시)"""
+        self.fallback_actions += 1
+        
+        # 현재 행동자 찾기
+        current_ally = None
+        for ally in combat_state.allies:
+            if ally.name == combat_state.current_actor:
+                current_ally = ally
+                break
+        
+        if not current_ally or not current_ally.is_alive:
+            return BotAction(
+                action_type=ActionType.DEFEND,
+                reasoning="폴백: 방어"
+            )
+        
+        # 살아있는 적 찾기
+        alive_enemies = [e for e in combat_state.enemies if e.is_alive]
+        if not alive_enemies:
+            return BotAction(
+                action_type=ActionType.DEFEND,
+                reasoning="폴백: 적 없음"
+            )
+        
+        target = alive_enemies[0]
+        
+        # 간단한 규칙 기반 폴백
+        # 1. HP 위험하면 회복 아이템
+        hp_percent = current_ally.hp / current_ally.max_hp if current_ally.max_hp > 0 else 1.0
+        if hp_percent < 0.3:
+            for item in combat_state.available_items:
+                if "회복" in item.effect or "HP" in item.effect.upper():
+                    return BotAction(
+                        action_type=ActionType.ITEM,
+                        item_id=item.id,
+                        target_name=current_ally.name,
+                        reasoning="폴백: HP 낮아서 회복"
+                    )
+        
+        # 2. BRV 충분하면 HP 공격
+        if current_ally.brv > 500:
+            # BREAK 상태인 적 우선
+            for enemy in alive_enemies:
+                if enemy.is_broken:
+                    return BotAction(
+                        action_type=ActionType.HP_ATTACK,
+                        target_name=enemy.name,
+                        reasoning="폴백: BREAK 상태 적에게 HP 공격"
+                    )
+            return BotAction(
+                action_type=ActionType.HP_ATTACK,
+                target_name=target.name,
+                reasoning="폴백: BRV 높아서 HP 공격"
+            )
+        
+        # 3. 적 BRV 낮으면 BRV 공격으로 BREAK 노리기
+        for enemy in alive_enemies:
+            if enemy.brv < 200:
+                return BotAction(
+                    action_type=ActionType.BRV_ATTACK,
+                    target_name=enemy.name,
+                    reasoning="폴백: 적 BRV 낮아서 BREAK 노림"
+                )
+        
+        # 4. 기본 BRV 공격
+        return BotAction(
+            action_type=ActionType.BRV_ATTACK,
+            target_name=target.name,
+            reasoning="폴백: 기본 BRV 공격"
+        )
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """통계 반환"""
+        success_rate = (self.successful_parses / self.total_actions * 100) if self.total_actions > 0 else 0
+        return {
+            "total_actions": self.total_actions,
+            "successful_parses": self.successful_parses,
+            "fallback_actions": self.fallback_actions,
+            "success_rate": f"{success_rate:.1f}%"
+        }
+
+
+# =============================================================================
+# 게임 상태 변환 헬퍼
+# =============================================================================
+
+class GameStateConverter:
+    """게임 객체를 CombatState로 변환"""
+    
+    @staticmethod
+    def from_combat_manager(
+        combat_manager: Any,
+        current_character: Any,
+        inventory: Any = None
+    ) -> CombatState:
+        """
+        CombatManager에서 CombatState 생성
+        
+        Args:
+            combat_manager: 전투 관리자
+            current_character: 현재 행동할 캐릭터
+            inventory: 인벤토리 (선택)
+            
+        Returns:
+            CombatState
+        """
+        # 아군 상태 변환
+        allies = []
+        for ally in combat_manager.allies:
+            allies.append(GameStateConverter._convert_combatant(ally))
+        
+        # 적 상태 변환
+        enemies = []
+        for enemy in combat_manager.enemies:
+            enemies.append(GameStateConverter._convert_combatant(enemy))
+        
+        # 스킬 변환
+        skills = []
+        if hasattr(current_character, 'skills'):
+            for skill in current_character.skills:
+                if hasattr(skill, 'can_use') and skill.can_use(current_character):
+                    skills.append(GameStateConverter._convert_skill(skill))
+        
+        # 아이템 변환
+        items = []
+        if inventory:
+            for item in inventory.get_usable_items():
+                items.append(GameStateConverter._convert_item(item))
+        
+        return CombatState(
+            turn_count=combat_manager.turn_count,
+            current_actor=getattr(current_character, 'name', 'Unknown'),
+            allies=allies,
+            enemies=enemies,
+            available_skills=skills,
+            available_items=items,
+            can_flee=True,
+            environment=""
+        )
+    
+    @staticmethod
+    def _convert_combatant(char: Any) -> CombatantState:
+        """캐릭터를 CombatantState로 변환"""
+        # 기믹 정보 추출
+        gimmick_value = 0
+        gimmick_name = ""
+        if hasattr(char, 'gimmick_manager') and char.gimmick_manager:
+            gimmick = char.gimmick_manager
+            gimmick_name = getattr(gimmick, 'gimmick_name', '')
+            gimmick_value = getattr(gimmick, 'current_value', 0)
+        
+        # 상태이상 추출
+        status_effects = []
+        if hasattr(char, 'status_effects'):
+            for effect in char.status_effects:
+                status_effects.append(getattr(effect, 'name', str(effect)))
+        
+        return CombatantState(
+            name=getattr(char, 'name', 'Unknown'),
+            job=getattr(char, 'job_name', getattr(char, 'character_class', 'Unknown')),
+            hp=getattr(char, 'current_hp', 0),
+            max_hp=getattr(char, 'max_hp', 1),
+            mp=getattr(char, 'current_mp', 0),
+            max_mp=getattr(char, 'max_mp', 1),
+            brv=getattr(char, 'current_brv', 0),
+            max_brv=getattr(char, 'max_brv', 1000),
+            atb_percent=getattr(char, 'atb_percent', 0),
+            is_alive=getattr(char, 'is_alive', True),
+            is_broken=getattr(char, 'is_broken', False),
+            status_effects=status_effects,
+            gimmick_value=gimmick_value,
+            gimmick_name=gimmick_name
+        )
+    
+    @staticmethod
+    def _convert_skill(skill: Any) -> SkillInfo:
+        """스킬을 SkillInfo로 변환"""
+        return SkillInfo(
+            id=getattr(skill, 'id', getattr(skill, 'skill_id', 'unknown')),
+            name=getattr(skill, 'name', 'Unknown'),
+            mp_cost=getattr(skill, 'mp_cost', 0),
+            skill_type=getattr(skill, 'skill_type', 'brv'),
+            element=getattr(skill, 'element', 'none'),
+            target_type=getattr(skill, 'target_type', 'single'),
+            description=getattr(skill, 'description', ''),
+            cooldown_remaining=getattr(skill, 'cooldown_remaining', 0)
+        )
+    
+    @staticmethod
+    def _convert_item(item: Any) -> ItemInfo:
+        """아이템을 ItemInfo로 변환"""
+        return ItemInfo(
+            id=getattr(item, 'id', getattr(item, 'item_id', 'unknown')),
+            name=getattr(item, 'name', 'Unknown'),
+            quantity=getattr(item, 'quantity', 1),
+            effect=getattr(item, 'effect', getattr(item, 'description', ''))
+        )
+
+
+# =============================================================================
+# 편의 함수
+# =============================================================================
+
+def create_llm_bot(
+    name: str,
+    job_id: str = "warrior",
+    model: str = "llama3.2"
+) -> LLMPlayerBot:
+    """
+    간편하게 LLM 봇 생성
+    
+    Args:
+        name: 봇 이름
+        job_id: 직업 ID
+        model: Ollama 모델명
+        
+    Returns:
+        LLMPlayerBot 인스턴스
+    """
+    import uuid
+    config = LLMConfig(model=model)
+    return LLMPlayerBot(
+        bot_id=str(uuid.uuid4()),
+        bot_name=name,
+        job_id=job_id,
+        config=config
+    )
+
+
+async def test_ollama_connection(base_url: str = "http://localhost:11434") -> bool:
+    """Ollama 연결 테스트"""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{base_url}/api/tags")
+            if response.status_code == 200:
+                models = response.json().get("models", [])
+                logger.info(f"Ollama 연결 성공! 사용 가능한 모델: {[m['name'] for m in models]}")
+                return True
+    except Exception as e:
+        logger.error(f"Ollama 연결 실패: {e}")
+    return False
+
+
+def test_ollama_connection_sync(base_url: str = "http://localhost:11434") -> bool:
+    """Ollama 연결 테스트 (동기)"""
+    try:
+        import httpx
+        with httpx.Client(timeout=5.0) as client:
+            response = client.get(f"{base_url}/api/tags")
+            if response.status_code == 200:
+                models = response.json().get("models", [])
+                logger.info(f"Ollama 연결 성공! 사용 가능한 모델: {[m['name'] for m in models]}")
+                return True
+    except Exception as e:
+        logger.error(f"Ollama 연결 실패: {e}")
+    return False

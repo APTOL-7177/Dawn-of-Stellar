@@ -126,7 +126,7 @@ def create_warrior_skills():
     furious_strike = Skill("warrior_furious_strike", "격노의 일격", "BRV+HP 피해 + 공격력 증가 버프")
     furious_strike.effects = [
         DamageEffect(DamageType.BRV_HP, 2.6),
-        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=3),
+        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=3, target="self"),
         GimmickEffect(GimmickOperation.SET, "current_stance", 1)  # 1=attack
     ]
     furious_strike.costs = [MPCost(13)]
@@ -141,9 +141,9 @@ def create_warrior_skills():
         DamageEffect(DamageType.BRV, 2.5),
         DamageEffect(DamageType.BRV, 2.5),
         DamageEffect(DamageType.HP, 2.8),
-        BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5),
-        BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5),
-        BuffEffect(BuffType.SPEED_UP, 0.6, duration=5),
+        BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5, target="self"),
+        BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5, target="self"),
+        BuffEffect(BuffType.SPEED_UP, 0.6, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "current_stance", 0)  # 0=balanced
     ]
     ultimate.costs = [MPCost(30)]

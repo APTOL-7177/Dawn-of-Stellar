@@ -64,8 +64,8 @@ def create_samurai_skills():
     samurai_honor = Skill("samurai_samurai_honor", "무사의 명예", "의지 최대 회복")
     samurai_honor.effects = [
         GimmickEffect(GimmickOperation.SET, "will_gauge", 10, max_value=10),  # 최대치로 설정
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=4),
-        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=4)
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=4, target="self"),
+        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=4, target="self")
     ]
     samurai_honor.costs = [MPCost(6)]
     samurai_honor.target_type = "self"
@@ -117,7 +117,7 @@ def create_samurai_skills():
     infinite_slash = Skill("samurai_infinite_slash", "무한 베기", "의지 소비 없는 연속 공격")
     infinite_slash.effects = [
         DamageEffect(DamageType.BRV_HP, 2.0),
-        BuffEffect(BuffType.SPEED_UP, 0.3, duration=3),
+        BuffEffect(BuffType.SPEED_UP, 0.3, duration=3, target="self"),
         GimmickEffect(GimmickOperation.ADD, "will_gauge", 1, max_value=10)
     ]
     infinite_slash.costs = [MPCost(12)]
@@ -134,7 +134,7 @@ def create_samurai_skills():
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "will_gauge", "multiplier": 0.5}),
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "will_gauge", "multiplier": 0.5}),
         DamageEffect(DamageType.HP, 3.5, gimmick_bonus={"field": "will_gauge", "multiplier": 0.7}),
-        BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5),
+        BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "will_gauge", 0)
     ]
     ultimate.costs = [MPCost(30), StackCost("will_gauge", 1)]

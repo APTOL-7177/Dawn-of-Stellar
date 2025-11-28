@@ -123,8 +123,9 @@ class DamageCalculator:
         variance = random.uniform(0.9, 1.1)
         damage = base_damage * variance
 
-        # 크리티컬 판정
-        is_critical = self._check_critical(attacker)
+        # 크리티컬 판정 (force_critical 지원)
+        force_critical = kwargs.get('force_critical', False)
+        is_critical = self._check_critical(attacker, force_critical)
         critical_dmg_mult = 1.0
         if is_critical:
             # 크리티컬 데미지 배율 (critical_master 등)
@@ -254,8 +255,9 @@ class DamageCalculator:
                 damage = int(damage * undead_mult)
                 self.logger.info(f"[언데드 추가 피해] {attacker.name} → {defender.name} (언데드): 데미지 +{kwargs['undead_bonus']*100:.0f}%")
 
-        # 크리티컬 판정
-        is_critical = self._check_critical(attacker)
+        # 크리티컬 판정 (force_critical 지원)
+        force_critical = kwargs.get('force_critical', False)
+        is_critical = self._check_critical(attacker, force_critical)
         critical_dmg_mult = 1.0
         if is_critical:
             # 크리티컬 데미지 배율 (critical_master 등)
@@ -385,8 +387,9 @@ class DamageCalculator:
         variance = random.uniform(0.9, 1.1)
         damage = base_damage * variance
 
-        # 크리티컬 판정
-        is_critical = self._check_critical(attacker)
+        # 크리티컬 판정 (force_critical 지원)
+        force_critical = kwargs.get('force_critical', False)
+        is_critical = self._check_critical(attacker, force_critical)
         if is_critical:
             damage *= self.critical_multiplier
 
@@ -564,16 +567,21 @@ class DamageCalculator:
 
         return is_hit
 
-    def _check_critical(self, attacker: Any) -> bool:
+    def _check_critical(self, attacker: Any, force_critical: bool = False) -> bool:
         """
         크리티컬 판정
 
         Args:
             attacker: 공격자
+            force_critical: 강제 크리티컬 (마술사 행운 카드 등)
 
         Returns:
             크리티컬 여부
         """
+        # 강제 크리티컬 (마술사 7 카드 등)
+        if force_critical:
+            return True
+        
         # 행운 스탯 추출
         luck = getattr(attacker, "luck", 5)
 

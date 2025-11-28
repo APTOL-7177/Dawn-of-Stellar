@@ -41,7 +41,7 @@ def create_dark_knight_skills():
     # 3. 방어 태세
     defensive_stance = Skill("dark_knight_defensive_stance", "방어 태세", "방어력 증가 + 피격 시 충전 2배")
     defensive_stance.effects = [
-        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3),
+        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3, target="self"),
         GimmickEffect(GimmickOperation.ADD, "charge_gauge", 1, max_value=100)  # 기본 충전 +1 (5 → 1, 1/5)
     ]
     defensive_stance.costs = [MPCost(6)]  # MP 8 → 6
@@ -58,7 +58,7 @@ def create_dark_knight_skills():
     # 4. 반격 태세
     counter_stance = Skill("dark_knight_counter_stance", "반격 태세", "회피율 증가 + 회피 시 반격 및 충전")
     counter_stance.effects = [
-        BuffEffect(BuffType.EVASION_UP, 0.5, duration=3),
+        BuffEffect(BuffType.EVASION_UP, 0.5, duration=3, target="self"),
         GimmickEffect(GimmickOperation.ADD, "charge_gauge", 1, max_value=100)  # 기본 충전 +1 (5 → 1, 1/5)
     ]
     counter_stance.costs = [MPCost(8)]  # MP 10 → 8
@@ -179,8 +179,8 @@ def create_dark_knight_skills():
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 3.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.03}),
         DamageEffect(DamageType.HP, 5.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.04}),
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
-        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=5),
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="self"),
+        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "charge_gauge", 0)  # 충전 완전 소모
     ]
     ultimate.costs = [MPCost(40)]

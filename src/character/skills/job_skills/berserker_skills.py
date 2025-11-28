@@ -45,7 +45,7 @@ def create_berserker_skills():
     self_harm = Skill("berserker_self_harm", "자해",
                      "HP 20% 감소, 3턴간 공격력 +50%")
     self_harm.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=3)
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=3, target="self")
     ]
     self_harm.costs = [MPCost(3), HPCost(percentage=0.20)]
     self_harm.target_type = "self"
@@ -59,7 +59,7 @@ def create_berserker_skills():
     battle_cry.effects = [
         DamageEffect(DamageType.BRV, 1.2, stat_type="physical"),
         BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=2),
-        BuffEffect(BuffType.SPEED_UP, 0.4, duration=3)
+        BuffEffect(BuffType.SPEED_UP, 0.4, duration=3, target="self")
     ]
     battle_cry.costs = [MPCost(6)]
     battle_cry.target_type = "all_enemies"
@@ -126,8 +126,8 @@ def create_berserker_skills():
         # HP를 1%로 강제 감소
         DamageEffect(DamageType.BRV, 4.5, stat_type="physical"),
         DamageEffect(DamageType.HP, 4.0, stat_type="physical"),
-        BuffEffect(BuffType.ATTACK_UP, 2.0, duration=3),  # 공격력 +200%
-        BuffEffect(BuffType.SPEED_UP, 1.0, duration=3)   # 속도 +100%
+        BuffEffect(BuffType.ATTACK_UP, 2.0, duration=3, target="self"),  # 공격력 +200%
+        BuffEffect(BuffType.SPEED_UP, 1.0, duration=3, target="self")   # 속도 +100%
     ]
     ultimate.costs = [MPCost(30), HPCost(percentage=0.99)]  # HP 99% 소모 (1% 남김)
     ultimate.is_ultimate = True

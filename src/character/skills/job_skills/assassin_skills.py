@@ -38,7 +38,7 @@ def create_assassin_skills():
     vanish.effects = [
         GimmickEffect(GimmickOperation.SET, "stealth_active", 1),  # 은신 활성화
         GimmickEffect(GimmickOperation.SET, "exposed_turns", 0),  # 노출 턴 리셋
-        BuffEffect(BuffType.EVASION_UP, 0.8, duration=5)  # 은신 버프 (적절한 지속시간)
+        BuffEffect(BuffType.EVASION_UP, 0.8, duration=5, target="self")  # 은신 버프 (적절한 지속시간)
     ]
     vanish.costs = []
     vanish.target_type = "self"
@@ -73,8 +73,8 @@ def create_assassin_skills():
     # 6. 그림자 질주 (은신 유지하면서 이동)
     shadow_step = Skill("assassin_shadow_step", "그림자 질주", "은신 유지, 속도 +60% (3턴)")
     shadow_step.effects = [
-        BuffEffect(BuffType.SPEED_UP, 0.6, duration=3),
-        BuffEffect(BuffType.EVASION_UP, 0.5, duration=3),
+        BuffEffect(BuffType.SPEED_UP, 0.6, duration=3, target="self"),
+        BuffEffect(BuffType.EVASION_UP, 0.5, duration=3, target="self"),
         # 은신 상태 유지 (변경하지 않음)
     ]
     shadow_step.costs = [MPCost(4)]
@@ -99,8 +99,8 @@ def create_assassin_skills():
     # 8. 그림자 분신 (은신 중 회피 극대화)
     shadow_clone = Skill("assassin_shadow_clone", "그림자 분신", "은신 강화 (회피 +100%, 3턴)")
     shadow_clone.effects = [
-        BuffEffect(BuffType.EVASION_UP, 1.0, duration=3),  # 회피 +100%
-        BuffEffect(BuffType.CRITICAL_UP, 0.5, duration=3),
+        BuffEffect(BuffType.EVASION_UP, 1.0, duration=3, target="self"),  # 회피 +100%
+        BuffEffect(BuffType.CRITICAL_UP, 0.5, duration=3, target="self"),
         GimmickEffect(GimmickOperation.SET, "stealth_active", 1)  # 은신 강제 활성화
     ]
     shadow_clone.costs = [MPCost(9)]
@@ -131,9 +131,9 @@ def create_assassin_skills():
         DamageEffect(DamageType.BRV, 2.5, stat_type="physical"),
         DamageEffect(DamageType.HP, 5.0, stat_type="physical"),
         # 버프
-        BuffEffect(BuffType.EVASION_UP, 1.5, duration=5),  # 회피 +150%
-        BuffEffect(BuffType.CRITICAL_UP, 1.0, duration=5),  # 크리티컬 +100%
-        BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5),
+        BuffEffect(BuffType.EVASION_UP, 1.5, duration=5, target="self"),  # 회피 +150%
+        BuffEffect(BuffType.CRITICAL_UP, 1.0, duration=5, target="self"),  # 크리티컬 +100%
+        BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5, target="self"),
         # 궁극기는 예외적으로 은신 유지
     ]
     ultimate.costs = [MPCost(30)]

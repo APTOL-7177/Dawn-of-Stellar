@@ -130,8 +130,8 @@ def create_dimensionist_skills():
         "최대 HP의 20%만큼 굴절량 소모, 공격력/마법력 +60% (3턴)"
     )
     refraction_enhance.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.6, duration=3),
-        BuffEffect(BuffType.MAGIC_UP, 0.6, duration=3)
+        BuffEffect(BuffType.ATTACK_UP, 0.6, duration=3, target="self"),
+        BuffEffect(BuffType.MAGIC_UP, 0.6, duration=3, target="self")
     ]
     refraction_enhance.costs = [MPCost(6)]
     refraction_enhance.target_type = "self"
@@ -196,8 +196,8 @@ def create_dimensionist_skills():
         "최대 HP의 25%만큼 굴절량 소모, 아군 전체 피해 경감 +40% (2턴)"
     )
     dimension_barrier.effects = [
-        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=2),
-        BuffEffect(BuffType.SPIRIT_UP, 0.3, duration=2),
+        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=2, target="self"),
+        BuffEffect(BuffType.SPIRIT_UP, 0.3, duration=2, target="self"),
         # 피해 경감 버프는 메타데이터로 처리
     ]
     dimension_barrier.costs = [MPCost(10)]

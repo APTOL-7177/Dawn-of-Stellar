@@ -78,9 +78,69 @@ class DamageEffect(SkillEffect):
     def _execute_single(self, user, target, context):
         """단일 타겟 데미지"""
         result = EffectResult(effect_type=EffectType.DAMAGE, success=True)
+        
+        # ========================================
+        # 나이트 (J) - 아군 보호 효과
+        # 적이 아군을 공격할 때, protect_ally 효과가 있는 다른 아군이 대신 피해를 받음
+        # ========================================
+        if context and not context.get('_protect_in_progress'):
+            # all_enemies = 공격자(user)의 적 = 피해자(target)의 아군
+            target_allies = context.get('all_enemies', [])
+            
+            # target이 target_allies에 있는지 확인 (아군이 공격받는 경우)
+            if target in target_allies:
+                for ally in target_allies:
+                    if ally == target:
+                        continue  # 피해자 자신은 스킵
+                    if not getattr(ally, 'is_alive', False):
+                        continue  # 죽은 캐릭터는 스킵
+                    
+                    ally_card_effects = getattr(ally, 'card_effects', {})
+                    if ally_card_effects.get('protect_ally'):
+                        # 보호 효과 발동!
+                        ally_card_effects.pop('protect_ally')  # 1회용, 소모
+                        
+                        # 타겟을 보호자로 변경
+                        protect_context = context.copy() if context else {}
+                        protect_context['_protect_in_progress'] = True  # 재귀 방지
+                        
+                        # 보호자가 대신 피해를 받음
+                        protect_result = self._execute_single(user, ally, protect_context)
+                        protect_result.message = f"[나이트] {ally.name}이(가) {target.name} 대신 피해를 받음! " + (protect_result.message or "")
+                        return protect_result
+        
+        # 트리플 히트 (3) - 3연타 처리
+        card_effects = getattr(user, 'card_effects', {})
+        triple_hit = card_effects.get("triple_hit")
+        if triple_hit and not (context and context.get('_triple_hit_in_progress')):
+            # 3연타 시작
+            hits = triple_hit.get("hits", 3)
+            hit_mult = triple_hit.get("damage_mult", 0.4)
+            card_effects.pop("triple_hit")  # 효과 소모
+            
+            total_brv = 0
+            total_hp = 0
+            for i in range(hits):
+                # 재귀 방지 플래그
+                hit_context = context.copy() if context else {}
+                hit_context['_triple_hit_in_progress'] = True
+                hit_context['_triple_hit_mult'] = hit_mult
+                
+                hit_result = self._execute_single(user, target, hit_context)
+                total_brv += getattr(hit_result, 'brv_damage', 0) or 0
+                total_hp += getattr(hit_result, 'hp_damage', 0) or 0
+            
+            result.brv_damage = total_brv
+            result.hp_damage = total_hp
+            result.message = f"3연타! BRV:{total_brv} HP:{total_hp}"
+            return result
 
         # 최종 배율 계산
         final_mult = self.multiplier
+        
+        # 트리플 히트 배율 적용
+        if context and context.get('_triple_hit_mult'):
+            final_mult *= context['_triple_hit_mult']
 
         # 기믹 보너스
         if self.gimmick_bonus:
@@ -191,12 +251,45 @@ class DamageEffect(SkillEffect):
             elif hp_percent < 0.5:
                 final_mult *= 1.5
         
+        # ========================================
+        # 마술사 카드 효과 적용
+        # ========================================
+        card_effects = getattr(user, 'card_effects', {})
+        self_damage_ratio = 0  # 자해 피해 비율
+        
+        # 듀얼리티 (2) - 피해 2배, 자해 50%
+        if "double_edge" in card_effects:
+            double_edge = card_effects["double_edge"]
+            final_mult *= double_edge.get("damage_mult", 2.0)
+            self_damage_ratio = double_edge.get("self_damage", 0.5)
+        
+        # 극한 (9) - 스킬 효과 +50%
+        skill_power_up = card_effects.get("skill_power_up", 0)
+        if skill_power_up > 0:
+            final_mult *= (1 + skill_power_up)
+        
+        # 방어 관통 (스페이드) - defense_pierce_fixed로 변환하여 전달
+        armor_pierce = card_effects.get("armor_pierce", 0)
+        if armor_pierce > 0:
+            if context is None:
+                context = {}
+            # 방어 관통 비율 (기존 defense_pierce_fixed 로직 활용)
+            context['defense_pierce_fixed'] = armor_pierce
+        
+        # 행운 (7) - 크리티컬 확정
+        if card_effects.get("lucky_drop"):
+            if context is None:
+                context = {}
+            context['force_critical'] = True
+        
         if self.damage_type == DamageType.BRV:
             # 물리/마법 구분
             # 탄환 정보를 kwargs에 전달 (관통탄 방어 관통력용)
             calc_kwargs = {}
             if context and 'defense_pierce_fixed' in context:
                 calc_kwargs['defense_pierce_fixed'] = context['defense_pierce_fixed']
+            if context and context.get('force_critical'):
+                calc_kwargs['force_critical'] = True
             
             if self.stat_type == "magical":
                 dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult, **calc_kwargs)
@@ -262,5 +355,128 @@ class DamageEffect(SkillEffect):
             result.message = f"BRV+HP 공격! BRV:{result.brv_damage} HP:{result.hp_damage}"
             if context is not None:
                 context['last_damage'] = result.hp_damage
+        
+        # ========================================
+        # 자해 피해 적용 (듀얼리티 등)
+        # ========================================
+        if self_damage_ratio > 0 and hasattr(result, 'hp_damage') and result.hp_damage:
+            self_damage = int(result.hp_damage * self_damage_ratio)
+            if self_damage > 0:
+                user.current_hp = max(1, user.current_hp - self_damage)  # 최소 1 HP 유지
+                result.message += f" (자해 {self_damage})"
+        elif self_damage_ratio > 0 and hasattr(result, 'brv_damage') and result.brv_damage:
+            # BRV 공격의 경우 BRV 데미지 기준 자해
+            self_damage = int(result.brv_damage * self_damage_ratio)
+            if self_damage > 0:
+                user.current_hp = max(1, user.current_hp - self_damage)
+                result.message += f" (자해 {self_damage})"
+        
+        # ========================================
+        # 흡혈 효과 적용 (하트)
+        # ========================================
+        lifesteal = card_effects.get("lifesteal", 0)
+        if lifesteal > 0 and hasattr(result, 'hp_damage') and result.hp_damage:
+            heal_amount = int(result.hp_damage * lifesteal)
+            if heal_amount > 0:
+                user.current_hp = min(user.max_hp, user.current_hp + heal_amount)
+                result.message += f" (흡혈 +{heal_amount})"
+        
+        # ========================================
+        # 독 효과 적용 (클럽)
+        # ========================================
+        poison_attack = card_effects.get("poison_attack")
+        if poison_attack and target and hasattr(target, 'status_manager'):
+            try:
+                from src.character.status_effect import StatusEffect, StatusType
+                poison_duration = poison_attack.get("duration", 3)
+                poison_damage = poison_attack.get("damage_percent", 0.05)
+                poison_effect = StatusEffect(
+                    StatusType.POISON,
+                    duration=poison_duration,
+                    damage_per_turn=int(target.max_hp * poison_damage)
+                )
+                target.status_manager.add_effect(poison_effect)
+                result.message += f" (독 {poison_duration}턴)"
+            except Exception:
+                pass
+        
+        # ========================================
+        # 저주 효과 적용 (6)
+        # ========================================
+        curse_target = card_effects.get("curse_target")
+        if curse_target and target and hasattr(target, 'status_manager'):
+            try:
+                from src.character.status_effect import StatusEffect, StatusType
+                curse_duration = curse_target.get("duration", 3)
+                curse_effect = StatusEffect(
+                    StatusType.CURSE,
+                    duration=curse_duration
+                )
+                target.status_manager.add_effect(curse_effect)
+                result.message += f" (저주 {curse_duration}턴)"
+            except Exception:
+                pass
+        
+        # ========================================
+        # 매스 스턴 적용 (K) - 적 전체 기절
+        # ========================================
+        mass_stun = card_effects.get("mass_stun")
+        if mass_stun and context:
+            enemies = context.get('all_enemies', [])
+            if enemies:
+                try:
+                    from src.character.status_effect import StatusEffect, StatusType
+                    stun_duration = mass_stun.get("duration", 1)
+                    stunned_count = 0
+                    for enemy in enemies:
+                        if hasattr(enemy, 'status_manager') and getattr(enemy, 'is_alive', False):
+                            stun_effect = StatusEffect(StatusType.STUN, duration=stun_duration)
+                            enemy.status_manager.add_effect(stun_effect)
+                            stunned_count += 1
+                    if stunned_count > 0:
+                        result.message += f" (전체 기절 {stunned_count}체)"
+                except Exception:
+                    pass
+        
+        # ========================================
+        # 파티 힐 적용 (Q) - 아군 전체 회복
+        # ========================================
+        party_heal = card_effects.get("party_heal", 0)
+        if party_heal > 0 and context:
+            allies = context.get('all_allies', [])
+            if allies:
+                healed_total = 0
+                for ally in allies:
+                    if hasattr(ally, 'current_hp') and getattr(ally, 'is_alive', False):
+                        heal_amount = int(ally.max_hp * party_heal)
+                        ally.current_hp = min(ally.max_hp, ally.current_hp + heal_amount)
+                        healed_total += heal_amount
+                if healed_total > 0:
+                    result.message += f" (아군 회복 +{healed_total})"
+        
+        # ========================================
+        # 버프→디버프 전환 (5)
+        # ========================================
+        if card_effects.get("reverse_buff") and target:
+            if hasattr(target, 'active_buffs') and target.active_buffs:
+                # 버프 하나를 디버프로 전환
+                buff_keys = list(target.active_buffs.keys())
+                if buff_keys:
+                    removed_buff = buff_keys[0]
+                    target.active_buffs.pop(removed_buff)
+                    if hasattr(target, 'active_debuffs'):
+                        target.active_debuffs[removed_buff] = {"value": 0.2, "duration": 2}
+                    result.message += f" ({removed_buff} 전환)"
+        
+        # ========================================
+        # 카드 효과 소모 (1회용)
+        # ========================================
+        if card_effects:
+            # 1회용 효과들 제거
+            for key in ["double_edge", "triple_hit", "first_strike", "armor_pierce", 
+                        "lifesteal", "poison_attack", "bonus_rewards", "mass_stun",
+                        "curse_target", "party_heal", "reverse_buff", "skill_power_up",
+                        "lucky_drop", "free_cast", "protect_ally"]:
+                card_effects.pop(key, None)
         
         return result

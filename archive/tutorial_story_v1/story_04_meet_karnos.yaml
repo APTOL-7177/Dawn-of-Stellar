@@ -1,0 +1,95 @@
+# 2장-1: 미래 전사 카르노와의 만남
+id: story_04_meet_karnos
+title: "미래에서 온 전사"
+order: 4
+category: story
+chapter: "chapter_2"
+enabled: true
+skippable: true
+
+description: |
+  시공 균열에서 나타난 전사...
+  그는 3000년 미래에서 왔다고 한다.
+
+objective: "카르노의 이야기를 들으세요"
+
+npc_guide: "karnos"
+
+# 스토리 씬
+story_scene:
+  background: "ruined_future_city"
+  ambient: "wind_debris"
+  bgm: "menu2.ogg"
+
+messages:
+  - text: "시공 균열에서 무언가가 나타난다..."
+    color: [200, 200, 200]
+    pause: 2.5
+    effect: "fade_in"
+    
+  - text: "미래 갑옷을 입은 전사가 모습을 드러낸다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+npc_dialogue:
+  - npc: "karnos"
+    text: "...잠깐."
+    pause: 1.5
+    portrait_animation: "hologram_flicker"
+    
+  - npc: "karnos"
+    text: "넌... 차원 항해사인가?"
+    pause: 2.0
+    
+  - npc: "selena"
+    text: "경고: 알 수 없는 시간대의 존재 감지."
+    pause: 2.0
+    color: [255, 255, 0]
+    
+  - npc: "karnos"
+    text: "AI군. 걱정 마라. 적이 아니다."
+    pause: 2.0
+    
+  - npc: "karnos"
+    text: "나는 카르노. 서기 3000년에서 왔다."
+    pause: 2.5
+    
+  - npc: "karnos"
+    text: "시공 전쟁... 수천 개의 시대가 충돌한 전쟁에서 살아남았지."
+    pause: 3.0
+    color: [255, 150, 150]
+    
+  - npc: "selena"
+    text: "3000년...? 미래에서 온 거예요?"
+    pause: 2.0
+    
+  - npc: "karnos"
+    text: "그렇다. 그리고 지금 이 상황... 내 시대의 시작점이다."
+    pause: 3.0
+    
+  - npc: "karnos"
+    text: "시공 교란으로 새로운 전투 법칙이 생겼다."
+    pause: 2.5
+    color: [255, 255, 0]
+    
+  - npc: "karnos"
+    text: "BRV... '용기'의 힘이다. 내가 가르쳐주마."
+    pause: 3.0
+    color: [0, 255, 255]
+
+# 완료 조건 - 대화 완료
+completion_condition:
+  type: "dialogue_complete"
+  message: "카르노가 당신의 스승이 되었습니다."
+
+# 보상
+rewards:
+  message: "새로운 동료를 만났습니다!"
+  unlock:
+    - type: "npc_bond"
+      npc: "karnos"
+      level: 1
+
+# 다음 단계
+next_step: "story_05_atb_system"

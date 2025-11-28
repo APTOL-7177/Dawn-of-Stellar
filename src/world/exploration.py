@@ -14,6 +14,7 @@ from src.world.dungeon_generator import DungeonMap
 from src.world.tile import Tile, TileType
 from src.world.fov import FOVSystem
 from src.core.logger import get_logger, Loggers
+from src.core.event_bus import event_bus, Events
 from src.audio import play_sfx
 
 # ExplorationEvent를 먼저 정의하여 import 순서 문제 방지
@@ -182,7 +183,6 @@ class ExplorationSystem:
         self.update_fov()
 
         # 장비 착용/해제 이벤트 구독 (시야 업데이트용)
-        from src.core.event_bus import event_bus, Events
         event_bus.subscribe(Events.EQUIPMENT_EQUIPPED, self._on_equipment_changed)
         event_bus.subscribe(Events.EQUIPMENT_UNEQUIPPED, self._on_equipment_changed)
 

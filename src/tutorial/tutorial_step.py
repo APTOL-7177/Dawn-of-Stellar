@@ -18,6 +18,20 @@ class CompletionType(Enum):
     MENU_OPENED = "menu_opened"  # 메뉴 열기
     ITEM_USED = "item_used"  # 아이템 사용
     EQUIPMENT_CHANGED = "equipment_changed"  # 장비 변경
+    # 스토리 튜토리얼용 새 타입
+    AUTO_COMPLETE = "auto_complete"  # 자동 완료 (컷신 후)
+    DIALOGUE_COMPLETE = "dialogue_complete"  # 대화 완료
+    ENEMY_DEFEATED = "enemy_defeated"  # 특정 적 처치
+    ATB_ACTION = "atb_action"  # ATB 행동 실행
+    JOB_GIMMICK_USED = "job_gimmick_used"  # 직업 기믹 사용
+    PARTY_MEMBER_ADDED = "party_member_added"  # 파티원 추가
+    PARTY_SIZE = "party_size"  # 파티 크기 조건
+    ITEM_RECEIVED = "item_received"  # 아이템 수령
+    EQUIPMENT_EQUIPPED = "equipment_equipped"  # 장비 장착
+    PASSIVE_EQUIPPED = "passive_equipped"  # 패시브 장착
+    DUNGEON_ENTERED = "dungeon_entered"  # 던전 진입
+    BOSS_DEFEATED = "boss_defeated"  # 보스 처치
+    CHECKLIST_COMPLETE = "checklist_complete"  # 체크리스트 완료
 
 
 @dataclass
@@ -213,7 +227,9 @@ class TutorialStep:
     ) -> bool:
         """다양한 스킬 사용 확인"""
         required_types = set(params.get("required_skill_types", []))
-        used_skill_types = set(game_state.get("used_skill_types", []))
+        # dict 등 hashable하지 않은 요소 필터링
+        raw_used = game_state.get("used_skill_types", [])
+        used_skill_types = set(str(s) for s in raw_used if not isinstance(s, dict))
         return required_types.issubset(used_skill_types)
 
     def _check_combat_action_sequence(

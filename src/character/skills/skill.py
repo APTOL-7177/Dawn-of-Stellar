@@ -234,6 +234,80 @@ class Skill:
                     current_timeline = getattr(user, 'timeline', 0)
                     if current_timeline != required_timeline:
                         return False, f"타임라인 {required_timeline}에서만 사용 가능합니다 (현재: {current_timeline})"
+            
+            # 마술사: 트릭 덱 조건 체크
+            if hasattr(user, 'gimmick_type') and user.gimmick_type == "trick_deck":
+                hand = getattr(user, 'card_hand', [])
+                
+                # 포커 조합 필요 스킬
+                if "required_combination" in self.metadata:
+                    required_combo = self.metadata.get("required_combination")
+                    from src.character.skills.job_skills.magician_skills import check_poker_combination
+                    current_combo, combo_cards, score = check_poker_combination(hand)
+                    
+                    # 조합 순위 (높을수록 좋음)
+                    combo_ranks = {
+                        "pair": 1,
+                        "two_pair": 2,
+                        "triple": 3,
+                        "straight": 4,
+                        "flush": 5,
+                        "full_house": 6,
+                        "four_of_kind": 7,
+                        "straight_flush": 8,
+                        "royal_straight_flush": 9
+                    }
+                    required_rank = combo_ranks.get(required_combo, 0)
+                    current_rank = combo_ranks.get(current_combo, 0)
+                    
+                    # 현재 조합이 필요 조합보다 낮으면 사용 불가
+                    if current_rank < required_rank:
+                        combo_names = {
+                            "pair": "원페어",
+                            "two_pair": "투페어",
+                            "triple": "트리플",
+                            "straight": "스트레이트",
+                            "flush": "플러시",
+                            "full_house": "풀하우스",
+                            "four_of_kind": "포카드",
+                            "straight_flush": "스트레이트 플러시",
+                            "royal_straight_flush": "로얄 스트레이트 플러시"
+                        }
+                        required_name = combo_names.get(required_combo, required_combo)
+                        current_name = combo_names.get(current_combo, "없음") if current_combo else "없음"
+                        return False, f"{required_name} 조합이 필요합니다 (현재: {current_name})"
+                
+                # 같은 무늬 카드 필요 스킬
+                if "required_same_suit" in self.metadata:
+                    required_count = self.metadata.get("required_same_suit")
+                    suit_groups = {}
+                    for card in hand:
+                        if not card.get('is_joker'):
+                            suit = card.get('suit')
+                            if suit not in suit_groups:
+                                suit_groups[suit] = 0
+                            suit_groups[suit] += 1
+                    
+                    max_same_suit = max(suit_groups.values()) if suit_groups else 0
+                    joker_count = sum(1 for c in hand if c.get('is_joker'))
+                    
+                    if max_same_suit + joker_count < required_count:
+                        return False, f"같은 무늬 카드 {required_count}장이 필요합니다 (현재 최대: {max_same_suit}장)"
+                
+                # 특정 숫자 카드 필요 스킬
+                if "required_rank" in self.metadata:
+                    required_rank = self.metadata.get("required_rank")
+                    has_required = any(c.get('rank') == required_rank for c in hand if not c.get('is_joker'))
+                    has_joker = any(c.get('is_joker') for c in hand)
+                    
+                    if not has_required and not has_joker:
+                        return False, f"{required_rank} 카드가 필요합니다"
+                
+                # 조커 필요 스킬
+                if self.metadata.get("required_joker"):
+                    has_joker = any(c.get('is_joker') for c in hand)
+                    if not has_joker:
+                        return False, "조커 카드가 필요합니다"
         
         return True, ""
 
@@ -286,6 +360,29 @@ class Skill:
                 pass
             else:
                 # combat_manager도 없고 리스트도 아니면 단일 타겟을 리스트로 변환
+                target = [target] if target else []
+
+        # target_type이 "party"인 경우 (팀워크 스킬 등), 아군 전체 가져오기
+        if hasattr(self, 'target_type') and self.target_type == "party":
+            combat_manager = context.get('combat_manager')
+            party = context.get('party')
+            if combat_manager:
+                # 아군 전체를 타겟으로 설정
+                if hasattr(combat_manager, 'allies') and user in getattr(combat_manager, 'allies', []):
+                    target = [ally for ally in getattr(combat_manager, 'allies', []) if getattr(ally, 'is_alive', True)]
+                else:
+                    target = getattr(combat_manager, 'allies', [])
+            elif party:
+                # party 객체에서 멤버 가져오기
+                if hasattr(party, 'members'):
+                    target = [m for m in party.members if getattr(m, 'is_alive', True)]
+                elif hasattr(party, '__iter__'):
+                    target = [m for m in party if getattr(m, 'is_alive', True)]
+                else:
+                    target = [target] if target else []
+            elif isinstance(target, list):
+                pass
+            else:
                 target = [target] if target else []
 
         # 비용 소비

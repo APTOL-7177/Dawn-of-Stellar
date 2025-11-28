@@ -1,0 +1,104 @@
+# 2장-4: BREAK 시스템 마스터
+id: story_07_break_mastery
+title: "BREAK의 비밀"
+order: 7
+category: story
+chapter: "chapter_2"
+enabled: true
+skippable: true
+
+description: |
+  적의 BRV를 정확히 0으로 만들면 BREAK!
+  보너스 데미지와 스턴 효과를 얻는다.
+
+objective: "적을 BREAK시키고 HP 공격으로 마무리"
+
+npc_guide: "karnos"
+
+# 전투 튜토리얼 설정
+combat_tutorial:
+  enabled: true
+  bgm: "battle.ogg"
+  spawn_enemy:
+    type: "training_dummy"
+    name: "훈련용 시간 왜곡체"
+    hp: 150
+    brv: 100  # 낮은 BRV로 BREAK 쉽게
+    passive: true
+
+messages:
+  - text: "이제 BREAK를 배울 차례다."
+    color: [255, 100, 100]
+    pause: 2.0
+    effect: "typing"
+
+npc_dialogue:
+  - npc: "karnos"
+    text: "BRV 시스템의 핵심... BREAK다."
+    pause: 2.5
+    
+  - npc: "karnos"
+    text: "적의 BRV를 정확히 0으로 만들면 BREAK가 발동한다."
+    pause: 3.0
+    color: [255, 255, 0]
+    highlight: "enemy_brv"
+    
+  - npc: "karnos"
+    text: "BREAK 효과: HP 공격 데미지 +50%, 적 1턴 스턴."
+    pause: 3.0
+    color: [0, 255, 0]
+    
+  - npc: "karnos"
+    text: "3000년 전쟁에서... BREAK를 노리는 게 생존의 핵심이었다."
+    pause: 3.0
+    
+  - npc: "karnos"
+    text: "적의 BRV를 확인해라. BRV 공격으로 계속 깎아라."
+    pause: 3.0
+    highlight: "enemy_brv"
+    
+  - npc: "karnos"
+    text: "BRV가 0이 되면 BREAK! 직접 해봐라."
+    pause: 2.5
+    color: [255, 255, 0]
+
+# 완료 조건
+completion_condition:
+  type: "combat_action_sequence"
+  required_sequence:
+    - action: "brv_attack"
+      result: "break_enemy"
+    - action: "hp_attack"
+      target: "same_enemy"
+      with_break_bonus: true
+  message: "완벽하다! 진정한 전사의 기본을 익혔군."
+
+# 힌트
+hints:
+  - text: "적 BRV를 확인하고 BRV 공격을 계속 하세요."
+    trigger_time: 10.0
+    npc: "karnos"
+    
+  - text: "BREAK! 표시가 나오면 바로 HP 공격하세요!"
+    trigger_time: 20.0
+    npc: "karnos"
+
+# UI 강조
+ui_highlights:
+  - element: "enemy_brv"
+    color: [255, 0, 0]
+    pulse: true
+    description: "적 BRV"
+    
+  - element: "break_indicator"
+    color: [255, 255, 0]
+    pulse: true
+    description: "BREAK 표시"
+
+# 보상
+rewards:
+  stellar_fragments: 10  # 별의 파편 (메타 진행 해금용)
+  message: "BREAK 마스터! 전투의 핵심을 익혔습니다!"
+
+# 다음 단계
+next_step: "story_08_meet_mira"

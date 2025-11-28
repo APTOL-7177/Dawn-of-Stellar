@@ -186,7 +186,7 @@ def create_bard_skills():
     )
     compose.effects = [
         # 효과는 execute_skill에서 음표 패턴에 따라 적용
-        BuffEffect(BuffType.ATTACK_UP, 0.1, duration=2),  # 기본 효과
+        BuffEffect(BuffType.ATTACK_UP, 0.1, duration=2, target="self"),  # 기본 효과
     ]
     compose.costs = [MPCost(6)]
     compose.target_type = "all_allies"
@@ -214,7 +214,7 @@ def create_bard_skills():
     )
     improvise.effects = [
         DamageEffect(DamageType.BRV, 1.6, stat_type="magic"),
-        BuffEffect(BuffType.SPEED_UP, 0.15, duration=2),
+        BuffEffect(BuffType.SPEED_UP, 0.15, duration=2, target="self"),
     ]
     improvise.costs = [MPCost(8)]
     improvise.sfx = ("skill", "haste")

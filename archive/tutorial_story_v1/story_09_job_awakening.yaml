@@ -1,0 +1,91 @@
+# 3장-2: 직업 각성
+id: story_09_job_awakening
+title: "재능의 각성"
+order: 9
+category: story
+chapter: "chapter_3"
+enabled: true
+skippable: true
+
+description: |
+  시공의 에너지가 당신 안에 잠든 재능을 깨운다.
+  선택한 직업의 기믹을 배우게 된다.
+
+objective: "직업 기믹을 사용해보세요"
+
+npc_guide: "mira"
+
+# 직업별 분기 대사
+job_specific_dialogue:
+  warrior:
+    intro: "전사의 길! 6가지 스탠스를 자유롭게 바꿀 수 있어요!"
+    explanation: "공격 자세, 방어 자세, 속도 자세... 상황에 맞게 변신하세요!"
+    
+  archmage:
+    intro: "마법의 길! 원소를 조합해서 강력한 마법을 써요!"
+    explanation: "화염, 빙결, 번개... 세 가지 원소를 조합하면 대폭발!"
+    
+  knight:
+    intro: "기사도의 길! 동료를 지키는 수호자예요!"
+    explanation: "의무 스택을 쌓아서 파티 전체를 보호할 수 있어요!"
+    
+  cleric:
+    intro: "신앙의 길! 치유와 보호의 전문가예요!"
+    explanation: "신앙 포인트로 강력한 힐과 버프를 사용할 수 있어요!"
+    
+  # 기본 대사 (다른 직업용)
+  default:
+    intro: "특별한 재능이에요! 이 직업만의 기믹이 있답니다!"
+    explanation: "직업 고유의 게이지나 스택을 잘 활용하면 강해질 수 있어요!"
+
+messages:
+  - text: "시공의 에너지가 당신을 감싼다..."
+    color: [255, 200, 100]
+    pause: 2.5
+    effect: "fade_in"
+    screen_effect: "temporal_shimmer"
+
+npc_dialogue:
+  - npc: "mira"
+    text: "오! 느껴져요! 당신의 재능이 깨어나고 있어요!"
+    pause: 2.5
+    
+  - npc: "mira"
+    text: "{job_intro}"  # 직업별 대사로 치환됨
+    pause: 3.0
+    color: [0, 255, 255]
+    dynamic: true
+    
+  - npc: "mira"
+    text: "{job_explanation}"  # 직업별 설명으로 치환됨
+    pause: 3.5
+    dynamic: true
+    
+  - npc: "karnos"
+    text: "기믹을 이해하는 것이 중요하다. 직접 써봐라."
+    pause: 2.5
+    
+  - npc: "selena"
+    text: "직업 고유 능력을 사용하면 전투 효율이 크게 올라가요."
+    pause: 3.0
+
+# 완료 조건 - 직업 기믹 사용
+completion_condition:
+  type: "job_gimmick_used"
+  min_uses: 1
+  message: "훌륭해요! 직업 기믹을 이해했어요!"
+
+hints:
+  - text: "직업 고유 스킬을 사용해보세요. 스킬 목록(K)에서 확인할 수 있어요."
+    trigger_time: 15.0
+    npc: "mira"
+    
+  - text: "직업마다 특별한 게이지나 스택이 있어요. UI를 확인해보세요!"
+    trigger_time: 25.0
+    npc: "mira"
+
+rewards:
+  stellar_fragments: 20  # 별의 파편 (메타 진행 해금용)
+  message: "직업의 힘이 각성했습니다!"
+
+next_step: "story_10_party_intro"

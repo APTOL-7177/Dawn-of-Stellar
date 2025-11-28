@@ -22,7 +22,7 @@ def create_paladin_skills():
     ]
     holy_strike.costs = []  # 기본 공격은 MP 소모 없음
     holy_strike.sfx = ("combat", "attack_physical")  # 성스러운 일격
-    holy_strike.metadata = {"holy_power_gain": 1}
+    holy_strike.metadata = {"basic_attack": True, "holy_power_gain": 1}
     skills.append(holy_strike)
 
     # 2. 기본 HP: 신성한 심판
@@ -33,7 +33,7 @@ def create_paladin_skills():
     ]
     divine_judgment.costs = []  # 기본 공격은 MP 소모 없음
     divine_judgment.sfx = ("skill", "cast_complete")  # 신성한 심판
-    divine_judgment.metadata = {"holy_power_cost": 1, "holy_power_scaling": True}
+    divine_judgment.metadata = {"basic_attack": True, "holy_power_cost": 1, "holy_power_scaling": True}
     skills.append(divine_judgment)
 
     # 3. 신성한 보호막
@@ -65,7 +65,7 @@ def create_paladin_skills():
     # 5. 성스러운 빛
     holy_light = Skill("paladin_holy_light", "성스러운 빛", "아군 치유 + 성력")
     holy_light.effects = [
-        HealEffect(HealType.HP, percentage=0.79),  # 성스러운 빛 (0.35 → 0.79 증가)
+        HealEffect(HealType.HP, percentage=0.45),  # 성스러운 빛 (탱커 기준 적정 회복량)
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
     holy_light.costs = [MPCost(5)]

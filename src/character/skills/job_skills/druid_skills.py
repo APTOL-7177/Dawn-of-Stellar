@@ -75,8 +75,8 @@ def create_druid_skills():
     )
     bear_form.effects = [
         DamageEffect(DamageType.BRV, 1.6, stat_type="magic"),
-        BuffEffect(BuffType.DEFENSE_UP, 0.50, duration=4),
-        BuffEffect(BuffType.ATTACK_UP, 0.25, duration=4),
+        BuffEffect(BuffType.DEFENSE_UP, 0.50, duration=4, target="self"),
+        BuffEffect(BuffType.ATTACK_UP, 0.25, duration=4, target="self"),
         GimmickEffect(GimmickOperation.ADD, "nature_points", 1, max_value=5)
     ]
     bear_form.costs = [MPCost(5)]
@@ -99,8 +99,8 @@ def create_druid_skills():
     )
     cat_form.effects = [
         DamageEffect(DamageType.BRV, 1.5, stat_type="magic"),
-        BuffEffect(BuffType.SPEED_UP, 0.60, duration=4),
-        BuffEffect(BuffType.EVASION_UP, 0.35, duration=4),
+        BuffEffect(BuffType.SPEED_UP, 0.60, duration=4, target="self"),
+        BuffEffect(BuffType.EVASION_UP, 0.35, duration=4, target="self"),
         GimmickEffect(GimmickOperation.ADD, "nature_points", 1, max_value=5)
     ]
     cat_form.costs = [MPCost(5)]
@@ -145,7 +145,7 @@ def create_druid_skills():
     nature_blessing.effects = [
         GimmickEffect(GimmickOperation.SET, "nature_points", 5),
         BuffEffect(BuffType.REGEN, 0.08, duration=4),
-        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=4)
+        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=4, target="self")
     ]
     nature_blessing.costs = [MPCost(7)]
     nature_blessing.target_type = "self"
@@ -167,7 +167,7 @@ def create_druid_skills():
     eagle_form.effects = [
         DamageEffect(DamageType.BRV_HP, 2.0, stat_type="magic",
                     gimmick_bonus={"field": "nature_points", "multiplier": 0.3}),
-        BuffEffect(BuffType.SPEED_UP, 0.4, duration=3),
+        BuffEffect(BuffType.SPEED_UP, 0.4, duration=3, target="self"),
         GimmickEffect(GimmickOperation.CONSUME, "nature_points", 3)
     ]
     eagle_form.costs = [MPCost(9), StackCost("nature_points", 3)]
@@ -191,7 +191,7 @@ def create_druid_skills():
         DamageEffect(DamageType.BRV, 1.8, stat_type="magic",
                     gimmick_bonus={"field": "nature_points", "multiplier": 0.3}),
         DamageEffect(DamageType.HP, 1.4, stat_type="magic"),
-        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3),
+        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3, target="self"),
         GimmickEffect(GimmickOperation.CONSUME, "nature_points", 4)
     ]
     wolf_form.costs = [MPCost(11), StackCost("nature_points", 4)]
@@ -243,9 +243,9 @@ def create_druid_skills():
         DamageEffect(DamageType.BRV, 2.5, stat_type="magic"),
         DamageEffect(DamageType.BRV, 2.5, stat_type="magic"),
         DamageEffect(DamageType.HP, 2.5, stat_type="magic"),
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
-        BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=5),
-        BuffEffect(BuffType.SPEED_UP, 0.5, duration=5),
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="self"),
+        BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=5, target="self"),
+        BuffEffect(BuffType.SPEED_UP, 0.5, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "nature_points", 5)
     ]
     ultimate.costs = [MPCost(30)]

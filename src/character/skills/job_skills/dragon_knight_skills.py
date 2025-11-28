@@ -66,7 +66,7 @@ def create_dragon_knight_skills():
     dragon_rage = Skill("dragon_knight_dragon_rage", "용의 분노", "용표 1개 획득 + 버프")
     dragon_rage.effects = [
         GimmickEffect(GimmickOperation.ADD, "dragon_marks", 1, max_value=3),
-        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=4)
+        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=4, target="self")
     ]
     dragon_rage.costs = [MPCost(6)]
     dragon_rage.target_type = "self"
@@ -78,7 +78,7 @@ def create_dragon_knight_skills():
     # 6. 용의 비늘
     dragon_scales = Skill("dragon_knight_dragon_scales", "용의 비늘", "방어 태세")
     dragon_scales.effects = [
-        BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=3),
+        BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=3, target="self"),
         GimmickEffect(GimmickOperation.ADD, "dragon_power", 2, max_value=5)
     ]
     dragon_scales.costs = [MPCost(3)]
@@ -161,9 +161,9 @@ def create_dragon_knight_skills():
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "dragon_power", "multiplier": 0.4}),
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "dragon_power", "multiplier": 0.4}),
         DamageEffect(DamageType.HP, 3.0, gimmick_bonus={"field": "dragon_power", "multiplier": 0.6}),
-        BuffEffect(BuffType.ATTACK_UP, 0.8, duration=6),
-        BuffEffect(BuffType.CRITICAL_UP, 0.6, duration=6),
-        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=6),
+        BuffEffect(BuffType.ATTACK_UP, 0.8, duration=6, target="self"),
+        BuffEffect(BuffType.CRITICAL_UP, 0.6, duration=6, target="self"),
+        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=6, target="self"),
         GimmickEffect(GimmickOperation.ADD, "dragon_marks", 1, max_value=3),  # 용표 1개 획득
         GimmickEffect(GimmickOperation.CONSUME, "dragon_marks", 3)  # 용표 소비
     ]

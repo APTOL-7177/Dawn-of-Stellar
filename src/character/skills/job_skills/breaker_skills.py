@@ -74,7 +74,7 @@ def create_breaker_skills():
         "파괴에 집중. 공격력 +35% (4턴) + 파괴력 +2."
     )
     brv_focus.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.35, duration=4),
+        BuffEffect(BuffType.ATTACK_UP, 0.35, duration=4, target="self"),
         GimmickEffect(GimmickOperation.ADD, "break_power", 2, max_value=10)
     ]
     brv_focus.costs = [MPCost(4)]
@@ -118,7 +118,7 @@ def create_breaker_skills():
     )
     enhance.effects = [
         GimmickEffect(GimmickOperation.ADD, "break_power", 5, max_value=10),
-        BuffEffect(BuffType.CRITICAL_UP, 0.25, duration=3)
+        BuffEffect(BuffType.CRITICAL_UP, 0.25, duration=3, target="self")
     ]
     enhance.costs = [MPCost(6)]
     enhance.target_type = "self"
@@ -204,8 +204,8 @@ def create_breaker_skills():
     )
     devastation.effects = [
         GimmickEffect(GimmickOperation.SET, "break_power", 10),
-        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=4),
-        BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=4)
+        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=4, target="self"),
+        BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=4, target="self")
     ]
     devastation.costs = [MPCost(12)]
     devastation.target_type = "self"
@@ -230,7 +230,7 @@ def create_breaker_skills():
         DamageEffect(DamageType.BRV, 2.5, stat_type="physical",
                     gimmick_bonus={"field": "break_power", "multiplier": 0.3}),
         DamageEffect(DamageType.HP, 3.5, stat_type="physical"),
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5),
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "break_power", 0)
     ]
     ultimate.costs = [MPCost(30)]

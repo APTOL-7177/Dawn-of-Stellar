@@ -73,8 +73,6 @@ class TeamworkSkill(Skill):
     def can_use(
         self,
         user: Any,
-        party: Optional[Any] = None,
-        chain_count: int = 1,
         context: Optional[Dict[str, Any]] = None
     ) -> Tuple[bool, str]:
         """
@@ -82,27 +80,32 @@ class TeamworkSkill(Skill):
 
         Args:
             user: 스킬 사용자 (Character)
-            party: 파티 (Party 인스턴스) - 게이지 체크용
-            chain_count: 연쇄 단계
-            context: 추가 컨텍스트
+            context: 추가 컨텍스트 (party, chain_count 포함 가능)
 
         Returns:
             (사용 가능 여부, 이유 메시지)
         """
+        context = context or {}
+        
         # 기본 상태 체크 (부모 클래스)
         can_use_base, reason_base = super().can_use(user, context)
         if not can_use_base:
             return False, reason_base
+
+        # context에서 party와 chain_count 추출
+        party = context.get('party')
+        chain_count = context.get('chain_count', 1)
 
         # 파티 없으면 사용 불가
         if party is None:
             return False, "파티 정보가 없습니다"
 
         # 팀워크 게이지 체크
-        if party.teamwork_gauge < self.teamwork_cost.gauge:
+        teamwork_gauge = getattr(party, 'teamwork_gauge', 0)
+        if teamwork_gauge < self.teamwork_cost.gauge:
             return False, (
                 f"팀워크 게이지 부족 "
-                f"(필요: {self.teamwork_cost.gauge}, 현재: {party.teamwork_gauge})"
+                f"(필요: {self.teamwork_cost.gauge}, 현재: {teamwork_gauge})"
             )
 
         # MP 체크 (시작자가 아니면)

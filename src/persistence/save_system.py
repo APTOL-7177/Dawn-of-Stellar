@@ -81,9 +81,13 @@ class SaveSystem:
                     game_state["max_teamwork_gauge"] = combat_manager.party.max_teamwork_gauge
                     logger.info(f"팀워크 게이지 저장됨: {combat_manager.party.teamwork_gauge}/{combat_manager.party.max_teamwork_gauge}")
                 else:
-                    # 전투 중이 아니면 기본값 저장
-                    game_state.setdefault("teamwork_gauge", 0)
-                    game_state.setdefault("max_teamwork_gauge", 600)
+                    # 전투 중이 아니면 마지막 저장된 값 사용
+                    import src.persistence.save_system as save_module
+                    saved_gauge = getattr(save_module, '_last_loaded_teamwork_gauge', 0)
+                    saved_max = getattr(save_module, '_last_loaded_max_teamwork_gauge', 600)
+                    game_state["teamwork_gauge"] = saved_gauge
+                    game_state["max_teamwork_gauge"] = saved_max
+                    logger.info(f"팀워크 게이지 저장됨 (캐시): {saved_gauge}/{saved_max}")
             except Exception as e:
                 logger.warning(f"팀워크 게이지 저장 실패: {e}")
 

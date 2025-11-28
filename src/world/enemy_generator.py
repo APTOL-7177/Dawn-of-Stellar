@@ -7,6 +7,7 @@
 from typing import List, Dict, Any
 import random
 from src.core.logger import get_logger
+from src.combat.status_effects import StatusManager
 
 # 로거 설정
 logger = get_logger("enemy")
@@ -621,7 +622,8 @@ class SimpleEnemy:
 
         # 상태
         self.is_alive = True
-        self.status_effects = {}
+        self.status_manager = StatusManager(owner_name=self.name, owner=self)
+        self.status_effects = self.status_manager.status_effects  # 하위 호환성
         self.wound_damage = 0
 
         # 스킬 (간단하게)

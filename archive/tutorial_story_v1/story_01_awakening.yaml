@@ -1,0 +1,81 @@
+# 1장-1: 뒤섞인 세계에서의 각성
+id: story_01_awakening
+title: "뒤섞인 세계"
+order: 1
+category: story
+chapter: "chapter_1"
+enabled: true
+skippable: true
+
+description: |
+  시공간이 뒤섞인 세계...
+  중세 마을에 미래 기술이 널려 있다.
+  
+objective: "주변을 둘러보세요"
+
+npc_guide: "selena"
+bgm: "menu.ogg"
+
+messages:
+  - text: "여기가... 어디죠?"
+    color: [200, 200, 200]
+    pause: 2.0
+    effect: "typing"
+
+npc_dialogue:
+  - npc: "selena"
+    text: "현재 위치를 분석 중... 결과가 이상해요."
+    pause: 2.0
+    
+  - npc: "selena"
+    text: "건물 양식은 중세 유럽... 하지만 곳곳에 미래 기술이 있어요."
+    pause: 3.0
+    
+  - npc: "selena"
+    text: "시공 교란으로 과거, 현재, 미래가 뒤섞인 것 같아요."
+    pause: 3.0
+    color: [255, 200, 100]
+    
+  - npc: "selena"
+    text: "일단 주변을 둘러봐야 해요. 방향키로 이동할 수 있어요."
+    pause: 2.5
+    highlight: "controls"
+
+# 완료 조건
+completion_condition:
+  type: "position_reached"
+  target_x: 5
+  target_y: 5
+  radius: 2
+  message: "좋아요! 이동 방법을 익혔네요."
+
+# 힌트
+hints:
+  - text: "방향키(↑↓←→)로 상하좌우 이동이 가능해요."
+    trigger_time: 8.0
+    npc: "selena"
+    
+  - text: "빛나는 지점으로 가보세요."
+    trigger_time: 15.0
+    npc: "selena"
+
+# UI 강조
+ui_highlights:
+  - element: "player"
+    color: [255, 255, 0]
+    pulse: true
+    description: "당신"
+    
+  - element: "target_position"
+    x: 5
+    y: 5
+    color: [0, 255, 0]
+    pulse: true
+    description: "목표 지점"
+
+# 보상
+rewards:
+  message: "이동 기본을 익혔습니다!"
+
+# 다음 단계
+next_step: "story_02_first_steps"

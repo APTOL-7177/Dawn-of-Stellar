@@ -32,7 +32,7 @@ def create_philosopher_skills():
     choose_power = Skill("philosopher_choose_power", "힘 선택", "물리 공격력 +50% (3턴)")
     choose_power.effects = [
         GimmickEffect(GimmickOperation.ADD, "choice_power", 1, max_value=99),  # 힘 선택 카운트 +1
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=3),
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=3, target="self"),
         DamageEffect(DamageType.BRV, 1.8, stat_type="physical")
     ]
     choose_power.costs = []
@@ -45,7 +45,7 @@ def create_philosopher_skills():
     choose_wisdom = Skill("philosopher_choose_wisdom", "지혜 선택", "마법 공격력 +50% (3턴)")
     choose_wisdom.effects = [
         GimmickEffect(GimmickOperation.ADD, "choice_wisdom", 1, max_value=99),  # 지혜 선택 카운트 +1
-        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=3),
+        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=3, target="self"),
         DamageEffect(DamageType.BRV, 1.8, stat_type="magical")
     ]
     choose_wisdom.costs = [MPCost(6)]
@@ -59,7 +59,7 @@ def create_philosopher_skills():
     choose_sacrifice.effects = [
         GimmickEffect(GimmickOperation.ADD, "choice_sacrifice", 1, max_value=99),  # 희생 선택 카운트 +1
         HealEffect(percentage=0.44),  # 희생 선택 (0.36 → 0.44 증가)
-        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=3)
+        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=3, target="self")
     ]
     choose_sacrifice.costs = [MPCost(7)]
     choose_sacrifice.target_type = "ally"
@@ -72,7 +72,7 @@ def create_philosopher_skills():
     choose_survival.effects = [
         GimmickEffect(GimmickOperation.ADD, "choice_survival", 1, max_value=99),  # 생존 선택 카운트 +1
         HealEffect(percentage=0.44),  # 생존 선택 (0.36 → 0.44 증가)
-        BuffEffect(BuffType.EVASION_UP, 0.3, duration=3)
+        BuffEffect(BuffType.EVASION_UP, 0.3, duration=3, target="self")
     ]
     choose_survival.costs = [MPCost(7)]
     choose_survival.target_type = "self"
@@ -98,8 +98,8 @@ def create_philosopher_skills():
     choose_lie.effects = [
         GimmickEffect(GimmickOperation.ADD, "choice_lie", 1, max_value=99),  # 거짓 선택 카운트 +1
         DamageEffect(DamageType.BRV, 1.6, stat_type="magical"),
-        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=4),
-        BuffEffect(BuffType.SPEED_UP, 0.3, duration=4)
+        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=4, target="self"),
+        BuffEffect(BuffType.SPEED_UP, 0.3, duration=4, target="self")
     ]
     choose_lie.costs = [MPCost(6)]
     choose_lie.target_type = "self"
@@ -118,10 +118,10 @@ def create_philosopher_skills():
         GimmickEffect(GimmickOperation.SET, "choice_truth", 0),
         GimmickEffect(GimmickOperation.SET, "choice_lie", 0),
         # 균형 버프 (모든 스탯 +30%)
-        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=5),
-        BuffEffect(BuffType.MAGIC_UP, 0.3, duration=5),
-        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=5),
-        BuffEffect(BuffType.SPEED_UP, 0.3, duration=5),
+        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=5, target="self"),
+        BuffEffect(BuffType.MAGIC_UP, 0.3, duration=5, target="self"),
+        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=5, target="self"),
+        BuffEffect(BuffType.SPEED_UP, 0.3, duration=5, target="self"),
         DamageEffect(DamageType.BRV_HP, 2.5, stat_type="magical")
     ]
     balanced_philosophy.costs = [MPCost(12)]
@@ -140,10 +140,10 @@ def create_philosopher_skills():
                     gimmick_bonus={"field": "choice_wisdom", "multiplier": 0.05}),
         DamageEffect(DamageType.HP, 5.0, stat_type="magical"),
         # 모든 선택 효과 동시 발동
-        BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5),
-        BuffEffect(BuffType.MAGIC_UP, 0.8, duration=5),
-        BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5),
-        BuffEffect(BuffType.SPEED_UP, 0.5, duration=5),
+        BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5, target="self"),
+        BuffEffect(BuffType.MAGIC_UP, 0.8, duration=5, target="self"),
+        BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5, target="self"),
+        BuffEffect(BuffType.SPEED_UP, 0.5, duration=5, target="self"),
         # 선택 누적 유지 (초기화하지 않음)
     ]
     ultimate.costs = [MPCost(30)]

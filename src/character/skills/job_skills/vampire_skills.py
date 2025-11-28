@@ -70,8 +70,8 @@ def create_vampire_skills():
     # 6. 안개 형상 (회피 증가 + 갈증 증가)
     mist_form = Skill("vampire_mist_form", "안개 형상", "안개가 되어 회피 증가, 갈증 상승")
     mist_form.effects = [
-        BuffEffect(BuffType.EVASION_UP, 0.6, duration=3),
-        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3),
+        BuffEffect(BuffType.EVASION_UP, 0.6, duration=3, target="self"),
+        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3, target="self"),
         GimmickEffect(GimmickOperation.ADD, "thirst", 15, max_value=100)  # 갈증 +15 (변신 비용)
     ]
     mist_form.costs = [MPCost(4)]
@@ -84,7 +84,7 @@ def create_vampire_skills():
     prepare_frenzy = Skill("vampire_prepare_frenzy", "광란 준비", "갈증을 대폭 증가시켜 극심 구간으로")
     prepare_frenzy.effects = [
         GimmickEffect(GimmickOperation.ADD, "thirst", 40, max_value=100),  # 갈증 +40 (극심 구간으로)
-        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3)
+        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3, target="self")
     ]
     prepare_frenzy.costs = [MPCost(9)]
     prepare_frenzy.target_type = "self"
@@ -109,7 +109,7 @@ def create_vampire_skills():
     blood_satiation.effects = [
         GimmickEffect(GimmickOperation.SET, "thirst", 0),  # 갈증 0으로 리셋
         HealEffect(percentage=0.6),  # 혈액 만족
-        BuffEffect(BuffType.SPEED_UP, 0.3, duration=3)
+        BuffEffect(BuffType.SPEED_UP, 0.3, duration=3, target="self")
     ]
     blood_satiation.costs = [MPCost(10)]
     blood_satiation.target_type = "self"
@@ -126,7 +126,7 @@ def create_vampire_skills():
         DamageEffect(DamageType.HP, 4.0, stat_type="magical",
                     gimmick_bonus={"field": "thirst", "multiplier": 0.03}),
         HealEffect(percentage=0.95),  # 궁극기
-        BuffEffect(BuffType.ATTACK_UP, 1.0, duration=4),  # 공격력 +100%
+        BuffEffect(BuffType.ATTACK_UP, 1.0, duration=4, target="self"),  # 공격력 +100%
         GimmickEffect(GimmickOperation.ADD, "thirst", 20, max_value=100)  # 갈증 +20 (궁극기 사용 비용)
     ]
     ultimate.costs = [MPCost(30)]

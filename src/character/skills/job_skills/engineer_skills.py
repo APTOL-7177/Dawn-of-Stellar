@@ -17,7 +17,8 @@ def create_engineer_skills():
         GimmickEffect(GimmickOperation.ADD, "heat", 15, max_value=100)
     ]
     turret_shot.costs = []  # 기본 공격은 MP 소모 없음
-    turret_shot.metadata = {"heat_change": 15}
+    turret_shot.sfx = ("combat", "gun_shot")
+    turret_shot.metadata = {"heat_change": 15, "basic_attack": True}
 
     # 2. 기본 HP: 로켓 펀치
     rocket_punch = Skill("engineer_rocket_punch", "로켓 펀치", "단일 강타, 열 +25")
@@ -26,7 +27,8 @@ def create_engineer_skills():
         GimmickEffect(GimmickOperation.ADD, "heat", 25, max_value=100)
     ]
     rocket_punch.costs = []  # 기본 공격은 MP 소모 없음
-    rocket_punch.metadata = {"heat_change": 25}
+    rocket_punch.sfx = ("combat", "attack_physical")
+    rocket_punch.metadata = {"heat_change": 25, "basic_attack": True}
 
     # 3. 과열 포격 (위험 구간에서 강력함)
     overload_blast = Skill("engineer_overload_blast", "과열 포격",
@@ -37,6 +39,7 @@ def create_engineer_skills():
         GimmickEffect(GimmickOperation.ADD, "heat", 35, max_value=100)
     ]
     overload_blast.costs = []
+    overload_blast.sfx = ("skill", "explosion")
     overload_blast.metadata = {"heat_change": 35, "danger_zone_bonus": True}
 
     # 4. EMP 폭발 (광역 공격)
@@ -49,6 +52,7 @@ def create_engineer_skills():
     emp_explosion.costs = [MPCost(9)]
     emp_explosion.target_type = "all_enemies"
     emp_explosion.is_aoe = True
+    emp_explosion.sfx = ("skill", "elemental")
     emp_explosion.metadata = {"heat_change": 40}
 
     # 5. 냉각 벤트 (열 감소 + 방어 버프)
@@ -60,6 +64,7 @@ def create_engineer_skills():
     ]
     cooling_vent.costs = [MPCost(5)]
     cooling_vent.target_type = "self"
+    cooling_vent.sfx = ("skill", "cast_complete")
     cooling_vent.metadata = {"heat_change": -30}
 
     # 6. 오버클럭 모드 (위험 구간 패널티 제거)
@@ -73,6 +78,7 @@ def create_engineer_skills():
     overclock_mode.costs = [MPCost(11)]
     overclock_mode.target_type = "self"
     # overclock_mode.cooldown = 5  # 쿨다운 시스템 제거됨
+    overclock_mode.sfx = ("character", "status_buff")
     overclock_mode.metadata = {"heat_change": 20, "overclock": True}
 
     # 7. 긴급 수리 (회복 + 열 감소)
@@ -85,6 +91,7 @@ def create_engineer_skills():
     emergency_repair.costs = [MPCost(9)]
     emergency_repair.target_type = "self"
     # emergency_repair.cooldown = 4  # 쿨다운 시스템 제거됨
+    emergency_repair.sfx = ("character", "hp_heal")
     emergency_repair.metadata = {"heat_change": -40}
 
     # 8. 보호막 생성기 (방어막 생성)
@@ -97,6 +104,7 @@ def create_engineer_skills():
     shield_generator.costs = [MPCost(6)]
     shield_generator.target_type = "self"
     # shield_generator.cooldown = 4  # 쿨다운 시스템 제거됨
+    shield_generator.sfx = ("skill", "protect")
     shield_generator.metadata = {"heat_change": 15, "shield": True}
 
     # 9. 드론 배치 (지원 공격)
@@ -109,6 +117,7 @@ def create_engineer_skills():
     deploy_drone.costs = [MPCost(6)]
     deploy_drone.target_type = "self"
     # deploy_drone.cooldown = 3  # 쿨다운 시스템 제거됨
+    deploy_drone.sfx = ("skill", "summon")
     deploy_drone.metadata = {"heat_change": 10, "drone": True}
 
     # 10. 궁극기: 메가 블래스터 (현재 열에 비례한 피해)
@@ -124,6 +133,7 @@ def create_engineer_skills():
     mega_blaster.costs = [MPCost(30)]
     mega_blaster.is_ultimate = True
     mega_blaster.cooldown = 15  # 궁극기 쿨타임 15턴
+    mega_blaster.sfx = ("skill", "limit_break")
     mega_blaster.metadata = {"heat_change": 60, "heat_scaling": True}
 
     teamwork = TeamworkSkill("engineer_teamwork", "긴급 냉각 시스템", "열 게이지 -70 + 단일 대상 화염 BRV+HP (2.8x) + 자신 속도 1.25배 (3턴)", gauge_cost=150)

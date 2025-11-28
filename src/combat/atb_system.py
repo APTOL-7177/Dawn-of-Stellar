@@ -101,8 +101,13 @@ class ATBGauge:
 
         return base_speed * speed_modifier
 
-    def increase(self, amount: float) -> None:
-        """게이지 증가"""
+    def increase(self, amount: float, force: bool = False) -> None:
+        """게이지 증가
+        
+        Args:
+            amount: 증가량
+            force: True이면 threshold 체크 무시 (팀워크 스킬 등 특수 상황)
+        """
         # 죽은 캐릭터는 ATB 증가하지 않음
         is_alive = getattr(self.owner, 'is_alive', True)
         if not is_alive:
@@ -113,7 +118,8 @@ class ATBGauge:
             return
         
         # 이미 threshold를 넘었으면 더 이상 증가하지 않음 (100% 초과 방지)
-        if self.current >= self.threshold:
+        # force=True이면 이 체크를 건너뜀 (팀워크 스킬 ATB 회복 등)
+        if not force and self.current >= self.threshold:
             # 안전 장치: 이미 넘어간 경우 max_gauge로 제한
             self.current = min(self.current, self.max_gauge)
             return

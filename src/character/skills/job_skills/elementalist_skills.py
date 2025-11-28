@@ -74,7 +74,7 @@ def create_elementalist_skills():
         DamageEffect(DamageType.BRV_HP, 1.8, stat_type="magic"),
         StatusEffect(StatusType.BURN, duration=3, value=1.0,
                     damage_stat="magic", damage_multiplier=0.10),
-        BuffEffect(BuffType.ATTACK_UP, 0.20, duration=5),
+        BuffEffect(BuffType.ATTACK_UP, 0.20, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "spirit_fire", 1)
     ]
     summon_fire.costs = [MPCost(10)]
@@ -120,8 +120,8 @@ def create_elementalist_skills():
     )
     summon_wind.effects = [
         DamageEffect(DamageType.BRV, 1.6, stat_type="magic"),
-        BuffEffect(BuffType.SPEED_UP, 0.25, duration=5),
-        BuffEffect(BuffType.EVASION_UP, 0.15, duration=5),
+        BuffEffect(BuffType.SPEED_UP, 0.25, duration=5, target="self"),
+        BuffEffect(BuffType.EVASION_UP, 0.15, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "spirit_wind", 1)
     ]
     summon_wind.costs = [MPCost(8)]
@@ -144,7 +144,7 @@ def create_elementalist_skills():
     )
     summon_earth.effects = [
         DamageEffect(DamageType.BRV, 1.5, stat_type="magic"),
-        BuffEffect(BuffType.DEFENSE_UP, 0.25, duration=5),
+        BuffEffect(BuffType.DEFENSE_UP, 0.25, duration=5, target="self"),
         BuffEffect(BuffType.HP_REGEN, 3, duration=5),
         GimmickEffect(GimmickOperation.SET, "spirit_earth", 1)
     ]
@@ -243,9 +243,9 @@ def create_elementalist_skills():
         DamageEffect(DamageType.HP, 3.0, stat_type="magic"),
         StatusEffect(StatusType.BURN, duration=3, value=1.0,
                     damage_stat="magic", damage_multiplier=0.15),
-        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=5),
-        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5),
-        BuffEffect(BuffType.SPEED_UP, 0.4, duration=5),
+        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=5, target="self"),
+        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5, target="self"),
+        BuffEffect(BuffType.SPEED_UP, 0.4, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "spirit_fire", 1),
         GimmickEffect(GimmickOperation.SET, "spirit_water", 1),
     ]

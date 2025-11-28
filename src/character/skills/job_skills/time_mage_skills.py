@@ -21,6 +21,8 @@ def create_time_mage_skills():
         DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
     ]
     time_bolt.costs = []  # 기본 공격은 MP 소모 없음
+    time_bolt.sfx = ("combat", "attack_magic")
+    time_bolt.metadata = {"basic_attack": True}
 
     # 2. 기본 HP: 시간 충격
     time_shock = Skill("time_mage_time_shock", "시간 충격",
@@ -29,6 +31,8 @@ def create_time_mage_skills():
         DamageEffect(DamageType.HP, 1.2, stat_type="magical")
     ]
     time_shock.costs = []  # 기본 공격은 MP 소모 없음
+    time_shock.sfx = ("combat", "attack_magic")
+    time_shock.metadata = {"basic_attack": True}
 
     # === 과거 스킬 (타임라인 -1 또는 -2) ===
 
@@ -42,6 +46,7 @@ def create_time_mage_skills():
     ]
     slow.costs = []
     slow.target_type = "single_enemy"
+    slow.sfx = ("character", "status_debuff")
     slow.metadata = {"timeline_shift": -1, "skill_type": "past"}
 
     # 4. 시간 정지 (스톱) - 과거 스킬
@@ -54,6 +59,7 @@ def create_time_mage_skills():
     stop.costs = [MPCost(9)]
     stop.target_type = "single_enemy"
     # stop.cooldown = 3  # 쿨다운 시스템 제거됨
+    stop.sfx = ("skill", "cast_complete")
     stop.metadata = {"timeline_shift": -1, "skill_type": "past"}
 
     # 5. 시간 역행 - 과거 스킬
@@ -66,6 +72,7 @@ def create_time_mage_skills():
     rewind.costs = [MPCost(7)]
     rewind.target_type = "self"
     # rewind.cooldown = 4  # 쿨다운 시스템 제거됨
+    rewind.sfx = ("character", "hp_heal")
     rewind.metadata = {"timeline_shift": -2, "skill_type": "past"}
 
     # 6. 과거 반복 - 과거 스킬 (MP 대량 회복으로 이전 스킬 재사용 가능)
@@ -79,6 +86,7 @@ def create_time_mage_skills():
     repeat.costs = [MPCost(6)]
     repeat.target_type = "self"
     # repeat.cooldown = 5  # 쿨다운 시스템 제거됨
+    repeat.sfx = ("character", "mp_heal")
     repeat.metadata = {"timeline_shift": -1, "skill_type": "past", "mp_recovery": True}
 
     # === 현재 스킬 (타임라인 변화 없음) ===
@@ -92,6 +100,7 @@ def create_time_mage_skills():
     ]
     align.costs = [MPCost(5)]
     align.target_type = "self"
+    align.sfx = ("skill", "cast_complete")
     align.metadata = {"timeline_shift": "reset", "skill_type": "present"}
 
     # 8. 시간의 균형 - 현재 스킬 (현재 상태에서만 사용 가능)
@@ -103,6 +112,7 @@ def create_time_mage_skills():
     ]
     balance.costs = [MPCost(10)]
     # balance.cooldown = 6  # 쿨다운 시스템 제거됨
+    balance.sfx = ("skill", "elemental")
     balance.metadata = {"requires_timeline": 0, "skill_type": "present"}
 
     # === 미래 스킬 (타임라인 +1 또는 +2) ===
@@ -118,6 +128,7 @@ def create_time_mage_skills():
     haste.costs = [MPCost(6)]
     haste.target_type = "ally"
     # haste.cooldown = 3  # 쿨다운 시스템 제거됨
+    haste.sfx = ("skill", "haste")
     haste.metadata = {"timeline_shift": 1, "skill_type": "future"}
 
     # 10. 예지 - 미래 스킬
@@ -129,6 +140,7 @@ def create_time_mage_skills():
     ]
     foresight.costs = [MPCost(4)]
     foresight.target_type = "self"
+    foresight.sfx = ("character", "status_buff")
     foresight.metadata = {"timeline_shift": 1, "skill_type": "future"}
 
     # 11. 시간 도약 (퀵) - 미래 스킬 (ATB 대폭 증가로 거의 즉시 턴 획득)
@@ -143,6 +155,7 @@ def create_time_mage_skills():
     leap.costs = [MPCost(9)]
     leap.target_type = "self"
     # leap.cooldown = 5  # 쿨다운 시스템 제거됨
+    leap.sfx = ("skill", "haste")
     leap.metadata = {"timeline_shift": 2, "skill_type": "future", "quick_turn": True}
 
     # 12. 궁극기: 시간 파동 - 현재 스킬
@@ -158,6 +171,7 @@ def create_time_mage_skills():
     wave.is_ultimate = True
     wave.cooldown = 15  # 궁극기 쿨타임 15턴
     wave.is_aoe = True
+    wave.sfx = ("skill", "limit_break")
     wave.metadata = {"timeline_shift": "reset", "skill_type": "ultimate"}
 
     # 13. 팀워크 스킬: 시간 정지

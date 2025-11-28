@@ -155,8 +155,8 @@ def create_gladiator_skills():
     )
     excite.effects = [
         GimmickEffect(GimmickOperation.SET, "cheer", 50),
-        BuffEffect(BuffType.ATTACK_UP, 0.25, duration=3),
-        BuffEffect(BuffType.CRITICAL_UP, 0.20, duration=3)
+        BuffEffect(BuffType.ATTACK_UP, 0.25, duration=3, target="self"),
+        BuffEffect(BuffType.CRITICAL_UP, 0.20, duration=3, target="self")
     ]
     excite.costs = [MPCost(8)]
     excite.target_type = "self"
@@ -178,7 +178,7 @@ def create_gladiator_skills():
     will.effects = [
         HealEffect(HealType.HP, percentage=0.35),
         GimmickEffect(GimmickOperation.ADD, "cheer", 20, max_value=100),
-        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=3)
+        BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=3, target="self")
     ]
     will.costs = [MPCost(9)]
     will.target_type = "self"
@@ -225,8 +225,8 @@ def create_gladiator_skills():
         DamageEffect(DamageType.BRV, 3.5, stat_type="physical"),
         DamageEffect(DamageType.HP, 4.0, stat_type="physical"),
         BuffEffect(BuffType.INVINCIBLE, 1.0, duration=3),
-        BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5),
-        BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=5)
+        BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5, target="self"),
+        BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=5, target="self")
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
@@ -252,7 +252,7 @@ def create_gladiator_skills():
         DamageEffect(DamageType.BRV, 2.0, stat_type="physical"),
         DamageEffect(DamageType.HP, 1.5, stat_type="physical"),
         GimmickEffect(GimmickOperation.ADD, "cheer", 30, max_value=100),
-        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=2)
+        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=2, target="self")
     ]
     teamwork.target_type = "enemy"
     teamwork.costs = [MPCost(0)]

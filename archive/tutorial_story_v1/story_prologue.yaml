@@ -1,0 +1,109 @@
+# 프롤로그: 시공의 각성
+id: story_prologue
+title: "시공의 각성"
+order: 0
+category: story
+chapter: "prologue"
+enabled: true
+skippable: true
+
+description: |
+  서기 2157년, 차원 항해 실험 중 의식을 잃은 당신...
+  눈을 떴을 때, 세상은 완전히 달라져 있었다.
+
+objective: "눈을 떠라"
+
+# 스토리 연출
+story_cutscene:
+  type: "full_screen"
+  skip_on_replay: true
+  
+bgm: "intro_.ogg"  # 인트로 BGM
+
+# 튜토리얼 대사 및 가이드
+messages:
+  - text: "[시스템 경고] 차원 항해 실험 중 이상 발생..."
+    color: [255, 0, 0]
+    pause: 3.0
+    effect: "glitch"
+    sound: "system_alert.ogg"
+    
+  - text: "차원 게이트 개방... 3... 2... 1..."
+    color: [255, 255, 0]
+    pause: 2.0
+    effect: "typing"
+    
+  - text: "[경고] 시공간 매트릭스 불안정!"
+    color: [255, 0, 0]
+    pause: 2.0
+    effect: "flash"
+    sound: "alarm.ogg"
+    
+  - text: "시공간 교란 발생!"
+    color: [255, 0, 0]
+    pause: 3.0
+    effect: "glitch"
+    sound: "dimensional_tear.ogg"
+    screen_shake: true
+
+  - text: ""
+    pause: 2.0
+    effect: "fade_out"
+    
+  - text: "..."
+    color: [100, 100, 100]
+    pause: 2.0
+    effect: "fade_in"
+    
+  - text: "...어디지...?"
+    color: [200, 200, 200]
+    pause: 2.0
+    effect: "typing"
+    
+  - text: "의식을 잃었던 당신이 눈을 뜬다..."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+# NPC 등장
+npc_dialogue:
+  - npc: "selena"
+    text: "...감지됨. 생체 신호 확인."
+    color: [0, 200, 255]
+    effect: "typing"
+    portrait_animation: "hologram_flicker"
+    
+  - npc: "selena"
+    text: "차원 항해사님, 일어나셨군요."
+    pause: 2.0
+    
+  - npc: "selena"
+    text: "저는 셀레나, 시공 관측소의 AI입니다."
+    pause: 2.5
+    
+  - npc: "selena"
+    text: "좋지 않은 소식이 있어요..."
+    pause: 2.0
+    
+  - npc: "selena"
+    text: "차원 항해 실험이 실패했습니다."
+    pause: 2.5
+    color: [255, 255, 0]
+    
+  - npc: "selena"
+    text: "시공간이... 뒤섞여버렸어요."
+    pause: 3.0
+    color: [255, 100, 100]
+
+# 완료 조건 - 자동 완료 (스토리 시청)
+completion_condition:
+  type: "auto_complete"
+  delay: 1.0
+  message: ""
+
+# 보상
+rewards:
+  message: ""
+
+# 다음 단계
+next_step: "story_01_awakening"

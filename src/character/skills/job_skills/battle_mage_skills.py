@@ -39,7 +39,7 @@ def create_battle_mage_skills():
                      "화염 룬 각인, 물리 공격력 +15%")
     fire_rune.effects = [
         GimmickEffect(GimmickOperation.ADD, "rune_fire", 1, max_value=3),
-        BuffEffect(BuffType.ATTACK_UP, 0.15, duration=99)  # 룬 보유 동안 지속
+        BuffEffect(BuffType.ATTACK_UP, 0.15, duration=99, target="self")  # 룬 보유 동안 지속
     ]
     fire_rune.costs = [MPCost(4)]  # 다른 룬들과 동일한 MP 비용
     fire_rune.target_type = "self"
@@ -51,7 +51,7 @@ def create_battle_mage_skills():
                     "냉기 룬 각인, 마법 공격력 +15%")
     ice_rune.effects = [
         GimmickEffect(GimmickOperation.ADD, "rune_ice", 1, max_value=3),
-        BuffEffect(BuffType.MAGIC_UP, 0.15, duration=99)
+        BuffEffect(BuffType.MAGIC_UP, 0.15, duration=99, target="self")
     ]
     ice_rune.costs = [MPCost(4)]
     ice_rune.target_type = "self"
@@ -63,7 +63,7 @@ def create_battle_mage_skills():
                           "번개 룬 각인, 속도 +20%")
     lightning_rune.effects = [
         GimmickEffect(GimmickOperation.ADD, "rune_lightning", 1, max_value=3),
-        BuffEffect(BuffType.SPEED_UP, 0.2, duration=99)
+        BuffEffect(BuffType.SPEED_UP, 0.2, duration=99, target="self")
     ]
     lightning_rune.costs = [MPCost(4)]
     lightning_rune.target_type = "self"
@@ -75,7 +75,7 @@ def create_battle_mage_skills():
                       "대지 룬 각인, 방어력 +20%")
     earth_rune.effects = [
         GimmickEffect(GimmickOperation.ADD, "rune_earth", 1, max_value=3),
-        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=99)
+        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=99, target="self")
     ]
     earth_rune.costs = [MPCost(4)]
     earth_rune.target_type = "self"

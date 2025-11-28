@@ -373,7 +373,8 @@ def create_magician_skills():
         "basic_attack": True,
         "card_draw": 1,
         "attack_type": "brv",
-        "apply_rank_effect": True  # 숫자 효과 적용
+        "apply_rank_effect": True,  # 숫자 효과 적용
+        "consume_drawn_cards": False  # 기본 공격은 카드 소모 X (손패에 유지)
     }
     skills.append(card_slash)
     
@@ -392,7 +393,8 @@ def create_magician_skills():
         "basic_attack": True,
         "card_draw": 1,
         "attack_type": "hp",
-        "apply_suit_effect": True  # 무늬 효과 적용
+        "apply_suit_effect": True,  # 무늬 효과 적용
+        "consume_drawn_cards": False  # 기본 공격은 카드 소모 X (손패에 유지)
     }
     skills.append(trick_shot)
     
@@ -437,6 +439,26 @@ def create_magician_skills():
         "predict_enemy": True
     }
     skills.append(mind_reading)
+    
+    # 4-1. 에이스 인 더 홀 - 손패에서 카드 선택하여 강화 공격
+    card_charge_shot = Skill(
+        "magician_ace_in_the_hole",
+        "에이스 인 더 홀",
+        "숨겨둔 패를 꺼낸다! 손패 중 최고 랭크 카드로 숫자+무늬 효과 동시 발동!"
+    )
+    card_charge_shot.effects = [
+        DamageEffect(DamageType.BRV_HP, 2.5)  # 강화된 피해량
+    ]
+    card_charge_shot.costs = [MPCost(8)]
+    card_charge_shot.sfx = ("skill", "cast_complete")
+    card_charge_shot.metadata = {
+        "select_card_from_hand": True,  # 손패에서 카드 선택 필요
+        "apply_rank_effect": True,      # 숫자 효과 적용
+        "apply_suit_effect": True,      # 무늬 효과 적용
+        "consume_selected_card": True,  # 선택한 카드 소모
+        "damage_multiplier": 2.0        # 피해량 2배
+    }
+    skills.append(card_charge_shot)
     
     # 5. 리버스 카드 - 적 버프/디버프 반전
     reverse_card = Skill(

@@ -1796,7 +1796,7 @@ class Character:
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환 (저장용)"""
-        return {
+        data = {
             "name": self.name,
             "character_class": self.character_class,
             "level": self.level,
@@ -1809,6 +1809,85 @@ class Character:
                 for slot, item in self.equipment.items()
             }
         }
+        
+        # 기믹 데이터 저장
+        gimmick_state = self._get_gimmick_state()
+        if gimmick_state:
+            data["gimmick_state"] = gimmick_state
+        
+        return data
+    
+    def _get_gimmick_state(self) -> Dict[str, Any]:
+        """현재 기믹 상태 추출"""
+        state = {}
+        
+        # 기믹 타입별 상태 저장
+        gimmick_type = getattr(self, 'gimmick_type', None)
+        if not gimmick_type:
+            return state
+        
+        state["gimmick_type"] = gimmick_type
+        
+        # 공통 기믹 필드들
+        gimmick_fields = [
+            # 전사 스탠스
+            'current_stance', 'stance_focus',
+            # 원소 카운터
+            'fire_element', 'ice_element', 'lightning_element',
+            # 저격수 탄창
+            'magazine', 'current_bullet_index',
+            # 도적
+            'stolen_items', 'venom_power', 'poison_stacks',
+            # 암살자
+            'shadow_count',
+            # 검성
+            'sword_aura',
+            # 광전사
+            'rage_stacks', 'shield_amount',
+            # 바드
+            'music_notes', 'melody_stacks', 'melody_notes', 'octave_completed',
+            # 시간술사
+            'timeline', 'past_skill_count', 'future_skill_count',
+            # 용기사
+            'dragon_marks', 'dragon_power',
+            # 검투사
+            'arena_points', 'glory_points', 'combo_counter',
+            # 브레이커
+            'break_power',
+            # 다크나이트
+            'charge_gauge',
+            # 기사
+            'duty_stacks',
+            # 팔라딘
+            'holy_power',
+            # 해적
+            'gold',
+            # 엔지니어
+            'heat', 'overheat_stun_turns',
+            # 사무라이
+            'will_gauge',
+            # 마검사
+            'mana_blade',
+            # 성직자
+            'judgment_points', 'faith_points',
+            # 드루이드
+            'nature_points', 'current_form',
+            # 마술사
+            'card_hand', 'card_deck', 'card_discard',
+            # 기타
+            'aim_points', 'focus_stacks',
+        ]
+        
+        for field in gimmick_fields:
+            if hasattr(self, field):
+                value = getattr(self, field)
+                # 리스트/딕셔너리는 복사본 저장
+                if isinstance(value, (list, dict)):
+                    state[field] = value.copy() if value else value
+                else:
+                    state[field] = value
+        
+        return state
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Character":
@@ -1832,6 +1911,19 @@ class Character:
         character.traits = []
 
         character.logger = get_logger("character")
+        
+        # 기믹 초기화 및 상태 복원
+        character.gimmick_data = get_gimmick(character.character_class)
+        character.gimmick_type = character.gimmick_data.get("type") if character.gimmick_data else None
+        character.system_traits = []
+        character._initialize_gimmick()
+        
+        # 저장된 기믹 상태 복원
+        gimmick_state = data.get("gimmick_state", {})
+        if gimmick_state:
+            for field, value in gimmick_state.items():
+                if field != "gimmick_type":  # 타입은 이미 설정됨
+                    setattr(character, field, value)
 
         return character
 
