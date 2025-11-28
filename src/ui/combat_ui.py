@@ -1746,11 +1746,13 @@ class CombatUI:
                 target=target
             )
         elif action_type == "brv_attack" or action_type == "attack" or action_type == "BRV_ATTACK":
+            logger.debug(f"BRV 공격 실행: {actor.name} → {getattr(target, 'name', 'Unknown') if target else 'None'}")
             result = self.combat_manager.execute_action(
                 actor=actor,
                 action_type=ActionType.BRV_ATTACK,
                 target=target
             )
+            logger.debug(f"BRV 공격 결과: {result}")
         elif action_type == "defend" or action_type == "DEFEND":
             result = self.combat_manager.execute_action(
                 actor=actor,
