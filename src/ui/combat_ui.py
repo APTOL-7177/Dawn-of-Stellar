@@ -5263,21 +5263,17 @@ def run_combat(
             # current_actor가 None이면 ATB에서 다음 행동자 찾기
             # AI 모드에서는 아군이 준비될 때까지 기다려야 함 (적은 handle_input 처리 안 함)
             if not current and hasattr(combat_manager, 'atb'):
-                # 아군이 준비될 때까지 ATB 업데이트
-                for atb_wait in range(100):
-                    action_order = combat_manager.atb.get_action_order()
-                    if action_order:
-                        candidate = action_order[0]
-                        if candidate in party:
-                            # ✅ 아군 발견!
-                            current = candidate
-                            logger.info(f"[COMBAT_UI] ATB에서 아군 발견 (대기 {atb_wait}회): {current.name}")
-                            break
-                        else:
-                            # 적이 준비됨. 아군이 준비될 때까지 ATB 계속 업데이트
-                            if atb_wait == 0:
-                                logger.debug(f"[COMBAT_UI] 적이 준비됨: {candidate.name}, 아군 대기 중...")
-                            combat_manager.atb.update(1.0, is_player_turn=False)
+                action_order = combat_manager.atb.get_action_order()
+                if action_order:
+                    candidate = action_order[0]
+                    if candidate in party:
+                        # ✅ 아군 발견!
+                        current = candidate
+                        logger.debug(f"[COMBAT_UI] ATB에서 아군 발견: {current.name}")
+                    else:
+                        # 적이 준비됨. 다음 프레임에 아군 나올 때까지 ATB 업데이트만 함
+                        # (루프는 피함 - 매 프레임 한 번만 업데이트)
+                        combat_manager.atb.update(1.0, is_player_turn=False)
 
             logger.info(f"[COMBAT_UI] 현재 actor: {current.name if current else 'None'} (타입: {type(current).__name__ if current else 'None'})")
             logger.info(f"[COMBAT_UI] 아군 파티: {[c.name for c in party]}")
@@ -5287,8 +5283,9 @@ def run_combat(
                 action = ai_input_provider(ui, combat_manager, current, inventory)
                 logger.info(f"[COMBAT_UI] ✅ AI 반환: {action}")
                 if action:
-                    import time
-                    time.sleep(0.5)  # 실제 플레이어처럼 자연스러운 속도
+                    # AI 관전 모드에서는 자연스러운 속도 불필요 (너무 느려짐)
+                    # 원래는 time.sleep(0.5)였지만 성능상 제거함
+                    pass
             elif current:
                 logger.warning(f"[COMBAT_UI] ⚠️ 현재 캐릭터가 파티가 아님: {current.name if current else 'None'} (적군일 가능성)")
             else:
