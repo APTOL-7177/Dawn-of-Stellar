@@ -19,6 +19,19 @@ from src.audio import play_sfx
 
 logger = get_logger("gathering_ui")
 
+# AI 스펙테이터 모드 플래그 (전역)
+_is_ai_spectate_mode = False
+
+def set_ai_spectate_mode(is_ai: bool):
+    """AI 스펙테이터 모드 설정"""
+    global _is_ai_spectate_mode
+    _is_ai_spectate_mode = is_ai
+
+def is_ai_spectate_mode() -> bool:
+    """현재 AI 스펙테이터 모드 여부"""
+    global _is_ai_spectate_mode
+    return _is_ai_spectate_mode
+
 
 def harvest_object(
     console: tcod.console.Console,
@@ -45,8 +58,11 @@ def harvest_object(
     if exploration and hasattr(exploration, 'local_player_id'):
         player_id = exploration.local_player_id
 
-    # AI 스펙테이터 모드인지 확인 (메시지 표시 시 필요)
-    is_ai_mode = hasattr(exploration, '__class__') and 'AI' in str(exploration.__class__.__name__)
+    # AI 스펙테이터 모드인지 확인 (전역 플래그 + 객체 감지)
+    is_ai_mode = (is_ai_spectate_mode() or
+                  (exploration is not None and
+                   ('AI' in str(type(exploration).__name__) or
+                    hasattr(exploration, 'is_ai_spectate_mode'))))
 
     # 채집 가능 여부 확인 (플레이어별)
     if not harvestable.can_harvest(player_id):

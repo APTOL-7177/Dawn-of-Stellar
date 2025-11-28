@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from src.core.logger import get_logger
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
+from src.ui import gathering_ui
 
 
 logger = get_logger("ai_spectate")
@@ -226,6 +227,7 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
     
     logger.info("AI 관전 모드 시작 (실제 게임 화면)")
     set_ai_mode(True)
+    gathering_ui.set_ai_spectate_mode(True)  # 채집 UI 자동 진행 활성화
     add_ai_commentary("🤖 AI 관전 모드 시작!")
     
     # AutoPlayAI 인스턴스 생성 - 즉시 LLM 연동 테스트
@@ -1197,6 +1199,7 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
             logger.warning(f"AI 종료 실패: {e}")
 
     set_ai_mode(False)
+    gathering_ui.set_ai_spectate_mode(False)  # 채집 UI 자동 진행 해제
     logger.info("AI 관전 모드 종료")
 
     return {"success": True, "stats": game_stats}
