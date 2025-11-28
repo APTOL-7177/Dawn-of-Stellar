@@ -1394,10 +1394,9 @@ class ExplorationSystem:
         g_score = {(start_x, start_y): 0}
         visited = set()
 
-        # 8방향 이동 (대각선 포함하면 더 자연스러운 이동)
+        # 4방향 이동 (게임은 대각선 이동 미지원)
         directions = [
-            (1, 0), (-1, 0), (0, 1), (0, -1),  # 상하좌우
-            (1, 1), (1, -1), (-1, 1), (-1, -1)  # 대각선
+            (1, 0), (-1, 0), (0, 1), (0, -1)  # 상하좌우만
         ]
 
         while open_set and len(visited) < max_steps * max_steps:
@@ -1437,9 +1436,8 @@ class ExplorationSystem:
                 if self.get_enemy_at(neighbor_x, neighbor_y):
                     continue
 
-                # 비용 계산 (대각선은 더 큰 비용)
-                movement_cost = 1.414 if abs(dx) == 1 and abs(dy) == 1 else 1.0
-                tentative_g_score = g_score[(current_x, current_y)] + movement_cost
+                # 비용 계산 (4방향 이동, 모두 동일 비용)
+                tentative_g_score = g_score[(current_x, current_y)] + 1.0
 
                 if (neighbor_x, neighbor_y) not in g_score or tentative_g_score < g_score[(neighbor_x, neighbor_y)]:
                     # 더 좋은 경로 찾음
