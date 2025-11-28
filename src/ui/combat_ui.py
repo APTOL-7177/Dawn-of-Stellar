@@ -35,6 +35,7 @@ class CombatUIState(Enum):
     SKILL_MENU = "skill_menu"  # 스킬 선택
     TARGET_SELECT = "target_select"  # 대상 선택
     ITEM_MENU = "item_menu"  # 아이템 선택
+    CARD_SELECT = "card_select"  # 카드 선택 (마술사)
     GIMMICK_VIEW = "gimmick_view"  # 기믹 상세 보기
     EXECUTING = "executing"  # 행동 실행 중
     BATTLE_END = "battle_end"  # 전투 종료
@@ -92,6 +93,11 @@ class CombatUI:
         self.item_menu: Optional[CursorMenu] = None  # 아이템 메뉴
         self.target_cursor = 0
         self.current_target_list: List[Any] = []  # 현재 타겟 선택 리스트
+        
+        # 카드 선택 (마술사)
+        self.card_cursor = 0
+        self.card_hand: List[Any] = []  # 현재 손패
+        self.selected_card: Optional[Any] = None  # 선택된 카드
 
         # 전투 종료 플래그
         self.battle_ended = False
@@ -124,10 +130,13 @@ class CombatUI:
         # 현재 행동자의 기본 공격 스킬 가져오기
         if actor:
             skills = getattr(actor, 'skills', [])
+            
+            # 팀워크 스킬이 아닌 일반 스킬만 필터링 (기본 공격용)
+            basic_skills = [s for s in skills if not getattr(s, 'is_teamwork_skill', False)]
 
             # 첫 번째 스킬 = 기본 BRV 공격
-            if len(skills) >= 1:
-                brv_skill = skills[0]
+            if len(basic_skills) >= 1:
+                brv_skill = basic_skills[0]
                 brv_name = getattr(brv_skill, 'name', 'BRV 공격')
                 brv_desc = getattr(brv_skill, 'description', 'BRV를 축적')
                 items.append(MenuItem(brv_name, description=brv_desc, enabled=True, value=("brv_skill", brv_skill)))
@@ -135,8 +144,8 @@ class CombatUI:
                 items.append(MenuItem("BRV 공격", description="BRV를 축적", enabled=True, value=ActionType.BRV_ATTACK))
 
             # 두 번째 스킬 = 기본 HP 공격
-            if len(skills) >= 2:
-                hp_skill = skills[1]
+            if len(basic_skills) >= 2:
+                hp_skill = basic_skills[1]
                 hp_name = getattr(hp_skill, 'name', 'HP 공격')
                 hp_desc = getattr(hp_skill, 'description', 'HP 데미지')
                 items.append(MenuItem(hp_name, description=hp_desc, enabled=True, value=("hp_skill", hp_skill)))
@@ -180,30 +189,25 @@ class CombatUI:
         from src.core.logger import get_logger
         logger = get_logger("combat_ui")
         logger.warning(f"[SKILL_MENU] {actor.name}의 전체 스킬 개수: {len(all_skills)}")
-        logger.warning(f"[SKILL_MENU] skill_ids: {getattr(actor, 'skill_ids', [])}")
 
-        # 첫 두 스킬은 기본 공격이므로 제외 (행동 메뉴에 있음)
-        skills = all_skills[2:] if len(all_skills) >= 2 else []
-        logger.warning(f"[SKILL_MENU] 기본 공격 제외 후 스킬 개수: {len(skills)}")
-
-        # 팀워크 스킬 추가 (항상 표시, 사용 가능 여부에 따라 회색으로 표시)
-        teamwork_skills_in_menu = []
-        # skills 리스트에서 팀워크 스킬 찾기
-        for skill in skills:
+        # 팀워크 스킬과 일반 스킬 분리
+        teamwork_skills = []
+        non_teamwork_skills = []
+        for skill in all_skills:
             if hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill:
-                teamwork_skills_in_menu.append(skill)
+                teamwork_skills.append(skill)
+            else:
+                non_teamwork_skills.append(skill)
 
-        # skills 리스트에 없으면 actor의 모든 스킬에서 찾기
-        if not teamwork_skills_in_menu:
-            all_actor_skills = getattr(actor, 'skills', [])
-            for skill in all_actor_skills:
-                if hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill:
-                    teamwork_skills_in_menu.append(skill)
-                    if skill not in skills:
-                        skills.append(skill)
+        # 일반 스킬에서 첫 두 개(기본 BRV, HP 공격)는 행동 메뉴에 있으므로 제외
+        normal_skills = non_teamwork_skills[2:] if len(non_teamwork_skills) >= 2 else []
+        logger.warning(f"[SKILL_MENU] 기본 공격 제외 후 일반 스킬: {len(normal_skills)}개")
 
-        logger.warning(f"[SKILL_MENU] 메뉴에 표시할 팀워크 스킬: {len(teamwork_skills_in_menu)}개")
-        for skill in teamwork_skills_in_menu:
+        # 스킬 순서: 일반 스킬 먼저, 팀워크 스킬은 맨 뒤
+        skills = normal_skills + teamwork_skills
+
+        logger.warning(f"[SKILL_MENU] 메뉴에 표시할 팀워크 스킬: {len(teamwork_skills)}개")
+        for skill in teamwork_skills:
             logger.warning(f"[SKILL_MENU] 팀워크 스킬: {skill.name} ({skill.teamwork_cost.gauge}게이지)")
 
         items = []
@@ -212,7 +216,7 @@ class CombatUI:
             # 모든 비용 체크 (MP, Stack, HP 등)
             # 팀워크 스킬은 party 정보도 필요함
             if hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill:
-                can_use, reason = skill.can_use(actor, self.combat_manager.party)
+                can_use, reason = skill.can_use(actor, {'party': self.combat_manager.party})
             else:
                 can_use, reason = skill.can_use(actor)
             
@@ -460,6 +464,10 @@ class CombatUI:
         # 아이템 메뉴
         elif self.state == CombatUIState.ITEM_MENU:
             return self._handle_item_menu(action)
+
+        # 카드 선택 (마술사)
+        elif self.state == CombatUIState.CARD_SELECT:
+            return self._handle_card_select(action)
 
         # 기믹 상세 보기
         elif self.state == CombatUIState.GIMMICK_VIEW:
@@ -769,6 +777,12 @@ class CombatUI:
 
         # 스킬의 target_type에 따라 대상 결정
         if self.selected_skill:
+            # 카드 선택이 필요한 스킬인지 확인 (마술사)
+            metadata = getattr(self.selected_skill, 'metadata', {})
+            if metadata.get('select_card_from_hand'):
+                self._start_card_selection()
+                return
+            
             target_type = getattr(self.selected_skill, 'target_type', 'single_enemy')
 
             # "self" 타겟은 타겟 선택 건너뛰기
@@ -853,6 +867,79 @@ class CombatUI:
                 self.state = CombatUIState.ACTION_MENU
             logger.debug("기믹 상세 보기 닫힘")
         return False
+
+    def _start_card_selection(self):
+        """카드 선택 시작 (마술사)"""
+        if not self.current_actor:
+            return
+        
+        # 손패 가져오기
+        self.card_hand = getattr(self.current_actor, 'card_hand', [])
+        
+        if not self.card_hand:
+            # 손패가 없으면 메시지 표시 후 스킬 메뉴로 복귀
+            self.add_message("손패가 비어있습니다!", (255, 100, 100))
+            self.state = CombatUIState.SKILL_MENU
+            return
+        
+        self.card_cursor = 0
+        self.selected_card = None
+        self.state = CombatUIState.CARD_SELECT
+        logger.debug(f"카드 선택 시작: {len(self.card_hand)}장")
+
+    def _handle_card_select(self, action: GameAction) -> bool:
+        """카드 선택 입력 처리"""
+        if not self.card_hand:
+            self.state = CombatUIState.SKILL_MENU
+            return False
+        
+        if action == GameAction.MOVE_LEFT:
+            self.card_cursor = max(0, self.card_cursor - 1)
+        elif action == GameAction.MOVE_RIGHT:
+            self.card_cursor = min(len(self.card_hand) - 1, self.card_cursor + 1)
+        elif action == GameAction.CONFIRM:
+            # 카드 선택 완료
+            self.selected_card = self.card_hand[self.card_cursor]
+            from src.character.skills.job_skills.magician_skills import get_card_name
+            card_name = get_card_name(self.selected_card)
+            self.add_message(f"[{card_name}] 선택!", (255, 200, 100))
+            
+            # 선택된 카드를 스킬 메타데이터에 저장
+            if self.selected_skill:
+                if not hasattr(self.selected_skill, 'metadata'):
+                    self.selected_skill.metadata = {}
+                self.selected_skill.metadata['_selected_card'] = self.selected_card
+            
+            # 타겟 선택으로 진행
+            self._continue_target_selection_after_card()
+        elif action == GameAction.CANCEL:
+            # 취소 - 스킬 메뉴로 복귀
+            self.state = CombatUIState.SKILL_MENU
+            self.selected_card = None
+            # 메타데이터 정리
+            if self.selected_skill and hasattr(self.selected_skill, 'metadata'):
+                self.selected_skill.metadata.pop('_selected_card', None)
+        
+        return False
+
+    def _continue_target_selection_after_card(self):
+        """카드 선택 후 타겟 선택 계속"""
+        from src.character.skill_types import SkillTargetType
+        
+        if not self.selected_skill:
+            self.state = CombatUIState.SKILL_MENU
+            return
+        
+        target_type = getattr(self.selected_skill, 'target_type', 'single_enemy')
+        
+        # 적 타겟팅
+        self.current_target_list = [e for e in self.combat_manager.enemies if getattr(e, 'is_alive', True)]
+        if self.current_target_list:
+            self.target_cursor = 0
+            self.state = CombatUIState.TARGET_SELECT
+        else:
+            # 살아있는 적이 없으면 스킬 메뉴로
+            self.state = CombatUIState.SKILL_MENU
 
     def _execute_current_action(self):
         """현재 선택된 행동 실행"""
@@ -1016,6 +1103,10 @@ class CombatUI:
         self.selected_target = None
         self.selected_item = None
         self.selected_item_index = None
+        # 카드 선택 관련 초기화
+        self.selected_card = None
+        self.card_hand = []
+        self.card_cursor = 0
         # 주의: state는 update()에서 delay 후 WAITING_ATB로 전환됨
 
         # 전투 종료 확인
@@ -1226,7 +1317,7 @@ class CombatUI:
                     self.state = CombatUIState.WAITING_ATB
                 elif self.state not in [CombatUIState.ACTION_MENU, CombatUIState.SKILL_MENU, 
                                         CombatUIState.TARGET_SELECT, CombatUIState.ITEM_MENU, 
-                                        CombatUIState.GIMMICK_VIEW]:
+                                        CombatUIState.CARD_SELECT, CombatUIState.GIMMICK_VIEW]:
                     # 다른 상태에서도 WAITING_ATB로 전환 (기절 스킵 후 다음 턴 대기)
                     self.state = CombatUIState.WAITING_ATB
 
@@ -1236,6 +1327,7 @@ class CombatUI:
             CombatUIState.SKILL_MENU,
             CombatUIState.TARGET_SELECT,
             CombatUIState.ITEM_MENU,
+            CombatUIState.CARD_SELECT,  # 카드 선택 중에도 시간 정지
             CombatUIState.GIMMICK_VIEW,  # 기믹 상세 보기 중에도 시간 정지
             CombatUIState.EXECUTING  # 행동 실행 후 대기 중에도 시간 정지
         ]
@@ -1411,7 +1503,8 @@ class CombatUI:
                 CombatUIState.ACTION_MENU,
                 CombatUIState.SKILL_MENU,
                 CombatUIState.TARGET_SELECT,
-                CombatUIState.ITEM_MENU
+                CombatUIState.ITEM_MENU,
+                CombatUIState.CARD_SELECT
             ]
             
             if self.current_actor:
@@ -1886,6 +1979,9 @@ class CombatUI:
 
         elif self.state == CombatUIState.ITEM_MENU:
             self._render_item_menu(console)
+
+        elif self.state == CombatUIState.CARD_SELECT:
+            self._render_card_select(console)
 
         elif self.state == CombatUIState.GIMMICK_VIEW:
             self._render_gimmick_view(console)
@@ -2400,12 +2496,6 @@ class CombatUI:
             max_time = getattr(character, 'max_time_marks', 7)
             return (f"시간:{time}/{max_time}", (200, 255, 255))
 
-        elif gimmick_type == "alchemy_system":
-            # 연금술사 - 물약
-            potions = getattr(character, 'potion_stock', 0)
-            max_potions = getattr(character, 'max_potion_stock', 10)
-            return (f"물약:{potions}/{max_potions}", (100, 200, 100))
-
         elif gimmick_type == "blood_system":
             # 흡혈귀 - 혈액
             blood = getattr(character, 'blood_pool', 0)
@@ -2686,6 +2776,104 @@ class CombatUI:
             else:
                 remaining = max(0, restealth_cooldown - exposed_turns)
                 return (f"노출:{exposed_turns}/{restealth_cooldown}", (255, 150, 150))
+
+        # ============================================================
+        # === 12개 리워크 직업 기믹 간략 표시 ===
+        # ============================================================
+        
+        elif gimmick_type == "rum_treasure_system":
+            # 해적 - 럼주 & 보물
+            treasures = getattr(character, 'treasure_inventory', [])
+            rum_effect = getattr(character, 'current_rum_effect', None)
+            rum_text = "럼+" if rum_effect else ""
+            return (f"{rum_text}보물:{len(treasures)}", (255, 200, 100))
+        
+        elif gimmick_type == "score_composition":
+            # 바드 - 악보 작곡
+            notes = getattr(character, 'music_notes', [])
+            max_notes = getattr(character, 'max_notes', 5)
+            harmony = getattr(character, 'harmony_bonus', 1.0)
+            if harmony > 1.0:
+                return (f"화음x{harmony:.1f} 음:{len(notes)}", (200, 150, 255))
+            return (f"음표:{len(notes)}/{max_notes}", (200, 150, 255))
+        
+        elif gimmick_type == "alchemy_system":
+            # 연금술사 - 포션 조합
+            stock = getattr(character, 'potion_stock', 0)
+            max_stock = getattr(character, 'max_potion_stock', 10)
+            return (f"재료:{stock}/{max_stock}", (100, 255, 150))
+        
+        elif gimmick_type == "duty_system":
+            # 기사 - 의무
+            duty = getattr(character, 'duty_stacks', 0)
+            max_duty = getattr(character, 'max_duty_stacks', 10)
+            if duty >= max_duty:
+                return (f"의무:MAX", (255, 215, 0))
+            return (f"의무:{duty}/{max_duty}", (100, 150, 255))
+        
+        elif gimmick_type == "divinity_system":
+            # 신관 - 신앙/심판
+            faith = getattr(character, 'faith_points', 0)
+            judgment = getattr(character, 'judgment_points', 0)
+            return (f"신:{faith} 심:{judgment}", (255, 255, 150))
+        
+        elif gimmick_type == "theft_system":
+            # 도적 - 절도
+            stolen = getattr(character, 'stolen_items', 0)
+            max_stolen = getattr(character, 'max_stolen_items', 10)
+            evasion = getattr(character, 'evasion_active', False)
+            ev_text = " 회피" if evasion else ""
+            return (f"절도:{stolen}{ev_text}", (150, 100, 200))
+        
+        elif gimmick_type == "enchant_system":
+            # 마검사 - 마나 블레이드
+            mana = getattr(character, 'mana_blade', 0)
+            max_mana = getattr(character, 'max_mana_blade', 100)
+            if mana >= max_mana:
+                return (f"마나:MAX", (100, 200, 255))
+            return (f"마나:{mana}", (100, 200, 255))
+        
+        elif gimmick_type == "curse_system" or gimmick_type == "totem_system":
+            # 무당 - 저주
+            curse = getattr(character, 'curse_stacks', 0)
+            max_curse = getattr(character, 'max_curse_stacks', 10)
+            if curse >= max_curse:
+                return (f"저주:MAX", (150, 0, 150))
+            return (f"저주:{curse}/{max_curse}", (150, 50, 150))
+        
+        elif gimmick_type == "shapeshifting_system":
+            # 드루이드 - 변신
+            nature = getattr(character, 'nature_points', 0)
+            form = getattr(character, 'current_form', None)
+            form_names = {"bear": "곰", "panther": "표범", "eagle": "독수리", "wolf": "늑대"}
+            if form:
+                return (f"{form_names.get(form, form)} NP:{nature}", (100, 200, 100))
+            return (f"NP:{nature}", (100, 200, 100))
+        
+        elif gimmick_type == "elemental_spirits":
+            # 정령술사 - 4대 정령
+            spirits = []
+            if getattr(character, 'spirit_fire', 0): spirits.append("화")
+            if getattr(character, 'spirit_water', 0): spirits.append("수")
+            if getattr(character, 'spirit_wind', 0): spirits.append("풍")
+            if getattr(character, 'spirit_earth', 0): spirits.append("지")
+            if spirits:
+                return (f"정령:{','.join(spirits)}", (150, 255, 200))
+            return ("정령:없음", (100, 100, 100))
+        
+        elif gimmick_type == "trick_deck":
+            # 마술사 - 트릭 덱
+            hand = getattr(character, 'card_hand', [])
+            deck = getattr(character, 'card_deck', [])
+            max_hand = getattr(character, 'max_hand_size', 8)
+            # 현재 조합 표시
+            combo_type = getattr(character, 'current_combo', None)
+            if combo_type:
+                combo_names = {"pair": "원페어", "two_pair": "투페어", "triple": "트리플", 
+                              "straight": "스트레이트", "flush": "플러시", "full_house": "풀하우스",
+                              "four_of_kind": "포카드", "straight_flush": "스트레이트 플러시"}
+                return (f"{combo_names.get(combo_type, combo_type)} 패:{len(hand)}", (255, 200, 100))
+            return (f"패:{len(hand)}/{max_hand} 덱:{len(deck)}", (255, 200, 100))
 
         return ("", (255, 255, 255))
 
@@ -4362,25 +4550,50 @@ class CombatUI:
                 details.append("현재 형태: 👤 인간")
                 details.append("상태: 기본 상태")
 
-        # 마검사 - 마법부여 (YAML: enchant_system)
+        # 마검사 - 마나 블레이드 시스템 (YAML: enchant_system)
         elif gimmick_type == "enchant_system":
-            enchant = getattr(character, 'active_enchant', None)
-            details.append("=== 마법부여 시스템 ===")
-            if enchant:
-                details.append(f" 활성 부여: {enchant}")
+            mana = getattr(character, 'mana_blade', 0)
+            max_mana = getattr(character, 'max_mana_blade', 100)
+            details.append("=== 마나 블레이드 시스템 ===")
+            mana_bar = self._create_gauge_bar(mana, max_mana, width=10)
+            details.append(f"마나 블레이드: {mana_bar} ({mana}/{max_mana})")
+            if mana >= 50:
+                details.append(" 마나 50+ - 물리/마법 동시 피해")
+            if mana >= max_mana:
+                details.append(" 마나 MAX - 다음 스킬 무료 + 2배!")
             else:
-                details.append("❌ 부여 없음")
+                details.append(" 원소 공격으로 마나 축적")
 
-        # 무당 - 저주 시스템 (YAML: curse_system, 하위 호환: totem_system)
+        # 무당 - 저주 축적 시스템 (YAML: curse_system, 하위 호환: totem_system)
         elif gimmick_type == "curse_system" or gimmick_type == "totem_system":
             curses = getattr(character, 'curse_stacks', 0)
             max_curses = getattr(character, 'max_curse_stacks', 10)
-            details.append("=== 저주 시스템 ===")
-            curse_bar = self._create_gauge_bar(curses, max_curses, width=10)
+            details.append("=== 저주 축적 시스템 ===")
+            curse_bar = self._create_gauge_bar(curses, max_curses, width=10, optimal_min=5, optimal_max=max_curses)
             details.append(f"저주 스택: {curse_bar} ({curses}/{max_curses})")
-            details.append(" 저주 스택을 소비하여 강력한 주술 사용 가능")
+            details.append(f" 저주 비례 피해: +{curses * 8}%")
+            if curses >= 5:
+                details.append(" 저주 5+ - 피해 +60%, 디버프 면역")
+            if curses >= max_curses:
+                details.append(" 저주 MAX - 저주 폭발 자동 발동!")
 
-        # 바드 - 선율 시스템 (YAML: melody_system)
+        # 바드 - 악보 작곡 시스템 (YAML: score_composition)
+        elif gimmick_type == "score_composition":
+            notes = getattr(character, 'music_notes', [])
+            max_notes = getattr(character, 'max_notes', 5)
+            harmony = getattr(character, 'harmony_bonus', 1.0)
+            details.append("=== 악보 작곡 시스템 ===")
+            notes_bar = self._create_gauge_bar(len(notes), max_notes, width=10)
+            details.append(f"음표: {notes_bar} ({len(notes)}/{max_notes})")
+            if harmony > 1.0:
+                details.append(f" 화음 보너스: x{harmony:.1f}")
+            if len(notes) >= 3:
+                details.append(" 음표 3+ - 피해 +25%")
+            if len(notes) >= max_notes:
+                details.append(" 악보 완성 - 앙코르 가능!")
+            details.append(" 스킬로 음표를 쌓아 악보 완성")
+
+        # 바드 - 선율 시스템 (구버전 호환, YAML: melody_system)
         elif gimmick_type == "melody_system":
             melody = getattr(character, 'active_melody', None)
             notes = getattr(character, 'melody_notes', 0)
@@ -4392,15 +4605,87 @@ class CombatUI:
                 details.append(f" 연주 중: {melody}")
             else:
                 details.append(" 대기 중")
+        
+        # 해적 - 럼주 & 보물 시스템 (YAML: rum_treasure_system)
+        elif gimmick_type == "rum_treasure_system":
+            treasures = getattr(character, 'treasure_inventory', [])
+            max_treasure = getattr(character, 'max_treasure', 3)
+            rum_effect = getattr(character, 'current_rum_effect', None)
+            rum_duration = getattr(character, 'rum_effect_duration', 0)
+            details.append("=== 럼주 & 보물 시스템 ===")
+            treasure_bar = self._create_gauge_bar(len(treasures), max_treasure, width=10)
+            details.append(f"보물: {treasure_bar} ({len(treasures)}/{max_treasure})")
+            if rum_effect:
+                details.append(f" 럼주 효과: {rum_effect} ({rum_duration}턴)")
+            else:
+                details.append(" 럼주 효과: 없음")
+            details.append(" 럼주 마시기로 랜덤 버프 획득")
+            details.append(" 적 처치 시 보물 획득")
+        
+        # 정령술사 - 4대 정령 소환 시스템 (YAML: elemental_spirits)
+        elif gimmick_type == "elemental_spirits":
+            fire = getattr(character, 'spirit_fire', 0)
+            water = getattr(character, 'spirit_water', 0)
+            wind = getattr(character, 'spirit_wind', 0)
+            earth = getattr(character, 'spirit_earth', 0)
+            max_spirits = getattr(character, 'max_spirits', 2)
+            active = sum([1 for s in [fire, water, wind, earth] if s > 0])
+            details.append("=== 4대 정령 소환 시스템 ===")
+            spirit_bar = self._create_gauge_bar(active, max_spirits, width=10)
+            details.append(f"활성 정령: {spirit_bar} ({active}/{max_spirits})")
+            details.append(f" 화염: {'소환됨' if fire else '대기'} - 공격력 +20%")
+            details.append(f" 물: {'소환됨' if water else '대기'} - MP 회복, 힐 +30%")
+            details.append(f" 바람: {'소환됨' if wind else '대기'} - 속도 +30%")
+            details.append(f" 대지: {'소환됨' if earth else '대기'} - 방어력 +30%")
+            if active >= 2:
+                details.append(" 정령 2마리 - 융합 스킬 해금!")
+        
+        # 마술사 - 트릭 덱 시스템 (YAML: trick_deck)
+        elif gimmick_type == "trick_deck":
+            hand = getattr(character, 'card_hand', [])
+            deck = getattr(character, 'card_deck', [])
+            discard = getattr(character, 'card_discard', [])
+            max_hand = getattr(character, 'max_hand_size', 8)
+            details.append("=== 트릭 덱 시스템 ===")
+            hand_bar = self._create_gauge_bar(len(hand), max_hand, width=10)
+            details.append(f"손패: {hand_bar} ({len(hand)}/{max_hand})")
+            details.append(f" 덱: {len(deck)}장 | 버린패: {len(discard)}장")
+            
+            # 현재 손패 표시
+            if hand:
+                suit_symbols = {"spade": "♠", "heart": "♥", "diamond": "◆", "club": "♣", "joker": "★"}
+                hand_str = " ".join([f"{suit_symbols.get(c.get('suit', '?'), '?')}{c.get('rank', '?')}" for c in hand[:6]])
+                details.append(f" 현재 패: {hand_str}")
+            
+            # 현재 조합 체크
+            try:
+                from src.character.gimmick_updater import GimmickUpdater
+                combo_type, combo_cards, bonus = GimmickUpdater.get_trick_deck_combination(character)
+                if combo_type:
+                    combo_names = {"pair": "원페어", "two_pair": "투페어", "triple": "트리플", 
+                                  "straight": "스트레이트", "flush": "플러시", "full_house": "풀하우스",
+                                  "four_of_kind": "포카드", "straight_flush": "스트레이트 플러시"}
+                    details.append(f" 현재 조합: {combo_names.get(combo_type, combo_type)}")
+                    details.append(f" 조합 보너스: +{int(bonus * 100)}%")
+                else:
+                    details.append(" 현재 조합: 없음")
+            except:
+                details.append(" 조합 정보 로드 실패")
+            
+            details.append(" 카드 드로우로 조합 완성!")
 
-        # 브레이커 - 브레이크 시스템 (YAML: break_system)
+        # 브레이커 - 파괴력 축적 시스템 (YAML: break_system)
         elif gimmick_type == "break_system":
-            bonus = getattr(character, 'break_bonus', 0)
-            details.append("=== 브레이크 시스템 ===")
-            gauge_bar = self._create_gauge_bar(bonus, 100, width=10, optimal_min=50, optimal_max=100)
-            details.append(f"브레이크 보너스: {gauge_bar}%")
-            if bonus >= 50:
-                details.append(" 극대 브레이크!")
+            break_power = getattr(character, 'break_power', 0)
+            max_break = getattr(character, 'max_break_power', 10)
+            details.append("=== 파괴력 축적 시스템 ===")
+            gauge_bar = self._create_gauge_bar(break_power, max_break, width=10, optimal_min=5, optimal_max=max_break)
+            details.append(f"파괴력: {gauge_bar} ({break_power}/{max_break})")
+            details.append(f" 방어 관통: {min(break_power * 3, 30)}%")
+            if break_power >= 5:
+                details.append(" 파괴력 공명 - 피해 +50%!")
+            if break_power >= max_break:
+                details.append(" 파괴력 MAX - 방어 완전 관통!")
 
         # 사무라이 - 거합 시스템 (YAML: iaijutsu_system)
         elif gimmick_type == "iaijutsu_system":
@@ -4421,14 +4706,23 @@ class CombatUI:
             if holy >= 80:
                 details.append(" 신의 은총 발동 가능")
 
-        # 성기사/대마법사 - 신성력 (YAML: divinity_system)
+        # 신관 - 신앙/심판 시스템 (YAML: divinity_system)
         elif gimmick_type == "divinity_system":
-            divinity = getattr(character, 'divinity', 0)
-            details.append("=== 신성력 시스템 ===")
-            gauge_bar = self._create_gauge_bar(divinity, 100, width=10, optimal_min=80, optimal_max=100)
-            details.append(f"신성력: {gauge_bar}")
-            if divinity >= 80:
-                details.append("🌟 신성 강화 활성")
+            faith = getattr(character, 'faith_points', 0)
+            judgment = getattr(character, 'judgment_points', 0)
+            max_faith = getattr(character, 'max_faith_points', 100)
+            max_judgment = getattr(character, 'max_judgment_points', 100)
+            details.append("=== 신앙/심판 시스템 ===")
+            faith_bar = self._create_gauge_bar(faith, max_faith, width=10)
+            judgment_bar = self._create_gauge_bar(judgment, max_judgment, width=10)
+            details.append(f"신앙: {faith_bar} ({faith}/{max_faith})")
+            details.append(f"심판: {judgment_bar} ({judgment}/{max_judgment})")
+            if faith == judgment and faith > 0:
+                details.append(" 균형 달성! 모든 스킬 +40%")
+            if faith >= max_faith:
+                details.append(" 신앙 MAX - 자동 부활 가능")
+            if judgment >= max_judgment:
+                details.append(" 심판 MAX - 파티 무적 + 정화")
 
         # 엘리멘탈리스트 - 속성 카운터 (YAML: elemental_counter)
         elif gimmick_type == "elemental_counter":
@@ -4463,14 +4757,18 @@ class CombatUI:
             else:
                 details.append(" 준비: 효과 없음")
 
-        # 연금술사 - 연금 시스템 (YAML: alchemy_system)
+        # 연금술사 - 포션 조합 시스템 (YAML: alchemy_system)
         elif gimmick_type == "alchemy_system":
-            catalyst = getattr(character, 'catalyst_type', None)
-            details.append("=== 연금 시스템 ===")
-            if catalyst:
-                details.append(f"⚗ 활성 촉매: {catalyst}")
-            else:
-                details.append("❌ 촉매 없음")
+            stock = getattr(character, 'potion_stock', 0)
+            max_stock = getattr(character, 'max_potion_stock', 10)
+            details.append("=== 포션 조합 시스템 ===")
+            stock_bar = self._create_gauge_bar(stock, max_stock, width=10)
+            details.append(f"재료 보유량: {stock_bar} ({stock}/{max_stock})")
+            details.append(" 재료 조합으로 다양한 포션 제작")
+            if stock >= 5:
+                details.append(" 고급 포션 제작 가능!")
+            if stock >= max_stock:
+                details.append(" 재료 MAX - 철학자의 돌 가능!")
 
         # 용기사 - 드래곤 마크 (YAML: dragon_marks)
         elif gimmick_type == "dragon_marks":
@@ -4548,6 +4846,114 @@ class CombatUI:
         if self.item_menu:
             self.item_menu.render(console)
 
+    def _render_card_select(self, console: tcod.console.Console):
+        """카드 선택 UI 렌더링 (마술사)"""
+        if not self.card_hand:
+            return
+        
+        # 박스 크기 계산
+        card_width = 6  # 카드 하나의 폭
+        spacing = 1     # 카드 간격
+        total_cards = len(self.card_hand)
+        
+        # 최대 표시 가능 카드 수 (화면 폭 기준)
+        max_visible_cards = min(total_cards, (self.screen_width - 10) // (card_width + spacing))
+        
+        # 스크롤 계산 (커서가 보이도록)
+        scroll_offset = 0
+        if total_cards > max_visible_cards:
+            # 커서가 화면 중앙에 오도록 스크롤
+            scroll_offset = max(0, min(self.card_cursor - max_visible_cards // 2, 
+                                       total_cards - max_visible_cards))
+        
+        visible_cards = total_cards if total_cards <= max_visible_cards else max_visible_cards
+        box_width = (card_width + spacing) * visible_cards + 4
+        box_height = 10
+        
+        # 박스 위치 (화면 중앙 하단)
+        box_x = max(1, (self.screen_width - box_width) // 2)
+        box_y = self.screen_height - box_height - 2
+        
+        # 배경 박스
+        console.draw_frame(box_x, box_y, box_width, box_height, 
+                          title=" 카드 선택 ", 
+                          fg=(255, 200, 100), bg=(20, 20, 40))
+        
+        # 안내 텍스트 + 카드 번호
+        info_text = f"◀ ▶: 선택  Z: 확정  X: 취소  ({self.card_cursor + 1}/{total_cards})"
+        console.print(box_x + 2, box_y + 1, info_text, fg=(180, 180, 180))
+        
+        # 카드 표시
+        suit_symbols = {"spade": "♠", "heart": "♥", "diamond": "◆", "club": "♣", "joker": "★"}
+        suit_colors = {
+            "spade": (100, 100, 255),   # 파랑
+            "heart": (255, 100, 100),   # 빨강
+            "diamond": (255, 200, 100), # 노랑
+            "club": (100, 255, 100),    # 초록
+            "joker": (255, 100, 255)    # 보라
+        }
+        
+        # 스크롤 표시
+        if scroll_offset > 0:
+            console.print(box_x + 1, box_y + 5, "◀", fg=(255, 255, 100))
+        if scroll_offset + visible_cards < total_cards:
+            console.print(box_x + box_width - 2, box_y + 5, "▶", fg=(255, 255, 100))
+        
+        for display_i in range(visible_cards):
+            i = display_i + scroll_offset
+            if i >= total_cards:
+                break
+            card = self.card_hand[i]
+            card_x = box_x + 2 + display_i * (card_width + spacing)
+            card_y = box_y + 3
+            
+            suit = card.get("suit", "?")
+            rank = card.get("rank", "?")
+            symbol = suit_symbols.get(suit, "?")
+            color = suit_colors.get(suit, (255, 255, 255))
+            
+            # 선택된 카드 강조
+            is_selected = (i == self.card_cursor)
+            if is_selected:
+                # 선택 표시 (위에 화살표)
+                console.print(card_x + 2, card_y - 1, "▼", fg=(255, 255, 100))
+                # 선택된 카드는 더 밝게
+                color = (min(255, color[0] + 80), min(255, color[1] + 80), min(255, color[2] + 80))
+                bg_color = (40, 40, 60)
+            else:
+                bg_color = (20, 20, 30)
+            
+            # 카드 박스
+            console.draw_frame(card_x, card_y, card_width, 5, fg=color, bg=bg_color)
+            
+            # 카드 내용
+            console.print(card_x + 1, card_y + 1, f"{symbol}", fg=color)
+            console.print(card_x + 1, card_y + 2, f" {rank}", fg=color)
+            console.print(card_x + card_width - 2, card_y + 3, f"{symbol}", fg=color)
+        
+        # 선택된 카드 효과 설명
+        if 0 <= self.card_cursor < len(self.card_hand):
+            selected = self.card_hand[self.card_cursor]
+            rank = selected.get("rank", "")
+            suit = selected.get("suit", "")
+            
+            # 효과 설명 (예외 처리)
+            try:
+                from src.character.skills.job_skills.magician_skills import RANK_EFFECTS, SUIT_EFFECTS
+                rank_effect = RANK_EFFECTS.get(rank, {})
+                suit_effect = SUIT_EFFECTS.get(suit, {})
+            except ImportError:
+                rank_effect = {}
+                suit_effect = {}
+            
+            desc_y = box_y + box_height - 2
+            if rank_effect:
+                desc_text = f"숫자: {rank_effect.get('name', '')} - {rank_effect.get('desc', '')[:35]}"
+                console.print(box_x + 2, desc_y, desc_text[:box_width - 4], fg=(200, 200, 255))
+            if suit_effect:
+                desc_text = f"무늬: {suit_effect.get('name', '')} - {suit_effect.get('desc', '')[:35]}"
+                console.print(box_x + 2, desc_y + 1, desc_text[:box_width - 4], fg=(200, 255, 200))
+
     def _render_battle_end(self, console: tcod.console.Console):
         """전투 종료 화면 렌더링"""
         if self.battle_result == CombatState.VICTORY:
@@ -4607,7 +5013,8 @@ def run_combat(
     combat_position: Optional[Tuple[int, int]] = None,
     dungeon: Optional[Any] = None,  # 던전 맵 (환경 효과용)
     bot_manager: Optional[Any] = None,  # 봇 관리자 (자동 전투용)
-    local_player_id: Optional[str] = None  # 로컬 플레이어 ID (다른 플레이어 컨트롤 방지)
+    local_player_id: Optional[str] = None,  # 로컬 플레이어 ID (다른 플레이어 컨트롤 방지)
+    ai_input_provider: Optional[Any] = None  # AI 관전 모드: AI 입력 제공 콜백
 ) -> Tuple[CombatState, bool]:
     """
     전투 실행
@@ -4621,6 +5028,7 @@ def run_combat(
         session: 멀티플레이 세션 (선택적)
         network_manager: 네트워크 관리자 (선택적)
         combat_position: 전투 시작 위치 (선택적, 멀티플레이용)
+        ai_input_provider: AI 입력 콜백 (CombatUI, combat_manager 받아서 action 반환) - None이면 플레이어 입력 사용
 
     Returns:
         (전투 결과 (승리/패배/도주), 게임오버 여부)
@@ -4818,26 +5226,61 @@ def run_combat(
         # 입력 처리
         action = None
 
-        # 게임패드 입력 우선 확인
-        action = unified_input_handler.get_action()
-        if action:
-            print(f"GAMEPAD_ACTION: {action.name}")  # 액션 감지 시 큰 표시
+        # AI 관전 모드: AI 입력 사용
+        if ai_input_provider:
+            # ESC 키로 강제 종료 가능하게
+            for event in tcod.event.get():
+                if isinstance(event, tcod.event.KeyDown):
+                    if event.sym == tcod.event.KeySym.ESCAPE:
+                        ui.battle_ended = True
+                        ui.battle_result = CombatState.FLED
+                        break
 
-        # tcod 이벤트 처리 (키보드/마우스) - 게임패드 입력이 없을 때만
-        if not action:
-            # tcod 이벤트는 non-blocking으로 변경
-            events = tcod.event.get()  # wait 대신 get 사용
-            for event in events:
-                action = unified_input_handler.process_tcod_event(event)
-                if action:
-                    print(f"KEYBOARD_ACTION: {action.name}")  # 액션 감지 시 큰 표시
-                if action:
-                    print(f"✅ 키보드 액션 감지: {action}")  # 디버깅용
-                    break
+            # 현재 턴인 캐릭터가 아군이면 AI 입력 가져오기
+            current = combat_manager.current_actor
 
-                # 윈도우 닫기는 무시 (전투 중에는 도주 명령으로만 종료 가능)
-                # if isinstance(event, tcod.event.Quit):
-                #     return CombatState.FLED
+            # current_actor가 None이면 ATB에서 다음 행동자 찾기
+            if not current and hasattr(combat_manager, 'atb'):
+                action_order = combat_manager.atb.get_action_order()
+                if action_order:
+                    current = action_order[0]  # 가장 높은 ATB 게이지를 가진 캐릭터
+                    logger.info(f"[COMBAT_UI] ATB 액션 오더에서 다음 행동자 조회: {current.name if current else 'None'}")
+
+            logger.info(f"[COMBAT_UI] 현재 actor: {current.name if current else 'None'} (타입: {type(current).__name__ if current else 'None'})")
+            logger.info(f"[COMBAT_UI] 아군 파티: {[c.name for c in party]}")
+
+            if current and current in party:
+                logger.info(f"[COMBAT_UI] 🤖 AI 입력 호출: {current.name}")
+                action = ai_input_provider(ui, combat_manager, current, inventory)
+                logger.info(f"[COMBAT_UI] ✅ AI 반환: {action}")
+                if action:
+                    import time
+                    time.sleep(0.5)  # 실제 플레이어처럼 자연스러운 속도
+            elif current:
+                logger.warning(f"[COMBAT_UI] ⚠️ 현재 캐릭터가 파티가 아님: {current.name if current else 'None'} (적군일 가능성)")
+            else:
+                logger.warning(f"[COMBAT_UI] ⚠️ 현재 행동자를 찾을 수 없음")
+        else:
+            # 게임패드 입력 우선 확인
+            action = unified_input_handler.get_action()
+            if action:
+                print(f"GAMEPAD_ACTION: {action.name}")  # 액션 감지 시 큰 표시
+
+            # tcod 이벤트 처리 (키보드/마우스) - 게임패드 입력이 없을 때만
+            if not action:
+                # tcod 이벤트는 non-blocking으로 변경
+                events = tcod.event.get()  # wait 대신 get 사용
+                for event in events:
+                    action = unified_input_handler.process_tcod_event(event)
+                    if action:
+                        print(f"KEYBOARD_ACTION: {action.name}")  # 액션 감지 시 큰 표시
+                    if action:
+                        print(f"✅ 키보드 액션 감지: {action}")  # 디버깅용
+                        break
+
+                    # 윈도우 닫기는 무시 (전투 중에는 도주 명령으로만 종료 가능)
+                    # if isinstance(event, tcod.event.Quit):
+                    #     return CombatState.FLED
 
         if action:
             if ui.handle_input(action):
