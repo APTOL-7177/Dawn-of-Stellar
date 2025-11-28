@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 import random
 import time
+import heapq
 
 from src.world.dungeon_generator import DungeonMap
 from src.world.tile import Tile, TileType
@@ -1367,39 +1368,134 @@ class ExplorationSystem:
             if enemy.x != enemy.spawn_x or enemy.y != enemy.spawn_y:
                 self._move_enemy_towards(enemy, enemy.spawn_x, enemy.spawn_y)
 
+    def _find_path_astar(self, start_x: int, start_y: int, goal_x: int, goal_y: int, max_steps: int = 20) -> Optional[List[Tuple[int, int]]]:
+        """
+        A* 알고리즘으로 경로 찾기
+
+        Args:
+            start_x, start_y: 시작 위치
+            goal_x, goal_y: 목표 위치
+            max_steps: 최대 탐색 깊이 (성능 최적화)
+
+        Returns:
+            경로 리스트 [(x1, y1), (x2, y2), ...] 또는 None
+        """
+        def heuristic(x, y):
+            """휴리스틱 함수: 맨하탄 거리"""
+            return abs(x - goal_x) + abs(y - goal_y)
+
+        # 우선순위 큐: (f_score, counter, x, y)
+        open_set = []
+        counter = 0  # 같은 f_score일 때 순서 보장
+        heapq.heappush(open_set, (heuristic(start_x, start_y), counter, start_x, start_y))
+
+        # 방문한 노드와 비용 추적
+        came_from = {}
+        g_score = {(start_x, start_y): 0}
+        visited = set()
+
+        # 8방향 이동 (대각선 포함하면 더 자연스러운 이동)
+        directions = [
+            (1, 0), (-1, 0), (0, 1), (0, -1),  # 상하좌우
+            (1, 1), (1, -1), (-1, 1), (-1, -1)  # 대각선
+        ]
+
+        while open_set and len(visited) < max_steps * max_steps:
+            _, _, current_x, current_y = heapq.heappop(open_set)
+
+            if (current_x, current_y) in visited:
+                continue
+
+            visited.add((current_x, current_y))
+
+            # 목표 도달
+            if current_x == goal_x and current_y == goal_y:
+                # 경로 역추적
+                path = []
+                current = (current_x, current_y)
+                while current in came_from:
+                    path.append(current)
+                    current = came_from[current]
+                path.append((start_x, start_y))
+                path.reverse()
+                return path
+
+            # 이웃 노드 탐색
+            for dx, dy in directions:
+                neighbor_x = current_x + dx
+                neighbor_y = current_y + dy
+
+                # 범위 체크
+                if (neighbor_x, neighbor_y) in visited:
+                    continue
+
+                # 이동 가능 여부 확인
+                if not self.dungeon.is_walkable(neighbor_x, neighbor_y):
+                    continue
+
+                # 다른 적이 있는지 확인 (다른 적이 있으면 우회)
+                if self.get_enemy_at(neighbor_x, neighbor_y):
+                    continue
+
+                # 비용 계산 (대각선은 더 큰 비용)
+                movement_cost = 1.414 if abs(dx) == 1 and abs(dy) == 1 else 1.0
+                tentative_g_score = g_score[(current_x, current_y)] + movement_cost
+
+                if (neighbor_x, neighbor_y) not in g_score or tentative_g_score < g_score[(neighbor_x, neighbor_y)]:
+                    # 더 좋은 경로 찾음
+                    came_from[(neighbor_x, neighbor_y)] = (current_x, current_y)
+                    g_score[(neighbor_x, neighbor_y)] = tentative_g_score
+                    f_score = tentative_g_score + heuristic(neighbor_x, neighbor_y)
+                    counter += 1
+                    heapq.heappush(open_set, (f_score, counter, neighbor_x, neighbor_y))
+
+        # 경로를 찾을 수 없음
+        return None
+
     def _move_enemy_towards(self, enemy: Enemy, target_x: int, target_y: int):
-        """적을 목표 위치로 한 칸 이동 (가장 가까운 플레이어 추적)"""
+        """적을 목표 위치로 한 칸 이동 (A* 경로 찾기 이용)"""
         # 목표 재설정: 가장 가까운 플레이어(봇 포함) 찾기
         target = self._find_nearest_target(enemy)
         if target:
             target_x, target_y = target.x, target.y
-            
+
         old_x, old_y = enemy.x, enemy.y
-        
-        # 이동 방향 결정 (맨하탄 거리 기반)
-        dx = 0
-        dy = 0
 
-        if enemy.x < target_x:
-            dx = 1
-        elif enemy.x > target_x:
-            dx = -1
+        # 목표에 이미 도착했는가?
+        if enemy.x == target_x and enemy.y == target_y:
+            return
 
-        if enemy.y < target_y:
-            dy = 1
-        elif enemy.y > target_y:
-            dy = -1
+        # A* 경로 찾기 시도
+        path = self._find_path_astar(enemy.x, enemy.y, target_x, target_y)
 
-        # 대각선 이동 or 직선 이동 선택
-        # 50% 확률로 X축 우선, 50% 확률로 Y축 우선
-        if random.random() < 0.5 and dx != 0:
-            new_x, new_y = enemy.x + dx, enemy.y
-        elif dy != 0:
-            new_x, new_y = enemy.x, enemy.y + dy
-        elif dx != 0:
-            new_x, new_y = enemy.x + dx, enemy.y
+        if path and len(path) > 1:
+            # 경로가 있으면 다음 지점으로 이동
+            next_x, next_y = path[1]
+            new_x, new_y = next_x, next_y
         else:
-            return  # 이미 목표 위치에 도착
+            # 경로가 없으면 맨하탄 거리 기반 대체 이동
+            dx = 0
+            dy = 0
+
+            if enemy.x < target_x:
+                dx = 1
+            elif enemy.x > target_x:
+                dx = -1
+
+            if enemy.y < target_y:
+                dy = 1
+            elif enemy.y > target_y:
+                dy = -1
+
+            # 대각선 이동 or 직선 이동 선택
+            if random.random() < 0.5 and dx != 0:
+                new_x, new_y = enemy.x + dx, enemy.y
+            elif dy != 0:
+                new_x, new_y = enemy.x, enemy.y + dy
+            elif dx != 0:
+                new_x, new_y = enemy.x + dx, enemy.y
+            else:
+                return
 
         # 이동 가능 여부 확인
         if self.dungeon.is_walkable(new_x, new_y):
@@ -1407,15 +1503,14 @@ class ExplorationSystem:
             player_at_target = self._is_player_at(new_x, new_y)
             if player_at_target:
                 # 적이 플레이어 위치로 이동하려고 함 - 전투 트리거
-                # 이 적을 전투에 참여시키기 위해 플레이어 위치로 이동시킴
                 enemy.x = new_x
                 enemy.y = new_y
                 logger.info(f"[적 이동] {enemy.name}이(가) 플레이어 위치로 이동 - 전투 트리거 예정")
-                return  # 전투는 move_player에서 처리됨
-            
+                return
+
             # 다른 적과 겹치지 않는지 확인
             enemy_at_target = self.get_enemy_at(new_x, new_y)
-            
+
             if not enemy_at_target:
                 enemy.x = new_x
                 enemy.y = new_y
