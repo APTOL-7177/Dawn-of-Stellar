@@ -1417,24 +1417,33 @@ class CombatUI:
             # 행동 지연 타이머 설정 (0.5초 대기)
             self.action_delay_frames = 15  # 0.5초 (30 FPS 기준)
         elif ready and not self.action_delay_frames:
+            # 행동자 처리 전 상태 정상화 (항상 WAITING_ATB 상태여야 함)
+            if self.state != CombatUIState.WAITING_ATB:
+                logger.debug(f"상태 강제 정상화: {self.state.value} -> WAITING_ATB")
+                self.state = CombatUIState.WAITING_ATB
+
             # 다음 행동자
             actor = ready[0]
-            
+
             # 캐릭터 타입 확인
             actor_player_id = getattr(actor, 'player_id', None)
             is_bot = actor_player_id and str(actor_player_id).startswith('bot_')
             
             if actor in self.combat_manager.enemies:
                 # 적 턴: 기존 EnemyAI 처리
+                logger.debug(f"적 {actor.name} 턴 처리")
                 self._execute_enemy_turn(actor)
-                
+
             elif is_bot:
                 # 봇 턴: AI가 자동으로 행동
-                logger.info(f"봇 {actor.name} 턴 시작 - AI 행동 결정")
+                logger.info(f"봇 {actor.name} 턴 시작 - player_id: {actor_player_id}")
                 self._process_bot_turn(actor)
+                # 봇 행동 후 상태 확인
+                logger.debug(f"봇 {actor.name} 행동 완료 - action_delay_frames: {self.action_delay_frames}")
                 
             elif actor in self.combat_manager.allies:
-                # 플레이어 턴: UI 표시 (WAITING_ATB 상태일 때만)
+                # 플레이어 턴: UI 표시
+                logger.debug(f"플레이어 {actor.name} 턴 처리 - 상태: {self.state.value}")
                 if self.state == CombatUIState.WAITING_ATB:
                     # 기절/마비/수면 등 행동 불가 상태 확인 (이중 체크)
                     if hasattr(actor, 'status_manager') and not actor.status_manager.can_act():
@@ -1584,47 +1593,99 @@ class CombatUI:
             # Fallback
             self._execute_default_bot_action(actor)
     
-    def _execute_bot_action(self, actor: Any, action: dict):
+    def _execute_bot_action(self, actor: Any, action):
         """
         봇이 결정한 행동 실행
-        
+
         Args:
             actor: 행동자
-            action: 행동 정보 {type, skill, target}
+            action: 행동 정보 (딕셔너리 또는 BotAction 객체)
+                   - 딕셔너리: {type, skill, target}
+                   - BotAction: action_type, skill_id, target_name 속성
         """
-        action_type = action.get("type")
-        target = action.get("target")
-        skill = action.get("skill")
-        
-        logger.debug(f"봇 행동 실행: {actor.name} → {action_type}")
-        
-        # ActionType 변환
-        if action_type == "skill" and skill:
-            result = self.combat_manager.execute_action(
-                actor=actor,
-                action_type=ActionType.SKILL,
-                target=target,
-                skill=skill
-            )
-        elif action_type == "hp_attack":
+        # BotAction 객체 또는 딕셔너리 지원
+        if hasattr(action, 'action_type'):
+            # BotAction 객체 (LLMPlayerBot에서 반환)
+            from src.multiplayer.llm_player_bot import ActionType as LLMActionType
+            action_type_enum = action.action_type
+            # Enum의 value 추출 (예: ActionType.SKILL → "skill")
+            if hasattr(action_type_enum, 'value'):
+                action_type = action_type_enum.value
+            else:
+                action_type = str(action_type_enum)
+            target_name = action.target_name
+            skill_id = action.skill_id
+        else:
+            # 딕셔너리 형식 (EnemyAI에서 반환)
+            action_type = action.get("type")
+            target_name = action.get("target")
+            skill_id = None
+            # 호환성을 위해 skill 키도 확인 (EnemySkill 객체)
+            skill = action.get("skill")
+
+        logger.debug(f"봇 행동 실행: {actor.name} → {action_type}, 타겟: {target_name}")
+
+        # 타겟 객체 찾기
+        target = target_name
+        if isinstance(target_name, str):
+            # 타겟 이름으로 캐릭터 찾기
+            target = None
+            for ally in self.combat_manager.allies:
+                if getattr(ally, 'name', '') == target_name:
+                    target = ally
+                    break
+            if not target:
+                for enemy in self.combat_manager.enemies:
+                    if getattr(enemy, 'name', '') == target_name:
+                        target = enemy
+                        break
+
+        # ActionType 변환 및 실행
+        if action_type == "skill" or action_type == "SKILL" or (hasattr(action, 'action_type') and action.action_type.value == "skill"):
+            if skill_id:
+                result = self.combat_manager.execute_action(
+                    actor=actor,
+                    action_type=ActionType.SKILL,
+                    target=target,
+                    skill_id=skill_id
+                )
+            elif 'skill' in locals() and skill:
+                # EnemyAI 호환성
+                result = self.combat_manager.execute_action(
+                    actor=actor,
+                    action_type=ActionType.SKILL,
+                    target=target,
+                    skill=skill
+                )
+            else:
+                logger.warning(f"스킬 정보가 없음: {actor.name}")
+                result = {}
+        elif action_type == "hp_attack" or action_type == "HP_ATTACK":
             result = self.combat_manager.execute_action(
                 actor=actor,
                 action_type=ActionType.HP_ATTACK,
                 target=target
             )
-        elif action_type == "attack":  # BRV 공격
+        elif action_type == "brv_attack" or action_type == "attack" or action_type == "BRV_ATTACK":
             result = self.combat_manager.execute_action(
                 actor=actor,
                 action_type=ActionType.BRV_ATTACK,
                 target=target
             )
-        elif action_type == "defend":
+        elif action_type == "defend" or action_type == "DEFEND":
             result = self.combat_manager.execute_action(
                 actor=actor,
                 action_type=ActionType.DEFEND
             )
+        elif action_type == "item" or action_type == "ITEM":
+            item_id = getattr(action, 'item_id', None)
+            result = self.combat_manager.execute_action(
+                actor=actor,
+                action_type=ActionType.ITEM,
+                item_id=item_id
+            )
         else:
-            logger.warning(f"알 수 없는 행동 타입: {action_type}")
+            logger.warning(f"알 수 없는 행동 타입: {action_type}, 행동: {action}")
             result = {}
         
         # 결과 메시지 표시

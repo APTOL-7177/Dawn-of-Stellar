@@ -1175,10 +1175,46 @@ class LLMPlayerBot:
             logger.error(f"[{self.bot_name}] LLM 호출 오류: {e}")
             return self._fallback_action(combat_state)
     
+    def decide_action(
+        self,
+        character: Any = None,
+        allies: List[Any] = None,
+        enemies: List[Any] = None,
+        combat_state: Optional[CombatState] = None
+    ) -> BotAction:
+        """
+        호환성 메서드: EnemyAI의 인터페이스를 맞추기 위한 래퍼
+
+        Args:
+            character: 현재 캐릭터 (선택사항)
+            allies: 아군 목록 (선택사항)
+            enemies: 적군 목록 (선택사항)
+            combat_state: 전투 상태 객체 (우선)
+
+        Returns:
+            BotAction: 결정된 행동
+        """
+        # combat_state가 없으면 인자들로부터 구성
+        if not combat_state and allies is not None and enemies is not None:
+            # EnemyAI 인터페이스에서 호출된 경우: combat_state 생성
+            # 주의: 이는 대략적인 상태 구성이므로 완전하지 않을 수 있음
+            from src.combat.combat_manager import CombatState
+            combat_state = CombatState(
+                allies=allies,
+                enemies=enemies,
+                current_actor=character
+            )
+
+        if combat_state:
+            return self.decide_combat_action(combat_state)
+        else:
+            logger.warning("[LLMPlayerBot] decide_action 호출 시 필요한 정보 부족")
+            return self._fallback_action(None)
+
     # =========================================================================
     # 탐험 의사결정
     # =========================================================================
-    
+
     def decide_exploration_action(
         self,
         exploration_state: ExplorationState
