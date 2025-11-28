@@ -900,10 +900,18 @@ class LLMPlayerBot:
             
         except Exception as e:
             logger.error(f"파티 전략 수립 실패: {e}")
-        
-        # 기본 전략
+
+        # 기본 전략: 살아있는 적 중 가장 위협적인 대상 선택
+        focus_target = None
+        if combat_state.enemies:
+            # 살아있는 적들 중에서 선택
+            alive_enemies = [e for e in combat_state.enemies if e.is_alive]
+            if alive_enemies:
+                # 가장 높은 HP를 가진 적을 우선 타겟 (가장 위협적)
+                focus_target = max(alive_enemies, key=lambda e: e.hp).name
+
         return PartyStrategy(
-            focus_target=combat_state.enemies[0].name if combat_state.enemies else None
+            focus_target=focus_target
         )
     
     # =========================================================================
@@ -979,10 +987,12 @@ class LLMPlayerBot:
             # 👥 파티 전략 컨텍스트 추가 (보스전에서만)
             if is_boss and self.current_strategy:
                 strategy_text = f"\n## 🎯 파티 전략\n"
-                strategy_text += f"- 집중 타겟: {self.current_strategy.focus_target}\n"
+                if self.current_strategy.focus_target:
+                    strategy_text += f"- 기본 타겟: {self.current_strategy.focus_target} (상황에 따라 변경 가능)\n"
                 if self.current_strategy.emergency_plan:
                     strategy_text += f"- 위기 대응: {self.current_strategy.emergency_plan}\n"
-                prompt = strategy_text + prompt
+                if strategy_text != f"\n## 🎯 파티 전략\n":  # 실제 전략 정보가 있을 때만 추가
+                    prompt = strategy_text + prompt
             
             # 히스토리 추가 (최근 2개만 - 속도 위해)
             if self.combat_history:
@@ -1110,8 +1120,9 @@ class LLMPlayerBot:
                 action_type=ActionType.DEFEND,
                 reasoning="폴백: 적 없음"
             )
-        
-        target = alive_enemies[0]
+
+        # 기본 타겟: 가장 높은 HP를 가진 적 (가장 위협적)
+        target = max(alive_enemies, key=lambda e: e.hp)
         
         # 간단한 규칙 기반 폴백
         # 1. HP 위험하면 회복 아이템
