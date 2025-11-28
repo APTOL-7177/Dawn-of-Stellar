@@ -1564,13 +1564,15 @@ class CombatUI:
     def _process_bot_turn(self, actor: Any):
         """
         봇 턴 처리 - AI가 행동 결정 및 실행
-        
+
         Args:
             actor: 봇이 조종하는 캐릭터
         """
+        logger.info(f"=== 봇 턴 시작: {actor.name} (HP: {getattr(actor, 'hp', '?')}/{getattr(actor, 'max_hp', '?')}, BRV: {getattr(actor, 'brv', 0)}) ===")
+
         # 봇 인스턴스 찾기
         bot = self._get_bot_instance(actor)
-        
+
         if not bot:
             logger.warning(f"봇 인스턴스를 찾을 수 없음: {actor.name}")
             # Fallback: 기본 BRV 공격
@@ -1634,7 +1636,15 @@ class CombatUI:
             logger.debug(f"LLM 봇 상태 생성: {actor.name}, 아군: {len(combat_state.allies)}, 적: {len(combat_state.enemies)}")
 
             # 봇 AI로 행동 결정 (decide_combat_action 직접 호출)
+            logger.info(f"LLM 봇 {actor.name}에게 행동 결정 요청 중...")
             action = bot.decide_combat_action(combat_state)
+
+            if not action:
+                logger.error(f"LLM 봇 {actor.name}이 None을 반환함!")
+                self._execute_default_bot_action(actor)
+                return
+
+            logger.info(f"LLM 봇 {actor.name} 행동 결정 완료: {action.action_type.value if hasattr(action, 'action_type') else action}")
 
             # 행동 실행
             self._execute_bot_action(actor, action)
