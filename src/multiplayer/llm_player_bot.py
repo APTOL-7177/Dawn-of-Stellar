@@ -399,19 +399,21 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
     
     # === 간소화 모드 (빠른 응답) ===
     if not detailed:
-        # 현재 캐릭터
+        # 현재 캐릭터 (최대값 포함)
         hp_pct = int(current.hp / current.max_hp * 100) if current.max_hp > 0 else 0
-        me = f"{current.name}({current.job}):HP{hp_pct}% BRV{current.brv}"
+        brv_pct = int(current.brv / current.max_brv * 100) if current.max_brv > 0 else 0
+        me = f"{current.name}({current.job}):HP{hp_pct}% BRV{brv_pct}%({current.brv}/{current.max_brv})"
         if current.gimmick_name:
             me += f" {current.gimmick_name}:{current.gimmick_value}"
 
-        # 적 상태
+        # 적 상태 (최대값 포함)
         enemies = []
         for e in state.enemies:
             if e.is_alive:
                 e_hp = int(e.hp / e.max_hp * 100) if e.max_hp > 0 else 0
+                e_brv = int(e.brv / e.max_brv * 100) if e.max_brv > 0 else 0
                 status = "[BREAK]" if e.is_broken else ""
-                enemies.append(f"{e.name}:HP{e_hp}% BRV{e.brv}{status}")
+                enemies.append(f"{e.name}:HP{e_hp}% BRV{e_brv}%({e.brv}/{e.max_brv}){status}")
 
         # 위험한 아군
         low_hp_allies = [a.name for a in state.allies if a.is_alive and a.hp < a.max_hp * 0.3]
@@ -446,6 +448,13 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
 {chr(10).join(skill_recommendations) if skill_recommendations else ""}
 
 전략: BRV 축적 → HP 공격이 기본. 상황에 따라 스킬을 섞어서 사용하세요.
+
+응답 형식:
+- 기본 공격: {{"action":"brv_attack","target":"enemy"}}
+- HP 공격: {{"action":"hp_attack","target":"enemy"}}
+- 스킬 사용: {{"action":"skill","skill_id":"스킬ID","target":"enemy"}}
+- 예: {{"action":"skill","skill_id":"basic_heal","target":"ally_name"}}
+
 행동(JSON):"""
         return prompt
     
