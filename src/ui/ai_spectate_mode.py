@@ -1019,63 +1019,36 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                 else:
                     add_ai_commentary(f"⚔️ {current_char.name}: {action_name}")
 
-                # ===== LLM 결정을 UI 메뉴로 변환 (정상 흐름 따르기) =====
+                # ===== LLM 결정을 저장하고 CONFIRM만 반복 =====
                 # ACTION_MENU에서만 새로운 LLM 결정 받기
                 if ui.state == CombatUIState.ACTION_MENU:
                     global _current_combat_action, _combat_action_step
                     _current_combat_action = action
                     _combat_action_step = 0
+
+                    action_desc = ""
+                    if action.action_type == ActionType.SKILL:
+                        action_desc = f"✨ 스킬: {action.skill_id}"
+                    elif action.action_type == ActionType.ITEM:
+                        action_desc = "📦 아이템"
+                    elif action.action_type == ActionType.BRV_ATTACK:
+                        action_desc = "💥 BRV 공격"
+                    elif action.action_type == ActionType.HP_ATTACK:
+                        action_desc = "💥 HP 공격"
+                    elif action.action_type == ActionType.DEFEND:
+                        action_desc = "🛡️ 방어"
+                    elif action.action_type == ActionType.FLEE:
+                        action_desc = "💨 도망"
+                    else:
+                        action_desc = f"⚠️ {action_name}"
+
+                    log_action(action_desc)
                     logger.info(f"[COMBAT] 📝 LLM 결정 저장: {action_name}")
 
-                    # 행동 타입별로 메뉴 진입
-                    if action.action_type == ActionType.SKILL:
-                        log_action(f"✨ 스킬 선택: {action.skill_id}")
-                        # 스킬 메뉴로 진입
-                        return GameAction.DOWN  # 메뉴에서 스킬 선택으로
-
-                    elif action.action_type == ActionType.ITEM:
-                        log_action("📦 아이템 선택")
-                        return GameAction.CANCEL  # 아이템 메뉴로
-
-                    elif action.action_type in [ActionType.BRV_ATTACK, ActionType.HP_ATTACK]:
-                        log_action(f"💥 {'BRV' if action.action_type == ActionType.BRV_ATTACK else 'HP'} 공격")
-                        # 공격은 대상 선택으로 바로 (또는 그냥 CONFIRM)
-                        return GameAction.CONFIRM
-
-                    elif action.action_type == ActionType.DEFEND:
-                        log_action("🛡️ 방어")
-                        return GameAction.CANCEL
-
-                    elif action.action_type == ActionType.FLEE:
-                        log_action("💨 도망")
-                        return GameAction.CANCEL
-
-                    else:
-                        logger.warning(f"[COMBAT] ⚠️ 알 수 없는 액션: {action_name}")
-                        return GameAction.CONFIRM
-
-                # SKILL_MENU 상태: 스킬 선택
-                elif ui.state == CombatUIState.SKILL_MENU:
-                    if _current_combat_action and _current_combat_action.action_type == ActionType.SKILL:
-                        skill_id = getattr(_current_combat_action, 'skill_id', None)
-                        logger.debug(f"[COMBAT] 📋 SKILL_MENU에서 스킬 선택: {skill_id}")
-                        # 간단하게 첫 번째 스킬 또는 검색해서 선택
-                        # 현재는 일단 CONFIRM으로 첫 번째 스킬 선택
-                        return GameAction.CONFIRM
-
-                # TARGET_SELECT 상태: 대상 선택
-                elif ui.state == CombatUIState.TARGET_SELECT:
-                    if _current_combat_action:
-                        target_name = getattr(_current_combat_action, 'target_name', None)
-                        logger.debug(f"[COMBAT] 🎯 TARGET_SELECT에서 대상 선택: {target_name}")
-                        # 간단하게 첫 번째 적 또는 지정된 대상 선택
-                        # 현재는 일단 CONFIRM으로 첫 번째 대상 선택
-                        return GameAction.CONFIRM
-
-                # 기타 상태: CONFIRM 반환
-                else:
-                    logger.debug(f"[COMBAT] 기타 상태에서 CONFIRM 반환: {ui.state.value}")
-                    return GameAction.CONFIRM
+                # UI 메뉴 네비게이션: 항상 CONFIRM으로 진행
+                # ACTION_MENU → SKILL_MENU/TARGET_SELECT/ITEM_MENU → EXECUTING
+                logger.debug(f"[COMBAT] 상태={ui.state.value} → CONFIRM 반환 (메뉴 진행)")
+                return GameAction.CONFIRM
 
             except Exception as e:
                 logger.error(f"[COMBAT] ❌ LLM 전투 실패: {str(e)}")
