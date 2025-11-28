@@ -307,13 +307,13 @@ SYSTEM_PROMPT_BASE = """게임 AI. ATB+BRV 전투 시스템.
 JSON: {"action":"brv_attack|hp_attack|skill|item|defend","target":"대상","skill_id":"스킬ID","reasoning":"이유"}
 """
 
-# 플레이 스타일별 추가 프롬프트
+# 플레이 스타일별 추가 프롬프트 (상황에 따라 동적으로 결정됨)
 STYLE_PROMPTS = {
-    PlayStyle.AGGRESSIVE: "🔥 공격적: 강력한 공격 스킬과 HP공격 우선, 리스크 감수. 높은 데미지 딜링 스킬 자주 사용!",
-    PlayStyle.DEFENSIVE: "🛡️ 방어적: HP 50% 이하면 회복 스킬 우선, 버프/디버프 스킬로 보호. 안정성 중시.",
-    PlayStyle.BALANCED: "⚖️ 균형: 상황에 맞춰 공격/회복/버프 스킬 적절히 사용. 전략적 판단.",
-    PlayStyle.SPEEDRUN: "⚡ 스피드: 높은 데미지 스킬로 빠른 처치. 회복은 필요할 때만.",
-    PlayStyle.RESOURCE_SAVER: "💎 절약: MP 관리하며 효율적인 스킬 사용. 자주 사용 가능한 저비용 스킬 선호.",
+    PlayStyle.AGGRESSIVE: "공격적: 강력한 공격 스킬과 HP공격 우선, 리스크 감수. 높은 데미지 딜링 스킬 자주 사용!",
+    PlayStyle.DEFENSIVE: "방어적: HP 50% 이하면 회복 스킬 우선, 버프/디버프 스킬로 보호. 안정성 중시.",
+    PlayStyle.BALANCED: "균형: 상황에 맞춰 공격/회복/버프 스킬 적절히 사용. 전략적 판단.",
+    PlayStyle.SPEEDRUN: "스피드: 높은 데미지 스킬로 빠른 처치. 회복은 필요할 때만.",
+    PlayStyle.RESOURCE_SAVER: "절약: MP 관리하며 효율적인 스킬 사용. 자주 사용 가능한 저비용 스킬 선호.",
 }
 
 RESPONSE_FORMAT = ""  # 시스템 프롬프트에 이미 포함
@@ -415,7 +415,6 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
         # 스킬 (더 많이, 설명 포함)
         skills = []
         for s in state.available_skills[:10]:  # 10개까지 표시 (이전: 5개)
-            cd_text = f"쿨{s.cooldown_remaining}" if s.cooldown_remaining > 0 else "준비됨"
             desc = f" {s.description}" if s.description else ""
             skills.append(f"{s.id}({s.skill_type}){desc}[MP{s.mp_cost}]")
 
@@ -423,7 +422,7 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
 적:{','.join(enemies)}
 {"위험:" + ','.join(low_hp_allies) if low_hp_allies else ""}
 스킬:{' / '.join(skills)}
-💡팁: 적절한 상황에서 스킬을 적극 활용하세요. BRV축적->HP공격도 좋지만, 힐/버프/디버프 스킬도 상황에 맞춰 사용하세요.
+팁: 적절한 상황에서 스킬을 적극 활용하세요. BRV축적->HP공격도 좋지만, 힐/버프/디버프 스킬도 상황에 맞춰 사용하세요.
 행동(JSON):"""
         return prompt
     
@@ -476,18 +475,18 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
             lines.append(f"- {item.id}: {item.name} x{item.quantity}")
 
     # 전술 가이드
-    lines.append("\n### 💡 전술 가이드")
+    lines.append("\n### 전술 가이드")
     low_ally_count = sum(1 for a in state.allies if a.is_alive and a.hp < a.max_hp * 0.4)
     broken_enemy_count = sum(1 for e in state.enemies if e.is_alive and e.is_broken)
 
     if low_ally_count > 0:
-        lines.append(f"- 🔴 아군 {low_ally_count}명이 위험합니다. 힐 또는 버프 스킬 사용 검토!")
+        lines.append(f"- 아군 {low_ally_count}명이 위험합니다. 힐 또는 버프 스킬 사용 검토!")
     if broken_enemy_count > 0:
-        lines.append(f"- ⚡ {broken_enemy_count}명의 적이 BREAK 상태입니다. HP 공격으로 큰 피해를 줄 기회!")
+        lines.append(f"- {broken_enemy_count}명의 적이 BREAK 상태입니다. HP 공격으로 큰 피해를 줄 기회!")
     if current.brv > current.max_brv * 0.7:
-        lines.append(f"- 💪 BRV가 충분합니다. HP 공격이나 강력한 스킬 사용 추천!")
+        lines.append(f"- BRV가 충분합니다. HP 공격이나 강력한 스킬 사용 추천!")
     if current.mp < current.max_mp * 0.3:
-        lines.append(f"- ⚠️ MP가 부족합니다. 저코스트 스킬이나 물리 공격 고려!")
+        lines.append(f"- MP가 부족합니다. 저코스트 스킬이나 물리 공격 고려!")
 
     lines.append("\n행동 선택(JSON):")
     return "\n".join(lines)
@@ -836,10 +835,87 @@ class LLMPlayerBot:
             f"thinking: {self.config.enable_thinking})"
         )
     
-    def _get_system_prompt(self) -> str:
-        """현재 설정에 맞는 시스템 프롬프트 생성"""
+    def _analyze_combat_situation(self, combat_state: CombatState) -> PlayStyle:
+        """
+        현재 전투 상황을 분석하여 적절한 플레이 스타일 결정
+
+        Returns:
+            결정된 플레이 스타일
+        """
+        # 현재 캐릭터 찾기
+        current_char = None
+        for ally in combat_state.allies:
+            if ally.name == combat_state.current_actor and ally.is_alive:
+                current_char = ally
+                break
+
+        if not current_char:
+            return self.config.play_style
+
+        # 상황 분석
+        self_hp_ratio = current_char.hp / current_char.max_hp if current_char.max_hp > 0 else 1.0
+        self_mp_ratio = current_char.mp / current_char.max_mp if current_char.max_mp > 0 else 1.0
+        self_brv_ratio = current_char.brv / current_char.max_brv if current_char.max_brv > 0 else 0.0
+
+        # 아군 위험 상태 확인
+        allies_in_danger = sum(1 for a in combat_state.allies
+                               if a.is_alive and a.hp < a.max_hp * 0.3)
+        allies_low_hp = sum(1 for a in combat_state.allies
+                            if a.is_alive and a.hp < a.max_hp * 0.5)
+
+        # 적 상황 분석
+        alive_enemies = [e for e in combat_state.enemies if e.is_alive]
+        total_enemy_hp = sum(e.hp for e in alive_enemies)
+        enemy_count = len(alive_enemies)
+        broken_enemies = sum(1 for e in alive_enemies if e.is_broken)
+
+        # 플레이 스타일 동적 결정
+
+        # 1. 자신이 위험하거나 아군이 여럿 위험 -> 방어적
+        if self_hp_ratio < 0.3 or allies_in_danger >= 2:
+            return PlayStyle.DEFENSIVE
+
+        # 2. 아군 중 누군가 위험 -> 방어적
+        if allies_in_danger > 0:
+            return PlayStyle.DEFENSIVE
+
+        # 3. MP가 거의 없음 -> 절약형
+        if self_mp_ratio < 0.2 and enemy_count > 1:
+            return PlayStyle.RESOURCE_SAVER
+
+        # 4. 적이 1마리 남음 -> 스피드런 (빠른 처치)
+        if enemy_count == 1 and alive_enemies[0].hp < alive_enemies[0].max_hp * 0.4:
+            return PlayStyle.SPEEDRUN
+
+        # 5. 여러 적이 있고 자신의 HP가 충분 -> 공격적
+        if enemy_count >= 2 and self_hp_ratio > 0.6 and self_brv_ratio > 0.5:
+            return PlayStyle.AGGRESSIVE
+
+        # 6. 적이 BREAK 상태 + 자신의 BRV 높음 -> 공격적
+        if broken_enemies > 0 and self_brv_ratio > 0.6:
+            return PlayStyle.AGGRESSIVE
+
+        # 7. 적의 총 HP가 낮고 아군이 안정적 -> 스피드런
+        if total_enemy_hp < 500 and allies_low_hp == 0:
+            return PlayStyle.SPEEDRUN
+
+        # 기본값: 균형
+        return PlayStyle.BALANCED
+
+    def _get_system_prompt(self, combat_state: Optional[CombatState] = None) -> str:
+        """
+        현재 설정과 전투 상황에 맞는 시스템 프롬프트 생성
+
+        Args:
+            combat_state: 현재 전투 상태 (있으면 상황 분석해서 스타일 결정)
+        """
+        # 상황이 주어지면 동적으로 플레이 스타일 결정
+        style = self.config.play_style
+        if combat_state:
+            style = self._analyze_combat_situation(combat_state)
+
         return get_system_prompt(
-            style=self.config.play_style,
+            style=style,
             enable_commentary=self.config.enable_commentary,
             enable_thinking=self.config.enable_thinking
         )
@@ -883,15 +959,15 @@ class LLMPlayerBot:
         for name in enemy_names:
             if name in self.battle_memories:
                 mem = self.battle_memories[name]
-                context += f"\n## 📚 {name} 정보 (전적: {mem.times_won}/{mem.times_fought})\n"
+                context += f"\n## {name} 정보 (전적: {mem.times_won}/{mem.times_fought})\n"
                 if mem.weaknesses:
                     context += f"- 약점: {', '.join(mem.weaknesses)}\n"
                 if mem.attack_patterns:
                     context += f"- 패턴: {', '.join(mem.attack_patterns[:3])}\n"
                 if mem.dangerous_moves:
-                    context += f"- ⚠️ 위험 기술: {', '.join(mem.dangerous_moves)}\n"
+                    context += f"- 위험 기술: {', '.join(mem.dangerous_moves)}\n"
                 if mem.successful_strategies:
-                    context += f"- ✅ 효과적 전략: {mem.successful_strategies[-1]}\n"
+                    context += f"- 효과적 전략: {mem.successful_strategies[-1]}\n"
         return context
     
     # =========================================================================
@@ -1014,14 +1090,14 @@ class LLMPlayerBot:
             if memory_context:
                 prompt = memory_context + "\n" + prompt
             
-            # 👥 파티 전략 컨텍스트 추가 (보스전에서만)
+            # 파티 전략 컨텍스트 추가 (보스전에서만)
             if is_boss and self.current_strategy:
-                strategy_text = f"\n## 🎯 파티 전략\n"
+                strategy_text = f"\n## 파티 전략\n"
                 if self.current_strategy.focus_target:
                     strategy_text += f"- 기본 타겟: {self.current_strategy.focus_target} (상황에 따라 변경 가능)\n"
                 if self.current_strategy.emergency_plan:
                     strategy_text += f"- 위기 대응: {self.current_strategy.emergency_plan}\n"
-                if strategy_text != f"\n## 🎯 파티 전략\n":  # 실제 전략 정보가 있을 때만 추가
+                if strategy_text != f"\n## 파티 전략\n":  # 실제 전략 정보가 있을 때만 추가
                     prompt = strategy_text + prompt
             
             # 히스토리 추가 (최근 2개만 - 속도 위해)
@@ -1029,8 +1105,8 @@ class LLMPlayerBot:
                 history_text = "최근:" + "/".join(self.combat_history[-2:])
                 prompt = history_text + "\n" + prompt
             
-            # LLM 호출 (플레이 스타일 반영)
-            system_prompt = self._get_system_prompt()
+            # LLM 호출 (현재 상황에 맞는 플레이 스타일 동적 결정)
+            system_prompt = self._get_system_prompt(combat_state)
             response = self.client.generate(prompt, system_prompt)
             
             # 응답 파싱
