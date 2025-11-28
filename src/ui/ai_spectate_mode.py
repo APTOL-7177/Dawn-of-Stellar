@@ -493,8 +493,8 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
     last_position = [None]
     current_path = []  # A* 경로 캐시
 
-    # 채집 상태 추적 (2번 입력 필요)
-    pending_harvest = [None]  # (x, y) or None
+    # 채집 상태 추적 (5번 입력 필요)
+    pending_harvest = {'location': None, 'counter': 0}  # 위치와 누적 입력 횟수
 
     # ===== 맵 메모리 (이미 방문한 지역 기록) =====
     explored_tiles = set()  # 방문한 타일 좌표
@@ -587,28 +587,41 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
             stairs_pos = current_dungeon.stairs_down if hasattr(current_dungeon, 'stairs_down') else None
             is_town = hasattr(exploration_sys, 'is_town') and exploration_sys.is_town
 
-            # ===== 채집 상태 체크 (2번 입력 필요) =====
-            # 같은 위치에서 채집 중이면 계속 CONFIRM
-            if pending_harvest[0] == (px, py):
-                log_action("🌿 채집 진행 중 (2번째 입력)")
-                pending_harvest[0] = None  # 초기화
-                return GameAction.CONFIRM
+            # ===== 채집 상태 체크 (5번 입력 필요) =====
+            current_pos = (px, py)
+
+            # 같은 위치에서 채집 중이면 카운터 증가
+            if pending_harvest['location'] == current_pos:
+                pending_harvest['counter'] += 1
+                remaining = 5 - pending_harvest['counter']
+
+                if remaining > 0:
+                    log_action(f"🌿 채집 진행 중 ({pending_harvest['counter']}/5)")
+                    return GameAction.CONFIRM
+                else:
+                    # 5번 완료 - 채집 완료
+                    log_action("🌿 채집 완료!")
+                    pending_harvest['location'] = None
+                    pending_harvest['counter'] = 0
+                    return GameAction.CONFIRM
 
             # 현재 위치에 채집 오브젝트가 있으면
             if hasattr(current_dungeon, 'harvestables'):
                 for harvestable in current_dungeon.harvestables:
                     if harvestable.x == px and harvestable.y == py:
                         if hasattr(harvestable, 'can_harvest') and harvestable.can_harvest(None):
-                            # 첫 번째 입력
-                            if pending_harvest[0] != (px, py):
+                            # 새로운 채집 시작
+                            if pending_harvest['location'] != current_pos:
                                 log_action(f"🌿 채집 시작: {harvestable.object_type.value}")
-                                pending_harvest[0] = (px, py)
-                                add_ai_commentary(f"🌿 {harvestable.object_type.value} 채집!")
+                                pending_harvest['location'] = current_pos
+                                pending_harvest['counter'] = 1  # 첫 번째 입력
+                                add_ai_commentary(f"🌿 {harvestable.object_type.value} 채집! (1/5)")
                                 return GameAction.CONFIRM
 
             # 채집 상태 아니면 초기화
-            if pending_harvest[0]:
-                pending_harvest[0] = None
+            if pending_harvest['location']:
+                pending_harvest['location'] = None
+                pending_harvest['counter'] = 0
 
             # ===== 마을에서는 바로 계단으로 (LLM 스킵) =====
             if is_town and stairs_pos:
