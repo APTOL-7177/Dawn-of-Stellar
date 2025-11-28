@@ -44,21 +44,24 @@ def harvest_object(
     player_id = None
     if exploration and hasattr(exploration, 'local_player_id'):
         player_id = exploration.local_player_id
-    
+
+    # AI 스펙테이터 모드인지 확인 (메시지 표시 시 필요)
+    is_ai_mode = hasattr(exploration, '__class__') and 'AI' in str(exploration.__class__.__name__)
+
     # 채집 가능 여부 확인 (플레이어별)
     if not harvestable.can_harvest(player_id):
-        show_message(console, context, "이미 채집한 곳입니다.", Colors.GRAY)
+        show_message(console, context, "이미 채집한 곳입니다.", Colors.GRAY, auto_dismiss=is_ai_mode)
         return False
 
     # 채집 SFX
     from src.audio import play_sfx
     play_sfx("world", "gathering")
-    
+
     # 채집 실행 (멀티플레이에서는 개인보상이므로 플레이어별로 독립적으로 채집 가능)
     results = harvestable.harvest(player_id)
 
     if not results:
-        show_message(console, context, "채집할 것이 없습니다.", Colors.GRAY)
+        show_message(console, context, "채집할 것이 없습니다.", Colors.GRAY, auto_dismiss=is_ai_mode)
         return False
 
     # 채집 결과 메시지
@@ -104,8 +107,8 @@ def harvest_object(
         for item_name, count in item_counts.items():
             message_lines.append(f"  {item_name} x{count}")
 
-    # 메시지 표시
-    show_multi_line_message(console, context, message_lines, Colors.UI_TEXT_SELECTED)
+    # 메시지 표시 (AI 모드면 자동으로 진행)
+    show_multi_line_message(console, context, message_lines, Colors.UI_TEXT_SELECTED, auto_dismiss=is_ai_mode)
 
     logger.info(f"채집 완료: {harvestable.object_type.display_name}")
     return True
@@ -186,7 +189,8 @@ def show_message(
     console: tcod.console.Console,
     context: tcod.context.Context,
     message: str,
-    color: tuple = Colors.UI_TEXT
+    color: tuple = Colors.UI_TEXT,
+    auto_dismiss: bool = False
 ):
     """
     단일 메시지 표시
@@ -196,15 +200,17 @@ def show_message(
         context: TCOD 컨텍스트
         message: 메시지
         color: 색상
+        auto_dismiss: AI 모드일 때 자동으로 진행
     """
-    show_multi_line_message(console, context, [message], color)
+    show_multi_line_message(console, context, [message], color, auto_dismiss=auto_dismiss)
 
 
 def show_multi_line_message(
     console: tcod.console.Console,
     context: tcod.context.Context,
     messages: list,
-    color: tuple = Colors.UI_TEXT
+    color: tuple = Colors.UI_TEXT,
+    auto_dismiss: bool = False
 ):
     """
     여러 줄 메시지 표시
@@ -214,7 +220,12 @@ def show_multi_line_message(
         context: TCOD 컨텍스트
         messages: 메시지 리스트
         color: 색상
+        auto_dismiss: AI 모드일 때 자동으로 진행 (입력 대기 없음)
     """
+    # auto_dismiss가 True면 메시지를 표시하지 않고 바로 반환
+    if auto_dismiss:
+        return
+
     # 박스 크기
     max_width = max(len(msg) for msg in messages)
     box_width = max_width + 10
