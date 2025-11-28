@@ -283,25 +283,37 @@ SYSTEM_PROMPT_BASE = """게임 AI. ATB+BRV 전투 시스템.
 3. 아군 HP 30% 이하 = 위험 → 회복 우선
 4. 직업 기믹 활용 (스탠스, 충전, 스택 등)
 5. 상태이상: 독/화상=DoT, 기절=행동불가, 버프=강화
+6. **스킬은 언제든지 사용 가능! 상황에 맞춰 적극 활용하세요.**
+   - 힐 스킬: 아군 HP 60% 이하일 때
+   - 버프 스킬: 다음 턴에 강한 공격을 할 때, 또는 파티가 위험할 때
+   - 디버프 스킬: 강한 적에게 약화/슬로우 걸기
+   - 공격 스킬: 높은 데미지 또는 여러 적 대상 가능
 
 ## 행동 우선순위
-1. 위험 아군 회복 (HP < 30%)
-2. BREAK된 적에게 HP 공격
-3. 내 BRV 높으면 HP 공격
-4. 적 BRV 낮으면 BRV 공격으로 BREAK
-5. 스킬로 버프/디버프
-6. 기본 BRV 공격
+1. 위험 아군 회복 (HP < 30%) → 회복 스킬이나 아이템 사용
+2. 아군 HP 40~60% 범위 → 가능하면 회복 스킬 사용 (예방)
+3. BREAK된 적에게 HP 공격 또는 강한 공격 스킬
+4. 자신의 스킬 사용 가능 → MP 충분하면 적극 사용
+5. 내 BRV 높으면 HP 공격이나 강력한 스킬
+6. 적 BRV 낮으면 BRV 공격으로 BREAK
+7. 기본 BRV 공격 (스킬이 없을 때만)
+
+## 중요 팁
+- BRV/HP 공격만 반복하지 말고, 스킬로 다양성을 주세요
+- MP가 있으면 스킬을 사용하세요 (기본 공격보다 효율적)
+- 같은 스킬만 쓰지 말고 다양한 스킬을 활용하세요
+- "상황 판단"이 중요합니다
 
 JSON: {"action":"brv_attack|hp_attack|skill|item|defend","target":"대상","skill_id":"스킬ID","reasoning":"이유"}
 """
 
-# 플레이 스타일별 추가 프롬프트 (간소화)
+# 플레이 스타일별 추가 프롬프트
 STYLE_PROMPTS = {
-    PlayStyle.AGGRESSIVE: "공격적: HP공격 우선, 리스크 감수",
-    PlayStyle.DEFENSIVE: "방어적: HP 50% 이하면 회복 우선",
-    PlayStyle.BALANCED: "균형: 상황 대응",
-    PlayStyle.SPEEDRUN: "스피드: 빠른 처치",
-    PlayStyle.RESOURCE_SAVER: "절약: 스킬/아이템 아끼기",
+    PlayStyle.AGGRESSIVE: "🔥 공격적: 강력한 공격 스킬과 HP공격 우선, 리스크 감수. 높은 데미지 딜링 스킬 자주 사용!",
+    PlayStyle.DEFENSIVE: "🛡️ 방어적: HP 50% 이하면 회복 스킬 우선, 버프/디버프 스킬로 보호. 안정성 중시.",
+    PlayStyle.BALANCED: "⚖️ 균형: 상황에 맞춰 공격/회복/버프 스킬 적절히 사용. 전략적 판단.",
+    PlayStyle.SPEEDRUN: "⚡ 스피드: 높은 데미지 스킬로 빠른 처치. 회복은 필요할 때만.",
+    PlayStyle.RESOURCE_SAVER: "💎 절약: MP 관리하며 효율적인 스킬 사용. 자주 사용 가능한 저비용 스킬 선호.",
 }
 
 RESPONSE_FORMAT = ""  # 시스템 프롬프트에 이미 포함
@@ -388,7 +400,7 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
         me = f"{current.name}({current.job}):HP{hp_pct}% BRV{current.brv}"
         if current.gimmick_name:
             me += f" {current.gimmick_name}:{current.gimmick_value}"
-        
+
         # 적 상태
         enemies = []
         for e in state.enemies:
@@ -396,19 +408,22 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
                 e_hp = int(e.hp / e.max_hp * 100) if e.max_hp > 0 else 0
                 status = "[BREAK]" if e.is_broken else ""
                 enemies.append(f"{e.name}:HP{e_hp}% BRV{e.brv}{status}")
-        
+
         # 위험한 아군
         low_hp_allies = [a.name for a in state.allies if a.is_alive and a.hp < a.max_hp * 0.3]
-        
-        # 스킬
+
+        # 스킬 (더 많이, 설명 포함)
         skills = []
-        for s in state.available_skills[:5]:
-            skills.append(f"{s.id}(MP{s.mp_cost})")
-        
+        for s in state.available_skills[:10]:  # 10개까지 표시 (이전: 5개)
+            cd_text = f"쿨{s.cooldown_remaining}" if s.cooldown_remaining > 0 else "준비됨"
+            desc = f" {s.description}" if s.description else ""
+            skills.append(f"{s.id}({s.skill_type}){desc}[MP{s.mp_cost}]")
+
         prompt = f"""나:{me}
 적:{','.join(enemies)}
 {"위험:" + ','.join(low_hp_allies) if low_hp_allies else ""}
-스킬:{','.join(skills)}
+스킬:{' / '.join(skills)}
+💡팁: 적절한 상황에서 스킬을 적극 활용하세요. BRV축적->HP공격도 좋지만, 힐/버프/디버프 스킬도 상황에 맞춰 사용하세요.
 행동(JSON):"""
         return prompt
     
@@ -448,17 +463,32 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
     
     # 스킬
     if state.available_skills:
-        lines.append("\n### 스킬")
-        for skill in state.available_skills[:6]:
-            cd = f" (쿨{skill.cooldown_remaining})" if skill.cooldown_remaining > 0 else ""
-            lines.append(f"- {skill.id}: {skill.name} MP{skill.mp_cost} {skill.skill_type}{cd}")
-    
+        lines.append("\n### 스킬 (상황에 맞춰 적극 활용하세요!)")
+        for skill in state.available_skills[:12]:  # 12개까지 표시 (이전: 6개)
+            cd = f" (쿨{skill.cooldown_remaining})" if skill.cooldown_remaining > 0 else " ✓준비"
+            desc = f" - {skill.description}" if skill.description else ""
+            lines.append(f"- {skill.id}: {skill.name} [{skill.skill_type}] MP{skill.mp_cost}{cd}{desc}")
+
     # 아이템
     if state.available_items:
         lines.append("\n### 아이템")
         for item in state.available_items[:4]:
             lines.append(f"- {item.id}: {item.name} x{item.quantity}")
-    
+
+    # 전술 가이드
+    lines.append("\n### 💡 전술 가이드")
+    low_ally_count = sum(1 for a in state.allies if a.is_alive and a.hp < a.max_hp * 0.4)
+    broken_enemy_count = sum(1 for e in state.enemies if e.is_alive and e.is_broken)
+
+    if low_ally_count > 0:
+        lines.append(f"- 🔴 아군 {low_ally_count}명이 위험합니다. 힐 또는 버프 스킬 사용 검토!")
+    if broken_enemy_count > 0:
+        lines.append(f"- ⚡ {broken_enemy_count}명의 적이 BREAK 상태입니다. HP 공격으로 큰 피해를 줄 기회!")
+    if current.brv > current.max_brv * 0.7:
+        lines.append(f"- 💪 BRV가 충분합니다. HP 공격이나 강력한 스킬 사용 추천!")
+    if current.mp < current.max_mp * 0.3:
+        lines.append(f"- ⚠️ MP가 부족합니다. 저코스트 스킬이나 물리 공격 고려!")
+
     lines.append("\n행동 선택(JSON):")
     return "\n".join(lines)
 
