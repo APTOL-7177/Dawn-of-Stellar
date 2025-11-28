@@ -1578,13 +1578,64 @@ class CombatUI:
             return
         
         try:
-            # 봇 AI로 행동 결정
-            action = bot.decide_action(
-                character=actor,
-                allies=self.combat_manager.allies,
-                enemies=self.combat_manager.enemies
+            # LLM 봇용 전투 상태 생성
+            from src.multiplayer.llm_player_bot import (
+                CombatState, CombatantState, SkillInfo, ItemInfo
             )
-            
+
+            # 캐릭터를 CombatantState로 변환
+            def char_to_combatant_state(char: Any) -> CombatantState:
+                """Character를 CombatantState로 변환"""
+                return CombatantState(
+                    name=char.name,
+                    job=getattr(char, 'job_name', getattr(char, 'job', 'Unknown')),
+                    hp=getattr(char, 'hp', 100),
+                    max_hp=getattr(char, 'max_hp', 100),
+                    mp=getattr(char, 'mp', 50),
+                    max_mp=getattr(char, 'max_mp', 50),
+                    brv=getattr(char, 'brv', 0),
+                    max_brv=getattr(char, 'max_brv', 100),
+                    is_alive=getattr(char, 'is_alive', True),
+                    status_effects=[
+                        status.name if hasattr(status, 'name') else str(status)
+                        for status in getattr(char, 'status_manager', {}).status_effects
+                        if hasattr(getattr(char, 'status_manager', {}), 'status_effects')
+                    ] if hasattr(char, 'status_manager') else []
+                )
+
+            # 사용 가능한 스킬 정보
+            available_skills = []
+            if hasattr(actor, 'skills'):
+                for skill in actor.skills:
+                    try:
+                        skill_info = SkillInfo(
+                            id=getattr(skill, 'id', getattr(skill, 'skill_id', 'unknown')),
+                            name=getattr(skill, 'name', 'Unknown'),
+                            description=getattr(skill, 'description', ''),
+                            mp_cost=getattr(skill, 'mp_cost', 0),
+                            available=True  # 스킬 사용 가능 여부 (간단히 판단)
+                        )
+                        available_skills.append(skill_info)
+                    except:
+                        pass
+
+            # CombatState 생성
+            combat_state = CombatState(
+                turn_count=getattr(self.combat_manager, 'turn_count', 1),
+                current_actor=actor.name,
+                allies=[char_to_combatant_state(ally) for ally in self.combat_manager.allies],
+                enemies=[char_to_combatant_state(enemy) for enemy in self.combat_manager.enemies],
+                available_skills=available_skills,
+                available_items=[],  # 아이템은 나중에 구현
+                can_flee=True,
+                boss_name=getattr(self.combat_manager, 'boss_name', None)
+            )
+
+            logger.debug(f"LLM 봇 상태 생성: {actor.name}, 아군: {len(combat_state.allies)}, 적: {len(combat_state.enemies)}")
+
+            # 봇 AI로 행동 결정 (decide_combat_action 직접 호출)
+            action = bot.decide_combat_action(combat_state)
+
             # 행동 실행
             self._execute_bot_action(actor, action)
             
@@ -1640,17 +1691,42 @@ class CombatUI:
                         target = enemy
                         break
 
+        # 타겟이 없으면 기본값 설정
+        if not target:
+            if action_type in ["hp_attack", "HP_ATTACK", "brv_attack", "BRV_ATTACK", "attack"]:
+                # 공격 행동: 가장 높은 HP를 가진 적을 기본 타겟
+                alive_enemies = [e for e in self.combat_manager.enemies if getattr(e, 'is_alive', True)]
+                if alive_enemies:
+                    target = max(alive_enemies, key=lambda e: getattr(e, 'hp', 0))
+                    logger.debug(f"기본 적 타겟 선택: {getattr(target, 'name', 'Unknown')}")
+            elif action_type in ["skill", "SKILL"]:
+                # 스킬 행동: 스킬 종류에 따라 판단 (일단 자신으로)
+                target = actor
+                logger.debug(f"기본 아군 타겟 선택: {getattr(target, 'name', 'Unknown')}")
+
         # ActionType 변환 및 실행
         if action_type == "skill" or action_type == "SKILL" or (hasattr(action, 'action_type') and action.action_type.value == "skill"):
-            if skill_id:
+            # skill_id에서 실제 skill 객체 찾기
+            skill_obj = None
+            if skill_id and hasattr(actor, 'skills'):
+                for s in actor.skills:
+                    if getattr(s, 'id', getattr(s, 'skill_id', '')) == skill_id:
+                        skill_obj = s
+                        break
+                if not skill_obj:
+                    logger.warning(f"스킬을 찾을 수 없음: {skill_id}")
+
+            if skill_obj:
+                logger.debug(f"스킬 실행: {actor.name} → {getattr(skill_obj, 'name', skill_id)}")
                 result = self.combat_manager.execute_action(
                     actor=actor,
                     action_type=ActionType.SKILL,
                     target=target,
-                    skill_id=skill_id
+                    skill=skill_obj
                 )
             elif 'skill' in locals() and skill:
                 # EnemyAI 호환성
+                logger.debug(f"스킬 실행 (EnemyAI 호환): {actor.name} → {getattr(skill, 'name', 'Unknown')}")
                 result = self.combat_manager.execute_action(
                     actor=actor,
                     action_type=ActionType.SKILL,
@@ -1658,7 +1734,7 @@ class CombatUI:
                     skill=skill
                 )
             else:
-                logger.warning(f"스킬 정보가 없음: {actor.name}")
+                logger.warning(f"스킬 정보가 없음: {actor.name}, skill_id={skill_id}")
                 result = {}
         elif action_type == "hp_attack" or action_type == "HP_ATTACK":
             result = self.combat_manager.execute_action(
