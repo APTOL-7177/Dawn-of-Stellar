@@ -1013,37 +1013,112 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                 else:
                     add_ai_commentary(f"⚔️ {current_char.name}: {action_name}")
 
-                # LLM 액션을 GameAction으로 변환
-                # ===== 중요: LLM의 결정을 실제로 반영 =====
+                # ===== 중요: LLM의 결정을 직접 execute_action으로 실행 =====
+                logger.info(f"[COMBAT] ⚔️ LLM 행동 직접 실행 중: {action_name}")
+
+                # 대상 찾기
+                target = None
+                target_name = getattr(action, 'target_name', None)
+
+                if target_name and action.action_type in [ActionType.BRV_ATTACK, ActionType.HP_ATTACK, ActionType.SKILL]:
+                    # 적 중에서 대상 찾기
+                    for enemy in combat_manager.enemies:
+                        if getattr(enemy, 'name', '') == target_name:
+                            target = enemy
+                            break
+
+                # 대상이 없으면 기본값 설정
+                if not target and action.action_type in [ActionType.BRV_ATTACK, ActionType.HP_ATTACK]:
+                    # 가장 높은 HP의 적
+                    alive_enemies = [e for e in combat_manager.enemies if getattr(e, 'is_alive', True)]
+                    if alive_enemies:
+                        target = max(alive_enemies, key=lambda e: getattr(e, 'hp', 0))
+
+                # 행동 실행
                 if action.action_type in [ActionType.BRV_ATTACK, ActionType.HP_ATTACK]:
                     log_action("💥 LLM 공격 실행")
-                    return GameAction.CONFIRM  # 공격 선택
+                    logger.info(f"[COMBAT] 💥 BRV/HP 공격 실행: {current_char.name} → {getattr(target, 'name', 'Unknown')}")
+
+                    action_type_to_use = ActionType.BRV_ATTACK if action.action_type == ActionType.BRV_ATTACK else ActionType.HP_ATTACK
+                    result = combat_manager.execute_action(
+                        actor=current_char,
+                        action_type=action_type_to_use,
+                        target=target
+                    )
+                    logger.debug(f"[COMBAT] 공격 결과: {result}")
+                    return GameAction.CONFIRM  # 행동 완료
 
                 elif action.action_type == ActionType.SKILL:
-                    # LLM이 스킬을 선택했으면
                     skill_id = getattr(action, 'skill_id', None)
-                    log_action(f"✨ LLM 스킬 선택: {skill_id}")
-                    # 스킬 메뉴로 진입 (MENU 또는 특정 키)
-                    # 근데 메뉴 시스템 상 제약이 있으니, 일단 CONFIRM으로 스킬 메뉴 진입 시도
-                    return GameAction.CONFIRM
+                    log_action(f"✨ LLM 스킬 실행: {skill_id}")
+                    logger.info(f"[COMBAT] ✨ 스킬 실행: {current_char.name} → {skill_id}")
+
+                    # skill_id에서 실제 skill 객체 찾기
+                    skill_obj = None
+                    if skill_id and hasattr(current_char, 'skills'):
+                        for s in current_char.skills:
+                            if getattr(s, 'id', getattr(s, 'skill_id', '')) == skill_id:
+                                skill_obj = s
+                                break
+
+                    if skill_obj:
+                        result = combat_manager.execute_action(
+                            actor=current_char,
+                            action_type=ActionType.SKILL,
+                            target=target,
+                            skill=skill_obj
+                        )
+                        logger.debug(f"[COMBAT] 스킬 실행 결과: {result}")
+                        return GameAction.CONFIRM
+                    else:
+                        logger.warning(f"[COMBAT] ⚠️ 스킬을 찾을 수 없음: {skill_id}")
+                        log_action(f"⚠️ 스킬 없음: {skill_id} - 기본 공격")
+                        # Fallback: 기본 공격
+                        result = combat_manager.execute_action(
+                            actor=current_char,
+                            action_type=ActionType.BRV_ATTACK,
+                            target=target
+                        )
+                        return GameAction.CONFIRM
 
                 elif action.action_type == ActionType.ITEM:
-                    # 아이템 사용
-                    log_action("📦 LLM 아이템 사용")
-                    return GameAction.CANCEL  # 아이템 메뉴로
+                    item_id = getattr(action, 'item_id', None)
+                    log_action(f"📦 LLM 아이템 사용: {item_id}")
+                    logger.info(f"[COMBAT] 📦 아이템 사용: {item_id}")
+
+                    result = combat_manager.execute_action(
+                        actor=current_char,
+                        action_type=ActionType.ITEM,
+                        item_id=item_id
+                    )
+                    logger.debug(f"[COMBAT] 아이템 사용 결과: {result}")
+                    return GameAction.CONFIRM
 
                 elif action.action_type == ActionType.DEFEND:
-                    # 방어
                     log_action("🛡️ LLM 방어 선택")
-                    return GameAction.CANCEL  # 방어 메뉴로
+                    logger.info(f"[COMBAT] 🛡️ 방어 선택")
+
+                    result = combat_manager.execute_action(
+                        actor=current_char,
+                        action_type=ActionType.DEFEND
+                    )
+                    logger.debug(f"[COMBAT] 방어 결과: {result}")
+                    return GameAction.CONFIRM
 
                 elif action.action_type == ActionType.FLEE:
-                    # 도망
                     log_action("💨 LLM 도망 선택")
-                    return GameAction.CANCEL  # 도망 메뉴로
+                    logger.info(f"[COMBAT] 💨 도망 시도")
+
+                    result = combat_manager.execute_action(
+                        actor=current_char,
+                        action_type=ActionType.FLEE
+                    )
+                    logger.debug(f"[COMBAT] 도망 결과: {result}")
+                    return GameAction.CONFIRM
 
                 else:
                     log_action(f"⚠️ LLM 알 수 없는 액션: {action_name}")
+                    logger.warning(f"[COMBAT] ⚠️ 알 수 없는 액션 타입: {action_name}")
                     return GameAction.CONFIRM
 
             except Exception as e:
