@@ -5211,17 +5211,25 @@ def run_combat(
 
     logger.info(f"전투 시작: 아군 {len(party)}명 vs 적군 {len(enemies)}명 (BGM: {selected_bgm})")
 
-    # AI 모드: 전투 초기에 ATB를 업데이트해서 누군가가 행동 가능하게 만들기
+    # AI 모드: 전투 초기에 ATB를 업데이트해서 아군이 행동 가능하게 만들기
     if ai_input_provider:
         logger.info("[COMBAT] 🤖 AI 모드: ATB 초기화 중...")
-        # 첫 번째 행동자가 준비될 때까지 ATB 업데이트
+        # 아군(파티)이 준비될 때까지 ATB 업데이트
         # start_combat에서 이미 0~50% 범위의 ATB를 할당했으므로, 몇 프레임 후에 누군가 준비될 것
         for _ in range(100):  # 최대 100프레임
             # ATB만 직접 업데이트 (time freeze 상태 아님)
             combat_manager.atb.update(1.0, is_player_turn=False)
             action_order = combat_manager.atb.get_action_order()
+
+            # 아군(파티 소속)이 준비되었는지 확인
             if action_order:
-                logger.info(f"[COMBAT] ✅ ATB 초기화 완료: {[c.name for c in action_order[:2]]}...")
+                for candidate in action_order:
+                    if candidate in party:
+                        logger.info(f"[COMBAT] ✅ ATB 초기화 완료: {candidate.name} (아군 준비됨)")
+                        break
+                else:
+                    # 아군이 없으면 계속 업데이트
+                    continue
                 break
 
     # 전투 루프
