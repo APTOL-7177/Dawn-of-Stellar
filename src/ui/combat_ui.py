@@ -1785,7 +1785,10 @@ class CombatUI:
         # 행동 후 대기 시간
         self.action_delay_frames = self.action_delay_max
 
-        logger.info(f"봇 {actor.name} 행동 완료: 상태={self.state.value}, 대기시간={self.action_delay_frames}프레임")
+        # 현재 액터 초기화 (_execute_current_action과 동일하게)
+        self.current_actor = None
+
+        logger.info(f"봇 {actor.name} 행동 완료: 상태={self.state.value}, 대기시간={self.action_delay_frames}프레임, current_actor={self.current_actor}")
     
     def _execute_default_bot_action(self, actor: Any):
         """
