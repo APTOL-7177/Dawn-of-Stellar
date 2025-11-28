@@ -1779,11 +1779,24 @@ def execute_bot_action(
                 # 아이템 찾기
                 item = None
                 item_index = None
-                for idx, inv_item in enumerate(inventory.get_usable_items()):
-                    if getattr(inv_item, 'id', getattr(inv_item, 'item_id', '')) == action.item_id:
-                        item = inv_item
-                        item_index = idx
-                        break
+                from src.equipment.item_system import ItemType
+
+                # 소비 가능한 아이템 타입 확인
+                usable_types = [ItemType.CONSUMABLE, ItemType.FOOD]
+
+                # slots를 순회하며 아이템 찾기
+                for idx, slot in enumerate(inventory.slots):
+                    if slot and slot.item:
+                        # 아이템 타입 확인
+                        item_type = getattr(slot.item, 'item_type', None)
+                        if item_type in usable_types:
+                            inv_item = slot.item
+                            item_id = getattr(inv_item, 'id', getattr(inv_item, 'item_id', ''))
+                            if item_id == action.item_id:
+                                item = inv_item
+                                item_index = idx
+                                break
+
                 if item:
                     result = combat_manager.execute_action(actor, "item", target=target, item=item, item_index=item_index)
                 else:
