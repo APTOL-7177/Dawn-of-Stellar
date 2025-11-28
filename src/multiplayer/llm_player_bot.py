@@ -695,7 +695,7 @@ class ResponseParser:
         try:
             # Thinking 추출
             thinking, clean_response = ResponseParser.extract_thinking(response)
-            
+
             # JSON 블록 추출
             json_str = clean_response
             if "```json" in clean_response:
@@ -706,13 +706,26 @@ class ResponseParser:
                 start = clean_response.find("```") + 3
                 end = clean_response.find("```", start)
                 json_str = clean_response[start:end].strip()
-            elif "{" in clean_response:
-                start = clean_response.find("{")
-                end = clean_response.rfind("}") + 1
-                json_str = clean_response[start:end]
-            
+            elif "[" in clean_response or "{" in clean_response:
+                # 배열 또는 객체 찾기
+                if "[" in clean_response:
+                    start = clean_response.find("[")
+                    end = clean_response.rfind("]") + 1
+                    json_str = clean_response[start:end]
+                else:
+                    start = clean_response.find("{")
+                    end = clean_response.rfind("}") + 1
+                    json_str = clean_response[start:end]
+
             data = json.loads(json_str)
-            
+
+            # 배열 응답 처리 (여러 액션이 반환된 경우 첫 번째만 사용)
+            if isinstance(data, list):
+                if not data:
+                    logger.warning("빈 배열 응답 받음")
+                    return None
+                data = data[0]
+
             # 액션 타입 파싱
             action_str = data.get("action", "brv_attack").lower()
             action_map = {
