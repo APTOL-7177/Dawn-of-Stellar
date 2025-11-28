@@ -5261,11 +5261,23 @@ def run_combat(
             current = combat_manager.current_actor
 
             # current_actor가 None이면 ATB에서 다음 행동자 찾기
+            # AI 모드에서는 아군이 준비될 때까지 기다려야 함 (적은 handle_input 처리 안 함)
             if not current and hasattr(combat_manager, 'atb'):
-                action_order = combat_manager.atb.get_action_order()
-                if action_order:
-                    current = action_order[0]  # 가장 높은 ATB 게이지를 가진 캐릭터
-                    logger.info(f"[COMBAT_UI] ATB 액션 오더에서 다음 행동자 조회: {current.name if current else 'None'}")
+                # 아군이 준비될 때까지 ATB 업데이트
+                for atb_wait in range(100):
+                    action_order = combat_manager.atb.get_action_order()
+                    if action_order:
+                        candidate = action_order[0]
+                        if candidate in party:
+                            # ✅ 아군 발견!
+                            current = candidate
+                            logger.info(f"[COMBAT_UI] ATB에서 아군 발견 (대기 {atb_wait}회): {current.name}")
+                            break
+                        else:
+                            # 적이 준비됨. 아군이 준비될 때까지 ATB 계속 업데이트
+                            if atb_wait == 0:
+                                logger.debug(f"[COMBAT_UI] 적이 준비됨: {candidate.name}, 아군 대기 중...")
+                            combat_manager.atb.update(1.0, is_player_turn=False)
 
             logger.info(f"[COMBAT_UI] 현재 actor: {current.name if current else 'None'} (타입: {type(current).__name__ if current else 'None'})")
             logger.info(f"[COMBAT_UI] 아군 파티: {[c.name for c in party]}")
