@@ -680,19 +680,21 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                 nearby_exits = []
                 unexplored_directions = []
 
-                # FOV 계산 및 시야 정보 추출 (이미 탐험한 지역 표시)
+                # FOV 계산 및 시야 정보 추출 (시야에 보인 것 = 탐험함)
                 if hasattr(exploration_sys, 'fov_map') and exploration_sys.fov_map:
                     for y in range(exploration_sys.fov_map.height):
                         for x in range(exploration_sys.fov_map.width):
                             if exploration_sys.fov_map.visible[x, y]:
+                                # ⭐ 시야에 보인 타일은 자동으로 탐험한 것으로 간주
+                                explored_tiles.add((x, y))
+
                                 tile = current_dungeon.get_tile(x, y)
                                 if tile:
-                                    is_already_explored = (x, y) in explored_tiles
                                     tile_info = {
                                         'x': x, 'y': y,
                                         'walkable': tile.walkable,
-                                        'explored': tile.explored or is_already_explored,
-                                        'visited': is_already_explored,  # 이미 방문한 타일
+                                        'explored': tile.explored or True,  # 시야에 보인 것 = 탐험함
+                                        'visited': True,  # 시야 내 = 방문함
                                         'type': 'floor' if tile.walkable else 'wall'
                                     }
                                     # 특수 타일 표시
@@ -737,18 +739,21 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                         if is_visible:
                             nearby_items.append(f"{harvestable.object_type.value}@({harvestable.x},{harvestable.y})")
 
-                # 미탐험 방향 감지 (이미 방문한 곳은 제외)
+                # 미탐험 방향 감지 (시야 내 미탐험 타일들)
+                # 1) 현재 위치 인접 타일 체크 (빠른 길 찾기용)
                 directions = [(0, -1, "up"), (0, 1, "down"), (-1, 0, "left"), (1, 0, "right")]
                 for dx, dy, dir_name in directions:
                     nx, ny = px + dx, py + dy
                     tile = current_dungeon.get_tile(nx, ny)
-                    # 방문 가능 && (아직 탐험 안 했거나 방금 방문한 곳)
+                    # 방문 가능 && 아직 탐험 안 한 곳
                     if tile and tile.walkable:
                         already_visited = (nx, ny) in explored_tiles
-                        tile_explored = tile.explored
                         # 아직 방문한 적 없는 곳만 미탐험으로 표시
                         if not already_visited:
                             unexplored_directions.append((dx, dy))
+
+                # ✅ 시야에 보인 것 = 이미 탐험한 것으로 간주 (688번에서 explored_tiles에 추가됨)
+                # 따라서 unexplored_directions는 비어있을 수 있음 (기본값으로 4방향 사용)
 
                 # 계단 위치
                 stairs_visible = False
