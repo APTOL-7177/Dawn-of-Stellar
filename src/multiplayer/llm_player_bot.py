@@ -289,17 +289,18 @@ SYSTEM_PROMPT_BASE = """게임 AI. ATB+BRV 전투 시스템.
    - 디버프 스킬: 강한 적에게 약화/슬로우 걸기
    - 공격 스킬: 높은 데미지 또는 여러 적 대상 가능
 
-## 행동 우선순위 (스킬 먼저!)
+## 행동 우선순위
 1. **위험 아군 회복** (HP < 30%) → 회복 스킬이나 아이템 사용
-2. **사용 가능한 스킬이 있으면 우선 사용** (BRV/HP 공격 전에!)
-   - 공격 스킬: 높은 데미지, 상태이상, 광역 등
-   - 버프 스킬: 자신이나 아군 강화
-   - 디버프 스킬: 적 약화
-3. 아군 HP 40~60% 범위 → 가능하면 회복 스킬 사용 (예방)
-4. BREAK된 적에게 HP 공격
-5. 내 BRV 높으면 HP 공격
-6. 적 BRV 낮으면 BRV 공격으로 BREAK
-7. 기본 BRV 공격 (최후의 수단)
+2. **BREAK된 적에게 HP 공격** (BRV 충분시)
+3. **기본 전략: BRV 축적 → HP 공격**
+   - BRV < MAX의 50%: BRV 공격으로 축적
+   - BRV >= MAX의 50%: HP 공격으로 데미지
+4. **상황에 맞춰 스킬 사용**
+   - 공격 스킬: 광역, 높은 데미지, 상태이상
+   - 버프 스킬: 아군 강화 필요시
+   - 디버프 스킬: 강한 적 약화
+5. 아군 HP 40~60% → 회복 스킬 사용 (예방)
+6. 적 BRV 낮음 → BRV 공격으로 BREAK 노리기
 
 ## 중요 팁
 - BRV/HP 공격만 반복하지 말고, 스킬로 다양성을 주세요
@@ -421,14 +422,19 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
             desc = f" - {s.description}" if s.description else ""
             skills_lines.append(f"  {s.id}({s.skill_type}, MP{s.mp_cost}){desc}")
 
-        # 스킬 추천
+        # 스킬 추천 (기본 전략 보조)
         skill_recommendations = []
-        if current.hp < current.max_hp * 0.4:
-            skill_recommendations.append("- 현재 HP가 위험합니다! 회복 스킬(heal, support) 사용 강력 권장!")
-        if current.brv > current.max_brv * 0.7:
-            skill_recommendations.append("- BRV가 충분합니다! 강력한 공격 스킬(hp_attack, skill) 사용 권장!")
-        if len([e for e in state.enemies if e.is_alive]) == 1:
-            skill_recommendations.append("- 마지막 적! 강력한 궁극기(ultimate) 스킬 사용을 고려하세요!")
+        if current.hp < current.max_hp * 0.3:
+            skill_recommendations.append("- HP가 위험! 회복 스킬(heal, support) 우선!")
+        elif current.hp < current.max_hp * 0.5:
+            skill_recommendations.append("- HP가 낮음. 회복 스킬 고려")
+
+        alive_enemy_count = len([e for e in state.enemies if e.is_alive])
+        if alive_enemy_count >= 2 and any(hasattr(s, 'target_type') and s.target_type == 'all' for s in state.available_skills):
+            skill_recommendations.append("- 여러 적이 있음. 광역 스킬 고려")
+
+        if current.brv >= current.max_brv * 0.8:
+            skill_recommendations.append("- BRV가 많음. HP 공격이나 강력한 스킬 사용")
 
         prompt = f"""나:{me}
 적:{','.join(enemies)}
@@ -439,7 +445,7 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
 
 {chr(10).join(skill_recommendations) if skill_recommendations else ""}
 
-중요: 스킬을 먼저 시도하세요! BRV/HP 공격만 반복하지 마세요.
+전략: BRV 축적 → HP 공격이 기본. 상황에 따라 스킬을 섞어서 사용하세요.
 행동(JSON):"""
         return prompt
     
