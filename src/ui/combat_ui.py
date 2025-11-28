@@ -1654,6 +1654,9 @@ class CombatUI:
                    - 딕셔너리: {type, skill, target}
                    - BotAction: action_type, skill_id, target_name 속성
         """
+        # 상태를 EXECUTING으로 설정 (플레이어 행동과 동일)
+        self.state = CombatUIState.EXECUTING
+
         # BotAction 객체 또는 딕셔너리 지원
         if hasattr(action, 'action_type'):
             # BotAction 객체 (LLMPlayerBot에서 반환)
@@ -1674,7 +1677,7 @@ class CombatUI:
             # 호환성을 위해 skill 키도 확인 (EnemySkill 객체)
             skill = action.get("skill")
 
-        logger.debug(f"봇 행동 실행: {actor.name} → {action_type}, 타겟: {target_name}")
+        logger.info(f"봇 {actor.name} 행동 실행: {action_type}, 타겟: {target_name}")
 
         # 타겟 객체 찾기
         target = target_name
@@ -1766,9 +1769,11 @@ class CombatUI:
         
         # 결과 메시지 표시
         self._show_action_result(result)
-        
+
         # 행동 후 대기 시간
         self.action_delay_frames = self.action_delay_max
+
+        logger.info(f"봇 {actor.name} 행동 완료: 상태={self.state.value}, 대기시간={self.action_delay_frames}프레임")
     
     def _execute_default_bot_action(self, actor: Any):
         """
