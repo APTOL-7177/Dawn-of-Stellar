@@ -856,7 +856,8 @@ class CombatManager:
         # 빗나간 공격은 기믹 트리거 안 함
         if not is_miss and trigger_gimmick and attacker in self.allies:
             # 아군 공격 시 기믹 트리거 (지원사격 등)
-            GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender)
+            context = {"all_enemies": self.enemies}
+            GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender, context=context)
 
         # BRV 공격 상태이상 효과 (스킬 메타데이터 기반)
         if not is_miss and skill and hasattr(skill, 'metadata'):
@@ -1337,7 +1338,8 @@ class CombatManager:
 
         # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
         if trigger_gimmick and attacker in self.allies:
-            GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender)
+            context = {"all_enemies": self.enemies}
+            GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender, context=context)
         
         # 적 처치 확인 및 효과 적용 (battle_heal, battle_mp, bloodthirst 등)
         if hasattr(defender, 'current_hp') and defender.current_hp <= 0:
@@ -1429,7 +1431,8 @@ class CombatManager:
 
         # 아군 공격 시 기믹 트리거 (지원사격 등) - 복합 공격 전체에 대해 한 번만
         if attacker in self.allies:
-            GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender)
+            context = {"all_enemies": self.enemies}
+            GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender, context=context)
 
         # 결과 병합
         combined_result = {
@@ -1664,7 +1667,7 @@ class CombatManager:
 
                 # 데미지 효과가 있으면 공격 스킬로 간주하고 on_ally_attack 호출
                 if has_damage:
-                    GimmickUpdater.on_ally_attack(actor, self.allies, target=target)
+                    GimmickUpdater.on_ally_attack(actor, self.allies, target=target, context=context)
 
             # 해적: 보물 획득 스킬 처리
             if hasattr(skill, 'metadata') and skill.metadata.get('treasure_skill'):

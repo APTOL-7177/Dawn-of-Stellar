@@ -459,7 +459,7 @@ class GimmickUpdater:
             GimmickUpdater._process_possibility_generation(character, skill, context)
 
     @staticmethod
-    def on_ally_attack(attacker, all_allies, target=None):
+    def on_ally_attack(attacker, all_allies, target=None, context=None):
         """아군 공격 시 기믹 트리거 (지원사격 등)"""
         # 모든 아군 중에서 궁수 찾기
         for ally in all_allies:
@@ -467,10 +467,10 @@ class GimmickUpdater:
                 continue
 
             if ally.gimmick_type == "support_fire" and ally != attacker:
-                GimmickUpdater._trigger_support_fire(ally, attacker, target)
+                GimmickUpdater._trigger_support_fire(ally, attacker, target, context)
 
     @staticmethod
-    def _trigger_support_fire(archer, attacking_ally, target=None):
+    def _trigger_support_fire(archer, attacking_ally, target=None, context=None):
         """궁수 지원사격 트리거"""
         # 디버그: 지원사격 체크 시작 (INFO 레벨로 변경)
         logger.info(f"[지원사격 체크] 궁수 {archer.name}, 공격자 {attacking_ally.name}, 타겟 {getattr(target, 'name', 'None')}")
@@ -536,42 +536,54 @@ class GimmickUpdater:
                         elif combo >= 2:
                             multiplier *= 1.2  # 콤보 2+: 데미지 +20%
 
+                        # 화살 타입별 특수 효과 파라미터 설정
+                        damage_kwargs = {}
+                        if arrow_type == 'piercing':
+                            damage_kwargs['pierce'] = 0.3  # 방어 30% 무시
+                        elif arrow_type == 'holy':
+                            damage_kwargs['undead_bonus'] = 2.0  # 언데드에게 2배 데미지
+
                         # 폭발 화살: 광역 데미지 처리
                         if arrow_type == 'explosive':
-                            # combat_manager에서 적 리스트 가져오기
-                            from src.combat.combat_manager import get_combat_manager
-                            combat_manager = get_combat_manager()
-                            
-                            if combat_manager and hasattr(combat_manager, 'enemies'):
-                                enemies = combat_manager.enemies
-                                aoe_percent = 0.5  # 광역 데미지 50%
-                                
-                                # 메인 타겟에게 100% 데미지
-                                damage_result = damage_calc.calculate_brv_damage(archer, target, skill_multiplier=multiplier)
-                                brv_damage = damage_result.final_damage
-                                
-                                from src.combat.brave_system import get_brave_system
-                                brave_system = get_brave_system()
-                                brv_result = brave_system.brv_attack(archer, target, brv_damage)
-                                
-                                logger.info(f"  → [폭발 화살] {target.name}에게 {brv_result['brv_stolen']} BRV 데미지! {archer.name} BRV +{brv_result['actual_gain']}")
-                                if brv_result['is_break']:
-                                    logger.info(f"  → [BREAK!] {target.name} BRV 파괴!")
-                                
-                                # 주변 적들에게 광역 데미지 (50%)
-                                aoe_damage = int(brv_damage * aoe_percent)
-                                aoe_targets = [e for e in enemies if e != target and hasattr(e, 'current_brv') and getattr(e, 'is_alive', True)]
-                                
-                                if aoe_targets:
-                                    logger.info(f"  → [폭발 화살 광역] 주변 {len(aoe_targets)}명의 적에게 {aoe_damage} BRV 데미지!")
-                                    for aoe_target in aoe_targets:
-                                        aoe_result = brave_system.brv_attack(archer, aoe_target, aoe_damage)
-                                        logger.info(f"    → {aoe_target.name}에게 {aoe_result['brv_stolen']} BRV 데미지!")
-                                        if aoe_result['is_break']:
-                                            logger.info(f"    → [BREAK!] {aoe_target.name} BRV 파괴!")
+                            # context에서 적 리스트 가져오기 (더 안정적)
+                            enemies = []
+                            if context and 'all_enemies' in context:
+                                enemies = [e for e in context['all_enemies'] if hasattr(e, 'current_brv') and getattr(e, 'is_alive', True)]
+                            else:
+                                # fallback: combat_manager에서 가져오기
+                                from src.combat.combat_manager import get_combat_manager
+                                combat_manager = get_combat_manager()
+                                if combat_manager and hasattr(combat_manager, 'enemies'):
+                                    enemies = [e for e in combat_manager.enemies if hasattr(e, 'current_brv') and getattr(e, 'is_alive', True)]
+
+                            aoe_percent = 0.5  # 광역 데미지 50%
+
+                            # 메인 타겟에게 100% 데미지
+                            damage_result = damage_calc.calculate_brv_damage(archer, target, skill_multiplier=multiplier, **damage_kwargs)
+                            brv_damage = damage_result.final_damage
+
+                            from src.combat.brave_system import get_brave_system
+                            brave_system = get_brave_system()
+                            brv_result = brave_system.brv_attack(archer, target, brv_damage)
+
+                            logger.info(f"  → [폭발 화살] {target.name}에게 {brv_result['brv_stolen']} BRV 데미지! {archer.name} BRV +{brv_result['actual_gain']}")
+                            if brv_result['is_break']:
+                                logger.info(f"  → [BREAK!] {target.name} BRV 파괴!")
+
+                            # 주변 적들에게 광역 데미지 (50%)
+                            aoe_damage = int(brv_damage * aoe_percent)
+                            aoe_targets = [e for e in enemies if e != target and hasattr(e, 'current_brv') and getattr(e, 'is_alive', True)]
+
+                            if aoe_targets:
+                                logger.info(f"  → [폭발 화살 광역] 주변 {len(aoe_targets)}명의 적에게 {aoe_damage} BRV 데미지!")
+                                for aoe_target in aoe_targets:
+                                    aoe_result = brave_system.brv_attack(archer, aoe_target, aoe_damage)
+                                    logger.info(f"    → {aoe_target.name}에게 {aoe_result['brv_stolen']} BRV 데미지!")
+                                    if aoe_result['is_break']:
+                                        logger.info(f"    → [BREAK!] {aoe_target.name} BRV 파괴!")
                             else:
                                 # combat_manager를 찾을 수 없으면 일반 처리
-                                damage_result = damage_calc.calculate_brv_damage(archer, target, skill_multiplier=multiplier)
+                                damage_result = damage_calc.calculate_brv_damage(archer, target, skill_multiplier=multiplier, **damage_kwargs)
                                 brv_damage = damage_result.final_damage
                                 
                                 from src.combat.brave_system import get_brave_system
@@ -583,7 +595,7 @@ class GimmickUpdater:
                                     logger.info(f"  → [BREAK!] {target.name} BRV 파괴!")
                         else:
                             # 일반 화살: 단일 타겟 데미지
-                            damage_result = damage_calc.calculate_brv_damage(archer, target, skill_multiplier=multiplier)
+                            damage_result = damage_calc.calculate_brv_damage(archer, target, skill_multiplier=multiplier, **damage_kwargs)
                             brv_damage = damage_result.final_damage
 
                             # brave_system을 사용하여 BRV 공격 적용 (BREAK 체크 포함)
@@ -594,6 +606,30 @@ class GimmickUpdater:
                             logger.info(f"  → {target.name}에게 {brv_result['brv_stolen']} BRV 데미지! {archer.name} BRV +{brv_result['actual_gain']}")
                             if brv_result['is_break']:
                                 logger.info(f"  → [BREAK!] {target.name} BRV 파괴!")
+
+                    # 화살 타입별 특수 효과 적용
+                    if arrow_type == 'fire' and hasattr(target, 'status_manager'):
+                        # 화염 화살: 화상 적용
+                        from src.combat.status_effects import StatusEffect, StatusType
+                        burn_effect = StatusEffect("화상", StatusType.BURN, duration=2, intensity=0.1)
+                        target.status_manager.add_status(burn_effect)
+                        logger.info(f"  → [화염 화살] {target.name}에게 화상 2턴 적용!")
+
+                    elif arrow_type == 'ice' and hasattr(target, 'status_manager'):
+                        # 빙결 화살: 둔화 적용
+                        from src.combat.status_effects import StatusEffect, StatusType
+                        slow_effect = StatusEffect("둔화", StatusType.SLOW, duration=3, intensity=0.3)
+                        target.status_manager.add_status(slow_effect)
+                        logger.info(f"  → [빙결 화살] {target.name}에게 둔화 3턴 적용 (속도 -30%!)")
+
+                    elif arrow_type == 'poison' and hasattr(target, 'status_manager'):
+                        # 독 화살: 독 적용
+                        from src.combat.status_effects import StatusEffect, StatusType
+                        poison_effect = StatusEffect("독", StatusType.POISON, duration=3, intensity=0.05)
+                        target.status_manager.add_status(poison_effect)
+                        logger.info(f"  → [독 화살] {target.name}에게 독 3턴 적용!")
+
+                    # 신성 화살과 관통 화살은 데미지 계산 시 이미 적용됨 (calculate_brv_damage에서 처리)
 
                     # 남은 발사 횟수 감소
                     setattr(attacking_ally, shots_attr, shots_remaining - 1)
