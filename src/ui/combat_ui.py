@@ -119,6 +119,12 @@ class CombatUI:
         self.action_delay_frames = 0
         self.action_delay_max = 90  # 1.5초 대기
 
+        # 페이즈 메시지 타이머 (프레임 단위)
+        self.phase_message_timer = 0
+        self.phase_message_duration = 180  # 3초 (60 FPS 기준)
+        self.revival_message_timer = 0
+        self.revival_message_duration = 180  # 3초
+
         # 멀티플레이 전투 동기화 관리자
         self.combat_sync_manager: Optional[Any] = None
         if session and network_manager:
@@ -205,15 +211,30 @@ class CombatUI:
         logger = get_logger("combat_ui")
         logger.warning(f"[SKILL_MENU] {actor.name}의 전체 스킬 개수: {len(all_skills)}")
 
+        # 보스전 확인 (세피로스, 카인)
+        is_boss_battle = False
+        if hasattr(self.combat_manager, 'enemies'):
+            for enemy in self.combat_manager.enemies:
+                enemy_id = getattr(enemy, 'enemy_id', None)
+                if enemy_id in ['sephiroth', 'abel_cain']:
+                    is_boss_battle = True
+                    break
+
         # 스킬 분류
         teamwork_skills = []
         basic_attack_skills = []  # 기본 공격 스킬
         gimmick_skills = []  # 기믹 스킬 (가능성 소모 등)
         normal_skills = []
-        
+
         for skill in all_skills:
             metadata = getattr(skill, 'metadata', None) or {}
-            
+
+            # 보스전에서 궁극기 제외
+            is_ultimate = getattr(skill, 'is_ultimate', False) or metadata.get('ultimate', False)
+            if is_boss_battle and is_ultimate:
+                logger.info(f"[SKILL_MENU] 보스전: 궁극기 '{skill.name}' 제외됨")
+                continue
+
             # 팀워크 스킬
             if hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill:
                 teamwork_skills.append(skill)
@@ -1527,12 +1548,38 @@ class CombatUI:
                 # 대기 완료, WAITING_ATB로 전환 (EXECUTING 상태가 아니어도 전환)
                 if self.state == CombatUIState.EXECUTING:
                     self.state = CombatUIState.WAITING_ATB
-                elif self.state not in [CombatUIState.ACTION_MENU, CombatUIState.SKILL_MENU, 
-                                        CombatUIState.TARGET_SELECT, CombatUIState.ITEM_MENU, 
+                elif self.state not in [CombatUIState.ACTION_MENU, CombatUIState.SKILL_MENU,
+                                        CombatUIState.TARGET_SELECT, CombatUIState.ITEM_MENU,
                                         CombatUIState.CARD_SELECT, CombatUIState.POSSIBILITY_SELECT,
                                         CombatUIState.GIMMICK_VIEW]:
                     # 다른 상태에서도 WAITING_ATB로 전환 (기절 스킵 후 다음 턴 대기)
                     self.state = CombatUIState.WAITING_ATB
+
+        # 페이즈 메시지 타이머 처리
+        if hasattr(self.combat_manager, 'phase_transition_message') and self.combat_manager.phase_transition_message:
+            if self.phase_message_timer == 0:
+                # 새 메시지 감지, 타이머 시작
+                self.phase_message_timer = self.phase_message_duration
+            else:
+                # 타이머 감소
+                self.phase_message_timer -= 1
+                if self.phase_message_timer <= 0:
+                    # 시간 종료, 메시지 제거
+                    self.combat_manager.phase_transition_message = None
+                    self.phase_message_timer = 0
+
+        # 부활 메시지 타이머 처리
+        if hasattr(self.combat_manager, 'revival_message') and self.combat_manager.revival_message:
+            if self.revival_message_timer == 0:
+                # 새 메시지 감지, 타이머 시작
+                self.revival_message_timer = self.revival_message_duration
+            else:
+                # 타이머 감소
+                self.revival_message_timer -= 1
+                if self.revival_message_timer <= 0:
+                    # 시간 종료, 메시지 제거
+                    self.combat_manager.revival_message = None
+                    self.revival_message_timer = 0
 
         # 플레이어가 선택 중인지 또는 대기 중인지 확인
         is_player_selecting = self.state in [
@@ -2343,6 +2390,49 @@ class CombatUI:
             fg=(255, 255, 100)
         )
 
+        # 보스 타이머 표시
+        from src.combat.boss_timer_system import get_boss_timer_system
+        boss_timer = get_boss_timer_system()
+        if boss_timer.is_active:
+            remaining = boss_timer.get_remaining_time()
+            time_str = boss_timer.format_time(remaining)
+
+            # 색상: 1분 이하면 빨간색, 2분 이하면 노란색, 그 외 흰색
+            if remaining <= 60:
+                timer_color = (255, 50, 50)  # 빨강
+            elif remaining <= 120:
+                timer_color = (255, 255, 0)  # 노랑
+            else:
+                timer_color = (255, 255, 255)  # 흰색
+
+            timer_text = f"⏱ {time_str}"
+            timer_x = self.screen_width // 2 - len(timer_text) // 2
+            console.print(timer_x, 2, timer_text, fg=timer_color)
+
+            # 타이머 경고 메시지 표시
+            if hasattr(self.combat_manager, 'timer_warning_message') and self.combat_manager.timer_warning_message:
+                warning_msg = self.combat_manager.timer_warning_message
+                warning_x = self.screen_width // 2 - len(warning_msg) // 2
+                console.print(warning_x, 3, warning_msg, fg=(255, 100, 100))
+
+        # 부활 메시지 표시 (카인 불멸 능력)
+        if hasattr(self.combat_manager, 'revival_message') and self.combat_manager.revival_message:
+            revival_lines = self.combat_manager.revival_message.split('\n')
+            start_y = self.screen_height // 2 - len(revival_lines) // 2
+            for i, line in enumerate(revival_lines):
+                if line.strip():
+                    line_x = self.screen_width // 2 - len(line) // 2
+                    console.print(line_x, start_y + i, line, fg=(255, 215, 0))  # 황금색
+
+        # 페이즈 전환 메시지 표시 (보스 페이즈 변경)
+        if hasattr(self.combat_manager, 'phase_transition_message') and self.combat_manager.phase_transition_message:
+            phase_lines = self.combat_manager.phase_transition_message.split('\n')
+            start_y = self.screen_height // 2 - len(phase_lines) // 2
+            for i, line in enumerate(phase_lines):
+                if line.strip():
+                    line_x = self.screen_width // 2 - len(line) // 2
+                    console.print(line_x, start_y + i, line, fg=(255, 50, 50))  # 빨간색
+
         # 아군 상태
         self._render_allies(console)
 
@@ -2491,16 +2581,6 @@ class CombatUI:
             cast_info = casting_system.get_cast_info(ally)
             is_casting = cast_info is not None
             cast_progress = cast_info.progress if cast_info else 0.0
-
-            # 기믹 상태 표시 (캐릭터 이름 오른쪽)
-            gimmick_result = self._get_gimmick_display(ally)
-            if isinstance(gimmick_result, tuple):
-                gimmick_text, gimmick_color = gimmick_result
-            else:
-                gimmick_text = gimmick_result
-                gimmick_color = (150, 200, 255)
-            if gimmick_text:
-                console.print(22, y, gimmick_text, fg=gimmick_color)
 
             # 상태이상/버프/디버프 아이콘 (ATB 게이지 바로 위, 최대 3줄)
             status_effects = getattr(ally, 'status_effects', [])
@@ -3304,13 +3384,21 @@ class CombatUI:
             # 환영 아이콘 (활성: ◆, 빈 슬롯: ◇)
             phantom_icons = "◆" * phantom_count + "◇" * (max_phantoms - phantom_count)
 
+            # 확정 회피 상태 확인 (버프 우선, 그 다음 준비 상태)
+            has_guaranteed_evasion = False
+            if hasattr(character, 'active_buffs') and character.active_buffs:
+                evasion_buff = character.active_buffs.get('evasion_up')
+                if evasion_buff and evasion_buff.get('value', 0.0) >= 5.0:
+                    has_guaranteed_evasion = True
+
             # 확정 회피 준비 상태 계산 (플래그가 아니라 실시간으로 계산)
-            # 환영 2개 이상이고 쿨다운이 0일 때만 준비 상태
             mirror_shift_cooldown = getattr(character, 'mirror_shift_cooldown', 0)
             mirror_ready = phantom_count >= 2 and mirror_shift_cooldown == 0
 
-            if mirror_ready:
-                return (f"환영:{phantom_icons} ★확정회피", (200, 150, 255))
+            if has_guaranteed_evasion:
+                return (f"환영:{phantom_icons} 확정회피중", (255, 255, 100))
+            elif mirror_ready:
+                return (f"환영:{phantom_icons} 확정회피", (200, 150, 255))
             if phantom_count >= max_phantoms:
                 return (f"환영:{phantom_icons} 잔상:{afterimage}", (180, 120, 255))
             return (f"환영:{phantom_icons} 잔상:{afterimage}", (150, 100, 200))
@@ -5174,23 +5262,6 @@ class CombatUI:
             details.append(f"음표: {gauge_bar}")
             if melody:
                 details.append(f" 연주 중: {melody}")
-            else:
-                details.append(" 대기 중")
-        
-        # 해적 - 럼주 & 보물 시스템 (YAML: rum_treasure_system)
-        elif gimmick_type == "rum_treasure_system":
-            treasures = getattr(character, 'treasure_inventory', [])
-            max_treasure = getattr(character, 'max_treasure', 3)
-            rum_effect = getattr(character, 'current_rum_effect', None)
-            rum_duration = getattr(character, 'rum_effect_duration', 0)
-            details.append("=== 럼주 & 보물 시스템 ===")
-            treasure_bar = self._create_gauge_bar(len(treasures), max_treasure, width=10)
-            details.append(f"보물: {treasure_bar} ({len(treasures)}/{max_treasure})")
-            if rum_effect:
-                details.append(f" 럼주 효과: {rum_effect} ({rum_duration}턴)")
-            else:
-                details.append(" 럼주 효과: 없음")
-            details.append(" 럼주 마시기로 랜덤 버프 획득")
             details.append(" 적 처치 시 보물 획득")
         
         # 정령술사 - 4대 정령 소환 시스템 (YAML: elemental_spirits)

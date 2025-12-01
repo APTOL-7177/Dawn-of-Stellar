@@ -515,10 +515,26 @@ class Skill:
             if hasattr(user, 'gimmick_type') and user.gimmick_type == "dimension_refraction":
                 custom_damage_refraction = getattr(user, 'refraction_stacks', 0)
 
-        # 효과 실행 (ISSUE-003: 효과 메시지 수집)
+        # 효과 실행 준비 (ISSUE-003: 효과 메시지 수집)
         total_dmg = 0
         total_heal = 0
         effect_messages = []  # 각 효과의 메시지 수집
+
+        # 마술사 특수 스킬 처리
+        if hasattr(user, 'gimmick_type') and user.gimmick_type == "trick_deck":
+            from src.character.skills.job_skills.magician_skills import execute_magician_skill
+            magician_result = execute_magician_skill(user, self, target, context)
+            if not magician_result.get('success', True):
+                return SkillResult(success=False, message="마술사 스킬 실행 실패")
+
+            # 마술사 스킬 결과 처리
+            for msg in magician_result.get('results', []):
+                effect_messages.append(msg)
+
+            # 보너스 배율 적용
+            bonus_multiplier = magician_result.get('bonus_multiplier', 1.0)
+            if bonus_multiplier != 1.0:
+                context['bonus_multiplier'] = bonus_multiplier
 
         # 수호의 맹세 스킬: 본인에게 보호막을 두르고 선택한 아군을 보호
         # ProtectEffect가 있으면 protect_self 플래그 설정

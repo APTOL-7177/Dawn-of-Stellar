@@ -228,16 +228,30 @@ ENEMY_TEMPLATES = {
         luck=12, accuracy=68, evasion=12
     ),
 
-    # === 최종 보스 ===
-    # BRV: 압도적 max_brv, 매우 높은 init_brv (40%)
+    # === 최종 보스 (20층) - 물리형 ===
+    # 5층 물리형 보스(dragon_king)의 1.2배 스탯, 스피드 2배, HP 2.5배
+    # 7분 30초 제한 - 스킬 계수로 위협적
     "sephiroth": EnemyTemplate(
         "sephiroth", "세피로스", 1,
-        hp=1000, mp=500,  # 압도적인 스탯 (레벨 스케일링으로 더욱 강해짐)
-        physical_attack=150, physical_defense=120,
-        magic_attack=160, magic_defense=130,
-        speed=100,
-        max_brv=6400, init_brv=2133,  # 세피로스급 BRV (19200÷3, 6400÷3)
-        luck=30, accuracy=90, evasion=25
+        hp=625, mp=48,  # HP 2.5배 (250*2.5), MP는 낮음
+        physical_attack=86, physical_defense=70,  # 물리 특화 1.2배 (72*1.2, 58*1.2)
+        magic_attack=62, magic_defense=54,  # 마법은 낮게 (52*1.2, 45*1.2)
+        speed=110,  # 스피드 2배 (55*2)
+        max_brv=1200, init_brv=600,  # init_brv를 max_brv 절반으로 설정 (1200//2)
+        luck=18, accuracy=85, evasion=16
+    ),
+
+    # === 진 최종 보스 (30층) - 마법형 ===
+    # 5층 마법형 보스(lich)의 1.2배 스탯, 스피드 2배, HP 2.5배
+    # 4분 제한 - 시간은 짧지만 마법 계수 높은 스킬로 승부
+    "abel_cain": EnemyTemplate(
+        "abel_cain", "닥터 아벨 카인", 1,
+        hp=475, mp=72,  # HP 2.5배 (190*2.5), MP 높음
+        physical_attack=60, physical_defense=50,  # 물리는 낮게 (50*1.2, 42*1.2)
+        magic_attack=94, magic_defense=78,  # 마법 특화 1.2배 (78*1.2, 65*1.2)
+        speed=96,  # 스피드 2배 (48*2) - 마법형이라 조금 느림
+        max_brv=960, init_brv=480,  # init_brv를 max_brv 절반으로 설정 (960//2)
+        luck=20, accuracy=88, evasion=14
     ),
 
     # ============================================================
@@ -557,8 +571,8 @@ class SimpleEnemy:
         # ±20% 랜덤 오차 (0.8 ~ 1.2배)
         stat_variance = random.uniform(0.8, 1.2)
         
-        # 보스 배율: 기본 스탯 1.7배, HP 3.5배
-        boss_stat_mult = 1.7 if is_boss else 1.0
+        # 보스 배율: 기본 스탯 1.445배 (15% 너프), HP 3.5배
+        boss_stat_mult = 1.445 if is_boss else 1.0
         boss_hp_mult = 3.5 if is_boss else 1.0
 
         # 플레이어와 유사한 레벨당 비율 기반 성장 (장비 차이 고려하여 약 1.25배 더 성장)
@@ -578,15 +592,15 @@ class SimpleEnemy:
         self.max_mp = int(base_mp)
         self.current_mp = self.max_mp
         
-        # 공격력: 레벨당 기초 공격력의 40% 성장 (더 공격적으로 강화)
-        # 최종적으로 공격력을 27%로 조정 (0.21 * 1.3 = 0.273 → 0.27)
+        # 공격력: 레벨당 기초 공격력의 40% 성장
+        # 최종 배율 0.4 (40%)
         attack_growth = template.physical_attack * 0.40 * (level - 1)
         base_physical_attack = (template.physical_attack + attack_growth) * boss_stat_mult * stat_variance
-        self.physical_attack = int(base_physical_attack * 0.27) * difficulty_dmg_mult
+        self.physical_attack = int(base_physical_attack * 0.4) * difficulty_dmg_mult
 
         magic_attack_growth = template.magic_attack * 0.40 * (level - 1)
         base_magic_attack = (template.magic_attack + magic_attack_growth) * boss_stat_mult * stat_variance
-        self.magic_attack = int(base_magic_attack * 0.27) * difficulty_dmg_mult
+        self.magic_attack = int(base_magic_attack * 0.4) * difficulty_dmg_mult
         
         # 방어력: 레벨당 기초 방어력의 40% 성장, 최종값 15% 증가 (플레이어 20% * 1.25 * 1.3, 최종 0.75 * 1.15 = 0.8625배)
         defense_growth = template.physical_defense * 0.40 * (level - 1)
@@ -721,13 +735,14 @@ class EnemyGenerator:
         return suitable
 
     @staticmethod
-    def generate_enemies(floor_number: int, num_enemies: int = None) -> List[SimpleEnemy]:
+    def generate_enemies(floor_number: int, num_enemies: int = None, boss_battle: bool = False) -> List[SimpleEnemy]:
         """
         층수에 맞는 적 생성
 
         Args:
             floor_number: 층 번호
             num_enemies: 적 수 (None이면 자동)
+            boss_battle: 보스전 여부 (True면 잡몹 1.4배 강화)
 
         Returns:
             적 리스트
@@ -781,7 +796,10 @@ class EnemyGenerator:
             # 1층 = 0.8배, 2층 = 1.6배, 3층 = 2.4배, ... (층수 * 0.8)
             level_modifier = floor_number * 0.8
 
-            enemy = SimpleEnemy(template, level_modifier, difficulty_hp_mult, difficulty_dmg_mult)
+            # 보스전 잡몹 강화 (1.4배)
+            boss_battle_mult = 1.4 if boss_battle else 1.0
+
+            enemy = SimpleEnemy(template, level_modifier, difficulty_hp_mult * boss_battle_mult, difficulty_dmg_mult * boss_battle_mult)
 
             # 적 타입에 맞는 스킬 추가
             try:
@@ -796,13 +814,14 @@ class EnemyGenerator:
         return enemies
 
     @staticmethod
-    def generate_boss(floor_number: int, is_floor_boss: bool = False) -> SimpleEnemy:
+    def generate_boss(floor_number: int, is_floor_boss: bool = False, boss_battle: bool = False) -> SimpleEnemy:
         """
         보스 생성
 
         Args:
             floor_number: 층 번호
             is_floor_boss: True면 5층마다 등장하는 강력한 층 보스, False면 일반 층의 보스
+            boss_battle: True면 최종보스전 (20층, 30층)에서 추가 처리 적용
 
         Returns:
             보스 적
@@ -820,7 +839,17 @@ class EnemyGenerator:
         # 5층마다 등장하는 특별한 층 보스 (더 강력함)
         if is_floor_boss or floor_number % 5 == 0:
             # 층수에 따라 특별한 보스 템플릿 선택
-            if floor_number >= 50:
+            # ⚠️ 30층 = 진 최종 보스 카인 (4분 타임어택)
+            if floor_number == 30:
+                template = ENEMY_TEMPLATES["abel_cain"]
+                boss_name = "닥터 아벨 카인"
+                boss_enemy_id = "abel_cain"
+            # ⚠️ 20층 = 최종 보스 세피로스 (7분 30초 타임어택)
+            elif floor_number == 20:
+                template = ENEMY_TEMPLATES["sephiroth"]
+                boss_name = "세피로스"
+                boss_enemy_id = "sephiroth"
+            elif floor_number >= 50:
                 template = ENEMY_TEMPLATES["sephiroth"]
                 boss_name = "세피로스"
                 boss_enemy_id = "sephiroth"
@@ -844,10 +873,6 @@ class EnemyGenerator:
                 template = ENEMY_TEMPLATES["boss_lich"]
                 boss_name = "리치"
                 boss_enemy_id = "boss_lich"
-            elif floor_number >= 20:
-                template = ENEMY_TEMPLATES["fire_dragon"]
-                boss_name = "화염 드래곤"
-                boss_enemy_id = "fire_dragon"
             elif floor_number >= 15:
                 template = ENEMY_TEMPLATES["demon"]
                 boss_name = "악마"
@@ -895,12 +920,36 @@ class EnemyGenerator:
             boss.name = boss_name
             boss.enemy_id = boss_enemy_id
 
+            # 최종보스 특별 처리 (20층 세피로스, 30층 카인)
+            if boss_battle and boss_enemy_id in ["sephiroth", "abel_cain"]:
+                # 닥터 아벨 카인 HP 1.25배 추가 강화
+                if boss_enemy_id == "abel_cain":
+                    boss.max_hp = int(boss.max_hp * 1.25)
+                    boss.current_hp = boss.max_hp
+                    logger.info(f"닥터 아벨 카인 HP 1.25배 강화: {boss.max_hp}")
+
+                # 세피로스와 카인의 MP를 999로 설정
+                boss.max_mp = 999
+                boss.current_mp = 999
+                logger.info(f"{boss_name} MP를 999로 설정")
+
             # 스킬 추가
             try:
-                from src.combat.enemy_skills import EnemySkillDatabase
-                boss.skills = EnemySkillDatabase.get_skills_for_enemy_type(boss_enemy_id)
-            except ImportError:
-                pass
+                # 카인은 전용 스킬 사용
+                if boss_enemy_id == "abel_cain":
+                    from src.combat.cain_skills import CainSkillDatabase
+                    boss.skills = CainSkillDatabase.get_all_cain_skills()
+                    logger.info(f"카인 전용 스킬 {len(boss.skills)}개 로드 완료")
+                # 세피로스는 전용 스킬 사용
+                elif boss_enemy_id == "sephiroth":
+                    from src.combat.sephiroth_skills import SephirothSkillDatabase
+                    boss.skills = SephirothSkillDatabase.get_all_sephiroth_skills()
+                    logger.info(f"세피로스 전용 스킬 {len(boss.skills)}개 로드 완료")
+                else:
+                    from src.combat.enemy_skills import EnemySkillDatabase
+                    boss.skills = EnemySkillDatabase.get_skills_for_enemy_type(boss_enemy_id)
+            except ImportError as e:
+                logger.warning(f"스킬 로드 실패: {e}")
 
             return boss
 

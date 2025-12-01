@@ -791,12 +791,108 @@ def execute_magician_skill(character, skill, target, context):
         if metadata.get('swap_buffs'):
             # 투페어 스왑: 버프/디버프 교환
             results.append("버프/디버프 교환!")
-        
+
+        if metadata.get('swap_stats'):
+            # 스탯 스왑: 적과 자신의 모든 스탯 교환 (HP 제외)
+            from src.character.stats import Stats
+            if target and hasattr(target, 'stat_manager') and hasattr(character, 'stat_manager'):
+                # 교환할 스탯 목록 (HP 제외)
+                stats_to_swap = [Stats.STRENGTH, Stats.DEFENSE, Stats.MAGIC, Stats.SPIRIT, Stats.SPEED, Stats.LUCK]
+
+                duration = metadata.get('duration', 3)
+
+                results.append(f"스탯 교환! ({duration}턴)")
+                results.append(f"{character.name} ↔ {target.name}")
+
+                for stat in stats_to_swap:
+                    # 각 스탯의 현재 값 가져오기
+                    ally_stat_value = character.stat_manager.get_value(stat)
+                    enemy_stat_value = target.stat_manager.get_value(stat)
+
+                    # 스탯 차이 계산
+                    stat_diff_ally = enemy_stat_value - ally_stat_value
+                    stat_diff_enemy = ally_stat_value - enemy_stat_value
+
+                    # 아군에게 적의 스탯 적용
+                    if stat_diff_ally != 0:
+                        character.stat_manager.add_bonus(stat, 'stat_swap', stat_diff_ally)
+
+                    # 적에게 아군의 스탯 적용
+                    if stat_diff_enemy != 0:
+                        target.stat_manager.add_bonus(stat, 'stat_swap', stat_diff_enemy)
+
+                    # 결과 메시지에 추가
+                    stat_names = {
+                        Stats.STRENGTH: "공격력",
+                        Stats.DEFENSE: "방어력",
+                        Stats.MAGIC: "마법력",
+                        Stats.SPIRIT: "마법방어력",
+                        Stats.SPEED: "속도",
+                        Stats.LUCK: "행운"
+                    }
+                    stat_name = stat_names.get(stat, str(stat))
+                    results.append(f"  {stat_name}: {ally_stat_value} ↔ {enemy_stat_value}")
+
         if metadata.get('element_by_suit'):
             # 플러시 원소: 무늬에 따른 속성
             main_suit = combo_cards[0].get('suit') if combo_cards else 'spade'
             element_id, element_name = get_suit_element(main_suit)
             results.append(f"속성: {element_name}")
+
+        # 풀하우스 카오스 효과 처리 (전장 전체 효과)
+        if metadata.get('swap_brv') and metadata.get('invert_hp_percent'):
+            from src.combat.combat_manager import get_combat_manager
+            cm = get_combat_manager()
+
+            # 테스트용: context에 직접 캐릭터 리스트가 있으면 사용
+            all_characters = []
+            if context and 'test_characters' in context:
+                all_characters = context['test_characters']
+            elif cm:
+                # 모든 적과 아군의 BRV 교환
+                if hasattr(cm, 'enemies'):
+                    all_characters.extend(cm.enemies)
+                if hasattr(cm, 'party') and hasattr(cm.party, 'characters'):
+                    all_characters.extend(cm.party.characters)
+
+            # 살아있는 캐릭터만 필터링
+            alive_chars = [c for c in all_characters if hasattr(c, 'is_alive') and c.is_alive]
+
+            if len(alive_chars) >= 2:
+                results.append(f"전장 카오스! ({len(alive_chars)}명 참여)")
+
+                # BRV 값들 저장 및 교환 (원형 시프트)
+                brv_values = [getattr(char, 'current_brv', 0) for char in alive_chars]
+
+                # BRV를 한 칸씩 시프트 (마지막은 첫 번째로)
+                first_brv = brv_values[0]
+                for i in range(len(alive_chars) - 1):
+                    alive_chars[i].current_brv = brv_values[i + 1]
+                alive_chars[-1].current_brv = first_brv
+
+                # BRV 교환 결과 표시
+                brv_before = brv_values
+                brv_after = [getattr(char, 'current_brv', 0) for char in alive_chars]
+                results.append("BRV 원형 교환:")
+                for i, char in enumerate(alive_chars):
+                    results.append(f"  {char.name}: {brv_before[i]} → {brv_after[i]}")
+
+                # HP 백분율 역전 (현재 HP%를 100%에서 뺀 값으로)
+                results.append("HP% 역전:")
+                for char in alive_chars:
+                    if hasattr(char, 'current_hp') and hasattr(char, 'max_hp'):
+                        old_percent = char.current_hp / char.max_hp
+                        # HP%를 역전 (30% → 70%, 70% → 30%)
+                        new_percent = 1.0 - old_percent
+                        new_hp = int(char.max_hp * new_percent)
+                        old_hp = char.current_hp
+                        char.current_hp = max(1, min(char.max_hp, new_hp))  # HP 범위 제한
+
+                        results.append(f"  {char.name}: {old_percent:.1%} → {new_percent:.1%} ({old_hp} → {char.current_hp})")
+
+                results.append("카오스 완료! 전장이 뒤집혔습니다!")
+            else:
+                results.append("효과 적용 실패: 캐릭터가 부족합니다")
         
         return {
             "success": True, 

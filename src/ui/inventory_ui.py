@@ -94,8 +94,143 @@ class InventoryUI:
 
         # 장비 비교 모드
         self.show_comparison = False
+        self.selected_character_for_comparison = 0  # 비교할 캐릭터 인덱스
 
         self.closed = False
+
+    def _translate_unique_effect(self, effect_str: str) -> str:
+        """유니크 효과를 한글로 번역"""
+        if not effect_str:
+            return ""
+
+        effect_names = {
+            # Vision 관련
+            "vision": "시야",
+            "night_vision": "야간 시야",
+            "true_sight": "투시",
+
+            # Wound 관련
+            "wound_reduction": "상처 감소",
+            "wound_immunity": "상처 면역",
+            "wound_regen": "상처 회복",
+
+            # BRV 관련
+            "brv_bonus": "BRV 보너스",
+            "brv_shield": "BRV 방어",
+            "brv_regen": "BRV 재생",
+            "brv_steal": "BRV 흡수",
+            "brv_break_bonus": "BREAK 데미지",
+
+            # Combat 관련
+            "lifesteal": "생명력 흡수",
+            "thorns": "가시 (반사)",
+            "critical_damage": "크리티컬 데미지",
+            "critical_rate": "크리티컬 확률",
+            "critical_chance": "크리티컬 확률",
+            "dodge_chance": "회피 확률",
+            "block_chance": "블록 확률",
+            "counter_attack": "반격",
+            "first_strike": "선제공격",
+            "execute": "처형",
+            "multi_strike": "연속 공격",
+
+            # Healing 관련
+            "hp_regen": "HP 재생",
+            "mp_regen": "MP 재생",
+            "heal_boost": "회복량 증가",
+            "healing_bonus": "회복량 증가",
+            "overheal": "과다 회복 → 실드",
+            "overheal_shield": "과다 회복 → 실드",
+
+            # Status 관련
+            "status_immunity": "상태이상 면역",
+            "poison_immunity": "독 면역",
+            "stun_immunity": "기절 면역",
+            "silence_immunity": "침묵 면역",
+            "burn_immunity": "화상 면역",
+            "freeze_immunity": "빙결 면역",
+            "status_burn": "화상 부여",
+            "status_poison": "독 부여",
+            "status_shock": "감전 부여",
+            "debuff_slow": "감속 디버프",
+            "debuff_silence": "침묵 디버프",
+            "debuff_weaken": "약화 디버프",
+
+            # Resource 관련
+            "mp_cost_reduction": "MP 소비 감소",
+            "cooldown_reduction": "쿨다운 감소",
+            "skill_power": "스킬 위력",
+            "spell_power": "주문 위력",
+            "spell_echo": "주문 반향",
+            "rare_drop": "희귀 아이템 드롭",
+            "item_find": "아이템 드롭",
+            "gold_find": "골드 획득",
+            "exp_bonus": "경험치 보너스",
+
+            # 기타 특수 효과
+            "on_kill_heal": "처치 시 회복",
+            "element": "원소 속성",
+            "chain_lightning": "체인 라이트닝",
+            "armor_penetration": "방어 관통",
+            "mp_steal": "MP 흡수",
+            "bonus_vs_undead": "대 언데드",
+            "heal_on_hit": "공격 시 회복",
+            "accuracy_bonus": "명중률",
+            "double_strike": "더블 스트라이크",
+            "strike_count": "공격 횟수",
+            "stun_chance": "기절 확률",
+            "damage_from_defense": "방어력 기반 데미지",
+            "hack_damage": "해킹 데미지",
+            "stance_power": "스탠스 위력",
+            "element_power": "속성 위력",
+            "resistance": "저항",
+        }
+
+        element_names = {
+            "fire": "불",
+            "ice": "얼음",
+            "thunder": "번개",
+            "water": "물",
+            "wind": "바람",
+            "earth": "대지",
+            "light": "빛",
+            "dark": "어둠",
+        }
+
+        results = []
+        parts = effect_str.split("|")
+
+        for part in parts:
+            if ":" in part:
+                effect_name, value = part.split(":", 1)
+                effect_name = effect_name.strip()
+                value = value.strip()
+
+                # 원소 처리
+                if effect_name == "element":
+                    element_kr = element_names.get(value, value)
+                    results.append(f"{element_kr} 속성")
+                else:
+                    # 숫자값 처리
+                    try:
+                        num_value = float(value)
+                        # 백분율 값 처리 (0.15 = 15%)
+                        if 0 < num_value < 1:
+                            display_value = f"{int(num_value * 100)}%"
+                        else:
+                            display_value = str(int(num_value)) if num_value == int(num_value) else str(num_value)
+
+                        effect_kr = effect_names.get(effect_name, effect_name)
+                        results.append(f"{effect_kr} +{display_value}")
+                    except ValueError:
+                        effect_kr = effect_names.get(effect_name, effect_name)
+                        results.append(f"{effect_kr}: {value}")
+            else:
+                # 값이 없는 경우
+                effect_kr = effect_names.get(part, part)
+                results.append(effect_kr)
+
+        return " / ".join(results)
 
     def _get_durability_info(self, item: Item) -> tuple[str, tuple[int, int, int]]:
         """
@@ -165,15 +300,23 @@ class InventoryUI:
     def _handle_browse(self, action: GameAction) -> bool:
         """둘러보기 모드 입력"""
         if action == GameAction.MOVE_UP:
-            self.cursor = max(0, self.cursor - 1)
-            self._update_scroll()
-            self.show_comparison = False
+            # 장비 비교 모드 활성화 시 캐릭터 변경
+            if self.show_comparison and len(self.party) > 1:
+                self.selected_character_for_comparison = max(0, self.selected_character_for_comparison - 1)
+            else:
+                self.cursor = max(0, self.cursor - 1)
+                self._update_scroll()
+                self.show_comparison = False
         elif action == GameAction.MOVE_DOWN:
-            # 필터링된 아이템 수 기준으로 커서 이동
-            filtered_count = self._get_filtered_item_count()
-            self.cursor = min(filtered_count - 1, self.cursor + 1)
-            self._update_scroll()
-            self.show_comparison = False
+            # 장비 비교 모드 활성화 시 캐릭터 변경
+            if self.show_comparison and len(self.party) > 1:
+                self.selected_character_for_comparison = min(len(self.party) - 1, self.selected_character_for_comparison + 1)
+            else:
+                # 필터링된 아이템 수 기준으로 커서 이동
+                filtered_count = self._get_filtered_item_count()
+                self.cursor = min(filtered_count - 1, self.cursor + 1)
+                self._update_scroll()
+                self.show_comparison = False
         elif action == GameAction.USE_CONSUMABLE or action == GameAction.INTERACT:
             # F 키: 음식/소비품 직접 사용 (첫 번째 캐릭터에게 바로 사용)
             if len(self.inventory) > 0:
@@ -210,9 +353,17 @@ class InventoryUI:
                     self.selected_item_index = actual_index
 
                     if isinstance(item, Equipment):
-                        # 장비 아이템: 장착 모드로 전환
-                        self.mode = InventoryMode.EQUIP
-                        self.show_comparison = False
+                        # 장비 비교창이 이미 켜져 있으면 장착 실행
+                        if self.show_comparison:
+                            # 선택된 캐릭터에게 장비 장착
+                            target_character = self.party[self.selected_character_for_comparison]
+                            self._equip_item(target_character, item)
+                            self.show_comparison = False
+                        else:
+                            # 장비 아이템: 비교 UI 토글
+                            self.show_comparison = True
+                            # 비교 UI를 켤 때 캐릭터 선택 초기화
+                            self.selected_character_for_comparison = 0
                     elif isinstance(item, (Consumable, CookedFood)):
                         # CookedFood는 바로 사용 (아군 전체에 효과)
                         from src.cooking.recipe import CookedFood
@@ -1150,7 +1301,7 @@ class InventoryUI:
         if self.sort_menu:
             self.sort_menu.render(console)
 
-        # 장비 비교 (BROWSE 모드에서만)
+        # 장비 비교 (BROWSE 모드에서 confirm 시)
         if self.mode == InventoryMode.BROWSE and self.show_comparison and len(self.inventory) > 0:
             item = self.inventory.get_item(self.cursor)
             if item and isinstance(item, Equipment):
@@ -1333,7 +1484,8 @@ class InventoryUI:
             # 유니크 효과
             if hasattr(item, 'unique_effect') and item.unique_effect:
                 y += 1
-                console.print(x, y, f"유니크: {item.unique_effect}", fg=(255, 100, 255))
+                translated_effect = self._translate_unique_effect(item.unique_effect)
+                console.print(x, y, f"특수 효과: {translated_effect}", fg=(255, 100, 255))
 
         # 소비품 정보
         elif isinstance(item, Consumable):
@@ -1521,26 +1673,45 @@ class InventoryUI:
             y += 1
 
     def _render_equipment_unequip(self, console: tcod.console.Console):
-        """장비 해제 UI"""
+        """장비 해제 UI - 직업명과 기믹 정보 포함"""
         if self.selected_character_index is None:
             return
 
         character = self.party[self.selected_character_index]
         char_name = getattr(character, 'name', str(character))
+        job_name = getattr(character, 'job_name', '')
+        gimmick_type = getattr(character, 'gimmick_type', None)
 
-        box_width = 60
-        box_height = 18
+        box_width = 70
+        box_height = 20
         box_x = (self.screen_width - box_width) // 2
         box_y = (self.screen_height - box_height) // 2
 
+        # 제목에 직업명 추가
+        title = f"{char_name}의 장비"
+        if job_name:
+            title += f" ({job_name})"
+
         console.draw_frame(
             box_x, box_y, box_width, box_height,
-            f"{char_name}의 장비",
+            title,
             fg=Colors.UI_BORDER,
             bg=Colors.UI_BG
         )
 
         y = box_y + 2
+
+        # 기믹 정보 표시
+        if gimmick_type:
+            gimmick_data = getattr(character, 'gimmick_data', {})
+            gimmick_name = gimmick_data.get('name', gimmick_type)
+            console.print(
+                box_x + 2, y,
+                f"기믹: {gimmick_name}",
+                fg=(200, 200, 100)  # 노란색
+            )
+            y += 1
+
         slot_names = {
             "weapon": "무기",
             "armor": "방어구",
@@ -1570,19 +1741,19 @@ class InventoryUI:
                 item_name,
                 fg=rarity_color
             )
-            
+
             # 내구도 표시 (장비 해제 창)
             if item:
                 dur_text, dur_color = self._get_durability_info(item)
                 if dur_text:
                     console.print(
-                        box_x + 15 + len(item_name) + 1, 
+                        box_x + 15 + len(item_name) + 1,
                         y,
                         dur_text,
                         fg=dur_color
                     )
 
-            # 장비 스탯 표시
+            # 장비 스탯 표시 - 더 상세하게
             if item and is_selected:
                 y += 1
                 if hasattr(item, 'base_stats'):
@@ -1591,11 +1762,14 @@ class InventoryUI:
                         if value != 0:
                             stat_texts.append(f"{stat_name}+{value}")
                     if stat_texts:
-                        console.print(
-                            box_x + 4, y,
-                            " ".join(stat_texts[:4]),  # 최대 4개
-                            fg=Colors.GRAY
-                        )
+                        # 4개씩 묶어서 표시 (여러 줄 가능)
+                        for i in range(0, len(stat_texts), 4):
+                            console.print(
+                                box_x + 4, y,
+                                " ".join(stat_texts[i:i+4]),
+                                fg=Colors.GRAY
+                            )
+                            y += 1
             y += 2
 
     def _render_drop_item(self, console: tcod.console.Console):
@@ -1771,9 +1945,29 @@ class InventoryUI:
             )
 
     def _render_equipment_comparison(self, console: tcod.console.Console, new_item: Equipment):
-        """장비 비교 UI"""
-        box_width = 70
-        box_height = 25
+        """장비 비교 UI - 직업명, 상세 스탯 및 내구도 변화 표시"""
+        # 스탯 이름 한글 매핑
+        stat_names = {
+            "hp": "HP",
+            "mp": "MP",
+            "physical_attack": "물리 공격력",
+            "physical_defense": "물리 방어력",
+            "magic_attack": "마법 공격력",
+            "magic_defense": "마법 방어력",
+            "speed": "속도",
+            "accuracy": "명중률",
+            "evasion": "회피율",
+            "luck": "행운",
+            "strength": "힘",
+            "defense": "방어력",
+            "magic": "마력",
+            "spirit": "정신력",
+            "init_brv": "초기 BRV",
+            "max_brv": "최대 BRV",
+        }
+
+        box_width = 75
+        box_height = 35
         box_x = (self.screen_width - box_width) // 2
         box_y = (self.screen_height - box_height) // 2
 
@@ -1804,13 +1998,13 @@ class InventoryUI:
             rarity_display = '일반'
             rarity_color = Colors.UI_TEXT
 
-            item_name = f"{new_item_name} [{rarity_display}]"
+        item_name = f"{new_item_name} [{rarity_display}]"
         console.print(
             box_x + 4, y,
             item_name,
             fg=rarity_color
         )
-        
+
         # 새 아이템 내구도
         dur_text, dur_color = self._get_durability_info(new_item)
         if dur_text:
@@ -1820,23 +2014,42 @@ class InventoryUI:
                 dur_text,
                 fg=dur_color
             )
-            
+
         y += 2
 
         # 스탯 표시
         if hasattr(new_item, 'base_stats'):
             for stat_name, value in new_item.base_stats.items():
                 if value != 0:
+                    display_stat = stat_names.get(stat_name, stat_name.upper())
                     console.print(
                         box_x + 4, y,
-                        f"{stat_name}: +{value}",
+                        f"{display_stat}: +{value}",
                         fg=Colors.UI_TEXT
                     )
                     y += 1
 
         y += 1
 
-        # 각 캐릭터의 현재 장비와 비교
+        slot = new_item.equip_slot.value
+        # 선택된 파티 멤버 표시
+        if not self.party:
+            return
+
+        # 유효한 인덱스 범위 체크
+        char_idx = min(self.selected_character_for_comparison, len(self.party) - 1)
+        character = self.party[char_idx]
+
+        # 캐릭터 선택 정보 표시
+        char_select_text = f"({char_idx + 1}/{len(self.party)}) ↑↓로 다른 캐릭터 선택"
+        console.print(
+            box_x + 2, y,
+            char_select_text,
+            fg=Colors.DARK_GRAY
+        )
+        y += 1
+
+        # 현재 선택된 캐릭터 정보
         console.print(
             box_x + 2, y,
             "파티 현재 장비:",
@@ -1844,54 +2057,182 @@ class InventoryUI:
         )
         y += 1
 
-        slot = new_item.equip_slot.value
-        for character in self.party:
+        # 원래 for loop 대신 단일 캐릭터만 처리
+        if True:  # 단일 캐릭터용 구조 유지
             char_name = getattr(character, 'name', '???')
+            job_name = getattr(character, 'job_name', '')
+
             current_item = character.equipment.get(slot)
+
+            # 캐릭터 이름 + 직업명 표시 (강조)
+            char_display = f"{char_name}"
+            if job_name:
+                char_display += f" ({job_name})"
+
+            console.print(
+                box_x + 4, y,
+                char_display,
+                fg=(255, 200, 100)  # 금색으로 직업명 강조
+            )
+            y += 1
 
             if current_item:
                 current_item_name = getattr(current_item, 'name', '???')
                 console.print(
-                    box_x + 4, y,
-                    f"{char_name}: {current_item_name}",
+                    box_x + 6, y,
+                    f"장비: {current_item_name}",
                     fg=Colors.UI_TEXT
                 )
-                
+
                 # 현재 장비 내구도
                 dur_text, dur_color = self._get_durability_info(current_item)
                 if dur_text:
                     console.print(
-                        box_x + 4 + len(f"{char_name}: {current_item_name}") + 1,
+                        box_x + 6 + len(f"장비: {current_item_name}") + 1,
                         y,
                         dur_text,
                         fg=dur_color
                     )
-                
+
                 y += 1
 
-                # 스탯 차이 표시
+                # 내구도 변화량 표시
+                new_dur_text, new_dur_color = self._get_durability_info(new_item)
+                current_dur_text, current_dur_color = self._get_durability_info(current_item)
+
+                if new_dur_text and current_dur_text:
+                    # 내구도 값 추출 (예: "[100/200]" → 100, 200)
+                    try:
+                        new_cur, new_max = map(int, new_dur_text.strip('[]').split('/'))
+                        cur_cur, cur_max = map(int, current_dur_text.strip('[]').split('/'))
+
+                        # 내구도 변화량 계산
+                        dur_diff = new_cur - cur_cur
+
+                        if dur_diff > 0:
+                            dur_color = (100, 255, 100)  # 초록색 (증가)
+                            arrow = "↑"
+                            dur_text_display = f"+{dur_diff}"
+                        elif dur_diff < 0:
+                            dur_color = (255, 100, 100)  # 빨강색 (감소)
+                            arrow = "↓"
+                            dur_text_display = str(dur_diff)
+                        else:
+                            dur_color = Colors.DARK_GRAY  # 회색 (변화없음)
+                            arrow = "="
+                            dur_text_display = "0"
+
+                        dur_display = f"내구도: {cur_cur} → {new_cur} ({arrow}{dur_text_display})"
+                        console.print(
+                            box_x + 8, y,
+                            dur_display,
+                            fg=dur_color
+                        )
+                        y += 1
+                    except (ValueError, IndexError):
+                        pass
+
+                # 스탯 차이 표시 - 더 상세한 형식
                 if hasattr(new_item, 'base_stats') and hasattr(current_item, 'base_stats'):
                     for stat_name in new_item.base_stats.keys():
                         new_val = new_item.base_stats.get(stat_name, 0)
                         old_val = current_item.base_stats.get(stat_name, 0)
                         diff = new_val - old_val
 
-                        if diff != 0:
-                            diff_color = (100, 255, 100) if diff > 0 else (255, 100, 100)
-                            diff_text = f"+{diff}" if diff > 0 else str(diff)
+                        if diff != 0 or (old_val != 0 or new_val != 0):  # 변화가 있거나 기본 스탯이 있으면 표시
+                            # 색상 결정
+                            if diff > 0:
+                                diff_color = (100, 255, 100)  # 초록색 (증가)
+                                arrow = "↑"
+                                diff_text = f"+{diff}"
+                            elif diff < 0:
+                                diff_color = (255, 100, 100)  # 빨강색 (감소)
+                                arrow = "↓"
+                                diff_text = str(diff)
+                            else:
+                                diff_color = Colors.DARK_GRAY  # 회색 (변화없음)
+                                arrow = "="
+                                diff_text = "0"
+
+                            # 형식: "공격력: 25 → 30 (↑+5)"
+                            display_stat = stat_names.get(stat_name, stat_name.upper())
+                            stat_display = f"{display_stat}: {old_val} → {new_val} ({arrow}{diff_text})"
                             console.print(
-                                box_x + 6, y,
-                                f"{stat_name}: {diff_text}",
+                                box_x + 8, y,
+                                stat_display,
                                 fg=diff_color
                             )
                             y += 1
+
+                    # 유니크 효과 비교
+                    new_effect = getattr(new_item, 'unique_effect', None)
+                    current_effect = getattr(current_item, 'unique_effect', None)
+
+                    if new_effect or current_effect:
+                        y += 1
+                        if new_effect != current_effect:
+                            # 효과가 다르면 표시
+                            console.print(box_x + 8, y, "특수 효과:", fg=Colors.UI_TEXT_SELECTED)
+                            y += 1
+
+                            if new_effect:
+                                translated_new = self._translate_unique_effect(new_effect)
+                                console.print(
+                                    box_x + 10, y,
+                                    f"새: {translated_new}",
+                                    fg=(100, 255, 100)
+                                )
+                                y += 1
+
+                            if current_effect:
+                                translated_current = self._translate_unique_effect(current_effect)
+                                console.print(
+                                    box_x + 10, y,
+                                    f"현재: {translated_current}",
+                                    fg=(255, 100, 100)
+                                )
+                                y += 1
+                        else:
+                            # 효과가 같으면 간단히 표시
+                            if new_effect:
+                                translated_effect = self._translate_unique_effect(new_effect)
+                                console.print(
+                                    box_x + 8, y,
+                                    f"특수 효과: {translated_effect}",
+                                    fg=Colors.GRAY
+                                )
+                                y += 1
             else:
                 console.print(
-                    box_x + 4, y,
-                    f"{char_name}: (없음)",
+                    box_x + 6, y,
+                    "현재 장비: (없음)",
                     fg=Colors.DARK_GRAY
                 )
                 y += 1
+
+                # 장비가 없으면 새 아이템의 모든 스탯이 증가
+                if hasattr(new_item, 'base_stats'):
+                    for stat_name, value in new_item.base_stats.items():
+                        if value != 0:
+                            display_stat = stat_names.get(stat_name, stat_name.upper())
+                            console.print(
+                                box_x + 8, y,
+                                f"{display_stat}: 0 → {value} (↑+{value})",
+                                fg=(100, 255, 100)
+                            )
+                            y += 1
+
+                # 장비가 없을 때 새 아이템의 유니크 효과
+                new_effect = getattr(new_item, 'unique_effect', None)
+                if new_effect:
+                    y += 1
+                    translated_effect = self._translate_unique_effect(new_effect)
+                    console.print(
+                        box_x + 8, y,
+                        f"특수 효과: {translated_effect}",
+                        fg=(100, 255, 100)
+                    )
+                    y += 1
 
             y += 1
 

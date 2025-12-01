@@ -87,7 +87,33 @@ def show_npc_dialog(
     
     box_x = (console.width - box_width) // 2
     box_y = (console.height - box_height) // 2
-    
+
+    # 입력 큐 비우기 (이전 입력 방지)
+    import time
+    for _ in tcod.event.get():
+        pass
+    try:
+        import pygame
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+
+    # 게임패드/키보드 입력 상태 초기화
+    unified_input_handler.clear_input_state()
+
+    # 딜레이 후 다시 이벤트 큐 비우기
+    time.sleep(0.1)
+    for _ in tcod.event.get():
+        pass
+    try:
+        import pygame
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+    unified_input_handler.clear_input_state()
+
     while True:
         # 기존 화면은 이미 렌더링되어 있다고 가정
         # 대화 상자만 오버레이
@@ -228,3 +254,132 @@ def show_npc_dialog(
         # CPU 사용률 낮추기
         import time
         time.sleep(0.01)
+
+
+def render_story_sequence(console: tcod.console.Console, context: Any, story_segments: List[Any], logger: Any) -> None:
+    """
+    스토리 시퀀스 렌더링 (타이핑 효과)
+
+    Args:
+        console: TCOD 콘솔
+        context: TCOD 컨텍스트
+        story_segments: 스토리 세그먼트 리스트
+        logger: 로거
+    """
+    import time
+
+    # 스토리 BGM 재생 (위험한 분위기)
+    from src.audio import play_bgm
+    play_bgm("danger", loop=False, fade_in=True)
+
+    for i, segment in enumerate(story_segments):
+        # 스토리 텍스트 준비
+        text = segment.text
+        lines = text.split('\n')
+
+        start_y = (console.height - len(lines)) // 2
+
+        # 색상 설정
+        if segment.color == "yellow":
+            color = (255, 255, 100)
+        elif segment.color == "dark":
+            color = (100, 100, 100)
+        elif segment.color == "red":
+            color = (255, 50, 50)
+        else:
+            color = (255, 255, 255)
+
+        # === 타이핑 효과 ===
+        typing_speed = 0.03  # 문자당 초
+        skip_typing = False
+        completed_lines = []
+        current_line_idx = 0
+        current_text = ""
+
+        for line_idx, line in enumerate(lines):
+            for char_idx, char in enumerate(line):
+                current_text += char
+
+                # 화면 그리기
+                console.clear()
+
+                # 완성된 줄들
+                for j, completed_line in enumerate(completed_lines):
+                    x = (console.width - len(completed_line)) // 2
+                    y = start_y + j
+                    console.print(x, y, completed_line, fg=color)
+
+                # 현재 타이핑 중인 줄
+                x = (console.width - len(line)) // 2
+                y = start_y + len(completed_lines)
+                console.print(x, y, current_text, fg=color)
+
+                # 진행 표시
+                progress_text = f"[{i+1}/{len(story_segments)}] Space: 스킵"
+                console.print(
+                    (console.width - len(progress_text)) // 2,
+                    console.height - 2,
+                    progress_text,
+                    fg=(150, 150, 150)
+                )
+
+                context.present(console)
+
+                # Space/Enter로 타이핑 스킵 체크
+                skip_start = time.time()
+                while time.time() - skip_start < typing_speed:
+                    for event in tcod.event.get():
+                        if isinstance(event, tcod.event.KeyDown):
+                            if event.sym == tcod.event.K_SPACE or event.sym == tcod.event.K_RETURN:
+                                skip_typing = True
+                                break
+                    if skip_typing:
+                        break
+                    time.sleep(0.01)
+
+                if skip_typing:
+                    break
+
+            # 현재 줄 완성
+            completed_lines.append(line)
+            current_text = ""
+
+            if skip_typing:
+                break
+
+        # 타이핑 스킵 시 모든 텍스트 즉시 표시
+        console.clear()
+        for j, line in enumerate(lines):
+            x = (console.width - len(line)) // 2
+            y = start_y + j
+            console.print(x, y, line, fg=color)
+
+        # 진행 표시 (하단)
+        progress_text = f"[{i+1}/{len(story_segments)}] Space: 다음"
+        console.print(
+            (console.width - len(progress_text)) // 2,
+            console.height - 2,
+            progress_text,
+            fg=(150, 150, 150)
+        )
+
+        # 화면 업데이트
+        context.present(console)
+
+        # Space 키로 다음 진행 (또는 자동 진행)
+        auto_advance_time = max(2.0, segment.pause * 2)  # 최소 2초, 기본 pause의 2배
+        start_time = time.time()
+
+        while time.time() - start_time < auto_advance_time:
+            # 입력 확인
+            for event in tcod.event.get():
+                if isinstance(event, tcod.event.KeyDown):
+                    if event.sym == tcod.event.K_SPACE or event.sym == tcod.event.K_RETURN:
+                        # 즉시 다음으로
+                        break
+            else:
+                time.sleep(0.05)
+                continue
+            break
+
+    logger.info("스토리 시퀀스 재생 완료")

@@ -117,23 +117,34 @@ class SkillManager:
             # 보물 획득 스킬 (플런더)
             if skill.metadata.get('treasure_skill') and skill.metadata.get('treasure_steal_chance'):
                 import random
+                from src.character.skills.job_skills.pirate_skills import TREASURE_TYPES
                 steal_chance = skill.metadata.get('treasure_steal_chance', 0.8)
                 if random.random() < steal_chance:
                     # 보물 획득 성공
-                    if not hasattr(user, 'treasure_count'):
-                        user.treasure_count = 0
-                    user.treasure_count += 1
-                    self.logger.info(f"[해적] {user.name}이(가) 보물을 획득했다! (총: {user.treasure_count}개)")
-                    result.message += f" (보물 획득! 총: {user.treasure_count}개)"
+                    if not hasattr(user, 'treasure_inventory'):
+                        user.treasure_inventory = []
+                    
+                    max_treasure = getattr(user, 'max_treasure', 3)
+                    if len(user.treasure_inventory) < max_treasure:
+                        # 가중치 기반 랜덤 보물 선택
+                        treasure_ids = list(TREASURE_TYPES.keys())
+                        weights = [TREASURE_TYPES[tid]["weight"] for tid in treasure_ids]
+                        selected_treasure_id = random.choices(treasure_ids, weights=weights, k=1)[0]
+                        
+                        user.treasure_inventory.append(selected_treasure_id)
+                        treasure_name = TREASURE_TYPES[selected_treasure_id]["name"]
+                        
+                        self.logger.info(f"[해적] {user.name}이(가) {treasure_name}을(를) 획득했다! (총: {len(user.treasure_inventory)}개)")
+                        result.message += f" ({treasure_name} 획득! {len(user.treasure_inventory)}/{max_treasure})"
                 else:
                     self.logger.debug(f"[해적] {user.name}의 보물 획득 실패")
 
             # 보물 소비 스킬 (보물 사용, 보물 폭탄)
             if skill.metadata.get('consume_all_treasure'):
                 # 모든 보물 소비
-                if hasattr(user, 'treasure_count') and user.treasure_count > 0:
-                    consumed = user.treasure_count
-                    user.treasure_count = 0
+                if hasattr(user, 'treasure_inventory') and len(user.treasure_inventory) > 0:
+                    consumed = len(user.treasure_inventory)
+                    user.treasure_inventory.clear()
                     self.logger.info(f"[해적] {user.name}이(가) {consumed}개의 보물을 소비했다!")
                     result.message += f" (보물 {consumed}개 소비)"
 

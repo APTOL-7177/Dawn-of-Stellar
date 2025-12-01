@@ -134,6 +134,35 @@ class GimmickEffect(SkillEffect):
 
         setattr(entity, self.field, new_value)
 
+        # 환술사: phantom_count 변경 시 phantom_hits 자동 업데이트
+        if (hasattr(entity, 'gimmick_type') and entity.gimmick_type == "phantom_legion" and
+            self.field == "phantom_count"):
+            # phantom_hits 배열 초기화/업데이트
+            hit_absorb = getattr(entity, 'phantom_hit_absorb', 2)
+            # 무한 거울 특성 체크
+            if hasattr(entity, '_has_trait') and entity._has_trait('infinite_mirrors'):
+                hit_absorb += 1
+
+            if not hasattr(entity, 'phantom_hits') or not isinstance(entity.phantom_hits, list):
+                entity.phantom_hits = []
+
+            # 연산별 처리
+            if self.operation == GimmickOperation.SET:
+                # SET: 지정된 개수만큼 재설정
+                entity.phantom_hits = [hit_absorb] * min(new_value, getattr(entity, 'max_phantoms', 4))
+            elif self.operation == GimmickOperation.ADD:
+                # ADD: 변화량만큼 추가/제거
+                change_amount = self.value
+                if change_amount > 0:
+                    # 추가: 새로운 환영들 추가
+                    for _ in range(change_amount):
+                        if len(entity.phantom_hits) < getattr(entity, 'max_phantoms', 4):
+                            entity.phantom_hits.append(hit_absorb)
+                elif change_amount < 0:
+                    # 제거: 뒤에서부터 제거 (소모 시)
+                    remove_count = min(-change_amount, len(entity.phantom_hits))
+                    entity.phantom_hits = entity.phantom_hits[:-remove_count]
+
         # 해커 멀티스레드 시스템: program_* 변수 변경 시 active_threads 자동 업데이트
         if hasattr(entity, 'gimmick_type') and entity.gimmick_type == "multithread_system":
             if self.field.startswith("program_"):

@@ -549,7 +549,7 @@ class Character:
 
         # 해적 - 럼주 & 보물 시스템
         elif gimmick_type == "rum_treasure_system":
-            self.treasure_inventory = []  # 보유 보물 목록 (최대 3개)
+            self.treasure_inventory = []  # 보유 보물 목록 (최대 3개, 각 보물은 타입이 있음)
             self.max_treasure = self.gimmick_data.get("max_treasure", 3)
             self.rum_positive_chance = self.gimmick_data.get("rum_positive_chance", 0.5)
             self.current_rum_effect = None  # 현재 럼주 효과
@@ -912,9 +912,13 @@ class Character:
         # ===== 환술사: 환영 피해 분산 시스템 =====
         if hasattr(self, 'gimmick_type') and self.gimmick_type == "phantom_legion":
             from src.character.gimmick_updater import GimmickUpdater
+            logger.info(f"[환술사] 피해 분산 체크: phantom_count={getattr(self, 'phantom_count', 0)}, phantom_hits={getattr(self, 'phantom_hits', [])}")
             result = GimmickUpdater.phantom_take_damage(self, damage)
             if result.get('absorbed', False):
-                # 환영이 피해를 대신 받음
+                # 환영이 피해를 대신 받음 - 상처도 쌓이지 않음
+                logger.info(f"[환술사] 환영이 피해 대신 받음: absorbed={result.get('absorbed')}, destroyed={result.get('phantom_destroyed')}, remaining={result.get('remaining_phantoms')}")
+                # 환영 피해 분산 플래그 설정 (brave_system에서 상처 적용 방지)
+                self._phantom_absorbed_damage = True
                 return 0
         
         # ===== 차원술사: 차원 굴절 시스템 (특성 효과 전에 먼저 처리) =====
@@ -1175,6 +1179,10 @@ class Character:
         # 플래그 해제
         if hasattr(self, "_wound_applied_this_turn"):
             self._wound_applied_this_turn = False
+
+        # 환영 피해 분산 플래그 해제 (턴 종료 시)
+        if hasattr(self, "_phantom_absorbed_damage"):
+            delattr(self, "_phantom_absorbed_damage")
 
         return actual_damage
 

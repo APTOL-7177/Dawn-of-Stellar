@@ -155,10 +155,13 @@ class SaveSystem:
                 "metadata": data.metadata or {},
                 "max_duration": getattr(data, 'max_duration', data.duration)
             }
-        
+
         if isinstance(data, dict):
             return {k: self._clean_for_json(v) for k, v in data.items()}
         elif isinstance(data, (list, tuple)):
+            return [self._clean_for_json(item) for item in data]
+        elif isinstance(data, set):
+            # set을 list로 변환
             return [self._clean_for_json(item) for item in data]
         elif isinstance(data, (str, int, float, bool, type(None))):
             return data
@@ -361,8 +364,11 @@ class SaveSystem:
             # 도전과제 + 마일스톤 데이터 저장
             progress_data = achievement_manager.save_progress()
 
+            # JSON 직렬화 전에 데이터 정리 (set 등 변환)
+            cleaned_progress_data = self._clean_for_json(progress_data)
+
             with open(account_file, 'w', encoding='utf-8') as f:
-                json.dump(progress_data, f, ensure_ascii=False, indent=2)
+                json.dump(cleaned_progress_data, f, ensure_ascii=False, indent=2)
 
             logger.info(f"계정 진행도 데이터 저장됨: {account_file}")
             return True

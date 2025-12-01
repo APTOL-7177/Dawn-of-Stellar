@@ -714,6 +714,32 @@ def open_shop(
 
     logger.info(f"상점 열림 (별의 파편: {shop.meta.star_fragments})")
 
+    # 입력 큐 비우기 (이전 입력 방지)
+    import time
+    for _ in tcod.event.get():
+        pass
+    try:
+        import pygame
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+
+    # 게임패드/키보드 입력 상태 초기화
+    unified_input_handler.clear_input_state()
+
+    # 딜레이 후 다시 이벤트 큐 비우기
+    time.sleep(0.1)
+    for _ in tcod.event.get():
+        pass
+    try:
+        import pygame
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+    unified_input_handler.clear_input_state()
+
     message = ""
     message_timer = 0
 
@@ -755,7 +781,7 @@ def open_shop(
                         shop.filter_items()
                         shop.update_pagination()
 
-            elif result == "exit":
+            elif result == "close":
                 logger.info("상점 닫기")
                 return
 

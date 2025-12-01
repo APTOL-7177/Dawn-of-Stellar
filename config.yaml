@@ -29,7 +29,8 @@ audio:
       battle_jenova: battle
       battle_jenova_absolute: battle
       battle_normal: battle
-      battle_sephiroth: sephiroth
+      battle_sephiroth: 광기의_춤
+      battle_cain: 시간의_왕좌
       battle_weapon: boss
       biome_0: worldmap
       biome_1: forest
@@ -41,7 +42,7 @@ audio:
       biome_7: icelands
       biome_8: warlands
       biome_9: caves
-      danger: warlands
+      danger: danger
       dungeon_dark: devillands
       dungeon_normal: caves
       dungeon_search: forest
@@ -151,6 +152,7 @@ audio:
       magic_cast: Magic1
       poison: Poison
       protect: Barrier
+      rain: Water1
       reflect: Reflection
       roar: Blow10
       save: Save1
@@ -167,7 +169,6 @@ audio:
       teamwork: Summon
       teleport: Move2
       trap: Switch2
-      rain: Water1
       ultima: Explosion4
       water: Water1
       wind: Wind1

@@ -2045,8 +2045,15 @@ class GimmickUpdater:
             logger.info(f"[가능성 생성] {character.name}: '{skill_id}' 사용 → '{alternative_skill}' 저장됨 (확률: {final_chance*100:.0f}%)")
 
     @staticmethod
-    def _add_possibility(character, skill_id: str, reuse_count: int = 0):
-        """가능성 슬롯에 스킬 추가"""
+    def _add_possibility(character, skill_id: str, reuse_count: int = 0, original_character=None):
+        """가능성 슬롯에 스킬 추가
+
+        Args:
+            character: 시간술사 캐릭터
+            skill_id: 저장할 스킬 ID
+            reuse_count: 재사용 카운트
+            original_character: 원본 캐릭터 (운명 복제 시 사용)
+        """
         if not hasattr(character, 'possibility_slots'):
             character.possibility_slots = []
         max_slots = getattr(character, 'max_possibility_slots', 4)
@@ -2055,7 +2062,8 @@ class GimmickUpdater:
         character.possibility_slots.append({
             'skill_id': skill_id,
             'power_ratio': getattr(character, 'possibility_power_ratio', 0.85),
-            'reuse_count': reuse_count
+            'reuse_count': reuse_count,
+            'original_character': original_character  # 원본 캐릭터 정보 저장
         })
         return True
 
@@ -2087,7 +2095,16 @@ class GimmickUpdater:
 
     @staticmethod
     def summon_possibility(character, slot_index: int, context=None) -> dict:
-        """가능성 소환"""
+        """가능성 소환 - 저장된 스킬 발동
+
+        Args:
+            character: 시간술사 캐릭터
+            slot_index: 소환할 슬롯 인덱스
+            context: 전투 컨텍스트
+
+        Returns:
+            스킬 ID, 위력 배율, 원본 캐릭터 정보
+        """
         import random
         slots = getattr(character, 'possibility_slots', [])
         if not slots or slot_index >= len(slots):
@@ -2096,6 +2113,7 @@ class GimmickUpdater:
         skill_id = possibility['skill_id']
         power_ratio = possibility['power_ratio']
         reuse_count = possibility.get('reuse_count', 0)
+        original_character = possibility.get('original_character', None)  # 원본 캐릭터 정보
         preserve = False
         if hasattr(character, 'active_traits'):
             for trait_data in character.active_traits:
@@ -2110,7 +2128,13 @@ class GimmickUpdater:
         if consumed:
             slots.pop(slot_index)
             character.possibility_slots = slots
-        return {'success': True, 'skill_id': skill_id, 'power_ratio': power_ratio, 'consumed': consumed}
+        return {
+            'success': True,
+            'skill_id': skill_id,
+            'power_ratio': power_ratio,
+            'consumed': consumed,
+            'original_character': original_character  # 원본 캐릭터 반환
+        }
 
     @staticmethod
     def time_crossing(character, slot_indices: list, context=None) -> list:
@@ -2121,7 +2145,13 @@ class GimmickUpdater:
             return [{'success': False, 'error': '슬롯 2개 필요'}]
         for idx in sorted(slot_indices, reverse=True):
             if idx < len(slots):
-                results.append({'success': True, 'skill_id': slots[idx]['skill_id'], 'power_ratio': 0.75, 'consumed': True})
+                results.append({
+                    'success': True,
+                    'skill_id': slots[idx]['skill_id'],
+                    'power_ratio': 0.75,
+                    'consumed': True,
+                    'original_character': slots[idx].get('original_character', None)
+                })
                 slots.pop(idx)
         character.possibility_slots = slots
         return results
@@ -2132,7 +2162,14 @@ class GimmickUpdater:
         slots = getattr(character, 'possibility_slots', [])
         if not slots:
             return {'success': False, 'error': '가능성 없음'}
-        released = [{'skill_id': p['skill_id'], 'power_ratio': 1.0} for p in slots]
+        released = [
+            {
+                'skill_id': p['skill_id'],
+                'power_ratio': 1.0,
+                'original_character': p.get('original_character', None)
+            }
+            for p in slots
+        ]
         slot_count = len(slots)
         convergence_bonus = False
         total_damage_bonus = 0
@@ -2150,17 +2187,38 @@ class GimmickUpdater:
 
     @staticmethod
     def fate_copy(character, ally, context=None) -> dict:
-        """운명 복제"""
+        """운명 복제 - 아군의 스킬을 복제하여 저장
+
+        Args:
+            character: 시간술사 캐릭터
+            ally: 복제 대상 아군
+            context: 전투 컨텍스트
+
+        Returns:
+            성공 여부와 복제된 스킬 정보
+        """
         last_skill = getattr(ally, '_last_used_skill', None)
         if not last_skill:
             return {'success': False, 'error': '복제할 스킬 없음'}
-        skill_id = getattr(last_skill, 'id', None) or last_skill.get('id', '')
+
+        # 스킬 ID 추출
+        skill_id = getattr(last_skill, 'id', None) or getattr(last_skill, 'skill_id', None)
+        if not skill_id:
+            return {'success': False, 'error': '스킬 ID 없음'}
+
+        # 제외 스킬 확인
         excluded = ['teamwork', 'infinite_convergence']
-        skill_type = getattr(last_skill, 'type', '') or last_skill.get('type', '')
-        if skill_id in excluded or skill_type == 'ultimate':
-            return {'success': False, 'error': '궁극기/팀워크는 복제 불가'}
-        if GimmickUpdater._add_possibility(character, skill_id):
-            return {'success': True, 'copied_skill': skill_id}
+        if skill_id in excluded:
+            return {'success': False, 'error': '팀워크 스킬은 복제 불가'}
+
+        # 궁극기 확인
+        is_ultimate = getattr(last_skill, 'is_ultimate', False)
+        if is_ultimate:
+            return {'success': False, 'error': '궁극기는 복제 불가'}
+
+        # 원본 캐릭터 정보를 함께 저장
+        if GimmickUpdater._add_possibility(character, skill_id, original_character=ally):
+            return {'success': True, 'copied_skill': skill_id, 'original_character': ally.name}
         return {'success': False, 'error': '슬롯 가득 참'}
 
     @staticmethod
@@ -2204,8 +2262,20 @@ class GimmickUpdater:
     @staticmethod
     def _update_phantom_legion_turn_start(character, context=None):
         """환술사: 환영 군단 시스템 턴 시작 업데이트"""
+        # phantom_hits와 phantom_count 동기화 (0이하 히트 포인트 제거)
+        phantom_hits = getattr(character, 'phantom_hits', [])
+        if phantom_hits:
+            # 0이하 히트 포인트 가진 환영들 제거
+            original_count = len(phantom_hits)
+            phantom_hits[:] = [hit for hit in phantom_hits if hit > 0]
+            removed_count = original_count - len(phantom_hits)
+
+            if removed_count > 0:
+                character.phantom_count = max(0, getattr(character, 'phantom_count', 0) - removed_count)
+                logger.info(f"[환술사] {character.name} 사망한 환영 정리: {removed_count}개 제거, 남은 phantom_count={character.phantom_count}")
+
         phantom_count = getattr(character, 'phantom_count', 0)
-        
+
         # 환영 보너스 적용
         if phantom_count > 0:
             evasion_bonus = phantom_count * 0.12  # 환영당 12% 회피
@@ -2352,22 +2422,23 @@ class GimmickUpdater:
             # 환영이 대신 맞음
             phantom_hits = getattr(character, 'phantom_hits', [])
             if phantom_hits:
+                logger.info(f"[환술사] 환영 피해 대신 받음 전: phantom_count={phantom_count}, phantom_hits={phantom_hits}")
                 phantom_hits[-1] -= 1  # 가장 마지막 환영의 히트 감소
-                
+
                 absorbed_by_phantom = True
                 phantom_destroyed = False
-                
+
                 if phantom_hits[-1] <= 0:
                     phantom_hits.pop()
                     character.phantom_count = phantom_count - 1
                     phantom_destroyed = True
-                    
+
                     # 잔상 게이지 충전
                     afterimage_per_destroy = getattr(character, 'afterimage_per_destroy', 25)
                     afterimage = getattr(character, 'afterimage_gauge', 0)
                     max_afterimage = getattr(character, 'afterimage_max', 100)
                     character.afterimage_gauge = min(max_afterimage, afterimage + afterimage_per_destroy)
-                    
+
                     # 그림자 잠식 특성 효과
                     if GimmickUpdater._has_trait(character, 'shadow_feast'):
                         # HP 5% 회복
@@ -2379,22 +2450,24 @@ class GimmickUpdater:
                             current_hp = getattr(character, 'current_hp', 0)
                             actual_heal = min(heal_amount, max_hp - current_hp)
                             character.current_hp = min(max_hp, current_hp + actual_heal)
-                        
+
                         # 다음 공격 피해 +15%
                         character._shadow_feast_bonus = 0.15
-                        
+
                         logger.info(f"[그림자 잠식] {character.name} HP +{actual_heal}, 다음 공격 +15%")
-                    
+
                     # 재생성 대기 등록
                     character._phantom_pending_regen = getattr(character, '_phantom_pending_regen', 0) + 1
-                    
+
                     logger.info(f"[환술사] {character.name} 환영 소멸! (피해 흡수, 잔상 +{afterimage_per_destroy})")
+                    logger.info(f"[환술사] 환영 소멸 후: phantom_count={character.phantom_count}, phantom_hits={phantom_hits}")
                 else:
                     logger.info(f"[환술사] {character.name} 환영이 피해를 대신 받음! (환영 HP: {phantom_hits[-1]})")
-                
+                    logger.info(f"[환술사] 피해 대신 후: phantom_count={character.phantom_count}, phantom_hits={phantom_hits}")
+
                 return {
-                    'absorbed': True, 
-                    'damage': 0, 
+                    'absorbed': True,
+                    'damage': 0,
                     'phantom_destroyed': phantom_destroyed,
                     'remaining_phantoms': character.phantom_count
                 }

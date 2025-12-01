@@ -81,6 +81,13 @@ def parse_arguments() -> argparse.Namespace:
         help="서버 포트 (모바일 서버 모드)"
     )
 
+    parser.add_argument(
+        "--test-boss",
+        type=int,
+        choices=[20, 30],
+        help="보스 테스트 모드 (20=세피로스, 30=카인) - 해당 레벨 풀장비 파티 생성"
+    )
+
     return parser.parse_args()
 
 
@@ -317,6 +324,14 @@ def main() -> int:
         # 메타 진행 시스템 로드
         from src.persistence.meta_progress import get_meta_progress, save_meta_progress
         meta_progress = get_meta_progress()
+
+        # === 보스 테스트 모드 ===
+        if args.test_boss:
+            logger.info(f"🎮 보스 테스트 모드: {args.test_boss}층")
+            from src.ui.boss_test_mode import run_boss_test
+            result = run_boss_test(display.console, display.context, args.test_boss, logger)
+            logger.info(f"보스 테스트 모드 종료: {result}")
+            return 0
 
         # 인트로 스토리 표시 (항상 표시)
         from src.ui.intro_story import show_intro_story
@@ -906,13 +921,29 @@ def main() -> int:
                                 if is_boss_fight and map_enemies:
                                     boss_entity = next((e for e in map_enemies if e.is_boss), None)
                                     if boss_entity:
-                                        # 5층마다 층 보스인지 확인
+                                        # 보스 전투: 보스 1마리 + 잡몹 3마리 구성
                                         is_floor_boss = (floor_number % 5 == 0)
-                                        boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss)
-                                        if enemies:
-                                            enemies[0] = boss
-                                        else:
-                                            enemies.append(boss)
+                                        is_final_boss = floor_number in [20, 30]
+                                        boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss, boss_battle=is_final_boss)
+
+                                        # 보스 조우 스토리 재생
+                                        if floor_number == 20:
+                                            from src.story.story_system import get_story_system
+                                            story_system = get_story_system()
+                                            encounter_story = story_system.get_sephiroth_encounter_story()
+                                            # 스토리 재생
+                                            from src.ui.npc_dialog_ui import render_story_sequence
+                                            render_story_sequence(display.console, display.context, encounter_story, logger)
+                                        elif floor_number == 30:
+                                            from src.story.story_system import get_story_system
+                                            story_system = get_story_system()
+                                            encounter_story = story_system.get_cain_encounter_story()
+                                            # 스토리 재생
+                                            from src.ui.npc_dialog_ui import render_story_sequence
+                                            render_story_sequence(display.console, display.context, encounter_story, logger)
+
+                                        minions = EnemyGenerator.generate_enemies(floor_number, 3)
+                                        enemies = [boss] + minions
                                 
                                 # 멀티플레이 전투 실행
                                 combat_result, _ = run_combat(
@@ -1034,6 +1065,17 @@ def main() -> int:
                                         # 전투 패배 후 복귀 시 필드 BGM 재생
                                         play_dungeon_bgm = True
                                         continue
+                                else:
+                                    # 도망 성공
+                                    logger.info("🏃 도망쳤다")
+
+                                    # 주변 적들 정지시키기 (5초)
+                                    if combat_position:
+                                        exploration.stun_nearby_enemies(combat_position, duration=5.0, range_tiles=10)
+
+                                    # 도망 후 복귀 시 필드 BGM 재생
+                                    play_dungeon_bgm = True
+                                    continue
                             elif result == "floor_up" or result == "floor_down":
                                 # 층 이동 처리 (멀티플레이)
                                 if result == "floor_up":
@@ -1897,7 +1939,23 @@ def main() -> int:
                                                     if boss_entity:
                                                         # 5층마다 층 보스인지 확인
                                                         is_floor_boss = (floor_number % 5 == 0)
-                                                        boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss)
+                                                        is_final_boss = floor_number in [20, 30]
+                                                        boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss, boss_battle=is_final_boss)
+
+                                                        # 보스 조우 스토리 재생
+                                                        if floor_number == 20:
+                                                            from src.story.story_system import get_story_system
+                                                            story_system = get_story_system()
+                                                            encounter_story = story_system.get_sephiroth_encounter_story()
+                                                            from src.ui.npc_dialog_ui import render_story_sequence
+                                                            render_story_sequence(display.console, display.context, encounter_story, logger)
+                                                        elif floor_number == 30:
+                                                            from src.story.story_system import get_story_system
+                                                            story_system = get_story_system()
+                                                            encounter_story = story_system.get_cain_encounter_story()
+                                                            from src.ui.npc_dialog_ui import render_story_sequence
+                                                            render_story_sequence(display.console, display.context, encounter_story, logger)
+
                                                         if enemies:
                                                             enemies[0] = boss
                                                         else:
@@ -2044,6 +2102,27 @@ def main() -> int:
                                                             play_bgm(biome_track)
                                                         play_dungeon_bgm = True
                                                         continue
+                                                else:
+                                                    # 도망 성공
+                                                    logger.info("🏃 도망쳤다")
+
+                                                    # 주변 적들 정지시키기 (5초)
+                                                    if combat_position:
+                                                        exploration.stun_nearby_enemies(combat_position, duration=5.0, range_tiles=10)
+
+                                                    # 도망 후 복귀 시 필드 BGM 재생
+                                                    from src.audio import play_bgm
+                                                    if hasattr(exploration, 'is_town') and exploration.is_town:
+                                                        # 마을인 경우 마을 BGM 재생
+                                                        play_bgm("town", loop=True, fade_in=True)
+                                                    else:
+                                                        # 던전인 경우 바이옴별 BGM 재생
+                                                        floor = exploration.floor_number
+                                                        biome_index = (floor - 1) % 10
+                                                        biome_track = f"biome_{biome_index}"
+                                                        play_bgm(biome_track)
+                                                    play_dungeon_bgm = True
+                                                    continue
                                             elif result == "floor_up" or result == "floor_down":
                                                 # 층 이동 처리 (멀티플레이)
                                                 if result == "floor_up":
@@ -2544,21 +2623,34 @@ def main() -> int:
                                 enemies = EnemyGenerator.generate_enemies(floor_number)
                                 logger.info(f"적 {len(enemies)}명 생성(기본값)")
                             
-                            # 보스가 포함된 경우 보스 추가/교체
+                            # 보스가 포함된 경우 보스 1 + 잡몹 3 구성
                             if is_boss_fight and map_enemies:
                                 # 보스 엔티티 찾기
                                 boss_entity = next((e for e in map_enemies if e.is_boss), None)
                                 if boss_entity:
                                     from src.world.enemy_generator import EnemyGenerator
-                                    # 5층마다 층 보스인지 확인
+                                    # 보스 전투: 보스 1마리 + 잡몹 3마리 구성
                                     is_floor_boss = (floor_number % 5 == 0)
-                                    boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss)
-                                    # 보스를 적 리스트의 첫 번째에 추가 (또는 교체)
-                                    if enemies:
-                                        enemies[0] = boss
-                                    else:
-                                        enemies.append(boss)
-                                    logger.info(f"보스 추가: {boss.name} (enemy_id: {boss.enemy_id})")
+                                    is_final_boss = floor_number in [20, 30]
+                                    boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss, boss_battle=is_final_boss)
+
+                                    # 보스 조우 스토리 재생
+                                    if floor_number == 20:
+                                        from src.story.story_system import get_story_system
+                                        story_system = get_story_system()
+                                        encounter_story = story_system.get_sephiroth_encounter_story()
+                                        from src.ui.npc_dialog_ui import render_story_sequence
+                                        render_story_sequence(display.console, display.context, encounter_story, logger)
+                                    elif floor_number == 30:
+                                        from src.story.story_system import get_story_system
+                                        story_system = get_story_system()
+                                        encounter_story = story_system.get_cain_encounter_story()
+                                        from src.ui.npc_dialog_ui import render_story_sequence
+                                        render_story_sequence(display.console, display.context, encounter_story, logger)
+
+                                    minions = EnemyGenerator.generate_enemies(floor_number, 3)
+                                    enemies = [boss] + minions
+                                    logger.info(f"보스 전투 구성: {boss.name} + 잡몹 3마리")
 
                             # 멀티플레이 모드 확인
                             game_mode_manager = get_game_mode_manager()
@@ -2764,6 +2856,11 @@ def main() -> int:
                                     continue
                             else:
                                 logger.info("🏃 도망쳤다")
+
+                                # 주변 적들 정지시키기 (5초)
+                                if combat_position:
+                                    exploration.stun_nearby_enemies(combat_position, duration=5.0, range_tiles=10)
+
                                 # 도망 후 복귀 시 필드 BGM 재생
                                 from src.audio import play_bgm
                                 if hasattr(exploration, 'is_town') and exploration.is_town:
@@ -3424,21 +3521,34 @@ def main() -> int:
                                         enemies = EnemyGenerator.generate_enemies(floor_number)
                                         logger.info(f"적 {len(enemies)}명 생성(기본값)")
                                     
-                                    # 보스가 포함된 경우 보스 추가/교체
+                                    # 보스가 포함된 경우 보스 1 + 잡몹 3 구성
                                     if is_boss_fight and map_enemies:
                                         # 보스 엔티티 찾기
                                         boss_entity = next((e for e in map_enemies if e.is_boss), None)
                                         if boss_entity:
                                             from src.world.enemy_generator import EnemyGenerator
-                                            # 5층마다 층 보스인지 확인
+                                            # 보스 전투: 보스 1마리 + 잡몹 3마리 구성
                                             is_floor_boss = (floor_number % 5 == 0)
-                                            boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss)
-                                            # 보스를 적 리스트의 첫 번째에 추가 (또는 교체)
-                                            if enemies:
-                                                enemies[0] = boss
-                                            else:
-                                                enemies.append(boss)
-                                            logger.info(f"보스 추가: {boss.name} (enemy_id: {boss.enemy_id})")
+                                            is_final_boss = floor_number in [20, 30]
+                                            boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss, boss_battle=is_final_boss)
+
+                                            # 보스 조우 스토리 재생
+                                            if floor_number == 20:
+                                                from src.story.story_system import get_story_system
+                                                story_system = get_story_system()
+                                                encounter_story = story_system.get_sephiroth_encounter_story()
+                                                from src.ui.npc_dialog_ui import render_story_sequence
+                                                render_story_sequence(display.console, display.context, encounter_story, logger)
+                                            elif floor_number == 30:
+                                                from src.story.story_system import get_story_system
+                                                story_system = get_story_system()
+                                                encounter_story = story_system.get_cain_encounter_story()
+                                                from src.ui.npc_dialog_ui import render_story_sequence
+                                                render_story_sequence(display.console, display.context, encounter_story, logger)
+
+                                            minions = EnemyGenerator.generate_enemies(floor_number, 3)
+                                            enemies = [boss] + minions
+                                            logger.info(f"보스 전투 구성: {boss.name} + 잡몹 3마리")
 
                                     # 전투 실행
                                     # 멀티플레이: 근처 참여자만 선택
@@ -3577,6 +3687,11 @@ def main() -> int:
                                         break
                                     else:
                                         logger.info("🏃 도망쳤다")
+
+                                        # 주변 적들 정지시키기 (5초)
+                                        if combat_position:
+                                            exploration.stun_nearby_enemies(combat_position, duration=5.0, range_tiles=10)
+
                                         # 도망 후 복귀 시 필드 BGM 재생
                                         from src.audio import play_bgm
                                         if hasattr(exploration, 'is_town') and exploration.is_town:

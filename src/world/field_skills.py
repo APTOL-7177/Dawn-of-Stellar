@@ -228,10 +228,18 @@ class FieldSkillManager:
                 "desc": "보스룸 또는 하층 계단 위치 발견"
             },
             "vampire_transfusion": {
-                "name": "수혈", 
+                "name": "수혈",
                 "mp": 4,  # 5 -> 4
                 "func": self._skill_vampire_transfusion,
                 "desc": "자신 HP 소모하여 아군 HP 대폭 회복"
+            },
+
+            # === 특수 계열 ===
+            "illusionist_mirror_passage": {
+                "name": "거울 통로",
+                "mp": 12,  # 적당한 소모량
+                "func": self._skill_illusionist_mirror_passage,
+                "desc": "환영을 통해 적의 시선을 피해 안전하게 이동 (선제 공격 확률 30% 증가)"
             },
         }
 
@@ -272,6 +280,9 @@ class FieldSkillManager:
             "monk": "monk_inner_peace",
             "philosopher": "philosopher_insight",
             "vampire": "vampire_transfusion",
+
+            # 특수
+            "illusionist": "illusionist_mirror_passage",
         }
         
         # 시간 역행용 저장 좌표
@@ -751,3 +762,27 @@ class FieldSkillManager:
         user.take_damage(20)
         target.heal(50)
         return True, f"자신의 피를 나누어 {target.name}을(를) 치유했습니다."
+
+    def _skill_illusionist_mirror_passage(self, user: Character) -> Tuple[bool, str]:
+        """거울 통로 - 환영을 통해 적의 시선을 피해 안전하게 이동
+
+        선제 공격 확률 30% 증가, 은신 효과로 적 회피 확률 증가
+        """
+        party = self.exploration.player.party
+
+        # 1. 선제 공격 보너스 부여 (이벤트 핸들러에서 체크하도록 플래그 설정)
+        if not hasattr(self.exploration, 'preemptive_bonus'):
+            self.exploration.preemptive_bonus = 0.0
+        self.exploration.preemptive_bonus = 0.3  # 30% 증가
+
+        # 2. 파티 전체에 은신 효과 부여 (적 회피)
+        for member in party:
+            status = create_status_effect("거울통로", StatusType.STEALTH, 20, 1.0)
+            member.status_manager.add_status(status)
+
+        # 3. 회피 보너스 추가
+        for member in party:
+            evade_status = create_status_effect("환영분신", StatusType.BOOST_EVASION, 20, 0.25)
+            member.status_manager.add_status(evade_status)
+
+        return True, "거울 속 환영들이 적의 시선을 교란합니다. (선제공격 확률 +30%, 은신/회피 상승)"

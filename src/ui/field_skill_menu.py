@@ -115,6 +115,32 @@ def open_field_skill_menu(console: tcod.console.Console, context: tcod.context.C
 
     menu = FieldSkillMenu(console.width, console.height)
 
+    # 입력 큐 비우기 (이전 입력 방지)
+    import time
+    for _ in tcod.event.get():
+        pass
+    try:
+        import pygame
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+
+    # 게임패드/키보드 입력 상태 초기화
+    unified_input_handler.clear_input_state()
+
+    # 딜레이 후 다시 이벤트 큐 비우기
+    time.sleep(0.1)
+    for _ in tcod.event.get():
+        pass
+    try:
+        import pygame
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+    unified_input_handler.clear_input_state()
+
     while True:
         # pygame 이벤트 업데이트 (게임패드 입력을 위해)
         try:

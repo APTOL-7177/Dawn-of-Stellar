@@ -67,7 +67,7 @@ class WorldUI:
 
         # 메시지 로그
         self.messages: List[str] = []
-        self.max_messages = 5
+        self.max_messages = 20  # 로그 패널이 커졌으므로 더 많은 메시지 표시
 
         # 상태
         self.quit_requested = False
@@ -82,9 +82,10 @@ class WorldUI:
         self.quit_confirm_mode = False
         self.quit_confirm_yes = False  # True: 예, False: 아니오
         
-        # 멀티플레이 이동 쿨타임 (초당 4회 = 0.25초 간격)
+        # 이동 쿨타임 (플레이어: 0.2초 = 초당 5회, 적: 0.5초 = 초당 2회)
+        # 플레이어가 적보다 2.5배 빠르게 움직임
         self.last_move_time = 0.0
-        self.move_cooldown = 0.25  # 0.25초 = 초당 4회 이동
+        self.move_cooldown = 0.2  # 0.2초 = 초당 5회 이동 (적보다 빠름)
         
         # 채팅 입력 상태
         self.chat_input_active = False
@@ -286,6 +287,13 @@ class WorldUI:
                 logger.debug(f"game_mode_manager 확인 실패: {e}, 싱글플레이로 간주")
                 is_multiplayer = False
             
+            # 쿨타임 체크 (싱글/멀티 모두)
+            if current_time - self.last_move_time < self.move_cooldown:
+                # 쿨타임 중이면 이동 무시
+                return False
+            # 쿨타임 통과 시 이동 시간 업데이트
+            self.last_move_time = current_time
+
             # 멀티플레이 모드에서만 로컬 플레이어 ID 확인
             if is_multiplayer:
                 # 로컬 플레이어 ID 확인
@@ -296,7 +304,7 @@ class WorldUI:
                     local_player_id = self.local_player_id
                 elif hasattr(self.exploration, 'session') and self.exploration.session:
                     local_player_id = getattr(self.exploration.session, 'local_player_id', None)
-                
+
                 # 로컬 플레이어 ID가 없으면 이동 불가 (멀티플레이 모드에서만)
                 if not local_player_id:
                     logger.error(
@@ -305,20 +313,13 @@ class WorldUI:
                         f"session={getattr(self.exploration, 'session', None)})"
                     )
                     return False
-                
+
                 # 세션에 로컬 플레이어가 있는지 확인
                 if hasattr(self.exploration, 'session') and self.exploration.session:
                     if local_player_id not in self.exploration.session.players:
                         logger.warning(f"로컬 플레이어 {local_player_id}가 세션에 없어 이동할 수 없습니다")
                         return False
-                
-                # 쿨타임 체크
-                if current_time - self.last_move_time < self.move_cooldown:
-                    # 쿨타임 중이면 이동 무시
-                    return False
-                # 쿨타임 통과 시 이동 시간 업데이트
-                self.last_move_time = current_time
-            
+
             result = self.exploration.move_player(dx, dy)
             if result is None:
                 # Debug: 이동 결과 None
@@ -332,19 +333,8 @@ class WorldUI:
                 # Debug: 이동 결과 이벤트
                 pass
 
-            # 이동 성공 시 요리솥 자동 열기 체크 (AI 모드에서는 건너뜀)
-            if result and result.success and result.event == ExplorationEvent.NONE:
-                # AI 모드 확인 (ai_mode 플래그가 있으면 건너뜀)
-                ai_mode = getattr(self, 'ai_mode', False)
-                if not ai_mode:
-                    # 요리솥 위치에 도착했는지 체크
-                    nearby_cooking_pot = self._find_nearby_cooking_pot()
-                    if nearby_cooking_pot and console is not None and context is not None and self.inventory is not None:
-                        logger.info(f"이동으로 요리솥 위치 도착! 자동으로 요리솥 열기: 위치 ({nearby_cooking_pot.x}, {nearby_cooking_pot.y})")
-                        from src.ui.cooking_ui import open_cooking_pot
-                        # 요리솥에서 요리할 때는 보너스 적용
-                        open_cooking_pot(console, context, self.inventory, is_cooking_pot=True)
-                        return False
+            # 이동 성공 시 요리솥 자동 열기 체크 제거 (사용자가 명시적으로 상호작용해야 함)
+            # 주석 처리: 자동 열기는 사용자 경험을 해침
 
             self._handle_exploration_result(result, console, context)
             # 전투가 트리거되면 메인 루프의 상태 체크에서 처리하도록 False 반환
@@ -1155,13 +1145,26 @@ class WorldUI:
         # 적 위치 표시
         camera_x = max(0, player.x - 40)
         camera_y = max(0, player.y - 20)
+
+        # 현재 시야 반경 계산 (FOV 시스템과 동일하게)
+        vision_radius = self.exploration.fov_system.default_radius
+        if hasattr(self.exploration, 'player') and hasattr(self.exploration.player, 'fov_radius'):
+            vision_radius = self.exploration.player.fov_radius
+
         for enemy in self.exploration.enemies:
-            # 타일의 탐험 및 시야 상태 확인
+            # 타일의 탐험 상태 확인
             tile = self.exploration.dungeon.get_tile(enemy.x, enemy.y)
             if tile and not tile.explored:
                 continue  # 탐험하지 않은 영역의 적은 표시하지 않음
-            if tile and not tile.visible:
-                continue  # 벽 너머의 적은 표시하지 않음
+
+            # 실시간 시야 체크: 플레이어와의 거리 계산
+            dx = abs(enemy.x - player.x)
+            dy = abs(enemy.y - player.y)
+            distance = max(dx, dy)  # Chebyshev distance (대각선 포함)
+
+            # 시야 범위 내에 있는지 체크
+            if distance > vision_radius:
+                continue  # 시야 밖의 적은 표시하지 않음
 
             enemy_screen_x = enemy.x - camera_x
             enemy_screen_y = 5 + (enemy.y - camera_y)
@@ -1339,11 +1342,15 @@ class WorldUI:
             self._render_quit_confirm(console)
 
     def _render_party_status(self, console: tcod.console.Console):
-        """파티 상태 렌더링 (전투 UI와 동일한 스타일)"""
+        """파티 상태 렌더링 (전투 UI와 동일한 스타일) - 화면 맨 밑에 배치"""
         from src.ui.gauge_renderer import get_animation_manager
-        
+
         x = self.screen_width - 30
-        y = 3
+
+        # 파티 멤버 수에 따른 높이 계산 (멤버당 4줄 + 소지품 4줄 + 여백)
+        party_count = min(4, len(self.exploration.player.party))
+        total_height = 2 + (party_count * 4) + 4  # 제목(1줄) + 멤버들 + 소지품(3줄) + 여백
+        y = self.screen_height - total_height - 3  # 조작법 공간(3줄) 확보
 
         console.print(x, y, "[파티 상태]", fg=(100, 255, 100))
 
@@ -1351,10 +1358,18 @@ class WorldUI:
             # 아군 사이 간격: 3줄 (이름 1줄 + HP 1줄 + MP 1줄 + 여백 1줄 = 4줄씩)
             my = y + 2 + i * 4
 
-            # 이름
+            # 이름 + 직업명
             # Character 객체는 name을, PartyMember 객체는 character_name을 사용
             member_name = getattr(member, 'name', getattr(member, 'character_name', 'Unknown'))
-            console.print(x, my, f"{i+1}. {member_name[:10]}", fg=(255, 255, 255))
+            job_name = getattr(member, 'job_name', '')
+
+            # 이름과 직업명을 함께 표시 (직업명이 있으면)
+            if job_name:
+                display_text = f"{i+1}. {member_name[:8]} ({job_name[:8]})"
+            else:
+                display_text = f"{i+1}. {member_name[:10]}"
+
+            console.print(x, my, display_text, fg=(255, 200, 100))
 
             # HP/MP 값 가져오기
             # Character 객체는 current_hp/max_hp를, PartyMember 객체는 stats를 사용
@@ -1403,18 +1418,33 @@ class WorldUI:
         inv_y = y + 2 + 4 * min(4, len(self.exploration.player.party)) + 1
         console.print(x, inv_y, "[소지품]", fg=(200, 200, 255))
         console.print(x + 2, inv_y + 1, f"열쇠: {len(self.exploration.player.keys)}개", fg=(255, 215, 0))
-        # 실제 인벤토리 객체의 아이템 수 표시 (slots 사용)
-        item_count = len(self.inventory.slots) if self.inventory and hasattr(self.inventory, 'slots') else 0
-        console.print(x + 2, inv_y + 2, f"아이템: {item_count}개", fg=(200, 200, 200))
+
+        # 아이템 무게 정보 표시 (현재/최대)
+        if self.inventory and hasattr(self.inventory, 'current_weight') and hasattr(self.inventory, 'max_weight'):
+            current_weight = self.inventory.current_weight
+            max_weight = self.inventory.max_weight
+            # 무게가 90% 이상이면 빨간색으로 경고
+            weight_color = (255, 100, 100) if current_weight >= max_weight * 0.9 else (200, 200, 200)
+            console.print(x + 2, inv_y + 2, f"아이템: ({current_weight:.1f}/{max_weight:.1f}kg)", fg=weight_color)
+        else:
+            # 인벤토리가 없거나 속성이 없는 경우 기존 방식 사용
+            item_count = len(self.inventory.slots) if self.inventory and hasattr(self.inventory, 'slots') else 0
+            console.print(x + 2, inv_y + 2, f"아이템: {item_count}개", fg=(200, 200, 200))
 
     def _render_messages(self, console: tcod.console.Console):
-        """메시지 로그 - 별도 패널로 표시"""
-        # 로그 패널 설정 (좌측 하단에 별도 창으로 표시)
-        log_panel_width = min(60, self.screen_width // 2)
-        log_panel_height = 8
+        """메시지 로그 - 파티 상태창 왼쪽에 크게 표시"""
+        # 파티 상태창 위치 계산 (파티 상태창과 동일한 계산)
+        party_count = min(4, len(self.exploration.player.party))
+        total_height = 2 + (party_count * 4) + 4  # 제목(1줄) + 멤버들 + 소지품(3줄) + 여백
+        party_y = self.screen_height - total_height - 3  # 조작법 공간(3줄) 확보
+
+        # 로그 패널 설정 (파티 상태창 왼쪽에 넓게 배치)
+        party_x = self.screen_width - 30  # 파티 상태창 시작 위치
         log_panel_x = 2
-        log_panel_y = self.screen_height - log_panel_height - 3  # 조작 가이드 위에 배치
-        
+        log_panel_width = party_x - log_panel_x - 4  # 파티 상태창 왼쪽까지 (여백 4칸)
+        log_panel_height = total_height // 2  # 파티 상태창 높이의 절반
+        log_panel_y = self.screen_height - log_panel_height - 3  # 하단에 배치 (조작법 공간 확보)
+
         # 로그 패널 테두리
         console.draw_frame(
             log_panel_x - 1,
@@ -1425,17 +1455,19 @@ class WorldUI:
             fg=(150, 150, 150),
             bg=(0, 0, 0)
         )
-        
-        # 로그 메시지 표시
-        visible_messages = self.messages[-self.max_messages:]
+
+        # 로그 메시지 표시 (아래에서 위로 최신 메시지부터)
+        max_lines = log_panel_height - 1  # 테두리 제외
+        visible_messages = self.messages[-max_lines:] if len(self.messages) > max_lines else self.messages
+
         for i, msg in enumerate(visible_messages):
             # 메시지가 패널 너비를 초과하면 자르기
             if len(msg) > log_panel_width - 2:
                 msg = msg[:log_panel_width - 5] + "..."
             console.print(
-                log_panel_x, 
-                log_panel_y + i, 
-                msg, 
+                log_panel_x,
+                log_panel_y + i,
+                msg,
                 fg=(200, 200, 200)
             )
 
@@ -1841,23 +1873,37 @@ def run_exploration(
         except Exception:
             pass  # 핫 리로드 오류는 무시
         
-        # 멀티플레이: 시간 기반 적 이동 업데이트 (2초마다)
+        # 시간 기반 적 이동 업데이트 (싱글/멀티 모두)
+        # 적과 플레이어가 독립적으로 시간 기반으로 움직임
         current_time = time.time()
-        
-        # 적 이동 업데이트 (호스트만)
-        if hasattr(exploration, 'is_multiplayer') and exploration.is_multiplayer:
-            if hasattr(exploration, 'enemy_sync') and exploration.enemy_sync:
-                # last_enemy_update를 exploration에 저장하여 유지
-                if not hasattr(exploration, '_last_enemy_update'):
-                    exploration._last_enemy_update = 0.0
-                
-                if current_time - exploration._last_enemy_update >= 2.0:
-                    if exploration.is_host and hasattr(exploration, '_move_all_enemies'):
-                        exploration._move_all_enemies()
-                    exploration._last_enemy_update = current_time
-            
-            # 봇 관련 코드 제거됨
-        
+
+        # 적 이동 업데이트
+        if hasattr(exploration, '_move_all_enemies'):
+            # 시간 기반 이동 - 각 적이 자신의 move_interval에 따라 이동
+            exploration._move_all_enemies()
+
+            # 시간 기반 이동 중 적과 플레이어가 충돌했는지 확인
+            if hasattr(exploration, 'collision_enemy') and exploration.collision_enemy:
+                collided_enemy = exploration.collision_enemy
+                logger.info(f"[전투 트리거] 시간 기반 이동 중 충돌: {collided_enemy.name}")
+
+                # 전투 트리거: 충돌한 적과 주변 적들 수집
+                combat_enemies = [collided_enemy]
+                combat_range = 3  # 3칸 범위 내의 적들 포함
+                for other_enemy in exploration.enemies:
+                    if other_enemy == collided_enemy:
+                        continue
+                    distance = abs(other_enemy.x - collided_enemy.x) + abs(other_enemy.y - collided_enemy.y)
+                    if distance <= combat_range:
+                        combat_enemies.append(other_enemy)
+
+                # UI에서 전투 트리거
+                ui.combat_requested = True
+                ui.combat_num_enemies = len(combat_enemies)
+                ui.combat_enemies = combat_enemies
+                if hasattr(exploration, 'player'):
+                    ui.combat_position = (exploration.player.x, exploration.player.y)
+
         # 환경 효과 업데이트 (플레이어가 같은 타일에 머물러 있을 때도 적용)
         try:
             effect_message = exploration.update_environmental_effects()

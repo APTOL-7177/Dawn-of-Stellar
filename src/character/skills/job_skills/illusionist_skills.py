@@ -40,7 +40,7 @@ def create_illusionist_skills():
     summon_phantom = Skill("illusionist_summon_phantom", "환영 소환",
                           "환영 1~2개 생성, 회피율 +10% (1턴)")
     summon_phantom.effects = [
-        GimmickEffect(GimmickOperation.ADD, "phantom_count", 1, max_value=4),
+        GimmickEffect(GimmickOperation.ADD, "phantom_count", 1, max_value=4),  # phantom_hits 자동 업데이트
         BuffEffect(BuffType.EVASION_UP, 0.10, duration=1)
     ]
     summon_phantom.costs = [MPCost(8)]
@@ -51,8 +51,9 @@ def create_illusionist_skills():
     # 4. 환영 군단 소집
     phantom_army = Skill("illusionist_phantom_army", "환영 군단 소집",
                         "환영 슬롯 최대(4개) 충전, 회피 +20% (2턴)")
+    # 환영 군단 소집: phantom_count 설정 (phantom_hits는 자동으로 업데이트됨)
     phantom_army.effects = [
-        GimmickEffect(GimmickOperation.SET, "phantom_count", 4),
+        GimmickEffect(GimmickOperation.SET, "phantom_count", 4),  # phantom_hits 자동 초기화
         BuffEffect(BuffType.EVASION_UP, 0.20, duration=2)
     ]
     phantom_army.costs = [MPCost(18)]

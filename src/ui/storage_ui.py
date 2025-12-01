@@ -390,10 +390,33 @@ def open_storage(
     ui = StorageUI(console.width, console.height, inventory, hub_storage, town_manager, context)
     
     logger.info("창고 열기")
-    
+
     import time
     import pygame
-    
+
+    # 입력 큐 비우기 (이전 입력 방지)
+    for _ in tcod.event.get():
+        pass
+    try:
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+
+    # 게임패드/키보드 입력 상태 초기화
+    unified_input_handler.clear_input_state()
+
+    # 딜레이 후 다시 이벤트 큐 비우기
+    time.sleep(0.1)
+    for _ in tcod.event.get():
+        pass
+    try:
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+    unified_input_handler.clear_input_state()
+
     try:
         while not ui.closed:
             ui.render(console)

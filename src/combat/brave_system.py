@@ -400,6 +400,14 @@ class BraveSystem:
         
         # 상처 데미지 적용 (HP 데미지의 일부가 상처로 전환)
         # WoundSystem의 이벤트 핸들러는 플래그로 인해 무시됨
+        # 환영이 피해를 대신 받았을 때는 상처가 쌓이지 않음
+        phantom_absorbed = getattr(defender, '_phantom_absorbed_damage', False)
+        if phantom_absorbed:
+            # 환영 피해 분산 플래그 제거
+            delattr(defender, '_phantom_absorbed_damage')
+            wound_damage = 0  # 상처 적용하지 않음
+            self.logger.debug(f"[환술사] 환영이 피해 대신 받아 상처 적용하지 않음: {defender.name}")
+
         if hasattr(defender, "wound") and wound_damage > 0:
             # WoundSystem의 설정 사용
             from src.systems.wound_system import get_wound_system

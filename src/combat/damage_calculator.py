@@ -577,6 +577,21 @@ class DamageCalculator:
                     # 비율 감소: 1.0 이하면 백분율 (선호 방식)
                     base_stat = int(base_stat * (1.0 - debuff_value))
 
+        # 환술사 환영 회피 보너스 적용
+        print(f"[DEBUG] 환술사 체크 시작: hasattr={hasattr(character, 'gimmick_type')}")
+        if hasattr(character, 'gimmick_type'):
+            print(f"[DEBUG] gimmick_type: {character.gimmick_type}")
+        if hasattr(character, 'gimmick_type') and character.gimmick_type == "phantom_legion":
+            phantom_count = getattr(character, 'phantom_count', 0)
+            evasion_per_phantom = getattr(character, 'phantom_evasion_bonus', 0.12)
+            phantom_evasion_bonus = phantom_count * evasion_per_phantom
+            print(f"[DEBUG] 환술사 회피 보너스: phantom_count={phantom_count}, bonus={phantom_evasion_bonus}, base_stat_before={base_stat}")
+            if phantom_evasion_bonus > 0:
+                base_stat = int(base_stat * (1.0 + phantom_evasion_bonus))
+                print(f"[DEBUG] 환술사 회피 적용 후: base_stat={base_stat}")
+        else:
+            print(f"[DEBUG] 환술사 조건 불충분")
+
         # 환경 효과 스탯 수정치 적용
         if hasattr(character, 'env_stat_modifiers'):
             env_mult = character.env_stat_modifiers.get('evasion', 1.0)
@@ -621,14 +636,19 @@ class DamageCalculator:
         if hasattr(defender, 'active_buffs') and defender.active_buffs:
             if 'evasion_up' in defender.active_buffs:
                 evasion_buff_value = defender.active_buffs['evasion_up'].get('value', 0.0)
+                duration = defender.active_buffs['evasion_up'].get('duration', 0)
                 if evasion_buff_value >= 5.0:
                     # 확정 회피
                     self.logger.info(
                         f"[확정 회피] {getattr(defender, 'name', 'Unknown')}가 "
                         f"{getattr(attacker, 'name', 'Unknown')}의 공격을 완벽하게 피했다! "
-                        f"(회피 버프: +{evasion_buff_value*100:.0f}%)"
+                        f"(회피 버프: +{evasion_buff_value*100:.0f}%, 남은 턴: {duration})"
                     )
                     return False
+                else:
+                    self.logger.debug(
+                        f"[일반 회피] {getattr(defender, 'name', 'Unknown')} 회피 버프: +{evasion_buff_value*100:.0f}%, 남은 턴: {duration}"
+                    )
 
         accuracy = self._get_accuracy_stat(attacker)
         evasion = self._get_evasion_stat(defender)

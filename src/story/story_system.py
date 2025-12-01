@@ -148,7 +148,22 @@ class StorySystem:
         """세피로스 조우 스토리"""
         return [
             StorySegment(
-                "\n\n이곳은... 어디인가?",
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=0.5,
+                color="red"
+            ),
+            StorySegment(
+                "【 WARNING: 20층 - 시공의 틈새 】",
+                pause=1.5,
+                color="red"
+            ),
+            StorySegment(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                pause=1.0,
+                color="red"
+            ),
+            StorySegment(
+                "\n이곳은... 어디인가?",
                 pause=2.0,
                 color="white"
             ),
@@ -173,7 +188,7 @@ class StorySystem:
                 color="dark"
             ),
             StorySegment(
-                "\n긴 은발, 한 손의 검.",
+                "\n긴 흑발, 한 손의 창.",
                 pause=1.0,
                 color="white"
             ),
@@ -193,6 +208,16 @@ class StorySystem:
                 color="red"
             ),
             StorySegment(
+                "\n\"10만 번... 10만 번이나 봤다...\"",
+                pause=1.5,
+                color="red"
+            ),
+            StorySegment(
+                "\n\"인류의 멸망을...\"",
+                pause=2.0,
+                color="red"
+            ),
+            StorySegment(
                 "\n\"무의미한 저항이다.\"",
                 pause=1.5,
                 color="red"
@@ -201,6 +226,21 @@ class StorySystem:
                 "\n\"이 세계는 이미 끝났다.\"",
                 pause=2.5,
                 color="red"
+            ),
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=0.5,
+                color="yellow"
+            ),
+            StorySegment(
+                "⚠️  경고: 7분 30초 안에 격파 필요  ⚠️",
+                pause=2.0,
+                color="yellow"
+            ),
+            StorySegment(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                pause=1.0,
+                color="yellow"
             ),
             StorySegment(
                 "\n\n그의 검이 빛난다─",
@@ -213,9 +253,24 @@ class StorySystem:
         """세피로스 격파 스토리"""
         return [
             StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=0.5,
+                color="cyan"
+            ),
+            StorySegment(
+                "【 세피로스 격파 】",
+                pause=1.5,
+                color="cyan"
+            ),
+            StorySegment(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                pause=1.0,
+                color="cyan"
+            ),
+            StorySegment(
                 "\n\n...불가능한 일이 일어났다.",
                 pause=2.0,
-                color="cyan"
+                color="white"
             ),
             StorySegment(
                 "\n세피로스가 무릎을 꿇는다.",
@@ -223,13 +278,23 @@ class StorySystem:
                 color="white"
             ),
             StorySegment(
-                "\n\n\"...어째서...?\"",
-                pause=1.5,
+                "\n\n\"...감사하다...\"",
+                pause=2.0,
                 color="red"
             ),
             StorySegment(
-                "\n\"어째서 네가... 나를...?\"",
+                "\n\"...너는 포기하지 않았구나...\"",
                 pause=2.0,
+                color="red"
+            ),
+            StorySegment(
+                "\n\"...10만 번의 타임라인 중에서...\"",
+                pause=2.0,
+                color="red"
+            ),
+            StorySegment(
+                "\n\"...단 한 번도 본 적 없는 미래...\"",
+                pause=2.5,
                 color="red"
             ),
             StorySegment(
@@ -238,27 +303,32 @@ class StorySystem:
                 color="white"
             ),
             StorySegment(
-                "\n\n\"...아직 끝나지 않았다.\"",
-                pause=1.5,
-                color="red"
-            ),
-            StorySegment(
-                "\n\"시간은... 되돌릴 수 없어...\"",
+                "\n\n\"...이제야 쉴 수 있겠어...\"",
                 pause=2.0,
                 color="red"
             ),
             StorySegment(
-                "\n\"하지만... 너라면...\"",
+                "\n\"...별빛의 여명...\"",
+                pause=1.5,
+                color="red"
+            ),
+            StorySegment(
+                "\n\"...드디어 찾아왔구나...\"",
                 pause=2.5,
                 color="red"
             ),
             StorySegment(
-                "\n\n마지막 한 마디를 남기고, 그는 사라진다.",
+                "\n\n마지막 미소를 지으며, 그는 사라진다.",
                 pause=2.5,
                 color="white"
             ),
             StorySegment(
-                "\n\n시공의 균열이 서서히 닫히기 시작한다.",
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                pause=1.0,
+                color="cyan"
+            ),
+            StorySegment(
+                "\n시공의 균열이 서서히 닫히기 시작한다.",
                 pause=2.0,
                 color="cyan"
             ),
@@ -268,14 +338,499 @@ class StorySystem:
                 color="cyan"
             ),
             StorySegment(
+                "\n1,000개의 영혼이 안식을 찾는다.",
+                pause=2.0,
+                color="white"
+            ),
+            StorySegment(
                 "\n\n당신은 세계를 구했다.",
                 pause=3.0,
                 color="yellow"
             ),
             StorySegment(
-                "\n\n─── True Ending ───",
+                "\n그리고... 한 영혼을 해방시켰다.",
+                pause=3.0,
+                color="yellow"
+            ),
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=1.0,
+                color="cyan"
+            ),
+            StorySegment(
+                "【 TRUE ENDING 】",
+                pause=3.0,
+                color="cyan"
+            ),
+            StorySegment(
+                "─ Dawn of Stellar ─",
+                pause=3.0,
+                color="yellow"
+            ),
+            StorySegment(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━",
                 pause=5.0,
                 color="cyan"
+            ),
+        ]
+
+    def get_sephiroth_timeout_story(self) -> List[StorySegment]:
+        """세피로스 타임오버 스토리 (7분 30초 초과)"""
+        return [
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=0.5,
+                color="red"
+            ),
+            StorySegment(
+                "【 타임라인 붕괴 】",
+                pause=1.5,
+                color="red"
+            ),
+            StorySegment(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                pause=1.0,
+                color="red"
+            ),
+            StorySegment(
+                "\n\n세피로스가 완전히 각성한다.",
+                pause=2.0,
+                color="red"
+            ),
+            StorySegment(
+                "\n\n\"...늦었어...\"",
+                pause=2.0,
+                color="red"
+            ),
+            StorySegment(
+                "\n\"...나는 이제 멈출 수 없어...\"",
+                pause=2.5,
+                color="red"
+            ),
+            StorySegment(
+                "\n\"...미안하다...\"",
+                pause=2.0,
+                color="red"
+            ),
+            StorySegment(
+                "\n\n시공간이 무너지기 시작한다.",
+                pause=2.0,
+                color="white"
+            ),
+            StorySegment(
+                "\n과거와 미래가 뒤섞인다.",
+                pause=1.5,
+                color="white"
+            ),
+            StorySegment(
+                "\n차원의 경계가 사라진다.",
+                pause=1.5,
+                color="white"
+            ),
+            StorySegment(
+                "\n\n모든 것이 무(無)로 돌아간다.",
+                pause=3.0,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=1.0,
+                color="red"
+            ),
+            StorySegment(
+                "【 GAME OVER 】",
+                pause=2.0,
+                color="red"
+            ),
+            StorySegment(
+                "타임라인 붕괴 - 시공 붕괴로 인한 멸망",
+                pause=3.0,
+                color="red"
+            ),
+            StorySegment(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=5.0,
+                color="red"
+            ),
+        ]
+
+    def get_cain_encounter_story(self) -> List[StorySegment]:
+        """카인 조우 스토리 (30층)"""
+        return [
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=0.5,
+                color="dark"
+            ),
+            StorySegment(
+                "【 WARNING: 30층 - 시간의 왕좌 】",
+                pause=1.5,
+                color="dark"
+            ),
+            StorySegment(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                pause=1.0,
+                color="dark"
+            ),
+            StorySegment(
+                "\n시공간이 왜곡되어 있다.",
+                pause=1.5,
+                color="white"
+            ),
+            StorySegment(
+                "\n무수한 타임라인의 잔해들이 떠다닌다.",
+                pause=1.5,
+                color="white"
+            ),
+            StorySegment(
+                "\n\n그리고... 중앙의 거대한 왕좌.",
+                pause=2.0,
+                color="white"
+            ),
+            StorySegment(
+                "\n\n그 위에 앉아있는 남자.",
+                pause=2.5,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\n닥터 아벨 카인.",
+                pause=2.5,
+                color="red"
+            ),
+            StorySegment(
+                "\n\n\"오, 세피로스를 죽인 자인가.\"",
+                pause=2.0,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"흥미롭군. 10만 번의 타임라인 중 이런 경우는 처음이야.\"",
+                pause=2.5,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\n\"나는 아벨 카인.\"",
+                pause=1.5,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"세피로스의 창조자이자...\"",
+                pause=1.5,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"모든 비극의 설계자지.\"",
+                pause=2.5,
+                color="red"
+            ),
+            StorySegment(
+                "\n\n\"세피로스가 10만 번 고통받은 것은...\"",
+                pause=2.0,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"내가 원했기 때문이야.\"",
+                pause=2.5,
+                color="red"
+            ),
+            StorySegment(
+                "\n\n\"그 덕분에 나는 시간을 초월했어.\"",
+                pause=2.0,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"나는 이제 신이야.\"",
+                pause=2.5,
+                color="red"
+            ),
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=0.5,
+                color="yellow"
+            ),
+            StorySegment(
+                "⚠️  경고: 4분 안에 격파 필요  ⚠️",
+                pause=2.0,
+                color="yellow"
+            ),
+            StorySegment(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                pause=1.0,
+                color="yellow"
+            ),
+            StorySegment(
+                "\n\n\"4분을 주지. 날 죽여봐.\"",
+                pause=1.5,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"하하하하!\"",
+                pause=1.0,
+                color="red"
+            ),
+        ]
+
+    def get_cain_defeat_story(self) -> List[StorySegment]:
+        """카인 격파 스토리 (트루 엔딩)"""
+        return [
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=0.5,
+                color="cyan"
+            ),
+            StorySegment(
+                "【 카인 격파 】",
+                pause=1.5,
+                color="cyan"
+            ),
+            StorySegment(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                pause=1.0,
+                color="cyan"
+            ),
+            StorySegment(
+                "\n\n카인이 무릎을 꿇는다.",
+                pause=2.0,
+                color="white"
+            ),
+            StorySegment(
+                "\n\n\"...불가능해... 내가... 질 리가...\"",
+                pause=2.0,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"...난 모든 미래를 봤는데...\"",
+                pause=2.0,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"...이 결말은... 없었어...\"",
+                pause=2.5,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\n그의 몸이 시공간의 왜곡과 함께 무너진다.",
+                pause=2.0,
+                color="white"
+            ),
+            StorySegment(
+                "\n\n\"...세피로스... 네가 옳았어...\"",
+                pause=2.0,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"...영원히 사는 것보다...\"",
+                pause=1.5,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"...불꽃처럼 타오르는 게...\"",
+                pause=1.5,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"...더... 아름다울지도...\"",
+                pause=2.5,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\n그는 희미하게 웃으며 소멸한다.",
+                pause=2.5,
+                color="white"
+            ),
+            StorySegment(
+                "\n\n시간의 왕좌가 무너진다.",
+                pause=2.0,
+                color="cyan"
+            ),
+            StorySegment(
+                "\n모든 타임라인의 왜곡이 해소된다.",
+                pause=2.0,
+                color="cyan"
+            ),
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                pause=1.0,
+                color="white"
+            ),
+            StorySegment(
+                "\n세피로스의 목소리가 들린다...",
+                pause=2.0,
+                color="cyan"
+            ),
+            StorySegment(
+                "\n\"...고마워...\"",
+                pause=1.5,
+                color="cyan"
+            ),
+            StorySegment(
+                "\n\"...이제... 모든 것이... 끝났어...\"",
+                pause=2.0,
+                color="cyan"
+            ),
+            StorySegment(
+                "\n\"...별빛의 여명은...\"",
+                pause=1.5,
+                color="cyan"
+            ),
+            StorySegment(
+                "\n\"...네가 가져왔어...\"",
+                pause=2.5,
+                color="cyan"
+            ),
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                pause=1.0,
+                color="yellow"
+            ),
+            StorySegment(
+                "\n2169년, 시공간은 안정되었다.",
+                pause=2.0,
+                color="white"
+            ),
+            StorySegment(
+                "\n인류는 두 번째 황금시대를 맞이했다.",
+                pause=2.0,
+                color="white"
+            ),
+            StorySegment(
+                "\n\n그리고 사람들은 전설을 이야기한다.",
+                pause=2.0,
+                color="white"
+            ),
+            StorySegment(
+                "\n시공의 틈새를 넘어,",
+                pause=1.5,
+                color="white"
+            ),
+            StorySegment(
+                "\n신이 된 악마를 쓰러뜨린,",
+                pause=1.5,
+                color="white"
+            ),
+            StorySegment(
+                "\n이름 없는 영웅의 이야기를.",
+                pause=2.5,
+                color="white"
+            ),
+            StorySegment(
+                "\n\n\"별빛의 여명은, 가장 긴 밤 끝에서 찾아온다.\"",
+                pause=3.0,
+                color="yellow"
+            ),
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=1.0,
+                color="cyan"
+            ),
+            StorySegment(
+                "【 PERFECT ENDING 】",
+                pause=3.0,
+                color="cyan"
+            ),
+            StorySegment(
+                "─ Dawn of Stellar ─",
+                pause=3.0,
+                color="yellow"
+            ),
+            StorySegment(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=5.0,
+                color="cyan"
+            ),
+        ]
+
+    def get_cain_timeout_story(self) -> List[StorySegment]:
+        """카인 타임오버 스토리 (4분 초과)"""
+        return [
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=0.5,
+                color="red"
+            ),
+            StorySegment(
+                "【 시공 소멸 】",
+                pause=1.5,
+                color="red"
+            ),
+            StorySegment(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                pause=1.0,
+                color="red"
+            ),
+            StorySegment(
+                "\n\n카인이 웃으며 일어선다.",
+                pause=2.0,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\n\"시간이 없어지는군.\"",
+                pause=2.0,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"재밌었어. 하지만 여기까지야.\"",
+                pause=2.5,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\n카인이 손가락을 튕긴다.",
+                pause=2.0,
+                color="white"
+            ),
+            StorySegment(
+                "\n\n모든 타임라인이 동시에 붕괴한다.",
+                pause=2.5,
+                color="red"
+            ),
+            StorySegment(
+                "\n\n\"모든 가능성이 사라졌어.\"",
+                pause=2.0,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\"과거도, 현재도, 미래도... 전부 무(無)로.\"",
+                pause=2.5,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                pause=1.0,
+                color="cyan"
+            ),
+            StorySegment(
+                "\n세피로스의 목소리가 들린다...",
+                pause=2.0,
+                color="cyan"
+            ),
+            StorySegment(
+                "\n\"...미안해... 내가... 더 강했어야 했는데...\"",
+                pause=2.5,
+                color="cyan"
+            ),
+            StorySegment(
+                "\n\n모든 것이 어둠에 삼켜진다.",
+                pause=3.0,
+                color="dark"
+            ),
+            StorySegment(
+                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=1.0,
+                color="red"
+            ),
+            StorySegment(
+                "【 GAME OVER 】",
+                pause=2.0,
+                color="red"
+            ),
+            StorySegment(
+                "시공 소멸 - 모든 타임라인 붕괴",
+                pause=3.0,
+                color="red"
+            ),
+            StorySegment(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                pause=5.0,
+                color="red"
             ),
         ]
 
@@ -287,6 +842,10 @@ class StorySystem:
             10: "무언가 강력한 존재의 기운이...",
             14: "경고: 강력한 적의 기운!",
             15: "??? - 시공의 틈새 ???",
+            19: "⚠️ 경고: 최종 보스 직전 ⚠️",
+            20: "【 20층 - 시공의 틈새 】",
+            29: "⚠️⚠️ 경고: 진정한 악의 기운! ⚠️⚠️",
+            30: "【 30층 - 시간의 왕좌 】",
         }
         return messages.get(floor, f"{floor}층")
 

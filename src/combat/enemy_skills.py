@@ -128,6 +128,25 @@ class EnemySkillDatabase:
 
     SKILLS = {}
 
+    @staticmethod
+    def calculate_heal_amount(base_heal: int, physical_attack: int, magic_attack: int) -> int:
+        """
+        적의 공격력/마법력에 비례한 회복량 계산
+
+        Args:
+            base_heal: 기본 회복량
+            physical_attack: 적의 물리 공격력
+            magic_attack: 적의 마법 공격력
+
+        Returns:
+            계산된 회복량
+        """
+        # 공격력/마법력을 기반으로 한 추가 회복
+        # 기본 회복량 + (물리공격력 + 마법공격력) / 4
+        # 예: 공격력 50, 마법력 40, 기본 회복 100 → 100 + (50+40)/4 = 122.5 → 122
+        additional_heal = (physical_attack + magic_attack) // 4
+        return max(base_heal, base_heal + additional_heal)
+
     @classmethod
     def initialize(cls):
         """스킬 데이터베이스 초기화"""
@@ -236,7 +255,8 @@ class EnemySkillDatabase:
                 buff_stats={"strength": 1.4, "speed": 1.3},
                 use_probability=0.25,
                 requires_ally_count=2,  # 아군 2마리 이상 필요
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "attack_physical")
             ),
 
             # 슬라임 - 산성 분사
@@ -251,7 +271,8 @@ class EnemySkillDatabase:
                 is_magical=True,
                 debuff_stats={"defense": 0.7, "spirit": 0.7},
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "poison")
             ),
 
             # 슬라임 - 분열
@@ -265,7 +286,8 @@ class EnemySkillDatabase:
                 use_probability=0.3,
                 min_hp_percent=0.0,
                 max_hp_percent=0.4,
-                cooldown=6
+                cooldown=6,
+                sfx=("skill", "teleport")
             ),
 
             # 오우거 - 분쇄
@@ -282,7 +304,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.4,  # crush 조정
                 use_probability=0.2,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "damage_high")
             ),
 
             # 오우거 - 광폭화
@@ -296,7 +319,8 @@ class EnemySkillDatabase:
                 use_probability=0.25,
                 min_hp_percent=0.0,
                 max_hp_percent=0.5,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "barrier")
             ),
 
             # 망령 - 공포의 외침
@@ -311,7 +335,8 @@ class EnemySkillDatabase:
                 is_magical=True,
                 mp_cost=25,
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "confusion")
             ),
 
             # 망령 - 영혼 흡수
@@ -328,7 +353,8 @@ class EnemySkillDatabase:
                 heal_amount=25,  # MP 회복 (특수 처리)
                 mp_cost=15,
                 use_probability=0.3,
-                cooldown=3
+                cooldown=3,
+                sfx=("character", "hp_heal")
             ),
 
             # 골렘 - 대지의 충격
@@ -345,7 +371,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # soul_drain 조정
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "earth")
             ),
 
             # 골렘 - 석화
@@ -356,7 +383,8 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SELF,
                 buff_stats={"defense": 2.5, "spirit": 2.0},
                 use_probability=0.25,
-                cooldown=6
+                cooldown=6,
+                sfx=("skill", "barrier")
             ),
 
             # 와이번 - 급강하
@@ -370,7 +398,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "damage_high")
             ),
 
             # 와이번 - 독 숨결
@@ -387,7 +416,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.25,  # poison_breath 조정
                 use_probability=0.3,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "poison")
             ),
 
             # 뱀파이어 - 흡혈
@@ -402,7 +432,8 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 heal_amount=40,
                 use_probability=0.45,
-                cooldown=2
+                cooldown=2,
+                sfx=("combat", "attack_physical")
             ),
 
             # 뱀파이어 - 박쥐 변신
@@ -413,7 +444,8 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SELF,
                 buff_stats={"speed": 2.0},  # 회피율은 특수 처리
                 use_probability=0.25,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "teleport")
             ),
 
             # 언데드 - 생명력 흡수
@@ -429,7 +461,8 @@ class EnemySkillDatabase:
                 heal_amount=30,  # 회복량 (별도 처리)
                 is_magical=True,
                 use_probability=0.3,
-                cooldown=2
+                cooldown=2,
+                sfx=("character", "hp_heal")
             ),
 
             # === 마법 몬스터 스킬 ===
@@ -450,7 +483,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.35,  # fireball 조정
                 use_probability=0.4,
-                cooldown=1
+                cooldown=1,
+                sfx=("skill", "fire")
             ),
 
             # 마법사 - 얼음 폭풍
@@ -468,7 +502,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.35,  # ice_storm 조정
                 use_probability=0.25,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "ice")
             ),
 
             # 마법사 - 마나 폭발
@@ -486,7 +521,8 @@ class EnemySkillDatabase:
                 use_probability=0.15,
                 min_hp_percent=0.0,
                 max_hp_percent=0.25,  # HP 25% 이하일 때 (필살기)
-                cooldown=99
+                cooldown=99,
+                sfx=("combat", "damage_high")
             ),
 
             # === 보스 스킬 ===
@@ -507,7 +543,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.5,  # dragon_breath 조정
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "fire_explosion")
             ),
 
             # 드래곤 - 용의 위압
@@ -518,7 +555,8 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.ALL_ENEMIES,
                 debuff_stats={"strength": 0.7, "defense": 0.7, "magic": 0.7},
                 use_probability=0.2,
-                cooldown=6
+                cooldown=6,
+                sfx=("skill", "roar")
             ),
 
             # 드래곤 - 비행
@@ -529,7 +567,8 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SELF,
                 buff_stats={"speed": 2.0},
                 use_probability=0.15,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "holy")
             ),
 
             # 악마 - 지옥의 불꽃
@@ -548,7 +587,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.5,  # hellfire 조정
                 use_probability=0.3,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "fire3")
             ),
 
             # 악마 - 악마의 계약
@@ -560,7 +600,8 @@ class EnemySkillDatabase:
                 hp_cost=30,
                 buff_stats={"strength": 1.8, "magic": 1.8},
                 use_probability=0.25,
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "damage_high")
             ),
 
             # ============================================================
@@ -581,7 +622,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.3,  # infected_strike 조정
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("combat", "attack_physical")
             ),
             "zombify": EnemySkill(
                 skill_id="zombify",
@@ -595,7 +637,8 @@ class EnemySkillDatabase:
                 status_duration=5,
                 status_intensity=0.3,  # zombify 조정
                 use_probability=0.3,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "water")
             ),
             "undead_resilience": EnemySkill(
                 skill_id="undead_resilience",
@@ -606,7 +649,8 @@ class EnemySkillDatabase:
                 use_probability=0.35,
                 min_hp_percent=0.0,
                 max_hp_percent=0.6,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "attack_physical")
             ),
 
             # 구울 스킬
@@ -619,7 +663,8 @@ class EnemySkillDatabase:
                 use_probability=0.5,
                 min_hp_percent=0.0,
                 max_hp_percent=0.4,
-                cooldown=5
+                cooldown=5,
+                sfx=("character", "hp_heal")
             ),
             "frenzy": EnemySkill(
                 skill_id="frenzy",
@@ -628,7 +673,8 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SELF,
                 buff_stats={"strength": 1.8, "speed": 1.6},
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("character", "status_buff")
             ),
             "swift_assault": EnemySkill(
                 skill_id="swift_assault",
@@ -639,7 +685,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "multi_hit")
             ),
 
             # 밴시 스킬
@@ -655,7 +702,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # wail 조정
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "confusion")
             ),
             "cursed_scream": EnemySkill(
                 skill_id="cursed_scream",
@@ -670,7 +718,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.425,  # cursed_scream 조정
                 use_probability=0.2,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "confusion")
             ),
             "soul_steal": EnemySkill(
                 skill_id="soul_steal",
@@ -683,7 +732,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 heal_amount=35,  # MP 회복용
                 use_probability=0.3,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "dark")
             ),
 
             # 죽음의 기사 스킬
@@ -697,7 +747,8 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 is_magical=False,
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("combat", "damage_high")
             ),
             "death_sentence": EnemySkill(
                 skill_id="death_sentence",
@@ -709,7 +760,8 @@ class EnemySkillDatabase:
                 status_duration=5,
                 status_intensity=0.45,  # death_sentence 조정
                 use_probability=0.25,
-                cooldown=6
+                cooldown=6,
+                sfx=("combat", "attack_physical")
             ),
             "dark_aura": EnemySkill(
                 skill_id="dark_aura",
@@ -719,7 +771,8 @@ class EnemySkillDatabase:
                 mp_cost=25,
                 buff_stats={"strength": 1.4, "defense": 1.3, "magic": 1.3},
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "dark")
             ),
 
             # 미라 스킬
@@ -732,7 +785,8 @@ class EnemySkillDatabase:
                 mp_cost=20,
                 debuff_stats={"strength": 0.7, "defense": 0.7, "magic": 0.7, "spirit": 0.7, "speed": 0.8},
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("character", "status_debuff")
             ),
             "bandage_wrap": EnemySkill(
                 skill_id="bandage_wrap",
@@ -745,7 +799,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.35,  # bandage_wrap 조정
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "barrier")
             ),
             "resurrection": EnemySkill(
                 skill_id="resurrection",
@@ -756,7 +811,8 @@ class EnemySkillDatabase:
                 use_probability=0.9,
                 min_hp_percent=0.0,
                 max_hp_percent=0.01,  # 거의 죽었을 때
-                cooldown=99  # 한 번만
+                cooldown=99,  # 한 번만
+                sfx=("combat", "attack_physical")
             ),
 
             # === 엘리멘탈 타입 스킬 (18개) ===
@@ -776,7 +832,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.36,  # flame_burst 조정
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "fire")
             ),
             "fire_shield": EnemySkill(
                 skill_id="fire_shield",
@@ -787,7 +844,8 @@ class EnemySkillDatabase:
                 buff_stats={"defense": 1.5, "spirit": 1.3},
                 counter_damage=True,
                 use_probability=0.3,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "fire")
             ),
             "lava_eruption": EnemySkill(
                 skill_id="lava_eruption",
@@ -803,7 +861,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.45,  # lava_eruption 조정
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "attack_physical")
             ),
 
             # 얼음의 정령 스킬
@@ -821,7 +880,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.45,  # absolute_zero 조정
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "attack_physical")
             ),
             "ice_prison": EnemySkill(
                 skill_id="ice_prison",
@@ -834,7 +894,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # ice_prison 맞춤 강도
                 use_probability=0.25,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "ice")
             ),
             "blizzard": EnemySkill(
                 skill_id="blizzard",
@@ -849,7 +910,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.45,  # blizzard 조정
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "ice")
             ),
 
             # 번개의 정령 스킬
@@ -867,7 +929,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.38,  # chain_lightning 조정
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "bolt")
             ),
             "static_field": EnemySkill(
                 skill_id="static_field",
@@ -877,7 +940,8 @@ class EnemySkillDatabase:
                 mp_cost=15,
                 buff_stats={"speed": 1.8},  # 회피 증가
                 use_probability=0.3,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "bolt")
             ),
             "thunderbolt": EnemySkill(
                 skill_id="thunderbolt",
@@ -893,7 +957,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.4,  # static_field 조정
                 use_probability=0.2,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "damage_high")
             ),
 
             # 대지의 정령 스킬
@@ -906,7 +971,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("combat", "attack_physical")
             ),
             "earth_barrier": EnemySkill(
                 skill_id="earth_barrier",
@@ -917,7 +983,8 @@ class EnemySkillDatabase:
                 shield_amount=80,
                 buff_stats={"defense": 1.6},
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "earth")
             ),
             "earthquake": EnemySkill(
                 skill_id="earthquake",
@@ -932,7 +999,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.5,  # earthquake 조정
                 use_probability=0.2,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "damage_high")
             ),
 
             # 바람의 정령 스킬
@@ -947,7 +1015,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("combat", "attack_physical")
             ),
             "gust": EnemySkill(
                 skill_id="gust",
@@ -960,7 +1029,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 debuff_stats={"accuracy": 0.7},
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "wind")
             ),
             "tornado": EnemySkill(
                 skill_id="tornado",
@@ -976,7 +1046,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.45,  # tornado 조정
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "wind")
             ),
 
             # 어둠의 정령 스킬
@@ -994,7 +1065,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.42,  # dark_orb 맞춤 강도
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("skill", "dark")
             ),
             "shadow_veil": EnemySkill(
                 skill_id="shadow_veil",
@@ -1004,7 +1076,8 @@ class EnemySkillDatabase:
                 mp_cost=20,
                 buff_stats={"speed": 1.7},  # 회피 증가
                 use_probability=0.3,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "dark")
             ),
             "dark_curse": EnemySkill(
                 skill_id="dark_curse",
@@ -1018,7 +1091,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.42,  # dark_curse 맞춤 강도
                 use_probability=0.35,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "dark")
             ),
 
             # === 야수/몬스터 타입 스킬 (18개) ===
@@ -1034,7 +1108,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # bear_roar 맞춤 강도
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "roar")
             ),
             "claw_barrage": EnemySkill(
                 skill_id="claw_barrage",
@@ -1048,7 +1123,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.4,  # claw_barrage 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "multi_hit")
             ),
             "overwhelming_force": EnemySkill(
                 skill_id="overwhelming_force",
@@ -1062,7 +1138,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.4,  # overwhelming_force 맞춤 강도
                 use_probability=0.3,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "attack_physical")
             ),
 
             # 거미 스킬
@@ -1075,7 +1152,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.35,  # web_trap 조정
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "trap")
             ),
             "venom_spray": EnemySkill(
                 skill_id="venom_spray",
@@ -1088,7 +1166,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.4,  # venom_spray 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "poison")
             ),
             "poisonous_fangs": EnemySkill(
                 skill_id="poisonous_fangs",
@@ -1102,7 +1181,8 @@ class EnemySkillDatabase:
                 status_duration=5,
                 status_intensity=0.3,  # poisonous_fangs 맞춤 강도
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("skill", "water")
             ),
 
             # 전갈 스킬
@@ -1118,7 +1198,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # scorpion_sting 맞춤 강도
                 use_probability=0.25,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "poison")
             ),
             "pincer_attack": EnemySkill(
                 skill_id="pincer_attack",
@@ -1129,7 +1210,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 debuff_stats={"defense": 0.6},
                 use_probability=0.35,
-                cooldown=2
+                cooldown=2,
+                sfx=("combat", "damage_high")
             ),
             "deadly_venom": EnemySkill(
                 skill_id="deadly_venom",
@@ -1141,7 +1223,8 @@ class EnemySkillDatabase:
                 status_effects=["poison", "curse"],
                 status_duration=6,  # 긴 지속시간
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "poison")
             ),
 
             # 바실리스크 스킬
@@ -1156,7 +1239,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.44,  # petrifying_gaze 맞춤 강도
                 use_probability=0.2,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "holy")
             ),
             "viper_fangs": EnemySkill(
                 skill_id="viper_fangs",
@@ -1170,7 +1254,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.4,  # viper_fangs 맞춤 강도
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("skill", "water")
             ),
             "paralyzing_stare": EnemySkill(
                 skill_id="paralyzing_stare",
@@ -1183,7 +1268,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # paralyzing_stare 맞춤 강도
                 use_probability=0.2,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "attack_physical")
             ),
 
             # 케르베로스 스킬
@@ -1196,7 +1282,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "attack_physical")
             ),
             "hellfire_breath": EnemySkill(
                 skill_id="hellfire_breath",
@@ -1212,7 +1299,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.36,  # hellfire_breath 맞춤 강도
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "fire3")
             ),
             "frenzied_howl": EnemySkill(
                 skill_id="frenzied_howl",
@@ -1221,7 +1309,8 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SELF,
                 buff_stats={"strength": 1.8, "speed": 1.5},
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("character", "status_buff")
             ),
 
             # 히드라 스킬
@@ -1234,7 +1323,8 @@ class EnemySkillDatabase:
                 use_probability=0.5,
                 min_hp_percent=0.0,
                 max_hp_percent=0.7,
-                cooldown=3
+                cooldown=3,
+                sfx=("character", "hp_heal")
             ),
             "multi_bite": EnemySkill(
                 skill_id="multi_bite",
@@ -1245,7 +1335,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "multi_hit")
             ),
             "toxic_breath": EnemySkill(
                 skill_id="toxic_breath",
@@ -1260,7 +1351,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.4,  # toxic_breath 맞춤 강도
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "poison")
             ),
 
             # === 드래곤 타입 스킬 (12개) ===
@@ -1280,7 +1372,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.36,  # fire_breath 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "fire")
             ),
             "inferno": EnemySkill(
                 skill_id="inferno",
@@ -1296,7 +1389,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.4,  # inferno 맞춤 강도
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "fire")
             ),
             "wing_attack": EnemySkill(
                 skill_id="wing_attack",
@@ -1307,7 +1401,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "damage_high")
             ),
 
             # 빙룡 스킬
@@ -1325,7 +1420,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # frost_breath 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "ice")
             ),
             "snowstorm": EnemySkill(
                 skill_id="snowstorm",
@@ -1340,7 +1436,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.4,  # snowstorm 맞춤 강도
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "attack_physical")
             ),
             "ice_wing": EnemySkill(
                 skill_id="ice_wing",
@@ -1353,7 +1450,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.35,
-                cooldown=2
+                cooldown=2,
+                sfx=("skill", "ice")
             ),
 
             # 독 드래곤 스킬
@@ -1371,7 +1469,8 @@ class EnemySkillDatabase:
                 status_duration=5,
                 status_intensity=0.25,  # poison_breath 조정
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "poison")
             ),
             "toxic_cloud": EnemySkill(
                 skill_id="toxic_cloud",
@@ -1387,7 +1486,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.4,  # toxic_cloud 맞춤 강도
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "poison")
             ),
             "decay_breath": EnemySkill(
                 skill_id="decay_breath",
@@ -1402,7 +1502,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.4,  # decay_breath 맞춤 강도
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("character", "status_debuff")
             ),
 
             # 고룡 스킬
@@ -1416,7 +1517,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.5,  # elder_dragon_roar 맞춤 강도
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "roar")
             ),
             "elemental_breath": EnemySkill(
                 skill_id="elemental_breath",
@@ -1432,7 +1534,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.45,  # elemental_breath 맞춤 강도
                 use_probability=0.2,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "fire_explosion")
             ),
             "dragon_dive": EnemySkill(
                 skill_id="dragon_dive",
@@ -1443,7 +1546,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "damage_high")
             ),
 
             # === 악마 타입 스킬 (12개) ===
@@ -1463,7 +1567,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.36,  # imp_fireball 맞춤 강도
                 use_probability=0.4,
-                cooldown=1
+                cooldown=1,
+                sfx=("skill", "fire")
             ),
             "blink": EnemySkill(
                 skill_id="blink",
@@ -1473,7 +1578,8 @@ class EnemySkillDatabase:
                 mp_cost=10,
                 buff_stats={"speed": 2.0},
                 use_probability=0.3,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "teleport")
             ),
             "mana_steal": EnemySkill(
                 skill_id="mana_steal",
@@ -1486,7 +1592,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 heal_amount=30,  # MP 회복
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "magic_cast")
             ),
 
             # 서큐버스 스킬
@@ -1501,7 +1608,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.38,  # charm 맞춤 강도
                 use_probability=0.4,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "confusion")
             ),
             "life_siphon": EnemySkill(
                 skill_id="life_siphon",
@@ -1515,7 +1623,8 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 heal_amount=50,
                 use_probability=0.45,
-                cooldown=2
+                cooldown=2,
+                sfx=("character", "hp_heal")
             ),
             "demon_kiss": EnemySkill(
                 skill_id="demon_kiss",
@@ -1531,7 +1640,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.5,  # demon_kiss 맞춤 강도
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("character", "status_debuff")
             ),
 
             # 발록 스킬
@@ -1549,7 +1659,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.36,  # balrog_flame 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "damage_high")
             ),
             "flame_whip": EnemySkill(
                 skill_id="flame_whip",
@@ -1565,7 +1676,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.36,  # flame_whip 맞춤 강도
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "fire")
             ),
             "infernal_explosion": EnemySkill(
                 skill_id="infernal_explosion",
@@ -1581,7 +1693,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.4,  # infernal_explosion 맞춤 강도
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "fire3")
             ),
 
             # 대악마 스킬
@@ -1599,7 +1712,8 @@ class EnemySkillDatabase:
                 status_duration=5,
                 status_intensity=0.42,  # hand_of_doom 맞춤 강도
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "attack_physical")
             ),
             "corruption": EnemySkill(
                 skill_id="corruption",
@@ -1613,7 +1727,8 @@ class EnemySkillDatabase:
                 status_duration=5,
                 status_intensity=0.4,  # corruption 맞춤 강도
                 use_probability=0.3,
-                cooldown=6
+                cooldown=6,
+                sfx=("combat", "attack_physical")
             ),
             "demon_lord_summon": EnemySkill(
                 skill_id="demon_lord_summon",
@@ -1626,7 +1741,8 @@ class EnemySkillDatabase:
                 use_probability=0.2,
                 min_hp_percent=0.0,
                 max_hp_percent=0.3,
-                cooldown=99  # 한 번만
+                cooldown=99,  # 한 번만
+                sfx=("skill", "summon")
             ),
 
             # === 기계/골렘 타입 스킬 (9개) ===
@@ -1644,7 +1760,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.4,  # steel_fist 맞춤 강도
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("combat", "attack_physical")
             ),
             "iron_wall": EnemySkill(
                 skill_id="iron_wall",
@@ -1653,7 +1770,8 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SELF,
                 buff_stats={"defense": 2.5, "spirit": 1.8},
                 use_probability=0.35,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "barrier")
             ),
             "quake_slam": EnemySkill(
                 skill_id="quake_slam",
@@ -1667,7 +1785,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # quake_slam 맞춤 강도
                 use_probability=0.3,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "damage_high")
             ),
 
             # 수정 골렘 스킬
@@ -1680,7 +1799,8 @@ class EnemySkillDatabase:
                 buff_stats={"spirit": 2.0},
                 counter_damage=True,  # 마법 반격
                 use_probability=0.4,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "magic_cast")
             ),
             "crystal_beam": EnemySkill(
                 skill_id="crystal_beam",
@@ -1693,7 +1813,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("skill", "holy")
             ),
             "prism_barrier": EnemySkill(
                 skill_id="prism_barrier",
@@ -1704,7 +1825,8 @@ class EnemySkillDatabase:
                 buff_stats={"spirit": 2.5, "defense": 1.5},
                 shield_amount=60,
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "magic_cast")
             ),
 
             # 고대 자동인형 스킬
@@ -1719,7 +1841,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("combat", "damage_high")
             ),
             "overload": EnemySkill(
                 skill_id="overload",
@@ -1732,7 +1855,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.25,
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "damage_high")
             ),
             "self_destruct_mode": EnemySkill(
                 skill_id="self_destruct_mode",
@@ -1746,7 +1870,8 @@ class EnemySkillDatabase:
                 use_probability=0.1,
                 min_hp_percent=0.0,
                 max_hp_percent=0.2,  # HP 20% 이하
-                cooldown=99
+                cooldown=99,
+                sfx=("combat", "attack_physical")
             ),
 
             # === 특수 타입 스킬 (3개) ===
@@ -1764,7 +1889,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.4,  # surprise_attack 맞춤 강도
                 use_probability=0.3,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "attack_physical")
             ),
             "treasure_lure": EnemySkill(
                 skill_id="treasure_lure",
@@ -1778,7 +1904,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # treasure_lure 맞춤 강도
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "water")
             ),
 
             # 나이트메어 스킬
@@ -1796,7 +1923,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.4,  # nightmare_vision 맞춤 강도
                 use_probability=0.4,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "confusion")
             ),
             "dream_eater": EnemySkill(
                 skill_id="dream_eater",
@@ -1810,7 +1938,8 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 heal_amount=60,  # HP + MP 회복
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "attack_physical")
             ),
             "sleep_eternal": EnemySkill(
                 skill_id="sleep_eternal",
@@ -1823,7 +1952,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.38,  # sleep_eternal 맞춤 강도
                 use_probability=0.15,
-                cooldown=6
+                cooldown=6,
+                sfx=("combat", "attack_physical")
             ),
 
             # === 세피로스 전용 스킬 (15층 보스) ===
@@ -1844,7 +1974,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.4,  # supernova 맞춤 강도
                 use_probability=0.2,
-                cooldown=7
+                cooldown=7,
+                sfx=("skill", "holy")
             ),
 
             # 페로 카오스
@@ -1858,7 +1989,8 @@ class EnemySkillDatabase:
                 is_magical=True,
                 mp_cost=40,
                 use_probability=0.15,
-                cooldown=6
+                cooldown=6,
+                sfx=("combat", "attack_physical")
             ),
 
             # 옥토 슬래시
@@ -1872,7 +2004,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,  # BRV+HP 공격
                 use_probability=0.25,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "multi_hit")
             ),
 
             # 섀도우 플레어
@@ -1891,7 +2024,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.42,  # shadow_flare 맞춤 강도
                 use_probability=0.2,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "fire")
             ),
 
             # 디스페어
@@ -1910,7 +2044,8 @@ class EnemySkillDatabase:
                 use_probability=0.2,
                 min_hp_percent=0.0,
                 max_hp_percent=0.3,  # HP 30% 이하일 때
-                cooldown=8
+                cooldown=8,
+                sfx=("character", "status_debuff")
             ),
 
             # ============================================================
@@ -1944,7 +2079,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.3,  # zombify 조정
                 use_probability=0.3,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "poison")
             ),
             "undead_resilience": EnemySkill(
                 skill_id="undead_resilience",
@@ -1956,7 +2092,8 @@ class EnemySkillDatabase:
                 use_probability=0.35,
                 min_hp_percent=0.0,
                 max_hp_percent=0.4,
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "attack_physical")
             ),
 
             # 구울 스킬
@@ -1980,7 +2117,8 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SELF,
                 buff_stats={"strength": 1.6, "speed": 1.4, "defense": 0.8},
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("character", "status_buff")
             ),
             "swift_assault": EnemySkill(
                 skill_id="swift_assault",
@@ -1991,7 +2129,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "multi_hit")
             ),
 
             # 밴시 스킬
@@ -2023,7 +2162,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.425,  # cursed_scream 조정
                 use_probability=0.2,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "confusion")
             ),
             "soul_steal": EnemySkill(
                 skill_id="soul_steal",
@@ -2037,7 +2177,8 @@ class EnemySkillDatabase:
                 heal_amount=40,
                 debuff_stats={"magic": 0.7, "spirit": 0.7},
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("character", "hp_heal")
             ),
 
             # 데스나이트 스킬
@@ -2053,7 +2194,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.42,  # dark_slash 조정
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("combat", "attack_physical")
             ),
             "death_sentence": EnemySkill(
                 skill_id="death_sentence",
@@ -2065,7 +2207,8 @@ class EnemySkillDatabase:
                 status_duration=5,
                 status_intensity=0.45,  # death_sentence 조정
                 use_probability=0.25,
-                cooldown=6
+                cooldown=6,
+                sfx=("combat", "attack_physical")
             ),
             "dark_aura": EnemySkill(
                 skill_id="dark_aura",
@@ -2074,7 +2217,8 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.ALL_ALLIES,
                 buff_stats={"strength": 1.3, "magic": 1.3},
                 use_probability=0.25,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "dark")
             ),
 
             # 미라 스킬
@@ -2090,7 +2234,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.425,  # ancient_curse 조정
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("character", "status_debuff")
             ),
             "bandage_wrap": EnemySkill(
                 skill_id="bandage_wrap",
@@ -2101,7 +2246,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.35,  # bandage_wrap 조정
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "attack_physical")
             ),
 
             # ============================================================
@@ -2134,7 +2280,8 @@ class EnemySkillDatabase:
                 shield_amount=40,
                 counter_damage=True,
                 use_probability=0.3,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "fire")
             ),
             "lava_eruption": EnemySkill(
                 skill_id="lava_eruption",
@@ -2149,7 +2296,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.45,  # lava_eruption 조정
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "attack_physical")
             ),
 
             # 빙결 정령 스킬
@@ -2181,7 +2329,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # ice_prison 맞춤 강도
                 use_probability=0.2,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "ice")
             ),
             "blizzard": EnemySkill(
                 skill_id="blizzard",
@@ -2195,7 +2344,8 @@ class EnemySkillDatabase:
                 status_duration=2,  # 3턴에서 2턴으로 감소
                 status_intensity=0.45,  # blizzard 조정
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "attack_physical")
             ),
 
             # 번개 정령 스킬
@@ -2226,7 +2376,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.4,  # static_field 조정
                 use_probability=0.3,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "bolt")
             ),
             "thunderbolt": EnemySkill(
                 skill_id="thunderbolt",
@@ -2241,7 +2392,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.38,  # thunderbolt 맞춤 강도
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "damage_high")
             ),
 
             # 대지 정령 스킬
@@ -2257,7 +2409,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.4,  # rock_throw 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "attack_physical")
             ),
             "earth_barrier": EnemySkill(
                 skill_id="earth_barrier",
@@ -2267,7 +2420,8 @@ class EnemySkillDatabase:
                 buff_stats={"defense": 1.8},
                 shield_amount=60,
                 use_probability=0.35,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "earth")
             ),
             "earthquake": EnemySkill(
                 skill_id="earthquake",
@@ -2281,7 +2435,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.5,  # earthquake 조정
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "earth")
             ),
 
             # 바람 정령 스킬
@@ -2297,7 +2452,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # vacuum_wave 맞춤 강도
                 use_probability=0.2,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "attack_physical")
             ),
             "gust": EnemySkill(
                 skill_id="gust",
@@ -2309,7 +2465,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 debuff_stats={"accuracy": 0.7},
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("combat", "attack_physical")
             ),
             "tornado": EnemySkill(
                 skill_id="tornado",
@@ -2324,7 +2481,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.45,  # tornado 조정
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "damage_high")
             ),
 
             # 암흑 정령 스킬
@@ -2341,7 +2499,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.42,  # dark_orb 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "dark")
             ),
             "shadow_veil": EnemySkill(
                 skill_id="shadow_veil",
@@ -2350,7 +2509,8 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SELF,
                 buff_stats={"evasion": 1.5, "speed": 1.3},
                 use_probability=0.3,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "dark")
             ),
             "dark_curse": EnemySkill(
                 skill_id="dark_curse",
@@ -2363,7 +2523,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.42,  # dark_curse 맞춤 강도
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "damage_high")
             ),
 
             # ============================================================
@@ -2396,7 +2557,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.4,  # claw_barrage 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "multi_hit")
             ),
             "overwhelming_force": EnemySkill(
                 skill_id="overwhelming_force",
@@ -2410,7 +2572,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.4,  # overwhelming_force 맞춤 강도
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "attack_physical")
             ),
 
             # 거미 스킬
@@ -2423,7 +2586,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.35,  # web_trap 조정
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "trap")
             ),
             "venom_spray": EnemySkill(
                 skill_id="venom_spray",
@@ -2452,7 +2616,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.3,  # poisonous_fangs 맞춤 강도
                 use_probability=0.4,
-                cooldown=2
+                cooldown=2,
+                sfx=("skill", "water")
             ),
 
             # 전갈 스킬
@@ -2468,7 +2633,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # scorpion_sting 맞춤 강도
                 use_probability=0.25,
-                cooldown=2
+                cooldown=2,
+                sfx=("skill", "poison")
             ),
             "pincer_attack": EnemySkill(
                 skill_id="pincer_attack",
@@ -2482,7 +2648,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.4,  # pincer_attack 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "damage_high")
             ),
             "deadly_venom": EnemySkill(
                 skill_id="deadly_venom",
@@ -2493,7 +2660,8 @@ class EnemySkillDatabase:
                 status_duration=5,
                 status_intensity=0.4,  # deadly_venom 맞춤 강도
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "damage_high")
             ),
 
             # 바실리스크 스킬
@@ -2507,7 +2675,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.44,  # petrifying_gaze 맞춤 강도
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "holy")
             ),
             "viper_fangs": EnemySkill(
                 skill_id="viper_fangs",
@@ -2521,7 +2690,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.4,  # viper_fangs 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "water")
             ),
             "paralyzing_stare": EnemySkill(
                 skill_id="paralyzing_stare",
@@ -2533,7 +2703,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # paralyzing_stare 맞춤 강도
                 use_probability=0.2,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "attack_physical")
             ),
 
             # 케르베로스 스킬
@@ -2549,7 +2720,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.4,  # triple_bite 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "attack_physical")
             ),
             "hellfire_breath": EnemySkill(
                 skill_id="hellfire_breath",
@@ -2564,7 +2736,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.36,  # hellfire_breath 맞춤 강도
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "fire3")
             ),
             "frenzied_howl": EnemySkill(
                 skill_id="frenzied_howl",
@@ -2577,7 +2750,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 debuff_stats={"defense": 0.7},
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("character", "status_buff")
             ),
 
             # 히드라 스킬
@@ -2591,7 +2765,8 @@ class EnemySkillDatabase:
                 use_probability=0.4,
                 min_hp_percent=0.0,
                 max_hp_percent=0.5,
-                cooldown=4
+                cooldown=4,
+                sfx=("character", "hp_heal")
             ),
             "multi_bite": EnemySkill(
                 skill_id="multi_bite",
@@ -2602,7 +2777,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "multi_hit")
             ),
             "toxic_breath": EnemySkill(
                 skill_id="toxic_breath",
@@ -2616,7 +2792,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.4,  # toxic_breath 맞춤 강도
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "poison")
             ),
 
             # ============================================================
@@ -2653,7 +2830,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.4,  # inferno 맞춤 강도
                 use_probability=0.25,
-                cooldown=6
+                cooldown=6,
+                sfx=("skill", "fire3")
             ),
             "wing_attack": EnemySkill(
                 skill_id="wing_attack",
@@ -2667,7 +2845,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.4,  # wing_attack 맞춤 강도
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "attack_physical")
             ),
 
             # 빙룡 스킬
@@ -2684,7 +2863,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # frost_breath 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "ice")
             ),
             "snowstorm": EnemySkill(
                 skill_id="snowstorm",
@@ -2698,7 +2878,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 debuff_stats={"speed": 0.6, "accuracy": 0.7},
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("combat", "damage_high")
             ),
             "ice_wing": EnemySkill(
                 skill_id="ice_wing",
@@ -2712,7 +2893,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.4,  # ice_wing 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "ice")
             ),
 
             # 독룡 스킬
@@ -2729,7 +2911,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.5,  # poison_breath_dragon 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "poison")
             ),
             "toxic_cloud": EnemySkill(
                 skill_id="toxic_cloud",
@@ -2743,7 +2926,8 @@ class EnemySkillDatabase:
                 status_duration=5,
                 debuff_stats={"defense": 0.8, "spirit": 0.8},
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "poison")
             ),
             "decay_breath": EnemySkill(
                 skill_id="decay_breath",
@@ -2758,7 +2942,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.4,  # decay_breath 맞춤 강도
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "fire_explosion")
             ),
 
             # 엘더 드래곤 스킬
@@ -2773,7 +2958,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 debuff_stats={"strength": 0.7, "magic": 0.7, "defense": 0.7},
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "roar")
             ),
             "elemental_breath": EnemySkill(
                 skill_id="elemental_breath",
@@ -2788,7 +2974,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.45,  # elemental_breath 맞춤 강도
                 use_probability=0.2,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "fire_explosion")
             ),
             "dragon_dive": EnemySkill(
                 skill_id="dragon_dive",
@@ -2802,7 +2989,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.5,  # dragon_dive 맞춤 강도
                 use_probability=0.2,
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "attack_sword")
             ),
 
             # ============================================================
@@ -2823,7 +3011,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.36,  # imp_fireball 맞춤 강도
                 use_probability=0.45,
-                cooldown=2
+                cooldown=2,
+                sfx=("skill", "fire")
             ),
             "blink": EnemySkill(
                 skill_id="blink",
@@ -2832,7 +3021,8 @@ class EnemySkillDatabase:
                 target_type=SkillTargetType.SELF,
                 buff_stats={"evasion": 1.6, "speed": 1.3},
                 use_probability=0.35,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "teleport")
             ),
             "mana_steal": EnemySkill(
                 skill_id="mana_steal",
@@ -2846,7 +3036,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.4,  # mana_steal 맞춤 강도
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("character", "hp_heal")
             ),
 
             # 서큐버스 스킬
@@ -2860,7 +3051,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.38,  # charm 맞춤 강도
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "attack_physical")
             ),
             "life_siphon": EnemySkill(
                 skill_id="life_siphon",
@@ -2873,7 +3065,8 @@ class EnemySkillDatabase:
                 hp_attack=True,
                 heal_amount=50,
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("character", "hp_heal")
             ),
             "demon_kiss": EnemySkill(
                 skill_id="demon_kiss",
@@ -2888,7 +3081,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 debuff_stats={"strength": 0.7, "magic": 0.7},
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("character", "status_debuff")
             ),
 
             # 발로그 스킬
@@ -2905,7 +3099,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.36,  # balrog_flame 맞춤 강도
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "fire3")
             ),
             "flame_whip": EnemySkill(
                 skill_id="flame_whip",
@@ -2919,7 +3114,8 @@ class EnemySkillDatabase:
                 status_duration=3,
                 status_intensity=0.36,  # flame_whip 맞춤 강도
                 use_probability=0.4,
-                cooldown=3
+                cooldown=3,
+                sfx=("skill", "fire")
             ),
             "infernal_explosion": EnemySkill(
                 skill_id="infernal_explosion",
@@ -2934,7 +3130,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # infernal_explosion 맞춤 강도
                 use_probability=0.15,
-                cooldown=6
+                cooldown=6,
+                sfx=("skill", "fire3")
             ),
 
             # 아크피인드 스킬
@@ -2951,7 +3148,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 status_intensity=0.42,  # hand_of_doom 맞춤 강도
                 use_probability=0.3,
-                cooldown=6
+                cooldown=6,
+                sfx=("combat", "attack_physical")
             ),
             "corruption": EnemySkill(
                 skill_id="corruption",
@@ -2965,7 +3163,8 @@ class EnemySkillDatabase:
                 status_duration=4,
                 debuff_stats={"strength": 0.6, "magic": 0.6, "defense": 0.6, "spirit": 0.6},
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "attack_physical")
             ),
             "demon_lord_summon": EnemySkill(
                 skill_id="demon_lord_summon",
@@ -2977,7 +3176,8 @@ class EnemySkillDatabase:
                 use_probability=0.2,
                 min_hp_percent=0.0,
                 max_hp_percent=0.3,
-                cooldown=8
+                cooldown=8,
+                sfx=("skill", "summon")
             ),
 
             # ============================================================
@@ -2997,7 +3197,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.4,  # steel_fist 맞춤 강도
                 use_probability=0.25,
-                cooldown=3
+                cooldown=3,
+                sfx=("combat", "damage_high")
             ),
             "iron_wall": EnemySkill(
                 skill_id="iron_wall",
@@ -3007,7 +3208,8 @@ class EnemySkillDatabase:
                 buff_stats={"defense": 2.0},
                 shield_amount=80,
                 use_probability=0.35,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "barrier")
             ),
             "quake_slam": EnemySkill(
                 skill_id="quake_slam",
@@ -3021,7 +3223,8 @@ class EnemySkillDatabase:
                 status_duration=1,
                 status_intensity=0.4,  # quake_slam 맞춤 강도
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("combat", "damage_high")
             ),
 
             # 크리스탈 골렘 스킬
@@ -3034,7 +3237,8 @@ class EnemySkillDatabase:
                 shield_amount=60,
                 counter_damage=True,
                 use_probability=0.35,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "magic_cast")
             ),
             "crystal_beam": EnemySkill(
                 skill_id="crystal_beam",
@@ -3046,7 +3250,8 @@ class EnemySkillDatabase:
                 brv_damage=1,
                 hp_attack=True,
                 use_probability=0.45,
-                cooldown=2
+                cooldown=2,
+                sfx=("skill", "holy")
             ),
             "prism_barrier": EnemySkill(
                 skill_id="prism_barrier",
@@ -3056,7 +3261,8 @@ class EnemySkillDatabase:
                 buff_stats={"defense": 1.4, "spirit": 1.4},
                 shield_amount=40,
                 use_probability=0.3,
-                cooldown=5
+                cooldown=5,
+                sfx=("skill", "holy")
             ),
 
             # 고대 자동 인형 스킬
@@ -3073,7 +3279,8 @@ class EnemySkillDatabase:
                 status_duration=2,
                 status_intensity=0.4,  # laser_beam 맞춤 강도
                 use_probability=0.4,
-                cooldown=4
+                cooldown=4,
+                sfx=("skill", "laser")
             ),
             "overload": EnemySkill(
                 skill_id="overload",
@@ -3085,7 +3292,8 @@ class EnemySkillDatabase:
                 use_probability=0.25,
                 min_hp_percent=0.0,
                 max_hp_percent=0.5,
-                cooldown=6
+                cooldown=6,
+                sfx=("combat", "attack_physical")
             ),
             "self_destruct_mode": EnemySkill(
                 skill_id="self_destruct_mode",
@@ -3102,7 +3310,237 @@ class EnemySkillDatabase:
                 use_probability=0.15,
                 min_hp_percent=0.0,
                 max_hp_percent=0.2,  # HP 20% 이하에서만 사용
-                cooldown=99  # 한 번만 사용
+                cooldown=99,  # 한 번만 사용
+                sfx=("combat", "attack_physical")
+            ),
+
+            # === 신규 회복/지원 스킬 ===
+
+            # 기본 회복 스킬들
+            "minor_heal": EnemySkill(
+                skill_id="minor_heal",
+                name="소량 회복",
+                description="약간의 HP를 회복한다.",
+                target_type=SkillTargetType.SELF,
+                heal_amount=40,
+                use_probability=0.35,
+                min_hp_percent=0.0,
+                max_hp_percent=0.6,
+                cooldown=3,
+                sfx=("character", "hp_heal")
+            ),
+
+            "moderate_heal": EnemySkill(
+                skill_id="moderate_heal",
+                name="중간 회복",
+                description="상당한 양의 HP를 회복한다.",
+                target_type=SkillTargetType.SELF,
+                heal_amount=80,
+                use_probability=0.4,
+                min_hp_percent=0.0,
+                max_hp_percent=0.5,
+                cooldown=4,
+                sfx=("character", "hp_heal")
+            ),
+
+            "major_heal": EnemySkill(
+                skill_id="major_heal",
+                name="대량 회복",
+                description="많은 양의 HP를 회복한다.",
+                target_type=SkillTargetType.SELF,
+                heal_amount=120,
+                use_probability=0.45,
+                min_hp_percent=0.0,
+                max_hp_percent=0.4,
+                cooldown=5,
+                sfx=("character", "hp_heal")
+            ),
+
+            "full_recovery": EnemySkill(
+                skill_id="full_recovery",
+                name="완전 회복",
+                description="모든 HP를 회복한다.",
+                target_type=SkillTargetType.SELF,
+                mp_cost=30,
+                heal_amount=999,  # 전체 회복
+                use_probability=0.3,
+                min_hp_percent=0.0,
+                max_hp_percent=0.3,
+                cooldown=8,
+                sfx=("character", "hp_heal")
+            ),
+
+            # 상태 이상 치료 스킬
+            "antidote": EnemySkill(
+                skill_id="antidote",
+                name="해독",
+                description="중독 상태를 치료한다.",
+                target_type=SkillTargetType.SELF,
+                heal_amount=20,  # 약간의 회복도 함께
+                use_probability=0.25,
+                cooldown=2,
+                sfx=("character", "hp_heal")
+            ),
+
+            "cleanse": EnemySkill(
+                skill_id="cleanse",
+                name="정화",
+                description="모든 상태 이상을 제거한다.",
+                target_type=SkillTargetType.SELF,
+                mp_cost=15,
+                heal_amount=30,
+                use_probability=0.3,
+                cooldown=3,
+                sfx=("character", "hp_heal")
+            ),
+
+            # 강화/버프 스킬
+            "strengthen": EnemySkill(
+                skill_id="strengthen",
+                name="강화",
+                description="공격력을 대폭 상승시킨다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"strength": 1.5},
+                use_probability=0.25,
+                cooldown=4,
+                sfx=("character", "buff")
+            ),
+
+            "magic_boost": EnemySkill(
+                skill_id="magic_boost",
+                name="마법 강화",
+                description="마법력을 대폭 상승시킨다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"magic": 1.5},
+                use_probability=0.25,
+                cooldown=4,
+                sfx=("character", "buff")
+            ),
+
+            "defense_stance": EnemySkill(
+                skill_id="defense_stance",
+                name="방어 태세",
+                description="방어력을 크게 상승시킨다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"defense": 1.8},
+                use_probability=0.3,
+                min_hp_percent=0.0,
+                max_hp_percent=0.7,
+                cooldown=4,
+                sfx=("character", "buff")
+            ),
+
+            "haste": EnemySkill(
+                skill_id="haste",
+                name="가속",
+                description="행동 속도를 상승시킨다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"speed": 1.5},
+                use_probability=0.2,
+                cooldown=5,
+                sfx=("character", "buff")
+            ),
+
+            "shield_spell": EnemySkill(
+                skill_id="shield_spell",
+                name="보호 마법",
+                description="마법 방어력을 상승시킨다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"spirit": 1.6},
+                use_probability=0.25,
+                cooldown=4,
+                sfx=("character", "buff")
+            ),
+
+            # MP 회복 스킬
+            "mana_recover": EnemySkill(
+                skill_id="mana_recover",
+                name="마나 회복",
+                description="마나를 회복한다.",
+                target_type=SkillTargetType.SELF,
+                heal_amount=60,  # 특수 처리로 MP 회복
+                use_probability=0.35,
+                cooldown=3,
+                sfx=("character", "hp_heal")
+            ),
+
+            "mana_surge": EnemySkill(
+                skill_id="mana_surge",
+                name="마나 폭주",
+                description="많은 마나를 회복한다.",
+                target_type=SkillTargetType.SELF,
+                heal_amount=100,  # 특수 처리로 MP 회복
+                use_probability=0.3,
+                cooldown=4,
+                sfx=("character", "hp_heal")
+            ),
+
+            # 복합 회복 스킬
+            "full_restoration": EnemySkill(
+                skill_id="full_restoration",
+                name="완전 회복",
+                description="HP와 MP를 모두 완전히 회복한다.",
+                target_type=SkillTargetType.SELF,
+                mp_cost=50,
+                heal_amount=200,  # HP + MP 동시 회복 (특수 처리)
+                use_probability=0.2,
+                min_hp_percent=0.0,
+                max_hp_percent=0.25,
+                cooldown=10,
+                sfx=("character", "hp_heal")
+            ),
+
+            "renewal": EnemySkill(
+                skill_id="renewal",
+                name="갱신",
+                description="상태 이상을 제거하고 HP/MP를 회복한다.",
+                target_type=SkillTargetType.SELF,
+                mp_cost=25,
+                heal_amount=70,
+                use_probability=0.25,
+                cooldown=5,
+                sfx=("character", "hp_heal")
+            ),
+
+            # 응급 치료 스킬
+            "emergency_heal": EnemySkill(
+                skill_id="emergency_heal",
+                name="응급 치료",
+                description="위험 상황에서 HP를 급격하게 회복한다.",
+                target_type=SkillTargetType.SELF,
+                heal_amount=150,
+                use_probability=0.5,
+                min_hp_percent=0.0,
+                max_hp_percent=0.2,  # HP 20% 이하일 때만
+                cooldown=6,
+                sfx=("character", "hp_heal")
+            ),
+
+            "desperate_recovery": EnemySkill(
+                skill_id="desperate_recovery",
+                name="절망적 회복",
+                description="자신의 생명력을 소모하여 대량의 HP를 회복한다.",
+                target_type=SkillTargetType.SELF,
+                hp_cost=40,
+                heal_amount=180,
+                use_probability=0.25,
+                min_hp_percent=0.0,
+                max_hp_percent=0.15,  # HP 15% 이하일 때만
+                cooldown=7,
+                sfx=("character", "hp_heal")
+            ),
+
+            # 상태 관리 스킬
+            "recover_all": EnemySkill(
+                skill_id="recover_all",
+                name="완전 회복",
+                description="모든 상태를 초기화하고 HP를 회복한다.",
+                target_type=SkillTargetType.SELF,
+                mp_cost=40,
+                heal_amount=100,
+                use_probability=0.2,
+                cooldown=6,
+                sfx=("character", "hp_heal")
             ),
         }
 
@@ -3139,7 +3577,8 @@ class EnemySkillDatabase:
                 current_cooldown=0,
                 min_hp_percent=skill_template.min_hp_percent,
                 max_hp_percent=skill_template.max_hp_percent,
-                requires_ally_count=skill_template.requires_ally_count
+                requires_ally_count=skill_template.requires_ally_count,
+                sfx=("combat", "attack_physical")
             )
         return None
 
@@ -3159,88 +3598,91 @@ class EnemySkillDatabase:
         # 적 타입별 스킬 매핑 (모든 적에게 스킬 추가)
         skill_mapping = {
             # === 기존 적 ===
-            # 약한 적
-            "slime": ["acid_spray", "slime_split"],
-            "goblin": ["poison_stab", "goblin_flee"],
-            "wolf": ["savage_bite", "pack_tactics"],
+            # 약한 적 (회복 스킬 추가)
+            "slime": ["acid_spray", "slime_split", "minor_heal"],
+            "goblin": ["poison_stab", "goblin_flee", "minor_heal"],
+            "wolf": ["savage_bite", "pack_tactics", "minor_heal"],
 
-            # 일반 적
-            "orc": ["heavy_strike", "war_cry"],
-            "skeleton": ["life_drain"],
-            "dark_mage": ["fireball", "shadow_flare", "ice_storm"],
+            # 일반 적 (회복 + 강화 스킬 추가)
+            "orc": ["heavy_strike", "war_cry", "moderate_heal", "strengthen"],
+            "skeleton": ["life_drain", "moderate_heal", "defense_stance"],
+            "dark_mage": ["fireball", "shadow_flare", "ice_storm", "moderate_heal", "magic_boost"],
 
-            # 강한 적
-            "ogre": ["crush", "rage", "heavy_strike"],
-            "wraith": ["wail_of_terror", "soul_drain", "life_drain"],
-            "golem": ["earth_shock", "petrify"],
+            # 강한 적 (상급 회복 + 강화 스킬)
+            "ogre": ["crush", "rage", "heavy_strike", "major_heal", "strengthen"],
+            "wraith": ["wail_of_terror", "soul_drain", "life_drain", "major_heal", "shield_spell"],
+            "golem": ["earth_shock", "petrify", "major_heal", "defense_stance"],
 
-            # 매우 강한 적
-            "troll": ["heavy_strike", "regeneration", "crush"],
-            "vampire": ["vampire_bite", "bat_form", "life_drain"],
-            "wyvern": ["dive_attack", "poison_breath"],
+            # 매우 강한 적 (상급 회복 + 다양한 강화)
+            "troll": ["heavy_strike", "regeneration", "crush", "major_heal", "strengthen", "defense_stance"],
+            "vampire": ["vampire_bite", "bat_form", "life_drain", "major_heal", "haste"],
+            "wyvern": ["dive_attack", "poison_breath", "major_heal", "strengthen", "shield_spell"],
 
-            # 최상급 적
-            "demon": ["hellfire", "demon_pact", "shadow_flare"],
-            "dragon": ["dragon_breath", "dragon_intimidation", "dragon_flight"],
+            # 최상급 적 (최상급 회복 + 버프)
+            "demon": ["hellfire", "demon_pact", "shadow_flare", "major_heal", "magic_boost", "strengthen"],
+            "dragon": ["dragon_breath", "dragon_intimidation", "dragon_flight", "major_heal", "strengthen", "haste"],
 
-            # 보스
-            "boss_chimera": ["dragon_breath", "heavy_strike", "regeneration"],
-            "boss_lich": ["shadow_flare", "ice_storm", "life_drain", "wail_of_terror"],
-            "boss_dragon_king": ["dragon_breath", "dragon_intimidation", "dragon_flight", "hellfire"],
+            # 보스 (완전 회복 + 모든 버프)
+            "boss_chimera": ["dragon_breath", "heavy_strike", "regeneration", "full_recovery", "strengthen", "defense_stance"],
+            "boss_lich": ["shadow_flare", "ice_storm", "life_drain", "wail_of_terror", "full_recovery", "magic_boost"],
+            "boss_dragon_king": ["dragon_breath", "dragon_intimidation", "dragon_flight", "hellfire", "full_recovery", "strengthen"],
 
-            # 최종 보스
+            # 최종 보스 (최상급 회복 + 완전 강화)
             "sephiroth": [
                 "supernova",
                 "heartless_angel",
                 "octaslash",
                 "shadow_flare",
-                "despair"
+                "despair",
+                "full_restoration",
+                "strengthen",
+                "magic_boost"
             ],
 
             # === 새로운 적 ===
-            # 언데드 타입
-            "zombie": ["infected_strike", "zombify", "undead_resilience"],
-            "ghoul": ["corpse_eater", "frenzy", "swift_assault"],
-            "banshee": ["wail", "cursed_scream", "soul_steal"],
-            "death_knight": ["dark_slash", "death_sentence", "dark_aura"],
-            "mummy": ["ancient_curse", "bandage_wrap", "resurrection"],
+            # 언데드 타입 (회복/갱신 스킬)
+            "zombie": ["infected_strike", "zombify", "undead_resilience", "moderate_heal", "cleanse"],
+            "ghoul": ["corpse_eater", "frenzy", "swift_assault", "moderate_heal", "defense_stance"],
+            "banshee": ["wail", "cursed_scream", "soul_steal", "major_heal", "shield_spell"],
+            "death_knight": ["dark_slash", "death_sentence", "dark_aura", "major_heal", "strengthen"],
+            "mummy": ["ancient_curse", "bandage_wrap", "resurrection", "major_heal", "renewal"],
 
-            # 엘리멘탈 타입
-            "fire_elemental": ["flame_burst", "fire_shield", "lava_eruption"],
-            "ice_elemental": ["absolute_zero", "ice_prison", "blizzard"],
-            "thunder_elemental": ["chain_lightning", "static_field", "thunderbolt"],
-            "earth_elemental": ["rock_throw", "earth_barrier", "earthquake"],
-            "wind_elemental": ["vacuum_wave", "gust", "tornado"],
-            "dark_elemental": ["dark_orb", "shadow_veil", "dark_curse"],
+            # 엘리멘탈 타입 (원소 특성 + 회복)
+            "fire_elemental": ["flame_burst", "fire_shield", "lava_eruption", "moderate_heal", "defense_stance"],
+            "ice_elemental": ["absolute_zero", "ice_prison", "blizzard", "moderate_heal", "shield_spell"],
+            "thunder_elemental": ["chain_lightning", "static_field", "thunderbolt", "moderate_heal", "haste"],
+            "earth_elemental": ["rock_throw", "earth_barrier", "earthquake", "moderate_heal", "defense_stance"],
+            "wind_elemental": ["vacuum_wave", "gust", "tornado", "moderate_heal", "haste"],
+            "dark_elemental": ["dark_orb", "shadow_veil", "dark_curse", "moderate_heal", "magic_boost"],
 
-            # 야수/몬스터 타입
-            "bear": ["bear_roar", "claw_barrage", "overwhelming_force"],
-            "spider": ["web_trap", "venom_spray", "poisonous_fangs"],
-            "scorpion": ["scorpion_sting", "pincer_attack", "deadly_venom"],
-            "basilisk": ["petrifying_gaze", "viper_fangs", "paralyzing_stare"],
-            "cerberus": ["triple_bite", "hellfire_breath", "frenzied_howl"],
-            "hydra": ["head_regeneration", "multi_bite", "toxic_breath"],
+            # 야수/몬스터 타입 (회복 강화)
+            "bear": ["bear_roar", "claw_barrage", "overwhelming_force", "major_heal", "strengthen"],
+            "spider": ["web_trap", "venom_spray", "poisonous_fangs", "moderate_heal", "haste"],
+            "scorpion": ["scorpion_sting", "pincer_attack", "deadly_venom", "moderate_heal", "strengthen"],
+            "basilisk": ["petrifying_gaze", "viper_fangs", "paralyzing_stare", "moderate_heal", "defense_stance"],
+            "cerberus": ["triple_bite", "hellfire_breath", "frenzied_howl", "major_heal", "strengthen"],
+            "hydra": ["head_regeneration", "multi_bite", "toxic_breath", "major_heal", "regeneration"],
 
-            # 드래곤 타입
-            "fire_dragon": ["fire_breath", "inferno", "wing_attack"],
-            "ice_dragon": ["frost_breath", "snowstorm", "ice_wing"],
-            "poison_dragon": ["poison_breath_dragon", "toxic_cloud", "decay_breath"],
-            "elder_dragon": ["elder_dragon_roar", "elemental_breath", "dragon_dive"],
+            # 드래곤 타입 (고급 회복)
+            "fire_dragon": ["fire_breath", "inferno", "wing_attack", "major_heal", "strengthen", "haste"],
+            "ice_dragon": ["frost_breath", "snowstorm", "ice_wing", "major_heal", "defense_stance"],
+            "poison_dragon": ["poison_breath_dragon", "toxic_cloud", "decay_breath", "major_heal", "magic_boost"],
+            "elder_dragon": ["elder_dragon_roar", "elemental_breath", "dragon_dive", "full_recovery", "strengthen"],
 
-            # 악마 타입
-            "imp": ["imp_fireball", "blink", "mana_steal"],
-            "succubus": ["charm", "life_siphon", "demon_kiss"],
-            "balrog": ["balrog_flame", "flame_whip", "infernal_explosion"],
-            "archfiend": ["hand_of_doom", "corruption", "demon_lord_summon"],
+            # 악마 타입 (고급 회복 + 강화)
+            "imp": ["imp_fireball", "blink", "mana_steal", "moderate_heal", "magic_boost"],
+            "succubus": ["charm", "life_siphon", "demon_kiss", "major_heal", "strengthen"],
+            "balrog": ["balrog_flame", "flame_whip", "infernal_explosion", "major_heal", "strengthen"],
+            "archfiend": ["hand_of_doom", "corruption", "demon_lord_summon", "full_recovery", "magic_boost"],
 
-            # 기계/골렘 타입
-            "iron_golem": ["steel_fist", "iron_wall", "quake_slam"],
-            "crystal_golem": ["magic_reflect", "crystal_beam", "prism_barrier"],
-            "ancient_automaton": ["laser_beam", "overload", "self_destruct_mode"],
+            # 기계/골렘 타입 (MP/상태 관리)
+            "iron_golem": ["steel_fist", "iron_wall", "quake_slam", "mana_recover", "defense_stance"],
+            "crystal_golem": ["magic_reflect", "crystal_beam", "prism_barrier", "mana_surge", "magic_boost"],
+            "ancient_automaton": ["laser_beam", "overload", "self_destruct_mode", "full_restoration", "strengthen"],
 
-            # 특수 타입
-            "mimic": ["surprise_attack", "treasure_lure"],
-            "nightmare": ["nightmare_vision", "dream_eater", "sleep_eternal"],
+            # 특수 타입 (변칙적 회복)
+            "mimic": ["surprise_attack", "treasure_lure", "moderate_heal", "defense_stance"],
+            "nightmare": ["nightmare_vision", "dream_eater", "sleep_eternal", "major_heal", "emergency_heal"],
         }
 
         skill_ids = skill_mapping.get(enemy_type.lower(), [])

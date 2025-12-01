@@ -785,8 +785,9 @@ class GamepadHandler:
         self.deadzone = 0.3
 
         # 이동 쿨타임 (키보드처럼 작동)
-        self.move_cooldown = 0.3  # 첫 번째 입력 후 대기 시간
-        self.repeat_cooldown = 0.05  # 연속 입력 간격
+        # 플레이어: 0.2초, 적: 0.3초로 설정 (플레이어가 1.5배 빠름)
+        self.move_cooldown = 0.2  # 첫 번째 입력 후 대기 시간
+        self.repeat_cooldown = 0.2  # 연속 입력 간격 (0.05에서 변경)
         self.last_move_time = 0
         self.first_move_time = 0
         self.is_first_move = True

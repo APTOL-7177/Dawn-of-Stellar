@@ -69,6 +69,33 @@ class Enemy:
     max_chase_distance: int = 15  # 최대 추적 거리 (이 거리 이상 벌어지면 포기)
     detection_range: int = 5  # 플레이어 감지 거리
 
+    # 고급 AI 시스템
+    reinforcement_called: bool = False  # 증원을 불렀는지
+    last_reinforcement_turn: int = 0  # 마지막 증원 호출 턴
+    reinforcement_cooldown: int = 10  # 증원 쿨다운 (턴)
+
+    encirclement_role: str = "none"  # "leader" 또는 "flanker" 또는 "none"
+    is_minion: bool = False  # 보스의 수하 여부
+    leader_id: Optional[str] = None  # 보스 ID (수하일 경우)
+
+    morale: float = 100.0  # 사기 (0-100, 낮을수록 포기할 확률 높음)
+    last_hp_ratio: float = 1.0  # 이전 HP 비율 (증원 판단용)
+
+    # 신호 시스템
+    signal_sent: bool = False  # 신호를 보냈는지
+    signal_position_x: Optional[int] = None  # 신호를 보낸 위치 X
+    signal_position_y: Optional[int] = None  # 신호를 보낸 위치 Y
+    signal_range: int = 20  # 신호 감지 범위 (20칸)
+    signal_cooldown: int = 15  # 신호 쿨다운
+    last_signal_turn: int = 0  # 마지막 신호 턴
+
+    # 시간 기반 이동 시스템
+    last_move_time: float = 0.0  # 마지막 이동 시간 (초)
+    move_interval: float = 0.3  # 이동 간격 (0.3초 = 초당 ~3.3회) - 플레이어(0.2초)보다 느림
+
+    # 도망 후 정지 시스템
+    stunned_until: float = 0.0  # 정지 종료 시간 (초, 0이면 정지 안 함)
+
     def __post_init__(self):
         if self.spawn_x is None:
             self.spawn_x = self.x
@@ -198,6 +225,9 @@ class ExplorationSystem:
         # 환경 효과 메시지 표시 추적 (스팸 방지용)
         self.last_effect_tile = None  # 마지막으로 효과 메시지를 표시한 타일 위치
         self.last_effect_types = set()  # 마지막으로 표시한 효과 타입들
+
+        # 시간 기반 이동 시스템: 충돌 추적 (적과 플레이어가 같은 위치에서 만날 때)
+        self.collision_enemy = None  # 플레이어와 충돌한 적
 
         logger.info(f"탐험 시작: 층 {self.floor_number}, 위치 ({self.player.x}, {self.player.y})")
 
@@ -448,15 +478,9 @@ class ExplorationSystem:
                     # 시간 업데이트
                     self.last_environment_effect_time = current_time
 
-        # 플레이어가 움직인 후 모든 적 움직임 (싱글플레이만, 멀티플레이는 시간 기반)
-        # 멀티플레이는 MultiplayerExplorationSystem에서 시간 기반으로 처리
-        is_multiplayer = getattr(self, 'is_multiplayer', False)
-        logger.info(f"[적 이동 체크] is_multiplayer={is_multiplayer}, 적 수={len(self.enemies)}")
-        if not is_multiplayer:
-            logger.info(f"[적 이동] 싱글플레이 모드 - 적 {len(self.enemies)}마리 이동 처리 시작")
-            self._move_all_enemies()
-        else:
-            logger.warning(f"[적 이동] 멀티플레이 모드 - 적 이동 건너뜀 (시간 기반 처리)")
+        # 적 이동은 이제 시간 기반 시스템으로 처리됨
+        # on_update 콜백에서 _move_all_enemies()가 지속적으로 호출됨
+        # 플레이어와 적이 시간 기반으로 독립적으로 움직임
 
         # NPC 이동 (플레이어 이동 후)
         self._move_npcs()
@@ -568,6 +592,19 @@ class ExplorationSystem:
         # elif tile.tile_type == TileType.STAIRS_UP: 제거
 
         elif tile.tile_type == TileType.STAIRS_DOWN:
+            # 30층 진입 체크 (20층 클리어 필요)
+            if self.floor_number == 29:  # 29층에서 30층으로 가려고 할 때
+                from src.story.story_system import get_story_system
+                story_system = get_story_system()
+                if not story_system.sephiroth_defeated:
+                    # 30층 진입 불가
+                    play_sfx("world", "error")
+                    return ExplorationResult(
+                        success=False,
+                        event=ExplorationEvent.LOCKED_DOOR,
+                        message="━━━━━━━━━━━━━━━━━━━━━━━━━━\n??? : \"20층의 시련을 먼저 극복하라.\"\n━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    )
+
             play_sfx("world", "stairs_down")
             return ExplorationResult(
                 success=True,
@@ -1112,17 +1149,22 @@ class ExplorationSystem:
             if distance <= combat_range:
                 combat_enemies.append(other_enemy)
                 pass  # 주변 적 추가
-        # logger.warning(f"[DEBUG] 맵 엔티티: {len(combat_enemies)}마리")
 
-        # Config에서 적 수 범위 가져오기
-        from src.core.config import get_config
-        config = get_config()
-        min_enemies = config.get("world.dungeon.enemy_count.min_enemies", 2)
-        max_enemies = config.get("world.dungeon.enemy_count.max_enemies", 4)
+        # 주변 적 수에 따라 전투 적 수 결정 (최대 4마리)
+        nearby_count = len(combat_enemies)
 
-        # 실제 전투 적 수는 항상 config 기준 (2-4마리)
-        # 맵 엔티티 수와 무관하게 추가 적이 소환됨
-        num_enemies = random.randint(min_enemies, max_enemies)
+        if nearby_count == 1:
+            # 1마리 조우: 1~3마리 전투
+            num_enemies = random.randint(1, 3)
+        elif nearby_count == 2:
+            # 2마리 조우: 2~4마리 전투
+            num_enemies = random.randint(2, 4)
+        elif nearby_count == 3:
+            # 3마리 조우: 3~4마리 전투
+            num_enemies = random.randint(3, 4)
+        else:
+            # 4마리 이상 조우: 4마리 전투 (최대)
+            num_enemies = 4
 
         has_boss = any(e.is_boss for e in combat_enemies)
 
@@ -1164,6 +1206,31 @@ class ExplorationSystem:
             self.floor_number -= 1
             logger.info(f"층 이동: {self.floor_number}층")
 
+    def stun_nearby_enemies(self, position: Tuple[int, int], duration: float = 5.0, range_tiles: int = 10):
+        """
+        도망 후 주변 적들을 일시정지시킴
+
+        Args:
+            position: 전투 위치 (x, y)
+            duration: 정지 지속 시간 (초)
+            range_tiles: 정지 적용 범위 (타일)
+        """
+        import time
+        current_time = time.time()
+        stun_end_time = current_time + duration
+
+        px, py = position
+        stunned_count = 0
+
+        for enemy in self.enemies:
+            distance = abs(enemy.x - px) + abs(enemy.y - py)
+            if distance <= range_tiles:
+                enemy.stunned_until = stun_end_time
+                enemy.is_chasing = False  # 추적 중단
+                stunned_count += 1
+
+        if stunned_count > 0:
+            logger.info(f"도망 성공! 주변 {stunned_count}마리 적 {duration}초 동안 정지")
 
     def _spawn_enemies(self):
         """적 배치"""
@@ -1176,10 +1243,10 @@ class ExplorationSystem:
             self.enemies = []  # 적 리스트 초기화
             return
 
-        # 층 수에 따라 적 수 결정 (5 + 층/2, 최대 10마리)
-        base_enemies = 5
-        additional = self.floor_number // 2
-        num_enemies = min(10, base_enemies + additional)
+        # 층 수에 따라 적 수 결정 (7 + 층*0.3, 최대 12마리)
+        base_enemies = 7
+        additional = int(self.floor_number * 0.3)  # 층 * 0.3
+        num_enemies = min(12, base_enemies + additional)  # 최대 12마리
 
         # 플레이어 시작 위치 주변을 제외한 바닥 타일에 적 배치
         possible_positions = []
@@ -1265,6 +1332,38 @@ class ExplorationSystem:
             remaining_enemies = num_enemies - len(self.enemies)
             if remaining_enemies > 0:
                 spawn_positions = random.sample(possible_positions, min(remaining_enemies, len(possible_positions)))
+
+                # 보스가 있으면 수하로 배치할 일반 적 선택
+                boss_enemy = None
+                minion_count = 0
+
+                for boss in self.enemies:
+                    if boss.is_boss:
+                        boss_enemy = boss
+                        break
+
+                # 보스 수하 배치 (보스 주변 2~3칸)
+                if boss_enemy:
+                    minion_candidates = []
+                    for x, y in spawn_positions:
+                        distance = abs(x - boss_enemy.x) + abs(y - boss_enemy.y)
+                        if 2 <= distance <= 4:  # 보스 주변 2~4칸
+                            minion_candidates.append((x, y))
+
+                    # 최대 2마리의 수하 배치
+                    num_minions = min(2, len(minion_candidates))
+                    minion_positions = random.sample(minion_candidates, num_minions) if minion_candidates else []
+
+                    for x, y in minion_positions:
+                        minion = Enemy(x=x, y=y, level=self.floor_number)
+                        minion.is_minion = True
+                        minion.leader_id = boss_enemy.id
+                        self.enemies.append(minion)
+                        spawn_positions.remove((x, y))
+                        minion_count += 1
+                        logger.info(f"[_spawn_enemies] 보스 수하 배치: {minion.name} (리더: {boss_enemy.name})")
+
+                # 나머지 위치에 일반 적 배치
                 for x, y in spawn_positions:
                     enemy = Enemy(x=x, y=y, level=self.floor_number)
                     self.enemies.append(enemy)
@@ -1320,16 +1419,48 @@ class ExplorationSystem:
             logger.info(f"적 제거: ({enemy.x}, {enemy.y})")
 
     def _move_all_enemies(self):
-        """모든 적 움직임 처리"""
+        """모든 적 움직임 처리 - 시간 기반 시스템"""
+        import time
+
         if not self.enemies:
-            logger.debug("[적 이동] 이동할 적이 없습니다")
             return
-        logger.debug(f"[적 이동] {len(self.enemies)}마리 적 이동 시작")
+
+        # 새로운 프레임에서 이전 충돌 초기화
+        self.collision_enemy = None
+
+        current_time = time.time()
+
+        # 각 적에 대해 이동 간격을 체크하고 이동
+        moved_count = 0
         for enemy in self.enemies:
-            self._move_enemy(enemy)
+            # 시간 기반 이동 체크: 마지막 이동 이후 설정된 간격이 지났는지 확인
+            if current_time - enemy.last_move_time >= enemy.move_interval:
+                self._move_enemy(enemy)
+                enemy.last_move_time = current_time
+                moved_count += 1
+
+                # 이미 충돌한 적이 있으면 더 이상 진행하지 않음 (먼저 충돌한 적과 전투)
+                if self.collision_enemy:
+                    break
+
+        if moved_count > 0:
+            logger.debug(f"[적 이동] {moved_count}마리 적 이동 완료 (시간: {current_time:.2f})")
 
     def _move_enemy(self, enemy: Enemy):
-        """단일 적 움직임"""
+        """단일 적 움직임 - 고급 AI 시스템 포함"""
+        import time
+
+        # 정지 상태 확인 (도망 후)
+        current_time = time.time()
+        if enemy.stunned_until > current_time:
+            # 정지 중이면 움직이지 않음
+            return
+
+        # 수하인 경우 보스를 따름
+        if enemy.is_minion and enemy.leader_id:
+            self._minion_follow_boss(enemy)
+            return
+
         # 플레이어와의 거리 계산
         distance = abs(enemy.x - self.player.x) + abs(enemy.y - self.player.y)
 
@@ -1339,34 +1470,52 @@ class ExplorationSystem:
         if distance <= enemy.detection_range:
             if not enemy.is_chasing:
                 logger.info(f"[적 이동] [WARNING] {enemy.name}이(가) 플레이어 감지! (거리: {distance}) - 추적 시작")
+                enemy.chase_turns = 0  # 처음 감지할 때만 카운터 리셋
             enemy.is_chasing = True
-            enemy.chase_turns = 0
+            enemy.morale = min(100.0, enemy.morale + 5.0)  # 추적 중이면 사기 증가
+
+            # 보스인 경우 수하들도 참전
+            if enemy.is_boss:
+                self._boss_summon_minions(enemy)
 
         # 추적 중일 때
         if enemy.is_chasing:
             enemy.chase_turns += 1
 
-            # 포기 조건 1: 너무 오래 추적
-            if enemy.chase_turns > enemy.max_chase_turns:
-                enemy.is_chasing = False
-                enemy.chase_turns = 0
-                logger.debug(f"적 {enemy.name}이(가) 추적 포기 (시간 초과)")
+            # 포기 조건 판단 (사기 기반 + 전술적 재평가)
+            should_retreat = self._should_enemy_retreat(enemy, distance)
 
-            # 포기 조건 2: 플레이어가 너무 멀리 도망감
-            elif distance > enemy.max_chase_distance:
+            if should_retreat:
                 enemy.is_chasing = False
                 enemy.chase_turns = 0
-                logger.debug(f"적 {enemy.name}이(가) 추적 포기 (거리: {distance} > {enemy.max_chase_distance})")
+                enemy.morale = max(0.0, enemy.morale - 20.0)  # 포기하면 사기 감소
+                logger.info(f"적 {enemy.name}이(가) 추적 포기 (사기: {enemy.morale:.1f}, 거리: {distance})")
+
+                # 증원 호출 여부 판단 (포기 전에)
+                if enemy.reinforcement_called is False:
+                    self._try_call_reinforcement(enemy)
 
             # 추적 중이면 플레이어 방향으로 이동
             if enemy.is_chasing:
                 self._move_enemy_towards(enemy, self.player.x, self.player.y)
+
+                # 포위 전략: 다른 적들에게 신호 전달
+                self._coordinate_encirclement(enemy)
 
         # 추적하지 않을 때
         if not enemy.is_chasing:
             # 원래 위치로 복귀
             if enemy.x != enemy.spawn_x or enemy.y != enemy.spawn_y:
                 self._move_enemy_towards(enemy, enemy.spawn_x, enemy.spawn_y)
+
+            # 사기 회복 (휴식 중)
+            enemy.morale = min(100.0, enemy.morale + 2.0)
+
+        # 적 이동 후 플레이어와의 충돌 확인 (시간 기반 이동 시스템에서 필요)
+        if enemy.x == self.player.x and enemy.y == self.player.y:
+            logger.info(f"[전투 트리거] 적이 플레이어와 충돌: {enemy.name} at ({enemy.x}, {enemy.y})")
+            # 충돌 적 저장 (world_ui.py에서 감지하여 전투 트리거)
+            self.collision_enemy = enemy
 
     def _find_path_astar(self, start_x: int, start_y: int, goal_x: int, goal_y: int, max_steps: int = 20) -> Optional[List[Tuple[int, int]]]:
         """
@@ -1517,6 +1666,242 @@ class ExplorationSystem:
                 logger.debug(f"[적 이동] {enemy.name} 이동 실패: 목표 타일이 차있음 ({new_x}, {new_y})")
         else:
             logger.debug(f"[적 이동] {enemy.name} 이동 실패: 목표 타일이 이동 불가능 ({new_x}, {new_y})")
+
+    def _minion_follow_boss(self, minion: Enemy):
+        """수하가 보스를 따라다님
+
+        Args:
+            minion: 수하 적
+        """
+        # 보스 찾기
+        boss = None
+        for enemy in self.enemies:
+            if enemy.id == minion.leader_id:
+                boss = enemy
+                break
+
+        if not boss:
+            # 보스를 찾을 수 없으면 일반 적처럼 행동
+            minion.is_minion = False
+            minion.leader_id = None
+            self._move_enemy(minion)
+            return
+
+        # 보스와의 거리
+        boss_distance = abs(minion.x - boss.x) + abs(minion.y - boss.y)
+
+        # 보스가 추적 중이면 같이 참전
+        if boss.is_chasing:
+            minion.is_chasing = True
+            minion.chase_turns = 0
+            minion.morale = 80.0  # 보스와 함께이면 사기 높음
+
+            # 보스 주변을 떠나지 말기
+            if boss_distance > 8:
+                # 보스 쪽으로 이동
+                self._move_enemy_towards(minion, boss.x, boss.y)
+            else:
+                # 플레이어 쪽으로 이동
+                self._move_enemy_towards(minion, self.player.x, self.player.y)
+                logger.debug(f"[수하] {minion.name}이(가) 리더 {boss.name}과 함께 추적")
+        else:
+            # 보스가 추적 안 함: 보스 근처 유지
+            if boss_distance > 5:
+                self._move_enemy_towards(minion, boss.x, boss.y)
+            minion.is_chasing = False
+
+    def _boss_summon_minions(self, boss: Enemy):
+        """보스가 주변 수하들을 소집
+
+        Args:
+            boss: 보스 적
+        """
+        # 이미 소집 상태면 중복 호출 방지
+        if boss.reinforcement_called:
+            return
+
+        boss.reinforcement_called = True
+
+        # 보스의 수하들 찾기
+        minions = []
+        for enemy in self.enemies:
+            if enemy.leader_id == boss.id and enemy.is_minion:
+                distance = abs(enemy.x - boss.x) + abs(enemy.y - boss.y)
+                minions.append((distance, enemy))
+
+        if minions:
+            logger.info(f"[보스 소집] {boss.name}이(가) {len(minions)}명의 수하를 이끌고 전투 개시!")
+            # 모든 수하가 참전
+            for _, minion in minions:
+                minion.is_chasing = True
+                minion.chase_turns = 0
+                minion.morale = 100.0  # 최고 사기
+                logger.info(f"[보스 소집] {minion.name}이(가) {boss.name}의 소집에 응답!")
+
+    def _should_enemy_retreat(self, enemy: Enemy, distance: int) -> bool:
+        """적이 후퇴해야 하는지 판단 (사기 + 전술적 재평가)
+
+        Returns:
+            True if enemy should retreat, False otherwise
+        """
+        # 조건 1: 너무 오래 추적
+        if enemy.chase_turns > enemy.max_chase_turns:
+            return True
+
+        # 조건 2: 플레이어가 너무 멀리 도망감
+        if distance > enemy.max_chase_distance:
+            return True
+
+        # 조건 3: 사기가 매우 낮음 (20% 이하 + 우세하지 못함)
+        if enemy.morale < 20.0:
+            # 아군 개수 확인
+            nearby_allies = len(self._get_nearby_enemies(enemy, detection_range=10))
+            allied_strength = nearby_allies  # 단순히 개수로 판단
+
+            # 플레이어 파티 크기
+            enemy_strength = len(self.player.party)
+
+            if allied_strength <= enemy_strength:
+                return True
+
+        # 조건 4: 매우 약해짐 (HP 50% 이하) + 도움을 받지 못함
+        if hasattr(enemy, 'hp') and hasattr(enemy, 'max_hp'):
+            hp_ratio = enemy.hp / enemy.max_hp if enemy.max_hp > 0 else 1.0
+            if hp_ratio < 0.5:
+                # 증원 온 것이 없으면 도망
+                nearby_allies = len(self._get_nearby_enemies(enemy, detection_range=7))
+                if nearby_allies < 2:  # 자신 포함 1명이면 혼자라는 뜻
+                    return True
+
+        return False
+
+    def _try_call_reinforcement(self, enemy: Enemy):
+        """신호 기반 증원 시스템
+
+        적이 신호를 보내면 신호 범위 내의 다른 적들이 응답
+        """
+        # 신호 쿨다운 확인
+        current_turn = self.current_turn if hasattr(self, 'current_turn') else 0
+        if current_turn - enemy.last_signal_turn < enemy.signal_cooldown:
+            return  # 쿨다운 중
+
+        # 신호 전송
+        enemy.signal_sent = True
+        enemy.signal_position_x = enemy.x
+        enemy.signal_position_y = enemy.y
+        enemy.last_signal_turn = current_turn
+
+        logger.info(f"[신호 시스템] {enemy.name}이(가) ({enemy.x}, {enemy.y})에서 구조 신호를 보냈습니다!")
+
+        # 신호를 받을 수 있는 적 찾기 (신호 범위 내)
+        responders = []
+        for other_enemy in self.enemies:
+            if other_enemy is enemy:
+                continue
+
+            # 신호 범위 확인
+            signal_distance = abs(other_enemy.x - enemy.signal_position_x) + abs(other_enemy.y - enemy.signal_position_y)
+            if signal_distance <= enemy.signal_range:
+                # 아직 추적하지 않고 있는 적만 응답
+                if not other_enemy.is_chasing:
+                    responders.append(other_enemy)
+
+        # 응답한 적들 정렬 (가까운 순)
+        responders.sort(key=lambda e: abs(e.x - enemy.signal_position_x) + abs(e.y - enemy.signal_position_y))
+
+        # 최대 3마리까지 응답
+        responding_enemies = responders[:3]
+
+        if responding_enemies:
+            logger.info(f"[신호 시스템] {len(responding_enemies)}마리 적이 신호에 응답했습니다!")
+
+            for responder in responding_enemies:
+                responder.is_chasing = True
+                responder.chase_turns = 0
+                responder.morale = 85.0  # 신호에 응답한 적들의 사기
+                logger.info(f"[신호 시스템] {responder.name}이(가) {enemy.name}의 신호에 응답하여 출동!")
+
+    def _coordinate_encirclement(self, leader: Enemy):
+        """포위 전략: 추적 중인 적들이 플레이어 주변에 포지셔닝
+
+        리더 적이 플레이어를 추적 중일 때, 근처 적들이 플레이어를
+        다양한 방향에서 포위하도록 유도
+        """
+        if leader.encirclement_role != "leader":
+            leader.encirclement_role = "leader"  # 첫 주자가 리더 역할
+
+        # 주변 적들 찾기
+        nearby_enemies = self._get_nearby_enemies(leader, detection_range=12)
+
+        for ally in nearby_enemies:
+            if ally is leader:
+                continue  # 자신 제외
+
+            # 이미 추적 중이면 포위 역할 할당
+            if ally.is_chasing:
+                if ally.encirclement_role == "none":
+                    ally.encirclement_role = "flanker"
+                    logger.debug(f"[포위 전략] {ally.name}이(가) 옆날개 역할 시작")
+
+                # 옆날개 역할: 플레이어 주변의 다른 위치로 포지셔닝
+                self._move_enemy_to_flanking_position(ally, leader)
+
+    def _move_enemy_to_flanking_position(self, flanker: Enemy, leader: Enemy):
+        """포위 적을 옆날개 위치로 이동
+
+        리더의 반대편 또는 옆쪽으로 이동하도록 유도
+        """
+        player_x, player_y = self.player.x, self.player.y
+        leader_x, leader_y = leader.x, leader.y
+        flanker_x, flanker_y = flanker.x, flanker.y
+
+        # 리더에서 플레이어로의 방향 벡터
+        dx = player_x - leader_x
+        dy = player_y - leader_y
+
+        # 수직 방향의 포지션 선택 (좌측 또는 우측)
+        # 왼쪽 (ccw 90도) 또는 오른쪽 (cw 90도)
+        use_left_flank = (flanker_x + flanker_y) % 2 == 0
+
+        if use_left_flank:
+            # 왼쪽 옆날개: dy 방향으로 이동
+            target_x = player_x - dy
+            target_y = player_y + dx
+        else:
+            # 오른쪽 옆날개: 반대쪽
+            target_x = player_x + dy
+            target_y = player_y - dx
+
+        # 목표 위치가 유효한지 확인
+        if self.dungeon.is_walkable(target_x, target_y):
+            self._move_enemy_towards(flanker, target_x, target_y)
+        else:
+            # 목표가 불가능하면 플레이어 주변 어디든 이동
+            self._move_enemy_towards(flanker, player_x, player_y)
+
+    def _get_nearby_enemies(self, enemy: Enemy, detection_range: int = 10) -> List[Enemy]:
+        """주변 일정 거리 내의 다른 적들 반환
+
+        Args:
+            enemy: 기준 적
+            detection_range: 탐지 범위
+
+        Returns:
+            거리 순으로 정렬된 적 리스트 (가까운 순)
+        """
+        nearby = []
+
+        for other_enemy in self.enemies:
+            if other_enemy is enemy:
+                continue
+
+            distance = abs(enemy.x - other_enemy.x) + abs(enemy.y - other_enemy.y)
+            if distance <= detection_range:
+                nearby.append((distance, other_enemy))
+
+        # 거리 순으로 정렬
+        nearby.sort(key=lambda x: x[0])
+        return [e for _, e in nearby]
 
     def _find_nearest_target(self, enemy: Enemy) -> Any:
         """적에게 가장 가까운 대상(플레이어 또는 봇) 찾기"""

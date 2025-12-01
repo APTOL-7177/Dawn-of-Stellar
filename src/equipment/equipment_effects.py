@@ -938,6 +938,7 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
             "thorns": (EffectType.THORNS, EffectTrigger.ON_DAMAGED),
             "critical_damage": (EffectType.CRITICAL_DAMAGE, EffectTrigger.PASSIVE),
             "critical_rate": (EffectType.CRITICAL_RATE, EffectTrigger.PASSIVE),
+            "critical_chance": (EffectType.CRITICAL_CHANCE, EffectTrigger.PASSIVE),  # critical_rate와 동일
             "dodge_chance": (EffectType.DODGE_CHANCE, EffectTrigger.PASSIVE),
             "block_chance": (EffectType.BLOCK_CHANCE, EffectTrigger.PASSIVE),
             "multi_strike": (EffectType.MULTI_STRIKE, EffectTrigger.PASSIVE),
@@ -966,6 +967,10 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
             "skill_power": (EffectType.SKILL_POWER, EffectTrigger.PASSIVE),
             "spell_power": (EffectType.SPELL_POWER, EffectTrigger.PASSIVE),
             "spell_echo": (EffectType.SPELL_ECHO, EffectTrigger.PASSIVE),
+            "rare_drop": (EffectType.ITEM_FIND, EffectTrigger.PASSIVE),  # 아이템 드롭률 증가
+            "item_find": (EffectType.ITEM_FIND, EffectTrigger.PASSIVE),
+            "gold_find": (EffectType.GOLD_FIND, EffectTrigger.PASSIVE),
+            "exp_bonus": (EffectType.EXP_BONUS, EffectTrigger.PASSIVE),
 
             # Gimmick specific
             "hack_damage": (EffectType.HACK_DAMAGE_BONUS, EffectTrigger.PASSIVE),
