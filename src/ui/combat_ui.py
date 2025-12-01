@@ -36,6 +36,7 @@ class CombatUIState(Enum):
     TARGET_SELECT = "target_select"  # 대상 선택
     ITEM_MENU = "item_menu"  # 아이템 선택
     CARD_SELECT = "card_select"  # 카드 선택 (마술사)
+    POSSIBILITY_SELECT = "possibility_select"  # 가능성 선택 (시간술사)
     GIMMICK_VIEW = "gimmick_view"  # 기믹 상세 보기
     EXECUTING = "executing"  # 행동 실행 중
     BATTLE_END = "battle_end"  # 전투 종료
@@ -99,6 +100,13 @@ class CombatUI:
         self.card_hand: List[Any] = []  # 현재 손패
         self.selected_card: Optional[Any] = None  # 선택된 카드
 
+        # 가능성 선택 (시간술사)
+        self.possibility_cursor = 0
+        self.possibility_slots: List[Dict] = []  # 가능성 슬롯 목록
+        self.possibility_selected: List[int] = []  # 선택된 인덱스
+        self.possibility_action: str = "summon_single"  # 액션 타입
+        self.possibility_max_select: int = 1  # 최대 선택 개수
+
         # 전투 종료 플래그
         self.battle_ended = False
         self.battle_result: Optional[CombatState] = None
@@ -131,12 +139,19 @@ class CombatUI:
         if actor:
             skills = getattr(actor, 'skills', [])
             
-            # 팀워크 스킬이 아닌 일반 스킬만 필터링 (기본 공격용)
-            basic_skills = [s for s in skills if not getattr(s, 'is_teamwork_skill', False)]
+            # basic_attack: True 메타데이터가 있는 스킬만 필터링
+            basic_attack_skills = [
+                s for s in skills 
+                if getattr(s, 'metadata', None) and s.metadata.get('basic_attack', False)
+            ]
+            
+            # 기본 공격 스킬이 없으면 팀워크 제외 처음 2개 사용 (fallback)
+            if len(basic_attack_skills) < 2:
+                basic_attack_skills = [s for s in skills if not getattr(s, 'is_teamwork_skill', False)][:2]
 
             # 첫 번째 스킬 = 기본 BRV 공격
-            if len(basic_skills) >= 1:
-                brv_skill = basic_skills[0]
+            if len(basic_attack_skills) >= 1:
+                brv_skill = basic_attack_skills[0]
                 brv_name = getattr(brv_skill, 'name', 'BRV 공격')
                 brv_desc = getattr(brv_skill, 'description', 'BRV를 축적')
                 items.append(MenuItem(brv_name, description=brv_desc, enabled=True, value=("brv_skill", brv_skill)))
@@ -144,8 +159,8 @@ class CombatUI:
                 items.append(MenuItem("BRV 공격", description="BRV를 축적", enabled=True, value=ActionType.BRV_ATTACK))
 
             # 두 번째 스킬 = 기본 HP 공격
-            if len(basic_skills) >= 2:
-                hp_skill = basic_skills[1]
+            if len(basic_attack_skills) >= 2:
+                hp_skill = basic_attack_skills[1]
                 hp_name = getattr(hp_skill, 'name', 'HP 공격')
                 hp_desc = getattr(hp_skill, 'description', 'HP 데미지')
                 items.append(MenuItem(hp_name, description=hp_desc, enabled=True, value=("hp_skill", hp_skill)))
@@ -190,21 +205,36 @@ class CombatUI:
         logger = get_logger("combat_ui")
         logger.warning(f"[SKILL_MENU] {actor.name}의 전체 스킬 개수: {len(all_skills)}")
 
-        # 팀워크 스킬과 일반 스킬 분리
+        # 스킬 분류
         teamwork_skills = []
-        non_teamwork_skills = []
+        basic_attack_skills = []  # 기본 공격 스킬
+        gimmick_skills = []  # 기믹 스킬 (가능성 소모 등)
+        normal_skills = []
+        
         for skill in all_skills:
+            metadata = getattr(skill, 'metadata', None) or {}
+            
+            # 팀워크 스킬
             if hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill:
                 teamwork_skills.append(skill)
+            # 기본 공격 스킬 (metadata로 표시된 경우)
+            elif metadata.get('basic_attack', False):
+                basic_attack_skills.append(skill)
+            # 기믹/가능성 시스템 스킬
+            elif metadata.get('gimmick_skill', False) or metadata.get('possibility_system', False):
+                gimmick_skills.append(skill)
             else:
-                non_teamwork_skills.append(skill)
+                normal_skills.append(skill)
+        
+        # basic_attack 메타데이터가 없는 직업은 첫 2개 스킬을 기본 공격으로 취급
+        if len(basic_attack_skills) == 0 and len(normal_skills) >= 2:
+            # 처음 2개를 기본 공격으로 간주하고 제외
+            normal_skills = normal_skills[2:]
 
-        # 일반 스킬에서 첫 두 개(기본 BRV, HP 공격)는 행동 메뉴에 있으므로 제외
-        normal_skills = non_teamwork_skills[2:] if len(non_teamwork_skills) >= 2 else []
-        logger.warning(f"[SKILL_MENU] 기본 공격 제외 후 일반 스킬: {len(normal_skills)}개")
+        logger.warning(f"[SKILL_MENU] 기본 공격 제외 후 일반 스킬: {len(normal_skills)}개, 기믹 스킬: {len(gimmick_skills)}개")
 
-        # 스킬 순서: 일반 스킬 먼저, 팀워크 스킬은 맨 뒤
-        skills = normal_skills + teamwork_skills
+        # 스킬 순서: 기믹 스킬 맨 위 -> 일반 스킬 -> 팀워크 스킬 맨 뒤
+        skills = gimmick_skills + normal_skills + teamwork_skills
 
         logger.warning(f"[SKILL_MENU] 메뉴에 표시할 팀워크 스킬: {len(teamwork_skills)}개")
         for skill in teamwork_skills:
@@ -437,6 +467,10 @@ class CombatUI:
         Returns:
             True면 전투 종료
         """
+        # 가능성 선택 상태 디버그
+        if self.state == CombatUIState.POSSIBILITY_SELECT:
+            print(f"[가능성UI] handle_input() 호출됨! action={action}, slots={len(self.possibility_slots) if self.possibility_slots else 0}")
+        
         # ESC나 창 닫기는 무시 (전투 중에는 도주 명령으로만 종료 가능)
         if action == GameAction.ESCAPE or action == GameAction.QUIT:
             return False
@@ -468,6 +502,10 @@ class CombatUI:
         # 카드 선택 (마술사)
         elif self.state == CombatUIState.CARD_SELECT:
             return self._handle_card_select(action)
+
+        # 가능성 선택 (시간술사)
+        elif self.state == CombatUIState.POSSIBILITY_SELECT:
+            return self._handle_possibility_select(action)
 
         # 기믹 상세 보기
         elif self.state == CombatUIState.GIMMICK_VIEW:
@@ -559,9 +597,12 @@ class CombatUI:
             self.action_menu.move_cursor_down()
         elif action == GameAction.CONFIRM:
             selected_item = self.action_menu.get_selected_item()
-            if selected_item:
+            if selected_item and selected_item.enabled:
+                play_sfx("ui", "cursor_select")  # 선택 효과음
                 self.selected_action = selected_item.value
                 self._on_action_selected()
+            elif selected_item:
+                logger.warning(f"[COMBAT_UI] 비활성화된 항목 선택 시도: {selected_item.text}")
         elif action == GameAction.CANCEL:
             # 취소 불가 (턴은 반드시 행동을 선택해야 넘어감)
             # 아무 작업 안 함
@@ -582,8 +623,14 @@ class CombatUI:
             selected_item = self.skill_menu.get_selected_item()
             if selected_item:
                 if selected_item.value is None:  # 뒤로가기
+                    play_sfx("ui", "cursor_select")  # 선택 효과음
                     self.state = CombatUIState.ACTION_MENU
+                elif not selected_item.enabled:
+                    # 비활성화된 스킬은 선택 불가 - 경고음 또는 메시지
+                    play_sfx("ui", "cursor_error")  # 에러 효과음
+                    self.add_message("사용할 수 없는 스킬입니다!", (255, 100, 100))
                 else:
+                    play_sfx("ui", "cursor_select")  # 선택 효과음
                     self.selected_skill = selected_item.value
                     self._start_target_selection()
         elif action == GameAction.CANCEL:
@@ -629,6 +676,7 @@ class CombatUI:
             new_pos = (current_pos + 1) % len(valid_indices)
             self.target_cursor = valid_indices[new_pos]
         elif action == GameAction.CONFIRM:
+            play_sfx("ui", "cursor_select")  # 선택 효과음
             self.selected_target = targets[self.target_cursor]
             # 아이템 사용인 경우 아이템 정보도 전달
             if self.selected_action == ActionType.ITEM and self.selected_item:
@@ -662,8 +710,10 @@ class CombatUI:
             selected_item = self.item_menu.get_selected_item()
             if selected_item:
                 if selected_item.value is None:  # 뒤로가기
+                    play_sfx("ui", "cursor_select")  # 선택 효과음
                     self.state = CombatUIState.ACTION_MENU
                 else:
+                    play_sfx("ui", "cursor_select")  # 선택 효과음
                     # 아이템 선택
                     item_data = selected_item.value
                     if isinstance(item_data, tuple) and len(item_data) == 2:
@@ -778,10 +828,23 @@ class CombatUI:
         # 스킬의 target_type에 따라 대상 결정
         if self.selected_skill:
             # 카드 선택이 필요한 스킬인지 확인 (마술사)
-            metadata = getattr(self.selected_skill, 'metadata', {})
+            metadata = getattr(self.selected_skill, 'metadata', {}) or {}
+            logger.debug(f"[카드선택] 스킬: {self.selected_skill.name}, metadata: {metadata}")
             if metadata.get('select_card_from_hand'):
+                logger.info(f"[카드선택] 카드 선택 UI 시작: {self.selected_skill.name}")
                 self._start_card_selection()
                 return
+            
+            # 가능성 시스템 스킬인지 확인 (시간술사)
+            if metadata.get('possibility_system'):
+                action = metadata.get('action', 'summon_single')
+                if action in ['summon_single', 'summon_dual', 'overwrite_slot']:
+                    logger.info(f"[가능성 선택] 가능성 선택 UI 시작: {self.selected_skill.name}")
+                    if not self._start_possibility_selection(action):
+                        # 실패 - 스킬 메뉴로 복귀
+                        self.state = CombatUIState.SKILL_MENU
+                        self.selected_skill = None
+                    return
             
             target_type = getattr(self.selected_skill, 'target_type', 'single_enemy')
 
@@ -868,13 +931,158 @@ class CombatUI:
             logger.debug("기믹 상세 보기 닫힘")
         return False
 
+    def _start_possibility_selection(self, action: str) -> bool:
+        """가능성 슬롯 선택 시작 (시간술사)"""
+        from src.character.skills.skill_manager import get_skill_manager
+        
+        if not self.current_actor:
+            return False
+        
+        slots = getattr(self.current_actor, 'possibility_slots', [])
+        if not slots:
+            self.add_message("저장된 가능성이 없습니다!", (255, 100, 100))
+            return False
+        
+        # 최소 필요 개수 확인
+        min_required = 2 if action == "summon_dual" else 1
+        if len(slots) < min_required:
+            self.add_message(f"가능성 {min_required}개 이상 필요! (현재: {len(slots)}개)", (255, 100, 100))
+            return False
+        
+        # 스킬 이름 추가
+        skill_manager = get_skill_manager()
+        enriched_slots = []
+        for slot in slots:
+            skill = skill_manager.get_skill(slot.get('skill_id', ''))
+            enriched_slot = slot.copy()
+            enriched_slot['skill_name'] = skill.name if skill else slot.get('skill_id', '???')
+            enriched_slots.append(enriched_slot)
+        
+        # 상태 설정
+        self.possibility_slots = enriched_slots
+        self.possibility_cursor = 0
+        self.possibility_selected = []
+        self.possibility_action = action
+        self.possibility_max_select = 2 if action == "summon_dual" else 1
+        self.state = CombatUIState.POSSIBILITY_SELECT
+        
+        logger.info(f"[가능성 선택] 시작: {action}, 슬롯 {len(slots)}개, state={self.state}")
+        logger.info(f"[가능성 선택] possibility_slots={len(self.possibility_slots)}개, enriched: {[s.get('skill_name') for s in self.possibility_slots]}")
+        return True
+
+    def _handle_possibility_select(self, action: GameAction) -> bool:
+        """가능성 선택 입력 처리"""
+        from src.audio.audio_manager import play_sfx
+        
+        if not self.possibility_slots:
+            self.state = CombatUIState.SKILL_MENU
+            return False
+        
+        if action == GameAction.MOVE_UP:
+            self.possibility_cursor = max(0, self.possibility_cursor - 1)
+            play_sfx("ui", "cursor_move")
+        elif action == GameAction.MOVE_DOWN:
+            self.possibility_cursor = min(len(self.possibility_slots) - 1, self.possibility_cursor + 1)
+            play_sfx("ui", "cursor_move")
+        elif action == GameAction.CONFIRM:
+            if self.possibility_action == "summon_dual":
+                # 다중 선택 모드 - 토글
+                if self.possibility_cursor in self.possibility_selected:
+                    self.possibility_selected.remove(self.possibility_cursor)
+                    play_sfx("ui", "cursor_cancel")
+                elif len(self.possibility_selected) < self.possibility_max_select:
+                    self.possibility_selected.append(self.possibility_cursor)
+                    play_sfx("ui", "cursor_select")
+                    # 2개 선택 완료 시 자동 확정
+                    if len(self.possibility_selected) >= 2:
+                        self._confirm_possibility_selection()
+                        return False
+            else:
+                # 단일 선택 모드 - 즉시 확정
+                self.possibility_selected = [self.possibility_cursor]
+                self._confirm_possibility_selection()
+                play_sfx("ui", "cursor_select")
+                return False
+        elif action == GameAction.CANCEL:
+            # 취소 - 스킬 메뉴로 복귀
+            self.state = CombatUIState.SKILL_MENU
+            self.selected_skill = None
+            self.possibility_slots = []
+            self.possibility_selected = []
+            play_sfx("ui", "cursor_cancel")
+            return False
+        
+        return False
+
+    def _confirm_possibility_selection(self):
+        """가능성 선택 확정"""
+        if self.selected_skill and self.possibility_selected:
+            if not hasattr(self.selected_skill, 'metadata') or self.selected_skill.metadata is None:
+                self.selected_skill.metadata = {}
+            self.selected_skill.metadata['_selected_indices'] = self.possibility_selected.copy()
+            
+            # 선택된 가능성 스킬의 타겟 타입 확인하여 타겟 선택 UI로 전환
+            from src.character.skills.skill_manager import get_skill_manager
+            skill_manager = get_skill_manager()
+            
+            # 첫 번째 선택된 스킬의 타겟 타입 확인
+            first_slot_idx = self.possibility_selected[0]
+            if first_slot_idx < len(self.possibility_slots):
+                slot = self.possibility_slots[first_slot_idx]
+                stored_skill_id = slot.get('skill_id')
+                stored_skill = skill_manager.get_skill(stored_skill_id)
+                
+                if stored_skill:
+                    target_type = getattr(stored_skill, 'target_type', 'single_enemy')
+                    
+                    # 아군 타겟
+                    if target_type in ['ally', 'single_ally']:
+                        self.current_target_list = self.combat_manager.party
+                        
+                        # 살아있는 대상만 필터링
+                        alive_targets = [e for e in self.current_target_list if getattr(e, 'is_alive', True)]
+                        if alive_targets:
+                            self.target_cursor = 0
+                            self.state = CombatUIState.TARGET_SELECT
+                            
+                            # 상태 초기화
+                            self.possibility_slots = []
+                            self.possibility_selected = []
+                            return
+                    
+                    # 적 타겟 (single_enemy)
+                    elif target_type == 'single_enemy':
+                        self.current_target_list = self.combat_manager.enemies
+                        
+                        # 살아있는 대상만 필터링
+                        alive_targets = [e for e in self.current_target_list if getattr(e, 'is_alive', True)]
+                        if alive_targets:
+                            self.target_cursor = 0
+                            self.state = CombatUIState.TARGET_SELECT
+                            
+                            # 상태 초기화
+                            self.possibility_slots = []
+                            self.possibility_selected = []
+                            return
+
+            # 타겟 선택이 불필요하거나 실패한 경우 (기본값 실행)
+            self.selected_target = self.combat_manager.enemies[0] if self.combat_manager.enemies else None
+            self._execute_current_action()
+        
+        # 상태 초기화
+        self.possibility_slots = []
+        self.possibility_selected = []
+
     def _start_card_selection(self):
         """카드 선택 시작 (마술사)"""
+        logger.info(f"[카드선택] _start_card_selection 호출됨, actor: {getattr(self.current_actor, 'name', None)}")
         if not self.current_actor:
+            logger.warning("[카드선택] current_actor가 없음!")
             return
         
         # 손패 가져오기
         self.card_hand = getattr(self.current_actor, 'card_hand', [])
+        logger.info(f"[카드선택] 손패: {len(self.card_hand)}장")
         
         if not self.card_hand:
             # 손패가 없으면 메시지 표시 후 스킬 메뉴로 복귀
@@ -885,7 +1093,8 @@ class CombatUI:
         self.card_cursor = 0
         self.selected_card = None
         self.state = CombatUIState.CARD_SELECT
-        logger.debug(f"카드 선택 시작: {len(self.card_hand)}장")
+        logger.info(f"[카드선택] 상태 변경: CARD_SELECT, {len(self.card_hand)}장")
+        print(f"[카드UI] 상태 설정 완료! self.state = {self.state}")
 
     def _handle_card_select(self, action: GameAction) -> bool:
         """카드 선택 입력 처리"""
@@ -1084,7 +1293,7 @@ class CombatUI:
                         self.action_menu = self._create_action_menu(self.current_actor)
                         self.state = CombatUIState.ACTION_MENU
                         self.add_message(f"{next_ally.name}의 턴!", (100, 255, 255))
-                        play_sfx("ui", "cursor_select")
+                        play_sfx("ui", "turn_ready")
                     
                     # 불릿타임 활성화
                     if next_ally_player_id:
@@ -1308,6 +1517,9 @@ class CombatUI:
 
     def update(self, delta_time: float = 1.0):
         """업데이트 (매 프레임)"""
+        if self.state == CombatUIState.CARD_SELECT:
+            print(f"[카드UI] update() 시작 - state={self.state}")
+        
         # 행동 후 대기 시간 처리
         if self.action_delay_frames > 0:
             self.action_delay_frames -= 1
@@ -1317,7 +1529,8 @@ class CombatUI:
                     self.state = CombatUIState.WAITING_ATB
                 elif self.state not in [CombatUIState.ACTION_MENU, CombatUIState.SKILL_MENU, 
                                         CombatUIState.TARGET_SELECT, CombatUIState.ITEM_MENU, 
-                                        CombatUIState.CARD_SELECT, CombatUIState.GIMMICK_VIEW]:
+                                        CombatUIState.CARD_SELECT, CombatUIState.POSSIBILITY_SELECT,
+                                        CombatUIState.GIMMICK_VIEW]:
                     # 다른 상태에서도 WAITING_ATB로 전환 (기절 스킵 후 다음 턴 대기)
                     self.state = CombatUIState.WAITING_ATB
 
@@ -1328,6 +1541,7 @@ class CombatUI:
             CombatUIState.TARGET_SELECT,
             CombatUIState.ITEM_MENU,
             CombatUIState.CARD_SELECT,  # 카드 선택 중에도 시간 정지
+            CombatUIState.POSSIBILITY_SELECT,  # 가능성 선택 중에도 시간 정지
             CombatUIState.GIMMICK_VIEW,  # 기믹 상세 보기 중에도 시간 정지
             CombatUIState.EXECUTING  # 행동 실행 후 대기 중에도 시간 정지
         ]
@@ -1417,8 +1631,17 @@ class CombatUI:
             # 행동 지연 타이머 설정 (0.5초 대기)
             self.action_delay_frames = 15  # 0.5초 (30 FPS 기준)
         elif ready and not self.action_delay_frames:
-            # 행동자 처리 전 상태 정상화 (항상 WAITING_ATB 상태여야 함)
-            if self.state != CombatUIState.WAITING_ATB:
+            # 행동자 처리 전 상태 정상화 (플레이어 입력 대기 상태는 유지)
+            player_input_states = [
+                CombatUIState.ACTION_MENU, 
+                CombatUIState.SKILL_MENU, 
+                CombatUIState.ITEM_MENU,
+                CombatUIState.TARGET_SELECT,
+                CombatUIState.CARD_SELECT,  # 마술사 카드 선택
+                CombatUIState.POSSIBILITY_SELECT,  # 시간술사 가능성 선택
+                CombatUIState.GIMMICK_VIEW  # 기믹 상세 보기
+            ]
+            if self.state != CombatUIState.WAITING_ATB and self.state not in player_input_states:
                 logger.debug(f"상태 강제 정상화: {self.state.value} -> WAITING_ATB")
                 self.state = CombatUIState.WAITING_ATB
 
@@ -1490,7 +1713,7 @@ class CombatUI:
                         self.action_menu = self._create_action_menu(actor)
                         self.state = CombatUIState.ACTION_MENU
                         self.add_message(f"{actor.name}의 턴!", (100, 255, 255))
-                        play_sfx("ui", "cursor_select")
+                        play_sfx("ui", "turn_ready")
 
         # 전투 종료 체크
         if self.combat_manager.state in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
@@ -1961,8 +2184,8 @@ class CombatUI:
                     return
                 
                 # 일반 플레이어 턴
-                # 아군 턴 시작 SFX (선택 SFX와 동일)
-                play_sfx("ui", "cursor_select")
+                # 아군 턴 시작 SFX
+                play_sfx("ui", "turn_ready")
 
                 # 멀티플레이 모드에서 로컬 플레이어의 캐릭터만 current_actor로 설정
                 # (다른 플레이어의 캐릭터는 컨트롤하지 않음)
@@ -2087,6 +2310,14 @@ class CombatUI:
 
     def render(self, console: tcod.console.Console):
         """렌더링"""
+        # 가능성 선택 상태 디버그
+        if self.state == CombatUIState.POSSIBILITY_SELECT:
+            print(f"[가능성UI] render() 호출됨! state={self.state}, slots={len(self.possibility_slots) if self.possibility_slots else 0}")
+        
+        # 카드 선택 상태면 로그 (render 진입 확인)
+        if self.state == CombatUIState.CARD_SELECT:
+            print(f"[카드UI] render() 호출됨! state={self.state}, card_hand={len(self.card_hand) if self.card_hand else 0}")
+        
         # 필드 효과에 따른 배경 색상 변경
         dungeon = None
         combat_position = None
@@ -2125,6 +2356,10 @@ class CombatUI:
         self._render_teamwork_gauge(console)
 
         # 상태별 UI
+        # CARD_SELECT 디버깅
+        if self.state == CombatUIState.CARD_SELECT:
+            logger.info(f"[카드선택] render() 진입, state={self.state}, card_hand={len(self.card_hand) if hasattr(self, 'card_hand') and self.card_hand else 0}장")
+        
         if self.state == CombatUIState.ACTION_MENU and self.action_menu:
             self.action_menu.render(console)
 
@@ -2138,7 +2373,15 @@ class CombatUI:
             self._render_item_menu(console)
 
         elif self.state == CombatUIState.CARD_SELECT:
-            self._render_card_select(console)
+            logger.info(f"[카드선택] render에서 CARD_SELECT 분기 진입!")
+            try:
+                self._render_card_select(console)
+            except Exception as e:
+                logger.error(f"[카드선택] 렌더링 오류: {e}", exc_info=True)
+
+        elif self.state == CombatUIState.POSSIBILITY_SELECT:
+            logger.info(f"[가능성 선택] render() POSSIBILITY_SELECT 분기 진입, slots={len(self.possibility_slots) if self.possibility_slots else 0}개")
+            self._render_possibility_select(console)
 
         elif self.state == CombatUIState.GIMMICK_VIEW:
             self._render_gimmick_view(console)
@@ -2249,13 +2492,23 @@ class CombatUI:
             is_casting = cast_info is not None
             cast_progress = cast_info.progress if cast_info else 0.0
 
+            # 기믹 상태 표시 (캐릭터 이름 오른쪽)
+            gimmick_result = self._get_gimmick_display(ally)
+            if isinstance(gimmick_result, tuple):
+                gimmick_text, gimmick_color = gimmick_result
+            else:
+                gimmick_text = gimmick_result
+                gimmick_color = (150, 200, 255)
+            if gimmick_text:
+                console.print(22, y, gimmick_text, fg=gimmick_color)
+
             # 상태이상/버프/디버프 아이콘 (ATB 게이지 바로 위, 최대 3줄)
             status_effects = getattr(ally, 'status_effects', [])
             active_buffs = getattr(ally, 'active_buffs', {})
             # status_manager에서 상태이상 가져오기
             if hasattr(ally, 'status_manager'):
                 status_effects = ally.status_manager.status_effects
-            
+
             if status_effects or active_buffs:
                 status_lines = gauge_renderer.render_status_icons(status_effects, buffs=active_buffs)
                 if isinstance(status_lines, list):
@@ -3031,6 +3284,36 @@ class CombatUI:
                               "four_of_kind": "포카드", "straight_flush": "스트레이트 플러시"}
                 return (f"{combo_names.get(combo_type, combo_type)} 패:{len(hand)}", (255, 200, 100))
             return (f"패:{len(hand)}/{max_hand} 덱:{len(deck)}", (255, 200, 100))
+        
+        elif gimmick_type == "possibility_slots":
+            # 시간술사 - 가능성 슬롯
+            slots = getattr(character, 'possibility_slots', [])
+            max_slots = getattr(character, 'max_possibility_slots', 4)
+            slot_count = len(slots)
+            # 슬롯 상태 아이콘 표시 (채워진 슬롯: ◆, 빈 슬롯: ◇)
+            slot_icons = "◆" * slot_count + "◇" * (max_slots - slot_count)
+            if slot_count >= max_slots:
+                return (f"가능성:{slot_icons} MAX", (200, 255, 255))
+            return (f"가능성:{slot_icons}", (150, 200, 255))
+
+        elif gimmick_type == "phantom_legion":
+            # 환술사 - 환영 군단
+            phantom_count = getattr(character, 'phantom_count', 0)
+            max_phantoms = getattr(character, 'max_phantoms', 4)
+            afterimage = getattr(character, 'afterimage_gauge', 0)
+            # 환영 아이콘 (활성: ◆, 빈 슬롯: ◇)
+            phantom_icons = "◆" * phantom_count + "◇" * (max_phantoms - phantom_count)
+
+            # 확정 회피 준비 상태 계산 (플래그가 아니라 실시간으로 계산)
+            # 환영 2개 이상이고 쿨다운이 0일 때만 준비 상태
+            mirror_shift_cooldown = getattr(character, 'mirror_shift_cooldown', 0)
+            mirror_ready = phantom_count >= 2 and mirror_shift_cooldown == 0
+
+            if mirror_ready:
+                return (f"환영:{phantom_icons} ★확정회피", (200, 150, 255))
+            if phantom_count >= max_phantoms:
+                return (f"환영:{phantom_icons} 잔상:{afterimage}", (180, 120, 255))
+            return (f"환영:{phantom_icons} 잔상:{afterimage}", (150, 100, 200))
 
         return ("", (255, 255, 255))
 
@@ -3051,6 +3334,12 @@ class CombatUI:
         elif gimmick_type == "rune_resonance":
             # 배틀메이지의 경우 룬 5개 + 공명 정보를 위해 높이 증가
             box_height = 22
+        elif gimmick_type == "possibility_slots":
+            # 시간술사 가능성 슬롯: 슬롯 4개 + 효과 정보
+            box_height = 24
+        elif gimmick_type == "phantom_legion":
+            # 환술사 환영 군단: 환영 + 잔상 + 확정회피 정보
+            box_height = 24
         else:
             box_height = 22
         box_x = (self.screen_width - box_width) // 2
@@ -3991,7 +4280,7 @@ class CombatUI:
                 console.print(content_x, content_y + line, " 시체 수집 필요", fg=(150, 150, 150))
 
         elif gimmick_type == "time_system":
-            # 시간술사 - 시간 마크
+            # 시간술사 - 시간 마크 (레거시)
             marks = getattr(character, 'time_marks', 0)
             max_marks = getattr(character, 'max_time_marks', 7)
 
@@ -4012,6 +4301,131 @@ class CombatUI:
                 console.print(content_x, content_y + line, " 시간 조작 가능", fg=(200, 150, 255))
             else:
                 console.print(content_x, content_y + line, " 시간 마크 축적 중...", fg=(150, 150, 150))
+
+        elif gimmick_type == "possibility_slots":
+            # 시간술사 - 가능성 슬롯 (평행시간선 소환사)
+            slots = getattr(character, 'possibility_slots', [])
+            max_slots = getattr(character, 'max_possibility_slots', 4)
+            slot_count = len(slots)
+
+            console.print(content_x, content_y + line, "⌛ 시간술사 - 가능성 슬롯", fg=(150, 200, 255))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 슬롯 상태 표시
+            slot_icons = ""
+            for i in range(max_slots):
+                if i < slot_count:
+                    slot_icons += "◆ "
+                else:
+                    slot_icons += "◇ "
+            console.print(content_x, content_y + line, f" 슬롯: {slot_icons}({slot_count}/{max_slots})", fg=(200, 255, 255))
+            line += 2
+
+            # 저장된 가능성 스킬 목록
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+            console.print(content_x, content_y + line, " 저장된 가능성:", fg=(200, 200, 200))
+            line += 1
+
+            skill_names = {
+                'time_bolt': '타임 볼트', 'time_shock': '타임 쇼크',
+                'chrono_blast': '크로노 블라스트', 'time_wave': '타임 웨이브',
+                'haste': '헤이스트', 'slow': '슬로우',
+                'time_stop': '시간 정지', 'time_accel': '시간 가속',
+                'future_sight': '미래 예지', 'past_regression': '과거 회귀',
+                'rewind': '리와인드', 'paradox_guard': '역설 방어'
+            }
+
+            if slots:
+                for i, slot in enumerate(slots):
+                    skill_id = slot.get('skill_id', '???')
+                    power = slot.get('power_ratio', 0.85)
+                    reuse = slot.get('reuse_count', 0)
+                    skill_name = skill_names.get(skill_id, skill_id)
+                    reuse_text = f" (재사용:{reuse})" if reuse > 0 else ""
+                    console.print(content_x + 2, content_y + line, f"{i+1}. {skill_name} ({int(power*100)}%){reuse_text}", fg=(150, 255, 200))
+                    line += 1
+            else:
+                console.print(content_x + 2, content_y + line, "(없음)", fg=(100, 100, 100))
+                line += 1
+
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 평행 공명 효과
+            damage_reduction = getattr(character, '_parallel_resonance_damage_reduction', 0)
+            atb_bonus = getattr(character, '_parallel_resonance_atb_bonus', 0)
+            console.print(content_x, content_y + line, " 평행 공명 효과:", fg=(200, 200, 200))
+            line += 1
+            console.print(content_x + 2, content_y + line, f"마법 공격력: +{slot_count * 8}%", fg=(255, 200, 255))
+            line += 1
+            console.print(content_x + 2, content_y + line, f"받는 피해: -{int(damage_reduction * 100)}%", fg=(100, 255, 150))
+            line += 1
+            if slot_count >= max_slots:
+                console.print(content_x + 2, content_y + line, f"ATB 보너스: +{int(atb_bonus * 100)}% (MAX)", fg=(255, 255, 100))
+
+        elif gimmick_type == "phantom_legion":
+            # 환술사 - 환영 군단
+            phantom_count = getattr(character, 'phantom_count', 0)
+            max_phantoms = getattr(character, 'max_phantoms', 4)
+            phantom_hits = getattr(character, 'phantom_hits', [])
+            afterimage = getattr(character, 'afterimage_gauge', 0)
+            max_afterimage = getattr(character, 'afterimage_max', 100)
+            mirror_shift_cooldown = getattr(character, 'mirror_shift_cooldown', 0)
+            # 확정 회피 준비 상태 실시간 계산 (환영 2개 이상 + 쿨다운 0)
+            mirror_shift_ready = phantom_count >= 2 and mirror_shift_cooldown == 0
+
+            console.print(content_x, content_y + line, "🌙 환술사 - 환영 군단", fg=(180, 120, 255))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 환영 상태 표시
+            phantom_icons = ""
+            for i in range(max_phantoms):
+                if i < phantom_count:
+                    hits = phantom_hits[i] if i < len(phantom_hits) else 0
+                    phantom_icons += f"◆({hits}) "
+                else:
+                    phantom_icons += "◇ "
+            console.print(content_x, content_y + line, f" 환영: {phantom_icons}", fg=(200, 150, 255))
+            line += 1
+            
+            # 환영 보너스
+            evasion_bonus = phantom_count * 12
+            redirect_chance = int((1 - (0.70 ** phantom_count)) * 100) if phantom_count > 0 else 0
+            console.print(content_x + 2, content_y + line, f"회피 +{evasion_bonus}% | 대신 맞을 확률: {redirect_chance}%", fg=(150, 200, 255))
+            line += 2
+
+            # 잔상 게이지
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+            console.print(content_x, content_y + line, " 잔상 게이지:", fg=(200, 200, 200))
+            line += 1
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, afterimage, max_afterimage, show_numbers=True, custom_color=(180, 100, 220))
+            line += 2
+
+            # 확정 회피 상태
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+            console.print(content_x, content_y + line, " 확정 회피 (Mirror Shift):", fg=(200, 200, 200))
+            line += 1
+            if mirror_shift_ready:
+                console.print(content_x + 2, content_y + line, "★ 준비 완료! (환영 2개 이상 필요)", fg=(255, 255, 100))
+            elif mirror_shift_cooldown > 0:
+                console.print(content_x + 2, content_y + line, f"쿨다운: {mirror_shift_cooldown}턴 남음", fg=(150, 150, 150))
+            else:
+                console.print(content_x + 2, content_y + line, "환영 2개 이상 필요", fg=(150, 150, 150))
+            line += 1
+
+            # 스킬 조건 안내
+            if afterimage >= 80:
+                console.print(content_x + 2, content_y + line, "💫 무한 반사 사용 가능!", fg=(255, 200, 255))
+            elif afterimage >= 50:
+                console.print(content_x + 2, content_y + line, "✨ 잔상 폭발 사용 가능", fg=(200, 150, 255))
 
         elif gimmick_type == "alchemy_system":
             # 연금술사 - 포션 재고
@@ -5003,9 +5417,62 @@ class CombatUI:
         if self.item_menu:
             self.item_menu.render(console)
 
+    def _render_possibility_select(self, console: tcod.console.Console):
+        """가능성 선택 UI 렌더링 (시간술사)"""
+        if not self.possibility_slots:
+            return
+        
+        # 박스 크기/위치
+        width = 36
+        height = min(len(self.possibility_slots) + 5, 12)
+        x = (console.width - width) // 2
+        y = (console.height - height) // 2
+        
+        # 배경 박스
+        console.draw_frame(x, y, width, height, title="가능성 선택",
+                          clear=True, fg=(255, 255, 255), bg=(20, 20, 50))
+        
+        # 설명
+        action_desc = {
+            "summon_single": "발동할 가능성 선택",
+            "summon_dual": f"2개 선택 ({len(self.possibility_selected)}/2)",
+            "overwrite_slot": "덮어쓸 슬롯 선택"
+        }
+        desc = action_desc.get(self.possibility_action, "선택")
+        console.print(x + 2, y + 1, desc, fg=(200, 200, 200))
+        
+        # 슬롯 목록
+        for i, slot in enumerate(self.possibility_slots):
+            y_pos = y + 3 + i
+            
+            if i in self.possibility_selected:
+                prefix = "◆ "
+                fg_color = (100, 255, 100)
+            elif i == self.possibility_cursor:
+                prefix = "▶ "
+                fg_color = (255, 255, 100)
+            else:
+                prefix = "  "
+                fg_color = (200, 200, 200)
+            
+            skill_name = slot.get('skill_name', '???')
+            power = int(slot.get('power_ratio', 0.85) * 100)
+            text = f"{prefix}{i+1}. {skill_name} ({power}%)"
+            console.print(x + 2, y_pos, text[:width-4], fg=fg_color)
+        
+        # 하단 안내
+        help_y = y + height - 2
+        if self.possibility_action == "summon_dual":
+            help_text = "Z:선택/해제 X:취소"
+        else:
+            help_text = "Z:선택 X:취소"
+        console.print(x + 2, help_y, help_text, fg=(150, 150, 150))
+
     def _render_card_select(self, console: tcod.console.Console):
         """카드 선택 UI 렌더링 (마술사)"""
+        logger.info(f"[카드선택] _render_card_select 호출, card_hand: {len(self.card_hand) if self.card_hand else 0}장, 내용: {self.card_hand[:2] if self.card_hand else 'empty'}")
         if not self.card_hand:
+            logger.warning("[카드선택] card_hand가 비어있어 렌더링 스킵!")
             return
         
         # 박스 크기 계산
@@ -5147,16 +5614,20 @@ class CombatUI:
         teamwork_gauge = getattr(party, 'teamwork_gauge', 0)
         max_teamwork_gauge = getattr(party, 'max_teamwork_gauge', 600)
 
-        # 게이지 포맷팅 (간단한 형식)
-        gauge_text = TeamworkGaugeDisplay.format_compact(teamwork_gauge, max_teamwork_gauge)
-
         # 표시 위치: 화면 하단, 메시지 로그 왼쪽 (y=30 또는 31)
         # 행동 메뉴는 y=33이므로, 그 위에 배치
         gauge_y = 28  # 메시지 로그 상단(y=29) 위에 배치
         gauge_x = 2   # 왼쪽 여백
 
-        # 게이지 텍스트 출력
-        console.print(gauge_x, gauge_y, gauge_text, fg=(100, 200, 255))
+        # 라벨 출력
+        console.print(gauge_x, gauge_y, "TW:", fg=(200, 200, 200))
+        
+        # 게이지 바 렌더링 (MP/BRV와 동일한 스타일)
+        gauge_renderer.render_animated_teamwork_bar(
+            console, gauge_x + 4, gauge_y, 15,
+            teamwork_gauge, max_teamwork_gauge, "party_teamwork",
+            show_numbers=True
+        )
 
 
 def run_combat(
@@ -5401,6 +5872,28 @@ def run_combat(
         ui.render(console)
         context.present(console)
 
+        # 봇 클라이언트용 상태 내보내기 (일반 모드에서도 작동)
+        try:
+            from src.bot import is_export_enabled, export_combat_state
+            if is_export_enabled():
+                from src.ui.ai_spectate_mode import extract_console_text
+                screen_text = extract_console_text(console)
+                # 현재 행동 캐릭터 찾기
+                current_char = combat_manager.current_actor
+                if not current_char and hasattr(combat_manager, 'atb'):
+                    # ATB에서 준비된 캐릭터 찾기
+                    action_order = combat_manager.atb.get_action_order()
+                    for c in action_order:
+                        if c in party:
+                            current_char = c
+                            break
+                ui_state_str = ui.state.value if hasattr(ui.state, 'value') else str(ui.state)
+                export_combat_state(combat_manager, current_char, screen_text, ui_state_str, party)
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
         # 입력 처리
         action = None
 
@@ -5450,8 +5943,6 @@ def run_combat(
         else:
             # 게임패드 입력 우선 확인
             action = unified_input_handler.get_action()
-            if action:
-                print(f"GAMEPAD_ACTION: {action.name}")  # 액션 감지 시 큰 표시
 
             # tcod 이벤트 처리 (키보드/마우스) - 게임패드 입력이 없을 때만
             if not action:
@@ -5460,9 +5951,6 @@ def run_combat(
                 for event in events:
                     action = unified_input_handler.process_tcod_event(event)
                     if action:
-                        print(f"KEYBOARD_ACTION: {action.name}")  # 액션 감지 시 큰 표시
-                    if action:
-                        print(f"✅ 키보드 액션 감지: {action}")  # 디버깅용
                         break
 
                     # 윈도우 닫기는 무시 (전투 중에는 도주 명령으로만 종료 가능)
