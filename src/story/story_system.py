@@ -243,7 +243,7 @@ class StorySystem:
                 color="yellow"
             ),
             StorySegment(
-                "\n\n그의 검이 빛난다─",
+                "\n\n그의 창과 눈동자가 붉게 빛난다─",
                 pause=1.0,
                 color="white"
             ),
