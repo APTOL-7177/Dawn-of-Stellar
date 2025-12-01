@@ -8,6 +8,7 @@
 import random
 from src.character.skills.skill import Skill
 from src.character.skills.teamwork_skill import TeamworkSkill
+from src.character.skills.effects.base import SkillEffect, EffectType, EffectResult
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
@@ -63,36 +64,104 @@ TREASURE_TYPES = {
 # 럼주 효과 정의
 # ============================================================
 RUM_EFFECTS = {
+    # === 긍정 효과 (8개) ===
     "jackpot": {
-        "name": "대박",
+        "name": "★ 대박 ★",
         "positive": True,
-        "attack_multiplier": 2.0,
-        "duration": 3,
-        "description": "공격력 2배 (3턴)"
-    },
-    "tipsy": {
-        "name": "취기",
-        "positive": False,  # 반반
-        "accuracy_modifier": -0.3,
-        "evasion_modifier": 0.5,
+        "attack_multiplier": 3.0,
+        "critical_chance": 1.0,
         "duration": 2,
-        "description": "명중 -30%, 회피 +50% (2턴)"
+        "description": "공격력 3배 + 100% 크리티컬 (2턴)"
+    },
+    "invincible_drunk": {
+        "name": "★ 무적 취권 ★",
+        "positive": True,
+        "evasion_modifier": 1.0,
+        "counter_attack": True,
+        "duration": 2,
+        "description": "회피 +100%, 회피 시 반격 (2턴)"
+    },
+    "liquid_courage": {
+        "name": "★ 액체 용기 ★",
+        "positive": True,
+        "damage_reduction": 0.5,
+        "hp_regen": 0.1,
+        "duration": 3,
+        "description": "피해 50% 감소 + 매턴 HP 10% 회복 (3턴)"
+    },
+    "sea_kings_blessing": {
+        "name": "★ 바다왕의 축복 ★",
+        "positive": True,
+        "all_stats_up": 0.3,  # 모든 스탯 +30%
+        "duration": 3,
+        "description": "모든 스탯 +30% (3턴)"
+    },
+    "golden_rush": {
+        "name": "★ 황금 러시 ★",
+        "positive": True,
+        "brv_multiplier": 2.0,  # BRV 획득 2배
+        "treasure_chance": 1.0,  # 보물 획득률 100%
+        "duration": 2,
+        "description": "BRV 획득 2배, 보물 확정 드랍 (2턴)"
+    },
+    "double_shot": {
+        "name": "★ 더블 샷 ★",
+        "positive": True,
+        "extra_action": True,  # 추가 행동
+        "duration": 1,
+        "description": "즉시 추가 행동 1회!"
+    },
+    "iron_liver": {
+        "name": "★ 강철 간 ★",
+        "positive": True,
+        "status_immunity": True,  # 상태이상 면역
+        "hp_regen": 0.2,
+        "duration": 4,
+        "description": "상태이상 면역 + 매턴 HP 20% 회복 (4턴)"
+    },
+    "pirates_luck": {
+        "name": "★ 해적의 행운 ★",
+        "positive": True,
+        "critical_damage": 2.0,  # 크리티컬 데미지 2배
+        "luck_modifier": 0.5,  # 행운 +50%
+        "duration": 3,
+        "description": "크리티컬 데미지 2배, 행운 +50% (3턴)"
+    },
+    # === 부정 효과 (4개) ===
+    "tipsy": {
+        "name": "✗ 비틀거림 ✗",
+        "positive": False,
+        "accuracy_modifier": -0.6,  # 명중 -60%
+        "evasion_modifier": 0.8,
+        "duration": 3,
+        "description": "명중 -60%, 회피 +80% (3턴)"
     },
     "fire_blood": {
-        "name": "불꽃 피",
-        "positive": False,  # 반반
-        "self_damage": 0.1,  # 매턴 10% 자해
-        "attack_multiplier": 1.8,
+        "name": "✗ 피가 끓는다 ✗",
+        "positive": False,
+        "self_damage": 0.15,  # 매턴 15% 자해
+        "attack_multiplier": 2.5,  # 공격력 +150%
+        "speed_modifier": 0.5,  # 속도 +50%
         "duration": 3,
-        "description": "매턴 자해 10%, 공격력 +80% (3턴)"
+        "description": "매턴 자해 15%, 공격력 +150%, 속도 +50% (3턴)"
     },
     "blackout": {
-        "name": "블랙아웃",
+        "name": "✗ 블랙아웃 ✗",
         "positive": False,
         "stun": True,
-        "double_action_next": True,
-        "duration": 1,
-        "description": "1턴 기절, 다음 턴 2회 행동"
+        "stun_duration": 2,  # 2턴 기절
+        "triple_action_next": True,  # 이후 3회 행동
+        "duration": 2,
+        "description": "2턴 기절, 이후 3회 연속 행동!"
+    },
+    "berserker_rage": {
+        "name": "✗ 광란의 도취 ✗",
+        "positive": False,
+        "attack_multiplier": 2.0,
+        "defense_modifier": -0.5,  # 방어 -50%
+        "auto_attack": True,  # 자동 공격 (제어 불가)
+        "duration": 3,
+        "description": "공격력 2배, 방어 -50%, 제어 불가 (3턴)"
     }
 }
 
@@ -123,6 +192,146 @@ def get_random_rum_effect(positive_chance=0.5):
             return random.choice(positive_effects)
     
     return random.choice(effects)
+
+
+class RumEffect(SkillEffect):
+    """럼주 랜덤 효과"""
+    def __init__(self, positive_chance=0.5):
+        super().__init__(EffectType.GIMMICK)
+        self.positive_chance = positive_chance
+
+    def execute(self, user, target, context) -> EffectResult:
+        # 1. 랜덤 효과 선택
+        effect_id, effect_data = get_random_rum_effect(self.positive_chance)
+        
+        # 2. 효과 적용
+        duration = effect_data.get("duration", 2)
+        results = []
+        
+        # 효과 매핑 및 실행
+        # (1) 공격력 (Attack Multiplier)
+        if "attack_multiplier" in effect_data:
+            val = effect_data["attack_multiplier"]
+            # 2.0 -> +100% (1.0)
+            buff_val = val - 1.0
+            if buff_val > 0:
+                results.append(BuffEffect(BuffType.ATTACK_UP, value=buff_val, duration=duration, target="self").execute(user, user, context))
+        
+        # (2) 크리티컬 확률
+        if "critical_chance" in effect_data:
+            val = effect_data["critical_chance"]
+            results.append(BuffEffect(BuffType.CRITICAL_UP, value=val, duration=duration, target="self").execute(user, user, context))
+            
+        # (3) 회피율
+        if "evasion_modifier" in effect_data:
+            val = effect_data["evasion_modifier"]
+            results.append(BuffEffect(BuffType.EVASION_UP, value=val, duration=duration, target="self").execute(user, user, context))
+            
+        # (4) 피해 감소 -> 방어력 증가로 근사
+        if "damage_reduction" in effect_data:
+            val = effect_data["damage_reduction"]
+            results.append(BuffEffect(BuffType.DEFENSE_UP, value=val, duration=duration, target="self").execute(user, user, context))
+            
+        # (5) HP 재생
+        if "hp_regen" in effect_data:
+            val = effect_data["hp_regen"]
+            results.append(BuffEffect(BuffType.HP_REGEN, value=val, duration=duration, target="self").execute(user, user, context))
+            
+        # (6) 모든 스탯 증가
+        if "all_stats_up" in effect_data:
+            val = effect_data["all_stats_up"]
+            for b_type in [BuffType.ATTACK_UP, BuffType.DEFENSE_UP, BuffType.MAGIC_UP, BuffType.SPIRIT_UP, BuffType.SPEED_UP, BuffType.LUCK]:
+                results.append(BuffEffect(b_type, value=val, duration=duration, target="self").execute(user, user, context))
+                
+        # (7) BRV 획득 배율 (커스텀)
+        if "brv_multiplier" in effect_data:
+            val = effect_data["brv_multiplier"]
+            results.append(BuffEffect(BuffType.CUSTOM, custom_stat="brv_gain", value=val, duration=duration, target="self").execute(user, user, context))
+            
+        # (8) 보물 획득 확률 (커스텀)
+        if "treasure_chance" in effect_data:
+            val = effect_data["treasure_chance"]
+            results.append(BuffEffect(BuffType.CUSTOM, custom_stat="treasure_drop", value=val, duration=duration, target="self").execute(user, user, context))
+            
+        # (9) 추가 행동 (커스텀)
+        if "extra_action" in effect_data:
+            results.append(BuffEffect(BuffType.CUSTOM, custom_stat="extra_action", value=1, duration=duration, target="self").execute(user, user, context))
+            
+        # (10) 상태이상 면역 (커스텀)
+        if "status_immunity" in effect_data:
+            results.append(BuffEffect(BuffType.CUSTOM, custom_stat="status_immunity", value=1, duration=duration, target="self").execute(user, user, context))
+            
+        # (11) 크리티컬 데미지 (커스텀)
+        if "critical_damage" in effect_data:
+            val = effect_data["critical_damage"]
+            # 2.0 -> +100%
+            buff_val = val - 1.0
+            results.append(BuffEffect(BuffType.CUSTOM, custom_stat="critical_damage", value=buff_val, duration=duration, target="self").execute(user, user, context))
+            
+        # (12) 행운
+        if "luck_modifier" in effect_data:
+            val = effect_data["luck_modifier"]
+            results.append(BuffEffect(BuffType.LUCK, value=val, duration=duration, target="self").execute(user, user, context))
+            
+        # (13) 명중률 (음수면 감소)
+        if "accuracy_modifier" in effect_data:
+            val = effect_data["accuracy_modifier"]
+            if val < 0:
+                results.append(BuffEffect(BuffType.ACCURACY_DOWN, value=abs(val), duration=duration, target="self").execute(user, user, context))
+            else:
+                results.append(BuffEffect(BuffType.ACCURACY_UP, value=val, duration=duration, target="self").execute(user, user, context))
+
+        # (14) 자해 (Self Damage) -> 화상(Burn)으로 처리
+        if "self_damage" in effect_data:
+            val = effect_data["self_damage"]
+            # 화상은 턴당 데미지
+            results.append(StatusEffect(StatusType.BURN, value=val, duration=duration).execute(user, user, context))
+            
+        # (15) 속도
+        if "speed_modifier" in effect_data:
+            val = effect_data["speed_modifier"]
+            if val > 0:
+                results.append(BuffEffect(BuffType.SPEED_UP, value=val, duration=duration, target="self").execute(user, user, context))
+            else:
+                results.append(BuffEffect(BuffType.SPEED_DOWN, value=abs(val), duration=duration, target="self").execute(user, user, context))
+                
+        # (16) 기절
+        if "stun" in effect_data:
+            stun_dur = effect_data.get("stun_duration", 1)
+            results.append(StatusEffect(StatusType.STUN, duration=stun_dur).execute(user, user, context))
+            
+        # (17) 다음 턴 3회 행동 (커스텀)
+        if "triple_action_next" in effect_data:
+            results.append(BuffEffect(BuffType.CUSTOM, custom_stat="triple_action_next", value=1, duration=duration, target="self").execute(user, user, context))
+            
+        # (18) 방어력 (음수면 감소)
+        if "defense_modifier" in effect_data:
+            val = effect_data["defense_modifier"]
+            if val < 0:
+                results.append(BuffEffect(BuffType.DEFENSE_DOWN, value=abs(val), duration=duration, target="self").execute(user, user, context))
+            else:
+                results.append(BuffEffect(BuffType.DEFENSE_UP, value=val, duration=duration, target="self").execute(user, user, context))
+                
+        # (19) 자동 공격 (커스텀)
+        if "auto_attack" in effect_data:
+            results.append(BuffEffect(BuffType.CUSTOM, custom_stat="auto_attack", value=1, duration=duration, target="self").execute(user, user, context))
+            
+        # (20) 반격 (Counter)
+        if "counter_attack" in effect_data:
+            results.append(BuffEffect(BuffType.COUNTER, value=1, duration=duration, target="self").execute(user, user, context))
+
+        # 결과 메시지 조합
+        effect_name = effect_data["name"]
+        desc = effect_data["description"]
+        
+        final_msg = f"럼주 효과 발동: {effect_name}!\n({desc})"
+        
+        return EffectResult(
+            effect_type=EffectType.GIMMICK,
+            success=True,
+            message=final_msg,
+            gimmick_changes={"rum_effect": effect_id}
+        )
 
 
 def create_pirate_skills():
@@ -173,9 +382,10 @@ def create_pirate_skills():
     drink_rum.effects = [
         # 기본 HP 회복
         HealEffect(HealType.HP, percentage=0.15),
-        # 럼주 효과는 execute_skill에서 랜덤 적용
+        # 럼주 효과 적용
+        RumEffect(positive_chance=0.5)
     ]
-    drink_rum.costs = [MPCost(8)]
+    drink_rum.costs = [MPCost(4)]
     drink_rum.target_type = "self"
     drink_rum.sfx = ("character", "drink")
     drink_rum.metadata = {
@@ -197,7 +407,7 @@ def create_pirate_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.25, duration=3, is_party_wide=True),
         BuffEffect(BuffType.SPEED_UP, 0.2, duration=3, is_party_wide=True),
     ]
-    share_rum.costs = [MPCost(12)]
+    share_rum.costs = [MPCost(7)]
     share_rum.target_type = "all_allies"
     share_rum.sfx = ("character", "status_buff")
     share_rum.metadata = {"rum_skill": True, "party_buff": True}
@@ -216,7 +426,7 @@ def create_pirate_skills():
         StatusEffect(StatusType.BURN, 3, 0.08),  # 3턴 화상
         BuffEffect(BuffType.SPEED_DOWN, 0.3, duration=2),
     ]
-    rum_splash.costs = [MPCost(10)]
+    rum_splash.costs = [MPCost(6)]
     rum_splash.target_type = "all_enemies"
     rum_splash.is_aoe = True
     rum_splash.sfx = ("skill", "fire_explosion")

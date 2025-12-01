@@ -1,0 +1,25 @@
+id: phantom_strike
+name: 환영 일격
+type: brv_attack
+description: 환영들과 함께 적을 연속 공격 (물리). 환영 수만큼 추가 히트
+costs:
+  mp: 8
+  cast_time: 0.8
+target: single_enemy
+effects:
+  - type: damage
+    damage_type: physical
+    stat_base: strength
+    multiplier: 1.6
+    element: none
+    attack_type: brv
+  - type: phantom_echo_damage
+    per_phantom_multiplier: 0.4
+    damage_type: physical
+    stat_base: strength
+    hit_delay: 0.2
+metadata:
+  job: illusionist
+  attack_skill: true
+  multi_hit: true
+  scaling: physical

@@ -32,10 +32,11 @@ stat_growth:
 traits:
 - id: lucky_drunk
   name: 행운의 주정뱅이
-  description: 럼주 효과 발동 시 긍정 효과 확률 +20% (기본 50% → 70%)
+  description: 럼주 효과가 항상 긍정적, 부정 효과 발동 시 BRV +30% 보상
   type: passive
   effects:
-    positive_rum_chance: 0.7
+    rum_always_positive: true
+    negative_rum_brv_bonus: 0.3
 
 - id: treasure_hoarder
   name: 보물 수집가
@@ -47,13 +48,13 @@ traits:
 
 - id: sea_dog_instinct
   name: 바다 늑대의 본능
-  description: HP 30% 이하 시 회피율 +40%, 럼주 효과가 항상 긍정적
+  description: HP 30% 이하 시 회피율 +40%, 럼주 효과 지속시간 2배
   type: conditional
   conditions:
     hp_below: 0.3
   effects:
     evasion_bonus: 0.4
-    rum_always_positive: true
+    rum_duration_multiplier: 2.0
 
 - id: plunder_master
   name: 약탈의 대가

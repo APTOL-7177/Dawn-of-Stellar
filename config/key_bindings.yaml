@@ -1,0 +1,100 @@
+# Dawn of Stellar - 키 바인딩 설정
+# 키보드와 게임패드 키 바인딩을 각각 설정할 수 있습니다.
+# 게임패드 입력은 지정된 키보드 키로 변환되어 처리됩니다.
+
+gamepad:
+  button_to_key:
+    '0': z
+    '1': x
+    '2': e
+    '3': SPACE
+    '4': i
+    '5': c
+    '6': m
+    '7': ESCAPE
+    '8': s
+    '9': p
+  deadzone: 0.3
+  dpad_to_key:
+    down: DOWN
+    down_left: b
+    down_right: n
+    left: LEFT
+    right: RIGHT
+    up: UP
+    up_left: y
+    up_right: u
+  layout: xbox
+  stick_to_key:
+    down: DOWN
+    left: LEFT
+    right: RIGHT
+    up: UP
+keyboard:
+  attack:
+  - SPACE
+  cancel:
+  - x
+  - ESCAPE
+  confirm:
+  - z
+  - RETURN
+  escape:
+  - ESCAPE
+  gimmick_detail:
+  - g
+  interact:
+  - e
+  inventory_destroy:
+  - v
+  inventory_drop:
+  - d
+  inventory_drop_gold:
+  - g
+  menu:
+  - m
+  move_down:
+  - DOWN
+  - j
+  - KP_2
+  move_down_left:
+  - b
+  - KP_1
+  move_down_right:
+  - n
+  - KP_3
+  move_left:
+  - LEFT
+  - h
+  - KP_4
+  move_right:
+  - RIGHT
+  - l
+  - KP_6
+  move_up:
+  - UP
+  - k
+  - KP_8
+  move_up_left:
+  - y
+  - KP_7
+  move_up_right:
+  - u
+  - KP_9
+  open_character:
+  - c
+  open_inventory:
+  - i
+  open_skills:
+  - s
+  page_down:
+  - PAGEDOWN
+  page_up:
+  - PAGEUP
+  pickup:
+  - p
+  quit:
+  - q
+  wait:
+  - PERIOD
+  - KP_5

@@ -194,14 +194,6 @@ class MainMenu:
             ),
         ]
         
-        # AI 관전 모드는 개발 모드에서만 표시
-        if is_dev_mode:
-            menu_items.append(MenuItem(
-                text="🤖 AI 관전",
-                action=self._open_ai_spectate,
-                description="[DEV] AI가 자동으로 플레이하는 것을 관전합니다"
-            ))
-        
         menu_items.extend([
             MenuItem(
                 text="메타 진행",

@@ -25,6 +25,7 @@ class SettingOption(Enum):
     FULLSCREEN = "fullscreen"
     SHOW_FPS = "show_fps"
     FPS_LIMIT = "fps_limit"
+    KEY_BINDINGS = "key_bindings"  # 키 설정
     TUTORIAL = "tutorial"
     BACK = "back"
 
@@ -67,6 +68,7 @@ class SettingsUI:
             ("전체화면", SettingOption.FULLSCREEN),
             ("FPS 표시", SettingOption.SHOW_FPS),
             ("FPS 제한", SettingOption.FPS_LIMIT),
+            ("키 설정", SettingOption.KEY_BINDINGS),
             ("튜토리얼 다시보기", SettingOption.TUTORIAL),
             ("돌아가기", SettingOption.BACK),
         ]
@@ -95,6 +97,8 @@ class SettingsUI:
                 return "close"
             elif option == SettingOption.TUTORIAL:
                 return "tutorial"
+            elif option == SettingOption.KEY_BINDINGS:
+                return "key_bindings"
             else:
                 # Z로도 값 토글/증가
                 self._adjust_setting(1)
@@ -203,6 +207,9 @@ class SettingsUI:
             elif option == SettingOption.FPS_LIMIT:
                 value = f"{self.fps_limit} FPS" if self.fps_limit > 0 else "무제한"
                 console.print(value_x, y, f"< {value} >", fg=value_color)
+            elif option == SettingOption.KEY_BINDINGS:
+                # 키 설정
+                console.print(value_x, y, "[ Z로 열기 ]", fg=value_color)
             elif option == SettingOption.TUTORIAL:
                 # 튜토리얼 다시보기
                 console.print(value_x, y, "[ Z로 시작 ]", fg=value_color)
@@ -219,8 +226,9 @@ class SettingsUI:
             2: "전체화면 모드로 게임을 실행합니다 (재시작 필요)",
             3: "화면에 프레임 레이트(FPS)를 표시합니다",
             4: "게임의 최대 프레임 레이트를 제한합니다 (0 = 무제한)",
-            5: "튜토리얼을 다시 볼 수 있습니다 (게임 기본 조작법, 전투 시스템 등)",
-            6: "메뉴로 돌아갑니다",
+            5: "키보드와 게임패드 키 설정을 변경합니다",
+            6: "튜토리얼을 다시 볼 수 있습니다 (게임 기본 조작법, 전투 시스템 등)",
+            7: "메뉴로 돌아갑니다",
         }
 
         explanation = explanations.get(self.selected_index, "")
@@ -232,11 +240,22 @@ class SettingsUI:
                 fg=(150, 200, 255)
             )
 
-        # 조작법
+        # 조작법 (게임패드 연결 시 게임패드 버튼으로 표시)
+        from src.ui.input_handler import unified_input_handler, key_binding_manager
+        use_gamepad = unified_input_handler.gamepad_connected
+        
+        if use_gamepad:
+            move_help = key_binding_manager.get_movement_help(True)
+            confirm_key = key_binding_manager.get_action_display("confirm", True)
+            cancel_key = key_binding_manager.get_action_display("escape", True)
+            help_text = f"{move_help}  {confirm_key}: 확인  {cancel_key}: 저장하고 닫기"
+        else:
+            help_text = "↑↓: 선택  ←→: 값 조정  Z: 확인  ESC: 저장하고 닫기"
+        
         console.print(
             5,
             self.screen_height - 4,
-            "↑↓: 선택  ←→: 값 조정  Z: 확인  ESC: 저장하고 닫기",
+            help_text,
             fg=(180, 180, 180)
         )
 
@@ -262,13 +281,22 @@ def open_settings(
 
     logger.info("설정 메뉴 열림")
 
+    import time
+    
     while True:
         # 렌더링
         settings.render(console)
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
+
+        # 키보드 입력 처리 (논블로킹)
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
@@ -279,6 +307,11 @@ def open_settings(
                     settings.save_settings()
                     logger.info("설정 메뉴 닫힘")
                     return
+                elif result == "key_bindings":
+                    # 키 설정 UI 열기
+                    from src.ui.key_bindings_ui import open_key_bindings
+                    open_key_bindings(console, context)
+                    # 키 설정에서 돌아온 후 설정 화면 계속
                 elif result == "tutorial":
                     # 스토리 튜토리얼 실행
                     from src.tutorial.story_runner import run_story_tutorial
@@ -298,3 +331,27 @@ def open_settings(
             if isinstance(event, tcod.event.Quit):
                 settings.save_settings()
                 return
+
+        # 게임패드 입력 처리 (키보드 입력이 없었을 때)
+        gamepad_action = unified_input_handler.get_action()
+        if gamepad_action:
+            result = settings.handle_input(gamepad_action)
+
+            if result == "close":
+                settings.save_settings()
+                logger.info("설정 메뉴 닫힘")
+                return
+            elif result == "key_bindings":
+                from src.ui.key_bindings_ui import open_key_bindings
+                open_key_bindings(console, context)
+            elif result == "tutorial":
+                from src.tutorial.story_runner import run_story_tutorial
+                logger.info("스토리 튜토리얼 시작")
+                tutorial_result = run_story_tutorial(console, context)
+                if tutorial_result.get("completed"):
+                    logger.info(f"스토리 튜토리얼 완료! 해금 직업: {tutorial_result.get('job_unlocked')}")
+                else:
+                    logger.info("스토리 튜토리얼 건너뜀")
+
+        # CPU 사용률 낮추기
+        time.sleep(0.01)

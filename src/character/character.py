@@ -563,6 +563,43 @@ class Character:
             self.last_pattern = None  # 마지막으로 완성한 패턴
             self.harmony_bonus = 1.0  # 화음 보너스 배율
 
+        # 시간술사 - 가능성 슬롯 시스템
+        elif gimmick_type == "possibility_slots":
+            self.possibility_slots = []  # 저장된 가능성 리스트
+            self.max_possibility_slots = self.gimmick_data.get("max_slots", 4)
+            self.base_generation_chance = self.gimmick_data.get("base_generation_chance", 0.70)
+            self.possibility_power_ratio = self.gimmick_data.get("possibility_power_ratio", 0.85)
+            # YAML 루트에서 possibility_pairs 로드
+            char_data = load_character_data(self.character_class)
+            self.possibility_pairs = char_data.get("possibility_pairs", {}) if char_data else {}
+            self.logger.debug(f"[시간술사] possibility_pairs 로드: {len(self.possibility_pairs)}개")
+
+        # 환술사 - 환영 군단 시스템
+        elif gimmick_type == "phantom_legion":
+            self.phantom_count = 0  # 현재 환영 수 (0-4)
+            self.max_phantoms = self.gimmick_data.get("max_phantoms", 4)
+            self.phantom_hits = []  # 각 환영의 히트 포인트 리스트
+            self.phantom_hit_absorb = self.gimmick_data.get("phantom_hit_absorb", 2)  # 환영당 흡수 히트
+            self.afterimage_gauge = 0  # 잔상 게이지 (0-100)
+            self.afterimage_max = self.gimmick_data.get("afterimage_max", 100)
+            self.afterimage_per_destroy = self.gimmick_data.get("afterimage_per_destroy", 25)
+            self.mirror_shift_cooldown = 0  # 확정 회피 쿨다운
+            self.mirror_shift_ready = False  # 확정 회피 준비 상태
+            # 환영 보너스 설정
+            per_phantom = self.gimmick_data.get("per_phantom_bonus", {})
+            self.phantom_evasion_bonus = per_phantom.get("evasion_bonus", 0.12)
+            self.phantom_echo_ratio = per_phantom.get("attack_echo_ratio", 0.35)
+            self.phantom_redirect_chance = per_phantom.get("damage_redirect_chance", 0.30)
+            # Mirror Shift 설정
+            mirror_shift = self.gimmick_data.get("mirror_shift", {})
+            self.mirror_shift_base_cooldown = mirror_shift.get("base_cooldown", 5)
+            self.mirror_shift_full_cooldown = mirror_shift.get("full_phantom_cooldown", 4)
+            # 거울 분신술 특성: 전투 시작 시 환영 2개 자동 생성
+            if self._has_trait("mirror_image"):
+                self.phantom_count = 2
+                self.phantom_hits = [self.phantom_hit_absorb, self.phantom_hit_absorb]
+                self.logger.info(f"[거울 분신술] {self.name} 전투 시작 시 환영 2개 자동 생성!")
+
         self.logger.debug(f"{self.character_class} 기믹 초기화: {gimmick_type}")
 
     def _get_class_skills(self, character_class: str) -> List[str]:
@@ -612,6 +649,7 @@ class Character:
             "저격수": "sniper_",
             "흡혈귀": "vampire_",
             "마술사": "magician_",
+            "환술사": "illusionist_",
             # 영문 직업명 (하위호환성)
             "warrior": "warrior_",
             "archmage": "archmage_",
@@ -648,6 +686,7 @@ class Character:
             "sniper": "sniper_",
             "vampire": "vampire_",
             "magician": "magician_",
+            "illusionist": "illusionist_",
         }
 
         # 스킬 접두사 가져오기
@@ -822,6 +861,16 @@ class Character:
             ]
         return self._cached_skills
 
+    def _has_trait(self, trait_id: str) -> bool:
+        """특성 보유 여부 확인 헬퍼"""
+        if not hasattr(self, 'active_traits'):
+            return False
+        for trait in self.active_traits:
+            tid = trait if isinstance(trait, str) else trait.get('id', '')
+            if tid == trait_id:
+                return True
+        return False
+
     # ===== HP/MP 관리 =====
 
     def take_damage(self, damage: int) -> int:
@@ -859,6 +908,14 @@ class Character:
                     
                     # 미니언이 대신 받았으므로 데미지 0
                     return 0
+        
+        # ===== 환술사: 환영 피해 분산 시스템 =====
+        if hasattr(self, 'gimmick_type') and self.gimmick_type == "phantom_legion":
+            from src.character.gimmick_updater import GimmickUpdater
+            result = GimmickUpdater.phantom_take_damage(self, damage)
+            if result.get('absorbed', False):
+                # 환영이 피해를 대신 받음
+                return 0
         
         # ===== 차원술사: 차원 굴절 시스템 (특성 효과 전에 먼저 처리) =====
         if hasattr(self, 'gimmick_type') and self.gimmick_type == "dimension_refraction":
@@ -909,6 +966,26 @@ class Character:
         damage_reduction = trait_manager.calculate_damage_reduction(self, is_defending=is_defending)
         if damage_reduction > 0:
             damage = int(damage * (1.0 - damage_reduction))
+        
+        # ===== 차원 보호막 버프: 피해 경감 및 차원술사 굴절량 전환 =====
+        if hasattr(self, 'active_buffs') and 'dimension_barrier' in self.active_buffs:
+            barrier_buff = self.active_buffs['dimension_barrier']
+            barrier_reduction = barrier_buff.get('value', 0.40)
+            
+            # 경감된 피해량 계산
+            reduced_damage = int(damage * barrier_reduction)
+            damage = damage - reduced_damage
+            
+            logger.info(f"[차원 보호막] {self.name} 피해 경감: -{reduced_damage} ({int(barrier_reduction*100)}%)")
+            
+            # 경감된 피해를 차원술사의 굴절량으로 전환
+            if barrier_buff.get('redirect_to_refraction') and reduced_damage > 0:
+                source = barrier_buff.get('source')
+                if source and hasattr(source, 'refraction_stacks') and getattr(source, 'is_alive', True):
+                    if not hasattr(source, 'refraction_stacks'):
+                        source.refraction_stacks = 0
+                    source.refraction_stacks += reduced_damage
+                    logger.info(f"[차원 보호막] {source.name} 굴절량 +{reduced_damage} (총: {source.refraction_stacks})")
         
         # 특성 효과: 수호 (guardian_angel) - 아군 피해 대신 받기
         # 이 효과는 combat_manager에서 처리되어야 함 (아군이 피해를 받을 때)

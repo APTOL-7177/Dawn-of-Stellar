@@ -115,10 +115,16 @@ def open_rest_menu(
 
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
-            action = unified_input_handler.process_tcod_event(event)
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
 
+        # 입력 처리 함수
+        def process_action(action):
+            nonlocal cursor
             if action == GameAction.MOVE_UP:
                 cursor = max(0, cursor - 1)
             elif action == GameAction.MOVE_DOWN:
@@ -160,10 +166,34 @@ def open_rest_menu(
                 logger.info("휴식 취소")
                 play_sfx("ui", "cursor_cancel")
                 return "cancel"
+            return None
+
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
+            action = unified_input_handler.process_tcod_event(event)
+
+            if action:
+                keyboard_processed = True
+                result = process_action(action)
+                if result:
+                    return result
 
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return "cancel"
+
+        # 게임패드 입력 처리
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                result = process_action(gamepad_action)
+                if result:
+                    return result
+
+        # CPU 사용률 낮추기
+        import time
+        time.sleep(0.01)
 
 
 def perform_rest(
@@ -325,10 +355,16 @@ def open_inn_menu(
 
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
-            action = unified_input_handler.process_tcod_event(event)
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
 
+        # 입력 처리 함수
+        def process_inn_action(action):
+            nonlocal cursor, current_gold
             if action == GameAction.MOVE_UP:
                 cursor = max(0, cursor - 1)
             elif action == GameAction.MOVE_DOWN:
@@ -354,10 +390,34 @@ def open_inn_menu(
                 logger.info("여관 이용 취소")
                 play_sfx("ui", "cursor_cancel")
                 return "cancel"
+            return None
+
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
+            action = unified_input_handler.process_tcod_event(event)
+
+            if action:
+                keyboard_processed = True
+                result = process_inn_action(action)
+                if result:
+                    return result
 
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return "cancel"
+
+        # 게임패드 입력 처리
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                result = process_inn_action(gamepad_action)
+                if result:
+                    return result
+
+        # CPU 사용률 낮추기
+        import time
+        time.sleep(0.01)
 
 
 def perform_inn_rest(
@@ -424,6 +484,30 @@ def show_message_box(
         context: TCOD 컨텍스트
         messages: 메시지 리스트
     """
+    import time
+    import pygame
+    
+    # 이벤트 큐 비우기 + 딜레이 + 다시 비우기
+    for _ in tcod.event.get():
+        pass
+    try:
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+    unified_input_handler.clear_input_state()
+    
+    # 딜레이 후 다시 이벤트 큐 비우기
+    time.sleep(0.2)
+    for _ in tcod.event.get():
+        pass
+    try:
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+    unified_input_handler.clear_input_state()
+    
     # 박스 크기
     max_width = max(len(msg) for msg in messages)
     box_width = max_width + 10
@@ -432,6 +516,10 @@ def show_message_box(
     box_y = (console.height - box_height) // 2
 
     handler = InputHandler()
+    
+    # 입력 허용 시작 시간 (1초 후부터 입력 허용)
+    start_time = time.time()
+    input_delay = 1.0
 
     while True:
         # 배경 그리기
@@ -464,15 +552,39 @@ def show_message_box(
 
         context.present(console)
 
-        # 입력 대기
-        for event in tcod.event.wait():
-            action = unified_input_handler.process_tcod_event(event)
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            pygame.event.pump()
+        except:
+            pass
 
-            if action in [GameAction.CONFIRM, GameAction.CANCEL, GameAction.ESCAPE]:
-                if action != GameAction.CONFIRM:  # CONFIRM은 확인이므로 다른 효과음
-                    play_sfx("ui", "cursor_cancel")
-                return
+        # 입력 허용 시간 체크
+        can_accept_input = (time.time() - start_time) >= input_delay
+
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
+            if can_accept_input:
+                action = unified_input_handler.process_tcod_event(event)
+
+                if action:
+                    keyboard_processed = True
+                    if action in [GameAction.CONFIRM, GameAction.CANCEL, GameAction.ESCAPE]:
+                        if action != GameAction.CONFIRM:
+                            play_sfx("ui", "cursor_cancel")
+                        return
 
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return
+
+        # 게임패드 입력 처리
+        if can_accept_input and not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action in [GameAction.CONFIRM, GameAction.CANCEL, GameAction.ESCAPE]:
+                if gamepad_action != GameAction.CONFIRM:
+                    play_sfx("ui", "cursor_cancel")
+                return
+
+        # CPU 사용률 낮추기
+        time.sleep(0.01)

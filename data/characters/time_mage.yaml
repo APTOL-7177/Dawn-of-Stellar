@@ -1,76 +1,153 @@
 class_name: 시간술사
-description: 시간을 조작하여 전장을 지배하는 시공의 마법사
-slogan: "시간을 다루는 자, 운명을 다룬다"
-archetype: 시간 조작
+description: 평행 시간선의 가능성을 소환하여 전투하는 시공의 마법사
+slogan: "선택하지 않은 길도, 결국 나의 것이다"
+archetype: 마법 딜러/유틸리티
+
 base_stats:
-  hp: 121
-  mp: 103
-  init_brv: 100
-  speed: 57
-  physical_attack: 54
-  physical_defense: 49
-  magic_attack: 77
-  magic_defense: 64
-  max_brv: 425
+  hp: 115
+  mp: 98
+  init_brv: 105
+  speed: 62
+  physical_attack: 42
+  physical_defense: 45
+  magic_attack: 82
+  magic_defense: 65
+  max_brv: 420
+
 stat_growth:
   hp: 8.5
-  mp: 7
-  init_brv: 20.0
-  strength: 2.0
-  defense: 1.8
-  magic: 5.0
-  spirit: 4.5
-  speed: 5.0
+  mp: 7.5
+  init_brv: 21.0
+  strength: 2.2
+  defense: 2.0
+  magic: 5.2
+  spirit: 4.2
+  speed: 4.5
   luck: 4.0
   accuracy: 2.0
-  evasion: 2.2
-  max_brv: 85.0
+  evasion: 2.5
+  max_brv: 84.0
+
 traits:
-- id: time_balancer
-  name: 시간의 균형자
-  description: 타임라인 0(현재)에서 모든 스탯 +40%
-  type: conditional
-- id: past_wisdom
-  name: 과거의 지혜
-  description: 타임라인 -2 이하에서 받는 피해 -30%
-  type: conditional
-- id: future_insight
-  name: 미래의 통찰
-  description: 타임라인 +2 이상에서 크리티컬 확률 +30%
-  type: conditional
-- id: time_perception
-  name: 시간 인식
-  description: 타임라인이 0에 가까울수록 ATB 회복 속도 증가
+- id: branch_creator
+  name: 분기점 창조자
+  description: 스킬 사용 시 가능성 생성 확률 +15% (총 85%), 행운 4당 추가 +1% (최대 95%)
   type: passive
-- id: time_correction
-  name: 시간 보정
-  description: 3턴마다 자동으로 타임라인 0으로 이동
+  effects:
+    generation_chance_bonus: 0.15
+    luck_scaling: 0.0025
+    max_generation_chance: 0.95
+
+- id: parallel_resonance
+  name: 평행 공명
+  description: 보유 가능성 1개당 마법 공격력 +8%, 받는 피해 -5%
+  type: passive
+  effects:
+    per_slot_magic_bonus: 0.08
+    per_slot_damage_reduction: 0.05
+    full_slot_atb_bonus: 0.15
+
+- id: timeline_interference
+  name: 시간선 간섭
+  description: 가능성 소환 시 30% 확률로 해당 가능성이 소멸하지 않음 (최대 2회 재사용)
   type: trigger
+  effects:
+    preserve_chance: 0.30
+    max_reuse: 2
+
+- id: converging_fates
+  name: 수렴하는 운명
+  description: 시간 폭풍으로 3개 이상 가능성 해방 시 피해 +40%, 시간 고정 1턴 부여
+  type: conditional
+  effects:
+    min_possibilities: 3
+    damage_bonus: 0.40
+    apply_time_lock: true
+    time_lock_duration: 1
+
+- id: infinite_branches
+  name: 무한 분기
+  description: 전투 시작 시 가능성 1개 자동 생성, HP 30% 이하 시 생성 확률 100%
+  type: passive
+  effects:
+    start_with_possibility: 1
+    low_hp_threshold: 0.30
+    low_hp_generation_chance: 1.0
+    double_cast_chance: 0.10
+
 gimmick:
-  type: timeline_system
-  name: 타임라인 균형
-  description: 과거(-5)와 미래(+5) 사이의 타임라인 관리. 현재(0)에서 최대 효과
-  min_timeline: -5
-  max_timeline: 5
-  optimal_point: 0
-  past_threshold: -2
-  future_threshold: 2
+  type: possibility_slots
+  name: 가능성 슬롯
+  description: |
+    스킬 사용 시 "선택하지 않은 가능성"을 슬롯에 저장.
+    저장된 가능성을 소환하여 추가 행동 가능!
+    가능성이 많을수록 평행 공명으로 강해진다.
+  max_slots: 4
+  base_generation_chance: 0.70
+  possibility_power_ratio: 0.85
+  resonance_per_slot:
+    magic_attack_bonus: 0.08
+    damage_reduction: 0.05
+  full_slot_bonus:
+    atb_bonus: 0.15
+
+# 가능성 쌍 정의 (스킬 사용 시 저장되는 대안 가능성)
+possibility_pairs:
+  time_mage_time_bolt: time_mage_time_shock
+  time_mage_time_shock: time_mage_time_bolt
+  time_mage_chrono_blast: time_mage_time_wave
+  time_mage_time_wave: time_mage_chrono_blast
+  time_mage_haste: time_mage_slow
+  time_mage_slow: time_mage_haste
+  time_mage_time_stop: time_mage_time_accel
+  time_mage_time_accel: time_mage_time_stop
+  time_mage_future_sight: time_mage_past_regression
+  time_mage_past_regression: time_mage_future_sight
+  time_mage_rewind: time_mage_paradox_guard
+  time_mage_paradox_guard: time_mage_rewind
+  time_mage_time_distortion: time_mage_slow
+  time_mage_time_collapse: time_mage_haste
+
 skills:
-- teamwork
-- time_bolt
-- time_shock
-- slow
-- stop
-- rewind
-- repeat
-- align
-- balance
-- haste
-- foresight
-- leap
-- wave
+- time_mage_teamwork
+# 기본 공격 (2개)
+- time_mage_time_distortion
+- time_mage_time_collapse
+# ★ 가능성 시스템 스킬 (5개) - MP 무료!
+- time_mage_summon_possibility
+- time_mage_time_crossing
+- time_mage_time_storm
+- time_mage_fate_copy
+- time_mage_overwrite_fate
+# 공격 스킬 (4개)
+- time_mage_time_bolt
+- time_mage_time_shock
+- time_mage_chrono_blast
+- time_mage_time_wave
+# 버프/디버프 스킬 (6개)
+- time_mage_haste
+- time_mage_slow
+- time_mage_time_stop
+- time_mage_time_accel
+- time_mage_future_sight
+- time_mage_past_regression
+# 회복/방어 스킬 (2개)
+- time_mage_rewind
+- time_mage_paradox_guard
+# 궁극기 (1개)
+- time_mage_infinite_convergence
+
+# 필드 스킬
+field_skill:
+  id: temporal_echo
+  name: 시간의 잔향
+  description: 필드에서 시간을 되돌려 최근 사용한 소모품 1개 복원
+  cooldown: 3  # 방 3개마다 사용 가능
+  effects:
+    - type: restore_consumable
+      count: 1
 
 bonuses:
-  speed_multiplier: 1.1
-  atb_rate: 1.1
-  spell_cast_speed: 1.15
+  magic_multiplier: 1.1
+  atb_rate: 1.08
+  spell_cast_speed: 1.1

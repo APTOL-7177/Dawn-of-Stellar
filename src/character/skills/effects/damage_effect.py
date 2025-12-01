@@ -34,6 +34,21 @@ class DamageEffect(SkillEffect):
         # 타겟 리스트 처리
         targets = target if isinstance(target, list) else [target]
         
+        # 다단히트 체크 (스킬 메타데이터에서)
+        multi_hit_count = 1
+        if context and 'skill' in context:
+            skill = context['skill']
+            if hasattr(skill, 'metadata') and skill.metadata:
+                multi_hit = skill.metadata.get('multi_hit')
+                if multi_hit:
+                    if isinstance(multi_hit, bool):
+                        # True인 경우, 환영 카운트나 다른 기믹 값 기반
+                        # 기본 2히트, 환영이 있으면 추가
+                        phantom_count = getattr(user, 'phantom_count', 0)
+                        multi_hit_count = 2 + phantom_count  # 기본 2 + 환영 수
+                    elif isinstance(multi_hit, int):
+                        multi_hit_count = multi_hit
+        
         # HP 공격이 여러 타겟에 적용되는 경우, 시작 시점의 BRV를 저장
         # (첫 번째 타겟에서만 BRV를 소모하고, 나머지 타겟들에는 초기 BRV로 복원)
         is_aoe_hp = (self.damage_type == DamageType.HP and len(targets) > 1)
@@ -62,8 +77,20 @@ class DamageEffect(SkillEffect):
             if is_aoe_hp:
                 context['_aoe_hp_target_index'] = alive_targets_processed
             
-            single_result = self._execute_single(user, single_target, context)
-            result.merge(single_result)
+            # 다단히트 실행
+            for hit_num in range(multi_hit_count):
+                # 다단히트 정보를 context에 추가
+                if context is None:
+                    context = {}
+                context['_multi_hit_current'] = hit_num + 1
+                context['_multi_hit_total'] = multi_hit_count
+                
+                single_result = self._execute_single(user, single_target, context)
+                result.merge(single_result)
+                
+                # 타겟이 죽었으면 다음 히트 중단
+                if not single_target.is_alive:
+                    break
             
             # 살아있는 타겟이 처리되었음을 기록
             alive_targets_processed += 1
@@ -138,6 +165,10 @@ class DamageEffect(SkillEffect):
         # 최종 배율 계산
         final_mult = self.multiplier
         
+        # 가능성 시스템 배율 적용 (power_multiplier)
+        if context and 'power_multiplier' in context:
+            final_mult *= context['power_multiplier']
+        
         # 트리플 히트 배율 적용
         if context and context.get('_triple_hit_mult'):
             final_mult *= context['_triple_hit_mult']
@@ -187,6 +218,11 @@ class DamageEffect(SkillEffect):
                     elif hasattr(user, field):
                         # 일반 필드 (기존 로직)
                         stacks = getattr(user, field, 0)
+                
+                # count_mode: 리스트의 길이를 사용 (possibility_slots 등)
+                count_mode = self.gimmick_bonus.get('count_mode', False)
+                if count_mode and isinstance(stacks, list):
+                    stacks = len(stacks)
                 
                 if stacks > 0:
                     final_mult += stacks * bonus_mult
@@ -357,18 +393,12 @@ class DamageEffect(SkillEffect):
                 context['last_damage'] = result.hp_damage
         
         # ========================================
-        # 자해 피해 적용 (듀얼리티 등)
+        # 자해 피해 적용 (듀얼리티 등) - HP 피해에만 적용, BRV는 제외
         # ========================================
         if self_damage_ratio > 0 and hasattr(result, 'hp_damage') and result.hp_damage:
             self_damage = int(result.hp_damage * self_damage_ratio)
             if self_damage > 0:
                 user.current_hp = max(1, user.current_hp - self_damage)  # 최소 1 HP 유지
-                result.message += f" (자해 {self_damage})"
-        elif self_damage_ratio > 0 and hasattr(result, 'brv_damage') and result.brv_damage:
-            # BRV 공격의 경우 BRV 데미지 기준 자해
-            self_damage = int(result.brv_damage * self_damage_ratio)
-            if self_damage > 0:
-                user.current_hp = max(1, user.current_hp - self_damage)
                 result.message += f" (자해 {self_damage})"
         
         # ========================================

@@ -1816,7 +1816,7 @@ class GaugeRenderer:
                     status_key = buff_name.lower().replace(' ', '_').replace('-', '_')
                     name, color = status_info.get(status_key, (buff_name[:2], (100, 255, 100)))
                     buff_items.append((name, color, duration))
-        
+
         # 디버프 처리 (보라 계열)
         if debuffs:
             for debuff_name, debuff_data in debuffs.items():
@@ -1891,3 +1891,151 @@ class GaugeRenderer:
             color = (255, 50, 50)
 
         console.print(x, y, text, fg=color)
+
+    @staticmethod
+    def render_animated_teamwork_bar(
+        console: tcod.console.Console,
+        x: int,
+        y: int,
+        width: int,
+        current_tw: float,
+        max_tw: float,
+        entity_id: str = "party",
+        show_numbers: bool = True
+    ) -> None:
+        """애니메이션 팀워크 게이지 렌더링 (타일셋 기반)
+        
+        Args:
+            console: TCOD 콘솔
+            x, y: 게이지 위치
+            width: 게이지 너비
+            current_tw: 현재 팀워크 게이지
+            max_tw: 최대 팀워크 게이지
+            entity_id: 엔티티 ID (애니메이션 추적용)
+            show_numbers: 숫자 표시 여부
+        """
+        anim_mgr = get_animation_manager()
+        tile_manager = _get_tile_manager()
+        use_tiles = tile_manager is not None and tile_manager.is_initialized()
+        divisions = GaugeRenderer.DIVISIONS
+        
+        # 애니메이션 값
+        anim = anim_mgr.get_animated_value(f"{entity_id}_tw", current_tw, max_tw, duration=0.35)
+        
+        # 증가/감소 판단을 위해 목표값과 비교
+        prev_target_tw = anim.target
+        is_healing = current_tw > prev_target_tw
+        is_damaging = current_tw < prev_target_tw
+        
+        # 목표값 업데이트
+        anim.set_target(current_tw, delay=0.0)
+        
+        # 게이지 애니메이션 - 부드럽게 오르내리기
+        display_tw = anim.update()
+        
+        # 값 변경 시 반짝이는 효과 트리거
+        heal_color_key = f"{entity_id}_tw_heal"
+        damage_color_key = f"{entity_id}_tw_damage"
+        if is_healing and heal_color_key not in anim_mgr._color_animations:
+            anim_mgr.trigger_heal_color_animation(heal_color_key, duration=0.3)
+        if is_damaging and damage_color_key not in anim_mgr._color_animations:
+            anim_mgr.trigger_damage_color_animation(damage_color_key, duration=0.35)
+        display_number = anim_mgr.get_display_number(f"{entity_id}_tw_num", current_tw, 0.016)
+        
+        if max_tw <= 0:
+            ratio = 0.0
+            display_ratio = 0.0
+        else:
+            ratio = min(1.0, current_tw / max_tw)
+            display_ratio = min(1.0, display_tw / max_tw)
+        
+        # 팀워크 색상 (청록색/시안 계열 - MP 파랑과 구분)
+        if ratio >= 0.8:
+            # MAX 상태 - 밝은 시안
+            fg_color = (100, 255, 220)
+            bg_color = (30, 100, 80)
+        elif ratio >= 0.5:
+            # READY 상태 - 시안
+            fg_color = (80, 220, 200)
+            bg_color = (25, 80, 70)
+        elif ratio >= 0.25:
+            # CHARGING 상태 - 어두운 시안
+            fg_color = (60, 180, 160)
+            bg_color = (20, 60, 55)
+        else:
+            # BUILDING 상태 - 진한 청록
+            fg_color = (40, 140, 120)
+            bg_color = (15, 45, 40)
+        
+        # === 픽셀 단위 렌더링 (레이어 방식) ===
+        total_pixels = width * divisions
+        tw_pixels = int(ratio * total_pixels)
+        display_pixels = int(display_ratio * total_pixels)
+        
+        is_increasing = display_pixels < tw_pixels
+        
+        # 회복/데미지 색상 애니메이션 강도 가져오기
+        heal_intensity = anim_mgr.get_heal_color_intensity(heal_color_key)
+        damage_intensity = anim_mgr.get_damage_color_intensity(damage_color_key)
+        
+        # 회복 시 색상 반짝임 (밝게 했다가 원래대로)
+        if heal_intensity > 0:
+            highlight_color = (
+                min(255, int(fg_color[0] + (255 - fg_color[0]) * heal_intensity * 0.5)),
+                min(255, int(fg_color[1] + (255 - fg_color[1]) * heal_intensity * 0.5)),
+                min(255, int(fg_color[2] + (255 - fg_color[2]) * heal_intensity * 0.5))
+            )
+            fg_color = (
+                int(fg_color[0] * (1 - heal_intensity) + highlight_color[0] * heal_intensity),
+                int(fg_color[1] * (1 - heal_intensity) + highlight_color[1] * heal_intensity),
+                int(fg_color[2] * (1 - heal_intensity) + highlight_color[2] * heal_intensity)
+            )
+        
+        # 레이어 1: 배경
+        console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
+
+        # 레이어 2: 현재 팀워크 게이지
+        render_pixels = min(tw_pixels, display_pixels) if is_increasing else tw_pixels
+        
+        for i in range(width):
+            cell_start = i * divisions
+            cell_tw = max(0, min(divisions, render_pixels - cell_start))
+            
+            if cell_tw >= divisions:
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
+            elif cell_tw > 0:
+                fill_ratio = cell_tw / divisions
+                
+                if use_tiles:
+                    tile_char = tile_manager.get_tile_char('mp_fill', fill_ratio)  # MP 타일 재사용
+                    console.print(x + i, y, tile_char, fg=fg_color, bg=bg_color)
+                else:
+                    partial_color = (
+                        int(bg_color[0] + (fg_color[0] - bg_color[0]) * fill_ratio),
+                        int(bg_color[1] + (fg_color[1] - bg_color[1]) * fill_ratio),
+                        int(bg_color[2] + (fg_color[2] - bg_color[2]) * fill_ratio)
+                    )
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+        
+        # 숫자 표시 - 현재 팀워크만 표시
+        if show_numbers:
+            current_text = f"{display_number}"
+            number_key = f"{entity_id}_tw_num"
+            
+            # 이전 숫자 길이 확인 및 남은 문자 지우기
+            prev_length = anim_mgr._number_text_lengths.get(number_key, 0)
+            if len(current_text) < prev_length:
+                for i in range(len(current_text), prev_length):
+                    char_x = x + 1 + i
+                    if char_x < x + width:
+                        console.ch[y, char_x] = ord(" ")
+            
+            anim_mgr._number_text_lengths[number_key] = len(current_text)
+            
+            text_color = get_contrast_text_color(fg_color)
+            
+            if width >= len(current_text) + 2:
+                for i, char in enumerate(current_text):
+                    char_x = x + 1 + i
+                    console.ch[y, char_x] = ord(char)
+                    console.fg[y, char_x] = text_color

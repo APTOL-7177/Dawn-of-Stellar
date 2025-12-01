@@ -342,7 +342,7 @@ class EnvironmentalEffectManager:
             
             elif effect.effect_type == EnvironmentalEffectType.GRAVITY_ANOMALY:
                 modifiers["speed"] = modifiers.get("speed", 0.0) - 0.30  # -30%
-                modifiers["defense"] = modifiers.get("defense", 0.0) + 0.20  # +20%
+                modifiers["magic_defense"] = modifiers.get("magic_defense", 0.0) + 0.20  # +20%
             
             elif effect.effect_type == EnvironmentalEffectType.WINDSTORM:
                 modifiers["accuracy"] = modifiers.get("accuracy", 0.0) - 0.25  # -25%
@@ -352,8 +352,10 @@ class EnvironmentalEffectManager:
                 modifiers["magic"] = modifiers.get("magic", 0.0) + 0.30  # +30%
             
             elif effect.effect_type == EnvironmentalEffectType.BLOOD_MOON:
-                modifiers["strength"] = modifiers.get("strength", 0.0) + 0.25  # +25%
-                modifiers["defense"] = modifiers.get("defense", 0.0) - 0.10  # -10%
+                modifiers["strength"] = modifiers.get("strength", 0.0) + 0.30  # +30%
+                modifiers["magic"] = modifiers.get("magic", 0.0) + 0.30  # +30%
+                modifiers["defense"] = modifiers.get("defense", 0.0) - 0.20  # -20%
+                modifiers["magic_defense"] = modifiers.get("magic_defense", 0.0) - 0.20  # -20%
             
             elif effect.effect_type == EnvironmentalEffectType.HALLOWED_LIGHT:
                 for stat in ["strength", "defense", "magic", "speed"]:

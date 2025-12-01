@@ -9,6 +9,9 @@ tcod>=16.0.0
 numpy>=1.26.0  # tcod 의존성
 pygame>=2.5.0  # 오디오 기능용
 
+# AI Automation
+pyautogui>=0.9.54  # 키보드/마우스 시뮬레이션
+
 # Multiplayer
 websockets>=12.0
 aiohttp>=3.9.0

@@ -217,9 +217,9 @@ class VibrationManager:
         """게임패드 설정"""
         self.joystick = joystick
         if joystick:
-            self.logger.debug(f"진동 시스템에 게임패드 연결: {joystick.get_name()}")
+            self.logger.info(f"[진동] 게임패드 연결됨: {joystick.get_name()}")
         else:
-            self.logger.debug("진동 시스템에서 게임패드 연결 해제")
+            self.logger.info("[진동] 게임패드 연결 해제됨")
 
     def vibrate(self, pattern: VibrationPattern, custom_config: Optional[VibrationConfig] = None, force: bool = False) -> None:
         """
@@ -230,12 +230,9 @@ class VibrationManager:
             custom_config: 사용자 정의 설정 (없으면 기본 패턴 사용)
             force: 강제 실행 (활성화 상태 무시)
         """
-        if not force and (not self.enabled or not self.joystick):
+        if not force and not self.enabled:
             return
-
-        # 최대 동시 진동 수 제한
-        if len(self.active_vibrations) >= self.max_concurrent_vibrations:
-            self.logger.debug("최대 동시 진동 수 초과, 건너뜀")
+        if not force and not self.joystick:
             return
 
         config = custom_config or self.patterns.get(pattern)
@@ -247,25 +244,41 @@ class VibrationManager:
         pattern_intensity = self.pattern_intensities.get(pattern.value, 1.0)
 
         # 강도 조절 적용
-        adjusted_config = VibrationConfig(
-            left_motor=config.left_motor * self.global_intensity * pattern_intensity,
-            right_motor=config.right_motor * self.global_intensity * pattern_intensity,
-            duration=config.duration * self.duration_multiplier,
-            fade_in=config.fade_in if self.enable_fade_effects else 0.0,
-            fade_out=config.fade_out if self.enable_fade_effects else 0.0
-        )
+        left = config.left_motor * self.global_intensity * pattern_intensity
+        right = config.right_motor * self.global_intensity * pattern_intensity
+        duration_ms = int(config.duration * self.duration_multiplier * 1000)
 
-        # 진동 실행 (별도 스레드에서)
-        vibration_id = f"{pattern.value}_{time.time()}"
-        thread = threading.Thread(
-            target=self._execute_vibration,
-            args=(vibration_id, adjusted_config),
-            daemon=True
-        )
-        self.active_vibrations[vibration_id] = thread
-        thread.start()
+        # 메인 스레드에서 직접 rumble 호출 (스레드 없이)
+        self.rumble_direct(left, right, duration_ms)
 
-        self.logger.debug(f"진동 실행: {pattern.value} (강도: L{adjusted_config.left_motor:.1f}, R{adjusted_config.right_motor:.1f})")
+    def rumble_direct(self, left: float, right: float, duration_ms: int) -> bool:
+        """
+        직접 진동 호출
+        
+        이미 연결된 joystick이 있으면 직접 사용, 없으면 새로 연결 시도
+        """
+        if not self.enabled:
+            return False
+            
+        try:
+            # 이미 연결된 joystick이 있으면 직접 사용
+            if self.joystick:
+                self.joystick.rumble(left, right, duration_ms)
+                return True
+            
+            # joystick이 없으면 새로 연결 시도
+            pygame.joystick.init()
+            if pygame.joystick.get_count() > 0:
+                js = pygame.joystick.Joystick(0)
+                js.init()
+                js.rumble(left, right, duration_ms)
+                self.joystick = js  # 다음 사용을 위해 저장
+                return True
+            
+            return False
+        except Exception as e:
+            self.logger.error(f"진동 실패: {e}")
+            return False
 
     def _execute_vibration(self, vibration_id: str, config: VibrationConfig) -> None:
         """진동 실행 (별도 스레드)"""
@@ -292,19 +305,17 @@ class VibrationManager:
                     remaining = config.duration - elapsed
                     fade_multiplier = remaining / config.fade_out
 
-                # 진동 적용
-                left_strength = int(config.left_motor * fade_multiplier * 65535)
-                right_strength = int(config.right_motor * fade_multiplier * 65535)
+                # 진동 적용 (pygame rumble은 0.0~1.0 float 사용)
+                left_strength = config.left_motor * fade_multiplier
+                right_strength = config.right_motor * fade_multiplier
 
                 # pygame rumble 사용 (가능한 경우)
                 try:
                     if hasattr(self.joystick, 'rumble'):
-                        self.joystick.rumble(left_strength, right_strength, 100)  # 100ms
-                    else:
-                        # 대안: 일반적인 rumble 메소드 시도
-                        self.joystick.rumble(left_strength, right_strength, 100)
-                except (AttributeError, TypeError):
-                    # rumble 미지원시 건너뜀
+                        result = self.joystick.rumble(left_strength, right_strength, 100)  # 100ms
+                        self.logger.warning(f"[RUMBLE] L={left_strength:.2f}, R={right_strength:.2f}, result={result}")
+                except (AttributeError, TypeError, pygame.error) as e:
+                    self.logger.error(f"[RUMBLE ERROR] {e}")
                     pass
 
                 time.sleep(0.1)  # 100ms 간격으로 업데이트
@@ -313,9 +324,7 @@ class VibrationManager:
             try:
                 if hasattr(self.joystick, 'rumble'):
                     self.joystick.rumble(0, 0, 0)
-                else:
-                    self.joystick.rumble(0, 0, 0)
-            except (AttributeError, TypeError):
+            except (AttributeError, TypeError, pygame.error):
                 pass
 
         except Exception as e:
@@ -331,9 +340,7 @@ class VibrationManager:
             try:
                 if hasattr(self.joystick, 'rumble'):
                     self.joystick.rumble(0, 0, 0)
-                else:
-                    self.joystick.rumble(0, 0, 0)
-            except (AttributeError, TypeError):
+            except (AttributeError, TypeError, pygame.error):
                 pass
 
         # 활성 진동들 정리

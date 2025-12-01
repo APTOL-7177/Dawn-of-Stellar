@@ -1,0 +1,27 @@
+id: mirror_storm
+name: 거울 폭풍
+type: brv_attack
+description: 환영들과 함께 전체 적을 공격 (마법). 환영 수만큼 추가 히트
+costs:
+  mp: 12
+  cast_time: 1.0
+target: all_enemies
+is_aoe: true
+effects:
+  - type: damage
+    damage_type: magic
+    stat_base: magic
+    multiplier: 0.9
+    element: mirror
+    attack_type: brv
+  - type: phantom_echo_damage
+    per_phantom_multiplier: 0.25
+    damage_type: magic
+    stat_base: magic
+    hit_delay: 0.2
+metadata:
+  job: illusionist
+  attack_skill: true
+  multi_hit: true
+  scaling: magical
+  aoe: true

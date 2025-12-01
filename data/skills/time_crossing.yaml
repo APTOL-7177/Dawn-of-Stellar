@@ -1,0 +1,19 @@
+id: time_crossing
+name: 시간선 교차
+type: special
+description: 슬롯의 가능성 2개를 동시 발동 (각 75% 위력)
+costs:
+  mp: 14
+  cast_time: 0.8
+target: self
+requirements:
+  min_possibilities: 2
+effects:
+  - type: time_crossing
+    power_ratio: 0.75
+    slot_count: 2
+    select_slots: true
+metadata:
+  gimmick_skill: true
+  no_possibility_generation: true
+  job: time_mage

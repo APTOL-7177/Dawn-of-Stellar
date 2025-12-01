@@ -299,15 +299,27 @@ def show_game_result(
         # 오디오 시스템 없으면 무시
         logger.debug(f"게임 오버 BGM 재생 실패 (오디오 시스템 없음): {e}")
 
+    import time
+    import pygame
+    
     # 결과 화면 표시
     while True:
         ui.render(console)
         context.present(console)
 
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            pygame.event.pump()
+        except:
+            pass
+
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
+                keyboard_processed = True
                 if ui.handle_input(action):
                     logger.info("게임 정산 종료")
                     return
@@ -315,3 +327,14 @@ def show_game_result(
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return
+
+        # 게임패드 입력 처리
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                if ui.handle_input(gamepad_action):
+                    logger.info("게임 정산 종료")
+                    return
+
+        # CPU 사용률 낮추기
+        time.sleep(0.01)

@@ -71,12 +71,12 @@ traits:
 
 - id: relentless_crusher
   name: 무자비한 파쇄자
-  description: 파괴력 MAX(10) 시 모든 공격이 방어 완전 관통
+  description: 파괴력 MAX(10) 시 모든 공격이 방어 20% 관통
   type: conditional
   conditions:
     break_power_exact: 10
   effects:
-    full_penetration: true
+    defense_penetration: 0.20
 
 - id: destruction_chain
   name: 파괴 연쇄

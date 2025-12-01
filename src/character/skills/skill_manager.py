@@ -104,8 +104,38 @@ class SkillManager:
         # 스킬 타입에 따른 SFX 재생
         self._play_skill_sfx(skill)
 
+        # context에 skill 정보 추가 (다단히트, 여러 효과 처리를 위해 필요)
+        if context is None:
+            context = {}
+        context['skill'] = skill
+
         event_bus.publish(Events.SKILL_CAST_START, {"skill": skill, "user": user, "target": target})
         result = skill.execute(user, target, context)
+
+        # === 해적 보물 시스템 처리 ===
+        if result.success and hasattr(skill, 'metadata') and skill.metadata:
+            # 보물 획득 스킬 (플런더)
+            if skill.metadata.get('treasure_skill') and skill.metadata.get('treasure_steal_chance'):
+                import random
+                steal_chance = skill.metadata.get('treasure_steal_chance', 0.8)
+                if random.random() < steal_chance:
+                    # 보물 획득 성공
+                    if not hasattr(user, 'treasure_count'):
+                        user.treasure_count = 0
+                    user.treasure_count += 1
+                    self.logger.info(f"[해적] {user.name}이(가) 보물을 획득했다! (총: {user.treasure_count}개)")
+                    result.message += f" (보물 획득! 총: {user.treasure_count}개)"
+                else:
+                    self.logger.debug(f"[해적] {user.name}의 보물 획득 실패")
+
+            # 보물 소비 스킬 (보물 사용, 보물 폭탄)
+            if skill.metadata.get('consume_all_treasure'):
+                # 모든 보물 소비
+                if hasattr(user, 'treasure_count') and user.treasure_count > 0:
+                    consumed = user.treasure_count
+                    user.treasure_count = 0
+                    self.logger.info(f"[해적] {user.name}이(가) {consumed}개의 보물을 소비했다!")
+                    result.message += f" (보물 {consumed}개 소비)"
 
         # 쿨다운 설정 비활성화 (사용자 요청)
         # if result.success and skill.cooldown > 0:

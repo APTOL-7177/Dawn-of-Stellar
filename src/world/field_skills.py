@@ -107,7 +107,7 @@ class FieldSkillManager:
             },
             "time_mage_rewind": {
                 "name": "시간 역행", 
-                "mp": 10,  # 32 -> 10 (대폭 감소)
+                "mp": 10,
                 "func": self._skill_time_mage_rewind,
                 "desc": "현재 위치 저장 (재사용 시 복귀)"
             },
@@ -474,7 +474,7 @@ class FieldSkillManager:
         current_floor = self.exploration.floor_number
         if self.rewind_pos is None:
             self.rewind_pos = (player.x, player.y, current_floor)
-            user.current_mp += 10 # 코스트 페이백 (변경된 MP 10)
+            user.current_mp += 10 # 코스트 페이백
             return True, "현재 위치와 시간을 기록했습니다. 다시 사용하여 복귀합니다."
         else:
             if len(self.rewind_pos) == 2:

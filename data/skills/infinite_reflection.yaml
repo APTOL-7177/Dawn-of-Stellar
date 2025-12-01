@@ -1,0 +1,35 @@
+id: infinite_reflection
+name: 무한 반사
+type: ultimate
+description: |
+  모든 환영이 한 점에 수렴하여 연속 HP 공격 (물리).
+  환영 수+1 만큼 히트, 0.2초 간격. 확정 회피 1턴. 환영 2개 재생성
+costs:
+  mp: 28
+  cast_time: 2.0
+target: single_enemy
+requirements:
+  afterimage_gauge: 80
+effects:
+  - type: consume_all_phantoms
+    store_count: true
+  - type: multi_hit_hp_damage
+    damage_type: physical
+    stat_base: strength
+    hits_formula: phantom_count_plus_one
+    max_hits: 10
+    base_multiplier: 0.6
+    hit_delay: 0.2
+    attack_type: hp
+  - type: consume_afterimage
+    amount: all
+  - type: buff
+    stat: guaranteed_evasion
+    duration: 1
+  - type: summon_phantom
+    count: 2
+metadata:
+  job: illusionist
+  ultimate_skill: true
+  scaling: physical
+  multi_hit: true

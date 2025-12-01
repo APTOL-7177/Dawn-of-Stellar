@@ -11,6 +11,7 @@ import tcod.console
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
 from src.core.logger import get_logger
+from src.core.vibration_system import vibration_manager, VibrationPattern
 from src.audio import play_sfx
 
 
@@ -110,9 +111,11 @@ class CursorMenu:
         elif self.cursor_index < self.scroll_offset:
             self.scroll_offset = self.cursor_index
 
-        # 커서 이동 효과음
+        # 커서 이동 효과음 및 진동
         if moved:
             play_sfx("ui", "cursor_move")
+            from src.core.vibration_system import vibration_manager
+            vibration_manager.rumble_direct(0.2, 0.2, 100)
 
     def move_cursor_down(self) -> None:
         """커서 아래로 이동"""
@@ -147,9 +150,11 @@ class CursorMenu:
         elif self.cursor_index >= self.scroll_offset + self.max_visible_items:
             self.scroll_offset = self.cursor_index - self.max_visible_items + 1
 
-        # 커서 이동 효과음
+        # 커서 이동 효과음 및 진동
         if moved:
             play_sfx("ui", "cursor_move")
+            from src.core.vibration_system import vibration_manager
+            vibration_manager.rumble_direct(0.2, 0.2, 100)
 
     def get_selected_item(self) -> Optional[MenuItem]:
         """현재 선택된 아이템 반환"""
@@ -163,10 +168,11 @@ class CursorMenu:
         if item and item.enabled and item.action:
             self.logger.debug(f"메뉴 아이템 실행: {item.text}")
             play_sfx("ui", "cursor_select")  # 선택 효과음
-            # play_sfx("ui", "cursor_select")  # MainMenu에서 처리하므로 제거
+            vibration_manager.vibrate(VibrationPattern.MEDIUM_TAP)  # 선택 진동
             return item.action()
         elif item and not item.enabled:
             play_sfx("ui", "cursor_error")  # 에러 효과음
+            vibration_manager.vibrate(VibrationPattern.FAILURE)  # 실패 진동
         return None
 
     def render(self, console: tcod.console.Console) -> None:
@@ -349,6 +355,9 @@ def show_teleporter_choice_menu(console: tcod.console.Console, context: tcod.con
         width=40
     )
 
+    import time
+    import pygame
+    
     # 메뉴 루프
     while True:
         # 화면 렌더링
@@ -356,23 +365,49 @@ def show_teleporter_choice_menu(console: tcod.console.Console, context: tcod.con
         menu.render(console)
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            pygame.event.pump()
+        except:
+            pass
+
+        # 입력 처리 함수
+        def process_menu_action(action):
+            if action == GameAction.CONFIRM:
+                selected = menu.get_selected_item()
+                if selected and selected.value is not None:
+                    return ("selected", selected.value)
+            elif action == GameAction.CANCEL:
+                return ("cancel", None)
+            elif action == GameAction.MOVE_UP:
+                menu.move_cursor_up()
+            elif action == GameAction.MOVE_DOWN:
+                menu.move_cursor_down()
+            return None
+
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
             if action:
-                if action == GameAction.CONFIRM:
-                    selected = menu.get_selected_item()
-                    if selected and selected.value is not None:
-                        return selected.value
-                elif action == GameAction.CANCEL:
-                    return None
-                elif action == GameAction.MOVE_UP:
-                    menu.move_cursor_up()
-                elif action == GameAction.MOVE_DOWN:
-                    menu.move_cursor_down()
+                keyboard_processed = True
+                result = process_menu_action(action)
+                if result:
+                    return result[1]
 
             if isinstance(event, tcod.event.Quit):
                 raise SystemExit()
+
+        # 게임패드 입력 처리
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                result = process_menu_action(gamepad_action)
+                if result:
+                    return result[1]
+
+        # CPU 사용률 낮추기
+        time.sleep(0.01)
 
 
 class TextInputBox:

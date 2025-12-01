@@ -432,15 +432,9 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1, shop_type: st
         )
     )
 
-    # 캐시에 저장 (깊은 복사하여 원본 보호)
-    import copy
-    cached_items = {
-        GoldShopTab.CONSUMABLES: copy.deepcopy(items[GoldShopTab.CONSUMABLES]),
-        GoldShopTab.EQUIPMENT: copy.deepcopy(items[GoldShopTab.EQUIPMENT]),
-        GoldShopTab.SPECIAL: copy.deepcopy(items[GoldShopTab.SPECIAL]),
-        GoldShopTab.SERVICE: copy.deepcopy(items[GoldShopTab.SERVICE])
-    }
-    _shop_items_cache[cache_key] = cached_items
+    # 캐시에 저장 (원본을 캐시에 저장하고 참조 반환)
+    # 재고 감소가 캐시에 반영되도록 deepcopy 제거
+    _shop_items_cache[cache_key] = items
     
     logger.info(f"상점 아이템 생성 완료 (층 {floor_level}, 상점 레벨 {shop_level}): 소모품 {len(items[GoldShopTab.CONSUMABLES])}개, 장비 {len(items[GoldShopTab.EQUIPMENT])}개, 특수 {len(items[GoldShopTab.SPECIAL])}개, 서비스 {len(items[GoldShopTab.SERVICE])}개")
     
@@ -1029,16 +1023,27 @@ def open_gold_shop(
 
     logger.info("골드 상점 열림")
 
+    import time
+    import pygame
+    
     while True:
         # 렌더링
         shop_ui.render(console)
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            pygame.event.pump()
+        except:
+            pass
+
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
+                keyboard_processed = True
                 should_close = shop_ui.handle_input(action)
                 if should_close:
                     logger.info("골드 상점 닫음")
@@ -1047,3 +1052,15 @@ def open_gold_shop(
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return
+
+        # 게임패드 입력 처리
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                should_close = shop_ui.handle_input(gamepad_action)
+                if should_close:
+                    logger.info("골드 상점 닫음")
+                    return
+
+        # CPU 사용률 낮추기
+        time.sleep(0.01)

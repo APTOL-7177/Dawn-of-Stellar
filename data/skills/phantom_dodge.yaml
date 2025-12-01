@@ -1,0 +1,20 @@
+id: phantom_dodge
+name: 환영 회피
+type: defense
+description: 이번 턴 회피율을 대폭 상승시킨다. 회피 성공 시 환영 1개 생성
+costs:
+  mp: 6
+  cast_time: 0.3
+target: self
+effects:
+  - type: buff
+    stat: evasion
+    value: 0.50
+    duration: 1
+  - type: on_evade_trigger
+    effect: summon_phantom
+    count: 1
+metadata:
+  job: illusionist
+  defensive_skill: true
+  evasion_skill: true

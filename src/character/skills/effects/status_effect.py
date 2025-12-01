@@ -128,6 +128,7 @@ class StatusEffect(SkillEffect):
                 'stealth': StatusType.STEALTH,
                 'hp_recovery_block': StatusType.HP_RECOVERY_BLOCK,
                 'curse_mark': StatusType.CURSE_MARK,
+                'doom': StatusType.DOOM,
             }
 
             status_enum = status_type_map.get(self.status_type.lower())
@@ -138,12 +139,24 @@ class StatusEffect(SkillEffect):
             # DoT의 경우 base_damage 계산 (스탯 기반)
             base_damage = 0
             if self.damage_stat and self.damage_multiplier and user:
-                # user의 스탯 가져오기
+                # user의 스탯 가져오기 (다양한 속성 이름 지원)
                 stat_value = 0
                 if self.damage_stat == 'magic':
-                    stat_value = getattr(user, 'magic_attack', 0)
-                elif self.damage_stat == 'strength':
-                    stat_value = getattr(user, 'physical_attack', 0)
+                    # magic 스탯 찾기 (여러 이름 시도)
+                    stat_value = getattr(user, 'magic_attack', 0) or \
+                                 getattr(user, 'magic', 0) or \
+                                 getattr(user, 'mag', 0)
+                    # stat_manager에서 가져오기
+                    if stat_value == 0 and hasattr(user, 'stat_manager'):
+                        from src.character.stats import Stats
+                        stat_value = user.stat_manager.get_value(Stats.MAGIC)
+                elif self.damage_stat == 'physical' or self.damage_stat == 'strength':
+                    stat_value = getattr(user, 'physical_attack', 0) or \
+                                 getattr(user, 'strength', 0) or \
+                                 getattr(user, 'str', 0)
+                    if stat_value == 0 and hasattr(user, 'stat_manager'):
+                        from src.character.stats import Stats
+                        stat_value = user.stat_manager.get_value(Stats.STRENGTH)
                 elif hasattr(user, self.damage_stat):
                     stat_value = getattr(user, self.damage_stat, 0)
 

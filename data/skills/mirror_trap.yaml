@@ -1,0 +1,20 @@
+id: mirror_trap
+name: 거울 함정
+type: trap
+description: 거울 함정을 설치하여 적 공격 시 반사 피해를 입힌다 (마법)
+costs:
+  mp: 11
+  cast_time: 0.6
+target: self
+effects:
+  - type: apply_trap
+    trap_type: mirror_reflect
+    duration: 2
+    trigger_chance: 0.30
+    reflect_ratio: 0.40
+    damage_type: magic
+    stat_base: magic
+metadata:
+  job: illusionist
+  trap_skill: true
+  scaling: magical

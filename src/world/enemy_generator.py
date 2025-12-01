@@ -579,14 +579,14 @@ class SimpleEnemy:
         self.current_mp = self.max_mp
         
         # 공격력: 레벨당 기초 공격력의 40% 성장 (더 공격적으로 강화)
-        # 최종적으로 공격력을 21%로 조정 (밸런스 재조정 - 30% 추가 감소)
+        # 최종적으로 공격력을 27%로 조정 (0.21 * 1.3 = 0.273 → 0.27)
         attack_growth = template.physical_attack * 0.40 * (level - 1)
         base_physical_attack = (template.physical_attack + attack_growth) * boss_stat_mult * stat_variance
-        self.physical_attack = int(base_physical_attack * 0.21) * difficulty_dmg_mult
+        self.physical_attack = int(base_physical_attack * 0.27) * difficulty_dmg_mult
 
         magic_attack_growth = template.magic_attack * 0.40 * (level - 1)
         base_magic_attack = (template.magic_attack + magic_attack_growth) * boss_stat_mult * stat_variance
-        self.magic_attack = int(base_magic_attack * 0.21) * difficulty_dmg_mult
+        self.magic_attack = int(base_magic_attack * 0.27) * difficulty_dmg_mult
         
         # 방어력: 레벨당 기초 방어력의 40% 성장, 최종값 15% 증가 (플레이어 20% * 1.25 * 1.3, 최종 0.75 * 1.15 = 0.8625배)
         defense_growth = template.physical_defense * 0.40 * (level - 1)
@@ -645,6 +645,11 @@ class SimpleEnemy:
         actual_heal = min(amount, self.max_hp - self.current_hp)
         self.current_hp += actual_heal
         return actual_heal
+
+    @property
+    def hp(self) -> int:
+        """현재 HP (하위 호환성)"""
+        return self.current_hp
 
 
 class EnemyGenerator:

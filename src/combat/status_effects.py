@@ -158,6 +158,13 @@ class StatusType(Enum):
     DRAGON_FORM = "용변신"
     WARRIOR_STANCE = "전사자세"
     AFTERIMAGE = "잔상"
+    
+    # === 팀워크 스킬용 특수 상태 ===
+    HP_RECOVERY_BLOCK = "회복불가"  # HP 회복 불가
+    CURSE_MARK = "저주낙인"  # 저주 낙인
+    
+    # === 마술사 스킬용 특수 상태 ===
+    DOOM = "죽음의선고"  # 타임 봄: 지연 폭발
 
 
 @dataclass
@@ -438,6 +445,56 @@ class StatusManager:
                     if gauge:
                         gauge.is_sleeping = False
                         logger.debug(f"{self.owner_name}: 수면 상태 만료 → ATB 게이지 플래그 해제")
+                
+                # DOOM (죽음의 선고) 만료 시 폭발 피해 - 적 전체 동시 폭발!
+                elif effect.status_type == StatusType.DOOM and self.owner:
+                    # 시전자 정보에서 폭발 피해 계산
+                    source_id = effect.source_id
+                    damage_multiplier = effect.intensity if effect.intensity > 0 else 0.8
+                    
+                    # 시전자의 손패 수 기반 피해 (마술사 타임 봄)
+                    hand_count = 5  # 기본값
+                    all_enemies = []
+                    try:
+                        from src.combat.combat_manager import get_combat_manager
+                        cm = get_combat_manager()
+                        if cm:
+                            # 시전자 찾기
+                            for ally in getattr(cm, 'allies', []):
+                                if getattr(ally, 'name', None) == source_id:
+                                    hand_count = len(getattr(ally, 'card_hand', []))
+                                    break
+                            # 적 전체 목록 (살아있는 적만)
+                            all_enemies = [e for e in getattr(cm, 'enemies', []) 
+                                          if getattr(e, 'is_alive', True) and getattr(e, 'current_hp', 0) > 0]
+                    except:
+                        pass
+                    
+                    # 적 전체가 없으면 owner만 대상
+                    if not all_enemies:
+                        all_enemies = [self.owner]
+                    
+                    logger.warning(f"💣💣💣 [타임 봄 동시 폭발!] 손패 {hand_count}장 × {damage_multiplier} 배율")
+                    
+                    # 적 전체에게 동시 폭발 피해
+                    for enemy in all_enemies:
+                        max_hp = getattr(enemy, 'max_hp', 100)
+                        explosion_damage = int(hand_count * damage_multiplier * max_hp * 0.1)
+                        
+                        # 피해 적용
+                        if hasattr(enemy, 'take_damage'):
+                            actual_damage = enemy.take_damage(explosion_damage, damage_type="magical")
+                        else:
+                            actual_damage = min(explosion_damage, getattr(enemy, 'current_hp', 0))
+                            enemy.current_hp = max(0, enemy.current_hp - explosion_damage)
+                        
+                        enemy_name = getattr(enemy, 'name', 'Unknown')
+                        logger.warning(f"  💥 {enemy_name}에게 {actual_damage} 피해!")
+                        
+                        # 사망 체크
+                        if hasattr(enemy, 'current_hp') and enemy.current_hp <= 0:
+                            enemy.is_alive = False
+                            logger.warning(f"  ☠️ {enemy_name} 사망!")
 
                 # 이벤트 발행
                 event_bus.publish(Events.STATUS_REMOVED, {

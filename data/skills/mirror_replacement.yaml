@@ -1,0 +1,22 @@
+id: mirror_replacement
+name: 거울 대체
+type: special
+description: 환영 1개를 소멸시켜 자신의 HP를 회복하고 잔상 게이지를 충전한다
+costs:
+  mp: 5
+  cast_time: 0.3
+target: self
+requirements:
+  min_phantoms: 1
+effects:
+  - type: consume_phantom
+    count: 1
+  - type: heal
+    heal_type: hp_percent
+    value: 0.15
+  - type: charge_afterimage
+    value: 35
+metadata:
+  job: illusionist
+  gimmick_skill: true
+  phantom_consume: true

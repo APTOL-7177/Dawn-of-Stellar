@@ -2,6 +2,7 @@
 Input Handler - tcod 및 게임패드 입력 처리
 
 키보드/마우스/게임패드 입력을 처리하는 시스템
+게임패드 입력을 키보드 입력으로 변환하는 새로운 시스템을 지원합니다.
 """
 
 import tcod.event
@@ -211,6 +212,441 @@ class InputHandler(tcod.event.EventDispatch[Optional[GameAction]]):
         return direction_map.get(action)
 
 
+# 키 이름을 tcod KeySym으로 변환하는 매핑
+KEY_NAME_TO_KEYSYM: Dict[str, int] = {
+    # 방향키
+    "UP": tcod.event.KeySym.UP,
+    "DOWN": tcod.event.KeySym.DOWN,
+    "LEFT": tcod.event.KeySym.LEFT,
+    "RIGHT": tcod.event.KeySym.RIGHT,
+    
+    # 특수 키
+    "SPACE": tcod.event.KeySym.SPACE,
+    "RETURN": tcod.event.KeySym.RETURN,
+    "ENTER": tcod.event.KeySym.RETURN,
+    "ESCAPE": tcod.event.KeySym.ESCAPE,
+    "ESC": tcod.event.KeySym.ESCAPE,
+    "TAB": tcod.event.KeySym.TAB,
+    "BACKSPACE": tcod.event.KeySym.BACKSPACE,
+    "DELETE": tcod.event.KeySym.DELETE,
+    "PERIOD": tcod.event.KeySym.PERIOD,
+    
+    # 텐키
+    "KP_0": tcod.event.KeySym.KP_0,
+    "KP_1": tcod.event.KeySym.KP_1,
+    "KP_2": tcod.event.KeySym.KP_2,
+    "KP_3": tcod.event.KeySym.KP_3,
+    "KP_4": tcod.event.KeySym.KP_4,
+    "KP_5": tcod.event.KeySym.KP_5,
+    "KP_6": tcod.event.KeySym.KP_6,
+    "KP_7": tcod.event.KeySym.KP_7,
+    "KP_8": tcod.event.KeySym.KP_8,
+    "KP_9": tcod.event.KeySym.KP_9,
+    
+    # 페이지 키
+    "PAGEUP": tcod.event.KeySym.PAGEUP,
+    "PAGEDOWN": tcod.event.KeySym.PAGEDOWN,
+    "HOME": tcod.event.KeySym.HOME,
+    "END": tcod.event.KeySym.END,
+    
+    # 기능 키
+    "F1": tcod.event.KeySym.F1,
+    "F2": tcod.event.KeySym.F2,
+    "F3": tcod.event.KeySym.F3,
+    "F4": tcod.event.KeySym.F4,
+    "F5": tcod.event.KeySym.F5,
+    "F6": tcod.event.KeySym.F6,
+    "F7": tcod.event.KeySym.F7,
+    "F8": tcod.event.KeySym.F8,
+    "F9": tcod.event.KeySym.F9,
+    "F10": tcod.event.KeySym.F10,
+    "F11": tcod.event.KeySym.F11,
+    "F12": tcod.event.KeySym.F12,
+}
+
+# KeySym을 키 이름으로 변환 (역방향)
+KEYSYM_TO_KEY_NAME: Dict[int, str] = {v: k for k, v in KEY_NAME_TO_KEYSYM.items()}
+
+
+class KeyBindingManager:
+    """
+    키 바인딩 관리자
+    
+    키보드와 게임패드의 키 바인딩을 관리하고 저장/로드합니다.
+    게임패드 버튼은 키보드 키로 변환되어 처리됩니다.
+    """
+    
+    def __init__(self):
+        self.logger = get_logger("key_binding")
+        self.config_path = os.path.join("config", "key_bindings.yaml")
+        
+        # 키보드 바인딩: action -> list of keys
+        self.keyboard_bindings: Dict[str, list] = {}
+        
+        # 게임패드 버튼 -> 키보드 키 매핑
+        self.gamepad_button_to_key: Dict[int, str] = {}
+        
+        # 게임패드 D-pad -> 키보드 키 매핑
+        self.gamepad_dpad_to_key: Dict[str, str] = {}
+        
+        # 게임패드 스틱 -> 키보드 키 매핑
+        self.gamepad_stick_to_key: Dict[str, str] = {}
+        
+        # 게임패드 설정
+        self.gamepad_layout = "xbox"
+        self.gamepad_deadzone = 0.3
+        
+        # 기본값 로드 후 설정 파일 로드
+        self._load_defaults()
+        self.load_bindings()
+    
+    def _load_defaults(self):
+        """기본 키 바인딩 설정"""
+        # 키보드 기본 바인딩
+        self.keyboard_bindings = {
+            "move_up": ["UP", "k", "KP_8"],
+            "move_down": ["DOWN", "j", "KP_2"],
+            "move_left": ["LEFT", "h", "KP_4"],
+            "move_right": ["RIGHT", "l", "KP_6"],
+            "move_up_left": ["y", "KP_7"],
+            "move_up_right": ["u", "KP_9"],
+            "move_down_left": ["b", "KP_1"],
+            "move_down_right": ["n", "KP_3"],
+            "confirm": ["z", "RETURN"],
+            "cancel": ["x", "ESCAPE"],
+            "attack": ["SPACE"],
+            "interact": ["e"],
+            "wait": ["PERIOD", "KP_5"],
+            "pickup": ["p"],
+            "menu": ["m"],
+            "escape": ["ESCAPE"],
+            "open_inventory": ["i"],
+            "open_character": ["c"],
+            "open_skills": ["s"],
+            "gimmick_detail": ["g"],
+            "inventory_destroy": ["v"],
+            "inventory_drop": ["d"],
+            "inventory_drop_gold": ["g"],
+            "page_up": ["PAGEUP"],
+            "page_down": ["PAGEDOWN"],
+            "quit": ["q"],
+        }
+        
+        # 게임패드 버튼 -> 키보드 키 기본 매핑 (Xbox 기준)
+        self.gamepad_button_to_key = {
+            0: "z",        # A - 확인 (Z키)
+            1: "x",        # B - 취소 (X키)
+            2: "e",        # X - 상호작용 (E키)
+            3: "SPACE",    # Y - 공격 (Space키)
+            4: "i",        # LB - 인벤토리 (I키)
+            5: "c",        # RB - 캐릭터 (C키)
+            6: "ESCAPE",   # Back - 탈출 (ESC키)
+            7: "m",        # Start - 메뉴 (M키)
+            8: "s",        # Left Stick - 스킬 (S키)
+            9: "p",        # Right Stick - 줍기 (P키)
+        }
+        
+        # 게임패드 D-pad -> 키보드 키 기본 매핑
+        self.gamepad_dpad_to_key = {
+            "up": "UP",
+            "down": "DOWN",
+            "left": "LEFT",
+            "right": "RIGHT",
+            "up_left": "y",
+            "up_right": "u",
+            "down_left": "b",
+            "down_right": "n",
+        }
+        
+        # 게임패드 스틱 -> 키보드 키 기본 매핑
+        self.gamepad_stick_to_key = {
+            "up": "UP",
+            "down": "DOWN",
+            "left": "LEFT",
+            "right": "RIGHT",
+        }
+    
+    def load_bindings(self) -> bool:
+        """설정 파일에서 키 바인딩 로드"""
+        try:
+            if not os.path.exists(self.config_path):
+                self.logger.info("키 바인딩 설정 파일 없음, 기본값 사용")
+                self.save_bindings()  # 기본값 저장
+                return True
+            
+            with open(self.config_path, 'r', encoding='utf-8') as f:
+                data = yaml.safe_load(f)
+            
+            if not data:
+                return True
+            
+            # 키보드 바인딩 로드
+            if 'keyboard' in data:
+                for action, keys in data['keyboard'].items():
+                    if isinstance(keys, list):
+                        self.keyboard_bindings[action] = keys
+                    else:
+                        self.keyboard_bindings[action] = [keys]
+            
+            # 게임패드 설정 로드
+            if 'gamepad' in data:
+                gp = data['gamepad']
+                
+                if 'layout' in gp:
+                    self.gamepad_layout = gp['layout']
+                
+                if 'deadzone' in gp:
+                    self.gamepad_deadzone = float(gp['deadzone'])
+                
+                if 'button_to_key' in gp:
+                    self.gamepad_button_to_key = {
+                        int(k): v for k, v in gp['button_to_key'].items()
+                    }
+                
+                if 'dpad_to_key' in gp:
+                    self.gamepad_dpad_to_key = gp['dpad_to_key']
+                
+                if 'stick_to_key' in gp:
+                    self.gamepad_stick_to_key = gp['stick_to_key']
+            
+            self.logger.info(f"키 바인딩 로드 완료: {self.config_path}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"키 바인딩 로드 실패: {e}")
+            return False
+    
+    def save_bindings(self) -> bool:
+        """키 바인딩을 설정 파일에 저장"""
+        try:
+            os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+            
+            data = {
+                'keyboard': self.keyboard_bindings,
+                'gamepad': {
+                    'layout': self.gamepad_layout,
+                    'deadzone': self.gamepad_deadzone,
+                    'button_to_key': {
+                        str(k): v for k, v in self.gamepad_button_to_key.items()
+                    },
+                    'dpad_to_key': self.gamepad_dpad_to_key,
+                    'stick_to_key': self.gamepad_stick_to_key,
+                }
+            }
+            
+            # 주석이 포함된 YAML 헤더 추가
+            header = """# Dawn of Stellar - 키 바인딩 설정
+# 키보드와 게임패드 키 바인딩을 각각 설정할 수 있습니다.
+# 게임패드 입력은 지정된 키보드 키로 변환되어 처리됩니다.
+
+"""
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                f.write(header)
+                yaml.safe_dump(data, f, default_flow_style=False, allow_unicode=True)
+            
+            self.logger.info(f"키 바인딩 저장 완료: {self.config_path}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"키 바인딩 저장 실패: {e}")
+            return False
+    
+    def reset_to_defaults(self):
+        """기본값으로 리셋"""
+        self._load_defaults()
+        self.save_bindings()
+        self.logger.info("키 바인딩 기본값으로 리셋")
+    
+    def set_keyboard_binding(self, action: str, keys: list):
+        """키보드 바인딩 설정"""
+        self.keyboard_bindings[action] = keys
+    
+    def set_gamepad_button_key(self, button_id: int, key: str):
+        """게임패드 버튼 -> 키보드 키 매핑 설정"""
+        self.gamepad_button_to_key[button_id] = key
+    
+    def get_action_for_key(self, key_name: str) -> Optional[GameAction]:
+        """키 이름으로 액션 찾기"""
+        key_lower = key_name.lower() if len(key_name) == 1 else key_name
+        
+        for action_name, keys in self.keyboard_bindings.items():
+            for k in keys:
+                k_compare = k.lower() if len(k) == 1 else k
+                if k_compare == key_lower:
+                    try:
+                        return GameAction(action_name)
+                    except ValueError:
+                        pass
+        return None
+    
+    def get_keys_for_action(self, action: str) -> list:
+        """액션에 바인딩된 키 목록 반환"""
+        return self.keyboard_bindings.get(action, [])
+    
+    def get_key_for_gamepad_button(self, button_id: int) -> Optional[str]:
+        """게임패드 버튼에 매핑된 키보드 키 반환"""
+        return self.gamepad_button_to_key.get(button_id)
+    
+    def get_key_for_dpad(self, direction: str) -> Optional[str]:
+        """D-pad 방향에 매핑된 키보드 키 반환"""
+        return self.gamepad_dpad_to_key.get(direction)
+    
+    def get_key_for_stick(self, direction: str) -> Optional[str]:
+        """아날로그 스틱 방향에 매핑된 키보드 키 반환"""
+        return self.gamepad_stick_to_key.get(direction)
+    
+    def key_to_keysym(self, key_name: str) -> Optional[int]:
+        """키 이름을 tcod KeySym으로 변환"""
+        # 대문자로 변환해서 확인
+        key_upper = key_name.upper()
+        if key_upper in KEY_NAME_TO_KEYSYM:
+            return KEY_NAME_TO_KEYSYM[key_upper]
+        
+        # 단일 문자인 경우 ord 값 반환
+        if len(key_name) == 1:
+            return ord(key_name.lower())
+        
+        return None
+    
+    def keysym_to_key(self, keysym: int) -> str:
+        """tcod KeySym을 키 이름으로 변환"""
+        if keysym in KEYSYM_TO_KEY_NAME:
+            return KEYSYM_TO_KEY_NAME[keysym]
+        
+        # ASCII 범위인 경우 문자로 변환
+        if 32 <= keysym <= 126:
+            return chr(keysym)
+        
+        return f"KEY_{keysym}"
+    
+    def get_display_name(self, key_name: str) -> str:
+        """키 이름을 표시용 이름으로 변환"""
+        display_names = {
+            "UP": "↑",
+            "DOWN": "↓",
+            "LEFT": "←",
+            "RIGHT": "→",
+            "SPACE": "Space",
+            "RETURN": "Enter",
+            "ENTER": "Enter",
+            "ESCAPE": "ESC",
+            "ESC": "ESC",
+            "PAGEUP": "PgUp",
+            "PAGEDOWN": "PgDn",
+            "PERIOD": ".",
+            "KP_0": "Num0",
+            "KP_1": "Num1",
+            "KP_2": "Num2",
+            "KP_3": "Num3",
+            "KP_4": "Num4",
+            "KP_5": "Num5",
+            "KP_6": "Num6",
+            "KP_7": "Num7",
+            "KP_8": "Num8",
+            "KP_9": "Num9",
+        }
+        
+        key_upper = key_name.upper()
+        if key_upper in display_names:
+            return display_names[key_upper]
+        
+        # 단일 문자는 대문자로 표시
+        if len(key_name) == 1:
+            return key_name.upper()
+        
+        return key_name
+    
+    def get_gamepad_button_display_name(self, button_id: int, layout: str = None) -> str:
+        """게임패드 버튼 ID를 표시용 이름으로 변환"""
+        if layout is None:
+            layout = self.gamepad_layout
+        
+        xbox_names = {
+            0: "A", 1: "B", 2: "X", 3: "Y",
+            4: "LB", 5: "RB", 6: "Back", 7: "Start",
+            8: "LS", 9: "RS",
+        }
+        
+        ps_names = {
+            0: "✕", 1: "○", 2: "□", 3: "△",
+            4: "L1", 5: "R1", 6: "Select", 7: "Start",
+            8: "L3", 9: "R3",
+        }
+        
+        nintendo_names = {
+            0: "B", 1: "A", 2: "Y", 3: "X",
+            4: "L", 5: "R", 6: "-", 7: "+",
+            8: "LS", 9: "RS",
+        }
+        
+        if layout == "xbox":
+            return xbox_names.get(button_id, f"BTN{button_id}")
+        elif layout == "playstation":
+            return ps_names.get(button_id, f"BTN{button_id}")
+        elif layout == "nintendo":
+            return nintendo_names.get(button_id, f"BTN{button_id}")
+        else:
+            return f"BTN{button_id}"
+    
+    def get_action_display(self, action_name: str, use_gamepad: bool = False) -> str:
+        """
+        액션에 대한 표시용 키/버튼 이름 반환
+        
+        Args:
+            action_name: 액션 이름 (예: "confirm", "cancel")
+            use_gamepad: 게임패드 버튼으로 표시할지 여부
+        
+        Returns:
+            표시용 문자열 (예: "Z" 또는 "A버튼")
+        """
+        if use_gamepad:
+            # 게임패드 버튼 중 해당 키에 매핑된 버튼 찾기
+            keys = self.get_keys_for_action(action_name)
+            if keys:
+                first_key = keys[0]
+                # 해당 키에 매핑된 게임패드 버튼 찾기
+                for button_id, mapped_key in self.gamepad_button_to_key.items():
+                    if mapped_key.lower() == first_key.lower() or mapped_key == first_key:
+                        return self.get_gamepad_button_display_name(button_id)
+            # 찾지 못하면 키보드 키 반환
+            return self.get_display_name(keys[0]) if keys else "?"
+        else:
+            # 키보드 키
+            keys = self.get_keys_for_action(action_name)
+            if keys:
+                return self.get_display_name(keys[0])
+            return "?"
+    
+    def get_help_text(self, actions: list, use_gamepad: bool = False, separator: str = "  ") -> str:
+        """
+        여러 액션에 대한 도움말 텍스트 생성
+        
+        Args:
+            actions: (액션명, 설명) 튜플 리스트 예: [("confirm", "확인"), ("cancel", "취소")]
+            use_gamepad: 게임패드 버튼으로 표시할지 여부
+            separator: 구분자
+        
+        Returns:
+            도움말 문자열 (예: "Z: 확인  X: 취소" 또는 "A: 확인  B: 취소")
+        """
+        parts = []
+        for action_name, label in actions:
+            key_display = self.get_action_display(action_name, use_gamepad)
+            parts.append(f"{key_display}: {label}")
+        return separator.join(parts)
+    
+    def get_movement_help(self, use_gamepad: bool = False) -> str:
+        """이동 도움말 텍스트"""
+        if use_gamepad:
+            return "D-pad/스틱: 이동"
+        else:
+            return "↑↓←→: 이동"
+
+
+# 전역 키 바인딩 매니저
+key_binding_manager = KeyBindingManager()
+
+
 class GamepadHandler:
     """
     게임패드 입력 핸들러
@@ -349,12 +785,20 @@ class GamepadHandler:
         self.deadzone = 0.3
 
         # 이동 쿨타임 (키보드처럼 작동)
-        self.move_cooldown = 0.4  # 첫 번째 입력 후 대기 시간
-        self.repeat_cooldown = 0.1  # 연속 입력 간격
+        self.move_cooldown = 0.3  # 첫 번째 입력 후 대기 시간
+        self.repeat_cooldown = 0.05  # 연속 입력 간격
         self.last_move_time = 0
         self.first_move_time = 0
         self.is_first_move = True
         self.last_action = None
+        
+        # 버튼 입력 딜레이 (같은 버튼 연속 입력 방지)
+        self.button_input_delay = 0.15  # 같은 버튼 입력 간 최소 딜레이 (초)
+        self.last_button_times: Dict[int, float] = {}  # 버튼별 마지막 입력 시간
+        self.last_direction_time: Dict[str, float] = {}  # 방향별 마지막 입력 시간
+        
+        # 스틱 방향 고정 (미세한 각도 변화 무시용)
+        self.locked_stick_direction: Optional[str] = None
 
         # 게임패드 연결 시도
         self._initialize_joystick()
@@ -534,6 +978,8 @@ class GamepadHandler:
     def get_action(self) -> Optional[GameAction]:
         """
         게임패드 입력으로부터 게임 액션 반환
+        
+        게임패드 입력은 먼저 키보드 키로 변환된 후, 해당 키에 바인딩된 액션으로 변환됩니다.
 
         Returns:
             GameAction 또는 None
@@ -545,68 +991,171 @@ class GamepadHandler:
             # pygame 이벤트 큐 업데이트 (중요!)
             pygame.event.pump()
 
-            # Windows에서는 pygame 이벤트가 제대로 작동하지 않는 경우가 많으므로
-            # 폴링 방식을 우선 사용하고 이벤트 방식은 디버깅용으로만 사용
+            # pygame 이벤트 가져오기 (디버깅용)
             pygame_events = pygame.event.get()
-            if pygame_events:  # 이벤트가 있을 때만 처리
-                print(f"Gamepad events: {len(pygame_events)} detected")  # 디버깅용
-                for event in pygame_events:
-                    if event.type == pygame.JOYBUTTONDOWN:
-                        print(f"Event: JOYBUTTONDOWN, button {event.button}")  # 디버깅용
-                    elif event.type == pygame.JOYHATMOTION:
-                        print(f"Event: JOYHATMOTION, value {event.value}")  # 디버깅용
+            
+            current_time = time.time()
 
-            # 폴링 방식으로 입력 확인 (Windows에서 더 안정적)
-            # 버튼 입력 확인 (직접 폴링)
-            for button_id, action in self.button_mappings.items():
-                if button_id < self.joystick.get_numbuttons():
-                    current_state = self.joystick.get_button(button_id)
-                    prev_state = self.prev_button_states.get(button_id, False)
+            # 폴링 방식으로 버튼 입력 확인 (Windows에서 더 안정적)
+            for button_id in range(self.joystick.get_numbuttons()):
+                current_state = self.joystick.get_button(button_id)
+                prev_state = self.prev_button_states.get(button_id, False)
 
-                    # 디버깅: 버튼 상태 변화 출력
-                    if current_state != prev_state:
-                        print(f"Button {button_id} state change: {prev_state} -> {current_state}")
+                # 버튼이 눌렸을 때만 처리 + 같은 버튼 딜레이 체크
+                if current_state and not prev_state:
+                    # 같은 버튼 입력 딜레이 체크
+                    last_time = self.last_button_times.get(button_id, 0)
+                    if current_time - last_time < self.button_input_delay:
+                        continue
+                    
+                    # 키보드 키로 변환
+                    key_name = key_binding_manager.get_key_for_gamepad_button(button_id)
+                    if key_name:
+                        # 키에 해당하는 액션 찾기
+                        action = key_binding_manager.get_action_for_key(key_name)
+                        if action:
+                            self.last_button_times[button_id] = current_time
+                            self.logger.debug(f"게임패드 버튼 {button_id} -> 키 '{key_name}' -> {action.value}")
+                            self._update_states()
+                            return action
 
-                    # 버튼이 눌렸을 때만 액션 반환
-                    if current_state and not prev_state:
-                        print(f"Gamepad button input (polling): {button_id} -> {action.value}")  # 콘솔 직접 출력
-                        self.logger.info(f"Gamepad button input (polling): {button_id} -> {action.value}")
-                        # CONFIRM 액션 특별 로깅
-                        if action == GameAction.CONFIRM:
-                            print(f"CONFIRM ACTION DETECTED FROM BUTTON {button_id}!")  # 특별 디버깅
-                        # 상태 업데이트 후 액션 반환
-                        self._update_states()
-                        return action
-
-            # D-pad 입력 확인 (아날로그 스틱처럼 연속 입력)
-            action = self._get_dpad_action()
+            # D-pad 입력 확인 (키보드 키 변환 방식)
+            action = self._get_dpad_action_via_key()
             if action:
-                print(f"Gamepad D-pad input: {action.value}")  # 콘솔 직접 출력
-                self.logger.info(f"Gamepad D-pad input: {action.value}")
-                # 상태 업데이트 후 액션 반환
                 self._update_states()
                 return action
 
-            # 아날로그 스틱 입력 확인 (디지털 입력으로 변환)
-            action = self._get_analog_stick_action()
+            # 아날로그 스틱 입력 확인 (키보드 키 변환 방식)
+            action = self._get_analog_stick_action_via_key()
             if action:
-                print(f"Gamepad analog stick input: {action.value}")  # 콘솔 직접 출력
-                self.logger.info(f"Gamepad analog stick input: {action.value}")
-                # 상태 업데이트 후 액션 반환
                 self._update_states()
                 return action
 
         except Exception as e:
-            print(f"Gamepad input processing error: {e}")
-            self.logger.error(f"Gamepad input processing error: {e}")
+            self.logger.error(f"게임패드 입력 처리 오류: {e}")
 
         # 상태 업데이트 (다음 입력 감지를 위해)
         self._update_states()
 
         return None
 
+    def _get_dpad_action_via_key(self) -> Optional[GameAction]:
+        """D-pad 입력을 키보드 키로 변환 후 액션 반환 (연속 입력 지원)
+        
+        D-pad는 아날로그 스틱과 동일한 매핑(stick_to_key)을 사용합니다.
+        컨트롤러에 따라 D-pad가 hat, 축, 또는 버튼으로 처리되므로 모두 확인합니다.
+        """
+        if not self.joystick:
+            return None
+
+        direction = None
+        current_time = time.time()
+
+        # 1. D-pad (hat) 입력 확인
+        for hat_id in range(self.joystick.get_numhats()):
+            current_hat = self.joystick.get_hat(hat_id)
+            if current_hat != (0, 0):
+                direction = self._hat_to_direction(current_hat)
+                break
+
+        # 2. D-pad 버튼으로 확인 (DualSense 등 - 버튼 11-14가 D-pad)
+        if not direction:
+            num_buttons = self.joystick.get_numbuttons()
+            # DualSense D-pad 버튼: 11=Up, 12=Down, 13=Left, 14=Right
+            if num_buttons >= 15:
+                dpad_up = self.joystick.get_button(11) if num_buttons > 11 else False
+                dpad_down = self.joystick.get_button(12) if num_buttons > 12 else False
+                dpad_left = self.joystick.get_button(13) if num_buttons > 13 else False
+                dpad_right = self.joystick.get_button(14) if num_buttons > 14 else False
+                
+                if dpad_up:
+                    direction = "up"
+                elif dpad_down:
+                    direction = "down"
+                elif dpad_left:
+                    direction = "left"
+                elif dpad_right:
+                    direction = "right"
+
+        # 3. Hat과 버튼이 없으면 D-pad 축(axis)으로 확인
+        if not direction and self.joystick.get_numaxes() >= 6:
+            num_axes = self.joystick.get_numaxes()
+            dpad_x_axis = num_axes - 2
+            dpad_y_axis = num_axes - 1
+            
+            dpad_x = self.joystick.get_axis(dpad_x_axis)
+            dpad_y = self.joystick.get_axis(dpad_y_axis)
+            
+            dpad_deadzone = 0.5
+            if abs(dpad_x) > dpad_deadzone or abs(dpad_y) > dpad_deadzone:
+                direction = self._axis_to_direction(dpad_x, dpad_y, dpad_deadzone)
+
+        if not direction:
+            return None
+
+        # 아날로그 스틱 매핑(stick_to_key)을 우선 사용 (D-pad → 스틱 신호 변환)
+        key_name = key_binding_manager.get_key_for_stick(direction)
+        if not key_name:
+            # 스틱 매핑에 없으면 D-pad 매핑 사용 (대각선 등)
+            key_name = key_binding_manager.get_key_for_dpad(direction)
+        if not key_name:
+            return None
+
+        # 키에 해당하는 액션 가져오기
+        action = key_binding_manager.get_action_for_key(key_name)
+        if not action:
+            return None
+
+        # 같은 방향 딜레이 체크
+        last_dir_time = self.last_direction_time.get(direction, 0)
+        time_since_last = current_time - last_dir_time
+
+        # 첫 번째 입력 또는 방향 변경 시
+        if action != self.last_action:
+            # 같은 방향 딜레이 체크 (다른 방향은 즉시 허용)
+            if time_since_last < self.button_input_delay:
+                return None
+            
+            self.is_first_move = True
+            self.first_move_time = current_time
+            self.last_action = action
+            self.last_move_time = current_time
+            self.last_direction_time[direction] = current_time
+            self.logger.debug(f"D-pad {direction} -> 키 '{key_name}' -> {action.value}")
+            return action
+
+        # 첫 번째 입력 후 0.3초 이내는 입력 무시
+        if self.is_first_move and time_since_last < 0.3:
+            return None
+
+        # 첫 번째 입력 후 0.3초가 지나면 연속 입력 허용
+        if self.is_first_move:
+            self.is_first_move = False
+
+        # 연속 입력은 0.05초마다 허용
+        if time_since_last >= 0.05:
+            self.last_move_time = current_time
+            self.last_direction_time[direction] = current_time
+            return action
+
+        return None
+
+    def _hat_to_direction(self, hat: Tuple[int, int]) -> Optional[str]:
+        """hat 값을 방향 문자열로 변환"""
+        hat_directions = {
+            (0, 1): "up",
+            (0, -1): "down",
+            (-1, 0): "left",
+            (1, 0): "right",
+            (-1, 1): "up_left",
+            (1, 1): "up_right",
+            (-1, -1): "down_left",
+            (1, -1): "down_right",
+        }
+        return hat_directions.get(hat)
+
     def _get_dpad_action(self) -> Optional[GameAction]:
-        """D-pad를 키보드처럼 연속 입력으로 변환"""
+        """D-pad를 키보드처럼 연속 입력으로 변환 (기존 방식 - 호환성 유지)"""
         if not self.joystick:
             return None
 
@@ -647,8 +1196,142 @@ class GamepadHandler:
 
         return None
 
+    def _get_analog_stick_action_via_key(self) -> Optional[GameAction]:
+        """아날로그 스틱을 키보드 키로 변환 후 액션 반환 (연속 입력 지원)"""
+        if not self.joystick:
+            return None
+
+        # 왼쪽 스틱 (보통 axis 0=x, 1=y)
+        if self.joystick.get_numaxes() >= 2:
+            x_axis = self.joystick.get_axis(0)
+            y_axis = self.joystick.get_axis(1)
+
+            # 데드존 적용
+            strict_deadzone = key_binding_manager.gamepad_deadzone
+            if strict_deadzone < 0.3:
+                strict_deadzone = 0.5  # 최소 0.5 보장
+            
+            # 스틱이 중립 위치로 돌아왔으면 방향 잠금 해제
+            if abs(x_axis) <= strict_deadzone and abs(y_axis) <= strict_deadzone:
+                self.locked_stick_direction = None
+                return None
+            
+            if abs(x_axis) > strict_deadzone or abs(y_axis) > strict_deadzone:
+                current_time = time.time()
+
+                # 스틱 방향 계산
+                raw_direction = self._axis_to_direction(x_axis, y_axis, strict_deadzone)
+                if not raw_direction:
+                    return None
+                
+                # 방향이 고정되어 있으면 호환되는 방향인지 확인
+                is_new_direction = False
+                if self.locked_stick_direction:
+                    # 완전히 다른 방향이면 방향 변경 허용
+                    if self._is_different_direction(self.locked_stick_direction, raw_direction):
+                        direction = raw_direction
+                        self.locked_stick_direction = direction
+                        is_new_direction = True
+                    else:
+                        # 미세한 변화는 무시하고 기존 방향 유지
+                        direction = self.locked_stick_direction
+                else:
+                    # 새로운 방향 고정
+                    direction = raw_direction
+                    self.locked_stick_direction = direction
+                    is_new_direction = True
+
+                # 방향에 해당하는 키보드 키 가져오기
+                key_name = key_binding_manager.get_key_for_stick(direction)
+                if not key_name:
+                    # 대각선은 D-pad 매핑 사용
+                    key_name = key_binding_manager.get_key_for_dpad(direction)
+                if not key_name:
+                    return None
+
+                # 키에 해당하는 액션 가져오기
+                action = key_binding_manager.get_action_for_key(key_name)
+                if not action:
+                    return None
+
+                # 같은 방향 딜레이 체크
+                last_dir_time = self.last_direction_time.get(direction, 0)
+                time_since_last = current_time - last_dir_time
+
+                # 새로운 방향이면 첫 입력으로 처리
+                if is_new_direction:
+                    self.is_first_move = True
+                    self.first_move_time = current_time
+                    self.last_action = action
+                    self.last_move_time = current_time
+                    self.last_direction_time[direction] = current_time
+                    self.logger.debug(f"스틱 {direction} -> 키 '{key_name}' -> {action.value} (새 방향)")
+                    return action
+
+                # 첫 번째 입력 후 0.3초 이내는 입력 무시
+                if self.is_first_move and time_since_last < 0.3:
+                    return None
+
+                # 첫 번째 입력 후 0.3초가 지나면 연속 입력 허용
+                if self.is_first_move:
+                    self.is_first_move = False
+
+                # 연속 입력은 0.05초마다 허용
+                if time_since_last >= 0.05:
+                    self.last_move_time = current_time
+                    self.last_direction_time[direction] = current_time
+                    return action
+
+        return None
+
+    def _axis_to_direction(self, x_axis: float, y_axis: float, deadzone: float) -> Optional[str]:
+        """아날로그 스틱 축 값을 방향 문자열로 변환"""
+        if y_axis < -deadzone and x_axis < -deadzone:
+            return "up_left"
+        elif y_axis < -deadzone and x_axis > deadzone:
+            return "up_right"
+        elif y_axis > deadzone and x_axis < -deadzone:
+            return "down_left"
+        elif y_axis > deadzone and x_axis > deadzone:
+            return "down_right"
+        elif y_axis < -deadzone:
+            return "up"
+        elif y_axis > deadzone:
+            return "down"
+        elif x_axis < -deadzone:
+            return "left"
+        elif x_axis > deadzone:
+            return "right"
+        return None
+
+    def _is_different_direction(self, locked: str, new: str) -> bool:
+        """두 방향이 완전히 다른 방향인지 확인 (미세한 각도 변화 구분)"""
+        # 같은 방향이면 False
+        if locked == new:
+            return False
+        
+        # 방향별 호환 그룹 정의
+        # 같은 그룹 내에서는 미세한 변화로 취급
+        compatible_groups = {
+            "up": {"up", "up_left", "up_right"},
+            "down": {"down", "down_left", "down_right"},
+            "left": {"left", "up_left", "down_left"},
+            "right": {"right", "up_right", "down_right"},
+            "up_left": {"up_left", "up", "left"},
+            "up_right": {"up_right", "up", "right"},
+            "down_left": {"down_left", "down", "left"},
+            "down_right": {"down_right", "down", "right"},
+        }
+        
+        # 고정된 방향의 호환 그룹 확인
+        group = compatible_groups.get(locked, set())
+        
+        # 새 방향이 호환 그룹에 있으면 미세한 변화 (False)
+        # 호환 그룹에 없으면 완전히 다른 방향 (True)
+        return new not in group
+
     def _get_analog_stick_action(self) -> Optional[GameAction]:
-        """아날로그 스틱을 디지털 입력으로 변환 (키보드처럼 연속 입력)"""
+        """아날로그 스틱을 디지털 입력으로 변환 (기존 방식 - 호환성 유지)"""
         if not self.joystick:
             return None
 
@@ -753,6 +1436,10 @@ class UnifiedInputHandler:
         self.keyboard_handler = InputHandler()
         self.gamepad_handler = GamepadHandler()
         self.logger = get_logger("unified_input")
+        
+        # 키보드 키별 디바운싱 (키 통합이 아닌 키별로 따로)
+        self.keyboard_input_delay = 0.03  # 같은 키 입력 간 최소 딜레이 (초) - 매우 짧게
+        self.last_key_times: Dict[int, float] = {}  # 키별 마지막 입력 시간
 
     def get_action(self) -> Optional[GameAction]:
         """
@@ -771,13 +1458,33 @@ class UnifiedInputHandler:
         return None
 
     def process_tcod_event(self, event) -> Optional[GameAction]:
-        """tcod 이벤트를 처리하여 액션 반환"""
-        # 게임패드 입력 우선 확인
-        gamepad_action = self.gamepad_handler.get_action()
-        if gamepad_action:
-            return gamepad_action
+        """tcod 이벤트를 처리하여 액션 반환 (키보드 이벤트 우선)"""
+        # 키보드 키를 뗐을 때 디바운싱 타이머 리셋
+        if isinstance(event, tcod.event.KeyUp):
+            key_sym = event.sym
+            if key_sym in self.last_key_times:
+                del self.last_key_times[key_sym]
+            return None
 
-        # 키보드 입력 처리
+        # 키보드 입력 처리 (키보드 이벤트는 즉시 처리)
+        if isinstance(event, tcod.event.KeyDown):
+            current_time = time.time()
+            key_sym = event.sym
+            
+            # 새로운 키 누름 (repeat=False)은 항상 허용
+            # 키 반복 (repeat=True)일 때만 디바운싱 적용
+            if event.repeat:
+                last_time = self.last_key_times.get(key_sym, 0)
+                if current_time - last_time < self.keyboard_input_delay:
+                    return None  # 반복 입력은 딜레이 내에 무시
+            
+            # 액션 처리
+            action = self.keyboard_handler.dispatch(event)
+            if action:
+                self.last_key_times[key_sym] = current_time
+            return action
+        
+        # 다른 이벤트 (Quit 등)는 그대로 처리
         return self.keyboard_handler.dispatch(event)
 
 
@@ -795,6 +1502,20 @@ class UnifiedInputHandler:
     def gamepad_connected(self) -> bool:
         """게임패드 연결 상태"""
         return self.gamepad_handler.connected
+
+    def clear_input_state(self) -> None:
+        """입력 상태 초기화 (메시지 박스 등에서 이전 입력이 즉시 처리되는 것 방지)"""
+        # 키보드 디바운싱 타이머 리셋
+        self.last_key_times.clear()
+        
+        # 게임패드 상태 업데이트 (현재 눌린 버튼을 "이전 상태"로 기록)
+        if self.gamepad_handler.connected and self.gamepad_handler.joystick:
+            self.gamepad_handler._update_states()
+            # 스틱 방향 잠금 해제
+            self.gamepad_handler.locked_stick_direction = None
+            # 첫 이동 플래그 리셋
+            self.gamepad_handler.is_first_move = True
+            self.gamepad_handler.last_action = None
 
 
 # 전역 인스턴스

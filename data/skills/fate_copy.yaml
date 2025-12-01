@@ -1,0 +1,22 @@
+id: fate_copy
+name: 운명 복제
+type: special
+description: 아군 1명의 마지막 사용 스킬을 가능성으로 저장 (파티 연계!)
+costs:
+  mp: 15
+  cast_time: 0.5
+target: single_ally
+effects:
+  - type: fate_copy
+    target: selected_ally
+    copy_last_skill: true
+    store_as_possibility: true
+    power_ratio: 0.85
+restrictions:
+  - cannot_copy_ultimate
+  - cannot_copy_items
+  - cannot_copy_teamwork
+metadata:
+  gimmick_skill: true
+  no_possibility_generation: true
+  job: time_mage

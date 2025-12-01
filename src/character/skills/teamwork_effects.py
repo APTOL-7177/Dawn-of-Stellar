@@ -324,6 +324,91 @@ class SnipherTeamworkEffects:
         }
 
 
+class TimeMageTeamworkEffects:
+    """시간술사 팀워크 스킬 효과"""
+
+    @staticmethod
+    def execute_temporal_convergence(actor: Any, targets: Any, **kwargs) -> Dict[str, Any]:
+        """
+        시간 수렴 - 모든 가능성을 동시에 실현하여 연쇄 공격
+        
+        효과:
+        - 저장된 모든 가능성 즉시 발동 (100% 위력)
+        - 연쇄 참가자 수에 비례한 추가 피해 (+20%/명)
+        - 전체 적 ATB 50% 감소
+        - 아군 전체 ATB 30% 충전
+        """
+        from src.character.gimmick_updater import GimmickUpdater
+        
+        chain_count = kwargs.get('chain_count', 1)
+        allies = kwargs.get('allies', [])
+        enemies = kwargs.get('enemies', [])
+        
+        results = []
+        total_damage = 0
+        
+        # 1. 시간술사의 모든 가능성 해방
+        storm_result = GimmickUpdater.time_storm(actor)
+        if storm_result.get('success'):
+            released_count = len(storm_result.get('released', []))
+            results.append({
+                "type": "time_storm",
+                "released": released_count,
+                "convergence_bonus": storm_result.get('convergence_bonus', False)
+            })
+        
+        # 2. 연쇄 보너스 피해 (참가자 수 × 20%)
+        chain_multiplier = 1.0 + (chain_count * 0.20)
+        
+        # 3. 전체 적에게 시간 피해
+        if hasattr(actor, 'stat_manager'):
+            from src.character.stats import Stats
+            base_magic = actor.stat_manager.get_value(Stats.MAGIC)
+            base_damage = int(base_magic * 2.5 * chain_multiplier)
+        else:
+            base_damage = int(100 * chain_multiplier)
+        
+        for enemy in enemies:
+            if hasattr(enemy, 'current_hp') and getattr(enemy, 'is_alive', True):
+                # HP 피해
+                actual_damage = min(base_damage, enemy.current_hp - 1)
+                enemy.current_hp = max(1, enemy.current_hp - actual_damage)
+                total_damage += actual_damage
+                
+                # ATB 50% 감소
+                if hasattr(enemy, 'current_atb'):
+                    enemy.current_atb = max(0, enemy.current_atb - 50)
+                
+                results.append({
+                    "type": "damage",
+                    "target": enemy.name,
+                    "damage": actual_damage,
+                    "atb_reduced": 50
+                })
+        
+        # 4. 아군 전체 ATB 30% 충전
+        for ally in allies:
+            if hasattr(ally, 'current_atb') and getattr(ally, 'is_alive', True):
+                ally.current_atb = min(100, ally.current_atb + 30)
+                results.append({
+                    "type": "atb_boost",
+                    "target": ally.name,
+                    "atb_gained": 30
+                })
+        
+        logger.info(f"[시간 수렴] {actor.name} 팀워크! 연쇄 {chain_count}명, 총 {total_damage} 피해")
+        
+        return {
+            "success": True,
+            "skill": "시간 수렴",
+            "total_damage": total_damage,
+            "chain_multiplier": chain_multiplier,
+            "enemies_hit": len(enemies),
+            "allies_boosted": len(allies),
+            "results": results
+        }
+
+
 # 더 많은 효과들...
 
 # 효과 저장소
@@ -333,6 +418,7 @@ TEAMWORK_EFFECT_EXECUTORS = {
     "knight_teamwork": KnightTeamworkEffects.execute_shield,
     "cleric_teamwork": ClericTeamworkEffects.execute_heal_prayer,
     "sniper_teamwork": SnipherTeamworkEffects.execute_perfect_aim,
+    "time_mage_teamwork": TimeMageTeamworkEffects.execute_temporal_convergence,
 }
 
 

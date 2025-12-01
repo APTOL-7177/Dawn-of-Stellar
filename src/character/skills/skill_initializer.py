@@ -55,6 +55,7 @@ def initialize_all_skills():
         from src.character.skills.job_skills.vampire_skills import register_vampire_skills
         from src.character.skills.job_skills.warrior_skills import register_warrior_skills
         from src.character.skills.job_skills.magician_skills import register_magician_skills
+        from src.character.skills.job_skills.illusionist_skills import register_illusionist_skills
 
         register_functions = [
             register_alchemist_skills,
@@ -90,7 +91,8 @@ def initialize_all_skills():
             register_time_mage_skills,
             register_vampire_skills,
             register_warrior_skills,
-            register_magician_skills
+            register_magician_skills,
+            register_illusionist_skills
         ]
 
         total_skills = 0

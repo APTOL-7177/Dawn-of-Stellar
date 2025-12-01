@@ -1,0 +1,340 @@
+{
+  "achievement_system": {
+    "achievements": {
+      "first_blood": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "enemy_chaser": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "damage_sponge": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "one_hit_wonder": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "potion_hoarder": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "skill_spammer": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "dodge_master": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "tank_mode": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "treasure_hoarder": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "floor_runner": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "trap_expert": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "door_breaker": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "cooking_fiend": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "alchemy_addict": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "bomb_maniac": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "failed_cook": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "team_player": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "lone_wolf": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "sakamoto_days": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "jenova_wrath": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "potion_addict": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "chicken_runner": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "no_damage_legend": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "secret_admirer": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "item_hoarder": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "speed_demon": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "picky_eater": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      },
+      "trap_avoider": {
+        "is_unlocked": false,
+        "unlocked_at": null,
+        "conditions": [
+          {
+            "current": 0,
+            "extra_data": {}
+          }
+        ]
+      }
+    }
+  },
+  "milestone_system": {
+    "milestones": {
+      "enemy_slayer": {
+        "current_value": 0,
+        "current_stage": 0,
+        "last_updated": null
+      },
+      "damage_dealer": {
+        "current_value": 0,
+        "current_stage": 0,
+        "last_updated": null
+      },
+      "dungeon_explorer": {
+        "current_value": 0,
+        "current_stage": 0,
+        "last_updated": null
+      },
+      "treasure_hunter": {
+        "current_value": 0,
+        "current_stage": 0,
+        "last_updated": null
+      },
+      "master_chef": {
+        "current_value": 0,
+        "current_stage": 0,
+        "last_updated": null
+      },
+      "alchemist": {
+        "current_value": 0,
+        "current_stage": 0,
+        "last_updated": null
+      },
+      "team_player": {
+        "current_value": 0,
+        "current_stage": 0,
+        "last_updated": null
+      },
+      "playtime_warrior": {
+        "current_value": 0,
+        "current_stage": 0,
+        "last_updated": null
+      },
+      "completionist": {
+        "current_value": 0,
+        "current_stage": 0,
+        "last_updated": null
+      }
+    }
+  },
+  "stats": {
+    "total_kills": 0,
+    "total_damage_dealt": 0,
+    "max_damage_in_one_hit": 0,
+    "potions_used_in_battle": 0,
+    "current_battle_skill_used": 

@@ -297,23 +297,43 @@ def show_character_reassignment(
         # 사용자가 확인할 수 있도록 잠시 대기 (또는 자동 완료)
         ui.completed = True
     else:
+        import time
+        import pygame
+        
         # 수동 할당 필요
         while not ui.completed and not ui.cancelled:
             # 렌더링
             ui.render(console)
             context.present(console)
             
-            # 입력 처리
-            for event in tcod.event.wait():
+            # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+            try:
+                pygame.event.pump()
+            except:
+                pass
+            
+            # 키보드 입력 처리
+            keyboard_processed = False
+            for event in tcod.event.get():
                 action = unified_input_handler.process_tcod_event(event)
                 
                 if action:
+                    keyboard_processed = True
                     if ui.handle_input(action):
                         break
                 
                 # 윈도우 닫기
                 if isinstance(event, tcod.event.Quit):
                     return None
+            
+            # 게임패드 입력 처리
+            if not keyboard_processed:
+                gamepad_action = unified_input_handler.get_action()
+                if gamepad_action:
+                    ui.handle_input(gamepad_action)
+            
+            # CPU 사용률 낮추기
+            time.sleep(0.01)
     
     if ui.cancelled:
         logger.info("캐릭터 재할당 취소")

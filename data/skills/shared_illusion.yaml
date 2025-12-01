@@ -1,0 +1,22 @@
+id: shared_illusion
+name: 공유 환상
+type: buff
+description: 환영 1개를 소모하여 아군 전체의 회피율을 상승시킨다
+costs:
+  mp: 14
+  cast_time: 0.8
+target: all_allies
+requirements:
+  min_phantoms: 1
+effects:
+  - type: consume_phantom
+    count: 1
+  - type: buff
+    stat: evasion
+    value: 0.25
+    duration: 2
+metadata:
+  job: illusionist
+  support_skill: true
+  party_buff: true
+  phantom_consume: true

@@ -332,16 +332,19 @@ class WorldUI:
                 # Debug: 이동 결과 이벤트
                 pass
 
-            # 이동 성공 시 요리솥 자동 열기 체크
+            # 이동 성공 시 요리솥 자동 열기 체크 (AI 모드에서는 건너뜀)
             if result and result.success and result.event == ExplorationEvent.NONE:
-                # 요리솥 위치에 도착했는지 체크
-                nearby_cooking_pot = self._find_nearby_cooking_pot()
-                if nearby_cooking_pot and console is not None and context is not None and self.inventory is not None:
-                    logger.info(f"이동으로 요리솥 위치 도착! 자동으로 요리솥 열기: 위치 ({nearby_cooking_pot.x}, {nearby_cooking_pot.y})")
-                    from src.ui.cooking_ui import open_cooking_pot
-                    # 요리솥에서 요리할 때는 보너스 적용
-                    open_cooking_pot(console, context, self.inventory, is_cooking_pot=True)
-                    return False
+                # AI 모드 확인 (ai_mode 플래그가 있으면 건너뜀)
+                ai_mode = getattr(self, 'ai_mode', False)
+                if not ai_mode:
+                    # 요리솥 위치에 도착했는지 체크
+                    nearby_cooking_pot = self._find_nearby_cooking_pot()
+                    if nearby_cooking_pot and console is not None and context is not None and self.inventory is not None:
+                        logger.info(f"이동으로 요리솥 위치 도착! 자동으로 요리솥 열기: 위치 ({nearby_cooking_pot.x}, {nearby_cooking_pot.y})")
+                        from src.ui.cooking_ui import open_cooking_pot
+                        # 요리솥에서 요리할 때는 보너스 적용
+                        open_cooking_pot(console, context, self.inventory, is_cooking_pot=True)
+                        return False
 
             self._handle_exploration_result(result, console, context)
             # 전투가 트리거되면 메인 루프의 상태 체크에서 처리하도록 False 반환
@@ -398,7 +401,6 @@ class WorldUI:
             )
 
             if tile:
-                from src.world.tile import TileType
                 from src.audio import play_sfx
                 if tile.tile_type == TileType.STAIRS_DOWN:
                     play_sfx("world", "stairs_down")
@@ -1739,6 +1741,10 @@ def run_exploration(
     """
     ui = WorldUI(console.width, console.height, exploration, inventory, party, network_manager, local_player_id)
     handler = InputHandler()
+    
+    # AI 모드 설정 (요리솥 자동 열기 비활성화 등)
+    if ai_input_provider:
+        ui.ai_mode = True
 
     logger.info(f"탐험 시작: {exploration.floor_number}층")
 
@@ -1875,6 +1881,17 @@ def run_exploration(
         # 렌더링
         ui.render(console)
         context.present(console)
+
+        # 봇 클라이언트용 상태 내보내기 (일반 모드에서도 작동)
+        try:
+            from src.bot import is_export_enabled, export_exploration_state
+            if is_export_enabled():
+                # 콘솔 텍스트 추출
+                from src.ui.ai_spectate_mode import extract_console_text
+                screen_text = extract_console_text(console)
+                export_exploration_state(exploration, party, exploration.dungeon, screen_text)
+        except ImportError:
+            pass
 
         # 입력 처리
         action = None

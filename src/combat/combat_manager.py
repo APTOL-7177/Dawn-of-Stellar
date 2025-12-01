@@ -10,6 +10,7 @@ from enum import Enum
 from src.core.config import get_config
 from src.core.logger import get_logger
 from src.core.event_bus import event_bus, Events
+from src.core.vibration_system import vibration_manager, VibrationPattern
 from src.combat.atb_system import get_atb_system, ATBSystem
 from src.combat.brave_system import get_brave_system, BraveSystem
 from src.combat.damage_calculator import get_damage_calculator, DamageCalculator
@@ -96,6 +97,9 @@ class CombatManager:
             combat_position: 전투 시작 위치 (x, y)
         """
         self.logger.info("전투 시작!")
+        
+        # 전투 시작 진동
+        vibration_manager.vibrate(VibrationPattern.COMBAT_START)
 
         # 전투원 설정 (PartyMember 변환은 아래에서 처리)
         self.enemies = enemies
@@ -273,9 +277,25 @@ class CombatManager:
         Returns:
             행동 결과
         """
-        # 죽은 캐릭터는 행동 불가
-        if not getattr(actor, 'is_alive', True):
+        # 전투 종료 상태 체크 - 이미 종료된 전투에서는 행동 불가
+        if self.state in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
+            self.logger.debug(f"전투 이미 종료됨 ({self.state.value}) - 행동 무시")
+            return {
+                "action": "skip",
+                "error": "combat_ended",
+                "message": "전투가 이미 종료되었습니다."
+            }
+        
+        # 죽은 캐릭터는 행동 불가 (is_alive와 current_hp 둘 다 확인)
+        is_dead = not getattr(actor, 'is_alive', True)
+        if not is_dead and hasattr(actor, 'current_hp'):
+            is_dead = actor.current_hp <= 0
+        if is_dead:
+            # is_alive 동기화
+            actor.is_alive = False
             self.logger.warning(f"{getattr(actor, 'name', 'Unknown')}은(는) 죽어서 행동할 수 없습니다.")
+            # 전투 종료 체크
+            self._check_battle_end()
             return {
                 "action": "error",
                 "error": "actor_is_dead",
@@ -507,20 +527,34 @@ class CombatManager:
                 )
                 # DoT로 사망 여부 확인
                 if hasattr(actor, 'current_hp') and actor.current_hp <= 0:
-                    if hasattr(actor, 'is_alive'):
-                        actor.is_alive = False
+                    actor.is_alive = False  # is_alive 속성이 없으면 생성
                     self.logger.warning(f"{actor.name}이(가) DoT로 사망!")
         
-        # 3-1. 환경 효과 처리 (전투 위치의 환경 효과 적용)
+        # 3-1. 환경 효과 처리 (아군에게만 적용 - 적은 제외)
         if self.dungeon and self.combat_position:
-            self._apply_environmental_effects(actor)
+            # 아군인 경우에만 환경 효과 피해/회복 적용
+            if actor not in self.enemies:
+                self._apply_environmental_effects(actor)
+                # 환경 효과로 인한 사망 체크
+                if hasattr(actor, 'current_hp') and actor.current_hp <= 0:
+                    actor.is_alive = False
+                    self.logger.warning(f"{actor.name}이(가) 환경 효과로 사망!")
+            
+            # 환경 효과 스탯 수정치 적용 (아군에게만 - ATB 속도, 데미지 계산 등에 영향)
+            for ally in self.allies:
+                if getattr(ally, 'is_alive', True):
+                    ally.env_stat_modifiers = self.get_environmental_stat_modifiers(ally)
         
         # 3-2. 랜섬웨어 효과 처리 (적의 턴 시작 시)
         if actor in self.enemies:
             self._process_ransomware_damage(actor)
+            # 랜섬웨어로 인한 사망 체크
+            if hasattr(actor, 'current_hp') and actor.current_hp <= 0:
+                actor.is_alive = False
+                self.logger.warning(f"{actor.name}이(가) 랜섬웨어로 사망!")
         
-        # 3-2. 사망 여부 확인 (DoT 또는 랜섬웨어로 사망한 경우)
-        if hasattr(actor, 'is_alive') and not actor.is_alive:
+        # 3-3. 사망 여부 확인 (DoT, 환경 효과, 랜섬웨어로 사망한 경우)
+        if hasattr(actor, 'current_hp') and actor.current_hp <= 0:
             self.logger.warning(f"{actor.name}이(가) 턴 시작 시 피해로 사망하여 행동을 취소합니다.")
             result["success"] = False
             result["error"] = "사망"
@@ -528,6 +562,8 @@ class CombatManager:
             # ATB는 소비하지만 행동하지 못함
             self.atb.consume_atb(actor)
             self._on_turn_end(actor)
+            # 전투 종료 체크 (DoT 사망으로 인한 승패 결정)
+            self._check_battle_end()
             return result
 
         # 4. 상태 효과 지속시간 감소
@@ -786,6 +822,15 @@ class CombatManager:
                         defender.status_manager.add_status(silence)
                         self.logger.info(f"[침묵] {defender.name} 침묵! ({silence_chance*100:.0f}% 확률)")
 
+        # 공격 진동 (크리티컬이면 강한 진동)
+        if not is_miss:
+            if damage_result.is_critical:
+                vibration_manager.vibrate(VibrationPattern.HEAVY_TAP)
+            elif brv_result["is_break"]:
+                vibration_manager.vibrate(VibrationPattern.MEDIUM_TAP)
+            else:
+                vibration_manager.vibrate(VibrationPattern.LIGHT_TAP)
+        
         return {
             "action": "brv_attack",
             "damage": damage_result.final_damage,
@@ -1375,6 +1420,10 @@ class CombatManager:
                 result["error"] = "팀워크 스킬 실행 실패"
             return result
 
+        # 가능성 시스템 스킬 처리 (시간술사)
+        if hasattr(skill, 'metadata') and skill.metadata.get('possibility_system'):
+            return self._execute_possibility_skill(actor, target, skill, **kwargs)
+
         # 일반 스킬 실행 (플레이어 스킬)
         from src.character.skills.skill_manager import get_skill_manager
         skill_manager = get_skill_manager()
@@ -1436,7 +1485,7 @@ class CombatManager:
                 context["revival"] = True
 
             # 기믹 업데이트 (스킬 사용) - 스킬 실행 전에 호출하여 카드 효과 등이 데미지에 적용되도록 함
-            GimmickUpdater.on_skill_use(actor, skill)
+            GimmickUpdater.on_skill_use(actor, skill, context)
 
             skill_result = skill_manager.execute_skill(
                 skill_id,
@@ -1557,6 +1606,210 @@ class CombatManager:
             result["success"] = False
             result["error"] = skill_result.message
 
+        return result
+
+    def _execute_possibility_skill(
+        self,
+        actor: Any,
+        target: Optional[Any] = None,
+        skill: Optional[Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """시간술사 가능성 시스템 스킬 실행"""
+        from src.character.gimmick_updater import GimmickUpdater
+        from src.character.skills.skill_manager import get_skill_manager
+        
+        result = {
+            "action": "skill",
+            "skill_name": getattr(skill, "name", "Unknown"),
+            "success": False,
+            "targets": []
+        }
+        
+        action = skill.metadata.get('action', '')
+        power_ratio = skill.metadata.get('power_ratio', 1.0)
+        slots = GimmickUpdater.get_possibility_slots(actor)
+        
+        # 최소 가능성 개수 확인
+        min_required = skill.metadata.get('min_possibilities', 0)
+        if min_required > 0 and len(slots) < min_required:
+            result["error"] = f"가능성 {min_required}개 이상 필요 (현재: {len(slots)}개)"
+            return result
+        
+        skill_manager = get_skill_manager()
+        all_enemies = self.enemies if actor in self.allies else self.allies
+        all_allies = self.allies if actor in self.allies else self.enemies
+        context = {"combat_manager": self, "all_enemies": all_enemies, "all_allies": all_allies, "party": self.party}
+        
+        executed_skills = []
+        
+        if action == "summon_single":
+            # 가능성 소환: UI에서 선택한 슬롯 사용
+            if not slots:
+                result["error"] = "저장된 가능성이 없습니다"
+                return result
+            
+            # UI에서 선택된 인덱스 가져오기
+            selected_indices = skill.metadata.get('_selected_indices', [0])
+            slot_index = selected_indices[0] if selected_indices else 0
+            
+            summon_result = GimmickUpdater.summon_possibility(actor, slot_index, context)
+            if summon_result['success']:
+                stored_skill_id = summon_result['skill_id']
+                stored_power = summon_result['power_ratio']
+                
+                # 저장된 스킬 실행
+                stored_skill = skill_manager.get_skill(stored_skill_id)
+                if stored_skill:
+                    # 배율 적용하여 스킬 실행
+                    # 배율 적용하여 스킬 실행
+                    context['power_multiplier'] = stored_power
+                    skill_result = skill_manager.execute_skill(
+                        stored_skill_id, actor, target or (all_enemies[0] if all_enemies else None),
+                        context=context
+                    )
+                    executed_skills.append({
+                        "skill_name": stored_skill.name,
+                        "power_ratio": stored_power,
+                        "consumed": summon_result['consumed']
+                    })
+                    result["success"] = True
+                    result["message"] = f"{actor.name}이(가) 가능성 소환! → {stored_skill.name} ({int(stored_power*100)}% 위력)"
+                else:
+                    result["error"] = f"스킬을 찾을 수 없음: {stored_skill_id}"
+            else:
+                result["error"] = summon_result.get('error', '가능성 소환 실패')
+                
+        elif action == "summon_dual":
+            # 시간선 교차: UI에서 선택한 2개 슬롯 발동
+            if len(slots) < 2:
+                result["error"] = "가능성 2개 이상 필요"
+                return result
+            
+            # UI에서 선택된 인덱스 가져오기
+            selected_indices = skill.metadata.get('_selected_indices', [0, 1])
+            if len(selected_indices) < 2:
+                selected_indices = [0, 1]
+            
+            crossing_result = GimmickUpdater.time_crossing(actor, selected_indices, context)
+            messages = []
+            for sr in crossing_result:
+                if sr['success']:
+                    stored_skill = skill_manager.get_skill(sr['skill_id'])
+                    if stored_skill:
+                        context['power_multiplier'] = sr['power_ratio']
+                        skill_manager.execute_skill(
+                            sr['skill_id'], actor, target or (all_enemies[0] if all_enemies else None),
+                            context=context
+                        )
+                        messages.append(f"{stored_skill.name} ({int(sr['power_ratio']*100)}%)")
+            
+            result["success"] = True
+            result["message"] = f"{actor.name}이(가) 시간선 교차! → " + ", ".join(messages)
+            
+        elif action == "release_all":
+            # 시간 폭풍: 모든 가능성 해방
+            storm_result = GimmickUpdater.time_storm(actor, context)
+            if storm_result['success']:
+                messages = []
+                for released in storm_result['released']:
+                    stored_skill = skill_manager.get_skill(released['skill_id'])
+                    if stored_skill:
+                        context['power_multiplier'] = released['power_ratio']
+                        skill_manager.execute_skill(
+                            released['skill_id'], actor, target or (all_enemies[0] if all_enemies else None),
+                            context=context
+                        )
+                        messages.append(stored_skill.name)
+                
+                bonus_msg = ""
+                if storm_result['convergence_bonus']:
+                    bonus_msg = f" (수렴 보너스 +{int(storm_result['total_damage_bonus']*100)}%!)"
+                    
+                result["success"] = True
+                result["message"] = f"{actor.name}이(가) 시간 폭풍! → " + ", ".join(messages) + bonus_msg
+            else:
+                result["error"] = storm_result.get('error', '시간 폭풍 실패')
+                
+        elif action == "copy_ally_skill":
+            # 운명 복제
+            if not target:
+                result["error"] = "복제할 대상을 선택하세요"
+                return result
+            
+            copy_result = GimmickUpdater.fate_copy(actor, target, context)
+            if copy_result['success']:
+                result["success"] = True
+                result["message"] = f"{actor.name}이(가) {target.name}의 스킬을 복제! → {copy_result['copied_skill']}"
+            else:
+                result["error"] = copy_result.get('error', '운명 복제 실패')
+                
+        elif action == "overwrite_slot":
+            # 운명 덮어쓰기: UI에서 선택한 슬롯 교체
+            if not slots:
+                result["error"] = "덮어쓸 슬롯이 없습니다"
+                return result
+            
+            # UI에서 선택된 인덱스 가져오기
+            selected_indices = skill.metadata.get('_selected_indices', [0])
+            slot_index = selected_indices[0] if selected_indices else 0
+            
+            # 기본값: 타임 볼트로 덮어쓰기 (향후 UI에서 스킬 선택 추가 가능)
+            new_skill_id = "time_mage_time_bolt"
+            overwrite_result = GimmickUpdater.overwrite_fate(actor, slot_index, new_skill_id)
+            if overwrite_result['success']:
+                result["success"] = True
+                result["message"] = f"{actor.name}이(가) 운명 덮어쓰기! {overwrite_result['old_skill']} → {overwrite_result['new_skill']}"
+            else:
+                result["error"] = overwrite_result.get('error', '운명 덮어쓰기 실패')
+                
+        elif action == "infinite_convergence":
+            # 무한 수렴 (궁극기)
+            storm_result = GimmickUpdater.time_storm(actor, context)
+            messages = []
+            
+            # 1. 저장된 가능성 모두 발동
+            if storm_result['success']:
+                for released in storm_result['released']:
+                    stored_skill = skill_manager.get_skill(released['skill_id'])
+                    if stored_skill:
+                        context['power_multiplier'] = power_ratio
+                        skill_manager.execute_skill(
+                            released['skill_id'], actor, target or (all_enemies[0] if all_enemies else None),
+                            context=context
+                        )
+                        messages.append(stored_skill.name)
+            
+            # 2. 고정 스킬 연속 발동
+            chain_skills = skill.metadata.get('chain_cast', [])
+            for chain_skill_id in chain_skills:
+                full_id = f"time_mage_{chain_skill_id}" if not chain_skill_id.startswith("time_mage_") else chain_skill_id
+                chain_skill = skill_manager.get_skill(full_id)
+                if chain_skill:
+                    # 리와인드는 가장 HP가 낮은 아군에게
+                    chain_target = target
+                    if "rewind" in chain_skill_id:
+                        lowest_hp_ally = min(all_allies, key=lambda a: getattr(a, 'current_hp', 999999) if hasattr(a, 'is_alive') and a.is_alive else 999999)
+                        chain_target = lowest_hp_ally
+                    
+                    context['power_multiplier'] = power_ratio
+                    skill_manager.execute_skill(
+                        full_id, actor, chain_target or (all_enemies[0] if all_enemies else None),
+                        context=context
+                    )
+                    messages.append(chain_skill.name)
+            
+            # 3. 피니시 피해 (스킬 자체 효과 실행)
+            if skill.effects:
+                for effect in skill.effects:
+                    effect.apply(actor, target or (all_enemies[0] if all_enemies else None), context)
+            
+            result["success"] = True
+            result["message"] = f"{actor.name}이(가) 무한 수렴! → " + ", ".join(messages) + " → 피니시!"
+        else:
+            result["error"] = f"알 수 없는 가능성 액션: {action}"
+        
+        result["executed_skills"] = executed_skills
         return result
 
     def _execute_enemy_skill(
@@ -2495,6 +2748,15 @@ class CombatManager:
         if not defender or damage <= 0:
             return
         
+        # 아군 피격 시 진동 (피해량에 따라 강도 조절)
+        if defender in self.allies:
+            if damage > 100:
+                vibration_manager.vibrate(VibrationPattern.DAMAGE_HEAVY)
+            elif damage > 30:
+                vibration_manager.vibrate(VibrationPattern.DAMAGE_MEDIUM)
+            else:
+                vibration_manager.vibrate(VibrationPattern.DAMAGE_LIGHT)
+        
         # 복수 보너스 플래그 설정 (아군/적 모두)
         defender._recently_damaged = True
         
@@ -2725,30 +2987,27 @@ class CombatManager:
         # 턴 종료 시에는 BRV 회복하지 않음 (HP 공격 후 BRV가 0인 상태 유지)
         # BRV 회복은 다음 턴 시작 시에 처리됨
 
-        # 버프 지속시간 감소 (모든 전투원)
-        # Party 객체의 members 속성에서 멤버 리스트 가져오기
-        party_members = self.party.members if hasattr(self.party, 'members') else self.party
-        all_combatants = party_members + self.enemies
-        for combatant in all_combatants:
-            if hasattr(combatant, 'active_buffs') and combatant.active_buffs:
-                expired_buffs = []
-                for buff_type, buff_data in list(combatant.active_buffs.items()):
-                    # REGEN, HP_REGEN, MP_REGEN은 duration 감소하지 않음 (다른 방식으로 관리)
-                    if buff_type in ['regen', 'hp_regen', 'mp_regen']:
-                        continue
-                    
-                    duration = buff_data.get('duration', 0)
-                    if duration > 0:
-                        duration -= 1
-                        buff_data['duration'] = duration
-                        
-                        if duration <= 0:
-                            expired_buffs.append(buff_type)
-                            self.logger.debug(f"{combatant.name}의 {buff_type} 버프 만료")
-                
-                # 만료된 버프 제거
-                for buff_type in expired_buffs:
-                    del combatant.active_buffs[buff_type]
+        # 버프 지속시간 감소 (행동한 캐릭터만)
+        # 각 캐릭터가 행동할 때 해당 캐릭터의 버프/디버프만 턴 감소
+        if hasattr(actor, 'active_buffs') and actor.active_buffs:
+            expired_buffs = []
+            for buff_type, buff_data in list(actor.active_buffs.items()):
+                # REGEN, HP_REGEN, MP_REGEN은 duration 감소하지 않음 (다른 방식으로 관리)
+                if buff_type in ['regen', 'hp_regen', 'mp_regen']:
+                    continue
+
+                duration = buff_data.get('duration', 0)
+                if duration > 0:
+                    duration -= 1
+                    buff_data['duration'] = duration
+
+                    if duration <= 0:
+                        expired_buffs.append(buff_type)
+                        self.logger.debug(f"{actor.name}의 {buff_type} 버프 만료")
+
+            # 만료된 버프 제거
+            for buff_type in expired_buffs:
+                del actor.active_buffs[buff_type]
 
         # 기믹 업데이트 (턴 종료)
         GimmickUpdater.on_turn_end(actor)
@@ -3059,6 +3318,14 @@ class CombatManager:
 
         self.logger.info(f"전투 종료: {state.value}")
         
+        # 전투 종료 진동
+        if state == CombatState.VICTORY:
+            vibration_manager.vibrate(VibrationPattern.SUCCESS)
+        elif state == CombatState.DEFEAT:
+            vibration_manager.vibrate(VibrationPattern.DEATH)
+        else:
+            vibration_manager.vibrate(VibrationPattern.COMBAT_END)
+        
         # 마술사 다이아 효과 (bonus_rewards) - 승리 시 추가 보상
         if state == CombatState.VICTORY:
             total_bonus = 0
@@ -3172,7 +3439,7 @@ class CombatManager:
                 if dot_result["total_damage"] > 0:
                     self.logger.info(
                         f"{enemy.name}: DoT 피해 {dot_result['total_damage']}"
-                        f" (HP: {enemy.hp}/{enemy.max_hp})"
+                        f" (HP: {enemy.current_hp}/{enemy.max_hp})"
                     )
                     # 적이 DoT로 죽으면 처리
                     if hasattr(enemy, 'is_alive') and not enemy.is_alive:
@@ -3473,8 +3740,52 @@ class CombatManager:
                         actor.current_mp = min(actor.max_mp, actor.current_mp + mp_restore)
                     self.logger.info(f"{actor.name} 마나 소용돌이 MP 회복: {mp_restore}")
             
-            # 스탯 수정 효과는 별도로 처리 (현재 턴에는 데미지/회복만)
-            # 스탯 수정은 get_stat_modifiers로 별도 계산되어 데미지 계산에 반영되어야 함
+            # 스탯 수정 효과는 get_environmental_stat_modifiers()로 별도 계산
+    
+    def get_environmental_stat_modifiers(self, actor: Any) -> Dict[str, float]:
+        """
+        환경 효과로 인한 스탯 수정치 반환
+        
+        Args:
+            actor: 스탯 수정을 받을 캐릭터
+            
+        Returns:
+            스탯별 배율 딕셔너리 (예: {"strength": 1.3, "defense": 0.8})
+            기본값 1.0, 값이 1.3이면 +30%, 0.8이면 -20%
+        """
+        modifiers = {
+            "strength": 1.0,
+            "magic": 1.0,
+            "defense": 1.0,
+            "magic_defense": 1.0,
+            "speed": 1.0,
+            "accuracy": 1.0,
+            "evasion": 1.0
+        }
+        
+        if not self.dungeon or not self.combat_position:
+            return modifiers
+        
+        # 던전의 환경 효과 관리자 확인
+        effect_manager = None
+        if hasattr(self.dungeon, 'environmental_effect_manager'):
+            effect_manager = self.dungeon.environmental_effect_manager
+        elif hasattr(self.dungeon, 'environment_effect_manager'):
+            effect_manager = self.dungeon.environment_effect_manager
+        
+        if not effect_manager:
+            return modifiers
+        
+        # 전투 위치의 환경 효과 스탯 수정치 가져오기
+        combat_x, combat_y = self.combat_position
+        env_modifiers = effect_manager.get_stat_modifiers(actor, combat_x, combat_y)
+        
+        # 퍼센트 수정치를 배율로 변환 (0.3 = +30% → 1.3)
+        for stat, percent in env_modifiers.items():
+            if stat in modifiers:
+                modifiers[stat] = 1.0 + percent
+        
+        return modifiers
 
     def update_teamwork_gauge(
         self,
@@ -3625,7 +3936,7 @@ class CombatManager:
         context = {"combat_manager": self, "all_enemies": all_enemies, "all_allies": all_allies, "party": self.party}
         
         # 기믹 업데이트 (스킬 사용) - 스킬 실행 전에 호출
-        GimmickUpdater.on_skill_use(actor, skill)
+        GimmickUpdater.on_skill_use(actor, skill, context)
         
         if skill_id:
             skill_result = skill_manager.execute_skill(skill_id, actor, target, context=context)
@@ -3635,6 +3946,43 @@ class CombatManager:
         
         if skill_result.success:
             self.logger.info(f"[스킬 효과] {skill_result.message}")
+
+        # 팀워크 스킬 메타데이터 처리
+        # 1. fill_possibility_slots: 시간술사 가능성 슬롯 채우기
+        if hasattr(skill, 'metadata') and skill.metadata.get('fill_possibility_slots'):
+            for ally in all_allies:
+                if hasattr(ally, 'gimmick_type') and ally.gimmick_type == "possibility_system":
+                    # 모든 가능성 슬롯 채우기 (최대 5개)
+                    max_slots = 5
+                    for i in range(max_slots):
+                        if not hasattr(ally, 'possibility_slots'):
+                            ally.possibility_slots = []
+                        if len(ally.possibility_slots) < max_slots:
+                            # 임의의 스킬 ID 추가 (메타데이터에서 기본값 제공)
+                            default_skill = skill.metadata.get('default_fill_skill', 'time_mage_time_bolt')
+                            ally.possibility_slots.append({
+                                'skill_id': default_skill,
+                                'power_ratio': 1.0,
+                                'reuse_count': 0
+                            })
+                    self.logger.info(f"[시공 붕괴] {ally.name}의 가능성 슬롯 모두 충전!")
+
+        # 2. atb_reset_enemies: 적 ATB 초기화
+        if hasattr(skill, 'metadata') and skill.metadata.get('atb_reset_enemies'):
+            for enemy in all_enemies:
+                if hasattr(enemy, 'is_alive') and enemy.is_alive:
+                    if enemy in self.atb.gauges:
+                        self.atb.gauges[enemy].current = 0
+                        self.logger.info(f"[시공 붕괴] {enemy.name}의 ATB 초기화!")
+
+        # 3. atb_boost_allies: 아군 ATB 부스트
+        if hasattr(skill, 'metadata') and skill.metadata.get('atb_boost_allies'):
+            boost_amount = skill.metadata.get('atb_boost_allies', 500)
+            for ally in all_allies:
+                if hasattr(ally, 'is_alive') and ally.is_alive:
+                    if ally in self.atb.gauges:
+                        self.atb.gauges[ally].increase(boost_amount, force=True)
+                        self.logger.info(f"[시공 붕괴] {ally.name}의 ATB +{boost_amount}!")
 
         # ATB 25% 회복 (ATBSystem 통해)
         atb_recovery = 500  # ATB 최대치 2000의 25%

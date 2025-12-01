@@ -30,10 +30,14 @@ class Colors:
     RED = (255, 0, 0)
     GREEN = (0, 255, 0)
     BLUE = (0, 0, 255)
+    DARK_BLUE = (0, 0, 139)
+    LIGHT_BLUE = (173, 216, 230)
     YELLOW = (255, 255, 0)
     CYAN = (0, 255, 255)
     MAGENTA = (255, 0, 255)
     ORANGE = (255, 165, 0)
+    PURPLE = (128, 0, 128)
+    GOLD = (255, 215, 0)
 
     # UI 색상
     UI_BG = (20, 20, 30)
@@ -67,6 +71,41 @@ class TCODDisplay:
 
     화면 렌더링 및 레이아웃 관리
     """
+    
+    @staticmethod
+    def _detect_screen_resolution() -> Tuple[int, int]:
+        """현재 모니터의 해상도 가져오기 (정적 메서드)"""
+        try:
+            if platform.system() == "Windows":
+                import ctypes
+                user32 = ctypes.windll.user32
+                # DPI 인식 설정 (정확한 해상도 감지)
+                try:
+                    user32.SetProcessDPIAware()
+                except:
+                    pass
+                width = user32.GetSystemMetrics(0)  # SM_CXSCREEN
+                height = user32.GetSystemMetrics(1)  # SM_CYSCREEN
+                if width > 0 and height > 0:
+                    return (width, height)
+            else:
+                # Linux/Mac: tkinter 사용
+                try:
+                    import tkinter as tk
+                    root = tk.Tk()
+                    root.withdraw()
+                    width = root.winfo_screenwidth()
+                    height = root.winfo_screenheight()
+                    root.destroy()
+                    if width > 0 and height > 0:
+                        return (width, height)
+                except:
+                    pass
+        except Exception:
+            pass
+        
+        # 기본값: 1920x1080
+        return (1920, 1080)
 
     def __init__(self) -> None:
         self.logger = get_logger("display")
@@ -76,19 +115,34 @@ class TCODDisplay:
         self.screen_width = self.config.get("display.screen_width", 80)
         self.screen_height = self.config.get("display.screen_height", 50)
         
-        # 현재 디스플레이의 종횡비 가져오기 (창 크기 조정용)
-        display_aspect_ratio = self._get_display_aspect_ratio()
+        # 디스플레이 설정
+        self.borderless = self.config.get("display.borderless", True)  # 테두리 없는 창
+        self.borderless_fullscreen = self.config.get("display.borderless_fullscreen", True)  # 전체 창 화면
+        self.keep_aspect = self.config.get("display.keep_aspect", True)  # 종횡비 유지 (검은 띠)
+        self.aspect_ratio_locked = self.config.get("display.aspect_ratio_locked", True)
         
-        if display_aspect_ratio:
-            self.logger.info(
-                f"콘솔 크기: {self.screen_width}x{self.screen_height}, "
-                f"모니터 종횡비: {display_aspect_ratio:.4f} (검은색 띠로 조정)"
-            )
+        # 테두리 없는 전체 창이면 borderless도 True로 설정
+        if self.borderless_fullscreen:
+            self.borderless = True
+        
+        # 16:9 고정 종횡비 (1920/1080 = 1.777...)
+        self._fixed_aspect_ratio = 16 / 9  # 1.7777...
+        
+        # 창 크기 설정 (테두리 없는 전체 창이면 모니터 해상도 사용)
+        if self.borderless_fullscreen:
+            screen_res = self._detect_screen_resolution()
+            self.pixel_width = screen_res[0]
+            self.pixel_height = screen_res[1]
+            self.logger.info(f"테두리 없는 전체 창 모드: {self.pixel_width}x{self.pixel_height}")
         else:
-            self.logger.info(
-                f"콘솔 크기: {self.screen_width}x{self.screen_height} "
-                "(디스플레이 종횡비를 가져올 수 없음)"
-            )
+            self.pixel_width = self.config.get("display.pixel_width", 1920)
+            self.pixel_height = self.config.get("display.pixel_height", 1080)
+        
+        self.logger.info(
+            f"콘솔 크기: {self.screen_width}x{self.screen_height}, "
+            f"창 크기: {self.pixel_width}x{self.pixel_height}, "
+            f"종횡비: 16:9 고정, 테두리 없는 전체 창: {self.borderless_fullscreen}"
+        )
 
         # 패널 크기
         self.map_width = self.config.get("display.panels.map_width", 60)
@@ -269,20 +323,15 @@ class TCODDisplay:
             self._tile_width = getattr(self.tileset, 'tile_width', 10) if self.tileset else 10
             self._tile_height = getattr(self.tileset, 'tile_height', 13) if self.tileset else 13
             
-            # 디스플레이 종횡비 설정 (창 크기 조정용 - 검은색 띠 생성)
-            display_aspect_ratio = self._get_display_aspect_ratio()
-            if display_aspect_ratio:
-                self._aspect_ratio = display_aspect_ratio
-            else:
-                # 종횡비를 가져올 수 없으면 콘솔의 종횡비 사용
-                self._aspect_ratio = self.screen_width / self.screen_height
+            # 16:9 고정 종횡비 사용
+            self._aspect_ratio = self._fixed_aspect_ratio
             
             # 콘솔 크기와 종횡비 확인
             console_aspect = self.screen_width / self.screen_height
             self.logger.info(
                 f"콘솔 크기: {self.screen_width}x{self.screen_height} (고정), "
                 f"콘솔 종횡비: {console_aspect:.4f}, "
-                f"창 종횡비: {self._aspect_ratio:.4f} (모니터에 맞춤, 검은색 띠 사용)"
+                f"창 종횡비: 16:9 고정 ({self._aspect_ratio:.4f})"
             )
 
             context_kwargs = {
@@ -296,33 +345,42 @@ class TCODDisplay:
             if renderer is not None:
                 context_kwargs["renderer"] = renderer
                 self.logger.info(f"렌더러 사용: {renderer_name}")
-
-            # 콘솔 크기는 고정하고, 창 크기는 모니터 종횡비에 맞춤
-            # TCOD는 콘솔을 중앙에 배치하고, 종횡비가 맞지 않으면 검은색 배경으로 띠를 만듦
+            
+            # context 생성
             try:
-                # context 생성
                 self.context = tcod.context.new(**context_kwargs)
+                self.logger.info("TCOD 컨텍스트 생성 완료")
                 
-                # 모니터 종횡비에 맞춰 창 크기 조정 (검은색 띠 생성)
-                # SDL 종횡비 제약 설정으로 자동으로 띠 생성
-                if display_aspect_ratio:
-                    self._set_aspect_ratio_constraint(display_aspect_ratio)
-                else:
-                    # 종횡비를 가져오지 못했어도 콘솔 종횡비로 설정
-                    self._set_aspect_ratio_constraint()
+                # 전체 화면 모드 설정 (context 생성 후 SDL로 직접 설정)
+                if self.borderless_fullscreen:
+                    self._set_fullscreen_desktop_mode()
+                elif self.borderless:
+                    self._set_borderless_mode()
+                
+                # 16:9 고정 종횡비 설정
+                self._set_aspect_ratio_constraint(self._fixed_aspect_ratio)
                 
                 self.logger.info(
-                    f"창 크기를 모니터 종횡비({self._aspect_ratio:.4f})로 설정 완료. "
-                    f"콘솔({self.screen_width}x{self.screen_height})은 중앙에 배치되고 "
-                    f"좌우 또는 상하에 검은색 띠가 표시됩니다."
+                    f"창 크기: {self.pixel_width}x{self.pixel_height}, "
+                    f"종횡비: 16:9 고정"
                 )
                 
             except Exception as e:
-                self.logger.warning(f"컨텍스트 생성 중 오류: {e}, 기본 설정 사용")
+                self.logger.error(f"컨텍스트 생성 중 오류: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
+                # 기본 설정으로 재시도
                 try:
-                    self.context = tcod.context.new(**context_kwargs)
-                except:
-                    pass
+                    basic_kwargs = {
+                        "columns": self.screen_width,
+                        "rows": self.screen_height,
+                        "tileset": self.tileset,
+                        "title": "Dawn of Stellar - 별빛의 여명",
+                    }
+                    self.context = tcod.context.new(**basic_kwargs)
+                    self.logger.info("기본 설정으로 컨텍스트 생성 완료")
+                except Exception as e2:
+                    self.logger.error(f"기본 컨텍스트 생성도 실패: {e2}")
         else:
             self.context = tcod.context.new_terminal(
                 self.screen_width,
@@ -575,11 +633,16 @@ class TCODDisplay:
         """화면에 표시"""
         if self.context and self.console:
             # 창 크기 변경 이벤트 처리
-            # 모니터 종횡비에 맞춰 창 크기 조정 (검은색 띠 유지)
             self._handle_window_resize_events()
             
-            # 기본 렌더링 (TCOD가 자동으로 콘솔을 중앙에 배치하고 검은색 띠 생성)
-            self.context.present(self.console)
+            # 종횡비 유지하며 렌더링 (화면을 늘리지 않고 검은색 띠로 채움)
+            # keep_aspect=True: 콘솔 종횡비 유지, 남는 공간은 검은색 배경
+            # integer_scaling=False: 부드러운 스케일링 허용
+            self.context.present(
+                self.console, 
+                keep_aspect=self.keep_aspect, 
+                integer_scaling=False
+            )
             
             # 백업: 주기적으로 종횡비 확인 (덜 자주)
             self._aspect_ratio_check_counter += 1
@@ -769,84 +832,43 @@ class TCODDisplay:
     def _get_sdl_window_pointer(self) -> Optional[int]:
         """SDL 창 포인터 가져오기 (여러 방법 시도) - OpenGL2 렌더러도 지원"""
         if not self.context:
+            self.logger.warning("context가 None입니다")
             return None
         
+        self.logger.info(f"context 타입: {type(self.context)}")
+        self.logger.info(f"sdl_window_p 존재: {hasattr(self.context, 'sdl_window_p')}")
+        
         try:
-            # 방법 1: 직접 속성 접근 (일반적인 방법)
-            attr_names = [
-                'sdl_window_p', '_sdl_window_p', 'sdl_window',
-                'window', '_window', 'sdl_window_ptr'
-            ]
-            for attr_name in attr_names:
-                if hasattr(self.context, attr_name):
-                    ptr = getattr(self.context, attr_name)
-                    if ptr and ptr != 0:
-                        try:
-                            return int(ptr) if not isinstance(ptr, int) else ptr
-                        except (ValueError, TypeError):
-                            continue
+            # 방법 0: context.sdl_window_p 직접 사용
+            window_p = self.context.sdl_window_p
             
-            # 방법 2: 내부 context 객체 접근 (OpenGL2 렌더러일 수 있음)
-            inner_attrs = ['_context', 'context', '_impl', 'impl']
-            for inner_attr in inner_attrs:
-                if hasattr(self.context, inner_attr):
-                    inner = getattr(self.context, inner_attr)
-                    if inner:
-                        for attr_name in attr_names:
-                            if hasattr(inner, attr_name):
-                                ptr = getattr(inner, attr_name)
-                                if ptr and ptr != 0:
-                                    try:
-                                        return int(ptr) if not isinstance(ptr, int) else ptr
-                                    except (ValueError, TypeError):
-                                        continue
+            if window_p is None:
+                self.logger.info("sdl_window_p가 None입니다")
+                return None
             
-            # 방법 3: tcod.lib를 통한 접근
-            try:
-                import tcod.lib
-                if hasattr(tcod.lib, 'ffi'):
-                    ffi = tcod.lib.ffi
-                    # context의 내부 구조 탐색
-                    if hasattr(self.context, '__dict__'):
-                        # 모든 속성을 순회하며 포인터 찾기
-                        for key, value in self.context.__dict__.items():
-                            if 'window' in key.lower() or 'sdl' in key.lower():
-                                if value and value != 0:
-                                    try:
-                                        ptr_int = int(value)
-                                        if ptr_int > 0:
-                                            return ptr_int
-                                    except (ValueError, TypeError):
-                                        pass
-            except:
-                pass
+            # CData 포인터 문자열에서 주소 추출
+            # 형식: <cdata 'struct SDL_Window *' 0x0000019820DC7A40>
+            ptr_str = str(window_p)
+            self.logger.info(f"sdl_window_p 문자열: {ptr_str}")
             
-            # 방법 4: context.sdl_window 속성 직접 확인 (OpenGL2에서도 가능)
-            # TCOD는 모든 렌더러에서 SDL 창을 사용하므로, 숨겨진 속성일 수 있음
-            try:
-                # dir()로 모든 속성 확인
-                all_attrs = dir(self.context)
-                for attr in all_attrs:
-                    if not attr.startswith('__') and ('window' in attr.lower() or 'sdl' in attr.lower()):
-                        try:
-                            value = getattr(self.context, attr)
-                            if value and value != 0:
-                                if isinstance(value, int) and value > 1000:  # 합리적인 포인터 값
-                                    return value
-                                elif hasattr(value, '__int__'):
-                                    ptr_int = int(value)
-                                    if ptr_int > 1000:
-                                        return ptr_int
-                        except:
-                            continue
-            except:
-                pass
+            # NULL 포인터 체크 (정확히 0x0 또는 0x0000000000000000만)
+            if 'NULL' in ptr_str:
+                self.logger.info("sdl_window_p가 NULL입니다")
+                return None
+            
+            # 16진수 주소 추출
+            import re
+            match = re.search(r'0x([0-9a-fA-F]+)', ptr_str)
+            if match:
+                ptr_int = int(match.group(0), 16)
+                self.logger.info(f"추출된 포인터 주소: {ptr_int} (0x{ptr_int:X})")
+                if ptr_int > 0:
+                    return ptr_int
+            
+            self.logger.warning(f"포인터 주소를 추출할 수 없습니다: {ptr_str}")
             
         except Exception as e:
-            # 디버그 로그 (너무 많이 출력되지 않도록)
-            if not hasattr(self, '_window_pointer_error_logged'):
-                self.logger.debug(f"SDL 창 포인터 가져오기 시도 중 오류: {e}")
-                self._window_pointer_error_logged = True
+            self.logger.warning(f"SDL 창 포인터 가져오기 시도 중 오류: {e}")
         
         return None
     
@@ -1001,6 +1023,207 @@ class TCODDisplay:
                 tcod.lib.SDL_SetWindowSize(window_p, width, height)
         except (AttributeError, ImportError, Exception):
             pass
+    
+    def _load_sdl2(self):
+        """SDL2 라이브러리 로드"""
+        import ctypes
+        
+        if sys.platform == "win32":
+            # 여러 경로에서 SDL2.dll 찾기
+            search_paths = [
+                "SDL2.dll",  # 시스템 PATH
+            ]
+            
+            # tcod 패키지 내부 경로 추가
+            try:
+                import tcod
+                tcod_path = Path(tcod.__file__).parent
+                search_paths.extend([
+                    str(tcod_path / "SDL2.dll"),
+                    str(tcod_path / "lib" / "SDL2.dll"),
+                    str(tcod_path / "_libtcod.pyd"),  # tcod가 SDL을 내장하고 있을 수 있음
+                ])
+            except:
+                pass
+            
+            for path in search_paths:
+                try:
+                    return ctypes.CDLL(path)
+                except OSError:
+                    continue
+            
+            self.logger.warning("SDL2.dll을 찾을 수 없습니다")
+            return None
+        else:
+            try:
+                return ctypes.CDLL("libSDL2.so")
+            except:
+                try:
+                    return ctypes.CDLL("libSDL2.dylib")
+                except:
+                    return None
+    
+    def _set_fullscreen_desktop_mode(self) -> None:
+        """테두리 없는 전체 화면 모드 설정"""
+        if not self.context:
+            self.logger.warning("context가 없어서 전체 화면 설정 불가")
+            return
+        
+        try:
+            # tcod의 cffi를 사용하여 SDL 함수 직접 호출
+            # context.sdl_window_p는 cffi CData 객체
+            window_p = self.context.sdl_window_p
+            
+            if window_p is None or 'NULL' in str(window_p):
+                self.logger.warning("SDL 창 포인터가 NULL입니다")
+                return
+            
+            self.logger.info(f"SDL 창 포인터: {window_p}")
+            
+            # tcod의 내부 ffi와 lib 사용
+            try:
+                from tcod._libtcod import ffi, lib
+                
+                # SDL_SetWindowFullscreen 시도
+                # SDL_WINDOW_FULLSCREEN_DESKTOP = 0x1001
+                result = lib.SDL_SetWindowFullscreen(window_p, 0x1001)
+                
+                if result == 0:
+                    self.logger.info("테두리 없는 전체 화면 모드 활성화 완료")
+                    return
+                else:
+                    error = ffi.string(lib.SDL_GetError()).decode('utf-8', errors='ignore')
+                    self.logger.warning(f"SDL_SetWindowFullscreen 실패: {error}")
+                    
+            except ImportError:
+                self.logger.info("tcod._libtcod를 가져올 수 없습니다. 대체 방법 시도...")
+            except Exception as e:
+                self.logger.warning(f"SDL_SetWindowFullscreen 실패: {e}")
+            
+            # 폴백: SDL_SetWindowBordered + SDL_SetWindowSize + SDL_SetWindowPosition
+            try:
+                from tcod._libtcod import lib
+                
+                # 테두리 제거
+                lib.SDL_SetWindowBordered(window_p, 0)  # SDL_FALSE = 0
+                
+                # 창 크기를 화면 전체로
+                lib.SDL_SetWindowSize(window_p, self.pixel_width, self.pixel_height)
+                
+                # 위치를 (0, 0)으로
+                lib.SDL_SetWindowPosition(window_p, 0, 0)
+                
+                self.logger.info(f"테두리 없는 전체 창 모드 활성화 완료 ({self.pixel_width}x{self.pixel_height})")
+                return
+                
+            except ImportError:
+                self.logger.warning("tcod._libtcod를 가져올 수 없습니다")
+            except Exception as e:
+                self.logger.warning(f"폴백 모드 실패: {e}")
+                    
+        except Exception as e:
+            self.logger.warning(f"전체 화면 모드 설정 실패: {e}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
+    
+    def _set_borderless_mode(self) -> None:
+        """테두리 없는 창 모드 설정 (SDL_SetWindowBordered)"""
+        if not self.context:
+            return
+        
+        try:
+            import ctypes
+            
+            if sys.platform == "win32":
+                try:
+                    sdl2 = ctypes.CDLL("SDL2.dll")
+                except OSError:
+                    import tcod
+                    tcod_path = Path(tcod.__file__).parent
+                    sdl2_path = tcod_path / "SDL2.dll"
+                    if sdl2_path.exists():
+                        sdl2 = ctypes.CDLL(str(sdl2_path))
+                    else:
+                        return
+                
+                window_p = self._get_sdl_window_pointer()
+                if window_p:
+                    window_ptr = ctypes.c_void_p(window_p if isinstance(window_p, int) else int(window_p))
+                    
+                    # SDL_SetWindowBordered(window, SDL_FALSE)
+                    sdl2.SDL_SetWindowBordered.argtypes = [ctypes.c_void_p, ctypes.c_int]
+                    sdl2.SDL_SetWindowBordered(window_ptr, 0)  # SDL_FALSE = 0
+                    
+                    # 창 크기와 위치 설정
+                    sdl2.SDL_SetWindowSize(window_ptr, self.pixel_width, self.pixel_height)
+                    sdl2.SDL_SetWindowPosition(window_ptr, 0, 0)
+                    
+                    self.logger.info("테두리 없는 창 모드 활성화 완료")
+                    
+        except Exception as e:
+            self.logger.warning(f"테두리 없는 창 모드 설정 실패: {e}")
+
+    def _set_initial_window_size(self) -> None:
+        """초기 창 크기를 설정된 pixel_width x pixel_height로 설정 (기본 1920x1080)"""
+        if not self.context:
+            return
+        
+        try:
+            # SDL 창 포인터 가져오기
+            window_p = self._get_sdl_window_pointer()
+            
+            # 방법 1: ctypes로 직접 SDL2 호출 (더 안정적)
+            try:
+                import ctypes
+                
+                # SDL2 라이브러리 로드
+                if sys.platform == "win32":
+                    try:
+                        sdl2 = ctypes.CDLL("SDL2.dll")
+                    except OSError:
+                        # tcod 패키지 내부의 SDL2 찾기
+                        import tcod
+                        tcod_path = Path(tcod.__file__).parent
+                        sdl2_path = tcod_path / "SDL2.dll"
+                        if sdl2_path.exists():
+                            sdl2 = ctypes.CDLL(str(sdl2_path))
+                        else:
+                            raise OSError("SDL2.dll not found")
+                    
+                    if window_p:
+                        window_ptr = ctypes.c_void_p(window_p if isinstance(window_p, int) else int(window_p))
+                        
+                        # 창 크기 설정
+                        sdl2.SDL_SetWindowSize(window_ptr, self.pixel_width, self.pixel_height)
+                        self._last_window_size = (self.pixel_width, self.pixel_height)
+                        self.logger.info(f"초기 창 크기 설정: {self.pixel_width}x{self.pixel_height}")
+                        
+                        # 테두리 없는 전체 창이면 창 위치를 (0, 0)으로 설정
+                        if self.borderless_fullscreen:
+                            sdl2.SDL_SetWindowPosition(window_ptr, 0, 0)
+                            self.logger.info("테두리 없는 전체 창: 위치 (0, 0) 설정")
+                        return
+                        
+            except Exception as e:
+                self.logger.debug(f"ctypes SDL2 호출 실패: {e}")
+            
+            # 방법 2: tcod.lib 사용 (폴백)
+            if window_p:
+                import tcod.lib
+                
+                # 창 크기 설정
+                if hasattr(tcod.lib, 'SDL_SetWindowSize'):
+                    tcod.lib.SDL_SetWindowSize(window_p, self.pixel_width, self.pixel_height)
+                    self._last_window_size = (self.pixel_width, self.pixel_height)
+                    self.logger.info(f"초기 창 크기 설정 (tcod.lib): {self.pixel_width}x{self.pixel_height}")
+                
+                # 테두리 없는 전체 창이면 창 위치를 (0, 0)으로 설정
+                if self.borderless_fullscreen and hasattr(tcod.lib, 'SDL_SetWindowPosition'):
+                    tcod.lib.SDL_SetWindowPosition(window_p, 0, 0)
+                    self.logger.info("테두리 없는 전체 창: 위치 (0, 0) 설정")
+                
+        except (AttributeError, ImportError, Exception) as e:
+            self.logger.debug(f"초기 창 크기 설정 실패: {e}")
 
     def close(self) -> None:
         """TCOD 종료"""

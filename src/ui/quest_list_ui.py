@@ -126,27 +126,53 @@ def open_quest_list(
         
         context.present(console)
         
-        # 입력 처리
-        for event in tcod.event.wait():
-            action = unified_input_handler.process_tcod_event(event)
-            
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
+        
+        # 입력 처리 함수
+        def process_action(action):
+            nonlocal cursor, scroll_offset
             if action == GameAction.MOVE_UP:
                 if active_quests:
                     cursor = max(0, cursor - 1)
                     if cursor < scroll_offset:
                         scroll_offset = cursor
                     play_sfx("ui", "cursor_move")
-            
             elif action == GameAction.MOVE_DOWN:
                 if active_quests:
                     cursor = min(len(active_quests) - 1, cursor + 1)
                     if cursor >= scroll_offset + max_visible:
                         scroll_offset = cursor - max_visible + 1
                     play_sfx("ui", "cursor_move")
-            
             elif action == GameAction.CONFIRM or action == GameAction.CANCEL or action == GameAction.ESCAPE:
                 play_sfx("ui", "cursor_cancel")
-                return
+                return True
+            return False
+        
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
+            action = unified_input_handler.process_tcod_event(event)
+            
+            if action:
+                keyboard_processed = True
+                if process_action(action):
+                    return
             
             if isinstance(event, tcod.event.Quit):
                 return
+        
+        # 게임패드 입력 처리
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                if process_action(gamepad_action):
+                    return
+        
+        # CPU 사용률 낮추기
+        import time
+        time.sleep(0.01)

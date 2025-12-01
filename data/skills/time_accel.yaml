@@ -1,0 +1,21 @@
+id: time_accel
+name: 시간 가속
+type: buff
+description: 아군 1명의 ATB를 75% 즉시 충전. 시간술사 ATB 50%만 소모
+costs:
+  mp: 15
+  cast_time: 0.5
+target: single_ally
+effects:
+  - type: atb_charge
+    target: selected_ally
+    value: 0.75
+  - type: self_atb_cost
+    value: 0.50
+  - type: generate_possibility
+    chance: 0.70
+    alternative_skill: time_stop
+metadata:
+  possibility_pair: time_stop
+  half_atb_cost: true
+  job: time_mage

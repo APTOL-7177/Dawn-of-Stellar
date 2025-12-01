@@ -82,7 +82,7 @@ class AIBot:
         """LLM AI 초기화"""
         try:
             from src.multiplayer.llm_player_bot import create_auto_play_ai, PlayStyle
-            self.llm_ai = create_auto_play_ai(model="qwen3:0.6b", style=PlayStyle.BALANCED)
+            self.llm_ai = create_auto_play_ai(model="gpt-oss:20b", style=PlayStyle.BALANCED)
             self.logger.info(f"봇 {self.bot_name}: LLM AI 초기화 완료")
         except Exception as e:
             self.logger.warning(f"LLM AI 초기화 실패, EXPLORER로 폴백: {e}")
@@ -260,6 +260,50 @@ class AIBot:
                     if tile and tile.walkable and not tile.explored:
                         unexplored_directions.append((dx, dy))
 
+            # 환경 타일/오브젝트 정보 수집
+            hazard_tiles = []
+            objects = []
+            healing_items = []
+            
+            if hasattr(self.exploration, 'dungeon') and self.exploration.dungeon:
+                dungeon = self.exploration.dungeon
+                # 시야 내 환경 타일 분석
+                for dx in range(-5, 6):
+                    for dy in range(-5, 6):
+                        tx, ty = self.current_x + dx, self.current_y + dy
+                        tile = dungeon.get_tile(tx, ty)
+                        if tile:
+                            # 위험 타일
+                            if hasattr(tile, 'damage') and tile.damage > 0:
+                                hazard_tiles.append({
+                                    'pos': (tx, ty),
+                                    'type': getattr(tile, 'tile_type', 'hazard'),
+                                    'damage': tile.damage
+                                })
+                            # 오브젝트 (보물상자 등)
+                            if hasattr(tile, 'has_chest') and tile.has_chest:
+                                objects.append({'pos': (tx, ty), 'type': 'chest', 'interactable': True})
+                
+                # 채집 오브젝트
+                if hasattr(dungeon, 'harvestables'):
+                    for h in dungeon.harvestables:
+                        if abs(h.x - self.current_x) <= 5 and abs(h.y - self.current_y) <= 5:
+                            objects.append({
+                                'pos': (h.x, h.y),
+                                'type': h.object_type.value if hasattr(h.object_type, 'value') else 'harvestable',
+                                'interactable': True
+                            })
+            
+            # 회복 아이템 정보
+            if self.inventory:
+                for item in getattr(self.inventory, 'items', []):
+                    if hasattr(item, 'heal_amount') and item.heal_amount > 0:
+                        healing_items.append({
+                            'name': item.name,
+                            'heal': item.heal_amount,
+                            'count': getattr(item, 'count', 1)
+                        })
+
             # 탐험 상태 구성
             state = ExplorationState(
                 current_floor=self.floor_number,
@@ -275,7 +319,12 @@ class AIBot:
                 has_healing_point=False,
                 floor_type="dungeon",
                 stairs_down_position=None,
-                unexplored_directions=unexplored_directions if unexplored_directions else directions
+                unexplored_directions=unexplored_directions if unexplored_directions else directions,
+                # 새로운 필드들
+                hazard_tiles=hazard_tiles[:10],
+                objects=objects[:10],
+                healing_items=healing_items[:5],
+                gold=getattr(self.inventory, 'gold', 0) if self.inventory else 0
             )
 
             # AI 행동 결정

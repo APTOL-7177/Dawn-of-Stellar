@@ -1,0 +1,145 @@
+class_name: 환술사
+description: 거울 속 환영을 부리는 회피형 탱커이자 하이브리드 딜러
+slogan: "네가 베는 것은 그림자, 진짜 나는 이미 네 뒤에 있다"
+archetype: 특수/탱커/하이브리드
+
+base_stats:
+  hp: 95
+  mp: 72
+  init_brv: 115
+  speed: 70
+  physical_attack: 62
+  physical_defense: 48
+  magic_attack: 62
+  magic_defense: 52
+  max_brv: 400
+
+stat_growth:
+  hp: 6.5
+  mp: 5.5
+  init_brv: 22.0
+  strength: 4.0
+  defense: 2.2
+  magic: 4.0
+  spirit: 3.0
+  speed: 5.2
+  luck: 5.5
+  accuracy: 3.0
+  evasion: 6.5
+  max_brv: 80.0
+
+traits:
+- id: mirror_image
+  name: 거울 분신술
+  description: 전투 시작 시 환영 2개 자동 생성, 소환 시 25% 확률로 추가 환영 생성
+  type: passive
+  effects:
+    start_phantoms: 2
+    bonus_phantom_chance: 0.25
+
+- id: mirage_step
+  name: 아지랑이 걸음
+  description: 회피 성공 시 ATB +10%, 확정 회피 성공 시 ATB +25% 및 다음 공격 피해 +20%
+  type: trigger
+  effects:
+    evasion_atb_charge: 0.10
+    perfect_evasion_atb_charge: 0.15
+    perfect_evasion_damage_bonus: 0.20
+    damage_bonus_duration: 1
+
+- id: phantom_lord
+  name: 환영 군주
+  description: 환영 4개 보유 시 적 전체 명중률 -15%, 아군 전체에게 환영의 가호 부여
+  type: conditional
+  conditions:
+    phantom_count: 4
+  effects:
+    enemy_accuracy_debuff: 0.15
+    ally_phantom_blessing:
+      damage_reduction: 0.50
+      hits: 1
+
+- id: shadow_feast
+  name: 그림자 잠식
+  description: 환영이 피해를 대신 받아 소멸할 때 HP 5% 회복, 다음 공격 피해 +15%, 30% 확률 재생성
+  type: trigger
+  effects:
+    on_phantom_destroy:
+      hp_restore: 0.05
+      damage_bonus: 0.15
+      damage_bonus_duration: 1
+      regen_chance: 0.30
+
+- id: infinite_mirrors
+  name: 무한 거울
+  description: 환영 소멸 시 20% 확률로 즉시 재생성, HP 30% 이하 시 50%로 증가, 환영 히트 흡수 +1
+  type: passive
+  effects:
+    phantom_regen_chance: 0.20
+    low_hp_threshold: 0.30
+    low_hp_regen_chance: 0.50
+    phantom_hit_bonus: 1
+
+gimmick:
+  type: phantom_legion
+  name: 환영 군단
+  description: |
+    환영을 소환하여 함께 싸우고 피해를 분산.
+    환영이 많을수록 회피율과 공격 히트 수 증가.
+    환영 소멸 시 잔상 게이지 충전!
+  max_phantoms: 4
+  phantom_hit_absorb: 2
+  afterimage_max: 100
+  afterimage_per_destroy: 25
+  per_phantom_bonus:
+    evasion_bonus: 0.12
+    attack_echo_ratio: 0.35
+    damage_redirect_chance: 0.30
+  mirror_shift:
+    base_cooldown: 5
+    full_phantom_cooldown: 4
+    min_phantoms: 2
+  multi_hit_delay: 0.2
+
+skills:
+- illusionist_teamwork
+# 기본 공격 (2개)
+- illusionist_phantom_slash
+- illusionist_mirror_shard
+# 환영 소환 (3개)
+- illusionist_summon_phantom
+- illusionist_phantom_army
+- illusionist_mirror_replacement
+# 회피/방어 (4개)
+- illusionist_phantom_dodge
+- illusionist_mirror_shield
+- illusionist_phase_walk
+- illusionist_shared_illusion
+# 공격 (4개)
+- illusionist_phantom_strike
+- illusionist_mirror_storm
+- illusionist_convergence_blade
+- illusionist_phantom_rain
+# 디버프/유틸 (3개)
+- illusionist_confusion_veil
+- illusionist_taunt_split
+- illusionist_mirror_trap
+# 잔상 스킬 (1개)
+- illusionist_afterimage_burst
+# 궁극기 (1개)
+- illusionist_infinite_reflection
+
+# 필드 스킬
+field_skill:
+  id: mirror_passage
+  name: 거울 통로
+  description: 필드에서 환영을 통해 적의 시선을 피해 안전하게 이동 (선제 공격 확률 증가)
+  cooldown: 2
+  effects:
+    - type: preemptive_bonus
+      value: 0.30
+
+bonuses:
+  evasion_multiplier: 1.15
+  multi_hit_delay: 0.2
+  atb_on_evade: 0.05

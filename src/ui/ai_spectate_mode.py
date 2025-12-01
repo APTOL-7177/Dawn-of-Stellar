@@ -7,6 +7,7 @@ Features:
 - AI 탐험 자동 진행
 - AI 판단 해설 실시간 표시
 - 실제 게임 화면과 연동
+- 실제 키보드 입력 시뮬레이션 (pyautogui)
 """
 
 import tcod.console
@@ -20,8 +21,180 @@ from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
 from src.ui import gathering_ui
 
+# 실제 키보드 입력 시뮬레이션
+try:
+    import pyautogui
+    pyautogui.FAILSAFE = False  # 마우스 코너 이동시 중단 방지
+    pyautogui.PAUSE = 0.02  # 키 입력 간격
+    KEYBOARD_SIMULATION_AVAILABLE = True
+except ImportError:
+    KEYBOARD_SIMULATION_AVAILABLE = False
 
 logger = get_logger("ai_spectate")
+
+# 실제 키보드 입력 사용 여부
+USE_REAL_KEYBOARD = True  # True: 실제 키 입력, False: 내부 GameAction 반환
+
+# GameAction → 실제 키 매핑
+ACTION_TO_KEY = {
+    GameAction.MOVE_UP: 'up',
+    GameAction.MOVE_DOWN: 'down',
+    GameAction.MOVE_LEFT: 'left',
+    GameAction.MOVE_RIGHT: 'right',
+    GameAction.CONFIRM: 'z',  # Z키 = 확인
+    GameAction.CANCEL: 'x',   # X키 = 취소
+    GameAction.MENU: 'escape',
+    GameAction.OPEN_INVENTORY: 'i',
+    GameAction.OPEN_CHARACTER: 'c',
+    GameAction.WAIT: 'space',
+    GameAction.ESCAPE: 'escape',
+}
+
+def send_real_key(action: GameAction) -> bool:
+    """
+    실제 키보드 입력을 시뮬레이션
+    
+    Args:
+        action: GameAction enum
+        
+    Returns:
+        True if key was sent, False otherwise
+    """
+    if not USE_REAL_KEYBOARD or not KEYBOARD_SIMULATION_AVAILABLE:
+        return False
+    
+    key = ACTION_TO_KEY.get(action)
+    if key:
+        try:
+            pyautogui.press(key)
+            logger.debug(f"[KEYBOARD] 키 입력: {key} ({action.name})")
+            return True
+        except Exception as e:
+            logger.error(f"[KEYBOARD] 키 입력 실패: {e}")
+            return False
+    return False
+
+def ai_press_key(action: GameAction) -> Optional[GameAction]:
+    """
+    AI가 키를 입력합니다.
+    USE_REAL_KEYBOARD가 True면 실제 키를 누르고 None 반환
+    False면 GameAction을 반환 (기존 방식)
+    """
+    if USE_REAL_KEYBOARD and KEYBOARD_SIMULATION_AVAILABLE:
+        send_real_key(action)
+        time.sleep(0.05)  # 키 입력 후 약간의 딜레이
+        return None  # 실제 키 입력했으므로 None 반환
+    else:
+        return action  # 기존 방식: GameAction 반환
+
+
+# 콘솔 화면 텍스트 추출
+def extract_console_text(console: tcod.console.Console) -> str:
+    """
+    tcod 콘솔의 내용을 텍스트로 추출
+    
+    실제 플레이어가 "보는" 화면과 동일한 정보를 LLM에게 제공
+    """
+    if console is None:
+        return ""
+    
+    try:
+        width = console.width
+        height = console.height
+        
+        lines = []
+        for y in range(height):
+            line = ""
+            for x in range(width):
+                try:
+                    ch = console.ch[x, y]
+                    if ch == 0 or ch == 32:  # 빈 공간
+                        line += " "
+                    else:
+                        line += chr(ch) if ch < 65536 else "?"
+                except (IndexError, ValueError):
+                    line += " "
+            # 오른쪽 공백 제거
+            lines.append(line.rstrip())
+        
+        # 위아래 빈 줄 제거
+        while lines and not lines[0].strip():
+            lines.pop(0)
+        while lines and not lines[-1].strip():
+            lines.pop()
+        
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning(f"콘솔 텍스트 추출 실패: {e}")
+        return ""
+
+
+def extract_console_with_colors(console: tcod.console.Console) -> str:
+    """
+    콘솔 내용 + 색상 힌트 추출 (중요한 요소 강조)
+    
+    색상으로 중요 정보 표시:
+    - 빨강: 적, 위험
+    - 초록: 아이템, 안전
+    - 노랑: 중요 오브젝트
+    - 흰색: 플레이어
+    """
+    if console is None:
+        return ""
+    
+    try:
+        width = console.width
+        height = console.height
+        
+        lines = []
+        for y in range(height):
+            line = ""
+            for x in range(width):
+                try:
+                    ch = console.ch[x, y]
+                    fg = console.fg[x, y]  # (R, G, B)
+                    
+                    if ch == 0 or ch == 32:
+                        line += " "
+                    else:
+                        char = chr(ch) if ch < 65536 else "?"
+                        # 색상으로 중요도 표시 (간단한 마커)
+                        r, g, b = fg[0], fg[1], fg[2]
+                        if r > 200 and g < 100:  # 빨강 계열 - 적/위험
+                            char = f"[!{char}]"
+                        elif g > 200 and r < 100:  # 초록 계열 - 아이템
+                            char = f"[+{char}]"
+                        elif r > 200 and g > 200:  # 노랑 계열 - 중요
+                            char = f"[*{char}]"
+                        line += char
+                except (IndexError, ValueError):
+                    line += " "
+            lines.append(line.rstrip())
+        
+        while lines and not lines[0].strip():
+            lines.pop(0)
+        while lines and not lines[-1].strip():
+            lines.pop()
+        
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning(f"콘솔 색상 텍스트 추출 실패: {e}")
+        return ""
+
+
+# 현재 콘솔 참조 (화면 텍스트 추출용)
+_current_console: Optional[tcod.console.Console] = None
+
+def set_current_console(console: tcod.console.Console):
+    """현재 콘솔 설정 (화면 텍스트 추출용)"""
+    global _current_console
+    _current_console = console
+
+def get_screen_text() -> str:
+    """현재 화면의 텍스트 내용 반환"""
+    if _current_console:
+        return extract_console_text(_current_console)
+    return ""
 
 
 # AI 해설을 저장할 전역 변수 (게임 UI에서 접근)
@@ -231,7 +404,17 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
     
     logger.info("AI 관전 모드 시작 (실제 게임 화면)")
     set_ai_mode(True)
+    set_current_console(console)  # 화면 텍스트 추출용 콘솔 설정
     gathering_ui.set_ai_spectate_mode(True)  # 채집 UI 자동 진행 활성화
+    
+    # 봇 클라이언트용 상태 내보내기 활성화
+    try:
+        from src.bot import enable_export
+        enable_export(True)
+        logger.info("봇 상태 내보내기 활성화")
+    except ImportError:
+        pass
+    
     add_ai_commentary("🤖 AI 관전 모드 시작!")
     
     # AutoPlayAI 인스턴스 생성 - 즉시 LLM 연동 테스트
@@ -240,7 +423,7 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
 
     try:
         from src.multiplayer.llm_player_bot import create_auto_play_ai, PlayStyle
-        ai = create_auto_play_ai(model="qwen3:0.6b", style=PlayStyle.BALANCED)
+        ai = create_auto_play_ai(model="gpt-oss:20b", style=PlayStyle.BALANCED)
         add_ai_commentary("🤖 LLM AI 초기화 성공!")
         logger.info("[AI] LLM AutoPlayAI 생성 완료")
 
@@ -550,9 +733,149 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
         
         return []  # 경로 없음
     
+    # AI 탐험 상태 (LLM 호출 최소화)
+    _ai_exploration_state = {
+        'target': None,  # 현재 목표 좌표
+        'target_type': None,  # 목표 유형 (stairs, explore, enemy, item)
+        'step_count': 0,  # 이동 스텝 카운터
+        'last_llm_call': 0,  # 마지막 LLM 호출 스텝
+        'llm_interval': 50,  # LLM 재호출 간격 (50스텝 = 더 적은 호출)
+        'last_enemy_count': 0,  # 마지막으로 감지한 적 수
+        'last_item_count': 0,  # 마지막으로 감지한 아이템 수
+        'destroy_item_index': None,  # 파괴할 아이템 인덱스
+        'explored_count': 0,  # 탐험한 타일 수
+        'last_position': None,  # 마지막 위치 (왔다갔다 감지용)
+        'oscillation_count': 0,  # 왔다갔다 카운터
+    }
+    
+    def is_cooking_pot_at(dungeon, x, y) -> bool:
+        """해당 위치에 요리솥이 있는지 확인"""
+        from src.gathering.harvestable import HarvestableType
+        if hasattr(dungeon, 'harvestables'):
+            for h in dungeon.harvestables:
+                if h.x == x and h.y == y and h.object_type == HarvestableType.COOKING_POT:
+                    return True
+        return False
+    
+    def get_safe_move(dungeon, px, py, dx, dy, reason: str = "") -> GameAction:
+        """이동 가능한 방향으로만 이동 (벽/요리솥 충돌 방지) + 이유 로깅"""
+        import random
+        
+        # 원하는 방향 먼저 시도
+        nx, ny = px + dx, py + dy
+        tile = dungeon.get_tile(nx, ny)
+        
+        # 요리솥은 그냥 통과 (AI 모드에서는 요리 UI 자동 열기 비활성화됨)
+        
+        if tile and tile.walkable:
+            direction_name = ""
+            if dy < 0:
+                direction_name = "↑"
+                action = GameAction.MOVE_UP
+            elif dy > 0:
+                direction_name = "↓"
+                action = GameAction.MOVE_DOWN
+            elif dx < 0:
+                direction_name = "←"
+                action = GameAction.MOVE_LEFT
+            elif dx > 0:
+                direction_name = "→"
+                action = GameAction.MOVE_RIGHT
+            else:
+                return ai_press_key(GameAction.WAIT)
+            
+            if reason:
+                log_action(f"{direction_name} {reason}")
+            return ai_press_key(action)
+        
+        # 원하는 방향이 막혀있으면 다른 방향 시도
+        directions = [
+            (GameAction.MOVE_UP, 0, -1, "↑"),
+            (GameAction.MOVE_DOWN, 0, 1, "↓"),
+            (GameAction.MOVE_LEFT, -1, 0, "←"),
+            (GameAction.MOVE_RIGHT, 1, 0, "→"),
+        ]
+        random.shuffle(directions)
+        
+        for action, adx, ady, dir_name in directions:
+            nx, ny = px + adx, py + ady
+            tile = dungeon.get_tile(nx, ny)
+            if tile and tile.walkable:
+                log_action(f"{dir_name} 우회 (원래 방향 막힘)")
+                return ai_press_key(action)
+        
+        log_action("⏸️ 대기 (모든 방향 막힘)")
+        return ai_press_key(GameAction.WAIT)
+    
+    def find_item_to_destroy(inv) -> int:
+        """무게 초과 시 파괴할 아이템 찾기 (불필요한 무거운 아이템 우선)"""
+        if not inv or not hasattr(inv, 'slots') or not inv.slots:
+            return -1
+        
+        # 아이템 점수 계산 (낮을수록 파괴 우선순위 높음)
+        # 점수 = (희귀도 * 10) - (무게 * 5) + (유용성)
+        # 유용성: 회복=5, 장비=10, 요리=-2, 재료=-5
+        
+        from src.equipment.item_system import ItemType, ItemRarity
+        
+        candidates = []
+        for i, slot in enumerate(inv.slots):
+            item = slot.item
+            
+            # 장비된 아이템은 제외
+            if hasattr(item, 'is_equipped') and item.is_equipped:
+                continue
+            
+            # 점수 계산
+            score = 0
+            
+            # 희귀도 점수 (높을수록 보존)
+            rarity = getattr(item, 'rarity', ItemRarity.COMMON)
+            rarity_score = {
+                ItemRarity.COMMON: 0,
+                ItemRarity.UNCOMMON: 2,
+                ItemRarity.RARE: 5,
+                ItemRarity.EPIC: 10,
+                ItemRarity.LEGENDARY: 20,
+            }.get(rarity, 0)
+            score += rarity_score
+            
+            # 무게 점수 (무거울수록 파괴 우선)
+            weight = getattr(item, 'weight', 0.5)
+            score -= weight * 3
+            
+            # 유형별 점수
+            item_type = getattr(item, 'item_type', None)
+            if item_type == ItemType.WEAPON or item_type == ItemType.ARMOR or item_type == ItemType.ACCESSORY:
+                score += 15  # 장비는 보존
+            elif item_type == ItemType.CONSUMABLE:
+                # 회복 아이템은 보존
+                if hasattr(item, 'heal_amount') and item.heal_amount > 0:
+                    score += 8
+                else:
+                    score += 2
+            elif item_type == ItemType.MATERIAL:
+                score -= 2  # 재료는 파괴 우선
+            elif item_type == ItemType.COOKING:
+                score += 5  # 요리는 어느정도 보존
+            else:
+                score -= 3  # 기타 아이템은 파괴 우선
+            
+            candidates.append((i, score, weight, item.name if hasattr(item, 'name') else 'unknown'))
+        
+        if not candidates:
+            return -1
+        
+        # 점수 낮은 순 (파괴 우선순위 높은 순)으로 정렬
+        candidates.sort(key=lambda x: (x[1], -x[2]))  # 점수 낮고 무게 무거운 순
+        
+        best = candidates[0]
+        logger.info(f"[AI] 파괴 대상: {best[3]} (점수={best[1]:.1f}, 무게={best[2]:.1f}kg)")
+        return best[0]
+    
     # AI 탐험 입력 제공 콜백
     def ai_exploration_input(exploration_sys, party, inv) -> GameAction:
-        """AI가 탐험 입력 결정 - LLM 중심"""
+        """AI가 탐험 입력 결정 - A* 경로 우선, LLM은 목표만 결정"""
         nonlocal floor_number, dungeon, exploration, current_path
         import traceback
         import random
@@ -560,9 +883,57 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
         # exploration_sys의 던전 사용 (최신 맵)
         current_dungeon = exploration_sys.dungeon if hasattr(exploration_sys, 'dungeon') else dungeon
 
+        # 봇 클라이언트용 상태 내보내기
         try:
+            from src.bot import export_exploration_state
+            screen_text = get_screen_text()
+            export_exploration_state(exploration_sys, party, current_dungeon, screen_text)
+        except ImportError:
+            pass
+
+        try:
+            # ===== 인벤토리 무게 초과 체크 (최우선) =====
+            if inv and hasattr(inv, 'current_weight') and hasattr(inv, 'max_weight'):
+                if inv.current_weight > inv.max_weight:
+                    # 무게 초과! 아이템 파괴 필요
+                    destroy_idx = _ai_exploration_state.get('destroy_item_index')
+                    
+                    if destroy_idx is None:
+                        # 파괴할 아이템 찾기
+                        destroy_idx = find_item_to_destroy(inv)
+                        if destroy_idx >= 0:
+                            _ai_exploration_state['destroy_item_index'] = destroy_idx
+                            item_name = inv.slots[destroy_idx].item.name if destroy_idx < len(inv.slots) else 'unknown'
+                            log_action(f"⚠️ 무게 초과! {inv.current_weight:.1f}/{inv.max_weight:.1f}kg")
+                            log_action(f"🗑️ 파괴 대상: {item_name}")
+                            add_ai_commentary(f"🗑️ 무게 초과 - {item_name} 파괴")
+                    
+                    if destroy_idx is not None and destroy_idx >= 0:
+                        # 인벤토리 열기 또는 아이템 파괴 진행
+                        # 인벤토리 UI가 열려있으면 해당 아이템 선택 후 V 키
+                        # 여기서는 인벤토리 열기 먼저
+                        
+                        # 파괴 완료 확인 (무게가 줄었으면)
+                        if inv.current_weight <= inv.max_weight:
+                            log_action("✅ 무게 정상화")
+                            _ai_exploration_state['destroy_item_index'] = None
+                        else:
+                            # 아이템 직접 제거 (UI 없이)
+                            try:
+                                removed = inv.remove_item(destroy_idx, 1)
+                                if removed:
+                                    log_action(f"🗑️ {removed.name} 파괴 완료")
+                                    add_ai_commentary(f"🗑️ {removed.name} 버림")
+                                _ai_exploration_state['destroy_item_index'] = None
+                                # 다음 프레임에서 다시 무게 체크
+                                return ai_press_key(GameAction.WAIT)
+                            except Exception as e:
+                                logger.warning(f"아이템 파괴 실패: {e}")
+                                _ai_exploration_state['destroy_item_index'] = None
+
             # 현재 위치 확인
             current_pos = (exploration_sys.player.x, exploration_sys.player.y)
+            _ai_exploration_state['step_count'] += 1
 
             # 막힌 상태 감지
             if last_position[0] == current_pos:
@@ -571,6 +942,8 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                     log_bug("StuckInPlace", f"같은 위치에 갇힘: {current_pos}",
                            game_state={"position": current_pos, "floor": floor_number})
                     stuck_counter[0] = 0
+                    current_path.clear()  # 경로 초기화
+                    _ai_exploration_state['target'] = None
             else:
                 stuck_counter[0] = 0
                 last_position[0] = current_pos
@@ -592,6 +965,12 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
             # 계단 위치 확인
             stairs_pos = current_dungeon.stairs_down if hasattr(current_dungeon, 'stairs_down') else None
             is_town = hasattr(exploration_sys, 'is_town') and exploration_sys.is_town
+            
+            # ===== 계단 위에 있으면 바로 진입 =====
+            if stairs_pos and (px, py) == stairs_pos:
+                log_action("🚪 계단 위! 진입")
+                add_ai_commentary("⬇️ 다음 층으로!")
+                return ai_press_key(GameAction.CONFIRM)
 
             # ===== 채집 상태 체크 (5번 입력 필요) =====
             current_pos = (px, py)
@@ -603,17 +982,21 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
 
                 if remaining > 0:
                     log_action(f"🌿 채집 진행 중 ({pending_harvest['counter']}/5)")
-                    return GameAction.CONFIRM
+                    return ai_press_key(GameAction.CONFIRM)
                 else:
                     # 5번 완료 - 채집 완료
                     log_action("🌿 채집 완료!")
                     pending_harvest['location'] = None
                     pending_harvest['counter'] = 0
-                    return GameAction.CONFIRM
+                    return ai_press_key(GameAction.CONFIRM)
 
-            # 현재 위치에 채집 오브젝트가 있으면
+            # 현재 위치에 채집 오브젝트가 있으면 (요리솥 제외)
             if hasattr(current_dungeon, 'harvestables'):
+                from src.gathering.harvestable import HarvestableType
                 for harvestable in current_dungeon.harvestables:
+                    # 요리솥은 채집 대상이 아님
+                    if harvestable.object_type == HarvestableType.COOKING_POT:
+                        continue
                     if harvestable.x == px and harvestable.y == py:
                         if hasattr(harvestable, 'can_harvest') and harvestable.can_harvest(None):
                             # 새로운 채집 시작
@@ -622,37 +1005,93 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                                 pending_harvest['location'] = current_pos
                                 pending_harvest['counter'] = 1  # 첫 번째 입력
                                 add_ai_commentary(f"🌿 {harvestable.object_type.value} 채집! (1/5)")
-                                return GameAction.CONFIRM
+                                return ai_press_key(GameAction.CONFIRM)
 
             # 채집 상태 아니면 초기화
             if pending_harvest['location']:
                 pending_harvest['location'] = None
                 pending_harvest['counter'] = 0
 
-            # ===== 마을에서는 바로 계단으로 (LLM 스킵) =====
-            if is_town and stairs_pos:
+            # ===== 마을 활동 (LLM 기반) =====
+            if is_town and ai and use_llm:
+                from src.multiplayer.llm_player_bot import TownState, TownAction
+                
+                # 마을 상태 수집
+                shop_items = []
+                if hasattr(exploration_sys, 'shop') and exploration_sys.shop:
+                    for item in getattr(exploration_sys.shop, 'items', [])[:5]:
+                        shop_items.append({
+                            'name': getattr(item, 'name', 'unknown'),
+                            'price': getattr(item, 'price', 0)
+                        })
+                
+                # 인벤토리 아이템
+                inv_items = []
+                if inv and hasattr(inv, 'slots'):
+                    for slot in inv.slots[:5]:
+                        item = getattr(slot, 'item', None)
+                        if item:
+                            inv_items.append({
+                                'name': getattr(item, 'name', 'unknown'),
+                                'count': getattr(slot, 'quantity', 1)
+                            })
+                
+                town_state = TownState(
+                    party_hp_percent=party_hp,
+                    party_mp_percent=party_mp,
+                    gold=getattr(inv, 'gold', 0) if inv else 0,
+                    inventory_items=inv_items,
+                    shop_items=shop_items,
+                    inventory_weight=getattr(inv, 'current_weight', 0) if inv else 0,
+                    max_weight=getattr(inv, 'max_weight', 20) if inv else 20
+                )
+                
+                # LLM 마을 결정
+                try:
+                    town_action = ai.decide_town_action(town_state)
+                    log_action(f"🏘️ 마을 LLM: {town_action.action_type} - {town_action.reasoning}")
+                    add_ai_commentary(f"🏘️ {town_action.reasoning[:30]}")
+                    
+                    # 마을 행동 처리
+                    if town_action.action_type == "depart":
+                        # 던전 출발 - 계단으로 이동
+                        if stairs_pos:
+                            sx, sy = stairs_pos
+                            dist_to_stairs = abs(sx - px) + abs(sy - py)
+                            if dist_to_stairs == 0:
+                                log_action("🚪 마을: 던전 입장!")
+                                return ai_press_key(GameAction.CONFIRM)
+                            else:
+                                dx = 1 if sx > px else (-1 if sx < px else 0)
+                                dy = 1 if sy > py else (-1 if sy < py else 0)
+                                return get_safe_move(current_dungeon, px, py, dx, dy, "상점으로")
+                    elif town_action.action_type == "rest":
+                        # 휴식 - 여관 찾기 (임시: CONFIRM)
+                        log_action("🛏️ 휴식 중...")
+                        return ai_press_key(GameAction.CONFIRM)
+                    elif town_action.action_type == "buy":
+                        # 구매 - 상점 찾기 (임시: CONFIRM)
+                        log_action(f"🛒 구매: {town_action.target}")
+                        return ai_press_key(GameAction.CONFIRM)
+                    else:
+                        # 기타 행동 - 계단으로 이동
+                        if stairs_pos:
+                            sx, sy = stairs_pos
+                            dx = 1 if sx > px else (-1 if sx < px else 0)
+                            dy = 1 if sy > py else (-1 if sy < py else 0)
+                            return get_safe_move(current_dungeon, px, py, dx, dy, "마을 이동")
+                except Exception as e:
+                    log_bug("TownLLMError", str(e))
+            
+            # 마을 폴백: 계단으로 이동
+            elif is_town and stairs_pos:
                 sx, sy = stairs_pos
-                # 계단으로의 거리
                 dist_to_stairs = abs(sx - px) + abs(sy - py)
-
                 if dist_to_stairs == 0:
-                    # 계단 위에 있음
-                    log_action("🚪 마을: 계단 진입!")
-                    add_ai_commentary("⬇️ 던전 입구!")
-                    return GameAction.CONFIRM
-                else:
-                    # 계단으로 이동 (LLM 안 씀)
-                    dx = 1 if sx > px else (-1 if sx < px else 0)
-                    dy = 1 if sy > py else (-1 if sy < py else 0)
-
-                    if dy < 0:
-                        return GameAction.MOVE_UP
-                    elif dy > 0:
-                        return GameAction.MOVE_DOWN
-                    elif dx < 0:
-                        return GameAction.MOVE_LEFT
-                    elif dx > 0:
-                        return GameAction.MOVE_RIGHT
+                    return ai_press_key(GameAction.CONFIRM)
+                dx = 1 if sx > px else (-1 if sx < px else 0)
+                dy = 1 if sy > py else (-1 if sy < py else 0)
+                return get_safe_move(current_dungeon, px, py, dx, dy, "마을→계단")
 
             # ===== 적 감지 (A* 경로 사용) =====
             nearby_enemies_list = []
@@ -687,12 +1126,191 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                 if path:
                     current_path.extend(path)
                     using_enemy_path = True
-                    log_action(f"👾 적 추적: {closest_enemy.name}@({closest_enemy.x},{closest_enemy.y}) - 경로: {len(path)}스텝")
-                    add_ai_commentary(f"👾 {closest_enemy.name} 추적 중!")
+                    _ai_exploration_state['target'] = enemy_pos
+                    _ai_exploration_state['target_type'] = 'enemy'
+                    log_action(f"👾 적 발견! {closest_enemy.name} 추적 ({len(path)}스텝)")
+                    add_ai_commentary(f"👾 {closest_enemy.name} 발견! 전투 준비!")
 
-            # LLM이 이동 경로 직접 결정 (던전에서만, 경로 없을 때, LLM이 활성화된 경우만)
-            # 적이 있어도 상관없음 - LLM에게 적 정보를 전달하면 됨
-            if not current_path and ai and use_llm and not is_town and not using_enemy_path:
+            # ===== 왔다갔다 감지 =====
+            last_pos = _ai_exploration_state.get('last_position')
+            if last_pos and last_pos == (px, py):
+                _ai_exploration_state['oscillation_count'] += 1
+                if _ai_exploration_state['oscillation_count'] > 5:
+                    # 왔다갔다 감지! 경로 초기화하고 새 목표 강제 설정
+                    log_action("⚠️ 왔다갔다 감지 - 새 목표 설정")
+                    current_path.clear()
+                    _ai_exploration_state['target'] = None
+                    _ai_exploration_state['oscillation_count'] = 0
+            else:
+                _ai_exploration_state['oscillation_count'] = 0
+            _ai_exploration_state['last_position'] = (px, py)
+
+            # ===== 경로 따라가기 (A* 우선) =====
+            if current_path:
+                next_pos = current_path[0]
+                dx = next_pos[0] - px
+                dy = next_pos[1] - py
+
+                tile = current_dungeon.get_tile(next_pos[0], next_pos[1])
+                
+                # 문 처리 (잠긴 문 또는 일반 문)
+                if tile:
+                    from src.world.tile import TileType
+                    
+                    # 잠긴 문 - 상호작용으로 열기 시도
+                    if tile.tile_type == TileType.LOCKED_DOOR:
+                        key_id = getattr(tile, 'key_id', None)
+                        log_action(f"🚪 잠긴 문 발견 (키: {key_id})")
+                        add_ai_commentary(f"🚪 문이 잠겨있다...")
+                        
+                        # 열쇠 확인
+                        if hasattr(exploration_sys, 'player') and hasattr(exploration_sys.player, 'keys'):
+                            if key_id and key_id in exploration_sys.player.keys:
+                                log_action(f"🔑 열쇠 사용: {key_id}")
+                                add_ai_commentary(f"🔑 열쇠로 문 열기!")
+                                return ai_press_key(GameAction.CONFIRM)  # 문 열기 시도
+                        
+                        # 열쇠 없으면 경로 재계산
+                        log_action("🔒 열쇠 없음 - 다른 길 탐색")
+                        current_path.clear()
+                        _ai_exploration_state['target'] = None
+                        return ai_press_key(GameAction.WAIT)
+                    
+                    # 일반 문 - 그냥 지나감 (walkable)
+                    elif tile.tile_type == TileType.DOOR:
+                        log_action("🚪 문 통과")
+                
+                if tile and tile.walkable:
+                    current_path.pop(0)
+                    
+                    # 경로 완료 시
+                    if not current_path:
+                        log_action("✅ 경로 완료")
+                        target_type = _ai_exploration_state.get('target_type', 'unknown')
+                        _ai_exploration_state['target'] = None
+                        
+                        # 계단 위에 도착했으면 바로 진입
+                        if target_type == 'stairs' and stairs_pos and (px + dx, py + dy) == stairs_pos:
+                            log_action("🚪 계단 도착! 진입")
+                            add_ai_commentary("⬇️ 다음 층으로!")
+                            # 이동 후 CONFIRM
+                    
+                    # 안전한 이동 (벽 충돌 방지)
+                    target_type = _ai_exploration_state.get('target_type', 'unknown')
+                    reason = f"경로 이동 ({target_type})"
+                    return get_safe_move(current_dungeon, px, py, dx, dy, reason)
+                else:
+                    # 경로가 막힘 - 문인지 확인
+                    if tile:
+                        from src.world.tile import TileType
+                        if tile.tile_type in [TileType.DOOR, TileType.LOCKED_DOOR, TileType.SECRET_DOOR]:
+                            log_action("🚪 문 앞에서 대기 - 상호작용 시도")
+                            return ai_press_key(GameAction.CONFIRM)
+                    
+                    # 일반 막힘 - 경로 재계산
+                    log_action("🚧 경로 막힘 - 재계산")
+                    current_path.clear()
+                    _ai_exploration_state['target'] = None
+
+            # ===== LLM 호출 조건 체크 (엄격하게) =====
+            # LLM은 규칙 기반으로 해결 안 될 때만 호출
+            need_llm_call = False
+            call_reason = ""
+            
+            # 규칙 기반으로 먼저 목표 설정 시도
+            if not current_path and not _ai_exploration_state['target']:
+                # 1순위: 계단이 발견되었으면 계단으로 (탐험 30타일 이상)
+                if stairs_pos and len(explored_tiles) > 30:
+                    _ai_exploration_state['target'] = stairs_pos
+                    _ai_exploration_state['target_type'] = 'stairs'
+                    path = astar_pathfind(current_dungeon, (px, py), stairs_pos)
+                    if path:
+                        current_path.extend(path)
+                        log_action(f"🎯 규칙: 계단으로 ({len(path)}스텝)")
+                        add_ai_commentary(f"⬇️ 계단으로 이동!")
+                
+                # 2순위: 미탐험 영역 찾기 (A* 경로 존재하는 곳만)
+                if not current_path:
+                    unexplored_targets = []
+                    
+                    # 더 넓은 범위에서 검색
+                    for dx_s in range(-25, 26):
+                        for dy_s in range(-25, 26):
+                            nx, ny = px + dx_s, py + dy_s
+                            if (nx, ny) not in explored_tiles:
+                                tile = current_dungeon.get_tile(nx, ny)
+                                if tile and tile.walkable:
+                                    dist = abs(dx_s) + abs(dy_s)
+                                    if dist > 2:  # 너무 가까운 곳 제외
+                                        unexplored_targets.append(((nx, ny), dist))
+                    
+                    # 경로가 있는 타겟만 선택
+                    if unexplored_targets:
+                        unexplored_targets.sort(key=lambda x: x[1])  # 가까운 순
+                        
+                        for target, dist in unexplored_targets[:10]:  # 가까운 10개만 시도
+                            path = astar_pathfind(current_dungeon, (px, py), target)
+                            if path:
+                                _ai_exploration_state['target'] = target
+                                _ai_exploration_state['target_type'] = 'explore'
+                                current_path.extend(path)
+                                log_action(f"🎯 규칙: 탐험 {target} ({len(path)}스텝)")
+                                break
+                    
+                    # 미탐험 영역 없거나 경로 없으면 → 출구 찾기
+                    if not current_path:
+                        log_action("🔍 출구 탐색 중...")
+                        
+                        # 문이나 복도 찾기 (현재 방에서 나가기)
+                        from src.world.tile import TileType
+                        exit_targets = []
+                        
+                        for dx_s in range(-20, 21):
+                            for dy_s in range(-20, 21):
+                                nx, ny = px + dx_s, py + dy_s
+                                tile = current_dungeon.get_tile(nx, ny)
+                                if tile:
+                                    # 문, 복도 (탐험하지 않은 인접 타일이 있는 곳)
+                                    is_exit = False
+                                    if tile.tile_type in [TileType.DOOR, TileType.FLOOR]:
+                                        # 주변에 미탐험 타일이 있는지 확인
+                                        for ddx, ddy in [(-1,0),(1,0),(0,-1),(0,1)]:
+                                            adj_tile = current_dungeon.get_tile(nx+ddx, ny+ddy)
+                                            if adj_tile and adj_tile.walkable and (nx+ddx, ny+ddy) not in explored_tiles:
+                                                is_exit = True
+                                                break
+                                    
+                                    if is_exit and (nx, ny) != (px, py):
+                                        dist = abs(dx_s) + abs(dy_s)
+                                        exit_targets.append(((nx, ny), dist))
+                        
+                        if exit_targets:
+                            exit_targets.sort(key=lambda x: x[1])
+                            for target, dist in exit_targets[:5]:
+                                path = astar_pathfind(current_dungeon, (px, py), target)
+                                if path:
+                                    _ai_exploration_state['target'] = target
+                                    _ai_exploration_state['target_type'] = 'exit'
+                                    current_path.extend(path)
+                                    log_action(f"🚪 출구 발견! {target} ({len(path)}스텝)")
+                                    add_ai_commentary(f"🚪 출구로 이동!")
+                                    break
+                
+                # 규칙으로 해결 안 되면 LLM 호출
+                if not current_path:
+                    need_llm_call = True
+                    call_reason = "규칙 실패 - LLM 필요"
+            
+            # 주기적 재평가는 삭제 (왔다갔다 원인)
+            # HP 위험할 때만 LLM 호출
+            if party_hp < 25 and _ai_exploration_state['step_count'] - _ai_exploration_state['last_llm_call'] >= 30:
+                need_llm_call = True
+                call_reason = f"HP 위험 ({party_hp:.0f}%)"
+            
+            _ai_exploration_state['last_enemy_count'] = len(nearby_enemies_list)
+
+            # LLM 호출 (목표만 결정)
+            if need_llm_call and ai and use_llm and not is_town and not using_enemy_path:
                 # 실제 시야(FOV) 내의 정보 수집
                 visible_tiles = []
                 nearby_items = []
@@ -746,9 +1364,12 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                                 item_name = item_name.name
                             nearby_items.append(f"{item_name}@({fx},{fy})")
 
-                # 채집 오브젝트
+                # 채집 오브젝트 (요리솥 제외)
                 if hasattr(current_dungeon, 'harvestables'):
+                    from src.gathering.harvestable import HarvestableType
                     for harvestable in current_dungeon.harvestables:
+                        if harvestable.object_type == HarvestableType.COOKING_POT:
+                            continue
                         is_visible = False
                         if hasattr(exploration_sys, 'fov_map') and exploration_sys.fov_map:
                             is_visible = exploration_sys.fov_map.visible[harvestable.x, harvestable.y]
@@ -785,6 +1406,73 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
 
                 # 발견한 방 수
                 discovered_rooms = len([t for t in visible_tiles if not t.get('walkable', True)])
+                
+                # ===== 환경 타일 정보 수집 (LLM 인식용) =====
+                hazard_tiles = []
+                safe_tiles = []
+                objects = []
+                
+                # 시야 내 환경 타일 분석
+                for tile_info in visible_tiles:
+                    tx, ty = tile_info.get('x', 0), tile_info.get('y', 0)
+                    tile = current_dungeon.get_tile(tx, ty)
+                    if tile:
+                        # 위험 타일 (용암, 독가스, 함정 등)
+                        if hasattr(tile, 'damage') and tile.damage > 0:
+                            hazard_tiles.append({
+                                'pos': (tx, ty),
+                                'type': getattr(tile, 'tile_type', 'hazard'),
+                                'damage': tile.damage
+                            })
+                        elif hasattr(tile, 'is_hazard') and tile.is_hazard:
+                            hazard_tiles.append({
+                                'pos': (tx, ty),
+                                'type': getattr(tile, 'hazard_type', 'unknown'),
+                                'damage': getattr(tile, 'damage', 5)
+                            })
+                        # 안전 타일
+                        elif tile_info.get('walkable', False):
+                            safe_tiles.append((tx, ty))
+                        
+                        # 오브젝트 (보물상자, NPC 등)
+                        if tile_info.get('type') == 'chest':
+                            objects.append({'pos': (tx, ty), 'type': 'chest', 'interactable': True})
+                
+                # 채집 오브젝트도 objects에 추가 (요리솥 제외)
+                if hasattr(current_dungeon, 'harvestables'):
+                    from src.gathering.harvestable import HarvestableType
+                    for harvestable in current_dungeon.harvestables:
+                        if harvestable.object_type == HarvestableType.COOKING_POT:
+                            continue
+                        is_visible = False
+                        if hasattr(exploration_sys, 'fov_map') and exploration_sys.fov_map:
+                            is_visible = exploration_sys.fov_map.visible[harvestable.x, harvestable.y]
+                        if is_visible and hasattr(harvestable, 'can_harvest') and harvestable.can_harvest(None):
+                            objects.append({
+                                'pos': (harvestable.x, harvestable.y),
+                                'type': harvestable.object_type.value if hasattr(harvestable.object_type, 'value') else 'harvestable',
+                                'interactable': True
+                            })
+                
+                # ===== 회복 아이템 정보 수집 =====
+                healing_items = []
+                current_gold = 0
+                if inv:
+                    current_gold = getattr(inv, 'gold', 0)
+                    for slot in getattr(inv, 'slots', []):
+                        item = getattr(slot, 'item', None)
+                        if item and hasattr(item, 'heal_amount') and item.heal_amount > 0:
+                            healing_items.append({
+                                'name': item.name,
+                                'heal': item.heal_amount,
+                                'count': getattr(slot, 'quantity', 1)
+                            })
+                        elif item and hasattr(item, 'item_type') and 'potion' in str(item.item_type).lower():
+                            healing_items.append({
+                                'name': item.name,
+                                'heal': getattr(item, 'heal_amount', 50),
+                                'count': getattr(slot, 'quantity', 1)
+                            })
 
                 # LLM에게 탐험 상태 전달
                 ai_state = ExplorationState(
@@ -801,13 +1489,21 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                     has_healing_point=stairs_visible if stairs_pos else False,
                     floor_type="town" if is_town else "dungeon",
                     stairs_down_position=stairs_pos if stairs_visible else None,
-                    unexplored_directions=unexplored_directions if unexplored_directions else [(0, -1), (0, 1), (-1, 0), (1, 0)]
+                    unexplored_directions=unexplored_directions if unexplored_directions else [(0, -1), (0, 1), (-1, 0), (1, 0)],
+                    # 새로운 필드들
+                    hazard_tiles=hazard_tiles[:10],  # 위험 타일 (최대 10개)
+                    safe_tiles=safe_tiles[:20],  # 안전 타일 (최대 20개)
+                    objects=objects[:10],  # 오브젝트 (최대 10개)
+                    healing_items=healing_items[:5],  # 회복 아이템 (최대 5개)
+                    gold=current_gold  # 현재 골드
                 )
 
-                # LLM 이동 결정
+                # LLM 목표 결정 (A* 경로 생성)
                 try:
-                    log_action(f"🤖 LLM 호출: 위치({px}, {py}) - 근처적: {len(nearby_enemies_list)}")
-                    logger.info(f"[AI] 🤖 LLM 호출 중... (근처 적 {len(nearby_enemies_list)}마리)")
+                    log_action(f"🤖 LLM 호출: {call_reason} - 위치({px}, {py})")
+                    logger.info(f"[AI] 🤖 LLM 호출 ({call_reason})")
+                    
+                    _ai_exploration_state['last_llm_call'] = _ai_exploration_state['step_count']
 
                     action = ai.decide_exploration_action(ai_state)
 
@@ -828,9 +1524,12 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                                 has_item_here = True
                                 break
 
-                    # 현재 위치 채집 확인
+                    # 현재 위치 채집 확인 (요리솥 제외)
                     if hasattr(current_dungeon, 'harvestables'):
+                        from src.gathering.harvestable import HarvestableType
                         for harvestable in current_dungeon.harvestables:
+                            if harvestable.object_type == HarvestableType.COOKING_POT:
+                                continue
                             if harvestable.x == px and harvestable.y == py:
                                 if hasattr(harvestable, 'can_harvest') and harvestable.can_harvest(None):
                                     has_harvest_here = True
@@ -847,57 +1546,54 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                         if has_stairs_here:
                             log_action("🚪 LLM 결정: 계단 진입")
                             add_ai_commentary("⬇️ 계단으로!")
-                            return GameAction.CONFIRM
+                            return ai_press_key(GameAction.CONFIRM)
 
                         if has_item_here:
                             log_action("📦 LLM 결정: 아이템 줍기")
                             add_ai_commentary("🎁 아이템 획득!")
-                            return GameAction.CONFIRM
+                            return ai_press_key(GameAction.CONFIRM)
 
                         if has_harvest_here:
                             log_action("🌿 LLM 결정: 채집")
                             add_ai_commentary("🌿 채집!")
-                            return GameAction.CONFIRM
+                            return ai_press_key(GameAction.CONFIRM)
 
                     # ===== 계단이 근처이고 LLM이 특정 결정 못 했으면 자동 진입 =====
                     if has_stairs_here and action.action_type in ["rest", "interact"]:
                         log_action("🚪 자동: 계단 진입")
                         add_ai_commentary("⬇️ 계단으로!")
-                        return GameAction.CONFIRM
+                        return ai_press_key(GameAction.CONFIRM)
 
                     # ===== LLM 이동 결정 =====
                     if action.action_type == "move" and action.direction and action.direction != (0, 0):
                         dx, dy = action.direction
-                        log_action(f"📍 LLM 이동: ({dx}, {dy})")
-                        if dy < 0:
-                            return GameAction.MOVE_UP
-                        elif dy > 0:
-                            return GameAction.MOVE_DOWN
-                        elif dx < 0:
-                            return GameAction.MOVE_LEFT
-                        elif dx > 0:
-                            return GameAction.MOVE_RIGHT
+                        return get_safe_move(current_dungeon, px, py, dx, dy, "LLM 이동")
 
                     elif action.action_type == "move" and action.target_position:
                         tx, ty = action.target_position
+                        _ai_exploration_state['target'] = (tx, ty)
                         log_action(f"🎯 LLM 목표: ({tx}, {ty})")
+                        add_ai_commentary(f"🎯 목표: ({tx}, {ty})")
+                        
+                        # A* 경로 생성
                         path = astar_pathfind(current_dungeon, (px, py), action.target_position)
                         if path:
+                            current_path.clear()
                             current_path.extend(path)
-                            log_action(f"🛤️ 경로 생성: {len(path)}스텝")
+                            log_action(f"🛤️ A* 경로: {len(path)}스텝")
+                            
+                            # 첫 번째 이동 즉시 실행
+                            if current_path:
+                                next_pos = current_path[0]
+                                dx = next_pos[0] - px
+                                dy = next_pos[1] - py
+                                current_path.pop(0)
+                                return get_safe_move(current_dungeon, px, py, dx, dy, "LLM 경로")
                         else:
-                            # 경로 없으면 목표 방향으로
-                            tx, ty = action.target_position
+                            # 경로 없으면 목표 방향으로 직접 이동
                             dx = 1 if tx > px else (-1 if tx < px else 0)
                             dy = 1 if ty > py else (-1 if ty < py else 0)
-                            if dy < 0:
-                                return GameAction.MOVE_UP
-                            elif dy > 0:
-                                return GameAction.MOVE_DOWN
-                            elif dx < 0:
-                                return GameAction.MOVE_LEFT
-                            elif dx > 0:
-                                return GameAction.MOVE_RIGHT
+                            return get_safe_move(current_dungeon, px, py, dx, dy, "LLM 목표 방향")
 
                     elif action.action_type == "fight":
                         log_action("⚔️ LLM 전투 결정")
@@ -907,40 +1603,13 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                                 key=lambda e: abs(e.x - px) + abs(e.y - py))
                             dx = 1 if closest.x > px else (-1 if closest.x < px else 0)
                             dy = 1 if closest.y > py else (-1 if closest.y < py else 0)
-                            if dy < 0:
-                                return GameAction.MOVE_UP
-                            elif dy > 0:
-                                return GameAction.MOVE_DOWN
-                            elif dx < 0:
-                                return GameAction.MOVE_LEFT
-                            elif dx > 0:
-                                return GameAction.MOVE_RIGHT
+                            return get_safe_move(current_dungeon, px, py, dx, dy, f"적 추적 ({closest.name})")
 
                 except Exception as e:
                     log_bug("LLMExplorationError", str(e))
                     log_action(f"❌ LLM 실패: {str(e)[:50]}")
                     add_ai_commentary(f"🔧 LLM 에러 - 규칙 기반으로 전환")
-            
-            # ===== 경로 따라가기 (적 추적) =====
-            if current_path:
-                next_pos = current_path[0]
-                dx = next_pos[0] - px
-                dy = next_pos[1] - py
-
-                tile = current_dungeon.get_tile(next_pos[0], next_pos[1])
-                if tile and tile.walkable:
-                    current_path.pop(0)
-
-                    if dy < 0:
-                        return GameAction.MOVE_UP
-                    elif dy > 0:
-                        return GameAction.MOVE_DOWN
-                    elif dx < 0:
-                        return GameAction.MOVE_LEFT
-                    elif dx > 0:
-                        return GameAction.MOVE_RIGHT
-                else:
-                    current_path.clear()
+                    _ai_exploration_state['target'] = None
 
             # ===== 경로 끝에 도달했을 때 (적이 있으면 전투 시작) =====
             # 경로가 비었고 closest_enemy가 있고 인접하면 전투 시작
@@ -952,141 +1621,356 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
                     add_ai_commentary(f"⚔️ 전투 시작!")
                     # 전투는 자동으로 시작되므로, 여기서는 아무 행동도 하지 않음
                     # (다음 프레임에서 전투 시스템이 활성화됨)
-                    return GameAction.CONFIRM  # 일단 CONFIRM으로 전투 유도
+                    return ai_press_key(GameAction.CONFIRM)  # 일단 CONFIRM으로 전투 유도
 
-            # 경로 없으면 LLM 호출 또는 랜덤 이동
+            # ===== 폴백: 탐험 (경로 없을 때) =====
             import random
+            
+            # 현재 상태 로그
+            log_action(f"🔍 탐험 중 (탐험 {len(explored_tiles)}타일)")
+            add_ai_commentary(f"🔍 새로운 길 탐색 중...")
+            
             directions = [
-                (GameAction.MOVE_UP, 0, -1),
-                (GameAction.MOVE_DOWN, 0, 1),
-                (GameAction.MOVE_LEFT, -1, 0),
-                (GameAction.MOVE_RIGHT, 1, 0),
+                (GameAction.MOVE_UP, 0, -1, "↑"),
+                (GameAction.MOVE_DOWN, 0, 1, "↓"),
+                (GameAction.MOVE_LEFT, -1, 0, "←"),
+                (GameAction.MOVE_RIGHT, 1, 0, "→"),
             ]
             
+            # 이동 가능한 방향 찾기 (미방문 우선)
             possible_moves = []
-            for game_action, dx, dy in directions:
+            unexplored_moves = []
+            for game_action, dx, dy, dir_name in directions:
                 nx, ny = px + dx, py + dy
                 tile = current_dungeon.get_tile(nx, ny)
                 if tile and tile.walkable:
-                    possible_moves.append(game_action)
+                    possible_moves.append((game_action, dir_name))
+                    if (nx, ny) not in explored_tiles:
+                        unexplored_moves.append((game_action, dir_name))
             
-            if possible_moves:
-                return random.choice(possible_moves)
+            if unexplored_moves:
+                # 미방문 방향 우선
+                chosen, dir_name = random.choice(unexplored_moves)
+                log_action(f"{dir_name} 미탐험 지역으로")
+                return ai_press_key(chosen)
+            elif possible_moves:
+                # 탐험한 지역이지만 이동 가능
+                chosen, dir_name = random.choice(possible_moves)
+                log_action(f"{dir_name} 이동 (새 경로 탐색)")
+                return ai_press_key(chosen)
             
-            # 모든 방향이 막힘 - 버그로 기록
-            log_bug("NoValidMoves", f"위치 ({px}, {py})에서 이동 불가", 
-                   game_state={"position": (px, py), "floor": floor_number})
-            
-            return random.choice([GameAction.MOVE_UP, GameAction.MOVE_DOWN, GameAction.MOVE_LEFT, GameAction.MOVE_RIGHT])
+            # 정말 막힘 - WAIT
+            log_action("⏸️ 대기 (막다른 곳)")
+            add_ai_commentary("⏸️ 막다른 곳...")
+            return ai_press_key(GameAction.WAIT)
         
         except Exception as e:
             log_bug("ExplorationAIError", str(e), traceback.format_exc())
             import random
-            return random.choice([GameAction.MOVE_UP, GameAction.MOVE_DOWN, GameAction.MOVE_LEFT, GameAction.MOVE_RIGHT])
+            return ai_press_key(random.choice([GameAction.MOVE_UP, GameAction.MOVE_DOWN, GameAction.MOVE_LEFT, GameAction.MOVE_RIGHT]))
     
-    # AI 전투 입력 제공 콜백
+    # AI 전투: LLM 결정 + UI 실행
+    _ai_combat_state = {'char': None, 'step': 0, 'last_action_time': 0, 'llm_action': None, 'target_name': None}
+    _combat_bots = {}  # 캐릭터별 봇 캐시
+    
     def ai_combat_input(ui, combat_manager, current_char, inv) -> GameAction:
-        """AI가 전투 입력 결정 - LLM 중심 + 정상적인 메뉴 네비게이션"""
-        import traceback
+        """AI 전투 - LLM이 행동 결정 → UI 통해 실행"""
+        import time
         from src.ui.combat_ui import CombatUIState
-
-        log_action(f"⚔️ AI 전투 입력: {current_char.name}")
-        logger.info(f"[COMBAT] ⚔️ AI 전투 입력 호출: {current_char.name} (상태={ui.state.value}, AI={ai is not None}, USE_LLM={use_llm})")
-
-        # LLM 사용 가능한 경우
-        if ai and use_llm:
-            try:
-                from src.multiplayer.llm_player_bot import GameStateConverter, ActionType
-
-                logger.info(f"[COMBAT] 전투 상태 변환 중...")
-                combat_state = GameStateConverter.from_combat_manager(combat_manager, current_char, inv)
-                logger.info(f"[COMBAT] ✅ 전투 상태 변환 완료")
-
-                # LLM 전투 결정
-                log_action(f"🤖 LLM 전투 호출: {current_char.name}")
-                logger.info(f"[COMBAT] 🤖 LLM 전투 봇 생성 중...")
-                bot = ai.create_combat_bot(current_char)
-                logger.info(f"[COMBAT] 🤖 LLM 호출 중...")
-                action = bot.decide_combat_action(combat_state)
-                logger.info(f"[COMBAT] ✅ LLM 응답 받음")
-                action_name = action.action_type.value if hasattr(action.action_type, 'value') else str(action.action_type)
-
-                log_action(f"✅ LLM 전투 결정: {action_name}")
-                set_ai_action(f"⚔️ {action_name}")
-                reasoning = getattr(action, 'reasoning', '')
-                if reasoning:
-                    add_ai_commentary(f"⚔️ {current_char.name}: {reasoning[:40]}")
-                else:
-                    add_ai_commentary(f"⚔️ {current_char.name}: {action_name}")
-
-                # ===== LLM 결정을 저장하고 CONFIRM만 반복 =====
-                # ACTION_MENU에서만 새로운 LLM 결정 받기
-                if ui.state == CombatUIState.ACTION_MENU:
-                    global _current_combat_action, _combat_action_step
-                    _current_combat_action = action
-                    _combat_action_step = 0
-
-                    action_desc = ""
-                    if action.action_type == ActionType.SKILL:
-                        action_desc = f"✨ 스킬: {action.skill_id}"
-                    elif action.action_type == ActionType.ITEM:
-                        action_desc = "📦 아이템"
-                    elif action.action_type == ActionType.BRV_ATTACK:
-                        action_desc = "💥 BRV 공격"
-                    elif action.action_type == ActionType.HP_ATTACK:
-                        action_desc = "💥 HP 공격"
-                    elif action.action_type == ActionType.DEFEND:
-                        action_desc = "🛡️ 방어"
-                    elif action.action_type == ActionType.FLEE:
-                        action_desc = "💨 도망"
-                    else:
-                        action_desc = f"⚠️ {action_name}"
-
-                    log_action(action_desc)
-                    logger.info(f"[COMBAT] 📝 LLM 결정 저장: {action_name}")
-
-                # UI 메뉴 네비게이션: 항상 CONFIRM으로 진행
-                # ACTION_MENU → SKILL_MENU/TARGET_SELECT/ITEM_MENU → EXECUTING
-                logger.debug(f"[COMBAT] 상태={ui.state.value} → CONFIRM 반환 (메뉴 진행)")
-                return GameAction.CONFIRM
-
-            except Exception as e:
-                logger.error(f"[COMBAT] ❌ LLM 전투 실패: {str(e)}")
-                logger.error(f"[COMBAT] 스택 트레이스:\n{traceback.format_exc()}")
-                log_action(f"❌ LLM 전투 실패: {str(e)[:50]}")
-                log_bug("LLMCombatError", str(e), traceback.format_exc())
-                add_ai_commentary(f"🔧 LLM 오류 - 기본 공격으로")
-
-        # ===== 규칙 기반 폴백 또는 LLM 비활성화 =====
-        log_action(f"📋 규칙 기반 AI: {current_char.name}")
-        logger.info(f"[COMBAT] 📋 규칙 기반 AI 사용 (AI={ai}, USE_LLM={use_llm})")
-
-        # 기본 우선순위: 긴급 상황 > 힐 > 버프 > 공격
+        from src.combat.combat_manager import ActionType
+        
+        state = ui.state
+        now = time.time()
+        
+        # 너무 빠른 입력 방지 (0.05초 간격)
+        time_since_last = now - _ai_combat_state['last_action_time']
+        if time_since_last < 0.05:
+            return None
+        _ai_combat_state['last_action_time'] = now
+        
+        logger.info(f"[COMBAT] 상태: {state.value}, 캐릭터: {current_char.name}, LLM: {_ai_combat_state.get('llm_action')}")
+        
+        # 봇 클라이언트용 상태 내보내기
         try:
-            alive_chars = [c for c in combat_manager.party if c.is_alive]
-
-            # 1. 파티 전멸 위기 → 힐 (HP < 20% 이상 있으면)
-            critical_hp = sum(1 for c in alive_chars if c.current_hp / c.max_hp < 0.3)
-            if critical_hp >= len(alive_chars) // 2:
-                log_action("🆘 규칙: 긴급 힐 필요")
-                logger.info(f"[COMBAT] 🆘 긴급 힐 필요 (파티 위기)")
-                return GameAction.CONFIRM
-
-            # 2. 자신의 HP 위험 → 힐 또는 방어
-            if current_char.current_hp / current_char.max_hp < 0.2:
-                log_action("❤️ 규칙: 자신 체력 위험")
-                logger.info(f"[COMBAT] ❤️ 자신 체력 위험 ({current_char.current_hp}/{current_char.max_hp})")
-                return GameAction.CANCEL  # 방어 선택
-
-            # 3. 일반 전투 → 공격
-            log_action("⚔️ 규칙: 일반 공격")
-            logger.info(f"[COMBAT] ⚔️ 기본 공격 선택")
-            return GameAction.CONFIRM
-        except Exception as e:
-            logger.error(f"[COMBAT] ❌ 규칙 기반 AI 오류: {str(e)}")
-            logger.error(f"[COMBAT] 스택 트레이스:\n{traceback.format_exc()}")
-            log_action(f"❌ 규칙 AI 오류: {str(e)[:30]}")
-            return GameAction.CONFIRM  # 일단 CONFIRM으로 진행
+            from src.bot import export_combat_state
+            screen_text = get_screen_text()
+            ui_state_str = state.value if hasattr(state, 'value') else str(state)
+            # party 추출 시도 (ATB에서)
+            party = getattr(combat_manager, 'allies', None)
+            if not party and hasattr(combat_manager, 'atb'):
+                party = [c for c in combat_manager.atb.get_action_order() if hasattr(c, 'job_id')]
+            export_combat_state(combat_manager, current_char, screen_text, ui_state_str, party)
+        except ImportError:
+            pass
+        
+        # 캐릭터 바뀌면 LLM 호출
+        if _ai_combat_state['char'] != current_char.name:
+            _ai_combat_state['char'] = current_char.name
+            _ai_combat_state['step'] = 0
+            _ai_combat_state['llm_action'] = None
+            _ai_combat_state['target_name'] = None
+            
+            # LLM 전투 결정
+            try:
+                from src.multiplayer.llm_player_bot import create_llm_bot, get_bot_action_for_combat
+                
+                char_name = current_char.name
+                if char_name not in _combat_bots:
+                    job = getattr(current_char, 'job_id', 'warrior')
+                    _combat_bots[char_name] = create_llm_bot(char_name, job, "gpt-oss:20b")
+                
+                bot = _combat_bots[char_name]
+                
+                # 화면 텍스트 추출 (실제 플레이어가 보는 화면)
+                screen_text = get_screen_text()
+                action = get_bot_action_for_combat(bot, combat_manager, current_char, inv, screen_text=screen_text)
+                
+                _ai_combat_state['llm_action'] = action.action_type
+                _ai_combat_state['target_name'] = action.target_name
+                _ai_combat_state['skill_id'] = getattr(action, 'skill_id', None)
+                
+                logger.info(f"[COMBAT] 🤖 LLM 결정: {current_char.name} → {action.action_type.value}, 타겟: {action.target_name}")
+                log_action(f"🤖 {current_char.name}: {action.action_type.value}")
+                add_ai_commentary(f"🤖 {action.reasoning[:30] if action.reasoning else '전투 행동'}...")
+                
+            except Exception as e:
+                logger.error(f"[COMBAT] LLM 실패: {e}")
+                _ai_combat_state['llm_action'] = ActionType.BRV_ATTACK  # 폴백
+                _ai_combat_state['target_name'] = None
+        
+        _ai_combat_state['step'] += 1
+        
+        # 무한 루프 방지
+        if _ai_combat_state['step'] > 50:
+            logger.warning(f"[COMBAT] ⚠️ 강제 진행")
+            _ai_combat_state['step'] = 0
+            return ai_press_key(GameAction.CONFIRM)
+        
+        llm_action = _ai_combat_state.get('llm_action', ActionType.BRV_ATTACK)
+        
+        # 상태별 처리
+        logger.info(f"[COMBAT] 상태: {state}, LLM 행동: {llm_action}")
+        
+        if state == CombatUIState.ACTION_MENU:
+            if not ui.action_menu or not ui.action_menu.items:
+                logger.warning(f"[COMBAT] 메뉴 없음!")
+                return None
+            
+            # LLM 행동에 맞는 메뉴 찾기 (item.value로 ActionType 비교)
+            target_menu = None
+            brv_menu = None  # BRV 공격 메뉴 (인덱스 0)
+            hp_menu = None   # HP 공격 메뉴 (인덱스 1)
+            skill_menu = None
+            item_menu = None
+            defend_menu = None
+            
+            # 메뉴 목록 로그
+            menu_texts = [(i, item.text, item.enabled) for i, item in enumerate(ui.action_menu.items)]
+            logger.info(f"[COMBAT] 메뉴 목록: {menu_texts}")
+            
+            for i, item in enumerate(ui.action_menu.items):
+                if not item.enabled:
+                    continue
+                
+                text = item.text
+                
+                # 텍스트로 메뉴 타입 판단 (다양한 변형 처리)
+                if '스킬' in text or 'skill' in text.lower() or text == '기술':
+                    skill_menu = i
+                elif '아이템' in text or 'item' in text.lower() or '소모품' in text:
+                    item_menu = i
+                elif '방어' in text or 'defend' in text.lower() or '가드' in text:
+                    defend_menu = i
+                elif '도망' in text or '도주' in text or 'flee' in text.lower():
+                    pass  # 무시
+                elif '기믹' in text or '상세' in text:
+                    pass  # 무시
+                # 첫 두 메뉴는 BRV/HP 공격 (활성화된 것만)
+                elif brv_menu is None:
+                    brv_menu = i  # 첫 번째 비-기능 메뉴 = BRV
+                elif hp_menu is None:
+                    hp_menu = i  # 두 번째 = HP
+            
+            # LLM 결정 값 추출
+            llm_action_value = llm_action.value if hasattr(llm_action, 'value') else str(llm_action)
+            logger.debug(f"[COMBAT] llm_action_value='{llm_action_value}'")
+            
+            # LLM 결정에 맞는 메뉴 선택
+            if llm_action_value in ['brv_attack', 'BRV_ATTACK']:
+                target_menu = brv_menu
+            elif llm_action_value in ['hp_attack', 'HP_ATTACK']:
+                target_menu = hp_menu
+            elif llm_action_value in ['skill', 'SKILL']:
+                target_menu = skill_menu
+            elif llm_action_value in ['item', 'ITEM']:
+                target_menu = item_menu
+            elif llm_action_value in ['defend', 'DEFEND']:
+                target_menu = defend_menu
+            
+            # 못 찾으면 첫 번째 활성화 메뉴
+            if target_menu is None:
+                logger.warning(f"[COMBAT] LLM 메뉴 못 찾음: {llm_action}, 폴백 실행")
+                for i, item in enumerate(ui.action_menu.items):
+                    if item.enabled:
+                        target_menu = i
+                        logger.info(f"[COMBAT] 폴백 메뉴: {i} = {item.text}")
+                        break
+            
+            logger.info(f"[COMBAT] 메뉴 매칭: LLM={llm_action}, brv={brv_menu}, hp={hp_menu}, skill={skill_menu} → target={target_menu}")
+            
+            if target_menu is not None:
+                cur = ui.action_menu.cursor_index
+                if cur < target_menu:
+                    return ai_press_key(GameAction.MOVE_DOWN)
+                elif cur > target_menu:
+                    return ai_press_key(GameAction.MOVE_UP)
+                else:
+                    log_action(f"⚔️ {current_char.name}: {ui.action_menu.items[cur].text}")
+                    _ai_combat_state['step'] = 0
+                    return ai_press_key(GameAction.CONFIRM)
+            
+            return None
+        
+        elif state == CombatUIState.TARGET_SELECT:
+            targets = getattr(ui, 'current_target_list', [])
+            target_name = _ai_combat_state.get('target_name')
+            
+            # 타겟 선택 우선순위
+            target_idx = None
+            
+            # 1. LLM이 지정한 이름으로 찾기 (정확히 일치)
+            if target_name and target_name not in ['enemy', 'ally', 'self']:
+                for i, t in enumerate(targets):
+                    if getattr(t, 'name', '') == target_name:
+                        target_idx = i
+                        break
+            
+            # 2. 못 찾으면 전략적 선택 (적 타겟인 경우)
+            if target_idx is None and targets:
+                llm_action = _ai_combat_state.get('llm_action')
+                
+                # 적 공격인 경우 - HP 낮은 적 우선 (막타용)
+                enemies_in_targets = [t for t in targets if hasattr(t, 'is_alive') and t in getattr(combat_manager, 'enemies', [])]
+                if enemies_in_targets:
+                    # HP 비율이 가장 낮은 적
+                    best = None
+                    best_hp_pct = 999
+                    for i, t in enumerate(targets):
+                        if t in enemies_in_targets:
+                            hp = getattr(t, 'current_hp', 1)
+                            max_hp = getattr(t, 'max_hp', 1)
+                            hp_pct = hp / max_hp * 100
+                            if hp_pct < best_hp_pct:
+                                best_hp_pct = hp_pct
+                                best = i
+                    if best is not None:
+                        target_idx = best
+            
+            # 3. 그래도 없으면 첫 번째
+            if target_idx is None:
+                target_idx = 0
+            
+            # 커서 이동
+            cur = getattr(ui, 'target_cursor', 0)
+            if cur < target_idx:
+                return ai_press_key(GameAction.MOVE_DOWN)
+            elif cur > target_idx:
+                return ai_press_key(GameAction.MOVE_UP)
+            
+            # 선택
+            if targets:
+                target = targets[target_idx] if target_idx < len(targets) else targets[0]
+                log_action(f"🎯 → {getattr(target, 'name', '?')}")
+            _ai_combat_state['step'] = 0
+            return ai_press_key(GameAction.CONFIRM)
+        
+        elif state == CombatUIState.SKILL_MENU:
+            if not ui.skill_menu or not ui.skill_menu.items:
+                return ai_press_key(GameAction.CANCEL)
+            
+            # LLM이 선택한 스킬 ID로 찾기
+            llm_skill_id = _ai_combat_state.get('skill_id')
+            target_skill = None
+            
+            for i, item in enumerate(ui.skill_menu.items):
+                if not item.enabled:
+                    continue
+                
+                # 스킬 ID나 이름으로 매칭
+                skill = item.value
+                skill_id = getattr(skill, 'id', getattr(skill, 'skill_id', '')) if skill else ''
+                skill_name = getattr(skill, 'name', item.text) if skill else item.text
+                
+                if llm_skill_id and (skill_id == llm_skill_id or llm_skill_id in skill_name):
+                    target_skill = i
+                    break
+            
+            # LLM 스킬 못 찾으면 첫 번째 활성화 스킬
+            if target_skill is None:
+                for i, item in enumerate(ui.skill_menu.items):
+                    if item.enabled and item.value is not None:  # 뒤로가기 제외
+                        target_skill = i
+                        break
+            
+            if target_skill is not None:
+                cur = ui.skill_menu.cursor_index
+                if cur < target_skill:
+                    return ai_press_key(GameAction.MOVE_DOWN)
+                elif cur > target_skill:
+                    return ai_press_key(GameAction.MOVE_UP)
+                else:
+                    skill_name = ui.skill_menu.items[cur].text
+                    log_action(f"✨ {skill_name}")
+                    add_ai_commentary(f"✨ 스킬: {skill_name}")
+                    _ai_combat_state['step'] = 0
+                    return ai_press_key(GameAction.CONFIRM)
+            
+            return ai_press_key(GameAction.CANCEL)
+        
+        elif state == CombatUIState.ITEM_MENU:
+            return ai_press_key(GameAction.CANCEL)
+        
+        elif state == CombatUIState.CARD_SELECT:
+            # 마술사 카드 선택 UI - card_hand 리스트 사용
+            card_hand = getattr(ui, 'card_hand', [])
+            if card_hand:
+                # 가장 높은 랭크의 카드 선택 (에이스 인 더 홀용)
+                rank_order = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
+                best_idx = 0
+                best_rank = 99
+                for i, card in enumerate(card_hand):
+                    rank = card.get('rank', '')
+                    if card.get('is_joker'):
+                        # 조커는 최고
+                        best_idx = i
+                        best_rank = -1
+                        break
+                    elif rank in rank_order:
+                        r = rank_order.index(rank)
+                        if r < best_rank:
+                            best_rank = r
+                            best_idx = i
+                
+                card_cursor = getattr(ui, 'card_cursor', 0)
+                if card_cursor < best_idx:
+                    return ai_press_key(GameAction.MOVE_RIGHT)
+                elif card_cursor > best_idx:
+                    return ai_press_key(GameAction.MOVE_LEFT)
+                else:
+                    selected_card = card_hand[best_idx]
+                    card_name = f"{selected_card.get('suit', '?')}{selected_card.get('rank', '?')}"
+                    log_action(f"🃏 카드: {card_name}")
+                    add_ai_commentary(f"🃏 {card_name} 선택!")
+                    _ai_combat_state['step'] = 0
+                    return ai_press_key(GameAction.CONFIRM)
+            # 카드 없으면 취소
+            return ai_press_key(GameAction.CANCEL)
+        
+        elif state == CombatUIState.GIMMICK_VIEW:
+            # 기믹 상세 보기 - 닫기
+            return ai_press_key(GameAction.CANCEL)
+        
+        return None
     
     # 실제 게임 UI 사용하여 탐험/전투 루프
     from src.ui.world_ui import run_exploration

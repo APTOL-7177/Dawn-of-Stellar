@@ -345,6 +345,85 @@ class SaveSystem:
         save_path = self.save_dir / f"save_slot_{slot}.json"
         return save_path.exists()
 
+    def save_account_progress(self, achievement_manager) -> bool:
+        """
+        도전과제와 마일스톤 데이터를 별도 계정 파일로 저장
+        계정 수준에서 관리되므로 게임 세이브와 별개
+        """
+        try:
+            # 계정 파일 경로
+            script_dir = Path(__file__).parent.parent.parent
+            account_file = script_dir / "user_data" / "account_progress.json"
+
+            # 디렉토리 생성
+            account_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # 도전과제 + 마일스톤 데이터 저장
+            progress_data = achievement_manager.save_progress()
+
+            with open(account_file, 'w', encoding='utf-8') as f:
+                json.dump(progress_data, f, ensure_ascii=False, indent=2)
+
+            logger.info(f"계정 진행도 데이터 저장됨: {account_file}")
+            return True
+
+        except Exception as e:
+            logger.error(f"계정 진행도 데이터 저장 실패: {e}")
+            return False
+
+    def load_account_progress(self, achievement_manager) -> bool:
+        """
+        도전과제와 마일스톤 데이터를 계정 파일에서 로드
+        계정 수준에서 관리되므로 게임 로드와 별개
+        """
+        try:
+            # 계정 파일 경로들 (하위 호환성)
+            script_dir = Path(__file__).parent.parent.parent
+            account_file = script_dir / "user_data" / "account_progress.json"
+            legacy_file = script_dir / "user_data" / "achievements.json"
+
+            # 우선 새 파일 확인
+            if account_file.exists():
+                data_file = account_file
+                logger.info("새 계정 진행도 파일 발견")
+            elif legacy_file.exists():
+                data_file = legacy_file
+                logger.info("기존 도전과제 파일을 발견하여 마이그레이션 진행")
+            else:
+                logger.info("계정 진행도 파일이 존재하지 않음 - 새로 시작")
+                return True
+
+            # 진행도 데이터 로드
+            with open(data_file, 'r', encoding='utf-8') as f:
+                progress_data = json.load(f)
+
+            achievement_manager.load_progress(progress_data)
+            logger.info(f"계정 진행도 데이터 불러오기 완료: {data_file}")
+
+            # 기존 파일에서 로드했다면 새 파일로 저장 (마이그레이션)
+            if data_file == legacy_file and account_file != legacy_file:
+                try:
+                    import shutil
+                    shutil.copy2(legacy_file, account_file)
+                    logger.info(f"기존 파일을 새 포맷으로 마이그레이션: {legacy_file} -> {account_file}")
+                except Exception as mig_e:
+                    logger.warning(f"마이그레이션 실패 (기존 파일 유지): {mig_e}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"계정 진행도 데이터 불러오기 실패: {e}")
+            return False
+
+    # 하위 호환성을 위한 별칭 메소드들
+    def save_achievements(self, achievement_manager) -> bool:
+        """기존 메소드 호환성을 위한 별칭"""
+        return self.save_account_progress(achievement_manager)
+
+    def load_achievements(self, achievement_manager) -> bool:
+        """기존 메소드 호환성을 위한 별칭"""
+        return self.load_account_progress(achievement_manager)
+
 
 def serialize_status_effects(status_effects: List[Any]) -> List[Dict[str, Any]]:
     """StatusEffect 리스트 직렬화"""
@@ -390,6 +469,11 @@ def serialize_party_member(member: Any) -> Dict[str, Any]:
         status_effects_data = serialize_status_effects(member.status_manager.status_effects)
     elif hasattr(member, 'status_effects') and member.status_effects:
         status_effects_data = serialize_status_effects(member.status_effects)
+    
+    # 저장 전 환경 효과 수정치 제거 (전투 중에만 사용되는 임시 값)
+    # 이 값이 저장되면 불러오기 시 중복 적용될 수 있음
+    if hasattr(member, 'env_stat_modifiers'):
+        delattr(member, 'env_stat_modifiers')
     
     result = {
         "name": member.name,
@@ -687,177 +771,6 @@ def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]
         "harvestables": harvestables_data,  # 채집 오브젝트 추가
         "enemies": enemies_data,  # 적 추가
     }
-
-
-def serialize_game_state(
-    party: List[Any],
-    floor_number: int,
-    dungeon: Any,
-    player_x: int,
-    player_y: int,
-    inventory: List[Any],
-    player_keys: List[str],
-    traits: List[Any],
-    passives: List[Any],
-    difficulty: Optional[str] = None,
-    exploration: Any = None,
-    all_floors_dungeons: Dict[int, Any] = None,
-    is_multiplayer: bool = False,
-    session: Any = None,
-    max_floor_reached: int = 1
-) -> Dict[str, Any]:
-    """전체 게임 상태 직렬화"""
-
-    # 파티
-    party_data = [serialize_party_member(member) for member in party]
-
-    # 현재 층 던전 (적 포함)
-    enemies = []
-    if exploration and hasattr(exploration, 'enemies'):
-        enemies = exploration.enemies
-    
-    dungeon_data = serialize_dungeon(dungeon, enemies=enemies)
-
-    # 모든 층의 던전 상태 저장 (층별 던전 상태 유지)
-    floors_data = {}
-    if all_floors_dungeons:
-        for floor_num, floor_dungeon_data in all_floors_dungeons.items():
-            floors_data[floor_num] = floor_dungeon_data
-    else:
-        # 기존 방식: 현재 층만 저장
-        floors_data[floor_number] = dungeon_data
-
-    # 인벤토리 (딕셔너리 형식으로 저장)
-    # inventory가 Inventory 객체인지 리스트인지 확인
-    if hasattr(inventory, 'gold') and hasattr(inventory, 'slots'):
-        # Inventory 객체인 경우
-        items_list = []
-        for slot in inventory.slots:
-            # InventorySlot은 dataclass이므로 item과 quantity 속성 사용
-            if slot and hasattr(slot, 'item'):
-                # quantity 정보 포함하여 저장
-                items_list.append({
-                    "item": serialize_item(slot.item),
-                    "quantity": getattr(slot, 'quantity', 1)
-                })
-        
-        inventory_data = {
-            "gold": getattr(inventory, 'gold', 0),
-            "items": items_list,
-            "cooking_cooldown_turn": getattr(inventory, 'cooking_cooldown_turn', None),
-            "cooking_cooldown_duration": getattr(inventory, 'cooking_cooldown_duration', 0)
-        }
-    elif isinstance(inventory, list):
-        # 리스트인 경우 (구버전 형식 - 하위 호환성)
-        # 리스트의 각 항목이 아이템인지 확인
-        items_list = []
-        for item in inventory:
-            if hasattr(item, 'item_id') or hasattr(item, 'name'):
-                # 아이템 객체인 경우
-                items_list.append({
-                    "item": serialize_item(item),
-                    "quantity": 1
-                })
-            elif isinstance(item, dict):
-                # 이미 직렬화된 딕셔너리인 경우
-                items_list.append(item)
-        
-        inventory_data = {
-            "gold": 0,
-            "items": items_list,
-            "cooking_cooldown_turn": None,
-            "cooking_cooldown_duration": 0
-        }
-    else:
-        # 알 수 없는 형식
-        inventory_data = {
-            "gold": 0,
-            "items": [],
-            "cooking_cooldown_turn": None,
-            "cooking_cooldown_duration": 0
-        }
-
-    # 특성
-    traits_data = []
-    for trait_selection in traits:
-        traits_data.append({
-            "character_name": trait_selection.character_name,
-            "job_name": trait_selection.job_name,
-            "selected_traits": [
-                {"id": t.id, "name": t.name, "description": t.description, "type": t.type}
-                for t in trait_selection.selected_traits
-            ]
-        })
-
-    # 패시브
-    passives_data = [
-        {
-            "id": p.id,
-            "name": p.name,
-            "description": p.description,
-            "cost": p.cost,
-            "effects": p.effects
-        }
-        for p in passives
-    ]
-
-    # TownManager 저장 (exploration에서 우선 가져옴)
-    town_manager_data = None
-    if exploration and hasattr(exploration, 'town_manager') and exploration.town_manager:
-        town_manager_data = exploration.town_manager.to_dict()
-        logger.info(f"[DEBUG] 저장: exploration.town_manager 사용 (id: {id(exploration.town_manager)}, storage: {len(exploration.town_manager.get_storage_inventory())}개)")
-    else:
-        logger.warning("[DEBUG] 저장: exploration.town_manager 없음")
-        # 폴백: 전역 town_manager
-        from src.town.town_manager import get_town_manager
-        global_tm = get_town_manager()
-        if global_tm:
-            town_manager_data = global_tm.to_dict()
-            logger.info(f"[DEBUG] 저장: 전역 town_manager 사용 (id: {id(global_tm)}, storage: {len(global_tm.get_storage_inventory())}개)")
-        else:
-            logger.error("[DEBUG] 저장: 전역 town_manager도 없음")
-
-    result = {
-        "party": party_data,
-        "floor_number": floor_number,
-        "max_floor_reached": max_floor_reached,  # 최대 도달 층수
-        "dungeon": dungeon_data,  # 현재 층 던전 (하위 호환성)
-        "floors": floors_data,  # 모든 층의 던전 상태
-        "player_position": {"x": player_x, "y": player_y},
-        "inventory": inventory_data,
-        "keys": player_keys,
-        "traits": traits_data,
-        "passives": passives_data,
-        "difficulty": difficulty if difficulty else "보통",  # 난이도 추가
-        "is_multiplayer": is_multiplayer,  # 멀티플레이어 여부
-    }
-
-    if town_manager_data:
-        result["town_manager"] = town_manager_data
-    
-    # 멀티플레이: 세션 정보 저장 (플레이어 재할당용)
-    if is_multiplayer and session:
-        session_data = {
-            "host_id": getattr(session, 'host_id', None),
-            "max_players": getattr(session, 'max_players', 4),
-            "players": []
-        }
-        
-        # 각 플레이어 정보 저장 (player_id, player_name)
-        if hasattr(session, 'players'):
-            for player_id, player in session.players.items():
-                if player:
-                    session_data["players"].append({
-                        "player_id": player_id,
-                        "player_name": getattr(player, 'player_name', '플레이어'),
-                        "x": getattr(player, 'x', 0),
-                        "y": getattr(player, 'y', 0)
-                    })
-        
-        result["session"] = session_data
-        logger.debug(f"멀티플레이 세션 정보 저장: {len(session_data['players'])}명 플레이어")
-    
-    return result
 
 
 def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
@@ -1246,6 +1159,10 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
         char.player_id = member_data["player_id"]
         logger.debug(f"{char.name}의 원래 player_id 복원: {char.player_id}")
 
+    # 환경 효과 수정치 초기화 (전투 시작 시 다시 계산됨)
+    # 저장된 값이 있더라도 무시하고 초기화
+    char.env_stat_modifiers = {}
+    
     # 장비 복원
     if member_data.get("equipment"):
         # equipment 속성이 없으면 생성
@@ -1482,10 +1399,6 @@ def deserialize_inventory(inventory_data: Dict[str, Any], party: List[Any] = Non
             quantity = item_entry.get("quantity", 1)
             # add_item은 quantity를 지원하므로 한 번에 추가 (스택 가능한 아이템은 자동으로 스택됨)
             inventory.add_item(item, quantity=quantity)
-        else:
-            # 구형식: 직접 item_data (하위 호환성)
-            item = deserialize_item(item_entry)
-            inventory.add_item(item, quantity=1)
 
     logger.warning(f"[DESERIALIZE] 복원 후 인벤토리 골드: {inventory.gold}G")
     if inventory.cooking_cooldown_duration > 0:
@@ -1493,84 +1406,92 @@ def deserialize_inventory(inventory_data: Dict[str, Any], party: List[Any] = Non
 
     return inventory
 
-    # ===== 계정 수준 진행도 시스템 (도전과제 + 마일스톤) =====
 
-    def save_account_progress(self, achievement_manager) -> bool:
-        """
-        도전과제와 마일스톤 데이터를 별도 계정 파일로 저장
-        계정 수준에서 관리되므로 게임 세이브와 별개
-        """
-        try:
-            # 계정 파일 경로
-            script_dir = Path(__file__).parent.parent.parent
-            account_file = script_dir / "user_data" / "account_progress.json"
-
-            # 디렉토리 생성
-            account_file.parent.mkdir(parents=True, exist_ok=True)
-
-            # 도전과제 + 마일스톤 데이터 저장
-            progress_data = achievement_manager.save_progress()
-
-            with open(account_file, 'w', encoding='utf-8') as f:
-                json.dump(progress_data, ensure_ascii=False, indent=2)
-
-            logger.info(f"계정 진행도 데이터 저장됨: {account_file}")
-            return True
-
-        except Exception as e:
-            logger.error(f"계정 진행도 데이터 저장 실패: {e}")
-            return False
-
-    def load_account_progress(self, achievement_manager) -> bool:
-        """
-        도전과제와 마일스톤 데이터를 계정 파일에서 로드
-        계정 수준에서 관리되므로 게임 로드와 별개
-        """
-        try:
-            # 계정 파일 경로들 (하위 호환성)
-            script_dir = Path(__file__).parent.parent.parent
-            account_file = script_dir / "user_data" / "account_progress.json"
-            legacy_file = script_dir / "user_data" / "achievements.json"  # 기존 파일
-
-            # 우선 새 파일 확인
-            if account_file.exists():
-                data_file = account_file
-                logger.info("새 계정 진행도 파일 발견")
-            elif legacy_file.exists():
-                # 기존 파일이 있으면 새 파일로 복사 (마이그레이션)
-                data_file = legacy_file
-                logger.info("기존 도전과제 파일을 발견하여 마이그레이션 진행")
-            else:
-                logger.info("계정 진행도 파일이 존재하지 않음 - 새로 시작")
-                return True
-
-            # 진행도 데이터 로드
-            with open(data_file, 'r', encoding='utf-8') as f:
-                progress_data = json.load(f)
-
-            achievement_manager.load_progress(progress_data)
-            logger.info(f"계정 진행도 데이터 불러오기 완료: {data_file}")
-
-            # 기존 파일에서 로드했다면 새 파일로 저장 (마이그레이션)
-            if data_file == legacy_file and account_file != legacy_file:
-                try:
-                    import shutil
-                    shutil.copy2(legacy_file, account_file)
-                    logger.info(f"기존 파일을 새 포맷으로 마이그레이션: {legacy_file} -> {account_file}")
-                except Exception as mig_e:
-                    logger.warning(f"마이그레이션 실패 (기존 파일 유지): {mig_e}")
-
-            return True
-
-        except Exception as e:
-            logger.error(f"계정 진행도 데이터 불러오기 실패: {e}")
-            return False
-
-    # 하위 호환성을 위한 별칭 메소드들
-    def save_achievements(self, achievement_manager) -> bool:
-        """기존 메소드 호환성을 위한 별칭"""
-        return self.save_account_progress(achievement_manager)
-
-    def load_achievements(self, achievement_manager) -> bool:
-        """기존 메소드 호환성을 위한 별칭"""
-        return self.load_account_progress(achievement_manager)
+def serialize_game_state(
+    party: List[Any],
+    floor_number: int,
+    dungeon: Any,
+    player_x: int,
+    player_y: int,
+    inventory: List[Any],
+    player_keys: List[Any] = None,
+    traits: List[Any] = None,
+    passives: List[Any] = None,
+    difficulty: str = "보통",
+    exploration: Any = None,
+    is_multiplayer: bool = False,
+    session: Any = None,
+    max_floor_reached: int = 1
+) -> Dict[str, Any]:
+    """
+    게임 상태를 딕셔너리로 직렬화
+    
+    Args:
+        party: 파티원 리스트
+        floor_number: 현재 층 번호
+        dungeon: 던전 객체
+        player_x: 플레이어 X 좌표
+        player_y: 플레이어 Y 좌표
+        inventory: 인벤토리 아이템 리스트
+        player_keys: 플레이어 키 리스트
+        traits: 특성 리스트
+        passives: 패시브 리스트
+        difficulty: 난이도
+        exploration: 탐험 객체
+        is_multiplayer: 멀티플레이어 여부
+        session: 멀티플레이어 세션
+        max_floor_reached: 최대 도달 층
+    
+    Returns:
+        직렬화된 게임 상태 딕셔너리
+    """
+    
+    # 파티원 직렬화
+    party_data = []
+    for member in party:
+        party_data.append(serialize_party_member(member))
+    
+    # 던전 직렬화 (적 포함)
+    dungeon_data = None
+    if dungeon:
+        enemies = getattr(exploration, 'enemies', []) if exploration else []
+        dungeon_data = serialize_dungeon(dungeon, enemies=enemies)
+    
+    # 인벤토리 아이템 직렬화
+    inventory_data = []
+    for item in inventory:
+        if item:
+            inventory_data.append(serialize_item(item))
+    
+    game_state = {
+        "party": party_data,
+        "floor_number": floor_number,
+        "dungeon": dungeon_data,
+        "player_position": {"x": player_x, "y": player_y},
+        "inventory_items": inventory_data,
+        "player_keys": player_keys or [],
+        "traits": traits or [],
+        "passives": passives or [],
+        "difficulty": difficulty,
+        "is_multiplayer": is_multiplayer,
+        "max_floor_reached": max_floor_reached,
+        "save_timestamp": datetime.now().isoformat()
+    }
+    
+    # 멀티플레이어 세션 정보
+    if is_multiplayer and session:
+        game_state["session"] = {
+            "session_id": getattr(session, 'session_id', None),
+            "host_id": getattr(session, 'host_id', None),
+            "players": getattr(session, 'players', [])
+        }
+    
+    # 탐험 상태 추가
+    if exploration:
+        game_state["exploration_state"] = {
+            "turn_count": getattr(exploration, 'turn_count', 0),
+            "combat_count": getattr(exploration, 'combat_count', 0),
+            "is_hub": getattr(exploration, 'is_hub', False),
+        }
+    
+    return game_state

@@ -203,16 +203,38 @@ def open_anvil_ui(console, context, inventory, target_tile):
     """모루 UI 열기"""
     ui = AnvilUI(console.width, console.height, inventory, target_tile)
     
+    import time
+    import pygame
+    
     while True:
         ui.render(console)
         context.present(console)
         
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            pygame.event.pump()
+        except:
+            pass
+        
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
             if action:
+                keyboard_processed = True
                 if ui.handle_input(action):
                     return
             
             if isinstance(event, tcod.event.Quit):
                 raise SystemExit()
+        
+        # 게임패드 입력 처리
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                if ui.handle_input(gamepad_action):
+                    return
+        
+        # CPU 사용률 낮추기
+        time.sleep(0.01)
 

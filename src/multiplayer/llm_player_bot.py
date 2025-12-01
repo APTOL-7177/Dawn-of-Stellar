@@ -6,6 +6,7 @@ Ollama를 사용하여 로컬 LLM으로 고급 플레이어처럼 게임을 플�
 모든 게임 기능(전투, 스킬, 아이템, 요리, 직업 기믹)을 완벽히 활용합니다.
 """
 
+import os
 import json
 import time
 import asyncio
@@ -40,20 +41,70 @@ class PlayStyle(Enum):
 @dataclass
 class LLMConfig:
     """LLM 설정"""
-    base_url: str = "http://localhost:11434"  # Ollama 기본 주소
-    model: str = "qwen3:0.6b"  # 사용할 모델 (0.6b=빠름, 1.7b=균형, 4b=똑똑)
+    base_url: str = "http://localhost:11434"  # Ollama 로컬 주소
+    model: str = "gpt-oss:20b"  # Cloud 모델 (가장 가벼움: gpt-oss:20b)
+    use_cloud: bool = True  # Ollama Cloud 사용
     temperature: float = 0.3  # 낮을수록 일관된 결정
-    timeout: float = 15.0  # 타임아웃 (초)
-    max_tokens: int = 1024  # 최대 출력 토큰
-    context_length: int = 2048  # 컨텍스트 길이
-    num_gpu: int = 99  # GPU 레이어 수 (최대 = 최고 속도)
+    timeout: float = 60.0  # 타임아웃 (Cloud는 네트워크 지연 고려)
+    max_tokens: int = 2048  # 응답 토큰 (간결하게)
+    context_length: int = 16384  # 컨텍스트 길이
+    num_gpu: int = 99  # GPU (Cloud에서는 무시됨)
     retry_count: int = 3  # 재시도 횟수
     enable_thinking: bool = False  # Qwen3 thinking 모드
     play_style: PlayStyle = PlayStyle.BALANCED  # 플레이 스타일
     enable_commentary: bool = True  # 실시간 해설 활성화
     async_mode: bool = True  # 비동기 모드
-    detailed_prompt: bool = False  # True=상세 프롬프트 (느리지만 정확), False=간소화 (빠름)
+    detailed_prompt: bool = True  # True=상세 프롬프트 (느리지만 정확), False=간소화 (빠름)
     boss_mode: bool = False  # 보스전용 상세 분석 모드
+
+
+# =============================================================================
+# 시스템 프롬프트
+# =============================================================================
+
+EXPLORATION_SYSTEM_PROMPT = """당신은 Dawn of Stellar 게임의 탐험 AI입니다.
+던전을 효율적으로 탐험하고 자원을 수집합니다.
+
+## 우선순위
+1. 생존: HP 30% 미만이면 회복 아이템 사용 또는 안전 지대로 이동
+2. 위험 회피: 데미지 타일(용암, 독가스 등) 우회, 불가피시 회복 준비
+3. 파밍: 보물상자, 아이템, 오브젝트 수집
+4. 탐험: 미탐험 지역 발견
+5. 진행: 충분히 탐험 후 계단으로 이동
+
+## 행동 유형
+- move: 특정 위치로 이동
+- interact: 오브젝트 상호작용 (상자 열기, NPC 대화)
+- use_item: 아이템 사용 (회복 등)
+- fight: 적과 전투
+- flee: 도망
+- pickup: 아이템 줍기
+- open_chest: 보물상자 열기
+
+JSON 형식으로 응답하세요."""
+
+TOWN_SYSTEM_PROMPT = """당신은 Dawn of Stellar 게임의 마을 관리 AI입니다.
+마을에서 효율적으로 준비하고 자원을 관리합니다.
+
+## 우선순위
+1. 회복: HP/MP가 낮으면 휴식
+2. 구매: 회복 아이템, 필요한 장비 구매
+3. 정비: 장비 수리, 인벤토리 정리
+4. 강화: 여유가 있으면 시설 업그레이드
+5. 출발: 준비 완료 후 던전 출발
+
+## 행동 유형
+- buy: 아이템/장비 구매
+- sell: 아이템 판매
+- repair: 장비 수리
+- cook: 요리 제작
+- craft: 장비 제작
+- rest: 휴식 (HP/MP 회복)
+- upgrade: 시설 업그레이드
+- storage: 창고 이용
+- depart: 던전 출발
+
+JSON 형식으로 응답하세요."""
 
 
 # =============================================================================
@@ -137,6 +188,8 @@ class CombatState:
     teamwork_gauge: int = 0  # 팀워크 게이지 (0-100)
     active_cooking_buff: str = ""  # 활성 요리 버프
     party_buffs: List[str] = field(default_factory=list)  # 파티 전체 버프
+    # 화면 텍스트 (실제 플레이어가 보는 화면)
+    screen_text: str = ""  # 콘솔 화면 텍스트
 
 
 @dataclass
@@ -160,15 +213,28 @@ class ExplorationState:
     treasure_positions: List[Tuple[int, int]] = field(default_factory=list)  # 보물 위치
     trap_positions: List[Tuple[int, int]] = field(default_factory=list)  # 함정 위치
     unexplored_directions: List[Tuple[int, int]] = field(default_factory=list)  # 미탐험 방향
+    
+    # 환경 타일 정보 (LLM 인식용)
+    hazard_tiles: List[Dict[str, Any]] = field(default_factory=list)  # 위험 타일 [{pos: (x,y), type: "lava", damage: 10}]
+    safe_tiles: List[Tuple[int, int]] = field(default_factory=list)  # 안전한 타일
+    objects: List[Dict[str, Any]] = field(default_factory=list)  # 오브젝트 [{pos: (x,y), type: "chest", interactable: True}]
+    
+    # 인벤토리 상태 (회복 아이템 사용 판단용)
+    healing_items: List[Dict[str, Any]] = field(default_factory=list)  # [{name: "포션", heal: 50, count: 3}]
+    gold: int = 0  # 현재 골드
+    # 화면 텍스트 (실제 플레이어가 보는 화면)
+    screen_text: str = ""  # 콘솔 화면 텍스트
 
 
 @dataclass
 class ExplorationAction:
     """탐험 행동"""
-    action_type: str  # "move", "interact", "rest", "use_item", "flee", "fight"
+    action_type: str  # "move", "interact", "rest", "use_item", "flee", "fight", "pickup", "open_chest"
     direction: Optional[Tuple[int, int]] = None  # 이동 방향
     target: Optional[str] = None  # 상호작용 대상
     target_position: Optional[Tuple[int, int]] = None  # 목표 위치 (A*용)
+    item_to_use: Optional[str] = None  # 사용할 아이템 (회복 등)
+    avoid_hazards: bool = True  # 위험 타일 회피 여부
     reasoning: str = ""
 
 
@@ -284,32 +350,67 @@ SYSTEM_PROMPT_BASE = """게임 AI. ATB+BRV 전투 시스템.
 4. 직업 기믹 활용 (스탠스, 충전, 스택 등)
 5. 상태이상: 독/화상=DoT, 기절=행동불가, 버프=강화
 6. **스킬은 언제든지 사용 가능! 상황에 맞춰 적극 활용하세요.**
-   - 힐 스킬: 아군 HP 60% 이하일 때
-   - 버프 스킬: 다음 턴에 강한 공격을 할 때, 또는 파티가 위험할 때
-   - 디버프 스킬: 강한 적에게 약화/슬로우 걸기
-   - 공격 스킬: 높은 데미지 또는 여러 적 대상 가능
 
-## 행동 우선순위
-1. **위험 아군 회복** (HP < 30%) → 회복 스킬이나 아이템 사용
-2. **BREAK된 적에게 HP 공격** (BRV 충분시)
-3. **기본 전략: BRV 축적 → HP 공격**
-   - BRV < MAX의 50%: BRV 공격으로 축적
-   - BRV >= MAX의 50%: HP 공격으로 데미지
-4. **상황에 맞춰 스킬 사용**
-   - 공격 스킬: 광역, 높은 데미지, 상태이상
-   - 버프 스킬: 아군 강화 필요시
-   - 디버프 스킬: 강한 적 약화
-5. 아군 HP 40~60% → 회복 스킬 사용 (예방)
-6. 적 BRV 낮음 → BRV 공격으로 BREAK 노리기
+## 중요: 직업별 역할 수행!
+- 탱커: 도발, 방어 스킬로 파티 보호
+- 힐러: 회복 스킬 우선! HP 70% 이하면 힐
+- 버퍼: 버프 스킬 우선! 공격/방어 버프 유지
+- 디버퍼: 디버프 스킬로 적 약화
+- 딜러: 공격 스킬로 데미지
 
-## 중요 팁
-- BRV/HP 공격만 반복하지 말고, 스킬로 다양성을 주세요
-- MP가 있으면 스킬을 사용하세요 (기본 공격보다 효율적)
-- 같은 스킬만 쓰지 말고 다양한 스킬을 활용하세요
-- "상황 판단"이 중요합니다
-
-JSON: {"action":"brv_attack|hp_attack|skill|item|defend","target":"대상","skill_id":"스킬ID","reasoning":"이유"}
+JSON 응답 형식:
+{"action":"brv_attack|hp_attack|skill|item|defend","target":"적_이름","skill_id":"스킬ID","reasoning":"이유"}
 """
+
+# 직업별 역할 가이드 (34개 전체) - 기믹 메커니즘 + 실전 운용법
+JOB_ROLE_GUIDE = {
+    # === 물리 딜러 ===
+    "warrior": "⚔️ 전사 [6단계 스탠스]: 스탠스에 따라 능력치 변화. balanced_stance=기본, attack_stance=공격↑방어↓, defensive_stance=방어↑. 상황 따라 스탠스 전환 후 BRV쌓고 HP공격!",
+    "archer": "🏹 궁수 [지원사격]: mark_*로 적에 화살 설치(최대3개)→BRV/HP공격 시 설치된 화살 자동 발사! 원소화살(fire/ice/poison)로 속성 부여. 화살 쌓고 터뜨리기!",
+    "assassin": "🗡️ 암살자 [은신-노출]: vanish로 은신→은신 중 backstab/assassinate 치명타 보너스! 공격하면 노출됨. 은신→강타→재은신 반복!",
+    "berserker": "💢 버서커 [광기 역치]: HP 낮아질수록 광기↑, 광기 높으면 데미지↑↑ 단 받는피해도↑. self_harm으로 의도적 광기 축적, blood_rage로 폭발! 위험하면 healing_roar!",
+    "breaker": "💥 브레이커 [파괴력 축적]: BRV 공격할수록 파괴력 게이지↑, 파괴력 높으면 BREAK 보너스↑↑. crush/break_hit으로 쌓고 mega_crush로 터뜨려! BRV공격 많이!",
+    "gladiator": "🗡️ 검투사 [군중의 환호]: 화려한 스킬(spectacular/risky_stunt)로 환호↑, 환호 높으면 버프! 위험한 기술 성공 시 대박. taunt로 어그로, glory_strike로 마무리!",
+    "monk": "👊 몽크 [음양 기 흐름]: yin_strike=음기↑, yang_strike=양기↑. 음양 균형 맞추면 버프! 한쪽 극대화(yin_extreme/yang_extreme)도 가능. 번갈아 치다가 taichi_flow!",
+    "rogue": "🥷 로그 [절도와 회피]: steal로 적 아이템 훔치기, 훔친 아이템 use_item으로 사용! smoke로 회피율↑, ambush→vital_strike→backstab 콤보. 빠른 연타!",
+    "samurai": "⚔️ 사무라이 [거합의 도]: clear_mind로 집중↑, 집중 높을수록 battojutsu/iaido 치명타↑. 집중 쌓고→발도술 한 방! true_battojutsu는 집중 전부 소모 초강력!",
+    "sniper": "🎯 스나이퍼 [탄창 관리]: reload로 재장전, load_*로 특수탄 장전(penetrating/explosive). perfect_aim으로 정조준 후 headshot! 탄 관리하며 한 방 노리기!",
+    "sword_saint": "⚔️ 검성 [검기]: 공격할수록 검기↑, 검기 높으면 스킬 데미지↑. kenkizan/ilseom으로 쌓고 kenki_hadou/bisect로 방출! 검기 꽉 차면 sword_storm!",
+    
+    # === 마법 딜러 ===
+    "archmage": "🔮 대마법사 [원소 조합]: 3원소(불/얼음/번개) 번갈아 사용하면 조합 카운터↑. 카운터 3이면 elemental_surge 자동발동! 단일원소 연속은 비효율. 원소 돌려가며 사용!",
+    "battle_mage": "⚔️🔮 배틀메이지 [룬 공명]: carve_rune으로 룬 새기고, 원소룬(fire/ice/lightning/earth)으로 속성 부여→rune_burst로 폭발! 룬 많이 쌓으면 elemental_fusion!",
+    "spellblade": "⚔️✨ 스펠블레이드 [마력 부여]: fire/ice/lightning_infusion으로 무기에 속성 부여(지속)→magic_slash/elemental_slash 속성 데미지! 부여 후 물리 연타!",
+    "necromancer": "💀 강령술사 [언데드 군단]: summon_*로 언데드 소환(skeleton/zombie/ghost)→언데드가 자동 공격. sacrifice_undead로 언데드 터뜨려 폭딜! legion_command로 전체 지휘!",
+    "elementalist": "🌪️ 정령술사 [4대 정령]: summon_fire/water/wind/earth로 정령 소환→spirit_burst로 정령 폭발! 2정령 조합(fusion_firestorm/mudtrap/steam) 상황별 활용!",
+    
+    # === 탱커 ===
+    "dark_knight": "🌑 암흑기사 [충전 시스템]: charge_strike로 충전↑, 충전 높으면 crushing_blow/execution 데미지↑↑. HP 소모 스킬 많으니 dark_regeneration으로 자힐! 충전→방출 반복!",
+    "paladin": "🛡️ 팔라딘 [성스러운 힘]: 힐/보호 스킬 쓸수록 신성↑, 신성 높으면 holy스킬 강화. divine_shield로 파티 보호, holy_light로 자힐, blessing으로 버프!",
+    "dimensionist": "🌀 차원술사 [차원 굴절]: refraction_strike로 받은 피해 일부 저장→refraction_release로 저장된 피해 반사! dimension_barrier로 방어, 맞으면서 반격!",
+    "dragon_knight": "🐉 용기사 [용의 각인]: 화염 스킬로 적에 각인 새김(최대3개)→dragon_mark_strike로 각인 폭발! 각인 쌓고 터뜨리기! dragon_scales로 방어, dragon_storm 궁극기!",
+    
+    # === 힐러 ===
+    "priest": "🙏 사제 [신성 권능]: 신성 스킬 사용 시 권능↑, 권능 높으면 힐량↑. holy_heal로 회복, divine_protection으로 보호막! 아군 HP 70% 이하면 힐 우선!",
+    "cleric": "⛪ 클레릭 [신앙의 힘]: pray로 신앙↑→heal/greater_heal 강화! holy_barrier로 보호막, mass_heal 광역힐, resurrect 부활! 아군 HP 관리 최우선!",
+    "druid": "🌿 드루이드 [자연의 변신]: bear_form=탱킹(체력↑), cat_form=딜링(공격↑), wolf_form=속도↑, eagle_form=회피↑. 상황 따라 변신! healing_forest 광역힐!",
+    
+    # === 버퍼/디버퍼 ===
+    "bard": "🎵 바드 [악보 작곡]: 스킬마다 음표 추가(A공격/B버프/S서포트). 3음표=소나타, 4음표=협주곡, 5음표=교향곡! 특수조합: AAA=공격↑80%, BBB=버프2배, ABS=올스탯↑. 음표 조합 고려해서 스킬 선택!",
+    "knight": "🛡️ 기사 [기사의 의무]: oath로 아군 지정→해당 아군 보호+버프. chivalry/devotion으로 파티 버프! iron_will로 도발, last_stand 위기시. 보호 대상 지정 후 버프!",
+    "time_mage": "⏰ 시간마법사 [타임라인 균형]: slow/stop으로 적 지연, haste로 아군 가속. 시간 조작 많이 쓰면 균형 깨짐→balance로 복구! rewind 되감기, foresight 회피!",
+    "hacker": "💻 해커 [멀티스레드]: run_*로 프로세스 실행(virus/backdoor/ddos/ransomware)→프로세스 많을수록 버프. terminate_all로 전부 종료하며 폭딜! 프로세스 쌓고 터뜨리기!",
+    "shaman": "👁️ 샤먼 [저주 축적]: curse로 저주 스택↑, 스택 높을수록 DoT↑. plague로 전염, curse_burst로 폭발! curse_transfer로 아군→적 저주 전이. 저주 쌓고 터뜨리기!",
+    
+    # === 유틸리티/특수 ===
+    "alchemist": "🧪 연금술사 [포션 조합]: gather로 재료 수집→heal/buff/mana_potion 조합! 재료 많으면 고급포션. acid_flask 공격, chain으로 연계 폭발! 재료 관리하며 적재적소 포션!",
+    "engineer": "🔧 엔지니어 [열 관리]: 공격스킬 쓸수록 열↑, 열 높으면 오버히트! cooling_vent로 냉각. 열 적당할 때 overclock_mode 폭딜! shield_generator 방어, deploy_drone 지원!",
+    "magician": "🎩 마술사 [트릭 덱]: card_slash로 카드 뽑기, 뽑은 카드로 효과 결정! ace_in_the_hole=강패, double_or_nothing=도박. 카드 조합(fatal_flush/full_house) 노리기!",
+    "philosopher": "📚 철학자 [딜레마 선택]: choose_*로 딜레마 선택→선택에 따라 다른 효과! power=공격↑, wisdom=마법↑, sacrifice=HP소모 강화, survival=방어↑. 상황 따라 선택!",
+    "pirate": "🏴‍☠️ 해적 [럼주와 보물]: 럼 마시면 버프+리스크, 보물 찾으면 랜덤 보상! 도박성 스킬 많음. 운 좋으면 대박, 나쁘면 쪽박. 리스크 감수하고 도박!",
+    "vampire": "🧛 뱀파이어 [갈증 관리]: vampiric_bite/blood_drain으로 흡혈+갈증↑, 갈증 높으면 공격↑ 단 지속피해. thirst_surge로 갈증 폭발! blood_satiation으로 갈증 안정화. 갈증 조절하며 싸우기!",
+}
+
 
 # 플레이 스타일별 추가 프롬프트 (상황에 따라 동적으로 결정됨)
 STYLE_PROMPTS = {
@@ -394,11 +495,23 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
             current = ally
             break
     
+    # 살아있는 적 목록
+    alive_enemies = [e for e in state.enemies if e.is_alive]
+    first_enemy = alive_enemies[0].name if alive_enemies else "적"
+    
     if not current:
-        return "행동 캐릭터 없음"
+        # allies가 비어있어도 적 목록은 제공
+        if alive_enemies:
+            enemy_names = ", ".join(e.name for e in alive_enemies)
+            return f"적: {enemy_names}\n기본 타겟: {first_enemy}\nJSON: {{\"action\":\"brv_attack\",\"target\":\"{first_enemy}\",\"reasoning\":\"기본 공격\"}}"
+        return f"{{\"action\":\"brv_attack\",\"target\":\"{first_enemy}\",\"reasoning\":\"기본 공격\"}}"
     
     # === 간소화 모드 (빠른 응답) ===
     if not detailed:
+        # 직업 역할 가이드 가져오기
+        job_key = current.job.lower().replace(" ", "_") if current.job else "warrior"
+        role_guide = JOB_ROLE_GUIDE.get(job_key, "⚔️ 딜러! 공격 스킬 우선!")
+        
         # 현재 캐릭터 (최대값 포함)
         hp_pct = int(current.hp / current.max_hp * 100) if current.max_hp > 0 else 0
         brv_pct = int(current.brv / current.max_brv * 100) if current.max_brv > 0 else 0
@@ -406,14 +519,51 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
         if current.gimmick_name:
             me += f" {current.gimmick_name}:{current.gimmick_value}"
 
-        # 적 상태 (최대값 포함)
+        # 적 상태 (전략적 정보 포함)
         enemies = []
-        for e in state.enemies:
+        target_priorities = []  # (우선순위 점수, 적 이름, 이유)
+        for idx, e in enumerate(state.enemies):
             if e.is_alive:
                 e_hp = int(e.hp / e.max_hp * 100) if e.max_hp > 0 else 0
                 e_brv = int(e.brv / e.max_brv * 100) if e.max_brv > 0 else 0
-                status = "[BREAK]" if e.is_broken else ""
-                enemies.append(f"{e.name}:HP{e_hp}% BRV{e_brv}%({e.brv}/{e.max_brv}){status}")
+                
+                # 타겟 우선순위 계산
+                priority = 0
+                reasons = []
+                
+                # BREAK 상태 = 최고 우선순위 (HP 공격 보너스)
+                if e.is_broken:
+                    priority += 100
+                    reasons.append("BREAK!")
+                
+                # HP 낮은 적 = 높은 우선순위 (마무리 가능)
+                if e_hp < 30:
+                    priority += 50
+                    reasons.append(f"HP{e_hp}%")
+                elif e_hp < 50:
+                    priority += 30
+                    reasons.append(f"HP{e_hp}%")
+                
+                # BRV 낮은 적 = BREAK 노리기 좋음
+                if e_brv < 30:
+                    priority += 20
+                    reasons.append(f"BRV낮음")
+                
+                # 디버프 상태인 적 = 우선 공격
+                if e.debuffs:
+                    priority += 15
+                    reasons.append("디버프")
+                
+                target_priorities.append((priority, e.name, reasons))
+                
+                status = " 💥[BREAK!]" if e.is_broken else ""
+                hp_warn = " ⚠️[HP낮음!]" if e_hp < 30 else ""
+                brv_warn = " 🎯[BRV낮음]" if e_brv < 30 else ""
+                debuff_mark = " 💀[디버프]" if e.debuffs else ""
+                enemies.append(f"{idx+1}. {e.name}: HP {e_hp}% BRV {e_brv}%{hp_warn}{brv_warn}{status}{debuff_mark}")
+        
+        # 우선순위 정렬
+        target_priorities.sort(reverse=True, key=lambda x: x[0])
 
         # 위험한 아군
         low_hp_allies = [a.name for a in state.allies if a.is_alive and a.hp < a.max_hp * 0.3]
@@ -424,38 +574,114 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
             desc = f" - {s.description}" if s.description else ""
             skills_lines.append(f"  {s.id}({s.skill_type}, MP{s.mp_cost}){desc}")
 
-        # 스킬 추천 (기본 전략 보조)
+        # 전략 추천 - 역할 기반!
         skill_recommendations = []
+        
+        # 역할 기반 추천 스킬 찾기
+        buff_skills = [s for s in state.available_skills if 'buff' in s.skill_type.lower() or 'support' in s.skill_type.lower()]
+        heal_skills = [s for s in state.available_skills if 'heal' in s.skill_type.lower() or 'recovery' in s.skill_type.lower()]
+        attack_skills = [s for s in state.available_skills if 'attack' in s.skill_type.lower() or 'damage' in s.skill_type.lower() or 'brv' in s.skill_type.lower()]
+        
+        # 역할별 스킬 추천 (이름으로도 판단)
+        for s in state.available_skills:
+            name_lower = s.name.lower() if s.name else ""
+            id_lower = s.id.lower() if s.id else ""
+            desc_lower = s.description.lower() if s.description else ""
+            
+            if any(kw in name_lower or kw in id_lower or kw in desc_lower for kw in ['버프', 'buff', '강화', '증가', 'march', 'inspire', 'song']):
+                if s not in buff_skills:
+                    buff_skills.append(s)
+            if any(kw in name_lower or kw in id_lower or kw in desc_lower for kw in ['힐', 'heal', '회복', '치유', 'cure', 'melody']):
+                if s not in heal_skills:
+                    heal_skills.append(s)
+        
+        # 직업 역할에 따른 추천 (34개 직업 기준)
+        is_buffer = job_key in ['bard', 'knight', 'time_mage', 'engineer', 'shaman']
+        is_healer = job_key in ['priest', 'cleric', 'druid', 'paladin']
+        is_debuffer = job_key in ['hacker', 'necromancer', 'shaman']
+        is_tank = job_key in ['paladin', 'dimensionist', 'knight', 'warrior']
+        
+        # 디버프 스킬 찾기
+        debuff_skills = [s for s in state.available_skills 
+                        if any(kw in (s.skill_type or '').lower() or kw in (s.id or '').lower() or kw in (s.description or '').lower()
+                              for kw in ['debuff', '약화', '저주', 'curse', 'slow', 'blind', 'poison'])]
+        
+        if is_buffer and buff_skills:
+            skill_recommendations.append(f"🎵 버퍼! → {buff_skills[0].id} 스킬 사용!")
+        if is_healer and heal_skills:
+            any_low_hp = any(a.hp < a.max_hp * 0.7 for a in state.allies if a.is_alive)
+            if any_low_hp:
+                skill_recommendations.append(f"💚 힐러! → {heal_skills[0].id} 스킬 사용!")
+        if is_debuffer and debuff_skills:
+            skill_recommendations.append(f"💀 디버퍼! → {debuff_skills[0].id} 스킬 사용!")
+        
+        # HP 상태
         if current.hp < current.max_hp * 0.3:
-            skill_recommendations.append("- HP가 위험! 회복 스킬(heal, support) 우선!")
-        elif current.hp < current.max_hp * 0.5:
-            skill_recommendations.append("- HP가 낮음. 회복 스킬 고려")
-
+            skill_recommendations.append("⚠️ HP 위험!")
+        
+        # 적 상태
         alive_enemy_count = len([e for e in state.enemies if e.is_alive])
-        if alive_enemy_count >= 2 and any(hasattr(s, 'target_type') and s.target_type == 'all' for s in state.available_skills):
-            skill_recommendations.append("- 여러 적이 있음. 광역 스킬 고려")
+        low_hp_enemies = [e for e in state.enemies if e.is_alive and e.hp < e.max_hp * 0.3]
+        broken_enemies = [e for e in state.enemies if e.is_alive and e.is_broken]
+        
+        if broken_enemies and not is_buffer and not is_healer:
+            skill_recommendations.append(f"💥 {broken_enemies[0].name} BREAK! HP 공격!")
+        if low_hp_enemies and not is_buffer:
+            skill_recommendations.append(f"🎯 {low_hp_enemies[0].name} HP 낮음!")
 
-        if current.brv >= current.max_brv * 0.8:
-            skill_recommendations.append("- BRV가 많음. HP 공격이나 강력한 스킬 사용")
+        # 화면 텍스트 (실제 플레이어가 보는 화면)
+        screen_section = ""
+        if state.screen_text:
+            # 화면 텍스트가 너무 길면 요약
+            screen_lines = state.screen_text.split('\n')
+            if len(screen_lines) > 20:
+                screen_lines = screen_lines[:20] + ["... (화면 생략)"]
+            screen_section = f"\n[현재 화면]\n{chr(10).join(screen_lines)}\n"
 
+        # 전략적 타겟 추천 (우선순위 기반)
+        target_recommendations = []
+        if target_priorities:
+            # 상위 3개 타겟 추천
+            for i, (priority, name, reasons) in enumerate(target_priorities[:3]):
+                if priority > 0:
+                    reason_str = ", ".join(reasons) if reasons else "기본"
+                    if i == 0:
+                        target_recommendations.append(f"🎯 최우선 타겟: {name} ({reason_str})")
+                    else:
+                        target_recommendations.append(f"   대안 타겟: {name} ({reason_str})")
+        
+        # BREAK 적 강조
+        broken_names = [e.name for e in state.enemies if e.is_alive and e.is_broken]
+        if broken_names:
+            target_recommendations.insert(0, f"💥 BREAK 상태! {', '.join(broken_names)}에게 HP 공격 강추!")
+        
+        # 기본 타겟 (최고 우선순위)
+        best_target = target_priorities[0][1] if target_priorities else first_enemy
+        
         prompt = f"""나:{me}
-적:{','.join(enemies)}
-{"위험:" + ','.join(low_hp_allies) if low_hp_allies else ""}
+🎭 역할: {role_guide}
 
-사용 가능한 스킬:
+적 목록:
+{chr(10).join(enemies)}
+
+## 타겟 선택 가이드
+{chr(10).join(target_recommendations) if target_recommendations else "🎯 상황에 맞는 타겟 선택!"}
+
+{"⚠️ 위험한 아군: " + ','.join(low_hp_allies) + " → 힌 필요!" if low_hp_allies else ""}
+
+📜 스킬:
 {chr(10).join(skills_lines) if skills_lines else "  (스킬 없음)"}
 
 {chr(10).join(skill_recommendations) if skill_recommendations else ""}
 
-전략: BRV 축적 → HP 공격이 기본. 상황에 따라 스킬을 섞어서 사용하세요.
+## 행동 결정 규칙 (반드시 따를 것!)
+1. ⚠️ BREAK 상태 적이 있으면 → 무조건 hp_attack! (brv_attack 금지!)
+2. 내 BRV가 높으면 → hp_attack
+3. 적 BRV가 낮으면 → brv_attack으로 BREAK 유도
+4. 아군 HP 낮으면 → 힐 스킬
+5. HP 낮은 적 → 마무리!
 
-응답 형식:
-- 기본 공격: {{"action":"brv_attack","target":"enemy"}}
-- HP 공격: {{"action":"hp_attack","target":"enemy"}}
-- 스킬 사용: {{"action":"skill","skill_id":"스킬ID","target":"enemy"}}
-- 예: {{"action":"skill","skill_id":"basic_heal","target":"ally_name"}}
-
-행동(JSON):"""
+JSON 응답 (target을 신중히 선택!):"""
         return prompt
     
     # === 상세 모드 ===
@@ -482,15 +708,45 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
         status = "BREAK" if ally.is_broken else ""
         lines.append(f"- {ally.name}({ally.job}): HP{hp_pct}% BRV{ally.brv} {status}")
     
-    # 적 상태
-    lines.append("\n### 적")
+    # 적 상태 (전략적 정보 포함)
+    lines.append("\n### 적 (타겟 우선순위)")
+    enemy_priorities = []
     for enemy in state.enemies:
         if not enemy.is_alive:
             continue
         hp_pct = int(enemy.hp / enemy.max_hp * 100)
+        brv_pct = int(enemy.brv / enemy.max_brv * 100) if enemy.max_brv > 0 else 0
+        
+        # 우선순위 계산
+        priority = 0
+        tags = []
+        if enemy.is_broken:
+            priority += 100
+            tags.append("💥BREAK")
+        if hp_pct < 30:
+            priority += 50
+            tags.append("⚠️HP낮음")
+        elif hp_pct < 50:
+            priority += 30
+        if brv_pct < 30:
+            priority += 20
+            tags.append("🎯BRV낮음")
+        if enemy.debuffs:
+            priority += 15
+            tags.append("💀디버프")
+        
+        enemy_priorities.append((priority, enemy.name))
+        
         status = "[BREAK!]" if enemy.is_broken else ""
         effects = f" ({', '.join(enemy.status_effects)})" if enemy.status_effects else ""
-        lines.append(f"- {enemy.name}: HP{hp_pct}% BRV{enemy.brv} {status}{effects}")
+        tag_str = f" {' '.join(tags)}" if tags else ""
+        lines.append(f"- {enemy.name}: HP{hp_pct}% BRV{brv_pct}% {status}{effects}{tag_str}")
+    
+    # 타겟 추천
+    enemy_priorities.sort(reverse=True, key=lambda x: x[0])
+    if enemy_priorities:
+        best_target = enemy_priorities[0][1]
+        lines.append(f"\n🎯 추천 타겟: {best_target}")
     
     # 스킬
     if state.available_skills:
@@ -509,18 +765,22 @@ def create_combat_prompt(state: CombatState, job_info: Dict[str, Any], detailed:
     # 전술 가이드
     lines.append("\n### 전술 가이드")
     low_ally_count = sum(1 for a in state.allies if a.is_alive and a.hp < a.max_hp * 0.4)
-    broken_enemy_count = sum(1 for e in state.enemies if e.is_alive and e.is_broken)
+    broken_enemies = [e.name for e in state.enemies if e.is_alive and e.is_broken]
+    low_hp_enemies = [e.name for e in state.enemies if e.is_alive and e.hp < e.max_hp * 0.3]
 
     if low_ally_count > 0:
-        lines.append(f"- 아군 {low_ally_count}명이 위험합니다. 힐 또는 버프 스킬 사용 검토!")
-    if broken_enemy_count > 0:
-        lines.append(f"- {broken_enemy_count}명의 적이 BREAK 상태입니다. HP 공격으로 큰 피해를 줄 기회!")
+        lines.append(f"- ⚠️ 아군 {low_ally_count}명이 위험합니다. 힐 스킬 사용!")
+    if broken_enemies:
+        lines.append(f"- 💥💥 {', '.join(broken_enemies)} BREAK 상태! → hp_attack 필수!! (brv_attack 절대 금지!)")
+    if low_hp_enemies:
+        lines.append(f"- 🎯 {', '.join(low_hp_enemies)} HP 낮음! 마무리 기회!")
     if current.brv > current.max_brv * 0.7:
-        lines.append(f"- BRV가 충분합니다. HP 공격이나 강력한 스킬 사용 추천!")
+        lines.append(f"- BRV가 충분합니다. HP 공격 추천!")
     if current.mp < current.max_mp * 0.3:
         lines.append(f"- MP가 부족합니다. 저코스트 스킬이나 물리 공격 고려!")
 
-    lines.append("\n행동 선택(JSON):")
+    lines.append("\n## 중요: 상황에 맞는 타겟 선택!")
+    lines.append("행동 선택(JSON):")
     return "\n".join(lines)
 
 
@@ -533,11 +793,24 @@ class OllamaClient:
     
     def __init__(self, config: LLMConfig):
         self.config = config
-        self.client = httpx.AsyncClient(timeout=config.timeout)
+        
+        # Cloud 모드면 URL과 헤더 설정
+        headers = {}
+        if config.use_cloud:
+            self.base_url = "https://ollama.com"
+            api_key = os.environ.get('OLLAMA_API_KEY', '')
+            if api_key:
+                headers['Authorization'] = f'Bearer {api_key}'
+            else:
+                logger.warning("OLLAMA_API_KEY 환경변수가 설정되지 않음. Cloud 모드 실패 가능")
+        else:
+            self.base_url = config.base_url
+        
+        self.client = httpx.AsyncClient(timeout=config.timeout, headers=headers)
     
     async def generate(self, prompt: str, system_prompt: str = "") -> str:
         """텍스트 생성"""
-        url = f"{self.config.base_url}/api/generate"
+        url = f"{self.base_url}/api/generate"
         
         payload = {
             "model": self.config.model,
@@ -568,7 +841,7 @@ class OllamaClient:
     
     async def chat(self, messages: List[Dict[str, str]]) -> str:
         """채팅 형식 생성"""
-        url = f"{self.config.base_url}/api/chat"
+        url = f"{self.base_url}/api/chat"
         
         payload = {
             "model": self.config.model,
@@ -610,12 +883,22 @@ class OllamaClientSync:
     
     def __init__(self, config: LLMConfig):
         self.config = config
+        
+        # Cloud 모드면 URL과 헤더 설정
+        self.headers = {}
+        if config.use_cloud:
+            self.base_url = "https://ollama.com"
+            api_key = os.environ.get('OLLAMA_API_KEY', '')
+            if api_key:
+                self.headers['Authorization'] = f'Bearer {api_key}'
+        else:
+            self.base_url = config.base_url
     
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         """동기 텍스트 생성"""
         import httpx
         
-        url = f"{self.config.base_url}/api/generate"
+        url = f"{self.base_url}/api/generate"
         
         payload = {
             "model": self.config.model,
@@ -634,7 +917,7 @@ class OllamaClientSync:
         
         for attempt in range(self.config.retry_count + 1):
             try:
-                with httpx.Client(timeout=self.config.timeout) as client:
+                with httpx.Client(timeout=self.config.timeout, headers=self.headers) as client:
                     response = client.post(url, json=payload)
                     response.raise_for_status()
                     result = response.json()
@@ -708,13 +991,24 @@ class ResponseParser:
                 json_str = clean_response[start:end].strip()
             elif "[" in clean_response or "{" in clean_response:
                 # 배열 또는 객체 찾기
-                if "[" in clean_response:
+                if "[" in clean_response and clean_response.find("[") < clean_response.find("{"):
                     start = clean_response.find("[")
                     end = clean_response.rfind("]") + 1
                     json_str = clean_response[start:end]
                 else:
+                    # 첫 번째 JSON 객체만 추출 (여러 개가 있을 수 있음)
                     start = clean_response.find("{")
-                    end = clean_response.rfind("}") + 1
+                    # 괄호 균형으로 첫 번째 JSON 끝 찾기
+                    depth = 0
+                    end = start
+                    for i, c in enumerate(clean_response[start:], start):
+                        if c == '{':
+                            depth += 1
+                        elif c == '}':
+                            depth -= 1
+                            if depth == 0:
+                                end = i + 1
+                                break
                     json_str = clean_response[start:end]
 
             data = json.loads(json_str)
@@ -738,12 +1032,21 @@ class ResponseParser:
             }
             action_type = action_map.get(action_str, ActionType.BRV_ATTACK)
             
+            # 응답 검증: reason과 action의 일관성 체크
+            reasoning = data.get("reasoning", "")
+            if action_type == ActionType.BRV_ATTACK:
+                # reason에 HP 공격 관련 키워드가 있으면 hp_attack으로 교정
+                hp_keywords = ["HP 공격", "hp_attack", "HP공격", "HP 피해", "BREAK 상태"]
+                if any(kw in reasoning for kw in hp_keywords):
+                    logger.info(f"⚠️ 응답 교정: reason에 '{reasoning[:50]}...'이 있어 hp_attack으로 변경")
+                    action_type = ActionType.HP_ATTACK
+            
             return BotAction(
                 action_type=action_type,
                 target_name=data.get("target"),
                 skill_id=data.get("skill_id"),
                 item_id=data.get("item_id"),
-                reasoning=data.get("reasoning", ""),
+                reasoning=reasoning,
                 commentary=data.get("commentary", ""),
                 thinking=thinking
             )
@@ -1308,8 +1611,22 @@ class LLMPlayerBot:
                 reasoning="폴백: 적 없음"
             )
 
-        # 기본 타겟: 가장 높은 HP를 가진 적 (가장 위협적)
-        target = max(alive_enemies, key=lambda e: e.hp)
+        # 전략적 타겟 선택 (우선순위: BREAK > HP낮음 > BRV낮음)
+        def calc_priority(e):
+            priority = 0
+            if e.is_broken:
+                priority += 100
+            hp_pct = e.hp / e.max_hp if e.max_hp > 0 else 1.0
+            if hp_pct < 0.3:
+                priority += 50
+            elif hp_pct < 0.5:
+                priority += 30
+            brv_pct = e.brv / e.max_brv if e.max_brv > 0 else 1.0
+            if brv_pct < 0.3:
+                priority += 20
+            return priority
+        
+        target = max(alive_enemies, key=calc_priority)
         
         # 간단한 규칙 기반 폴백
         # 1. HP 위험하면 회복 아이템
@@ -1740,9 +2057,9 @@ class GameStateConverter:
 def create_llm_bot(
     name: str,
     job_id: str = "warrior",
-    model: str = "qwen3:4b",
+    model: str = "gpt-oss:20b",
     style: PlayStyle = PlayStyle.BALANCED,
-    enable_thinking: bool = True,
+    enable_thinking: bool = False,  # thinking 모드 끔 (빈 응답 방지)
     enable_commentary: bool = True,
     async_mode: bool = True
 ) -> LLMPlayerBot:
@@ -1779,7 +2096,7 @@ def create_llm_bot(
 
 def create_party_bots(
     party_config: List[Dict[str, str]],
-    model: str = "qwen3:4b",
+    model: str = "gpt-oss:20b",
     style: PlayStyle = PlayStyle.BALANCED
 ) -> List[LLMPlayerBot]:
     """
@@ -1871,7 +2188,8 @@ def get_bot_action_for_combat(
     bot: LLMPlayerBot,
     combat_manager: Any,
     current_character: Any,
-    inventory: Any = None
+    inventory: Any = None,
+    screen_text: str = ""
 ) -> BotAction:
     """
     CombatManager에서 봇 행동 결정 (게임 통합용)
@@ -1881,6 +2199,7 @@ def get_bot_action_for_combat(
         combat_manager: CombatManager 인스턴스
         current_character: 현재 행동할 캐릭터
         inventory: 인벤토리 (선택)
+        screen_text: 콘솔 화면 텍스트 (실제 플레이어가 보는 화면)
         
     Returns:
         BotAction
@@ -1898,6 +2217,9 @@ def get_bot_action_for_combat(
         current_character,
         inventory
     )
+    
+    # 화면 텍스트 추가 (실제 플레이어가 보는 화면)
+    combat_state.screen_text = screen_text
     
     # 봇이 행동 결정
     action = bot.decide_combat_action(combat_state)
@@ -2395,47 +2717,233 @@ JSON: [{{"id":"패시브ID","cost":코스트}}]"""
         return actions
 
     def decide_exploration_action(self, state: ExplorationState) -> ExplorationAction:
-        """탐험 행동 결정 (규칙 기반 - 빠름)"""
+        """탐험 행동 결정 (LLM 기반)"""
+        
+        # 프롬프트 생성
+        prompt = self._build_exploration_prompt(state)
+        
+        try:
+            response = self.client.generate(prompt, EXPLORATION_SYSTEM_PROMPT)
+            return self._parse_exploration_response(response, state)
+        except Exception as e:
+            self.logger.warning(f"LLM 탐험 결정 실패: {e}, 규칙 기반 폴백")
+            return self._fallback_exploration_action(state)
+    
+    def _build_exploration_prompt(self, state: ExplorationState) -> str:
+        """탐험 프롬프트 생성"""
+        px, py = state.current_position
+        
+        # 환경 정보
+        hazard_info = ""
+        if state.hazard_tiles:
+            hazard_list = [f"- ({h['pos'][0]}, {h['pos'][1]}): {h.get('type', 'unknown')} (데미지: {h.get('damage', '?')})" 
+                          for h in state.hazard_tiles[:5]]
+            hazard_info = f"\n위험 타일:\n" + "\n".join(hazard_list)
+        
+        # 오브젝트 정보
+        object_info = ""
+        if state.objects:
+            obj_list = [f"- ({o['pos'][0]}, {o['pos'][1]}): {o.get('type', 'unknown')}" 
+                       for o in state.objects[:5]]
+            object_info = f"\n상호작용 오브젝트:\n" + "\n".join(obj_list)
+        
+        # 회복 아이템 정보
+        healing_info = ""
+        if state.healing_items:
+            item_list = [f"- {h['name']}: 회복량 {h.get('heal', '?')}, 보유 {h.get('count', 0)}개" 
+                        for h in state.healing_items]
+            healing_info = f"\n회복 아이템:\n" + "\n".join(item_list)
+        
+        # 보물/적 정보
+        treasure_info = f"보물: {state.treasure_positions[:3]}" if state.treasure_positions else "보물: 없음"
+        enemy_info = f"적: {state.nearby_enemies}" if state.nearby_enemies else "적: 없음"
+        stairs_info = f"계단: {state.stairs_down_position}" if state.stairs_down_position else "계단: 미발견"
+        
+        prompt = f"""현재 상황:
+- 위치: ({px}, {py})
+- 층: {state.current_floor + 1}F ({state.floor_type})
+- 탐험: {state.discovered_rooms}/{state.total_rooms} 방
+- HP: {state.party_hp_percent:.0f}%
+- MP: {state.party_mp_percent:.0f}%
+- 골드: {state.gold}
+{hazard_info}
+{object_info}
+{healing_info}
+{treasure_info}
+{enemy_info}
+{stairs_info}
+
+JSON 형식으로 행동 결정:
+{{"action": "move|interact|use_item|fight|flee|pickup|open_chest", "target": "(x,y) 또는 아이템명", "avoid_hazards": true/false, "reason": "이유"}}"""
+        
+        return prompt
+    
+    def _parse_exploration_response(self, response: str, state: ExplorationState) -> ExplorationAction:
+        """LLM 탐험 응답 파싱"""
+        import json
+        import re
+        
+        try:
+            # JSON 추출
+            json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
+            if json_match:
+                data = json.loads(json_match.group())
+                action_type = data.get("action", "move")
+                target = data.get("target", "")
+                avoid_hazards = data.get("avoid_hazards", True)
+                reason = data.get("reason", "LLM 결정")
+                
+                # 타겟 파싱
+                target_position = None
+                item_to_use = None
+                direction = None
+                
+                if isinstance(target, str) and "," in target:
+                    # (x, y) 형식
+                    coords = re.findall(r'-?\d+', target)
+                    if len(coords) >= 2:
+                        target_position = (int(coords[0]), int(coords[1]))
+                elif isinstance(target, str) and action_type == "use_item":
+                    item_to_use = target
+                elif isinstance(target, list) and len(target) == 2:
+                    target_position = tuple(target)
+                
+                return ExplorationAction(
+                    action_type=action_type,
+                    direction=direction,
+                    target=target if isinstance(target, str) else None,
+                    target_position=target_position,
+                    item_to_use=item_to_use,
+                    avoid_hazards=avoid_hazards,
+                    reasoning=reason
+                )
+        except Exception as e:
+            self.logger.warning(f"탐험 응답 파싱 실패: {e}")
+        
+        return self._fallback_exploration_action(state)
+    
+    def _fallback_exploration_action(self, state: ExplorationState) -> ExplorationAction:
+        """폴백 탐험 행동 (규칙 기반)"""
         import random
         
         # 1. HP 낮으면 회복
         if state.party_hp_percent < 30:
+            if state.healing_items:
+                return ExplorationAction("use_item", item_to_use=state.healing_items[0].get('name', 'potion'), reasoning="HP 위험 - 회복")
             if state.has_healing_point:
                 return ExplorationAction("rest", reasoning="HP 낮음, 회복")
-            return ExplorationAction("use_item", target="potion", reasoning="HP 위험")
         
-        # 2. 보물 수집
+        # 2. 오브젝트 파밍 (보물상자 등)
+        if state.objects:
+            obj = state.objects[0]
+            return ExplorationAction("interact", target_position=obj['pos'], target=obj.get('type'), reasoning="오브젝트 파밍")
+        
+        # 3. 보물 수집
         if state.treasure_positions:
-            tx, ty = state.treasure_positions[0]
-            px, py = state.current_position
-            dx = 1 if tx > px else (-1 if tx < px else 0)
-            dy = 1 if ty > py else (-1 if ty < py else 0)
-            return ExplorationAction("move", direction=(dx, dy), reasoning="보물 수집")
+            return ExplorationAction("move", target_position=state.treasure_positions[0], reasoning="보물 수집")
         
-        # 3. 적 처리
+        # 4. 적 처리
         if state.nearby_enemies:
             if state.party_hp_percent > 50:
                 return ExplorationAction("fight", reasoning="적 발견, 전투")
             return ExplorationAction("flee", reasoning="HP 낮음, 회피")
         
-        # 4. 계단 이동
+        # 5. 계단 이동
         if state.stairs_down_position and state.discovered_rooms >= state.total_rooms * 0.7:
             return ExplorationAction("move", target_position=state.stairs_down_position, reasoning="다음 층")
         
-        # 5. 미탐험 방향 탐색
+        # 6. 미탐험 방향 탐색
         if state.unexplored_directions:
-            # 랜덤 미탐험 방향 선택
             unexplored = random.choice(state.unexplored_directions)
             px, py = state.current_position
-            # 미탐험 방향으로 10칸 이동 목표
             target_x = px + unexplored[0] * 10
             target_y = py + unexplored[1] * 10
             return ExplorationAction("move", target_position=(target_x, target_y), reasoning="미탐험 지역 탐색")
         
-        # 6. 랜덤 탐색
+        # 7. 랜덤 탐색
         px, py = state.current_position
         random_target = (px + random.randint(-5, 5), py + random.randint(-5, 5))
         return ExplorationAction("move", target_position=random_target, reasoning="랜덤 탐색")
+    
+    def decide_town_action(self, state: TownState) -> TownAction:
+        """마을 행동 결정 (LLM 기반)"""
+        
+        prompt = self._build_town_prompt(state)
+        
+        try:
+            response = self.client.generate(prompt, TOWN_SYSTEM_PROMPT)
+            return self._parse_town_response(response, state)
+        except Exception as e:
+            self.logger.warning(f"LLM 마을 결정 실패: {e}, 규칙 기반 폴백")
+            return self._fallback_town_action(state)
+    
+    def _build_town_prompt(self, state: TownState) -> str:
+        """마을 프롬프트 생성"""
+        
+        # 상점 아이템
+        shop_info = ""
+        if state.shop_items:
+            items = [f"- {i.get('name', '?')}: {i.get('price', 0)}골드" for i in state.shop_items[:5]]
+            shop_info = "\n상점 아이템:\n" + "\n".join(items)
+        
+        # 인벤토리
+        inv_info = ""
+        if state.inventory_items:
+            items = [f"- {i.get('name', '?')} x{i.get('count', 1)}" for i in state.inventory_items[:5]]
+            inv_info = "\n보유 아이템:\n" + "\n".join(items)
+        
+        prompt = f"""마을 상태:
+- HP: {state.party_hp_percent:.0f}%
+- MP: {state.party_mp_percent:.0f}%
+- 골드: {state.gold}
+- 인벤토리: {state.inventory_weight}/{state.max_weight}
+{shop_info}
+{inv_info}
+
+JSON 형식으로 행동 결정:
+{{"action": "buy|sell|repair|cook|craft|rest|upgrade|storage|depart", "target": "아이템명 또는 시설명", "quantity": 1, "reason": "이유"}}"""
+        
+        return prompt
+    
+    def _parse_town_response(self, response: str, state: TownState) -> TownAction:
+        """LLM 마을 응답 파싱"""
+        import json
+        import re
+        
+        try:
+            json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
+            if json_match:
+                data = json.loads(json_match.group())
+                return TownAction(
+                    action_type=data.get("action", "rest"),
+                    target=data.get("target"),
+                    quantity=data.get("quantity", 1),
+                    reasoning=data.get("reason", "LLM 결정")
+                )
+        except Exception as e:
+            self.logger.warning(f"마을 응답 파싱 실패: {e}")
+        
+        return self._fallback_town_action(state)
+    
+    def _fallback_town_action(self, state: TownState) -> TownAction:
+        """폴백 마을 행동 (규칙 기반)"""
+        
+        # 1. HP 낮으면 휴식
+        if state.party_hp_percent < 80:
+            return TownAction("rest", reasoning="HP 회복")
+        
+        # 2. 회복 아이템 구매
+        if state.gold >= 50:
+            for item in state.shop_items:
+                if "포션" in item.get('name', '') or "회복" in item.get('name', ''):
+                    return TownAction("buy", target=item.get('name'), quantity=3, reasoning="회복 아이템 구매")
+        
+        # 3. 장비 수리
+        if state.damaged_equipment:
+            return TownAction("repair", target=state.damaged_equipment[0], reasoning="장비 수리")
+        
+        # 4. 던전 출발
+        return TownAction("depart", reasoning="던전 출발")
     
     def create_combat_bot(self, character: Any) -> LLMPlayerBot:
         """캐릭터용 전투 봇"""
@@ -2457,6 +2965,6 @@ JSON: [{{"id":"패시브ID","cost":코스트}}]"""
         self.combat_bots.clear()
 
 
-def create_auto_play_ai(model: str = "qwen3:0.6b", style: PlayStyle = PlayStyle.BALANCED) -> AutoPlayAI:
+def create_auto_play_ai(model: str = "gpt-oss:20b", style: PlayStyle = PlayStyle.BALANCED) -> AutoPlayAI:
     """자동 플레이 AI 생성"""
     return AutoPlayAI(LLMConfig(model=model, play_style=style))

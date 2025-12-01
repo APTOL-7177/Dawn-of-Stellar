@@ -1,13 +1,20 @@
 id: slow
 name: 슬로우
 type: debuff
-description: 적의 속도를 감소시킵니다
+description: 적 1명의 속도를 30% 감소시킵니다 (3턴)
 costs:
-  mp: 20
-  cast_time: 1.0
+  mp: 9
+  cast_time: 0.8
+target: single_enemy
 effects:
-- type: debuff
-  target: enemy
-  stat: physical_defense
-  value: 0.7
-  duration: 3
+  - type: debuff
+    target: selected_enemy
+    stat: speed
+    value: 0.70
+    duration: 3
+  - type: generate_possibility
+    chance: 0.70
+    alternative_skill: haste
+metadata:
+  possibility_pair: haste
+  job: time_mage

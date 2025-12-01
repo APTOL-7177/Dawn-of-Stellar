@@ -1,0 +1,22 @@
+id: taunt_split
+name: 분산 도발
+type: tank
+description: 적의 공격 대상을 환영들에게 분산시킨다. 환영이 우선 타격됨
+costs:
+  mp: 7
+  cast_time: 0.5
+target: self
+effects:
+  - type: taunt
+    duration: 2
+  - type: phantom_priority
+    redirect_chance: 0.70
+    description: 70% 확률로 환영이 대신 맞음
+  - type: phantom_counter
+    counter_chance: 0.25
+    counter_damage: 0.5
+    stat_base: strength
+metadata:
+  job: illusionist
+  tank_skill: true
+  scaling: physical

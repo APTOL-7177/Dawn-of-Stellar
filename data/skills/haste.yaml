@@ -1,13 +1,20 @@
 id: haste
 name: 헤이스트
-type: support
-description: 아군의 속도를 증가시킵니다
+type: buff
+description: 아군 1명의 속도를 30% 증가시킵니다 (3턴)
 costs:
-  mp: 25
-  cast_time: 1.0
+  mp: 11
+  cast_time: 0.8
+target: single_ally
 effects:
-- type: buff
-  target: self
-  stat: physical_attack
-  value: 1.5
-  duration: 3
+  - type: buff
+    target: selected_ally
+    stat: speed
+    value: 1.30
+    duration: 3
+  - type: generate_possibility
+    chance: 0.70
+    alternative_skill: slow
+metadata:
+  possibility_pair: slow
+  job: time_mage

@@ -74,6 +74,9 @@ class GuildHallUI:
         Returns:
             True: 계속 실행, False: 종료
         """
+        import time
+        import pygame
+        
         if not self.achievement_manager:
             self.logger.error("도전과제 관리자가 설정되지 않았습니다")
             return False
@@ -81,51 +84,50 @@ class GuildHallUI:
         while True:
             # 화면 렌더링
             self._render(console)
+            context.present(console)
 
-            # 입력 처리
-            action = unified_input_handler(context)
+            # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+            try:
+                pygame.event.pump()
+            except:
+                pass
 
-            if action == GameAction.ESCAPE:
+            # 키보드 입력 처리
+            action = None
+            for event in tcod.event.get():
+                action = unified_input_handler.process_tcod_event(event)
+                
+                if isinstance(event, tcod.event.Quit):
+                    return False
+                
+                if action:
+                    break
+            
+            # 게임패드 입력 처리
+            if not action:
+                action = unified_input_handler.get_action()
+
+            if action == GameAction.ESCAPE or action == GameAction.CANCEL:
                 return False
             elif action == GameAction.CONFIRM:
                 self._handle_select()
-            elif action == GameAction.CANCEL:
-                return False
-            elif action == GameAction.LEFT:
+            elif action == GameAction.MOVE_LEFT:
                 self._change_tab(-1)
-            elif action == GameAction.RIGHT:
+            elif action == GameAction.MOVE_RIGHT:
                 self._change_tab(1)
-            elif action == GameAction.UP:
+            elif action == GameAction.MOVE_UP:
                 self._move_selection(-1)
-            elif action == GameAction.DOWN:
+            elif action == GameAction.MOVE_DOWN:
                 self._move_selection(1)
-            elif action == GameAction.OPEN_INVENTORY:  # Y 버튼 - 필터 토글
+            elif action == GameAction.OPEN_INVENTORY:  # 필터 토글
                 self._toggle_filter()
-            elif action == GameAction.OPEN_CHARACTER:   # RB 버튼 - 정렬 토글
+            elif action == GameAction.OPEN_CHARACTER:   # 정렬 토글
                 self._toggle_sort()
-            elif action == GameAction.OPEN_SKILLS:      # Left Stick - 상세 보기 토글
+            elif action == GameAction.OPEN_SKILLS:      # 상세 보기 토글
                 self._toggle_detail_view()
-            # 게임패드 전용 입력
-            elif hasattr(action, 'button') and action.button is not None:
-                # pygame 게임패드 이벤트 처리
-                if action.button == 4:  # LB 버튼 - 이전 탭
-                    self._change_tab(-1)
-                elif action.button == 5:  # RB 버튼 - 다음 탭
-                    self._change_tab(1)
-                elif action.button == 0:  # A 버튼 - 선택
-                    self._handle_select()
-                elif action.button == 1:  # B 버튼 - 뒤로
-                    return False
-                elif action.button == 2:  # X 버튼 - 필터 토글
-                    self._toggle_filter()
-                elif action.button == 3:  # Y 버튼 - 정렬 토글
-                    self._toggle_sort()
-                elif action.button == 8:  # Left Stick 클릭 - 상세 보기
-                    self._toggle_detail_view()
-                elif action.button == 9:  # Right Stick 클릭 - 새로고침
-                    self._refresh_data()
 
-            console.present(context)
+            # CPU 사용률 낮추기
+            time.sleep(0.01)
 
     def _change_tab(self, direction: int):
         """탭 변경"""

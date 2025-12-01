@@ -63,10 +63,10 @@ class AchievementManager:
                 achievement_id=f"daily_{achievement_id}_{datetime.now().date()}",
                 name=f"[일일] {name}",
                 description="오늘 안에 완료하세요!",
-                category=self.achievement_system.achievements["why_wont_you_die"].category,  # 임시
-                rarity=self.achievement_system.achievements["why_wont_you_die"].rarity,  # 임시
+                category="daily",  # 일일 도전과제 카테고리
+                rarity="common",  # 기본 희귀도
                 conditions=[],  # 일일 도전과제는 별도 처리
-                reward=self.achievement_system.achievements["why_wont_you_die"].reward,  # 임시
+                reward={"star_fragments": 10},  # 기본 보상
                 icon="📅"
             )
             self.daily_achievements.append(achievement)

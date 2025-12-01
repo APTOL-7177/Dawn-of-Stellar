@@ -391,20 +391,41 @@ def open_storage(
     
     logger.info("창고 열기")
     
+    import time
+    import pygame
+    
     try:
         while not ui.closed:
             ui.render(console)
             context.present(console)
             
-            for event in tcod.event.wait():
+            # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+            try:
+                pygame.event.pump()
+            except:
+                pass
+            
+            # 키보드 입력 처리
+            keyboard_processed = False
+            for event in tcod.event.get():
                 action = unified_input_handler.process_tcod_event(event)
                 
                 if action:
+                    keyboard_processed = True
                     ui.handle_input(action)
                 
                 if isinstance(event, tcod.event.Quit):
                     ui.closed = True
                     break
+            
+            # 게임패드 입력 처리
+            if not keyboard_processed and not ui.closed:
+                gamepad_action = unified_input_handler.get_action()
+                if gamepad_action:
+                    ui.handle_input(gamepad_action)
+            
+            # CPU 사용률 낮추기
+            time.sleep(0.01)
     finally:
         # UI 종료 시 town_manager의 storage를 최종 상태로 동기화
         if ui.storage_inventory is not None:

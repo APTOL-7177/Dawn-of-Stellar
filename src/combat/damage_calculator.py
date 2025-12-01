@@ -192,6 +192,22 @@ class DamageCalculator:
         Returns:
             (DamageResult, wound_damage)
         """
+        # 명중 판정 (회피 무시가 아닌 경우)
+        ignore_evasion = kwargs.get("ignore_evasion", False)
+        if not ignore_evasion and not self.check_hit(attacker, defender):
+            # 회피 성공 - 데미지 0
+            return (
+                DamageResult(
+                    base_damage=0,
+                    final_damage=0,
+                    is_critical=False,
+                    multiplier=0,
+                    variance=0,
+                    details={"miss": True}
+                ),
+                0  # wound_damage = 0
+            )
+
         # 스탯 기반 보정 (공격자 스탯 vs 방어자 스탯)
         if damage_type == "magical":
             attacker_stat = self._get_magic_stat(attacker)
@@ -292,8 +308,9 @@ class DamageCalculator:
             player_dmg_mult = difficulty_system.get_player_damage_multiplier()
             final_damage = int(final_damage * player_dmg_mult)
 
-        # 상처 데미지 (HP 데미지의 25%)
-        wound_damage = int(final_damage * self.wound_damage_rate)
+        # 상처 데미지 (BREAK 상태면 75%, 아니면 25%)
+        wound_rate = 0.75 if is_break else self.wound_damage_rate
+        wound_damage = int(final_damage * wound_rate)
 
         self.logger.debug(
             f"HP 데미지 계산: {attacker.name} → {defender.name}",
@@ -410,7 +427,7 @@ class DamageCalculator:
         )
 
     def _get_attack_stat(self, character: Any) -> int:
-        """공격력 스탯 추출 (버프 반영)"""
+        """공격력 스탯 추출 (버프/환경 효과 반영)"""
         # 여러 속성명 시도
         base_stat = 10
         for attr in ["physical_attack", "p_atk", "attack", "strength"]:
@@ -427,10 +444,15 @@ class DamageCalculator:
                 debuff_value = character.active_buffs['attack_down'].get('value', 0.0)
                 base_stat = int(base_stat * (1.0 - debuff_value))
         
+        # 환경 효과 스탯 수정치 적용
+        if hasattr(character, 'env_stat_modifiers'):
+            env_mult = character.env_stat_modifiers.get('strength', 1.0)
+            base_stat = int(base_stat * env_mult)
+        
         return base_stat
 
     def _get_defense_stat(self, character: Any) -> int:
-        """방어력 스탯 추출 (버프 반영)"""
+        """방어력 스탯 추출 (버프/환경 효과 반영)"""
         base_stat = 10
         for attr in ["physical_defense", "p_def", "defense"]:
             if hasattr(character, attr):
@@ -446,10 +468,15 @@ class DamageCalculator:
                 debuff_value = character.active_buffs['defense_down'].get('value', 0.0)
                 base_stat = int(base_stat * (1.0 - debuff_value))
         
+        # 환경 효과 스탯 수정치 적용
+        if hasattr(character, 'env_stat_modifiers'):
+            env_mult = character.env_stat_modifiers.get('defense', 1.0)
+            base_stat = int(base_stat * env_mult)
+        
         return base_stat
 
     def _get_magic_stat(self, character: Any) -> int:
-        """마법력 스탯 추출 (버프 반영)"""
+        """마법력 스탯 추출 (버프/환경 효과 반영)"""
         base_stat = 10
         for attr in ["magic_attack", "m_atk", "magic", "intelligence"]:
             if hasattr(character, attr):
@@ -465,17 +492,30 @@ class DamageCalculator:
                 debuff_value = character.active_buffs['magic_down'].get('value', 0.0)
                 base_stat = int(base_stat * (1.0 - debuff_value))
         
+        # 환경 효과 스탯 수정치 적용
+        if hasattr(character, 'env_stat_modifiers'):
+            env_mult = character.env_stat_modifiers.get('magic', 1.0)
+            base_stat = int(base_stat * env_mult)
+        
         return base_stat
 
     def _get_spirit_stat(self, character: Any) -> int:
-        """정신력 스탯 추출"""
+        """정신력 스탯 추출 (환경 효과 반영)"""
+        base_stat = 10
         for attr in ["magic_defense", "m_def", "spirit", "resistance"]:
             if hasattr(character, attr):
-                return getattr(character, attr)
-        return 10  # 기본값
+                base_stat = getattr(character, attr)
+                break
+        
+        # 환경 효과 스탯 수정치 적용
+        if hasattr(character, 'env_stat_modifiers'):
+            env_mult = character.env_stat_modifiers.get('magic_defense', 1.0)
+            base_stat = int(base_stat * env_mult)
+        
+        return base_stat
 
     def _get_accuracy_stat(self, character: Any) -> int:
-        """명중률 스탯 추출 (버프 반영)"""
+        """명중률 스탯 추출 (버프/환경 효과 반영)"""
         base_stat = 50
         for attr in ["accuracy", "acc", "hit_rate"]:
             if hasattr(character, attr):
@@ -491,14 +531,58 @@ class DamageCalculator:
                 debuff_value = character.active_buffs['accuracy_down'].get('value', 0.0)
                 base_stat = int(base_stat * (1.0 - debuff_value))
         
+        # 환경 효과 스탯 수정치 적용
+        if hasattr(character, 'env_stat_modifiers'):
+            env_mult = character.env_stat_modifiers.get('accuracy', 1.0)
+            base_stat = int(base_stat * env_mult)
+        
         return base_stat
 
     def _get_evasion_stat(self, character: Any) -> int:
-        """회피율 스탯 추출"""
+        """
+        회피율 스탯 추출 (버프/환경 효과 반영)
+
+        NOTE: 확정 회피(>= 5.0)는 check_hit()에서 처리하므로 여기서는 제외
+        """
+        base_stat = 10
         for attr in ["evasion", "eva", "dodge"]:
             if hasattr(character, attr):
-                return getattr(character, attr)
-        return 10  # 기본값
+                base_stat = getattr(character, attr)
+                break
+
+        # 버프/디버프 적용 (evasion_up, evasion_down)
+        # 확정 회피 제외하고는 일반 버프/디버프만 처리
+        if hasattr(character, 'active_buffs') and character.active_buffs:
+            if 'evasion_up' in character.active_buffs:
+                buff_value = character.active_buffs['evasion_up'].get('value', 0.0)
+                is_absolute = character.active_buffs['evasion_up'].get('is_absolute', False)
+
+                # 확정 회피는 check_hit()에서 처리하므로 여기서는 무시
+                if buff_value < 5.0:
+                    if is_absolute or buff_value > 1.0:
+                        # 고정값 증가: 1.0보다 크거나 is_absolute=true면 고정값
+                        base_stat += max(1, int(buff_value))
+                    else:
+                        # 비율 증가: 1.0 이하면 백분율 (선호 방식)
+                        base_stat = int(base_stat * (1.0 + buff_value))
+
+            if 'evasion_down' in character.active_buffs:
+                debuff_value = character.active_buffs['evasion_down'].get('value', 0.0)
+                is_absolute = character.active_buffs['evasion_down'].get('is_absolute', False)
+
+                if is_absolute or debuff_value > 1.0:
+                    # 고정값 감소: 1.0보다 크거나 is_absolute=true면 고정값
+                    base_stat = max(1, base_stat - int(debuff_value))
+                else:
+                    # 비율 감소: 1.0 이하면 백분율 (선호 방식)
+                    base_stat = int(base_stat * (1.0 - debuff_value))
+
+        # 환경 효과 스탯 수정치 적용
+        if hasattr(character, 'env_stat_modifiers'):
+            env_mult = character.env_stat_modifiers.get('evasion', 1.0)
+            base_stat = int(base_stat * env_mult)
+
+        return base_stat
 
     def _is_player(self, character: Any) -> bool:
         """플레이어 캐릭터 여부 확인"""
@@ -532,6 +616,19 @@ class DamageCalculator:
             명중 여부
         """
         import math
+
+        # 확정 회피 체크 (evasion_up >= 5.0)
+        if hasattr(defender, 'active_buffs') and defender.active_buffs:
+            if 'evasion_up' in defender.active_buffs:
+                evasion_buff_value = defender.active_buffs['evasion_up'].get('value', 0.0)
+                if evasion_buff_value >= 5.0:
+                    # 확정 회피
+                    self.logger.info(
+                        f"[확정 회피] {getattr(defender, 'name', 'Unknown')}가 "
+                        f"{getattr(attacker, 'name', 'Unknown')}의 공격을 완벽하게 피했다! "
+                        f"(회피 버프: +{evasion_buff_value*100:.0f}%)"
+                    )
+                    return False
 
         accuracy = self._get_accuracy_stat(attacker)
         evasion = self._get_evasion_stat(defender)

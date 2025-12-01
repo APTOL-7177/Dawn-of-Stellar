@@ -1,0 +1,18 @@
+id: mirror_shield
+name: 거울 방패
+type: buff
+description: 아군에게 환영 보호막을 부여하여 다음 피해 2회를 흡수한다
+costs:
+  mp: 10
+  cast_time: 0.6
+target: ally
+effects:
+  - type: apply_shield
+    shield_type: phantom_absorb
+    absorb_hits: 2
+    absorb_ratio: 1.0
+    duration: 3
+metadata:
+  job: illusionist
+  support_skill: true
+  shield_skill: true

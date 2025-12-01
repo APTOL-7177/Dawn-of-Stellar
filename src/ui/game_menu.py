@@ -128,8 +128,18 @@ class GameMenu:
                 else:
                     console.print(menu_x + 4, y, label, fg=(200, 200, 200))
 
-        # 조작법
-        help_text = "↑↓: 선택  Enter/M: 확인  ESC: 닫기"
+        # 조작법 (게임패드 연결 시 게임패드 버튼으로 표시)
+        from src.ui.input_handler import key_binding_manager
+        use_gamepad = unified_input_handler.gamepad_connected
+        
+        if use_gamepad:
+            move_help = key_binding_manager.get_movement_help(True)
+            confirm_key = key_binding_manager.get_action_display("confirm", True)
+            cancel_key = key_binding_manager.get_action_display("escape", True)
+            help_text = f"{move_help}  {confirm_key}: 확인  {cancel_key}: 닫기"
+        else:
+            help_text = "↑↓: 선택  Enter/M: 확인  ESC: 닫기"
+        
         console.print(
             menu_x + (menu_width - len(help_text)) // 2,
             menu_y + menu_height - 2,
@@ -197,170 +207,21 @@ def open_game_menu(
         except:
             pass
 
-        # 키보드 입력 우선 처리
+        # 입력 처리 (키보드 + 게임패드)
+        action = None
+        
+        # 키보드 입력
         for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
-
             if action:
-                result = menu.handle_input(action)
-                if result:
-                    logger.info(f"메뉴 선택: {result.value}")
+                break
+        
+        # 게임패드 입력 (키보드 입력이 없을 때)
+        if not action:
+            action = unified_input_handler.get_action()
 
-                    # 하위 메뉴로 이동
-                if result == MenuOption.INVENTORY:
-                        if inventory is not None and party is not None:
-                            from src.ui.inventory_ui import open_inventory
-                            open_inventory(console, context, inventory, party, exploration)
-                            # 인벤토리에서 돌아온 후 메뉴 계속
-                            continue
-                        else:
-                            show_message(console, context, "인벤토리를 열 수 없습니다.")
-                            continue
-
-                elif result == MenuOption.QUEST_LIST:
-                        # 퀘스트 목록 UI
-                        from src.quest.quest_manager import get_quest_manager
-                        quest_manager = get_quest_manager()
-                        if quest_manager:
-                            from src.ui.quest_list_ui import open_quest_list
-                            open_quest_list(console, context, quest_manager)
-                        else:
-                            show_message(console, context, "퀘스트 관리자를 찾을 수 없습니다.")
-                        continue
-
-                elif result == MenuOption.PARTY_STATUS and party:
-                        open_party_status_menu(console, context, party, exploration=exploration)
-                        # 파티 상태에서 돌아온 후 메뉴 계속
-                        continue
-
-                elif result == MenuOption.SAVE_GAME:
-                        if exploration is None:
-                            show_message(console, context, "저장할 수 없습니다.")
-                            continue
-                        
-                        # 마을에서는 저장 불가
-                        if hasattr(exploration, 'is_town') and exploration.is_town:
-                            show_message(console, context, "마을에서는 저장할 수 없습니다.")
-                            continue
-
-                        from src.ui.save_load_ui import show_save_screen
-                        from src.persistence.save_system import (
-                            serialize_party_member, serialize_dungeon, serialize_item
-                        )
-
-                        # 게임 상태 직렬화
-                        # 디버그: 인벤토리 확인
-                        logger.warning(f"[SAVE] 저장 전 인벤토리: {inventory}")
-                        logger.warning(f"[SAVE] 인벤토리 골드: {inventory.gold if inventory and hasattr(inventory, 'gold') else 'N/A'}G")
-
-                        # 디버그: 채집 오브젝트 확인
-                        harvestables_count = len(exploration.dungeon.harvestables) if hasattr(exploration.dungeon, 'harvestables') else 0
-                        logger.warning(f"[SAVE] 저장 전 채집 오브젝트: {harvestables_count}개")
-                        if hasattr(exploration.dungeon, 'harvestables') and exploration.dungeon.harvestables:
-                            for i, h in enumerate(exploration.dungeon.harvestables[:3]):
-                                logger.warning(f"[SAVE]   {i+1}. {h.object_type.value} at ({h.x}, {h.y}), harvested={h.harvested}")
-
-                        # 현재 난이도 가져오기
-                        from src.core.difficulty import get_difficulty_system
-                        difficulty_system = get_difficulty_system()
-                        current_difficulty = "보통"
-                        if difficulty_system:
-                            current_difficulty = difficulty_system.current_difficulty.value
-
-                        from src.persistence.save_system import serialize_game_state
-                        
-                        # 인벤토리 아이템 리스트 생성
-                        inventory_items = []
-                        if inventory and hasattr(inventory, 'slots'):
-                            for slot in inventory.slots:
-                                if slot.item:
-                                    inventory_items.append(slot.item)
-                        
-                        # 멀티플레이어 여부 확인
-                        is_multiplayer = False
-                        if hasattr(exploration, 'is_multiplayer'):
-                            is_multiplayer = exploration.is_multiplayer
-                        elif hasattr(exploration, 'session'):
-                            # MultiplayerExplorationSystem인 경우
-                            is_multiplayer = True
-                        
-                        # 멀티플레이: 세션 정보 가져오기
-                        session = None
-                        if is_multiplayer and hasattr(exploration, 'session'):
-                            session = exploration.session
-                        
-                        # max_floor_reached 계산 (현재 층과 기록 중 더 큰 값)
-                        max_floor = exploration.game_stats.get("max_floor_reached", exploration.floor_number)
-                        max_floor = max(max_floor, exploration.floor_number)
-
-                        game_state = serialize_game_state(
-                            party=party if party else [],
-                            floor_number=exploration.floor_number,
-                            dungeon=exploration.dungeon,
-                            player_x=exploration.player.x,
-                            player_y=exploration.player.y,
-                            inventory=inventory_items,
-                            player_keys=exploration.player_keys if hasattr(exploration, 'player_keys') else [],
-                            traits=[],  # 특성은 파티 구성 시점에 저장됨
-                            passives=[],  # 패시브도 파티 구성 시점에 저장됨
-                            difficulty=current_difficulty,
-                            exploration=exploration,
-                            is_multiplayer=is_multiplayer,
-                            session=session,
-                            max_floor_reached=max_floor
-                        )
-
-                        # 게임 통계 추가
-                        game_state.update({
-                            "enemies_defeated": exploration.game_stats.get("enemies_defeated", 0),
-                            "total_gold_earned": exploration.game_stats.get("total_gold_earned", 0),
-                            "total_exp_earned": exploration.game_stats.get("total_exp_earned", 0),
-                            "save_slot": exploration.game_stats.get("save_slot", None),
-                            "next_dungeon_floor": exploration.game_stats.get("next_dungeon_floor", 1),  # 다음 던전 층 번호 저장
-                        })
-                        
-                        # 인벤토리 정보 추가 (기존 형식 유지)
-                        if inventory:
-                            game_state["inventory"] = {
-                                "gold": inventory.gold if hasattr(inventory, 'gold') else 0,
-                                "items": [{"item": serialize_item(slot.item), "quantity": getattr(slot, 'quantity', 1)} for slot in inventory.slots] if hasattr(inventory, 'slots') else [],
-                                "cooking_cooldown_turn": inventory.cooking_cooldown_turn if hasattr(inventory, 'cooking_cooldown_turn') else None,
-                                "cooking_cooldown_duration": inventory.cooking_cooldown_duration if hasattr(inventory, 'cooking_cooldown_duration') else 0
-                            }
-
-                        logger.warning(f"[SAVE] game_state['inventory']: {game_state['inventory']}")
-
-                        success = show_save_screen(console, context, game_state, is_multiplayer=is_multiplayer)
-                        if success:
-                            show_message(console, context, "저장 완료!")
-                        continue
-
-                elif result == MenuOption.LOAD_GAME:
-                        from src.ui.save_load_ui import show_load_screen
-                        game_state = show_load_screen(console, context)
-                        if game_state:
-                            # 로드 성공 - 메뉴 닫고 게임 재시작
-                            return MenuOption.LOAD_GAME
-                        continue
-
-                elif result == MenuOption.OPTIONS:
-                        from src.ui.settings_ui import open_settings
-                        open_settings(console, context)
-                        # 설정에서 돌아온 후 메뉴 계속
-                        continue
-
-                elif result == MenuOption.RETURN:
-                        return result
-
-            # 윈도우 닫기
-            for quit_event in tcod.event.get():
-                if isinstance(quit_event, tcod.event.Quit):
-                    return MenuOption.QUIT
-
-        # 게임패드 입력 처리 (키보드 입력이 없었을 때만)
-        gamepad_action = unified_input_handler.get_action()
-        if gamepad_action:
-            result = menu.handle_input(gamepad_action)
+        if action:
+            result = menu.handle_input(action)
             if result:
                 logger.info(f"메뉴 선택: {result.value}")
 
@@ -369,54 +230,106 @@ def open_game_menu(
                     if inventory is not None and party is not None:
                         from src.ui.inventory_ui import open_inventory
                         open_inventory(console, context, inventory, party, exploration)
-                        # 인벤토리에서 돌아온 후 메뉴 계속
                         continue
                     else:
                         show_message(console, context, "인벤토리를 열 수 없습니다.")
                         continue
 
                 elif result == MenuOption.QUEST_LIST:
-                    # 퀘스트 목록 UI
                     from src.quest.quest_manager import get_quest_manager
                     quest_manager = get_quest_manager()
                     if quest_manager:
                         from src.ui.quest_list_ui import open_quest_list
-                        open_quest_list(console, context, quest_manager, party)
-                        continue
+                        open_quest_list(console, context, quest_manager)
                     else:
-                        show_message(console, context, "퀘스트 목록을 열 수 없습니다.")
-                        continue
+                        show_message(console, context, "퀘스트 관리자를 찾을 수 없습니다.")
+                    continue
 
                 elif result == MenuOption.PARTY_STATUS and party:
                     open_party_status_menu(console, context, party, exploration=exploration)
-                    # 파티 상태에서 돌아온 후 메뉴 계속
                     continue
 
                 elif result == MenuOption.SAVE_GAME:
-                    # 저장 처리
-                    game_state = {}
-                    if exploration:
-                        game_state.update({
-                            "floor_number": exploration.floor_number,
-                            "player_pos": exploration.player_pos,
-                            "game_stats": exploration.game_stats,
-                            "next_dungeon_floor": exploration.game_stats.get("next_dungeon_floor", 1),  # 다음 던전 층 번호 저장
-                        })
+                    if exploration is None:
+                        show_message(console, context, "저장할 수 없습니다.")
+                        continue
+                    
+                    # 마을에서는 저장 불가
+                    if hasattr(exploration, 'is_town') and exploration.is_town:
+                        show_message(console, context, "마을에서는 저장할 수 없습니다.")
+                        continue
 
-                    # 파티 정보 추가
-                    if party:
-                        game_state["party"] = [serialize_character(char) for char in party]
+                    from src.ui.save_load_ui import show_save_screen
+                    from src.persistence.save_system import (
+                        serialize_party_member, serialize_dungeon, serialize_item
+                    )
 
-                    # 인벤토리 정보 추가 (기존 형식 유지)
+                    # 현재 난이도 가져오기
+                    from src.core.difficulty import get_difficulty_system
+                    difficulty_system = get_difficulty_system()
+                    current_difficulty = "보통"
+                    if difficulty_system:
+                        current_difficulty = difficulty_system.current_difficulty.value
+
+                    from src.persistence.save_system import serialize_game_state
+                    
+                    # 인벤토리 아이템 리스트 생성
+                    inventory_items = []
+                    if inventory and hasattr(inventory, 'slots'):
+                        for slot in inventory.slots:
+                            if slot.item:
+                                inventory_items.append(slot.item)
+                    
+                    # 멀티플레이어 여부 확인
+                    is_multiplayer = False
+                    if hasattr(exploration, 'is_multiplayer'):
+                        is_multiplayer = exploration.is_multiplayer
+                    elif hasattr(exploration, 'session'):
+                        is_multiplayer = True
+                    
+                    # 멀티플레이: 세션 정보 가져오기
+                    session = None
+                    if is_multiplayer and hasattr(exploration, 'session'):
+                        session = exploration.session
+                    
+                    # max_floor_reached 계산
+                    max_floor = exploration.game_stats.get("max_floor_reached", exploration.floor_number)
+                    max_floor = max(max_floor, exploration.floor_number)
+
+                    game_state = serialize_game_state(
+                        party=party if party else [],
+                        floor_number=exploration.floor_number,
+                        dungeon=exploration.dungeon,
+                        player_x=exploration.player.x,
+                        player_y=exploration.player.y,
+                        inventory=inventory_items,
+                        player_keys=exploration.player_keys if hasattr(exploration, 'player_keys') else [],
+                        traits=[],
+                        passives=[],
+                        difficulty=current_difficulty,
+                        exploration=exploration,
+                        is_multiplayer=is_multiplayer,
+                        session=session,
+                        max_floor_reached=max_floor
+                    )
+
+                    # 게임 통계 추가
+                    game_state.update({
+                        "enemies_defeated": exploration.game_stats.get("enemies_defeated", 0),
+                        "total_gold_earned": exploration.game_stats.get("total_gold_earned", 0),
+                        "total_exp_earned": exploration.game_stats.get("total_exp_earned", 0),
+                        "save_slot": exploration.game_stats.get("save_slot", None),
+                        "next_dungeon_floor": exploration.game_stats.get("next_dungeon_floor", 1),
+                    })
+                    
+                    # 인벤토리 정보 추가
                     if inventory:
                         game_state["inventory"] = {
                             "gold": inventory.gold if hasattr(inventory, 'gold') else 0,
-                            "items": [{"item": serialize_item(slot.item), "quantity": getattr(slot, 'quantity', 1)} for slot in inventory.slots] if hasattr(inventory, 'slots') else [],
+                            "items": [{"item": serialize_item(slot.item), "quantity": getattr(slot, 'quantity', 1)} for slot in inventory.slots if slot.item] if hasattr(inventory, 'slots') else [],
                             "cooking_cooldown_turn": inventory.cooking_cooldown_turn if hasattr(inventory, 'cooking_cooldown_turn') else None,
                             "cooking_cooldown_duration": inventory.cooking_cooldown_duration if hasattr(inventory, 'cooking_cooldown_duration') else 0
                         }
-
-                    logger.warning(f"[SAVE] game_state['inventory']: {game_state['inventory']}")
 
                     success = show_save_screen(console, context, game_state, is_multiplayer=is_multiplayer)
                     if success:
@@ -427,20 +340,23 @@ def open_game_menu(
                     from src.ui.save_load_ui import show_load_screen
                     game_state = show_load_screen(console, context)
                     if game_state:
-                        # 로드 성공 - 메뉴 닫고 게임 재시작
                         return MenuOption.LOAD_GAME
                     continue
 
                 elif result == MenuOption.OPTIONS:
                     from src.ui.settings_ui import open_settings
                     open_settings(console, context)
-                    # 설정에서 돌아온 후 메뉴 계속
                     continue
 
                 elif result == MenuOption.RETURN:
                     return result
 
-        # CPU 사용률 낮추기 (논블로킹 모드에서 필요)
+        # 윈도우 닫기
+        for quit_event in tcod.event.get():
+            if isinstance(quit_event, tcod.event.Quit):
+                return MenuOption.QUIT
+
+        # CPU 사용률 낮추기
         import time
         time.sleep(0.01)
 
@@ -586,25 +502,51 @@ def open_party_status_menu(
 
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
-            action = unified_input_handler.process_tcod_event(event)
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
 
+        # 입력 처리 함수
+        def process_party_action(action):
+            nonlocal selected_index
             if action == GameAction.MOVE_UP:
                 selected_index = max(0, selected_index - 1)
             elif action == GameAction.MOVE_DOWN:
                 selected_index = min(max_index, selected_index + 1)
             elif action == GameAction.CONFIRM:
-                # 선택한 캐릭터 상세 정보 표시
                 if all_party_members and selected_index < len(all_party_members):
                     show_character_detail(console, context, all_party_members[selected_index])
             elif action == GameAction.ESCAPE or action == GameAction.MENU:
-                return
+                return True
+            return False
+
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
+            action = unified_input_handler.process_tcod_event(event)
+
+            if action:
+                keyboard_processed = True
+                if process_party_action(action):
+                    return
 
             # 윈도우 닫기
-            for quit_event in tcod.event.get():
-                if isinstance(quit_event, tcod.event.Quit):
+            if isinstance(event, tcod.event.Quit):
+                return
+
+        # 게임패드 입력 처리
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                if process_party_action(gamepad_action):
                     return
+
+        # CPU 사용률 낮추기
+        import time
+        time.sleep(0.01)
 
 
 def show_character_detail(
@@ -675,7 +617,7 @@ def show_character_detail(
         y += 1
 
         if hasattr(character, 'strength'):
-            console.print(12, y, f"STR (힘):      {character.strength:3d}", fg=(255, 180, 180))
+            console.print(12, y, f"STR (공격):    {character.strength:3d}", fg=(255, 180, 180))
             y += 1
             console.print(12, y, f"DEF (방어):    {character.defense:3d}", fg=(180, 180, 255))
             y += 1
@@ -724,17 +666,36 @@ def show_character_detail(
 
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
+
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
-            if action == GameAction.ESCAPE or action == GameAction.MENU or action == GameAction.CONFIRM:
-                return
+            if action:
+                keyboard_processed = True
+                if action == GameAction.ESCAPE or action == GameAction.MENU or action == GameAction.CONFIRM:
+                    return
 
             # 윈도우 닫기
-            for quit_event in tcod.event.get():
-                if isinstance(quit_event, tcod.event.Quit):
-                    return
+            if isinstance(event, tcod.event.Quit):
+                return
+
+        # 게임패드 입력 처리
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action == GameAction.ESCAPE or gamepad_action == GameAction.MENU or gamepad_action == GameAction.CONFIRM:
+                return
+
+        # CPU 사용률 낮추기
+        import time
+        time.sleep(0.01)
 
 
 def show_message(
@@ -750,6 +711,32 @@ def show_message(
         context: TCOD 컨텍스트
         message: 표시할 메시지
     """
+    import time
+    import pygame
+    
+    # 이벤트 큐 비우기 + 딜레이 + 다시 비우기
+    for _ in tcod.event.get():
+        pass
+    try:
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+    
+    # 게임패드/키보드 입력 상태 초기화
+    unified_input_handler.clear_input_state()
+    
+    # 딜레이 후 다시 이벤트 큐 비우기
+    time.sleep(0.2)
+    for _ in tcod.event.get():
+        pass
+    try:
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+    unified_input_handler.clear_input_state()
+    
     handler = InputHandler()
 
     # 메시지 박스
@@ -757,6 +744,10 @@ def show_message(
     box_height = 7
     box_x = (console.width - box_width) // 2
     box_y = (console.height - box_height) // 2
+    
+    # 입력 허용 시작 시간 (1초 후부터 입력 허용)
+    start_time = time.time()
+    input_delay = 1.0
 
     while True:
         # 기존 화면 위에 오버레이
@@ -805,9 +796,28 @@ def show_message(
 
         context.present(console)
 
-        # 아무 키나 누르면 닫기
-        for event in tcod.event.wait():
-            if isinstance(event, tcod.event.KeyDown):
-                return
+        # pygame 이벤트 업데이트 (게임패드용)
+        try:
+            pygame.event.pump()
+        except:
+            pass
+
+        # 입력 허용 시간 체크
+        can_accept_input = (time.time() - start_time) >= input_delay
+
+        # 아무 키나 누르면 닫기 (키보드)
+        for event in tcod.event.get():
+            if can_accept_input:
+                if isinstance(event, tcod.event.KeyDown):
+                    return
             if isinstance(event, tcod.event.Quit):
                 return
+        
+        # 게임패드 입력
+        if can_accept_input:
+            action = unified_input_handler.get_action()
+            if action:
+                return
+        
+        # CPU 절약
+        time.sleep(0.01)

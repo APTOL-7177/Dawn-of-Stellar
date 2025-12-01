@@ -157,9 +157,20 @@ def show_npc_dialog(
         
         context.present(console)
         
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
+        
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
+            
+            if action:
+                keyboard_processed = True
             
             if has_choices:
                 if action == GameAction.MOVE_UP:
@@ -187,4 +198,33 @@ def show_npc_dialog(
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return None
-
+        
+        # 게임패드 입력 처리 (키보드 입력이 없었을 때만)
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                if has_choices:
+                    if gamepad_action == GameAction.MOVE_UP:
+                        selected_index = max(0, selected_index - 1)
+                    elif gamepad_action == GameAction.MOVE_DOWN:
+                        selected_index = min(len(choices) - 1, selected_index + 1)
+                    elif gamepad_action == GameAction.CONFIRM:
+                        if choices[selected_index].callback:
+                            try:
+                                choices[selected_index].callback()
+                            except Exception as e:
+                                logger.error(f"NPC 선택지 콜백 실행 오류: {e}")
+                        return selected_index
+                    elif gamepad_action == GameAction.CANCEL or gamepad_action == GameAction.ESCAPE:
+                        play_sfx("ui", "cursor_cancel")
+                        return None
+                else:
+                    if gamepad_action == GameAction.CONFIRM:
+                        return 0
+                    elif gamepad_action == GameAction.CANCEL or gamepad_action == GameAction.ESCAPE:
+                        play_sfx("ui", "cursor_cancel")
+                        return None
+        
+        # CPU 사용률 낮추기
+        import time
+        time.sleep(0.01)

@@ -210,8 +210,12 @@ class AudioManager:
             self.logger.debug(f"SFX '{category}.{sfx_name}'이 config.yaml에 정의되지 않음")
             return False
 
-        # 캐시 확인
-        cache_key = f"{category}.{sfx_name}"
+        # 피치 설정 확인 (config에 {sfx_name}_pitch가 있으면 적용)
+        pitch_key = f"audio.sfx.{category}.{sfx_name}_pitch"
+        pitch = self.config.get(pitch_key, 1.0)
+
+        # 캐시 키 (피치 포함)
+        cache_key = f"{category}.{sfx_name}_p{pitch}"
         if cache_key in self.sfx_cache:
             sound = self.sfx_cache[cache_key]
         else:
@@ -225,6 +229,11 @@ class AudioManager:
             try:
                 # SFX 로드
                 sound = pygame.mixer.Sound(str(file_path))
+                
+                # 피치 조정 (1.0이 아닌 경우)
+                if pitch != 1.0:
+                    sound = self._apply_pitch(sound, pitch)
+                
                 self.sfx_cache[cache_key] = sound
 
             except Exception as e:
@@ -243,6 +252,41 @@ class AudioManager:
         except Exception as e:
             self.logger.error(f"SFX 재생 실패 ({cache_key}): {e}")
             return False
+
+    def _apply_pitch(self, sound: pygame.mixer.Sound, pitch: float) -> pygame.mixer.Sound:
+        """
+        사운드에 피치 조정 적용 (numpy 사용)
+        
+        Args:
+            sound: 원본 사운드
+            pitch: 피치 배율 (1.5 = 50% 높은 음)
+            
+        Returns:
+            피치 조정된 사운드
+        """
+        try:
+            import numpy as np
+            
+            # 사운드 데이터 추출
+            raw_array = pygame.sndarray.array(sound)
+            
+            # 새 길이 계산 (피치가 높으면 재생 시간이 짧아짐)
+            new_length = int(len(raw_array) / pitch)
+            
+            # 리샘플링 (간단한 선형 보간)
+            indices = np.linspace(0, len(raw_array) - 1, new_length).astype(int)
+            resampled = raw_array[indices]
+            
+            # 새 사운드 생성
+            pitched_sound = pygame.sndarray.make_sound(resampled)
+            return pitched_sound
+            
+        except ImportError:
+            self.logger.warning("피치 조정에 numpy가 필요합니다. 원본 사운드 사용.")
+            return sound
+        except Exception as e:
+            self.logger.warning(f"피치 조정 실패: {e}. 원본 사운드 사용.")
+            return sound
 
     def play_teamwork_sfx(self, category: str, sfx_name: str, chain_count: int = 1) -> bool:
         """

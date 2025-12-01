@@ -308,6 +308,11 @@ class Skill:
                     has_joker = any(c.get('is_joker') for c in hand)
                     if not has_joker:
                         return False, "조커 카드가 필요합니다"
+                
+                # 손패에서 카드 선택이 필요한 스킬 (에이스 인 더 홀 등)
+                if self.metadata.get("select_card_from_hand"):
+                    if not hand:
+                        return False, "손패가 비어있습니다"
         
         return True, ""
 
@@ -402,6 +407,75 @@ class Skill:
             
             if not cost.consume(user, context):
                 return SkillResult(success=False, message="비용 소비 실패")
+
+        # 마술사 카드 소모 처리 (트릭 덱 시스템)
+        if hasattr(user, 'gimmick_type') and user.gimmick_type == "trick_deck":
+            if self.metadata and self.metadata.get('consume_cards'):
+                from src.character.skills.job_skills.magician_skills import (
+                    check_poker_combination, discard_cards, get_card_name
+                )
+                from src.core.logger import get_logger
+                logger = get_logger("skill")
+                
+                hand = getattr(user, 'card_hand', [])
+                
+                # 포커 조합 스킬
+                if self.metadata.get('required_combination'):
+                    combo_type, combo_cards, score = check_poker_combination(hand)
+                    if combo_cards:
+                        discard_cards(user, combo_cards)
+                        card_names = [get_card_name(c) for c in combo_cards]
+                        logger.info(f"[마술사] {user.name} 카드 소모: {', '.join(card_names)}")
+                
+                # 특정 숫자 카드 필요 스킬 (리버스 카드, 미러 포스 등)
+                elif self.metadata.get('required_rank'):
+                    required_rank = self.metadata.get('required_rank')
+                    # 필요한 카드 찾기
+                    card_to_discard = None
+                    for card in hand:
+                        if not card.get('is_joker') and card.get('rank') == required_rank:
+                            card_to_discard = card
+                            break
+                    # 조커로 대체 가능
+                    if not card_to_discard:
+                        for card in hand:
+                            if card.get('is_joker'):
+                                card_to_discard = card
+                                break
+                    if card_to_discard:
+                        discard_cards(user, [card_to_discard])
+                        logger.info(f"[마술사] {user.name} 카드 소모: {get_card_name(card_to_discard)}")
+                
+                # 같은 무늬 카드 필요 스킬 (마인드 리딩)
+                elif self.metadata.get('required_same_suit'):
+                    required_count = self.metadata.get('required_same_suit')
+                    suit_groups = {}
+                    for card in hand:
+                        if not card.get('is_joker'):
+                            suit = card.get('suit')
+                            if suit not in suit_groups:
+                                suit_groups[suit] = []
+                            suit_groups[suit].append(card)
+                    
+                    # 가장 많은 무늬 선택
+                    if suit_groups:
+                        best_suit = max(suit_groups.keys(), key=lambda s: len(suit_groups[s]))
+                        cards_to_discard = suit_groups[best_suit][:required_count]
+                        # 조커 추가 (부족하면)
+                        jokers = [c for c in hand if c.get('is_joker')]
+                        while len(cards_to_discard) < required_count and jokers:
+                            cards_to_discard.append(jokers.pop(0))
+                        if cards_to_discard:
+                            discard_cards(user, cards_to_discard)
+                            card_names = [get_card_name(c) for c in cards_to_discard]
+                            logger.info(f"[마술사] {user.name} 카드 소모: {', '.join(card_names)}")
+                
+                # 조커 필요 스킬 (조커 와일드)
+                elif self.metadata.get('required_joker'):
+                    joker = next((c for c in hand if c.get('is_joker')), None)
+                    if joker:
+                        discard_cards(user, [joker])
+                        logger.info(f"[마술사] {user.name} 조커 소모!")
 
         # 랜덤 룬 추가 처리 (배틀메이지)
         if self.metadata.get("random_rune") and hasattr(user, 'gimmick_type') and user.gimmick_type == "rune_resonance":
@@ -668,13 +742,66 @@ class Skill:
                 
                 # 굴절 전환: 자해 피해만큼 굴절량 획득 (refraction_gain_multiplier 적용)
                 if "refraction_gain_multiplier" in self.metadata:
-                    multiplier = self.metadata.get("refraction_gain_multiplier", 1.0)
+                    base_multiplier = self.metadata.get("refraction_gain_multiplier", 1.0)
+                    multiplier = base_multiplier
+                    
+                    # HP가 낮을수록 효율 증가 (low_hp_efficiency_bonus)
+                    # HP 50% 이하에서 최대 2.5배 효율 (선형 보간)
+                    if self.metadata.get("low_hp_efficiency_bonus", False):
+                        current_hp = getattr(user, 'current_hp', 0)
+                        max_hp = getattr(user, 'max_hp', 100)
+                        hp_percent = current_hp / max_hp if max_hp > 0 else 1.0
+                        
+                        max_efficiency_hp = self.metadata.get("max_efficiency_at_hp_percent", 0.5)  # 50%
+                        max_efficiency_mult = self.metadata.get("max_efficiency_multiplier", 2.5)
+                        
+                        # HP 100% ~ 50%: 1.0배 ~ 2.5배 (선형 보간)
+                        # HP 50% 이하: 최대 2.5배
+                        if hp_percent <= max_efficiency_hp:
+                            efficiency_bonus = max_efficiency_mult
+                        else:
+                            # 100% HP에서 1.0배, 50% HP에서 2.5배
+                            # (hp_percent - max_efficiency_hp) / (1.0 - max_efficiency_hp) = 0~1
+                            t = (hp_percent - max_efficiency_hp) / (1.0 - max_efficiency_hp)
+                            efficiency_bonus = max_efficiency_mult - t * (max_efficiency_mult - 1.0)
+                        
+                        multiplier = base_multiplier * efficiency_bonus
+                        logger.info(f"[굴절 전환] HP {hp_percent*100:.0f}% → 효율 {efficiency_bonus:.2f}배")
+                    
                     refraction_gain = int(self_damage * multiplier)
                     if not hasattr(user, 'refraction_stacks'):
                         user.refraction_stacks = 0
                     user.refraction_stacks += refraction_gain
                     logger.info(f"[굴절 전환] {user.name} 굴절량 획득: +{refraction_gain} (총: {user.refraction_stacks})")
                     effect_messages.append(f"굴절량 +{refraction_gain}")
+
+        # 차원 보호막 버프 적용 (damage_reduction 메타데이터)
+        if self.metadata.get("damage_reduction") and self.metadata.get("redirect_reduced_to_refraction"):
+            reduction_value = self.metadata.get("damage_reduction", 0.40)
+            duration = 2  # 기본 2턴
+            
+            # 타겟에게 dimension_barrier 버프 적용 (시전자 정보 포함)
+            targets_list = target if isinstance(target, list) else [target]
+            # AOE 스킬인 경우 아군 전체
+            if self.is_aoe and self.target_type == "all_allies":
+                targets_list = context.get('all_allies', targets_list) if context else targets_list
+            
+            for t in targets_list:
+                if not getattr(t, 'is_alive', True):
+                    continue
+                if not hasattr(t, 'active_buffs'):
+                    t.active_buffs = {}
+                t.active_buffs['dimension_barrier'] = {
+                    'value': reduction_value,
+                    'duration': duration,
+                    'source': user,  # 차원술사 정보 저장
+                    'redirect_to_refraction': True
+                }
+            
+            from src.core.logger import get_logger
+            logger = get_logger("skill")
+            logger.info(f"[차원 보호막] {user.name}이(가) 아군에게 피해 경감 {int(reduction_value*100)}% 부여 ({duration}턴)")
+            effect_messages.append(f"피해 경감 {int(reduction_value*100)}% ({duration}턴)")
 
         # 최종 메시지 구성 (ISSUE-003: 상세 피드백)
         base_message = f"{user.name}이(가) {self.name} 사용!"

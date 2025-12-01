@@ -1,0 +1,21 @@
+id: phase_walk
+name: 위상 이동
+type: special
+description: 물질계를 벗어나 1턴간 확정 회피 상태에 진입. 공격 불가, 환영 1개 생성
+costs:
+  mp: 12
+  cast_time: 0.3
+target: self
+effects:
+  - type: buff
+    stat: guaranteed_evasion
+    duration: 1
+  - type: debuff
+    stat: cannot_attack
+    duration: 1
+  - type: summon_phantom
+    count: 1
+metadata:
+  job: illusionist
+  defensive_skill: true
+  guaranteed_evasion: true

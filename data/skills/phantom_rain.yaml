@@ -1,0 +1,32 @@
+id: phantom_rain
+name: 환영우
+type: brv_hp_attack
+description: 환영들이 적진에 쏟아진다 (마법). 전체 BRV 후 랜덤 HP 공격, 환영 많을수록 타수 증가
+costs:
+  mp: 18
+  cast_time: 1.5
+target: all_enemies
+is_aoe: true
+effects:
+  - type: damage
+    damage_type: magic
+    stat_base: magic
+    multiplier: 0.8
+    element: mirror
+    attack_type: brv
+  - type: random_hp_hits
+    base_hits: 4
+    phantom_bonus_hits: 1
+    multiplier_per_hit: 0.3
+    hit_delay: 0.2
+  - type: debuff
+    target: all_enemies
+    stat: accuracy
+    value: 0.10
+    duration: 2
+metadata:
+  job: illusionist
+  attack_skill: true
+  multi_hit: true
+  scaling: magical
+  aoe: true

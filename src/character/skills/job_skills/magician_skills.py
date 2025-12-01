@@ -25,7 +25,7 @@ logger = get_logger("magician_skills")
 # 숫자별 특수 효과
 RANK_EFFECTS = {
     "A": {"name": "에이스", "effect": "first_strike", "desc": "선제공격 - 다음 공격이 먼저 발동"},
-    "2": {"name": "듀얼리티", "effect": "double_edge", "desc": "양날검 - 피해 2배, 자해 50%"},
+    "2": {"name": "듀얼리티", "effect": "double_edge", "desc": "양날검 - 피해 2배, HP피해의 25% 자해"},
     "3": {"name": "트리플", "effect": "triple_hit", "desc": "3연타 - 0.4배 피해 3회"},
     "4": {"name": "안정", "effect": "stability", "desc": "안정 - 다음 공격 필중 100%"},
     "5": {"name": "변화", "effect": "change", "desc": "변환 - 적 버프 1개 디버프로 전환"},
@@ -365,7 +365,7 @@ def create_magician_skills():
         "카드로 베어 BRV 피해. 드로우한 카드의 [숫자 효과]가 자동 발동!"
     )
     card_slash.effects = [
-        DamageEffect(DamageType.BRV, 0.7)
+        DamageEffect(DamageType.BRV, 0.9)
     ]
     card_slash.costs = []
     card_slash.sfx = ("combat", "attack_magic")
@@ -385,7 +385,7 @@ def create_magician_skills():
         "기발한 각도로 HP 타격. 드로우한 카드의 [무늬 효과]가 자동 발동!"
     )
     trick_shot.effects = [
-        DamageEffect(DamageType.HP, 0.5)
+        DamageEffect(DamageType.HP, 0.75)
     ]
     trick_shot.costs = []
     trick_shot.sfx = ("combat", "attack_magic")

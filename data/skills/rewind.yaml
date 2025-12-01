@@ -1,0 +1,22 @@
+id: rewind
+name: 리와인드
+type: heal
+description: 아군 1명의 HP 30% 회복 + 디버프 1개 해제
+costs:
+  mp: 17
+  cast_time: 1.0
+target: single_ally
+effects:
+  - type: heal
+    target: selected_ally
+    value_type: percent_max_hp
+    value: 0.30
+  - type: cleanse
+    target: selected_ally
+    count: 1
+  - type: generate_possibility
+    chance: 0.70
+    alternative_skill: paradox_guard
+metadata:
+  possibility_pair: paradox_guard
+  job: time_mage

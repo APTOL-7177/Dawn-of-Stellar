@@ -17,14 +17,14 @@ def create_dimensionist_skills():
     refraction_strike = Skill(
         "dimensionist_refraction_strike",
         "굴절 타격",
-        "기본 BRV 공격. 굴절량의 2%만큼 추가 데미지"
+        "기본 BRV 공격. 굴절량의 70%만큼 추가 데미지"
     )
     refraction_strike.effects = [
         DamageEffect(
             DamageType.BRV,
-            multiplier=1.5,
+            multiplier=1.125,
             stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.02}
+            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.70}
         )
     ]
     refraction_strike.costs = []
@@ -38,14 +38,14 @@ def create_dimensionist_skills():
     refraction_release = Skill(
         "dimensionist_refraction_release",
         "굴절 방출",
-        "기본 HP 공격. 굴절량의 1%만큼 추가 데미지"
+        "기본 HP 공격. 굴절량의 60%만큼 추가 데미지"
     )
     refraction_release.effects = [
         DamageEffect(
             DamageType.HP,
-            multiplier=1.2,
+            multiplier=0.9,
             stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.01}
+            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.60}
         )
     ]
     refraction_release.costs = []
@@ -94,12 +94,12 @@ def create_dimensionist_skills():
 
     # 마법력 기반 피해 + 고정 피해 효과 (굴절 보너스 강화)
     dimension_explosion.effects = [
-        # 마법력 기반 피해 (기본 0.8배 + 굴절 보너스 0.03배)
+        # 마법력 기반 피해 (기본 0.8배 + 굴절 보너스 1.0배)
         DamageEffect(
             DamageType.BRV,
-            multiplier=0.8,
+            multiplier=0.6,
             stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.03}
+            gimmick_bonus={"field": "refraction_stacks", "multiplier": 1.0}
         ),
         # 굴절량 소모 (20% → 80% 남김)
         GimmickEffect(
@@ -152,9 +152,9 @@ def create_dimensionist_skills():
     dimension_scatter.effects = [
         DamageEffect(
             DamageType.BRV_HP,
-            multiplier=2.0,
+            multiplier=1.5,
             stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.015}
+            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.40}
         )
     ]
     dimension_scatter.costs = [MPCost(12)]
@@ -173,7 +173,7 @@ def create_dimensionist_skills():
     refraction_conversion = Skill(
         "dimensionist_refraction_conversion",
         "굴절 전환",
-        "HP를 굴절량으로 전환"
+        "HP를 굴절량으로 전환. HP가 낮을수록 효율 증가 (50%에서 최대 1.5배)"
     )
     refraction_conversion.effects = [
         # 자해 및 굴절 획득은 메타데이터로 처리
@@ -183,8 +183,11 @@ def create_dimensionist_skills():
     refraction_conversion.sfx = ("combat", "critical")
     refraction_conversion.metadata = {
         "self_damage_hp_percent": 0.25,
-        "refraction_gain_multiplier": 2.5,
-        "custom_effect": True
+        "refraction_gain_multiplier": 2.0,  # 기본 2배
+        "custom_effect": True,
+        "low_hp_efficiency_bonus": True,  # HP가 낮을수록 효율 증가
+        "max_efficiency_at_hp_percent": 0.5,  # 50% HP에서 최대 효율
+        "max_efficiency_multiplier": 1.5  # 최대 1.5배 효율
     }
 
     # ========================================
@@ -193,7 +196,7 @@ def create_dimensionist_skills():
     dimension_barrier = Skill(
         "dimensionist_dimension_barrier",
         "차원 보호막",
-        "최대 HP의 25%만큼 굴절량 소모, 아군 전체 피해 경감 +40% (2턴)"
+        "최대 HP의 25%만큼 굴절량 소모, 아군 전체 피해 경감 +40% (2턴). 경감된 피해는 차원술사의 굴절량으로 전환"
     )
     dimension_barrier.effects = [
         BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=2, target="self"),
@@ -207,7 +210,8 @@ def create_dimensionist_skills():
     dimension_barrier.metadata = {
         "refraction_cost_hp_percent": 0.25,
         "damage_reduction": 0.40,
-        "requires_refraction_check": True
+        "requires_refraction_check": True,
+        "redirect_reduced_to_refraction": True  # 경감된 피해를 차원술사 굴절량으로 전환
     }
 
     # ========================================
@@ -221,15 +225,15 @@ def create_dimensionist_skills():
     dimension_backflow.effects = [
         DamageEffect(
             DamageType.BRV_HP,
-            multiplier=4.0,
+            multiplier=3.0,
             stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.04}
+            gimmick_bonus={"field": "refraction_stacks", "multiplier": 1.20}
         ),
         DamageEffect(
             DamageType.HP,
-            multiplier=3.5,
+            multiplier=2.625,
             stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.03}
+            gimmick_bonus={"field": "refraction_stacks", "multiplier": 1.0}
         )
     ]
     dimension_backflow.costs = [MPCost(15)]
@@ -252,15 +256,15 @@ def create_dimensionist_skills():
     ultimate.effects = [
         DamageEffect(
             DamageType.BRV,
-            multiplier=5.0,
+            multiplier=3.75,
             stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.05}
+            gimmick_bonus={"field": "refraction_stacks", "multiplier": 1.50}
         ),
         DamageEffect(
             DamageType.HP,
-            multiplier=4.5,
+            multiplier=3.375,
             stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.04}
+            gimmick_bonus={"field": "refraction_stacks", "multiplier": 1.20}
         ),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.5, duration=3),
         BuffEffect(BuffType.SPIRIT_DOWN, 0.5, duration=3),
@@ -296,10 +300,10 @@ def register_dimensionist_skills(skill_manager):
     """차원술사 스킬 등록"""
     skills = create_dimensionist_skills()
     
-    # 팀워크 스킬: 차원 붕괴
+    # 팀워크 스킬: 시공간 파열
     teamwork = TeamworkSkill(
         "dimensionist_teamwork",
-        "차원 붕괴",
+        "시공간 파열",
         "축적된 차원 굴절의 50%를 방출하여 전체 적에게 고정 피해 + 나머지 굴절 완전 제거",
         gauge_cost=225)
     teamwork.effects = [

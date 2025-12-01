@@ -83,10 +83,12 @@ audio:
       revive: Raise1
       status_buff: Up1
       status_debuff: Down1
+      taunt: Blow10
     combat:
       attack_gun: Gun1
       attack_magic: Magic1
       attack_physical: Damage3
+      attack_sword: Sword2
       battle_start: Battle1
       break: Break
       critical: Damage5
@@ -96,6 +98,7 @@ audio:
       escape: Run
       guard: Parry
       miss: Miss
+      multi_hit: Damage4
       turn_start: Cursor2
     enabled: true
     item:
@@ -111,6 +114,7 @@ audio:
       potion: Heal1
       use_item: Item2
     skill:
+      barrier: Barrier
       bell: Bell1
       bolt: Thunder1
       bolt2: Thunder2
@@ -125,20 +129,26 @@ audio:
       cure3: Heal1
       dark: Darkness3
       earth: Earth1
+      elemental: Magic2
+      explosion: Explosion2
       fire: Fire1
       fire2: Fire2
       fire3: Fire3
+      fire_explosion: Fire3
       flare: Explosion3
       gun_reload: Gun2
       gun_shot: Gun1
       haste: Up2
       holy: Heal4
       ice: Ice1
+      ice2: Ice2
       ice3: Ice3
       laser: Laser1
+      lightning: Thunder2
       limit_break: Damage5
       load: Load1
       machine: Machine
+      magic_cast: Magic1
       poison: Poison
       protect: Barrier
       reflect: Reflection
@@ -154,15 +164,22 @@ audio:
       summon: Summon
       switch: Switch1
       sword: Sword2
+      teamwork: Summon
+      teleport: Move2
+      trap: Switch2
+      rain: Water1
       ultima: Explosion4
+      water: Water1
       wind: Wind1
     ui:
-      cursor_cancel: Cancel1
+      cursor_cancel: Cancel3
       cursor_error: Buzzer1
       cursor_move: Cursor1
-      cursor_select: Decision1
-      menu_close: Cancel1
+      cursor_select: Decision4
+      cursor_select_pitch: 1.5
+      menu_close: Cancel3
       menu_open: Cursor1
+      turn_ready: Decision1
     world:
       alert: Siren
       break_open: Hammer
@@ -333,15 +350,21 @@ difficulty:
       name: 안정된 차원 항해
       player_damage_multiplier: 1.3
 display:
+  aspect_ratio_locked: true
+  borderless: true
+  borderless_fullscreen: true
   char_spacing_adjust: 0
   font_size: 60
   fps_limit: 60
   fullscreen: false
+  keep_aspect: true
   panels:
     map_height: 33
     map_width: 50
     message_height: 7
     sidebar_width: 20
+  pixel_height: 1080
+  pixel_width: 1920
   renderer: opengl2
   screen_height: 45
   screen_width: 80

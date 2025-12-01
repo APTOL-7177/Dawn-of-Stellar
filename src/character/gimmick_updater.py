@@ -80,6 +80,10 @@ class GimmickUpdater:
             GimmickUpdater._update_dimension_refraction(character)
         elif gimmick_type == "trick_deck":
             GimmickUpdater._update_trick_deck(character)
+        elif gimmick_type == "possibility_slots":
+            GimmickUpdater._update_possibility_slots(character)
+        elif gimmick_type == "phantom_legion":
+            GimmickUpdater._update_phantom_legion(character)
 
     @staticmethod
     def on_turn_start(character, context=None):
@@ -139,6 +143,14 @@ class GimmickUpdater:
         # 마술사 - 트릭 덱 시스템 턴 시작
         elif gimmick_type == "trick_deck":
             GimmickUpdater._update_trick_deck_turn_start(character)
+        
+        # 시간술사 - 가능성 슬롯 시스템 턴 시작
+        elif gimmick_type == "possibility_slots":
+            GimmickUpdater._update_possibility_slots_turn_start(character, context)
+        
+        # 환술사 - 환영 군단 시스템 턴 시작
+        elif gimmick_type == "phantom_legion":
+            GimmickUpdater._update_phantom_legion_turn_start(character, context)
 
         # 일반 특성 처리 (기믹과 무관한 특성들)
         GimmickUpdater._process_turn_start_traits(character, context)
@@ -226,7 +238,7 @@ class GimmickUpdater:
                     logger.info(f"[영혼 안내] {character.name} MP +{actual_mp} (최대 MP의 10%)")
 
     @staticmethod
-    def on_skill_use(character, skill):
+    def on_skill_use(character, skill, context=None):
         """스킬 사용 시 기믹 업데이트"""
         gimmick_type = getattr(character, 'gimmick_type', None)
         if not gimmick_type:
@@ -284,7 +296,7 @@ class GimmickUpdater:
             
             # 작곡 스킬: 패턴 효과 발동
             if skill.metadata.get("compose_skill"):
-                GimmickUpdater._apply_bard_compose_effect(character, skill)
+                GimmickUpdater._apply_bard_compose_effect(character, skill, context)
         
         elif gimmick_type == "trick_deck":
             # 마술사: 스킬 사용 시 카드 드로우 및 효과 적용
@@ -313,7 +325,7 @@ class GimmickUpdater:
                                 suit = card.get("suit", "")
                                 suit_effect = SUIT_EFFECTS.get(suit, {})
                                 if suit_effect:
-                                    GimmickUpdater._apply_card_suit_effect(character, suit_effect, card)
+                                    GimmickUpdater._apply_card_suit_effect(character, suit_effect, card, context)
                                     if card not in cards_to_discard:
                                         cards_to_discard.append(card)
                         
@@ -357,9 +369,9 @@ class GimmickUpdater:
                             suit = selected_card.get("suit", "")
                             suit_effect = SUIT_EFFECTS.get(suit, {})
                             if suit_effect:
-                                GimmickUpdater._apply_card_suit_effect(character, suit_effect, selected_card)
+                                GimmickUpdater._apply_card_suit_effect(character, suit_effect, selected_card, context)
                         
-                        # 카드 소모
+                        # 카드 소모:
                         if skill.metadata.get("consume_selected_card"):
                             discard_cards(character, [selected_card])
                             logger.info(f"  -> {card_name} 소모됨")
@@ -375,13 +387,76 @@ class GimmickUpdater:
                     if hasattr(skill, 'metadata'):
                         skill.metadata.pop('_selected_card', None)
             
-            # 선공 효과 (A) - ATB 보너스
+            # 카드 카운터 스킬: 덱에서 원하는 숫자 카드 서치
+            if skill.metadata.get("search_deck"):
+                try:
+                    from src.character.skills.job_skills.magician_skills import get_card_name
+                    deck = getattr(character, 'card_deck', [])
+                    hand = getattr(character, 'card_hand', [])
+                    max_hand = getattr(character, 'max_hand_size', 8)
+                    
+                    if len(hand) >= max_hand:
+                        logger.info(f"[카드 카운터] {character.name} 손패가 가득 차 서치 불가!")
+                    elif not deck:
+                        logger.info(f"[카드 카운터] {character.name} 덱이 비어 서치 불가!")
+                    else:
+                        # UI에서 선택한 랭크가 있으면 사용, 없으면 필요한 카드 자동 선택
+                        target_rank = skill.metadata.get('_search_rank')
+                        
+                        if not target_rank:
+                            # 자동 선택: 현재 조합 완성에 필요한 카드 탐색
+                            from src.character.skills.job_skills.magician_skills import check_poker_combination
+                            current_combo, _, _ = check_poker_combination(hand)
+                            
+                            # 손패에 있는 랭크 수 계산
+                            rank_counts = {}
+                            for card in hand:
+                                if not card.get('is_joker'):
+                                    r = card.get('rank', '')
+                                    rank_counts[r] = rank_counts.get(r, 0) + 1
+                            
+                            # 가장 많은 랭크 찾아서 조합 완성 시도
+                            if rank_counts:
+                                target_rank = max(rank_counts, key=rank_counts.get)
+                            else:
+                                # 손패가 비었으면 A 서치
+                                target_rank = "A"
+                        
+                        # 덱에서 해당 랭크 카드 찾기
+                        found_card = None
+                        for i, card in enumerate(deck):
+                            if not card.get('is_joker') and card.get('rank') == target_rank:
+                                found_card = deck.pop(i)
+                                break
+                        
+                        if found_card:
+                            hand.append(found_card)
+                            character.card_hand = hand
+                            character.card_deck = deck
+                            card_name = get_card_name(found_card)
+                            logger.info(f"[카드 카운터] {character.name} 덱에서 {card_name} 서치 성공!")
+                        else:
+                            logger.info(f"[카드 카운터] {character.name} 덱에 {target_rank} 카드가 없음!")
+                        
+                        # 메타데이터 정리
+                        skill.metadata.pop('_search_rank', None)
+                except Exception as e:
+                    logger.debug(f"카드 서치 실패: {e}")
+                finally:
+                    if hasattr(skill, 'metadata'):
+                        skill.metadata.pop('_search_rank', None)
+            
+            # 선공 효과 (A) - 플래그 설정 (턴 종료 시 ATB 최대치로)
+            # 스킬 사용 후 턴이 끝나고 ATB가 consume된 후에 적용해야 함
             card_effects = getattr(character, 'card_effects', {})
-            if card_effects.pop('first_strike', False):
-                # ATB 500 보너스 (다음 턴 빨리 오게)
-                if hasattr(character, 'atb_gauge'):
-                    character.atb_gauge = min(2000, getattr(character, 'atb_gauge', 0) + 500)
-                    logger.info(f"[마술사] {character.name} 선공 효과! ATB +500")
+            if card_effects.get('first_strike', False):
+                # 턴 종료 시 적용되도록 플래그 유지
+                character._first_strike_pending = True
+                logger.info(f"[마술사] {character.name} 선제공격 준비!")
+        
+        elif gimmick_type == "possibility_slots":
+            # 시간술사: 스킬 사용 시 가능성 생성
+            GimmickUpdater._process_possibility_generation(character, skill, context)
 
     @staticmethod
     def on_ally_attack(attacker, all_allies, target=None):
@@ -666,8 +741,8 @@ class GimmickUpdater:
         
         # === 기본 효과 적용 (특성 불필요) ===
         madness = character.madness
-        base_attack = character.stat_manager.get_base_value(Stats.STRENGTH)
-        base_speed = character.stat_manager.get_base_value(Stats.SPEED)
+        base_attack = character.stat_manager.get_value(Stats.STRENGTH, use_total=False)
+        base_speed = character.stat_manager.get_value(Stats.SPEED, use_total=False)
         
         # 폭주 상태 (광기 100) - 통제 가능하지만 대가가 큼
         if madness >= character.rampage_threshold:
@@ -1217,8 +1292,17 @@ class GimmickUpdater:
     @staticmethod
     def _update_plunder_system(character):
         """해적: 약탈 시스템 업데이트"""
-        # 약탈한 골드는 스킬로만 획득, 자동 업데이트 없음
-        pass
+        # 보물은 스킬(플런더, 약탈)로만 획득
+        # 턴 종료 시 자동으로 쌓이지는 않음
+        treasure_count = getattr(character, 'treasure_count', 0)
+
+        # 보물 보유 상태 로깅
+        if treasure_count > 0:
+            logger.info(f"[해적] {character.name}의 보물 보유: {treasure_count}개 (턴 종료)")
+
+        # 보물 관련 처리는 skill_manager.py에서 수행됨
+        # - 플런더: treasure_steal_chance로 보물 획득
+        # - 보물 폭탄/사용: consume_all_treasure로 모든 보물 소비
 
     @staticmethod
     def _update_multithread_system(character):
@@ -1473,6 +1557,21 @@ class GimmickUpdater:
                     "royal_straight_flush": "로얄 스트레이트 플러시"
                 }
                 logger.debug(f"{character.name} 현재 조합: {combo_names.get(combo_type, combo_type)}")
+        
+        # 선제공격 효과 처리 (A카드) - 턴 종료 시 ATB를 최대치로 설정
+        if getattr(character, '_first_strike_pending', False):
+            # ATB 게이지를 최대치로 설정 (다음 턴에 바로 행동)
+            if hasattr(character, 'atb_gauge') and hasattr(character.atb_gauge, 'current'):
+                character.atb_gauge.current = 1000
+            elif hasattr(character, 'atb_gauge'):
+                character.atb_gauge = 1000
+            
+            # 플래그 및 카드 효과 제거
+            character._first_strike_pending = False
+            if hasattr(character, 'card_effects'):
+                character.card_effects.pop('first_strike', None)
+            
+            logger.info(f"[마술사] {character.name} 선제공격 발동! 즉시 다음 턴!")
 
     @staticmethod
     def _update_trick_deck_turn_start(character):
@@ -1564,7 +1663,7 @@ class GimmickUpdater:
         if effect_type == "first_strike":
             character.card_effects["first_strike"] = True
         elif effect_type == "double_edge":
-            character.card_effects["double_edge"] = {"damage_mult": 2.0, "self_damage": 0.5}
+            character.card_effects["double_edge"] = {"damage_mult": 2.0, "self_damage": 0.25}
         elif effect_type == "triple_hit":
             character.card_effects["triple_hit"] = {"hits": 3, "damage_mult": 0.4}
         elif effect_type == "stability":
@@ -1629,7 +1728,7 @@ class GimmickUpdater:
             character.card_effects["mass_stun"] = {"duration": 1}
     
     @staticmethod
-    def _apply_card_suit_effect(character, suit_effect, card):
+    def _apply_card_suit_effect(character, suit_effect, card, context=None):
         """마술사 카드 무늬 효과 적용"""
         effect_type = suit_effect.get("effect", "")
         effect_name = suit_effect.get("name", "")
@@ -1649,12 +1748,21 @@ class GimmickUpdater:
             # ♣: 적에게 독 3턴 적용 - 즉시 적용
             character.card_effects["poison_attack"] = {"duration": 3, "damage_percent": 0.05}
             try:
-                from src.combat.combat_manager import get_combat_manager
-                cm = get_combat_manager()
+                # context에서 적 목록 가져오기
+                all_enemies = []
+                if context and 'all_enemies' in context:
+                    all_enemies = context['all_enemies']
+                else:
+                    # fallback: combat_manager에서 가져오기
+                    from src.combat.combat_manager import get_combat_manager
+                    cm = get_combat_manager()
+                    if cm and cm.enemies:
+                        all_enemies = cm.enemies
+                
                 # 현재 타겟이 있으면 타겟에게, 없으면 랜덤 적에게 적용
                 target = getattr(character, '_current_target', None)
-                if not target and cm and cm.enemies:
-                    alive_enemies = [e for e in cm.enemies if hasattr(e, 'is_alive') and e.is_alive]
+                if not target and all_enemies:
+                    alive_enemies = [e for e in all_enemies if getattr(e, 'is_alive', True)]
                     if alive_enemies:
                         import random
                         target = random.choice(alive_enemies)
@@ -1678,7 +1786,7 @@ class GimmickUpdater:
     # ============================================================
     
     @staticmethod
-    def _apply_bard_compose_effect(character, skill):
+    def _apply_bard_compose_effect(character, skill, context=None):
         """바드 작곡 스킬 패턴 효과 적용"""
         if not hasattr(character, 'music_notes') or not character.music_notes:
             logger.info(f"{character.name} 악보가 비어있어 기본 효과만 적용됩니다.")
@@ -1706,26 +1814,124 @@ class GimmickUpdater:
             
             logger.info(f"[바드] {matched_pattern} 패턴 완성! {effect_type} 효과 발동!")
             
+            # 아군 목록 가져오기
+            allies = []
+            if context and 'all_allies' in context:
+                allies = [a for a in context['all_allies'] if getattr(a, 'is_alive', True)]
+            else:
+                allies = [character]  # fallback
+            
             if effect_type == "attack_surge":
-                character.active_buffs["attack_up"] = {"value": value, "duration": duration}
-                logger.info(f"  -> 공격력 +{int(value*100)}% ({duration}턴)")
+                # 파티 전체 공격력 버프
+                for ally in allies:
+                    if not hasattr(ally, 'active_buffs'):
+                        ally.active_buffs = {}
+                    ally.active_buffs["attack_up"] = {"value": value, "duration": duration}
+                logger.info(f"  -> 아군 전체 공격력 +{int(value*100)}% ({duration}턴)")
+            elif effect_type == "attack_magic_surge":
+                # 파티 전체 공격력 + 마법력 버프
+                for ally in allies:
+                    if not hasattr(ally, 'active_buffs'):
+                        ally.active_buffs = {}
+                    ally.active_buffs["attack_up"] = {"value": value, "duration": duration}
+                    ally.active_buffs["magic_up"] = {"value": value, "duration": duration}
+                logger.info(f"  -> 아군 전체 공격력/마법력 +{int(value*100)}% ({duration}턴)")
             elif effect_type == "buff_extend":
-                for buff_name, buff_data in character.active_buffs.items():
-                    if isinstance(buff_data, dict) and "duration" in buff_data:
-                        buff_data["duration"] += int(value)
-                logger.info(f"  -> 모든 버프 지속시간 +{int(value)}턴")
+                # 파티 전체 버프 지속시간 연장
+                for ally in allies:
+                    if hasattr(ally, 'active_buffs'):
+                        for buff_name, buff_data in ally.active_buffs.items():
+                            if isinstance(buff_data, dict) and "duration" in buff_data:
+                                buff_data["duration"] += int(value)
+                logger.info(f"  -> 아군 전체 버프 지속시간 +{int(value)}턴")
             elif effect_type == "mass_heal":
-                heal_amount = int(character.max_hp * value)
-                character.current_hp = min(character.max_hp, character.current_hp + heal_amount)
-                logger.info(f"  -> HP {heal_amount} 회복!")
+                # 파티 전체 힐
+                healed_count = 0
+                for ally in allies:
+                    if hasattr(ally, 'current_hp') and hasattr(ally, 'max_hp'):
+                        heal_amount = int(ally.max_hp * value)
+                        ally.current_hp = min(ally.max_hp, ally.current_hp + heal_amount)
+                        logger.info(f"  -> {ally.name} HP {heal_amount} 회복!")
+                        healed_count += 1
+                if healed_count == 0:
+                    heal_amount = int(character.max_hp * value)
+                    character.current_hp = min(character.max_hp, character.current_hp + heal_amount)
+                    logger.info(f"  -> HP {heal_amount} 회복!")
             elif effect_type == "all_stat_up":
-                character.active_buffs["attack_up"] = {"value": value, "duration": duration}
-                character.active_buffs["defense_up"] = {"value": value, "duration": duration}
-                character.active_buffs["speed_up"] = {"value": value, "duration": duration}
-                logger.info(f"  -> 공/방/속 +{int(value*100)}% ({duration}턴)")
+                # 파티 전체 공/방/마공/마방/속 버프
+                for ally in allies:
+                    if not hasattr(ally, 'active_buffs'):
+                        ally.active_buffs = {}
+                    ally.active_buffs["attack_up"] = {"value": value, "duration": duration}
+                    ally.active_buffs["defense_up"] = {"value": value, "duration": duration}
+                    ally.active_buffs["magic_up"] = {"value": value, "duration": duration}
+                    ally.active_buffs["spirit_up"] = {"value": value, "duration": duration}
+                    ally.active_buffs["speed_up"] = {"value": value, "duration": duration}
+                logger.info(f"  -> 아군 전체 공/방/마공/마방/속 +{int(value*100)}% ({duration}턴)")
+            elif effect_type == "all_stat_down":
+                # 적 전체 공/방/마공/마방/속 디버프
+                all_enemies = []
+                if context and 'all_enemies' in context:
+                    all_enemies = [e for e in context['all_enemies'] if getattr(e, 'is_alive', True)]
+                for enemy in all_enemies:
+                    if not hasattr(enemy, 'active_buffs'):
+                        enemy.active_buffs = {}
+                    enemy.active_buffs["attack_down"] = {"value": value, "duration": duration}
+                    enemy.active_buffs["defense_down"] = {"value": value, "duration": duration}
+                    enemy.active_buffs["magic_down"] = {"value": value, "duration": duration}
+                    enemy.active_buffs["spirit_down"] = {"value": value, "duration": duration}
+                    enemy.active_buffs["speed_down"] = {"value": value, "duration": duration}
+                logger.info(f"  -> 적 전체 공/방/마공/마방/속 -{int(value*100)}% ({duration}턴)")
+            elif effect_type == "magic_heal":
+                # 바드 마법력 기반 파티 전체 회복
+                magic_stat = getattr(character, 'magic', getattr(character, 'magic_attack', 100))
+                heal_multiplier = matched_effect.get("multiplier", 1.35)
+                heal_amount = int(magic_stat * heal_multiplier)
+                for ally in allies:
+                    if hasattr(ally, 'current_hp') and hasattr(ally, 'max_hp'):
+                        actual_heal = min(ally.max_hp - ally.current_hp, heal_amount)
+                        ally.current_hp = min(ally.max_hp, ally.current_hp + heal_amount)
+                        logger.info(f"  -> {ally.name} HP {actual_heal} 회복!")
+                logger.info(f"  -> 마법력 {magic_stat} × {heal_multiplier} = {heal_amount} 회복")
+            elif effect_type == "triple_strike":
+                # 적 전체 3연타 BRV+HP 공격
+                all_enemies = []
+                if context and 'all_enemies' in context:
+                    all_enemies = [e for e in context['all_enemies'] if getattr(e, 'is_alive', True)]
+                
+                brv_mult = matched_effect.get("brv_multiplier", 1.2)
+                hp_mult = matched_effect.get("hp_multiplier", 1.0)
+                magic_stat = getattr(character, 'magic', getattr(character, 'magic_attack', 100))
+                
+                for enemy in all_enemies:
+                    total_damage = 0
+                    # 3연타 BRV 공격
+                    for i in range(3):
+                        brv_damage = int(magic_stat * brv_mult * 0.8)
+                        if hasattr(enemy, 'current_brv'):
+                            enemy.current_brv = max(0, enemy.current_brv - brv_damage)
+                        total_damage += brv_damage
+                    # HP 공격 마무리
+                    hp_damage = int(magic_stat * hp_mult)
+                    if hasattr(enemy, 'current_hp'):
+                        enemy.current_hp = max(0, enemy.current_hp - hp_damage)
+                    total_damage += hp_damage
+                    logger.info(f"  -> {enemy.name}에게 3연타 BRV + HP 공격! (총 {total_damage} 피해)")
+                    
+                    # 사망 체크
+                    if hasattr(enemy, 'current_hp') and enemy.current_hp <= 0:
+                        enemy.is_alive = False
             elif effect_type == "enemy_debuff":
-                character.bard_debuff_pending = {"value": value, "duration": duration}
-                logger.info(f"  -> 적 공/방 -{int(value*100)}% ({duration}턴) 준비됨")
+                # 적 전체 디버프 (context에서 적 목록 가져오기)
+                all_enemies = []
+                if context and 'all_enemies' in context:
+                    all_enemies = [e for e in context['all_enemies'] if getattr(e, 'is_alive', True)]
+                for enemy in all_enemies:
+                    if not hasattr(enemy, 'active_buffs'):
+                        enemy.active_buffs = {}
+                    enemy.active_buffs["attack_down"] = {"value": value, "duration": duration}
+                    enemy.active_buffs["defense_down"] = {"value": value, "duration": duration}
+                logger.info(f"  -> 적 전체 공/방 -{int(value*100)}% ({duration}턴)")
             
             if skill.metadata.get("consume_notes"):
                 if len(character.music_notes) >= 3:
@@ -1734,10 +1940,567 @@ class GimmickUpdater:
                     character.music_notes = []
                 logger.info(f"  -> 악보 갱신: {''.join(character.music_notes) if character.music_notes else '(비어있음)'}")
         else:
+            # 패턴 미완성: 음표 개수에 비례한 공/마 버프 (아군 전체)
             note_count = len(character.music_notes)
-            bonus = 0.1 * note_count
-            character.active_buffs["attack_up"] = {"value": bonus, "duration": 2}
-            logger.info(f"[바드] 패턴 미완성. 음표 {note_count}개 -> 공격력 +{int(bonus*100)}% (2턴)")
+            bonus = 0.1 * note_count  # 음표당 10%
+            
+            # 아군 전체에 버프 적용
+            allies = []
+            if context and 'all_allies' in context:
+                allies = [a for a in context['all_allies'] if getattr(a, 'is_alive', True)]
+            else:
+                allies = [character]  # fallback
+            
+            for ally in allies:
+                if not hasattr(ally, 'active_buffs'):
+                    ally.active_buffs = {}
+                ally.active_buffs["attack_up"] = {"value": bonus, "duration": 2}
+                ally.active_buffs["magic_up"] = {"value": bonus, "duration": 2}
+            
+            logger.info(f"[바드] 패턴 미완성. 음표 {note_count}개 -> 아군 전체 공/마 +{int(bonus*100)}% (2턴)")
+            
+            # 패턴 미완성 시에도 음표 소모
+            if skill.metadata.get("consume_notes"):
+                if len(character.music_notes) >= 3:
+                    character.music_notes = character.music_notes[:-3]
+                else:
+                    character.music_notes = []
+                logger.info(f"  -> 악보 갱신: {''.join(character.music_notes) if character.music_notes else '(비어있음)'}")
+
+    # === 시간술사: 가능성 슬롯 시스템 ===
+
+    @staticmethod
+    def _update_possibility_slots(character):
+        """시간술사: 가능성 슬롯 시스템 턴 종료 시 업데이트"""
+        GimmickUpdater._apply_parallel_resonance(character)
+
+    @staticmethod
+    def _update_possibility_slots_turn_start(character, context=None):
+        """시간술사: 가능성 슬롯 시스템 턴 시작 시 업데이트"""
+        if not hasattr(character, '_battle_started'):
+            character._battle_started = True
+            if hasattr(character, 'active_traits'):
+                for trait_data in character.active_traits:
+                    trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                    if trait_id == "infinite_branches":
+                        import random
+                        possible_skills = ['time_mage_time_bolt', 'time_mage_time_shock', 'time_mage_haste', 'time_mage_slow', 'time_mage_rewind']
+                        random_skill = random.choice(possible_skills)
+                        GimmickUpdater._add_possibility(character, random_skill)
+                        logger.info(f"[무한 분기] {character.name} 전투 시작 시 '{random_skill}' 가능성 자동 생성!")
+                        break
+        GimmickUpdater._apply_parallel_resonance(character)
+
+    @staticmethod
+    def _process_possibility_generation(character, skill, context=None):
+        """시간술사: 스킬 사용 시 가능성 생성 처리"""
+        import random
+        skill_id = getattr(skill, 'id', None) or skill.metadata.get('id', '')
+        excluded_skills = ['summon_possibility', 'time_crossing', 'time_storm', 
+                          'fate_copy', 'overwrite_fate', 'infinite_convergence', 'teamwork']
+        if skill_id in excluded_skills:
+            return
+        possibility_pairs = getattr(character, 'possibility_pairs', {})
+        alternative_skill = possibility_pairs.get(skill_id)
+        if not alternative_skill:
+            alternative_skill = skill.metadata.get('possibility_pair')
+        if not alternative_skill:
+            return
+        slots = getattr(character, 'possibility_slots', [])
+        max_slots = getattr(character, 'max_possibility_slots', 4)
+        if len(slots) >= max_slots:
+            return
+        base_chance = getattr(character, 'base_generation_chance', 0.70)
+        generation_bonus = 0
+        luck_bonus = 0
+        max_chance = 1.0
+        if hasattr(character, 'active_traits'):
+            for trait_data in character.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                if trait_id == "branch_creator":
+                    generation_bonus = 0.15
+                    luck = getattr(character, 'luck', 0)
+                    if hasattr(character, 'stat_manager'):
+                        from src.character.stats import Stats
+                        luck = character.stat_manager.get_value(Stats.LUCK)
+                    luck_bonus = luck * 0.0025
+                    max_chance = 0.95
+                    break
+        if hasattr(character, 'active_traits'):
+            for trait_data in character.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                if trait_id == "infinite_branches":
+                    current_hp = getattr(character, 'current_hp', 0)
+                    max_hp = getattr(character, 'max_hp', 1)
+                    if current_hp / max_hp <= 0.30:
+                        base_chance = 1.0
+                        generation_bonus = 0
+                        luck_bonus = 0
+                        max_chance = 1.0
+                        logger.info(f"[무한 분기] {character.name} HP 30% 이하! 가능성 생성 확률 100%")
+                    break
+        final_chance = min(max_chance, base_chance + generation_bonus + luck_bonus)
+        if random.random() < final_chance:
+            GimmickUpdater._add_possibility(character, alternative_skill)
+            logger.info(f"[가능성 생성] {character.name}: '{skill_id}' 사용 → '{alternative_skill}' 저장됨 (확률: {final_chance*100:.0f}%)")
+
+    @staticmethod
+    def _add_possibility(character, skill_id: str, reuse_count: int = 0):
+        """가능성 슬롯에 스킬 추가"""
+        if not hasattr(character, 'possibility_slots'):
+            character.possibility_slots = []
+        max_slots = getattr(character, 'max_possibility_slots', 4)
+        if len(character.possibility_slots) >= max_slots:
+            return False
+        character.possibility_slots.append({
+            'skill_id': skill_id,
+            'power_ratio': getattr(character, 'possibility_power_ratio', 0.85),
+            'reuse_count': reuse_count
+        })
+        return True
+
+    @staticmethod
+    def _apply_parallel_resonance(character):
+        """평행 공명 효과 적용"""
+        if not hasattr(character, 'stat_manager'):
+            return
+        from src.character.stats import Stats
+        try:
+            character.stat_manager.remove_bonus(Stats.MAGIC, "parallel_resonance")
+        except:
+            pass
+        slots = getattr(character, 'possibility_slots', [])
+        slot_count = len(slots)
+        if slot_count == 0:
+            character._parallel_resonance_damage_reduction = 0
+            character._parallel_resonance_atb_bonus = 0
+            return
+        per_slot_magic_bonus = 0.08
+        per_slot_damage_reduction = 0.05
+        full_slot_atb_bonus = 0.15
+        base_magic = character.stat_manager.get_value(Stats.MAGIC, use_total=False)
+        magic_bonus = base_magic * (per_slot_magic_bonus * slot_count)
+        character.stat_manager.add_bonus(Stats.MAGIC, "parallel_resonance", magic_bonus)
+        character._parallel_resonance_damage_reduction = per_slot_damage_reduction * slot_count
+        max_slots = getattr(character, 'max_possibility_slots', 4)
+        character._parallel_resonance_atb_bonus = full_slot_atb_bonus if slot_count >= max_slots else 0
+
+    @staticmethod
+    def summon_possibility(character, slot_index: int, context=None) -> dict:
+        """가능성 소환"""
+        import random
+        slots = getattr(character, 'possibility_slots', [])
+        if not slots or slot_index >= len(slots):
+            return {'success': False, 'error': '슬롯이 비어있거나 잘못된 인덱스'}
+        possibility = slots[slot_index]
+        skill_id = possibility['skill_id']
+        power_ratio = possibility['power_ratio']
+        reuse_count = possibility.get('reuse_count', 0)
+        preserve = False
+        if hasattr(character, 'active_traits'):
+            for trait_data in character.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                if trait_id == "timeline_interference":
+                    effects = trait_data.get('effects', {}) if isinstance(trait_data, dict) else {}
+                    if reuse_count < effects.get('max_reuse', 2) and random.random() < effects.get('preserve_chance', 0.30):
+                        preserve = True
+                        possibility['reuse_count'] = reuse_count + 1
+                    break
+        consumed = not preserve
+        if consumed:
+            slots.pop(slot_index)
+            character.possibility_slots = slots
+        return {'success': True, 'skill_id': skill_id, 'power_ratio': power_ratio, 'consumed': consumed}
+
+    @staticmethod
+    def time_crossing(character, slot_indices: list, context=None) -> list:
+        """시간선 교차: 2개 가능성 동시 발동"""
+        results = []
+        slots = getattr(character, 'possibility_slots', [])
+        if len(slot_indices) != 2 or len(slots) < 2:
+            return [{'success': False, 'error': '슬롯 2개 필요'}]
+        for idx in sorted(slot_indices, reverse=True):
+            if idx < len(slots):
+                results.append({'success': True, 'skill_id': slots[idx]['skill_id'], 'power_ratio': 0.75, 'consumed': True})
+                slots.pop(idx)
+        character.possibility_slots = slots
+        return results
+
+    @staticmethod
+    def time_storm(character, context=None) -> dict:
+        """시간 폭풍: 모든 가능성 해방"""
+        slots = getattr(character, 'possibility_slots', [])
+        if not slots:
+            return {'success': False, 'error': '가능성 없음'}
+        released = [{'skill_id': p['skill_id'], 'power_ratio': 1.0} for p in slots]
+        slot_count = len(slots)
+        convergence_bonus = False
+        total_damage_bonus = 0
+        if hasattr(character, 'active_traits'):
+            for trait_data in character.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id')
+                if trait_id == "converging_fates":
+                    effects = trait_data.get('effects', {}) if isinstance(trait_data, dict) else {}
+                    if slot_count >= effects.get('min_possibilities', 3):
+                        convergence_bonus = True
+                        total_damage_bonus = effects.get('damage_bonus', 0.40)
+                    break
+        character.possibility_slots = []
+        return {'success': True, 'released': released, 'convergence_bonus': convergence_bonus, 'total_damage_bonus': total_damage_bonus}
+
+    @staticmethod
+    def fate_copy(character, ally, context=None) -> dict:
+        """운명 복제"""
+        last_skill = getattr(ally, '_last_used_skill', None)
+        if not last_skill:
+            return {'success': False, 'error': '복제할 스킬 없음'}
+        skill_id = getattr(last_skill, 'id', None) or last_skill.get('id', '')
+        excluded = ['teamwork', 'infinite_convergence']
+        skill_type = getattr(last_skill, 'type', '') or last_skill.get('type', '')
+        if skill_id in excluded or skill_type == 'ultimate':
+            return {'success': False, 'error': '궁극기/팀워크는 복제 불가'}
+        if GimmickUpdater._add_possibility(character, skill_id):
+            return {'success': True, 'copied_skill': skill_id}
+        return {'success': False, 'error': '슬롯 가득 참'}
+
+    @staticmethod
+    def overwrite_fate(character, slot_index: int, new_skill_id: str) -> dict:
+        """운명 덮어쓰기"""
+        slots = getattr(character, 'possibility_slots', [])
+        if not slots or slot_index >= len(slots):
+            return {'success': False, 'error': '슬롯이 비어있거나 잘못된 인덱스'}
+        excluded = ['teamwork', 'infinite_convergence']
+        if new_skill_id in excluded:
+            return {'success': False, 'error': '궁극기/팀워크는 선택 불가'}
+        old_skill = slots[slot_index]['skill_id']
+        slots[slot_index] = {'skill_id': new_skill_id, 'power_ratio': 0.85, 'reuse_count': 0}
+        return {'success': True, 'old_skill': old_skill, 'new_skill': new_skill_id}
+
+    @staticmethod
+    def get_possibility_slots(character) -> list:
+        """가능성 슬롯 목록 반환"""
+        return getattr(character, 'possibility_slots', [])
+
+    @staticmethod
+    def get_possibility_slot_count(character) -> int:
+        """가능성 슬롯 개수 반환"""
+        return len(getattr(character, 'possibility_slots', []))
+
+    # === 환술사: 환영 군단 시스템 ===
+    
+    @staticmethod
+    def _update_phantom_legion(character):
+        """환술사: 환영 군단 시스템 턴 종료 업데이트"""
+        # 확정 회피 쿨다운 감소
+        mirror_shift_cooldown = getattr(character, 'mirror_shift_cooldown', 0)
+        if mirror_shift_cooldown > 0:
+            character.mirror_shift_cooldown = mirror_shift_cooldown - 1
+            if character.mirror_shift_cooldown == 0:
+                logger.info(f"[환술사] {character.name} 확정 회피(Mirror Shift) 준비 완료!")
+        
+        # 환영 재생성 체크 (무한 거울 특성)
+        GimmickUpdater._check_phantom_regeneration(character)
+    
+    @staticmethod
+    def _update_phantom_legion_turn_start(character, context=None):
+        """환술사: 환영 군단 시스템 턴 시작 업데이트"""
+        phantom_count = getattr(character, 'phantom_count', 0)
+        
+        # 환영 보너스 적용
+        if phantom_count > 0:
+            evasion_bonus = phantom_count * 0.12  # 환영당 12% 회피
+            character._phantom_evasion_bonus = evasion_bonus
+            logger.debug(f"[환술사] {character.name} 환영 보너스: 회피 +{evasion_bonus*100:.0f}%")
+        
+        # 환영 4개 보유 시 환영 군주 특성 효과
+        if phantom_count >= 4:
+            has_phantom_lord = GimmickUpdater._has_trait(character, 'phantom_lord')
+            if has_phantom_lord and context:
+                enemies = context.get('enemies', [])
+                for enemy in enemies:
+                    if hasattr(enemy, 'is_alive') and enemy.is_alive:
+                        # 적 명중률 -15% 디버프
+                        if not hasattr(enemy, '_phantom_lord_debuff'):
+                            enemy._phantom_lord_debuff = True
+                            logger.info(f"[환영 군주] {enemy.name} 명중률 -15%")
+        
+        # 확정 회피 준비 상태 체크
+        min_phantoms = 2
+        if phantom_count >= min_phantoms:
+            mirror_shift_cooldown = getattr(character, 'mirror_shift_cooldown', 0)
+            if mirror_shift_cooldown == 0:
+                character.mirror_shift_ready = True
+            else:
+                character.mirror_shift_ready = False
+    
+    @staticmethod
+    def _check_phantom_regeneration(character):
+        """환영 재생성 체크"""
+        import random
+        
+        pending_regen = getattr(character, '_phantom_pending_regen', 0)
+        if pending_regen > 0:
+            max_phantoms = getattr(character, 'max_phantoms', 4)
+            current = getattr(character, 'phantom_count', 0)
+            
+            for _ in range(pending_regen):
+                if current >= max_phantoms:
+                    break
+                    
+                # 기본 재생성 확률 20%
+                regen_chance = 0.20
+                
+                # 무한 거울 특성 체크
+                if GimmickUpdater._has_trait(character, 'infinite_mirrors'):
+                    # HP 30% 이하 시 50%로 증가
+                    hp_ratio = getattr(character, 'current_hp', 1) / max(1, getattr(character, 'max_hp', 1))
+                    if hp_ratio <= 0.30:
+                        regen_chance = 0.50
+                
+                # 그림자 잠식 특성 30% 추가 재생성
+                if GimmickUpdater._has_trait(character, 'shadow_feast'):
+                    regen_chance = max(regen_chance, 0.30)
+                
+                if random.random() < regen_chance:
+                    current += 1
+                    character.phantom_count = current
+                    logger.info(f"[환술사] {character.name} 환영 재생성! (현재: {current}/{max_phantoms})")
+            
+            character._phantom_pending_regen = 0
+    
+    @staticmethod
+    def summon_phantom(character, count: int = 1, fill_to_max: bool = False) -> dict:
+        """환영 소환"""
+        import random
+        
+        max_phantoms = getattr(character, 'max_phantoms', 4)
+        current = getattr(character, 'phantom_count', 0)
+        
+        if fill_to_max:
+            added = max_phantoms - current
+            character.phantom_count = max_phantoms
+        else:
+            # 거울 분신술 특성: 25% 확률로 추가 생성
+            bonus = 0
+            if GimmickUpdater._has_trait(character, 'mirror_image'):
+                if random.random() < 0.25:
+                    bonus = 1
+                    logger.info(f"[거울 분신술] 추가 환영 생성!")
+            
+            total_add = min(count + bonus, max_phantoms - current)
+            added = total_add
+            character.phantom_count = current + total_add
+        
+        # 환영 히트 포인트 초기화
+        hit_absorb = getattr(character, 'phantom_hit_absorb', 2)
+        if GimmickUpdater._has_trait(character, 'infinite_mirrors'):
+            hit_absorb += 1  # 무한 거울: 히트 흡수 +1
+        
+        if not hasattr(character, 'phantom_hits'):
+            character.phantom_hits = []
+        
+        for _ in range(added):
+            if len(character.phantom_hits) < max_phantoms:
+                character.phantom_hits.append(hit_absorb)
+        
+        new_count = getattr(character, 'phantom_count', 0)
+        logger.info(f"[환술사] {character.name} 환영 소환! (+{added}, 현재: {new_count}/{max_phantoms})")
+        
+        return {'success': True, 'added': added, 'current': new_count, 'max': max_phantoms}
+    
+    @staticmethod
+    def consume_phantom(character, count: int = 1) -> dict:
+        """환영 소모"""
+        current = getattr(character, 'phantom_count', 0)
+        
+        if current < count:
+            return {'success': False, 'error': '환영이 부족합니다', 'current': current}
+        
+        consumed = min(count, current)
+        character.phantom_count = current - consumed
+        
+        # 환영 히트 배열에서도 제거
+        phantom_hits = getattr(character, 'phantom_hits', [])
+        for _ in range(consumed):
+            if phantom_hits:
+                phantom_hits.pop()
+        
+        # 잔상 게이지 충전
+        afterimage_per_destroy = getattr(character, 'afterimage_per_destroy', 25)
+        afterimage = getattr(character, 'afterimage_gauge', 0)
+        max_afterimage = getattr(character, 'afterimage_max', 100)
+        character.afterimage_gauge = min(max_afterimage, afterimage + (afterimage_per_destroy * consumed))
+        
+        logger.info(f"[환술사] {character.name} 환영 소모: {consumed}개, 잔상 +{afterimage_per_destroy * consumed}")
+        
+        return {'success': True, 'consumed': consumed, 'current': character.phantom_count}
+    
+    @staticmethod
+    def phantom_take_damage(character, damage: int) -> dict:
+        """환영이 피해를 대신 받음 (30% 확률 중첩)"""
+        import random
+        
+        phantom_count = getattr(character, 'phantom_count', 0)
+        if phantom_count <= 0:
+            return {'absorbed': False, 'damage': damage}
+        
+        # 환영당 30% 확률로 대신 맞음 (중첩 계산)
+        # 1개: 30%, 2개: 51%, 3개: 66%, 4개: 76%
+        redirect_chance = 1 - (0.70 ** phantom_count)
+        
+        if random.random() < redirect_chance:
+            # 환영이 대신 맞음
+            phantom_hits = getattr(character, 'phantom_hits', [])
+            if phantom_hits:
+                phantom_hits[-1] -= 1  # 가장 마지막 환영의 히트 감소
+                
+                absorbed_by_phantom = True
+                phantom_destroyed = False
+                
+                if phantom_hits[-1] <= 0:
+                    phantom_hits.pop()
+                    character.phantom_count = phantom_count - 1
+                    phantom_destroyed = True
+                    
+                    # 잔상 게이지 충전
+                    afterimage_per_destroy = getattr(character, 'afterimage_per_destroy', 25)
+                    afterimage = getattr(character, 'afterimage_gauge', 0)
+                    max_afterimage = getattr(character, 'afterimage_max', 100)
+                    character.afterimage_gauge = min(max_afterimage, afterimage + afterimage_per_destroy)
+                    
+                    # 그림자 잠식 특성 효과
+                    if GimmickUpdater._has_trait(character, 'shadow_feast'):
+                        # HP 5% 회복
+                        max_hp = getattr(character, 'max_hp', 100)
+                        heal_amount = int(max_hp * 0.05)
+                        if hasattr(character, 'heal'):
+                            actual_heal = character.heal(heal_amount)
+                        else:
+                            current_hp = getattr(character, 'current_hp', 0)
+                            actual_heal = min(heal_amount, max_hp - current_hp)
+                            character.current_hp = min(max_hp, current_hp + actual_heal)
+                        
+                        # 다음 공격 피해 +15%
+                        character._shadow_feast_bonus = 0.15
+                        
+                        logger.info(f"[그림자 잠식] {character.name} HP +{actual_heal}, 다음 공격 +15%")
+                    
+                    # 재생성 대기 등록
+                    character._phantom_pending_regen = getattr(character, '_phantom_pending_regen', 0) + 1
+                    
+                    logger.info(f"[환술사] {character.name} 환영 소멸! (피해 흡수, 잔상 +{afterimage_per_destroy})")
+                else:
+                    logger.info(f"[환술사] {character.name} 환영이 피해를 대신 받음! (환영 HP: {phantom_hits[-1]})")
+                
+                return {
+                    'absorbed': True, 
+                    'damage': 0, 
+                    'phantom_destroyed': phantom_destroyed,
+                    'remaining_phantoms': character.phantom_count
+                }
+        
+        return {'absorbed': False, 'damage': damage}
+    
+    @staticmethod
+    def use_mirror_shift(character) -> dict:
+        """확정 회피 (Mirror Shift) 사용"""
+        phantom_count = getattr(character, 'phantom_count', 0)
+        min_phantoms = 2
+        
+        if phantom_count < min_phantoms:
+            return {'success': False, 'error': f'환영이 {min_phantoms}개 이상 필요합니다'}
+        
+        if not getattr(character, 'mirror_shift_ready', False):
+            cooldown = getattr(character, 'mirror_shift_cooldown', 0)
+            return {'success': False, 'error': f'확정 회피 쿨다운 중 ({cooldown}턴)'}
+        
+        # 확정 회피 사용
+        character.mirror_shift_ready = False
+        
+        # 쿨다운 설정 (환영 4개면 4턴, 그 외 5턴)
+        if phantom_count >= 4:
+            character.mirror_shift_cooldown = 4
+        else:
+            character.mirror_shift_cooldown = 5
+        
+        # 아지랑이 걸음 특성: 확정 회피 시 ATB +25%, 다음 공격 +20%
+        if GimmickUpdater._has_trait(character, 'mirage_step'):
+            character._perfect_evasion_atb_bonus = 0.25
+            character._perfect_evasion_damage_bonus = 0.20
+            logger.info(f"[아지랑이 걸음] {character.name} ATB +25%, 다음 공격 +20%")
+        
+        logger.info(f"[환술사] {character.name} 확정 회피 발동! (쿨다운: {character.mirror_shift_cooldown}턴)")
+        
+        return {'success': True, 'cooldown': character.mirror_shift_cooldown}
+    
+    @staticmethod
+    def charge_afterimage(character, amount: int) -> dict:
+        """잔상 게이지 충전"""
+        afterimage = getattr(character, 'afterimage_gauge', 0)
+        max_afterimage = getattr(character, 'afterimage_max', 100)
+        
+        added = min(amount, max_afterimage - afterimage)
+        character.afterimage_gauge = afterimage + added
+        
+        logger.debug(f"[환술사] {character.name} 잔상 게이지 +{added} (현재: {character.afterimage_gauge}/{max_afterimage})")
+        
+        return {'success': True, 'added': added, 'current': character.afterimage_gauge}
+    
+    @staticmethod
+    def consume_afterimage(character, amount: int = None) -> dict:
+        """잔상 게이지 소모"""
+        afterimage = getattr(character, 'afterimage_gauge', 0)
+        
+        if amount is None:
+            # 전부 소모
+            consumed = afterimage
+            character.afterimage_gauge = 0
+        else:
+            consumed = min(amount, afterimage)
+            character.afterimage_gauge = afterimage - consumed
+        
+        return {'success': True, 'consumed': consumed, 'remaining': character.afterimage_gauge}
+    
+    @staticmethod
+    def get_phantom_count(character) -> int:
+        """환영 개수 반환"""
+        return getattr(character, 'phantom_count', 0)
+    
+    @staticmethod
+    def get_afterimage_gauge(character) -> int:
+        """잔상 게이지 반환"""
+        return getattr(character, 'afterimage_gauge', 0)
+    
+    @staticmethod
+    def calculate_phantom_echo_damage(character, base_damage: int) -> list:
+        """환영 에코 피해 계산 (다단히트)"""
+        phantom_count = getattr(character, 'phantom_count', 0)
+        echo_ratio = 0.35  # 환영당 본체의 35%
+        
+        hits = []
+        hits.append({'damage': base_damage, 'source': 'main', 'delay': 0})
+        
+        for i in range(phantom_count):
+            echo_damage = int(base_damage * echo_ratio)
+            hits.append({
+                'damage': echo_damage, 
+                'source': f'phantom_{i+1}', 
+                'delay': 0.2 * (i + 1)  # 0.2초 간격
+            })
+        
+        return hits
+    
+    @staticmethod
+    def _has_trait(character, trait_id: str) -> bool:
+        """특성 보유 여부 확인"""
+        if not hasattr(character, 'active_traits'):
+            return False
+        
+        for trait in character.active_traits:
+            tid = trait if isinstance(trait, str) else trait.get('id', '')
+            if tid == trait_id:
+                return True
+        return False
 
 
 class GimmickStateChecker:
@@ -1817,3 +2580,33 @@ class GimmickStateChecker:
         if character.gimmick_type == "support_fire":
             return getattr(character, 'support_fire_combo', 0)
         return 0
+
+    @staticmethod
+    def get_phantom_count(character) -> int:
+        """환영 개수 반환 (환술사)"""
+        if getattr(character, 'gimmick_type', None) == "phantom_legion":
+            return getattr(character, 'phantom_count', 0)
+        return 0
+
+    @staticmethod
+    def get_afterimage_gauge(character) -> int:
+        """잔상 게이지 반환 (환술사)"""
+        if getattr(character, 'gimmick_type', None) == "phantom_legion":
+            return getattr(character, 'afterimage_gauge', 0)
+        return 0
+
+    @staticmethod
+    def is_mirror_shift_ready(character) -> bool:
+        """확정 회피 준비 상태 체크 (환술사)"""
+        if getattr(character, 'gimmick_type', None) == "phantom_legion":
+            return getattr(character, 'mirror_shift_ready', False)
+        return False
+
+    @staticmethod
+    def get_phantom_evasion_bonus(character) -> float:
+        """환영 회피 보너스 반환 (환술사)"""
+        if getattr(character, 'gimmick_type', None) == "phantom_legion":
+            phantom_count = getattr(character, 'phantom_count', 0)
+            evasion_per_phantom = getattr(character, 'phantom_evasion_bonus', 0.12)
+            return phantom_count * evasion_per_phantom
+        return 0.0

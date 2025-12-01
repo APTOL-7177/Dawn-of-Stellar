@@ -95,7 +95,7 @@ def create_bard_skills():
         "부드러운 선율로 파티 전체 회복 + S 추가."
     )
     healing_melody.effects = [
-        HealEffect(HealType.HP, percentage=0.25, is_party_wide=True),
+        HealEffect(HealType.HP, percentage=0.40, is_party_wide=True),
     ]
     healing_melody.costs = [MPCost(12)]
     healing_melody.target_type = "all_allies"
@@ -195,11 +195,11 @@ def create_bard_skills():
         "compose_skill": True,
         "consume_notes": True,
         "pattern_effects": {
-            "AAA": {"type": "attack_surge", "value": 0.8, "duration": 3},
-            "BBB": {"type": "buff_extend", "value": 2.0},
-            "SSS": {"type": "mass_heal", "value": 0.4},
-            "ABS": {"type": "all_stat_up", "value": 0.25, "duration": 4},
-            "SBA": {"type": "enemy_debuff", "value": 0.25, "duration": 3}
+            "AAA": {"type": "attack_magic_surge", "value": 0.8, "duration": 3},  # 공격력+마법력 증가
+            "BBB": {"type": "triple_strike", "brv_multiplier": 1.2, "hp_multiplier": 1.0},  # 3연타 BRV+HP
+            "SSS": {"type": "magic_heal", "multiplier": 1.35},  # 바드 마법력 135% 회복
+            "ABS": {"type": "all_stat_up", "value": 0.35, "duration": 4},  # 공/방/마공/마방/속 +35%
+            "SBA": {"type": "all_stat_down", "value": 0.30, "duration": 3}  # 적 공/방/마공/마방/속 -30%
         }
     }
     skills.append(compose)

@@ -81,26 +81,59 @@ def select_quantity(
         
         context.present(console)
         
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
+        
+        # 입력 처리 함수
+        def process_action(action):
+            nonlocal selected_quantity
+            step = 1
+            if action == GameAction.MOVE_LEFT:
+                selected_quantity = max(1, selected_quantity - step)
+                play_sfx("ui", "cursor_move")
+            elif action == GameAction.MOVE_RIGHT:
+                selected_quantity = min(max_quantity, selected_quantity + step)
+                play_sfx("ui", "cursor_move")
+            elif action == GameAction.MOVE_UP:
+                selected_quantity = min(max_quantity, selected_quantity + 10)
+                play_sfx("ui", "cursor_move")
+            elif action == GameAction.MOVE_DOWN:
+                selected_quantity = max(1, selected_quantity - 10)
+                play_sfx("ui", "cursor_move")
+            elif action == GameAction.CONFIRM:
+                play_sfx("ui", "confirm")
+                return ("confirm", selected_quantity)
+            elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+                play_sfx("ui", "cursor_cancel")
+                return ("cancel", None)
+            return None
+        
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
-                shift_pressed = False  # 게임패드에서는 쉬프트 개념이 없으므로 기본값 사용
-                step = 10 if shift_pressed else 1
-
-                if action == GameAction.MOVE_LEFT:
-                    selected_quantity = max(1, selected_quantity - step)
-                    play_sfx("ui", "cursor_move")
-                elif action == GameAction.MOVE_RIGHT:
-                    selected_quantity = min(max_quantity, selected_quantity + step)
-                    play_sfx("ui", "cursor_move")
-                elif action == GameAction.CONFIRM:
-                    play_sfx("ui", "confirm")
-                    return selected_quantity
-                elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
-                    play_sfx("ui", "cursor_cancel")
-                    return None
+                keyboard_processed = True
+                result = process_action(action)
+                if result:
+                    return result[1]
 
             if isinstance(event, tcod.event.Quit):
                 return None
+        
+        # 게임패드 입력 처리
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                result = process_action(gamepad_action)
+                if result:
+                    return result[1]
+        
+        # CPU 사용률 낮추기
+        import time
+        time.sleep(0.01)

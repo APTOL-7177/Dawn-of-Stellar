@@ -1,0 +1,23 @@
+id: confusion_veil
+name: 혼란의 장막
+type: debuff
+description: 환영으로 적의 시야를 혼란시켜 명중률을 감소시킨다 (마법)
+costs:
+  mp: 9
+  cast_time: 0.6
+target: all_enemies
+is_aoe: true
+effects:
+  - type: debuff
+    stat: accuracy
+    value: 0.20
+    duration: 3
+  - type: phantom_bonus_debuff
+    per_phantom_bonus: 0.05
+    stat: accuracy
+    max_bonus: 0.20
+metadata:
+  job: illusionist
+  debuff_skill: true
+  scaling: magical
+  aoe: true

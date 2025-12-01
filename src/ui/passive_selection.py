@@ -409,16 +409,27 @@ def run_passive_selection(
 
     logger.info("패시브 선택 시작")
 
+    import time
+    import pygame
+    
     while True:
         # 렌더링
         selection.render(console)
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            pygame.event.pump()
+        except:
+            pass
+
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
+                keyboard_processed = True
                 if selection.handle_input(action):
                     # 완료 또는 취소
                     result = selection.get_result()
@@ -434,3 +445,21 @@ def run_passive_selection(
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return None
+        
+        # 게임패드 입력 처리
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                if selection.handle_input(gamepad_action):
+                    result = selection.get_result()
+                    if result:
+                        logger.info(
+                            f"패시브 선택 완료: {len(result.passives)}개, "
+                            f"총 코스트 {result.total_cost}"
+                        )
+                    else:
+                        logger.info("패시브 선택 취소")
+                    return result
+        
+        # CPU 사용률 낮추기
+        time.sleep(0.01)

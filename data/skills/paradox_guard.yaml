@@ -1,0 +1,20 @@
+id: paradox_guard
+name: 역설 방어
+type: defense
+description: "피해를 받지 않았을 가능성" 실현. 이번 턴 받는 피해 60% 감소
+costs:
+  mp: 14
+  cast_time: 0.5
+target: single_ally
+effects:
+  - type: buff
+    target: selected_ally
+    special: damage_reduction
+    value: 0.60
+    duration: 1
+  - type: generate_possibility
+    chance: 0.70
+    alternative_skill: rewind
+metadata:
+  possibility_pair: rewind
+  job: time_mage

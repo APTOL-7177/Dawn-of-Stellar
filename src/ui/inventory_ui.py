@@ -174,7 +174,7 @@ class InventoryUI:
             self.cursor = min(filtered_count - 1, self.cursor + 1)
             self._update_scroll()
             self.show_comparison = False
-        elif action == GameAction.USE_CONSUMABLE:
+        elif action == GameAction.USE_CONSUMABLE or action == GameAction.INTERACT:
             # F 키: 음식/소비품 직접 사용 (첫 번째 캐릭터에게 바로 사용)
             if len(self.inventory) > 0:
                 # 필터링된 인덱스를 원래 인덱스로 변환
@@ -267,15 +267,15 @@ class InventoryUI:
             self.mode = InventoryMode.CHARACTER_EQUIPMENT
             self.target_cursor = 0
             self.show_comparison = False
-        elif action == GameAction.INVENTORY_DESTROY:
-            # 아이템 파괴 ('V' 키)
+        elif action == GameAction.INVENTORY_DESTROY or action == GameAction.ATTACK:
+            # 아이템 파괴 ('V' 키 또는 게임패드 Y 버튼)
             if len(self.inventory) > 0:
                 self.confirm_destroy_item = self.cursor
                 self.mode = InventoryMode.CONFIRM_DESTROY
                 self.confirm_yes = False
                 self.show_comparison = False
-        elif action == GameAction.INVENTORY_DROP:
-            # 아이템 드롭 ('D' 키)
+        elif action == GameAction.INVENTORY_DROP or action == GameAction.OPEN_INVENTORY:
+            # 아이템 드롭 ('D' 키 또는 게임패드 LB 버튼)
             if len(self.inventory) > 0 and self.exploration:
                 actual_index = self._get_actual_slot_index(self.cursor)
                 self.drop_item_index = actual_index
@@ -1156,38 +1156,68 @@ class InventoryUI:
             if item and isinstance(item, Equipment):
                 self._render_equipment_comparison(console, item)
 
-        # 도움말
+        # 도움말 (게임패드 연결 시 게임패드 버튼으로 표시)
         help_y = self.screen_height - 2
+        is_gamepad = unified_input_handler.gamepad_connected
+        
         if self.mode == InventoryMode.BROWSE:
-            help_text = "F: 먹기  Z: 사용/비교  C: 캐릭터 장비  V: 파괴  D: 드롭  G: 골드드롭  M: 정렬  ←→: 필터  X: 닫기"
+            if is_gamepad:
+                # Xbox 기준: A=확인, B=취소, X=상호작용, Y=공격, LB=인벤, RB=캐릭터, Start=메뉴
+                help_text = "X: 먹기  A: 사용/비교  RB: 캐릭터장비  Y: 파괴  LB: 드롭  Start: 정렬  ←→: 필터  B: 닫기"
+            else:
+                help_text = "F: 먹기  Z: 사용/비교  C: 캐릭터 장비  V: 파괴  D: 드롭  G: 골드드롭  M: 정렬  ←→: 필터  X: 닫기"
             console.print(2, help_y, help_text, fg=Colors.GRAY)
         elif self.mode == InventoryMode.CHARACTER_EQUIPMENT:
-            help_text = "↑↓: 캐릭터 선택  Z: 확인  X: 취소"
+            if is_gamepad:
+                help_text = "↑↓: 캐릭터 선택  A: 확인  B: 취소"
+            else:
+                help_text = "↑↓: 캐릭터 선택  Z: 확인  X: 취소"
             console.print(2, help_y, help_text, fg=Colors.GRAY)
         elif self.mode == InventoryMode.UNEQUIP:
-            help_text = "↑↓: 장비 슬롯 선택  Z: 해제  X: 뒤로"
+            if is_gamepad:
+                help_text = "↑↓: 장비 슬롯 선택  A: 해제  B: 뒤로"
+            else:
+                help_text = "↑↓: 장비 슬롯 선택  Z: 해제  X: 뒤로"
             console.print(2, help_y, help_text, fg=Colors.GRAY)
         elif self.mode == InventoryMode.CONFIRM_DESTROY:
             # 개수 입력 모드인지 확인
             if self.destroy_quantity_input_mode:
-                help_text = "↑↓: ±1  ←→: ±10  Z: 확인  X: 취소"
+                if is_gamepad:
+                    help_text = "↑↓: ±1  ←→: ±10  A: 확인  B: 취소"
+                else:
+                    help_text = "↑↓: ±1  ←→: ±10  Z: 확인  X: 취소"
             else:
-                help_text = "←→: 선택  Z: 확인/개수선택  X: 취소"
+                if is_gamepad:
+                    help_text = "←→: 선택  A: 확인/개수선택  B: 취소"
+                else:
+                    help_text = "←→: 선택  Z: 확인/개수선택  X: 취소"
             console.print(2, help_y, help_text, fg=Colors.GRAY)
         elif self.mode == InventoryMode.DROP_ITEM:
             if self.drop_quantity_input_mode:
-                help_text = "↑↓: ±1  ←→: ±10  Z: 드롭  X: 취소"
+                if is_gamepad:
+                    help_text = "↑↓: ±1  ←→: ±10  A: 드롭  B: 취소"
+                else:
+                    help_text = "↑↓: ±1  ←→: ±10  Z: 드롭  X: 취소"
             else:
-                help_text = "Z: 드롭  X: 취소"
+                if is_gamepad:
+                    help_text = "A: 드롭  B: 취소"
+                else:
+                    help_text = "Z: 드롭  X: 취소"
             console.print(2, help_y, help_text, fg=Colors.GRAY)
         elif self.mode == InventoryMode.DROP_GOLD:
             if self.drop_gold_input_mode:
-                help_text = f"↑↓: ±1  ←→: ±10  Z: 드롭 ({self.drop_gold_amount}G)  X: 취소"
+                if is_gamepad:
+                    help_text = f"↑↓: ±1  ←→: ±10  A: 드롭 ({self.drop_gold_amount}G)  B: 취소"
+                else:
+                    help_text = f"↑↓: ±1  ←→: ±10  Z: 드롭 ({self.drop_gold_amount}G)  X: 취소"
             else:
                 help_text = "골드 액수 입력 중..."
             console.print(2, help_y, help_text, fg=Colors.GRAY)
         elif self.mode in [InventoryMode.USE_ITEM, InventoryMode.EQUIP]:
-            help_text = "↑↓: 대상 선택  Z: 확인  X: 취소"
+            if is_gamepad:
+                help_text = "↑↓: 대상 선택  A: 확인  B: 취소"
+            else:
+                help_text = "↑↓: 대상 선택  Z: 확인  X: 취소"
             console.print(2, help_y, help_text, fg=Colors.GRAY)
 
     def _render_item_details(self, console: tcod.console.Console, item: Item, x: int, y: int):
@@ -1889,6 +1919,9 @@ def open_inventory(
 
     logger.info("인벤토리 열기")
 
+    import time
+    import pygame
+    
     while not ui.closed:
         # 백그라운드 업데이트 실행
         if on_update:
@@ -1898,11 +1931,19 @@ def open_inventory(
         ui.render(console)
         context.present(console)
 
-        # 입력 처리 (논블로킹)
-        for event in tcod.event.wait(timeout=0.05):
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            pygame.event.pump()
+        except:
+            pass
+
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
+                keyboard_processed = True
                 if ui.handle_input(action):
                     return
 
@@ -1910,5 +1951,15 @@ def open_inventory(
             if isinstance(event, tcod.event.Quit):
                 ui.closed = True
                 return
+
+        # 게임패드 입력 처리
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                if ui.handle_input(gamepad_action):
+                    return
+
+        # CPU 사용률 낮추기
+        time.sleep(0.01)
 
     logger.info("인벤토리 닫기")

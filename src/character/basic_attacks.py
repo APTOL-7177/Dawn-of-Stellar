@@ -472,19 +472,23 @@ JOB_ATTACK_PROFILES: Dict[str, Dict[str, Any]] = {
             "name": "시간 왜곡",
             "damage_type": "magic",
             "stat_base": "magic",
-            "base_multiplier": 1.1,
+            "base_multiplier": 1.15,
             "can_critical": True,
-            "slow_chance": 0.2,  # 20% 슬로우
-            "description": "시간을 왜곡하여 공격"
+            "slow_chance": 0.25,  # 25% 슬로우
+            "possibility_generation_chance": 0.50,  # 50% 가능성 생성
+            "possibility_pool": ["time_bolt", "slow"],
+            "description": "시간을 왜곡하여 공격. 25% 슬로우, 50% 가능성 생성"
         },
         "hp_attack": {
             "name": "시간 붕괴",
             "damage_type": "magic",
             "stat_base": "magic",
-            "base_multiplier": 0.95,
+            "base_multiplier": 1.0,
             "can_critical": False,
-            "time_mark_scaling": True,
-            "description": "시간의 흐름을 붕괴"
+            "possibility_slot_scaling": 0.08,  # 슬롯당 +8% 피해
+            "possibility_generation_chance": 0.50,  # 50% 가능성 생성
+            "possibility_pool": ["time_shock", "haste"],
+            "description": "축적된 시간의 힘을 폭발. 가능성 1개당 피해 +8%"
         }
     },
 

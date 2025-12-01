@@ -262,16 +262,27 @@ def show_reward_screen(
     logger.info(f"  골드: {rewards.get('gold', 0)}")
     logger.info(f"  아이템: {len(rewards.get('items', []))}개")
 
+    import time
+    import pygame
+    
     while not display.completed:
         # 렌더링
         display.render(console)
         context.present(console)
 
-        # 입력 처리
-        for event in tcod.event.wait():
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            pygame.event.pump()
+        except:
+            pass
+
+        # 키보드 입력 처리
+        keyboard_processed = False
+        for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
+                keyboard_processed = True
                 if display.handle_input(action):
                     # 보상 화면 종료 시 승리 BGM 정지 (필드 BGM으로 전환하기 위해)
                     from src.audio.audio_manager import get_audio_manager
@@ -288,3 +299,17 @@ def show_reward_screen(
                 audio_manager.stop_bgm(fade_out=False)
                 logger.info("보상 화면 종료 (Quit) - 승리 BGM 정지")
                 return
+
+        # 게임패드 입력 처리 (키보드 입력이 없었을 때만)
+        if not keyboard_processed:
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                if display.handle_input(gamepad_action):
+                    from src.audio.audio_manager import get_audio_manager
+                    audio_manager = get_audio_manager()
+                    audio_manager.stop_bgm(fade_out=False)
+                    logger.info("보상 화면 종료 - 승리 BGM 정지")
+                    return
+
+        # CPU 사용률 낮추기
+        time.sleep(0.01)

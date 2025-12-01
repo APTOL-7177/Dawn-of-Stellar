@@ -98,6 +98,11 @@ class ATBGauge:
             if 'speed_down' in self.owner.active_buffs:
                 debuff_value = self.owner.active_buffs['speed_down'].get('value', 0.0)
                 speed_modifier *= (1.0 - debuff_value)
+        
+        # 환경 효과 스탯 수정치 적용
+        if hasattr(self.owner, 'env_stat_modifiers'):
+            env_speed = self.owner.env_stat_modifiers.get('speed', 1.0)
+            speed_modifier *= env_speed
 
         return base_speed * speed_modifier
 

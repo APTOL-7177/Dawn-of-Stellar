@@ -225,6 +225,20 @@ skills:
 - joker_wild
 - ultimate
 
+# 필드 스킬
+field_skill:
+  id: card_fortune
+  name: 카드 포춘
+  description: |
+    트럼프 카드를 뽑아 운명을 점친다.
+    카드의 숫자와 무늬에 따라 다양한 필드 효과 발동!
+    - A~J: 보물, 버프, 회복, 선제공격 등 좋은 효과
+    - 2~6: 함정, 디버프, 적 조우 등 나쁜 효과
+    - 7: 럭키 세븐! 드롭률 2배
+    - 조커: 대박 또는 쪽박!
+  mp_cost: 15
+  cooldown: 0
+
 bonuses:
   evasion_bonus: 18
   critical_rate: 1.15
