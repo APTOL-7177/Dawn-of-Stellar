@@ -1020,9 +1020,27 @@ def main() -> int:
                                             logger.warning(f"인벤토리 가득 참! {item.name} 버려짐")
                                     
                                     inventory.add_gold(rewards.get("gold", 0))
-                                    
-                                    # 전투 후 복귀 시 필드 BGM 재생
-                                    play_dungeon_bgm = True
+
+                                    # === 보스 승리 시 층 클리어 처리 ===
+                                    if is_boss_fight and (floor_number == 20 or floor_number == 30):
+                                        from src.town.floor_transition import get_floor_transition_manager
+                                        floor_manager = get_floor_transition_manager()
+                                        floor_manager.on_floor_clear()
+                                        logger.info(f"🏆 보스 승리! {floor_number}층 클리어! 마을로 돌아갈 수 있습니다.")
+
+                                        # 보스 승리 후 마을로 복귀 처리
+                                        from src.ui.world_ui import WorldUI
+                                        world_ui = WorldUI(display.console, display.context)
+                                        world_ui.return_to_town()
+
+                                        # 전투 후 마을로 돌아감
+                                        play_dungeon_bgm = False
+
+                                        # 층 클리어 플래그 설정
+                                        floor_cleared = True
+                                    else:
+                                        # 일반 전투 후 복귀 시 필드 BGM 재생
+                                        play_dungeon_bgm = True
                                 elif combat_result == CombatState.DEFEAT:
                                     # 전투 참여 파티원만 죽었는지, 모든 플레이어의 모든 캐릭터가 죽었는지 확인
                                     is_game_over = False
@@ -2792,10 +2810,23 @@ def main() -> int:
 
                                 inventory.add_gold(rewards.get("gold", 0))
 
-                                # 별의 파편은 게임 정산 시에만 지급 (로그라이크 방식)
+                                # === 보스 승리 시 층 클리어 처리 ===
+                                if is_boss_fight and (floor_number == 20 or floor_number == 30):
+                                    from src.town.floor_transition import get_floor_transition_manager
+                                    floor_manager = get_floor_transition_manager()
+                                    floor_manager.on_floor_clear()
+                                    logger.info(f"🏆 보스 승리! {floor_number}층 클리어! 마을로 돌아갈 수 있습니다.")
 
-                                # 전투 후 복귀 시 필드 BGM 재생
-                                from src.audio import play_bgm
+                                    # 보스 승리 후 마을로 복귀 처리
+                                    from src.ui.world_ui import WorldUI
+                                    world_ui = WorldUI(display.console, display.context)
+                                    world_ui.return_to_town()
+
+                                    # 층 클리어 플래그 설정
+                                    floor_cleared = True
+                                else:
+                                    # 전투 후 복귀 시 필드 BGM 재생
+                                    from src.audio import play_bgm
                                 if hasattr(exploration, 'is_town') and exploration.is_town:
                                     # 마을인 경우 마을 BGM 재생
                                     play_bgm("town", loop=True, fade_in=True)
@@ -3645,6 +3676,21 @@ def main() -> int:
 
                                         # 골드 추가
                                         inventory.add_gold(rewards.get("gold", 0))
+
+                                        # === 보스 승리 시 층 클리어 처리 ===
+                                        if is_boss_fight and (floor_number == 20 or floor_number == 30):
+                                            from src.town.floor_transition import get_floor_transition_manager
+                                            floor_manager = get_floor_transition_manager()
+                                            floor_manager.on_floor_clear()
+                                            logger.info(f"🏆 보스 승리! {floor_number}층 클리어! 마을로 돌아갈 수 있습니다.")
+
+                                            # 보스 승리 후 마을로 복귀 처리
+                                            from src.ui.world_ui import WorldUI
+                                            world_ui = WorldUI(display.console, display.context)
+                                            world_ui.return_to_town()
+
+                                            # 층 클리어 플래그 설정
+                                            floor_cleared = True
 
                                         # 별의 파편은 게임 정산 시에만 지급 (로그라이크 방식)
 
