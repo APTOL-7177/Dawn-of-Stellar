@@ -482,7 +482,9 @@ def create_magician_skills():
         "스탯 스왑",
         "[투페어 필요] 3턴간 적과 자신의 공격력/방어력을 바꿔치기! 강적에게 효과적!"
     )
-    stat_swap.effects = []  # 특수 처리
+    stat_swap.effects = [
+        StatusEffect(StatusType.SILENCE, duration=1, value=0.0)  # 더미 효과
+    ]
     stat_swap.costs = [MPCost(20)]
     stat_swap.sfx = ("skill", "debuff")
     stat_swap.metadata = {
@@ -491,6 +493,59 @@ def create_magician_skills():
         "swap_stats": ["attack", "defense"],
         "duration": 3
     }
+
+    # stat_swap 전용 execute 메서드
+    def stat_swap_execute(self, user, target, context):
+        """스탯 스왑 실행"""
+        from src.character.stats import Stats
+        results = []
+
+        # 보스에게는 적용하지 않음
+        target_name = getattr(target, 'name', '').lower()
+        if '세피로스' in target_name or '카인' in target_name:
+            results.append("보스에게는 스탯 스왑이 적용되지 않습니다!")
+            return {"success": True, "results": results}
+
+        if not target or not hasattr(target, 'stat_manager') or not hasattr(user, 'stat_manager'):
+            return {"success": False, "results": ["대상이 유효하지 않습니다"]}
+
+        # 스탯 교환
+        stats_to_swap = [Stats.STRENGTH, Stats.DEFENSE]  # attack, defense
+        duration = 3
+
+        results.append(f"스탯 교환! ({duration}턴)")
+        results.append(f"{user.name} ↔ {target.name}")
+
+        for stat in stats_to_swap:
+            user_value = user.stat_manager.get_value(stat)
+            target_value = target.stat_manager.get_value(stat)
+
+            results.append(f"  {stat.name}: {user_value} ↔ {target_value}")
+
+            # 스탯 교환
+            user.stat_manager.set_base_value(stat, target_value)
+            target.stat_manager.set_base_value(stat, user_value)
+
+            # 턴 종료 시 복원을 위한 효과 등록
+            if not hasattr(user, 'stat_swap_effects'):
+                user.stat_swap_effects = []
+            if not hasattr(target, 'stat_swap_effects'):
+                target.stat_swap_effects = []
+
+            user.stat_swap_effects.append({
+                'stat': stat,
+                'original_value': user_value,
+                'duration': duration
+            })
+            target.stat_swap_effects.append({
+                'stat': stat,
+                'original_value': target_value,
+                'duration': duration
+            })
+
+        return {"success": True, "results": results}
+
+    stat_swap.execute = stat_swap_execute.__get__(stat_swap, type(stat_swap))
     skills.append(stat_swap)
     
     # 7. 미러 포스 - 받은 피해 반사
@@ -796,6 +851,11 @@ def execute_magician_skill(character, skill, target, context):
             # 스탯 스왑: 적과 자신의 스탯 교환 (HP 제외)
             from src.character.stats import Stats
             if target and hasattr(target, 'stat_manager') and hasattr(character, 'stat_manager'):
+                # 보스에게는 스탯 스왑 적용하지 않음
+                target_name = getattr(target, 'name', '').lower()
+                if '세피로스' in target_name or '카인' in target_name:
+                    results.append("보스에게는 스탯 스왑이 적용되지 않습니다!")
+                    return {'success': True, 'results': results}
                 # 메타데이터에서 교환할 스탯 결정
                 swap_stats_config = metadata.get('swap_stats', [])
                 if isinstance(swap_stats_config, list):

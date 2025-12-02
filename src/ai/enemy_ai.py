@@ -803,6 +803,7 @@ class SephirothAI(BossAI):
         super().__init__(enemy)
         self.skill_use_multiplier = 20.0  # 스킬 사용 확률 20배 (95% 이상)
         self.phase = 1
+        self.break_recovery_used = False  # BREAK 회복 스킬 사용 여부
 
     def decide_action(
         self,
@@ -813,12 +814,42 @@ class SephirothAI(BossAI):
         세피로스의 행동 결정
 
         HP 단계별로 다른 전략 사용
+        BREAK 회복 시 광역 공격 우선 사용
         """
         hp_percent = self.enemy.current_hp / self.enemy.max_hp if self.enemy.max_hp > 0 else 0
+
+        # BREAK 회복 감지 및 광역 공격 우선 사용 (한 번만)
+        # BREAK 상태에서 회복 시 (이전 HP가 20% 미만이었고 현재 40% 이상)
+        if not self.break_recovery_used:
+            # break_recovery 플래그가 없으면 BREAK에서 회복한 것으로 간주
+            if not hasattr(self, 'was_in_break'):
+                self.was_in_break = hp_percent < 0.2  # 초기 HP가 낮으면 BREAK 상태였던 것으로 간주
+
+            # BREAK에서 회복 감지
+            if self.was_in_break and hp_percent >= 0.4:
+                self.break_recovery_used = True
+                self.was_in_break = False
+                logger.warning(f"[BREAK RECOVERY] {self.enemy.name}이(가) BREAK에서 회복되어 강력한 광역 공격을 준비한다!")
+
+                # 광역 공격 스킬 우선순위대로 시도 (가장 강력한 것부터)
+                priority_skills = ["인류의 이름으로", "시공붕괴", "차원 붕괴의 검", "광기의 불꽃", "절망의 안개"]
+                for skill_name in priority_skills:
+                    for skill in self.enemy.skills:
+                        if skill.name == skill_name and skill.can_use(self.enemy):
+                            skill.activate_cooldown()
+                            return {
+                                "type": "skill",
+                                "skill": skill,
+                                "target": enemies
+                            }
+        else:
+            # 현재 BREAK 상태 추적
+            self.was_in_break = hp_percent < 0.2
 
         # 페이즈 전환
         if hp_percent < 0.3 and self.phase < 3:
             self.phase = 3
+            self.break_recovery_used = False  # BREAK 진입 시 플래그 리셋
             logger.warning(f"[WARNING] {self.enemy.name}의 광기가 폭발한다!")
         elif hp_percent < 0.6 and self.phase < 2:
             self.phase = 2
@@ -835,6 +866,63 @@ class SephirothAI(BossAI):
                         "skill": skill,
                         "target": enemies
                     }
+
+        # 일반 결정 로직
+        return super().decide_action(allies, enemies)
+
+
+class CainAI(BossAI):
+    """
+    카인 전용 AI
+
+    시간 조작을 활용한 전략적 AI
+    BREAK 회복 시 광역 공격 우선 사용
+    """
+
+    def __init__(self, enemy: Any):
+        super().__init__(enemy)
+        self.skill_use_multiplier = 20.0  # 스킬 사용 확률 20배 (95% 이상)
+        self.break_recovery_used = False  # BREAK 회복 스킬 사용 여부
+
+    def decide_action(
+        self,
+        allies: List[Any],
+        enemies: List[Any]
+    ) -> dict:
+        """
+        카인의 행동 결정
+
+        BREAK 회복 시 광역 공격 우선 사용
+        """
+        hp_percent = self.enemy.current_hp / self.enemy.max_hp if self.enemy.max_hp > 0 else 0
+
+        # BREAK 회복 감지 및 광역 공격 우선 사용 (한 번만)
+        # BREAK 상태에서 회복 시 (이전 HP가 20% 미만이었고 현재 40% 이상)
+        if not self.break_recovery_used:
+            # break_recovery 플래그가 없으면 BREAK에서 회복한 것으로 간주
+            if not hasattr(self, 'was_in_break'):
+                self.was_in_break = hp_percent < 0.2  # 초기 HP가 낮으면 BREAK 상태였던 것으로 간주
+
+            # BREAK에서 회복 감지
+            if self.was_in_break and hp_percent >= 0.4:
+                self.break_recovery_used = True
+                self.was_in_break = False
+                logger.warning(f"[BREAK RECOVERY] {self.enemy.name}이(가) BREAK에서 회복되어 강력한 광역 공격을 준비한다!")
+
+                # 광역 공격 스킬 우선순위대로 시도 (가장 강력한 것부터)
+                priority_skills = ["신의 심판", "운명의 지배", "타임라인 분기", "시간 정지", "시공 왜곡"]
+                for skill_name in priority_skills:
+                    for skill in self.enemy.skills:
+                        if skill.name == skill_name and skill.can_use(self.enemy):
+                            skill.activate_cooldown()
+                            return {
+                                "type": "skill",
+                                "skill": skill,
+                                "target": enemies
+                            }
+        else:
+            # 현재 BREAK 상태 추적
+            self.was_in_break = hp_percent < 0.2
 
         # 일반 결정 로직
         return super().decide_action(allies, enemies)
@@ -860,7 +948,7 @@ def create_ai_for_enemy(enemy: Any, game_difficulty: str = None) -> EnemyAI:
 
     # 카인 (닥터 아벨 카인)
     if enemy_id == "abel_cain" or '카인' in enemy_name:
-        return BossAI(enemy)
+        return CainAI(enemy)
 
     # 보스
     if 'boss' in enemy_name or '보스' in enemy_name or 'dragon' in enemy_name or '드래곤' in enemy_name:
