@@ -40,7 +40,8 @@
       "Bash(pytest:*)",
       "Bash(X:developDawn-of-Stellarvalidation_results.txt)",
       "Bash(git reset:*)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(del:*)"
     ],
     "deny": [],
     "ask": []

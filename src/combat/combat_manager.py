@@ -261,6 +261,28 @@ class CombatManager:
                 play_bgm("battle_sephiroth", loop=False, fade_in=False)
                 self.logger.info("세피로스 테마곡 재생: 광기의_춤.wav (7분 30초)")
 
+        # === 보스 전투 시작 대사 ===
+        if is_sephiroth_battle or is_cain_battle:
+            from src.combat.boss_dialogue import get_boss_dialogue
+            boss_dialogue = get_boss_dialogue()
+
+            for enemy in self.enemies:
+                boss_id = getattr(enemy, 'enemy_id', None)
+                if boss_id in ['sephiroth', 'abel_cain']:
+                    # 페이즈 추적을 위한 속성 초기화
+                    enemy._current_phase = 1
+                    enemy._low_hp_dialogue_shown = False
+
+                    dialogue = boss_dialogue.get_dialogue(boss_id, "combat_start")
+                    if dialogue:
+                        boss_dialogue.print_dialogue(self.logger, dialogue, combat_ui=getattr(self, 'combat_ui', None))
+
+        # === 카인 선제공격 ===
+        if is_cain_battle:
+            cain = next((e for e in self.enemies if getattr(e, 'enemy_id', None) == "abel_cain"), None)
+            if cain:
+                self._execute_cain_preemptive_strike(cain)
+
         # 이벤트 발행
         event_bus.publish(Events.COMBAT_START, {
             "allies": [a.id for a in allies if hasattr(a, 'id')],
@@ -552,20 +574,89 @@ class CombatManager:
         }
         GimmickUpdater.on_turn_start(actor, context)
 
-        # 1. BREAK 상태 해제
+        # === 보스 랜덤 절망 대사 (림버스 컴퍼니 스타일) ===
+        # 턴마다 일정 확률로 랜덤 대사 출력 (동시에 여러 개 가능)
+        import random
+        from src.combat.boss_dialogue import get_boss_dialogue
+        boss_dialogue = get_boss_dialogue()
+
+        # 보스 찾기
+        boss = None
+        boss_id = None
+        for enemy in self.enemies:
+            if hasattr(enemy, 'enemy_id') and enemy.enemy_id in ['sephiroth', 'abel_cain']:
+                if getattr(enemy, 'is_alive', True):
+                    boss = enemy
+                    boss_id = enemy.enemy_id
+                    break
+
+        if boss and boss_id:
+            # 보스의 턴: 높은 확률로 대사 출력 (글리치/공포 효과 - 방해 증가)
+            if actor == boss:
+                # 60% 확률로 대사 1개 출력
+                if random.random() < 0.6:
+                    dialogue = boss_dialogue.get_random_dialogue(boss_id)
+                    if dialogue:
+                        boss_dialogue.print_dialogue(self.logger, dialogue, combat_ui=getattr(self, 'combat_ui', None))
+
+                # 추가로 40% 확률로 대사 1개 더 출력 (동시에 2개)
+                if random.random() < 0.4:
+                    dialogue = boss_dialogue.get_random_dialogue(boss_id)
+                    if dialogue:
+                        boss_dialogue.print_dialogue(self.logger, dialogue, combat_ui=getattr(self, 'combat_ui', None))
+
+                # 추가로 20% 확률로 대사 1개 더 출력 (동시에 3개)
+                if random.random() < 0.2:
+                    dialogue = boss_dialogue.get_random_dialogue(boss_id)
+                    if dialogue:
+                        boss_dialogue.print_dialogue(self.logger, dialogue, combat_ui=getattr(self, 'combat_ui', None))
+
+                # 아주 낮은 확률(5%)로 대사 1개 더 출력 (동시에 4개 - 화면 뒤덮기)
+                if random.random() < 0.05:
+                    dialogue = boss_dialogue.get_random_dialogue(boss_id)
+                    if dialogue:
+                        boss_dialogue.print_dialogue(self.logger, dialogue, combat_ui=getattr(self, 'combat_ui', None))
+
+            # 아군의 턴: 중간 확률로 대사 출력 (플레이어도 괴롭히기)
+            elif actor in self.allies:
+                # 25% 확률로 대사 1개 출력
+                if random.random() < 0.25:
+                    dialogue = boss_dialogue.get_random_dialogue(boss_id)
+                    if dialogue:
+                        boss_dialogue.print_dialogue(self.logger, dialogue, combat_ui=getattr(self, 'combat_ui', None))
+
+                # 추가로 15% 확률로 대사 1개 더 출력
+                if random.random() < 0.15:
+                    dialogue = boss_dialogue.get_random_dialogue(boss_id)
+                    if dialogue:
+                        boss_dialogue.print_dialogue(self.logger, dialogue, combat_ui=getattr(self, 'combat_ui', None))
+
+                # 추가로 5% 확률로 대사 1개 더 출력 (동시에 3개)
+                if random.random() < 0.05:
+                    dialogue = boss_dialogue.get_random_dialogue(boss_id)
+                    if dialogue:
+                        boss_dialogue.print_dialogue(self.logger, dialogue, combat_ui=getattr(self, 'combat_ui', None))
+
+        # 1. INT BRV 회복 (BREAK 상태 해제 포함)
+        # recover_int_brv가 BREAK 상태를 자동으로 해제하고 BRV를 회복합니다
         was_broken = self.brave.is_broken(actor)
-        if was_broken:
-            self.logger.debug(f"{actor.name}의 BREAK 상태 해제")
-            self.brave.clear_break_state(actor)
-
-            # 세피로스/카인 BREAK 해제 즉시 반격
-            if hasattr(actor, 'enemy_id') and actor.enemy_id in ['sephiroth', 'abel_cain']:
-                self._execute_break_counterattack(actor)
-
-        # 2. INT BRV 회복
         int_brv_recovered = self.brave.recover_int_brv(actor)
+
+        # 세피로스/카인 BREAK 해제 즉시 반격 (일반 행동 대체)
+        break_counterattack_executed = False
         if int_brv_recovered > 0:
             self.logger.debug(f"{actor.name}이(가) INT BRV {int_brv_recovered} 회복")
+
+            if was_broken and hasattr(actor, 'enemy_id') and actor.enemy_id in ['sephiroth', 'abel_cain']:
+                self._execute_break_counterattack(actor)
+                break_counterattack_executed = True
+                # BREAK 반격으로 턴을 소모하므로 일반 행동은 스킵
+                self.logger.debug(f"{actor.name}의 BREAK 반격으로 일반 행동 스킵")
+                self.atb.consume_atb(actor)
+                self._on_turn_end(actor)
+                result["success"] = True
+                result["action"] = "break_counterattack"
+                return result
 
         # 3. DoT (지속 피해) 처리
         if hasattr(actor, 'status_manager'):
@@ -1462,38 +1553,111 @@ class CombatManager:
         if not hasattr(actor, 'enemy_id') or actor.enemy_id not in ['sephiroth', 'abel_cain']:
             return
 
-        # 사용할 스킬 선택
+        # BREAK 반격 시 MP 회복 (반격용)
+        if hasattr(actor, 'current_mp') and hasattr(actor, 'max_mp'):
+            mp_restore = int(actor.max_mp * 0.5)  # 최대 MP의 50% 회복
+            actor.current_mp = min(actor.current_mp + mp_restore, actor.max_mp)
+            self.logger.info(f"[BREAK 반격] {actor.name} MP 회복: +{mp_restore} (현재: {actor.current_mp})")
+
+        # 사용할 스킬 선택 (순수 BRV 광역 공격 최우선)
         counterattack_skill = None
         if actor.enemy_id == 'sephiroth':
-            # 세피로스의 강력한 공격 스킬 선택
+            # 세피로스의 현재 페이즈 스킬 가져오기
             from src.combat.sephiroth_skills import SephirothSkillDatabase
-            all_skills = SephirothSkillDatabase.get_all_sephiroth_skills()
-            # 강력한 공격 스킬 우선 선택
-            for skill in all_skills:
-                if hasattr(skill, 'metadata') and skill.metadata.get('damage_type') == 'hp':
+            from src.combat.enemy_skills import SkillTargetType
+
+            # 현재 페이즈 판단
+            hp_percent = actor.current_hp / actor.max_hp if actor.max_hp > 0 else 0
+            if hp_percent >= 0.66:
+                phase_skills = SephirothSkillDatabase.get_phase_1_skills()
+                phase_name = "페이즈 1"
+            elif hp_percent >= 0.33:
+                phase_skills = SephirothSkillDatabase.get_phase_2_skills()
+                phase_name = "페이즈 2"
+            else:
+                phase_skills = SephirothSkillDatabase.get_phase_3_skills()
+                phase_name = "페이즈 3"
+
+            self.logger.debug(f"[BREAK 반격] 세피로스 {phase_name} (HP: {hp_percent*100:.1f}%)")
+
+            # 1순위: 순수 BRV 광역 공격 (hp_attack=False)
+            for skill in phase_skills:
+                if hasattr(skill, 'target_type') and skill.target_type == SkillTargetType.ALL_ENEMIES and \
+                   (not hasattr(skill, 'hp_attack') or not skill.hp_attack):
                     counterattack_skill = skill
+                    self.logger.debug(f"[BREAK 반격] 순수 BRV 광역 공격 선택: {skill.name}")
                     break
+
+            # 2순위: 광역 + HP 공격
+            if not counterattack_skill:
+                for skill in phase_skills:
+                    if hasattr(skill, 'hp_attack') and skill.hp_attack and \
+                       hasattr(skill, 'target_type') and skill.target_type == SkillTargetType.ALL_ENEMIES:
+                        counterattack_skill = skill
+                        self.logger.debug(f"[BREAK 반격] 광역 HP 공격 선택: {skill.name}")
+                        break
+
+            # 3순위: 일반 HP 공격
+            if not counterattack_skill:
+                for skill in phase_skills:
+                    if hasattr(skill, 'hp_attack') and skill.hp_attack:
+                        counterattack_skill = skill
+                        self.logger.debug(f"[BREAK 반격] 단일 HP 공격 선택: {skill.name}")
+                        break
         elif actor.enemy_id == 'abel_cain':
             # 카인의 강력한 공격 스킬 선택
             from src.combat.cain_skills import CainSkillDatabase
+            from src.combat.enemy_skills import SkillTargetType
             all_skills = CainSkillDatabase.get_all_cain_skills()
-            # 강력한 공격 스킬 우선 선택
+
+            # 1순위: 순수 BRV 광역 공격 (hp_attack=False)
             for skill in all_skills:
-                if hasattr(skill, 'metadata') and skill.metadata.get('damage_type') == 'hp':
+                if hasattr(skill, 'target_type') and skill.target_type == SkillTargetType.ALL_ENEMIES and \
+                   (not hasattr(skill, 'hp_attack') or not skill.hp_attack):
                     counterattack_skill = skill
+                    self.logger.debug(f"[BREAK 반격] 순수 BRV 광역 공격 선택: {skill.name}")
                     break
+
+            # 2순위: 광역 + HP 공격
+            if not counterattack_skill:
+                for skill in all_skills:
+                    if hasattr(skill, 'hp_attack') and skill.hp_attack and \
+                       hasattr(skill, 'target_type') and skill.target_type == SkillTargetType.ALL_ENEMIES:
+                        counterattack_skill = skill
+                        self.logger.debug(f"[BREAK 반격] 광역 HP 공격 선택: {skill.name}")
+                        break
+
+            # 3순위: 일반 HP 공격
+            if not counterattack_skill:
+                for skill in all_skills:
+                    if hasattr(skill, 'hp_attack') and skill.hp_attack:
+                        counterattack_skill = skill
+                        self.logger.debug(f"[BREAK 반격] 단일 HP 공격 선택: {skill.name}")
+                        break
 
         if not counterattack_skill:
             self.logger.warning(f"{actor.name}: BREAK 반격용 스킬을 찾을 수 없음")
             return
 
-        # 타겟 선택 (랜덤으로 생존한 플레이어 선택)
+        # 타겟 선택 (광역이면 전체, 단일이면 랜덤)
         alive_players = [p for p in self.allies if hasattr(p, 'is_alive') and p.is_alive]
         if not alive_players:
             return
 
         import random
-        target = random.choice(alive_players)
+        from src.combat.enemy_skills import SkillTargetType
+
+        if hasattr(counterattack_skill, 'target_type') and counterattack_skill.target_type == SkillTargetType.ALL_ENEMIES:
+            target = alive_players  # 광역 공격: 전체 타겟
+        else:
+            target = random.choice(alive_players)  # 단일 공격: 랜덤 타겟
+
+        # BREAK 반격 대사
+        from src.combat.boss_dialogue import get_boss_dialogue
+        boss_dialogue = get_boss_dialogue()
+        dialogue = boss_dialogue.get_dialogue(actor.enemy_id, "break_counterattack")
+        if dialogue:
+            boss_dialogue.print_dialogue(self.logger, dialogue, combat_ui=getattr(self, 'combat_ui', None))
 
         self.logger.info(f"[BREAK 반격] {actor.name}이(가) {counterattack_skill.name}으로 반격!")
 
@@ -1504,6 +1668,79 @@ class CombatManager:
                 self.logger.info(f"BREAK 반격 성공: {skill_result}")
         except Exception as e:
             self.logger.error(f"BREAK 반격 실행 실패: {e}")
+
+    def _execute_cain_preemptive_strike(self, cain: Any) -> None:
+        """
+        카인 전투 시작 시 선제공격
+
+        가장 방어력이 높은 아군을 BREAK시키고 강한 일격을 가합니다.
+
+        Args:
+            cain: 카인 객체
+        """
+        # 살아있는 아군 중 방어력 + 마법방어력이 가장 높은 대상 선택
+        alive_allies = [a for a in self.allies if getattr(a, 'is_alive', True)]
+        if not alive_allies:
+            return
+
+        # 방어력 + 마법방어력 합산으로 정렬
+        def get_total_defense(character):
+            defense = getattr(character, 'defense', 0)
+            spirit = getattr(character, 'spirit', 0)
+            return defense + spirit
+
+        target = max(alive_allies, key=get_total_defense)
+
+        self.logger.info(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        self.logger.info(f"\033[91m\"과거, 현재, 미래... 모든 시간의 끝에서, 네가 나의 종착점이 되어라.\"\033[0m")
+        self.logger.info(f"카인이 전투 시작과 동시에 선제공격을 가한다!")
+        self.logger.info(f"대상: {target.name} (방어력: {target.defense}, 마법방어력: {target.spirit})")
+        self.logger.info(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        # 1. 대상의 BRV를 0으로 (강제 BREAK)
+        old_brv = target.current_brv
+        target.current_brv = 0
+        target.is_broken = True
+        target.break_turn_count = 0
+
+        self.logger.info(f"[카인 선제공격] {target.name}의 BRV 0으로! (이전: {old_brv}) - BREAK!")
+
+        # BREAK 효과음
+        from src.audio import play_sfx
+        play_sfx("combat", "break")
+
+        # 2. 강한 일격 (BRV 100% + HP 공격)
+        # 카인의 현재 BRV를 매우 높게 설정 (강력한 일격용)
+        preemptive_brv = int(cain.max_brv * 1.5)  # MAX BRV의 150%
+        cain.current_brv = preemptive_brv
+
+        self.logger.info(f"[카인 선제공격] 카인 BRV 충전: {preemptive_brv}")
+
+        # HP 공격 (BREAK 보너스 포함)
+        hp_result = self.brave.hp_attack(
+            attacker=cain,
+            defender=target,
+            brv_multiplier=2.0,  # 2배 배율로 강력하게
+            damage_type="physical"
+        )
+
+        hp_damage = hp_result.get('hp_damage', 0)
+
+        # HP를 1 밑으로 떨어뜨리지 않음 (선제공격은 즉사시키지 않음)
+        if target.current_hp <= 0:
+            target.current_hp = 1
+            self.logger.info(f"[카인 선제공격] {target.name}에게 {hp_damage} HP 데미지!")
+            self.logger.info(f"\033[91m\"죽음은 아직 아니다... 더 고통스러운 선택이 너를 기다린다.\"\033[0m")
+            self.logger.info(f"{target.name} 남은 HP: {target.current_hp}/{target.max_hp} (최소 HP 1로 생존)")
+        else:
+            self.logger.info(f"[카인 선제공격] {target.name}에게 {hp_damage} HP 데미지!")
+            self.logger.info(f"{target.name} 남은 HP: {target.current_hp}/{target.max_hp}")
+
+        self.logger.info(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        # 진동 효과
+        from src.audio.vibration_manager import vibration_manager, VibrationPattern
+        vibration_manager.vibrate(VibrationPattern.HEAVY_HIT)
 
     def _execute_skill(
         self,

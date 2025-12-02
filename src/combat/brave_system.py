@@ -49,9 +49,13 @@ class BraveSystem:
         Returns:
             계산된 INT BRV
         """
-        # SimpleEnemy는 이미 생성자에서 current_brv가 설정되어 있으므로 그대로 사용
+        # SimpleEnemy는 init_brv 속성을 사용 (BREAK 회복 시 current_brv가 0일 수 있음)
         if hasattr(character, '__class__') and character.__class__.__name__ == "SimpleEnemy":
-            return character.current_brv
+            if hasattr(character, 'init_brv'):
+                return character.init_brv
+            else:
+                # fallback: current_brv 사용 (구버전 호환성)
+                return character.current_brv
 
         # Character 객체는 StatManager를 통해 init_brv 가져오기
         if hasattr(character, "stat_manager"):
@@ -575,7 +579,6 @@ class BraveSystem:
             # BREAK 상태를 1턴 동안만 유지
             if character.break_turn_count >= 1:
                 # BREAK 해제 및 BRV 회복 (init_brv 사용)
-                # init_brv는 초기 BRV 값 (stat_manager 또는 적 속성)
                 init_brv_value = self.calculate_int_brv(character)  # 실제 초기 BRV 계산
                 character.is_broken = False
                 character.break_turn_count = 0

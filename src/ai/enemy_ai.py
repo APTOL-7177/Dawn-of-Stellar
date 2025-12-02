@@ -706,28 +706,28 @@ class EnemyAI:
                 if estimated_damage >= damage_threshold:
                     # 의미있는 데미지를 줄 수 있으면 HP 공격
                     # 자신이 죽더라도 피해를 입히는 것을 우선하므로, BRV가 있으면 매우 높은 확률로 HP 공격
-                    hp_attack_probability = 0.85  # 기본 85% 확률
-                    
+                    hp_attack_probability = 0.92  # 기본 92% 확률 (85% → 92%)
+
                     # 자신의 HP가 낮으면 더욱 적극적으로 HP 공격 (죽더라도 피해를 입히겠다는 의지)
                     self_hp_percent = self.enemy.current_hp / self.enemy.max_hp if self.enemy.max_hp > 0 else 1.0
                     if self_hp_percent < 0.3:
-                        hp_attack_probability = 0.95  # HP 30% 이하면 95% 확률
+                        hp_attack_probability = 0.98  # HP 30% 이하면 98% 확률 (95% → 98%)
                     elif self_hp_percent < 0.5:
-                        hp_attack_probability = 0.90  # HP 50% 이하면 90% 확률
-                    
+                        hp_attack_probability = 0.95  # HP 50% 이하면 95% 확률 (90% → 95%)
+
                     # 예상 데미지가 타겟 HP의 10% 이상이면 더욱 적극적으로
                     if estimated_damage >= target_hp * 0.1:
-                        hp_attack_probability = min(0.95, hp_attack_probability + 0.1)
-                    
+                        hp_attack_probability = min(0.99, hp_attack_probability + 0.05)
+
                     if random.random() < hp_attack_probability:
                         return {
                             "type": "hp_attack",
                             "target": target
                         }
-                
-                # 데미지가 작더라도 BRV가 충분히 쌓였으면 (200 이상) 일정 확률로 HP 공격
-                elif current_brv >= 200:
-                    if random.random() < 0.4:  # 40% 확률
+
+                # 데미지가 작더라도 BRV가 충분히 쌓였으면 (150 이상) 일정 확률로 HP 공격
+                elif current_brv >= 150:  # 임계값 낮춤 (200 → 150)
+                    if random.random() < 0.6:  # 60% 확률 (40% → 60%)
                         return {
                             "type": "hp_attack",
                             "target": target
@@ -804,6 +804,7 @@ class SephirothAI(BossAI):
         self.skill_use_multiplier = 20.0  # 스킬 사용 확률 20배 (95% 이상)
         self.phase = 1
         self.break_recovery_used = False  # BREAK 회복 스킬 사용 여부
+        self.was_broken = False  # BREAK 상태였는지 추적
 
     def decide_action(
         self,
@@ -816,35 +817,53 @@ class SephirothAI(BossAI):
         HP 단계별로 다른 전략 사용
         BREAK 회복 시 광역 공격 우선 사용
         """
+        # 스킬이 로드되지 않았으면 재로딩
+        if not hasattr(self.enemy, 'skills') or not self.enemy.skills:
+            try:
+                from src.combat.sephiroth_skills import SephirothSkillDatabase
+                self.enemy.skills = SephirothSkillDatabase.get_all_sephiroth_skills()
+                logger.info(f"세피로스 스킬 로딩: {len(self.enemy.skills)}개")
+            except Exception as e:
+                logger.error(f"세피로스 스킬 로딩 실패: {e}")
+
         hp_percent = self.enemy.current_hp / self.enemy.max_hp if self.enemy.max_hp > 0 else 0
 
-        # BREAK 회복 감지 및 광역 공격 우선 사용 (한 번만)
-        # BREAK 상태에서 회복 시 (이전 HP가 20% 미만이었고 현재 40% 이상)
-        if not self.break_recovery_used:
-            # break_recovery 플래그가 없으면 BREAK에서 회복한 것으로 간주
-            if not hasattr(self, 'was_in_break'):
-                self.was_in_break = hp_percent < 0.2  # 초기 HP가 낮으면 BREAK 상태였던 것으로 간주
+        # BREAK 회복 감지 및 즉시 광역 공격 (더 간단한 방식)
+        current_broken = getattr(self.enemy, 'is_broken', False)
 
-            # BREAK에서 회복 감지
-            if self.was_in_break and hp_percent >= 0.4:
-                self.break_recovery_used = True
-                self.was_in_break = False
-                logger.warning(f"[BREAK RECOVERY] {self.enemy.name}이(가) BREAK에서 회복되어 강력한 광역 공격을 준비한다!")
+        # BREAK에서 회복한 직후인지 확인 (BREAK 상태가 아니고, 이전에 BREAK였다면)
+        if not current_broken and self.was_broken and not self.break_recovery_used:
+            self.break_recovery_used = True
+            logger.warning(f"[BREAK RECOVERY] {self.enemy.name} BREAK 회복 감지! 광역 공격 시도")
 
-                # 광역 공격 스킬 우선순위대로 시도 (가장 강력한 것부터)
-                priority_skills = ["인류의 이름으로", "시공붕괴", "차원 붕괴의 검", "광기의 불꽃", "절망의 안개"]
-                for skill_name in priority_skills:
-                    for skill in self.enemy.skills:
-                        if skill.name == skill_name and skill.can_use(self.enemy):
-                            skill.activate_cooldown()
-                            return {
-                                "type": "skill",
-                                "skill": skill,
-                                "target": enemies
-                            }
-        else:
-            # 현재 BREAK 상태 추적
-            self.was_in_break = hp_percent < 0.2
+            # 즉시 가장 강력한 광역 스킬 사용 시도
+            if hasattr(self.enemy, 'skills') and self.enemy.skills:
+                # 인류의 이름으로 우선 사용 (가장 강력)
+                for skill in self.enemy.skills:
+                    if skill.name == "인류의 이름으로" and skill.can_use(self.enemy):
+                        skill.activate_cooldown()
+                        logger.warning(f"[BREAK RECOVERY] 인류의 이름으로 즉시 발동!")
+                        return {
+                            "type": "skill",
+                            "skill": skill,
+                            "target": enemies
+                        }
+
+                # 인류의 이름으로 불가능하면 시공붕괴
+                for skill in self.enemy.skills:
+                    if skill.name == "시공붕괴" and skill.can_use(self.enemy):
+                        skill.activate_cooldown()
+                        logger.warning(f"[BREAK RECOVERY] 시공붕괴 즉시 발동!")
+                        return {
+                            "type": "skill",
+                            "skill": skill,
+                            "target": enemies
+                        }
+
+            logger.warning(f"[WARNING] {self.enemy.name}: BREAK 회복 광역 공격 실패 - 일반 AI 사용")
+
+        # BREAK 상태 업데이트
+        self.was_broken = current_broken
 
         # 페이즈 전환
         if hp_percent < 0.3 and self.phase < 3:
@@ -883,6 +902,7 @@ class CainAI(BossAI):
         super().__init__(enemy)
         self.skill_use_multiplier = 20.0  # 스킬 사용 확률 20배 (95% 이상)
         self.break_recovery_used = False  # BREAK 회복 스킬 사용 여부
+        self.was_broken = False  # BREAK 상태였는지 추적
 
     def decide_action(
         self,
@@ -894,35 +914,53 @@ class CainAI(BossAI):
 
         BREAK 회복 시 광역 공격 우선 사용
         """
+        # 스킬이 로드되지 않았으면 재로딩
+        if not hasattr(self.enemy, 'skills') or not self.enemy.skills:
+            try:
+                from src.combat.cain_skills import CainSkillDatabase
+                self.enemy.skills = CainSkillDatabase.get_all_cain_skills()
+                logger.info(f"카인 스킬 로딩: {len(self.enemy.skills)}개")
+            except Exception as e:
+                logger.error(f"카인 스킬 로딩 실패: {e}")
+
         hp_percent = self.enemy.current_hp / self.enemy.max_hp if self.enemy.max_hp > 0 else 0
 
-        # BREAK 회복 감지 및 광역 공격 우선 사용 (한 번만)
-        # BREAK 상태에서 회복 시 (이전 HP가 20% 미만이었고 현재 40% 이상)
-        if not self.break_recovery_used:
-            # break_recovery 플래그가 없으면 BREAK에서 회복한 것으로 간주
-            if not hasattr(self, 'was_in_break'):
-                self.was_in_break = hp_percent < 0.2  # 초기 HP가 낮으면 BREAK 상태였던 것으로 간주
+        # BREAK 회복 감지 및 즉시 광역 공격 (더 간단한 방식)
+        current_broken = getattr(self.enemy, 'is_broken', False)
 
-            # BREAK에서 회복 감지
-            if self.was_in_break and hp_percent >= 0.4:
-                self.break_recovery_used = True
-                self.was_in_break = False
-                logger.warning(f"[BREAK RECOVERY] {self.enemy.name}이(가) BREAK에서 회복되어 강력한 광역 공격을 준비한다!")
+        # BREAK에서 회복한 직후인지 확인 (BREAK 상태가 아니고, 이전에 BREAK였다면)
+        if not current_broken and self.was_broken and not self.break_recovery_used:
+            self.break_recovery_used = True
+            logger.warning(f"[BREAK RECOVERY] {self.enemy.name} BREAK 회복 감지! 광역 공격 시도")
 
-                # 광역 공격 스킬 우선순위대로 시도 (가장 강력한 것부터)
-                priority_skills = ["신의 심판", "운명의 지배", "타임라인 분기", "시간 정지", "시공 왜곡"]
-                for skill_name in priority_skills:
-                    for skill in self.enemy.skills:
-                        if skill.name == skill_name and skill.can_use(self.enemy):
-                            skill.activate_cooldown()
-                            return {
-                                "type": "skill",
-                                "skill": skill,
-                                "target": enemies
-                            }
-        else:
-            # 현재 BREAK 상태 추적
-            self.was_in_break = hp_percent < 0.2
+            # 즉시 가장 강력한 광역 스킬 사용 시도
+            if hasattr(self.enemy, 'skills') and self.enemy.skills:
+                # 신의 심판 우선 사용 (가장 강력)
+                for skill in self.enemy.skills:
+                    if skill.name == "신의 심판" and skill.can_use(self.enemy):
+                        skill.activate_cooldown()
+                        logger.warning(f"[BREAK RECOVERY] 신의 심판 즉시 발동!")
+                        return {
+                            "type": "skill",
+                            "skill": skill,
+                            "target": enemies
+                        }
+
+                # 신의 심판 불가능하면 운명의 지배
+                for skill in self.enemy.skills:
+                    if skill.name == "운명의 지배" and skill.can_use(self.enemy):
+                        skill.activate_cooldown()
+                        logger.warning(f"[BREAK RECOVERY] 운명의 지배 즉시 발동!")
+                        return {
+                            "type": "skill",
+                            "skill": skill,
+                            "target": enemies
+                        }
+
+            logger.warning(f"[WARNING] {self.enemy.name}: BREAK 회복 광역 공격 실패 - 일반 AI 사용")
+
+        # BREAK 상태 업데이트
+        self.was_broken = current_broken
 
         # 일반 결정 로직
         return super().decide_action(allies, enemies)

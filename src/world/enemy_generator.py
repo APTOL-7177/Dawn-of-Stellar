@@ -229,26 +229,26 @@ ENEMY_TEMPLATES = {
     ),
 
     # === 최종 보스 (20층) - 물리형 ===
-    # 5층 물리형 보스(dragon_king)의 1.2배 스탯, 스피드 2배, HP 2.5배
+    # 5층 물리형 보스(dragon_king)의 1.2배 스탯, 스피드 2배, HP/방어력 조정 (글리치 대사 + AI 강화)
     # 7분 30초 제한 - 스킬 계수로 위협적
     "sephiroth": EnemyTemplate(
         "sephiroth", "세피로스", 1,
-        hp=625, mp=48,  # HP 2.5배 (250*2.5), MP는 낮음
-        physical_attack=86, physical_defense=70,  # 물리 특화 1.2배 (72*1.2, 58*1.2)
-        magic_attack=62, magic_defense=54,  # 마법은 낮게 (52*1.2, 45*1.2)
+        hp=350, mp=500,  # HP 적당히 증가 (300->350), MP 대폭 증가
+        physical_attack=86, physical_defense=68,  # 물리 특화, 방어력 증가 (55->68)
+        magic_attack=62, magic_defense=58,  # 마법은 낮게, 방어력 증가 (45->58)
         speed=110,  # 스피드 2배 (55*2)
         max_brv=1200, init_brv=600,  # init_brv를 max_brv 절반으로 설정 (1200//2)
         luck=18, accuracy=85, evasion=16
     ),
 
     # === 진 최종 보스 (30층) - 마법형 ===
-    # 5층 마법형 보스(lich)의 1.2배 스탯, 스피드 2배, HP 2.5배
+    # 5층 마법형 보스(lich)의 1.2배 스탯, 스피드 2배, HP/방어력 조정 (글리치 대사 + AI 강화)
     # 4분 제한 - 시간은 짧지만 마법 계수 높은 스킬로 승부
     "abel_cain": EnemyTemplate(
         "abel_cain", "닥터 아벨 카인", 1,
-        hp=475, mp=72,  # HP 2.5배 (190*2.5), MP 높음
-        physical_attack=60, physical_defense=50,  # 물리는 낮게 (50*1.2, 42*1.2)
-        magic_attack=94, magic_defense=78,  # 마법 특화 1.2배 (78*1.2, 65*1.2)
+        hp=320, mp=500,  # HP 적당히 증가 (280->320), MP 대폭 증가
+        physical_attack=60, physical_defense=54,  # 물리는 낮게, 방어력 증가 (42->54)
+        magic_attack=94, magic_defense=75,  # 마법 특화, 방어력 증가 (65->75)
         speed=96,  # 스피드 2배 (48*2) - 마법형이라 조금 느림
         max_brv=960, init_brv=480,  # init_brv를 max_brv 절반으로 설정 (960//2)
         luck=20, accuracy=88, evasion=14
@@ -631,8 +631,11 @@ class SimpleEnemy:
         base_max_brv = (template.max_brv + brv_growth) * boss_stat_mult * stat_variance * 0.5
         self.max_brv = int(base_max_brv)
         init_brv_growth = template.init_brv * 0.25 * (level - 1)
-        base_init_brv = (template.init_brv + init_brv_growth) * boss_stat_mult * stat_variance * 0.5
-        self.current_brv = int(base_init_brv)
+        # BREAK 회복용 init_brv는 * 0.5 없이 저장 (원래 값으로 회복)
+        full_init_brv = (template.init_brv + init_brv_growth) * boss_stat_mult * stat_variance
+        self.init_brv = int(full_init_brv)  # BREAK 회복용 init_brv 저장
+        # 전투 시작 시 current_brv는 init_brv의 50%로 시작
+        self.current_brv = int(full_init_brv * 0.5)
 
         # 상태
         self.is_alive = True
@@ -922,10 +925,10 @@ class EnemyGenerator:
 
             # 최종보스 특별 처리 (20층 세피로스, 30층 카인)
             if boss_battle and boss_enemy_id in ["sephiroth", "abel_cain"]:
-                # 세피로스와 카인 HP 27.75% 감소 (추가 난이도 상승)
-                boss.max_hp = int(boss.max_hp * 0.7225)  # 추가 15% 감소 (총 27.75%)
+                # 세피로스와 카인 HP 30% 감소 (글리치 대사 + AI 강화 균형)
+                boss.max_hp = int(boss.max_hp * 0.7)  # 30% 추가 감소 (40% -> 30%)
                 boss.current_hp = boss.max_hp
-                logger.info(f"{boss_name} HP 27.75% 감소: {boss.max_hp}")
+                logger.info(f"{boss_name} HP 30% 감소 (글리치 대사 + AI 강화): {boss.max_hp}")
 
                 # 세피로스와 카인의 MP를 999로 설정
                 boss.max_mp = 999

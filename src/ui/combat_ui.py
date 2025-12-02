@@ -50,6 +50,20 @@ class CombatMessage:
     frames_remaining: int = 180  # 3초 (60 FPS 기준)
 
 
+@dataclass
+class FloatingDialogue:
+    """화면에 떠다니는 대사 (림버스 컴퍼니 스타일 - 글리치/공포 효과)"""
+    text: str
+    x: int
+    y: int
+    color: Tuple[int, int, int] = (255, 100, 100)  # 기본 붉은색
+    total_frames: int = 900  # 15초 (60 FPS 기준) - 오래 남아서 방해
+    frames_remaining: int = 900
+    typing_speed: float = 0.1  # 프레임당 0.1글자 (10프레임당 1글자 = 초당 6글자)
+    current_char_index: float = 0.0  # 현재 타이핑 중인 글자 인덱스 (float로 변경)
+    fade_start_frames: int = 300  # 마지막 5초부터 페이드 아웃 (매우 느리게)
+
+
 class CombatUI:
     """전투 UI"""
 
@@ -87,6 +101,13 @@ class CombatUI:
         self.messages: List[CombatMessage] = []
         self.log_scroll_offset = 0  # 스크롤 오프셋 (0이면 최신 메시지)
         self.log_visible_lines = 12  # 화면에 표시할 메시지 라인 수 (8 -> 12로 증가)
+
+        # 떠다니는 대사 목록 (림버스 컴퍼니 스타일)
+        self.floating_dialogues: List[FloatingDialogue] = []
+
+        # CombatManager에 자신을 등록 (보스 대사 시스템용)
+        if combat_manager:
+            combat_manager.combat_ui = self
 
         # 메뉴
         self.action_menu: Optional[CursorMenu] = None
@@ -2364,8 +2385,55 @@ class CombatUI:
 
         # 새로운 메시지가 추가되면 스크롤을 최신으로 리셋 (위에 있는 로그부터 사라지도록)
         self.log_scroll_offset = 0
-        
+
         logger.debug(f"전투 메시지: {text}")
+
+    def add_floating_dialogue(self, text: str, color: Tuple[int, int, int] = (255, 100, 100)):
+        """
+        화면의 랜덤한 빈 공간에 떠다니는 대사 추가 (림버스 컴퍼니 스타일)
+        타이핑 효과로 나타나고 페이드 아웃으로 사라짐
+
+        Args:
+            text: 대사 내용
+            color: 텍스트 색상 (기본: 붉은색)
+        """
+        # 화면 전체 영역에 랜덤 위치 선정 (UI 방해 효과 증가)
+        min_x = 5  # 좌측 여백 최소화
+        max_x = max(5, self.screen_width - len(text) - 5)
+        min_y = 3  # 상단 UI도 가릴 수 있게 (글리치 효과)
+        max_y = max(3, self.screen_height - 5)  # 하단 UI도 가릴 수 있게 (방해 효과)
+
+        # 기존 대사와 겹치지 않는 위치 찾기 (최대 15번 시도)
+        x, y = min_x, min_y
+        for attempt in range(15):
+            x = random.randint(min_x, max_x)
+            y = random.randint(min_y, max_y)
+
+            # 기존 대사와 너무 가까운지 체크 (약간 겹쳐도 OK - 글리치 효과)
+            too_close = False
+            for existing in self.floating_dialogues:
+                # 거리 기준을 줄여서 더 밀집되게 배치 (20 -> 15)
+                if abs(existing.x - x) < 15 and abs(existing.y - y) < 2:
+                    too_close = True
+                    break
+
+            if not too_close:
+                break
+
+        # 대사 추가 (글리치/공포 효과 - 느린 타이핑, 오래 지속)
+        dialogue = FloatingDialogue(
+            text=text,
+            x=x,
+            y=y,
+            color=color,
+            total_frames=900,  # 15초 - 오래 남아서 화면 방해
+            frames_remaining=900,
+            typing_speed=0.1,  # 초당 6글자 (10프레임당 1글자) - 매우 느림
+            current_char_index=0.0,
+            fade_start_frames=300  # 마지막 5초부터 페이드 아웃 (매우 느리게)
+        )
+        self.floating_dialogues.append(dialogue)
+        logger.debug(f"떠다니는 대사 추가 (글리치): {text} at ({x}, {y})")
 
     def render(self, console: tcod.console.Console):
         """렌더링"""
@@ -2490,6 +2558,9 @@ class CombatUI:
 
         elif self.state == CombatUIState.BATTLE_END:
             self._render_battle_end(console)
+
+        # 떠다니는 대사 렌더링 (최상위 레이어 - 림버스 컴퍼니 스타일)
+        self._render_floating_dialogues(console)
 
     def _render_allies(self, console: tcod.console.Console):
         """아군 상태 렌더링 (상세)"""
@@ -2805,6 +2876,55 @@ class CombatUI:
             # 위로 스크롤 가능 (최신 메시지 보기)
             if self.log_scroll_offset > 0:
                 console.print(msg_x + msg_width, msg_y, "▲", fg=(150, 150, 150))
+
+    def _render_floating_dialogues(self, console: tcod.console.Console):
+        """떠다니는 대사 렌더링 (림버스 컴퍼니 스타일 - 글리치/공포 효과)"""
+        to_remove = []
+
+        for dialogue in self.floating_dialogues:
+            # 프레임 감소
+            dialogue.frames_remaining -= 1
+
+            if dialogue.frames_remaining <= 0:
+                to_remove.append(dialogue)
+                continue
+
+            # 타이핑 효과 (글자 수 증가 - 매우 느리게)
+            if dialogue.current_char_index < len(dialogue.text):
+                dialogue.current_char_index += dialogue.typing_speed
+                dialogue.current_char_index = min(dialogue.current_char_index, float(len(dialogue.text)))
+
+            # 현재까지 출력할 텍스트 (float를 int로 변환)
+            visible_char_count = int(dialogue.current_char_index)
+            visible_text = dialogue.text[:visible_char_count]
+
+            # 페이드 아웃 효과 (매우 느리게)
+            color = dialogue.color
+            if dialogue.frames_remaining <= dialogue.fade_start_frames:
+                # 알파값 감소 효과 (색상 어둡게) - 5초에 걸쳐 서서히
+                fade_ratio = dialogue.frames_remaining / dialogue.fade_start_frames
+                color = (
+                    int(dialogue.color[0] * fade_ratio),
+                    int(dialogue.color[1] * fade_ratio),
+                    int(dialogue.color[2] * fade_ratio)
+                )
+
+            # 대사 출력 (따옴표 추가)
+            if visible_text:
+                try:
+                    console.print(
+                        dialogue.x,
+                        dialogue.y,
+                        f'"{visible_text}"',
+                        fg=color
+                    )
+                except Exception as e:
+                    # 화면 밖으로 나가는 경우 무시
+                    logger.debug(f"떠다니는 대사 렌더링 오류: {e}")
+
+        # 만료된 대사 제거
+        for dialogue in to_remove:
+            self.floating_dialogues.remove(dialogue)
 
     def _render_target_select(self, console: tcod.console.Console):
         """대상 선택 UI 렌더링"""
