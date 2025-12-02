@@ -2688,6 +2688,21 @@ class CombatManager:
 
     def _execute_flee(self, actor: Any, **kwargs) -> Dict[str, Any]:
         """도망"""
+        # 세피로스, 카인 전투에서는 도망 불가
+        is_boss_battle = False
+        for enemy in self.enemies:
+            enemy_id = getattr(enemy, 'enemy_id', None)
+            if enemy_id in ['sephiroth', 'abel_cain']:
+                is_boss_battle = True
+                break
+
+        if is_boss_battle:
+            return {
+                "action": "flee",
+                "success": False,
+                "error": "보스전에서는 도망칠 수 없다!"
+            }
+
         # 도망 확률 계산
         flee_chance = 0.5  # 기본 50%
         import random

@@ -148,7 +148,7 @@ class StorySystem:
         """세피로스 조우 스토리"""
         return [
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "\n\n공간이 일그러지며 현실이 무너져내린다...",
                 pause=0.5,
                 color="red"
             ),
@@ -158,7 +158,7 @@ class StorySystem:
                 color="red"
             ),
             StorySegment(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "시간과 공간의 경계가 사라진다...\n",
                 pause=1.0,
                 color="red"
             ),
@@ -228,7 +228,7 @@ class StorySystem:
                 color="red"
             ),
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "\n\n시간의 모래가 빠르게 흘러내린다...",
                 pause=0.5,
                 color="yellow"
             ),
@@ -238,7 +238,7 @@ class StorySystem:
                 color="yellow"
             ),
             StorySegment(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "\n운명의 순간이 다가온다...\n",
                 pause=1.0,
                 color="yellow"
             ),
@@ -253,7 +253,7 @@ class StorySystem:
         """세피로스 격파 스토리"""
         return [
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "\n\n승리의 빛이 세상을 감싼다...",
                 pause=0.5,
                 color="cyan"
             ),
@@ -263,7 +263,7 @@ class StorySystem:
                 color="cyan"
             ),
             StorySegment(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "영웅의 시대가 열리다...\n",
                 pause=1.0,
                 color="cyan"
             ),
@@ -323,7 +323,7 @@ class StorySystem:
                 color="white"
             ),
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "\n\n새로운 평화가 찾아온다...\n",
                 pause=1.0,
                 color="cyan"
             ),
@@ -353,7 +353,7 @@ class StorySystem:
                 color="yellow"
             ),
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "\n\n별들의 여명이 밝아온다...",
                 pause=1.0,
                 color="cyan"
             ),
@@ -368,7 +368,7 @@ class StorySystem:
                 color="yellow"
             ),
             StorySegment(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "희망의 빛이 영원히 빛난다...",
                 pause=5.0,
                 color="cyan"
             ),
@@ -378,7 +378,7 @@ class StorySystem:
         """세피로스 타임오버 스토리 (7분 30초 초과)"""
         return [
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "\n\n시간의 벽이 무너져내린다...",
                 pause=0.5,
                 color="red"
             ),
@@ -388,7 +388,7 @@ class StorySystem:
                 color="red"
             ),
             StorySegment(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "세계가 영원히 사라진다...\n",
                 pause=1.0,
                 color="red"
             ),
@@ -433,7 +433,7 @@ class StorySystem:
                 color="dark"
             ),
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "\n\n어둠이 모든 것을 삼킨다...",
                 pause=1.0,
                 color="red"
             ),
@@ -448,7 +448,7 @@ class StorySystem:
                 color="red"
             ),
             StorySegment(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "영원한 어둠 속으로...",
                 pause=5.0,
                 color="red"
             ),
@@ -458,7 +458,7 @@ class StorySystem:
         """카인 조우 스토리 (30층)"""
         return [
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "\n\n시간의 심장부에 도달했다...",
                 pause=0.5,
                 color="dark"
             ),
@@ -468,7 +468,7 @@ class StorySystem:
                 color="dark"
             ),
             StorySegment(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "시간의 심장이 고동치기 시작한다...\n",
                 pause=1.0,
                 color="dark"
             ),
@@ -543,7 +543,7 @@ class StorySystem:
                 color="red"
             ),
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "\n\n시간의 시계가 빠르게 흘러간다...",
                 pause=0.5,
                 color="yellow"
             ),
@@ -553,7 +553,7 @@ class StorySystem:
                 color="yellow"
             ),
             StorySegment(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "운명의 시간이 흘러간다...\n",
                 pause=1.0,
                 color="yellow"
             ),
@@ -573,7 +573,7 @@ class StorySystem:
         """카인 격파 스토리 (트루 엔딩)"""
         return [
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "\n\n시간의 흐름이 멈추었다...",
                 pause=0.5,
                 color="cyan"
             ),
@@ -583,7 +583,7 @@ class StorySystem:
                 color="cyan"
             ),
             StorySegment(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "새로운 미래가 열리다...\n",
                 pause=1.0,
                 color="cyan"
             ),
@@ -648,7 +648,7 @@ class StorySystem:
                 color="cyan"
             ),
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "\n\n시간의 균열이 서서히 아문다...\n",
                 pause=1.0,
                 color="white"
             ),
@@ -678,7 +678,7 @@ class StorySystem:
                 color="cyan"
             ),
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "\n\n새로운 시대의 서막이 열린다...\n",
                 pause=1.0,
                 color="yellow"
             ),
@@ -718,7 +718,7 @@ class StorySystem:
                 color="yellow"
             ),
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "\n\n별빛이 영원히 빛난다...",
                 pause=1.0,
                 color="cyan"
             ),
@@ -733,7 +733,7 @@ class StorySystem:
                 color="yellow"
             ),
             StorySegment(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "희망이 세상을 가득 채운다...",
                 pause=5.0,
                 color="cyan"
             ),
@@ -743,7 +743,7 @@ class StorySystem:
         """카인 타임오버 스토리 (4분 초과)"""
         return [
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "\n\n시간의 균열이 커진다...",
                 pause=0.5,
                 color="red"
             ),
@@ -753,7 +753,7 @@ class StorySystem:
                 color="red"
             ),
             StorySegment(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "세계가 무너져내린다...\n",
                 pause=1.0,
                 color="red"
             ),
@@ -793,7 +793,7 @@ class StorySystem:
                 color="dark"
             ),
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "\n\n시간의 흐름이 영원히 멈춘다...\n",
                 pause=1.0,
                 color="cyan"
             ),
@@ -813,7 +813,7 @@ class StorySystem:
                 color="dark"
             ),
             StorySegment(
-                "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "\n\n어둠이 모든 존재를 집어삼킨다...",
                 pause=1.0,
                 color="red"
             ),
@@ -828,7 +828,7 @@ class StorySystem:
                 color="red"
             ),
             StorySegment(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "영원한 공허 속으로...",
                 pause=5.0,
                 color="red"
             ),

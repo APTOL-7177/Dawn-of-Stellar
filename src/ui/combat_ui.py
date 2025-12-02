@@ -177,12 +177,24 @@ class CombatUI:
             items.append(MenuItem("BRV 공격", description="BRV를 축적", enabled=True, value=ActionType.BRV_ATTACK))
             items.append(MenuItem("HP 공격", description="HP 데미지", enabled=True, value=ActionType.HP_ATTACK))
 
+        # 보스전 확인 (세피로스, 카인)
+        is_boss_battle = False
+        if hasattr(self.combat_manager, 'enemies'):
+            for enemy in self.combat_manager.enemies:
+                enemy_id = getattr(enemy, 'enemy_id', None)
+                if enemy_id in ['sephiroth', 'abel_cain']:
+                    is_boss_battle = True
+                    break
+
         # 나머지 행동들
         items.append(MenuItem("스킬", description="특수 기술 사용", enabled=True, value=ActionType.SKILL))
         items.append(MenuItem("아이템", description="아이템 사용", enabled=True, value=ActionType.ITEM))
         items.append(MenuItem("방어", description="방어 자세로 피해 감소", enabled=True, value=ActionType.DEFEND))
         items.append(MenuItem("기믹 상세", description="기믹 시스템 상세 정보 보기", enabled=True, value=("gimmick_detail", None)))
-        items.append(MenuItem("도망", description="전투에서 도망", enabled=True, value=ActionType.FLEE))
+
+        # 보스전이 아니면 도망 메뉴 추가
+        if not is_boss_battle:
+            items.append(MenuItem("도망", description="전투에서 도망", enabled=True, value=ActionType.FLEE))
 
         return CursorMenu(
             title="행동 선택",
