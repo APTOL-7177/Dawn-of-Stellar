@@ -245,7 +245,7 @@ class StorySystem:
             StorySegment(
                 "\n\n그의 창과 눈동자가 붉게 빛난다─",
                 pause=1.0,
-                color="white"
+                color="red"
             ),
         ]
 

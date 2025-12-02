@@ -922,11 +922,10 @@ class EnemyGenerator:
 
             # 최종보스 특별 처리 (20층 세피로스, 30층 카인)
             if boss_battle and boss_enemy_id in ["sephiroth", "abel_cain"]:
-                # 닥터 아벨 카인 HP 1.25배 추가 강화
-                if boss_enemy_id == "abel_cain":
-                    boss.max_hp = int(boss.max_hp * 1.25)
-                    boss.current_hp = boss.max_hp
-                    logger.info(f"닥터 아벨 카인 HP 1.25배 강화: {boss.max_hp}")
+                # 세피로스와 카인 HP 27.75% 감소 (추가 난이도 상승)
+                boss.max_hp = int(boss.max_hp * 0.7225)  # 추가 15% 감소 (총 27.75%)
+                boss.current_hp = boss.max_hp
+                logger.info(f"{boss_name} HP 27.75% 감소: {boss.max_hp}")
 
                 # 세피로스와 카인의 MP를 999로 설정
                 boss.max_mp = 999

@@ -750,6 +750,8 @@ class BossAI(EnemyAI):
     def __init__(self, enemy: Any):
         # 보스는 항상 "악몽" 난이도 (높은 지능)
         super().__init__(enemy, difficulty="악몽")
+        # 보스는 스킬 사용 확률을 높임 (95% 이상)
+        self.skill_use_multiplier = 20.0
 
     def _select_skill(
         self,
@@ -799,7 +801,7 @@ class SephirothAI(BossAI):
 
     def __init__(self, enemy: Any):
         super().__init__(enemy)
-        self.skill_use_multiplier = 1.5  # 스킬 사용 확률 1.5배 (보스 특성)
+        self.skill_use_multiplier = 20.0  # 스킬 사용 확률 20배 (95% 이상)
         self.phase = 1
 
     def decide_action(
@@ -850,10 +852,15 @@ def create_ai_for_enemy(enemy: Any, game_difficulty: str = None) -> EnemyAI:
         적절한 AI 인스턴스
     """
     enemy_name = getattr(enemy, 'name', '').lower()
+    enemy_id = getattr(enemy, 'enemy_id', None)
 
     # 세피로스
-    if 'sephiroth' in enemy_name or '세피로스' in enemy_name:
+    if 'sephiroth' in enemy_name or '세피로스' in enemy_name or enemy_id == "sephiroth":
         return SephirothAI(enemy)
+
+    # 카인 (닥터 아벨 카인)
+    if enemy_id == "abel_cain" or '카인' in enemy_name:
+        return BossAI(enemy)
 
     # 보스
     if 'boss' in enemy_name or '보스' in enemy_name or 'dragon' in enemy_name or '드래곤' in enemy_name:

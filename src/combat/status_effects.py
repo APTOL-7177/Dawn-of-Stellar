@@ -69,6 +69,7 @@ class StatusType(Enum):
     REDUCE_DEF = "방어력감소"
     REDUCE_SPD = "속도감소"
     REDUCE_ACCURACY = "명중률감소"
+    REDUCE_EVASION = "회피율감소"
     REDUCE_ALL_STATS = "전능력감소"
     REDUCE_MAGIC_ATK = "마법공격감소"
     REDUCE_MAGIC_DEF = "마법방어감소"
@@ -750,6 +751,8 @@ class StatusManager:
                 modifiers['speed'] *= (1.0 - intensity * 0.3)
             elif effect.status_type == StatusType.REDUCE_ACCURACY:
                 modifiers['accuracy'] *= (1.0 - intensity * 0.15)
+            elif effect.status_type == StatusType.REDUCE_EVASION:
+                modifiers['evasion'] *= (1.0 - intensity * 0.2)
             elif effect.status_type == StatusType.REDUCE_MAGIC_ATK:
                 modifiers['magic_attack'] *= (1.0 - intensity * 0.25)
             elif effect.status_type == StatusType.REDUCE_MAGIC_DEF:
@@ -923,7 +926,7 @@ def get_status_category(status_type: StatusType) -> str:
 
     debuff_types = [
         StatusType.REDUCE_ATK, StatusType.REDUCE_DEF, StatusType.REDUCE_SPD,
-        StatusType.REDUCE_ACCURACY, StatusType.REDUCE_ALL_STATS,
+        StatusType.REDUCE_ACCURACY, StatusType.REDUCE_EVASION, StatusType.REDUCE_ALL_STATS,
         StatusType.REDUCE_MAGIC_ATK, StatusType.REDUCE_MAGIC_DEF,
         StatusType.REDUCE_SPEED, StatusType.VULNERABLE, StatusType.EXPOSED,
         StatusType.WEAKNESS, StatusType.WEAKEN, StatusType.CONFUSION,

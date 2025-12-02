@@ -29,11 +29,10 @@ class CainSkillDatabase:
             description="미래를 보고 공격을 회피하며 BRV 축적",
             target_type=SkillTargetType.SELF,
             mp_cost=30,
-            brv_damage=1000,  # 자신의 BRV 증가
             buff_stats={"evasion": 1.5},  # 회피율 50% 증가
             status_duration=2,
             use_probability=0.35,
-            cooldown=2,
+            cooldown=1,
             sfx=("enemy", "buff")
         ))
 
@@ -44,9 +43,8 @@ class CainSkillDatabase:
             description="시간을 빠르게 하여 신속한 BRV 공격",
             target_type=SkillTargetType.SINGLE_ENEMY,
             mp_cost=40,
-            damage_multiplier=3.0,
+            damage_multiplier=2.8,
             is_magical=True,
-            brv_damage=1200,
             use_probability=0.4,
             cooldown=1,
             sfx=("enemy", "magic")
@@ -61,7 +59,7 @@ class CainSkillDatabase:
             mp_cost=50,
             hp_attack=True,
             use_probability=0.3,
-            cooldown=2,
+            cooldown=1,
             sfx=("enemy", "slash")
         ))
 
@@ -76,7 +74,7 @@ class CainSkillDatabase:
             mp_cost=100,
             heal_amount=500,
             use_probability=0.25,
-            cooldown=5,
+            cooldown=3,
             min_hp_percent=0.66,
             max_hp_percent=1.0,
             sfx=("support", "heal")
@@ -89,15 +87,14 @@ class CainSkillDatabase:
             description="시공간을 왜곡하여 전체에게 디버프",
             target_type=SkillTargetType.ALL_ENEMIES,
             mp_cost=80,
-            damage_multiplier=1.5,
+            damage_multiplier=2.0,
             is_magical=True,
-            brv_damage=500,
             status_effects=["slow", "accuracy_down"],
             status_duration=3,
             status_intensity=0.8,
-            debuff_stats={"speed": 0.7, "accuracy": 0.8},
+            debuff_stats={"speed_down": 0.7, "accuracy_down": 0.8},
             use_probability=0.3,
-            cooldown=4,
+            cooldown=3,
             min_hp_percent=0.66,
             max_hp_percent=1.0,
             sfx=("enemy", "debuff")
@@ -112,12 +109,11 @@ class CainSkillDatabase:
             description="여러 타임라인에서 동시 공격",
             target_type=SkillTargetType.ALL_ENEMIES,
             mp_cost=150,
-            damage_multiplier=4.0,  # 여러 타임라인 공격 시뮬레이션
+            damage_multiplier=3.0,  # 여러 타임라인 공격 시뮬레이션
             is_magical=True,
-            brv_damage=1500,
             hp_attack=True,
             use_probability=0.3,
-            cooldown=5,
+            cooldown=4,
             min_hp_percent=0.33,
             max_hp_percent=0.66,
             sfx=("enemy", "ultimate")
@@ -130,14 +126,13 @@ class CainSkillDatabase:
             description="과거에 입은 상처를 다시 받게 함",
             target_type=SkillTargetType.RANDOM_ENEMY,
             mp_cost=120,
-            damage_multiplier=3.5,
+            damage_multiplier=3.0,
             is_magical=True,
-            brv_damage=1000,
             status_effects=["wound"],  # 지속 데미지
             status_duration=4,
             status_intensity=1.0,
             use_probability=0.35,
-            cooldown=3,
+            cooldown=2,
             min_hp_percent=0.33,
             max_hp_percent=0.66,
             sfx=("enemy", "dark_attack")
@@ -157,7 +152,7 @@ class CainSkillDatabase:
             },
             status_duration=3,
             use_probability=0.25,
-            cooldown=6,
+            cooldown=4,
             min_hp_percent=0.33,
             max_hp_percent=0.66,
             sfx=("enemy", "buff")
@@ -172,14 +167,13 @@ class CainSkillDatabase:
             description="시공간 자체를 무기로 사용",
             target_type=SkillTargetType.SINGLE_ENEMY,
             mp_cost=150,
-            damage_multiplier=6.0,
+            damage_multiplier=3.0,
             is_magical=True,
-            brv_damage=2500,
             hp_attack=True,
             status_effects=["stun"],
             status_duration=1,
             use_probability=0.35,
-            cooldown=3,
+            cooldown=2,
             min_hp_percent=0.0,
             max_hp_percent=0.33,
             sfx=("enemy", "critical_hit")
@@ -192,15 +186,14 @@ class CainSkillDatabase:
             description="모든 타임라인의 힘으로 전체를 공격",
             target_type=SkillTargetType.ALL_ENEMIES,
             mp_cost=200,
-            damage_multiplier=5.0,
+            damage_multiplier=3.0,
             is_magical=True,
-            brv_damage=2000,
             hp_attack=True,
             status_effects=["curse"],
             status_duration=5,
             status_intensity=1.2,
             use_probability=0.3,
-            cooldown=6,
+            cooldown=4,
             min_hp_percent=0.0,
             max_hp_percent=0.33,
             sfx=("enemy", "final_attack")
@@ -213,9 +206,8 @@ class CainSkillDatabase:
             description="불멸의 신의 최후 심판",
             target_type=SkillTargetType.ALL_ENEMIES,
             mp_cost=250,
-            damage_multiplier=7.0,
+            damage_multiplier=3.0,
             is_magical=True,
-            brv_damage=3000,
             hp_attack=True,
             use_probability=0.8,
             cooldown=999,  # 1회만 사용
@@ -231,13 +223,12 @@ class CainSkillDatabase:
             description="시간을 멈춰 모두를 무력화",
             target_type=SkillTargetType.ALL_ENEMIES,
             mp_cost=180,
-            damage_multiplier=2.0,
+            damage_multiplier=2.5,
             is_magical=True,
-            brv_damage=800,
             status_effects=["stun"],
             status_duration=1,
             use_probability=0.2,
-            cooldown=7,
+            cooldown=5,
             min_hp_percent=0.0,
             max_hp_percent=0.33,
             sfx=("enemy", "time_magic")
