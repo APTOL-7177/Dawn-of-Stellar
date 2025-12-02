@@ -925,10 +925,10 @@ class EnemyGenerator:
 
             # 최종보스 특별 처리 (20층 세피로스, 30층 카인)
             if boss_battle and boss_enemy_id in ["sephiroth", "abel_cain"]:
-                # 세피로스와 카인 HP 30% 감소 (글리치 대사 + AI 강화 균형)
-                boss.max_hp = int(boss.max_hp * 0.7)  # 30% 추가 감소 (40% -> 30%)
+                # 세피로스와 카인 HP 14.3% 감소 (AI 강화로 난이도 균형)
+                boss.max_hp = int(boss.max_hp * 0.857)  # 14.3% 감소
                 boss.current_hp = boss.max_hp
-                logger.info(f"{boss_name} HP 30% 감소 (글리치 대사 + AI 강화): {boss.max_hp}")
+                logger.info(f"{boss_name} HP 14.3% 감소 (AI 강화 균형): {boss.max_hp}")
 
                 # 세피로스와 카인의 MP를 999로 설정
                 boss.max_mp = 999

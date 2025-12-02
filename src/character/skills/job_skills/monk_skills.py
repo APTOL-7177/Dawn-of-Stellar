@@ -125,7 +125,7 @@ def create_monk_skills():
         # 현재 기 게이지 값에 비례한 피해
         DamageEffect(DamageType.BRV, 3.0, stat_type="physical",
                     gimmick_bonus={"field": "ki_gauge", "multiplier": 0.01}),  # 기 1당 +1% 피해
-        DamageEffect(DamageType.HP, 2.5, stat_type="magical",
+        DamageEffect(DamageType.HP, 3.0, stat_type="magical",
                     gimmick_bonus={"field": "ki_gauge", "multiplier": -0.01, "invert": True}),  # 100-기 값만큼 피해
         GimmickEffect(GimmickOperation.SET, "ki_gauge", 50)  # 균형으로 복귀
     ]

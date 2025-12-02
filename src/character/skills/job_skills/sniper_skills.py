@@ -22,7 +22,7 @@ def create_sniper_skills():
     # 2. 기본 HP: 헤드샷 (탄환 1발 소모, 크리티컬 확정)
     headshot = Skill("sniper_headshot", "헤드샷", "크리티컬 확정 강타, 탄환 1발")
     headshot.effects = [
-        DamageEffect(DamageType.HP, 3.0,
+        DamageEffect(DamageType.HP, 3.2,
                     conditional_bonus={"condition": "last_bullet", "multiplier": 1.3})
     ]
     headshot.costs = []  # 기본 공격은 MP 소모 없음

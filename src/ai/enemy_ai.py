@@ -693,31 +693,34 @@ class EnemyAI:
             if not target:
                 return {"type": "defend", "target": None}
 
-        # HP 공격 판단: 현재 BRV로 타겟에게 의미있는 데미지를 줄 수 있는지 계산
+        # HP 공격 판단: BRV가 쌓이면 적극적으로 HP 공격
         if current_brv > 0:
             target_hp = getattr(target, 'current_hp', 0)
             if target_hp > 0:
                 # 예상 데미지 계산
                 estimated_damage = self._estimate_hp_damage(target, current_brv)
-                
-                # 의미있는 데미지인지 판단 (적 HP의 최소 3% 이상, 또는 최소 30 이상)
-                damage_threshold = max(30, target_hp * 0.03)
-                
-                if estimated_damage >= damage_threshold:
-                    # 의미있는 데미지를 줄 수 있으면 HP 공격
-                    # 자신이 죽더라도 피해를 입히는 것을 우선하므로, BRV가 있으면 매우 높은 확률로 HP 공격
-                    hp_attack_probability = 0.92  # 기본 92% 확률 (85% → 92%)
 
-                    # 자신의 HP가 낮으면 더욱 적극적으로 HP 공격 (죽더라도 피해를 입히겠다는 의지)
+                # BRV가 50 이상이면 기본적으로 HP 공격 시도 (매우 적극적)
+                if current_brv >= 50:
+                    # 기본 HP 공격 확률: 85% (BRV 공격과 비슷한 빈도)
+                    hp_attack_probability = 0.85
+
+                    # BRV가 많이 쌓였으면 더 적극적으로
+                    if current_brv >= 200:
+                        hp_attack_probability = 0.95  # 200 이상이면 95%
+                    elif current_brv >= 100:
+                        hp_attack_probability = 0.90  # 100 이상이면 90%
+
+                    # 자신의 HP가 낮으면 더욱 적극적으로 HP 공격
                     self_hp_percent = self.enemy.current_hp / self.enemy.max_hp if self.enemy.max_hp > 0 else 1.0
                     if self_hp_percent < 0.3:
-                        hp_attack_probability = 0.98  # HP 30% 이하면 98% 확률 (95% → 98%)
+                        hp_attack_probability = 0.98  # HP 30% 이하면 98%
                     elif self_hp_percent < 0.5:
-                        hp_attack_probability = 0.95  # HP 50% 이하면 95% 확률 (90% → 95%)
+                        hp_attack_probability = min(0.95, hp_attack_probability + 0.05)
 
-                    # 예상 데미지가 타겟 HP의 10% 이상이면 더욱 적극적으로
-                    if estimated_damage >= target_hp * 0.1:
-                        hp_attack_probability = min(0.99, hp_attack_probability + 0.05)
+                    # 예상 데미지가 타겟 HP의 5% 이상이면 더욱 적극적으로
+                    if estimated_damage >= target_hp * 0.05:
+                        hp_attack_probability = min(0.98, hp_attack_probability + 0.05)
 
                     if random.random() < hp_attack_probability:
                         return {
@@ -725,9 +728,17 @@ class EnemyAI:
                             "target": target
                         }
 
-                # 데미지가 작더라도 BRV가 충분히 쌓였으면 (150 이상) 일정 확률로 HP 공격
-                elif current_brv >= 150:  # 임계값 낮춤 (200 → 150)
-                    if random.random() < 0.6:  # 60% 확률 (40% → 60%)
+                # BRV가 30~49 사이라도 60% 확률로 HP 공격
+                elif current_brv >= 30:
+                    if random.random() < 0.6:
+                        return {
+                            "type": "hp_attack",
+                            "target": target
+                        }
+
+                # BRV가 10~29 사이라도 30% 확률로 HP 공격
+                elif current_brv >= 10:
+                    if random.random() < 0.3:
                         return {
                             "type": "hp_attack",
                             "target": target

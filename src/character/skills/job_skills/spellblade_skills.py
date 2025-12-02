@@ -187,7 +187,7 @@ def create_spellblade_skills():
     )
     elemental_storm.effects = [
         DamageEffect(DamageType.BRV, 2.0, stat_type="physical"),
-        DamageEffect(DamageType.HP, 1.6, stat_type="physical"),
+        DamageEffect(DamageType.HP, 2.0, stat_type="physical"),
         StatusEffect(StatusType.BURN, duration=2, value=1.0,
                     damage_stat="magic", damage_multiplier=0.08),
         BuffEffect(BuffType.SPEED_DOWN, 0.20, duration=2),
@@ -237,7 +237,7 @@ def create_spellblade_skills():
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 2.5, stat_type="physical"),
         DamageEffect(DamageType.BRV, 2.5, stat_type="magic"),
-        DamageEffect(DamageType.HP, 3.5, stat_type="physical"),
+        DamageEffect(DamageType.HP, 3.3, stat_type="physical"),
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="self"),
         BuffEffect(BuffType.MAGIC_UP, 0.5, duration=5, target="self"),
         BuffEffect(BuffType.SPEED_UP, 0.3, duration=5, target="self"),

@@ -134,11 +134,11 @@ def create_philosopher_skills():
     ultimate = Skill("philosopher_ultimate", "철학자의 돌", "선택의 결정체, 극한의 공격")
     ultimate.effects = [
         # 극대 공격 (선택 누적에 비례)
-        DamageEffect(DamageType.BRV, 3.5, stat_type="magical",
-                    gimmick_bonus={"field": "choice_power", "multiplier": 0.05}),
-        DamageEffect(DamageType.BRV, 3.5, stat_type="magical",
-                    gimmick_bonus={"field": "choice_wisdom", "multiplier": 0.05}),
-        DamageEffect(DamageType.HP, 5.0, stat_type="magical"),
+        DamageEffect(DamageType.BRV, 3.0, stat_type="magical",
+                    gimmick_bonus={"field": "choice_power", "multiplier": 0.03}),
+        DamageEffect(DamageType.BRV, 3.0, stat_type="magical",
+                    gimmick_bonus={"field": "choice_wisdom", "multiplier": 0.03}),
+        DamageEffect(DamageType.HP, 3.5, stat_type="magical"),
         # 모든 선택 효과 동시 발동
         BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5, target="self"),
         BuffEffect(BuffType.MAGIC_UP, 0.8, duration=5, target="self"),

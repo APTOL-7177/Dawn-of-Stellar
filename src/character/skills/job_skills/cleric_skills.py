@@ -139,7 +139,7 @@ def create_cleric_skills():
         HealEffect(HealType.HP, percentage=0.60, is_party_wide=True),  # 궁극기 (모든 신앙 소비)
         BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5, is_party_wide=True),
         BuffEffect(BuffType.REGEN, 0.42, duration=5, is_party_wide=True),
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "faith_points", "multiplier": 0.3}, stat_type="magical"),
+        DamageEffect(DamageType.HP, 2.5, gimmick_bonus={"field": "faith_points", "multiplier": 0.3}, stat_type="magical"),
         GimmickEffect(GimmickOperation.SET, "faith_points", 0)
     ]
     ultimate.costs = [MPCost(30), StackCost("faith_points", 1)]

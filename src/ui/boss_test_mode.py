@@ -108,46 +108,70 @@ def run_boss_test(console: tcod.console.Console, context: Any, boss_floor: int, 
 
     logger.info("보스 전투 시작!")
     logger.info(f"초기 전투 상태: {combat_manager.state}")
+    logger.info("⚡ 전투 속도: 2배 (60fps 고정)")
+
+    # 60fps 프레임 제한 설정
+    TARGET_FPS = 60
+    FRAME_TIME = 1.0 / TARGET_FPS  # 0.01666... 초
+    GAME_SPEED = 2.0  # 전투 속도 2배
 
     loop_count = 0
+    last_frame_time = time.perf_counter()
+
     while combat_manager.state not in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
         loop_count += 1
         if loop_count % 100 == 0:
             logger.debug(f"전투 루프 {loop_count}회, 상태: {combat_manager.state}")
-        # 입력 처리
 
-        # pygame 이벤트 업데이트
+        # 프레임 시작 시간
+        frame_start = time.perf_counter()
+
+        # pygame 이벤트 처리 (게임패드 입력을 위해) - 더 자주 호출
         try:
-            pygame.event.pump()
+            pygame.event.pump()  # pygame 이벤트 큐 업데이트
         except:
             pass
 
-        # 입력 받기
-        for event in tcod.event.get():
-            # 윈도우 닫기
-            if isinstance(event, tcod.event.Quit):
-                logger.info("전투 중단 (윈도우 닫기)")
-                return "quit"
-
-            # 키보드/게임패드 입력
-            action = unified_input_handler.process_tcod_event(event)
-            if action:
-                combat_ui.handle_input(action)
-
-        # 게임패드 입력 (tcod 이벤트가 없을 때)
-        gamepad_action = unified_input_handler.get_action()
-        if gamepad_action:
-            combat_ui.handle_input(gamepad_action)
-
-        # UI 업데이트
-        combat_ui.update(delta_time=1.0)
+        # UI 업데이트 (게임 속도 2배)
+        combat_ui.update(delta_time=GAME_SPEED)
 
         # 렌더링
         combat_ui.render(console)
         context.present(console)
 
-        # CPU 사용률 낮추기
-        time.sleep(0.01)
+        # 입력 처리
+        action = None
+
+        # 게임패드 입력 우선 확인
+        action = unified_input_handler.get_action()
+
+        # tcod 이벤트 처리 (키보드/마우스) - 게임패드 입력이 없을 때만
+        if not action:
+            # tcod 이벤트는 non-blocking으로 변경
+            events = tcod.event.get()  # wait 대신 get 사용
+            for event in events:
+                # 윈도우 닫기
+                if isinstance(event, tcod.event.Quit):
+                    logger.info("전투 중단 (윈도우 닫기)")
+                    return "quit"
+
+                action = unified_input_handler.process_tcod_event(event)
+                if action:
+                    break
+
+        if action:
+            if combat_ui.handle_input(action):
+                break
+
+        # 60fps 유지를 위한 프레임 제한
+        frame_end = time.perf_counter()
+        frame_duration = frame_end - frame_start
+        sleep_time = FRAME_TIME - frame_duration
+
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+
+        last_frame_time = time.perf_counter()
 
     # === 5. 전투 결과 ===
     logger.info(f"전투 종료! 총 루프 횟수: {loop_count}, 최종 상태: {combat_manager.state}")

@@ -137,7 +137,7 @@ def create_paladin_skills():
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "holy_power", "multiplier": 0.4}),
         DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "holy_power", "multiplier": 0.4}),
-        DamageEffect(DamageType.HP, 3.0),
+        DamageEffect(DamageType.HP, 3.2),
         HealEffect(HealType.HP, percentage=0.7, is_party_wide=True),  # 궁극기
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "holy_power", 5)

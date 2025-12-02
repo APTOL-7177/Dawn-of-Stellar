@@ -53,7 +53,7 @@ def create_rogue_skills():
         "급소를 노린 HP 공격."
     )
     vital_strike.effects = [
-        DamageEffect(DamageType.HP, 1.3, stat_type="physical"),
+        DamageEffect(DamageType.HP, 1.8, stat_type="physical"),
     ]
     vital_strike.costs = []
     vital_strike.sfx = ("combat", "critical")
@@ -221,7 +221,7 @@ def create_rogue_skills():
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 2.5, stat_type="physical"),
         DamageEffect(DamageType.BRV, 2.5, stat_type="physical"),
-        DamageEffect(DamageType.HP, 3.5, stat_type="physical"),
+        DamageEffect(DamageType.HP, 3.2, stat_type="physical"),
         BuffEffect(BuffType.EVASION_UP, 0.60, duration=4, target="self"),
         BuffEffect(BuffType.CRITICAL_UP, 0.50, duration=4, target="self"),
         GimmickEffect(GimmickOperation.ADD, "stolen_items", 5, max_value=10)

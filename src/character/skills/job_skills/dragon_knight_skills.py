@@ -160,7 +160,7 @@ def create_dragon_knight_skills():
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "dragon_power", "multiplier": 0.4}),
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "dragon_power", "multiplier": 0.4}),
-        DamageEffect(DamageType.HP, 3.0, gimmick_bonus={"field": "dragon_power", "multiplier": 0.6}),
+        DamageEffect(DamageType.HP, 3.3, gimmick_bonus={"field": "dragon_power", "multiplier": 0.4}),
         BuffEffect(BuffType.ATTACK_UP, 0.8, duration=6, target="self"),
         BuffEffect(BuffType.CRITICAL_UP, 0.6, duration=6, target="self"),
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=6, target="self"),

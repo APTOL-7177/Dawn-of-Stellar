@@ -26,7 +26,7 @@ def create_samurai_skills():
     # 2. 기본 HP: 참월
     moonlight_slash = Skill("samurai_moonlight_slash", "참월", "의지 소비 공격")
     moonlight_slash.effects = [
-        DamageEffect(DamageType.HP, 1.2, gimmick_bonus={"field": "will_gauge", "multiplier": 0.35}),
+        DamageEffect(DamageType.HP, 1.8, gimmick_bonus={"field": "will_gauge", "multiplier": 0.25}),
         GimmickEffect(GimmickOperation.CONSUME, "will_gauge", 1)
     ]
     moonlight_slash.costs = []  # 기본 공격은 MP 소모 없음
@@ -133,7 +133,7 @@ def create_samurai_skills():
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "will_gauge", "multiplier": 0.5}),
         DamageEffect(DamageType.BRV, 2.5, gimmick_bonus={"field": "will_gauge", "multiplier": 0.5}),
-        DamageEffect(DamageType.HP, 3.5, gimmick_bonus={"field": "will_gauge", "multiplier": 0.7}),
+        DamageEffect(DamageType.HP, 3.3, gimmick_bonus={"field": "will_gauge", "multiplier": 0.4}),
         BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "will_gauge", 0)
     ]

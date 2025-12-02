@@ -129,7 +129,7 @@ def create_assassin_skills():
         # 연속 공격 (3회)
         DamageEffect(DamageType.BRV, 3.0, stat_type="physical"),
         DamageEffect(DamageType.BRV, 2.5, stat_type="physical"),
-        DamageEffect(DamageType.HP, 5.0, stat_type="physical"),
+        DamageEffect(DamageType.HP, 3.5, stat_type="physical"),
         # 버프
         BuffEffect(BuffType.EVASION_UP, 1.5, duration=5, target="self"),  # 회피 +150%
         BuffEffect(BuffType.CRITICAL_UP, 1.0, duration=5, target="self"),  # 크리티컬 +100%

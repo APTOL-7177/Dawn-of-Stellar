@@ -229,7 +229,7 @@ def create_breaker_skills():
                     gimmick_bonus={"field": "break_power", "multiplier": 0.4}),
         DamageEffect(DamageType.BRV, 2.5, stat_type="physical",
                     gimmick_bonus={"field": "break_power", "multiplier": 0.3}),
-        DamageEffect(DamageType.HP, 3.5, stat_type="physical"),
+        DamageEffect(DamageType.HP, 3.3, stat_type="physical"),
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "break_power", 0)
     ]

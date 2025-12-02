@@ -121,10 +121,10 @@ def create_vampire_skills():
     ultimate = Skill("vampire_ultimate", "혈족의 군주", "극한 갈증으로 압도적인 힘 발휘")
     ultimate.effects = [
         # 현재 갈증에 비례한 극대 피해
-        DamageEffect(DamageType.BRV, 3.5, stat_type="physical",
-                    gimmick_bonus={"field": "thirst", "multiplier": 0.04}),
-        DamageEffect(DamageType.HP, 4.0, stat_type="magical",
-                    gimmick_bonus={"field": "thirst", "multiplier": 0.03}),
+        DamageEffect(DamageType.BRV, 3.0, stat_type="physical",
+                    gimmick_bonus={"field": "thirst", "multiplier": 0.02}),
+        DamageEffect(DamageType.HP, 3.2, stat_type="magical",
+                    gimmick_bonus={"field": "thirst", "multiplier": 0.02}),
         HealEffect(percentage=0.95),  # 궁극기
         BuffEffect(BuffType.ATTACK_UP, 1.0, duration=4, target="self"),  # 공격력 +100%
         GimmickEffect(GimmickOperation.ADD, "thirst", 20, max_value=100)  # 갈증 +20 (궁극기 사용 비용)

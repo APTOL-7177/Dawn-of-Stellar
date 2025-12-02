@@ -129,7 +129,7 @@ def create_necromancer_skills():
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 3.0, stat_type="magical",
                     gimmick_bonus={"field": "total_undead", "multiplier": 0.8}),
-        DamageEffect(DamageType.HP, 3.0, stat_type="magical",
+        DamageEffect(DamageType.HP, 3.2, stat_type="magical",
                     gimmick_bonus={"field": "total_undead", "multiplier": 0.6}),
         GimmickEffect(GimmickOperation.SET, "undead_skeleton", 0),
         GimmickEffect(GimmickOperation.SET, "undead_zombie", 0),

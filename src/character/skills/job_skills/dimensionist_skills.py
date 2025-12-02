@@ -262,9 +262,9 @@ def create_dimensionist_skills():
         ),
         DamageEffect(
             DamageType.HP,
-            multiplier=3.375,
+            multiplier=3.2,
             stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 1.20}
+            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.80}
         ),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.5, duration=3),
         BuffEffect(BuffType.SPIRIT_DOWN, 0.5, duration=3),

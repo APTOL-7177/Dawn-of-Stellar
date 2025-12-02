@@ -177,8 +177,8 @@ def create_dark_knight_skills():
     # 10. 궁극기: 불굴의 힘
     ultimate = Skill("dark_knight_ultimate", "불굴의 힘", "모든 충전 소모. 막강한 피해 + 생존 버프")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 3.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.03}),
-        DamageEffect(DamageType.HP, 5.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.04}),
+        DamageEffect(DamageType.BRV, 2.8, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.025}),
+        DamageEffect(DamageType.HP, 3.5, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.025}),
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="self"),
         BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "charge_gauge", 0)  # 충전 완전 소모

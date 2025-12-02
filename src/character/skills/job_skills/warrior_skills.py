@@ -140,7 +140,7 @@ def create_warrior_skills():
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 2.5),
         DamageEffect(DamageType.BRV, 2.5),
-        DamageEffect(DamageType.HP, 2.8),
+        DamageEffect(DamageType.HP, 3.1),
         BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5, target="self"),
         BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5, target="self"),
         BuffEffect(BuffType.SPEED_UP, 0.6, duration=5, target="self"),

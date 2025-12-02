@@ -673,8 +673,8 @@ def create_magician_skills():
         "[포카드 필요] 4장의 힘을 모아 단일 대상 말살! 숫자가 높을수록 데미지 증가!"
     )
     four_kind_overkill.effects = [
-        DamageEffect(DamageType.BRV, 2.5),
-        DamageEffect(DamageType.HP, 4.0)
+        DamageEffect(DamageType.BRV, 2.2),
+        DamageEffect(DamageType.HP, 3.3)
     ]
     four_kind_overkill.costs = [MPCost(35)]
     four_kind_overkill.sfx = ("skill", "explosion")

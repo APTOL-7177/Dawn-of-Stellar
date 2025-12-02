@@ -6063,13 +6063,22 @@ def run_combat(
                     continue
                 break
 
+    # 60fps 고정 및 전투 속도 2배 설정
+    TARGET_FPS = 60
+    FRAME_TIME = 1.0 / TARGET_FPS  # 0.01666... 초
+    GAME_SPEED = 2.0  # 전투 속도 2배
+
     # 전투 루프
     while not ui.battle_ended:
+        # 프레임 시작 시간
+        import time
+        frame_start = time.perf_counter()
+
         # pygame 이벤트 처리 (게임패드 입력을 위해) - 더 자주 호출
         pygame.event.pump()  # pygame 이벤트 큐 업데이트
 
-        # 업데이트
-        ui.update(delta_time=1.0)
+        # 업데이트 (게임 속도 2배)
+        ui.update(delta_time=GAME_SPEED)
 
         # 렌더링
         ui.render(console)
@@ -6164,9 +6173,13 @@ def run_combat(
             if ui.handle_input(action):
                 break
 
-        # 프레임 레이트 제한 (약 60 FPS) - 디버그 프린트 제거로 인한 속도 증가 방지
-        import time
-        time.sleep(0.0167)  # 60 FPS로 제한
+        # 60fps 유지를 위한 프레임 제한
+        frame_end = time.perf_counter()
+        frame_duration = frame_end - frame_start
+        sleep_time = FRAME_TIME - frame_duration
+
+        if sleep_time > 0:
+            time.sleep(sleep_time)
 
     logger.info(f"전투 종료: {ui.battle_result.value if ui.battle_result else 'unknown'}")
 

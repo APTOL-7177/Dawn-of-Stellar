@@ -235,7 +235,7 @@ def create_bard_skills():
     ultimate.effects = [
         # 강력한 전체 공격
         DamageEffect(DamageType.BRV, 2.5, stat_type="magic"),
-        DamageEffect(DamageType.HP, 2.0, stat_type="magic"),
+        DamageEffect(DamageType.HP, 3.0, stat_type="magic"),
         # 파티 극강 버프
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, is_party_wide=True),
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5, is_party_wide=True),

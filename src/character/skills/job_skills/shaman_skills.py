@@ -231,7 +231,7 @@ def create_shaman_skills():
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 3.0, stat_type="magic",
                     gimmick_bonus={"field": "curse_stacks", "multiplier": 0.3}),
-        DamageEffect(DamageType.HP, 3.5, stat_type="magic"),
+        DamageEffect(DamageType.HP, 3.3, stat_type="magic"),
         StatusEffect(StatusType.POISON, duration=4, value=1.0,
                     damage_stat="magic", damage_multiplier=0.15),
         BuffEffect(BuffType.ATTACK_DOWN, 0.30, duration=4),

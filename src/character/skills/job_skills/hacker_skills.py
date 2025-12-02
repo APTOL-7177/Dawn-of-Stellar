@@ -136,8 +136,8 @@ def create_hacker_skills():
         GimmickEffect(GimmickOperation.SET, "program_backdoor", 1),
         GimmickEffect(GimmickOperation.SET, "program_ddos", 1),
         # 극대 공격
-        DamageEffect(DamageType.BRV, 4.0, stat_type="magical"),
-        DamageEffect(DamageType.HP, 4.5, stat_type="magical"),
+        DamageEffect(DamageType.BRV, 3.5, stat_type="magical"),
+        DamageEffect(DamageType.HP, 3.2, stat_type="magical"),
         # 모든 디버프 적용
         BuffEffect(BuffType.ATTACK_DOWN, 0.15, duration=5),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.2, duration=5),

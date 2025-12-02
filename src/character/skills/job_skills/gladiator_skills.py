@@ -222,8 +222,8 @@ def create_gladiator_skills():
     )
     ultimate.effects = [
         GimmickEffect(GimmickOperation.SET, "cheer", 100),
-        DamageEffect(DamageType.BRV, 3.5, stat_type="physical"),
-        DamageEffect(DamageType.HP, 4.0, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 3.2, stat_type="physical"),
+        DamageEffect(DamageType.HP, 3.4, stat_type="physical"),
         BuffEffect(BuffType.INVINCIBLE, 1.0, duration=3),
         BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5, target="self"),
         BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=5, target="self")

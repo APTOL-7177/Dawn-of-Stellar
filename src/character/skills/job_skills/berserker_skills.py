@@ -124,8 +124,8 @@ def create_berserker_skills():
                     "HP를 1%로 감소, 광기 100 폭주 상태 진입!")
     ultimate.effects = [
         # HP를 1%로 강제 감소
-        DamageEffect(DamageType.BRV, 4.5, stat_type="physical"),
-        DamageEffect(DamageType.HP, 4.0, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 3.8, stat_type="physical"),
+        DamageEffect(DamageType.HP, 3.3, stat_type="physical"),
         BuffEffect(BuffType.ATTACK_UP, 2.0, duration=3, target="self"),  # 공격력 +200%
         BuffEffect(BuffType.SPEED_UP, 1.0, duration=3, target="self")   # 속도 +100%
     ]

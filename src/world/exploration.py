@@ -2853,7 +2853,10 @@ class ExplorationSystem:
 
         import random
         effect = random.choice(["heal", "buff", "teleport"])
-        
+
+        # 메시지 변수 초기화 (파이썬 스코핑 문제 해결)
+        message = None
+
         if effect == "heal":
             if self.player and self.player.party:
                 for member in self.player.party:
@@ -2863,7 +2866,7 @@ class ExplorationSystem:
         elif effect == "buff":
             # 버프 효과는 추후 구현
             message = "마법진의 힘이 느껴집니다... (버프 효과 미구현)"
-        else:  # teleport
+        elif effect == "teleport":  # else 대신 elif로 명시적 처리
             if self.dungeon.rooms:
                 target_room = random.choice(self.dungeon.rooms)
                 target_x = random.randint(target_room.x1 + 1, target_room.x2 - 1)
@@ -2871,6 +2874,12 @@ class ExplorationSystem:
                 self.player.x, self.player.y = target_x, target_y
                 self.update_fov()
                 message = "마법진이 당신을 다른 곳으로 이동시켰습니다!"
+            else:
+                message = "마법진의 효과가 발동했지만, 이동할 수 있는 장소가 없습니다."
+
+        # message가 None인 경우를 위한 안전장치
+        if message is None:
+            message = "마법진의 효과가 발동했습니다."
 
         tile.used = True
         return ExplorationResult(

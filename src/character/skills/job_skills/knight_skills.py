@@ -230,7 +230,7 @@ def create_knight_skills():
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 2.5, stat_type="physical",
                     gimmick_bonus={"field": "duty_stacks", "multiplier": 0.2}),
-        DamageEffect(DamageType.HP, 3.0, stat_type="physical"),
+        DamageEffect(DamageType.HP, 3.2, stat_type="physical"),
         BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=5, is_party_wide=True),
         BuffEffect(BuffType.INVINCIBLE, 1.0, duration=1, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "duty_stacks", 0)

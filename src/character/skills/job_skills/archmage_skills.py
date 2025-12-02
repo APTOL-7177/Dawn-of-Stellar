@@ -157,7 +157,7 @@ def create_archmage_skills():
                     gimmick_bonus={"field": "ice_element", "multiplier": 0.3}, stat_type="magical"),
         DamageEffect(DamageType.BRV, 2.0,
                     gimmick_bonus={"field": "lightning_element", "multiplier": 0.3}, stat_type="magical"),
-        DamageEffect(DamageType.HP, 3.0, stat_type="magical"),
+        DamageEffect(DamageType.HP, 3.2, stat_type="magical"),
         GimmickEffect(GimmickOperation.SET, "fire_element", 0),
         GimmickEffect(GimmickOperation.SET, "ice_element", 0),
         GimmickEffect(GimmickOperation.SET, "lightning_element", 0)
