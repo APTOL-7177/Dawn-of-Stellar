@@ -31,6 +31,7 @@ class DifficultyModifiers:
     player_damage_multiplier: float
     exp_multiplier: float
     drop_rate_multiplier: float
+    mp_cost_multiplier: float = 1.0  # MP 소모량 배율
 
     name: str = ""
     description: str = ""
@@ -60,6 +61,7 @@ class DifficultySystem:
                 player_damage_multiplier=level_data.get("player_damage_multiplier", 1.0),
                 exp_multiplier=level_data.get("exp_multiplier", 1.0),
                 drop_rate_multiplier=level_data.get("drop_rate_multiplier", 1.0),
+                mp_cost_multiplier=level_data.get("mp_cost_multiplier", self._get_default_mp_cost_multiplier(level)),
                 name=level_data.get("name", level.value),
                 description=level_data.get("description", "")
             )
@@ -91,6 +93,21 @@ class DifficultySystem:
     def get_drop_rate_multiplier(self) -> float:
         """드랍률 배율"""
         return self.difficulty_data[self.current_difficulty].drop_rate_multiplier
+
+    def _get_default_mp_cost_multiplier(self, level: DifficultyLevel) -> float:
+        """난이도별 기본 MP 소모량 배율"""
+        defaults = {
+            DifficultyLevel.PEACEFUL: 0.8,  # 평온: MP 소모 20% 감소
+            DifficultyLevel.NORMAL: 1.0,    # 보통: 기본값
+            DifficultyLevel.CHALLENGE: 1.2, # 도전: MP 소모 20% 증가
+            DifficultyLevel.NIGHTMARE: 1.4, # 악몽: MP 소모 40% 증가
+            DifficultyLevel.HELL: 1.6       # 지옥: MP 소모 60% 증가
+        }
+        return defaults.get(level, 1.0)
+
+    def get_mp_cost_multiplier(self) -> float:
+        """MP 소모량 배율"""
+        return self.difficulty_data[self.current_difficulty].mp_cost_multiplier
 
     def get_difficulty_info(self, difficulty: DifficultyLevel) -> Dict[str, Any]:
         """난이도 정보 반환 (UI 표시용)"""

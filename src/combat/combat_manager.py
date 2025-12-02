@@ -2057,7 +2057,17 @@ class CombatManager:
         free_cast = card_effects.pop('free_cast', False)  # 1회용, 소모
         
         if hasattr(actor, 'current_mp') and not free_cast:
-            actor.current_mp = max(0, actor.current_mp - skill.mp_cost)
+            # 기본 1.5배 + 난이도별 추가 배율 적용
+            base_mp_cost = skill.mp_cost * 1.5
+            from src.core.difficulty import get_difficulty_system
+            difficulty_system = get_difficulty_system()
+            if difficulty_system:
+                difficulty_mp_mult = difficulty_system.get_mp_cost_multiplier()
+                final_mp_cost = int(base_mp_cost * difficulty_mp_mult)
+            else:
+                final_mp_cost = int(base_mp_cost)
+
+            actor.current_mp = max(0, actor.current_mp - final_mp_cost)
         elif free_cast:
             self.logger.info(f"[마술사] {actor.name} 무한 효과! MP 소모 없음")
         if hasattr(actor, 'current_hp'):
@@ -3266,6 +3276,25 @@ class CombatManager:
             # 만료된 버프 제거
             for buff_type in expired_buffs:
                 del actor.active_buffs[buff_type]
+
+        # 스탯 스왑 효과 처리 (턴 종료) - 모든 캐릭터 대상
+        all_combatants = self.allies + self.enemies
+        for combatant in all_combatants:
+            if hasattr(combatant, 'stat_swap_effects') and combatant.stat_swap_effects:
+                expired_effects = []
+                for effect in combatant.stat_swap_effects[:]:  # 복사본으로 순회
+                    effect['duration'] -= 1
+                    if effect['duration'] <= 0:
+                        # 효과 만료: 원래 스탯으로 복원
+                        stat = effect['stat']
+                        original_value = effect['original_value']
+                        combatant.stat_manager.set_base_value(stat, original_value)
+                        expired_effects.append(effect)
+                        self.logger.info(f"{combatant.name}의 스탯 스왑 효과 만료: {stat.name} → {original_value}")
+
+                # 만료된 효과 제거
+                for effect in expired_effects:
+                    combatant.stat_swap_effects.remove(effect)
 
         # 기믹 업데이트 (턴 종료)
         GimmickUpdater.on_turn_end(actor)

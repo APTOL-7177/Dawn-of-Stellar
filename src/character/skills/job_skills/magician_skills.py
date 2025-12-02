@@ -793,11 +793,25 @@ def execute_magician_skill(character, skill, target, context):
             results.append("버프/디버프 교환!")
 
         if metadata.get('swap_stats'):
-            # 스탯 스왑: 적과 자신의 모든 스탯 교환 (HP 제외)
+            # 스탯 스왑: 적과 자신의 스탯 교환 (HP 제외)
             from src.character.stats import Stats
             if target and hasattr(target, 'stat_manager') and hasattr(character, 'stat_manager'):
-                # 교환할 스탯 목록 (HP 제외)
-                stats_to_swap = [Stats.STRENGTH, Stats.DEFENSE, Stats.MAGIC, Stats.SPIRIT, Stats.SPEED, Stats.LUCK]
+                # 메타데이터에서 교환할 스탯 결정
+                swap_stats_config = metadata.get('swap_stats', [])
+                if isinstance(swap_stats_config, list):
+                    # 설정된 스탯만 교환
+                    stat_mapping = {
+                        "attack": Stats.STRENGTH,
+                        "defense": Stats.DEFENSE,
+                        "magic": Stats.MAGIC,
+                        "spirit": Stats.SPIRIT,
+                        "speed": Stats.SPEED,
+                        "luck": Stats.LUCK
+                    }
+                    stats_to_swap = [stat_mapping[stat] for stat in swap_stats_config if stat in stat_mapping]
+                else:
+                    # 기본값: 모든 스탯 교환
+                    stats_to_swap = [Stats.STRENGTH, Stats.DEFENSE, Stats.MAGIC, Stats.SPIRIT, Stats.SPEED, Stats.LUCK]
 
                 duration = metadata.get('duration', 3)
 
@@ -809,17 +823,28 @@ def execute_magician_skill(character, skill, target, context):
                     ally_stat_value = character.stat_manager.get_value(stat)
                     enemy_stat_value = target.stat_manager.get_value(stat)
 
-                    # 스탯 차이 계산
-                    stat_diff_ally = enemy_stat_value - ally_stat_value
-                    stat_diff_enemy = ally_stat_value - enemy_stat_value
+                    results.append(f"  {stat.name}: {character.name} {ally_stat_value} ↔ {target.name} {enemy_stat_value}")
 
-                    # 아군에게 적의 스탯 적용
-                    if stat_diff_ally != 0:
-                        character.stat_manager.add_bonus(stat, 'stat_swap', stat_diff_ally)
+                    # 스탯 교환: 직접 base_value를 교환
+                    character.stat_manager.set_base_value(stat, enemy_stat_value)
+                    target.stat_manager.set_base_value(stat, ally_stat_value)
 
-                    # 적에게 아군의 스탯 적용
-                    if stat_diff_enemy != 0:
-                        target.stat_manager.add_bonus(stat, 'stat_swap', stat_diff_enemy)
+                    # 임시 효과로 등록 (턴 종료 시 복원)
+                    if not hasattr(character, 'stat_swap_effects'):
+                        character.stat_swap_effects = []
+                    if not hasattr(target, 'stat_swap_effects'):
+                        target.stat_swap_effects = []
+
+                    character.stat_swap_effects.append({
+                        'stat': stat,
+                        'original_value': ally_stat_value,
+                        'duration': duration
+                    })
+                    target.stat_swap_effects.append({
+                        'stat': stat,
+                        'original_value': enemy_stat_value,
+                        'duration': duration
+                    })
 
                     # 결과 메시지에 추가
                     stat_names = {

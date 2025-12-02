@@ -211,12 +211,12 @@ class CombatUI:
         logger = get_logger("combat_ui")
         logger.warning(f"[SKILL_MENU] {actor.name}의 전체 스킬 개수: {len(all_skills)}")
 
-        # 보스전 확인 (세피로스, 카인)
+        # 보스전 확인 (모든 보스전에서 궁극기 사용 불가)
         is_boss_battle = False
         if hasattr(self.combat_manager, 'enemies'):
             for enemy in self.combat_manager.enemies:
                 enemy_id = getattr(enemy, 'enemy_id', None)
-                if enemy_id in ['sephiroth', 'abel_cain']:
+                if enemy_id:  # 모든 보스전에서 궁극기 제한
                     is_boss_battle = True
                     break
 
@@ -229,7 +229,7 @@ class CombatUI:
         for skill in all_skills:
             metadata = getattr(skill, 'metadata', None) or {}
 
-            # 보스전에서 궁극기 제외
+            # 모든 보스전에서 궁극기 제외
             is_ultimate = getattr(skill, 'is_ultimate', False) or metadata.get('ultimate', False)
             if is_boss_battle and is_ultimate:
                 logger.info(f"[SKILL_MENU] 보스전: 궁극기 '{skill.name}' 제외됨")
