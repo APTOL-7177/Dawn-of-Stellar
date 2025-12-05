@@ -1,0 +1,29 @@
+id: priest_heal
+name: 신성 치유
+type: heal
+description: '신성한 치유의 빛.
+
+  시전자의 마법력에 비례해 HP를 회복합니다.
+
+  치유의 신탁 충족 가능.
+
+  '
+target: single_ally
+costs:
+  mp: 12
+metadata:
+  oracle_action: heal_ally
+effects:
+- type: heal
+  heal_type: hp
+  stat_scaling: magic
+  multiplier: 2.3
+animation:
+  icon: 💚
+  color:
+  - 100
+  - 255
+  - 150
+sfx:
+- se
+- Recovery

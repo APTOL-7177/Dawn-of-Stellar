@@ -19,7 +19,9 @@ from src.ui.tcod_display import render_space_background
 from src.ui.teamwork_gauge_display import TeamworkGaugeDisplay
 from src.combat.combat_manager import CombatManager, CombatState, ActionType
 from src.combat.casting_system import get_casting_system, CastingSystem
+from src.combat.status_effects import StatusEffect, StatusType
 from src.core.logger import get_logger, Loggers
+from src.core.vibration_system import vibration_manager, VibrationPattern
 from src.audio import play_sfx, play_bgm
 
 
@@ -33,6 +35,7 @@ class CombatUIState(Enum):
     WAITING_ATB = "waiting_atb"  # ATB 대기 중
     ACTION_MENU = "action_menu"  # 행동 선택
     SKILL_MENU = "skill_menu"  # 스킬 선택
+    CHOICE_SELECT = "choice_select"  # 선택형 스킬(서약/피날레 등) 선택
     TARGET_SELECT = "target_select"  # 대상 선택
     ITEM_MENU = "item_menu"  # 아이템 선택
     CARD_SELECT = "card_select"  # 카드 선택 (마술사)
@@ -96,6 +99,7 @@ class CombatUI:
         self.selected_target: Optional[Any] = None
         self.selected_item: Optional[Any] = None  # 선택된 아이템
         self.selected_item_index: Optional[int] = None  # 선택된 아이템 인덱스
+        self.choice_menu: Optional[CursorMenu] = None  # 선택형 스킬 메뉴
 
         # 메시지 로그 (스크롤 형식, 제한 없이 저장)
         self.messages: List[CombatMessage] = []
@@ -109,9 +113,17 @@ class CombatUI:
         if combat_manager:
             combat_manager.combat_ui = self
 
+        # 트레이닝 모드
+        self.training_mode = False
+        self.training_dummy = None
+        self.training_variant: Optional[str] = None
+        self.training_damage_log: Dict[str, int] = {}
+
         # 메뉴
         self.action_menu: Optional[CursorMenu] = None
         self.skill_menu: Optional[CursorMenu] = None
+        # 과부하 사용 여부 선택 (스킬 ID별)
+        self.overload_selection: Dict[str, bool] = {}
         self.item_menu: Optional[CursorMenu] = None  # 아이템 메뉴
         self.target_cursor = 0
         self.current_target_list: List[Any] = []  # 현재 타겟 선택 리스트
@@ -145,6 +157,15 @@ class CombatUI:
         self.phase_message_duration = 180  # 3초 (60 FPS 기준)
         self.revival_message_timer = 0
         self.revival_message_duration = 180  # 3초
+
+        # 다단히트 타격 큐 시스템 (타격감용)
+        self.hit_queue: List[Dict[str, Any]] = []  # 히트 정보 큐
+        self.hit_display_delay = 4  # 히트 간 딜레이 (절반으로 단축해 타격음/로그 템포 업)
+        self.hit_delay_counter = 0  # 현재 딜레이 카운터
+        
+        # 히트 이벤트 구독
+        from src.core.event_bus import event_bus, Events
+        event_bus.subscribe(Events.COMBAT_HIT, self._on_combat_hit)
 
         # 멀티플레이 전투 동기화 관리자
         self.combat_sync_manager: Optional[Any] = None
@@ -244,14 +265,46 @@ class CombatUI:
         logger = get_logger("combat_ui")
         logger.warning(f"[SKILL_MENU] {actor.name}의 전체 스킬 개수: {len(all_skills)}")
 
-        # 보스전 확인 (모든 보스전에서 궁극기 사용 불가)
-        is_boss_battle = False
+        # 보스전 확인 (층보스와 세피로스/카인에서만 궁극기 제한)
+        restrict_ultimate = False
+        major_bosses = ['sephiroth', 'abel_cain']
+
         if hasattr(self.combat_manager, 'enemies'):
             for enemy in self.combat_manager.enemies:
                 enemy_id = getattr(enemy, 'enemy_id', None)
-                if enemy_id:  # 모든 보스전에서 궁극기 제한
-                    is_boss_battle = True
-                    break
+                if enemy_id:
+                    # 층보스: 5층마다 나오는 특정 보스들
+                    floor_boss_names = ['wyvern', 'boss_chimera', 'demon', 'boss_lich', 'balrog',
+                                       'archfiend', 'elder_dragon', 'boss_dragon_king']
+                    is_floor_boss = enemy_id in floor_boss_names
+                    # 세피로스나 카인 확인
+                    is_major_boss = enemy_id in major_bosses
+
+                    if is_floor_boss or is_major_boss:
+                        restrict_ultimate = True
+                        break
+
+        # 궁극기 제한 여부 로깅
+        if restrict_ultimate:
+            logger.warning("[SKILL_MENU] 주요 보스전: 궁극기 사용 제한 (5층보스/세피로스/카인)")
+        else:
+            logger.info("[SKILL_MENU] 일반 전투: 궁극기 사용 허용 (일반몹/일반보스)")
+        major_bosses = ['sephiroth', 'abel_cain']
+
+        if hasattr(self.combat_manager, 'enemies'):
+            for enemy in self.combat_manager.enemies:
+                enemy_id = getattr(enemy, 'enemy_id', None)
+                if enemy_id:
+                    # 층보스: 5층마다 나오는 특정 보스들
+                    floor_boss_names = ['wyvern', 'boss_chimera', 'demon', 'boss_lich', 'balrog',
+                                       'archfiend', 'elder_dragon', 'boss_dragon_king']
+                    is_floor_boss = enemy_id in floor_boss_names
+                    # 세피로스나 카인 확인
+                    is_major_boss = enemy_id in major_bosses
+
+                    if is_floor_boss or is_major_boss:
+                        restrict_ultimate = True
+                        break
 
         # 스킬 분류
         teamwork_skills = []
@@ -262,10 +315,10 @@ class CombatUI:
         for skill in all_skills:
             metadata = getattr(skill, 'metadata', None) or {}
 
-            # 모든 보스전에서 궁극기 제외
+            # 주요 보스전에서만 궁극기 제외 (층보스, 세피로스, 카인)
             is_ultimate = getattr(skill, 'is_ultimate', False) or metadata.get('ultimate', False)
-            if is_boss_battle and is_ultimate:
-                logger.info(f"[SKILL_MENU] 보스전: 궁극기 '{skill.name}' 제외됨")
+            if restrict_ultimate and is_ultimate:
+                logger.info(f"[SKILL_MENU] 주요 보스전: 궁극기 '{skill.name}' 제외됨")
                 continue
 
             # 팀워크 스킬
@@ -297,13 +350,20 @@ class CombatUI:
         items = []
 
         for skill in skills:
+            overload_choice = self._get_overload_choice(skill)
+            base_context = {}
+            if overload_choice is not None:
+                base_context['force_overload'] = overload_choice
+
             # 모든 비용 체크 (MP, Stack, HP 등)
             # 팀워크 스킬은 party 정보도 필요함
             if hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill:
-                can_use, reason = skill.can_use(actor, {'party': self.combat_manager.party})
+                ctx = {'party': self.combat_manager.party}
+                ctx.update(base_context)
+                can_use, reason = skill.can_use(actor, ctx)
             else:
-                can_use, reason = skill.can_use(actor)
-            
+                can_use, reason = skill.can_use(actor, base_context if base_context else None)
+
             # 빙결/기절 등 행동 불가 상태이상 체크 (스킬 목록에는 표시하되 사용 불가 표시)
             if hasattr(actor, 'status_manager') and not actor.status_manager.can_act():
                 can_use = False
@@ -315,6 +375,8 @@ class CombatUI:
                 if hasattr(cost, 'get_description'):
                     # 스킬 정보를 context에 추가하여 특성 효과 반영
                     context = {'skill': skill}
+                    if base_context:
+                        context.update(base_context)
                     # get_description에 context 전달 (시그니처 확인)
                     if hasattr(cost, '_calculate_actual_cost'):
                         # MPCost의 경우 context를 전달
@@ -331,7 +393,7 @@ class CombatUI:
             cost_text = f" ({', '.join(cost_parts)})" if cost_parts else ""
 
             name = getattr(skill, 'name', str(skill))
-            
+
             # 스탠스 변경 스킬인 경우 현재 스탠스 → 예상 스탠스 표시
             skill_metadata = getattr(skill, 'metadata', {})
             if 'stance' in skill_metadata:
@@ -373,7 +435,10 @@ class CombatUI:
                     target_stance_name = stance_id_to_name_map.get(stance_id, "")
                     if target_stance_name:
                         name = f"{current_stance_name} → {target_stance_name}"
-            
+
+            # 과부하 사용 여부 표기
+            name = self._decorate_overload_name(skill, name)
+
             desc = getattr(skill, 'description', '')
 
             # 사용 불가 시 이유 추가
@@ -398,10 +463,47 @@ class CombatUI:
             show_description=True
         )
 
+    def _get_overload_choice(self, skill: Any) -> Optional[bool]:
+        """과부하 사용 여부 (스킬 ID별 저장, 기본값 True)"""
+        metadata = getattr(skill, "metadata", {}) or {}
+        if not metadata.get("overload_capable"):
+            return None
+        if skill.skill_id not in self.overload_selection:
+            # 기본값: 안전하게 비과부하(좌측) 시작
+            self.overload_selection[skill.skill_id] = metadata.get("overload_default", False)
+        return self.overload_selection.get(skill.skill_id)
+
+    def _set_overload_choice(self, skill: Any, enabled: bool) -> bool:
+        """과부하 사용 여부를 설정하고 변경 여부 반환"""
+        current = self._get_overload_choice(skill)
+        if current is None:
+            return False
+        new_value = bool(enabled)
+        changed = current != new_value
+        self.overload_selection[skill.skill_id] = new_value
+        return changed
+
+    def _decorate_overload_name(self, skill: Any, base_name: str) -> str:
+        """스킬 이름에 과부하 선택 상태를 덧붙여 표기"""
+        choice = self._get_overload_choice(skill)
+        if choice is None:
+            return base_name
+        state_label = "과부하" if choice else "일반"
+        return f"{base_name} · {state_label}"
+
+    def _apply_overload_choice(self, skill: Any) -> None:
+        """선택된 과부하 여부를 스킬 메타데이터에 반영 (한 번 실행용)"""
+        choice = self._get_overload_choice(skill)
+        if choice is None:
+            return
+        if not hasattr(skill, "metadata") or skill.metadata is None:
+            skill.metadata = {}
+        skill.metadata["_use_overload"] = bool(choice)
+
     def _create_item_menu(self) -> CursorMenu:
         """아이템 메뉴 생성"""
         items = []
-        
+
         if not self.inventory:
             # 인벤토리가 없으면 빈 메뉴
             items.append(MenuItem("← 뒤로", "행동 메뉴로 돌아가기", True, None))
@@ -557,6 +659,10 @@ class CombatUI:
         elif self.state == CombatUIState.CARD_SELECT:
             return self._handle_card_select(action)
 
+        # 선택형 스킬 (서약/피날레 등)
+        elif self.state == CombatUIState.CHOICE_SELECT:
+            return self._handle_choice_select(action)
+
         # 가능성 선택 (시간술사)
         elif self.state == CombatUIState.POSSIBILITY_SELECT:
             return self._handle_possibility_select(action)
@@ -673,6 +779,31 @@ class CombatUI:
             self.skill_menu.move_cursor_up()
         elif action == GameAction.MOVE_DOWN:
             self.skill_menu.move_cursor_down()
+        elif action == GameAction.MOVE_LEFT or action == GameAction.MOVE_RIGHT:
+            selected_item = self.skill_menu.get_selected_item()
+            if selected_item and selected_item.value:
+                skill = selected_item.value
+                metadata = getattr(skill, "metadata", {}) or {}
+                if metadata.get("overload_capable"):
+                    desired = action == GameAction.MOVE_RIGHT
+                    changed = self._set_overload_choice(skill, desired)
+                    if changed:
+                        # 현재 커서 위치를 기억하고 메뉴를 새로 생성해 표기 업데이트
+                        prev_index = self.skill_menu.cursor_index
+                        prev_scroll = self.skill_menu.scroll_offset
+                        self.skill_menu = self._create_skill_menu(self.current_actor)
+                        # 기존 위치 복원 (가능한 경우)
+                        if 0 <= prev_index < len(self.skill_menu.items):
+                            self.skill_menu.cursor_index = prev_index
+                            # 스크롤 보정
+                            if self.skill_menu.cursor_index < self.skill_menu.scroll_offset:
+                                self.skill_menu.scroll_offset = self.skill_menu.cursor_index
+                            elif self.skill_menu.cursor_index >= self.skill_menu.scroll_offset + self.skill_menu.max_visible_items:
+                                self.skill_menu.scroll_offset = self.skill_menu.cursor_index - self.skill_menu.max_visible_items + 1
+                        else:
+                            self.skill_menu.scroll_offset = prev_scroll
+                        self.add_message(f"과부하 {'사용' if desired else '해제'}: {skill.name}", (180, 200, 255))
+                        play_sfx("ui", "cursor_move")
         elif action == GameAction.CONFIRM:
             selected_item = self.skill_menu.get_selected_item()
             if selected_item:
@@ -686,6 +817,8 @@ class CombatUI:
                 else:
                     play_sfx("ui", "cursor_select")  # 선택 효과음
                     self.selected_skill = selected_item.value
+                    # 과부하 선택 상태를 메타데이터에 반영
+                    self._apply_overload_choice(self.selected_skill)
                     self._start_target_selection()
         elif action == GameAction.CANCEL:
             self.state = CombatUIState.ACTION_MENU
@@ -845,6 +978,8 @@ class CombatUI:
             if action_type in ("brv_skill", "hp_skill"):
                 # 기본 공격 스킬 선택됨
                 self.selected_skill = skill
+                # 과부하 사용 여부 반영
+                self._apply_overload_choice(self.selected_skill)
                 self._start_target_selection()
                 return
             elif action_type == "gimmick_detail":
@@ -865,6 +1000,17 @@ class CombatUI:
 
         elif self.selected_action == ActionType.DEFEND:
             # 방어는 대상 선택 불필요
+            # 사무라이는 방어 대신 미키리 카마에(패링) 사용
+            if hasattr(self.current_actor, 'gimmick_type') and self.current_actor.gimmick_type == "kenshin_system":
+                from src.character.skills.skill_manager import get_skill_manager
+                skill_manager = get_skill_manager()
+                parry_skill = skill_manager.get_skill("samurai_mikiri_kamae")
+                if parry_skill:
+                    self.selected_action = ActionType.SKILL
+                    self.selected_skill = parry_skill
+                    self._start_target_selection()
+                    return
+            # 일반 방어
             self._execute_current_action()
 
         elif self.selected_action == ActionType.FLEE:
@@ -875,7 +1021,7 @@ class CombatUI:
             # BRV/HP 공격 - 대상 선택
             self._start_target_selection()
 
-    def _start_target_selection(self):
+    def _start_target_selection(self, skip_choice: bool = False):
         """대상 선택 시작"""
         from src.character.skill_types import SkillTargetType
 
@@ -884,6 +1030,18 @@ class CombatUI:
             # 카드 선택이 필요한 스킬인지 확인 (마술사)
             metadata = getattr(self.selected_skill, 'metadata', {}) or {}
             logger.debug(f"[카드선택] 스킬: {self.selected_skill.name}, metadata: {metadata}")
+
+            # 선택형 스킬(서약/피날레 등) 처리
+            if not skip_choice and metadata.get('choice_skill'):
+                # AI/적은 자동으로 첫 선택지를 사용
+                if self.current_actor not in getattr(self.combat_manager, 'allies', []):
+                    self._apply_default_choice(metadata)
+                else:
+                    if self._start_choice_selection(metadata):
+                        return
+                    # 선택 메뉴 생성 실패 시 자동 선택
+                    self._apply_default_choice(metadata)
+
             if metadata.get('select_card_from_hand'):
                 logger.info(f"[카드선택] 카드 선택 UI 시작: {self.selected_skill.name}")
                 self._start_card_selection()
@@ -920,6 +1078,7 @@ class CombatUI:
             ally_targets = (
                 SkillTargetType.SINGLE_ALLY,
                 SkillTargetType.SELF,
+                "single_ally",
                 "ally",      # 문자열 지원
                 "party",     # 문자열 지원
             )
@@ -1204,6 +1363,170 @@ class CombatUI:
             # 살아있는 적이 없으면 스킬 메뉴로
             self.state = CombatUIState.SKILL_MENU
 
+    def _start_choice_selection(self, metadata: Dict[str, Any]) -> bool:
+        """선택형 스킬(서약/피날레 등) 선택 UI 시작"""
+        choices = metadata.get("choices") or []
+
+        # 팔라딘 서약 등 gimmick 기반 선택지 보강
+        if not choices and getattr(self.current_actor, "gimmick_type", None) == "oath_system":
+            oaths = getattr(self.current_actor, "oaths", {})
+            for oid, data in oaths.items():
+                choices.append({
+                    "id": oid,
+                    "name": data.get("name", oid)
+                })
+
+        if not choices:
+            return False
+
+        items = []
+        for ch in choices:
+            label = ch.get("name") if isinstance(ch, dict) else str(ch)
+            desc = ""
+            if isinstance(ch, dict):
+                desc = ch.get("description", "") or ""
+                # 서약 선택인 경우 gimmick 데이터 기반 설명 생성
+                if not desc and getattr(self.current_actor, "gimmick_type", None) == "oath_system":
+                    choice_id = ch.get("id")
+                    oath_desc = self._build_oath_description(choice_id)
+                    if oath_desc:
+                        desc = oath_desc
+            items.append(MenuItem(text=label, value=ch, description=desc))
+
+        title = metadata.get("choice_title") or "선택"
+        self.choice_menu = CursorMenu(
+            title=title,
+            items=items,
+            x=5,
+            y=28,
+            width=48,
+            show_description=True
+        )
+        self.state = CombatUIState.CHOICE_SELECT
+        return True
+
+    def _apply_default_choice(self, metadata: Dict[str, Any]) -> None:
+        """선택 메뉴 없이 기본 선택지 적용 (AI/적용 실패 시)"""
+        choices = metadata.get("choices") or []
+        if not choices and getattr(self.current_actor, "gimmick_type", None) == "oath_system":
+            oaths = getattr(self.current_actor, "oaths", {})
+            for oid, data in oaths.items():
+                choices.append({"id": oid, "name": data.get("name", oid)})
+        if not choices:
+            return
+        default_choice = choices[0]
+        self._set_choice_metadata(default_choice)
+
+    def _set_choice_metadata(self, choice: Any) -> None:
+        """선택 결과를 스킬 메타데이터에 기록"""
+        if not self.selected_skill:
+            return
+        if not hasattr(self.selected_skill, "metadata") or self.selected_skill.metadata is None:
+            self.selected_skill.metadata = {}
+
+        if isinstance(choice, dict):
+            choice_id = choice.get("id")
+            choice_name = choice.get("name", choice_id)
+        else:
+            choice_id = choice
+            choice_name = str(choice)
+
+        self.selected_skill.metadata["_selected_choice"] = choice_id
+        self.selected_skill.metadata["_selected_choice_name"] = choice_name
+
+    def _build_oath_description(self, oath_id: Optional[str]) -> str:
+        """서약 선택 UI용 설명 생성"""
+        if not oath_id or getattr(self.current_actor, "gimmick_type", None) != "oath_system":
+            return ""
+        oaths = getattr(self.current_actor, "oaths", {})
+        data = oaths.get(oath_id, {})
+        if not data:
+            return ""
+        concept = data.get("concept", "")
+        reward_actions = data.get("reward_actions", [])
+        reward_action = data.get("reward_action", "")
+        faith_per_action = data.get("faith_per_action") or data.get("faith_per_purify") or data.get("faith_per_kill") or 0
+        forbidden = data.get("forbidden_action", "")
+        parts = []
+        if concept:
+            parts.append(f"역할: {concept}")
+        # 보상 행동 요약
+        reward_list = []
+        if reward_action:
+            reward_list.append(reward_action)
+        reward_list.extend([a for a in reward_actions if a not in reward_list])
+        if reward_list:
+            action_map = {
+                "take_damage": "피격",
+                "heal": "치유",
+                "purify": "정화",
+                "kill": "처치",
+                "buff": "버프",
+                "attack": "공격"
+            }
+            mapped = [action_map.get(a, a) for a in reward_list]
+            gain_str = f"신앙 +{faith_per_action}" if faith_per_action else "신앙 획득"
+            parts.append(f"{gain_str}: {', '.join(mapped)}")
+        if forbidden:
+            forbid_map = {"attack": "공격 금지", "buff_heal": "버프/힐 금지"}
+            parts.append(forbid_map.get(forbidden, forbidden))
+        bonus = data.get("bonus_effects", {})
+        bonus_parts = []
+        if bonus.get("defense_multiplier"):
+            bonus_parts.append(f"방어 +{int((bonus['defense_multiplier']-1)*100)}%")
+        if bonus.get("attack_multiplier"):
+            bonus_parts.append(f"공격 +{int((bonus['attack_multiplier']-1)*100)}%")
+        if bonus.get("holy_damage_bonus"):
+            bonus_parts.append(f"신성 피해 +{int(bonus['holy_damage_bonus']*100)}%")
+        if bonus.get("heal_multiplier"):
+            bonus_parts.append(f"치유 +{int((bonus['heal_multiplier']-1)*100)}%")
+        if bonus.get("mp_regen_per_turn"):
+            bonus_parts.append(f"턴당 MP +{bonus['mp_regen_per_turn']}")
+        if bonus.get("can_intercept"):
+            bonus_parts.append("대신 맞기 가능")
+        if bonus_parts:
+            parts.append("보너스: " + ", ".join(bonus_parts))
+        penalty = data.get("violation_penalty", {})
+        pen_parts = []
+        if penalty.get("faith_loss"):
+            pen_parts.append(f"신앙 -{penalty['faith_loss']}")
+        if penalty.get("debuff_duration"):
+            pen_parts.append(f"디버프 {penalty['debuff_duration']}턴")
+        if penalty.get("attack_reduction"):
+            pen_parts.append(f"공격 -{int(penalty['attack_reduction']*100)}%")
+        if penalty.get("damage_reduction"):
+            pen_parts.append(f"피해량 -{int(penalty['damage_reduction']*100)}%")
+        if penalty.get("heal_reduction"):
+            pen_parts.append(f"치유 -{int(penalty['heal_reduction']*100)}%")
+        if pen_parts:
+            parts.append("위반: " + ", ".join(pen_parts))
+        return " | ".join(parts)
+
+    def _handle_choice_select(self, action: GameAction) -> bool:
+        """선택형 스킬 입력 처리"""
+        if not self.choice_menu:
+            self.state = CombatUIState.SKILL_MENU
+            return False
+
+        if action == GameAction.MOVE_UP:
+            self.choice_menu.move_cursor_up()
+        elif action == GameAction.MOVE_DOWN:
+            self.choice_menu.move_cursor_down()
+        elif action == GameAction.CONFIRM:
+            selected_item = self.choice_menu.get_selected_item()
+            if selected_item:
+                play_sfx("ui", "cursor_select")
+                self._set_choice_metadata(selected_item.value)
+                # 선택 완료 후 대상 선택 계속
+                self.state = CombatUIState.SKILL_MENU  # 임시로 되돌렸다가
+                self.choice_menu = None
+                self._start_target_selection(skip_choice=True)
+        elif action == GameAction.CANCEL:
+            play_sfx("ui", "cursor_error")
+            self.choice_menu = None
+            self.state = CombatUIState.SKILL_MENU
+        return False
+
     def _execute_current_action(self):
         """현재 선택된 행동 실행"""
         self.state = CombatUIState.EXECUTING
@@ -1447,6 +1770,14 @@ class CombatUI:
             success = result.get("success", False)
 
             if success:
+                # SFX 재생
+                if self.selected_skill and hasattr(self.selected_skill, 'sfx') and self.selected_skill.sfx:
+                    try:
+                        category, sound = self.selected_skill.sfx
+                        play_sfx(category, sound)
+                    except Exception as e:
+                        logger.warning(f"스킬 SFX 재생 실패: {self.selected_skill.sfx} - {e}")
+
                 message = result.get("message", f"{skill_name} 사용!")
                 # 여러 줄 메시지에서 기믹 관련 줄 필터링
                 import re
@@ -1574,6 +1905,9 @@ class CombatUI:
         if self.state == CombatUIState.CARD_SELECT:
             print(f"[카드UI] update() 시작 - state={self.state}")
         
+        # 다단히트 타격 큐 처리 (타격감용 - 히트 간 간격)
+        self.process_hit_queue()
+        
         # 행동 후 대기 시간 처리
         if self.action_delay_frames > 0:
             self.action_delay_frames -= 1
@@ -1583,8 +1917,8 @@ class CombatUI:
                     self.state = CombatUIState.WAITING_ATB
                 elif self.state not in [CombatUIState.ACTION_MENU, CombatUIState.SKILL_MENU,
                                         CombatUIState.TARGET_SELECT, CombatUIState.ITEM_MENU,
-                                        CombatUIState.CARD_SELECT, CombatUIState.POSSIBILITY_SELECT,
-                                        CombatUIState.GIMMICK_VIEW]:
+                                        CombatUIState.CARD_SELECT, CombatUIState.CHOICE_SELECT,
+                                        CombatUIState.POSSIBILITY_SELECT, CombatUIState.GIMMICK_VIEW]:
                     # 다른 상태에서도 WAITING_ATB로 전환 (기절 스킵 후 다음 턴 대기)
                     self.state = CombatUIState.WAITING_ATB
 
@@ -1621,6 +1955,7 @@ class CombatUI:
             CombatUIState.TARGET_SELECT,
             CombatUIState.ITEM_MENU,
             CombatUIState.CARD_SELECT,  # 카드 선택 중에도 시간 정지
+            CombatUIState.CHOICE_SELECT,  # 선택형 스킬 선택 중에도 시간 정지
             CombatUIState.POSSIBILITY_SELECT,  # 가능성 선택 중에도 시간 정지
             CombatUIState.GIMMICK_VIEW,  # 기믹 상세 보기 중에도 시간 정지
             CombatUIState.EXECUTING  # 행동 실행 후 대기 중에도 시간 정지
@@ -1718,6 +2053,7 @@ class CombatUI:
                 CombatUIState.ITEM_MENU,
                 CombatUIState.TARGET_SELECT,
                 CombatUIState.CARD_SELECT,  # 마술사 카드 선택
+                CombatUIState.CHOICE_SELECT,  # 선택형 스킬
                 CombatUIState.POSSIBILITY_SELECT,  # 시간술사 가능성 선택
                 CombatUIState.GIMMICK_VIEW  # 기믹 상세 보기
             ]
@@ -1736,6 +2072,10 @@ class CombatUI:
                 # 적 턴: 기존 EnemyAI 처리
                 logger.debug(f"적 {actor.name} 턴 처리")
                 self._execute_enemy_turn(actor)
+                # 적 행동 후 상태 복구
+                if self.state != CombatUIState.BATTLE_END:
+                    self.state = CombatUIState.WAITING_ATB
+                logger.debug(f"적 {actor.name} 행동 완료 - 상태: {self.state.value}")
 
             elif is_bot:
                 # 봇 턴: AI가 자동으로 행동
@@ -2369,24 +2709,129 @@ class CombatUI:
                     self.battle_result = self.combat_manager.state
                     self.state = CombatUIState.BATTLE_END
 
-    def add_message(self, text: str, color: Tuple[int, int, int] = (255, 255, 255)):
-        """메시지 추가 (스크롤 형식 - 제한 없이 계속 저장)"""
-        # 기믹 관련 수치 증감 메시지 필터링 (예: "이름의 필드: 값 -> 값" 형식)
-        import re
-        # 기믹 수치 변화 패턴 체크: "이름의 필드명: 숫자 -> 숫자" 또는 "이름의 필드명: 숫자 -> 숫자"
-        gimmick_pattern = r'.+의\s+\w+:\s*\d+\s*->\s*\d+'
-        if re.match(gimmick_pattern, text):
-            # 기믹 관련 메시지는 로그에 추가하지 않음
-            logger.debug(f"기믹 메시지 필터링됨: {text}")
+    def _on_combat_hit(self, hit_info: Dict[str, Any]):
+        """히트 이벤트 핸들러 - 다단히트 타격감용"""
+        # 트레이닝 파티 모드: 허수아비 피해량 집계
+        if self.training_mode and getattr(self, "training_variant", None) == "party":
+            tgt = hit_info.get("target")
+            attacker = hit_info.get("attacker")
+            hp_damage = hit_info.get("hp_damage", 0)
+            if hp_damage and tgt and getattr(tgt, "enemy_id", "") == "training_dummy" and attacker:
+                name = getattr(attacker, "name", "Unknown")
+                self.training_damage_log[name] = self.training_damage_log.get(name, 0) + hp_damage
+
+        self.hit_queue.append(hit_info)
+    
+    def process_hit_queue(self):
+        """히트 큐 처리 - 프레임마다 호출하여 다단히트 표시"""
+        if not self.hit_queue:
             return
         
-        msg = CombatMessage(text=text, color=color)
-        self.messages.append(msg)
+        # 딜레이 카운터 감소
+        if self.hit_delay_counter > 0:
+            self.hit_delay_counter -= 1
+            return
+        
+        # 다음 히트 표시
+        hit_info = self.hit_queue.pop(0)
+        self._display_hit(hit_info)
+        
+        # 다음 히트를 위한 딜레이 설정
+        if self.hit_queue:
+            self.hit_delay_counter = self.hit_display_delay
+    
+    def _display_hit(self, hit_info: Dict[str, Any]):
+        """개별 히트 표시 - 타격 효과 및 메시지"""
+        attacker = hit_info.get('attacker')
+        target = hit_info.get('target')
+        damage_type = hit_info.get('damage_type', 'brv')
+        brv_damage = hit_info.get('brv_damage', 0)
+        hp_damage = hit_info.get('hp_damage', 0)
+        is_critical = hit_info.get('is_critical', False)
+        is_break = hit_info.get('is_break', False)
+        sword_aura_hit = hit_info.get('sword_aura_hit')
+        multi_hit_current = hit_info.get('multi_hit_current')
+        
+        attacker_name = getattr(attacker, 'name', '???') if attacker else '???'
+        target_name = getattr(target, 'name', '???') if target else '???'
+        
+        # 히트별 SFX 정보 가져오기
+        sfx_info = hit_info.get('sfx')  # (category, name, pitch) 또는 None
+        
+        # 히트 효과음 재생 (딜레이 적용됨)
+        if sfx_info:
+            # 커스텀 SFX (검기, 포탑 등)
+            category, sfx_name = sfx_info[0], sfx_info[1]
+            pitch = sfx_info[2] if len(sfx_info) > 2 else None
+            play_sfx(category, sfx_name, pitch=pitch)
+        elif brv_damage > 0 or hp_damage > 0:
+            # 기본 SFX
+            play_sfx("combat", "attack_physical")
+        
+        # 진동 효과 (게임패드)
+        if hp_damage > 0:
+            vibration_manager.vibrate(VibrationPattern.DAMAGE_MEDIUM)
+        elif brv_damage > 0:
+            vibration_manager.vibrate(VibrationPattern.DAMAGE_LIGHT)
+        
+        # 히트 메시지 생성
+        if sword_aura_hit:
+            # 검기 추가 공격
+            if brv_damage > 0:
+                msg = f"  ⚔ 검기 {sword_aura_hit}타! BRV {brv_damage}"
+                color = (200, 180, 255)  # 연보라
+                if is_break:
+                    msg += " [BREAK!]"
+                    color = (255, 100, 100)
+                self.add_message(msg, color)
+        elif multi_hit_current:
+            # 일반 다단히트
+            if damage_type == 'hp' and hp_damage > 0:
+                msg = f"  💥 {multi_hit_current}타! HP {hp_damage}"
+                color = (255, 150, 150)
+                self.add_message(msg, color)
+            elif brv_damage > 0:
+                msg = f"  ✨ {multi_hit_current}타! BRV {brv_damage}"
+                color = (150, 200, 255)
+                if is_break:
+                    msg += " [BREAK!]"
+                self.add_message(msg, color)
+        # 단일 히트는 메시지 표시하지 않음 (스킬 결과 메시지에서 이미 표시됨)
 
-        # 새로운 메시지가 추가되면 스크롤을 최신으로 리셋 (위에 있는 로그부터 사라지도록)
+    def add_message(self, text: str, color: Tuple[int, int, int] = (255, 255, 255)):
+        """메시지 추가 (스크롤 형식 - 제한 없이 계속 저장, 다중 줄 지원)"""
+        import re
+        
+        # 다중 줄 처리: \n으로 분할하여 각 줄을 별도 메시지로 추가
+        lines = text.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue  # 빈 줄 스킵
+            
+            # 기믹 관련 수치 증감 메시지 필터링 (예: "이름의 필드: 값 -> 값" 형식)
+            gimmick_pattern = r'.+의\s+\w+:\s*\d+\s*->\s*\d+'
+            if re.match(gimmick_pattern, line):
+                logger.debug(f"기믹 메시지 필터링됨: {line}")
+                continue
+            
+            msg = CombatMessage(text=line, color=color)
+            self.messages.append(msg)
+            logger.debug(f"전투 메시지: {line}")
+
+        # 새로운 메시지가 추가되면 스크롤을 최신으로 리셋
         self.log_scroll_offset = 0
-
-        logger.debug(f"전투 메시지: {text}")
+    
+    def add_messages(self, messages: List[Tuple[str, Tuple[int, int, int]]]):
+        """
+        여러 메시지를 한 번에 추가 (각 메시지별 색상 지정 가능)
+        
+        Args:
+            messages: [(텍스트, 색상), ...] 형태의 리스트
+        """
+        for text, color in messages:
+            self.add_message(text, color)
 
     def add_floating_dialogue(self, text: str, color: Tuple[int, int, int] = (255, 100, 100)):
         """
@@ -2440,6 +2885,20 @@ class CombatUI:
         # 가능성 선택 상태 디버그
         if self.state == CombatUIState.POSSIBILITY_SELECT:
             print(f"[가능성UI] render() 호출됨! state={self.state}, slots={len(self.possibility_slots) if self.possibility_slots else 0}")
+
+        # 기믹 상세보기 상태에서는 다른 UI를 그리지 않고 전용 화면만 표시
+        if self.state == CombatUIState.GIMMICK_VIEW:
+            try:
+                console.rgb["ch"][:, :] = ord(" ")
+                console.rgb["fg"][:, :] = (0, 0, 0)
+                console.rgb["bg"][:, :] = (0, 0, 0)
+            except Exception:
+                try:
+                    console.clear()
+                except Exception:
+                    pass
+            self._render_gimmick_view(console)
+            return
         
         # 카드 선택 상태면 로그 (render 진입 확인)
         if self.state == CombatUIState.CARD_SELECT:
@@ -2519,6 +2978,10 @@ class CombatUI:
         # 적군 상태
         self._render_enemies(console)
 
+        # 트레이닝 모드 통계 표시
+        if self.training_mode and self.training_dummy:
+            self._render_training_stats(console)
+
         # 메시지 로그
         self._render_messages(console)
 
@@ -2535,6 +2998,9 @@ class CombatUI:
 
         elif self.state == CombatUIState.SKILL_MENU and self.skill_menu:
             self.skill_menu.render(console)
+
+        elif self.state == CombatUIState.CHOICE_SELECT and self.choice_menu:
+            self.choice_menu.render(console)
 
         elif self.state == CombatUIState.TARGET_SELECT:
             self._render_target_select(console)
@@ -2553,14 +3019,15 @@ class CombatUI:
             logger.info(f"[가능성 선택] render() POSSIBILITY_SELECT 분기 진입, slots={len(self.possibility_slots) if self.possibility_slots else 0}개")
             self._render_possibility_select(console)
 
-        elif self.state == CombatUIState.GIMMICK_VIEW:
-            self._render_gimmick_view(console)
-
         elif self.state == CombatUIState.BATTLE_END:
             self._render_battle_end(console)
 
         # 떠다니는 대사 렌더링 (최상위 레이어 - 림버스 컴퍼니 스타일)
         self._render_floating_dialogues(console)
+
+        # 기믹 상세 보기 (최상위 레이어 - 모든 UI 위에 표시)
+        if self.state == CombatUIState.GIMMICK_VIEW:
+            self._render_gimmick_view(console)
 
     def _render_allies(self, console: tcod.console.Console):
         """아군 상태 렌더링 (상세)"""
@@ -2601,8 +3068,42 @@ class CombatUI:
 
             console.print(3, y, turn_indicator, fg=indicator_color)
 
-            # 이름 표시
-            name_str = f"{i+1}. {ally.name}"
+            # 이름 표시 (표식/낙인 시 글리치 효과 - 살아있는 경우만)
+            display_name = ally.name
+            is_alive = getattr(ally, 'is_alive', True)
+            if is_alive and (hasattr(ally, '_sephiroth_mark') or hasattr(ally, '_cain_mark')):
+                # 보스 기믹 표식 - 글리치 이름 + 빨간색
+                from src.combat.boss_gimmicks import BossGimmickSystem
+                display_name = BossGimmickSystem.glitch_name(ally.name, 
+                    intensity=3 if hasattr(ally, '_sephiroth_mark') else 2, 
+                    use_color=False)
+                name_color = (255, 50, 50)  # 빨간색
+            
+            # 무당 과부하 상태를 이름 오른쪽에 표시
+            overload_state = ""
+            if getattr(ally, "gimmick_type", None) == "mp_overload_system":
+                state = getattr(ally, "last_mp_state", None)
+                gauge = getattr(ally, "overload_gauge", 0)
+                max_gauge = getattr(ally, "max_overload_gauge", 5)
+                if state:
+                    state_kor = {"stable": "안정", "danger": "위험", "depleted": "고갈"}.get(state, state)
+                    overload_state = f" 과부하 {state_kor} {gauge}/{max_gauge}"
+            # 해커 RAM 상태 표시
+            ram_state = ""
+            if getattr(ally, "gimmick_type", None) == "intrusion_system":
+                ram = getattr(ally, "ram", 0)
+                max_ram = getattr(ally, "max_ram", 0)
+                if max_ram:
+                    ram_state = f" RAM: {ram}GB/{max_ram}GB"
+            # 성기사 서약 상태 간단 표기
+            oath_state = ""
+            if getattr(ally, "gimmick_type", None) == "oath_system":
+                current_oath = getattr(ally, "current_oath", None)
+                faith = getattr(ally, "faith", 0)
+                if current_oath:
+                    oath_name = getattr(ally, "oaths", {}).get(current_oath, {}).get("name", current_oath)
+                    oath_state = f" {oath_name}, 신앙: {faith}"
+            name_str = f"{i+1}. {display_name}{overload_state}{ram_state}{oath_state}"
             console.print(5, y, name_str, fg=name_color)
             
             # 기계공학자: 이름 오른쪽에 열 표시
@@ -2631,11 +3132,13 @@ class CombatUI:
             # HP 게이지 (애니메이션 + 상처 표시 + 숫자는 게이지 안에)
             console.print(8, y + 1, "HP:", fg=(200, 200, 200))
             wound_damage = getattr(ally, 'wound', 0)  # Character 클래스의 wound 속성
+            # 보호막 수치 (current_shield: 광전사, shield_amount: 기타)
+            total_shield = getattr(ally, 'current_shield', 0) + getattr(ally, 'shield_amount', 0)
             entity_id = f"ally_{i}_{getattr(ally, 'name', i)}"
             gauge_renderer.render_animated_hp_bar(
                 console, 12, y + 1, 15,
                 ally.current_hp, ally.max_hp, entity_id,
-                wound_damage=wound_damage, show_numbers=True
+                wound_damage=wound_damage, show_numbers=True, shield_amount=total_shield
             )
 
             # MP 게이지 (애니메이션 + 숫자는 게이지 안에)
@@ -2643,7 +3146,8 @@ class CombatUI:
             gauge_renderer.render_animated_mp_bar(
                 console, 33, y + 2, 15,
                 ally.current_mp, ally.max_mp, entity_id,
-                show_numbers=True
+                show_numbers=True,
+                reserved_mp=getattr(ally, "reserved_max_mp", 0)
             )
 
             # BRV 게이지 (애니메이션 + 숫자는 게이지 안에)
@@ -2671,9 +3175,20 @@ class CombatUI:
             # status_manager에서 상태이상 가져오기
             if hasattr(ally, 'status_manager'):
                 status_effects = ally.status_manager.status_effects
+            # 기믹 상태 표시: 농락/침투 등 타겟 기반 수치
+            status_list = list(status_effects) if isinstance(status_effects, list) else []
+            # 농락 게이지 표시 (타겟형 기믹)
+            mockery_val = getattr(ally, "mockery_gauge", 0)
+            if mockery_val:
+                max_mockery = getattr(ally, "max_mockery", 10)
+                status_list.append(StatusEffect(name=f"농락 {mockery_val}/{max_mockery}", status_type="mockery", duration=mockery_val))
+            # 침투 게이지 표시
+            intrusion_val = getattr(ally, "intrusion_gauge", 0)
+            if intrusion_val:
+                status_list.append(StatusEffect(name=f"침투 {intrusion_val}%", status_type="intrusion", duration=intrusion_val))
 
-            if status_effects or active_buffs:
-                status_lines = gauge_renderer.render_status_icons(status_effects, buffs=active_buffs)
+            if status_list or active_buffs:
+                status_lines = gauge_renderer.render_status_icons(status_list, buffs=active_buffs)
                 if isinstance(status_lines, list):
                     # 여러 줄 렌더링 (최대 3줄)
                     for line_idx, (line_text, line_color) in enumerate(status_lines[:3]):
@@ -2762,6 +3277,37 @@ class CombatUI:
                 cursor = "  "
                 cursor_color = name_color
 
+            # === 보스 전용 기믹 상태 표시 (이름 위에) ===
+            enemy_id = getattr(enemy, 'enemy_id', None)
+            
+            if enemy_id == 'sephiroth' and hasattr(self.combat_manager, 'boss_gimmick_system'):
+                gimmick = self.combat_manager.boss_gimmick_system
+                stack = gimmick.sephiroth_counter_stack
+                marked = gimmick.sephiroth_marked_target
+                marked_name = marked.name[:4] if marked else "-"
+                
+                if gimmick.sephiroth_rage_mode:
+                    gimmick_text = f"🔥광기모드 | 표식:{marked_name}"
+                    gimmick_color = (255, 50, 50)
+                else:
+                    gimmick_text = f"광기:{stack}/3 | 표식:{marked_name}"
+                    gimmick_color = (255, 150, 100)
+                console.print(x + 2, y - 1, gimmick_text, fg=gimmick_color)
+            
+            elif enemy_id == 'abel_cain' and hasattr(self.combat_manager, 'boss_gimmick_system'):
+                gimmick = self.combat_manager.boss_gimmick_system
+                cd = gimmick.cain_judgment_cooldown
+                marked = gimmick.cain_marked_target
+                marked_name = marked.name[:4] if marked else "-"
+                
+                if cd > 0:
+                    gimmick_text = f"심판:{cd}턴 | 낙인:{marked_name}"
+                    gimmick_color = (150, 150, 200)
+                else:
+                    gimmick_text = f"심판:준비! | 낙인:{marked_name}"
+                    gimmick_color = (255, 200, 100)
+                console.print(x + 2, y - 1, gimmick_text, fg=gimmick_color)
+
             console.print(x, y, cursor, fg=cursor_color)
             console.print(x + 2, y, f"{chr(65+i)}. {enemy.name}", fg=name_color)
 
@@ -2782,9 +3328,17 @@ class CombatUI:
             # status_manager에서 상태이상 가져오기
             if hasattr(enemy, 'status_manager'):
                 status_effects = enemy.status_manager.status_effects
+            status_list = list(status_effects) if isinstance(status_effects, list) else []
+            mockery_val = getattr(enemy, "mockery_gauge", 0)
+            if mockery_val:
+                max_mockery = getattr(enemy, "max_mockery", 10)
+                status_list.append(StatusEffect(name=f"농락 {mockery_val}/{max_mockery}", status_type="mockery", duration=mockery_val))
+            intrusion_val = getattr(enemy, "intrusion_gauge", 0)
+            if intrusion_val:
+                status_list.append(StatusEffect(name=f"침투 {intrusion_val}%", status_type="intrusion", duration=intrusion_val))
             
-            if status_effects or active_buffs:
-                status_lines = gauge_renderer.render_status_icons(status_effects, buffs=active_buffs)
+            if status_list or active_buffs:
+                status_lines = gauge_renderer.render_status_icons(status_list, buffs=active_buffs)
                 if isinstance(status_lines, list):
                     # 여러 줄 렌더링 (최대 2줄)
                     for line_idx, (line_text, line_color) in enumerate(status_lines[:2]):
@@ -2802,21 +3356,36 @@ class CombatUI:
             
             # HP 게이지 (애니메이션, 적군은 상처 시스템 없음)
             console.print(x + 3, y + 2, "HP:", fg=(200, 200, 200))
+            # 적군도 보호막이 있을 수 있음
+            enemy_shield = getattr(enemy, 'current_shield', 0) + getattr(enemy, 'shield_amount', 0)
             enemy_id = f"enemy_{i}_{getattr(enemy, 'name', i)}"
             gauge_renderer.render_animated_hp_bar(
                 console, x + 7, y + 2, 15,
                 enemy.current_hp, enemy.max_hp, enemy_id,
-                wound_damage=0, show_numbers=True  # 적군은 상처 시스템 없음
+                wound_damage=0, show_numbers=True, shield_amount=enemy_shield
             )
 
             # BRV 게이지 (애니메이션) - 플레이어와 동일 (15칸)
             max_brv = getattr(enemy, 'max_brv', 9999)
             is_broken = self.combat_manager.brave.is_broken(enemy) if hasattr(self.combat_manager, 'brave') else False
+            
+            # SCATTER 상태 확인 (Breaker Gimmick)
+            is_scattered = False
+            if hasattr(enemy, 'status_manager'):
+                if enemy.status_manager.has_status(StatusType.SCATTER):
+                    is_scattered = True
+
+            # SCATTER 시 파란색 게이지 및 텍스트 변경
+            custom_brv_color = (0, 100, 255) if is_scattered else None
+            break_text = "SCATTER!" if is_scattered else "BREAK!"
+
             console.print(x + 2, y + 3, "BRV:", fg=(200, 200, 200))
             gauge_renderer.render_animated_brv_bar(
                 console, x + 7, y + 3, 15,
                 enemy.current_brv, max_brv, enemy_id,
-                is_broken=is_broken, show_numbers=True
+                is_broken=is_broken, show_numbers=True,
+                custom_color=custom_brv_color,
+                break_text=break_text
             )
 
             # 캐스팅 표시 (BREAK는 게이지 안에만 표시)
@@ -2827,6 +3396,46 @@ class CombatUI:
                     console, x + 3, y + 5, 15,
                     cast_info.progress, skill_name=f"시전:{skill_name[:8]}"
                 )
+
+    def _render_training_stats(self, console: tcod.console.Console):
+        """트레이닝 모드 통계 렌더링"""
+        if not self.training_dummy:
+            return
+
+        stats = self.training_dummy.get_statistics()
+
+        # 통계 표시 위치
+        training_variant = getattr(self, "training_variant", None)
+        if training_variant == "party":
+            # 4인 트레이닝: 통계 대신 피해량 순위 (우상단)
+            if not self.training_damage_log:
+                return
+            x = self.screen_width - 28
+            y = 0
+            console.print(x, y, "[피해 순위]", fg=(255, 220, 120))
+            y += 1
+            ranked = sorted(self.training_damage_log.items(), key=lambda kv: kv[1], reverse=True)
+            for idx, (name, dmg) in enumerate(ranked[:4], start=1):
+                console.print(x, y, f"{idx}. {name}: {dmg:,}", fg=(255, 180, 150))
+                y += 1
+            return
+        else:
+            # 기본: 화면 오른쪽, 적군 영역 아래
+            x = self.screen_width - 35
+            y = 15
+
+        # 제목
+        console.print(x, y, "[트레이닝 통계]", fg=(255, 255, 100))
+
+        # 총 HP 데미지
+        console.print(x, y + 1, f"총 HP: {stats['total_hp_damage']:,}", fg=(255, 150, 150))
+
+        # 평균 HP 데미지 (소수점 1자리)
+        avg_hp = stats['avg_hp_per_turn']
+        console.print(x, y + 2, f"평균 HP: {avg_hp:,.1f}/턴", fg=(255, 100, 100))
+
+        # 턴 수
+        console.print(x, y + 3, f"총 턴: {stats['turn_count']}", fg=(200, 200, 200))
 
     def _render_messages(self, console: tcod.console.Console):
         """메시지 로그 렌더링 (오른쪽에 배치, 스크롤 형식)"""
@@ -2984,7 +3593,7 @@ class CombatUI:
             # 광전사 기믹 통합
             "rage_system": "madness_threshold",
             "madness_gauge": "madness_threshold",
-            # 뱀파이어 기믹 통합
+            # 흡혈귀 기믹 통합
             "blood_system": "thirst_gauge",
         }
         gimmick_type = gimmick_aliases.get(gimmick_type, gimmick_type)
@@ -3019,6 +3628,11 @@ class CombatUI:
                 array_index = stance_to_array_index.get(stance, 0)
                 if 0 <= array_index < len(stance_names):
                     return (stance_names[array_index], stance_colors[array_index])
+
+        elif gimmick_type == "break_system":
+            # 브레이커 - 연격 기믹
+            combo = getattr(character, 'combo_gauge', 0)
+            return (f"연격:{combo}", (255, 150, 50))
 
         elif gimmick_type == "elemental_counter":
             # 아크메이지 - 원소 카운터
@@ -3069,6 +3683,9 @@ class CombatUI:
             shadows = getattr(character, 'shadow_count', 0)
             max_shadows = getattr(character, 'max_shadow_count', 5)
             return (f"그림자:{shadows}/{max_shadows}", (100, 50, 150))
+        elif gimmick_type == "mp_overload_system":
+            # MP 게이지에서 시각화하므로 별도 텍스트 없음
+            return ("", (255, 255, 255))
 
         elif gimmick_type == "sword_aura":
             # 검성 - 검기
@@ -3187,23 +3804,35 @@ class CombatUI:
             gold = getattr(character, 'gold', 0)
             return (f"골드:{gold}", (255, 215, 0))
 
-        elif gimmick_type == "iaijutsu_system":
-            # 사무라이 - 거합
-            will = getattr(character, 'will_gauge', 0)
-            max_will = getattr(character, 'max_will_gauge', 10)
-            return (f"기합:{will}/{max_will}", (255, 100, 150))
+        elif gimmick_type == "kenshin_system":
+            # 사무라이 - 검심 시스템
+            observation = getattr(character, 'observation', 0)
+            kenatsu = getattr(character, 'kenatsu', 0)
 
+            # 관찰 단계 색상
+            if observation >= 10:
+                stage_color = (255, 100, 100)  # 검성 - 빨강
+                stage = "검성"
+            elif observation >= 5:
+                stage_color = (255, 200, 100)  # 무심 - 주황
+                stage = "무심"
+            else:
+                stage_color = (200, 200, 200)  # 초심 - 회색
+                stage = "초심"
+
+            return (f"{stage} 관찰{observation} 검압{kenatsu}", stage_color)
+
+        elif gimmick_type == "blade_circuit":
+            # 마검사 - 블레이드 서킷
+            steel = getattr(character, 'steel_line', 0)
+            mana = getattr(character, 'mana_line', 0)
+            sigil = getattr(character, 'resonance_sigil', 0)
+            return (f"스틸 {steel} 마나 {mana} 시그넷 {sigil}", (120, 200, 255))
         elif gimmick_type == "enchant_system":
-            # 마검사 - 마력 부여
+            # 구버전 마검사 - 마나 블레이드
             mana = getattr(character, 'mana_blade', 0)
             max_mana = getattr(character, 'max_mana_blade', 100)
             return (f"마검:{mana}/{max_mana}", (100, 150, 255))
-
-        elif gimmick_type == "divinity_system":
-            # 프리스트/클레릭 - 신성력
-            judgment = getattr(character, 'judgment_points', 0)
-            faith = getattr(character, 'faith_points', 0)
-            return (f"심판:{judgment} 신앙:{faith}", (255, 255, 150))
 
         elif gimmick_type == "shapeshifting_system":
             # 드루이드 - 변신
@@ -3258,14 +3887,12 @@ class CombatUI:
             return (f"기:{ki}", (255, 215, 0))
 
         elif gimmick_type == "rune_resonance":
-            # 배틀메이지 - 룬 공명 (간략: 총합)
-            fire = getattr(character, 'rune_fire', 0)
-            ice = getattr(character, 'rune_ice', 0)
-            lightning = getattr(character, 'rune_lightning', 0)
-            earth = getattr(character, 'rune_earth', 0)
-            arcane = getattr(character, 'rune_arcane', 0)
-            total = fire + ice + lightning + earth + arcane
-            return (f"룬:{total}", (200, 100, 255))
+            # 배틀메이지 - 룬 공명 (간략: 게이지 + 완전 공명만 표시)
+            gauge = getattr(character, 'resonance_gauge', 0)
+            perfect = getattr(character, 'perfect_resonance', False)
+            if perfect:
+                return (f"공명 {gauge} 완전", (255, 215, 0))
+            return (f"공명 {gauge}", (200, 100, 255))
 
         elif gimmick_type == "probability_distortion":
             # 차원술사 - 확률 왜곡 (간략: 게이지)
@@ -3277,8 +3904,21 @@ class CombatUI:
             heat = getattr(character, 'heat', 0)
             return ("", (255, 255, 255))  # 빈 문자열 반환 (이미 이름 옆에 표시됨)
 
+        elif gimmick_type == "heat_management":
+            # 기계공학자 - 열 관리 + 포탑 시스템
+            heat = getattr(character, 'heat', 0)
+            turrets = getattr(character, 'turret_count', 0)
+            # 열 상태에 따른 색상
+            if heat >= 80:
+                color = (255, 50, 50)  # 위험 (빨강)
+            elif heat >= 50:
+                color = (100, 255, 100)  # 최적 (초록)
+            else:
+                color = (255, 150, 50)  # 준비 (주황)
+            return (f"열:{heat} 포탑:{turrets}", color)
+
         elif gimmick_type == "thirst_gauge":
-            # 뱀파이어 - 갈증 (간략: 게이지)
+            # 흡혈귀 - 갈증 (간략: 게이지)
             thirst = getattr(character, 'thirst', 0)
             return (f"갈증:{thirst}", (200, 0, 0))
 
@@ -3434,11 +4074,24 @@ class CombatUI:
             return (f"의무:{duty}/{max_duty}", (100, 150, 255))
         
         elif gimmick_type == "divinity_system":
-            # 신관 - 신앙/심판
+            # 성기사 - 신앙/심판 (구버전)
             faith = getattr(character, 'faith_points', 0)
             judgment = getattr(character, 'judgment_points', 0)
             return (f"신:{faith} 심:{judgment}", (255, 255, 150))
-        
+
+        elif gimmick_type == "oracle_system":
+            # 신관 - 신탁 시스템
+            faith = getattr(character, 'faith', 0)
+            combo = getattr(character, 'oracle_combo', 0)
+            turn_count = getattr(character, 'oracle_turn_count', 0)
+            current_oracle = getattr(character, 'current_oracle', None)
+            if current_oracle and not current_oracle.get('fulfilled', False):
+                oracle_name = current_oracle.get('name', '신탁')
+                # 신탁 이름 약칭
+                oracle_short = oracle_name.replace('의 신탁', '').replace('신탁', '')[:2]
+                return (f"신앙:{faith} {oracle_short}[{turn_count}/4]", (255, 220, 150))
+            return (f"신앙:{faith} [{turn_count}/4]", (255, 215, 100))
+
         elif gimmick_type == "theft_system":
             # 도적 - 절도
             stolen = getattr(character, 'stolen_items', 0)
@@ -3447,8 +4100,13 @@ class CombatUI:
             ev_text = " 회피" if evasion else ""
             return (f"절도:{stolen}{ev_text}", (150, 100, 200))
         
+        elif gimmick_type == "blade_circuit":
+            steel = getattr(character, 'steel_line', 0)
+            mana = getattr(character, 'mana_line', 0)
+            sigil = getattr(character, 'resonance_sigil', 0)
+            return (f"스틸 {steel} 마나 {mana} 시그넷 {sigil}", (120, 200, 255))
         elif gimmick_type == "enchant_system":
-            # 마검사 - 마나 블레이드
+            # 구버전 마검사 - 마나 블레이드
             mana = getattr(character, 'mana_blade', 0)
             max_mana = getattr(character, 'max_mana_blade', 100)
             if mana >= max_mana:
@@ -3545,171 +4203,33 @@ class CombatUI:
         character = self.gimmick_view_character
         gimmick_type = getattr(character, 'gimmick_type', None)
 
+        # 전체 화면을 완전히 검게 덮어 기존 UI(트레이닝 통계/아군파티/턴 화살표 등) 가림
+        try:
+            console.rgb["ch"][:, :] = ord(" ")
+            console.rgb["fg"][:, :] = (0, 0, 0)
+            console.rgb["bg"][:, :] = (0, 0, 0)
+        except Exception:
+            try:
+                console.draw_rect(0, 0, self.screen_width, self.screen_height, ord(" "), bg=(0, 0, 0))
+            except Exception:
+                pass
+
         # 박스 위치 및 크기
         box_width = 50
+        box_height = 18  # 기본값
+        # 기본 위치/오프셋
+        box_x = 2
+        box_y = 2
+        content_x = box_x + 2
+        content_y = box_y + 1
+
+        line = 0
         # 기믹 타입에 따라 높이 조정
         if gimmick_type == "dilemma_choice":
             # 철학자 - 딜레마 선택: 더 많은 공간 필요 (제목 + 구분선 + 4가지 선택 + 구분선 + 경향 + 하단 안내)
             box_height = 28
         elif gimmick_type == "rune_resonance":
-            # 배틀메이지의 경우 룬 5개 + 공명 정보를 위해 높이 증가
-            box_height = 22
-        elif gimmick_type == "possibility_slots":
-            # 시간술사 가능성 슬롯: 슬롯 4개 + 효과 정보
-            box_height = 24
-        elif gimmick_type == "phantom_legion":
-            # 환술사 환영 군단: 환영 + 잔상 + 확정회피 정보
-            box_height = 24
-        else:
-            box_height = 22
-        box_x = (self.screen_width - box_width) // 2
-        box_y = (self.screen_height - box_height) // 2
-
-        # 배경 (어두운 반투명)
-        for y in range(box_y, box_y + box_height):
-            console.draw_rect(box_x, y, box_width, 1, ord(" "), bg=(20, 20, 40))
-
-        # 박스 테두리
-        # 상단
-        console.print(box_x, box_y, "┌" + "─" * (box_width - 2) + "┐", fg=(200, 200, 255))
-        # 하단
-        console.print(box_x, box_y + box_height - 1, "└" + "─" * (box_width - 2) + "┘", fg=(200, 200, 255))
-        # 좌우
-        for y in range(box_y + 1, box_y + box_height - 1):
-            console.print(box_x, y, "│", fg=(200, 200, 255))
-            console.print(box_x + box_width - 1, y, "│", fg=(200, 200, 255))
-
-        # 내용 시작 위치
-        content_x = box_x + 2
-        content_y = box_y + 1
-        line = 0
-
-        # 기믹 타입에 따라 다른 UI 표시
-        if not gimmick_type:
-            console.print(content_x, content_y + line, "기믹 시스템 없음", fg=(150, 150, 150))
-            console.print(content_x, box_y + box_height - 2, "아무 키나 눌러 닫기...", fg=(150, 150, 150))
-            return
-
-        # === 15개 신규 기믹 시스템 상세 ===
-
-        if gimmick_type == "heat_gauge":
-            # 기계공학자 - 열 게이지
-            heat = getattr(character, 'heat', 0)
-            max_heat = getattr(character, 'max_heat', 100)
-
-            # 제목
-            console.print(content_x, content_y + line, "🔧 기계공학자 - 열 게이지", fg=(255, 200, 100))
-            line += 1
-            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
-            line += 1
-
-            # 게이지 바
-            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, heat, max_heat, show_numbers=True, custom_color=(255, 100, 50))
-            line += 1
-
-            # 구간 표시
-            console.print(content_x, content_y + line, " 냉각   최적   위험   오버히트", fg=(150, 150, 150))
-            line += 1
-            # 현재 위치 표시
-            if heat < 50:
-                indicator_pos = int((heat / 50) * 6)
-                console.print(content_x + indicator_pos, content_y + line, "↑현재", fg=(100, 255, 255))
-            elif heat < 80:
-                indicator_pos = 6 + int(((heat - 50) / 30) * 6)
-                console.print(content_x + indicator_pos, content_y + line, "↑현재", fg=(100, 255, 100))
-            elif heat < 100:
-                indicator_pos = 12 + int(((heat - 80) / 20) * 6)
-                console.print(content_x + indicator_pos, content_y + line, "↑현재", fg=(255, 255, 100))
-            else:
-                console.print(content_x + 18, content_y + line, "↑현재", fg=(255, 100, 100))
-            line += 2
-
-            # 구분선
-            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
-            line += 1
-
-            # 상태 정보
-            if heat >= 100:
-                console.print(content_x, content_y + line, " 상태: 오버히트!", fg=(255, 50, 50))
-                line += 1
-                console.print(content_x, content_y + line, "[경고] 스턴 2턴, 열 0으로 리셋", fg=(255, 100, 100))
-            elif heat >= 80:
-                console.print(content_x, content_y + line, "[위험] 열 상태: 위험 구간", fg=(255, 200, 100))
-                line += 1
-                console.print(content_x, content_y + line, "[효과] 공격력 +50%, 크리티컬 +15%", fg=(255, 255, 100))
-                line += 1
-                console.print(content_x, content_y + line, "[경고] 받는 피해 +20%, 명중률 -10%", fg=(255, 150, 100))
-            elif heat >= 50:
-                console.print(content_x, content_y + line, "[최적] 열 상태: 최적 구간", fg=(100, 255, 100))
-                line += 1
-                console.print(content_x, content_y + line, "[효과] 공격력 +30%, 스킬 효과 +20%", fg=(255, 255, 100))
-            else:
-                console.print(content_x, content_y + line, "  열 상태: 냉각 구간", fg=(150, 150, 255))
-                line += 1
-                console.print(content_x, content_y + line, "[효과] 일반 공격력", fg=(200, 200, 200))
-            line += 1
-
-            # 다음 턴 예측
-            next_heat = heat + (5 if heat >= 50 else 0)
-            console.print(content_x, content_y + line, f" 다음 턴 자동 열 증가: +{5 if heat >= 50 else 0} (예상: {min(next_heat, 100)})", fg=(150, 200, 255))
-
-        elif gimmick_type == "yin_yang_flow":
-            # 몽크 - 음양 흐름
-            ki = getattr(character, 'ki_gauge', 50)
-            min_ki = getattr(character, 'min_ki', 0)
-            max_ki = getattr(character, 'max_ki', 100)
-
-            console.print(content_x, content_y + line, "🥋 몽크 - 음양 기 흐름", fg=(255, 215, 0))
-            line += 1
-            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
-            line += 1
-
-            # 게이지 바 너비 계산
-            gauge_width = box_width - 6
-            gauge_start_x = content_x
-            
-            # 음양 게이지 위치 표시 (게이지 바 너비에 맞춰 중앙 정렬)
-            yin_yang_text = "[陰]        [☯]        [陽]"
-            text_start_x = gauge_start_x + (gauge_width - len(yin_yang_text)) // 2
-            console.print(text_start_x, content_y + line, yin_yang_text, fg=(200, 200, 200))
-            line += 1
-            
-            # 게이지 바 (음=파랑, 양=빨강, 균형=금색)
-            if ki < 40:
-                gauge_color = (100, 150, 255)  # 파랑 (음)
-            elif ki <= 60:
-                gauge_color = (255, 215, 0)  # 금색 (균형)
-            else:
-                gauge_color = (255, 100, 100)  # 빨강 (양)
-            gauge_renderer.render_bar(console, gauge_start_x, content_y + line, gauge_width, ki, max_ki, show_numbers=True, custom_color=gauge_color)
-            line += 1
-
-            # 상태 정보
-            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
-            line += 1
-
-            if ki < 25:
-                console.print(content_x, content_y + line, "🌟 상태: 음 (陰) 기운 특화", fg=(100, 150, 255))
-                line += 1
-                console.print(content_x, content_y + line, " 효과: 방어력 +50%, MP 회복 +100%", fg=(150, 200, 255))
-                line += 1
-                console.print(content_x, content_y + line, "   받는 피해 -30%", fg=(150, 200, 255))
-            elif ki > 75:
-                console.print(content_x, content_y + line, "🌟 상태: 양 (陽) 기운 특화", fg=(255, 100, 100))
-                line += 1
-                console.print(content_x, content_y + line, " 효과: 공격력 +40%, 속도 +30%", fg=(255, 200, 100))
-                line += 1
-                console.print(content_x, content_y + line, "   크리티컬 확률 +20%", fg=(255, 200, 100))
-            else:
-                console.print(content_x, content_y + line, "🌟 상태: 태극 조화 (균형)", fg=(255, 215, 0))
-                line += 1
-                console.print(content_x, content_y + line, " 효과: 모든 스탯 +20%", fg=(255, 255, 100))
-                line += 1
-                console.print(content_x, content_y + line, "   음양 스킬 강화 +30%", fg=(255, 255, 100))
-                line += 1
-                console.print(content_x, content_y + line, "   HP/MP 회복 매 턴 5%", fg=(255, 255, 100))
-
-        elif gimmick_type == "rune_resonance":
+            box_height = 24  # 완전 공명 상태 표시 추가로 높이 증가
             # 배틀메이지 - 룬 공명
             fire = getattr(character, 'rune_fire', 0)
             ice = getattr(character, 'rune_ice', 0)
@@ -3717,8 +4237,12 @@ class CombatUI:
             earth = getattr(character, 'rune_earth', 0)
             arcane = getattr(character, 'rune_arcane', 0)
             max_rune = getattr(character, 'max_rune_per_type', 3)
+            resonance_gauge = getattr(character, 'resonance_gauge', 0)
+            max_resonance_gauge = getattr(character, 'max_resonance_gauge', 100)
+            gauge_bar = self._create_gauge_bar(resonance_gauge, max_resonance_gauge, width=10)
+            resonances = []
 
-            console.print(content_x, content_y + line, "🔮 배틀메이지 - 룬 공명", fg=(200, 100, 255))
+            console.print(content_x, content_y + line, "배틀메이지 - 룬 공명", fg=(200, 100, 255))
             line += 1
             console.print(box_x, content_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
@@ -3730,16 +4254,26 @@ class CombatUI:
             line += 1
             console.print(content_x, content_y + line, f" 번개 룬: {lightning}/{max_rune}", fg=(255, 255, 100))
             line += 1
-            console.print(content_x, content_y + line, f"🌍 대지 룬: {earth}/{max_rune}", fg=(139, 69, 19))
+            console.print(content_x, content_y + line, f" 대지 룬: {earth}/{max_rune}", fg=(139, 69, 19))
             line += 1
             console.print(content_x, content_y + line, f" 비전 룬: {arcane}/{max_rune}", fg=(200, 100, 255))
             line += 1
+            console.print(content_x, content_y + line, f" 공명 게이지: {gauge_bar} ({resonance_gauge}/{max_resonance_gauge})", fg=(200, 180, 255))
+            line += 1
+
+            # 완전 공명 상태 표시
+            perfect_resonance = getattr(character, 'perfect_resonance', False)
+            if perfect_resonance:
+                console.print(content_x, content_y + line, "완전 공명 활성!", fg=(255, 215, 0))
+                line += 1
+                console.print(content_x, content_y + line, " 다음 룬 폭발: 피해 +150%, 연쇄 +50%", fg=(255, 255, 100))
+                line += 1
 
             console.print(box_x, content_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
             # 공명 가능 패턴 체크
-            resonances = []
+
             if fire >= 3:
                 resonances.append("화염 폭발 (광역 화상)")
             if ice >= 3:
@@ -3793,7 +4327,7 @@ class CombatUI:
                 line += 1
 
         elif gimmick_type == "thirst_gauge":
-            # 뱀파이어 - 갈증
+            # 흡혈귀 - 갈증
             thirst = getattr(character, 'thirst', 0)
             max_thirst = getattr(character, 'max_thirst', 100)
 
@@ -4107,6 +4641,93 @@ class CombatUI:
                 line += 1
             if active_programs >= max_threads:
                 console.print(content_x, content_y + line, "[최대] 최대 프로그램 실행 중!", fg=(100, 255, 255))
+
+        elif gimmick_type == "heat_management":
+            # 기계공학자 - 열 관리 + 포탑 시스템
+            heat = getattr(character, 'heat', 0)
+            max_heat = getattr(character, 'max_heat', 100)
+            optimal_min = getattr(character, 'optimal_min', 50)
+            optimal_max = getattr(character, 'optimal_max', 79)
+            danger_min = getattr(character, 'danger_min', 80)
+            turrets = getattr(character, 'turret_count', 0)
+            fire_turrets = getattr(character, 'fire_turret_count', 0)
+            ice_turrets = getattr(character, 'ice_turret_count', 0)
+            thunder_turrets = getattr(character, 'thunder_turret_count', 0)
+            explosive_turrets = getattr(character, 'explosive_turret_count', 0)
+            heal_turrets = getattr(character, 'heal_turret_count', 0)
+            normal_turrets = turrets - fire_turrets - ice_turrets - thunder_turrets - explosive_turrets - heal_turrets
+
+            console.print(content_x, content_y + line, " 기계공학자 - 열 관리 & 포탑", fg=(255, 150, 50))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 열 게이지 (색상으로 구간 표시)
+            if heat >= danger_min:
+                heat_color = (255, 50, 50)
+                heat_status = "위험!"
+            elif heat >= optimal_min:
+                heat_color = (100, 255, 100)
+                heat_status = "최적"
+            else:
+                heat_color = (255, 150, 50)
+                heat_status = "준비"
+            
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, heat, max_heat, show_numbers=True, custom_color=heat_color)
+            line += 1
+            console.print(content_x, content_y + line, f"열 상태: {heat_status}", fg=heat_color)
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 포탑 정보
+            console.print(content_x, content_y + line, f" 총 포탑: {turrets}개", fg=(255, 200, 100))
+            line += 1
+            
+            if turrets > 0:
+                if normal_turrets > 0:
+                    console.print(content_x, content_y + line, f"  - 일반: {normal_turrets}개 (0.5배)", fg=(200, 200, 200))
+                    line += 1
+                if fire_turrets > 0:
+                    console.print(content_x, content_y + line, f"  - 화염: {fire_turrets}개 (0.6배+화상20%)", fg=(255, 100, 50))
+                    line += 1
+                if ice_turrets > 0:
+                    console.print(content_x, content_y + line, f"  - 빙결: {ice_turrets}개 (0.4배+둔화25%)", fg=(100, 200, 255))
+                    line += 1
+                if thunder_turrets > 0:
+                    console.print(content_x, content_y + line, f"  - 전기: {thunder_turrets}개 (0.5배+마비15%)", fg=(255, 255, 100))
+                    line += 1
+                if explosive_turrets > 0:
+                    console.print(content_x, content_y + line, f"  - 폭발: {explosive_turrets}개 (0.7배AOE)", fg=(255, 150, 100))
+                    line += 1
+                if heal_turrets > 0:
+                    console.print(content_x, content_y + line, f"  - 치유: {heal_turrets}개 (공격력30%)", fg=(100, 255, 100))
+                    line += 1
+                line += 1
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 효과 설명
+            console.print(content_x, content_y + line, "=== 포탑 효과 ===", fg=(150, 150, 150))
+            line += 1
+            net_heat = -5 + turrets * 2
+            if net_heat >= 0:
+                console.print(content_x, content_y + line, f"턴당 열 {net_heat:+d} (-5 + 포탑당 +2)", fg=(255, 150, 50))
+            else:
+                console.print(content_x, content_y + line, f"턴당 열 {net_heat:+d} (-5 + 포탑당 +2)", fg=(100, 200, 255))
+            line += 1
+            console.print(content_x, content_y + line, "피격 시: 포탑 1개 파괴, 피해 -40%", fg=(100, 200, 255))
+            line += 1
+
+            # 구간별 보너스
+            if heat >= optimal_min and heat < danger_min:
+                console.print(content_x, content_y + line, "[최적 구간] 모든 스탯 +15%", fg=(100, 255, 100))
+            elif heat >= danger_min:
+                console.print(content_x, content_y + line, "[위험 구간] 크리티컬 +20%", fg=(255, 100, 100))
+                line += 1
+                console.print(content_x, content_y + line, "⚠ 열 100 도달 시 오버히트!", fg=(255, 50, 50))
 
         elif gimmick_type == "cheer_gauge":
             # 검투사 - 환호
@@ -4758,30 +5379,44 @@ class CombatUI:
             else:
                 console.print(content_x, content_y + line, " 집중 필요", fg=(150, 150, 150))
 
-        elif gimmick_type == "enchant_system":
-            # 마검사 - 마력 부여
-            mana = getattr(character, 'mana_blade', 0)
-            max_mana = getattr(character, 'max_mana_blade', 100)
+        elif gimmick_type == "blade_circuit":
+            # 마검사 - 블레이드 서킷
+            steel = getattr(character, 'steel_line', 0)
+            mana = getattr(character, 'mana_line', 0)
+            max_steel = getattr(character, 'max_steel_line', 100)
+            max_mana = getattr(character, 'max_mana_line', 100)
+            sigil = getattr(character, 'resonance_sigil', 0)
+            max_sigil = getattr(character, 'max_resonance_sigil', 3)
 
-            console.print(content_x, content_y + line, "🔮 마검사 - 마력 부여", fg=(150, 100, 255))
+            console.print(content_x, content_y + line, " 마검사 - 블레이드 서킷", fg=(120, 200, 255))
             line += 1
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
-            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, mana, max_mana, show_numbers=True, custom_color=(150, 100, 255))
+            console.print(content_x, content_y + line, f"스틸: {steel}/{max_steel}", fg=(120, 180, 255))
+            line += 1
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, steel, max_steel, custom_color=(120, 180, 255))
+            line += 1
+            console.print(content_x, content_y + line, f"마나: {mana}/{max_mana}", fg=(150, 120, 255))
+            line += 1
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, mana, max_mana, custom_color=(150, 120, 255))
             line += 2
 
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
+            console.print(content_x, content_y + line, f" 시그넷: {sigil}", fg=(200, 220, 255))
+            line += 1
 
-            if mana >= 70:
-                console.print(content_x, content_y + line, "🔮 마검 완성!", fg=(200, 150, 255))
-                line += 1
-                console.print(content_x, content_y + line, " 물리+마법 피해 극대화", fg=(255, 255, 200))
-            elif mana >= 35:
-                console.print(content_x, content_y + line, "🔮 마력 충전 중", fg=(150, 100, 255))
-            else:
-                console.print(content_x, content_y + line, " 마력 부여 필요", fg=(150, 150, 150))
+        elif gimmick_type == "enchant_system":
+            # 구버전 마검사 - 마력 부여
+            mana = getattr(character, 'mana_blade', 0)
+            max_mana = getattr(character, 'max_mana_blade', 100)
+            console.print(content_x, content_y + line, " 마검사 - 마력 부여", fg=(150, 100, 255))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, mana, max_mana, show_numbers=True, custom_color=(150, 100, 255))
+            line += 2
 
         elif gimmick_type == "shapeshifting_system":
             # 드루이드 - 변신
@@ -4875,27 +5510,40 @@ class CombatUI:
                 console.print(content_x, content_y + line, " 명성 획득 필요", fg=(150, 150, 150))
 
         elif gimmick_type == "break_system":
-            # 브레이커 - 파괴력
-            break_power = getattr(character, 'break_power', 0)
-            max_break = getattr(character, 'max_break_power', 10)
+            # 브레이커 - 연격 기믹 (Combo Gauge)
+            combo = getattr(character, 'combo_gauge', 0)
+            max_combo = getattr(character, 'max_combo_gauge', 100)
+            atk_power = 0
+            if hasattr(character, "stat_manager"):
+               from src.character.stats import Stats
+               atk_power = character.stat_manager.get_value(Stats.STRENGTH)
+            else:
+               atk_power = getattr(character, "physical_attack", 100)
+            
+            thresh = int(atk_power * 0.5)
 
-            console.print(content_x, content_y + line, " 브레이커 - 파괴력", fg=(255, 150, 50))
+            console.print(content_x, content_y + line, " 브레이커 - 연격 기믹", fg=(255, 100, 50))
             line += 1
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
-            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, break_power, max_break, show_numbers=True, custom_color=(255, 150, 50))
+            # 게이지 바 (Custom Color: Red/Orange)
+            gauge_bar = self._create_gauge_bar(combo, max_combo, width=10, danger_threshold=None, optimal_min=thresh, optimal_max=max_combo)
+            console.print(content_x, content_y + line, f"기믹 게이지: {combo}/{max_combo}", fg=(255, 150, 100))
+            line += 1
+            console.print(content_x, content_y + line, f"            {gauge_bar}", fg=(255, 150, 100))
             line += 2
 
             console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
             line += 1
 
-            if break_power >= 10:
-                console.print(content_x, content_y + line, " 최대 파괴력!", fg=(255, 100, 50))
+            if combo >= thresh:
+                console.print(content_x, content_y + line, "⚡ 연격 준비 완료!", fg=(255, 255, 100))
                 line += 1
-                console.print(content_x, content_y + line, " 방어 무시 100%", fg=(255, 255, 100))
+                console.print(content_x, content_y + line, " SCATTER 시 추가 행동 발동", fg=(255, 200, 100))
             else:
-                console.print(content_x, content_y + line, " 파괴력 축적 중...", fg=(150, 150, 150))
+                remaining = thresh - combo
+                console.print(content_x, content_y + line, f" 연격 충전 중... ({remaining} 필요)", fg=(150, 150, 150))
 
         elif gimmick_type == "plunder_system":
             # 해적 - 약탈
@@ -4946,6 +5594,133 @@ class CombatUI:
             else:
                 console.print(content_x, content_y + line, " 신앙 중심 - 회복 강화", fg=(200, 220, 255))
 
+        elif gimmick_type == "oracle_system":
+            # 신관 - 신탁 시스템
+            faith = getattr(character, 'faith', 0)
+            max_faith = getattr(character, 'max_faith', 100)
+            current_oracle = getattr(character, 'current_oracle', None)
+            oracle_combo = getattr(character, 'oracle_combo', 0)
+
+            box_height = 20
+
+            console.print(content_x, content_y + line, "✝ 신관 - 신탁 시스템", fg=(255, 220, 150))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 신앙 게이지
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, faith, max_faith, show_numbers=True, custom_color=(255, 215, 0))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 현재 신탁
+            oracle_turn_count = getattr(character, 'oracle_turn_count', 0)
+            if current_oracle:
+                oracle_name = current_oracle.get('name', '???')
+                oracle_condition = current_oracle.get('condition', '???')
+                console.print(content_x, content_y + line, f"현재 신탁: {oracle_name} [{oracle_turn_count}/4턴]", fg=(255, 255, 100))
+                line += 1
+                console.print(content_x, content_y + line, f"조건: {oracle_condition}", fg=(200, 200, 200))
+                line += 1
+            else:
+                console.print(content_x, content_y + line, f"현재 신탁: 없음 [{oracle_turn_count}/4턴]", fg=(150, 150, 150))
+                line += 1
+
+            console.print(content_x, content_y + line, f"연속 충족: {oracle_combo}회", fg=(200, 255, 200))
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 연속 충족 보너스
+            if oracle_combo >= 5:
+                console.print(content_x, content_y + line, "⚡ 기적의 은총 활성!", fg=(255, 215, 0))
+            elif oracle_combo >= 4:
+                console.print(content_x, content_y + line, "  4연속: 신앙 +30 추가", fg=(255, 255, 100))
+            elif oracle_combo >= 3:
+                console.print(content_x, content_y + line, "  3연속: 모든 효과 +20%", fg=(200, 255, 200))
+            elif oracle_combo >= 2:
+                console.print(content_x, content_y + line, "  2연속: 보상 +10", fg=(200, 220, 255))
+            else:
+                console.print(content_x, content_y + line, "  신탁 충족 필요", fg=(150, 150, 150))
+
+        elif gimmick_type == "crowd_cheer":
+            # 검투사 - 관중 요구
+            cheer = getattr(character, 'cheer', 0)
+            max_cheer = getattr(character, 'max_cheer', 100)
+            current_demand = getattr(character, 'current_demand', None)
+            demand_progress = getattr(character, 'demand_progress', 0)
+            consecutive_boos = getattr(character, 'consecutive_boos', 0)
+
+            box_height = 22
+
+            console.print(content_x, content_y + line, "⚔ 검투사 - 콜로세움의 영광", fg=(255, 100, 100))
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 환호 게이지
+            if cheer >= 100:
+                cheer_color = (255, 215, 0)
+                cheer_tier = "전설"
+            elif cheer >= 80:
+                cheer_color = (255, 100, 255)
+                cheer_tier = "챔피언"
+            elif cheer >= 60:
+                cheer_color = (255, 150, 100)
+                cheer_tier = "인기검투사"
+            elif cheer >= 30:
+                cheer_color = (200, 255, 200)
+                cheer_tier = "신인"
+            else:
+                cheer_color = (150, 150, 150)
+                cheer_tier = "무명"
+
+            gauge_renderer.render_bar(console, content_x, content_y + line, box_width - 6, cheer, max_cheer, show_numbers=True, custom_color=cheer_color)
+            line += 1
+            console.print(content_x, content_y + line, f"단계: {cheer_tier}", fg=cheer_color)
+            line += 2
+
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 현재 관중 요구
+            if current_demand:
+                demand_name = current_demand.get('name', '???')
+                console.print(content_x, content_y + line, f"관중 요구: {demand_name}", fg=(255, 255, 100))
+                line += 1
+                console.print(content_x, content_y + line, f"진행도: {demand_progress}", fg=(200, 200, 200))
+                line += 1
+            else:
+                console.print(content_x, content_y + line, "관중 요구: 없음", fg=(150, 150, 150))
+                line += 1
+
+            if consecutive_boos > 0:
+                console.print(content_x, content_y + line, f"연속 야유: {consecutive_boos}회", fg=(255, 100, 100))
+                line += 1
+
+            line += 1
+            console.print(box_x, box_y + line, "├" + "─" * (box_width - 2) + "┤", fg=(200, 200, 255))
+            line += 1
+
+            # 단계별 효과
+            if cheer >= 100:
+                console.print(content_x, content_y + line, "⚡ 그랜드 피날레 가능!", fg=(255, 215, 0))
+            elif cheer >= 80:
+                console.print(content_x, content_y + line, "  공격 +50%, 크리 +25%", fg=(255, 150, 255))
+                line += 1
+                console.print(content_x, content_y + line, "  반격률 +30%, 회피 +15%", fg=(255, 150, 255))
+            elif cheer >= 60:
+                console.print(content_x, content_y + line, "  공격 +30%, 크리 +15%", fg=(255, 200, 150))
+                line += 1
+                console.print(content_x, content_y + line, "  반격률 +20%", fg=(255, 200, 150))
+            elif cheer >= 30:
+                console.print(content_x, content_y + line, "  공격 +15%, 속도 +10%", fg=(200, 255, 200))
+            else:
+                console.print(content_x, content_y + line, "  환호 축적 필요", fg=(150, 150, 150))
+
         else:
             # 나머지 미구현 기믹들 (폴백)
             console.print(content_x, content_y + line, f"기믹: {gimmick_type}", fg=(200, 200, 200))
@@ -4961,8 +5736,29 @@ class CombatUI:
                 console.print(content_x, content_y + line, detail_line[:box_width - 6], fg=(200, 200, 200))
                 line += 1
 
+        # 실제 사용된 높이에 맞춰 테두리와 안내 문구를 렌더링
+        final_height = max(box_height, line + 3)
+        final_height = min(final_height, self.screen_height - box_y - 1)  # 화면 범위 초과 방지
+
+        # 박스 영역 배경(블랙) 적용 - 글자는 유지, 배경만 덮기
+        try:
+            bg_slice = console.rgb["bg"]
+            bg_slice[box_y:box_y + final_height, box_x:box_x + box_width] = (0, 0, 0)
+        except Exception:
+            pass
+
+        try:
+            # 박스 테두리
+            console.print(box_x, box_y, "┌" + "─" * (box_width - 2) + "┐", fg=(200, 200, 200), bg=(0, 0, 0))
+            for i in range(1, final_height - 1):
+                console.print(box_x, box_y + i, "│", fg=(120, 120, 120), bg=(0, 0, 0))
+                console.print(box_x + box_width - 1, box_y + i, "│", fg=(120, 120, 120), bg=(0, 0, 0))
+            console.print(box_x, box_y + final_height - 1, "└" + "─" * (box_width - 2) + "┘", fg=(200, 200, 200), bg=(0, 0, 0))
+        except Exception:
+            pass
+
         # 하단 안내
-        console.print(content_x, box_y + box_height - 2, "아무 키나 눌러 닫기...", fg=(150, 150, 150))
+        console.print(content_x, box_y + final_height - 2, "아무 키나 눌러 닫기...", fg=(150, 150, 150))
 
     def _create_gauge_bar(self, current: int, maximum: int, width: int = 10, danger_threshold: int = None, optimal_min: int = None, optimal_max: int = None) -> str:
         """게이지 바 생성
@@ -5341,15 +6137,30 @@ class CombatUI:
                 details.append("현재 형태: 👤 인간")
                 details.append("상태: 기본 상태")
 
-        # 마검사 - 마나 블레이드 시스템 (YAML: enchant_system)
+        # 마검사 - 블레이드 서킷 (YAML: blade_circuit)
+        elif gimmick_type == "blade_circuit":
+            steel = getattr(character, 'steel_line', 0)
+            mana = getattr(character, 'mana_line', 0)
+            max_steel = getattr(character, 'max_steel_line', 100)
+            max_mana = getattr(character, 'max_mana_line', 100)
+            sigil = getattr(character, 'resonance_sigil', 0)
+            max_sigil = getattr(character, 'max_resonance_sigil', 3)
+            details.append("=== 블레이드 서킷 ===")
+            steel_bar = self._create_gauge_bar(steel, max_steel, width=10)
+            mana_bar = self._create_gauge_bar(mana, max_mana, width=10)
+            details.append(f"스틸 라인 : {steel_bar} ({steel})")
+            details.append(f"마나 라인  : {mana_bar} ({mana})")
+            details.append(f"공명 시그넷: {sigil}")
+            if steel > 0 or mana > 0:
+                details.append(" 채널을 번갈아 사용해 Arc Spark/시그넷 축적")
+            else:
+                details.append(" 물리→마법→물리 순환으로 시그넷 생성")
         elif gimmick_type == "enchant_system":
             mana = getattr(character, 'mana_blade', 0)
             max_mana = getattr(character, 'max_mana_blade', 100)
             details.append("=== 마나 블레이드 시스템 ===")
             mana_bar = self._create_gauge_bar(mana, max_mana, width=10)
             details.append(f"마나 블레이드: {mana_bar} ({mana}/{max_mana})")
-            if mana >= 50:
-                details.append(" 마나 50+ - 물리/마법 동시 피해")
             if mana >= max_mana:
                 details.append(" 마나 MAX - 다음 스킬 무료 + 2배!")
             else:
@@ -5461,15 +6272,65 @@ class CombatUI:
             if break_power >= max_break:
                 details.append(" 파괴력 MAX - 방어 완전 관통!")
 
-        # 사무라이 - 거합 시스템 (YAML: iaijutsu_system)
-        elif gimmick_type == "iaijutsu_system":
-            charge = getattr(character, 'will_gauge', 0)
-            max_will = getattr(character, 'max_will_gauge', 100)
-            details.append("=== 거합 시스템 ===")
-            gauge_bar = self._create_gauge_bar(charge, max_will, width=10, optimal_min=80, optimal_max=max_will)
-            details.append(f"집중력: {gauge_bar}")
-            if charge >= max_will * 0.8:
-                details.append(" 일섬 가능!")
+        # 사무라이 - 검심 시스템 (YAML: kenshin_system)
+        elif gimmick_type == "kenshin_system":
+            observation = getattr(character, 'observation', 0)
+            kenatsu = getattr(character, 'kenatsu', 0)
+            max_observation = getattr(character, 'max_observation', 15)
+            max_kenatsu = getattr(character, 'max_kenatsu', 100)
+
+            details.append("=== 검심(剣心) 시스템 ===")
+
+            # 관찰 스택 게이지
+            observation_bar = self._create_gauge_bar(observation, max_observation, width=10,
+                                                     optimal_min=5, optimal_max=9)
+            details.append(f"관찰: {observation_bar} ({observation}/{max_observation})")
+
+            # 관찰 단계 표시
+            if observation >= 10:
+                details.append("⚔ 검성(剣聖) - 피해 35%↓, BRV 80% 반사")
+            elif observation >= 5:
+                details.append("⚔ 무심(無心) - 피해 20%↓, BRV 50% 반사")
+            else:
+                details.append("⚔ 초심(初心) - 피해 10%↓, BRV 30% 반사")
+
+            # 검압 게이지
+            kenatsu_bar = self._create_gauge_bar(kenatsu, max_kenatsu, width=10,
+                                                optimal_min=60, optimal_max=100)
+            details.append(f"검압: {kenatsu_bar} ({kenatsu}/{max_kenatsu})")
+
+            # 사용 가능한 기술 표시
+            if kenatsu >= 100:
+                details.append("✅ 무료타이가(검압 100) 사용 가능!")
+            elif kenatsu >= 60:
+                details.append("✅ 텐치쥬잔(검압 60) 사용 가능")
+            elif kenatsu >= 50:
+                details.append("✅ 켄아츠잔(검압 50) 사용 가능")
+            elif kenatsu >= 30:
+                details.append("✅ 미키리(검압 30) 사용 가능")
+
+            # 요미 예측 정보 표시 (토글 ON + 예측 활성 시에만 표시)
+            yomi_on = hasattr(character, "active_toggles") and "samurai_yomi" in getattr(character, "active_toggles", [])
+            prediction_active = getattr(character, "prediction_active", False)
+            has_prediction = hasattr(character, 'predicted_actions') and bool(character.predicted_actions)
+            if yomi_on and prediction_active and has_prediction:
+                details.append("")
+                details.append("=== 요미 예측 정보 ===")
+                for enemy_name, pred_info in character.predicted_actions.items():
+                    action_type = pred_info.get('action', '알 수 없음')
+                    atb_pct = pred_info.get('atb_percentage', 0)
+                    atb_bar = self._create_gauge_bar(atb_pct, 100, width=5)
+                    details.append(f"{enemy_name}:")
+                    details.append(f"  행동: {action_type}")
+                    details.append(f"  ATB: {atb_bar} ({atb_pct}%)")
+            elif yomi_on and prediction_active and not has_prediction:
+                details.append("")
+                details.append("=== 요미 예측 정보 ===")
+                details.append(" 예측 데이터 없음 (적 정보 또는 컨텍스트 확인 필요)")
+            else:
+                # 토글 OFF이거나 예측 비활성일 때는 예측 정보 섹션 자체를 숨김
+                pass
+
 
         # 성직자 - 신성 시스템 (YAML: holy_system)
         elif gimmick_type == "holy_system":
@@ -5607,6 +6468,38 @@ class CombatUI:
             details.append(f"약탈한 골드: {gauge_bar}")
             if gold >= 100:
                 details.append(" 대박! 강화 스킬 가능")
+
+        # 기계공학자 - 열 관리 + 포탑 시스템 (YAML: heat_management)
+        elif gimmick_type == "heat_management":
+            heat = getattr(character, 'heat', 0)
+            max_heat = getattr(character, 'max_heat', 100)
+            turrets = getattr(character, 'turret_count', 0)
+            fire_turrets = getattr(character, 'fire_turret_count', 0)
+            ice_turrets = getattr(character, 'ice_turret_count', 0)
+            thunder_turrets = getattr(character, 'thunder_turret_count', 0)
+            explosive_turrets = getattr(character, 'explosive_turret_count', 0)
+            heal_turrets = getattr(character, 'heal_turret_count', 0)
+            
+            details.append("=== 열 관리 & 포탑 시스템 ===")
+            heat_bar = self._create_gauge_bar(heat, max_heat, width=10, optimal_min=50, optimal_max=79, danger_threshold=80)
+            details.append(f"열: {heat_bar} ({heat}/{max_heat})")
+            details.append(f"총 포탑: {turrets}개")
+            if fire_turrets > 0:
+                details.append(f"  화염: {fire_turrets}개")
+            if ice_turrets > 0:
+                details.append(f"  빙결: {ice_turrets}개")
+            if thunder_turrets > 0:
+                details.append(f"  전기: {thunder_turrets}개")
+            if explosive_turrets > 0:
+                details.append(f"  폭발: {explosive_turrets}개")
+            if heal_turrets > 0:
+                details.append(f"  치유: {heal_turrets}개")
+            net_heat = -5 + turrets * 2
+            details.append(f"턴당 열 {net_heat:+d} (-5 + 포탑당 +2)")
+            if heat >= 80:
+                details.append(" [위험] 오버히트 주의!")
+            elif heat >= 50:
+                details.append(" [최적] 포탑 피해 +30%")
 
         else:
             return "기믹 상세 정보 없음"
@@ -5904,7 +6797,9 @@ def run_combat(
     is_multiplayer = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
     
     # 전투 매니저 생성
+    from src.combat.combat_manager import set_combat_manager
     combat_manager = CombatManager()
+    set_combat_manager(combat_manager)  # 전역 참조 설정
     
     # 멀티플레이 세션 설정 (게임오버 조건 체크용)
     if is_multiplayer and session:

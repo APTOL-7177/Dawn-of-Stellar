@@ -1,6 +1,7 @@
 """Skill - 스킬 클래스"""
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
+import random
 
 @dataclass
 class SkillResult:
@@ -31,6 +32,10 @@ class Skill:
         context = context or {}
         # 스킬 정보를 context에 추가 (특성 효과 적용을 위해)
         context['skill'] = self
+        
+        # 직접 스턴 상태 체크
+        if hasattr(user, 'is_stunned') and user.is_stunned:
+            return False, "스턴 상태로 스킬을 사용할 수 없습니다"
         
         # 행동 불가 상태이상 체크 (빙결, 기절 등 - 모든 행동 불가)
         if hasattr(user, 'status_manager'):
@@ -66,6 +71,33 @@ class Skill:
         
         # 메타데이터 기반 조건 체크
         if self.metadata:
+            # 은신 필수 스킬 체크 (도적/암살자 등)
+            if self.metadata.get("requires_stealth"):
+                in_stealth = getattr(user, "stealth_active", False)
+                if hasattr(user, "status_manager") and hasattr(user.status_manager, "has_stealth"):
+                    try:
+                        in_stealth = in_stealth or user.status_manager.has_stealth()
+                    except Exception:
+                        # 상태 매니저 예외 시 속성 기반만 사용
+                        pass
+                if not in_stealth:
+                    return False, "은신 상태가 필요합니다"
+
+            # 차원술사: 굴절량 필요
+            if self.metadata.get("requires_refraction_check"):
+                current_refraction = getattr(user, "refraction_stacks", 0)
+                if current_refraction <= 0:
+                    return False, "굴절이 필요합니다"
+
+            # 정령술사: 활성 정령 수량 체크
+            if self.metadata.get("requires_spirits"):
+                required_spirits = int(self.metadata.get("requires_spirits", 1))
+                current_spirits = 0
+                for spirit_attr in ("spirit_fire", "spirit_water", "spirit_wind", "spirit_earth"):
+                    current_spirits += getattr(user, spirit_attr, 0)
+                if current_spirits < required_spirits:
+                    return False, f"정령 {required_spirits}마리 이상 필요 (현재: {current_spirits})"
+
             # 배틀메이지: 서로 다른 룬 3개 필요
             if self.metadata.get("requires_different_runes"):
                 required_count = self.metadata.get("requires_different_runes", 3)
@@ -127,7 +159,28 @@ class Skill:
             # 정령술사: 융합 스킬 조건 체크
             if hasattr(user, 'gimmick_type') and user.gimmick_type == "elemental_spirits":
                 # 융합 스킬은 필요한 정령이 모두 소환되어 있어야 함
-                if self.metadata.get("requires_both_spirits", False):
+                # 새 형식: fusion=True, requires=["fire", "wind"]
+                if self.metadata.get("fusion", False) and self.metadata.get("requires"):
+                    requires = self.metadata.get("requires", [])
+                    spirit_map = {
+                        "fire": ("spirit_fire", "화염 정령"),
+                        "water": ("spirit_water", "물 정령"),
+                        "wind": ("spirit_wind", "바람 정령"),
+                        "earth": ("spirit_earth", "대지 정령")
+                    }
+                    
+                    missing_spirits = []
+                    for spirit_type in requires:
+                        if spirit_type in spirit_map:
+                            attr_name, display_name = spirit_map[spirit_type]
+                            if getattr(user, attr_name, 0) == 0:
+                                missing_spirits.append(display_name)
+                    
+                    if missing_spirits:
+                        return False, f"융합 스킬 사용 불가: {', '.join(missing_spirits)} 소환 필요"
+                
+                # 구 형식 호환: requires_both_spirits + fusion="fire_wind"
+                elif self.metadata.get("requires_both_spirits", False):
                     fusion_type = self.metadata.get("fusion", "")
                     spirit_fire = getattr(user, 'spirit_fire', 0)
                     spirit_water = getattr(user, 'spirit_water', 0)
@@ -169,10 +222,9 @@ class Skill:
                     spirit_type = self.metadata.get("spirit_type")
                     spirit_attr = f"spirit_{spirit_type}"
                     current_spirit_value = getattr(user, spirit_attr, 0)
-                    
-                    if current_spirits >= max_spirits and current_spirit_value == 0:
-                        return False, f"최대 정령 수 도달! (현재: {current_spirits}/{max_spirits}) 기존 정령을 해제하거나 대체해야 합니다"
-            
+
+                    # 소환 핸들러에서 교체를 처리하므로, 최대치라도 다른 종류 소환을 막지 않음
+
             # 암살자: 은신 스킬 조건 체크 (노출 상태에서 3턴 경과 후에만 사용 가능)
             if self.metadata.get("enter_stealth"):
                 if hasattr(user, 'gimmick_type') and user.gimmick_type == "stealth_exposure":
@@ -235,10 +287,22 @@ class Skill:
                     if current_timeline != required_timeline:
                         return False, f"타임라인 {required_timeline}에서만 사용 가능합니다 (현재: {current_timeline})"
             
+            # 아크메이지: 원소 스택 최소값 조건 체크 (원소 장막 등)
+            if hasattr(user, 'gimmick_type') and user.gimmick_type == "elemental_fusion":
+                if "min_total_stacks" in self.metadata:
+                    required_stacks = self.metadata.get("min_total_stacks", 0)
+                    fire_stacks = getattr(user, 'fire_element', 0)
+                    ice_stacks = getattr(user, 'ice_element', 0)
+                    lightning_stacks = getattr(user, 'lightning_element', 0)
+                    total_stacks = fire_stacks + ice_stacks + lightning_stacks
+
+                    if total_stacks < required_stacks:
+                        return False, f"원소 스택 부족 (필요: {required_stacks}, 현재: {total_stacks})"
+
             # 마술사: 트릭 덱 조건 체크
             if hasattr(user, 'gimmick_type') and user.gimmick_type == "trick_deck":
                 hand = getattr(user, 'card_hand', [])
-                
+
                 # 포커 조합 필요 스킬
                 if "required_combination" in self.metadata:
                     required_combo = self.metadata.get("required_combination")
@@ -310,7 +374,8 @@ class Skill:
                         return False, "조커 카드가 필요합니다"
                 
                 # 손패에서 카드 선택이 필요한 스킬 (에이스 인 더 홀 등)
-                if self.metadata.get("select_card_from_hand"):
+                # _card_processed가 True면 이미 gimmick_updater에서 처리됨
+                if self.metadata.get("select_card_from_hand") and not self.metadata.get("_card_processed"):
                     if not hand:
                         return False, "손패가 비어있습니다"
         
@@ -321,7 +386,47 @@ class Skill:
         context = context or {}
         # 스킬 정보를 context에 추가 (특성 효과 적용을 위해)
         context['skill'] = self
-        
+        if hasattr(self, "metadata") and self.metadata:
+            if "_selected_choice" in self.metadata and "selected_choice" not in context:
+                context["selected_choice"] = self.metadata.get("_selected_choice")
+                if "_selected_choice_name" in self.metadata:
+                    context["selected_choice_name"] = self.metadata.get("_selected_choice_name")
+
+        # 과부하 활성 시 컨텍스트 배율 전달 (피해 강화)
+        overload_active = False
+        if self.metadata.get("overload_capable") and self.metadata.get("_use_overload"):
+            overload_active = True
+            context['overload_active'] = True
+            ov_mult = self.metadata.get("overload_damage_multiplier", 1.2)
+            # 기존 power_multiplier와 곱연산
+            if 'power_multiplier' in context:
+                context['power_multiplier'] *= ov_mult
+            else:
+                context['power_multiplier'] = ov_mult
+
+        # 기적 스킬 신앙 요구/소모 처리 (YAML: requires_faith, consumes_faith)
+        meta = getattr(self, "metadata", {}) or {}
+        if meta.get("miracle"):
+            from src.character.gimmick_updater import GimmickUpdater
+            required_faith = meta.get("requires_faith", 0)
+            consumes_faith = meta.get("consumes_faith", 0)
+
+            # 신앙 자원 필드 결정 (paladin: faith, priest: faith_points)
+            faith_field = "faith"
+            if hasattr(user, "faith_points"):
+                faith_field = "faith_points"
+
+            current_faith = getattr(user, faith_field, 0)
+
+            # 요구치 미달 시 실패 처리
+            if required_faith and current_faith < required_faith:
+                return SkillResult(success=False, message=f"신앙 {required_faith} 이상 필요")
+
+            # 성공 시 신앙 소모 (effects 실행 후에도 유지)
+            context.setdefault("_consume_faith_after", 0)
+            if consumes_faith:
+                context["_consume_faith_after"] = (consumes_faith, faith_field)
+
         can_use, reason = self.can_use(user, context)
         if not can_use:
             return SkillResult(success=False, message=f"사용 불가: {reason}")
@@ -397,16 +502,28 @@ class Skill:
         is_dark_knight_for_cost = (hasattr(user, 'gimmick_type') and user.gimmick_type == "charge_system") or \
                                   (hasattr(user, 'character_class') and 'dark_knight' in str(user.character_class).lower()) or \
                                   (hasattr(user, 'job_id') and 'dark_knight' in str(user.job_id).lower())
+        is_sword_saint_for_cost = (hasattr(user, 'gimmick_type') and user.gimmick_type == "sword_aura") or \
+                                  (hasattr(user, 'character_class') and 'sword_saint' in str(user.character_class).lower()) or \
+                                  (hasattr(user, 'job_id') and 'sword_saint' in str(user.job_id).lower())
+        
+        # StackCost를 제외한 다른 비용들 먼저 소비
+        non_stack_costs = []
+        stack_costs = []
         
         for cost in self.costs:
-            # 스냅샷이 있거나 암흑기사이고 StackCost인 경우 건너뛰기
-            if has_snapshot or is_dark_knight_for_cost:
-                from src.character.skills.costs.stack_cost import StackCost
-                if isinstance(cost, StackCost):
-                    continue  # StackCost는 건너뛰고 effects의 GimmickEffect.CONSUME에서 처리
-            
+            from src.character.skills.costs.stack_cost import StackCost
+            if isinstance(cost, StackCost):
+                stack_costs.append(cost)
+            else:
+                non_stack_costs.append(cost)
+        
+        # StackCost가 아닌 비용들 먼저 소비
+        for cost in non_stack_costs:
             if not cost.consume(user, context):
                 return SkillResult(success=False, message="비용 소비 실패")
+        
+        # StackCost는 스킬 효과 실행 후에 소모할 예정 (검성, 암흑기사 제외)
+        # 검성과 암흑기사는 효과 실행 후에 StackCost를 소모함
 
         # 마술사 카드 소모 처리 (트릭 덱 시스템)
         if hasattr(user, 'gimmick_type') and user.gimmick_type == "trick_deck":
@@ -469,44 +586,37 @@ class Skill:
                             discard_cards(user, cards_to_discard)
                             card_names = [get_card_name(c) for c in cards_to_discard]
                             logger.info(f"[마술사] {user.name} 카드 소모: {', '.join(card_names)}")
-                
-                # 조커 필요 스킬 (조커 와일드)
-                elif self.metadata.get('required_joker'):
-                    joker = next((c for c in hand if c.get('is_joker')), None)
-                    if joker:
-                        discard_cards(user, [joker])
-                        logger.info(f"[마술사] {user.name} 조커 소모!")
 
-        # 랜덤 룬 추가 처리 (배틀메이지)
-        if self.metadata.get("random_rune") and hasattr(user, 'gimmick_type') and user.gimmick_type == "rune_resonance":
-            import random
-            rune_types = ["fire", "ice", "lightning", "earth", "arcane"]
-            selected_rune = random.choice(rune_types)
-            rune_field = f"rune_{selected_rune}"
-            current_value = getattr(user, rune_field, 0)
-            max_value = getattr(user, 'max_rune_per_type', 3)
-            if current_value < max_value:
-                setattr(user, rune_field, current_value + 1)
-                from src.core.logger import get_logger
-                logger = get_logger("skill")
-                logger.info(f"{user.name} 랜덤 룬 획득: {selected_rune} 룬 (+1, 총: {current_value + 1}/{max_value})")
-            
-            # 적에게 룬 새기기 (적이 리스트인 경우 첫 번째 적에게 적용)
-            target_list = target if isinstance(target, list) else [target]
-            for single_target in target_list:
-                if single_target and hasattr(single_target, 'is_alive') and single_target.is_alive:
-                    # 적의 carved_runes 딕셔너리 초기화 (없으면)
-                    if not hasattr(single_target, 'carved_runes'):
-                        single_target.carved_runes = {}
-                    
-                    # 랜덤 룬 타입을 적에게 새기기 (최대 3개까지)
-                    current_count = single_target.carved_runes.get(selected_rune, 0)
-                    if current_count < 3:
-                        single_target.carved_runes[selected_rune] = current_count + 1
-                        rune_names = {"fire": "화염", "ice": "냉기", "lightning": "번개", "earth": "대지", "arcane": "비전"}
-                        rune_name = rune_names.get(selected_rune, selected_rune)
-                        logger.info(f"{single_target.name}에게 {rune_name} 룬 새김! (총: {current_count + 1}/3)")
-                    break  # 첫 번째 적에게만 적용
+        # 배틀메이지 랜덤 룬 처리
+        if hasattr(user, 'gimmick_type') and user.gimmick_type == "rune_resonance":
+            if self.metadata and self.metadata.get('random_rune_gain'):
+                rune_types = ["fire", "ice", "lightning", "earth", "arcane"]
+                selected_rune = random.choice(rune_types)
+                rune_field = f"rune_{selected_rune}"
+                current_value = getattr(user, rune_field, 0)
+                max_value = getattr(user, 'max_rune_per_type', 3)
+                if current_value < max_value:
+                    setattr(user, rune_field, current_value + 1)
+                    from src.core.logger import get_logger
+                    logger = get_logger("skill")
+                    logger.info(f"{user.name} 랜덤 룬 획득: {selected_rune} 룬 (+1, 총: {current_value + 1}/{max_value})")
+
+                # 적에게 룬 새기기 (적이 리스트인 경우 첫 번째 적에게 적용)
+                target_list = target if isinstance(target, list) else [target]
+                for single_target in target_list:
+                    if single_target and hasattr(single_target, 'is_alive') and single_target.is_alive:
+                        # 적의 carved_runes 딕셔너리 초기화 (없으면)
+                        if not hasattr(single_target, 'carved_runes'):
+                            single_target.carved_runes = {}
+
+                        # 랜덤 룬 타입을 적에게 새기기 (최대 3개까지)
+                        current_count = single_target.carved_runes.get(selected_rune, 0)
+                        if current_count < 3:
+                            single_target.carved_runes[selected_rune] = current_count + 1
+                            rune_names = {"fire": "화염", "ice": "냉기", "lightning": "번개", "earth": "대지", "arcane": "비전"}
+                            rune_name = rune_names.get(selected_rune, selected_rune)
+                            logger.info(f"{single_target.name}에게 {rune_name} 룬 새김! (총: {current_count + 1}/3)")
+                        break  # 첫 번째 적에게만 적용
 
         # 커스텀 데미지 처리 (차원 폭발 등) - effects 실행 전에 굴절량 저장
         custom_damage_refraction = None
@@ -514,6 +624,15 @@ class Skill:
             # 굴절량 소모 전 값을 저장 (고정 피해 계산용)
             if hasattr(user, 'gimmick_type') and user.gimmick_type == "dimension_refraction":
                 custom_damage_refraction = getattr(user, 'refraction_stacks', 0)
+
+        # 기믹 선처리 (룬 각인 등)
+        pre_hook = {}
+        try:
+            if hasattr(user, "gimmick_type"):
+                from src.character.gimmick_updater import GimmickUpdater
+                pre_hook = GimmickUpdater.pre_skill_execution(user, self, target, context)
+        except Exception:
+            pass
 
         # 효과 실행 준비 (ISSUE-003: 효과 메시지 수집)
         total_dmg = 0
@@ -708,7 +827,19 @@ class Skill:
             # 고정 피해 배율 적용
             fixed_damage_multiplier = self.metadata.get("fixed_damage_multiplier", 1.0)
             fixed_damage = int(consumed_refraction * fixed_damage_multiplier)
-            
+
+            # 고정 피해 증폭 특성 확인 (차원술사)
+            if hasattr(user, 'active_traits'):
+                has_amplification = any(
+                    (t if isinstance(t, str) else t.get('id')) == 'fixed_damage_amplification'
+                    for t in user.active_traits
+                )
+                if has_amplification:
+                    fixed_damage = int(fixed_damage * 1.5)  # 고정 피해 +50%
+                    from src.core.logger import get_logger
+                    logger_temp = get_logger("skill")
+                    logger_temp.debug(f"[고정 피해 증폭] {user.name} 차원 폭발 피해: {fixed_damage} (+50%)")
+
             # 적 전체에게 고정 피해 적용
             from src.character.skills.effects.fixed_damage_effect import FixedDamageEffect
             targets_list = target if isinstance(target, list) else [target]
@@ -740,56 +871,87 @@ class Skill:
             if "self_damage_hp_percent" in self.metadata:
                 damage_percent = self.metadata.get("self_damage_hp_percent", 0)
                 max_hp = getattr(user, 'max_hp', 100)
+                current_hp_before = getattr(user, 'current_hp', max_hp)
                 self_damage = int(max_hp * damage_percent)
-                
+
+                # 굴절 전환: HP 소모 **전**에 HP 퍼센트 계산 (low_hp_efficiency_bonus)
+                multiplier = 1.0
+                if "refraction_gain_multiplier" in self.metadata:
+                    base_multiplier = self.metadata.get("refraction_gain_multiplier", 1.0)
+                    multiplier = base_multiplier
+
+                    # HP가 낮을수록 효율 증가 (low_hp_efficiency_bonus)
+                    if self.metadata.get("low_hp_efficiency_bonus", False):
+                        hp_percent = current_hp_before / max_hp if max_hp > 0 else 1.0
+
+                        max_efficiency_hp = self.metadata.get("max_efficiency_at_hp_percent", 0.5)  # 50%
+                        max_efficiency_mult = self.metadata.get("max_efficiency_multiplier", 1.5)
+
+                        # HP 100% ~ 50%: 1.0배 ~ max_efficiency_mult배 (선형 보간)
+                        # HP 50% 이하: 최대 max_efficiency_mult배
+                        if hp_percent <= max_efficiency_hp:
+                            efficiency_bonus = max_efficiency_mult
+                        else:
+                            # 100% HP에서 1.0배, 50% HP에서 max_efficiency_mult배
+                            t = (hp_percent - max_efficiency_hp) / (1.0 - max_efficiency_hp)
+                            efficiency_bonus = max_efficiency_mult - t * (max_efficiency_mult - 1.0)
+
+                        multiplier = base_multiplier * efficiency_bonus
+
+                        from src.core.logger import get_logger
+                        logger = get_logger("skill")
+                        logger.info(f"[굴절 전환] HP {hp_percent*100:.0f}% → base {base_multiplier}배 × 효율 {efficiency_bonus:.2f}배 = {multiplier:.2f}배")
+
                 # 고정 피해로 적용 (방어력 무시)
                 if hasattr(user, 'take_fixed_damage'):
                     actual_damage = user.take_fixed_damage(self_damage)
                 else:
                     # take_fixed_damage가 없으면 직접 HP 감소
-                    actual_damage = min(self_damage, user.current_hp)
-                    user.current_hp = max(1, user.current_hp - self_damage)  # 최소 1 HP 보장
-                
+                    actual_damage = min(self_damage, current_hp_before - 1)  # 최소 1 HP 보장
+                    user.current_hp = max(1, current_hp_before - actual_damage)
+
                 from src.core.logger import get_logger
                 logger = get_logger("skill")
                 logger.info(f"[자해] {user.name} 고정 피해: {actual_damage} (최대 HP의 {damage_percent * 100:.0f}%)")
                 effect_messages.append(f"자해 피해 {actual_damage}")
                 total_dmg += actual_damage  # 자해 피해도 total_damage에 포함
-                
-                # 굴절 전환: 자해 피해만큼 굴절량 획득 (refraction_gain_multiplier 적용)
+
+                # 굴절량 획득 (actual_damage 기반)
                 if "refraction_gain_multiplier" in self.metadata:
-                    base_multiplier = self.metadata.get("refraction_gain_multiplier", 1.0)
-                    multiplier = base_multiplier
-                    
-                    # HP가 낮을수록 효율 증가 (low_hp_efficiency_bonus)
-                    # HP 50% 이하에서 최대 2.5배 효율 (선형 보간)
-                    if self.metadata.get("low_hp_efficiency_bonus", False):
-                        current_hp = getattr(user, 'current_hp', 0)
-                        max_hp = getattr(user, 'max_hp', 100)
-                        hp_percent = current_hp / max_hp if max_hp > 0 else 1.0
-                        
-                        max_efficiency_hp = self.metadata.get("max_efficiency_at_hp_percent", 0.5)  # 50%
-                        max_efficiency_mult = self.metadata.get("max_efficiency_multiplier", 2.5)
-                        
-                        # HP 100% ~ 50%: 1.0배 ~ 2.5배 (선형 보간)
-                        # HP 50% 이하: 최대 2.5배
-                        if hp_percent <= max_efficiency_hp:
-                            efficiency_bonus = max_efficiency_mult
-                        else:
-                            # 100% HP에서 1.0배, 50% HP에서 2.5배
-                            # (hp_percent - max_efficiency_hp) / (1.0 - max_efficiency_hp) = 0~1
-                            t = (hp_percent - max_efficiency_hp) / (1.0 - max_efficiency_hp)
-                            efficiency_bonus = max_efficiency_mult - t * (max_efficiency_mult - 1.0)
-                        
-                        multiplier = base_multiplier * efficiency_bonus
-                        logger.info(f"[굴절 전환] HP {hp_percent*100:.0f}% → 효율 {efficiency_bonus:.2f}배")
-                    
-                    refraction_gain = int(self_damage * multiplier)
+                    refraction_gain = int(actual_damage * multiplier)
                     if not hasattr(user, 'refraction_stacks'):
                         user.refraction_stacks = 0
                     user.refraction_stacks += refraction_gain
-                    logger.info(f"[굴절 전환] {user.name} 굴절량 획득: +{refraction_gain} (총: {user.refraction_stacks})")
+                    logger.info(f"[굴절 전환] {user.name} 굴절량 획득: +{refraction_gain} (자해 {actual_damage} × {multiplier:.2f}배, 총: {user.refraction_stacks})")
                     effect_messages.append(f"굴절량 +{refraction_gain}")
+
+        # ===== 탱크 방어 스킬: damage_reduction 메타데이터를 버프로 적용 =====
+        if self.metadata.get("tank_skill") and self.metadata.get("damage_reduction"):
+            reduction_value = self.metadata["damage_reduction"]
+            duration = 3  # 기본 3턴
+            skill_id = self.skill_id
+            
+            # target이 "self"면 user에게, 아니면 target에게 적용
+            buff_target = user if self.target_type == "self" else target
+            if isinstance(buff_target, list):
+                buff_target = buff_target[0] if buff_target else user
+            
+            if buff_target and getattr(buff_target, 'is_alive', True):
+                if not hasattr(buff_target, 'active_buffs'):
+                    buff_target.active_buffs = {}
+                
+                # 스킬 ID를 키로 사용하여 피해 경감 버프 적용
+                buff_target.active_buffs[skill_id] = {
+                    'value': reduction_value,
+                    'duration': duration,
+                    'damage_reduction': reduction_value,  # take_damage에서 사용
+                    'remove_on_stance_change': self.metadata.get('remove_on_stance_change', False)
+                }
+                
+                from src.core.logger import get_logger
+                logger = get_logger("skill")
+                logger.info(f"[탱크 스킬] {buff_target.name}에게 피해 경감 {int(reduction_value*100)}% 적용 ({duration}턴)")
+                effect_messages.append(f"피해 경감 {int(reduction_value*100)}% ({duration}턴)")
 
         # 차원 보호막 버프 적용 (damage_reduction 메타데이터)
         if self.metadata.get("damage_reduction") and self.metadata.get("redirect_reduced_to_refraction"):
@@ -819,12 +981,49 @@ class Skill:
             logger.info(f"[차원 보호막] {user.name}이(가) 아군에게 피해 경감 {int(reduction_value*100)}% 부여 ({duration}턴)")
             effect_messages.append(f"피해 경감 {int(reduction_value*100)}% ({duration}턴)")
 
+        # 기믹 후처리 (Arc Spark, 룬 폭발 등)
+        try:
+            if hasattr(user, "gimmick_type"):
+                from src.character.gimmick_updater import GimmickUpdater
+                post_result = GimmickUpdater.post_skill_execution(user, self, target, context, pre_hook, total_damage=total_dmg)
+                if post_result:
+                    total_dmg += post_result.get("extra_damage", 0)
+                    total_heal += post_result.get("extra_heal", 0)
+                    effect_messages.extend(post_result.get("messages", []))
+        except Exception:
+            pass
+
+        # StackCost 소모 (스킬 효과 실행 후)
+        # 검성과 암흑기사는 StackCost를 효과 실행 후에 소모함
+        if stack_costs:
+            # 기본: 효과 실행 후 소비
+            # 검성/암흑기사도 동일 처리(스킬별 오버라이드 없음)
+            for cost in stack_costs:
+                if not cost.consume(user, context):
+                    from src.core.logger import get_logger
+                    logger = get_logger("skill")
+                    logger.warning(f"StackCost 소모 실패: {user.name} {self.name}")
+
         # 최종 메시지 구성 (ISSUE-003: 상세 피드백)
         base_message = f"{user.name}이(가) {self.name} 사용!"
         if effect_messages:
             full_message = base_message + "\n  → " + "\n  → ".join(effect_messages)
         else:
             full_message = base_message
+
+        # 신관 신탁 충족 체크 (oracle_action 메타데이터 처리)
+        if hasattr(user, 'gimmick_type') and user.gimmick_type == "oracle_system":
+            if self.metadata and 'oracle_action' in self.metadata:
+                from src.character.gimmick_updater import GimmickUpdater
+                oracle_action = self.metadata['oracle_action']
+                GimmickUpdater.check_oracle_fulfillment(user, oracle_action, context)
+
+        # 마술사 카드 처리 플래그 정리
+        if self.metadata:
+            self.metadata.pop('_card_processed', None)
+            # 과부하 사용 플래그 정리 (다음 스킬에 영향 없도록)
+            if self.metadata.get("_use_overload"):
+                self.metadata.pop("_use_overload", None)
 
         return SkillResult(
             success=True,

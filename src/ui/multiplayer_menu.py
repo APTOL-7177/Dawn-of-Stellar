@@ -20,9 +20,6 @@ class MultiplayerMenuResult(Enum):
     """멀티플레이 메뉴 결과"""
     HOST_GAME = "host_game"  # 호스트로 게임 시작
     JOIN_GAME = "join_game"  # 게임 참가
-    HOST_WITH_BOT = "host_with_bot"  # AI 봇과 함께 호스트
-    BOT_VS_BOT = "bot_vs_bot"  # 봇 vs 봇 관전
-    AI_BOT_TEST = "ai_bot_test"  # AI 봇 테스트 (버그 헌팅)
     BACK = "back"  # 뒤로가기
 
 
@@ -55,21 +52,6 @@ class MultiplayerMenu:
                 description="다른 플레이어의 방에 참가합니다"
             ),
             MenuItem(
-                text="🤖 AI 봇과 함께 플레이",
-                action=self._host_with_bot,
-                description="AI 봇 파티원과 함께 멀티플레이합니다"
-            ),
-            MenuItem(
-                text="🤖🤖 봇 vs 봇 관전",
-                action=self._bot_vs_bot,
-                description="AI 봇들끼리 대결하는 것을 관전합니다"
-            ),
-            MenuItem(
-                text="🐛 AI 버그 헌팅 (싱글)",
-                action=self._ai_bot_test,
-                description="AI가 자동으로 게임을 플레이하며 버그를 찾습니다"
-            ),
-            MenuItem(
                 text="뒤로가기",
                 action=self._back,
                 description="메인 메뉴로 돌아갑니다"
@@ -100,25 +82,7 @@ class MultiplayerMenu:
         self.logger.info("게임 참가 선택")
         play_sfx("ui", "confirm")
         self.result = MultiplayerMenuResult.JOIN_GAME
-    
-    def _ai_bot_test(self) -> None:
-        """AI 봇 테스트 (버그 헌팅)"""
-        self.logger.info("AI 봇 테스트 선택")
-        play_sfx("ui", "confirm")
-        self.result = MultiplayerMenuResult.AI_BOT_TEST
-    
-    def _host_with_bot(self) -> None:
-        """AI 봇과 함께 호스트"""
-        self.logger.info("AI 봇과 함께 플레이 선택")
-        play_sfx("ui", "confirm")
-        self.result = MultiplayerMenuResult.HOST_WITH_BOT
-    
-    def _bot_vs_bot(self) -> None:
-        """봇 vs 봇 관전"""
-        self.logger.info("봇 vs 봇 관전 선택")
-        play_sfx("ui", "confirm")
-        self.result = MultiplayerMenuResult.BOT_VS_BOT
-    
+
     def _back(self) -> None:
         """뒤로가기"""
         self.logger.info("뒤로가기 선택")
@@ -244,36 +208,6 @@ def show_multiplayer_menu(
                 if join_result:
                     return join_result
                 # 취소된 경우 메뉴 결과 초기화하고 메뉴로 돌아감
-                menu.result = None
-                continue
-            elif menu.result == MultiplayerMenuResult.AI_BOT_TEST:
-                # AI 봇 테스트 실행 (싱글)
-                from src.ui.ai_bug_hunter import run_ai_bug_hunter
-                bug_result = run_ai_bug_hunter(console, context)
-                if bug_result:
-                    return {
-                        "mode": "ai_bot_test",
-                        "result": bug_result
-                    }
-                menu.result = None
-                continue
-            elif menu.result == MultiplayerMenuResult.HOST_WITH_BOT:
-                # AI 봇과 함께 호스트 (나 + 봇)
-                return {
-                    "mode": "host_with_bot",
-                    "result": menu.result.value,
-                    "add_bot": True,
-                    "bot_count": 1  # 봇 1명 추가
-                }
-            elif menu.result == MultiplayerMenuResult.BOT_VS_BOT:
-                # 봇 vs 봇 관전 (봇 2명)
-                from src.ui.ai_spectate_mode import run_ai_spectate_mode
-                spectate_result = run_ai_spectate_mode(console, context)
-                if spectate_result:
-                    return {
-                        "mode": "bot_vs_bot",
-                        "result": spectate_result
-                    }
                 menu.result = None
                 continue
     
