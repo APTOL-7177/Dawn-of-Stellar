@@ -1478,7 +1478,7 @@ def main() -> int:
                                         floor_number, 
                                         dungeon_seed
                                     )
-                                    network_manager.broadcast_message(dungeon_msg)
+                                    network_manager.broadcast_sync(dungeon_msg)
                                     logger.info(f"Broadcasted DUNGEON_DATA for floor {floor_number}")
                                     
                                     # FLOOR_CHANGE 메시지 전송 (던전 데이터 전송 후)
@@ -1486,7 +1486,7 @@ def main() -> int:
                                         direction="floor_down", 
                                         from_town=is_from_town
                                     )
-                                    network_manager.broadcast_message(floor_change_msg)
+                                    network_manager.broadcast_sync(floor_change_msg)
                                     logger.info(f"Broadcasted FLOOR_CHANGE for floor {floor_number}")
                                     network_manager.current_dungeon = floor_data["dungeon"]
                                     network_manager.current_exploration = exploration

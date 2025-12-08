@@ -2130,9 +2130,12 @@ def run_exploration(
                     logger.info(f"📦 pending_data 존재: {pending_data is not None}, 타입: {type(pending_data).__name__ if pending_data else 'None'}")
                     
                     if pending_data:
-                        new_dungeon = deserialize_dungeon(pending_data)
+                        # deserialize_dungeon은 (dungeon, enemies) 튜플 반환
+                        new_dungeon, new_enemies = deserialize_dungeon(pending_data)
+                        
                         # exploration 업데이트
                         exploration.dungeon = new_dungeon
+                        exploration.enemies = new_enemies
                         exploration.floor_number = pending_floor
                         exploration.is_town = False  # 던전이므로 마을 플래그 해제
                         
