@@ -798,6 +798,17 @@ def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]
                 enemy_data["id"] = enemy.id
             enemies_data.append(enemy_data)
 
+    # 방(rooms) 직렬화 (클라이언트 시작 위치 동기화용)
+    rooms_data = []
+    if hasattr(dungeon, 'rooms') and dungeon.rooms:
+        for room in dungeon.rooms:
+            rooms_data.append({
+                "x": room.x,
+                "y": room.y,
+                "width": room.width,
+                "height": room.height
+            })
+
     return {
         "width": dungeon.width,
         "height": dungeon.height,
@@ -809,12 +820,13 @@ def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]
         "teleporters": {str(k): v for k, v in dungeon.teleporters.items()},  # Tuple key를 문자열로
         "harvestables": harvestables_data,  # 채집 오브젝트 추가
         "enemies": enemies_data,  # 적 추가
+        "rooms": rooms_data,  # 방 정보 추가
     }
 
 
 def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
     """던전 역직렬화 (던전과 적 리스트 반환)"""
-    from src.world.dungeon_generator import DungeonMap
+    from src.world.dungeon_generator import DungeonMap, Rect
     from src.world.tile import TileType
     from src.gathering.harvestable import HarvestableObject, HarvestableType
     from src.world.exploration import Enemy
@@ -823,6 +835,17 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
     
     # 마을 여부 복원 (멀티플레이 동기화용)
     dungeon.is_town = dungeon_data.get("is_town", False)
+
+    # 방 복원
+    if "rooms" in dungeon_data:
+        for room_data in dungeon_data["rooms"]:
+            room = Rect(
+                room_data["x"],
+                room_data["y"],
+                room_data["width"],
+                room_data["height"]
+            )
+            dungeon.rooms.append(room)
 
     # 타일 복원
     for tile_data in dungeon_data["tiles"]:
