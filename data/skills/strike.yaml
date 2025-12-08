@@ -1,0 +1,26 @@
+id: strike
+name: 원소 일격
+type: attack
+description: '응축된 원소 힘을 담은 기본 BRV 공격입니다.
+
+  BRV 1.1 피해를 가합니다.
+
+  '
+target: enemy
+metadata:
+  job: elementalist
+  basic_attack: true
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magical
+  multiplier: 1.1
+animation:
+  icon: ??
+  color:
+  - 120
+  - 200
+  - 255
+sfx:
+- se
+- Magic1

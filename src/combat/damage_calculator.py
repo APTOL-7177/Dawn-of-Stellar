@@ -135,6 +135,52 @@ class DamageCalculator:
 
         final_damage = max(1, int(damage))
 
+        # 검기 충격 특성 (sword_energy): 물리 공격 시 검기로 추가 피해 (공격력의 30%)
+        sword_energy_bonus = 0
+        if hasattr(attacker, 'active_traits'):
+            for trait_data in attacker.active_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else (trait_data.get('id') if isinstance(trait_data, dict) else None)
+                if trait_id == 'sword_energy':
+                    sword_energy_bonus = int(attacker_atk * 0.30)
+                    final_damage += sword_energy_bonus
+                    self.logger.debug(f"[검기 충격] {attacker.name} 추가 피해: +{sword_energy_bonus}")
+                    break
+        
+        # available_traits에서도 체크 (검성 기본 특성)
+        if sword_energy_bonus == 0 and hasattr(attacker, 'available_traits'):
+            for trait_data in attacker.available_traits:
+                trait_id = trait_data if isinstance(trait_data, str) else (trait_data.get('id') if isinstance(trait_data, dict) else None)
+                if trait_id == 'sword_energy':
+                    sword_energy_bonus = int(attacker_atk * 0.30)
+                    final_damage += sword_energy_bonus
+                    self.logger.debug(f"[검기 충격] {attacker.name} 추가 피해: +{sword_energy_bonus}")
+                    break
+
+        # 특성 체크 헬퍼 함수
+        def has_trait(char, trait_id_to_check):
+            for attr in ['active_traits', 'available_traits']:
+                if hasattr(char, attr) and getattr(char, attr):
+                    for t in getattr(char, attr):
+                        tid = t if isinstance(t, str) else (t.get('id') if isinstance(t, dict) else None)
+                        if tid == trait_id_to_check:
+                            return True
+            return False
+
+        # 집중의 일격 (focus_strike): 단일 대상 공격 시 데미지 +40%
+        is_single_target = kwargs.get('is_single_target', True)  # 기본값 True
+        if is_single_target and has_trait(attacker, 'focus_strike'):
+            bonus = int(final_damage * 0.40)
+            final_damage += bonus
+            self.logger.debug(f"[집중의 일격] {attacker.name} 단일 대상 보너스: +{bonus}")
+
+        # 필살의 일격 (final_strike): HP 30% 이하일 때 피해량 +50%
+        if hasattr(attacker, 'current_hp') and hasattr(attacker, 'max_hp'):
+            hp_percent = attacker.current_hp / max(1, attacker.max_hp)
+            if hp_percent <= 0.30 and has_trait(attacker, 'final_strike'):
+                bonus = int(final_damage * 0.50)
+                final_damage += bonus
+                self.logger.debug(f"[필살의 일격] {attacker.name} HP {hp_percent*100:.0f}% 보너스: +{bonus}")
+
         # 난이도 보정 (플레이어가 공격자인 경우)
         from src.core.difficulty import get_difficulty_system
         difficulty_system = get_difficulty_system()
@@ -142,12 +188,66 @@ class DamageCalculator:
             player_dmg_mult = difficulty_system.get_player_damage_multiplier()
             final_damage = int(final_damage * player_dmg_mult)
 
+        # [NEW] SCATTER 보너스 (BRV 공격에도 적용, 단 연격 게이지는 증가하지 않음)
+        from src.combat.status_effects import StatusType
+        
+        is_scattered = getattr(defender, "is_scattered", False)
+        if not is_scattered and hasattr(defender, 'status_manager'):
+            is_scattered = defender.status_manager.has_status(StatusType.SCATTER)
+        
+        scatter_applied = False
+        scatter_mult = 1.0
+        if is_scattered:
+            # 기본 수치
+            scatter_base = 1.6
+            scatter_ramp = 0.08
+            
+            # 원인 제공자(브레이커)의 특성 확인
+            source = getattr(defender, "scatter_source", None)
+            if not source and hasattr(defender, 'status_manager'):
+                scatter_status = defender.status_manager.get_status(StatusType.SCATTER)
+                if scatter_status:
+                    source = getattr(scatter_status, 'source', None)
+            
+            if source:
+                # 엔진 오버클럭 (engine_overclock): 150% -> 185% (기본 1.6에서 증가)
+                is_overclock = False
+                is_chemical = False
+                
+                if hasattr(source, "system_traits") and "engine_overclock" in source.system_traits: is_overclock = True
+                if hasattr(source, "traits"):
+                    for t in source.traits:
+                        tid = t if isinstance(t, str) else t.get("id")
+                        if tid == "engine_overclock": is_overclock = True
+                        if tid == "chemical_resonance": is_chemical = True
+                
+                if is_overclock: scatter_base = 1.85
+                if is_chemical: scatter_ramp = 0.12
+            
+            # 스택에 따른 배율 계산
+            stack_count = 0
+            if hasattr(defender, 'status_manager'):
+                scatter_status = defender.status_manager.get_status(StatusType.SCATTER)
+                if scatter_status:
+                    # StatusEffect는 스택 1부터 시작하므로 -1 해줌 (초기 0스택 효과)
+                    stack_count = max(0, scatter_status.stack_count - 1)
+            
+            # 이전 속성 fallback (호환성)
+            if stack_count == 0:
+                stack_count = getattr(defender, "scatter_stacks", 0)
+
+            scatter_mult = scatter_base + (stack_count * scatter_ramp)
+            final_damage = int(final_damage * scatter_mult)
+            scatter_applied = True
+            self.logger.info(f"[SCATTER-BRV] 데미지 배율: {scatter_mult:.2f}x (Base: {scatter_base}, Stack: {stack_count})")
+
         self.logger.debug(
             f"BRV 데미지 계산: {attacker.name} → {defender.name}",
             {
                 "base": base_damage,
                 "final": final_damage,
-                "critical": is_critical
+                "critical": is_critical,
+                "scatter_applied": scatter_applied
             }
         )
 
@@ -160,7 +260,10 @@ class DamageCalculator:
             details={
                 "attacker_atk": attacker_atk,
                 "defender_def": defender_def,
-                "brv_multiplier": self.brv_damage_multiplier
+                "brv_multiplier": self.brv_damage_multiplier,
+                "is_scattered": scatter_applied,
+                "scatter_multiplier": scatter_mult if scatter_applied else 1.0,
+                # NOTE: BRV 공격은 scatter_ramp를 별도로 전달하지 않음 (연격 게이지 증가 방지)
             }
         )
 
@@ -281,12 +384,69 @@ class DamageCalculator:
             damage = int(damage * self.critical_multiplier * critical_dmg_mult)
             self.logger.info(f"[CRITICAL] HP 공격! {attacker.name} (배율: {self.critical_multiplier * critical_dmg_mult:.2f}x)")
 
-        # BREAK 보너스
-        if is_break:
-            # 브레이크 보너스 계산 (break_master 등)
+        # BREAK 및 SCATTER 보너스 (SCATTER 우선 적용)
+        from src.combat.status_effects import StatusType
+        
+        details = {}  # 상세 정보 저장용
+        
+        # SCATTER 여부 확인
+        is_scattered = getattr(defender, "is_scattered", False)
+        if not is_scattered and hasattr(defender, 'status_manager'):
+             is_scattered = defender.status_manager.has_status(StatusType.SCATTER)
+
+        if is_scattered:
+            # 기본 수치
+            scatter_base = 1.6
+            scatter_ramp = 0.08
+            
+            # 원인 제공자(브레이커)의 특성 확인
+            source = getattr(defender, "scatter_source", None)
+            if not source and hasattr(defender, 'status_manager'):
+                scatter_status = defender.status_manager.get_status(StatusType.SCATTER)
+                if scatter_status:
+                    source = getattr(scatter_status, 'source', None)
+            
+            if source:
+                # 엔진 오버클럭 (engine_overclock): 150% -> 185% (기본 1.6에서 증가)
+                is_overclock = False
+                is_chemical = False
+                
+                if hasattr(source, "system_traits") and "engine_overclock" in source.system_traits: is_overclock = True
+                if hasattr(source, "traits"):
+                        for t in source.traits:
+                            tid = t if isinstance(t, str) else t.get("id")
+                            if tid == "engine_overclock": is_overclock = True
+                            if tid == "chemical_resonance": is_chemical = True
+                
+                if is_overclock: scatter_base = 1.85
+                if is_chemical: scatter_ramp = 0.12
+            
+            # 스택에 따른 배율 계산
+            stack_count = 0
+            if hasattr(defender, 'status_manager'):
+                 scatter_status = defender.status_manager.get_status(StatusType.SCATTER)
+                 if scatter_status:
+                     # StatusEffect는 스택 1부터 시작하므로 -1 해줌 (초기 0스택 효과)
+                     stack_count = max(0, scatter_status.stack_count - 1)
+            
+            # 이전 속성 fallback (호환성)
+            if stack_count == 0:
+                 stack_count = getattr(defender, "scatter_stacks", 0)
+
+            scatter_mult = scatter_base + (stack_count * scatter_ramp)
+            
+            damage = int(damage * scatter_mult)
+            self.logger.info(f"[SCATTER] 데미지 배율: {scatter_mult:.2f}x (Base: {scatter_base}, Stack: {stack_count})")
+            
+            # 상세 정보에 scatter_ramp 추가 (연격 게이지 계산용)
+            details["scatter_ramp"] = scatter_ramp
+            
+            # SCATTER 상태여도 BREAK 보너스는 중복 적용하지 않음 (SCATTER가 상위 호환)
+
+        elif is_break:
+            # 일반 BREAK 보너스
             break_bonus = trait_manager.calculate_break_bonus(attacker)
             if break_bonus > 0:
-                # break_bonus는 추가 배율 (1.5 = 150%)
                 break_mult = 1.0 + (break_bonus - 1.0)
             else:
                 break_mult = self.break_damage_bonus
@@ -294,7 +454,7 @@ class DamageCalculator:
             self.logger.info(f"[BREAK BONUS] 데미지! {damage} ({break_mult:.2f}x)")
 
         final_damage = max(5, damage)
-        
+
         # 피해 감소 적용 (damage_reduction, brave_soul 등)
         damage_reduction = trait_manager.calculate_damage_reduction(defender, is_defending=kwargs.get("is_defending", False))
         if damage_reduction > 0:
@@ -338,6 +498,8 @@ class DamageCalculator:
             details={
                 "brv_points": brv_points,
                 "skill_multiplier": hp_multiplier,
+                "is_scattered": is_scattered,
+                "scatter_source": source if 'source' in locals() and source else getattr(defender, "scatter_source", None),
                 "stat_modifier": stat_modifier,
                 "attacker_stat": attacker_stat,
                 "defender_stat": defender_stat,
@@ -345,7 +507,8 @@ class DamageCalculator:
                 "is_critical": is_critical,
                 "critical_multiplier": self.critical_multiplier if is_critical else 1.0,
                 "is_break": is_break,
-                "break_bonus": self.break_damage_bonus if is_break else 1.0
+                "break_bonus": self.break_damage_bonus if is_break else 1.0,
+                **details # scatter_ramp 등 병합
             }
         )
 

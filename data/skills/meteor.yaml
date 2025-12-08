@@ -10,3 +10,6 @@ effects:
   element: fire
   multiplier: 4.0
   stat_base: magic
+sfx:
+- se
+- Magic1

@@ -106,6 +106,7 @@ class Events:
     COMBAT_ACTION = "combat.action"
     COMBAT_DAMAGE_DEALT = "combat.damage_dealt"
     COMBAT_DAMAGE_TAKEN = "combat.damage_taken"
+    COMBAT_HIT = "combat.hit"  # 다단히트 개별 타격 이벤트
 
     # Character Events
     CHARACTER_CREATED = "character.created"

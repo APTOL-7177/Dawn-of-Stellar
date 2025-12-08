@@ -168,9 +168,9 @@ def create_illusionist_skills():
     phantom_rain = Skill("illusionist_phantom_rain", "환영우",
                         "전체 BRV → 랜덤 HP 공격, 환영 많을수록 타수 증가 (마법)")
     phantom_rain.effects = [
-        DamageEffect(DamageType.BRV, 0.8, stat_type="magical"),
-        DamageEffect(DamageType.HP, 0.3, stat_type="magical",
-                    gimmick_bonus={"field": "phantom_count", "multiplier": 1.0}),
+        DamageEffect(DamageType.BRV, 0.35, stat_type="magical"),
+        DamageEffect(DamageType.HP, 0.12, stat_type="magical",
+                    gimmick_bonus={"field": "phantom_count", "multiplier": 0.1}),
         BuffEffect(BuffType.ACCURACY_DOWN, 0.10, duration=2)  # 적 명중 감소
     ]
     phantom_rain.costs = [MPCost(18)]
@@ -280,6 +280,43 @@ def create_illusionist_skills():
     teamwork.sfx = ("skill", "teamwork")
     teamwork.metadata = {"teamwork": True, "chain": True, "party_evasion": True}
 
+    # === 방어형 스킬 ===
+
+    # 20. 거울 감응 (Mirror Resonance) - 방어형 스킬
+    mirror_resonance = Skill("illusionist_mirror_resonance", "거울 감응",
+                            "환영 3개 이상일 때 방어력/마법방어력 +25%, 회피 성공 시 환영 복구")
+    mirror_resonance.effects = [
+        BuffEffect(BuffType.DEFENSE_UP, 0.25, duration=3),
+        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.25, duration=3)
+    ]
+    mirror_resonance.costs = [MPCost(9)]
+    mirror_resonance.target_type = "self"
+    mirror_resonance.sfx = ("skill", "protect")
+    mirror_resonance.metadata = {
+        "tank_skill": True,
+        "requires_phantom": 3,
+        "evasion_synergy": True,
+        "on_evade_restore_phantom": True,
+        "skill_category": "defense"
+    }
+
+    # 21. 환영 장막 (Phantom Aegis) - 방어형 스킬
+    phantom_aegis = Skill("illusionist_phantom_aegis", "환영 장막",
+                         "받는 피해 50%를 환영이 대신 받음, 피해 받은 환영 즉시 파괴")
+    phantom_aegis.effects = [
+        GimmickEffect(GimmickOperation.ADD, "phantom_count", 1, max_value=4)  # 보너스 환영
+    ]
+    phantom_aegis.costs = [MPCost(13)]
+    phantom_aegis.target_type = "self"
+    phantom_aegis.sfx = ("skill", "barrier")
+    phantom_aegis.metadata = {
+        "tank_skill": True,
+        "requires_phantom": 1,
+        "phantom_damage_redirect": 0.50,
+        "destroy_phantom_on_redirect": True,
+        "skill_category": "defense"
+    }
+
     return [
         phantom_slash, mirror_shard,  # 기본 공격
         summon_phantom, phantom_army, mirror_replacement,  # 환영 소환
@@ -288,7 +325,8 @@ def create_illusionist_skills():
         confusion_veil, taunt_split, mirror_trap,  # 디버프/유틸
         afterimage_burst,  # 잔상
         infinite_reflection,  # 궁극기
-        teamwork  # 팀워크
+        teamwork,  # 팀워크
+        mirror_resonance, phantom_aegis  # 방어형 스킬
     ]
 
 

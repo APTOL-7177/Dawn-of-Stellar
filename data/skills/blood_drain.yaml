@@ -10,3 +10,6 @@ effects:
   element: dark
   multiplier: 2.4
   stat_base: magic
+sfx:
+- se
+- Magic1

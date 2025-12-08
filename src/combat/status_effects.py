@@ -53,6 +53,7 @@ class StatusType(Enum):
     MANA_REGENERATION = "마나재생"
     MANA_INFINITE = "무한마나"
     HOLY_BLESSING = "성스러운축복"
+    OVERCLOCK = "오버클럭"
 
     # === 보호막 시스템 (7개) ===
     BARRIER = "보호막"
@@ -80,10 +81,12 @@ class StatusType(Enum):
     WEAKEN = "약화"
     CONFUSION = "혼란"
     TERROR = "공포"
-    FEAR = "공포"
-    DESPAIR = "절망"
-    HOLY_WEAKNESS = "성스러운약점"
-    WEAKNESS_EXPOSURE = "약점노출"
+    FEAR = "두려움"  # 공포와 유사, AI 사용
+    DESPAIR = "절망"  # 디버프 상태
+    MP_DRAIN = "MP소모"
+    CHILL = "냉기"
+    SHOCK = "감전"
+    NATURE_CURSE = "자연저주"
 
     # === 상태이상 - DOT (11개) ===
     POISON = "독"
@@ -93,10 +96,6 @@ class StatusType(Enum):
     CORROSION = "부식"
     DISEASE = "질병"
     NECROSIS = "괴사"
-    MP_DRAIN = "MP소모"
-    CHILL = "냉기"
-    SHOCK = "감전"
-    NATURE_CURSE = "자연저주"
 
     # === 행동 제약 - CC (14개) ===
     STUN = "기절"
@@ -166,6 +165,28 @@ class StatusType(Enum):
     
     # === 마술사 스킬용 특수 상태 ===
     DOOM = "죽음의선고"  # 타임 봄: 지연 폭발
+    
+    # === 아크메이지 융합 스킬용 상태 효과 ===
+    ELECTROCUTED = "감전"  # DoT + ATB 증가율 감소
+    SLOWED = "둔화"  # ATB 증가율 감소
+    DEFENSE_SHATTER = "방어파쇄"  # 물리/마법 방어력 -30% + 다음 공격 BRV +25%
+    WOUND = "상처"  # 회복 효과 -50%
+    BURNING = "작열"  # 강화된 화상 DoT + 화염 저항 -30%
+    FROZEN_SOLID = "동결"  # 행동 불가 (빙결 강화 버전)
+    
+    # === 아크메이지 원소 낙인 ===
+    FIRE_BRAND = "화염낙인"  # 화염 데미지 +40%, 화염 공격시 화상 1턴 추가
+    ICE_BRAND = "빙결낙인"  # 빙결 데미지 +40%, 빙결 공격시 ATB -100
+    LIGHTNING_BRAND = "번개낙인"  # 번개 데미지 +40%, 번개 공격시 BRV -30%
+    
+    # === 아크메이지 지연 마법진 ===
+    FIRE_GLYPH = "화염마법진"  # 설치된 화염 마법진
+    ICE_GLYPH = "빙결마법진"  # 설치된 빙결 마법진
+    LIGHTNING_GLYPH = "번개마법진"  # 설치된 번개 마법진
+    
+    # === 아크메이지 원소 장막 ===
+    ELEMENTAL_AEGIS = "원소장막"  # 원소 보호막 활성화
+    SCATTER = "자세무너짐"  # 자세 무너짐
 
 
 @dataclass
@@ -228,6 +249,7 @@ class StatusManager:
         self.owner = owner  # 캐릭터 객체 참조
         self.status_effects: List[StatusEffect] = []
         self.effects = self.status_effects  # 호환성을 위한 별칭
+        self.immune_to_all = False  # 모든 상태이상 면역
 
     def add_status(
         self,
@@ -244,6 +266,11 @@ class StatusManager:
         Returns:
             새로운 효과가 추가되었으면 True, 기존 효과를 갱신했으면 False
         """
+        # 면역 체크
+        if self.immune_to_all:
+            logger.debug(f"{self.owner_name}: 상태이상 면역 - {status_effect.name} 무시")
+            return False
+            
         existing = self.get_status(status_effect.status_type)
 
         if existing:
@@ -369,6 +396,12 @@ class StatusManager:
                 if gauge:
                     gauge.is_sleeping = False
                     logger.debug(f"{self.owner_name}: 수면 상태 제거 → ATB 게이지 플래그 해제")
+            
+            # SCATTER 상태 제거 시 플래그 해제
+            elif status_type == StatusType.SCATTER and self.owner:
+                self.owner.is_scattered = False
+                self.owner.scatter_source = None
+                logger.debug(f"{self.owner_name}: SCATTER 상태 제거 → 플래그 해제")
 
             # 이벤트 발행
             event_bus.publish(Events.STATUS_REMOVED, {
@@ -445,8 +478,30 @@ class StatusManager:
                     gauge = atb_system.get_gauge(self.owner)
                     if gauge:
                         gauge.is_sleeping = False
+                    if gauge:
+                        gauge.is_sleeping = False
                         logger.debug(f"{self.owner_name}: 수면 상태 만료 → ATB 게이지 플래그 해제")
                 
+                # SCATTER 상태 만료 시 플래그 해제
+                elif effect.status_type == StatusType.SCATTER and self.owner:
+                    self.owner.is_scattered = False
+                    self.owner.scatter_source = None
+                    logger.debug(f"{self.owner_name}: SCATTER 상태 만료 → 플래그 해제")
+                
+                # GUARDIAN (보호) 만료 시 protected_by 정리
+                elif effect.status_type == StatusType.GUARDIAN and self.owner:
+                    protector = effect.metadata.get('protector')
+                    if protector and hasattr(self.owner, 'protected_by'):
+                        # 해당 보호자에 의한 보호 정보 제거
+                        original_len = len(self.owner.protected_by)
+                        self.owner.protected_by = [p for p in self.owner.protected_by if p['protector'] != protector]
+                        if len(self.owner.protected_by) < original_len:
+                            logger.debug(f"{self.owner_name}: 보호 상태 만료 → 보호자 {getattr(protector, 'name', 'Unknown')} 연결 해제")
+                            
+                        # 보호자의 protected_allies에서도 제거
+                        if hasattr(protector, 'protected_allies'):
+                            protector.protected_allies = [r for r in protector.protected_allies if r['target'] != self.owner]
+
                 # DOOM (죽음의 선고) 만료 시 폭발 피해 - 적 전체 동시 폭발!
                 elif effect.status_type == StatusType.DOOM and self.owner:
                     # 시전자 정보에서 폭발 피해 계산
@@ -535,7 +590,10 @@ class StatusManager:
             StatusType.NECROSIS: {"name": "괴사", "multiplier": 0.20, "icon": "💀"},
             StatusType.CHILL: {"name": "냉기", "multiplier": 0.05, "icon": "❄️"},
             StatusType.SHOCK: {"name": "감전", "multiplier": 0.12, "icon": "⚡"},
-            StatusType.NATURE_CURSE: {"name": "자연저주", "multiplier": 0.10, "icon": "🌿"}
+            StatusType.NATURE_CURSE: {"name": "자연저주", "multiplier": 0.10, "icon": "🌿"},
+            # 아크메이지 융합 스킬 DoT
+            StatusType.ELECTROCUTED: {"name": "감전", "multiplier": 0.20, "icon": "⚡"},  # 극한뇌전 감전
+            StatusType.BURNING: {"name": "작열", "multiplier": 0.40, "icon": "🔥"},  # 원소 과부하 작열
         }
 
         total_damage = 0
@@ -551,10 +609,12 @@ class StatusManager:
             # metadata에서 base_damage 가져오기 (스킬 사용 시 계산된 값)
             base_damage = effect.metadata.get("base_damage", 0)
 
-            # base_damage가 없으면 intensity와 multiplier로 계산
+            # base_damage가 없으면 대상 최대 HP 기준으로 계산
             if base_damage == 0:
-                # 기본값으로 intensity * 10 사용 (레거시 호환성)
-                base_damage = int(effect.intensity * dot_info["multiplier"] * 100)
+                # 대상의 최대 HP × 기본 배율 × intensity로 계산
+                target_max_hp = getattr(target, 'max_hp', 1000)
+                intensity_mult = effect.intensity if effect.intensity > 0 else 1.0
+                base_damage = int(target_max_hp * dot_info["multiplier"] * intensity_mult)
 
             # 스택 수 적용
             damage = int(base_damage * effect.stack_count)
@@ -578,7 +638,7 @@ class StatusManager:
             # HP 데미지 적용
             if damage > 0:
                 if hasattr(target, 'take_damage'):
-                    actual_damage = target.take_damage(damage)
+                    actual_damage = target.take_damage(damage, is_dot=True)
                 elif hasattr(target, 'current_hp'):
                     actual_damage = min(damage, target.current_hp)
                     target.current_hp = max(0, target.current_hp - actual_damage)
@@ -642,7 +702,8 @@ class StatusManager:
             StatusType.FREEZE,
             StatusType.PETRIFY,
             StatusType.PARALYZE,
-            StatusType.TIME_STOP
+            StatusType.TIME_STOP,
+            StatusType.FROZEN_SOLID,  # 아크메이지 동결 (빙결 과부하)
         ]
 
         return not any(
@@ -813,6 +874,23 @@ class StatusManager:
                 # intensity = 감소율 (기본 0.7 = 70% 감소)
                 blind_reduction = min(effect.intensity, 0.9)  # 최대 90% 감소
                 modifiers['accuracy'] *= max(1.0 - blind_reduction, 0.05)
+            
+            # === 아크메이지 융합 스킬 상태 효과 ===
+            elif effect.status_type == StatusType.DEFENSE_SHATTER:
+                # 방어 파쇄: 물리/마법 방어력 -30%
+                shatter_reduction = min(effect.intensity, 0.5)  # 최대 50% 감소
+                modifiers['physical_defense'] *= max(1.0 - shatter_reduction, 0.3)
+                modifiers['magic_defense'] *= max(1.0 - shatter_reduction, 0.3)
+            elif effect.status_type == StatusType.SLOWED:
+                # 둔화: ATB 증가율 감소 (speed 배율로 처리)
+                slow_amount = min(effect.intensity, 0.5)  # 최대 50% 감소
+                modifiers['speed'] *= max(1.0 - slow_amount, 0.5)
+            elif effect.status_type == StatusType.ELECTROCUTED:
+                # 감전: ATB 증가율 -15% (speed 배율로 처리)
+                modifiers['speed'] *= 0.85
+            elif effect.status_type == StatusType.BURNING:
+                # 작열: 화염 저항 감소 (magic_defense 사용)
+                modifiers['magic_defense'] *= 0.70  # 화염 저항 -30%
             elif effect.status_type == StatusType.TERROR:
                 # intensity = 감소율 (기본 0.4 = 40% 감소)
                 terror_atk_reduction = min(effect.intensity * 0.4, 0.6)  # 최대 60% 감소
@@ -1018,6 +1096,21 @@ STATUS_ICONS: Dict[StatusType, str] = {
     StatusType.BERSERK: "🤬",
     StatusType.VAMPIRE: "🧛",
     StatusType.TIME_STOP: "⏰",
+    
+    # 아크메이지 융합 스킬
+    StatusType.ELECTROCUTED: "⚡",
+    StatusType.SLOWED: "🐌",
+    StatusType.DEFENSE_SHATTER: "💔",
+    StatusType.WOUND: "🩹",
+    StatusType.BURNING: "🔥",
+    StatusType.FROZEN_SOLID: "🧊",
+    StatusType.FIRE_BRAND: "🔥",
+    StatusType.ICE_BRAND: "❄️",
+    StatusType.LIGHTNING_BRAND: "⚡",
+    StatusType.FIRE_GLYPH: "🔥",
+    StatusType.ICE_GLYPH: "❄️",
+    StatusType.LIGHTNING_GLYPH: "⚡",
+    StatusType.ELEMENTAL_AEGIS: "🛡️",
 }
 
 

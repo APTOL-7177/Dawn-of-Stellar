@@ -730,70 +730,52 @@ def get_gimmick_trait_definitions() -> Dict[str, List[TraitEffect]]:
         ],
 
         # ============================================================
-        # === 마검사 (Spellblade) - 마나 블레이드 시스템 ===
+        # === 마검사 (Spellblade) - 블레이드 서킷 ===
         # ============================================================
-        "mana_conduit": [
+        "circuit_overdrive": [
             TraitEffect(
-                trait_id="mana_conduit",
+                trait_id="circuit_overdrive",
                 effect_type=TraitEffectType.GIMMICK_GAIN_BONUS,
-                value=0.5,
-                metadata={"gimmick_field": "mana_blade", "multiplier": True, "description": "마나 획득량 +50%"}
+                value=0.2,
+                metadata={"gimmick_field": "steel_line", "multiplier": True, "description": "Steel Line 획득량 +20%"}
             ),
             TraitEffect(
-                trait_id="mana_conduit",
-                effect_type=TraitEffectType.GIMMICK_MAX_BONUS,
-                value=120,
-                metadata={"gimmick_field": "max_mana_blade", "description": "최대 마나 블레이드 120"}
+                trait_id="circuit_overdrive",
+                effect_type=TraitEffectType.GIMMICK_GAIN_BONUS,
+                value=0.2,
+                metadata={"gimmick_field": "mana_line", "multiplier": True, "description": "Mana Line 획득량 +20%"}
             )
         ],
-        "elemental_mastery": [
+        "resonance_loop": [
             TraitEffect(
-                trait_id="elemental_mastery",
-                effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
-                value=1.4,
-                condition="using_enchant",
-                metadata={"description": "원소 부여 스킬 피해 +40%"}
-            ),
-            TraitEffect(
-                trait_id="elemental_mastery",
-                effect_type=TraitEffectType.DEBUFF_DURATION,
+                trait_id="resonance_loop",
+                effect_type=TraitEffectType.GIMMICK_TRIGGER,
                 value=1,
-                metadata={"description": "상태이상 지속시간 +1턴"}
+                metadata={"gimmick_field": "resonance_sigil", "description": "패턴 성공 시 시그넷 추가"}
             )
         ],
-        "blade_resonance": [
+        "mirror_specialist": [
             TraitEffect(
-                trait_id="blade_resonance",
+                trait_id="mirror_specialist",
                 effect_type=TraitEffectType.GIMMICK_MODIFIER,
                 value=1,
-                condition="mana_blade_min_50",
-                metadata={"gimmick_field": "dual_damage", "description": "마나 50+ 시 물리/마법 동시 피해"}
+                metadata={"gimmick_field": "mirror_edge_def_shred", "description": "미러 엣지 방깎 보너스"}
             )
         ],
-        "arcane_overflow": [
+        "feedback_spark": [
             TraitEffect(
-                trait_id="arcane_overflow",
-                effect_type=TraitEffectType.GIMMICK_TRIGGER,
-                value=0,
-                condition="mana_blade_100",
-                metadata={"gimmick_field": "mana_blade", "threshold": 100, "free_cast": True, "damage_mult": 2.0,
-                         "description": "마나 MAX 시 다음 스킬 무료 + 피해 2배"}
+                trait_id="feedback_spark",
+                effect_type=TraitEffectType.GIMMICK_MODIFIER,
+                value=1,
+                metadata={"gimmick_field": "arc_spark_bonus", "description": "Arc Spark 피해/MP 회복 보너스"}
             )
         ],
-        "spell_chain": [
+        "balanced_blade": [
             TraitEffect(
-                trait_id="spell_chain",
-                effect_type=TraitEffectType.GIMMICK_TRIGGER,
-                value=10,
-                condition="enchant_chain",
-                metadata={"gimmick_field": "mana_blade", "description": "원소 스킬 연속 시 마나 +10"}
-            ),
-            TraitEffect(
-                trait_id="spell_chain",
-                effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                trait_id="balanced_blade",
+                effect_type=TraitEffectType.ALL_STATS_MULTIPLIER,
                 value=1.15,
-                condition="enchant_chain",
-                metadata={"stacking": True, "description": "연속 원소 스킬 시 피해 +15% 누적"}
+                metadata={"description": "양 채널 50+ 시 피해 +15%"}
             )
         ],
 
@@ -875,6 +857,59 @@ def get_gimmick_trait_definitions() -> Dict[str, List[TraitEffect]]:
                 value=0.1,
                 condition="on_kill",
                 metadata={"description": "적 처치 시 MP 10% 회복"}
+            )
+        ],
+
+        # ============================================================
+        # === 사무라이 (Samurai) - 검심 시스템 ===
+        # ============================================================
+        "kenshin_growth": [
+            # 관찰 스택에 따른 반격 효과는 gimmick_updater에서 처리
+            TraitEffect(
+                trait_id="kenshin_growth",
+                effect_type=TraitEffectType.GIMMICK_MODIFIER,
+                value=1.0,
+                metadata={"gimmick_field": "kenshin_counter", "description": "관찰 스택에 따라 반격 강화"}
+            )
+        ],
+        "meditation": [
+            TraitEffect(
+                trait_id="meditation",
+                effect_type=TraitEffectType.HP_REGEN,
+                value=0.10,  # 5% → 10%로 증가
+                condition="parrying_hit",
+                metadata={"description": "패링 중 피격 시 HP 10% 회복"}
+            ),
+            TraitEffect(
+                trait_id="meditation",
+                effect_type=TraitEffectType.MP_REGEN,
+                value=0.10,  # 5% → 10%로 증가
+                condition="parrying_hit",
+                metadata={"description": "패링 중 피격 시 MP 10% 회복"}
+            )
+        ],
+        "iaijutsu": [
+            TraitEffect(
+                trait_id="iaijutsu",
+                effect_type=TraitEffectType.CRITICAL_BONUS,
+                value=1.0,  # 100% 확정 크리티컬
+                condition="first_strike",
+                metadata={"description": "선제 공격 시 크리티컬 확정"}
+            ),
+            TraitEffect(
+                trait_id="iaijutsu",
+                effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                value=2.0,
+                condition="first_strike",
+                metadata={"description": "선제 공격 시 피해 2배"}
+            )
+        ],
+        "brv_absorb_master": [
+            TraitEffect(
+                trait_id="brv_absorb_master",
+                effect_type=TraitEffectType.GIMMICK_MODIFIER,
+                value=0.1,
+                metadata={"gimmick_field": "brv_steal_bonus", "description": "BRV 흡수 +10%"}
             )
         ],
     }

@@ -1,0 +1,24 @@
+id: gladiator_honor_strike
+name: 명예의 일격
+type: attack
+description: '명예롭게 마무리하여 관중의 환호를 더 끌어올립니다.
+
+  '
+effects:
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 1.1
+- type: gimmick
+  operation: add
+  field: cheer
+  value: 10
+  max_value: 100
+target: enemy
+metadata:
+  job: gladiator
+  basic_attack: true
+  cheer_gain: 10
+sfx:
+- se
+- Sword4

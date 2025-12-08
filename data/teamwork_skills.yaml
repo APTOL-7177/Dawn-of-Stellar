@@ -45,18 +45,18 @@ pirate:
 rogue:
   skill_id: rogue_teamwork
   name: "빠른 손놀림"
-  description: "단일 대상 BRV 공격 (1.2x) + 아이템 1개 훔침 (확률 60%) + ATB +300"
+  description: "단일 대상 BRV 공격 (1.8x) + ATB +450"
   gauge_cost: 50
 
 samurai:
   skill_id: samurai_teamwork
   name: "거합: 섬광"
-  description: "단일 대상 HP 공격 (3.5x) + BREAK 시 wound damage 3배 + 거합 게이지 초기화"
+  description: "단일 대상 HP 공격 (3.5x) + BREAK 확정 + 거합 게이지 초기화"
   gauge_cost: 200
 
 sword_saint:
   skill_id: sword_saint_teamwork
-  name: "검기 폭발"
+  name: "검성: 만상절단"
   description: "전체 대상 BRV+HP (3.5x) + 검기 게이지 완전 회복 + 아군 전체 공격력 1.2배 (2턴)"
   gauge_cost: 250
 
@@ -171,7 +171,7 @@ necromancer:
 philosopher:
   skill_id: philosopher_teamwork
   name: "진리의 계시"
-  description: "현재까지 선택한 딜레마 경향에 따라 효과 변화 (최고의 강화 기술)"
+  description: "현재까지 선택한 딜레마 경향에 따라 효과 변화"
   gauge_cost: 250
 
 spellblade:

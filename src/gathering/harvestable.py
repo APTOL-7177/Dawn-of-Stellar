@@ -119,6 +119,11 @@ class HarvestableObject:
                 ("ice", 0, 2),
                 ("salt", 0, 2),
                 ("dragon_scale", 0, 1), # 전설: 용의 비늘
+                ("bomb_casing", 0, 1), # 폭탄: 폭탄 외피
+                ("sulfur", 0, 1), # 폭탄: 유황
+                ("obsidian", 0, 1), # 연금술: 흑요석
+                ("crystal_shard", 0, 1), # 연금술: 수정 조각
+                ("mithril_ore", 0, 1), # 희귀: 미스릴
             ],
             HarvestableType.WATER: [
                 ("fish", 0, 3),
@@ -128,6 +133,7 @@ class HarvestableObject:
                 ("glass_vial", 0, 1), # 연금술: 유리병
                 ("ice", 0, 1),
                 ("slime_jelly", 0, 1), # 물가에 슬라임?
+                ("fuse", 0, 1), # 폭탄: 도화선
             ],
             HarvestableType.CARCASS: [
                 ("monster_meat", 0, 3),

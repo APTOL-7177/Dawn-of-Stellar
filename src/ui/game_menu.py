@@ -484,7 +484,8 @@ def open_party_status_menu(
                     gauge_renderer.render_animated_mp_bar(
                         console, 11, y, 15,
                         current_mp, max_mp, mp_member_id,
-                        show_numbers=True
+                        show_numbers=True,
+                        reserved_mp=getattr(member, "reserved_max_mp", 0)
                     )
                     y += 1
 
@@ -608,7 +609,8 @@ def show_character_detail(
             gauge_renderer.render_animated_mp_bar(
                 console, 14, y, 30,
                 character.current_mp, character.max_mp, mp_character_id,
-                show_numbers=True
+                show_numbers=True,
+                reserved_mp=getattr(character, "reserved_max_mp", 0)
             )
             y += 2
 

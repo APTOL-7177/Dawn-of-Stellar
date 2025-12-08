@@ -27,6 +27,8 @@ from src.core.config import initialize_config, get_config
 from src.core.logger import get_logger, Loggers
 from src.core.event_bus import event_bus
 from src.core.vibration_system import vibration_listener
+from src.multiplayer.protocol import MessageBuilder, MessageType
+from src.persistence.save_system import serialize_dungeon
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -162,6 +164,119 @@ def _ask_start_story_tutorial(console, context) -> bool:
                     return False
             elif isinstance(event, tcod.event.Quit):
                 return False
+
+
+
+def perform_auto_save(exploration, inventory, party, save_name="auto_save"):
+    """
+    자동 저장 수행
+    
+    Args:
+        exploration: 탐험 상태 객체
+        inventory: 인벤토리 객체
+        party: 파티 리스트
+        save_name: 저장 파일 이름 (기본값: "auto_save")
+    
+    Returns:
+        bool: 저장 성공 여부
+    """
+    try:
+        from src.persistence.save_system import SaveSystem, serialize_game_state, serialize_item
+        from src.core.difficulty import get_difficulty_system
+        from src.core.logger import get_logger, Loggers
+        
+        logger = get_logger(Loggers.SYSTEM)
+        
+        if not exploration:
+            return False
+
+        # 마을에서는 저장 불가 (필요시)
+        # if hasattr(exploration, 'is_town') and exploration.is_town:
+        #     return False
+
+        save_system = SaveSystem()
+        
+        # 현재 난이도 가져오기
+        difficulty_system = get_difficulty_system()
+        current_difficulty = "보통"
+        if difficulty_system:
+            current_difficulty = difficulty_system.current_difficulty.value
+
+        # 인벤토리 아이템 리스트 생성
+        inventory_items = []
+        if inventory and hasattr(inventory, 'slots'):
+            for slot in inventory.slots:
+                if slot.item:
+                    inventory_items.append(slot.item)
+        
+        # 멀티플레이어 여부 확인
+        is_multiplayer = False
+        if hasattr(exploration, 'is_multiplayer'):
+            is_multiplayer = exploration.is_multiplayer
+        elif hasattr(exploration, 'session'):
+            is_multiplayer = True
+        
+        # 멀티플레이: 세션 정보 가져오기
+        session = None
+        if is_multiplayer and hasattr(exploration, 'session'):
+            session = exploration.session
+        
+        # max_floor_reached 계산
+        max_floor = exploration.game_stats.get("max_floor_reached", exploration.floor_number)
+        max_floor = max(max_floor, exploration.floor_number)
+
+        game_state = serialize_game_state(
+            party=party if party else [],
+            floor_number=exploration.floor_number,
+            dungeon=exploration.dungeon,
+            player_x=exploration.player.x,
+            player_y=exploration.player.y,
+            inventory=inventory_items,
+            player_keys=exploration.player_keys if hasattr(exploration, 'player_keys') else [],
+            traits=[],
+            passives=[],
+            difficulty=current_difficulty,
+            exploration=exploration,
+            is_multiplayer=is_multiplayer,
+            session=session,
+            max_floor_reached=max_floor
+        )
+
+        # 게임 통계 추가
+        game_state.update({
+            "enemies_defeated": exploration.game_stats.get("enemies_defeated", 0),
+            "total_gold_earned": exploration.game_stats.get("total_gold_earned", 0),
+            "total_exp_earned": exploration.game_stats.get("total_exp_earned", 0),
+            "save_slot": save_name, 
+            "next_dungeon_floor": exploration.game_stats.get("next_dungeon_floor", 1),
+        })
+        
+        # 인벤토리 정보 추가
+        if inventory:
+            game_state["inventory"] = {
+                "gold": inventory.gold if hasattr(inventory, 'gold') else 0,
+                "items": [{"item": serialize_item(slot.item), "quantity": getattr(slot, 'quantity', 1)} for slot in inventory.slots if slot.item] if hasattr(inventory, 'slots') else [],
+                "cooking_cooldown_turn": inventory.cooking_cooldown_turn if hasattr(inventory, 'cooking_cooldown_turn') else None,
+                "cooking_cooldown_duration": inventory.cooking_cooldown_duration if hasattr(inventory, 'cooking_cooldown_duration') else 0
+            }
+
+        success = save_system.save_game(save_name, game_state, is_multiplayer=is_multiplayer)
+        if success:
+            logger.info(f"자동 저장 완료: {save_name}")
+            # 화면에도 알림 메시지 표시 (선택사항)
+            # from src.ui.game_menu import show_message
+            # show_message(...) # 이건 UI 블로킹이라 비추천
+            pass
+        else:
+            logger.error(f"자동 저장 실패: {save_name}")
+        
+        return success
+            
+    except Exception as e:
+        logger.error(f"자동 저장 중 오류: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
 
 
 def main() -> int:
@@ -339,28 +454,6 @@ def main() -> int:
         show_intro_story(display.console, display.context)
         logger.info("인트로 스토리 완료")
 
-        # 인트로 후 스토리 튜토리얼 시작 여부 묻기 (최초 1회)
-        if not meta_progress.tutorial_offered:
-            from src.tutorial.story_runner import run_story_tutorial
-
-            # 스토리 튜토리얼 시작 여부 묻기
-            if _ask_start_story_tutorial(display.console, display.context):
-                logger.info("사용자가 스토리 튜토리얼 시작 선택")
-
-                # 스토리 튜토리얼 실행
-                tutorial_result = run_story_tutorial(display.console, display.context)
-
-                if tutorial_result.get("completed"):
-                    logger.info(f"스토리 튜토리얼 완료! 해금 직업: {tutorial_result.get('job_unlocked')}")
-                else:
-                    logger.info("스토리 튜토리얼 건너뜀")
-            else:
-                logger.info("사용자가 스토리 튜토리얼 건너뛰기 선택")
-
-            meta_progress.tutorial_offered = True
-            save_meta_progress()
-            logger.info("스토리 튜토리얼 상태 저장 완료")
-
         # 메인 게임 루프
         while True:
             # 핫 리로드 체크 (개발 모드일 때만)
@@ -379,6 +472,20 @@ def main() -> int:
 
             if menu_result == MenuResult.QUIT:
                 break
+            elif menu_result == MenuResult.CREDITS:
+                # 크레딧 화면
+                logger.info("크레딧 화면 시작")
+                from src.ui.credits_ui import run_credits
+                
+                try:
+                    run_credits(display.console, display.context)
+                    logger.info("크레딧 화면 종료")
+                except Exception as e:
+                    logger.error(f"크레딧 화면 오류: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                
+                continue  # 메인 메뉴로 돌아가기
             elif menu_result == MenuResult.AI_SPECTATE:
                 # AI 관전 모드
                 logger.info("AI 관전 모드 시작")
@@ -895,6 +1002,158 @@ def main() -> int:
                             if result == "quit":
                                 logger.info("게임 종료")
                                 break
+                            elif result == "story_boss_combat":
+                                # 20/30층 스토리 보스 강제 조우
+                                logger.info("⚔ 스토리 보스 강제 조우!")
+                                
+                                boss_floor = data.get("floor", floor_number)
+                                boss_type = data.get("boss_type", "sephiroth")
+                                combat_party = data.get("participants", character_party)
+                                
+                                # 보스 생성
+                                boss = EnemyGenerator.generate_boss(boss_floor, is_floor_boss=True, boss_battle=True)
+                                
+                                # 스토리 재생
+                                from src.story.story_system import get_story_system
+                                story_system = get_story_system()
+                                
+                                if boss_type == "sephiroth":
+                                    encounter_story = story_system.get_sephiroth_encounter_story()
+                                    from src.ui.npc_dialog_ui import render_story_sequence
+                                    render_story_sequence(display.console, display.context, encounter_story, logger)
+                                elif boss_type == "cain":
+                                    encounter_story = story_system.get_cain_encounter_story()
+                                    from src.ui.npc_dialog_ui import render_story_sequence
+                                    render_story_sequence(display.console, display.context, encounter_story, logger)
+                                
+                                # 보스 + 잡몹 3마리
+                                minions = EnemyGenerator.generate_enemies(boss_floor, 3)
+                                enemies = [boss] + minions
+                                
+                                # 전투 실행
+                                combat_result, _ = run_combat(
+                                    display.console,
+                                    display.context,
+                                    combat_party,
+                                    enemies,
+                                    inventory=inventory,
+                                    session=session,
+                                    network_manager=network_manager,
+                                    combat_position=(exploration.player.x, exploration.player.y),
+                                    dungeon=exploration.dungeon,
+                                    local_player_id=local_player_id
+                                )
+                                
+                                if combat_result == CombatState.VICTORY:
+                                    # 스토리 보스 처치 플래그 설정
+                                    if boss_type == "sephiroth":
+                                        story_system.set_sephiroth_defeated(True)
+                                        logger.info("🏆 세피로스 처치!")
+                                        
+                                        # 세피로스 처치 스토리 재생
+                                        defeat_story = story_system.get_sephiroth_defeat_story()
+                                        from src.ui.npc_dialog_ui import render_story_sequence
+                                        render_story_sequence(display.console, display.context, defeat_story, logger)
+                                        
+                                    elif boss_type == "cain":
+                                        if hasattr(story_system, 'set_cain_defeated'):
+                                            story_system.set_cain_defeated(True)
+                                        else:
+                                            story_system.cain_defeated = True
+                                        logger.info("🏆 아벨 카인 처치!")
+                                        
+                                        # 카인 처치 스토리 재생
+                                        defeat_story = story_system.get_cain_defeat_story()
+                                        from src.ui.npc_dialog_ui import render_story_sequence
+                                        render_story_sequence(display.console, display.context, defeat_story, logger)
+                                    
+                                    # 보상 계산
+                                    rewards = RewardCalculator.calculate_combat_rewards(
+                                        enemies,
+                                        boss_floor,
+                                        is_boss_fight=True
+                                    )
+                                    
+                                    # 파티 강화 업그레이드 적용
+                                    from src.character.upgrade_applier import UpgradeApplier
+                                    from src.multiplayer.game_mode import get_game_mode_manager
+                                    game_mode_manager = get_game_mode_manager()
+                                    is_host = not game_mode_manager.is_multiplayer() or game_mode_manager.is_host
+                                    
+                                    host_meta = get_meta_progress() if is_host else None
+                                    exp_multiplier = UpgradeApplier.get_experience_multiplier(meta_progress=host_meta, is_host=is_host)
+                                    gold_multiplier = UpgradeApplier.get_gold_multiplier(meta_progress=host_meta, is_host=is_host)
+                                    
+                                    if exp_multiplier > 1.0:
+                                        rewards["experience"] = int(rewards["experience"] * exp_multiplier)
+                                    if gold_multiplier > 1.0:
+                                        rewards["gold"] = int(rewards["gold"] * gold_multiplier)
+                                    
+                                    level_up_info = distribute_party_experience(combat_party, rewards["experience"])
+                                    
+                                    exploration.game_stats["enemies_defeated"] += len(enemies)
+                                    exploration.game_stats["total_gold_earned"] += rewards.get("gold", 0)
+                                    exploration.game_stats["total_exp_earned"] += rewards["experience"]
+                                    
+                                    show_reward_screen(
+                                        display.console,
+                                        display.context,
+                                        rewards,
+                                        level_up_info,
+                                        inventory=inventory
+                                    )
+                                    
+                                    # 아이템은 LootUI에서 처리됨 (무게 체크 및 선택적 획득)
+                                    
+                                    inventory.add_gold(rewards.get("gold", 0))
+
+                                    
+                                    # 스토리 보스 전투 후 층 탐험 계속 (마을로 돌아가지 않음)
+                                    logger.info(f"스토리 보스 처치 완료! {boss_floor}층 탐험 계속...")
+                                    play_dungeon_bgm = True
+                                    # 플래그 리셋하여 같은 층에서 다시 트리거되지 않도록 함
+                                    exploration.story_boss_triggered = True
+                                    continue  # 탐험 계속
+                                    
+                                elif combat_result == CombatState.DEFEAT:
+                                    # 전멸 확인
+                                    is_game_over = True
+                                    if session:
+                                        for player_id, player in session.players.items():
+                                            if hasattr(player, 'party') and player.party:
+                                                for char in player.party:
+                                                    if getattr(char, 'is_alive', False) or getattr(char, 'current_hp', 0) > 0:
+                                                        is_game_over = False
+                                                        break
+                                    
+                                    if is_game_over:
+                                        logger.info("❌ 스토리 보스에게 패배... 게임 오버")
+                                        from src.ui.game_result_ui import show_game_result
+                                        show_game_result(
+                                            display.console,
+                                            display.context,
+                                            is_victory=False,
+                                            max_floor=exploration.game_stats["max_floor_reached"],
+                                            enemies_defeated=exploration.game_stats["enemies_defeated"],
+                                            total_gold=exploration.game_stats["total_gold_earned"],
+                                            total_exp=exploration.game_stats["total_exp_earned"],
+                                            save_slot=None,
+                                            is_multiplayer=True,
+                                            inventory=inventory
+                                        )
+                                        break
+                                    else:
+                                        # 일부 생존: 필드로 복귀 (재도전 가능)
+                                        exploration.story_boss_triggered = False  # 리셋하여 재도전 가능
+                                        play_dungeon_bgm = True
+                                        continue  # 탐험 계속
+                                else:
+                                    # 도망: 스토리 보스에서는 도망 불가 → 다시 조우하도록 플래그 리셋
+                                    logger.info("🏃 스토리 보스에서 도망! (재도전 필요)")
+                                    exploration.story_boss_triggered = False
+                                    play_dungeon_bgm = True
+                                    continue  # 탐험 계속
+                                    
                             elif result == "combat":
                                 # 전투 처리 (멀티플레이 지원)
                                 logger.info("⚔ 전투 시작!")
@@ -1087,6 +1346,10 @@ def main() -> int:
                                     # 도망 성공
                                     logger.info("🏃 도망쳤다")
 
+                                    # 도망한 적들 5초간 조우 방지
+                                    if map_enemies:
+                                        exploration.mark_enemies_as_fled(map_enemies)
+                                    
                                     # 주변 적들 정지시키기 (5초)
                                     if combat_position:
                                         exploration.stun_nearby_enemies(combat_position, duration=5.0, range_tiles=10)
@@ -1096,39 +1359,67 @@ def main() -> int:
                                     continue
                             elif result == "floor_up" or result == "floor_down":
                                 # 층 이동 처리 (멀티플레이)
+                                
+                                # 마을에서 던전으로 가는 경우 특별 처리
+                                is_from_town = getattr(exploration, 'is_town', False)
+                                
                                 if result == "floor_up":
-                                    floor_number += 1
-                                else:
+                                    # 위층으로 (보통 마을로 복귀)
                                     floor_number = max(1, floor_number - 1)
+                                else:
+                                    # floor_down: 아래층으로 (더 깊은 곳으로)
+                                    if is_from_town:
+                                        # 마을에서 던전 1층으로
+                                        floor_number = 1
+                                        # 마을 플래그 해제
+                                        exploration.is_town = False
+                                    else:
+                                        floor_number += 1
                                 
                                 if floor_number not in floors_dungeons:
-                                    # 던전 생성
-                                    dungeon_seed = session.generate_dungeon_seed_for_floor(floor_number)
-                                    from src.world.dungeon_generator import DungeonGenerator
-                                    floor_generator = DungeonGenerator(width=80, height=50)
-                                    new_dungeon = floor_generator.generate(floor_number, seed=dungeon_seed)
+                                    # 던전 생성 또는 수신된 데이터 사용
+                                    new_dungeon = None
+                                    new_enemies = []
+                                    player_x, player_y = 5, 5
                                     
-                                    # 탐험 시스템 임시 생성 (적 스폰용)
-                                    from src.world.exploration import ExplorationSystem
-                                    temp_exploration = ExplorationSystem(
-                                        new_dungeon,
-                                        party_members,
-                                        floor_number,
-                                        inventory,
-                                        exploration.game_stats
-                                    )
-                                    # 탐험 시스템이 자동으로 _spawn_enemies() 호출
-                                    new_enemies = temp_exploration.enemies
+                                    # 클라이언트: 이미 수신된 던전 데이터가 있는지 확인
+                                    # world_ui.py에서 DUNGEON_DATA를 받아 이미 exploration을 업데이트했을 수 있음
+                                    client_dungeon_ready = False
+                                    if session and not session.is_host and exploration.floor_number == floor_number:
+                                        if exploration.dungeon:
+                                            new_dungeon = exploration.dungeon
+                                            new_enemies = exploration.enemies
+                                            client_dungeon_ready = True
+                                            logger.info(f"클라이언트: 호스트로부터 받은 던전 데이터 사용 (층 {floor_number})")
                                     
-                                    # 시작 위치 결정
-                                    if new_dungeon.stairs_down:
-                                        player_x = new_dungeon.stairs_down[0]
-                                        player_y = new_dungeon.stairs_down[1]
-                                    elif new_dungeon.rooms:
+                                    if not client_dungeon_ready:
+                                        # 호스트/싱글: 던전 생성
+                                        dungeon_seed = session.generate_dungeon_seed_for_floor(floor_number)
+                                        from src.world.dungeon_generator import DungeonGenerator
+                                        floor_generator = DungeonGenerator(width=80, height=50)
+                                        new_dungeon = floor_generator.generate(floor_number, seed=dungeon_seed)
+                                        
+                                        # 탐험 시스템 임시 생성 (적 스폰용)
+                                        from src.world.exploration import ExplorationSystem
+                                        temp_exploration = ExplorationSystem(
+                                            new_dungeon,
+                                            party_members,
+                                            floor_number,
+                                            inventory,
+                                            exploration.game_stats
+                                        )
+                                        # 탐험 시스템이 자동으로 _spawn_enemies() 호출
+                                        new_enemies = temp_exploration.enemies
+                                        
+                                    # 시작 위치 결정 (첫 번째 방의 중앙)
+                                    if new_dungeon.rooms:
                                         first_room = new_dungeon.rooms[0]
                                         import random
-                                        player_x = first_room.x + random.randint(2, max(2, first_room.width - 3))
-                                        player_y = first_room.y + random.randint(2, max(2, first_room.height - 3))
+                                        player_x = first_room.x + first_room.width // 2
+                                        player_y = first_room.y + first_room.height // 2
+                                    elif new_dungeon.stairs_down:
+                                        player_x = new_dungeon.stairs_down[0]
+                                        player_y = new_dungeon.stairs_down[1]
                                     else:
                                         player_x = 5
                                         player_y = 5
@@ -1153,6 +1444,9 @@ def main() -> int:
                                     floor_number
                                 )
                                 
+                                # 층 변경 시 스토리 보스 트리거 플래그 리셋 (새 층에서 강제 조우가 정상 작동하도록)
+                                exploration.story_boss_triggered = False
+                                
                                 # 멀티플레이 모드 유지 확인 (층 변경 후에도 멀티플레이 상태 유지)
                                 if hasattr(exploration, 'is_multiplayer'):
                                     # MultiplayerExplorationSystem인 경우 is_multiplayer는 이미 True로 설정되어 있음
@@ -1172,8 +1466,56 @@ def main() -> int:
                                 # 네트워크 매니저에 현재 층 정보 업데이트 (새로 연결된 클라이언트에게 전송용)
                                 if network_manager:
                                     network_manager.current_floor = floor_number
+                                    
+                                    # 클라이언트들에게 새 던전 정보 전송
+                                    # 던전 데이터 직렬화 (적 정보 포함)
+                                    enemies_list = floors_dungeons[floor_number]["enemies"]
+                                    serialized_dungeon = serialize_dungeon(floor_data["dungeon"], enemies_list)
+                                    
+                                    # DUNGEON_DATA 메시지 전송
+                                    dungeon_msg = MessageBuilder.dungeon_data(
+                                        serialized_dungeon, 
+                                        floor_number, 
+                                        dungeon_seed
+                                    )
+                                    network_manager.broadcast_message(dungeon_msg)
+                                    logger.info(f"Broadcasted DUNGEON_DATA for floor {floor_number}")
+                                    
+                                    # FLOOR_CHANGE 메시지 전송 (던전 데이터 전송 후)
+                                    floor_change_msg = MessageBuilder.floor_change(
+                                        direction="floor_down", 
+                                        from_town=is_from_town
+                                    )
+                                    network_manager.broadcast_message(floor_change_msg)
+                                    logger.info(f"Broadcasted FLOOR_CHANGE for floor {floor_number}")
                                     network_manager.current_dungeon = floor_data["dungeon"]
                                     network_manager.current_exploration = exploration
+                                    
+                                    # 클라이언트에게 새 던전 데이터 브로드캐스트
+                                    try:
+                                        from src.multiplayer.protocol import MessageBuilder
+                                        from src.persistence.save_system import serialize_dungeon
+                                        import asyncio
+                                        
+                                        dungeon_data = serialize_dungeon(floor_data["dungeon"], enemies=floor_data["enemies"])
+                                        dungeon_msg = MessageBuilder.dungeon_data(
+                                            dungeon_data,
+                                            floor_number,
+                                            session.generate_dungeon_seed_for_floor(floor_number)
+                                        )
+                                        
+                                        server_loop = getattr(network_manager, '_server_event_loop', None)
+                                        if server_loop and server_loop.is_running():
+                                            asyncio.run_coroutine_threadsafe(
+                                                network_manager.broadcast(dungeon_msg),
+                                                server_loop
+                                            )
+                                            logger.info(f"DUNGEON_DATA 브로드캐스트 완료: {floor_number}층")
+                                        else:
+                                            network_manager.broadcast_sync(dungeon_msg)
+                                            logger.info(f"DUNGEON_DATA 동기 브로드캐스트 완료: {floor_number}층")
+                                    except Exception as e:
+                                        logger.error(f"DUNGEON_DATA 브로드캐스트 실패: {e}", exc_info=True)
                                 
                                 play_dungeon_bgm = True
                         
@@ -1941,11 +2283,13 @@ def main() -> int:
                                                     map_enemies = data.get("enemies", [])
                                                     combat_party = data.get("participants", party_members)
                                                     combat_position = data.get("position", (local_player.x, local_player.y))
+                                                    is_boss_fight = data.get("is_boss_fight", False)
                                                 else:
                                                     num_enemies = 0
                                                     map_enemies = []
                                                     combat_party = party_members
                                                     combat_position = (local_player.x, local_player.y)
+                                                    is_boss_fight = False
                                                 
                                                 if num_enemies > 0:
                                                     enemies = EnemyGenerator.generate_enemies(floor_number, num_enemies)
@@ -2124,6 +2468,10 @@ def main() -> int:
                                                     # 도망 성공
                                                     logger.info("🏃 도망쳤다")
 
+                                                    # 도망한 적들 5초간 조우 방지
+                                                    if map_enemies:
+                                                        exploration.mark_enemies_as_fled(map_enemies)
+                                                    
                                                     # 주변 적들 정지시키기 (5초)
                                                     if combat_position:
                                                         exploration.stun_nearby_enemies(combat_position, duration=5.0, range_tiles=10)
@@ -2612,6 +2960,132 @@ def main() -> int:
                         if result == "quit":
                             logger.info("게임 종료")
                             break
+                        elif result == "story_boss_combat":
+                            # 20/30층 스토리 보스 강제 조우 (세이브 로드 후)
+                            logger.info("⚔ 스토리 보스 강제 조우!")
+                            
+                            boss_floor = data.get("floor", floor_number)
+                            boss_type = data.get("boss_type", "sephiroth")
+                            combat_party = data.get("participants", party)
+                            
+                            # 보스 생성
+                            boss = EnemyGenerator.generate_boss(boss_floor, is_floor_boss=True, boss_battle=True)
+                            
+                            # 스토리 재생
+                            from src.story.story_system import get_story_system
+                            story_system = get_story_system()
+                            
+                            if boss_type == "sephiroth":
+                                encounter_story = story_system.get_sephiroth_encounter_story()
+                                from src.ui.npc_dialog_ui import render_story_sequence
+                                render_story_sequence(display.console, display.context, encounter_story, logger)
+                            elif boss_type == "cain":
+                                encounter_story = story_system.get_cain_encounter_story()
+                                from src.ui.npc_dialog_ui import render_story_sequence
+                                render_story_sequence(display.console, display.context, encounter_story, logger)
+                            
+                            # 보스 + 잡몹 3마리
+                            minions = EnemyGenerator.generate_enemies(boss_floor, 3)
+                            enemies = [boss] + minions
+                            
+                            # 전투 실행
+                            combat_result, _ = run_combat(
+                                display.console,
+                                display.context,
+                                combat_party,
+                                enemies,
+                                inventory=inventory
+                            )
+                            
+                            if combat_result == CombatState.VICTORY:
+                                # 스토리 보스 처치 플래그 설정
+                                if boss_type == "sephiroth":
+                                    story_system.set_sephiroth_defeated(True)
+                                    logger.info("🏆 세피로스 처치!")
+                                    
+                                    # 세피로스 처치 스토리 재생
+                                    defeat_story = story_system.get_sephiroth_defeat_story()
+                                    from src.ui.npc_dialog_ui import render_story_sequence
+                                    render_story_sequence(display.console, display.context, defeat_story, logger)
+                                    
+                                elif boss_type == "cain":
+                                    if hasattr(story_system, 'set_cain_defeated'):
+                                        story_system.set_cain_defeated(True)
+                                    else:
+                                        story_system.cain_defeated = True
+                                    logger.info("🏆 아벨 카인 처치!")
+                                    
+                                    # 카인 처치 스토리 재생
+                                    defeat_story = story_system.get_cain_defeat_story()
+                                    from src.ui.npc_dialog_ui import render_story_sequence
+                                    render_story_sequence(display.console, display.context, defeat_story, logger)
+                                
+                                # 보상 계산
+                                rewards = RewardCalculator.calculate_combat_rewards(
+                                    enemies,
+                                    boss_floor,
+                                    is_boss_fight=True
+                                )
+                                
+                                level_up_info = distribute_party_experience(combat_party, rewards["experience"])
+                                
+                                exploration.game_stats["enemies_defeated"] += len(enemies)
+                                exploration.game_stats["total_gold_earned"] += rewards.get("gold", 0)
+                                exploration.game_stats["total_exp_earned"] += rewards["experience"]
+                                
+                                show_reward_screen(
+                                    display.console,
+                                    display.context,
+                                    rewards,
+                                    level_up_info
+                                )
+                                
+                                for item in rewards.get("items", []):
+                                    if not inventory.add_item(item):
+                                        logger.warning(f"인벤토리 가득 참! {item.name} 버려짐")
+                                
+                                inventory.add_gold(rewards.get("gold", 0))
+                                
+                                # 스토리 보스 전투 후 층 탐험 계속
+                                logger.info(f"스토리 보스 처치 완료! {boss_floor}층 탐험 계속...")
+                                play_dungeon_bgm = True
+                                exploration.story_boss_triggered = True
+                                continue
+                                
+                            elif combat_result == CombatState.DEFEAT:
+                                # 전멸 확인
+                                all_dead = all(
+                                    not getattr(char, 'is_alive', True) or getattr(char, 'current_hp', 0) <= 0
+                                    for char in combat_party
+                                )
+                                
+                                if all_dead:
+                                    logger.info("❌ 스토리 보스에게 패배... 게임 오버")
+                                    from src.ui.game_result_ui import show_game_result
+                                    show_game_result(
+                                        display.console,
+                                        display.context,
+                                        is_victory=False,
+                                        max_floor=exploration.game_stats["max_floor_reached"],
+                                        enemies_defeated=exploration.game_stats["enemies_defeated"],
+                                        total_gold=exploration.game_stats["total_gold_earned"],
+                                        total_exp=exploration.game_stats["total_exp_earned"],
+                                        save_slot=game_stats.get("save_slot"),
+                                        is_multiplayer=False,
+                                        inventory=inventory
+                                    )
+                                    break
+                                else:
+                                    # 일부 생존: 필드로 복귀 (재도전 가능)
+                                    exploration.story_boss_triggered = False
+                                    play_dungeon_bgm = True
+                                    continue
+                            else:
+                                # 도망: 재도전 가능하도록 플래그 리셋
+                                logger.info("🏃 스토리 보스에서 도망! (재도전 필요)")
+                                exploration.story_boss_triggered = False
+                                play_dungeon_bgm = True
+                                continue
                         elif result == "combat":
                             # 전투 처리 (새 게임과 동일)
                             logger.info("⚔ 전투 시작!")
@@ -2756,6 +3230,9 @@ def main() -> int:
                                 member_name = getattr(member, 'name', f'멤버{i+1}')
                                 logger.info(f"  전투 파티 멤버 {i+1}: {member_name}")
 
+                            # 전투 시작 전 자동 저장
+                            perform_auto_save(exploration, inventory, party, save_name="auto_save")
+
                             combat_result, is_game_over = run_combat(
                                 display.console,
                                 display.context,
@@ -2809,6 +3286,9 @@ def main() -> int:
                                         logger.warning(f"인벤토리 가득 참! {item.name} 버려짐")
 
                                 inventory.add_gold(rewards.get("gold", 0))
+
+                                # 전투 승리 후 자동 저장
+                                perform_auto_save(exploration, inventory, party, save_name="auto_save")
 
                                 # === 보스 승리 시 층 클리어 처리 ===
                                 if is_boss_fight and (floor_number == 20 or floor_number == 30):
@@ -2888,6 +3368,10 @@ def main() -> int:
                             else:
                                 logger.info("🏃 도망쳤다")
 
+                                # 도망한 적들 5초간 조우 방지
+                                if map_enemies:
+                                    exploration.mark_enemies_as_fled(map_enemies)
+                                
                                 # 주변 적들 정지시키기 (5초)
                                 if combat_position:
                                     exploration.stun_nearby_enemies(combat_position, duration=5.0, range_tiles=10)
@@ -3521,10 +4005,148 @@ def main() -> int:
                                 )
 
                                 logger.info(f"탐험 결과: {result}")
+                                logger.info(f"[DEBUG] result type: {type(result)}, repr: {repr(result)}")
 
                                 if result == "quit":
                                     logger.info("게임 종료")
                                     break
+                                elif result == "story_boss_combat":
+                                    # 20/30층 스토리 보스 강제 조우 (싱글플레이)
+                                    logger.info("⚔ 스토리 보스 강제 조우!")
+                                    
+                                    boss_floor = data.get("floor", floor_number)
+                                    boss_type = data.get("boss_type", "sephiroth")
+                                    combat_party = data.get("participants", character_party)
+                                    
+                                    # 보스 생성
+                                    boss = EnemyGenerator.generate_boss(boss_floor, is_floor_boss=True, boss_battle=True)
+                                    
+                                    # 스토리 재생
+                                    from src.story.story_system import get_story_system
+                                    story_system = get_story_system()
+                                    
+                                    if boss_type == "sephiroth":
+                                        encounter_story = story_system.get_sephiroth_encounter_story()
+                                        from src.ui.npc_dialog_ui import render_story_sequence
+                                        render_story_sequence(display.console, display.context, encounter_story, logger)
+                                    elif boss_type == "cain":
+                                        encounter_story = story_system.get_cain_encounter_story()
+                                        from src.ui.npc_dialog_ui import render_story_sequence
+                                        render_story_sequence(display.console, display.context, encounter_story, logger)
+                                    
+                                    # 보스 + 잡몹 3마리
+                                    minions = EnemyGenerator.generate_enemies(boss_floor, 3)
+                                    enemies = [boss] + minions
+                                    
+                                    # 전투 실행
+                                    combat_result, _ = run_combat(
+                                        display.console,
+                                        display.context,
+                                        combat_party,
+                                        enemies,
+                                        inventory=inventory
+                                    )
+                                    
+                                    if combat_result == CombatState.VICTORY:
+                                        # 스토리 보스 처치 플래그 설정
+                                        if boss_type == "sephiroth":
+                                            story_system.set_sephiroth_defeated(True)
+                                            logger.info("🏆 세피로스 처치!")
+                                            
+                                            # 세피로스 처치 스토리 재생
+                                            defeat_story = story_system.get_sephiroth_defeat_story()
+                                            from src.ui.npc_dialog_ui import render_story_sequence
+                                            render_story_sequence(display.console, display.context, defeat_story, logger)
+                                            
+                                        elif boss_type == "cain":
+                                            if hasattr(story_system, 'set_cain_defeated'):
+                                                story_system.set_cain_defeated(True)
+                                            else:
+                                                story_system.cain_defeated = True
+                                            logger.info("🏆 아벨 카인 처치!")
+                                            
+                                            # 카인 처치 스토리 재생
+                                            defeat_story = story_system.get_cain_defeat_story()
+                                            from src.ui.npc_dialog_ui import render_story_sequence
+                                            render_story_sequence(display.console, display.context, defeat_story, logger)
+                                        
+                                        # 보상 계산
+                                        rewards = RewardCalculator.calculate_combat_rewards(
+                                            enemies,
+                                            boss_floor,
+                                            is_boss_fight=True
+                                        )
+                                        
+                                        # 파티 강화 업그레이드 적용
+                                        from src.character.upgrade_applier import UpgradeApplier
+                                        exp_multiplier = UpgradeApplier.get_experience_multiplier(meta_progress=host_meta, is_host=True)
+                                        gold_multiplier = UpgradeApplier.get_gold_multiplier(meta_progress=host_meta, is_host=True)
+                                        
+                                        if exp_multiplier > 1.0:
+                                            rewards["experience"] = int(rewards["experience"] * exp_multiplier)
+                                        if gold_multiplier > 1.0:
+                                            rewards["gold"] = int(rewards["gold"] * gold_multiplier)
+                                        
+                                        level_up_info = distribute_party_experience(combat_party, rewards["experience"])
+                                        
+                                        exploration.game_stats["enemies_defeated"] += len(enemies)
+                                        exploration.game_stats["total_gold_earned"] += rewards.get("gold", 0)
+                                        exploration.game_stats["total_exp_earned"] += rewards["experience"]
+                                        
+                                        show_reward_screen(
+                                            display.console,
+                                            display.context,
+                                            rewards,
+                                            level_up_info,
+                                            inventory=inventory
+                                        )
+                                        
+                                        # 아이템은 LootUI에서 처리됨 (무게 체크 및 선택적 획득)
+                                        
+                                        inventory.add_gold(rewards.get("gold", 0))
+
+                                        
+                                        # 스토리 보스 전투 후 층 탐험 계속
+                                        logger.info(f"스토리 보스 처치 완료! {boss_floor}층 탐험 계속...")
+                                        play_dungeon_bgm = True
+                                        exploration.story_boss_triggered = True
+                                        continue  # 탐험 계속
+                                        
+                                    elif combat_result == CombatState.DEFEAT:
+                                        # 전멸 확인
+                                        all_dead = all(
+                                            not getattr(char, 'is_alive', True) or getattr(char, 'current_hp', 0) <= 0
+                                            for char in combat_party
+                                        )
+                                        
+                                        if all_dead:
+                                            logger.info("❌ 스토리 보스에게 패배... 게임 오버")
+                                            from src.ui.game_result_ui import show_game_result
+                                            show_game_result(
+                                                display.console,
+                                                display.context,
+                                                is_victory=False,
+                                                max_floor=exploration.game_stats["max_floor_reached"],
+                                                enemies_defeated=exploration.game_stats["enemies_defeated"],
+                                                total_gold=exploration.game_stats["total_gold_earned"],
+                                                total_exp=exploration.game_stats["total_exp_earned"],
+                                                save_slot=game_stats.get("save_slot"),
+                                                is_multiplayer=False,
+                                                inventory=inventory
+                                            )
+                                            break
+                                        else:
+                                            # 일부 생존: 필드로 복귀 (재도전 가능)
+                                            exploration.story_boss_triggered = False
+                                            play_dungeon_bgm = True
+                                            continue  # 탐험 계속
+                                    else:
+                                        # 도망: 재도전 가능하도록 플래그 리셋
+                                        logger.info("🏃 스토리 보스에서 도망! (재도전 필요)")
+                                        exploration.story_boss_triggered = False
+                                        play_dungeon_bgm = True
+                                        continue  # 탐험 계속
+                                        
                                 elif result == "combat":
                                     # 전투 시작!
                                     logger.info("⚔ 전투 시작!")
@@ -3666,16 +4288,15 @@ def main() -> int:
                                             display.console,
                                             display.context,
                                             rewards,
-                                            level_up_info
+                                            level_up_info,
+                                            inventory=inventory
                                         )
 
-                                        # 아이템을 인벤토리에 추가
-                                        for item in rewards.get("items", []):
-                                            if not inventory.add_item(item):
-                                                logger.warning(f"인벤토리 가득 참! {item.name} 버려짐")
+                                        # 아이템은 LootUI에서 처리됨 (무게 체크 및 선택적 획득)
 
                                         # 골드 추가
                                         inventory.add_gold(rewards.get("gold", 0))
+
 
                                         # === 보스 승리 시 층 클리어 처리 ===
                                         if is_boss_fight and (floor_number == 20 or floor_number == 30):
@@ -3734,6 +4355,10 @@ def main() -> int:
                                     else:
                                         logger.info("🏃 도망쳤다")
 
+                                        # 도망한 적들 5초간 조우 방지
+                                        if map_enemies:
+                                            exploration.mark_enemies_as_fled(map_enemies)
+                                        
                                         # 주변 적들 정지시키기 (5초)
                                         if combat_position:
                                             exploration.stun_nearby_enemies(combat_position, duration=5.0, range_tiles=10)
@@ -4065,6 +4690,19 @@ def main() -> int:
                 # TODO: 메타 진행용 별빛의 파편 같은 별도 화폐 시스템 구현
                 open_shop(display.console, display.context, inventory=None)
                 continue
+            elif menu_result == MenuResult.TRAINING:
+                logger.info("트레이닝 모드 시작")
+                from src.ui.training_mode import run_training_mode
+
+                try:
+                    training_result = run_training_mode(display.console, display.context, logger)
+                    logger.info(f"트레이닝 모드 종료: {training_result}")
+                except Exception as e:
+                    logger.error(f"트레이닝 모드 오류: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+
+                continue  # 메인 메뉴로 돌아가기
             elif menu_result == MenuResult.SETTINGS:
                 logger.info("설정 열기")
                 from src.ui.settings_ui import open_settings

@@ -1,0 +1,32 @@
+id: keylogger
+name: 키로거
+type: debuff
+description: '[프로그램] 키로거를 설치합니다.
+
+  대상이 스킬 사용 시 침투 +10, MP +3 회복.
+
+  RAM 1 소모.
+
+  '
+target: single_enemy
+costs:
+  mp: 10
+  ram: 3
+metadata:
+  program: true
+effects:
+- type: debuff
+  debuff_id: keylogger
+  duration: 4
+  effects:
+    on_skill_intrusion: 10
+    on_skill_mp_gain: 3
+animation:
+  icon: ⌨️
+  color:
+  - 150
+  - 150
+  - 200
+sfx:
+- se
+- Up1

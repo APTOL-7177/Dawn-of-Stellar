@@ -1,0 +1,56 @@
+id: fusion_blizzard
+name: 얼음 폭풍
+type: brv_hp_attack
+description: '[물+바람 융합] 극한의 냉기 폭풍을 일으킵니다.
+
+  전체 적에게 BRV 1.8 + HP 1.0 피해.
+
+  한기 3턴 (속도 -20%) + 30% 동결 (1턴).
+
+
+  공명 보너스: 동결 확률 50%, 한기 대상 동결 시 2턴
+
+  '
+target: all_enemies
+costs:
+  mp: 16
+metadata:
+  fusion: true
+  requires:
+  - water
+  - wind
+  element: ice
+effects:
+- type: damage
+  damage_type: brv
+  element: ice
+  stat_base: magic
+  multiplier: 1.8
+  target: all_enemies
+- type: damage
+  damage_type: hp
+  element: ice
+  stat_base: magic
+  multiplier: 1.0
+  target: all_enemies
+- type: debuff
+  debuff_id: chill
+  duration: 3
+  effects:
+    speed_reduction: 0.2
+- type: debuff
+  debuff_id: frozen
+  duration: 1
+  chance: 0.3
+  resonance_chance: 0.5
+  resonance_duration_on_chilled: 2
+animation:
+  icon: 💧💨
+  color:
+  - 150
+  - 200
+  - 255
+  screen_effect: blizzard
+sfx:
+- se
+- Up1

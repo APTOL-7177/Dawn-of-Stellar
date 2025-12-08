@@ -1,0 +1,33 @@
+id: trojan_horse
+name: 트로이 목마
+type: debuff
+description: '[프로그램] 트로이 목마를 설치합니다.
+
+  대상에게 3턴간 매 턴 침투 +8, 방어 -10%.
+
+  RAM 2 소모.
+
+  '
+target: single_enemy
+costs:
+  mp: 12
+  ram: 3
+metadata:
+  program: true
+  intrusion_per_turn: 8
+effects:
+- type: debuff
+  debuff_id: trojan
+  duration: 3
+  effects:
+    intrusion_per_turn: 8
+    defense_reduction: 0.1
+animation:
+  icon: 🐴
+  color:
+  - 200
+  - 150
+  - 50
+sfx:
+- se
+- Up1

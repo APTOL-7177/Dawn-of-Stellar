@@ -3,7 +3,9 @@ name: 신성 치유
 type: heal
 description: '신성한 치유의 빛.
 
-  시전자의 마법력에 비례해 HP를 회복합니다.
+  시전자의 마법력 × 1.725 HP 회복.
+
+  신앙 100이면 × 3.5 회복 + 신앙 소모.
 
   치유의 신탁 충족 가능.
 
@@ -13,11 +15,13 @@ costs:
   mp: 12
 metadata:
   oracle_action: heal_ally
+  faith_empowered: true
+  faith_multiplier: 3.5
 effects:
 - type: heal
   heal_type: hp
   stat_scaling: magic
-  multiplier: 2.3
+  multiplier: 1.725
 animation:
   icon: 💚
   color:

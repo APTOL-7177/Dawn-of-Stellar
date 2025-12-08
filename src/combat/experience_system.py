@@ -260,8 +260,8 @@ class RewardCalculator:
         # 골드 획득량 50% 감소
         total_gold = int(total_gold * 0.5)
 
-        # 경험치 획득량 46%의 1/3으로 감소 (약 15.33%)
-        total_exp = int(total_exp * 0.46 * (1/3))
+        # 경험치 획득량 46%의 1/3 * 1.25 * 1.4 * 0.8 (20% 추가 감소)
+        total_exp = int(total_exp * 0.46 * (1/3) * 1.25 * 1.4 * 0.8)
 
         return {
             "experience": total_exp,
@@ -357,45 +357,74 @@ class RewardCalculator:
             "wolf": ["beast_meat"],
             "troll": ["beast_meat", "monster_meat"],
             
-            # 드래곤 계열
-            "dragon": ["dragon_meat"],
-            "wyvern": ["beast_meat", "dragon_meat"],
+            # 드래곤 계열 (연금술 재료 추가)
+            "dragon": ["dragon_meat", "dragon_bone", "dragon_scale", "fire_essence"],
+            "wyvern": ["beast_meat", "dragon_meat", "dragon_bone"],
+            "drake": ["dragon_meat", "dragon_bone"],
             
             # 슬라임 계열
-            "slime": ["blue_mushroom", "red_mushroom", "alchemical_catalyst"],
+            "slime": ["blue_mushroom", "red_mushroom", "alchemical_catalyst", "slime_jelly"],
+            "gel": ["slime_jelly", "alchemical_catalyst"],
             
             # 생선 계열
             "kraken": ["fish"],
             "siren": ["fish"],
             
-            # 언데드 계열 (식재료 드롭 안함)
-            "skeleton": [],
-            "zombie": [],
-            "ghoul": [],
-            "banshee": [],
-            "death_knight": [],
-            "mummy": [],
-            "wraith": [],
-            "lich": [],
-            "vampire": [],
+            # 언데드 계열 (연금술 재료 추가)
+            "skeleton": ["dragon_bone"],  # 뼈!
+            "zombie": ["dark_essence"],
+            "ghoul": ["dark_essence"],
+            "banshee": ["ghost_essence"],
+            "death_knight": ["dark_essence", "dragon_bone"],
+            "mummy": ["ancient_root"],
+            "wraith": ["ghost_essence", "dark_essence"],
+            "lich": ["dark_essence", "ghost_essence", "ether"],
+            "vampire": ["vampire_fang", "dark_essence"],
             
-            # 엘리멘탈 계열
-            "fire_spirit": ["magic_herb", "spice", "fire_essence"],
-            "ice_spirit": ["ice", "ice_essence"],
-            "thunder_spirit": ["magic_herb", "lightning_essence"],
-            "earth_spirit": ["potato", "carrot"],
+            # 엘리멘탈 계열 (연금술 재료 강화)
+            "fire_spirit": ["magic_herb", "spice", "fire_essence", "fire_essence"],
+            "ice_spirit": ["ice", "ice_essence", "ice_essence"],
+            "thunder_spirit": ["magic_herb", "lightning_essence", "lightning_essence"],
+            "earth_spirit": ["potato", "carrot", "earth_essence", "stone"],
+            "wind_spirit": ["wind_essence", "wind_essence"],
+            "water_spirit": ["pure_water", "ice_essence"],
+            "light_spirit": ["light_essence", "sunblossom"],
+            "dark_spirit": ["dark_essence", "moonflower"],
             
             # 새 계열
-            "harpy": ["berry"],
-            "griffin": ["beast_meat"],
+            "harpy": ["berry", "phoenix_feather"],
+            "griffin": ["beast_meat", "phoenix_feather"],
+            "phoenix": ["phoenix_feather", "fire_essence", "light_essence"],
             
-            # 식물 계열
-            "treant": ["carrot", "potato", "berry"],
-            "thorn_bush": ["berry"],
+            # 식물 계열 (연금술 허브 추가)
+            "treant": ["carrot", "potato", "berry", "ancient_root", "mandrake"],
+            "thorn_bush": ["berry", "magic_herb"],
+            "mandragora": ["mandrake", "mandrake"],
             
-            # 특수
-            "mimic": ["magic_herb", "spice"],
-            "nightmare": [],
+            # 골렘/구조물 계열 (연금술 재료 추가)
+            "golem": ["golem_core", "stone", "earth_essence"],
+            "iron_golem": ["golem_core", "iron_ore", "metal_scrap"],
+            "crystal_golem": ["golem_core", "crystal_shard", "ether"],
+            "gargoyle": ["stone", "golem_core"],
+            
+            # 악마 계열 (연금술 재료 추가)
+            "demon": ["demon_horn", "dark_essence", "fire_essence"],
+            "imp": ["demon_horn", "fire_essence"],
+            "succubus": ["demon_horn", "dark_essence"],
+            "devil": ["demon_horn", "demon_horn", "dark_essence", "cursed_relic"],
+            
+            # 특수 (연금술 재료 추가)
+            "mimic": ["magic_herb", "spice", "crystal_shard", "alchemical_catalyst"],
+            "nightmare": ["dark_essence", "ghost_essence"],
+            
+            # 광물 관련 (광석/보석에서 채취)
+            "rock_monster": ["iron_ore", "obsidian", "crystal_shard"],
+            "crystal_spider": ["crystal_shard", "ether"],
+            
+            # 기타 몬스터 추가
+            "elemental": ["fire_essence", "ice_essence", "lightning_essence", "earth_essence"],
+            "void_creature": ["void_lotus", "ether", "dark_essence"],
+            "star_beast": ["stardust", "light_essence", "ether"],
         }
         
         # 매핑에서 식재료 선택

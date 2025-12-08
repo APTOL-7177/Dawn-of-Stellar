@@ -1,0 +1,41 @@
+id: protection_miracle
+name: 보호의 기적
+type: buff
+description: '[기적 - 신앙 50+ 필요] 보호의 기적을 일으킵니다.
+
+  아군 전체 2턴: 받는 피해 -40%, 상태이상 면역.
+
+  신앙 -50 소모.
+
+  '
+target: all_allies
+costs:
+  mp: 15
+  faith: 50
+metadata:
+  miracle: true
+  requires_faith: 50
+  consumes_faith: 50
+effects:
+- type: buff
+  buff_id: protection_miracle
+  target: all_allies
+  duration: 2
+  effects:
+    damage_reduction: 0.4
+    status_immunity: true
+- type: gimmick
+  operation: add
+  field: faith
+  value: -50
+  min_value: 0
+animation:
+  icon: 🛡️✨
+  color:
+  - 255
+  - 215
+  - 0
+  screen_effect: divine_protection
+sfx:
+- se
+- Barrier

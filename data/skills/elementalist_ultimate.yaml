@@ -1,0 +1,100 @@
+id: elementalist_ultimate
+name: 4대 정령의 합일
+type: ultimate
+description: "[궁극기] 4대 정령의 힘을 합일시킵니다.\n\n1단계: 4대 정령 순차 공격\n  화염→물→바람→대지, 각 BRV 1.5\
+  \ + HP 1.0 + 상태이상\n\n2단계: 합일의 일격\n  전체 BRV 3.0 + HP 4.0\n\n3단계: 4원소의 축복 (3턴)\n \
+  \ - 모든 스탯 +20%\n  - 정령 소환 MP 비용 0\n\n※ 사용 후 모든 정령 소멸\n※ 정령 2마리 소환 필요\n"
+target: all_enemies
+costs:
+  mp: 45
+metadata:
+  ultimate: true
+  requires_spirits: 2
+  consumes_all_spirits: true
+effects:
+- type: damage
+  damage_type: brv_hp
+  element: fire
+  stat_base: magic
+  brv_multiplier: 1.5
+  hp_multiplier: 1.0
+  target: all_enemies
+  sequence: 1
+- type: debuff
+  debuff_id: burn
+  duration: 2
+  chance: 0.5
+  sequence: 1
+- type: damage
+  damage_type: brv_hp
+  element: water
+  stat_base: magic
+  brv_multiplier: 1.5
+  hp_multiplier: 1.0
+  target: all_enemies
+  sequence: 2
+- type: debuff
+  debuff_id: slow
+  duration: 2
+  chance: 0.5
+  sequence: 2
+- type: damage
+  damage_type: brv_hp
+  element: wind
+  stat_base: magic
+  brv_multiplier: 1.5
+  hp_multiplier: 1.0
+  target: all_enemies
+  sequence: 3
+- type: debuff
+  debuff_id: accuracy_down
+  duration: 2
+  chance: 0.5
+  sequence: 3
+- type: damage
+  damage_type: brv_hp
+  element: earth
+  stat_base: magic
+  brv_multiplier: 1.5
+  hp_multiplier: 1.0
+  target: all_enemies
+  sequence: 4
+- type: debuff
+  debuff_id: defense_down
+  duration: 2
+  chance: 0.5
+  sequence: 4
+- type: damage
+  damage_type: brv
+  element: none
+  stat_base: magic
+  multiplier: 3.0
+  target: all_enemies
+  sequence: 5
+- type: damage
+  damage_type: hp
+  element: none
+  stat_base: magic
+  multiplier: 4.0
+  target: all_enemies
+  sequence: 5
+- type: buff
+  buff_id: elemental_blessing
+  target: self
+  duration: 3
+  effects:
+    all_stats_multiplier: 1.2
+    spirit_summon_mp_cost: 0
+- type: custom
+  handler: consume_all_spirits
+animation:
+  icon: 🔥💧💨🌍
+  color:
+  - 255
+  - 200
+  - 100
+  screen_effect: elemental_convergence
+  duration: 3.0
+sfx:
+- se
+- Explosion4

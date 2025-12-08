@@ -100,6 +100,9 @@ class GimmickUpdater:
 
             # 환호 자연 감소 및 기타 처리
             GimmickUpdater._update_crowd_cheer(character)
+        elif gimmick_type == "rune_resonance":
+            # 배틀메이지: 공명 게이지 100 도달 시 자동 룬 분배
+            GimmickUpdater._update_rune_resonance(character)
 
     @staticmethod
     def on_hp_change(character, old_hp: int, new_hp: int):
@@ -289,8 +292,9 @@ class GimmickUpdater:
             GimmickUpdater._update_phantom_legion_turn_start(character, context)
         elif gimmick_type == "mp_overload_system":
             GimmickUpdater._update_mp_overload_state(character)
-        elif gimmick_type == "dimension_refraction":
-            GimmickUpdater._update_dimension_refraction(character)
+        # elif gimmick_type == "dimension_refraction":
+        #    # ISSUE-16: 리메이크 - 턴 시작 시가 아니라 매 행동마다 처리됨
+        #    pass
 
         # 일반 특성 처리 (기믹과 무관한 특성들)
         GimmickUpdater._process_turn_start_traits(character, context)
@@ -438,6 +442,16 @@ class GimmickUpdater:
             _mp_overload_on_skill(character, skill)
             # 중복 처리 방지 플래그 정리 (다음 스킬에서 다시 처리 가능하도록)
             skill.metadata.pop("_overload_processed", None)
+
+        # 신관: 신앙 100 강화 시스템
+        if gimmick_type == "oracle_system" and skill.metadata.get("faith_empowered"):
+            current_faith = getattr(character, 'faith', 0)
+            if current_faith >= 100:
+                # 신앙 강화 적용
+                _apply_faith_empowerment(character, skill)
+                # 신앙 소모
+                character.faith = 0
+                logger.info(f"[신앙 강화] {character.name}의 {skill.name} 강화 발동! 신앙 소모.")
 
         if gimmick_type == "oracle_system":
             # 신관: 신탁 액션 충족 (on_skill_use에 추가하여 즉시 반응 보장)
@@ -722,19 +736,57 @@ class GimmickUpdater:
         if rune_owner and attacker_buffs.get("rune_trigger") and target and getattr(target, "carved_runes", {}):
             rune_counts = dict(getattr(target, "carved_runes", {}))
             if rune_counts:
+                import random
                 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
                 enemies_all = context.get("all_enemies", []) if context else []
-                # 가장 많이 쌓인 룬 1개 기폭 (단일 타격)
+                # 가장 많이 쌓인 룬 1개 기폭 (단일 타격) - 룬 폭발과 동일한 효과
                 rune_type = max(rune_counts, key=rune_counts.get)
-                deto = DamageEffect(DamageType.BRV_HP, 0.6, stat_type="hybrid")
-                deto.execute(rune_owner, target, context or {})
-                # 광역 충격: 나머지 적들에게도 감쇠 피해
+                total_runes = sum(rune_counts.values())
+                # 룬 폭발과 동일: HP 타입, 0.9 배율, 룬 개수에 따른 추가 피해
+                deto = DamageEffect(DamageType.HP, 0.9, stat_type="hybrid",
+                                   gimmick_bonus={"field": "total_runes", "multiplier": 0.17})
+                # total_runes를 context에 추가하여 gimmick_bonus가 작동하도록 함
+                trigger_context = dict(context or {})
+                trigger_context["total_runes"] = total_runes
+                deto.execute(rune_owner, target, trigger_context)
+                # 광역 충격: 나머지 적들에게도 감쇠 피해 (0.9 * 0.7 = 0.63)
                 aoe_targets = [e for e in enemies_all if e and getattr(e, "is_alive", True) and e != target]
                 if aoe_targets:
-                    aoe_deto = DamageEffect(DamageType.BRV_HP, 0.42, stat_type="hybrid")  # 0.6 * 0.7 감쇠
+                    aoe_deto = DamageEffect(DamageType.HP, 0.63, stat_type="hybrid",
+                                           gimmick_bonus={"field": "total_runes", "multiplier": 0.12})  # 0.17 * 0.7
                     for aoe_t in aoe_targets:
-                        aoe_deto.execute(rune_owner, aoe_t, context or {})
+                        aoe_deto.execute(rune_owner, aoe_t, trigger_context)
+
+                # 룬 소모
                 GimmickUpdater._consume_carved_runes(rune_owner, target, {rune_type: 1})
+
+                # 연쇄 폭발: 룬 폭발과 동일한 30% 확률로 다른 적의 룬 폭발
+                spread_chance = 0.3  # 룬 폭발과 동일
+                if GimmickUpdater._has_trait(rune_owner, "chain_ignition"):
+                    spread_chance += 0.15  # 체인 점화 특성
+
+                # 다른 적으로 연쇄
+                if enemies_all and spread_chance > 0 and random.random() <= spread_chance:
+                    other_enemies = [e for e in enemies_all
+                                    if e and getattr(e, "is_alive", True)
+                                    and e != target
+                                    and sum(getattr(e, "carved_runes", {}).values()) > 0]
+                    if other_enemies:
+                        chain_target = random.choice(other_enemies)
+                        chain_runes = getattr(chain_target, "carved_runes", {})
+                        available_runes = [rt for rt, cnt in chain_runes.items() if cnt > 0]
+                        if available_runes:
+                            # 연쇄 대상의 룬 1개 폭발 (감쇠: 0.9 * 0.7 = 0.63)
+                            chain_rune_type = random.choice(available_runes)
+                            chain_total = sum(chain_runes.values())
+                            chain_ctx = dict(trigger_context)
+                            chain_ctx["total_runes"] = chain_total
+                            chain_deto = DamageEffect(DamageType.HP, 0.63, stat_type="hybrid",
+                                                     gimmick_bonus={"field": "total_runes", "multiplier": 0.12})
+                            chain_deto.execute(rune_owner, chain_target, chain_ctx)
+                            GimmickUpdater._consume_carved_runes(rune_owner, chain_target, {chain_rune_type: 1})
+                            GimmickUpdater._push_ui_log(rune_owner, f"[연쇄] {chain_target.name}의 {chain_rune_type} 룬 폭발!")
+
                 GimmickUpdater._grant_resonance_gauge(rune_owner, 5)
                 GimmickUpdater._push_ui_log(
                     rune_owner,
@@ -1189,7 +1241,18 @@ class GimmickUpdater:
 
             # 매턴 HP 10% 감소 (폭주의 대가)
             hp_loss = int(character.max_hp * 0.10)
+            old_hp = character.current_hp
             character.current_hp = max(1, character.current_hp - hp_loss)
+            
+            # UI 업데이트를 위한 이벤트 발행
+            if old_hp != character.current_hp:
+                event_bus.publish(Events.CHARACTER_HP_CHANGE, {
+                    "character": character,
+                    "change": -(old_hp - character.current_hp),
+                    "current": character.current_hp,
+                    "max": character.max_hp
+                })
+
             logger.critical(f"{character.name} 폭주 상태! 공격력 +100%, 받는 피해 +50%, HP -{hp_loss} (잔여: {character.current_hp})")
 
         # 위험 구간 (effective_danger_min ~ 99)
@@ -1203,7 +1266,18 @@ class GimmickUpdater:
 
             # 매턴 HP 5% 감소 (위험의 대가)
             hp_loss = int(character.max_hp * 0.05)
+            old_hp = character.current_hp
             character.current_hp = max(1, character.current_hp - hp_loss)
+            
+            # UI 업데이트를 위한 이벤트 발행
+            if old_hp != character.current_hp:
+                event_bus.publish(Events.CHARACTER_HP_CHANGE, {
+                    "character": character,
+                    "change": -(old_hp - character.current_hp),
+                    "current": character.current_hp,
+                    "max": character.max_hp
+                })
+
             logger.warning(f"{character.name} 위험 구간! 공격력 +50%, 받는 피해 +30%, HP -{hp_loss} (잔여: {character.current_hp})")
 
         # 최적 구간 (effective_optimal_min ~ effective_optimal_max)
@@ -3187,56 +3261,172 @@ class GimmickUpdater:
 
     @staticmethod
     def _update_rune_resonance(character):
-        """배틀메이지: 룬 공명 시스템 업데이트 - 게이지 100 도달 시 완전 공명 상태 + 자동 소모"""
+        """배틀메이지: 룬 공명 시스템 업데이트 - 게이지 100 도달 시 자동 룬 분배"""
+        import random
+        
         resonance_gauge = getattr(character, 'resonance_gauge', 0)
         max_gauge = getattr(character, 'max_resonance_gauge', 100)
 
-        # 공명 게이지가 최대치에 도달하면 "완전 공명" 상태 부여 + 게이지 소모
+        # 공명 게이지가 최대치에 도달하면 자동 룬 분배
         if resonance_gauge >= max_gauge:
-            character.perfect_resonance = True
-            character.resonance_gauge = 0  # 게이지 자동 소모
-            GimmickUpdater._push_ui_log(character, f"[완전 공명] 게이지 소모! 다음 룬 폭발 대폭 강화!")
-            logger.info(f"{character.name} 완전 공명 상태 활성화 (게이지 {max_gauge} 소모)")
+            character.resonance_gauge = 0  # 게이지 0으로 초기화
+            
+            # 살아있는 적 목록 가져오기 (여러 방법 시도)
+            enemies = []
+            
+            # 방법 1: character._combat_manager
+            if hasattr(character, '_combat_manager') and character._combat_manager:
+                cm = character._combat_manager
+                if hasattr(cm, 'enemies'):
+                    enemies = [e for e in cm.enemies if getattr(e, 'is_alive', True)]
+            
+            # 방법 2: 전역 get_combat_manager()
+            if not enemies:
+                try:
+                    from src.combat.combat_manager import get_combat_manager
+                    cm = get_combat_manager()
+                    if cm and hasattr(cm, 'enemies'):
+                        enemies = [e for e in cm.enemies if getattr(e, 'is_alive', True)]
+                except Exception as e:
+                    logger.warning(f"전역 combat_manager 접근 실패: {e}")
+            
+            if not enemies:
+                # 적이 없으면 완전 공명 상태만 부여 (기존 호환성)
+                character.perfect_resonance = True
+                GimmickUpdater._push_ui_log(character, f"[완전 공명] 게이지 소모! 다음 룬 폭발 대폭 강화!")
+                logger.info(f"{character.name} 완전 공명 상태 활성화 (적 없음, 게이지 {max_gauge} 소모)")
+                return
+            
+            # 기본 룬 4개 + 특성 보너스
+            base_runes = 4
+            bonus_runes = 0
+            
+            # resonance_expert 특성 확인: 추가 룬 +2
+            if GimmickUpdater._has_trait(character, "resonance_expert"):
+                bonus_runes = 2
+            
+            total_runes = base_runes + bonus_runes
+            rune_types = ["fire", "ice", "lightning", "earth", "arcane"]
+            
+            # 적 수에 따라 룬 분배 (균등 분배)
+            runes_per_enemy = [0] * len(enemies)
+            for i in range(total_runes):
+                runes_per_enemy[i % len(enemies)] += 1
+            
+            # 실제 룬 각인
+            for enemy, rune_count in zip(enemies, runes_per_enemy):
+                for _ in range(rune_count):
+                    rune_type = random.choice(rune_types)
+                    GimmickUpdater._add_carved_rune(character, enemy, rune_type)
+            
+            # UI 로그
+            distribution_msg = f"적 {len(enemies)}명에게 룬 {total_runes}개 분배"
+            GimmickUpdater._push_ui_log(character, f"[공명 폭발] 게이지 100! {distribution_msg}!")
+            logger.info(f"{character.name} 공명 폭발: {distribution_msg} (게이지 0으로 초기화)")
 
     @staticmethod
     def _update_dimension_refraction(character):
-        """차원술사: 차원 굴절 시스템 업데이트"""
-        refraction = getattr(character, 'refraction_stacks', 0)
+        """차원술사: 차원 굴절 시스템 업데이트 - 매 행동마다 굴절량 감소 및 피해"""
+        try:
+            refraction = getattr(character, 'refraction_stacks', 0)
+            print(f"[DEBUG][굴절업데이트] {character.name} 굴절량={refraction}")
 
-        if refraction <= 0:
-            return
+            if refraction <= 0:
+                print(f"[DEBUG][굴절업데이트] 굴절량 0 이하, 스킵")
+                return
 
-        # 매턴: 현재 굴절량의 25% 고정 피해 + 굴절량 25% 소멸 (특성 배율 포함)
-        decay_rate = 0.25
-        # 차원 안정화 특성: 감소율 추가 완화 25% -> 15%
-        if hasattr(character, 'active_traits'):
-            if any((t if isinstance(t, str) else t.get('id')) == 'dimensional_stabilization'
-                   for t in character.active_traits):
-                decay_rate = 0.15
+            # 매 행동마다: 현재 굴절량의 10% 소멸 + 고정 피해
+            decay_rate = 0.10
 
-        # 이중 차원 특성: 굴절 피해 +75%
-        decay_damage_mult = 1.0
-        if hasattr(character, 'active_traits'):
-            if any((t if isinstance(t, str) else t.get('id')) == 'double_refraction'
-                   for t in character.active_traits):
-                decay_damage_mult = 1.75
+            # 차원 안정화 특성: 감소율 완화 10% -> 5%
+            # active_traits와 selected_traits 모두 확인 (트레이닝 모드 호환)
+            active_traits = list(getattr(character, 'active_traits', []) or [])
+            selected_traits = list(getattr(character, 'selected_traits', []) or [])
+            all_traits = active_traits + selected_traits
+            print(f"[DEBUG][굴절업데이트] active_traits={active_traits}, selected_traits={selected_traits}")
+            
+            for t in all_traits:
+                trait_id = t if isinstance(t, str) else t.get('id') if isinstance(t, dict) else None
+                if trait_id == 'dimensional_stabilization':
+                    decay_rate = 0.05
+                    print(f"[DEBUG][굴절업데이트] 차원 안정화 특성 적용, decay_rate=5%")
+                    break
 
-        decay_amount = int(refraction * decay_rate)
-        fixed_damage = max(1, int(decay_amount * decay_damage_mult))
+            # 이중 차원 특성: 굴절 피해 +75%
+            decay_damage_mult = 1.0
+            for t in all_traits:
+                trait_id = t if isinstance(t, str) else t.get('id') if isinstance(t, dict) else None
+                if trait_id == 'double_refraction':
+                    decay_damage_mult = 1.75
+                    print(f"[DEBUG][굴절업데이트] 이중 차원 특성 적용, 피해 배율=175%")
+                    break
 
-        # 고정 피해 적용 (take_fixed_damage 메서드가 있으면 사용)
-        if hasattr(character, 'take_fixed_damage'):
-            actual_damage = character.take_fixed_damage(fixed_damage)
-        else:
-            actual_damage = min(fixed_damage, character.current_hp)
-            character.current_hp = max(1, character.current_hp - fixed_damage)
+            decay_amount = int(refraction * decay_rate)
+            # 최소 1의 감소는 있도록 함 (스택이 있으면)
+            if refraction > 0 and decay_amount < 1:
+                decay_amount = 1
+            
+            print(f"[DEBUG][굴절업데이트] 감소량={decay_amount}, 감소율={int(decay_rate*100)}%")
+                 
+            fixed_damage = max(1, int(decay_amount * decay_damage_mult))
+            print(f"[DEBUG][굴절업데이트] 고정피해={fixed_damage}")
 
-        character.refraction_stacks = max(0, refraction - decay_amount)
+            # 굴절 보호막(Refraction Shield)이 있으면 자해 피해만 방지 (굴절 감소는 진행)
+            skip_damage = False
+            if hasattr(character, 'status_manager') and character.status_manager:
+                try:
+                    # status_effects에서 이름으로 검색
+                    refraction_shield = None
+                    for effect in getattr(character.status_manager, 'status_effects', []):
+                        if getattr(effect, 'name', '') == "Refraction Shield":
+                            refraction_shield = effect
+                            break
+                    
+                    if refraction_shield:
+                        shield_hp = getattr(refraction_shield, 'metadata', {}).get('shield_hp', 0)
+                        print(f"[DEBUG][굴절업데이트] Refraction Shield 발견, shield_hp={shield_hp}")
+                        if shield_hp > 0:
+                            skip_damage = True
+                            print(f"[DEBUG][굴절업데이트] 보호막으로 피해 {fixed_damage} 방지됨")
+                except Exception as e:
+                    print(f"[DEBUG][굴절업데이트] 보호막 체크 중 오류: {e}")
 
-        logger.warning(
-            f"[차원 굴절] {character.name} 유지비: HP -{actual_damage}, 굴절량 -{decay_amount} "
-            f"(굴절량 {refraction} → {character.refraction_stacks}, 감소율 {int(decay_rate*100)}%)"
-        )
+            # 고정 피해 적용 (보호막이 없을 때만)
+            actual_damage = 0
+            if not skip_damage:
+                print(f"[DEBUG][굴절업데이트] 피해 적용 시도...")
+                character._processing_refraction_decay = True
+                try:
+                    if hasattr(character, 'take_fixed_damage'):
+                        actual_damage = character.take_fixed_damage(fixed_damage)
+                    else:
+                        actual_damage = min(fixed_damage, getattr(character, 'current_hp', 0))
+                        character.current_hp = max(1, character.current_hp - fixed_damage)
+                    print(f"[DEBUG][굴절업데이트] 피해 적용 완료: {actual_damage}")
+                except Exception as e:
+                    print(f"[DEBUG][굴절업데이트] 피해 적용 중 오류: {e}")
+                    import traceback
+                    traceback.print_exc()
+                finally:
+                    character._processing_refraction_decay = False
+            else:
+                print(f"[DEBUG][굴절업데이트] 피해 스킵됨 (보호막)")
+
+            # 굴절량 감소는 항상 적용!
+            old_refraction = character.refraction_stacks
+            character.refraction_stacks = max(0, refraction - decay_amount)
+            print(f"[DEBUG][굴절업데이트] 굴절량 변화: {old_refraction} → {character.refraction_stacks}")
+
+            # 로그
+            if actual_damage > 0 or decay_amount > 0:
+                logger.info(
+                    f"[차원 굴절] {character.name} 유지비: HP -{actual_damage}, 굴절량 -{decay_amount} "
+                    f"(굴절량 {refraction} → {character.refraction_stacks}, 감소율 {int(decay_rate*100)}%)"
+                )
+        except Exception as e:
+            print(f"[DEBUG][굴절업데이트] 전체 오류: {e}")
+            import traceback
+            traceback.print_exc()
 
     @staticmethod
     def check_choice_mastery(character, choice_type: str) -> bool:
@@ -4563,6 +4753,7 @@ class GimmickUpdater:
         import random
 
         if not target or not getattr(target, "is_alive", True):
+            logger.info(f"[룬 각인 실패] 대상 없거나 사망")
             return False
         if not rune_type:
             rune_type = random.choice(["fire", "ice", "lightning", "earth", "arcane"])
@@ -4580,10 +4771,12 @@ class GimmickUpdater:
         if GimmickUpdater._has_trait(user, "rune_archivist"):
             max_total += 2
         if total_owned >= max_total:
+            logger.info(f"[룬 각인 실패] 전체 룬 상한 ({total_owned}/{max_total})")
             return False
 
         current_total = sum(target.carved_runes.values())
         if current_total >= slot_cap:
+            logger.info(f"[룬 각인 실패] 대상 슬롯 상한 ({current_total}/{slot_cap})")
             return False
 
         # 타입별 최대치 적용 (사용자 설정)
@@ -4593,14 +4786,15 @@ class GimmickUpdater:
 
         current_type = target.carved_runes.get(rune_type, 0)
         if current_type >= max_per_type:
+            logger.info(f"[룬 각인 실패] 타입별 상한 {rune_type} ({current_type}/{max_per_type})")
             return False
 
         target.carved_runes[rune_type] = current_type + 1
 
-        # 사용자 보유 룬 총합 갱신
+        # 사용자 보유 룬 총합 갱신 (속성이 없으면 생성)
         user_field = f"rune_{rune_type}"
-        if hasattr(user, user_field):
-            setattr(user, user_field, getattr(user, user_field, 0) + 1)
+        current_user_runes = getattr(user, user_field, 0)
+        setattr(user, user_field, current_user_runes + 1)
 
         return True
 
@@ -4637,9 +4831,9 @@ class GimmickUpdater:
             return 0
         max_gauge = getattr(user, "max_resonance_gauge", 100)
         gain = amount
+        # resonance_expert 특성: 게이지 획득량 +25% (최대 게이지 증가는 제거됨)
         if GimmickUpdater._has_trait(user, "resonance_expert"):
             gain = int(gain * 1.25)
-            max_gauge += 20
         before = user.resonance_gauge
         user.resonance_gauge = min(max_gauge, before + gain)
         return user.resonance_gauge - before
@@ -4654,10 +4848,30 @@ class GimmickUpdater:
 
         target_list = target if isinstance(target, list) else [target]
         alive_targets = [t for t in target_list if t and getattr(t, "is_alive", True)]
+        
+        # 광역 룬 새김 시 모든 살아있는 적을 대상으로 함
+        if meta.get("carve_all_targets"):
+            all_enemies = []
+            # context에서 적 가져오기 (all_enemies 키 사용)
+            if context and 'all_enemies' in context:
+                all_enemies = [e for e in context['all_enemies'] if getattr(e, 'is_alive', True)]
+            # context에 없으면 combat_manager에서 가져오기
+            if not all_enemies:
+                try:
+                    from src.combat.combat_manager import get_combat_manager
+                    cm = get_combat_manager()
+                    if cm and hasattr(cm, 'enemies'):
+                        all_enemies = [e for e in cm.enemies if getattr(e, 'is_alive', True)]
+                except Exception:
+                    pass
+            # 여전히 없으면 target_list 사용
+            if all_enemies:
+                alive_targets = all_enemies
 
         # 룬 각인
         if meta.get("carve_random_rune") or meta.get("carve_rune_type"):
-            carve_targets = alive_targets if (meta.get("carve_all_targets") and alive_targets) else (alive_targets[:1] if alive_targets else [])
+            carve_targets = alive_targets if meta.get("carve_all_targets") else (alive_targets[:1] if alive_targets else [])
+            logger.info(f"[룬 각인] carve_all_targets={meta.get('carve_all_targets')}, alive_targets={len(alive_targets)}명, carve_targets={len(carve_targets)}명")
             try:
                 carve_count = int(meta.get("carve_count", 1))
             except Exception:
@@ -4673,7 +4887,9 @@ class GimmickUpdater:
                             rune_type = type_source
                     else:
                         rune_type = random.choice(["fire", "ice", "lightning", "earth", "arcane"])
-                    if GimmickUpdater._add_carved_rune(user, t, rune_type, meta.get("max_rune_slots")):
+                    success = GimmickUpdater._add_carved_rune(user, t, rune_type, meta.get("max_rune_slots"))
+                    logger.info(f"[룬 각인] {t.name} <- {rune_type} 룬 (성공={success})")
+                    if success:
                         hook["messages"].append(f"룬 각인: {rune_type}")
 
         # 룬 변환
@@ -4899,10 +5115,22 @@ class GimmickUpdater:
                     except Exception:
                         pass
                 elif rtype == "arcane":
-                    if hasattr(user, "restore_mp"):
-                        restored = user.restore_mp(5)
-                        if restored:
-                            result["messages"].append(f"MP +{restored}")
+                    # 비전 룬: 파티 전체 MP 회복 (광역화, 효과 50% 감소: 5 → 2)
+                    party_members = context.get("party_members", []) if context else []
+                    if not party_members and hasattr(user, "_combat_manager"):
+                        cm = user._combat_manager
+                        if hasattr(cm, "allies"):
+                            party_members = [a for a in cm.allies if getattr(a, "is_alive", True)]
+                    if not party_members:
+                        party_members = [user]  # 최소한 본인이라도 회복
+
+                    total_restored = 0
+                    for ally in party_members:
+                        if hasattr(ally, "restore_mp"):
+                            restored = ally.restore_mp(2)  # 5에서 2로 감소 (50%)
+                            total_restored += restored
+                    if total_restored > 0:
+                        result["messages"].append(f"파티 MP +{total_restored}")
 
             # 확산 연쇄: 다른 적의 룬도 폭발시킴 (재귀적 연쇄)
             enemies = context.get("all_enemies", []) if context else []
@@ -5818,6 +6046,244 @@ def _get_faith_reward(oath_data: dict, action_type: str) -> int:
     return oath_data.get("faith_per_action", 0)
 
 
+def _apply_faith_empowerment(character, skill):
+    """신앙 100 달성 시 스킬 강화"""
+    from src.character.skills.effects.heal_effect import HealEffect
+    from src.character.skills.effects.damage_effect import DamageEffect
+    from src.character.skills.effects.buff_effect import BuffEffect
+    from src.character.skills.effects.status_effect import StatusEffect
+
+    # 스킬별 강화 효과
+    skill_id = getattr(skill, 'skill_id', getattr(skill, 'id', skill.metadata.get('id', '')))
+
+    # 회복기들
+    if skill_id == "priest_holy_heal":
+        # 축복의 치유: 회복량 1.125배 → 2.625배
+        faith_mult = skill.metadata.get("faith_multiplier", 2.625)
+        for effect in skill.effects:
+            if isinstance(effect, HealEffect):
+                if not hasattr(effect, '_original_multiplier'):
+                    effect._original_multiplier = effect.multiplier
+                effect.multiplier = faith_mult
+                logger.info(f"[신앙 강화] {skill.name} 회복량 강화")
+                break
+
+    elif skill_id == "priest_heal":
+        # 신성 치유: 회복량 1.725배 → 3.5배
+        faith_mult = skill.metadata.get("faith_multiplier", 3.5)
+        for effect in skill.effects:
+            if isinstance(effect, HealEffect):
+                if not hasattr(effect, '_original_multiplier'):
+                    effect._original_multiplier = effect.multiplier
+                effect.multiplier = faith_mult
+                logger.info(f"[신앙 강화] {skill.name} 회복량 강화")
+                break
+
+    elif skill_id == "priest_resurrection":
+        # 부활: HP 40% → 80% 회복
+        for effect in skill.effects:
+            if isinstance(effect, HealEffect):
+                if not hasattr(effect, '_original_value'):
+                    effect._original_value = effect.percentage if hasattr(effect, 'percentage') else getattr(effect, 'value', 0.4)
+                effect.percentage = 0.8 if hasattr(effect, 'percentage') else None
+                if hasattr(effect, 'value'):
+                    effect.value = 0.8
+                logger.info(f"[신앙 강화] 부활 회복량 40% → 80%")
+                break
+
+    elif skill_id == "priest_sacrifice":
+        # 희생의 기도: HP 소모 없음 + 회복량 × 3.5
+        skill.metadata['self_damage_percent'] = 0  # HP 소모 제거
+        faith_mult = skill.metadata.get("faith_multiplier", 3.5)
+        for effect in skill.effects:
+            if isinstance(effect, HealEffect):
+                if not hasattr(effect, '_original_multiplier'):
+                    effect._original_multiplier = effect.multiplier
+                effect.multiplier = faith_mult
+                logger.info(f"[신앙 강화] 희생의 기도 HP 소모 없음 + 회복 강화")
+                break
+
+    elif skill_id == "mass_healing":
+        # 대규모 치유: HP 25% → 50% 회복, 방어 +25% (4턴)
+        for effect in skill.effects:
+            if isinstance(effect, HealEffect):
+                if not hasattr(effect, '_original_value'):
+                    effect._original_value = getattr(effect, 'percentage', 0.25) if hasattr(effect, 'percentage') else getattr(effect, 'value', 0.25)
+                if hasattr(effect, 'percentage'):
+                    effect.percentage = 0.5
+                if hasattr(effect, 'value'):
+                    effect.value = 0.5
+                logger.info(f"[신앙 강화] 대규모 치유 회복량 2배")
+            elif isinstance(effect, BuffEffect):
+                if not hasattr(effect, '_original_value'):
+                    effect._original_value = effect.value
+                    effect._original_duration = effect.duration
+                effect.value = 0.25
+                effect.duration = 4
+                logger.info(f"[신앙 강화] 대규모 치유 방어 강화")
+
+    elif skill_id == "priest_divine_grace":
+        # 신의 은총: 회복량 2배, 재생 2배, 지속시간 6턴
+        for effect in skill.effects:
+            if isinstance(effect, HealEffect):
+                if not hasattr(effect, '_original_multiplier'):
+                    effect._original_multiplier = effect.multiplier
+                effect.multiplier = effect._original_multiplier * 2.0
+                logger.info(f"[신앙 강화] 신의 은총 회복량 2배")
+            elif isinstance(effect, BuffEffect):
+                if not hasattr(effect, '_original_value'):
+                    effect._original_value = effect.value
+                    effect._original_duration = effect.duration
+                effect.value = effect._original_value * 2.0
+                effect.duration = 6
+                logger.info(f"[신앙 강화] 신의 은총 재생 강화")
+
+    elif skill_id == "priest_ultimate":
+        # 궁극기: 회복량 2배, 신탁 자동 충족 3턴 → 5턴
+        for effect in skill.effects:
+            if isinstance(effect, HealEffect):
+                if not hasattr(effect, '_original_multiplier'):
+                    effect._original_multiplier = effect.multiplier
+                effect.multiplier = effect._original_multiplier * 2.0
+                logger.info(f"[신앙 강화] 궁극기 회복량 2배")
+            elif isinstance(effect, BuffEffect) and effect.metadata.get('auto_fulfill_oracle'):
+                if not hasattr(effect, '_original_duration'):
+                    effect._original_duration = effect.duration
+                effect.duration = 5
+                logger.info(f"[신앙 강화] 신탁 자동 충족 5턴")
+
+    # 버프 스킬들
+    elif skill_id == "priest_blessing":
+        # 신의 축복: 공격/방어 +15% → +30%, 3턴 → 5턴
+        for effect in skill.effects:
+            if isinstance(effect, BuffEffect):
+                if not hasattr(effect, '_original_value'):
+                    effect._original_value = effect.effects.get('attack_multiplier', 1.15) if hasattr(effect, 'effects') else 1.15
+                    effect._original_duration = effect.duration
+                if hasattr(effect, 'effects'):
+                    effect.effects['attack_multiplier'] = 1.30
+                    effect.effects['defense_multiplier'] = 1.30
+                effect.duration = 5
+                logger.info(f"[신앙 강화] 신의 축복 강화")
+
+    elif skill_id == "priest_purify":
+        # 정화의 빛: 디버프 전체 제거 + 방어 +40% (4턴)
+        for effect in skill.effects:
+            if hasattr(effect, '__class__.__name__') and 'Cleanse' in effect.__class__.__name__:
+                if hasattr(effect, 'cleanse_count'):
+                    effect.cleanse_count = 999  # 전체 제거
+                logger.info(f"[신앙 강화] 정화의 빛 전체 디버프 제거")
+            elif isinstance(effect, BuffEffect):
+                if not hasattr(effect, '_original_value'):
+                    effect._original_value = effect.value
+                    effect._original_duration = effect.duration
+                effect.value = 0.40
+                effect.duration = 4
+                logger.info(f"[신앙 강화] 정화의 빛 방어 강화")
+
+    elif skill_id == "priest_martyr":
+        # 순교자의 서약: 피해 50% → 70% 감소, 3턴 → 5턴
+        for effect in skill.effects:
+            if hasattr(effect, 'damage_reduction'):
+                if not hasattr(effect, '_original_reduction'):
+                    effect._original_reduction = effect.damage_reduction
+                    effect._original_duration = effect.duration
+                effect.damage_reduction = 0.70
+                effect.duration = 5
+                logger.info(f"[신앙 강화] 순교자의 서약 피해 감소 강화")
+
+    elif skill_id == "priest_divine_counter":
+        # 신성한 응징: 반격률 +100%, 반격 데미지 2배, 4턴
+        for effect in skill.effects:
+            if isinstance(effect, BuffEffect):
+                if not hasattr(effect, '_original_value'):
+                    effect._original_duration = effect.duration
+                if hasattr(effect, 'effects'):
+                    effect.effects['counter_rate_bonus'] = 1.0
+                    effect.effects['counter_damage_multiplier'] = 2.0
+                effect.duration = 4
+                logger.info(f"[신앙 강화] 신성한 응징 강화")
+
+    elif skill_id == "priest_divine_protection":
+        # 신성 보호: 방어 +25% → +80%, 4턴 → 6턴
+        for effect in skill.effects:
+            if isinstance(effect, BuffEffect):
+                if not hasattr(effect, '_original_value'):
+                    effect._original_value = effect.value
+                    effect._original_duration = effect.duration
+                effect.value = 0.80
+                effect.duration = 6
+                logger.info(f"[신앙 강화] 신성 보호 강화")
+
+    # 공격 스킬들
+    elif skill_id == "priest_holy_smite":
+        # 성스러운 일격: BRV 데미지 × 2.5
+        for effect in skill.effects:
+            if isinstance(effect, DamageEffect):
+                if not hasattr(effect, '_original_multiplier'):
+                    effect._original_multiplier = effect.multiplier
+                effect.multiplier = effect._original_multiplier * 2.5
+                logger.info(f"[신앙 강화] 성스러운 일격 데미지 2.5배")
+                break
+
+    elif skill_id == "priest_divine_judgment":
+        # 신성 심판: HP 데미지 × 2.5
+        for effect in skill.effects:
+            if isinstance(effect, DamageEffect):
+                if not hasattr(effect, '_original_multiplier'):
+                    effect._original_multiplier = effect.multiplier
+                effect.multiplier = effect._original_multiplier * 2.5
+                logger.info(f"[신앙 강화] 신성 심판 데미지 2.5배")
+                break
+
+    elif skill_id == "priest_light_bind":
+        # 빛의 속박: BRV 데미지 × 2, 속도 감소 -60%, 4턴
+        for effect in skill.effects:
+            if isinstance(effect, DamageEffect):
+                if not hasattr(effect, '_original_multiplier'):
+                    effect._original_multiplier = effect.multiplier
+                effect.multiplier = effect._original_multiplier * 2.0
+                logger.info(f"[신앙 강화] 빛의 속박 데미지 2배")
+            elif isinstance(effect, BuffEffect):
+                if not hasattr(effect, '_original_value'):
+                    effect._original_value = effect.value
+                    effect._original_duration = effect.duration
+                effect.value = 0.60
+                effect.duration = 4
+                logger.info(f"[신앙 강화] 빛의 속박 CC 강화")
+
+    elif skill_id == "priest_judgment_light":
+        # 심판의 빛: 데미지 × 2
+        for effect in skill.effects:
+            if isinstance(effect, DamageEffect):
+                if not hasattr(effect, '_original_multiplier'):
+                    effect._original_multiplier = effect.multiplier
+                effect.multiplier = effect._original_multiplier * 2.0
+                logger.info(f"[신앙 강화] 심판의 빛 데미지 2배")
+
+    elif skill_id == "priest_holy_beam":
+        # 신성 광선: 데미지 × 2 + 신앙 소모 없음
+        for effect in skill.effects:
+            if isinstance(effect, DamageEffect):
+                if not hasattr(effect, '_original_multiplier'):
+                    effect._original_multiplier = effect.multiplier
+                effect.multiplier = effect._original_multiplier * 2.0
+                logger.info(f"[신앙 강화] 신성 광선 데미지 2배 + 신앙 소모 면제")
+        # 신앙 소모 효과 무효화
+        skill.effects = [e for e in skill.effects if not (hasattr(e, 'operation') and e.operation.name == 'CONSUME')]
+
+    elif skill_id == "priest_divine_wrath":
+        # 신의 분노: 데미지 × 2 + 신앙 소모 없음
+        for effect in skill.effects:
+            if isinstance(effect, DamageEffect):
+                if not hasattr(effect, '_original_multiplier'):
+                    effect._original_multiplier = effect.multiplier
+                effect.multiplier = effect._original_multiplier * 2.0
+                logger.info(f"[신앙 강화] 신의 분노 데미지 2배 + 신앙 소모 면제")
+        # 신앙 소모 효과 무효화
+        skill.effects = [e for e in skill.effects if not (hasattr(e, 'operation') and e.operation.name == 'CONSUME')]
+
+
 def _apply_oath_metadata_bonus(user, skill):
     """스킬 메타데이터에 명시된 신앙 보너스 적용 (oath_*_faith)"""
     if getattr(user, "gimmick_type", None) != "oath_system":
@@ -5918,6 +6384,8 @@ def _handle_skill_execute(event):
 
     # 도적: 농락 게이지
     if getattr(user, "gimmick_type", None) == "mockery_system":
+        GimmickUpdater._update_mockery_system(user)
+        
         meta = getattr(skill, "metadata", {}) or {}
         gain = meta.get("mockery_gain", 0)
         gain_all = meta.get("mockery_gain_all", 0)
@@ -5929,6 +6397,9 @@ def _handle_skill_execute(event):
         elif gain and targets:
             for t in targets:
                 GimmickUpdater.add_mockery(user, t, gain)
+
+    # 차원술사 굴절 업데이트는 _handle_combat_action에서 처리 (중복 방지)
+    # SKILL_EXECUTE는 스킬 사용 시에만 발동되므로, COMBAT_ACTION에서 처리하는 것이 적절
 
 
 def _handle_combat_hit(event):
@@ -5955,13 +6426,55 @@ def _handle_combat_hit(event):
 
 
 def _handle_combat_action(event):
-    """COMBAT_ACTION 이벤트 핸들러 - 행동 카운트"""
+    """COMBAT_ACTION 이벤트 핸들러 - 행동 카운트 & 차원 굴절"""
+    print(f"[DEBUG] _handle_combat_action 호출됨!")  # 핸들러 호출 확인용
     if not event:
         return
     actor = event.get("actor")
-    if getattr(actor, "gimmick_type", None) != "crowd_cheer":
-        return
-    GimmickUpdater.check_demand_fulfillment(actor, "action", {})
+    
+    # 검투사: 행동 요구
+    if getattr(actor, "gimmick_type", None) == "crowd_cheer":
+        GimmickUpdater.check_demand_fulfillment(actor, "action", {})
+    
+    # === ISSUE-16: 차원술사 굴절 업데이트 (모든 행동마다 발동) ===
+    # 현재 전투에 참여 중인 모든 차원술사의 굴절 업데이트
+    combat_manager = getattr(actor, "_combat_manager_ref", None) if actor else None
+    if not combat_manager and actor and hasattr(actor, "combat_manager"):
+        combat_manager = actor.combat_manager
+         
+    if not combat_manager:
+        try:
+            from src.combat.combat_manager import get_combat_manager
+            combat_manager = get_combat_manager()
+        except Exception as e:
+            logger.warning(f"[COMBAT_ACTION] get_combat_manager 실패: {e}")
+
+    if combat_manager and hasattr(combat_manager, "allies"):
+        # 디버그: allies 상태 출력
+        allies_count = len(combat_manager.allies) if combat_manager.allies else 0
+        print(f"[DEBUG] allies 수: {allies_count}")
+        for i, ally in enumerate(combat_manager.allies):
+            ally_name = getattr(ally, 'name', 'Unknown')
+            ally_gimmick = getattr(ally, 'gimmick_type', None)
+            ally_refraction = getattr(ally, 'refraction_stacks', 0)
+            print(f"[DEBUG] ally[{i}]: {ally_name}, gimmick={ally_gimmick}, refraction={ally_refraction}")
+        
+        # 아군 중 차원술사 찾기
+        dimensionists_found = 0
+        for ally in combat_manager.allies:
+            if getattr(ally, "gimmick_type", None) == "dimension_refraction" and getattr(ally, "is_alive", True):
+                dimensionists_found += 1
+                refraction_before = getattr(ally, 'refraction_stacks', 0)
+                if refraction_before > 0:
+                    GimmickUpdater._update_dimension_refraction(ally)
+                    refraction_after = getattr(ally, 'refraction_stacks', 0)
+                    logger.info(f"[차원 굴절] {ally.name} 굴절 감소: {refraction_before} → {refraction_after} (행동자: {getattr(actor, 'name', '?')})")
+        
+        print(f"[DEBUG] 차원술사 발견: {dimensionists_found}명")
+        # 차원술사가 없으면 로그 생략 (너무 많은 로그 방지)
+    else:
+        logger.warning(f"[COMBAT_ACTION] combat_manager 없음: actor={getattr(actor, 'name', 'None')}")
+
 
 
 def _handle_damage_taken(event):

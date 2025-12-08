@@ -98,13 +98,41 @@ class MultiplayerATBSystem(ATBSystem):
         
         return None
     
+    def get_average_speed(self) -> float:
+        """
+        모든 전투원의 평균 스피드 계산
+        
+        Returns:
+            평균 스피드 (최소 1.0)
+        """
+        if not self.gauges:
+            return 1.0
+        
+        total_speed = 0.0
+        alive_count = 0
+        
+        for combatant, gauge in self.gauges.items():
+            # 살아있는 전투원만 계산
+            is_alive = getattr(combatant, 'is_alive', True)
+            if is_alive:
+                total_speed += gauge.get_effective_speed()
+                alive_count += 1
+        
+        if alive_count == 0:
+            return 1.0
+        
+        return max(1.0, total_speed / alive_count)
+    
     def calculate_atb_increase(self, combatant: Any, delta_time: float = 1.0, is_player_turn: bool = False) -> float:
         """
-        ATB 증가량 계산 (멀티플레이 규칙 적용)
+        ATB 증가량 계산 (멀티플레이 실시간 규칙 적용)
         
         멀티플레이 규칙:
-        1. 액션 확인 후 1.5초 대기 중이면 모든 플레이어와 적의 ATB가 정지됨
-        2. 행동 선택 중인 플레이어가 있는 경우는 업데이트 주기로 처리 (1/30 속도)
+        1. 행동 선택 중에도 ATB 계속 증가 (실시간)
+        2. ATB 증가량 1/2로 감소
+        3. 속도 정규화: 평균 속도 기준으로 상대적 속도 차이만 반영
+           - 레벨에 관계없이 턴이 오는 속도는 비슷
+           - 스피드가 높은 캐릭터만 상대적으로 빠름
         
         Args:
             combatant: 전투원 (플레이어 또는 적)
@@ -112,35 +140,35 @@ class MultiplayerATBSystem(ATBSystem):
             is_player_turn: 플레이어 턴 중인지 (멀티플레이에서는 무시됨)
             
         Returns:
-            ATB 증가량 (원래 증가량 유지, 업데이트 주기로 속도 조절)
+            ATB 증가량 (정규화된 속도 기반)
         """
-        # 기본 증가량 계산 (부모 클래스 메서드 사용)
-        base_increase = super().calculate_atb_increase(combatant, is_player_turn=False)
-        
-        # delta_time 반영 (속도 기반 증가)
         gauge = self.get_gauge(combatant)
-        if gauge:
-            effective_speed = gauge.get_effective_speed()
-            # 속도 기반 증가량 (1/2로 감소)
-            speed_based_increase = (effective_speed * delta_time) / 10.0
-            base_increase = speed_based_increase
-        
-        # 1. 액션 확인 후 1.5초 대기 중이면 모든 플레이어와 적의 ATB가 정지됨
-        if self.is_in_action_wait():
+        if not gauge:
             return 0.0
         
-        # 증가량은 그대로 반환 (업데이트 주기로 속도 조절)
-        return base_increase
+        # 평균 스피드 기준 정규화
+        avg_speed = self.get_average_speed()
+        effective_speed = gauge.get_effective_speed()
+        
+        # 정규화된 속도 비율 (1.0 = 평균 속도)
+        # 스피드가 평균보다 높으면 1.0보다 높은 값, 낮으면 낮은 값
+        normalized_ratio = effective_speed / avg_speed
+        
+        # 기본 ATB 증가량 (일정한 기준값) * 정규화된 비율 * 1/2 (멀티플레이)
+        base_atb_per_second = 100.0  # 기준: 평균 속도로 10초에 ATB 가득
+        increase = base_atb_per_second * delta_time * normalized_ratio * 0.5
+        
+        return increase
     
     def _is_bullet_time_active(self) -> bool:
         """
         불릿타임 모드가 활성화되어 있는지 확인
         
         Returns:
-            불릿타임 모드 활성화 여부 (멀티플레이에서는 항상 True)
+            불릿타임 모드 활성화 여부 (멀티플레이에서는 제거됨 - 항상 False)
         """
-        # 멀티플레이에서는 불릿타임을 상시 적용
-        return True
+        # 불릿타임 제거 - 실시간 전투
+        return False
     
     def update(self, delta_time: float = 1.0, is_player_turn: bool = False) -> None:
         """

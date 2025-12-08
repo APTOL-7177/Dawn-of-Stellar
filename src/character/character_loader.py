@@ -49,6 +49,8 @@ CLASS_FILE_MAP = {
     "해커": "hacker",
     "저격수": "sniper",
     "뱀파이어": "vampire",
+    "마술사": "magician",
+    "환술사": "illusionist",
 }
 
 # 캐시 (한 번만 로드)
@@ -203,6 +205,17 @@ def get_all_classes() -> list:
         한글 직업명 리스트
     """
     return list(CLASS_FILE_MAP.keys())
+
+
+def get_all_job_names() -> Dict[str, str]:
+    """
+    모든 직업의 영문 job_id와 한글 직업명 매핑을 반환합니다.
+
+    Returns:
+        {job_id: display_name} 딕셔너리
+    """
+    # CLASS_FILE_MAP을 역으로 변환 (한글 -> 영문 을 영문 -> 한글로)
+    return {job_id: display_name for display_name, job_id in CLASS_FILE_MAP.items()}
 
 
 def reload_data():

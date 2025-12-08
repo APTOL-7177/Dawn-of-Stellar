@@ -529,15 +529,12 @@ class TextInputBox:
             self.handle_confirm()
         elif action == GameAction.CANCEL:
             self.handle_cancel()
-        elif action == GameAction.MOVE_UP:
-            self.move_cursor_up()
-        elif action == GameAction.MOVE_DOWN:
-            self.move_cursor_down()
+        # MOVE_UP, MOVE_DOWN은 텍스트 입력에서 무시 (커서 이동 없음)
         elif event and isinstance(event, tcod.event.KeyDown):
             # 문자 입력
             if event.sym == tcod.event.KeySym.BACKSPACE:
                 self.handle_backspace()
-            elif 32 <= event.sym <= 126:  # ASCII 문자 범위 (공백~~)
+            elif 32 <= event.sym <= 126:  # ASCII 문자 범위 (공백~)
                 char = chr(event.sym)
                 self.handle_char_input(char)
     

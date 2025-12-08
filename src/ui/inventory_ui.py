@@ -331,7 +331,7 @@ class InventoryUI:
                         # 첫 번째 캐릭터에게 바로 사용
                         target = self.party[0] if self.party else None
                         if target:
-                            success = self.inventory.use_consumable(actual_index, target)
+                            success = self.inventory.use_consumable(actual_index, target, user=self.party[0] if self.party else None)
                             if success:
                                 item_name = getattr(item, 'name', '알 수 없는 아이템')
                                 logger.info(f"{item_name} 사용 완료 (대상: {target.name})")
@@ -370,7 +370,7 @@ class InventoryUI:
                         if isinstance(item, CookedFood):
                             # 음식은 타겟 선택 없이 바로 사용
                             target = self.party[0] if self.party else None  # 더미 타겟
-                            success = self.inventory.use_consumable(actual_index, target)
+                            success = self.inventory.use_consumable(actual_index, target, user=self.party[0] if self.party else None)
                             if success:
                                 item_name = getattr(item, 'name', '알 수 없는 아이템')
                                 logger.info(f"{item_name} 사용 완료 (아군 전체)")
@@ -468,7 +468,7 @@ class InventoryUI:
         elif action == GameAction.CONFIRM:
             # 선택된 살아있는 파티원에게 사용
             target = alive_party_members[self.target_cursor]
-            success = self.inventory.use_consumable(self.selected_item_index, target)
+            success = self.inventory.use_consumable(self.selected_item_index, target, user=self.party[0] if self.party else None)
             if success:
                 item_name = getattr(item, 'name', '알 수 없는 아이템')
                 target_name = getattr(target, 'name', '알 수 없는 대상')
@@ -512,7 +512,7 @@ class InventoryUI:
         elif action == GameAction.CONFIRM:
             # 선택된 죽은 파티원에게 사용
             target = dead_party_members[self.target_cursor]
-            success = self.inventory.use_consumable(self.selected_item_index, target)
+            success = self.inventory.use_consumable(self.selected_item_index, target, user=self.party[0] if self.party else None)
             if success:
                 item_name = getattr(item, 'name', '알 수 없는 아이템')
                 target_name = getattr(target, 'name', '알 수 없는 대상')
@@ -549,7 +549,7 @@ class InventoryUI:
             if action == GameAction.CONFIRM:
                 # 음식은 아군 전체에게 효과 적용 (target은 무시됨)
                 target = self.party[0] if self.party else None  # 더미 타겟
-                success = self.inventory.use_consumable(self.selected_item_index, target)
+                success = self.inventory.use_consumable(self.selected_item_index, target, user=self.party[0] if self.party else None)
                 if success:
                     item_name = getattr(item, 'name', '알 수 없는 아이템')
                     logger.info(f"{item_name} 사용 완료 (아군 전체)")
@@ -581,7 +581,7 @@ class InventoryUI:
 
             if isinstance(item, (Consumable, CookedFood)):
                 # 소비 아이템 또는 요리 사용
-                success = self.inventory.use_consumable(self.selected_item_index, target)
+                success = self.inventory.use_consumable(self.selected_item_index, target, user=self.party[0] if self.party else None)
                 if success:
                     item_name = getattr(item, 'name', '알 수 없는 아이템')
                     logger.info(f"{item_name} 사용 완료")

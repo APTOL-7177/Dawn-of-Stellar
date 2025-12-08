@@ -1,0 +1,32 @@
+id: blood_festival
+name: 피의 축제
+type: brv_hp_attack
+description: '[환호 30+ 필요] 피의 축제를 시작합니다.
+
+  전체 HP 2.0 피해.
+
+  처치마다 환호 +10.
+
+  '
+target: all_enemies
+costs:
+  mp: 18
+metadata:
+  requires_cheer: 30
+  cheer_on_kill: 10
+effects:
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 2.0
+  target: all_enemies
+animation:
+  icon: 🩸
+  color:
+  - 180
+  - 0
+  - 0
+  screen_effect: blood_splash
+sfx:
+- se
+- Magic1

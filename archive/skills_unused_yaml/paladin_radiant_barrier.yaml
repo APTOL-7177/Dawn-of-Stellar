@@ -1,0 +1,42 @@
+id: paladin_radiant_barrier
+name: 빛의 벽
+type: support
+description: '신성한 빛으로 파티 전체를 감싼다.
+
+  파티 전체에게 최대 HP 20% 비례 보호막 부여,
+
+  방어력 +20%, 보호막이 남아있는 동안 마법방어력 +10% 추가.
+
+  지속: 보호막이 깨질 때까지 또는 2턴.
+
+  '
+costs:
+  mp: 28.0
+  cast_time: 1.2
+target: all_allies
+effects:
+- type: apply_shield
+  shield_type: holy_barrier
+  hp_ratio: 0.2
+  duration: 2
+  is_party_wide: true
+- type: buff
+  stat: physical_defense
+  value: 0.2
+  duration: 2
+  is_party_wide: true
+- type: buff
+  stat: magic_defense
+  value: 0.1
+  duration: 2
+  is_party_wide: true
+  requires_shield: true
+metadata:
+  job: paladin
+  tank_skill: true
+  party_buff: true
+  shield_skill: true
+  skill_category: defense
+sfx:
+- se
+- Barrier

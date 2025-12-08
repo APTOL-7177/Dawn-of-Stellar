@@ -159,11 +159,28 @@ class TownManager:
         }
         
         # 허브 영구 저장소 (게임 오버 시에도 보존되는 아이템)
-        # 모든 아이템을 직렬화된 형태로 저장
-        self.hub_storage: List[Dict[str, Any]] = []  # List[serialize_item(item) 결과]
+        # 초기화 시 메타 진행에서 로드
+        hub_storage_from_meta = []
+        try:
+            from src.persistence.meta_progress import get_meta_progress
+            meta = get_meta_progress()
+            if hasattr(meta, 'hub_storage'):
+                hub_storage_from_meta = meta.hub_storage.copy()
+        except:
+            pass
+        self.hub_storage: List[Dict[str, Any]] = hub_storage_from_meta
 
         # 마을 창고 저장소 (플레이어가 직접 보관하는 아이템)
-        self.storage_inventory: List[Dict[str, Any]] = []  # 창고에 보관된 아이템들
+        # 초기화 시 메타 진행에서 로드
+        town_storage_from_meta = []
+        try:
+            from src.persistence.meta_progress import get_meta_progress
+            meta = get_meta_progress()
+            if hasattr(meta, 'town_storage'):
+                town_storage_from_meta = meta.town_storage.copy()
+        except:
+            pass
+        self.storage_inventory: List[Dict[str, Any]] = town_storage_from_meta
         
     def get_facility(self, facility_type: FacilityType) -> Optional[Facility]:
         """시설 가져오기"""
@@ -404,6 +421,18 @@ class TownManager:
 
         # 재료만 남김
         self.storage_inventory = storage_items_to_keep
+        
+        # 메타 진행에 저장 (영구 보존)
+        from src.persistence.meta_progress import get_meta_progress
+        meta = get_meta_progress()
+        
+        if hasattr(meta, 'hub_storage'):
+            meta.hub_storage = self.hub_storage.copy()
+            logger.info(f"메타 진행에 허브 저장소 업데이트 완료 ({len(meta.hub_storage)}개)")
+            
+        if hasattr(meta, 'town_storage'):
+            meta.town_storage = self.storage_inventory.copy()
+            logger.info(f"메타 진행에 마을 창고 업데이트 완료 ({len(meta.town_storage)}개)")
 
         total_removed = hub_removed_count + storage_removed_count
         total_kept = len(hub_items_to_keep) + len(storage_items_to_keep)

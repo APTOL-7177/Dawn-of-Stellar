@@ -13,3 +13,6 @@ effects:
 - type: hp_damage
   multiplier: 1.2
   uses_brv: true
+sfx:
+- se
+- Magic1

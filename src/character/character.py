@@ -77,6 +77,7 @@ class Character:
 
         # 전투 관련
         self.current_brv = 0  # 현재 BRV (전투 중에만 사용)
+        self.atb_gauge = 0  # ATB 게이지 (Active Time Battle)
         self.is_alive = True
         self.is_enemy = False  # 적 여부
 
@@ -96,11 +97,10 @@ class Character:
         self.gimmick_data = get_gimmick(character_class)
         self.gimmick_type = self.gimmick_data.get("type") if self.gimmick_data else None
         self.system_traits: List[str] = []  # 시스템/기믹에 의해 자동 적용되는 특성
-        self._initialize_gimmick()
-
-        # 특성 (Trait) - YAML에서 로드
+        # 특성 목록/활성 특성 기본값 (기믹 초기화에서 접근 가능하도록 선행)
         self.available_traits = get_traits(character_class)
         self.active_traits: List[Any] = []
+        self._initialize_gimmick()
 
         # 특성별 스택 카운터
         self.defend_stack_count = 0  # 저격수 특성: 방어 시 증가, 공격 시 소비
@@ -128,7 +128,9 @@ class Character:
 
     def _get_stats_from_yaml(self) -> Dict[str, Any]:
         """YAML에서 스탯 설정을 가져옵니다."""
+        data = load_character_data(self.character_class) or {}
         base_stats = get_base_stats(self.character_class)
+        yaml_growth = data.get("stat_growth", {}) if isinstance(data, dict) else {}
 
         # YAML 필드명 → Stats enum 매핑
         stat_mapping = {
@@ -149,37 +151,41 @@ class Character:
             base_value = base_stats.get(yaml_key, 50)
 
             # 성장률 설정 (linear로 기초 스탯의 일정 %만큼 성장)
-            if yaml_key == "hp":
-                # HP: 레벨당 기초 HP의 11.5% 성장 (8~15% 범위)
-                growth_rate = base_value * 0.115
-                growth_type = "linear"
-            elif yaml_key == "mp":
-                # MP: 레벨당 기초 MP의 5% 성장 (최대 5 정도)
-                growth_rate = base_value * 0.05
-                growth_type = "linear"
-            elif yaml_key == "init_brv":
-                # init_brv: 레벨당 기초 값의 20% 성장 (비례 성장)
-                growth_rate = base_value * 0.20
-                growth_type = "linear"
-            elif yaml_key == "max_brv":
-                # max_brv: 레벨당 기초 값의 20% 성장 (비례 성장)
-                growth_rate = base_value * 0.20
-                growth_type = "linear"
-            elif yaml_key in ["physical_attack", "magic_attack"]:
-                # 공격/마법: 레벨당 기초 스탯의 20% 성장 (15~25% 범위)
-                growth_rate = base_value * 0.20
-                growth_type = "linear"
-            elif yaml_key in ["physical_defense", "magic_defense"]:
-                # 방어: 레벨당 기초 스탯의 20% 성장 (15~25% 범위)
-                growth_rate = base_value * 0.20
-                growth_type = "linear"
-            elif yaml_key == "speed":
-                # 속도: 레벨당 기초 스탯의 20% 성장 (15~25% 범위)
-                growth_rate = base_value * 0.20
+            if yaml_key in yaml_growth:
+                growth_rate = yaml_growth.get(yaml_key, 0)
                 growth_type = "linear"
             else:
-                growth_rate = base_value * 0.10
-                growth_type = "linear"
+                if yaml_key == "hp":
+                    # HP: 레벨당 기초 HP의 11.5% 성장 (8~15% 범위)
+                    growth_rate = base_value * 0.115
+                    growth_type = "linear"
+                elif yaml_key == "mp":
+                    # MP: 레벨당 기초 MP의 5% 성장 (최대 5 정도)
+                    growth_rate = base_value * 0.05
+                    growth_type = "linear"
+                elif yaml_key == "init_brv":
+                    # init_brv: 레벨당 기초 값의 20% 성장 (비례 성장)
+                    growth_rate = base_value * 0.20
+                    growth_type = "linear"
+                elif yaml_key == "max_brv":
+                    # max_brv: 레벨당 기초 값의 20% 성장 (비례 성장)
+                    growth_rate = base_value * 0.20
+                    growth_type = "linear"
+                elif yaml_key in ["physical_attack", "magic_attack"]:
+                    # 공격/마법: 레벨당 기초 스탯의 20% 성장 (15~25% 범위)
+                    growth_rate = base_value * 0.20
+                    growth_type = "linear"
+                elif yaml_key in ["physical_defense", "magic_defense"]:
+                    # 방어: 레벨당 기초 스탯의 20% 성장 (15~25% 범위)
+                    growth_rate = base_value * 0.20
+                    growth_type = "linear"
+                elif yaml_key == "speed":
+                    # 속도: 레벨당 기초 스탯의 20% 성장 (15~25% 범위)
+                    growth_rate = base_value * 0.20
+                    growth_type = "linear"
+                else:
+                    growth_rate = base_value * 0.10
+                    growth_type = "linear"
 
             stats_config[stat_enum] = {
                 "base_value": base_value,
@@ -188,21 +194,18 @@ class Character:
             }
 
         # 추가 스탯 (YAML에 없는 것들)
-        stats_config[Stats.LUCK] = {
-            "base_value": 5,
-            "growth_rate": 0.5,
-            "growth_type": "linear"
-        }
-        stats_config[Stats.ACCURACY] = {
-            "base_value": 100,
-            "growth_rate": 2,
-            "growth_type": "logarithmic"
-        }
-        stats_config[Stats.EVASION] = {
-            "base_value": 10,
-            "growth_rate": 1,
-            "growth_type": "logarithmic"
-        }
+        def _growth_from_yaml(key: str, default_base: float, default_growth: float, growth_type: str = "linear"):
+            base_val = base_stats.get(key, default_base)
+            growth_val = yaml_growth.get(key, default_growth)
+            return {
+                "base_value": base_val,
+                "growth_rate": growth_val,
+                "growth_type": growth_type
+            }
+
+        stats_config[Stats.LUCK] = _growth_from_yaml("luck", 5, 0.5)
+        stats_config[Stats.ACCURACY] = _growth_from_yaml("accuracy", 100, 2, "logarithmic")
+        stats_config[Stats.EVASION] = _growth_from_yaml("evasion", 10, 1, "logarithmic")
 
         return stats_config
 
@@ -249,6 +252,13 @@ class Character:
                 "flash": {"name": "섬광탄", "multiplier": 1.0, "debuff": "blind"},
                 "headshot": {"name": "헤드샷 탄", "multiplier": 5.0, "crit_guaranteed": True}
             }
+        # 무당 - MP 과부하 시스템
+        elif gimmick_type == "mp_overload_system":
+            self.overload_gauge = 0
+            self.max_overload_gauge = self.gimmick_data.get("max_overload_gauge", 5)
+            self.active_toggles = []
+            self.reserved_max_mp = 0
+            self.last_mp_state = None
 
         # 도적 - 베놈 파워
         elif gimmick_type == "venom_system":
@@ -305,10 +315,35 @@ class Character:
             self.kill_count = 0  # 처치 카운트
             self.parry_active = False  # 패리 활성화 여부
 
-        # 브레이커 - 파괴력 축적
+        # 브레이커 - 연격 기믹 (SCATTER 시스템)
+        # 브레이커 - 연격 기믹 (SCATTER 시스템)
         elif gimmick_type == "break_system":
-            self.break_power = 0
-            self.max_break_power = self.gimmick_data.get("max_break_power", 10)
+            # 연격 기믹 게이지 (Max HP의 50%)
+            self.combo_gauge = 0
+            # self.max_combo_gauge는 이제 property로 계산됨 (동적 Max HP 반영을 위해)
+            
+            self.combo_gauge_scaling = self.gimmick_data.get("power_scaling", {}).get("per_stack", 1.0)
+            
+            # 시스템 특성 자동 등록
+            if "engine_overclock" not in self.system_traits:
+                self.system_traits.append("engine_overclock")
+            
+            # 무한 루프 특성 존재 여부 로그만 남김 (실제 적용은 property에서)
+            has_infinite_loop = False
+            if hasattr(self, "available_traits"):
+                for t in self.available_traits:
+                    tid = t if isinstance(t, str) else t.get("id")
+                    if tid == "infinite_loop":
+                        has_infinite_loop = True
+                        break
+            if has_infinite_loop:
+                 self.logger.info(f"[제어 해제] {self.name} 무한 루프 특성 감지 (최대 콤보 게이지 20% 증가 예정)")
+
+            self.combo_gauge_scaling = self.gimmick_data.get("power_scaling", {}).get("per_stack", 1.0)
+            
+            # 시스템 특성 자동 등록
+            if "engine_overclock" not in self.system_traits:
+                self.system_traits.append("engine_overclock")
 
         # 다크나이트 - 충전 시스템
         elif gimmick_type == "charge_system":
@@ -349,13 +384,34 @@ class Character:
             self.overheat_prevention_count = 2  # 오버히트 방지 남은 횟수
             self.is_overheated = False  # 오버히트 상태
             self.overheat_stun_turns = 0  # 오버히트 스턴 남은 턴
+            # 포탑 시스템
+            self.turret_count = 0  # 총 포탑 수
+            self.fire_turret_count = 0  # 화염 포탑 수
+            self.ice_turret_count = 0  # 빙결 포탑 수
+            self.thunder_turret_count = 0  # 전기 포탑 수
+            self.explosive_turret_count = 0  # 폭발 포탑 수
+            self.heal_turret_count = 0  # 치유 포탑 수
 
         # 사무라이 - 거합
         elif gimmick_type == "iaijutsu_system":
             self.will_gauge = 0
             self.max_will_gauge = self.gimmick_data.get("max_will_gauge", 10)
 
-        # 마검사 - 마력 부여
+        # 마검사 - 블레이드 서킷 (신규)
+        elif gimmick_type == "blade_circuit":
+            self.steel_line = 0
+            self.mana_line = 0
+            self.max_steel_line = self.gimmick_data.get("max_steel_line", 100)
+            self.max_mana_line = self.gimmick_data.get("max_mana_line", 100)
+            self.resonance_sigil = 0
+            self.max_resonance_sigil = self.gimmick_data.get("max_resonance_sigil", 3)
+            self.steel_lock = 0
+            self.mana_lock = 0
+            self.default_lock_turns = self.gimmick_data.get("default_lock_turns", 1)
+            self.circuit_history = []
+            self.circuit_flux_ready = 0
+
+        # 마검사 - 구버전 마력 부여 (하위 호환)
         elif gimmick_type == "enchant_system":
             self.mana_blade = 0
             self.max_mana_blade = self.gimmick_data.get("max_mana_blade", 100)
@@ -379,7 +435,7 @@ class Character:
             self.curse_stacks = 0
             self.max_curse_stacks = self.gimmick_data.get("max_curse_stacks", 10)
 
-        # 뱀파이어 - 흡혈
+        # 흡혈귀 - 흡혈
         elif gimmick_type == "blood_system":
             self.blood_pool = 0
             self.max_blood_pool = self.gimmick_data.get("max_blood_pool", 100)
@@ -422,6 +478,9 @@ class Character:
             self.rune_arcane = 0  # 비전 룬 (0-3)
             self.max_rune_per_type = self.gimmick_data.get("max_per_rune", 3)
             self.max_runes_total = self.gimmick_data.get("max_runes_total", 9)
+            self.max_rune_slots_per_target = self.gimmick_data.get("max_rune_slots_per_target", 4)
+            self.resonance_gauge = 0
+            self.max_resonance_gauge = self.gimmick_data.get("max_resonance_gauge", 100)
             self.resonance_bonus = 0  # 공명 보너스 (3개 동일 룬 시)
 
         # 네크로맨서 - 언데드 군단 시스템 (신버전)
@@ -442,7 +501,7 @@ class Character:
             self.danger_min = self.gimmick_data.get("danger_min", 71)  # 위험 구간 시작
             self.rampage_threshold = self.gimmick_data.get("rampage_threshold", 100)  # 폭주 임계값
 
-        # 뱀파이어 - 갈증 게이지 시스템 (신버전)
+        # 흡혈귀 - 갈증 게이지 시스템 (신버전)
         elif gimmick_type == "thirst_gauge":
             self.thirst = self.gimmick_data.get("start_thirst", 0)  # 갈증 게이지 (0-100)
             self.max_thirst = self.gimmick_data.get("max_thirst", 100)
@@ -468,28 +527,85 @@ class Character:
             self.normal_max = self.extreme_max
             self.starving_min = self.frenzy_min
             
-            # 뱀파이어 기믹 특성 자동 추가
+            # 흡혈귀 기믹 특성 자동 추가
             if "vampire_thirst_gimmick" not in self.system_traits:
                 self.system_traits.append("vampire_thirst_gimmick")
 
-        # 해커 - 멀티스레드 시스템 (신버전)
+        # 해커 - 멀티스레드 시스템 (구버전, 호환성 유지)
         elif gimmick_type == "multithread_system":
             self.active_threads = []  # 활성 스레드 리스트 (최대 4개)
             self.max_threads = self.gimmick_data.get("max_threads", 4)
             self.thread_types = ["firewall", "exploit", "ddos", "rootkit"]  # 가능한 스레드 타입
+        
+        # 해커 - 침투 시스템 (리메이크)
+        elif gimmick_type == "intrusion_system":
+            self.ram = self.gimmick_data.get("start_ram", 4)  # RAM 자원
+            self.max_ram = self.gimmick_data.get("max_ram", 8)
+            self.ram_regen = self.gimmick_data.get("ram_regen_per_turn", 1)
+            self.intrusion_stages = self.gimmick_data.get("intrusion_stages", {})
+            self.overclock_active = False  # 오버클럭 모드
+            self.overclock_data = self.gimmick_data.get("overclock", {})
+            # 적별 침투 게이지는 전투 시 enemy 객체에 저장됨
+            # 시스템 상시 특성 등록 (제로데이 헌터 등)
+            if "zero_day_hunter" not in self.system_traits:
+                self.system_traits.append("zero_day_hunter")
+            if not any((t if isinstance(t, str) else t.get("id")) == "zero_day_hunter" for t in self.active_traits):
+                self.active_traits.append("zero_day_hunter")
 
-        # 글래디에이터 - 군중 환호 시스템 (신버전)
+        # 검투사 - 콜로세움 쇼타임 시스템 (리메이크)
         elif gimmick_type == "crowd_cheer":
             self.cheer = 0  # 환호 게이지 (0-100)
             self.max_cheer = self.gimmick_data.get("max_cheer", 100)
             self.start_cheer = self.gimmick_data.get("start_cheer", 0)
-            self.cheer_zones = self.gimmick_data.get("cheer_zones", {})  # normal/popular/superstar/glory
+            self.cheer_tiers = self.gimmick_data.get("cheer_tiers", {})  # 환호 단계
+            self.cheer_tier = "nameless"  # 현재 환호 단계
+            # 관중의 요구 시스템
+            self.crowd_demands = self.gimmick_data.get("crowd_demands", {})
+            self.current_demand = None  # 현재 라운드 요구
+            self.demand_progress = {}  # 요구 진행 상황
+            self.consecutive_boos = 0  # 연속 야유 카운트
+            self.boo_effect = self.gimmick_data.get("boo_effect", {})
+        
+        # 성기사 - 서약 시스템 (리메이크)
+        elif gimmick_type == "oath_system":
+            self.faith = self.gimmick_data.get("start_faith", 0)  # 신앙 게이지
+            self.max_faith = self.gimmick_data.get("max_faith", 100)
+            self.current_oath = None  # 선택된 서약 (endurance/purity/mercy)
+            self.oaths = self.gimmick_data.get("oaths", {})
+            self.miracle_thresholds = self.gimmick_data.get("miracle_thresholds", {})
+            self.oath_violation_count = 0  # 서약 위반 횟수
+            self.oath_kept = True  # 현재 턴 서약 준수 여부
+            # 기본 서약 설정 (gimmick_data.default_oath 또는 첫 번째 서약)
+            default_oath = self.gimmick_data.get("default_oath")
+            if default_oath and default_oath in self.oaths:
+                self.current_oath = default_oath
+        
+        # 신관 - 신탁 시스템 (리메이크)
+        elif gimmick_type == "oracle_system":
+            self.faith = self.gimmick_data.get("start_faith", 0)  # 신앙 게이지
+            self.max_faith = self.gimmick_data.get("max_faith", 100)
+            self.oracles = self.gimmick_data.get("oracles", {})
+            self.current_oracle = None  # 현재 라운드 신탁
+            self.oracle_combo = 0  # 연속 충족 횟수
+            self.combo_bonuses = self.gimmick_data.get("combo_bonuses", {})
+        
+        # 도적 - 농락 시스템 (리메이크)
+        elif gimmick_type == "mockery_system":
+            self.max_mockery = self.gimmick_data.get("max_mockery", 10)
+            self.mockery_effects = self.gimmick_data.get("mockery_effects", {})
+            self.poison_types = self.gimmick_data.get("poison_types", {})
+            self.evasion_chain = self.gimmick_data.get("evasion_chain", {})
+            self.stealth_active = False  # 은신 상태
+            self.consecutive_evades = 0  # 연속 회피 횟수
+            # 적별 농락 게이지는 전투 시 enemy 객체에 저장됨
 
         # 암살자 - 은신-노출 딜레마 (신버전)
         elif gimmick_type == "stealth_exposure":
             self.stealth_active = True  # 은신 상태 (True/False)
             self.exposed_turns = 0  # 노출 후 경과 턴 (3턴 후 재은신 가능)
             self.restealth_cooldown = self.gimmick_data.get("restealth_cooldown", 3)
+            self.exposed_stacks = 0  # 노출 스택
+            self.max_exposed_stacks = self.gimmick_data.get("max_exposed_stacks", 3)
 
         # 궁수 - 지원사격 시스템 (신버전)
         elif gimmick_type == "support_fire":
@@ -499,13 +615,16 @@ class Character:
             self.support_fire_combo = 0  # 연속 지원 사격 콤보
             self.arrow_types = self.gimmick_data.get("arrow_types", {})
 
-        # 정령술사 - 4대 정령 소환 (신버전)
+        # 정령술사 - 정령 전환 시스템 (리메이크)
         elif gimmick_type == "elemental_spirits":
             self.spirit_fire = 0  # 화염 정령 (0 or 1)
             self.spirit_water = 0  # 물 정령 (0 or 1)
             self.spirit_wind = 0  # 바람 정령 (0 or 1)
             self.spirit_earth = 0  # 대지 정령 (0 or 1)
             self.max_spirits = self.gimmick_data.get("max_spirits", 2)  # 최대 2마리 동시 소환
+            self.spirit_slots = []  # 소환 순서 기록 [첫번째, 두번째] - 자동 교체용
+            self.active_resonance = None  # 현재 활성화된 공명 효과
+            self.resonance_multiplier = 1.0  # 공명 효과 배율 (자연의 섭리로 2배)
 
         # 철학자 - 딜레마 선택 시스템 (신버전)
         elif gimmick_type == "dilemma_choice":
@@ -784,6 +903,11 @@ class Character:
         """최대 MP"""
         return int(self.stat_manager.get_value(Stats.MP))
 
+    def effective_max_mp(self) -> int:
+        """예약된 MP를 제외한 실제 사용 가능 최대 MP (과부하 토글용)"""
+        reserved = getattr(self, "reserved_max_mp", 0)
+        return max(0, self.max_mp - reserved)
+
     @property
     def init_brv(self) -> int:
         """초기 BRV (전투 시작 시)"""
@@ -873,16 +997,68 @@ class Character:
 
     # ===== HP/MP 관리 =====
 
-    def take_damage(self, damage: int) -> int:
+    # ===== HP/MP 관리 =====
+        
+    @property
+    def max_combo_gauge(self) -> int:
+        """
+        [브레이커] 최대 콤보 게이지
+        기본: Max HP의 50%
+        특성: Infinite Loop (무한 루프) -> 1.2배
+        """
+        # 직업 검사 (최적화)
+        if self.job_id != "breaker" and self.character_class != "breaker":
+            return 0
+            
+        base_max = int(self.max_hp * 0.5)
+        
+        # 특성 체크
+        multiplier = 1.0
+        if self._has_trait("infinite_loop"):
+            multiplier = 1.2
+            
+        return int(base_max * multiplier)
+
+    def take_damage(self, damage: int, is_dot: bool = False) -> int:
         """
         데미지를 받습니다
 
         Args:
             damage: 데미지 양
+            is_dot: DoT(지속 피해)인지 여부 (DoT는 포탑 파괴 등 특수 효과 미적용)
 
         Returns:
             실제로 받은 데미지
         """
+        # ===== 원소 장막: 아군 전체 공유 보호막 =====
+        # combat_manager에서 party_elemental_shield 확인
+        shield_absorbed = 0
+        if hasattr(self, '_combat_manager_ref'):
+            combat_manager = self._combat_manager_ref
+            if hasattr(combat_manager, 'party_elemental_shield'):
+                shield = combat_manager.party_elemental_shield
+                if shield and shield.get('amount', 0) > 0:
+                    # HP 피해 1당 보호막 4 소모
+                    hp_to_brv_ratio = shield.get('hp_to_brv_ratio', 4)
+                    shield_damage = damage * hp_to_brv_ratio
+
+                    # 보호막에서 흡수
+                    current_shield = shield['amount']
+                    absorbed = min(shield_damage, current_shield)
+                    shield['amount'] = max(0, current_shield - absorbed)
+
+                    # 실제 HP 피해 계산
+                    actual_hp_damage = int(absorbed / hp_to_brv_ratio)
+                    shield_absorbed = actual_hp_damage
+                    damage = max(0, damage - actual_hp_damage)
+
+                    logger.info(f"[원소 장막] {self.name} - 보호막 흡수: {int(absorbed)} (HP 피해 {actual_hp_damage} 방어), 남은 보호막: {shield['amount']}")
+
+                    # 보호막이 다 소진되면 제거
+                    if shield['amount'] <= 0:
+                        logger.info(f"[원소 장막] 보호막 파괴!")
+                        combat_manager.party_elemental_shield = None
+
         # 네크로맨서: 미니언이 공격을 대신 받을 확률 체크
         if hasattr(self, 'gimmick_type') and self.gimmick_type == "undead_legion":
             skeleton = getattr(self, 'undead_skeleton', 0)
@@ -909,6 +1085,16 @@ class Character:
                     # 미니언이 대신 받았으므로 데미지 0
                     return 0
         
+        # ===== 세피로스 표식: 피해 증폭 =====
+        if hasattr(self, '_sephiroth_mark'):
+            from src.combat.boss_gimmicks import get_boss_gimmick_system
+            gimmick = get_boss_gimmick_system()
+            amp = gimmick.get_mark_damage_amplification(self)
+            if amp > 0:
+                amplified_damage = int(damage * (1 + amp))
+                logger.info(f"[광기의 표식] {self.name} 피해 증폭! {damage} → {amplified_damage} (+{amp*100:.0f}%)")
+                damage = amplified_damage
+        
         # ===== 환술사: 환영 피해 분산 시스템 =====
         if hasattr(self, 'gimmick_type') and self.gimmick_type == "phantom_legion":
             from src.character.gimmick_updater import GimmickUpdater
@@ -923,37 +1109,39 @@ class Character:
         
         # ===== 차원술사: 차원 굴절 시스템 (특성 효과 전에 먼저 처리) =====
         if hasattr(self, 'gimmick_type') and self.gimmick_type == "dimension_refraction":
-            # 피해 경감률 계산
-            reduction = getattr(self, 'damage_reduction', 0.85)
-
-            # 차원 안정화 특성 확인
-            if hasattr(self, 'active_traits'):
-                if any((t if isinstance(t, str) else t.get('id')) == 'dimensional_stabilization'
-                       for t in self.active_traits):
-                    reduction = 0.925  # 92.5% 경감
-
-            # 경감량 계산
-            refracted_amount = int(damage * reduction)
-            actual_damage_after_refraction = damage - refracted_amount
-
-            # 이중 차원 특성 확인 (추가 50% 경감)
-            if hasattr(self, 'active_traits'):
-                if any((t if isinstance(t, str) else t.get('id')) == 'double_refraction'
-                       for t in self.active_traits):
-                    actual_damage_after_refraction = int(actual_damage_after_refraction * 0.5)
-                    logger.debug(f"[이중 차원] {self.name} 추가 피해 경감 -50%")
-
-            # 굴절량 축적
-            if not hasattr(self, 'refraction_stacks'):
-                self.refraction_stacks = 0
-            self.refraction_stacks += refracted_amount
-
-            logger.info(
-                f"[차원 굴절] {self.name} 피해 {damage} → {actual_damage_after_refraction} "
-                f"(굴절량 +{refracted_amount}, 총 {self.refraction_stacks})"
-            )
-
-            damage = actual_damage_after_refraction
+            # 굴절 유지비 처리 중에는 굴절 로직 건너뛰기 (무한 루프 방지)
+            if not getattr(self, "_processing_refraction_decay", False):
+                # 피해 경감률 계산
+                reduction = getattr(self, 'damage_reduction', 0.85)
+    
+                # 차원 안정화 특성 확인
+                if hasattr(self, 'active_traits'):
+                    if any((t if isinstance(t, str) else t.get('id')) == 'dimensional_stabilization'
+                           for t in self.active_traits):
+                        reduction = 0.925  # 92.5% 경감
+    
+                # 경감량 계산
+                refracted_amount = int(damage * reduction)
+                actual_damage_after_refraction = damage - refracted_amount
+    
+                # 이중 차원 특성 확인 (추가 50% 경감)
+                if hasattr(self, 'active_traits'):
+                    if any((t if isinstance(t, str) else t.get('id')) == 'double_refraction'
+                           for t in self.active_traits):
+                        actual_damage_after_refraction = int(actual_damage_after_refraction * 0.5)
+                        logger.debug(f"[이중 차원] {self.name} 추가 피해 경감 -50%")
+    
+                # 굴절량 축적
+                if not hasattr(self, 'refraction_stacks'):
+                    self.refraction_stacks = 0
+                self.refraction_stacks += refracted_amount
+    
+                logger.info(
+                    f"[차원 굴절] {self.name} 피해 {damage} → {actual_damage_after_refraction} "
+                    f"(굴절량 +{refracted_amount}, 총 {self.refraction_stacks})"
+                )
+    
+                damage = actual_damage_after_refraction
 
         # 특성 효과: 피해 감소 (damage_reduction, brave_soul 등)
         from src.character.trait_effects import get_trait_effect_manager
@@ -970,6 +1158,24 @@ class Character:
         damage_reduction = trait_manager.calculate_damage_reduction(self, is_defending=is_defending)
         if damage_reduction > 0:
             damage = int(damage * (1.0 - damage_reduction))
+
+        stance_damage_reduction = getattr(self, "stance_damage_reduction", 0.0)
+        if stance_damage_reduction > 0:
+            damage = int(damage * (1.0 - stance_damage_reduction))
+        
+        # ===== 탱크 스킬 피해 경감 (active_buffs의 damage_reduction 메타데이터) =====
+        if hasattr(self, 'active_buffs') and self.active_buffs:
+            for buff_type, buff_data in self.active_buffs.items():
+                if isinstance(buff_data, dict) and buff_data.get('damage_reduction'):
+                    skill_reduction = buff_data['damage_reduction']
+                    damage = int(damage * (1.0 - skill_reduction))
+                    logger.debug(f"[스킬 피해 경감] {self.name} 버프 '{buff_type}': -{skill_reduction*100:.0f}%")
+        
+        # ===== 스킬 피해 경감 (skill_damage_reduction 속성) =====
+        skill_damage_reduction = getattr(self, "skill_damage_reduction", 0.0)
+        if skill_damage_reduction > 0:
+            damage = int(damage * (1.0 - skill_damage_reduction))
+            logger.debug(f"[스킬 피해 경감] {self.name}: -{skill_damage_reduction*100:.0f}%")
         
         # ===== 차원 보호막 버프: 피해 경감 및 차원술사 굴절량 전환 =====
         if hasattr(self, 'active_buffs') and 'dimension_barrier' in self.active_buffs:
@@ -1002,6 +1208,7 @@ class Character:
             "damage": damage,
             "old_hp": old_hp,
             "new_hp": None,  # 아직 피해가 적용되지 않았음을 나타냄
+            "is_dot": is_dot,  # DoT 피해 여부
             # 보호 효과를 위해 원본 정보 저장
             "original_damage": getattr(self, "_last_original_damage", None),  # 방어력 적용 전 원본 데미지
             "attacker": getattr(self, "_last_attacker", None),  # 마지막 공격자 정보
@@ -1016,6 +1223,9 @@ class Character:
         # 이벤트 핸들러에서 수정된 피해를 사용 (수호 효과가 적용되었을 수 있음)
         # 수호 효과가 적용되면 이벤트 핸들러에서 damage_event_data["damage"]를 수정함
         final_damage = damage_event_data.get("damage", damage)
+        
+        # DoT 피해 여부 확인 (DoT 피해에는 포탑 파괴 적용 안 함)
+        is_dot_damage = damage_event_data.get("is_dot", False)
         
         # 1. 상태이상: 마나 실드 (MP로 피해 흡수) - 효율: MP 1당 HP 3
         # 일반 보호막보다 먼저 적용하여 MP를 소모하게 함 (선택적)
@@ -1049,8 +1259,56 @@ class Character:
             if self.shield_amount <= 0:
                 self.shield_amount = 0
         
+        # 3. 피의 방패 (current_shield) - 광전사 전용 보호막
+        current_shield = getattr(self, 'current_shield', 0)
+        if current_shield > 0 and final_damage > 0:
+            shield_absorbed = min(current_shield, final_damage)
+            self.current_shield -= shield_absorbed
+            final_damage -= shield_absorbed
+            
+            if shield_absorbed > 0:
+                logger.info(f"[BLOOD_SHIELD] {self.name}의 피의 방패가 {shield_absorbed} 데미지를 흡수했습니다! (남은 보호막: {self.current_shield})")
+            
+            # 보호막이 모두 소진되면 관련 값 초기화
+            if self.current_shield <= 0:
+                self.current_shield = 0
+                self.shield_duration = 0
+        
+        # 4. 기계공학자 포탑 시스템: 피격 시 포탑 파괴 및 피해 40% 감소
+        # (보호막 흡수 후 남은 피해가 있고, DoT가 아닌 직접 공격일 때만)
+        if not is_dot_damage and hasattr(self, 'gimmick_type') and self.gimmick_type == "heat_management":
+            turret_count = getattr(self, 'turret_count', 0)
+            if turret_count > 0 and final_damage > 0:
+                from src.character.gimmick_updater import GimmickUpdater
+                # 타수당 1개 파괴 (기본 1회, kwargs에서 hit_count 확인)
+                hit_count = damage_event_data.get("hit_count", 1)
+                damage_multiplier = GimmickUpdater.on_take_damage_turret(self, None, hit_count)
+                final_damage = int(final_damage * damage_multiplier)
+                logger.debug(f"[포탑 보호] {self.name} 피해 {int(damage_multiplier*100)}% 적용")
+
+        # 5. 사무라이 검심 시스템: 피격 시 반격 (피해 감소 + BRV 반사)
+        if not is_dot_damage and hasattr(self, 'gimmick_type') and self.gimmick_type == "kenshin_system":
+            if final_damage > 0:
+                from src.character.gimmick_updater import GimmickUpdater
+                # 공격자 정보 가져오기
+                attacker = damage_event_data.get("attacker", None)
+                # 반격 시스템 적용 (피해 감소 + BRV 반사)
+                reduced_damage, brv_reflection = GimmickUpdater._apply_kenshin_counter(self, final_damage, attacker)
+
+                if reduced_damage != final_damage or brv_reflection > 0:
+                    logger.info(f"[검심 반격] {self.name} 피해 {final_damage} → {reduced_damage} (감소: {final_damage - reduced_damage})")
+                    if brv_reflection > 0:
+                        logger.info(f"[검심 반격] {self.name} BRV 반사 +{brv_reflection}")
+                    final_damage = reduced_damage
+
+        old_hp = self.current_hp
         actual_damage = min(final_damage, self.current_hp)
         self.current_hp -= actual_damage
+
+        # 광기 시스템: HP 변화 즉시 반영
+        if actual_damage > 0:
+            from src.character.gimmick_updater import GimmickUpdater
+            GimmickUpdater.on_hp_change(self, old_hp, self.current_hp)
 
         # 내구도 감소 (피해를 입었을 때)
         if actual_damage > 0:
@@ -1113,7 +1371,12 @@ class Character:
 
             event_bus.publish(Events.CHARACTER_DEATH, {
                 "character": self,
-                "name": self.name
+                "name": self.name,
+                # 마지막 공격자/피해 정보 전달 (기믹 처리용)
+                "attacker": getattr(self, "_last_attacker", None),
+                "damage_type": getattr(self, "_last_damage_type", None),
+                "brv_points": getattr(self, "_last_brv_points", None),
+                "hp_multiplier": getattr(self, "_last_hp_multiplier", None),
             })
 
         event_bus.publish(Events.CHARACTER_HP_CHANGE, {
@@ -1273,8 +1536,13 @@ class Character:
         # 1. 일반 회복 (상처 제한까지)
         healable_amount = max(0, effective_max_hp - self.current_hp)
         normal_heal = min(amount, healable_amount)
-        
+
         self.current_hp += normal_heal
+
+        # 광기 시스템: HP 회복 시 즉시 반영
+        if normal_heal > 0:
+            from src.character.gimmick_updater import GimmickUpdater
+            GimmickUpdater.on_hp_change(self, old_hp, self.current_hp)
         remaining_heal = amount - normal_heal
         
         # 2. 초과 회복량으로 상처 치료 (1/4 효율)
@@ -1347,7 +1615,9 @@ class Character:
             실제로 회복한 양
         """
         old_mp = self.current_mp
-        self.current_mp = min(self.current_mp + amount, self.max_mp)
+        # 예약된 MP를 제외한 실제 사용 가능 최대 MP까지만 회복
+        effective_max = self.effective_max_mp()
+        self.current_mp = min(self.current_mp + amount, effective_max)
         actual_restore = self.current_mp - old_mp
 
         event_bus.publish(Events.CHARACTER_MP_CHANGE, {

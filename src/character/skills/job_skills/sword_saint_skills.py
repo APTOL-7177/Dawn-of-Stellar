@@ -1,4 +1,10 @@
-"""Sword Saint Skills - 검성 스킬 (검기 스택 시스템)"""
+"""Sword Saint Skills - 검성 스킬 (검기 스택 시스템)
+
+검기 시스템:
+- 검기 스택에 따라 공격 시 검기가 먼저 BRV 피해를 입힘
+- 메인 스킬은 HP 공격으로 마무리
+- 검기 스택이 많을수록 더 많은 BRV 피해 후 HP 공격
+"""
 from src.character.skills.skill import Skill
 from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
@@ -7,136 +13,160 @@ from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
+# 검기 추가 공격 고정 계수
+SWORD_AURA_MULTIPLIER = 0.14  # 검기 1개당 0.14
+
 def create_sword_saint_skills():
-    """검성 10개 스킬 생성 (검기 스택 시스템)"""
+    """검성 10개 스킬 생성 (검기 스택 시스템)
+    
+    검기 시스템:
+    - 공격 시 현재 검기 스택 수만큼 BRV 공격이 먼저 발동
+    - 그 후 메인 스킬(HP 공격)이 실행
+    - 검기 스택이 많을수록 더 강력한 콤보
+    """
 
     skills = []
 
-    # 1. 기본 BRV: 검기 베기
-    kenkizan = Skill("sword_saint_kenkizan", "검기 베기", "적을 베어 검기 스택 획득")
+    # 1. 기본 BRV: 검기 축적 (검기 획득용 - 검기 추가타 없음)
+    kenkizan = Skill("sword_saint_kenkizan", "검기 축적", "적을 베어 검기 스택 획득")
     kenkizan.effects = [
-        DamageEffect(DamageType.BRV, 1.5),
+        DamageEffect(DamageType.BRV, 1.8),
         GimmickEffect(GimmickOperation.ADD, "sword_aura", 1, max_value=5)
     ]
     kenkizan.costs = []  # 기본 공격은 MP 소모 없음
-    kenkizan.sfx = ("combat", "attack_physical")  # 검기 베기
+    kenkizan.sfx = ("combat", "attack_physical")
     kenkizan.metadata = {"aura_gain": 1}
     skills.append(kenkizan)
 
-    # 2. 기본 HP: 일섬
-    ilseom = Skill("sword_saint_ilseom", "일섬", "검기 스택 소비하여 강력한 HP 공격")
+    # 2. 기본 HP: 일섬 (검기 추가타 + HP 공격)
+    ilseom = Skill("sword_saint_ilseom", "일섬", "검기가 먼저 적을 베고, 일섬으로 마무리")
     ilseom.effects = [
-        DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "sword_aura", "multiplier": 0.3}),
-        GimmickEffect(GimmickOperation.CONSUME, "sword_aura", 1)
+        DamageEffect(DamageType.HP, 1.2),
     ]
     ilseom.costs = []  # 기본 공격은 MP 소모 없음
-    ilseom.sfx = ("combat", "critical")  # 일섬
-    ilseom.metadata = {"aura_cost": 1, "aura_scaling": True}
+    ilseom.sfx = ("combat", "critical")
+    ilseom.metadata = {
+        "sword_aura_bonus_hits": {"multiplier": SWORD_AURA_MULTIPLIER}
+    }
     skills.append(ilseom)
 
-    # 3. 검기 파동
-    kenki_hadou = Skill("sword_saint_kenki_hadou", "검기 파동", "관통 공격")
+    # 3. 검기 파동 (검기 획득 + 검기 추가타 + HP 공격)
+    kenki_hadou = Skill("sword_saint_kenki_hadou", "검기 파동", "검기를 날려 적을 공격하고 검기 획득")
     kenki_hadou.effects = [
-        DamageEffect(DamageType.BRV, 2.0, gimmick_bonus={"field": "sword_aura", "multiplier": 0.2}),
-        GimmickEffect(GimmickOperation.ADD, "sword_aura", 1, max_value=5)
+        GimmickEffect(GimmickOperation.ADD, "sword_aura", 1, max_value=5),
+        DamageEffect(DamageType.HP, 1.5)
     ]
-    kenki_hadou.costs = []
-    # kenki_hadou.cooldown = 2  # 쿨다운 시스템 제거됨
-    kenki_hadou.sfx = ("skill", "cast_start")  # 검기 파동
-    kenki_hadou.metadata = {"aura_gain": 1, "piercing": True}
+    kenki_hadou.costs = [MPCost(4)]
+    kenki_hadou.sfx = ("skill", "cast_start")
+    kenki_hadou.metadata = {
+        "aura_gain": 1,
+        "piercing": True,
+        "sword_aura_bonus_hits": {"multiplier": SWORD_AURA_MULTIPLIER}
+    }
     skills.append(kenki_hadou)
 
-    # 4. 이도류
-    nitoryu = Skill("sword_saint_nitoryu", "이도류", "검기 2스택 소비, 2연속 공격")
+    # 4. 이도류 (검기 2스택 소비 + 검기 추가타 + 강력한 HP 공격)
+    nitoryu = Skill("sword_saint_nitoryu", "이도류", "검기 2스택 소비, 쌍검으로 난무")
     nitoryu.effects = [
-        DamageEffect(DamageType.BRV, 1.8),
-        DamageEffect(DamageType.HP, 1.2),
-        GimmickEffect(GimmickOperation.CONSUME, "sword_aura", 2)
+        DamageEffect(DamageType.HP, 1.8)
     ]
-    nitoryu.costs = [MPCost(5), StackCost("sword_aura", 2)]
-    # nitoryu.cooldown = 3  # 쿨다운 시스템 제거됨
-    nitoryu.sfx = ("combat", "attack_physical")  # 이도류
-    nitoryu.metadata = {"aura_cost": 2, "dual_wield": True}
+    nitoryu.costs = [MPCost(6), StackCost("sword_aura", 2)]
+    nitoryu.sfx = ("combat", "attack_physical")
+    nitoryu.metadata = {
+        "aura_cost": 2,
+        "dual_wield": True,
+        "sword_aura_bonus_hits": {"multiplier": SWORD_AURA_MULTIPLIER}
+    }
     skills.append(nitoryu)
 
-    # 5. 검기 폭발
-    kenki_bakuhatsu = Skill("sword_saint_kenki_bakuhatsu", "검기 폭발", "모든 검기 폭발")
+    # 5. 검기 폭발 (모든 검기 소비 + 검기 추가타 + 폭발 HP 공격)
+    kenki_bakuhatsu = Skill("sword_saint_kenki_bakuhatsu", "검기 폭발", "모든 검기를 폭발시켜 대폭발")
     kenki_bakuhatsu.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.5, gimmick_bonus={"field": "sword_aura", "multiplier": 0.4}),
+        DamageEffect(DamageType.HP, 1.6, gimmick_bonus={"field": "sword_aura", "multiplier": 0.28}),
         GimmickEffect(GimmickOperation.SET, "sword_aura", 0)
     ]
-    kenki_bakuhatsu.costs = [MPCost(6), StackCost("sword_aura", 1)]
-    # kenki_bakuhatsu.cooldown = 4  # 쿨다운 시스템 제거됨
-    kenki_bakuhatsu.sfx = ("skill", "ultima")  # 검기 폭발
-    kenki_bakuhatsu.metadata = {"aura_dump": True, "aura_scaling": True}
+    kenki_bakuhatsu.costs = [MPCost(8), StackCost("sword_aura", 1)]
+    kenki_bakuhatsu.sfx = ("skill", "ultima")
+    kenki_bakuhatsu.metadata = {
+        "aura_dump": True,
+        "aura_scaling": True,
+        "sword_aura_bonus_hits": {"multiplier": SWORD_AURA_MULTIPLIER}
+    }
     skills.append(kenki_bakuhatsu)
 
-    # 6. 초고속 베기
-    rapid_slash = Skill("sword_saint_rapid_slash", "초고속 베기", "빠른 베기, 검기 2스택 획득")
+    # 6. 초고속 베기 (검기 2스택 획득 + 검기 추가타 + HP 공격)
+    rapid_slash = Skill("sword_saint_rapid_slash", "초고속 베기", "빠른 베기로 검기 대량 획득")
     rapid_slash.effects = [
-        DamageEffect(DamageType.BRV, 1.2),
-        GimmickEffect(GimmickOperation.ADD, "sword_aura", 2, max_value=5)
+        GimmickEffect(GimmickOperation.ADD, "sword_aura", 2, max_value=5),
+        DamageEffect(DamageType.HP, 1.3)
     ]
-    rapid_slash.costs = [MPCost(3)]
-    rapid_slash.cast_time = 0.5
-    # rapid_slash.cooldown = 2  # 쿨다운 시스템 제거됨
-    rapid_slash.sfx = ("combat", "attack_physical")  # 초고속 베기
-    rapid_slash.metadata = {"aura_gain": 2, "quick": True}
+    rapid_slash.costs = [MPCost(5)]
+    rapid_slash.sfx = ("combat", "attack_physical")
+    rapid_slash.metadata = {
+        "aura_gain": 2,
+        "quick": True,
+        "sword_aura_bonus_hits": {"multiplier": SWORD_AURA_MULTIPLIER}
+    }
     skills.append(rapid_slash)
 
-    # 7. 검성의 의지
-    will = Skill("sword_saint_will", "검성의 의지", "검기 스택 최대 회복")
+    # 7. 검성의 의지 (검기 스택 최대 회복 - 버프 스킬)
+    will = Skill("sword_saint_will", "검성의 의지", "정신 집중으로 검기 스택 최대 충전")
     will.effects = [
-        GimmickEffect(GimmickOperation.SET, "sword_aura", 5)
+        GimmickEffect(GimmickOperation.SET, "sword_aura", 5),
+        BuffEffect(BuffType.ATTACK_UP, 0.15, duration=3)
     ]
-    will.costs = [MPCost(5)]
+    will.costs = [MPCost(6)]
     will.target_type = "self"
-    # will.cooldown = 4  # 쿨다운 시스템 제거됨
-    will.sfx = ("character", "status_buff")  # 검성의 의지
+    will.sfx = ("character", "status_buff")
     will.metadata = {"aura_refill": True}
     skills.append(will)
 
-    # 8. 일도양단
-    bisect = Skill("sword_saint_bisect", "일도양단", "검기 3스택 소비, 절대적 일격")
+    # 8. 일도양단 (검기 3스택 소비 + 검기 추가타 + 강력한 HP 공격)
+    bisect = Skill("sword_saint_bisect", "일도양단", "검기 3스택 소비, 한 칼에 양단")
     bisect.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5, gimmick_bonus={"field": "sword_aura", "multiplier": 0.5}),
-        GimmickEffect(GimmickOperation.CONSUME, "sword_aura", 3)
+        DamageEffect(DamageType.HP, 2.5)
     ]
-    bisect.costs = [MPCost(9), StackCost("sword_aura", 3)]
-    # bisect.cooldown = 5  # 쿨다운 시스템 제거됨
-    bisect.sfx = ("combat", "damage_high")  # 일도양단
-    bisect.metadata = {"aura_cost": 3, "aura_scaling": True, "cleave": True}
+    bisect.costs = [MPCost(10), StackCost("sword_aura", 3)]
+    bisect.sfx = ("combat", "damage_high")
+    bisect.metadata = {
+        "aura_cost": 3,
+        "cleave": True,
+        "sword_aura_bonus_hits": {"multiplier": SWORD_AURA_MULTIPLIER}
+    }
     skills.append(bisect)
 
-    # 9. 검광 폭풍 (NEW - 10번째 스킬)
-    sword_storm = Skill("sword_saint_sword_storm", "검광 폭풍", "검기 4스택 소비, 광역 폭풍")
+    # 9. 검광 폭풍 (검기 4스택 소비 + 검기 추가타 + 광역 HP 공격)
+    sword_storm = Skill("sword_saint_sword_storm", "검광 폭풍", "검기 4스택 소비, 전체 적을 검으로 난무")
     sword_storm.effects = [
-        DamageEffect(DamageType.BRV, 2.3, gimmick_bonus={"field": "sword_aura", "multiplier": 0.4}),
-        DamageEffect(DamageType.HP, 1.7, gimmick_bonus={"field": "sword_aura", "multiplier": 0.3}),
-        GimmickEffect(GimmickOperation.CONSUME, "sword_aura", 4)
+        DamageEffect(DamageType.HP, 1.7)
     ]
-    sword_storm.costs = [MPCost(13), StackCost("sword_aura", 4)]
-    # sword_storm.cooldown = 6  # 쿨다운 시스템 제거됨
+    sword_storm.costs = [MPCost(14), StackCost("sword_aura", 4)]
     sword_storm.target_type = "all_enemies"
     sword_storm.is_aoe = True
-    sword_storm.sfx = ("skill", "cast_complete")  # 검광 폭풍
-    sword_storm.metadata = {"aura_cost": 4, "aura_scaling": True, "aoe": True}
+    sword_storm.sfx = ("skill", "cast_complete")
+    sword_storm.metadata = {
+        "aura_cost": 4,
+        "aoe": True,
+        "sword_aura_bonus_hits": {"multiplier": SWORD_AURA_MULTIPLIER}
+    }
     skills.append(sword_storm)
 
-    # 10. 궁극기: 무한검
-    ultimate = Skill("sword_saint_ultimate", "무한검", "모든 검기로 무수한 검 다연타")
+    # 10. 궁극기: 무한검 (검기 스택에 따른 다연타 - 검기 1개당 BRV 공격 후 HP 마무리)
+    ultimate = Skill("sword_saint_ultimate", "무한검", "모든 검기로 무수한 검을 쏟아붓는다")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 1.0, gimmick_bonus={"field": "sword_aura", "multiplier": 0.2}),
-        DamageEffect(DamageType.BRV, 1.0, gimmick_bonus={"field": "sword_aura", "multiplier": 0.2}),
-        DamageEffect(DamageType.BRV, 1.0, gimmick_bonus={"field": "sword_aura", "multiplier": 0.2}),
-        DamageEffect(DamageType.HP, 2.0),
-        GimmickEffect(GimmickOperation.SET, "sword_aura", 0)
+        DamageEffect(DamageType.HP, 3.0)
     ]
-    ultimate.costs = [MPCost(30), StackCost("sword_aura", 1)]
+    ultimate.costs = [MPCost(25), StackCost("sword_aura", 1)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
-    ultimate.sfx = ("skill", "limit_break")  # 궁극기
-    ultimate.metadata = {"ultimate": True, "aura_dump": True, "infinite_blade": True}
+    ultimate.cooldown = 12  # 궁극기 쿨타임 12턴
+    ultimate.sfx = ("skill", "limit_break")
+    ultimate.metadata = {
+        "ultimate": True,
+        "aura_dump": True,
+        "infinite_blade": True,
+        # 무한검: 검기 스택당 0.7배 BRV 공격 (다른 스킬보다 높은 계수)
+        "sword_aura_bonus_hits": {"multiplier": 0.4}
+    }
     skills.append(ultimate)
 
     return skills
@@ -147,10 +177,10 @@ def register_sword_saint_skills(skill_manager):
     for skill in skills:
         skill_manager.register_skill(skill)
 
-    # 팀워크 스킬: 검기 폭발
+    # 팀워크 스킬: 검성: 만상절단
     teamwork = TeamworkSkill(
         "sword_saint_teamwork",
-        "검기 폭발",
+        "검성: 만상절단",
         "전체 대상 BRV+HP (3.5x) + 검기 게이지 완전 회복 + 아군 전체 공격력 1.2배 (2턴)",
         gauge_cost=250)
     teamwork.effects = [
@@ -178,5 +208,4 @@ def register_sword_saint_skills(skill_manager):
     skills.append(teamwork)
     skill_manager.register_skill(teamwork)
 
-    return skills
     return [s.skill_id for s in skills]

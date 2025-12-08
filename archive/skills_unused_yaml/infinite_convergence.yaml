@@ -1,0 +1,52 @@
+id: infinite_convergence
+name: 무한 수렴
+type: ultimate
+description: '모든 시간선의 가능성을 하나로 수렴!
+
+  저장된 모든 가능성 + 타임 볼트/타임 쇼크/리와인드 연속 발동.
+
+  모든 스킬 120% 위력. 발동 후 슬롯 초기화.
+
+  '
+costs:
+  mp: 38
+  cast_time: 2.0
+target: all_enemies
+requirements:
+  min_possibilities: 3
+effects:
+- type: release_all_possibilities
+  power_ratio: 1.2
+  sequence: true
+  delay_between: 0.3
+- type: chain_cast
+  skills:
+  - skill_id: time_bolt
+    power_ratio: 1.2
+  - skill_id: time_shock
+    power_ratio: 1.2
+  - skill_id: rewind
+    target: lowest_hp_ally
+    power_ratio: 1.2
+- type: damage
+  damage_type: magic
+  stat_base: magic
+  multiplier: 2.5
+  target: all_enemies
+  element: time
+  attack_type: hp
+- type: time_fracture
+  target: all_enemies
+  effect: all_stats_down
+  value: 0.2
+  duration: 2
+- type: clear_slots
+  after_cast: true
+metadata:
+  gimmick_skill: true
+  no_possibility_generation: true
+  ultimate: true
+  job: time_mage
+sfx:
+- se
+- Magic1

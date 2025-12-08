@@ -40,6 +40,10 @@ class MetaProgress:
         "storage": 1
     })
 
+    # 영구 저장소 (재료 보존)
+    hub_storage: list = field(default_factory=list)  # 허브 저장소 (List[Dict])
+    town_storage: list = field(default_factory=list)  # 마을 창고 (List[Dict])
+
     # 게임 초기 설정
     intro_shown: bool = False  # 인트로 스토리 표시 여부
     tutorial_offered: bool = False  # 튜토리얼 권장 여부
@@ -210,6 +214,8 @@ class MetaProgress:
             "purchased_passives": list(self.purchased_passives),
             "unlocked_jobs": list(self.unlocked_jobs),
             "facility_levels": self.facility_levels,  # 시설 레벨 저장
+            "hub_storage": self.hub_storage,  # 허브 저장소 저장
+            "town_storage": self.town_storage,  # 마을 창고 저장
             "intro_shown": self.intro_shown,
             "tutorial_offered": self.tutorial_offered
         }
@@ -227,8 +233,11 @@ class MetaProgress:
                 "kitchen": 1,
                 "blacksmith": 1,
                 "alchemy_lab": 1,
+                "alchemy_lab": 1,
                 "storage": 1
             }),
+            hub_storage=data.get("hub_storage", []),
+            town_storage=data.get("town_storage", []),
             intro_shown=data.get("intro_shown", False),
             tutorial_offered=data.get("tutorial_offered", False)
         )

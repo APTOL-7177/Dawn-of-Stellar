@@ -1,0 +1,42 @@
+id: priest_ultimate
+name: 신의 기적
+type: ultimate
+description: "[궁극기] 신의 기적을 일으킵니다.\n\n효과:\n1. 아군 전체 마법력 기반 HP 대회복\n\
+  2. 전체 적 \"신성 심판\" 디버프 3턴\n   - 받는 신성 피해 +30%\n   - 매 턴 HP -5%\n3. 3턴간 신탁 자동 충족\n\n\
+  신앙 100이면 회복량 2배 + 신탁 5턴 + 신앙 소모.\n"
+target: all
+costs:
+  mp: 45
+metadata:
+  ultimate: true
+  faith_empowered: true
+effects:
+- type: heal
+  heal_type: hp
+  stat_scaling: magic
+  multiplier: 2.0
+  target: all_allies
+- type: debuff
+  debuff_id: divine_judgment
+  target: all_enemies
+  duration: 3
+  effects:
+    holy_damage_taken: 0.3
+    dot_percent: 0.05
+- type: buff
+  buff_id: oracle_auto_fulfill
+  target: self
+  duration: 3
+  effects:
+    auto_fulfill_oracle: true
+animation:
+  icon: 🙏✨
+  color:
+  - 255
+  - 215
+  - 0
+  screen_effect: divine_miracle
+  duration: 3.0
+sfx:
+- se
+- Explosion4

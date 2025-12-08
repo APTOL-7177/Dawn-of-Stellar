@@ -1,0 +1,33 @@
+id: deploy_worm
+name: 웜 배포
+type: debuff
+description: '[프로그램] 자기 복제 웜을 배포합니다.
+
+  전체 적에게 3턴간 매 턴 침투 +5, DoT 3%.
+
+  RAM 3 소모.
+
+  '
+target: all_enemies
+costs:
+  mp: 18
+  ram: 5
+metadata:
+  program: true
+effects:
+- type: debuff
+  debuff_id: worm
+  target: all_enemies
+  duration: 3
+  effects:
+    intrusion_per_turn: 5
+    dot_percent: 0.03
+animation:
+  icon: 🐛
+  color:
+  - 100
+  - 255
+  - 100
+sfx:
+- se
+- Up1

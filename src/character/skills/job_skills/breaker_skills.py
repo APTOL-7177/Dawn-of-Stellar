@@ -1,273 +1,310 @@
-"""Breaker Skills - 브레이커 (파괴력 축적 시스템)
-
-BRV를 부수고 파괴력을 축적!
-파괴력 비례 피해 + 방어 관통
+"""Breaker Skills - 브레이커 (리메이크)
 
 "부서진 것들이 나의 무기가 된다"
+
+SCATTER 시스템과 연격 기믹을 활용한 연속 공격 딜러.
 """
 from src.character.skills.skill import Skill
 from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
+from src.character.skills.effects.status_effect import StatusEffect, StatusType
+from src.character.skills.effects.cleanse_effect import CleanseEffect
+from src.character.skills.effects.heal_effect import HealEffect, HealType
 from src.character.skills.costs.mp_cost import MPCost
-from src.character.skills.costs.stack_cost import StackCost
+from src.character.skills.costs.gimmick_cost import GimmickCost
 from src.core.logger import get_logger
 
 logger = get_logger("breaker_skills")
 
 
 def create_breaker_skills():
-    """브레이커 스킬 생성 (파괴력 축적 시스템)"""
+    """브레이커 스킬 생성"""
     
     skills = []
     
     # ============================================================
-    # 1. 파쇄 타격 (기본 BRV + 파괴력 축적)
+    # 1. 트리플 스매시 (기본 3연타)
     # ============================================================
-    crush = Skill(
-        "breaker_crush",
-        "파쇄 타격",
-        "강력한 BRV 공격. 파괴력 +1."
+    triple_smash = Skill(
+        "breaker_triple_smash",
+        "트리플 스매시",
+        "건틀릿으로 3회 연속 타격. BREAK 유발에 특화."
     )
-    crush.effects = [
-        DamageEffect(DamageType.BRV, 2.0, stat_type="physical"),
-        GimmickEffect(GimmickOperation.ADD, "break_power", 1, max_value=10)
+    triple_smash.effects = [
+        DamageEffect(DamageType.BRV, 0.6, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 0.6, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 0.8, stat_type="physical")
     ]
-    crush.costs = []
-    crush.sfx = ("combat", "attack_physical")
-    crush.metadata = {
+    triple_smash.costs = []
+    triple_smash.sfx = ("combat", "attack_physical_multi")
+    triple_smash.metadata = {
         "basic_attack": True,
-        "break_power_gain": 1,
-        "brv_focus": True
+        "brv_break_focused": True
     }
-    skills.append(crush)
+    skills.append(triple_smash)
     
     # ============================================================
-    # 2. 파괴의 일격 (기본 HP + 파괴력 소비)
+    # 2. 증기 분출 (HP 공격)
     # ============================================================
-    break_hit = Skill(
-        "breaker_break_hit",
-        "파괴의 일격",
-        "파괴력 비례 HP 피해. 파괴력 -1."
+    steam_erupt = Skill(
+        "breaker_steam_erupt",
+        "증기 분출",
+        "뜨거운 증기와 함께 강력한 일격. 연격 기믹 게이지 획득."
     )
-    break_hit.effects = [
+    steam_erupt.effects = [
         DamageEffect(DamageType.HP, 1.0, stat_type="physical",
-                    gimmick_bonus={"field": "break_power", "multiplier": 0.2}),
-        GimmickEffect(GimmickOperation.CONSUME, "break_power", 1)
+                    gimmick_bonus={"field": "combo_gauge", "multiplier": 0.0, "scaling": "none"})
+        # 기믹 보너스는 메커니즘적으로 처리됨
     ]
-    break_hit.costs = []
-    break_hit.sfx = ("combat", "damage_high")
-    break_hit.metadata = {
-        "basic_attack": True,
-        "break_power_cost": 1,
-        "scaling": "파괴력당 +20%"
+    steam_erupt.costs = []
+    steam_erupt.sfx = ("combat", "damage_heavy")
+    steam_erupt.metadata = {
+        "basic_attack": True
     }
-    skills.append(break_hit)
+    skills.append(steam_erupt)
     
     # ============================================================
-    # 3. BRV 집중 (공격 버프 + 파괴력)
+    # 3. 오버드라이브 시동 (자가 버프)
     # ============================================================
-    brv_focus = Skill(
-        "breaker_brv_focus",
-        "BRV 집중",
-        "파괴에 집중. 공격력 +35% (4턴) + 파괴력 +2."
+    overdrive_start = Skill(
+        "breaker_overdrive_start",
+        "오버드라이브 시동",
+        "엔진 가동! 공격력 +40% 및 기믹 게이지 충전."
     )
-    brv_focus.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.35, duration=4, target="self"),
-        GimmickEffect(GimmickOperation.ADD, "break_power", 2, max_value=10)
+    overdrive_start.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.40, duration=4, target="self"),
+        GimmickEffect(GimmickOperation.ADD, "combo_gauge", 150) # 수치는 임의, 밸런싱 필요
     ]
-    brv_focus.costs = [MPCost(4)]
-    brv_focus.target_type = "self"
-    brv_focus.sfx = ("character", "status_buff")
-    brv_focus.metadata = {
-        "buff": True,
-        "break_power_gain": 2
-    }
-    skills.append(brv_focus)
+    overdrive_start.costs = [MPCost(5)]
+    overdrive_start.target_type = "self"
+    overdrive_start.sfx = ("character", "charge_power")
+    skills.append(overdrive_start)
     
     # ============================================================
-    # 4. 연타 (다중 BRV 히트)
+    # 4. 래피드 피스톤 (다단 히트)
     # ============================================================
-    multi = Skill(
-        "breaker_multi",
-        "연타",
-        "3연속 BRV 공격. 파괴력 +2."
+    rapid_piston = Skill(
+        "breaker_rapid_piston",
+        "래피드 피스톤",
+        "고속 피스톤 연타. 4회 BRV 공격."
     )
-    multi.effects = [
-        DamageEffect(DamageType.BRV, 1.4, stat_type="physical"),
-        DamageEffect(DamageType.BRV, 1.4, stat_type="physical"),
-        DamageEffect(DamageType.BRV, 1.4, stat_type="physical"),
-        GimmickEffect(GimmickOperation.ADD, "break_power", 2, max_value=10)
+    rapid_piston.effects = [
+        DamageEffect(DamageType.BRV, 0.5, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 0.5, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 0.5, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 0.8, stat_type="physical")
     ]
-    multi.costs = [MPCost(5)]
-    multi.sfx = ("combat", "attack_physical")
-    multi.metadata = {
-        "multi_hit": 3,
-        "break_power_gain": 2
-    }
-    skills.append(multi)
+    rapid_piston.costs = [MPCost(8)]
+    rapid_piston.sfx = ("combat", "attack_rapid")
+    rapid_piston.metadata = {}
+    skills.append(rapid_piston)
     
     # ============================================================
-    # 5. 파괴 강화 (파괴력 대량 충전)
+    # 5. 케미컬 리크 (디버프)
     # ============================================================
-    enhance = Skill(
-        "breaker_enhance",
-        "파괴 강화",
-        "파괴 본능 각성. 파괴력 +5 + 크리 +25%."
+    chemical_leak = Skill(
+        "breaker_chemical_leak",
+        "케미컬 리크",
+        "부식성 화학물질 살포. 방어력 -30% (3턴)."
     )
-    enhance.effects = [
-        GimmickEffect(GimmickOperation.ADD, "break_power", 5, max_value=10),
-        BuffEffect(BuffType.CRITICAL_UP, 0.25, duration=3, target="self")
+    chemical_leak.effects = [
+        DamageEffect(DamageType.BRV, 1.2, stat_type="physical"),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.30, duration=3)
     ]
-    enhance.costs = [MPCost(6)]
-    enhance.target_type = "self"
-    enhance.sfx = ("skill", "haste")
-    enhance.metadata = {
-        "break_power_gain": 5,
-        "crit_buff": True
-    }
-    skills.append(enhance)
+    chemical_leak.costs = [MPCost(10)]
+    chemical_leak.sfx = ("skill", "poison_cloud")
+    skills.append(chemical_leak)
     
     # ============================================================
-    # 6. 대파쇄 (강력 BRV)
+    # 6. 엔진 로어 (도발/방어)
     # ============================================================
-    mega_crush = Skill(
-        "breaker_mega_crush",
-        "대파쇄",
-        "파괴력 비례 BRV 대피해. 파괴력 +1."
+    engine_roar = Skill(
+        "breaker_engine_roar",
+        "엔진 로어",
+        "거대한 엔진 소음으로 적 도발 + 받는 피해 감소."
     )
-    mega_crush.effects = [
-        DamageEffect(DamageType.BRV, 2.8, stat_type="physical",
-                    gimmick_bonus={"field": "break_power", "multiplier": 0.25}),
-        GimmickEffect(GimmickOperation.ADD, "break_power", 1, max_value=10)
+    engine_roar.effects = [
+        StatusEffect(StatusType.PROVOKE, duration=3),
+        BuffEffect(BuffType.DEFENSE_UP, 0.50, duration=3, target="self")
     ]
-    mega_crush.costs = [MPCost(7)]
-    mega_crush.sfx = ("combat", "damage_high")
-    mega_crush.metadata = {
-        "break_power_gain": 1,
-        "scaling": "파괴력당 +25%"
-    }
-    skills.append(mega_crush)
+    engine_roar.costs = [MPCost(8)]
+    engine_roar.target_type = "self" # 도발은 self status로 구현
+    engine_roar.sfx = ("skill", "roar")
+    skills.append(engine_roar)
     
     # ============================================================
-    # 7. 파괴 충격파 (광역 BRV)
+    # 7. 스캐터 밤 (광역 BRV)
     # ============================================================
-    wave = Skill(
-        "breaker_wave",
-        "파괴 충격파",
-        "충격파로 전체 BRV 공격. 파괴력 -3."
+    scatter_bomb = Skill(
+        "breaker_scatter_bomb",
+        "스캐터 밤",
+        "광역 폭탄 투척. 전체 적 BRV 피해."
     )
-    wave.effects = [
-        DamageEffect(DamageType.BRV, 2.0, stat_type="physical",
-                    gimmick_bonus={"field": "break_power", "multiplier": 0.2}),
-        GimmickEffect(GimmickOperation.CONSUME, "break_power", 3)
+    scatter_bomb.effects = [
+        DamageEffect(DamageType.BRV, 1.8, stat_type="physical")
     ]
-    wave.costs = [MPCost(8), StackCost("break_power", 3)]
-    wave.target_type = "all_enemies"
-    wave.is_aoe = True
-    wave.sfx = ("skill", "cast_complete")
-    wave.metadata = {
-        "break_power_cost": 3,
-        "aoe": True
-    }
-    skills.append(wave)
+    scatter_bomb.costs = [MPCost(12)]
+    scatter_bomb.target_type = "all_enemies"
+    scatter_bomb.is_aoe = True
+    scatter_bomb.sfx = ("combat", "explosion_small")
+    skills.append(scatter_bomb)
     
     # ============================================================
-    # 8. 완전 파괴 (BRV+HP 콤보)
+    # 8. 풀 스로틀 (게이지 소모 극딜)
     # ============================================================
-    total = Skill(
-        "breaker_total",
-        "완전 파괴",
-        "완벽한 파괴. BRV+HP 피해. 파괴력 -5."
+    full_throttle = Skill(
+        "breaker_full_throttle",
+        "풀 스로틀",
+        "모든 출력 개방! 엔진 한계를 시험하는 막대한 HP 피해."
     )
-    total.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.4, stat_type="physical",
-                    gimmick_bonus={"field": "break_power", "multiplier": 0.35}),
-        GimmickEffect(GimmickOperation.CONSUME, "break_power", 5)
+    full_throttle.effects = [
+        DamageEffect(DamageType.HP, 3.0, stat_type="physical")
     ]
-    total.costs = [MPCost(10), StackCost("break_power", 5)]
-    total.sfx = ("combat", "break")
-    total.metadata = {
-        "break_power_cost": 5,
-        "scaling": "파괴력당 +35%"
-    }
-    skills.append(total)
+    full_throttle.costs = [MPCost(25)]
+    full_throttle.sfx = ("skill", "limit_break")
+    full_throttle.metadata = {}
+    skills.append(full_throttle)
     
     # ============================================================
-    # 9. 파괴의 화신 (파괴력 MAX 충전)
+    # 9. 리미트 브레이크 (강력한 한방)
     # ============================================================
-    devastation = Skill(
-        "breaker_devastation",
-        "파괴의 화신",
-        "파괴신 강림. 파괴력 MAX + 공/크리 버프."
+    limit_break = Skill(
+        "breaker_limit_break",
+        "리미트 브레이크",
+        "한계를 넘는 일격. 높은 확율로 BREAK 유발."
     )
-    devastation.effects = [
-        GimmickEffect(GimmickOperation.SET, "break_power", 10),
-        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=4, target="self"),
-        BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=4, target="self")
+    limit_break.effects = [
+        DamageEffect(DamageType.BRV_HP, 3.5, stat_type="physical")
     ]
-    devastation.costs = [MPCost(12)]
-    devastation.target_type = "self"
-    devastation.sfx = ("character", "status_buff")
-    devastation.metadata = {
-        "break_power_max": True,
-        "buff": True
-    }
-    skills.append(devastation)
-    
+    limit_break.costs = [MPCost(35)]
+    limit_break.cooldown = 5
+    limit_break.sfx = ("combat", "crit_hit")
+    skills.append(limit_break)
+
     # ============================================================
-    # 10. 궁극기: 절대 파괴
+    # 10. 궁극기: 파이널 임팩트 (Ultimate)
     # ============================================================
     ultimate = Skill(
         "breaker_ultimate",
-        "절대 파괴",
-        "모든 것을 파괴! 전체 다중 피해 + 파괴력 전소비."
+        "파이널 임팩트",
+        "건틀릿의 모든 기능을 과부하시켜 전장을 초토화. 적 전체 SCATTER 유발 시도."
     )
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 3.0, stat_type="physical",
-                    gimmick_bonus={"field": "break_power", "multiplier": 0.4}),
-        DamageEffect(DamageType.BRV, 2.5, stat_type="physical",
-                    gimmick_bonus={"field": "break_power", "multiplier": 0.3}),
-        DamageEffect(DamageType.HP, 3.3, stat_type="physical"),
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="self"),
-        GimmickEffect(GimmickOperation.SET, "break_power", 0)
+        DamageEffect(DamageType.BRV, 3.0, stat_type="physical"),
+        DamageEffect(DamageType.HP, 4.0, stat_type="physical"),
+        # SCATTER 강제 유발 로직은 별도 처리 안해도 BRV 데미지가 높아서 자연 발생 유도
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(70)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 15
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
-    ultimate.sfx = ("skill", "limit_break")
-    ultimate.metadata = {
-        "ultimate": True,
-        "aoe": True,
-        "break_consume_all": True
-    }
+    ultimate.cooldown = 99
+    ultimate.sfx = ("skill", "ultimate_explosion")
     skills.append(ultimate)
     
     # ============================================================
-    # 팀워크: 쉘 브레이크
+    # 11. 안전 밸브 (회복/정화) [NEW]
+    # ============================================================
+    safety_valve = Skill(
+        "breaker_safety_valve",
+        "안전 밸브",
+        "압력을 낮춰 상태이상 제거 및 HP 회복."
+    )
+    safety_valve.effects = [
+        CleanseEffect(count=2),
+        HealEffect(HealType.HP, stat_scaling="max_hp", multiplier=0.4, target_self=True)
+    ]
+    safety_valve.costs = [MPCost(8)]
+    safety_valve.target_type = "self"
+    safety_valve.sfx = ("skill", "heal_01")
+    skills.append(safety_valve)
+
+    # ============================================================
+    # 12. 압력 밥솥 (지연 폭발) [NEW]
+    # ============================================================
+    pressure_cooker = Skill(
+        "breaker_pressure_cooker",
+        "압력 밥솥",
+        "적에게 압력을 주입. 2턴 후 폭발하여 큰 BRV 피해."
+    )
+    pressure_cooker.effects = [
+        StatusEffect(StatusType.DOOM, duration=2, value=3.0) # DOOM is equivalent to Timed Bomb logic here
+    ]
+    pressure_cooker.costs = [MPCost(12)]
+    pressure_cooker.sfx = ("combat", "bomb_fuse")
+    skills.append(pressure_cooker)
+
+    # ============================================================
+    # 13. 증기 연막 (회피 버프) [NEW]
+    # ============================================================
+    steam_screen = Skill(
+        "breaker_steam_screen",
+        "증기 연막",
+        "자욱한 증기로 몸을 숨김. 회피율 대폭 상승."
+    )
+    steam_screen.effects = [
+        BuffEffect(BuffType.EVASION_UP, 0.50, duration=2, target="self")
+    ]
+    steam_screen.costs = [MPCost(8)]
+    steam_screen.target_type = "self"
+    steam_screen.sfx = ("skill", "smoke_puff")
+    skills.append(steam_screen)
+
+    # ============================================================
+    # 14. 열기 재순환 (MP 회복/쿨감) [NEW]
+    # ============================================================
+    recycle = Skill(
+        "breaker_recycle",
+        "열기 재순환",
+        "낭비되는 열기를 에너지로 전환. MP 회복."
+    )
+    recycle.effects = [
+        HealEffect(HealType.MP, fixed_amount=40, target_self=True),
+        GimmickEffect(GimmickOperation.ADD, "combo_gauge", 50)
+    ]
+    recycle.costs = []
+    recycle.cooldown = 4
+    recycle.target_type = "self"
+    recycle.sfx = ("skill", "recharge")
+    skills.append(recycle)
+
+    # ============================================================
+    # 15. 연쇄 반응 (SCATTER 추뎀) [NEW]
+    # ============================================================
+    chain_reaction = Skill(
+        "breaker_chain_reaction",
+        "연쇄 반응",
+        "SCATTER 상태인 적에게 2배 피해."
+    )
+    chain_reaction.effects = [
+        DamageEffect(DamageType.BRV_HP, 1.2, stat_type="physical")
+    ]
+    chain_reaction.costs = [MPCost(15)]
+    chain_reaction.metadata = {
+        "scatter_bonus": True,
+        "bonus_multiplier": 2.0
+    }
+    chain_reaction.sfx = ("combat", "combo_hit")
+    skills.append(chain_reaction)
+    
+    # ============================================================
+    # 팀워크: 엔진 쉐어
     # ============================================================
     teamwork = TeamworkSkill(
         "breaker_teamwork",
-        "쉘 브레이크",
-        "적 방어 완전 파괴! 단일 BRV (4.0x) + BREAK 확정 + 방어 -30%.",
-        gauge_cost=175
+        "엔진 쉐어",
+        "동료에게 엔진 출력 전달. 아군 전체 공격력/속도 +30%.",
+        gauge_cost=150
     )
     teamwork.effects = [
-        DamageEffect(DamageType.BRV, 4.0, stat_type="physical"),
-        BuffEffect(BuffType.DEFENSE_DOWN, 0.30, duration=3),
-        GimmickEffect(GimmickOperation.ADD, "break_power", 5, max_value=10)
+        BuffEffect(BuffType.ATTACK_UP, 0.30, duration=3, target="all_allies"),
+        BuffEffect(BuffType.SPEED_UP, 0.30, duration=3, target="all_allies")
     ]
-    teamwork.target_type = "enemy"
+    teamwork.target_type = "all_allies"
     teamwork.costs = [MPCost(0)]
-    teamwork.sfx = ("skill", "teamwork")
-    teamwork.metadata = {
-        "teamwork": True,
-        "chain": True,
-        "guaranteed_break": True
-    }
+    teamwork.sfx = ("skill", "teamwork_buff")
     skills.append(teamwork)
     
     return skills
@@ -279,5 +316,5 @@ def register_breaker_skills(skill_manager):
     for skill in skills:
         skill_manager.register_skill(skill)
     
-    logger.info(f"브레이커 스킬 {len(skills)}개 등록 완료")
+    logger.info(f"브레이커(리메이크) 스킬 {len(skills)}개 등록 완료")
     return [s.skill_id for s in skills]

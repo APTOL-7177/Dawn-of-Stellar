@@ -72,7 +72,7 @@ def get_job_unlock_items() -> List[ShopItem]:
         ("philosopher", "철학자"), ("pirate", "해적"), ("priest", "사제"),
         ("samurai", "사무라이"), ("shaman", "무당"), ("sniper", "스나이퍼"),
         ("spellblade", "마검사"), ("sword_saint", "검성"), ("time_mage", "시간술사"),
-        ("vampire", "뱀파이어")
+        ("vampire", "흡혈귀")
     ]
 
     for job_id, job_name_kr in all_jobs:

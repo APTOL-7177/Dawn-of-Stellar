@@ -1,0 +1,31 @@
+id: gladiator_excite
+name: 군중 흥분
+type: buff
+description: '관중을 흥분시켜 환호를 끌어올리고 자신을 강화합니다.
+
+  '
+effects:
+- type: gimmick
+  operation: set
+  field: cheer
+  value: 50
+- type: buff
+  buff_type: attack_up
+  value: 0.25
+  duration: 3
+  target: self
+- type: buff
+  buff_type: critical_up
+  value: 0.2
+  duration: 3
+  target: self
+target: self
+costs:
+  mp: 8
+metadata:
+  job: gladiator
+  cheer_set: 50
+  buff: true
+sfx:
+- se
+- Sword2

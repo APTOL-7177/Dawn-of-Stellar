@@ -61,15 +61,20 @@ class DifficultySelectionUI:
         Returns:
             닫기 여부
         """
+        logger.debug(f"난이도 선택 UI 입력: {action}")
+        
         if action == GameAction.MOVE_UP:
             self.cursor = max(0, self.cursor - 1)
+            play_sfx("ui", "cursor_move")
         elif action == GameAction.MOVE_DOWN:
             self.cursor = min(len(self.difficulties) - 1, self.cursor + 1)
+            play_sfx("ui", "cursor_move")
         elif action == GameAction.CONFIRM:
             # 난이도 선택 확정
             self.selected_difficulty = self.difficulties[self.cursor]
             self.difficulty_system.set_difficulty(self.selected_difficulty)
             logger.info(f"난이도 선택: {self.selected_difficulty.value}")
+            play_sfx("ui", "cursor_confirm")
             self.closed = True
             return True
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
@@ -231,7 +236,9 @@ def show_difficulty_selection(
     Returns:
         선택된 난이도 (취소 시 None)
     """
-    # unified_input_handler is already imported
+    # 새로운 입력 핸들러 인스턴스 생성 (독립적인 입력 처리)
+    from src.ui.input_handler import UnifiedInputHandler
+    input_handler = UnifiedInputHandler()
     import time
 
     ui = DifficultySelectionUI(console.width, console.height, difficulty_system)
@@ -244,17 +251,9 @@ def show_difficulty_selection(
         current_time = time.time()
         delta_time = current_time - last_time
 
-        # 프레임 제한 (30 FPS)
-        if delta_time >= frame_time:
-            last_time = current_time
-
-            # 렌더링
-            ui.render(console)
-            context.present(console)
-
-        # 입력 처리
+        # 입력 처리 (프레임 제한과 무관하게 매 루프 처리)
         for event in tcod.event.get():
-            action = unified_input_handler.process_tcod_event(event)
+            action = input_handler.process_tcod_event(event)
 
             if action:
                 if ui.handle_input(action):
@@ -263,6 +262,14 @@ def show_difficulty_selection(
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return DifficultyLevel.NORMAL  # 기본값
+
+        # 프레임 제한 (30 FPS) - 렌더링만 제한
+        if delta_time >= frame_time:
+            last_time = current_time
+
+            # 렌더링
+            ui.render(console)
+            context.present(console)
 
         # CPU 사용률 낮추기
         time.sleep(0.01)

@@ -12,3 +12,6 @@ effects:
   stat_scaling: strength
   multiplier: 1.5
   is_party_wide: true
+sfx:
+- se
+- Recovery

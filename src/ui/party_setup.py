@@ -83,12 +83,69 @@ class PartySetup:
         self.trait_menu: Optional[CursorMenu] = None
         self.passive_menu: Optional[CursorMenu] = None
 
-        # 직업 선택 메뉴 생성
-        self._create_job_menu()
-
         # 에러 메시지
         self.error_message = ""
         self.error_timer = 0  # 에러 메시지 표시 시간
+        
+        # 카테고리 필터 (메뉴 생성 전에 초기화해야 함)
+        self.category_filter = "전체"  # 전체, 탱커, 힐러, 물리 딜러, 마법 딜러, 스피드, 하이브리드, 서포터, 특수
+        self.category_list = ["전체", "탱커", "힐러", "물리 딜러", "마법 딜러", "스피드", "하이브리드", "서포터", "특수"]
+
+        # 직업 선택 메뉴 생성
+        self._create_job_menu()
+        
+        # 직업별 평점 (화력, 유틸, 생존, 스피드, 조작난이도) - 5점 만점, 0.5점 단위
+        # 조작난이도: 높을수록 쉬움
+        self.job_ratings = {
+            # 탱커
+            "warrior": {"화력": 3.0, "유틸": 3.0, "생존": 4.0, "스피드": 3.5, "조작난이도": 4.5},
+            "knight": {"화력": 2.0, "유틸": 4.0, "생존": 4.5, "스피드": 2.0, "조작난이도": 4.0},
+            "paladin": {"화력": 3.0, "유틸": 4.5, "생존": 5.0, "스피드": 2.0, "조작난이도": 2.5},  # [리메이크] 서약 시스템
+            "dark_knight": {"화력": 4.5, "유틸": 1.5, "생존": 3.0, "스피드": 2.5, "조작난이도": 2.5},
+            "dragon_knight": {"화력": 4.0, "유틸": 2.0, "생존": 3.5, "스피드": 2.5, "조작난이도": 3.0},
+            "dimensionist": {"화력": 3.0, "유틸": 3.5, "생존": 4.5, "스피드": 2.5, "조작난이도": 2.0},
+            
+            # 물리 딜러
+            "berserker": {"화력": 5.0, "유틸": 1.0, "생존": 2.5, "스피드": 3.5, "조작난이도": 3.0},
+            "gladiator": {"화력": 4.5, "유틸": 2.5, "생존": 3.5, "스피드": 3.5, "조작난이도": 3.0},  # [리메이크] 콜로세움 쇼타임
+            "samurai": {"화력": 4.0, "유틸": 2.0, "생존": 3.0, "스피드": 3.5, "조작난이도": 2.5},
+            "rogue": {"화력": 4.5, "유틸": 3.0, "생존": 3.0, "스피드": 5.0, "조작난이도": 2.5},  # [리메이크] 농락 시스템
+            "assassin": {"화력": 4.5, "유틸": 2.0, "생존": 3.5, "스피드": 5.0, "조작난이도": 3.5},
+            "archer": {"화력": 3.5, "유틸": 3.0, "생존": 2.5, "스피드": 4.0, "조작난이도": 4.0},
+            "sniper": {"화력": 5.0, "유틸": 1.5, "생존": 2.0, "스피드": 1.5, "조작난이도": 3.0},
+            "pirate": {"화력": 3.5, "유틸": 3.0, "생존": 3.0, "스피드": 3.5, "조작난이도": 3.0},
+            "sword_saint": {"화력": 4.5, "유틸": 1.5, "생존": 2.5, "스피드": 4.0, "조작난이도": 3.0},
+            "breaker": {"화력": 4.0, "유틸": 3.5, "생존": 2.5, "스피드": 3.0, "조작난이도": 3.0},
+            "engineer": {"화력": 4.0, "유틸": 3.0, "생존": 3.0, "스피드": 2.5, "조작난이도": 2.5},
+            
+            # 마법 딜러
+            "archmage": {"화력": 5.0, "유틸": 2.0, "생존": 2.0, "스피드": 2.5, "조작난이도": 2.5},
+            "elementalist": {"화력": 4.5, "유틸": 4.0, "생존": 2.5, "스피드": 3.0, "조작난이도": 2.5},  # [리메이크] 정령 전환
+            "time_mage": {"화력": 3.0, "유틸": 5.0, "생존": 3.0, "스피드": 4.0, "조작난이도": 2.0},
+            "necromancer": {"화력": 4.0, "유틸": 3.5, "생존": 3.0, "스피드": 2.5, "조작난이도": 3.5},
+            
+            # 힐러
+            "cleric": {"화력": 1.5, "유틸": 5.0, "생존": 3.5, "스피드": 2.5, "조작난이도": 3.5},
+            "priest": {"화력": 2.5, "유틸": 5.0, "생존": 3.5, "스피드": 2.0, "조작난이도": 3.0},  # [리메이크] 신탁 시스템
+            
+            # 하이브리드
+            "spellblade": {"화력": 4.0, "유틸": 2.5, "생존": 3.0, "스피드": 3.5, "조작난이도": 2.5},
+            "battle_mage": {"화력": 4.5, "유틸": 2.5, "생존": 3.5, "스피드": 3.0, "조작난이도": 3.5},
+            "monk": {"화력": 4.0, "유틸": 2.5, "생존": 3.5, "스피드": 4.0, "조작난이도": 3.0},
+            "illusionist": {"화력": 3.0, "유틸": 4.0, "생존": 4.5, "스피드": 3.5, "조작난이도": 1.5},
+            "vampire": {"화력": 3.5, "유틸": 2.5, "생존": 5.0, "스피드": 3.0, "조작난이도": 2.5},
+            
+            # 서포터
+            "bard": {"화력": 2.0, "유틸": 5.0, "생존": 2.5, "스피드": 3.5, "조작난이도": 3.5},
+            "shaman": {"화력": 2.5, "유틸": 4.5, "생존": 3.0, "스피드": 3.0, "조작난이도": 3.0},
+            "hacker": {"화력": 3.0, "유틸": 5.0, "생존": 2.0, "스피드": 3.5, "조작난이도": 2.0},  # [리메이크] 침투 시스템
+            
+            # 특수
+            "alchemist": {"화력": 3.0, "유틸": 4.5, "생존": 3.0, "스피드": 2.5, "조작난이도": 3.0},
+            "druid": {"화력": 3.0, "유틸": 4.0, "생존": 4.0, "스피드": 3.0, "조작난이도": 2.0},
+            "magician": {"화력": 3.0, "유틸": 4.5, "생존": 2.5, "스피드": 3.5, "조작난이도": 1.5},
+            "philosopher": {"화력": 3.0, "유틸": 5.0, "생존": 1.5, "스피드": 3.0, "조작난이도": 1.0},
+        }
 
     def _load_jobs(self) -> List[Dict[str, Any]]:
         """직업 데이터 로드"""
@@ -186,9 +243,9 @@ class PartySetup:
             "knight": ["탱커", "서포터"],
             "paladin": ["탱커", "힐러"],
             "dragon_knight": ["탱커", "물리 딜러"],
-            "dark_knight": ["탱커", "마법 딜러"],
+            "dark_knight": ["탱커", "물리 딜러"],
             "dimensionist": ["탱커", "마법 딜러"],  # 회피형 탱커
-            "vampire": ["탱커", "특수"],  # 생존형 탱커
+            "vampire": ["탱커", "하이브리드", "특수"],  # 생존형 탱커
             
             # 물리 딜러
             "berserker": ["물리 딜러"],
@@ -196,7 +253,7 @@ class PartySetup:
             "samurai": ["물리 딜러"],
             "rogue": ["물리 딜러", "스피드"],
             "assassin": ["물리 딜러", "스피드"],
-            "breaker": ["물리 딜러"],
+            "breaker": ["물리 딜러", "특수"],  # BRV 파괴 특화
             "archer": ["물리 딜러", "스피드"],
             "sniper": ["물리 딜러"],  # 느린 직업이므로 스피드 제외
             "pirate": ["물리 딜러", "스피드"],
@@ -223,14 +280,16 @@ class PartySetup:
             # 서포터
             "shaman": ["서포터"],
             "hacker": ["서포터"],
-            "engineer": ["서포터"],
+            
+            # 물리 딜러 + 특수
+            "engineer": ["물리 딜러", "특수"],
+            
+            # 회피형 탱커
+            "illusionist": ["탱커", "하이브리드", "특수"],
             
             # 특수 (유니크한 전투 방식)
-            "vampire": ["탱커", "특수"],  # 생존 특화
-            "breaker": ["물리 딜러", "특수"],  # BRV 파괴 특화
             "philosopher": ["서포터", "특수"],  # 논리 조작
-            "druid": ["힐러", "서포터", "특수"],  # 변신 술사
-            "time_mage": ["마법 딜러", "서포터", "특수"],  # 시간 조작
+            "magician": ["서포터", "특수"],  # 트릭스터
         }
         
         for job in available_jobs:
@@ -246,41 +305,46 @@ class PartySetup:
                 # 매핑이 없으면 아키타입 기반으로 분류
                 # 여러 역할군에 중복으로 들어갈 수 있음
                 
-                # 탱커 체크
-                if '탱커' in archetype or '방어' in archetype:
+                # 직업별 수동 분류 (archetype 기반)
+                job_id = job.get('id', '').lower()
+                
+                # 탱커: 탱커/서포터, 지휘관/버퍼, 피해 지연 탱커-딜러, 회피형 탱커, 물리 딜러/탱커
+                if job_id in ['paladin', 'knight', 'dimensionist', 'illusionist', 'warrior']:
                     categories["탱커"].append(job)
                 
-                # 힐러 체크
-                if '힐러' in archetype or '치유' in archetype or '치료' in archetype:
+                # 힐러: 힐러/서포터, 기적/치유 특화
+                if job_id in ['cleric', 'priest']:
                     categories["힐러"].append(job)
                 
-                # 물리 딜러 체크
-                if '물리' in archetype or '딜러' in archetype or '공격' in archetype:
-                    if '마법' not in archetype:
-                        categories["물리 딜러"].append(job)
+                # 물리 딜러: 원거리 물리 딜러, 암살 특화, 하이리스크 하이리턴, 원샷 딜러, 
+                # 화염 특화 딜러, 반격 전문가, 내공 전사, 도박사/버스터, 속도형 딜러, 
+                # 명예의 전사, 초고화력 원거리, 폭발 딜러, 물리 딜러/탱커, 물리 딜러 특수
+                if job_id in ['archer', 'assassin', 'berserker', 'dark_knight', 'dragon_knight',
+                             'gladiator', 'monk', 'pirate', 'rogue', 'samurai', 'sniper',
+                             'sword_saint', 'warrior', 'engineer']:
+                    categories["물리 딜러"].append(job)
                 
-                # 마법 딜러 체크
-                if '마법' in archetype or '마검사' in archetype or '원소' in archetype:
-                    if '딜러' in archetype or '마법' in archetype:
-                        categories["마법 딜러"].append(job)
+                # 마법 딜러: 마법 딜러, 마법 딜러/서포터, 마법 딜러/유틸리티, 디버프 특화
+                if job_id in ['archmage', 'elementalist', 'time_mage', 'necromancer']:
+                    categories["마법 딜러"].append(job)
                 
-                # 스피드 체크
-                if '속도' in archetype or '스피드' in archetype or '빠른' in archetype or \
-                   '암살' in archetype or '도적' in archetype:
+                # 스피드: 암살 특화, 속도형 딜러
+                if job_id in ['assassin', 'rogue']:
                     categories["스피드"].append(job)
                 
-                # 하이브리드 체크
-                if '하이브리드' in archetype:
+                # 하이브리드: 하이브리드 딜러, 특수/탱커/하이브리드, 피해 지연 탱커-딜러, 내공 전사
+                if job_id in ['battle_mage', 'spellblade', 'illusionist', 'dimensionist', 'monk']:
                     categories["하이브리드"].append(job)
                 
-                # 서포터 체크
-                if '서포터' in archetype or '버퍼' in archetype or '지휘관' in archetype or \
-                   '디버프' in archetype or '정보' in archetype or '시야' in archetype:
-                    categories["서포터"].append(job)
-                
-                # 어떤 카테고리에도 속하지 않으면 특수
-                if not any(job in cat for cat in categories.values()):
+                # 특수: 포션 마스터, BRV 파괴 특화, 변신 술사, 트릭스터 유틸리티, 논리 조작, 
+                # 생존 특화, 물리 딜러 특수, 특수/탱커/하이브리드
+                if job_id in ['alchemist', 'breaker', 'druid', 'magician', 'philosopher',
+                             'vampire', 'engineer', 'illusionist']:
                     categories["특수"].append(job)
+                
+                # 서포터: 버퍼/디버퍼, 디버프 특화, 지휘관/버퍼, 시야/정보 특화, 탱커/서포터
+                if job_id in ['bard', 'hacker', 'knight', 'shaman', 'paladin', 'necromancer']:
+                    categories["서포터"].append(job)
         
         return categories
 
@@ -401,6 +465,10 @@ class PartySetup:
         # 카테고리 순서
         category_order = ["탱커", "힐러", "물리 딜러", "마법 딜러", "스피드", "하이브리드", "서포터", "특수"]
         
+        # 카테고리 필터 적용
+        if self.category_filter != "전체":
+            category_order = [self.category_filter]
+        
         # AI 추천 직업 (한 번만 계산)
         recommended_job = self._recommend_job_for_slot(self.current_slot)
         
@@ -449,8 +517,9 @@ class PartySetup:
         menu_y = 8
         menu_width = 43
 
+        filter_info = f" [{self.category_filter}]" if self.category_filter != "전체" else ""
         self.job_menu = CursorMenu(
-            title=f"파티 멤버 {self.current_slot + 1}/4 - 직업 선택",
+            title=f"파티 멤버 {self.current_slot + 1}/4 - 직업 선택{filter_info}",
             items=menu_items,
             x=menu_x,
             y=menu_y,
@@ -659,20 +728,25 @@ class PartySetup:
         special = []  # 특수 역할
         
         for job in available_jobs:
-            archetype = job.get('archetype', '').lower()
-            if '탱커' in archetype or '방어' in archetype or job['id'] in ['knight', 'paladin', 'warrior']:
+            job_id = job.get('id', '').lower()
+            
+            # 직업별 수동 분류 (archetype 기반, 자동 파티 구성용 단일 분류)
+            if job_id in ['paladin', 'knight', 'dimensionist', 'illusionist', 'warrior']:
                 tanks.append(job)
-            elif '힐러' in archetype or '서포터' in archetype or job['id'] in ['cleric', 'priest', 'bard', 'shaman']:
+            elif job_id in ['cleric', 'priest']:
                 healers.append(job)
-            elif '물리 딜러' in archetype or '물리' in archetype:
+            elif job_id in ['archer', 'assassin', 'berserker', 'dark_knight', 'dragon_knight',
+                           'gladiator', 'pirate', 'rogue', 'samurai', 'sniper',
+                           'sword_saint', 'warrior', 'engineer']:
                 physical_dps.append(job)
-            elif '마법 딜러' in archetype or '마법' in archetype:
+            elif job_id in ['archmage', 'elementalist', 'time_mage', 'necromancer']:
                 magic_dps.append(job)
-            elif '하이브리드' in archetype:
+            elif job_id in ['battle_mage', 'spellblade', 'monk']:
                 hybrid.append(job)
-            elif '서포터' in archetype or '버퍼' in archetype or '지휘관' in archetype:
+            elif job_id in ['bard', 'hacker', 'shaman', 'necromancer']:
                 support.append(job)
             else:
+                # 특수: alchemist, breaker, druid, magician, philosopher, vampire, illusionist
                 special.append(job)
         
         # 밸런스 있는 파티 구성
@@ -1026,96 +1100,102 @@ class PartySetup:
             self.passive_menu.move_cursor_up()
         elif action == GameAction.MOVE_DOWN:
             self.passive_menu.move_cursor_down()
-        elif action == GameAction.CONFIRM or (action == GameAction.MENU and event and event.sym == tcod.event.KeySym.RETURN):
-            # 엔터 키 확인 (게임 시작)
-            if event and event.sym == tcod.event.KeySym.RETURN:
-                # 패시브 선택 완료 조건 확인
-                max_passives = 3
-                selected_count = len(self.selected_passives)
+        elif action == GameAction.MENU or (action == GameAction.START if hasattr(GameAction, 'START') else False) or (event and event.sym == tcod.event.KeySym.RETURN):
+            # 엔터 키 또는 메뉴(Start) 버튼: 패시브 선택 완료
+            
+            # 패시브 선택 완료 조건 확인
+            max_passives = 3
+            selected_count = len(self.selected_passives)
+            
+            # 총 코스트 계산
+            from pathlib import Path
+            import yaml
+            total_cost = 0
+            passives_file = Path("data/passives.yaml")
+            if passives_file.exists():
+                with open(passives_file, 'r', encoding='utf-8') as f:
+                    data = yaml.safe_load(f)
+                    if data and 'passives' in data:
+                        passives = data['passives'] if isinstance(data['passives'], list) else list(data['passives'].values())
+                        for passive_id in self.selected_passives:
+                            for p in passives:
+                                if p.get('id') == passive_id:
+                                    total_cost += p.get('cost', 0)
+            
+            # 완료 조건 확인
+            if selected_count > max_passives:
+                self.error_message = f"패시브는 최대 {max_passives}종류까지 선택할 수 있습니다! (현재: {selected_count}개)"
+                self.error_timer = 120
+                self.logger.warning(f"패시브 선택 완료 실패: 종류 초과 ({selected_count} > {max_passives})")
+                return False
+            elif total_cost > 10:
+                self.error_message = f"코스트 초과! (현재: {total_cost}, 최대: 10)"
+                self.error_timer = 120
+                self.logger.warning(f"패시브 선택 완료 실패: 코스트 초과 ({total_cost} > 10)")
+                return False
+            else:
+                # 패시브 선택 완료 → 게임 시작
+                self.logger.info(f"패시브 선택 완료: 선택된 패시브 수: {selected_count}, 총 코스트: {total_cost}")
+                self.completed = True
+                return True
+
+        elif action == GameAction.CONFIRM:
+            # Z 키 또는 A 버튼: 패시브 토글
+            selected = self.passive_menu.get_selected_item()
+            if selected:
+                value = selected.value
                 
-                # 총 코스트 계산
+                # 패시브 토글 (파티 전체 공통)
+                # 코스트 계산
                 from pathlib import Path
                 import yaml
-                total_cost = 0
                 passives_file = Path("data/passives.yaml")
+                current_cost = 0
+                passive_cost = 0
+                max_passives = 3
+                
                 if passives_file.exists():
                     with open(passives_file, 'r', encoding='utf-8') as f:
                         data = yaml.safe_load(f)
                         if data and 'passives' in data:
                             passives = data['passives'] if isinstance(data['passives'], list) else list(data['passives'].values())
-                            for passive_id in self.selected_passives:
-                                for p in passives:
-                                    if p.get('id') == passive_id:
-                                        total_cost += p.get('cost', 0)
+                            for p in passives:
+                                if p.get('id') in self.selected_passives:
+                                    current_cost += p.get('cost', 0)
+                                if p.get('id') == value:
+                                    passive_cost = p.get('cost', 0)
                 
-                # 완료 조건 확인
-                if selected_count > max_passives:
-                    self.error_message = f"패시브는 최대 {max_passives}종류까지 선택할 수 있습니다! (현재: {selected_count}개)"
-                    self.error_timer = 120
-                    self.logger.warning(f"패시브 선택 완료 실패: 종류 초과 ({selected_count} > {max_passives})")
-                    return False
-                elif total_cost > 10:
-                    self.error_message = f"코스트 초과! (현재: {total_cost}, 최대: 10)"
-                    self.error_timer = 120
-                    self.logger.warning(f"패시브 선택 완료 실패: 코스트 초과 ({total_cost} > 10)")
-                    return False
+                if value in self.selected_passives:
+                    # 선택 해제
+                    self.selected_passives.remove(value)
+                    self.logger.info(f"패시브 선택 해제: {value}, 현재 선택된 패시브: {self.selected_passives}")
+                    play_sfx("ui", "cursor_cancel")
                 else:
-                    # 패시브 선택 완료 → 게임 시작
-                    self.logger.info(f"패시브 선택 완료: 선택된 패시브 수: {selected_count}, 총 코스트: {total_cost}")
-                    self.completed = True
-                    return True
-            else:
-                # Z 키: 패시브 토글
-                selected = self.passive_menu.get_selected_item()
-                if selected:
-                    value = selected.value
-                    
-                    # 패시브 토글 (파티 전체 공통)
-                    # 코스트 계산
-                    from pathlib import Path
-                    import yaml
-                    passives_file = Path("data/passives.yaml")
-                    current_cost = 0
-                    passive_cost = 0
-                    max_passives = 3
-                    
-                    if passives_file.exists():
-                        with open(passives_file, 'r', encoding='utf-8') as f:
-                            data = yaml.safe_load(f)
-                            if data and 'passives' in data:
-                                passives = data['passives'] if isinstance(data['passives'], list) else list(data['passives'].values())
-                                for p in passives:
-                                    if p.get('id') in self.selected_passives:
-                                        current_cost += p.get('cost', 0)
-                                    if p.get('id') == value:
-                                        passive_cost = p.get('cost', 0)
-                    
-                    if value in self.selected_passives:
-                        # 선택 해제
-                        self.selected_passives.remove(value)
-                        self.logger.info(f"패시브 선택 해제: {value}, 현재 선택된 패시브: {self.selected_passives}")
+                    # 선택 (최대 3종류, 최대 코스트 10 제한)
+                    selected_count = len(self.selected_passives)
+                    if selected_count >= max_passives:
+                        self.error_message = f"패시브는 최대 {max_passives}종류까지 선택할 수 있습니다! (현재: {selected_count}개)"
+                        self.error_timer = 120
+                        self.logger.warning(f"패시브 선택 실패: 종류 초과 ({selected_count} >= {max_passives})")
+                        play_sfx("ui", "error")
+                    elif current_cost + passive_cost > 10:
+                        self.error_message = f"코스트 초과! (현재: {current_cost}, 추가: {passive_cost}, 최대: 10)"
+                        self.error_timer = 120
+                        self.logger.warning(f"패시브 선택 실패: 코스트 초과 ({current_cost} + {passive_cost} > 10)")
+                        play_sfx("ui", "error")
                     else:
-                        # 선택 (최대 3종류, 최대 코스트 10 제한)
-                        selected_count = len(self.selected_passives)
-                        if selected_count >= max_passives:
-                            self.error_message = f"패시브는 최대 {max_passives}종류까지 선택할 수 있습니다! (현재: {selected_count}개)"
-                            self.error_timer = 120
-                            self.logger.warning(f"패시브 선택 실패: 종류 초과 ({selected_count} >= {max_passives})")
-                        elif current_cost + passive_cost > 10:
-                            self.error_message = f"코스트 초과! (현재: {current_cost}, 추가: {passive_cost}, 최대: 10)"
-                            self.error_timer = 120
-                            self.logger.warning(f"패시브 선택 실패: 코스트 초과 ({current_cost} + {passive_cost} > 10)")
-                        else:
-                            self.selected_passives.append(value)
-                            self.logger.info(f"패시브 선택: {value}, 현재 선택된 패시브: {self.selected_passives}, 총 코스트: {current_cost + passive_cost}")
-                    
-                    # 메뉴 다시 생성 (체크 표시 및 총 코스트 업데이트)
-                    current_cursor = self.passive_menu.cursor_index if self.passive_menu else 0
-                    self.passive_menu = None
-                    self._create_passive_menu()
-                    # 커서 위치 복원
-                    if self.passive_menu and current_cursor < len(self.passive_menu.items):
-                        self.passive_menu.cursor_index = current_cursor
+                        self.selected_passives.append(value)
+                        self.logger.info(f"패시브 선택: {value}, 현재 선택된 패시브: {self.selected_passives}, 총 코스트: {current_cost + passive_cost}")
+                        play_sfx("ui", "cursor_select")
+                
+                # 메뉴 다시 생성 (체크 표시 및 총 코스트 업데이트)
+                current_cursor = self.passive_menu.cursor_index if self.passive_menu else 0
+                self.passive_menu = None
+                self._create_passive_menu()
+                # 커서 위치 복원
+                if self.passive_menu and current_cursor < len(self.passive_menu.items):
+                    self.passive_menu.cursor_index = current_cursor
+
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 이전 단계로 (마지막 멤버의 특성 선택)
             play_sfx("ui", "cursor_cancel")
@@ -1132,6 +1212,18 @@ class PartySetup:
             self.job_menu.move_cursor_up()
         elif action == GameAction.MOVE_DOWN:
             self.job_menu.move_cursor_down()
+        elif action == GameAction.MOVE_LEFT:
+            # 이전 카테고리
+            current_idx = self.category_list.index(self.category_filter)
+            self.category_filter = self.category_list[(current_idx - 1) % len(self.category_list)]
+            self._create_job_menu()
+            play_sfx("ui", "cursor_move")
+        elif action == GameAction.MOVE_RIGHT:
+            # 다음 카테고리
+            current_idx = self.category_list.index(self.category_filter)
+            self.category_filter = self.category_list[(current_idx + 1) % len(self.category_list)]
+            self._create_job_menu()
+            play_sfx("ui", "cursor_move")
         elif action == GameAction.CONFIRM:
             # 선택된 직업 가져오기
             selected = self.job_menu.get_selected_item()
@@ -1193,9 +1285,11 @@ class PartySetup:
 
     def _handle_name_input(self, action: GameAction, event: tcod.event.KeyDown = None) -> bool:
         """이름 입력 처리"""
-        # Enter 키만 확인 (Z는 문자 입력으로 사용)
-        # action이 CONFIRM이나 CANCEL이어도 무시 (Z, X를 문자로 입력하기 위해)
-        if event and event.sym == tcod.event.KeySym.RETURN:
+        is_keyboard = event is not None
+
+        # 1. 확인 (Confirm): Enter 키 또는 게임패드 A버튼
+        if (is_keyboard and event.sym == tcod.event.KeySym.RETURN) or \
+           (not is_keyboard and action == GameAction.CONFIRM):
             self.name_input.handle_confirm()
             if self.name_input.confirmed:
                 name = self.name_input.get_result()
@@ -1245,9 +1339,11 @@ class PartySetup:
                     # 다음 멤버 직업 선택
                     self.state = "job_select"
                     self._create_job_menu()
+            return False
 
-        elif event and event.sym == tcod.event.KeySym.ESCAPE:
-            # ESC만 취소 (X는 문자 입력으로 사용)
+        # 2. 취소 (Cancel): ESC 키 또는 게임패드 B버튼
+        elif (is_keyboard and event.sym == tcod.event.KeySym.ESCAPE) or \
+             (not is_keyboard and action == GameAction.CANCEL):
             # 직업 선택으로 돌아가기
             self.state = "job_select"
             if not self.party:
@@ -1256,20 +1352,17 @@ class PartySetup:
                 return True
             self.party.pop()  # 현재 슬롯 제거
             self._create_job_menu()
+            return False
 
-        elif event and event.sym == tcod.event.KeySym.BACKSPACE:
-            self.name_input.handle_backspace()
-
-        # 일반 문자 입력 (ASCII 32~126 범위의 출력 가능한 문자)
-        # Z와 X도 여기서 문자로 처리됨 (action은 무시)
-        elif event:
-            # 특수 키 제외
-            if event.sym not in [tcod.event.KeySym.RETURN, tcod.event.KeySym.BACKSPACE, tcod.event.KeySym.ESCAPE]:
-                # ASCII 범위 확인 (32~126은 출력 가능한 문자)
-                if 32 <= event.sym <= 126:
-                    char = chr(event.sym)
-                    self.name_input.handle_char_input(char)
-
+        # 3. 문자 입력 (키보드 전용)
+        if is_keyboard:
+            if event.sym == tcod.event.KeySym.BACKSPACE:
+                self.name_input.handle_backspace()
+            # 일반 문자 입력 (ASCII 32~126 범위의 출력 가능한 문자)
+            elif 32 <= event.sym <= 126:
+                char = chr(event.sym)
+                self.name_input.handle_char_input(char)
+        
         return False
 
     def _handle_confirm(self, action: GameAction) -> bool:
@@ -1307,9 +1400,15 @@ class PartySetup:
         if self.state == "job_select":
             if self.job_menu:
                 self.job_menu.render(console)
+                
+                # 카테고리 필터 표시
+                self._render_category_filter(console)
+                
+                # 선택된 직업 평점 표시
+                self._render_job_ratings(console)
 
                 # 도움말
-                help_text = "↑↓: 이동  Z: 선택  X: 이전"
+                help_text = "↑↓: 이동  ←→: 카테고리  Z: 선택  X: 이전"
                 console.print(
                     2,
                     self.screen_height - 2,
@@ -1374,6 +1473,91 @@ class PartySetup:
                 fg=(255, 100, 100)  # 빨간색
             )
             self.error_timer -= 1
+
+    def _render_category_filter(self, console: tcod.console.Console):
+        """카테고리 필터 표시"""
+        filter_y = 5
+        filter_x = 3
+        
+        # 현재 카테고리 인덱스
+        current_idx = self.category_list.index(self.category_filter)
+        
+        # 이전/다음 카테고리 표시
+        prev_cat = self.category_list[(current_idx - 1) % len(self.category_list)]
+        next_cat = self.category_list[(current_idx + 1) % len(self.category_list)]
+        
+        console.print(filter_x, filter_y, f"◀ {prev_cat}", fg=Colors.GRAY)
+        console.print(filter_x + 12, filter_y, f"[ {self.category_filter} ]", fg=Colors.UI_TEXT_SELECTED)
+        console.print(filter_x + 28, filter_y, f"{next_cat} ▶", fg=Colors.GRAY)
+
+    def _render_job_ratings(self, console: tcod.console.Console):
+        """선택된 직업의 평점 표시"""
+        if not self.job_menu:
+            return
+            
+        # 현재 선택된 항목 가져오기
+        selected_item = self.job_menu.get_selected_item()
+        if not selected_item or not selected_item.value:
+            return
+            
+        # job 정보 추출
+        job_data = selected_item.value.get('job')
+        if not job_data:
+            return
+            
+        job_id = job_data.get('id', '')
+        ratings = self.job_ratings.get(job_id)
+        
+        if not ratings:
+            return
+        
+        # 평점 표시 위치 (화면 우측 하단)
+        rating_x = 52
+        rating_y = 28
+        
+        # 테두리
+        console.draw_frame(
+            rating_x,
+            rating_y,
+            28,
+            12,
+            f"[ {job_data.get('name', job_id)} ]",
+            fg=Colors.UI_BORDER,
+            bg=Colors.UI_BG
+        )
+        
+        # 각 평점 항목 표시
+        rating_names = ["화력", "유틸", "생존", "스피드", "조작난이도"]
+        rating_colors = [
+            (255, 100, 100),   # 화력 - 빨강
+            (100, 200, 255),   # 유틸 - 하늘색
+            (100, 255, 100),   # 생존 - 초록
+            (255, 255, 100),   # 스피드 - 노랑
+            (200, 150, 255),   # 조작난이도 - 보라
+        ]
+        
+        for i, name in enumerate(rating_names):
+            y = rating_y + 2 + i * 2
+            value = ratings.get(name, 0)
+            
+            # 항목 이름
+            console.print(rating_x + 2, y, f"{name}:", fg=Colors.UI_TEXT)
+            
+            # 별 표시 (★ = 1점, ☆ = 0.5점 빈칸)
+            stars = ""
+            full_stars = int(value)
+            half_star = (value - full_stars) >= 0.5
+            
+            for j in range(5):
+                if j < full_stars:
+                    stars += "★"
+                elif j == full_stars and half_star:
+                    stars += "☆"
+                else:
+                    stars += "·"
+            
+            console.print(rating_x + 14, y, stars, fg=rating_colors[i])
+            console.print(rating_x + 21, y, f"({value:.1f})", fg=Colors.GRAY)
 
     def _render_party_status(self, console: tcod.console.Console):
         """현재 파티 상태 표시"""
@@ -1473,7 +1657,9 @@ def run_party_setup(console: tcod.console.Console, context: tcod.context.Context
                 # 완료 또는 취소
                 if setup.cancelled:
                     return None
-                return setup.get_party_data()
+                party = setup.get_party()
+                passives = setup.get_passives() if party else []
+                return (party, passives)
 
         # 키보드 입력 처리
         for event in tcod.event.get():

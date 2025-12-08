@@ -1,0 +1,37 @@
+id: mass_healing
+name: 대규모 치유
+type: heal
+description: '아군 전체에게 치유의 빛을 비춥니다.
+
+  아군 전체 HP 25% 회복 + 방어 +10% (2턴).
+
+  신앙 100이면 HP 50% 회복 + 방어 +25% (4턴) + 신앙 소모.
+
+  조화의 신탁 충족 가능.
+
+  '
+target: all_allies
+costs:
+  mp: 22
+metadata:
+  oracle_action: party_buff_heal
+  faith_empowered: true
+effects:
+- type: heal
+  heal_type: percent
+  value: 0.25
+  target: all_allies
+- type: buff
+  buff_id: mass_healing_protection
+  duration: 2
+  effects:
+    defense_multiplier: 1.10
+animation:
+  icon: 💚✨
+  color:
+  - 100
+  - 255
+  - 150
+sfx:
+- se
+- Recovery

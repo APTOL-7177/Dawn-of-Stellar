@@ -1,0 +1,30 @@
+id: rogue_nox_cadens
+name: 녹스 카덴스
+type: attack
+description: '그림자를 이용해 마무리 일격을 가합니다.
+
+  HP 1.1 피해를 주고 농락을 쌓습니다.
+
+  '
+target: enemy
+metadata:
+  job: rogue
+  basic_attack: true
+  mockery_gain: 1
+effects:
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 1.1
+- type: custom
+  handler: add_mockery
+  value: 1
+animation:
+  icon: ??
+  color:
+  - 60
+  - 60
+  - 100
+sfx:
+- se
+- Slash1

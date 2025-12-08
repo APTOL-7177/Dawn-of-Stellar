@@ -1,0 +1,45 @@
+id: umbra_incursio
+name: 움브라 인쿠르시오
+type: ultimate
+description: "[궁극기] 적 전체를 완벽하게 농락합니다.\n\n효과:\n1. 전체 적 농락 10으로 설정\n2. 자신 즉시 은신 돌입\n\
+  3. 전체 적 BRV 2.0 + HP 3.0 피해\n4. 전체 적 \"치명독\" 4턴\n   - HP -15%, 회복 불가, 받는 피해 +20%\n"
+target: all_enemies
+costs:
+  mp: 45
+metadata:
+  ultimate: true
+effects:
+- type: custom
+  handler: set_all_mockery
+  value: 10
+- type: custom
+  handler: enter_stealth
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 2.0
+  target: all_enemies
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 3.0
+  target: all_enemies
+- type: debuff
+  debuff_id: lethal_poison
+  target: all_enemies
+  duration: 4
+  effects:
+    dot_percent: 0.15
+    heal_block: true
+    damage_taken: 0.2
+animation:
+  icon: 🎭
+  color:
+  - 100
+  - 0
+  - 150
+  screen_effect: perfect_mockery
+  duration: 3.0
+sfx:
+- se
+- Up1

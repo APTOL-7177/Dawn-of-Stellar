@@ -539,7 +539,7 @@ class AlchemyUI:
         
         # 연금술 변환 탭이 아닌 경우
         if self.current_tab != 2 or not self.has_alchemist:
-            if self.mode == AlchemyMode.SELECT_RECIPE or self.mode == AlchemyMode.CONFIRM_CRAFT or self.mode == AlchemyMode.SHOW_RESULT:
+            if self.mode in (AlchemyMode.SELECT_TAB, AlchemyMode.SELECT_RECIPE, AlchemyMode.CONFIRM_CRAFT, AlchemyMode.SHOW_RESULT):
                 # 레시피 목록 표시
                 visible_recipes = current_recipes[self.recipe_scroll:self.recipe_scroll + self.max_visible_recipes]
                 
@@ -726,6 +726,10 @@ def open_alchemy_lab(
     except:
         pass
     unified_input_handler.clear_input_state()
+
+    # 초기 렌더링 (입력 대기 전에 화면 표시)
+    ui.render(console)
+    context.present(console)
 
     while not ui.closed:
         ui.render(console)

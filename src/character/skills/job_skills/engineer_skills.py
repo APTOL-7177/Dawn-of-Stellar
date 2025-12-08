@@ -1,4 +1,4 @@
-"""Engineer Skills - 기계공학자 스킬 (열 관리 시스템)"""
+"""Engineer Skills - 기계공학자 스킬 (포탑 시스템)"""
 from src.character.skills.skill import Skill
 from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
@@ -8,150 +8,223 @@ from src.character.skills.effects.heal_effect import HealEffect
 from src.character.skills.costs.mp_cost import MPCost
 
 def create_engineer_skills():
-    """기계공학자 10개 스킬 생성 (열 관리 시스템)"""
+    """기계공학자 스킬 생성 (포탑 시스템)"""
+    skills = []
+
+    # ============================================================
+    # 기본 공격 (열 증가)
+    # ============================================================
 
     # 1. 기본 BRV: 포탑 사격
-    turret_shot = Skill("engineer_turret_shot", "포탑 사격", "기본 공격, 열 +15")
+    turret_shot = Skill("engineer_turret_shot", "포탑 사격", "BRV 피해, 열 +2")
     turret_shot.effects = [
-        DamageEffect(DamageType.BRV, 1.5),
-        GimmickEffect(GimmickOperation.ADD, "heat", 15, max_value=100)
+        DamageEffect(DamageType.BRV, 1.4),
+        GimmickEffect(GimmickOperation.ADD, "heat", 2, max_value=100)
     ]
     turret_shot.costs = []  # 기본 공격은 MP 소모 없음
-    turret_shot.sfx = ("combat", "gun_shot")
-    turret_shot.metadata = {"heat_change": 15, "basic_attack": True}
+    turret_shot.sfx = ("combat", "attack_physical")
+    turret_shot.metadata = {"basic_attack": True, "heat_change": 2}
+    skills.append(turret_shot)
 
     # 2. 기본 HP: 로켓 펀치
-    rocket_punch = Skill("engineer_rocket_punch", "로켓 펀치", "단일 강타, 열 +25")
+    rocket_punch = Skill("engineer_rocket_punch", "로켓 펀치", "HP 피해, 열 +5")
     rocket_punch.effects = [
-        DamageEffect(DamageType.HP, 1.5),
-        GimmickEffect(GimmickOperation.ADD, "heat", 25, max_value=100)
+        DamageEffect(DamageType.HP, 1.2),
+        GimmickEffect(GimmickOperation.ADD, "heat", 5, max_value=100)
     ]
     rocket_punch.costs = []  # 기본 공격은 MP 소모 없음
-    rocket_punch.sfx = ("combat", "attack_physical")
-    rocket_punch.metadata = {"heat_change": 25, "basic_attack": True}
+    rocket_punch.sfx = ("combat", "damage_high")
+    rocket_punch.metadata = {"basic_attack": True, "heat_change": 5}
+    skills.append(rocket_punch)
 
-    # 3. 과열 포격 (위험 구간에서 강력함)
-    overload_blast = Skill("engineer_overload_blast", "과열 포격",
-                          "위험 구간(80+)에서 배율 3.5, 열 +35")
-    overload_blast.effects = [
-        DamageEffect(DamageType.BRV, 2.5,
-                    conditional_bonus={"condition": "danger_zone", "multiplier": 1.4}),
-        GimmickEffect(GimmickOperation.ADD, "heat", 35, max_value=100)
+    # ============================================================
+    # 포탑 설치 스킬들
+    # ============================================================
+
+    # 3. 일반 포탑 설치
+    deploy_turret = Skill("engineer_deploy_turret", "일반 포탑 설치", "포탑 +1 (턴당 열 +2, HP 공격 0.3배)")
+    deploy_turret.effects = [
+        GimmickEffect(GimmickOperation.ADD, "turret_count", 1, max_value=999)
     ]
-    overload_blast.costs = []
-    overload_blast.sfx = ("skill", "explosion")
-    overload_blast.metadata = {"heat_change": 35, "danger_zone_bonus": True}
+    deploy_turret.costs = []  # MP 0
+    deploy_turret.target_type = "self"
+    deploy_turret.sfx = ("skill", "summon")
+    deploy_turret.metadata = {
+        "turret_type": "normal",
+        "turret_damage": 0.3
+    }
+    skills.append(deploy_turret)
 
-    # 4. EMP 폭발 (광역 공격)
-    emp_explosion = Skill("engineer_emp_explosion", "EMP 폭발",
-                         "광역 공격, 기계 무력화, 열 +40")
-    emp_explosion.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.0),
-        GimmickEffect(GimmickOperation.ADD, "heat", 40, max_value=100)
+    # 2. 화염 포탑 설치
+    deploy_fire_turret = Skill("engineer_deploy_fire_turret", "화염 포탑 설치", "포탑 +1 (HP 1.2배, 30% 화상)")
+    deploy_fire_turret.effects = [
+        GimmickEffect(GimmickOperation.ADD, "turret_count", 1, max_value=999),
+        GimmickEffect(GimmickOperation.ADD, "fire_turret_count", 1, max_value=999)
     ]
-    emp_explosion.costs = [MPCost(9)]
-    emp_explosion.target_type = "all_enemies"
-    emp_explosion.is_aoe = True
-    emp_explosion.sfx = ("skill", "elemental")
-    emp_explosion.metadata = {"heat_change": 40}
+    deploy_fire_turret.costs = [MPCost(6)]
+    deploy_fire_turret.target_type = "self"
+    deploy_fire_turret.sfx = ("skill", "summon")
+    deploy_fire_turret.metadata = {
+        "turret_type": "fire",
+        "turret_damage": 1.2,
+        "burn_chance": 0.3
+    }
+    skills.append(deploy_fire_turret)
 
-    # 5. 냉각 벤트 (열 감소 + 방어 버프)
-    cooling_vent = Skill("engineer_cooling_vent", "냉각 벤트",
-                        "열 -30, 방어력 +20% 1턴")
+    # 3. 빙결 포탑 설치
+    deploy_ice_turret = Skill("engineer_deploy_ice_turret", "빙결 포탑 설치", "포탑 +1 (HP 0.8배, 40% 속도 감소)")
+    deploy_ice_turret.effects = [
+        GimmickEffect(GimmickOperation.ADD, "turret_count", 1, max_value=999),
+        GimmickEffect(GimmickOperation.ADD, "ice_turret_count", 1, max_value=999)
+    ]
+    deploy_ice_turret.costs = [MPCost(7)]
+    deploy_ice_turret.target_type = "self"
+    deploy_ice_turret.sfx = ("skill", "summon")
+    deploy_ice_turret.metadata = {
+        "turret_type": "ice",
+        "turret_damage": 0.8,
+        "slow_chance": 0.4
+    }
+    skills.append(deploy_ice_turret)
+
+    # 4. 전기 포탑 설치
+    deploy_thunder_turret = Skill("engineer_deploy_thunder_turret", "전기 포탑 설치", "포탑 +1 (HP 1.0배, 25% 마비)")
+    deploy_thunder_turret.effects = [
+        GimmickEffect(GimmickOperation.ADD, "turret_count", 1, max_value=999),
+        GimmickEffect(GimmickOperation.ADD, "thunder_turret_count", 1, max_value=999)
+    ]
+    deploy_thunder_turret.costs = [MPCost(8)]
+    deploy_thunder_turret.target_type = "self"
+    deploy_thunder_turret.sfx = ("skill", "summon")
+    deploy_thunder_turret.metadata = {
+        "turret_type": "thunder",
+        "turret_damage": 1.0,
+        "paralyze_chance": 0.25
+    }
+    skills.append(deploy_thunder_turret)
+
+    # 5. 폭발 포탑 설치
+    deploy_explosive_turret = Skill("engineer_deploy_explosive_turret", "폭발 포탑 설치", "포탑 +1 (HP 1.5배, AOE 공격)")
+    deploy_explosive_turret.effects = [
+        GimmickEffect(GimmickOperation.ADD, "turret_count", 1, max_value=999),
+        GimmickEffect(GimmickOperation.ADD, "explosive_turret_count", 1, max_value=999)
+    ]
+    deploy_explosive_turret.costs = [MPCost(10)]
+    deploy_explosive_turret.target_type = "self"
+    deploy_explosive_turret.sfx = ("skill", "summon")
+    deploy_explosive_turret.metadata = {
+        "turret_type": "explosive",
+        "turret_damage": 1.5,
+        "aoe": True
+    }
+    skills.append(deploy_explosive_turret)
+
+    # 6. 치유 포탑 설치
+    deploy_heal_turret = Skill("engineer_deploy_heal_turret", "치유 포탑 설치", "포탑 +1 (최저 HP 아군 공격력 30% 회복)")
+    deploy_heal_turret.effects = [
+        GimmickEffect(GimmickOperation.ADD, "turret_count", 1, max_value=999),
+        GimmickEffect(GimmickOperation.ADD, "heal_turret_count", 1, max_value=999)
+    ]
+    deploy_heal_turret.costs = [MPCost(12)]
+    deploy_heal_turret.target_type = "self"
+    deploy_heal_turret.sfx = ("skill", "summon")
+    deploy_heal_turret.metadata = {
+        "turret_type": "heal",
+        "heal_percent": 0.1
+    }
+    skills.append(deploy_heal_turret)
+
+    # ============================================================
+    # 냉각 스킬들
+    # ============================================================
+
+    # 7. 냉각 벤트
+    cooling_vent = Skill("engineer_cooling_vent", "냉각 벤트", "열 -30")
     cooling_vent.effects = [
-        GimmickEffect(GimmickOperation.ADD, "heat", -30, min_value=0),
-        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=1)
+        GimmickEffect(GimmickOperation.ADD, "heat", -30, min_value=0)
     ]
-    cooling_vent.costs = [MPCost(5)]
+    cooling_vent.costs = [MPCost(3)]
     cooling_vent.target_type = "self"
     cooling_vent.sfx = ("skill", "cast_complete")
     cooling_vent.metadata = {"heat_change": -30}
+    skills.append(cooling_vent)
 
-    # 6. 오버클럭 모드 (위험 구간 패널티 제거)
-    overclock_mode = Skill("engineer_overclock_mode", "오버클럭 모드",
-                          "3턴간 위험 구간 패널티 제거, 열 +20")
-    overclock_mode.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3),
-        BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=3),
-        GimmickEffect(GimmickOperation.ADD, "heat", 20, max_value=100)
+    # 8. 긴급 냉각
+    emergency_cooling = Skill("engineer_emergency_cooling", "긴급 냉각", "열 -50, 포탑 1개 파괴")
+    emergency_cooling.effects = [
+        GimmickEffect(GimmickOperation.ADD, "heat", -50, min_value=0),
+        GimmickEffect(GimmickOperation.ADD, "turret_count", -1, min_value=0)
     ]
-    overclock_mode.costs = [MPCost(11)]
-    overclock_mode.target_type = "self"
-    # overclock_mode.cooldown = 5  # 쿨다운 시스템 제거됨
-    overclock_mode.sfx = ("character", "status_buff")
-    overclock_mode.metadata = {"heat_change": 20, "overclock": True}
+    emergency_cooling.costs = [MPCost(5)]
+    emergency_cooling.target_type = "self"
+    emergency_cooling.sfx = ("skill", "cast_complete")
+    emergency_cooling.metadata = {"heat_change": -50, "destroy_turret": 1}
+    skills.append(emergency_cooling)
 
-    # 7. 긴급 수리 (회복 + 열 감소)
-    emergency_repair = Skill("engineer_emergency_repair", "긴급 수리",
-                            "HP 30% 회복, 열 -40")
-    emergency_repair.effects = [
-        HealEffect(percentage=0.60),  # 긴급 수리 (0.52 → 0.60 증가)
-        GimmickEffect(GimmickOperation.ADD, "heat", -40, min_value=0)
+    # 9. 전체 냉각
+    full_cooling = Skill("engineer_full_cooling", "전체 냉각", "열 -100, 모든 포탑 파괴")
+    full_cooling.effects = [
+        GimmickEffect(GimmickOperation.SET, "heat", 0),
+        GimmickEffect(GimmickOperation.SET, "turret_count", 0),
+        GimmickEffect(GimmickOperation.SET, "fire_turret_count", 0),
+        GimmickEffect(GimmickOperation.SET, "ice_turret_count", 0),
+        GimmickEffect(GimmickOperation.SET, "thunder_turret_count", 0),
+        GimmickEffect(GimmickOperation.SET, "explosive_turret_count", 0),
+        GimmickEffect(GimmickOperation.SET, "heal_turret_count", 0)
     ]
-    emergency_repair.costs = [MPCost(9)]
-    emergency_repair.target_type = "self"
-    # emergency_repair.cooldown = 4  # 쿨다운 시스템 제거됨
-    emergency_repair.sfx = ("character", "hp_heal")
-    emergency_repair.metadata = {"heat_change": -40}
+    full_cooling.costs = [MPCost(8)]
+    full_cooling.target_type = "self"
+    full_cooling.sfx = ("skill", "cast_complete")
+    full_cooling.metadata = {"heat_change": -100, "destroy_all_turrets": True}
+    skills.append(full_cooling)
 
-    # 8. 보호막 생성기 (방어막 생성)
-    shield_generator = Skill("engineer_shield_generator", "보호막 생성기",
-                            "3턴간 피해 흡수 방어막, 열 +15")
-    shield_generator.effects = [
-        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3),
-        GimmickEffect(GimmickOperation.ADD, "heat", 15, max_value=100)
-    ]
-    shield_generator.costs = [MPCost(6)]
-    shield_generator.target_type = "self"
-    # shield_generator.cooldown = 4  # 쿨다운 시스템 제거됨
-    shield_generator.sfx = ("skill", "protect")
-    shield_generator.metadata = {"heat_change": 15, "shield": True}
+    # ============================================================
+    # 유틸리티 스킬
+    # ============================================================
 
-    # 9. 드론 배치 (지원 공격)
-    deploy_drone = Skill("engineer_deploy_drone", "드론 배치",
-                        "지원 드론 배치, 2턴간 공격력 +25%")
-    deploy_drone.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.25, duration=2),
+    # 10. 포탑 강화 (버프)
+    turret_enhance = Skill("engineer_turret_enhance", "포탑 강화", "3턴간 포탑 데미지 +50%, 열 +10")
+    turret_enhance.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=3, target="self"),
         GimmickEffect(GimmickOperation.ADD, "heat", 10, max_value=100)
     ]
-    deploy_drone.costs = [MPCost(6)]
-    deploy_drone.target_type = "self"
-    # deploy_drone.cooldown = 3  # 쿨다운 시스템 제거됨
-    deploy_drone.sfx = ("skill", "summon")
-    deploy_drone.metadata = {"heat_change": 10, "drone": True}
+    turret_enhance.costs = [MPCost(9)]
+    turret_enhance.target_type = "self"
+    turret_enhance.sfx = ("character", "status_buff")
+    turret_enhance.metadata = {"turret_enhance": True, "heat_change": 10}
+    skills.append(turret_enhance)
 
-    # 10. 궁극기: 메가 블래스터 (현재 열에 비례한 피해)
-    mega_blaster = Skill("engineer_mega_blaster", "메가 블래스터",
-                        "현재 열에 비례한 대량 피해, 열 +60")
+    # 11. 궁극기: 메가 블래스터
+    mega_blaster = Skill("engineer_mega_blaster", "메가 블래스터", "포탑 수 × HP 2.0배, 열 +60")
     mega_blaster.effects = [
-        DamageEffect(DamageType.BRV, 2.5,
-                    gimmick_bonus={"field": "heat", "multiplier": 0.02}),  # 열 1당 +2% 피해
-        DamageEffect(DamageType.HP, 2.0,
-                    gimmick_bonus={"field": "heat", "multiplier": 0.015}),  # 열 1당 +1.5% 피해
+        DamageEffect(DamageType.HP, 2.0, gimmick_bonus={"field": "turret_count", "multiplier": 1.0}),  # 포탑 1개당 +100% (2배씩 증가)
         GimmickEffect(GimmickOperation.ADD, "heat", 60, max_value=100)
     ]
     mega_blaster.costs = [MPCost(30)]
     mega_blaster.is_ultimate = True
-    mega_blaster.cooldown = 15  # 궁극기 쿨타임 15턴
+    mega_blaster.cooldown = 15
     mega_blaster.sfx = ("skill", "limit_break")
-    mega_blaster.metadata = {"heat_change": 60, "heat_scaling": True}
+    mega_blaster.metadata = {"heat_change": 60, "turret_scaling": True}
+    skills.append(mega_blaster)
 
-    teamwork = TeamworkSkill("engineer_teamwork", "긴급 냉각 시스템", "열 게이지 -70 + 단일 대상 화염 BRV+HP (2.8x) + 자신 속도 1.25배 (3턴)", gauge_cost=150)
+    # 팀워크 스킬
+    teamwork = TeamworkSkill(
+        "engineer_teamwork",
+        "긴급 냉각 시스템",
+        "열 -70 + 포탑 공격력 +100% (3턴)",
+        gauge_cost=150
+    )
     teamwork.effects = [
-        GimmickEffect(GimmickOperation.ADD, "heat", -70, min_value=0),  # 열 게이지 -70
-        DamageEffect(DamageType.BRV, 2.8),  # 화염 BRV 공격 2.8x
-        DamageEffect(DamageType.HP, 1.0),  # HP 변환
-        BuffEffect(BuffType.SPEED_UP, 0.25, duration=3, target="self"),  # 자신 속도 1.25배
+        GimmickEffect(GimmickOperation.ADD, "heat", -70, min_value=0),
+        BuffEffect(BuffType.ATTACK_UP, 1.0, duration=3, target="self")
     ]
-    teamwork.target_type = "party"
-    teamwork.is_aoe = True
+    teamwork.target_type = "self"
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "teamwork")
-    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "engineer": True}
+    teamwork.metadata = {"teamwork": True, "chain": True, "engineer": True}
+    skills.append(teamwork)
 
-    return [turret_shot, rocket_punch, overload_blast, emp_explosion,
-            cooling_vent, overclock_mode, emergency_repair, shield_generator,
-            deploy_drone, mega_blaster, teamwork]
+    return skills
 
 def register_engineer_skills(skill_manager):
     """기계공학자 스킬 등록"""

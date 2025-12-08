@@ -1,0 +1,22 @@
+id: dimensionist_refraction_release
+name: 굴절 방출
+type: attack
+description: '축적된 굴절을 방출하여 HP 공격을 가합니다.
+
+  굴절량의 60%가 추가 피해로 적용됩니다.
+
+  '
+effects:
+- type: damage
+  damage_type: hp
+  stat_base: magical
+  multiplier: 0.9
+target: enemy
+metadata:
+  job: dimensionist
+  basic_attack: true
+  refraction_scaling: true
+  refraction_fixed_damage_rate: 0.6
+sfx:
+- se
+- Move2

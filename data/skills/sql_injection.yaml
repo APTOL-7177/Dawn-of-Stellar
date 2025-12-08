@@ -1,0 +1,38 @@
+id: sql_injection
+name: SQL 인젝션
+type: brv_hp_attack
+description: '데이터베이스 취약점 공격. BRV 2.0 + HP 1.5 피해.
+
+  대상 침투 게이지 +20.
+
+  침투 50%+ 시 추가 HP 1.0 피해.
+
+  '
+target: single_enemy
+costs:
+  mp: 12
+  ram: 5
+metadata:
+  intrusion_gain: 20
+  bonus_at_intrusion_50: true
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magic
+  multiplier: 2.0
+- type: damage
+  damage_type: hp
+  stat_base: magic
+  multiplier: 1.5
+- type: custom
+  handler: add_intrusion
+  value: 20
+animation:
+  icon: 💉
+  color:
+  - 255
+  - 100
+  - 0
+sfx:
+- se
+- Magic1

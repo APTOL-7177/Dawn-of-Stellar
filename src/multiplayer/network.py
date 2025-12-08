@@ -94,6 +94,60 @@ class NetworkManager:
         """메시지 처리"""
         message_type = message.type
         
+        # FLOOR_READY 메시지 직접 처리 (세션 업데이트 및 브로드캐스트)
+        if message_type == MessageType.FLOOR_READY:
+            if self.session:
+                player_id = message.player_id
+                ready = message.data.get("ready", False)
+                ready_players = message.data.get("ready_players", [])
+                
+                # 세션의 준비 상태 업데이트
+                if ready:
+                    self.session.floor_ready_players.add(player_id)
+                else:
+                    self.session.floor_ready_players.discard(player_id)
+                
+                # 호스트인 경우: 업데이트된 상태를 모든 클라이언트에게 브로드캐스트
+                if self.is_host:
+                    from src.multiplayer.protocol import MessageBuilder
+                    updated_msg = MessageBuilder.floor_ready(
+                        player_id=player_id,
+                        ready=ready,
+                        ready_players=list(self.session.floor_ready_players),
+                        total_players=len(self.session.players)
+                    )
+                    await self.broadcast(updated_msg, exclude=sender_id)
+                    self.logger.debug(f"층 이동 준비 상태 업데이트 브로드캐스트: {len(self.session.floor_ready_players)}/{len(self.session.players)}")
+                else:
+                    # 클라이언트: 받은 정보로 세션 동기화
+                    for pid in ready_players:
+                        self.session.floor_ready_players.add(pid)
+                    self.logger.debug(f"층 이동 준비 상태 동기화: {len(self.session.floor_ready_players)}/{message.data.get('total_players', 0)}")
+        
+        # FLOOR_CHANGE 메시지 직접 처리 (클라이언트에서 층 변경 트리거)
+        if message_type == MessageType.FLOOR_CHANGE:
+            if not self.is_host and self.session:
+                direction = message.data.get("direction", "floor_down")
+                from_town = message.data.get("from_town", False)
+                
+                # 세션에 층 변경 대기 플래그 설정 (WorldUI에서 확인)
+                self.session.floor_change_pending = True
+                self.session.floor_change_direction = direction
+                self.session.floor_change_from_town = from_town
+                
+                self.logger.info(f"FLOOR_CHANGE 수신: direction={direction}, from_town={from_town}")
+        
+        # DUNGEON_DATA 메시지 직접 처리 (클라이언트에서 던전 업데이트)
+        if message_type == MessageType.DUNGEON_DATA:
+            if not self.is_host:
+                # 새 던전 데이터 저장 (network_manager에 직접 저장 - client에서 접근)
+                self.pending_dungeon_data = message.data.get("dungeon")
+                self.pending_floor_number = message.data.get("floor_number", 1)
+                self.pending_dungeon_seed = message.data.get("seed")
+                self.dungeon_data_received = True
+                
+                self.logger.info(f"DUNGEON_DATA 수신: floor={self.pending_floor_number}")
+        
         # 핸들러 호출
         if message_type in self.message_handlers:
             for handler in self.message_handlers[message_type]:

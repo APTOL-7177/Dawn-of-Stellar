@@ -78,9 +78,9 @@ def create_dark_knight_skills():
     # ============================================================
 
     # 5. 강타
-    power_strike = Skill("dark_knight_power_strike", "강타", "충전 30 소모 (충전 30: 1.6배 → 100: 3.6배)")
+    power_strike = Skill("dark_knight_power_strike", "강타", "충전 30 소모 (충전 30: HP 5.0배 → 100: 8.0배)")
     power_strike.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.02}),  # 충전 1%당 +2% 데미지
+        DamageEffect(DamageType.HP, 3.5, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.045}),  # 충전 1%당 +4.5% → 충전 30%시 5.0배, 100%시 8.0배
         GimmickEffect(GimmickOperation.CONSUME, "charge_gauge", 30)
     ]
     power_strike.costs = [MPCost(3), StackCost("charge_gauge", 30)]
@@ -94,9 +94,9 @@ def create_dark_knight_skills():
     skills.append(power_strike)
 
     # 6. 심연의 폭발
-    abyssal_burst = Skill("dark_knight_abyssal_burst", "심연의 폭발", "충전 50 소모 (충전 50: 1.8배 → 100: 2.8배)")
+    abyssal_burst = Skill("dark_knight_abyssal_burst", "심연의 폭발", "충전 50 소모 (충전 50: HP 3.5배 → 100: 6.0배, 전체 공격)")
     abyssal_burst.effects = [
-        DamageEffect(DamageType.BRV_HP, 0.8, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.02}),  # 충전 1%당 +2% 데미지
+        DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.05}),  # 충전 1%당 +5% → 충전 50%시 3.5배, 100%시 6.0배
         GimmickEffect(GimmickOperation.CONSUME, "charge_gauge", 50)
     ]
     abyssal_burst.costs = [MPCost(5), StackCost("charge_gauge", 50)]
@@ -114,9 +114,9 @@ def create_dark_knight_skills():
     skills.append(abyssal_burst)
 
     # 7. 처형
-    execution = Skill("dark_knight_execution", "처형", "충전 100 소모 (충전 100: 5.5배, 적 체력 비례 추가 데미지)")
+    execution = Skill("dark_knight_execution", "처형", "충전 100 소모 (충전 100: HP 15.0배)")
     execution.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.5, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.04}),  # 충전 1%당 +4% 데미지
+        DamageEffect(DamageType.HP, 5.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.10}),  # 충전 1%당 +10% → 충전 100%시 15.0배
         GimmickEffect(GimmickOperation.SET, "charge_gauge", 0)  # 충전 완전 소모
     ]
     execution.costs = [MPCost(7), StackCost("charge_gauge", 100)]
@@ -126,8 +126,7 @@ def create_dark_knight_skills():
         "charge_cost": 100,
         "spender": True,
         "cast_time": 1.0,
-        "execute": True,  # 적 체력이 낮을수록 추가 데미지
-        "low_hp_bonus": 2.0  # 적 HP 30% 이하일 때 데미지 2배
+        "hp_destroyer": True  # HP를 순식간에 깎는 스킬
     }
     skills.append(execution)
 

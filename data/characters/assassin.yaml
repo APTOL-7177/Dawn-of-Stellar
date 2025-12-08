@@ -1,6 +1,6 @@
 class_name: 암살자
 description: 그림자에서 나타나 적을 단숨에 처치하는 완벽한 킬러
-slogan: "그림자 속에서 온 죽음, 소리 없이 사라진다"
+slogan: 그림자 속에서 온 죽음, 소리 없이 사라진다
 archetype: 암살 특화
 base_stats:
   hp: 134
@@ -13,18 +13,18 @@ base_stats:
   magic_defense: 39
   max_brv: 440
 stat_growth:
-  hp: 9.5
-  mp: 3.5
-  init_brv: 21.6
-  strength: 4.5
-  defense: 2.2
-  magic: 1.5
-  spirit: 2.5
-  speed: 5.5
-  luck: 4.5
-  accuracy: 3.0
-  evasion: 2.5
-  max_brv: 88.0
+  hp: 28.2
+  mp: 2.4
+  init_brv: 25.5
+  strength: 23.2
+  defense: 7.5
+  magic: 5.6
+  spirit: 8.5
+  speed: 23.5
+  max_brv: 123.6
+  luck: 3
+  accuracy: 1.8
+  evasion: 1.5
 traits:
 - id: stealth_state_bonus
   name: 은신 상태 보너스
@@ -92,7 +92,6 @@ skills:
 - shadow_clone
 - silent_execution
 - ultimate
-
 bonuses:
   critical_rate: 1.2
   critical_damage: 1.25

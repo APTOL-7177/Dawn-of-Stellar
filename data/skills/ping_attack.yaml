@@ -1,0 +1,27 @@
+id: ping_attack
+name: 핑 공격
+type: brv_attack
+description: |
+  기본 네트워크 공격. BRV 1.5 피해.
+  대상 침투 게이지 +10.
+target: single_enemy
+costs:
+  mp: 8
+  ram: 3
+metadata:
+  intrusion_gain: 10
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magical
+  multiplier: 1.5
+- type: custom
+  handler: add_intrusion
+  value: 10
+animation:
+  icon: "📡"
+  color: [0, 200, 255]
+sfx:
+- se
+- Computer
+

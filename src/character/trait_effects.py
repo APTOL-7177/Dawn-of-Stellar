@@ -833,50 +833,89 @@ class TraitEffectManager:
                 )
             ],
 
-            # === ARCHMAGE (대마법사) ===
-            "mana_mastery": [
+            # === ARCHMAGE (대마법사) - 융합 스킬 시스템 v2.0 ===
+            # 특성 1: 원소 친화 - 원소 획득량 강화
+            "elemental_affinity": [
                 TraitEffect(
-                    trait_id="mana_mastery",
-                    effect_type=TraitEffectType.MP_COST_REDUCTION,
-                    value=0.30,
-                    condition="magic_skill",
-                    metadata={"description": "모든 마법 스킬 MP 소모 30% 감소"}
+                    trait_id="elemental_affinity",
+                    effect_type=TraitEffectType.GIMMICK_GAIN_BONUS,
+                    value=1,  # +1 추가 획득
+                    condition="basic_element_skill",
+                    metadata={
+                        "description": "기본 스킬 사용 시 원소 2개 획득, 턴 시작 시 무작위 원소 1개 획득",
+                        "turn_start_element": 1,
+                        "applies_to": ["fire_element", "ice_element", "lightning_element"]
+                    }
                 )
             ],
-            "arcane_knowledge": [
+            # 특성 2: 융합 숙련 - 2원소 융합 스킬 강화
+            "fusion_mastery": [
                 TraitEffect(
-                    trait_id="arcane_knowledge",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=1.20,
-                    target_stat="magic_attack",
-                    metadata={"description": "마법 공격력 20% 증가"}
-                )
-            ],
-            "elemental_fury": [
-                TraitEffect(
-                    trait_id="elemental_fury",
+                    trait_id="fusion_mastery",
                     effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
-                    value=1.10,
-                    condition="consecutive_magic",
-                    metadata={"max_stacks": 5, "max_bonus": 1.50, "description": "연속 마법 시전 시 위력 누적 (최대 50%)"}
+                    value=1.30,  # +30% 데미지
+                    condition="fusion_skill",
+                    metadata={
+                        "description": "2원소 융합 스킬 데미지 +30%, MP 소모 -25%",
+                        "skill_types": ["thunderstorm_inferno", "arctic_tempest", "paradox_surge"]
+                    }
+                ),
+                TraitEffect(
+                    trait_id="fusion_mastery",
+                    effect_type=TraitEffectType.MP_COST_REDUCTION,
+                    value=0.25,  # -25% MP 소모
+                    condition="fusion_skill",
+                    metadata={"skill_types": ["thunderstorm_inferno", "arctic_tempest", "paradox_surge"]}
                 )
             ],
-            "spell_weaving": [
+            # 특성 3: 원소 공명 - 스택 보유 보너스
+            "elemental_resonance": [
                 TraitEffect(
-                    trait_id="spell_weaving",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=0.75,
-                    target_stat="cast_time",
-                    metadata={"description": "마법 시전 시간 25% 감소"}
+                    trait_id="elemental_resonance",
+                    effect_type=TraitEffectType.GIMMICK_CONDITIONAL,
+                    value=0.20,  # +20% 원소 데미지
+                    condition="element_stacks_3",
+                    metadata={
+                        "description": "각 원소 3개 이상 보유 시 해당 원소 데미지 +20%, 모든 원소 3개 이상이면 추가 +15%",
+                        "threshold": 3,
+                        "all_elements_bonus": 0.15
+                    }
                 )
             ],
-            "arcane_supremacy": [
+            # 특성 4: 균형의 힘 - 원소 균형 시 보너스
+            "balance_power": [
                 TraitEffect(
-                    trait_id="arcane_supremacy",
+                    trait_id="balance_power",
                     effect_type=TraitEffectType.CRITICAL_BONUS,
-                    value=0.20,
-                    condition="mp_above_70",
-                    metadata={"description": "MP 70% 이상일 때 크리티컬 확률 20% 증가"}
+                    value=0.25,  # +25% 크리티컬 확률
+                    condition="fire_ice_balance",
+                    metadata={
+                        "description": "화염/빙결 스택이 같을 때 상반의 격류 크리티컬 확률 +25%, 크리티컬 데미지 +50%",
+                        "balance_elements": ["fire", "ice"],
+                        "skill_boost": "paradox_surge"
+                    }
+                ),
+                TraitEffect(
+                    trait_id="balance_power",
+                    effect_type=TraitEffectType.CRITICAL_DAMAGE,
+                    value=0.50,  # +50% 크리티컬 데미지
+                    condition="fire_ice_balance",
+                    metadata={"balance_elements": ["fire", "ice"]}
+                )
+            ],
+            # 특성 5: 원소 대폭발 - 5스택 과부하 강화
+            "elemental_explosion": [
+                TraitEffect(
+                    trait_id="elemental_explosion",
+                    effect_type=TraitEffectType.GIMMICK_TRIGGER,
+                    value=1.0,  # 트리거 활성화
+                    condition="overload_5_stacks",
+                    metadata={
+                        "description": "5스택 원소 과부하 사용 시 특수 효과 강화",
+                        "fire_enhanced": {"burning_duration": 5, "burning_aoe": True},
+                        "ice_enhanced": {"atb_reset": True, "frozen_duration_bonus": 2},
+                        "lightning_enhanced": {"hit_count": 15, "final_hit_multiplier": 5.0}
+                    }
                 )
             ],
 
@@ -1002,60 +1041,57 @@ class TraitEffectManager:
             ],
 
             # === BATTLE_MAGE (전투마법사) ===
-            "rune_mastery": [
+            "resonance_expert": [
                 TraitEffect(
-                    trait_id="rune_mastery",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=2.0,
-                    condition="same_rune_3",
-                    target_stat="rune_effect",
-                    metadata={"description": "같은 종류 룬 3개 보유 시 해당 룬 효과 2배"}
-                )
-            ],
-            "hybrid_strike": [
-                TraitEffect(
-                    trait_id="hybrid_strike",
-                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
-                    value=0.30,
-                    target_stat="physical_with_magic_bonus",
-                    metadata={"description": "모든 물리 공격에 마법 공격력 30% 추가"}
+                    trait_id="resonance_expert",
+                    effect_type=TraitEffectType.GIMMICK_GAIN_BONUS,
+                    value=0.25,
+                    metadata={"gimmick_field": "resonance_gauge", "multiplier": True, "description": "공명 게이지 획득량 +25%"}
                 ),
                 TraitEffect(
-                    trait_id="hybrid_strike",
-                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
-                    value=0.30,
-                    target_stat="magic_with_physical_bonus",
-                    metadata={"description": "마법 공격에 물리 공격력 30% 추가"}
+                    trait_id="resonance_expert",
+                    effect_type=TraitEffectType.GIMMICK_MODIFIER,
+                    value=2,  # +2 추가 룬 (총 6개)
+                    metadata={"gimmick_field": "auto_rune_bonus", "description": "공명 폭발 시 추가 룬 +2 (총 6개)"}
                 )
             ],
-            "rune_combination": [
+            "chain_ignition": [
                 TraitEffect(
-                    trait_id="rune_combination",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=1.20,
-                    condition="different_runes_2",
-                    target_stat="attack",
-                    metadata={"description": "서로 다른 룬 2개 이상 보유 시 조합 보너스 (공격력 +20%)"}
-                )
-            ],
-            "arcane_flow": [
-                TraitEffect(
-                    trait_id="arcane_flow",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
+                    trait_id="chain_ignition",
+                    effect_type=TraitEffectType.GIMMICK_MODIFIER,
                     value=0.15,
-                    condition="rune_use",
-                    target_stat="rune_save_chance",
-                    metadata={"description": "룬 사용 시 15% 확률로 룬 소모 없음"}
+                    metadata={"gimmick_field": "spread_chance_bonus", "description": "룬 확산 확률 +15%"}
                 )
             ],
-            "elemental_harmony": [
+            "rune_archivist": [
                 TraitEffect(
-                    trait_id="elemental_harmony",
+                    trait_id="rune_archivist",
+                    effect_type=TraitEffectType.GIMMICK_MAX_BONUS,
+                    value=1,
+                    metadata={"gimmick_field": "max_rune_per_type", "description": "룬 타입당 최대 +1"}
+                ),
+                TraitEffect(
+                    trait_id="rune_archivist",
+                    effect_type=TraitEffectType.GIMMICK_MAX_BONUS,
+                    value=1,
+                    metadata={"gimmick_field": "max_rune_slots_per_target", "description": "대상 룬 슬롯 +1"}
+                )
+            ],
+            "catalyst_engineer": [
+                TraitEffect(
+                    trait_id="catalyst_engineer",
                     effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=1.30,
-                    condition="all_5_runes",
-                    target_stat="all_stats",
-                    metadata={"description": "5가지 룬을 모두 보유 시 모든 능력치 +30%"}
+                    value=0.03,
+                    target_stat="speed",
+                    metadata={"description": "Catalyst Swap 변환 룬당 속도 +3%"}
+                )
+            ],
+            "arcane_conductor": [
+                TraitEffect(
+                    trait_id="arcane_conductor",
+                    effect_type=TraitEffectType.MP_REGEN,
+                    value=0.0,
+                    metadata={"description": "룬 폭발/그랜드 레조넌스 사용 시 MP 회복"}
                 )
             ],
 
@@ -1227,36 +1263,30 @@ class TraitEffectManager:
                 TraitEffect(
                     trait_id="faith_shield",
                     effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=1.0,
+                    value=0.40,
                     condition="on_heal",
                     target_stat="grant_shield",
-                    metadata={"description": "아군 치유 시 대상에게 보호막 부여"}
+                    metadata={"description": "아군 치유 시 회복량의 40%만큼 보호막 부여"}
                 )
             ],
             "divine_grace": [
                 TraitEffect(
                     trait_id="divine_grace",
                     effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=0.70,
+                    value=0.40,
                     condition="mp_above_50",
                     target_stat="heal_cast_time",
-                    metadata={"description": "MP 50% 이상일 때 회복 스킬 시전 시간 -30%"}
+                    metadata={"description": "MP 50% 이상일 때 회복 스킬 시전 시간 -60%"}
                 )
             ],
             "resurrection_master": [
                 TraitEffect(
                     trait_id="resurrection_master",
                     effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=1.0,
-                    target_stat="resurrection_success",
-                    metadata={"description": "부활 스킬 성공률 100%"}
-                ),
-                TraitEffect(
-                    trait_id="resurrection_master",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=0.50,
-                    target_stat="resurrection_hp",
-                    metadata={"description": "부활 대상 HP 50% 회복"}
+                    value=0.25,
+                    condition="on_heal",
+                    target_stat="self_heal",
+                    metadata={"description": "아군 치유 시 회복량의 25%만큼 본인도 추가 치유"}
                 )
             ],
             "prayer_blessing": [
@@ -1697,6 +1727,22 @@ class TraitEffectManager:
             ],
 
             # === ENGINEER (기계공학자) ===
+            "turret_reinforcement": [
+                TraitEffect(
+                    trait_id="turret_reinforcement",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=1.20,
+                    condition="turret_attack",
+                    metadata={"description": "포탑 피해량 +20%"}
+                ),
+                TraitEffect(
+                    trait_id="turret_reinforcement",
+                    effect_type=TraitEffectType.GIMMICK_MODIFIER,
+                    value=0.10,
+                    condition="turret_attack",
+                    metadata={"description": "상태이상 확률 +10%"}
+                )
+            ],
             "heat_efficiency": [
                 TraitEffect(
                     trait_id="heat_efficiency",
@@ -1720,10 +1766,10 @@ class TraitEffectManager:
                 TraitEffect(
                     trait_id="overheat_prevention",
                     effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=-15.0,
-                    condition="heat_95",
+                    value=-30.0,
+                    condition="heat_80",
                     target_stat="heat_reduction",
-                    metadata={"max_uses": 2, "description": "열이 95 도달 시 자동으로 -15 (전투당 2회)"}
+                    metadata={"max_uses": 3, "description": "열이 80+ 도달 시 자동으로 -30 (전투당 3회)"}
                 )
             ],
             "auto_cooling": [
@@ -2469,20 +2515,20 @@ class TraitEffectManager:
                     metadata={"description": "공격 시 25% 확률로 즉시 추가 공격"}
                 )
             ],
-            "blade_master": [
+            "sword_aura_mastery": [
                 TraitEffect(
-                    trait_id="blade_master",
-                    effect_type=TraitEffectType.CRITICAL_BONUS,
-                    value=0.25,
-                    condition="sword_equipped",
-                    metadata={"description": "검 장착 시 크리티컬 확률 +25%"}
+                    trait_id="sword_aura_mastery",
+                    effect_type=TraitEffectType.GIMMICK_MODIFIER,
+                    value=2.0,
+                    target_stat="max_sword_aura",
+                    metadata={"description": "검기 최대치 +2"}
                 ),
                 TraitEffect(
-                    trait_id="blade_master",
-                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
-                    value=1.50,
-                    condition="sword_equipped_critical",
-                    metadata={"description": "크리티컬 데미지 +50%"}
+                    trait_id="sword_aura_mastery",
+                    effect_type=TraitEffectType.GIMMICK_MODIFIER,
+                    value=1.0,
+                    target_stat="sword_aura_gain",
+                    metadata={"description": "검기 획득량 +1"}
                 )
             ],
             "focus_strike": [
@@ -2494,13 +2540,13 @@ class TraitEffectManager:
                     metadata={"description": "단일 대상 공격 시 데미지 +40%"}
                 )
             ],
-            "counter_blade": [
+            "final_strike": [
                 TraitEffect(
-                    trait_id="counter_blade",
-                    effect_type=TraitEffectType.COUNTER,
-                    value=0.15,
-                    condition="on_hit",
-                    metadata={"description": "피격 시 15% 확률로 즉시 반격"}
+                    trait_id="final_strike",
+                    effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
+                    value=1.50,
+                    condition="hp_low",
+                    metadata={"hp_threshold": 0.30, "description": "HP 30% 이하일 때 피해량 +50%"}
                 )
             ],
 
@@ -2554,7 +2600,7 @@ class TraitEffectManager:
                 )
             ],
 
-            # === VAMPIRE (뱀파이어) ===
+            # === VAMPIRE (흡혈귀) ===
             "satisfied_state": [
                 TraitEffect(
                     trait_id="satisfied_state",
@@ -2630,7 +2676,7 @@ class TraitEffectManager:
                 )
             ],
 
-            # === VAMPIRE (뱀파이어) ===
+            # === VAMPIRE (흡혈귀) ===
             "vampire_thirst_gimmick": [
                 # 1. 만족 (0-30): 모든 스탯 +10%, 받는 피해 -15%, 흡혈 1.25배
                 TraitEffect(
@@ -3006,17 +3052,18 @@ class TraitEffectManager:
                 TraitEffect(
                     trait_id="faith_shield",
                     effect_type=TraitEffectType.PASSIVE,
-                    value=0.15,
+                    value=0.40,
                     condition="on_heal",
-                    metadata={"shield_ratio": 0.15, "duration": 3, "description": "아군 치유 시 회복량의 15%만큼 보호막"}
+                    metadata={"shield_ratio": 0.40, "duration": 3, "description": "아군 치유 시 회복량의 40%만큼 보호막"}
                 )
             ],
             "resurrection_master": [
                 TraitEffect(
                     trait_id="resurrection_master",
                     effect_type=TraitEffectType.PASSIVE,
-                    value=0.50,
-                    metadata={"revive_hp_ratio": 0.50, "success_rate": 1.0, "description": "부활 성공률 100%, 대상 HP 50%"}
+                    value=0.25,
+                    condition="on_heal",
+                    metadata={"self_heal_ratio": 0.25, "description": "아군 치유 시 회복량의 25%만큼 본인도 추가 치유"}
                 )
             ],
 
@@ -3739,7 +3786,7 @@ class TraitEffectManager:
         final_cost = int(base_cost * (1.0 - reduction_rate))
 
         if reduction_rate > 0:
-            self.logger.info(
+            self.logger.debug(
                 f"MP 소모 감소: {base_cost} → {final_cost} (-{int(reduction_rate * 100)}%)"
             )
 
@@ -4329,7 +4376,7 @@ class TraitEffectManager:
                 return character.cheer >= threshold
             return False
 
-        # 갈증 구간 조건 (뱀파이어)
+        # 갈증 구간 조건 (흡혈귀)
         elif condition == "thirst_satisfied":
             if hasattr(character, 'thirst') and hasattr(character, 'satisfied_max'):
                 return character.thirst <= character.satisfied_max

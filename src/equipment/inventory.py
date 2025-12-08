@@ -31,7 +31,7 @@ class Inventory:
     - 동적 무게 제한 (파티 스탯에 따라 변동)
     """
 
-    def __init__(self, base_weight: float = 5.0, party: List[Any] = None):
+    def __init__(self, base_weight: float = 50.0, party: List[Any] = None):
         """
         Args:
             base_weight: 기본 무게 (kg) - 1/10로 조정됨 (max_weight에서 1/2.5 추가 조정)
@@ -101,12 +101,21 @@ class Inventory:
         # 창고 보너스 추가 (시설 레벨 업그레이드에 따라 증가)
         total += self.storage_bonus
 
-        # 1/3 곱적용 (창고 시스템 도입으로 인벤토리 축소)
-        # 기존: total = total * 0.6
-        # 수정: total = total * 0.6 * (1/2) = total * 0.3 (1.5배 증가)
+        # 기본 무게 조정 (0.3 배율 - 창고 시스템 도입으로 인벤토리 축소)
         total = total * 0.3
+        
+        # 멀티플레이 무게 감소 적용 (40% 감소 = 0.6 배율)
+        try:
+            from src.multiplayer.game_mode import get_game_mode_manager
+            game_mode_manager = get_game_mode_manager()
+            if game_mode_manager and game_mode_manager.is_multiplayer():
+                from src.multiplayer.config import INVENTORY_WEIGHT_MULTIPLIER
+                total = total * INVENTORY_WEIGHT_MULTIPLIER
+        except Exception:
+            pass
 
         return round(total, 1)
+
 
     @property
     def current_weight(self) -> float:
@@ -435,7 +444,8 @@ class Inventory:
     def use_consumable(
         self,
         slot_index: int,
-        target: Any
+        target: Any,
+        user: Any = None
     ) -> bool:
         """
         소비 아이템 사용 (Consumable 및 CookedFood 지원)
@@ -443,6 +453,7 @@ class Inventory:
         Args:
             slot_index: 슬롯 인덱스
             target: 대상 캐릭터
+            user: 사용자 캐릭터 (전투 중 포션 사용 시, 스탯 스케일링 기준)
 
         Returns:
             성공 여부
@@ -454,15 +465,21 @@ class Inventory:
         item = slot.item
         item_name = getattr(item, 'name', '알 수 없는 아이템')
         target_name = getattr(target, 'name', '알 수 없는 대상')
+        
+        # 사용자 스탯 저장 (스케일링 계산용)
+        self._current_user = user
 
         # CookedFood 타입 확인
         from src.cooking.recipe import CookedFood
         if isinstance(item, CookedFood):
-            return self._use_cooked_food(slot_index, item, target, item_name, target_name)
+            result = self._use_cooked_food(slot_index, item, target, item_name, target_name)
+            self._current_user = None
+            return result
 
         # Consumable 타입 확인
         if not isinstance(item, Consumable):
             logger.warning(f"{item_name}은(는) 소비 아이템이 아닙니다")
+            self._current_user = None
             return False
 
         # 효과 적용
@@ -478,18 +495,89 @@ class Inventory:
             is_alive = getattr(target, 'is_alive', True)
             current_hp = getattr(target, 'current_hp', 1)
             if is_alive and current_hp > 0:
-                healed = target.heal(effect_value, can_revive=False)
+                # 스탯 스케일링 보너스 적용 (사용자 스탯 또는 파티 최고 스탯)
+                bonus_heal = 0
+                try:
+                    from src.cooking.potion_brewing import PotionDatabase
+                    item_id = getattr(item, 'item_id', None)
+                    if item_id:
+                        recipe = PotionDatabase.get_recipe(item_id)
+                        if recipe and recipe.stat_scaling:
+                            stat_type = recipe.stat_scaling.get("stat", "magic")
+                            ratio = recipe.stat_scaling.get("ratio", 0)
+                            
+                            # 사용자가 지정되면 사용자 스탯 사용, 아니면 파티 최고 스탯
+                            user = getattr(self, '_current_user', None)
+                            if user:
+                                # 전투 중: 사용자의 스탯 사용
+                                if stat_type == "magic" and hasattr(user, 'magic'):
+                                    bonus_heal = int(user.magic * ratio)
+                                elif stat_type == "attack" and hasattr(user, 'strength'):
+                                    bonus_heal = int(user.strength * ratio)
+                            else:
+                                # 필드: 파티 중 가장 높은 스탯 사용
+                                max_stat = 0
+                                party = self.party if self.party else [target]
+                                for member in party:
+                                    if stat_type == "magic" and hasattr(member, 'magic'):
+                                        max_stat = max(max_stat, member.magic)
+                                    elif stat_type == "attack" and hasattr(member, 'strength'):
+                                        max_stat = max(max_stat, member.strength)
+                                bonus_heal = int(max_stat * ratio)
+                except Exception as e:
+                    logger.debug(f"포션 스케일링 적용 실패: {e}")
+                
+                total_heal = effect_value + bonus_heal
+                healed = target.heal(total_heal, can_revive=False)
                 if healed > 0:
-                    logger.info(f"{target_name}: {item_name} 사용 → HP +{healed}")
+                    if bonus_heal > 0:
+                        logger.info(f"{target_name}: {item_name} 사용 → HP +{healed} (기본 {effect_value} + 파티 최고 스탯 보너스 {bonus_heal})")
+                    else:
+                        logger.info(f"{target_name}: {item_name} 사용 → HP +{healed}")
                     success = True
             else:
                 logger.warning(f"{target_name}: {item_name} 사용 실패 - 대상이 죽어있음")
                 success = False
         elif effect_type == "heal_mp":
-            # MP 회복
-            restored = target.restore_mp(effect_value)
+            # MP 회복 - 스탯 스케일링 적용 (파티 중 가장 높은 스탯 사용)
+            bonus_restore = 0
+            try:
+                from src.cooking.potion_brewing import PotionDatabase
+                item_id = getattr(item, 'item_id', None)
+                if item_id:
+                    recipe = PotionDatabase.get_recipe(item_id)
+                    if recipe and recipe.stat_scaling:
+                        stat_type = recipe.stat_scaling.get("stat", "magic")
+                        ratio = recipe.stat_scaling.get("ratio", 0)
+                        
+                        # 사용자가 지정되면 사용자 스탯 사용, 아니면 파티 최고 스탯
+                        user = getattr(self, '_current_user', None)
+                        if user:
+                            # 전투 중: 사용자의 스탯 사용
+                            if stat_type == "magic" and hasattr(user, 'magic'):
+                                bonus_restore = int(user.magic * ratio)
+                            elif stat_type == "attack" and hasattr(user, 'strength'):
+                                bonus_restore = int(user.strength * ratio)
+                        else:
+                            # 필드: 파티 중 가장 높은 스탯 사용
+                            max_stat = 0
+                            party = self.party if self.party else [target]
+                            for member in party:
+                                if stat_type == "magic" and hasattr(member, 'magic'):
+                                    max_stat = max(max_stat, member.magic)
+                                elif stat_type == "attack" and hasattr(member, 'strength'):
+                                    max_stat = max(max_stat, member.strength)
+                            bonus_restore = int(max_stat * ratio)
+            except Exception as e:
+                logger.debug(f"포션 스케일링 적용 실패: {e}")
+            
+            total_restore = effect_value + bonus_restore
+            restored = target.restore_mp(total_restore)
             if restored > 0:
-                logger.info(f"{target_name}: {item_name} 사용 → MP +{restored}")
+                if bonus_restore > 0:
+                    logger.info(f"{target_name}: {item_name} 사용 → MP +{restored} (기본 {effect_value} + 파티 최고 스탯 보너스 {bonus_restore})")
+                else:
+                    logger.info(f"{target_name}: {item_name} 사용 → MP +{restored}")
                 success = True
         elif effect_type == "heal_both":
             # HP/MP 모두 회복 (죽은 아군도 회복 가능)
@@ -573,6 +661,81 @@ class Inventory:
                     success = False
             else:
                 logger.warning(f"{target_name}: {item_name} 사용 실패 - 상처 시스템 없음")
+                success = False
+        elif effect_type == "shield":
+            # 보호막 적용 (스탯 스케일링 지원)
+            if hasattr(target, 'status_manager'):
+                from src.combat.status_effects import StatusEffect as CombatStatusEffect, StatusType
+                
+                # 스탯 스케일링으로 보호막 양 계산
+                shield_amount = effect_value
+                try:
+                    from src.cooking.potion_brewing import PotionDatabase
+                    item_id = getattr(item, 'item_id', None)
+                    if item_id:
+                        recipe = PotionDatabase.get_recipe(item_id)
+                        if recipe and recipe.stat_scaling:
+                            stat_type = recipe.stat_scaling.get("stat", "magic")
+                            ratio = recipe.stat_scaling.get("ratio", 0)
+                            
+                            # 사용자가 지정되면 사용자 스탯 사용, 아니면 파티 최고 스탯
+                            user = getattr(self, '_current_user', None)
+                            if user:
+                                # 전투 중: 사용자의 스탯 사용
+                                if stat_type == "magic" and hasattr(user, 'magic'):
+                                    shield_amount = effect_value + int(user.magic * ratio)
+                                elif stat_type == "attack" and hasattr(user, 'strength'):
+                                    shield_amount = effect_value + int(user.strength * ratio)
+                            else:
+                                # 필드: 파티 중 가장 높은 스탯 사용
+                                max_stat = 0
+                                party = self.party if self.party else [target]
+                                for member in party:
+                                    if stat_type == "magic" and hasattr(member, 'magic'):
+                                        max_stat = max(max_stat, member.magic)
+                                    elif stat_type == "attack" and hasattr(member, 'strength'):
+                                        max_stat = max(max_stat, member.strength)
+                                shield_amount = effect_value + int(max_stat * ratio)
+                except Exception as e:
+                    logger.debug(f"보호막 스케일링 적용 실패: {e}")
+                
+                # 보호막 상태효과 생성
+                duration = getattr(item, 'duration', 10) if hasattr(item, 'duration') else 10
+                shield = CombatStatusEffect(
+                    name="Potion Shield",
+                    status_type=StatusType.SHIELD,
+                    duration=duration,
+                    intensity=shield_amount,
+                    source_id=getattr(target, "name", "Potion"),
+                    metadata={"shield_hp": shield_amount},
+                )
+                target.status_manager.add_status(shield, allow_refresh=True)
+                logger.info(f"{target_name}: {item_name} 사용 → 보호막 +{shield_amount} ({duration}턴)")
+                success = True
+            else:
+                logger.warning(f"{target_name}: {item_name} 사용 실패 - 상태 관리자 없음")
+                success = False
+        elif effect_type == "damage_reduction":
+            # 피해 감소 버프 적용
+            if hasattr(target, 'status_manager'):
+                from src.combat.status_effects import StatusEffect as CombatStatusEffect, StatusType
+                
+                reduction_percent = effect_value / 100.0 if effect_value > 1 else effect_value
+                duration = getattr(item, 'duration', 10) if hasattr(item, 'duration') else 10
+                
+                reduction_buff = CombatStatusEffect(
+                    name="Damage Reduction",
+                    status_type=StatusType.BARRIER,  # BARRIER 타입은 피해 감소로 동작
+                    duration=duration,
+                    intensity=reduction_percent,
+                    source_id=getattr(target, "name", "Potion"),
+                    metadata={"damage_reduction": reduction_percent},
+                )
+                target.status_manager.add_status(reduction_buff, allow_refresh=True)
+                logger.info(f"{target_name}: {item_name} 사용 → 피해 감소 {int(reduction_percent*100)}% ({duration}턴)")
+                success = True
+            else:
+                logger.warning(f"{target_name}: {item_name} 사용 실패 - 상태 관리자 없음")
                 success = False
 
         # 사용 성공 시 아이템 제거

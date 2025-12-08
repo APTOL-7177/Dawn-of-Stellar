@@ -10,3 +10,6 @@ effects:
   element: physical
   multiplier: 2.0
   stat_base: strength
+sfx:
+- se
+- Magic1

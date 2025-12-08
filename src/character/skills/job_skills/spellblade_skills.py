@@ -1,249 +1,148 @@
-"""Spellblade Skills - 마검사 (마력 부여 시스템)
-
-검에 원소 마력을 부여!
-화염/빙결/번개로 다양한 속성 공격
-
-"검과 마법, 그 경계를 넘어서"
-"""
+"""Spellblade Skills - 블레이드 서킷 루프 리메이크"""
 from src.character.skills.skill import Skill
 from src.character.skills.teamwork_skill import TeamworkSkill
 from src.character.skills.effects.damage_effect import DamageEffect, DamageType
 from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOperation
-from src.character.skills.effects.heal_effect import HealEffect, HealType
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.effects.status_effect import StatusEffect, StatusType
 from src.character.skills.costs.mp_cost import MPCost
-from src.character.skills.costs.stack_cost import StackCost
 from src.core.logger import get_logger
 
 logger = get_logger("spellblade_skills")
 
 
 def create_spellblade_skills():
-    """마검사 스킬 생성 (마력 부여 시스템)"""
-    
+    """마검사 스킬 생성 (블레이드 서킷 루프)"""
+
     skills = []
-    
-    # ============================================================
-    # 1. 마검 베기 (기본 BRV + 마나)
-    # ============================================================
-    magic_slash = Skill(
-        "spellblade_magic_slash",
-        "마검 베기",
-        "마력을 담은 검격. 마나 블레이드 +10."
+
+    # 1. Arc Slash — 기본 BRV (Steel Line 충전)
+    arc_slash = Skill(
+        "spellblade_arc_slash",
+        "아크 슬래시",
+        "빠른 검격으로 Steel Line을 충전하고 서킷을 시작한다."
     )
-    magic_slash.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="physical"),
-        GimmickEffect(GimmickOperation.ADD, "mana_blade", 10, max_value=100)
+    arc_slash.effects = [
+        DamageEffect(DamageType.BRV, 1.55, stat_type="physical")
     ]
-    magic_slash.costs = []
-    magic_slash.sfx = ("combat", "attack_physical")
-    magic_slash.metadata = {
+    arc_slash.costs = []
+    arc_slash.sfx = ("combat", "attack_physical")
+    arc_slash.metadata = {
         "basic_attack": True,
-        "mana_gain": 10
+        "circuit_channel": "steel",
+        "circuit_charge": 14,
+        "lock_turns": 1,
+        "resonance_step": True,
+        "arc_spark_bonus": 0.55
     }
-    skills.append(magic_slash)
-    
-    # ============================================================
-    # 2. 원소 베기 (기본 HP + 마나 비례)
-    # ============================================================
-    elemental_slash = Skill(
-        "spellblade_elemental_slash",
-        "원소 베기",
-        "마나 비례 HP 피해. 마나 -15."
+    skills.append(arc_slash)
+
+    # 2. Mana Pierce — 기본 HP (Mana Line 충전, 마법 관통)
+    mana_pierce = Skill(
+        "spellblade_mana_pierce",
+        "마나 피어스",
+        "마력을 실은 찌르기로 Mana Line을 채우고 HP 피해를 준다."
     )
-    elemental_slash.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="physical",
-                    gimmick_bonus={"field": "mana_blade", "multiplier": 0.01}),
-        GimmickEffect(GimmickOperation.CONSUME, "mana_blade", 15)
+    mana_pierce.effects = [
+        DamageEffect(DamageType.HP, 1.25, stat_type="magical",
+                     conditional_bonus={"condition": "stealth", "multiplier": 1.2})
     ]
-    elemental_slash.costs = []
-    elemental_slash.sfx = ("combat", "critical")
-    elemental_slash.metadata = {
+    mana_pierce.costs = []
+    mana_pierce.sfx = ("combat", "critical")
+    mana_pierce.metadata = {
         "basic_attack": True,
-        "mana_cost": 15,
-        "scaling": "마나당 +1%"
+        "circuit_channel": "mana",
+        "circuit_charge": 14,
+        "lock_turns": 1,
+        "resonance_step": True,
+        "arc_spark_bonus": 0.55
     }
-    skills.append(elemental_slash)
-    
-    # ============================================================
-    # 3. 화염 부여 (화상 공격)
-    # ============================================================
-    fire_infusion = Skill(
-        "spellblade_fire_infusion",
-        "화염 부여",
-        "검에 화염 부여. 피해 + 화상 3턴. 마나 +15."
+    skills.append(mana_pierce)
+
+    # 3. Flux Step — 회피/전환 보조
+    flux_step = Skill(
+        "spellblade_flux_step",
+        "플럭스 스텝",
+        "다음 스킬을 반대 채널로 자동 변환하고 이동/회피를 강화한다."
     )
-    fire_infusion.effects = [
+    flux_step.effects = [
+        BuffEffect(BuffType.SPEED_UP, 0.25, duration=2, target="self"),
+        BuffEffect(BuffType.EVASION_UP, 0.25, duration=2, target="self"),
+        GimmickEffect(GimmickOperation.SET, "circuit_flux_ready", 1)
+    ]
+    flux_step.costs = [MPCost(6)]
+    flux_step.target_type = "self"
+    flux_step.sfx = ("skill", "cast_start")
+    flux_step.metadata = {
+        "circuit_flux": True,
+        "lock_turns": 0
+    }
+    skills.append(flux_step)
+
+    # 4. Circuit Brand — 표식 디버프, 시그넷 가속
+    circuit_brand = Skill(
+        "spellblade_circuit_brand",
+        "서킷 브랜드",
+        "대상에 회로 분쇄 표식을 남겨 양 채널 피해를 증폭하고 시그넷을 준비한다."
+    )
+    circuit_brand.effects = [
+        DamageEffect(DamageType.BRV, 1.1, stat_type="physical"),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.18, duration=3),
+        BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.18, duration=3),
+        StatusEffect(StatusType.SILENCE, duration=1, value=1.0, chance=0.4),
+        GimmickEffect(GimmickOperation.SET, "circuit_brand", 1, apply_to_target=True)
+    ]
+    circuit_brand.costs = [MPCost(8)]
+    circuit_brand.sfx = ("skill", "magic_cast")
+    circuit_brand.metadata = {
+        "circuit_channel": "steel",
+        "circuit_charge": 10,
+        "lock_turns": 1,
+        "brand_skill": True
+    }
+    skills.append(circuit_brand)
+
+    # 5. Mirror Edge: Overload — 시그넷 소비 하이브리드
+    mirror_edge = Skill(
+        "spellblade_mirror_edge_overload",
+        "미러 엣지: 오버로드",
+        "Resonance Sigil을 소모해 물리/마법 동시 폭발과 방깎을 적용한다."
+    )
+    mirror_edge.effects = [
         DamageEffect(DamageType.BRV_HP, 1.9, stat_type="physical"),
-        StatusEffect(StatusType.BURN, duration=3, value=1.0,
-                    damage_stat="magic", damage_multiplier=0.10),
-        GimmickEffect(GimmickOperation.ADD, "mana_blade", 15, max_value=100)
+        DamageEffect(DamageType.BRV_HP, 1.45, stat_type="magical"),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.12, duration=3),
+        BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.12, duration=3)
     ]
-    fire_infusion.costs = [MPCost(7)]
-    fire_infusion.sfx = ("skill", "fire_explosion")
-    fire_infusion.metadata = {
-        "element": "fire",
-        "mana_gain": 15,
-        "burn": True
+    mirror_edge.costs = [MPCost(12)]
+    mirror_edge.sfx = ("skill", "cast_complete")
+    mirror_edge.metadata = {
+        "circuit_channel": "hybrid",
+        "circuit_charge": 10,
+        "lock_turns": 1,
+        "resonance_step": False,
+        "consumes_sigils": True,
+        "max_sigils": 3,
+        "sigil_damage_bonus": 0.35,
+        "def_shred_per_sigil": 0.08,
+        "grant_party_buff": 0.08
     }
-    skills.append(fire_infusion)
-    
-    # ============================================================
-    # 4. 빙결 부여 (속도 감소)
-    # ============================================================
-    ice_infusion = Skill(
-        "spellblade_ice_infusion",
-        "빙결 부여",
-        "검에 냉기 부여. 피해 + 속도 -30%. 마나 +15."
-    )
-    ice_infusion.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="physical"),
-        BuffEffect(BuffType.SPEED_DOWN, 0.30, duration=3),
-        GimmickEffect(GimmickOperation.ADD, "mana_blade", 15, max_value=100)
-    ]
-    ice_infusion.costs = [MPCost(7)]
-    ice_infusion.sfx = ("skill", "magic_cast")
-    ice_infusion.metadata = {
-        "element": "ice",
-        "mana_gain": 15,
-        "slow": True
-    }
-    skills.append(ice_infusion)
-    
-    # ============================================================
-    # 5. 번개 부여 (연쇄 피해)
-    # ============================================================
-    lightning_infusion = Skill(
-        "spellblade_lightning_infusion",
-        "번개 부여",
-        "검에 전격 부여. 2회 공격 + 마나 +20."
-    )
-    lightning_infusion.effects = [
-        DamageEffect(DamageType.BRV, 1.4, stat_type="physical"),
-        DamageEffect(DamageType.BRV_HP, 1.4, stat_type="physical"),
-        GimmickEffect(GimmickOperation.ADD, "mana_blade", 20, max_value=100)
-    ]
-    lightning_infusion.costs = [MPCost(8)]
-    lightning_infusion.sfx = ("skill", "cast_complete")
-    lightning_infusion.metadata = {
-        "element": "lightning",
-        "mana_gain": 20,
-        "multi_hit": 2
-    }
-    skills.append(lightning_infusion)
-    
-    # ============================================================
-    # 6. 마검 난무 (다단 히트)
-    # ============================================================
-    magic_blade_dance = Skill(
-        "spellblade_magic_blade_dance",
-        "마검 난무",
-        "마검 연속 공격! 4회 피해 + 마나 +10."
-    )
-    magic_blade_dance.effects = [
-        DamageEffect(DamageType.BRV, 1.2, stat_type="physical"),
-        DamageEffect(DamageType.BRV, 1.2, stat_type="physical"),
-        DamageEffect(DamageType.BRV, 1.2, stat_type="physical"),
-        DamageEffect(DamageType.HP, 1.0, stat_type="physical"),
-        GimmickEffect(GimmickOperation.ADD, "mana_blade", 10, max_value=100)
-    ]
-    magic_blade_dance.costs = [MPCost(9)]
-    magic_blade_dance.sfx = ("combat", "attack_physical")
-    magic_blade_dance.metadata = {
-        "multi_hit": 4,
-        "mana_gain": 10
-    }
-    skills.append(magic_blade_dance)
-    
-    # ============================================================
-    # 7. 마나 폭발 (마나 소비 공격)
-    # ============================================================
-    mana_burst = Skill(
-        "spellblade_mana_burst",
-        "마나 폭발",
-        "마나 50 소비. 강력한 마력 폭발."
-    )
-    mana_burst.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="physical",
-                    gimmick_bonus={"field": "mana_blade", "multiplier": 0.012}),
-        GimmickEffect(GimmickOperation.CONSUME, "mana_blade", 50)
-    ]
-    mana_burst.costs = [MPCost(10), StackCost("mana_blade", 50)]
-    mana_burst.sfx = ("skill", "cast_complete")
-    mana_burst.metadata = {
-        "mana_cost": 50,
-        "scaling": "마나당 +1.2%"
-    }
-    skills.append(mana_burst)
-    
-    # ============================================================
-    # 8. 원소 폭풍 (광역 공격)
-    # ============================================================
-    elemental_storm = Skill(
-        "spellblade_elemental_storm",
-        "원소 폭풍",
-        "3원소 합체! 전체 피해 + 상태이상. 마나 -40."
-    )
-    elemental_storm.effects = [
-        DamageEffect(DamageType.BRV, 2.0, stat_type="physical"),
-        DamageEffect(DamageType.HP, 2.0, stat_type="physical"),
-        StatusEffect(StatusType.BURN, duration=2, value=1.0,
-                    damage_stat="magic", damage_multiplier=0.08),
-        BuffEffect(BuffType.SPEED_DOWN, 0.20, duration=2),
-        GimmickEffect(GimmickOperation.CONSUME, "mana_blade", 40)
-    ]
-    elemental_storm.costs = [MPCost(12), StackCost("mana_blade", 40)]
-    elemental_storm.target_type = "all_enemies"
-    elemental_storm.is_aoe = True
-    elemental_storm.sfx = ("skill", "fire_explosion")
-    elemental_storm.metadata = {
-        "mana_cost": 40,
-        "aoe": True,
-        "all_elements": True
-    }
-    skills.append(elemental_storm)
-    
-    # ============================================================
-    # 9. 검기 회전 (광역 + 마나 충전)
-    # ============================================================
-    blade_spin = Skill(
-        "spellblade_blade_spin",
-        "검기 회전",
-        "회전하며 광역 공격. 마나 +25."
-    )
-    blade_spin.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="physical"),
-        GimmickEffect(GimmickOperation.ADD, "mana_blade", 25, max_value=100)
-    ]
-    blade_spin.costs = [MPCost(8)]
-    blade_spin.target_type = "all_enemies"
-    blade_spin.is_aoe = True
-    blade_spin.sfx = ("combat", "attack_physical")
-    blade_spin.metadata = {
-        "aoe": True,
-        "mana_gain": 25
-    }
-    skills.append(blade_spin)
-    
-    # ============================================================
-    # 10. 궁극기: 마검 오의
-    # ============================================================
+    skills.append(mirror_edge)
+
+    # 6. Duality Collapse — 궁극기, 두 채널 동시 방전
     ultimate = Skill(
-        "spellblade_ultimate",
-        "마검 오의",
-        "물리와 마법의 완전한 융합! 전체 극대 피해 + 올버프."
+        "spellblade_duality_collapse",
+        "이중 붕괴",
+        "두 채널을 동시에 방전해 광역 하이브리드 폭발을 일으킨다."
     )
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.5, stat_type="physical"),
-        DamageEffect(DamageType.BRV, 2.5, stat_type="magic"),
-        DamageEffect(DamageType.HP, 3.3, stat_type="physical"),
-        BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="self"),
-        BuffEffect(BuffType.MAGIC_UP, 0.5, duration=5, target="self"),
-        BuffEffect(BuffType.SPEED_UP, 0.3, duration=5, target="self"),
-        GimmickEffect(GimmickOperation.SET, "mana_blade", 100)
+        DamageEffect(DamageType.BRV, 3.2, stat_type="physical"),
+        DamageEffect(DamageType.HP, 2.8, stat_type="magical"),
+        StatusEffect(StatusType.STUN, duration=1, value=1.0, chance=0.35),
+        GimmickEffect(GimmickOperation.SET, "steel_line", 0),
+        GimmickEffect(GimmickOperation.SET, "mana_line", 0)
     ]
-    ultimate.costs = [MPCost(30)]
+    ultimate.costs = [MPCost(24)]
     ultimate.is_ultimate = True
     ultimate.cooldown = 15
     ultimate.target_type = "all_enemies"
@@ -251,25 +150,26 @@ def create_spellblade_skills():
     ultimate.sfx = ("skill", "limit_break")
     ultimate.metadata = {
         "ultimate": True,
-        "aoe": True,
-        "mana_full": True
+        "circuit_channel": "hybrid",
+        "lock_turns": 0,
+        "grant_sigils": 3,
+        "reset_circuit": True
     }
     skills.append(ultimate)
-    
-    # ============================================================
-    # 팀워크: 마검 일체
-    # ============================================================
+
+    # 팀워크: Mirror Sync
     teamwork = TeamworkSkill(
         "spellblade_teamwork",
-        "마검 일체",
-        "검과 마법이 하나로! 전체 피해 + 마나 MAX + 버프.",
+        "미러 싱크",
+        "파티에 Blade Circuit 버프를 부여하고 즉시 Arc Spark를 발동한다.",
         gauge_cost=175
     )
     teamwork.effects = [
-        DamageEffect(DamageType.BRV, 2.2, stat_type="physical"),
-        DamageEffect(DamageType.HP, 1.8, stat_type="physical"),
-        GimmickEffect(GimmickOperation.SET, "mana_blade", 100),
-        BuffEffect(BuffType.ATTACK_UP, 0.30, duration=3, target="self")
+        DamageEffect(DamageType.BRV, 1.8, stat_type="physical"),
+        DamageEffect(DamageType.HP, 1.4, stat_type="magical"),
+        BuffEffect(BuffType.ATTACK_UP, 0.22, duration=3, is_party_wide=True),
+        BuffEffect(BuffType.MAGIC_UP, 0.22, duration=3, is_party_wide=True),
+        GimmickEffect(GimmickOperation.SET, "resonance_sigil", 3)
     ]
     teamwork.target_type = "all_enemies"
     teamwork.is_aoe = True
@@ -278,10 +178,185 @@ def create_spellblade_skills():
     teamwork.metadata = {
         "teamwork": True,
         "chain": True,
-        "mana_full": True
+        "circuit_channel": "hybrid",
+        "arc_spark_bonus": 0.6
     }
     skills.append(teamwork)
-    
+
+    # 7. 스틸 리플 — 광역 BRV, Steel 충전
+    steel_ripple = Skill(
+        "spellblade_steel_ripple",
+        "스틸 리플",
+        "회전 베기로 주변을 쓸어 Steel Line을 채운다."
+    )
+    steel_ripple.effects = [
+        DamageEffect(DamageType.BRV, 1.6, stat_type="physical"),
+    ]
+    steel_ripple.target_type = "all_enemies"
+    steel_ripple.is_aoe = True
+    steel_ripple.costs = [MPCost(8)]
+    steel_ripple.sfx = ("combat", "attack_physical")
+    steel_ripple.metadata = {
+        "aoe": True,
+        "circuit_channel": "steel",
+        "circuit_charge": 16,
+        "lock_turns": 1,
+        "resonance_step": True
+    }
+    skills.append(steel_ripple)
+
+    # 8. 위상 단절 — 단일 고위력, Mana 라인 특화
+    phase_sever = Skill(
+        "spellblade_phase_sever",
+        "위상 단절",
+        "마나 블레이드를 찔러 차단선을 그어 큰 피해를 준다."
+    )
+    phase_sever.effects = [
+        DamageEffect(DamageType.BRV_HP, 2.2, stat_type="magical",
+                     conditional_bonus={"condition": "stealth", "multiplier": 1.2})
+    ]
+    phase_sever.costs = [MPCost(10)]
+    phase_sever.sfx = ("combat", "critical")
+    phase_sever.metadata = {
+        "circuit_channel": "mana",
+        "circuit_charge": 18,
+        "lock_turns": 1,
+        "resonance_step": True,
+        "arc_spark_bonus": 0.7
+    }
+    skills.append(phase_sever)
+
+    # 9. 듀얼 레조넌스 — 파티 버프/시그넷 생성
+    dual_resonance = Skill(
+        "spellblade_dual_resonance",
+        "듀얼 레조넌스",
+        "두 채널을 공진시켜 파티에 물리/마법 버프와 시그넷을 부여한다."
+    )
+    dual_resonance.effects = [
+        BuffEffect(BuffType.ATTACK_UP, 0.18, duration=3, is_party_wide=True),
+        BuffEffect(BuffType.MAGIC_UP, 0.18, duration=3, is_party_wide=True),
+        GimmickEffect(GimmickOperation.ADD, "resonance_sigil", 1, max_value=3)
+    ]
+    dual_resonance.costs = [MPCost(10)]
+    dual_resonance.target_type = "party"
+    dual_resonance.is_aoe = True
+    dual_resonance.sfx = ("skill", "teamwork")
+    dual_resonance.metadata = {
+        "circuit_channel": "hybrid",
+        "lock_turns": 0
+    }
+    skills.append(dual_resonance)
+
+    # 10. 아크 다이브 — 돌진/하이브리드 일격
+    arc_dive = Skill(
+        "spellblade_arc_dive",
+        "아크 다이브",
+        "돌진하며 검과 마력을 함께 주입해 강력한 일격을 꽂는다."
+    )
+    arc_dive.effects = [
+        DamageEffect(DamageType.BRV, 1.7, stat_type="physical"),
+        DamageEffect(DamageType.HP, 1.3, stat_type="magical")
+    ]
+    arc_dive.costs = [MPCost(11)]
+    arc_dive.sfx = ("skill", "cast_complete")
+    arc_dive.metadata = {
+        "circuit_channel": "hybrid",
+        "circuit_charge": 12,
+        "lock_turns": 1,
+        "resonance_step": True
+    }
+    skills.append(arc_dive)
+
+    # 11. 서킷 시프트 ? 봉인 해제 + 게이지 보정
+    circuit_shift = Skill(
+        "spellblade_circuit_shift",
+        "서킷 시프트",
+        "채널 봉인을 해제하고 두 라인을 소폭 충전하며 속도를 높인다."
+    )
+    circuit_shift.effects = [
+        BuffEffect(BuffType.SPEED_UP, 0.2, duration=2, target="self"),
+        GimmickEffect(GimmickOperation.SET, "steel_lock", 0),
+        GimmickEffect(GimmickOperation.SET, "mana_lock", 0),
+        GimmickEffect(GimmickOperation.ADD, "steel_line", 10, max_value=100),
+        GimmickEffect(GimmickOperation.ADD, "mana_line", 10, max_value=100),
+        GimmickEffect(GimmickOperation.ADD, "resonance_sigil", 1, max_value=3)
+    ]
+    circuit_shift.costs = [MPCost(9)]
+    circuit_shift.target_type = "self"
+    circuit_shift.sfx = ("skill", "cast_start")
+    circuit_shift.metadata = {
+        "circuit_channel": "hybrid",
+        "circuit_charge": 0,
+        "lock_turns": 0
+    }
+    skills.append(circuit_shift)
+
+    # 12. 스파크 리바운드 ? 역극성 찌르기
+    spark_rebound = Skill(
+        "spellblade_spark_rebound",
+        "스파크 리바운드",
+        "역극성 마나를 주입해 반발 피해를 주고 시그넷을 끌어당긴다."
+    )
+    spark_rebound.effects = [
+        DamageEffect(DamageType.HP, 1.6, stat_type="magical"),
+        GimmickEffect(GimmickOperation.ADD, "resonance_sigil", 1, max_value=3)
+    ]
+    spark_rebound.costs = [MPCost(9)]
+    spark_rebound.sfx = ("combat", "critical")
+    spark_rebound.metadata = {
+        "circuit_channel": "mana",
+        "circuit_charge": 12,
+        "lock_turns": 1,
+        "resonance_step": True,
+        "arc_spark_bonus": 0.8
+    }
+    skills.append(spark_rebound)
+
+    # 13. 레조넌트 클리브 ? 시그넷 증폭 일격
+    resonant_cleave = Skill(
+        "spellblade_resonant_cleave",
+        "레조넌트 클리브",
+        "시그넷을 태워 공명 일격을 가해 방어를 절단한다."
+    )
+    resonant_cleave.effects = [
+        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="physical"),
+        BuffEffect(BuffType.DEFENSE_DOWN, 0.1, duration=2)
+    ]
+    resonant_cleave.costs = [MPCost(12)]
+    resonant_cleave.sfx = ("combat", "attack_physical")
+    resonant_cleave.metadata = {
+        "circuit_channel": "steel",
+        "circuit_charge": 15,
+        "lock_turns": 1,
+        "consumes_sigils": True,
+        "max_sigils": 2,
+        "sigil_damage_bonus": 0.3,
+        "def_shred_per_sigil": 0.05
+    }
+    skills.append(resonant_cleave)
+
+    # 14. 미러 스톰 ? 하이브리드 소용돌이
+    mirror_storm = Skill(
+        "spellblade_mirror_storm",
+        "미러 스톰",
+        "검과 마법을 교차 회전시켜 주변을 휩쓴다."
+    )
+    mirror_storm.effects = [
+        DamageEffect(DamageType.BRV, 1.45, stat_type="physical"),
+        DamageEffect(DamageType.HP, 1.15, stat_type="magical")
+    ]
+    mirror_storm.target_type = "all_enemies"
+    mirror_storm.is_aoe = True
+    mirror_storm.costs = [MPCost(12)]
+    mirror_storm.sfx = ("skill", "cast_complete")
+    mirror_storm.metadata = {
+        "circuit_channel": "hybrid",
+        "circuit_charge": 12,
+        "lock_turns": 1,
+        "resonance_step": True
+    }
+    skills.append(mirror_storm)
+
     return skills
 
 
@@ -290,6 +365,6 @@ def register_spellblade_skills(skill_manager):
     skills = create_spellblade_skills()
     for skill in skills:
         skill_manager.register_skill(skill)
-    
+
     logger.info(f"마검사 스킬 {len(skills)}개 등록 완료")
     return [s.skill_id for s in skills]

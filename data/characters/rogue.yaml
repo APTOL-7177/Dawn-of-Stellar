@@ -1,6 +1,6 @@
 class_name: 도적
-description: 압도적인 속도와 회피로 적을 농락하는 암살자
-slogan: "정정당당? 그건 바보들이나 하는 거지"
+description: 적을 농락하며 독과 회피로 전장을 지배하는 암살자
+slogan: 정정당당? 그건 바보들이나 하는 거지
 archetype: 속도형 딜러
 base_stats:
   hp: 150
@@ -13,98 +13,150 @@ base_stats:
   speed: 93
   max_brv: 442
 stat_growth:
-  hp: 10
-  mp: 4
-  init_brv: 22.0
-  strength: 4.0
-  defense: 2.5
-  magic: 2.0
-  spirit: 2.8
-  speed: 5.5
-  luck: 4.0
-  accuracy: 2.5
-  evasion: 2.0
-  max_brv: 88.4
+  hp: 33.3
+  mp: 2.8
+  init_brv: 26.0
+  strength: 17.5
+  defense: 10.1
+  magic: 7.6
+  spirit: 11.3
+  speed: 25.1
+  max_brv: 124.1
+  luck: 3
+  accuracy: 1.8
+  evasion: 1.4
+gimmick:
+  type: mockery_system
+  name: 농락 시스템
+  description: '[농락 시스템] 적을 농락하며 독으로 지배하라!
+
+
+    ■ 농락 게이지 (적 단위, 0~10)
+
+    회피/비웃기/도발로 농락 축적.
+
+    농락 7+ 적은 명중률 -30%, 피해 +20%.
+
+    농락 10 시 "굴욕" - 다음 공격 필중+치명타.
+
+
+    ■ 독 시스템
+
+    기본 독: 매 턴 5% HP DoT
+
+    맹독: 2중첩 시 발동 - HP -10%, 회복 불가
+
+    치명독: 3중첩 시 - HP -15%, 공격 시 추가 피해
+
+
+    ■ 회피 연계
+
+    회피 성공: 농락 +2 + 크리 +30%
+
+    3연속 회피: 은신 돌입 + 농락 +5
+
+    은신 상태: 다음 공격 뒤치기 (3배 피해)
+
+    '
+  max_mockery: 10
+  mockery_effects:
+    7:
+      hit_reduction: 0.3
+      damage_bonus: 0.2
+      name: 당황
+    10:
+      guaranteed_crit: true
+      guaranteed_hit: true
+      name: 굴욕
+  poison_types:
+    basic:
+      dot_percent: 0.05
+      duration: 3
+      name: 기본 독
+    deadly:
+      dot_percent: 0.1
+      heal_block: true
+      stacks: 2
+      name: 맹독
+    lethal:
+      dot_percent: 0.15
+      damage_bonus: 0.2
+      stacks: 3
+      name: 치명독
+  evasion_chain:
+    per_evade:
+      mockery: 2
+      crit_bonus: 0.3
+    chain_3:
+      stealth: true
+      mockery: 5
+    stealth_attack_multiplier: 2.5
 traits:
-- id: master_thief
-  name: 도둑의 달인
-  description: 훔치기 성공률 +30%, 훔친 아이템 효과 +50%
+- id: master_mocker
+  name: 농락의 달인
+  description: 농락 획득량 +50%
   type: passive
   effects:
-    steal_success_bonus: 0.3
-    stolen_item_bonus: 1.5
-
-- id: treasure_sense
-  name: 보물 감지
-  description: 훔친 아이템 5개 이상 시 희귀 아이템 획득 확률 2배
-  type: conditional
-  conditions:
-    stolen_items_min: 5
-  effects:
-    rare_steal_chance: 2.0
-
-- id: shadow_evasion
-  name: 그림자 회피
-  description: 회피 성공 시 훔친 아이템 +1, 다음 공격 크리티컬 확정
+    mockery_gain_bonus: 0.5
+- id: shadow_dancer
+  name: 그림자 춤꾼
+  description: 회피 성공 시 속도 +10% (3중첩)
   type: trigger
   effects:
-    stolen_on_evade: 1
-    guaranteed_crit: true
-
-- id: quick_fingers
-  name: 빠른 손놀림
-  description: 훔친 아이템 사용 시 50% 확률로 소비 안 함
+    speed_on_evade: 0.1
+    max_stacks: 3
+- id: venom_master
+  name: 맹독술사
+  description: 독 피해 +30%, 독 지속 +1턴
+  type: passive
+  effects:
+    poison_damage_bonus: 0.3
+    poison_duration_bonus: 1
+- id: humiliation
+  name: 굴욕 전문가
+  description: 농락 10 달성 시 HP 10% 순수 피해
+  type: trigger
+  conditions:
+    mockery_max: true
+  effects:
+    humiliation_damage: 0.1
+- id: shadow_residue
+  name: 그림자 잔상
+  description: 회피 성공 시 적 "회피 불가" 1턴
   type: trigger
   effects:
-    item_preserve_chance: 0.5
-
-- id: assassin_instinct
-  name: 암살자의 본능
-  description: 훔친 아이템 MAX(10) 시 다음 공격이 HP 20% 이하 적 즉사
+    evasion_debuff: true
+- id: lethal_weakness
+  name: 치명적 약점
+  description: 농락 7+ 적에게 방어 무시 30%
   type: conditional
   conditions:
-    stolen_items_exact: 10
+    target_mockery_min: 7
   effects:
-    execute_threshold: 0.2
-    instant_kill: true
-gimmick:
-  type: theft_system
-  name: 절도와 회피
-  description: |
-    [절도 시스템] 적에게서 아이템을 훔쳐라!
-    
-    - 훔치기 스킬로 아이템 획득
-    - 훔친 아이템 즉시 사용 가능
-    - 회피 성공 시 추가 보너스
-    
-    훔칠 수 있는 것:
-    - 골드 (즉시 획득)
-    - 포션 (즉시 사용)
-    - 버프 (적 버프 탈취)
-    - 희귀템 (확률적)
-    
-    회피 보너스:
-    - 회피 성공 시 크리 +50%
-    - 3연속 회피 시 은신 상태
-  max_stolen_items: 10
-  steal_chances:
-    gold: 0.6
-    potion: 0.3
-    buff: 0.15
-    rare: 0.05
+    defense_penetration: 0.3
 skills:
 - teamwork
-- ambush
-- vital_strike
-- steal
-- smoke
-- use_item
-- poison
-- treasure
-- backstab
-- assassinate
-- ultimate
-
+- rogue_umbra_ictus
+- rogue_nox_cadens
+- celer_punctio
+- ludibrium
+- fumus_velum
+- dorsum_vulnus
+- furtum
+- elusio_forma
+- venenum_illitus
+- toxicum_lamina
+- pestis_orbis
+- letale_venenum
+- venenum_impetus
+- irrisio
+- deceptio
+- umbra_gradus
+- dedecus
+- sicarius
+- mortis_signum
+- umbra_mortis
+- umbra_incursio
 bonuses:
   speed_multiplier: 1.1
   critical_rate: 1.2

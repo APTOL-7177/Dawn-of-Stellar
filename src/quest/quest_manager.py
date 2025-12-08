@@ -502,12 +502,13 @@ class QuestManager:
         
         logger.info(f"{count}개의 퀘스트 생성 완료 (플레이어 레벨: {player_level})")
     
-    def accept_quest(self, quest_id: str) -> bool:
+    def accept_quest(self, quest_id: str, current_floor: int = 0) -> bool:
         """
         퀘스트 수락
         
         Args:
             quest_id: 퀘스트 ID
+            current_floor: 현재 도달한 층 (층 도달 퀘스트 자동 완료 확인용)
             
         Returns:
             성공 여부
@@ -522,6 +523,20 @@ class QuestManager:
                 self.active_quests.append(quest)
                 self.available_quests.remove(quest)
                 logger.info(f"퀘스트 수락: {quest.name}")
+                
+                # 층 도달 퀘스트: 이미 도달한 층이면 자동 완료
+                if current_floor > 0:
+                    for objective in quest.objectives:
+                        if objective.target.startswith("floor_"):
+                            try:
+                                target_floor = int(objective.target.split("_")[1])
+                                if current_floor >= target_floor:
+                                    objective.current = objective.required
+                                    logger.info(f"[퀘스트] 이미 {target_floor}층 도달 - 자동 완료")
+                            except (ValueError, IndexError):
+                                pass
+                    quest._check_completion()
+                
                 return True
         
         return False

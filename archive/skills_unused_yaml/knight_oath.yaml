@@ -1,0 +1,46 @@
+id: knight_oath
+name: 기사도 맹세
+type: buff
+description: |
+  맹세로 파티를 강화합니다.
+
+  의무 2 소비 → 공/마공/방/마방 +20% (4턴)
+target: party
+costs:
+  mp: 13
+  stacks:
+    duty_stacks: 2
+requirements:
+  min_duty: 2
+effects:
+- type: buff
+  buff_type: attack_up
+  value: 0.20
+  duration: 4
+  is_party_wide: true
+- type: buff
+  buff_type: magic_attack_up
+  value: 0.20
+  duration: 4
+  is_party_wide: true
+- type: buff
+  buff_type: defense_up
+  value: 0.20
+  duration: 4
+  is_party_wide: true
+- type: buff
+  buff_type: magic_defense_up
+  value: 0.20
+  duration: 4
+  is_party_wide: true
+- type: gimmick
+  operation: consume
+  field: duty_stacks
+  value: 2
+metadata:
+  job: knight
+  party_buff: true
+  duty_cost: 2
+sfx:
+- se
+- Up1

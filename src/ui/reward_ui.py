@@ -234,17 +234,26 @@ def show_reward_screen(
     console: tcod.console.Console,
     context: tcod.context.Context,
     rewards: Dict[str, Any],
-    level_ups: Dict[Any, List[Dict[str, Any]]]
+    level_ups: Dict[Any, List[Dict[str, Any]]],
+    inventory: Optional[Any] = None,
+    player_id: Optional[str] = None,
+    network_manager: Optional[Any] = None,
+    is_multiplayer: bool = False
 ) -> None:
     """
-    보상 화면 표시
+    보상 화면 표시 (경험치/골드) 후 전리품 UI 호출
 
     Args:
         console: TCOD 콘솔
         context: TCOD 컨텍스트
         rewards: 보상 정보
         level_ups: 레벨업 정보
+        inventory: 인벤토리 (전리품 획득용)
+        player_id: 플레이어 ID (멀티플레이용)
+        network_manager: 네트워크 매니저 (멀티플레이용)
+        is_multiplayer: 멀티플레이 여부
     """
+
     # 승리 BGM 재생 (한 번만 재생, 반복 없음)
     from src.audio import play_bgm
     play_bgm("victory", loop=False, fade_in=False)
@@ -312,7 +321,7 @@ def show_reward_screen(
                     audio_manager = get_audio_manager()
                     audio_manager.stop_bgm(fade_out=False)
                     logger.info("보상 화면 종료 - 승리 BGM 정지")
-                    return
+                    break
 
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
@@ -321,7 +330,7 @@ def show_reward_screen(
                 audio_manager = get_audio_manager()
                 audio_manager.stop_bgm(fade_out=False)
                 logger.info("보상 화면 종료 (Quit) - 승리 BGM 정지")
-                return
+                return  # 윈도우 닫기는 즉시 종료
 
         # 게임패드 입력 처리 (키보드 입력이 없었을 때만)
         if not keyboard_processed:
@@ -332,7 +341,21 @@ def show_reward_screen(
                     audio_manager = get_audio_manager()
                     audio_manager.stop_bgm(fade_out=False)
                     logger.info("보상 화면 종료 - 승리 BGM 정지")
-                    return
+                    break
 
         # CPU 사용률 낮추기
         time.sleep(0.01)
+    
+    # 전리품 UI 표시 (아이템이 있고 인벤토리가 있는 경우)
+    loot_items = rewards.get("items", [])
+    if loot_items and inventory:
+        from src.ui.loot_ui import show_loot_screen
+        show_loot_screen(
+            console,
+            context,
+            loot_items,
+            inventory,
+            player_id,
+            network_manager,
+            is_multiplayer
+        )

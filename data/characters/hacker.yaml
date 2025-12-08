@@ -1,6 +1,6 @@
 class_name: 해커
-description: 시스템을 해킹하여 적을 약화시키는 트리키한 전투 전문가
-slogan: "시스템을 지배하는 자가 전장을 지배한다"
+description: 적 시스템에 침투하여 완전히 장악하는 사이버 전사
+slogan: 시스템을 지배하는 자가 전장을 지배한다
 archetype: 디버프 특화
 base_stats:
   hp: 142
@@ -13,94 +13,153 @@ base_stats:
   magic_defense: 51
   max_brv: 420
 stat_growth:
-  hp: 9.5
-  mp: 5.8
-  init_brv: 19.0
-  strength: 3.5
-  defense: 2.5
-  magic: 6.0
-  spirit: 3.5
-  speed: 5.2
-  luck: 4.5
-  accuracy: 3.8
-  evasion: 3.2
-  max_brv: 84.0
+  hp: 28.2
+  mp: 4.3
+  init_brv: 22.4
+  strength: 8.9
+  defense: 8.4
+  magic: 18.8
+  spirit: 12.4
+  speed: 21.1
+  max_brv: 117.9
+  luck: 3
+  accuracy: 1.6
+  evasion: 1.2
 gimmick:
-  type: multithread_system
-  name: 멀티스레드 시스템
-  description: 최대 3개 프로그램을 동시 실행. 각 프로그램은 독립적인 디버프 효과 발휘
-  max_threads: 3
-  mp_per_program_per_turn: 4
-  programs:
-    virus:
-      name: 바이러스
-      effect: 적 공격력 -20%
-      mp_cost: 10
-    backdoor:
-      name: 백도어
-      effect: 적 방어력 -30%
-      mp_cost: 12
-    ddos:
-      name: DDoS
-      effect: 적 속도 -50%
-      mp_cost: 15
-    ransomware:
-      name: 랜섬웨어
-      effect: 적 스킬 봉인
-      mp_cost: 18
-    spyware:
-      name: 스파이웨어
-      effect: 적 정보 획득
-      mp_cost: 8
+  type: intrusion_system
+  name: 침투 시스템
+  description: '[침투 시스템] 적 시스템에 침투하여 장악하라!
+
+
+    ■ 침투 게이지 (적 단위, 0~100%)
+
+    공격/해킹 스킬로 게이지 축적.
+
+    단계별 디버프 자동 적용.
+
+
+    ■ 침투 단계별 효과
+
+    25%: 정보 노출 - 회피 -15%, 약점 노출
+
+    50%: 시스템 불안정 - 속도 -20%, 크리 피해 +15%
+
+    75%: 제어권 감소 - 공격 -15%, 랜덤 스킬 봉인
+
+    100%: 완전 장악 - 장악 스킬 사용 가능!
+
+
+    ■ RAM 자원 (최대 32GB)
+
+    프로그램 실행에 필요한 자원.
+
+    턴 시작마다 3GB 회복, 병렬 처리 특성 시 +1GB 추가.
+
+    오버클럭 시 침투 효율과 속도가 상승하지만 매 턴 RAM/HP를 소모합니다.
+
+
+    ■ 장악 스킬 (침투 100%)
+
+    - 시스템 크래시: 순수 HP 35%
+
+    - 데이터 와이프: 버프 전부 제거 + 디버프 2배
+
+    - 바이러스 폭발: 주변 전파 + DoT
+
+    - 메모리 덤프: 적 스킬 복사
+
+    '
+  max_ram: 32
+  start_ram: 8
+  ram_regen_per_turn: 3
+  intrusion_stages:
+    stage_25:
+      threshold: 25
+      name: 정보 노출
+      effects:
+        evasion_reduction: 0.15
+        weakness_exposed: true
+    stage_50:
+      threshold: 50
+      name: 시스템 불안정
+      effects:
+        speed_reduction: 0.2
+        crit_damage_taken: 0.15
+    stage_75:
+      threshold: 75
+      name: 제어권 감소
+      effects:
+        attack_reduction: 0.15
+        random_skill_seal: true
+    stage_100:
+      threshold: 100
+      name: 완전 장악
+      effects:
+        takeover_available: true
+  overclock:
+    ram_cost_per_turn: 4
+    hp_cost_per_turn: 0.05
+    intrusion_bonus: 1.5
+    speed_bonus: 1.3
+    ram_cost_discount: 1
+    ram_regen_bonus: 1
 traits:
-- id: multithread_master
-  name: 멀티스레드 마스터
-  description: 동시 실행 프로그램 수에 비례하여 모든 능력치 +15% (프로그램당)
+- id: parallel_processing
+  name: 병렬 처리
+  description: 턴 시작 시 RAM +1 추가 회복
   type: passive
   effects:
-    all_stats_per_program: 0.15
-- id: cpu_optimization
-  name: CPU 최적화
-  description: 프로그램 유지 비용 -2 MP/턴 (5→3)
+    ram_regen_bonus: 1
+- id: intrusion_expert
+  name: 침투 전문가
+  description: 모든 침투 획득량 +20%
   type: passive
   effects:
-    mp_cost_reduction: 2
-- id: overclocking
-  name: 오버클러킹
-  description: 프로그램 3개 동시 실행 시 속도 +40%, 크리티컬 +20%
-  type: conditional
-  conditions:
-    program_count_min: 3
-  effects:
-    speed_multiplier: 1.4
-    critical_rate_bonus: 0.2
-- id: kernel_panic
-  name: 커널 패닉
-  description: 적 프로그램 종료 시 MP 10 회복
+    intrusion_gain_bonus: 0.2
+- id: botnet
+  name: 봇넷
+  description: 장악 성공 시 주변 적에게 침투 +20 전파
   type: trigger
   effects:
-    mp_gain_on_terminate: 10
-- id: zero_day_exploit
-  name: 제로데이 익스플로잇
-  description: 모든 프로그램 동시 실행 시 공격력 +50%
-  type: conditional
-  conditions:
-    all_programs_active: true
+    intrusion_spread: 20
+- id: zero_day_hunter
+  name: 제로데이 헌터
+  description: 전투 시작 시 무작위 적 침투 +30
+  type: passive
   effects:
-    attack_multiplier: 1.5
+    combat_start_intrusion: 30
+- id: virtualization
+  name: 가상화
+  description: 오버클럭 HP 페널티 50% 감소
+  type: passive
+  effects:
+    overclock_hp_reduction: 0.5
 skills:
 - teamwork
-- code_injection
-- data_breach
-- run_virus
-- run_backdoor
-- run_ddos
-- run_ransomware
-- run_spyware
-- terminate_all
-- system_overload
-- ultimate
-
+- hacker_basic_breach
+- hacker_payload_surge
+- ping_attack
+- port_scan
+- sql_injection
+- packet_sniffing
+- ddos_attack
+- phishing_attack
+- zero_day
+- run_scanner
+- trojan_horse
+- deploy_worm
+- ransomware
+- keylogger
+- rootkit
+- ram_expand
+- overclock_mode
+- firewall
+- vpn_tunnel
+- takeover_crash
+- takeover_wipe
+- takeover_virus
+- takeover_dump
+- hacker_ultimate
 bonuses:
   debuff_duration: 1.15
   status_effect_power: 1.1

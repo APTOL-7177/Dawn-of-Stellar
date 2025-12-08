@@ -1,0 +1,54 @@
+id: takeover_virus
+name: '장악: 바이러스 폭발'
+type: brv_hp_attack
+description: '[침투 100% 필요] 바이러스를 폭발시켜 확산합니다.
+
+  대상 BRV 2.0 + HP 2.5 피해.
+
+  주변 적에게 침투 +30 전파.
+
+  대상 및 주변 적 DoT 5% 3턴.
+
+  침투 게이지 0으로 초기화.
+
+  '
+target: single_enemy
+costs:
+  mp: 0
+  ram: 5
+metadata:
+  takeover: true
+  requires_intrusion: 100
+  consumes_intrusion: true
+  intrusion_spread: 30
+  boss_reduction: 0.5
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magic
+  multiplier: 2.0
+- type: damage
+  damage_type: hp
+  stat_base: magic
+  multiplier: 2.5
+- type: custom
+  handler: spread_intrusion
+  value: 30
+- type: debuff
+  debuff_id: virus_dot
+  duration: 3
+  target: all_enemies
+  effects:
+    dot_percent: 0.05
+- type: custom
+  handler: reset_intrusion
+animation:
+  icon: 🦠
+  color:
+  - 150
+  - 255
+  - 0
+  screen_effect: virus_explosion
+sfx:
+- se
+- Up1

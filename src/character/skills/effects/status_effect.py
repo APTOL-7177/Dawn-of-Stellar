@@ -1,4 +1,5 @@
 """Status Effect - 상태 이상 효과"""
+import random
 from src.character.skills.effects.base import SkillEffect, EffectResult, EffectType
 
 
@@ -13,10 +14,13 @@ class StatusType:
     SILENCE = "silence"
     BLIND = "blind"
     SLOW = "slow"
+    SHOCK = "shock"
     CURSE = "curse"
     WEAKEN = "weaken"
+    WEAKNESS = "weakness"
     DEFENSE_DOWN = "defense_down"
     ATTACK_DOWN = "attack_down"
+    PROVOKE = "provoke"
 
     # 팀워크 스킬용 특수 상태
     STEALTH = "stealth"  # 은신
@@ -27,6 +31,7 @@ class StatusType:
     RUNE = "rune"  # 룬 각인
     MARK = "mark"  # 표식
     DOOM = "doom"  # 죽음의 선고
+    SCATTER = "scatter"  # 자세 무너짐
 
     # 버프
     HASTE = "haste"
@@ -57,7 +62,10 @@ class StatusEffect(SkillEffect):
         remove: bool = False,
         damage_stat: str = None,
         damage_multiplier: float = 0,
-        cannot_resist: bool = False
+        cannot_resist: bool = False,
+        chance: float = 1.0,
+        resonance_chance: float = None,
+        resonance_duration_bonus: int = 0,
     ):
         super().__init__(EffectType.BUFF)  # 기존 BUFF 타입 재사용
         self.status_type = status_type
@@ -68,6 +76,9 @@ class StatusEffect(SkillEffect):
         self.damage_stat = damage_stat  # DoT 데미지 계산에 사용할 스탯
         self.damage_multiplier = damage_multiplier  # DoT 데미지 배율
         self.cannot_resist = cannot_resist  # 저항 불가 여부
+        self.chance = chance or 1.0
+        self.resonance_chance = resonance_chance
+        self.resonance_duration_bonus = resonance_duration_bonus or 0
 
     def can_execute(self, user, target, context):
         return True, ""
@@ -129,12 +140,42 @@ class StatusEffect(SkillEffect):
                 'hp_recovery_block': StatusType.HP_RECOVERY_BLOCK,
                 'curse_mark': StatusType.CURSE_MARK,
                 'doom': StatusType.DOOM,
+                'provoke': StatusType.TAUNT,
+                'taunt': StatusType.TAUNT,
+                'scatter': StatusType.SCATTER,
+                # 아크메이지 융합 스킬 상태 효과
+                'electrocuted': StatusType.ELECTROCUTED,
+                'slowed': StatusType.SLOWED,
+                'defense_shatter': StatusType.DEFENSE_SHATTER,
+                'wound': StatusType.WOUND,
+                'burning': StatusType.BURNING,
+                'frozen_solid': StatusType.FROZEN_SOLID,
+                'fire_brand': StatusType.FIRE_BRAND,
+                'ice_brand': StatusType.ICE_BRAND,
+                'lightning_brand': StatusType.LIGHTNING_BRAND,
+                'fire_glyph': StatusType.FIRE_GLYPH,
+                'ice_glyph': StatusType.ICE_GLYPH,
+                'lightning_glyph': StatusType.LIGHTNING_GLYPH,
+                'elemental_aegis': StatusType.ELEMENTAL_AEGIS,
             }
 
             status_enum = status_type_map.get(self.status_type.lower())
             if not status_enum:
                 # 알 수 없는 상태면 레거시 시스템 사용
                 return self._apply_status_legacy(target)
+
+            # 적용 확률 계산 (정령 공명 보너스 지원)
+            effective_chance = self.chance
+            if (
+                self.resonance_chance is not None
+                and getattr(user, "gimmick_type", None) == "elemental_spirits"
+                and getattr(user, "active_resonance", None)
+            ):
+                effective_chance = self.resonance_chance
+
+            if effective_chance < 1.0:
+                if random.random() >= effective_chance:
+                    return False
 
             # DoT의 경우 base_damage 계산 (스탯 기반)
             base_damage = 0
@@ -165,6 +206,13 @@ class StatusEffect(SkillEffect):
 
             # 강력한 상태이상은 최대 2턴으로 제한
             duration = self.duration
+            # 정령 공명 지속 보너스
+            if (
+                self.resonance_duration_bonus
+                and getattr(user, "gimmick_type", None) == "elemental_spirits"
+                and getattr(user, "active_resonance", None)
+            ):
+                duration += self.resonance_duration_bonus
             if status_enum in [StatusType.STUN, StatusType.SLEEP, StatusType.FREEZE,
                               StatusType.PARALYZE, StatusType.PETRIFY, StatusType.TIME_STOP,
                               StatusType.SILENCE]:

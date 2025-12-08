@@ -1,0 +1,49 @@
+id: fusion_firestorm
+name: 화염 돌풍
+type: brv_hp_attack
+description: '[화염+바람 융합] 맹렬한 화염 폭풍을 일으킵니다.
+
+  전체 적에게 BRV 2.0 + HP 1.5 피해, 화상 3턴 부여.
+
+
+  공명 보너스: 화상 확률 100%, 지속 +1턴
+
+  '
+target: all_enemies
+costs:
+  mp: 16
+metadata:
+  fusion: true
+  requires:
+  - fire
+  - wind
+  element: fire
+effects:
+- type: damage
+  damage_type: brv
+  element: fire
+  stat_base: magic
+  multiplier: 2.0
+  target: all_enemies
+- type: damage
+  damage_type: hp
+  element: fire
+  stat_base: magic
+  multiplier: 1.5
+  target: all_enemies
+- type: debuff
+  debuff_id: burn
+  duration: 3
+  chance: 0.7
+  resonance_chance: 1.0
+  resonance_duration_bonus: 1
+animation:
+  icon: 🔥💨
+  color:
+  - 255
+  - 100
+  - 50
+  screen_effect: fire_wind_storm
+sfx:
+- se
+- Fire1

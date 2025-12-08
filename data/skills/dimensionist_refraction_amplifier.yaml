@@ -1,0 +1,35 @@
+id: dimensionist_refraction_amplifier
+name: 굴절 증폭기
+type: support
+description: '차원 굴절의 효율을 극대화한다.
+
+  차원 굴절 경감률 +15% (최대 100%),
+
+  현재 굴절량의 30%를 즉시 보호막으로 변환.
+
+  지속: 5턴, 쿨다운: 0턴.
+
+  '
+costs:
+  mp: 5
+  cast_time: 1.0
+target: self
+cooldown: 0
+effects:
+- type: buff
+  special: refraction_reduction_bonus
+  value: 0.15
+  duration: 2
+  max_cap: 1.0
+- type: refraction_to_shield
+  convert_percent: 0.3
+metadata:
+  job: dimensionist
+  tank_skill: true
+  gimmick_skill: true
+  shield_skill: true
+  cooldown: 0
+  skill_category: defense
+sfx:
+- se
+- Move2

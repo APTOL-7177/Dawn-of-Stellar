@@ -26,7 +26,6 @@ class SettingOption(Enum):
     SHOW_FPS = "show_fps"
     FPS_LIMIT = "fps_limit"
     KEY_BINDINGS = "key_bindings"  # 키 설정
-    TUTORIAL = "tutorial"
     BACK = "back"
 
 
@@ -69,7 +68,6 @@ class SettingsUI:
             ("FPS 표시", SettingOption.SHOW_FPS),
             ("FPS 제한", SettingOption.FPS_LIMIT),
             ("키 설정", SettingOption.KEY_BINDINGS),
-            ("튜토리얼 다시보기", SettingOption.TUTORIAL),
             ("돌아가기", SettingOption.BACK),
         ]
 
@@ -95,8 +93,6 @@ class SettingsUI:
             option = self.options[self.selected_index][1]
             if option == SettingOption.BACK:
                 return "close"
-            elif option == SettingOption.TUTORIAL:
-                return "tutorial"
             elif option == SettingOption.KEY_BINDINGS:
                 return "key_bindings"
             else:
@@ -210,9 +206,6 @@ class SettingsUI:
             elif option == SettingOption.KEY_BINDINGS:
                 # 키 설정
                 console.print(value_x, y, "[ Z로 열기 ]", fg=value_color)
-            elif option == SettingOption.TUTORIAL:
-                # 튜토리얼 다시보기
-                console.print(value_x, y, "[ Z로 시작 ]", fg=value_color)
             elif option == SettingOption.BACK:
                 # 돌아가기는 값 표시 없음
                 console.print(value_x, y, "", fg=value_color)
@@ -227,8 +220,7 @@ class SettingsUI:
             3: "화면에 프레임 레이트(FPS)를 표시합니다",
             4: "게임의 최대 프레임 레이트를 제한합니다 (0 = 무제한)",
             5: "키보드와 게임패드 키 설정을 변경합니다",
-            6: "튜토리얼을 다시 볼 수 있습니다 (게임 기본 조작법, 전투 시스템 등)",
-            7: "메뉴로 돌아갑니다",
+            6: "메뉴로 돌아갑니다",
         }
 
         explanation = explanations.get(self.selected_index, "")
@@ -312,20 +304,6 @@ def open_settings(
                     from src.ui.key_bindings_ui import open_key_bindings
                     open_key_bindings(console, context)
                     # 키 설정에서 돌아온 후 설정 화면 계속
-                elif result == "tutorial":
-                    # 스토리 튜토리얼 실행
-                    from src.tutorial.story_runner import run_story_tutorial
-                    
-                    logger.info("스토리 튜토리얼 시작")
-                    
-                    # 튜토리얼 실행
-                    tutorial_result = run_story_tutorial(console, context)
-                    
-                    if tutorial_result.get("completed"):
-                        logger.info(f"스토리 튜토리얼 완료! 해금 직업: {tutorial_result.get('job_unlocked')}")
-                    else:
-                        logger.info("스토리 튜토리얼 건너뜀")
-                    # 설정 화면으로 돌아옴
 
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
@@ -344,14 +322,6 @@ def open_settings(
             elif result == "key_bindings":
                 from src.ui.key_bindings_ui import open_key_bindings
                 open_key_bindings(console, context)
-            elif result == "tutorial":
-                from src.tutorial.story_runner import run_story_tutorial
-                logger.info("스토리 튜토리얼 시작")
-                tutorial_result = run_story_tutorial(console, context)
-                if tutorial_result.get("completed"):
-                    logger.info(f"스토리 튜토리얼 완료! 해금 직업: {tutorial_result.get('job_unlocked')}")
-                else:
-                    logger.info("스토리 튜토리얼 건너뜀")
 
         # CPU 사용률 낮추기
         time.sleep(0.01)

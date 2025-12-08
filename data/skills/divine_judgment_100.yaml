@@ -1,0 +1,52 @@
+id: divine_judgment_100
+name: 신의 심판
+type: brv_hp_attack
+description: '[기적 - 신앙 100 필요] 신의 심판을 내립니다.
+
+  전체 적 BRV 3.0 + HP 4.0 신성 피해.
+
+  HP 가장 낮은 적 즉시 처형 (보스 제외).
+
+  신앙 0으로 초기화.
+
+  '
+target: all_enemies
+costs:
+  mp: 35
+  faith: 100
+metadata:
+  miracle: true
+  requires_faith: 100
+  consumes_all_faith: true
+  execution: true
+effects:
+- type: damage
+  damage_type: brv
+  element: holy
+  stat_base: magic
+  multiplier: 3.0
+  target: all_enemies
+- type: damage
+  damage_type: hp
+  element: holy
+  stat_base: magic
+  multiplier: 4.0
+  target: all_enemies
+- type: custom
+  handler: execute_lowest_hp
+  exclude_boss: true
+- type: gimmick
+  operation: set
+  field: faith
+  value: 0
+animation:
+  icon: ⚡👑
+  color:
+  - 255
+  - 215
+  - 0
+  screen_effect: divine_judgment
+  duration: 3.0
+sfx:
+- se
+- Magic1

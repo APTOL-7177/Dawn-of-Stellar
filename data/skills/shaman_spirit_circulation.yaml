@@ -1,0 +1,39 @@
+id: shaman_spirit_circulation
+name: 영력 순환
+type: toggle
+description: '영력을 지속적으로 순환시켜 턴마다 MP를 회복합니다.
+
+  토글 활성화 시 최대 MP의 25%를 예약하며, 매 턴 최대 MP의 8%를 회복합니다.
+
+  ''토글 효율'' 특성으로 회복량 +50% 가능 (12% 회복).
+
+  '
+target: self
+metadata:
+  job: shaman
+  mp_recovery: true
+  is_toggle: true
+  mp_reservation: 0.25
+  per_turn_recovery: 0.08
+effects:
+- type: toggle_buff
+  buff_id: spirit_circulation
+  toggle: true
+  mp_reservation_percentage: 0.25
+  effects:
+    mp_regen_per_turn: 0.08
+- type: buff
+  stat: magic
+  value: 0.1
+  duration: 999
+costs:
+  mp: 15
+animation:
+  icon: 🔄
+  color:
+  - 120
+  - 200
+  - 255
+sfx:
+- se
+- Magic2

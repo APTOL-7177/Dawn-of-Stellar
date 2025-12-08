@@ -1,0 +1,30 @@
+id: vpn_tunnel
+name: VPN 터널
+type: buff
+description: '안전한 VPN 터널을 생성합니다.
+
+  3턴간 회피 +20%, 침투 획득량 +25%.
+
+  RAM 1 소모.
+
+  '
+target: self
+costs:
+  mp: 10
+  ram: 1
+effects:
+- type: buff
+  buff_id: vpn_tunnel
+  duration: 3
+  effects:
+    evasion_bonus: 0.2
+    intrusion_gain_bonus: 0.25
+animation:
+  icon: 🔒
+  color:
+  - 50
+  - 150
+  - 255
+sfx:
+- se
+- Up1

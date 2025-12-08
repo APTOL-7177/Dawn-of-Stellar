@@ -1,0 +1,31 @@
+id: packet_sniffing
+name: 패킷 스니핑
+type: utility
+description: '적의 데이터 패킷을 가로챕니다.
+
+  대상 침투 +15, 적 버프 1개 복사.
+
+  RAM 3 소모.
+
+  '
+target: single_enemy
+costs:
+  mp: 10
+  ram: 3
+metadata:
+  intrusion_gain: 15
+effects:
+- type: custom
+  handler: add_intrusion
+  value: 15
+- type: custom
+  handler: copy_random_buff
+animation:
+  icon: 📦
+  color:
+  - 150
+  - 100
+  - 255
+sfx:
+- se
+- Magic1

@@ -187,7 +187,7 @@ class AudioManager:
         pygame.mixer.music.unpause()
         self.logger.debug("BGM 재개")
 
-    def play_sfx(self, category: str, sfx_name: str, volume_multiplier: float = 1.0) -> bool:
+    def play_sfx(self, category: str, sfx_name: str, volume_multiplier: float = 1.0, pitch: float = None) -> bool:
         """
         SFX 재생
 
@@ -195,6 +195,7 @@ class AudioManager:
             category: SFX 카테고리 (ui, combat, character, skill, item, world)
             sfx_name: config.yaml에 정의된 SFX 이름
             volume_multiplier: 볼륨 배율 (기본 1.0)
+            pitch: 피치 배율 (None이면 config 기본값, 1.0 = 원본)
 
         Returns:
             재생 성공 여부
@@ -210,9 +211,10 @@ class AudioManager:
             self.logger.debug(f"SFX '{category}.{sfx_name}'이 config.yaml에 정의되지 않음")
             return False
 
-        # 피치 설정 확인 (config에 {sfx_name}_pitch가 있으면 적용)
-        pitch_key = f"audio.sfx.{category}.{sfx_name}_pitch"
-        pitch = self.config.get(pitch_key, 1.0)
+        # 피치 설정 (파라미터 > config 기본값)
+        if pitch is None:
+            pitch_key = f"audio.sfx.{category}.{sfx_name}_pitch"
+            pitch = self.config.get(pitch_key, 1.0)
 
         # 캐시 키 (피치 포함)
         cache_key = f"{category}.{sfx_name}_p{pitch}"
@@ -467,7 +469,7 @@ def stop_bgm(fade_out: bool = True) -> None:
     get_audio_manager().stop_bgm(fade_out)
 
 
-def play_sfx(category: str, sfx_name: str, volume_multiplier: float = 1.0) -> bool:
+def play_sfx(category: str, sfx_name: str, volume_multiplier: float = 1.0, pitch: float = None) -> bool:
     """
     SFX 재생 (편의 함수)
 
@@ -475,11 +477,12 @@ def play_sfx(category: str, sfx_name: str, volume_multiplier: float = 1.0) -> bo
         category: 카테고리
         sfx_name: SFX 이름
         volume_multiplier: 볼륨 배율
+        pitch: 피치 배율 (None이면 기본값, 1.0 = 원본)
 
     Returns:
         재생 성공 여부
     """
-    return get_audio_manager().play_sfx(category, sfx_name, volume_multiplier)
+    return get_audio_manager().play_sfx(category, sfx_name, volume_multiplier, pitch)
 
 
 def play_teamwork_sfx(category: str, sfx_name: str, chain_count: int = 1) -> bool:

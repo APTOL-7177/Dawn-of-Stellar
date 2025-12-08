@@ -420,7 +420,7 @@ class EnemySkillDatabase:
                 sfx=("skill", "poison")
             ),
 
-            # 뱀파이어 - 흡혈
+            # 흡혈귀 - 흡혈
             "vampire_bite": EnemySkill(
                 skill_id="vampire_bite",
                 name="흡혈",
@@ -436,7 +436,7 @@ class EnemySkillDatabase:
                 sfx=("combat", "attack_physical")
             ),
 
-            # 뱀파이어 - 박쥐 변신
+            # 흡혈귀 - 박쥐 변신
             "bat_form": EnemySkill(
                 skill_id="bat_form",
                 name="박쥐 변신",

@@ -22,8 +22,10 @@ class MenuResult(Enum):
     CONTINUE = "continue"
     MULTIPLAYER = "multiplayer"  # 멀티플레이
     AI_SPECTATE = "ai_spectate"  # AI 관전 모드
+    TRAINING = "training"  # 트레이닝 모드
     SHOP = "shop"
     SETTINGS = "settings"
+    CREDITS = "credits"  # 크레딧
     QUIT = "quit"
     NONE = "none"
 
@@ -196,6 +198,11 @@ class MainMenu:
         
         menu_items.extend([
             MenuItem(
+                text="트레이닝",
+                action=self._open_training,
+                description="허수아비와 전투하며 캐릭터를 연습합니다"
+            ),
+            MenuItem(
                 text="메타 진행",
                 action=self._open_shop,
                 description="별빛의 파편으로 직업과 패시브를 구매합니다"
@@ -204,6 +211,11 @@ class MainMenu:
                 text="설정",
                 action=self._open_settings,
                 description="게임 설정을 변경합니다"
+            ),
+            MenuItem(
+                text="크레딧",
+                action=self._open_credits,
+                description="제작진 정보를 확인합니다"
             ),
             MenuItem(
                 text="종료",
@@ -260,6 +272,16 @@ class MainMenu:
         """게임 종료"""
         self.logger.info("종료 선택")
         self.result = MenuResult.QUIT
+
+    def _open_training(self) -> None:
+        """트레이닝 모드 열기"""
+        self.logger.info("트레이닝 모드 선택")
+        self.result = MenuResult.TRAINING
+
+    def _open_credits(self) -> None:
+        """크레딧 열기"""
+        self.logger.info("크레딧 선택")
+        self.result = MenuResult.CREDITS
 
     def handle_input(self, action: GameAction) -> bool:
         """

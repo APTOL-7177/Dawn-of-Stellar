@@ -1,12 +1,38 @@
 id: holy_strike
-name: 신성한 공격
-type: brv_attack
-description: 성스러운 힘으로 적을 공격합니다
+name: 신성 타격
+type: brv_hp_attack
+description: '성스러운 힘으로 적을 공격합니다.
+
+  BRV 1.8 + HP 1.5 신성 피해.
+
+  언데드에게 +50% 피해.
+
+  순결 서약: 신앙 +5
+
+  '
+target: single_enemy
 costs:
-  mp: 20
-  cast_time: 1.0
+  mp: 10
+metadata:
+  oath_purity_faith: 5
+  undead_bonus: 0.5
 effects:
 - type: damage
+  damage_type: brv
   element: holy
-  multiplier: 2.5
-  stat_base: magic
+  stat_base: physical
+  multiplier: 1.8
+- type: damage
+  damage_type: hp
+  element: holy
+  stat_base: physical
+  multiplier: 1.5
+animation:
+  icon: ⚔️
+  color:
+  - 255
+  - 255
+  - 200
+sfx:
+- se
+- Heal4

@@ -408,14 +408,14 @@ JOB_ATTACK_PROFILES: Dict[str, Dict[str, Any]] = {
 
     "battle_mage": {
         "brv_attack": {
-            "name": "룬 새기기",
-            "skill_id": "battle_mage_carve_rune",
-            "description": "적에게 룬을 새겨 룬 획득"
+            "name": "Rune Etch",
+            "skill_id": "battle_mage_rune_etch",
+            "description": "적에게 룬을 새겨 공명을 준비"
         },
         "hp_attack": {
-            "name": "룬 폭발",
+            "name": "Rune Burst",
             "skill_id": "battle_mage_rune_burst",
-            "description": "보유한 룬을 폭발시켜 강력한 피해"
+            "description": "대상에 각인된 룬을 폭발"
         }
     },
 

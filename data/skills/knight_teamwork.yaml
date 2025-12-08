@@ -1,0 +1,33 @@
+id: knight_teamwork
+name: 기사단의 맹세
+type: teamwork
+description: '기사단의 가호로 파티의 방어력을 높이고 의무를 쌓습니다.
+
+  '
+effects:
+- type: buff
+  buff_type: defense_up
+  value: 0.3
+  duration: 4
+  is_party_wide: true
+- type: buff
+  buff_type: magic_defense_up
+  value: 0.25
+  duration: 4
+  is_party_wide: true
+- type: gimmick
+  operation: add
+  field: duty_stacks
+  value: 5
+  max_value: 10
+target: party
+costs:
+  teamwork_gauge: 150
+metadata:
+  job: knight
+  teamwork: true
+  chain: true
+  party_defense: true
+sfx:
+- se
+- Summon

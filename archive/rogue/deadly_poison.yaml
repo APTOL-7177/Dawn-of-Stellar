@@ -1,0 +1,33 @@
+id: letale_venenum
+name: 레탈레 베네눔
+type: debuff
+description: '적에게 맹독을 주입합니다.
+
+  맹독: 매 턴 10% HP DoT + 회복 불가.
+
+  독 중첩 2 필요 (기존 독 업그레이드).
+
+  '
+target: single_enemy
+costs:
+  mp: 15
+metadata:
+  requires_poison_stacks: 2
+  poison_type: deadly
+effects:
+- type: debuff
+  debuff_id: deadly_poison
+  duration: 4
+  effects:
+    dot_percent: 0.1
+    heal_block: true
+    poison_stacks: 2
+animation:
+  icon: ☠️
+  color:
+  - 100
+  - 50
+  - 150
+sfx:
+- se
+- Up1

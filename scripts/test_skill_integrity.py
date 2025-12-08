@@ -268,7 +268,7 @@ class GimmickIntegrityTester:
             "timeline_system",      # 타임메이지
             "yin_yang_flow",        # 몽크
             "madness_threshold",    # 버서커
-            "thirst_gauge",         # 뱀파이어
+            "thirst_gauge",         # 흡혈귀
             "probability_distortion", # 해커
             "stealth_exposure",     # 어쌔신
             "magazine_system",      # 스나이퍼

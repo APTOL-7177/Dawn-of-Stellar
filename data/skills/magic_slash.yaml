@@ -13,3 +13,6 @@ effects:
 - type: hp_damage
   multiplier: 0.8
   uses_brv: true
+sfx:
+- se
+- Slash1

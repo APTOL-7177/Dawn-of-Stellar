@@ -933,18 +933,6 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
             "brv_steal": (EffectType.BRV_STEAL, EffectTrigger.ON_HIT),
             "brv_break_bonus": (EffectType.BRV_BREAK_BONUS, EffectTrigger.PASSIVE),
 
-            # Combat
-            "lifesteal": (EffectType.LIFESTEAL, EffectTrigger.ON_HIT),
-            "thorns": (EffectType.THORNS, EffectTrigger.ON_DAMAGED),
-            "critical_damage": (EffectType.CRITICAL_DAMAGE, EffectTrigger.PASSIVE),
-            "critical_rate": (EffectType.CRITICAL_RATE, EffectTrigger.PASSIVE),
-            "critical_chance": (EffectType.CRITICAL_CHANCE, EffectTrigger.PASSIVE),  # critical_rate와 동일
-            "dodge_chance": (EffectType.DODGE_CHANCE, EffectTrigger.PASSIVE),
-            "block_chance": (EffectType.BLOCK_CHANCE, EffectTrigger.PASSIVE),
-            "multi_strike": (EffectType.MULTI_STRIKE, EffectTrigger.PASSIVE),
-            "counter_attack": (EffectType.COUNTER_ATTACK, EffectTrigger.ON_DAMAGED),
-            "first_strike": (EffectType.FIRST_STRIKE, EffectTrigger.PASSIVE),
-
             # Healing
             "hp_regen": (EffectType.HP_REGEN, EffectTrigger.ON_TURN_END),
             "mp_regen": (EffectType.MP_REGEN, EffectTrigger.ON_TURN_END),
@@ -971,6 +959,7 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
             "item_find": (EffectType.ITEM_FIND, EffectTrigger.PASSIVE),
             "gold_find": (EffectType.GOLD_FIND, EffectTrigger.PASSIVE),
             "exp_bonus": (EffectType.EXP_BONUS, EffectTrigger.PASSIVE),
+            "skill_mastery": (EffectType.EXP_BONUS, EffectTrigger.PASSIVE),  # 스킬 숙련도 보너스 → 경험치 보너스 재활용
 
             # Gimmick specific
             "hack_damage": (EffectType.HACK_DAMAGE_BONUS, EffectTrigger.PASSIVE),

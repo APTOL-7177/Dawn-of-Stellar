@@ -1,6 +1,6 @@
 class_name: 아크메이지
 description: 최강의 마법 공격력을 가진 원소의 지배자
-slogan: "세 가지 원소, 무한한 가능성"
+slogan: 세 가지 원소, 무한한 가능성
 archetype: 마법 딜러
 base_stats:
   hp: 121
@@ -13,18 +13,18 @@ base_stats:
   speed: 58
   max_brv: 430
 stat_growth:
-  hp: 8
-  mp: 8
-  init_brv: 20.4
-  strength: 2.0
-  defense: 1.5
-  magic: 5.5
-  spirit: 4.0
-  speed: 3.5
-  luck: 2.5
-  accuracy: 2.0
-  evasion: 1.5
-  max_brv: 86.0
+  hp: 24.0
+  mp: 6.9
+  init_brv: 24.1
+  strength: 10.7
+  defense: 7.3
+  magic: 21.2
+  spirit: 18.0
+  speed: 12.9
+  max_brv: 120.7
+  luck: 3
+  accuracy: 1.6
+  evasion: 1.2
 gimmick:
   type: elemental_counter
   name: 원소 조합
@@ -40,39 +40,43 @@ gimmick:
     name: 번개
     max_count: 5
 traits:
-- id: mana_mastery
-  name: 마나 숙련
-  description: 모든 마법 스킬 MP 소모 30% 감소
+- id: elemental_affinity
+  name: 원소 친화
+  description: 기본 스킬 사용 시 원소 2개 획득, 턴 시작 시 무작위 원소 1개 획득
   type: passive
-- id: arcane_knowledge
-  name: 비전 지식
-  description: 마법 공격력 20% 증가
+- id: fusion_mastery
+  name: 융합 숙련
+  description: 2원소 융합 스킬 데미지 +30%, MP 소모 -25%
   type: passive
-- id: elemental_fury
-  name: 원소의 분노
-  description: 연속 마법 시전 시 위력 누적 (최대 50%)
+- id: elemental_resonance
+  name: 원소 공명
+  description: 각 원소 3개 이상 보유 시 해당 원소 데미지 +20%, 모든 원소 3개 이상이면 추가 +15%
   type: trigger
-- id: spell_weaving
-  name: 주문 직조
-  description: 마법 시전 시간 25% 감소
-  type: passive
-- id: arcane_supremacy
-  name: 비전 최고봉
-  description: MP 70% 이상일 때 크리티컬 확률 20% 증가
+- id: balance_power
+  name: 균형의 힘
+  description: 화염/빙결 스택이 같을 때 상반의 격류 크리티컬 +25%, 크리티컬 데미지 +50%
+  type: trigger
+- id: elemental_explosion
+  name: 원소 대폭발
+  description: 5스택 원소 과부하 시 강화 - 화염=작열 5턴, 빙결=ATB 초기화, 번개=15연타
   type: trigger
 skills:
-- teamwork
 - fireball
 - lightning_bolt
 - ice_storm
-- flame_lightning
-- ice_lightning
-- flame_ice
+- thunderstorm_inferno
+- arctic_tempest
+- paradox_surge
 - meteor
 - arcane_missile
+- elemental_transmutation
+- elemental_overload
+- delayed_glyph
+- elemental_aegis
+- elemental_brand
 - elemental_surge
 - ultimate
-
+- teamwork
 bonuses:
   mp_multiplier: 1.2
   magic_damage: 1.1

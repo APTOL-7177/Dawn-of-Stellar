@@ -38,11 +38,12 @@ def create_cleric_skills():
     # 3. 치유
     heal = Skill("cleric_heal", "치유", "신앙 1포인트 소비, 단일 치유")
     heal.effects = [
-        HealEffect(HealType.HP, percentage=0.40),  # 기본 치유 (신앙 1포인트 소비)
+        HealEffect(HealType.HP, stat_scaling="magic", multiplier=1.25),  # 마법력 기반 단일 치유
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 1)
     ]
     heal.costs = []
     heal.target_type = "ally"
+    heal.cast_time = 0.7  # 강력한 치유는 긴 시전시간 필요
     # heal.cooldown = 1  # 쿨다운 시스템 제거됨
     heal.sfx = ("character", "hp_heal")  # 치유
     heal.metadata = {"faith_cost": 1, "healing": True}
@@ -51,12 +52,13 @@ def create_cleric_skills():
     # 4. 대치유
     greater_heal = Skill("cleric_greater_heal", "대치유", "신앙 2포인트 소비, 강력한 치유")
     greater_heal.effects = [
-        HealEffect(HealType.HP, percentage=0.65),  # 대치유 (신앙 2포인트 소비)
+        HealEffect(HealType.HP, stat_scaling="magic", multiplier=1.9),  # 마법력 기반 강력 치유
         BuffEffect(BuffType.REGEN, 0.18, duration=3),
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 2)
     ]
     greater_heal.costs = [MPCost(5), StackCost("faith_points", 2)]
     greater_heal.target_type = "ally"
+    greater_heal.cast_time = 0.85
     # greater_heal.cooldown = 2  # 쿨다운 시스템 제거됨
     greater_heal.sfx = ("character", "hp_heal_high")  # 대치유
     greater_heal.metadata = {"faith_cost": 2, "healing": True, "regen": True}
@@ -65,11 +67,12 @@ def create_cleric_skills():
     # 5. 집단 치유
     mass_heal = Skill("cleric_mass_heal", "집단 치유", "신앙 3포인트 소비, 파티 치유")
     mass_heal.effects = [
-        HealEffect(HealType.HP, percentage=0.35, is_party_wide=True),  # 집단 치유 (파티 힐)
+        HealEffect(HealType.HP, stat_scaling="magic", multiplier=1.05, is_party_wide=True),  # 마법력 기반 파티 치유
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 3)
     ]
     mass_heal.costs = [MPCost(6), StackCost("faith_points", 3)]
     mass_heal.target_type = "party"
+    mass_heal.cast_time = 0.95
     # mass_heal.cooldown = 4  # 쿨다운 시스템 제거됨
     mass_heal.sfx = ("character", "hp_heal_max")  # 집단 치유
     mass_heal.metadata = {"faith_cost": 3, "healing": True, "party_wide": True}
@@ -106,12 +109,13 @@ def create_cleric_skills():
     # 8. 부활
     resurrect = Skill("cleric_resurrect", "부활", "신앙 6포인트 소비, 동료 부활")
     resurrect.effects = [
-        HealEffect(HealType.HP, percentage=0.75),  # 부활
+        HealEffect(HealType.HP, stat_scaling="magic", multiplier=1.6),  # 마법력 기반 부활 회복
         BuffEffect(BuffType.REGEN, 0.35, duration=5),
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 6)
     ]
     resurrect.costs = [MPCost(12), StackCost("faith_points", 6)]
     resurrect.target_type = "ally"
+    resurrect.cast_time = 1.0
     # resurrect.cooldown = 8  # 쿨다운 시스템 제거됨
     resurrect.sfx = ("character", "revive")  # 부활
     resurrect.metadata = {"faith_cost": 6, "revival": True, "healing": True}
@@ -136,7 +140,7 @@ def create_cleric_skills():
     # 10. 궁극기: 신의 은총
     ultimate = Skill("cleric_ultimate", "신의 은총", "모든 신앙으로 완전한 치유")
     ultimate.effects = [
-        HealEffect(HealType.HP, percentage=0.60, is_party_wide=True),  # 궁극기 (모든 신앙 소비)
+        HealEffect(HealType.HP, stat_scaling="magic", multiplier=1.35, is_party_wide=True),  # 마법력 기반 대규모 치유
         BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5, is_party_wide=True),
         BuffEffect(BuffType.REGEN, 0.42, duration=5, is_party_wide=True),
         DamageEffect(DamageType.HP, 2.5, gimmick_bonus={"field": "faith_points", "multiplier": 0.3}, stat_type="magical"),
@@ -147,6 +151,7 @@ def create_cleric_skills():
     ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.target_type = "party"
     ultimate.is_aoe = True
+    ultimate.cast_time = 1.0
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "faith_consume_all": True, "healing": True, "party_wide": True, "buff": True}
     skills.append(ultimate)
@@ -158,13 +163,14 @@ def create_cleric_skills():
         "아군 1명 최대 HP의 60% 회복 + 리젠 (최대 HP의 10%씩, 3턴) + 신앙 +1",
         gauge_cost=75)
     teamwork.effects = [
-        HealEffect(percentage=0.6, is_party_wide=True),  # HP 60% 회복
+        HealEffect(HealType.HP, stat_scaling="magic", multiplier=1.15, is_party_wide=True),  # 마법력 기반 광역 치유
         BuffEffect(BuffType.DEFENSE_UP, 1.0, duration=1, is_party_wide=True),  # 방어력 +100% (임시 무효화 효과)
         GimmickEffect(GimmickOperation.ADD, "faith", 1, max_value=10),  # 신앙 +1
     ]
     teamwork.target_type = "party"
     teamwork.is_aoe = True
     teamwork.costs = [MPCost(0)]
+    teamwork.cast_time = 0.9
     teamwork.sfx = ("skill", "teamwork")
     teamwork.metadata = {"teamwork": True, "chain": True, "healing": True, "cleanse": True}
     skills.append(teamwork)

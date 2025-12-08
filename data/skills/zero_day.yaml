@@ -1,0 +1,39 @@
+id: zero_day
+name: 제로데이
+type: brv_hp_attack
+description: '알려지지 않은 취약점을 공격합니다. BRV 2.5 + HP 2.0 피해.
+
+  대상 침투 +30.
+
+  방어 무시 20%.
+
+  '
+target: single_enemy
+costs:
+  mp: 20
+  ram: 4
+metadata:
+  intrusion_gain: 30
+  defense_penetration: 0.2
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magic
+  multiplier: 2.5
+  ignore_defense: 0.2
+- type: damage
+  damage_type: hp
+  stat_base: magic
+  multiplier: 2.0
+- type: custom
+  handler: add_intrusion
+  value: 30
+animation:
+  icon: 💀
+  color:
+  - 255
+  - 0
+  - 100
+sfx:
+- se
+- Magic1

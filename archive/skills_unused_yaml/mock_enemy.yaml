@@ -1,0 +1,34 @@
+id: irrisio
+name: 이리시오
+type: utility
+description: '적을 비웃어 농락합니다.
+
+  대상 농락 +3.
+
+  농락 7+ 시 추가 +2.
+
+  '
+target: single_enemy
+costs:
+  mp: 8
+metadata:
+  mockery_gain: 3
+  bonus_at_7: 2
+effects:
+- type: custom
+  handler: add_mockery
+  value: 3
+- type: debuff
+  debuff_id: mocked
+  duration: 2
+  effects:
+    accuracy_reduction: 0.1
+animation:
+  icon: 😏
+  color:
+  - 255
+  - 200
+  - 100
+sfx:
+- se
+- Up1

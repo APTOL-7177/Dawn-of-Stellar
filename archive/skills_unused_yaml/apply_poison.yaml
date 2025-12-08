@@ -1,0 +1,32 @@
+id: venenum_illitus
+name: 베네눔 일리투스
+type: buff
+description: '무기에 독을 바릅니다.
+
+  3턴간 공격에 기본 독 부여.
+
+  기본 독: 매 턴 5% HP DoT 3턴.
+
+  '
+target: self
+costs:
+  mp: 8
+metadata:
+  poison_type: basic
+effects:
+- type: buff
+  buff_id: poisoned_blade
+  duration: 3
+  effects:
+    attack_poison: basic
+    poison_dot: 0.05
+    poison_duration: 3
+animation:
+  icon: 🧪
+  color:
+  - 100
+  - 200
+  - 50
+sfx:
+- se
+- Up1

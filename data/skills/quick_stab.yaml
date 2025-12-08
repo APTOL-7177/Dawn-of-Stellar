@@ -1,0 +1,35 @@
+id: celer_punctio
+name: 켈레르 푼크티오
+type: brv_hp_attack
+description: '그림자에서 번개처럼 찌릅니다. BRV 1.5 + HP 1.2 피해.
+
+  대상 농락 +1, 은신 상태면 피해 3배.
+
+  '
+target: single_enemy
+costs:
+  mp: 8
+metadata:
+  mockery_gain: 1
+  stealth_multiplier: 3.0
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 1.5
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 1.2
+- type: custom
+  handler: add_mockery
+  value: 1
+animation:
+  icon: 🗡️
+  color:
+  - 150
+  - 150
+  - 200
+sfx:
+- se
+- Magic1

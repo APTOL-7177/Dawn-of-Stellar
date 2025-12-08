@@ -1,0 +1,42 @@
+id: phishing_attack
+name: 피싱 공격
+type: brv_hp_attack
+description: '속임수로 적을 공격합니다. BRV 1.8 + HP 1.2 피해.
+
+  대상 침투 +15.
+
+  침투 50%+ 시 혼란 1턴 (20% 확률).
+
+  '
+target: single_enemy
+costs:
+  mp: 12
+  ram: 3
+metadata:
+  intrusion_gain: 15
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magic
+  multiplier: 1.8
+- type: damage
+  damage_type: hp
+  stat_base: magic
+  multiplier: 1.2
+- type: custom
+  handler: add_intrusion
+  value: 15
+- type: debuff
+  debuff_id: confusion
+  duration: 1
+  chance: 0.2
+  condition: intrusion_50
+animation:
+  icon: 🎣
+  color:
+  - 255
+  - 150
+  - 50
+sfx:
+- se
+- Up1

@@ -1,0 +1,40 @@
+id: dimensionist_ultimate
+name: 차원 붕괴
+type: ultimate
+description: '모든 굴절량을 해방해 차원을 붕괴시킵니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magical
+  multiplier: 3.75
+  target: all_enemies
+- type: damage
+  damage_type: hp
+  stat_base: magical
+  multiplier: 3.2
+  target: all_enemies
+- type: buff
+  buff_type: defense_down
+  value: 0.5
+  duration: 3
+  target: all_enemies
+- type: buff
+  buff_type: spirit_down
+  value: 0.5
+  duration: 3
+  target: all_enemies
+target: all_enemies
+costs:
+  mp: 40
+metadata:
+  job: dimensionist
+  ultimate: true
+  refraction_scaling: true
+  consume_all_refraction: true
+  self_heal_refraction_percent: 0.3
+  refraction_fixed_damage_rate: 1.0
+sfx:
+- se
+- Move2

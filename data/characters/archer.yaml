@@ -1,6 +1,6 @@
 class_name: 궁수
 description: 정확한 원거리 공격으로 적을 제압하는 명사수
-slogan: "한 발의 화살이 전장의 흐름을 바꾼다"
+slogan: 한 발의 화살이 전장의 흐름을 바꾼다
 archetype: 원거리 물리 딜러
 base_stats:
   hp: 164
@@ -13,18 +13,18 @@ base_stats:
   speed: 68
   max_brv: 455
 stat_growth:
-  hp: 11
-  mp: 3.5
-  init_brv: 23.6
-  strength: 4.8
-  defense: 2.8
-  magic: 1.8
-  spirit: 2.5
-  speed: 4.0
-  luck: 3.5
-  accuracy: 2.8
-  evasion: 1.8
-  max_brv: 91.0
+  hp: 34.5
+  mp: 3.0
+  init_brv: 27.9
+  strength: 20.3
+  defense: 9.7
+  magic: 7.0
+  spirit: 9.9
+  speed: 17.6
+  max_brv: 127.8
+  luck: 3
+  accuracy: 1.8
+  evasion: 1.3
 traits:
 - id: support_fire_master
   name: 지원 사격의 달인
@@ -130,7 +130,6 @@ skills:
 - mark_explosive
 - mark_holy
 - ultimate
-
 bonuses:
   accuracy_bonus: 10
   critical_rate: 1.1

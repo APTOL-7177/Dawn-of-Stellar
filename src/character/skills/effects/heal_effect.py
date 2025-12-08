@@ -9,7 +9,7 @@ class HealType(Enum):
 
 class HealEffect(SkillEffect):
     """회복 효과"""
-    def __init__(self, heal_type=HealType.HP, base_amount=0, percentage=0.0, stat_scaling=None, multiplier=1.0, is_party_wide=False, set_percent=None, fixed_amount=None, metadata=None):
+    def __init__(self, heal_type=HealType.HP, base_amount=0, percentage=0.0, stat_scaling=None, multiplier=1.0, is_party_wide=False, set_percent=None, fixed_amount=None, metadata=None, target_self=False):
         super().__init__(EffectType.HEAL)
         self.heal_type = heal_type
         self.base_amount = base_amount
@@ -20,11 +20,15 @@ class HealEffect(SkillEffect):
         self.set_percent = set_percent  # HP/MP를 특정 %로 설정 (회복이 아닌 설정)
         self.fixed_amount = fixed_amount  # 고정 회복량 (스케일링 없음)
         self.metadata = metadata or {}  # 추가 메타데이터 (차원술사 굴절 회복 등)
+        self.target_self = target_self  # True면 스킬 사용자 자신을 회복
 
     def execute(self, user, target, context):
         """회복 실행"""
+        # target_self가 True면 사용자 자신을 회복
+        if self.target_self:
+            targets = [user]
         # 파티 전체 힐
-        if self.is_party_wide:
+        elif self.is_party_wide:
             # context에서 party_members를 가져오거나, combat_manager에서 가져오기
             if context and 'party_members' in context:
                 targets = context['party_members']
@@ -90,7 +94,11 @@ class HealEffect(SkillEffect):
                         actual_heal = heal_amount
                 elif hasattr(t, 'heal'):
                     # 차원술사 자가 치유 특화를 위해 source_character 전달
-                    actual_heal = t.heal(heal_amount, source_character=user, is_self_skill=(user == t))
+                    try:
+                        actual_heal = t.heal(heal_amount, source_character=user, is_self_skill=(user == t))
+                    except TypeError:
+                        # SimpleEnemy 등 단순 heal() 메서드만 가진 경우
+                        actual_heal = t.heal(heal_amount)
                 elif hasattr(t, 'current_hp') and hasattr(t, 'max_hp'):
                     actual_heal = min(heal_amount, t.max_hp - t.current_hp)
                     t.current_hp += actual_heal
@@ -108,7 +116,12 @@ class HealEffect(SkillEffect):
                 elif hasattr(t, 'restore_mp'):
                     actual_heal = t.restore_mp(heal_amount)
                 elif hasattr(t, 'current_mp') and hasattr(t, 'max_mp'):
-                    actual_heal = min(heal_amount, t.max_mp - t.current_mp)
+                    # 예약된 MP를 제외한 실제 사용 가능 최대 MP까지만 회복
+                    if hasattr(t, 'effective_max_mp'):
+                        effective_max = t.effective_max_mp()
+                        actual_heal = min(heal_amount, effective_max - t.current_mp)
+                    else:
+                        actual_heal = min(heal_amount, t.max_mp - t.current_mp)
                     t.current_mp += actual_heal
                 else:
                     actual_heal = heal_amount
@@ -133,6 +146,34 @@ class HealEffect(SkillEffect):
 
             total_heal += actual_heal
             healed_count += 1
+
+            # faith_shield 특성: 아군 치유 시 대상에게 보호막 부여 (회복량의 40%)
+            if hasattr(user, 'active_traits') and user != t:  # 자가 힐 제외
+                has_faith_shield = any(
+                    (trait if isinstance(trait, str) else trait.get('id')) == 'faith_shield'
+                    for trait in user.active_traits
+                )
+                if has_faith_shield and actual_heal > 0:
+                    shield_amount = int(actual_heal * 0.40)
+                    if shield_amount > 0:
+                        if not hasattr(t, 'shield_amount'):
+                            t.shield_amount = 0
+                        t.shield_amount += shield_amount
+
+            # resurrection_master 특성: 아군 치유 시 회복량의 25%만큼 본인도 추가 치유
+            if hasattr(user, 'active_traits') and user != t:  # 자가 힐 제외
+                has_resurrection_master = any(
+                    (trait if isinstance(trait, str) else trait.get('id')) == 'resurrection_master'
+                    for trait in user.active_traits
+                )
+                if has_resurrection_master and actual_heal > 0:
+                    self_heal_amount = int(actual_heal * 0.25)
+                    if self_heal_amount > 0 and hasattr(user, 'heal'):
+                        try:
+                            user.heal(self_heal_amount, source_character=user, is_self_skill=True)
+                        except TypeError:
+                            if hasattr(user, 'current_hp') and hasattr(user, 'max_hp'):
+                                user.current_hp = min(user.max_hp, user.current_hp + self_heal_amount)
 
         if self.is_party_wide:
             message = f"파티 {healed_count}명 {self.heal_type.value.upper()} 회복 {total_heal}"
@@ -179,6 +220,12 @@ class HealEffect(SkillEffect):
                 if hasattr(user, 'stat_manager'):
                     from src.character.stats import Stats
                     stat_value = user.stat_manager.get_value(Stats.MAGIC)
+                    # [FIX] MAGIC 스탯이 0이면 magic_attack 확인 (YAML에 magic_attack만 정의된 경우 대응)
+                    if stat_value <= 0 and hasattr(user, 'magic_attack'):
+                        stat_value = max(stat_value, getattr(user, 'magic_attack', 0))
+                    # StatManager에 magic_attack이 등록되어 있을 수도 있음
+                    if stat_value <= 0:
+                        stat_value = user.stat_manager.get_value("magic_attack")
                 else:
                     stat_value = getattr(user, 'magic_attack', getattr(user, 'magic', 0))
             elif self.stat_scaling == 'max_attack':  # 물리/마법 중 높은 값
@@ -197,6 +244,11 @@ class HealEffect(SkillEffect):
             # 스탯 * 배율로 회복량 계산
             if stat_value > 0 and self.multiplier > 0:
                 amount = int(stat_value * self.multiplier)
+            
+            # [DEBUG] Healing Calculation Log
+            from src.core.logger import get_logger
+            logger = get_logger("heal_debug")
+            logger.info(f"[HealDebug] Scaling={self.stat_scaling}, StatVal={stat_value}, Mult={self.multiplier}, Amt={amount}, User={getattr(user, 'name', 'Unknown')}")
 
         # 2. 고정 기본량 추가
         if self.base_amount > 0:

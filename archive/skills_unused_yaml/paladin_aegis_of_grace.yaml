@@ -1,0 +1,48 @@
+id: paladin_aegis_of_grace
+name: 축복의 방패
+type: support
+description: '신성한 축복으로 자신을 보호한다.
+
+  방어력/마법방어력 +30%, 피해 경감 15%, 성력 20 회복.
+
+  성력 60 이상일 때 사용 시 파티 전체 마법방어력 +15%.
+
+  '
+costs:
+  mp: 16.0
+  cast_time: 0.9
+target: self
+effects:
+- type: buff
+  stat: physical_defense
+  value: 0.3
+  duration: 3
+- type: buff
+  stat: magic_defense
+  value: 0.3
+  duration: 3
+- type: buff
+  special: damage_reduction
+  value: 0.15
+  duration: 3
+- type: restore_gimmick
+  gimmick: holy_power
+  amount: 20
+- type: conditional_buff
+  condition:
+    gimmick: holy_power
+    min_value: 60
+  buff:
+    stat: magic_defense
+    value: 0.15
+    duration: 3
+    is_party_wide: true
+metadata:
+  job: paladin
+  tank_skill: true
+  gimmick_skill: true
+  holy_restore: 20
+  skill_category: defense
+sfx:
+- se
+- Sword2

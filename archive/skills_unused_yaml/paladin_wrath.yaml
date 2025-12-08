@@ -1,0 +1,38 @@
+id: paladin_wrath
+name: 복수의 격노
+type: buff
+description: '성력을 소모해 분노를 폭발시킵니다.
+
+  공격력/치명타 확률을 올리고 보호막을 생성합니다.
+
+  '
+effects:
+- type: buff
+  buff_type: attack_up
+  value: 0.5
+  duration: 5
+  target: self
+- type: buff
+  buff_type: critical_up
+  value: 0.3
+  duration: 5
+  target: self
+- type: shield
+  base_amount: 80
+- type: gimmick
+  operation: consume
+  field: holy_power
+  value: 3
+target: self
+costs:
+  mp: 5.6
+  stacks:
+    holy_power: 3
+metadata:
+  job: paladin
+  holy_power_cost: 3
+  buff: true
+  shield: true
+sfx:
+- se
+- Fire2

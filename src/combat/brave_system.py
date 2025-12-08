@@ -16,6 +16,7 @@ from src.core.config import get_config
 from src.core.logger import get_logger
 from src.core.event_bus import event_bus, Events
 from src.combat.damage_calculator import get_damage_calculator
+from src.combat.status_effects import StatusEffect, StatusType
 
 
 class BraveSystem:
@@ -251,6 +252,84 @@ class BraveSystem:
             # BREAK 상태 플래그 설정
             defender.is_broken = True
 
+            # =========================================================================================
+            # [NEW] 브레이커: SCATTER 시스템
+            # =========================================================================================
+            if hasattr(attacker, "job_id") and attacker.job_id == "breaker":
+                defender.is_scattered = True
+                defender.scatter_source = attacker
+                defender.scatter_stacks = 0
+                
+                # 시각적 알림 (로그)
+                self.logger.info(f"[SCATTER] {attacker.name}이 {defender.name}을 산산조각 냈습니다!")
+                
+                # [FIX] StatusEffect로 SCATTER 상태 적용 (UI 표시 및 지속시간 관리)
+                if hasattr(defender, 'status_manager'):
+                    scatter_status = StatusEffect(
+                        name="SCATTER",
+                        status_type=StatusType.SCATTER,
+                        duration=2, # 지속시간 2턴 설정
+                        metadata={"source": attacker},
+                        is_stackable=True,
+                        max_stacks=99
+                    )
+                    defender.status_manager.add_status(scatter_status)
+                
+                # 특성 체크: 증기 흡수 (Steam Siphon) => SCATTER 시 브레이커 HP 10% 회복
+                is_siphon = False
+                if hasattr(attacker, "system_traits") and "steam_siphon" in attacker.system_traits: is_siphon = True
+                if hasattr(attacker, "traits"):
+                     for t in attacker.traits:
+                         tid = t if isinstance(t, str) else t.get("id")
+                         if tid == "steam_siphon": is_siphon = True
+                
+                if is_siphon and hasattr(attacker, "heal") and hasattr(attacker, "max_hp"):
+                    heal_amt = int(attacker.max_hp * 0.10)
+                    attacker.heal(heal_amt)
+                    self.logger.info(f"[증기 흡수] SCATTER 효과로 HP 회복: {heal_amt}")
+
+                # 추가 행동 (연격) 체크
+                # 조건: 연격 기믹 수치가 브레이커 공격력의 50%를 넘는가?
+                # 비용: 공격력의 50%만큼 감소
+                if hasattr(attacker, "combo_gauge"):
+                    # 공격력 가져오기
+                    atk_val = 0
+                    if hasattr(attacker, "stat_manager"):
+                        from src.character.stats import Stats
+                        atk_val = attacker.stat_manager.get_value(Stats.STRENGTH)
+                    else:
+                        atk_val = getattr(attacker, "physical_attack", 100)
+                    
+                    cost = int(atk_val * 0.5)
+                    
+                    if attacker.combo_gauge >= cost:
+                        # 비용 소비
+                        attacker.combo_gauge -= cost
+                        
+                        # ATB 재충전 (추가 행동)
+                        from src.combat.atb_system import get_atb_system
+                        atb_sys = get_atb_system()
+                        gauge = atb_sys.get_gauge(attacker)
+                        if gauge:
+                            # 턴 즉시 획득 처리를 위해 게이지를 threshold + 1로 설정?
+                            # 단순 full charge로는 현재 턴 프로세스에 바로 끼어들지 못할 수 있음.
+                            # 하지만 게임 루프가 ATB 높은 순으로 다시 가져오므로 Max로 채우면 됨.
+                            # 턴 즉시 획득 처리를 위해 게이지를 max_gauge로 설정
+                            # (턴 종료 시 threshold만큼 소비하므로, max로 채워야 턴이 돌아옴)
+                            gauge.current = gauge.max_gauge
+                            self.logger.info(f"[연격 발동] {attacker.name} 추가 행동! (게이지 소모: {cost}, 남은 게이지: {attacker.combo_gauge})")
+                            
+                            # 특성: 파괴 추진력 (break_momentum) -> 다음 공격 강화
+                            # 여기서는 SCATTER 발동 시 효과로도 볼 수 있음
+                            event_bus.publish("breaker.extra_action", {"attacker": attacker})
+
+                            # UI 알림
+                            from src.combat.combat_manager import get_combat_manager
+                            cm = get_combat_manager()
+                            if cm and hasattr(cm, "combat_ui") and cm.combat_ui:
+                                if hasattr(cm.combat_ui, "add_message"):
+                                    cm.combat_ui.add_message(f"[연격 발동] {attacker.name}의 추가 행동!", (0, 255, 255))
+
             # BREAK 전용 효과음 재생
             from src.audio import play_sfx
             play_sfx("combat", "break")
@@ -263,6 +342,18 @@ class BraveSystem:
         elif was_broken and actual_damage > 0 and already_broken:
             # 이미 BREAK 상태라면 추가 BREAK 면역 (로그만 출력)
             self.logger.debug(f"{defender.name}은(는) 이미 BREAK 상태여서 추가 BREAK 면역")
+            
+            # [NEW] 이미 SCATTER 상태인 경우 스택 리셋 등은 하지 않음 (기획서: "중복 BREAK는 1회로 간주" -> 무시)
+            pass
+
+        # [NEW] BRV 공격 시 SCATTER 스택 증가 (콤보 게이지는 증가하지 않음)
+        # SCATTER 상태인 적에게 BRV 공격 시 스택만 증가
+        if actual_damage > 0 and hasattr(defender, 'status_manager'):
+            if defender.status_manager.has_status(StatusType.SCATTER):
+                scatter_status = defender.status_manager.get_status(StatusType.SCATTER)
+                if scatter_status:
+                    scatter_status.stack_count += 1
+                    self.logger.info(f"[SCATTER-BRV-STACK] {defender.name} 스택 증가: {scatter_status.stack_count - 1} -> {scatter_status.stack_count} (BRV 공격, 콤보 게이지 증가 없음)")
 
         # 이벤트 발행
         event_bus.publish(Events.CHARACTER_BRV_CHANGE, {
@@ -386,6 +477,31 @@ class BraveSystem:
         # HP 데미지 적용 (피해 감소는 take_damage 내부에서 처리)
         hp_damage = defender.take_damage(final_hp_damage)
         
+        # [NEW] SCATTER 스택 증가 (피해 적중 시)
+        # combat_manager가 아닌 여기서 처리하여 누락 방지
+        is_scattered_hit = damage_result.details.get("is_scattered", False)
+        if is_scattered_hit and hp_damage > 0:
+            if hasattr(defender, "status_manager"):
+                scatter_status = defender.status_manager.get_status(StatusType.SCATTER)
+                if scatter_status:
+                    scatter_status.stack_count += 1
+                    self.logger.info(f"[SCATTER-STACK] {defender.name} 스택 증가: {scatter_status.stack_count - 1} -> {scatter_status.stack_count}")
+
+            # 2. 콤보 게이지 증가 (원인 제공자에게)
+            source = damage_result.details.get("scatter_source")
+            if source and hasattr(source, "combo_gauge") and hasattr(source, "max_combo_gauge"):
+                 # 데미지량의 8% (또는 scatter_ramp 만큼) 게이지 증가
+                 scatter_ramp = damage_result.details.get("scatter_ramp", 0.08)
+                 gain = int(hp_damage * scatter_ramp)
+                 
+                 if gain > 0:
+                     old_gauge = source.combo_gauge
+                     source.combo_gauge = min(source.max_combo_gauge, source.combo_gauge + gain)
+                     actual_gain = source.combo_gauge - old_gauge
+                     
+                     if actual_gain > 0:
+                         self.logger.info(f"[SCATTER-GAUGE] {source.name} 콤보 게이지 증가: +{actual_gain} (피해의 {int(scatter_ramp*100)}%, 현재: {source.combo_gauge}/{source.max_combo_gauge})")
+
         # 보호 효과 처리 후 원본 정보 제거
         if hasattr(defender, '_last_attacker'):
             delattr(defender, '_last_attacker')
@@ -448,6 +564,7 @@ class BraveSystem:
                     self.logger.info(f"[마력 흡수] {attacker.name} MP 회복: +{actual_mp} ({mana_leech_rate * 100:.0f}%)")
         brv_consumed = attacker.current_brv
         self.logger.debug(f"[HP 공격] {attacker.name} BRV 소비: {brv_consumed}")
+        
         attacker.current_brv = 0
 
         event_bus.publish(Events.CHARACTER_BRV_CHANGE, {
@@ -458,7 +575,7 @@ class BraveSystem:
         })
 
         self.logger.info(
-            f"HP 공격: {attacker.name} → {defender.name}",
+            f"HP 공격: {attacker.name} -> {defender.name}",
             {
                 "brv_consumed": brv_consumed,
                 "hp_damage": hp_damage,
@@ -472,6 +589,107 @@ class BraveSystem:
             }
         )
 
+        # 세피로스 카운터 체크 (적이 피해를 받았을 때)
+        defender_id = getattr(defender, 'enemy_id', None)
+        self.logger.debug(f"[HP공격] defender: {defender.name}, enemy_id: {defender_id}, hp_damage: {hp_damage}")
+        
+        if defender_id == 'sephiroth' and hp_damage > 0:
+            self.logger.debug(f"[세피로스 피격] 피해량: {hp_damage}, 공격자: {attacker.name}")
+            from src.combat.combat_manager import get_combat_manager
+            cm = get_combat_manager()
+            
+            # boss_gimmick_system이 없으면 자동 초기화
+            if cm and not hasattr(cm, 'boss_gimmick_system'):
+                from src.combat.boss_gimmicks import reset_boss_gimmicks, get_boss_gimmick_system
+                reset_boss_gimmicks()
+                cm.boss_gimmick_system = get_boss_gimmick_system()
+                # 기존 표식 모두 제거 (이전 전투 잔여물)
+                for ally in cm.allies:
+                    if hasattr(ally, '_sephiroth_mark'):
+                        delattr(ally, '_sephiroth_mark')
+                    if hasattr(ally, '_cain_mark'):
+                        delattr(ally, '_cain_mark')
+                self.logger.debug("[보스 기믹] 시스템 자동 초기화 완료 (세피로스)")
+            
+            if cm and hasattr(cm, 'boss_gimmick_system'):
+                # 직접 기믹 처리
+                gimmick = cm.boss_gimmick_system
+                counter_result = gimmick.on_sephiroth_damaged(defender, hp_damage, attacker)
+                
+                # UI에 스택 표시
+                ui = getattr(cm, 'combat_ui', None)
+                current_stack = gimmick.sephiroth_counter_stack
+                if ui and hasattr(ui, 'add_message'):
+                    if current_stack > 0:
+                        ui.add_message(f"[광기] 스택 {current_stack}/3", (255, 150, 100))
+                
+                # 반격 실행
+                if counter_result:
+                    if ui and hasattr(ui, 'add_message'):
+                        ui.add_message(counter_result.get('message', ''), (255, 50, 50))
+                        ui.add_message(f"[{counter_result['skill_name']}] 반격!", (255, 100, 100))
+                    
+                    # 실제 반격 데미지 처리 (세피로스 공격력 vs 방어자 방어력)
+                    target = counter_result['target']
+                    
+                    # 세피로스 공격력
+                    seph_atk = getattr(defender, 'physical_attack', 100)
+                    if hasattr(defender, 'stat_manager'):
+                        from src.character.stats import Stats
+                        seph_atk = defender.stat_manager.get_value(Stats.ATTACK)
+                    
+                    # 타겟 방어력
+                    target_def = getattr(target, 'physical_defense', 50)
+                    if hasattr(target, 'stat_manager'):
+                        from src.character.stats import Stats
+                        target_def = target.stat_manager.get_value(Stats.DEFENSE)
+                    
+                    if counter_result['is_hp_attack']:
+                        # HP 공격: (공격력 / 방어력) × 250
+                        if target_def > 0:
+                            base_damage = (seph_atk / target_def) * 250
+                        else:
+                            base_damage = seph_atk * 2.5  # 방어력 0일 때 대체
+                        counter_damage = int(base_damage)
+                        counter_damage = max(10, counter_damage)  # 최소 10
+                        
+                        if hasattr(target, 'current_hp'):
+                            counter_damage = min(counter_damage, target.current_hp)
+                            target.current_hp -= counter_damage
+                        
+                        if ui and hasattr(ui, 'add_message'):
+                            ui.add_message(f"[{counter_result['skill_name']}] {target.name}에게 {counter_damage} HP 피해!", (255, 100, 100))
+                    else:
+                        # BRV 공격: 공격력 기반
+                        brv_damage = int(seph_atk * counter_result['damage_multiplier'])
+                        counter_brv_result = self.brv_attack(defender, target, brv_damage)
+                        if ui and hasattr(ui, 'add_message'):
+                            ui.add_message(f"[{counter_result['skill_name']}] {target.name}에게 BRV 공격!", (255, 150, 100))
+            
+            # 공유 고통: 표식된 아군이 세피로스 공격 시 아군 전체 피해
+            if cm and hasattr(cm, 'boss_gimmick_system'):
+                marked_target = gimmick.sephiroth_marked_target
+                has_mark_attr = hasattr(attacker, '_sephiroth_mark')
+                
+                # allies 가져오기 (여러 소스에서 시도)
+                allies_list = getattr(cm, 'allies', None) or []
+                if not allies_list and hasattr(cm, 'party'):
+                    allies_list = getattr(cm.party, 'members', [])
+                
+                self.logger.info(f"[공유 고통 체크] 공격자: {attacker.name}, has_attr: {has_mark_attr}, allies: {len(allies_list)}명")
+                
+                if has_mark_attr and allies_list:
+                    shared_result = gimmick.check_shared_pain(attacker, hp_damage, allies_list)
+                    if shared_result and shared_result.get('damaged_allies'):
+                        # UI에 표시
+                        ui = getattr(cm, 'combat_ui', None)
+                        if ui and hasattr(ui, 'add_message'):
+                            ui.add_message(shared_result['message'], (255, 100, 100))
+                            total_shared = sum(d['damage'] for d in shared_result['damaged_allies'])
+                            ui.add_message(f"[공유 고통] 아군 전체 {total_shared} 피해!", (255, 50, 50))
+                            for d in shared_result['damaged_allies']:
+                                ui.add_message(f"  → {d['name']}에게 {d['damage']} 피해!", (255, 150, 150))
+
         return {
             "hp_damage": hp_damage,
             "wound_damage": wound_damage,
@@ -479,7 +697,9 @@ class BraveSystem:
             "is_break_bonus": is_defender_broken,
             "is_critical": damage_result.is_critical,
             "damage_type": damage_type,
-            "stat_modifier": damage_result.variance
+            "stat_modifier": damage_result.variance,
+            "is_scattered": damage_result.details.get("is_scattered", False),
+            "scatter_source": damage_result.details.get("scatter_source")
         }
 
     def brv_hp_attack(
@@ -584,6 +804,17 @@ class BraveSystem:
                 character.break_turn_count = 0
                 character.current_brv = init_brv_value
 
+                # [FIX] SCATTER 상태도 함께 해제
+                if hasattr(character, 'status_manager'):
+                    from src.combat.status_effects import StatusType
+                    if character.status_manager.has_status(StatusType.SCATTER):
+                        character.status_manager.remove_status(StatusType.SCATTER)
+                        if hasattr(character, 'is_scattered'):
+                            character.is_scattered = False
+                        if hasattr(character, 'scatter_source'):
+                            character.scatter_source = None
+                        self.logger.info(f"{character.name} SCATTER 상태 해제 (BREAK 회복)")
+
                 self.logger.info(f"{character.name} BREAK 해제 및 BRV 회복: {init_brv_value}")
 
                 event_bus.publish(Events.CHARACTER_BRV_CHANGE, {
@@ -621,6 +852,16 @@ class BraveSystem:
             character.is_broken = False
         if hasattr(character, "break_turn_count"):
             character.break_turn_count = 0
+
+        # [FIX] SCATTER 상태도 함께 해제
+        if hasattr(character, 'status_manager'):
+            from src.combat.status_effects import StatusType
+            if character.status_manager.has_status(StatusType.SCATTER):
+                character.status_manager.remove_status(StatusType.SCATTER)
+        if hasattr(character, 'is_scattered'):
+            character.is_scattered = False
+        if hasattr(character, 'scatter_source'):
+            character.scatter_source = None
 
 
 # 전역 인스턴스

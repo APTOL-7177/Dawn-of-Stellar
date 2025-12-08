@@ -1,0 +1,43 @@
+id: priest_divine_counter
+name: 신성한 응징
+type: buff
+description: '신의 응징을 준비한다.
+
+  반격률 +50% (2턴).
+
+  반격 시 성속성 피해 추가.
+
+  신앙 100이면 반격률 +100%, 반격 데미지 2배, 4턴 + 신앙 소모.
+
+  신앙 +15.
+
+  "응징의 신탁" 충족 가능.
+
+  '
+target: self
+costs:
+  mp: 10
+metadata:
+  oracle_action: prepare_counter
+  faith_empowered: true
+effects:
+- type: buff
+  buff_id: divine_counter
+  duration: 2
+  effects:
+    counter_rate_bonus: 0.5
+    counter_holy_damage: true
+- type: gimmick
+  operation: add
+  field: faith
+  value: 15
+  max_value: 100
+animation:
+  icon: ⚡
+  color:
+  - 255
+  - 255
+  - 150
+sfx:
+- se
+- Up1

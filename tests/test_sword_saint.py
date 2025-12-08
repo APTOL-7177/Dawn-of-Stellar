@@ -22,10 +22,10 @@ def test_sword_saint():
     brave_system = get_brave_system()
     
     # 검성 스킬 등록
-    skill_ids = register_sword_saint_skills(skill_manager)
-    print(f"\n✅ 검성 스킬 {len(skill_ids)}개 등록 완료")
-    for skill_id in skill_ids:
-        skill = skill_manager.get_skill(skill_id)
+    skills = register_sword_saint_skills(skill_manager)
+    print(f"\n✅ 검성 스킬 {len(skills)}개 등록 완료")
+    skill_ids = [s.skill_id for s in skills]
+    for skill in skills:
         print(f"   - {skill.name}")
     
     # 캐릭터 생성

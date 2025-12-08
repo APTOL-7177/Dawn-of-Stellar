@@ -27,13 +27,15 @@ class QuestBoardUI:
         screen_height: int,
         quest_manager: QuestManager,
         player_level: int,
-        player: Any = None
+        player: Any = None,
+        current_floor: int = 0
     ):
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.quest_manager = quest_manager
         self.player_level = player_level
         self.player = player
+        self.current_floor = current_floor
         
         # 퀘스트 목록
         self.available_quests = quest_manager.get_available_quests()
@@ -96,7 +98,7 @@ class QuestBoardUI:
                 quest = current_list[self.cursor]
 
                 if self.current_tab == 0:  # 사용 가능한 퀘스트 수락
-                    if self.quest_manager.accept_quest(quest.quest_id):
+                    if self.quest_manager.accept_quest(quest.quest_id, self.current_floor):
                         self.available_quests = self.quest_manager.get_available_quests()
                         self.active_quests = self.quest_manager.get_active_quests()
                         self.cursor = min(self.cursor, len(self.available_quests) - 1)
@@ -248,7 +250,8 @@ def open_quest_board(
     context: tcod.context.Context,
     quest_manager: Optional[QuestManager] = None,
     player_level: int = 1,
-    player: Any = None
+    player: Any = None,
+    current_floor: int = 0
 ):
     """퀘스트 게시판 열기"""
     from src.quest.quest_manager import get_quest_manager
@@ -257,7 +260,7 @@ def open_quest_board(
     if quest_manager is None:
         quest_manager = get_quest_manager()
     
-    ui = QuestBoardUI(console.width, console.height, quest_manager, player_level, player)
+    ui = QuestBoardUI(console.width, console.height, quest_manager, player_level, player, current_floor)
     
     logger.info("퀘스트 게시판 열기")
 

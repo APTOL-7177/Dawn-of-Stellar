@@ -115,7 +115,7 @@ def create_gladiator_skills():
         DamageEffect(DamageType.BRV_HP, 2.5, stat_type="physical"),
         GimmickEffect(GimmickOperation.ADD, "cheer", 25, max_value=100),
     ]
-    risky_stunt.costs = [MPCost(8)]
+    risky_stunt.costs = [MPCost(8), HPCost(percentage=0.15)]
     risky_stunt.sfx = ("combat", "damage_high")
     risky_stunt.metadata = {
         "high_risk": True,

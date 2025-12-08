@@ -3,11 +3,14 @@ from enum import Enum
 from src.character.skills.effects.base import SkillEffect, EffectResult, EffectType
 from src.combat.brave_system import get_brave_system
 from src.combat.damage_calculator import get_damage_calculator
+from src.core.event_bus import event_bus, Events
 
 class DamageType(Enum):
     BRV = "brv"
     HP = "hp"
     BRV_HP = "brv_hp"
+    HEAL = "heal"
+    HEAL_MP = "heal_mp"
 
 class DamageEffect(SkillEffect):
     """데미지 효과"""
@@ -33,6 +36,12 @@ class DamageEffect(SkillEffect):
         
         # 타겟 리스트 처리
         targets = target if isinstance(target, list) else [target]
+        # 전체 타겟 수를 컨텍스트에 전달 (관중 요구 등에서 사용)
+        if context is None:
+            context = {}
+        else:
+            context = dict(context)
+        context.setdefault('targets_count', len(targets))
         
         # 다단히트 체크 (스킬 메타데이터에서)
         multi_hit_count = 1
@@ -48,6 +57,21 @@ class DamageEffect(SkillEffect):
                         multi_hit_count = 2 + phantom_count  # 기본 2 + 환영 수
                     elif isinstance(multi_hit, int):
                         multi_hit_count = multi_hit
+        
+        # 검성: 검기 스택 기반 추가 공격 처리
+        sword_aura_hits = []
+        if context and 'skill' in context:
+            skill = context['skill']
+            if hasattr(skill, 'metadata') and skill.metadata:
+                # sword_aura_bonus_hits: 검기 스택에 따른 추가 공격 (고정 계수)
+                sword_aura_bonus = skill.metadata.get('sword_aura_bonus_hits')
+                if sword_aura_bonus:
+                    sword_aura = getattr(user, 'sword_aura', 0)
+                    if sword_aura > 0:
+                        bonus_multiplier = sword_aura_bonus.get('multiplier', 0.5)
+                        # 각 검기마다 고정 계수로 추가 공격
+                        for _ in range(sword_aura):
+                            sword_aura_hits.append(bonus_multiplier)
         
         # HP 공격이 여러 타겟에 적용되는 경우, 시작 시점의 BRV를 저장
         # (첫 번째 타겟에서만 BRV를 소모하고, 나머지 타겟들에는 초기 BRV로 복원)
@@ -77,7 +101,38 @@ class DamageEffect(SkillEffect):
             if is_aoe_hp:
                 context['_aoe_hp_target_index'] = alive_targets_processed
             
-            # 다단히트 실행
+            # 검성: 검기 스택에 따른 선행 BRV 공격 (검기가 먼저 피해를 입힘)
+            if sword_aura_hits and single_target.is_alive:
+                import random
+                
+                # 원래 배율과 데미지 타입을 저장
+                original_multiplier = self.multiplier
+                original_damage_type = self.damage_type
+                
+                for hit_idx, bonus_mult in enumerate(sword_aura_hits):
+                    if not single_target.is_alive:
+                        break
+                    
+                    # 검기는 항상 BRV 공격 (고정 계수)
+                    self.multiplier = bonus_mult
+                    self.damage_type = DamageType.BRV
+                    context['_sword_aura_hit'] = hit_idx + 1
+                    context['_sword_aura_total'] = len(sword_aura_hits)
+                    # SFX 정보를 context에 추가 (hit_queue에서 딜레이 적용하여 재생)
+                    context['_sfx'] = ("combat", "sword4", random.uniform(1.3, 1.5))
+                    
+                    bonus_result = self._execute_single(user, single_target, context)
+                    result.merge(bonus_result)
+                
+                # 원래 배율과 데미지 타입 복원
+                self.multiplier = original_multiplier
+                self.damage_type = original_damage_type
+                
+                # 컨텍스트 정리
+                context.pop('_sword_aura_hit', None)
+                context.pop('_sword_aura_total', None)
+            
+            # 다단히트 실행 (메인 공격)
             for hit_num in range(multi_hit_count):
                 # 다단히트 정보를 context에 추가
                 if context is None:
@@ -100,12 +155,53 @@ class DamageEffect(SkillEffect):
             # 첫 번째 타겟에서 이미 BRV가 소모되었으므로, BRV를 0으로 설정
             user.current_brv = 0
         
+        # 검성: 검기 스택 소모는 StackCost를 통해서만 이루어짐
+        # (sword_aura_bonus_hits는 현재 검기 수만큼 추가타를 발동하지만, 소모하지 않음)
+        
         return result
     
     def _execute_single(self, user, target, context):
         """단일 타겟 데미지"""
         result = EffectResult(effect_type=EffectType.DAMAGE, success=True)
         
+        # ========================================
+        # 일반 보호 효과 (ProtectEffect)
+        # ========================================
+        if context and not context.get('_protect_in_progress'):
+            if hasattr(target, 'protected_by') and target.protected_by:
+                # 활성 보호자 찾기
+                active_protection = None
+                for info in target.protected_by:
+                    protector = info['protector']
+                    # 보호자가 살아있고, 자신이 자신을 보호하는 경우가 아닌지 확인
+                    if getattr(protector, 'is_alive', False) and protector != target:
+                        active_protection = info
+                        break
+                
+                if active_protection:
+                    protector = active_protection['protector']
+                    reduction = active_protection.get('damage_reduction', 0.0)
+                    
+                    # 타겟을 보호자로 변경
+                    protect_context = context.copy() if context else {}
+                    protect_context['_protect_in_progress'] = True
+                    
+                    # 데미지 감소 적용 (배율 오버라이드 계산)
+                    if reduction > 0:
+                        current_override = protect_context.get('damage_multiplier_override', 1.0)
+                        protect_context['damage_multiplier_override'] = current_override * (1.0 - reduction)
+                    
+                    # 보호자가 대신 피해를 받음
+                    protect_result = self._execute_single(user, protector, protect_context)
+                    
+                    # 메시지 보강
+                    protect_msg = f"{protector.name}이(가) {target.name}을(를) 보호!"
+                    if reduction > 0:
+                        protect_msg += f" (피해 {int(reduction*100)}% 감소)"
+                    
+                    protect_result.message = protect_msg + " " + (protect_result.message or "")
+                    return protect_result
+
         # ========================================
         # 나이트 (J) - 아군 보호 효과
         # 적이 아군을 공격할 때, protect_ally 효과가 있는 다른 아군이 대신 피해를 받음
@@ -164,7 +260,16 @@ class DamageEffect(SkillEffect):
 
         # 최종 배율 계산
         final_mult = self.multiplier
-        
+
+        # 스킬 메타데이터 기반 배율 (예: 은신 배수)
+        skill = context.get("skill") if context else None
+        skill_meta = getattr(skill, "metadata", {}) if skill else {}
+        if skill_meta.get("stealth_multiplier") and getattr(user, "stealth_active", False):
+            try:
+                final_mult *= float(skill_meta.get("stealth_multiplier", 1.0))
+            except (TypeError, ValueError):
+                pass
+
         # 가능성 시스템 배율 적용 (power_multiplier)
         if context and 'power_multiplier' in context:
             final_mult *= context['power_multiplier']
@@ -172,6 +277,10 @@ class DamageEffect(SkillEffect):
         # 트리플 히트 배율 적용
         if context and context.get('_triple_hit_mult'):
             final_mult *= context['_triple_hit_mult']
+
+        # 데미지 배율 오버라이드 (보호 효과 등에서 사용)
+        if context and 'damage_multiplier_override' in context:
+            final_mult *= context['damage_multiplier_override']
 
         # 기믹 보너스
         if self.gimmick_bonus:
@@ -509,4 +618,72 @@ class DamageEffect(SkillEffect):
                         "lucky_drop", "free_cast", "protect_ally"]:
                 card_effects.pop(key, None)
         
+        # ========================================
+        # 굴절량 기반 고정 피해 (차원술사)
+        # ========================================
+        skill = context.get("skill") if context else None
+        skill_meta = getattr(skill, "metadata", {}) if skill else {}
+        refraction_fixed_rate = skill_meta.get("refraction_fixed_damage_rate", 0)
+
+        if refraction_fixed_rate > 0 and hasattr(user, 'gimmick_type') and user.gimmick_type == "dimension_refraction":
+            refraction_stacks = getattr(user, 'refraction_stacks', 0)
+            if refraction_stacks > 0:
+                # 고정 피해 계산 (굴절량 × 비율)
+                fixed_damage = int(refraction_stacks * refraction_fixed_rate)
+
+                # 고정 피해 증폭 특성 확인 (차원술사)
+                if hasattr(user, 'active_traits'):
+                    has_amplification = any(
+                        (t if isinstance(t, str) else t.get('id')) == 'fixed_damage_amplification'
+                        for t in user.active_traits
+                    )
+                    if has_amplification:
+                        fixed_damage = int(fixed_damage * 1.5)  # 고정 피해 +50%
+                        from src.core.logger import get_logger
+                        logger = get_logger("damage")
+                        logger.debug(f"[고정 피해 증폭] {user.name} 굴절 피해: {fixed_damage} (+50%)")
+
+                if fixed_damage > 0:
+                    # HP 고정 피해 적용
+                    actual_damage = min(fixed_damage, target.current_hp)
+                    target.current_hp = max(0, target.current_hp - fixed_damage)
+
+                    # 결과에 추가
+                    if hasattr(result, 'hp_damage'):
+                        result.hp_damage = getattr(result, 'hp_damage', 0) + actual_damage
+                    else:
+                        result.hp_damage = actual_damage
+
+                    result.damage_dealt = getattr(result, 'damage_dealt', 0) + actual_damage
+
+                    # 메시지 업데이트
+                    if result.message:
+                        result.message += f" + 굴절 피해 {actual_damage}"
+                    else:
+                        result.message = f"굴절 피해 {actual_damage}"
+
+                    from src.core.logger import get_logger
+                    logger = get_logger("damage")
+                    logger.debug(f"[굴절 고정 피해] {user.name} → {target.name}: {actual_damage} (굴절량 {refraction_stacks} × {refraction_fixed_rate})")
+
+        # ========================================
+        # 히트 이벤트 발행 (다단히트 타격감용)
+        # ========================================
+        hit_info = {
+            'attacker': user,
+            'target': target,
+            'damage_type': self.damage_type.value,
+            'brv_damage': getattr(result, 'brv_damage', 0),
+            'hp_damage': getattr(result, 'hp_damage', 0),
+            'is_critical': getattr(result, 'critical', False),
+            'is_break': getattr(result, 'brv_broken', False),
+            'sword_aura_hit': context.get('_sword_aura_hit') if context else None,
+            'multi_hit_current': context.get('_multi_hit_current') if context else None,
+            'sfx': context.get('_sfx') if context else None,  # SFX 정보 (category, name, pitch)
+            # 추가 컨텍스트 (관중 요구/서약 조건 확인용)
+            'targets_hit': context.get('targets_count', 1) if context else 1,
+            'hp_percent_of_target': (getattr(result, 'hp_damage', 0) / target.max_hp * 100) if getattr(result, 'hp_damage', 0) and hasattr(target, 'max_hp') and target.max_hp > 0 else 0,
+        }
+        event_bus.publish(Events.COMBAT_HIT, hit_info)
+
         return result

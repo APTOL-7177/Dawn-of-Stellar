@@ -1,0 +1,32 @@
+id: run_scanner
+name: 스캐너 실행
+type: utility
+description: '[프로그램] 자동 스캐너를 실행합니다.
+
+  3턴간 매 턴 무작위 적 침투 +10.
+
+  RAM 1 소모.
+
+  '
+target: self
+costs:
+  mp: 8
+  ram: 3
+metadata:
+  program: true
+  duration: 3
+effects:
+- type: buff
+  buff_id: scanner_program
+  duration: 3
+  effects:
+    auto_intrusion_per_turn: 10
+animation:
+  icon: 🖥️
+  color:
+  - 0
+  - 255
+  - 200
+sfx:
+- se
+- Up1

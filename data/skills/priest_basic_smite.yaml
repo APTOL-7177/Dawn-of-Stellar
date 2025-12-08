@@ -1,0 +1,33 @@
+id: priest_basic_smite
+name: 성봉 일격
+type: attack
+description: '성광을 담아 적을 가격합니다.
+
+  BRV 1.1 피해를 주고 신앙을 조금 얻습니다.
+
+  '
+target: enemy
+metadata:
+  job: priest
+  basic_attack: true
+  faith_gain: 5
+effects:
+- type: damage
+  damage_type: brv
+  element: holy
+  stat_base: magical
+  multiplier: 1.1
+- type: gimmick
+  operation: add
+  field: faith
+  value: 5
+  max_value: 100
+animation:
+  icon: ??
+  color:
+  - 230
+  - 230
+  - 255
+sfx:
+- se
+- Thunder1

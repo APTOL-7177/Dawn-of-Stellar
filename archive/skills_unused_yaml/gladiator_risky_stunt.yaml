@@ -1,0 +1,27 @@
+id: gladiator_risky_stunt
+name: 위험한 묘기
+type: attack
+description: '고위험 묘기로 큰 피해와 환호를 얻지만 체력을 희생합니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv_hp
+  stat_base: physical
+  multiplier: 2.5
+- type: gimmick
+  operation: add
+  field: cheer
+  value: 25
+  max_value: 100
+target: enemy
+costs:
+  mp: 8
+metadata:
+  job: gladiator
+  high_risk: true
+  hp_cost_percent: 0.15
+  cheer_gain: 25
+sfx:
+- se
+- Sword2

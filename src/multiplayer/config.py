@@ -16,7 +16,7 @@ ENEMY_COUNT_MULTIPLIER = 1.0  # 싱글과 동일
 ENEMY_HP_MULTIPLIER = 1.0  # 싱글과 동일
 ENEMY_DAMAGE_MULTIPLIER = 1.0  # 싱글과 동일
 EXP_DIVIDE_BY_PARTICIPANTS = True  # 참여 전투원 수로 나눔
-INVENTORY_WEIGHT_MULTIPLIER = 1.0  # 싱글과 동일
+INVENTORY_WEIGHT_MULTIPLIER = 1.4  # 멀티플레이 40% 증가 (인원 분산 고려)
 
 # 전투 시스템
 ACTION_WAIT_TIME = 1.5  # 1.5초 고정
@@ -25,8 +25,9 @@ PARTICIPATION_RADIUS = 5  # 5 타일 고정
 
 # 인벤토리 시스템
 ITEM_USE_PERMISSION = "free"  # 자유 사용
-ITEM_DISTRIBUTION = "shared_storage"  # 공유 저장
-GOLD_MANAGEMENT = "fully_shared"  # 완전 공유
+ITEM_DISTRIBUTION = "individual"  # 개별 인벤토리
+GOLD_MANAGEMENT = "split_equally"  # 균등 분배
+
 
 # 던전 생성
 DUNGEON_SEED_SOURCE = "host"  # 호스트 생성

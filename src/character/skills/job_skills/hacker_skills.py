@@ -15,8 +15,8 @@ def create_hacker_skills():
         DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
     ]
     code_injection.costs = []  # 기본 공격은 MP 소모 없음
-    code_injection.sfx = ("skill", "computer")  # 코드 주입
-    code_injection.metadata = {}
+    code_injection.sfx = ("se", "Computer")  # 코드 주입
+    code_injection.metadata = {"ram_cost": 3}
 
     # 2. 기본 HP: 데이터 유출
     data_breach = Skill("hacker_data_breach", "데이터 유출", "정보 탈취 HP 공격")
@@ -24,8 +24,8 @@ def create_hacker_skills():
         DamageEffect(DamageType.HP, 1.2, stat_type="magical")
     ]
     data_breach.costs = []  # 기본 공격은 MP 소모 없음
-    data_breach.sfx = ("skill", "load")  # 데이터 유출
-    data_breach.metadata = {}
+    data_breach.sfx = ("se", "Computer")  # 데이터 유출
+    data_breach.metadata = {"ram_cost": 3}
 
     # 3. 바이러스 실행 (적 전체 공격력 + 마법력 -15%)
     run_virus = Skill("hacker_run_virus", "바이러스 실행", "적 전체 공격력 + 마법력 -15% 프로그램 실행")
@@ -37,9 +37,9 @@ def create_hacker_skills():
     run_virus.costs = []  # MP 소모 0으로 변경
     run_virus.target_type = "all_enemies"
     run_virus.is_aoe = True
-    run_virus.sfx = ("skill", "switch")  # 바이러스 실행
+    run_virus.sfx = ("se", "Buzzer3")  # 바이러스 실행
     # run_virus.cooldown = 2  # 쿨다운 시스템 제거됨
-    run_virus.metadata = {"program_type": "virus", "debuff": "attack_down"}
+    run_virus.metadata = {"program_type": "virus", "debuff": "attack_down", "ram_cost": 5}
 
     # 4. 백도어 실행 (적 전체 방어력 + 마법방어력 -20%)
     run_backdoor = Skill("hacker_run_backdoor", "백도어 실행", "적 전체 방어력 + 마법방어력 -20% 프로그램 실행")
@@ -51,9 +51,9 @@ def create_hacker_skills():
     run_backdoor.costs = []  # MP 소모 0으로 변경
     run_backdoor.target_type = "all_enemies"
     run_backdoor.is_aoe = True
-    run_backdoor.sfx = ("skill", "computer")  # 백도어 실행
+    run_backdoor.sfx = ("se", "Autodoor")  # 백도어 실행
     # run_backdoor.cooldown = 2  # 쿨다운 시스템 제거됨
-    run_backdoor.metadata = {"program_type": "backdoor", "debuff": "defense_down"}
+    run_backdoor.metadata = {"program_type": "backdoor", "debuff": "defense_down", "ram_cost": 5}
 
     # 5. DDoS 실행 (적 전체 속도 -35%)
     run_ddos = Skill("hacker_run_ddos", "DDoS 실행", "적 전체 속도 -35% 프로그램 실행")
@@ -64,9 +64,9 @@ def create_hacker_skills():
     run_ddos.costs = []  # MP 소모 0으로 변경
     run_ddos.target_type = "all_enemies"
     run_ddos.is_aoe = True
-    run_ddos.sfx = ("skill", "machine")  # DDoS 실행
+    run_ddos.sfx = ("se", "Machine")  # DDoS 실행
     # run_ddos.cooldown = 3  # 쿨다운 시스템 제거됨
-    run_ddos.metadata = {"program_type": "ddos", "debuff": "speed_down"}
+    run_ddos.metadata = {"program_type": "ddos", "debuff": "speed_down", "ram_cost": 8}
 
     # 6. 랜섬웨어 실행 (적 전체 매 턴 HP 피해 - 마법력 비례)
     run_ransomware = Skill("hacker_run_ransomware", "랜섬웨어 실행", "적 전체 매 턴 마법력 35% HP 피해 프로그램")
@@ -77,13 +77,14 @@ def create_hacker_skills():
     run_ransomware.costs = []  # MP 소모 0으로 변경
     run_ransomware.target_type = "all_enemies"
     run_ransomware.is_aoe = True
-    run_ransomware.sfx = ("skill", "computer")  # 랜섬웨어 실행
+    run_ransomware.sfx = ("se", "Buzzer3")  # 랜섬웨어 실행
     # run_ransomware.cooldown = 4  # 쿨다운 시스템 제거됨
     run_ransomware.metadata = {
         "program_type": "ransomware",
         "debuff": "hp_drain",
         "dot": True,
-        "magic_percentage": 0.35  # 마법력의 35%만큼 매 턴 HP 감소
+        "magic_percentage": 0.35,  # 마법력의 35%만큼 매 턴 HP 감소
+        "ram_cost": 8
     }
 
     # 7. 스파이웨어 실행 (적 전체 명중률 감소)
@@ -97,7 +98,7 @@ def create_hacker_skills():
     run_spyware.is_aoe = True
     run_spyware.sfx = ("skill", "save")  # 스파이웨어 실행
     # run_spyware.cooldown = 2  # 쿨다운 시스템 제거됨
-    run_spyware.metadata = {"program_type": "spyware", "info_gathering": True}
+    run_spyware.metadata = {"program_type": "spyware", "info_gathering": True, "ram_cost": 5}
 
     # 8. 프로그램 종료 (모든 프로그램 종료하여 강력한 공격)
     terminate_all = Skill("hacker_terminate_all", "프로그램 종료", "모든 프로그램 종료하여 강력한 공격")
@@ -115,7 +116,7 @@ def create_hacker_skills():
     terminate_all.costs = [MPCost(2)]  # MP 소모량 15 -> 5로 감소
     terminate_all.sfx = ("skill", "laser")  # 프로그램 종료
     # terminate_all.cooldown = 5  # 쿨다운 시스템 제거됨
-    terminate_all.metadata = {"terminate_all": True}
+    terminate_all.metadata = {"terminate_all": True, "ram_cost": 7, "ram_burn_bonus_per": 0.04, "ram_burn_max": 6}
 
     # 9. 시스템 과부하 (프로그램 유지하면서 강력한 공격)
     system_overload = Skill("hacker_system_overload", "시스템 과부하", "프로그램 수에 비례한 강력한 공격")
@@ -126,7 +127,7 @@ def create_hacker_skills():
     system_overload.costs = [MPCost(7)]
     system_overload.sfx = ("skill", "machine")  # 시스템 과부하
     # system_overload.cooldown = 4  # 쿨다운 시스템 제거됨
-    system_overload.metadata = {"program_scaling": True}
+    system_overload.metadata = {"program_scaling": True, "ram_cost": 6, "ram_burn_bonus_per": 0.05, "ram_burn_max": 8}
 
     # 10. 궁극기: 멀티스레드 폭주 (모든 프로그램 즉시 실행 + 극대 공격)
     ultimate = Skill("hacker_ultimate", "멀티스레드 폭주", "적 전체에 모든 프로그램 즉시 실행 + 극대 공격")
@@ -151,7 +152,7 @@ def create_hacker_skills():
     ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
     ultimate.is_aoe = True
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
-    ultimate.metadata = {"ultimate": True, "multithread_rampage": True}
+    ultimate.metadata = {"ultimate": True, "multithread_rampage": True, "ram_cost": 10, "ram_burn_bonus_per": 0.07, "ram_burn_max": 12}
 
     return [code_injection, data_breach, run_virus, run_backdoor, run_ddos,
             run_ransomware, run_spyware, terminate_all, system_overload, ultimate]
@@ -176,7 +177,7 @@ def register_hacker_skills(skill_manager):
     teamwork.is_aoe = True
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "teamwork")
-    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "hack": True}
+    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "hack": True, "ram_cost": 8}
     skills.append(teamwork)
 
     for skill in skills:

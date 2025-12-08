@@ -1,0 +1,39 @@
+id: umbra_mortis
+name: 움브라 모르티스
+type: hp_attack
+description: '[은신 필요] 그림자에서 암살합니다.
+
+  HP 피해 5.0 (은신 보너스 포함).
+
+  HP 30% 이하 적 즉시 처형.
+
+  은신 해제.
+
+  '
+target: single_enemy
+costs:
+  mp: 25
+metadata:
+  requires_stealth: true
+  stealth_multiplier: 3.0
+  execute_threshold: 0.3
+effects:
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 5.0
+- type: custom
+  handler: try_execute
+  threshold: 0.3
+- type: custom
+  handler: remove_stealth
+animation:
+  icon: 🌑
+  color:
+  - 50
+  - 0
+  - 100
+  screen_effect: shadow_assassination
+sfx:
+- se
+- Magic1

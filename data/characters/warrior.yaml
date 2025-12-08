@@ -1,6 +1,6 @@
 class_name: 전사
 description: 강력한 물리 공격력과 높은 방어력을 가진 전장의 지배자
-slogan: "상황에 맞는 자세, 그것이 진정한 전사의 길"
+slogan: 상황에 맞는 자세, 그것이 진정한 전사의 길
 archetype: 물리 딜러/탱커
 base_stats:
   hp: 210
@@ -13,18 +13,18 @@ base_stats:
   speed: 68
   max_brv: 490
 stat_growth:
-  hp: 15
-  mp: 3
-  init_brv: 27.0
-  strength: 4.5
-  defense: 4.0
-  magic: 2.0
-  spirit: 3.5
-  speed: 3.0
-  luck: 2.0
-  accuracy: 1.5
-  evasion: 1.0
-  max_brv: 98.0
+  hp: 53.9
+  mp: 2.1
+  init_brv: 31.9
+  strength: 19.5
+  defense: 17.7
+  magic: 9.7
+  spirit: 15.6
+  speed: 16.8
+  max_brv: 137.6
+  luck: 3
+  accuracy: 1.6
+  evasion: 1.2
 gimmick:
   type: stance_system
   name: 6단계 스탠스
@@ -44,7 +44,7 @@ gimmick:
     description: 속도/공격력 +55%, 방어력/마법방어력 -45%, 매턴 피해
   - id: guardian
     name: 수호자 자세
-    description: 모든 스탯 -15%, HP/MP 매턴 크게 재생
+    description: 받는 피해 70% 경감, 공격/마공/속도 -60%, HP 매턴 12% 재생, 50% 확률로 아군 피해 대신 받음
   - id: speed
     name: 속도 자세
     description: 속도 +80%, 방어력/마법방어력/공격력 -25%
@@ -86,7 +86,8 @@ skills:
 - war_cry
 - furious_strike
 - ultimate
-
+- warrior_steel_bulwark
+- warrior_guardian_link
 bonuses:
   hp_multiplier: 1.05
   physical_damage: 1.05

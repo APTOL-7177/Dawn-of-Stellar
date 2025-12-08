@@ -1,0 +1,42 @@
+id: elementalist_teamwork
+name: 4대 정령의 축복
+type: teamwork
+description: "[팀워크] 4대 정령이 파티 전체를 축복합니다.\n\n효과:\n1. 4대 정령 즉시 소환 (슬롯에 무작위 2마리)\n2.\
+  \ 아군 전체 3턴 버프:\n   - 공격력/방어력/속도 +15%\n   - 턴 종료 HP/MP 5% 회복\n3. 전체 적 \"원소 취약\" 3턴:\n\
+  \   - 받는 원소 피해 +20%\n"
+target: all
+costs:
+  teamwork_gauge: 100
+metadata:
+  teamwork: true
+effects:
+- type: custom
+  handler: summon_random_spirits
+  count: 2
+- type: buff
+  buff_id: spirit_blessing
+  target: all_allies
+  duration: 3
+  effects:
+    attack_multiplier: 1.15
+    defense_multiplier: 1.15
+    speed_multiplier: 1.15
+    hp_regen_percent: 0.05
+    mp_regen_percent: 0.05
+- type: debuff
+  debuff_id: elemental_vulnerability
+  target: all_enemies
+  duration: 3
+  effects:
+    elemental_damage_taken: 1.2
+animation:
+  icon: 🌟
+  color:
+  - 255
+  - 255
+  - 200
+  screen_effect: elemental_blessing
+  duration: 2.0
+sfx:
+- se
+- Summon

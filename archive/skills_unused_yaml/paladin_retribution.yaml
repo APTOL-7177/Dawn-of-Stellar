@@ -1,0 +1,42 @@
+id: paladin_retribution
+name: 성스러운 징벌
+type: attack
+description: '성력을 대량 소비해 신성한 폭발을 일으키고 적을 약화합니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv_hp
+  stat_base: physical
+  multiplier: 2.5
+  gimmick_bonus:
+    field: holy_power
+    multiplier: 0.35
+- type: buff
+  buff_type: attack_down
+  value: 0.4
+  duration: 4
+  target: all_enemies
+- type: buff
+  buff_type: defense_down
+  value: 0.4
+  duration: 4
+  target: all_enemies
+- type: gimmick
+  operation: consume
+  field: holy_power
+  value: 4
+target: all_enemies
+costs:
+  mp: 8.0
+  stacks:
+    holy_power: 4
+metadata:
+  job: paladin
+  holy_power_cost: 4
+  holy_power_scaling: true
+  debuff: true
+  aoe: true
+sfx:
+- se
+- Sword2

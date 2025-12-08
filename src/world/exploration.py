@@ -57,6 +57,7 @@ class Enemy:
     y: int
     level: int
     name: str = "적"  # 적 이름
+    enemy_id: Optional[str] = None  # 적 템플릿 ID (예: "sephiroth", "abel_cain")
     is_boss: bool = False
     id: Optional[str] = None  # 고유 ID (멀티플레이 동기화용)
 
@@ -112,7 +113,7 @@ class Player:
     """플레이어 정보"""
     x: int
     y: int
-    party: List[Any]  # 파티원 리스트
+    party: List[Any]  # 파티원 리스트 (Character 객체들)
     inventory: List[str] = None  # 아이템
     keys: List[str] = None  # 열쇠
     fov_radius: int = 3  # 시야 반지름
@@ -122,6 +123,26 @@ class Player:
             self.inventory = []
         if self.keys is None:
             self.keys = []
+
+    @property
+    def max_hp(self) -> int:
+        """파티 전체의 최대 HP 또는 리더의 Max HP (여기서는 리더 기준)"""
+        if self.party and hasattr(self.party[0], 'max_hp'):
+            return self.party[0].max_hp
+        return 100 # Fallback
+
+    @property
+    def current_hp(self) -> int:
+        """파티 리더의 현재 HP"""
+        if self.party and hasattr(self.party[0], 'current_hp'):
+            return self.party[0].current_hp
+        return 100
+
+    @current_hp.setter
+    def current_hp(self, value: int):
+        """파티 리더의 현재 HP 설정"""
+        if self.party and hasattr(self.party[0], 'current_hp'):
+            self.party[0].current_hp = value
 
 
 @dataclass
@@ -168,6 +189,7 @@ class ExplorationSystem:
         self.explored_tiles = set()
         self.enemies: List[Enemy] = []  # 적 리스트
         self.inventory = inventory  # 인벤토리 추가
+        self.fled_enemies: Dict[int, float] = {}  # 도망한 적 ID → 도망 시간 (5초간 조우 방지)
 
         # 게임 통계 (로그라이크 정산용)
         self.game_stats = game_stats if game_stats is not None else {
@@ -217,10 +239,10 @@ class ExplorationSystem:
         # 발소리 SFX 간격 추적 (최소 5초)
         self.last_footstep_time = 0.0
         
-        # 환경 효과 시간 추적 (시간당 지속 피해용)
+        # 환경 효과 시간 추적 (효과별/대상별 개별 타이머)
         import time
-        self.last_environment_effect_time = time.time()
-        self.environment_effect_interval = 3.0  # 3초마다 체크
+        self.effect_last_tick_times = {}  # {(entity_id, effect_type): last_time}
+        self.max_tick_cleanup_time = time.time()  # 만료된 타이머 정리용
         
         # 환경 효과 메시지 표시 추적 (스팸 방지용)
         self.last_effect_tile = None  # 마지막으로 효과 메시지를 표시한 타일 위치
@@ -454,29 +476,15 @@ class ExplorationSystem:
                     else:
                         result.message = effect_messages[0]
                 
-                # 시간당 지속 피해 체크 (독 늪 등)
-                current_time = time.time()
-                time_since_last_check = current_time - self.last_environment_effect_time
+                # 환경 효과 시간 업데이트 및 적용 (개별 타이머 사용)
+                dot_messages = self._update_effect_timers_and_apply(new_x, new_y)
                 
-                if time_since_last_check >= self.environment_effect_interval:
-                    # 시간 간격이 지나면 시간당 지속 피해 적용
-                    dot_messages = []
-                    for member in self.player.party:
-                        messages = effect_manager.apply_tile_effects(
-                            member, new_x, new_y, is_movement=False  # 시간당 피해
-                        )
-                        if messages:
-                            dot_messages.extend(messages)
-                    
-                    # 지속 피해 메시지 추가
-                    if dot_messages:
-                        if result.message:
-                            result.message = f"{result.message}\n{dot_messages[0]}"
-                        else:
-                            result.message = dot_messages[0]
-                    
-                    # 시간 업데이트
-                    self.last_environment_effect_time = current_time
+                # 지속 피해 메시지 추가
+                if dot_messages:
+                    if result.message:
+                        result.message = f"{result.message}\n{dot_messages[0]}"
+                    else:
+                        result.message = dot_messages[0]
 
         # 적 이동은 이제 시간 기반 시스템으로 처리됨
         # on_update 콜백에서 _move_all_enemies()가 지속적으로 호출됨
@@ -494,6 +502,68 @@ class ExplorationSystem:
             return self._trigger_combat_with_enemy(enemy_at_player)
 
         return result
+
+    def _update_effect_timers_and_apply(self, x: int, y: int) -> List[str]:
+        """
+        환경 효과 타이머 업데이트 및 효과 적용
+        
+        Args:
+            x, y: 타일 좌표
+            
+        Returns:
+            발생한 메시지 리스트
+        """
+        effect_manager = None
+        if hasattr(self.dungeon, 'environment_effect_manager'):
+            effect_manager = self.dungeon.environment_effect_manager
+        elif hasattr(self.dungeon, 'environmental_effect_manager'):
+            effect_manager = self.dungeon.environmental_effect_manager
+            
+        if not effect_manager or not self.player.party:
+            return []
+            
+        current_time = time.time()
+        messages = []
+        
+        # 현재 타일의 효과들
+        effects = effect_manager.get_effects_at_tile(x, y)
+        
+        # 타이머 정리 (매 60초마다)
+        if current_time - self.max_tick_cleanup_time > 60:
+            # 오래된 키 제거 (간단하게 재설정하거나, 타임스탬프 비교)
+            # 여기서는 간단히 메모리 누수 방지 차원에서 파티에 없는 멤버 ID 키 정리는 생략하고
+            # 너무 오래된(1분 이상) 항목만 유지... 하려다 복잡해지니 생략
+            self.max_tick_cleanup_time = current_time
+
+        for member in self.player.party:
+            # 멤버 식별자 (객체 ID 사용)
+            member_id = id(member)
+            
+            for effect in effects:
+                # 효과 설정 가져오기
+                config = effect_manager.get_effect_config(effect.effect_type)
+                interval = config.get("interval", 3.0) # 기본 3초
+                
+                # 키: (멤버ID, 효과타입)
+                timer_key = (member_id, effect.effect_type)
+                last_time = self.effect_last_tick_times.get(timer_key, 0.0)
+                
+                # 0.0이면 (처음 밟음) 즉시 발동하지 않고 타이머 시작?
+                # 아니면 즉시 발동? -> 사용자가 "이동할 때마다" 아파하는 걸 싫어했음.
+                # 즉시 발동하면 이동할 때마다 발동될 수 있음 (키가 계속 바뀌면).
+                # 키는 (멤버ID, 효과타입)이므로, 다른 타일로 이동해도 "같은 효과 타입"이면 타이머 유지됨!
+                # 이것이 중요함. 불타는 바닥 A에서 불타는 바닥 B로 이동해도, 타이머는 "불타는 바닥" 타입에 묶여있으므로 쿨타임 유지됨.
+                
+                if current_time - last_time >= interval:
+                    # 효과 적용
+                    msg = effect_manager.apply_effect(effect, member, is_movement=False)
+                    if msg:
+                        messages.append(msg)
+                    
+                    # 타이머 갱신
+                    self.effect_last_tick_times[timer_key] = current_time
+                    
+        return messages
 
     def update_environmental_effects(self) -> Optional[str]:
         """
@@ -516,27 +586,12 @@ class ExplorationSystem:
         if not effect_manager or not self.player.party:
             return None
         
-        # 시간 간격 체크
-        import time
-        current_time = time.time()
-        time_since_last_check = current_time - self.last_environment_effect_time
+        # 시간 간격 체크 및 적용 (개별 타이머)
+        dot_messages = self._update_effect_timers_and_apply(self.player.x, self.player.y)
         
-        if time_since_last_check >= self.environment_effect_interval:
-            # 시간 간격이 지나면 시간당 지속 피해/회복 적용
-            dot_messages = []
-            for member in self.player.party:
-                messages = effect_manager.apply_tile_effects(
-                    member, self.player.x, self.player.y, is_movement=False
-                )
-                if messages:
-                    dot_messages.extend(messages)
-            
-            # 시간 업데이트
-            self.last_environment_effect_time = current_time
-            
-            # 메시지 반환
-            if dot_messages:
-                return dot_messages[0]
+        # 메시지 반환
+        if dot_messages:
+            return dot_messages[0]
         
         return None
 
@@ -719,8 +774,7 @@ class ExplorationSystem:
         elif tile.tile_type == TileType.MAGIC_CIRCLE:
             return self._handle_magic_circle(tile)
 
-        elif tile.tile_type == TileType.SACRIFICE_ALTAR:
-            return self._handle_sacrifice_altar(tile)
+
 
         # 랜덤 전투 조우 제거 (이제 적 엔티티와의 충돌로만 전투 발생)
 
@@ -1155,13 +1209,13 @@ class ExplorationSystem:
 
         if nearby_count == 1:
             # 1마리 조우: 1~3마리 전투
-            num_enemies = random.randint(1, 3)
+            num_enemies = random.randint(2, 4)
         elif nearby_count == 2:
             # 2마리 조우: 2~4마리 전투
-            num_enemies = random.randint(2, 4)
+            num_enemies = random.randint(3, 4)
         elif nearby_count == 3:
             # 3마리 조우: 3~4마리 전투
-            num_enemies = random.randint(3, 4)
+            num_enemies = 4
         else:
             # 4마리 이상 조우: 4마리 전투 (최대)
             num_enemies = 4
@@ -1258,7 +1312,10 @@ class ExplorationSystem:
                     possible_positions.append((x, y))
 
         # 보스 먼저 배치 (층마다 한 마리씩 꼭 생성)
-        if possible_positions:
+        # 20층과 30층은 스토리 보스(세피로스/카인) 강제 조우 층이므로 필드 보스 스폰 안 함
+        is_story_boss_floor = self.floor_number in [20, 30]
+        
+        if possible_positions and not is_story_boss_floor:
 
             # 5층마다 층 보스 (더 강력함), 그 외에는 일반 보스
             is_floor_boss = (self.floor_number % 5 == 0)
@@ -1376,15 +1433,33 @@ class ExplorationSystem:
 
     def get_enemy_at(self, x: int, y: int) -> Optional[Enemy]:
         """특정 위치의 적 가져오기"""
-        # logger.warning(f"[DEBUG] get_enemy_at({x}, {y}) 호출 - 현재 적 {len(self.enemies)}마리")
+        current_time = time.time()
+        
+        # 도망 쿨다운 만료된 적 제거
+        expired_enemies = [eid for eid, fled_time in self.fled_enemies.items() 
+                         if current_time - fled_time > 5.0]
+        for eid in expired_enemies:
+            del self.fled_enemies[eid]
+        
         for enemy in self.enemies:
             if enemy.x == x and enemy.y == y:
                 # 죽은 적은 무시 (이동 가능, 상호작용 불가)
                 if not getattr(enemy, 'is_alive', True):
                     continue
-                # logger.warning(f"[DEBUG] 적 발견! at ({x}, {y})")
+                # 도망한 적은 5초간 조우 방지
+                enemy_id = id(enemy)
+                if enemy_id in self.fled_enemies:
+                    continue
                 return enemy
         return None
+    
+    def mark_enemies_as_fled(self, enemies: List[Enemy]):
+        """도망한 적들을 5초간 조우 방지 목록에 등록"""
+        current_time = time.time()
+        for enemy in enemies:
+            enemy_id = id(enemy)
+            self.fled_enemies[enemy_id] = current_time
+            logger.info(f"[도망] {enemy.name} 5초간 조우 방지")
 
     def _is_player_at(self, x: int, y: int) -> bool:
         """해당 위치에 플레이어(봇 포함)가 있는지 확인"""
@@ -1513,6 +1588,20 @@ class ExplorationSystem:
 
         # 적 이동 후 플레이어와의 충돌 확인 (시간 기반 이동 시스템에서 필요)
         if enemy.x == self.player.x and enemy.y == self.player.y:
+            # 도망한 적은 5초간 조우 방지
+            enemy_id = id(enemy)
+            current_time = time.time()
+            
+            # 도망 쿨다운 만료 체크
+            if enemy_id in self.fled_enemies:
+                fled_time = self.fled_enemies[enemy_id]
+                if current_time - fled_time <= 5.0:
+                    logger.debug(f"[전투 스킵] {enemy.name} 도망 쿨다운 중 (남은 시간: {5.0 - (current_time - fled_time):.1f}초)")
+                    return
+                else:
+                    # 쿨다운 만료, 딕셔너리에서 제거
+                    del self.fled_enemies[enemy_id]
+            
             logger.info(f"[전투 트리거] 적이 플레이어와 충돌: {enemy.name} at ({enemy.x}, {enemy.y})")
             # 충돌 적 저장 (world_ui.py에서 감지하여 전투 트리거)
             self.collision_enemy = enemy
@@ -1646,6 +1735,12 @@ class ExplorationSystem:
 
         # 이동 가능 여부 확인
         if self.dungeon.is_walkable(new_x, new_y):
+            # 계단 타일 위로는 적이 이동하지 않음 (계단 보호)
+            target_tile = self.dungeon.get_tile(new_x, new_y)
+            if target_tile and target_tile.tile_type in [TileType.STAIRS_UP, TileType.STAIRS_DOWN]:
+                logger.debug(f"[적 이동] {enemy.name} 이동 실패: 계단 타일은 이동 불가 ({new_x}, {new_y})")
+                return
+            
             # 플레이어 위치로 이동하려고 하면 전투 트리거
             player_at_target = self._is_player_at(new_x, new_y)
             if player_at_target:
@@ -2858,15 +2953,18 @@ class ExplorationSystem:
         message = None
 
         if effect == "heal":
+            play_sfx("character", "hp_heal")
             if self.player and self.player.party:
                 for member in self.player.party:
                     if hasattr(member, 'current_hp') and hasattr(member, 'max_hp'):
                         member.current_hp = min(member.current_hp + member.max_hp // 2, member.max_hp)
             message = "마법진이 파티를 치유했습니다!"
         elif effect == "buff":
+            play_sfx("character", "status_buff")
             # 버프 효과는 추후 구현
             message = "마법진의 힘이 느껴집니다... (버프 효과 미구현)"
         elif effect == "teleport":  # else 대신 elif로 명시적 처리
+            play_sfx("world", "teleport")
             if self.dungeon.rooms:
                 target_room = random.choice(self.dungeon.rooms)
                 target_x = random.randint(target_room.x1 + 1, target_room.x2 - 1)
@@ -2888,41 +2986,7 @@ class ExplorationSystem:
             message=message
         )
 
-    def _handle_sacrifice_altar(self, tile: Tile) -> ExplorationResult:
-        """희생 제단 처리 (HP 소모하여 보상)"""
-        if hasattr(tile, 'used') and tile.used:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NONE,
-                message="이미 사용한 제단입니다."
-            )
 
-        # 플레이어 HP의 25% 소모하여 골드 획득
-        if self.player:
-            hp_cost = max(1, self.player.max_hp // 4)
-            if self.player.current_hp > hp_cost:
-                self.player.current_hp -= hp_cost
-                gold_gained = hp_cost * 2
-                if self.inventory:
-                    self.inventory.add_gold(gold_gained)
-                tile.used = True
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NONE,
-                    message=f"제단에 HP {hp_cost}를 희생하여 골드 {gold_gained}을 얻었습니다!"
-                )
-            else:
-                return ExplorationResult(
-                    success=False,
-                    event=ExplorationEvent.NONE,
-                    message="HP가 부족하여 제단을 사용할 수 없습니다."
-                )
-
-        return ExplorationResult(
-            success=False,
-            event=ExplorationEvent.NONE,
-            message="제단을 사용할 수 없습니다."
-        )
 
     def _handle_treasure_map(self, tile: Tile) -> ExplorationResult:
         """보물 지도 처리"""

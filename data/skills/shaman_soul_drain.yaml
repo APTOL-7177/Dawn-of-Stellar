@@ -1,0 +1,36 @@
+id: shaman_soul_drain
+name: 영혼 흡수
+type: attack
+description: '영혼을 흡수해 BRV와 HP 피해를 주고 자신을 회복합니다.
+
+  마법 계수 BRV/HP 피해와 생명력 흡수 30%를 적용합니다.
+
+  '
+target: enemy
+metadata:
+  job: shaman
+  overload_capable: true
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magical
+  multiplier: 1.6
+- type: damage
+  damage_type: hp
+  stat_base: magical
+  multiplier: 1.8
+- type: heal
+  heal_type: hp
+  percentage: 0.3
+  target_self: true
+costs:
+  mp: 12
+animation:
+  icon: ??
+  color:
+  - 140
+  - 120
+  - 200
+sfx:
+- se
+- Darkness3

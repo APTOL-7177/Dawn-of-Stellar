@@ -11,3 +11,6 @@ effects:
   heal_type: hp
   stat_scaling: strength
   multiplier: 2.0
+sfx:
+- se
+- Recovery

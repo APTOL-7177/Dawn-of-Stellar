@@ -1,0 +1,31 @@
+id: knight_last_stand
+name: 최후의 저항
+type: defense
+description: '의무를 대량 소모해 잠시 무적이 되고 HP를 회복합니다.
+
+  '
+effects:
+- type: buff
+  buff_type: invincible
+  value: 1.0
+  duration: 2
+  target: self
+- type: heal
+  heal_type: hp
+  percent: 0.25
+- type: gimmick
+  operation: consume
+  field: duty_stacks
+  value: 5
+target: self
+costs:
+  mp: 9
+  stacks:
+    duty_stacks: 5
+metadata:
+  job: knight
+  duty_cost: 5
+  invincible: 2
+sfx:
+- se
+- Sword2

@@ -1,0 +1,13 @@
+id: holy_barrier
+name: 신성한 방벽
+type: support
+description: 아군을 보호하는 방벽을 생성합니다
+costs:
+  mp: 30
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.5
+  duration: 3

@@ -37,6 +37,7 @@ class BombRecipe:
     aoe_range: int = 1           # 범위 (1 = 단일, 2+ = AOE)
     special_effect: Dict[str, Any] = None  # 특수 효과
     difficulty: int = 1          # 난이도 (1-5)
+    stat_scaling: Dict[str, float] = None  # 스탯 스케일링 {"stat": "attack"|"magic", "ratio": float}
 
 
 class BombDatabase:
@@ -47,56 +48,59 @@ class BombDatabase:
         "fire_bomb": BombRecipe(
             bomb_id="fire_bomb",
             name="화염 폭탄",
-            description="폭발과 함께 화염을 퍼뜨린다. 데미지 80, 화상 3턴.",
+            description="폭발과 함께 화염을 퍼뜨린다. 기본 데미지 50+층수×15+힘×0.5, 화상 4턴. (마법력×150% 추가 스케일링)",
             bomb_type=BombType.FIRE,
             ingredients={"bomb_casing": 1, "gunpowder": 2, "fuse": 1, "fire_essence": 1},
-            damage=80,
+            damage=120,
             aoe_range=2,
-            special_effect={"burn_damage": 15, "burn_duration": 3},
-            difficulty=2
+            special_effect={"burn_damage": 25, "burn_duration": 4},
+            difficulty=2,
+            stat_scaling={"stat": "magic", "ratio": 1.5}  # 마법력의 150%
         ),
         
         "ice_bomb": BombRecipe(
             bomb_id="ice_bomb",
             name="냉기 폭탄",
-            description="폭발과 함께 냉기를 퍼뜨린다. 데미지 70, 둔화 3턴.",
+            description="폭발과 함께 냉기를 퍼뜨린다. 기본 데미지 50+층수×15+힘×0.5, 둔화 4턴. (마법력×130% 추가 스케일링)",
             bomb_type=BombType.ICE,
             ingredients={"bomb_casing": 1, "gunpowder": 2, "fuse": 1, "ice_essence": 1},
-            damage=70,
+            damage=105,
             aoe_range=2,
-            special_effect={"slow_percent": 30, "slow_duration": 3},
-            difficulty=2
+            special_effect={"slow_percent": 40, "slow_duration": 4},
+            difficulty=2,
+            stat_scaling={"stat": "magic", "ratio": 1.3}  # 마법력의 130%
         ),
         
         "thunder_grenade": BombRecipe(
             bomb_id="thunder_grenade",
             name="번개 수류탄",
-            description="폭발과 함께 전기 충격을 준다. 데미지 90, 마비 2턴.",
+            description="폭발과 함께 전기 충격을 준다. 기본 데미지 75+층수×25+힘×0.5, 기절 2턴. (마법력×150% 추가 스케일링)",
             bomb_type=BombType.LIGHTNING,
             ingredients={"bomb_casing": 1, "gunpowder": 2, "fuse": 1, "lightning_essence": 1},
-            damage=90,
+            damage=135,
             aoe_range=2,
-            special_effect={"stun_chance": 50, "stun_duration": 2},
-            difficulty=2
+            special_effect={"stun_chance": 60, "stun_duration": 2},
+            difficulty=2,
+            stat_scaling={"stat": "magic", "ratio": 1.5}  # 마법력의 150%
         ),
         
         # === 상태이상 폭탄 (Status Effect Bombs) ===
         "poison_bomb": BombRecipe(
             bomb_id="poison_bomb",
             name="독 폭탄",
-            description="독가스를 퍼뜨린다. 데미지 40, 맹독 5턴.",
+            description="독가스를 퍼뜨린다. 기본 데미지 40+층수×12+힘×0.5, 맹독 6턴.",
             bomb_type=BombType.POISON,
             ingredients={"bomb_casing": 1, "gunpowder": 1, "fuse": 1, "red_mushroom": 3},
-            damage=40,
+            damage=60,
             aoe_range=3,
-            special_effect={"poison_damage": 20, "poison_duration": 5},
+            special_effect={"poison_damage": 30, "poison_duration": 6},
             difficulty=3
         ),
         
         "smoke_bomb": BombRecipe(
             bomb_id="smoke_bomb",
             name="연막탄",
-            description="연막을 퍼뜨려 시야를 차단한다. 명중률 -50%, 3턴.",
+            description="연막을 퍼뜨려 시야를 차단한다. 기본 데미지 10+힘×0.5, 명중률 -50%, 3턴.",
             bomb_type=BombType.SMOKE,
             ingredients={"bomb_casing": 1, "gunpowder": 1, "fuse": 1, "wood": 2},
             damage=10,
@@ -108,12 +112,12 @@ class BombDatabase:
         "acid_flask": BombRecipe(
             bomb_id="acid_flask",
             name="산성 플라스크",
-            description="강산을 퍼뜨린다. 데미지 60, 방어력 -30%, 4턴.",
+            description="강산을 퍼뜨린다. 기본 데미지 65+층수×22+힘×0.5, 방어력 -40%, 5턴.",
             bomb_type=BombType.ACID,
             ingredients={"glass_vial": 2, "alchemical_catalyst": 2, "slime_jelly": 3},
-            damage=60,
-            aoe_range=1,
-            special_effect={"defense_reduction": 30, "duration": 4},
+            damage=90,
+            aoe_range=2,
+            special_effect={"defense_reduction": 40, "duration": 5},
             difficulty=3
         ),
         
@@ -121,18 +125,19 @@ class BombDatabase:
         "fragmentation_grenade": BombRecipe(
             bomb_id="fragmentation_grenade",
             name="파편 수류탄",
-            description="금속 파편을 사방으로 뿌린다. 데미지 120, 광범위.",
+            description="금속 파편을 사방으로 뿌린다. 기본 데미지 70+층수×20+힘×0.5. (공격력×200% 추가 스케일링)",
             bomb_type=BombType.FRAGMENTATION,
             ingredients={"bomb_casing": 2, "gunpowder": 3, "fuse": 1, "metal_scrap": 5},
-            damage=120,
-            aoe_range=3,
-            difficulty=3
+            damage=180,
+            aoe_range=4,
+            difficulty=3,
+            stat_scaling={"stat": "attack", "ratio": 2.0}  # 공격력의 200%
         ),
         
         "stun_grenade": BombRecipe(
             bomb_id="stun_grenade",
             name="섬광탄",
-            description="강렬한 빛과 소리로 기절시킨다. 데미지 30, 기절 100%, 2턴.",
+            description="강렬한 빛과 소리로 기절시킨다. 기본 데미지 30+힘×0.5, 기절 100%, 2턴.",
             bomb_type=BombType.STUN,
             ingredients={"bomb_casing": 1, "gunpowder": 2, "fuse": 1, "lightning_essence": 1, "salt": 2},
             damage=30,
@@ -144,7 +149,7 @@ class BombDatabase:
         "explosive_crystal_bomb": BombRecipe(
             bomb_id="explosive_crystal_bomb",
             name="폭발 결정 폭탄",
-            description="불안정한 결정의 힘을 해방한다. 데미지 200, 초광범위.",
+            description="불안정한 결정의 힘을 해방한다. 기본 데미지 200+힘×0.5, 화상 5턴, 초광범위.",
             bomb_type=BombType.FIRE,
             ingredients={"bomb_casing": 2, "gunpowder": 5, "fuse": 2, "explosive_crystal": 2},
             damage=200,

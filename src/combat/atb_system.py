@@ -99,6 +99,24 @@ class ATBGauge:
                 debuff_value = self.owner.active_buffs['speed_down'].get('value', 0.0)
                 speed_modifier *= (1.0 - debuff_value)
         
+        # [NEW] SCATTER 상태 속도 감소
+        if hasattr(self.owner, "is_scattered") and self.owner.is_scattered:
+            slow_base = 0.30
+            
+            # 특성 체크: 유압 피스톤 (hydraulic_piston) -> 45%로 강화
+            source = getattr(self.owner, "scatter_source", None)
+            if source:
+                 if hasattr(source, "system_traits") and "hydraulic_piston" in source.system_traits:
+                     slow_base = 0.45
+                 elif hasattr(source, "traits"): 
+                     for t in source.traits:
+                         if t.id == "hydraulic_piston":
+                             slow_base = 0.45
+                             break
+            
+            speed_modifier *= (1.0 - slow_base)
+            # self.logger.debug 필요 시 추가 (너무 잦은 호출 방지 위해 생략)
+        
         # 환경 효과 스탯 수정치 적용
         if hasattr(self.owner, 'env_stat_modifiers'):
             env_speed = self.owner.env_stat_modifiers.get('speed', 1.0)

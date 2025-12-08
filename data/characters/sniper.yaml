@@ -1,6 +1,6 @@
 class_name: 저격수
 description: 느리지만 압도적인 일격을 날리는 정밀 사수
-slogan: "한 발, 한 명. 그것으로 충분하다"
+slogan: 한 발, 한 명. 그것으로 충분하다
 archetype: 초고화력 원거리
 base_stats:
   hp: 151
@@ -13,18 +13,18 @@ base_stats:
   magic_defense: 43
   max_brv: 563
 stat_growth:
-  hp: 10.0
-  mp: 4.2
-  init_brv: 28.8
-  strength: 8.5
-  defense: 2.5
-  magic: 3.2
-  spirit: 2.8
-  speed: 2.0
-  luck: 7.0
-  accuracy: 5.5
-  evasion: 2.0
-  max_brv: 112.5
+  hp: 30.0
+  mp: 2.9
+  init_brv: 34.0
+  strength: 36.4
+  defense: 9.1
+  magic: 9.7
+  spirit: 9.3
+  speed: 9.8
+  max_brv: 158.1
+  luck: 3
+  accuracy: 1.9
+  evasion: 1.2
 traits:
 - id: last_bullet
   name: 라스트 불렛
@@ -72,7 +72,6 @@ skills:
 - smoke_grenade
 - set_trap
 - deadeye
-
 bonuses:
   critical_rate: 1.25
   critical_damage: 1.5

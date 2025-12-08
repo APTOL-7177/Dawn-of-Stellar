@@ -1,77 +1,77 @@
 {
-  "star_fragments": 1000,
+  "star_fragments": 0,
   "unlocked_traits": {
     "alchemist": [
       "potion_mastery",
-      "transmutation"
+      "efficient_brewing"
     ],
     "archer": [
       "support_fire_master",
       "perfect_support"
     ],
     "archmage": [
-      "mana_mastery",
-      "arcane_knowledge"
+      "elemental_affinity",
+      "fusion_mastery"
     ],
     "assassin": [
       "stealth_state_bonus",
       "shadow_mobility"
     ],
     "bard": [
-      "battle_song",
-      "inspirational_melody"
+      "perfect_pitch",
+      "crescendo_master"
     ],
     "battle_mage": [
-      "rune_mastery",
-      "hybrid_strike"
+      "resonance_expert",
+      "chain_ignition"
     ],
     "berserker": [
-      "madness_threshold",
-      "berserker_mode"
+      "rage_control",
+      "bloodlust"
     ],
     "breaker": [
-      "brv_crusher",
-      "break_master"
+      "engine_overclock",
+      "hydraulic_piston"
     ],
     "cleric": [
       "healing_power",
       "faith_shield"
     ],
     "dark_knight": [
-      "lifesteal",
-      "dark_pact"
+      "perfect_strike",
+      "charge_acceleration"
     ],
     "dimensionist": [
-      "gauge_per_turn",
-      "critical_charge"
+      "dimensional_stabilization",
+      "self_healing_mastery"
     ],
     "dragon_knight": [
       "dragon_breath",
       "burning_rage"
     ],
     "druid": [
-      "nature_magic",
-      "animal_companion"
+      "nature_conduit",
+      "primal_form"
     ],
     "elementalist": [
-      "fire_spirit_power",
-      "water_spirit_regeneration"
+      "fire_spirit_fury",
+      "water_spirit_blessing"
     ],
     "engineer": [
-      "heat_efficiency",
-      "dangerous_combat"
+      "turret_reinforcement",
+      "turret_shield"
     ],
     "gladiator": [
       "crowd_favorite",
       "spectacular_fighter"
     ],
     "hacker": [
-      "multithread_master",
-      "cpu_optimization"
+      "parallel_processing",
+      "intrusion_expert"
     ],
     "knight": [
-      "glory_vow",
-      "honor_guard"
+      "duty_amplifier",
+      "oath_keeper"
     ],
     "monk": [
       "yin_yang_balance",
@@ -90,44 +90,44 @@
       "wisdom_mastery"
     ],
     "pirate": [
-      "treasure_hunter",
-      "lucky_strike"
+      "lucky_drunk",
+      "treasure_hoarder"
     ],
     "priest": [
-      "divine_miracle",
-      "healing_mastery"
+      "divine_favor",
+      "holy_fervor"
     ],
     "rogue": [
-      "shadow_step",
-      "assassinate"
+      "master_mocker",
+      "shadow_dancer"
     ],
     "samurai": [
-      "bushido",
-      "honor_vow"
+      "kenshin_growth",
+      "meditation"
     ],
     "shaman": [
-      "spirit_sight",
-      "ancestral_protection"
+      "spirit_vision",
+      "overload_master"
     ],
     "sniper": [
       "last_bullet",
       "quick_hands"
     ],
     "spellblade": [
-      "magic_blade_unity",
-      "dual_element"
+      "circuit_overdrive",
+      "resonance_loop"
     ],
     "sword_saint": [
       "sword_energy",
       "rapid_slash"
     ],
     "time_mage": [
-      "time_balancer",
-      "past_wisdom"
+      "branch_creator",
+      "parallel_resonance"
     ],
     "vampire": [
-      "blood_satisfaction",
-      "thirsty_state"
+      "sanguine_arts",
+      "vitality_overflow"
     ],
     "warrior": [
       "adaptive_combat",
@@ -137,17 +137,27 @@
   "purchased_upgrades": [],
   "purchased_passives": [],
   "unlocked_jobs": [
-    "warrior",
-    "archmage",
-    "archer",
-    "rogue",
     "cleric",
-    "priest",
+    "rogue",
     "knight",
-    "paladin",
-    "assassin",
-    "monk"
+    "archer",
+    "warrior",
+    "archmage"
   ],
-  "intro_shown": true,
+  "facility_levels": {
+    "kitchen": 1,
+    "blacksmith": 1,
+    "alchemy_lab": 1,
+    "storage": 1
+  },
+  "hub_storage": [],
+  "town_storage": [
+    {
+      "item_id": "iron_ore",
+      "name": "Iron Ore",
+      "ingredient_category": "mineral"
+    }
+  ],
+  "intro_shown": false,
   "tutorial_offered": true
 }

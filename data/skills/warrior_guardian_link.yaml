@@ -1,0 +1,42 @@
+id: warrior_guardian_link
+name: 수호 결속
+type: support
+description: '수호자 자세의 힘을 파티 전체에 나눈다.
+
+  수호자 자세일 때만 사용 가능하며, 파티 전체 방어력/마법방어력 +15%,
+
+  자신이 받는 피해 10% 추가 경감.
+
+  '
+costs:
+  mp: 22
+  cast_time: 1.0
+target: all_allies
+requirements:
+  stance: guardian
+effects:
+- type: buff
+  stat: physical_defense
+  value: 0.15
+  duration: 3
+  is_party_wide: true
+- type: buff
+  stat: magic_defense
+  value: 0.15
+  duration: 3
+  is_party_wide: true
+- type: buff
+  target: self
+  special: guardian_link_reduction
+  value: 0.1
+  duration: 3
+metadata:
+  job: warrior
+  tank_skill: true
+  party_buff: true
+  gimmick_skill: true
+  requires_guardian_stance: true
+  skill_category: defense
+sfx:
+- se
+- Up1

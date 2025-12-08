@@ -25,12 +25,12 @@ audio:
     tracks:
       battle_birth_of_god: boss
       battle_boss: boss
+      battle_cain: 시간의_왕좌
       battle_final_boss: sephiroth
       battle_jenova: battle
       battle_jenova_absolute: battle
       battle_normal: battle
       battle_sephiroth: 광기의_춤
-      battle_cain: 시간의_왕좌
       battle_weapon: boss
       biome_0: worldmap
       biome_1: forest
@@ -42,6 +42,7 @@ audio:
       biome_7: icelands
       biome_8: warlands
       biome_9: caves
+      credits: prelude
       danger: danger
       dungeon_dark: devillands
       dungeon_normal: caves
@@ -59,11 +60,12 @@ audio:
       shop: menu2
       suspense: devillands
       town: town
+      training: Timewalker
       triumph: fanfare
       tutorial: menu
       victory: fanfare
       world_map: worldmap
-  bgm_volume: 0.5
+  bgm_volume: 0.0
   master_volume: 0.8
   sfx:
     categories:
@@ -100,6 +102,7 @@ audio:
       guard: Parry
       miss: Miss
       multi_hit: Damage4
+      sword4: Sword4
       turn_start: Cursor2
     enabled: true
     item:
@@ -157,6 +160,7 @@ audio:
       roar: Blow10
       save: Save1
       shell: Barrier
+      skill3: Skill3
       slash: Slash1
       slash2: Slash2
       slow: Down2
@@ -209,7 +213,7 @@ audio:
       switch_on: Switch1
       teleport: Move2
       trap_trigger: Buzzer1
-  sfx_volume: 0.5
+  sfx_volume: 0.0
 character:
   max_level: 99
   party:

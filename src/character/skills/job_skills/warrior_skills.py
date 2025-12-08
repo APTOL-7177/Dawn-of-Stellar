@@ -77,7 +77,7 @@ def create_warrior_skills():
     skills.append(berserker_rage)
 
     # 7. 수호자 자세
-    guardian_stance = Skill("warrior_guardian_stance", "수호자 자세", "아군 보호 + 피해 대폭 감소")
+    guardian_stance = Skill("warrior_guardian_stance", "수호자 자세", "받는 피해 70% 경감, 공/마공/속도 -60%, HP재생 12%, 50% 보호")
     guardian_stance.effects = [
         GimmickEffect(GimmickOperation.SET, "current_stance", 5)  # 5=guardian
     ]
@@ -152,6 +152,48 @@ def create_warrior_skills():
     ultimate.sfx = ("skill", "limit_break")  # 궁극기
     ultimate.metadata = {"ultimate": True, "all_stance_fusion": True, "party_buff": True}
     skills.append(ultimate)
+
+    # ============================================================
+    # 13. 강철 수호진 (Steel Bulwark) - 방어형 스킬
+    # ============================================================
+    steel_bulwark = Skill("warrior_steel_bulwark", "강철 수호진", 
+                         "강철의 의지로 방어력/마법방어력 +35%, 피해 경감 20%. 스탠스 변경 시 소멸")
+    steel_bulwark.effects = [
+        BuffEffect(BuffType.DEFENSE_UP, 0.35, duration=3),
+        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.35, duration=3),
+    ]
+    steel_bulwark.costs = [MPCost(9)]
+    steel_bulwark.target_type = "self"
+    steel_bulwark.sfx = ("skill", "protect")
+    steel_bulwark.metadata = {
+        "tank_skill": True,
+        "damage_reduction": 0.20,
+        "remove_on_stance_change": True,
+        "skill_category": "defense"
+    }
+    skills.append(steel_bulwark)
+
+    # ============================================================
+    # 14. 수호 결속 (Guardian Link) - 방어형 스킬
+    # ============================================================
+    guardian_link = Skill("warrior_guardian_link", "수호 결속",
+                         "수호자 자세일 때 파티 전체 방어력/마법방어력 +25%, 자신 피해 10% 추가 경감")
+    guardian_link.effects = [
+        BuffEffect(BuffType.DEFENSE_UP, 0.25, duration=3, is_party_wide=True),
+        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.25, duration=3, is_party_wide=True),
+    ]
+    guardian_link.costs = [MPCost(12)]
+    guardian_link.target_type = "party"
+    guardian_link.is_aoe = True
+    guardian_link.sfx = ("skill", "shell")
+    guardian_link.metadata = {
+        "tank_skill": True,
+        "party_buff": True,
+        "requires_guardian_stance": True,
+        "self_damage_reduction": 0.10,
+        "skill_category": "defense"
+    }
+    skills.append(guardian_link)
 
     # 팀워크 스킬: 전장의 돌격
     teamwork = TeamworkSkill(

@@ -1,0 +1,32 @@
+id: sacred_ground
+name: 성역
+type: buff
+description: '신성한 성역을 생성합니다.
+
+  아군 전체 3턴: 디버프 저항 +30%, 턴 종료 HP +5%.
+
+  보호의 신탁 충족 가능.
+
+  '
+target: all_allies
+costs:
+  mp: 25
+metadata:
+  oracle_action: buff_ally
+effects:
+- type: buff
+  buff_id: sacred_ground
+  target: all_allies
+  duration: 3
+  effects:
+    debuff_resistance: 0.3
+    hp_regen_percent: 0.05
+animation:
+  icon: 🏛️
+  color:
+  - 255
+  - 215
+  - 0
+sfx:
+- se
+- Up1

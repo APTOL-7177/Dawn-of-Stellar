@@ -151,6 +151,51 @@ def create_paladin_skills():
     ultimate.metadata = {"ultimate": True, "holy_power_refill": True, "healing": True, "party": True}
     skills.append(ultimate)
 
+    # 11. 축복의 방패 (Aegis of Grace) - 방어형 스킬
+    aegis_of_grace = Skill("paladin_aegis_of_grace", "축복의 방패",
+                          "방어력/마법방어력 +30%, 피해 경감 15%, 성력 20 회복. 성력 60+ 시 파티 마방 +15%")
+    aegis_of_grace.effects = [
+        BuffEffect(BuffType.DEFENSE_UP, 0.30, duration=3),
+        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.30, duration=3),
+        GimmickEffect(GimmickOperation.ADD, "holy_power", 20, max_value=100)
+    ]
+    aegis_of_grace.costs = [MPCost(13)]
+    aegis_of_grace.target_type = "self"
+    aegis_of_grace.sfx = ("skill", "protect")
+    aegis_of_grace.metadata = {
+        "tank_skill": True,
+        "damage_reduction": 0.15,
+        "holy_restore": 20,
+        "conditional_party_buff": {
+            "condition": {"gimmick": "holy_power", "min_value": 60},
+            "buff": {"stat": "magic_defense", "value": 0.15, "duration": 3}
+        },
+        "skill_category": "defense"
+    }
+    skills.append(aegis_of_grace)
+
+    # 12. 빛의 벽 (Radiant Barrier) - 방어형 스킬
+    radiant_barrier = Skill("paladin_radiant_barrier", "빛의 벽",
+                           "파티 전체에 HP 20% 비례 보호막 + 방어력 +20%, 보호막 유지 시 마방 +10%")
+    radiant_barrier.effects = [
+        ShieldEffect(base_amount=0),  # HP 비례 보호막 (메타데이터로 처리)
+        BuffEffect(BuffType.DEFENSE_UP, 0.20, duration=2, is_party_wide=True),
+        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.10, duration=2, is_party_wide=True)
+    ]
+    radiant_barrier.costs = [MPCost(15)]
+    radiant_barrier.target_type = "party"
+    radiant_barrier.is_aoe = True
+    radiant_barrier.sfx = ("skill", "shell")
+    radiant_barrier.metadata = {
+        "tank_skill": True,
+        "party_buff": True,
+        "shield_skill": True,
+        "hp_ratio_shield": 0.20,
+        "requires_shield_for_magic_def": True,
+        "skill_category": "defense"
+    }
+    skills.append(radiant_barrier)
+
     # 팀워크 스킬: 신성한 보호
     teamwork = TeamworkSkill(
         "paladin_teamwork",

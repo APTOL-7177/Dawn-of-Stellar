@@ -1,0 +1,36 @@
+id: gladiator_whirlwind
+name: 회전 베기
+type: attack
+description: '화려하게 회전하며 모든 적을 2회 베는 기술.
+
+  전체 2단 BRV+HP 피해 + 환호 +10.
+
+  "곡예사", "화려하게" 요구 충족.
+
+  '
+target: all_enemies
+costs:
+  mp: 10
+metadata:
+  crowd_action: hit_all_enemies
+  cheer_gain: 10
+  multi_hit: 2
+effects:
+- type: damage
+  damage_type: brv
+  multiplier: 0.9
+  stat_base: physical
+- type: damage
+  damage_type: hp
+  multiplier: 0.7
+  stat_base: physical
+animation:
+  icon: 🌪️
+  color:
+  - 200
+  - 150
+  - 255
+  screen_effect: slash_wave
+sfx:
+- se
+- Attack

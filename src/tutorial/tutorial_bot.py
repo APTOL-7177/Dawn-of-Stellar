@@ -387,7 +387,7 @@ JOB_DATABASE: Dict[str, Dict[str, Any]] = {
         "counter": ["holy_enemies"],
     },
     "vampire": {
-        "name": "뱀파이어",
+        "name": "흡혈귀",
         "role": "물리 딜러",
         "gimmick": "흡혈",
         "gimmick_desc": "공격 시 HP 흡수, 피에 따른 강화",

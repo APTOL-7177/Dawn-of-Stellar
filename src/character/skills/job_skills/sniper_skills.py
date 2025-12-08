@@ -78,12 +78,13 @@ def create_sniper_skills():
     perfect_aim = Skill("sniper_perfect_aim", "완벽한 조준",
                        "다음 3발 명중률 100%, 크리티컬 +30%")
     perfect_aim.effects = [
-        BuffEffect(BuffType.ACCURACY_UP, 1.0, duration=3),
-        BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=3)
+        BuffEffect(BuffType.ACCURACY_UP, 1.0, duration=3, target="self"),
+        BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=3, target="self")
     ]
     perfect_aim.costs = [MPCost(8)]
     perfect_aim.target_type = "self"
     perfect_aim.sfx = ("character", "status_buff")
+    perfect_aim.metadata = {"self_buff": True}
     # perfect_aim.cooldown = 4  # 쿨다운 시스템 제거됨
 
     # 8. 연막탄 (회피 버프)

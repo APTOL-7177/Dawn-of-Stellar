@@ -40,6 +40,7 @@ class StackCost(SkillCost):
             "will_gauge": "의지",
             "holy_gauge": "신성력",
             "divinity": "신성력",
+            "faith": "신앙",
             "magazine": "탄창",
             "program_virus": "바이러스",
             "program_firewall": "방화벽",

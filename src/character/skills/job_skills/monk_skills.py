@@ -69,7 +69,7 @@ def create_monk_skills():
     yin_extreme = Skill("monk_yin_extreme", "극음공",
                        "음극(20-)에서만 발동, 강력한 마법 공격, 음 -10")
     yin_extreme.effects = [
-        DamageEffect(DamageType.BRV_HP, 3.5, stat_type="magical",
+        DamageEffect(DamageType.BRV_HP, 3.2, stat_type="magical",
                     conditional_bonus={"condition": "in_yin_state", "multiplier": 1.0}),
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", -10, min_value=0, max_value=100)
     ]
@@ -82,7 +82,7 @@ def create_monk_skills():
     yang_extreme = Skill("monk_yang_extreme", "극양공",
                         "양극(80+)에서만 발동, 강력한 물리 공격, 양 +10")
     yang_extreme.effects = [
-        DamageEffect(DamageType.BRV_HP, 4.0, stat_type="physical",
+        DamageEffect(DamageType.BRV_HP, 3.2, stat_type="physical",
                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", 10, min_value=0, max_value=100)
     ]
@@ -105,12 +105,13 @@ def create_monk_skills():
 
     # 9. 깨달음 (정확히 50에서만 사용 가능, 강력한 버프)
     enlightenment = Skill("monk_enlightenment", "깨달음",
-                         "균형(50)에서만 발동, 3턴간 모든 능력치 +40%")
+                         "균형(50)에서만 발동, 5턴간 모든 능력치 +40%")
     enlightenment.effects = [
-        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=3),
-        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=3),
-        BuffEffect(BuffType.MAGIC_UP, 0.4, duration=3),
-        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.4, duration=3)
+        BuffEffect(BuffType.ATTACK_UP, 0.4, duration=6),
+        BuffEffect(BuffType.SPEED_UP, 0.4, duration=6),
+        BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=6),
+        BuffEffect(BuffType.MAGIC_UP, 0.4, duration=6),
+        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.4, duration=6)
     ]
     enlightenment.costs = [MPCost(10)]
     enlightenment.target_type = "self"
@@ -118,12 +119,77 @@ def create_monk_skills():
     enlightenment.sfx = ("character", "status_buff")  # 깨달음
     enlightenment.metadata = {"requires_balance": True, "ki_exact": 50}
 
+    # 10. 용권 연격 (양 극단 콤보, 다단타)
+    dragon_combo = Skill("monk_dragon_combo", "용권 연격",
+                         "양 극단(100)에서만 사용 가능한 연속 격투 타격, 양 -10")
+    dragon_combo.effects = [
+        # (BRV×3 → HP) 패턴을 3회 반복: 총 12타
+        DamageEffect(DamageType.BRV, 0.5, stat_type="physical",
+                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
+        DamageEffect(DamageType.BRV, 0.5, stat_type="physical",
+                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
+        DamageEffect(DamageType.BRV, 0.5, stat_type="physical",
+                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
+        DamageEffect(DamageType.HP, 0.9, stat_type="physical",
+                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
+
+        DamageEffect(DamageType.BRV, 0.5, stat_type="physical",
+                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
+        DamageEffect(DamageType.BRV, 0.5, stat_type="physical",
+                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
+        DamageEffect(DamageType.BRV, 0.5, stat_type="physical",
+                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
+        DamageEffect(DamageType.HP, 1.1, stat_type="physical",
+                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
+
+        DamageEffect(DamageType.BRV, 0.5, stat_type="physical",
+                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
+        DamageEffect(DamageType.BRV, 0.5, stat_type="physical",
+                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
+        DamageEffect(DamageType.BRV, 0.5, stat_type="physical",
+                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
+        DamageEffect(DamageType.HP, 1.4, stat_type="physical",
+                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
+        GimmickEffect(GimmickOperation.ADD, "ki_gauge", -10, min_value=0, max_value=100)
+    ]
+    dragon_combo.costs = [MPCost(8)]
+    dragon_combo.sfx = ("combat", "damage_high")
+    # 다단타 효과는 효과 리스트로 구성되어 있으므로 multi_hit 불필요
+    dragon_combo.metadata = {"requires_yang": True, "ki_exact": 100, "ki_shift": -10}
+
+    # 11. 음영 장막 (음 극단, 마법 피해 + 회복)
+    shadow_veil = Skill("monk_shadow_veil", "음영 장막",
+                        "음 극단(0)에서 암영 타격 후 소량 치유, 음 +10")
+    shadow_veil.effects = [
+        DamageEffect(DamageType.HP, 1.4, stat_type="magical",
+                     conditional_bonus={"condition": "in_yin_state", "multiplier": 1.2}),
+        HealEffect(percentage=0.18, heal_type=HealType.HP),
+        GimmickEffect(GimmickOperation.ADD, "ki_gauge", 10, min_value=0, max_value=100)
+    ]
+    shadow_veil.costs = [MPCost(7)]
+    shadow_veil.sfx = ("skill", "cast_complete")
+    shadow_veil.metadata = {"requires_yin": True, "ki_exact": 0, "ki_shift": 10}
+
+    # 12. 기류 전환 (현재 기 상태를 버프로 전환)
+    ki_flux = Skill("monk_ki_flux", "기류 전환",
+                    "현재 기 상태를 버프로 전환: 음이면 회피/마법증폭, 양이면 공격/속도 상승. 사용 후 균형 유지.")
+    ki_flux.effects = [
+        BuffEffect(BuffType.SPEED_UP, 0.35, duration=5),
+        BuffEffect(BuffType.MAGIC_UP, 0.2, duration=5),
+        BuffEffect(BuffType.ATTACK_UP, 0.2, duration=5),
+        GimmickEffect(GimmickOperation.SET, "ki_gauge", 50)
+    ]
+    ki_flux.costs = [MPCost(6)]
+    ki_flux.target_type = "self"
+    ki_flux.sfx = ("character", "status_buff")
+    ki_flux.metadata = {"balance_converter": True, "ki_shift": "reset"}
+
     # 10. 궁극기: 태극천지파 (음양을 모두 활용한 궁극기)
     taichi_ultimate = Skill("monk_taichi_ultimate", "태극천지파",
                            "음양의 힘을 모두 방출, 균형(50)으로 복귀")
     taichi_ultimate.effects = [
         # 현재 기 게이지 값에 비례한 피해
-        DamageEffect(DamageType.BRV, 3.0, stat_type="physical",
+        DamageEffect(DamageType.HP, 3.0, stat_type="physical",
                     gimmick_bonus={"field": "ki_gauge", "multiplier": 0.01}),  # 기 1당 +1% 피해
         DamageEffect(DamageType.HP, 3.0, stat_type="magical",
                     gimmick_bonus={"field": "ki_gauge", "multiplier": -0.01, "invert": True}),  # 100-기 값만큼 피해
@@ -138,7 +204,7 @@ def create_monk_skills():
 
     return [palm_strike, energy_blast, yin_strike, yang_strike,
             balance_restoration, yin_extreme, yang_extreme, taichi_flow,
-            enlightenment, taichi_ultimate]
+            enlightenment, dragon_combo, shadow_veil, ki_flux, taichi_ultimate]
 
 def register_monk_skills(skill_manager):
     """몽크 스킬 등록"""

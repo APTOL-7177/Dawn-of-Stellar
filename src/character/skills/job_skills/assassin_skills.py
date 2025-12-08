@@ -61,7 +61,7 @@ def create_assassin_skills():
     # 5. 목 베기 (노출 상태에서 사용 가능, 즉시 은신 진입)
     throat_slit = Skill("assassin_throat_slit", "목 베기", "강력한 공격 후 즉시 은신 (노출→은신)")
     throat_slit.effects = [
-        DamageEffect(DamageType.HP, 2.8, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 2.8, stat_type="physical"),
         GimmickEffect(GimmickOperation.SET, "stealth_active", 1),  # 즉시 은신
         GimmickEffect(GimmickOperation.SET, "exposed_turns", 0)
     ]

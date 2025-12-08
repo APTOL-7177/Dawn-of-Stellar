@@ -1,0 +1,53 @@
+id: fusion_lava
+name: 용암 분출
+type: brv_hp_attack
+description: '[화염+대지 융합] 뜨거운 용암을 분출합니다.
+
+  단일 적에게 BRV 2.5 + HP 2.0 피해, 방어 관통 20%.
+
+  용암화상 부여: 4턴간 DoT + 물방 -15%.
+
+
+  공명 보너스: 방어 관통 30%, 2타 공격
+
+  '
+target: single_enemy
+costs:
+  mp: 15
+metadata:
+  fusion: true
+  requires:
+  - fire
+  - earth
+  element: fire
+  defense_penetration: 0.2
+  resonance_penetration: 0.3
+  resonance_hits: 2
+effects:
+- type: damage
+  damage_type: brv
+  element: fire
+  stat_base: magic
+  multiplier: 2.5
+  ignore_defense: 0.2
+- type: damage
+  damage_type: hp
+  element: fire
+  stat_base: magic
+  multiplier: 2.0
+- type: debuff
+  debuff_id: lava_burn
+  duration: 4
+  effects:
+    dot_percent: 0.04
+    defense_reduction: 0.15
+animation:
+  icon: 🔥🌍
+  color:
+  - 255
+  - 80
+  - 0
+  screen_effect: lava_eruption
+sfx:
+- se
+- Up1

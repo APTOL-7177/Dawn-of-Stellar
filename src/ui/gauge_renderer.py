@@ -395,10 +395,11 @@ class GaugeRenderer:
         x: int, y: int, width: int,
         ratio: float,
         fg_color: Tuple[int, int, int],
-        bg_color: Tuple[int, int, int]
+        bg_color: Tuple[int, int, int],
+        strict_discrete: bool = False,
     ) -> None:
         """픽셀 단위 게이지 렌더링 (커스텀 타일셋 기반)
-        
+
         각 셀을 DIVISIONS 단계로 나누어 부분 채움 표현
         """
         tile_manager = _get_tile_manager()
@@ -411,10 +412,10 @@ class GaugeRenderer:
         
         for i in range(width):
             cell_start = i * divisions
-            
+
             # 이 셀에서 채워진 픽셀 수
             cell_filled = max(0, min(divisions, filled_pixels - cell_start))
-            
+
             if cell_filled == 0:
                 # 빈 셀 - 배경색만
                 console.draw_rect(x + i, y, 1, 1, ord(" "), bg=bg_color)
@@ -424,20 +425,20 @@ class GaugeRenderer:
             else:
                 # 부분 채움 - 커스텀 타일 사용
                 fill_ratio = cell_filled / divisions
-                
+
                 if use_tiles:
                     color_name = GaugeRenderer._get_color_name(fg_color)
                     tile_char = tile_manager.get_tile_char(color_name, fill_ratio)
                     # fg와 bg 모두 print에 전달하여 투명 영역 처리
                     console.print(x + i, y, tile_char, fg=fg_color, bg=bg_color)
                 else:
-                    # 폴백: 그라디언트 색상
-                    partial_color = (
+                    # 폴백: 그라디언트 대신 단색 단계 표현 (1/32 픽셀 계단)
+                    color = fg_color if strict_discrete and cell_filled > 0 else (
                         int(bg_color[0] + (fg_color[0] - bg_color[0]) * fill_ratio),
                         int(bg_color[1] + (fg_color[1] - bg_color[1]) * fill_ratio),
                         int(bg_color[2] + (fg_color[2] - bg_color[2]) * fill_ratio)
                     )
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=color)
 
     @staticmethod
     def _get_color_name(color: Tuple[int, int, int]) -> str:
@@ -472,7 +473,8 @@ class GaugeRenderer:
         max_hp: float,
         entity_id: str,
         wound_damage: float = 0,
-        show_numbers: bool = True
+        show_numbers: bool = True,
+        shield_amount: float = 0
     ) -> None:
         """
         애니메이션 HP 게이지 렌더링 (픽셀 단위 + 데미지 트레일 + 상처 표시)
@@ -486,6 +488,7 @@ class GaugeRenderer:
             entity_id: 엔티티 고유 ID (애니메이션 추적용)
             wound_damage: 상처 데미지 (최대 HP 제한)
             show_numbers: 숫자 표시 여부
+            shield_amount: 보호막 수치 (HP + 보호막으로 합산 표시, 파란색)
         """
         global _boundary_tile_fail_logged
 
@@ -802,8 +805,19 @@ class GaugeRenderer:
                 cell_bg_colors[i] = bg_color
         # 숫자 표시 (배경 밝기에 따른 가독성 좋은 색상) - 현재 HP만 표시
         # 배경을 투명하게 하여 트레일이 보이도록 함
+        # 보호막이 있으면 HP + 보호막 합산을 파란색으로 표시
         if show_numbers:
-            current_text = f"{display_number}"
+            # 보호막이 있으면 합산 표시 + 파란색
+            if shield_amount > 0:
+                combined_value = int(display_number + shield_amount)
+                current_text = f"{combined_value}"
+                # 보호막 있을 때 파란색 (밝은 하늘색)
+                text_color = (80, 180, 255)
+            else:
+                current_text = f"{display_number}"
+                # 배경색에 따른 텍스트 색상 선택
+                text_color = get_contrast_text_color(fg_color)
+            
             number_key = f"{entity_id}_hp_num"
             
             # 이전 숫자 길이 확인 및 남은 문자 지우기
@@ -817,9 +831,6 @@ class GaugeRenderer:
             
             # 현재 숫자 길이 저장
             anim_mgr._number_text_lengths[number_key] = len(current_text)
-            
-            # 배경색에 따른 텍스트 색상 선택
-            text_color = get_contrast_text_color(fg_color)
             
             # 현재 HP 표시 (왼쪽) - 배경 투명하게 하여 트레일이 보이도록
             if width >= len(current_text) + 2:
@@ -839,16 +850,26 @@ class GaugeRenderer:
         current_mp: float,
         max_mp: float,
         entity_id: str,
-        show_numbers: bool = True
+        show_numbers: bool = True,
+        reserved_mp: float = 0.0
     ) -> None:
         """애니메이션 MP 게이지 렌더링 (타일셋 기반)"""
         anim_mgr = get_animation_manager()
         tile_manager = _get_tile_manager()
+        # 타일셋 여부와 무관하게 1/32 픽셀 계단을 강제
         use_tiles = tile_manager is not None and tile_manager.is_initialized()
         divisions = GaugeRenderer.DIVISIONS
+        if not hasattr(GaugeRenderer, "_mp_bar_debug_logged"):
+            from src.core.logger import get_logger
+            logger = get_logger("gauge_renderer")
+            logger.info(f"[MP 게이지 렌더링] tile_manager={tile_manager is not None}, is_initialized={tile_manager.is_initialized() if tile_manager else False}, use_tiles={use_tiles}")
+            GaugeRenderer._mp_bar_debug_logged = True
         
+        # 예약 MP를 제외한 실사용 최대치
+        usable_max_mp = max(1.0, max_mp - max(0.0, reserved_mp))
+
         # 애니메이션 값
-        anim = anim_mgr.get_animated_value(f"{entity_id}_mp", current_mp, max_mp, duration=0.35)
+        anim = anim_mgr.get_animated_value(f"{entity_id}_mp", current_mp, usable_max_mp, duration=0.35)
         
         # 증가/감소 판단을 위해 목표값과 비교
         prev_target_mp = anim.target
@@ -870,28 +891,25 @@ class GaugeRenderer:
             anim_mgr.trigger_damage_color_animation(damage_color_key, duration=0.35)
         display_number = anim_mgr.get_display_number(f"{entity_id}_mp_num", current_mp, 0.016)
         
-        if max_mp <= 0:
+        if usable_max_mp <= 0:
             ratio = 0.0
             display_ratio = 0.0
         else:
-            ratio = min(1.0, current_mp / max_mp)
-            display_ratio = min(1.0, display_mp / max_mp)
+            ratio = min(1.0, current_mp / usable_max_mp)
+            display_ratio = min(1.0, display_mp / usable_max_mp)
         
-        # MP 색상 (파란색 계열)
-        if ratio > 0.6:
-            fg_color = (80, 150, 255)
-            bg_color = (30, 60, 120)
-        elif ratio > 0.3:
-            fg_color = (60, 120, 200)
-            bg_color = (25, 50, 90)
-        else:
-            fg_color = (40, 90, 150)
-            bg_color = (20, 40, 70)
+        # MP 색상 (파란색 계열) - 채움/배경 고정 (혼합 최소화)
+        fg_color = (60, 140, 255) if ratio > 0.3 else (40, 110, 200)
+        bg_color = (25, 50, 90)
         
         # === 픽셀 단위 렌더링 (레이어 방식) ===
         total_pixels = width * divisions
-        mp_pixels = int(ratio * total_pixels)
-        display_pixels = int(display_ratio * total_pixels)
+        reserved_pixels = int(max(0.0, reserved_mp) / max(1.0, max_mp) * total_pixels)
+        reserved_pixels = min(reserved_pixels, total_pixels)
+        usable_pixels = max(0, total_pixels - reserved_pixels)
+
+        mp_pixels = min(int(ratio * usable_pixels), usable_pixels)
+        display_pixels = min(int(display_ratio * usable_pixels), usable_pixels)
         
         is_decreasing = display_pixels > mp_pixels
         is_increasing = display_pixels < mp_pixels
@@ -904,21 +922,6 @@ class GaugeRenderer:
         heal_intensity = anim_mgr.get_heal_color_intensity(heal_color_key)
         damage_intensity = anim_mgr.get_damage_color_intensity(damage_color_key)
         
-        # 회복 시 색상 반짝임 (밝게 했다가 원래대로)
-        if heal_intensity > 0:
-            # 밝은 색상으로 블렌딩
-            highlight_color = (
-                min(255, int(fg_color[0] + (255 - fg_color[0]) * heal_intensity * 0.5)),
-                min(255, int(fg_color[1] + (255 - fg_color[1]) * heal_intensity * 0.5)),
-                min(255, int(fg_color[2] + (255 - fg_color[2]) * heal_intensity * 0.5))
-            )
-            # 원래 색상과 블렌딩
-            fg_color = (
-                int(fg_color[0] * (1 - heal_intensity) + highlight_color[0] * heal_intensity),
-                int(fg_color[1] * (1 - heal_intensity) + highlight_color[1] * heal_intensity),
-                int(fg_color[2] * (1 - heal_intensity) + highlight_color[2] * heal_intensity)
-            )
-        
         # 레이어 1: 배경
         console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
 
@@ -928,38 +931,42 @@ class GaugeRenderer:
         # 각 셀의 배경 색상을 미리 계산하여 저장 (숫자 렌더링용)
         cell_bg_colors = {}
         
+        reserved_start_pixel = usable_pixels
+        stripe_color = (30, 30, 50)
+
         for i in range(width):
             cell_start = i * divisions
             cell_end = (i + 1) * divisions
-            
-            cell_mp = max(0, min(divisions, render_pixels - cell_start))
-            
-            if cell_mp >= divisions:
+
+            # 예약 영역 계산
+            cell_reserved = max(0, min(cell_end, total_pixels) - max(cell_start, reserved_start_pixel))
+            cell_mp = 0
+            if cell_start < usable_pixels:
+                mp_cover_start = cell_start
+                mp_cover_end = min(cell_end, render_pixels)
+                cell_mp = max(0, mp_cover_end - mp_cover_start)
+
+            if cell_reserved >= divisions:
+                # 완전 예약 영역
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=stripe_color)
+                cell_bg_colors[i] = stripe_color
+            elif cell_mp >= divisions:
                 console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
                 cell_bg_colors[i] = fg_color
             elif cell_mp > 0:
+                # 부분 충전 - 타일셋 사용 시 1/32 표현, 없으면 전경색
                 fill_ratio = cell_mp / divisions
-                cell_unfilled = divisions - cell_mp
-                
-                blended_bg = bg_color
-                
                 if use_tiles:
                     tile_char = tile_manager.get_tile_char('mp_fill', fill_ratio)
-                    console.print(x + i, y, tile_char, fg=fg_color, bg=blended_bg)
+                    console.print(x + i, y, tile_char, fg=fg_color, bg=bg_color)
+                    cell_bg_colors[i] = fg_color
                 else:
-                    partial_color = (
-                        int(blended_bg[0] + (fg_color[0] - blended_bg[0]) * fill_ratio),
-                        int(blended_bg[1] + (fg_color[1] - blended_bg[1]) * fill_ratio),
-                        int(blended_bg[2] + (fg_color[2] - blended_bg[2]) * fill_ratio)
-                    )
-                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=partial_color)
-                # 부분 MP 셀: MP 색상과 배경 색상의 혼합
-                partial_bg = (
-                    int(blended_bg[0] + (fg_color[0] - blended_bg[0]) * fill_ratio),
-                    int(blended_bg[1] + (fg_color[1] - blended_bg[1]) * fill_ratio),
-                    int(blended_bg[2] + (fg_color[2] - blended_bg[2]) * fill_ratio)
-                )
-                cell_bg_colors[i] = partial_bg
+                    console.draw_rect(x + i, y, 1, 1, ord(" "), bg=fg_color)
+                    cell_bg_colors[i] = fg_color
+            elif cell_reserved > 0:
+                # 경계/부분 예약 셀도 스트라이프 색으로 고정
+                console.draw_rect(x + i, y, 1, 1, ord(" "), bg=stripe_color)
+                cell_bg_colors[i] = stripe_color
             else:
                 # 빈 셀
                 cell_bg_colors[i] = bg_color
@@ -1002,7 +1009,9 @@ class GaugeRenderer:
         max_brv: float,
         entity_id: str,
         is_broken: bool = False,
-        show_numbers: bool = True
+        show_numbers: bool = True,
+        custom_color: tuple = None,
+        break_text: str = "BREAK!"
     ) -> None:
         """애니메이션 BRV 게이지 렌더링 (타일셋 기반)"""
         anim_mgr = get_animation_manager()
@@ -1041,7 +1050,15 @@ class GaugeRenderer:
             display_ratio = min(1.0, display_brv / max_brv)
         
         # BRV 색상 (노란색 계열 통일, 100%일 때만 핑크색, BREAK 시 빨간색)
-        if is_broken:
+        if custom_color:
+            fg_color = custom_color
+            # 배경색은 약간 어둡게
+            bg_color = (
+                max(0, int(custom_color[0] * 0.4)),
+                max(0, int(custom_color[1] * 0.4)),
+                max(0, int(custom_color[2] * 0.4))
+            )
+        elif is_broken:
             fg_color = (150, 50, 50)
             bg_color = (60, 20, 20)
         elif ratio >= 1.0:
@@ -1141,7 +1158,7 @@ class GaugeRenderer:
         # 배경을 투명하게 하여 트레일이 보이도록 함
         if show_numbers:
             if is_broken:
-                text = "BREAK!"
+                text = break_text
                 text_x = x + (width - len(text)) // 2
                 if text_x >= x:
                     # BREAK 상태는 빨간 배경이므로 흰색 텍스트
@@ -1673,6 +1690,8 @@ class GaugeRenderer:
             "entangle": ("속박술", (100, 150, 100)),
             "madness": ("광기", (200, 50, 50)),
             "taunt": ("도발", (255, 150, 100)),
+            "mockery": ("농락", (180, 120, 220)),
+            "intrusion": ("침투", (120, 200, 255)),
             # 버프 (초록 계열)
             "boost_atk": ("공↑", (100, 255, 100)),
             "boost_def": ("방↑", (100, 255, 150)),

@@ -41,6 +41,7 @@ class PotionRecipe:
     effects: Dict[str, Any]      # 효과 수치
     duration: int = 0            # 지속 시간 (턴), 0 = 즉시
     difficulty: int = 1          # 난이도 (1-5)
+    stat_scaling: Dict[str, float] = None  # 스탯 스케일링 {"stat": "attack"|"magic", "ratio": float}
     
     
 class PotionDatabase:
@@ -51,61 +52,67 @@ class PotionDatabase:
         "minor_health_potion": PotionRecipe(
             potion_id="minor_health_potion",
             name="소형 체력 포션",
-            description="약한 체력 회복 포션. HP 50 회복.",
+            description="약한 체력 회복 포션. HP 75 + 마법력의 30% 회복.",
             potion_type=PotionType.HEALING,
             ingredients={"glass_vial": 1, "pure_water": 1, "magic_herb": 1},
-            effects={"hp_restore": 50},
-            difficulty=1
+            effects={"hp_restore": 75},
+            difficulty=1,
+            stat_scaling={"stat": "magic", "ratio": 0.3}
         ),
         
         "health_potion": PotionRecipe(
             potion_id="health_potion",
             name="체력 포션",
-            description="중간 체력 회복 포션. HP 150 회복.",
+            description="중간 체력 회복 포션. HP 225 + 마법력의 50% 회복.",
             potion_type=PotionType.HEALING,
             ingredients={"glass_vial": 1, "pure_water": 2, "magic_herb": 2, "honey": 1},
-            effects={"hp_restore": 150},
-            difficulty=2
+            effects={"hp_restore": 225},
+            difficulty=2,
+            stat_scaling={"stat": "magic", "ratio": 0.5}
         ),
         
         "greater_health_potion": PotionRecipe(
             potion_id="greater_health_potion",
             name="대형 체력 포션",
-            description="강력한 체력 회복 포션. HP 300 회복.",
+            description="강력한 체력 회복 포션. HP 450 + 마법력의 80% 회복.",
             potion_type=PotionType.HEALING,
             ingredients={"glass_vial": 1, "pure_water": 3, "mana_blossom": 2, "golden_apple": 1},
-            effects={"hp_restore": 300},
-            difficulty=3
+            effects={"hp_restore": 450},
+            difficulty=3,
+            stat_scaling={"stat": "magic", "ratio": 0.8}
         ),
         
         "minor_mana_potion": PotionRecipe(
             potion_id="minor_mana_potion",
             name="소형 마나 포션",
-            description="약한 마나 회복 포션. MP 30 회복.",
+            description="약한 마나 회복 포션. MP 45 + 마법력의 20% 회복.",
             potion_type=PotionType.MANA,
             ingredients={"glass_vial": 1, "pure_water": 1, "blue_mushroom": 1},
-            effects={"mp_restore": 30},
-            difficulty=1
+            effects={"mp_restore": 45},
+            difficulty=1,
+            stat_scaling={"stat": "magic", "ratio": 0.2}
         ),
         
         "mana_potion": PotionRecipe(
             potion_id="mana_potion",
             name="마나 포션",
-            description="중간 마나 회복 포션. MP 80 회복.",
+            description="중간 마나 회복 포션. MP 120 + 마법력의 40% 회복.",
             potion_type=PotionType.MANA,
             ingredients={"glass_vial": 1, "pure_water": 2, "mana_blossom": 1, "blue_mushroom": 1},
-            effects={"mp_restore": 80},
-            difficulty=2
+            effects={"mp_restore": 120},
+            difficulty=2,
+            stat_scaling={"stat": "magic", "ratio": 0.4}
         ),
         
         "greater_mana_potion": PotionRecipe(
             potion_id="greater_mana_potion",
             name="대형 마나 포션",
-            description="강력한 마나 회복 포션. MP 200 회복.",
+            description="강력한 마나 회복 포션. MP 300 + 마법력의 60% 회복.",
             potion_type=PotionType.MANA,
             ingredients={"glass_vial": 1, "pure_water": 3, "mana_blossom": 3, "star_fruit": 1},
-            effects={"mp_restore": 200},
-            difficulty=3
+            effects={"mp_restore": 300},
+            difficulty=3,
+            stat_scaling={"stat": "magic", "ratio": 0.6}
         ),
         
         # === 복합 포션 (Combination Potions) ===
@@ -115,7 +122,7 @@ class PotionDatabase:
             description="HP와 MP를 동시에 회복. HP 100, MP 50 회복.",
             potion_type=PotionType.REJUVENATION,
             ingredients={"glass_vial": 1, "pure_water": 2, "magic_herb": 1, "mana_blossom": 1, "honey": 1},
-            effects={"hp_restore": 100, "mp_restore": 50},
+            effects={"hp_restore": 150, "mp_restore": 75},
             difficulty=3
         ),
         
@@ -126,8 +133,8 @@ class PotionDatabase:
             description="공격력을 크게 증가시킨다. 20턴 지속.",
             potion_type=PotionType.STRENGTH,
             ingredients={"glass_vial": 1, "pure_water": 1, "fire_essence": 1, "beast_meat": 2},
-            effects={"strength_bonus": 15},
-            duration=20,
+            effects={"strength_bonus": 25},
+            duration=25,
             difficulty=3
         ),
         
@@ -137,8 +144,8 @@ class PotionDatabase:
             description="방어력을 크게 증가시킨다. 20턴 지속.",
             potion_type=PotionType.DEFENSE,
             ingredients={"glass_vial": 1, "pure_water": 1, "ice_essence": 1, "stone": 2},
-            effects={"defense_bonus": 15},
-            duration=20,
+            effects={"defense_bonus": 25},
+            duration=25,
             difficulty=3
         ),
         
@@ -148,8 +155,8 @@ class PotionDatabase:
             description="속도를 크게 증가시킨다. 15턴 지속.",
             potion_type=PotionType.SPEED,
             ingredients={"glass_vial": 1, "pure_water": 1, "lightning_essence": 1, "berry": 3},
-            effects={"speed_bonus": 20},
-            duration=15,
+            effects={"speed_bonus": 30},
+            duration=20,
             difficulty=3
         ),
         
@@ -160,8 +167,8 @@ class PotionDatabase:
             description="매 턴 HP를 회복한다. 10턴 동안 턴당 20 HP 회복.",
             potion_type=PotionType.REGENERATION,
             ingredients={"glass_vial": 1, "pure_water": 2, "mana_blossom": 2, "truffle": 1},
-            effects={"regen_per_turn": 20},
-            duration=10,
+            effects={"regen_per_turn": 35},
+            duration=12,
             difficulty=4
         ),
         
@@ -335,6 +342,52 @@ class PotionDatabase:
             effects={"crit_rate": 25, "crit_damage": 50},
             duration=20,
             difficulty=5
+        ),
+
+        # === 유니크 효과 포션 (Unique Effect Potions) ===
+        "iron_fortress": PotionRecipe(
+            potion_id="iron_fortress",
+            name="철의 요새",
+            description="강력한 보호막을 생성한다. 마법력의 200% 보호막, 10턴 지속.",
+            potion_type=PotionType.DEFENSE,
+            ingredients={"glass_vial": 1, "pure_water": 2, "golem_core": 1, "obsidian": 2, "earth_essence": 1},
+            effects={"shield": 0, "shield_duration": 10},  # 기본 0, 스탯 스케일링으로 계산
+            duration=10,
+            difficulty=4,
+            stat_scaling={"stat": "magic", "ratio": 2.0}  # 마법력의 200%
+        ),
+
+        "dimensional_barrier": PotionRecipe(
+            potion_id="dimensional_barrier",
+            name="차원 장벽",
+            description="차원의 힘으로 피해를 감소시킨다. 받는 피해 40% 감소, 10턴 지속.",
+            potion_type=PotionType.DEFENSE,
+            ingredients={"glass_vial": 1, "pure_water": 2, "void_lotus": 1, "crystal_shard": 2, "ether": 1},
+            effects={"damage_reduction_percent": 40},
+            duration=10,
+            difficulty=4
+        ),
+
+        "blade_fury": PotionRecipe(
+            potion_id="blade_fury",
+            name="칼날의 분노",
+            description="공격에 추가 피해를 부여한다. 공격 시 공격력/마법력의 30% 추가 HP 피해, 10턴.",
+            potion_type=PotionType.STRENGTH,
+            ingredients={"glass_vial": 1, "pure_water": 2, "fire_essence": 2, "dragon_bone": 1, "demon_horn": 1},
+            effects={"bonus_hp_damage_percent": 30},
+            duration=10,
+            difficulty=5
+        ),
+
+        "battle_trance": PotionRecipe(
+            potion_id="battle_trance",
+            name="전투 무아경",
+            description="전투에 완전히 몰입한다. 공격력 +40%, 속도 +30%, 받는 피해 25% 증가. 12턴.",
+            potion_type=PotionType.BERSERK,
+            ingredients={"glass_vial": 1, "pure_water": 1, "fire_essence": 2, "lightning_essence": 1, "beast_meat": 2},
+            effects={"strength_percent": 40, "speed_percent": 30, "damage_taken_increase": 25},
+            duration=12,
+            difficulty=4
         ),
     }
     

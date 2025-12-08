@@ -10,3 +10,6 @@ effects:
   element: physical
   multiplier: 2.5
   stat_base: strength
+sfx:
+- se
+- Damage3

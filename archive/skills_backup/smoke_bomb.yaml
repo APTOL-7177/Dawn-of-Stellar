@@ -1,0 +1,13 @@
+id: smoke_bomb
+name: 연막탄
+type: support
+description: 연막으로 회피율을 증가시킵니다
+costs:
+  mp: 15
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.0
+  duration: 3

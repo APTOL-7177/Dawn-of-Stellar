@@ -1,0 +1,32 @@
+id: knight_iron_will
+name: 철벽 방어
+type: defense
+description: '철벽의 의지로 방어력을 높이고 의무를 쌓습니다.
+
+  '
+effects:
+- type: buff
+  buff_type: defense_up
+  value: 0.5
+  duration: 3
+  target: self
+- type: buff
+  buff_type: magic_defense_up
+  value: 0.4
+  duration: 3
+  target: self
+- type: gimmick
+  operation: add
+  field: duty_stacks
+  value: 2
+  max_value: 10
+target: self
+costs:
+  mp: 4
+metadata:
+  job: knight
+  defense_mode: true
+  duty_gain: 2
+sfx:
+- se
+- Sword2

@@ -1,7 +1,7 @@
 class_name: 기계공학자
 description: 장비와 기계를 극한까지 강화하는 기술의 달인
-slogan: "기계는 거짓말을 하지 않는다"
-archetype: 장비 강화
+slogan: 기계는 거짓말을 하지 않는다
+archetype: 물리 딜러, 특수
 base_stats:
   hp: 156
   mp: 61
@@ -13,39 +13,39 @@ base_stats:
   magic_defense: 48
   max_brv: 451
 stat_growth:
-  hp: 10.5
-  mp: 4.5
-  init_brv: 23.2
-  strength: 3.5
-  defense: 4.0
-  magic: 3.0
-  spirit: 3.2
-  speed: 3.2
-  luck: 3.5
-  accuracy: 2.2
-  evasion: 1.5
-  max_brv: 90.2
+  hp: 36.4
+  mp: 4.3
+  init_brv: 27.4
+  strength: 16.5
+  defense: 14.1
+  magic: 14.7
+  spirit: 11.7
+  speed: 11.8
+  max_brv: 126.6
+  luck: 3
+  accuracy: 1.6
+  evasion: 1.2
 traits:
+- id: turret_reinforcement
+  name: 포탑 강화
+  description: 포탑 피해량 +20%, 상태이상 확률 +10%
+  type: passive
+- id: turret_shield
+  name: 포탑 방패
+  description: 포탑이 3개 이상일 때 받는 피해 -20%
+  type: conditional
 - id: heat_efficiency
   name: 열 효율
-  description: 최적 구간(50-79) 유지 시 모든 스탯 +15%
-  type: conditional
-- id: dangerous_combat
-  name: 위험한 전투
-  description: 위험 구간(80-99) 유지 시 크리티컬 확률 +20%
+  description: 최적 구간(50-79) 유지 시 포탑 피해량 +30%
   type: conditional
 - id: overheat_prevention
   name: 오버히트 방지
-  description: 열이 95 도달 시 자동으로 -15 (전투당 2회)
+  description: 열이 80+ 도달 시 자동으로 -30 (전투당 3회)
   type: trigger
-- id: auto_cooling
-  name: 자동 냉각
-  description: 매 턴 종료 시 열 -5 (항상 발동)
+- id: double_turret
+  name: 안전하겠지
+  description: 포탑 설치 시 100% 확률로 포탑 1개 추가 설치
   type: trigger
-- id: precision_engineering
-  name: 정밀 기계공학
-  description: 최적 구간에서 스킬 시전 시 MP 소모 -30%
-  type: conditional
 gimmick:
   type: heat_management
   name: 열 관리
@@ -57,18 +57,20 @@ gimmick:
   danger_max: 99
   overheat_threshold: 100
 skills:
-- teamwork
-- turret_shot
-- rocket_punch
-- overload_blast
-- emp_explosion
-- cooling_vent
-- overclock_mode
-- emergency_repair
-- shield_generator
-- deploy_drone
-- mega_blaster
-
+- engineer_turret_shot
+- engineer_rocket_punch
+- engineer_teamwork
+- engineer_deploy_turret
+- engineer_deploy_fire_turret
+- engineer_deploy_ice_turret
+- engineer_deploy_thunder_turret
+- engineer_deploy_explosive_turret
+- engineer_deploy_heal_turret
+- engineer_cooling_vent
+- engineer_emergency_cooling
+- engineer_full_cooling
+- engineer_turret_enhance
+- engineer_mega_blaster
 bonuses:
   equipment_bonus: 1.15
   special_proc_rate: 1.3

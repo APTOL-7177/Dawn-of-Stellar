@@ -816,6 +816,66 @@ def execute_magician_skill(character, skill, target, context):
         card_names = [get_card_name(c) for c in drawn]
         results.append(f"새 드로우: {', '.join(card_names)}")
     
+    # 2-1. 특정 숫자 카드 필요 체크 (required_rank)
+    if metadata.get('required_rank'):
+        required_rank = metadata['required_rank']
+        hand = getattr(character, 'card_hand', [])
+        matching_cards = [c for c in hand if c.get('rank') == required_rank and not c.get('is_joker')]
+        
+        if not matching_cards:
+            results.append(f"필요한 카드 없음! {required_rank} 카드가 손패에 필요합니다.")
+            return {"success": False, "results": results}
+        
+        # 카드 소모
+        if metadata.get('consume_cards'):
+            card_to_use = matching_cards[0]
+            discard_cards(character, [card_to_use])
+            results.append(f"사용: {get_card_name(card_to_use)}")
+    
+    # 2-2. 조커 필요 체크 (required_joker)
+    if metadata.get('required_joker'):
+        hand = getattr(character, 'card_hand', [])
+        jokers = [c for c in hand if c.get('is_joker')]
+        
+        if not jokers:
+            results.append("조커 카드가 필요합니다!")
+            return {"success": False, "results": results}
+        
+        # 조커 소모
+        if metadata.get('consume_cards'):
+            joker_to_use = jokers[0]
+            discard_cards(character, [joker_to_use])
+            results.append("🃏 조커 사용!")
+    
+    # 2-3. 같은 무늬 카드 필요 체크 (required_same_suit)
+    if metadata.get('required_same_suit'):
+        required_count = metadata['required_same_suit']
+        hand = getattr(character, 'card_hand', [])
+        
+        # 무늬별 그룹화
+        suit_groups = {}
+        for card in hand:
+            if not card.get('is_joker'):
+                suit = card.get('suit')
+                if suit not in suit_groups:
+                    suit_groups[suit] = []
+                suit_groups[suit].append(card)
+        
+        # 필요 개수 이상 가진 무늬 찾기
+        valid_suits = [(suit, cards) for suit, cards in suit_groups.items() if len(cards) >= required_count]
+        
+        if not valid_suits:
+            results.append(f"같은 무늬 카드 {required_count}장이 필요합니다!")
+            return {"success": False, "results": results}
+        
+        # 카드 소모
+        if metadata.get('consume_cards'):
+            suit, cards = valid_suits[0]
+            cards_to_use = cards[:required_count]
+            discard_cards(character, cards_to_use)
+            card_names = [get_card_name(c) for c in cards_to_use]
+            results.append(f"사용: {', '.join(card_names)}")
+    
     # 3. 포커 조합 스킬 처리
     if metadata.get('required_combination'):
         required = metadata['required_combination']

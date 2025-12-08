@@ -1,6 +1,6 @@
 class_name: 기사
 description: 영광의 맹세로 파티를 이끄는 고결한 지휘관
-slogan: "맹세는 지키되, 대가를 치른다"
+slogan: 맹세는 지키되, 대가를 치른다
 archetype: 지휘관/버퍼
 base_stats:
   hp: 216
@@ -13,18 +13,18 @@ base_stats:
   magic_defense: 54
   max_brv: 485
 stat_growth:
-  hp: 13.5
-  mp: 4.2
-  init_brv: 26.0
-  strength: 4.0
-  defense: 4.2
-  magic: 2.5
-  spirit: 3.8
-  speed: 3.2
-  luck: 3.2
-  accuracy: 1.8
-  evasion: 1.3
-  max_brv: 97.0
+  hp: 58.0
+  mp: 2.3
+  init_brv: 30.7
+  strength: 19.7
+  defense: 25.5
+  magic: 9.3
+  spirit: 14.5
+  speed: 9.6
+  max_brv: 136.2
+  luck: 3
+  accuracy: 1.6
+  evasion: 1.2
 traits:
 - id: duty_amplifier
   name: 의무 증폭
@@ -33,15 +33,13 @@ traits:
   effects:
     duty_gain_bonus: 1.5
     defense_bonus_at_5: 0.3
-
 - id: oath_keeper
   name: 맹세 지킴이
   description: 의무 비례 파티 방어력 버프 (의무당 +3%, 최대 +30%)
   type: passive
   effects:
     party_defense_per_duty: 0.03
-    max_party_defense: 0.30
-
+    max_party_defense: 0.3
 - id: guardian_shield
   name: 수호자의 방패
   description: 아군 보호 시 의무 +3, 받는 피해 -25%
@@ -49,7 +47,6 @@ traits:
   effects:
     duty_on_protect: 3
     damage_reduction: 0.25
-
 - id: duty_overflow
   name: 의무 과잉
   description: 의무 MAX(10) 시 파티 전체 무적 1턴 자동 발동
@@ -58,7 +55,6 @@ traits:
     duty_exact: 10
   effects:
     party_invincible: 1
-
 - id: sacrifice_honor
   name: 희생의 명예
   description: 파티원 대신 치명상 받을 시 의무 전부 소비하고 생존 + 파티 HP 30% 회복
@@ -69,27 +65,39 @@ traits:
 gimmick:
   type: duty_system
   name: 기사의 의무
-  description: |
-    [의무 시스템] 파티를 보호하며 의무 축적!
-    
+  description: '[의무 시스템] 파티를 보호하며 의무 축적!
+
+
     - 아군 대신 피해 받을 때 의무 +2
+
     - 보호 스킬 사용 시 의무 +1
+
     - 의무 소비해 강력한 수호 기술
-    
+
+
     의무 효과:
+
     - 5 스택: 보호 시 피해 -30%
+
     - 10 스택: 파티 전체 보호막 발동
-    
+
+
     맹세 스킬:
+
     - 기사도 맹세: 의무 비례 버프
+
     - 최후의 저항: 의무 전소비 무적
+
+    '
   max_duty_stacks: 10
   duty_gain:
     protect_ally: 2
     use_guard_skill: 1
   duty_effects:
-    5: {damage_reduction: 0.3}
-    10: {party_shield: true}
+    5:
+      damage_reduction: 0.3
+    10:
+      party_shield: true
 skills:
 - teamwork
 - lance
@@ -102,7 +110,9 @@ skills:
 - devotion
 - pledge
 - ultimate
-
+- knight_duty_bulwark
+- knight_shield_line
+- knight_counter_ready
 bonuses:
   party_attack_bonus: 0.08
   party_defense_bonus: 0.08

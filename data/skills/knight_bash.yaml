@@ -1,0 +1,31 @@
+id: knight_bash
+name: 방패 강타
+type: attack
+description: '방패로 강타하여 적을 둔화시키고 의무를 쌓습니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv_hp
+  stat_base: physical
+  multiplier: 1.8
+- type: buff
+  buff_type: speed_down
+  value: 0.3
+  duration: 2
+  target: enemy
+- type: gimmick
+  operation: add
+  field: duty_stacks
+  value: 2
+  max_value: 10
+target: enemy
+costs:
+  mp: 5
+metadata:
+  job: knight
+  cc: true
+  duty_gain: 2
+sfx:
+- se
+- Blow10

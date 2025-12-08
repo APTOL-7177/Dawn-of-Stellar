@@ -85,7 +85,7 @@ class WorldUI:
         # 이동 쿨타임 (플레이어: 0.2초 = 초당 5회, 적: 0.5초 = 초당 2회)
         # 플레이어가 적보다 2.5배 빠르게 움직임
         self.last_move_time = 0.0
-        self.move_cooldown = 0.2  # 0.2초 = 초당 5회 이동 (적보다 빠름)
+        self.move_cooldown = 0.1  # 0.1초 = 초당 10회 이동 (2배 빨라짐)
         
         # 채팅 입력 상태
         self.chat_input_active = False
@@ -122,14 +122,16 @@ class WorldUI:
         # 채팅 입력 모드
         if self.chat_input_active:
             if isinstance(key_event, tcod.event.KeyDown):
-                if key_event.sym == tcod.event.KeySym.RETURN:
+                # GameAction.CONFIRM (A버튼) 또는 Enter 키로 전송
+                if key_event.sym == tcod.event.KeySym.RETURN or action == GameAction.CONFIRM:
                     # Enter: 메시지 전송
                     if self.chat_input_text.strip() and self.network_manager and self.local_player_id:
                         self._send_chat_message(self.chat_input_text.strip())
                         self.chat_input_text = ""
                     self.chat_input_active = False
                     return False
-                elif key_event.sym == tcod.event.KeySym.ESCAPE:
+                # GameAction.CANCEL (B버튼) 또는 ESC 키로 취소
+                elif key_event.sym == tcod.event.KeySym.ESCAPE or action == GameAction.CANCEL:
                     # ESC: 취소
                     self.chat_input_text = ""
                     self.chat_input_active = False
@@ -153,34 +155,34 @@ class WorldUI:
                     self.add_message(msg)
             return False
 
-        # T 키로 채팅 입력 시작 (멀티플레이어일 때만)
-        if isinstance(key_event, tcod.event.KeyDown):
-            # 필드 스킬 UI (F 키) - 마을에서는 사용 불가
-            if key_event.sym == tcod.event.KeySym.f:
-                try:
-                    # 마을인지 확인
-                    is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
-                    if is_town:
-                        self.add_message("마을에서는 필드스킬을 사용할 수 없습니다.")
-                        return False
-                    if self.party:
-                        self.field_skill_ui.show(self.party)
-                        return False
-                except Exception as e:
-                    logger.error(f"F 키 처리 중 오류: {e}")
-                    self.add_message("필드 스킬 UI 오류가 발생했습니다.")
+        # 필드 스킬 및 채팅 입력 (GameAction 사용)
+        # 필드 스킬 (F 키 / L-Trigger)
+        if action == GameAction.FIELD_SKILL:
+            try:
+                # 마을인지 확인
+                is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
+                if is_town:
+                    self.add_message("마을에서는 필드스킬을 사용할 수 없습니다.")
                     return False
+                if self.party:
+                    self.field_skill_ui.show(self.party)
+                    return False
+            except Exception as e:
+                logger.error(f"필드 스킬 처리 중 오류: {e}")
+                self.add_message("필드 스킬 UI 오류가 발생했습니다.")
+                return False
 
-            if key_event.sym == tcod.event.KeySym.t:
-                is_multiplayer = (
-                    self.network_manager is not None or
-                    (hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer) or
-                    (hasattr(self.exploration, 'session') and self.exploration.session is not None)
-                )
-                if is_multiplayer:
-                    self.chat_input_active = True
-                    self.chat_input_text = ""
-                    return False
+        # 채팅 (T 키)
+        if action == GameAction.CHAT:
+            is_multiplayer = (
+                self.network_manager is not None or
+                (hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer) or
+                (hasattr(self.exploration, 'session') and self.exploration.session is not None)
+            )
+            if is_multiplayer:
+                self.chat_input_active = True
+                self.chat_input_text = ""
+                return False
         
         # 봇 관련 코드 제거됨
 
@@ -411,12 +413,41 @@ class WorldUI:
                                 # 로컬 플레이어 준비 상태 설정
                                 if local_player_id:
                                     session.set_floor_ready(local_player_id, True)
+                                    
+                                    # 준비 상태 브로드캐스트 (호스트/클라이언트 모두)
+                                    if self.network_manager:
+                                        from src.multiplayer.protocol import MessageBuilder
+                                        import asyncio
+                                        try:
+                                            ready_msg = MessageBuilder.floor_ready(
+                                                player_id=local_player_id,
+                                                ready=True,
+                                                ready_players=list(session.floor_ready_players),
+                                                total_players=len(session.players)
+                                            )
+                                            # 비동기 브로드캐스트
+                                            server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                                            client_loop = getattr(self.network_manager, '_client_event_loop', None)
+                                            event_loop = server_loop or client_loop
+                                            if event_loop and event_loop.is_running():
+                                                asyncio.run_coroutine_threadsafe(
+                                                    self.network_manager.broadcast(ready_msg),
+                                                    event_loop
+                                                )
+                                            else:
+                                                self.network_manager.broadcast_sync(ready_msg)
+                                            logger.debug(f"층 이동 준비 상태 브로드캐스트: {local_player_id}")
+                                        except Exception as e:
+                                            logger.error(f"층 이동 준비 상태 브로드캐스트 실패: {e}")
 
                                 # 모든 플레이어 준비 확인
                                 if session.is_all_ready_for_floor_change():
                                     self.floor_change_requested = "floor_down"
                                     self.add_message("모든 플레이어가 준비되었습니다. 던전으로 이동합니다...")
                                     session.reset_floor_ready()  # 준비 상태 초기화
+                                    
+
+                                    
                                     return True
                                 else:
                                     ready_count = len(session.floor_ready_players)
@@ -441,12 +472,41 @@ class WorldUI:
                                 # 로컬 플레이어 준비 상태 설정
                                 if local_player_id:
                                     session.set_floor_ready(local_player_id, True)
+                                    
+                                    # 준비 상태 브로드캐스트 (호스트/클라이언트 모두)
+                                    if self.network_manager:
+                                        from src.multiplayer.protocol import MessageBuilder
+                                        import asyncio
+                                        try:
+                                            ready_msg = MessageBuilder.floor_ready(
+                                                player_id=local_player_id,
+                                                ready=True,
+                                                ready_players=list(session.floor_ready_players),
+                                                total_players=len(session.players)
+                                            )
+                                            # 비동기 브로드캐스트
+                                            server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                                            client_loop = getattr(self.network_manager, '_client_event_loop', None)
+                                            event_loop = server_loop or client_loop
+                                            if event_loop and event_loop.is_running():
+                                                asyncio.run_coroutine_threadsafe(
+                                                    self.network_manager.broadcast(ready_msg),
+                                                    event_loop
+                                                )
+                                            else:
+                                                self.network_manager.broadcast_sync(ready_msg)
+                                            logger.debug(f"층 이동 준비 상태 브로드캐스트: {local_player_id}")
+                                        except Exception as e:
+                                            logger.error(f"층 이동 준비 상태 브로드캐스트 실패: {e}")
 
                                 # 모든 플레이어 준비 확인
                                 if session.is_all_ready_for_floor_change():
                                     self.floor_change_requested = "floor_down"
                                     self.add_message("모든 플레이어가 준비되었습니다. 아래층으로 내려갑니다...")
                                     session.reset_floor_ready()  # 준비 상태 초기화
+                                    
+
+                                    
                                     return True
                                 else:
                                     ready_count = len(session.floor_ready_players)
@@ -457,6 +517,17 @@ class WorldUI:
                         # 싱글플레이: 즉시 이동
                         self.floor_change_requested = "floor_down"
                         self.add_message("아래층으로 내려갑니다...")
+                        
+                        # 퀘스트 진행도 업데이트 (층 도달 퀘스트)
+                        next_floor = self.exploration.floor_number + 1
+                        try:
+                            from src.quest.quest_manager import get_quest_manager
+                            quest_manager = get_quest_manager()
+                            quest_manager.update_progress("floor_reached", f"floor_{next_floor}")
+                            logger.info(f"[퀘스트] 층 도달 진행도 업데이트: floor_{next_floor}")
+                        except Exception as e:
+                            logger.warning(f"[퀘스트] 층 도달 진행도 업데이트 실패: {e}")
+                        
                         return True
             return False
 
@@ -783,7 +854,7 @@ class WorldUI:
                                 logger.info(f"[건물 상호작용] 퀘스트 게시판 UI 열기 (플레이어 레벨: {player_level})")
                                 try:
                                     from src.ui.quest_board_ui import open_quest_board
-                                    open_quest_board(console, context, quest_manager, player_level)
+                                    open_quest_board(console, context, quest_manager, player_level, current_floor=self.exploration.floor_number)
                                     logger.info(f"[건물 상호작용] 퀘스트 게시판 UI 열기 성공")
                                 except Exception as ui_error:
                                     logger.error(f"[건물 상호작용] 퀘스트 게시판 UI 열기 오류: {ui_error}", exc_info=True)
@@ -1076,8 +1147,8 @@ class WorldUI:
         player_x = self.exploration.player.x
         player_y = self.exploration.player.y
 
-        # 인접 범위 (바로 옆 칸에 있어야 함 - 완전히 맞닿아야 열림)
-        max_distance = 1
+        # 인접 범위 (플레이어와 완전히 겹쳐야 함)
+        max_distance = 0
 
         logger.debug(f"요리솥 찾기 시작 - 플레이어 위치: ({player_x}, {player_y}), 채집 오브젝트 수: {len(self.exploration.dungeon.harvestables)}")
 
@@ -1411,7 +1482,8 @@ class WorldUI:
             self.gauge_renderer.render_animated_mp_bar(
                 console, x + 4, my + 2, 15,
                 current_mp, max_mp, entity_id,
-                show_numbers=True
+                show_numbers=True,
+                reserved_mp=getattr(member, "reserved_max_mp", 0)
             )
 
         # 인벤토리 정보 (파티 상태 아래로 이동)
@@ -1858,6 +1930,44 @@ def run_exploration(
             logger.info(f"층 {floor} -> 바이옴 {biome_index}, BGM: {biome_track}")
             play_bgm(biome_track)
 
+    # ===== 20/30층 스토리 보스 강제 조우 체크 =====
+    # 마을이 아니고, 20층 또는 30층에 처음 진입했을 때 즉시 보스 전투 트리거
+    if not (hasattr(exploration, 'is_town') and exploration.is_town):
+        floor = exploration.floor_number
+        
+        # 스토리 보스 전투 트리거 플래그 확인
+        if not hasattr(exploration, 'story_boss_triggered'):
+            exploration.story_boss_triggered = False
+        
+        # 20층: 세피로스, 30층: 아벨 카인
+        if floor in [20, 30] and not exploration.story_boss_triggered:
+            from src.story.story_system import get_story_system
+            story_system = get_story_system()
+            
+            # 20층은 sephiroth_defeated, 30층은 cain_defeated 체크
+            should_trigger_boss = False
+            boss_type = None
+            
+            if floor == 20 and not story_system.sephiroth_defeated:
+                should_trigger_boss = True
+                boss_type = "sephiroth"
+                logger.info("[스토리 보스] 20층 진입 - 세피로스와 강제 조우!")
+            elif floor == 30 and not getattr(story_system, 'cain_defeated', False):
+                should_trigger_boss = True
+                boss_type = "cain"
+                logger.info("[스토리 보스] 30층 진입 - 아벨 카인과 강제 조우!")
+            
+            if should_trigger_boss:
+                # 플래그 설정 (중복 트리거 방지)
+                exploration.story_boss_triggered = True
+                
+                # 스토리 보스 전투 데이터 반환
+                return ("story_boss_combat", {
+                    "floor": floor,
+                    "boss_type": boss_type,
+                    "participants": party or (exploration.player.party if hasattr(exploration, 'player') else None)
+                })
+
     # 업데이트 콜백 함수 정의
     def update_game_state():
         """게임 상태 업데이트 (백그라운드)"""
@@ -1875,6 +1985,7 @@ def run_exploration(
         
         # 시간 기반 적 이동 업데이트 (싱글/멀티 모두)
         # 적과 플레이어가 독립적으로 시간 기반으로 움직임
+        import time
         current_time = time.time()
 
         # 적 이동 업데이트
@@ -1885,6 +1996,17 @@ def run_exploration(
             # 시간 기반 이동 중 적과 플레이어가 충돌했는지 확인
             if hasattr(exploration, 'collision_enemy') and exploration.collision_enemy:
                 collided_enemy = exploration.collision_enemy
+                
+                # 도망 쿨다운 체크 (이중 안전장치)
+                import time
+                enemy_id = id(collided_enemy)
+                if hasattr(exploration, 'fled_enemies') and enemy_id in exploration.fled_enemies:
+                    fled_time = exploration.fled_enemies[enemy_id]
+                    if time.time() - fled_time <= 5.0:
+                        logger.debug(f"[전투 스킵] {collided_enemy.name} 도망 쿨다운 중 - 전투 무시")
+                        exploration.collision_enemy = None  # 충돌 초기화
+                        return
+                
                 logger.info(f"[전투 트리거] 시간 기반 이동 중 충돌: {collided_enemy.name}")
 
                 # 전투 트리거: 충돌한 적과 주변 적들 수집
@@ -1899,7 +2021,22 @@ def run_exploration(
 
                 # UI에서 전투 트리거
                 ui.combat_requested = True
-                ui.combat_num_enemies = len(combat_enemies)
+                # exploration.py의 _trigger_combat_with_enemy와 동일한 로직 적용
+                # 주변 적 수에 따라 전투 적 수 결정 (2-4마리)
+                nearby_count = len(combat_enemies)
+                if nearby_count == 1:
+                    import random
+                    # 1마리 조우: 2~4마리 전투 (기본값)
+                    num_enemies = random.randint(2, 4)
+                elif nearby_count == 2:
+                    import random
+                    # 2마리 조우: 3~4마리 전투
+                    num_enemies = random.randint(3, 4)
+                else:
+                    # 3마리 이상 조우: 4마리 전투 (최대)
+                    num_enemies = 4
+                
+                ui.combat_num_enemies = num_enemies
                 ui.combat_enemies = combat_enemies
                 if hasattr(exploration, 'player'):
                     ui.combat_position = (exploration.player.x, exploration.player.y)
@@ -1978,10 +2115,102 @@ def run_exploration(
             if done:
                 # Debug: 루프 탈출
                 break
-        else:
-            # action이 None인 경우 (키 입력 없음)
-            # 다음 이벤트 처리로 넘어감
-            continue
+        
+        # 멀티플레이 클라이언트: DUNGEON_DATA 수신 체크 (매 프레임, 입력 여부 무관)
+        # network_manager에 직접 플래그가 저장됨 (session 없이도 작동)
+        if network_manager and not getattr(network_manager, 'is_host', True):
+            dungeon_received = getattr(network_manager, 'dungeon_data_received', False)
+            if dungeon_received:
+                logger.info(f"✅ DUNGEON_DATA 플래그 감지! floor={getattr(network_manager, 'pending_floor_number', None)}")
+                try:
+                    from src.persistence.save_system import deserialize_dungeon
+                    pending_data = getattr(network_manager, 'pending_dungeon_data', None)
+                    pending_floor = getattr(network_manager, 'pending_floor_number', 1)
+                    
+                    logger.info(f"📦 pending_data 존재: {pending_data is not None}, 타입: {type(pending_data).__name__ if pending_data else 'None'}")
+                    
+                    if pending_data:
+                        new_dungeon = deserialize_dungeon(pending_data)
+                        # exploration 업데이트
+                        exploration.dungeon = new_dungeon
+                        exploration.floor_number = pending_floor
+                        exploration.is_town = False  # 던전이므로 마을 플래그 해제
+                        
+                        # 시작 위치 (첫 번째 방 중앙)
+                        if new_dungeon.rooms:
+                            first_room = new_dungeon.rooms[0]
+                            exploration.player.x = first_room.x + first_room.width // 2
+                            exploration.player.y = first_room.y + first_room.height // 2
+                        elif new_dungeon.stairs_down:
+                            exploration.player.x = new_dungeon.stairs_down[0]
+                            exploration.player.y = new_dungeon.stairs_down[1]
+                        
+                        # FOV 업데이트
+                        if hasattr(exploration, 'update_fov'):
+                            exploration.update_fov()
+                        
+                        ui.add_message(f"던전 {pending_floor}층으로 이동했습니다!")
+                        logger.info(f"클라이언트 던전 업데이트 완료: {pending_floor}층")
+                    
+                    # 플래그 초기화
+                    network_manager.dungeon_data_received = False
+                    network_manager.pending_dungeon_data = None
+                except Exception as e:
+                    logger.error(f"클라이언트 던전 업데이트 실패: {e}", exc_info=True)
+        
+        # 멀티플레이에서 session이 있는 경우 추가 체크 (호스트 측)
+        session = None
+        if network_manager and hasattr(network_manager, 'session'):
+            session = network_manager.session
+        elif hasattr(exploration, 'session') and exploration.session:
+            session = exploration.session
+        
+        # 멀티플레이 자동 층 이동: 계단 위에 있으면 자동으로 준비 상태 + 모든 준비 시 이동
+        if network_manager and session:
+            is_multiplayer = hasattr(exploration, 'is_multiplayer') and exploration.is_multiplayer
+            is_host = getattr(network_manager, 'is_host', False)
+            
+            if is_multiplayer:
+                tile = exploration.dungeon.get_tile(exploration.player.x, exploration.player.y)
+                if tile and tile.tile_type == TileType.STAIRS_DOWN:
+                    local_player_id = getattr(exploration, 'local_player_id', None)
+                    
+                    # 자동으로 준비 상태 설정
+                    if local_player_id and local_player_id not in session.floor_ready_players:
+                        session.set_floor_ready(local_player_id, True)
+                        ui.add_message("계단 위 - 대기 중...")
+                        logger.info(f"계단 위 - 자동 준비: {local_player_id}")
+                        
+                        # 준비 상태 브로드캐스트
+                        from src.multiplayer.protocol import MessageBuilder
+                        import asyncio
+                        try:
+                            ready_msg = MessageBuilder.floor_ready(
+                                player_id=local_player_id,
+                                ready=True,
+                                ready_players=list(session.floor_ready_players),
+                                total_players=len(session.players)
+                            )
+                            server_loop = getattr(network_manager, '_server_event_loop', None)
+                            client_loop = getattr(network_manager, '_client_event_loop', None)
+                            event_loop = server_loop or client_loop
+                            if event_loop and event_loop.is_running():
+                                asyncio.run_coroutine_threadsafe(
+                                    network_manager.broadcast(ready_msg),
+                                    event_loop
+                                )
+                            logger.debug("층 이동 준비 상태 브로드캐스트")
+                        except Exception as e:
+                            logger.error(f"준비 상태 브로드캐스트 실패: {e}")
+                    
+                    # 호스트: 모든 플레이어 준비 완료 시 자동 층 이동 트리거
+                    if is_host and session.is_all_ready_for_floor_change():
+                        ui.floor_change_requested = "floor_down"
+                        ui.add_message("모든 플레이어 준비 완료! 이동합니다...")
+                        session.reset_floor_ready()
+                        logger.info("호스트: 자동 층 변경 트리거")
+                        break  # 루프 탈출 → main.py에서 층 변경 처리
+        
         
         # 입력 처리 후 즉시 상태 체크 (전투 요청 확인)
         if ui.combat_requested:

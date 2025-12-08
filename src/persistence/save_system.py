@@ -530,7 +530,7 @@ def serialize_gimmick_state(member: Any) -> Dict[str, Any]:
         "timeline_system": ["timeline", "min_timeline", "max_timeline", "optimal_point", "past_threshold", "future_threshold", "time_correction_counter"],
         "dragon_marks": ["dragon_marks", "max_dragon_marks", "dragon_power"],
         "arena_system": ["arena_points", "max_arena_points", "glory_points", "kill_count", "parry_active"],
-        "break_system": ["break_power", "max_break_power"],
+        "break_system": ["combo_gauge", "combo_gauge_scaling"],
         "charge_system": ["charge_gauge", "max_charge"],
         "duty_system": ["duty_stacks", "max_duty_stacks"],
         "holy_system": ["holy_power", "max_holy_power"],
@@ -538,6 +538,7 @@ def serialize_gimmick_state(member: Any) -> Dict[str, Any]:
         "plunder_system": ["gold", "max_gold", "gold_per_hit"],
         "heat_management": ["heat", "max_heat", "optimal_min", "optimal_max", "danger_min", "danger_max", "overheat_threshold", "overheat_prevention_count", "is_overheated", "overheat_stun_turns"],
         "iaijutsu_system": ["will_gauge", "max_will_gauge"],
+        "blade_circuit": ["steel_line", "mana_line", "max_steel_line", "max_mana_line", "resonance_sigil", "max_resonance_sigil", "steel_lock", "mana_lock", "circuit_history", "circuit_flux_ready"],
         "enchant_system": ["mana_blade", "max_mana_blade"],
         "divinity_system": ["judgment_points", "max_judgment_points", "faith_points", "max_faith_points"],
         "shapeshifting_system": ["nature_points", "max_nature_points", "current_form", "available_forms"],
@@ -547,15 +548,20 @@ def serialize_gimmick_state(member: Any) -> Dict[str, Any]:
         "wisdom_system": ["knowledge_stacks", "max_knowledge_stacks"],
         "hack_system": ["hack_stacks", "max_hack_stacks", "debuff_count", "max_debuff_count"],
         "yin_yang_flow": ["ki_gauge", "min_ki", "max_ki", "balance_center", "yin_threshold", "yang_threshold"],
-        "rune_resonance": ["rune_fire", "rune_ice", "rune_lightning", "rune_earth", "rune_arcane", "max_rune_per_type", "max_runes_total", "resonance_bonus"],
+        "rune_resonance": ["rune_fire", "rune_ice", "rune_lightning", "rune_earth", "rune_arcane", "max_rune_per_type", "max_runes_total", "resonance_bonus", "resonance_gauge", "max_resonance_gauge", "max_rune_slots_per_target"],
         "undead_legion": ["undead_count", "max_undead_total", "undead_skeleton", "undead_zombie", "undead_ghost", "undead_power"],
         "madness_threshold": ["madness", "max_madness", "optimal_min", "optimal_max", "danger_min", "rampage_threshold"],
         "thirst_gauge": ["thirst", "max_thirst", "satisfied_max", "normal_min", "normal_max", "starving_min"],
         "multithread_system": ["active_threads", "max_threads", "thread_types"],
-        "crowd_cheer": ["cheer", "max_cheer", "start_cheer", "cheer_zones"],
+        "intrusion_system": ["ram", "max_ram", "ram_regen", "overclock_active", "intrusion_stages"],
+        "oath_system": ["faith", "max_faith", "current_oath", "oath_violation_count", "oath_kept"],
+        "oracle_system": ["faith", "max_faith", "current_oracle", "oracle_combo"],
+        "mockery_system": ["max_mockery", "stealth_active", "consecutive_evades"],
+        "crowd_cheer": ["cheer", "max_cheer", "start_cheer", "cheer_tiers", "cheer_tier", "current_demand", "demand_progress", "consecutive_boos"],
         "stealth_exposure": ["stealth_active", "exposed_turns", "restealth_cooldown"],
+        "mp_overload_system": ["overload_gauge", "max_overload_gauge", "active_toggles", "reserved_max_mp", "last_mp_state"],
         "support_fire": ["marked_allies", "max_marks", "shots_per_mark", "support_fire_combo", "arrow_types"],
-        "elemental_spirits": ["spirit_fire", "spirit_water", "spirit_wind", "spirit_earth", "max_spirits"],
+        "elemental_spirits": ["spirit_fire", "spirit_water", "spirit_wind", "spirit_earth", "max_spirits", "spirit_slots", "active_resonance", "resonance_multiplier"],
         "dilemma_choice": ["choice_power", "choice_wisdom", "choice_sacrifice", "choice_survival", "choice_truth", "choice_lie", "choice_order", "choice_chaos", "accumulation_threshold"],
         "probability_distortion": ["distortion_gauge", "max_gauge", "start_gauge", "gauge_per_turn"],
         "dimension_refraction": ["refraction_stacks"],
@@ -725,7 +731,17 @@ def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]
                 "teleport_target": tile.teleport_target,
                 "loot_id": tile.loot_id,
                 "ingredient_id": tile.ingredient_id,
-                "harvested": tile.harvested
+                "harvested": tile.harvested,
+                # NPC 관련 속성 (마을 건축물 동기화용)
+                "npc_id": tile.npc_id,
+                "npc_type": tile.npc_type,
+                "npc_subtype": tile.npc_subtype,
+                "npc_interacted": tile.npc_interacted,
+                # 건물 관련 속성 (마을 건축물 렌더링용)
+                "building_symbol": getattr(tile, 'building_symbol', None),
+                "building_color": getattr(tile, 'building_color', None),
+                "char": tile.char,
+                "fg_color": list(tile.fg_color) if tile.fg_color else None
             })
 
     # 채집 오브젝트 직렬화
@@ -769,6 +785,7 @@ def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]
     return {
         "width": dungeon.width,
         "height": dungeon.height,
+        "is_town": getattr(dungeon, 'is_town', False),  # 마을 여부 (멀티플레이 동기화용)
         "tiles": tiles_data,
         "stairs_down": dungeon.stairs_down,
         "keys": dungeon.keys,
@@ -787,6 +804,9 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
     from src.world.exploration import Enemy
 
     dungeon = DungeonMap(dungeon_data["width"], dungeon_data["height"])
+    
+    # 마을 여부 복원 (멀티플레이 동기화용)
+    dungeon.is_town = dungeon_data.get("is_town", False)
 
     # 타일 복원
     for tile_data in dungeon_data["tiles"]:
@@ -829,6 +849,73 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
         tile.visible = tile_data.get("visible", False)
         tile.ingredient_id = tile_data.get("ingredient_id")
         tile.harvested = tile_data.get("harvested", False)
+        
+        # NPC 관련 속성 복원 (마을 건축물 동기화용)
+        tile.npc_id = tile_data.get("npc_id")
+        tile.npc_type = tile_data.get("npc_type")
+        tile.npc_subtype = tile_data.get("npc_subtype")
+        tile.npc_interacted = tile_data.get("npc_interacted", False)
+        
+        # 건물 관련 속성 복원 (마을 건축물 렌더링용)
+        if tile_data.get("building_symbol"):
+            tile.building_symbol = tile_data.get("building_symbol")
+            
+            # Building 객체 재생성 (클라이언트 상호작용용)
+            try:
+                from src.town.town_map import Building, BuildingType
+                # 심볼로 BuildingType 역매핑
+                symbol_to_type = {
+                    'K': BuildingType.KITCHEN,
+                    'B': BuildingType.BLACKSMITH,
+                    'A': BuildingType.ALCHEMY_LAB,
+                    'S': BuildingType.STORAGE,
+                    'Q': BuildingType.QUEST_BOARD,
+                    '$': BuildingType.SHOP,
+                    'I': BuildingType.INN,
+                    'G': BuildingType.GUILD_HALL,
+                    'F': BuildingType.FOUNTAIN
+                }
+                # BuildingType 이름 매핑
+                type_to_name = {
+                    BuildingType.KITCHEN: "별빛 주방",
+                    BuildingType.BLACKSMITH: "대장간",
+                    BuildingType.ALCHEMY_LAB: "연금술 실험실",
+                    BuildingType.STORAGE: "창고",
+                    BuildingType.QUEST_BOARD: "퀘스트 게시판",
+                    BuildingType.SHOP: "잡화점",
+                    BuildingType.INN: "여관",
+                    BuildingType.GUILD_HALL: "모험가 길드",
+                    BuildingType.FOUNTAIN: "중앙 분수대"
+                }
+                type_to_desc = {
+                    BuildingType.KITCHEN: "요리와 식사를 할 수 있습니다",
+                    BuildingType.BLACKSMITH: "장비를 강화할 수 있습니다",
+                    BuildingType.ALCHEMY_LAB: "포션과 폭탄을 제작할 수 있습니다",
+                    BuildingType.STORAGE: "아이템을 보관할 수 있습니다",
+                    BuildingType.QUEST_BOARD: "의뢰를 확인할 수 있습니다",
+                    BuildingType.SHOP: "아이템을 사고팔 수 있습니다",
+                    BuildingType.INN: "휴식을 취할 수 있습니다",
+                    BuildingType.GUILD_HALL: "정보를 얻을 수 있습니다",
+                    BuildingType.FOUNTAIN: "마을의 중심입니다"
+                }
+                building_type = symbol_to_type.get(tile_data.get("building_symbol"))
+                if building_type:
+                    tile.building = Building(
+                        building_type=building_type,
+                        x=x,
+                        y=y,
+                        name=type_to_name.get(building_type, "건물"),
+                        description=type_to_desc.get(building_type, "")
+                    )
+            except Exception as e:
+                logger.warning(f"건물 객체 재생성 실패: {e}")
+                
+        if tile_data.get("building_color"):
+            tile.building_color = tuple(tile_data.get("building_color"))
+        if tile_data.get("char"):
+            tile.char = tile_data.get("char")
+        if tile_data.get("fg_color"):
+            tile.fg_color = tuple(tile_data.get("fg_color"))
 
     # 계단, 열쇠, 문 복원
     dungeon.stairs_down = tuple(dungeon_data["stairs_down"]) if dungeon_data.get("stairs_down") else None
@@ -846,6 +933,12 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
         key = eval(k_str)  # "(x, y)" 문자열을 튜플로
         teleporters[key] = tuple(v)
     dungeon.teleporters = teleporters
+    
+    # 텔레포터 위치에 TELEPORTER 타일 설정 (저장 후 로드 시 타일 타입 복원)
+    for teleporter_pos, target_pos in dungeon.teleporters.items():
+        x, y = teleporter_pos
+        dungeon.set_tile(x, y, TileType.TELEPORTER, teleport_target=target_pos)
+        logger.debug(f"텔레포터 타일 복원: ({x}, {y}) -> {target_pos}")
 
     # 채집 오브젝트 복원
     harvestables = []
@@ -1097,6 +1190,15 @@ def deserialize_gimmick_state(character: Any, gimmick_state: Dict[str, Any]) -> 
             setattr(character, attr, value)
             logger.debug(f"기믹 상태 복원: {character.name} - {attr} = {value}")
 
+    # 무당 과부하: None 방지 및 예약 MP 정합
+    if gimmick_type == "mp_overload_system":
+        if not hasattr(character, "active_toggles") or character.active_toggles is None:
+            character.active_toggles = gimmick_state.get("active_toggles", [])
+        if hasattr(character, "reserved_max_mp"):
+            character.reserved_max_mp = gimmick_state.get("reserved_max_mp", character.reserved_max_mp)
+        if hasattr(character, "last_mp_state"):
+            character.last_mp_state = gimmick_state.get("last_mp_state", character.last_mp_state)
+
 
 def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
     """파티원 역직렬화"""
@@ -1341,7 +1443,7 @@ def deserialize_inventory(inventory_data: Dict[str, Any], party: List[Any] = Non
     from src.equipment.inventory import Inventory
 
     # 파티 정보와 함께 인벤토리 생성 (최대 무게 계산용)
-    inventory = Inventory(base_weight=50.0, party=party)
+    inventory = Inventory(party=party)
 
     # 디버그: 인벤토리 데이터 확인
     logger.warning(f"[DESERIALIZE] inventory_data 타입: {type(inventory_data)}")
@@ -1499,5 +1601,15 @@ def serialize_game_state(
             "combat_count": getattr(exploration, 'combat_count', 0),
             "is_hub": getattr(exploration, 'is_hub', False),
         }
+    
+    # 마을 창고 데이터 저장 (town_manager)
+    try:
+        from src.town.town_manager import get_town_manager
+        town_manager = get_town_manager()
+        if town_manager:
+            game_state["town_manager"] = town_manager.to_dict()
+            logger.info(f"마을 창고 데이터 저장: storage_inventory {len(town_manager.storage_inventory)}개 아이템")
+    except Exception as e:
+        logger.warning(f"마을 창고 데이터 저장 실패: {e}")
     
     return game_state

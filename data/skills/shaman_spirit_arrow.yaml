@@ -1,0 +1,29 @@
+id: shaman_spirit_arrow
+name: 영혼의 화살
+type: attack
+description: '영혼의 힘으로 적을 꿰뚫는 기본 BRV 공격입니다.
+
+  마법 계수 BRV 1.4 피해를 줍니다.
+
+  '
+target: enemy
+metadata:
+  job: shaman
+  basic_attack: true
+  overload_capable: true
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magical
+  multiplier: 1.4
+costs:
+  mp: 0
+animation:
+  icon: ??
+  color:
+  - 180
+  - 200
+  - 255
+sfx:
+- se
+- Magic2

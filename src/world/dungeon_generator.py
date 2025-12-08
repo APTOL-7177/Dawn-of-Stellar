@@ -850,13 +850,7 @@ class DungeonGenerator:
                 dungeon.set_tile(pos[0], pos[1], TileType.MAGIC_CIRCLE)
                 logger.debug(f"마법진 배치: {pos}")
 
-        # 희생 제단 (SACRIFICE_ALTAR) - 10% 확률 (7층 이상)
-        if floor_number >= 7 and random.random() < 0.1:
-            room = random.choice(dungeon.rooms)
-            pos = self._get_random_floor_pos(dungeon, room, avoid_center=True)
-            if pos:
-                dungeon.set_tile(pos[0], pos[1], TileType.SACRIFICE_ALTAR)
-                logger.debug(f"희생 제단 배치: {pos}")
+
 
         # 다양한 함정 타입 추가
         num_special_traps = min(3, floor_number // 3)

@@ -1,0 +1,49 @@
+id: fusion_steam
+name: 증기 폭발
+type: brv_hp_attack
+description: '[화염+물 융합] 고온 증기 폭발을 일으킵니다.
+
+  단일 적에게 BRV 3.0 + HP 2.5 피해, 명중 -30% 디버프 2턴.
+
+
+  공명 보너스: 크리티컬 확정
+
+  '
+target: single_enemy
+costs:
+  mp: 18
+metadata:
+  fusion: true
+  requires:
+  - fire
+  - water
+  element: water
+effects:
+- type: damage
+  damage_type: brv
+  element: water
+  stat_base: magic
+  multiplier: 3.0
+- type: damage
+  damage_type: hp
+  element: water
+  stat_base: magic
+  multiplier: 2.5
+- type: debuff
+  debuff_id: blind
+  duration: 2
+  chance: 0.8
+  resonance_chance: 1.0
+  resonance_duration_bonus: 1
+  effects:
+    accuracy_reduction: 0.3
+animation:
+  icon: 🔥💧
+  color:
+  - 200
+  - 200
+  - 255
+  screen_effect: steam_explosion
+sfx:
+- se
+- Up1

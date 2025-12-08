@@ -1,0 +1,43 @@
+id: toxicum_lamina
+name: 톡시쿰 라미나
+type: brv_hp_attack
+description: '독 바른 무기로 공격합니다.
+
+  BRV 1.6 + HP 1.4 피해.
+
+  대상 "기본 독" 3턴 (HP -5%/턴).
+
+  농락 7+ 적: "맹독"으로 업그레이드.
+
+  '
+target: single_enemy
+costs:
+  mp: 10
+metadata:
+  poison_type: basic
+  upgrade_at_mockery: 7
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 1.6
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 1.4
+- type: debuff
+  debuff_id: basic_poison
+  duration: 3
+  effects:
+    dot_percent: 0.05
+- type: custom
+  handler: check_poison_upgrade
+animation:
+  icon: 🗡️💀
+  color:
+  - 100
+  - 200
+  - 50
+sfx:
+- se
+- Up1

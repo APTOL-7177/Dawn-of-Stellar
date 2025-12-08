@@ -1,0 +1,63 @@
+id: shaman_ultimate
+name: 영력 폭주
+type: ultimate
+description: '모든 영력을 해방해 적 전체에 막대한 피해와 디버프를 줍니다.
+
+  사용 후 과부하 게이지를 초기화합니다.
+
+  '
+target: all_enemies
+metadata:
+  job: shaman
+  ultimate: true
+  is_aoe: true
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magical
+  multiplier: 2.4
+  target: all_enemies
+- type: damage
+  damage_type: hp
+  stat_base: magical
+  multiplier: 2.6
+  target: all_enemies
+- type: status
+  status_type: poison
+  duration: 3
+  damage_multiplier: 0.12
+  damage_stat: magical
+  target: all_enemies
+- type: debuff
+  debuff_id: attack_down
+  duration: 3
+  effects:
+    attack_reduction: 0.3
+  target: all_enemies
+- type: debuff
+  debuff_id: defense_down
+  duration: 3
+  effects:
+    defense_reduction: 0.25
+  target: all_enemies
+- type: debuff
+  debuff_id: magic_defense_down
+  duration: 3
+  effects:
+    magic_defense_reduction: 0.2
+  target: all_enemies
+- type: gimmick
+  operation: set
+  field: overload_gauge
+  value: 0
+costs:
+  mp: 40
+animation:
+  icon: ??
+  color:
+  - 255
+  - 120
+  - 200
+sfx:
+- se
+- Explosion4

@@ -3,20 +3,23 @@ name: 크로노 블라스트
 type: hp_attack
 description: 시간의 폭발을 일으켜 강력한 단일 HP 피해 + 가능성 확정 생성
 costs:
-  mp: 17
+  mp: 13
   cast_time: 1.2
 target: single_enemy
 effects:
-  - type: damage
-    damage_type: magic
-    stat_base: magic
-    multiplier: 2.2
-    element: time
-    attack_type: hp
-  - type: generate_possibility
-    chance: 1.0
-    alternative_skill: time_wave
+- type: damage
+  damage_type: magic
+  stat_base: magic
+  multiplier: 3.0
+  element: time
+  attack_type: hp
+- type: generate_possibility
+  chance: 1.0
+  alternative_skill: time_wave
 metadata:
   possibility_pair: time_wave
   guaranteed_possibility: true
   job: time_mage
+sfx:
+- se
+- Magic1

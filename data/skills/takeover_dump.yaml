@@ -1,0 +1,40 @@
+id: takeover_dump
+name: '장악: 메모리 덤프'
+type: utility
+description: '[침투 100% 필요] 적의 메모리를 덤프합니다.
+
+  대상의 스킬 1개를 이번 전투 동안 사용 가능.
+
+  대상 스킬 2개 봉인 3턴.
+
+  침투 게이지 0으로 초기화.
+
+  '
+target: single_enemy
+costs:
+  mp: 0
+  ram: 6
+metadata:
+  takeover: true
+  requires_intrusion: 100
+  consumes_intrusion: true
+  boss_restriction: reduced
+effects:
+- type: custom
+  handler: copy_enemy_skill
+- type: debuff
+  debuff_id: skill_seal
+  duration: 3
+  seal_count: 2
+- type: custom
+  handler: reset_intrusion
+animation:
+  icon: 💾
+  color:
+  - 0
+  - 150
+  - 255
+  screen_effect: memory_dump
+sfx:
+- se
+- Up1

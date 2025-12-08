@@ -1,0 +1,24 @@
+id: rage_eruption
+name: 분노 폭발
+type: attack
+description: 보호막을 모두 소비하고 소비량에 비례한 고정 피해를 적 전체에게 입히며 본인은 피해의 30%만큼 회복합니다
+costs:
+  mp: 35
+  cast_time: 2.0
+effects:
+- type: shield_damage
+  target: self
+  damage_multiplier: 1.0
+- type: area_damage
+  element: physical
+  damage_type: fixed
+  base_damage: 0
+  shield_damage_multiplier: 1.2
+  target: enemies
+- type: heal
+  multiplier: 0.3
+  shield_damage_multiplier: 1.0
+  target: self
+sfx:
+- se
+- Recovery

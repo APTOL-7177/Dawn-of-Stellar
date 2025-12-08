@@ -1,0 +1,34 @@
+id: furtum
+name: 푸르툼
+type: utility
+description: '적에게서 아이템을 훔칩니다.
+
+  60% 골드, 30% 포션, 15% 버프 탈취.
+
+  성공 시 농락 +2.
+
+  실패해도 농락 +1.
+
+  '
+target: single_enemy
+costs:
+  mp: 8
+metadata:
+  steal_chances:
+    gold: 0.6
+    potion: 0.3
+    buff: 0.15
+  mockery_success: 2
+  mockery_fail: 1
+effects:
+- type: custom
+  handler: steal_from_enemy
+animation:
+  icon: 👛
+  color:
+  - 255
+  - 215
+  - 0
+sfx:
+- se
+- Magic1

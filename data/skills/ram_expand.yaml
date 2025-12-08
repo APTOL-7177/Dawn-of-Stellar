@@ -1,0 +1,33 @@
+id: ram_expand
+name: RAM 확장
+type: utility
+description: 'RAM을 즉시 확장합니다.
+
+  RAM +3 회복.
+
+  이번 턴 RAM 비용 -1.
+
+  '
+target: self
+costs:
+  mp: 10
+effects:
+- type: gimmick
+  operation: add
+  field: ram
+  value: 3
+  max_value: 8
+- type: buff
+  buff_id: ram_efficiency
+  duration: 1
+  effects:
+    ram_cost_reduction: 1
+animation:
+  icon: 💿
+  color:
+  - 0
+  - 200
+  - 100
+sfx:
+- se
+- Up1

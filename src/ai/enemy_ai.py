@@ -991,6 +991,16 @@ def create_ai_for_enemy(enemy: Any, game_difficulty: str = None) -> EnemyAI:
     enemy_name = getattr(enemy, 'name', '').lower()
     enemy_id = getattr(enemy, 'enemy_id', None)
 
+    # 트레이닝 허수아비 - AI 비활성화 확인
+    if '허수아비' in enemy_name or 'training' in enemy_name or enemy_id == "training_dummy":
+        if getattr(enemy, 'ai_enabled', True) == False:
+            # 수면 상태 등 행동 불가능 상태를 체크하는 특별 AI 반환
+            class TrainingDummyAI:
+                def decide_action(self, allies, enemies):
+                    # 허수아비는 항상 턴을 건너뜀 (수면 상태 등에서도)
+                    return {"type": "skip", "message": "허수아비는 행동하지 않음"}
+            return TrainingDummyAI()
+
     # 세피로스
     if 'sephiroth' in enemy_name or '세피로스' in enemy_name or enemy_id == "sephiroth":
         return SephirothAI(enemy)

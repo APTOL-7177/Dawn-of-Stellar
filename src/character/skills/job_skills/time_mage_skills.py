@@ -54,9 +54,9 @@ def create_time_mage_skills():
 
     # 1. 타임 볼트 - 단일 BRV 공격
     time_bolt = Skill("time_mage_time_bolt", "타임 볼트",
-                     "응축된 시간 에너지를 발사하여 단일 적에게 BRV 피해 (MAG×1.8)")
+                     "응축된 시간 에너지를 발사하여 단일 적에게 BRV 피해")
     time_bolt.effects = [
-        DamageEffect(DamageType.BRV, 1.8, stat_type="magical")
+        DamageEffect(DamageType.BRV, 2.7, stat_type="magical")
     ]
     time_bolt.costs = [MPCost(9)]
     time_bolt.target_type = "single_enemy"
@@ -69,11 +69,11 @@ def create_time_mage_skills():
 
     # 2. 타임 쇼크 - 전체 BRV 공격
     time_shock = Skill("time_mage_time_shock", "타임 쇼크",
-                      "시간의 충격파로 전체 적에게 BRV 피해 (MAG×1.0)")
+                      "시간의 충격파로 전체 적에게 BRV 피해")
     time_shock.effects = [
-        DamageEffect(DamageType.BRV, 1.0, stat_type="magical")
+        DamageEffect(DamageType.BRV, 2.4, stat_type="magical")
     ]
-    time_shock.costs = [MPCost(14)]
+    time_shock.costs = [MPCost(12)]
     time_shock.target_type = "all_enemies"
     time_shock.is_aoe = True
     time_shock.sfx = ("skill", "elemental")
@@ -85,11 +85,11 @@ def create_time_mage_skills():
 
     # 3. 크로노 블라스트 - 단일 HP 공격 + 가능성 확정 생성
     chrono_blast = Skill("time_mage_chrono_blast", "크로노 블라스트",
-                        "시간의 폭발로 강력한 HP 피해 (MAG×2.2) + 가능성 확정 생성")
+                        "시간의 폭발로 강력한 HP 피해 + 가능성 확정 생성")
     chrono_blast.effects = [
-        DamageEffect(DamageType.HP, 2.2, stat_type="magical")
+        DamageEffect(DamageType.HP, 3.0, stat_type="magical")
     ]
-    chrono_blast.costs = [MPCost(17)]
+    chrono_blast.costs = [MPCost(12)]
     chrono_blast.target_type = "single_enemy"
     chrono_blast.sfx = ("skill", "explosion")
     chrono_blast.metadata = {
@@ -100,13 +100,13 @@ def create_time_mage_skills():
 
     # 4. 타임 웨이브 - 전체 BRV+HP 공격
     time_wave = Skill("time_mage_time_wave", "타임 웨이브",
-                     "시간의 파동으로 전체 BRV (MAG×1.0) → HP 피해 (MAG×0.7), 20% 슬로우")
+                     "시간의 파동으로 전체 BRV → HP 피해, 20% 슬로우")
     time_wave.effects = [
-        DamageEffect(DamageType.BRV, 1.0, stat_type="magical"),
-        DamageEffect(DamageType.HP, 0.7, stat_type="magical"),
+        DamageEffect(DamageType.BRV, 1.4, stat_type="magical"),
+        DamageEffect(DamageType.HP, 1.9, stat_type="magical"),
         BuffEffect(BuffType.SPEED_DOWN, 0.20, duration=2)  # 20% 슬로우
     ]
-    time_wave.costs = [MPCost(19)]
+    time_wave.costs = [MPCost(16)]
     time_wave.target_type = "all_enemies"
     time_wave.is_aoe = True
     time_wave.sfx = ("skill", "elemental")
@@ -120,9 +120,9 @@ def create_time_mage_skills():
 
     # 5. 헤이스트 - 아군 속도 버프
     haste = Skill("time_mage_haste", "헤이스트",
-                 "아군 1명 속도 +30% (3턴)")
+                 "아군 1명 속도 +60% (3턴)")
     haste.effects = [
-        BuffEffect(BuffType.SPEED_UP, 0.30, duration=3),
+        BuffEffect(BuffType.SPEED_UP, 0.60, duration=3),
         AtbEffect(atb_change=200)  # ATB 약간 충전
     ]
     haste.costs = [MPCost(11)]
@@ -136,12 +136,12 @@ def create_time_mage_skills():
 
     # 6. 슬로우 - 적 속도 디버프
     slow = Skill("time_mage_slow", "슬로우",
-                "적 1명 속도 -30% (3턴)")
+                "적 1명 속도 -40% (3턴)")
     slow.effects = [
-        BuffEffect(BuffType.SPEED_DOWN, 0.30, duration=3),
+        BuffEffect(BuffType.SPEED_DOWN, 0.40, duration=3),
         AtbEffect(atb_change=-200)  # ATB 감소
     ]
-    slow.costs = [MPCost(9)]
+    slow.costs = [MPCost(11)]
     slow.target_type = "single_enemy"
     slow.sfx = ("character", "status_debuff")
     slow.metadata = {
@@ -156,7 +156,7 @@ def create_time_mage_skills():
     time_stop.effects = [
         StatusEffect(StatusType.STUN, duration=1)
     ]
-    time_stop.costs = [MPCost(19)]
+    time_stop.costs = [MPCost(12)]
     time_stop.target_type = "single_enemy"
     time_stop.sfx = ("skill", "cast_complete")
     time_stop.metadata = {
@@ -200,11 +200,11 @@ def create_time_mage_skills():
 
     # 10. 과거 회귀 - HP 복원
     past_regression = Skill("time_mage_past_regression", "과거 회귀",
-                           "아군 1명 HP를 2턴 전 상태로 복원 (최대 40% 회복)")
+                           "아군 1명 HP를 2턴 전 상태로 복원 (최대 70% 회복)")
     past_regression.effects = [
-        HealEffect(percentage=0.40)  # 최대 40% 회복
+        HealEffect(percentage=0.70)  # 최대 70% 회복
     ]
-    past_regression.costs = [MPCost(14)]
+    past_regression.costs = [MPCost(16)]
     past_regression.target_type = "ally"
     past_regression.sfx = ("character", "hp_heal")
     past_regression.metadata = {
@@ -223,7 +223,7 @@ def create_time_mage_skills():
     rewind.effects = [
         HealEffect(percentage=0.30)
     ]
-    rewind.costs = [MPCost(17)]
+    rewind.costs = [MPCost(16)]
     rewind.target_type = "ally"
     rewind.sfx = ("character", "hp_heal")
     rewind.metadata = {
@@ -235,9 +235,10 @@ def create_time_mage_skills():
 
     # 12. 역설 방어 - 피해 감소
     paradox_guard = Skill("time_mage_paradox_guard", "역설 방어",
-                         "이번 턴 받는 피해 60% 감소")
+                         "이번 턴 방어력/마법방어력 300% 증가 (받는 피해 75% 감소)")
     paradox_guard.effects = [
-        BuffEffect(BuffType.DEFENSE_UP, 0.60, duration=1)  # 60% 피해 감소
+        BuffEffect(BuffType.DEFENSE_UP, 3.00, duration=1),  # 300% 방어력 증가
+        BuffEffect(BuffType.SPIRIT_UP, 3.00, duration=1)   # 300% 마법방어력 증가
     ]
     paradox_guard.costs = [MPCost(14)]
     paradox_guard.target_type = "self"
@@ -245,7 +246,7 @@ def create_time_mage_skills():
     paradox_guard.metadata = {
         "possibility_pair": "time_mage_rewind",
         "generate_possibility_chance": 0.70,
-        "damage_reduction": 0.60,
+        "damage_reduction": 0.75,
         "job": "time_mage"
     }
 
@@ -286,7 +287,7 @@ def create_time_mage_skills():
     time_storm = Skill("time_mage_time_storm", "시간 폭풍",
                       "저장된 모든 가능성을 해방 (100% 위력). 3개 이상 시 수렴 보너스")
     time_storm.effects = []  # 특수 처리
-    time_storm.costs = [MPCost(26)]
+    time_storm.costs = [MPCost(20)]
     time_storm.target_type = "special"
     time_storm.sfx = ("skill", "limit_break")
     time_storm.metadata = {
@@ -308,7 +309,7 @@ def create_time_mage_skills():
     fate_copy = Skill("time_mage_fate_copy", "운명 복제",
                      "아군 1명의 마지막 사용 스킬을 가능성으로 저장")
     fate_copy.effects = []  # 특수 처리
-    fate_copy.costs = [MPCost(15)]
+    fate_copy.costs = [MPCost(12)]
     fate_copy.target_type = "ally"
     fate_copy.sfx = ("skill", "cast_complete")
     fate_copy.metadata = {
@@ -322,16 +323,16 @@ def create_time_mage_skills():
 
     # 17. 운명 덮어쓰기 - 슬롯 스킬 교체
     overwrite_fate = Skill("time_mage_overwrite_fate", "운명 덮어쓰기",
-                          "지정한 슬롯의 가능성을 원하는 보유 스킬로 교체")
+                          "지정한 슬롯의 가능성을 원하는 보유 스킬로 교체 및 강화")
     overwrite_fate.effects = []  # 특수 처리
-    overwrite_fate.costs = [MPCost(11)]
+    overwrite_fate.costs = [MPCost(10)]
     overwrite_fate.target_type = "special"
     overwrite_fate.sfx = ("skill", "cast_complete")
     overwrite_fate.metadata = {
         "gimmick_skill": True,
         "possibility_system": True,
         "action": "overwrite_slot",
-        "power_ratio": 0.85,
+        "power_ratio": 1.5,
         "cannot_select": ["ultimate", "teamwork"],
         "min_possibilities": 1,
         "job": "time_mage"

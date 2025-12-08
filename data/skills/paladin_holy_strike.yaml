@@ -1,0 +1,24 @@
+id: paladin_holy_strike
+name: 성스러운 일격
+type: attack
+description: '신성한 힘으로 적을 공격해 성력을 모읍니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 1.1
+- type: gimmick
+  operation: add
+  field: holy_power
+  value: 1
+  max_value: 5
+target: enemy
+metadata:
+  job: paladin
+  basic_attack: true
+  holy_power_gain: 1
+sfx:
+- se
+- Heal4

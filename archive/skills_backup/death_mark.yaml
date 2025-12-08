@@ -1,0 +1,13 @@
+id: death_mark
+name: 죽음의 표식
+type: debuff
+description: 적에게 죽음의 표식을 새깁니다
+costs:
+  mp: 25
+  cast_time: 1.0
+effects:
+- type: debuff
+  target: enemy
+  stat: physical_defense
+  value: 0.6
+  duration: 3

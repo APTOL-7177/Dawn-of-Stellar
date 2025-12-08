@@ -10,3 +10,6 @@ effects:
   element: ice
   multiplier: 2.0
   stat_base: magic
+sfx:
+- se
+- Ice1

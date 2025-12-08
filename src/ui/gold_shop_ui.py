@@ -641,7 +641,7 @@ class GoldShopUI:
                     elif rarity_name == 'LEGENDARY': multiplier = 5.0
                     
                     # 인플레이션 적용 비용 계산 (서비스 가격 조정 포함)
-                    base_cost = int(missing * 2 * multiplier)
+                    base_cost = int(missing * 0.67 * multiplier)  # 수리 비용 1/3으로 감소
                     service_price_multiplier = 0.1 if self.shop_type == "blacksmith" else 1.0  # 대장간 수리비 1/10
                     cost = int(base_cost * get_inflation_multiplier(self.floor_level) * service_price_multiplier)
                     items_to_repair.append({

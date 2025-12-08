@@ -41,7 +41,10 @@
       "Bash(X:developDawn-of-Stellarvalidation_results.txt)",
       "Bash(git reset:*)",
       "Bash(ping:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(test:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

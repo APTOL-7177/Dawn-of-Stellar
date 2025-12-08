@@ -1,0 +1,45 @@
+id: shaman_dark_curse
+name: 어둠의 저주
+type: attack
+description: '강력한 저주로 공격하며 적의 공격/방어/마법방어를 약화시킵니다.
+
+  '
+target: enemy
+metadata:
+  job: shaman
+  overload_capable: true
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magical
+  multiplier: 1.5
+- type: damage
+  damage_type: hp
+  stat_base: magical
+  multiplier: 2.0
+- type: debuff
+  debuff_id: attack_down
+  duration: 3
+  effects:
+    attack_reduction: 0.2
+- type: debuff
+  debuff_id: defense_down
+  duration: 3
+  effects:
+    defense_reduction: 0.2
+- type: debuff
+  debuff_id: magic_defense_down
+  duration: 3
+  effects:
+    magic_defense_reduction: 0.2
+costs:
+  mp: 14
+animation:
+  icon: ??
+  color:
+  - 120
+  - 80
+  - 160
+sfx:
+- se
+- Poison

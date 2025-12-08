@@ -1,0 +1,26 @@
+id: dimensionist_dimension_backflow
+name: 차원 역류
+type: attack
+description: '축적된 굴절을 역류시켜 큰 피해를 주지만 자신도 위험해집니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv_hp
+  stat_base: magical
+  multiplier: 3.0
+- type: damage
+  damage_type: hp
+  stat_base: magical
+  multiplier: 2.625
+target: enemy
+costs:
+  mp: 18
+metadata:
+  job: dimensionist
+  self_damage_refraction_percent: 0.5
+  high_risk_high_reward: true
+  refraction_fixed_damage_rate: 1.0
+sfx:
+- se
+- Move2

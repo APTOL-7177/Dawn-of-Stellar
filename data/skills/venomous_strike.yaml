@@ -1,0 +1,46 @@
+id: venenum_impetus
+name: 베네눔 임페투스
+type: brv_hp_attack
+description: '치명적인 독침으로 공격합니다.
+
+  BRV 1.8 + HP 2.0 피해.
+
+  독 상태 적: 피해 +30%.
+
+  독 중첩 +1 (최대 3).
+
+  농락 +1.
+
+  '
+target: single_enemy
+costs:
+  mp: 12
+metadata:
+  poison_bonus_damage: 0.3
+  poison_stack_add: 1
+  mockery_gain: 1
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 1.8
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 2.0
+- type: custom
+  handler: poison_damage_bonus
+- type: custom
+  handler: add_poison_stack
+- type: custom
+  handler: add_mockery
+  value: 1
+animation:
+  icon: 🦂
+  color:
+  - 150
+  - 100
+  - 200
+sfx:
+- se
+- Magic1

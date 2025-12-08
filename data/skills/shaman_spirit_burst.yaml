@@ -1,0 +1,29 @@
+id: shaman_spirit_burst
+name: 영력 폭발
+type: attack
+description: '영력을 폭발시켜 HP 피해를 가하는 기본 공격입니다.
+
+  마법 계수 HP 1.2 피해를 줍니다.
+
+  '
+target: enemy
+metadata:
+  job: shaman
+  basic_attack: true
+  overload_capable: true
+effects:
+- type: damage
+  damage_type: hp
+  stat_base: magical
+  multiplier: 1.2
+costs:
+  mp: 0
+animation:
+  icon: ??
+  color:
+  - 200
+  - 180
+  - 255
+sfx:
+- se
+- Magic2

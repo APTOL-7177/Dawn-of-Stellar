@@ -1,0 +1,24 @@
+id: knight_lance
+name: 랜스 돌격
+type: attack
+description: '기사다운 돌격으로 적을 공격하며 의무를 쌓습니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 1.1
+- type: gimmick
+  operation: add
+  field: duty_stacks
+  value: 1
+  max_value: 10
+target: enemy
+metadata:
+  job: knight
+  basic_attack: true
+  duty_gain: 1
+sfx:
+- se
+- Damage3

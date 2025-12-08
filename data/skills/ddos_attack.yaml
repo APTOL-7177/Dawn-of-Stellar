@@ -1,0 +1,40 @@
+id: ddos_attack
+name: DDoS 공격
+type: brv_attack
+description: '대규모 트래픽 공격. 전체 적 BRV 1.8 피해.
+
+  전체 적 침투 +15.
+
+  침투 25%+ 적은 속도 -20% 2턴.
+
+  '
+target: all_enemies
+costs:
+  mp: 18
+  ram: 6
+metadata:
+  intrusion_gain: 15
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magic
+  multiplier: 1.8
+  target: all_enemies
+- type: custom
+  handler: add_intrusion_all
+  value: 15
+- type: debuff
+  debuff_id: ddos_slow
+  duration: 2
+  condition: intrusion_25
+  effects:
+    speed_reduction: 0.2
+animation:
+  icon: 🌐
+  color:
+  - 100
+  - 100
+  - 255
+sfx:
+- se
+- Up1

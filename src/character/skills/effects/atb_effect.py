@@ -15,7 +15,12 @@ class AtbEffect(SkillEffect):
 
     def execute(self, user, target, context):
         """ATB 게이지 조작 실행"""
+        from src.core.logger import get_logger
+        logger = get_logger("atb_effect")
+
         result = EffectResult(effect_type=EffectType.BUFF, success=True)
+
+        logger.debug(f"[AtbEffect] 실행 시작 - user: {user.name if hasattr(user, 'name') else user}, target: {target.name if hasattr(target, 'name') else target}, atb_change: {self.atb_change}")
 
         # 타겟 결정
         if self.target_all_enemies:
@@ -45,13 +50,24 @@ class AtbEffect(SkillEffect):
         total_atb_change = 0
 
         for t in targets:
-            if hasattr(t, 'current_atb') and hasattr(t, 'max_atb'):
+            # atb_gauge (Character 클래스) 또는 current_atb (하위 호환성) 확인
+            if hasattr(t, 'atb_gauge'):
+                max_atb = getattr(t, 'max_atb', 2000)
                 # ATB 변경 적용
+                old_atb = t.atb_gauge
+                t.atb_gauge = max(0, min(max_atb, t.atb_gauge + self.atb_change))
+                actual_change = t.atb_gauge - old_atb
+                total_atb_change += actual_change
+                affected_count += 1
+                logger.info(f"[AtbEffect] {t.name if hasattr(t, 'name') else t}의 ATB 변경: {old_atb} → {t.atb_gauge} (변경량: {actual_change})")
+            elif hasattr(t, 'current_atb') and hasattr(t, 'max_atb'):
+                # 하위 호환성: current_atb 속성을 가진 객체
                 old_atb = t.current_atb
                 t.current_atb = max(0, min(t.max_atb, t.current_atb + self.atb_change))
                 actual_change = t.current_atb - old_atb
                 total_atb_change += actual_change
                 affected_count += 1
+                logger.info(f"[AtbEffect] {t.name if hasattr(t, 'name') else t}의 ATB 변경: {old_atb} → {t.current_atb} (변경량: {actual_change})")
 
         if affected_count > 0:
             direction = "증가" if self.atb_change > 0 else "감소"

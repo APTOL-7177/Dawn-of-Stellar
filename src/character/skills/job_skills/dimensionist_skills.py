@@ -23,8 +23,7 @@ def create_dimensionist_skills():
         DamageEffect(
             DamageType.BRV,
             multiplier=1.125,
-            stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.70}
+            stat_type="magical"
         )
     ]
     refraction_strike.costs = []
@@ -44,8 +43,7 @@ def create_dimensionist_skills():
         DamageEffect(
             DamageType.HP,
             multiplier=0.9,
-            stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.60}
+            stat_type="magical"
         )
     ]
     refraction_release.costs = []
@@ -59,13 +57,13 @@ def create_dimensionist_skills():
     dimension_regression = Skill(
         "dimensionist_dimension_regression",
         "차원 회귀",
-        "굴절량의 75%만큼 HP 회복 및 굴절량 75% 감소"
+        "굴절량의 150%만큼 HP 회복 및 굴절량 75% 감소"
     )
     dimension_regression.effects = [
         HealEffect(
             fixed_amount=0,
             percentage=0,
-            metadata={"refraction_heal": True, "refraction_rate": 0.75}
+            metadata={"refraction_heal": True, "refraction_rate": 1.5}
         ),
         GimmickEffect(
             GimmickOperation.MULTIPLY,
@@ -89,17 +87,16 @@ def create_dimensionist_skills():
     dimension_explosion = Skill(
         "dimensionist_dimension_explosion",
         "차원 폭발",
-        "굴절량의 20%를 소모하여 적 전체에게 마법력 기반 피해 + 소모량의 6배 고정 피해"
+        "굴절량의 20%를 소모하여 적 전체에게 마법력 기반 피해 + 소모량의 8.0배 고정 피해"
     )
 
-    # 마법력 기반 피해 + 고정 피해 효과 (굴절 보너스 강화)
+    # 마법력 기반 피해 + 고정 피해 효과 (굴절 보너스 완화)
     dimension_explosion.effects = [
-        # 마법력 기반 피해 (기본 0.8배 + 굴절 보너스 1.0배)
+        # 마법력 기반 피해 (굴절 보너스 없이 고정 계수만 적용)
         DamageEffect(
             DamageType.BRV,
             multiplier=0.6,
-            stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 1.0}
+            stat_type="magical"
         ),
         # 굴절량 소모 (20% → 80% 남김)
         GimmickEffect(
@@ -116,9 +113,9 @@ def create_dimensionist_skills():
     dimension_explosion.sfx = ("skill", "explosion")
     dimension_explosion.metadata = {
         "refraction_consumption": 0.20,  # 소모율 감소 (20%)
-        "fixed_damage_multiplier": 6.0,  # 고정 피해 배율 대폭 증가 (2.5 → 6.0)
-        "custom_damage": True,  # 커스텀 데미지 처리 플래그
-        "magic_scaling": True   # 마법력 스케일링 추가
+        "fixed_damage_multiplier": 8.0,  # 고정 피해 배율
+        "custom_damage": True,
+        "magic_scaling": True
     }
 
     # ========================================
@@ -153,8 +150,7 @@ def create_dimensionist_skills():
         DamageEffect(
             DamageType.BRV_HP,
             multiplier=1.5,
-            stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.40}
+            stat_type="magical"
         )
     ]
     dimension_scatter.costs = [MPCost(12)]
@@ -173,7 +169,7 @@ def create_dimensionist_skills():
     refraction_conversion = Skill(
         "dimensionist_refraction_conversion",
         "굴절 전환",
-        "HP를 굴절량으로 전환. HP가 낮을수록 효율 증가 (50%에서 최대 1.5배)"
+        "HP를 굴절량으로 전환. 소모한 HP의 350% 획득. HP가 낮을수록 효율 증가 (50%에서 최대 1.5배)"
     )
     refraction_conversion.effects = [
         # 자해 및 굴절 획득은 메타데이터로 처리
@@ -183,7 +179,7 @@ def create_dimensionist_skills():
     refraction_conversion.sfx = ("combat", "critical")
     refraction_conversion.metadata = {
         "self_damage_hp_percent": 0.25,
-        "refraction_gain_multiplier": 2.0,  # 기본 2배
+        "refraction_gain_multiplier": 3.5,  # 기본 3.5배 (350%)
         "custom_effect": True,
         "low_hp_efficiency_bonus": True,  # HP가 낮을수록 효율 증가
         "max_efficiency_at_hp_percent": 0.5,  # 50% HP에서 최대 효율
@@ -226,14 +222,12 @@ def create_dimensionist_skills():
         DamageEffect(
             DamageType.BRV_HP,
             multiplier=3.0,
-            stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 1.20}
+            stat_type="magical"
         ),
         DamageEffect(
             DamageType.HP,
             multiplier=2.625,
-            stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 1.0}
+            stat_type="magical"
         )
     ]
     dimension_backflow.costs = [MPCost(15)]
@@ -257,14 +251,12 @@ def create_dimensionist_skills():
         DamageEffect(
             DamageType.BRV,
             multiplier=3.75,
-            stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 1.50}
+            stat_type="magical"
         ),
         DamageEffect(
             DamageType.HP,
             multiplier=3.2,
-            stat_type="magical",
-            gimmick_bonus={"field": "refraction_stacks", "multiplier": 0.80}
+            stat_type="magical"
         ),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.5, duration=3),
         BuffEffect(BuffType.SPIRIT_DOWN, 0.5, duration=3),
@@ -283,6 +275,51 @@ def create_dimensionist_skills():
         "self_heal_refraction_percent": 0.30
     }
 
+    # ========================================
+    # 11. 굴절 증폭기 (Refraction Amplifier) - 방어형 스킬
+    # ========================================
+    refraction_amplifier = Skill(
+        "dimensionist_refraction_amplifier",
+        "굴절 증폭기",
+        "차원 굴절 경감률 +15% (최대 100%), 현재 굴절량의 30%를 보호막으로 변환 (5턴)"
+    )
+    refraction_amplifier.effects = [
+        BuffEffect(BuffType.DEFENSE_UP, 0.30, duration=2),
+        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.30, duration=2)
+    ]
+    refraction_amplifier.costs = [MPCost(5)]
+    refraction_amplifier.target_type = "self"
+    refraction_amplifier.cooldown = 0
+    refraction_amplifier.sfx = ("skill", "protect")
+    refraction_amplifier.metadata = {
+        "tank_skill": True,
+        "refraction_reduction_bonus": 0.15,
+        "refraction_to_shield_percent": 0.30,
+        "skill_category": "defense"
+    }
+
+    # ========================================
+    # 12. 시간 고정 (Temporal Brace) - 방어형 스킬
+    # ========================================
+    temporal_brace = Skill(
+        "dimensionist_temporal_brace",
+        "시간 고정",
+        "방어력/마법방어력 +40%, 지연 피해 1회 면역 (면역 발동 시 MP 10 소모)"
+    )
+    temporal_brace.effects = [
+        BuffEffect(BuffType.DEFENSE_UP, 0.40, duration=3),
+        BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.40, duration=3)
+    ]
+    temporal_brace.costs = [MPCost(10)]
+    temporal_brace.target_type = "self"
+    temporal_brace.sfx = ("skill", "shell")
+    temporal_brace.metadata = {
+        "tank_skill": True,
+        "delayed_damage_immunity_charges": 1,
+        "immunity_mp_cost": 10,
+        "skill_category": "defense"
+    }
+
     return [
         refraction_strike,
         refraction_release,
@@ -293,7 +330,9 @@ def create_dimensionist_skills():
         refraction_conversion,
         dimension_barrier,
         dimension_backflow,
-        ultimate
+        ultimate,
+        refraction_amplifier,
+        temporal_brace
     ]
 
 def register_dimensionist_skills(skill_manager):

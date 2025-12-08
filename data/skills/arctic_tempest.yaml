@@ -1,0 +1,29 @@
+id: arctic_tempest
+name: 극한뇌전
+type: brv_hp_attack
+description: 빙결+번개 융합 감전 마비! 번개 스택당 마비 확률 +10%, 빙결 스택당 둔화 -10%
+costs:
+  mp: 6
+  cast_time: 0.25
+  element_cost:
+    ice: 1
+    lightning: 1
+effects:
+- type: electrocution
+  element:
+  - ice
+  - lightning
+  brv_multiplier: 2.2
+  hp_multiplier: 1.2
+  paralyze_chance_per_stack: 0.1
+  atb_slow_per_stack: 0.1
+  stat_base: magic
+metadata:
+  fusion: true
+  elements:
+  - ice
+  - lightning
+  special: electrocution
+sfx:
+- se
+- Magic1

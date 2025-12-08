@@ -1,0 +1,30 @@
+id: dimensionist_dimension_regression
+name: 차원 회귀
+type: support
+description: '축적된 굴절을 소모해 자신을 회복합니다.
+
+  굴절량의 150%만큼 HP를 회복하고 굴절을 75% 소모합니다.
+
+  '
+effects:
+- type: heal
+  heal_type: hp
+  percent: 0
+  metadata:
+    refraction_heal: true
+    refraction_rate: 1.5
+- type: gimmick
+  operation: multiply
+  field: refraction_stacks
+  value: 0.25
+  min_value: 0
+target: self
+costs:
+  mp: 12
+metadata:
+  job: dimensionist
+  self_heal: true
+  refraction_consumption: 0.75
+sfx:
+- se
+- Move2

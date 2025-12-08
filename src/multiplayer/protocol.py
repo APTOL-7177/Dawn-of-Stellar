@@ -80,6 +80,7 @@ class MessageType(Enum):
     # 던전
     DUNGEON_DATA = "dungeon_data"
     FLOOR_CHANGE = "floor_change"
+    FLOOR_READY = "floor_ready"  # 층 이동 준비 상태 동기화
     
     # 채집/아이템
     HARVEST = "harvest"  # 채집 오브젝트 수집
@@ -572,6 +573,44 @@ class MessageBuilder:
             type=MessageType.STATE_UPDATE,
             data={
                 "data": data
+            }
+        )
+    
+    @staticmethod
+    def floor_ready(player_id: str, ready: bool, ready_players: List[str], total_players: int) -> NetworkMessage:
+        """
+        층 이동 준비 상태 메시지 생성
+        
+        Args:
+            player_id: 준비 상태를 변경한 플레이어 ID
+            ready: 준비 여부
+            ready_players: 현재 준비된 플레이어 ID 목록
+            total_players: 전체 플레이어 수
+        """
+        return NetworkMessage(
+            type=MessageType.FLOOR_READY,
+            player_id=player_id,
+            data={
+                "ready": ready,
+                "ready_players": ready_players,
+                "total_players": total_players
+            }
+        )
+
+    @staticmethod
+    def floor_change(direction: str = "floor_down", from_town: bool = False) -> NetworkMessage:
+        """
+        층 이동 메시지 생성
+        
+        Args:
+            direction: 이동 방향 ("floor_up" 또는 "floor_down")
+            from_town: 마을에서 출발 여부
+        """
+        return NetworkMessage(
+            type=MessageType.FLOOR_CHANGE,
+            data={
+                "direction": direction,
+                "from_town": from_town
             }
         )
 

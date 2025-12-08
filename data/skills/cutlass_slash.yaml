@@ -10,3 +10,6 @@ effects:
   element: physical
   multiplier: 2.4
   stat_base: strength
+sfx:
+- se
+- Slash1

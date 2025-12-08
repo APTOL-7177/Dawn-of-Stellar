@@ -1,0 +1,30 @@
+id: firewall
+name: 방화벽
+type: buff
+description: '방화벽을 활성화합니다.
+
+  3턴간 받는 피해 -20%, 디버프 저항 +30%.
+
+  RAM 1 소모.
+
+  '
+target: self
+costs:
+  mp: 12
+  ram: 2
+effects:
+- type: buff
+  buff_id: firewall
+  duration: 3
+  effects:
+    damage_reduction: 0.2
+    debuff_resistance: 0.3
+animation:
+  icon: 🔥
+  color:
+  - 255
+  - 100
+  - 50
+sfx:
+- se
+- Fire1

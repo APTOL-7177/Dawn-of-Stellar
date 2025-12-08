@@ -1,0 +1,29 @@
+id: dimensionist_dimension_barrier
+name: 차원 보호막
+type: defense
+description: '굴절을 소모해 아군 전체의 피해를 경감하고 굴절로 전환합니다.
+
+  '
+effects:
+- type: buff
+  buff_type: defense_up
+  value: 0.3
+  duration: 2
+  is_party_wide: true
+- type: buff
+  buff_type: spirit_up
+  value: 0.3
+  duration: 2
+  is_party_wide: true
+target: all_allies
+costs:
+  mp: 14
+metadata:
+  job: dimensionist
+  refraction_cost_hp_percent: 0.25
+  damage_reduction: 0.4
+  requires_refraction_check: true
+  redirect_reduced_to_refraction: true
+sfx:
+- se
+- Move2

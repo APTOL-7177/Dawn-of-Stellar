@@ -1,0 +1,18 @@
+id: blood_shield
+name: 피의 방패
+type: support
+description: HP를 크게 감소시키고 감소량의 2배만큼 보호막을 생성합니다
+costs:
+  mp: 25
+  cast_time: 1.5
+effects:
+- type: hp_damage
+  multiplier: 0.4
+  target: self
+- type: shield
+  multiplier: 0.8
+  target: self
+  duration: 5
+sfx:
+- se
+- Up1

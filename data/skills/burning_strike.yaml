@@ -18,3 +18,6 @@ effects:
   duration: 3
   damage_stat: magic
   damage_multiplier: 0.15
+sfx:
+- se
+- Damage3

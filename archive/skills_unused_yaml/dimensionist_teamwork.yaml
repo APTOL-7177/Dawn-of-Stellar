@@ -1,0 +1,29 @@
+id: dimensionist_teamwork
+name: 시공간 파열
+type: teamwork
+description: '축적된 굴절을 해방해 아군을 강화하고 적의 속도를 늦춥니다.
+
+  '
+effects:
+- type: buff
+  buff_type: attack_up
+  value: 0.55
+  duration: 3
+  is_party_wide: true
+- type: buff
+  buff_type: speed_down
+  value: 0.6
+  duration: 2
+  is_party_wide: true
+target: party
+costs:
+  teamwork_gauge: 225
+metadata:
+  job: dimensionist
+  teamwork: true
+  chain: true
+  buff: true
+  dimension: true
+sfx:
+- se
+- Move2

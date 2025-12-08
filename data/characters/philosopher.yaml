@@ -1,6 +1,6 @@
 class_name: 철학자
 description: 논리적 사고로 적을 혼란시키고 진리를 깨우치는 현자
-slogan: "진실과 거짓, 그 선택이 세상을 바꾼다"
+slogan: 진실과 거짓, 그 선택이 세상을 바꾼다
 archetype: 논리 조작
 base_stats:
   hp: 107
@@ -13,18 +13,18 @@ base_stats:
   magic_defense: 86
   max_brv: 434
 stat_growth:
-  hp: 8.5
-  mp: 6.5
-  init_brv: 20.8
-  strength: 2.0
-  defense: 2.0
-  magic: 5.0
-  spirit: 5.2
-  speed: 3.5
-  luck: 4.0
-  accuracy: 2.0
-  evasion: 2.5
-  max_brv: 86.8
+  hp: 22.5
+  mp: 7.5
+  init_brv: 24.6
+  strength: 8.1
+  defense: 12.7
+  magic: 19.8
+  spirit: 24.2
+  speed: 10.9
+  max_brv: 121.9
+  luck: 3
+  accuracy: 1.6
+  evasion: 1.2
 traits:
 - id: power_mastery
   name: 힘의 숙달
@@ -130,7 +130,6 @@ skills:
 - choose_lie
 - balanced
 - ultimate
-
 bonuses:
   confusion_rate: 0.15
   magic_resistance: 0.2

@@ -773,25 +773,8 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         if not self.dungeon.is_walkable(x, y):
             return False
         
-        # 다른 플레이어와 겹치는지 확인
-        if self.is_multiplayer and self.session:
-            for player_id, player in self.session.players.items():
-                try:
-                    if player_id == self.local_player_id:
-                        continue
-                    
-                    if hasattr(player, 'x') and hasattr(player, 'y'):
-                        player_x = int(player.x) if player.x is not None else None
-                        player_y = int(player.y) if player.y is not None else None
-                        
-                        if player_x is not None and player_y is not None:
-                            if player_x == x and player_y == y:
-                                # 다른 플레이어와 겹침
-                                self.logger.debug(f"이동 불가: 다른 플레이어({player_id})가 위치 ({x}, {y})에 있음")
-                                return False
-                except (ValueError, TypeError, AttributeError) as e:
-                    self.logger.warning(f"플레이어 {player_id} 위치 확인 실패: {e}")
-                    continue
+        # 플레이어끼리 겹치기 허용 (마을 계단 등에서 여러 플레이어가 대기할 수 있도록)
+        # 기존 충돌 체크 제거
         
         return True
     

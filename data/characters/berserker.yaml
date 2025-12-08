@@ -1,6 +1,6 @@
 class_name: 광전사
 description: 체력이 낮을수록 더 강해지는 광기의 전사
-slogan: "고통이 클수록 나는 강해진다"
+slogan: 고통이 클수록 나는 강해진다
 archetype: 하이리스크 하이리턴
 base_stats:
   hp: 327
@@ -13,20 +13,19 @@ base_stats:
   magic_defense: 28
   max_brv: 505
 stat_growth:
-  hp: 15
-  mp: 2.5
-  init_brv: 29.0
-  strength: 6.0
-  defense: 2.0
-  magic: 1.5
-  spirit: 2.2
-  speed: 3.8
-  luck: 2.5
-  accuracy: 2.0
-  evasion: 1.0
-  max_brv: 101.0
+  hp: 76.4
+  mp: 1.5
+  init_brv: 34.3
+  strength: 18.3
+  defense: 7.8
+  magic: 2.6
+  spirit: 6.1
+  speed: 18.3
+  max_brv: 141.8
+  luck: 3
+  accuracy: 1.6
+  evasion: 1.2
 traits:
-# 기믹 기본 효과: 광기 30-70(최적): 공/속+40/20%, 71-99(위험): 공/속+80/40%+크리+20%+피해+30%, 100(폭주): 공+150%+통제불가
 - id: rage_control
   name: 분노 제어
   description: 광기 자연 감소량 -50%, 최적 구간 확장 (30-70 → 25-75)
@@ -77,7 +76,8 @@ traits:
 gimmick:
   type: madness_threshold
   name: 광기 역치 시스템
-  description: HP가 낮을수록 광기 증가. 30-70 최적(공+40%,속+20%), 71-99 위험(공+80%,크리+20%,피해+30%,HP-5%/턴), 100 폭주(공+150%,크리+30%,피해+50%,HP-10%/턴)
+  description: HP가 낮을수록 광기 증가. 30-70 최적(공+25%,속+15%), 71-99 위험(공+50%,속+30%,크리+15%,피해+30%,HP-5%/턴),
+    100 폭주(공+100%,크리+25%,피해+50%,HP-10%/턴)
   min_madness: 0
   max_madness: 100
   optimal_min: 30
@@ -89,14 +89,16 @@ skills:
 - slash
 - smash
 - reckless_strike
+- blood_shield
 - self_harm
 - battle_cry
+- rage_eruption
 - blood_rage
 - desperate_assault
+- desperate_strength
 - healing_roar
 - controlled_fury
 - ultimate
-
 bonuses:
   low_hp_damage: 1.1
   hp_multiplier: 1.1

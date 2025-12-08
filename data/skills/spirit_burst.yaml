@@ -1,0 +1,26 @@
+id: spirit_burst
+name: 정령 섬광
+type: attack
+description: '정령의 힘을 잠시 빌려 기본 HP 공격을 가합니다.
+
+  HP 1.1 피해를 가합니다.
+
+  '
+target: enemy
+metadata:
+  job: elementalist
+  basic_attack: true
+effects:
+- type: damage
+  damage_type: hp
+  stat_base: magical
+  multiplier: 1.1
+animation:
+  icon: ??
+  color:
+  - 140
+  - 220
+  - 255
+sfx:
+- se
+- Magic1

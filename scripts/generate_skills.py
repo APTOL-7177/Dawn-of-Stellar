@@ -350,7 +350,7 @@ SKILL_DEFINITIONS = {
     "wisdom": {"name": "지혜", "type": "support", "mp": 35, "multiplier": 1.7, "description": "지혜로 모든 능력을 강화합니다"},
     "absolute_truth": {"name": "절대 진리", "type": "ultimate", "element": "holy", "mp": 80, "multiplier": 8.0, "stat_base": "magic", "description": "절대 진리의 힘을 발현합니다"},
 
-    # 뱀파이어
+    # 흡혈귀
     "blood_drain": {"name": "피 흡수", "type": "brv_attack", "element": "dark", "mp": 20, "multiplier": 2.4, "description": "적의 피를 빨아먹습니다"},
     "bat_swarm": {"name": "박쥐 떼", "type": "brv_attack", "element": "dark", "mp": 25, "multiplier": 2.6, "description": "박쥐 떼로 적을 공격합니다"},
     "charm": {"name": "매혹", "type": "debuff", "mp": 20, "multiplier": 0.0, "description": "적을 매혹시켜 조종합니다"},

@@ -1,0 +1,22 @@
+id: elemental_overload
+name: 원소 과부하
+type: brv_hp_attack
+description: 선택한 원소 전체 소비 (최소 3개). 5스택 시 특수 효과 발동
+costs:
+  mp: 8
+  cast_time: 0.5
+effects:
+- type: overload
+  min_stacks: 3
+  fire_effect: burning
+  ice_effect: frozen_solid
+  lightning_effect: stun
+  stat_base: magic
+metadata:
+  utility: true
+  element_consume: true
+  requires_selection: true
+  special_at_5: true
+sfx:
+- se
+- Magic1

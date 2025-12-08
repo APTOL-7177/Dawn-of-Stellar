@@ -1,0 +1,35 @@
+id: rootkit
+name: 루트킷
+type: debuff
+description: '[프로그램] 은밀한 루트킷을 설치합니다.
+
+  침투 75%+ 대상에게만 사용 가능.
+
+  5턴간 침투 감소 불가, 매 턴 HP -5%.
+
+  RAM 2 소모.
+
+  '
+target: single_enemy
+costs:
+  mp: 15
+  ram: 4
+metadata:
+  program: true
+  requires_intrusion: 75
+effects:
+- type: debuff
+  debuff_id: rootkit
+  duration: 5
+  effects:
+    intrusion_decay_immune: true
+    dot_percent: 0.05
+animation:
+  icon: 🔐
+  color:
+  - 100
+  - 0
+  - 150
+sfx:
+- se
+- Up1

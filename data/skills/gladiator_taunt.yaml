@@ -1,0 +1,40 @@
+id: gladiator_taunt
+name: 도발
+type: buff
+description: '적을 도발하여 공격을 유도합니다.
+
+  3턴간 도발 상태, 반격률 +20%.
+
+  피격마다 환호 +3.
+
+  '
+target: self
+costs:
+  mp: 8
+metadata:
+  cheer_on_hit_taken: 3
+effects:
+- type: buff
+  buff_id: taunt
+  duration: 3
+  effects:
+    force_target: true
+- type: buff
+  buff_id: counter_stance
+  duration: 3
+  effects:
+    counter_rate_bonus: 0.2
+- type: gimmick
+  operation: add
+  field: cheer
+  value: 10
+  max_value: 100
+animation:
+  icon: 😤
+  color:
+  - 255
+  - 100
+  - 100
+sfx:
+- se
+- Sword2

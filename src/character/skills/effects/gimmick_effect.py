@@ -64,7 +64,43 @@ class GimmickEffect(SkillEffect):
         if self.operation == GimmickOperation.ADD:
             # 타입 체크
             if isinstance(old_value, (int, float)) and isinstance(self.value, (int, float)):
-                new_value = old_value + self.value
+                add_value = self.value
+                
+                # 검기 숙련 특성 (sword_aura_mastery): 검기 획득량 +1
+                if self.field == "sword_aura":
+                    def has_trait(char, trait_id_to_check):
+                        for attr in ['active_traits', 'available_traits', 'traits', 'selected_traits']:
+                            if hasattr(char, attr) and getattr(char, attr):
+                                for t in getattr(char, attr):
+                                    tid = t if isinstance(t, str) else (t.get('id') if isinstance(t, dict) else None)
+                                    if tid == trait_id_to_check:
+                                        return True
+                        return False
+                    
+                    if has_trait(user, 'sword_aura_mastery'):
+                        add_value += 1
+                
+                # 안전하겠지 특성 (double_turret): 포탑 설치 시 100% 같은 종류 추가 포탑 +1
+                turret_fields = ["turret_count", "fire_turret_count", "ice_turret_count",
+                                "thunder_turret_count", "explosive_turret_count", "heal_turret_count"]
+                if self.field in turret_fields and add_value > 0:
+                    def has_trait(char, trait_id_to_check):
+                        for attr in ['active_traits', 'available_traits', 'traits', 'selected_traits']:
+                            if hasattr(char, attr) and getattr(char, attr):
+                                for t in getattr(char, attr):
+                                    tid = t if isinstance(t, str) else (t.get('id') if isinstance(t, dict) else None)
+                                    if tid == trait_id_to_check:
+                                        return True
+                        return False
+
+                    if has_trait(user, 'double_turret'):
+                        add_value += 1
+                        if self.field == "turret_count":
+                            from src.core.logger import get_logger
+                            logger = get_logger("gimmick_effect")
+                            logger.info(f"[안전하겠지] {getattr(user, 'name', '기계공학자')} 포탑 추가 설치! (+1)")
+                
+                new_value = old_value + add_value
             else:
                 new_value = old_value
         elif self.operation == GimmickOperation.SET:
@@ -133,6 +169,12 @@ class GimmickEffect(SkillEffect):
                         logger.info(f"{getattr(entity, 'name', '용기사')} 용표 획득! (용력 최대치 도달) - 현재 용표: {entity.dragon_marks}/{max_marks}, 용력 초기화")
 
         setattr(entity, self.field, new_value)
+
+        # 기계공학자: 열이 100 이상이 되면 즉시 오버히트 발동
+        if (self.field == "heat" and hasattr(entity, 'gimmick_type') and 
+            entity.gimmick_type == "heat_management" and new_value >= 100):
+            from src.character.gimmick_updater import GimmickUpdater
+            GimmickUpdater._update_heat_management(entity, is_own_turn=False)
 
         # 환술사: phantom_count 변경 시 phantom_hits 자동 업데이트
         if (hasattr(entity, 'gimmick_type') and entity.gimmick_type == "phantom_legion" and

@@ -837,9 +837,14 @@ class CombatUI:
             if effect_type == 'revive_crystal':
                 is_revive_crystal = True
 
-        # 부활 크리스탈이 아닌 경우에만 살아있는 대상만 필터링
-        if is_revive_crystal:
-            # 부활 크리스탈: 모든 타겟 선택 가능 (죽은 파티원 포함)
+        # 부활 스킬 여부 확인
+        from src.multiplayer.skill_revival_handler import SkillRevivalHandler
+        revival_handler = SkillRevivalHandler(None)
+        is_revival_skill = self.selected_skill and revival_handler.is_revival_skill(self.selected_skill)
+
+        # 부활 크리스탈이나 저주/부활 스킬인 경우에만 살아있는 대상 필터링 건너뛰기
+        if is_revive_crystal or is_revival_skill:
+            # 부활 관련: 모든 타겟 선택 가능 (죽은 파티원 포함)
             valid_indices = list(range(len(targets)))
         else:
             # 일반 아이템/스킬: 살아있는 대상만 선택 가능
@@ -848,7 +853,6 @@ class CombatUI:
         if not valid_indices:
             return False
 
-        # 커서가 유효한 범위를 벗어나면 첫 번째 유효한 인덱스로 조정
         if self.target_cursor not in valid_indices:
             self.target_cursor = valid_indices[0]
 
@@ -1107,16 +1111,26 @@ class CombatUI:
             # 기본 공격은 적 타겟
             self.current_target_list = self.combat_manager.enemies
 
-        # 살아있는 대상만 필터링
-        alive_targets = [e for e in self.current_target_list if getattr(e, 'is_alive', True)]
-        if not alive_targets:
+        # 부활 스킬 여부 확인
+        from src.multiplayer.skill_revival_handler import SkillRevivalHandler
+        revival_handler = SkillRevivalHandler(None)
+        is_revival = self.selected_skill and revival_handler.is_revival_skill(self.selected_skill)
+
+        # 살아있는 대상만 필터링 (부활 스킬 제외)
+        if is_revival:
+            valid_targets = self.current_target_list
+        else:
+            valid_targets = [e for e in self.current_target_list if getattr(e, 'is_alive', True)]
+
+        if not valid_targets:
             # 모든 대상이 죽었으면 행동 메뉴로 돌아감
             self.state = CombatUIState.ACTION_MENU
             return
 
-        # 첫 번째 살아있는 대상의 인덱스로 커서 설정
+        # 첫 번째 유효한 대상의 인덱스로 커서 설정
+        self.target_cursor = 0
         for i, target in enumerate(self.current_target_list):
-            if getattr(target, 'is_alive', True):
+            if target in valid_targets:
                 self.target_cursor = i
                 break
 
@@ -3134,6 +3148,12 @@ class CombatUI:
             wound_damage = getattr(ally, 'wound', 0)  # Character 클래스의 wound 속성
             # 보호막 수치 (current_shield: 광전사, shield_amount: 기타)
             total_shield = getattr(ally, 'current_shield', 0) + getattr(ally, 'shield_amount', 0)
+            # status_manager에서 SHIELD 타입의 상태 효과도 합산 (Refraction Shield 등)
+            if hasattr(ally, 'status_manager'):
+                for eff in ally.status_manager.status_effects:
+                    if hasattr(eff, 'status_type') and eff.status_type == StatusType.SHIELD:
+                        shield_hp = eff.metadata.get('shield_hp', 0) if eff.metadata else 0
+                        total_shield += shield_hp
             entity_id = f"ally_{i}_{getattr(ally, 'name', i)}"
             gauge_renderer.render_animated_hp_bar(
                 console, 12, y + 1, 15,
@@ -3358,6 +3378,12 @@ class CombatUI:
             console.print(x + 3, y + 2, "HP:", fg=(200, 200, 200))
             # 적군도 보호막이 있을 수 있음
             enemy_shield = getattr(enemy, 'current_shield', 0) + getattr(enemy, 'shield_amount', 0)
+            # status_manager에서 SHIELD 타입의 상태 효과도 합산
+            if hasattr(enemy, 'status_manager'):
+                for eff in enemy.status_manager.status_effects:
+                    if hasattr(eff, 'status_type') and eff.status_type == StatusType.SHIELD:
+                        shield_hp = eff.metadata.get('shield_hp', 0) if eff.metadata else 0
+                        enemy_shield += shield_hp
             enemy_id = f"enemy_{i}_{getattr(enemy, 'name', i)}"
             gauge_renderer.render_animated_hp_bar(
                 console, x + 7, y + 2, 15,

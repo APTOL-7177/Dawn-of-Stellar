@@ -21,6 +21,10 @@ class MultiplayerPlayer:
     party: List[Any] = field(default_factory=list)  # 플레이어의 파티 (최대 4명)
     character_id: Optional[str] = None  # 현재 조작 중인 캐릭터 ID
     
+    # 개별 인벤토리 & 골드 (멀티플레이용)
+    inventory: Optional[Any] = None  # Inventory 객체
+    gold: int = 0  # 개별 골드
+    
     # 호스트 여부
     is_host: bool = False
     
@@ -39,6 +43,7 @@ class MultiplayerPlayer:
     
     # 세션 정보
     session_id: Optional[str] = None
+
     
     def __post_init__(self):
         """초기화 후 처리"""

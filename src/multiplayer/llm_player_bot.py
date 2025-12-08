@@ -408,7 +408,7 @@ JOB_ROLE_GUIDE = {
     "magician": "🎩 마술사 [트릭 덱]: card_slash로 카드 뽑기, 뽑은 카드로 효과 결정! ace_in_the_hole=강패, double_or_nothing=도박. 카드 조합(fatal_flush/full_house) 노리기!",
     "philosopher": "📚 철학자 [딜레마 선택]: choose_*로 딜레마 선택→선택에 따라 다른 효과! power=공격↑, wisdom=마법↑, sacrifice=HP소모 강화, survival=방어↑. 상황 따라 선택!",
     "pirate": "🏴‍☠️ 해적 [럼주와 보물]: 럼 마시면 버프+리스크, 보물 찾으면 랜덤 보상! 도박성 스킬 많음. 운 좋으면 대박, 나쁘면 쪽박. 리스크 감수하고 도박!",
-    "vampire": "🧛 뱀파이어 [갈증 관리]: vampiric_bite/blood_drain으로 흡혈+갈증↑, 갈증 높으면 공격↑ 단 지속피해. thirst_surge로 갈증 폭발! blood_satiation으로 갈증 안정화. 갈증 조절하며 싸우기!",
+    "vampire": "🧛 흡혈귀 [갈증 관리]: vampiric_bite/blood_drain으로 흡혈+갈증↑, 갈증 높으면 공격↑ 단 지속피해. thirst_surge로 갈증 폭발! blood_satiation으로 갈증 안정화. 갈증 조절하며 싸우기!",
 }
 
 

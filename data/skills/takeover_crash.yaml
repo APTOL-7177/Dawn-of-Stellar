@@ -1,0 +1,40 @@
+id: takeover_crash
+name: '장악: 시스템 크래시'
+type: hp_attack
+description: '[침투 100% 필요] 적 시스템을 완전히 크래시시킵니다.
+
+  대상 현재 HP 35% 순수 피해 (보스: 17.5%).
+
+  침투 게이지 0으로 초기화.
+
+  '
+target: single_enemy
+costs:
+  mp: 0
+  ram: 5
+metadata:
+  takeover: true
+  requires_intrusion: 100
+  consumes_intrusion: true
+  boss_reduction: 0.5
+effects:
+- type: damage
+  damage_type: hp
+  stat_base: magic
+  multiplier: 3.5
+  metadata:
+    pure: true
+    current_hp_percent_damage: 0.35
+    boss_reduction: 0.5
+- type: custom
+  handler: reset_intrusion
+animation:
+  icon: 💥
+  color:
+  - 255
+  - 0
+  - 0
+  screen_effect: system_crash
+sfx:
+- se
+- Magic1

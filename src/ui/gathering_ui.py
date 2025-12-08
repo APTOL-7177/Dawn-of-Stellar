@@ -296,9 +296,9 @@ def show_multi_line_message(
     box_x = (console.width - box_width) // 2
     box_y = (console.height - box_height) // 2
     
-    # 입력 허용 시작 시간 (1초 후부터 입력 허용)
+    # 입력 허용 시작 시간 (0.3초 후부터 입력 허용 - 채집 알림 빠른 진행)
     start_time = time.time()
-    input_delay = 1.0
+    input_delay = 0.3
 
     while True:
         # 배경 그리기

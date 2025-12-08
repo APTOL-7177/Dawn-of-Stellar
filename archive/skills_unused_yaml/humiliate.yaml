@@ -1,0 +1,42 @@
+id: dedecus
+name: 데데쿠스
+type: brv_hp_attack
+description: '[농락 10 필요] 적에게 최대 굴욕을 줍니다.
+
+  필중 + 필크리.
+
+  BRV 3.0 + HP 4.0 피해.
+
+  농락 10 소모.
+
+  '
+target: single_enemy
+costs:
+  mp: 20
+metadata:
+  requires_mockery: 10
+  consumes_mockery: true
+  guaranteed_hit: true
+  guaranteed_crit: true
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 3.0
+  guaranteed_crit: true
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 4.0
+- type: custom
+  handler: reset_mockery
+animation:
+  icon: 😈
+  color:
+  - 150
+  - 0
+  - 200
+  screen_effect: humiliation
+sfx:
+- se
+- Magic1

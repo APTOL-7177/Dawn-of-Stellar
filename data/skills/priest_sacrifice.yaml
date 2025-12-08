@@ -1,0 +1,45 @@
+id: priest_sacrifice
+name: 희생의 기도
+type: heal
+description: '자신을 희생하여 아군을 치유한다.
+
+  자신 HP 30% 소모.
+
+  파티 전체 시전자 마법력 × 2.0 HP 회복.
+
+  신앙 100이면 HP 소모 없음 + 회복 × 3.5 + 신앙 소모.
+
+  신앙 +25.
+
+  "희생의 신탁" 충족.
+
+  '
+target: all_allies
+costs:
+  mp: 15
+metadata:
+  oracle_action: self_damage
+  self_damage_percent: 0.3
+  faith_empowered: true
+  faith_multiplier: 3.5
+effects:
+- type: heal
+  heal_type: hp
+  stat_scaling: magic
+  multiplier: 2.0
+  target: all_allies
+- type: gimmick
+  operation: add
+  field: faith
+  value: 25
+  max_value: 100
+animation:
+  icon: 💔
+  color:
+  - 255
+  - 200
+  - 200
+  screen_effect: holy_light
+sfx:
+- se
+- Recovery

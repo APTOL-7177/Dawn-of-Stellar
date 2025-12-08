@@ -100,6 +100,10 @@ class TeamworkSkill(Skill):
         if party is None:
             return False, "파티 정보가 없습니다"
 
+        # 비용 체크 스킵 확인 (이미 지불된 경우)
+        if context.get('skip_cost_check'):
+            return True, "사용 가능 (비용 체크 스킵)"
+
         # 팀워크 게이지 체크
         teamwork_gauge = getattr(party, 'teamwork_gauge', 0)
         if teamwork_gauge < self.teamwork_cost.gauge:

@@ -1,0 +1,12 @@
+id: holy_judgment
+name: Holy Judgment
+type: brv_attack
+description: Holy Judgment 스킬
+costs:
+  mp: 20
+  cast_time: 1.0
+effects:
+- type: damage
+  element: holy
+  multiplier: 2.0
+  stat_base: magic

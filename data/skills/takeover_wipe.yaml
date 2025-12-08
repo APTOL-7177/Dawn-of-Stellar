@@ -1,0 +1,38 @@
+id: takeover_wipe
+name: '장악: 데이터 와이프'
+type: utility
+description: '[침투 100% 필요] 적의 모든 데이터를 삭제합니다.
+
+  대상의 모든 버프 제거.
+
+  현재 디버프 지속시간 2배.
+
+  침투 게이지 0으로 초기화.
+
+  '
+target: single_enemy
+costs:
+  mp: 0
+  ram: 4
+metadata:
+  takeover: true
+  requires_intrusion: 100
+  consumes_intrusion: true
+  boss_restriction: reduced
+effects:
+- type: dispel
+  dispel_type: all_buffs
+- type: custom
+  handler: double_debuff_duration
+- type: custom
+  handler: reset_intrusion
+animation:
+  icon: 🗑️
+  color:
+  - 100
+  - 100
+  - 100
+  screen_effect: data_wipe
+sfx:
+- se
+- Magic1

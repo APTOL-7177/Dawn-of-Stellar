@@ -1,0 +1,39 @@
+id: gladiator_teamwork
+name: 콜로세움의 전설들
+type: teamwork
+description: "[팀워크] 파티 전원이 콜로세움의 전설이 됩니다.\n\n효과:\n1. 파티 전원 \"검투사의 영광\" 버프 (1턴)\n \
+  \  - 반격률 +30%\n   - 크리티컬 +20%\n2. 이번 턴 처치 시 환호 획득량 2배\n3. 환호 +20\n"
+target: all_allies
+costs:
+  teamwork_gauge: 100
+metadata:
+  teamwork: true
+effects:
+- type: buff
+  buff_id: gladiator_glory
+  target: all_allies
+  duration: 1
+  effects:
+    counter_rate_bonus: 0.3
+    critical_bonus: 0.2
+- type: buff
+  buff_id: cheer_boost
+  target: self
+  duration: 1
+  effects:
+    cheer_gain_multiplier: 2.0
+- type: gimmick
+  operation: add
+  field: cheer
+  value: 20
+  max_value: 100
+animation:
+  icon: 🎭
+  color:
+  - 255
+  - 200
+  - 100
+  screen_effect: colosseum_legends
+sfx:
+- se
+- Summon

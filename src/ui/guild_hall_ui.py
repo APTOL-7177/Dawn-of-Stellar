@@ -347,7 +347,7 @@ class GuildHallUI:
 
             if is_selected:
                 # 선택된 항목 강조
-                console.draw_rect(0, y, self.screen_width, 1, ch=" ", bg=Colors.DARK_BLUE)
+                console.draw_rect(0, y, self.screen_width, 1, ch=ord(" "), bg=Colors.DARK_BLUE)
                 fg_color = Colors.WHITE
             else:
                 fg_color = Colors.GRAY
@@ -384,7 +384,11 @@ class GuildHallUI:
             if achievement.reward.star_fragments > 0:
                 console.print(55, y, f"⭐ {achievement.reward.star_fragments}", fg=Colors.YELLOW)
         else:
-            progress = ".1f"
+            # 진행률 표시
+            current = getattr(achievement, 'current_value', 0)
+            target = getattr(achievement, 'target_value', 1)
+            percentage = (current / target * 100) if target > 0 else 0
+            progress = f"{percentage:.1f}%"
             console.print(45, y, progress, fg=Colors.BLUE)
 
         # 희귀도 표시
@@ -415,7 +419,7 @@ class GuildHallUI:
         progress_bar = self._create_progress_bar(milestone.progress_percentage, 20)
         console.print(35, y, progress_bar, fg=Colors.BLUE)
 
-        progress_text = ".1f"
+        progress_text = f"{milestone.progress_percentage * 100:.1f}%"
         console.print(58, y, progress_text, fg=Colors.BLUE)
 
         # 현재 단계

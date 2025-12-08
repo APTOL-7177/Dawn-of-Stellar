@@ -1,0 +1,13 @@
+id: divine_shield
+name: 신성한 방패
+type: support
+description: 신의 축복으로 방어력을 강화합니다
+costs:
+  mp: 30
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.7
+  duration: 3

@@ -1,6 +1,6 @@
 class_name: 몽크
 description: 내공과 정신력으로 싸우는 수행자
-slogan: "음과 양의 조화 속에 진정한 힘이 있다"
+slogan: 음과 양의 조화 속에 진정한 힘이 있다
 archetype: 내공 전사
 base_stats:
   hp: 172
@@ -13,18 +13,18 @@ base_stats:
   magic_defense: 55
   max_brv: 462
 stat_growth:
-  hp: 11
-  mp: 5.5
-  init_brv: 24.4
-  strength: 4.2
-  defense: 3.0
-  magic: 2.2
-  spirit: 4.5
-  speed: 4.5
-  luck: 3.2
-  accuracy: 2.5
-  evasion: 2.2
-  max_brv: 92.4
+  hp: 42.2
+  mp: 3.5
+  init_brv: 28.8
+  strength: 20.6
+  defense: 15.4
+  magic: 12.5
+  spirit: 15.5
+  speed: 18.9
+  max_brv: 129.7
+  luck: 3
+  accuracy: 1.6
+  evasion: 1.4
 traits:
 - id: yin_yang_balance
   name: 태극 조화
@@ -90,8 +90,10 @@ skills:
 - yang_extreme
 - taichi_flow
 - enlightenment
+- monk_dragon_combo
+- monk_shadow_veil
+- monk_ki_flux
 - taichi_ultimate
-
 bonuses:
   mp_multiplier: 1.1
   spirit_multiplier: 1.05

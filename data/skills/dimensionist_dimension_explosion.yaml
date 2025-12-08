@@ -1,0 +1,31 @@
+id: dimensionist_dimension_explosion
+name: 차원 폭발
+type: attack
+description: '굴절량의 20%를 소모해 전체 적에게 폭발적인 피해를 줍니다.
+
+  굴절 보너스가 크게 적용됩니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magical
+  multiplier: 0.6
+  target: all_enemies
+- type: gimmick
+  operation: multiply
+  field: refraction_stacks
+  value: 0.8
+  min_value: 0
+target: all_enemies
+costs:
+  mp: 15
+metadata:
+  job: dimensionist
+  refraction_consumption: 0.2
+  fixed_damage_multiplier: 6.0
+  custom_damage: true
+  magic_scaling: true
+sfx:
+- se
+- Move2

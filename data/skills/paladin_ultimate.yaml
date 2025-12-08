@@ -1,0 +1,60 @@
+id: paladin_ultimate
+name: 신성한 심판
+type: ultimate
+description: '[궁극기] 신성한 심판을 내립니다.
+
+
+  효과:
+
+  1. 신앙 즉시 100으로 설정
+
+  2. 전체 적 BRV 2.5 + HP 3.5 신성 피해
+
+  3. 아군 전체 HP 30% 회복
+
+  4. 3턴간 "신성 영역": 서약 위반 페널티 무효
+
+  '
+target: all
+costs:
+  mp: 36.0
+metadata:
+  ultimate: true
+effects:
+- type: gimmick
+  operation: set
+  field: faith
+  value: 100
+- type: damage
+  damage_type: brv
+  element: holy
+  stat_base: magic
+  multiplier: 2.5
+  target: all_enemies
+- type: damage
+  damage_type: hp
+  element: holy
+  stat_base: magic
+  multiplier: 3.5
+  target: all_enemies
+- type: heal
+  heal_type: percent
+  value: 0.3
+  target: all_allies
+- type: buff
+  buff_id: holy_domain
+  target: self
+  duration: 3
+  effects:
+    oath_violation_immune: true
+animation:
+  icon: ⚔️👑
+  color:
+  - 255
+  - 215
+  - 0
+  screen_effect: holy_judgment
+  duration: 3.0
+sfx:
+- se
+- Explosion4

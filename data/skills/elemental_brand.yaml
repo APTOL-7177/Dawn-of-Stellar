@@ -1,0 +1,27 @@
+id: elemental_brand
+name: 원소 낙인
+type: debuff
+description: 적에게 3가지 원소 낙인 부여 (5턴). 원소 피해 +40%, 융합 스킬 데미지 +50%
+costs:
+  mp: 5
+  cast_time: 0.2
+  element_cost:
+    fire: 1
+    ice: 1
+    lightning: 1
+effects:
+- type: brand
+  vulnerability: 0.4
+  duration: 5
+  brands:
+  - fire
+  - ice
+  - lightning
+metadata:
+  utility: true
+  debuff: true
+  element_cost: 3
+  boss_opener: true
+sfx:
+- se
+- Magic1

@@ -1,0 +1,57 @@
+id: fusion_sandstorm
+name: 모래 폭풍
+type: brv_attack
+description: '[바람+대지 융합] 맹렬한 모래 폭풍을 일으킵니다.
+
+  전체 적에게 BRV 2.2 피해 (HP 공격 없음, BRV 특화).
+
+  모래 눈 3턴: 명중 -30%, 크리티컬 -20%.
+
+  현재 BRV 15% 감소.
+
+
+  공명 보너스: BRV 감소 30%, BREAK 시 ATB +50
+
+  '
+target: all_enemies
+costs:
+  mp: 17
+metadata:
+  fusion: true
+  requires:
+  - wind
+  - earth
+  element: earth
+  brv_focused: true
+effects:
+- type: damage
+  damage_type: brv
+  element: earth
+  stat_base: magic
+  multiplier: 2.2
+  target: all_enemies
+- type: debuff
+  debuff_id: sand_blind
+  duration: 3
+  chance: 0.85
+  resonance_chance: 1.0
+  resonance_duration_bonus: 1
+  effects:
+    accuracy_reduction: 0.3
+    critical_reduction: 0.2
+- type: debuff
+  debuff_id: brv_break_slow
+  duration: 2
+  effects:
+    brv_damage_taken: 0.15
+    atb_on_break: 50
+animation:
+  icon: 💨🌍
+  color:
+  - 210
+  - 180
+  - 140
+  screen_effect: sandstorm
+sfx:
+- se
+- Up1

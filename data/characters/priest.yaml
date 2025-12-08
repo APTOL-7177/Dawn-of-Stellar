@@ -1,117 +1,188 @@
 class_name: 신관
-description: 신의 기적을 일으켜 파티를 축복하는 성스러운 존재
-slogan: "구원할 것인가, 심판할 것인가"
-archetype: 기적/치유 특화
+description: 신의 신탁을 받고 그 뜻을 실현하여 기적을 일으키는 성직자
+slogan: 신의 뜻을 전하는 자
+archetype: 힐러/서포터
 base_stats:
-  hp: 143
-  mp: 81
-  init_brv: 110
-  speed: 52
-  physical_attack: 42
-  physical_defense: 57
-  magic_attack: 79
-  magic_defense: 89
-  max_brv: 443
+  hp: 147
+  mp: 79
+  init_brv: 106
+  speed: 53
+  physical_attack: 38
+  physical_defense: 48
+  magic_attack: 59
+  magic_defense: 68
+  max_brv: 478
 stat_growth:
-  hp: 10
-  mp: 7
-  init_brv: 22.0
-  strength: 2.2
-  defense: 2.5
-  magic: 4.2
-  spirit: 5.5
-  speed: 3.0
-  luck: 4.5
-  accuracy: 1.8
-  evasion: 1.5
-  max_brv: 88.6
+  hp: 30.9
+  mp: 6.1
+  init_brv: 25.0
+  strength: 8.1
+  defense: 11.9
+  magic: 14.7
+  spirit: 20.0
+  speed: 11.2
+  max_brv: 134.2
+  luck: 3
+  accuracy: 1.6
+  evasion: 1.2
+gimmick:
+  type: oracle_system
+  name: 신탁 시스템
+  description: '[신탁 시스템] 신의 계시를 받고 그 뜻을 실현하라!
+
+
+    ■ 신탁 (라운드 시작 시)
+
+    매 라운드 신의 계시 1개 수신.
+
+    신탁 충족 시 신앙 +20 + 보너스 효과.
+
+
+    ■ 신앙 게이지 (0~100)
+
+    신탁 충족/치유/정화로 축적.
+
+    기적 스킬에 사용.
+
+
+    ■ 연속 충족 보너스
+
+    2연속: 다음 보상 +10
+
+    3연속: 모든 효과 +20%
+
+    4연속: 신앙 +30 추가
+
+    5연속+: 기적의 은총!
+
+    '
+  max_faith: 100
+  start_faith: 0
+  oracles:
+    healing:
+      name: 치유의 신탁
+      condition: heal_ally
+      faith_reward: 20
+      bonus: heal_effectiveness_30
+    protection:
+      name: 보호의 신탁
+      condition: buff_ally
+      faith_reward: 15
+      bonus: buff_duration_1
+    purification:
+      name: 정화의 신탁
+      condition: cleanse_debuff
+      faith_reward: 25
+      bonus: extra_faith_10
+    judgment:
+      name: 심판의 신탁
+      condition: damage_evil
+      faith_reward: 20
+      bonus: holy_damage_25
+    resurrection:
+      name: 부활의 신탁
+      condition: resurrect_ally
+      faith_reward: 40
+      bonus: mp_regen_20_3turn
+    sacrifice:
+      name: 희생의 신탁
+      condition: self_damage
+      faith_reward: 25
+      bonus: next_heal_double
+    harmony:
+      name: 조화의 신탁
+      condition: party_buff_heal
+      faith_reward: 30
+      bonus: party_speed_20_2turn
+    retribution:
+      name: 응징의 신탁
+      condition: counter_success
+      faith_reward: 25
+      bonus: next_attack_holy_damage
+    martyrdom:
+      name: 순교의 신탁
+      condition: protect_ally
+      faith_reward: 35
+      bonus: damage_reduction_30_2turn
+    blessing:
+      name: 축복의 신탁
+      condition: buff_3_allies
+      faith_reward: 25
+      bonus: faith_regen_10_3turn
+    radiance:
+      name: 광휘의 신탁
+      condition: holy_damage
+      faith_reward: 20
+      bonus: critical_holy_30
+    devotion:
+      name: 신앙의 신탁
+      condition: maintain_faith_50
+      faith_reward: 15
+      bonus: all_stats_15_2turn
+  combo_bonuses:
+    2:
+      faith_bonus: 10
+    3:
+      effect_bonus: 0.2
+    4:
+      faith_bonus: 30
+    5:
+      trigger_grace: true
 traits:
-- id: faith_amplifier
-  name: 신앙 증폭
-  description: 치유 스킬 시 신앙 +5 추가, 힐 효과 +30%
+- id: divine_favor
+  name: 신의 총애
+  description: 신탁 충족 시 신앙 +5 추가
+  type: trigger
+  effects:
+    oracle_faith_bonus: 5
+- id: holy_fervor
+  name: 성스러운 열정
+  description: 신앙 50+ 시 힐링 크리 +25%
+  type: conditional
+  conditions:
+    faith_min: 50
+  effects:
+    heal_critical_bonus: 0.25
+- id: blessed_touch
+  name: 축복의 손길
+  description: 힐링에 방어 +10% 버프 추가
   type: passive
   effects:
-    extra_faith: 5
-    heal_bonus: 1.3
-
-- id: judgment_wrath
-  name: 심판의 분노
-  description: 심판력 50 이상 시 신성 피해 +50%, 심판력 획득량 +25%
-  type: conditional
-  conditions:
-    judgment_min: 50
+    heal_defense_buff: 0.1
+- id: oracle_mastery
+  name: 신탁 숙련
+  description: 연속 충족 보너스 임계값 -1
+  type: passive
   effects:
-    holy_damage_bonus: 1.5
-    judgment_gain_bonus: 1.25
-
-- id: divine_balance
-  name: 신성 균형
-  description: 신앙과 심판력이 같을 때 모든 스킬 효과 +40%
-  type: conditional
-  conditions:
-    faith_equals_judgment: true
-  effects:
-    all_skill_bonus: 1.4
-
-- id: resurrection_prayer
-  name: 부활의 기도
-  description: 신앙 100 도달 시 전투불능 아군 자동 부활 (HP 60%)
+    combo_threshold_reduction: 1
+- id: divine_intervention
+  name: 신성 개입
+  description: 신앙 75+ 시 아군 즉사 방지 1회
   type: trigger
   conditions:
-    faith_exact: 100
+    faith_min: 75
   effects:
-    auto_resurrect: true
-    resurrect_hp: 0.6
-
-- id: holy_sanctuary
-  name: 신성한 성역
-  description: 심판력 100 도달 시 파티 전체 3턴 무적 + 상태이상 해제
-  type: trigger
-  conditions:
-    judgment_exact: 100
-  effects:
-    party_invincible: 3
-    cleanse_all: true
-gimmick:
-  type: divinity_system
-  name: 신성 권능
-  description: |
-    [신성 시스템] 치유와 심판으로 신성력 축적!
-    
-    - 치유 스킬: 신앙 +10
-    - 심판 스킬: 심판력 +15
-    - 신성력 소비해 기적 발동
-    
-    신성 기적:
-    - 50 신앙: 완전 회복 가능
-    - 100 심판: 신성 심판 (즉사급)
-    
-    특수 기적:
-    - 부활: 전투불능 부활 (1회)
-    - 신의 보호: 파티 무적 (1턴)
-  max_judgment_points: 100
-  max_faith_points: 100
-  faith_gain:
-    heal: 10
-    buff: 5
-  judgment_gain:
-    smite: 15
-    damage: 10
+    prevent_death_once: true
 skills:
-- teamwork
-- holy_smite
-- divine_judgment
-- light_bind
-- holy_heal
-- divine_protection
-- judgment_light
-- holy_beam
-- divine_wrath
-- divine_grace
-- ultimate
-
+- priest_teamwork
+- priest_holy_smite
+- priest_divine_judgment
+- priest_heal
+- priest_blessing
+- priest_purify
+- priest_light_bind
+- priest_holy_heal
+- priest_divine_protection
+- priest_judgment_light
+- priest_divine_counter
+- priest_martyr
+- priest_sacrifice
+- priest_holy_beam
+- priest_divine_wrath
+- priest_divine_grace
+- priest_resurrection
+- priest_ultimate
 bonuses:
-  healing_power: 1.2
-  mp_multiplier: 1.1
-  critical_taken_reduction: 0.1
-  status_immunity: 1.0
+  healing_power: 1.15
+  mp_multiplier: 1.08
+  debuff_resistance: 0.1

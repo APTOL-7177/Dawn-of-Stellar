@@ -1,0 +1,43 @@
+id: knight_shield_line
+name: 실드 라인
+type: support
+description: '선택한 아군과 방패의 연결선을 형성한다.
+
+  대상에게 방어력/마법방어력 +50% 부여,
+
+  대상이 받는 피해의 40%를 자신이 대신 받는다.
+
+  '
+costs:
+  mp: 9
+  cast_time: 1.0
+target: single_ally
+effects:
+- type: buff
+  target: selected_ally
+  stat: physical_defense
+  value: 0.5
+  duration: 3
+- type: buff
+  target: selected_ally
+  stat: magic_defense
+  value: 0.5
+  duration: 3
+- type: damage_share
+  target: selected_ally
+  share_percent: 0.4
+  duration: 3
+  linked_to: caster
+- type: gain_gimmick
+  gimmick: duty
+  amount: 1
+metadata:
+  job: knight
+  tank_skill: true
+  party_buff: true
+  cover_skill: true
+  duty_gain: 1
+  skill_category: defense
+sfx:
+- se
+- Barrier

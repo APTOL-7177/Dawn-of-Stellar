@@ -159,7 +159,7 @@ ENEMY_TEMPLATES = {
         luck=10, accuracy=62, evasion=8
     ),
     "vampire": EnemyTemplate(
-        "vampire", "뱀파이어", 1,
+        "vampire", "흡혈귀", 1,
         hp=250, mp=100,  # 민첩 + 마법형
         physical_attack=75, physical_defense=55,
         magic_attack=95, magic_defense=70,
@@ -191,10 +191,10 @@ ENEMY_TEMPLATES = {
     "dragon": EnemyTemplate(
         "dragon", "드래곤", 1,
         hp=400, mp=150,  # 최강 일반 몬스터
-        physical_attack=110, physical_defense=90,
-        magic_attack=105, magic_defense=85,
+        physical_attack=60, physical_defense=90,
+        magic_attack=45, magic_defense=85,
         speed=60,
-        max_brv=2667, init_brv=889,  # 드래곤급 BRV (8000÷3, 2667÷3)
+        max_brv=667, init_brv=222,  # 드래곤급 BRV (8000÷3, 2667÷3)
         luck=20, accuracy=75, evasion=12
     ),
 
@@ -233,9 +233,9 @@ ENEMY_TEMPLATES = {
     # 7분 30초 제한 - 스킬 계수로 위협적
     "sephiroth": EnemyTemplate(
         "sephiroth", "세피로스", 1,
-        hp=350, mp=500,  # HP 적당히 증가 (300->350), MP 대폭 증가
-        physical_attack=86, physical_defense=68,  # 물리 특화, 방어력 증가 (55->68)
-        magic_attack=62, magic_defense=58,  # 마법은 낮게, 방어력 증가 (45->58)
+        hp=400, mp=500,  # HP 적당히 증가 (300->350), MP 대폭 증가
+        physical_attack=66, physical_defense=94,  # 물리 특화, 방어력 20% 감소 (68->54)
+        magic_attack=42, magic_defense=66,  # 마법은 낮게, 방어력 20% 감소 (58->46)
         speed=110,  # 스피드 2배 (55*2)
         max_brv=1200, init_brv=600,  # init_brv를 max_brv 절반으로 설정 (1200//2)
         luck=18, accuracy=85, evasion=16
@@ -246,9 +246,9 @@ ENEMY_TEMPLATES = {
     # 4분 제한 - 시간은 짧지만 마법 계수 높은 스킬로 승부
     "abel_cain": EnemyTemplate(
         "abel_cain", "닥터 아벨 카인", 1,
-        hp=320, mp=500,  # HP 적당히 증가 (280->320), MP 대폭 증가
-        physical_attack=60, physical_defense=54,  # 물리는 낮게, 방어력 증가 (42->54)
-        magic_attack=94, magic_defense=75,  # 마법 특화, 방어력 증가 (65->75)
+        hp=270, mp=500,  # HP 2/3 감소 (300->200), MP 대폭 증가
+        physical_attack=40, physical_defense=60,  # 물리는 낮게, 방어력 1.3배 (54->70)
+        magic_attack=79, magic_defense=98,  # 마법 특화, 방어력 1.3배 (75->98)
         speed=96,  # 스피드 2배 (48*2) - 마법형이라 조금 느림
         max_brv=960, init_brv=480,  # init_brv를 max_brv 절반으로 설정 (960//2)
         luck=20, accuracy=88, evasion=14
@@ -542,9 +542,9 @@ ENEMY_TEMPLATES = {
         luck=22, accuracy=78, evasion=25
     ),
 
-    # === 투명한 적 (특수 타입) ===
+    # === 그림자 잠복자 (특수 타입) ===
     "invisible_enemy": EnemyTemplate(
-        "invisible_enemy", "투명한 적", 1,
+        "invisible_enemy", "그림자 잠복자", 1,
         hp=200, mp=40,  # 일반적인 적과 동일한 스탯
         physical_attack=55, physical_defense=45,
         magic_attack=55, magic_defense=45,
@@ -580,42 +580,42 @@ class SimpleEnemy:
         level = self.level
         enemy_growth_mult = 1.25  # 장비 차이 보정 (플레이어보다 25% 더 성장)
         
-        # HP: 레벨당 기초 HP의 18.72% 성장 (플레이어 11.5% * 1.25 * 1.3)
-        hp_growth = template.hp * 0.1872 * (level - 1)
+        # HP: 레벨당 기초 HP의 22.425% 성장 (새 목표 150%의 1.3배)
+        hp_growth = template.hp * 0.22425 * (level - 1)
         base_hp = (template.hp + hp_growth) * boss_hp_mult * stat_variance
         self.max_hp = int(base_hp) * difficulty_hp_mult
         self.current_hp = self.max_hp
         
-        # MP: 레벨당 기초 MP의 8.125% 성장 (플레이어 5% * 1.25 * 1.3)
-        mp_growth = template.mp * 0.08125 * (level - 1)
+        # MP: 레벨당 기초 MP의 9.75% 성장
+        mp_growth = template.mp * 0.0975 * (level - 1)
         base_mp = (template.mp + mp_growth) * boss_stat_mult * stat_variance
         self.max_mp = int(base_mp)
         self.current_mp = self.max_mp
         
         # 공격력: 레벨당 기초 공격력의 40% 성장
-        # 최종 배율 0.4 (40%)
-        attack_growth = template.physical_attack * 0.40 * (level - 1)
+        # 최종 배율 1.0 (100%)
+        attack_growth = template.physical_attack * 0.312 * (level - 1)
         base_physical_attack = (template.physical_attack + attack_growth) * boss_stat_mult * stat_variance
-        self.physical_attack = int(base_physical_attack * 0.4) * difficulty_dmg_mult
+        self.physical_attack = int(base_physical_attack * 1.0) * difficulty_dmg_mult  # 모든 적 공격력 100%
 
-        magic_attack_growth = template.magic_attack * 0.40 * (level - 1)
+        magic_attack_growth = template.magic_attack * 0.312 * (level - 1)
         base_magic_attack = (template.magic_attack + magic_attack_growth) * boss_stat_mult * stat_variance
-        self.magic_attack = int(base_magic_attack * 0.4) * difficulty_dmg_mult
+        self.magic_attack = int(base_magic_attack * 1.0) * difficulty_dmg_mult  # 모든 적 마법력 100%
         
-        # 방어력: 레벨당 기초 방어력의 40% 성장, 최종값 15% 증가 (플레이어 20% * 1.25 * 1.3, 최종 0.75 * 1.15 = 0.8625배)
-        defense_growth = template.physical_defense * 0.40 * (level - 1)
-        base_physical_defense = (template.physical_defense + defense_growth) * 0.75 * 1.15 * boss_stat_mult * stat_variance
-        self.physical_defense = int(base_physical_defense)
-        
-        magic_defense_growth = template.magic_defense * 0.40 * (level - 1)
-        base_magic_defense = (template.magic_defense + magic_defense_growth) * 0.75 * 1.15 * boss_stat_mult * stat_variance
-        self.magic_defense = int(base_magic_defense)
+        # 방어력: 레벨당 기초 방어력의 40% 성장, 최종값 2/3배
+        defense_growth = template.physical_defense * 0.416 * (level - 1)
+        base_physical_defense = (template.physical_defense + defense_growth) * boss_stat_mult * stat_variance
+        self.physical_defense = int(base_physical_defense * 0.667)  # 2/3배
+
+        magic_defense_growth = template.magic_defense * 0.416 * (level - 1)
+        base_magic_defense = (template.magic_defense + magic_defense_growth) * boss_stat_mult * stat_variance
+        self.magic_defense = int(base_magic_defense * 0.667)  # 2/3배
         
         # 속도: 레벨당 기초 속도의 25% 성장 (약간 낮춰 밸런스 조정)
         # 추가로 속도를 1.5배로 조정하고, 30% 감소 적용 (1.5 * 0.7 = 1.05)
-        speed_growth = template.speed * 0.25 * (level - 1)
+        speed_growth = template.speed * 0.312 * (level - 1)
         base_speed = (template.speed + speed_growth) * boss_stat_mult * stat_variance
-        self.speed = int(base_speed * 1.5 * 0.7)
+        self.speed = int(base_speed)
         
         # 행운, 명중, 회피는 레벨에 따라 약간 증가
         base_luck = (template.luck + (level - 1) * 0.5) * boss_stat_mult * stat_variance
@@ -625,17 +625,15 @@ class SimpleEnemy:
         base_evasion = (template.evasion + (level - 1) * 0.5) * boss_stat_mult * stat_variance
         self.evasion = int(base_evasion)
 
-        # BRV: 레벨당 기초 BRV의 25% 성장 (플레이어 20% * 1.25)
-        # 적의 BRV는 모두 1/2로 조정
-        brv_growth = template.max_brv * 0.25 * (level - 1)
-        base_max_brv = (template.max_brv + brv_growth) * boss_stat_mult * stat_variance * 0.5
-        self.max_brv = int(base_max_brv)
-        init_brv_growth = template.init_brv * 0.25 * (level - 1)
-        # BREAK 회복용 init_brv는 * 0.5 없이 저장 (원래 값으로 회복)
+        # BRV: 레벨당 기초 BRV의 28.6% 성장 (플레이어 대비 1.3배), 1/4로 감소
+        brv_growth = template.max_brv * 0.286 * (level - 1)
+        base_max_brv = (template.max_brv + brv_growth) * boss_stat_mult * stat_variance
+        self.max_brv = int(base_max_brv * 0.25)  # 1/4로 감소
+        init_brv_growth = template.init_brv * 0.33 * (level - 1)
         full_init_brv = (template.init_brv + init_brv_growth) * boss_stat_mult * stat_variance
-        self.init_brv = int(full_init_brv)  # BREAK 회복용 init_brv 저장
-        # 전투 시작 시 current_brv는 init_brv의 50%로 시작
-        self.current_brv = int(full_init_brv * 0.5)
+        self.init_brv = int(full_init_brv * 0.25)  # 1/4로 감소 BREAK 회복용 init_brv 저장
+        # 전투 시작 시 current_brv는 init_brv 그대로 사용
+        self.current_brv = self.init_brv
 
         # 상태
         self.is_alive = True
@@ -646,7 +644,7 @@ class SimpleEnemy:
         # 스킬 (간단하게)
         self.skills = []
 
-    def take_damage(self, damage: int) -> int:
+    def take_damage(self, damage: int, is_dot: bool = False, **kwargs) -> int:
         """데미지 받기"""
         actual_damage = min(damage, self.current_hp)
         self.current_hp -= actual_damage
@@ -728,8 +726,8 @@ class EnemyGenerator:
         if 11 <= floor_number <= 15:
             suitable.extend(EnemyGenerator.ENEMY_TIERS["elite"])
         if floor_number >= 15:
-            # 15층 이상: 보스급 적도 일반 조우로 등장 (낮은 확률)
-            suitable.extend(EnemyGenerator.ENEMY_TIERS["boss"])
+            # 15층 이상: elite 적만 추가 (보스는 보스 스폰에서만 등장)
+            suitable.extend(EnemyGenerator.ENEMY_TIERS["elite"])
 
         # 최소 1종류는 나오도록
         if not suitable:
@@ -755,10 +753,13 @@ class EnemyGenerator:
             from src.core.config import get_config
             config = get_config()
             min_enemies = config.get("world.dungeon.enemy_count.min_enemies", 1)
-            max_enemies = config.get("world.dungeon.enemy_count.max_enemies", 4)
+            max_enemies = config.get("world.dungeon.enemy_count.max_enemies", 3)  # 기본 최대 3 (보너스로 +1 됨)
 
-            # 랜덤하게 1~4마리 생성
-            num_enemies = random.randint(min_enemies, max_enemies)
+            # 랜덤하게 1~3마리 생성 후 +1 추가 (총 2~4마리)
+            num_enemies = random.randint(min_enemies, max_enemies) + 1
+            
+            # 최대 4마리로 제한
+            num_enemies = min(num_enemies, 4)
 
         # 난이도 시스템에서 배율 가져오기
         from src.core.difficulty import get_difficulty_system
@@ -925,10 +926,10 @@ class EnemyGenerator:
 
             # 최종보스 특별 처리 (20층 세피로스, 30층 카인)
             if boss_battle and boss_enemy_id in ["sephiroth", "abel_cain"]:
-                # 세피로스와 카인 HP 14.3% 감소 (AI 강화로 난이도 균형)
-                boss.max_hp = int(boss.max_hp * 0.857)  # 14.3% 감소
+                # 세피로스와 카인 HP 15% 상향 (강화된 난이도)
+                boss.max_hp = int(boss.max_hp * 1.15)  # 15% 증가
                 boss.current_hp = boss.max_hp
-                logger.info(f"{boss_name} HP 14.3% 감소 (AI 강화 균형): {boss.max_hp}")
+                logger.info(f"{boss_name} HP 15% 상향 (강화 난이도): {boss.max_hp}")
 
                 # 세피로스와 카인의 MP를 999로 설정
                 boss.max_mp = 999

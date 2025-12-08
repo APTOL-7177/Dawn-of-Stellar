@@ -73,6 +73,10 @@ class GameAction(Enum):
 
     # 멀티플레이 전용
     ADD_BOT = "add_bot"  # 봇 추가
+    CHAT = "chat"        # 채팅
+
+    # 필드 스킬
+    FIELD_SKILL = "field_skill"
 
 
 class GamepadLayout(Enum):
@@ -160,6 +164,11 @@ class InputHandler(tcod.event.EventDispatch[Optional[GameAction]]):
             'z': GameAction.CONFIRM,
             'x': GameAction.CANCEL,
             'q': GameAction.QUIT,
+
+            # 채팅
+            't': GameAction.CHAT,
+            # 필드 스킬
+            'f': GameAction.FIELD_SKILL,
         }
 
     def ev_quit(self, event: tcod.event.Quit) -> Optional[GameAction]:
@@ -344,6 +353,8 @@ class KeyBindingManager:
             7: "m",        # Start - 메뉴 (M키)
             8: "s",        # Left Stick - 스킬 (S키)
             9: "p",        # Right Stick - 줍기 (P키)
+            "trigger_l": "f", # Left Trigger - 필드 스킬 (F키)
+            "trigger_r": "SPACE", # Right Trigger - 공격 (Space키) - R스틱 클릭 대신 트리거로도 공격
         }
         
         # 게임패드 D-pad -> 키보드 키 기본 매핑
@@ -881,7 +892,7 @@ class GamepadHandler:
             return GamepadLayout.XBOX
 
         # PlayStation 컨트롤러 감지
-        elif any(keyword in name_lower for keyword in ['playstation', 'dualshock', 'ds4', 'ps4', 'ps5']):
+        elif any(keyword in name_lower for keyword in ['playstation', 'dualshock', 'ds4', 'ps4', 'ps5', 'dualsense']):
             return GamepadLayout.PLAYSTATION
 
         # Nintendo 컨트롤러 감지
@@ -1459,7 +1470,12 @@ class UnifiedInputHandler:
         return None
 
     def process_tcod_event(self, event) -> Optional[GameAction]:
-        """tcod 이벤트를 처리하여 액션 반환 (키보드 이벤트 우선)"""
+        """tcod 이벤트를 처리하여 액션 반환 (게임패드 우선, 키보드 차선)"""
+        # 게임패드 입력 우선 확인
+        gamepad_action = self.gamepad_handler.get_action()
+        if gamepad_action:
+            return gamepad_action
+        
         # 키보드 키를 뗐을 때 디바운싱 타이머 리셋
         if isinstance(event, tcod.event.KeyUp):
             key_sym = event.sym

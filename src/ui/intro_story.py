@@ -113,721 +113,595 @@ class IntroStorySystem:
         return True
 
     def _get_story_lines(self) -> List[StoryLine]:
-        """스토리 라인 목록 - story_system_example.py 일반 인트로 기반"""
+        """스토리 라인 목록 - 게임 인트로 스토리"""
         return [
-            # 메인 타이틀
+            # 타이틀
             StoryLine(
                 "별빛의 여명",
-                color=(255, 215, 0),  # 금색
+                color=(255, 215, 0),
                 delay=0.08,
                 pause=2.0,
                 effect="fade_in"
             ),
             StoryLine(
                 "Dawn of Stellar",
-                color=(200, 200, 255),  # 연한 청색
+                color=(200, 200, 255),
                 delay=0.06,
-                pause=3.0,
+                pause=2.5,
                 effect="flash"
             ),
 
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
+            # 빈 줄
+            StoryLine("", pause=1.5),
 
-            # 스토리 시작
+            # 평화로운 시작
             StoryLine(
-                "서기 2157년, 지구...",
+                "서기 2157년...",
                 color=(220, 220, 220),
                 delay=0.1,
-                pause=1.5,
+                pause=2.0,
                 effect="typing"
             ),
+
+            # 빈 줄
+            StoryLine("", pause=0.3),
+
             StoryLine(
-                "인류는 마침내 수백 년의 꿈을 이루어냈다.",
+                "인류는 마침내 평화를 이루었다.",
                 color=(200, 200, 200),
-                delay=0.05,
-                pause=2.0,
+                delay=0.06,
+                pause=1.8,
                 effect="typing"
             ),
             StoryLine(
                 "전쟁은 역사책 속 이야기가 되었고,",
                 color=(180, 180, 180),
-                delay=0.05,
+                delay=0.06,
                 pause=1.5,
                 effect="typing"
             ),
             StoryLine(
                 "질병과 기아는 과거의 악몽이 되었다.",
                 color=(180, 180, 180),
-                delay=0.05,
-                pause=2.0,
+                delay=0.06,
+                pause=1.8,
                 effect="typing"
             ),
 
-            # 빈 줄 - 화면 클리어
+            # 빈 줄
             StoryLine("", pause=1.0),
 
-            # 차원 항해 기술
+            # 황금시대
             StoryLine(
-                "그리고 마침내... 차원 항해 기술이 완성되었다.",
-                color=(0, 255, 255),  # 시안
+                "인류는 별들 사이를 여행하며",
+                color=(0, 255, 255),
+                delay=0.06,
+                pause=1.5,
+                effect="typing"
+            ),
+            StoryLine(
+                "우주 곳곳에 문명의 씨앗을 퍼뜨렸다.",
+                color=(0, 255, 255),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "이것이... 황금시대였다.",
+                color=(255, 215, 0),
                 delay=0.08,
-                pause=2.5,
+                pause=2.2,
                 effect="fade_in"
             ),
 
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 실험의 날
-            StoryLine(
-                "스텔라 연구소, 차원 항해 실험실...",
-                color=(220, 220, 220),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "\"모든 시스템 정상. 차원 엔진 가동 준비 완료.\"",
-                color=(0, 255, 0),  # 녹색
-                delay=0.04,
-                pause=1.5,
-                effect="typing"
-            ),
-            StoryLine(
-                "\"역사적인 순간입니다. 인류 최초의 차원 도약을 시작합니다.\"",
-                color=(0, 255, 0),
-                delay=0.04,
-                pause=2.0,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 연구원들
-            StoryLine(
-                "연구원들의 흥분된 목소리가 실험실을 가득 채웠다.",
-                color=(200, 200, 200),
-                delay=0.05,
-                pause=1.5,
-                effect="typing"
-            ),
-            StoryLine(
-                "수십 년간의 연구와 준비가 이 순간을 위함이었다.",
-                color=(200, 200, 200),
-                delay=0.05,
-                pause=2.0,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 불길한 예감
-            StoryLine(
-                "하지만 그 누구도 예상하지 못한 일이",
-                color=(255, 255, 0),  # 노란색
-                delay=0.06,
-                pause=1.5,
-                effect="typing"
-            ),
-            StoryLine(
-                "조용히 어둠 속에서 꿈틀거리고 있었다...",
-                color=(255, 255, 0),
-                delay=0.06,
-                pause=2.5,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 재앙의 시작 - 카운트다운
-            StoryLine(
-                "\"차원 게이트 개방... 3... 2... 1...\"",
-                color=(255, 255, 0),
-                delay=0.1,
-                pause=2.0,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=0.5),
-
-            # 이상 발생
-            StoryLine(
-                "하지만 첫 번째 차원 도약 실험에서...",
-                color=(200, 200, 200),
-                delay=0.08,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "아무도 예상하지 못한 일이 벌어졌다.",
-                color=(255, 0, 0),  # 빨간색
-                delay=0.08,
-                pause=2.5,
-                effect="flash"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=0.5),
-
-            # 경고
-            StoryLine(
-                "\"경고! 차원 공명 현상 발생!\"",
-                color=(255, 0, 0),
-                delay=0.06,
-                pause=1.5,
-                effect="flash"
-            ),
-            StoryLine(
-                "\"시공간 매트릭스가 불안정합니다!\"",
-                color=(255, 0, 0),
-                delay=0.06,
-                pause=1.5,
-                effect="flash"
-            ),
-            StoryLine(
-                "\"실험 중단! 즉시 실험을 중단하세요!\"",
-                color=(255, 0, 0),
-                delay=0.06,
-                pause=2.0,
-                effect="flash"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=0.5),
-
-            # 대재앙 - 글리치 효과
-            StoryLine(
-                "시공간 교란 발생!",
-                color=(255, 0, 0),
-                delay=0.2,
-                pause=3.0,
-                effect="glitch"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 재앙의 묘사
-            StoryLine(
-                "하늘이 갈라지고, 대지가 진동했다.",
-                color=(255, 0, 0),
-                delay=0.08,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "차원의 경계가 산산조각 나면서",
-                color=(200, 200, 200),
-                delay=0.06,
-                pause=1.5,
-                effect="typing"
-            ),
-            StoryLine(
-                "과거, 현재, 미래의 모든 시대가 뒤섞이기 시작했다.",
-                color=(200, 200, 200),
-                delay=0.06,
-                pause=2.5,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 시간의 왜곡
-            StoryLine(
-                "시간의 흐름이 왜곡되기 시작했다...",
-                color=(255, 0, 255),  # 마젠타
-                delay=0.08,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "어떤 곳에서는 시간이 거꾸로 흐르고,",
-                color=(255, 0, 255),
-                delay=0.06,
-                pause=1.8,
-                effect="typing"
-            ),
-            StoryLine(
-                "어떤 곳에서는 시간이 완전히 멈춰버렸다.",
-                color=(255, 0, 255),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 공간의 왜곡
-            StoryLine(
-                "공간의 법칙이 무너지면서",
-                color=(0, 150, 255),  # 파란색
-                delay=0.08,
-                pause=1.8,
-                effect="typing"
-            ),
-            StoryLine(
-                "중력이 제멋대로 변하고,",
-                color=(0, 150, 255),
-                delay=0.06,
-                pause=1.5,
-                effect="typing"
-            ),
-            StoryLine(
-                "거리의 개념 자체가 의미를 잃었다.",
-                color=(0, 150, 255),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 현실의 붕괴
-            StoryLine(
-                "현실 자체가 일그러지면서",
-                color=(255, 0, 0),
-                delay=0.08,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "물질과 에너지의 경계가 흐려졌다.",
-                color=(255, 0, 0),
-                delay=0.06,
-                pause=2.5,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 혼돈의 세계
-            StoryLine(
-                "그리고... 세상은 완전히 달라졌다.",
-                color=(255, 255, 255),
-                delay=0.08,
-                pause=3.0,
-                effect="fade_in"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 시공간 혼돈
-            StoryLine(
-                "시공간의 혼돈 속에서",
-                color=(200, 200, 200),
-                delay=0.06,
-                pause=1.5,
-                effect="typing"
-            ),
-            StoryLine(
-                "모든 것이 불가능해 보이는 일들이 현실이 되었다.",
-                color=(200, 200, 200),
-                delay=0.06,
-                pause=2.5,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 과거와 미래의 융합
-            StoryLine(
-                "과거의 지혜와 미래의 기술이 만나고,",
-                color=(255, 255, 0),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "서로 다른 시대의 법칙들이 충돌한다.",
-                color=(255, 255, 0),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 희망의 메시지
-            StoryLine(
-                "하지만 그 혼돈 속에서도",
-                color=(0, 150, 255),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "새로운 가능성들이 태어나고 있었다.",
-                color=(0, 150, 255),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 상반되는 상황들 - 혼돈에서 새로운 가능성으로
-            StoryLine(
-                "미래의 과학자가 돌도끼로 실험을 한다.",
-                color=(255, 0, 0),  # 빨간색 (문제)
-                delay=0.05,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "모든 것이 뒤섞인 채로 새로운 질서를 찾기 시작한다.",
-                color=(255, 255, 0),  # 노란색 (희망)
-                delay=0.05,
-                pause=1.8,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=0.5),
-
-            StoryLine(
-                "그리스의 철학자가 고장난 컴퓨터 앞에서 좌절하지만,",
-                color=(255, 0, 0),
-                delay=0.05,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "AI와 함께 새로운 진리를 탐구한다.",
-                color=(255, 255, 0),
-                delay=0.05,
-                pause=1.8,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=0.5),
-
-            StoryLine(
-                "해적이 우주선 조종법을 몰라 표류하지만,",
-                color=(255, 0, 0),
-                delay=0.05,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "성간 항해의 새로운 길을 개척해낸다.",
-                color=(255, 255, 0),
-                delay=0.05,
-                pause=1.8,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=0.5),
-
-            StoryLine(
-                "기사가 레이저 검에 당황하면서도,",
-                color=(255, 0, 0),
-                delay=0.05,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "과거의 기사도와 미래의 기술을 융합해낸다.",
-                color=(255, 255, 0),
-                delay=0.05,
-                pause=1.8,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            StoryLine(
-                "모든 것이 혼란스럽지만,",
-                color=(255, 0, 0),
-                delay=0.05,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "새로운 가능성들이 태어나고 있었다.",
-                color=(255, 255, 0),
-                delay=0.05,
-                pause=2.5,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
+            # 빈 줄
             StoryLine("", pause=1.5),
 
-            # 주인공의 등장
+            # 차원 항해의 꿈
             StoryLine(
-                "그리고 그 혼돈 속에서, 당신이 있다.",
-                color=(0, 255, 255),  # 시안
+                "그들은 더 큰 꿈을 꾸었다.",
+                color=(255, 255, 0),
                 delay=0.08,
-                pause=2.0,
+                pause=1.8,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=0.3),
+
+            StoryLine(
+                "차원을 넘어,",
+                color=(0, 255, 255),
+                delay=0.06,
+                pause=1.2,
+                effect="typing"
+            ),
+            StoryLine(
+                "무한한 가능성의 세계로...",
+                color=(0, 255, 255),
+                delay=0.06,
+                pause=1.8,
                 effect="fade_in"
             ),
+
+            # 빈 줄
+            StoryLine("", pause=0.3),
+
             StoryLine(
-                "당신은 차원 항해사로서",
+                "영원한 평화의 내일을 향해.",
                 color=(0, 255, 255),
                 delay=0.06,
-                pause=1.5,
-                effect="typing"
-            ),
-            StoryLine(
-                "이 혼돈의 세계에서 길을 찾아야 한다.",
-                color=(0, 255, 255),
-                delay=0.06,
-                pause=2.0,
+                pause=2.2,
                 effect="typing"
             ),
 
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
+            # 빈 줄
+            StoryLine("", pause=1.8),
 
-            # 세계의 모순
             StoryLine(
-                "과거의 기억이 미래의 예언이 된다.",
+                "하지만 그 날 밤...",
+                color=(255, 255, 0),
+                delay=0.08,
+                pause=2.2,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.2),
+
+            StoryLine(
+                "별들이 떨어지기 시작했다.",
+                color=(255, 215, 0),
+                delay=0.08,
+                pause=2.5,
+                effect="fade_in"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "하늘이 갈라졌다.",
+                color=(255, 0, 0),
+                delay=0.08,
+                pause=1.8,
+                effect="flash"
+            ),
+            StoryLine(
+                "대지가 진동했다.",
+                color=(255, 0, 0),
+                delay=0.08,
+                pause=1.8,
+                effect="flash"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "세계는 산산조각 났다.",
+                color=(255, 0, 0),
+                delay=0.08,
+                pause=2.2,
+                effect="flash"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "시간의 강이 역류했다.",
+                color=(255, 0, 255),
+                delay=0.08,
+                pause=2.2,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "과거와 미래가 뒤섞이며",
                 color=(255, 0, 255),
                 delay=0.06,
-                pause=2.5,
+                pause=1.8,
                 effect="typing"
             ),
             StoryLine(
-                "죽은 자가 살아서 걸어다니고,",
-                color=(255, 255, 255),
+                "현실의 경계가 흐려졌다.",
+                color=(255, 0, 255),
                 delay=0.06,
                 pause=2.0,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "공간의 법칙이 무너지고,",
+                color=(0, 150, 255),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "차원의 벽이 산산조각 났다.",
+                color=(0, 150, 255),
+                delay=0.06,
+                pause=2.0,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "그 모든 것은...",
+                color=(200, 0, 0),
+                delay=0.08,
+                pause=1.8,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "누군가의 야망 때문이었다.",
+                color=(200, 0, 0),
+                delay=0.08,
+                pause=2.2,
+                effect="flash"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "영원을 꿈꾼 자,",
+                color=(150, 0, 0),
+                delay=0.08,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "신이 되려 한 자의 탐욕이",
+                color=(150, 0, 0),
+                delay=0.08,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "세상을 삼켜버렸다.",
+                color=(150, 0, 0),
+                delay=0.08,
+                pause=2.5,
+                effect="flash"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.8),
+
+            StoryLine(
+                "시간 속에 갇힌 영혼이 있다.",
+                color=(0, 150, 255),
+                delay=0.08,
+                pause=2.2,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "끝없이 반복되는 악몽...",
+                color=(100, 100, 255),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "열 만 번의 절망...",
+                color=(100, 100, 255),
+                delay=0.08,
+                pause=2.0,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "천 개의 영혼이 그를 짓눌렀다.",
+                color=(100, 100, 255),
+                delay=0.06,
+                pause=2.2,
+                effect="fade_in"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "세계는 조각났다.",
+                color=(200, 200, 200),
+                delay=0.08,
+                pause=1.8,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "과거의 전사가 미래의 땅을 걷고,",
+                color=(180, 180, 180),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "미래의 과학자가 고대의 유적을 헤맨다.",
+                color=(180, 180, 180),
+                delay=0.06,
+                pause=2.0,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.2),
+
+            StoryLine(
+                "죽은 자가 살아 걸어다니고,",
+                color=(255, 255, 255),
+                delay=0.06,
+                pause=1.8,
                 effect="typing"
             ),
             StoryLine(
                 "태어나지 않은 자가 이미 늙어간다.",
                 color=(255, 255, 255),
                 delay=0.06,
-                pause=3.0,
+                pause=2.0,
                 effect="typing"
             ),
 
-            # 빈 줄 - 화면 클리어
+            # 빈 줄
             StoryLine("", pause=1.5),
 
-            # 주인공의 역할
             StoryLine(
-                "그리고... 이 모든 혼돈의 한복판에",
-                color=(0, 255, 255),
-                delay=0.08,
-                pause=2.5,
-                effect="typing"
-            ),
-            StoryLine(
-                "당신이 서 있다.",
-                color=(0, 255, 255),
-                delay=0.08,
-                pause=3.0,
-                effect="fade_in"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 사명
-            StoryLine(
-                "당신은 차원 항해사...",
-                color=(255, 255, 0),
-                delay=0.08,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "시공간을 넘나들 수 있는 유일한 존재.",
-                color=(255, 255, 0),
-                delay=0.06,
-                pause=2.5,
-                effect="typing"
-            ),
-            StoryLine(
-                "이 혼돈의 세계에서 질서를 찾을 수 있는",
-                color=(255, 255, 0),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "마지막 희망.",
-                color=(255, 255, 0),
-                delay=0.08,
-                pause=3.0,
-                effect="fade_in"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 임무
-            StoryLine(
-                "시공간 교란의 진정한 원인을 찾아야 한다.",
-                color=(255, 255, 255),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "뒤섞인 시대들을 제자리로 돌려놓아야 한다.",
-                color=(255, 255, 255),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "무너진 현실의 법칙을 다시 세워야 한다.",
-                color=(255, 255, 255),
-                delay=0.06,
-                pause=2.5,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 동료의 필요성
-            StoryLine(
-                "하지만 그 여정은 결코 쉽지 않을 것이다.",
+                "모든 것이 무너졌다.",
                 color=(255, 0, 0),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "혼자서는 절대 불가능한 일이다.",
-                color=(255, 0, 0),
-                delay=0.06,
-                pause=2.5,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 동료와 함께
-            StoryLine(
-                "시공을 초월한 동료들을 만나야 한다.",
-                color=(0, 255, 0),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "각기 다른 시대에서 온 영웅들과 함께",
-                color=(0, 255, 0),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "이 불가능해 보이는 임무를 완수해야 한다.",
-                color=(0, 255, 0),
-                delay=0.06,
-                pause=3.0,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.5),
-
-            # 모험의 시작
-            StoryLine(
-                "시공의 미로를 탐험하고",
-                color=(0, 150, 255),
-                delay=0.05,
-                pause=1.5,
-                effect="typing"
-            ),
-            StoryLine(
-                "시대를 초월한 동료들과 함께",
-                color=(0, 255, 0),
-                delay=0.05,
-                pause=1.5,
-                effect="typing"
-            ),
-            StoryLine(
-                "운명의 실타래를 바로잡을 수 있을까?",
-                color=(255, 255, 0),
-                delay=0.05,
-                pause=3.0,
-                effect="typing"
-            ),
-
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
-
-            # 의문
-            StoryLine(
-                "혹시 당신이 그 해답을 가지고 있는 건 아닐까?",
-                color=(255, 255, 255),
-                delay=0.06,
-                pause=2.0,
-                effect="typing"
-            ),
-            StoryLine(
-                "아니면... 당신 자신이 그 해답인 건 아닐까?",
-                color=(255, 255, 0),
                 delay=0.08,
-                pause=3.0,
-                effect="fade_in"
+                pause=2.0,
+                effect="typing"
             ),
 
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.5),
+            # 빈 줄
+            StoryLine("", pause=0.8),
 
-            # 에필로그
             StoryLine(
-                "모험이 시작된다...",
-                color=(255, 255, 255),
+                "희망도, 미래도, 아무것도...",
+                color=(200, 0, 0),
+                delay=0.08,
+                pause=2.2,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.8),
+
+            StoryLine(
+                "하지만...",
+                color=(255, 255, 0),
                 delay=0.1,
+                pause=2.2,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.2),
+
+            StoryLine(
+                "어둠 속에서도",
+                color=(0, 255, 255),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "걸어가는 자가 있다.",
+                color=(0, 255, 255),
+                delay=0.08,
                 pause=2.5,
                 effect="fade_in"
             ),
 
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
+            # 빈 줄
+            StoryLine("", pause=1.5),
 
-            # 마지막 메시지들
             StoryLine(
-                "시공을 초월한 영웅들의 이야기",
+                "당신이다.",
+                color=(255, 215, 0),
+                delay=0.1,
+                pause=2.2,
+                effect="flash"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.2),
+
+            StoryLine(
+                "열 만 번의 밤을 끝낼 자,",
                 color=(0, 255, 255),
-                delay=0.08,
-                pause=2.0,
+                delay=0.06,
+                pause=1.8,
                 effect="typing"
             ),
             StoryLine(
-                "혼돈 속에서 피어나는 희망",
+                "갇힌 영혼을 해방시킬 자,",
                 color=(0, 255, 255),
-                delay=0.08,
-                pause=2.0,
+                delay=0.06,
+                pause=1.8,
                 effect="typing"
             ),
             StoryLine(
-                "그리고 당신의 전설이 시작된다",
+                "어둠을 뚫고 새벽을 맞이할 자.",
+                color=(0, 255, 255),
+                delay=0.06,
+                pause=2.5,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "시간은 누구에게나 똑같이 흐른다.",
+                color=(255, 255, 255),
+                delay=0.06,
+                pause=2.2,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "영원을 꿈꾸는 자에게도,",
+                color=(200, 200, 200),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "불꽃처럼 타오르는 자에게도.",
+                color=(200, 200, 200),
+                delay=0.06,
+                pause=2.0,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.2),
+
+            StoryLine(
+                "하지만 그 안에서 만드는 건",
+                color=(255, 255, 255),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "우리의 선택이다.",
                 color=(255, 255, 0),
+                delay=0.08,
+                pause=2.5,
+                effect="fade_in"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.8),
+
+            StoryLine(
+                "가장 긴 밤 끝에는",
+                color=(0, 150, 255),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "반드시 새벽이 온다.",
+                color=(0, 150, 255),
+                delay=0.06,
+                pause=2.2,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.2),
+
+            StoryLine(
+                "가장 깊은 어둠 속에서도",
+                color=(0, 200, 255),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "빛은 길을 찾아낸다.",
+                color=(0, 200, 255),
+                delay=0.06,
+                pause=2.2,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "별이 떨어진 자리에",
+                color=(255, 215, 0),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "꽃을 피워낼 것이다.",
+                color=(255, 215, 0),
+                delay=0.08,
+                pause=2.5,
+                effect="fade_in"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.8),
+
+            StoryLine(
+                "열 만 번째 밤이 시작된다.",
+                color=(200, 200, 255),
+                delay=0.08,
+                pause=2.2,
+                effect="typing"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.2),
+
+            StoryLine(
+                "하지만 이번엔 다를 것이다.",
+                color=(255, 255, 0),
+                delay=0.08,
+                pause=2.5,
+                effect="fade_in"
+            ),
+
+            # 빈 줄
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "별빛의 여명은",
+                color=(255, 215, 0),
+                delay=0.08,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "포기하지 않는 자에게 찾아온다.",
+                color=(255, 215, 0),
                 delay=0.08,
                 pause=3.0,
                 effect="fade_in"
             ),
 
-            # 빈 줄 - 화면 클리어
-            StoryLine("", pause=1.0),
+            # 빈 줄
+            StoryLine("", pause=2.0),
 
-            # 제목 반복
             StoryLine(
                 "별빛의 여명",
                 color=(255, 215, 0),

@@ -3,18 +3,21 @@ name: 타임 쇼크
 type: brv_attack
 description: 시간의 충격파로 전체 적에게 BRV 피해
 costs:
-  mp: 14
+  mp: 11
   cast_time: 1.0
 target: all_enemies
 effects:
-  - type: damage
-    damage_type: magic
-    stat_base: magic
-    multiplier: 1.0
-    element: time
-  - type: generate_possibility
-    chance: 0.70
-    alternative_skill: time_bolt
+- type: damage
+  damage_type: magic
+  stat_base: magic
+  multiplier: 1.4
+  element: time
+- type: generate_possibility
+  chance: 0.7
+  alternative_skill: time_bolt
 metadata:
   possibility_pair: time_bolt
   job: time_mage
+sfx:
+- se
+- Magic1

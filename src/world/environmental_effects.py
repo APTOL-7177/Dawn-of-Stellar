@@ -108,6 +108,71 @@ class EnvironmentalEffect:
         return colors.get(self.effect_type, (128, 128, 128))
 
 
+# 환경 효과 설정 (간격 및 데미지)
+EFFECT_CONFIGS = {
+    EnvironmentalEffectType.BURNING_FLOOR: {
+        "interval": 0.2,  # 1.5초마다
+        "damage_type": "fixed",
+        "value": 3,      # 고정 15 데미지
+        "message": "불타는 바닥이 당신을 태웁니다!"
+    },
+    EnvironmentalEffectType.POISON_SWAMP: {
+        "interval": 4.0,  # 3초마다
+        "damage_type": "percent_max",
+        "value": 0.1,    # 최대 체력의 2%
+        "message": "독 늪이 당신을 침식합니다!"
+    },
+    EnvironmentalEffectType.RADIATION_ZONE: {
+        "interval": 2.0,
+        "damage_type": "hybrid",  # 고정 + 퍼센트
+        "value": {"fixed": 10, "percent": 0.04},
+        "message": "방사능이 당신을 해칩니다!"
+    },
+    EnvironmentalEffectType.ELECTRIC_FIELD: {
+        "interval": 0.1,  # 1초마다 (빠름)
+        "damage_type": "fixed",
+        "value": 1,
+        "message": "전기장이 당신을 감전시킵니다!"
+    },
+    EnvironmentalEffectType.CURSED_ZONE: {
+        "interval": 4.0,
+        "damage_type": "percent_max",
+        "value": 0.15,
+        "message": "저주의 기운이 당신을 갉아먹습니다!"
+    },
+    EnvironmentalEffectType.BLOOD_MOON: {
+        "interval": 2.5,
+        "damage_type": "percent_cur", # 현재 체력 비례
+        "value": 0.12,
+        "message": "피의 달의 저주가 당신을 괴롭힙니다!"
+    },
+     EnvironmentalEffectType.HOLY_GROUND: {
+        "interval": 3.0,
+        "damage_type": "heal_percent_max",
+        "value": 0.15,
+        "message": "신성한 땅이 당신을 치유합니다."
+    },
+    EnvironmentalEffectType.BLESSED_SANCTUARY: {
+        "interval": 2.5,
+        "damage_type": "heal_percent_max",
+        "value": 0.1,
+        "message": "축복받은 성역이 당신을 회복시킵니다!"
+    },
+    EnvironmentalEffectType.HALLOWED_LIGHT: {
+        "interval": 0.2,
+        "damage_type": "heal_percent_max",
+        "value": 0.01,
+        "message": "신성한 빛이 당신을 치유합니다!"
+    },
+    EnvironmentalEffectType.MANA_VORTEX: {
+        "interval": 0.2,
+        "damage_type": "heal_mp_percent_max",
+        "value": 0.01,
+        "message": "마나 소용돌이가 마력을 회복시킵니다!"
+    }
+}
+
+
 class EnvironmentalEffectManager:
     """환경 효과 관리자"""
     
@@ -144,9 +209,13 @@ class EnvironmentalEffectManager:
                 effects.append(effect)
         return effects
     
+    def get_effect_config(self, effect_type: EnvironmentalEffectType) -> dict:
+        """효과 설정 가져오기"""
+        return EFFECT_CONFIGS.get(effect_type, {})
+
     def apply_tile_effects(self, player: Any, x: int, y: int, is_movement: bool = False) -> list:
         """
-        타일의 모든 효과 적용
+        타일의 모든 효과 적용 (레거시 지원 또는 일괄 적용용)
         
         Args:
             player: 플레이어 객체
@@ -160,13 +229,13 @@ class EnvironmentalEffectManager:
         messages = []
         
         for effect in effects:
-            message = self._apply_effect(effect, player, is_movement=is_movement)
+            message = self.apply_effect(effect, player, is_movement=is_movement)
             if message:
                 messages.append(message)
         
         return messages
     
-    def _apply_effect(self, effect: EnvironmentalEffect, player: Any, is_movement: bool = False) -> str:
+    def apply_effect(self, effect: EnvironmentalEffect, player: Any, is_movement: bool = False) -> str:
         """
         개별 효과 적용
         
@@ -175,122 +244,58 @@ class EnvironmentalEffectManager:
             player: 플레이어 객체
             is_movement: 이동 시 적용 여부 (True면 이동 시 데미지, False면 시간당 데미지/회복)
         """
-        # === 시간당 지속 피해 효과 ===
-        if effect.effect_type == EnvironmentalEffectType.POISON_SWAMP:
-            # 독 늪: 시간당 피해 + 이동 시 소량 피해
-            if not is_movement:
-                damage = int(player.max_hp * 0.02 * effect.intensity)  # 2% HP 감소
-                player.current_hp = max(1, player.current_hp - damage)
-                return f"독 늪이 당신을 침식합니다! ({damage} 데미지)"
-            else:
-                # 이동 시에도 소량 데미지 (메시지 없음)
-                damage = max(1, int(player.max_hp * 0.005 * effect.intensity))
-                player.current_hp = max(1, player.current_hp - damage)
-                return None  # 메시지 제거
+        # 설정 확인
+        config = EFFECT_CONFIGS.get(effect.effect_type)
         
-        elif effect.effect_type == EnvironmentalEffectType.RADIATION_ZONE:
-            # 방사능 구역: 시간당 피해 + 이동 시 소량 피해
-            if not is_movement:
-                damage = int(12 * effect.intensity)
-                player.current_hp = max(1, player.current_hp - damage)
-                return f"방사능이 당신을 해칩니다! ({damage} 데미지)"
-            else:
-                damage = max(1, int(3 * effect.intensity))
-                player.current_hp = max(1, player.current_hp - damage)
-                return None  # 메시지 제거
-        
-        elif effect.effect_type == EnvironmentalEffectType.CURSED_ZONE:
-            # 저주받은 구역: 시간당 피해
-            if not is_movement:
-                damage = int(player.max_hp * 0.015 * effect.intensity)  # 1.5% HP 감소
-                player.current_hp = max(1, player.current_hp - damage)
-                return f"저주의 기운이 당신을 갉아먹습니다! ({damage} 데미지)"
-            return None  # 메시지 제거
-        
-        elif effect.effect_type == EnvironmentalEffectType.BLOOD_MOON:
-            # 피의 달: 시간당 피해 (피의 저주)
-            if not is_movement:
-                damage = int(player.max_hp * 0.025 * effect.intensity)  # 2.5% HP 감소
-                player.current_hp = max(1, player.current_hp - damage)
-                return f"피의 달의 저주가 당신을 괴롭힙니다! ({damage} 데미지)"
-            return None  # 메시지 제거
-        
-        # === 이동 시 즉시 피해 효과 ===
-        elif effect.effect_type == EnvironmentalEffectType.BURNING_FLOOR:
-            # 불타는 바닥: 이동 시마다 데미지
-            if is_movement:
-                damage = int(15 * effect.intensity)
-                player.current_hp = max(1, player.current_hp - damage)
-                return f"불타는 바닥이 당신을 태웁니다! ({damage} 데미지)"
+        # 이동 시에는 기존 로직 무시 (시간 기반으로 통합됨)
+        if is_movement:
+            # 이동 시 즉시 발동해야 하는 예외적인 효과가 있다면 여기에 추가
+            # 현재 모든 효과를 시간 기반으로 전환 요청받음
             return None
-        
-        elif effect.effect_type == EnvironmentalEffectType.ELECTRIC_FIELD:
-            # 전기장: 이동 시마다 감전 데미지
-            if is_movement:
-                damage = int(10 * effect.intensity)
+
+        # 설정된 효과 처리
+        if config:
+            import math
+            damage = 0
+            heal = 0
+            mp_restore = 0
+            
+            damage_type = config["damage_type"]
+            value = config["value"]
+            
+            # 데미지/회복량 계산
+            if damage_type == "fixed":
+                damage = int(value * effect.intensity)
+            elif damage_type == "percent_max":
+                damage = int(player.max_hp * value * effect.intensity)
+            elif damage_type == "percent_cur":
+                damage = int(player.current_hp * value * effect.intensity)
+            elif damage_type == "hybrid":
+                fixed = value.get("fixed", 0)
+                percent = value.get("percent", 0.0)
+                damage = int((fixed + player.max_hp * percent) * effect.intensity)
+            elif damage_type == "heal_percent_max":
+                heal = int(player.max_hp * value * effect.intensity)
+            elif damage_type == "heal_mp_percent_max":
+                if hasattr(player, 'max_mp'):
+                    mp_restore = int(player.max_mp * value * effect.intensity)
+            
+            # 적용
+            if damage > 0:
                 player.current_hp = max(1, player.current_hp - damage)
-                return f"전기장이 당신을 감전시킵니다! ({damage} 데미지)"
-            return None
-        
-        # === 시간당 지속 회복 효과 ===
-        elif effect.effect_type == EnvironmentalEffectType.HOLY_GROUND:
-            # 신성한 땅: 시간당 회복
-            if not is_movement:
-                heal = int(player.max_hp * 0.03 * effect.intensity)  # 3% HP 회복
+                return f"{config['message']} ({damage} 데미지)"
+                
+            if heal > 0:
                 if hasattr(player, 'heal'):
                     player.heal(heal)
                 else:
                     player.current_hp = min(player.max_hp, player.current_hp + heal)
-                return f"신성한 땅이 당신을 치유합니다. (+{heal} HP)"
-            return None  # 메시지 제거
-        
-        elif effect.effect_type == EnvironmentalEffectType.BLESSED_SANCTUARY:
-            # 축복받은 성역: 시간당 회복
-            if not is_movement:
-                heal = int(player.max_hp * 0.04 * effect.intensity)  # 4% HP 회복
-                if hasattr(player, 'heal'):
-                    player.heal(heal)
-                else:
-                    player.current_hp = min(player.max_hp, player.current_hp + heal)
-                return f"축복받은 성역이 당신을 회복시킵니다! (+{heal} HP)"
-            return None  # 메시지 제거
-        
-        elif effect.effect_type == EnvironmentalEffectType.HALLOWED_LIGHT:
-            # 신성한 빛: 시간당 회복
-            if not is_movement:
-                heal = int(player.max_hp * 0.025 * effect.intensity)  # 2.5% HP 회복
-                if hasattr(player, 'heal'):
-                    player.heal(heal)
-                else:
-                    player.current_hp = min(player.max_hp, player.current_hp + heal)
-                return f"신성한 빛이 당신을 치유합니다! (+{heal} HP)"
-            return None  # 메시지 제거
-        
-        elif effect.effect_type == EnvironmentalEffectType.MANA_VORTEX:
-            # 마나 소용돌이: 시간당 MP 회복
-            if not is_movement:
-                if hasattr(player, 'current_mp') and hasattr(player, 'max_mp'):
-                    mp_restore = int(player.max_mp * 0.05 * effect.intensity)  # 5% MP 회복
-                    if hasattr(player, 'restore_mp'):
-                        player.restore_mp(mp_restore)
-                    else:
-                        player.current_mp = min(player.max_mp, player.current_mp + mp_restore)
-                    return f"마나 소용돌이가 마력을 회복시킵니다! (+{mp_restore} MP)"
-            return None  # 메시지 제거
-            
-        # === 기타 효과 ===
-        elif effect.effect_type == EnvironmentalEffectType.ICY_TERRAIN:
-            # 메시지 제거
-            return None
-            
-        elif effect.effect_type == EnvironmentalEffectType.DENSE_FOG:
-            # 메시지 제거
-            return None
-            
-        elif effect.effect_type == EnvironmentalEffectType.DARKNESS:
-            # 메시지 제거
-            return None
-        
+                return f"{config['message']} (+{heal} HP)"
+                
+            if mp_restore > 0 and hasattr(player, 'restore_mp'):
+                player.restore_mp(mp_restore)
+                return f"{config['message']} (+{mp_restore} MP)"
+                
         return None
     
     def get_vision_modifier(self, player: Any, x: int, y: int) -> float:

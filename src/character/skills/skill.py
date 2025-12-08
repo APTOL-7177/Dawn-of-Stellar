@@ -392,6 +392,10 @@ class Skill:
                 if "_selected_choice_name" in self.metadata:
                     context["selected_choice_name"] = self.metadata.get("_selected_choice_name")
 
+            # 부활 스킬인 경우 컨텍스트에 표시 (죽은 대상 타겟팅 허용)
+            if self.metadata.get("revival"):
+                context["revival"] = True
+
         # 과부하 활성 시 컨텍스트 배율 전달 (피해 강화)
         overload_active = False
         if self.metadata.get("overload_capable") and self.metadata.get("_use_overload"):

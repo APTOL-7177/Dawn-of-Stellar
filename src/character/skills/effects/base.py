@@ -9,6 +9,7 @@ class EffectType(Enum):
     GIMMICK = "gimmick"
     BUFF = "buff"
     ATB = "atb"  # ATB 게이지 조작
+    UTILITY = "utility"  # 유틸리티 (정화, 해제 등)
 
 @dataclass
 class EffectResult:
@@ -46,3 +47,7 @@ class SkillEffect:
     
     def execute(self, user, target, context) -> EffectResult:
         return EffectResult(effect_type=self.effect_type, success=True)
+    
+    def apply(self, user, target, context) -> EffectResult:
+        """execute를 그대로 호출하는 호환용 래퍼"""
+        return self.execute(user, target, context)

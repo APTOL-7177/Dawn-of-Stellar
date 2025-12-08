@@ -1,0 +1,39 @@
+id: spectacular_strike
+name: 화려한 일격
+type: brv_hp_attack
+description: '관중을 사로잡는 화려한 공격.
+
+  BRV 2.2 + HP 1.8 피해.
+
+  명중 시 환호 +8.
+
+  '
+target: single_enemy
+costs:
+  mp: 12
+metadata:
+  cheer_on_hit: 8
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 2.2
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 1.8
+- type: gimmick
+  operation: add
+  field: cheer
+  value: 8
+  max_value: 100
+animation:
+  icon: ✨
+  color:
+  - 255
+  - 200
+  - 100
+  screen_effect: spectacular
+sfx:
+- se
+- Damage3

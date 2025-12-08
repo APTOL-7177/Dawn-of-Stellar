@@ -1,0 +1,30 @@
+id: gladiator_will
+name: 불굴의 투지
+type: support
+description: '역전의 의지를 불태워 스스로를 치유하고 환호를 모읍니다.
+
+  '
+effects:
+- type: heal
+  heal_type: hp
+  percent: 0.35
+- type: gimmick
+  operation: add
+  field: cheer
+  value: 20
+  max_value: 100
+- type: buff
+  buff_type: defense_up
+  value: 0.3
+  duration: 3
+  target: self
+target: self
+costs:
+  mp: 9
+metadata:
+  job: gladiator
+  recovery: true
+  cheer_gain: 20
+sfx:
+- se
+- Sword2

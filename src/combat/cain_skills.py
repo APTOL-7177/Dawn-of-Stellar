@@ -50,11 +50,11 @@ class CainSkillDatabase:
             sfx=("enemy", "magic")
         ))
 
-        # 3. 시간의 검 - HP 공격
+        # 3. 단절의 일격 - HP 공격
         skills.append(EnemySkill(
             skill_id="cain_temporal_blade",
-            name="시간의 검",
-            description="축적한 BRV를 HP 데미지로 전환",
+            name="단절의 일격",
+            description="시간의 흐름을 끊어내는 일격",
             target_type=SkillTargetType.SINGLE_ENEMY,
             mp_cost=50,
             hp_attack=True,

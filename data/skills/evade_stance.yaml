@@ -1,0 +1,30 @@
+id: elusio_forma
+name: 엘루시오 포르마
+type: buff
+description: '회피에 집중합니다.
+
+  3턴간 회피 +30%.
+
+  회피 성공 시 농락 +2, 크리 +30%.
+
+  '
+target: self
+costs:
+  mp: 10
+effects:
+- type: buff
+  buff_id: evade_stance
+  duration: 3
+  effects:
+    evasion_bonus: 0.3
+    on_evade_mockery: 2
+    on_evade_crit: 0.3
+animation:
+  icon: 💨
+  color:
+  - 200
+  - 200
+  - 255
+sfx:
+- se
+- Up1

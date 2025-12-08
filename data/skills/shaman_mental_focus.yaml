@@ -1,0 +1,39 @@
+id: shaman_mental_focus
+name: 정신 집중
+type: support
+description: '정신을 집중하여 영력을 안정화시킵니다.
+
+  최대 MP의 35%를 회복하고 과부하 게이지를 2 감소시킵니다.
+
+  과부하 관리의 핵심 스킬입니다.
+
+  '
+target: self
+metadata:
+  job: shaman
+  mp_recovery: true
+  overload_management: true
+effects:
+- type: heal
+  heal_type: mp
+  percentage: 0.35
+  target_self: true
+- type: gimmick
+  operation: add
+  field: overload_gauge
+  value: -2
+- type: buff
+  stat: magic
+  value: 0.2
+  duration: 2
+costs:
+  mp: 10
+animation:
+  icon: 🧘
+  color:
+  - 150
+  - 220
+  - 255
+sfx:
+- se
+- Magic1

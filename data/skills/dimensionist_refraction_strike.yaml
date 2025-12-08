@@ -1,0 +1,22 @@
+id: dimensionist_refraction_strike
+name: 굴절 타격
+type: attack
+description: '차원 굴절을 이용해 기본 BRV 공격을 가합니다.
+
+  굴절량의 70%가 추가 피해로 적용됩니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magical
+  multiplier: 1.125
+target: enemy
+metadata:
+  job: dimensionist
+  basic_attack: true
+  refraction_scaling: true
+  refraction_fixed_damage_rate: 0.7
+sfx:
+- se
+- Move2

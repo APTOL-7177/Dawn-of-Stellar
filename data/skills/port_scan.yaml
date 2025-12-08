@@ -1,0 +1,32 @@
+id: port_scan
+name: 포트 스캔
+type: utility
+description: '적 시스템의 취약점을 스캔합니다.
+
+  대상 침투 +15, 약점 노출 (받는 크리 피해 +20%) 2턴.
+
+  '
+target: single_enemy
+costs:
+  mp: 8
+  ram: 4
+metadata:
+  intrusion_gain: 15
+effects:
+- type: custom
+  handler: add_intrusion
+  value: 15
+- type: debuff
+  debuff_id: vulnerability_scan
+  duration: 2
+  effects:
+    crit_damage_taken: 0.2
+animation:
+  icon: 🔍
+  color:
+  - 100
+  - 200
+  - 255
+sfx:
+- se
+- Up1

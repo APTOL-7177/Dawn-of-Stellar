@@ -1,0 +1,51 @@
+id: gladiator_combo_strike
+name: 연속 강타
+type: attack
+description: '빠른 연속 공격으로 적을 압도한다.
+
+  4회 연속 BRV 공격 (배율 0.8) 후 HP 마무리 일격 (배율 1.2).
+
+  "광전사" 요구 충족.
+
+  '
+target: single_enemy
+costs:
+  mp: 9
+metadata:
+  crowd_action: multi_attack_4
+  multi_hit: 4
+effects:
+- type: damage
+  damage_type: brv
+  multiplier: 0.8
+  stat_base: physical
+- type: damage
+  damage_type: brv
+  multiplier: 0.8
+  stat_base: physical
+- type: damage
+  damage_type: brv
+  multiplier: 0.8
+  stat_base: physical
+- type: damage
+  damage_type: brv
+  multiplier: 0.8
+  stat_base: physical
+- type: damage
+  damage_type: brv
+  multiplier: 0.8
+  stat_base: physical
+- type: damage
+  damage_type: hp
+  multiplier: 1.2
+  stat_base: physical
+animation:
+  icon: 👊
+  color:
+  - 255
+  - 200
+  - 100
+  screen_effect: multi_hit
+sfx:
+- se
+- Attack

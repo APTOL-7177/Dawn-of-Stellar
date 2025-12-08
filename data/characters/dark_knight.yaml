@@ -1,6 +1,6 @@
 class_name: 암흑기사
 description: 모든 것을 하나의 일격에 쏟아붓는 완벽한 타이밍의 전사
-slogan: "한 번의 완벽한 일격, 그것이 전부다"
+slogan: 한 번의 완벽한 일격, 그것이 전부다
 archetype: 원샷 딜러
 base_stats:
   hp: 205
@@ -13,46 +13,41 @@ base_stats:
   magic_defense: 55
   max_brv: 550
 stat_growth:
-  hp: 15
-  mp: 3
-  init_brv: 29
-  strength: 6
-  defense: 5
-  magic: 2
-  spirit: 4
-  speed: 3
+  hp: 47.9
+  mp: 3.2
+  init_brv: 34.3
+  strength: 20.3
+  defense: 15.1
+  magic: 10.9
+  spirit: 13.4
+  speed: 12.9
+  max_brv: 154.4
   luck: 3
-  accuracy: 3
-  evasion: 2
-  max_brv: 110
-
+  accuracy: 1.6
+  evasion: 1.2
 traits:
-  - id: "perfect_strike"
-    name: "완벽한 일격"
-    description: "완전 충전(100%) 상태에서 공격 시 15% 확률로 일반 몬스터를 즉사시키고, 보스에게는 50% 추가 피해를 입힙니다."
-    
-  - id: "charge_acceleration"
-    name: "충전 가속"
-    description: "모든 행동으로 얻는 충전량이 50% 증가합니다."
-    
-  - id: "survival_instinct"
-    name: "생존 본능"
-    description: "HP가 낮을수록 방어력이 증가하며(최대 +50%), 받는 회복 효과가 30% 증가합니다."
-    
-  - id: "explosive_power"
-    name: "폭발적 힘"
-    description: "충전 75% 이상에서 스킬 사용 시, 소모한 충전량에 비례하여 주변 적들에게 충격파 피해(공격력의 50~100%)를 입힙니다."
-
-  - id: "overflowing_darkness"
-    name: "넘치는 어둠"
-    description: "턴 시작 시 충전량이 50% 이상이라면, 자신의 BRV를 최대 BRV의 10%만큼 회복합니다."
-
+- id: perfect_strike
+  name: 완벽한 일격
+  description: 완전 충전(100%) 상태에서 공격 시 15% 확률로 일반 몬스터를 즉사시키고, 보스에게는 50% 추가 피해를 입힙니다.
+- id: charge_acceleration
+  name: 충전 가속
+  description: 모든 행동으로 얻는 충전량이 50% 증가합니다.
+- id: survival_instinct
+  name: 생존 본능
+  description: HP가 낮을수록 방어력이 증가하며(최대 +50%), 받는 회복 효과가 30% 증가합니다.
+- id: explosive_power
+  name: 폭발적 힘
+  description: 충전 75% 이상에서 스킬 사용 시, 소모한 충전량에 비례하여 주변 적들에게 충격파 피해(공격력의 50~100%)를 입힙니다.
+- id: overflowing_darkness
+  name: 넘치는 어둠
+  description: 턴 시작 시 충전량이 50% 이상이라면, 자신의 BRV를 최대 BRV의 10%만큼 회복합니다.
 gimmick:
   type: charge_system
   name: 충전 시스템
-  description: >
-    공격과 방어로 '충전'을 쌓고, 강력한 스킬로 '방출'하는 메커니즘입니다.
-    충전 단계가 높을수록 스탯이 상승하지만, 스킬 사용 시 충전이 소모됩니다.
+  description: '공격과 방어로 ''충전''을 쌓고, 강력한 스킬로 ''방출''하는 메커니즘입니다. 충전 단계가 높을수록 스탯이 상승하지만,
+    스킬 사용 시 충전이 소모됩니다.
+
+    '
   min_charge: 0
   max_charge: 100
   start_charge: 0
@@ -77,18 +72,12 @@ gimmick:
       min: 100
       max: 100
       description: 완전 충전 (물공 +60%, 치명타율 +40%, 치명타 피해 +60%, 방어 무시 +20%)
-  
   charge_mechanics:
-    # 충전 획득 (Builders)
     basic_attack_gain: 15
     defend_gain: 25
     take_damage_gain: 10
     kill_gain: 20
-    
-    # 충전 소모 (Spenders)
-    # 스킬별 소모량은 스킬 데이터에서 정의하거나 여기서 전역 설정
-    skill_cost_multiplier: 1.0  # 기본 소모 배율
-
+    skill_cost_multiplier: 1.0
 skills:
 - teamwork
 - charge_strike
@@ -101,7 +90,6 @@ skills:
 - vengeful_parry
 - dark_regeneration
 - ultimate
-
 bonuses:
   critical_damage: 1.5
   counter_damage: 1.3

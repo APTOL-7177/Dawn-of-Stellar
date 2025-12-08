@@ -196,7 +196,9 @@ class CookingPotUI:
         # 레시피 찾기
         recipe = RecipeDatabase.find_recipe(ingredients)
 
-        self.cooked_food = recipe.result
+        # 원본 객체 수정 방지를 위해 deepcopy 사용
+        from copy import deepcopy
+        self.cooked_food = deepcopy(recipe.result)
 
         # 요리솥 보너스 적용 (CookedFood 재료가 포함된 경우 적용하지 않음 - 효과 중복 방지)
         has_cooked_food_ingredient = any(isinstance(ing, CookedFood) for ing in ingredients)

@@ -82,7 +82,7 @@ JOBS = [
     ("연금술사", "alchemist", create_alchemist_skills),
     ("대마법사", "archmage", create_archmage_skills),
     ("파괴자", "breaker", create_breaker_skills),
-    ("뱀파이어", "vampire", create_vampire_skills),
+    ("흡혈귀", "vampire", create_vampire_skills),
     ("죽음의 군주", "necromancer", create_necromancer_skills),
     ("암살자", "assassin", create_assassin_skills),
     ("로그", "rogue", create_rogue_skills),

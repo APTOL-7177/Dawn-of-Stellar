@@ -3,18 +3,21 @@ name: 타임 볼트
 type: brv_attack
 description: 응축된 시간 에너지를 발사하여 단일 적에게 BRV 피해
 costs:
-  mp: 9
+  mp: 7
   cast_time: 0.8
 target: single_enemy
 effects:
-  - type: damage
-    damage_type: magic
-    stat_base: magic
-    multiplier: 1.8
-    element: time
-  - type: generate_possibility
-    chance: 0.70
-    alternative_skill: time_shock
+- type: damage
+  damage_type: magic
+  stat_base: magic
+  multiplier: 2.1
+  element: time
+- type: generate_possibility
+  chance: 0.7
+  alternative_skill: time_shock
 metadata:
   possibility_pair: time_shock
   job: time_mage
+sfx:
+- se
+- Magic1

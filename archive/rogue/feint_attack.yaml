@@ -1,0 +1,45 @@
+id: deceptio
+name: 데켑티오
+type: brv_hp_attack
+description: '적을 속이며 공격합니다.
+
+  BRV 1.4 + HP 1.2 피해.
+
+  적 다음 공격 회피 확정.
+
+  농락 +3.
+
+  '
+target: single_enemy
+costs:
+  mp: 10
+metadata:
+  grants_evasion: true
+  mockery_gain: 3
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 1.4
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 1.2
+- type: buff
+  buff_id: feint_dodge
+  target: self
+  duration: 1
+  effects:
+    next_attack_evade: true
+- type: custom
+  handler: add_mockery
+  value: 3
+animation:
+  icon: 🎭
+  color:
+  - 200
+  - 150
+  - 100
+sfx:
+- se
+- Up1

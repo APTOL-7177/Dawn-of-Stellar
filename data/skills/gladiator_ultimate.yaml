@@ -1,0 +1,55 @@
+id: gladiator_ultimate
+name: 콜로세움의 전설
+type: ultimate
+description: '[궁극기] 콜로세움의 전설이 되어 모든 적을 쓰러뜨립니다.
+
+
+  효과:
+
+  1. 환호 즉시 100으로 설정
+
+  2. 전체 적 BRV 3.0 + HP 4.0 피해
+
+  3. 처치마다 환호 유지 (소모 안 함)
+
+  4. 3턴간 "전설" 버프: 모든 요구 자동 충족
+
+  '
+target: all_enemies
+costs:
+  mp: 40
+metadata:
+  ultimate: true
+  set_cheer_to_max: true
+effects:
+- type: gimmick
+  operation: set
+  field: cheer
+  value: 100
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 3.0
+  target: all_enemies
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 4.0
+  target: all_enemies
+- type: buff
+  buff_id: legend_status
+  duration: 3
+  effects:
+    auto_fulfill_demands: true
+    cheer_decay_immune: true
+animation:
+  icon: 🏆
+  color:
+  - 255
+  - 215
+  - 0
+  screen_effect: legendary_colosseum
+  duration: 3.0
+sfx:
+- se
+- Explosion4

@@ -1,0 +1,49 @@
+id: hacker_ultimate
+name: 시스템 전면 장악
+type: ultimate
+description: |
+  [궁극기] 전체 적 시스템을 동시에 장악합니다.
+  
+  효과:
+  1. 전체 적 침투 게이지 +120
+  2. 전체 적 BRV 2.5 + HP 3.0 피해
+  3. 3턴간 "마스터 해커" 버프
+     - 침투 감소 무효
+     - RAM 소모 -50%
+     - 장악 스킬 침투 50만 필요
+target: all_enemies
+costs:
+  mp: 45
+metadata:
+  ultimate: true
+  ram_cost: 8
+effects:
+- type: custom
+  handler: add_intrusion_all
+  value: 120
+- type: damage
+  damage_type: brv
+  stat_base: magic
+  multiplier: 2.5
+  target: all_enemies
+- type: damage
+  damage_type: hp
+  stat_base: magic
+  multiplier: 3.0
+  target: all_enemies
+- type: buff
+  buff_id: master_hacker
+  target: self
+  duration: 3
+  effects:
+    intrusion_decay_immune: true
+    ram_cost_reduction: 0.5
+    takeover_threshold: 50
+animation:
+  icon: "👨‍💻"
+  color: [0, 255, 200]
+  screen_effect: total_takeover
+  duration: 3.0
+sfx:
+- skill
+- limit_break
