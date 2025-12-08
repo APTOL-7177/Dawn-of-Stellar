@@ -1472,6 +1472,10 @@ def main() -> int:
                                     enemies_list = floors_dungeons[floor_number]["enemies"]
                                     serialized_dungeon = serialize_dungeon(floor_data["dungeon"], enemies_list)
                                     
+                                    # 호스트의 현재 위치를 시작 위치로 포함 (클라이언트가 호스트 근처에 스폰되도록)
+                                    serialized_dungeon["player_start_x"] = exploration.player.x
+                                    serialized_dungeon["player_start_y"] = exploration.player.y
+                                    
                                     # DUNGEON_DATA 메시지 전송
                                     dungeon_msg = MessageBuilder.dungeon_data(
                                         serialized_dungeon, 
@@ -1479,7 +1483,7 @@ def main() -> int:
                                         dungeon_seed
                                     )
                                     network_manager.broadcast_sync(dungeon_msg)
-                                    logger.info(f"Broadcasted DUNGEON_DATA for floor {floor_number}")
+                                    logger.info(f"Broadcasted DUNGEON_DATA for floor {floor_number} (Start: {exploration.player.x}, {exploration.player.y})")
                                     
                                     # FLOOR_CHANGE 메시지 전송 (던전 데이터 전송 후)
                                     floor_change_msg = MessageBuilder.floor_change(
@@ -1490,32 +1494,6 @@ def main() -> int:
                                     logger.info(f"Broadcasted FLOOR_CHANGE for floor {floor_number}")
                                     network_manager.current_dungeon = floor_data["dungeon"]
                                     network_manager.current_exploration = exploration
-                                    
-                                    # 클라이언트에게 새 던전 데이터 브로드캐스트
-                                    try:
-                                        from src.multiplayer.protocol import MessageBuilder
-                                        from src.persistence.save_system import serialize_dungeon
-                                        import asyncio
-                                        
-                                        dungeon_data = serialize_dungeon(floor_data["dungeon"], enemies=floor_data["enemies"])
-                                        dungeon_msg = MessageBuilder.dungeon_data(
-                                            dungeon_data,
-                                            floor_number,
-                                            session.generate_dungeon_seed_for_floor(floor_number)
-                                        )
-                                        
-                                        server_loop = getattr(network_manager, '_server_event_loop', None)
-                                        if server_loop and server_loop.is_running():
-                                            asyncio.run_coroutine_threadsafe(
-                                                network_manager.broadcast(dungeon_msg),
-                                                server_loop
-                                            )
-                                            logger.info(f"DUNGEON_DATA 브로드캐스트 완료: {floor_number}층")
-                                        else:
-                                            network_manager.broadcast_sync(dungeon_msg)
-                                            logger.info(f"DUNGEON_DATA 동기 브로드캐스트 완료: {floor_number}층")
-                                    except Exception as e:
-                                        logger.error(f"DUNGEON_DATA 브로드캐스트 실패: {e}", exc_info=True)
                                 
                                 play_dungeon_bgm = True
                         

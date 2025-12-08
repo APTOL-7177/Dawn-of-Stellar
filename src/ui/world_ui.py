@@ -2139,14 +2139,23 @@ def run_exploration(
                         exploration.floor_number = pending_floor
                         exploration.is_town = False  # 던전이므로 마을 플래그 해제
                         
-                        # 시작 위치 (첫 번째 방 중앙)
-                        if new_dungeon.rooms:
+                        # 시작 위치 설정
+                        if "player_start_x" in pending_data and "player_start_y" in pending_data:
+                            exploration.player.x = pending_data["player_start_x"]
+                            exploration.player.y = pending_data["player_start_y"]
+                            logger.info(f"📍 클라이언트 스폰 위치 설정 (Host Sync): ({exploration.player.x}, {exploration.player.y})")
+                        elif new_dungeon.rooms:
+                            # fallback: 첫 번째 방 중앙
                             first_room = new_dungeon.rooms[0]
                             exploration.player.x = first_room.x + first_room.width // 2
                             exploration.player.y = first_room.y + first_room.height // 2
+                            logger.info(f"📍 클라이언트 스폰 위치 설정 (Room 0 fallback): ({exploration.player.x}, {exploration.player.y}) Rooms: {len(new_dungeon.rooms)}")
                         elif new_dungeon.stairs_down:
                             exploration.player.x = new_dungeon.stairs_down[0]
                             exploration.player.y = new_dungeon.stairs_down[1]
+                            logger.warning(f"⚠️ 클라이언트 스폰 위치 설정 (Stairs fallback): ({exploration.player.x}, {exploration.player.y}) Rooms Empty!")
+                        else:
+                            logger.error("❌ 클라이언트 스폰 위치 설정 실패: 방도 없고 계단도 없음!")
                         
                         # FOV 업데이트
                         if hasattr(exploration, 'update_fov'):
