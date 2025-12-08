@@ -72,6 +72,12 @@ class SaveSystem:
 
             # 도전과제 시스템은 계정 수준에서 별도 관리되므로 게임 세이브에서 제외
 
+            # StorySystem 저장
+            from src.story.story_system import get_story_system
+            story_system = get_story_system()
+            game_state["story_system"] = story_system.to_dict()
+            logger.info(f"스토리 시스템 저장됨 (세피로스 처치: {story_system.sephiroth_defeated})")
+
             # 팀워크 게이지 저장
             try:
                 from src.combat.combat_manager import get_combat_manager
@@ -245,6 +251,16 @@ class SaveSystem:
                 # 도전과제 시스템은 계정 수준에서 별도 관리되므로 게임 로드에서 제외
                 logger.info(f"퀘스트 데이터 복원 완료: 활성 {len(loaded_quest_manager.active_quests)}개, 가능 {len(loaded_quest_manager.available_quests)}개, 완료 {len(loaded_quest_manager.completed_quests)}개")
             
+            # 스토리 시스템 복원
+            if "story_system" in game_state:
+                from src.story.story_system import get_story_system, StorySystem
+                loaded_story_system = StorySystem.from_dict(game_state["story_system"])
+                
+                # 전역 인스턴스 업데이트
+                import src.story.story_system as story_module
+                story_module._story_system = loaded_story_system
+                logger.info(f"스토리 시스템 복원 완료: 세피로스 처치={loaded_story_system.sephiroth_defeated}, 카인 처치={getattr(loaded_story_system, 'cain_defeated', False)}")
+
             return game_state
 
         except Exception as e:

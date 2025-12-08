@@ -28,6 +28,9 @@ class StorySystem:
         self.sephiroth_defeated: bool = False
         self.true_ending_unlocked: bool = False
         self.glitch_mode: bool = False
+        
+        # 카인 관련 플래그들
+        self.cain_defeated: bool = False
 
     def set_sephiroth_encountered(self, encountered: bool = True):
         """세피로스 조우 상태 설정"""
@@ -40,6 +43,10 @@ class StorySystem:
         self.sephiroth_defeated = defeated
         if defeated:
             self.true_ending_unlocked = True
+
+    def set_cain_defeated(self, defeated: bool = True):
+        """카인 처치 상태 설정"""
+        self.cain_defeated = defeated
 
     def is_glitch_mode(self) -> bool:
         """글리치 모드 활성화 여부"""
@@ -833,6 +840,34 @@ class StorySystem:
                 color="red"
             ),
         ]
+
+    @staticmethod
+    def from_dict(data: dict) -> 'StorySystem':
+        """딕셔너리에서 스토리 시스템 복원"""
+        system = StorySystem()
+        system.current_chapter = data.get("current_chapter", 0)
+        system.story_seen = data.get("story_seen", False)
+        system.sephiroth_encountered = data.get("sephiroth_encountered", False)
+        system.sephiroth_defeated = data.get("sephiroth_defeated", False)
+        system.true_ending_unlocked = data.get("true_ending_unlocked", False)
+        system.glitch_mode = data.get("glitch_mode", False)
+        
+        # 카인 처치 여부 복원 (추가 속성)
+        system.cain_defeated = data.get("cain_defeated", False)
+        
+        return system
+
+    def to_dict(self) -> dict:
+        """스토리 시스템 상태를 딕셔너리로 변환"""
+        return {
+            "current_chapter": self.current_chapter,
+            "story_seen": self.story_seen,
+            "sephiroth_encountered": self.sephiroth_encountered,
+            "sephiroth_defeated": self.sephiroth_defeated,
+            "true_ending_unlocked": self.true_ending_unlocked,
+            "glitch_mode": self.glitch_mode,
+            "cain_defeated": getattr(self, 'cain_defeated', False)
+        }
 
     def get_floor_message(self, floor: int) -> str:
         """층별 메시지"""
