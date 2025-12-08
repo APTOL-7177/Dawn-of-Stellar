@@ -33,6 +33,7 @@ class MultiplayerPlayer:
     
     # 네트워크 동기화용
     last_update_time: float = field(default_factory=time.time)
+    last_movement_timestamp: float = 0.0  # 마지막 이동 패킷 타임스탬프
     velocity_x: float = 0.0  # 예측용 속도
     velocity_y: float = 0.0
     

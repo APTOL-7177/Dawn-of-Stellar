@@ -6,7 +6,7 @@
 
 import random
 import time
-from typing import Dict, List, Optional, Set, Any
+from typing import Dict, List, Optional, Set, Any, Tuple
 from uuid import uuid4
 
 from src.multiplayer.player import MultiplayerPlayer
@@ -121,7 +121,7 @@ class MultiplayerSession:
         
         return True
     
-    def remove_player(self, player_id: str) -> bool:
+    def remove_player(self, player_id: str) -> Tuple[bool, Optional[str]]:
         """
         플레이어 제거
         
@@ -129,7 +129,8 @@ class MultiplayerSession:
             player_id: 제거할 플레이어 ID
             
         Returns:
-            제거 성공 여부
+            (제거 성공 여부, 변경된 호스트 ID)
+            - 호스트가 변경되지 않았으면 두 번째 값은 None
             
         Raises:
             TypeError: player_id가 None이거나 str이 아닌 경우
@@ -146,7 +147,7 @@ class MultiplayerSession:
         
         if player_id not in self.players:
             self.logger.warning(f"세션 {self.session_id}: 플레이어 {player_id}가 존재하지 않습니다")
-            return False
+            return False, None
         
         player = self.players[player_id]
         del self.players[player_id]
@@ -156,6 +157,8 @@ class MultiplayerSession:
             f"세션 {self.session_id}: 플레이어 {player.player_name} ({player_id}) 제거 "
             f"(현재: {self.player_count}/{self.max_players})"
         )
+        
+        new_host_id = None
         
         # 호스트가 나간 경우, 다른 플레이어를 호스트로 설정
         if player_id == self.host_id:
@@ -171,7 +174,7 @@ class MultiplayerSession:
                 self.host_id = None
                 self.logger.warning(f"세션 {self.session_id}: 모든 플레이어가 나감 (호스트 없음)")
         
-        return True
+        return True, new_host_id
     
     def get_player(self, player_id: str) -> Optional[MultiplayerPlayer]:
         """
@@ -293,4 +296,3 @@ class MultiplayerSession:
             f"players={self.player_count}/{self.max_players}, "
             f"host={self.host_id})"
         )
-

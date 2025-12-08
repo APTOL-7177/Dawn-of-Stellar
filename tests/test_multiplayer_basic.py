@@ -118,7 +118,7 @@ class TestMultiplayerSession:
         )
         session.add_player(player)
         
-        success = session.remove_player("test_player_1")
+        success, new_host = session.remove_player("test_player_1")
         
         assert success is True
         assert session.player_count == 0

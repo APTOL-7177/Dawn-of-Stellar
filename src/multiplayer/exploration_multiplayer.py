@@ -156,7 +156,63 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 
                 # 드롭된 아이템/골드 동기화 핸들러 등록
                 self._register_drop_handlers()
+                
+                # 전투 시작 핸들러 등록 (COMBAT_START)
+                self._register_combat_start_handler()
+                
+                # 이동 롤백 핸들러 등록 (MOVEMENT_REJECTED)
+                self._register_movement_rejected_handler()
     
+    def _register_movement_rejected_handler(self):
+        """이동 롤백 핸들러 등록"""
+        if not self.network_manager:
+            return
+            
+        from src.multiplayer.protocol import MessageType
+        
+        async def handle_movement_rejected(message, sender_id=None):
+            """이동 거절 메시지 처리 (호스트 -> 클라이언트)"""
+            try:
+                reason = message.data.get("reason", "Unknown")
+                correct_x = message.data.get("x")
+                correct_y = message.data.get("y")
+                
+                self.logger.warning(f"서버로부터 이동 거절됨: {reason} (올바른 위치: {correct_x}, {correct_y})")
+                
+                if correct_x is not None and correct_y is not None:
+                    self.rollback_player_position(correct_x, correct_y)
+            except Exception as e:
+                self.logger.error(f"이동 롤백 처리 실패: {e}", exc_info=True)
+                
+        self.network_manager.register_handler(MessageType.MOVEMENT_REJECTED, handle_movement_rejected)
+        self.logger.debug("이동 롤백 핸들러 등록 완료")
+
+    def rollback_player_position(self, x: int, y: int):
+        """
+        플레이어 위치 강제 롤백
+        
+        Args:
+            x: 올바른 X 좌표
+            y: 올바른 Y 좌표
+        """
+        if not self.local_player_id or not self.session:
+            return
+            
+        player = self.session.players.get(self.local_player_id)
+        if player:
+            player.x = x
+            player.y = y
+            
+            # 로컬 player 객체도 업데이트
+            if hasattr(self, 'player'):
+                self.player.x = x
+                self.player.y = y
+                
+            self.player_positions[self.local_player_id] = (x, y)
+            self.update_fov()
+            
+            self.logger.info(f"플레이어 위치 롤백됨: ({x}, {y})")
+
     def _register_harvest_handler(self):
         """채집 동기화 핸들러 등록"""
         if not self.network_manager:
@@ -300,6 +356,77 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         self.network_manager.register_handler(MessageType.NPC_MOVE, handle_npc_move)
         self.logger.debug("NPC 이동 동기화 핸들러 등록 완료")
     
+    def _register_combat_start_handler(self):
+        """전투 시작 핸들러 등록"""
+        if not self.network_manager:
+            return
+        
+        from src.multiplayer.protocol import MessageType
+        
+        async def handle_combat_start(message, sender_id=None):
+            """
+            호스트로부터 전투 시작 메시지를 수신했을 때 처리
+            (로컬에서 전투 화면으로 전환하는 트리거)
+            """
+            try:
+                participants = message.data.get("participants", [])
+                
+                # 내가 참여자에 포함되어 있는지 확인
+                am_i_participant = False
+                if self.local_player_id in participants:
+                    am_i_participant = True
+                
+                if am_i_participant:
+                    self.logger.info("전투 시작 메시지 수신: 참여자로 확인됨")
+                    
+                    # 전투 시작 이벤트 발생 (WorldUI에서 감지하여 화면 전환)
+                    # 여기서는 data에 필요한 정보를 담아서 보냄
+                    # enemies 정보는 ID 리스트로 오므로, 로컬에서 찾아야 함
+                    
+                    enemy_ids = message.data.get("enemies", [])
+                    combat_position = message.data.get("position", {})
+                    
+                    # 로컬에서 적 객체 찾기 (렌더링 등을 위해)
+                    local_enemies = []
+                    if enemy_ids:
+                        for enemy_id in enemy_ids:
+                            # 적 ID로 찾기 (enemy_sync 등에서 관리하는 ID)
+                            # 현재 Enemy 클래스에는 ID 필드가 없거나 불확실하므로, 
+                            # 위치 기반으로 찾거나 모든 적을 순회하며 ID 비교
+                            found = False
+                            for e in self.enemies:
+                                if hasattr(e, 'id') and e.id == enemy_id:
+                                    local_enemies.append(e)
+                                    found = True
+                                    break
+                            
+                            # 못 찾았으면 위치 기반으로라도 시도 (첫 번째 적이 기준)
+                            if not found and not local_enemies and combat_position:
+                                cx = combat_position.get("x")
+                                cy = combat_position.get("y")
+                                if cx is not None and cy is not None:
+                                    e = self.get_enemy_at(cx, cy)
+                                    if e:
+                                        local_enemies.append(e)
+                    
+                    # 전투 데이터 구성
+                    combat_data = {
+                        "is_multiplayer": True,
+                        "enemies": local_enemies,
+                        "combat_position": (combat_position.get("x"), combat_position.get("y")) if combat_position else None,
+                        "participants": participants
+                    }
+                    
+                    # 이벤트 버스를 통해 전투 시작 알림 (UI 전환용)
+                    from src.core.event_bus import event_bus, Events
+                    event_bus.publish(Events.COMBAT_START_CLIENT, combat_data)
+                    
+            except Exception as e:
+                self.logger.error(f"전투 시작 핸들러 오류: {e}", exc_info=True)
+        
+        self.network_manager.register_handler(MessageType.COMBAT_START, handle_combat_start)
+        self.logger.debug("전투 시작 핸들러 등록 완료")
+
     def _subscribe_to_combat_events(self):
         """전투 이벤트 구독 (멀티플레이 전투 합류 시스템용)"""
         try:
@@ -472,37 +599,99 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         """
         적 엔티티와의 전투 (멀티플레이 오버라이드)
         
-        근처 아군만 참여하도록 수정
+        클라이언트: 호스트에게 전투 요청
+        호스트: 전투 시작 브로드캐스트 (network.py에서 처리됨, 여기서는 로컬 전투 시작)
         """
         try:
-            # 부모 클래스의 기본 로직 실행
+            # 클라이언트인 경우: 호스트에게 전투 요청
+            if self.is_multiplayer and not self.is_host:
+                if self.network_manager:
+                    import asyncio
+                    from src.multiplayer.protocol import MessageBuilder
+                    
+                    combat_pos = (enemy.x, enemy.y)
+                    enemy_id = getattr(enemy, 'id', None)
+                    
+                    req_msg = MessageBuilder.request_combat_start(combat_pos, enemy_id)
+                    
+                    # 비동기 전송 (이벤트 루프 확인)
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            asyncio.create_task(self.network_manager.send(req_msg))
+                        else:
+                            loop.run_until_complete(self.network_manager.send(req_msg))
+                    except RuntimeError:
+                        # 실행 중인 루프가 없으면 asyncio.run 사용
+                        asyncio.run(self.network_manager.send(req_msg))
+                    except Exception as e:
+                        self.logger.error(f"전투 요청 전송 실패: {e}")
+                    
+                    self.logger.info("호스트에게 전투 시작 요청 전송")
+                    
+                    # 전투 시작 대기 상태 반환 (임시 결과)
+                    return ExplorationResult(
+                        success=True,
+                        event=ExplorationEvent.NONE, # 아직 전투 아님
+                        message="전투 시작 요청 중..."
+                    )
+            
+            # 호스트인 경우: 직접 전투 시작 (부모 클래스 로직 실행)
+            # 호스트는 network.py의 handle_combat_start를 거치지 않고 직접 실행될 수 있음
+            # 하지만 브로드캐스트는 해야 함 -> network.py에서 COMBAT_START 브로드캐스트 추가 필요?
+            # 아니면 여기서 브로드캐스트?
+            
+            # 부모 클래스의 기본 로직 실행 (로컬 전투 시작)
             result = super()._trigger_combat_with_enemy(enemy)
             
-            if not self.is_multiplayer:
-                # 싱글플레이: 기본 결과 반환
-                return result
-            
-            # 멀티플레이: 근처 참여자만 선택
-            combat_position = (enemy.x, enemy.y)
-            participants = self._get_nearby_participants(combat_position)
-            
-            # 참여자 정보를 결과에 추가
-            if result.data:
-                result.data["participants"] = participants
-                result.data["combat_position"] = combat_position
-            else:
-                result.data = {
-                    "participants": participants,
-                    "combat_position": combat_position
-                }
-            
-            participant_count = len(participants)
-            self.logger.info(
-                f"멀티플레이 전투 시작: 참여자 {participant_count}명 "
-                f"(반경 {MultiplayerConfig.participation_radius}타일 내)"
-            )
+            # 호스트라면: 다른 클라이언트들에게도 전투 시작 알림
+            if self.is_host and self.network_manager:
+                combat_position = (enemy.x, enemy.y)
+                participants = self._get_nearby_participants(combat_position)
+                
+                # 참여자 정보를 결과에 추가
+                if result.data:
+                    result.data["participants"] = participants
+                    result.data["combat_position"] = combat_position
+                else:
+                    result.data = {
+                        "participants": participants,
+                        "combat_position": combat_position
+                    }
+                
+                participant_count = len(participants)
+                self.logger.info(
+                    f"멀티플레이 전투 시작: 참여자 {participant_count}명 "
+                    f"(반경 {MultiplayerConfig.participation_radius}타일 내)"
+                )
+                
+                # 브로드캐스트
+                import asyncio
+                from src.multiplayer.protocol import MessageBuilder
+                
+                # 적 목록 (현재 적 하나만 보냄, 주변 적 포함 로직 필요하면 추가)
+                enemies = [enemy]
+                
+                start_msg = MessageBuilder.combat_start(
+                    participants=[p.id if hasattr(p, 'id') else str(p) for p in participants],
+                    enemies=[e.id if hasattr(e, 'id') else str(e) for e in enemies],
+                    position=combat_position
+                )
+                
+                try:
+                    server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                    if server_loop and server_loop.is_running():
+                        asyncio.run_coroutine_threadsafe(
+                            self.network_manager.broadcast(start_msg),
+                            server_loop
+                        )
+                    else:
+                        self.network_manager.broadcast_sync(start_msg)
+                except Exception as e:
+                    self.logger.error(f"전투 시작 브로드캐스트 실패: {e}")
             
             return result
+            
         except Exception as e:
             self.logger.error(f"멀티플레이 전투 트리거 실패: {e}", exc_info=True)
             # 실패 시 기본 결과 반환

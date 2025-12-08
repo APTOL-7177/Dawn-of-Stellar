@@ -177,7 +177,7 @@ class TestMultiplayerIntegration:
         session = MultiplayerSession(max_players=2)
         
         # 빈 세션에서 플레이어 제거 시도 (실패해야 함)
-        result = session.remove_player("nonexistent")
+        result, _ = session.remove_player("nonexistent")
         assert result is False
         
         # 호스트가 없는 상태에서 호스트 여부 확인
@@ -232,7 +232,7 @@ class TestMultiplayerErrorHandling:
         session, _ = create_test_session(player_count=2)
         
         # 존재하지 않는 플레이어 제거
-        result = session.remove_player("nonexistent_id")
+        result, _ = session.remove_player("nonexistent_id")
         assert result is False
         
         # None 플레이어 추가 시도 (TypeError 발생)

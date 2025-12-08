@@ -176,6 +176,18 @@ class MovementSyncManager:
         y = message.data.get("y", player.y)
         timestamp = message.timestamp
         
+        # 타임스탬프 검사 (순서가 뒤바뀐 패킷 무시)
+        # 호스트는 항상 최신으로 간주하지 않고, 타임스탬프를 확인하되
+        # 호스트 패킷의 타임스탬프가 기존 것보다 작으면 무시 (하지만 호스트 권한으로 강제할 수도 있음)
+        # 여기서는 단순히 타임스탬프 기준으로 최신 상태만 반영
+        if hasattr(player, 'last_movement_timestamp'):
+            if timestamp < player.last_movement_timestamp:
+                self.logger.debug(
+                    f"오래된 이동 패킷 무시: {player_id} (현재: {player.last_movement_timestamp}, 수신: {timestamp})"
+                )
+                return
+            player.last_movement_timestamp = timestamp
+        
         # 로컬 플레이어의 이동 메시지는 위치 업데이트 건너뛰기 (이미 로컬에서 처리됨)
         if is_local_player:
             self.logger.debug(f"로컬 플레이어 {player_id}의 이동 메시지 - 위치 업데이트 건너뛰기 (이미 처리됨)")

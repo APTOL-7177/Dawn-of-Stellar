@@ -148,6 +148,67 @@ class NetworkManager:
                 
                 self.logger.info(f"DUNGEON_DATA 수신: floor={self.pending_floor_number}")
         
+        # REQUEST_COMBAT_START 메시지 처리 (호스트만)
+        if message_type == MessageType.REQUEST_COMBAT_START:
+            if self.is_host and self.session:
+                position_data = message.data.get("position", {})
+                x = position_data.get("x")
+                y = position_data.get("y")
+                enemy_id = message.data.get("enemy_id")
+                
+                if x is not None and y is not None:
+                    # 전투 시작 브로드캐스트
+                    from src.multiplayer.protocol import MessageBuilder
+                    
+                    # 현재 탐험 시스템에서 적 정보 가져오기
+                    enemies = []
+                    if self.current_exploration:
+                        # 해당 위치의 적 찾기
+                        target_enemy = self.current_exploration.get_enemy_at(x, y)
+                        if target_enemy:
+                            # _trigger_combat_with_enemy 로직 재사용하여 참여할 적 결정
+                            # (여기서는 실제 trigger는 하지 않고 참여자만 계산)
+                            combat_enemies = [target_enemy]
+                            combat_range = 3
+                            for other in self.current_exploration.enemies:
+                                if other == target_enemy: continue
+                                dist = abs(other.x - target_enemy.x) + abs(other.y - target_enemy.y)
+                                if dist <= combat_range:
+                                    combat_enemies.append(other)
+                            
+                            # 최대 4마리 제한 로직 등은 생략하고 일단 보냄 (클라이언트가 동기화)
+                            enemies = combat_enemies
+                    
+                    # 참여자 (플레이어들)
+                    participants = []
+                    if self.current_exploration:
+                        participants = self.current_exploration._get_nearby_participants((x, y))
+                    
+                    # 전투 시작 메시지 브로드캐스트
+                    start_msg = MessageBuilder.combat_start(
+                        participants=[p.id if hasattr(p, 'id') else str(p) for p in participants], # ID만 전송
+                        enemies=enemies,
+                        position=(x, y)
+                    )
+                    await self.broadcast(start_msg)
+                    
+                    # 호스트 자신도 전투 시작 처리 (이벤트 버스 등 활용)
+                    # 실제로는 exploration_multiplayer.py에서 COMBAT_START 핸들러가 처리함
+                    self.logger.info(f"전투 시작 요청 승인: ({x}, {y})")
+        
+        # MOVEMENT_REJECTED 메시지 처리 (클라이언트만)
+        if message_type == MessageType.MOVEMENT_REJECTED:
+            if not self.is_host and self.current_exploration:
+                reason = message.data.get("reason", "unknown")
+                correct_x = message.data.get("x")
+                correct_y = message.data.get("y")
+                
+                if correct_x is not None and correct_y is not None:
+                    self.logger.warning(f"이동 거절됨 ({reason}): ({correct_x}, {correct_y})로 롤백")
+                    # 롤백 함수 호출
+                    if hasattr(self.current_exploration, "rollback_player_position"):
+                        self.current_exploration.rollback_player_position(correct_x, correct_y)
+
         # 핸들러 호출
         if message_type in self.message_handlers:
             for handler in self.message_handlers[message_type]:
@@ -626,8 +687,9 @@ class HostNetworkManager(NetworkManager):
                 if client_id:
                     # 먼저 세션에서 플레이어 제거
                     player_was_in_session = False
+                    new_host_id = None
                     if self.session and client_id in self.session.players:
-                        self.session.remove_player(client_id)
+                        _, new_host_id = self.session.remove_player(client_id)
                         player_was_in_session = True
                         self.logger.info(f"세션에서 플레이어 제거: {client_id}")
                     
@@ -642,12 +704,19 @@ class HostNetworkManager(NetworkManager):
                     # 플레이어가 세션에 있었고 다른 클라이언트가 남아있는 경우에만 브로드캐스트
                     if player_was_in_session and self.clients:
                         try:
+                            # 1. PLAYER_LEFT 메시지 전송
                             disconnect_msg = NetworkMessage(
                                 type=MessageType.PLAYER_LEFT,
                                 player_id=client_id
                             )
-                            # 연결이 끊어진 클라이언트를 제외하고 브로드캐스트
                             await self.broadcast(disconnect_msg)
+                            
+                            # 2. 호스트가 변경되었다면 HOST_MIGRATED 메시지 전송
+                            if new_host_id:
+                                host_migrated_msg = MessageBuilder.host_migrated(new_host_id)
+                                await self.broadcast(host_migrated_msg)
+                                self.logger.info(f"호스트 마이그레이션 알림 전송: 새로운 호스트 {new_host_id}")
+                                
                         except Exception as e:
                             # 연결 종료 중일 때는 메시지 전송 실패가 흔할 수 있으므로 경고만 출력
                             self.logger.debug(f"연결 종료 메시지 브로드캐스트 실패 (무시 가능): {e}")
@@ -991,4 +1060,3 @@ class ClientNetworkManager(NetworkManager):
         """
         self._auto_reconnect = enabled
         self.logger.info(f"자동 재연결 {'활성화' if enabled else '비활성화'}")
-

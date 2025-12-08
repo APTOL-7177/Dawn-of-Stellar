@@ -25,6 +25,7 @@ class MessageType(Enum):
     SESSION_SEED = "session_seed"
     PLAYER_JOINED = "player_joined"
     PLAYER_LEFT = "player_left"
+    HOST_MIGRATED = "host_migrated"  # 호스트 마이그레이션 알림
     
     # 파티 설정 관련
     LOBBY_COMPLETE = "lobby_complete"  # 로비 완료 (파티 설정 시작)
@@ -45,7 +46,9 @@ class MessageType(Enum):
     # 게임 상태
     PLAYER_MOVE = "player_move"
     MOVE_REQUEST = "move_request"
+    MOVEMENT_REJECTED = "movement_rejected"  # 이동 거절 (롤백용)
     POSITION_SYNC = "position_sync"  # 위치 동기화 (주기적)
+    REQUEST_COMBAT_START = "request_combat_start"  # 클라이언트가 호스트에게 전투 시작 요청
     COMBAT_START = "combat_start"
     COMBAT_JOIN = "combat_join"
     COMBAT_ACTION = "combat_action"
@@ -86,6 +89,9 @@ class MessageType(Enum):
     HARVEST = "harvest"  # 채집 오브젝트 수집
     ITEM_DROPPED = "item_dropped"  # 아이템 드롭
     GOLD_DROPPED = "gold_dropped"  # 골드 드롭
+    
+    # 에러 (테스트용)
+    ERROR = "error"
 
 
 @dataclass
@@ -613,4 +619,53 @@ class MessageBuilder:
                 "from_town": from_town
             }
         )
-
+    
+    @staticmethod
+    def request_combat_start(position: Tuple[int, int], enemy_id: Optional[str] = None) -> NetworkMessage:
+        """
+        전투 시작 요청 메시지 생성 (클라이언트 -> 호스트)
+        
+        Args:
+            position: 전투 위치 (x, y)
+            enemy_id: 조우한 적 ID (선택사항)
+        """
+        return NetworkMessage(
+            type=MessageType.REQUEST_COMBAT_START,
+            data={
+                "position": {"x": position[0], "y": position[1]},
+                "enemy_id": enemy_id
+            }
+        )
+    
+    @staticmethod
+    def host_migrated(new_host_id: str) -> NetworkMessage:
+        """
+        호스트 마이그레이션 알림 메시지 생성
+        
+        Args:
+            new_host_id: 새로운 호스트 플레이어 ID
+        """
+        return NetworkMessage(
+            type=MessageType.HOST_MIGRATED,
+            data={
+                "new_host_id": new_host_id
+            }
+        )
+    
+    @staticmethod
+    def movement_rejected(reason: str, correct_position: Tuple[int, int]) -> NetworkMessage:
+        """
+        이동 거절 메시지 생성 (호스트 -> 클라이언트)
+        
+        Args:
+            reason: 거절 사유
+            correct_position: 올바른 위치 (x, y)
+        """
+        return NetworkMessage(
+            type=MessageType.MOVEMENT_REJECTED,
+            data={
+                "reason": reason,
+                "x": correct_position[0],
+                "y": correct_position[1]
+            }
+        )

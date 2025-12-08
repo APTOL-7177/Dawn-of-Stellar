@@ -5,6 +5,7 @@
 """
 
 import time
+import asyncio
 from typing import Dict, List, Optional, Any, Set, Tuple
 from src.multiplayer.session import MultiplayerSession
 from src.multiplayer.network import NetworkManager
@@ -48,6 +49,9 @@ class CombatSyncManager:
         
         # 플레이어별 행동 선택 상태 추적 (ATB 시스템용)
         self.players_selecting_action: Set[str] = set()
+        
+        # 타임아웃 태스크 관리 {player_id: task}
+        self.timeout_tasks: Dict[str, asyncio.Task] = {}
         
         # 네트워크 메시지 핸들러 등록
         if self.network_manager:
@@ -125,14 +129,51 @@ class CombatSyncManager:
             # 호스트에게 전송
             await self.network_manager.send(message)
             
-            # 행동 선택 시작 (ATB 감소용)
+            # 행동 선택 시작 (ATB 감소용) 및 타임아웃 설정
             self._set_player_selecting(player_id, True)
+            self._start_timeout_task(player_id)
             
             self.logger.debug(f"액션 요청 전송: {player_id} -> {actor_id} ({action_type.value})")
             return True
         except Exception as e:
             self.logger.error(f"액션 요청 전송 실패: {e}", exc_info=True)
+            self._set_player_selecting(player_id, False)  # 실패 시 UI 잠금 해제
             return False
+            
+    def _start_timeout_task(self, player_id: str, timeout: float = 10.0):
+        """액션 응답 타임아웃 태스크 시작"""
+        # 기존 태스크 취소
+        if player_id in self.timeout_tasks:
+            self.timeout_tasks[player_id].cancel()
+            
+        async def timeout_coro():
+            try:
+                await asyncio.sleep(timeout)
+                # 타임아웃 발생 시 처리
+                self.logger.warning(f"액션 요청 타임아웃: {player_id}")
+                self._set_player_selecting(player_id, False)
+                
+                # 에러 메시지 표시 (UI가 있다면)
+                # event_bus.publish(Events.ERROR_MESSAGE, {"message": "서버 응답 시간 초과"})
+                
+            except asyncio.CancelledError:
+                pass # 정상 취소
+            finally:
+                if player_id in self.timeout_tasks:
+                    del self.timeout_tasks[player_id]
+
+        # 루프 확인 및 태스크 생성
+        try:
+            loop = asyncio.get_running_loop()
+            self.timeout_tasks[player_id] = loop.create_task(timeout_coro())
+        except RuntimeError:
+            self.logger.warning("이벤트 루프가 없어 타임아웃 태스크를 시작할 수 없습니다.")
+
+    def _cancel_timeout_task(self, player_id: str):
+        """액션 응답 타임아웃 태스크 취소"""
+        if player_id in self.timeout_tasks:
+            self.timeout_tasks[player_id].cancel()
+            del self.timeout_tasks[player_id]
     
     async def _handle_combat_action(
         self,
@@ -327,6 +368,17 @@ class CombatSyncManager:
             if combat_action:
                 # 액션 동기화 실행
                 await self._sync_remote_action(combat_action)
+                
+                # 내 액션에 대한 응답이라면 타임아웃 취소 및 UI 잠금 해제
+                # (단, _sync_remote_action에서 로컬 플레이어 액션은 스킵하므로 여기서 처리)
+                action_player_id = combat_action.get("player_id")
+                from src.multiplayer.game_mode import get_game_mode_manager
+                game_mode_manager = get_game_mode_manager()
+                local_player_id = getattr(game_mode_manager, 'local_player_id', None)
+                
+                if action_player_id == local_player_id:
+                    self._cancel_timeout_task(local_player_id)
+                    self._set_player_selecting(local_player_id, False)
             
             # 전투 상태 스냅샷 동기화
             combat_state = data.get("combat_state")
