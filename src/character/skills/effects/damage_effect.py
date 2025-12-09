@@ -68,7 +68,7 @@ class DamageEffect(SkillEffect):
                 if sword_aura_bonus:
                     sword_aura = getattr(user, 'sword_aura', 0)
                     if sword_aura > 0:
-                        bonus_multiplier = sword_aura_bonus.get('multiplier', 0.5)
+                        bonus_multiplier = sword_aura_bonus.get('multiplier', 0.15)
                         # 각 검기마다 고정 계수로 추가 공격
                         for _ in range(sword_aura):
                             sword_aura_hits.append(bonus_multiplier)

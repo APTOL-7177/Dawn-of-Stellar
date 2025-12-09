@@ -300,6 +300,20 @@ class GimmickUpdater:
         GimmickUpdater._process_turn_start_traits(character, context)
 
     @staticmethod
+    def on_death(character):
+        """캐릭터 사망 시 기믹 업데이트"""
+        gimmick_type = getattr(character, 'gimmick_type', None)
+        if not gimmick_type:
+            return
+
+        # 차원술사: 사망 시 굴절량 0으로 초기화
+        if gimmick_type == "dimension_refraction":
+            if hasattr(character, "refraction_stacks") and character.refraction_stacks > 0:
+                character.refraction_stacks = 0
+                logger.info(f"[기믹] {character.name} 사망으로 차원 굴절량 초기화")
+                GimmickUpdater._push_ui_log(character, f"{character.name}의 차원 굴절이 흩어집니다.", (150, 150, 200))
+
+    @staticmethod
     def _apply_toggle_mp_upkeep(character):
         """토글 스킬 유지비 MP 소모"""
         if not hasattr(character, "active_toggles") or not getattr(character, "active_toggles", None):

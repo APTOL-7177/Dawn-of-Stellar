@@ -79,7 +79,7 @@ class LootUI:
         Returns:
             완료 여부
         """
-        if action == GameAction.ESCAPE:
+        if action == GameAction.ESCAPE or action == GameAction.CANCEL:
             play_sfx("ui", "cursor_cancel")
             # 남은 아이템 파괴 (로그만 남김)
             if self.loot_items:
@@ -498,4 +498,11 @@ def show_loot_screen(
     claimed_count = initial_item_count - len(ui.loot_items)
     logger.info(f"전리품 화면 종료: {claimed_count}개 획득, {len(ui.loot_items)}개 파괴")
     
+    # 전리품 화면 종료 시 승리 BGM 정지 (필드 BGM으로 전환을 위해)
+    from src.audio.audio_manager import get_audio_manager
+    audio_manager = get_audio_manager()
+    audio_manager.stop_bgm(fade_out=False)
+    logger.info("전리품 화면 종료 - 승리 BGM 정지")
+    
     return []  # 이미 인벤토리에 추가됨
+

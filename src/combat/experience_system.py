@@ -262,6 +262,18 @@ class RewardCalculator:
 
         # 경험치 획득량 46%의 1/3 * 1.25 * 1.4 * 0.8 (20% 추가 감소)
         total_exp = int(total_exp * 0.46 * (1/3) * 1.25 * 1.4 * 0.8)
+        
+        # 후반(10층~20층) 경험치 점진적 감소
+        # 10층: 100%, 15층: 75%, 20층+: 50%
+        if floor_number >= 10:
+            if floor_number >= 20:
+                exp_multiplier = 0.5  # 20층 이상: 50%
+            else:
+                # 10~19층: 100%에서 50%로 점진적 감소
+                # floor 10 = 1.0, floor 20 = 0.5
+                exp_multiplier = 1.0 - (floor_number - 10) * 0.05  # 층당 5% 감소
+            total_exp = int(total_exp * exp_multiplier)
+            logger.debug(f"후반({floor_number}층) 경험치 {int(exp_multiplier * 100)}% 적용")
 
         return {
             "experience": total_exp,

@@ -1,0 +1,48 @@
+C:\Users\pc\AppData\Local\Programs\Python\Python313\Lib\site-packages\pygame\pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+[DEBUG] ?ㅽ궗 ?깅줉: 寃湲?異뺤쟻  
+[DEBUG] ?ㅽ궗 ?깅줉: ?쇱꽟  
+[DEBUG] ?ㅽ궗 ?깅줉: 寃湲??뚮룞  
+[DEBUG] ?ㅽ궗 ?깅줉: ?대룄瑜? 
+[DEBUG] ?ㅽ궗 ?깅줉: 寃湲???컻  
+[DEBUG] ?ㅽ궗 ?깅줉: 珥덇퀬??踰좉린  
+[DEBUG] ?ㅽ궗 ?깅줉: 寃?깆쓽 ?섏?  
+[DEBUG] ?ㅽ궗 ?깅줉: ?쇰룄?묐떒  
+[DEBUG] ?ㅽ궗 ?깅줉: 寃愿???뭾  
+[DEBUG] ?ㅽ궗 ?깅줉: 臾댄븳寃  
+[DEBUG] ?ㅽ궗 ?깅줉: 寃?? 留뚯긽?덈떒  
+Checking metadata for sword_saint_ilseom...
+Metadata: {'sword_aura_bonus_hits': {'multiplier': 0.3333333333333333}}
+Multiplier in metadata: 0.3333333333333333 (Expected approx 0.333)
+Executing skill...
+pygame 2.6.1 (SDL 2.28.4, Python 3.13.7)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+[INFO] pygame.mixer 珥덇린???꾨즺  
+[DEBUG] SFX ?ъ깮: combat.critical_p1.0  
+[DEBUG] [寃湲? 異붽?? 諛곗쑉 ?뺤씤: 0.3333333333333333 (?ㅽ깮: 3)  
+[DEBUG] ?섏닠??泥댄겕 ?쒖옉: hasattr=False
+[DEBUG] ?섏닠??議곌굔 遺덉땐遺?
+[DEBUG] 怨듦꺽 紐낆쨷! (紐낆쨷瑜? 98.0%, 紐낆쨷: 100, ?뚰뵾: 1, 鍮꾩쑉: 100.00)  
+[INFO] 湲곕? ?뱀꽦 64媛?濡쒕뱶 ?꾨즺  
+[DEBUG] BRV ?곕?吏 怨꾩궛: SwordSaint ??Target ({'base': 227, 'final': 206, 'critical': False, 'scatter_applied': False},) 
+[DEBUG] ?섏닠??泥댄겕 ?쒖옉: hasattr=False
+[DEBUG] ?섏닠??議곌굔 遺덉땐遺?
+[DEBUG] 怨듦꺽 紐낆쨷! (紐낆쨷瑜? 98.0%, 紐낆쨷: 100, ?뚰뵾: 1, 鍮꾩쑉: 100.00)  
+[DEBUG] BRV ?곕?吏 怨꾩궛: SwordSaint ??Target ({'base': 227, 'final': 239, 'critical': False, 'scatter_applied': False},) 
+[INFO] [BREAK] SwordSaint -> Target (BRV 0 ?곹깭?먯꽌 異붽? 怨듦꺽, BRV ?띾뱷: 239)  
+[DEBUG] SFX ?ъ깮: combat.break_p1.0  
+[DEBUG] ?섏닠??泥댄겕 ?쒖옉: hasattr=False
+[DEBUG] ?섏닠??議곌굔 遺덉땐遺?
+[DEBUG] 怨듦꺽 紐낆쨷! (紐낆쨷瑜? 98.0%, 紐낆쨷: 100, ?뚰뵾: 1, 鍮꾩쑉: 100.00)  
+[DEBUG] BRV ?곕?吏 怨꾩궛: SwordSaint ??Target ({'base': 227, 'final': 219, 'critical': False, 'scatter_applied': False},) 
+[DEBUG] Target?(?? ?대? BREAK ?곹깭?ъ꽌 異붽? BREAK 硫댁뿭  
+[DEBUG] ?섏닠??泥댄겕 ?쒖옉: hasattr=False
+[DEBUG] ?섏닠??議곌굔 遺덉땐遺?
+[DEBUG] 怨듦꺽 紐낆쨷! (紐낆쨷瑜? 98.0%, 紐낆쨷: 100, ?뚰뵾: 1, 鍮꾩쑉: 100.00)  
+[WARN] [HP ?곕?吏 怨꾩궛] BRV:658 횞 ?ㅽ궗怨꾩닔:1.20 횞 ?ㅽ꺈諛곗쑉:9.09 횞 HP諛곗쑉:0.1 = 717  
+[INFO] [BREAK BONUS] ?곕?吏! 1075 (1.50x)  
+[DEBUG] HP ?곕?吏 怨꾩궛: SwordSaint ??Target ({'brv_points': 658, 'skill_multiplier': 1.2, 'base_damage': 717, 'stat_modifier': '9.09', 'attacker_stat': 100, 'defender_stat': 10, 'damage_type': 'physical', 'is_critical': False, 'final_damage': 1075, 'wound_damage': 806, 'is_break': True},) 
+[MOCK] took 1075 damage
+[DEBUG] [HP 怨듦꺽] SwordSaint BRV ?뚮퉬: 658  
+[INFO] HP 怨듦꺽: SwordSaint -> Target ({'brv_consumed': 658, 'hp_damage': 1075, 'wound_damage': 806, 'total_wound': 0, 'damage_type': 'physical', 'stat_modifier': 9.090909090909092, 'is_critical': False, 'is_break_bonus': True, 'attacker_brv_after': 0},) 
+[DEBUG] [HP怨듦꺽] defender: Target, enemy_id: None, hp_damage: 1075  

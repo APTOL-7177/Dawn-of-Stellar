@@ -96,6 +96,11 @@ class WorldUI:
         self.fountain_used = False
         self.was_in_town = False  # 이전 프레임의 마을 상태 추적
 
+        # 마법진 사용 확인
+        self.magic_circle_confirm_mode = False
+        self.magic_circle_confirm_yes = True
+        self.magic_circle_tile = None
+
     def add_message(self, text: str):
         """메시지 추가"""
         self.messages.append(text)
@@ -209,6 +214,30 @@ class WorldUI:
             # 종료 확인 대화상자 표시
             self.quit_confirm_mode = True
             self.quit_confirm_yes = False
+            self.quit_confirm_yes = False
+            return False
+
+        # 마법진 확인 모드
+        if self.magic_circle_confirm_mode:
+            if action == GameAction.MOVE_LEFT:
+                self.magic_circle_confirm_yes = True
+            elif action == GameAction.MOVE_RIGHT:
+                self.magic_circle_confirm_yes = False
+            elif action == GameAction.CONFIRM:
+                if self.magic_circle_confirm_yes:
+                    # 마법진 사용
+                    if self.magic_circle_tile:
+                        result = self.exploration.activate_magic_circle(self.magic_circle_tile)
+                        self._handle_exploration_result(result, console, context)
+                # 모드 종료 (사용했든 취소했든)
+                self.magic_circle_confirm_mode = False
+                self.magic_circle_tile = None
+                return False
+            elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+                # 취소
+                self.magic_circle_confirm_mode = False
+                self.magic_circle_tile = None
+                return False
             return False
 
         # 메뉴 열기 (M키)
@@ -1020,6 +1049,15 @@ class WorldUI:
         elif result.event == ExplorationEvent.TELEPORT:
             self.add_message(f"위치: ({self.exploration.player.x}, {self.exploration.player.y})")
 
+        # 마법진 발견 처리
+        elif result.event == ExplorationEvent.MAGIC_CIRCLE_FOUND:
+            if result.data and 'tile' in result.data:
+                self.magic_circle_confirm_mode = True
+                self.magic_circle_confirm_yes = True
+                self.magic_circle_tile = result.data['tile']
+                self.add_message(result.message)
+            return
+
         elif result.event == ExplorationEvent.TELEPORTER_FOUND:
             # 텔레포터 선택 메뉴 표시
             if console is not None and context is not None and result.data:
@@ -1411,6 +1449,8 @@ class WorldUI:
         # 종료 확인 대화상자
         if self.quit_confirm_mode:
             self._render_quit_confirm(console)
+        elif self.magic_circle_confirm_mode:
+            self._render_magic_circle_confirm(console)
 
     def _render_party_status(self, console: tcod.console.Console):
         """파티 상태 렌더링 (전투 UI와 동일한 스타일) - 화면 맨 밑에 배치"""
@@ -1589,6 +1629,63 @@ class WorldUI:
         console.print(
             box_x + 28, y,
             "[아니오]" if not self.quit_confirm_yes else " 아니오 ",
+            fg=no_color
+        )
+
+        # 도움말
+        console.print(
+            box_x + (box_width - 30) // 2,
+            box_y + box_height - 1,
+            "← →: 선택  Z: 확인  X: 취소",
+            fg=(150, 150, 150)
+        )
+
+    def _render_magic_circle_confirm(self, console: tcod.console.Console):
+        """마법진 사용 확인 대화상자"""
+        box_width = 50
+        box_height = 10
+        box_x = (self.screen_width - box_width) // 2
+        box_y = (self.screen_height - box_height) // 2
+
+        # 배경 박스
+        console.draw_frame(
+            box_x, box_y, box_width, box_height,
+            "마법진 발견",
+            fg=(100, 200, 255),
+            bg=(0, 0, 0)
+        )
+
+        # 메시지
+        msg = "마법진을 사용하시겠습니까?"
+        console.print(
+            box_x + (box_width - len(msg)) // 2,
+            box_y + 3,
+            msg,
+            fg=(255, 255, 255)
+        )
+
+        msg2 = "(랜덤 효과: 텔레포트, 회복, 버프 등)"
+        console.print(
+            box_x + (box_width - len(msg2)) // 2,
+            box_y + 5,
+            msg2,
+            fg=(200, 200, 255)
+        )
+
+        # 버튼
+        y = box_y + 7
+        yes_color = (255, 255, 100) if self.magic_circle_confirm_yes else (180, 180, 180)
+        no_color = (255, 255, 100) if not self.magic_circle_confirm_yes else (180, 180, 180)
+
+        console.print(
+            box_x + 12, y,
+            "[ 예 ]" if self.magic_circle_confirm_yes else "  예  ",
+            fg=yes_color
+        )
+
+        console.print(
+            box_x + 28, y,
+            "[아니오]" if not self.magic_circle_confirm_yes else " 아니오 ",
             fg=no_color
         )
 

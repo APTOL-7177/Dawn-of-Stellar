@@ -3381,24 +3381,36 @@ class CombatManager:
             
             # === 수비적 아이템 효과 ===
             elif effect_type in ["barrier_crystal", "haste_crystal", "power_tonic", "defense_elixir", "regen_crystal", "mp_regen_crystal"]:
-                # 버프 적용
-                duration = 3 if effect_type != "regen_crystal" and effect_type != "mp_regen_crystal" else 5
-                if hasattr(tgt, 'active_buffs'):
-                    if effect_type == "barrier_crystal":
-                        tgt.active_buffs['damage_reduction'] = {'value': effect_value, 'duration': duration}
-                    elif effect_type == "haste_crystal":
-                        tgt.active_buffs['speed_up'] = {'value': effect_value, 'duration': duration}
-                    elif effect_type == "power_tonic":
-                        tgt.active_buffs['attack_up'] = {'value': effect_value, 'duration': duration}
-                        tgt.active_buffs['magic_up'] = {'value': effect_value, 'duration': duration}
-                    elif effect_type == "defense_elixir":
-                        tgt.active_buffs['defense_up'] = {'value': effect_value, 'duration': duration}
-                        tgt.active_buffs['magic_defense_up'] = {'value': effect_value, 'duration': duration}
-                    elif effect_type == "regen_crystal":
-                        tgt.active_buffs['hp_regen'] = {'value': effect_value, 'duration': duration}
-                    elif effect_type == "mp_regen_crystal":
-                        tgt.active_buffs['mp_regen'] = {'value': effect_value, 'duration': duration}
+                # 아군 전체 버프 적용 (광역 효과)
+                duration = 3 if effect_type not in ["regen_crystal", "mp_regen_crystal"] else 5
+                
+                # 아군 전체에 버프 적용
+                allies_buffed = 0
+                all_allies = self.allies if actor in self.allies else self.enemies
+                for ally in all_allies:
+                    if hasattr(ally, 'is_alive') and ally.is_alive:
+                        if not hasattr(ally, 'active_buffs'):
+                            ally.active_buffs = {}
+                        
+                        if effect_type == "barrier_crystal":
+                            ally.active_buffs['damage_reduction'] = {'value': effect_value, 'duration': duration}
+                        elif effect_type == "haste_crystal":
+                            ally.active_buffs['speed_up'] = {'value': effect_value, 'duration': duration}
+                        elif effect_type == "power_tonic":
+                            ally.active_buffs['attack_up'] = {'value': effect_value, 'duration': duration}
+                            ally.active_buffs['magic_up'] = {'value': effect_value, 'duration': duration}
+                        elif effect_type == "defense_elixir":
+                            ally.active_buffs['defense_up'] = {'value': effect_value, 'duration': duration}
+                            ally.active_buffs['magic_defense_up'] = {'value': effect_value, 'duration': duration}
+                        elif effect_type == "regen_crystal":
+                            ally.active_buffs['hp_regen'] = {'value': effect_value, 'duration': duration}
+                        elif effect_type == "mp_regen_crystal":
+                            ally.active_buffs['mp_regen'] = {'value': effect_value, 'duration': duration}
+                        allies_buffed += 1
+                
                 result["buff_applied"] = True
+                result["allies_buffed"] = allies_buffed
+                self.logger.info(f"[광역 버프] {effect_type}: 아군 {allies_buffed}명에게 적용")
             
             elif effect_type == "revive_crystal":
                 # 부활

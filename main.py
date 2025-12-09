@@ -1271,12 +1271,11 @@ def main() -> int:
                                         display.console,
                                         display.context,
                                         rewards,
-                                        level_up_info
+                                        level_up_info,
+                                        inventory=inventory
                                     )
                                     
-                                    for item in rewards.get("items", []):
-                                        if not inventory.add_item(item):
-                                            logger.warning(f"인벤토리 가득 참! {item.name} 버려짐")
+                                    # 아이템은 LootUI에서 처리됨 (무게 체크 및 선택적 획득)
                                     
                                     inventory.add_gold(rewards.get("gold", 0))
 
@@ -2369,12 +2368,11 @@ def main() -> int:
                                                         display.console,
                                                         display.context,
                                                         rewards,
-                                                        level_up_info
+                                                        level_up_info,
+                                                        inventory=inventory
                                                     )
                                                     
-                                                    for item in rewards.get("items", []):
-                                                        if not inventory.add_item(item):
-                                                            logger.warning(f"인벤토리 가득 참! {item.name} 버려짐")
+                                                    # 아이템은 LootUI에서 처리됨 (무게 체크 및 선택적 획득)
                                                     
                                                     inventory.add_gold(rewards.get("gold", 0))
                                                     
@@ -3015,12 +3013,11 @@ def main() -> int:
                                     display.console,
                                     display.context,
                                     rewards,
-                                    level_up_info
+                                    level_up_info,
+                                    inventory=inventory
                                 )
                                 
-                                for item in rewards.get("items", []):
-                                    if not inventory.add_item(item):
-                                        logger.warning(f"인벤토리 가득 참! {item.name} 버려짐")
+                                # 아이템은 LootUI에서 처리됨 (무게 체크 및 선택적 획득)
                                 
                                 inventory.add_gold(rewards.get("gold", 0))
                                 
@@ -3256,12 +3253,11 @@ def main() -> int:
                                     display.console,
                                     display.context,
                                     rewards,
-                                    level_up_info
+                                    level_up_info,
+                                    inventory=inventory
                                 )
 
-                                for item in rewards.get("items", []):
-                                    if not inventory.add_item(item):
-                                        logger.warning(f"인벤토리 가득 참! {item.name} 버려짐")
+                                # 아이템은 LootUI에서 처리됨 (무게 체크 및 선택적 획득)
 
                                 inventory.add_gold(rewards.get("gold", 0))
 

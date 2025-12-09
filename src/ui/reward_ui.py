@@ -316,20 +316,14 @@ def show_reward_screen(
             if action:
                 keyboard_processed = True
                 if display.handle_input(action):
-                    # 보상 화면 종료 시 승리 BGM 정지 (필드 BGM으로 전환하기 위해)
-                    from src.audio.audio_manager import get_audio_manager
-                    audio_manager = get_audio_manager()
-                    audio_manager.stop_bgm(fade_out=False)
-                    logger.info("보상 화면 종료 - 승리 BGM 정지")
+                    # 보상 화면 종료 - BGM은 전리품 화면 종료 후 main.py에서 필드 BGM으로 전환
+                    logger.info("보상 화면 종료")
                     break
 
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
-                # 보상 화면 종료 시 승리 BGM 정지
-                from src.audio.audio_manager import get_audio_manager
-                audio_manager = get_audio_manager()
-                audio_manager.stop_bgm(fade_out=False)
-                logger.info("보상 화면 종료 (Quit) - 승리 BGM 정지")
+                # 보상 화면 종료
+                logger.info("보상 화면 종료 (Quit)")
                 return  # 윈도우 닫기는 즉시 종료
 
         # 게임패드 입력 처리 (키보드 입력이 없었을 때만)
@@ -337,10 +331,7 @@ def show_reward_screen(
             gamepad_action = unified_input_handler.get_action()
             if gamepad_action:
                 if display.handle_input(gamepad_action):
-                    from src.audio.audio_manager import get_audio_manager
-                    audio_manager = get_audio_manager()
-                    audio_manager.stop_bgm(fade_out=False)
-                    logger.info("보상 화면 종료 - 승리 BGM 정지")
+                    logger.info("보상 화면 종료 (게임패드)")
                     break
 
         # CPU 사용률 낮추기

@@ -576,6 +576,12 @@ class HostNetworkManager(NetworkManager):
                             enemies = self.current_exploration.enemies if self.current_exploration else []
                             dungeon_data = serialize_dungeon(self.current_dungeon, enemies=enemies)
                             
+                            # 호스트의 현재 위치를 시작 위치로 포함 (클라이언트가 호스트 근처에 스폰되도록)
+                            if self.current_exploration and hasattr(self.current_exploration, 'player'):
+                                dungeon_data["player_start_x"] = self.current_exploration.player.x
+                                dungeon_data["player_start_y"] = self.current_exploration.player.y
+                                self.logger.info(f"던전 데이터에 시작 위치 포함: ({dungeon_data['player_start_x']}, {dungeon_data['player_start_x']})")
+                            
                             dungeon_msg = MessageBuilder.dungeon_data(
                                 dungeon_data,
                                 self.current_floor,

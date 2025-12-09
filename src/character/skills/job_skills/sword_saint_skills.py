@@ -14,7 +14,7 @@ from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.stack_cost import StackCost
 
 # 검기 추가 공격 고정 계수
-SWORD_AURA_MULTIPLIER = 0.14  # 검기 1개당 0.14
+SWORD_AURA_MULTIPLIER = 1 / 3  # 검기 1개당 1/3 (약 0.33)
 
 def create_sword_saint_skills():
     """검성 10개 스킬 생성 (검기 스택 시스템)

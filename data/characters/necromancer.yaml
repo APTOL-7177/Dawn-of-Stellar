@@ -11,7 +11,7 @@ base_stats:
   physical_defense: 39
   magic_attack: 84
   magic_defense: 74
-  max_brv: 432
+  max_brv: 302
 stat_growth:
   hp: 28.2
   mp: 6.2
@@ -21,7 +21,7 @@ stat_growth:
   magic: 22.9
   spirit: 18.9
   speed: 10.7
-  max_brv: 121.3
+  max_brv: 84.9
   luck: 3
   accuracy: 1.6
   evasion: 1.2

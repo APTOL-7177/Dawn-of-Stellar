@@ -592,22 +592,22 @@ class SimpleEnemy:
         self.max_mp = int(base_mp)
         self.current_mp = self.max_mp
         
-        # 공격력: 레벨당 기초 공격력의 40% 성장
+        # 공격력: 레벨당 기초 공격력의 22.5% 성장 (기존 40%에서 감소)
         # 최종 배율 1.0 (100%)
-        attack_growth = template.physical_attack * 0.312 * (level - 1)
+        attack_growth = template.physical_attack * 0.225 * (level - 1)
         base_physical_attack = (template.physical_attack + attack_growth) * boss_stat_mult * stat_variance
         self.physical_attack = int(base_physical_attack * 1.0) * difficulty_dmg_mult  # 모든 적 공격력 100%
 
-        magic_attack_growth = template.magic_attack * 0.312 * (level - 1)
+        magic_attack_growth = template.magic_attack * 0.225 * (level - 1)
         base_magic_attack = (template.magic_attack + magic_attack_growth) * boss_stat_mult * stat_variance
         self.magic_attack = int(base_magic_attack * 1.0) * difficulty_dmg_mult  # 모든 적 마법력 100%
         
-        # 방어력: 레벨당 기초 방어력의 40% 성장, 최종값 2/3배
-        defense_growth = template.physical_defense * 0.416 * (level - 1)
+        # 방어력: 레벨당 기초 방어력의 68% 성장 (기존 40%에서 대폭 증가), 최종값 2/3배
+        defense_growth = template.physical_defense * 0.68 * (level - 1)
         base_physical_defense = (template.physical_defense + defense_growth) * boss_stat_mult * stat_variance
         self.physical_defense = int(base_physical_defense * 0.667)  # 2/3배
 
-        magic_defense_growth = template.magic_defense * 0.416 * (level - 1)
+        magic_defense_growth = template.magic_defense * 0.68 * (level - 1)
         base_magic_defense = (template.magic_defense + magic_defense_growth) * boss_stat_mult * stat_variance
         self.magic_defense = int(base_magic_defense * 0.667)  # 2/3배
         
@@ -625,13 +625,21 @@ class SimpleEnemy:
         base_evasion = (template.evasion + (level - 1) * 0.5) * boss_stat_mult * stat_variance
         self.evasion = int(base_evasion)
 
-        # BRV: 레벨당 기초 BRV의 28.6% 성장 (플레이어 대비 1.3배), 1/4로 감소
-        brv_growth = template.max_brv * 0.286 * (level - 1)
+        # BRV: 레벨당 기초 BRV의 40% 성장 (기존 28.6%에서 증가), 1/4로 감소 후 1.6배
+        brv_growth = template.max_brv * 0.40 * (level - 1)
         base_max_brv = (template.max_brv + brv_growth) * boss_stat_mult * stat_variance
-        self.max_brv = int(base_max_brv * 0.25)  # 1/4로 감소
-        init_brv_growth = template.init_brv * 0.33 * (level - 1)
+        self.max_brv = int(base_max_brv * 0.25 * 1.6)  # 1/4로 감소 후 1.6배 (밸런스 조정)
+        
+        init_brv_growth = template.init_brv * 0.50 * (level - 1)
         full_init_brv = (template.init_brv + init_brv_growth) * boss_stat_mult * stat_variance
-        self.init_brv = int(full_init_brv * 0.25)  # 1/4로 감소 BREAK 회복용 init_brv 저장
+        
+        # 기본 2배 적용, 세피로스와 카인은 제외
+        init_brv_mult = 2.0
+        if self.enemy_id in ["sephiroth", "abel_cain"]:
+            init_brv_mult = 1.0
+            
+        self.init_brv = int(full_init_brv * 0.25 * init_brv_mult)  # 1/4로 감소 후 2배 (일반) 또는 1배 (보스)
+        
         # 전투 시작 시 current_brv는 init_brv 그대로 사용
         self.current_brv = self.init_brv
 

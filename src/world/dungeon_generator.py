@@ -768,7 +768,10 @@ class DungeonGenerator:
             "time_researcher", "timeline_survivor", "space_explorer",
             "merchant", "refugee", "time_thief", "distortion_entity",
             "betrayer", "mysterious_merchant", "time_mage", "future_self",
-            "corrupted_survivor", "ancient_guardian", "void_wanderer"
+            "corrupted_survivor", "ancient_guardian", "void_wanderer",
+            # === 새로운 창의적 NPC 타입 ===
+            "stat_trainer", "gambler", "equipment_enchanter", "dungeon_curse",
+            "wandering_alchemist", "dimension_crafter", "oracle", "chaos_entity"
         ]
 
         for i in range(num_npcs):

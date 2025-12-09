@@ -36,7 +36,7 @@
         "unlocked_at": null,
         "conditions": [
           {
-            "current": 0,
+            "current": 1,
             "extra_data": {}
           }
         ]
@@ -286,14 +286,14 @@
   "milestone_system": {
     "milestones": {
       "enemy_slayer": {
-        "current_value": 28,
+        "current_value": 37,
         "current_stage": 0,
-        "last_updated": "2025-12-07T15:47:38.500558"
+        "last_updated": "2025-12-09T10:34:11.470712"
       },
       "damage_dealer": {
-        "current_value": 15057,
+        "current_value": 22378,
         "current_stage": 1,
-        "last_updated": "2025-12-08T02:53:52.501585"
+        "last_updated": "2025-12-09T14:13:08.704401"
       },
       "dungeon_explorer": {
         "current_value": 0,
@@ -333,9 +333,9 @@
     }
   },
   "stats": {
-    "total_kills": 28,
-    "total_damage_dealt": 15057,
-    "max_damage_in_one_hit": 507,
+    "total_kills": 37,
+    "total_damage_dealt": 22378,
+    "max_damage_in_one_hit": 1051,
     "potions_used_in_battle": 0,
     "current_battle_skill_used": [],
     "floor_reached": 0,
@@ -349,17 +349,17 @@
   },
   "daily_achievements": [
     {
-      "achievement_id": "daily_daily_damage_2025-12-08",
+      "achievement_id": "daily_daily_damage_2025-12-09",
       "is_unlocked": false,
       "unlocked_at": null
     },
     {
-      "achievement_id": "daily_daily_kills_2025-12-08",
+      "achievement_id": "daily_daily_kills_2025-12-09",
       "is_unlocked": false,
       "unlocked_at": null
     },
     {
-      "achievement_id": "daily_daily_cooking_2025-12-08",
+      "achievement_id": "daily_daily_cooking_2025-12-09",
       "is_unlocked": false,
       "unlocked_at": null
     }

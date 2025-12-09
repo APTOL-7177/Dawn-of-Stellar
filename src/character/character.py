@@ -1369,6 +1369,16 @@ class Character:
             if not self._has_undying_existence():
                 self.is_alive = False
 
+        if self.current_hp <= 0:
+            self.current_hp = 0
+            # 불멸의 존재 특성이 있으면 is_alive 유지
+            if not self._has_undying_existence():
+                self.is_alive = False
+            
+            # 사망 시 기믹 업데이트 (차원 굴절 초기화 등)
+            from src.character.gimmick_updater import GimmickUpdater
+            GimmickUpdater.on_death(self)
+
             event_bus.publish(Events.CHARACTER_DEATH, {
                 "character": self,
                 "name": self.name,
@@ -1426,6 +1436,16 @@ class Character:
             # 불멸의 존재 특성이 있으면 is_alive 유지
             if not self._has_undying_existence():
                 self.is_alive = False
+
+        if self.current_hp <= 0:
+            self.current_hp = 0
+            # 불멸의 존재 특성이 있으면 is_alive 유지
+            if not self._has_undying_existence():
+                self.is_alive = False
+
+            # 사망 시 기믹 업데이트
+            from src.character.gimmick_updater import GimmickUpdater
+            GimmickUpdater.on_death(self)
 
             event_bus.publish(Events.CHARACTER_DEATH, {
                 "character": self,
