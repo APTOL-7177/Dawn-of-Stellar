@@ -2254,6 +2254,19 @@ def run_exploration(
                         else:
                             logger.error("❌ 클라이언트 스폰 위치 설정 실패: 방도 없고 계단도 없음!")
                         
+                        # 세션의 플레이어 위치도 업데이트 (중요: 멀티플레이 이동/렌더링 동기화)
+                        if hasattr(exploration, 'session') and exploration.session and hasattr(exploration, 'local_player_id'):
+                            local_id = exploration.local_player_id
+                            if local_id in exploration.session.players:
+                                exploration.session.players[local_id].x = exploration.player.x
+                                exploration.session.players[local_id].y = exploration.player.y
+
+                                # player_positions도 업데이트
+                                if hasattr(exploration, 'player_positions'):
+                                    exploration.player_positions[local_id] = (exploration.player.x, exploration.player.y)
+
+                                logger.info(f"📍 클라이언트 세션 위치 업데이트: ({exploration.player.x}, {exploration.player.y})")
+
                         # FOV 업데이트
                         if hasattr(exploration, 'update_fov'):
                             exploration.update_fov()
