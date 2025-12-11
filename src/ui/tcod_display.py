@@ -1063,6 +1063,49 @@ class TCODDisplay:
                 except:
                     return None
     
+    def _get_sdl_window_pointer(self) -> int:
+        """SDL 창 포인터를 정수로 변환하여 반환"""
+        if not self.context:
+            return None
+        
+        try:
+            window_p = self.context.sdl_window_p
+            if window_p is None:
+                return None
+            
+            # cffi CData 객체에서 정수 포인터 추출
+            # 방법 1: ffi.cast를 사용
+            try:
+                from tcod._libtcod import ffi
+                ptr_int = int(ffi.cast("uintptr_t", window_p))
+                if ptr_int != 0:
+                    self.logger.debug(f"SDL 창 포인터 (ffi.cast): {ptr_int}")
+                    return ptr_int
+            except Exception as e:
+                self.logger.debug(f"ffi.cast 방법 실패: {e}")
+            
+            # 방법 2: id() 사용 (비표준이지만 작동할 수 있음)
+            try:
+                # CData 객체의 문자열 표현에서 주소 추출
+                ptr_str = str(window_p)
+                # '<cdata 'struct SDL_Window *' 0x7f1234567890>' 형식에서 주소 추출
+                if '0x' in ptr_str:
+                    import re
+                    match = re.search(r'0x[0-9a-fA-F]+', ptr_str)
+                    if match:
+                        ptr_int = int(match.group(), 16)
+                        if ptr_int != 0:
+                            self.logger.debug(f"SDL 창 포인터 (regex): {ptr_int}")
+                            return ptr_int
+            except Exception as e:
+                self.logger.debug(f"regex 방법 실패: {e}")
+            
+            return None
+            
+        except Exception as e:
+            self.logger.warning(f"SDL 창 포인터 추출 실패: {e}")
+            return None
+    
     def _set_fullscreen_desktop_mode(self) -> None:
         """테두리 없는 전체 화면 모드 설정 (Windows/Linux/macOS 지원)"""
         if not self.context:
