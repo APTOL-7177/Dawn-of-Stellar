@@ -584,6 +584,8 @@ def serialize_gimmick_state(member: Any) -> Dict[str, Any]:
         "trick_deck": ["card_deck", "card_hand", "card_discard", "max_hand_size"],
         "rum_treasure_system": ["treasure_inventory", "max_treasure", "rum_positive_chance", "current_rum_effect", "rum_effect_duration", "lucky_dice_active"],
         "score_composition": ["music_notes", "max_notes", "last_pattern", "harmony_bonus"],
+        # 환술사 - 환영 군단 시스템
+        "phantom_legion": ["phantom_count", "max_phantoms", "phantom_hits", "phantom_hit_absorb", "afterimage_gauge", "afterimage_max", "afterimage_per_destroy", "mirror_shift_cooldown", "mirror_shift_ready"],
     }
     
     # 해당 기믹 타입의 속성들을 저장
@@ -1482,7 +1484,8 @@ def deserialize_inventory(inventory_data: Dict[str, Any], party: List[Any] = Non
     from src.equipment.inventory import Inventory
 
     # 파티 정보와 함께 인벤토리 생성 (최대 무게 계산용)
-    inventory = Inventory(party=party)
+    base_weight = inventory_data.get("base_weight", 50.0)
+    inventory = Inventory(base_weight=base_weight, party=party)
 
     # 디버그: 인벤토리 데이터 확인
     logger.warning(f"[DESERIALIZE] inventory_data 타입: {type(inventory_data)}")

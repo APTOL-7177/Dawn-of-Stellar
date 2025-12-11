@@ -528,6 +528,50 @@ def execute_custom_handler(handler_name: str, args: Dict[str, Any], user, target
                 GimmickUpdater.reset_mockery(t)
             return EffectResult(effect_type=EffectType.GIMMICK, success=True)
 
+        if name == "toggle_buff":
+            buff_id = args.get("buff_id")
+            if not buff_id:
+                return EffectResult(effect_type=EffectType.GIMMICK, success=False, message="Buff ID missing")
+
+            if not hasattr(user, "active_toggles"):
+                user.active_toggles = []
+            if not hasattr(user, "reserved_max_mp"):
+                user.reserved_max_mp = 0
+
+            # 토글 상태 확인
+            is_active = buff_id in user.active_toggles
+
+            # MP 예약 비율
+            reservation_pct = float(args.get("mp_reservation_percentage", 0.0))
+            
+            if is_active:
+                # 비활성화 handling
+                user.active_toggles.remove(buff_id)
+                logger.info(f"{user.name} 토글 비활성화: {buff_id}")
+                
+                # 예약된 MP 해제
+                if reservation_pct > 0:
+                    reserved_amount = int(user.max_mp * reservation_pct)
+                    user.reserved_max_mp = max(0, user.reserved_max_mp - reserved_amount)
+                
+                return EffectResult(effect_type=EffectType.GIMMICK, success=True, message="토글 해제")
+            else:
+                # 활성화 handling
+                user.active_toggles.append(buff_id)
+                logger.info(f"{user.name} 토글 활성화: {buff_id}")
+                
+                # MP 예약 적용
+                if reservation_pct > 0:
+                    reserved_amount = int(user.max_mp * reservation_pct)
+                    user.reserved_max_mp += reserved_amount
+                    # 현재 MP가 예약 후 최대치를 넘지 않도록 조정
+                    if hasattr(user, "effective_max_mp"):
+                        eff_max = user.effective_max_mp()
+                        if user.current_mp > eff_max:
+                            user.current_mp = eff_max
+                
+                return EffectResult(effect_type=EffectType.GIMMICK, success=True, message="토글 활성화")
+
         # === 기타 ===
         if name == "steal_from_enemy":
             logger.debug("[custom_handler] steal_from_enemy 호출 - 구현 보류")

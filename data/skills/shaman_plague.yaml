@@ -1,7 +1,7 @@
 id: shaman_plague
 name: 역병 소환
 type: attack
-description: '역병을 퍼뜨려 적 전체에 피해와 독을 부여합니다.
+description: '[암흑 속성] 역병을 퍼뜨려 적 전체에 피해와 독을 부여합니다.
 
   '
 target: all_enemies
@@ -15,6 +15,7 @@ effects:
   stat_base: magical
   multiplier: 1.5
   target: all_enemies
+  element: dark
 - type: status
   status_type: poison
   duration: 4

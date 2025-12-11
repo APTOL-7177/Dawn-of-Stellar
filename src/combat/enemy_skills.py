@@ -81,6 +81,14 @@ class EnemySkill:
 
     # 사운드 효과
     sfx: Optional[Tuple[str, str]] = None  # (category, sfx_name) 튜플
+    
+    # 다중 타격
+    multi_hit: int = 1  # 스킬 타격 횟수
+    
+    # 추가 효과
+    critical_boost: float = 0.0  # 크리티컬 확률 증가
+    stealth_break: bool = False  # 은신 해제
+    element: Optional[str] = None  # 원소 속성 (fire, ice, lightning, holy, dark 등)
 
     def can_use(self, user: Any) -> bool:
         """
@@ -3542,6 +3550,773 @@ class EnemySkillDatabase:
                 cooldown=6,
                 sfx=("character", "hp_heal")
             ),
+
+            # ============================================================
+            # === 신규 적 스킬 (자연/야수 타입) ===
+            # ============================================================
+            
+            # 다이어 울프 스킬
+            "pack_howl": EnemySkill(
+                skill_id="pack_howl",
+                name="늑대 울음",
+                description="무리를 불러 모아 공격력을 높인다.",
+                target_type=SkillTargetType.ALL_ALLIES,
+                buff_stats={"strength": 1.4, "speed": 1.2},
+                use_probability=0.35,
+                cooldown=4,
+                sfx=("skill", "roar")
+            ),
+            "feral_strike": EnemySkill(
+                skill_id="feral_strike",
+                name="야수의 일격",
+                description="광포한 공격으로 적을 물어뜯는다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=2.2,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["bleed"],
+                status_duration=3,
+                use_probability=0.45,
+                cooldown=2,
+                sfx=("combat", "attack_physical")
+            ),
+
+            # 썬더버드 스킬 (전기 원소)
+            "storm_dive": EnemySkill(
+                skill_id="storm_dive",
+                name="폭풍 급강하",
+                description="번개를 두르고 급강하한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                is_magical=True,
+                damage_multiplier=2.5,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["shock", "stun"],
+                status_duration=2,
+                use_probability=0.4,
+                cooldown=3,
+                sfx=("skill", "thunder")
+            ),
+            "thunder_screech": EnemySkill(
+                skill_id="thunder_screech",
+                name="번개 울음소리",
+                description="전기가 흐르는 비명으로 적을 마비시킨다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                is_magical=True,
+                damage_multiplier=1.8,
+                brv_damage=1,
+                status_effects=["shock", "paralysis"],
+                status_duration=2,
+                use_probability=0.3,
+                cooldown=4,
+                sfx=("skill", "thunder")
+            ),
+
+            # 만티코어 스킬 (독 + 물리)
+            "scorpion_tail": EnemySkill(
+                skill_id="scorpion_tail",
+                name="전갈 꼬리",
+                description="독이 묻은 꼬리로 찌른다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=2.4,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["poison", "paralysis"],
+                status_duration=4,
+                use_probability=0.4,
+                cooldown=3,
+                sfx=("skill", "poison")
+            ),
+            "lion_pounce": EnemySkill(
+                skill_id="lion_pounce",
+                name="사자 덮치기",
+                description="맹렬하게 덮쳐서 물어뜯는다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=2.8,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["reduce_def"],
+                status_duration=3,
+                use_probability=0.35,
+                cooldown=4,
+                sfx=("combat", "attack_physical")
+            ),
+
+            # 트렌트 스킬 (자연 + 방어)
+            "nature_barrier": EnemySkill(
+                skill_id="nature_barrier",
+                name="자연의 장벽",
+                description="나무껍질로 방어력을 높인다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"defense": 2.0, "spirit": 1.5},
+                shield_amount=100,
+                use_probability=0.4,
+                cooldown=5,
+                sfx=("skill", "barrier")
+            ),
+            "entangle": EnemySkill(
+                skill_id="entangle",
+                name="나무넝쿨 속박",
+                description="덩굴로 적을 옭아맨다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                damage_multiplier=1.5,
+                brv_damage=1,
+                status_effects=["slow", "bind"],
+                status_duration=3,
+                use_probability=0.35,
+                cooldown=4,
+                sfx=("skill", "nature")
+            ),
+            "ancient_roar": EnemySkill(
+                skill_id="ancient_roar",
+                name="태고의 울림",
+                description="태고의 자연을 깨운다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                is_magical=True,
+                damage_multiplier=2.2,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["fear"],
+                status_duration=2,
+                use_probability=0.25,
+                cooldown=5,
+                sfx=("skill", "roar")
+            ),
+
+            # 키메라 스킬 (복합 원소)
+            "triple_breath": EnemySkill(
+                skill_id="triple_breath",
+                name="삼중 브레스",
+                description="불, 독, 번개를 동시에 뿜는다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                is_magical=True,
+                damage_multiplier=2.8,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["burn", "poison", "shock"],
+                status_duration=3,
+                use_probability=0.25,
+                cooldown=5,
+                sfx=("skill", "fire_explosion")
+            ),
+            "chimera_rage": EnemySkill(
+                skill_id="chimera_rage",
+                name="키메라의 분노",
+                description="세 머리가 동시에 광폭화한다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"strength": 1.6, "magic": 1.6, "speed": 1.3},
+                use_probability=0.3,
+                min_hp_percent=0.0,
+                max_hp_percent=0.5,
+                cooldown=6,
+                sfx=("skill", "roar")
+            ),
+
+            # ============================================================
+            # === 신규 적 스킬 (수중/해양 타입) ===
+            # ============================================================
+            
+            # 바다뱀 스킬 (물 + 독)
+            "tidal_crush": EnemySkill(
+                skill_id="tidal_crush",
+                name="조류 분쇄",
+                description="물의 힘으로 압축하여 분쇄한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                is_magical=True,
+                damage_multiplier=2.3,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["slow"],
+                status_duration=2,
+                use_probability=0.4,
+                cooldown=3,
+                sfx=("skill", "water")
+            ),
+            "venomous_coil": EnemySkill(
+                skill_id="venomous_coil",
+                name="독사 감기",
+                description="독이 있는 몸으로 적을 감아 조인다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=2.0,
+                brv_damage=1,
+                status_effects=["poison", "bind"],
+                status_duration=3,
+                use_probability=0.35,
+                cooldown=3,
+                sfx=("skill", "poison")
+            ),
+
+            # 크라켄 스킬 (물 + 물리)
+            "tentacle_slam": EnemySkill(
+                skill_id="tentacle_slam",
+                name="촉수 난타",
+                description="여러 촉수로 연속 공격한다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                damage_multiplier=2.0,
+                brv_damage=1,
+                hp_attack=True,
+                use_probability=0.4,
+                cooldown=3,
+                sfx=("combat", "attack_physical")
+            ),
+            "ink_cloud": EnemySkill(
+                skill_id="ink_cloud",
+                name="먹물 분사",
+                description="먹물로 시야를 가려 명중률을 낮춘다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                debuff_stats={"accuracy": 0.6, "evasion": 0.7},
+                status_effects=["blind"],
+                status_duration=3,
+                use_probability=0.3,
+                cooldown=4,
+                sfx=("skill", "water")
+            ),
+            "kraken_grasp": EnemySkill(
+                skill_id="kraken_grasp",
+                name="크라켄의 포옹",
+                description="촉수로 꽉 쥐어짜서 으스러뜨린다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=3.2,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["bind", "reduce_def"],
+                status_duration=2,
+                use_probability=0.25,
+                cooldown=5,
+                sfx=("combat", "damage_high")
+            ),
+
+            # 사이렌 스킬 (성스러운 + 매혹)
+            "siren_song": EnemySkill(
+                skill_id="siren_song",
+                name="세이렌의 노래",
+                description="매혹적인 노래로 적을 유혹한다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                is_magical=True,
+                damage_multiplier=1.5,
+                brv_damage=1,
+                status_effects=["charm", "sleep"],
+                status_duration=2,
+                use_probability=0.35,
+                cooldown=5,
+                sfx=("skill", "magic_cast")
+            ),
+            "holy_voice": EnemySkill(
+                skill_id="holy_voice",
+                name="성스러운 목소리",
+                description="신성한 노래로 회복한다.",
+                target_type=SkillTargetType.ALL_ALLIES,
+                heal_amount=60,
+                buff_stats={"magic": 1.3},
+                use_probability=0.3,
+                cooldown=4,
+                sfx=("skill", "holy")
+            ),
+
+            # 머포크 전사 스킬 (물 + 물리)
+            "trident_thrust": EnemySkill(
+                skill_id="trident_thrust",
+                name="삼지창 찌르기",
+                description="날카로운 삼지창으로 관통한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=2.4,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["bleed"],
+                status_duration=3,
+                use_probability=0.45,
+                cooldown=2,
+                sfx=("combat", "attack_sword")
+            ),
+            "aquatic_shield": EnemySkill(
+                skill_id="aquatic_shield",
+                name="물의 방패",
+                description="물로 된 방어막을 생성한다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"defense": 1.5},
+                shield_amount=50,
+                use_probability=0.3,
+                cooldown=4,
+                sfx=("skill", "barrier")
+            ),
+
+            # ============================================================
+            # === 신규 적 스킬 (확장 언데드 타입) ===
+            # ============================================================
+            
+            # 해골 드래곤 스킬
+            "bone_breath": EnemySkill(
+                skill_id="bone_breath",
+                name="해골 브레스",
+                description="뼈조각과 저주가 담긴 숨결.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                is_magical=True,
+                damage_multiplier=2.5,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["curse", "reduce_def"],
+                status_duration=3,
+                use_probability=0.35,
+                cooldown=4,
+                sfx=("skill", "dark")
+            ),
+            "skeletal_rampage": EnemySkill(
+                skill_id="skeletal_rampage",
+                name="해골의 광란",
+                description="미친 듯이 날뛰며 공격한다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                damage_multiplier=2.2,
+                brv_damage=1,
+                hp_attack=True,
+                use_probability=0.3,
+                cooldown=4,
+                sfx=("combat", "attack_physical")
+            ),
+
+            # 레버넌트 스킬 (복수)
+            "vengeance_strike": EnemySkill(
+                skill_id="vengeance_strike",
+                name="복수의 일격",
+                description="복수심이 담긴 강력한 일격.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=3.0,
+                brv_damage=1,
+                hp_attack=True,
+                use_probability=0.4,
+                cooldown=3,
+                sfx=("combat", "attack_sword")
+            ),
+            "grudge_curse": EnemySkill(
+                skill_id="grudge_curse",
+                name="원한의 저주",
+                description="강력한 저주를 건다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                is_magical=True,
+                damage_multiplier=1.8,
+                brv_damage=1,
+                status_effects=["curse", "doom"],
+                status_duration=4,
+                use_probability=0.3,
+                cooldown=5,
+                sfx=("skill", "dark")
+            ),
+
+            # 듀라한 스킬
+            "headless_charge": EnemySkill(
+                skill_id="headless_charge",
+                name="머리없는 돌격",
+                description="말을 타고 돌격한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=3.0,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["stun"],
+                status_duration=1,
+                use_probability=0.35,
+                cooldown=4,
+                sfx=("combat", "attack_sword")
+            ),
+            "death_proclamation": EnemySkill(
+                skill_id="death_proclamation",
+                name="죽음의 선고",
+                description="적에게 죽음을 선고한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                is_magical=True,
+                status_effects=["doom"],
+                status_duration=5,
+                use_probability=0.25,
+                cooldown=6,
+                sfx=("skill", "dark")
+            ),
+
+            # 리치 킹 스킬
+            "absolute_zero_magic": EnemySkill(
+                skill_id="absolute_zero_magic",
+                name="절대영도 마법",
+                description="모든 것을 얼리는 극한의 냉기.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                is_magical=True,
+                damage_multiplier=2.8,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["freeze", "slow"],
+                status_duration=3,
+                use_probability=0.3,
+                cooldown=5,
+                sfx=("skill", "ice3")
+            ),
+            "army_of_dead": EnemySkill(
+                skill_id="army_of_dead",
+                name="죽은 자의 군대",
+                description="언데드 군대를 불러 전투를 돕게 한다.",
+                target_type=SkillTargetType.ALL_ALLIES,
+                buff_stats={"strength": 1.4, "defense": 1.4, "magic": 1.4},
+                use_probability=0.2,
+                cooldown=7,
+                sfx=("skill", "summon")
+            ),
+
+            # ============================================================
+            # === 신규 적 스킬 (곤충/절지류 타입) ===
+            # ============================================================
+            
+            # 거대 지네 스킬
+            "hundred_legs": EnemySkill(
+                skill_id="hundred_legs",
+                name="백족 난무",
+                description="수많은 다리로 연속 공격한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=0.5,
+                brv_damage=1,
+                hp_attack=True,
+                multi_hit=5,
+                status_effects=["poison"],
+                status_duration=2,
+                use_probability=0.4,
+                cooldown=3,
+                sfx=("combat", "attack_physical")
+            ),
+            "venomous_bite": EnemySkill(
+                skill_id="venomous_bite",
+                name="맹독 물기",
+                description="치명적인 독으로 물어뜯는다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=2.0,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["poison", "necrosis"],
+                status_duration=4,
+                use_probability=0.35,
+                cooldown=3,
+                sfx=("skill", "poison")
+            ),
+
+            # 여왕벌 스킬
+            "swarm_summon": EnemySkill(
+                skill_id="swarm_summon",
+                name="벌떼 소환",
+                description="벌떼를 불러 적을 공격한다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                is_magical=True,
+                damage_multiplier=1.6,
+                brv_damage=1,
+                status_effects=["poison"],
+                status_duration=3,
+                use_probability=0.35,
+                cooldown=4,
+                sfx=("skill", "summon")
+            ),
+            "royal_jelly": EnemySkill(
+                skill_id="royal_jelly",
+                name="로열 젤리",
+                description="아군을 회복하고 강화한다.",
+                target_type=SkillTargetType.ALL_ALLIES,
+                heal_amount=50,
+                buff_stats={"strength": 1.3, "speed": 1.2},
+                use_probability=0.3,
+                cooldown=5,
+                sfx=("character", "hp_heal")
+            ),
+
+            # 죽음의 딱정벌레 스킬
+            "carapace_defense": EnemySkill(
+                skill_id="carapace_defense",
+                name="갑각 방어",
+                description="단단한 등껍질로 방어한다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"defense": 2.5},
+                shield_amount=80,
+                use_probability=0.4,
+                cooldown=4,
+                sfx=("skill", "barrier")
+            ),
+            "death_roll": EnemySkill(
+                skill_id="death_roll",
+                name="죽음의 굴림",
+                description="거대한 몸으로 굴러 적을 덮친다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                damage_multiplier=2.0,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["stun"],
+                status_duration=1,
+                use_probability=0.3,
+                cooldown=5,
+                sfx=("combat", "damage_high")
+            ),
+
+            # 역병 나방 스킬
+            "plague_dust": EnemySkill(
+                skill_id="plague_dust",
+                name="역병 가루",
+                description="치명적인 역병 가루를 뿌린다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                is_magical=True,
+                damage_multiplier=1.5,
+                brv_damage=1,
+                status_effects=["poison", "disease", "blind"],
+                status_duration=4,
+                use_probability=0.4,
+                cooldown=4,
+                sfx=("skill", "poison")
+            ),
+            "moth_flutter": EnemySkill(
+                skill_id="moth_flutter",
+                name="나방 비행",
+                description="빠르게 날아 회피율을 높인다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"evasion": 2.0, "speed": 1.4},
+                use_probability=0.3,
+                cooldown=3,
+                sfx=("skill", "wind")
+            ),
+
+            # ============================================================
+            # === 신규 적 스킬 (인간형 타입) ===
+            # ============================================================
+            
+            # 암흑 기사 스킬
+            "dark_blade": EnemySkill(
+                skill_id="dark_blade",
+                name="암흑검",
+                description="어둠의 힘이 담긴 검격.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=2.8,
+                brv_damage=1,
+                hp_attack=True,
+                hp_cost=30,
+                status_effects=["reduce_def"],
+                status_duration=3,
+                use_probability=0.4,
+                cooldown=3,
+                sfx=("skill", "dark")
+            ),
+            "dark_sacrifice": EnemySkill(
+                skill_id="dark_sacrifice",
+                name="암흑 희생",
+                description="HP를 소모해 강력한 공격을 한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=4.0,
+                brv_damage=1,
+                hp_attack=True,
+                hp_cost=80,
+                use_probability=0.2,
+                min_hp_percent=0.3,
+                cooldown=6,
+                sfx=("skill", "dark")
+            ),
+
+            # 배틀 메이지 스킬
+            "arcane_blade": EnemySkill(
+                skill_id="arcane_blade",
+                name="비전검",
+                description="마법이 담긴 검격.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                is_magical=True,
+                damage_multiplier=2.5,
+                brv_damage=1,
+                hp_attack=True,
+                use_probability=0.4,
+                cooldown=2,
+                sfx=("skill", "magic_cast")
+            ),
+            "elemental_burst": EnemySkill(
+                skill_id="elemental_burst",
+                name="원소 폭발",
+                description="4원소의 힘을 폭발시킨다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                is_magical=True,
+                damage_multiplier=2.2,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["burn", "freeze", "shock"],
+                status_duration=2,
+                use_probability=0.25,
+                cooldown=5,
+                sfx=("skill", "fire_explosion")
+            ),
+
+            # 암살자 스킬
+            "backstab": EnemySkill(
+                skill_id="backstab",
+                name="암습",
+                description="급소를 노린 치명적 공격.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=3.5,
+                brv_damage=1,
+                hp_attack=True,
+                critical_boost=0.5,
+                use_probability=0.4,
+                cooldown=3,
+                sfx=("combat", "attack_sword")
+            ),
+            "shadow_step": EnemySkill(
+                skill_id="shadow_step",
+                name="그림자 걸음",
+                description="그림자 속으로 숨어 회피율을 높인다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"evasion": 2.5, "speed": 1.5},
+                use_probability=0.35,
+                cooldown=4,
+                sfx=("skill", "dark")
+            ),
+            "assassination": EnemySkill(
+                skill_id="assassination",
+                name="암살",
+                description="일격필살을 노린다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=5.0,
+                brv_damage=1,
+                hp_attack=True,
+                critical_boost=0.8,
+                use_probability=0.15,
+                cooldown=7,
+                sfx=("combat", "damage_high")
+            ),
+
+            # 광전사 스킬
+            "berserker_rage": EnemySkill(
+                skill_id="berserker_rage",
+                name="광전사의 분노",
+                description="HP가 낮을수록 강해진다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"strength": 2.0, "speed": 1.5},
+                debuff_stats={"defense": 0.6},
+                use_probability=0.4,
+                min_hp_percent=0.0,
+                max_hp_percent=0.5,
+                cooldown=5,
+                sfx=("skill", "roar")
+            ),
+            "wild_swing": EnemySkill(
+                skill_id="wild_swing",
+                name="난폭한 휘두르기",
+                description="거칠게 무기를 휘둘러 모두를 공격한다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                damage_multiplier=2.2,
+                brv_damage=1,
+                hp_attack=True,
+                use_probability=0.35,
+                cooldown=3,
+                sfx=("combat", "attack_sword")
+            ),
+
+            # ============================================================
+            # === 신규 적 스킬 (그림자/암흑 타입) ===
+            # ============================================================
+            
+            # 그림자 추적자 스킬
+            "shadow_sneak": EnemySkill(
+                skill_id="shadow_sneak",
+                name="그림자 잠행",
+                description="그림자에 숨어 다음 공격을 강화한다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"strength": 1.8, "evasion": 2.0},
+                use_probability=0.35,
+                cooldown=4,
+                sfx=("skill", "dark")
+            ),
+            "shadow_strike": EnemySkill(
+                skill_id="shadow_strike",
+                name="그림자 일격",
+                description="그림자에서 나타나 공격한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                damage_multiplier=2.8,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["reduce_def"],
+                status_duration=2,
+                use_probability=0.4,
+                cooldown=3,
+                sfx=("skill", "dark")
+            ),
+
+            # 공허의 보행자 스킬 (차원)
+            "void_rift": EnemySkill(
+                skill_id="void_rift",
+                name="공허의 균열",
+                description="차원의 틈을 열어 적을 공격한다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                is_magical=True,
+                damage_multiplier=2.5,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["confusion"],
+                status_duration=2,
+                use_probability=0.35,
+                cooldown=4,
+                sfx=("skill", "dark")
+            ),
+            "dimension_shift": EnemySkill(
+                skill_id="dimension_shift",
+                name="차원 이동",
+                description="다른 차원으로 순간이동한다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"evasion": 3.0, "speed": 1.5},
+                use_probability=0.3,
+                cooldown=5,
+                sfx=("skill", "teleport")
+            ),
+
+            # 악몽의 군주 스킬
+            "nightmare_realm": EnemySkill(
+                skill_id="nightmare_realm",
+                name="악몽의 영역",
+                description="모든 적을 악몽 속에 가둔다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                is_magical=True,
+                damage_multiplier=2.0,
+                brv_damage=1,
+                status_effects=["fear", "sleep", "confusion"],
+                status_duration=3,
+                use_probability=0.25,
+                cooldown=6,
+                sfx=("skill", "dark")
+            ),
+            "terror_incarnate": EnemySkill(
+                skill_id="terror_incarnate",
+                name="공포의 화신",
+                description="순수한 공포로 변신한다.",
+                target_type=SkillTargetType.SELF,
+                buff_stats={"magic": 1.8, "strength": 1.5, "speed": 1.3},
+                use_probability=0.2,
+                min_hp_percent=0.0,
+                max_hp_percent=0.4,
+                cooldown=7,
+                sfx=("skill", "dark")
+            ),
+
+            # 심연의 마귀 스킬 (최상급 암흑)
+            "abyss_gaze": EnemySkill(
+                skill_id="abyss_gaze",
+                name="심연의 응시",
+                description="심연의 눈빛으로 영혼을 꿰뚫는다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                is_magical=True,
+                damage_multiplier=3.5,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["doom", "fear"],
+                status_duration=3,
+                use_probability=0.3,
+                cooldown=5,
+                sfx=("skill", "dark")
+            ),
+            "dark_apocalypse": EnemySkill(
+                skill_id="dark_apocalypse",
+                name="암흑 종말",
+                description="모든 것을 어둠에 삼킨다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                is_magical=True,
+                damage_multiplier=3.0,
+                brv_damage=1,
+                hp_attack=True,
+                status_effects=["curse", "reduce_def", "reduce_magic_def"],
+                status_duration=4,
+                use_probability=0.15,
+                cooldown=8,
+                sfx=("skill", "dark")
+            ),
         }
 
         logger.info(f"적 스킬 데이터베이스 초기화 완료: {len(cls.SKILLS)}개 스킬")
@@ -3683,6 +4458,47 @@ class EnemySkillDatabase:
             # 특수 타입 (변칙적 회복)
             "mimic": ["surprise_attack", "treasure_lure", "moderate_heal", "defense_stance"],
             "nightmare": ["nightmare_vision", "dream_eater", "sleep_eternal", "major_heal", "emergency_heal"],
+
+            # ============================================================
+            # === 신규 적 스킬 매핑 ===
+            # ============================================================
+            
+            # 자연/야수 타입
+            "dire_wolf": ["pack_howl", "feral_strike", "savage_bite", "moderate_heal", "strengthen"],
+            "thunderbird": ["storm_dive", "thunder_screech", "chain_lightning", "moderate_heal", "haste"],
+            "manticore": ["scorpion_tail", "lion_pounce", "poison_breath", "major_heal", "strengthen"],
+            "treant": ["nature_barrier", "entangle", "ancient_roar", "major_heal", "defense_stance"],
+            "chimera": ["triple_breath", "chimera_rage", "dragon_breath", "major_heal", "strengthen"],
+
+            # 수중/해양 타입
+            "sea_serpent": ["tidal_crush", "venomous_coil", "moderate_heal", "defense_stance"],
+            "kraken": ["tentacle_slam", "ink_cloud", "kraken_grasp", "major_heal", "strengthen"],
+            "siren": ["siren_song", "holy_voice", "life_siphon", "major_heal", "charm"],
+            "merfolk_warrior": ["trident_thrust", "aquatic_shield", "moderate_heal", "strengthen"],
+
+            # 확장 언데드 타입
+            "bone_dragon": ["bone_breath", "skeletal_rampage", "dragon_breath", "major_heal", "strengthen"],
+            "revenant": ["vengeance_strike", "grudge_curse", "life_drain", "major_heal", "emergency_heal"],
+            "dullahan": ["headless_charge", "death_proclamation", "dark_slash", "major_heal", "strengthen"],
+            "lich_king": ["absolute_zero_magic", "army_of_dead", "shadow_flare", "full_recovery", "magic_boost"],
+
+            # 곤충/절지류 타입
+            "giant_centipede": ["hundred_legs", "venomous_bite", "poison_stab", "minor_heal"],
+            "queen_bee": ["swarm_summon", "royal_jelly", "venom_spray", "moderate_heal", "haste"],
+            "death_beetle": ["carapace_defense", "death_roll", "moderate_heal", "defense_stance"],
+            "plague_moth": ["plague_dust", "moth_flutter", "moderate_heal", "haste"],
+
+            # 인간형 타입
+            "dark_knight": ["dark_blade", "dark_sacrifice", "dark_slash", "major_heal", "strengthen"],
+            "battle_mage": ["arcane_blade", "elemental_burst", "fireball", "major_heal", "magic_boost"],
+            "assassin": ["backstab", "shadow_step", "assassination", "moderate_heal", "haste"],
+            "berserker": ["berserker_rage", "wild_swing", "crush", "major_heal", "strengthen"],
+
+            # 그림자/암흑 타입
+            "shadow_stalker": ["shadow_sneak", "shadow_strike", "moderate_heal", "haste"],
+            "void_walker": ["void_rift", "dimension_shift", "shadow_flare", "major_heal", "magic_boost"],
+            "nightmare_lord": ["nightmare_realm", "terror_incarnate", "nightmare_vision", "major_heal", "emergency_heal"],
+            "abyss_demon": ["abyss_gaze", "dark_apocalypse", "hellfire", "full_recovery", "strengthen"],
         }
 
         skill_ids = skill_mapping.get(enemy_type.lower(), [])

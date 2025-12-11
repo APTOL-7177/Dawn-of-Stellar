@@ -1,7 +1,7 @@
 id: gladiator_whirlwind
 name: 회전 베기
 type: attack
-description: '화려하게 회전하며 모든 적을 2회 베는 기술.
+description: '[바람 속성] 화려하게 회전하며 모든 적을 2회 베는 기술.
 
   전체 2단 BRV+HP 피해 + 환호 +10.
 
@@ -20,10 +20,12 @@ effects:
   damage_type: brv
   multiplier: 0.9
   stat_base: physical
+  element: wind
 - type: damage
   damage_type: hp
   multiplier: 0.7
   stat_base: physical
+  element: wind
 animation:
   icon: 🌪️
   color:

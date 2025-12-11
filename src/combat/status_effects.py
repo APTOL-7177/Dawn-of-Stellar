@@ -31,6 +31,7 @@ class StatusType(Enum):
     BOOST_SPD = "속도증가"
     BOOST_ACCURACY = "명중률증가"
     BOOST_CRIT = "치명타증가"
+    BOOST_LUK = "행운증가"
     BOOST_DODGE = "회피율증가"
     BOOST_ALL_STATS = "모든능력치증가"
     BOOST_MAGIC_ATK = "마법공격증가"
@@ -355,20 +356,37 @@ class StatusManager:
                 "is_new": True
             })
 
+            # 메타데이터 기반 스탯 수정 적용
+            if status_effect.metadata and "stat_mod" in status_effect.metadata:
+                if self.owner and hasattr(self.owner, "stat_manager"):
+                    for stat, value in status_effect.metadata["stat_mod"].items():
+                        source_key = f"status_{status_effect.name}"
+                        # 중복 적용 방지 로직이 필요하다면 여기에 추가 (현재는 중첩 허용)
+                        self.owner.stat_manager.add_bonus(stat, source_key, value)
+                        logger.debug(f"{self.owner_name}: 상태이상 스탯 수정 {stat} {value:+}")
+
             return True
 
     def remove_status(self, status_type: StatusType) -> bool:
         """
         특정 상태 효과 제거
-
+        
         Args:
             status_type: 제거할 상태 효과 타입
-
+            
         Returns:
             제거 성공 여부
         """
         effect = self.get_status(status_type)
         if effect:
+            # 메타데이터 기반 스탯 수정 제거
+            if effect.metadata and "stat_mod" in effect.metadata:
+                if self.owner and hasattr(self.owner, "stat_manager"):
+                    for stat, _ in effect.metadata["stat_mod"].items():
+                        source_key = f"status_{effect.name}"
+                        self.owner.stat_manager.remove_bonus(stat, source_key)
+                        logger.debug(f"{self.owner_name}: 상태이상 스탯 수정 제거 {stat}")
+
             self.status_effects.remove(effect)
             self.effects = self.status_effects
 
@@ -415,10 +433,10 @@ class StatusManager:
     def get_status(self, status_type: StatusType) -> Optional[StatusEffect]:
         """
         특정 상태 효과 조회
-
+        
         Args:
             status_type: 조회할 상태 효과 타입
-
+            
         Returns:
             해당하는 StatusEffect 또는 None
         """
@@ -430,10 +448,10 @@ class StatusManager:
     def has_status(self, status_type: StatusType) -> bool:
         """
         특정 상태 효과 보유 여부 확인
-
+        
         Args:
             status_type: 확인할 상태 효과 타입
-
+            
         Returns:
             보유 여부
         """
@@ -442,7 +460,7 @@ class StatusManager:
     def update_duration(self) -> List[StatusEffect]:
         """
         모든 상태 효과의 지속시간 감소
-
+        
         Returns:
             만료된 상태 효과 리스트
         """
@@ -453,6 +471,15 @@ class StatusManager:
 
             if effect.duration <= 0:
                 expired.append(effect)
+                
+                # 메타데이터 기반 스탯 수정 제거
+                if effect.metadata and "stat_mod" in effect.metadata:
+                    if self.owner and hasattr(self.owner, "stat_manager"):
+                        for stat, _ in effect.metadata["stat_mod"].items():
+                            source_key = f"status_{effect.name}"
+                            self.owner.stat_manager.remove_bonus(stat, source_key)
+                            logger.debug(f"{self.owner_name}: 상태이상 스탯 수정 만료 {stat}")
+
                 self.status_effects.remove(effect)
 
                 logger.debug(f"{self.owner_name}: {effect.name} 효과 만료")
@@ -565,12 +592,12 @@ class StatusManager:
     def process_dot_effects(self, target: Any) -> Dict[str, Any]:
         """
         지속 피해(DoT) 효과 처리
-
+        
         턴마다 호출되어 독, 화상, 출혈 등의 DoT 데미지를 적용합니다.
-
+        
         Args:
             target: DoT 피해를 받을 대상 (보통 self.owner와 동일)
-
+            
         Returns:
             DoT 처리 결과 딕셔너리
             {
@@ -658,6 +685,19 @@ class StatusManager:
                     f"{self.owner_name}: {dot_info['name']} 피해 {actual_damage} "
                     f"(스택: {effect.stack_count})"
                 )
+
+                # 화상 흡혈 (Dragon Knight - Overflowing Vitality)
+                if actual_damage > 0:
+                    vampirism_rate = effect.metadata.get("burn_vampirism", 0.0)
+                    source_obj = effect.metadata.get("source_object")
+                    
+                    if vampirism_rate > 0 and source_obj and hasattr(source_obj, 'heal'):
+                        heal_amount = int(actual_damage * vampirism_rate)
+                        if heal_amount > 0:
+                            actual_heal = source_obj.heal(heal_amount)
+                            # 소스 객체가 죽지 않았는지 확인
+                            source_name = getattr(source_obj, 'name', 'Unknown')
+                            logger.debug(f"{self.owner_name}: 화상 흡혈 → {source_name} {actual_heal} 회복")
 
         # 이벤트 발행
         if total_damage > 0 or total_mp_drain > 0:
@@ -789,6 +829,9 @@ class StatusManager:
                 modifiers['accuracy'] *= (1.0 + intensity * 0.15)
             elif effect.status_type == StatusType.BOOST_CRIT:
                 modifiers['critical_rate'] *= (1.0 + intensity * 0.25)
+            elif effect.status_type == StatusType.BOOST_LUK:
+                # 행운 증가는 치명타율에 반영
+                modifiers['critical_rate'] *= (1.0 + intensity * 0.2)
             elif effect.status_type == StatusType.BOOST_DODGE:
                 modifiers['evasion'] *= (1.0 + intensity * 0.2)
             elif effect.status_type == StatusType.BOOST_MAGIC_ATK:

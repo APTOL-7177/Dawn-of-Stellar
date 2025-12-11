@@ -1,7 +1,7 @@
 id: shaman_dark_curse
 name: 어둠의 저주
 type: attack
-description: '강력한 저주로 공격하며 적의 공격/방어/마법방어를 약화시킵니다.
+description: '[암흑 속성] 강력한 저주로 공격하며 적의 공격/방어/마법방어를 약화시킵니다.
 
   '
 target: enemy
@@ -13,10 +13,12 @@ effects:
   damage_type: brv
   stat_base: magical
   multiplier: 1.5
+  element: dark
 - type: damage
   damage_type: hp
   stat_base: magical
   multiplier: 2.0
+  element: dark
 - type: debuff
   debuff_id: attack_down
   duration: 3

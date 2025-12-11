@@ -291,9 +291,9 @@ combat:
     elemental_resistance_reduction: 0.5
     elemental_weakness_bonus: 1.5
     hp_multiplier: 0.1
-    level_scaling_per_level: 0.3
-    magical_defense_reduction: 0.5
-    physical_defense_reduction: 0.5
+    level_scaling_per_level: 0.0
+    magical_defense_reduction: 0.0
+    physical_defense_reduction: 0.0
     wound_rate: 0.25
   difficulty:
     player_turn_enemy_atb_multiplier:

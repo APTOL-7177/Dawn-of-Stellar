@@ -44,6 +44,11 @@ class WorldUI:
         self.exploration = exploration
         self.inventory = inventory
         self.party = party
+        
+        # 인벤토리에 파티 설정 (무게 계산 보너스 적용)
+        if inventory is not None and party is not None:
+            inventory.party = party
+        
         self.map_renderer = MapRenderer(map_x=0, map_y=5)
         self.gauge_renderer = GaugeRenderer()
         self.network_manager = network_manager
@@ -63,7 +68,7 @@ class WorldUI:
         self.field_skill_ui = FieldSkillUI(screen_width, screen_height, self.field_skill_manager)
         
         # 초기화 로그
-        logger.info(f"WorldUI 초기화 - inventory: {inventory is not None}, party: {party is not None}, party members: {len(party) if party else 0}")
+        logger.info(f"WorldUI 초기화 - inventory: {inventory is not None}, party: {party is not None}, party members: {len(party) if party else 0}, inventory.party: {len(inventory.party) if inventory and inventory.party else 0}")
 
         # 메시지 로그
         self.messages: List[str] = []
@@ -883,7 +888,9 @@ class WorldUI:
                                 logger.info(f"[건물 상호작용] 퀘스트 게시판 UI 열기 (플레이어 레벨: {player_level})")
                                 try:
                                     from src.ui.quest_board_ui import open_quest_board
-                                    open_quest_board(console, context, quest_manager, player_level, current_floor=self.exploration.floor_number)
+                                    # player 객체 가져오기
+                                    player_obj = getattr(self.exploration, 'player', None)
+                                    open_quest_board(console, context, quest_manager, player_level, player=player_obj, current_floor=self.exploration.floor_number, inventory=self.inventory)
                                     logger.info(f"[건물 상호작용] 퀘스트 게시판 UI 열기 성공")
                                 except Exception as ui_error:
                                     logger.error(f"[건물 상호작용] 퀘스트 게시판 UI 열기 오류: {ui_error}", exc_info=True)
@@ -934,7 +941,9 @@ class WorldUI:
                                     guild_ui.run(console, context)
 
                                 except Exception as e:
+                                    import traceback
                                     logger.error(f"길드 홀 UI 열기 오류: {e}")
+                                    logger.error(f"상세 오류: {traceback.format_exc()}")
                                     from src.ui.game_menu import show_message
                                     show_message(console, context, f"길드 홀에 접근할 수 없습니다: {e}")
                             elif building.building_type == BuildingType.FOUNTAIN:
@@ -1056,6 +1065,35 @@ class WorldUI:
                 self.magic_circle_confirm_yes = True
                 self.magic_circle_tile = result.data['tile']
                 self.add_message(result.message)
+            return
+
+        # 보물상자/아이템 발견 처리 - LootUI 표시
+        elif result.event == ExplorationEvent.CHEST_FOUND or result.event == ExplorationEvent.ITEM_FOUND:
+            if console is not None and context is not None and result.data and 'items' in result.data:
+                items = result.data.get('items', [])
+                tile = result.data.get('tile')
+                
+                if items and self.inventory:
+                    from src.ui.loot_ui import show_loot_screen
+                    from src.audio import play_sfx
+                    
+                    # 메시지 표시
+                    self.add_message(result.message)
+                    
+                    # 기존 화면 렌더링
+                    self.render(console)
+                    context.present(console)
+                    
+                    # LootUI 표시
+                    show_loot_screen(console, context, items, self.inventory)
+                    
+                    # LootUI 닫은 후 타일 정리
+                    if tile:
+                        tile.tile_type = TileType.FLOOR
+                        tile.loot_id = None
+                        
+                    # 아이템 획득 SFX
+                    play_sfx("item", "get_item")
             return
 
         elif result.event == ExplorationEvent.TELEPORTER_FOUND:
@@ -1916,6 +1954,44 @@ class WorldUI:
                 NPCChoice("거절하기", choose_refuse)
             ]
         
+        # 도박꾼: 도박하기/거절하기 - 확인 대화
+        elif npc_subtype == "gambler":
+            # needs_confirm이 있으면 확인 대화 필요
+            if result.data and result.data.get("needs_confirm"):
+                bet_amount = result.data.get("bet_amount", 0)
+                tile = result.data.get("tile")
+                
+                def choose_accept():
+                    # 도박 실행
+                    if hasattr(self.exploration, 'execute_gambler_bet') and tile:
+                        gamble_result = self.exploration.execute_gambler_bet(tile, bet_amount)
+                        from src.ui.npc_dialog_ui import show_npc_dialog
+                        show_npc_dialog(
+                            console, context,
+                            self._get_npc_name(npc_subtype),
+                            gamble_result.message
+                        )
+                
+                def choose_refuse():
+                    # 거절하면 아이템 상호작용 안함
+                    from src.ui.npc_dialog_ui import show_npc_dialog
+                    show_npc_dialog(
+                        console, context,
+                        self._get_npc_name(npc_subtype),
+                        "도박꾼: '쳇, 겁쟁이군... 다음에 보자!'"
+                    )
+                
+                choices = [
+                    NPCChoice("도박하기", choose_accept),
+                    NPCChoice("거절하기", choose_refuse)
+                ]
+        
+        # 장비 마법사: 대화만 표시 (결과 메시지만)
+        elif npc_subtype == "equipment_enchanter":
+            # 장비 변형은 이미 exploration.py에서 처리됨
+            # 결과 메시지만 표시
+            pass
+        
         return choices if choices else None
 
 
@@ -2254,6 +2330,19 @@ def run_exploration(
                         else:
                             logger.error("❌ 클라이언트 스폰 위치 설정 실패: 방도 없고 계단도 없음!")
                         
+                        # 세션의 플레이어 위치도 업데이트 (중요: 멀티플레이 이동/렌더링 동기화)
+                        if hasattr(exploration, 'session') and exploration.session and hasattr(exploration, 'local_player_id'):
+                            local_id = exploration.local_player_id
+                            if local_id in exploration.session.players:
+                                exploration.session.players[local_id].x = exploration.player.x
+                                exploration.session.players[local_id].y = exploration.player.y
+                                
+                                # player_positions도 업데이트
+                                if hasattr(exploration, 'player_positions'):
+                                    exploration.player_positions[local_id] = (exploration.player.x, exploration.player.y)
+                                    
+                                logger.info(f"📍 클라이언트 세션 위치 업데이트: ({exploration.player.x}, {exploration.player.y})")
+
                         # FOV 업데이트
                         if hasattr(exploration, 'update_fov'):
                             exploration.update_fov()

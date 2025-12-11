@@ -30,16 +30,17 @@ def create_shaman_skills():
     curse = Skill(
         "shaman_curse",
         "저주 걸기",
-        "저주를 건다. 저주 스택 +1."
+        "[암흑 속성] 저주를 건다. 저주 스택 +1."
     )
     curse.effects = [
-        DamageEffect(DamageType.BRV, 1.4, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 1.4, stat_type="magical", element="dark"),
         GimmickEffect(GimmickOperation.ADD, "curse_stacks", 1, max_value=10)
     ]
     curse.costs = []
     curse.sfx = ("character", "status_debuff")
     curse.metadata = {
         "basic_attack": True,
+        "element": "dark",
         "curse_gain": 1
     }
     skills.append(curse)
@@ -50,10 +51,10 @@ def create_shaman_skills():
     curse_burst = Skill(
         "shaman_curse_burst",
         "저주 폭발",
-        "저주 비례 HP 피해. 저주 -1."
+        "[암흑 속성] 저주 비례 HP 피해. 저주 -1."
     )
     curse_burst.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="magic",
+        DamageEffect(DamageType.HP, 1.0, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "curse_stacks", "multiplier": 0.2}),
         GimmickEffect(GimmickOperation.CONSUME, "curse_stacks", 1)
     ]
@@ -61,6 +62,7 @@ def create_shaman_skills():
     curse_burst.sfx = ("skill", "cast_complete")
     curse_burst.metadata = {
         "basic_attack": True,
+        "element": "dark",
         "curse_cost": 1,
         "scaling": "저주당 +20%"
     }
@@ -140,16 +142,17 @@ def create_shaman_skills():
     dark_magic = Skill(
         "shaman_dark_magic",
         "어둠의 마법",
-        "어둠의 힘! 저주 비례 피해 + 저주 +1."
+        "[암흑 속성] 어둠의 힘! 저주 비례 피해 + 저주 +1."
     )
     dark_magic.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.2, stat_type="magic",
+        DamageEffect(DamageType.BRV_HP, 2.2, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "curse_stacks", "multiplier": 0.15}),
         GimmickEffect(GimmickOperation.ADD, "curse_stacks", 1, max_value=10)
     ]
     dark_magic.costs = [MPCost(8)]
     dark_magic.sfx = ("skill", "magic_cast")
     dark_magic.metadata = {
+        "element": "dark",
         "curse_scaling": True,
         "curse_gain": 1
     }
@@ -226,12 +229,12 @@ def create_shaman_skills():
     ultimate = Skill(
         "shaman_ultimate",
         "대저주",
-        "모든 저주 해방! 전체 극대 피해 + 저주 전소비."
+        "[암흑 속성] 모든 저주 해방! 전체 극대 피해 + 저주 전소비."
     )
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 3.0, stat_type="magic",
+        DamageEffect(DamageType.BRV, 3.0, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "curse_stacks", "multiplier": 0.3}),
-        DamageEffect(DamageType.HP, 3.3, stat_type="magic"),
+        DamageEffect(DamageType.HP, 3.3, stat_type="magical", element="dark"),
         StatusEffect(StatusType.POISON, duration=4, value=1.0,
                     damage_stat="magic", damage_multiplier=0.15),
         BuffEffect(BuffType.ATTACK_DOWN, 0.30, duration=4),
@@ -247,6 +250,7 @@ def create_shaman_skills():
     ultimate.metadata = {
         "ultimate": True,
         "aoe": True,
+        "element": "dark",
         "curse_consume_all": True
     }
     skills.append(ultimate)

@@ -236,12 +236,33 @@ def show_difficulty_selection(
     Returns:
         선택된 난이도 (취소 시 None)
     """
-    # 새로운 입력 핸들러 인스턴스 생성 (독립적인 입력 처리)
-    from src.ui.input_handler import UnifiedInputHandler
-    input_handler = UnifiedInputHandler()
     import time
+    import pygame
 
     ui = DifficultySelectionUI(console.width, console.height, difficulty_system)
+
+    # 입력 큐 비우기 (이전 입력 방지)
+    for _ in tcod.event.get():
+        pass
+    try:
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+
+    # 게임패드/키보드 입력 상태 초기화
+    unified_input_handler.clear_input_state()
+
+    # 딜레이 후 다시 이벤트 큐 비우기
+    time.sleep(0.1)
+    for _ in tcod.event.get():
+        pass
+    try:
+        pygame.event.pump()
+        pygame.event.clear()
+    except:
+        pass
+    unified_input_handler.clear_input_state()
 
     # 애니메이션을 위한 시간 관리
     last_time = time.time()
@@ -251,9 +272,16 @@ def show_difficulty_selection(
         current_time = time.time()
         delta_time = current_time - last_time
 
-        # 입력 처리 (프레임 제한과 무관하게 매 루프 처리)
+        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+        try:
+            pygame.event.pump()
+        except:
+            pass
+
+        # 입력 처리
+        action = None
         for event in tcod.event.get():
-            action = input_handler.process_tcod_event(event)
+            action = unified_input_handler.process_tcod_event(event)
 
             if action:
                 if ui.handle_input(action):
@@ -262,6 +290,13 @@ def show_difficulty_selection(
             # 윈도우 닫기
             if isinstance(event, tcod.event.Quit):
                 return DifficultyLevel.NORMAL  # 기본값
+
+        # 게임패드 입력 폴링 (키보드 이벤트가 없을 때)
+        if not action:
+            action = unified_input_handler.get_action()
+            if action:
+                if ui.handle_input(action):
+                    return ui.selected_difficulty
 
         # 프레임 제한 (30 FPS) - 렌더링만 제한
         if delta_time >= frame_time:

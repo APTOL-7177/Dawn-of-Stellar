@@ -1,7 +1,7 @@
 id: spirit_burst
 name: 정령 섬광
 type: attack
-description: '정령의 힘을 잠시 빌려 기본 HP 공격을 가합니다.
+description: '[암흑 속성] 정령의 힘을 잠시 빌려 기본 HP 공격을 가합니다.
 
   HP 1.1 피해를 가합니다.
 
@@ -15,6 +15,7 @@ effects:
   damage_type: hp
   stat_base: magical
   multiplier: 1.1
+  element: dark
 animation:
   icon: ??
   color:

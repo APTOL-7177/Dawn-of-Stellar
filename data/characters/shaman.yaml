@@ -4,7 +4,7 @@ slogan: 조상의 영력이 한계를 넘어선다
 archetype: MP 과부하 / 고위험 고보상
 base_stats:
   hp: 110
-  mp: 165
+  mp: 225
   init_brv: 100
   speed: 62
   physical_attack: 45
@@ -14,7 +14,7 @@ base_stats:
   max_brv: 294
 stat_growth:
   hp: 24.4
-  mp: 12.2
+  mp: 18.2
   init_brv: 23.6
   strength: 9.5
   defense: 9.4
@@ -22,7 +22,7 @@ stat_growth:
   spirit: 22.1
   speed: 13.8
   max_brv: 82.5
-  luck: 3
+  luck: 1.0
   accuracy: 1.6
   evasion: 1.2
 traits:

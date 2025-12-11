@@ -49,6 +49,7 @@ class DamageCalculator:
         attacker: Any,
         defender: Any,
         skill_multiplier: float = 1.0,
+        element: Optional[str] = None,
         **kwargs
     ) -> DamageResult:
         """
@@ -60,6 +61,7 @@ class DamageCalculator:
             attacker: 공격자
             defender: 방어자
             skill_multiplier: 스킬 배율
+            element: 원소 속성 (fire, ice, lightning 등)
             **kwargs: 추가 옵션 (ignore_evasion: 회피 무시)
 
         Returns:
@@ -95,9 +97,41 @@ class DamageCalculator:
             defender_def = max(0, defender_def - pierce_amount)
             self.logger.debug(f"[관통탄] 방어 관통: {pierce_amount} (공격력 {attacker_atk}의 {kwargs['defense_pierce_fixed']*100}%)")
 
+        # 물리 관통 적용 (% - 장비 효과)
+        phys_pen_pct = getattr(attacker, 'physical_penetration', 0)
+        if phys_pen_pct > 0:
+            original_def = defender_def
+            defender_def = int(defender_def * (1.0 - min(phys_pen_pct, 1.0)))
+            self.logger.debug(f"[물리 관통] 방어 {phys_pen_pct*100:.1f}% 무시 → {original_def} → {defender_def}")
+
+        # 물리 관통 적용 (고정수치 - 장비 효과)
+        phys_pen_fixed = getattr(attacker, 'physical_penetration_fixed', 0)
+        if phys_pen_fixed > 0:
+            original_def = defender_def
+            defender_def = max(0, defender_def - phys_pen_fixed)
+            self.logger.debug(f"[물리 관통(고정)] 방어 -{phys_pen_fixed} → {original_def} → {defender_def}")
+
         # 기본 데미지 계산: 공격력 / 방어력 비율
         stat_modifier = attacker_atk / (defender_def + 1.0)
-        base_damage = max(1, int(stat_modifier * skill_multiplier * self.brv_damage_multiplier))
+        
+        # 원소 데미지 보너스 적용 (물리 원소 공격용)
+        element_bonus = 1.0
+        if element:
+            element_bonus = self._get_element_bonus(defender, element)
+            # 장비 원소 데미지 보너스
+            elemental_damage_bonus = self._get_elemental_damage_stat(attacker, element)
+            if elemental_damage_bonus > 0:
+                attacker_atk += elemental_damage_bonus
+                self.logger.debug(f"[원소 데미지] {element} 보너스: +{elemental_damage_bonus} → 공격력: {attacker_atk}")
+                stat_modifier = attacker_atk / (defender_def + 1.0)
+        
+        base_damage = max(1, int(stat_modifier * skill_multiplier * self.brv_damage_multiplier * element_bonus))
+        
+        # 레벨 기반 배율: (1 + 공격자 레벨 * 0.3)
+        attacker_level = getattr(attacker, 'level', 1)
+        level_multiplier = 1.0 + (attacker_level * 0.3)
+        base_damage = int(base_damage * level_multiplier)
+
 
         # 특성 효과: HP 비례 공격력 (berserker_rage 등)
         from src.character.trait_effects import get_trait_effect_manager
@@ -125,13 +159,16 @@ class DamageCalculator:
 
         # 크리티컬 판정 (force_critical 지원)
         force_critical = kwargs.get('force_critical', False)
-        is_critical = self._check_critical(attacker, force_critical)
+        is_critical = self._check_critical(attacker, defender, force_critical)
         critical_dmg_mult = 1.0
         if is_critical:
             # 크리티컬 데미지 배율 (critical_master 등)
             critical_dmg_mult = trait_manager.calculate_critical_damage(attacker)
-            damage *= (self.critical_multiplier * critical_dmg_mult)
-            self.logger.debug(f"크리티컬 히트! {attacker.name} (배율: {self.critical_multiplier * critical_dmg_mult:.2f}x)")
+            # 장비의 critical_damage 효과 추가
+            equip_crit_bonus = self._get_equipment_critical_damage(attacker)
+            total_crit_mult = (self.critical_multiplier * critical_dmg_mult) + equip_crit_bonus
+            damage *= total_crit_mult
+            self.logger.debug(f"크리티컬 히트! {attacker.name} (배율: {total_crit_mult:.2f}x)")
 
         final_damage = max(1, int(damage))
 
@@ -332,6 +369,36 @@ class DamageCalculator:
             defender_stat = max(0, defender_stat - pierce_amount)
             self.logger.debug(f"[관통탄] HP 공격 방어 관통: {pierce_amount} (공격력 {attacker_stat}의 {kwargs['defense_pierce_fixed']*100}%)")
 
+        # 장비 관통 효과 적용 (damage_type에 따라 물리/마법 관통)
+        if damage_type == "magical":
+            # 마법 관통 적용 (%)
+            mag_pen_pct = getattr(attacker, 'magic_penetration', 0)
+            if mag_pen_pct > 0:
+                original_stat = defender_stat
+                defender_stat = int(defender_stat * (1.0 - min(mag_pen_pct, 1.0)))
+                self.logger.debug(f"[마법 관통] 마방 {mag_pen_pct*100:.1f}% 무시 → {original_stat} → {defender_stat}")
+
+            # 마법 관통 적용 (고정수치)
+            mag_pen_fixed = getattr(attacker, 'magic_penetration_fixed', 0)
+            if mag_pen_fixed > 0:
+                original_stat = defender_stat
+                defender_stat = max(0, defender_stat - mag_pen_fixed)
+                self.logger.debug(f"[마법 관통(고정)] 마방 -{mag_pen_fixed} → {original_stat} → {defender_stat}")
+        else:  # physical
+            # 물리 관통 적용 (%)
+            phys_pen_pct = getattr(attacker, 'physical_penetration', 0)
+            if phys_pen_pct > 0:
+                original_stat = defender_stat
+                defender_stat = int(defender_stat * (1.0 - min(phys_pen_pct, 1.0)))
+                self.logger.debug(f"[물리 관통] 방어 {phys_pen_pct*100:.1f}% 무시 → {original_stat} → {defender_stat}")
+
+            # 물리 관통 적용 (고정수치)
+            phys_pen_fixed = getattr(attacker, 'physical_penetration_fixed', 0)
+            if phys_pen_fixed > 0:
+                original_stat = defender_stat
+                defender_stat = max(0, defender_stat - phys_pen_fixed)
+                self.logger.debug(f"[물리 관통(고정)] 방어 -{phys_pen_fixed} → {original_stat} → {defender_stat}")
+
         # 스탯 보정 계산: 공격자 스탯 / (방어자 스탯 + 1)
         stat_modifier = attacker_stat / (defender_stat + 1.0)
 
@@ -376,13 +443,16 @@ class DamageCalculator:
 
         # 크리티컬 판정 (force_critical 지원)
         force_critical = kwargs.get('force_critical', False)
-        is_critical = self._check_critical(attacker, force_critical)
+        is_critical = self._check_critical(attacker, defender, force_critical)
         critical_dmg_mult = 1.0
         if is_critical:
             # 크리티컬 데미지 배율 (critical_master 등)
             critical_dmg_mult = trait_manager.calculate_critical_damage(attacker)
-            damage = int(damage * self.critical_multiplier * critical_dmg_mult)
-            self.logger.info(f"[CRITICAL] HP 공격! {attacker.name} (배율: {self.critical_multiplier * critical_dmg_mult:.2f}x)")
+            # 장비의 critical_damage 효과 추가
+            equip_crit_bonus = self._get_equipment_critical_damage(attacker)
+            total_crit_mult = (self.critical_multiplier * critical_dmg_mult) + equip_crit_bonus
+            damage = int(damage * total_crit_mult)
+            self.logger.info(f"[CRITICAL] HP 공격! {attacker.name} (배율: {total_crit_mult:.2f}x)")
 
         # BREAK 및 SCATTER 보너스 (SCATTER 우선 적용)
         from src.combat.status_effects import StatusType
@@ -552,6 +622,20 @@ class DamageCalculator:
         attacker_mag = self._get_magic_stat(attacker)
         defender_spr = self._get_spirit_stat(defender)
 
+        # 마법 관통 적용 (% - 장비 효과)
+        mag_pen_pct = getattr(attacker, 'magic_penetration', 0)
+        if mag_pen_pct > 0:
+            original_spr = defender_spr
+            defender_spr = int(defender_spr * (1.0 - min(mag_pen_pct, 1.0)))
+            self.logger.debug(f"[마법 관통] 마방 {mag_pen_pct*100:.1f}% 무시 → {original_spr} → {defender_spr}")
+
+        # 마법 관통 적용 (고정수치 - 장비 효과)
+        mag_pen_fixed = getattr(attacker, 'magic_penetration_fixed', 0)
+        if mag_pen_fixed > 0:
+            original_spr = defender_spr
+            defender_spr = max(0, defender_spr - mag_pen_fixed)
+            self.logger.debug(f"[마법 관통(고정)] 마방 -{mag_pen_fixed} → {original_spr} → {defender_spr}")
+
         # 기본 데미지 계산: 마법력 / 정신력 비율
         stat_modifier = attacker_mag / (defender_spr + 1.0)
 
@@ -559,6 +643,15 @@ class DamageCalculator:
         element_bonus = 1.0
         if element:
             element_bonus = self._get_element_bonus(defender, element)
+            
+            # 장비 원소 데미지 보너스 (fire_damage, ice_damage 등)
+            # 원소 속성 스킬 사용 시 공격력/마법력에 추가
+            elemental_damage_bonus = self._get_elemental_damage_stat(attacker, element)
+            if elemental_damage_bonus > 0:
+                attacker_mag += elemental_damage_bonus
+                self.logger.debug(f"[원소 데미지] {element} 보너스: +{elemental_damage_bonus} → 마법력: {attacker_mag}")
+                # stat_modifier 재계산
+                stat_modifier = attacker_mag / (defender_spr + 1.0)
 
         # 스킬 배율 적용
         base_damage = max(1, int(stat_modifier * skill_multiplier * self.brv_damage_multiplier * element_bonus))
@@ -569,9 +662,15 @@ class DamageCalculator:
 
         # 크리티컬 판정 (force_critical 지원)
         force_critical = kwargs.get('force_critical', False)
-        is_critical = self._check_critical(attacker, force_critical)
+        is_critical = self._check_critical(attacker, defender, force_critical)
         if is_critical:
-            damage *= self.critical_multiplier
+            # 장비의 critical_damage 효과 추가
+            from src.character.trait_effects import get_trait_effect_manager
+            trait_manager = get_trait_effect_manager()
+            critical_dmg_mult = trait_manager.calculate_critical_damage(attacker)
+            equip_crit_bonus = self._get_equipment_critical_damage(attacker)
+            total_crit_mult = (self.critical_multiplier * critical_dmg_mult) + equip_crit_bonus
+            damage *= total_crit_mult
 
         final_damage = max(1, int(damage))
 
@@ -847,12 +946,13 @@ class DamageCalculator:
 
         return is_hit
 
-    def _check_critical(self, attacker: Any, force_critical: bool = False) -> bool:
+    def _check_critical(self, attacker: Any, defender: Any = None, force_critical: bool = False) -> bool:
         """
         크리티컬 판정
 
         Args:
             attacker: 공격자
+            defender: 방어자 (특성 조건 체크용)
             force_critical: 강제 크리티컬 (마술사 행운 카드 등)
 
         Returns:
@@ -865,8 +965,22 @@ class DamageCalculator:
         # 행운 스탯 추출
         luck = getattr(attacker, "luck", 5)
 
-        # 크리티컬 확률 = 기본 확률 + (행운 / 100)
-        critical_chance = self.critical_base_chance + (luck / 100.0)
+        # 크리티컬 확률 = 1 - (100 / (행운*2 + 100)) + 기본 확률
+        # 행운 0: 10%, 행운 10: ~26%, 행운 30: ~48%, 행운 50: ~60%, 행운 100: ~76%
+        luck_bonus = 1.0 - (100.0 / (luck * 2 + 100))
+        critical_chance = luck_bonus + self.critical_base_chance
+        
+        # 특성에 의한 크리티컬 보너스 적용
+        try:
+            from src.character.trait_effects import get_trait_effect_manager
+            trait_manager = get_trait_effect_manager()
+            context = {"target": defender} if defender else {}
+            trait_bonus = trait_manager.calculate_critical_bonus(attacker, **context)
+            critical_chance += trait_bonus
+            if trait_bonus > 0:
+                self.logger.debug(f"[특성 크리티컬] {getattr(attacker, 'name', 'Unknown')} +{trait_bonus * 100:.0f}%")
+        except Exception as e:
+            self.logger.debug(f"특성 크리티컬 보너스 계산 실패: {e}")
 
         # 크리티컬 확률 상한선 (95%)
         critical_chance = min(0.95, critical_chance)
@@ -901,6 +1015,100 @@ class DamageCalculator:
             return 1.0 - resistance_bonus
 
         return 1.0
+
+    def _get_equipment_critical_damage(self, character: Any) -> float:
+        """
+        장비의 critical_damage 효과 합산
+        
+        Args:
+            character: 캐릭터
+            
+        Returns:
+            크리티컬 데미지 추가 배율 (0.5 = +50%)
+        """
+        bonus = 0.0
+        
+        if not hasattr(character, 'equipment') or not character.equipment:
+            return bonus
+            
+        for slot, item in character.equipment.items():
+            if not item:
+                continue
+            
+            # special_effects에서 critical_damage 확인
+            if hasattr(item, 'special_effects'):
+                for effect in item.special_effects:
+                    effect_type = getattr(effect, 'effect_type', None)
+                    effect_value = getattr(effect, 'value', 0)
+                    # EffectType enum의 value로 비교
+                    type_value = getattr(effect_type, 'value', str(effect_type)) if effect_type else ''
+                    if type_value == 'critical_damage':
+                        bonus += effect_value
+                        self.logger.debug(f"[장비 크리티컬] {item.name}: +{effect_value*100:.0f}%")
+        
+        return bonus
+
+    def _get_elemental_damage_stat(self, character: Any, element: str) -> int:
+        """
+        원소별 추가 데미지 스탯 추출
+        
+        장비의 fire_damage, ice_damage, lightning_damage 등을 합산하여
+        해당 원소 스킬 사용 시 공격력/마법력에 추가합니다.
+        
+        Args:
+            character: 캐릭터
+            element: 원소 타입 (fire, ice, lightning, holy, dark, earth, wind, water)
+            
+        Returns:
+            원소 데미지 보너스 합계
+        """
+        # 원소별 속성명 매핑
+        element_attr_map = {
+            "fire": "fire_damage",
+            "ice": "ice_damage",
+            "lightning": "lightning_damage",
+            "water": "water_damage",
+            "earth": "earth_damage",
+            "wind": "wind_damage",
+            "holy": "holy_damage",
+            "dark": "dark_damage",
+        }
+        
+        bonus = 0
+        attr_name = element_attr_map.get(element)
+        
+        if not attr_name:
+            return 0
+        
+        # 캐릭터 속성에서 직접 가져오기 (장비 효과 합산된 값)
+        if hasattr(character, attr_name):
+            bonus += getattr(character, attr_name, 0)
+        
+        # 장비에서 원소 데미지 합산 (character.equipment가 있는 경우)
+        if hasattr(character, 'equipment') and character.equipment:
+            for slot, item in character.equipment.items():
+                if item and hasattr(item, 'effects'):
+                    for effect in item.effects:
+                        if hasattr(effect, 'effect_type') and hasattr(effect, 'value'):
+                            if effect.effect_type == attr_name:
+                                bonus += effect.value
+                        elif isinstance(effect, dict):
+                            if effect.get('type') == attr_name or effect.get('effect_type') == attr_name:
+                                bonus += effect.get('value', 0)
+        
+        # 추가 옵션 (affixes)에서도 확인
+        if hasattr(character, 'equipment') and character.equipment:
+            for slot, item in character.equipment.items():
+                if item and hasattr(item, 'affixes'):
+                    for affix in item.affixes:
+                        if hasattr(affix, 'effect_type') and hasattr(affix, 'value'):
+                            if affix.effect_type == attr_name:
+                                bonus += affix.value
+                        elif isinstance(affix, dict):
+                            if affix.get('type') == attr_name or affix.get('effect_type') == attr_name:
+                                bonus += affix.get('value', 0)
+        
+        return int(bonus)
 
 
 # 전역 인스턴스

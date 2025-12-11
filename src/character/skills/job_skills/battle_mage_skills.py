@@ -128,15 +128,16 @@ def create_battle_mage_skills():
     shock_imprint = Skill(
         "battle_mage_shock_imprint",
         "충격 각인",
-        "번개 룬을 강제로 각인하고 쇼크를 남긴다."
+        "[전기 속성] 번개 룬을 강제로 각인하고 쇼크를 남긴다."
     )
     shock_imprint.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.2, stat_type="hybrid"),
+        DamageEffect(DamageType.BRV_HP, 1.2, stat_type="hybrid", element="lightning"),
         StatusEffect(StatusType.SHOCK, duration=1, value=1.0, chance=0.5)
     ]
     shock_imprint.costs = [MPCost(7)]
     shock_imprint.sfx = ("skill", "attack_magic")
     shock_imprint.metadata = {
+        "element": "lightning",
         "carve_rune_type": "lightning",
         "carve_count": 1,
         "resonance_gain_per_rune": 8
@@ -195,16 +196,17 @@ def create_battle_mage_skills():
     chain_thunder = Skill(
         "battle_mage_chain_thunder",
         "연쇄 낙뢰",
-        "번개 룬을 기폭시켜 연쇄 전격을 퍼뜨린다."
+        "[전기 속성] 번개 룬을 기폭시켜 연쇄 전격을 퍼뜨린다."
     )
     chain_thunder.effects = [
-        DamageEffect(DamageType.HP, 1.25, stat_type="hybrid",
+        DamageEffect(DamageType.HP, 1.25, stat_type="hybrid", element="lightning",
                      gimmick_bonus={"field": "total_runes", "multiplier": 0.2}),
         StatusEffect(StatusType.SHOCK, duration=1, value=1.0, chance=0.45)
     ]
     chain_thunder.costs = [MPCost(11)]
     chain_thunder.sfx = ("skill", "attack_magic")
     chain_thunder.metadata = {
+        "element": "lightning",
         "detonate_target_runes": True,
         "spread_chance": 0.5,
         "aoe_falloff": [0.8, 0.6],

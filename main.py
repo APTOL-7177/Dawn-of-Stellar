@@ -3898,7 +3898,7 @@ def main() -> int:
                     # 파티 강화 업그레이드 적용 (인벤토리 확장)
                     from src.character.upgrade_applier import UpgradeApplier
                     inventory_weight_bonus = UpgradeApplier.get_inventory_weight_bonus(meta_progress=host_meta, is_host=is_host)
-                    base_weight = 5.0 + (inventory_weight_bonus / 2.5)  # 인벤토리 확장 보너스 적용
+                    base_weight = 50.0 + inventory_weight_bonus  # 기본 50kg + 업그레이드 보너스
                     inventory = Inventory(base_weight=base_weight, party=party)
                     inventory.add_gold(200)  # 시작 골드
                     logger.info(f"인벤토리 생성 완료: {inventory.max_weight}kg 가능 (업그레이드 보너스: +{inventory_weight_bonus}kg)")

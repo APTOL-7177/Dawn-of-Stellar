@@ -32,16 +32,16 @@ def create_vampire_skills():
     blood_drain.metadata = {"basic_attack": True, "thirst_reduction": -20, "lifesteal": 0.75}
 
     # 3. 피의 창 (안정형 - 저위험, 갈증 감소 + 회복)
-    blood_lance = Skill("vampire_blood_lance", "피의 창", "안정적인 공격 + 갈증 감소 + 소량 회복")
+    blood_lance = Skill("vampire_blood_lance", "피의 창", "[암흑 속성] 안정적인 공격 + 갈증 감소 + 소량 회복")
     blood_lance.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.6, stat_type="magical",
-                    gimmick_bonus={"field": "thirst", "multiplier": 0.005}),  # 갈증 1당 +0.5% 피해
-        GimmickEffect(GimmickOperation.ADD, "thirst", -5, min_value=0),  # 갈증 -5 (안정적)
-        HealEffect(percentage=0.15, target_self=True)  # HP 15% 자가 회복
+        DamageEffect(DamageType.BRV_HP, 1.6, stat_type="magical", element="dark",
+                    gimmick_bonus={"field": "thirst", "multiplier": 0.005}),
+        GimmickEffect(GimmickOperation.ADD, "thirst", -5, min_value=0),
+        HealEffect(percentage=0.15, target_self=True)
     ]
     blood_lance.costs = [MPCost(4)]
     blood_lance.sfx = ("combat", "damage_high")
-    blood_lance.metadata = {"thirst_scaling": True, "stable": True, "sustain": True}
+    blood_lance.metadata = {"element": "dark", "thirst_scaling": True, "stable": True, "sustain": True}
 
     # 4. 갈증 폭발 (고위험 고회보 - 갈증 소모해서 폭발적 피해)
     thirst_surge = Skill("vampire_thirst_surge", "갈증 폭발", "갈증을 소모해 폭발적인 피해 (갈증 -40)")
@@ -56,16 +56,16 @@ def create_vampire_skills():
     thirst_surge.metadata = {"thirst_consume": True, "burst": True}
 
     # 5. 박쥐 떼 (광역 공격, 갈증 증가)
-    bat_swarm = Skill("vampire_bat_swarm", "박쥐 떼", "박쥐 떼로 적 전체 공격, 갈증 증가")
+    bat_swarm = Skill("vampire_bat_swarm", "박쥐 떼", "[암흑 속성] 박쥐 떼로 적 전체 공격, 갈증 증가")
     bat_swarm.effects = [
-        DamageEffect(DamageType.BRV, 1.4, stat_type="magical"),
-        GimmickEffect(GimmickOperation.ADD, "thirst", 12, max_value=100)  # 갈증 +12
+        DamageEffect(DamageType.BRV, 1.4, stat_type="magical", element="dark"),
+        GimmickEffect(GimmickOperation.ADD, "thirst", 12, max_value=100)
     ]
     bat_swarm.costs = [MPCost(5)]
     bat_swarm.target_type = "all_enemies"
     bat_swarm.is_aoe = True
-    bat_swarm.sfx = ("skill", "summon")  # 박쥐 떼
-    bat_swarm.metadata = {"aoe": True, "thirst_increase": True}
+    bat_swarm.sfx = ("skill", "summon")
+    bat_swarm.metadata = {"element": "dark", "aoe": True, "thirst_increase": True}
 
     # 6. 안개 형상 (회피 증가 + 갈증 증가)
     mist_form = Skill("vampire_mist_form", "안개 형상", "안개가 되어 회피 증가, 갈증 상승")
@@ -90,16 +90,16 @@ def create_vampire_skills():
     prepare_frenzy.sfx = ("character", "status_buff")  # 광란 준비
     prepare_frenzy.metadata = {"thirst_increase": True, "optimal_thirst": 70}
 
-    # 8. 생명력 착취 (강력한 HP 흡수, 갈증 대폭 감소) - 일부 스킬
-    life_tap = Skill("vampire_life_tap", "생명력 착취", "적의 생명력을 대량 흡수, 갈증 -30")
+    # 8. 생명력 착취 (강력한 HP 흡수, 갈증 대폭 감소)
+    life_tap = Skill("vampire_life_tap", "생명력 착취", "[암흑 속성] 적의 생명력을 대량 흡수, 갈증 -30")
     life_tap.effects = [
-        DamageEffect(DamageType.HP, 2.5, stat_type="magical"),
-        LifestealEffect(lifesteal_percent=0.9),  # 가한 데미지의 90% 흡혈
-        GimmickEffect(GimmickOperation.ADD, "thirst", -30, min_value=0)  # 갈증 -30
+        DamageEffect(DamageType.HP, 2.5, stat_type="magical", element="dark"),
+        LifestealEffect(lifesteal_percent=0.9),
+        GimmickEffect(GimmickOperation.ADD, "thirst", -30, min_value=0)
     ]
     life_tap.costs = [MPCost(9)]
-    life_tap.sfx = ("character", "hp_heal")  # 생명력 착취
-    life_tap.metadata = {"major_drain": True, "thirst_reduction": -30}
+    life_tap.sfx = ("character", "hp_heal")
+    life_tap.metadata = {"element": "dark", "major_drain": True, "thirst_reduction": -30}
 
     # 9. 혈액 만족 (갈증을 0으로 리셋) - 일부 스킬
     blood_satiation = Skill("vampire_blood_satiation", "혈액 만족", "갈증을 0으로 리셋 (만족 상태)")
@@ -114,23 +114,22 @@ def create_vampire_skills():
     blood_satiation.metadata = {"thirst_reset": True, "recovery": True}
 
     # 10. 궁극기: 혈족의 군주 (극한 갈증 활용, 갈증 증가)
-    ultimate = Skill("vampire_ultimate", "혈족의 군주", "극한 갈증으로 압도적인 힘 발휘")
+    ultimate = Skill("vampire_ultimate", "혈족의 군주", "[암흑 속성] 극한 갈증으로 압도적인 힘 발휘")
     ultimate.effects = [
-        # 현재 갈증에 비례한 극대 피해
         DamageEffect(DamageType.BRV, 3.0, stat_type="physical",
                     gimmick_bonus={"field": "thirst", "multiplier": 0.01}),
-        DamageEffect(DamageType.HP, 3.2, stat_type="magical",
+        DamageEffect(DamageType.HP, 3.2, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "thirst", "multiplier": 0.01}),
-        HealEffect(percentage=0.95),  # 궁극기
-        BuffEffect(BuffType.ATTACK_UP, 1.0, duration=4, target="self"),  # 공격력 +100%
-        GimmickEffect(GimmickOperation.ADD, "thirst", 20, max_value=100)  # 갈증 +20 (궁극기 사용 비용)
+        HealEffect(percentage=0.95),
+        BuffEffect(BuffType.ATTACK_UP, 1.0, duration=4, target="self"),
+        GimmickEffect(GimmickOperation.ADD, "thirst", 20, max_value=100)
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
-    ultimate.sfx = ("skill", "limit_break")  # 궁극기
+    ultimate.cooldown = 15
+    ultimate.sfx = ("skill", "limit_break")
     ultimate.target_type = "single"
-    ultimate.metadata = {"ultimate": True, "thirst_scaling_max": True, "thirst_increase": True}
+    ultimate.metadata = {"ultimate": True, "element": "dark", "thirst_scaling_max": True, "thirst_increase": True}
 
     skills = [vampiric_bite, blood_drain, blood_lance, thirst_surge, bat_swarm,
             mist_form, prepare_frenzy, life_tap, blood_satiation, ultimate]

@@ -22,7 +22,7 @@ stat_growth:
   spirit: 8.5
   speed: 23.5
   max_brv: 86.5
-  luck: 3
+  luck: 1.5
   accuracy: 1.8
   evasion: 1.5
 traits:

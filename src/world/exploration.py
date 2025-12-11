@@ -889,7 +889,7 @@ class ExplorationSystem:
         )
 
     def _handle_chest(self, tile: Tile) -> ExplorationResult:
-        """보물상자 처리"""
+        """보물상자 처리 - LootUI에서 처리하도록 아이템 반환"""
         from src.equipment.item_system import ItemGenerator
         import random
 
@@ -912,48 +912,22 @@ class ExplorationSystem:
                 message="📦 보물상자를 열었지만 비어있었다..."
             )
         
-        # 디버그 로그
-        logger.warning(f"[CHEST] 보물상자 처리 시작: {item.name}")
-        logger.warning(f"[CHEST] 인벤토리 존재 여부: {self.inventory is not None}")
-        if self.inventory is not None:
-            logger.warning(f"[CHEST] 인벤토리 슬롯 수: {len(self.inventory.slots)}")
-            logger.warning(f"[CHEST] 현재 무게: {self.inventory.current_weight}kg / {self.inventory.max_weight}kg")
-
         # 보물상자 열기 SFX
         play_sfx("world", "chest_open")
         
-        # 인벤토리에 추가
-        if self.inventory is not None:
-            success = self.inventory.add_item(item)
-            logger.warning(f"[CHEST] add_item 결과: {success}")
-            if not success:
-                logger.warning(f"인벤토리 가득 참! {item.name} 버려짐")
-                return ExplorationResult(
-                    success=False,
-                    event=ExplorationEvent.NONE,
-                    message=f"📦 보물상자 발견! 하지만 인벤토리가 가득 차서 {item.name}을(를) 버렸다..."
-                )
-        else:
-            logger.error(f"[CHEST] 인벤토리가 None입니다!")
+        logger.info(f"[CHEST] 보물상자 발견: {item.name} - LootUI로 전달")
 
-        logger.info(f"보물상자 획득: {item.name}")
-
-        # 아이템 획득 SFX
-        play_sfx("item", "get_item")
-
-        # 상자 제거
-        tile.tile_type = TileType.FLOOR
-        tile.loot_id = None
-
+        # 아이템을 인벤토리에 자동 추가하지 않고 data로 반환
+        # world_ui.py에서 LootUI를 통해 획득 처리
         return ExplorationResult(
             success=True,
             event=ExplorationEvent.CHEST_FOUND,
-            message=f"📦 보물상자 발견! {item.name} 획득!",
-            data={"item": item}
+            message=f"📦 보물상자 발견!",
+            data={"items": [item], "tile": tile}
         )
 
     def _handle_item(self, tile: Tile) -> ExplorationResult:
-        """떨어진 아이템 처리"""
+        """떨어진 아이템 처리 - LootUI에서 처리하도록 아이템 반환"""
         from src.equipment.item_system import ItemGenerator
         from src.combat.experience_system import RewardCalculator
         import random
@@ -966,73 +940,28 @@ class ExplorationSystem:
             # 랜덤 아이템 생성 (일반 드롭)
             item = ItemGenerator.create_random_drop(self.floor_number, boss_drop=False)
 
-        # 디버그 로그
-        logger.warning(f"[ITEM] 아이템 처리 시작: {item.name}")
-        logger.warning(f"[ITEM] 인벤토리 존재 여부: {self.inventory is not None}")
-        if self.inventory is not None:
-            logger.warning(f"[ITEM] 인벤토리 슬롯 수: {len(self.inventory.slots)}")
-            logger.warning(f"[ITEM] 현재 무게: {self.inventory.current_weight}kg / {self.inventory.max_weight}kg")
-
-        # 인벤토리에 추가
-        if self.inventory is None:
-            logger.error(f"[ITEM] 인벤토리가 None입니다!")
+        # 아이템 생성 실패 처리
+        if item is None:
+            logger.warning("[ITEM] 아이템 생성 실패")
+            tile.tile_type = TileType.FLOOR
             return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NONE,
-                message=f"✨ 아이템 발견! 하지만 인벤토리가 없어서 {item.name}을(를) 가져갈 수 없다..."
-            )
-
-        success = self.inventory.add_item(item)
-        logger.warning(f"[ITEM] add_item 결과: {success}")
-
-        if not success:
-            logger.warning(f"인벤토리 가득 참! {item.name} 버려짐")
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NONE,
-                message=f"✨ 아이템 발견! 하지만 인벤토리가 가득 차서 {item.name}을(를) 버렸다..."
+                success=True,
+                event=ExplorationEvent.ITEM_FOUND,
+                message="✨ 아이템을 발견했지만 비어있었다..."
             )
 
         # 아이템 발견 SFX
         play_sfx("world", "item_discover")
         
-        # 성공: 아이템 획득
-        logger.info(f"아이템 획득: {item.name}")
+        logger.info(f"[ITEM] 아이템 발견: {item.name} - LootUI로 전달")
 
-        # 아이템 획득 SFX
-        play_sfx("item", "get_item")
-
-        # 아이템 제거
-        tile.tile_type = TileType.FLOOR
-        tile.loot_id = None
-        
-        # 멀티플레이어: 아이템 획득 동기화
-        if hasattr(self, 'is_multiplayer') and self.is_multiplayer:
-            if hasattr(self, 'network_manager') and self.network_manager:
-                from src.multiplayer.protocol import MessageBuilder
-                import asyncio
-                try:
-                    item_pickup_msg = MessageBuilder.item_picked_up(
-                        x=self.player.x,
-                        y=self.player.y
-                    )
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        asyncio.create_task(self.network_manager.broadcast(item_pickup_msg))
-                    else:
-                        loop.run_until_complete(self.network_manager.broadcast(item_pickup_msg))
-                    logger.debug(f"아이템 획득 동기화 메시지 전송: ({self.player.x}, {self.player.y})")
-                except Exception as e:
-                    logger.error(f"아이템 획득 동기화 메시지 전송 실패: {e}", exc_info=True)
-
-        # 아이템 획득 이벤트 발행 (진동용)
-        event_bus.publish(Events.WORLD_ITEM_PICKUP, {"item": item, "player": self.player})
-
+        # 아이템을 인벤토리에 자동 추가하지 않고 data로 반환
+        # world_ui.py에서 LootUI를 통해 획득 처리
         return ExplorationResult(
             success=True,
             event=ExplorationEvent.ITEM_FOUND,
-            message=f"✨ 아이템 발견! {item.name} 획득!",
-            data={"item": item}
+            message=f"✨ 아이템 발견!",
+            data={"items": [item], "tile": tile}
         )
 
     def _handle_dropped_item(self, tile: Tile) -> ExplorationResult:
@@ -2796,12 +2725,15 @@ class ExplorationSystem:
         
         messages = []
         for member in self.player.party:
-            if hasattr(member, increase_stat[0]):
-                old_val = getattr(member, increase_stat[0])
-                setattr(member, increase_stat[0], old_val + increase_stat[2])
-            if hasattr(member, decrease_stat[0]):
-                old_val = getattr(member, decrease_stat[0])
-                setattr(member, decrease_stat[0], max(1, old_val - decrease_stat[2]))
+            # stat_manager를 통해 기본 스탯 수정
+            if hasattr(member, 'stat_manager'):
+                # 증가 스탯
+                member.stat_manager.modify(increase_stat[0], increase_stat[2])
+                # 감소 스탯 (최소 1 유지)
+                current_val = member.stat_manager.get_value(decrease_stat[0], use_total=False)
+                decrease_amount = min(decrease_stat[2], current_val - 1)  # 최소 1 유지
+                if decrease_amount > 0:
+                    member.stat_manager.modify(decrease_stat[0], -decrease_amount)
         
         return ExplorationResult(
             success=True,
@@ -2811,9 +2743,17 @@ class ExplorationSystem:
         )
     
     def _handle_gambler(self, tile: Tile) -> ExplorationResult:
-        """도박꾼 NPC (골드 베팅)"""
+        """도박꾼 NPC (골드 베팅) - 대화 확인 후 진행"""
         import random
-        tile.npc_interacted = True
+        
+        # 이미 상호작용 완료된 경우
+        if tile.npc_interacted:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NPC_INTERACTION,
+                message="도박꾼: '이미 한판 했잖아! 다음에 또 만나자!'",
+                data={"npc_subtype": "gambler", "already_interacted": True}
+            )
         
         if not self.inventory:
             return ExplorationResult(
@@ -2839,6 +2779,25 @@ class ExplorationSystem:
                 data={"npc_subtype": "gambler"}
             )
         
+        # 확인 대화를 요청 (world_ui.py에서 선택지 처리)
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.NPC_INTERACTION,
+            message=f"도박꾼: '한판 해볼래? 베팅 금액은 {bet_amount} 골드다!'\n(현재 보유: {self.inventory.gold} 골드)",
+            data={
+                "npc_subtype": "gambler", 
+                "needs_confirm": True,
+                "bet_amount": bet_amount,
+                "tile": tile
+            }
+        )
+    
+    def execute_gambler_bet(self, tile: Tile, bet_amount: int) -> ExplorationResult:
+        """도박꾼 NPC - 실제 도박 실행 (확인 후 호출)"""
+        import random
+        
+        tile.npc_interacted = True
+        
         # 50/50 도박
         if random.random() < 0.5:
             # 승리: 베팅 금액의 2배 획득
@@ -2861,68 +2820,101 @@ class ExplorationSystem:
             )
     
     def _handle_equipment_enchanter(self, tile: Tile) -> ExplorationResult:
-        """장비 변형 NPC (무작위 장비 속성 변경)"""
+        """장비 변형 NPC (장착 중인 모든 장비 속성 변경) - 대화 확인 필요"""
         import random
+        
+        # 이미 상호작용한 NPC는 다시 상호작용 불가
+        if tile.npc_interacted:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NPC_INTERACTION,
+                message="장비 마법사: '이미 만났군... 다음에 또 보지.'",
+                data={"npc_subtype": "equipment_enchanter", "already_interacted": True}
+            )
+        
+        # 파티가 없으면 처리 불가
+        if not self.player.party:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NPC_INTERACTION,
+                message="장비 마법사: '변형할 장비를 가진 자가 없군...'",
+                data={"npc_subtype": "equipment_enchanter"}
+            )
+        
+        # 상호작용 전에 확인을 받아야 함 (첫 조우)
+        # 대화 확인은 world_ui.py에서 NPC_INTERACTION 이벤트 처리 시 선택지로 제공
         tile.npc_interacted = True
         
-        if not self.inventory or not self.inventory.slots:
+        # 모든 파티원의 장착 중인 장비 수집
+        all_equipped_items = []
+        for member in self.player.party:
+            if hasattr(member, 'equipment') and member.equipment:
+                equipment = member.equipment
+                # member.equipment은 딕셔너리 {'weapon': item, 'armor': item, 'accessory': item}
+                # 각 장비 슬롯 확인
+                for slot_name in ['weapon', 'armor', 'accessory']:
+                    # 딕셔너리에서 .get()으로 접근
+                    item = equipment.get(slot_name) if isinstance(equipment, dict) else getattr(equipment, slot_name, None)
+                    if item and hasattr(item, 'base_stats') and item.base_stats:
+                        all_equipped_items.append((member.name, slot_name, item))
+        
+        if not all_equipped_items:
             return ExplorationResult(
                 success=False,
                 event=ExplorationEvent.NPC_INTERACTION,
-                message="장비 마법사: '변형할 장비가 없군...'",
+                message="장비 마법사: '장착한 장비가 없군... 장비를 갖춰 오거라.'",
                 data={"npc_subtype": "equipment_enchanter"}
             )
         
-        # 장비 찾기
-        equipment_items = []
-        for i, slot in enumerate(self.inventory.slots):
-            if slot and slot.item:
-                item = slot.item
-                if hasattr(item, 'base_stats') and item.base_stats:
-                    equipment_items.append((i, item))
+        # 모든 장착 장비에 대해 스탯 변형 적용
+        enhanced_list = []
+        weakened_list = []
         
-        if not equipment_items:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="장비 마법사: '변형할 장비가 없군...'",
-                data={"npc_subtype": "equipment_enchanter"}
-            )
+        for member_name, slot_name, item in all_equipped_items:
+            if item.base_stats:
+                # 랜덤 스탯 선택
+                stat_key = random.choice(list(item.base_stats.keys()))
+                original_value = item.base_stats[stat_key]
+                
+                if random.random() < 0.7:
+                    # 70% 확률로 향상
+                    boost = int(original_value * random.uniform(0.2, 0.5))
+                    boost = max(1, boost)  # 최소 1
+                    item.base_stats[stat_key] = original_value + boost
+                    enhanced_list.append(f"{item.name}: {stat_key} +{boost}")
+                else:
+                    # 30% 확률로 하락
+                    penalty = int(original_value * random.uniform(0.1, 0.3))
+                    penalty = max(1, penalty)  # 최소 1
+                    item.base_stats[stat_key] = max(1, original_value - penalty)
+                    weakened_list.append(f"{item.name}: {stat_key} -{penalty}")
         
-        # 랜덤 장비 선택
-        idx, item = random.choice(equipment_items)
+        # 결과 메시지 생성
+        result_lines = ["장비 마법사: '마법의 힘으로 장비를 변형했다!'"]
         
-        # 스탯 변형 (70% 확률 향상, 30% 확률 하락)
-        if item.base_stats:
-            stat_key = random.choice(list(item.base_stats.keys()))
-            original_value = item.base_stats[stat_key]
-            
-            if random.random() < 0.7:
-                # 향상
-                boost = int(original_value * random.uniform(0.2, 0.5))
-                item.base_stats[stat_key] = original_value + boost
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"장비 마법사: '마법의 힘으로..!'\n{item.name}의 {stat_key} +{boost} 강화!",
-                    data={"npc_subtype": "equipment_enchanter", "item": item.name, "enhanced": True}
-                )
-            else:
-                # 하락
-                penalty = int(original_value * random.uniform(0.1, 0.3))
-                item.base_stats[stat_key] = max(1, original_value - penalty)
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"장비 마법사: '실패했다...!'\n{item.name}의 {stat_key} -{penalty} 약화...",
-                    data={"npc_subtype": "equipment_enchanter", "item": item.name, "enhanced": False}
-                )
+        if enhanced_list:
+            result_lines.append(f"\n✨ 강화된 장비 ({len(enhanced_list)}개):")
+            for e in enhanced_list[:5]:  # 최대 5개만 표시
+                result_lines.append(f"  • {e}")
+            if len(enhanced_list) > 5:
+                result_lines.append(f"  ... 외 {len(enhanced_list) - 5}개")
+        
+        if weakened_list:
+            result_lines.append(f"\n💔 약화된 장비 ({len(weakened_list)}개):")
+            for w in weakened_list[:3]:  # 최대 3개만 표시
+                result_lines.append(f"  • {w}")
+            if len(weakened_list) > 3:
+                result_lines.append(f"  ... 외 {len(weakened_list) - 3}개")
         
         return ExplorationResult(
-            success=False,
+            success=True,
             event=ExplorationEvent.NPC_INTERACTION,
-            message="장비 마법사: '이 장비는 변형할 수 없다...'",
-            data={"npc_subtype": "equipment_enchanter"}
+            message="\n".join(result_lines),
+            data={
+                "npc_subtype": "equipment_enchanter", 
+                "enhanced_count": len(enhanced_list), 
+                "weakened_count": len(weakened_list)
+            }
         )
     
     def _handle_dungeon_curse(self, tile: Tile) -> ExplorationResult:

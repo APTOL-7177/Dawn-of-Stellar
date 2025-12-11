@@ -40,20 +40,20 @@ def create_archmage_skills():
     # ========================================
 
     # 1. 기본 BRV: 화염구
-    fireball = Skill("archmage_fireball", "화염구", "화염 원소 획득")
+    fireball = Skill("archmage_fireball", "화염구", "[화염 속성] 화염 원소 획득")
     fireball.effects = [
-        DamageEffect(DamageType.BRV, 1.6, stat_type="magical"),
+        DamageEffect(DamageType.BRV, 1.6, stat_type="magical", element="fire"),
         GimmickEffect(GimmickOperation.ADD, "fire_element", 1, max_value=5)
     ]
-    fireball.costs = []  # 기본 공격은 MP 소모 없음
+    fireball.costs = []
     fireball.sfx = ("skill", "fire")
     fireball.metadata = {"element": "fire", "element_gain": 1}
     skills.append(fireball)
 
     # 2. 기본 HP: 번개 화살
-    lightning_bolt = Skill("archmage_lightning_bolt", "번개 화살", "번개 원소 획득")
+    lightning_bolt = Skill("archmage_lightning_bolt", "번개 화살", "[전기 속성] 번개 원소 획득")
     lightning_bolt.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="magical"),
+        DamageEffect(DamageType.HP, 1.0, stat_type="magical", element="lightning"),
         GimmickEffect(GimmickOperation.ADD, "lightning_element", 1, max_value=5)
     ]
     lightning_bolt.costs = []
@@ -62,9 +62,9 @@ def create_archmage_skills():
     skills.append(lightning_bolt)
 
     # 3. 빙결 폭풍
-    ice_storm = Skill("archmage_ice_storm", "빙결 폭풍", "빙결 원소 획득 광역 공격")
+    ice_storm = Skill("archmage_ice_storm", "빙결 폭풍", "[빙결 속성] 빙결 원소 획득 광역 공격")
     ice_storm.effects = [
-        DamageEffect(DamageType.BRV, 2.0, stat_type="magical"),
+        DamageEffect(DamageType.BRV, 2.0, stat_type="magical", element="ice"),
         GimmickEffect(GimmickOperation.ADD, "ice_element", 1, max_value=5)
     ]
     ice_storm.costs = []

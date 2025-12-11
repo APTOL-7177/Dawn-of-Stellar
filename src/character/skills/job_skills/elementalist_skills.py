@@ -32,7 +32,7 @@ def create_elementalist_skills():
         "정령의 힘을 담은 기본 공격."
     )
     strike.effects = [
-        DamageEffect(DamageType.BRV, 1.4, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 1.4, stat_type="magical"),
     ]
     strike.costs = []
     strike.sfx = ("skill", "magic_cast")
@@ -51,7 +51,7 @@ def create_elementalist_skills():
         "소환된 정령 수 비례 HP 피해."
     )
     spirit_burst.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="magic",
+        DamageEffect(DamageType.HP, 1.0, stat_type="magical",
                     gimmick_bonus={"field": "spirit_count", "multiplier": 0.4}),
     ]
     spirit_burst.costs = []
@@ -68,10 +68,10 @@ def create_elementalist_skills():
     summon_fire = Skill(
         "elementalist_summon_fire",
         "화염 정령 소환",
-        "화염 정령 소환! 공격력 +20%, 화상 부여."
+        "[화염 속성] 화염 정령 소환! 공격력 +20%, 화상 부여."
     )
     summon_fire.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="magic"),
+        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="magical", element="fire"),
         StatusEffect(StatusType.BURN, duration=3, value=1.0,
                     damage_stat="magic", damage_multiplier=0.10),
         BuffEffect(BuffType.ATTACK_UP, 0.20, duration=5, target="self"),
@@ -80,6 +80,7 @@ def create_elementalist_skills():
     summon_fire.costs = [MPCost(10)]
     summon_fire.sfx = ("skill", "fire_explosion")
     summon_fire.metadata = {
+        "element": "fire",
         "spirit": "fire",
         "buff": "공격력 +20%",
         "status": "화상"
@@ -92,10 +93,10 @@ def create_elementalist_skills():
     summon_water = Skill(
         "elementalist_summon_water",
         "물 정령 소환",
-        "물 정령 소환! MP회복 +5/턴, 힐 +25%."
+        "[물 속성] 물 정령 소환! MP회복 +5/턴, 힐 +25%."
     )
     summon_water.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 1.5, stat_type="magical", element="water"),
         HealEffect(HealType.HP, percentage=0.15),
         BuffEffect(BuffType.MP_REGEN, 5, duration=5),
         GimmickEffect(GimmickOperation.SET, "spirit_water", 1)
@@ -104,6 +105,7 @@ def create_elementalist_skills():
     summon_water.target_type = "self"
     summon_water.sfx = ("skill", "magic_cast")
     summon_water.metadata = {
+        "element": "water",
         "spirit": "water",
         "mp_regen": 5,
         "heal_bonus": "25%"
@@ -116,10 +118,10 @@ def create_elementalist_skills():
     summon_wind = Skill(
         "elementalist_summon_wind",
         "바람 정령 소환",
-        "바람 정령 소환! 속도 +25%, 회피 +15%."
+        "[바람 속성] 바람 정령 소환! 속도 +25%, 회피 +15%."
     )
     summon_wind.effects = [
-        DamageEffect(DamageType.BRV, 1.6, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 1.6, stat_type="magical", element="wind"),
         BuffEffect(BuffType.SPEED_UP, 0.25, duration=5, target="self"),
         BuffEffect(BuffType.EVASION_UP, 0.15, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "spirit_wind", 1)
@@ -128,6 +130,7 @@ def create_elementalist_skills():
     summon_wind.target_type = "self"
     summon_wind.sfx = ("skill", "haste")
     summon_wind.metadata = {
+        "element": "wind",
         "spirit": "wind",
         "speed_buff": "25%",
         "evasion_buff": "15%"
@@ -140,10 +143,10 @@ def create_elementalist_skills():
     summon_earth = Skill(
         "elementalist_summon_earth",
         "대지 정령 소환",
-        "대지 정령 소환! 방어력 +25%, HP회복 +3/턴."
+        "[대지 속성] 대지 정령 소환! 방어력 +25%, HP회복 +3/턴."
     )
     summon_earth.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 1.5, stat_type="magical", element="earth"),
         BuffEffect(BuffType.DEFENSE_UP, 0.25, duration=5, target="self"),
         BuffEffect(BuffType.HP_REGEN, 3, duration=5),
         GimmickEffect(GimmickOperation.SET, "spirit_earth", 1)
@@ -152,6 +155,7 @@ def create_elementalist_skills():
     summon_earth.target_type = "self"
     summon_earth.sfx = ("character", "status_buff")
     summon_earth.metadata = {
+        "element": "earth",
         "spirit": "earth",
         "defense_buff": "25%",
         "hp_regen": 3
@@ -164,11 +168,11 @@ def create_elementalist_skills():
     fusion_firestorm = Skill(
         "elementalist_fusion_firestorm",
         "화염 돌풍",
-        "[융합] 화염+바람 정령. 전체 화염 폭풍."
+        "[화염 속성]『융합』화염+바람 정령. 전체 화염 폭풍."
     )
     fusion_firestorm.effects = [
-        DamageEffect(DamageType.BRV, 2.2, stat_type="magic"),
-        DamageEffect(DamageType.HP, 1.8, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 2.2, stat_type="magical", element="fire"),
+        DamageEffect(DamageType.HP, 1.8, stat_type="magical", element="fire"),
         StatusEffect(StatusType.BURN, duration=3, value=1.0,
                     damage_stat="magic", damage_multiplier=0.12),
     ]
@@ -177,6 +181,7 @@ def create_elementalist_skills():
     fusion_firestorm.is_aoe = True
     fusion_firestorm.sfx = ("skill", "fire_explosion")
     fusion_firestorm.metadata = {
+        "element": "fire",
         "fusion": True,
         "requires": ["fire", "wind"],
         "aoe": True

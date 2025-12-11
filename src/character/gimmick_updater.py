@@ -3726,14 +3726,20 @@ class GimmickUpdater:
             # K: 적 전체 1턴 행동불가 - 즉시 적용
             try:
                 from src.combat.combat_manager import get_combat_manager
+                from src.combat.status_effects import StatusType, StatusEffect
                 cm = get_combat_manager()
                 if cm and cm.enemies:
                     for enemy in cm.enemies:
                         if hasattr(enemy, 'is_alive') and enemy.is_alive:
                             # 스턴 상태 적용
                             if hasattr(enemy, 'status_manager'):
-                                from src.character.status_effect import StatusEffectType
-                                enemy.status_manager.add_effect(StatusEffectType.STUN, duration=1)
+                                stun_effect = StatusEffect(
+                                    name="기절",
+                                    status_type=StatusType.STUN,
+                                    duration=1,
+                                    intensity=1.0
+                                )
+                                enemy.status_manager.add_status(stun_effect)
                                 logger.info(f"[마술사] 킹 효과: {enemy.name}에게 스턴 1턴!")
                             elif hasattr(enemy, 'active_debuffs'):
                                 if not enemy.active_debuffs:

@@ -326,6 +326,7 @@ def open_game_menu(
                     if inventory:
                         game_state["inventory"] = {
                             "gold": inventory.gold if hasattr(inventory, 'gold') else 0,
+                            "base_weight": inventory.base_weight if hasattr(inventory, 'base_weight') else 50.0,
                             "items": [{"item": serialize_item(slot.item), "quantity": getattr(slot, 'quantity', 1)} for slot in inventory.slots if slot.item] if hasattr(inventory, 'slots') else [],
                             "cooking_cooldown_turn": inventory.cooking_cooldown_turn if hasattr(inventory, 'cooking_cooldown_turn') else None,
                             "cooking_cooldown_duration": inventory.cooking_cooldown_duration if hasattr(inventory, 'cooking_cooldown_duration') else 0
@@ -619,6 +620,7 @@ def show_character_detail(
         y += 1
 
         if hasattr(character, 'strength'):
+            # 기본 스탯 표시
             console.print(12, y, f"STR (공격):    {character.strength:3d}", fg=(255, 180, 180))
             y += 1
             console.print(12, y, f"DEF (방어):    {character.defense:3d}", fg=(180, 180, 255))
@@ -631,6 +633,158 @@ def show_character_detail(
             y += 1
             console.print(12, y, f"LUK (행운):    {character.luck:3d}", fg=(255, 200, 255))
             y += 2
+
+            # 상세 스탯 계산 및 표시
+            console.print(10, y, "[ 상세 정보 ]", fg=(255, 200, 100))
+            y += 1
+
+            from src.character.trait_effects import get_trait_effect_manager
+            trait_manager = get_trait_effect_manager()
+
+            # 1. 크리티컬 확률
+            # 공식: (1 - (100 / (Luck * 2 + 100))) + Base(0.1) + Traits
+            luck = character.luck
+            luck_bonus = 1.0 - (100.0 / (luck * 2 + 100))
+            base_crit = 0.1  # 기본값
+            trait_crit = trait_manager.calculate_critical_bonus(character)
+            final_crit = min(0.95, luck_bonus + base_crit + trait_crit)
+            
+            console.print(12, y, f"치명타 확률:   {final_crit*100:5.1f}%", fg=(255, 100, 100))
+            y += 1
+
+            # 2. 크리티컬 데미지
+            # 공식: Base(1.5) * Traits + Equipment
+            base_crit_dmg = 1.5
+            trait_crit_dmg = trait_manager.calculate_critical_damage(character)
+            equip_crit_dmg = 0.0
+            
+            # 장비에서 critical_damage 효과 합산
+            if hasattr(character, 'equipment') and character.equipment:
+                for slot, item in character.equipment.items():
+                    if not item:
+                        continue
+                    # special_effects에서 critical_damage 확인
+                    if hasattr(item, 'special_effects'):
+                        for effect in item.special_effects:
+                            effect_type = getattr(effect, 'effect_type', None)
+                            effect_value = getattr(effect, 'value', 0)
+                            type_value = getattr(effect_type, 'value', str(effect_type)) if effect_type else ''
+                            if type_value == 'critical_damage':
+                                equip_crit_dmg += effect_value
+            
+            final_crit_dmg = base_crit_dmg * trait_crit_dmg + equip_crit_dmg
+            
+            console.print(12, y, f"치명타 피해:   {final_crit_dmg*100:5.0f}%", fg=(255, 50, 50))
+            y += 1
+
+            # 3. 명중률 / 회피율
+            accuracy = int(character.stat_manager.get_value("accuracy", use_total=True))
+            evasion = int(character.stat_manager.get_value("evasion", use_total=True))
+            
+            console.print(12, y, f"명중률:        {accuracy:3d}", fg=(150, 255, 255))
+            y += 1
+            console.print(12, y, f"회피율:        {evasion:3d}", fg=(150, 255, 150))
+            y += 2
+
+            # 4. 방어 관통 스탯 (캐릭터 속성 + 장비 효과 합산)
+            phys_pen = getattr(character, 'physical_penetration', 0)
+            phys_pen_fixed = getattr(character, 'physical_penetration_fixed', 0)
+            magic_pen = getattr(character, 'magic_penetration', 0)
+            magic_pen_fixed = getattr(character, 'magic_penetration_fixed', 0)
+            
+            # 장비에서 관통 효과 추가 합산
+            if hasattr(character, 'equipment') and character.equipment:
+                for slot, item in character.equipment.items():
+                    if not item:
+                        continue
+                    
+                    # 1. affixes (ItemAffix) 확인
+                    if hasattr(item, 'affixes'):
+                        for affix in item.affixes:
+                            stat = getattr(affix, 'stat', '')
+                            value = getattr(affix, 'value', 0)
+                            if stat == 'physical_penetration':
+                                phys_pen += value
+                            elif stat == 'physical_penetration_fixed':
+                                phys_pen_fixed += value
+                            elif stat == 'magic_penetration':
+                                magic_pen += value
+                            elif stat == 'magic_penetration_fixed':
+                                magic_pen_fixed += value
+                    
+                    # 2. special_effects (EquipmentEffect) 확인
+                    if hasattr(item, 'special_effects'):
+                        for effect in item.special_effects:
+                            effect_type = getattr(effect, 'effect_type', None)
+                            effect_value = getattr(effect, 'value', 0)
+                            # EffectType enum의 value로 비교
+                            type_value = getattr(effect_type, 'value', str(effect_type)) if effect_type else ''
+                            if type_value == 'physical_penetration':
+                                phys_pen += effect_value
+                            elif type_value == 'physical_penetration_fixed':
+                                phys_pen_fixed += effect_value
+                            elif type_value == 'magic_penetration':
+                                magic_pen += effect_value
+                            elif type_value == 'magic_penetration_fixed':
+                                magic_pen_fixed += effect_value
+
+            console.print(10, y, "[ 방어 관통 ]", fg=(255, 200, 100))
+            y += 1
+            
+            # 물리 관통 표시
+            pen_text = f"물리 관통:     {phys_pen*100:5.1f}%"
+            if phys_pen_fixed > 0:
+                pen_text += f" (+{int(phys_pen_fixed)})"
+            console.print(12, y, pen_text, fg=(255, 150, 100))
+            y += 1
+            
+            # 마법 관통 표시
+            pen_text = f"마법 관통:     {magic_pen*100:5.1f}%"
+            if magic_pen_fixed > 0:
+                pen_text += f" (+{int(magic_pen_fixed)})"
+            console.print(12, y, pen_text, fg=(200, 150, 255))
+            y += 2
+
+            # 5. 속성 추가 데미지
+            element_map = {
+                "fire": ("화염", "fire_damage", (255, 100, 100)),
+                "ice": ("빙결", "ice_damage", (100, 100, 255)),
+                "lightning": ("번개", "lightning_damage", (255, 255, 100)),
+                "earth": ("대지", "earth_damage", (150, 100, 50)),
+                "wind": ("바람", "wind_damage", (100, 255, 100)),
+                "water": ("물", "water_damage", (100, 150, 255)),
+                "holy": ("신성", "holy_damage", (255, 255, 200)),
+                "dark": ("암흑", "dark_damage", (100, 50, 100)),
+            }
+
+            has_elem_dmg = False
+            
+            for elem, (name, attr_name, color) in element_map.items():
+                bonus = 0
+                # 캐릭터 기본 속성
+                if hasattr(character, attr_name):
+                    bonus += getattr(character, attr_name, 0)
+                
+                # 장비 속성
+                if hasattr(character, 'equipment') and character.equipment:
+                    for slot, item in character.equipment.items():
+                        if item and hasattr(item, 'effects'):
+                            for effect in item.effects:
+                                if hasattr(effect, 'effect_type') and hasattr(effect, 'value'):
+                                    if effect.effect_type == attr_name:
+                                        bonus += int(effect.value)
+                
+                if bonus > 0:
+                    if not has_elem_dmg:
+                        console.print(10, y, "[ 속성 강화 ]", fg=(255, 200, 100))
+                        y += 1
+                        has_elem_dmg = True
+                    
+                    console.print(12, y, f"{name} 추가 피해: +{bonus}", fg=color)
+                    y += 1
+            
+            if has_elem_dmg:
+                y += 1
 
         # 경험치
         if hasattr(character, 'experience') and hasattr(character, 'experience_to_next_level'):

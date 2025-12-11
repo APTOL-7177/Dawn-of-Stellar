@@ -2483,11 +2483,25 @@ class CombatManager:
         if min_required > 0 and len(slots) < min_required:
             result["error"] = f"가능성 {min_required}개 이상 필요 (현재: {len(slots)}개)"
             return result
-        
+            
         skill_manager = get_skill_manager()
         all_enemies = self.enemies if actor in self.allies else self.allies
         all_allies = self.allies if actor in self.allies else self.enemies
         context = {"combat_manager": self, "all_enemies": all_enemies, "all_allies": all_allies, "party": self.party}
+
+        # 비용 체크 및 소모 (MP 등)
+        # 일반 스킬 실행(execute_skill)을 거치지 않으므로 여기서 직접 처리해야 함
+        can_use, reason = skill.can_use(actor, context)
+        if not can_use:
+            result["error"] = reason
+            return result
+            
+        # 비용 소비
+        if hasattr(skill, 'costs'):
+            for cost in skill.costs:
+                if not cost.consume(actor, context):
+                    result["error"] = "비용 소비 실패"
+                    return result
         
         executed_skills = []
         
@@ -4195,9 +4209,7 @@ class CombatManager:
         if hasattr(actor, 'active_buffs') and actor.active_buffs:
             expired_buffs = []
             for buff_type, buff_data in list(actor.active_buffs.items()):
-                # REGEN, HP_REGEN, MP_REGEN은 duration 감소하지 않음 (다른 방식으로 관리)
-                if buff_type in ['regen', 'hp_regen', 'mp_regen']:
-                    continue
+                # 모든 버프의 duration 감소 (regen/mp_regen 포함)
 
                 duration = buff_data.get('duration', 0)
                 if duration > 0:

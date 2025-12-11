@@ -1,7 +1,7 @@
 id: shaman_spirit_conversion
 name: 영혼 전환
 type: support
-description: '생명력을 영력으로 전환합니다.
+description: '[암흑 속성] 생명력을 영력으로 전환합니다.
 
   현재 HP의 20%를 소모하여 최대 MP의 40%를 회복합니다.
 
@@ -19,6 +19,7 @@ effects:
   stat_base: current_hp
   multiplier: 0.2
   target_self: true
+  element: dark
 - type: heal
   heal_type: mp
   percentage: 0.4

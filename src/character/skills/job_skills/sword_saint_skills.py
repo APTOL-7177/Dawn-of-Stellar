@@ -41,7 +41,7 @@ def create_sword_saint_skills():
     # 2. 기본 HP: 일섬 (검기 추가타 + HP 공격)
     ilseom = Skill("sword_saint_ilseom", "일섬", "검기가 먼저 적을 베고, 일섬으로 마무리")
     ilseom.effects = [
-        DamageEffect(DamageType.HP, 1.2),
+        DamageEffect(DamageType.HP, 0.8),
     ]
     ilseom.costs = []  # 기본 공격은 MP 소모 없음
     ilseom.sfx = ("combat", "critical")
@@ -54,7 +54,7 @@ def create_sword_saint_skills():
     kenki_hadou = Skill("sword_saint_kenki_hadou", "검기 파동", "검기를 날려 적을 공격하고 검기 획득")
     kenki_hadou.effects = [
         GimmickEffect(GimmickOperation.ADD, "sword_aura", 1, max_value=5),
-        DamageEffect(DamageType.HP, 1.5)
+        DamageEffect(DamageType.HP, 1.1)
     ]
     kenki_hadou.costs = [MPCost(4)]
     kenki_hadou.sfx = ("skill", "cast_start")
@@ -79,8 +79,8 @@ def create_sword_saint_skills():
     }
     skills.append(nitoryu)
 
-    # 5. 검기 폭발 (모든 검기 소비 + 검기 추가타 + 폭발 HP 공격)
-    kenki_bakuhatsu = Skill("sword_saint_kenki_bakuhatsu", "검기 폭발", "모든 검기를 폭발시켜 대폭발")
+    # 5. 검의 무덤 (모든 검기 소비 + 검기 추가타 + 폭발 HP 공격)
+    kenki_bakuhatsu = Skill("sword_saint_kenki_bakuhatsu", "검의 무덤", "모든 검기를 폭발시켜 대폭발")
     kenki_bakuhatsu.effects = [
         DamageEffect(DamageType.HP, 1.6, gimmick_bonus={"field": "sword_aura", "multiplier": 0.28}),
         GimmickEffect(GimmickOperation.SET, "sword_aura", 0)
@@ -138,7 +138,7 @@ def create_sword_saint_skills():
     # 9. 검광 폭풍 (검기 4스택 소비 + 검기 추가타 + 광역 HP 공격)
     sword_storm = Skill("sword_saint_sword_storm", "검광 폭풍", "검기 4스택 소비, 전체 적을 검으로 난무")
     sword_storm.effects = [
-        DamageEffect(DamageType.HP, 1.7)
+        DamageEffect(DamageType.HP, 1.3)
     ]
     sword_storm.costs = [MPCost(14), StackCost("sword_aura", 4)]
     sword_storm.target_type = "all_enemies"

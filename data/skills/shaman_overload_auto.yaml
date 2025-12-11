@@ -1,7 +1,7 @@
 id: shaman_overload_auto
 name: 영력 폭주(자동)
 type: ultimate
-description: '과부하 게이지가 가득 차 자동 발동하는 약화된 폭주입니다.
+description: '[암흑 속성] 과부하 게이지가 가득 차 자동 발동하는 약화된 폭주입니다.
 
   적 전체에게 중간 수준의 피해와 디버프를 줍니다.
 
@@ -19,11 +19,13 @@ effects:
   stat_base: magical
   multiplier: 1.6
   target: all_enemies
+  element: dark
 - type: damage
   damage_type: hp
   stat_base: magical
   multiplier: 1.8
   target: all_enemies
+  element: dark
 - type: status
   status_type: poison
   duration: 3

@@ -1558,21 +1558,25 @@ class TraitEffectManager:
             "burning_rage": [
                 TraitEffect(
                     trait_id="burning_rage",
-                    effect_type=TraitEffectType.STAT_MULTIPLIER,
-                    value=0.50,
-                    condition="on_attack",
-                    target_stat="burn_chance",
-                    metadata={"duration": 3, "description": "공격 시 50% 확률로 화상 부여 (3턴간 BRV 감소)"}
+                    effect_type=TraitEffectType.HP_REGEN,
+                    value=0.04,
+                    metadata={"description": "매 턴 HP 4% 재생"}
+                ),
+                TraitEffect(
+                    trait_id="burning_rage",
+                    effect_type=TraitEffectType.MP_REGEN,
+                    value=0.04,
+                    metadata={"description": "매 턴 MP 4% 재생"}
                 )
             ],
             "dragon_scales": [
                 TraitEffect(
                     trait_id="dragon_scales",
                     effect_type=TraitEffectType.DAMAGE_MULTIPLIER,
-                    value=0.80,
-                    condition="hp_above_70",
-                    target_stat="physical_damage_taken",
-                    metadata={"description": "HP 70% 이상일 때 물리 데미지 -20%"}
+                    value=0.15,  # 15% 데미지만 받음 = 85% 감소
+                    condition="hp_above_95",
+                    target_stat="all_damage_taken",  # 모든 피해 감소
+                    metadata={"description": "HP 95% 이상일 때 받는 피해 85% 감소"}
                 )
             ],
             "flame_wings": [
@@ -3792,12 +3796,13 @@ class TraitEffectManager:
 
         return max(0, final_cost)
 
-    def calculate_critical_bonus(self, character: Any) -> float:
+    def calculate_critical_bonus(self, character: Any, **context) -> float:
         """
         특성에 의한 크리티컬 확률 보너스
 
         Args:
             character: 캐릭터
+            **context: 컨텍스트 정보 (target 등)
 
         Returns:
             크리티컬 확률 보너스 (0.15 = +15%)
@@ -3811,8 +3816,10 @@ class TraitEffectManager:
 
             for effect in effects:
                 if effect.effect_type == TraitEffectType.CRITICAL_BONUS:
-                    bonus += effect.value
-                    self.logger.debug(f"[{trait_id}] 크리티컬 보너스: +{effect.value * 100}%")
+                    # 조건 확인 (조건이 없거나 충족되어야 보너스 적용)
+                    if not effect.condition or self._check_condition(character, effect.condition, context):
+                        bonus += effect.value
+                        self.logger.debug(f"[{trait_id}] 크리티컬 보너스: +{effect.value * 100}%")
 
         return bonus
 

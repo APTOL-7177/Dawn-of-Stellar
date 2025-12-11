@@ -453,6 +453,16 @@ class QuestManager:
         self.completed_quests: List[Quest] = []  # 완료된 퀘스트
         self.max_active_quests = 3
     
+    def reset(self):
+        """
+        퀘스트 매니저 초기화 (새 게임 시작 시 호출)
+        모든 퀘스트 목록을 비움
+        """
+        self.available_quests.clear()
+        self.active_quests.clear()
+        self.completed_quests.clear()
+        logger.info("퀘스트 매니저 초기화 완료")
+    
     def refresh_quests(self, player_level: int, count: int = 5):
         """
         퀘스트 목록 갱신 (기존 목록 초기화 후 재생성)
@@ -550,8 +560,30 @@ class QuestManager:
             target: 대상 (적 ID, 아이템 ID, 층 번호 등)
             amount: 수량
         """
-        for quest in self.active_quests:
-            quest.update_progress(target, amount)
+        # 층 도달 퀘스트 특수 처리: 현재 도달한 층보다 낮은 층 퀘스트도 완료 처리
+        if target.startswith("floor_"):
+            try:
+                current_floor = int(target.split("_")[1])
+                # 현재 층보다 낮거나 같은 모든 층 도달 퀘스트 완료
+                for quest in self.active_quests:
+                    for objective in quest.objectives:
+                        if objective.target.startswith("floor_") and not objective.is_complete:
+                            try:
+                                target_floor = int(objective.target.split("_")[1])
+                                if current_floor >= target_floor:
+                                    objective.current = objective.required
+                                    logger.info(f"[퀘스트] {target_floor}층 도달 목표 자동 완료 (현재 {current_floor}층)")
+                            except (ValueError, IndexError):
+                                pass
+                    quest._check_completion()
+            except (ValueError, IndexError):
+                # 일반 진행도 업데이트
+                for quest in self.active_quests:
+                    quest.update_progress(target, amount)
+        else:
+            # 일반 업데이트
+            for quest in self.active_quests:
+                quest.update_progress(target, amount)
     
     def check_all_quests_completion(self):
         """
@@ -562,22 +594,42 @@ class QuestManager:
             if not quest.is_complete:
                 quest._check_completion()
     
-    def complete_quest(self, quest_id: str, player: Any) -> bool:
+    def complete_quest(self, quest_id: str, player: Any, inventory: Any = None) -> bool:
         """
         퀘스트 완료 및 보상 지급
         
         Args:
             quest_id: 퀘스트 ID
             player: 플레이어 객체
+            inventory: 인벤토리 객체 (골드 보상용)
             
         Returns:
             성공 여부
         """
         for quest in self.active_quests:
             if quest.quest_id == quest_id and quest.is_complete:
-                # 보상 지급
-                player.gold += quest.reward.gold
-                player.experience += quest.reward.experience
+                # 보상 지급 (골드는 인벤토리에 저장)
+                if inventory and hasattr(inventory, 'gold'):
+                    inventory.gold += quest.reward.gold
+                    logger.info(f"골드 보상 지급: +{quest.reward.gold} (인벤토리)")
+                elif hasattr(player, 'inventory') and player.inventory and hasattr(player.inventory, 'gold'):
+                    player.inventory.gold += quest.reward.gold
+                    logger.info(f"골드 보상 지급: +{quest.reward.gold} (player.inventory)")
+                elif hasattr(player, 'gold'):
+                    player.gold += quest.reward.gold
+                    logger.info(f"골드 보상 지급: +{quest.reward.gold} (player.gold)")
+                # 경험치 보상 (파티원에게 분배)
+                if quest.reward.experience > 0:
+                    if hasattr(player, 'party') and player.party:
+                        exp_per_member = quest.reward.experience // len(player.party)
+                        for member in player.party:
+                            if hasattr(member, 'gain_experience'):
+                                member.gain_experience(exp_per_member)
+                            elif hasattr(member, 'experience'):
+                                member.experience += exp_per_member
+                    elif hasattr(player, 'experience'):
+                        player.experience += quest.reward.experience
+
                 
                 # 아이템 보상
                 for item_id in quest.reward.items:
@@ -716,3 +768,7 @@ _quest_manager = QuestManager()
 
 def get_quest_manager() -> QuestManager:
     return _quest_manager
+
+def reset_quest_manager():
+    """전역 퀘스트 매니저 초기화 (새 게임 시작 시 호출)"""
+    _quest_manager.reset()

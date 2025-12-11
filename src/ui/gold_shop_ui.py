@@ -725,9 +725,14 @@ class GoldShopUI:
         """장비 재연마 서비스 (메뉴 생성)"""
         reforgeable_items = []
         
-        # 인벤토리 아이템
+        # 인벤토리 아이템 (장비만)
         for i, slot in enumerate(self.inventory.slots):
             item = slot.item
+            # None 체크 및 장비 타입 체크 (재료, 소모품 등 제외)
+            if item is None:
+                continue
+            if not hasattr(item, 'item_type') or not hasattr(item, 'rarity'):
+                continue
             if item.item_type in [ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY] and item.rarity != ItemRarity.UNIQUE:
                 reforgeable_items.append(item)
                 

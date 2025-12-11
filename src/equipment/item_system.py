@@ -5438,7 +5438,11 @@ AFFIX_POOL = {
     # === 추가 옵션 확장 ===
     # 공격 관련
     "of_destruction": ItemAffix("of_destruction", "파괴의", "critical_damage", 0.30, True),
-    "piercing": ItemAffix("piercing", "관통하는", "armor_penetration", 0.15, True),
+    # === 관통 옵션 (% 최대 25%, 고정수치는 고렌 전용) ===
+    "physical_piercing": ItemAffix("physical_piercing", "물리 관통의", "physical_penetration", 0.15, True),  # 최대 25%
+    "magic_piercing": ItemAffix("magic_piercing", "마법 관통의", "magic_penetration", 0.15, True),  # 최대 25%
+    # 레거시 호환성 (기존 armor_penetration 옵션)
+    "piercing": ItemAffix("piercing", "관통하는", "physical_penetration", 0.15, True),
     "vampiric": ItemAffix("vampiric", "흡혈의", "lifesteal", 0.05, True),
     "soul_stealing": ItemAffix("soul_stealing", "영혼 강탈의", "mana_steal", 0.05, True),
     "bloodthirsty": ItemAffix("bloodthirsty", "피에 굶주린", "heal_on_kill", 20, False),
@@ -5460,6 +5464,10 @@ AFFIX_POOL = {
     "wealthy": ItemAffix("wealthy", "부유한", "gold_bonus", 0.15, True),
     "farsight": ItemAffix("farsight", "천리안의", "vision_bonus", 1, False),
     "cautious": ItemAffix("cautious", "신중한", "trap_disarm", 0.20, True),
+
+    # === 고정 관통 (고레벨 전용 - 레벨 5 이상에서만 출현) ===
+    "physical_penetration_fixed": ItemAffix("physical_penetration_fixed", "물방 파쇄의", "physical_penetration_fixed", 15, False),
+    "magic_penetration_fixed": ItemAffix("magic_penetration_fixed", "마방 파쇄의", "magic_penetration_fixed", 10, False),
 }
 
 
@@ -5491,8 +5499,17 @@ class ItemGenerator:
             
         count = random.randint(min_cnt, max_cnt)
 
+        # 고정 관통은 고레벨에서만 (레벨 5 이상)
+        HIGH_LEVEL_AFFIXES = {"physical_penetration_fixed", "magic_penetration_fixed"}
+        
         # 랜덤 접사 선택 및 수치 조정
-        available_affixes = list(AFFIX_POOL.values())
+        available_affixes = []
+        for affix in AFFIX_POOL.values():
+            # 고정 관통은 레벨 5 미만에서는 제외
+            if affix.stat in HIGH_LEVEL_AFFIXES and level < 5:
+                continue
+            available_affixes.append(affix)
+        
         selected_base = random.sample(available_affixes, min(count, len(available_affixes)))
         
         final_affixes = []
@@ -5516,9 +5533,13 @@ class ItemGenerator:
             
             new_value = base_affix.value * variance * level_multiplier
             
-            # 퍼센트 옵션은 최대치 제한 (밸런스)
+            # 관통 옵션은 최대 25%로 제한 (다른 % 옵션은 50%)
+            PENETRATION_STATS = {"physical_penetration", "magic_penetration", "armor_penetration"}
             if base_affix.is_percentage:
-                new_value = min(new_value, 0.50)  # 최대 50%
+                if base_affix.stat in PENETRATION_STATS:
+                    new_value = min(new_value, 0.25)  # 관통은 최대 25%
+                else:
+                    new_value = min(new_value, 0.50)  # 다른 옵션은 최대 50%
             
             new_affix = ItemAffix(
                 id=base_affix.id,

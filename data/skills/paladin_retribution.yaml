@@ -1,7 +1,7 @@
 id: paladin_retribution
 name: 성스러운 징벌
 type: attack
-description: '성력을 대량 소비해 신성한 폭발을 일으키고 적을 약화합니다.
+description: '[신성 속성] 성력을 대량 소비해 신성한 폭발을 일으키고 적을 약화합니다.
 
   '
 effects:
@@ -12,6 +12,7 @@ effects:
   gimmick_bonus:
     field: holy_power
     multiplier: 0.35
+  element: holy
 - type: buff
   buff_type: attack_down
   value: 0.4

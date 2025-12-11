@@ -28,7 +28,8 @@ class QuestBoardUI:
         quest_manager: QuestManager,
         player_level: int,
         player: Any = None,
-        current_floor: int = 0
+        current_floor: int = 0,
+        inventory: Any = None
     ):
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -36,6 +37,7 @@ class QuestBoardUI:
         self.player_level = player_level
         self.player = player
         self.current_floor = current_floor
+        self.inventory = inventory  # 실제 Inventory 객체
         
         # 퀘스트 목록
         self.available_quests = quest_manager.get_available_quests()
@@ -114,7 +116,7 @@ class QuestBoardUI:
                         if self.player is None:
                             logger.error("플레이어 객체가 없어 퀘스트 완료를 처리할 수 없습니다.")
                             play_sfx("ui", "cursor_cancel")
-                        elif self.quest_manager.complete_quest(quest.quest_id, self.player):
+                        elif self.quest_manager.complete_quest(quest.quest_id, self.player, self.inventory):
                             self.active_quests = self.quest_manager.get_active_quests()
                             self.cursor = min(self.cursor, len(self.active_quests) - 1)
                             if self.cursor < 0:
@@ -153,7 +155,7 @@ class QuestBoardUI:
         tab_x = 5
         for i, tab_name in enumerate(self.tabs):
             if i == self.current_tab:
-                console.print(tab_x + i * 30, tab_y, f"[{tab_name}]", fg=(255, 255, 100))
+                console.print(tab_x + i * 30, tab_y, f"{tab_name}", fg=(255, 255, 100))
             else:
                 console.print(tab_x + i * 30, tab_y, f" {tab_name} ", fg=(150, 150, 150))
         
@@ -193,13 +195,13 @@ class QuestBoardUI:
                     "legendary": (255, 100, 100)
                 }
                 difficulty_color = difficulty_colors.get(quest.difficulty.value, (255, 255, 255))
-                console.print(self.screen_width - 30, y, f"[{quest.difficulty.value.upper()}]", fg=difficulty_color)
+                console.print(self.screen_width - 30, y, f"{quest.difficulty.value.upper()}", fg=difficulty_color)
                 
                 # 진행 중인 퀘스트는 진행률 표시 (퀘스트 이름 아래 별도 줄로)
                 if self.current_tab == 1:
                     if quest.is_complete:
                         # 완료된 퀘스트는 특별 표시
-                        console.print(5, y + 2, "★★★ 완료됨 - Z키로 보상 수령 ★★★", fg=(255, 215, 0))
+                        console.print(5, y + 2, " 완료됨 - Z키로 보상 수령", fg=(255, 215, 0))
                     else:
                         progress_text = f"진행: "
                         for obj in quest.objectives:
@@ -214,27 +216,37 @@ class QuestBoardUI:
         # 선택된 퀘스트 상세 정보
         if current_list and 0 <= self.cursor < len(current_list):
             quest = current_list[self.cursor]
-            detail_y = list_y + self.max_visible + 2
             
-            console.print(3, detail_y, "─" * (self.screen_width - 6), fg=Colors.UI_BORDER)
-            detail_y += 1
+            # 하단에 고정 (전체 높이에서 역산)
+            # 도움말이 height-2, 보상이 height-4, 목표가 그 위..
+            # 넉넉하게 공간 확보
+            detail_base_y = self.screen_height - 12
+            
+            # 구분선
+            console.print(3, detail_base_y, "─" * (self.screen_width - 6), fg=Colors.UI_BORDER)
+            
+            current_y = detail_base_y + 2
             
             # 설명
-            console.print(5, detail_y, quest.description, fg=Colors.UI_TEXT)
-            detail_y += 2
+            console.print(5, current_y, f"설명: {quest.description}", fg=Colors.UI_TEXT)
+            current_y += 2
             
             # 목표
-            console.print(5, detail_y, "목표:", fg=(255, 200, 100))
-            detail_y += 1
-            for obj in quest.objectives:
-                status = "✓" if obj.is_complete else " "
-                console.print(7, detail_y, f"{status} {obj.description} ({obj.progress_text})", 
-                            fg=(100, 255, 100) if obj.is_complete else Colors.UI_TEXT)
-                detail_y += 1
+            console.print(5, current_y, "목표:", fg=(255, 200, 100))
+            # 목표는 옆에 나열하거나 한 줄에 하나씩
+            # 공간이 부족할 수 있으므로 한 줄에 표시 시도
+            objective_text = ""
+            for i, obj in enumerate(quest.objectives):
+                status_str = "(완료)" if obj.is_complete else "(진행중)"
+                if i > 0:
+                    objective_text += " / "
+                objective_text += f"{obj.description} {status_str}"
             
-            # 보상
-            detail_y += 1
-            console.print(5, detail_y, f"보상: {quest.reward}", fg=(255, 215, 0))
+            console.print(11, current_y, objective_text, fg=Colors.UI_TEXT)
+            current_y += 2
+            
+            # 보상 (맨 밑에 가깝게)
+            console.print(5, current_y, f"보상: {quest.reward}", fg=(255, 215, 0))
         
         # 안내 메시지
         help_y = self.screen_height - 2
@@ -251,7 +263,8 @@ def open_quest_board(
     quest_manager: Optional[QuestManager] = None,
     player_level: int = 1,
     player: Any = None,
-    current_floor: int = 0
+    current_floor: int = 0,
+    inventory: Any = None
 ):
     """퀘스트 게시판 열기"""
     from src.quest.quest_manager import get_quest_manager
@@ -260,7 +273,7 @@ def open_quest_board(
     if quest_manager is None:
         quest_manager = get_quest_manager()
     
-    ui = QuestBoardUI(console.width, console.height, quest_manager, player_level, player, current_floor)
+    ui = QuestBoardUI(console.width, console.height, quest_manager, player_level, player, current_floor, inventory)
     
     logger.info("퀘스트 게시판 열기")
 

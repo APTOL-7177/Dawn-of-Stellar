@@ -309,7 +309,7 @@ def create_time_mage_skills():
     fate_copy = Skill("time_mage_fate_copy", "운명 복제",
                      "아군 1명의 마지막 사용 스킬을 가능성으로 저장")
     fate_copy.effects = []  # 특수 처리
-    fate_copy.costs = [MPCost(12)]
+    fate_copy.costs = [MPCost(6)]
     fate_copy.target_type = "ally"
     fate_copy.sfx = ("skill", "cast_complete")
     fate_copy.metadata = {

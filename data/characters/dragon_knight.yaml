@@ -22,7 +22,7 @@ stat_growth:
   spirit: 14.1
   speed: 14.3
   max_brv: 92.0
-  luck: 3
+  luck: 0.6
   accuracy: 1.6
   evasion: 1.2
 traits:
@@ -31,12 +31,12 @@ traits:
   description: 화염 속성 데미지 +35%, 화염 저항 +50%
   type: passive
 - id: burning_rage
-  name: 용의 분노
-  description: 공격 시 50% 확률로 화상 부여 (3턴간 BRV 감소)
+  name: 넘치는 활력
+  description: 화상 피해 입힐 시 피해량의 70% 체력 회복, 매턴 HP/MP 4% 재생
   type: trigger
 - id: dragon_scales
   name: 용린 갑주
-  description: HP 70% 이상일 때 물리 데미지 -20%
+  description: HP 95% 이상일 때 받는 피해 85% 감소
   type: trigger
 - id: flame_wings
   name: 화염의 날개

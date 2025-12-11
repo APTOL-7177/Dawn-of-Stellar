@@ -338,6 +338,7 @@ EFFECT_BUILDERS = {
     "apply_shield": _create_shield_effect,
     "restore_gimmick": _create_restore_gimmick_effect,
     "conditional_buff": _create_conditional_buff_effect,
+    "toggle_buff": lambda data: _create_custom_handler_effect("toggle_buff", data),
 }
 
 # 스텁 effect 타입을 모두 custom handler로 연결하여 경고 없이 통과

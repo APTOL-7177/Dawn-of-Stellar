@@ -32,7 +32,8 @@ class EnemyTemplate:
         init_brv: int,  # 초기 BRV
         luck: int = 5,
         accuracy: int = 50,
-        evasion: int = 10
+        evasion: int = 10,
+        element_resistance: dict = None  # 속성 저항/약점 {element: multiplier}
     ):
         self.enemy_id = enemy_id
         self.name = name
@@ -49,6 +50,9 @@ class EnemyTemplate:
         self.luck = luck
         self.accuracy = accuracy
         self.evasion = evasion
+        # 속성 저항: 1.0 미만 = 약점(데미지 증가), 1.0 초과 = 저항(데미지 감소)
+        # 예: {"fire": 2.0, "ice": 0.5} = 화염 저항 2배, 빙결 약점 2배
+        self.element_resistance = element_resistance or {}
 
 
 # 적 템플릿 데이터베이스
@@ -57,145 +61,141 @@ class EnemyTemplate:
 #
 # 1레벨 기준 평균: HP=200, MP=40, ATK=55, DEF=45, MATK=55, MDEF=45, SPD=55, LUK=10, ACC=65, EVA=12
 ENEMY_TEMPLATES = {
-    # === 약한 적 (기본 잡몹) ===
-    # BRV: 낮은 max_brv, 낮은 init_brv (10-15%)
+    # === 약한 적 (기본 잡몹) - 총합 ~450 ===
+    # 각 적마다 물방/마방/속도가 다이나믹하게 다름
     "slime": EnemyTemplate(
         "slime", "슬라임", 1,
-        hp=180, mp=35,  # 마법형 - HP 약간 낮음
-        physical_attack=45, physical_defense=40,
-        magic_attack=65, magic_defense=55,  # 마법 특화
-        speed=50,
-        max_brv=800, init_brv=267,  # 낮은 BRV (2400÷3, 800÷3)
+        hp=180, mp=50,  # 마법형
+        physical_attack=42, physical_defense=30,  # 물방 낮음
+        magic_attack=65, magic_defense=55,  # 마방 높음
+        speed=45,
+        max_brv=800, init_brv=267,
         luck=8, accuracy=62, evasion=10
     ),
     "goblin": EnemyTemplate(
         "goblin", "고블린", 1,
-        hp=200, mp=35,  # 균형형
-        physical_attack=60, physical_defense=45,
-        magic_attack=50, magic_defense=42,
+        hp=195, mp=40,  # 균형형
+        physical_attack=58, physical_defense=48,  # 균형 방어
+        magic_attack=45, magic_defense=42,
         speed=55,
-        max_brv=960, init_brv=320,  # 평균 BRV (2880÷3, 960÷3)
+        max_brv=900, init_brv=300,
         luck=10, accuracy=65, evasion=12
     ),
     "wolf": EnemyTemplate(
         "wolf", "늑대", 1,
-        hp=220, mp=30,  # 물리형 - HP 높음
-        physical_attack=65, physical_defense=50,
-        magic_attack=40, magic_defense=38,
-        speed=60,
-        max_brv=1067, init_brv=356,  # 약간 높은 BRV (3200÷3, 1067÷3)
-        luck=12, accuracy=68, evasion=15
+        hp=185, mp=30,  # 민첩형
+        physical_attack=60, physical_defense=35,  # 양방어 낮음
+        magic_attack=35, magic_defense=30,
+        speed=72,  # 빠름
+        max_brv=850, init_brv=283,
+        luck=12, accuracy=70, evasion=18
     ),
 
-    # === 일반 적 (중간 강도) ===
-    # BRV: 중간 max_brv, 중간 init_brv (15-20%)
+    # === 일반 적 (중간 강도) - 총합 ~500 ===
     "orc": EnemyTemplate(
         "orc", "오크", 1,
-        hp=240, mp=45,  # 탱커형 - 높은 HP와 방어력
-        physical_attack=70, physical_defense=60,
-        magic_attack=35, magic_defense=40,
-        speed=45,
-        max_brv=1173, init_brv=391,  # 탱커 BRV (3520÷3, 1173÷3)
-        luck=8, accuracy=62, evasion=6
+        hp=240, mp=40,  # 물리 탱커
+        physical_attack=65, physical_defense=70,  # 물방 높음
+        magic_attack=30, magic_defense=35,  # 마방 낮음
+        speed=38,  # 느림
+        max_brv=1000, init_brv=333,
+        luck=8, accuracy=62, evasion=5
     ),
     "skeleton": EnemyTemplate(
         "skeleton", "해골 전사", 1,
-        hp=190, mp=50,  # 균형형 언데드
-        physical_attack=65, physical_defense=42,
-        magic_attack=48, magic_defense=50,
-        speed=58,
-        max_brv=1013, init_brv=338,  # 균형 BRV (3040÷3, 1013÷3)
+        hp=200, mp=45,  # 균형형
+        physical_attack=62, physical_defense=50,
+        magic_attack=48, magic_defense=45,
+        speed=55,
+        max_brv=950, init_brv=317,
         luck=10, accuracy=65, evasion=12
     ),
     "dark_mage": EnemyTemplate(
         "dark_mage", "다크 메이지", 1,
-        hp=160, mp=80,  # 마법 특화 - 낮은 HP, 높은 MP/마법
-        physical_attack=40, physical_defense=35,
-        magic_attack=85, magic_defense=65,
+        hp=165, mp=75,  # 마법형
+        physical_attack=38, physical_defense=28,  # 물방 매우 낮음
+        magic_attack=82, magic_defense=68,  # 마방 높음
         speed=52,
-        max_brv=1333, init_brv=444,  # 높은 BRV (마법사) (4000÷3, 1333÷3)
+        max_brv=1100, init_brv=367,
         luck=12, accuracy=68, evasion=14
     ),
 
-    # === 강한 적 (정예 몬스터) ===
-    # BRV: 높은 max_brv, 높은 init_brv (20-25%)
+    # === 강한 적 (정예 몬스터) - 총합 ~550 ===
     "ogre": EnemyTemplate(
         "ogre", "오우거", 1,
-        hp=280, mp=50,  # 중장갑 탱커
-        physical_attack=80, physical_defense=70,
-        magic_attack=30, magic_defense=45,
-        speed=40,
-        max_brv=1493, init_brv=498,  # 높은 탱커 BRV (4480÷3, 1493÷3)
+        hp=270, mp=40,  # 물리 탱커
+        physical_attack=75, physical_defense=78,  # 물방 매우 높음
+        magic_attack=28, magic_defense=35,  # 마방 낮음
+        speed=32,  # 느림
+        max_brv=1200, init_brv=400,
         luck=6, accuracy=60, evasion=4
     ),
     "wraith": EnemyTemplate(
         "wraith", "망령", 1,
-        hp=200, mp=90,  # 마법 특화 언데드
-        physical_attack=50, physical_defense=38,
-        magic_attack=90, magic_defense=75,
-        speed=65,
-        max_brv=1600, init_brv=533,  # 매우 높은 BRV (마법) (4800÷3, 1600÷3)
+        hp=185, mp=85,  # 마법형
+        physical_attack=45, physical_defense=30,  # 물방 낮음
+        magic_attack=85, magic_defense=72,  # 마방 높음
+        speed=62,
+        max_brv=1300, init_brv=433,
         luck=14, accuracy=70, evasion=20
     ),
     "golem": EnemyTemplate(
         "golem", "골렘", 1,
-        hp=320, mp=20,  # 극단적 탱커 - 매우 높은 HP/방어, 느림
-        physical_attack=75, physical_defense=85,
-        magic_attack=25, magic_defense=55,
-        speed=30,
-        max_brv=1867, init_brv=622,  # 극단적 탱커 BRV (5600÷3, 1867÷3)
-        luck=5, accuracy=58, evasion=2
+        hp=310, mp=25,  # 극단적 물리 탱커
+        physical_attack=68, physical_defense=90,  # 물방 극도로 높음
+        magic_attack=22, magic_defense=40,  # 마방 낮음
+        speed=25,  # 매우 느림
+        max_brv=1400, init_brv=467,
+        luck=5, accuracy=55, evasion=2
     ),
 
-    # === 매우 강한 적 (위험 몬스터) ===
-    # BRV: 매우 높은 max_brv, 매우 높은 init_brv (25-30%)
+    # === 매우 강한 적 (위험 몬스터) - 총합 ~620 ===
     "troll": EnemyTemplate(
         "troll", "트롤", 1,
-        hp=300, mp=55,  # 재생 능력 탱커
-        physical_attack=85, physical_defense=72,
-        magic_attack=40, magic_defense=48,
-        speed=48,
-        max_brv=1707, init_brv=569,  # 재생 탱커 BRV (5120÷3, 1707÷3)
+        hp=290, mp=50,  # 물리형 재생 탱커
+        physical_attack=80, physical_defense=75,  # 물방 높음
+        magic_attack=35, magic_defense=42,  # 마방 낮음
+        speed=42,
+        max_brv=1350, init_brv=450,
         luck=10, accuracy=62, evasion=8
     ),
     "vampire": EnemyTemplate(
         "vampire", "흡혈귀", 1,
-        hp=250, mp=100,  # 민첩 + 마법형
-        physical_attack=75, physical_defense=55,
-        magic_attack=95, magic_defense=70,
-        speed=75,
-        max_brv=1867, init_brv=622,  # 흡혈 특화 BRV (5600÷3, 1867÷3)
-        luck=18, accuracy=75, evasion=22
+        hp=235, mp=90,  # 민첩 마법형
+        physical_attack=68, physical_defense=45,  # 물방 중간
+        magic_attack=88, magic_defense=65,  # 마방 높음
+        speed=78,  # 빠름
+        max_brv=1400, init_brv=467,
+        luck=18, accuracy=75, evasion=24
     ),
     "wyvern": EnemyTemplate(
         "wyvern", "와이번", 1,
-        hp=210, mp=40,  # 속도 특화 - 낮은 HP
-        physical_attack=64, physical_defense=45,
-        magic_attack=56, magic_defense=42,
-        speed=68,  # 높은 속도
-        max_brv=840, init_brv=280,  # 속도형 BRV
-        luck=15, accuracy=74, evasion=16  # 높은 회피
+        hp=215, mp=45,  # 극단적 민첩형
+        physical_attack=65, physical_defense=38,  # 양방어 낮음
+        magic_attack=55, magic_defense=35,
+        speed=85,  # 매우 빠름
+        max_brv=950, init_brv=317,
+        luck=16, accuracy=76, evasion=28  # 높은 회피
     ),
 
-    # === 최상급 적 (던전 보스급) ===
-    # BRV: 극도로 높은 max_brv, 매우 높은 init_brv (30-35%)
+    # === 최상급 적 (던전 보스급) - 모두 유사한 파워 레벨 (~700) ===
     "demon": EnemyTemplate(
         "demon", "악마", 1,
-        hp=225, mp=46,  # 균형 잡힌 타입
-        physical_attack=66, physical_defense=52,
-        magic_attack=66, magic_defense=52,  # 물리/마법 균형
-        speed=57,
-        max_brv=890, init_brv=297,  # 균형 BRV
-        luck=13, accuracy=69, evasion=13
+        hp=280, mp=75,  # 균형 잡힌 타입
+        physical_attack=72, physical_defense=60,
+        magic_attack=72, magic_defense=60,  # 물리/마법 균형
+        speed=62,
+        max_brv=1100, init_brv=367,
+        luck=14, accuracy=70, evasion=14
     ),
     "dragon": EnemyTemplate(
         "dragon", "드래곤", 1,
-        hp=400, mp=150,  # 최강 일반 몬스터
-        physical_attack=60, physical_defense=90,
-        magic_attack=45, magic_defense=85,
-        speed=60,
-        max_brv=667, init_brv=222,  # 드래곤급 BRV (8000÷3, 2667÷3)
-        luck=20, accuracy=75, evasion=12
+        hp=320, mp=90,  # 가장 강한 일반 몬스터
+        physical_attack=68, physical_defense=75,
+        magic_attack=55, magic_defense=70,
+        speed=58,
+        max_brv=1250, init_brv=417,
+        luck=16, accuracy=72, evasion=10
     ),
 
     # === 강력 보스 (일반 몹 수준 스탯) ===
@@ -258,201 +258,201 @@ ENEMY_TEMPLATES = {
     # 새로운 적 타입 추가 (30종)
     # ============================================================
 
-    # === 언데드 타입 (5종) ===
+    # === 언데드 타입 (5종) - 약한적/일반적 등급 (~450-500) ===
     "zombie": EnemyTemplate(
         "zombie", "좀비", 1,
-        hp=230, mp=20,  # 높은 HP, 낮은 MP
-        physical_attack=55, physical_defense=40,
-        magic_attack=20, magic_defense=30,
-        speed=30,  # 매우 느림
-        max_brv=1040, init_brv=347,
-        luck=5, accuracy=55, evasion=3
+        hp=220, mp=20,  # 물리 탱커 - 느림
+        physical_attack=52, physical_defense=55,  # 물방 높음
+        magic_attack=18, magic_defense=25,  # 마방 낮음
+        speed=28,  # 매우 느림
+        max_brv=900, init_brv=300,
+        luck=5, accuracy=52, evasion=2
     ),
     "ghoul": EnemyTemplate(
         "ghoul", "구울", 1,
-        hp=210, mp=40,  # 빠른 언데드
-        physical_attack=70, physical_defense=45,
-        magic_attack=35, magic_defense=40,
-        speed=65,  # 빠름
-        max_brv=1120, init_brv=373,
-        luck=12, accuracy=68, evasion=16
+        hp=195, mp=40,  # 민첩형 언데드
+        physical_attack=65, physical_defense=38,  # 물방 중간
+        magic_attack=32, magic_defense=35,  # 마방 낮음
+        speed=70,  # 빠름
+        max_brv=950, init_brv=317,
+        luck=12, accuracy=68, evasion=18
     ),
     "banshee": EnemyTemplate(
         "banshee", "밴시", 1,
-        hp=170, mp=90,  # 마법형 언데드
-        physical_attack=40, physical_defense=35,
-        magic_attack=88, magic_defense=70,
-        speed=68,
-        max_brv=1440, init_brv=480,
+        hp=165, mp=85,  # 마법형 언데드 (강한 적)
+        physical_attack=38, physical_defense=28,  # 물방 낮음
+        magic_attack=82, magic_defense=68,  # 마방 높음
+        speed=62,
+        max_brv=1200, init_brv=400,
         luck=15, accuracy=72, evasion=20
     ),
     "death_knight": EnemyTemplate(
         "death_knight", "죽음의 기사", 1,
-        hp=290, mp=70,  # 강력한 언데드 전사
-        physical_attack=95, physical_defense=80,
-        magic_attack=65, magic_defense=60,
-        speed=55,
-        max_brv=1680, init_brv=560,
-        luck=14, accuracy=70, evasion=10
+        hp=275, mp=60,  # 중장갑 물리형 (매우 강한 적)
+        physical_attack=85, physical_defense=82,  # 물방 매우 높음
+        magic_attack=55, magic_defense=50,  # 마방 중간
+        speed=48,
+        max_brv=1350, init_brv=450,
+        luck=13, accuracy=68, evasion=8
     ),
     "mummy": EnemyTemplate(
         "mummy", "미라", 1,
-        hp=260, mp=60,  # 저주와 재생
-        physical_attack=60, physical_defense=65,
-        magic_attack=70, magic_defense=75,
-        speed=35,
-        max_brv=1360, init_brv=453,
-        luck=8, accuracy=62, evasion=5
+        hp=250, mp=55,  # 균형 탱커 (강한 적)
+        physical_attack=55, physical_defense=62,  # 양방어 높음
+        magic_attack=62, magic_defense=70,  # 마방 특히 높음
+        speed=32,  # 느림
+        max_brv=1150, init_brv=383,
+        luck=8, accuracy=60, evasion=4
     ),
 
-    # === 엘리멘탈 타입 (6종) ===
+    # === 엘리멘탈 타입 (6종) - 강한적/매우강한적 등급 (~550-620) ===
     "fire_elemental": EnemyTemplate(
         "fire_elemental", "불의 정령", 1,
-        hp=180, mp=100,  # 마법 특화
-        physical_attack=45, physical_defense=40,
-        magic_attack=95, magic_defense=70,
-        speed=60,
-        max_brv=1520, init_brv=507,
-        luck=12, accuracy=70, evasion=15
+        hp=175, mp=90,  # 공격형 마법
+        physical_attack=42, physical_defense=32,  # 물방 낮음
+        magic_attack=88, magic_defense=55,  # 마방 중간
+        speed=68,  # 빠름
+        max_brv=1200, init_brv=400,
+        luck=12, accuracy=70, evasion=16
     ),
     "ice_elemental": EnemyTemplate(
         "ice_elemental", "얼음의 정령", 1,
-        hp=175, mp=100,
-        physical_attack=42, physical_defense=45,
-        magic_attack=92, magic_defense=75,
-        speed=55,
-        max_brv=1480, init_brv=493,
-        luck=10, accuracy=68, evasion=12
+        hp=185, mp=88,  # 방어형 마법
+        physical_attack=40, physical_defense=50,  # 물방 높음
+        magic_attack=82, magic_defense=72,  # 마방 높음
+        speed=48,  # 느림
+        max_brv=1150, init_brv=383,
+        luck=10, accuracy=66, evasion=10
     ),
     "thunder_elemental": EnemyTemplate(
         "thunder_elemental", "번개의 정령", 1,
-        hp=170, mp=110,
-        physical_attack=40, physical_defense=38,
-        magic_attack=100, magic_defense=65,
-        speed=75,  # 매우 빠름
-        max_brv=1600, init_brv=533,
-        luck=18, accuracy=75, evasion=22
+        hp=160, mp=95,  # 극단적 속공 마법
+        physical_attack=38, physical_defense=25,  # 물방 매우 낮음
+        magic_attack=92, magic_defense=48,  # 마방 낮음
+        speed=88,  # 최고 속도
+        max_brv=1250, init_brv=417,
+        luck=18, accuracy=76, evasion=28
     ),
     "earth_elemental": EnemyTemplate(
         "earth_elemental", "대지의 정령", 1,
-        hp=250, mp=80,  # 방어 특화
-        physical_attack=65, physical_defense=90,
-        magic_attack=55, magic_defense=85,
-        speed=35,
-        max_brv=1200, init_brv=400,
-        luck=8, accuracy=62, evasion=4
+        hp=260, mp=70,  # 극단적 탱커
+        physical_attack=58, physical_defense=85,  # 물방 극도로 높음
+        magic_attack=48, magic_defense=78,  # 마방 높음
+        speed=28,  # 매우 느림
+        max_brv=1100, init_brv=367,
+        luck=6, accuracy=58, evasion=3
     ),
     "wind_elemental": EnemyTemplate(
         "wind_elemental", "바람의 정령", 1,
-        hp=160, mp=95,  # 회피 특화
-        physical_attack=50, physical_defense=35,
-        magic_attack=75, magic_defense=50,
-        speed=85,  # 최고 속도
-        max_brv=1280, init_brv=427,
-        luck=20, accuracy=72, evasion=30
+        hp=155, mp=85,  # 극단적 민첩형
+        physical_attack=48, physical_defense=28,  # 물방 낮음
+        magic_attack=72, magic_defense=42,  # 마방 낮음
+        speed=95,  # 극단적 속도
+        max_brv=1000, init_brv=333,
+        luck=22, accuracy=74, evasion=35  # 극단적 회피
     ),
     "dark_elemental": EnemyTemplate(
         "dark_elemental", "어둠의 정령", 1,
-        hp=190, mp=120,  # 암흑 마법
-        physical_attack=50, physical_defense=45,
-        magic_attack=105, magic_defense=80,
+        hp=180, mp=100,  # 균형 마법형 (매우 강한 적)
+        physical_attack=45, physical_defense=38,
+        magic_attack=95, magic_defense=70,
         speed=58,
-        max_brv=1680, init_brv=560,
+        max_brv=1350, init_brv=450,
         luck=16, accuracy=70, evasion=18
     ),
 
-    # === 야수/몬스터 타입 (6종) ===
+    # === 야수/몬스터 타입 (6종) - 일반적/강한적 등급 (~500-550) ===
     "bear": EnemyTemplate(
         "bear", "곰", 1,
-        hp=270, mp=30,  # 강력한 물리 공격
-        physical_attack=85, physical_defense=65,
-        magic_attack=25, magic_defense=35,
-        speed=45,
-        max_brv=1360, init_brv=453,
-        luck=10, accuracy=65, evasion=8
+        hp=255, mp=28,  # 물리 파워형
+        physical_attack=78, physical_defense=68,  # 물방 높음
+        magic_attack=22, magic_defense=30,  # 마방 낮음
+        speed=38,  # 느림
+        max_brv=1100, init_brv=367,
+        luck=8, accuracy=62, evasion=5
     ),
     "spider": EnemyTemplate(
         "spider", "거대 거미", 1,
-        hp=190, mp=45,  # 독과 거미줄
-        physical_attack=65, physical_defense=50,
-        magic_attack=40, magic_defense=45,
-        speed=70,
-        max_brv=1040, init_brv=347,
-        luck=14, accuracy=70, evasion=18
+        hp=185, mp=45,  # 민첩 독 공격
+        physical_attack=62, physical_defense=42,  # 물방 중간
+        magic_attack=38, magic_defense=40,
+        speed=75,  # 빠름
+        max_brv=950, init_brv=317,
+        luck=14, accuracy=72, evasion=22
     ),
     "scorpion": EnemyTemplate(
         "scorpion", "전갈", 1,
-        hp=220, mp=40,  # 독침과 방어
-        physical_attack=70, physical_defense=70,
-        magic_attack=30, magic_defense=50,
-        speed=55,
-        max_brv=1200, init_brv=400,
-        luck=12, accuracy=68, evasion=14
+        hp=215, mp=38,  # 물리 방어형
+        physical_attack=65, physical_defense=72,  # 물방 높음
+        magic_attack=28, magic_defense=45,  # 마방 중간
+        speed=52,
+        max_brv=1000, init_brv=333,
+        luck=11, accuracy=66, evasion=12
     ),
     "basilisk": EnemyTemplate(
         "basilisk", "바실리스크", 1,
-        hp=240, mp=75,  # 석화 시선
-        physical_attack=72, physical_defense=60,
-        magic_attack=80, magic_defense=65,
-        speed=50,
-        max_brv=1440, init_brv=480,
-        luck=15, accuracy=72, evasion=12
+        hp=230, mp=70,  # 균형 마법형 (강한 적)
+        physical_attack=68, physical_defense=55,
+        magic_attack=75, magic_defense=62,
+        speed=48,
+        max_brv=1200, init_brv=400,
+        luck=14, accuracy=70, evasion=10
     ),
     "cerberus": EnemyTemplate(
         "cerberus", "케르베로스", 1,
-        hp=280, mp=60,  # 3연속 공격
-        physical_attack=88, physical_defense=65,
-        magic_attack=55, magic_defense=55,
-        speed=68,
-        max_brv=1600, init_brv=533,
-        luck=16, accuracy=72, evasion=15
+        hp=265, mp=55,  # 빠른 물리 공격형 (매우 강한 적)
+        physical_attack=82, physical_defense=58,  # 물방 중간
+        magic_attack=50, magic_defense=48,  # 마방 낮음
+        speed=72,  # 빠름
+        max_brv=1300, init_brv=433,
+        luck=15, accuracy=72, evasion=16
     ),
     "hydra": EnemyTemplate(
         "hydra", "히드라", 1,
-        hp=320, mp=80,  # 재생 능력
-        physical_attack=80, physical_defense=60,
-        magic_attack=60, magic_defense=65,
-        speed=48,
-        max_brv=1760, init_brv=587,
-        luck=12, accuracy=68, evasion=10
+        hp=300, mp=70,  # 재생 탱커 (매우 강한 적)
+        physical_attack=72, physical_defense=65,  # 균형 방어
+        magic_attack=55, magic_defense=60,
+        speed=42,  # 느림
+        max_brv=1400, init_brv=467,
+        luck=11, accuracy=66, evasion=8
     ),
 
-    # === 드래곤 타입 (4종) ===
+    # === 드래곤 타입 (4종) - 모두 유사한 파워 레벨 (~700) ===
     "fire_dragon": EnemyTemplate(
         "fire_dragon", "화염 드래곤", 1,
-        hp=235, mp=48,  # 화염 특화 - 약간 높은 HP
-        physical_attack=63, physical_defense=50,
-        magic_attack=76, magic_defense=52,  # 마법 공격 특화
-        speed=56,
-        max_brv=930, init_brv=310,  # 화염형 BRV
+        hp=280, mp=80,  # 화염 특화 - 공격적
+        physical_attack=72, physical_defense=55,
+        magic_attack=95, magic_defense=58,  # 마법 공격 특화
+        speed=62,
+        max_brv=1200, init_brv=400,
         luck=14, accuracy=72, evasion=13
     ),
     "ice_dragon": EnemyTemplate(
         "ice_dragon", "빙룡", 1,
-        hp=350, mp=135,  # 얼음 특화 드래곤
-        physical_attack=92, physical_defense=78,
-        magic_attack=108, magic_defense=75,
-        speed=60,
-        max_brv=2280, init_brv=760,
-        luck=17, accuracy=74, evasion=12
+        hp=290, mp=85,  # 얼음 특화 - 방어적
+        physical_attack=68, physical_defense=70,
+        magic_attack=88, magic_defense=72,  # 마법 방어 특화
+        speed=55,
+        max_brv=1150, init_brv=383,
+        luck=15, accuracy=70, evasion=10
     ),
     "poison_dragon": EnemyTemplate(
         "poison_dragon", "독 드래곤", 1,
-        hp=330, mp=125,  # 독 특화 드래곤
-        physical_attack=88, physical_defense=72,
-        magic_attack=100, magic_defense=68,
-        speed=65,
-        max_brv=2160, init_brv=720,
-        luck=19, accuracy=76, evasion=16
+        hp=270, mp=90,  # 독 특화 - 밸런스형
+        physical_attack=70, physical_defense=58,
+        magic_attack=85, magic_defense=60,
+        speed=68,  # 빠른 속도
+        max_brv=1180, init_brv=393,
+        luck=17, accuracy=74, evasion=15
     ),
     "elder_dragon": EnemyTemplate(
         "elder_dragon", "고룡", 1,
-        hp=230, mp=42,  # 방어 특화 - 약간 높은 HP/MP
-        physical_attack=65, physical_defense=62,  # 높은 물리 방어
-        magic_attack=58, magic_defense=58,  # 높은 마법 방어
-        speed=50,
-        max_brv=920, init_brv=307,  # 방어형 BRV
-        luck=11, accuracy=66, evasion=11
+        hp=300, mp=75,  # 방어 특화 - 탱키형
+        physical_attack=65, physical_defense=80,
+        magic_attack=60, magic_defense=78,  # 높은 방어력
+        speed=52,
+        max_brv=1100, init_brv=367,
+        luck=12, accuracy=68, evasion=8
     ),
 
     # === 악마/언홀리 타입 (4종) ===
@@ -467,12 +467,12 @@ ENEMY_TEMPLATES = {
     ),
     "succubus": EnemyTemplate(
         "succubus", "서큐버스", 1,
-        hp=230, mp=110,  # 매혹과 흡혈
-        physical_attack=68, physical_defense=55,
-        magic_attack=98, magic_defense=75,
-        speed=70,
-        max_brv=1840, init_brv=613,
-        luck=20, accuracy=76, evasion=22
+        hp=260, mp=95,  # 매혹과 흡혈
+        physical_attack=65, physical_defense=52,
+        magic_attack=90, magic_defense=68,
+        speed=68,
+        max_brv=1300, init_brv=433,
+        luck=18, accuracy=74, evasion=20
     ),
     "balrog": EnemyTemplate(
         "balrog", "발록", 1,
@@ -493,64 +493,290 @@ ENEMY_TEMPLATES = {
         luck=14, accuracy=73, evasion=14
     ),
 
-    # === 기계/골렘 타입 (3종) ===
+    # === 기계/골렘 타입 (3종) - 보스급 등급 (~750) ===
     "iron_golem": EnemyTemplate(
         "iron_golem", "강철 골렘", 1,
-        hp=350, mp=30,  # 극도의 방어
-        physical_attack=80, physical_defense=110,
-        magic_attack=20, magic_defense=70,
-        speed=25,
-        max_brv=1920, init_brv=640,
-        luck=5, accuracy=60, evasion=2
+        hp=320, mp=30,  # 극단적 물리 탱커
+        physical_attack=75, physical_defense=98,  # 물방 극도로 높음
+        magic_attack=18, magic_defense=55,  # 마방 낮음
+        speed=22,  # 매우 느림
+        max_brv=1500, init_brv=500,
+        luck=5, accuracy=55, evasion=2
     ),
     "crystal_golem": EnemyTemplate(
         "crystal_golem", "수정 골렘", 1,
-        hp=300, mp=50,  # 마법 반사
-        physical_attack=70, physical_defense=85,
-        magic_attack=60, magic_defense=120,
-        speed=30,
-        max_brv=1760, init_brv=587,
-        luck=8, accuracy=62, evasion=5
+        hp=285, mp=55,  # 극단적 마법 탱커
+        physical_attack=65, physical_defense=70,  # 물방 높음
+        magic_attack=55, magic_defense=105,  # 마방 극도로 높음
+        speed=28,  # 느림
+        max_brv=1400, init_brv=467,
+        luck=8, accuracy=58, evasion=4
     ),
     "ancient_automaton": EnemyTemplate(
         "ancient_automaton", "고대 자동인형", 1,
-        hp=280, mp=100,  # 기계 공격
-        physical_attack=90, physical_defense=75,
-        magic_attack=85, magic_defense=70,
-        speed=52,
-        max_brv=1840, init_brv=613,
-        luck=10, accuracy=70, evasion=8
+        hp=270, mp=85,  # 균형 공격형
+        physical_attack=82, physical_defense=65,  # 균형 방어
+        magic_attack=78, magic_defense=62,
+        speed=55,  # 중간 속도
+        max_brv=1450, init_brv=483,
+        luck=10, accuracy=68, evasion=8
     ),
 
-    # === 보스급/특수 타입 (2종) ===
+    # === 보스급/특수 타입 (2종) - 매우 강한적 등급 (~620) ===
     "mimic": EnemyTemplate(
         "mimic", "미믹", 1,
-        hp=200, mp=50,  # 보물상자 위장
-        physical_attack=85, physical_defense=60,
-        magic_attack=50, magic_defense=50,
-        speed=65,
-        max_brv=1440, init_brv=480,
-        luck=25, accuracy=80, evasion=20  # 높은 행운과 회피
+        hp=195, mp=48,  # 빠른 서프라이즈 공격
+        physical_attack=78, physical_defense=52,  # 물방 중간
+        magic_attack=45, magic_defense=45,  # 마방 중간
+        speed=72,  # 빠름
+        max_brv=1150, init_brv=383,
+        luck=25, accuracy=78, evasion=22  # 높은 행운과 회피
     ),
     "nightmare": EnemyTemplate(
         "nightmare", "나이트메어", 1,
-        hp=270, mp=140,  # 꿈의 악마
-        physical_attack=75, physical_defense=50,
-        magic_attack=115, magic_defense=85,
-        speed=72,
-        max_brv=2080, init_brv=693,
-        luck=22, accuracy=78, evasion=25
+        hp=255, mp=100,  # 꿈의 악마
+        physical_attack=68, physical_defense=48,
+        magic_attack=95, magic_defense=72,
+        speed=70,
+        max_brv=1350, init_brv=450,
+        luck=19, accuracy=75, evasion=22
     ),
 
-    # === 그림자 잠복자 (특수 타입) ===
-    "invisible_enemy": EnemyTemplate(
-        "invisible_enemy", "그림자 잠복자", 1,
-        hp=200, mp=40,  # 일반적인 적과 동일한 스탯
-        physical_attack=55, physical_defense=45,
-        magic_attack=55, magic_defense=45,
+    # === 자연/야수 타입 추가 (5종) ===
+    "dire_wolf": EnemyTemplate(
+        "dire_wolf", "다이어 울프", 1,
+        hp=175, mp=20,  # 빠른 야수, 팩 헌터
+        physical_attack=72, physical_defense=40,
+        magic_attack=15, magic_defense=35,
+        speed=78,
+        max_brv=1000, init_brv=333,
+        luck=15, accuracy=75, evasion=25
+    ),
+    "thunderbird": EnemyTemplate(
+        "thunderbird", "썬더버드", 1,
+        hp=210, mp=90,  # 전기 속성 새
+        physical_attack=55, physical_defense=42,
+        magic_attack=88, magic_defense=65,
+        speed=85,
+        max_brv=1200, init_brv=400,
+        luck=18, accuracy=82, evasion=30
+    ),
+    "manticore": EnemyTemplate(
+        "manticore", "만티코어", 1,
+        hp=280, mp=60,  # 독 꼬리 환상수
+        physical_attack=85, physical_defense=58,
+        magic_attack=55, magic_defense=50,
+        speed=62,
+        max_brv=1400, init_brv=467,
+        luck=14, accuracy=72, evasion=15
+    ),
+    "treant": EnemyTemplate(
+        "treant", "트렌트", 1,
+        hp=350, mp=80,  # 자연의 수호자
+        physical_attack=70, physical_defense=85,
+        magic_attack=60, magic_defense=70,
+        speed=25,  # 매우 느림
+        max_brv=1600, init_brv=533,
+        luck=8, accuracy=55, evasion=2
+    ),
+    "chimera": EnemyTemplate(
+        "chimera", "키메라", 1,
+        hp=320, mp=75,  # 사자+염소+뱀 합성수
+        physical_attack=90, physical_defense=62,
+        magic_attack=75, magic_defense=55,
+        speed=58,
+        max_brv=1500, init_brv=500,
+        luck=13, accuracy=70, evasion=12
+    ),
+
+    # === 수중/해양 타입 (4종) ===
+    "sea_serpent": EnemyTemplate(
+        "sea_serpent", "바다뱀", 1,
+        hp=240, mp=65,  # 물 속성 뱀
+        physical_attack=75, physical_defense=50,
+        magic_attack=70, magic_defense=60,
+        speed=68,
+        max_brv=1250, init_brv=417,
+        luck=12, accuracy=70, evasion=20
+    ),
+    "kraken": EnemyTemplate(
+        "kraken", "크라켄", 1,
+        hp=380, mp=100,  # 거대 문어
+        physical_attack=95, physical_defense=70,
+        magic_attack=80, magic_defense=65,
+        speed=35,
+        max_brv=1800, init_brv=600,
+        luck=10, accuracy=68, evasion=8
+    ),
+    "siren": EnemyTemplate(
+        "siren", "사이렌", 1,
+        hp=195, mp=110,  # 매혹의 노래 사용
+        physical_attack=45, physical_defense=40,
+        magic_attack=95, magic_defense=75,
+        speed=70,
+        max_brv=1100, init_brv=367,
+        luck=20, accuracy=80, evasion=22
+    ),
+    "merfolk_warrior": EnemyTemplate(
+        "merfolk_warrior", "머포크 전사", 1,
+        hp=220, mp=45,  # 수중 전사
+        physical_attack=78, physical_defense=55,
+        magic_attack=50, magic_defense=50,
+        speed=65,
+        max_brv=1150, init_brv=383,
+        luck=11, accuracy=72, evasion=18
+    ),
+
+    # === 확장 언데드 타입 (4종) ===
+    "bone_dragon": EnemyTemplate(
+        "bone_dragon", "해골 드래곤", 1,
+        hp=340, mp=80,  # 언데드 드래곤
+        physical_attack=88, physical_defense=75,
+        magic_attack=70, magic_defense=68,
+        speed=45,
+        max_brv=1700, init_brv=567,
+        luck=10, accuracy=65, evasion=5
+    ),
+    "revenant": EnemyTemplate(
+        "revenant", "레버넌트", 1,
+        hp=230, mp=55,  # 복수심에 불타는 망령
+        physical_attack=80, physical_defense=52,
+        magic_attack=65, magic_defense=58,
+        speed=60,
+        max_brv=1200, init_brv=400,
+        luck=15, accuracy=75, evasion=18
+    ),
+    "dullahan": EnemyTemplate(
+        "dullahan", "듀라한", 1,
+        hp=275, mp=50,  # 머리없는 기사
+        physical_attack=92, physical_defense=68,
+        magic_attack=45, magic_defense=55,
         speed=55,
-        max_brv=960, init_brv=320,
-        luck=10, accuracy=65, evasion=12
+        max_brv=1350, init_brv=450,
+        luck=16, accuracy=78, evasion=12
+    ),
+    "lich_king": EnemyTemplate(
+        "lich_king", "리치 킹", 1,
+        hp=300, mp=150,  # 최상위 언데드 마법사
+        physical_attack=50, physical_defense=55,
+        magic_attack=110, magic_defense=95,
+        speed=50,
+        max_brv=1550, init_brv=517,
+        luck=22, accuracy=85, evasion=15
+    ),
+
+    # === 곤충/절지류 타입 (4종) ===
+    "giant_centipede": EnemyTemplate(
+        "giant_centipede", "거대 지네", 1,
+        hp=185, mp=30,  # 독 공격 다단히트
+        physical_attack=68, physical_defense=48,
+        magic_attack=35, magic_defense=40,
+        speed=72,
+        max_brv=1050, init_brv=350,
+        luck=12, accuracy=70, evasion=22
+    ),
+    "queen_bee": EnemyTemplate(
+        "queen_bee", "여왕벌", 1,
+        hp=200, mp=60,  # 소환/버프 특화
+        physical_attack=55, physical_defense=45,
+        magic_attack=75, magic_defense=60,
+        speed=68,
+        max_brv=1100, init_brv=367,
+        luck=14, accuracy=72, evasion=25
+    ),
+    "death_beetle": EnemyTemplate(
+        "death_beetle", "죽음의 딱정벌레", 1,
+        hp=250, mp=40,  # 높은 방어, 저주 속성
+        physical_attack=72, physical_defense=80,
+        magic_attack=55, magic_defense=65,
+        speed=35,
+        max_brv=1250, init_brv=417,
+        luck=8, accuracy=60, evasion=5
+    ),
+    "plague_moth": EnemyTemplate(
+        "plague_moth", "역병 나방", 1,
+        hp=165, mp=70,  # 상태이상 전문
+        physical_attack=40, physical_defense=35,
+        magic_attack=80, magic_defense=58,
+        speed=75,
+        max_brv=950, init_brv=317,
+        luck=18, accuracy=68, evasion=28
+    ),
+
+    # === 인간형 타입 (4종) ===
+    "dark_knight": EnemyTemplate(
+        "dark_knight", "암흑 기사", 1,
+        hp=270, mp=55,  # HP 소모 강공격
+        physical_attack=95, physical_defense=70,
+        magic_attack=50, magic_defense=55,
+        speed=48,
+        max_brv=1400, init_brv=467,
+        luck=12, accuracy=75, evasion=10
+    ),
+    "battle_mage": EnemyTemplate(
+        "battle_mage", "배틀 메이지", 1,
+        hp=215, mp=100,  # 물/마 균형
+        physical_attack=65, physical_defense=50,
+        magic_attack=85, magic_defense=70,
+        speed=58,
+        max_brv=1200, init_brv=400,
+        luck=15, accuracy=78, evasion=15
+    ),
+    "assassin": EnemyTemplate(
+        "assassin", "암살자", 1,
+        hp=180, mp=45,  # 크리티컬 특화
+        physical_attack=88, physical_defense=38,
+        magic_attack=40, magic_defense=45,
+        speed=90,
+        max_brv=1000, init_brv=333,
+        luck=28, accuracy=92, evasion=35
+    ),
+    "berserker": EnemyTemplate(
+        "berserker", "광전사", 1,
+        hp=295, mp=25,  # HP 떨어질수록 강해짐
+        physical_attack=100, physical_defense=45,
+        magic_attack=25, magic_defense=40,
+        speed=55,
+        max_brv=1500, init_brv=500,
+        luck=10, accuracy=68, evasion=8
+    ),
+
+    # === 그림자/암흑 타입 (4종) ===
+    "shadow_stalker": EnemyTemplate(
+        "shadow_stalker", "그림자 추적자", 1,
+        hp=190, mp=55,  # 회피 특화
+        physical_attack=75, physical_defense=42,
+        magic_attack=60, magic_defense=50,
+        speed=82,
+        max_brv=1050, init_brv=350,
+        luck=22, accuracy=80, evasion=38
+    ),
+    "void_walker": EnemyTemplate(
+        "void_walker", "공허의 보행자", 1,
+        hp=225, mp=85,  # 차원 마법
+        physical_attack=55, physical_defense=50,
+        magic_attack=90, magic_defense=75,
+        speed=65,
+        max_brv=1200, init_brv=400,
+        luck=18, accuracy=75, evasion=25
+    ),
+    "nightmare_lord": EnemyTemplate(
+        "nightmare_lord", "악몽의 군주", 1,
+        hp=285, mp=110,  # 공포/수면 특화
+        physical_attack=65, physical_defense=55,
+        magic_attack=100, magic_defense=80,
+        speed=60,
+        max_brv=1400, init_brv=467,
+        luck=20, accuracy=78, evasion=20
+    ),
+    "abyss_demon": EnemyTemplate(
+        "abyss_demon", "심연의 마귀", 1,
+        hp=330, mp=90,  # 최상급 암흑
+        physical_attack=88, physical_defense=65,
+        magic_attack=95, magic_defense=72,
+        speed=52,
+        max_brv=1600, init_brv=533,
+        luck=16, accuracy=72, evasion=15
     ),
 }
 
@@ -596,20 +822,20 @@ class SimpleEnemy:
         # 최종 배율 1.0 (100%)
         attack_growth = template.physical_attack * 0.225 * (level - 1)
         base_physical_attack = (template.physical_attack + attack_growth) * boss_stat_mult * stat_variance
-        self.physical_attack = int(base_physical_attack * 1.0) * difficulty_dmg_mult  # 모든 적 공격력 100%
+        self.physical_attack = int(base_physical_attack * 0.7) * difficulty_dmg_mult  # 모든 적 공격력 100%
 
         magic_attack_growth = template.magic_attack * 0.225 * (level - 1)
         base_magic_attack = (template.magic_attack + magic_attack_growth) * boss_stat_mult * stat_variance
-        self.magic_attack = int(base_magic_attack * 1.0) * difficulty_dmg_mult  # 모든 적 마법력 100%
+        self.magic_attack = int(base_magic_attack * 0.7) * difficulty_dmg_mult  # 모든 적 마법력 100%
         
         # 방어력: 레벨당 기초 방어력의 68% 성장 (기존 40%에서 대폭 증가), 최종값 2/3배
         defense_growth = template.physical_defense * 0.68 * (level - 1)
         base_physical_defense = (template.physical_defense + defense_growth) * boss_stat_mult * stat_variance
-        self.physical_defense = int(base_physical_defense * 0.667)  # 2/3배
+        self.physical_defense = int(base_physical_defense * 0.4)
 
         magic_defense_growth = template.magic_defense * 0.68 * (level - 1)
         base_magic_defense = (template.magic_defense + magic_defense_growth) * boss_stat_mult * stat_variance
-        self.magic_defense = int(base_magic_defense * 0.667)  # 2/3배
+        self.magic_defense = int(base_magic_defense * 0.4)
         
         # 속도: 레벨당 기초 속도의 25% 성장 (약간 낮춰 밸런스 조정)
         # 추가로 속도를 1.5배로 조정하고, 30% 감소 적용 (1.5 * 0.7 = 1.05)
@@ -618,7 +844,7 @@ class SimpleEnemy:
         self.speed = int(base_speed)
         
         # 행운, 명중, 회피는 레벨에 따라 약간 증가
-        base_luck = (template.luck + (level - 1) * 0.5) * boss_stat_mult * stat_variance
+        base_luck = (template.luck + (level - 1) * 0.1) * boss_stat_mult * stat_variance
         self.luck = int(base_luck)
         base_accuracy = (template.accuracy + (level - 1) * 1.0) * boss_stat_mult * stat_variance
         self.accuracy = int(base_accuracy)
@@ -643,6 +869,10 @@ class SimpleEnemy:
         # 전투 시작 시 current_brv는 init_brv 그대로 사용
         self.current_brv = self.init_brv
 
+        # 속성 저항/약점 시스템
+        # 값 < 1.0 = 약점 (데미지 증가), 값 > 1.0 = 저항 (데미지 감소)
+        self.element_resistance = self._get_element_resistance(template.enemy_id)
+
         # 상태
         self.is_alive = True
         self.status_manager = StatusManager(owner_name=self.name, owner=self)
@@ -651,6 +881,121 @@ class SimpleEnemy:
 
         # 스킬 (간단하게)
         self.skills = []
+
+    def _get_element_resistance(self, enemy_id: str) -> dict:
+        """적 타입별 속성 저항/약점 반환"""
+        # 값 설명: < 1.0 = 약점(데미지 증가), > 1.0 = 저항(데미지 감소)
+        # 예: 0.5 = 2배 데미지(약점), 2.0 = 0.5배 데미지(저항)
+        ELEMENT_RESISTANCES = {
+            # === 기본 몬스터 ===
+            "slime": {"fire": 0.7, "ice": 1.3, "lightning": 0.7, "water": 1.5},  # 물에 강함, 불/전기에 약함
+            "goblin": {},  # 일반
+            "wolf": {"fire": 0.8, "ice": 1.2},  # 불에 약함
+            "zombie": {"fire": 0.6, "holy": 0.5, "dark": 1.5},  # 불/신성에 약함, 암흑 저항
+            "imp": {"holy": 0.6, "fire": 1.3, "dark": 1.3},  # 화염/암흑 저항, 신성 약점
+            
+            # === 일반 적 ===
+            "orc": {},  # 일반
+            "skeleton": {"holy": 0.5, "dark": 1.5, "fire": 0.8},  # 신성/불에 약함, 암흑 저항
+            "dark_mage": {"holy": 0.6, "dark": 1.5},  # 신성 약점, 암흑 저항
+            "ghoul": {"holy": 0.5, "dark": 1.3, "fire": 0.7},  # 신성/불에 약함
+            
+            # === 강한 적 ===
+            "ogre": {},  # 일반
+            "wraith": {"holy": 0.4, "dark": 2.0, "fire": 1.3, "ice": 1.3},  # 신성 초약점, 암흑 면역
+            "golem": {"lightning": 0.7, "water": 0.7, "fire": 1.3},  # 전기/물에 약함, 화염 저항
+            "troll": {"fire": 0.5, "ice": 1.2},  # 화염 초약점 (재생 방해)
+            "vampire": {"holy": 0.5, "fire": 0.7, "dark": 1.5},  # 신성/불에 약함, 암흑 저항
+            "wyvern": {"ice": 0.7, "lightning": 0.8, "earth": 1.3},  # 빙결/전기 약점
+            
+            # === 언데드 ===
+            "banshee": {"holy": 0.5, "dark": 1.5},  # 신성 약점, 암흑 저항
+            "death_knight": {"holy": 0.6, "dark": 1.4, "fire": 0.8},  # 신성/불에 약함
+            "mummy": {"fire": 0.4, "holy": 0.6, "water": 1.3},  # 화염 초약점, 물 저항
+            
+            # === 정령 타입 (핵심) ===
+            "fire_elemental": {"fire": 2.5, "ice": 0.3, "water": 0.5},  # 화염 면역, 빙결/물 초약점
+            "ice_elemental": {"ice": 2.5, "fire": 0.3, "lightning": 0.8},  # 빙결 면역, 화염 초약점
+            "thunder_elemental": {"lightning": 2.5, "earth": 0.3, "water": 1.5},  # 전기 면역, 대지 초약점
+            "earth_elemental": {"earth": 2.5, "wind": 0.3, "lightning": 1.5},  # 대지 면역, 바람 초약점
+            "wind_elemental": {"wind": 2.5, "earth": 0.3, "ice": 0.8},  # 바람 면역, 대지 초약점
+            "dark_elemental": {"dark": 2.5, "holy": 0.3, "fire": 1.2},  # 암흑 면역, 신성 초약점
+            
+            # === 야수 타입 ===
+            "bear": {"fire": 0.8, "ice": 1.2},
+            "spider": {"fire": 0.6, "ice": 1.2},  # 화염 약점
+            "scorpion": {"ice": 0.7, "water": 0.8},  # 빙결/물 약점
+            "basilisk": {"ice": 0.7, "holy": 0.8},
+            "cerberus": {"fire": 2.0, "ice": 0.5, "holy": 0.7},  # 화염 저항, 빙결/신성 약점
+            "hydra": {"fire": 0.4, "ice": 1.3},  # 화염 초약점 (재생 방해)
+            
+            # === 드래곤 타입 ===
+            "dragon": {"fire": 1.5, "ice": 1.5, "lightning": 1.3},  # 원소 저항
+            "fire_dragon": {"fire": 3.0, "ice": 0.4, "water": 0.6},  # 화염 면역, 빙결/물 초약점
+            "ice_dragon": {"ice": 3.0, "fire": 0.4, "lightning": 0.8},  # 빙결 면역, 화염 초약점
+            "poison_dragon": {"earth": 1.5, "holy": 0.7, "wind": 0.8},
+            "elder_dragon": {"fire": 1.5, "ice": 1.5, "lightning": 1.5, "holy": 0.8},  # 원소 저항, 신성에만 약함
+            
+            # === 악마 타입 ===
+            "demon": {"holy": 0.5, "dark": 1.8, "fire": 1.3},
+            "succubus": {"holy": 0.6, "dark": 1.5},
+            "balrog": {"fire": 2.5, "ice": 0.4, "holy": 0.6},  # 화염 면역, 빙결/신성 약점
+            "archfiend": {"holy": 0.4, "dark": 2.0, "fire": 1.5},  # 신성 초약점, 암흑/화염 저항
+            
+            # === 기계/골렘 ===
+            "iron_golem": {"lightning": 0.5, "water": 0.6, "fire": 1.3, "ice": 1.3},  # 전기/물 약점
+            "crystal_golem": {"earth": 0.6, "dark": 1.5, "holy": 1.5},  # 대지 약점, 빛/암흑 저항
+            "ancient_automaton": {"lightning": 0.6, "water": 0.7},
+            
+            # === 특수 ===
+            "mimic": {},  # 일반
+            "nightmare": {"holy": 0.5, "dark": 1.5, "fire": 0.8},
+            
+            # === 신규 자연/야수 ===
+            "dire_wolf": {"fire": 0.7, "ice": 1.2},
+            "thunderbird": {"lightning": 2.0, "earth": 0.5, "wind": 1.5},  # 전기 저항, 대지 약점
+            "manticore": {"ice": 0.8, "fire": 1.2},
+            "treant": {"fire": 0.3, "ice": 0.8, "water": 1.5, "earth": 1.5},  # 화염 초약점
+            "chimera": {"ice": 0.8, "holy": 0.8},
+            
+            # === 신규 수중/해양 ===
+            "sea_serpent": {"lightning": 0.5, "ice": 0.8, "water": 2.0, "fire": 1.3},  # 전기 약점, 물 저항
+            "kraken": {"lightning": 0.4, "fire": 1.5, "water": 2.0},  # 전기 초약점
+            "siren": {"dark": 0.7, "holy": 1.3},
+            "merfolk_warrior": {"lightning": 0.6, "water": 1.5, "fire": 1.2},
+            
+            # === 신규 언데드 ===
+            "bone_dragon": {"holy": 0.4, "dark": 1.8, "fire": 0.7},
+            "revenant": {"holy": 0.5, "dark": 1.5, "fire": 0.8},
+            "dullahan": {"holy": 0.5, "dark": 1.4},
+            "lich_king": {"holy": 0.3, "dark": 2.0, "fire": 0.7, "ice": 1.5},  # 신성 초약점, 빙결 마법 사용
+            
+            # === 신규 곤충 ===
+            "giant_centipede": {"fire": 0.6, "ice": 0.8},
+            "queen_bee": {"fire": 0.5, "ice": 0.8, "wind": 1.3},
+            "death_beetle": {"fire": 0.7, "holy": 0.8},
+            "plague_moth": {"fire": 0.4, "wind": 0.7},  # 화염/바람 약점
+            
+            # === 신규 인간형 ===
+            "dark_knight": {"holy": 0.6, "dark": 1.4},
+            "battle_mage": {},  # 균형
+            "assassin": {"holy": 0.8},
+            "berserker": {"ice": 0.8},  # 냉정함에 약함
+            
+            # === 신규 그림자/암흑 ===
+            "shadow_stalker": {"holy": 0.5, "dark": 1.8, "fire": 0.8},
+            "void_walker": {"holy": 0.4, "dark": 2.0},
+            "nightmare_lord": {"holy": 0.4, "dark": 2.0, "fire": 0.8},
+            "abyss_demon": {"holy": 0.3, "dark": 2.5, "fire": 1.3},  # 신성 초약점, 암흑 면역
+            
+            # === 보스 ===
+            "boss_chimera": {"ice": 0.8, "holy": 0.8},
+            "boss_lich": {"holy": 0.4, "dark": 1.8, "fire": 0.7},
+            "boss_dragon_king": {"holy": 0.7},  # 약간의 신성 약점만
+            "sephiroth": {"holy": 0.8},  # 미미한 약점
+            "abel_cain": {"dark": 0.8, "holy": 0.8},  # 양면성
+        }
+        return ELEMENT_RESISTANCES.get(enemy_id, {})
 
     def take_damage(self, damage: int, is_dot: bool = False, **kwargs) -> int:
         """데미지 받기"""
@@ -681,31 +1026,40 @@ class EnemyGenerator:
     # 적 등급별 등장 층수 정의
     ENEMY_TIERS = {
         # 약한 적 (1-3층)
-        "weak": ["slime", "goblin", "wolf", "zombie", "imp"],
+        "weak": ["slime", "goblin", "wolf", "zombie", "imp", "giant_centipede"],
         # 일반 적 (3-6층)
-        "normal": ["orc", "skeleton", "dark_mage", "ghoul", "spider", "scorpion", "bear"],
+        "normal": [
+            "orc", "skeleton", "dark_mage", "ghoul", "spider", "scorpion", "bear",
+            "dire_wolf", "merfolk_warrior", "queen_bee", "plague_moth"
+        ],
         # 강한 적 (6-9층)
         "strong": [
             "ogre", "wraith", "golem",
             "mummy", "banshee", "fire_elemental", "ice_elemental",
-            "wind_elemental", "basilisk"
+            "wind_elemental", "basilisk",
+            "thunderbird", "sea_serpent", "revenant", "death_beetle", "assassin"
         ],
         # 매우 강한 적 (9-12층)
         "very_strong": [
             "troll", "vampire", "wyvern",
             "death_knight", "thunder_elemental", "dark_elemental",
-            "earth_elemental", "cerberus", "hydra", "mimic"
+            "earth_elemental", "cerberus", "hydra", "mimic",
+            "manticore", "siren", "dullahan", "dark_knight", "battle_mage",
+            "shadow_stalker", "berserker"
         ],
         # 최상급 적 (12-15층)
         "elite": [
             "demon", "dragon",
             "fire_dragon", "ice_dragon", "poison_dragon",
-            "succubus", "nightmare"
+            "succubus", "nightmare",
+            "chimera", "kraken", "bone_dragon", "lich_king",
+            "void_walker", "nightmare_lord"
         ],
         # 보스급 (15층 이상 또는 특수 조우)
         "boss": [
             "balrog", "archfiend", "elder_dragon",
-            "iron_golem", "crystal_golem", "ancient_automaton"
+            "iron_golem", "crystal_golem", "ancient_automaton",
+            "treant", "abyss_demon"
         ],
     }
 
@@ -782,25 +1136,11 @@ class EnemyGenerator:
         # 층수에 맞는 적 ID 가져오기
         suitable_enemy_ids = EnemyGenerator.get_suitable_enemies_for_floor(floor_number)
 
-        # 20층부터 투명한 적 2마리 추가 로직
-        invisible_enemy_count = 0
-        if floor_number >= 20:
-            invisible_enemy_count = min(2, num_enemies)  # 적 수가 2마리 미만이면 그 수만큼만
-
         # 랜덤 선택
         enemies = []
-        invisible_enemies_placed = 0
 
         for i in range(num_enemies):
-            # 투명한 적을 배치할 차례인지 확인
-            is_invisible_enemy = (invisible_enemies_placed < invisible_enemy_count and
-                                (i >= num_enemies - invisible_enemy_count or random.random() < 0.3))
-
-            if is_invisible_enemy:
-                enemy_id = "invisible_enemy"
-                invisible_enemies_placed += 1
-            else:
-                enemy_id = random.choice(suitable_enemy_ids)
+            enemy_id = random.choice(suitable_enemy_ids)
 
             template = ENEMY_TEMPLATES[enemy_id]
 

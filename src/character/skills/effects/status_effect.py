@@ -66,6 +66,7 @@ class StatusEffect(SkillEffect):
         chance: float = 1.0,
         resonance_chance: float = None,
         resonance_duration_bonus: int = 0,
+        metadata: dict = None,
     ):
         super().__init__(EffectType.BUFF)  # 기존 BUFF 타입 재사용
         self.status_type = status_type
@@ -79,6 +80,7 @@ class StatusEffect(SkillEffect):
         self.chance = chance or 1.0
         self.resonance_chance = resonance_chance
         self.resonance_duration_bonus = resonance_duration_bonus or 0
+        self.metadata = metadata or {}
 
     def can_execute(self, user, target, context):
         return True, ""
@@ -143,6 +145,8 @@ class StatusEffect(SkillEffect):
                 'provoke': StatusType.TAUNT,
                 'taunt': StatusType.TAUNT,
                 'scatter': StatusType.SCATTER,
+                'vulnerable': StatusType.VULNERABLE,
+                'reduce_magic_def': StatusType.REDUCE_MAGIC_DEF,
                 # 아크메이지 융합 스킬 상태 효과
                 'electrocuted': StatusType.ELECTROCUTED,
                 'slowed': StatusType.SLOWED,
@@ -218,6 +222,27 @@ class StatusEffect(SkillEffect):
                               StatusType.SILENCE]:
                 duration = min(duration, 2)  # 최대 2턴
             
+            # 메타데이터 구성
+            effect_metadata = self.metadata.copy() if self.metadata else {}
+            if base_damage > 0:
+                effect_metadata["base_damage"] = base_damage
+            
+            # 사용자 특성 체크 (burning_rage) - 화상 흡혈
+            if user and status_enum in [StatusType.BURN, StatusType.BURNING]:
+                trait_ids = []
+                # active_traits가 객체 리스트인지 ID 리스트인지 확인
+                if hasattr(user, "active_traits"):
+                    # ID 리스트인 경우
+                    if user.active_traits and isinstance(user.active_traits[0], str):
+                         trait_ids = user.active_traits
+                    # 객체인 경우 (trait_id 속성 확인)
+                    elif user.active_traits and hasattr(user.active_traits[0], "trait_id"):
+                         trait_ids = [t.trait_id for t in user.active_traits]
+                
+                if "burning_rage" in trait_ids:
+                    effect_metadata["burn_vampirism"] = 0.7
+                    effect_metadata["source_object"] = user  # 소스 객체 저장 (주의: 직렬화 시 문제될 수 있음)
+
             # StatusEffect 객체 생성
             status_effect = CombatStatusEffect(
                 name=self.status_type.replace('_', ' ').title(),
@@ -227,7 +252,7 @@ class StatusEffect(SkillEffect):
                 is_stackable=self.stackable,
                 max_stacks=5 if self.stackable else 1,
                 source_id=getattr(user, 'name', None) if user else None,
-                metadata={"base_damage": base_damage} if base_damage > 0 else {}
+                metadata=effect_metadata
             )
 
             # StatusManager에 추가

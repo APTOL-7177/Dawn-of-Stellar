@@ -14,23 +14,23 @@ def create_necromancer_skills():
     """네크로맨서 10개 스킬 생성 (언데드 군단 관리 시스템)"""
 
     # 1. 기본 BRV: 암흑 화살 (마법 공격)
-    shadow_bolt = Skill("necromancer_shadow_bolt", "암흑 화살", "어둠의 마법 공격")
+    shadow_bolt = Skill("necromancer_shadow_bolt", "암흑 화살", "암흑 속성. 어둠의 마법 공격")
     shadow_bolt.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
+        DamageEffect(DamageType.BRV, 1.5, stat_type="magical", element="dark")
     ]
     shadow_bolt.costs = []  # 기본 공격은 MP 소모 없음
     shadow_bolt.sfx = ("skill", "cast_start")  # 암흑 화살
-    shadow_bolt.metadata = {}
+    shadow_bolt.metadata = {"element": "dark"}
 
     # 2. 기본 HP: 생명력 흡수 (HP 드레인)
-    drain_life = Skill("necromancer_drain_life", "생명력 흡수", "적의 HP를 흡수")
+    drain_life = Skill("necromancer_drain_life", "생명력 흡수", "암흑 속성. 적의 HP를 흡수")
     drain_life.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="magical"),
-        LifestealEffect(lifesteal_percent=0.15, low_hp_bonus=False)  # 피해의 15% 회복
+        DamageEffect(DamageType.HP, 1.0, stat_type="magical", element="dark"),
+        LifestealEffect(lifesteal_percent=0.15, low_hp_bonus=False)
     ]
-    drain_life.costs = []  # 기본 공격은 MP 소모 없음
-    drain_life.sfx = ("character", "hp_heal")  # 생명력 흡수
-    drain_life.metadata = {"drain": True}
+    drain_life.costs = []
+    drain_life.sfx = ("character", "hp_heal")
+    drain_life.metadata = {"element": "dark", "drain": True}
 
     # 3. 스켈레톤 소환 (물리 공격력 +15%)
     summon_skeleton = Skill("necromancer_summon_skeleton", "스켈레톤 소환",
@@ -96,16 +96,16 @@ def create_necromancer_skills():
 
     # 8. 죽음의 파동 (언데드 수에 비례한 광역 공격)
     death_wave = Skill("necromancer_death_wave", "죽음의 파동",
-                      "언데드 수에 비례한 광역 공격")
+                      "암흑 속성. 언데드 수에 비례한 광역 공격")
     death_wave.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.0, stat_type="magical",
+        DamageEffect(DamageType.BRV_HP, 2.0, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "total_undead", "multiplier": 0.4})
     ]
     death_wave.costs = [MPCost(8)]
     death_wave.target_type = "all_enemies"
     death_wave.is_aoe = True
-    death_wave.sfx = ("skill", "cast_complete")  # 죽음의 파동
-    death_wave.metadata = {"death_wave": True}
+    death_wave.sfx = ("skill", "cast_complete")
+    death_wave.metadata = {"element": "dark", "death_wave": True}
 
     # 9. 대량 소환 (모든 언데드 타입 1마리씩 즉시 소환)
     mass_summon = Skill("necromancer_mass_summon", "대량 소환",
@@ -125,11 +125,11 @@ def create_necromancer_skills():
 
     # 10. 궁극기: 언데드 대군단 (모든 언데드 희생, 극한의 피해)
     ultimate = Skill("necromancer_ultimate", "언데드 대군단",
-                    "모든 언데드 희생, 극한의 피해")
+                    "암흑 속성. 모든 언데드 희생, 극한의 피해")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 3.0, stat_type="magical",
+        DamageEffect(DamageType.BRV, 3.0, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "total_undead", "multiplier": 0.8}),
-        DamageEffect(DamageType.HP, 3.2, stat_type="magical",
+        DamageEffect(DamageType.HP, 3.2, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "total_undead", "multiplier": 0.6}),
         GimmickEffect(GimmickOperation.SET, "undead_skeleton", 0),
         GimmickEffect(GimmickOperation.SET, "undead_zombie", 0),
@@ -137,11 +137,11 @@ def create_necromancer_skills():
     ]
     ultimate.costs = [MPCost(30)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
+    ultimate.cooldown = 15
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
-    ultimate.sfx = ("skill", "limit_break")  # 궁극기
-    ultimate.metadata = {"ultimate": True, "legion_sacrifice": True}
+    ultimate.sfx = ("skill", "limit_break")
+    ultimate.metadata = {"ultimate": True, "element": "dark", "legion_sacrifice": True}
 
     return [shadow_bolt, drain_life, summon_skeleton, summon_zombie, summon_ghost,
             sacrifice_undead, legion_command, death_wave, mass_summon, ultimate]

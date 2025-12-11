@@ -241,6 +241,12 @@ class FieldSkillManager:
                 "func": self._skill_illusionist_mirror_passage,
                 "desc": "환영을 통해 적의 시선을 피해 안전하게 이동 (선제 공격 확률 30% 증가)"
             },
+            "magician_card_fortune": {
+                "name": "카드 포춘",
+                "mp": 15,
+                "func": self._skill_magician_card_fortune,
+                "desc": "트럼프 카드를 뽑아 운명을 점친다. 카드에 따라 다양한 필드 효과 발동!"
+            },
         }
 
         # 직업 ID -> 스킬 키 매핑
@@ -283,6 +289,7 @@ class FieldSkillManager:
 
             # 특수
             "illusionist": "illusionist_mirror_passage",
+            "magician": "magician_card_fortune",
         }
         
         # 시간 역행용 저장 좌표
@@ -786,3 +793,171 @@ class FieldSkillManager:
             member.status_manager.add_status(evade_status)
 
         return True, "거울 속 환영들이 적의 시선을 교란합니다. (선제공격 확률 +30%, 은신/회피 상승)"
+
+    def _skill_magician_card_fortune(self, user: Character) -> Tuple[bool, str]:
+        """카드 포춘 - 트럼프 카드를 뽑아 운명을 점친다
+
+        카드에 따라 다양한 필드 효과 발동.
+        """
+        # 카드 덱 확인
+        deck = getattr(user, 'card_deck', None)
+        discard = getattr(user, 'card_discard', [])
+
+        if not deck or len(deck) == 0:
+            # 덱이 비었으면 버린 카드에서 셔플
+            if discard:
+                import random
+                random.shuffle(discard)
+                deck = discard
+                user.card_discard = []
+                user.card_deck = deck
+            else:
+                return False, "덱에 카드가 없습니다!"
+
+        # 카드 1장 뽑기
+        drawn_card = deck.pop(0)
+        user.card_deck = deck
+
+        # 사용한 카드는 버림 더미로
+        if not hasattr(user, 'card_discard'):
+            user.card_discard = []
+        user.card_discard.append(drawn_card)
+
+        # 카드 정보 추출
+        is_joker = drawn_card.get("is_joker", False)
+        rank = drawn_card.get("rank", "")
+        suit = drawn_card.get("suit", "")
+
+        # 파티 참조
+        party = self.exploration.player.party
+
+        # 무늬 기호
+        suit_symbols = {"spade": "♠", "heart": "♥", "diamond": "♦", "club": "♣"}
+
+        # 카드 이름 생성
+        if is_joker:
+            card_name = "조커"
+        else:
+            card_name = f"{suit_symbols.get(suit, '?')}{rank}"
+
+        # 효과 적용
+        effect_msg = ""
+        
+        if is_joker:
+            if rank == "joker_red" or "red" in str(rank).lower():
+                # 레드 조커: 최고의 효과
+                for member in party:
+                    member.heal(int(member.max_hp * 0.5))
+                effect_msg = "레드 조커! 기적의 카드! 파티 HP 50% 회복!"
+            else:
+                # 블랙 조커: 50% 확률로 대박 또는 쪽박
+                import random
+                if random.random() < 0.5:
+                    for member in party:
+                        member.heal(int(member.max_hp * 0.3))
+                    effect_msg = "블랙 조커! 혼돈 속 행운! 파티 HP 30% 회복!"
+                else:
+                    for member in party:
+                        dmg = int(member.max_hp * 0.15)
+                        member.take_damage(dmg)
+                    effect_msg = "블랙 조커! 혼돈의 저주... 파티 HP 15% 피해!"
+        else:
+            # 일반 카드 효과
+            if rank == "A":
+                # 에이스: 보물 발견 (아이템/골드 위치 표시)
+                count = 0
+                for y in range(self.dungeon.height):
+                    for x in range(self.dungeon.width):
+                        tile = self.dungeon.get_tile(x, y)
+                        if tile.tile_type in [TileType.GOLD, TileType.ITEM, TileType.CHEST]:
+                            if not tile.explored:
+                                tile.explored = True
+                                count += 1
+                effect_msg = f"에이스! 숨겨진 보물 {count}개 발견!"
+            elif rank == "K":
+                # 킹: 공격력 증가
+                for member in party:
+                    status = create_status_effect("왕의가호", StatusType.BOOST_ATK, 30, 0.3)
+                    member.status_manager.add_status(status)
+                effect_msg = "왕의 가호! 파티 공격력 +30% (30턴)"
+            elif rank == "Q":
+                # 퀸: HP 회복
+                for member in party:
+                    member.heal(int(member.max_hp * 0.2))
+                effect_msg = "여왕의 은총! 파티 HP 20% 회복"
+            elif rank == "J":
+                # 잭: 선제공격 보너스
+                if not hasattr(self.exploration, 'preemptive_bonus'):
+                    self.exploration.preemptive_bonus = 0.0
+                self.exploration.preemptive_bonus = min(1.0, self.exploration.preemptive_bonus + 0.5)
+                effect_msg = "기사의 선봉! 다음 전투 선제공격 확률 +50%"
+            elif rank == "10":
+                # 10: 골드 보너스
+                if hasattr(self.exploration.player, 'gold_bonus'):
+                    self.exploration.player.gold_bonus = getattr(self.exploration.player, 'gold_bonus', 1.0) + 0.5
+                else:
+                    self.exploration.player.gold_bonus = 1.5
+                effect_msg = "대박! 다음 골드 획득량 +50%"
+            elif rank == "9":
+                # 9: 경험치 보너스 
+                for member in party:
+                    if hasattr(member, 'exp_bonus'):
+                        member.exp_bonus = getattr(member, 'exp_bonus', 1.0) + 0.3
+                    else:
+                        member.exp_bonus = 1.3
+                effect_msg = "성장! 경험치 +30% (다음 전투)"
+            elif rank == "8":
+                # 8: 탐지
+                count = 0
+                for y in range(self.dungeon.height):
+                    for x in range(self.dungeon.width):
+                        tile = self.dungeon.get_tile(x, y)
+                        if tile.tile_type in [TileType.TRAP, TileType.SECRET_DOOR, TileType.HIDDEN_PATH]:
+                            if not tile.explored:
+                                tile.explored = True
+                                count += 1
+                effect_msg = f"무한의 눈! 숨겨진 함정/문 {count}개 탐지"
+            elif rank == "7":
+                # 7: 행운 (드롭률)
+                for member in party:
+                    status = create_status_effect("럭키세븐", StatusType.BOOST_LUK, 20, 1.0)
+                    member.status_manager.add_status(status)
+                effect_msg = "럭키 세븐! 드롭률 상승 (20턴)"
+            elif rank in ["6", "5", "4", "3", "2"]:
+                # 낮은 카드: 부정적 효과
+                import random
+                bad_effects = [
+                    ("저주의 카드... 다음 전투 받는 피해 +20%", StatusType.VULNERABLE, 0.2),
+                    ("불안정... 명중률 -20%", StatusType.REDUCE_ACCURACY, 0.2),
+                    ("조우! 적이 접근 중", StatusType.CURSE, 0.1),
+                ]
+                effect = random.choice(bad_effects)
+                effect_msg = effect[0]
+                for member in party:
+                    status = create_status_effect("불운", effect[1], 10, effect[2])
+                    member.status_manager.add_status(status)
+            else:
+                effect_msg = "평범한 카드... 아무 일도 일어나지 않았다."
+
+            # 무늬 보너스 (하트: 힐, 다이아: 골드, 스페이드: 공격, 클럽: 독)
+            suit_msg = ""
+            if suit == "heart":
+                user.heal(int(user.max_hp * 0.1))
+                suit_msg = " (+♥ 하트 보너스: HP 10% 회복)"
+            elif suit == "diamond":
+                if hasattr(self.exploration.player, 'gold'):
+                    self.exploration.player.gold += 50
+                suit_msg = " (+♦ 다이아 보너스: 골드 50 획득)"
+            elif suit == "spade":
+                status = create_status_effect("스페이드", StatusType.BOOST_ATK, 5, 0.1)
+                user.status_manager.add_status(status)
+                suit_msg = " (+♠ 스페이드 보너스: 공격력 +10%)"
+            elif suit == "club":
+                status = create_status_effect("클럽", StatusType.POISON, 3, 0.05)
+                user.status_manager.add_status(status)
+                suit_msg = " (+♣ 클럽: 독 적용됨)"
+            
+            effect_msg += suit_msg
+
+        return True, f"[카드 포춘] {card_name} - {effect_msg}"
+

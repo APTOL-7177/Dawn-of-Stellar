@@ -1,7 +1,7 @@
 id: umbra_mortis
 name: 움브라 모르티스
 type: hp_attack
-description: '[은신 필요] 그림자에서 암살합니다.
+description: '[암흑 속성] [은신 필요] 그림자에서 암살합니다.
 
   HP 피해 5.0 (은신 보너스 포함).
 
@@ -22,6 +22,7 @@ effects:
   damage_type: hp
   stat_base: physical
   multiplier: 5.0
+  element: dark
 - type: custom
   handler: try_execute
   threshold: 0.3

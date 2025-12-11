@@ -351,7 +351,7 @@ class KeyBindingManager:
             5: "c",        # RB - 캐릭터 (C키)
             6: "ESCAPE",   # Back - 탈출 (ESC키)
             7: "m",        # Start - 메뉴 (M키)
-            8: "s",        # Left Stick - 스킬 (S키)
+            8: "f",        # Left Stick (L3) - 필드 스킬 (F키)
             9: "p",        # Right Stick - 줍기 (P키)
             "trigger_l": "f", # Left Trigger - 필드 스킬 (F키)
             "trigger_r": "SPACE", # Right Trigger - 공격 (Space키) - R스틱 클릭 대신 트리거로도 공격
@@ -705,7 +705,7 @@ class GamepadHandler:
                 7: GameAction.ESCAPE,       # Start - 탈출
 
                 # Stick clicks
-                8: GameAction.OPEN_SKILLS,  # Left Stick - 스킬
+                8: GameAction.FIELD_SKILL,  # Left Stick (L3) - 필드 스킬
                 9: GameAction.PICKUP,       # Right Stick - 줍기
             },
 
@@ -725,7 +725,7 @@ class GamepadHandler:
                 7: GameAction.ESCAPE,       # Start - 탈출
 
                 # Stick clicks (L3/R3)
-                8: GameAction.OPEN_SKILLS,  # L3 - 스킬
+                8: GameAction.FIELD_SKILL,  # L3 - 필드 스킬
                 9: GameAction.PICKUP,       # R3 - 줍기
             },
 
@@ -745,7 +745,7 @@ class GamepadHandler:
                 7: GameAction.ESCAPE,       # Start (+) - 탈출
 
                 # Stick clicks
-                8: GameAction.OPEN_SKILLS,  # Left Stick - 스킬
+                8: GameAction.FIELD_SKILL,  # Left Stick (L3) - 필드 스킬
                 9: GameAction.PICKUP,       # Right Stick - 줍기
             },
 
@@ -765,7 +765,7 @@ class GamepadHandler:
                 7: GameAction.ESCAPE,       # Start - 탈출
 
                 # 추가 버튼들
-                8: GameAction.OPEN_SKILLS,  # 버튼 9 - 스킬
+                8: GameAction.FIELD_SKILL,  # 버튼 9 (L3) - 필드 스킬
                 9: GameAction.PICKUP,       # 버튼 10 - 줍기
             }
         }

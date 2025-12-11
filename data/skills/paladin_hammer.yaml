@@ -1,7 +1,7 @@
 id: paladin_hammer
 name: 정의의 망치
 type: attack
-description: '성력에 비례해 강하게 내려쳐 큰 피해를 입힙니다.
+description: '[신성 속성] 성력에 비례해 강하게 내려쳐 큰 피해를 입힙니다.
 
   '
 effects:
@@ -12,6 +12,7 @@ effects:
   gimmick_bonus:
     field: holy_power
     multiplier: 0.25
+  element: holy
 - type: gimmick
   operation: add
   field: holy_power

@@ -22,7 +22,7 @@ stat_growth:
   spirit: 21.5
   speed: 12.3
   max_brv: 87.5
-  luck: 3
+  luck: 0.6
   accuracy: 1.6
   evasion: 1.2
 traits:
@@ -50,7 +50,7 @@ gimmick:
   type: divinity_system
   name: 신앙의 힘
   description: 신앙심으로 강력한 치유와 보호 마법 사용
-  max_faith_points: 100
+  max_faith_points: 10
 skills:
 - teamwork
 - pray

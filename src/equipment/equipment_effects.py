@@ -118,7 +118,11 @@ class EffectType(Enum):
     STATUS_SHOCK = "status_shock"              # 감전 상태
     DEBUFF_SILENCE = "debuff_silence"          # 침묵 디버프
     CHAIN_LIGHTNING = "chain_lightning"        # 체인 라이트닝
-    ARMOR_PENETRATION = "armor_penetration"    # 방어 관통
+    ARMOR_PENETRATION = "armor_penetration"    # 방어 관통 (deprecated, 호환성 유지)
+    PHYSICAL_PENETRATION = "physical_penetration"      # 물리 방어 관통 (%)
+    PHYSICAL_PENETRATION_FIXED = "physical_penetration_fixed"  # 물리 방어 관통 (고정수치)
+    MAGIC_PENETRATION = "magic_penetration"            # 마법 방어 관통 (%)
+    MAGIC_PENETRATION_FIXED = "magic_penetration_fixed"        # 마법 방어 관통 (고정수치)
     MP_STEAL = "mp_steal"                      # MP 흡수
     BONUS_VS_UNDEAD = "bonus_vs_undead"        # 언데드 상대 보너스
     HEAL_ON_HIT = "heal_on_hit"                # 공격 시 회복
@@ -127,6 +131,8 @@ class EffectType(Enum):
     STRIKE_COUNT = "strike_count"              # 공격 횟수
     STUN_CHANCE = "stun_chance"                # 스턴 확률
     DAMAGE_FROM_DEFENSE = "damage_from_defense" # 방어력 기반 데미지
+    CRITICAL_DAMAGE = "critical_damage"          # 크리티컬 데미지 증가
+    POTION_BOOST = "potion_boost"                # 포션 효과 증가
 
 
 @dataclass
@@ -230,6 +236,10 @@ class EquipmentEffectManager:
             EffectType.DEBUFF_SILENCE: self._handle_status_effect,
             EffectType.CHAIN_LIGHTNING: self._handle_chain_lightning,
             EffectType.ARMOR_PENETRATION: self._handle_armor_penetration,
+            EffectType.PHYSICAL_PENETRATION: self._handle_physical_penetration,
+            EffectType.PHYSICAL_PENETRATION_FIXED: self._handle_physical_penetration_fixed,
+            EffectType.MAGIC_PENETRATION: self._handle_magic_penetration,
+            EffectType.MAGIC_PENETRATION_FIXED: self._handle_magic_penetration_fixed,
             EffectType.MP_STEAL: self._handle_mp_steal,
             EffectType.BONUS_VS_UNDEAD: self._handle_bonus_vs_undead,
             EffectType.HEAL_ON_HIT: self._handle_heal_on_hit,
@@ -693,13 +703,51 @@ class EquipmentEffectManager:
         logger.debug(f"{character.name} 체인 라이트닝 확률: {effect.value * 100:.1f}% (총: {character.chain_lightning_chance * 100:.1f}%)")
 
     def _handle_armor_penetration(self, character: Any, effect: EquipmentEffect, context: Dict):
-        """방어 관통"""
-        # 캐릭터에 방어 관통 속성 저장 (데미지 계산 시 사용)
-        if not hasattr(character, "armor_penetration"):
-            character.armor_penetration = 0
-        character.armor_penetration += effect.value
+        """방어 관통 (deprecated, 호환성 유지 - 물리 관통으로 처리)"""
+        # 기존 호환성을 위해 물리 관통으로 처리
+        if not hasattr(character, "physical_penetration"):
+            character.physical_penetration = 0
+        # 장비당 최대 25% 제한
+        capped_value = min(effect.value, 0.25)
+        character.physical_penetration += capped_value
 
-        logger.debug(f"{character.name} 방어 관통: {effect.value * 100:.1f}% (총: {character.armor_penetration * 100:.1f}%)")
+        logger.debug(f"{character.name} 방어 관통(레거시→물리): {capped_value * 100:.1f}% (총: {character.physical_penetration * 100:.1f}%)")
+
+    def _handle_physical_penetration(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """물리 방어 관통 (%)"""
+        if not hasattr(character, "physical_penetration"):
+            character.physical_penetration = 0
+        # 장비당 최대 25% 제한
+        capped_value = min(effect.value, 0.25)
+        character.physical_penetration += capped_value
+
+        logger.debug(f"{character.name} 물리 관통: {capped_value * 100:.1f}% 추가 (총: {character.physical_penetration * 100:.1f}%)")
+
+    def _handle_physical_penetration_fixed(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """물리 방어 관통 (고정수치)"""
+        if not hasattr(character, "physical_penetration_fixed"):
+            character.physical_penetration_fixed = 0
+        character.physical_penetration_fixed += int(effect.value)
+
+        logger.debug(f"{character.name} 물리 관통(고정): +{int(effect.value)} (총: {character.physical_penetration_fixed})")
+
+    def _handle_magic_penetration(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """마법 방어 관통 (%)"""
+        if not hasattr(character, "magic_penetration"):
+            character.magic_penetration = 0
+        # 장비당 최대 25% 제한
+        capped_value = min(effect.value, 0.25)
+        character.magic_penetration += capped_value
+
+        logger.debug(f"{character.name} 마법 관통: {capped_value * 100:.1f}% 추가 (총: {character.magic_penetration * 100:.1f}%)")
+
+    def _handle_magic_penetration_fixed(self, character: Any, effect: EquipmentEffect, context: Dict):
+        """마법 방어 관통 (고정수치)"""
+        if not hasattr(character, "magic_penetration_fixed"):
+            character.magic_penetration_fixed = 0
+        character.magic_penetration_fixed += int(effect.value)
+
+        logger.debug(f"{character.name} 마법 관통(고정): +{int(effect.value)} (총: {character.magic_penetration_fixed})")
 
     def _handle_mp_steal(self, character: Any, effect: EquipmentEffect, context: Dict):
         """MP 흡수"""
@@ -975,6 +1023,10 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
             "debuff_silence": (EffectType.DEBUFF_SILENCE, EffectTrigger.ON_HIT),
             "chain_lightning": (EffectType.CHAIN_LIGHTNING, EffectTrigger.ON_HIT),
             "armor_penetration": (EffectType.ARMOR_PENETRATION, EffectTrigger.PASSIVE),
+            "physical_penetration": (EffectType.PHYSICAL_PENETRATION, EffectTrigger.PASSIVE),
+            "physical_penetration_fixed": (EffectType.PHYSICAL_PENETRATION_FIXED, EffectTrigger.PASSIVE),
+            "magic_penetration": (EffectType.MAGIC_PENETRATION, EffectTrigger.PASSIVE),
+            "magic_penetration_fixed": (EffectType.MAGIC_PENETRATION_FIXED, EffectTrigger.PASSIVE),
             "mp_steal": (EffectType.MP_STEAL, EffectTrigger.ON_HIT),
             "bonus_vs_undead": (EffectType.BONUS_VS_UNDEAD, EffectTrigger.PASSIVE),
             "heal_on_hit": (EffectType.HEAL_ON_HIT, EffectTrigger.ON_HIT),
@@ -983,6 +1035,8 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
             "strike_count": (EffectType.STRIKE_COUNT, EffectTrigger.PASSIVE),
             "stun_chance": (EffectType.STUN_CHANCE, EffectTrigger.ON_HIT),
             "damage_from_defense": (EffectType.DAMAGE_FROM_DEFENSE, EffectTrigger.PASSIVE),
+            "critical_damage": (EffectType.CRITICAL_DAMAGE, EffectTrigger.PASSIVE),
+            "potion_boost": (EffectType.POTION_BOOST, EffectTrigger.PASSIVE),
         }
 
         if effect_name in effect_mapping:

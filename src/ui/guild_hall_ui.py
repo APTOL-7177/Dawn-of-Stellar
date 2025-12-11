@@ -277,9 +277,12 @@ class GuildHallUI:
         elif self.current_tab == GuildHallTab.STATS:
             # 통계 항목들
             stats = self.achievement_manager.get_completion_stats()
+            play_time_hours = self.achievement_manager.stats.get("play_time", 0) / 3600  # 초 → 시간
+            achievements_stats = stats.get('achievements', {'percentage': 0.0})
+            milestones_stats = stats.get('milestones', {'percentage': 0.0})
             return [
-                {"name": "도전과제 완료율", "value": ".1f"},
-                {"name": "마일스톤 완료율", "value": ".1f"},
+                {"name": "도전과제 완료율", "value": f"{achievements_stats.get('percentage', 0.0):.1f}%"},
+                {"name": "마일스톤 완료율", "value": f"{milestones_stats.get('percentage', 0.0):.1f}%"},
                 {"name": "총 획득 별의 파편", "value": stats["total_star_fragments_earned"]},
                 {"name": "처치한 적 수", "value": self.achievement_manager.stats["total_kills"]},
                 {"name": "입힌 총 데미지", "value": self.achievement_manager.stats["total_damage_dealt"]},
@@ -287,7 +290,7 @@ class GuildHallUI:
                 {"name": "도달한 최고 층", "value": self.achievement_manager.stats["floor_reached"]},
                 {"name": "연 포션 수", "value": self.achievement_manager.stats["potions_brewed"]},
                 {"name": "요리한 음식 수", "value": self.achievement_manager.stats["food_cooked"]},
-                {"name": "플레이 시간", "value": ".1f"},
+                {"name": "플레이 시간", "value": f"{play_time_hours:.1f}시간"},
             ]
 
         return []
@@ -297,7 +300,7 @@ class GuildHallUI:
         console.clear()
 
         # 헤더
-        title = "[GUILD] 모험가 길드 홀"
+        title = "모험가 길드 홀"
         console.print(
             (self.screen_width - len(title)) // 2, 0,
             title,
@@ -323,11 +326,21 @@ class GuildHallUI:
         # 필터 표시
         filter_y = 4
         if self.current_tab == GuildHallTab.ACHIEVEMENTS:
-            category_name = "전체" if self.achievement_category_filter is None else self.achievement_category_filter.value
+            if self.achievement_category_filter is None:
+                category_name = "전체"
+            elif isinstance(self.achievement_category_filter, str):
+                category_name = self.achievement_category_filter
+            else:
+                category_name = self.achievement_category_filter.value
             unlocked_filter = "달성만" if self.show_only_unlocked else "전체"
             console.print(2, filter_y, f"카테고리: {category_name} | 표시: {unlocked_filter}", fg=Colors.GRAY)
         elif self.current_tab == GuildHallTab.MILESTONES:
-            category_name = "전체" if self.milestone_category_filter is None else self.milestone_category_filter.value
+            if self.milestone_category_filter is None:
+                category_name = "전체"
+            elif isinstance(self.milestone_category_filter, str):
+                category_name = self.milestone_category_filter
+            else:
+                category_name = self.milestone_category_filter.value
             console.print(2, filter_y, f"카테고리: {category_name}", fg=Colors.GRAY)
 
         # 컨텐츠 영역
@@ -364,74 +377,99 @@ class GuildHallUI:
         if len(items) > self.max_visible_items:
             self._render_scrollbar(console, len(items), content_y)
 
+        # 상세 정보 창 (하단)
+        if items and self.current_tab in (GuildHallTab.ACHIEVEMENTS, GuildHallTab.MILESTONES):
+            selected_item = items[self.selected_index]
+            self._render_details_pane(console, selected_item)
+
         # 하단 도움말
-        help_y = self.screen_height - 3
-        console.print(2, help_y, "[GAMEPAD] 방향키/LB/RB: 탭이동 | A/확인: 선택 | B/취소: 뒤로", fg=Colors.DARK_GRAY)
-        console.print(2, help_y + 1, "[GAMEPAD] X/인벤토리: 필터 | Y/상호작용: 정렬 | LS/스킬: 상세 | RS/줍기: 새로고침", fg=Colors.DARK_GRAY)
+        help_y = self.screen_height - 2
+        console.print(2, help_y, "[GAMEPAD] 방향키: 이동 | X: 필터 | Y: 정렬 | B: 닫기", fg=Colors.DARK_GRAY)
+
+    def _render_details_pane(self, console: tcod.console.Console, item):
+        """하단 상세 정보 창 렌더링"""
+        # 구분선
+        pane_y = self.screen_height - 15
+        console.draw_rect(0, pane_y, self.screen_width, 1, ch=ord("-"), fg=Colors.DARK_GRAY)
+        
+        # 제목 배경
+        console.draw_rect(0, pane_y + 1, self.screen_width, 14, ch=ord(" "), bg=(10, 10, 20))
+        
+        # 아이콘 및 이름
+        icon = getattr(item, "icon", "?")
+        # 아이콘 대괄호 제거
+        icon = str(icon).replace("[", "").replace("]", "")
+        name = getattr(item, "name", "Unknown")
+        
+        console.print(3, pane_y + 2, f"{icon} {name}", fg=Colors.YELLOW)
+        
+        # 설명
+        description = getattr(item, "description", "")
+        # 마일스톤의 경우 다음 단계 설명
+        if hasattr(item, "next_stage") and item.next_stage:
+            description = item.next_stage.description
+            
+        console.print_box(3, pane_y + 4, self.screen_width - 6, 3, description, fg=Colors.WHITE)
+        
+        # 힌트 또는 보상
+        if hasattr(item, "is_unlocked"): # 도전과제
+            if not item.is_unlocked and item.hint:
+                console.print(3, pane_y + 8, f"💡 힌트: {item.hint}", fg=Colors.GRAY)
+            elif item.is_unlocked:
+                unlocked_at = getattr(item, "unlocked_at", None)
+                date_str = unlocked_at.strftime("%Y-%m-%d") if unlocked_at else ""
+                console.print(3, pane_y + 8, f"달성일: {date_str}", fg=Colors.GREEN)
+                if hasattr(item, "reward"):
+                    reward_text = str(item.reward)
+                    console.print(3, pane_y + 10, f"보상: {reward_text}", fg=Colors.GOLD)
+        elif hasattr(item, "current_stage"): # 마일스톤
+             if hasattr(item, "next_stage") and item.next_stage:
+                console.print(3, pane_y + 8, f"보상: {item.next_stage.reward_description}", fg=Colors.GOLD)
 
     def _render_achievement(self, console: tcod.console.Console, achievement, y: int, fg_color, is_selected: bool):
-        """도전과제 렌더링"""
-        # 아이콘
-        console.print(2, y, achievement.icon, fg=Colors.YELLOW)
+        """도전과제 렌더링 (리스트 뷰)"""
+        # 아이콘 (대괄호 제거)
+        icon = str(achievement.icon).replace("[", "").replace("]", "")
+        console.print(2, y, icon, fg=Colors.YELLOW)
 
         # 이름
         name_color = Colors.GREEN if achievement.is_unlocked else Colors.GRAY
-        console.print(5, y, achievement.name, fg=name_color)
+        # 선택된 경우 흰색 강조
+        if is_selected:
+            name_color = Colors.WHITE
+            
+        console.print(12, y, achievement.name, fg=name_color)
 
         # 진행률 또는 완료 표시
         if achievement.is_unlocked:
-            console.print(45, y, "✓ 완료", fg=Colors.GREEN)
-            if achievement.reward.star_fragments > 0:
-                console.print(55, y, f"⭐ {achievement.reward.star_fragments}", fg=Colors.YELLOW)
+            console.print(50, y, "✓ 완료", fg=Colors.GREEN)
         else:
             # 진행률 표시
             current = getattr(achievement, 'current_value', 0)
             target = getattr(achievement, 'target_value', 1)
             percentage = (current / target * 100) if target > 0 else 0
-            progress = f"{percentage:.1f}%"
-            console.print(45, y, progress, fg=Colors.BLUE)
+            # 소수점 없이 정수로 표시
+            progress = f"{int(percentage)}%"
+            console.print(50, y, progress, fg=Colors.BLUE)
 
-        # 희귀도 표시
-        rarity_colors = {
-            AchievementRarity.COMMON: Colors.GRAY,
-            AchievementRarity.UNCOMMON: Colors.GREEN,
-            AchievementRarity.RARE: Colors.BLUE,
-            AchievementRarity.EPIC: Colors.PURPLE,
-            AchievementRarity.LEGENDARY: Colors.YELLOW,
-        }
-        rarity_color = rarity_colors.get(achievement.rarity, Colors.GRAY)
-        rarity_text = achievement.rarity.value.upper()
-        console.print(65, y, rarity_text, fg=rarity_color)
-
-        # 힌트 (선택된 경우)
-        if is_selected and not achievement.is_unlocked and achievement.hint:
-            console.print(2, y + 1, f"💡 {achievement.hint}", fg=Colors.DARK_GRAY)
+        # 희귀도 제거 (사용자 요청)
 
     def _render_milestone(self, console: tcod.console.Console, milestone, y: int, fg_color, is_selected: bool):
-        """마일스톤 렌더링"""
+        """마일스톤 렌더링 (리스트 뷰)"""
         # 아이콘
-        console.print(2, y, milestone.icon, fg=Colors.CYAN)
+        icon = str(milestone.icon).replace("[", "").replace("]", "")
+        console.print(2, y, icon, fg=Colors.CYAN)
 
         # 이름
-        console.print(5, y, milestone.name, fg=fg_color)
+        console.print(12, y, milestone.name, fg=fg_color)
 
-        # 진행률
-        progress_bar = self._create_progress_bar(milestone.progress_percentage, 20)
-        console.print(35, y, progress_bar, fg=Colors.BLUE)
-
-        progress_text = f"{milestone.progress_percentage * 100:.1f}%"
-        console.print(58, y, progress_text, fg=Colors.BLUE)
-
-        # 현재 단계
+        # 진행률 바
+        progress_bar = self._create_progress_bar(milestone.progress_percentage, 15)
+        console.print(40, y, progress_bar, fg=Colors.BLUE)
+        
+        # 단계
         if milestone.current_stage > 0:
-            console.print(68, y, f"단계 {milestone.current_stage}", fg=Colors.GREEN)
-
-        # 상세 정보 (선택된 경우)
-        if is_selected:
-            next_stage = milestone.next_stage
-            if next_stage:
-                console.print(2, y + 1, f"다음 목표: {next_stage.description}", fg=Colors.DARK_GRAY)
-                console.print(2, y + 2, f"보상: {next_stage.reward_description}", fg=Colors.YELLOW)
+            console.print(60, y, f"Lv.{milestone.current_stage}", fg=Colors.GREEN)
 
     def _render_stat(self, console: tcod.console.Console, stat, y: int, fg_color):
         """통계 렌더링"""
@@ -442,12 +480,12 @@ class GuildHallUI:
         """진행률 바 생성"""
         filled = int(percentage * width)
         bar = "█" * filled + "░" * (width - filled)
-        return f"[{bar}]"
+        return f"{bar}"
 
     def _render_scrollbar(self, console: tcod.console.Console, total_items: int, start_y: int):
         """스크롤바 렌더링"""
         bar_height = self.max_visible_items
-        scrollbar_x = self.screen_width - 3
+        scrollbar_x = self.screen_width - 2
 
         # 스크롤바 배경
         for y in range(bar_height):

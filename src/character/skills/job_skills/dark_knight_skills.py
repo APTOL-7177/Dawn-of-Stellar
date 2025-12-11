@@ -94,39 +94,41 @@ def create_dark_knight_skills():
     skills.append(power_strike)
 
     # 6. 심연의 폭발
-    abyssal_burst = Skill("dark_knight_abyssal_burst", "심연의 폭발", "충전 50 소모 (충전 50: HP 3.5배 → 100: 6.0배, 전체 공격)")
+    abyssal_burst = Skill("dark_knight_abyssal_burst", "심연의 폭발", "암흑 속성. 충전 50 소모 (충전 50: HP 3.5배 → 100: 6.0배, 전체 공격)")
     abyssal_burst.effects = [
-        DamageEffect(DamageType.HP, 1.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.05}),  # 충전 1%당 +5% → 충전 50%시 3.5배, 100%시 6.0배
+        DamageEffect(DamageType.HP, 1.0, stat_type="magical", element="dark", gimmick_bonus={"field": "charge_gauge", "multiplier": 0.05}),
         GimmickEffect(GimmickOperation.CONSUME, "charge_gauge", 50)
     ]
     abyssal_burst.costs = [MPCost(5), StackCost("charge_gauge", 50)]
-    abyssal_burst.cast_time = 0.5  # ATB 50% 캐스트 타임
+    abyssal_burst.cast_time = 0.5
     abyssal_burst.target_type = "all_enemies"
     abyssal_burst.is_aoe = True
     abyssal_burst.sfx = ("skill", "cast_complete")
     abyssal_burst.metadata = {
         "charge_cost": 50,
+        "element": "dark",
         "spender": True,
         "cast_time": 0.5,
         "aoe": True,
-        "stun_chance": 0.3  # 30% 기절 확률
+        "stun_chance": 0.3
     }
     skills.append(abyssal_burst)
 
     # 7. 처형
-    execution = Skill("dark_knight_execution", "처형", "충전 100 소모 (충전 100: HP 15.0배)")
+    execution = Skill("dark_knight_execution", "처형", "암흑 속성. 충전 100 소모 (충전 100: HP 15.0배)")
     execution.effects = [
-        DamageEffect(DamageType.HP, 5.0, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.10}),  # 충전 1%당 +10% → 충전 100%시 15.0배
-        GimmickEffect(GimmickOperation.SET, "charge_gauge", 0)  # 충전 완전 소모
+        DamageEffect(DamageType.HP, 5.0, stat_type="magical", element="dark", gimmick_bonus={"field": "charge_gauge", "multiplier": 0.10}),
+        GimmickEffect(GimmickOperation.SET, "charge_gauge", 0)
     ]
     execution.costs = [MPCost(7), StackCost("charge_gauge", 100)]
-    execution.cast_time = 1.0  # ATB 100% 캐스트 타임 (매우 긴 시전)
+    execution.cast_time = 1.0
     execution.sfx = ("skill", "ultima")
     execution.metadata = {
         "charge_cost": 100,
+        "element": "dark",
         "spender": True,
         "cast_time": 1.0,
-        "hp_destroyer": True  # HP를 순식간에 깎는 스킬
+        "hp_destroyer": True
     }
     skills.append(execution)
 
@@ -174,23 +176,24 @@ def create_dark_knight_skills():
     skills.append(dark_regeneration)
 
     # 10. 궁극기: 불굴의 힘
-    ultimate = Skill("dark_knight_ultimate", "불굴의 힘", "모든 충전 소모. 막강한 피해 + 생존 버프")
+    ultimate = Skill("dark_knight_ultimate", "불굴의 힘", "암흑 속성. 모든 충전 소모. 막강한 피해 + 생존 버프")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.8, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.025}),
-        DamageEffect(DamageType.HP, 3.5, gimmick_bonus={"field": "charge_gauge", "multiplier": 0.025}),
+        DamageEffect(DamageType.BRV, 2.8, stat_type="magical", element="dark", gimmick_bonus={"field": "charge_gauge", "multiplier": 0.025}),
+        DamageEffect(DamageType.HP, 3.5, stat_type="magical", element="dark", gimmick_bonus={"field": "charge_gauge", "multiplier": 0.025}),
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, target="self"),
         BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=5, target="self"),
-        GimmickEffect(GimmickOperation.SET, "charge_gauge", 0)  # 충전 완전 소모
+        GimmickEffect(GimmickOperation.SET, "charge_gauge", 0)
     ]
     ultimate.costs = [MPCost(40)]
     ultimate.is_ultimate = True
-    ultimate.cooldown = 15  # 궁극기 쿨타임 15턴
+    ultimate.cooldown = 15
     ultimate.target_type = "single_enemy"
     ultimate.sfx = ("skill", "limit_break")
     ultimate.metadata = {
         "ultimate": True,
+        "element": "dark",
         "charge_consume_all": True,
-        "last_stand": True  # 사망 위기 시 충전 100 소모하여 생존 (특성으로 처리)
+        "last_stand": True
     }
     skills.append(ultimate)
 

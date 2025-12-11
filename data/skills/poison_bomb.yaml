@@ -1,7 +1,7 @@
 id: pestis_orbis
 name: 페스티스 오르비스
 type: brv_attack
-description: '독이 담긴 폭탄을 투척합니다.
+description: '[암흑 속성] 독이 담긴 폭탄을 투척합니다.
 
   전체 적 BRV 1.2 피해.
 
@@ -21,6 +21,7 @@ effects:
   stat_base: physical
   multiplier: 1.2
   target: all_enemies
+  element: dark
 - type: debuff
   debuff_id: basic_poison
   target: all_enemies

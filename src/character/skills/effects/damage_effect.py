@@ -14,7 +14,7 @@ class DamageType(Enum):
 
 class DamageEffect(SkillEffect):
     """데미지 효과"""
-    def __init__(self, damage_type=DamageType.BRV, multiplier=1.0, gimmick_bonus=None, hp_scaling=False, stat_type="physical", conditional_bonus=None):
+    def __init__(self, damage_type=DamageType.BRV, multiplier=1.0, gimmick_bonus=None, hp_scaling=False, stat_type="physical", conditional_bonus=None, element=None):
         super().__init__(EffectType.DAMAGE)
         self.damage_type = damage_type
         self.multiplier = multiplier
@@ -22,6 +22,7 @@ class DamageEffect(SkillEffect):
         self.conditional_bonus = conditional_bonus or {}  # 조건부 보너스 (예: 은신 시 추가 피해)
         self.hp_scaling = hp_scaling
         self.stat_type = stat_type  # "physical" 또는 "magical"
+        self.element = element  # 속성 (fire, ice, lightning, water, earth, wind, holy, dark)
         self.brave_system = get_brave_system()
         self.damage_calculator = get_damage_calculator()
     
@@ -68,7 +69,7 @@ class DamageEffect(SkillEffect):
                 if sword_aura_bonus:
                     sword_aura = getattr(user, 'sword_aura', 0)
                     if sword_aura > 0:
-                        bonus_multiplier = sword_aura_bonus.get('multiplier', 0.15)
+                        bonus_multiplier = sword_aura_bonus.get('multiplier', 0.075)
                         # 각 검기마다 고정 계수로 추가 공격
                         for _ in range(sword_aura):
                             sword_aura_hits.append(bonus_multiplier)
@@ -437,7 +438,8 @@ class DamageEffect(SkillEffect):
                 calc_kwargs['force_critical'] = True
             
             if self.stat_type == "magical":
-                dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult, **calc_kwargs)
+                # 원소 속성 전달 (적 저항/약점 적용)
+                dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult, element=self.element, **calc_kwargs)
             else:
                 dmg_result = self.damage_calculator.calculate_brv_damage(user, target, final_mult, **calc_kwargs)
 
@@ -485,7 +487,8 @@ class DamageEffect(SkillEffect):
         elif self.damage_type == DamageType.BRV_HP:
             # 물리/마법 구분
             if self.stat_type == "magical":
-                dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult)
+                # 원소 속성 전달 (적 저항/약점 적용)
+                dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult, element=self.element)
             else:
                 dmg_result = self.damage_calculator.calculate_brv_damage(user, target, final_mult)
 

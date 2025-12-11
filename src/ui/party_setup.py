@@ -1633,6 +1633,10 @@ def run_party_setup(console: tcod.console.Console, context: tcod.context.Context
     Returns:
         완성된 파티 또는 None (취소 시)
     """
+    # 새 게임 시작 시 퀘스트 매니저 초기화
+    from src.quest.quest_manager import reset_quest_manager
+    reset_quest_manager()
+    
     # 파티 구성 BGM 재생
     play_bgm("party_setup")
 

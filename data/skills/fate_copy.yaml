@@ -3,7 +3,7 @@ name: 운명 복제
 type: special
 description: 아군 1명의 마지막 사용 스킬을 가능성으로 저장 (파티 연계!)
 costs:
-  mp: 15
+  mp: 7
   cast_time: 0.5
 target: single_ally
 effects:

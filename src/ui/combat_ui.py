@@ -127,6 +127,7 @@ class CombatUI:
         self.item_menu: Optional[CursorMenu] = None  # 아이템 메뉴
         self.target_cursor = 0
         self.current_target_list: List[Any] = []  # 현재 타겟 선택 리스트
+        self.all_allies_mode = False  # ALL_ALLIES 타겟 선택 모드
         
         # 카드 선택 (마술사)
         self.card_cursor = 0
@@ -827,6 +828,29 @@ class CombatUI:
 
     def _handle_target_select(self, action: GameAction) -> bool:
         """대상 선택 입력 처리"""
+        # ALL_ALLIES 모드: 전체 아군 선택 (커서 이동 무시)
+        if self.all_allies_mode:
+            if action == GameAction.CONFIRM:
+                play_sfx("ui", "cursor_select")
+                # 전체 아군을 타겟으로 설정
+                self.selected_target = self.combat_manager.party
+                self.all_allies_mode = False
+                self._execute_current_action()
+            elif action == GameAction.CANCEL:
+                # 취소 - 이전 상태로
+                self.all_allies_mode = False
+                if self.selected_action == ActionType.SKILL:
+                    self.state = CombatUIState.SKILL_MENU
+                elif self.selected_action == ActionType.ITEM:
+                    self.state = CombatUIState.ITEM_MENU
+                else:
+                    self.state = CombatUIState.ACTION_MENU
+                self.selected_skill = None
+                self.selected_item = None
+                self.selected_item_index = None
+            # 커서 이동 무시 (MOVE_UP, MOVE_DOWN 등)
+            return False
+
         # 저장된 타겟 리스트 사용
         targets = self.current_target_list
 
@@ -1071,11 +1095,13 @@ class CombatUI:
                 self._execute_current_action()
                 return
 
-            # "ALL_ALLIES" 타겟은 타겟 선택 건너뛰기 (아군 전체에 자동 적용)
-            if target_type == SkillTargetType.ALL_ALLIES or target_type == "all_allies":
-                # 아군 전체를 타겟으로 설정
-                self.selected_target = self.combat_manager.party
-                self._execute_current_action()
+            # \"ALL_ALLIES\" 또는 \"party\" 타겟은 아군 전체를 시각적으로 선택하는 UI 표시
+            if target_type == SkillTargetType.ALL_ALLIES or target_type in ("all_allies", "party"):
+                # 아군 전체를 타겟으로 설정하고 TARGET_SELECT 상태로 전환
+                self.current_target_list = self.combat_manager.party
+                self.all_allies_mode = True
+                self.target_cursor = 0
+                self.state = CombatUIState.TARGET_SELECT
                 return
 
             # 문자열 target_type을 Enum으로 매핑 (하위 호환성)
@@ -1084,7 +1110,6 @@ class CombatUI:
                 SkillTargetType.SELF,
                 "single_ally",
                 "ally",      # 문자열 지원
-                "party",     # 문자열 지원
             )
 
             # 아군 타겟팅 스킬 (회복 등)
@@ -3062,11 +3087,12 @@ class CombatUI:
                 # 타겟 선택 중 - 아군이 타겟 리스트에 있는지 확인
                 is_targeted = ally in self.current_target_list
 
-                # 광역 스킬 확인
+                # 광역 스킬 확인 또는 ALL_ALLIES 모드
                 is_aoe = self.selected_skill and getattr(self.selected_skill, 'is_aoe', False)
+                is_all_allies = getattr(self, 'all_allies_mode', False)
 
-                if is_aoe and is_targeted:
-                    # 광역 스킬 - 모든 타겟에 화살표
+                if (is_aoe or is_all_allies) and is_targeted:
+                    # 광역 스킬 또는 전체 아군 타겟 - 모든 타겟에 화살표
                     turn_indicator = "◆ "
                     indicator_color = (100, 255, 255)
                 elif is_targeted and i == self.target_cursor:

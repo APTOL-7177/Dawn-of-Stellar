@@ -22,7 +22,7 @@ stat_growth:
   spirit: 11.3
   speed: 25.1
   max_brv: 86.9
-  luck: 3
+  luck: 1.7
   accuracy: 1.8
   evasion: 1.4
 gimmick:
@@ -112,14 +112,6 @@ traits:
   effects:
     poison_damage_bonus: 0.3
     poison_duration_bonus: 1
-- id: humiliation
-  name: 굴욕 전문가
-  description: 농락 10 달성 시 HP 10% 순수 피해
-  type: trigger
-  conditions:
-    mockery_max: true
-  effects:
-    humiliation_damage: 0.1
 - id: shadow_residue
   name: 그림자 잔상
   description: 회피 성공 시 적 "회피 불가" 1턴
