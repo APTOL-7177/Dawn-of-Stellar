@@ -24,6 +24,7 @@ class MenuOption(Enum):
     SAVE_GAME = "save"
     LOAD_GAME = "load"
     OPTIONS = "options"
+    MAIN_MENU = "main_menu"  # 메인 메뉴로 돌아가기
     RETURN = "return"
     QUIT = "quit"
 
@@ -43,6 +44,7 @@ class GameMenu:
             ("게임 저장", MenuOption.SAVE_GAME),
             ("게임 불러오기", MenuOption.LOAD_GAME),
             ("설정", MenuOption.OPTIONS),
+            ("메인 메뉴", MenuOption.MAIN_MENU),
             ("돌아가기", MenuOption.RETURN),
         ]
         
@@ -347,6 +349,18 @@ def open_game_menu(
                 elif result == MenuOption.OPTIONS:
                     from src.ui.settings_ui import open_settings
                     open_settings(console, context)
+                    continue
+
+                elif result == MenuOption.MAIN_MENU:
+                    # 메인 메뉴로 돌아가기 전 경고 표시
+                    confirmed = show_confirm_dialog(
+                        console, context,
+                        "메인 메뉴로 돌아가시겠습니까?",
+                        "저장하지 않은 진행 상황은 사라집니다."
+                    )
+                    if confirmed:
+                        logger.info("메인 메뉴로 돌아가기 선택됨")
+                        return MenuOption.MAIN_MENU
                     continue
 
                 elif result == MenuOption.RETURN:
@@ -976,4 +990,147 @@ def show_message(
                 return
         
         # CPU 절약
+        time.sleep(0.01)
+
+
+def show_confirm_dialog(
+    console: tcod.console.Console,
+    context: tcod.context.Context,
+    title: str,
+    message: str
+) -> bool:
+    """
+    확인 다이얼로그 표시
+
+    Args:
+        console: TCOD 콘솔
+        context: TCOD 컨텍스트
+        title: 제목
+        message: 메시지
+
+    Returns:
+        True: 확인, False: 취소
+    """
+    import time
+    
+    selected = 0  # 0: 예, 1: 아니오
+    
+    while True:
+        # 배경 어둡게
+        for y in range(console.height):
+            for x in range(console.width):
+                console.print(x, y, " ", bg=(0, 0, 0))
+        
+        # 다이얼로그 박스
+        dialog_width = max(len(title), len(message)) + 10
+        dialog_height = 9
+        dialog_x = (console.width - dialog_width) // 2
+        dialog_y = (console.height - dialog_height) // 2
+        
+        # 박스 테두리
+        # 모서리
+        console.print(dialog_x, dialog_y, "┌", fg=(255, 200, 100))
+        console.print(dialog_x + dialog_width - 1, dialog_y, "┐", fg=(255, 200, 100))
+        console.print(dialog_x, dialog_y + dialog_height - 1, "└", fg=(255, 200, 100))
+        console.print(dialog_x + dialog_width - 1, dialog_y + dialog_height - 1, "┘", fg=(255, 200, 100))
+        
+        # 가로선
+        for i in range(1, dialog_width - 1):
+            console.print(dialog_x + i, dialog_y, "─", fg=(255, 200, 100))
+            console.print(dialog_x + i, dialog_y + dialog_height - 1, "─", fg=(255, 200, 100))
+        
+        # 세로선
+        for i in range(1, dialog_height - 1):
+            console.print(dialog_x, dialog_y + i, "│", fg=(255, 200, 100))
+            console.print(dialog_x + dialog_width - 1, dialog_y + i, "│", fg=(255, 200, 100))
+        
+        # 내부 채우기
+        for dy in range(1, dialog_height - 1):
+            for dx in range(1, dialog_width - 1):
+                console.print(dialog_x + dx, dialog_y + dy, " ", bg=(30, 20, 40))
+        
+        # 경고 아이콘과 제목
+        console.print(
+            dialog_x + (dialog_width - len(title) - 4) // 2,
+            dialog_y + 2,
+            f"⚠ {title}",
+            fg=(255, 200, 100)
+        )
+        
+        # 메시지
+        console.print(
+            dialog_x + (dialog_width - len(message)) // 2,
+            dialog_y + 4,
+            message,
+            fg=(200, 200, 200)
+        )
+        
+        # 버튼
+        yes_text = "예"
+        no_text = "아니오"
+        button_y = dialog_y + 6
+        
+        yes_x = dialog_x + dialog_width // 3 - len(yes_text)
+        no_x = dialog_x + 2 * dialog_width // 3 - len(no_text)
+        
+        if selected == 0:
+            console.print(yes_x, button_y, f"[ {yes_text} ]", fg=(255, 255, 100))
+            console.print(no_x, button_y, f"  {no_text}  ", fg=(150, 150, 150))
+        else:
+            console.print(yes_x, button_y, f"  {yes_text}  ", fg=(150, 150, 150))
+            console.print(no_x, button_y, f"[ {no_text} ]", fg=(255, 255, 100))
+        
+        context.present(console)
+        
+        # pygame 이벤트 업데이트
+        try:
+            import pygame
+            pygame.event.pump()
+        except:
+            pass
+        
+        # 입력 처리
+        for event in tcod.event.get():
+            action = unified_input_handler.process_tcod_event(event)
+            
+            if action == GameAction.MOVE_LEFT or action == GameAction.MOVE_RIGHT:
+                selected = 1 - selected  # 토글
+                from src.audio import play_sfx
+                play_sfx("ui", "cursor_move")
+            elif action == GameAction.CONFIRM:
+                from src.audio import play_sfx
+                if selected == 0:
+                    play_sfx("ui", "cursor_select")
+                    return True
+                else:
+                    play_sfx("ui", "cursor_cancel")
+                    return False
+            elif action == GameAction.ESCAPE:
+                from src.audio import play_sfx
+                play_sfx("ui", "cursor_cancel")
+                return False
+            
+            if isinstance(event, tcod.event.Quit):
+                return False
+        
+        # 게임패드 입력
+        gamepad_action = unified_input_handler.get_action()
+        if gamepad_action:
+            if gamepad_action == GameAction.MOVE_LEFT or gamepad_action == GameAction.MOVE_RIGHT:
+                selected = 1 - selected
+                from src.audio import play_sfx
+                play_sfx("ui", "cursor_move")
+            elif gamepad_action == GameAction.CONFIRM:
+                from src.audio import play_sfx
+                if selected == 0:
+                    play_sfx("ui", "cursor_select")
+                    return True
+                else:
+                    play_sfx("ui", "cursor_cancel")
+                    return False
+            elif gamepad_action == GameAction.ESCAPE:
+                from src.audio import play_sfx
+                play_sfx("ui", "cursor_cancel")
+                return False
+        
         time.sleep(0.01)

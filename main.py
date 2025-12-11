@@ -2936,6 +2936,10 @@ def main() -> int:
                         if result == "quit":
                             logger.info("게임 종료")
                             break
+                        elif result == "main_menu":
+                            # 메인 메뉴로 돌아가기
+                            logger.info("메인 메뉴로 돌아가기")
+                            break  # 탐험 루프에서 나가서 메인 메뉴 루프로 돌아감
                         elif result == "story_boss_combat":
                             # 20/30층 스토리 보스 강제 조우 (세이브 로드 후)
                             logger.info("⚔ 스토리 보스 강제 조우!")

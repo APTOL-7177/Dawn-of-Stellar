@@ -82,6 +82,7 @@ class WorldUI:
         self.combat_participants = None  # 멀티플레이: 전투 참여자
         self.combat_position = None  # 멀티플레이: 전투 시작 위치
         self.floor_change_requested = None  # "up" or "down"
+        self.main_menu_requested = False  # 메인 메뉴로 돌아가기 요청
 
         # 종료 확인
         self.quit_confirm_mode = False
@@ -258,6 +259,11 @@ class WorldUI:
                 elif result == MenuOption.LOAD_GAME:
                     # 게임을 불러온 경우 탐험 종료하고 main.py에서 처리하도록
                     self.quit_requested = True
+                    return True
+                elif result == MenuOption.MAIN_MENU:
+                    # 메인 메뉴로 돌아가기
+                    self.quit_requested = True
+                    self.main_menu_requested = True
                     return True
                 return False
             else:
@@ -2449,6 +2455,8 @@ def run_exploration(
             "position": getattr(ui, 'combat_position', None)
         }
         return ("combat", combat_data)
+    elif ui.main_menu_requested:
+        return ("main_menu", None)
     elif ui.quit_requested:
         return ("quit", None)
 
