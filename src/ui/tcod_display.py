@@ -1064,13 +1064,12 @@ class TCODDisplay:
                     return None
     
     def _set_fullscreen_desktop_mode(self) -> None:
-        """테두리 없는 전체 화면 모드 설정"""
+        """테두리 없는 전체 화면 모드 설정 (Windows/Linux/macOS 지원)"""
         if not self.context:
             self.logger.warning("context가 없어서 전체 화면 설정 불가")
             return
         
         try:
-            # tcod의 cffi를 사용하여 SDL 함수 직접 호출
             # context.sdl_window_p는 cffi CData 객체
             window_p = self.context.sdl_window_p
             
@@ -1078,9 +1077,75 @@ class TCODDisplay:
                 self.logger.warning("SDL 창 포인터가 NULL입니다")
                 return
             
-            self.logger.info(f"SDL 창 포인터: {window_p}")
+            self.logger.info(f"SDL 창 포인터: {window_p}, 플랫폼: {platform.system()}")
             
-            # tcod의 내부 ffi와 lib 사용
+            # 리눅스/macOS에서는 ctypes로 직접 SDL2 호출
+            if platform.system() in ("Linux", "Darwin"):
+                try:
+                    import ctypes
+                    
+                    # 플랫폼별 SDL2 라이브러리 로드
+                    sdl2 = None
+                    if platform.system() == "Linux":
+                        # 리눅스: 여러 경로 시도
+                        lib_names = ["libSDL2-2.0.so.0", "libSDL2-2.0.so", "libSDL2.so"]
+                        for lib_name in lib_names:
+                            try:
+                                sdl2 = ctypes.CDLL(lib_name)
+                                self.logger.info(f"SDL2 로드 성공: {lib_name}")
+                                break
+                            except OSError:
+                                continue
+                    else:  # Darwin (macOS)
+                        try:
+                            sdl2 = ctypes.CDLL("libSDL2.dylib")
+                        except OSError:
+                            # Homebrew 경로
+                            try:
+                                sdl2 = ctypes.CDLL("/usr/local/lib/libSDL2.dylib")
+                            except OSError:
+                                pass
+                    
+                    if sdl2:
+                        # SDL 창 포인터를 정수로 변환
+                        ptr_int = self._get_sdl_window_pointer()
+                        if ptr_int:
+                            window_ptr = ctypes.c_void_p(ptr_int)
+                            
+                            # SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP)
+                            # SDL_WINDOW_FULLSCREEN_DESKTOP = 0x00001001
+                            sdl2.SDL_SetWindowFullscreen.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+                            sdl2.SDL_SetWindowFullscreen.restype = ctypes.c_int
+                            
+                            result = sdl2.SDL_SetWindowFullscreen(window_ptr, 0x00001001)
+                            
+                            if result == 0:
+                                self.logger.info("테두리 없는 전체 화면 모드 활성화 완료 (ctypes)")
+                                return
+                            else:
+                                self.logger.warning(f"SDL_SetWindowFullscreen 반환값: {result}")
+                                
+                                # 폴백: 테두리 없는 창 + 창 크기/위치 설정
+                                try:
+                                    sdl2.SDL_SetWindowBordered.argtypes = [ctypes.c_void_p, ctypes.c_int]
+                                    sdl2.SDL_SetWindowBordered(window_ptr, 0)  # SDL_FALSE
+                                    
+                                    sdl2.SDL_SetWindowSize.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+                                    sdl2.SDL_SetWindowSize(window_ptr, self.pixel_width, self.pixel_height)
+                                    
+                                    sdl2.SDL_SetWindowPosition.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+                                    sdl2.SDL_SetWindowPosition(window_ptr, 0, 0)
+                                    
+                                    self.logger.info(f"테두리 없는 전체 창 모드 활성화 완료 ({self.pixel_width}x{self.pixel_height})")
+                                    return
+                                except Exception as e:
+                                    self.logger.warning(f"폴백 모드 실패: {e}")
+                    else:
+                        self.logger.warning("SDL2 라이브러리를 로드할 수 없습니다")
+                except Exception as e:
+                    self.logger.warning(f"ctypes SDL2 호출 실패: {e}")
+            
+            # Windows 또는 위 방법 실패 시: tcod의 내부 ffi와 lib 사용
             try:
                 from tcod._libtcod import ffi, lib
                 
@@ -1100,7 +1165,7 @@ class TCODDisplay:
             except Exception as e:
                 self.logger.warning(f"SDL_SetWindowFullscreen 실패: {e}")
             
-            # 폴백: SDL_SetWindowBordered + SDL_SetWindowSize + SDL_SetWindowPosition
+            # 최종 폴백: SDL_SetWindowBordered + SDL_SetWindowSize + SDL_SetWindowPosition
             try:
                 from tcod._libtcod import lib
                 

@@ -131,7 +131,6 @@ class EffectType(Enum):
     STRIKE_COUNT = "strike_count"              # 공격 횟수
     STUN_CHANCE = "stun_chance"                # 스턴 확률
     DAMAGE_FROM_DEFENSE = "damage_from_defense" # 방어력 기반 데미지
-    CRITICAL_DAMAGE = "critical_damage"          # 크리티컬 데미지 증가
     POTION_BOOST = "potion_boost"                # 포션 효과 증가
 
 
