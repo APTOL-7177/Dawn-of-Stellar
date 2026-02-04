@@ -10,8 +10,10 @@ import tcod.console
 import tcod.event
 from typing import Optional, Tuple, Any
 from pathlib import Path
+import os
 import platform
 import sys
+import shutil
 
 from src.core.config import get_config
 from src.core.logger import get_logger
@@ -110,6 +112,7 @@ class TCODDisplay:
     def __init__(self) -> None:
         self.logger = get_logger("display")
         self.config = get_config()
+        self._headless = False
 
         # 화면 크기 (기본값 - 콘솔 크기는 고정)
         self.screen_width = self.config.get("display.screen_width", 80)
@@ -166,6 +169,21 @@ class TCODDisplay:
 
         self._initialize_tcod()
 
+    def _enable_dummy_video_driver(self, reason: str) -> None:
+        """헤드리스 환경을 위해 SDL dummy 비디오 드라이버 활성화"""
+        if os.environ.get("SDL_VIDEODRIVER") == "dummy":
+            self._headless = True
+            return
+        os.environ["SDL_VIDEODRIVER"] = "dummy"
+        os.environ.pop("DISPLAY", None)
+        os.environ.pop("WAYLAND_DISPLAY", None)
+        self._headless = True
+        try:
+            tcod.lib.SDL_Quit()
+        except Exception as reset_error:
+            self.logger.debug(f"SDL_Quit 호출 실패: {reset_error}")
+        self.logger.warning(f"{reason} - SDL dummy 비디오 드라이버 사용")
+
     def _initialize_tcod(self) -> None:
         """TCOD 초기화"""
         # 한글 지원 TrueType 폰트 로드
@@ -174,6 +192,51 @@ class TCODDisplay:
 
         import platform
         import os
+
+        env_headless = os.environ.get("DOS_HEADLESS", "").lower()
+        config_headless = bool(self.config.get("display.headless", False))
+
+        if config_headless or env_headless in {"1", "true", "yes"}:
+            self._enable_dummy_video_driver("헤드리스 모드 설정 감지")
+        elif (
+            platform.system() == "Linux"
+            and not os.environ.get("DISPLAY")
+            and not os.environ.get("WAYLAND_DISPLAY")
+        ):
+            self._enable_dummy_video_driver("DISPLAY/WAYLAND 환경 변수 미설정 감지")
+        elif os.environ.get("SDL_VIDEODRIVER") == "dummy":
+            self._headless = True
+        elif platform.system() == "Linux":
+            display_env = os.environ.get("DISPLAY")
+            if display_env and not self._headless:
+                xauth_path = os.environ.get("XAUTHORITY") or str(Path.home() / ".Xauthority")
+                if xauth_path and not os.access(xauth_path, os.R_OK):
+                    self._enable_dummy_video_driver("디스플레이 인증 파일 접근 실패 감지")
+                else:
+                    probe_cmd = None
+                    if shutil.which("xrandr"):
+                        probe_cmd = ["xrandr", "--current"]
+                    elif shutil.which("xdpyinfo"):
+                        probe_cmd = ["xdpyinfo"]
+                try:
+                    import subprocess
+
+                    if probe_cmd:
+                        probe = subprocess.run(
+                            probe_cmd,
+                            capture_output=True,
+                            text=True,
+                            timeout=1,
+                        )
+                        if probe.returncode != 0:
+                            reason = probe.stderr.strip() or probe.stdout.strip() or f"{probe_cmd[0]} 실패"
+                            self._enable_dummy_video_driver(
+                                f"디스플레이 접근 실패 감지: {reason}"
+                            )
+                    else:
+                        self.logger.debug("디스플레이 확인용 유틸리티(xrandr/xdpyinfo) 없음 - 확인 건너뜀")
+                except Exception as probe_error:
+                    self._enable_dummy_video_driver(f"디스플레이 확인 예외: {probe_error}")
 
         # OS별 시스템 폰트 경로 (한글 지원)
         font_paths = []
@@ -345,49 +408,89 @@ class TCODDisplay:
             if renderer is not None:
                 context_kwargs["renderer"] = renderer
                 self.logger.info(f"렌더러 사용: {renderer_name}")
-            
+
+            basic_kwargs = {
+                "columns": self.screen_width,
+                "rows": self.screen_height,
+                "tileset": self.tileset,
+                "title": "Dawn of Stellar - 별빛의 여명",
+            }
+
             # context 생성
             try:
+                if self._headless:
+                    context_kwargs.pop("renderer", None)
+                    context_kwargs["vsync"] = False
                 self.context = tcod.context.new(**context_kwargs)
                 self.logger.info("TCOD 컨텍스트 생성 완료")
-                
-                # 전체 화면 모드 설정 (context 생성 후 SDL로 직접 설정)
-                if self.borderless_fullscreen:
-                    self._set_fullscreen_desktop_mode()
-                elif self.borderless:
-                    self._set_borderless_mode()
-                
-                # 16:9 고정 종횡비 설정
-                self._set_aspect_ratio_constraint(self._fixed_aspect_ratio)
-                
-                self.logger.info(
-                    f"창 크기: {self.pixel_width}x{self.pixel_height}, "
-                    f"종횡비: 16:9 고정"
-                )
-                
             except Exception as e:
-                self.logger.error(f"컨텍스트 생성 중 오류: {e}")
                 import traceback
+                self.logger.error(f"컨텍스트 생성 중 오류: {e}")
                 self.logger.error(traceback.format_exc())
-                # 기본 설정으로 재시도
-                try:
-                    basic_kwargs = {
-                        "columns": self.screen_width,
-                        "rows": self.screen_height,
-                        "tileset": self.tileset,
-                        "title": "Dawn of Stellar - 별빛의 여명",
-                    }
-                    self.context = tcod.context.new(**basic_kwargs)
-                    self.logger.info("기본 설정으로 컨텍스트 생성 완료")
-                except Exception as e2:
-                    self.logger.error(f"기본 컨텍스트 생성도 실패: {e2}")
+                self.context = None
+
+                if not self._headless:
+                    self._enable_dummy_video_driver("디스플레이 초기화 실패 감지")
+                    fallback_kwargs = dict(context_kwargs)
+                    fallback_kwargs.pop("renderer", None)
+                    fallback_kwargs["vsync"] = False
+                    try:
+                        self.context = tcod.context.new(**fallback_kwargs)
+                        self.logger.info("TCOD 컨텍스트 생성 완료 (dummy video driver)")
+                    except Exception as headless_e:
+                        self.logger.error(f"헤드리스 컨텍스트 생성 실패: {headless_e}")
+                        self.logger.error(traceback.format_exc())
+
+                if not self.context:
+                    try:
+                        self.context = tcod.context.new(**basic_kwargs)
+                        self.logger.info("기본 설정으로 컨텍스트 생성 완료")
+                    except Exception as e2:
+                        self.logger.error(f"기본 컨텍스트 생성도 실패: {e2}")
+
+            if self.context:
+                if not self._headless:
+                    # 전체 화면 모드 설정 (context 생성 후 SDL로 직접 설정)
+                    if self.borderless_fullscreen:
+                        self._set_fullscreen_desktop_mode()
+                    elif self.borderless:
+                        self._set_borderless_mode()
+
+                    # 16:9 고정 종횡비 설정
+                    self._set_aspect_ratio_constraint(self._fixed_aspect_ratio)
+
+                    self.logger.info(
+                        f"창 크기: {self.pixel_width}x{self.pixel_height}, "
+                        f"종횡비: 16:9 고정"
+                    )
+                else:
+                    self.logger.info(
+                        "헤드리스 모드 감지 (SDL_VIDEODRIVER=dummy) - 창/전체화면 설정 건너뜀"
+                    )
         else:
-            self.context = tcod.context.new_terminal(
-                self.screen_width,
-                self.screen_height,
-                title="Dawn of Stellar - 별빛의 여명",
-                vsync=self.config.get("display.vsync", True)
-            )
+            try:
+                self.context = tcod.context.new_terminal(
+                    self.screen_width,
+                    self.screen_height,
+                    title="Dawn of Stellar - 별빛의 여명",
+                    vsync=self.config.get("display.vsync", True)
+                )
+            except Exception as e:
+                import traceback
+                self.logger.error(f"터미널 컨텍스트 생성 실패: {e}")
+                self.logger.error(traceback.format_exc())
+                if not self._headless:
+                    self._enable_dummy_video_driver("터미널 컨텍스트 생성 실패 감지")
+                    try:
+                        self.context = tcod.context.new_terminal(
+                            self.screen_width,
+                            self.screen_height,
+                            title="Dawn of Stellar - 별빛의 여명",
+                            vsync=False
+                        )
+                        self.logger.info("터미널 컨텍스트 생성 완료 (dummy video driver)")
+                    except Exception as e2:
+                        self.logger.error(f"헤드리스 터미널 컨텍스트 생성 실패: {e2}")
 
         self.logger.info(
             "TCOD 초기화 완료",
@@ -1556,4 +1659,3 @@ def render_space_background(
             except (IndexError, ValueError, TypeError, AttributeError):
                 # 범위를 벗어나면 해당 줄 건너뛰기
                 continue
-

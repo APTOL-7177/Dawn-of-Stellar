@@ -3,11 +3,7 @@
 
 게임 상태를 JSON 파일로 내보내서 외부 봇이 읽을 수 있게 함
 
-활성화 방법:
-1. AI 관전 모드 실행 (자동 활성화)
-2. 환경 변수: BOT_EXPORT=1
-3. 파일 생성: user_data/enable_bot.txt
-4. 코드에서: from src.bot import enable_export; enable_export(True)
+현재는 봇 연동 기능을 사용하지 않으므로, 이 모듈은 호출되어도 상태를 기록하지 않는다.
 """
 
 import os
@@ -30,30 +26,22 @@ STATE_FILE = USER_DATA / "bot_state.json"
 COMMAND_FILE = USER_DATA / "bot_command.json"
 ENABLE_FILE = USER_DATA / "enable_bot.txt"
 
-# 상태 내보내기 활성화 여부 (환경 변수 또는 파일로 자동 활성화)
-_export_enabled = os.environ.get('BOT_EXPORT', '0') == '1' or ENABLE_FILE.exists()
+# 상태 내보내기 활성화 여부 (현재는 항상 비활성화)
+_export_enabled = False
 _last_export_time = 0
 _export_interval = 0.05  # 50ms 간격 (더 빠른 반응)
 _write_lock = Lock()  # 파일 쓰기 동기화
 
 def enable_export(enabled: bool = True):
-    """상태 내보내기 활성화/비활성화"""
+    """상태 내보내기 활성화/비활성화 요청을 무시 (봇 기능 제거)"""
     global _export_enabled
-    _export_enabled = enabled
-    logger.info(f"봇 상태 내보내기: {'활성화' if enabled else '비활성화'}")
-    
-    # 디렉토리 생성 및 활성화 파일 생성
-    if enabled:
-        USER_DATA.mkdir(parents=True, exist_ok=True)
-        # 활성화 파일 생성 (다음 게임 실행 시 자동 활성화)
-        ENABLE_FILE.touch()
-    elif ENABLE_FILE.exists():
-        ENABLE_FILE.unlink()
+    _export_enabled = False
+    logger.info("봇 상태 내보내기 기능이 비활성화되었습니다 (호출 무시).")
 
 
 def is_export_enabled() -> bool:
     """내보내기 활성화 여부"""
-    return _export_enabled
+    return False
 
 
 def export_combat_state(combat_manager: Any, current_char: Any = None, screen_text: str = "", ui_state: str = "", party: List[Any] = None):

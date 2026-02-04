@@ -2244,17 +2244,6 @@ def run_exploration(
         ui.render(console)
         context.present(console)
 
-        # 봇 클라이언트용 상태 내보내기 (일반 모드에서도 작동)
-        try:
-            from src.bot import is_export_enabled, export_exploration_state
-            if is_export_enabled():
-                # 콘솔 텍스트 추출
-                from src.ui.ai_spectate_mode import extract_console_text
-                screen_text = extract_console_text(console)
-                export_exploration_state(exploration, party, exploration.dungeon, screen_text)
-        except ImportError:
-            pass
-
         # 입력 처리
         action = None
         key_event = None

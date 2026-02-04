@@ -7031,28 +7031,6 @@ def run_combat(
         ui.render(console)
         context.present(console)
 
-        # 봇 클라이언트용 상태 내보내기 (일반 모드에서도 작동)
-        try:
-            from src.bot import is_export_enabled, export_combat_state
-            if is_export_enabled():
-                from src.ui.ai_spectate_mode import extract_console_text
-                screen_text = extract_console_text(console)
-                # 현재 행동 캐릭터 찾기
-                current_char = combat_manager.current_actor
-                if not current_char and hasattr(combat_manager, 'atb'):
-                    # ATB에서 준비된 캐릭터 찾기
-                    action_order = combat_manager.atb.get_action_order()
-                    for c in action_order:
-                        if c in party:
-                            current_char = c
-                            break
-                ui_state_str = ui.state.value if hasattr(ui.state, 'value') else str(ui.state)
-                export_combat_state(combat_manager, current_char, screen_text, ui_state_str, party)
-        except ImportError:
-            pass
-        except Exception:
-            pass
-
         # 입력 처리
         action = None
 
@@ -7138,4 +7116,3 @@ def run_combat(
     # combat_manager의 is_game_over 플래그도 함께 반환
     is_game_over = getattr(combat_manager, 'is_game_over', False)
     return (ui.battle_result or CombatState.FLED, is_game_over)
-

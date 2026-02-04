@@ -1480,9 +1480,12 @@ class GimmickUpdater:
                 character.exposed_stacks += 1
                 logger.info(f"[암살자 노출] {character.name} 노출 스택 {character.exposed_stacks}/{max_stacks}")
 
-            # 3턴 경과 시 재은신 가능 (자동 전환은 하지 않음, 스킬로만 가능)
-            if character.exposed_turns >= character.restealth_cooldown:
-                logger.info(f"{character.name} 재은신 가능!")
+            # 쿨다운 또는 최대 스택 도달 시 자동 재은신
+            if character.exposed_turns >= character.restealth_cooldown or character.exposed_stacks >= max_stacks:
+                character.stealth_active = True
+                character.exposed_turns = 0
+                character.exposed_stacks = 0
+                logger.info(f"{character.name} 자동 재은신! (쿨다운 완료)")
 
     @staticmethod
     def _consume_bullet(character, skill):

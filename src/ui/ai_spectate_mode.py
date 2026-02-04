@@ -21,16 +21,17 @@ from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
 from src.ui import gathering_ui
 
+logger = get_logger("ai_spectate")
+
 # 실제 키보드 입력 시뮬레이션
 try:
     import pyautogui
     pyautogui.FAILSAFE = False  # 마우스 코너 이동시 중단 방지
     pyautogui.PAUSE = 0.02  # 키 입력 간격
     KEYBOARD_SIMULATION_AVAILABLE = True
-except ImportError:
+except Exception as e:
     KEYBOARD_SIMULATION_AVAILABLE = False
-
-logger = get_logger("ai_spectate")
+    logger.warning("pyautogui 키 입력 시뮬레이션 비활성화: %s", e)
 
 # 실제 키보드 입력 사용 여부
 USE_REAL_KEYBOARD = True  # True: 실제 키 입력, False: 내부 GameAction 반환
@@ -406,14 +407,6 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
     set_ai_mode(True)
     set_current_console(console)  # 화면 텍스트 추출용 콘솔 설정
     gathering_ui.set_ai_spectate_mode(True)  # 채집 UI 자동 진행 활성화
-    
-    # 봇 클라이언트용 상태 내보내기 활성화
-    try:
-        from src.bot import enable_export
-        enable_export(True)
-        logger.info("봇 상태 내보내기 활성화")
-    except ImportError:
-        pass
     
     add_ai_commentary("🤖 AI 관전 모드 시작!")
     
@@ -882,14 +875,6 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
 
         # exploration_sys의 던전 사용 (최신 맵)
         current_dungeon = exploration_sys.dungeon if hasattr(exploration_sys, 'dungeon') else dungeon
-
-        # 봇 클라이언트용 상태 내보내기
-        try:
-            from src.bot import export_exploration_state
-            screen_text = get_screen_text()
-            export_exploration_state(exploration_sys, party, current_dungeon, screen_text)
-        except ImportError:
-            pass
 
         try:
             # ===== 인벤토리 무게 초과 체크 (최우선) =====
@@ -1689,19 +1674,6 @@ def run_ai_spectate_mode(console: tcod.console.Console, context: tcod.context.Co
         _ai_combat_state['last_action_time'] = now
         
         logger.info(f"[COMBAT] 상태: {state.value}, 캐릭터: {current_char.name}, LLM: {_ai_combat_state.get('llm_action')}")
-        
-        # 봇 클라이언트용 상태 내보내기
-        try:
-            from src.bot import export_combat_state
-            screen_text = get_screen_text()
-            ui_state_str = state.value if hasattr(state, 'value') else str(state)
-            # party 추출 시도 (ATB에서)
-            party = getattr(combat_manager, 'allies', None)
-            if not party and hasattr(combat_manager, 'atb'):
-                party = [c for c in combat_manager.atb.get_action_order() if hasattr(c, 'job_id')]
-            export_combat_state(combat_manager, current_char, screen_text, ui_state_str, party)
-        except ImportError:
-            pass
         
         # 캐릭터 바뀌면 LLM 호출
         if _ai_combat_state['char'] != current_char.name:

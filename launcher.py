@@ -10,6 +10,7 @@ import sys
 import subprocess
 import json
 import shutil
+import platform
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Dict, Tuple
@@ -55,6 +56,7 @@ class GameLauncher:
     """게임 런처 GUI"""
 
     def __init__(self):
+        self._headless = False
         self.root_dir = Path(__file__).parent
         self.saves_dir = self.root_dir / "user_data" / "saves"
         self.logs_dir = self.root_dir / "user_data" / "logs"
@@ -70,19 +72,15 @@ class GameLauncher:
         self.screen_height = 50
         self.title = "Dawn of Stellar - Game Launcher"
 
+        self._prepare_headless_env()
+
         # 한글 폰트 로드 (실제 게임과 동일한 로직)
         tileset = self._load_korean_font()
 
         # TCOD 초기화
         self.console = tcod.console.Console(self.screen_width, self.screen_height, order="F")
 
-        self.context = tcod.context.new(
-            columns=self.screen_width,
-            rows=self.screen_height,
-            title=self.title,
-            vsync=True,
-            tileset=tileset
-        )
+        self.context = self._create_context(tileset)
 
         # 상태
         self.state = LauncherState.MAIN_MENU
@@ -185,6 +183,101 @@ class GameLauncher:
             print("한글 시스템 폰트를 찾을 수 없습니다. 기본 터미널 폰트를 사용합니다.")
 
         return tileset
+
+    def _use_dummy_video_driver(self, reason: str) -> None:
+        """헤드리스 환경을 위해 SDL dummy 비디오 드라이버 활성화"""
+        if os.environ.get("SDL_VIDEODRIVER") == "dummy":
+            self._headless = True
+            return
+
+        self._headless = True
+        os.environ["SDL_VIDEODRIVER"] = "dummy"
+        os.environ.pop("DISPLAY", None)
+        os.environ.pop("WAYLAND_DISPLAY", None)
+
+        try:
+            tcod.lib.SDL_Quit()
+        except Exception:
+            pass
+
+        print(f"[Launcher] {reason} - SDL dummy 비디오 드라이버 사용")
+
+    def _prepare_headless_env(self) -> None:
+        """디스플레이 접근 불가 시 자동 헤드리스 전환"""
+        env_headless = os.environ.get("DOS_HEADLESS", "").lower()
+        if env_headless in {"1", "true", "yes"}:
+            self._use_dummy_video_driver("DOS_HEADLESS 환경 변수 설정 감지")
+            return
+
+        if platform.system() != "Linux":
+            return
+
+        display = os.environ.get("DISPLAY")
+        wayland = os.environ.get("WAYLAND_DISPLAY")
+        if not display and not wayland:
+            self._use_dummy_video_driver("DISPLAY/WAYLAND 환경 변수 미설정 감지")
+            return
+
+        if display and not self._headless:
+            if shutil.which("xrandr") is None:
+                return
+            xauth = os.environ.get("XAUTHORITY") or str(Path.home() / ".Xauthority")
+            if not os.access(xauth, os.R_OK):
+                self._use_dummy_video_driver("디스플레이 인증 파일 접근 실패 감지")
+                return
+
+            try:
+                probe = subprocess.run(
+                    ["xrandr", "--current"],
+                    capture_output=True,
+                    text=True,
+                    timeout=1,
+                )
+                if probe.returncode != 0:
+                    reason = probe.stderr.strip() or probe.stdout.strip() or "xrandr 실패"
+                    self._use_dummy_video_driver(f"디스플레이 접근 실패 감지: {reason}")
+            except Exception as probe_error:
+                self._use_dummy_video_driver(f"디스플레이 확인 예외: {probe_error}")
+
+    def _create_context(
+        self, tileset: Optional[tcod.tileset.Tileset]
+    ) -> Optional[tcod.context.Context]:
+        """TCOD 컨텍스트 생성 및 실패 시 자동 폴백"""
+        context_kwargs: Dict[str, object] = {
+            "columns": self.screen_width,
+            "rows": self.screen_height,
+            "title": self.title,
+            "vsync": True,
+            "tileset": tileset,
+        }
+
+        try:
+            if self._headless:
+                context_kwargs["vsync"] = False
+            return tcod.context.new(**context_kwargs)
+        except Exception as exc:
+            print(f"[Launcher] 컨텍스트 생성 실패: {exc}")
+
+        if not self._headless:
+            self._use_dummy_video_driver("컨텍스트 생성 실패 감지")
+            fallback_kwargs = dict(context_kwargs)
+            fallback_kwargs["vsync"] = False
+            fallback_kwargs.pop("renderer", None)
+            try:
+                return tcod.context.new(**fallback_kwargs)
+            except Exception as headless_exc:
+                print(f"[Launcher] 헤드리스 컨텍스트 생성 실패: {headless_exc}")
+
+        try:
+            return tcod.context.new_terminal(
+                self.screen_width,
+                self.screen_height,
+                title=self.title,
+                vsync=False,
+            )
+        except Exception as terminal_exc:
+            print(f"[Launcher] 터미널 컨텍스트 생성 실패: {terminal_exc}")
+            return None
 
     def show_message(self, text: str, color: Tuple[int, int, int] = LauncherColors.WHITE, duration: int = 180):
         """메시지 표시"""

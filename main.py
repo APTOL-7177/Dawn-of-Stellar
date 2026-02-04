@@ -1002,6 +1002,9 @@ def main() -> int:
                             if result == "quit":
                                 logger.info("게임 종료")
                                 break
+                            elif result == "main_menu":
+                                logger.info("메인 메뉴로 돌아가기")
+                                break
                             elif result == "story_boss_combat":
                                 # 20/30층 스토리 보스 강제 조우
                                 logger.info("⚔ 스토리 보스 강제 조우!")
@@ -2250,6 +2253,9 @@ def main() -> int:
                                             
                                             if result == "quit":
                                                 logger.info("게임 종료")
+                                                break
+                                            elif result == "main_menu":
+                                                logger.info("메인 메뉴로 돌아가기")
                                                 break
                                             elif result == "combat":
                                                 # 전투 처리 (멀티플레이 지원)
@@ -3987,6 +3993,9 @@ def main() -> int:
 
                                 if result == "quit":
                                     logger.info("게임 종료")
+                                    break
+                                elif result == "main_menu":
+                                    logger.info("메인 메뉴로 돌아가기")
                                     break
                                 elif result == "story_boss_combat":
                                     # 20/30층 스토리 보스 강제 조우 (싱글플레이)
