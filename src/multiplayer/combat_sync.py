@@ -46,6 +46,7 @@ class CombatSyncManager:
         # 액션 시퀀스 번호 (순서 보장용)
         self.action_sequence = 0
         self.processed_sequences: Set[int] = set()
+        self.last_processed_sequence = -1
         
         # 플레이어별 행동 선택 상태 추적 (ATB 시스템용)
         self.players_selecting_action: Set[str] = set()
@@ -138,6 +139,41 @@ class CombatSyncManager:
         except Exception as e:
             self.logger.error(f"액션 요청 전송 실패: {e}", exc_info=True)
             self._set_player_selecting(player_id, False)  # 실패 시 UI 잠금 해제
+            return False
+
+    async def request_action(self, player_id: str, actor_id: str, action_data: Dict[str, Any]) -> bool:
+        """
+        레거시 UI 호환용 액션 요청 래퍼.
+
+        Args:
+            player_id: 플레이어 ID
+            actor_id: 행동자 ID
+            action_data: 직렬화된 액션 데이터
+
+        Returns:
+            처리 성공 여부
+        """
+        try:
+            actor = self._find_character_by_id(actor_id)
+            if not actor:
+                self.logger.warning(f"액션 요청 실패: 액터를 찾을 수 없음 ({actor_id})")
+                return False
+
+            action_type, target, skill, kwargs = self._deserialize_action(action_data)
+            if not action_type:
+                self.logger.warning(f"액션 요청 실패: 액션 역직렬화 실패 ({action_data})")
+                return False
+
+            return await self.send_action_request(
+                player_id=player_id,
+                actor=actor,
+                action_type=action_type,
+                target=target,
+                skill=skill,
+                **kwargs
+            )
+        except Exception as e:
+            self.logger.error(f"레거시 액션 요청 처리 실패: {e}", exc_info=True)
             return False
             
     def _start_timeout_task(self, player_id: str, timeout: float = 10.0):
@@ -315,12 +351,16 @@ class CombatSyncManager:
                 skill=skill,
                 **kwargs
             )
-            
+
             # 모든 클라이언트에게 액션 결과 브로드캐스트
             if self.network_manager:
+                # 시퀀스 증가 (호스트 authoritative 순서)
+                self.action_sequence += 1
+                sequence = self.action_sequence
+
                 # 액션 결과 직렬화
                 action_result = self._serialize_action_result(
-                    player_id, actor, action_type, target, skill, result, **kwargs
+                    player_id, actor, action_type, target, skill, result, sequence=sequence, **kwargs
                 )
                 
                 # 상태 업데이트 메시지 생성 및 브로드캐스트
@@ -366,6 +406,13 @@ class CombatSyncManager:
             combat_action = data.get("combat_action")
             
             if combat_action:
+                sequence = combat_action.get("sequence")
+                if isinstance(sequence, int):
+                    if sequence <= self.last_processed_sequence:
+                        self.logger.debug(f"이미 처리한 액션 시퀀스 스킵: {sequence}")
+                        return
+                    self.last_processed_sequence = sequence
+
                 # 액션 동기화 실행
                 await self._sync_remote_action(combat_action)
                 
@@ -469,6 +516,24 @@ class CombatSyncManager:
                     character.current_brv = char_data.get("current_brv", 0)
                 if "is_alive" in char_data:
                     character.is_alive = char_data["is_alive"]
+
+                # ATB 게이지 동기화
+                if self.combat_manager and hasattr(self.combat_manager, 'atb'):
+                    gauge = self.combat_manager.atb.get_gauge(character)
+                    if gauge:
+                        atb_current = char_data.get("atb_current")
+                        if atb_current is not None:
+                            try:
+                                gauge.current = max(0, min(float(atb_current), gauge.max_gauge))
+                            except (TypeError, ValueError):
+                                self.logger.debug(f"ATB 동기화 값 무시: {atb_current}")
+
+                        atb_max = char_data.get("atb_max")
+                        if atb_max is not None:
+                            try:
+                                gauge.max_gauge = max(1, int(atb_max))
+                            except (TypeError, ValueError):
+                                self.logger.debug(f"ATB 최대치 동기화 값 무시: {atb_max}")
             
             # 전투 상태 동기화
             combat_state_str = state_data.get("combat_state")
@@ -638,6 +703,7 @@ class CombatSyncManager:
         target: Optional[Any],
         skill: Optional[Any],
         result: Dict[str, Any],
+        sequence: Optional[int] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -665,6 +731,9 @@ class CombatSyncManager:
                 "result": result,
                 "timestamp": time.time()
             }
+
+            if sequence is not None:
+                action_result["sequence"] = sequence
             
             if target:
                 target_id = self._get_character_id(target)

@@ -175,7 +175,20 @@ class CombatUI:
             from src.multiplayer.combat_sync import CombatSyncManager
             game_mode_manager = get_game_mode_manager()
             if game_mode_manager and game_mode_manager.is_multiplayer():
-                self.combat_sync_manager = CombatSyncManager(session, network_manager, combat_manager)
+                resolved_local_player_id = (
+                    local_player_id
+                    or getattr(session, 'local_player_id', None)
+                    or getattr(game_mode_manager, 'local_player_id', None)
+                )
+                is_host = bool(getattr(game_mode_manager, 'is_host', False))
+                if resolved_local_player_id and hasattr(session, 'host_id'):
+                    is_host = session.host_id == resolved_local_player_id
+                self.combat_sync_manager = CombatSyncManager(
+                    session,
+                    network_manager,
+                    combat_manager,
+                    is_host=is_host
+                )
                 logger.info("멀티플레이 전투 동기화 관리자 초기화 완료")
 
         logger.info("전투 UI 초기화")
@@ -746,6 +759,57 @@ class CombatUI:
             return True
         
         return False
+
+    def _get_local_player_id(self) -> Optional[str]:
+        """멀티플레이 로컬 플레이어 ID를 안정적으로 가져옵니다."""
+        local_player_id = self.local_player_id
+        if local_player_id:
+            return local_player_id
+
+        if self.session:
+            local_player_id = getattr(self.session, 'local_player_id', None)
+            if local_player_id:
+                return local_player_id
+
+        try:
+            from src.multiplayer.game_mode import get_game_mode_manager
+            game_mode_manager = get_game_mode_manager()
+            return getattr(game_mode_manager, 'local_player_id', None) if game_mode_manager else None
+        except Exception:
+            return None
+
+    def _select_next_ready_actor(self, ready: List[Any], is_multiplayer: bool) -> Optional[Any]:
+        """
+        다음 처리할 행동자를 선택합니다.
+
+        멀티플레이에서는 원격 플레이어 캐릭터가 맨 앞에 있더라도 로컬 입력을 막지 않도록
+        원격 아군을 건너뛰고, 적/봇/로컬 아군 순서로 가능한 첫 전투원을 선택합니다.
+        """
+        if not ready:
+            return None
+
+        if not is_multiplayer:
+            return ready[0]
+
+        local_player_id = self._get_local_player_id()
+        if not local_player_id:
+            return ready[0]
+
+        for combatant in ready:
+            if combatant in self.combat_manager.enemies:
+                return combatant
+
+            combatant_player_id = getattr(combatant, 'player_id', None)
+            if not combatant_player_id:
+                return combatant
+
+            if str(combatant_player_id).startswith('bot_'):
+                return combatant
+
+            if combatant_player_id == local_player_id:
+                return combatant
+
+        return None
 
     def _handle_action_menu(self, action: GameAction) -> bool:
         """행동 메뉴 입력 처리"""
@@ -1611,29 +1675,53 @@ class CombatUI:
                 self.state = CombatUIState.ACTION_MENU
                 return
 
-            action_data = {
-                "action_type": action_type.value if hasattr(action_type, 'value') else str(action_type),
-                "target_id": getattr(self.selected_target, 'id', None) if self.selected_target else None,
-                "skill_id": getattr(self.selected_skill, 'id', None) if self.selected_skill else None,
-                "item_id": getattr(self.selected_item, 'id', None) if self.selected_item else None,
-                "item_index": self.selected_item_index,
-            }
+            kwargs = {}
+            if action_type == ActionType.ITEM and self.selected_item:
+                kwargs['item'] = self.selected_item
+                kwargs['item_index'] = self.selected_item_index
 
             # 비동기 액션 요청 전송
             import asyncio
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    asyncio.create_task(self.combat_sync_manager.request_action(local_player_id, actor_id, action_data))
+                    asyncio.create_task(
+                        self.combat_sync_manager.send_action_request(
+                            player_id=local_player_id,
+                            actor=self.current_actor,
+                            action_type=action_type,
+                            target=self.selected_target,
+                            skill=self.selected_skill,
+                            **kwargs
+                        )
+                    )
                 else:
-                    asyncio.run(self.combat_sync_manager.request_action(local_player_id, actor_id, action_data))
+                    asyncio.run(
+                        self.combat_sync_manager.send_action_request(
+                            player_id=local_player_id,
+                            actor=self.current_actor,
+                            action_type=action_type,
+                            target=self.selected_target,
+                            skill=self.selected_skill,
+                            **kwargs
+                        )
+                    )
             except RuntimeError:
                 # 이벤트 루프가 없으면 동기적으로 처리
                 logger.warning("비동기 이벤트 루프 없음, 동기 처리 시도")
                 try:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
-                    loop.run_until_complete(self.combat_sync_manager.request_action(local_player_id, actor_id, action_data))
+                    loop.run_until_complete(
+                        self.combat_sync_manager.send_action_request(
+                            player_id=local_player_id,
+                            actor=self.current_actor,
+                            action_type=action_type,
+                            target=self.selected_target,
+                            skill=self.selected_skill,
+                            **kwargs
+                        )
+                    )
                     loop.close()
                 except Exception as e:
                     logger.error(f"멀티플레이 액션 전송 실패: {e}", exc_info=True)
@@ -1642,10 +1730,6 @@ class CombatUI:
 
             # 클라이언트는 액션 요청 후 ATB 대기 상태로 전환
             self.state = CombatUIState.WAITING_ATB
-            if hasattr(self.combat_manager.atb, 'set_player_selecting'):
-                self.combat_manager.atb.set_player_selecting(local_player_id, False)
-            if hasattr(self.combat_manager.atb, 'set_action_confirmed'):
-                self.combat_manager.atb.set_action_confirmed(local_player_id)
 
         else:
             # 싱글플레이 모드 또는 멀티플레이 호스트 (직접 실행)
@@ -2100,8 +2184,10 @@ class CombatUI:
                 logger.debug(f"상태 강제 정상화: {self.state.value} -> WAITING_ATB")
                 self.state = CombatUIState.WAITING_ATB
 
-            # 다음 행동자
-            actor = ready[0]
+            # 다음 행동자 (멀티플레이에서는 원격 아군으로 인한 입력 블로킹 방지)
+            actor = self._select_next_ready_actor(ready, is_multiplayer)
+            if actor is None:
+                return
 
             # 캐릭터 타입 확인
             actor_player_id = getattr(actor, 'player_id', None)
@@ -2208,9 +2294,10 @@ class CombatUI:
             elif not is_selecting_action:
                 # current_actor가 없고 행동 선택 중이 아니면 모든 플레이어의 불릿타임 해제
                 if hasattr(self.combat_manager.atb, 'players_selecting_action'):
-                    for player_id in list(self.combat_manager.atb.players_selecting_action):
-                        self.combat_manager.atb.set_player_selecting(player_id, False)
-                        logger.debug(f"불릿타임 해제: 플레이어 {player_id} (액터 없음, 상태: {self.state.value})")
+                    local_player_id = self._get_local_player_id()
+                    if local_player_id and local_player_id in self.combat_manager.atb.players_selecting_action:
+                        self.combat_manager.atb.set_player_selecting(local_player_id, False)
+                        logger.debug(f"불릿타임 해제: 플레이어 {local_player_id} (액터 없음, 상태: {self.state.value})")
 
     def _get_bot_instance(self, character: Any) -> Any:
         """
@@ -6952,7 +7039,7 @@ def run_combat(
     combat_manager.start_combat(party, enemies, dungeon=dungeon, combat_position=combat_position)
 
     # 인벤토리 설정 (전투 매니저에도 전달)
-    if inventory:
+    if inventory is not None:
         combat_manager.inventory = inventory
 
     # 로컬 플레이어 ID 확인

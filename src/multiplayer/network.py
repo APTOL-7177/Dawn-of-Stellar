@@ -190,6 +190,11 @@ class NetworkManager:
                         enemies=enemies,
                         position=(x, y)
                     )
+                    start_msg.data["participant_player_ids"] = sorted({
+                        getattr(p, 'player_id', None) if not isinstance(p, str) else p
+                        for p in participants
+                        if (getattr(p, 'player_id', None) if not isinstance(p, str) else p)
+                    })
                     await self.broadcast(start_msg)
                     
                     # 호스트 자신도 전투 시작 처리 (이벤트 버스 등 활용)

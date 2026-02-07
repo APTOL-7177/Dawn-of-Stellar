@@ -234,27 +234,38 @@ class EnemySyncManager:
         Returns:
             적 ID
         """
-        # 고유 ID가 있으면 사용
-        if hasattr(enemy, 'id') and enemy.id:
-            return str(enemy.id)
-        
-        # SimpleEnemy의 경우 enemy_id 사용
-        if hasattr(enemy, 'enemy_id') and enemy.enemy_id:
-            # 전투 중인 적은 위치 기반 ID와 enemy_id를 결합
-            if hasattr(enemy, 'x') and hasattr(enemy, 'y'):
-                return f"{enemy.enemy_id}_{enemy.x}_{enemy.y}"
-            return str(enemy.enemy_id)
-        
-        # 없으면 spawn 위치 기반 ID (안정적)
-        if hasattr(enemy, 'spawn_x') and hasattr(enemy, 'spawn_y'):
-            return f"enemy_{enemy.spawn_x}_{enemy.spawn_y}"
-        
-        # 최후의 수단: 현재 위치 기반 ID
-        if hasattr(enemy, 'x') and hasattr(enemy, 'y'):
-            return f"enemy_{enemy.x}_{enemy.y}"
-        
-        # ID를 생성할 수 없으면 기본값
-        return f"enemy_unknown_{id(enemy)}"
+        cached_id = getattr(enemy, '_multiplayer_sync_id', None)
+        if cached_id:
+            return str(cached_id)
+
+        # 멀티플레이에서는 "현재 좌표"를 ID에 쓰면 이동할 때마다 ID가 바뀌어 동기화가 깨집니다.
+        # 가능한 경우 spawn 좌표 기반의 안정 ID를 우선 사용합니다.
+        enemy_type = getattr(enemy, 'enemy_id', None)
+        spawn_x = getattr(enemy, 'spawn_x', None)
+        spawn_y = getattr(enemy, 'spawn_y', None)
+        stable_id: Optional[str] = None
+
+        if enemy_type and spawn_x is not None and spawn_y is not None:
+            stable_id = f"{enemy_type}_{spawn_x}_{spawn_y}"
+        elif spawn_x is not None and spawn_y is not None:
+            stable_id = f"enemy_{spawn_x}_{spawn_y}"
+        elif hasattr(enemy, 'id') and getattr(enemy, 'id'):
+            # id가 이미 호스트 기준으로 동기화된 경우에만 사용됩니다.
+            stable_id = str(getattr(enemy, 'id'))
+        elif enemy_type:
+            stable_id = str(enemy_type)
+        elif hasattr(enemy, 'x') and hasattr(enemy, 'y'):
+            # 마지막 fallback: 최초 좌표를 캐시해서 이후 이동 시에도 ID가 변하지 않도록 함
+            stable_id = f"enemy_{int(enemy.x)}_{int(enemy.y)}"
+        else:
+            stable_id = f"enemy_unknown_{id(enemy)}"
+
+        try:
+            setattr(enemy, '_multiplayer_sync_id', stable_id)
+        except Exception:
+            pass
+
+        return stable_id
     
     def get_enemy_position(self, enemy_id: str) -> Optional[Tuple[int, int]]:
         """

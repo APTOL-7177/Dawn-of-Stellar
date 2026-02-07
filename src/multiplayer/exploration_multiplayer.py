@@ -283,14 +283,16 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 # 해당 위치의 타일 찾기
                 if 0 <= x < self.dungeon.width and 0 <= y < self.dungeon.height:
                     tile = self.dungeon.get_tile(x, y)
-                    if tile and tile.tile_type == TileType.ITEM:
-                        # 아이템 타일을 FLOOR로 변경 (아이템 제거)
+                    from src.world.tile import TileType
+                    if tile and (tile.tile_type == TileType.ITEM or tile.tile_type == TileType.CHEST):
+                        # 아이템 또는 보물상자 타일을 FLOOR로 변경 (제거 동기화)
+                        old_type = tile.tile_type
                         tile.tile_type = TileType.FLOOR
                         tile.loot_id = None
                         player_name = getattr(self.session.players.get(sender_id), 'player_name', sender_id) if sender_id and self.session and sender_id in self.session.players else sender_id or "알 수 없음"
-                        self.logger.info(f"아이템 획득 동기화: {player_name}가 ({x}, {y}) 아이템 획득 - 타일 제거")
+                        self.logger.info(f"획득 동기화: {player_name}가 ({x}, {y}) {old_type.value} 획득 - 타일 제거")
                     else:
-                        self.logger.debug(f"아이템 획득 동기화: ({x}, {y})는 아이템 타일이 아님 (타입: {tile.tile_type if tile else None})")
+                        self.logger.debug(f"획득 동기화: ({x}, {y})는 아이템/상자 타일이 아님 (타입: {tile.tile_type if tile else None})")
                 else:
                     self.logger.warning(f"아이템 획득 동기화: ({x}, {y})는 맵 범위를 벗어남")
             except Exception as e:
@@ -370,11 +372,24 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             """
             try:
                 participants = message.data.get("participants", [])
+                participant_player_ids = message.data.get("participant_player_ids", [])
                 
                 # 내가 참여자에 포함되어 있는지 확인
                 am_i_participant = False
-                if self.local_player_id in participants:
+                if self.local_player_id in participant_player_ids:
                     am_i_participant = True
+                elif self.local_player_id in participants:
+                    am_i_participant = True
+                elif self.session and self.local_player_id in self.session.players:
+                    local_player = self.session.players[self.local_player_id]
+                    local_party = getattr(local_player, 'party', []) or []
+                    local_character_ids = {
+                        str(getattr(character, 'id'))
+                        for character in local_party
+                        if getattr(character, 'id', None)
+                    }
+                    if any(str(participant_id) in local_character_ids for participant_id in participants):
+                        am_i_participant = True
                 
                 if am_i_participant:
                     self.logger.info("전투 시작 메시지 수신: 참여자로 확인됨")
@@ -677,6 +692,11 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     enemies=[e.id if hasattr(e, 'id') else str(e) for e in enemies],
                     position=combat_position
                 )
+                start_msg.data["participant_player_ids"] = sorted({
+                    getattr(p, 'player_id', None) if not isinstance(p, str) else p
+                    for p in participants
+                    if (getattr(p, 'player_id', None) if not isinstance(p, str) else p)
+                })
                 
                 try:
                     server_loop = getattr(self.network_manager, '_server_event_loop', None)
