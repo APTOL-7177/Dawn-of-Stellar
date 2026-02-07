@@ -147,6 +147,10 @@ class HealEffect(SkillEffect):
             total_heal += actual_heal
             healed_count += 1
 
+            # 기믹 충족을 위한 context 업데이트
+            if context is not None:
+                context['targets_healed'] = context.get('targets_healed', 0) + 1
+
             # faith_shield 특성: 아군 치유 시 대상에게 보호막 부여 (회복량의 40%)
             if hasattr(user, 'active_traits') and user != t:  # 자가 힐 제외
                 has_faith_shield = any(

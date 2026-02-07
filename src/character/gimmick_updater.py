@@ -111,15 +111,26 @@ class GimmickUpdater:
         if not gimmick_type or gimmick_type != "madness_threshold":
             return
 
-        # 광기 HP 비율 업데이트 (즉시 반영)
+        # 광기 HP 변화량 업데이트 (즉시 반영)
         if hasattr(character, 'current_hp') and hasattr(character, 'max_hp') and character.max_hp > 0:
-            hp_ratio = character.current_hp / character.max_hp
-            hp_madness_increase = int((1.0 - hp_ratio) * 15)
-
-            if hp_madness_increase > 0:
+            hp_diff = new_hp - old_hp
+            max_hp = character.max_hp
+            
+            # HP 변화율 (전체 HP 대비)
+            change_ratio = hp_diff / max_hp
+            
+            # 광기 변화량 계산: HP 1%당 광기 1 변동
+            # 피해(diff < 0) -> 광기 증가 (+)
+            # 회복(diff > 0) -> 광기 감소 (-)
+            madness_change = int(-change_ratio * 100)
+            
+            if madness_change != 0:
                 old_madness = character.madness
-                character.madness = min(character.max_madness or 100, character.madness + hp_madness_increase)
-                logger.info(f"{character.name} HP 즉시 변화로 광기 증가: +{hp_madness_increase} (HP: {hp_ratio:.1%}, {old_madness}→{character.madness})")
+                character.madness = max(0, min(100, character.madness + madness_change))
+                if madness_change > 0:
+                    logger.info(f"{character.name} 피해로 광기 증가: +{madness_change} ({old_madness}→{character.madness})")
+                else:
+                    logger.info(f"{character.name} 회복으로 광기 감소: {madness_change} ({old_madness}→{character.madness})")
         elif gimmick_type == "duty_system":
             GimmickUpdater._update_duty_system(character)
         elif gimmick_type == "stance_system":
@@ -292,6 +303,29 @@ class GimmickUpdater:
             GimmickUpdater._update_phantom_legion_turn_start(character, context)
         elif gimmick_type == "mp_overload_system":
             GimmickUpdater._update_mp_overload_state(character)
+            
+            # 무당 전용: 영력 순환 (spirit_circulation) 처리
+            if hasattr(character, 'active_toggles') and "spirit_circulation" in character.active_toggles:
+                # 기본 회복량 8% (shaman_spirit_circulation.yaml 설정값)
+                regen_pct = 0.08
+                
+                # 토글 효율 특성 확인 (회복량 +50%)
+                if hasattr(character, 'active_traits'):
+                    has_efficiency = any(
+                        (t if isinstance(t, str) else t.get('id')) == 'toggle_efficiency'
+                        for t in character.active_traits
+                    )
+                    if has_efficiency:
+                        regen_pct *= 1.5
+                        logger.debug(f"[토글 효율] {character.name} 영력 순환 회복량 증가 (+50%)")
+                
+                regen_amount = int(character.max_mp * regen_pct)
+                if regen_amount > 0:
+                    if hasattr(character, 'restore_mp'):
+                        character.restore_mp(regen_amount)
+                    else:
+                        character.current_mp = min(character.max_mp, character.current_mp + regen_amount)
+                    logger.info(f"[영력 순환] {character.name} MP +{regen_amount} 회복 (현재: {character.current_mp})")
         # elif gimmick_type == "dimension_refraction":
         #    # ISSUE-16: 리메이크 - 턴 시작 시가 아니라 매 행동마다 처리됨
         #    pass
@@ -1218,25 +1252,29 @@ class GimmickUpdater:
         base_decay = 5
         actual_decay = int(base_decay * decay_mult)
 
-        # HP 비율에 따른 광기 증가 (HP가 낮을수록 광기 증가)
+        # HP 비율에 따른 광기 증가 (HP가 낮을수록 광기 증가) - 턴 기반 스트레스
         hp_ratio = character.current_hp / character.max_hp
-        hp_madness_increase = int((1.0 - hp_ratio) * 15)  # HP 0%일 때 최대 +15
+        hp_madness_stress = int((1.0 - hp_ratio) * 5)  # 기존 15 -> 5로 하향 (on_hp_change에서 이미 처리됨)
 
         if character.madness < effective_optimal_min:
-            # 최적 구간 미만: 자연 감소
+            # 안전 구간: 자연 감소
             character.madness = max(0, character.madness - actual_decay)
             logger.debug(f"{character.name} 광기 자연 감소: -{actual_decay} (총: {character.madness})")
+        elif character.madness <= effective_optimal_max:
+            # 최적 구간: 소폭 자연 감소 (유지 및 관리 가능하게)
+            character.madness = max(effective_optimal_min, character.madness - 2)
+            logger.debug(f"{character.name} 광기 최적 안정화: -2 (총: {character.madness})")
         elif character.madness >= effective_danger_min:
-            # 위험 구간: 자연 증가
+            # 위험 구간: 자연 증가 (상승폭 10 -> 5로 하향)
             old_madness = character.madness
-            character.madness = min(character.max_madness or 100, character.madness + 10)
-            logger.warning(f"{character.name} 광기 위험 증가: +10 ({old_madness}→{character.madness}, 최대: {character.max_madness or 100})")
+            character.madness = min(character.max_madness or 100, character.madness + 5)
+            logger.warning(f"{character.name} 광기 위험 증가: +5 ({old_madness}→{character.madness})")
 
-        # HP 비율에 따른 광기 증가 적용
-        if hp_madness_increase > 0:
+        # HP 비율에 따른 광기 스트레스 적용
+        if hp_madness_stress > 0:
             old_madness = character.madness
-            character.madness = min(character.max_madness or 100, character.madness + hp_madness_increase)
-            logger.info(f"{character.name} HP 낮음으로 광기 증가: +{hp_madness_increase} (HP: {hp_ratio:.1%}, {old_madness}→{character.madness}, 최대: {character.max_madness or 100})")
+            character.madness = min(character.max_madness or 100, character.madness + hp_madness_stress)
+            logger.debug(f"{character.name} 저체력 스트레스로 광기 증가: +{hp_madness_stress} (HP: {hp_ratio:.1%}, {old_madness}→{character.madness})")
         
         # === 기본 효과 적용 (특성 불필요) ===
         madness = character.madness
@@ -2570,26 +2608,26 @@ class GimmickUpdater:
         # 오버클럭 모드: 고정 보너스 회복만 적용 (2배 회복 제거)
         if getattr(character, 'overclock_active', False):
             overclock_data = getattr(character, 'overclock_data', {})
-            ram_regen += int(overclock_data.get('ram_regen_bonus', 1))
+            ram_regen += int(overclock_data.get('ram_regen_bonus', 0))
         
         old_ram = getattr(character, 'ram', 0)
-        max_ram = getattr(character, 'max_ram', 8)
+        max_ram = getattr(character, 'max_ram', 32)
         character.ram = min(max_ram, old_ram + ram_regen)
         
         if character.ram > old_ram:
-            logger.debug(f"[해커] {character.name} RAM +{character.ram - old_ram} (총: {character.ram}/{max_ram})")
+            logger.info(f"[해커] {character.name} RAM 회복: +{character.ram - old_ram} (총: {character.ram}/{max_ram})")
         
         # 오버클럭 모드 페널티
         if getattr(character, 'overclock_active', False):
             overclock_data = getattr(character, 'overclock_data', {})
             
-            # RAM 소모
-            ram_cost = overclock_data.get('ram_cost_per_turn', 2)
+            # RAM 소모 (기본값 10으로 상향하여 확실히 줄어들게 함)
+            ram_cost = overclock_data.get('ram_cost_per_turn', 10)
             character.ram = max(0, character.ram - ram_cost)
-            logger.debug(f"[오버클럭] {character.name} RAM -{ram_cost}")
+            logger.info(f"[오버클럭] {character.name} 시스템 유지비: RAM -{ram_cost} (잔여: {character.ram})")
             
             # HP 소모
-            hp_cost_rate = overclock_data.get('hp_cost_per_turn', 0.03)
+            hp_cost_rate = overclock_data.get('hp_cost_per_turn', 0.05)
             # 가상화 특성: HP 페널티 50% 감소
             if hasattr(character, 'active_traits'):
                 for trait in character.active_traits:
@@ -3033,12 +3071,17 @@ class GimmickUpdater:
         if oracle.get('fulfilled'):
             return True
 
+        # 자동 충족 버프 확인 (궁극기 효과)
+        if hasattr(character, 'active_buffs') and 'oracle_auto_fulfill' in character.active_buffs:
+            GimmickUpdater._fulfill_oracle(character)
+            return True
+
         condition = oracle.get('condition', '')
         fulfilled = False
         context = context or {}
 
         # 기본 조건들
-        if condition == 'heal_ally' and action_type in ['heal', 'heal_ally']:
+        if condition == 'heal_ally' and action_type in ['heal', 'heal_ally', 'mass_heal']:
             fulfilled = True
         elif condition == 'buff_ally' and action_type in ['buff', 'buff_ally']:
             fulfilled = True
@@ -3051,7 +3094,7 @@ class GimmickUpdater:
         elif condition == 'holy_damage' and action_type in ['holy_damage', 'damage_evil']:
             # 성속성 공격은 광휘의 신탁과 심판의 신탁 모두 충족
             fulfilled = True
-        elif condition == 'resurrect_ally' and action_type == 'resurrect':
+        elif condition == 'resurrect_ally' and action_type in ['resurrect', 'revive']:
             fulfilled = True
         elif condition == 'self_damage' and action_type == 'self_damage':
             fulfilled = True
@@ -3059,12 +3102,20 @@ class GimmickUpdater:
             fulfilled = True
         elif condition == 'counter_success' and action_type == 'counter':
             fulfilled = True
-        elif condition == 'protect_ally' and action_type == 'protect':
+        elif condition == 'protect_ally' and action_type in ['protect', 'protect_ally']:
             fulfilled = True
-        elif condition == 'buff_3_allies' and action_type == 'buff':
-            # 3명 이상 버프 확인
+        elif condition == 'buff_3_allies':
+            # 3명 이상 버프 확인 (action_type에 상관없이 context의 수치 확인)
             targets_buffed = context.get('targets_buffed', 0)
+            party = context.get('party', [])
+            alive_party_count = len([m for m in party if getattr(m, 'is_alive', True)])
+            
             if targets_buffed >= 3:
+                fulfilled = True
+            elif targets_buffed >= alive_party_count and alive_party_count >= 2:
+                # 파티가 3명 미만인 경우, 생존한 전원에게 버프를 걸면 충족 (최소 2명)
+                fulfilled = True
+            elif action_type == 'buff' and targets_buffed >= 3: # 백업용
                 fulfilled = True
         elif condition == 'maintain_faith_50':
             # 신앙 50 이상 유지
@@ -6396,6 +6447,29 @@ def _handle_skill_execute(event):
                     user.status_manager.remove_buff("overclock")
                 except Exception:
                     pass
+
+    # 광전사: 광기 조절 처리
+    if gimmick_type == "madness_threshold":
+        meta = getattr(skill, "metadata", {}) or {}
+        
+        # 1. 통제된 광기: 광기를 50으로 설정
+        if meta.get("madness_control"):
+            old_madness = getattr(user, 'madness', 0)
+            user.madness = 50
+            logger.info(f"[광기 조절] {user.name} 통제된 광기: {old_madness} → 50")
+            
+        # 2. 광란의 힘 (궁극기): 광기를 100으로 설정
+        if meta.get("hp_to_1_percent"):
+            old_madness = getattr(user, 'madness', 0)
+            user.madness = 100
+            logger.info(f"[광기 조절] {user.name} 광란의 힘 (궁극기): {old_madness} → 100")
+            
+        # 3. 직접적인 광기 감소 (메타데이터 명시)
+        reduction = meta.get("madness_reduction_flat", 0)
+        if reduction > 0:
+            old_madness = getattr(user, 'madness', 0)
+            user.madness = max(0, old_madness - reduction)
+            logger.info(f"[광기 조절] {user.name} 스킬 효과로 광기 감소: {old_madness} → {user.madness}")
 
     # 신관: 신탁 액션 충족
     if getattr(user, "gimmick_type", None) == "oracle_system":

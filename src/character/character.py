@@ -1245,6 +1245,38 @@ class Character:
                 
                 # 마나 실드가 깨졌는지(MP 소진) 확인 - 이미 consume_mp에서 처리됨
 
+        # 1.5 무당: 영력 보호막 (mana_guard) - 토글 버프
+        # 받는 HP 피해의 80%를 MP로 전환 (MP 부족 시 보호막 해제)
+        if hasattr(self, 'active_toggles') and "mana_guard" in self.active_toggles and self.current_mp > 0:
+            conversion_rate = 0.8  # 80% 전환
+            convert_damage = int(final_damage * conversion_rate)
+            
+            if convert_damage > 0:
+                # MP 소모량 (영력 보호막은 1:1 비율로 MP 소모)
+                mp_cost = convert_damage
+                
+                if self.current_mp >= mp_cost:
+                    # MP 충분: 전액 전환
+                    self.consume_mp(mp_cost)
+                    final_damage -= convert_damage
+                    logger.info(f"[영력 보호막] {self.name} - 피해 {convert_damage}를 MP로 전환 (남은 MP: {self.current_mp})")
+                else:
+                    # MP 부족: 가능한 만큼만 전환하고 보호막 해제
+                    actual_convert = self.current_mp
+                    self.consume_mp(actual_convert)
+                    final_damage -= actual_convert
+                    
+                    # 보호막 해제 (토글 목록에서 제거)
+                    self.active_toggles.remove("mana_guard")
+                    
+                    # 예약 MP 복구 (reserved_max_mp 감소)
+                    if hasattr(self, 'reserved_max_mp'):
+                        # 30% 예약 비율 (shaman_mana_guard.yaml 설정값)
+                        reserved_amount = int(self.max_mp * 0.3)
+                        self.reserved_max_mp = max(0, self.reserved_max_mp - reserved_amount)
+                    
+                    logger.info(f"[영력 보호막] {self.name} - MP 부족으로 보호막 파괴! (전환: {actual_convert})")
+
         # 2. 일반 보호막이 있으면 데미지 흡수
         shield_amount = getattr(self, 'shield_amount', 0)
         if shield_amount > 0 and final_damage > 0:

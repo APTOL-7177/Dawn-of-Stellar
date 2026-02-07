@@ -110,6 +110,10 @@ class CleanseEffect(SkillEffect):
                 pass
 
         if removed_count > 0:
+            # 기믹 충족을 위한 context 업데이트
+            if context is not None:
+                context['targets_cleansed'] = context.get('targets_cleansed', 0) + 1
+                
             return EffectResult(EffectType.UTILITY, True, f"상태이상 해제: {', '.join(removed_names)}")
         return EffectResult(EffectType.UTILITY, False, "해제할 상태이상이 없습니다.")
 

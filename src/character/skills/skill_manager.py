@@ -263,9 +263,13 @@ class SkillManager:
                     total_ram_use += ram_cost
                 if ram_burn > 0:
                     total_ram_use += ram_burn
-                if total_ram_use:
+                
+                if total_ram_use > 0:
+                    old_ram = user.ram
                     user.ram = max(0, user.ram - total_ram_use)
-                    self.logger.debug(f"[RAM] {user.name} RAM 소모: {total_ram_use} (잔여 {user.ram})")
+                    self.logger.info(f"[RAM] {user.name}: {skill.name} 사용으로 RAM {total_ram_use} 소모 ({old_ram} -> {user.ram})")
+                else:
+                    self.logger.debug(f"[RAM] {user.name}: {skill.name} 사용 (소모량 0)")
 
         # === 해적 보물 시스템 처리 ===
         if result.success and hasattr(skill, 'metadata') and skill.metadata:

@@ -5,7 +5,7 @@ description: |
   [해커 전용] 시스템을 오버클럭합니다.
   - 침투 획득량 +50%
   - 속도 +30%
-  - 매 턴 RAM -2(+보너스 회복 1), HP -3%
+  - 매 턴 RAM -10, HP -5%
   - 오버클럭 중 스킬 RAM 소모 1 감소
   
   해제 시: 2턴간 속도 -20%
@@ -24,8 +24,8 @@ effects:
   effects:
     intrusion_gain_bonus: 0.5
     speed_multiplier: 1.3
-    ram_cost_per_turn: 2
-    hp_cost_per_turn: 0.03
+    ram_cost_per_turn: 10
+    hp_cost_per_turn: 0.05
 - type: gimmick
   operation: set
   field: overclock_active

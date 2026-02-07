@@ -88,6 +88,10 @@ class BuffEffect(SkillEffect):
                 if hasattr(t, 'name'):
                     target_names.append(t.name)
 
+        # 기믹 충족을 위한 context 업데이트 (예: 신관의 축복의 신탁)
+        if context is not None:
+            context['targets_buffed'] = context.get('targets_buffed', 0) + buffed_count
+
         # ISSUE-003: 버프 메시지 개선 - 대상 명시
         buff_name = self.buff_type.replace('_', ' ').title()
         value_str = f"+{int(self.value*100)}%" if self.value >= 0 else f"{int(self.value*100)}%"

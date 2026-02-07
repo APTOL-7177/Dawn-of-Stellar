@@ -19,7 +19,7 @@ costs:
   mp: 15
 metadata:
   oracle_action: self_damage
-  self_damage_percent: 0.3
+  self_damage_hp_percent: 0.3
   faith_empowered: true
   faith_multiplier: 3.5
 effects:

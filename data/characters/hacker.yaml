@@ -97,12 +97,12 @@ gimmick:
       effects:
         takeover_available: true
   overclock:
-    ram_cost_per_turn: 4
+    ram_cost_per_turn: 10
     hp_cost_per_turn: 0.05
     intrusion_bonus: 1.5
     speed_bonus: 1.3
     ram_cost_discount: 1
-    ram_regen_bonus: 1
+    ram_regen_bonus: 0
 traits:
 - id: parallel_processing
   name: 병렬 처리
