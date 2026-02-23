@@ -152,6 +152,8 @@ class CombatUI:
         # 행동 후 대기 시간 (프레임 단위, 60 FPS 기준)
         self.action_delay_frames = 0
         self.action_delay_max = 90  # 1.5초 대기
+        # 멀티플레이에서 대기 지연의 소유 플레이어 추적 (None이면 전역 지연)
+        self.action_delay_owner_player_id: Optional[str] = None
 
         # 페이즈 메시지 타이머 (프레임 단위)
         self.phase_message_timer = 0
@@ -789,6 +791,21 @@ class CombatUI:
             return None
 
         if not is_multiplayer:
+            player_input_states = [
+                CombatUIState.ACTION_MENU, CombatUIState.SKILL_MENU, CombatUIState.ITEM_MENU,
+                CombatUIState.TARGET_SELECT, CombatUIState.CARD_SELECT, CombatUIState.CHOICE_SELECT,
+                CombatUIState.POSSIBILITY_SELECT, CombatUIState.GIMMICK_VIEW
+            ]
+            if getattr(self, 'state', None) in player_input_states and getattr(self, 'current_actor', None) is not None:
+                for combatant in ready:
+                    if combatant == self.current_actor:
+                        continue
+                    # 적이거나 자동 봇 캐릭터인 경우에만 불릿타임 도중 새치기(인터럽트) 허용
+                    if combatant in self.combat_manager.enemies:
+                        return combatant
+                    combatant_player_id = getattr(combatant, 'player_id', None)
+                    if combatant_player_id and str(combatant_player_id).startswith('bot_'):
+                        return combatant
             return ready[0]
 
         local_player_id = self._get_local_player_id()
@@ -810,6 +827,83 @@ class CombatUI:
                 return combatant
 
         return None
+
+    def _is_local_controllable_actor(self, actor: Any, is_multiplayer: bool) -> bool:
+        """
+        현재 UI 인스턴스에서 직접 조작 가능한 전투원인지 확인합니다.
+        """
+        if not is_multiplayer:
+            return True
+
+        actor_player_id = getattr(actor, 'player_id', None)
+        if not actor_player_id:
+            return True
+
+        if str(actor_player_id).startswith('bot_'):
+            return True
+
+        local_player_id = self._get_local_player_id()
+        if not local_player_id:
+            return True
+
+        return str(actor_player_id) == str(local_player_id)
+
+    def _select_next_auto_advance_ally(self, ready: List[Any], is_multiplayer: bool) -> Optional[Any]:
+        """
+        행동 직후 즉시 UI를 넘길 다음 아군을 선택합니다.
+
+        멀티플레이에서는 다른 플레이어의 캐릭터로 호스트 UI가 자동 전환되지 않도록
+        로컬 조작 가능한 아군만 선택합니다.
+        """
+        if not ready:
+            return None
+
+        for combatant in ready:
+            if combatant not in self.combat_manager.allies:
+                continue
+            if self._is_local_controllable_actor(combatant, is_multiplayer):
+                return combatant
+
+        return None
+
+    def _set_action_delay(self, frames: int, actor: Optional[Any] = None) -> None:
+        """
+        행동 지연 타이머를 설정합니다.
+
+        멀티플레이에서는 지연 소유 플레이어를 함께 기록해
+        다른 플레이어의 준비된 입력이 전역 지연에 막히지 않도록 합니다.
+        """
+        self.action_delay_frames = max(0, int(frames))
+        if self.action_delay_frames <= 0:
+            self.action_delay_owner_player_id = None
+            return
+
+        actor_player_id = getattr(actor, 'player_id', None) if actor is not None else None
+        self.action_delay_owner_player_id = str(actor_player_id) if actor_player_id else None
+
+    def _is_action_delay_blocking_actor(self, actor: Any, is_multiplayer: bool) -> bool:
+        """
+        현재 행동 지연이 해당 전투원의 턴 처리를 막는지 확인합니다.
+
+        싱글플레이는 기존처럼 전역 지연을 유지하고,
+        멀티플레이는 같은 플레이어 소유 액터만 지연 영향을 받습니다.
+        """
+        if self.action_delay_frames <= 0:
+            return False
+
+        if not is_multiplayer:
+            return True
+
+        delay_owner = self.action_delay_owner_player_id
+        if not delay_owner:
+            # 소유자 정보가 없으면 기존처럼 전역 지연으로 처리
+            return True
+
+        actor_player_id = getattr(actor, 'player_id', None)
+        if not actor_player_id:
+            return True
+
+        return str(actor_player_id) == delay_owner
 
     def _handle_action_menu(self, action: GameAction) -> bool:
         """행동 메뉴 입력 처리"""
@@ -1751,7 +1845,7 @@ class CombatUI:
             self._show_action_result(result)
 
             # 행동 후 대기 시간 설정 (1.5초)
-            self.action_delay_frames = self.action_delay_max
+            self._set_action_delay(self.action_delay_max, self.current_actor)
             
             # 현재 액터의 플레이어 ID 저장 (다음 아군 확인 전에 저장)
             current_actor_player_id = getattr(self.current_actor, 'player_id', None) if self.current_actor else None
@@ -1763,11 +1857,7 @@ class CombatUI:
             if is_multiplayer and self.session and hasattr(self.combat_manager.atb, 'set_player_selecting'):
                 # 다음 행동 가능한 아군이 있는지 확인
                 ready_combatants = self.combat_manager.atb.get_action_order()
-                next_ally = None
-                for combatant in ready_combatants:
-                    if combatant in self.combat_manager.allies:
-                        next_ally = combatant
-                        break
+                next_ally = self._select_next_auto_advance_ally(ready_combatants, is_multiplayer=True)
                 
                 if next_ally:
                     # 다음 아군이 있으면 불릿타임 유지하고 바로 다음 턴으로 전환
@@ -2035,6 +2125,7 @@ class CombatUI:
         if self.action_delay_frames > 0:
             self.action_delay_frames -= 1
             if self.action_delay_frames == 0:
+                self.action_delay_owner_player_id = None
                 # 대기 완료, WAITING_ATB로 전환 (EXECUTING 상태가 아니어도 전환)
                 if self.state == CombatUIState.EXECUTING:
                     self.state = CombatUIState.WAITING_ATB
@@ -2125,10 +2216,20 @@ class CombatUI:
         
         # 행동 불가능한 캐릭터를 우선 처리 (ATB 높은 순)
         blocked_ready.sort(key=lambda x: x[1], reverse=True)
-        
-        if blocked_ready and not self.action_delay_frames:
+        processable_blocked_ready = [
+            (combatant, gauge_value)
+            for combatant, gauge_value in blocked_ready
+            if not self._is_action_delay_blocking_actor(combatant, is_multiplayer)
+        ]
+        processable_ready = [
+            combatant
+            for combatant in ready
+            if not self._is_action_delay_blocking_actor(combatant, is_multiplayer)
+        ]
+
+        if processable_blocked_ready:
             # 행동 불가능한 캐릭터 처리
-            actor, _ = blocked_ready[0]
+            actor, _ = processable_blocked_ready[0]
             
             # 상태이상 지속시간 감소
             if hasattr(actor, 'status_manager'):
@@ -2167,8 +2268,8 @@ class CombatUI:
             self.state = CombatUIState.WAITING_ATB
             
             # 행동 지연 타이머 설정 (0.5초 대기)
-            self.action_delay_frames = 15  # 0.5초 (30 FPS 기준)
-        elif ready and not self.action_delay_frames:
+            self._set_action_delay(15, actor)  # 0.5초 (30 FPS 기준)
+        elif processable_ready:
             # 행동자 처리 전 상태 정상화 (플레이어 입력 대기 상태는 유지)
             player_input_states = [
                 CombatUIState.ACTION_MENU, 
@@ -2185,80 +2286,86 @@ class CombatUI:
                 self.state = CombatUIState.WAITING_ATB
 
             # 다음 행동자 (멀티플레이에서는 원격 아군으로 인한 입력 블로킹 방지)
-            actor = self._select_next_ready_actor(ready, is_multiplayer)
-            if actor is None:
-                return
-
-            # 캐릭터 타입 확인
-            actor_player_id = getattr(actor, 'player_id', None)
-            is_bot = actor_player_id and str(actor_player_id).startswith('bot_')
-            
-            if actor in self.combat_manager.enemies:
-                # 적 턴: 기존 EnemyAI 처리
-                logger.debug(f"적 {actor.name} 턴 처리")
-                self._execute_enemy_turn(actor)
-                # 적 행동 후 상태 복구
-                if self.state != CombatUIState.BATTLE_END:
-                    self.state = CombatUIState.WAITING_ATB
-                logger.debug(f"적 {actor.name} 행동 완료 - 상태: {self.state.value}")
-
-            elif is_bot:
-                # 봇 턴: AI가 자동으로 행동
-                logger.info(f"봇 {actor.name} 턴 시작 - player_id: {actor_player_id}")
-                self._process_bot_turn(actor)
-                # 봇 행동 후 상태 확인
-                logger.debug(f"봇 {actor.name} 행동 완료 - action_delay_frames: {self.action_delay_frames}")
+            actor = self._select_next_ready_actor(processable_ready, is_multiplayer)
+            if actor is not None:
+                # 캐릭터 타입 확인
+                actor_player_id = getattr(actor, 'player_id', None)
+                is_bot = actor_player_id and str(actor_player_id).startswith('bot_')
                 
-            elif actor in self.combat_manager.allies:
-                # 플레이어 턴: UI 표시
-                logger.debug(f"플레이어 {actor.name} 턴 처리 - 상태: {self.state.value}")
-                if self.state == CombatUIState.WAITING_ATB:
-                    # 기절/마비/수면 등 행동 불가 상태 확인 (이중 체크)
-                    if hasattr(actor, 'status_manager') and not actor.status_manager.can_act():
-                        # 행동 불가 상태: 턴 자동 스킵
-                        from src.combat.status_effects import StatusType as StatusTypeEnum
-                        
-                        blocking_status = None
-                        for effect in actor.status_manager.status_effects:
-                            if effect.status_type in [StatusTypeEnum.STUN, StatusTypeEnum.SLEEP, StatusTypeEnum.FREEZE,
-                                                     StatusTypeEnum.PETRIFY, StatusTypeEnum.PARALYZE, StatusTypeEnum.TIME_STOP]:
-                                blocking_status = effect.name
-                                break
-                        
-                        status_name = blocking_status or "행동 불가 상태"
-                        self.add_message(f"{actor.name}(은)는 {status_name}로 인해 행동할 수 없습니다...", (200, 100, 100))
-                        logger.info(f"{actor.name} 턴 자동 스킵: {status_name}")
-                        
-                        # 상태이상 지속시간 감소
-                        expired = actor.status_manager.update_duration()
-                        if expired:
-                            logger.debug(f"{actor.name}: {len(expired)}개 상태 효과 만료 (행동 불가 중)")
-                        
-                        # ATB 소비 및 턴 스킵
-                        # 기절 상태일 때는 ATB를 완전히 소비하여 무한 루프 방지
-                        gauge = self.combat_manager.atb.get_gauge(actor)
-                        if gauge:
-                            # ATB를 threshold 아래로 강제로 내림 (무한 루프 방지)
-                            gauge.current = max(0, gauge.current - gauge.threshold)
-                            # threshold보다 높으면 threshold만큼만 남기고 나머지 소비
-                            if gauge.current >= gauge.threshold:
-                                gauge.current = gauge.threshold - 1
-                        
-                        self.combat_manager.atb.consume_atb(actor)
-                        self.combat_manager._on_turn_end(actor)
-                        
-                        # 상태는 WAITING_ATB로 명확히 설정 (무한 대기 방지)
-                        self.state = CombatUIState.WAITING_ATB
-                        
-                        # 행동 지연 타이머 설정 (0.5초 대기)
-                        self.action_delay_frames = 15  # 0.5초 (30 FPS 기준)
-                    else:
-                        # 행동 가능: 정상적으로 UI 표시
-                        self.current_actor = actor
-                        self.action_menu = self._create_action_menu(actor)
-                        self.state = CombatUIState.ACTION_MENU
-                        self.add_message(f"{actor.name}의 턴!", (100, 255, 255))
-                        play_sfx("ui", "turn_ready")
+                if actor in self.combat_manager.enemies:
+                    # 적 턴: 기존 EnemyAI 처리
+                    logger.debug(f"적 {actor.name} 턴 처리")
+                    # 플레이어 선택 중이면 현재 상태/액터 보존 (불릿타임 중 커서 초기화 방지)
+                    prev_state = self.state
+                    prev_actor = self.current_actor
+                    self._execute_enemy_turn(actor)
+                    # 적 행동 후 상태 복구
+                    if self.state != CombatUIState.BATTLE_END:
+                        if prev_state in player_input_states:
+                            # 플레이어가 행동 선택 중이었으면 선택 상태 유지
+                            self.state = prev_state
+                            self.current_actor = prev_actor
+                        else:
+                            self.state = CombatUIState.WAITING_ATB
+                    logger.debug(f"적 {actor.name} 행동 완료 - 상태: {self.state.value}")
+
+                elif is_bot:
+                    # 봇 턴: AI가 자동으로 행동
+                    logger.info(f"봇 {actor.name} 턴 시작 - player_id: {actor_player_id}")
+                    self._process_bot_turn(actor)
+                    # 봇 행동 후 상태 확인
+                    logger.debug(f"봇 {actor.name} 행동 완료 - action_delay_frames: {self.action_delay_frames}")
+                    
+                elif actor in self.combat_manager.allies:
+                    # 플레이어 턴: UI 표시
+                    logger.debug(f"플레이어 {actor.name} 턴 처리 - 상태: {self.state.value}")
+                    if self.state == CombatUIState.WAITING_ATB:
+                        # 기절/마비/수면 등 행동 불가 상태 확인 (이중 체크)
+                        if hasattr(actor, 'status_manager') and not actor.status_manager.can_act():
+                            # 행동 불가 상태: 턴 자동 스킵
+                            from src.combat.status_effects import StatusType as StatusTypeEnum
+                            
+                            blocking_status = None
+                            for effect in actor.status_manager.status_effects:
+                                if effect.status_type in [StatusTypeEnum.STUN, StatusTypeEnum.SLEEP, StatusTypeEnum.FREEZE,
+                                                         StatusTypeEnum.PETRIFY, StatusTypeEnum.PARALYZE, StatusTypeEnum.TIME_STOP]:
+                                    blocking_status = effect.name
+                                    break
+                            
+                            status_name = blocking_status or "행동 불가 상태"
+                            self.add_message(f"{actor.name}(은)는 {status_name}로 인해 행동할 수 없습니다...", (200, 100, 100))
+                            logger.info(f"{actor.name} 턴 자동 스킵: {status_name}")
+                            
+                            # 상태이상 지속시간 감소
+                            expired = actor.status_manager.update_duration()
+                            if expired:
+                                logger.debug(f"{actor.name}: {len(expired)}개 상태 효과 만료 (행동 불가 중)")
+                            
+                            # ATB 소비 및 턴 스킵
+                            # 기절 상태일 때는 ATB를 완전히 소비하여 무한 루프 방지
+                            gauge = self.combat_manager.atb.get_gauge(actor)
+                            if gauge:
+                                # ATB를 threshold 아래로 강제로 내림 (무한 루프 방지)
+                                gauge.current = max(0, gauge.current - gauge.threshold)
+                                # threshold보다 높으면 threshold만큼만 남기고 나머지 소비
+                                if gauge.current >= gauge.threshold:
+                                    gauge.current = gauge.threshold - 1
+                            
+                            self.combat_manager.atb.consume_atb(actor)
+                            self.combat_manager._on_turn_end(actor)
+                            
+                            # 상태는 WAITING_ATB로 명확히 설정 (무한 대기 방지)
+                            self.state = CombatUIState.WAITING_ATB
+                            
+                            # 행동 지연 타이머 설정 (0.5초 대기)
+                            self._set_action_delay(15, actor)  # 0.5초 (30 FPS 기준)
+                        else:
+                            # 행동 가능: 정상적으로 UI 표시
+                            self.current_actor = actor
+                            self.action_menu = self._create_action_menu(actor)
+                            self.state = CombatUIState.ACTION_MENU
+                            self.add_message(f"{actor.name}의 턴!", (100, 255, 255))
+                            play_sfx("ui", "turn_ready")
 
         # 전투 종료 체크
         if self.combat_manager.state in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
@@ -2552,7 +2659,7 @@ class CombatUI:
         self._show_action_result(result)
 
         # 행동 후 대기 시간
-        self.action_delay_frames = self.action_delay_max
+        self._set_action_delay(self.action_delay_max, actor)
 
         # 현재 액터 초기화 (_execute_current_action과 동일하게)
         self.current_actor = None
@@ -2584,7 +2691,7 @@ class CombatUI:
         )
         
         self._show_action_result(result)
-        self.action_delay_frames = self.action_delay_max
+        self._set_action_delay(self.action_delay_max, actor)
 
     def _check_ready_enemies(self):
         """행동 가능한 적 확인 (항상 체크)"""
