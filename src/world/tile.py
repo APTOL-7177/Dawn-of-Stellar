@@ -55,6 +55,57 @@ class TileType(Enum):
     SACRIFICE_ALTAR = "sacrifice_altar"  # 희생 제단
     ANVIL = "anvil"  # 모루 (수리)
 
+# 모든 타일 타입에 대한 한국어 이름 및 설명 (커서 이동 시 정보 오버레이용)
+TILE_INFO = {
+    TileType.VOID: ("빈 공간", ""),
+    TileType.FLOOR: ("바닥", ""),
+    TileType.WALL: ("통과할 수 없는 벽", ""),
+    TileType.DOOR: ("열린 문", ""),
+    TileType.LOCKED_DOOR: ("잠긴 문", "열쇠가 필요합니다"),
+    TileType.STAIRS_UP: ("올라가는 계단", ""),
+    TileType.STAIRS_DOWN: ("내려가는 계단", "Z키로 이동"),
+    TileType.CHEST: ("보물상자", ""),
+    TileType.TRAP: ("함정", ""),
+    TileType.TELEPORTER: ("텔레포터", ""),
+    TileType.LAVA: ("용암 지대", ""),
+    TileType.HEALING_SPRING: ("치유의 샘", ""),
+    TileType.BOSS_ROOM: ("보스룸 입구", ""),
+    TileType.KEY: ("열쇠", ""),
+    TileType.PUZZLE: ("퍼즐", ""),
+    TileType.SHOP: ("상점", ""),
+    TileType.ITEM: ("아이템", ""),
+    TileType.DROPPED_ITEM: ("드롭된 아이템", ""),
+    TileType.GOLD: ("골드", ""),
+    TileType.INGREDIENT: ("채집 가능한 식재료", ""),
+    TileType.SWITCH: ("스위치", ""),
+    TileType.PRESSURE_PLATE: ("압력판", ""),
+    TileType.LEVER: ("레버", ""),
+    TileType.NPC: ("NPC", ""),
+    TileType.ALTAR: ("제단", ""),
+    TileType.SHRINE: ("신전", ""),
+    TileType.PORTAL: ("포탈", ""),
+    TileType.SPIKE_TRAP: ("가시 함정", ""),
+    TileType.POISON_GAS: ("독가스 지대", ""),
+    TileType.ICE_FLOOR: ("얼음 바닥", ""),
+    TileType.FIRE_TRAP: ("화염 함정", ""),
+    TileType.SECRET_DOOR: ("숨겨진 문", ""),
+    TileType.BUTTON: ("버튼", ""),
+    TileType.PEDESTAL: ("받침대", ""),
+    TileType.CRYSTAL: ("크리스탈", ""),
+    TileType.MANA_WELL: ("마나 샘", ""),
+    TileType.TREASURE_MAP: ("보물 지도", ""),
+    TileType.RIDDLE_STONE: ("수수께끼 돌", ""),
+    TileType.MAGIC_CIRCLE: ("마법진", ""),
+    TileType.SACRIFICE_ALTAR: ("희생 제단", ""),
+    TileType.ANVIL: ("모루", "Z키로 수리"),
+}
+
+
+def get_tile_info(tile_type: TileType) -> tuple:
+    """타일 타입의 (이름, 설명) 튜플 반환"""
+    return TILE_INFO.get(tile_type, ("알 수 없음", ""))
+
+
 @dataclass
 class Tile:
     """타일"""

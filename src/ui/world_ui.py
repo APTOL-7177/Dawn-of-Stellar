@@ -97,6 +97,11 @@ class WorldUI:
         self.chat_input_active = False
         self.chat_input_text = ""
         self.chat_input_max_length = 60
+
+        # 마우스 호버 타일 정보
+        self.mouse_screen_x = 0
+        self.mouse_screen_y = 0
+        self.mouse_hover_active = False  # 마우스가 맵 영역 위에 있는지
         
         # 분수대 사용 여부 (마을 방문마다 리셋)
         self.fountain_used = False
@@ -1528,6 +1533,10 @@ class WorldUI:
             fg=(180, 180, 180)
         )
 
+        # 마우스 호버 타일 정보 오버레이
+        if self.mouse_hover_active:
+            self._render_tile_hover_info(console)
+
         # 필드 스킬 UI
         if self.field_skill_ui.is_active:
             self.field_skill_ui.render(console)
@@ -1541,6 +1550,77 @@ class WorldUI:
             self._render_quit_confirm(console)
         elif self.magic_circle_confirm_mode:
             self._render_magic_circle_confirm(console)
+
+    def _render_tile_hover_info(self, console: tcod.console.Console):
+        """마우스 호버 위치의 타일 정보 오버레이 렌더링"""
+        from src.world.tile import get_tile_info
+
+        # 마우스 화면 좌표를 맵 좌표로 변환
+        player = self.exploration.player
+        camera_x = max(0, player.x - 40)
+        camera_y = max(0, player.y - 20)
+
+        map_x = self.mouse_screen_x + camera_x
+        map_y = (self.mouse_screen_y - 5) + camera_y  # map_y offset = 5
+
+        # 맵 영역 밖이면 표시하지 않음 (y=5 미만은 제목 영역)
+        if self.mouse_screen_y < 5 or self.mouse_screen_y >= 40:
+            return
+
+        # 타일 가져오기
+        tile = self.exploration.dungeon.get_tile(map_x, map_y)
+        if not tile or not tile.explored:
+            return
+
+        # 마을 건물 체크 (우선순위)
+        building_name = None
+        if hasattr(tile, 'building') and tile.building:
+            building_name = tile.building.name
+        elif hasattr(self.exploration, 'is_town') and self.exploration.is_town:
+            if hasattr(self.exploration, 'town_map') and self.exploration.town_map:
+                building = self.exploration.town_map.get_building_at(map_x, map_y)
+                if building:
+                    building_name = building.name
+
+        if building_name:
+            tile_name = building_name
+            tile_desc = "Z키로 상호작용"
+        else:
+            tile_name, tile_desc = get_tile_info(tile.tile_type)
+
+        # 적이 있는지 확인
+        for enemy in self.exploration.enemies:
+            if enemy.x == map_x and enemy.y == map_y:
+                tile_name = enemy.name
+                tile_desc = f"Lv.{enemy.level}" if hasattr(enemy, 'level') else ""
+                if hasattr(enemy, 'is_boss') and enemy.is_boss:
+                    tile_desc += " (보스)"
+                break
+
+        # 오버레이 텍스트 구성
+        info_text = f"[{tile_name}]"
+        if tile_desc:
+            info_text += f" {tile_desc}"
+
+        # 오버레이 위치 (마우스 위치 근처, 화면 밖으로 나가지 않도록)
+        overlay_x = min(self.mouse_screen_x + 2, self.screen_width - len(info_text) - 1)
+        overlay_y = max(1, self.mouse_screen_y - 1)
+
+        # 배경 박스 그리기
+        box_width = len(info_text) + 2
+        for bx in range(box_width):
+            sx = overlay_x - 1 + bx
+            if 0 <= sx < self.screen_width and 0 <= overlay_y < self.screen_height:
+                console.print(sx, overlay_y, " ", bg=(30, 30, 50))
+
+        # 텍스트 출력
+        if 0 <= overlay_x < self.screen_width and 0 <= overlay_y < self.screen_height:
+            # 이동 불가 타일은 빨간색, 이동 가능은 녹색
+            if tile.walkable:
+                name_color = (100, 255, 150)
+            else:
+                name_color = (255, 100, 100)
+            console.print(overlay_x, overlay_y, info_text, fg=name_color, bg=(30, 30, 50))
 
     def _render_party_status(self, console: tcod.console.Console):
         """파티 상태 렌더링 (전투 UI와 동일한 스타일) - 화면 맨 밑에 배치"""
@@ -2274,6 +2354,9 @@ def run_exploration(
                     # 싱글플레이 또는 메서드 없는 경우 현재 파티 사용
                     ui.combat_participants = ui.party
 
+                # 전투 진입 후 collision_enemy 반드시 리셋 (미리셋 시 매 프레임 전투 반복 트리거)
+                exploration.collision_enemy = None
+
         # 환경 효과 업데이트 (플레이어가 같은 타일에 머물러 있을 때도 적용)
         try:
             effect_message = exploration.update_environmental_effects()
@@ -2329,6 +2412,11 @@ def run_exploration(
                 for event in events:
                     action = unified_input_handler.process_tcod_event(event)
                     key_event = event if isinstance(event, tcod.event.KeyDown) else None
+                    # 마우스 이동 이벤트 처리 (타일 정보 오버레이용)
+                    if isinstance(event, tcod.event.MouseMotion):
+                        ui.mouse_screen_x = event.tile.x
+                        ui.mouse_screen_y = event.tile.y
+                        ui.mouse_hover_active = True
 
         if action or key_event:
             # Debug: 액션 수신

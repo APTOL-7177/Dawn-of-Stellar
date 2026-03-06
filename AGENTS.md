@@ -1,28 +1,77 @@
-# Repository Guidelines
+<!-- Generated: 2026-03-07 | Updated: 2026-03-07 -->
 
-## Project Structure & Module Organization
-- `src/`: Core gameplay modules (`core`, `combat`, `character`, `world`, `ai`, `ui`, `multiplayer`, `systems`, `tutorial`, `bot`, etc.). Keep cross-module imports lean; prefer injecting dependencies through `core` helpers.
-- `data/`: Authoritative YAML/JSON game data (`skills/`, `characters/`, `teamwork_skills.yaml`, `tutorials/`). Preserve IDs and ordering to avoid save incompatibilities.
-- `assets/`: Fonts/audio; avoid committing large new binaries without need. `config/` holds input/vibration/meta settings. `scripts/` contains balancing/validation utilities. `tests/` is the pytest suite; `web/` hosts the experimental browser build. `docs/`, `examples/`, and `user_data/` (local saves) should stay uncommitted.
+# Dawn of Stellar
 
-## Build, Test, and Development Commands
-- Install: `pip install -e .[dev]` for full tooling, or `pip install -r requirements.txt` for runtime-only.
-- Run game: `python main.py` (add `--dev` to unlock all jobs, `--debug --log=DEBUG` for verbose logs).
-- Package: `./build_final_linux.sh` or `build_final.bat` to produce platform builds; Windows installer scripts live in `build_installer.bat` / `install*.nsi`.
-- Lint/format: `black src tests` and `isort src tests`. Static/type checks: `pylint src` and `mypy src`.
+## Purpose
+DOS 레트로 스타일 턴제 RPG 게임. Python + tcod(libtcod) 엔진 기반. ATB(Active Time Battle) 전투 시스템, Brave 시스템, 35개 직업, 414개 스킬, 멀티플레이어 지원.
 
-## Coding Style & Naming Conventions
-- Python 3.10+, 4-space indent, 100-char lines (Black/isort/pylint configs). Prefer explicit return/argument types; new functions should be fully type-hinted to satisfy mypy.
-- Naming: snake_case for functions/vars, PascalCase for classes. Domain shorthands (`hp`, `mp`, `atb`, `brv`) are accepted. Keep YAML keys lowercase snake_case and skill/job IDs unique and stable.
-- Docstrings are encouraged for complex systems; keep comments focused on intent, not restating code.
+## Key Files
+| File | Description |
+|------|-------------|
+| `main.py` | 게임 엔트리포인트 |
+| `launcher.py` | 게임 런처 (모드 선택) |
+| `launcher_cli.py` | CLI 런처 |
+| `config.yaml` | 게임 전역 설정 |
+| `requirements.txt` | Python 의존성 |
+| `setup.py` | 패키지 설정 |
+| `pyproject.toml` | 빌드 설정 |
+| `build_final.bat` | Windows 패키징 스크립트 |
+| `build_final_linux.sh` | Linux 패키징 스크립트 |
+| `install.nsi` | Windows 설치관리자 |
+| `run_multiplayer_tests.py` | 멀티플레이어 통합 테스트 실행 |
 
-## Testing Guidelines
-- Pytest with strict markers; default addopts are `-ra -q --strict-markers`. Common commands:
-  - Full suite: `pytest tests`
-  - Fast cycle: `pytest tests -m "not slow"`
-  - Coverage: `pytest tests --cov=src --cov-report=term-missing`
-- Integration-heavy areas have dedicated files (e.g., `tests/test_multiplayer_*.py`, teamwork suites). Use `run_multiplayer_tests.py` when validating multiplayer changes end-to-end.
+## Subdirectories
+| Directory | Purpose |
+|-----------|---------|
+| `src/` | 게임 소스 코드 - 245개 Python 파일, 21개 모듈 (see `src/AGENTS.md`) |
+| `data/` | 게임 데이터 - 스킬, 캐릭터, 튜토리얼 YAML (see `data/AGENTS.md`) |
+| `docs/` | 설계 문서, 위키, 밸런스 가이드 - 30개 문서 (see `docs/AGENTS.md`) |
+| `tests/` | pytest 테스트 스위트 - 53개 파일 (see `tests/AGENTS.md`) |
+| `scripts/` | 유틸리티 스크립트 - 밸런싱, 검증, 분석 - 63개 (see `scripts/AGENTS.md`) |
+| `config/` | 입력/진동/메타 설정 - 4개 설정 파일 (see `config/AGENTS.md`) |
+| `assets/` | 오디오 리소스 - 398개 파일 (bg:24, me:8, se:366) (see `assets/AGENTS.md`) |
+| `archive/` | 미사용 스킬 백업, 설계 문서 (see `archive/AGENTS.md`) |
+| `examples/` | 예제 코드 (see `examples/AGENTS.md`) |
+| `web/` | 실험적 브라우저 빌드 (see `web/AGENTS.md`) |
 
-## Commit & Pull Request Guidelines
-- Follow the Conventional Commit style seen in history (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`). Keep subjects short, present tense; English or Korean is fine if consistent.
-- Before opening a PR: describe the change and motivation, list test commands run, call out data/asset impacts, and attach screenshots or logs for gameplay/UI adjustments. Link related issues and keep diffs focused (avoid committing `dist/` outputs or local `user_data/` saves).
+## For AI Agents
+
+### Working In This Directory
+- Python 3.10+, 4-space indent, 100-char line limit
+- Black/isort/pylint/mypy 포맷팅 및 타입 체크
+- snake_case 함수/변수, PascalCase 클래스
+- 도메인 약어 허용: hp, mp, atb, brv
+- YAML 키는 lowercase snake_case, 스킬/직업 ID는 고유하고 안정적으로 유지 (세이브 호환성)
+- 복잡한 시스템에는 docstring 작성, 주석은 코드 반복이 아닌 의도 설명에 집중
+
+### Build & Run
+- 설치: `pip install -e .[dev]` 또는 `pip install -r requirements.txt`
+- 실행: `python main.py` (`--dev` 모든 직업 해금, `--debug --log=DEBUG` 상세 로그)
+- 패키징: `build_final_linux.sh` 또는 `build_final.bat`
+- 린트: `black src tests && isort src tests`
+- 정적 분석: `pylint src`
+- 타입체크: `mypy src`
+
+### Testing Requirements
+- `pytest tests` (전체)
+- `pytest tests -m "not slow"` (빠른 테스트)
+- `pytest tests --cov=src --cov-report=term-missing` (커버리지)
+- 멀티플레이어 통합 테스트: `python run_multiplayer_tests.py`
+- Pytest 마커 strict 모드 (`--strict-markers`), 기본 옵션 `-ra -q`
+
+### Common Patterns
+- Conventional Commit: feat:, fix:, refactor:, docs:, test:, chore:
+- 한국어/영어 커밋 메시지 모두 허용, 현재 시제 짧게
+- PR 오픈 전: 변경 동기 기술, 실행한 테스트 명령 목록, 데이터/에셋 영향 명시
+- `dist/`, `user_data/` 는 커밋 금지
+
+## Dependencies
+
+### External
+- Python 3.10+
+- tcod (libtcod) - 로그라이크 엔진 (콘솔, FOV, 경로 탐색)
+- pygame - 오디오/입력
+- PyYAML - 데이터 로딩
+- numpy - 맵 처리
+
+<!-- MANUAL: -->

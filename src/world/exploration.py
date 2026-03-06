@@ -393,10 +393,14 @@ class ExplorationSystem:
             tile = self.dungeon.get_tile(new_x, new_y)
             if tile and tile.tile_type == TileType.LOCKED_DOOR:
                 return self._handle_locked_door(tile)
+            # 타일 타입별 구체적인 이동 불가 메시지
+            from src.world.tile import get_tile_info
+            tile_name, tile_desc = get_tile_info(tile.tile_type) if tile else ("알 수 없음", "")
+            msg = tile_name if not tile_desc else f"{tile_name} - {tile_desc}"
             return ExplorationResult(
                 success=False,
                 event=ExplorationEvent.NONE,
-                message="이동할 수 없습니다"
+                message=msg
             )
 
         # 적과의 충돌 확인 (이동 전에!)

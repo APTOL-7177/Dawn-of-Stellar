@@ -67,7 +67,8 @@ class LootSyncManager:
         
         # 아이템 가져오기
         item = self.loot_pool[index]
-        item_id = getattr(item, 'item_id', str(id(item)))
+        item_name_raw = getattr(item, 'name', 'unknown')
+        item_id = getattr(item, 'item_id', f"loot_{index}_{item_name_raw}")
         item_name = getattr(item, 'name', '알 수 없는 아이템')
         
         # 이미 선점된 아이템인지 확인
@@ -92,18 +93,20 @@ class LootSyncManager:
             return
         
         try:
-            from src.multiplayer.protocol import MessageBuilder, MessageType
-            
-            message = MessageBuilder.custom(
-                MessageType.LOOT_CLAIMED if hasattr(MessageType, 'LOOT_CLAIMED') else MessageType.GAME_STATE,
-                {
+            from src.multiplayer.protocol import NetworkMessage, MessageType
+
+            msg_type = MessageType.GAME_STATE
+            message = NetworkMessage(
+                type=msg_type,
+                data={
+                    "action": "loot_claimed",
                     "player_id": player_id,
                     "item_id": item_id,
                     "item_name": item_name,
                     "remaining_count": len(self.loot_pool)
                 }
             )
-            
+
             # 비동기 브로드캐스트
             import asyncio
             if hasattr(self.network_manager, '_server_event_loop') and self.network_manager._server_event_loop:
@@ -112,7 +115,9 @@ class LootSyncManager:
                     self.network_manager._server_event_loop
                 )
             else:
-                self.network_manager.broadcast(message)
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self.network_manager.broadcast(message))
                 
         except Exception as e:
             logger.error(f"전리품 선점 브로드캐스트 실패: {e}")
@@ -143,8 +148,8 @@ class LootSyncManager:
         for player_id in self.session.players.keys():
             distribution[player_id] = base_gold
         
-        # 나머지는 호스트에게
-        if remainder > 0 and self.session.host_id:
+        # 나머지는 호스트에게 (호스트가 플레이어 목록에 있는 경우에만)
+        if remainder > 0 and self.session.host_id and self.session.host_id in distribution:
             distribution[self.session.host_id] += remainder
         
         logger.info(f"골드 분배: {total_gold} -> {distribution}")
@@ -271,16 +276,16 @@ class StorageSyncManager:
             return
         
         try:
-            from src.multiplayer.protocol import MessageBuilder, MessageType
-            
-            message = MessageBuilder.custom(
-                MessageType.STORAGE_UPDATE if hasattr(MessageType, 'STORAGE_UPDATE') else MessageType.GAME_STATE,
-                {
+            from src.multiplayer.protocol import NetworkMessage, MessageType
+
+            message = NetworkMessage(
+                type=MessageType.GAME_STATE,
+                data={
                     "action": "storage_update",
                     "storage_size": len(self._host_storage.items) if hasattr(self._host_storage, 'items') else 0
                 }
             )
-            
+
             # 비동기 브로드캐스트
             import asyncio
             if hasattr(self.network_manager, '_server_event_loop') and self.network_manager._server_event_loop:
@@ -289,7 +294,9 @@ class StorageSyncManager:
                     self.network_manager._server_event_loop
                 )
             else:
-                self.network_manager.broadcast(message)
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self.network_manager.broadcast(message))
                 
         except Exception as e:
             logger.error(f"창고 동기화 브로드캐스트 실패: {e}")

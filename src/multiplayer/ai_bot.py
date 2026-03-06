@@ -554,11 +554,35 @@ class AIBot:
             )
             
             # 클라이언트인 경우 호스트에게만 전송
+            import asyncio
+            server_loop = getattr(self.network_manager, '_server_event_loop', None)
             if not self.network_manager.is_host:
-                self.network_manager.send(move_message)
+                if server_loop and server_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.send(move_message),
+                        server_loop
+                    )
+                else:
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            loop.create_task(self.network_manager.send(move_message))
+                    except RuntimeError:
+                        pass
             else:
                 # 호스트인 경우 브로드캐스트
-                self.network_manager.broadcast(move_message)
+                if server_loop and server_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.broadcast(move_message),
+                        server_loop
+                    )
+                else:
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            loop.create_task(self.network_manager.broadcast(move_message))
+                    except RuntimeError:
+                        pass
             
             self.logger.debug(f"봇 {self.bot_name} 이동: ({new_x}, {new_y})")
         except Exception as e:
