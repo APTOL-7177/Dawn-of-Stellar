@@ -1146,7 +1146,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                             server_loop
                         )
                     else:
-                        self.network_manager.broadcast(harvest_msg_net)
+                        self.network_manager.broadcast_sync(harvest_msg_net)
                 except Exception as e:
                     self.logger.error(f"채집 브로드캐스트 실패: {e}", exc_info=True)
                     
@@ -1650,7 +1650,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     )
                 else:
                     # 서버 이벤트 루프가 없으면 동기 브로드캐스트
-                    self.network_manager.broadcast(npc_move_msg)
+                    self.network_manager.broadcast_sync(npc_move_msg)
                 self.logger.debug(f"NPC 이동 동기화 메시지 전송: {len(moved_npcs)}개")
             except Exception as e:
                 self.logger.error(f"NPC 이동 동기화 메시지 전송 실패: {e}", exc_info=True)
