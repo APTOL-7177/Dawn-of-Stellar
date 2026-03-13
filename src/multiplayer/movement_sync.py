@@ -188,6 +188,19 @@ class MovementSyncManager:
                 return
             player.last_movement_timestamp = timestamp
         
+        # 던전 경계 검사 (exploration과 dungeon이 있는 경우)
+        if self.exploration and hasattr(self.exploration, 'dungeon') and self.exploration.dungeon:
+            dungeon = self.exploration.dungeon
+            dungeon_width = getattr(dungeon, 'width', None)
+            dungeon_height = getattr(dungeon, 'height', None)
+            if dungeon_width is not None and dungeon_height is not None:
+                if not (0 <= x < dungeon_width and 0 <= y < dungeon_height):
+                    self.logger.warning(
+                        f"경계 밖 위치 무시: {player_id} ({x}, {y}) "
+                        f"(던전 크기: {dungeon_width}x{dungeon_height})"
+                    )
+                    return
+
         # 로컬 플레이어의 이동 메시지는 위치 업데이트 건너뛰기 (이미 로컬에서 처리됨)
         if is_local_player:
             self.logger.debug(f"로컬 플레이어 {player_id}의 이동 메시지 - 위치 업데이트 건너뛰기 (이미 처리됨)")

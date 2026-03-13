@@ -99,6 +99,11 @@ class WorldUI:
         self.chat_input_active = False
         self.chat_input_text = ""
         self.chat_input_max_length = 60
+
+        # 마우스 호버 타일 정보
+        self.mouse_screen_x = 0
+        self.mouse_screen_y = 0
+        self.mouse_hover_active = False  # 마우스가 맵 영역 위에 있는지
         
         # 분수대 사용 여부 (마을 방문마다 리셋)
         self.fountain_used = False
@@ -2932,6 +2937,10 @@ class WorldUI:
         if self._tooltip_enabled:
             self._render_hover_tooltip(console, camera_x, camera_y)
 
+        # 마우스 호버 타일 정보 오버레이
+        if self.mouse_hover_active:
+            self._render_tile_hover_info(console)
+
         # 필드 스킬 UI
         if self.field_skill_ui.is_active:
             self.field_skill_ui.render(console)
@@ -3902,6 +3911,9 @@ def run_exploration(
                 else:
                     # 싱글플레이 또는 메서드 없는 경우 현재 파티 사용
                     ui.combat_participants = ui.party
+
+                # 전투 진입 후 collision_enemy 반드시 리셋 (미리셋 시 매 프레임 전투 반복 트리거)
+                exploration.collision_enemy = None
 
         # 환경 효과 업데이트 (플레이어가 같은 타일에 머물러 있을 때도 적용)
         try:

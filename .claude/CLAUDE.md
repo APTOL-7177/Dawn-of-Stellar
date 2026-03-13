@@ -507,7 +507,11 @@ stance_system(전사), stealth(암살자/로그), gauge(버서커/검성/엔지�
 11. **스킬 id ≠ 파일명**: backstab.yaml의 id가 dorsum_vulnus일 수 있음
 </pitfalls>
 
-## 코딩 컨벤션
+<tools>
+External AI (MCP providers):
+- Codex: `mcp__x__ask_codex` with `agent_role` (any role; best for: architect, planner, critic, analyst, code-reviewer, security-reviewer, test-engineer)
+- Gemini: `mcp__g__ask_gemini` with `agent_role` (any role; best for: designer, writer)
+- Job management: `check_job_status`, `wait_for_job`, `kill_job`, `list_jobs` (per provider)
 
 - 한국어 주석/docstring, 영어 코드
 - 로거: `from src.core.logger import get_logger` → `logger = get_logger("모듈명")`

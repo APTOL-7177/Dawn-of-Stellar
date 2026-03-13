@@ -169,7 +169,7 @@ EFFECT_CONFIGS = {
         "damage_type": "heal_mp_percent_max",
         "value": 0.01,
         "message": "마나 소용돌이가 마력을 회복시킵니다!"
-    }
+    },
 }
 
 

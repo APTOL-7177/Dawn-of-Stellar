@@ -161,7 +161,7 @@ class LootSyncManager:
                     "remaining_count": len(self.loot_pool)
                 }
             )
-            
+
             # 비동기 브로드캐스트
             import asyncio
             if hasattr(self.network_manager, '_server_event_loop') and self.network_manager._server_event_loop:
@@ -201,8 +201,8 @@ class LootSyncManager:
         for player_id in self.session.players.keys():
             distribution[player_id] = base_gold
         
-        # 나머지는 호스트에게
-        if remainder > 0 and self.session.host_id:
+        # 나머지는 호스트에게 (호스트가 플레이어 목록에 있는 경우에만)
+        if remainder > 0 and self.session.host_id and self.session.host_id in distribution:
             distribution[self.session.host_id] += remainder
         
         logger.info(f"골드 분배: {total_gold} -> {distribution}")
@@ -339,7 +339,7 @@ class StorageSyncManager:
                     "storage_size": len(self._host_storage.items) if hasattr(self._host_storage, 'items') else 0
                 }
             )
-            
+
             # 비동기 브로드캐스트
             import asyncio
             if hasattr(self.network_manager, '_server_event_loop') and self.network_manager._server_event_loop:

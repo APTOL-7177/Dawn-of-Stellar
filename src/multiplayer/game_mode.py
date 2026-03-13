@@ -30,6 +30,7 @@ class GameModeManager:
         self.multiplayer_mode: Optional[MultiplayerMode] = None
         self.is_host: bool = False
         self.session_id: Optional[str] = None
+        self.local_player_id: Optional[str] = None  # 로컬 플레이어 ID (멀티플레이에서 사용)
     
     def set_single_player(self):
         """싱글플레이 모드로 설정"""
