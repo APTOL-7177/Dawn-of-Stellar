@@ -1,0 +1,25 @@
+id: paladin_holy_light
+name: 성스러운 빛
+type: support
+description: '아군에게 성스러운 빛을 내려 HP를 회복하고 성력을 모읍니다.
+
+  '
+effects:
+- type: heal
+  heal_type: hp
+  percent: 0.45
+- type: gimmick
+  operation: add
+  field: holy_power
+  value: 1
+  max_value: 5
+target: ally
+costs:
+  mp: 4.0
+metadata:
+  job: paladin
+  holy_power_gain: 1
+  healing: true
+sfx:
+- se
+- Heal4

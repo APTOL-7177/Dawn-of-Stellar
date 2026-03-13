@@ -1,0 +1,69 @@
+class_name: 검성
+description: 검기로 폭발적인 피해를 입히는 검술의 대가
+slogan: 검기가 폭발하는 순간, 적은 이미 베였다
+archetype: 폭발 딜러
+base_stats:
+  hp: 164
+  mp: 39
+  init_brv: 128
+  speed: 71
+  physical_attack: 83
+  physical_defense: 51
+  magic_attack: 31
+  magic_defense: 47
+  max_brv: 329
+stat_growth:
+  hp: 40.2
+  mp: 2.6
+  init_brv: 30.2
+  strength: 23.8
+  defense: 13.3
+  magic: 6.6
+  spirit: 10.8
+  speed: 18.3
+  max_brv: 92.4
+  luck: 1.0
+  accuracy: 1.6
+  evasion: 1.2
+traits:
+- id: sword_energy
+  name: 검기 충격
+  description: 물리 공격 시 검기로 추가 피해 (공격력의 30%)
+  type: passive
+- id: rapid_slash
+  name: 연속 베기
+  description: 공격 시 25% 확률로 즉시 추가 공격
+  type: trigger
+- id: sword_aura_mastery
+  name: 검기 숙련
+  description: 검기 최대치 +2, 검기 획득량 +1
+  type: passive
+- id: focus_strike
+  name: 집중의 일격
+  description: 단일 대상 공격 시 데미지 +40%
+  type: passive
+- id: final_strike
+  name: 필살의 일격
+  description: HP 30% 이하일 때 피해량 +50%
+  type: conditional
+gimmick:
+  type: sword_aura
+  name: 검기
+  description: 검기를 축적하여 강력한 검술 사용. 검기는 공격 시 자동 획득
+  max_sword_aura: 5
+skills:
+- teamwork
+- kenkizan
+- ilseom
+- kenki_hadou
+- nitoryu
+- kenki_bakuhatsu
+- rapid_slash
+- will
+- bisect
+- sword_storm
+- ultimate
+bonuses:
+  critical_rate: 1.15
+  critical_damage: 1.2
+  single_target_bonus: 1.15

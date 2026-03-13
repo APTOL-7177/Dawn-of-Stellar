@@ -33,9 +33,9 @@ def create_breaker_skills():
         "건틀릿으로 3회 연속 타격. BREAK 유발에 특화."
     )
     triple_smash.effects = [
-        DamageEffect(DamageType.BRV, 0.6, stat_type="physical"),
-        DamageEffect(DamageType.BRV, 0.6, stat_type="physical"),
-        DamageEffect(DamageType.BRV, 0.8, stat_type="physical")
+        DamageEffect(DamageType.BRV, 0.4, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 0.8, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 1.2, stat_type="physical")
     ]
     triple_smash.costs = []
     triple_smash.sfx = ("combat", "attack_physical_multi")
@@ -51,10 +51,10 @@ def create_breaker_skills():
     steam_erupt = Skill(
         "breaker_steam_erupt",
         "증기 분출",
-        "뜨거운 증기와 함께 강력한 일격. 연격 기믹 게이지 획득."
+        "[화염 속성] 뜨거운 증기와 함께 강력한 일격. 연격 기믹 게이지 획득."
     )
     steam_erupt.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="physical",
+        DamageEffect(DamageType.HP, 1.0, stat_type="physical", element="fire",
                     gimmick_bonus={"field": "combo_gauge", "multiplier": 0.0, "scaling": "none"})
         # 기믹 보너스는 메커니즘적으로 처리됨
     ]
@@ -107,10 +107,10 @@ def create_breaker_skills():
     chemical_leak = Skill(
         "breaker_chemical_leak",
         "케미컬 리크",
-        "부식성 화학물질 살포. 방어력 -30% (3턴)."
+        "[대지 속성] 부식성 화학물질 살포. 방어력 -30% (3턴)."
     )
     chemical_leak.effects = [
-        DamageEffect(DamageType.BRV, 1.2, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 1.2, stat_type="physical", element="earth"),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.30, duration=3)
     ]
     chemical_leak.costs = [MPCost(10)]
@@ -140,10 +140,10 @@ def create_breaker_skills():
     scatter_bomb = Skill(
         "breaker_scatter_bomb",
         "스캐터 밤",
-        "광역 폭탄 투척. 전체 적 BRV 피해."
+        "[화염 속성] 광역 폭탄 투척. 전체 적 BRV 피해."
     )
     scatter_bomb.effects = [
-        DamageEffect(DamageType.BRV, 1.8, stat_type="physical")
+        DamageEffect(DamageType.BRV, 1.8, stat_type="physical", element="fire")
     ]
     scatter_bomb.costs = [MPCost(12)]
     scatter_bomb.target_type = "all_enemies"
@@ -157,10 +157,10 @@ def create_breaker_skills():
     full_throttle = Skill(
         "breaker_full_throttle",
         "풀 스로틀",
-        "모든 출력 개방! 엔진 한계를 시험하는 막대한 HP 피해."
+        "[화염 속성] 모든 출력 개방! 엔진 한계를 시험하는 막대한 HP 피해."
     )
     full_throttle.effects = [
-        DamageEffect(DamageType.HP, 3.0, stat_type="physical")
+        DamageEffect(DamageType.HP, 3.0, stat_type="physical", element="fire")
     ]
     full_throttle.costs = [MPCost(25)]
     full_throttle.sfx = ("skill", "limit_break")
@@ -173,10 +173,10 @@ def create_breaker_skills():
     limit_break = Skill(
         "breaker_limit_break",
         "리미트 브레이크",
-        "한계를 넘는 일격. 높은 확율로 BREAK 유발."
+        "[번개 속성] 한계를 넘는 일격. 높은 확율로 BREAK 유발."
     )
     limit_break.effects = [
-        DamageEffect(DamageType.BRV_HP, 3.5, stat_type="physical")
+        DamageEffect(DamageType.BRV_HP, 3.5, stat_type="physical", element="lightning")
     ]
     limit_break.costs = [MPCost(35)]
     limit_break.cooldown = 5
@@ -189,11 +189,11 @@ def create_breaker_skills():
     ultimate = Skill(
         "breaker_ultimate",
         "파이널 임팩트",
-        "건틀릿의 모든 기능을 과부하시켜 전장을 초토화. 적 전체 SCATTER 유발 시도."
+        "[화염 속성] 건틀릿의 모든 기능을 과부하시켜 전장을 초토화. 적 전체 SCATTER 유발 시도."
     )
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 3.0, stat_type="physical"),
-        DamageEffect(DamageType.HP, 4.0, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 3.0, stat_type="physical", element="fire"),
+        DamageEffect(DamageType.HP, 4.0, stat_type="physical", element="fire"),
         # SCATTER 강제 유발 로직은 별도 처리 안해도 BRV 데미지가 높아서 자연 발생 유도
     ]
     ultimate.costs = [MPCost(70)]
@@ -276,10 +276,10 @@ def create_breaker_skills():
     chain_reaction = Skill(
         "breaker_chain_reaction",
         "연쇄 반응",
-        "SCATTER 상태인 적에게 2배 피해."
+        "[화염 속성] SCATTER 상태인 적에게 2배 피해."
     )
     chain_reaction.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.2, stat_type="physical")
+        DamageEffect(DamageType.BRV_HP, 1.2, stat_type="physical", element="fire")
     ]
     chain_reaction.costs = [MPCost(15)]
     chain_reaction.metadata = {

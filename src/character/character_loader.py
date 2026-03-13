@@ -8,11 +8,12 @@ import os
 from typing import Dict, Any, Optional
 from pathlib import Path
 from src.core.logger import get_logger
+from src.core.paths import get_project_root
 
 logger = get_logger("character_loader")
 
-# 캐릭터 데이터 디렉토리
-CHARACTER_DATA_DIR = Path(__file__).parent.parent.parent / "data" / "characters"
+# 캐릭터 데이터 디렉토리 (PyInstaller 빌드 환경 대응)
+CHARACTER_DATA_DIR = get_project_root() / "data" / "characters"
 
 # 한글 직업명 → 영문 파일명 매핑
 CLASS_FILE_MAP = {
@@ -51,6 +52,7 @@ CLASS_FILE_MAP = {
     "뱀파이어": "vampire",
     "마술사": "magician",
     "환술사": "illusionist",
+    "닌자": "ninja",
 }
 
 # 캐시 (한 번만 로드)

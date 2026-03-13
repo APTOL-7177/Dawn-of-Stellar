@@ -1,0 +1,1680 @@
+# RPG 모드 설정
+# "차원의 잔향" - 대균열로 생겨난 또 다른 평행 차원
+
+rpg_mode:
+  name: "차원의 잔향"
+  description: >
+    세피로스가 10만 번 타임라인을 반복하며 생긴 '잔향 차원'.
+    이 세계에서 세피로스와 카인은 다른 형태로 존재한다.
+    크리스는 이 차원에 도착하여, 잔향의 비밀을 밝히고
+    차원을 안정화시켜야 한다.
+
+  initial_level: 1
+  protagonist_name: "크리스"
+  heroine_name: "릴리"
+  party_size: 4
+  unlock_condition: "tutorial_all_complete"
+
+# ═══════════════════════════════════════════════════
+# 10개 메인 챕터 (세분화된 목표/이벤트 포함)
+# ═══════════════════════════════════════════════════
+chapters:
+  - id: "rpg_ch1"
+    title: "잔향의 시작"
+    description: >
+      크리스가 잔향 차원에 도착한다.
+      낯선 하늘, 낯선 숲. 여기가 어디인지도 모른 채
+      크리스는 살아남기 위해 움직이기 시작한다.
+    unlock_condition: null
+    region: "forgotten_forest"
+    min_floor: 1
+    level_req: 1
+    objectives:
+      - "잔향 차원에서 의식을 되찾는다"
+      - "크리스를 발견한 소녀 '릴리'와 만난다"
+      - "릴리의 안내로 숲의 마을 실바나에 도착한다"
+      - "마을 촌장 '엘더 모스'와 대화한다"
+      - "릴리가 정식으로 동료에 합류한다"
+      - "숲을 탐색하며 생존 기술을 익힌다"
+    events:
+      - title: "각성"
+        description: "차원의 균열에 빨려 들어간 크리스가 숲 한가운데서 눈을 뜬다."
+      - title: "릴리와의 만남"
+        description: >
+          의식을 잃은 크리스를 발견한 소녀 릴리. 그녀는 이 차원에서 태어난 존재로,
+          '언젠가 하늘에서 누군가가 올 것'이라는 예언을 기다려 왔다고 말한다.
+          릴리는 크리스를 치료하고 실바나 마을로 안내한다.
+      - title: "실바나 도착"
+        description: >
+          릴리의 안내로 숲의 마을 실바나에 도착한다. 마을 사람들은 외부인 크리스를 경계하지만,
+          릴리의 보증으로 머물 수 있게 된다. 촌장 엘더 모스는 숲의 변이체 문제를 걱정한다.
+      - title: "첫 전투"
+        description: >
+          릴리와 함께 마을 근처를 탐색하던 중 변이체와 조우한다.
+          릴리의 치유 마법 덕에 크리스는 위기를 넘기고, 릴리가 정식 동료로 합류한다.
+
+  - id: "rpg_ch2"
+    title: "숲의 비밀"
+    description: >
+      잊혀진 숲 깊은 곳에서 첫 번째 단서를 발견한다.
+      이 세계는 자연적으로 생겨난 것이 아니다.
+      누군가가, 무언가의 의지로 만들어진 차원.
+    unlock_condition: "forgotten_forest_floor_5"
+    region: "forgotten_forest"
+    min_floor: 5
+    level_req: 8
+    objectives:
+      - "숲 깊은 곳의 고대 비석을 조사한다"
+      - "비석에 새겨진 고대 문자를 해독한다"
+      - "뿌리의 미궁 입구를 발견한다"
+      - "미궁 최하층에서 '잔향의 기록' 첫 번째 조각을 얻는다"
+      - "숲의 수호자 엔트리아와 대면한다"
+      - "엔트리아를 처치하거나 설득하여 다음 지역으로의 길을 연다"
+    events:
+      - title: "고대 비석"
+        description: "숲 깊은 곳에서 이 차원의 기원을 암시하는 고대 비석을 발견한다."
+      - title: "잔향의 기록 #1"
+        description: "'이 세계는 후회로 만들어졌다' - 첫 번째 기록 조각이 크리스에게 비전을 보여준다."
+      - title: "수호자와의 대면"
+        description: "엔트리아는 이 숲을 지키라는 명령만 기억하는 존재. 크리스는 그녀를 넘어서야 한다."
+      - title: "사막으로의 길"
+        description: "엔트리아의 정원 너머, 끝없는 황금빛 사막이 펼쳐진다."
+
+  - id: "rpg_ch3"
+    title: "사막의 유적"
+    description: >
+      고대 문명의 기록에서 세피로스의 흔적을 발견한다.
+      10만 번의 반복. 10만 번의 실패. 10만 번의 후회.
+      잔향 차원은 그 후회가 만든 세계였다.
+    unlock_condition: "twilight_desert_floor_3"
+    region: "twilight_desert"
+    min_floor: 13
+    level_req: 14
+    objectives:
+      - "오아시스 마을 미라지에 도착한다"
+      - "고고학자 '샌드릴'에게서 유적 정보를 얻는다"
+      - "고대 유적 지하에 진입한다"
+      - "유적 벽화에서 '시간의 반복자'에 대한 기록을 발견한다"
+      - "유적 깊은 곳의 봉인된 기록실에서 잔향의 기록 #2를 입수한다"
+      - "사막의 군주 스콜피온이 유적을 지키는 이유를 알아낸다"
+      - "스콜피온을 처치하고 심연의 동굴로의 길을 연다"
+    events:
+      - title: "미라지 도착"
+        description: "사막 한가운데 오아시스 마을. 이곳 사람들은 '모래 아래의 신'을 두려워한다."
+      - title: "고대 벽화"
+        description: "유적 벽화에 한 남자가 시간을 되돌리는 장면이 그려져 있다. 세피로스의 잔영인가?"
+      - title: "잔향의 기록 #2"
+        description: "'10만 번을 반복해도 구하지 못한 이가 있었다' - 세피로스의 동기가 드러나기 시작한다."
+      - title: "스콜피온의 최후"
+        description: "스콜피온은 유적을 지키라는 명령을 따르는 존재였다. 그의 소멸 후 지하 통로가 열린다."
+
+  - id: "rpg_ch4"
+    title: "심연의 목소리"
+    description: >
+      심연의 어둠 속에서 세피로스의 잔향이 크리스에게 말을 건다.
+      "돌아가라. 이곳에서 더 깊이 들어가면 돌이킬 수 없다."
+      하지만 크리스는 멈출 수 없다.
+    unlock_condition: "abyss_cavern_floor_5"
+    region: "abyss_cavern"
+    min_floor: 27
+    level_req: 24
+    objectives:
+      - "동굴 마을 딥홈에 도착한다"
+      - "동굴 주민 '드워프 마이너'에게서 심연의 이상 현상을 듣는다"
+      - "심연 최하층으로 향하는 길을 찾는다"
+      - "세피로스의 잔향과 첫 번째 대화를 나눈다"
+      - "잔향이 남긴 시련을 통과한다"
+      - "잔향의 기록 #3를 획득한다"
+      - "심연의 눈 아비소스를 처치한다"
+      - "고원으로 이어지는 수직 통로를 발견한다"
+    events:
+      - title: "심연의 속삭임"
+        description: "동굴 깊이 내려갈수록 누군가의 목소리가 들린다. '더 이상 오지 마라...'"
+      - title: "세피로스의 잔향"
+        description: "흐릿한 형상의 존재가 나타난다. 세피로스의 잔향. 그는 경고한다."
+      - title: "잔향의 기록 #3"
+        description: "'차원을 만든 것은 구원을 위해서였다. 하지만 구원받아야 할 이는 이미...' 기록이 끊긴다."
+      - title: "아비소스의 진실"
+        description: "아비소스는 심연을 감시하는 눈. 세피로스가 만든 감시 시스템의 일부였다."
+
+  - id: "rpg_ch5"
+    title: "폭풍 너머"
+    description: >
+      고원의 끊임없는 폭풍 속에서 카인이 남긴 실험의 흔적을 발견한다.
+      카인도 이 차원에 존재한다. 하지만 세피로스와는 다른 목적으로.
+    unlock_condition: "storm_plateau_floor_5"
+    region: "storm_plateau"
+    min_floor: 39
+    level_req: 34
+    objectives:
+      - "고원 마을 스카이홀드에 도착한다"
+      - "폭풍 관측사 '윈드워커'에게서 뇌운봉의 이상을 듣는다"
+      - "뇌운봉을 올라 카인의 실험 장치를 발견한다"
+      - "실험 장치의 기록을 해독한다 - 카인은 차원을 '개조'하려 했다"
+      - "카인의 잔향이 남긴 함정을 돌파한다"
+      - "잔향의 기록 #4를 획득한다"
+      - "뇌신 볼타르크를 처치한다"
+    events:
+      - title: "카인의 흔적"
+        description: "고원 곳곳에 인위적인 구조물이 있다. 누군가가 이 차원을 실험 대상으로 삼았다."
+      - title: "실험 기록"
+        description: "카인의 기록: '이 차원의 법칙을 바꾸면 시간의 왕좌를 다시 세울 수 있다.'"
+      - title: "잔향의 기록 #4"
+        description: "'세피로스가 만든 것을 카인이 빼앗으려 한다. 이것이 잔향 차원의 전쟁이다.'"
+      - title: "볼타르크"
+        description: "볼타르크는 카인이 에너지원으로 이용하려던 정령. 해방시켜야 한다."
+
+  - id: "rpg_ch6"
+    title: "얼어붙은 시간"
+    description: >
+      타임라인의 잔해 속에서 진실을 마주한다.
+      세피로스는 이 차원을 통해 누군가를 구하려 했다.
+      릴리가 본 환영 속에서, 그녀 자신의 정체에 대한 의문이 생긴다.
+    unlock_condition: "eternal_glacier_floor_5"
+    region: "eternal_glacier"
+    min_floor: 51
+    level_req: 44
+    objectives:
+      - "빙원 마을 프로스트헤이븐에 도착한다"
+      - "빙원 현자 '아이스로어'에게서 얼어붙은 타임라인 이야기를 듣는다"
+      - "시간의 균열 던전에 진입한다"
+      - "얼어붙은 타임라인 잔해에서 과거의 환영을 목격한다"
+      - "릴리가 환영 속 인물과 닮은 존재를 발견한다"
+      - "세피로스가 크리스를 구하려 반복한 장면을 목격한다"
+      - "잔향의 기록 #5를 획득한다"
+      - "빙결의 여왕 글라시아를 처치한다"
+    events:
+      - title: "얼어붙은 기억"
+        description: "빙하 속에 과거 타임라인의 잔해가 갇혀 있다. 그 안에서 익숙한 얼굴이 보인다."
+      - title: "릴리의 의문"
+        description: >
+          환영 속에서 릴리와 똑같이 생긴 소녀가 세피로스 곁에 서 있다.
+          릴리는 자신이 단순한 이 차원의 주민이 아닐 수 있다는 불안을 느낀다.
+      - title: "10만 번의 반복"
+        description: >
+          세피로스는 크리스가 죽는 미래를 바꾸기 위해 10만 번 시간을 되돌렸다.
+          그리고 매번 크리스 곁에는 한 소녀가 있었다. 릴리와 닮은 존재.
+      - title: "잔향의 기록 #5"
+        description: "'결국 깨달았다. 시간을 되돌려도 운명은 바뀌지 않는다. 그래서 새 차원을 만들고, 그녀의 잔향을 심었다.'"
+      - title: "글라시아의 눈물"
+        description: "글라시아는 세피로스의 슬픔이 응축된 존재. 그녀를 쓰러뜨리면 빙원이 녹기 시작한다."
+
+  - id: "rpg_ch7"
+    title: "전장의 기억"
+    description: >
+      카인의 잔향과 첫 대면. 카인은 이 차원을 이용해
+      시간의 왕좌를 재건하려 한다. 세피로스의 의도와는 정반대.
+    unlock_condition: "war_lands_floor_3"
+    region: "war_lands"
+    min_floor: 59
+    level_req: 54
+    objectives:
+      - "전장 기지 벨포트에 도착한다"
+      - "기지 사령관 '아이언월'에게서 전쟁 상황을 파악한다"
+      - "카인의 연구실을 발견하고 침입한다"
+      - "연구실에서 카인의 잔향과 첫 대면한다"
+      - "카인의 잔향이 제시하는 '거래'를 거절한다"
+      - "카인이 풀어놓은 전쟁 병기들을 격퇴한다"
+      - "잔향의 기록 #6를 획득한다"
+    events:
+      - title: "전쟁의 흔적"
+        description: "황폐한 전장. 여기서 세피로스의 잔향과 카인의 잔향이 싸운 흔적이 남아 있다."
+      - title: "카인의 잔향"
+        description: "카인의 잔향이 나타난다. '세피로스의 감상적인 장난감을 내가 쓸모 있게 만들어주지.'"
+      - title: "거래"
+        description: "카인: '나와 함께하면 이 차원의 지배자가 될 수 있다.' 크리스는 거절한다."
+      - title: "잔향의 기록 #6"
+        description: "'카인은 세피로스의 차원을 왕좌의 재료로 쓰려 한다. 이를 막아야 한다.'"
+
+  - id: "rpg_ch8"
+    title: "잔향의 세피로스"
+    description: >
+      이 차원의 세피로스와 드디어 직접 조우한다.
+      본체와는 다른, 슬픔에 잠긴 존재.
+      그는 자신이 만든 차원이 카인에게 이용당하는 것을 막고 싶어 한다.
+    unlock_condition: "war_lands_floor_8"
+    region: "war_lands"
+    min_floor: 64
+    level_req: 58
+    objectives:
+      - "차원의 균열 던전 깊은 곳에서 세피로스의 잔향을 만난다"
+      - "세피로스의 잔향에게서 차원의 진실을 모두 듣는다"
+      - "세피로스와 일시적인 협력 관계를 맺는다"
+      - "세피로스가 알려주는 카인의 약점을 파악한다"
+      - "전쟁 인형 벨리거를 처치한다"
+      - "잔향의 기록 #7를 획득한다"
+      - "별빛의 왕좌로 향하는 길이 열린다"
+    events:
+      - title: "세피로스의 진심"
+        description: >
+          세피로스의 잔향: '나는 너를 구하기 위해 이 차원을 만들었다. 10만 번의 실패 끝에.'
+      - title: "릴리의 진실"
+        description: >
+          세피로스가 크리스에게 말한다. '릴리는... 10만 번의 반복 속에서 매번 너와 함께했던
+          소녀의 잔향이다. 이 차원을 만들 때 그녀의 영혼도 함께 옮겨 심었다.'
+          릴리는 처음으로 자신의 기원을 알게 된다.
+      - title: "동맹"
+        description: >
+          릴리가 결의한다. '나는 잔향이어도 상관없어. 지금 이 순간의 나는 진짜니까.'
+          세피로스는 크리스와 릴리에게 자신의 힘 일부를 나눠준다.
+      - title: "잔향의 기록 #7"
+        description: "'왕좌의 열쇠는 별빛의 결정. 그것을 모으면 차원을 안정화할 수 있다.'"
+      - title: "벨리거 파괴"
+        description: "카인의 최강 전쟁 병기 벨리거를 파괴하고, 최종 지역으로의 길이 열린다."
+
+  - id: "rpg_ch9"
+    title: "시간의 왕좌 재림"
+    description: >
+      카인의 잔향이 왕좌를 재건하려 한다.
+      차원이 불안정해지기 시작하고, 곳곳에서 균열이 벌어진다.
+      크리스는 별빛 결정을 모아 차원을 안정화해야 한다.
+    unlock_condition: "starlight_throne_floor_3"
+    region: "starlight_throne"
+    min_floor: 73
+    level_req: 65
+    objectives:
+      - "별빛 마을 아스트라에 도착한다"
+      - "아스트라의 장로 '스타시어'에게서 왕좌의 위치를 듣는다"
+      - "7개 별빛 결정 중 부족한 것을 수집한다"
+      - "시간의 왕좌에 진입하여 카인의 의식을 목격한다"
+      - "카인의 잔향이 소환한 차원 수호자들을 격퇴한다"
+      - "잔향의 기록 #8 (마지막)를 획득한다"
+      - "세피로스의 잔향과 합류하여 최종 결전을 준비한다"
+    events:
+      - title: "차원 붕괴"
+        description: "하늘에 금이 간다. 차원이 불안정해지면서 곳곳에서 몬스터가 쏟아진다."
+      - title: "카인의 의식"
+        description: "카인의 잔향이 시간의 왕좌를 재건하는 의식을 시작한다. 차원의 에너지를 흡수하면서."
+      - title: "잔향의 기록 #8"
+        description: "'이것이 마지막 기록이다. 차원을 지키든, 파괴하든, 선택은 너에게 맡긴다. - 세피로스'"
+      - title: "결전 전야"
+        description: "세피로스의 잔향이 마지막 힘을 모아 크리스를 돕겠다고 선언한다."
+
+  - id: "rpg_ch10"
+    title: "별빛의 새벽"
+    description: >
+      최종 결전. 잔향의 카인을 쓰러뜨리고 차원을 안정화한다.
+      세피로스의 잔향은 소멸하며 크리스에게 미소를 짓는다.
+      "이번에는... 구할 수 있었구나."
+    unlock_condition: "starlight_throne_floor_9"
+    region: "starlight_throne"
+    min_floor: 79
+    level_req: 75
+    objectives:
+      - "잔향의 최심부에 진입한다"
+      - "카인의 잔향 - 1단계 전투"
+      - "카인이 시간의 왕좌와 융합한다"
+      - "릴리의 각성 - 잔향의 힘이 폭발한다"
+      - "카인의 잔향 - 최종 형태 전투"
+      - "별빛 결정으로 차원을 안정화한다"
+      - "세피로스의 잔향과 마지막 대화"
+      - "릴리와 함께 잔향 차원의 미래를 결정한다"
+    events:
+      - title: "최종 결전"
+        description: "잔향의 최심부. 카인의 잔향이 시간의 왕좌 위에서 크리스를 기다린다."
+      - title: "왕좌의 융합"
+        description: "패배한 카인이 왕좌와 융합하여 최종 형태로 변한다. 차원 자체가 무기가 된다."
+      - title: "릴리의 각성"
+        description: >
+          위기의 순간, 릴리 안에 잠들어 있던 잔향의 힘이 각성한다.
+          10만 번의 반복 속에서 축적된 소녀의 의지가 빛으로 변한다.
+          릴리의 치유 마법이 차원 규모로 확장되어 파티를 보호한다.
+      - title: "세피로스의 희생"
+        description: >
+          세피로스의 잔향이 마지막 힘을 써서 크리스와 릴리를 돕는다.
+          '이번에는... 너희 둘 다 구할 수 있었구나.' 미소를 지으며 소멸한다.
+      - title: "새벽"
+        description: >
+          차원이 안정되고, 하늘에 별빛이 쏟아진다.
+          릴리는 크리스의 손을 잡고 말한다.
+          '나는 잔향이지만, 이 세계는 진짜야. 여기서 함께 살아가자.'
+      - title: "선택"
+        description: >
+          크리스는 원래 세계로 돌아갈 수 있다.
+          하지만 릴리와, 이 차원의 사람들과 함께한 시간은 모두 진짜였다.
+          돌아갈 것인가, 남을 것인가.
+
+# ═══════════════════════════════════════════════════
+# 연쇄 퀘스트 (여러 지역에 걸친 대형 퀘스트라인)
+# ═══════════════════════════════════════════════════
+chain_quests:
+  - chain_id: "cq_echo_collector"
+    title: "잔향 수집가"
+    description: "각 지역에 흩어진 잔향의 파편을 모두 수집하는 대형 연쇄 퀘스트."
+    quests:
+      - id: "cq_ec_01"
+        type: "collect"
+        title: "잔향의 파편 - 숲의 메아리"
+        description: "잊혀진 숲 곳곳에 흩어진 잔향의 파편 5개를 모은다."
+        region: "forgotten_forest"
+        level_req: 5
+        rewards: "잔향의 귀걸이 (악세서리)"
+        collect_count: 5
+        chain_next: "cq_ec_02"
+
+      - id: "cq_ec_02"
+        type: "collect"
+        title: "잔향의 파편 - 사막의 신기루"
+        description: "황혼의 사막에서 모래 속에 묻힌 잔향의 파편 5개를 발굴한다."
+        region: "twilight_desert"
+        level_req: 15
+        rewards: "잔향의 팔찌 (악세서리)"
+        collect_count: 5
+        prerequisite: "cq_ec_01"
+        chain_next: "cq_ec_03"
+
+      - id: "cq_ec_03"
+        type: "collect"
+        title: "잔향의 파편 - 심연의 울림"
+        description: "심연의 동굴 벽면에 박힌 잔향의 파편 5개를 채취한다."
+        region: "abyss_cavern"
+        level_req: 25
+        rewards: "잔향의 반지 (악세서리)"
+        collect_count: 5
+        prerequisite: "cq_ec_02"
+        chain_next: "cq_ec_04"
+
+      - id: "cq_ec_04"
+        type: "collect"
+        title: "잔향의 파편 - 폭풍의 잔상"
+        description: "폭풍의 고원에서 번개에 깃든 잔향의 파편 5개를 포획한다."
+        region: "storm_plateau"
+        level_req: 35
+        rewards: "잔향의 목걸이 (악세서리)"
+        collect_count: 5
+        prerequisite: "cq_ec_03"
+        chain_next: "cq_ec_05"
+
+      - id: "cq_ec_05"
+        type: "collect"
+        title: "잔향의 파편 - 얼어붙은 기억"
+        description: "영원의 빙원에서 얼음 속에 갇힌 잔향의 파편 5개를 녹여낸다."
+        region: "eternal_glacier"
+        level_req: 45
+        rewards: "잔향의 왕관 (투구)"
+        collect_count: 5
+        prerequisite: "cq_ec_04"
+        chain_next: "cq_ec_06"
+
+      - id: "cq_ec_06"
+        type: "collect"
+        title: "잔향의 파편 - 전쟁의 메아리"
+        description: "전쟁의 대지에서 병기 잔해에 깃든 잔향의 파편 5개를 추출한다."
+        region: "war_lands"
+        level_req: 55
+        rewards: "잔향의 갑옷 (방어구)"
+        collect_count: 5
+        prerequisite: "cq_ec_05"
+        chain_next: "cq_ec_07"
+
+      - id: "cq_ec_07"
+        type: "collect"
+        title: "잔향의 파편 - 별빛의 조각"
+        description: "별빛의 왕좌에서 마지막 잔향의 파편 5개를 모아 '잔향의 완전체'를 완성한다."
+        region: "starlight_throne"
+        level_req: 65
+        rewards: "잔향의 무기 (전설 등급 무기)"
+        collect_count: 5
+        prerequisite: "cq_ec_06"
+
+  - chain_id: "cq_wandering_merchant"
+    title: "방랑 상인의 의뢰"
+    description: "각 지역을 떠도는 방랑 상인 '지크'의 특별 배달 의뢰 시리즈."
+    quests:
+      - id: "cq_wm_01"
+        type: "delivery"
+        title: "긴급 배달 - 실바나에서 미라지로"
+        description: "방랑 상인 지크의 부탁으로 귀중한 화물을 사막 마을까지 운반한다."
+        region: "forgotten_forest"
+        level_req: 10
+        rewards: "경험치 500, 골드 300, 상인 할인 5%"
+        chain_next: "cq_wm_02"
+
+      - id: "cq_wm_02"
+        type: "delivery"
+        title: "위험한 화물 - 미라지에서 딥홈으로"
+        description: "불안정한 연금술 재료를 동굴 마을까지 안전하게 운반한다. 전투 시 폭발 위험."
+        region: "twilight_desert"
+        level_req: 20
+        rewards: "경험치 800, 골드 500, 상인 할인 10%"
+        prerequisite: "cq_wm_01"
+        chain_next: "cq_wm_03"
+
+      - id: "cq_wm_03"
+        type: "delivery"
+        title: "비밀 서신 - 딥홈에서 스카이홀드로"
+        description: "지크의 비밀 서신을 고원 마을까지 전달한다. 추적자들을 따돌려야 한다."
+        region: "abyss_cavern"
+        level_req: 30
+        rewards: "경험치 1200, 골드 800, 상인 할인 15%"
+        prerequisite: "cq_wm_02"
+        chain_next: "cq_wm_04"
+
+      - id: "cq_wm_04"
+        type: "delivery"
+        title: "최후의 배달 - 왕좌로의 길"
+        description: "지크의 마지막 부탁. '별빛의 씨앗'을 왕좌까지 운반한다."
+        region: "war_lands"
+        level_req: 55
+        rewards: "경험치 3000, 골드 2000, 지크의 특별 상점 해금"
+        prerequisite: "cq_wm_03"
+
+  - chain_id: "cq_cook_master"
+    title: "전설의 요리사"
+    description: "각 지역의 특산 요리를 마스터하는 요리 연쇄 퀘스트."
+    quests:
+      - id: "cq_cm_01"
+        type: "cooking"
+        title: "숲의 별미"
+        description: "실바나 주방장에게 숲 버섯 스튜 레시피를 배우고 완성한다."
+        region: "forgotten_forest"
+        level_req: 3
+        rewards: "레시피: 숲 버섯 스튜, 요리 경험치"
+        chain_next: "cq_cm_02"
+
+      - id: "cq_cm_02"
+        type: "cooking"
+        title: "사막의 진미"
+        description: "미라지 요리사에게 전갈 꼬치 레시피를 배운다. 재료를 직접 사냥해야 한다."
+        region: "twilight_desert"
+        level_req: 14
+        rewards: "레시피: 전갈 꼬치, 요리 경험치"
+        prerequisite: "cq_cm_01"
+        chain_next: "cq_cm_03"
+
+      - id: "cq_cm_03"
+        type: "cooking"
+        title: "심연의 발효주"
+        description: "딥홈 양조장에서 특수 발효균으로 만든 '심연주' 제조법을 배운다."
+        region: "abyss_cavern"
+        level_req: 24
+        rewards: "레시피: 심연주, 요리 경험치"
+        prerequisite: "cq_cm_02"
+        chain_next: "cq_cm_04"
+
+      - id: "cq_cm_04"
+        type: "cooking"
+        title: "번개 훈제"
+        description: "스카이홀드에서 번개로 훈제하는 비법을 배운다."
+        region: "storm_plateau"
+        level_req: 34
+        rewards: "레시피: 번개 훈제 고기, 요리 경험치"
+        prerequisite: "cq_cm_03"
+        chain_next: "cq_cm_05"
+
+      - id: "cq_cm_05"
+        type: "cooking"
+        title: "빙하의 디저트"
+        description: "프로스트헤이븐에서 영원히 녹지 않는 빙하 아이스크림을 만든다."
+        region: "eternal_glacier"
+        level_req: 44
+        rewards: "레시피: 빙하 아이스크림, 요리 경험치"
+        prerequisite: "cq_cm_04"
+        chain_next: "cq_cm_06"
+
+      - id: "cq_cm_06"
+        type: "cooking"
+        title: "전장의 비상식"
+        description: "벨포트에서 전투 중에도 먹을 수 있는 고영양 전투식량을 개발한다."
+        region: "war_lands"
+        level_req: 54
+        rewards: "레시피: 전투식량, 요리 경험치"
+        prerequisite: "cq_cm_05"
+        chain_next: "cq_cm_07"
+
+      - id: "cq_cm_07"
+        type: "cooking"
+        title: "별빛의 만찬"
+        description: "아스트라에서 전설의 '별빛 만찬' 풀코스를 완성한다. 전 지역 재료 필요."
+        region: "starlight_throne"
+        level_req: 65
+        rewards: "칭호: 전설의 요리사, 최강 요리 레시피 전부 해금"
+        prerequisite: "cq_cm_06"
+
+  - chain_id: "cq_blacksmith_legend"
+    title: "전설의 대장장이"
+    description: "각 지역의 전설 광물을 모아 궁극의 무기를 제작하는 연쇄 퀘스트."
+    quests:
+      - id: "cq_bl_01"
+        type: "craft"
+        title: "숲의 생명석"
+        description: "엔트리아의 정원에서 생명의 기운이 응축된 생명석을 채취하고 가공한다."
+        region: "forgotten_forest"
+        level_req: 10
+        rewards: "소재: 생명석"
+        chain_next: "cq_bl_02"
+
+      - id: "cq_bl_02"
+        type: "craft"
+        title: "사막의 태양석"
+        description: "사막의 한가운데서 태양 에너지가 응축된 태양석을 발굴한다."
+        region: "twilight_desert"
+        level_req: 20
+        rewards: "소재: 태양석"
+        prerequisite: "cq_bl_01"
+        chain_next: "cq_bl_03"
+
+      - id: "cq_bl_03"
+        type: "craft"
+        title: "심연의 암흑석"
+        description: "심연 최하층에서 빛조차 삼키는 암흑석을 채굴한다."
+        region: "abyss_cavern"
+        level_req: 30
+        rewards: "소재: 암흑석"
+        prerequisite: "cq_bl_02"
+        chain_next: "cq_bl_04"
+
+      - id: "cq_bl_04"
+        type: "craft"
+        title: "고원의 뇌석"
+        description: "번개가 응축된 뇌석을 안전하게 채취한다."
+        region: "storm_plateau"
+        level_req: 40
+        rewards: "소재: 뇌석"
+        prerequisite: "cq_bl_03"
+        chain_next: "cq_bl_05"
+
+      - id: "cq_bl_05"
+        type: "craft"
+        title: "빙원의 영원석"
+        description: "시간이 멈춘 얼음 속에서 영원석을 추출한다."
+        region: "eternal_glacier"
+        level_req: 50
+        rewards: "소재: 영원석"
+        prerequisite: "cq_bl_04"
+        chain_next: "cq_bl_06"
+
+      - id: "cq_bl_06"
+        type: "craft"
+        title: "전설의 무기 단조"
+        description: "5가지 전설 광물과 벨포트의 고대 용광로로 전설의 무기를 제작한다."
+        region: "war_lands"
+        level_req: 60
+        rewards: "전설 등급 무기 1개 선택"
+        prerequisite: "cq_bl_05"
+
+# ═══════════════════════════════════════════════════
+# 사이드 퀘스트 (지역별, 대폭 확장)
+# ═══════════════════════════════════════════════════
+side_quests:
+
+  # ─── 1. 잊혀진 숲 (Lv.1~12) ─── 12개
+  forgotten_forest:
+    - id: "sq_ff_01"
+      type: "kill"
+      title: "숲의 침입자"
+      description: "실바나 근처에 출몰하는 변이 늑대 무리를 처치한다."
+      level_req: 2
+      rewards: "경험치 150, 골드 50"
+      objectives:
+        - "변이 늑대 8마리 처치"
+        - "실바나 촌장에게 보고"
+
+    - id: "sq_ff_02"
+      type: "explore"
+      title: "잃어버린 유물"
+      description: "숲 깊은 곳에 숨겨진 고대 유물을 찾아 촌장에게 가져간다."
+      level_req: 4
+      rewards: "경험치 200, 유물 조각 (퀘스트 아이템)"
+      objectives:
+        - "숲 북쪽 구역 탐사"
+        - "빛나는 동굴 발견"
+        - "고대 유물 회수"
+
+    - id: "sq_ff_03"
+      type: "fetch"
+      title: "약초 채집"
+      description: "실바나 약사의 의뢰. 숲에서 자생하는 희귀 약초를 모아온다."
+      level_req: 3
+      rewards: "경험치 120, 회복 포션 x5"
+      objectives:
+        - "빛나는 이끼 3개 채집"
+        - "고대 나무 수액 2개 채집"
+        - "약사에게 전달"
+
+    - id: "sq_ff_04"
+      type: "investigate"
+      title: "실종된 나무꾼"
+      description: "숲에 들어간 뒤 돌아오지 않는 나무꾼을 조사한다. 무슨 일이 있었던 것인가?"
+      level_req: 5
+      rewards: "경험치 250, 골드 100"
+      objectives:
+        - "나무꾼의 마지막 작업장 조사"
+        - "발자국 추적"
+        - "변이체 둥지 발견"
+        - "나무꾼 구출 또는 유품 회수"
+
+    - id: "sq_ff_05"
+      type: "defend"
+      title: "마을 방어전"
+      description: "밤마다 마을을 습격하는 변이체 무리를 3일간 방어한다."
+      level_req: 6
+      rewards: "경험치 400, 골드 200, 마을 방어 훈장"
+      objectives:
+        - "1일차 야간 습격 방어"
+        - "2일차 야간 습격 방어 (강화)"
+        - "3일차 야간 최종 습격 방어 (보스급 변이체 출현)"
+
+    - id: "sq_ff_06"
+      type: "escort"
+      title: "약초 상인 호위"
+      description: "약초 상인을 숲의 반대편 마을까지 안전하게 호위한다."
+      level_req: 4
+      rewards: "경험치 200, 희귀 약초 x3"
+      objectives:
+        - "상인과 합류"
+        - "숲 중앙 구역 통과 (매복 1회)"
+        - "숲 깊은 구역 통과 (매복 2회)"
+        - "목적지 도착"
+
+    - id: "sq_ff_07"
+      type: "puzzle"
+      title: "고대 나무의 수수께끼"
+      description: "숲 중앙의 거대한 고대 나무가 수수께끼를 낸다. 정답을 맞추면 보물이 나온다."
+      level_req: 7
+      rewards: "경험치 300, 지혜의 반지 (악세서리)"
+      objectives:
+        - "고대 나무에게 말을 건다"
+        - "첫 번째 수수께끼 해결"
+        - "두 번째 수수께끼 해결"
+        - "세 번째 수수께끼 해결 (단서는 숲 곳곳에)"
+
+    - id: "sq_ff_08"
+      type: "hunt"
+      title: "황금 사슴 포획"
+      description: "전설의 황금 사슴을 찾아 사진(기록)을 남긴다. 절대 해치지 말 것."
+      level_req: 8
+      rewards: "경험치 350, 칭호: 자연의 친구"
+      objectives:
+        - "황금 사슴의 흔적 추적"
+        - "사슴의 서식지 발견"
+        - "사슴에게 먹이를 주고 기록 남기기"
+
+    - id: "sq_ff_09"
+      type: "alchemy"
+      title: "첫 번째 포션"
+      description: "실바나 연금술사에게 기초 연금술을 배우고 첫 포션을 제작한다."
+      level_req: 3
+      rewards: "경험치 100, 레시피: 초급 회복 포션"
+      objectives:
+        - "연금술사의 강의를 듣는다"
+        - "숲에서 재료 채집"
+        - "연금술 도구로 포션 제작"
+
+    - id: "sq_ff_10"
+      type: "rescue"
+      title: "길 잃은 아이"
+      description: "숲에서 길을 잃은 아이를 찾아 마을로 데려온다."
+      level_req: 2
+      rewards: "경험치 100, 골드 30"
+      objectives:
+        - "아이의 부모에게 정보 수집"
+        - "숲 동쪽 탐색"
+        - "아이를 찾아 안전하게 귀환"
+
+    - id: "sq_ff_11"
+      type: "arena"
+      title: "실바나 수련장"
+      description: "마을 수련장에서 연속 3라운드 전투를 승리한다."
+      level_req: 8
+      rewards: "경험치 500, 수련장 챔피언 칭호, 기술 포인트 1"
+      objectives:
+        - "1라운드: 마을 전사와 대련"
+        - "2라운드: 숲의 사냥꾼 2인조와 대련"
+        - "3라운드: 수련장 관장과 대련"
+
+    - id: "sq_ff_12"
+      type: "investigate"
+      title: "수상한 발자국"
+      description: "마을 근처에서 발견된 거대한 발자국을 조사한다."
+      level_req: 10
+      rewards: "경험치 400, 골드 150, 히든 던전 '뿌리의 미궁' 입구 발견"
+      objectives:
+        - "발자국 크기와 방향 분석"
+        - "발자국을 따라 추적"
+        - "뿌리의 미궁 입구 발견"
+        - "촌장에게 보고"
+
+  # ─── 2. 황혼의 사막 (Lv.10~22) ─── 12개
+  twilight_desert:
+    - id: "sq_td_01"
+      type: "explore"
+      title: "모래 아래의 유적"
+      description: "모래폭풍 후 드러난 유적 입구를 탐사한다."
+      level_req: 12
+      rewards: "경험치 350, 골드 150"
+      objectives:
+        - "모래폭풍이 지나간 후 유적 입구 확인"
+        - "유적 1층 탐사"
+        - "고대 문자 기록 수집"
+        - "미라지 고고학자에게 보고"
+
+    - id: "sq_td_02"
+      type: "kill"
+      title: "사막의 폭군"
+      description: "오아시스 근처를 배회하는 거대 사막 도마뱀을 처치한다."
+      level_req: 14
+      rewards: "경험치 500, 도마뱀 가죽 (제작 재료)"
+      objectives:
+        - "도마뱀의 서식지 탐색"
+        - "도마뱀 처치"
+        - "전리품 수집"
+
+    - id: "sq_td_03"
+      type: "escort"
+      title: "대상 호위"
+      description: "사막을 횡단하는 무역 대상을 호위한다. 도적단의 습격에 대비해야 한다."
+      level_req: 13
+      rewards: "경험치 450, 골드 300"
+      objectives:
+        - "대상과 합류"
+        - "사막 서쪽 루트 통과 (도적 매복 1회)"
+        - "오아시스에서 휴식"
+        - "사막 동쪽 루트 통과 (도적 매복 2회)"
+        - "목적지 도착"
+
+    - id: "sq_td_04"
+      type: "investigate"
+      title: "신기루의 정체"
+      description: "사막 여행자들이 보고하는 이상한 신기루의 정체를 조사한다."
+      level_req: 15
+      rewards: "경험치 400, 신기루의 렌즈 (악세서리)"
+      objectives:
+        - "여행자 3명에게 증언 수집"
+        - "신기루 출현 지점 탐색"
+        - "신기루의 원인 규명 (고대 유적 장치)"
+        - "장치 비활성화 또는 활용"
+
+    - id: "sq_td_05"
+      type: "fetch"
+      title: "선인장 꽃 채집"
+      description: "100년에 한 번 피는 선인장 꽃을 채집한다. 밤에만 핀다."
+      level_req: 12
+      rewards: "경험치 250, 레시피: 선인장 꽃 엘릭서"
+      objectives:
+        - "선인장 군락지 탐색"
+        - "밤까지 대기"
+        - "선인장 꽃 3송이 채집 (야간 몬스터 주의)"
+
+    - id: "sq_td_06"
+      type: "puzzle"
+      title: "유적의 잠긴 문"
+      description: "고대 유적의 잠긴 문을 열기 위해 3개의 봉인석을 찾아야 한다."
+      level_req: 16
+      rewards: "경험치 500, 고대 유적 보물 (랜덤 장비)"
+      objectives:
+        - "첫 번째 봉인석: 사막 북서쪽 오벨리스크"
+        - "두 번째 봉인석: 모래 속 매몰된 신전"
+        - "세 번째 봉인석: 전갈 둥지 깊은 곳"
+        - "봉인석으로 유적 문 개방"
+
+    - id: "sq_td_07"
+      type: "defend"
+      title: "오아시스 방어"
+      description: "사막 도적단이 오아시스 마을을 습격한다. 마을을 방어하라."
+      level_req: 17
+      rewards: "경험치 600, 골드 400, 미라지 명예 시민 칭호"
+      objectives:
+        - "마을 방어 진지 구축 지원"
+        - "도적 선발대 격퇴"
+        - "도적 본대 격퇴"
+        - "도적 두목 처치"
+
+    - id: "sq_td_08"
+      type: "hunt"
+      title: "사막 독수리 토벌"
+      description: "대상을 습격하는 거대 독수리를 밤에만 출현하는 둥지에서 토벌한다."
+      level_req: 18
+      rewards: "경험치 550, 독수리 깃털 (제작 재료)"
+      objectives:
+        - "독수리의 비행 경로 파악"
+        - "둥지 위치 특정"
+        - "야간에 둥지 급습"
+        - "거대 독수리 토벌"
+
+    - id: "sq_td_09"
+      type: "delivery"
+      title: "긴급 물자 수송"
+      description: "고갈된 전초기지에 물과 식량을 긴급 배달한다. 시간 제한이 있다."
+      level_req: 14
+      rewards: "경험치 350, 골드 200"
+      objectives:
+        - "미라지에서 물자 수령"
+        - "사막 횡단 (전투 최소화하며 빠르게)"
+        - "전초기지 도착 (제한 시간 내)"
+
+    - id: "sq_td_10"
+      type: "rescue"
+      title: "매몰된 탐험가"
+      description: "모래폭풍으로 유적 내부에 갇힌 탐험가를 구출한다."
+      level_req: 16
+      rewards: "경험치 450, 탐험가의 지도 (히든 영역 표시)"
+      objectives:
+        - "매몰 지점 확인"
+        - "모래 제거 작업 (전투 병행)"
+        - "탐험가 구출"
+        - "안전한 곳으로 이동"
+
+    - id: "sq_td_11"
+      type: "cooking"
+      title: "사막의 별미 대회"
+      description: "미라지 요리 대회에 참가하여 사막 재료로 요리를 만든다."
+      level_req: 15
+      rewards: "경험치 300, 레시피: 사막 특선 3종"
+      objectives:
+        - "대회 참가 등록"
+        - "사막 재료 3종 채집"
+        - "제한 시간 내 요리 완성"
+        - "심사위원 평가"
+
+    - id: "sq_td_12"
+      type: "craft"
+      title: "내열 방어구"
+      description: "사막의 극한 온도를 견디는 특수 방어구를 제작한다."
+      level_req: 18
+      rewards: "장비: 내열 갑옷 (사막 지역 데미지 감소)"
+      objectives:
+        - "사막 도마뱀 가죽 3개 수집"
+        - "냉각석 2개 채굴"
+        - "미라지 대장장이에게 의뢰"
+
+  # ─── 3. 심연의 동굴 (Lv.20~32) ─── 12개
+  abyss_cavern:
+    - id: "sq_ac_01"
+      type: "explore"
+      title: "심연의 지도"
+      description: "동굴 깊은 곳의 미탐사 구역을 조사하고 지도를 완성한다."
+      level_req: 22
+      rewards: "경험치 500, 심연 완전 지도"
+      objectives:
+        - "동굴 북쪽 미탐사 구역 진입"
+        - "3개 구역 탐사 및 지도 기록"
+        - "딥홈 지도 제작사에게 전달"
+
+    - id: "sq_ac_02"
+      type: "kill"
+      title: "어둠의 포식자"
+      description: "동굴에 서식하는 거대 맹독 거미를 처치한다."
+      level_req: 23
+      rewards: "경험치 600, 거미줄 실크 (제작 재료)"
+      objectives:
+        - "거미 영역 탐색"
+        - "포식자의 둥지 발견"
+        - "어둠의 포식자 처치"
+
+    - id: "sq_ac_03"
+      type: "fetch"
+      title: "빛나는 광석"
+      description: "심연에서만 발견되는 발광 광석을 채집한다."
+      level_req: 22
+      rewards: "경험치 400, 골드 300, 발광 광석 x5"
+      objectives:
+        - "발광 광석 맥 위치 파악"
+        - "발광 광석 10개 채굴"
+        - "딥홈 광부에게 전달"
+
+    - id: "sq_ac_04"
+      type: "investigate"
+      title: "잊혀진 연구실"
+      description: "동굴 속 고대 연구실의 흔적을 조사한다. 누군가 이곳에서 실험을 했다."
+      level_req: 25
+      rewards: "경험치 700, 연구 기록 (스토리 아이템)"
+      objectives:
+        - "연구실 입구 발견"
+        - "파손된 실험 장비 조사"
+        - "연구 일지 3권 수집"
+        - "연구 내용 해독 (차원 실험 관련)"
+
+    - id: "sq_ac_05"
+      type: "rescue"
+      title: "갇힌 광부들"
+      description: "낙석으로 동굴 깊은 곳에 갇힌 광부 3명을 구출한다."
+      level_req: 24
+      rewards: "경험치 550, 골드 250, 딥홈 명예 광부 칭호"
+      objectives:
+        - "낙석 지점 확인"
+        - "우회 경로 탐색"
+        - "광부 3명 구출"
+        - "안전한 귀환 경로 확보"
+
+    - id: "sq_ac_06"
+      type: "puzzle"
+      title: "수정 미로"
+      description: "빛을 반사하는 수정으로 이루어진 미로를 돌파한다."
+      level_req: 26
+      rewards: "경험치 600, 수정의 오르골 (악세서리)"
+      objectives:
+        - "수정 미로 진입"
+        - "빛 반사 퍼즐 1단계 해결"
+        - "빛 반사 퍼즐 2단계 해결"
+        - "미로 최심부 보물 획득"
+
+    - id: "sq_ac_07"
+      type: "defend"
+      title: "딥홈 침공"
+      description: "지하 심층에서 올라온 변이체 무리가 딥홈을 공격한다."
+      level_req: 27
+      rewards: "경험치 800, 골드 500"
+      objectives:
+        - "마을 입구 방어"
+        - "변이체 웨이브 3차 격퇴"
+        - "변이체 대장 처치"
+
+    - id: "sq_ac_08"
+      type: "alchemy"
+      title: "심연의 영약"
+      description: "심연에서만 자라는 특수 균류로 강력한 영약을 제조한다."
+      level_req: 24
+      rewards: "경험치 400, 레시피: 심연의 영약"
+      objectives:
+        - "발광 균류 5개 채집 (동굴 깊은 곳)"
+        - "수정 가루 3개 채취"
+        - "딥홈 연금술사와 영약 제조"
+
+    - id: "sq_ac_09"
+      type: "hunt"
+      title: "크리스탈 골렘 토벌"
+      description: "수정 동굴에 출몰하는 크리스탈 골렘을 특수한 방법으로 처치한다."
+      level_req: 28
+      rewards: "경험치 700, 크리스탈 코어 (제작 재료)"
+      objectives:
+        - "크리스탈 골렘의 약점 조사 (NPC 정보)"
+        - "약점 공략 아이템 준비"
+        - "크리스탈 골렘 처치 (약점 공격 필수)"
+
+    - id: "sq_ac_10"
+      type: "escort"
+      title: "학자의 탐사"
+      description: "고고학자를 고대 연구실까지 안전하게 호위한다."
+      level_req: 25
+      rewards: "경험치 550, 고대 기술 도면"
+      objectives:
+        - "학자와 합류"
+        - "동굴 중층 통과"
+        - "연구실까지 호위"
+        - "학자의 조사 완료까지 방어"
+
+    - id: "sq_ac_11"
+      type: "arena"
+      title: "딥홈 투기장"
+      description: "동굴 마을의 지하 투기장에서 5연전을 승리한다."
+      level_req: 29
+      rewards: "경험치 900, 심연의 전사 칭호, 기술 포인트 1"
+      objectives:
+        - "1라운드: 동굴 전사와 대련"
+        - "2라운드: 쌍둥이 검사와 대련"
+        - "3라운드: 거대 곤충 사역사와 대련"
+        - "4라운드: 수정 마법사와 대련"
+        - "5라운드: 딥홈 챔피언과 대련"
+
+    - id: "sq_ac_12"
+      type: "collect"
+      title: "고대 동전 수집"
+      description: "동굴 곳곳에 흩어진 고대 문명의 동전을 수집한다."
+      level_req: 23
+      rewards: "경험치 450, 골드 800 (동전 교환)"
+      objectives:
+        - "고대 동전 15개 수집"
+        - "딥홈 골동품상에게 교환"
+
+  # ─── 4. 폭풍의 고원 (Lv.30~42) ─── 12개
+  storm_plateau:
+    - id: "sq_sp_01"
+      type: "kill"
+      title: "번개의 짐승"
+      description: "번개를 두른 짐승들이 고원 마을을 위협한다. 처치하라."
+      level_req: 32
+      rewards: "경험치 700, 번개 갈기 (제작 재료)"
+      objectives:
+        - "번개 짐승 5마리 처치"
+        - "스카이홀드 경비대장에게 보고"
+
+    - id: "sq_sp_02"
+      type: "explore"
+      title: "구름 위의 섬"
+      description: "폭풍 너머 구름 위에 떠다니는 섬이 있다는 전설을 확인한다."
+      level_req: 36
+      rewards: "경험치 900, 히든 던전 입장 열쇠"
+      objectives:
+        - "고원 주민에게서 전설 수집"
+        - "가장 높은 봉우리 도달"
+        - "폭풍을 뚫고 구름 위의 섬 발견"
+        - "섬의 비밀 탐사"
+
+    - id: "sq_sp_03"
+      type: "fetch"
+      title: "뇌석 수집"
+      description: "폭풍이 만든 뇌석을 수집한다. 번개가 칠 때만 생성된다."
+      level_req: 33
+      rewards: "경험치 500, 뇌석 x8"
+      objectives:
+        - "뇌석 생성 지점 파악"
+        - "폭풍 시 뇌석 10개 채취 (전투 병행)"
+
+    - id: "sq_sp_04"
+      type: "puzzle"
+      title: "볼타르크의 제단 봉인"
+      description: "고대 제단의 4개 기둥을 올바른 순서로 활성화하여 봉인을 푼다."
+      level_req: 37
+      rewards: "경험치 800, 뇌신의 축복 (패시브 효과)"
+      objectives:
+        - "제단 기둥 4개의 문양 해석"
+        - "올바른 활성화 순서 추론"
+        - "봉인 해제"
+        - "제단 보물 획득"
+
+    - id: "sq_sp_05"
+      type: "defend"
+      title: "스카이홀드 방어"
+      description: "번개에 미친 변이체 무리가 마을을 습격한다."
+      level_req: 35
+      rewards: "경험치 900, 골드 600"
+      objectives:
+        - "북문 방어"
+        - "남문 기습 방어"
+        - "변이 리더 격퇴"
+        - "마을 복구 지원"
+
+    - id: "sq_sp_06"
+      type: "investigate"
+      title: "카인의 관측소"
+      description: "고원에서 발견된 수상한 구조물을 조사한다."
+      level_req: 34
+      rewards: "경험치 650, 카인의 관측 기록"
+      objectives:
+        - "구조물 접근"
+        - "장치 분석 (차원 관측 장비)"
+        - "기록 데이터 추출"
+        - "세피로스의 잔향에게 정보 전달"
+
+    - id: "sq_sp_07"
+      type: "hunt"
+      title: "하늘의 사냥꾼"
+      description: "고원 상공을 배회하는 거대 비룡을 사냥한다."
+      level_req: 38
+      rewards: "경험치 1000, 비룡의 비늘 (전설 재료)"
+      objectives:
+        - "비룡의 비행 패턴 분석"
+        - "유인 미끼 설치"
+        - "비룡 착지 시 공격"
+        - "비룡 처치"
+
+    - id: "sq_sp_08"
+      type: "craft"
+      title: "번개 방어구"
+      description: "번개 피해를 줄이는 특수 방어구를 제작한다."
+      level_req: 34
+      rewards: "장비: 뇌전 방어구 (번개 저항 +50%)"
+      objectives:
+        - "뇌석 5개 수집"
+        - "절연 수지 3개 채집"
+        - "스카이홀드 장인에게 의뢰"
+
+    - id: "sq_sp_09"
+      type: "rescue"
+      title: "추락한 비행사"
+      description: "폭풍에 휘말려 고원 절벽에 떨어진 비행사를 구출한다."
+      level_req: 33
+      rewards: "경험치 600, 비행 고글 (악세서리)"
+      objectives:
+        - "추락 지점 탐색"
+        - "절벽 경로 찾기"
+        - "비행사 구출"
+        - "스카이홀드로 귀환"
+
+    - id: "sq_sp_10"
+      type: "delivery"
+      title: "폭풍 관측 데이터"
+      description: "고원 꼭대기 관측소의 데이터를 마을로 급히 전달한다."
+      level_req: 32
+      rewards: "경험치 450, 골드 250"
+      objectives:
+        - "관측소에서 데이터 수령"
+        - "폭풍 구간 돌파"
+        - "스카이홀드 관측사에게 전달"
+
+    - id: "sq_sp_11"
+      type: "arena"
+      title: "하늘의 투기장"
+      description: "구름 위의 섬에서 열리는 전설의 투기장에 도전한다."
+      level_req: 40
+      rewards: "경험치 1200, 하늘의 용사 칭호, 기술 포인트 2"
+      objectives:
+        - "구름 위의 섬 투기장 입장"
+        - "4연전 승리"
+        - "최종전: 바람의 검사와 대결"
+
+    - id: "sq_sp_12"
+      type: "escort"
+      title: "학술 원정대"
+      description: "뇌운봉 정상을 조사하려는 학술 원정대를 호위한다."
+      level_req: 36
+      rewards: "경험치 750, 뇌운봉 조사 보고서"
+      objectives:
+        - "원정대와 합류"
+        - "중턱까지 호위 (번개 짐승 조우)"
+        - "정상까지 호위 (폭풍 구간)"
+        - "조사 중 방어"
+        - "안전한 하산"
+
+  # ─── 5. 영원의 빙원 (Lv.40~52) ─── 13개
+  eternal_glacier:
+    - id: "sq_eg_01"
+      type: "explore"
+      title: "얼어붙은 기억"
+      description: "빙하 속에 갇힌 과거의 기억을 발견하고 기록한다."
+      level_req: 42
+      rewards: "경험치 800, 기억의 조각 (스토리 아이템)"
+      objectives:
+        - "빙하 표면 탐사"
+        - "얼어붙은 환영 3개 발견"
+        - "환영의 내용 기록"
+
+    - id: "sq_eg_02"
+      type: "kill"
+      title: "빙하의 파수꾼"
+      description: "빙원을 지키는 고대 얼음 골렘을 처치한다."
+      level_req: 44
+      rewards: "경험치 900, 얼음 코어 (제작 재료)"
+      objectives:
+        - "골렘 서식지 탐색"
+        - "얼음 골렘 3체 처치"
+        - "코어 수집"
+
+    - id: "sq_eg_03"
+      type: "fetch"
+      title: "시간의 결정"
+      description: "얼어붙은 시간의 파편을 모아온다."
+      level_req: 43
+      rewards: "경험치 700, 시간의 결정 x5"
+      objectives:
+        - "시간의 균열 근처 탐색"
+        - "시간의 결정 8개 채취"
+        - "프로스트헤이븐 현자에게 전달"
+
+    - id: "sq_eg_04"
+      type: "escort"
+      title: "조사대 호위"
+      description: "빙원 조사대를 시간의 균열까지 안전하게 호위한다."
+      level_req: 45
+      rewards: "경험치 850, 골드 500"
+      objectives:
+        - "조사대와 합류"
+        - "빙원 횡단 (빙수 몬스터 조우)"
+        - "시간의 균열 도달"
+        - "조사 중 방어 (차원 몬스터)"
+        - "안전한 귀환"
+
+    - id: "sq_eg_05"
+      type: "investigate"
+      title: "타임라인 잔해"
+      description: "타임라인 잔해 구역에서 과거 세계의 흔적을 조사한다."
+      level_req: 46
+      rewards: "경험치 900, 타임라인 기록 (스토리 아이템)"
+      objectives:
+        - "잔해 구역 진입"
+        - "과거 세계의 건물 잔해 조사"
+        - "시간 왜곡 현상 기록"
+        - "현자에게 분석 의뢰"
+
+    - id: "sq_eg_06"
+      type: "puzzle"
+      title: "얼음 미궁"
+      description: "빛을 반사하는 얼음 거울로 이루어진 미궁을 돌파한다."
+      level_req: 47
+      rewards: "경험치 900, 빙하의 거울 (악세서리, 마법 반사 확률 +10%)"
+      objectives:
+        - "미궁 진입"
+        - "거울 퍼즐 3단계 해결"
+        - "미궁 중앙 보물 획득"
+
+    - id: "sq_eg_07"
+      type: "defend"
+      title: "프로스트헤이븐 위기"
+      description: "시간의 균열에서 쏟아진 차원 괴물이 마을을 공격한다."
+      level_req: 48
+      rewards: "경험치 1100, 골드 700"
+      objectives:
+        - "마을 방벽 강화 지원"
+        - "1차 웨이브 격퇴"
+        - "2차 웨이브 격퇴"
+        - "차원 균열 임시 봉인"
+
+    - id: "sq_eg_08"
+      type: "hunt"
+      title: "서리 용 토벌"
+      description: "빙원 깊은 곳에 서식하는 서리 용을 토벌한다."
+      level_req: 50
+      rewards: "경험치 1300, 서리 용의 이빨 (전설 재료)"
+      objectives:
+        - "서리 용의 둥지 위치 파악"
+        - "내한 장비 준비"
+        - "서리 용과 전투"
+
+    - id: "sq_eg_09"
+      type: "alchemy"
+      title: "부동의 영약"
+      description: "극한의 추위에서도 얼지 않는 특수 영약을 제조한다."
+      level_req: 44
+      rewards: "경험치 600, 레시피: 부동의 영약"
+      objectives:
+        - "빙하 이끼 5개 채집"
+        - "뜨거운 온천수 채취"
+        - "프로스트헤이븐 연금술사와 제조"
+
+    - id: "sq_eg_10"
+      type: "rescue"
+      title: "얼어붙은 탐험가"
+      description: "시간의 균열 근처에서 시간이 멈춰버린 탐험가를 구한다."
+      level_req: 46
+      rewards: "경험치 800, 탐험가의 시간 나침반"
+      objectives:
+        - "탐험가 발견"
+        - "시간 해동 방법 조사"
+        - "시간의 결정으로 해동"
+        - "안전한 곳으로 이동"
+
+    - id: "sq_eg_11"
+      type: "craft"
+      title: "빙결 무기"
+      description: "영원히 녹지 않는 얼음으로 특수 무기를 제작한다."
+      level_req: 48
+      rewards: "장비: 빙결 무기 (공격 시 동결 확률)"
+      objectives:
+        - "영원빙 5개 채취"
+        - "시간의 결정 3개 수집"
+        - "프로스트헤이븐 장인에게 의뢰"
+
+    - id: "sq_eg_12"
+      type: "collect"
+      title: "과거의 유물"
+      description: "빙원 곳곳에 흩어진 과거 타임라인의 유물을 수집한다."
+      level_req: 44
+      rewards: "경험치 750, 골드 500, 타임라인 연대기"
+      objectives:
+        - "과거의 유물 12개 수집"
+        - "현자에게 감정 의뢰"
+
+    - id: "sq_eg_13"
+      type: "delivery"
+      title: "긴급 해동제 배달"
+      description: "시간 정지에 걸린 전초기지에 해동제를 긴급 배달한다."
+      level_req: 45
+      rewards: "경험치 600, 골드 350"
+      objectives:
+        - "프로스트헤이븐에서 해동제 수령"
+        - "빙원 횡단 (시간 정지 구간 주의)"
+        - "전초기지 도달"
+        - "해동제 사용"
+
+  # ─── 6. 전쟁의 대지 (Lv.50~65) ─── 13개
+  war_lands:
+    - id: "sq_wl_01"
+      type: "kill"
+      title: "전쟁 기계"
+      description: "아직 작동 중인 고대 전쟁 기계를 파괴한다."
+      level_req: 52
+      rewards: "경험치 1000, 기계 부품 (제작 재료)"
+      objectives:
+        - "전쟁 기계 위치 파악"
+        - "전쟁 기계 3대 파괴"
+        - "코어 회수"
+
+    - id: "sq_wl_02"
+      type: "explore"
+      title: "카인의 연구실 탐사"
+      description: "카인이 사용했던 연구 시설의 미탐사 구역을 조사한다."
+      level_req: 55
+      rewards: "경험치 1100, 카인의 연구 기록 (스토리 아이템)"
+      objectives:
+        - "연구실 하층 진입"
+        - "보안 시스템 무력화"
+        - "연구 기록 3개 수집"
+        - "비밀 실험실 발견"
+
+    - id: "sq_wl_03"
+      type: "kill"
+      title: "차원의 균열 소탕"
+      description: "차원 균열에서 쏟아지는 적들을 처치하고 균열을 봉인한다."
+      level_req: 54
+      rewards: "경험치 1000, 차원 봉인석"
+      objectives:
+        - "균열 위치 3곳 확인"
+        - "각 균열의 적 처치"
+        - "균열 봉인"
+
+    - id: "sq_wl_04"
+      type: "fetch"
+      title: "차원 안정 장치 부품"
+      description: "차원 안정화에 필요한 부품을 전장 곳곳에서 수집한다."
+      level_req: 53
+      rewards: "경험치 800, 차원 안정 장치 (퀘스트 아이템)"
+      objectives:
+        - "에너지 코어 3개 수집"
+        - "안정화 회로 2개 수집"
+        - "벨포트 기술자에게 조립 의뢰"
+
+    - id: "sq_wl_05"
+      type: "investigate"
+      title: "실종된 정찰대"
+      description: "카인의 연구실 근처에서 실종된 정찰대의 행방을 조사한다."
+      level_req: 56
+      rewards: "경험치 1000, 정찰대의 기록"
+      objectives:
+        - "정찰대 마지막 교신 위치 확인"
+        - "흔적 추적"
+        - "카인의 함정 발견"
+        - "생존자 구출 또는 기록 회수"
+
+    - id: "sq_wl_06"
+      type: "defend"
+      title: "벨포트 총력전"
+      description: "카인의 전쟁 병기 부대가 벨포트를 공격한다. 기지를 사수하라."
+      level_req: 58
+      rewards: "경험치 1500, 골드 1000, 벨포트 영웅 칭호"
+      objectives:
+        - "1단계: 정찰 드론 격퇴"
+        - "2단계: 전쟁 골렘 부대 격퇴"
+        - "3단계: 공성 병기 파괴"
+        - "4단계: 전쟁 인형 시제품 격퇴"
+
+    - id: "sq_wl_07"
+      type: "puzzle"
+      title: "카인의 암호"
+      description: "카인의 연구실에서 발견된 암호화된 데이터를 해독한다."
+      level_req: 55
+      rewards: "경험치 900, 카인의 약점 정보"
+      objectives:
+        - "암호화 장치 분석"
+        - "3단계 암호 해독"
+        - "숨겨진 데이터 추출"
+
+    - id: "sq_wl_08"
+      type: "hunt"
+      title: "시제품 사냥"
+      description: "전장을 배회하는 카인의 전쟁 병기 시제품 5대를 찾아 파괴한다."
+      level_req: 57
+      rewards: "경험치 1200, 시제품 코어 (전설 재료)"
+      objectives:
+        - "시제품 위치 5곳 파악"
+        - "시제품 5대 모두 파괴"
+        - "코어 수집"
+
+    - id: "sq_wl_09"
+      type: "craft"
+      title: "대전쟁병기 장비"
+      description: "전쟁 기계 부품으로 전쟁 병기에 효과적인 특수 장비를 제작한다."
+      level_req: 56
+      rewards: "장비: 대기계 무기 (기계형 적 추가 데미지)"
+      objectives:
+        - "기계 부품 8개 수집"
+        - "에너지 셀 3개 수집"
+        - "벨포트 기술자에게 제작 의뢰"
+
+    - id: "sq_wl_10"
+      type: "rescue"
+      title: "포로 구출"
+      description: "카인의 병기 공장에 포로로 잡힌 벨포트 병사들을 구출한다."
+      level_req: 58
+      rewards: "경험치 1200, 골드 700"
+      objectives:
+        - "병기 공장 잠입"
+        - "경비 시스템 무력화"
+        - "포로 5명 구출"
+        - "탈출 경로 확보"
+
+    - id: "sq_wl_11"
+      type: "arena"
+      title: "벨포트 실전 훈련장"
+      description: "벨포트 최강의 전사들과 실전 훈련을 한다."
+      level_req: 60
+      rewards: "경험치 1500, 전장의 영웅 칭호, 기술 포인트 2"
+      objectives:
+        - "1라운드: 돌격대장과 대련"
+        - "2라운드: 마법 공병대와 대련"
+        - "3라운드: 특수부대 3인조와 대련"
+        - "최종전: 아이언월 사령관과 대련"
+
+    - id: "sq_wl_12"
+      type: "alchemy"
+      title: "전투 강화 물약"
+      description: "전장에서 쓰이는 강력한 전투 강화 물약을 제조한다."
+      level_req: 54
+      rewards: "경험치 700, 레시피: 전투 강화 물약"
+      objectives:
+        - "전장의 붉은 꽃 5개 채집"
+        - "기계 오일 3개 수집"
+        - "벨포트 연금술사와 제조"
+
+    - id: "sq_wl_13"
+      type: "collect"
+      title: "전쟁의 기록"
+      description: "전장 곳곳에 흩어진 과거 차원 전쟁의 기록판을 수집한다."
+      level_req: 53
+      rewards: "경험치 900, 전쟁 연대기 (스토리 아이템), 골드 500"
+      objectives:
+        - "기록판 10개 수집"
+        - "벨포트 역사학자에게 전달"
+
+  # ─── 7. 별빛의 왕좌 (Lv.60~80) ─── 14개
+  starlight_throne:
+    - id: "sq_st_01"
+      type: "kill"
+      title: "왕좌의 수호자"
+      description: "별빛의 왕좌를 지키는 고대 수호자를 처치한다."
+      level_req: 62
+      rewards: "경험치 1300, 수호자의 인장"
+      objectives:
+        - "수호자의 감시 범위 파악"
+        - "수호자 3체 처치"
+        - "인장 수집"
+
+    - id: "sq_st_02"
+      type: "explore"
+      title: "세피로스의 기억"
+      description: "세피로스의 잔향이 남긴 기억의 조각을 찾아 모은다."
+      level_req: 65
+      rewards: "경험치 1200, 세피로스의 기억 (스토리 아이템)"
+      objectives:
+        - "기억의 공간 3곳 탐사"
+        - "각 공간의 환영 관찰"
+        - "기억의 핵심 기록"
+
+    - id: "sq_st_03"
+      type: "investigate"
+      title: "최후의 비밀"
+      description: "왕좌 뒤편에 숨겨진 공간에서 차원의 궁극적 비밀을 밝힌다."
+      level_req: 70
+      rewards: "경험치 1500, 차원의 진실 (스토리 아이템)"
+      objectives:
+        - "왕좌 뒤편 봉인 해제"
+        - "숨겨진 공간 진입"
+        - "세피로스의 마지막 메시지 발견"
+        - "차원의 진실 이해"
+
+    - id: "sq_st_04"
+      type: "kill"
+      title: "잔향의 그림자"
+      description: "불안정한 잔향이 만들어낸 그림자 적들을 처치한다."
+      level_req: 64
+      rewards: "경험치 1100, 잔향의 에센스"
+      objectives:
+        - "그림자 출현 지점 5곳 순찰"
+        - "그림자 적 10체 처치"
+        - "잔향의 에센스 수집"
+
+    - id: "sq_st_05"
+      type: "collect"
+      title: "별빛 결정"
+      description: "차원 안정화의 열쇠인 별빛 결정 7개를 모은다."
+      level_req: 68
+      rewards: "경험치 1500, 별빛 결정 세트 (최종 퀘스트 아이템)"
+      objectives:
+        - "각 지역 대응 별빛 결정 위치 파악"
+        - "별빛 결정 7개 수집"
+        - "아스트라 장로에게 전달"
+
+    - id: "sq_st_06"
+      type: "puzzle"
+      title: "시간의 왕좌 봉인"
+      description: "카인이 재건 중인 시간의 왕좌에 걸린 복잡한 봉인을 해제한다."
+      level_req: 72
+      rewards: "경험치 1400, 왕좌의 열쇠"
+      objectives:
+        - "봉인 분석 (5단계 복합 퍼즐)"
+        - "1차 봉인: 빛의 퍼즐"
+        - "2차 봉인: 시간의 퍼즐"
+        - "3차 봉인: 차원의 퍼즐"
+        - "최종 봉인 해제"
+
+    - id: "sq_st_07"
+      type: "defend"
+      title: "아스트라 최종 방어"
+      description: "카인의 잔향이 보낸 최강의 군세가 아스트라를 공격한다."
+      level_req: 70
+      rewards: "경험치 2000, 골드 1500, 아스트라의 수호자 칭호"
+      objectives:
+        - "방어 준비: 마을 주민 대피"
+        - "1차 웨이브: 그림자 군단"
+        - "2차 웨이브: 차원 병기 부대"
+        - "3차 웨이브: 카인의 정예 전쟁 인형"
+        - "최종: 차원 파괴자 격퇴"
+
+    - id: "sq_st_08"
+      type: "hunt"
+      title: "별빛의 용"
+      description: "별빛의 왕좌 상공을 비행하는 전설의 별빛 용을 도전한다."
+      level_req: 75
+      rewards: "경험치 2000, 별빛 용의 비늘 (최강 재료)"
+      objectives:
+        - "별빛 용의 출현 조건 파악 (밤, 맑은 하늘)"
+        - "유인 장치 설치"
+        - "별빛 용과 전투"
+
+    - id: "sq_st_09"
+      type: "craft"
+      title: "차원 안정 장치 완성"
+      description: "최종 결전을 위한 차원 안정 장치를 완성한다."
+      level_req: 70
+      rewards: "장비: 차원 안정 장치 (최종전 필수 아이템)"
+      objectives:
+        - "별빛 결정 7개 준비"
+        - "차원 안정 회로 조립"
+        - "세피로스의 잔향에게 축복받기"
+        - "장치 완성"
+
+    - id: "sq_st_10"
+      type: "rescue"
+      title: "차원에 갇힌 영혼들"
+      description: "왕좌 주변에서 차원 사이에 갇힌 영혼들을 구출한다."
+      level_req: 66
+      rewards: "경험치 1200, 감사의 축복 (전 능력치 +5)"
+      objectives:
+        - "갇힌 영혼 위치 5곳 파악"
+        - "차원 틈새 안정화"
+        - "영혼 5명 구출"
+        - "아스트라 신전에서 안식 의식"
+
+    - id: "sq_st_11"
+      type: "arena"
+      title: "잔향의 시련"
+      description: "세피로스의 잔향이 만든 최종 시련. 역대 보스들의 환영과 연전한다."
+      level_req: 76
+      rewards: "경험치 3000, 잔향의 축복 (최종 패시브), 기술 포인트 3"
+      objectives:
+        - "1라운드: 엔트리아의 환영"
+        - "2라운드: 스콜피온의 환영"
+        - "3라운드: 아비소스의 환영"
+        - "4라운드: 볼타르크의 환영"
+        - "5라운드: 글라시아의 환영"
+        - "6라운드: 벨리거의 환영"
+        - "최종: 세피로스의 환영 (본기)"
+
+    - id: "sq_st_12"
+      type: "alchemy"
+      title: "궁극의 엘릭서"
+      description: "모든 지역의 최고급 재료로 궁극의 엘릭서를 제조한다."
+      level_req: 68
+      rewards: "경험치 1000, 궁극의 엘릭서 x3 (전 능력 대폭 버프)"
+      objectives:
+        - "7개 지역 최고급 재료 각 1개 수집"
+        - "아스트라 대연금술사에게 의뢰"
+        - "제조 과정 보조 (미니게임)"
+
+    - id: "sq_st_13"
+      type: "delivery"
+      title: "최후의 편지"
+      description: "아스트라 주민들의 편지를 각 지역 마을에 전달하는 감동 퀘스트."
+      level_req: 63
+      rewards: "경험치 800, 골드 400, 각 마을의 감사 선물"
+      objectives:
+        - "아스트라에서 편지 7통 수령"
+        - "각 지역 마을 촌장에게 전달 (7곳)"
+        - "답장 수집"
+        - "아스트라로 귀환"
+
+    - id: "sq_st_14"
+      type: "investigate"
+      title: "10만 번의 진실"
+      description: "잔향 차원 곳곳에 숨겨진 세피로스의 10만 번 반복 기록을 모두 찾는다."
+      level_req: 74
+      rewards: "경험치 2000, 진실의 관 (전설 투구), 엔딩 분기 해금"
+      objectives:
+        - "7개 지역의 잔향 기록 재확인"
+        - "숨겨진 8번째 기록 탐색"
+        - "9번째 기록: 세피로스의 최초 반복"
+        - "10번째 기록: 10만 번째 반복의 결말"
+        - "모든 기록을 종합하여 진실 이해"
+
+# ═══════════════════════════════════════════════════
+# 지역 보스 정보 (rpg_world_config.py와 연동)
+# ═══════════════════════════════════════════════════
+region_bosses:
+  forgotten_forest:
+    name: "숲의 수호자 엔트리아"
+    level: 12
+    description: "고대 숲의 의지가 깃든 거대한 나무 수호자. 세피로스가 숲을 지키라 명한 존재."
+    phases: 2
+    special_mechanic: "뿌리 소환 - 전장에 뿌리를 소환하여 이동 제한"
+
+  twilight_desert:
+    name: "사막의 군주 스콜피온"
+    level: 22
+    description: "사막 유적의 저주를 받은 거대 전갈 왕. 유적을 침입자로부터 지킨다."
+    phases: 2
+    special_mechanic: "맹독 - 지속 독 데미지, 꼬리 공격 시 마비"
+
+  abyss_cavern:
+    name: "심연의 눈 아비소스"
+    level: 32
+    description: "심연 깊은 곳에서 모든 것을 지켜보는 감시자. 세피로스의 보안 시스템."
+    phases: 3
+    special_mechanic: "전지적 시점 - 회피율 대폭 감소, 약점 간파"
+
+  storm_plateau:
+    name: "뇌신 볼타르크"
+    level: 42
+    description: "폭풍 그 자체가 된 고대의 정령. 카인에게 에너지를 빼앗기고 있다."
+    phases: 2
+    special_mechanic: "뇌전 장막 - 주기적 전체 번개 공격, 충전 시 대폭발"
+
+  eternal_glacier:
+    name: "빙결의 여왕 글라시아"
+    level: 52
+    description: "시간을 얼려 버리는 빙원의 지배자. 세피로스의 슬픔이 응축된 존재."
+    phases: 3
+    special_mechanic: "시간 동결 - 무작위 아군 행동 불가, 빙결 필드"
+
+  war_lands:
+    name: "전쟁 인형 벨리거"
+    level: 65
+    description: "카인이 만든 최강의 전쟁 병기. 차원의 에너지로 움직인다."
+    phases: 3
+    special_mechanic: "무기 변환 - 매 페이즈마다 무기 교체, 내성 변화"
+
+  starlight_throne:
+    name: "잔향의 카인"
+    level: 80
+    description: "시간의 왕좌를 재건하려는 카인의 잔향. 최종 보스."
+    phases: 4
+    special_mechanic: "차원 조작 - 전장 환경 변경, 시간 왜곡, 중력 변환"

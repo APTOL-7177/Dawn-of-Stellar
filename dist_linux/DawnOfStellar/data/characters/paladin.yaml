@@ -1,0 +1,190 @@
+class_name: 성기사
+description: 신에게 서약하고 그 맹세를 지켜 기적을 일으키는 성스러운 기사
+slogan: 신성한 빛이 어둠을 물리친다
+archetype: 탱커/서포터
+base_stats:
+  hp: 197
+  mp: 67
+  init_brv: 138
+  speed: 43
+  physical_attack: 67
+  physical_defense: 76
+  magic_attack: 38
+  magic_defense: 79
+  max_brv: 346
+stat_growth:
+  hp: 50.6
+  mp: 4.5
+  init_brv: 32.6
+  strength: 16.7
+  defense: 22.8
+  magic: 8.1
+  spirit: 23.2
+  speed: 9.1
+  max_brv: 97.3
+  luck: 0.5
+  accuracy: 1.6
+  evasion: 1.2
+gimmick:
+  type: oath_system
+  name: 서약 시스템
+  description: '[서약 시스템] 신에게 서약하고 기적을 일으켜라!
+
+
+    ■ 서약 선택 (전투 시작 시)
+
+    인내의 서약: 탱커 - 피격 시 신앙 +10, 대신 맞기 가능
+
+    순결의 서약: 딜러 - 정화/처치 시 신앙 +15, 공격력 +20%
+
+    자비의 서약: 힐러 - 치유 시 신앙 +10, 힐 효과 +30%
+
+
+    ■ 신앙 게이지 (0~100)
+
+    서약 준수 시 신앙 축적.
+
+    신앙으로 기적 스킬 사용.
+
+
+    ■ 기적 스킬
+
+    25+: 작은 기적 (HP 회복)
+
+    50+: 보호/치유의 기적
+
+    75+: 부활/정화의 기적
+
+    100: 신의 심판/은총
+
+
+    ■ 서약 위반
+
+    금지 행동 시 신앙 -20, 1턴 디버프
+
+    - 인내: 공격 행동 금지
+
+    - 순결: 버프/힐 금지
+
+    - 자비: 공격 행동 금지
+
+    '
+  max_faith: 100
+  start_faith: 0
+  oaths:
+    endurance:
+      name: 인내의 서약
+      concept: 탱커
+      reward_action: take_damage
+      faith_per_action: 8
+      bonus_effects:
+        can_intercept: true
+        defense_multiplier: 1.7
+        magic_defense_multiplier: 1.7
+      forbidden_action: attack
+      violation_penalty:
+        faith_loss: 30
+        debuff_duration: 2
+        attack_reduction: 0.6
+    purity:
+      name: 순결의 서약
+      concept: 딜러
+      reward_actions:
+      - purify
+      - kill
+      faith_per_purify: 12
+      faith_per_kill: 20
+      bonus_effects:
+        attack_multiplier: 1.5
+        holy_damage_bonus: 0.35
+      forbidden_action: buff_heal
+      violation_penalty:
+        faith_loss: 25
+        debuff_duration: 2
+        damage_reduction: 0.4
+    mercy:
+      name: 자비의 서약
+      concept: 힐러
+      reward_action: heal
+      faith_per_action: 12
+      bonus_effects:
+        heal_multiplier: 1.6
+        mp_regen_per_turn: 8
+      forbidden_action: attack
+      violation_penalty:
+        faith_loss: 15
+        debuff_duration: 2
+        heal_reduction: 0.45
+  miracle_thresholds:
+    small_miracle: 25
+    protection_miracle: 50
+    healing_miracle: 50
+    resurrection_miracle: 75
+    purification_miracle: 75
+    divine_judgment: 100
+    divine_grace: 100
+traits:
+- id: divine_protection
+  name: 신성한 가호
+  description: 신앙 50+ 시 파티 전체 치명타 무효화 30%
+  type: conditional
+  conditions:
+    faith_min: 50
+  effects:
+    party_crit_nullify: 0.3
+- id: holy_aura
+  name: 성스러운 오라
+  description: 서약 준수 중 파티 방어 +20%
+  type: conditional
+  conditions:
+    oath_kept: true
+  effects:
+    party_defense_bonus: 0.2
+- id: martyr_spirit
+  name: 희생의 정신
+  description: 인내 서약 전용 - 대신 맞기 시 신앙 +15
+  type: trigger
+  conditions:
+    oath: endurance
+  effects:
+    faith_on_intercept: 15
+- id: healing_light
+  name: 치유의 빛
+  description: 자비 서약 전용 - 치유 시 신앙 +5 추가
+  type: conditional
+  conditions:
+    oath: mercy
+  effects:
+    extra_faith_on_heal: 5
+- id: righteous_fury
+  name: 정의의 분노
+  description: 서약 위반 페널티 50% 감소
+  type: passive
+  effects:
+    violation_penalty_reduction: 0.5
+skills:
+- declare_oath
+- paladin_holy_strike
+- paladin_holy_smite
+- paladin_holy_light
+- teamwork
+- holy_strike
+- judgment_light
+- holy_shield
+- healing_touch
+- paladin_blessing
+- purifying_light
+- holy_water
+- small_miracle
+- protection_miracle
+- healing_miracle
+- resurrection_miracle
+- purification_miracle
+- divine_judgment_100
+- divine_grace_100
+- paladin_ultimate
+bonuses:
+  hp_multiplier: 1.05
+  defense_bonus: 8
+  spirit_bonus: 10
+  healing_received: 1.1

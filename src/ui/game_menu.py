@@ -10,6 +10,7 @@ import tcod
 
 from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.tcod_display import render_space_background
+from src.ui.ui_renderer import draw_styled_box, SelectionHighlight, MenuScrambleEffect
 from src.core.logger import get_logger, Loggers
 
 
@@ -20,11 +21,15 @@ class MenuOption(Enum):
     """메뉴 옵션"""
     PARTY_STATUS = "party_status"
     INVENTORY = "inventory"
+    AFFINITY = "affinity"  # 호감도 열람
     QUEST_LIST = "quest_list"  # 퀘스트 목록
     SAVE_GAME = "save"
     LOAD_GAME = "load"
     OPTIONS = "options"
     MAIN_MENU = "main_menu"  # 메인 메뉴로 돌아가기
+    LILY_TALK = "lily_talk"    # RPG 모드: 릴리 대화
+    WORLD_MAP = "world_map"    # RPG 모드: 월드맵
+    TELEPORT_TO_SPAWN = "teleport_to_spawn"  # 스폰 위치로 텔레포트 (긴급 탈출)
     RETURN = "return"
     QUIT = "quit"
 
@@ -40,6 +45,7 @@ class GameMenu:
         self.menu_options = [
             ("파티 상태", MenuOption.PARTY_STATUS),
             ("인벤토리", MenuOption.INVENTORY),
+            ("호감도", MenuOption.AFFINITY),
             ("퀘스트 목록", MenuOption.QUEST_LIST),
             ("게임 저장", MenuOption.SAVE_GAME),
             ("게임 불러오기", MenuOption.LOAD_GAME),
@@ -48,10 +54,50 @@ class GameMenu:
             ("돌아가기", MenuOption.RETURN),
         ]
         
+        # RPG 모드 판별
+        is_rpg = (exploration
+                  and hasattr(exploration, 'lily_dialogue')
+                  and hasattr(exploration, 'rpg_progress'))
+        is_rpg_sub = (exploration
+                      and hasattr(exploration, 'is_rpg_sub_dungeon')
+                      and exploration.is_rpg_sub_dungeon)
+        is_large_map = (exploration
+                        and (exploration.dungeon.width > 300
+                             or exploration.dungeon.height > 300)) if exploration else False
+
+        # 로그라이크 전용: 스폰 텔레포트 (RPG 모드 제외)
+        if not is_rpg and not is_rpg_sub and not is_large_map:
+            # "설정" 앞에 삽입
+            idx = next(
+                (i for i, (_, opt) in enumerate(self.menu_options)
+                 if opt == MenuOption.OPTIONS), len(self.menu_options) - 2
+            )
+            self.menu_options.insert(idx, ("스폰 위치로 귀환", MenuOption.TELEPORT_TO_SPAWN))
+
+        # RPG 모드 전용 메뉴 (릴리 대화, 월드맵)
+        if is_rpg:
+            # 퀘스트 목록 뒤에 삽입
+            idx = next(
+                (i for i, (_, opt) in enumerate(self.menu_options)
+                 if opt == MenuOption.QUEST_LIST), 3
+            ) + 1
+            self.menu_options.insert(idx, ("릴리와 대화", MenuOption.LILY_TALK))
+            self.menu_options.insert(idx + 1, ("월드맵", MenuOption.WORLD_MAP))
+
         # 마을에서 저장 비활성화 여부 확인
         self.is_town = False
         if exploration and hasattr(exploration, 'is_town'):
             self.is_town = exploration.is_town
+
+        # UI 효과
+        self._highlight = SelectionHighlight(
+            base_bg=(40, 40, 60), pulse_bg=(60, 60, 100), speed=3.0
+        )
+        self._scramble = MenuScrambleEffect(
+            [label for label, _ in self.menu_options],
+            duration=0.4, stagger=0.06,
+        )
+        self._last_time = 0.0
 
     def handle_input(self, action: GameAction) -> Optional[MenuOption]:
         """
@@ -85,6 +131,17 @@ class GameMenu:
 
     def render(self, console: tcod.console.Console):
         """메뉴 렌더링"""
+        import time as _time
+
+        # dt 계산
+        now = _time.monotonic()
+        dt = now - self._last_time if self._last_time else 0.016
+        self._last_time = now
+
+        # 효과 갱신
+        self._highlight.update(dt)
+        self._scramble.update(dt)
+
         # 반투명 배경 (어두운 오버레이)
         for y in range(self.screen_height):
             for x in range(self.screen_width):
@@ -96,44 +153,50 @@ class GameMenu:
         menu_x = (self.screen_width - menu_width) // 2
         menu_y = (self.screen_height - menu_height) // 2
 
-        # 박스 테두리
-        self._draw_box(console, menu_x, menu_y, menu_width, menu_height)
-
-        # 제목
-        title = "=== 메뉴 ==="
-        console.print(
-            menu_x + (menu_width - len(title)) // 2,
-            menu_y + 2,
-            title,
-            fg=(255, 255, 100)
+        # 더블라인 박스 + 타이틀
+        draw_styled_box(
+            console, menu_x, menu_y, menu_width, menu_height,
+            title="메뉴",
+            fg=(200, 200, 200),
+            bg=(20, 20, 40),
+            title_fg=(255, 255, 100),
         )
+
+        # 스크램블 텍스트 가져오기
+        display_texts = self._scramble.get_display_texts()
 
         # 메뉴 옵션
         for i, (label, option) in enumerate(self.menu_options):
             y = menu_y + 4 + i
-            
+
+            # 스크램블 효과 적용 (진행 중이면 스크램블 텍스트 사용)
+            display_label = display_texts[i] if i < len(display_texts) else label
+
             # 마을에서 저장 옵션 비활성화 표시
             is_disabled = (option == MenuOption.SAVE_GAME and self.is_town)
-            
+
             if i == self.selected_index:
-                # 선택된 항목
+                # 선택된 항목 — 펄스 하이라이트 배경
+                highlight_bg = self._highlight.get_bg_color()
+                console.draw_rect(menu_x + 1, y, menu_width - 2, 1, ord(" "), bg=highlight_bg)
+
                 if is_disabled:
                     console.print(menu_x + 2, y, "►", fg=(150, 150, 150))
-                    console.print(menu_x + 4, y, f"{label} (마을에서 불가)", fg=(150, 150, 150))
+                    console.print(menu_x + 4, y, f"{display_label} (마을에서 불가)", fg=(150, 150, 150))
                 else:
                     console.print(menu_x + 2, y, "►", fg=(255, 255, 100))
-                    console.print(menu_x + 4, y, label, fg=(255, 255, 100))
+                    console.print(menu_x + 4, y, display_label, fg=(255, 255, 100))
             else:
                 # 일반 항목
                 if is_disabled:
-                    console.print(menu_x + 4, y, f"{label} (마을에서 불가)", fg=(100, 100, 100))
+                    console.print(menu_x + 4, y, f"{display_label} (마을에서 불가)", fg=(100, 100, 100))
                 else:
-                    console.print(menu_x + 4, y, label, fg=(200, 200, 200))
+                    console.print(menu_x + 4, y, display_label, fg=(200, 200, 200))
 
         # 조작법 (게임패드 연결 시 게임패드 버튼으로 표시)
         from src.ui.input_handler import key_binding_manager
         use_gamepad = unified_input_handler.gamepad_connected
-        
+
         if use_gamepad:
             move_help = key_binding_manager.get_movement_help(True)
             confirm_key = key_binding_manager.get_action_display("confirm", True)
@@ -141,36 +204,13 @@ class GameMenu:
             help_text = f"{move_help}  {confirm_key}: 확인  {cancel_key}: 닫기"
         else:
             help_text = "↑↓: 선택  Enter/M: 확인  ESC: 닫기"
-        
+
         console.print(
             menu_x + (menu_width - len(help_text)) // 2,
             menu_y + menu_height - 2,
             help_text,
             fg=(150, 150, 150)
         )
-
-    def _draw_box(self, console: tcod.console.Console, x: int, y: int, width: int, height: int):
-        """박스 테두리 그리기"""
-        # 모서리
-        console.print(x, y, "┌", fg=(200, 200, 200))
-        console.print(x + width - 1, y, "┐", fg=(200, 200, 200))
-        console.print(x, y + height - 1, "└", fg=(200, 200, 200))
-        console.print(x + width - 1, y + height - 1, "┘", fg=(200, 200, 200))
-
-        # 가로선
-        for i in range(1, width - 1):
-            console.print(x + i, y, "─", fg=(200, 200, 200))
-            console.print(x + i, y + height - 1, "─", fg=(200, 200, 200))
-
-        # 세로선
-        for i in range(1, height - 1):
-            console.print(x, y + i, "│", fg=(200, 200, 200))
-            console.print(x + width - 1, y + i, "│", fg=(200, 200, 200))
-
-        # 내부 채우기
-        for dy in range(1, height - 1):
-            for dx in range(1, width - 1):
-                console.print(x + dx, y + dy, " ", bg=(20, 20, 40))
 
 
 def open_game_menu(
@@ -196,6 +236,11 @@ def open_game_menu(
     menu = GameMenu(console.width, console.height, exploration=exploration)
 
     logger.info(f"게임 메뉴 열림 (마을: {menu.is_town})")
+
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
 
     while True:
         # 렌더링
@@ -237,15 +282,142 @@ def open_game_menu(
                         show_message(console, context, "인벤토리를 열 수 없습니다.")
                         continue
 
+                elif result == MenuOption.AFFINITY:
+                    if party and len(party) >= 2:
+                        try:
+                            from src.ui.affinity_ui import AffinityUI
+                            from src.character.affinity import AffinityManager
+                            # 기존 combat manager의 AffinityManager 사용 (새로 생성하면 0pt)
+                            aff_mgr = None
+                            try:
+                                from src.combat.combat_manager import get_combat_manager
+                                cm = get_combat_manager()
+                                if cm and cm.affinity_manager:
+                                    aff_mgr = cm.affinity_manager
+                            except Exception:
+                                pass
+                            if aff_mgr is None:
+                                # combat manager 없으면 캐시된 데이터로 복원
+                                aff_mgr = AffinityManager()
+                                try:
+                                    import src.persistence.save_system as save_module
+                                    cached = getattr(save_module, '_last_loaded_affinity_data', None)
+                                    if cached:
+                                        aff_mgr.from_dict(cached)
+                                except Exception:
+                                    pass
+                            party_jobs = [getattr(m, 'job_id', getattr(m, 'character_class', '')) for m in party]
+                            party_names = {getattr(m, 'job_id', getattr(m, 'character_class', '')): getattr(m, 'name', '???') for m in party}
+                            aff_ui = AffinityUI(console, context)
+                            aff_ui.show(aff_mgr, party_jobs, party_names)
+                        except Exception as e:
+                            logger.error(f"호감도 UI 오류: {e}")
+                            show_message(console, context, "호감도를 표시할 수 없습니다.")
+                    else:
+                        show_message(console, context, "파티원이 2명 이상이어야 합니다.")
+                    continue
+
                 elif result == MenuOption.QUEST_LIST:
                     from src.quest.quest_manager import get_quest_manager
                     quest_manager = get_quest_manager()
                     if quest_manager:
                         from src.ui.quest_list_ui import open_quest_list
-                        open_quest_list(console, context, quest_manager)
+                        player_obj = getattr(exploration, 'player', None) if exploration else None
+                        open_quest_list(console, context, quest_manager, player=player_obj, inventory=inventory)
                     else:
                         show_message(console, context, "퀘스트 관리자를 찾을 수 없습니다.")
                     continue
+
+                elif result == MenuOption.LILY_TALK:
+                    if (exploration
+                            and hasattr(exploration, 'lily_dialogue')
+                            and hasattr(exploration, 'rpg_progress')):
+                        try:
+                            from src.ui.npc_dialog_ui import run_npc_dialog
+                            from src.ui.cursor_menu import CursorMenu, MenuItem
+
+                            lily_mgr = exploration.lily_dialogue
+                            progress = exploration.rpg_progress
+                            convos = lily_mgr.get_town_conversations(
+                                progress.current_chapter,
+                                progress.lily_affinity,
+                                progress.lily_conversations_seen,
+                            )
+                            if not convos:
+                                show_message(console, context,
+                                             '릴리: "지금은 특별히 할 얘기가 없어..."')
+                            else:
+                                import time
+                                import pygame
+                                items = []
+                                for c in convos:
+                                    pfx = "★ " if c.get("is_new") else "  "
+                                    items.append(MenuItem(text=f"{pfx}{c.get('title', '???')}"))
+                                lily_cm = CursorMenu(
+                                    title="릴리와 대화", items=items, width=30,
+                                    x=console.width // 2 - 15,
+                                    y=console.height // 2 - len(items) // 2 - 2,
+                                )
+                                for _ in tcod.event.get():
+                                    pass
+                                sel = None
+                                lily_menu_running = True
+                                while lily_menu_running:
+                                    console.clear()
+                                    lily_cm.render(console)
+                                    context.present(console)
+                                    try:
+                                        pygame.event.pump()
+                                    except Exception:
+                                        pass
+                                    for ev in tcod.event.get():
+                                        act = unified_input_handler.process_tcod_event(ev)
+                                        if act == GameAction.CONFIRM:
+                                            sel = lily_cm.cursor_index
+                                            lily_menu_running = False
+                                            break
+                                        elif act == GameAction.CANCEL:
+                                            lily_menu_running = False
+                                            break
+                                        elif act == GameAction.MOVE_UP:
+                                            lily_cm.move_cursor_up()
+                                        elif act == GameAction.MOVE_DOWN:
+                                            lily_cm.move_cursor_down()
+                                        if isinstance(ev, tcod.event.Quit):
+                                            raise SystemExit()
+                                    gp_act = unified_input_handler.get_action()
+                                    if gp_act == GameAction.CONFIRM:
+                                        sel = lily_cm.cursor_index
+                                        lily_menu_running = False
+                                    elif gp_act == GameAction.CANCEL:
+                                        lily_menu_running = False
+                                    elif gp_act == GameAction.MOVE_UP:
+                                        lily_cm.move_cursor_up()
+                                    elif gp_act == GameAction.MOVE_DOWN:
+                                        lily_cm.move_cursor_down()
+                                    time.sleep(0.01)
+
+                                if sel is not None and 0 <= sel < len(convos):
+                                    conv = convos[sel]
+                                    ld = conv.get("lines", [])
+                                    dl = [le.get("text", "") for le in ld]
+                                    if dl:
+                                        sp = ld[0].get("speaker", "릴리") if ld else "릴리"
+                                        run_npc_dialog(console, context,
+                                                       npc_name=sp, dialog_lines=dl)
+                                    progress.lily_affinity += conv.get("affinity_change", 0)
+                                    progress.lily_conversations_seen.add(conv.get("id", ""))
+                        except Exception as e:
+                            logger.error(f"릴리 대화 메뉴 오류: {e}")
+                    continue
+
+                elif result == MenuOption.WORLD_MAP:
+                    # 메뉴 닫고 미니맵 토글
+                    return result
+
+                elif result == MenuOption.TELEPORT_TO_SPAWN:
+                    # 메뉴 닫고 world_ui에서 텔레포트 처리
+                    return result
 
                 elif result == MenuOption.PARTY_STATUS and party:
                     open_party_status_menu(console, context, party, exploration=exploration)
@@ -255,10 +427,15 @@ def open_game_menu(
                     if exploration is None:
                         show_message(console, context, "저장할 수 없습니다.")
                         continue
-                    
+
                     # 마을에서는 저장 불가
                     if hasattr(exploration, 'is_town') and exploration.is_town:
                         show_message(console, context, "마을에서는 저장할 수 없습니다.")
+                        continue
+
+                    # RPG 서브 던전에서는 저장 불가 (월드맵에서 자동 저장됨)
+                    if getattr(exploration, 'is_rpg_sub_dungeon', False):
+                        show_message(console, context, "던전 안에서는 저장할 수 없습니다. 월드맵에서 자동 저장됩니다.")
                         continue
 
                     from src.ui.save_load_ui import show_save_screen
@@ -298,22 +475,54 @@ def open_game_menu(
                     max_floor = exploration.game_stats.get("max_floor_reached", exploration.floor_number)
                     max_floor = max(max_floor, exploration.floor_number)
 
-                    game_state = serialize_game_state(
-                        party=party if party else [],
-                        floor_number=exploration.floor_number,
-                        dungeon=exploration.dungeon,
-                        player_x=exploration.player.x,
-                        player_y=exploration.player.y,
-                        inventory=inventory_items,
-                        player_keys=exploration.player_keys if hasattr(exploration, 'player_keys') else [],
-                        traits=[],
-                        passives=[],
-                        difficulty=current_difficulty,
-                        exploration=exploration,
-                        is_multiplayer=is_multiplayer,
-                        session=session,
-                        max_floor_reached=max_floor
-                    )
+                    # RPG 모드 감지 (대형 맵은 시드로 재생성하므로 던전 직렬화 스킵)
+                    is_rpg_mode = (exploration.dungeon.width > 300 or exploration.dungeon.height > 300)
+
+                    if is_rpg_mode:
+                        # RPG 모드: rpg_mode_manager의 _auto_save와 동일한 경량 저장
+                        from src.persistence.save_system import serialize_party_member as _spm
+                        rpg_party_data = [_spm(m) for m in (party if party else [])]
+                        rpg_inv_data = []
+                        for item in inventory_items:
+                            if item:
+                                rpg_inv_data.append(serialize_item(item))
+
+                        # RPG 진행 상태 가져오기
+                        rpg_progress_dict = {}
+                        if hasattr(exploration, 'town_manager') and exploration.town_manager:
+                            tm = exploration.town_manager
+                            if hasattr(tm, '_rpg_progress'):
+                                rpg_progress_dict = tm._rpg_progress
+
+                        game_state = {
+                            "party": rpg_party_data,
+                            "floor_number": 1,
+                            "max_floor_reached": 1,
+                            "inventory_items": rpg_inv_data,
+                            "rpg_mode": True,
+                            "player_x": exploration.player.x,
+                            "player_y": exploration.player.y,
+                            "world_seed": getattr(exploration.dungeon, '_world_seed', 0),
+                            "rpg_progress": rpg_progress_dict,
+                            "difficulty": current_difficulty,
+                        }
+                    else:
+                        game_state = serialize_game_state(
+                            party=party if party else [],
+                            floor_number=exploration.floor_number,
+                            dungeon=exploration.dungeon,
+                            player_x=exploration.player.x,
+                            player_y=exploration.player.y,
+                            inventory=inventory_items,
+                            player_keys=exploration.player_keys if hasattr(exploration, 'player_keys') else [],
+                            traits=[],
+                            passives=[],
+                            difficulty=current_difficulty,
+                            exploration=exploration,
+                            is_multiplayer=is_multiplayer,
+                            session=session,
+                            max_floor_reached=max_floor
+                        )
 
                     # 게임 통계 추가
                     game_state.update({
@@ -323,9 +532,9 @@ def open_game_menu(
                         "save_slot": exploration.game_stats.get("save_slot", None),
                         "next_dungeon_floor": exploration.game_stats.get("next_dungeon_floor", 1),
                     })
-                    
-                    # 인벤토리 정보 추가
-                    if inventory is not None:
+
+                    # 인벤토리 정보 추가 (일반 모드만)
+                    if not is_rpg_mode and inventory is not None:
                         game_state["inventory"] = {
                             "gold": inventory.gold if hasattr(inventory, 'gold') else 0,
                             "base_weight": inventory.base_weight if hasattr(inventory, 'base_weight') else 50.0,
@@ -431,6 +640,11 @@ def open_party_status_menu(
     
     selected_index = 0
     max_index = len(all_party_members) - 1 if all_party_members else 0
+
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
 
     while True:
         render_space_background(console, console.width, console.height)
@@ -581,6 +795,11 @@ def show_character_detail(
     from src.ui.gauge_renderer import GaugeRenderer
     gauge_renderer = GaugeRenderer()
     handler = InputHandler()
+
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
 
     while True:
         render_space_background(console, console.width, console.height)
@@ -822,6 +1041,11 @@ def show_character_detail(
                     if item:
                         console.print(12, y, f"{slot}: {item.name}", fg=(200, 200, 200))
                         y += 1
+                        # 추가옵션 (접사) 표시
+                        if hasattr(item, 'affixes') and item.affixes:
+                            for affix in item.affixes:
+                                console.print(14, y, f"+ {affix.get_description()}", fg=(255, 200, 100))
+                                y += 1
             else:
                 console.print(12, y, "장비 없음", fg=(150, 150, 150))
                 y += 1
@@ -909,9 +1133,45 @@ def show_message(
     
     handler = InputHandler()
 
-    # 메시지 박스
-    box_width = min(60, len(message) + 4)
-    box_height = 7
+    # 메시지 박스 (한글 등 전각 문자의 실제 표시 폭 고려)
+    def _display_width(text: str) -> int:
+        """문자열의 콘솔 표시 폭 계산 (전각 문자 = 2칸)"""
+        w = 0
+        for ch in text:
+            w += 2 if ord(ch) > 0x7F else 1
+        return w
+
+    def _wrap_lines(text: str, max_width: int) -> list:
+        """텍스트를 줄바꿈(\n) 및 폭 제한으로 분리"""
+        raw_lines = text.split('\n')
+        wrapped = []
+        for line in raw_lines:
+            if _display_width(line) <= max_width:
+                wrapped.append(line)
+            else:
+                words = line.split(' ')
+                current = ""
+                for word in words:
+                    test = current + (" " if current else "") + word
+                    if _display_width(test) <= max_width:
+                        current = test
+                    else:
+                        if current:
+                            wrapped.append(current)
+                        current = word
+                if current:
+                    wrapped.append(current)
+        return wrapped if wrapped else [""]
+
+    help_text = "아무 키나 누르세요..."
+    max_inner_width = min(56, console.width - 6)
+    msg_lines = _wrap_lines(message, max_inner_width)
+
+    help_w = _display_width(help_text)
+    content_w = max(max(_display_width(l) for l in msg_lines), help_w)
+    box_width = min(60, content_w + 4)
+    # 테두리(2) + 상단여백(1) + 메시지줄 + 간격(1) + 안내(1) + 하단여백(1)
+    box_height = len(msg_lines) + 5
     box_x = (console.width - box_width) // 2
     box_y = (console.height - box_height) // 2
     
@@ -947,19 +1207,19 @@ def show_message(
             for dx in range(1, box_width - 1):
                 console.print(box_x + dx, box_y + dy, " ", bg=(20, 20, 40))
 
-        # 메시지
-        console.print(
-            box_x + (box_width - len(message)) // 2,
-            box_y + 2,
-            message,
-            fg=(255, 255, 255)
-        )
+        # 메시지 (멀티라인 지원)
+        for i, line in enumerate(msg_lines):
+            console.print(
+                box_x + (box_width - _display_width(line)) // 2,
+                box_y + 2 + i,
+                line,
+                fg=(255, 255, 255)
+            )
 
         # 확인 안내
-        help_text = "아무 키나 누르세요..."
         console.print(
-            box_x + (box_width - len(help_text)) // 2,
-            box_y + 4,
+            box_x + (box_width - _display_width(help_text)) // 2,
+            box_y + box_height - 2,
             help_text,
             fg=(150, 150, 150)
         )
@@ -1014,7 +1274,12 @@ def show_confirm_dialog(
     import time
     
     selected = 0  # 0: 예, 1: 아니오
-    
+
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     while True:
         # 배경 어둡게
         for y in range(console.height):

@@ -110,13 +110,36 @@ class MultiplayerLobby:
         
         # 호스트 정보
         if self.is_host:
-            host_info = f"호스트: {self.network_manager.local_ip}:{self.network_manager.port}"
+            # LAN 주소
+            lan_info = f"LAN: {self.network_manager.local_ip}:{self.network_manager.port}"
             console.print(
-                self.screen_width // 2 - len(host_info) // 2,
+                self.screen_width // 2 - len(lan_info) // 2,
                 8,
-                host_info,
+                lan_info,
                 fg=Colors.UI_TEXT
             )
+
+            # UPnP 외부 접속 정보
+            upnp_ok = getattr(self.network_manager, 'upnp_success', False)
+            ext_ip = getattr(self.network_manager, 'external_ip', None)
+            ext_port = getattr(self.network_manager, '_upnp_mapped_port', None)
+
+            if upnp_ok and ext_ip:
+                ext_info = f"외부: {ext_ip}:{ext_port} (UPnP 자동개방)"
+                console.print(
+                    self.screen_width // 2 - len(ext_info) // 2,
+                    9,
+                    ext_info,
+                    fg=(100, 255, 100)
+                )
+            else:
+                no_upnp = "외부 접속: 수동 포트포워딩 필요"
+                console.print(
+                    self.screen_width // 2 - len(no_upnp) // 2,
+                    9,
+                    no_upnp,
+                    fg=Colors.DARK_GRAY
+                )
         
         # 플레이어 목록
         y = 12
@@ -209,6 +232,11 @@ def show_multiplayer_lobby(
     except Exception as e:
         logger.warning(f"멀티플레이 로비 BGM 재생 실패: {e}")
     
+    # 이전 화면에서 남은 입력 이벤트 제거 (Z키 선입력 방지)
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     ui = MultiplayerLobby(
         screen_width=console.width,
         screen_height=console.height,
@@ -219,8 +247,8 @@ def show_multiplayer_lobby(
         dungeon_data_check=dungeon_data_check,
         lobby_complete_check=lobby_complete_check
     )
-    
-    
+
+
     # 클라이언트: 로비 완료 메시지 핸들러 등록
     if not is_host and lobby_complete_check is not None:
         def handle_lobby_complete(message: Any, sender_id: Optional[str] = None):

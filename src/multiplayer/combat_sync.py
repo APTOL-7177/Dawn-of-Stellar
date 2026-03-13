@@ -39,15 +39,25 @@ class CombatSyncManager:
         self.combat_manager = combat_manager
         self.is_host = is_host
         self.logger = get_logger("multiplayer.combat_sync")
-        
+
+        # ATB 시스템에 호스트/클라이언트 모드 설정
+        if self.combat_manager and hasattr(self.combat_manager, 'atb'):
+            atb_system = self.combat_manager.atb
+            if hasattr(atb_system, 'set_host_mode'):
+                atb_system.set_host_mode(is_host)
+                self.logger.info(f"ATB 호스트 모드 설정: {'호스트' if is_host else '클라이언트'}")
+
+        # 주기적 상태 동기화 (호스트용)
+        self._last_heartbeat_time = 0.0
+        self._heartbeat_interval = 0.2  # 200ms마다 상태 브로드캐스트
+
         # 액션 실행 큐 (호스트용)
         self.action_queue: List[Dict[str, Any]] = []  # [{player_id, actor_id, action, timestamp}, ...]
         
         # 액션 시퀀스 번호 (순서 보장용)
         self.action_sequence = 0
-        self.processed_sequences: Set[int] = set()
         self.last_processed_sequence = -1
-        
+
         # 플레이어별 행동 선택 상태 추적 (ATB 시스템용)
         self.players_selecting_action: Set[str] = set()
         
@@ -58,26 +68,167 @@ class CombatSyncManager:
         if self.network_manager:
             self._register_handlers()
     
+    async def send_heartbeat(self):
+        """
+        주기적 전투 상태 브로드캐스트 (호스트 전용, 200ms 간격)
+
+        호스트가 매 프레임 호출하며, 200ms 간격으로 전체 전투 상태를
+        모든 클라이언트에게 브로드캐스트합니다. 이를 통해:
+        - ATB 게이지가 호스트와 동기화됨
+        - HP/BRV/상태이상이 실시간 반영됨
+        - 클라이언트 간 상태 불일치 최소화
+        """
+        if not self.is_host or not self.network_manager or not self.combat_manager:
+            return
+
+        current_time = time.time()
+        if current_time - self._last_heartbeat_time < self._heartbeat_interval:
+            return
+
+        self._last_heartbeat_time = current_time
+
+        try:
+            state_snapshot = self._get_combat_state_snapshot()
+            if state_snapshot:
+                state_message = MessageBuilder.state_update({
+                    "combat_state": state_snapshot,
+                    "heartbeat": True,
+                    "timestamp": current_time
+                })
+                await self.network_manager.broadcast(state_message)
+        except Exception as e:
+            self.logger.error(f"하트비트 브로드캐스트 실패: {e}", exc_info=True)
+
+    def send_heartbeat_sync(self):
+        """
+        send_heartbeat의 동기 래퍼 (combat_ui에서 호출용)
+
+        asyncio 이벤트 루프가 실행 중인 경우 비동기 하트비트를 스케줄링합니다.
+        """
+        try:
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.send_heartbeat())
+            except RuntimeError:
+                # 이벤트 루프가 없는 경우 무시
+                pass
+        except Exception as e:
+            self.logger.error(f"하트비트 동기 래퍼 실패: {e}", exc_info=True)
+
     def _register_handlers(self):
         """네트워크 메시지 핸들러 등록"""
         try:
             if not self.network_manager:
                 return
-            
+
             # 전투 액션 메시지 핸들러
             self.network_manager.register_handler(
                 MessageType.COMBAT_ACTION,
                 self._handle_combat_action
             )
-            
+
+            # 플레이어 연결 끊김 핸들러 (호스트/클라이언트 모두)
+            self.network_manager.register_handler(
+                MessageType.PLAYER_LEFT,
+                self._handle_player_left
+            )
+
             # 전투 상태 업데이트 메시지 핸들러 (클라이언트만)
             if not self.is_host:
                 self.network_manager.register_handler(
                     MessageType.STATE_UPDATE,
                     self._handle_combat_state_update
                 )
+
+            # 호스트 마이그레이션 핸들러 (모든 노드)
+            self.network_manager.register_handler(
+                MessageType.HOST_MIGRATED,
+                self._handle_host_migrated
+            )
+
+            # 전체 상태 동기화 응답 핸들러 (클라이언트 - 재연결 시)
+            if not self.is_host:
+                self.network_manager.register_handler(
+                    MessageType.FULL_STATE_SYNC,
+                    self._handle_combat_state_update
+                )
+
+            # 전투 상태 요청 핸들러 (호스트용 - 재연결 클라이언트 지원)
+            self.network_manager.register_handler(
+                MessageType.REQUEST_STATE_SYNC,
+                self._handle_request_state_sync
+            )
         except Exception as e:
             self.logger.error(f"네트워크 핸들러 등록 실패: {e}", exc_info=True)
+
+    async def _handle_host_migrated(self, message: NetworkMessage, sender_id: Optional[str] = None):
+        """
+        호스트 마이그레이션 처리
+
+        새로운 호스트 ID가 로컬 플레이어와 일치하면 호스트 역할로 전환합니다.
+        """
+        new_host_id = message.data.get("new_host_id")
+        if not new_host_id:
+            return
+
+        from src.multiplayer.game_mode import get_game_mode_manager
+        game_mode_manager = get_game_mode_manager()
+        local_player_id = getattr(game_mode_manager, 'local_player_id', None)
+
+        if new_host_id == local_player_id:
+            self.logger.info("호스트 마이그레이션: 이 노드가 새로운 호스트로 전환됩니다")
+            self.is_host = True
+
+            # ATB 시스템 호스트 모드 전환
+            if self.combat_manager and hasattr(self.combat_manager, 'atb'):
+                atb = self.combat_manager.atb
+                if hasattr(atb, 'set_host_mode'):
+                    atb.set_host_mode(True)
+
+            # 전투 상태 업데이트 핸들러 해제 (호스트는 수신 불필요)
+            if self.network_manager:
+                self.network_manager.unregister_handler(
+                    MessageType.STATE_UPDATE,
+                    self._handle_combat_state_update
+                )
+
+            # 이벤트 버스로 마이그레이션 전파 (EnemySyncManager 등 다른 시스템에 알림)
+            from src.core.event_bus import event_bus
+            event_bus.publish("multiplayer.host_migrated", {
+                "new_host_id": new_host_id,
+                "is_new_host": True
+            })
+
+            # 즉시 전체 상태 브로드캐스트 (새 호스트로서)
+            await self.send_heartbeat()
+        else:
+            self.logger.info(f"호스트 마이그레이션: 새 호스트 = {new_host_id}")
+
+    async def _handle_request_state_sync(self, message: NetworkMessage, sender_id: Optional[str] = None):
+        """
+        전투 상태 동기화 요청 처리 (호스트용 - 재연결 클라이언트 지원)
+        """
+        if not self.is_host or not self.combat_manager or not self.network_manager:
+            return
+
+        self.logger.info(f"전투 상태 동기화 요청 수신: {sender_id}")
+        try:
+            state_snapshot = self._get_combat_state_snapshot()
+            if state_snapshot:
+                sync_message = NetworkMessage(
+                    type=MessageType.FULL_STATE_SYNC,
+                    data={
+                        "combat_state": state_snapshot,
+                        "timestamp": time.time()
+                    }
+                )
+                if sender_id and sender_id in self.network_manager.clients:
+                    data = sync_message.to_json().encode('utf-8')
+                    await self.network_manager._send_raw(data, self.network_manager.clients[sender_id])
+                    self.logger.info(f"전체 전투 상태 전송 완료: {sender_id}")
+        except Exception as e:
+            self.logger.error(f"전투 상태 동기화 응답 실패: {e}", exc_info=True)
     
     async def send_action_request(
         self,
@@ -271,7 +422,87 @@ class CombatSyncManager:
             
         except Exception as e:
             self.logger.error(f"전투 액션 처리 실패: {e}", exc_info=True)
-    
+
+    async def _handle_player_left(
+        self,
+        message: NetworkMessage,
+        sender_id: Optional[str] = None
+    ):
+        """
+        플레이어 연결 끊김 처리 (전투 중)
+
+        연결이 끊긴 플레이어의 캐릭터를 전투에서 제거하고
+        해당 플레이어의 행동 대기 상태를 해제합니다.
+
+        Args:
+            message: PLAYER_LEFT 메시지
+            sender_id: 발신자 ID
+        """
+        try:
+            left_player_id = message.player_id or sender_id
+            if not left_player_id:
+                self.logger.warning("PLAYER_LEFT 메시지에 플레이어 ID가 없습니다")
+                return
+
+            self.logger.info(f"전투 중 플레이어 연결 끊김: {left_player_id}")
+
+            # 1. 해당 플레이어의 행동 선택 상태 해제 (무한 대기 방지)
+            self._set_player_selecting(left_player_id, False)
+
+            # 2. 타임아웃 태스크 취소
+            self._cancel_timeout_task(left_player_id)
+
+            # 3. 호스트인 경우: 해당 플레이어의 캐릭터를 전투에서 제거
+            if self.is_host and self.combat_manager:
+                allies_to_remove = []
+
+                if hasattr(self.combat_manager, 'allies'):
+                    for ally in self.combat_manager.allies:
+                        ally_player_id = self._get_player_id_from_character(ally)
+                        if ally_player_id == left_player_id:
+                            allies_to_remove.append(ally)
+
+                for ally in allies_to_remove:
+                    try:
+                        self.combat_manager.allies.remove(ally)
+                        ally_name = getattr(ally, 'name', 'Unknown')
+                        self.logger.info(
+                            f"연결 끊긴 플레이어의 캐릭터 전투에서 제거: {ally_name}"
+                        )
+
+                        # ATB 게이지 제거
+                        if hasattr(self.combat_manager, 'atb'):
+                            atb = self.combat_manager.atb
+                            if hasattr(atb, 'remove_gauge'):
+                                atb.remove_gauge(ally)
+                            elif hasattr(atb, 'gauges'):
+                                atb.gauges.pop(ally, None)
+                    except Exception as e:
+                        self.logger.error(f"캐릭터 제거 실패: {e}", exc_info=True)
+
+                # Party 객체 갱신 (남은 아군으로 재생성)
+                if allies_to_remove and hasattr(self.combat_manager, 'party'):
+                    try:
+                        from src.character.party import Party
+                        self.combat_manager.party = Party(list(self.combat_manager.allies))
+                    except Exception as e:
+                        self.logger.error(f"Party 객체 갱신 실패: {e}", exc_info=True)
+
+                # 변경사항 브로드캐스트
+                if allies_to_remove and self.network_manager:
+                    try:
+                        state_message = MessageBuilder.state_update({
+                            "combat_state": self._get_combat_state_snapshot(),
+                            "player_left": left_player_id,
+                            "timestamp": time.time()
+                        })
+                        await self.network_manager.broadcast(state_message)
+                    except Exception as e:
+                        self.logger.error(f"플레이어 퇴장 브로드캐스트 실패: {e}", exc_info=True)
+
+        except Exception as e:
+            self.logger.error(f"플레이어 연결 끊김 처리 실패: {e}", exc_info=True)
+
     async def _process_action_locally(
         self,
         player_id: str,
@@ -352,6 +583,29 @@ class CombatSyncManager:
                 **kwargs
             )
 
+            # ATB 소비 보장: execute_action 내부에서 소비되지 않은 경우 명시적으로 소비
+            if hasattr(self.combat_manager, 'atb'):
+                gauge = self.combat_manager.atb.get_gauge(actor)
+                if gauge and gauge.can_act:
+                    # ATB가 아직 가득 차 있다면 소비되지 않은 것
+                    self.combat_manager.atb.consume_atb(actor)
+                    self.logger.debug(f"ATB 명시적 소비 (멀티플레이 보장): {getattr(actor, 'name', 'Unknown')}")
+
+            # 도망 성공 시 전체 도망 브로드캐스트
+            if (isinstance(result, dict) and result.get("action") == "flee"
+                    and result.get("success") and self.network_manager):
+                flee_message = MessageBuilder.state_update({
+                    "flee_result": {
+                        "success": True,
+                        "player_id": player_id,
+                        "all_allies_fled": result.get("all_allies_fled", False)
+                    },
+                    "combat_state": self._get_combat_state_snapshot(),
+                    "timestamp": time.time()
+                })
+                await self.network_manager.broadcast(flee_message)
+                self.logger.info(f"도망 성공 브로드캐스트: {player_id}")
+
             # 모든 클라이언트에게 액션 결과 브로드캐스트
             if self.network_manager:
                 # 시퀀스 증가 (호스트 authoritative 순서)
@@ -403,8 +657,19 @@ class CombatSyncManager:
                 return
             
             data = message.data.get("data", {})
+
+            # 도망 결과 처리 (모든 클라이언트)
+            flee_result = data.get("flee_result")
+            if flee_result and flee_result.get("success"):
+                self.logger.info(
+                    f"도망 결과 수신: 플레이어 {flee_result.get('player_id')} 도망 성공"
+                )
+                if self.combat_manager:
+                    self.combat_manager.state = CombatState.FLED
+                    self.logger.info("전체 아군 도망 처리 완료 (클라이언트)")
+
             combat_action = data.get("combat_action")
-            
+
             if combat_action:
                 sequence = combat_action.get("sequence")
                 if isinstance(sequence, int):
@@ -415,18 +680,31 @@ class CombatSyncManager:
 
                 # 액션 동기화 실행
                 await self._sync_remote_action(combat_action)
-                
+
                 # 내 액션에 대한 응답이라면 타임아웃 취소 및 UI 잠금 해제
                 # (단, _sync_remote_action에서 로컬 플레이어 액션은 스킵하므로 여기서 처리)
                 action_player_id = combat_action.get("player_id")
                 from src.multiplayer.game_mode import get_game_mode_manager
                 game_mode_manager = get_game_mode_manager()
                 local_player_id = getattr(game_mode_manager, 'local_player_id', None)
-                
+
                 if action_player_id == local_player_id:
                     self._cancel_timeout_task(local_player_id)
                     self._set_player_selecting(local_player_id, False)
-            
+
+                    # 로컬 플레이어 ATB 소비 보장 (호스트에서 처리됐지만 클라이언트에서 미반영될 수 있음)
+                    actor_id = combat_action.get("actor_id")
+                    if actor_id and self.combat_manager and hasattr(self.combat_manager, 'atb'):
+                        actor = self._find_character_by_id(actor_id)
+                        if actor:
+                            gauge = self.combat_manager.atb.get_gauge(actor)
+                            if gauge and gauge.can_act:
+                                self.combat_manager.atb.consume_atb(actor)
+                                self.logger.debug(
+                                    f"로컬 플레이어 ATB 소비 보장: "
+                                    f"{getattr(actor, 'name', 'Unknown')}"
+                                )
+
             # 전투 상태 스냅샷 동기화
             combat_state = data.get("combat_state")
             if combat_state:
@@ -463,22 +741,82 @@ class CombatSyncManager:
             game_mode_manager = get_game_mode_manager()
             local_player_id = getattr(game_mode_manager, 'local_player_id', None)
             
-            if player_id == local_player_id:
-                # 로컬 플레이어의 액션은 이미 실행되었으므로 스킵
-                return
+            # 로컬 플레이어의 액션도 호스트 결과로 상태를 덮어써서 authoritative 동기화
+            # (클라이언트는 로컬에서 액션을 실행하지 않으므로 호스트 결과 적용 필수)
             
             # 액션 타입 변환
             action_type = ActionType(action_type_str) if action_type_str else None
-            
+
             if not action_type:
                 self.logger.warning(f"알 수 없는 액션 타입: {action_type_str}")
                 return
-            
-            # 결과 정보만 표시 (실제 실행은 호스트에서만)
-            # 클라이언트는 결과만 동기화하여 UI 업데이트
-            
-            self.logger.debug(f"원격 액션 동기화: {player_id} -> {getattr(actor, 'name', 'Unknown')}")
-            
+
+            # 원격 액션 결과를 로컬 상태에 반영
+            # 호스트가 실행한 결과(HP/BRV 변동 등)를 클라이언트 측 캐릭터에 적용
+
+            # 타겟 찾기
+            target_id = action_data.get("target_id")
+            target = self._find_character_by_id(target_id) if target_id else None
+
+            # result에 포함된 상태 변화 적용
+            if isinstance(result, dict):
+                # HP 변동 적용
+                damage = result.get("damage") or result.get("hp_damage")
+                if damage and target:
+                    target.current_hp = max(0, target.current_hp - damage)
+                    if target.current_hp <= 0:
+                        target.is_alive = False
+
+                # BRV 변동 적용
+                brv_damage = result.get("brv_damage")
+                if brv_damage and target:
+                    target.current_brv = max(0, getattr(target, 'current_brv', 0) - brv_damage)
+
+                brv_stolen = result.get("brv_stolen") or result.get("brv_gain")
+                if brv_stolen and actor:
+                    actor.current_brv = getattr(actor, 'current_brv', 0) + brv_stolen
+
+                # 힐링 적용
+                heal_amount = result.get("heal_amount") or result.get("healing")
+                if heal_amount and target:
+                    max_hp = getattr(target, 'max_hp', target.current_hp + heal_amount)
+                    target.current_hp = min(max_hp, target.current_hp + heal_amount)
+
+                # MP 소비 적용
+                mp_cost = result.get("mp_cost")
+                if mp_cost and actor:
+                    actor.current_mp = max(0, getattr(actor, 'current_mp', 0) - mp_cost)
+
+                # BREAK 상태 적용
+                is_break = result.get("is_break") or result.get("break")
+                if is_break and target:
+                    was_broken = getattr(target, 'is_broken', False)
+                    target.is_broken = True
+                    target.current_brv = 0
+                    # BREAK 이벤트 로컬 발행 (ATB 게이지 리셋 등)
+                    if not was_broken:
+                        from src.core.event_bus import event_bus
+                        event_bus.publish("brave.break", {
+                            "attacker": actor,
+                            "defender": target,
+                            "brv_stolen": result.get("brv_stolen", 0),
+                            "_synced": True
+                        })
+
+                # 사망 처리
+                if result.get("target_killed") and target:
+                    target.is_alive = False
+                    target.current_hp = 0
+
+            # ATB 소비 (원격 액터의 ATB 리셋)
+            if self.combat_manager and hasattr(self.combat_manager, 'atb'):
+                self.combat_manager.atb.consume_atb(actor)
+
+            self.logger.debug(
+                f"원격 액션 동기화 완료: {player_id} -> {getattr(actor, 'name', 'Unknown')} "
+                f"({action_type.value}), 결과: {list(result.keys()) if isinstance(result, dict) else result}"
+            )
+
         except Exception as e:
             self.logger.error(f"원격 액션 동기화 실패: {e}", exc_info=True)
     
@@ -497,14 +835,40 @@ class CombatSyncManager:
             allies_state = state_data.get("allies", [])
             enemies_state = state_data.get("enemies", [])
             
+            # 적 수 동기화: 호스트에 있지만 클라이언트에 없는 적 수 맞추기
+            if enemies_state and self.combat_manager:
+                local_enemy_count = len(self.combat_manager.enemies)
+                remote_enemy_count = len(enemies_state)
+                if remote_enemy_count != local_enemy_count:
+                    self.logger.warning(
+                        f"적 수 불일치: 로컬={local_enemy_count}, 호스트={remote_enemy_count}"
+                    )
+
             # 캐릭터 상태 업데이트 (HP, MP, BRV, 상태이상 등)
             for char_data in allies_state + enemies_state:
                 char_id = char_data.get("id")
                 if not char_id:
                     continue
-                
+
                 character = self._find_character_by_id(char_id)
                 if not character:
+                    # 인덱스 기반 ID인 경우 해당 인덱스의 캐릭터에 직접 매핑 시도
+                    if char_id.startswith("enemy_") and self.combat_manager:
+                        try:
+                            idx = int(char_id.split("_")[1])
+                            if 0 <= idx < len(self.combat_manager.enemies):
+                                character = self.combat_manager.enemies[idx]
+                        except (ValueError, IndexError):
+                            pass
+                    elif char_id.startswith("ally_") and self.combat_manager:
+                        try:
+                            idx = int(char_id.split("_")[1])
+                            if 0 <= idx < len(self.combat_manager.allies):
+                                character = self.combat_manager.allies[idx]
+                        except (ValueError, IndexError):
+                            pass
+                if not character:
+                    self.logger.debug(f"동기화 대상 캐릭터 찾기 실패: {char_id}")
                     continue
                 
                 # 상태 동기화
@@ -516,24 +880,94 @@ class CombatSyncManager:
                     character.current_brv = char_data.get("current_brv", 0)
                 if "is_alive" in char_data:
                     character.is_alive = char_data["is_alive"]
+                if "is_ghost" in char_data:
+                    character.is_ghost = char_data["is_ghost"]
+
+                # BREAK 상태 동기화 (상태 변경 시 로컬 이벤트 발행하여 ATB 리셋 등 연동)
+                if "is_broken" in char_data:
+                    was_broken = getattr(character, 'is_broken', False)
+                    character.is_broken = char_data["is_broken"]
+                    # BREAK 상태로 새로 전환된 경우 로컬 이벤트 발행 (ATB 게이지 리셋 등)
+                    if char_data["is_broken"] and not was_broken:
+                        from src.core.event_bus import event_bus
+                        event_bus.publish("brave.break", {
+                            "defender": character,
+                            "attacker": None,
+                            "brv_stolen": 0,
+                            "_synced": True  # 네트워크 동기화에 의한 이벤트 표시
+                        })
+
+                # 상태이상 동기화 (증분 방식: 기존 객체 재사용으로 콜백 보존)
+                if "status_effects" in char_data and hasattr(character, 'status_manager'):
+                    try:
+                        from src.combat.status_effects import StatusEffect, StatusType
+                        existing_effects = list(character.status_manager.status_effects)
+                        remote_effects = char_data["status_effects"]
+
+                        # 원격 상태이상을 (name, status_type) 키로 인덱싱
+                        remote_map = {}
+                        for eff_data in remote_effects:
+                            key = (eff_data.get("name", ""), eff_data.get("status_type", ""))
+                            remote_map[key] = eff_data
+
+                        # 기존 효과 중 원격에도 있는 것은 유지하며 값만 갱신
+                        new_effects = []
+                        matched_keys = set()
+                        for effect in existing_effects:
+                            key = (effect.name, effect.status_type.value if hasattr(effect.status_type, 'value') else str(effect.status_type))
+                            if key in remote_map:
+                                eff_data = remote_map[key]
+                                effect.duration = eff_data.get("duration", effect.duration)
+                                effect.intensity = eff_data.get("intensity", effect.intensity)
+                                effect.stack_count = eff_data.get("stack_count", 1)
+                                new_effects.append(effect)
+                                matched_keys.add(key)
+                            # 원격에 없는 효과는 제거 (new_effects에 추가하지 않음)
+
+                        # 원격에만 있는 새 효과 추가
+                        for key, eff_data in remote_map.items():
+                            if key not in matched_keys:
+                                try:
+                                    status_type = StatusType(eff_data.get("status_type", ""))
+                                    effect = StatusEffect(
+                                        name=eff_data.get("name", ""),
+                                        status_type=status_type,
+                                        duration=eff_data.get("duration", 0),
+                                        intensity=eff_data.get("intensity", 1.0),
+                                    )
+                                    effect.stack_count = eff_data.get("stack_count", 1)
+                                    new_effects.append(effect)
+                                except (ValueError, TypeError):
+                                    self.logger.debug(f"상태이상 동기화 스킵: {eff_data}")
+
+                        character.status_manager.status_effects = new_effects
+                    except ImportError:
+                        self.logger.debug("상태이상 모듈 임포트 실패, 동기화 스킵")
+
+                # 활성 버프 동기화
+                if "active_buffs" in char_data:
+                    if not hasattr(character, 'active_buffs'):
+                        character.active_buffs = {}
+                    character.active_buffs = char_data["active_buffs"].copy() if char_data["active_buffs"] else {}
 
                 # ATB 게이지 동기화
                 if self.combat_manager and hasattr(self.combat_manager, 'atb'):
                     gauge = self.combat_manager.atb.get_gauge(character)
                     if gauge:
-                        atb_current = char_data.get("atb_current")
-                        if atb_current is not None:
-                            try:
-                                gauge.current = max(0, min(float(atb_current), gauge.max_gauge))
-                            except (TypeError, ValueError):
-                                self.logger.debug(f"ATB 동기화 값 무시: {atb_current}")
-
+                        # atb_max를 먼저 갱신한 후 current를 클램핑해야 올바른 범위가 적용됨
                         atb_max = char_data.get("atb_max")
                         if atb_max is not None:
                             try:
                                 gauge.max_gauge = max(1, int(atb_max))
                             except (TypeError, ValueError):
                                 self.logger.debug(f"ATB 최대치 동기화 값 무시: {atb_max}")
+
+                        atb_current = char_data.get("atb_current")
+                        if atb_current is not None:
+                            try:
+                                gauge.current = max(0, min(float(atb_current), gauge.max_gauge))
+                            except (TypeError, ValueError):
+                                self.logger.debug(f"ATB 동기화 값 무시: {atb_current}")
             
             # 전투 상태 동기화
             combat_state_str = state_data.get("combat_state")
@@ -810,9 +1244,30 @@ class CombatSyncManager:
                 "current_mp": getattr(character, 'current_mp', 0),
                 "max_mp": getattr(character, 'max_mp', 0),
                 "current_brv": getattr(character, 'current_brv', 0),
-                "is_alive": getattr(character, 'is_alive', True)
+                "is_alive": getattr(character, 'is_alive', True),
+                "is_ghost": getattr(character, 'is_ghost', False),
+                "is_broken": getattr(character, 'is_broken', False),
             }
-            
+
+            # 상태이상 직렬화 (status_manager 우선, 없으면 status_effects 직접 참조)
+            status_effects_data = []
+            if hasattr(character, 'status_manager') and hasattr(character.status_manager, 'status_effects'):
+                for effect in character.status_manager.status_effects:
+                    status_effects_data.append({
+                        "name": getattr(effect, 'name', ''),
+                        "status_type": effect.status_type.value if hasattr(effect, 'status_type') and hasattr(effect.status_type, 'value') else str(getattr(effect, 'status_type', '')),
+                        "duration": getattr(effect, 'duration', 0),
+                        "intensity": getattr(effect, 'intensity', 1.0),
+                        "stack_count": getattr(effect, 'stack_count', 1),
+                    })
+            char_data["status_effects"] = status_effects_data
+
+            # 활성 버프 직렬화
+            active_buffs_data = {}
+            if hasattr(character, 'active_buffs') and character.active_buffs:
+                active_buffs_data = character.active_buffs.copy()
+            char_data["active_buffs"] = active_buffs_data
+
             # ATB 게이지 상태
             if self.combat_manager and hasattr(self.combat_manager, 'atb'):
                 gauge = self.combat_manager.atb.get_gauge(character)
@@ -820,7 +1275,7 @@ class CombatSyncManager:
                     char_data["atb_current"] = gauge.current
                     char_data["atb_max"] = gauge.max_gauge
                     char_data["atb_can_act"] = gauge.can_act
-            
+
             return char_data
         except Exception as e:
             self.logger.error(f"캐릭터 상태 추출 실패: {e}", exc_info=True)
@@ -858,30 +1313,48 @@ class CombatSyncManager:
     def _get_character_id(self, character: Any) -> Optional[str]:
         """
         캐릭터 ID 추출
-        
+
         Args:
             character: 캐릭터 객체
-            
+
         Returns:
             캐릭터 ID (없으면 None)
         """
         try:
             if not character:
                 return None
-            
+
             # ID 속성 확인
-            if hasattr(character, 'id'):
-                return str(getattr(character, 'id'))
-            
-            if hasattr(character, 'character_id'):
-                return str(getattr(character, 'character_id'))
-            
-            # 임시 ID 생성 (위치 기반)
+            if hasattr(character, 'id') and getattr(character, 'id', None) is not None:
+                return str(character.id)
+
+            if hasattr(character, 'character_id') and getattr(character, 'character_id', None) is not None:
+                return str(character.character_id)
+
+            # 이름 기반 ID 생성 (Character 객체용)
+            # player_id가 있으면 포함하여 고유성 보장 (멀티플레이 시 같은 직업 선택 가능)
+            name = getattr(character, 'name', None)
+            if name:
+                player_id = getattr(character, 'player_id', None)
+                if player_id:
+                    return f"{player_id}_{name}"
+                return f"name_{name}"
+
+            # 인덱스 기반 안정 ID (전투 중 위치 변경에 무관)
+            if self.combat_manager:
+                for i, enemy in enumerate(self.combat_manager.enemies):
+                    if enemy is character:
+                        return f"enemy_{i}"
+                for i, ally in enumerate(self.combat_manager.allies):
+                    if ally is character:
+                        return f"ally_{i}"
+
+            # 위치 기반 ID (최후 폴백)
             if hasattr(character, 'x') and hasattr(character, 'y'):
                 x = getattr(character, 'x', 0)
                 y = getattr(character, 'y', 0)
                 return f"char_{x}_{y}"
-            
+
             return None
         except Exception as e:
             self.logger.error(f"캐릭터 ID 추출 실패: {e}", exc_info=True)

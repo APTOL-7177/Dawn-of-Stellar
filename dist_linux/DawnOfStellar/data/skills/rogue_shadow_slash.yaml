@@ -1,0 +1,31 @@
+id: rogue_umbra_ictus
+name: 움브라 익투스
+type: attack
+description: '[암흑 속성] 그림자에서 파고드는 기본 BRV 공격입니다.
+
+  BRV 1.1 피해를 주고 농락을 소폭 축적합니다.
+
+  '
+target: enemy
+metadata:
+  job: rogue
+  basic_attack: true
+  mockery_gain: 1
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 1.1
+  element: dark
+- type: custom
+  handler: add_mockery
+  value: 1
+animation:
+  icon: ??
+  color:
+  - 80
+  - 80
+  - 120
+sfx:
+- se
+- Slash1

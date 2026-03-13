@@ -1,0 +1,34 @@
+# 게임패드 버튼 매핑 설정
+# 버튼 ID는 0부터 시작하며, 게임패드 종류에 따라 다를 수 있습니다.
+#
+# Xbox 컨트롤러 기준:
+# 0: A 버튼 (확인)      1: B 버튼 (취소)      2: X 버튼 (공격)      3: Y 버튼 (상호작용)
+# 4: LB (인벤토리)      5: RB (캐릭터)        6: Back/View (메뉴)    7: Start (탈출)
+# 8: Left Stick Click   9: Right Stick Click
+#
+# PlayStation 컨트롤러 (DualSense 포함):
+# 0: ✕ (확인)           1: ○ (취소)           2: □ (공격)           3: △ (상호작용)
+# 4: L1 (인벤토리)      5: R1 (캐릭터)        6: Select (메뉴)      7: Start (탈출)
+# 8: L3 (스킬)          9: R3 (줍기)
+#
+# Nintendo Switch:
+# 0: B (취소)           1: A (확인)           2: Y (상호작용)       3: X (공격)
+# 4: L (인벤토리)       5: R (캐릭터)         6: - (메뉴)           7: + (탈출)
+# 8: Left Stick         9: Right Stick
+
+layout: playstation    # 게임패드 레이아웃 (듀얼센스 = playstation)
+deadzone: 0.3          # 아날로그 스틱 데드존 (0.0-1.0, 기본값: 0.3)
+
+# 버튼 매핑 (표준 레이아웃)
+button_mappings:
+  0: confirm          # A/✕/B 버튼 - 확인/선택
+  1: cancel           # B/○/A 버튼 - 취소
+  9: attack           # X/□/Y 버튼 - 공격
+  2: interact         # Y/△/X 버튼 - 상호작용/수집
+  3: open_inventory   # LB/L1/L 버튼 - 인벤토리 열기
+  5: open_character   # RB/R1/R 버튼 - 캐릭터 창 열기 ★★★
+  6: menu             # Back/Select/- 버튼 - 메뉴
+  7: escape           # Start/Start/+ 버튼 - 탈출/일시정지
+  8: open_skills      # Left Stick/L3 - 스킬 창
+  4: pickup           # Right Stick/R3 - 아이템 줍기
+

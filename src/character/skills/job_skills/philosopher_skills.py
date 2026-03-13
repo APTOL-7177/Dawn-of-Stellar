@@ -11,18 +11,18 @@ def create_philosopher_skills():
     """철학자 10개 스킬 생성 (딜레마 선택 시스템)"""
 
     # 1. 기본 BRV: 철학적 타격
-    philosophical_strike = Skill("philosopher_strike", "철학적 타격", "기본 마법 공격")
+    philosophical_strike = Skill("philosopher_strike", "철학적 타격", "[신성 속성] 기본 마법 공격")
     philosophical_strike.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
+        DamageEffect(DamageType.BRV, 0.98, stat_type="magical", element="holy")
     ]
     philosophical_strike.costs = []  # 기본 공격은 MP 소모 없음
     philosophical_strike.sfx = ("skill", "cast_start")  # 철학적 타격
     philosophical_strike.metadata = {}
 
     # 2. 기본 HP: 진리의 일격
-    truth_strike = Skill("philosopher_truth_strike", "진리의 일격", "HP 마법 공격")
+    truth_strike = Skill("philosopher_truth_strike", "진리의 일격", "[신성 속성] HP 마법 공격")
     truth_strike.effects = [
-        DamageEffect(DamageType.HP, 1.2, stat_type="magical")
+        DamageEffect(DamageType.HP, 0.78, stat_type="magical", element="holy")
     ]
     truth_strike.costs = []  # 기본 공격은 MP 소모 없음
     truth_strike.sfx = ("skill", "cast_complete")  # 진리의 일격
@@ -46,7 +46,7 @@ def create_philosopher_skills():
     choose_wisdom.effects = [
         GimmickEffect(GimmickOperation.ADD, "choice_wisdom", 1, max_value=99),  # 지혜 선택 카운트 +1
         BuffEffect(BuffType.MAGIC_UP, 0.5, duration=3, target="self"),
-        DamageEffect(DamageType.BRV, 1.8, stat_type="magical")
+        DamageEffect(DamageType.BRV, 1.17, stat_type="magical")
     ]
     choose_wisdom.costs = [MPCost(6)]
     choose_wisdom.target_type = "self"
@@ -81,10 +81,10 @@ def create_philosopher_skills():
     choose_survival.metadata = {"dilemma": "sacrifice_survival", "choice": "survival"}
 
     # 7. 진실 선택 (적 디버프 - 방어력↓ 명중↓)
-    choose_truth = Skill("philosopher_choose_truth", "진실 선택", "적 방어↓ 명중↓")
+    choose_truth = Skill("philosopher_choose_truth", "진실 선택", "[신성 속성] 적 방어↓ 명중↓")
     choose_truth.effects = [
         GimmickEffect(GimmickOperation.ADD, "choice_truth", 1, max_value=99),  # 진실 선택 카운트 +1
-        DamageEffect(DamageType.BRV, 1.6, stat_type="magical"),
+        DamageEffect(DamageType.BRV, 1.04, stat_type="magical", element="holy"),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4),
         BuffEffect(BuffType.ACCURACY_DOWN, 0.3, duration=4)
     ]
@@ -94,10 +94,10 @@ def create_philosopher_skills():
     choose_truth.metadata = {"dilemma": "truth_lie", "choice": "truth"}
 
     # 8. 거짓 선택 (자신 버프 - 공격↑ 속도↑)
-    choose_lie = Skill("philosopher_choose_lie", "거짓 선택", "자신 공격↑ 속도↑")
+    choose_lie = Skill("philosopher_choose_lie", "거짓 선택", "[암흑 속성] 자신 공격↑ 속도↑")
     choose_lie.effects = [
         GimmickEffect(GimmickOperation.ADD, "choice_lie", 1, max_value=99),  # 거짓 선택 카운트 +1
-        DamageEffect(DamageType.BRV, 1.6, stat_type="magical"),
+        DamageEffect(DamageType.BRV, 1.04, stat_type="magical", element="dark"),
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=4, target="self"),
         BuffEffect(BuffType.SPEED_UP, 0.3, duration=4, target="self")
     ]
@@ -108,7 +108,7 @@ def create_philosopher_skills():
     choose_lie.metadata = {"dilemma": "truth_lie", "choice": "lie"}
 
     # 9. 균형의 철학 (모든 선택 초기화, 균형 버프)
-    balanced_philosophy = Skill("philosopher_balanced", "균형의 철학", "모든 선택 초기화 + 균형 버프")
+    balanced_philosophy = Skill("philosopher_balanced", "균형의 철학", "[신성 속성] 모든 선택 초기화 + 균형 버프")
     balanced_philosophy.effects = [
         # 모든 선택 초기화
         GimmickEffect(GimmickOperation.SET, "choice_power", 0),
@@ -122,7 +122,7 @@ def create_philosopher_skills():
         BuffEffect(BuffType.MAGIC_UP, 0.3, duration=5, target="self"),
         BuffEffect(BuffType.DEFENSE_UP, 0.3, duration=5, target="self"),
         BuffEffect(BuffType.SPEED_UP, 0.3, duration=5, target="self"),
-        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="magical")
+        DamageEffect(DamageType.BRV_HP, 1.62, stat_type="magical", element="holy")
     ]
     balanced_philosophy.costs = [MPCost(12)]
     balanced_philosophy.target_type = "self"
@@ -131,14 +131,14 @@ def create_philosopher_skills():
     balanced_philosophy.metadata = {"reset_choices": True}
 
     # 10. 궁극기: 철학자의 돌
-    ultimate = Skill("philosopher_ultimate", "철학자의 돌", "선택의 결정체, 극한의 공격")
+    ultimate = Skill("philosopher_ultimate", "철학자의 돌", "[신성 속성] 선택의 결정체, 극한의 공격")
     ultimate.effects = [
         # 극대 공격 (선택 누적에 비례)
-        DamageEffect(DamageType.BRV, 3.0, stat_type="magical",
+        DamageEffect(DamageType.BRV, 1.95, stat_type="magical", element="holy",
                     gimmick_bonus={"field": "choice_power", "multiplier": 0.03}),
-        DamageEffect(DamageType.BRV, 3.0, stat_type="magical",
+        DamageEffect(DamageType.BRV, 1.95, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "choice_wisdom", "multiplier": 0.03}),
-        DamageEffect(DamageType.HP, 3.5, stat_type="magical"),
+        DamageEffect(DamageType.HP, 2.27, stat_type="magical", element="holy"),
         # 모든 선택 효과 동시 발동
         BuffEffect(BuffType.ATTACK_UP, 0.8, duration=5, target="self"),
         BuffEffect(BuffType.MAGIC_UP, 0.8, duration=5, target="self"),

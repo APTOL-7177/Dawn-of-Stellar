@@ -12,6 +12,7 @@ from src.character.skills.effects.gimmick_effect import GimmickEffect, GimmickOp
 from src.character.skills.effects.heal_effect import HealEffect, HealType
 from src.character.skills.effects.buff_effect import BuffEffect, BuffType
 from src.character.skills.costs.mp_cost import MPCost
+from src.character.skills.costs.hp_cost import HPCost
 from src.core.logger import get_logger
 
 logger = get_logger("gladiator_skills")
@@ -68,10 +69,10 @@ def create_gladiator_skills():
     spectacular = Skill(
         "gladiator_spectacular",
         "화려한 공격",
-        "화려한 쇼맨십! 환호 +15."
+        "[화염 속성] 화려한 쇼맨십! 환호 +15."
     )
     spectacular.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="physical"),
+        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="physical", element="fire"),
         GimmickEffect(GimmickOperation.ADD, "cheer", 15, max_value=100)
     ]
     spectacular.costs = [MPCost(5)]
@@ -130,10 +131,10 @@ def create_gladiator_skills():
     glory_strike = Skill(
         "gladiator_glory_strike",
         "영광의 일격",
-        "환호 30 소비, 극강 공격."
+        "[화염 속성] 환호 30 소비, 극강 공격."
     )
     glory_strike.effects = [
-        DamageEffect(DamageType.BRV_HP, 3.0, stat_type="physical",
+        DamageEffect(DamageType.BRV_HP, 3.0, stat_type="physical", element="fire",
                     gimmick_bonus={"field": "cheer", "multiplier": 0.02}),
         GimmickEffect(GimmickOperation.ADD, "cheer", -30, min_value=0)
     ]
@@ -218,12 +219,12 @@ def create_gladiator_skills():
     ultimate = Skill(
         "gladiator_ultimate",
         "검투사의 영광",
-        "환호 MAX! 무적 3턴 + 극대 피해."
+        "[화염 속성] 환호 MAX! 무적 3턴 + 극대 피해."
     )
     ultimate.effects = [
         GimmickEffect(GimmickOperation.SET, "cheer", 100),
-        DamageEffect(DamageType.BRV, 3.2, stat_type="physical"),
-        DamageEffect(DamageType.HP, 3.4, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 3.2, stat_type="physical", element="fire"),
+        DamageEffect(DamageType.HP, 3.4, stat_type="physical", element="earth"),
         BuffEffect(BuffType.INVINCIBLE, 1.0, duration=3),
         BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5, target="self"),
         BuffEffect(BuffType.CRITICAL_UP, 0.4, duration=5, target="self")
@@ -245,12 +246,12 @@ def create_gladiator_skills():
     teamwork = TeamworkSkill(
         "gladiator_teamwork",
         "군중의 환호",
-        "관중 폭발! BRV+HP 공격 + 환호 +30 + 방어 버프.",
+        "[화염 속성] 관중 폭발! BRV+HP 공격 + 환호 +30 + 방어 버프.",
         gauge_cost=150
     )
     teamwork.effects = [
-        DamageEffect(DamageType.BRV, 2.0, stat_type="physical"),
-        DamageEffect(DamageType.HP, 1.5, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 2.0, stat_type="physical", element="fire"),
+        DamageEffect(DamageType.HP, 1.5, stat_type="physical", element="earth"),
         GimmickEffect(GimmickOperation.ADD, "cheer", 30, max_value=100),
         BuffEffect(BuffType.DEFENSE_UP, 0.2, duration=2, target="self")
     ]

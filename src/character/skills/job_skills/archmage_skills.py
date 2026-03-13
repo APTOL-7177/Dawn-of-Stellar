@@ -42,7 +42,7 @@ def create_archmage_skills():
     # 1. 기본 BRV: 화염구
     fireball = Skill("archmage_fireball", "화염구", "[화염 속성] 화염 원소 획득")
     fireball.effects = [
-        DamageEffect(DamageType.BRV, 1.6, stat_type="magical", element="fire"),
+        DamageEffect(DamageType.BRV, 1.05, stat_type="magical", element="fire"),
         GimmickEffect(GimmickOperation.ADD, "fire_element", 1, max_value=5)
     ]
     fireball.costs = []
@@ -53,7 +53,7 @@ def create_archmage_skills():
     # 2. 기본 HP: 번개 화살
     lightning_bolt = Skill("archmage_lightning_bolt", "번개 화살", "[전기 속성] 번개 원소 획득")
     lightning_bolt.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="magical", element="lightning"),
+        DamageEffect(DamageType.HP, 0.7, stat_type="magical", element="lightning"),
         GimmickEffect(GimmickOperation.ADD, "lightning_element", 1, max_value=5)
     ]
     lightning_bolt.costs = []
@@ -64,7 +64,7 @@ def create_archmage_skills():
     # 3. 빙결 폭풍
     ice_storm = Skill("archmage_ice_storm", "빙결 폭풍", "[빙결 속성] 빙결 원소 획득 광역 공격")
     ice_storm.effects = [
-        DamageEffect(DamageType.BRV, 2.0, stat_type="magical", element="ice"),
+        DamageEffect(DamageType.BRV, 1.3, stat_type="magical", element="ice"),
         GimmickEffect(GimmickOperation.ADD, "ice_element", 1, max_value=5)
     ]
     ice_storm.costs = []
@@ -87,7 +87,7 @@ def create_archmage_skills():
     )
     thunderstorm_inferno.effects = [
         ChainDamageEffect(
-            base_multiplier=1.8,
+            base_multiplier=1.2,
             chain_chance_per_stack=0.20,
             damage_falloff=[0.70, 0.50, 0.30, 0.20, 0.15],
             stat_type="magical"
@@ -113,8 +113,8 @@ def create_archmage_skills():
     )
     arctic_tempest.effects = [
         ElectrocutionEffect(
-            base_brv_multiplier=2.2,
-            base_hp_multiplier=1.2,
+            base_brv_multiplier=1.45,
+            base_hp_multiplier=0.8,
             paralyze_chance_per_stack=0.10,
             atb_slow_per_stack=0.10,
             stat_type="magical"
@@ -140,7 +140,7 @@ def create_archmage_skills():
     )
     paradox_surge.effects = [
         ThermalShockEffect(
-            base_multiplier=2.0,
+            base_multiplier=1.3,
             diff_bonus_per_stack=0.15,
             balance_crit_bonus=0.40,
             balance_crit_multiplier=2.2,
@@ -161,12 +161,13 @@ def create_archmage_skills():
 
     # 7. 메테오
     meteor = Skill("archmage_meteor", "메테오", "3원소 각 2개씩 소비 대마법")
+    # effects 3개가 자연스럽게 3원소 연속 타격 (multi_hit 제거, 배율 ×3 보상)
     meteor.effects = [
-        DamageEffect(DamageType.BRV, 0.5,
+        DamageEffect(DamageType.BRV, 1.0,
                     gimmick_bonus={"field": "fire_element", "multiplier": 0.08}, stat_type="magical"),
-        DamageEffect(DamageType.BRV, 0.5,
+        DamageEffect(DamageType.BRV, 1.0,
                     gimmick_bonus={"field": "ice_element", "multiplier": 0.08}, stat_type="magical"),
-        DamageEffect(DamageType.HP, 0.7,
+        DamageEffect(DamageType.HP, 1.4,
                     gimmick_bonus={"field": "lightning_element", "multiplier": 0.1}, stat_type="magical")
     ]
     meteor.costs = [MPCost(15), StackCost("fire_element", 2), StackCost("ice_element", 2), StackCost("lightning_element", 2)]
@@ -179,19 +180,17 @@ def create_archmage_skills():
         "elements": ["fire", "ice", "lightning"],
         "element_cost": 6,
         "aoe": True,
-        # 떨어지는 유성 타수 표현 (타격감/로그용)
-        "multi_hit": 3
     }
     skills.append(meteor)
 
     # 8. 비전 미사일
     arcane_missile = Skill("archmage_arcane_missile", "비전 미사일", "모든 원소 스택 소비 (최소 9개)")
     arcane_missile.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.5,
+        DamageEffect(DamageType.BRV_HP, 1.0,
                     gimmick_bonus={"field": "fire_element", "multiplier": 0.2}, stat_type="magical"),
-        DamageEffect(DamageType.BRV_HP, 0.8,
+        DamageEffect(DamageType.BRV_HP, 0.55,
                     gimmick_bonus={"field": "ice_element", "multiplier": 0.2}, stat_type="magical"),
-        DamageEffect(DamageType.BRV_HP, 0.8,
+        DamageEffect(DamageType.BRV_HP, 0.55,
                     gimmick_bonus={"field": "lightning_element", "multiplier": 0.2}, stat_type="magical"),
         GimmickEffect(GimmickOperation.SET, "fire_element", 0),
         GimmickEffect(GimmickOperation.SET, "ice_element", 0),
@@ -334,13 +333,13 @@ def create_archmage_skills():
     # 15. 궁극기: 원소 대폭발
     ultimate = Skill("archmage_ultimate", "원소 대폭발", "모든 원소를 폭발시켜 파멸")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.0,
+        DamageEffect(DamageType.BRV, 1.3,
                     gimmick_bonus={"field": "fire_element", "multiplier": 0.3}, stat_type="magical"),
-        DamageEffect(DamageType.BRV, 2.0,
+        DamageEffect(DamageType.BRV, 1.3,
                     gimmick_bonus={"field": "ice_element", "multiplier": 0.3}, stat_type="magical"),
-        DamageEffect(DamageType.BRV, 2.0,
+        DamageEffect(DamageType.BRV, 1.3,
                     gimmick_bonus={"field": "lightning_element", "multiplier": 0.3}, stat_type="magical"),
-        DamageEffect(DamageType.HP, 3.2, stat_type="magical"),
+        DamageEffect(DamageType.HP, 2.1, stat_type="magical"),
         GimmickEffect(GimmickOperation.SET, "fire_element", 0),
         GimmickEffect(GimmickOperation.SET, "ice_element", 0),
         GimmickEffect(GimmickOperation.SET, "lightning_element", 0)
@@ -362,15 +361,15 @@ def create_archmage_skills():
         "전체 적 무속성 마법 BRV+HP (4.5x) + 적 전체 속성 저항 -40% (3턴)",
         gauge_cost=250)
     teamwork.effects = [
-        DamageEffect(DamageType.BRV, 4.5),  # BRV 마법 공격 4.5x
-        DamageEffect(DamageType.HP, 1.0),  # HP 변환
+        DamageEffect(DamageType.BRV, 3.0),  # BRV 마법 공격 3.0x
+        DamageEffect(DamageType.HP, 0.65),  # HP 변환
         BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.4, duration=3),  # 적 전체 속성 저항 -40%
     ]
-    teamwork.target_type = "party"
+    teamwork.target_type = "all_enemies"
     teamwork.is_aoe = True
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "teamwork")
-    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "element": True}
+    teamwork.metadata = {"teamwork": True, "chain": True, "debuff": True, "element": True}
     skills.append(teamwork)
 
     return skills

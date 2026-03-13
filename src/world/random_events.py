@@ -452,3 +452,405 @@ class RandomEventSystem:
 
 # 전역 인스턴스
 random_event_system = RandomEventSystem()
+
+
+# ============================================================
+# YAML 기반 랜덤 이벤트 매니저 (던전/지역 탐험용)
+# ============================================================
+
+@dataclass
+class EventChoice:
+    """이벤트 선택지"""
+    text: str
+    requirements: Dict[str, Any]
+    outcomes: List[Dict[str, Any]]
+
+
+@dataclass
+class YamlRandomEvent:
+    """YAML 기반 랜덤 이벤트"""
+    id: str
+    name: str
+    category: str
+    description: str
+    min_floor: int
+    max_floor: int
+    weight: int
+    cooldown_steps: int
+    once_only: bool
+    choices: List[EventChoice]
+    region: str = ""
+
+
+@dataclass
+class EventOutcome:
+    """이벤트 결과"""
+    message: str = ""
+    gold: int = 0
+    exp: int = 0
+    items: List[str] = None
+    affinity_gain: int = 0
+    damage: int = 0
+    damage_percent: int = 0
+    heal: int = 0
+    heal_percent: int = 0
+    buff_id: str = ""
+    debuff_id: str = ""
+    duration: int = 0
+    event_type: str = "neutral"
+
+    def __post_init__(self):
+        if self.items is None:
+            self.items = []
+
+
+# RPG 지역 ID → 이벤트 바이옴 매핑
+REGION_TO_EVENT_BIOME: Dict[str, str] = {
+    "forgotten_forest": "forest",
+    "twilight_desert": "desert",
+    "abyss_cavern": "cave",
+    "storm_plateau": "mountain",
+    "eternal_glacier": "snowfield",
+    "war_lands": "wasteland",
+    "starlight_throne": "stellar",
+}
+
+# 던전 바이옴 → 이벤트 region 매핑
+DUNGEON_BIOME_TO_EVENT_REGION: Dict[str, str] = {
+    "biome_0": "forest",
+    "biome_1": "desert",
+    "biome_2": "cave",
+    "biome_3": "coast",
+    "biome_4": "mountain",
+    "biome_5": "snowfield",
+    "biome_6": "volcano",
+    "biome_7": "wasteland",
+    "biome_8": "town",
+    "biome_9": "stellar",
+}
+
+
+class RandomEventManager:
+    """YAML 기반 랜덤 이벤트 매니저"""
+
+    _instance = None
+
+    def __init__(self):
+        import time as _time
+        self._dungeon_events: List[YamlRandomEvent] = []
+        self._region_events: List[YamlRandomEvent] = []
+        self._steps_since_event = 0
+        self._total_steps = 0
+        self._event_cooldowns: Dict[str, int] = {}  # event_id -> steps remaining
+        self._completed_once_only: set = set()
+        self._hourly_event_times: List[float] = []  # 최근 이벤트 발생 시각 (unix timestamp)
+        self._max_events_per_hour: int = 5  # 시간당 최대 이벤트 수
+        self._events_per_floor: dict = {}  # 층당 이벤트 발생 횟수
+        self._load_events()
+
+    def _load_events(self):
+        """YAML에서 이벤트 로드"""
+        import os
+        try:
+            import yaml
+        except ImportError:
+            return
+
+        base = os.path.join(os.path.dirname(__file__), "..", "..", "data", "random_events")
+
+        dungeon_path = os.path.join(base, "dungeon_events.yaml")
+        if os.path.exists(dungeon_path):
+            with open(dungeon_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+            for ev in data.get("dungeon_events", []):
+                self._dungeon_events.append(self._parse_event(ev))
+
+        region_path = os.path.join(base, "region_events.yaml")
+        if os.path.exists(region_path):
+            with open(region_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+            for ev in data.get("region_events", []):
+                self._region_events.append(self._parse_event(ev))
+
+    def _parse_event(self, data: Dict[str, Any]) -> YamlRandomEvent:
+        choices = []
+        for c in data.get("choices", []):
+            choices.append(EventChoice(
+                text=c.get("text", ""),
+                requirements=c.get("requirements", {}),
+                outcomes=c.get("outcomes", []),
+            ))
+        return YamlRandomEvent(
+            id=data.get("id", ""),
+            name=data.get("name", ""),
+            category=data.get("category", ""),
+            description=data.get("description", ""),
+            min_floor=data.get("min_floor", 0),
+            max_floor=data.get("max_floor", 99),
+            weight=data.get("weight", 10),
+            cooldown_steps=data.get("cooldown_steps", 100),
+            once_only=data.get("once_only", False),
+            choices=choices,
+            region=data.get("region", ""),
+        )
+
+    def on_step(self, floor: int, region: Optional[str], party_jobs: List[str], biome: Optional[str] = None) -> Optional[YamlRandomEvent]:
+        """한 걸음마다 호출. 이벤트 발생 시 반환, 아니면 None
+
+        Args:
+            floor: 현재 층수
+            region: RPG 모드 지역 ID (forgotten_forest 등) 또는 None
+            party_jobs: 파티 직업 목록
+            biome: 던전 바이옴 (biome_0~9) 또는 None
+        """
+        self._total_steps += 1
+        self._steps_since_event += 1
+
+        # 쿨다운 감소
+        expired = []
+        for eid, remaining in self._event_cooldowns.items():
+            self._event_cooldowns[eid] = remaining - 1
+            if self._event_cooldowns[eid] <= 0:
+                expired.append(eid)
+        for eid in expired:
+            del self._event_cooldowns[eid]
+
+        # 시간당 최대 5회 제한 (1시간 = 3600초)
+        import time as _time
+        now = _time.time()
+        self._hourly_event_times = [t for t in self._hourly_event_times if now - t < 3600]
+        if len(self._hourly_event_times) >= self._max_events_per_hour:
+            return None
+
+        # 층당 최대 5회 제한
+        floor_key = f"floor_{floor}"
+        if self._events_per_floor.get(floor_key, 0) >= 5:
+            return None
+
+        # 최소 간격: RPG 모드(대형 맵)는 120스텝, 일반 던전/스토리(소형 맵)는 45스텝
+        is_rpg = region is not None
+        min_steps = 120 if is_rpg else 45
+        if self._steps_since_event < min_steps:
+            return None
+
+        # 발생 확률 (기존 대비 1/3로 감소):
+        # RPG는 0.33% 기본 + 0.033%/스텝 (최대 3.3%)
+        # 일반 던전은 1% 기본 + 0.1%/스텝 (최대 5%)
+        if is_rpg:
+            chance = min(0.0033 + (self._steps_since_event - min_steps) * 0.00033, 0.033)
+        else:
+            chance = min(0.01 + (self._steps_since_event - min_steps) * 0.001, 0.05)
+        if random.random() > chance:
+            return None
+
+        # 이벤트 풀 구성 - 바이옴/지역별 필터링
+        event_region: Optional[str] = None
+        raw_region: Optional[str] = region  # RPG 지역 ID 원본 (forgotten_forest 등)
+        if region is not None:
+            # RPG 오픈월드: region_id → 이벤트 바이옴 매핑
+            event_region = REGION_TO_EVENT_BIOME.get(region, region)
+            events = self._region_events
+        elif biome is not None:
+            # 던전 모드 + 바이옴: 바이옴에 맞는 지역 이벤트 사용
+            event_region = DUNGEON_BIOME_TO_EVENT_REGION.get(biome)
+            events = self._region_events if event_region else self._dungeon_events
+        else:
+            # 일반 던전 모드
+            events = self._dungeon_events
+
+        pool = []
+        for ev in events:
+            if ev.id in self._completed_once_only:
+                continue
+            if ev.id in self._event_cooldowns:
+                continue
+            if floor < ev.min_floor or floor > ev.max_floor:
+                continue
+            # 바이옴/지역 필터링: "all"이나 빈 문자열은 모든 지역에서 발생
+            if ev.region and ev.region not in ("all", ""):
+                # RPG 지역 ID 직접 매칭 (forgotten_forest 등) 또는 바이옴 매칭 (forest 등)
+                if event_region and ev.region != event_region and ev.region != raw_region:
+                    continue
+            pool.append(ev)
+
+        # 바이옴 매칭 이벤트가 없으면 던전 이벤트로 폴백
+        if not pool and event_region:
+            for ev in self._dungeon_events:
+                if ev.id in self._completed_once_only:
+                    continue
+                if ev.id in self._event_cooldowns:
+                    continue
+                if floor < ev.min_floor or floor > ev.max_floor:
+                    continue
+                pool.append(ev)
+
+        if not pool:
+            return None
+
+        weights = [ev.weight for ev in pool]
+        selected = random.choices(pool, weights=weights, k=1)[0]
+
+        # 발동 후 초기화
+        self._steps_since_event = 0
+        self._events_per_floor[floor_key] = self._events_per_floor.get(floor_key, 0) + 1
+        self._event_cooldowns[selected.id] = selected.cooldown_steps
+        self._hourly_event_times.append(now)  # 시간당 제한용 시각 기록
+        if selected.once_only:
+            self._completed_once_only.add(selected.id)
+
+        return selected
+
+    @staticmethod
+    def _reward_scale_factor(floor: int = 1, level: int = 1) -> float:
+        """층수/레벨 기반 보상 스케일 팩터.
+
+        YAML의 보상 수치는 중반(floor~10 / level~10) 기준.
+        초반에는 줄이고 후반에는 늘린다.
+          floor/level  1 → 0.17  (gold ~50, exp ~40)
+          floor/level  5 → 0.54
+          floor/level 10 → 1.0
+          floor/level 15 → 1.46
+          floor/level 20 → 1.92
+          floor/level 21+→ 2.0 (cap)
+        """
+        ref = max(floor, level, 1)
+        return max(0.17, min(0.17 + (ref - 1) * 0.092, 2.0))
+
+    def resolve_choice(
+        self,
+        event: YamlRandomEvent,
+        choice_idx: int,
+        party_jobs: List[str],
+        inventory: Any = None,
+        floor: int = 1,
+        level: int = 1,
+    ) -> EventOutcome:
+        """선택지 결과 해결"""
+        if choice_idx < 0 or choice_idx >= len(event.choices):
+            return EventOutcome(message="아무 일도 일어나지 않았다.")
+
+        choice = event.choices[choice_idx]
+
+        # 요구사항 체크
+        reqs = choice.requirements
+        if reqs:
+            if "has_job" in reqs:
+                required_job = reqs["has_job"]
+                if required_job not in party_jobs:
+                    return EventOutcome(
+                        message="필요한 직업이 파티에 없어 실패했다.",
+                        event_type="fail",
+                    )
+            if "min_gold" in reqs and inventory is not None:
+                min_gold = reqs["min_gold"]
+                current_gold = getattr(inventory, 'gold', 0)
+                if current_gold < min_gold:
+                    return EventOutcome(
+                        message=f"골드가 부족하다. ({current_gold}/{min_gold}G 필요)",
+                        event_type="fail",
+                    )
+            if "has_item" in reqs and inventory is not None:
+                required_item = reqs["has_item"]
+                has_it = False
+                if hasattr(inventory, 'items'):
+                    for slot in inventory.items:
+                        if slot and hasattr(slot, 'item_id') and slot.item_id == required_item:
+                            has_it = True
+                            break
+                if not has_it:
+                    return EventOutcome(
+                        message=f"필요한 아이템이 없다.",
+                        event_type="fail",
+                    )
+
+        # 결과 집계 (모든 outcomes 합산)
+        if not choice.outcomes:
+            return EventOutcome(message="아무 일도 일어나지 않았다.")
+
+        total_message_parts = []
+        total_gold = 0
+        total_exp = 0
+        total_items: List[str] = []
+        total_affinity = 0
+        total_damage = 0
+        total_damage_pct = 0
+        total_heal = 0
+        total_heal_pct = 0
+        last_buff = ""
+        last_debuff = ""
+        last_duration = 0
+        last_type = "neutral"
+
+        for outcome_data in choice.outcomes:
+            msg = outcome_data.get("message", "")
+            if msg:
+                total_message_parts.append(msg)
+            total_gold += outcome_data.get("gold", 0)
+            total_exp += outcome_data.get("exp", 0)
+            total_items.extend(outcome_data.get("items", []))
+            total_affinity += outcome_data.get("affinity_gain", 0)
+            total_damage += outcome_data.get("damage", 0)
+            total_damage_pct += outcome_data.get("damage_percent", 0)
+            total_heal += outcome_data.get("heal", 0)
+            total_heal_pct += outcome_data.get("heal_percent", 0)
+            otype = outcome_data.get("type", "neutral")
+            if otype == "buff":
+                last_buff = outcome_data.get("buff_id", "")
+                last_duration = outcome_data.get("duration", 0)
+            elif otype == "debuff":
+                last_debuff = outcome_data.get("debuff_id", "")
+                last_duration = outcome_data.get("duration", 0)
+            if otype not in ("neutral",):
+                last_type = otype
+
+        # 층수/레벨 기반 보상 스케일링
+        scale = self._reward_scale_factor(floor, level)
+        total_gold = int(total_gold * scale)
+        total_exp = int(total_exp * scale)
+
+        return EventOutcome(
+            message=" ".join(total_message_parts),
+            gold=total_gold,
+            exp=total_exp,
+            items=total_items,
+            affinity_gain=total_affinity,
+            damage=total_damage,
+            damage_percent=total_damage_pct,
+            heal=total_heal,
+            heal_percent=total_heal_pct,
+            buff_id=last_buff,
+            debuff_id=last_debuff,
+            duration=last_duration,
+            event_type=last_type,
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "steps_since_event": self._steps_since_event,
+            "total_steps": self._total_steps,
+            "cooldowns": dict(self._event_cooldowns),
+            "completed_once_only": list(self._completed_once_only),
+            "hourly_event_times": list(self._hourly_event_times),
+        }
+
+    def from_dict(self, data: Dict[str, Any]):
+        self._steps_since_event = data.get("steps_since_event", 0)
+        self._total_steps = data.get("total_steps", 0)
+        self._event_cooldowns = data.get("cooldowns", {})
+        self._completed_once_only = set(data.get("completed_once_only", []))
+        # 로드 시 1시간 이상 지난 타임스탬프 즉시 정리
+        import time as _time
+        now = _time.time()
+        raw_times = data.get("hourly_event_times", [])
+        self._hourly_event_times = [t for t in raw_times if isinstance(t, (int, float)) and now - t < 3600]
+
+
+_random_event_manager: Optional[RandomEventManager] = None
+
+
+def get_random_event_manager() -> RandomEventManager:
+    """싱글톤 RandomEventManager 반환"""
+    global _random_event_manager
+    if _random_event_manager is None:
+        _random_event_manager = RandomEventManager()
+    return _random_event_manager

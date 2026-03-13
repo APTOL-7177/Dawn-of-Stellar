@@ -1,0 +1,21 @@
+id: hacker_payload_surge
+name: 페이로드 서지
+type: attack
+description: |
+  확보한 백도어로 페이로드를 주입합니다.
+  HP 1.1 피해를 줍니다.
+target: enemy
+metadata:
+  job: hacker
+  basic_attack: true
+  intrusion_gain: 5
+  ram_cost: 2
+effects:
+  - type: damage
+    damage_type: hp
+    stat_base: magical
+    multiplier: 1.1
+animation:
+  icon: "??"
+  color: [90, 160, 210]
+sfx: ["se", "Computer"]

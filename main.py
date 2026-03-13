@@ -23,12 +23,31 @@ print("=== GAME STARTING ===")  # 게임 시작 즉시 표시
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# Linux 실행 환경 사전 체크
+if os.name != 'nt':
+    _missing = []
+    for _mod_name in ("pygame", "tcod", "yaml", "numpy"):
+        try:
+            __import__(_mod_name)
+        except ImportError:
+            _missing.append(_mod_name)
+    if _missing:
+        print(f"[오류] 필수 패키지가 설치되어 있지 않습니다: {', '.join(_missing)}")
+        print("설치 방법: pip3 install " + " ".join(_missing))
+        if "pygame" in _missing or "tcod" in _missing:
+            print("SDL2 라이브러리도 필요합니다:")
+            print("  Ubuntu/Debian: sudo apt install libsdl2-dev libsdl2-mixer-dev libsdl2-image-dev libsdl2-ttf-dev")
+            print("  Fedora: sudo dnf install SDL2-devel SDL2_mixer-devel SDL2_image-devel SDL2_ttf-devel")
+            print("  Arch: sudo pacman -S sdl2 sdl2_mixer sdl2_image sdl2_ttf")
+        sys.exit(1)
+
 from src.core.config import initialize_config, get_config
 from src.core.logger import get_logger, Loggers
 from src.core.event_bus import event_bus
 from src.core.vibration_system import vibration_listener
 from src.multiplayer.protocol import MessageBuilder, MessageType
-from src.persistence.save_system import serialize_dungeon
+from src.persistence.save_system import serialize_dungeon, peek_glitch_level
+from src.ui.boot_splash import show_boot_splash
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -90,24 +109,32 @@ def parse_arguments() -> argparse.Namespace:
         help="보스 테스트 모드 (20=세피로스, 30=카인) - 해당 레벨 풀장비 파티 생성"
     )
 
+    parser.add_argument(
+        "--glitch",
+        type=int,
+        choices=[1, 2],
+        help="글리치 모드 강제 활성화 (1=약한 잔여, 2=풀 글리치)"
+    )
+
     return parser.parse_args()
 
 
-def renew_town_services(player_level: int = 1):
+def renew_town_services(player_level: int = 1, current_floor: int = 0):
     """
     마을 방문 시 서비스 리뉴얼 (퀘스트 게시판, 잡화상점, 대장간)
-    
+
     Args:
         player_level: 플레이어 레벨
+        current_floor: 현재 도달한 최고 층수 (퀘스트 목표층 결정용)
     """
     logger = get_logger(Loggers.SYSTEM)
-    
+
     # 퀘스트 게시판 리뉴얼
     try:
         from src.quest.quest_manager import get_quest_manager
         quest_manager = get_quest_manager()
-        quest_manager.refresh_quests(player_level, count=5)
-        logger.info(f"퀘스트 게시판 리뉴얼 완료 (플레이어 레벨: {player_level})")
+        quest_manager.refresh_quests(player_level, count=5, current_floor=current_floor)
+        logger.info(f"퀘스트 게시판 리뉴얼 완료 (플레이어 레벨: {player_level}, 최고 층: {current_floor})")
     except Exception as e:
         logger.warning(f"퀘스트 게시판 리뉴얼 실패: {e}")
     
@@ -123,11 +150,12 @@ def renew_town_services(player_level: int = 1):
 def _ask_start_story_tutorial(console, context) -> bool:
     """
     스토리 튜토리얼 시작 여부 묻기
-    
+
     Returns:
         시작 여부
     """
     import tcod.event
+    from src.ui.input_handler import iter_game_input, GameAction
     
     console.clear()
 
@@ -136,7 +164,7 @@ def _ask_start_story_tutorial(console, context) -> bool:
     question = "시공의 여명 스토리를 체험하시겠습니까?"
     description = "스토리와 함께 게임 시스템을 배웁니다. (약 40분)"
     reward_info = "완료 보상: 해금 직업 1개 + 별의 파편 100개"
-    controls = "[Y] 시작  [N] 건너뛰기"
+    controls = "[Y/A] 시작  [N/B] 건너뛰기"
 
     t_x = (console.width - len(title)) // 2
     q_x = (console.width - len(question)) // 2
@@ -154,16 +182,17 @@ def _ask_start_story_tutorial(console, context) -> bool:
 
     # 입력 대기
     while True:
-        for event in tcod.event.wait():
-            if isinstance(event, tcod.event.KeyDown):
+        for action, event in iter_game_input():
+            if action == GameAction.CONFIRM:
+                return True
+            elif action in (GameAction.CANCEL, GameAction.ESCAPE, GameAction.QUIT):
+                return False
+            # 키보드 Y/N 하위 호환
+            elif event and isinstance(event, tcod.event.KeyDown):
                 if event.sym == tcod.event.KeySym.y:
                     return True
                 elif event.sym == tcod.event.KeySym.n:
                     return False
-                elif event.sym == tcod.event.KeySym.ESCAPE:
-                    return False
-            elif isinstance(event, tcod.event.Quit):
-                return False
 
 
 
@@ -279,6 +308,93 @@ def perform_auto_save(exploration, inventory, party, save_name="auto_save"):
         return False
 
 
+def _play_transition_out(display, duration: float = 0.7) -> None:
+    """화면 전환 아웃 효과 재생 (메뉴 → 게임 모드 전환 시)
+
+    마지막 렌더링된 화면을 유지한 채 전환 오버레이가 서서히 덮습니다.
+    console.clear()를 호출하지 않아야 마지막 프레임이 보존됩니다.
+    """
+    import time as _time
+    import random as _rand
+    try:
+        from src.ui.pygame_backend.effects.transition import TransitionMode
+        ctx = display.context
+        em = getattr(ctx, 'effect_manager', None)
+        if em is None or not hasattr(em, 'trigger_transition'):
+            return
+
+        modes = [
+            TransitionMode.FADE,
+            TransitionMode.DISSOLVE,
+            TransitionMode.WIPE_LEFT,
+            TransitionMode.SCANLINE,
+        ]
+        mode = _rand.choice(modes)
+        em.trigger_transition(mode, duration, direction="out", color=(0, 0, 0))
+
+        # 전환 루프: console을 건드리지 않고 마지막 프레임 위에 오버레이만 적용
+        # _last_frame_time 리셋으로 첫 프레임 dt 폭주 방지
+        ctx._last_frame_time = _time.time()
+
+        start = _time.time()
+        timeout = duration + 0.2
+        while em.is_transitioning and (_time.time() - start) < timeout:
+            # console을 clear하지 않음 → _console_surface에 마지막 프레임이 남아있음
+            # _render_console()에서 dirty가 없으면 기존 픽셀을 유지함
+            ctx.present(display.console)
+
+            # pygame 이벤트 펌프 (윈도우 응답 유지)
+            import pygame
+            pygame.event.pump()
+
+            _time.sleep(0.016)
+
+        # 전환 완료: 마지막 프레임에서 cover=1.0으로 이미 완전히 가려진 상태
+        # 추가 present() 없이 종료 (불필요한 깜빡임 방지)
+    except Exception:
+        pass
+
+
+def _play_transition_in(display, duration: float = 0.6) -> None:
+    """화면 전환 인 효과 재생 (게임 모드 → 메뉴 복귀 시)
+
+    검은 화면에서 전환 오버레이가 서서히 걷혀 메뉴가 드러납니다.
+    """
+    import time as _time
+    import random as _rand
+    try:
+        from src.ui.pygame_backend.effects.transition import TransitionMode
+        ctx = display.context
+        em = getattr(ctx, 'effect_manager', None)
+        if em is None or not hasattr(em, 'trigger_transition'):
+            return
+
+        modes = [
+            TransitionMode.FADE,
+            TransitionMode.DISSOLVE,
+            TransitionMode.SCANLINE,
+        ]
+        mode = _rand.choice(modes)
+        em.trigger_transition(mode, duration, direction="in", color=(0, 0, 0))
+
+        # _last_frame_time 리셋으로 첫 프레임 dt 폭주 방지
+        ctx._last_frame_time = _time.time()
+
+        start = _time.time()
+        timeout = duration + 0.2
+        while em.is_transitioning and (_time.time() - start) < timeout:
+            # 검은 콘솔 위에 전환 오버레이가 점점 걷힘
+            display.console.clear()
+            ctx.present(display.console)
+
+            import pygame
+            pygame.event.pump()
+
+            _time.sleep(0.016)
+    except Exception:
+        pass
+
+
 def main() -> int:
     """
     메인 함수
@@ -336,8 +452,13 @@ def main() -> int:
                     print(f"Gamepad {i} initialization failed: {e}")
                     logger.error(f"게임패드 {i} 초기화 실패: {e}")
 
-            # 게임패드 이벤트 활성화
+            # 게임패드 이벤트 활성화 (키보드/마우스/윈도우 이벤트도 유지)
             pygame.event.set_allowed([
+                pygame.QUIT,
+                pygame.KEYDOWN, pygame.KEYUP,
+                pygame.TEXTINPUT,
+                pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP,
+                pygame.WINDOWRESIZED, pygame.WINDOWFOCUSGAINED, pygame.WINDOWFOCUSLOST,
                 pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP,
                 pygame.JOYHATMOTION, pygame.JOYAXISMOTION,
                 pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED
@@ -448,13 +569,37 @@ def main() -> int:
             logger.info(f"보스 테스트 모드 종료: {result}")
             return 0
 
+        # 글리치 레벨 사전 감지 (세이브 로딩 전, --glitch 인수 우선)
+        glitch_level = args.glitch if args.glitch else peek_glitch_level()
+        if glitch_level > 0:
+            logger.info(f"글리치 모드 감지: 강도 {glitch_level}")
+            # 싱글톤에 사전 설정 (메인 메뉴에서 참조)
+            from src.story.story_system import get_story_system
+            story_sys = get_story_system()
+            if glitch_level == 2:
+                story_sys.sephiroth_encountered = True
+                story_sys.glitch_mode = True
+                story_sys.sephiroth_defeated = False
+                story_sys.cain_defeated = False
+            elif glitch_level == 1:
+                story_sys.sephiroth_encountered = True
+                story_sys.sephiroth_defeated = True
+                story_sys.cain_defeated = False
+
         # 인트로 스토리 표시 (항상 표시)
         from src.ui.intro_story import show_intro_story
         logger.info("인트로 스토리 시작")
-        show_intro_story(display.console, display.context)
+        show_intro_story(display.console, display.context, glitch_level=glitch_level)
         logger.info("인트로 스토리 완료")
 
+        # 부트 스플래시 트랜지션 (인트로 → 메인 메뉴)
+        logger.info("부트 스플래시 시작")
+        show_boot_splash(display.console, display.context, glitch_level=glitch_level)
+        logger.info("부트 스플래시 완료")
+
         # 메인 게임 루프
+        _first_menu_loop = True  # 첫 루프에서는 전환인 효과 생략
+
         while True:
             # 핫 리로드 체크 (개발 모드일 때만)
             if hot_reload_enabled:
@@ -465,13 +610,55 @@ def main() -> int:
                         logger.info(f"📦 재로드된 모듈: {', '.join(reloaded)}")
                 except Exception as e:
                     logger.debug(f"핫 리로드 체크 중 오류 (무시): {e}")
-            
+
+            _first_menu_loop = False
+
             # 메인 메뉴 실행
             menu_result = run_main_menu(display.console, display.context)
             logger.info(f"메인 메뉴 결과: {menu_result.value}")
 
+            # ── 화면 전환 효과 (메뉴 → 게임 모드 전환 시) ──────────────
+            if menu_result != MenuResult.QUIT and menu_result != MenuResult.NONE:
+                _play_transition_out(display)
+
             if menu_result == MenuResult.QUIT:
                 break
+            elif menu_result == MenuResult.STORY_MODE:
+                # 스토리 모드 (튜토리얼 겸 내러티브)
+                logger.info("스토리 모드 시작")
+                from src.story_mode.story_mode_manager import StoryModeManager, StoryModeResult
+
+                try:
+                    story_manager = StoryModeManager(display.console, display.context)
+                    story_result = story_manager.run()
+                    logger.info(f"스토리 모드 종료: {story_result.value}")
+
+                    if story_result == StoryModeResult.TRANSITION_TO_GAME:
+                        # 스토리 완료 후 메인 게임 전환
+                        logger.info("스토리 모드에서 메인 게임으로 전환")
+                        # 새 게임으로 전환 (직업 선택 완료 상태)
+                        pass
+                except Exception as e:
+                    logger.error(f"스토리 모드 오류: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+
+                continue  # 메인 메뉴로 돌아가기
+            elif menu_result == MenuResult.RPG_MODE:
+                # RPG 모드
+                logger.info("RPG 모드 시작")
+                from src.rpg_mode.rpg_mode_manager import RPGModeManager, RPGModeResult
+
+                try:
+                    rpg_manager = RPGModeManager(display.console, display.context)
+                    rpg_result = rpg_manager.run()
+                    logger.info(f"RPG 모드 종료: {rpg_result.value}")
+                except Exception as e:
+                    logger.error(f"RPG 모드 오류: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+
+                continue  # 메인 메뉴로 돌아가기
             elif menu_result == MenuResult.CREDITS:
                 # 크레딧 화면
                 logger.info("크레딧 화면 시작")
@@ -482,20 +669,6 @@ def main() -> int:
                     logger.info("크레딧 화면 종료")
                 except Exception as e:
                     logger.error(f"크레딧 화면 오류: {e}")
-                    import traceback
-                    logger.error(traceback.format_exc())
-                
-                continue  # 메인 메뉴로 돌아가기
-            elif menu_result == MenuResult.AI_SPECTATE:
-                # AI 관전 모드
-                logger.info("AI 관전 모드 시작")
-                from src.ui.ai_spectate_mode import run_ai_spectate_mode
-                
-                try:
-                    spectate_result = run_ai_spectate_mode(display.console, display.context)
-                    logger.info(f"AI 관전 모드 종료: {spectate_result}")
-                except Exception as e:
-                    logger.error(f"AI 관전 모드 오류: {e}")
                     import traceback
                     logger.error(traceback.format_exc())
                 
@@ -894,8 +1067,9 @@ def main() -> int:
                             levels = [getattr(member, 'level', 1) for member in character_party if hasattr(member, 'level')]
                             if levels:
                                 player_level = sum(levels) // len(levels)
-                        renew_town_services(player_level)
-                        
+                        max_floor = exploration.game_stats.get("max_floor_reached", 0) if hasattr(exploration, 'game_stats') else 0
+                        renew_town_services(player_level, current_floor=max_floor)
+
                         # 네트워크 매니저에 현재 게임 상태 저장 (클라이언트 연결 시 전송용)
                         network_manager.current_floor = floor_number
                         network_manager.current_dungeon = dungeon
@@ -1046,7 +1220,22 @@ def main() -> int:
                                     dungeon=exploration.dungeon,
                                     local_player_id=local_player_id
                                 )
-                                
+
+                                # 전투 후 면역 시간 설정
+                                exploration.set_post_combat_immunity()
+
+                                # 생존 퀘스트 턴수 업데이트
+                                try:
+                                    from src.combat.combat_manager import get_combat_manager
+                                    from src.quest.quest_manager import get_quest_manager
+                                    cm = get_combat_manager()
+                                    survived_turns = getattr(cm, 'turn_count', 0)
+                                    if survived_turns > 0:
+                                        qm = get_quest_manager()
+                                        qm.update_progress("survival_turns", "survival_turns", survived_turns)
+                                except Exception:
+                                    pass
+
                                 if combat_result == CombatState.VICTORY:
                                     # 스토리 보스 처치 플래그 설정
                                     if boss_type == "sephiroth":
@@ -1220,7 +1409,10 @@ def main() -> int:
                                     dungeon=combat_dungeon,
                                     local_player_id=local_player_id
                                 )
-                                
+
+                                # 전투 후 면역 시간 설정
+                                exploration.set_post_combat_immunity()
+
                                 if combat_result == CombatState.VICTORY:
                                     # 보상 처리
                                     if map_enemies:
@@ -1258,18 +1450,21 @@ def main() -> int:
                                         rewards["gold"] = int(rewards["gold"] * gold_multiplier)
                                         logger.debug(f"골드 업그레이드 적용: {old_gold} -> {rewards['gold']} (+{int((gold_multiplier - 1.0) * 100)}%)")
                                     
-                                    # 멀티플레이: 경험치 분배
+                                    # 멀티플레이: 경험치 분배 (호스트만 실행하여 중복 분배 방지)
                                     from src.multiplayer.config import MultiplayerConfig
-                                    if MultiplayerConfig.exp_divide_by_participants:
-                                        participating_count = len(combat_party)
-                                        if participating_count > 0:
-                                            rewards["experience"] = rewards["experience"] // participating_count
-                                    
-                                    level_up_info = distribute_party_experience(combat_party, rewards["experience"])
-                                    
+                                    if is_host:
+                                        if MultiplayerConfig.exp_divide_by_participants:
+                                            participating_count = len(combat_party)
+                                            if participating_count > 0:
+                                                rewards["experience"] = rewards["experience"] // participating_count
+
+                                        level_up_info = distribute_party_experience(combat_party, rewards["experience"])
+                                    else:
+                                        level_up_info = []
+
                                     exploration.game_stats["total_gold_earned"] += rewards.get("gold", 0)
                                     exploration.game_stats["total_exp_earned"] += rewards["experience"]
-                                    
+
                                     show_reward_screen(
                                         display.console,
                                         display.context,
@@ -1277,9 +1472,9 @@ def main() -> int:
                                         level_up_info,
                                         inventory=inventory
                                     )
-                                    
+
                                     # 아이템은 LootUI에서 처리됨 (무게 체크 및 선택적 획득)
-                                    
+
                                     inventory.add_gold(rewards.get("gold", 0))
 
                                     # === 보스 승리 시 층 클리어 처리 ===
@@ -1958,9 +2153,23 @@ def main() -> int:
                                             # 게임 시작 메시지를 받았으므로, session_data에 던전 데이터가 설정되어 있음
                                             # 아래의 게임 시작 로직으로 진행하기 위해 break
                                             break
-                                        
-                                        # 짧게 대기 (백그라운드에서 메시지 수신 중)
-                                        time.sleep(0.1)
+
+                                        # OS 윈도우 메시지 펌프 + 대기 화면 (응답없음 방지)
+                                        try:
+                                            display.console.clear()
+                                            wait_msg = "호스트가 게임을 시작할 때까지 대기 중..."
+                                            display.console.print(
+                                                display.console.width // 2 - len(wait_msg) // 2,
+                                                display.console.height // 2,
+                                                wait_msg,
+                                                fg=(200, 200, 200)
+                                            )
+                                            display.context.present(display.console)
+                                        except Exception:
+                                            pass
+                                        import tcod.event
+                                        for event in tcod.event.wait(timeout=0.1):
+                                            pass
                                     
                                     if not game_started.get("value", False):
                                         logger.error("게임 시작 타임아웃: 호스트가 게임을 시작하지 않았습니다")
@@ -2115,9 +2324,14 @@ def main() -> int:
                                     
                                     # 게임 시작 로직 실행
                                     logger.info("게임 시작 로직 실행 시작")
-                                    # 인벤토리 생성 (호스트와 동기화 예정)
+                                    # 인벤토리 생성 (호스트와 동일한 base_weight 계산 적용)
                                     from src.equipment.inventory import Inventory
-                                    inventory = Inventory(party=party_members)
+                                    from src.character.upgrade_applier import UpgradeApplier
+                                    from src.persistence.meta_progress import get_meta_progress
+                                    client_meta = get_meta_progress()
+                                    client_inv_bonus = UpgradeApplier.get_inventory_weight_bonus(meta_progress=client_meta, is_host=False)
+                                    client_base_weight = 5.0 + (client_inv_bonus / 2.5)
+                                    inventory = Inventory(base_weight=client_base_weight, party=party_members)
                                     
                                     # 게임 통계 초기화
                                     game_stats = {
@@ -2346,7 +2560,10 @@ def main() -> int:
                                                     dungeon=exploration.dungeon if hasattr(exploration, 'dungeon') else None,
                                                     local_player_id=local_player_id
                                                 )
-                                                
+
+                                                # 전투 후 면역 시간 설정
+                                                exploration.set_post_combat_immunity()
+
                                                 if combat_result == CombatState.VICTORY:
                                                     # 보상 처리
                                                     if map_enemies:
@@ -2385,14 +2602,17 @@ def main() -> int:
                                                         rewards["gold"] = int(rewards["gold"] * gold_multiplier)
                                                         logger.debug(f"골드 업그레이드 적용: {old_gold} -> {rewards['gold']} (+{int((gold_multiplier - 1.0) * 100)}%)")
                                                     
-                                                    # 멀티플레이: 경험치 분배
+                                                    # 멀티플레이: 경험치 분배 (호스트만 실행하여 중복 분배 방지)
                                                     from src.multiplayer.config import MultiplayerConfig
-                                                    if MultiplayerConfig.exp_divide_by_participants:
-                                                        participating_count = len(combat_party)
-                                                        if participating_count > 0:
-                                                            rewards["experience"] = rewards["experience"] // participating_count
-                                                    
-                                                    level_up_info = distribute_party_experience(combat_party, rewards["experience"])
+                                                    if is_host:
+                                                        if MultiplayerConfig.exp_divide_by_participants:
+                                                            participating_count = len(combat_party)
+                                                            if participating_count > 0:
+                                                                rewards["experience"] = rewards["experience"] // participating_count
+
+                                                        level_up_info = distribute_party_experience(combat_party, rewards["experience"])
+                                                    else:
+                                                        level_up_info = []
                                                     
                                                     exploration.game_stats["total_gold_earned"] += rewards.get("gold", 0)
                                                     exploration.game_stats["total_exp_earned"] += rewards["experience"]
@@ -2634,7 +2854,21 @@ def main() -> int:
 
                 if loaded_state:
                     logger.info("게임 불러오기 성공")
-                    
+
+                    # RPG 모드 세이브인 경우 RPG 모드로 리다이렉트
+                    if loaded_state.get("rpg_mode"):
+                        logger.info("RPG 모드 세이브 감지 - RPG 모드로 전환")
+                        from src.rpg_mode.rpg_mode_manager import RPGModeManager, RPGModeResult
+                        try:
+                            rpg_manager = RPGModeManager(display.console, display.context)
+                            rpg_result = rpg_manager.run()
+                            logger.info(f"RPG 모드 종료: {rpg_result.value}")
+                        except Exception as e:
+                            logger.error(f"RPG 모드 오류: {e}")
+                            import traceback
+                            logger.error(traceback.format_exc())
+                        continue
+
                     # 멀티플레이 세이브 여부 확인 및 처리
                     is_multiplayer_load = loaded_state.get("is_multiplayer", False)
                     session = None
@@ -3009,7 +3243,10 @@ def main() -> int:
                                 enemies,
                                 inventory=inventory
                             )
-                            
+
+                            # 전투 후 면역 시간 설정
+                            exploration.set_post_combat_immunity()
+
                             if combat_result == CombatState.VICTORY:
                                 # 스토리 보스 처치 플래그 설정
                                 if boss_type == "sephiroth":
@@ -3245,6 +3482,9 @@ def main() -> int:
                             # 전투 시작 전 자동 저장
                             perform_auto_save(exploration, inventory, party, save_name="auto_save")
 
+                            # 선제공격 보너스 추출
+                            preemptive_bonus = data.get("preemptive_bonus", 0.0) if data and isinstance(data, dict) else 0.0
+
                             combat_result, is_game_over = run_combat(
                                 display.console,
                                 display.context,
@@ -3255,8 +3495,25 @@ def main() -> int:
                                 network_manager=network_manager_for_combat,
                                 combat_position=combat_position,
                                 dungeon=exploration.dungeon if hasattr(exploration, 'dungeon') else None,
-                                local_player_id=local_player_id
+                                local_player_id=local_player_id,
+                                preemptive_bonus=preemptive_bonus
                             )
+
+                            # 전투 후 면역 시간 설정
+                            exploration.set_post_combat_immunity()
+
+                            # 생존 퀘스트 턴수 업데이트
+                            try:
+                                from src.combat.combat_manager import get_combat_manager
+                                from src.quest.quest_manager import get_quest_manager
+                                cm = get_combat_manager()
+                                survived_turns = getattr(cm, 'turn_count', 0)
+                                if survived_turns > 0:
+                                    qm = get_quest_manager()
+                                    qm.update_progress("survival_turns", "survival_turns", survived_turns)
+                                    logger.debug(f"[퀘스트] 생존 턴수 업데이트: {survived_turns}턴")
+                            except Exception as e:
+                                logger.debug(f"생존 퀘스트 업데이트 실패: {e}")
 
                             logger.info(f"전투 결과: {combat_result}")
 
@@ -3564,7 +3821,7 @@ def main() -> int:
                                 exploration.game_stats["next_dungeon_floor"] = next_dungeon
                                 game_stats["next_dungeon_floor"] = next_dungeon
                                 logger.info(f"던전 클리어! 마을로 복귀. 다음 던전: {next_dungeon}층 (멀티플레이)")
-                                
+
                                 # 마을 방문 시 서비스 리뉴얼
                                 player_level = 1
                                 if hasattr(exploration, 'player') and hasattr(exploration.player, 'level'):
@@ -3573,8 +3830,9 @@ def main() -> int:
                                     levels = [getattr(member, 'level', 1) for member in exploration.player.party if hasattr(member, 'level')]
                                     if levels:
                                         player_level = sum(levels) // len(levels)
-                                renew_town_services(player_level)
-                                
+                                max_floor = exploration.game_stats.get("max_floor_reached", 0) if hasattr(exploration, 'game_stats') else 0
+                                renew_town_services(player_level, current_floor=max_floor)
+
                                 # 마을 맵 재사용
                                 if floor_number in floors_dungeons:
                                     floor_data = floors_dungeons[floor_number]
@@ -3660,7 +3918,7 @@ def main() -> int:
                                 # 마을로 복귀
                                 floor_number = 0
                                 logger.info(f"⬆ 던전에서 마을로 복귀 (멀티플레이)")
-                                
+
                                 # 마을 방문 시 서비스 리뉴얼
                                 player_level = 1
                                 if hasattr(exploration, 'player') and hasattr(exploration.player, 'level'):
@@ -3669,8 +3927,9 @@ def main() -> int:
                                     levels = [getattr(member, 'level', 1) for member in exploration.player.party if hasattr(member, 'level')]
                                     if levels:
                                         player_level = sum(levels) // len(levels)
-                                renew_town_services(player_level)
-                                
+                                max_floor = exploration.game_stats.get("max_floor_reached", 0) if hasattr(exploration, 'game_stats') else 0
+                                renew_town_services(player_level, current_floor=max_floor)
+
                                 # 마을 맵 재사용
                                 if floor_number in floors_dungeons:
                                     floor_data = floors_dungeons[floor_number]
@@ -4075,7 +4334,10 @@ def main() -> int:
                                         enemies,
                                         inventory=inventory
                                     )
-                                    
+
+                                    # 전투 후 면역 시간 설정
+                                    exploration.set_post_combat_immunity()
+
                                     if combat_result == CombatState.VICTORY:
                                         # 스토리 보스 처치 플래그 설정
                                         if boss_type == "sephiroth":
@@ -4281,6 +4543,9 @@ def main() -> int:
                                         dungeon=exploration.dungeon if hasattr(exploration, 'dungeon') else None,
                                         local_player_id=local_player_id
                                     )
+
+                                    # 전투 후 면역 시간 설정
+                                    exploration.set_post_combat_immunity()
 
                                     logger.info(f"전투 결과: {combat_result}")
 
@@ -4500,7 +4765,7 @@ def main() -> int:
                                         exploration.game_stats["next_dungeon_floor"] = next_dungeon
                                         game_stats["next_dungeon_floor"] = next_dungeon
                                         logger.info(f"던전 클리어! 마을로 복귀. 다음 던전: {next_dungeon}층")
-                                        
+
                                         # 마을 방문 시 서비스 리뉴얼
                                         player_level = 1
                                         if hasattr(exploration, 'player') and hasattr(exploration.player, 'level'):
@@ -4509,8 +4774,9 @@ def main() -> int:
                                             levels = [getattr(member, 'level', 1) for member in exploration.player.party if hasattr(member, 'level')]
                                             if levels:
                                                 player_level = sum(levels) // len(levels)
-                                        renew_town_services(player_level)
-                                        
+                                        max_floor = exploration.game_stats.get("max_floor_reached", 0) if hasattr(exploration, 'game_stats') else 0
+                                        renew_town_services(player_level, current_floor=max_floor)
+
                                         # 마을 맵 재사용
                                         if floor_number in floors_dungeons:
                                             floor_data = floors_dungeons[floor_number]
@@ -4600,7 +4866,7 @@ def main() -> int:
                                         # 마을로 복귀
                                         floor_number = 0
                                         logger.info(f"⬆ 던전에서 마을로 복귀")
-                                        
+
                                         # 마을 방문 시 서비스 리뉴얼
                                         player_level = 1
                                         if hasattr(exploration, 'player') and hasattr(exploration.player, 'level'):
@@ -4609,8 +4875,9 @@ def main() -> int:
                                             levels = [getattr(member, 'level', 1) for member in exploration.player.party if hasattr(member, 'level')]
                                             if levels:
                                                 player_level = sum(levels) // len(levels)
-                                        renew_town_services(player_level)
-                                        
+                                        max_floor = exploration.game_stats.get("max_floor_reached", 0) if hasattr(exploration, 'game_stats') else 0
+                                        renew_town_services(player_level, current_floor=max_floor)
+
                                         # 마을 맵 재사용
                                         if floor_number in floors_dungeons:
                                             floor_data = floors_dungeons[floor_number]

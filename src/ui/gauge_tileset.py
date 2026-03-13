@@ -622,6 +622,21 @@ class GaugeTileManager:
             self._boundary_tile_cache[cache_key] = codepoint
             # LRU: 새 항목을 접근 순서에 추가
             self._boundary_tile_access_order.append(cache_key)
+            # PygameGaugeTileManager용 메타데이터 등록
+            try:
+                from src.ui.pygame_backend.gauge_tiles import register_boundary_tile
+                register_boundary_tile(codepoint, {
+                    'hp_pixels': hp_pixels,
+                    'wound_pixels': wound_pixels,
+                    'hp_color': hp_color,
+                    'bg_color': bg_color,
+                    'wound_stripe_color': wound_stripe_color,
+                    'cell_index': cell_index,
+                    'cell_start': cell_start,
+                    'wound_start_pixel': wound_start_pixel,
+                })
+            except Exception:
+                pass  # pygame 백엔드가 없는 경우 무시
             logger.debug(
                 f"경계 타일 생성 성공: codepoint=0x{codepoint:04X}, "
                 f"hp_pixels={actual_hp_pixels}/{self.tile_width}, "

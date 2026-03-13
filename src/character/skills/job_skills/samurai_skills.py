@@ -67,9 +67,9 @@ def create_samurai_skills():
     # ============================================================
 
     # 4. 겟코우기리 - 관찰 소모 없는 공격
-    gekko_giri = Skill("samurai_gekko_giri", "겟코우기리", "관찰 스택을 소모하지 않는 우아한 베기")
+    gekko_giri = Skill("samurai_gekko_giri", "겟코우기리", "[바람 속성] 관찰 스택을 소모하지 않는 우아한 베기")
     gekko_giri.effects = [
-        DamageEffect(DamageType.BRV, 2.2),
+        DamageEffect(DamageType.BRV, 2.2, element="wind"),
         GimmickEffect(GimmickOperation.ADD, "kenatsu", 8, max_value=100)
     ]
     gekko_giri.costs = [MPCost(6)]
@@ -131,9 +131,9 @@ def create_samurai_skills():
     skills.append(mikiri)
 
     # 8. 켄아츠잔 - 검압 베기
-    kenatsuan = Skill("samurai_kenatsuan", "켄아츠잔", "검압 소모 강력 공격")
+    kenatsuan = Skill("samurai_kenatsuan", "켄아츠잔", "[바람 속성] 검압 소모 강력 공격")
     kenatsuan.effects = [
-        DamageEffect(DamageType.BRV_HP, 3.0),
+        DamageEffect(DamageType.BRV_HP, 3.0, element="wind"),
         GimmickEffect(GimmickOperation.CONSUME, "kenatsu", 50),
         GimmickEffect(GimmickOperation.CONSUME, "observation", 1)
     ]
@@ -150,7 +150,7 @@ def create_samurai_skills():
     yomi = Skill(
         "samurai_yomi",
         "요미",
-        "무심 5+에서 즉시 발동, 토글 ON 동안 적 전체(최대 4명)의 다음 2턴 행동/ATB를 예측하고 매턴 MP 8 소모",
+        "무심 5+에서 즉시 발동, 적 전체(최대 4명)의 다음 2턴 행동/ATB를 예측한다.",
     )
     yomi.effects = [
         BuffEffect(BuffType.EVASION_UP, 0.1, duration=2, target="self"),  # 부가 효과
@@ -165,16 +165,13 @@ def create_samurai_skills():
         "prediction_turns": 2,  # 다음 2턴 예측
         "show_enemy_actions": True,
         "condition": "mushin",  # 무심(5+) 상태에서만 사용 가능
-        "toggle": True,  # ON/OFF 토글
-        "max_mp_penalty": 0.0,  # 토글 유지비 없음 (필요 시 조정)
-        "toggle_mp_per_turn": 8,  # 토글 ON 유지 시 매턴 MP 소모
     }
     skills.append(yomi)
 
     # 10. 텐치쥬잔 - 패링형 궁극기
-    tenchijuzan = Skill("samurai_tenchijuzan", "텐치쥬잔", "천지를 가르는 일격 (패링 중/성공 후 사용 시 강화)")
+    tenchijuzan = Skill("samurai_tenchijuzan", "텐치쥬잔", "[번개 속성] 천지를 가르는 일격 (패링 중/성공 후 사용 시 강화)")
     tenchijuzan.effects = [
-        DamageEffect(DamageType.HP, 2.5),  # 기본 (평시)
+        DamageEffect(DamageType.HP, 2.5, element="lightning"),  # 기본 (평시)
         GimmickEffect(GimmickOperation.CONSUME, "observation", 3)
     ]
     tenchijuzan.costs = [MPCost(20), StackCost("kenatsu", 60)]
@@ -198,9 +195,9 @@ def create_samurai_skills():
     # ============================================================
 
     # 11. 무료타이가 - 최종 궁극기
-    ultimate = Skill("samurai_ultimate", "무료타이가", "무량한 검의 흐름으로 모든 것을 베다")
+    ultimate = Skill("samurai_ultimate", "무료타이가", "[바람 속성] 무량한 검의 흐름으로 모든 것을 베다")
     ultimate.effects = [
-        DamageEffect(DamageType.HP, 2.0),  # 기본 (평시)
+        DamageEffect(DamageType.HP, 2.0, element="wind"),  # 기본 (평시)
         BuffEffect(BuffType.INVINCIBLE, 1.0, duration=3, target="self"),  # 패링 강화 시만
         GimmickEffect(GimmickOperation.SET, "observation", 0)  # 관찰 초기화
     ]

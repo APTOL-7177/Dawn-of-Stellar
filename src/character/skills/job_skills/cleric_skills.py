@@ -16,7 +16,7 @@ def create_cleric_skills():
     # 1. 기본 BRV: 치유의 기도
     pray = Skill("cleric_pray", "기도", "[신성 속성] 신앙 포인트 획득")
     pray.effects = [
-        DamageEffect(DamageType.BRV, 1.3, stat_type="magical", element="holy"),
+        DamageEffect(DamageType.BRV, 0.85, stat_type="magical", element="holy"),
         GimmickEffect(GimmickOperation.ADD, "faith_points", 1, max_value=8)
     ]
     pray.costs = []
@@ -27,7 +27,7 @@ def create_cleric_skills():
     # 2. 기본 HP: 성스러운 일격
     holy_attack = Skill("cleric_holy_attack", "성스러운 일격", "[신성 속성] 신앙 포인트 소비 공격")
     holy_attack.effects = [
-        DamageEffect(DamageType.HP, 0.9, stat_type="magical", element="holy", gimmick_bonus={"field": "faith_points", "multiplier": 0.2}),
+        DamageEffect(DamageType.HP, 0.59, stat_type="magical", element="holy", gimmick_bonus={"field": "faith_points", "multiplier": 0.2}),
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 1)
     ]
     holy_attack.costs = []
@@ -125,7 +125,7 @@ def create_cleric_skills():
     # 9. 이단 심판 (NEW - 10번째 스킬로 만들기 위해 추가)
     holy_judgment = Skill("cleric_holy_judgment", "이단 심판", "[신성 속성] 신앙 5포인트 소비 대규모 신성 공격")
     holy_judgment.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="magical", element="holy", gimmick_bonus={"field": "faith_points", "multiplier": 0.4}),
+        DamageEffect(DamageType.BRV_HP, 1.62, stat_type="magical", element="holy", gimmick_bonus={"field": "faith_points", "multiplier": 0.4}),
         BuffEffect(BuffType.ATTACK_DOWN, 0.4, duration=4),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.3, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "faith_points", 5)
@@ -143,7 +143,7 @@ def create_cleric_skills():
         HealEffect(HealType.HP, stat_scaling="magic", multiplier=1.35, is_party_wide=True),
         BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5, is_party_wide=True),
         BuffEffect(BuffType.REGEN, 0.42, duration=5, is_party_wide=True),
-        DamageEffect(DamageType.HP, 2.5, stat_type="magical", element="holy", gimmick_bonus={"field": "faith_points", "multiplier": 0.3}),
+        DamageEffect(DamageType.HP, 1.62, stat_type="magical", element="holy", gimmick_bonus={"field": "faith_points", "multiplier": 0.3}),
         GimmickEffect(GimmickOperation.SET, "faith_points", 0)
     ]
     ultimate.costs = [MPCost(30), StackCost("faith_points", 1)]

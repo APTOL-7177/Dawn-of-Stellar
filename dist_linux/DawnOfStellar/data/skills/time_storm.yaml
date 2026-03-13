@@ -1,0 +1,30 @@
+id: time_storm
+name: 시간 폭풍
+type: special
+description: 저장된 모든 가능성을 120% 위력으로 해방. 3개 이상 시 수렴 보너스 (+50% 피해, 시간 고정)
+costs:
+  mp: 20
+  cast_time: 1.5
+target: all_enemies
+requirements:
+  min_possibilities: 1
+effects:
+- type: time_storm
+  power_ratio: 1.2
+  release_all: true
+- type: convergence_bonus
+  min_possibilities: 3
+  damage_bonus: 0.5
+  apply_debuff:
+    type: time_lock
+    duration: 1
+    effect: atb_stop
+- type: clear_slots
+  after_cast: true
+metadata:
+  gimmick_skill: true
+  no_possibility_generation: true
+  job: time_mage
+sfx:
+- se
+- Magic1

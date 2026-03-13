@@ -1,0 +1,31 @@
+id: knight_devotion
+name: 헌신
+type: support
+description: |
+  헌신으로 파티를 치유합니다.
+
+  의무 3 소비 → 파티에게 공격력의 0.9배 HP 회복
+target: party
+costs:
+  mp: 14
+  stacks:
+    duty_stacks: 3
+requirements:
+  min_duty: 3
+effects:
+- type: heal
+  heal_type: hp
+  stat_scaling: physical_attack
+  multiplier: 0.9
+  is_party_wide: true
+- type: gimmick
+  operation: consume
+  field: duty_stacks
+  value: 3
+metadata:
+  job: knight
+  party_heal: "공격력 x0.9"
+  duty_cost: 3
+sfx:
+- se
+- Up2

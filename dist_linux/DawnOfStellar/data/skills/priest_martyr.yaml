@@ -1,0 +1,40 @@
+id: priest_martyr
+name: 순교자의 서약
+type: protect
+description: '아군을 대신해 피해를 받는다.
+
+  대상 아군 보호 (3턴).
+
+  대신 받은 피해 50% 감소.
+
+  신앙 100이면 피해 70% 감소, 5턴 + 신앙 소모.
+
+  신앙 +20.
+
+  "순교의 신탁" 충족.
+
+  '
+target: single_ally
+costs:
+  mp: 12
+metadata:
+  oracle_action: protect_ally
+  faith_empowered: true
+effects:
+- type: protect
+  duration: 3
+  damage_reduction: 0.5
+- type: gimmick
+  operation: add
+  field: faith
+  value: 20
+  max_value: 100
+animation:
+  icon: 🛡️
+  color:
+  - 200
+  - 200
+  - 255
+sfx:
+- se
+- Guard

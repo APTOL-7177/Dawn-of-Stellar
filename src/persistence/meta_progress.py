@@ -63,6 +63,14 @@ class MetaProgress:
         self._ensure_default_unlocked_jobs()
         self._ensure_default_unlocked_traits()
 
+        # 개발 모드: 모든 성장 요소 MAX
+        try:
+            from src.core.config import get_config
+            if get_config().development_mode:
+                self._apply_dev_mode_maxout()
+        except Exception:
+            pass
+
     def _ensure_default_unlocked_jobs(self):
         """기본 해금 직업 확인 및 설정"""
         # 초기 해금 직업 (초보자용 쉬운 직업들)
@@ -84,12 +92,12 @@ class MetaProgress:
 
     def _ensure_default_unlocked_traits(self):
         """기본 해금 특성 확인 및 설정"""
-        # 모든 직업 목록 (총 33개)
+        # 모든 직업 목록 (총 35개)
         all_jobs = [
             "alchemist", "archer", "archmage", "assassin", "bard",
             "battle_mage", "berserker", "breaker", "cleric", "dark_knight",
             "dimensionist", "dragon_knight", "druid", "elementalist", "engineer",
-            "gladiator", "hacker", "knight", "monk",
+            "gladiator", "hacker", "knight", "monk", "ninja",
             "necromancer", "paladin", "philosopher", "pirate", "priest",
             "rogue", "samurai", "shaman", "sniper", "spellblade",
             "sword_saint", "time_mage", "vampire", "warrior"
@@ -113,6 +121,76 @@ class MetaProgress:
                     except:
                         # 실패 시 빈 리스트
                         self.unlocked_traits[job_id] = []
+
+    def _apply_dev_mode_maxout(self):
+        """개발 모드: 모든 성장 요소를 MAX로 설정"""
+        import yaml
+
+        # 별의 파편 MAX
+        self.star_fragments = 999999
+
+        # 모든 직업 해금 (35개)
+        all_jobs = [
+            "alchemist", "archer", "archmage", "assassin", "bard",
+            "battle_mage", "berserker", "breaker", "cleric", "dark_knight",
+            "dimensionist", "dragon_knight", "druid", "elementalist", "engineer",
+            "gladiator", "hacker", "illusionist", "knight", "magician",
+            "monk", "necromancer", "ninja", "paladin", "philosopher", "pirate",
+            "priest", "rogue", "samurai", "shaman", "sniper",
+            "spellblade", "sword_saint", "time_mage", "vampire", "warrior"
+        ]
+        self.unlocked_jobs = set(all_jobs)
+
+        # 모든 직업의 모든 특성 해금
+        for job_id in all_jobs:
+            yaml_path = Path(f"data/characters/{job_id}.yaml")
+            if yaml_path.exists():
+                try:
+                    with open(yaml_path, 'r', encoding='utf-8') as f:
+                        data = yaml.safe_load(f)
+                        traits = data.get('traits', [])
+                        self.unlocked_traits[job_id] = [t['id'] for t in traits]
+                except Exception:
+                    pass
+
+        # 모든 패시브 구매
+        all_passives = [
+            "hp_boost", "mp_boost", "speed_boost", "brv_boost",
+            "accuracy_boost", "evasion_boost", "luck_boost", "quick_step",
+            "physical_power", "magic_power", "physical_guard", "magic_guard",
+            "critical_boost", "counter_stance", "auto_regen", "mp_recovery",
+            "battle_heal", "battle_mp", "damage_reduction", "status_resist",
+            "first_strike", "break_master", "skill_master", "hp_danger_boost",
+            "shield_mastery", "element_mastery", "critical_master", "double_hit",
+            "lifesteal", "mana_leech", "retaliation", "berserker_rage",
+            "guardian_angel", "phoenix_blessing", "double_cast", "ultimate_power",
+            "ultimate_defense", "brave_soul", "tactical_genius", "time_master",
+            "perfect_form", "unbreakable", "master_counter", "bloodthirst",
+            "eternal_flame"
+        ]
+        self.purchased_passives = set(all_passives)
+
+        # 모든 영구 업그레이드 구매
+        all_upgrades = [
+            "hp_증가_i", "hp_증가_ii", "mp_증가_i", "mp_증가_ii",
+            "경험치_부스트_i", "경험치_부스트_ii", "골드_부스트",
+            "인벤토리_확장_i", "인벤토리_확장_ii", "시작_레벨_증가"
+        ]
+        self.purchased_upgrades = set(all_upgrades)
+
+        # 모든 시설 만렙 (Lv.4)
+        self.facility_levels = {
+            "kitchen": 4,
+            "blacksmith": 4,
+            "alchemy_lab": 4,
+            "storage": 4,
+            "shop": 4
+        }
+
+        # 튜토리얼/인트로 완료 처리
+        self.intro_shown = True
+        self.tutorial_offered = True
+        self.tutorial_completed = True
 
     def add_star_fragments(self, amount: int):
         """별의 파편 추가"""

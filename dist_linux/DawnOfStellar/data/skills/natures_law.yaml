@@ -1,0 +1,43 @@
+id: natures_law
+name: 자연의 섭리
+type: buff
+description: '자연의 섭리를 발동합니다.
+
+  - 두 정령의 공명 효과 3턴간 2배
+
+  - 다음 융합 스킬 MP 비용 0
+
+
+  ※ 정령 2마리 소환 필요
+
+  ※ 쿨다운 6턴
+
+  '
+target: self
+costs:
+  mp: 25
+cooldown: 6
+metadata:
+  requires_spirits: 2
+effects:
+- type: buff
+  buff_id: natures_law
+  duration: 3
+  effects:
+    resonance_multiplier: 2.0
+- type: buff
+  buff_id: free_fusion
+  duration: 99
+  consume_on_fusion: true
+  effects:
+    fusion_mp_cost: 0
+animation:
+  icon: 🌿
+  color:
+  - 100
+  - 200
+  - 100
+  screen_effect: natures_blessing
+sfx:
+- se
+- Up1

@@ -278,6 +278,33 @@ def execute_custom_handler(handler_name: str, args: Dict[str, Any], user, target
             for t in targets:
                 GimmickUpdater.reset_intrusion(t)
             return EffectResult(effect_type=EffectType.GIMMICK, success=True, message="침투 초기화")
+        if name == "percent_hp_damage":
+            # 대상 현재 HP의 일정 비율만큼 고정(순수) 피해
+            # instant_kill=true: 일반 적은 즉사, 보스는 boss_percent 비율 피해
+            percent = float(args.get("value", args.get("percent", 0.35)))
+            boss_percent = float(args.get("boss_percent", percent))
+            instant_kill = str(args.get("instant_kill", "false")).lower() == "true"
+            for t in targets:
+                if not hasattr(t, "current_hp") or not hasattr(t, "max_hp"):
+                    continue
+                is_boss = getattr(t, "is_boss", False)
+                if instant_kill and not is_boss:
+                    # 일반 적 즉사
+                    actual = t.current_hp
+                    t.current_hp = 0
+                    t.is_alive = False
+                    logger.info(f"[즉사] {t.name}: 시스템 장악으로 즉사! ({actual} 피해)")
+                else:
+                    # 보스 또는 일반 고정피해
+                    ratio = boss_percent if is_boss else percent
+                    raw_damage = int(t.current_hp * ratio)
+                    actual = min(raw_damage, t.current_hp)
+                    t.current_hp = max(0, t.current_hp - actual)
+                    if t.current_hp <= 0:
+                        t.is_alive = False
+                    logger.info(f"[고정피해] {t.name}: HP {ratio*100:.0f}% = {actual} 피해 (잔여 HP: {t.current_hp})")
+            msg = "즉사 (보스: 고정 피해)" if instant_kill else f"HP {percent*100:.0f}% 고정 피해"
+            return EffectResult(effect_type=EffectType.DAMAGE, success=True, message=msg)
         if name == "spread_intrusion":
             amount = _int_arg(args, "value", "amount", "gain", default=0)
             spread_targets = _as_list(context.get("all_enemies")) if context else []
@@ -383,91 +410,33 @@ def execute_custom_handler(handler_name: str, args: Dict[str, Any], user, target
             msg = f"굴절 보호막 {total_converted}" if total_converted else "굴절 부족"
             return EffectResult(effect_type=EffectType.GIMMICK, success=total_converted > 0, message=msg)
 
-        # === 도적 지원 ===
-        if name in {"add_mockery", "add_mockery_all"}:
+        # === 도적 지원 (맹독 시스템) ===
+        if name in {"add_venom", "add_venom_all"}:
             amount = _int_arg(args, "value", "amount", "gain", default=0)
             if not targets and context.get("all_enemies"):
                 targets = _as_list(context.get("all_enemies"))
             for t in targets:
-                GimmickUpdater.add_mockery(user, t, amount)
-            return EffectResult(effect_type=EffectType.GIMMICK, success=True, message=f"농락 +{amount}")
-        if name == "set_all_mockery":
-            value = _int_arg(args, "value", "amount", default=0)
-            if not targets and context.get("all_enemies"):
-                targets = _as_list(context.get("all_enemies"))
+                GimmickUpdater.add_venom(user, t, amount)
+            return EffectResult(effect_type=EffectType.GIMMICK, success=True, message=f"독 중첩 +{amount}")
+        if name == "reset_venom":
             for t in targets:
-                t.mockery_gauge = min(getattr(user, "max_mockery", 10), value)
-            return EffectResult(effect_type=EffectType.GIMMICK, success=True, message="농락 설정")
-        if name == "steal_from_enemy":
-            tgt = targets[0] if targets else None
-            if not tgt:
-                return EffectResult(effect_type=EffectType.GIMMICK, success=False, message="대상 없음")
-
-            chances = args.get("steal_chances", {}) or {}
-            gold_chance = float(chances.get("gold", 0.0))
-            potion_chance = float(chances.get("potion", 0.0))
-            buff_chance = float(chances.get("buff", 0.0))
-
-            roll = random.random()
-            success_type = None
-            if roll < gold_chance:
-                success_type = "gold"
-            elif roll < gold_chance + potion_chance:
-                success_type = "potion"
-            elif roll < gold_chance + potion_chance + buff_chance:
-                success_type = "buff"
-
-            success = success_type is not None
-            mockery_gain = int(args.get("mockery_success" if success else "mockery_fail", 0) or 0)
-            if mockery_gain:
-                GimmickUpdater.add_mockery(user, tgt, mockery_gain)
-
-            msg = "훔치기 실패"
-            if success:
-                msg = f"훔치기 성공 ({success_type})"
-
-            try:
-                GimmickUpdater._push_ui_log(user, f"[도적] {msg}")
-            except Exception:
-                logger.debug("UI 로그 실패", exc_info=True)
-
-            return EffectResult(effect_type=EffectType.GIMMICK, success=True, message=msg)
-        if name == "reset_mockery":
-            for t in targets:
-                GimmickUpdater.reset_mockery(t)
+                GimmickUpdater.reset_venom(t)
             return EffectResult(effect_type=EffectType.GIMMICK, success=True, message="농락 초기화")
-        if name == "add_mockery_with_stealth":
-            base = _int_arg(args, "base", default=_int_arg(args, "value", default=0))
-            stealth_val = _int_arg(args, "stealth", default=base)
-            amount = stealth_val if getattr(user, "stealth_active", False) else base
+        if name == "add_venom_with_bonus":
+            amount = _int_arg(args, "value", "amount", default=1)
             for t in targets:
-                GimmickUpdater.add_mockery(user, t, amount)
-            return EffectResult(effect_type=EffectType.GIMMICK, success=True, message=f"농락 +{amount}")
+                GimmickUpdater.add_venom(user, t, amount)
+            return EffectResult(effect_type=EffectType.GIMMICK, success=True, message=f"독 중첩 +{amount}")
         if name in {"enter_stealth", "stealth"}:
             setattr(user, "stealth_active", True)
             return EffectResult(effect_type=EffectType.GIMMICK, success=True, message="은신 돌입")
         if name == "remove_stealth":
             setattr(user, "stealth_active", False)
             return EffectResult(effect_type=EffectType.GIMMICK, success=True, message="은신 해제")
-        if name == "backstab_stealth_check":
-            if getattr(user, "stealth_active", False):
-                skill = context.get("skill")
-                meta = getattr(skill, "metadata", {}) if skill else {}
-                # 은신 해제 + 농락 보너스
-                mockery_gain = meta.get("mockery_on_stealth", args.get("mockery", 0))
-                if mockery_gain:
-                    for t in targets:
-                        GimmickUpdater.add_mockery(user, t, int(mockery_gain))
-                setattr(user, "stealth_active", False)
-            return EffectResult(effect_type=EffectType.GIMMICK, success=True)
-        if name in {"try_execute_with_mockery", "try_execute"}:
+        if name == "try_execute":
             skill = context.get("skill")
             meta = getattr(skill, "metadata", {}) if skill else {}
             base_threshold = float(args.get("threshold") or meta.get("execute_threshold") or 0.0)
-            if name == "try_execute_with_mockery":
-                mockery_boost = meta.get("execute_threshold_mockery7")
-                if targets and getattr(targets[0], "mockery_gauge", 0) >= 7 and mockery_boost:
-                    base_threshold = float(mockery_boost)
             executed = False
             for t in targets:
                 max_hp = getattr(t, "max_hp", 1) or 1
@@ -475,8 +444,6 @@ def execute_custom_handler(handler_name: str, args: Dict[str, Any], user, target
                     t.current_hp = 0
                     setattr(t, "is_alive", False)
                     executed = True
-                    if meta.get("mockery_on_execute"):
-                        GimmickUpdater.add_mockery(user, t, int(meta.get("mockery_on_execute", 0)))
                     event_bus.publish(Events.CHARACTER_DEATH, {"character": t, "attacker": user})
             return EffectResult(effect_type=EffectType.GIMMICK, success=True, message="처형" if executed else "처형 실패")
         if name == "poison_damage_bonus":
@@ -510,23 +477,12 @@ def execute_custom_handler(handler_name: str, args: Dict[str, Any], user, target
                 current = getattr(t, "poison_stacks", 0)
                 t.poison_stacks = min(max_stack, current + inc)
             return EffectResult(effect_type=EffectType.GIMMICK, success=True, message="독 중첩")
-        if name == "add_mockery_all":
+        if name == "add_venom_all_enemies":
             amount = _int_arg(args, "value", "amount", default=0)
             all_targets = targets or _as_list(context.get("all_enemies"))
             for t in all_targets:
-                GimmickUpdater.add_mockery(user, t, amount)
-            return EffectResult(effect_type=EffectType.GIMMICK, success=True, message="농락 전체 적용")
-        if name == "mock_enemy":
-            # 농락 게이지 증가만 처리
-            amount = _int_arg(args, "value", "amount", default=1)
-            for t in targets:
-                GimmickUpdater.add_mockery(user, t, amount)
-            return EffectResult(effect_type=EffectType.GIMMICK, success=True)
-        if name == "humiliate":
-            # 농락 초기화 + 추가 보너스 정도만 처리
-            for t in targets:
-                GimmickUpdater.reset_mockery(t)
-            return EffectResult(effect_type=EffectType.GIMMICK, success=True)
+                GimmickUpdater.add_venom(user, t, amount)
+            return EffectResult(effect_type=EffectType.GIMMICK, success=True, message=f"독 중첩 전체 +{amount}")
 
         if name == "toggle_buff":
             buff_id = args.get("buff_id")

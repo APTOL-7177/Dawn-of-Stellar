@@ -1381,8 +1381,13 @@ class GaugeRenderer:
             
             # 감소 중이면 애니메이션, 증가/유지면 즉시 업데이트
             if current < previous_display:
-                # 감소 중 → 애니메이션
-                anim.set_target(current)
+                if current < anim.target:
+                    # 더 많이 감소한 경우 애니메이션 타이머 재시작
+                    anim.set_target(current)
+                else:
+                    # 불릿타임 등으로 인해 목표값보다 아주 살짝 올랐지만 전체적으로는 감소 중일 때
+                    # 타이머를 리셋하지 않고 목적지만 부드럽게 갱신 (애니메이션 멈춤 방지)
+                    anim.target = current
                 display_atb = anim.update()
             else:
                 # 증가/유지 → 즉시 표시
@@ -1484,8 +1489,12 @@ class GaugeRenderer:
             
             # 감소 중이면 애니메이션, 증가/유지면 즉시 업데이트
             if atb_current < previous_display:
-                # 감소 중 → 애니메이션
-                anim.set_target(atb_current)
+                if atb_current < anim.target:
+                    # 더 많이 감소한 경우 애니메이션 타이머 재시작
+                    anim.set_target(atb_current)
+                else:
+                    # 불릿타임 등으로 인해 찔끔찔끔 오르면서 무한 리셋되는 현상 방지
+                    anim.target = atb_current
                 display_atb = anim.update()
             else:
                 # 증가/유지 → 즉시 표시
@@ -1690,7 +1699,7 @@ class GaugeRenderer:
             "entangle": ("속박술", (100, 150, 100)),
             "madness": ("광기", (200, 50, 50)),
             "taunt": ("도발", (255, 150, 100)),
-            "mockery": ("농락", (180, 120, 220)),
+            "venom": ("독 중첩", (120, 200, 80)),
             "intrusion": ("침투", (120, 200, 255)),
             # 버프 (초록 계열)
             "boost_atk": ("공↑", (100, 255, 100)),

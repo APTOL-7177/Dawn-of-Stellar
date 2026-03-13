@@ -46,6 +46,7 @@ def create_sword_saint_skills():
     ilseom.costs = []  # 기본 공격은 MP 소모 없음
     ilseom.sfx = ("combat", "critical")
     ilseom.metadata = {
+        "basic_attack": True,
         "sword_aura_bonus_hits": {"multiplier": SWORD_AURA_MULTIPLIER}
     }
     skills.append(ilseom)
@@ -197,8 +198,8 @@ def register_sword_saint_skills(skill_manager):
             min_value=0
         ),
         # 아군 전체 공격력/마법력 1.2배 (2턴)
-        BuffEffect(BuffType.ATTACK_UP, 0.2, duration=2),
-        BuffEffect(BuffType.MAGIC_UP, 0.2, duration=2)
+        BuffEffect(BuffType.ATTACK_UP, 0.2, duration=2, is_party_wide=True),
+        BuffEffect(BuffType.MAGIC_UP, 0.2, duration=2, is_party_wide=True)
     ]
     teamwork.target_type = "all_enemies"
     teamwork.is_aoe = True

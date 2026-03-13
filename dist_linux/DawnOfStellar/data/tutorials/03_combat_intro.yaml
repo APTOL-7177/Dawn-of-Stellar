@@ -1,0 +1,94 @@
+# 튜토리얼 3단계: 전투 입문
+id: combat_intro
+title: "전투 입문"
+order: 3
+category: combat
+enabled: true
+skippable: true
+
+description: |
+  시공간 교란으로 인해 적대적인 존재들이 나타났습니다.
+  전투의 기본을 익혀 자신을 보호하세요.
+
+objective: "첫 전투에서 승리하기"
+
+messages:
+  - text: "경고! 적 감지!"
+    color: [255, 0, 0]
+    pause: 1.5
+    effect: "flash"
+
+  - text: "시공간 균열에서 무언가 나타났습니다."
+    color: [200, 200, 200]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "전투 시스템을 익힐 시간입니다."
+    color: [255, 255, 0]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "이 게임은 ATB(Active Time Battle) 시스템을 사용합니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "화면 상단의 게이지를 주시하세요."
+    color: [0, 255, 255]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "ATB 게이지가 가득 차면 행동할 수 있습니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "먼저 기본 공격으로 적을 공격해보세요!"
+    color: [255, 215, 0]
+    pause: 2.0
+    effect: "flash"
+
+completion_condition:
+  type: "combat_victory"
+  enemy_count: 1
+  allow_escape: false
+  message: "첫 전투에서 승리했습니다!"
+
+hints:
+  - text: "ATB 게이지가 1000에 도달하면 행동할 수 있습니다."
+    trigger_time: 5.0
+
+  - text: "방향키로 스킬을 선택하고 Enter로 실행하세요."
+    trigger_time: 10.0
+
+  - text: "적의 HP를 0으로 만들면 승리합니다."
+    trigger_time: 15.0
+
+ui_highlights:
+  - element: "atb_gauge"
+    position: "top_center"
+    color: [255, 255, 0]
+    pulse: true
+    description: "ATB 게이지 - 가득 차면 행동 가능"
+
+  - element: "hp_bar"
+    position: "top_left"
+    color: [0, 255, 0]
+    description: "체력 (HP)"
+
+  - element: "skill_menu"
+    position: "bottom_center"
+    color: [255, 255, 255]
+    description: "스킬 선택"
+
+  - element: "enemy"
+    color: [255, 0, 0]
+    pulse: true
+    description: "적"
+
+rewards:
+  exp: 50
+  gold: 20
+  message: "전투의 기본을 익혔습니다!"
+
+next_step: "atb_system"

@@ -80,6 +80,18 @@ class CombatManager:
         self.dungeon: Optional[Any] = None  # DungeonMap
         self.combat_position: Optional[Tuple[int, int]] = None  # 전투 시작 위치 (x, y)
 
+        # 헤드리스 모드 (UI/오디오/진동 비활성화 - RL 학습 환경용)
+        self.headless: bool = False
+
+        # 호감도/유대 시스템
+        self._affinity_manager: Optional[Any] = None  # AffinityManager
+        # 체인어빌리티 대기열 (불릿타임 중 플레이어 선택 대기)
+        self.pending_chain_abilities: List[Any] = []
+        self.chain_trigger_reason: str = ""  # 트리거 사유
+
+        # 직업 시너지 시스템
+        self._synergy_manager: Optional[Any] = None  # SynergyManager
+
         # 콜백
         self.on_combat_end: Optional[Callable[[CombatState], None]] = None
         self.on_turn_start: Optional[Callable[[Any], None]] = None
@@ -89,7 +101,7 @@ class CombatManager:
         event_bus.subscribe(Events.CHARACTER_DEATH, self._on_character_death)
         event_bus.subscribe(Events.COMBAT_DAMAGE_TAKEN, self._on_damage_taken)
 
-    def start_combat(self, allies: List[Any], enemies: List[Any], dungeon: Optional[Any] = None, combat_position: Optional[Tuple[int, int]] = None) -> None:
+    def start_combat(self, allies: List[Any], enemies: List[Any], dungeon: Optional[Any] = None, combat_position: Optional[Tuple[int, int]] = None, preemptive_bonus: float = 0.0) -> None:
         """
         전투 시작
 
@@ -100,12 +112,13 @@ class CombatManager:
             combat_position: 전투 시작 위치 (x, y)
         """
         self.logger.info("전투 시작!")
-        
+
         # ATB 초기화 (이전 세션/전투의 데이터 제거)
         self.atb.clear()
-        
-        # 전투 시작 진동
-        vibration_manager.vibrate(VibrationPattern.COMBAT_START)
+
+        if not self.headless:
+            # 전투 시작 진동
+            vibration_manager.vibrate(VibrationPattern.COMBAT_START)
 
         # 전투원 설정 (PartyMember 변환은 아래에서 처리)
         self.enemies = enemies
@@ -116,6 +129,11 @@ class CombatManager:
         self.dungeon = dungeon
         self.combat_position = combat_position
         
+        # 적 침투 게이지 초기화 (이전 전투 데이터 제거)
+        for enemy in enemies:
+            if hasattr(enemy, 'intrusion_gauge'):
+                enemy.intrusion_gauge = 0
+
         # 요리 쿨타임 초기화 (인벤토리에서 쿨타임 정보 가져오기)
         # 전투 시작 시 현재 쿨타임 턴을 설정
         if hasattr(self, 'inventory') and self.inventory is not None:
@@ -190,24 +208,39 @@ class CombatManager:
         
         # ATB 시스템에 전투원 등록
         import random
+
+        # 선제공격 판정: preemptive_bonus 확률로 선제공격 발동
+        is_preemptive = preemptive_bonus > 0 and random.random() < preemptive_bonus
+        self.is_preemptive = is_preemptive  # UI 메시지용 플래그
+        if is_preemptive:
+            self.logger.info(f"선제공격 발동! (보너스: {preemptive_bonus:.0%})")
+
         for ally in self.allies:
             self.atb.register_combatant(ally)
             self.brave.initialize_brv(ally)
             # combat_manager 참조 설정 (원소 장막 등을 위해)
             ally._combat_manager_ref = self
-            # ATB 게이지를 0~50% 랜덤하게 채우기
             gauge = self.atb.get_gauge(ally)
             if gauge:
-                random_percentage = random.uniform(0.0, 0.5)
+                if is_preemptive:
+                    # 선제공격: 아군 ATB 70~100% 시작
+                    random_percentage = random.uniform(0.7, 1.0)
+                else:
+                    # 일반: 0~50% 랜덤
+                    random_percentage = random.uniform(0.0, 0.5)
                 gauge.current = int(gauge.max_gauge * random_percentage)
 
         for enemy in enemies:
             self.atb.register_combatant(enemy)
             self.brave.initialize_brv(enemy)
-            # ATB 게이지를 0~50% 랜덤하게 채우기
             gauge = self.atb.get_gauge(enemy)
             if gauge:
-                random_percentage = random.uniform(0.0, 0.5)
+                if is_preemptive:
+                    # 선제공격: 적 ATB 0~15% 시작 (거의 빈 상태)
+                    random_percentage = random.uniform(0.0, 0.15)
+                else:
+                    # 일반: 0~50% 랜덤
+                    random_percentage = random.uniform(0.0, 0.5)
                 gauge.current = int(gauge.max_gauge * random_percentage)
 
         # 해커 특성: 제로데이 헌터 - 전투 시작 시 무작위 적 침투 +30
@@ -259,6 +292,44 @@ class CombatManager:
 
         self.logger.debug(f"팀워크 게이지 시스템 초기화: {self.party.teamwork_gauge}/{self.party.max_teamwork_gauge}")
 
+        # 호감도/유대 시스템 초기화 (체인어빌리티, 연계스킬, 합체기에 필요)
+        if not self._affinity_manager:
+            try:
+                from src.character.affinity import AffinityManager
+                self._affinity_manager = AffinityManager()
+                party_jobs = [c.character_class for c in self.allies if hasattr(c, 'character_class')]
+
+                # 세이브 파일에서 호감도 복원 시도 (전투 간 영속성)
+                loaded_from_save = False
+                try:
+                    import src.persistence.save_system as save_module
+                    cached_affinity = getattr(save_module, '_last_loaded_affinity_data', None)
+                    if cached_affinity and isinstance(cached_affinity, dict):
+                        self._affinity_manager.from_dict(cached_affinity)
+                        loaded_from_save = True
+                        self.logger.info(f"호감도 세이브에서 복원 완료")
+                except Exception as e:
+                    self.logger.debug(f"호감도 세이브 복원 실패 (무시): {e}")
+
+                if not loaded_from_save:
+                    # 세이브 데이터 없으면 0에서 시작
+                    # → 연계스킬/합체기는 전투 중 호감도 축적으로 해금
+                    self.logger.info(f"호감도 시스템 초기화 (0 시작): {len(party_jobs)}명 파티")
+            except Exception as e:
+                self.logger.debug(f"호감도 시스템 초기화 실패 (무시): {e}")
+
+        # 직업 시너지: 파티 보너스 계산
+        try:
+            from src.combat.job_synergy import get_synergy_manager
+            self._synergy_manager = get_synergy_manager()
+            party_jobs = [c.character_class for c in self.allies if hasattr(c, 'character_class')]
+            active_bonuses = self._synergy_manager.calculate_party_bonuses(party_jobs)
+            if active_bonuses:
+                bonus_names = [b.name for b in active_bonuses]
+                self.logger.info(f"파티 시너지 보너스 활성: {', '.join(bonus_names)}")
+        except Exception as e:
+            self.logger.debug(f"시너지 시스템 초기화 실패 (무시): {e}")
+
         # === 보스 타이머 시스템 ===
         # 세피로스 또는 카인 전투인지 확인
         enemy_ids = [getattr(e, 'enemy_id', None) for e in self.enemies]
@@ -272,7 +343,7 @@ class CombatManager:
         )
         self.logger.debug(f"[전투 시작] 세피로스 전투: {is_sephiroth_battle}, 카인 전투: {is_cain_battle}")
 
-        if is_sephiroth_battle or is_cain_battle:
+        if (is_sephiroth_battle or is_cain_battle) and not self.headless:
             from src.combat.boss_timer_system import get_boss_timer_system
             boss_timer = get_boss_timer_system()
 
@@ -303,7 +374,7 @@ class CombatManager:
                 self.logger.info("세피로스 테마곡 재생: 광기의_춤.wav (7분 30초)")
 
         # === 보스 전투 시작 대사 ===
-        if is_sephiroth_battle or is_cain_battle:
+        if (is_sephiroth_battle or is_cain_battle) and not self.headless:
             from src.combat.boss_dialogue import get_boss_dialogue
             boss_dialogue = get_boss_dialogue()
 
@@ -421,10 +492,15 @@ class CombatManager:
                 "message": "전투가 이미 종료되었습니다."
             }
         
-        # 죽은 캐릭터는 행동 불가 (is_alive와 current_hp 둘 다 확인)
+        # 죽은 캐릭터는 행동 불가 (is_alive와 current_hp 둘 다 확인, 단 불멸의 존재는 예외)
         is_dead = not getattr(actor, 'is_alive', True)
-        if not is_dead and hasattr(actor, 'current_hp'):
-            is_dead = actor.current_hp <= 0
+        if not is_dead and hasattr(actor, 'current_hp') and actor.current_hp <= 0:
+            # 불멸의 존재 특성이 있으면 예외 처리
+            if hasattr(actor, '_has_undying_existence') and actor._has_undying_existence():
+                is_dead = False
+            else:
+                is_dead = True
+                
         if is_dead:
             # is_alive 동기화
             actor.is_alive = False
@@ -773,18 +849,34 @@ class CombatManager:
                 )
                 # DoT로 사망 여부 확인
                 if hasattr(actor, 'current_hp') and actor.current_hp <= 0:
-                    actor.is_alive = False  # is_alive 속성이 없으면 생성
-                    self.logger.warning(f"{actor.name}이(가) DoT로 사망!")
+                    if not (hasattr(actor, '_has_undying_existence') and actor._has_undying_existence()):
+                        actor.is_alive = False  # is_alive 속성이 없으면 생성
+                        self.logger.warning(f"{actor.name}이(가) DoT로 사망!")
         
+        # 3-0.5. 도적 독(Venom) DoT 처리
+        # 아군 중 도적(venom_system)이 있으면, 살아있는 적 전원에게 독 DoT 적용
+        for ally in self.allies:
+            if getattr(ally, 'gimmick_type', None) == 'venom_system' and getattr(ally, 'is_alive', True):
+                for enemy in self.enemies:
+                    if getattr(enemy, 'is_alive', True) and getattr(enemy, 'venom_stacks', 0) > 0:
+                        dot_dmg = GimmickUpdater.apply_venom_dot(ally, enemy)
+                        if dot_dmg and dot_dmg > 0:
+                            # 독 DoT로 사망 여부 확인
+                            if hasattr(enemy, 'current_hp') and enemy.current_hp <= 0:
+                                if not (hasattr(enemy, '_has_undying_existence') and enemy._has_undying_existence()):
+                                    enemy.is_alive = False
+                                    self.logger.warning(f"{enemy.name}이(가) 독 DoT로 사망!")
+
         # 3-1. 환경 효과 처리 (아군에게만 적용 - 적은 제외)
         if self.dungeon and self.combat_position:
             # 아군인 경우에만 환경 효과 피해/회복 적용
             if actor not in self.enemies:
                 self._apply_environmental_effects(actor)
-                # 환경 효과로 인한 사망 체크
+                # 환경 효과로 사망 여부 확인
                 if hasattr(actor, 'current_hp') and actor.current_hp <= 0:
-                    actor.is_alive = False
-                    self.logger.warning(f"{actor.name}이(가) 환경 효과로 사망!")
+                    if not (hasattr(actor, '_has_undying_existence') and actor._has_undying_existence()):
+                        actor.is_alive = False
+                        self.logger.warning(f"{actor.name}이(가) 환경 효과로 사망!")
             
             # 환경 효과 스탯 수정치 적용 (아군에게만 - ATB 속도, 데미지 계산 등에 영향)
             for ally in self.allies:
@@ -794,13 +886,21 @@ class CombatManager:
         # 3-2. 랜섬웨어 효과 처리 (적의 턴 시작 시)
         if actor in self.enemies:
             self._process_ransomware_damage(actor)
-            # 랜섬웨어로 인한 사망 체크
+            # 랜섬웨어로 사망 여부 확인
             if hasattr(actor, 'current_hp') and actor.current_hp <= 0:
-                actor.is_alive = False
-                self.logger.warning(f"{actor.name}이(가) 랜섬웨어로 사망!")
+                if not (hasattr(actor, '_has_undying_existence') and actor._has_undying_existence()):
+                    actor.is_alive = False
+                    self.logger.warning(f"{actor.name}이(가) 랜섬웨어로 사망!")
         
         # 3-3. 사망 여부 확인 (DoT, 환경 효과, 랜섬웨어로 사망한 경우)
-        if hasattr(actor, 'current_hp') and actor.current_hp <= 0:
+        is_dead_from_start_effects = False
+        if not getattr(actor, 'is_alive', True):
+            is_dead_from_start_effects = True
+        elif hasattr(actor, 'current_hp') and actor.current_hp <= 0:
+            if not (hasattr(actor, '_has_undying_existence') and actor._has_undying_existence()):
+                is_dead_from_start_effects = True
+
+        if is_dead_from_start_effects:
             self.logger.warning(f"{actor.name}이(가) 턴 시작 시 피해로 사망하여 행동을 취소합니다.")
             result["success"] = False
             result["error"] = "사망"
@@ -975,6 +1075,161 @@ class CombatManager:
                     self.phase_transition_message = transition_msg
                     target._current_phase = current_phase
                     self.logger.info(f"{target.name} 페이즈 전환: {old_phase} → {current_phase}")
+
+        # ── 체인어빌리티 트리거 체크 ──
+        if result.get("success", True) and actor in self.allies:
+            chain_triggered = False
+            # 1. BREAK/SCATTER 트리거 (SCATTER는 항상 BREAK와 동시 발생)
+            # is_break: BRV 공격 결과, brv_is_break: BRV+HP 복합 공격 결과
+            if result.get("is_break") or result.get("brv_is_break"):
+                reason = "scatter" if target and getattr(target, 'is_scattered', False) else "break"
+                self.trigger_chain_ability_check(actor, reason)
+                chain_triggered = True
+            # 2. triggers_chain 플래그 스킬
+            if not chain_triggered and skill and getattr(skill, 'triggers_chain', False):
+                self.trigger_chain_ability_check(actor, "skill")
+            # 3. 팀워크 스킬 트리거 (execute_teamwork_skill에서 별도 처리)
+
+        # ── 호감도 증가: 전투 행동 시 ──
+        if result.get("success", True) and self._affinity_manager:
+            party_jobs = [
+                c.character_class for c in self.allies
+                if hasattr(c, 'character_class')
+            ]
+            # 아군 행동 시 호감도 소폭 증가 (+1)
+            if actor in self.allies and hasattr(actor, 'character_class'):
+                self._affinity_manager.on_battle_action(actor.character_class, party_jobs)
+            # 힐/버프 시전 시 호감도 증가 (+3)
+            if (actor in self.allies and target and target in self.allies
+                    and hasattr(actor, 'character_class') and hasattr(target, 'character_class')
+                    and action_type == ActionType.SKILL
+                    and (result.get("healed") or result.get("buffed"))):
+                self._affinity_manager.on_heal_or_buff(
+                    actor.character_class, target.character_class)
+
+        # ── 연계스킬 트리거 체크 (자동, 무료, 확률 기반) ──
+        bond_skill_results = []
+        if result.get("success", True):
+            # 1. 아군 공격 적중 시 (ally_attack_hit)
+            if actor in self.allies and action_type in (
+                ActionType.BRV_ATTACK, ActionType.HP_ATTACK,
+                ActionType.BRV_HP_ATTACK, ActionType.SKILL
+            ):
+                bond_checks = self.check_bond_skills("ally_attack_hit", actor)
+                for br in bond_checks:
+                    bond_exec = self.execute_bond_skill(br, actor)
+                    bond_skill_results.append(bond_exec)
+
+            # 2. 아군이 피해를 받았을 때 (ally_damaged)
+            if actor in self.enemies and target and target in self.allies:
+                bond_checks = self.check_bond_skills("ally_damaged", target)
+                for br in bond_checks:
+                    bond_exec = self.execute_bond_skill(br, target)
+                    bond_skill_results.append(bond_exec)
+
+            # 3. 아군이 회복받았을 때 (ally_healed)
+            if (actor in self.allies and target and target in self.allies
+                    and action_type == ActionType.SKILL
+                    and result.get("healed")):
+                bond_checks = self.check_bond_skills("ally_healed", actor)
+                for br in bond_checks:
+                    bond_exec = self.execute_bond_skill(br, actor)
+                    bond_skill_results.append(bond_exec)
+
+            # 4. 크리티컬 히트 시 (critical_hit)
+            if actor in self.allies and result.get("is_critical"):
+                bond_checks = self.check_bond_skills("critical_hit", actor)
+                for br in bond_checks:
+                    bond_exec = self.execute_bond_skill(br, actor)
+                    bond_skill_results.append(bond_exec)
+
+            # 5. 적 처치 시 (enemy_killed) / 치명타 (ally_lethal_hit)
+            if actor in self.allies and target and target in self.enemies:
+                target_dead = (
+                    (hasattr(target, 'is_alive') and not target.is_alive)
+                    or (hasattr(target, 'current_hp') and target.current_hp <= 0)
+                )
+                if target_dead:
+                    bond_checks = self.check_bond_skills("enemy_killed", actor)
+                    for br in bond_checks:
+                        bond_exec = self.execute_bond_skill(br, actor)
+                        bond_skill_results.append(bond_exec)
+                    # ally_lethal_hit: 마무리 일격 (enemy_killed과 동일 조건)
+                    bond_checks = self.check_bond_skills("ally_lethal_hit", actor)
+                    for br in bond_checks:
+                        bond_exec = self.execute_bond_skill(br, actor)
+                        bond_skill_results.append(bond_exec)
+
+            # 6. 아군 사망 시 (ally_killed)
+            if actor in self.enemies and target and target in self.allies:
+                target_dead = (
+                    (hasattr(target, 'is_alive') and not target.is_alive)
+                    or (hasattr(target, 'current_hp') and target.current_hp <= 0)
+                )
+                if target_dead:
+                    bond_checks = self.check_bond_skills("ally_killed", target)
+                    for br in bond_checks:
+                        bond_exec = self.execute_bond_skill(br, target)
+                        bond_skill_results.append(bond_exec)
+
+            # 7. 아군 스킬 적중 시 (ally_skill_hit)
+            if actor in self.allies and action_type == ActionType.SKILL:
+                bond_checks = self.check_bond_skills("ally_skill_hit", actor)
+                for br in bond_checks:
+                    bond_exec = self.execute_bond_skill(br, actor)
+                    bond_skill_results.append(bond_exec)
+
+            # 8. 방어 행동 시 (defend_action)
+            if actor in self.allies and action_type == ActionType.DEFEND:
+                bond_checks = self.check_bond_skills("defend_action", actor)
+                for br in bond_checks:
+                    bond_exec = self.execute_bond_skill(br, actor)
+                    bond_skill_results.append(bond_exec)
+
+            # 9. 아군 버프 시 (ally_buffed)
+            if (actor in self.allies and target and target in self.allies
+                    and result.get("buffed")):
+                bond_checks = self.check_bond_skills("ally_buffed", actor)
+                for br in bond_checks:
+                    bond_exec = self.execute_bond_skill(br, actor)
+                    bond_skill_results.append(bond_exec)
+
+            # 10. 적 BRV 브레이크 시 (enemy_break)
+            if actor in self.allies and (
+                result.get("is_break") or result.get("brv_is_break")
+            ):
+                bond_checks = self.check_bond_skills("enemy_break", actor)
+                for br in bond_checks:
+                    bond_exec = self.execute_bond_skill(br, actor)
+                    bond_skill_results.append(bond_exec)
+
+            # 11. 팀워크 스킬 사용 시 (teamwork_skill_used)
+            if (actor in self.allies and skill
+                    and hasattr(skill, 'is_teamwork_skill') and skill.is_teamwork_skill):
+                bond_checks = self.check_bond_skills("teamwork_skill_used", actor)
+                for br in bond_checks:
+                    bond_exec = self.execute_bond_skill(br, actor)
+                    bond_skill_results.append(bond_exec)
+
+            # 12. 양측 모두 HP가 낮을 때 (both_low_hp)
+            if actor in self.allies:
+                actor_low = (
+                    hasattr(actor, 'current_hp') and hasattr(actor, 'max_hp')
+                    and actor.current_hp <= actor.max_hp * 0.3
+                )
+                any_ally_low = any(
+                    hasattr(a, 'current_hp') and hasattr(a, 'max_hp')
+                    and a.current_hp <= a.max_hp * 0.3
+                    for a in self.allies if a != actor and getattr(a, 'is_alive', True)
+                )
+                if actor_low and any_ally_low:
+                    bond_checks = self.check_bond_skills("both_low_hp", actor)
+                    for br in bond_checks:
+                        bond_exec = self.execute_bond_skill(br, actor)
+                        bond_skill_results.append(bond_exec)
+
+        if bond_skill_results:
+            result["bond_skill_results"] = bond_skill_results
 
         self.current_actor = None
         return result
@@ -1358,18 +1613,25 @@ class CombatManager:
                     actual_heal = min(heal_amount, attacker.max_hp - attacker.current_hp)
                     attacker.current_hp += actual_heal
 
-                    # vitality_overflow: 최대 HP일 때 초과 흡혈량 → BRV 전환
-                    if attacker.current_hp >= attacker.max_hp:
-                        has_vitality_overflow = any(
-                            (t if isinstance(t, str) else t.get('id')) == 'vitality_overflow'
-                            for t in getattr(attacker, 'active_traits', [])
-                        )
-                        if has_vitality_overflow:
-                            overflow_amount = heal_amount - actual_heal
-                            if overflow_amount > 0 and hasattr(attacker, 'current_brv') and hasattr(attacker, 'max_brv'):
-                                brv_gain = min(overflow_amount, attacker.max_brv - attacker.current_brv)
+                    # vitality_overflow: 흡혈 시 init_brv 복귀 + 초과 흡혈 → BRV 전환
+                    has_vitality_overflow = any(
+                        (t if isinstance(t, str) else t.get('id')) == 'vitality_overflow'
+                        for t in getattr(attacker, 'active_traits', [])
+                    )
+                    if has_vitality_overflow and hasattr(attacker, 'current_brv') and hasattr(attacker, 'max_brv'):
+                        # 1단계: HP 공격 후 init_brv로 먼저 복귀 (항상)
+                        init_brv_val = getattr(attacker, 'init_brv', 0)
+                        if attacker.current_brv < init_brv_val:
+                            attacker.current_brv = init_brv_val
+                        # 2단계: 초과 흡혈량(오버힐)을 BRV로 추가 전환
+                        overflow_amount = heal_amount - actual_heal
+                        if overflow_amount > 0:
+                            brv_gain = min(overflow_amount, attacker.max_brv - attacker.current_brv)
+                            if brv_gain > 0:
                                 attacker.current_brv += brv_gain
-                                self.logger.info(f"[생명력 과부하] {attacker.name} 초과 흡혈 {overflow_amount} → BRV +{brv_gain}")
+                            self.logger.info(f"[생명력 과부하] {attacker.name} BRV→init({init_brv_val}) + 초과 흡혈 {overflow_amount} → BRV +{brv_gain}")
+                        else:
+                            self.logger.info(f"[생명력 과부하] {attacker.name} BRV→init({init_brv_val}) 복귀")
                 else:
                     actual_heal = heal_amount
 
@@ -1613,17 +1875,15 @@ class CombatManager:
         # 아군 공격 시 기믹 트리거 (지원사격 등) - trigger_gimmick이 True일 때만
         if trigger_gimmick and attacker in self.allies:
             from src.character.gimmick_updater import GimmickUpdater
-            context = {"all_enemies": self.enemies}
+            context = {"all_enemies": self.enemies, "is_hp_attack": True}
             GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender, context=context)
-        
+
         # 적 처치 확인 및 효과 적용 (battle_heal, battle_mp, bloodthirst 등)
         if hasattr(defender, 'current_hp') and defender.current_hp <= 0:
             if defender in self.enemies:
                 # 적 처치 확인
                 from src.character.trait_effects import get_trait_effect_manager
                 trait_manager = get_trait_effect_manager()
-                print(f"DEBUG: trait_manager attributes: {dir(trait_manager)}")
-                
                 # 모든 아군에게 처치 효과 적용
                 for ally in self.allies:
                     if hasattr(ally, 'is_alive') and ally.is_alive:
@@ -1706,13 +1966,14 @@ class CombatManager:
 
         # 아군 공격 시 기믹 트리거 (지원사격 등) - 복합 공격 전체에 대해 한 번만
         if attacker in self.allies:
-            context = {"all_enemies": self.enemies}
+            context = {"all_enemies": self.enemies, "is_hp_attack": True}
             GimmickUpdater.on_ally_attack(attacker, self.allies, target=defender, context=context)
 
         # 결과 병합
         combined_result = {
             "action": "brv_hp_attack",
-            "is_combo": True
+            "is_combo": True,
+            "is_break": brv_attack_result.get("is_break", False),  # 체인어빌리티 트리거용 (top-level)
         }
 
         # BRV 결과 추가
@@ -2181,6 +2442,9 @@ class CombatManager:
             "targets": []
         }
 
+        # 스킬 실행 전 대상의 BREAK 상태 저장 (체인어빌리티 트리거 감지용)
+        target_was_broken_before = self.brave.is_broken(target) if target else True
+
         # 적 스킬인지 확인
         try:
             from src.combat.enemy_skills import EnemySkill, SkillTargetType
@@ -2188,6 +2452,14 @@ class CombatManager:
             if isinstance(skill, EnemySkill):
                 # 적 스킬 실행
                 result.update(self._execute_enemy_skill(actor, target, skill, **kwargs))
+                # 적 스킬로 아군 피해 시 연계스킬 트리거
+                if result.get("success", True) and target and target in self.allies:
+                    bond_checks = self.check_bond_skills("ally_damaged", target)
+                    if bond_checks:
+                        bond_results = []
+                        for br in bond_checks:
+                            bond_results.append(self.execute_bond_skill(br, target))
+                        result["bond_skill_results"] = bond_results
                 return result
         except ImportError as e:
             # EnemySkill이 없으면 일반 스킬 시스템 사용
@@ -2454,6 +2726,11 @@ class CombatManager:
             result["success"] = False
             result["error"] = skill_result.message
 
+        # 스킬로 인한 BREAK 감지 (체인어빌리티 트리거용)
+        if target and result.get("success") and not target_was_broken_before and self.brave.is_broken(target):
+            result["is_break"] = True
+            self.logger.info(f"[스킬 BREAK] {skill.name}으로 {target.name} BREAK 발생!")
+
         return result
 
     def _execute_possibility_skill(
@@ -2488,6 +2765,25 @@ class CombatManager:
         all_enemies = self.enemies if actor in self.allies else self.allies
         all_allies = self.allies if actor in self.allies else self.enemies
         context = {"combat_manager": self, "all_enemies": all_enemies, "all_allies": all_allies, "party": self.party}
+
+        def _resolve_possibility_target(stored_skill, default_target):
+            """해방된 가능성 스킬의 target_type에 따라 적절한 타깃을 결정"""
+            st_type = getattr(stored_skill, 'target_type', 'single_enemy')
+            if st_type in ("ally", "single_ally"):
+                # 아군 대상 스킬: HP가 가장 낮은 아군 자동 선택
+                alive_allies = [a for a in all_allies if getattr(a, 'is_alive', True) and getattr(a, 'current_hp', 0) > 0]
+                if alive_allies:
+                    return min(alive_allies, key=lambda a: getattr(a, 'current_hp', 0) / max(getattr(a, 'max_hp', 1), 1))
+                return actor
+            elif st_type == "self":
+                return actor
+            elif st_type in ("all_allies", "party"):
+                return all_allies
+            elif st_type == "all_enemies":
+                return all_enemies
+            else:
+                # single_enemy 또는 기타: 기존 타깃 사용
+                return default_target or (all_enemies[0] if all_enemies else None)
 
         # 비용 체크 및 소모 (MP 등)
         # 일반 스킬 실행(execute_skill)을 거치지 않으므로 여기서 직접 처리해야 함
@@ -2530,9 +2826,12 @@ class CombatManager:
                     # 배율 적용하여 스킬 실행
                     context['power_multiplier'] = stored_power
                     context['time_mage_summoner'] = actor  # 시간술사 정보 (ATB용)
+                    context['skip_cost'] = True  # 가능성 소환은 MP 무료 (저장된 스킬의 비용 건너뛰기)
 
+                    # 스킬의 target_type에 따라 적절한 타깃 결정
+                    resolved_target = _resolve_possibility_target(stored_skill, target)
                     skill_result = skill_manager.execute_skill(
-                        stored_skill_id, skill_actor, target or (all_enemies[0] if all_enemies else None),
+                        stored_skill_id, skill_actor, resolved_target,
                         context=context
                     )
                     executed_skills.append({
@@ -2571,9 +2870,12 @@ class CombatManager:
                     if stored_skill:
                         context['power_multiplier'] = sr['power_ratio']
                         context['time_mage_summoner'] = actor  # 시간술사 정보
+                        context['skip_cost'] = True  # 가능성 소환은 MP 무료
 
+                        # 스킬의 target_type에 따라 적절한 타깃 결정
+                        resolved_target = _resolve_possibility_target(stored_skill, target)
                         skill_manager.execute_skill(
-                            sr['skill_id'], skill_actor, target or (all_enemies[0] if all_enemies else None),
+                            sr['skill_id'], skill_actor, resolved_target,
                             context=context
                         )
                         actor_display = f"{skill_actor.name}의 " if original_character else ""
@@ -2595,9 +2897,12 @@ class CombatManager:
                     if stored_skill:
                         context['power_multiplier'] = released['power_ratio']
                         context['time_mage_summoner'] = actor  # 시간술사 정보
+                        context['skip_cost'] = True  # 가능성 소환은 MP 무료
 
+                        # 스킬의 target_type에 따라 적절한 타깃 결정
+                        resolved_target = _resolve_possibility_target(stored_skill, target)
                         skill_manager.execute_skill(
-                            released['skill_id'], skill_actor, target or (all_enemies[0] if all_enemies else None),
+                            released['skill_id'], skill_actor, resolved_target,
                             context=context
                         )
                         actor_display = f"{skill_actor.name}의 " if original_character else ""
@@ -2655,27 +2960,28 @@ class CombatManager:
                     stored_skill = skill_manager.get_skill(released['skill_id'])
                     if stored_skill:
                         context['power_multiplier'] = power_ratio
+                        context['skip_cost'] = True  # 가능성 소환은 MP 무료
+                        # 스킬의 target_type에 따라 적절한 타깃 결정
+                        resolved_target = _resolve_possibility_target(stored_skill, target)
                         skill_manager.execute_skill(
-                            released['skill_id'], actor, target or (all_enemies[0] if all_enemies else None),
+                            released['skill_id'], actor, resolved_target,
                             context=context
                         )
                         messages.append(stored_skill.name)
-            
+
             # 2. 고정 스킬 연속 발동
             chain_skills = skill.metadata.get('chain_cast', [])
             for chain_skill_id in chain_skills:
                 full_id = f"time_mage_{chain_skill_id}" if not chain_skill_id.startswith("time_mage_") else chain_skill_id
                 chain_skill = skill_manager.get_skill(full_id)
                 if chain_skill:
-                    # 리와인드는 가장 HP가 낮은 아군에게
-                    chain_target = target
-                    if "rewind" in chain_skill_id:
-                        lowest_hp_ally = min(all_allies, key=lambda a: getattr(a, 'current_hp', 999999) if hasattr(a, 'is_alive') and a.is_alive else 999999)
-                        chain_target = lowest_hp_ally
-                    
+                    # 스킬의 target_type에 따라 적절한 타깃 결정
+                    resolved_target = _resolve_possibility_target(chain_skill, target)
+
                     context['power_multiplier'] = power_ratio
+                    context['skip_cost'] = True  # 무한 수렴 연쇄 발동은 MP 무료
                     skill_manager.execute_skill(
-                        full_id, actor, chain_target or (all_enemies[0] if all_enemies else None),
+                        full_id, actor, resolved_target,
                         context=context
                     )
                     messages.append(chain_skill.name)
@@ -3102,6 +3408,25 @@ class CombatManager:
 
             tgt = target if target else actor
 
+            # 현재 층수 가져오기 (dungeon 정보 또는 적 정보에서) - 포션/폭탄 공용
+            current_floor = 1
+            if hasattr(self, 'dungeon') and self.dungeon and hasattr(self.dungeon, 'floor_number'):
+                current_floor = getattr(self.dungeon, 'floor_number', 1)
+            elif self.enemies:
+                for enemy in self.enemies:
+                    if hasattr(enemy, 'floor_level'):
+                        current_floor = max(current_floor, getattr(enemy, 'floor_level', 1))
+                        break
+                    elif hasattr(enemy, 'level'):
+                        current_floor = max(current_floor, getattr(enemy, 'level', 1))
+                        break
+
+            # 층수 스케일링 계수 (회복 계열 / 버프 계열 / 보호막 계열)
+            heal_scale = 1.0 + current_floor * 0.08   # 10층 +80%, 20층 +160%
+            buff_scale = 1.0 + current_floor * 0.05   # 10층 +50%, 20층 +100%
+            shield_scale = 1.0 + current_floor * 0.1  # 10층 +100%, 20층 +200%
+            dot_scale = 1.0 + current_floor * 0.1     # 폭탄 DoT 스케일링
+
             # 효과 타입에 따라 처리
             # 스탯 스케일링 헬퍼 함수
             def get_stat_bonus(item_obj, user):
@@ -3126,10 +3451,11 @@ class CombatManager:
                 return bonus
             
             if effect_type == "heal_hp":
-                # 스탯 스케일링 적용
+                # 층수 스케일링 + 스탯 스케일링 적용
+                scaled_value = int(effect_value * heal_scale)
                 bonus_heal = get_stat_bonus(item, actor)
-                total_heal = int(effect_value) + bonus_heal
-                
+                total_heal = scaled_value + bonus_heal
+
                 if hasattr(tgt, 'heal'):
                     healed = tgt.heal(total_heal)
                 elif hasattr(tgt, 'current_hp') and hasattr(tgt, 'max_hp'):
@@ -3138,14 +3464,15 @@ class CombatManager:
                 else:
                     healed = total_heal
                 result["healing"] = healed
-                if bonus_heal > 0:
-                    self.logger.info(f"[전투 아이템] {getattr(tgt, 'name', '?')} HP +{healed} (기본 {effect_value} + 스탯 보너스 {bonus_heal})")
+                if current_floor > 1 or bonus_heal > 0:
+                    self.logger.info(f"[전투 아이템] {getattr(tgt, 'name', '?')} HP +{healed} (기본 {effect_value} x{heal_scale:.2f} + 스탯 {bonus_heal}, {current_floor}층)")
 
             elif effect_type == "heal_mp":
-                # 스탯 스케일링 적용
+                # 층수 스케일링 + 스탯 스케일링 적용
+                scaled_value = int(effect_value * heal_scale)
                 bonus_restore = get_stat_bonus(item, actor)
-                total_restore = int(effect_value) + bonus_restore
-                
+                total_restore = scaled_value + bonus_restore
+
                 if hasattr(tgt, 'restore_mp'):
                     healed = tgt.restore_mp(total_restore)
                 elif hasattr(tgt, 'current_mp') and hasattr(tgt, 'max_mp'):
@@ -3154,14 +3481,15 @@ class CombatManager:
                 else:
                     healed = total_restore
                 result["mp_healing"] = healed
-                if bonus_restore > 0:
-                    self.logger.info(f"[전투 아이템] {getattr(tgt, 'name', '?')} MP +{healed} (기본 {effect_value} + 스탯 보너스 {bonus_restore})")
+                if current_floor > 1 or bonus_restore > 0:
+                    self.logger.info(f"[전투 아이템] {getattr(tgt, 'name', '?')} MP +{healed} (기본 {effect_value} x{heal_scale:.2f} + 스탯 {bonus_restore}, {current_floor}층)")
             
             elif effect_type == "heal_both":
-                # HP+MP 동시 회복 (스탯 스케일링 적용)
+                # HP+MP 동시 회복 (층수 + 스탯 스케일링 적용)
+                scaled_value = int(effect_value * heal_scale)
                 bonus = get_stat_bonus(item, actor)
-                total_heal = int(effect_value) + bonus
-                
+                total_heal = scaled_value + bonus
+
                 hp_healed = 0
                 mp_healed = 0
                 if hasattr(tgt, 'heal'):
@@ -3170,11 +3498,14 @@ class CombatManager:
                     mp_healed = tgt.restore_mp(total_heal)
                 result["healing"] = hp_healed
                 result["mp_healing"] = mp_healed
+                if current_floor > 1:
+                    self.logger.info(f"[전투 아이템] {getattr(tgt, 'name', '?')} HP+{hp_healed} MP+{mp_healed} (x{heal_scale:.2f}, {current_floor}층)")
             
             elif effect_type == "shield":
-                # 연금술 보호막 포션 (철의 요새 등)
+                # 연금술 보호막 포션 (철의 요새 등) - 층수 스케일링 적용
+                scaled_value = int(effect_value * shield_scale)
                 bonus_shield = get_stat_bonus(item, actor)
-                shield_amount = int(effect_value) + bonus_shield
+                shield_amount = scaled_value + bonus_shield
                 duration = getattr(item, 'duration', 10)
                 
                 if hasattr(tgt, 'status_manager'):
@@ -3192,7 +3523,7 @@ class CombatManager:
                     self.logger.info(f"[전투 아이템] {getattr(tgt, 'name', '?')} 보호막 +{shield_amount} ({duration}턴)")
             
             elif effect_type == "damage_reduction":
-                # 연금술 피해 감소 포션 (차원 장벽 등)
+                # 연금술 피해 감소 포션 (차원 장벽 등) - 퍼센트 기반이므로 스케일링 불필요
                 reduction_percent = effect_value / 100.0 if effect_value > 1 else effect_value
                 duration = getattr(item, 'duration', 10)
                 
@@ -3211,8 +3542,132 @@ class CombatManager:
                     self.logger.info(f"[전투 아이템] {getattr(tgt, 'name', '?')} 피해감소 {int(reduction_percent*100)}% ({duration}턴)")
 
             elif effect_type == "buff":
-                # 버프 효과 (간단하게 처리)
+                # 기본 버프 (하위 호환)
                 result["buff_applied"] = True
+
+            elif effect_type == "buff_strength":
+                # 공격력 버프 - 층수 스케일링 적용
+                scaled_buff = int(effect_value * buff_scale) if effect_value > 1 else effect_value * buff_scale
+                duration = getattr(item, 'duration', 25) or 25
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['attack_up'] = {'value': scaled_buff, 'duration': duration}
+                result["buff_applied"] = "strength"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 공격력 +{scaled_buff} (기본 {effect_value} x{buff_scale:.2f}, {duration}턴, {current_floor}층)")
+
+            elif effect_type == "buff_defense":
+                # 방어력 버프 - 층수 스케일링 적용
+                scaled_buff = int(effect_value * buff_scale) if effect_value > 1 else effect_value * buff_scale
+                duration = getattr(item, 'duration', 25) or 25
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['defense_up'] = {'value': scaled_buff, 'duration': duration}
+                result["buff_applied"] = "defense"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 방어력 +{scaled_buff} (기본 {effect_value} x{buff_scale:.2f}, {duration}턴, {current_floor}층)")
+
+            elif effect_type == "buff_speed":
+                scaled_buff = effect_value * buff_scale
+                duration = getattr(item, 'duration', 20) or 20
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['speed_up'] = {'value': scaled_buff / 100.0, 'duration': duration}
+                result["buff_applied"] = "speed"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 속도 +{scaled_buff:.0f}% ({duration}턴, {current_floor}층)")
+
+            elif effect_type == "buff_berserk":
+                # 광폭화: 공격+, 방어- - 공격 보너스만 층수 스케일링 (방어 감소는 고정)
+                berserk_atk = 0.3 * (1.0 + current_floor * 0.02)
+                duration = getattr(item, 'duration', 15) or 15
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['attack_up'] = {'value': berserk_atk, 'duration': duration}
+                tgt.active_buffs['defense_down'] = {'value': 0.2, 'duration': duration}
+                result["buff_applied"] = "berserk"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 광폭화 공+{berserk_atk:.0%} 방-20% ({duration}턴, {current_floor}층)")
+
+            elif effect_type == "buff_resistance":
+                scaled_buff = effect_value * buff_scale
+                duration = getattr(item, 'duration', 20) or 20
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['status_resistance'] = {'value': scaled_buff / 100.0, 'duration': duration}
+                result["buff_applied"] = "resistance"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 상태이상 저항 +{scaled_buff:.0f}% ({duration}턴, {current_floor}층)")
+
+            elif effect_type == "buff_luck":
+                scaled_buff = effect_value * buff_scale
+                duration = getattr(item, 'duration', 30) or 30
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['crit_up'] = {'value': scaled_buff / 100.0, 'duration': duration}
+                result["buff_applied"] = "luck"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 크리티컬 +{scaled_buff:.0f}% ({duration}턴, {current_floor}층)")
+
+            elif effect_type == "buff_invisibility":
+                scaled_buff = effect_value * buff_scale
+                duration = getattr(item, 'duration', 5) or 5
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['evasion_up'] = {'value': scaled_buff / 100.0, 'duration': duration}
+                result["buff_applied"] = "invisibility"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 회피율 +{effect_value}% ({duration}턴)")
+
+            elif effect_type == "buff_regen":
+                # 재생 - 층수 스케일링 적용 (intensity)
+                scaled_regen = int(effect_value * heal_scale) if effect_value > 1 else effect_value * heal_scale
+                duration = getattr(item, 'duration', 12) or 12
+                if hasattr(tgt, 'status_manager'):
+                    from src.combat.status_effects import StatusEffect as CombatStatusEffect, StatusType
+                    regen = CombatStatusEffect("재생", StatusType.REGENERATION, duration=duration, intensity=scaled_regen)
+                    tgt.status_manager.add_status(regen, allow_refresh=True)
+                result["buff_applied"] = "regen"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 재생 {scaled_regen}/턴 (기본 {effect_value} x{heal_scale:.2f}, {duration}턴, {current_floor}층)")
+
+            elif effect_type == "buff_lifesteal":
+                scaled_buff = effect_value * buff_scale
+                duration = getattr(item, 'duration', 20) or 20
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['lifesteal'] = {'value': scaled_buff / 100.0, 'duration': duration}
+                result["buff_applied"] = "lifesteal"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 흡혈 {scaled_buff:.0f}% ({duration}턴, {current_floor}층)")
+
+            elif effect_type == "buff_mana_shield":
+                scaled_buff = effect_value * buff_scale
+                duration = getattr(item, 'duration', 15) or 15
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['mana_shield'] = {'value': scaled_buff / 100.0, 'duration': duration}
+                result["buff_applied"] = "mana_shield"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 마나 보호막 {scaled_buff:.0f}% ({duration}턴, {current_floor}층)")
+
+            elif effect_type == "buff_crit_boost":
+                duration = getattr(item, 'duration', 20) or 20
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['crit_up'] = {'value': 0.25, 'duration': duration}
+                tgt.active_buffs['crit_damage_up'] = {'value': 0.5, 'duration': duration}
+                result["buff_applied"] = "crit_boost"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 크리 확률/데미지 강화 ({duration}턴)")
+
+            elif effect_type == "buff_battle_trance":
+                duration = getattr(item, 'duration', 12) or 12
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['attack_up'] = {'value': 0.4, 'duration': duration}
+                tgt.active_buffs['speed_up'] = {'value': 0.3, 'duration': duration}
+                tgt.active_buffs['damage_taken_increase'] = {'value': 0.25, 'duration': duration}
+                result["buff_applied"] = "battle_trance"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 전투 무아경 ({duration}턴)")
+
+            elif effect_type == "buff_bonus_damage":
+                scaled_buff = effect_value * buff_scale
+                duration = getattr(item, 'duration', 10) or 10
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['bonus_hp_damage'] = {'value': scaled_buff / 100.0, 'duration': duration}
+                result["buff_applied"] = "bonus_damage"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 추가 피해 {scaled_buff:.0f}% ({duration}턴, {current_floor}층)")
 
             elif effect_type == "cure" or effect_type == "status_cleanse" or effect_type == "cure_all_status":
                 # 상태이상 치료 (모든 상태이상)
@@ -3270,23 +3725,12 @@ class CombatManager:
                         self.logger.info(f"[{item_name}] {getattr(tgt, 'name', 'Unknown')} 치료할 상처가 없습니다")
             
             # === 공격적 아이템 효과 ===
-            elif effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade", 
-                                 "attack_fire", "attack_ice", "attack_lightning", "attack_poison", 
+            elif effect_type in ["aoe_fire", "aoe_ice", "poison_bomb", "thunder_grenade",
+                                 "attack_fire", "attack_ice", "attack_lightning", "attack_poison",
                                  "attack_explosive", "attack_aoe"]:
                 # 적 전체 데미지 (아이템별 차등 공식 + 스탯 스케일링)
-                # 현재 층수 가져오기 (dungeon 정보 또는 적 정보에서)
-                current_floor = 1
-                if self.dungeon and hasattr(self.dungeon, 'floor_number'):
-                    current_floor = getattr(self.dungeon, 'floor_number', 1)
-                elif self.enemies:
-                    for enemy in self.enemies:
-                        if hasattr(enemy, 'floor_level'):
-                            current_floor = max(current_floor, getattr(enemy, 'floor_level', 1))
-                            break
-                        elif hasattr(enemy, 'level'):
-                            current_floor = max(current_floor, getattr(enemy, 'level', 1))
-                            break
-                
+                # current_floor는 상단에서 이미 추출됨
+
                 # 아이템별 차등 피해량 (기본값 + 층수 × 배율)
                 damage_formulas = {
                     "attack_fire": (50, 15),       # 화염 폭탄: 50 + 층수 × 15
@@ -3330,17 +3774,73 @@ class CombatManager:
                             enemy.status_manager.add_status(shock)
                 result["aoe_damage"] = total_damage
                 result["targets_hit"] = len([e for e in self.enemies if hasattr(e, 'is_alive') and e.is_alive])
-            
+
+                # === 폭탄 레시피 특수효과 적용 ===
+                try:
+                    from src.cooking.bomb_crafting import BombDatabase
+                    item_id = getattr(item, 'item_id', '')
+                    bomb_recipe = BombDatabase.get_recipe(item_id)
+                    if bomb_recipe and bomb_recipe.special_effect:
+                        import random as _rand
+                        se = bomb_recipe.special_effect
+                        from src.combat.status_effects import StatusEffect as _SE, StatusType as _ST
+                        for enemy in self.enemies:
+                            if not (hasattr(enemy, 'is_alive') and enemy.is_alive):
+                                continue
+                            if not hasattr(enemy, 'status_manager'):
+                                continue
+                            # 화상 (층수 스케일링 적용)
+                            if "burn_damage" in se:
+                                scaled_burn = int(se["burn_damage"] * dot_scale)
+                                burn = _SE("화상", _ST.BURN, duration=se.get("burn_duration", 3), intensity=scaled_burn)
+                                enemy.status_manager.add_status(burn)
+                            # 동결
+                            if "freeze_chance" in se:
+                                if _rand.randint(1, 100) <= se["freeze_chance"]:
+                                    freeze = _SE("동결", _ST.FREEZE, duration=se.get("freeze_duration", 2))
+                                    enemy.status_manager.add_status(freeze)
+                            # 둔화
+                            if "slow_percent" in se:
+                                slow = _SE("둔화", _ST.SLOW, duration=se.get("slow_duration", 3), intensity=se["slow_percent"] / 100.0)
+                                enemy.status_manager.add_status(slow)
+                            # 기절
+                            if "stun_chance" in se:
+                                if _rand.randint(1, 100) <= se["stun_chance"]:
+                                    stun = _SE("기절", _ST.STUN, duration=se.get("stun_duration", 1))
+                                    enemy.status_manager.add_status(stun)
+                            # MP 흡수 (층수 스케일링 적용)
+                            if "mp_drain" in se:
+                                if hasattr(enemy, 'current_mp'):
+                                    scaled_drain = int(se["mp_drain"] * dot_scale)
+                                    drain = min(scaled_drain, enemy.current_mp)
+                                    enemy.current_mp -= drain
+                            # 버프 제거
+                            if se.get("dispel_buffs"):
+                                if hasattr(enemy, 'active_buffs'):
+                                    enemy.active_buffs.clear()
+                            # 방어력 감소
+                            if "defense_reduction" in se:
+                                weak = _SE("방어감소", _ST.REDUCE_DEF, duration=se.get("duration", 3), intensity=se["defense_reduction"] / 100.0)
+                                enemy.status_manager.add_status(weak)
+                            # 명중률 감소
+                            if "accuracy_reduction" in se:
+                                blind = _SE("실명", _ST.BLIND, duration=se.get("duration", 3), intensity=se["accuracy_reduction"] / 100.0)
+                                enemy.status_manager.add_status(blind)
+                            # 약화 (weakness)
+                            if "weakness" in se:
+                                weak2 = _SE("약화", _ST.WEAKNESS, duration=se.get("duration", 3), intensity=se["weakness"] / 100.0)
+                                enemy.status_manager.add_status(weak2)
+                        if current_floor > 1:
+                            self.logger.info(f"[폭탄 특수효과] {item_id}: {list(se.keys())} (DoT x{dot_scale:.2f}, {current_floor}층)")
+                        else:
+                            self.logger.info(f"[폭탄 특수효과] {item_id}: {list(se.keys())}")
+                except Exception as e:
+                    self.logger.debug(f"[폭탄 특수효과] 레시피 조회 실패: {e}")
+
             elif effect_type in ["single_lightning", "acid_flask"]:
                 # 단일 적 데미지 (아이템별 차등 공식 + 스탯 스케일링)
-                current_floor = 1
-                if self.dungeon and hasattr(self.dungeon, 'floor_number'):
-                    current_floor = getattr(self.dungeon, 'floor_number', 1)
-                elif tgt and hasattr(tgt, 'floor_level'):
-                    current_floor = getattr(tgt, 'floor_level', 1)
-                elif tgt and hasattr(tgt, 'level'):
-                    current_floor = getattr(tgt, 'level', 1)
-                
+                # current_floor는 상단에서 이미 추출됨
+
                 # 스탯 스케일링: 사용자 strength의 50%를 보너스 데미지로 추가
                 stat_bonus = 0
                 if hasattr(actor, 'strength'):
@@ -3455,6 +3955,166 @@ class CombatManager:
                     result["message"] = "대상이 이미 살아있어 부활할 수 없습니다"
                     self.logger.info(f"부활 실패: 대상이 이미 살아있음")
 
+            elif effect_type == "heal_hp_full":
+                # 엘리트 HP 포션 - HP 전체 회복
+                if hasattr(tgt, 'heal'):
+                    healed = tgt.heal(getattr(tgt, 'max_hp', 9999))
+                elif hasattr(tgt, 'current_hp') and hasattr(tgt, 'max_hp'):
+                    healed = tgt.max_hp - tgt.current_hp
+                    tgt.current_hp = tgt.max_hp
+                else:
+                    healed = 0
+                result["healing"] = healed
+                self.logger.info(f"[전투 아이템] {getattr(tgt, 'name', '?')} HP 전체 회복 +{healed}")
+
+            elif effect_type == "heal_mp_full":
+                # 엘리트 MP 포션 - MP 전체 회복
+                if hasattr(tgt, 'restore_mp'):
+                    healed = tgt.restore_mp(getattr(tgt, 'max_mp', 9999))
+                elif hasattr(tgt, 'current_mp') and hasattr(tgt, 'max_mp'):
+                    healed = tgt.max_mp - tgt.current_mp
+                    tgt.current_mp = tgt.max_mp
+                else:
+                    healed = 0
+                result["mp_healing"] = healed
+                self.logger.info(f"[전투 아이템] {getattr(tgt, 'name', '?')} MP 전체 회복 +{healed}")
+
+            elif effect_type == "heal_both_full":
+                # 메가 엘릭서 / 철학자의 엘릭서 - HP+MP 전체 회복
+                hp_healed = 0
+                mp_healed = 0
+                if hasattr(tgt, 'heal'):
+                    hp_healed = tgt.heal(getattr(tgt, 'max_hp', 9999))
+                elif hasattr(tgt, 'current_hp') and hasattr(tgt, 'max_hp'):
+                    hp_healed = tgt.max_hp - tgt.current_hp
+                    tgt.current_hp = tgt.max_hp
+                if hasattr(tgt, 'restore_mp'):
+                    mp_healed = tgt.restore_mp(getattr(tgt, 'max_mp', 9999))
+                elif hasattr(tgt, 'current_mp') and hasattr(tgt, 'max_mp'):
+                    mp_healed = tgt.max_mp - tgt.current_mp
+                    tgt.current_mp = tgt.max_mp
+                result["healing"] = hp_healed
+                result["mp_healing"] = mp_healed
+                self.logger.info(f"[전투 아이템] {getattr(tgt, 'name', '?')} HP+{hp_healed} MP+{mp_healed} 전체 회복")
+
+            elif effect_type == "restore_brv":
+                # BRV 크리스탈 - BRV 전체 회복
+                if hasattr(tgt, 'current_brv'):
+                    max_brv = getattr(tgt, 'max_brv', getattr(tgt, 'base_brv', 0))
+                    old_brv = tgt.current_brv
+                    tgt.current_brv = max_brv
+                    result["brv_restored"] = max_brv - old_brv
+                    self.logger.info(f"[전투 아이템] {getattr(tgt, 'name', '?')} BRV {old_brv} -> {max_brv} 회복")
+                else:
+                    result["brv_restored"] = 0
+
+            elif effect_type == "prevent_break":
+                # 브레이크 가드 - BREAK 방지 버프 1회
+                duration = getattr(item, 'duration', 5) or 5
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['brv_protect'] = {'value': 1, 'duration': duration, 'once': True}
+                result["buff_applied"] = "prevent_break"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} BREAK 방지 버프 ({duration}턴)")
+
+            elif effect_type == "buff_evasion":
+                # 스모크 그레네이드 - 회피율 버프
+                scaled_buff = effect_value * buff_scale
+                duration = getattr(item, 'duration', 5) or 5
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['evasion_up'] = {'value': scaled_buff / 100.0, 'duration': duration}
+                result["buff_applied"] = "evasion"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 회피율 +{scaled_buff:.0f}% ({duration}턴, {current_floor}층)")
+
+            elif effect_type == "debuff_blind":
+                # 플래시 그레네이드 - 적 전체 실명
+                from src.combat.status_effects import StatusEffect as _SE_blind, StatusType as _ST_blind
+                duration = getattr(item, 'duration', 3) or 3
+                targets_blinded = 0
+                for enemy in self.enemies:
+                    if hasattr(enemy, 'is_alive') and enemy.is_alive:
+                        if hasattr(enemy, 'status_manager'):
+                            blind_effect = _SE_blind(
+                                name="실명",
+                                status_type=_ST_blind.BLIND,
+                                duration=duration,
+                                intensity=effect_value / 100.0 if effect_value > 1 else effect_value,
+                                source_id=getattr(actor, "name", "Item"),
+                            )
+                            enemy.status_manager.add_status(blind_effect, allow_refresh=True)
+                        elif hasattr(enemy, 'active_buffs'):
+                            if not hasattr(enemy, 'active_buffs'):
+                                enemy.active_buffs = {}
+                            enemy.active_buffs['accuracy_down'] = {'value': effect_value / 100.0 if effect_value > 1 else effect_value, 'duration': duration}
+                        targets_blinded += 1
+                result["debuff_applied"] = "blind"
+                result["targets_debuffed"] = targets_blinded
+                self.logger.info(f"[전투 아이템] 적 {targets_blinded}명 실명 ({duration}턴)")
+
+            elif effect_type == "revive":
+                # 피닉스의 깃털 - 50% HP로 부활
+                target_name = getattr(tgt, 'name', str(tgt))
+                is_alive = getattr(tgt, 'is_alive', True)
+                current_hp = getattr(tgt, 'current_hp', 1)
+                if not is_alive or current_hp <= 0:
+                    tgt.is_alive = True
+                    if hasattr(tgt, 'max_hp'):
+                        tgt.current_hp = int(tgt.max_hp * 0.5)
+                    else:
+                        tgt.current_hp = 50
+                    result["revived"] = True
+                    result["hp_restored"] = tgt.current_hp
+                    result["message"] = f"{target_name} 부활! HP {tgt.current_hp} 회복"
+                    self.logger.info(f"[전투 아이템] {target_name} 50% HP로 부활 ({tgt.current_hp})")
+                else:
+                    result["error"] = "대상이 이미 살아있습니다"
+                    result["message"] = "대상이 이미 살아있어 부활할 수 없습니다"
+
+            elif effect_type == "revive_full":
+                # 메가 피닉스 - 100% HP로 부활 (전체 아군)
+                allies_revived = 0
+                all_allies = self.allies if actor in self.allies else self.enemies
+                for ally in all_allies:
+                    is_alive = getattr(ally, 'is_alive', True)
+                    current_hp = getattr(ally, 'current_hp', 1)
+                    if not is_alive or current_hp <= 0:
+                        ally.is_alive = True
+                        if hasattr(ally, 'max_hp'):
+                            ally.current_hp = ally.max_hp
+                        else:
+                            ally.current_hp = 100
+                        allies_revived += 1
+                result["revived"] = True
+                result["allies_revived"] = allies_revived
+                result["message"] = f"아군 {allies_revived}명 완전 부활"
+                self.logger.info(f"[전투 아이템] 메가 피닉스: 아군 {allies_revived}명 100% 부활")
+
+            elif effect_type == "buff_magic":
+                # 매직 토닉 - 마법 공격력 버프
+                scaled_buff = int(effect_value * buff_scale) if effect_value > 1 else effect_value * buff_scale
+                duration = getattr(item, 'duration', 25) or 25
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['magic_up'] = {'value': scaled_buff, 'duration': duration}
+                result["buff_applied"] = "magic"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 마법 +{scaled_buff} (기본 {effect_value} x{buff_scale:.2f}, {duration}턴, {current_floor}층)")
+
+            elif effect_type == "bonus_exp":
+                # 경험치 크리스탈 - 경험치 보너스 버프
+                duration = getattr(item, 'duration', 5) or 5
+                if not hasattr(tgt, 'active_buffs'):
+                    tgt.active_buffs = {}
+                tgt.active_buffs['exp_bonus'] = {'value': effect_value, 'duration': duration}
+                result["buff_applied"] = "exp_bonus"
+                self.logger.info(f"[버프 포션] {getattr(tgt, 'name', '?')} 경험치 보너스 +{effect_value} ({duration}턴)")
+
+            elif effect_type in ("bonus_gold", "camp_rest"):
+                # 전투 중 사용 불가 아이템
+                result["success"] = False
+                result["message"] = "전투 중에는 사용할 수 없는 아이템입니다."
+                return result
+
             # 인벤토리에서 아이템 제거
             item_index = kwargs.get('item_index')
             if item_index is not None:
@@ -3475,6 +4135,22 @@ class CombatManager:
                         self.logger.warning(f"전역 인벤토리에서 아이템 제거 실패: {e}")
                 else:
                     self.logger.warning(f"인벤토리를 찾을 수 없음: actor.hasattr(inventory)={hasattr(actor, 'inventory')}, self.hasattr(inventory)={hasattr(self, 'inventory')}")
+
+            # === 아이템 사용 팀워크 게이지 기여 ===
+            gauge_amount = 0
+            if result.get("healing") and result["healing"] > 0:
+                gauge_amount = 15  # 회복 아이템
+            elif result.get("aoe_damage"):
+                gauge_amount = 20  # 폭탄
+            elif result.get("buff_applied"):
+                gauge_amount = 10  # 버프 포션
+            elif result.get("status_cured"):
+                gauge_amount = 12  # 상태이상 치료
+            elif result.get("shield_applied") or result.get("barrier_applied"):
+                gauge_amount = 18  # 보호막
+
+            if gauge_amount > 0:
+                self.update_teamwork_gauge(action_type=ActionType.ITEM, item_gauge=gauge_amount)
 
             return result
         else:
@@ -3558,9 +4234,12 @@ class CombatManager:
         import random
         if random.random() < flee_chance:
             self.state = CombatState.FLED
+            # 멀티플레이: 한 플레이어가 도망치면 아군 전체가 도망 처리
+            is_multiplayer = hasattr(self, 'session') and self.session
             return {
                 "action": "flee",
-                "success": True
+                "success": True,
+                "all_allies_fled": is_multiplayer  # 멀티플레이 시 전체 도망 플래그
             }
         else:
             return {
@@ -3711,6 +4390,14 @@ class CombatManager:
         if hasattr(character, 'gimmick_type') and character.gimmick_type == "thirst_gauge":
             self._handle_vampire_death(character)
         
+        # 도적: 독 걸린 적 사망 시 광역 독 전파 (plague_burst 특성)
+        if character in self.enemies:
+            for ally in self.allies:
+                if getattr(ally, 'gimmick_type', None) == 'venom_system' and getattr(ally, 'is_alive', True):
+                    living_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True) and e != character]
+                    GimmickUpdater.on_venom_target_death(ally, character, living_enemies)
+                    break  # 도적 1명만 처리
+
         # 해적: 적 처치 시 보물 획득 체크
         if character in self.enemies:
             # 적이 죽었을 때
@@ -3880,6 +4567,10 @@ class CombatManager:
         
         if not defender or damage <= 0:
             return
+            
+        # 반사 피해로 인한 무한 루프 방지
+        if data.get("is_reflect", False):
+            return
         
         # 아군 피격 시 진동 (피해량에 따라 강도 조절)
         if defender in self.allies:
@@ -3908,14 +4599,41 @@ class CombatManager:
                         reflect_damage = int(damage * reflect_ratio)
                         if reflect_damage > 0:
                             if hasattr(attacker, 'take_damage'):
-                                actual_damage = attacker.take_damage(reflect_damage)
+                                try:
+                                    actual_damage = attacker.take_damage(reflect_damage, is_reflect=True)
+                                except TypeError:
+                                    actual_damage = attacker.take_damage(reflect_damage)
                             elif hasattr(attacker, 'current_hp'):
                                 actual_damage = min(reflect_damage, attacker.current_hp)
                                 attacker.current_hp = max(0, attacker.current_hp - actual_damage)
                             else:
                                 actual_damage = reflect_damage
                             self.logger.info(f"[반사 피해] {defender.name}의 가시 효과로 {attacker.name}에게 {actual_damage} 반사 피해!")
-        
+
+        # COUNTER 버프 반사 (미러 포스, 거울 함정 등)
+        if attacker and hasattr(defender, 'active_buffs') and 'counter' in defender.active_buffs:
+            counter_buff = defender.active_buffs['counter']
+            reflect_ratio = float(counter_buff.get('value', 0))
+            if reflect_ratio > 0:
+                reflect_damage = int(damage * reflect_ratio)
+                if reflect_damage > 0:
+                    if hasattr(attacker, 'take_damage'):
+                        try:
+                            actual_damage = attacker.take_damage(reflect_damage, is_reflect=True)
+                        except TypeError:
+                            actual_damage = attacker.take_damage(reflect_damage)
+                    elif hasattr(attacker, 'current_hp'):
+                        actual_damage = min(reflect_damage, attacker.current_hp)
+                        attacker.current_hp = max(0, attacker.current_hp - actual_damage)
+                    else:
+                        actual_damage = reflect_damage
+                    self.logger.info(f"[반사 피해] {defender.name}의 반격 버프로 {attacker.name}에게 {actual_damage} 반사 피해! ({int(reflect_ratio * 100)}%)")
+
+                    # 전투 UI에 메시지 표시
+                    ui = getattr(self, 'combat_ui', None)
+                    if ui and hasattr(ui, 'add_message'):
+                        ui.add_message(f"[반사] {defender.name} → {attacker.name} {actual_damage} 피해!", (255, 200, 100))
+
         # 아군이 피해를 받았는지 확인
         if defender not in self.allies:
             return
@@ -4238,9 +4956,15 @@ class CombatManager:
                         # 효과 만료: 원래 스탯으로 복원
                         stat = effect['stat']
                         original_value = effect['original_value']
-                        combatant.stat_manager.set_base_value(stat, original_value)
+                        if hasattr(combatant, 'stat_manager') and combatant.stat_manager:
+                            # Character: stat_manager 사용 (Stats 상수는 문자열)
+                            combatant.stat_manager.set_base_value(stat, original_value)
+                            self.logger.info(f"{combatant.name}의 스탯 스왑 효과 만료: {stat} → {original_value}")
+                        elif isinstance(stat, str):
+                            # SimpleEnemy: 직접 속성 복원
+                            setattr(combatant, stat, int(original_value))
+                            self.logger.info(f"{combatant.name}의 스탯 스왑 효과 만료: {stat} → {original_value}")
                         expired_effects.append(effect)
-                        self.logger.info(f"{combatant.name}의 스탯 스왑 효과 만료: {stat.name} → {original_value}")
 
                 # 만료된 효과 제거
                 for effect in expired_effects:
@@ -4248,7 +4972,11 @@ class CombatManager:
 
         # 기믹 업데이트 (턴 종료)
         GimmickUpdater.on_turn_end(actor)
-        
+
+        # 호감도 연계스킬/체인어빌리티 쿨다운 감소 (아군 턴 종료 시에만)
+        if actor in self.allies:
+            self.on_affinity_turn_end()
+
         # 모든 아군의 포탑 자동 공격 (기계공학자가 파티에 있으면 매 턴 발사)
         turret_context = {'combat_manager': self}
         for ally in self.allies:
@@ -4453,6 +5181,10 @@ class CombatManager:
             counter_result = self.brv_attack(evader, attacker, trigger_gimmick=False)
             # 반격 데미지 로그는 brv_attack에서 처리
 
+        # 도적(venom_system): 회피 성공 시 독 연계
+        if getattr(evader, 'gimmick_type', None) == 'venom_system':
+            GimmickUpdater.on_rogue_evade(evader, attacker)
+
     def _apply_party_wide_traits(self) -> None:
         """
         전투 시작 시 파티 전체 버프 특성 적용 (holy_aura, chivalry 등)
@@ -4559,38 +5291,68 @@ class CombatManager:
             self._end_combat(CombatState.VICTORY)
             return
 
+        # 불멸의 존재 해제 조건 체크 (HP 0인데 다른 아군이 모두 사망한 경우)
+        if self.allies:
+            for ally in self.allies:
+                if getattr(ally, 'current_hp', 1) <= 0 and getattr(ally, 'is_alive', False):
+                    if hasattr(ally, '_has_undying_existence') and not ally._has_undying_existence():
+                        ally.is_alive = False
+                        self.logger.warning(f"{getattr(ally, 'name', 'Unknown')}의 '불멸의 존재' 효과가 다른 아군의 전멸로 인해 해제되어 사망합니다.")
+
         # 모든 아군이 죽었는가? (아군이 있어야만 체크)
         if self.allies and all(self._is_defeated(ally) for ally in self.allies):
-            # 전투 참여한 파티원이 모두 죽었으면 패배 (맵으로 복귀)
-            # 멀티플레이 모드: 모든 플레이어의 모든 캐릭터가 죽었는지 확인
+            # 멀티플레이 모드: 플레이어별로 전멸 여부를 개별 확인
             if hasattr(self, 'session') and self.session:
+                # 전멸된 플레이어의 캐릭터를 유령 상태로 전환
+                # 플레이어별 생존 여부 추적
                 all_players_dead = True
                 for player_id, player in self.session.players.items():
                     if hasattr(player, 'party') and player.party:
-                        # 플레이어의 파티 중 살아있는 캐릭터가 있는지 확인
-                        has_alive = False
+                        player_has_alive = False
                         for char in player.party:
                             if hasattr(char, 'is_alive') and char.is_alive:
-                                has_alive = True
+                                player_has_alive = True
                                 break
                             elif hasattr(char, 'current_hp') and char.current_hp > 0:
-                                has_alive = True
+                                player_has_alive = True
                                 break
-                        if has_alive:
+
+                        if not player_has_alive:
+                            # 이 플레이어의 캐릭터가 전멸 → 유령 상태로 전환
+                            for char in player.party:
+                                if hasattr(char, 'is_ghost'):
+                                    char.is_ghost = True
+                                    self.logger.info(
+                                        f"[유령 전환] {getattr(char, 'name', 'Unknown')} "
+                                        f"(플레이어: {player_id})"
+                                    )
+                        else:
                             all_players_dead = False
-                            break
-                
+
                 if all_players_dead:
                     # 모든 플레이어의 모든 캐릭터가 죽었으면 게임오버
                     self.logger.info("모든 플레이어의 모든 캐릭터가 죽었습니다. 게임오버.")
-                    # 게임오버 플래그 설정 (main.py에서 게임오버로 처리)
                     self.is_game_over = True
+                    self._end_combat(CombatState.DEFEAT)
                 else:
-                    # 전투 참여 파티원만 죽었으면 패배 (맵으로 복귀)
-                    self.logger.info("전투 참여 파티원이 모두 죽었습니다. 패배 (맵으로 복귀).")
-                    self.is_game_over = False
-                
-                self._end_combat(CombatState.DEFEAT)
+                    # 일부 플레이어만 전멸 → 유령 전환, 전투 계속
+                    # 전투 참여 allies에서 유령 제거 (전투에서 제외)
+                    living_allies = [
+                        a for a in self.allies
+                        if getattr(a, 'is_alive', False) or
+                        (hasattr(a, 'current_hp') and a.current_hp > 0)
+                    ]
+                    if living_allies:
+                        self.logger.info(
+                            f"일부 플레이어 전멸 → 유령 전환. "
+                            f"생존 아군: {len(living_allies)}명, 전투 계속."
+                        )
+                        # 전투 계속 - DEFEAT 호출하지 않음
+                    else:
+                        # 생존 아군이 없으면 패배
+                        self.logger.info("전투 참여 파티원이 모두 죽었습니다. 패배 (맵으로 복귀).")
+                        self.is_game_over = False
+                        self._end_combat(CombatState.DEFEAT)
                 return
             else:
                 # 싱글플레이 모드: 전투 참여자만 체크 (게임 오버)
@@ -4655,17 +5417,32 @@ class CombatManager:
         self.state = state
 
         self.logger.info(f"전투 종료: {state.value}")
-        
-        # 전투 종료 진동
-        if state == CombatState.VICTORY:
-            vibration_manager.vibrate(VibrationPattern.SUCCESS)
-        elif state == CombatState.DEFEAT:
-            vibration_manager.vibrate(VibrationPattern.DEATH)
-        else:
-            vibration_manager.vibrate(VibrationPattern.COMBAT_END)
+
+        # 전투 종료 진동 (헤드리스 모드에서는 스킵)
+        if not self.headless:
+            if state == CombatState.VICTORY:
+                vibration_manager.vibrate(VibrationPattern.SUCCESS)
+            elif state == CombatState.DEFEAT:
+                vibration_manager.vibrate(VibrationPattern.DEATH)
+            else:
+                vibration_manager.vibrate(VibrationPattern.COMBAT_END)
         
         # 마술사 다이아 효과 (bonus_rewards) - 승리 시 추가 보상
         if state == CombatState.VICTORY:
+            # 멀티플레이: 유령 상태 플레이어 부활 (HP 1)
+            if hasattr(self, 'session') and self.session:
+                for player_id, player in self.session.players.items():
+                    if hasattr(player, 'party') and player.party:
+                        for char in player.party:
+                            if getattr(char, 'is_ghost', False):
+                                char.is_ghost = False
+                                char.is_alive = True
+                                char.current_hp = 1
+                                self.logger.info(
+                                    f"[유령 부활] {getattr(char, 'name', 'Unknown')} "
+                                    f"(플레이어: {player_id}) HP 1로 부활"
+                                )
+
             # === 보스 승리 스토리 ===
             is_sephiroth = any(getattr(enemy, 'enemy_id', None) == "sephiroth" for enemy in self.enemies)
             is_cain = any(getattr(enemy, 'enemy_id', None) == "abel_cain" for enemy in self.enemies)
@@ -4695,6 +5472,28 @@ class CombatManager:
                 # 보너스 정보 저장 (main.py에서 사용)
                 self.bonus_rewards_multiplier = 1.0 + total_bonus
 
+        # 퀘스트 진행도 업데이트 (적 처치 + 생존 턴)
+        if state == CombatState.VICTORY:
+            try:
+                from src.quest.quest_manager import get_quest_manager
+                qm = get_quest_manager()
+                # 처치한 적 카운트
+                for enemy in self.enemies:
+                    if hasattr(enemy, 'current_hp') and enemy.current_hp <= 0:
+                        # enemy_id > character_class > name 순으로 매칭
+                        enemy_target = (
+                            getattr(enemy, 'enemy_id', None)
+                            or getattr(enemy, 'character_class', None)
+                            or getattr(enemy, 'name', '')
+                        )
+                        if enemy_target:
+                            qm.update_progress("enemy_killed", str(enemy_target).lower(), 1)
+                # 생존 턴 카운트 (SURVIVAL 퀘스트용)
+                if hasattr(self, 'turn_count') and self.turn_count > 0:
+                    qm.update_progress("survival", "survival_turns", self.turn_count)
+            except Exception as e:
+                self.logger.debug(f"퀘스트 진행도 업데이트 실패: {e}")
+
         # 팀워크 게이지 저장 (다음 전투에서 복원용)
         if self.party:
             try:
@@ -4704,6 +5503,15 @@ class CombatManager:
                 self.logger.info(f"팀워크 게이지 저장됨: {self.party.teamwork_gauge}/{self.party.max_teamwork_gauge}")
             except Exception as e:
                 self.logger.debug(f"팀워크 게이지 저장 실패: {e}")
+
+        # 호감도 데이터 저장 (다음 전투에서 복원용)
+        if self._affinity_manager:
+            try:
+                import src.persistence.save_system as save_module
+                save_module._last_loaded_affinity_data = self._affinity_manager.to_dict()
+                self.logger.info("호감도 데이터 저장됨 (전투 종료 캐싱)")
+            except Exception as e:
+                self.logger.debug(f"호감도 데이터 저장 실패: {e}")
 
         # 이벤트 발행
         event_bus.publish(Events.COMBAT_END, {
@@ -4726,6 +5534,17 @@ class CombatManager:
         casting_system = get_casting_system()
         casting_system.clear()
         
+        # 보스 표식/낙인 정리 (전투 간 지속 방지)
+        from src.combat.boss_gimmicks import BossGimmickSystem
+        for ally in self.allies:
+            if hasattr(ally, '_sephiroth_mark'):
+                delattr(ally, '_sephiroth_mark')
+                self.logger.debug(f"{ally.name} 세피로스 표식 제거")
+            if hasattr(ally, '_cain_mark'):
+                delattr(ally, '_cain_mark')
+                self.logger.debug(f"{ally.name} 카인 낙인 제거")
+        BossGimmickSystem.clear_glitch_cache()  # 글리치 캐시 전체 초기화
+
         # 배틀메이지 룬 카운터 리셋 (전투 간 누적 방지)
         for ally in self.allies:
             if getattr(ally, 'gimmick_type', None) == 'rune_resonance':
@@ -5215,7 +6034,7 @@ class CombatManager:
             # 스킬 타입에 따라 다름 (일단 기본값)
             gain = 6
         elif action_type == ActionType.ITEM:
-            gain = 0  # 아이템 사용은 게이지 증가 없음
+            gain = kwargs.get('item_gauge', 0)  # 아이템 유형별 차등 게이지
         elif action_type == ActionType.DEFEND:
             gain = 0  # 방어는 게이지 증가 없음
 
@@ -5228,6 +6047,19 @@ class CombatManager:
             gain += 8
         if kwargs.get('was_hit'):
             gain += 3
+
+        # 호감도 보너스 적용
+        if gain > 0 and self._affinity_manager:
+            party_jobs = [c.character_class for c in self.allies if hasattr(c, 'character_class') and getattr(c, 'is_alive', True)]
+            avg_bonus = self._affinity_manager.get_party_avg_gauge_bonus(party_jobs)
+            if avg_bonus > 0:
+                gain = int(gain * (1.0 + avg_bonus))
+
+        # 시너지 충전 보너스 적용
+        if gain > 0 and self._synergy_manager:
+            synergy_bonus = self._synergy_manager.get_teamwork_charge_bonus()
+            if synergy_bonus > 0:
+                gain = int(gain * (1.0 + synergy_bonus))
 
         # 게이지 추가
         if gain > 0:
@@ -5248,6 +6080,1083 @@ class CombatManager:
         self.party.teamwork_gauge = teamwork_gauge
         self.party.max_teamwork_gauge = max_teamwork_gauge
         self.logger.info(f"팀워크 게이지 복원: {teamwork_gauge}/{max_teamwork_gauge}")
+
+    # ─── 호감도/유대 시스템 ───────────────────────────────────
+
+    @property
+    def affinity_manager(self):
+        """AffinityManager 접근 (없으면 None)"""
+        return self._affinity_manager
+
+    @affinity_manager.setter
+    def affinity_manager(self, manager):
+        self._affinity_manager = manager
+
+    def check_bond_skills(self, trigger_event: str, actor: Any) -> list:
+        """
+        연계스킬 발동 체크 (자동, 무료)
+
+        공격 적중/피해/브레이크 등의 이벤트 발생 시 호출.
+        발동된 연계스킬 목록을 반환합니다.
+        """
+        if not self._affinity_manager:
+            return []
+        if not hasattr(actor, 'character_class'):
+            return []
+
+        party_jobs = [
+            c.character_class for c in self.allies
+            if hasattr(c, 'character_class') and getattr(c, 'is_alive', True)
+        ]
+
+        results = self._affinity_manager.check_bond_skills(
+            trigger_event=trigger_event,
+            actor_job=actor.character_class,
+            party_jobs=party_jobs
+        )
+
+        # 발동된 연계스킬 이벤트 발행
+        for result in results:
+            event_bus.publish(Events.BOND_SKILL_TRIGGERED, {
+                "skill": result.skill,
+                "source_job": result.source_job,
+                "ally_job": result.ally_job,
+                "actor": actor
+            })
+            self.logger.info(f"연계스킬 발동: {result.skill.name} ({result.source_job})")
+
+        return results
+
+    def trigger_chain_ability_check(self, actor: Any, trigger_reason: str) -> list:
+        """
+        체인어빌리티 트리거 공통 메서드
+
+        BREAK/SCATTER/팀워크스킬/특정스킬 사용 후 호출.
+        사용 가능한 체인어빌리티 목록을 반환하고 pending에 저장합니다.
+
+        Args:
+            actor: 트리거를 발생시킨 캐릭터
+            trigger_reason: 트리거 사유 ("break", "scatter", "teamwork", "skill")
+        """
+        if not self._affinity_manager or not self.party:
+            return []
+        if not hasattr(actor, 'character_class'):
+            return []
+
+        party_jobs = [
+            c.character_class for c in self.allies
+            if hasattr(c, 'character_class') and getattr(c, 'is_alive', True)
+        ]
+
+        results = self._affinity_manager.check_chain_abilities(
+            actor_job=actor.character_class,
+            party_jobs=party_jobs,
+            available_gauge=self.party.teamwork_gauge
+        )
+
+        if results:
+            self.pending_chain_abilities = results
+            self.chain_trigger_reason = trigger_reason
+            for result in results:
+                event_bus.publish(Events.CHAIN_ABILITY_TRIGGERED, {
+                    "ability": result.ability,
+                    "source_job": result.source_job,
+                    "ally_job": result.ally_job,
+                    "gauge_cost": result.gauge_cost,
+                    "trigger_reason": trigger_reason
+                })
+            self.logger.info(
+                f"체인어빌리티 트리거 ({trigger_reason}): "
+                f"{len(results)}개 사용 가능"
+            )
+
+        return results
+
+    def execute_bond_skill(self, result: Any, actor: Any) -> Dict[str, Any]:
+        """
+        연계스킬 효과 적용 (자동)
+
+        Returns:
+            실행 결과 딕셔너리
+        """
+        skill = result.skill
+        effect = skill.effect
+        effect_type = effect.get("type", "")
+        exec_result = {"skill_name": skill.name, "source": result.source_job, "effects": []}
+
+        # 연계스킬 효과 적용 — 아군 캐릭터 참조
+        source_char = next(
+            (c for c in self.allies if hasattr(c, 'character_class') and c.character_class == result.source_job),
+            None
+        )
+        target_char = next(
+            (c for c in self.allies if hasattr(c, 'character_class') and c.character_class == result.ally_job),
+            None
+        )
+
+        if effect_type == "additional_attack":
+            # 추가 공격 (strength/magic 프로퍼티 사용 + 레벨 스케일링)
+            multiplier = effect.get("multiplier", 0.5)
+            damage_type = effect.get("damage_type", "physical")
+            if source_char and self.enemies:
+                import random
+                alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+                target = random.choice(alive_enemies) if alive_enemies else self.enemies[0]
+                if damage_type == "physical":
+                    base_dmg = getattr(source_char, 'strength', 50)
+                else:
+                    base_dmg = getattr(source_char, 'magic', 50)
+                # 적 방어력 고려
+                if damage_type == "physical":
+                    target_def = getattr(target, 'defense', 0) if hasattr(target, 'defense') else 0
+                else:
+                    target_def = getattr(target, 'spirit', 0) if hasattr(target, 'spirit') else 0
+                # 레벨 스케일링 (일반 BRV 공격과 동일)
+                attacker_level = getattr(source_char, 'level', 1)
+                from src.core.config import get_config
+                config = get_config()
+                level_scaling_per_level = config.get("combat.damage.level_scaling_per_level", 0.3)
+                level_scaling = 1.0 + (attacker_level - 1) * level_scaling_per_level
+                raw_dmg = int(base_dmg * multiplier * level_scaling)
+                # 방어력 비례 경감 (flat 차감 대신 비율 경감)
+                def_factor = 200.0 / (200.0 + target_def) if target_def > 0 else 1.0
+                dmg = max(1, int(raw_dmg * def_factor))
+                target.current_hp = max(0, getattr(target, 'current_hp', 0) - dmg)
+                exec_result["effects"].append({"type": "damage", "target": getattr(target, 'name', ''), "amount": dmg})
+
+        elif effect_type == "redirect_damage":
+            # 피해 전환 — 대상에게 리다이렉트 마커 부여
+            reduction = effect.get("damage_reduction", 0.5)
+            if target_char:
+                target_char._bond_redirect_active = True
+                target_char._bond_redirect_reduction = reduction
+                exec_result["effects"].append({"type": "redirect", "reduction": reduction})
+
+        elif effect_type == "heal":
+            amount_pct = effect.get("amount_percent", 0.1)
+            if target_char:
+                heal_amt = int(getattr(target_char, 'max_hp', 100) * amount_pct)
+                target_char.current_hp = min(getattr(target_char, 'max_hp', 100), target_char.current_hp + heal_amt)
+                exec_result["effects"].append({"type": "heal", "target": target_char.name, "amount": heal_amt})
+
+        elif effect_type == "buff":
+            # 버프 실제 적용 — YAML의 mult/add 키를 StatusType으로 매핑
+            from src.combat.status_effects import StatusType, StatusEffect as CombatStatusEffect
+
+            # YAML 키 → (StatusType, 한글명, intensity 제수)
+            buff_stat_map = {
+                "physical_attack_mult": (StatusType.BOOST_ATK, "공격력", 0.2),
+                "magic_attack_mult": (StatusType.BOOST_MAGIC_ATK, "마법공격력", 0.2),
+                "defense_mult": (StatusType.BOOST_DEF, "방어력", 0.2),
+                "magic_defense_mult": (StatusType.BOOST_MAGIC_DEF, "마법방어력", 0.2),
+                "speed_mult": (StatusType.BOOST_SPD, "속도", 0.3),
+                "critical_rate_add": (StatusType.BOOST_CRIT, "치명타율", 0.25),
+                "critical_damage_mult": (StatusType.BOOST_CRIT, "치명타 위력", 0.25),
+                "all_stats_mult": (StatusType.BOOST_ALL_STATS, "모든 능력치", 0.15),
+            }
+
+            buff_duration = effect.get("duration", 3)
+            buff_target_type = effect.get("target", "self")
+
+            # 버프 대상 결정
+            if buff_target_type == "all_allies":
+                buff_targets = [c for c in self.allies if getattr(c, 'is_alive', True)]
+            elif buff_target_type == "self":
+                buff_targets = [source_char] if source_char else []
+            else:
+                # healed_ally, attacking_ally, buffed_ally → target_char
+                buff_targets = [target_char] if target_char else ([actor] if actor else [])
+
+            buff_descs = []
+            for stat_key, (status_type, stat_name, divisor) in buff_stat_map.items():
+                stat_value = effect.get(stat_key)
+                if stat_value is None:
+                    continue
+
+                # intensity 계산: 각 StatusType의 공식에 맞게 역산
+                if "_add" in stat_key:
+                    intensity = stat_value / divisor
+                    pct = int(stat_value * 100)
+                else:
+                    intensity = (stat_value - 1.0) / divisor
+                    pct = int((stat_value - 1.0) * 100)
+                buff_descs.append(f"{stat_name}+{pct}%")
+
+                for bt in buff_targets:
+                    if bt and hasattr(bt, 'status_manager'):
+                        try:
+                            se = CombatStatusEffect(
+                                name=f"연계:{skill.name}({stat_name})",
+                                status_type=status_type,
+                                duration=buff_duration,
+                                intensity=intensity,
+                            )
+                            bt.status_manager.add_status(se)
+                        except Exception as e:
+                            self.logger.warning(f"연계스킬 버프 적용 실패: {e}")
+
+            buff_desc = ", ".join(buff_descs) if buff_descs else skill.name
+            target_names = ", ".join(getattr(bt, 'name', '?') for bt in buff_targets if bt) if buff_targets else "대상"
+            exec_result["effects"].append({"type": "buff", "target": target_names, "buff_desc": buff_desc})
+
+        elif effect_type == "shield":
+            # 실제 보호막 적용 (StatusType.SHIELD)
+            from src.combat.status_effects import StatusEffect as CombatStatusEffect, StatusType
+            amount_pct = effect.get("amount_percent", 0.1)
+            shield_duration = effect.get("duration", 5)
+            shield_target = target_char or actor
+            if shield_target and hasattr(shield_target, 'status_manager'):
+                shield_amt = int(getattr(shield_target, 'max_hp', 100) * amount_pct)
+                shield_effect = CombatStatusEffect(
+                    name=skill.name,
+                    status_type=StatusType.SHIELD,
+                    duration=shield_duration,
+                    intensity=shield_amt,
+                    source_id=getattr(actor, 'name', 'Bond'),
+                    metadata={"shield_hp": shield_amt},
+                )
+                shield_target.status_manager.add_status(shield_effect, allow_refresh=True)
+                exec_result["effects"].append({"type": "shield", "target": getattr(shield_target, 'name', ''), "amount": shield_amt})
+
+        elif effect_type == "mp_restore":
+            amount_pct = effect.get("amount_percent", 0.05)
+            if target_char:
+                restore = int(getattr(target_char, 'max_mp', 50) * amount_pct)
+                target_char.current_mp = min(getattr(target_char, 'max_mp', 50), target_char.current_mp + restore)
+                exec_result["effects"].append({"type": "mp_restore", "target": target_char.name, "amount": restore})
+
+        elif effect_type == "hp_drain":
+            # HP 흡수 공격 (뱀파이어 등)
+            multiplier = effect.get("multiplier", 1.0)
+            drain_percent = effect.get("drain_percent", 0.3)
+            if source_char and self.enemies:
+                import random
+                alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+                if alive_enemies:
+                    target_enemy = random.choice(alive_enemies)
+                    base_dmg = getattr(source_char, 'strength', 50)
+                    attacker_level = getattr(source_char, 'level', 1)
+                    from src.core.config import get_config
+                    config = get_config()
+                    level_scaling_per_level = config.get("combat.damage.level_scaling_per_level", 0.3)
+                    level_scaling = 1.0 + (attacker_level - 1) * level_scaling_per_level
+                    raw_dmg = int(base_dmg * multiplier * level_scaling)
+                    target_def = getattr(target_enemy, 'defense', 0)
+                    def_factor = 200.0 / (200.0 + target_def) if target_def > 0 else 1.0
+                    dmg = max(1, int(raw_dmg * def_factor))
+                    target_enemy.current_hp = max(0, getattr(target_enemy, 'current_hp', 0) - dmg)
+                    # 흡혈
+                    heal_amount = int(dmg * drain_percent)
+                    max_hp = getattr(source_char, 'max_hp', 100)
+                    actual_heal = min(heal_amount, max_hp - getattr(source_char, 'current_hp', 0))
+                    actual_heal = max(0, actual_heal)
+                    source_char.current_hp = min(max_hp, source_char.current_hp + actual_heal)
+                    exec_result["effects"].append({
+                        "type": "hp_drain", "target": getattr(target_enemy, 'name', ''),
+                        "damage": dmg, "heal": actual_heal
+                    })
+
+        elif effect_type == "status_apply":
+            # 상태이상 부여 (매혹, 재생 등)
+            from src.combat.status_effects import StatusType, StatusEffect as CombatStatusEffect
+            status_id = effect.get("status", "")
+            duration = effect.get("duration", 2)
+            chance = effect.get("chance", 1.0)
+
+            import random
+            if random.random() > chance:
+                exec_result["effects"].append({"type": "status_apply", "success": False, "status": status_id})
+            else:
+                target_type = effect.get("target", "enemy")
+                status_targets = []
+                if target_type in ("enemy", "same_target"):
+                    alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+                    if alive_enemies:
+                        status_targets = [random.choice(alive_enemies)]
+                elif target_type in ("healed_ally", "damaged_ally", "attacking_ally", "buffed_ally"):
+                    if target_char:
+                        status_targets = [target_char]
+                elif target_type == "self":
+                    if source_char:
+                        status_targets = [source_char]
+
+                status_map = {
+                    "poison": StatusType.POISON,
+                    "blind": StatusType.BLIND,
+                    "silence": StatusType.SILENCE,
+                    "slow": StatusType.SLOW,
+                    "stun": StatusType.STUN,
+                    "charm": StatusType.CHARM,
+                    "sleep": StatusType.SLEEP,
+                    "regen": StatusType.REGENERATION,
+                    "haste": StatusType.HASTE,
+                    "burn": StatusType.POISON,
+                    "paralyze": StatusType.STUN,
+                }
+                st = status_map.get(status_id)
+                if st and status_targets:
+                    for st_target in status_targets:
+                        if hasattr(st_target, 'status_manager'):
+                            try:
+                                se = CombatStatusEffect(
+                                    name=f"연계:{skill.name}",
+                                    status_type=st,
+                                    duration=duration,
+                                    intensity=1.0,
+                                )
+                                st_target.status_manager.add_status(se)
+                            except Exception as e:
+                                self.logger.warning(f"연계스킬 상태이상 적용 실패: {e}")
+                    exec_result["effects"].append({
+                        "type": "status_apply", "success": True, "status": status_id,
+                        "target": ", ".join(getattr(t, 'name', '?') for t in status_targets)
+                    })
+
+        elif effect_type == "debuff":
+            # 디버프 부여 (방어력 감소 등) — buff 핸들러와 동일 패턴, 역방향
+            from src.combat.status_effects import StatusType, StatusEffect as CombatStatusEffect
+            debuff_duration = effect.get("duration", 2)
+            target_type = effect.get("target", "enemy")
+            debuff_targets = []
+            if target_type in ("enemy", "same_target"):
+                alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+                if alive_enemies:
+                    import random
+                    debuff_targets = [random.choice(alive_enemies)]
+            elif target_type == "all_enemies":
+                debuff_targets = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+
+            debuff_stat_map = {
+                "defense_mult": (StatusType.BOOST_DEF, "방어력", 0.2),
+                "magic_defense_mult": (StatusType.BOOST_MAGIC_DEF, "마법방어력", 0.2),
+                "physical_attack_mult": (StatusType.BOOST_ATK, "공격력", 0.2),
+                "magic_attack_mult": (StatusType.BOOST_MAGIC_ATK, "마법공격력", 0.2),
+                "speed_mult": (StatusType.BOOST_SPD, "속도", 0.3),
+            }
+
+            debuff_descs = []
+            for stat_key, (status_type, stat_name, divisor) in debuff_stat_map.items():
+                stat_value = effect.get(stat_key)
+                if stat_value is None:
+                    continue
+                intensity = (stat_value - 1.0) / divisor
+                pct = int((1.0 - stat_value) * 100)
+                debuff_descs.append(f"{stat_name}-{pct}%")
+
+                for dt in debuff_targets:
+                    if dt and hasattr(dt, 'status_manager'):
+                        try:
+                            se = CombatStatusEffect(
+                                name=f"연계:{skill.name}({stat_name})",
+                                status_type=status_type,
+                                duration=debuff_duration,
+                                intensity=intensity,
+                            )
+                            dt.status_manager.add_status(se)
+                        except Exception as e:
+                            self.logger.warning(f"연계스킬 디버프 적용 실패: {e}")
+
+            target_names = ", ".join(getattr(dt, 'name', '?') for dt in debuff_targets) if debuff_targets else "대상"
+            exec_result["effects"].append({
+                "type": "debuff", "target": target_names,
+                "debuff_desc": ", ".join(debuff_descs) if debuff_descs else skill.name
+            })
+
+        elif effect_type == "revive":
+            # 부활 (사망 아군 부활)
+            hp_percent = effect.get("hp_percent", 0.15)
+            dead_allies = [a for a in self.allies
+                           if not getattr(a, 'is_alive', True) or getattr(a, 'current_hp', 0) <= 0]
+            if dead_allies:
+                revive_target = dead_allies[0]
+                max_hp = getattr(revive_target, 'max_hp', 100)
+                revive_hp = max(1, int(max_hp * hp_percent))
+                revive_target.current_hp = revive_hp
+                if hasattr(revive_target, 'is_alive'):
+                    revive_target.is_alive = True
+                exec_result["effects"].append({
+                    "type": "revive", "target": getattr(revive_target, 'name', ''),
+                    "hp": revive_hp
+                })
+
+        elif effect_type == "brv_damage":
+            # BRV 데미지 (브레이크 용)
+            multiplier = effect.get("multiplier", 1.5)
+            if source_char and self.enemies:
+                import random
+                alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+                if alive_enemies:
+                    target_enemy = random.choice(alive_enemies)
+                    base_dmg = getattr(source_char, 'strength', 50)
+                    attacker_level = getattr(source_char, 'level', 1)
+                    from src.core.config import get_config
+                    config = get_config()
+                    level_scaling_per_level = config.get("combat.damage.level_scaling_per_level", 0.3)
+                    level_scaling = 1.0 + (attacker_level - 1) * level_scaling_per_level
+                    brv_dmg = max(1, int(base_dmg * multiplier * level_scaling))
+                    old_brv = getattr(target_enemy, 'current_brv', 0)
+                    target_enemy.current_brv = max(0, old_brv - brv_dmg)
+                    is_break = old_brv > 0 and target_enemy.current_brv <= 0
+                    exec_result["effects"].append({
+                        "type": "brv_damage", "target": getattr(target_enemy, 'name', ''),
+                        "amount": brv_dmg, "is_break": is_break
+                    })
+
+        # 호감도 증가
+        self._affinity_manager.on_battle_action(result.source_job, [result.ally_job])
+
+        return exec_result
+
+    def execute_chain_ability(self, result: Any) -> Dict[str, Any]:
+        """
+        체인어빌리티 실행 (플레이어가 확정한 후 호출)
+
+        팀워크 게이지를 소모하고 효과를 적용합니다.
+        execute_bond_skill과 동일한 패턴으로 모든 효과 타입을 지원합니다.
+        """
+        ability = result.ability
+        gauge_cost = result.gauge_cost
+
+        # 게이지 소모
+        if self.party:
+            self.party.consume_teamwork_gauge(gauge_cost)
+
+        # 쿨다운 설정
+        if self._affinity_manager:
+            self._affinity_manager.confirm_chain_ability(result)
+            # 합체기 사용 시 호감도 대폭 증가
+            self._affinity_manager.on_combo_skill(result.source_job, result.ally_job)
+
+        # 효과 적용 — execute_bond_skill과 동일 패턴
+        effect = ability.effect
+        effect_type = effect.get("type", "")
+        exec_result = {"ability_name": ability.name, "source": result.source_job, "gauge_used": gauge_cost, "effects": []}
+
+        # 아군 캐릭터 참조
+        source_char = next(
+            (c for c in self.allies if hasattr(c, 'character_class') and c.character_class == result.source_job),
+            None
+        )
+        ally_char = next(
+            (c for c in self.allies if hasattr(c, 'character_class') and c.character_class == result.ally_job),
+            None
+        )
+
+        if effect_type == "additional_attack" or effect_type == "counter_attack":
+            # 추가 공격 — 메인 데미지 계산기 사용 (BRV 데미지 → 직접 HP 적용)
+            multiplier = effect.get("multiplier", 1.2)
+            damage_type = effect.get("damage_type", "physical")
+            element = effect.get("element", None)
+            if source_char and self.enemies:
+                import random
+                alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+                target = random.choice(alive_enemies) if alive_enemies else self.enemies[0]
+                # 메인 데미지 계산기로 BRV 데미지 산출
+                if damage_type in ("magical",):
+                    dmg_result = self.damage_calc.calculate_magic_damage(
+                        source_char, target, multiplier, element=element,
+                        ignore_evasion=True
+                    )
+                else:
+                    dmg_result = self.damage_calc.calculate_brv_damage(
+                        source_char, target, multiplier, element=element,
+                        ignore_evasion=True
+                    )
+                # BRV 데미지를 직접 HP 피해로 적용 (체인 어빌리티는 보너스 공격)
+                hp_damage = max(1, dmg_result.final_damage)
+                target.current_hp = max(0, getattr(target, 'current_hp', 0) - hp_damage)
+                is_crit = dmg_result.is_critical
+                exec_result["effects"].append({
+                    "type": "damage", "target": getattr(target, 'name', ''),
+                    "amount": hp_damage, "critical": is_crit
+                })
+
+        elif effect_type == "buff":
+            # 버프 실제 적용 — YAML의 mult/add 키를 StatusType으로 매핑
+            from src.combat.status_effects import StatusType, StatusEffect as CombatStatusEffect
+
+            buff_stat_map = {
+                "physical_attack_mult": (StatusType.BOOST_ATK, "공격력", 0.2),
+                "magic_attack_mult": (StatusType.BOOST_MAGIC_ATK, "마법공격력", 0.2),
+                "defense_mult": (StatusType.BOOST_DEF, "방어력", 0.2),
+                "magic_defense_mult": (StatusType.BOOST_MAGIC_DEF, "마법방어력", 0.2),
+                "speed_mult": (StatusType.BOOST_SPD, "속도", 0.3),
+                "critical_rate_add": (StatusType.BOOST_CRIT, "치명타율", 0.25),
+                "critical_damage_mult": (StatusType.BOOST_CRIT, "치명타 위력", 0.25),
+                "all_stats_mult": (StatusType.BOOST_ALL_STATS, "모든 능력치", 0.15),
+            }
+
+            buff_duration = effect.get("duration", 3)
+            buff_target_type = effect.get("target", "all_allies")
+
+            if buff_target_type == "all_allies":
+                buff_targets = [c for c in self.allies if getattr(c, 'is_alive', True)]
+            elif buff_target_type == "self":
+                buff_targets = [source_char] if source_char else []
+            else:
+                buff_targets = [ally_char] if ally_char else []
+
+            buff_descs = []
+            for stat_key, (status_type, stat_name, divisor) in buff_stat_map.items():
+                stat_value = effect.get(stat_key)
+                if stat_value is None:
+                    continue
+                if "_add" in stat_key:
+                    intensity = stat_value / divisor
+                    pct = int(stat_value * 100)
+                else:
+                    intensity = (stat_value - 1.0) / divisor
+                    pct = int((stat_value - 1.0) * 100)
+                buff_descs.append(f"{stat_name}+{pct}%")
+
+                for bt in buff_targets:
+                    if bt and hasattr(bt, 'status_manager'):
+                        try:
+                            se = CombatStatusEffect(
+                                name=f"체인:{ability.name}({stat_name})",
+                                status_type=status_type,
+                                duration=buff_duration,
+                                intensity=intensity,
+                            )
+                            bt.status_manager.add_status(se)
+                        except Exception as e:
+                            self.logger.warning(f"체인어빌리티 버프 적용 실패: {e}")
+
+            buff_desc = ", ".join(buff_descs) if buff_descs else ability.name
+            target_names = ", ".join(getattr(bt, 'name', '?') for bt in buff_targets if bt)
+            exec_result["effects"].append({"type": "buff", "target": target_names, "buff_desc": buff_desc})
+
+        elif effect_type == "debuff":
+            # 디버프 — 적에게 약화 적용
+            from src.combat.status_effects import StatusType, StatusEffect as CombatStatusEffect
+
+            debuff_stat_map = {
+                "physical_attack_mult": (StatusType.REDUCE_ATK, "공격력", 0.2),
+                "magic_attack_mult": (StatusType.REDUCE_MAGIC_ATK, "마법공격력", 0.2),
+                "defense_mult": (StatusType.REDUCE_DEF, "방어력", 0.2),
+                "magic_defense_mult": (StatusType.REDUCE_MAGIC_DEF, "마법방어력", 0.2),
+                "speed_mult": (StatusType.REDUCE_SPD, "속도", 0.3),
+            }
+
+            debuff_duration = effect.get("duration", 3)
+            if self.enemies:
+                alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+                debuff_targets = alive_enemies if alive_enemies else self.enemies[:1]
+                debuff_descs = []
+                for stat_key, (status_type, stat_name, divisor) in debuff_stat_map.items():
+                    stat_value = effect.get(stat_key)
+                    if stat_value is None:
+                        continue
+                    intensity = (1.0 - stat_value) / divisor if stat_value < 1.0 else 0.5
+                    pct = int((1.0 - stat_value) * 100) if stat_value < 1.0 else 10
+                    debuff_descs.append(f"{stat_name}-{pct}%")
+                    for dt in debuff_targets:
+                        if dt and hasattr(dt, 'status_manager'):
+                            try:
+                                se = CombatStatusEffect(
+                                    name=f"체인:{ability.name}({stat_name})",
+                                    status_type=status_type,
+                                    duration=debuff_duration,
+                                    intensity=intensity,
+                                )
+                                dt.status_manager.add_status(se)
+                            except Exception as e:
+                                self.logger.warning(f"체인어빌리티 디버프 적용 실패: {e}")
+                debuff_desc = ", ".join(debuff_descs) if debuff_descs else ability.name
+                exec_result["effects"].append({"type": "debuff", "desc": debuff_desc})
+
+        elif effect_type == "heal":
+            amount_pct = effect.get("amount_percent", 0.3)
+            heal_target_type = effect.get("target", "all_allies")
+            if heal_target_type == "all_allies":
+                targets = [c for c in self.allies if getattr(c, 'is_alive', True)]
+            else:
+                targets = [ally_char] if ally_char else []
+            for ally in targets:
+                heal = int(getattr(ally, 'max_hp', 100) * amount_pct)
+                ally.current_hp = min(getattr(ally, 'max_hp', 100), ally.current_hp + heal)
+                exec_result["effects"].append({"type": "heal", "target": getattr(ally, 'name', ''), "amount": heal})
+
+        elif effect_type == "revive":
+            hp_pct = effect.get("hp_percent", 0.3)
+            for ally in self.allies:
+                if not getattr(ally, 'is_alive', True):
+                    ally.is_alive = True
+                    ally.current_hp = int(getattr(ally, 'max_hp', 100) * hp_pct)
+                    exec_result["effects"].append({"type": "revive", "target": getattr(ally, 'name', ''), "hp": ally.current_hp})
+
+        elif effect_type == "shield":
+            # 실제 보호막 적용 (StatusType.SHIELD)
+            from src.combat.status_effects import StatusEffect as CombatStatusEffect, StatusType
+            amount_pct = effect.get("amount_percent", 0.15)
+            shield_duration = effect.get("duration", 5)
+            shield_target_type = effect.get("target", "all_allies")
+            if shield_target_type == "all_allies":
+                targets = [c for c in self.allies if getattr(c, 'is_alive', True)]
+            else:
+                targets = [ally_char] if ally_char else []
+            for st in targets:
+                if st and hasattr(st, 'status_manager'):
+                    shield_amt = int(getattr(st, 'max_hp', 100) * amount_pct)
+                    shield_effect = CombatStatusEffect(
+                        name=ability.name,
+                        status_type=StatusType.SHIELD,
+                        duration=shield_duration,
+                        intensity=shield_amt,
+                        source_id=getattr(source_char, 'name', 'Chain'),
+                        metadata={"shield_hp": shield_amt},
+                    )
+                    st.status_manager.add_status(shield_effect, allow_refresh=True)
+                    exec_result["effects"].append({"type": "shield", "target": getattr(st, 'name', ''), "amount": shield_amt})
+
+        elif effect_type == "mp_restore":
+            amount_pct = effect.get("amount_percent", 0.1)
+            mp_target_type = effect.get("target", "all_allies")
+            if mp_target_type == "all_allies":
+                targets = [c for c in self.allies if getattr(c, 'is_alive', True)]
+            else:
+                targets = [ally_char] if ally_char else []
+            for mt in targets:
+                if mt and hasattr(mt, 'current_mp'):
+                    restore = int(getattr(mt, 'max_mp', 50) * amount_pct)
+                    mt.current_mp = min(getattr(mt, 'max_mp', 50), mt.current_mp + restore)
+                    exec_result["effects"].append({"type": "mp_restore", "target": getattr(mt, 'name', ''), "amount": restore})
+
+        elif effect_type == "hp_drain":
+            # HP 흡수 — 적에게 데미지 + 자신 회복
+            multiplier = effect.get("multiplier", 1.0)
+            drain_pct = effect.get("drain_percent", 0.5)
+            if source_char and self.enemies:
+                import random
+                alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+                target = random.choice(alive_enemies) if alive_enemies else self.enemies[0]
+                base_dmg = getattr(source_char, 'magic', 50)
+                attacker_level = getattr(source_char, 'level', 1)
+                from src.core.config import get_config
+                config = get_config()
+                level_scaling = 1.0 + (attacker_level - 1) * config.get("combat.damage.level_scaling_per_level", 0.3)
+                target_def = getattr(target, 'spirit', 0)
+                def_factor = 200.0 / (200.0 + target_def) if target_def > 0 else 1.0
+                dmg = max(1, int(base_dmg * multiplier * level_scaling * def_factor))
+                target.current_hp = max(0, getattr(target, 'current_hp', 0) - dmg)
+                heal = int(dmg * drain_pct)
+                source_char.current_hp = min(getattr(source_char, 'max_hp', 100), source_char.current_hp + heal)
+                exec_result["effects"].append({"type": "damage", "target": getattr(target, 'name', ''), "amount": dmg})
+                exec_result["effects"].append({"type": "heal", "target": getattr(source_char, 'name', ''), "amount": heal})
+
+        elif effect_type == "brv_damage":
+            # BRV 데미지 — 적의 BRV를 깎음
+            multiplier = effect.get("multiplier", 1.5)
+            if source_char and self.enemies:
+                import random
+                alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+                target = random.choice(alive_enemies) if alive_enemies else self.enemies[0]
+                base_dmg = getattr(source_char, 'strength', 50)
+                attacker_level = getattr(source_char, 'level', 1)
+                from src.core.config import get_config
+                config = get_config()
+                level_scaling = 1.0 + (attacker_level - 1) * config.get("combat.damage.level_scaling_per_level", 0.3)
+                target_def = getattr(target, 'defense', 0)
+                def_factor = 200.0 / (200.0 + target_def) if target_def > 0 else 1.0
+                brv_dmg = max(1, int(base_dmg * multiplier * level_scaling * def_factor))
+                old_brv = getattr(target, 'current_brv', 0)
+                target.current_brv = max(0, old_brv - brv_dmg)
+                exec_result["effects"].append({"type": "brv_damage", "target": getattr(target, 'name', ''), "amount": brv_dmg})
+
+        elif effect_type == "status_apply":
+            # 상태이상 부여
+            from src.combat.status_effects import StatusType, StatusEffect as CombatStatusEffect
+            status_name = effect.get("status", "")
+            duration = effect.get("duration", 3)
+            status_map = {
+                "stun": StatusType.STUN, "poison": StatusType.POISON,
+                "burn": StatusType.BURN, "freeze": StatusType.FREEZE,
+                "bleed": StatusType.BLEED, "blind": StatusType.BLIND,
+                "silence": StatusType.SILENCE, "slow": StatusType.SLOW,
+            }
+            st = status_map.get(status_name)
+            if st and self.enemies:
+                alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+                for enemy in alive_enemies:
+                    if hasattr(enemy, 'status_manager'):
+                        try:
+                            se = CombatStatusEffect(
+                                name=f"체인:{ability.name}",
+                                status_type=st,
+                                duration=duration,
+                                intensity=1.0,
+                            )
+                            enemy.status_manager.add_status(se)
+                        except Exception as e:
+                            self.logger.warning(f"체인어빌리티 상태이상 적용 실패: {e}")
+                exec_result["effects"].append({"type": "status", "status": status_name, "targets": len(alive_enemies)})
+
+        elif effect_type == "redirect_damage":
+            # 피해 전환
+            reduction = effect.get("damage_reduction", 0.5)
+            redirect_target = source_char or ally_char
+            if redirect_target:
+                redirect_target._bond_redirect_active = True
+                redirect_target._bond_redirect_reduction = reduction
+                exec_result["effects"].append({"type": "redirect", "reduction": reduction})
+
+        event_bus.publish(Events.CHAIN_ABILITY_CONFIRMED, {
+            "ability": ability, "result": exec_result
+        })
+
+        self.logger.info(f"체인어빌리티 실행: {ability.name} (게이지 -{gauge_cost})")
+        return exec_result
+
+    def on_affinity_turn_end(self):
+        """턴 종료 시 호감도 쿨다운 틱"""
+        if self._affinity_manager:
+            self._affinity_manager.tick_cooldowns()
+
+    def on_affinity_battle_end(self):
+        """전투 종료 시 호감도 증가"""
+        if not self._affinity_manager:
+            return
+        party_jobs = [
+            c.character_class for c in self.allies
+            if hasattr(c, 'character_class')
+        ]
+        self._affinity_manager.on_battle_victory(party_jobs)
+
+    # ─── 직업 시너지/합체기 ─────────────────────────────────
+
+    @property
+    def synergy_manager(self):
+        return self._synergy_manager
+
+    def get_available_combo_skills(self) -> list:
+        """현재 발동 가능한 합체기 목록"""
+        if not self._synergy_manager or not self.party:
+            return []
+        party_jobs = [
+            c.character_class for c in self.allies
+            if hasattr(c, 'character_class') and getattr(c, 'is_alive', True)
+        ]
+        return self._synergy_manager.get_available_combos(
+            party_jobs, self._affinity_manager, self.party.teamwork_gauge
+        )
+
+    def execute_combo_skill(self, combo_skill, target=None):
+        """
+        합체기 실행
+
+        Args:
+            combo_skill: ComboSkill 객체
+            target: 대상 (single 타겟인 경우)
+
+        Returns:
+            dict: 실행 결과
+        """
+        if not self.party:
+            return {"success": False, "message": "파티 없음"}
+
+        # 게이지 소모
+        if not self.party.consume_teamwork_gauge(combo_skill.gauge_cost):
+            return {"success": False, "message": "게이지 부족"}
+
+        result = {"success": True, "effects": [], "message": ""}
+        all_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
+        all_allies = [a for a in self.allies if getattr(a, 'is_alive', True)]
+
+        # 참여 캐릭터 찾기
+        participants = []
+        for ally in self.allies:
+            if hasattr(ally, 'character_class') and ally.character_class in combo_skill.required_jobs:
+                participants.append(ally)
+
+        for effect in combo_skill.effects:
+            effect_type = effect.get("type", "damage")
+            target_type = effect.get("target", "all_enemies")
+
+            if effect_type == "damage":
+                multiplier = effect.get("multiplier", 3.0)
+                damage_type = effect.get("damage_type", "physical")
+
+                targets = []
+                if target_type == "all_enemies":
+                    targets = all_enemies
+                elif target_type == "single" and target:
+                    targets = [target]
+                elif target_type == "single" and all_enemies:
+                    targets = [all_enemies[0]]
+
+                # ── 합체기 협동 패턴 시스템 ──
+                # 모든 합체기는 "P1(셋업) → P2(피니시)" 구조의 BRV→HP 공격이지만,
+                # combo_pattern에 따라 셋업 단계가 달라진다.
+                pattern = getattr(combo_skill, 'combo_pattern', 'brv_hp')
+                brv_attacker = participants[0]
+                hp_attacker = participants[1] if len(participants) >= 2 else participants[0]
+
+                # BRV 공격자의 스탯 결정 (damage_calculator와 동일한 멀티 속성명 패턴)
+                def _resolve_stat(char, attr_names, default=10):
+                    for a in attr_names:
+                        if hasattr(char, a):
+                            return getattr(char, a)
+                    return default
+
+                _phys_atk_keys = ['physical_attack', 'p_atk', 'attack', 'strength']
+                _mag_atk_keys = ['magic_attack', 'm_atk', 'magic', 'intelligence']
+                _phys_def_keys = ['physical_defense', 'p_def', 'defense']
+                _mag_def_keys = ['magic_defense', 'm_def']
+
+                if damage_type == "physical":
+                    brv_atk_stat = _resolve_stat(brv_attacker, _phys_atk_keys)
+                    def_keys = _phys_def_keys
+                elif damage_type in ("magic", "holy", "dark", "tech"):
+                    brv_atk_stat = _resolve_stat(brv_attacker, _mag_atk_keys)
+                    def_keys = _mag_def_keys
+                else:
+                    from src.combat.job_synergy import get_job_category
+                    brv_cat = get_job_category(brv_attacker.character_class)
+                    if brv_cat in ("magic", "support"):
+                        brv_atk_stat = _resolve_stat(brv_attacker, _mag_atk_keys)
+                        def_keys = _mag_def_keys
+                    else:
+                        brv_atk_stat = _resolve_stat(brv_attacker, _phys_atk_keys)
+                        def_keys = _phys_def_keys
+
+                # ── 패턴별 셋업 보정 ──
+                empower_mult = 1.0
+                def_reduction = 1.0
+                sacrifice_bonus = 0
+
+                if pattern == "empower_strike":
+                    # 강화→일격: P1이 P2를 강화 (1.5배 피해)
+                    empower_mult = 1.5
+                    result["effects"].append({
+                        "type": "empower", "caster": brv_attacker.name,
+                        "target": hp_attacker.name,
+                        "message": f"{brv_attacker.name}이(가) {hp_attacker.name}에게 힘을 불어넣는다!"
+                    })
+                    self.logger.info(f"[합체기 강화] {brv_attacker.name} → {hp_attacker.name} 강화 (x1.5)")
+
+                elif pattern == "weaken_execute":
+                    # 약화→처형: P1이 적 방어력 절반 감소
+                    def_reduction = 0.5
+                    for t in targets:
+                        result["effects"].append({
+                            "type": "weaken", "caster": brv_attacker.name,
+                            "target": t.name,
+                            "message": f"{brv_attacker.name}이(가) {t.name}의 약점을 간파한다!"
+                        })
+                    self.logger.info(f"[합체기 약화] {brv_attacker.name}이 적 방어력 50% 감소")
+
+                elif pattern == "sacrifice_burst":
+                    # 희생→폭발: P1이 HP 15%를 희생하여 추가 피해
+                    sacrifice_hp = int(getattr(brv_attacker, 'max_hp', 100) * 0.15)
+                    brv_attacker.current_hp = max(1, getattr(brv_attacker, 'current_hp', 0) - sacrifice_hp)
+                    sacrifice_bonus = sacrifice_hp
+                    result["effects"].append({
+                        "type": "sacrifice", "caster": brv_attacker.name,
+                        "hp_lost": sacrifice_hp,
+                        "message": f"{brv_attacker.name}이(가) 자신의 생명력을 바쳐 힘을 끌어올린다!"
+                    })
+                    self.logger.info(f"[합체기 희생] {brv_attacker.name} HP -{sacrifice_hp} → 추가 피해 +{sacrifice_bonus}")
+
+                brv_base = int(brv_atk_stat * multiplier * empower_mult) + sacrifice_bonus
+
+                for t in targets:
+                    # [1단계] BRV 공격: 적의 BRV 탈취
+                    defense = int(_resolve_stat(t, def_keys, 0) * def_reduction)
+                    if effect.get("ignore_defense"):
+                        defense = 0
+                    actual_brv_dmg = max(1, brv_base - defense // 2)
+
+                    old_target_brv = getattr(t, 'current_brv', 0)
+                    t.current_brv = max(0, old_target_brv - actual_brv_dmg)
+                    brv_stolen = min(actual_brv_dmg, max(0, old_target_brv))
+
+                    result["effects"].append({
+                        "type": "brv_attack", "attacker": brv_attacker.name,
+                        "target": t.name, "brv_damage": actual_brv_dmg,
+                        "brv_stolen": brv_stolen
+                    })
+
+                    # [2단계] BRV 전달 → HP 공격자
+                    result["effects"].append({
+                        "type": "brv_transfer",
+                        "from": brv_attacker.name, "to": hp_attacker.name,
+                        "amount": brv_stolen
+                    })
+
+                    # [3단계] HP 공격: 계산된 BRV 데미지를 직접 HP 피해로 변환
+                    # (합체기는 필살기이므로 타겟 BRV 잔량에 무관하게 전체 피해 적용)
+                    hp_damage = actual_brv_dmg
+                    if effect.get("critical_guaranteed"):
+                        hp_damage = int(hp_damage * 1.5)
+
+                    t.current_hp = max(0, getattr(t, 'current_hp', 0) - hp_damage)
+                    result["effects"].append({
+                        "type": "hp_attack", "attacker": hp_attacker.name,
+                        "target": t.name, "hp_damage": hp_damage,
+                        "damage_type": damage_type
+                    })
+
+                    self.logger.info(
+                        f"[합체기 {pattern}] {brv_attacker.name} BRV {actual_brv_dmg}"
+                        f" → {t.name} 탈취 {brv_stolen}"
+                        f" → {hp_attacker.name} HP {hp_damage}"
+                    )
+
+                    # HP 흡수
+                    drain_pct = effect.get("hp_drain_percent", 0)
+                    if drain_pct > 0:
+                        drain_amount = int(hp_damage * drain_pct / 100)
+                        for p in participants:
+                            heal = drain_amount // len(participants)
+                            p.current_hp = min(getattr(p, 'max_hp', 999), getattr(p, 'current_hp', 0) + heal)
+
+                    # 상태이상 부여
+                    status = effect.get("status")
+                    if status and hasattr(t, 'status_manager'):
+                        duration = effect.get("status_duration", 2)
+                        try:
+                            t.status_manager.apply_status(status, duration=duration)
+                        except Exception:
+                            pass
+
+                    # 사망 체크
+                    if getattr(t, 'current_hp', 0) <= 0:
+                        t.is_alive = False
+
+            elif effect_type == "heal":
+                heal_pct = effect.get("heal_percent", 30)
+                cleanse = effect.get("cleanse", False)
+                targets = all_allies if target_type == "all_allies" else [target] if target else all_allies
+
+                for t in targets:
+                    max_hp = getattr(t, 'max_hp', 100)
+                    heal_amount = int(max_hp * heal_pct / 100)
+                    t.current_hp = min(max_hp, getattr(t, 'current_hp', 0) + heal_amount)
+                    result["effects"].append({"type": "heal", "target": t.name, "amount": heal_amount})
+                    if cleanse and hasattr(t, 'status_manager'):
+                        t.status_manager.clear_debuffs()
+
+            elif effect_type == "buff":
+                from src.combat.status_effects import StatusType, StatusEffect as CombatStatusEffect
+                duration = effect.get("duration", 3)
+                buff_targets = all_allies if target_type == "all_allies" else participants if target_type == "self_pair" else participants
+
+                buff_stat_map = {
+                    "physical_attack_mult": (StatusType.BOOST_ATK, "공격력", 0.2),
+                    "magic_attack_mult": (StatusType.BOOST_MAGIC_ATK, "마법공격력", 0.2),
+                    "defense_mult": (StatusType.BOOST_DEF, "방어력", 0.2),
+                    "magic_defense_mult": (StatusType.BOOST_MAGIC_DEF, "마법방어력", 0.2),
+                    "speed_mult": (StatusType.BOOST_SPD, "속도", 0.3),
+                    "critical_rate_bonus": (StatusType.BOOST_CRIT, "치명타율", 0.25),
+                    "all_stats_mult": (StatusType.BOOST_ALL_STATS, "모든 능력치", 0.15),
+                }
+
+                buff_descs = []
+                for stat_key, (status_type, stat_name, divisor) in buff_stat_map.items():
+                    stat_value = effect.get(stat_key)
+                    if stat_value is None:
+                        continue
+                    intensity = (stat_value - 1.0) / divisor if stat_value <= 2.0 else 1.0
+                    pct = int((stat_value - 1.0) * 100) if stat_value <= 2.0 else int(stat_value * 100)
+                    buff_descs.append(f"{stat_name}+{pct}%")
+                    for t in buff_targets:
+                        if t and hasattr(t, 'status_manager'):
+                            try:
+                                se = CombatStatusEffect(
+                                    name=f"합체기:{combo_skill.name}({stat_name})",
+                                    status_type=status_type,
+                                    duration=duration,
+                                    intensity=intensity,
+                                )
+                                t.status_manager.add_status(se)
+                            except Exception as e:
+                                self.logger.warning(f"합체기 버프 적용 실패: {e}")
+
+                # counter_rate / counter_multiplier 등 특수 버프 처리
+                counter_rate = effect.get("counter_rate", 0)
+                counter_mult = effect.get("counter_multiplier", 0)
+                if counter_rate > 0 or counter_mult > 0:
+                    for t in buff_targets:
+                        t._combo_counter_rate = counter_rate
+                        t._combo_counter_mult = counter_mult
+                        t._combo_counter_duration = duration
+                    buff_descs.append(f"반격률 {int(counter_rate*100)}%")
+
+                buff_desc = ", ".join(buff_descs) if buff_descs else combo_skill.name
+                target_names = ", ".join(getattr(t, 'name', '?') for t in buff_targets if t)
+                result["effects"].append({"type": "buff", "target": target_names, "buff_desc": buff_desc, "duration": duration})
+
+            elif effect_type == "debuff":
+                from src.combat.status_effects import StatusType, StatusEffect as CombatStatusEffect
+                duration = effect.get("duration", 3)
+                debuff_targets = all_enemies if target_type == "all_enemies" else [target] if target else all_enemies
+
+                debuff_stat_map = {
+                    "physical_defense_mult": (StatusType.REDUCE_DEF, "방어력", 0.2),
+                    "magic_defense_mult": (StatusType.REDUCE_MAGIC_DEF, "마법방어력", 0.2),
+                    "physical_attack_mult": (StatusType.REDUCE_ATK, "공격력", 0.2),
+                    "magic_attack_mult": (StatusType.REDUCE_MAGIC_ATK, "마법공격력", 0.2),
+                    "speed_mult": (StatusType.REDUCE_SPD, "속도", 0.3),
+                }
+
+                debuff_descs = []
+                for stat_key, (status_type, stat_name, divisor) in debuff_stat_map.items():
+                    stat_value = effect.get(stat_key)
+                    if stat_value is None:
+                        continue
+                    intensity = (1.0 - stat_value) / divisor if stat_value < 1.0 else 0.5
+                    pct = int((1.0 - stat_value) * 100) if stat_value < 1.0 else 10
+                    debuff_descs.append(f"{stat_name}-{pct}%")
+                    for t in debuff_targets:
+                        if t and hasattr(t, 'status_manager'):
+                            try:
+                                se = CombatStatusEffect(
+                                    name=f"합체기:{combo_skill.name}({stat_name})",
+                                    status_type=status_type,
+                                    duration=duration,
+                                    intensity=intensity,
+                                )
+                                t.status_manager.add_status(se)
+                            except Exception as e:
+                                self.logger.warning(f"합체기 디버프 적용 실패: {e}")
+
+                debuff_desc = ", ".join(debuff_descs) if debuff_descs else combo_skill.name
+                result["effects"].append({"type": "debuff", "desc": debuff_desc, "duration": duration})
+
+        # 자해 데미지 (berserker_dragon_rage 등)
+        for effect in combo_skill.effects:
+            self_dmg_pct = effect.get("self_damage_percent", 0)
+            if self_dmg_pct > 0:
+                for p in participants:
+                    dmg = int(getattr(p, 'max_hp', 100) * self_dmg_pct / 100)
+                    p.current_hp = max(1, getattr(p, 'current_hp', 0) - dmg)
+
+        # 호감도 증가
+        if self._affinity_manager and len(participants) >= 2:
+            for i in range(len(participants)):
+                for j in range(i + 1, len(participants)):
+                    self._affinity_manager.on_combo_skill(
+                        participants[i].character_class,
+                        participants[j].character_class
+                    )
+
+        # 이벤트 발행
+        event_bus.publish(Events.COMBO_SKILL_EXECUTED, {
+            "combo_id": combo_skill.id,
+            "combo_name": combo_skill.name,
+            "participants": [p.name for p in participants],
+            "effects": result["effects"]
+        })
+
+        result["message"] = f"{combo_skill.name} 발동!"
+        self.logger.info(f"합체기 실행: {combo_skill.name} (게이지 -{combo_skill.gauge_cost})")
+        return result
+
+    def get_synergy_bonus_effects(self) -> dict:
+        """현재 활성 시너지 보너스 효과 조회"""
+        if not self._synergy_manager:
+            return {}
+        return self._synergy_manager.get_total_bonus_effects()
 
     def execute_teamwork_skill(
         self,
@@ -5358,6 +7267,18 @@ class CombatManager:
             self.logger.info(f"[스킬 효과] {skill_result.message}")
 
         # 팀워크 스킬 메타데이터 처리
+        # 0. self_gimmick_add: 사용자 본인의 기믹 카운터 증가 (target_type과 무관하게 self에 적용)
+        if hasattr(skill, 'metadata') and skill.metadata.get('self_gimmick_add'):
+            gimmick_info = skill.metadata['self_gimmick_add']
+            field = gimmick_info.get('field', '')
+            amount = gimmick_info.get('amount', 0)
+            max_val = gimmick_info.get('max_value', 999)
+            if field and hasattr(actor, field):
+                current = getattr(actor, field, 0)
+                new_val = min(current + amount, max_val)
+                setattr(actor, field, new_val)
+                self.logger.info(f"[메타데이터] {actor.name}의 {field}: {current} → {new_val}")
+
         # 1. fill_possibility_slots: 시간술사 가능성 슬롯 채우기
         if hasattr(skill, 'metadata') and skill.metadata.get('fill_possibility_slots'):
             for ally in all_allies:
@@ -5426,6 +7347,23 @@ class CombatManager:
             f"[Teamwork] {actor.name}의 팀워크 스킬 '{skill.name}' "
             f"(연쇄 {self.party.chain_count}단계, MP: {mp_cost}, ATB +500)"
         )
+
+        # ── 호감도 증가: 팀워크 스킬 연쇄 시 참여자 간 (+5) ──
+        if self._affinity_manager and self.party:
+            participant_jobs = []
+            # 연쇄 시작자
+            starter = getattr(self.party, 'chain_starter', None)
+            if starter and hasattr(starter, 'character_class'):
+                participant_jobs.append(starter.character_class)
+            # 현재 사용자 (시작자와 다를 경우)
+            if hasattr(actor, 'character_class') and actor != starter:
+                participant_jobs.append(actor.character_class)
+            if len(participant_jobs) >= 2:
+                self._affinity_manager.on_teamwork_chain(participant_jobs)
+
+        # ── 체인어빌리티 트리거: 팀워크 스킬 사용 후 ──
+        if actor in self.allies:
+            self.trigger_chain_ability_check(actor, "teamwork")
 
         return True, extra_message
 

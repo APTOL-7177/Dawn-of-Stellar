@@ -1,0 +1,40 @@
+id: minor_blessing
+name: 작은 축복
+type: heal
+description: '[기적 - 신앙 20+ 필요]
+
+  작은 축복을 내립니다.
+
+  대상 HP 50% 회복 + 디버프 1개 제거.
+
+  신앙 -20 소모.
+
+  '
+target: single_ally
+costs:
+  mp: 8
+  faith: 20
+metadata:
+  miracle: true
+  requires_faith: 20
+  consumes_faith: 20
+effects:
+- type: heal
+  heal_type: percent
+  value: 0.5
+- type: cleanse
+  cleanse_count: 1
+- type: gimmick
+  operation: add
+  field: faith
+  value: -20
+  min_value: 0
+animation:
+  icon: 🌟
+  color:
+  - 255
+  - 255
+  - 200
+sfx:
+- se
+- Recovery

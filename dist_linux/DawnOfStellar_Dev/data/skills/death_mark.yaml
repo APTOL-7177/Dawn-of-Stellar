@@ -1,0 +1,37 @@
+id: mortis_signum
+name: 모르티스 시그눔
+type: debuff
+description: '적에게 죽음의 표식을 새깁니다.
+
+  3턴간: 받는 피해 +30%, 크리 피해 +50%.
+
+  표식 적 처치 시: 신속 버프 + 쿨다운 초기화.
+
+  농락 +2.
+
+  '
+target: single_enemy
+costs:
+  mp: 15
+metadata:
+  mockery_gain: 2
+  on_kill_bonus: true
+effects:
+- type: debuff
+  debuff_id: death_mark
+  duration: 3
+  effects:
+    damage_taken: 0.3
+    crit_damage_taken: 0.5
+- type: custom
+  handler: add_mockery
+  value: 2
+animation:
+  icon: 💀
+  color:
+  - 100
+  - 0
+  - 50
+sfx:
+- se
+- Up1

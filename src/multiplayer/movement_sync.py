@@ -282,9 +282,8 @@ class MovementSyncManager:
             player = self.session.players[player_id]
             
             # 로컬 플레이어는 제외 (자신의 위치는 직접 제어)
-            if player_id == self.session.get_player(player_id) and hasattr(self, '_local_player_id'):
-                if player_id == getattr(self, '_local_player_id', None):
-                    continue
+            if player_id == getattr(self, '_local_player_id', None):
+                continue
             
             x = pos_data.get("x", player.x)
             y = pos_data.get("y", player.y)

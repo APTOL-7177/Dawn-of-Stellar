@@ -1,0 +1,39 @@
+id: shaman_mana_guard
+name: 영력 보호막
+type: toggle
+description: '영력으로 보호막을 형성하여 생명력을 보호합니다.
+
+  토글 활성화 시 받는 HP 피해의 80%를 무효화하고 MP로 전환합니다.
+
+  최대 MP의 30%를 예약하며, MP가 부족하면 보호막이 깨집니다.
+
+  '
+target: self
+metadata:
+  job: shaman
+  is_toggle: true
+  mp_reservation: 0.3
+  damage_conversion: true
+effects:
+- type: toggle_buff
+  buff_id: mana_guard
+  toggle: true
+  mp_reservation_percentage: 0.3
+  effects:
+    hp_damage_reduction: 0.8
+    hp_to_mp_conversion: 0.8
+- type: buff
+  stat: magic_defense
+  value: 0.15
+  duration: 999
+costs:
+  mp: 20
+animation:
+  icon: 🛡️
+  color:
+  - 100
+  - 150
+  - 255
+sfx:
+- se
+- Magic1

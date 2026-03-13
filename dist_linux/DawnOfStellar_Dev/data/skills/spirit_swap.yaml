@@ -1,0 +1,30 @@
+id: spirit_swap
+name: 정령 교대
+type: utility
+description: '두 정령의 슬롯 위치를 즉시 교환합니다.
+
+  교환 시 "교대 가속" 발동: ATB +30.
+
+
+  ※ 정령 2마리 소환 필요
+
+  '
+target: self
+costs:
+  mp: 8
+metadata:
+  requires_spirits: 2
+effects:
+- type: custom
+  handler: spirit_swap
+- type: atb_boost
+  value: 30
+animation:
+  icon: 🔄
+  color:
+  - 150
+  - 200
+  - 255
+sfx:
+- se
+- Magic1

@@ -9,6 +9,7 @@ import tcod.event
 from typing import List, Optional, Any, Dict
 
 from src.equipment.inventory import Inventory
+from src.ui.pygame_backend.pygame_console import PygameConsole
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.core.logger import get_logger
@@ -61,7 +62,7 @@ class StorageUI:
         # 커서 위치
         self.cursor = 0
         self.scroll_offset = 0
-        self.max_visible = 15
+        self.max_visible = max(5, self.screen_height - 13)  # 패널 높이(screen_height - 9) - 프레임/여백(4)
         
         self.closed = False
         
@@ -77,16 +78,32 @@ class StorageUI:
         # 마을 창고 우선 사용, 없으면 hub_storage 사용
         storage_source = self.storage_inventory if self.storage_inventory else self.hub_storage
 
-        # 아이템을 item_id별로 그룹화
+        # 장비 타입 (스택 불가)
+        equipment_types = {"weapon", "armor", "accessory"}
+
+        # 아이템을 item_id별로 그룹화 (장비는 개별 표시)
         item_groups = {}  # {item_id: [(item_data, index), ...]}
+        equipment_items = []  # 장비는 개별 엔트리로
 
         for idx, item_data in enumerate(storage_source):
             item_id = item_data.get("item_id", "")
-            if item_id not in item_groups:
-                item_groups[item_id] = []
-            item_groups[item_id].append((item_data, idx))
+            item_type = item_data.get("item_type", "")
 
-        # 그룹화된 아이템을 리스트로 변환
+            if item_type in equipment_types:
+                # 장비는 개별적으로 추가 (접사, 내구도 등이 다를 수 있음)
+                try:
+                    equip_item = deserialize_item(item_data)
+                    item_name = getattr(equip_item, 'name', item_id)
+                except Exception as e:
+                    logger.warning(f"장비 역직렬화 실패: {item_id} - {e}")
+                    item_name = item_id
+                equipment_items.append((item_id, 1, None, item_name, [(item_data, idx)]))
+            else:
+                if item_id not in item_groups:
+                    item_groups[item_id] = []
+                item_groups[item_id].append((item_data, idx))
+
+        # 그룹화된 비장비 아이템을 리스트로 변환
         items = []
         for item_id, group in item_groups.items():
             count = len(group)
@@ -101,6 +118,9 @@ class StorageUI:
                 ingredient = None
 
             items.append((item_id, count, ingredient, item_name, group))  # group은 출고 시 사용
+
+        # 장비 아이템 추가
+        items.extend(equipment_items)
 
         return sorted(items, key=lambda x: (x[3] if len(x) > 3 and x[3] else (x[2].name if x[2] else x[0])))
 
@@ -149,7 +169,7 @@ class StorageUI:
                     # 수량 선택
                     if self.context:
                         from src.ui.quantity_selector_ui import select_quantity
-                        selected_qty = select_quantity(tcod.console.Console(self.screen_width, self.screen_height, order="F"), self.context, item_name, count)
+                        selected_qty = select_quantity(PygameConsole(self.screen_width, self.screen_height), self.context, item_name, count)
                         # 취소했으면 None 반환
                         if selected_qty is None:
                             play_sfx("ui", "cursor_cancel")
@@ -241,7 +261,7 @@ class StorageUI:
                         # 수량 선택
                         if self.context:
                             from src.ui.quantity_selector_ui import select_quantity
-                            selected_qty = select_quantity(tcod.console.Console(self.screen_width, self.screen_height, order="F"), self.context, item_name, slot.quantity)
+                            selected_qty = select_quantity(PygameConsole(self.screen_width, self.screen_height), self.context, item_name, slot.quantity)
                             # 취소했으면 None 반환
                             if selected_qty is None:
                                 play_sfx("ui", "cursor_cancel")
@@ -317,66 +337,284 @@ class StorageUI:
         
         return False
 
+    def _get_selected_item_object(self):
+        """현재 선택된 아이템의 Item 객체 반환"""
+        current_list = self.storage_items if self.current_tab == 0 else self.inventory.slots
+        if not current_list or self.cursor < 0 or self.cursor >= len(current_list):
+            return None
+
+        if self.current_tab == 0:  # 보관함
+            item_data = current_list[self.cursor]
+            if len(item_data) >= 5:
+                _item_id, _count, _ingredient, _item_name, group = item_data
+            else:
+                return None
+            if group:
+                try:
+                    from src.persistence.save_system import deserialize_item
+                    return deserialize_item(group[0][0])
+                except Exception:
+                    return None
+        else:  # 인벤토리
+            slot = current_list[self.cursor]
+            if slot and slot.item:
+                return slot.item
+        return None
+
     def render(self, console: tcod.console.Console):
         """렌더링"""
         console.clear()
         render_space_background(console, self.screen_width, self.screen_height)
-        
+
         # 제목
         title = "=== 창고 ==="
-        console.print((self.screen_width - len(title)) // 2, 2, title, fg=(255, 215, 0))
-        
+        console.print((self.screen_width - len(title)) // 2, 1, title, fg=(255, 215, 0))
+
+        # 용량 표시
+        storage_count = len(self.storage_items)
+        inv_used = sum(1 for s in self.inventory.slots if s and s.item)
+        inv_max = len(self.inventory.slots)
+        capacity_text = f"보관함: {storage_count}종류  |  인벤토리: {inv_used}/{inv_max}"
+        console.print((self.screen_width - len(capacity_text)) // 2, 2, capacity_text, fg=Colors.GRAY)
+
         # 탭
         tab_y = 4
-        tab_x = 5
+        tab_x = 3
         for i, tab_name in enumerate(self.tabs):
             if i == self.current_tab:
                 console.print(tab_x + i * 20, tab_y, f"[{tab_name}]", fg=(255, 255, 100))
             else:
                 console.print(tab_x + i * 20, tab_y, f" {tab_name} ", fg=(150, 150, 150))
-        
+
+        # 레이아웃: 좌측 목록 + 우측 상세
+        list_x = 2
+        list_width = self.screen_width // 2 - 1
+        detail_x = self.screen_width // 2 + 1
+        detail_width = self.screen_width // 2 - 3
+        panel_y = 6
+        panel_height = self.screen_height - 9
+
+        # 좌측 목록 프레임
+        list_title = "보관함" if self.current_tab == 0 else "인벤토리"
+        console.draw_frame(
+            list_x, panel_y, list_width, panel_height,
+            list_title,
+            fg=Colors.UI_BORDER, bg=Colors.UI_BG
+        )
+
+        # 우측 상세 프레임
+        console.draw_frame(
+            detail_x, panel_y, detail_width, panel_height,
+            "아이템 정보",
+            fg=Colors.UI_BORDER, bg=Colors.UI_BG
+        )
+
         # 현재 선택된 리스트
         current_list = self.storage_items if self.current_tab == 0 else self.inventory.slots
-        list_y = 7
-        
+        list_y = panel_y + 2
+
         # 아이템 목록
         visible_items = current_list[self.scroll_offset:self.scroll_offset + self.max_visible]
-        
+
         if not visible_items:
             message = "보관된 아이템이 없습니다." if self.current_tab == 0 else "인벤토리가 비어있습니다."
-            console.print(10, list_y, message, fg=(150, 150, 150))
+            console.print(list_x + 2, list_y, message, fg=(150, 150, 150))
         else:
             for i, item_data in enumerate(visible_items):
                 y = list_y + i
                 cursor_index = self.scroll_offset + i
-                
+                is_selected = (cursor_index == self.cursor)
+
                 # 커서
-                if cursor_index == self.cursor:
-                    console.print(3, y, "►", fg=(255, 255, 100))
-                
+                prefix = "►" if is_selected else " "
+
                 # 아이템 표시
                 if self.current_tab == 0:  # 보관함
                     if len(item_data) >= 5:
                         item_id, count, ingredient, item_name, group = item_data
                         name = item_name
+                        # 첫 아이템에서 레어리티 추출
+                        rarity_color = Colors.UI_TEXT
+                        if group:
+                            try:
+                                from src.persistence.save_system import deserialize_item
+                                first_obj = deserialize_item(group[0][0])
+                                rarity_color = getattr(getattr(first_obj, 'rarity', None), 'color', Colors.UI_TEXT)
+                            except Exception:
+                                pass
                     else:
-                        # 호환성을 위한 폴백
                         item_id, count, ingredient = item_data[:3]
                         name = ingredient.name if ingredient else item_id
-                    color = (255, 255, 255) if cursor_index == self.cursor else (200, 200, 200)
-                    console.print(5, y, f"{name} x{count}", fg=color)
+                        rarity_color = Colors.UI_TEXT
+
+                    display_color = rarity_color if is_selected else self._dim_color(rarity_color)
+                    quantity = f" x{count}" if count > 1 else ""
+                    text = f"{prefix} {name}{quantity}"
+                    console.print(list_x + 1, y, text[:list_width - 3], fg=display_color)
                 else:  # 인벤토리
                     slot = item_data
                     if slot and slot.item:
                         name = slot.item.name
                         quantity = f" x{slot.quantity}" if slot.quantity > 1 else ""
-                        color = (255, 255, 255) if cursor_index == self.cursor else (200, 200, 200)
-                        console.print(5, y, f"{name}{quantity}", fg=color)
-        
+                        rarity_color = getattr(getattr(slot.item, 'rarity', None), 'color', Colors.UI_TEXT)
+                        display_color = rarity_color if is_selected else self._dim_color(rarity_color)
+                        text = f"{prefix} {name}{quantity}"
+                        console.print(list_x + 1, y, text[:list_width - 3], fg=display_color)
+                    else:
+                        console.print(list_x + 1, y, f"{prefix} ---", fg=Colors.DARK_GRAY)
+
+            # 스크롤 표시
+            if self.scroll_offset > 0:
+                console.print(list_x + list_width - 4, panel_y + 1, " ▲ ", fg=Colors.GRAY)
+            if self.scroll_offset + self.max_visible < len(current_list):
+                console.print(list_x + list_width - 4, panel_y + panel_height - 2, " ▼ ", fg=Colors.GRAY)
+
+        # 우측 상세 정보
+        self._render_item_detail(console, detail_x, panel_y, detail_width, panel_height)
+
         # 안내 메시지
         help_y = self.screen_height - 2
-        help_text = "←→: 탭 변경  ↑↓: 선택  Z: 보관/출고  X: 닫기"
+        action_name = "출고" if self.current_tab == 0 else "보관"
+        help_text = f"←→: 탭 변경  ↑↓: 선택  Z: {action_name}  X: 닫기"
         console.print(2, help_y, help_text, fg=Colors.GRAY)
+
+    @staticmethod
+    def _dim_color(color: tuple) -> tuple:
+        """색상을 어둡게 만들기"""
+        if not isinstance(color, tuple) or len(color) < 3:
+            return (150, 150, 150)
+        return (max(0, color[0] * 2 // 3), max(0, color[1] * 2 // 3), max(0, color[2] * 2 // 3))
+
+    def _render_item_detail(self, console: tcod.console.Console, box_x: int, box_y: int, box_width: int, box_height: int):
+        """선택된 아이템 상세 정보 렌더링"""
+        item = self._get_selected_item_object()
+        if not item:
+            console.print(box_x + 2, box_y + 3, "아이템을 선택하세요", fg=Colors.DARK_GRAY)
+            return
+
+        x = box_x + 2
+        y = box_y + 2
+        content_width = box_width - 4
+
+        # 아이템 이름 (레어리티 색상)
+        rarity = getattr(item, 'rarity', None)
+        rarity_color = getattr(rarity, 'color', Colors.UI_TEXT)
+        rarity_name = getattr(rarity, 'display_name', '')
+        console.print(x, y, item.name, fg=rarity_color)
+        y += 1
+
+        # 등급 + 타입
+        item_type = getattr(item, 'item_type', None)
+        type_names = {
+            "weapon": "무기", "armor": "방어구", "accessory": "장신구",
+            "consumable": "소비", "material": "재료", "key_item": "핵심",
+            "food": "음식",
+        }
+        type_str = type_names.get(item_type.value, str(item_type.value)) if item_type else ""
+        if rarity_name and type_str:
+            console.print(x, y, f"[{rarity_name}] {type_str}", fg=rarity_color)
+        elif rarity_name:
+            console.print(x, y, f"[{rarity_name}]", fg=rarity_color)
+        y += 2
+
+        # 설명
+        desc = getattr(item, 'description', '')
+        if desc:
+            # 줄바꿈 처리
+            for line in self._wrap_text(desc, content_width):
+                if y >= box_y + box_height - 2:
+                    break
+                console.print(x, y, line, fg=Colors.UI_TEXT)
+                y += 1
+            y += 1
+
+        # 레벨 요구사항
+        level_req = getattr(item, 'level_requirement', 1)
+        if level_req > 1 and y < box_y + box_height - 2:
+            console.print(x, y, f"필요 레벨: {level_req}", fg=(255, 200, 100))
+            y += 1
+
+        # 기본 스탯
+        base_stats = getattr(item, 'base_stats', {})
+        if base_stats and y < box_y + box_height - 2:
+            y += 1
+            stat_names = {
+                "hp": "HP", "mp": "MP",
+                "physical_attack": "물리 공격력", "physical_defense": "물리 방어력",
+                "magic_attack": "마법 공격력", "magic_defense": "마법 방어력",
+                "speed": "속도", "accuracy": "명중률", "evasion": "회피율",
+                "luck": "행운", "strength": "힘", "defense": "방어력",
+                "magic": "마력", "spirit": "정신력",
+                "init_brv": "초기 BRV", "max_brv": "최대 BRV",
+            }
+            for stat_key, stat_val in base_stats.items():
+                if y >= box_y + box_height - 2:
+                    break
+                if stat_val != 0:
+                    stat_display = stat_names.get(stat_key, stat_key)
+                    sign = "+" if stat_val > 0 else ""
+                    val_color = (100, 255, 100) if stat_val > 0 else (255, 100, 100)
+                    console.print(x, y, f"{stat_display} {sign}{int(stat_val)}", fg=val_color)
+                    y += 1
+
+        # 접사 (접두사/접미사)
+        affixes = getattr(item, 'affixes', [])
+        if affixes and y < box_y + box_height - 2:
+            y += 1
+            for affix in affixes:
+                if y >= box_y + box_height - 2:
+                    break
+                affix_desc = affix.get_description() if hasattr(affix, 'get_description') else str(affix)
+                console.print(x, y, f"  {affix_desc}", fg=(180, 220, 255))
+                y += 1
+
+        # 소비 아이템 효과
+        effect_type = getattr(item, 'effect_type', '')
+        effect_value = getattr(item, 'effect_value', 0)
+        if effect_type and y < box_y + box_height - 2:
+            y += 1
+            effect_text = {
+                "heal_hp": f"HP +{int(effect_value)} 회복",
+                "heal_hp_full": "HP 완전 회복",
+                "heal_mp": f"MP +{int(effect_value)} 회복",
+                "heal_mp_full": "MP 완전 회복",
+                "heal_both": f"HP/MP +{int(effect_value)} 회복",
+                "heal_both_full": "HP/MP 완전 회복",
+                "heal_wound": f"상처 -{int(effect_value)} 치료",
+                "revive_crystal": f"HP {int(effect_value)}(으)로 부활",
+                "cure_poison": "독 상태 치료",
+                "cure_all_status": "모든 상태이상 치료",
+                "cure_debuff": "디버프 치료",
+                "buff_strength": f"공격력 +{int(effect_value)} (5턴)",
+                "buff_magic": f"마법력 +{int(effect_value)} (5턴)",
+                "buff_speed": f"속도 +{int(effect_value)} (5턴)",
+                "buff_defense": f"방어력 +{int(effect_value)} (5턴)",
+            }.get(effect_type, '')
+            if effect_text:
+                console.print(x, y, f"효과: {effect_text}", fg=(150, 255, 150))
+
+        # 판매가 표기 제거됨
+
+    @staticmethod
+    def _wrap_text(text: str, max_width: int) -> list:
+        """텍스트 줄바꿈"""
+        lines = []
+        for paragraph in text.split('\n'):
+            if not paragraph.strip():
+                lines.append('')
+                continue
+            current = ''
+            for ch in paragraph:
+                # 한글은 2칸, 영문은 1칸으로 대략 계산
+                char_width = 2 if ord(ch) > 0x7F else 1
+                if len(current.encode('utf-8')) + char_width > max_width * 1.5:
+                    lines.append(current)
+                    current = ch
+                else:
+                    current += ch
+            if current:
+                lines.append(current)
+        return lines
 
 
 def open_storage(

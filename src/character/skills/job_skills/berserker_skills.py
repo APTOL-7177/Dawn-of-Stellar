@@ -234,9 +234,9 @@ def create_berserker_skills():
 
     # 3. 무모한 일격 (HP 소모로 강력한 공격, 광기↑)
     reckless_strike = Skill("berserker_reckless_strike", "무모한 일격",
-                           "HP 20% 소모, 광기↑로 강력한 공격")
+                           "[화염 속성] HP 20% 소모, 광기↑로 강력한 공격")
     reckless_strike.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.2, stat_type="physical",
+        DamageEffect(DamageType.BRV_HP, 2.2, stat_type="physical", element="fire",
                     conditional_bonus={"condition": "in_berserker_mode", "multiplier": 1.25}),
     ]
     reckless_strike.costs = [MPCost(4), HPCost(percentage=0.20)]
@@ -267,9 +267,9 @@ def create_berserker_skills():
 
     # 6. 전투의 함성 (광역 디버프 + 자신 버프)
     battle_cry = Skill("berserker_battle_cry", "전투의 함성",
-                      "적 전체 위축, 자신 속도 +40%")
+                      "[대지 속성] 적 전체 위축, 자신 속도 +40%")
     battle_cry.effects = [
-        DamageEffect(DamageType.BRV, 1.2, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 1.2, stat_type="physical", element="earth"),
         BuffEffect(BuffType.ATTACK_DOWN, 0.3, duration=2),
         BuffEffect(BuffType.SPEED_UP, 0.4, duration=3, target="self")
     ]
@@ -293,9 +293,9 @@ def create_berserker_skills():
 
     # 8. 피의 분노 (광기에 비례한 공격)
     blood_rage = Skill("berserker_blood_rage", "피의 분노",
-                      "광기(HP 손실)에 비례한 강력한 공격")
+                      "[화염 속성] 광기(HP 손실)에 비례한 강력한 공격")
     blood_rage.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="physical",
+        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="physical", element="fire",
                     # HP 손실 비율에 비례 (HP 30%일 때 광기 70 → +140% 피해)
                     gimmick_bonus={"field": "madness", "multiplier": 0.02})
     ]
@@ -305,9 +305,9 @@ def create_berserker_skills():
 
     # 9. 필사의 공격 (HP 30% 이하일 때 극대 피해)
     desperate_assault = Skill("berserker_desperate_assault", "필사의 공격",
-                             "HP 30% 이하 시 극대 피해 (조건부 강화)")
+                             "[화염 속성] HP 30% 이하 시 극대 피해 (조건부 강화)")
     desperate_assault.effects = [
-        DamageEffect(DamageType.BRV_HP, 3.5, stat_type="physical",
+        DamageEffect(DamageType.BRV_HP, 3.5, stat_type="physical", element="fire",
                     conditional_bonus={"condition": "hp_below_30", "multiplier": 1.8})
     ]
     desperate_assault.costs = [MPCost(9)]
@@ -351,11 +351,11 @@ def create_berserker_skills():
 
     # 13. 궁극기: 광란의 힘 (HP 1%로 강제 → 광기 100, 폭주)
     ultimate = Skill("berserker_ultimate", "광란의 힘",
-                    "HP를 1%로 감소, 광기 100 폭주 상태 진입!")
+                    "[화염 속성] HP를 1%로 감소, 광기 100 폭주 상태 진입!")
     ultimate.effects = [
         # HP를 1%로 강제 감소
-        DamageEffect(DamageType.BRV, 3.8, stat_type="physical"),
-        DamageEffect(DamageType.HP, 3.3, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 3.8, stat_type="physical", element="fire"),
+        DamageEffect(DamageType.HP, 3.3, stat_type="physical", element="earth"),
         BuffEffect(BuffType.ATTACK_UP, 2.0, duration=3, target="self"),  # 공격력 +200%
         BuffEffect(BuffType.SPEED_UP, 1.0, duration=3, target="self")   # 속도 +100%
     ]

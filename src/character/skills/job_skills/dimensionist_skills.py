@@ -87,7 +87,7 @@ def create_dimensionist_skills():
     dimension_explosion = Skill(
         "dimensionist_dimension_explosion",
         "차원 폭발",
-        "굴절량의 20%를 소모하여 적 전체에게 마법력 기반 피해 + 소모량의 8.0배 고정 피해"
+        "[바람 속성] 굴절량의 20%를 소모하여 적 전체에게 마법력 기반 피해 + 소모량의 8.0배 고정 피해"
     )
 
     # 마법력 기반 피해 + 고정 피해 효과 (굴절 보너스 완화)
@@ -96,7 +96,8 @@ def create_dimensionist_skills():
         DamageEffect(
             DamageType.BRV,
             multiplier=0.6,
-            stat_type="magical"
+            stat_type="magical",
+            element="wind"
         ),
         # 굴절량 소모 (20% → 80% 남김)
         GimmickEffect(
@@ -144,13 +145,14 @@ def create_dimensionist_skills():
     dimension_scatter = Skill(
         "dimensionist_dimension_scatter",
         "차원 분산",
-        "굴절량에 비례한 강력한 전체 공격"
+        "[바람 속성] 굴절량에 비례한 강력한 전체 공격"
     )
     dimension_scatter.effects = [
         DamageEffect(
             DamageType.BRV_HP,
             multiplier=1.5,
-            stat_type="magical"
+            stat_type="magical",
+            element="wind"
         )
     ]
     dimension_scatter.costs = [MPCost(12)]
@@ -216,18 +218,20 @@ def create_dimensionist_skills():
     dimension_backflow = Skill(
         "dimensionist_dimension_backflow",
         "차원 역류",
-        "굴절량의 50%를 즉시 HP 고정 피해로 받고, 극강의 단일 공격"
+        "[바람 속성] 굴절량의 50%를 즉시 HP 고정 피해로 받고, 극강의 단일 공격"
     )
     dimension_backflow.effects = [
         DamageEffect(
             DamageType.BRV_HP,
             multiplier=3.0,
-            stat_type="magical"
+            stat_type="magical",
+            element="wind"
         ),
         DamageEffect(
             DamageType.HP,
             multiplier=2.625,
-            stat_type="magical"
+            stat_type="magical",
+            element="wind"
         )
     ]
     dimension_backflow.costs = [MPCost(15)]
@@ -245,18 +249,20 @@ def create_dimensionist_skills():
     ultimate = Skill(
         "dimensionist_ultimate",
         "차원 붕괴",
-        "모든 굴절량을 해방하여 차원을 붕괴시킴"
+        "[바람 속성] 모든 굴절량을 해방하여 차원을 붕괴시킴"
     )
     ultimate.effects = [
         DamageEffect(
             DamageType.BRV,
             multiplier=3.75,
-            stat_type="magical"
+            stat_type="magical",
+            element="wind"
         ),
         DamageEffect(
             DamageType.HP,
             multiplier=3.2,
-            stat_type="magical"
+            stat_type="magical",
+            element="wind"
         ),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.5, duration=3),
         BuffEffect(BuffType.SPIRIT_DOWN, 0.5, duration=3),

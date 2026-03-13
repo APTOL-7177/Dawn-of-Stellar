@@ -1,0 +1,37 @@
+id: warrior_steel_bulwark
+name: 강철 수호진
+type: support
+description: '강철의 의지로 몸을 감싸 방어력과 마법방어력을 강화한다.
+
+  다음 스탠스 변경 시 버프가 소멸한다.
+
+  '
+costs:
+  mp: 18
+  cast_time: 0.8
+target: self
+effects:
+- type: buff
+  stat: physical_defense
+  value: 0.35
+  duration: 3
+  remove_on_stance_change: true
+- type: buff
+  stat: magic_defense
+  value: 0.35
+  duration: 3
+  remove_on_stance_change: true
+- type: buff
+  special: damage_reduction
+  value: 0.2
+  duration: 3
+  remove_on_stance_change: true
+metadata:
+  job: warrior
+  tank_skill: true
+  gimmick_skill: true
+  stance_conditional: true
+  skill_category: defense
+sfx:
+- se
+- Barrier

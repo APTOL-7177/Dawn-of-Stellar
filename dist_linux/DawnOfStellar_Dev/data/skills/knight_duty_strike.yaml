@@ -1,0 +1,27 @@
+id: knight_duty_strike
+name: 의무의 일격
+type: attack
+description: '의무 스택에 비례한 HP 피해를 주고 의무를 소모합니다.
+
+  '
+effects:
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 1.1
+  gimmick_bonus:
+    field: duty_stacks
+    multiplier: 0.15
+- type: gimmick
+  operation: consume
+  field: duty_stacks
+  value: 1
+target: enemy
+metadata:
+  job: knight
+  basic_attack: true
+  duty_cost: 1
+  scaling: 의무당 +15%
+sfx:
+- se
+- Sword2

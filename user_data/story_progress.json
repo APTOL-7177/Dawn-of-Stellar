@@ -1,0 +1,262 @@
+{
+  "completed_chapters": [
+    "act1_prologue",
+    "act1_ch1",
+    "act1_ch2",
+    "act1_ch3",
+    "act1_ch4",
+    "act1_ch5",
+    "act1_ch6",
+    "act1_boss",
+    "act2_ch1",
+    "act2_ch2",
+    "act2_ch3",
+    "act2_ch4",
+    "act2_ch5",
+    "act2_ch6",
+    "act2_ch7",
+    "act2_boss",
+    "act3_ch1",
+    "act3_ch2",
+    "act3_ch3",
+    "act3_ch4",
+    "act3_ch5",
+    "act3_ch6",
+    "act3_ch7",
+    "act3_ch8",
+    "act3_ch9",
+    "act3_boss",
+    "act4_ch1",
+    "act4_ch2",
+    "act4_ch3",
+    "act4_ch4",
+    "act4_ch5",
+    "act4_ch6",
+    "act4_ch7",
+    "act4_boss",
+    "act5_ch1",
+    "act5_ch2",
+    "act5_ch3",
+    "act5_ch4",
+    "act5_ch5",
+    "act5_ch6",
+    "act5_ch7",
+    "act5_finale"
+  ],
+  "current_chapter": null,
+  "chapter_states": {
+    "act1_prologue": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act1_ch1": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act1_ch2": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act1_ch3": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act1_ch4": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act1_ch5": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act1_ch6": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act1_boss": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act2_ch1": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act2_ch2": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act2_ch3": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act2_ch4": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act2_ch5": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act2_ch6": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act2_ch7": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act2_boss": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act3_ch1": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act3_ch2": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act3_ch3": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act3_ch4": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act3_ch5": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act3_ch6": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act3_ch7": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act3_ch8": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act3_ch9": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act3_boss": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act4_ch1": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act4_ch2": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act4_ch3": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act4_ch4": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act4_ch5": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act4_ch6": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act4_ch7": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act4_boss": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act5_ch1": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act5_ch2": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act5_ch3": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act5_ch4": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act5_ch5": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act5_ch6": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act5_ch7": {
+      "completed": true,
+      "play_time": 0.0,
+      "skipped": true
+    },
+    "act5_finale": {
+      "completed": true,
+      "play_time": 33.85301637649536,
+      "skipped": false
+    }
+  },
+  "selected_job": "rogue",
+  "total_play_time": 33.85301637649536,
+  "version": "3.0.0"
+}

@@ -26,9 +26,9 @@ def create_illusionist_skills():
 
     # 2. 기본 HP: 거울 파편
     mirror_shard = Skill("illusionist_mirror_shard", "거울 파편",
-                        "거울 파편으로 HP 피해 (마법)")
+                        "[신성 속성] 거울 파편으로 HP 피해 (마법)")
     mirror_shard.effects = [
-        DamageEffect(DamageType.HP, 1.2, stat_type="magical")
+        DamageEffect(DamageType.HP, 0.78, stat_type="magical", element="holy")
     ]
     mirror_shard.costs = []
     mirror_shard.sfx = ("combat", "attack_magic")
@@ -141,9 +141,9 @@ def create_illusionist_skills():
 
     # 11. 거울 폭풍 (마법)
     mirror_storm = Skill("illusionist_mirror_storm", "거울 폭풍",
-                        "환영과 함께 전체 다단히트 BRV 공격 (마법)")
+                        "[신성 속성] 환영과 함께 전체 다단히트 BRV 공격 (마법)")
     mirror_storm.effects = [
-        DamageEffect(DamageType.BRV, 0.9, stat_type="magical",
+        DamageEffect(DamageType.BRV, 0.59, stat_type="magical", element="holy",
                     gimmick_bonus={"field": "phantom_count", "multiplier": 0.25})
     ]
     mirror_storm.costs = [MPCost(12)]
@@ -166,10 +166,10 @@ def create_illusionist_skills():
 
     # 13. 환영우 (마법 BRV+HP)
     phantom_rain = Skill("illusionist_phantom_rain", "환영우",
-                        "전체 BRV → 랜덤 HP 공격, 환영 많을수록 타수 증가 (마법)")
+                        "[신성 속성] 전체 BRV → 랜덤 HP 공격, 환영 많을수록 타수 증가 (마법)")
     phantom_rain.effects = [
-        DamageEffect(DamageType.BRV, 0.35, stat_type="magical"),
-        DamageEffect(DamageType.HP, 0.12, stat_type="magical",
+        DamageEffect(DamageType.BRV, 0.3, stat_type="magical", element="holy"),
+        DamageEffect(DamageType.HP, 0.3, stat_type="magical", element="holy",
                     gimmick_bonus={"field": "phantom_count", "multiplier": 0.1}),
         BuffEffect(BuffType.ACCURACY_DOWN, 0.10, duration=2)  # 적 명중 감소
     ]
@@ -219,10 +219,10 @@ def create_illusionist_skills():
 
     # 17. 잔상 폭발 (마법)
     afterimage_burst = Skill("illusionist_afterimage_burst", "잔상 폭발",
-                            "잔상 소모 → 전체 BRV+HP (마법), 잔상 1당 +1%")
+                            "[암흑 속성] 잔상 소모 → 전체 BRV+HP (마법), 잔상 1당 +1%")
     afterimage_burst.effects = [
         GimmickEffect(GimmickOperation.SET, "afterimage_gauge", 0),  # 전부 소모
-        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="magical"),
+        DamageEffect(DamageType.BRV_HP, 1.17, stat_type="magical", element="dark"),
         GimmickEffect(GimmickOperation.ADD, "phantom_count", 1, max_value=4)
     ]
     afterimage_burst.costs = [MPCost(14)]
@@ -270,7 +270,7 @@ def create_illusionist_skills():
         # 적 전체 명중률 대폭 감소
         BuffEffect(BuffType.ACCURACY_DOWN, 0.50, duration=2),
         # 아군 전체 확정 회피 (1턴)
-        BuffEffect(BuffType.EVASION_UP, 10.0, duration=1),
+        BuffEffect(BuffType.EVASION_UP, 10.0, duration=1, is_party_wide=True),
         # 환영 최대 생성
         GimmickEffect(GimmickOperation.SET, "phantom_count", 4)
     ]

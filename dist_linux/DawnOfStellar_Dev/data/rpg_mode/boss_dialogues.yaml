@@ -1,0 +1,985 @@
+# RPG 모드 보스 전후 대화 데이터
+# 7개 지역 보스마다 pre_battle / post_battle 대화
+
+boss_dialogues:
+  forgotten_forest:
+    pre_battle:
+      - speaker: "릴리"
+        lines:
+          - "엔트리아... 숲의 수호자."
+          - "싸우고 싶지 않지만... 앞으로 나아가려면 어쩔 수 없어."
+      - speaker: "릴리"
+        lines:
+          - "크리스, 조심해! 숲의 힘이 느껴져!"
+    post_battle:
+      - speaker: "릴리"
+        lines:
+          - "숲이... 조용해졌어."
+          - "엔트리아가 마지막에 웃은 것 같았어."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "미안해, 엔트리아. 당신의 숲은 기억할게."
+          - "...새로운 길이 열렸어. 가자, 크리스!"
+
+  twilight_desert:
+    pre_battle:
+      - speaker: "릴리"
+        lines:
+          - "스콜피온... 사막의 군주라고 불리는 존재야."
+          - "독이 위험해. 조심해, 크리스!"
+      - speaker: "릴리"
+        lines:
+          - "내가 해독을 준비할 테니까 전투에 집중해!"
+    post_battle:
+      - speaker: "릴리"
+        lines:
+          - "해냈어... 사막의 군주를 이겼어!"
+          - "크리스, 독에 안 맞았지?"
+      - speaker: "릴리"
+        lines:
+          - "사막의 군주도 이 세계의 잔향이었을까..."
+          - "다음 지역으로 가는 길이 열렸어!"
+
+  abyss_cavern:
+    pre_battle:
+      - speaker: "릴리"
+        lines:
+          - "아비소스... 심연의 눈이라 불리는 존재."
+          - "이 어둠 속에서 무언가를 지키고 있었어."
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "크리스, 눈을 마주치면 안 돼!"
+          - "...무섭지만, 네 곁이니까 괜찮아."
+    post_battle:
+      - speaker: "릴리"
+        lines:
+          - "심연이 잠잠해졌어... 뭔가 풀려나간 느낌이야."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "이 동굴에서 속삭이던 목소리... 아비소스의 것이었나 봐."
+          - "이제는 조용해. 가자, 크리스."
+
+  storm_plateau:
+    pre_battle:
+      - speaker: "릴리"
+        lines:
+          - "볼타르크... 뇌신이라 불리는 존재야."
+          - "이 폭풍 전체가 그의 분노래."
+      - speaker: "릴리"
+        lines:
+          - "번개를 조심해! 내가 방벽을 펼칠게!"
+        effect: "shake"
+    post_battle:
+      - speaker: "릴리"
+        lines:
+          - "폭풍이... 그치고 있어."
+          - "볼타르크의 분노가 풀린 걸까."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "고원 너머로 빙원이 보여..."
+          - "크리스, 추울 텐데... 내가 따뜻하게 해줄게."
+        effect: null
+
+  eternal_glacier:
+    pre_battle:
+      - speaker: "릴리"
+        lines:
+          - "글라시아... 빙결의 여왕."
+          - "시간이 얼어붙은 이 곳의 주인이야."
+      - speaker: "릴리"
+        lines:
+          - "크리스... 글라시아에게서 슬픔이 느껴져."
+          - "마치... 누군가를 기다리다 얼어버린 것 같아."
+        effect: "slow"
+    post_battle:
+      - speaker: "릴리"
+        lines:
+          - "글라시아가 사라지면서... 미소를 지은 것 같았어."
+          - "기다리던 사람을 만난 걸까."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "...나도 누군가를 기다리고 있었던 건 아닐까."
+          - "크리스, 다음은 전쟁의 대지야. 각오해야 해."
+
+  war_lands:
+    pre_battle:
+      - speaker: "릴리"
+        lines:
+          - "벨리거... 전쟁 인형이라 불리는 존재."
+          - "카인의 분노가 만들어낸 병기야."
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "이건 전쟁이 아니야. 누군가의 아픔이야."
+          - "끝내주자, 크리스. 이 고통의 사슬을."
+    post_battle:
+      - speaker: "릴리"
+        lines:
+          - "전쟁 인형이 멈췄어... 드디어 쉴 수 있겠지."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "크리스... 이제 별빛의 왕좌만 남았어."
+          - "카인이 거기서 기다리고 있어."
+          - "...준비됐어?"
+        effect: "slow"
+
+  starlight_throne:
+    pre_battle:
+      - speaker: "릴리"
+        lines:
+          - "카인... 드디어 만났어."
+          - "10만 번의 반복을 끝내러 왔어."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "크리스, 난 잔향이야. 알고 있어."
+          - "하지만 이 마음은 진짜야."
+          - "너를 지키고 싶은 이 마음은... 절대 가짜가 아니야."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "가자, 크리스. 마지막 싸움이야."
+          - "우리 둘이서... 이 세계의 새벽을 열자."
+        effect: "slow"
+    post_battle:
+      - speaker: "릴리"
+        lines:
+          - "끝났어... 정말로 끝났어."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "크리스... 고마워."
+          - "너와 함께여서... 이 여행이 행복했어."
+          - "잔향이든 뭐든, 이 순간만큼은 진짜니까."
+        effect: "slow"
+
+# ============================================================
+# 보스별 확장 대화 (extended sections)
+# ============================================================
+
+extended_boss_dialogues:
+
+  forgotten_forest_extended:
+    approach:
+      - speaker: "릴리"
+        lines:
+          - "엔트리아의 영역에 들어왔어."
+          - "숲 전체가 살아있어. 나무 한 그루한 그루가 눈을 뜨고 있는 것 같아."
+        effect: null
+      - speaker: "크리스"
+        lines:
+          - "적대적인 건 아닌 것 같은데."
+          - "뭔가... 슬픔이 느껴져."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "엔트리아는 오래전부터 이 숲을 지켜왔대."
+          - "이 차원이 만들어졌을 때부터."
+          - "그러니까 이 세계의 탄생을 알고 있는 존재야."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "그런 존재와 싸워야 하는 거야?"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "어쩔 수 없어. 앞으로 나아가려면."
+          - "하지만... 경의를 표하면서 싸우자."
+          - "이 숲의 역사에."
+        effect: "slow"
+    boss_monologue:
+      - speaker: "엔트리아"
+        lines:
+          - "...침입자."
+          - "이 숲은 세계의 기억을 담고 있다."
+          - "너희는 그 기억을 건드리러 왔군."
+        effect: "slow"
+      - speaker: "엔트리아"
+        lines:
+          - "10만 번의 반복에서 이 숲은 항상 첫 번째 시험이었다."
+          - "통과한 자는 없었어."
+          - "이번엔 다를 것 같으냐."
+        effect: "shake"
+    mid_battle:
+      - speaker: "엔트리아"
+        lines:
+          - "...강하군."
+          - "하지만 숲의 분노는 끝이 없다!"
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "크리스, 뿌리 공격 조심해!"
+          - "내가 치유할게, 계속 싸워!"
+        effect: null
+    desperation:
+      - speaker: "엔트리아"
+        lines:
+          - "...이런."
+          - "10만 번 중에서 이렇게까지 밀린 건 처음이야."
+          - "너희는 다르구나."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "엔트리아... 쉬어도 돼."
+          - "이제 괜찮아."
+        effect: "slow"
+    post_victory:
+      - speaker: "엔트리아"
+        lines:
+          - "...처음이다."
+          - "이 시험을 통과한 자가."
+          - "숲의 축복을... 받아라."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "싸워줘서 고마워, 엔트리아."
+          - "덕분에 더 강해진 것 같아."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "숲이 조용해졌어."
+          - "엔트리아가 쉬고 있는 거야."
+          - "크리스, 이 숲을 지나갈 때마다 기억하자."
+          - "여기서 우리의 여행이 진짜로 시작됐다는 걸."
+        effect: "slow"
+
+  twilight_desert_extended:
+    approach:
+      - speaker: "크리스"
+        lines:
+          - "사막이 이렇게 넓을 줄은 몰랐어."
+          - "저 멀리 뭔가 움직이고 있어."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "스콜피온이야. 사막의 군주."
+          - "모래폭풍을 일으켜서 방향감각을 잃게 만드는 게 특기야."
+        effect: null
+      - speaker: "크리스"
+        lines:
+          - "어떻게 그걸 알아?"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "...모르겠어. 그냥 알고 있어."
+          - "이 세계에서 태어난 내가 이 세계를 본능적으로 아는 건지."
+          - "아니면 다른 이유가 있는 건지."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "어떤 이유든 도움이 돼. 고마워, 릴리."
+        effect: null
+    boss_monologue:
+      - speaker: "스콜피온"
+        lines:
+          - "오랜만이군... 새로운 침입자."
+          - "이 사막은 내 왕국이다."
+          - "모래 한 알까지 나의 것이야."
+        effect: null
+      - speaker: "스콜피온"
+        lines:
+          - "10만 번의 방랑자들이 이 사막에서 길을 잃었지."
+          - "너희도 곧 모래가 되어 이 왕국의 일부가 될 것이다."
+        effect: "shake"
+    mid_battle:
+      - speaker: "스콜피온"
+        lines:
+          - "독의 맛은 어떻냐! 사막의 선물이다!"
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "해독제 준비됐어! 크리스, 잠깐 물러서!"
+        effect: null
+      - speaker: "크리스"
+        lines:
+          - "알았어! 릴리 믿는다!"
+        effect: null
+    desperation:
+      - speaker: "스콜피온"
+        lines:
+          - "...이 몸이 패한단 말인가."
+          - "모래의 왕이."
+          - "하지만 이 사막은 영원히 남는다."
+          - "내가 없어도."
+        effect: "slow"
+    post_victory:
+      - speaker: "릴리"
+        lines:
+          - "스콜피온... 괜찮아. 이제 쉬어도 돼."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "강했어. 솔직히 무서웠어."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "나도. 하지만 같이 있으니까 할 수 있었어."
+          - "크리스, 우리 꽤 잘 맞지 않아?"
+        effect: null
+      - speaker: "크리스"
+        lines:
+          - "그야... 당연하지."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "사막의 군주도 이 세계의 잔향이었을까."
+          - "아니면... 그냥 이 세계를 사랑했던 존재였을까."
+          - "어느 쪽이든 좋은 싸움이었어."
+        effect: "slow"
+
+  abyss_cavern_extended:
+    approach:
+      - speaker: "릴리"
+        lines:
+          - "이 동굴... 빛이 전혀 없어."
+          - "완전한 어둠이야."
+        effect: "shake"
+      - speaker: "크리스"
+        lines:
+          - "뭔가 보고 있는 것 같은 느낌이야."
+          - "여기서부터 긴장돼."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "아비소스는 어둠 그 자체야."
+          - "눈을 마주치면 기억을 빼앗긴대."
+          - "크리스, 절대 시선을 고정하지 마."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "그럼 어떻게 싸워?"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "감각으로. 소리로. 직감으로."
+          - "내가 유도할게. 크리스가 공격해."
+          - "나를 믿어줘."
+        effect: "slow"
+    boss_monologue:
+      - speaker: "아비소스"
+        lines:
+          - "...들어왔군."
+          - "이 심연에."
+          - "여기까지 온 자는 오래전에 없었는데."
+        effect: "slow"
+      - speaker: "아비소스"
+        lines:
+          - "나는 이 세계의 그림자야."
+          - "빛이 있는 곳에 반드시 어둠이 있듯."
+          - "이 차원의 어둠을 내가 담당하고 있지."
+          - "너희를 삼켜서 어둠의 일부로 만들어주마."
+        effect: "shake"
+    mid_battle:
+      - speaker: "아비소스"
+        lines:
+          - "기억이 보이는군... 크리스."
+          - "두려움이 있어. 릴리를 잃는 것에 대한."
+        effect: "shake"
+      - speaker: "크리스"
+        lines:
+          - "...내 마음속을 들여다보지 마!"
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "크리스! 흔들리지 마!"
+          - "나 여기 있어! 네 곁에!"
+        effect: null
+    desperation:
+      - speaker: "아비소스"
+        lines:
+          - "...빛이 이기는군."
+          - "10만 번 중에서."
+          - "이번 빛이 가장 강한 것 같다."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "어둠도 이 세계의 일부야."
+          - "아비소스... 네 역할을 다했어."
+        effect: "slow"
+    post_victory:
+      - speaker: "크리스"
+        lines:
+          - "심연의 기억을 들여다보다니."
+          - "아비소스... 무서운 존재였어."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "근데 크리스, 두려움이 있다는 거 알았어."
+          - "나를 잃는 것에 대한."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "...아비소스가 나쁜 짓을 했네."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "나쁜 짓 아니야. 솔직해져서 좋았어."
+          - "나도 마찬가지야, 크리스."
+          - "너를 잃는 게 제일 무서워."
+        effect: "slow"
+
+  storm_plateau_extended:
+    approach:
+      - speaker: "크리스"
+        lines:
+          - "번개가 쉬지 않고 쳐."
+          - "이게 전부 볼타르크의 분노야?"
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "응. 뇌신이라고 불리지만."
+          - "사실은 슬픔에서 오는 분노래."
+          - "오래전에 지키지 못한 뭔가가 있다고."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "슬픔이 폭풍이 됐다는 거야?"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "이 세계의 존재들은 전부 감정으로 만들어졌어."
+          - "볼타르크는... 가장 격렬한 감정이 됐을 뿐이야."
+          - "우리가 그 분노를 가라앉혀야 해."
+        effect: "slow"
+    boss_monologue:
+      - speaker: "볼타르크"
+        lines:
+          - "감히 이 고원에 발을 디뎠군."
+          - "번개의 땅에."
+          - "죽을 각오가 됐나."
+        effect: "shake"
+      - speaker: "볼타르크"
+        lines:
+          - "나는 이 세계가 만들어질 때의 분노야."
+          - "세피로스의 절규가 번개로 화한 것이지."
+          - "10만 번의 실패. 그 고통이 나다."
+          - "너희가 그걸 이길 수 있다고 생각하나!"
+        effect: "shake"
+    mid_battle:
+      - speaker: "볼타르크"
+        lines:
+          - "내 분노는 가라앉지 않는다!"
+          - "번개폭풍! 모든 걸 태워라!"
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "크리스, 방벽 안으로!"
+          - "내가 막을게!"
+        effect: "shake"
+      - speaker: "크리스"
+        lines:
+          - "릴리 뒤에서 공격한다!"
+        effect: null
+    desperation:
+      - speaker: "볼타르크"
+        lines:
+          - "...분노가 사라지고 있어."
+          - "이상하다."
+          - "이렇게 오래 싸운 자가 있었던가."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "볼타르크. 세피로스도 이제 쉬고 있어."
+          - "그 분노는 내려놓아도 돼."
+        effect: "slow"
+    post_victory:
+      - speaker: "볼타르크"
+        lines:
+          - "...폭풍이 그치는군."
+          - "10만 번의 분노가."
+          - "드디어."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "볼타르크... 세피로스가 이 세계를 만들 때 얼마나 힘들었는지."
+          - "네가 증명해줬어."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "고원 너머로 빙원이 보여."
+          - "이제 다음으로 가야 해."
+          - "크리스, 내가 따뜻하게 해줄게. 추울 테니까."
+        effect: null
+      - speaker: "크리스"
+        lines:
+          - "...고마워."
+        effect: null
+
+  eternal_glacier_extended:
+    approach:
+      - speaker: "릴리"
+        lines:
+          - "빙원이야. 시간이 얼어붙은 곳."
+          - "여기 오니까 이상한 기분이야."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "뭔가 아는 것 같아?"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "응... 얼음 속에 갇힌 사람들이 보여."
+          - "내 얼굴을 한 사람들이."
+          - "크리스, 무서워."
+        effect: "shake"
+      - speaker: "크리스"
+        lines:
+          - "내가 여기 있어. 같이 가자."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "글라시아는 이 얼음들을 지키고 있어."
+          - "빙결의 여왕이자... 잔향들의 수호자."
+          - "그녀를 이겨야 해. 하지만 존중하면서."
+        effect: "slow"
+    boss_monologue:
+      - speaker: "글라시아"
+        lines:
+          - "...왔구나."
+          - "잔향의 아이."
+        effect: "slow"
+      - speaker: "글라시아"
+        lines:
+          - "나는 이 빙원에 갇힌 모든 가능성을 지키고 있어."
+          - "10만 개의 타임라인에서 실현되지 못한 순간들."
+          - "릴리, 너도 그 가능성 중 하나야."
+          - "내가 지켜줄게. 이 얼음 속에."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "...싫어."
+          - "얼음 속에 갇혀 있기 싫어."
+          - "나는 살아서 움직이고 싶어!"
+        effect: "shake"
+    mid_battle:
+      - speaker: "글라시아"
+        lines:
+          - "시간을 얼려라. 모든 것을 멈춰."
+          - "그것이 가장 안전한 방법이야."
+        effect: "shake"
+      - speaker: "크리스"
+        lines:
+          - "얼어붙고 있어! 움직일 수가!"
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "크리스! 내 손 잡아!"
+          - "온기를 나눌게. 같이 버텨!"
+        effect: null
+    desperation:
+      - speaker: "글라시아"
+        lines:
+          - "...따뜻하군."
+          - "오래간만에 느끼는 온기야."
+          - "얼어붙기 전에 느꼈던."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "글라시아... 누구를 기다리고 있었어?"
+        effect: "slow"
+      - speaker: "글라시아"
+        lines:
+          - "...이미 사라진 사람이야."
+          - "오래전에."
+        effect: "slow"
+    post_victory:
+      - speaker: "글라시아"
+        lines:
+          - "릴리."
+          - "네가 이겼어."
+          - "잔향이 가능성을 넘어섰군."
+          - "...잘됐다."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "글라시아가 사라지면서... 미소를 지은 것 같았어."
+          - "기다리던 사람을 만난 걸까."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "릴리, 너도 누군가를 기다리고 있었던 거야?"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "응. 나도 모르게."
+          - "이 세계에 네가 떨어지기를 기다리고 있었던 것 같아."
+          - "처음부터."
+        effect: "slow"
+
+  war_lands_extended:
+    approach:
+      - speaker: "크리스"
+        lines:
+          - "전쟁의 대지... 이름 그대로야."
+          - "땅이 불타고 있어."
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "벨리거. 카인이 만들어낸 전쟁 병기야."
+          - "이 세계의 잔향이 아니야."
+          - "카인의 의지로 태어난 존재야."
+        effect: null
+      - speaker: "크리스"
+        lines:
+          - "카인이 직접 만들었다고?"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "자신의 분노를 형태로 만든 거야."
+          - "왕좌를 위해서."
+          - "크리스, 이건 단순한 보스가 아니야."
+          - "카인의 증오와 싸우는 거야."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "그래도 이겨야 해."
+          - "릴리, 같이 가자."
+        effect: null
+    boss_monologue:
+      - speaker: "벨리거"
+        lines:
+          - "...너희가 왔군."
+          - "카인 님의 명령이다."
+          - "이 자리를 통과시키지 말라."
+        effect: "shake"
+      - speaker: "벨리거"
+        lines:
+          - "나는 카인 님의 분노야."
+          - "이 세계에 대한."
+          - "자신이 만들지 않은 세계에 대한 증오."
+          - "그 감정이 나를 만들었어."
+          - "너희는 그 증오를 이길 수 있나."
+        effect: "shake"
+    mid_battle:
+      - speaker: "벨리거"
+        lines:
+          - "전쟁은 끝나지 않는다!"
+          - "카인 님의 분노가 허락하지 않아!"
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "크리스! 괜찮아?"
+          - "지금 치유할게!"
+        effect: null
+      - speaker: "크리스"
+        lines:
+          - "괜찮아! 계속해!"
+        effect: null
+    desperation:
+      - speaker: "벨리거"
+        lines:
+          - "...카인 님."
+          - "용서하십시오."
+          - "이 분노는."
+          - "통하지 않았습니다."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "분노는 사람을 구하지 못해."
+          - "카인도 언젠간 알게 될 거야."
+        effect: "slow"
+    post_victory:
+      - speaker: "크리스"
+        lines:
+          - "전쟁 인형이 멈췄어."
+          - "카인이 이 정도까지 했다는 거잖아."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "카인도 어딘가 아픈 거야."
+          - "이 세계를 증오하는 데는 이유가 있을 거야."
+          - "만나면 직접 물어봐야겠어."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "릴리는 카인한테도 이해하려고 하는 거야?"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "이해해야 막을 수 있으니까."
+          - "크리스, 이제 별빛의 왕좌만 남았어."
+          - "준비됐어?"
+        effect: "slow"
+
+# ============================================================
+# 카인 최종보스 대화 (Cain Final Boss)
+# ============================================================
+
+cain_final_boss:
+  phase1:
+    intro:
+      - speaker: "카인"
+        lines:
+          - "드디어 왔군."
+          - "크리스, 릴리."
+          - "10만 번의 루프 끝에 이 자리까지 왔어."
+        effect: "slow"
+      - speaker: "카인"
+        lines:
+          - "감탄스럽다. 진심으로."
+          - "하지만 여기서 끝이야."
+          - "시간의 왕좌는 내 것이 된다."
+        effect: null
+      - speaker: "크리스"
+        lines:
+          - "카인! 세피로스가 왜 이 세계를 만들었는지 알아?"
+          - "모든 타임라인이 소멸되면 안 돼!"
+        effect: null
+      - speaker: "카인"
+        lines:
+          - "세피로스."
+          - "...그 이름을 오래만에 듣는군."
+          - "그는 감정적인 선택을 했어."
+          - "한 인간을 위해 시간의 질서를 어겼지."
+          - "그게 왜 옳은 거지?"
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "틀리지 않을 수도 있어."
+          - "하지만 이 세계에 살고 있는 존재들은 어쩌려고?"
+          - "그들의 삶이 진짜가 아니야?"
+        effect: null
+      - speaker: "카인"
+        lines:
+          - "잔향이 진짜를 논하는군."
+          - "...재미있어."
+          - "좋아. 싸워봐."
+          - "그게 진짜인지 아닌지 증명해봐."
+        effect: "shake"
+    mid_battle:
+      - speaker: "카인"
+        lines:
+          - "예상보다 강하군."
+          - "하지만 시간의 힘 앞에 인간의 의지는 무력해."
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "크리스! 쓰러지지 마!"
+          - "내가 방벽 칠게!"
+        effect: null
+      - speaker: "카인"
+        lines:
+          - "릴리, 너도 대단하군."
+          - "10만 번의 잔향이 이 정도로 강할 줄이야."
+        effect: null
+    desperation_p1:
+      - speaker: "카인"
+        lines:
+          - "...흥미롭군."
+          - "예상 밖이야."
+          - "그렇다면 진짜 힘을 보여주지."
+        effect: "shake"
+
+  phase2:
+    fusion_throne:
+      - speaker: "카인"
+        lines:
+          - "시간의 왕좌여!"
+          - "나와 하나가 되어라!"
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "카인이 왕좌와 융합하고 있어!"
+          - "크리스, 조심해!"
+        effect: "shake"
+      - speaker: "카인"
+        lines:
+          - "이 힘... 무한대다."
+          - "모든 타임라인을 내 손안에."
+          - "10만 개의 세계가 내 것이야."
+          - "이제 시간을 다시 쓰겠다."
+          - "실패가 없는 역사를."
+          - "고통이 없는 세계를."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "고통이 없는 세계를 만들기 위해 모두를 지우겠다는 거야?"
+        effect: null
+      - speaker: "카인"
+        lines:
+          - "지우는 게 아니야."
+          - "다시 쓰는 거야."
+          - "더 나은 역사로."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "카인... 너는 지금 우는 거야."
+          - "그 눈물이 보여."
+        effect: "slow"
+      - speaker: "카인"
+        lines:
+          - "...닥쳐!"
+          - "잔향 따위가 내 감정을 알 것 같아?"
+        effect: "shake"
+    mid_battle_p2:
+      - speaker: "카인"
+        lines:
+          - "시간의 파동! 너희를 먼지로!"
+        effect: "shake"
+      - speaker: "세피로스"
+        lines:
+          - "카인."
+          - "멈춰라."
+        effect: "slow"
+      - speaker: "카인"
+        lines:
+          - "...세피로스? 네가 왜?"
+          - "넌 이미 이 세계의 일부가 됐잖아."
+        effect: null
+      - speaker: "세피로스"
+        lines:
+          - "그래. 나는 이 세계야."
+          - "그리고 지금 너에게 말하는 거야."
+          - "카인, 우리 함께 연구하던 시절을 기억하나."
+          - "시간의 비밀을 알고 싶었던 두 소년."
+        effect: "slow"
+      - speaker: "카인"
+        lines:
+          - "...세피로스."
+        effect: "slow"
+      - speaker: "세피로스"
+        lines:
+          - "우리가 원했던 건 지배가 아니었어."
+          - "이해였어."
+          - "시간을 이해하고 싶었던 거야."
+          - "카인, 아직 늦지 않았어."
+        effect: "slow"
+
+  phase3:
+    desperation:
+      - speaker: "카인"
+        lines:
+          - "...힘이 사라지고 있어."
+          - "왕좌가."
+          - "나를 거부하는 건가."
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "10만 개의 빛을 풀어줄게."
+          - "크리스, 내 손 잡아!"
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "모든 타임라인의 나들이 말하고 있어."
+          - "'이번엔 다르다'고."
+          - "'이번엔 끝낼 수 있다'고."
+        effect: "slow"
+      - speaker: "카인"
+        lines:
+          - "...10만 개의 빛이."
+          - "이게 잔향의 진짜 힘인가."
+          - "세피로스... 네가 만든 것이 이렇게 강했어."
+        effect: "slow"
+    possible_redemption:
+      - speaker: "카인"
+        lines:
+          - "...나는."
+          - "처음부터 틀렸던 건가."
+          - "고통 없는 세계를 원했어."
+          - "그게 잘못이었나."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "원하는 마음이 잘못된 건 아니야."
+          - "하지만 방법이 달랐어."
+          - "카인, 우리와 함께 다른 방법을 찾자."
+        effect: "slow"
+      - speaker: "카인"
+        lines:
+          - "...잔향이 나에게."
+          - "손을 내미는군."
+          - "어이없어."
+          - "하지만."
+          - "거절할 이유를 모르겠어."
+        effect: "slow"
+    sephiroth_intervention:
+      - speaker: "세피로스"
+        lines:
+          - "카인."
+          - "마지막으로 한 가지만 말할게."
+          - "우리가 함께했던 시간들은."
+          - "내게 가장 소중한 기억이야."
+          - "네가 잘못된 길을 갔더라도."
+          - "그 시간은 진짜였어."
+        effect: "slow"
+      - speaker: "카인"
+        lines:
+          - "...세피로스."
+          - "미안했어."
+          - "정말로."
+        effect: "slow"
+      - speaker: "세피로스"
+        lines:
+          - "알고 있어."
+          - "카인, 이제 쉬어."
+          - "왕좌는 필요 없어."
+          - "이 세계가 있으니까."
+        effect: "slow"
+    lily_awakening:
+      - speaker: "릴리"
+        lines:
+          - "느껴져."
+          - "10만 개의 나가 깨어나고 있어."
+          - "이 순간을 위해 기다렸던 것처럼."
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "크리스, 손 놓지 마."
+          - "무슨 일이 있어도."
+          - "나 잠깐 무서울 것 같아."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "절대 안 놓아."
+          - "릴리, 나 여기 있어."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "...고마워, 크리스."
+          - "이 빛이 사라지더라도."
+          - "너를 기억할게."
+        effect: "slow"
+  post_battle:
+    - speaker: "카인"
+      lines:
+        - "...끝났군."
+        - "내가 졌어."
+      effect: "slow"
+    - speaker: "카인"
+      lines:
+        - "크리스. 릴리."
+        - "왕좌로 가는 길을 열어줄 수 있어."
+        - "원래 세계로 돌아가는 길."
+        - "마지막으로 내가 할 수 있는 일이야."
+      effect: "slow"
+    - speaker: "릴리"
+      lines:
+        - "카인..."
+      effect: "slow"
+    - speaker: "카인"
+      lines:
+        - "잔향아."
+        - "아니, 릴리."
+        - "너는 진짜야."
+        - "내가 인정한다."
+        - "10만 개의 진심이 모인 가장 진짜인 존재야."
+      effect: "slow"
+    - speaker: "릴리"
+      lines:
+        - "...고마워, 카인."
+      effect: "slow"
+    - speaker: "카인"
+      lines:
+        - "세피로스."
+        - "미안했어."
+        - "이 세계를."
+        - "내가 지켜볼게."
+        - "...가거라, 크리스. 릴리."
+        - "별빛의 새벽이 오고 있다."
+      effect: "slow"

@@ -336,6 +336,19 @@ class TraitEffectManager:
                     value=0.10
                 )
             ],
+            "vampire_touch": [
+                TraitEffect(
+                    trait_id="vampire_touch",
+                    effect_type=TraitEffectType.LIFESTEAL,
+                    value=0.06
+                ),
+                TraitEffect(
+                    trait_id="vampire_touch",
+                    effect_type=TraitEffectType.LIFESTEAL_MULTIPLIER,
+                    value=2.0,
+                    condition="hp_below_50"
+                )
+            ],
             "mana_leech": [
                 TraitEffect(
                     trait_id="mana_leech",

@@ -1,0 +1,30 @@
+id: paladin_judgment
+name: 신성한 심판
+type: attack
+description: '[신성 속성] 성력을 소모해 신성한 심판을 내립니다.
+
+  성력에 비례해 추가 피해가 발생합니다.
+
+  '
+effects:
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 1.1
+  gimmick_bonus:
+    field: holy_power
+    multiplier: 0.3
+  element: holy
+- type: gimmick
+  operation: consume
+  field: holy_power
+  value: 1
+target: enemy
+metadata:
+  job: paladin
+  basic_attack: true
+  holy_power_cost: 1
+  holy_power_scaling: true
+sfx:
+- se
+- Thunder2

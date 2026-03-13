@@ -1,0 +1,39 @@
+id: shaman_teamwork
+name: 조상령 강림
+type: teamwork
+description: '[암흑 속성] 조상령이 강림해 적 전체를 공격하고 과부하 게이지를 가득 채웁니다.
+
+  '
+target: all_enemies
+metadata:
+  teamwork: true
+  chain: true
+  job: shaman
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magical
+  multiplier: 2.0
+  target: all_enemies
+  element: dark
+- type: damage
+  damage_type: hp
+  stat_base: magical
+  multiplier: 1.8
+  target: all_enemies
+  element: dark
+- type: gimmick
+  operation: set
+  field: overload_gauge
+  value: 5
+costs:
+  teamwork_gauge: 175
+animation:
+  icon: ??
+  color:
+  - 200
+  - 180
+  - 255
+sfx:
+- se
+- Summon

@@ -79,6 +79,7 @@ class Character:
         self.current_brv = 0  # 현재 BRV (전투 중에만 사용)
         self.atb_gauge = 0  # ATB 게이지 (Active Time Battle)
         self.is_alive = True
+        self.is_ghost = False  # 유령 상태 (멀티플레이 전멸 시 전투 제외, 맵에서는 반투명 표시)
         self.is_enemy = False  # 적 여부
 
         # 장비 (3가지 슬롯만 사용)
@@ -260,12 +261,7 @@ class Character:
             self.reserved_max_mp = 0
             self.last_mp_state = None
 
-        # 도적 - 베놈 파워
-        elif gimmick_type == "venom_system":
-            self.venom_power = 0
-            self.venom_power_max = self.gimmick_data.get("max_venom", 200)
-            self.poison_stacks = 0
-            self.max_poison_stacks = self.gimmick_data.get("max_poison", 10)
+        # 도적 - 맹독 시스템은 아래 두 번째 elif 블록에서 처리
 
         # 암살자 - 그림자
         elif gimmick_type == "shadow_system":
@@ -589,15 +585,14 @@ class Character:
             self.oracle_combo = 0  # 연속 충족 횟수
             self.combo_bonuses = self.gimmick_data.get("combo_bonuses", {})
         
-        # 도적 - 농락 시스템 (리메이크)
-        elif gimmick_type == "mockery_system":
-            self.max_mockery = self.gimmick_data.get("max_mockery", 10)
-            self.mockery_effects = self.gimmick_data.get("mockery_effects", {})
-            self.poison_types = self.gimmick_data.get("poison_types", {})
+        # 도적 - 맹독 시스템
+        elif gimmick_type == "venom_system":
+            self.max_venom = self.gimmick_data.get("max_venom", 5)
+            self.venom_effects = self.gimmick_data.get("venom_effects", {})
+            self.venom_dot_per_stack = self.gimmick_data.get("venom_dot_per_stack", 0.08)
+            self.speed_scaling = self.gimmick_data.get("speed_scaling", True)
             self.evasion_chain = self.gimmick_data.get("evasion_chain", {})
-            self.stealth_active = False  # 은신 상태
-            self.consecutive_evades = 0  # 연속 회피 횟수
-            # 적별 농락 게이지는 전투 시 enemy 객체에 저장됨
+            # 적별 독 중첩(venom_stacks)은 전투 시 enemy 객체에 저장됨
 
         # 암살자 - 은신-노출 딜레마 (신버전)
         elif gimmick_type == "stealth_exposure":
@@ -719,6 +714,28 @@ class Character:
                 self.phantom_hits = [self.phantom_hit_absorb, self.phantom_hit_absorb]
                 self.logger.info(f"[거울 분신술] {self.name} 전투 시작 시 환영 2개 자동 생성!")
 
+        # 닌자 - 인법 연쇄 시스템
+        elif gimmick_type == "ninpo_chain":
+            self.seal_fire = 0       # 화(火) 인
+            self.seal_ice = 0        # 빙(氷) 인
+            self.seal_thunder = 0    # 뇌(雷) 인
+            self.seal_wind = 0       # 풍(風) 인
+            self.max_seals = self.gimmick_data.get("max_seals", 4)
+            self.seal_types = self.gimmick_data.get("seal_types", ["fire", "ice", "thunder", "wind"])
+            self.last_seal_element = None   # 마지막 사용 속성 (속성 순환 체크용)
+            self.consecutive_actions = 0    # 연속 행동 카운트 (질풍노도 특성용)
+            self.chain_effects = self.gimmick_data.get("chain_effects", {})
+            self.same_element_penalty = self.gimmick_data.get("same_element_penalty", {})
+            self.element_switch_bonus = self.gimmick_data.get("element_switch_bonus", {})
+            self.ninja_stealth = False      # 은신 상태
+            self.first_attack_critical = False  # 첫 공격 크리티컬 확정
+            self.smoke_escape_used = False  # 연막전개 사용 여부 (전투 1회)
+            # 은밀행동 특성: 전투 시작 시 은신 상태
+            if self._has_trait("covert_entry"):
+                self.ninja_stealth = True
+                self.first_attack_critical = True
+                self.logger.info(f"[은밀행동] {self.name} 전투 시작 시 은신 상태!")
+
         self.logger.debug(f"{self.character_class} 기믹 초기화: {gimmick_type}")
 
     def _get_class_skills(self, character_class: str) -> List[str]:
@@ -769,6 +786,7 @@ class Character:
             "흡혈귀": "vampire_",
             "마술사": "magician_",
             "환술사": "illusionist_",
+            "닌자": "ninja_",
             # 영문 직업명 (하위호환성)
             "warrior": "warrior_",
             "archmage": "archmage_",
@@ -806,6 +824,7 @@ class Character:
             "vampire": "vampire_",
             "magician": "magician_",
             "illusionist": "illusionist_",
+            "ninja": "ninja_",
         }
 
         # 스킬 접두사 가져오기
@@ -850,6 +869,7 @@ class Character:
             "sniper": "sniper",
             "vampire": "vampire",
             "magician": "magician",
+            "ninja": "ninja",
         }
 
         korean_class_name = korean_class_map.get(character_class, character_class)
@@ -1019,13 +1039,14 @@ class Character:
             
         return int(base_max * multiplier)
 
-    def take_damage(self, damage: int, is_dot: bool = False) -> int:
+    def take_damage(self, damage: int, is_dot: bool = False, is_reflect: bool = False, **kwargs) -> int:
         """
         데미지를 받습니다
 
         Args:
             damage: 데미지 양
             is_dot: DoT(지속 피해)인지 여부 (DoT는 포탑 파괴 등 특수 효과 미적용)
+            is_reflect: 반사 피해 여부 (반사 피해로 인한 무한 루프 방지)
 
         Returns:
             실제로 받은 데미지
@@ -1197,10 +1218,42 @@ class Character:
                     source.refraction_stacks += reduced_damage
                     logger.info(f"[차원 보호막] {source.name} 굴절량 +{reduced_damage} (총: {source.refraction_stacks})")
         
+        # ===== 양자 얽힘 특성: 차원술사가 아군 피해의 30%를 흡수→굴절 =====
+        # (차원술사 본인이 아닌 아군이 피해받을 때만 작동)
+        if damage > 0 and getattr(self, 'gimmick_type', None) != 'dimension_refraction':
+            try:
+                from src.combat.combat_manager import get_combat_manager
+                cm = get_combat_manager()
+                if cm:
+                    allies = getattr(cm, 'allies', [])
+                    for ally in allies:
+                        if (getattr(ally, 'gimmick_type', None) == 'dimension_refraction'
+                                and ally != self
+                                and getattr(ally, 'is_alive', True)):
+                            # 양자 얽힘 특성 확인
+                            has_quantum = any(
+                                (t if isinstance(t, str) else t.get('id')) == 'quantum_entanglement'
+                                for t in getattr(ally, 'active_traits', [])
+                            )
+                            if has_quantum:
+                                absorbed = int(damage * 0.30)
+                                if absorbed > 0:
+                                    damage -= absorbed
+                                    if not hasattr(ally, 'refraction_stacks'):
+                                        ally.refraction_stacks = 0
+                                    ally.refraction_stacks += absorbed
+                                    logger.info(
+                                        f"[양자 얽힘] {ally.name}이(가) {self.name}의 피해 {absorbed} 흡수 "
+                                        f"→ 굴절 +{absorbed} (총 {ally.refraction_stacks})"
+                                    )
+                            break  # 차원술사는 파티에 1명만 가능
+            except Exception:
+                pass
+
         # 특성 효과: 수호 (guardian_angel) - 아군 피해 대신 받기
         # 이 효과는 combat_manager에서 처리되어야 함 (아군이 피해를 받을 때)
         # 여기서는 실제 데미지만 적용
-        
+
         # 피해 받기 전 이벤트 발행 (수호 효과를 위해 - 피해를 줄이거나 대신 받기 위함)
         old_hp = self.current_hp
         damage_event_data = {
@@ -1209,6 +1262,7 @@ class Character:
             "old_hp": old_hp,
             "new_hp": None,  # 아직 피해가 적용되지 않았음을 나타냄
             "is_dot": is_dot,  # DoT 피해 여부
+            "is_reflect": is_reflect,  # 반사 피해 여부
             # 보호 효과를 위해 원본 정보 저장
             "original_damage": getattr(self, "_last_original_damage", None),  # 방어력 적용 전 원본 데미지
             "attacker": getattr(self, "_last_attacker", None),  # 마지막 공격자 정보
@@ -1519,18 +1573,39 @@ class Character:
             return False
 
         # 다른 아군이 살아있는지 확인 (combat_manager가 있는 경우)
-        if hasattr(self, '_combat_manager') and self._combat_manager:
+        cm = getattr(self, '_combat_manager_ref', None)
+        if not cm:
+            cm = getattr(self, '_combat_manager', None)
+        
+        if not cm:
             try:
-                allies = self._combat_manager.allies
-                other_allies_alive = any(
-                    ally != self and ally.current_hp > 0
-                    for ally in allies
-                )
-                return other_allies_alive
-            except:
+                from src.combat.combat_manager import get_combat_manager
+                cm = get_combat_manager()
+            except ImportError:
+                pass
+
+        if cm:
+            try:
+                # allies 속성이 있는지 확인
+                allies = getattr(cm, 'allies', [])
+                if not allies and hasattr(cm, 'party'):
+                    # party 객체에서 가져오기 시도
+                    allies = getattr(cm.party, 'members', [])
+
+                if allies:
+                    other_allies_alive = any(
+                        ally != self and ally.current_hp > 0
+                        for ally in allies
+                    )
+                    return other_allies_alive
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error checking undying existence allies: {e}")
                 return False
 
-        return False
+        # 아군 정보를 찾을 수 없는 경우 기본적으로 발동 (솔로 플레이 시 등)
+        return True
 
     def heal(self, amount: int, can_revive: bool = False, source_character=None, is_self_skill: bool = False) -> int:
         """

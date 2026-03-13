@@ -1,0 +1,32 @@
+id: declare_oath
+name: 서약 선언
+type: special
+description: "[전투 시작 시 자동] 신에게 서약합니다.\n3가지 서약 중 1가지 선택:\n\n1. 인내의 서약 (탱커)\n   - 피격\
+  \ 시 신앙 +10\n   - 아군 대신 피격 가능\n   - 방어력 +20%\n   - 금지: 공격 행동\n\n2. 순결의 서약 (딜러)\n\
+  \   - 정화/처치 시 신앙 +15\n   - 공격력 +20%, 신성 피해 +15%\n   - 금지: 버프/힐 행동\n\n3. 자비의 서약 (힐러)\n\
+  \   - 치유 시 신앙 +10\n   - 힐 효과 +30%, 턴 MP +5\n   - 금지: 공격 행동\n"
+target: self
+costs:
+  mp: 0
+metadata:
+  auto_battle_start: true
+  choice_skill: true
+  choices:
+  - id: endurance
+    name: 인내의 서약
+  - id: purity
+    name: 순결의 서약
+  - id: mercy
+    name: 자비의 서약
+effects:
+- type: custom
+  handler: select_oath
+animation:
+  icon: 📜
+  color:
+  - 255
+  - 215
+  - 0
+sfx:
+- se
+- Magic1

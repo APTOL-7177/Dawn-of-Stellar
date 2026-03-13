@@ -1,0 +1,81 @@
+class_name: 배틀메이지
+description: 룬을 새기고 연쇄 폭발시키는 전장 각인사
+slogan: 룬이 공명할 때 전장이 흔들린다
+archetype: 하이브리드 딜러
+base_stats:
+  hp: 168
+  mp: 56
+  init_brv: 119
+  speed: 70
+  physical_attack: 61
+  physical_defense: 49
+  magic_attack: 74
+  magic_defense: 52
+  max_brv: 319
+stat_growth:
+  hp: 37.3
+  mp: 4.1
+  init_brv: 28.1
+  strength: 16.0
+  defense: 11.5
+  magic: 19.3
+  spirit: 12.6
+  speed: 17.3
+  max_brv: 89.6
+  luck: 0.9
+  accuracy: 1.6
+  evasion: 1.2
+traits:
+- id: resonance_expert
+  name: 공명 전문가
+  description: 공명 게이지 획득량 +25%, 게이지 100 도달 시 자동 분배 룬 +2개
+  type: passive
+- id: chain_ignition
+  name: 체인 점화
+  description: 룬 확산 확률 +15%, 확산 단계 피해 +10%
+  type: passive
+- id: rune_archivist
+  name: 룬 기록가
+  description: 대상당 룬 슬롯 +1, 총 룬 최대치 +2
+  type: passive
+- id: catalyst_engineer
+  name: 촉매 엔지니어
+  description: 촉매 전환 사용 시 변환된 룬 1개당 속도 +3% (2턴)
+  type: trigger
+- id: arcane_conductor
+  name: 비전 도체
+  description: 룬 폭발/그랜드 레조넌스 사용 시 MP 8 회복
+  type: trigger
+gimmick:
+  type: rune_resonance
+  name: 룬 공명 필드
+  description: 적에게 5원소 룬을 각인하고 연쇄 폭발시켜 공명 게이지를 쌓는다.
+  max_runes_total: 12
+  max_per_rune: 3
+  max_rune_slots_per_target: 4
+  max_resonance_gauge: 100
+  rune_types:
+    fire: 화염 룬
+    ice: 냉기 룬
+    lightning: 번개 룬
+    earth: 대지 룬
+    arcane: 비전 룬
+skills:
+- battle_mage_rune_etch
+- battle_mage_rune_burst
+- battle_mage_rune_signal
+- battle_mage_catalyst_swap
+- battle_mage_resonance_anchor
+- battle_mage_rune_compression
+- battle_mage_shock_imprint
+# - battle_mage_resonance_pulse  # 비활성화됨
+- battle_mage_rune_fusion
+- battle_mage_chain_thunder
+- battle_mage_rune_barrier
+- battle_mage_arcane_wave
+- battle_mage_rune_storm
+- battle_mage_grand_resonance
+- battle_mage_teamwork
+bonuses:
+  hybrid_power: 1.15
+  resonance_gain: 1.15

@@ -1,5 +1,6 @@
 import tcod.console
 import tcod.event
+import sys
 from typing import Optional, Dict, Any
 
 from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
@@ -11,54 +12,114 @@ from src.audio import play_sfx
 logger = get_logger("multiplayer_join_ui")
 
 
+def _get_clipboard() -> Optional[str]:
+    """클립보드 텍스트 가져오기"""
+    # Windows: PowerShell (안정적, Ctrl+V 시에만 호출되므로 지연 허용)
+    if sys.platform == "win32":
+        try:
+            import subprocess
+            p = subprocess.run(
+                ["powershell", "-noprofile", "-command", "Get-Clipboard"],
+                capture_output=True, text=True, timeout=3,
+                creationflags=0x08000000  # CREATE_NO_WINDOW
+            )
+            if p.returncode == 0 and p.stdout.strip():
+                return p.stdout.strip()
+        except Exception:
+            pass
+
+    # 폴백: tkinter
+    try:
+        import tkinter as tk
+        root = tk.Tk()
+        root.withdraw()
+        text = root.clipboard_get()
+        root.destroy()
+        return text.strip() if text else None
+    except Exception:
+        pass
+
+    return None
+
+
+def _parse_address(text: str):
+    """
+    IP:포트 형식 파싱
+
+    지원 형식:
+        - "192.168.1.100:5000"  → ("192.168.1.100", 5000)
+        - "192.168.1.100"       → ("192.168.1.100", 5000)  기본 포트
+        - ":5001"               → ("127.0.0.1", 5001)      localhost
+        - "5000"                → ("127.0.0.1", 5000)      포트만
+
+    Returns:
+        (host, port) 또는 에러 시 (None, error_message)
+    """
+    text = text.strip()
+    if not text:
+        return None, "주소를 입력해주세요"
+
+    host = "127.0.0.1"
+    port = 5000
+
+    if ":" in text:
+        parts = text.rsplit(":", 1)
+        ip_part = parts[0].strip()
+        port_part = parts[1].strip()
+
+        if ip_part:
+            host = ip_part
+        if port_part:
+            try:
+                port = int(port_part)
+            except ValueError:
+                return None, f"잘못된 포트: '{port_part}'"
+    else:
+        # 콜론 없음: 숫자만이면 포트, 아니면 IP
+        if text.isdigit():
+            port = int(text)
+        else:
+            host = text
+
+    if not (1 <= port <= 65535):
+        return None, f"포트 범위 초과: {port} (1~65535)"
+
+    return (host, port), None
+
+
 def show_join_game_screen(
     console: tcod.console.Console,
     context: tcod.context.Context
 ) -> Optional[Dict[str, Any]]:
     """
-    멀티플레이 게임 참가 UI를 표시하고 호스트 주소 및 포트를 입력받습니다.
-    
-    Args:
-        console: TCOD 콘솔
-        context: TCOD 컨텍스트
-        
-    Returns:
-        선택된 호스트 정보 (mode, host_address, port) 또는 취소 시 None
+    멀티플레이 게임 참가 UI (단일 입력 박스, IP:포트 형식)
     """
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     screen_width = console.width
     screen_height = console.height
-    
-    # 두 입력 박스를 더 넓게 배치 (간격 확보)
-    box_width = 40
-    box_height = 6
-    box_spacing = 3  # 박스 사이 간격
-    
-    ip_input = TextInputBox(
-        title="호스트 IP 주소 입력",
-        prompt="IP 주소:",
-        max_length=15,
+
+    box_width = 44
+    addr_input = TextInputBox(
+        title="서버 주소 입력",
+        prompt="IP:포트 (예: 192.168.1.100:5000)",
+        max_length=30,
         x=(screen_width - box_width) // 2,
-        y=(screen_height - (box_height * 2 + box_spacing)) // 2,
+        y=screen_height // 2 - 4,
         width=box_width,
-        default_text="127.0.0.1"  # 기본값으로 localhost 설정
+        default_text="127.0.0.1:5000"
     )
-    
-    port_input = TextInputBox(
-        title="호스트 포트 입력",
-        prompt="포트:",
-        max_length=5,
-        x=(screen_width - box_width) // 2,
-        y=(screen_height - (box_height * 2 + box_spacing)) // 2 + box_height + box_spacing,
-        width=box_width,
-        default_text="5000"
-    )
-    
-    current_input = ip_input  # 현재 입력 중인 박스
-    
+
+    error_msg = ""
+    error_timer = 0
+
     while True:
         # 렌더링
         render_space_background(console, screen_width, screen_height)
-        
+
         # 제목
         title = "게임 참가"
         console.print(
@@ -67,190 +128,126 @@ def show_join_game_screen(
             title,
             fg=Colors.UI_TEXT_SELECTED
         )
-        
-        # 먼저 두 입력 박스를 모두 렌더링 (기본 상태)
-        # IP 입력 박스 렌더링
-        ip_input.render(console)
-        # 포트 입력 박스 렌더링
-        port_input.render(console)
-        
-        # 활성화된 박스의 내용과 테두리를 다시 렌더링 (강조)
-        if current_input == ip_input:
-            # IP 활성화: 밝은 노란색 테두리로 덮어쓰기
-            console.draw_frame(
-                ip_input.x, ip_input.y, ip_input.width, 6,
-                ip_input.title,
-                fg=Colors.YELLOW,
-                bg=Colors.UI_BG
-            )
-            # 프롬프트 다시 렌더링 (테두리 위에)
+
+        # 입력 박스 (기본 렌더)
+        addr_input.render(console)
+
+        # 활성 테두리 강조
+        console.draw_frame(
+            addr_input.x, addr_input.y, addr_input.width, 6,
+            addr_input.title,
+            fg=Colors.YELLOW,
+            bg=Colors.UI_BG
+        )
+        # 프롬프트
+        console.print(
+            addr_input.x + 2,
+            addr_input.y + 1,
+            addr_input.prompt,
+            fg=Colors.UI_TEXT
+        )
+        # 입력 필드
+        input_bg_width = addr_input.width - 4
+        console.draw_rect(
+            addr_input.x + 2,
+            addr_input.y + 3,
+            input_bg_width,
+            1,
+            ord(" "),
+            bg=Colors.DARK_GRAY
+        )
+        display_text = addr_input.text + "_"
+        console.print(
+            addr_input.x + 3,
+            addr_input.y + 3,
+            display_text[:input_bg_width - 2],
+            fg=Colors.WHITE
+        )
+
+        # 형식 안내
+        hint_y = addr_input.y + 7
+        hints = [
+            "IP:포트  예) 192.168.1.100:5000",
+            "IP만    예) 192.168.1.100 (포트 5000)",
+            "포트만  예) 5001 (localhost:5001)",
+        ]
+        for i, hint in enumerate(hints):
             console.print(
-                ip_input.x + 2,
-                ip_input.y + 1,
-                ip_input.prompt,
-                fg=Colors.UI_TEXT
+                (screen_width - len(hint)) // 2,
+                hint_y + i,
+                hint,
+                fg=(80, 80, 100)
             )
-            # IP 입력 필드 다시 렌더링 (커서 표시)
-            input_bg_width = ip_input.width - 4
-            console.draw_rect(
-                ip_input.x + 2,
-                ip_input.y + 3,
-                input_bg_width,
-                1,
-                ord(" "),
-                bg=Colors.DARK_GRAY
-            )
-            # 입력된 텍스트 + 커서 표시
-            display_text = ip_input.text + "_"
+
+        # 에러 메시지
+        if error_timer > 0:
             console.print(
-                ip_input.x + 3,
-                ip_input.y + 3,
-                display_text[:input_bg_width - 2],
-                fg=Colors.WHITE
+                (screen_width - len(error_msg)) // 2,
+                screen_height - 5,
+                error_msg,
+                fg=Colors.RED
             )
-        elif current_input == port_input:
-            # 포트 활성화: 밝은 노란색 테두리로 덮어쓰기
-            console.draw_frame(
-                port_input.x, port_input.y, port_input.width, 6,
-                port_input.title,
-                fg=Colors.YELLOW,
-                bg=Colors.UI_BG
-            )
-            # 프롬프트 다시 렌더링 (테두리 위에)
-            console.print(
-                port_input.x + 2,
-                port_input.y + 1,
-                port_input.prompt,
-                fg=Colors.UI_TEXT
-            )
-            # 포트 입력 필드 다시 렌더링 (커서 표시)
-            input_bg_width = port_input.width - 4
-            console.draw_rect(
-                port_input.x + 2,
-                port_input.y + 3,
-                input_bg_width,
-                1,
-                ord(" "),
-                bg=Colors.DARK_GRAY
-            )
-            # 입력된 텍스트 + 커서 표시
-            display_text = port_input.text + "_"
-            console.print(
-                port_input.x + 3,
-                port_input.y + 3,
-                display_text[:input_bg_width - 2],
-                fg=Colors.WHITE
-            )
-        
-        # 안내 메시지
-        help_text = "Tab: 포트/IP 전환  Z: 연결  X: 취소"
+            error_timer -= 1
+
+        # 안내
+        help_text = "Enter: 연결  ESC: 취소"
         console.print(
             (screen_width - len(help_text)) // 2,
             screen_height - 3,
             help_text,
             fg=Colors.GRAY
         )
-        
+
         context.present(console)
-        
+
         # 입력 처리
         for event in tcod.event.wait():
-            # ESC 키 즉시 처리 (취소) - action 처리 전에 먼저 체크
+            # ESC
             if isinstance(event, tcod.event.KeyDown) and event.sym == tcod.event.KeySym.ESCAPE:
                 logger.info("게임 참가 취소 (ESC)")
                 play_sfx("ui", "cursor_cancel")
                 return None
-            
-            # 윈도우 닫기
+
             if isinstance(event, tcod.event.Quit):
                 return None
-            
+
             action = unified_input_handler.process_tcod_event(event)
-            
-            # 문자 입력 처리
+
             if isinstance(event, tcod.event.KeyDown):
-                # IP 입력 중
-                if current_input == ip_input:
-                    if event.sym == tcod.event.KeySym.BACKSPACE:
-                        ip_input.handle_backspace()
-                    elif event.sym == tcod.event.KeySym.TAB:
-                        # 포트 입력으로 전환
-                        current_input = port_input
-                        logger.debug("포트 입력으로 전환")
-                    elif len(ip_input.text) < ip_input.max_length:
-                        # ASCII 문자 범위 (32~126: 공백, 숫자, 영문, 특수문자)
-                        if 32 <= event.sym <= 126:
-                            char = chr(event.sym)
-                            # 모든 문자 허용 (IP 주소용: 숫자, 점, 콜론 등)
-                            ip_input.handle_char_input(char)
-                # 포트 입력 중
-                elif current_input == port_input:
-                    if event.sym == tcod.event.KeySym.BACKSPACE:
-                        port_input.handle_backspace()
-                    elif event.sym == tcod.event.KeySym.TAB:
-                        # IP 입력으로 전환
-                        current_input = ip_input
-                        logger.debug("IP 입력으로 전환")
-                    elif len(port_input.text) < port_input.max_length:
-                        # 숫자만 허용 (48~57: '0'~'9')
-                        if 48 <= event.sym <= 57:
-                            char = chr(event.sym)
-                            port_input.handle_char_input(char)
-            
-            if action:
-                # IP 입력 중
-                if current_input == ip_input:
-                    if action == GameAction.CONFIRM:
-                        # 포트 입력으로 전환
-                        if ip_input.text.strip():
-                            current_input = port_input
-                            logger.info(f"IP 입력 완료: {ip_input.text}")
-                            play_sfx("ui", "cursor_move")
-                        else:
-                            logger.warning("IP 주소를 입력해주세요")
-                            play_sfx("ui", "cursor_error")
-                            continue
-                
-                # 포트 입력 중
-                elif current_input == port_input:
-                    if action == GameAction.CONFIRM:
-                        # 연결 시도
-                        host_address = ip_input.text.strip()
-                        port_text = port_input.text.strip()
-                        
-                        if not host_address:
-                            logger.warning("IP 주소를 입력해주세요")
-                            current_input = ip_input
-                            play_sfx("ui", "cursor_error")
-                            continue
-                        
-                        if not port_text:
-                            port_text = "5000"
-                        
-                        try:
-                            port = int(port_text)
-                            if not (1 <= port <= 65535):
-                                raise ValueError("포트 번호는 1~65535 사이여야 합니다")
-                        except ValueError as e:
-                            logger.error(f"잘못된 포트 번호: {e}")
-                            # 에러 메시지 표시
-                            error_msg = f"오류: {str(e)}"
-                            console.print(
-                                (screen_width - len(error_msg)) // 2,
-                                screen_height - 5,
-                                error_msg,
-                                fg=Colors.RED
-                            )
-                            context.present(console)
-                            import time
-                            time.sleep(1)
-                            play_sfx("ui", "cursor_error")
-                            continue
-                        
-                        logger.info(f"게임 참가 시도: {host_address}:{port}")
-                        play_sfx("ui", "cursor_select")
-                        return {
-                            "mode": "client",
-                            "host_address": host_address,
-                            "port": port
-                        }
+                # Enter 키 직접 처리 (CONFIRM 액션과 별도)
+                if event.sym == tcod.event.KeySym.RETURN:
+                    action = GameAction.CONFIRM
+                elif event.sym == tcod.event.KeySym.BACKSPACE:
+                    addr_input.handle_backspace()
+                elif event.sym == tcod.event.KeySym.v and (event.mod & tcod.event.KMOD_CTRL):
+                    # Ctrl+V 붙여넣기
+                    paste_text = _get_clipboard()
+                    if paste_text:
+                        # 기존 텍스트 지우고 붙여넣기 (주소 전체 교체)
+                        addr_input.text = ""
+                        for ch in paste_text:
+                            if len(addr_input.text) < addr_input.max_length:
+                                addr_input.handle_char_input(ch)
+                        logger.info(f"클립보드 붙여넣기: {paste_text}")
+                elif len(addr_input.text) < addr_input.max_length:
+                    if 32 <= event.sym <= 126:
+                        char = chr(event.sym)
+                        addr_input.handle_char_input(char)
+
+            if action == GameAction.CONFIRM:
+                result, err = _parse_address(addr_input.text)
+                if err:
+                    error_msg = err
+                    error_timer = 90
+                    play_sfx("ui", "cursor_error")
+                    logger.warning(f"주소 파싱 실패: {err}")
+                    continue
+
+                host, port = result
+                logger.info(f"게임 참가 시도: {host}:{port}")
+                play_sfx("ui", "cursor_select")
+                return {
+                    "mode": "client",
+                    "host_address": host,
+                    "port": port
+                }

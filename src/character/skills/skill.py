@@ -26,6 +26,7 @@ class Skill:
         self.is_ultimate = False
         self.metadata = {}
         self.sfx: Optional[Tuple[str, str]] = None  # (category, sfx_name) 튜플
+        self.triggers_chain: bool = False  # True면 사용 후 체인어빌리티 트리거
 
     def can_use(self, user: Any, context: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
         """스킬 사용 가능 여부"""
@@ -63,11 +64,12 @@ class Skill:
                 if not is_basic_attack:
                     return False, "침묵 상태로 인해 스킬을 사용할 수 없습니다"
         
-        # 비용 체크
-        for cost in self.costs:
-            can_afford, reason = cost.can_afford(user, context)
-            if not can_afford:
-                return False, reason
+        # 비용 체크 (가능성 소환 등에서 skip_cost가 설정되면 건너뛰기)
+        if not (context and context.get('skip_cost')):
+            for cost in self.costs:
+                can_afford, reason = cost.can_afford(user, context)
+                if not can_afford:
+                    return False, reason
         
         # 메타데이터 기반 조건 체크
         if self.metadata:
@@ -123,6 +125,18 @@ class Skill:
                     if active_programs >= max_threads:
                         return False, f"스레드 부족! (활성: {active_programs}/{max_threads})"
             
+            # 해커: RAM 부족 체크
+            if hasattr(user, 'gimmick_type') and user.gimmick_type == "intrusion_system":
+                ram_cost = int(self.metadata.get('ram_cost', 0) or 0)
+                if ram_cost > 0:
+                    # 오버클럭 할인 적용
+                    if getattr(user, 'overclock_active', False):
+                        discount = int(getattr(user, 'overclock_data', {}).get('ram_cost_discount', 0))
+                        ram_cost = max(0, ram_cost - discount)
+                    current_ram = getattr(user, 'ram', 0)
+                    if current_ram < ram_cost:
+                        return False, f"RAM 부족 (필요: {ram_cost}, 보유: {current_ram})"
+
             # 몽크: 기 게이지 조건 체크
             if hasattr(user, 'gimmick_type') and user.gimmick_type == "yin_yang_flow":
                 ki_gauge = getattr(user, 'ki_gauge', 50)
@@ -499,97 +513,39 @@ class Skill:
             else:
                 target = [target] if target else []
 
-        # 비용 소비
-        # 스냅샷 컨텍스트가 있으면 캐스팅 완료 후이므로 StackCost 건너뛰기
-        # (스택은 effects의 GimmickEffect.CONSUME에서 처리)
-        has_snapshot = 'snapshot_context' in context
-        is_dark_knight_for_cost = (hasattr(user, 'gimmick_type') and user.gimmick_type == "charge_system") or \
-                                  (hasattr(user, 'character_class') and 'dark_knight' in str(user.character_class).lower()) or \
-                                  (hasattr(user, 'job_id') and 'dark_knight' in str(user.job_id).lower())
-        is_sword_saint_for_cost = (hasattr(user, 'gimmick_type') and user.gimmick_type == "sword_aura") or \
-                                  (hasattr(user, 'character_class') and 'sword_saint' in str(user.character_class).lower()) or \
-                                  (hasattr(user, 'job_id') and 'sword_saint' in str(user.job_id).lower())
-        
-        # StackCost를 제외한 다른 비용들 먼저 소비
-        non_stack_costs = []
+        # 비용 소비 (가능성 소환 등에서 skip_cost가 설정되면 건너뛰기)
         stack_costs = []
-        
-        for cost in self.costs:
-            from src.character.skills.costs.stack_cost import StackCost
-            if isinstance(cost, StackCost):
-                stack_costs.append(cost)
-            else:
-                non_stack_costs.append(cost)
-        
-        # StackCost가 아닌 비용들 먼저 소비
-        for cost in non_stack_costs:
-            if not cost.consume(user, context):
-                return SkillResult(success=False, message="비용 소비 실패")
+        if not context.get('skip_cost'):
+            # 스냅샷 컨텍스트가 있으면 캐스팅 완료 후이므로 StackCost 건너뛰기
+            # (스택은 effects의 GimmickEffect.CONSUME에서 처리)
+            has_snapshot = 'snapshot_context' in context
+            is_dark_knight_for_cost = (hasattr(user, 'gimmick_type') and user.gimmick_type == "charge_system") or \
+                                      (hasattr(user, 'character_class') and 'dark_knight' in str(user.character_class).lower()) or \
+                                      (hasattr(user, 'job_id') and 'dark_knight' in str(user.job_id).lower())
+            is_sword_saint_for_cost = (hasattr(user, 'gimmick_type') and user.gimmick_type == "sword_aura") or \
+                                      (hasattr(user, 'character_class') and 'sword_saint' in str(user.character_class).lower()) or \
+                                      (hasattr(user, 'job_id') and 'sword_saint' in str(user.job_id).lower())
+
+            # StackCost를 제외한 다른 비용들 먼저 소비
+            non_stack_costs = []
+
+            for cost in self.costs:
+                from src.character.skills.costs.stack_cost import StackCost
+                if isinstance(cost, StackCost):
+                    stack_costs.append(cost)
+                else:
+                    non_stack_costs.append(cost)
+
+            # StackCost가 아닌 비용들 먼저 소비
+            for cost in non_stack_costs:
+                if not cost.consume(user, context):
+                    return SkillResult(success=False, message="비용 소비 실패")
         
         # StackCost는 스킬 효과 실행 후에 소모할 예정 (검성, 암흑기사 제외)
         # 검성과 암흑기사는 효과 실행 후에 StackCost를 소모함
 
-        # 마술사 카드 소모 처리 (트릭 덱 시스템)
-        if hasattr(user, 'gimmick_type') and user.gimmick_type == "trick_deck":
-            if self.metadata and self.metadata.get('consume_cards'):
-                from src.character.skills.job_skills.magician_skills import (
-                    check_poker_combination, discard_cards, get_card_name
-                )
-                from src.core.logger import get_logger
-                logger = get_logger("skill")
-                
-                hand = getattr(user, 'card_hand', [])
-                
-                # 포커 조합 스킬
-                if self.metadata.get('required_combination'):
-                    combo_type, combo_cards, score = check_poker_combination(hand)
-                    if combo_cards:
-                        discard_cards(user, combo_cards)
-                        card_names = [get_card_name(c) for c in combo_cards]
-                        logger.info(f"[마술사] {user.name} 카드 소모: {', '.join(card_names)}")
-                
-                # 특정 숫자 카드 필요 스킬 (리버스 카드, 미러 포스 등)
-                elif self.metadata.get('required_rank'):
-                    required_rank = self.metadata.get('required_rank')
-                    # 필요한 카드 찾기
-                    card_to_discard = None
-                    for card in hand:
-                        if not card.get('is_joker') and card.get('rank') == required_rank:
-                            card_to_discard = card
-                            break
-                    # 조커로 대체 가능
-                    if not card_to_discard:
-                        for card in hand:
-                            if card.get('is_joker'):
-                                card_to_discard = card
-                                break
-                    if card_to_discard:
-                        discard_cards(user, [card_to_discard])
-                        logger.info(f"[마술사] {user.name} 카드 소모: {get_card_name(card_to_discard)}")
-                
-                # 같은 무늬 카드 필요 스킬 (마인드 리딩)
-                elif self.metadata.get('required_same_suit'):
-                    required_count = self.metadata.get('required_same_suit')
-                    suit_groups = {}
-                    for card in hand:
-                        if not card.get('is_joker'):
-                            suit = card.get('suit')
-                            if suit not in suit_groups:
-                                suit_groups[suit] = []
-                            suit_groups[suit].append(card)
-                    
-                    # 가장 많은 무늬 선택
-                    if suit_groups:
-                        best_suit = max(suit_groups.keys(), key=lambda s: len(suit_groups[s]))
-                        cards_to_discard = suit_groups[best_suit][:required_count]
-                        # 조커 추가 (부족하면)
-                        jokers = [c for c in hand if c.get('is_joker')]
-                        while len(cards_to_discard) < required_count and jokers:
-                            cards_to_discard.append(jokers.pop(0))
-                        if cards_to_discard:
-                            discard_cards(user, cards_to_discard)
-                            card_names = [get_card_name(c) for c in cards_to_discard]
-                            logger.info(f"[마술사] {user.name} 카드 소모: {', '.join(card_names)}")
+        # 마술사 카드 소모는 execute_magician_skill()에서 일괄 처리
+        # (여기서 소모하면 execute_magician_skill에서 조합 재검증 시 이미 소모된 카드로 인해 실패)
 
         # 배틀메이지 랜덤 룬 처리
         if hasattr(user, 'gimmick_type') and user.gimmick_type == "rune_resonance":
@@ -713,7 +669,7 @@ class Skill:
                 if hasattr(effect, 'execute'):
                     result = effect.execute(user, target, context)
                     if hasattr(result, 'damage_dealt'):
-                        total_dmg += result.damage_dealt
+                        total_dmg += result.damage_dealt if isinstance(result.damage_dealt, (int, float)) else 0
                     if hasattr(result, 'heal_amount'):
                         total_heal += result.heal_amount
                     # 효과 메시지 수집
@@ -733,7 +689,7 @@ class Skill:
                 if hasattr(effect, 'execute'):
                     result = effect.execute(user, target, context)
                     if hasattr(result, 'damage_dealt'):
-                        total_dmg += result.damage_dealt
+                        total_dmg += result.damage_dealt if isinstance(result.damage_dealt, (int, float)) else 0
                     if hasattr(result, 'heal_amount'):
                         total_heal += result.heal_amount
                     # 효과 메시지 수집
@@ -762,7 +718,7 @@ class Skill:
 
                     aoe_result = self.aoe_effect.execute(user, aoe_targets, context)
                     if hasattr(aoe_result, 'damage_dealt'):
-                        total_dmg += aoe_result.damage_dealt
+                        total_dmg += aoe_result.damage_dealt if isinstance(aoe_result.damage_dealt, (int, float)) else 0
                         logger.debug(f"AOE 피해: {aoe_result.damage_dealt}")
 
         # 스킬 메타데이터 및 특성 lifesteal 처리

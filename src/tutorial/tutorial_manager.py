@@ -46,7 +46,6 @@ class TutorialManager:
         # 게임 상태 추적
         self.game_state: Dict[str, Any] = {
             "player_position": (0, 0),
-            "interacted_npcs": [],
             "last_combat_result": None,
             "defeated_enemies": 0,
             "action_count": 0,
@@ -310,8 +309,6 @@ class TutorialManager:
         # 스킬 사용
         event_bus.subscribe("skill.execute", self._on_skill_execute)
 
-        # 상호작용
-        event_bus.subscribe("npc.interaction", self._on_npc_interaction)
 
     def _on_player_move(self, data: Dict[str, Any]) -> None:
         """플레이어 이동 이벤트 처리"""
@@ -373,12 +370,6 @@ class TutorialManager:
                     self.game_state["used_skill_types"].append(skill_identifier)
         except Exception:
             pass  # 튜토리얼 추적 실패는 무시
-
-    def _on_npc_interaction(self, data: Dict[str, Any]) -> None:
-        """NPC 상호작용 이벤트 처리"""
-        npc_id = data.get("npc_id")
-        if npc_id and npc_id not in self.game_state["interacted_npcs"]:
-            self.game_state["interacted_npcs"].append(npc_id)
 
     def save_progress(self) -> Dict[str, Any]:
         """튜토리얼 진행 상태 저장"""

@@ -1,0 +1,36 @@
+id: time_wave
+name: 타임 웨이브
+type: brv_hp_attack
+description: 시간의 파동으로 전체 적에게 BRV 피해 후 HP 피해. 20% 슬로우
+costs:
+  mp: 15
+  cast_time: 1.4
+target: all_enemies
+effects:
+- type: damage
+  damage_type: magic
+  stat_base: magic
+  multiplier: 1.2
+  element: time
+  attack_type: brv
+- type: damage
+  damage_type: magic
+  stat_base: magic
+  multiplier: 1.6
+  element: time
+  attack_type: hp
+- type: debuff
+  target: all_enemies
+  stat: speed
+  value: 0.7
+  duration: 2
+  chance: 0.2
+- type: generate_possibility
+  chance: 0.7
+  alternative_skill: chrono_blast
+metadata:
+  possibility_pair: chrono_blast
+  job: time_mage
+sfx:
+- se
+- Up1

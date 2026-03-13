@@ -301,7 +301,12 @@ def show_game_result(
 
     import time
     import pygame
-    
+
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     # 결과 화면 표시
     while True:
         ui.render(console)

@@ -1,0 +1,35 @@
+id: shaman_plague
+name: 역병 소환
+type: attack
+description: '[암흑 속성] 역병을 퍼뜨려 적 전체에 피해와 독을 부여합니다.
+
+  '
+target: all_enemies
+metadata:
+  job: shaman
+  overload_capable: true
+  is_aoe: true
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magical
+  multiplier: 1.5
+  target: all_enemies
+  element: dark
+- type: status
+  status_type: poison
+  duration: 4
+  damage_multiplier: 0.12
+  damage_stat: magical
+  target: all_enemies
+costs:
+  mp: 10
+animation:
+  icon: ??
+  color:
+  - 120
+  - 200
+  - 120
+sfx:
+- se
+- Poison

@@ -114,11 +114,11 @@ def create_sniper_skills():
 
     # 10. 궁극기: 데드아이 (탄창의 모든 탄환 연속 발사)
     deadeye = Skill("sniper_deadeye", "데드아이",
-                   "탄창의 모든 탄환을 연속 발사")
+                   "[화염 속성] 탄창의 모든 탄환을 연속 발사")
     deadeye.effects = [
         # 실제 탄환 수만큼 반복 공격 (스킬 실행 시 동적 처리)
-        DamageEffect(DamageType.BRV, 2.5),
-        DamageEffect(DamageType.HP, 1.5)
+        DamageEffect(DamageType.BRV, 2.5, element="fire"),
+        DamageEffect(DamageType.HP, 1.5, element="fire")
     ]
     deadeye.costs = [MPCost(30)]
     deadeye.is_ultimate = True

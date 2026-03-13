@@ -233,6 +233,12 @@ class FieldSkillManager:
                 "func": self._skill_vampire_transfusion,
                 "desc": "자신 HP 소모하여 아군 HP 대폭 회복"
             },
+            "ninja_shadow_run": {
+                "name": "은신 질주",
+                "mp": 8,
+                "func": self._skill_ninja_shadow_run,
+                "desc": "그림자에 숨어 이동. 선제공격 확률 +40%, 파티 은신 (20턴)"
+            },
 
             # === 특수 계열 ===
             "illusionist_mirror_passage": {
@@ -286,6 +292,7 @@ class FieldSkillManager:
             "monk": "monk_inner_peace",
             "philosopher": "philosopher_insight",
             "vampire": "vampire_transfusion",
+            "ninja": "ninja_shadow_run",
 
             # 특수
             "illusionist": "illusionist_mirror_passage",
@@ -960,4 +967,20 @@ class FieldSkillManager:
             effect_msg += suit_msg
 
         return True, f"[카드 포춘] {card_name} - {effect_msg}"
+
+    def _skill_ninja_shadow_run(self, user: Character) -> Tuple[bool, str]:
+        """은신 질주 - 그림자에 숨어 이동하며 선제공격 확률 증가"""
+        party = self.exploration.player.party
+
+        # 선제공격 보너스 +40%
+        if not hasattr(self.exploration, 'preemptive_bonus'):
+            self.exploration.preemptive_bonus = 0.0
+        self.exploration.preemptive_bonus = min(1.0, self.exploration.preemptive_bonus + 0.4)
+
+        # 파티 전체 은신 부여
+        for member in party:
+            status = create_status_effect("은신질주", StatusType.STEALTH, 20, 1.0)
+            member.status_manager.add_status(status)
+
+        return True, "그림자 속으로 스며들었습니다. (선제공격 확률 +40%, 은신 20턴)"
 

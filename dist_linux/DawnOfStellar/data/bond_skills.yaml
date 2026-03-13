@@ -1,0 +1,1699 @@
+# 연계스킬/체인어빌리티 데이터
+# 연계스킬: 자동 발동, 무료, 플레이어 선택 없음
+# 체인어빌리티: 불릿타임 중 선택, 팀워크 게이지 소모
+
+bond_skills:
+  # ─── warrior ───────────────────────────────────────────────────────────────
+  - id: "warrior_follow_strike"
+    name: "전우의 일격"
+    job_id: "warrior"
+    required_affinity_level: 2
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.24
+      5: 0.31
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.65
+    description: "아군의 공격에 호응하여 추가 물리 공격을 가한다"
+
+  - id: "warrior_battle_roar"
+    name: "전투의 함성"
+    job_id: "warrior"
+    required_affinity_level: 3
+    trigger: "enemy_killed"
+    trigger_chance_by_level:
+      3: 0.14
+      4: 0.21
+      5: 0.29
+    effect:
+      type: "buff"
+      target: "self"
+      physical_attack_mult: 1.12
+      duration: 2
+    description: "적이 쓰러지면 기세를 몰아 자신의 공격력을 일시적으로 높인다"
+
+  # ─── archer ────────────────────────────────────────────────────────────────
+  - id: "archer_cover_shot"
+    name: "엄호 사격"
+    job_id: "archer"
+    required_affinity_level: 2
+    trigger: "ally_damaged"
+    trigger_chance_by_level:
+      2: 0.11
+      3: 0.17
+      4: 0.23
+      5: 0.30
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.48
+    description: "아군이 피해를 받을 때 원거리에서 적을 향해 화살을 날린다"
+
+  - id: "archer_weak_spot_mark"
+    name: "약점 표시"
+    job_id: "archer"
+    required_affinity_level: 3
+    trigger: "critical_hit"
+    trigger_chance_by_level:
+      3: 0.16
+      4: 0.23
+      5: 0.31
+    effect:
+      type: "debuff"
+      target: "enemy"
+      defense_mult: 0.88
+      duration: 2
+    description: "치명타 발동 시 적의 약점을 표시하여 방어력을 낮춘다"
+
+  # ─── cleric ────────────────────────────────────────────────────────────────
+  - id: "cleric_mend_wounds"
+    name: "상처 치료"
+    job_id: "cleric"
+    required_affinity_level: 2
+    trigger: "ally_damaged"
+    trigger_chance_by_level:
+      2: 0.13
+      3: 0.19
+      4: 0.25
+      5: 0.32
+    effect:
+      type: "heal"
+      target: "damaged_ally"
+      amount_percent: 0.18
+    description: "아군이 피해를 받으면 즉시 소량의 HP를 회복시킨다"
+
+  - id: "cleric_purify_echo"
+    name: "정화의 메아리"
+    job_id: "cleric"
+    required_affinity_level: 3
+    trigger: "ally_healed"
+    trigger_chance_by_level:
+      3: 0.13
+      4: 0.20
+      5: 0.28
+    effect:
+      type: "status_apply"
+      target: "healed_ally"
+      status: "regen"
+      duration: 2
+      chance: 1.0
+    description: "아군 회복 시 추가로 재생 효과를 부여한다"
+
+  # ─── priest ────────────────────────────────────────────────────────────────
+  - id: "priest_divine_grace"
+    name: "신성한 은총"
+    job_id: "priest"
+    required_affinity_level: 2
+    trigger: "ally_healed"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.24
+      5: 0.31
+    effect:
+      type: "buff"
+      target: "healed_ally"
+      magic_defense_mult: 1.10
+      duration: 2
+    description: "아군 회복 시 신성한 가호로 마법 방어력을 높인다"
+
+  - id: "priest_last_rites"
+    name: "최후의 의식"
+    job_id: "priest"
+    required_affinity_level: 3
+    trigger: "ally_killed"
+    trigger_chance_by_level:
+      3: 0.15
+      4: 0.22
+      5: 0.30
+    effect:
+      type: "revive"
+      target: "killed_ally"
+      hp_percent: 0.18
+    description: "아군이 전투불능 상태가 되면 신성한 힘으로 부활시킨다"
+
+  # ─── magician ──────────────────────────────────────────────────────────────
+  - id: "magician_spell_echo"
+    name: "마법 메아리"
+    job_id: "magician"
+    required_affinity_level: 2
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      2: 0.10
+      3: 0.16
+      4: 0.22
+      5: 0.29
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 0.98
+      element: "neutral"
+    description: "아군의 스킬 적중 시 약한 마법탄을 추가로 발사한다"
+
+  - id: "magician_mana_surge"
+    name: "마나 급등"
+    job_id: "magician"
+    required_affinity_level: 3
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      3: 0.14
+      4: 0.21
+      5: 0.29
+    effect:
+      type: "mp_restore"
+      target: "self"
+      amount_percent: 0.08
+    description: "아군의 스킬이 적중할 때마다 자신의 MP를 소량 회복한다"
+
+  # ─── knight ────────────────────────────────────────────────────────────────
+  - id: "knight_iron_cover"
+    name: "철벽 엄호"
+    job_id: "knight"
+    required_affinity_level: 2
+    trigger: "ally_damaged"
+    trigger_chance_by_level:
+      2: 0.13
+      3: 0.20
+      4: 0.26
+      5: 0.33
+    effect:
+      type: "redirect_damage"
+      damage_reduction: 0.30
+    description: "아군이 공격받을 때 일부 피해를 대신 받는다"
+
+  - id: "knight_oath_bond"
+    name: "충성의 맹세"
+    job_id: "knight"
+    required_affinity_level: 3
+    trigger: "defend_action"
+    trigger_chance_by_level:
+      3: 0.15
+      4: 0.22
+      5: 0.30
+    effect:
+      type: "buff"
+      target: "all_allies"
+      defense_mult: 1.08
+      duration: 2
+    description: "방어 행동 시 충성의 맹세로 아군 전원의 방어력을 높인다"
+
+  # ─── rogue ─────────────────────────────────────────────────────────────────
+  - id: "rogue_shadow_assist"
+    name: "그림자 지원"
+    job_id: "rogue"
+    required_affinity_level: 2
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      2: 0.11
+      3: 0.17
+      4: 0.23
+      5: 0.30
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.16
+    description: "아군의 공격에 맞춰 그림자 속에서 기습 공격을 가한다"
+
+  - id: "rogue_pickpocket_chain"
+    name: "연쇄 소매치기"
+    job_id: "rogue"
+    required_affinity_level: 3
+    trigger: "enemy_killed"
+    trigger_chance_by_level:
+      3: 0.12
+      4: 0.19
+      5: 0.27
+    effect:
+      type: "mp_restore"
+      target: "self"
+      amount_percent: 0.10
+    description: "적이 쓰러질 때 재빠르게 MP를 약탈해 회복한다"
+
+  # ─── assassin ──────────────────────────────────────────────────────────────
+  - id: "assassin_lethal_follow"
+    name: "치명 연계"
+    job_id: "assassin"
+    required_affinity_level: 2
+    trigger: "critical_hit"
+    trigger_chance_by_level:
+      2: 0.13
+      3: 0.20
+      4: 0.26
+      5: 0.33
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.81
+    description: "치명타 발동 시 즉시 단검 일격을 추가한다"
+
+  - id: "assassin_venom_spread"
+    name: "독 확산"
+    job_id: "assassin"
+    required_affinity_level: 3
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      3: 0.14
+      4: 0.21
+      5: 0.29
+    effect:
+      type: "status_apply"
+      target: "enemy"
+      status: "poison"
+      duration: 3
+      chance: 0.55
+    description: "아군의 스킬이 명중하면 독을 덧씌워 지속 피해를 준다"
+
+  # ─── paladin ───────────────────────────────────────────────────────────────
+  - id: "paladin_holy_guard"
+    name: "신성 수호"
+    job_id: "paladin"
+    required_affinity_level: 2
+    trigger: "ally_damaged"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.25
+      5: 0.32
+    effect:
+      type: "shield"
+      target: "damaged_ally"
+      amount_percent: 0.27
+    description: "아군이 피해를 받을 때 신성한 방패로 보호막을 생성한다"
+
+  - id: "paladin_divine_counter"
+    name: "신성한 반격"
+    job_id: "paladin"
+    required_affinity_level: 3
+    trigger: "ally_lethal_hit"
+    trigger_chance_by_level:
+      3: 0.16
+      4: 0.23
+      5: 0.31
+    effect:
+      type: "additional_attack"
+      damage_type: "holy"
+      multiplier: 2.31
+    description: "아군이 치명적 피해를 받을 때 신성한 힘으로 반격한다"
+
+  # ─── dark_knight ───────────────────────────────────────────────────────────
+  - id: "dark_knight_blood_pact"
+    name: "피의 계약"
+    job_id: "dark_knight"
+    required_affinity_level: 2
+    trigger: "ally_lethal_hit"
+    trigger_chance_by_level:
+      2: 0.13
+      3: 0.20
+      4: 0.26
+      5: 0.33
+    effect:
+      type: "hp_drain"
+      target: "enemy"
+      multiplier: 1.65
+      drain_percent: 0.40
+    description: "아군이 치명적 피해를 받을 때 자신의 HP를 소모하며 적의 생명력을 흡수한다"
+
+  - id: "dark_knight_shadow_wave"
+    name: "어둠의 파동"
+    job_id: "dark_knight"
+    required_affinity_level: 3
+    trigger: "both_low_hp"
+    trigger_chance_by_level:
+      3: 0.15
+      4: 0.22
+      5: 0.30
+    effect:
+      type: "additional_attack"
+      damage_type: "dark"
+      multiplier: 2.47
+    description: "양쪽 HP가 50% 이하일 때 어둠의 파동을 방출한다"
+
+  # ─── berserker ─────────────────────────────────────────────────────────────
+  - id: "berserker_blood_frenzy"
+    name: "피의 광란"
+    job_id: "berserker"
+    required_affinity_level: 2
+    trigger: "ally_damaged"
+    trigger_chance_by_level:
+      2: 0.14
+      3: 0.21
+      4: 0.27
+      5: 0.34
+    effect:
+      type: "buff"
+      target: "self"
+      physical_attack_mult: 1.15
+      duration: 2
+    description: "아군이 피해를 받을 때 분노가 폭발하여 공격력이 폭등한다"
+
+  - id: "berserker_rage_cleave"
+    name: "분노의 강습"
+    job_id: "berserker"
+    required_affinity_level: 3
+    trigger: "both_low_hp"
+    trigger_chance_by_level:
+      3: 0.17
+      4: 0.24
+      5: 0.32
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 2.81
+    description: "위기 상황에서 광기에 사로잡혀 강력한 추가 공격을 가한다"
+
+  # ─── monk ──────────────────────────────────────────────────────────────────
+  - id: "monk_ki_assist"
+    name: "기공 지원"
+    job_id: "monk"
+    required_affinity_level: 2
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      2: 0.11
+      3: 0.17
+      4: 0.23
+      5: 0.30
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.48
+    description: "아군의 공격에 맞춰 기공탄을 방출하여 추가 타격을 입힌다"
+
+  - id: "monk_inner_heal"
+    name: "내공 치유"
+    job_id: "monk"
+    required_affinity_level: 3
+    trigger: "ally_healed"
+    trigger_chance_by_level:
+      3: 0.13
+      4: 0.20
+      5: 0.28
+    effect:
+      type: "heal"
+      target: "self"
+      amount_percent: 0.16
+    description: "아군이 회복될 때 내공을 집중하여 자신도 소량 회복한다"
+
+  # ─── bard ──────────────────────────────────────────────────────────────────
+  - id: "bard_battle_hymn"
+    name: "전투의 찬가"
+    job_id: "bard"
+    required_affinity_level: 2
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.24
+      5: 0.31
+    effect:
+      type: "buff"
+      target: "attacking_ally"
+      speed_mult: 1.10
+      duration: 2
+    description: "아군의 공격에 박자를 맞춰 노래를 불러 행동 속도를 높인다"
+
+  - id: "bard_lullaby_curse"
+    name: "저주의 자장가"
+    job_id: "bard"
+    required_affinity_level: 3
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      3: 0.13
+      4: 0.20
+      5: 0.28
+    effect:
+      type: "debuff"
+      target: "enemy"
+      all_stats_mult: 0.90
+      duration: 2
+    description: "아군 스킬 적중 시 저주의 멜로디를 섞어 적의 능력치를 전반적으로 낮춘다"
+
+  # ─── samurai ───────────────────────────────────────────────────────────────
+  - id: "samurai_iaido_echo"
+    name: "이아이도 잔상"
+    job_id: "samurai"
+    required_affinity_level: 2
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      2: 0.11
+      3: 0.17
+      4: 0.23
+      5: 0.30
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.81
+    description: "아군의 공격에 맞춰 칼집에서 번개 같이 검을 뽑아 벤다"
+
+  - id: "samurai_counter_spirit"
+    name: "무사의 반격혼"
+    job_id: "samurai"
+    required_affinity_level: 3
+    trigger: "counter_attack"
+    trigger_chance_by_level:
+      3: 0.16
+      4: 0.23
+      5: 0.31
+    effect:
+      type: "buff"
+      target: "self"
+      critical_rate_add: 0.15
+      duration: 2
+    description: "반격 발동 시 무사의 혼이 깨어나 치명타율이 상승한다"
+
+  # ─── pirate ────────────────────────────────────────────────────────────────
+  - id: "pirate_boarding_slash"
+    name: "승선 베기"
+    job_id: "pirate"
+    required_affinity_level: 2
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.24
+      5: 0.31
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.48
+    description: "아군의 공격에 해적답게 끼어들어 세이버로 한 번 더 벤다"
+
+  - id: "pirate_rum_toss"
+    name: "럼주 투척"
+    job_id: "pirate"
+    required_affinity_level: 3
+    trigger: "ally_buffed"
+    trigger_chance_by_level:
+      3: 0.14
+      4: 0.21
+      5: 0.29
+    effect:
+      type: "buff"
+      target: "buffed_ally"
+      physical_attack_mult: 1.10
+      duration: 2
+    description: "아군이 버프를 받을 때 럼주를 던져 기세를 더 높인다"
+
+  # ─── gladiator ─────────────────────────────────────────────────────────────
+  - id: "gladiator_arena_cheer"
+    name: "경기장의 환호"
+    job_id: "gladiator"
+    required_affinity_level: 2
+    trigger: "critical_hit"
+    trigger_chance_by_level:
+      2: 0.13
+      3: 0.19
+      4: 0.25
+      5: 0.32
+    effect:
+      type: "buff"
+      target: "self"
+      physical_attack_mult: 1.12
+      duration: 2
+    description: "치명타 발동 시 관중의 환호를 받아 전투 의지가 불타오른다"
+
+  - id: "gladiator_show_combo"
+    name: "화려한 연계기"
+    job_id: "gladiator"
+    required_affinity_level: 3
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      3: 0.15
+      4: 0.22
+      5: 0.30
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.65
+    description: "아군의 공격에 화려하게 끼어들어 관중을 열광시키는 콤보를 선보인다"
+
+  # ─── sniper ────────────────────────────────────────────────────────────────
+  - id: "sniper_headshot_assist"
+    name: "헤드샷 지원"
+    job_id: "sniper"
+    required_affinity_level: 2
+    trigger: "enemy_break"
+    trigger_chance_by_level:
+      2: 0.13
+      3: 0.20
+      4: 0.26
+      5: 0.33
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 2.31
+    description: "적이 브레이크 상태가 될 때 정밀 조준으로 강력한 추가 사격을 가한다"
+
+  - id: "sniper_weak_point_shot"
+    name: "약점 사격"
+    job_id: "sniper"
+    required_affinity_level: 3
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      3: 0.14
+      4: 0.21
+      5: 0.29
+    effect:
+      type: "debuff"
+      target: "enemy"
+      defense_mult: 0.85
+      duration: 3
+    description: "아군 스킬 적중 후 약점을 정밀 사격하여 적의 방어력을 크게 낮춘다"
+
+  # ─── druid ─────────────────────────────────────────────────────────────────
+  - id: "druid_nature_mend"
+    name: "자연의 치유"
+    job_id: "druid"
+    required_affinity_level: 2
+    trigger: "ally_damaged"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.24
+      5: 0.31
+    effect:
+      type: "heal"
+      target: "damaged_ally"
+      amount_percent: 0.16
+    description: "아군이 피해를 받으면 자연의 힘으로 상처를 치유한다"
+
+  - id: "druid_vine_bind"
+    name: "덩굴 얽기"
+    job_id: "druid"
+    required_affinity_level: 3
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      3: 0.13
+      4: 0.20
+      5: 0.28
+    effect:
+      type: "status_apply"
+      target: "enemy"
+      status: "bind"
+      duration: 2
+      chance: 0.50
+    description: "아군 스킬 적중 시 덩굴이 솟아나 적을 속박한다"
+
+  # ─── elementalist ──────────────────────────────────────────────────────────
+  - id: "elementalist_chain_spark"
+    name: "원소 연쇄"
+    job_id: "elementalist"
+    required_affinity_level: 2
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.24
+      5: 0.31
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 0.98
+      element: "fire"
+    description: "아군 스킬이 적중하면 원소 에너지가 연쇄 반응하여 불꽃을 발사한다"
+
+  - id: "elementalist_element_burst"
+    name: "원소 폭발"
+    job_id: "elementalist"
+    required_affinity_level: 3
+    trigger: "enemy_break"
+    trigger_chance_by_level:
+      3: 0.15
+      4: 0.22
+      5: 0.30
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 1.71
+      element: "lightning"
+    description: "적이 브레이크 될 때 축적된 원소 에너지가 폭발한다"
+
+  # ─── necromancer ───────────────────────────────────────────────────────────
+  - id: "necromancer_soul_drain"
+    name: "영혼 흡수"
+    job_id: "necromancer"
+    required_affinity_level: 2
+    trigger: "enemy_killed"
+    trigger_chance_by_level:
+      2: 0.14
+      3: 0.21
+      4: 0.27
+      5: 0.34
+    effect:
+      type: "hp_drain"
+      target: "killed_enemy"
+      multiplier: 1.32
+      drain_percent: 0.50
+    description: "적이 쓰러지면 그 영혼을 흡수하여 생명력을 회복한다"
+
+  - id: "necromancer_death_aura"
+    name: "죽음의 기운"
+    job_id: "necromancer"
+    required_affinity_level: 3
+    trigger: "ally_killed"
+    trigger_chance_by_level:
+      3: 0.16
+      4: 0.23
+      5: 0.31
+    effect:
+      type: "debuff"
+      target: "all_enemies"
+      all_stats_mult: 0.88
+      duration: 3
+    description: "아군이 쓰러지면 죽음의 기운을 방출하여 모든 적의 능력치를 낮춘다"
+
+  # ─── alchemist ─────────────────────────────────────────────────────────────
+  - id: "alchemist_healing_vial"
+    name: "치유 약병"
+    job_id: "alchemist"
+    required_affinity_level: 2
+    trigger: "ally_damaged"
+    trigger_chance_by_level:
+      2: 0.11
+      3: 0.17
+      4: 0.23
+      5: 0.30
+    effect:
+      type: "heal"
+      target: "damaged_ally"
+      amount_percent: 0.20
+    description: "아군이 피해를 받으면 손수 만든 치유 물약을 던진다"
+
+  - id: "alchemist_explosive_mix"
+    name: "폭발 혼합물"
+    job_id: "alchemist"
+    required_affinity_level: 3
+    trigger: "enemy_break"
+    trigger_chance_by_level:
+      3: 0.14
+      4: 0.21
+      5: 0.29
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 2.15
+    description: "적이 브레이크 상태가 될 때 폭발성 혼합물을 던진다"
+
+  # ─── engineer ──────────────────────────────────────────────────────────────
+  - id: "engineer_repair_drone"
+    name: "수리 드론"
+    job_id: "engineer"
+    required_affinity_level: 2
+    trigger: "ally_damaged"
+    trigger_chance_by_level:
+      2: 0.11
+      3: 0.17
+      4: 0.23
+      5: 0.30
+    effect:
+      type: "heal"
+      target: "damaged_ally"
+      amount_flat: 0.14
+    description: "아군이 피해를 받으면 수리 드론이 즉시 날아가 수리한다"
+
+  - id: "engineer_turret_assist"
+    name: "터렛 지원 사격"
+    job_id: "engineer"
+    required_affinity_level: 3
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      3: 0.13
+      4: 0.20
+      5: 0.28
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.32
+    description: "아군의 공격에 맞춰 배치된 터렛이 자동으로 사격한다"
+
+  # ─── hacker ────────────────────────────────────────────────────────────────
+  - id: "hacker_exploit_gap"
+    name: "취약점 침투"
+    job_id: "hacker"
+    required_affinity_level: 2
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.24
+      5: 0.31
+    effect:
+      type: "debuff"
+      target: "enemy"
+      defense_mult: 0.87
+      duration: 2
+    description: "아군 스킬 적중 시 생긴 취약점을 즉시 해킹하여 방어력을 낮춘다"
+
+  - id: "hacker_data_siphon"
+    name: "데이터 사이펀"
+    job_id: "hacker"
+    required_affinity_level: 3
+    trigger: "enemy_break"
+    trigger_chance_by_level:
+      3: 0.14
+      4: 0.21
+      5: 0.29
+    effect:
+      type: "mp_restore"
+      target: "all_allies"
+      amount_percent: 0.06
+    description: "적이 브레이크 될 때 시스템 데이터를 탈취하여 아군 전원의 MP를 회복한다"
+
+  # ─── time_mage ─────────────────────────────────────────────────────────────
+  - id: "time_mage_haste_echo"
+    name: "가속 메아리"
+    job_id: "time_mage"
+    required_affinity_level: 2
+    trigger: "ally_buffed"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.24
+      5: 0.31
+    effect:
+      type: "buff"
+      target: "buffed_ally"
+      speed_mult: 1.12
+      duration: 2
+    description: "아군이 버프를 받을 때 시간을 조율하여 행동 속도를 더욱 높인다"
+
+  - id: "time_mage_slow_chain"
+    name: "감속 연계"
+    job_id: "time_mage"
+    required_affinity_level: 3
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      3: 0.14
+      4: 0.21
+      5: 0.29
+    effect:
+      type: "status_apply"
+      target: "enemy"
+      status: "slow"
+      duration: 2
+      chance: 0.60
+    description: "아군 스킬 적중 시 시간의 흐름을 조작하여 적을 감속시킨다"
+
+  # ─── dimensionist ──────────────────────────────────────────────────────────
+  - id: "dimensionist_rift_step"
+    name: "균열 이동"
+    job_id: "dimensionist"
+    required_affinity_level: 2
+    trigger: "ally_damaged"
+    trigger_chance_by_level:
+      2: 0.11
+      3: 0.17
+      4: 0.23
+      5: 0.30
+    effect:
+      type: "redirect_damage"
+      damage_reduction: 0.25
+    description: "아군이 피해를 받을 때 차원 균열로 피해의 일부를 다른 차원으로 흘려보낸다"
+
+  - id: "dimensionist_warp_strike"
+    name: "차원 왜곡 공격"
+    job_id: "dimensionist"
+    required_affinity_level: 3
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      3: 0.13
+      4: 0.20
+      5: 0.28
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 1.19
+      element: "dimensional"
+    description: "아군 스킬 적중 후 차원을 왜곡하여 이면에서 추가 공격한다"
+
+  # ─── philosopher ───────────────────────────────────────────────────────────
+  - id: "philosopher_truth_insight"
+    name: "진리의 통찰"
+    job_id: "philosopher"
+    required_affinity_level: 2
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      2: 0.10
+      3: 0.16
+      4: 0.22
+      5: 0.29
+    effect:
+      type: "buff"
+      target: "all_allies"
+      magic_attack_mult: 1.08
+      duration: 2
+    description: "아군의 스킬이 적중하면 진리를 통찰하여 아군 전원의 마법 공격력을 높인다"
+
+  - id: "philosopher_logical_rebuke"
+    name: "논리적 반박"
+    job_id: "philosopher"
+    required_affinity_level: 3
+    trigger: "ally_damaged"
+    trigger_chance_by_level:
+      3: 0.13
+      4: 0.20
+      5: 0.28
+    effect:
+      type: "debuff"
+      target: "attacking_enemy"
+      all_stats_mult: 0.90
+      duration: 2
+    description: "아군이 피해를 받을 때 논리적 반박으로 공격한 적의 전반적인 능력을 낮춘다"
+
+  # ─── illusionist ───────────────────────────────────────────────────────────
+  - id: "illusionist_decoy_create"
+    name: "허상 생성"
+    job_id: "illusionist"
+    required_affinity_level: 2
+    trigger: "ally_damaged"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.24
+      5: 0.31
+    effect:
+      type: "redirect_damage"
+      damage_reduction: 0.35
+    description: "아군이 피해를 받을 때 즉각 허상을 만들어 피해 일부를 흡수시킨다"
+
+  - id: "illusionist_mirror_strike"
+    name: "거울 연타"
+    job_id: "illusionist"
+    required_affinity_level: 3
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      3: 0.14
+      4: 0.21
+      5: 0.29
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 0.98
+    description: "아군의 공격이 적중할 때 환영 분신이 같은 공격을 모방하여 추가 타격을 가한다"
+
+  # ─── shaman ────────────────────────────────────────────────────────────────
+  - id: "shaman_spirit_shield"
+    name: "정령 방패"
+    job_id: "shaman"
+    required_affinity_level: 2
+    trigger: "ally_damaged"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.24
+      5: 0.31
+    effect:
+      type: "shield"
+      target: "damaged_ally"
+      amount_percent: 0.24
+    description: "아군이 피해를 받을 때 정령이 보호막을 형성한다"
+
+  - id: "shaman_totem_pulse"
+    name: "토템 맥동"
+    job_id: "shaman"
+    required_affinity_level: 3
+    trigger: "teamwork_skill_used"
+    trigger_chance_by_level:
+      3: 0.16
+      4: 0.23
+      5: 0.31
+    effect:
+      type: "heal"
+      target: "all_allies"
+      amount_percent: 0.11
+    description: "팀워크 스킬 발동 시 토템이 공명하여 아군 전원의 HP를 회복한다"
+
+  # ─── vampire ───────────────────────────────────────────────────────────────
+  - id: "vampire_blood_feast"
+    name: "피의 향연"
+    job_id: "vampire"
+    required_affinity_level: 2
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.24
+      5: 0.31
+    effect:
+      type: "hp_drain"
+      target: "enemy"
+      multiplier: 1.32
+      drain_percent: 0.45
+    description: "아군의 공격에 편승하여 적의 피를 빨아 생명력을 회복한다"
+
+  - id: "vampire_night_charm"
+    name: "밤의 마혹"
+    job_id: "vampire"
+    required_affinity_level: 3
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      3: 0.14
+      4: 0.21
+      5: 0.29
+    effect:
+      type: "status_apply"
+      target: "enemy"
+      status: "charm"
+      duration: 2
+      chance: 0.45
+    description: "아군 스킬 적중 후 매혹의 눈빛으로 적을 혼란에 빠뜨린다"
+
+  # ─── dragon_knight ─────────────────────────────────────────────────────────
+  - id: "dragon_knight_dragon_dive"
+    name: "용의 다이브"
+    job_id: "dragon_knight"
+    required_affinity_level: 2
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      2: 0.11
+      3: 0.17
+      4: 0.23
+      5: 0.30
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.98
+      element: "fire"
+    description: "아군 스킬 적중 시 용의 힘을 빌려 불꽃을 두른 강하 공격을 가한다"
+
+  - id: "dragon_knight_scale_guard"
+    name: "용린 방어"
+    job_id: "dragon_knight"
+    required_affinity_level: 3
+    trigger: "ally_lethal_hit"
+    trigger_chance_by_level:
+      3: 0.15
+      4: 0.22
+      5: 0.30
+    effect:
+      type: "shield"
+      target: "lethal_hit_ally"
+      amount_percent: 0.30
+    description: "아군이 치명적 피해를 받을 때 용린으로 된 방패막이 생성된다"
+
+  # ─── breaker ───────────────────────────────────────────────────────────────
+  - id: "breaker_shatter_combo"
+    name: "파쇄 연계"
+    job_id: "breaker"
+    required_affinity_level: 2
+    trigger: "enemy_break"
+    trigger_chance_by_level:
+      2: 0.14
+      3: 0.21
+      4: 0.27
+      5: 0.34
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 2.15
+    description: "적이 브레이크 될 때 즉시 파쇄 공격을 연계한다"
+
+  - id: "breaker_armor_rend"
+    name: "방어 파괴"
+    job_id: "breaker"
+    required_affinity_level: 3
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      3: 0.15
+      4: 0.22
+      5: 0.30
+    effect:
+      type: "debuff"
+      target: "enemy"
+      defense_mult: 0.82
+      duration: 3
+    description: "아군의 공격에 맞춰 적의 방어구를 파괴하여 방어력을 크게 낮춘다"
+
+  # ─── battle_mage ───────────────────────────────────────────────────────────
+  - id: "battle_mage_spell_slash"
+    name: "마법검 연타"
+    job_id: "battle_mage"
+    required_affinity_level: 2
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      2: 0.12
+      3: 0.18
+      4: 0.24
+      5: 0.31
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 1.02
+      element: "fire"
+    description: "아군의 물리 공격에 호응하여 마법이 깃든 검으로 추가 타격을 가한다"
+
+  - id: "battle_mage_arcane_parry"
+    name: "비전 회피"
+    job_id: "battle_mage"
+    required_affinity_level: 3
+    trigger: "counter_attack"
+    trigger_chance_by_level:
+      3: 0.14
+      4: 0.21
+      5: 0.29
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 1.29
+      element: "neutral"
+    description: "반격 발동 시 마법 에너지를 방출하며 추가 마법 공격을 가한다"
+
+  # ─── spellblade ────────────────────────────────────────────────────────────
+  - id: "spellblade_element_chain"
+    name: "원소 부여 연계"
+    job_id: "spellblade"
+    required_affinity_level: 2
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      2: 0.11
+      3: 0.17
+      4: 0.23
+      5: 0.30
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 1.09
+      element: "ice"
+    description: "아군의 공격에 원소를 부여하여 마법검 연계 공격을 가한다"
+
+  - id: "spellblade_rune_burst"
+    name: "룬 폭발"
+    job_id: "spellblade"
+    required_affinity_level: 3
+    trigger: "enemy_break"
+    trigger_chance_by_level:
+      3: 0.15
+      4: 0.22
+      5: 0.30
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 1.62
+      element: "lightning"
+    description: "적이 브레이크 될 때 검에 새긴 룬이 폭발하며 마법 피해를 입힌다"
+
+  # ─── sword_saint ───────────────────────────────────────────────────────────
+  - id: "sword_saint_supreme_cut"
+    name: "무위의 일섬"
+    job_id: "sword_saint"
+    required_affinity_level: 2
+    trigger: "critical_hit"
+    trigger_chance_by_level:
+      2: 0.13
+      3: 0.20
+      4: 0.26
+      5: 0.33
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 2.31
+    description: "치명타 발동 시 검성의 극의로 허를 찌르는 추가 일격을 가한다"
+
+  - id: "sword_saint_blade_mastery"
+    name: "검술 통달"
+    job_id: "sword_saint"
+    required_affinity_level: 3
+    trigger: "ally_attack_hit"
+    trigger_chance_by_level:
+      3: 0.16
+      4: 0.23
+      5: 0.31
+    effect:
+      type: "buff"
+      target: "self"
+      critical_rate_add: 0.12
+      critical_damage_mult: 1.10
+      duration: 2
+    description: "아군의 공격을 보며 검술을 더욱 연마하여 치명타율과 위력이 상승한다"
+
+  # ─── archmage ──────────────────────────────────────────────────────────────
+  - id: "archmage_arcane_amplify"
+    name: "비전 증폭"
+    job_id: "archmage"
+    required_affinity_level: 2
+    trigger: "ally_skill_hit"
+    trigger_chance_by_level:
+      2: 0.11
+      3: 0.17
+      4: 0.23
+      5: 0.30
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 1.19
+      element: "neutral"
+    description: "아군 스킬 적중 시 마법 에너지를 증폭하여 비전 폭발을 추가한다"
+
+  - id: "archmage_mana_overflow"
+    name: "마나 넘침"
+    job_id: "archmage"
+    required_affinity_level: 3
+    trigger: "teamwork_skill_used"
+    trigger_chance_by_level:
+      3: 0.15
+      4: 0.22
+      5: 0.30
+    effect:
+      type: "mp_restore"
+      target: "all_allies"
+      amount_percent: 0.08
+    description: "팀워크 스킬 발동 시 마나가 넘쳐흘러 아군 전원의 MP를 회복한다"
+
+  # ─── ninja ─────────────────────────────────────────────────────────────────
+  - id: "ninja_elemental_follow"
+    name: "속성 추격"
+    job_id: "ninja"
+    required_affinity_level: 2
+    trigger: "ally_attack"
+    trigger_chance_by_level:
+      2: 0.15
+      3: 0.20
+      4: 0.25
+      5: 0.30
+    effect:
+      type: "damage"
+      target: "same_target"
+      element: "random"
+      multiplier: 0.6
+      stat_base: "magic"
+    description: "아군 공격 시 랜덤 속성 추가 타격 (마공 0.6배)"
+
+  - id: "ninja_seal_share"
+    name: "인(印) 공유"
+    job_id: "ninja"
+    required_affinity_level: 3
+    trigger: "ally_use_elemental"
+    trigger_chance_by_level:
+      3: 0.15
+      4: 0.22
+      5: 0.30
+    effect:
+      type: "gimmick"
+      target: "self"
+      action: "add_seal"
+      seal_type: "matching"
+      amount: 1
+    description: "아군이 속성 스킬 사용 시 해당 속성 인(印) 1개 자동 축적"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+chain_abilities:
+  # ─── warrior ─────────────────────────────────────────────────────────────
+  - id: "warrior_war_cry_chain"
+    name: "전장의 포효"
+    job_id: "warrior"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 100
+    effect:
+      type: "buff"
+      target: "all_allies"
+      physical_attack_mult: 1.15
+      duration: 3
+    description: "아군이 피해를 받으면 전장의 포효로 아군 전원의 공격력을 높인다"
+
+  # ─── archer ────────────────────────────────────────────────────────────────
+  - id: "archer_rain_of_arrows"
+    name: "화살 폭풍"
+    job_id: "archer"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 110
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.8
+    description: "적이 브레이크 상태가 될 때 하늘을 뒤덮는 화살 폭풍을 퍼붓는다"
+
+  # ─── cleric ────────────────────────────────────────────────────────────────
+  - id: "cleric_mass_heal_chain"
+    name: "대규모 치유"
+    job_id: "cleric"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 120
+    effect:
+      type: "heal"
+      target: "all_allies"
+      amount_percent: 0.68
+    description: "아군이 치명적 피해를 받으면 신성한 기도로 아군 전원을 대량 회복한다"
+
+  # ─── priest ────────────────────────────────────────────────────────────────
+  - id: "priest_resurrection_chain"
+    name: "부활의 빛"
+    job_id: "priest"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 140
+    effect:
+      type: "revive"
+      target: "killed_ally"
+      hp_percent: 0.52
+    description: "아군이 전투불능이 될 때 신성한 부활의 빛으로 소생시킨다"
+
+  # ─── magician ──────────────────────────────────────────────────────────────
+  - id: "magician_spell_storm_chain"
+    name: "마법 폭풍"
+    job_id: "magician"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 110
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 2.37
+      element: "neutral"
+    description: "아군 스킬 적중 시 다속성 마법이 연속 폭발하는 마법 폭풍을 일으킨다"
+
+  # ─── knight ────────────────────────────────────────────────────────────────
+  - id: "knight_fortress_chain"
+    name: "철옹성 결의"
+    job_id: "knight"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 120
+    effect:
+      type: "buff"
+      target: "all_allies"
+      defense_mult: 1.25
+      duration: 3
+    description: "아군이 위기에 처하면 철옹성 결의로 아군 전원의 방어력을 크게 높인다"
+
+  # ─── rogue ─────────────────────────────────────────────────────────────────
+  - id: "rogue_smoke_ambush_chain"
+    name: "연막 기습"
+    job_id: "rogue"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 90
+    effect:
+      type: "status_apply"
+      target: "all_enemies"
+      status: "blind"
+      duration: 2
+      chance: 0.70
+    description: "아군의 공격에 맞춰 연막탄을 투척하여 모든 적에게 실명 상태를 부여한다"
+
+  # ─── assassin ──────────────────────────────────────────────────────────────
+  - id: "assassin_death_mark_chain"
+    name: "처형 낙인"
+    job_id: "assassin"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 110
+    effect:
+      type: "brv_damage"
+      target: "broken_enemy"
+      multiplier: 2.25
+    description: "브레이크 상태의 적에게 처형 낙인을 새겨 BRV를 대량으로 파괴한다"
+
+  # ─── paladin ───────────────────────────────────────────────────────────────
+  - id: "paladin_sacred_bastion"
+    name: "신성 요새"
+    job_id: "paladin"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 130
+    effect:
+      type: "shield"
+      target: "all_allies"
+      amount_percent: 0.5
+    description: "아군이 피해를 받으면 신성한 힘으로 아군 전원에게 보호막을 생성한다"
+
+  # ─── dark_knight ───────────────────────────────────────────────────────────
+  - id: "dark_knight_abyssal_slash"
+    name: "심연의 참격"
+    job_id: "dark_knight"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 140
+    effect:
+      type: "additional_attack"
+      damage_type: "dark"
+      multiplier: 2.7
+    description: "위기 상황에서 자신의 생명력을 대가로 심연에서 강력한 암흑 참격을 해방한다"
+
+  # ─── berserker ─────────────────────────────────────────────────────────────
+  - id: "berserker_berserk_chain"
+    name: "광폭화 폭발"
+    job_id: "berserker"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 130
+    effect:
+      type: "buff"
+      target: "self"
+      physical_attack_mult: 1.35
+      defense_mult: 0.80
+      duration: 3
+    description: "위기 상황에서 광폭화가 폭발하여 공격력이 극도로 상승하지만 방어력이 낮아진다"
+
+  # ─── monk ──────────────────────────────────────────────────────────────────
+  - id: "monk_ki_explosion"
+    name: "기공 폭발"
+    job_id: "monk"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 110
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.95
+    description: "팀워크 스킬 발동 시 집중된 기공이 폭발하여 강력한 추가 타격을 가한다"
+
+  # ─── bard ──────────────────────────────────────────────────────────────────
+  - id: "bard_grand_finale"
+    name: "그랜드 피날레"
+    job_id: "bard"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 120
+    effect:
+      type: "buff"
+      target: "all_allies"
+      all_stats_mult: 1.12
+      duration: 3
+    description: "팀워크 스킬 발동 시 웅장한 피날레를 연주하여 아군 전원의 모든 능력치를 높인다"
+
+  # ─── samurai ───────────────────────────────────────────────────────────────
+  - id: "samurai_blade_storm_chain"
+    name: "검풍 폭발"
+    job_id: "samurai"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 120
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 2.25
+    description: "치명타 발동 시 검풍이 폭발하여 주변을 휩쓰는 강력한 베기를 가한다"
+
+  # ─── pirate ────────────────────────────────────────────────────────────────
+  - id: "pirate_broadside_chain"
+    name: "현측 포격"
+    job_id: "pirate"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 110
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 1.8
+    description: "아군 스킬 적중 시 상상의 해적선에서 현측 포격을 가하는 것처럼 강력하게 공격한다"
+
+  # ─── gladiator ─────────────────────────────────────────────────────────────
+  - id: "gladiator_colosseum_roar"
+    name: "콜로세움의 함성"
+    job_id: "gladiator"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 110
+    effect:
+      type: "buff"
+      target: "all_allies"
+      physical_attack_mult: 1.18
+      speed_mult: 1.10
+      duration: 3
+    description: "적을 쓰러뜨릴 때 콜로세움의 환호를 받아 아군 전원이 고무된다"
+
+  # ─── sniper ────────────────────────────────────────────────────────────────
+  - id: "sniper_killshot_chain"
+    name: "킬샷 연계"
+    job_id: "sniper"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 120
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 3.0
+    description: "브레이크 상태의 적에게 완벽한 조준으로 치명적인 킬샷을 날린다"
+
+  # ─── druid ─────────────────────────────────────────────────────────────────
+  - id: "druid_forest_blessing"
+    name: "숲의 축복"
+    job_id: "druid"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 120
+    effect:
+      type: "buff"
+      target: "all_allies"
+      defense_mult: 1.12
+      magic_defense_mult: 1.12
+      duration: 3
+    description: "아군이 회복될 때 숲의 축복으로 아군 전원의 방어력을 높인다"
+
+  # ─── elementalist ──────────────────────────────────────────────────────────
+  - id: "elementalist_primal_convergence"
+    name: "원시 원소 수렴"
+    job_id: "elementalist"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 130
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 1.56
+      element: "all_elements"
+    description: "아군 스킬 적중 시 모든 원소가 수렴하여 전 속성 마법 공격을 가한다"
+
+  # ─── necromancer ───────────────────────────────────────────────────────────
+  - id: "necromancer_death_ritual"
+    name: "죽음의 의식"
+    job_id: "necromancer"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 140
+    effect:
+      type: "debuff"
+      target: "all_enemies"
+      all_stats_mult: 0.82
+      duration: 3
+    description: "아군이 쓰러지면 죽음의 의식을 거행하여 모든 적의 능력치를 크게 낮춘다"
+
+  # ─── alchemist ─────────────────────────────────────────────────────────────
+  - id: "alchemist_grand_elixir"
+    name: "대비약 투하"
+    job_id: "alchemist"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 130
+    effect:
+      type: "heal"
+      target: "all_allies"
+      amount_percent: 0.6
+    description: "아군이 위기에 처하면 최고급 대비약을 아군 전원에게 투하한다"
+
+  # ─── engineer ──────────────────────────────────────────────────────────────
+  - id: "engineer_mech_overload"
+    name: "기계 오버로드"
+    job_id: "engineer"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 120
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 2.1
+    description: "적이 브레이크 될 때 모든 기계 장비를 오버로드 하여 강력한 공격을 퍼붓는다"
+
+  # ─── hacker ────────────────────────────────────────────────────────────────
+  - id: "hacker_system_crash"
+    name: "시스템 붕괴"
+    job_id: "hacker"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 120
+    effect:
+      type: "debuff"
+      target: "all_enemies"
+      speed_mult: 0.75
+      defense_mult: 0.85
+      duration: 3
+    description: "적이 브레이크 될 때 적의 시스템을 완전히 붕괴시켜 속도와 방어력을 낮춘다"
+
+  # ─── time_mage ─────────────────────────────────────────────────────────────
+  - id: "time_mage_time_stop_chain"
+    name: "시간 정지"
+    job_id: "time_mage"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 150
+    effect:
+      type: "status_apply"
+      target: "all_enemies"
+      status: "stop"
+      duration: 1
+      chance: 0.80
+    description: "아군이 위기에 처하면 시간을 순간 정지시켜 모든 적의 행동을 막는다"
+
+  # ─── dimensionist ──────────────────────────────────────────────────────────
+  - id: "dimensionist_void_tear"
+    name: "허공 균열"
+    job_id: "dimensionist"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 130
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 3.0
+      element: "dimensional"
+    description: "아군 스킬 적중 시 차원을 찢어 모든 적에게 허공의 힘을 방출한다"
+
+  # ─── philosopher ───────────────────────────────────────────────────────────
+  - id: "philosopher_enlightenment"
+    name: "대각성"
+    job_id: "philosopher"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 110
+    effect:
+      type: "buff"
+      target: "all_allies"
+      magic_attack_mult: 1.15
+      all_stats_mult: 1.05
+      duration: 4
+    description: "전투가 시작될 때 깨달음을 나눠 아군 전원의 능력을 향상시킨다"
+
+  # ─── illusionist ───────────────────────────────────────────────────────────
+  - id: "illusionist_phantom_army"
+    name: "허상 군단"
+    job_id: "illusionist"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 120
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 1.29
+    description: "아군 스킬 적중 시 수많은 허상이 소환되어 적에게 일제히 공격한다"
+
+  # ─── shaman ────────────────────────────────────────────────────────────────
+  - id: "shaman_spirit_overload"
+    name: "정령 과부하"
+    job_id: "shaman"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 140
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 3.0
+      element: "nature"
+    description: "팀워크 스킬 발동 시 모든 정령이 과부하 상태로 폭발적인 공격을 가한다"
+
+  # ─── vampire ───────────────────────────────────────────────────────────────
+  - id: "vampire_crimson_tide"
+    name: "진홍의 밀물"
+    job_id: "vampire"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 130
+    effect:
+      type: "hp_drain"
+      target: "all_enemies"
+      multiplier: 2.64
+      drain_percent: 0.55
+    description: "위기 상황에서 피의 본능이 폭발하여 모든 적의 생명력을 대량 흡수한다"
+
+  # ─── dragon_knight ─────────────────────────────────────────────────────────
+  - id: "dragon_knight_dragon_call"
+    name: "용의 부름"
+    job_id: "dragon_knight"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 140
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 2.7
+      element: "fire"
+    description: "아군이 위기에 처할 때 용의 이름을 부르며 불꽃의 강하 공격을 가한다"
+
+  # ─── breaker ───────────────────────────────────────────────────────────────
+  - id: "breaker_devastate_chain"
+    name: "대파괴 연계"
+    job_id: "breaker"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 130
+    effect:
+      type: "brv_damage"
+      target: "all_broken_enemies"
+      multiplier: 2.7
+    description: "브레이크 상태의 모든 적에게 대파괴 연계 공격으로 BRV를 완전히 파괴한다"
+
+  # ─── battle_mage ───────────────────────────────────────────────────────────
+  - id: "battle_mage_arcane_surge"
+    name: "비전 파동"
+    job_id: "battle_mage"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 120
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 2.81
+      element: "neutral"
+    description: "아군의 물리 공격에 맞춰 마법 에너지가 폭발하는 비전 파동을 방출한다"
+
+  # ─── spellblade ────────────────────────────────────────────────────────────
+  - id: "spellblade_elemental_resonance"
+    name: "원소 공명"
+    job_id: "spellblade"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 120
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 3.0
+      element: "all_elements"
+    description: "아군 스킬 적중 시 검에 깃든 원소들이 공명하여 다속성 연쇄 공격을 일으킨다"
+
+  # ─── sword_saint ───────────────────────────────────────────────────────────
+  - id: "sword_saint_supreme_slash"
+    name: "검성의 극의"
+    job_id: "sword_saint"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 150
+    effect:
+      type: "additional_attack"
+      damage_type: "physical"
+      multiplier: 3.3
+    description: "치명타 발동 시 검성의 극의가 발현되어 모든 것을 베는 절대적인 일격을 가한다"
+
+  # ─── archmage ──────────────────────────────────────────────────────────────
+  - id: "archmage_meteor_chain"
+    name: "운석 강하"
+    job_id: "archmage"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 160
+    effect:
+      type: "additional_attack"
+      damage_type: "magical"
+      multiplier: 1.95
+      element: "fire"
+    description: "아군 스킬 적중 시 하늘에서 거대한 운석을 소환하여 모든 적에게 막대한 피해를 준다"
+
+  # ─── ninja ─────────────────────────────────────────────────────────────────
+  - id: "ninja_swift_aid"
+    name: "신속 구원"
+    job_id: "ninja"
+    required_affinity_level: 4
+    trigger: "auto"
+    gauge_cost: 125
+    effect:
+      type: "buff"
+      target: "trigger_ally"
+      buff_id: "damage_immunity"
+      value: 2
+      duration: 2
+    description: "불릿타임 중 발동하여 위기의 아군에게 피해 2회 무시를 부여한다 (2턴)"

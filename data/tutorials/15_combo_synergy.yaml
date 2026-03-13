@@ -1,0 +1,30 @@
+id: combo_synergy
+title: "합체기와 시너지"
+order: 15
+category: combat
+description: "직업 조합에 따른 합체기와 파티 시너지 보너스"
+steps:
+  - id: "combo_intro"
+    messages:
+      - "특정 직업 조합은 강력한 합체기를 발동할 수 있다!"
+      - "합체기는 팀워크 게이지를 대량 소모하지만, 그만큼 위력적이다."
+
+  - id: "combo_execute"
+    messages:
+      - "스킬 메뉴에서 별 표시가 있는 합체기를 선택해보자."
+      - "합체기는 관련 직업이 파티에 있고, 호감도 조건을 충족해야 한다."
+    completion_condition:
+      type: "combo_executed"
+    hints:
+      - text: "합체기는 스킬 목록 맨 아래에 별(*)로 표시됩니다"
+        trigger_time: 10.0
+
+  - id: "synergy_bonus"
+    messages:
+      - "파티 편성에 따라 자동으로 시너지 보너스가 적용된다."
+      - "물리 직업 3명 이상이면 물리 공격력 +10%!"
+      - "균형 잡힌 편성은 전체 스탯 +5% 보너스를 받는다."
+
+rewards:
+  exp: 200
+  gold: 150

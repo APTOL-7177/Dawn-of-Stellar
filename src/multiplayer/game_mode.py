@@ -147,9 +147,10 @@ def set_game_mode(mode: GameMode):
     
     if mode == GameMode.SINGLE_PLAYER:
         manager.set_single_player()
-    else:
-        # 멀티플레이 모드는 별도로 설정 필요
-        pass
+    elif mode == GameMode.MULTIPLAYER:
+        # 기본값으로 2인 호스트 모드 초기화 (player_count/is_host는 호출자가 set_multiplayer로 재설정)
+        if not manager.is_multiplayer():
+            manager.set_multiplayer(player_count=2, is_host=True)
 
 
 def is_single_player_mode() -> bool:

@@ -1,0 +1,60 @@
+# 스토리 모드 전역 설정
+# Dawn of Stellar - 별빛의 여명
+
+story_mode:
+  enabled: true
+  title: "시공의 여명"
+  description: "스토리와 함께 게임의 모든 것을 배웁니다"
+  estimated_time: "약 15~20시간"
+
+  # 난이도 완화 (튜토리얼용)
+  difficulty:
+    enemy_hp_multiplier: 1.0
+    enemy_attack_multiplier: 1.0
+    auto_revive: true
+    no_death_penalty: true
+
+  # 스킵 설정
+  skip:
+    can_skip_chapter: true
+    can_skip_all: true
+    skip_confirmation: true
+
+# NPC 가이드 정보
+npc_guides:
+  selena:
+    name: "셀레나"
+    title: "시공의 안내자"
+    origin_era: "미래 (2200년대)"
+    color: [0, 200, 255]
+    personality: "친절하고 차분한 안내자"
+  karnos:
+    name: "카르노스"
+    title: "고대의 전사"
+    origin_era: "과거 (고대)"
+    color: [255, 100, 100]
+    personality: "직설적이고 열정적인 전사"
+  mira:
+    name: "미라"
+    title: "시간의 마법사"
+    origin_era: "현재"
+    color: [255, 200, 100]
+    personality: "지적이고 호기심 많은 마법사"
+  tord:
+    name: "토르드"
+    title: "차원의 대장장이"
+    origin_era: "과거 (중세)"
+    color: [100, 200, 100]
+    personality: "듬직하고 과묵한 장인"
+  lina:
+    name: "리나"
+    title: "시공의 요리사"
+    origin_era: "미래"
+    color: [255, 150, 200]
+    personality: "명랑하고 다정한 요리사"
+
+# 완료 보상
+completion_rewards:
+  stellar_fragments: 100
+  job_unlock_count: 1
+  message: "스토리 모드를 완료했습니다! 별의 파편 100개를 획득!"

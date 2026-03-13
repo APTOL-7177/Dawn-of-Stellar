@@ -1,0 +1,28 @@
+id: knight_chivalry
+name: 기사의 수호
+type: defense
+description: '아군 한 명을 보호하며 의무를 크게 쌓습니다.
+
+  '
+effects:
+- type: buff
+  buff_type: defense_up
+  value: 0.4
+  duration: 3
+  target: ally
+- type: gimmick
+  operation: add
+  field: duty_stacks
+  value: 3
+  max_value: 10
+target: ally
+costs:
+  mp: 4
+metadata:
+  job: knight
+  protect: true
+  duty_gain: 3
+  cover_ally: true
+sfx:
+- se
+- Sword2

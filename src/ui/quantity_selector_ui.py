@@ -41,7 +41,12 @@ def select_quantity(
         # 기본값 사용
         console_width = 80
         console_height = 50
-    
+
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     while True:
         # 배경 클리어 및 단순 배경 렌더링
         console.clear()

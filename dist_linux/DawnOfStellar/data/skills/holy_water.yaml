@@ -1,0 +1,40 @@
+id: holy_water
+name: 성수 뿌리기
+type: brv_attack
+description: '성수를 뿌려 적을 정화합니다.
+
+  전체 적 BRV 1.2 신성 피해.
+
+  언데드: HP 10% 추가 피해 + 약화 2턴.
+
+  순결 서약: 신앙 +5
+
+  '
+target: all_enemies
+costs:
+  mp: 12
+metadata:
+  oath_purity_faith: 5
+  undead_hp_percent: 0.1
+effects:
+- type: damage
+  damage_type: brv
+  element: holy
+  stat_base: magic
+  multiplier: 1.2
+  target: all_enemies
+- type: debuff
+  debuff_id: undead_weakness
+  duration: 2
+  condition: undead
+  effects:
+    damage_taken: 0.2
+animation:
+  icon: 💧
+  color:
+  - 200
+  - 220
+  - 255
+sfx:
+- se
+- Heal4

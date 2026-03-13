@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from src.core.logger import get_logger, Loggers
 from src.audio import play_bgm, play_sfx
+from src.ui.input_handler import iter_game_input, poll_game_input, GameAction
 
 # 새로운 튜토리얼 시스템
 from src.tutorial.tutorial_bot import (
@@ -212,13 +213,12 @@ def show_tutorial_intro(console: tcod.console.Console,
     
     # 입력 대기
     while True:
-        for event in tcod.event.wait():
-            if isinstance(event, tcod.event.KeyDown):
-                if event.sym in (tcod.event.KeySym.z, tcod.event.KeySym.RETURN):
-                    return True
-                elif event.sym == tcod.event.KeySym.ESCAPE:
-                    return False
-            elif isinstance(event, tcod.event.Quit):
+        for action, event in iter_game_input():
+            if event and isinstance(event, tcod.event.Quit):
+                return False
+            if action == GameAction.CONFIRM:
+                return True
+            if action in (GameAction.CANCEL, GameAction.ESCAPE):
                 return False
 
 
@@ -284,11 +284,10 @@ def show_tutorial_complete(console: tcod.console.Console,
     
     # 입력 대기
     while True:
-        for event in tcod.event.wait():
-            if isinstance(event, tcod.event.KeyDown):
-                if event.sym in (tcod.event.KeySym.z, tcod.event.KeySym.RETURN):
-                    return
-            elif isinstance(event, tcod.event.Quit):
+        for action, event in iter_game_input():
+            if event and isinstance(event, tcod.event.Quit):
+                return
+            if action == GameAction.CONFIRM:
                 return
 
 

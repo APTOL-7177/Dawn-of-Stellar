@@ -33,7 +33,7 @@ def create_priest_skills():
         "[신성 속성] 신성한 빛으로 공격. 신앙 +5."
     )
     holy_smite.effects = [
-        DamageEffect(DamageType.BRV, 1.4, stat_type="magical", element="holy"),
+        DamageEffect(DamageType.BRV, 0.91, stat_type="magical", element="holy"),
         GimmickEffect(GimmickOperation.ADD, "faith", 5, max_value=100)
     ]
     holy_smite.costs = []
@@ -55,7 +55,7 @@ def create_priest_skills():
         "[신성 속성] 신앙 비례 HP 피해. 신앙 +3."
     )
     divine_judgment.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="magical", element="holy",
+        DamageEffect(DamageType.HP, 0.65, stat_type="magical", element="holy",
                     gimmick_bonus={"field": "faith", "multiplier": 0.01}),
         GimmickEffect(GimmickOperation.ADD, "faith", 3, max_value=100)
     ]
@@ -79,7 +79,7 @@ def create_priest_skills():
         "[신성 속성] 빛으로 적을 속박. 속도 -40% + 신앙 +8."
     )
     light_bind.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magical", element="holy"),
+        DamageEffect(DamageType.BRV, 0.98, stat_type="magical", element="holy"),
         BuffEffect(BuffType.SPEED_DOWN, 0.40, duration=2),
         GimmickEffect(GimmickOperation.ADD, "faith", 8, max_value=100)
     ]
@@ -172,8 +172,8 @@ def create_priest_skills():
         "[신성 속성] 심판의 빛! 전체 피해 + 신앙 +15."
     )
     judgment_light.effects = [
-        DamageEffect(DamageType.BRV, 1.8, stat_type="magical", element="holy"),
-        DamageEffect(DamageType.HP, 1.2, stat_type="magical", element="holy"),
+        DamageEffect(DamageType.BRV, 1.17, stat_type="magical", element="holy"),
+        DamageEffect(DamageType.HP, 0.78, stat_type="magical", element="holy"),
         GimmickEffect(GimmickOperation.ADD, "faith", 15, max_value=100)
     ]
     judgment_light.costs = [MPCost(10)]
@@ -197,7 +197,7 @@ def create_priest_skills():
         "[신성 속성] 신앙 30 소비. 강력한 신성 광선."
     )
     holy_beam.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="magical", element="holy",
+        DamageEffect(DamageType.BRV_HP, 1.62, stat_type="magical", element="holy",
                     gimmick_bonus={"field": "faith", "multiplier": 0.015}),
         GimmickEffect(GimmickOperation.CONSUME, "faith", 30)
     ]
@@ -220,9 +220,9 @@ def create_priest_skills():
         "[신성 속성] 신의 분노! 전체 피해 + 신앙 40 소비."
     )
     divine_wrath.effects = [
-        DamageEffect(DamageType.BRV, 2.2, stat_type="magical", element="holy",
+        DamageEffect(DamageType.BRV, 1.43, stat_type="magical", element="holy",
                     gimmick_bonus={"field": "faith", "multiplier": 0.012}),
-        DamageEffect(DamageType.HP, 1.8, stat_type="magical", element="holy"),
+        DamageEffect(DamageType.HP, 1.17, stat_type="magical", element="holy"),
         GimmickEffect(GimmickOperation.CONSUME, "faith", 40)
     ]
     divine_wrath.costs = [MPCost(14), StackCost("faith", 40)]
@@ -270,8 +270,8 @@ def create_priest_skills():
         "[신성 속성] 천상의 빛! 전체 극대 피해 + 파티 마법력 × 1.5 HP 회복 + 공격력/마법력 +40%."
     )
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 3.0, stat_type="magical", element="holy"),
-        DamageEffect(DamageType.HP, 3.5, stat_type="magical", element="holy"),
+        DamageEffect(DamageType.BRV, 1.95, stat_type="magical", element="holy"),
+        DamageEffect(DamageType.HP, 2.27, stat_type="magical", element="holy"),
         HealEffect(HealType.HP, base_amount=0, multiplier=1.5, is_party_wide=True, stat_scaling="magic"),
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=5, is_party_wide=True),
         BuffEffect(BuffType.MAGIC_UP, 0.4, duration=5, is_party_wide=True),

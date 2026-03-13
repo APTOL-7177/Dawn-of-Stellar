@@ -9,7 +9,7 @@ from src.core.logger import get_logger
 logger = get_logger("skill_initializer")
 
 # YAML로 완전 전환된 직업 (Python job_skills 등록을 건너뛰는 기본 목록)
-DEFAULT_SKIP_JOBS = {"paladin", "gladiator", "knight", "dimensionist", "hacker", "rogue", "elementalist", "shaman"}
+DEFAULT_SKIP_JOBS = {"paladin", "gladiator", "knight", "dimensionist", "hacker", "elementalist", "shaman"}
 
 
 def initialize_all_skills():
@@ -70,6 +70,7 @@ def initialize_all_skills():
         from src.character.skills.job_skills.warrior_skills import register_warrior_skills
         from src.character.skills.job_skills.magician_skills import register_magician_skills
         from src.character.skills.job_skills.illusionist_skills import register_illusionist_skills
+        from src.character.skills.job_skills.ninja_skills import register_ninja_skills
 
         from src.character.skills.yaml_skill_loader import load_yaml_skills
 
@@ -120,7 +121,8 @@ def initialize_all_skills():
             ("vampire", register_vampire_skills),
             ("warrior", register_warrior_skills),
             ("magician", register_magician_skills),
-            ("illusionist", register_illusionist_skills)
+            ("illusionist", register_illusionist_skills),
+            ("ninja", register_ninja_skills)
         ]
 
         total_skills = len(yaml_ids)

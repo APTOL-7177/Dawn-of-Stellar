@@ -1,19 +1,33 @@
 """
 NPC 대화 UI
 
-NPC와의 대화 및 선택지 처리
+NPC와의 대화 및 선택지 처리 (타이핑 효과, 연출 포함)
 """
 
+import time
 import tcod.console
 import tcod.event
-from typing import Optional, List, Dict, Any, Callable
+from typing import Optional, List, Any, Callable
 
-from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
+from src.ui.input_handler import GameAction, unified_input_handler
 from src.ui.tcod_display import Colors
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
 logger = get_logger("npc_dialog")
+
+# NPC 이름 색상
+NPC_NAME_COLORS = {
+    "selena": (0, 200, 255),
+    "karnos": (255, 100, 100),
+    "mira": (255, 200, 100),
+    "tord": (100, 200, 100),
+    "lina": (255, 150, 200),
+    "릴리": (255, 200, 255),
+    "크리스": (200, 220, 255),
+    "세피로스": (255, 215, 0),
+    "카인": (180, 50, 50),
+}
 
 
 class NPCChoice:
@@ -23,237 +37,300 @@ class NPCChoice:
         self.callback = callback
 
 
+def _wrap_text(text: str, max_width: int) -> list:
+    """텍스트 줄바꿈"""
+    if len(text) <= max_width:
+        return [text]
+    result = []
+    words = text.split()
+    current = ""
+    for word in words:
+        if len(current) + len(word) + 1 > max_width:
+            if current:
+                result.append(current)
+            current = word
+        else:
+            current += (" " if current else "") + word
+    if current:
+        result.append(current)
+    return result if result else [""]
+
+
+def _flush_events():
+    """입력 이벤트 큐 비우기"""
+    for _ in tcod.event.get():
+        pass
+    try:
+        import pygame
+        pygame.event.pump()
+        pygame.event.clear()
+    except Exception:
+        pass
+    unified_input_handler.clear_input_state()
+
+
+def _poll_action():
+    """키보드/게임패드 액션 폴링. (action, quit_requested) 반환"""
+    try:
+        import pygame
+        pygame.event.pump()
+    except Exception:
+        pass
+
+    kbd_action = None
+    quit_req = False
+
+    for event in tcod.event.get():
+        action = unified_input_handler.process_tcod_event(event)
+        if action:
+            kbd_action = action
+        if isinstance(event, tcod.event.Quit):
+            quit_req = True
+
+    if kbd_action:
+        return kbd_action, quit_req
+
+    gp = unified_input_handler.get_action()
+    return gp, quit_req
+
+
+def run_npc_dialog(
+    console: tcod.console.Console,
+    context: tcod.context.Context,
+    npc_name: str = "???",
+    dialog_lines: Optional[List[str]] = None,
+    choices: Optional[List['NPCChoice']] = None,
+    effect: str = None,
+    npc_id: str = None,
+) -> Optional[int]:
+    """show_npc_dialog 호환 래퍼 - dialog_lines(리스트)를 받아 처리"""
+    if dialog_lines:
+        for line in dialog_lines:
+            show_npc_dialog(console, context, npc_name=npc_name,
+                            dialog_text=line, choices=None, effect=effect, npc_id=npc_id)
+    if choices:
+        return show_npc_dialog(console, context, npc_name=npc_name,
+                               dialog_text="", choices=choices, effect=effect, npc_id=npc_id)
+    return None
+
+
 def show_npc_dialog(
     console: tcod.console.Console,
     context: tcod.context.Context,
     npc_name: str,
     dialog_text: str,
     choices: Optional[List[NPCChoice]] = None,
-    ai_auto_select: bool = None  # AI 모드: 자동 선택
+    effect: str = None,       # "shake" | "flash" | "slow" | None
+    npc_id: str = None,       # NPC 색상용 ID
 ) -> Optional[int]:
     """
-    NPC 대화 창 표시
-    
+    NPC 대화 창 표시 (타이핑 효과 + 연출)
+
     Args:
         console: TCOD 콘솔
         context: TCOD 컨텍스트
         npc_name: NPC 이름
-        dialog_text: 대화 텍스트 (여러 줄 가능, \n으로 구분)
+        dialog_text: 대화 텍스트 (여러 줄 가능, \\n으로 구분)
         choices: 선택지 리스트 (None이면 확인만 가능)
-        ai_auto_select: AI 모드 자동 선택 (None이면 ai_spectate_mode에서 확인)
-    
+        effect: 특수 효과 ("shake", "flash", "slow")
+        npc_id: NPC 색상용 ID
+
     Returns:
         선택된 선택지 인덱스 (None이면 취소)
     """
-    # AI 관전 모드 체크
-    if ai_auto_select is None:
-        try:
-            from src.ui.ai_spectate_mode import is_ai_mode
-            ai_auto_select = is_ai_mode()
-        except:
-            ai_auto_select = False
-    
-    # AI 모드면 자동 처리
-    if ai_auto_select:
-        import time
-        time.sleep(0.3)  # 잠시 대기 (화면 표시용)
-        if choices and len(choices) > 0:
-            # 첫 번째 선택지 자동 선택
-            if choices[0].callback:
-                try:
-                    choices[0].callback()
-                except Exception as e:
-                    logger.warning(f"AI 자동 선택 콜백 오류: {e}")
-            return 0
-        return 0
-    
-    # 대화 텍스트를 줄 단위로 분리
-    dialog_lines = dialog_text.split('\n')
-    
-    # 선택지가 있으면 선택 모드, 없으면 확인만 가능
+    # NPC 이름 색상
+    name_color = NPC_NAME_COLORS.get(npc_id, Colors.UI_BORDER) if npc_id else Colors.UI_BORDER
+
+    # 텍스트 준비
+    raw_lines = dialog_text.split('\n')
     has_choices = choices and len(choices) > 0
     selected_index = 0 if has_choices else None
-    
+
     # 박스 크기 계산
-    max_line_width = max(len(line) for line in dialog_lines) if dialog_lines else 0
+    max_w = max(len(l) for l in raw_lines) if raw_lines else 0
     if has_choices:
-        max_choice_width = max(len(choice.text) for choice in choices)
-        max_line_width = max(max_line_width, max_choice_width)
-    
-    box_width = min(max_line_width + 10, console.width - 20)
-    box_height = len(dialog_lines) + 6
+        max_w = max(max_w, max(len(c.text) for c in choices))
+    box_width = min(max_w + 10, console.width - 20)
+    inner_w = box_width - 4
+
+    display_lines = []
+    for line in raw_lines:
+        display_lines.extend(_wrap_text(line, inner_w))
+
+    total_chars = sum(len(dl) for dl in display_lines)
+
+    box_height = len(display_lines) + 6
     if has_choices:
         box_height += len(choices) + 1
-    
+
     box_x = (console.width - box_width) // 2
     box_y = (console.height - box_height) // 2
 
-    # 입력 큐 비우기 (이전 입력 방지)
-    import time
-    for _ in tcod.event.get():
-        pass
-    try:
-        import pygame
-        pygame.event.pump()
-        pygame.event.clear()
-    except:
-        pass
+    # 타이핑 속도 (slow 효과: 2배 느림)
+    typing_speed = 0.06 if effect == "slow" else 0.03
 
-    # 게임패드/키보드 입력 상태 초기화
-    unified_input_handler.clear_input_state()
-
-    # 딜레이 후 다시 이벤트 큐 비우기
+    # 입력 큐 비우기
+    _flush_events()
     time.sleep(0.1)
-    for _ in tcod.event.get():
-        pass
-    try:
-        import pygame
-        pygame.event.pump()
-        pygame.event.clear()
-    except:
-        pass
-    unified_input_handler.clear_input_state()
+    _flush_events()
+
+    # 상태 변수
+    revealed = 0
+    last_char_time = time.time()
+    typing_done = False
+
+    # shake 효과 상태
+    shake_start = time.time() if effect == "shake" else 0.0
+    shake_dur = 0.3
+
+    # flash 효과 상태
+    flash_start = 0.0
+    flash_fired = False
+    flash_dur = 0.2
+
+    # ▼ 깜빡임 상태
+    ind_timer = time.time()
+    ind_visible = True
 
     while True:
-        # 기존 화면은 이미 렌더링되어 있다고 가정
-        # 대화 상자만 오버레이
-        
-        # 반투명 배경 (TCOD는 직접 투명도 지원하지 않으므로 어두운 배경)
+        now = time.time()
+
+        # --- 타이핑 진행 ---
+        if not typing_done:
+            dt = now - last_char_time
+            if dt >= typing_speed:
+                add = int(dt / typing_speed)
+                old_rev = revealed
+                revealed = min(revealed + add, total_chars)
+                last_char_time = now
+
+                # 5글자마다 효과음
+                if revealed // 5 > old_rev // 5:
+                    play_sfx("ui", "cursor_move")
+
+                if revealed >= total_chars:
+                    typing_done = True
+                    if effect == "flash" and not flash_fired:
+                        flash_start = now
+                        flash_fired = True
+
+        # shake 오프셋 계산
+        shake_ox = 0
+        if effect == "shake" and (now - shake_start) < shake_dur:
+            shake_ox = [1, -1, 1, -1, 1, -1][int((now - shake_start) / 0.05) % 6]
+
+        # flash 텍스트 색상
+        txt_color = Colors.UI_TEXT
+        if effect == "flash" and flash_fired and (now - flash_start) < flash_dur:
+            txt_color = (255, 255, 255)
+
+        # ▼ 깜빡임 토글 (0.5초 주기)
+        if typing_done and (now - ind_timer) >= 0.5:
+            ind_visible = not ind_visible
+            ind_timer = now
+
+        # === 렌더링 ===
+        bx = box_x + shake_ox
+
+        # 반투명 배경
         for dy in range(box_height):
             for dx in range(box_width):
-                console.print(box_x + dx, box_y + dy, " ", bg=(20, 20, 20))
-        
-        # 대화 상자
+                px_ = bx + dx
+                if 0 <= px_ < console.width:
+                    console.print(px_, box_y + dy, " ", bg=(20, 20, 20))
+
+        # 대화 상자 프레임
         console.draw_frame(
-            box_x, box_y, box_width, box_height,
-            npc_name,
+            bx, box_y, box_width, box_height,
+            "",
             fg=Colors.UI_BORDER,
             bg=Colors.UI_BG
         )
-        
-        # 대화 텍스트 출력
+
+        # NPC 이름 (고유 색상)
+        console.print(bx + 2, box_y, f" {npc_name} ", fg=name_color)
+
+        # 대화 텍스트 (타이핑 효과)
         y = box_y + 2
-        for line in dialog_lines:
-            # 긴 줄 자동 줄바꿈
-            if len(line) > box_width - 4:
-                words = line.split()
-                current_line = ""
-                for word in words:
-                    if len(current_line) + len(word) + 1 > box_width - 4:
-                        if current_line:
-                            console.print(box_x + 2, y, current_line[:box_width - 4], fg=Colors.UI_TEXT)
-                            y += 1
-                        current_line = word
-                    else:
-                        current_line += (" " if current_line else "") + word
-                if current_line:
-                    console.print(box_x + 2, y, current_line[:box_width - 4], fg=Colors.UI_TEXT)
-                    y += 1
-            else:
-                console.print(box_x + 2, y, line, fg=Colors.UI_TEXT)
-                y += 1
-        
-        # 선택지 출력
-        if has_choices:
+        counted = 0
+        for dline in display_lines:
+            vis = min(len(dline), max(0, revealed - counted))
+            if vis > 0:
+                console.print(bx + 2, y, dline[:vis], fg=txt_color)
+            counted += len(dline)
             y += 1
-            for i, choice in enumerate(choices):
-                if i == selected_index:
-                    prefix = "> "
-                    fg_color = Colors.UI_TEXT_SELECTED
-                else:
-                    prefix = "  "
-                    fg_color = Colors.UI_TEXT
-                
-                console.print(box_x + 4, y, f"{prefix}{choice.text}", fg=fg_color)
-                y += 1
-        
+
+        # 선택지 (타이핑 완료 후)
+        if has_choices and typing_done:
+            yc = box_y + 2 + len(display_lines) + 1
+            for i, ch in enumerate(choices):
+                pfx = "> " if i == selected_index else "  "
+                fg = Colors.UI_TEXT_SELECTED if i == selected_index else Colors.UI_TEXT
+                console.print(bx + 4, yc, f"{pfx}{ch.text}", fg=fg)
+                yc += 1
+
+        # ▼ 깜빡이는 진행 표시기
+        if typing_done and ind_visible and not has_choices:
+            console.print(
+                bx + box_width - 3, box_y + box_height - 3,
+                "▼", fg=(255, 255, 100)
+            )
+
         # 안내 메시지
-        help_y = box_y + box_height - 2
-        if has_choices:
-            help_text = "↑↓: 선택  Z: 확인  X: 취소"
+        hy = box_y + box_height - 2
+        if has_choices and typing_done:
+            ht = "↑↓: 선택  Z: 확인  X: 취소"
+        elif typing_done:
+            ht = "Z: 확인"
         else:
-            help_text = "Z: 확인  X: 취소"
-        
-        console.print(
-            box_x + (box_width - len(help_text)) // 2,
-            help_y,
-            help_text,
-            fg=Colors.GRAY
-        )
-        
+            ht = "Z: 스킵"
+        console.print(bx + (box_width - len(ht)) // 2, hy, ht, fg=Colors.GRAY)
+
         context.present(console)
-        
-        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
-        try:
-            import pygame
-            pygame.event.pump()
-        except:
-            pass
-        
-        # 키보드 입력 처리
-        keyboard_processed = False
-        for event in tcod.event.get():
-            action = unified_input_handler.process_tcod_event(event)
-            
-            if action:
-                keyboard_processed = True
-            
+
+        # === 입력 처리 ===
+        action, quit_r = _poll_action()
+        if quit_r:
+            return None
+
+        if not typing_done:
+            # 타이핑 중: Z로 즉시 완료 (스킵)
+            if action == GameAction.CONFIRM:
+                revealed = total_chars
+                typing_done = True
+                if effect == "flash" and not flash_fired:
+                    flash_start = time.time()
+                    flash_fired = True
+            elif action in (GameAction.CANCEL, GameAction.ESCAPE):
+                play_sfx("ui", "cursor_cancel")
+                return None
+        else:
+            # 타이핑 완료: 입력 대기
             if has_choices:
                 if action == GameAction.MOVE_UP:
                     selected_index = max(0, selected_index - 1)
                 elif action == GameAction.MOVE_DOWN:
                     selected_index = min(len(choices) - 1, selected_index + 1)
                 elif action == GameAction.CONFIRM:
-                    # 선택된 선택지의 콜백 실행
+                    play_sfx("ui", "cursor_confirm")
                     if choices[selected_index].callback:
                         try:
                             choices[selected_index].callback()
                         except Exception as e:
-                            logger.error(f"NPC 선택지 콜백 실행 오류: {e}")
+                            logger.error(f"NPC 선택지 콜백 오류: {e}")
                     return selected_index
-                elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+                elif action in (GameAction.CANCEL, GameAction.ESCAPE):
                     play_sfx("ui", "cursor_cancel")
                     return None
             else:
                 if action == GameAction.CONFIRM:
+                    play_sfx("ui", "cursor_confirm")
                     return 0
-                elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+                elif action in (GameAction.CANCEL, GameAction.ESCAPE):
                     play_sfx("ui", "cursor_cancel")
                     return None
-            
-            # 윈도우 닫기
-            if isinstance(event, tcod.event.Quit):
-                return None
-        
-        # 게임패드 입력 처리 (키보드 입력이 없었을 때만)
-        if not keyboard_processed:
-            gamepad_action = unified_input_handler.get_action()
-            if gamepad_action:
-                if has_choices:
-                    if gamepad_action == GameAction.MOVE_UP:
-                        selected_index = max(0, selected_index - 1)
-                    elif gamepad_action == GameAction.MOVE_DOWN:
-                        selected_index = min(len(choices) - 1, selected_index + 1)
-                    elif gamepad_action == GameAction.CONFIRM:
-                        if choices[selected_index].callback:
-                            try:
-                                choices[selected_index].callback()
-                            except Exception as e:
-                                logger.error(f"NPC 선택지 콜백 실행 오류: {e}")
-                        return selected_index
-                    elif gamepad_action == GameAction.CANCEL or gamepad_action == GameAction.ESCAPE:
-                        play_sfx("ui", "cursor_cancel")
-                        return None
-                else:
-                    if gamepad_action == GameAction.CONFIRM:
-                        return 0
-                    elif gamepad_action == GameAction.CANCEL or gamepad_action == GameAction.ESCAPE:
-                        play_sfx("ui", "cursor_cancel")
-                        return None
-        
-        # CPU 사용률 낮추기
-        import time
-        time.sleep(0.01)
+
+        time.sleep(0.016)
 
 
 def render_story_sequence(console: tcod.console.Console, context: Any, story_segments: List[Any], logger: Any) -> None:

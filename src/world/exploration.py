@@ -36,9 +36,10 @@ class ExplorationEvent(Enum):
     BOSS_ROOM = "boss_room"
     PUZZLE_SOLVED = "puzzle_solved"
     SWITCH_ACTIVATED = "switch_activated"
-    NPC_INTERACTION = "npc_interaction"
     BUILDING_INTERACTION = "building_interaction"  # 마을 건물 상호작용
     MAGIC_CIRCLE_FOUND = "magic_circle_found"  # 마법진 발견 (사용 확인)
+    RANDOM_EVENT = "random_event"  # 랜덤 이벤트 발생
+    PUZZLE_INTERACTION = "puzzle_interaction"  # 퍼즐 상호작용
 
 
 # 클래스 정의 전에 미리 참조하여 지역 변수 충돌 방지
@@ -165,9 +166,12 @@ class ExplorationSystem:
     def __init__(self, dungeon: DungeonMap, party: List[Any], floor_number: int = 1, inventory=None, game_stats=None):
         self.dungeon = dungeon
 
-        # 플레이어 스폰 위치 결정 (계단이 아닌 첫 번째 방의 안전한 위치)
+        # 플레이어 스폰 위치 결정
         spawn_x, spawn_y = 5, 5  # 기본값
-        if dungeon.rooms:
+        if hasattr(dungeon, 'player_start') and dungeon.player_start:
+            # RPG 오픈월드 등 외부에서 시작 위치를 지정한 경우 우선 사용
+            spawn_x, spawn_y = dungeon.player_start
+        elif dungeon.rooms:
             first_room = dungeon.rooms[0]
             # 방의 중심에서 약간 떨어진 랜덤 위치
             import random
@@ -180,14 +184,22 @@ class ExplorationSystem:
             if dungeon.stairs_down and (spawn_x, spawn_y) == dungeon.stairs_down:
                 spawn_x += 1
 
+        # 스폰 위치 저장 (긴급 텔레포트용)
+        self.spawn_x = spawn_x
+        self.spawn_y = spawn_y
+
         self.player = Player(
             x=spawn_x,
             y=spawn_y,
             party=party
         )
-        self.fov_system = FOVSystem(default_radius=3)
+        # RPG 오픈월드(대형맵)는 시야 반경 확대 (3→6)
+        is_large_map_init = dungeon.width > 300 or dungeon.height > 300
+        fov_radius = 6 if is_large_map_init else 3
+        self.fov_system = FOVSystem(default_radius=fov_radius)
         self.floor_number = floor_number
         self.explored_tiles = set()
+        self._seen_effect_tile_types: set = set()  # 첫 진입 시 설명 표시용
         self.enemies: List[Enemy] = []  # 적 리스트
         self.inventory = inventory  # 인벤토리 추가
         self.fled_enemies: Dict[int, float] = {}  # 도망한 적 ID → 도망 시간 (5초간 조우 방지)
@@ -208,6 +220,7 @@ class ExplorationSystem:
         # 인벤토리 초기화 확인 로그
         logger.error(f"[INIT] ExplorationSystem 초기화 - 인벤토리: {self.inventory}")
         if self.inventory is not None:
+            self.inventory.current_floor = floor_number
             logger.error(f"[INIT] 인벤토리 타입: {type(self.inventory)}, 슬롯: {len(self.inventory.slots)}, 골드: {self.inventory.gold}G")
         else:
             logger.error(f"[INIT] [WARNING] 인벤토리가 None입니다!")
@@ -251,25 +264,42 @@ class ExplorationSystem:
 
         # 시간 기반 이동 시스템: 충돌 추적 (적과 플레이어가 같은 위치에서 만날 때)
         self.collision_enemy = None  # 플레이어와 충돌한 적
+        self.post_combat_immunity_until = 0  # 전투 후 면역 시간 (재전투 방지)
 
         logger.info(f"탐험 시작: 층 {self.floor_number}, 위치 ({self.player.x}, {self.player.y})")
+
+    def set_post_combat_immunity(self, duration: float = 2.0):
+        """전투 후 면역 시간 설정 및 적 이동 타이머 리셋"""
+        current_time = time.time()
+        self.post_combat_immunity_until = current_time + duration
+        # 적 이동 타이머 리셋 (catch-up 이동 방지)
+        for enemy in self.enemies:
+            enemy.last_move_time = current_time
+        self.collision_enemy = None
+        logger.info(f"전투 후 면역 시간 설정: {duration}초")
 
     def update_fov(self):
         """시야 업데이트"""
         # 마을에서는 모든 타일을 보이게 함
         if hasattr(self, 'is_town') and self.is_town:
-            # 모든 타일을 visible과 explored로 설정
-            for y in range(self.dungeon.height):
-                for x in range(self.dungeon.width):
+            # 대형 맵은 플레이어 주변 반경만 visible 처리
+            if self.dungeon.width > 300 or self.dungeon.height > 300:
+                town_radius = 40
+                x_min = max(0, self.player.x - town_radius)
+                x_max = min(self.dungeon.width, self.player.x + town_radius)
+                y_min = max(0, self.player.y - town_radius)
+                y_max = min(self.dungeon.height, self.player.y + town_radius)
+            else:
+                x_min, x_max = 0, self.dungeon.width
+                y_min, y_max = 0, self.dungeon.height
+            for y in range(y_min, y_max):
+                for x in range(x_min, x_max):
                     tile = self.dungeon.get_tile(x, y)
                     if tile:
                         tile.visible = True
                         tile.explored = True
-            # explored_tiles에도 추가
-            for y in range(self.dungeon.height):
-                for x in range(self.dungeon.width):
                     self.explored_tiles.add((x, y))
-            logger.debug("[update_fov] 마을: 모든 타일을 보이게 설정")
+            logger.debug("[update_fov] 마을: 타일을 보이게 설정")
             return
         
         # 이전 visible 초기화
@@ -370,6 +400,62 @@ class ExplorationSystem:
 
         return self.dungeon.is_walkable(new_x, new_y)
 
+    def teleport_to_spawn(self) -> ExplorationResult:
+        """플레이어를 스폰 위치로 텔레포트 (잠긴 방 탈출용)"""
+        if not hasattr(self, 'spawn_x') or not hasattr(self, 'spawn_y'):
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="스폰 위치를 알 수 없습니다."
+            )
+
+        # 이미 스폰 위치에 있으면 무시
+        if self.player.x == self.spawn_x and self.player.y == self.spawn_y:
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="이미 스폰 위치에 있습니다."
+            )
+
+        # 스폰 위치가 이동 가능한지 확인
+        if not self.dungeon.is_walkable(self.spawn_x, self.spawn_y):
+            # 스폰 위치가 막혀있으면 주변 빈 타일 탐색
+            for ddx in range(-2, 3):
+                for ddy in range(-2, 3):
+                    alt_x, alt_y = self.spawn_x + ddx, self.spawn_y + ddy
+                    if self.dungeon.is_walkable(alt_x, alt_y):
+                        self.player.x = alt_x
+                        self.player.y = alt_y
+                        self.update_fov()
+                        logger.info(f"스폰 위치 텔레포트 (대체): ({alt_x}, {alt_y})")
+                        return ExplorationResult(
+                            success=True,
+                            event=ExplorationEvent.TELEPORT,
+                            message="스폰 위치 근처로 텔레포트했습니다!"
+                        )
+            return ExplorationResult(
+                success=False,
+                event=ExplorationEvent.NONE,
+                message="스폰 위치로 이동할 수 없습니다."
+            )
+
+        # 위치 업데이트
+        old_x, old_y = self.player.x, self.player.y
+        self.player.x = self.spawn_x
+        self.player.y = self.spawn_y
+
+        # FOV 업데이트
+        self.update_fov()
+
+        logger.info(f"스폰 위치 텔레포트: ({old_x}, {old_y}) -> ({self.spawn_x}, {self.spawn_y})")
+        play_sfx("world", "teleport")
+
+        return ExplorationResult(
+            success=True,
+            event=ExplorationEvent.TELEPORT,
+            message="스폰 위치로 텔레포트했습니다!"
+        )
+
     def move_player(self, dx: int, dy: int) -> ExplorationResult:
         """
         플레이어 이동
@@ -403,11 +489,15 @@ class ExplorationSystem:
         enemy = self.get_enemy_at(new_x, new_y)
         # Debug: 적 충돌 체크
         if enemy:
-            logger.info(f"[전투 트리거] 플레이어가 적 위치로 이동 시도: ({new_x}, {new_y}) - 적: {enemy.name}")
-            # 플레이어는 이동하지 않고 전투만 트리거
-            combat_result = self._trigger_combat_with_enemy(enemy)
-            # Debug: 전투 결과
-            return combat_result
+            # 전투 후 면역 시간 체크 - 면역 중이면 전투 없이 통과
+            if time.time() < self.post_combat_immunity_until:
+                pass  # 면역 중: 적을 무시하고 이동 계속
+            else:
+                logger.info(f"[전투 트리거] 플레이어가 적 위치로 이동 시도: ({new_x}, {new_y}) - 적: {enemy.name}")
+                # 플레이어는 이동하지 않고 전투만 트리거
+                combat_result = self._trigger_combat_with_enemy(enemy)
+                # Debug: 전투 결과
+                return combat_result
 
         # 이동 발소리 (간헐적으로만 재생, 최소 5초 간격)
         current_time = time.time()
@@ -491,16 +581,56 @@ class ExplorationSystem:
         # on_update 콜백에서 _move_all_enemies()가 지속적으로 호출됨
         # 플레이어와 적이 시간 기반으로 독립적으로 움직임
 
-        # NPC 이동 (플레이어 이동 후)
-        self._move_npcs()
+        # 랜덤 이벤트 체크 (타일 이벤트가 없을 때만, 마을 제외)
+        if result.event == ExplorationEvent.NONE and not (hasattr(self, 'is_town') and self.is_town):
+            try:
+                from src.world.random_events import get_random_event_manager
+                event_mgr = get_random_event_manager()
+                current_floor = getattr(self.dungeon, 'floor', 1)
+                region = getattr(self, 'current_region', None) or getattr(self, 'nav_current_region', None)
+                biome = getattr(self.dungeon, 'biome', None)
+                party_jobs = []
+                if hasattr(self.player, 'party') and self.player.party:
+                    party_jobs = [getattr(c, 'character_class', '') for c in self.player.party]
+                random_event = event_mgr.on_step(current_floor, region, party_jobs, biome=biome)
+                if random_event:
+                    result = ExplorationResult(
+                        success=True,
+                        event=ExplorationEvent.RANDOM_EVENT,
+                        message=f"이벤트 발생: {random_event.name}",
+                        data={"random_event": random_event}
+                    )
+                    return result
+            except Exception as e:
+                logger.warning(f"랜덤 이벤트 체크 실패: {e}")
+
+        # 호감도 이동 보너스 (50스텝마다 전체 파티 호감도 +1)
+        try:
+            self._exploration_steps = getattr(self, '_exploration_steps', 0) + 1
+            if self._exploration_steps % 50 == 0:
+                import src.persistence.save_system as save_module
+                cached_affinity = getattr(save_module, '_last_loaded_affinity_data', None)
+                party_jobs = []
+                if hasattr(self.player, 'party') and self.player.party:
+                    party_jobs = [getattr(c, 'character_class', '') for c in self.player.party]
+                if party_jobs and cached_affinity:
+                    from src.character.affinity import AffinityManager
+                    affinity_mgr = AffinityManager()
+                    affinity_mgr.from_dict(cached_affinity)
+                    affinity_mgr.add_points_all(party_jobs, 1)
+                    save_module._last_loaded_affinity_data = affinity_mgr.to_dict()
+        except Exception:
+            pass
 
         # 적 움직임 후 플레이어 위치에 적이 있는지 다시 체크
         # 싱글플레이어: 플레이어 위치에 적이 있으면 전투 시작
         # 멀티플레이어: MultiplayerExplorationSystem에서 봇이 트리거하는 경우도 처리됨
         enemy_at_player = self.get_enemy_at(self.player.x, self.player.y)
         if enemy_at_player:
-            logger.info(f"[전투 트리거] 적이 플레이어 위치로 이동: ({self.player.x}, {self.player.y}) - 적: {enemy_at_player.name}")
-            return self._trigger_combat_with_enemy(enemy_at_player)
+            # 전투 후 면역 시간 체크
+            if time.time() >= self.post_combat_immunity_until:
+                logger.info(f"[전투 트리거] 적이 플레이어 위치로 이동: ({self.player.x}, {self.player.y}) - 적: {enemy_at_player.name}")
+                return self._trigger_combat_with_enemy(enemy_at_player)
 
         return result
 
@@ -596,8 +726,35 @@ class ExplorationSystem:
         
         return None
 
+    # 효과 설명이 필요한 타일 타입들
+    EFFECT_TILE_DESCRIPTIONS = {
+        TileType.LAVA: ("용암 지대", "밟을 때마다 파티 전체에 화상 피해를 입습니다!"),
+        TileType.HEALING_SPRING: ("치유의 샘", "파티 전체의 HP를 회복시켜 줍니다."),
+        TileType.ALTAR: ("신비로운 제단", "기도하면 HP와 MP가 절반 회복됩니다. (1회)"),
+        TileType.SHRINE: ("축복의 신전", "파티 전원 완전 회복 및 부활, 상태이상 해제. (1회)"),
+        TileType.CRYSTAL: ("마나 크리스탈", "파티 전체의 MP를 완전히 회복시켜 줍니다. (1회)"),
+        TileType.MANA_WELL: ("마나 샘", "파티 전체의 MP를 1/3만큼 회복시켜 줍니다. (1회)"),
+        TileType.POISON_GAS: ("독가스 지대", "밟으면 독 피해를 받습니다!"),
+        TileType.SPIKE_TRAP: ("가시 함정", "밟으면 가시에 찔려 피해를 받습니다!"),
+        TileType.FIRE_TRAP: ("화염 함정", "밟으면 화염 피해를 받습니다!"),
+        TileType.ICE_FLOOR: ("얼음 바닥", "미끄러워서 의도치 않은 방향으로 이동할 수 있습니다."),
+        TileType.TELEPORTER: ("텔레포터", "다른 위치로 순간이동할 수 있습니다."),
+        TileType.CAMPFIRE: ("모닥불", "모닥불에서 쉬면 약간의 HP/MP를 회복합니다."),
+    }
+
     def _check_tile_event(self, tile: Tile) -> ExplorationResult:
         """타일 이벤트 확인"""
+        # 효과 타일 첫 진입 시 설명 표시
+        if tile.tile_type in self.EFFECT_TILE_DESCRIPTIONS:
+            if tile.tile_type not in self._seen_effect_tile_types:
+                self._seen_effect_tile_types.add(tile.tile_type)
+                title, desc = self.EFFECT_TILE_DESCRIPTIONS[tile.tile_type]
+                # 첫 진입 설명을 pending 메시지로 저장 (UI에서 표시)
+                logger.info(f"[타일 첫 진입] {title}: {desc}")
+                if not hasattr(self, '_pending_tile_messages'):
+                    self._pending_tile_messages = []
+                self._pending_tile_messages.append(f"[{title}] {desc}")
+
         # 마을 건물 상호작용 체크 (우선순위 높음, 적과 조우와 동일한 방식)
         if hasattr(self, 'is_town') and self.is_town:
             # 타일에 building 속성이 있으면 건물 상호작용
@@ -615,7 +772,7 @@ class ExplorationSystem:
                     }
                 )
             # 타일의 char가 건물 심볼인 경우도 확인
-            elif hasattr(tile, 'char') and tile.char in ['K', 'B', 'A', 'S', 'Q', '$', 'I', 'G', 'F']:
+            elif hasattr(tile, 'char') and tile.char in ['K', 'B', 'A', 'S', 'Q', '$', 'I', 'G', 'F', 'H']:
                 # town_map에서 건물 찾기
                 if hasattr(self, 'town_map') and self.town_map:
                     building = self.town_map.get_building_at(self.player.x, self.player.y)
@@ -708,9 +865,6 @@ class ExplorationSystem:
         #             message="⚠ 보스의 기운이 느껴집니다..."
         #         )
 
-        elif tile.tile_type == TileType.PUZZLE:
-            return self._handle_puzzle(tile)
-
         elif tile.tile_type == TileType.SWITCH:
             return self._handle_switch(tile)
 
@@ -719,16 +873,6 @@ class ExplorationSystem:
 
         elif tile.tile_type == TileType.LEVER:
             return self._handle_lever(tile)
-
-        elif tile.tile_type == TileType.NPC:
-            return self._handle_npc(tile)
-
-        elif tile.tile_type == TileType.SHOP:
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NONE,
-                message="상점입니다. (상호작용 미구현)"
-            )
 
         elif tile.tile_type == TileType.ALTAR:
             return self._handle_altar(tile)
@@ -775,7 +919,21 @@ class ExplorationSystem:
         elif tile.tile_type == TileType.MAGIC_CIRCLE:
             return self._handle_magic_circle(tile)
 
-
+        # ── RPG 마을 건물 상호작용 ──
+        elif tile.tile_type in (
+            TileType.KITCHEN, TileType.BLACKSMITH, TileType.ALCHEMY_LAB,
+            TileType.STORAGE_BUILDING, TileType.QUEST_BOARD, TileType.SHOP,
+            TileType.INN, TileType.GUILD_HALL, TileType.FOUNTAIN,
+            TileType.CAMPFIRE, TileType.HEALING_SPRING,
+        ):
+            from src.world.tile import get_tile_info
+            name, desc = get_tile_info(tile.tile_type)
+            return ExplorationResult(
+                success=True,
+                event=ExplorationEvent.BUILDING_INTERACTION,
+                message=f"{name} - {desc}",
+                data={"building_type": tile.tile_type.value, "x": tile.x, "y": tile.y}
+            )
 
         # 랜덤 전투 조우 제거 (이제 적 엔티티와의 충돌로만 전투 발생)
 
@@ -984,14 +1142,23 @@ class ExplorationSystem:
             )
         
         success = self.inventory.add_item(item)
-        
+
         if not success:
             return ExplorationResult(
                 success=False,
                 event=ExplorationEvent.NONE,
                 message=f"✨ {item.name} 발견! 하지만 인벤토리가 가득 차서 가져갈 수 없다..."
             )
-        
+
+        # 퀘스트 진행도 업데이트
+        item_id = getattr(item, 'item_id', '')
+        if item_id:
+            try:
+                from src.quest.quest_manager import get_quest_manager
+                get_quest_manager().update_progress("item_collected", item_id, 1)
+            except Exception:
+                pass
+
         # 아이템 발견 SFX
         play_sfx("world", "item_discover")
         play_sfx("item", "get_item")
@@ -1173,6 +1340,8 @@ class ExplorationSystem:
     def descend_floor(self):
         """다음 층으로"""
         self.floor_number += 1
+        if self.inventory is not None:
+            self.inventory.current_floor = self.floor_number
         logger.info(f"층 이동: {self.floor_number}층")
 
         # 최대 도달 층수 업데이트
@@ -1227,19 +1396,54 @@ class ExplorationSystem:
             self.enemies = []  # 적 리스트 초기화
             return
 
-        # 층 수에 따라 적 수 결정 (7 + 층*0.3, 최대 12마리)
-        base_enemies = 7
-        additional = int(self.floor_number * 0.3)  # 층 * 0.3
-        num_enemies = min(12, base_enemies + additional)  # 최대 12마리
+        # 층 수에 따라 적 수 결정
+        is_large_map_check = self.dungeon.width > 300 or self.dungeon.height > 300
+        if is_large_map_check:
+            # RPG 오픈월드: 밀도 2배 (14 + 층*0.6, 최대 24마리)
+            base_enemies = 14
+            additional = int(self.floor_number * 0.6)
+            num_enemies = min(24, base_enemies + additional)
+        else:
+            # 일반 던전: 기존대로 (7 + 층*0.3, 최대 12마리)
+            base_enemies = 7
+            additional = int(self.floor_number * 0.3)
+            num_enemies = min(12, base_enemies + additional)
 
         # 플레이어 시작 위치 주변을 제외한 바닥 타일에 적 배치
         possible_positions = []
-        for x in range(self.dungeon.width):
-            for y in range(self.dungeon.height):
+        # 대형 맵(RPG 모드)은 플레이어 주변 반경만 탐색 (전체 순회 방지)
+        if self.dungeon.width > 300 or self.dungeon.height > 300:
+            spawn_radius = 60  # 플레이어 주변 120x120 영역
+            x_min = max(0, self.player.x - spawn_radius)
+            x_max = min(self.dungeon.width, self.player.x + spawn_radius)
+            y_min = max(0, self.player.y - spawn_radius)
+            y_max = min(self.dungeon.height, self.player.y + spawn_radius)
+        else:
+            x_min, x_max = 0, self.dungeon.width
+            y_min, y_max = 0, self.dungeon.height
+        # RPG 오픈월드는 지형 타일(GRASS, SAND 등)에도 적 스폰
+        is_large_map = self.dungeon.width > 300 or self.dungeon.height > 300
+        rpg_terrain_types = {
+            TileType.GRASS, TileType.TALL_GRASS, TileType.SAND,
+            TileType.SNOW, TileType.ICE_FLOOR, TileType.DEEP_FOREST, TileType.SWAMP,
+            TileType.FLOWER, TileType.ROCK, TileType.DEAD_TREE,
+            TileType.MUSHROOM, TileType.CACTUS, TileType.RUINS,
+            TileType.STAR_MOSS, TileType.SCORCHED_EARTH, TileType.CRYSTAL_GRASS,
+        } if is_large_map else set()
+
+        for x in range(x_min, x_max):
+            for y in range(y_min, y_max):
                 tile = self.dungeon.get_tile(x, y)
-                if (tile and tile.tile_type == TileType.FLOOR and
-                    abs(x - self.player.x) > 3 and abs(y - self.player.y) > 3):
-                    possible_positions.append((x, y))
+                if tile and (tile.tile_type == TileType.FLOOR or tile.tile_type in rpg_terrain_types):
+                    if is_large_map:
+                        # RPG 오픈월드: 맨해튼 거리 기반 제외 (5칸 이내 제외)
+                        manhattan_dist = abs(x - self.player.x) + abs(y - self.player.y)
+                        if manhattan_dist > 5:
+                            possible_positions.append((x, y))
+                    else:
+                        # 일반 던전: 기존 로직 (양 축 모두 3칸 초과)
+                        if abs(x - self.player.x) > 3 and abs(y - self.player.y) > 3:
+                            possible_positions.append((x, y))
 
         # 보스 먼저 배치 (층마다 한 마리씩 꼭 생성)
         # 20층과 30층은 스토리 보스(세피로스/카인) 강제 조우 층이므로 필드 보스 스폰 안 함
@@ -1355,11 +1559,19 @@ class ExplorationSystem:
                     enemy = Enemy(x=x, y=y, level=self.floor_number)
                     self.enemies.append(enemy)
 
-        logger.info(f"[_spawn_enemies] 적 {len(self.enemies)}마리 배치 완료 (요청: {num_enemies}마리, 가능한 위치: {len(possible_positions)}개)")
+        # RPG 오픈월드: 적 감지 범위/추적 거리 확대 (넓은 맵에서 적이 플레이어를 잘 찾도록)
+        if is_large_map:
+            for enemy in self.enemies:
+                enemy.detection_range = 15  # 5 → 15 (넓은 필드에서 감지 가능)
+                enemy.max_chase_distance = 30  # 15 → 30 (더 멀리까지 추적)
+                enemy.max_chase_turns = 30  # 15 → 30 (더 오래 추적)
+                enemy.signal_range = 30  # 20 → 30 (넓은 범위 신호)
+
+        logger.info(f"[_spawn_enemies] 적 {len(self.enemies)}마리 배치 완료 (요청: {num_enemies}마리, 가능한 위치: {len(possible_positions)}개, 대형맵: {is_large_map})")
         if len(self.enemies) == 0:
             logger.warning(f"[_spawn_enemies] [WARNING] 적이 스폰되지 않았습니다! possible_positions: {len(possible_positions)}개")
         for i, enemy in enumerate(self.enemies[:5]):  # 처음 5마리만 로그
-            logger.info(f"[_spawn_enemies] 적 {i+1}: {enemy.name} ({'보스' if enemy.is_boss else '일반'}) 위치 ({enemy.x}, {enemy.y})")
+            logger.info(f"[_spawn_enemies] 적 {i+1}: {enemy.name} ({'보스' if enemy.is_boss else '일반'}) 위치 ({enemy.x}, {enemy.y}), 감지범위={enemy.detection_range}")
 
     def get_enemy_at(self, x: int, y: int) -> Optional[Enemy]:
         """특정 위치의 적 가져오기"""
@@ -1471,8 +1683,19 @@ class ExplorationSystem:
 
         logger.debug(f"[적 이동] {enemy.name} 위치=({enemy.x}, {enemy.y}), 플레이어 위치=({self.player.x}, {self.player.y}), 거리={distance}, 감지범위={enemy.detection_range}")
 
+        # 은신(STEALTH) 상태 체크 - 파티원 중 누구라도 은신 중이면 감지 범위 대폭 감소
+        effective_detection_range = enemy.detection_range
+        if hasattr(self, 'player') and hasattr(self.player, 'party') and self.player.party:
+            stealth_active = any(
+                hasattr(m, 'status_manager') and m.status_manager.has_stealth()
+                for m in self.player.party
+            )
+            if stealth_active:
+                effective_detection_range = max(1, enemy.detection_range // 3)
+                logger.debug(f"[은신] 파티 은신 중 - {enemy.name} 감지범위: {enemy.detection_range} → {effective_detection_range}")
+
         # 플레이어 감지
-        if distance <= enemy.detection_range:
+        if distance <= effective_detection_range:
             if not enemy.is_chasing:
                 logger.info(f"[적 이동] [WARNING] {enemy.name}이(가) 플레이어 감지! (거리: {distance}) - 추적 시작")
                 enemy.chase_turns = 0  # 처음 감지할 때만 카운터 리셋
@@ -1518,9 +1741,14 @@ class ExplorationSystem:
 
         # 적 이동 후 플레이어와의 충돌 확인 (시간 기반 이동 시스템에서 필요)
         if enemy.x == self.player.x and enemy.y == self.player.y:
+            current_time = time.time()
+
+            # 전투 후 면역 시간 체크
+            if current_time < self.post_combat_immunity_until:
+                return
+
             # 도망한 적은 5초간 조우 방지
             enemy_id = id(enemy)
-            current_time = time.time()
             
             # 도망 쿨다운 만료 체크
             if enemy_id in self.fled_enemies:
@@ -1532,6 +1760,22 @@ class ExplorationSystem:
                     # 쿨다운 만료, 딕셔너리에서 제거
                     del self.fled_enemies[enemy_id]
             
+            # 은신 중이면 50% 확률로 전투 회피
+            import random as _rnd
+            if hasattr(self, 'player') and hasattr(self.player, 'party') and self.player.party:
+                stealth_active = any(
+                    hasattr(m, 'status_manager') and m.status_manager.has_stealth()
+                    for m in self.player.party
+                )
+                if stealth_active and _rnd.random() < 0.5:
+                    logger.info(f"[은신 회피] {enemy.name}과(와) 충돌했으나 은신으로 전투 회피!")
+                    # 적을 약간 밀어내기
+                    enemy.x = enemy.spawn_x
+                    enemy.y = enemy.spawn_y
+                    enemy.is_chasing = False
+                    enemy.chase_turns = 0
+                    return
+
             logger.info(f"[전투 트리거] 적이 플레이어와 충돌: {enemy.name} at ({enemy.x}, {enemy.y})")
             # 충돌 적 저장 (world_ui.py에서 감지하여 전투 트리거)
             self.collision_enemy = enemy
@@ -1969,57 +2213,6 @@ class ExplorationSystem:
                         return True
         return False
 
-    def _handle_puzzle(self, tile: Tile) -> ExplorationResult:
-        """퍼즐 처리"""
-        import random
-        from src.core.logger import get_logger
-        logger = get_logger("exploration")
-        
-        logger.info(f"퍼즐 타일 접근: 해결 여부={tile.puzzle_solved}")
-        
-        if tile.puzzle_solved:
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NONE,
-                message="이미 해결된 퍼즐입니다."
-            )
-
-        # 간단한 퍼즐: 숫자 맞추기 (1-9)
-        puzzle_answer = tile.puzzle_type or str(random.randint(1, 9))
-        
-        # 퍼즐 해결 (간단하게 자동 해결로 구현, 나중에 UI 추가 가능)
-        tile.puzzle_solved = True
-        logger.info(f"퍼즐 해결! 답: {puzzle_answer}")
-        
-        # 보상: 골드 또는 아이템
-        reward_type = random.choice(["gold", "item"])
-        if reward_type == "gold":
-            gold_amount = random.randint(50, 200) * self.floor_number
-            if self.inventory:
-                self.inventory.add_gold(gold_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.PUZZLE_SOLVED,
-                message=f"퍼즐 해결! {gold_amount} 골드 획득!",
-                data={"gold": gold_amount}
-            )
-        else:
-            from src.equipment.item_system import ItemGenerator
-            item = ItemGenerator.create_random_drop(self.floor_number)
-            if self.inventory:
-                if self.inventory.add_item(item):
-                    return ExplorationResult(
-                        success=True,
-                        event=ExplorationEvent.PUZZLE_SOLVED,
-                        message=f"퍼즐 해결! {item.name} 획득!",
-                        data={"item": item}
-                    )
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.PUZZLE_SOLVED,
-                message="퍼즐 해결! (인벤토리 가득 참)"
-            )
-
     def _handle_switch(self, tile: Tile) -> ExplorationResult:
         """스위치 처리"""
         tile.switch_active = not tile.switch_active
@@ -2033,8 +2226,16 @@ class ExplorationSystem:
         # 스위치가 제어하는 대상 처리 (예: 문 열기)
         if tile.switch_target:
             # switch_target이 문 ID인 경우 해당 문 열기
-            for y in range(self.dungeon.height):
-                for x in range(self.dungeon.width):
+            # 대형 맵은 주변 반경만 탐색
+            if self.dungeon.width > 300 or self.dungeon.height > 300:
+                sr = 60
+                sx_min, sx_max = max(0, self.player.x - sr), min(self.dungeon.width, self.player.x + sr)
+                sy_min, sy_max = max(0, self.player.y - sr), min(self.dungeon.height, self.player.y + sr)
+            else:
+                sx_min, sx_max = 0, self.dungeon.width
+                sy_min, sy_max = 0, self.dungeon.height
+            for y in range(sy_min, sy_max):
+                for x in range(sx_min, sx_max):
                     target_tile = self.dungeon.get_tile(x, y)
                     if target_tile and target_tile.key_id == tile.switch_target:
                         if target_tile.tile_type == TileType.LOCKED_DOOR:
@@ -2058,8 +2259,15 @@ class ExplorationSystem:
             
             # 압력판이 제어하는 대상 처리
             if tile.switch_target:
-                for y in range(self.dungeon.height):
-                    for x in range(self.dungeon.width):
+                if self.dungeon.width > 300 or self.dungeon.height > 300:
+                    sr = 60
+                    sx_min, sx_max = max(0, self.player.x - sr), min(self.dungeon.width, self.player.x + sr)
+                    sy_min, sy_max = max(0, self.player.y - sr), min(self.dungeon.height, self.player.y + sr)
+                else:
+                    sx_min, sx_max = 0, self.dungeon.width
+                    sy_min, sy_max = 0, self.dungeon.height
+                for y in range(sy_min, sy_max):
+                    for x in range(sx_min, sx_max):
                         target_tile = self.dungeon.get_tile(x, y)
                         if target_tile and target_tile.key_id == tile.switch_target:
                             if target_tile.tile_type == TileType.LOCKED_DOOR:
@@ -2082,8 +2290,15 @@ class ExplorationSystem:
         
         # 레버가 제어하는 대상 처리
         if tile.switch_target:
-            for y in range(self.dungeon.height):
-                for x in range(self.dungeon.width):
+            if self.dungeon.width > 300 or self.dungeon.height > 300:
+                sr = 60
+                sx_min, sx_max = max(0, self.player.x - sr), min(self.dungeon.width, self.player.x + sr)
+                sy_min, sy_max = max(0, self.player.y - sr), min(self.dungeon.height, self.player.y + sr)
+            else:
+                sx_min, sx_max = 0, self.dungeon.width
+                sy_min, sy_max = 0, self.dungeon.height
+            for y in range(sy_min, sy_max):
+                for x in range(sx_min, sx_max):
                     target_tile = self.dungeon.get_tile(x, y)
                     if target_tile and target_tile.key_id == tile.switch_target:
                         if target_tile.tile_type == TileType.LOCKED_DOOR:
@@ -2098,1204 +2313,6 @@ class ExplorationSystem:
             message=f"레버를 {status}!",
             data={"active": tile.switch_active}
         )
-
-    def _handle_npc(self, tile: Tile) -> ExplorationResult:
-        """NPC 처리 - 스토리 기반 다양한 NPC 타입"""
-        import random
-        npc_type = tile.npc_type or "neutral"
-        npc_subtype = tile.npc_subtype or "generic"
-        npc_id = tile.npc_id or "unknown_npc"
-        
-        # 이미 상호작용한 NPC 처리
-        if tile.npc_interacted and npc_subtype not in ["merchant", "mysterious_merchant", "time_mage"]:
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="NPC는 이미 당신과 대화했습니다.",
-                data={"npc_type": npc_type, "already_interacted": True}
-            )
-        
-        # NPC 서브타입별 처리
-        if npc_subtype == "time_researcher":
-            return self._handle_time_researcher(tile)
-        elif npc_subtype == "timeline_survivor":
-            return self._handle_timeline_survivor(tile)
-        elif npc_subtype == "space_explorer":
-            return self._handle_space_explorer(tile)
-        elif npc_subtype == "merchant":
-            return self._handle_merchant(tile)
-        elif npc_subtype == "refugee":
-            return self._handle_refugee(tile)
-        elif npc_subtype == "time_thief":
-            return self._handle_time_thief(tile)
-        elif npc_subtype == "distortion_entity":
-            return self._handle_distortion_entity(tile)
-        elif npc_subtype == "betrayer":
-            return self._handle_betrayer(tile)
-        elif npc_subtype == "mysterious_merchant":
-            return self._handle_mysterious_merchant(tile)
-        elif npc_subtype == "time_mage":
-            return self._handle_time_mage(tile)
-        elif npc_subtype == "future_self":
-            return self._handle_future_self(tile)
-        elif npc_subtype == "corrupted_survivor":
-            return self._handle_corrupted_survivor(tile)
-        elif npc_subtype == "ancient_guardian":
-            return self._handle_ancient_guardian(tile)
-        elif npc_subtype == "void_wanderer":
-            return self._handle_void_wanderer(tile)
-        # === 새로운 창의적 NPC 타입 ===
-        elif npc_subtype == "stat_trainer":
-            return self._handle_stat_trainer(tile)
-        elif npc_subtype == "gambler":
-            return self._handle_gambler(tile)
-        elif npc_subtype == "equipment_enchanter":
-            return self._handle_equipment_enchanter(tile)
-        elif npc_subtype == "dungeon_curse":
-            return self._handle_dungeon_curse(tile)
-        elif npc_subtype == "wandering_alchemist":
-            return self._handle_wandering_alchemist(tile)
-        elif npc_subtype == "dimension_crafter":
-            return self._handle_dimension_crafter(tile)
-        elif npc_subtype == "oracle":
-            return self._handle_oracle(tile)
-        elif npc_subtype == "chaos_entity":
-            return self._handle_chaos_entity(tile)
-        
-        # 기본 타입 처리 (하위 호환성)
-        if npc_type == "helpful":
-            return self._handle_helpful_npc(tile)
-        elif npc_type == "harmful":
-            return self._handle_harmful_npc(tile)
-        else:  # neutral
-            return self._handle_neutral_npc(tile)
-    
-    def _handle_time_researcher(self, tile: Tile) -> ExplorationResult:
-        """시공 연구자 NPC (선택지 제공)"""
-        tile.npc_interacted = True
-        
-        # 선택지가 있는 NPC로 처리 (UI에서 선택지 제공)
-        return ExplorationResult(
-            success=True,
-            event=ExplorationEvent.NPC_INTERACTION,
-            message="시공 연구자: '시공교란의 원인을 조사 중입니다. 도움이 필요하신가요?'\n어떤 도움을 받으시겠습니까?",
-            data={"npc_subtype": "time_researcher", "has_choices": True}
-        )
-    
-    def _handle_timeline_survivor(self, tile: Tile) -> ExplorationResult:
-        """타임라인 붕괴 생존자 NPC"""
-        import random
-        tile.npc_interacted = True
-        
-        help_type = random.choice(["story_heal", "story_gold", "story_warning"])
-        
-        if help_type == "story_heal":
-            heal_amount = 60 + self.floor_number * 10
-            for member in self.player.party:
-                if hasattr(member, 'heal'):
-                    member.heal(heal_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"생존자: '우리는 타임라인 붕괴에서 살아남았습니다. 이 작은 도움을 받으세요.'\n파티가 {heal_amount} HP 회복했습니다!",
-                data={"npc_subtype": "timeline_survivor", "heal": heal_amount}
-            )
-        elif help_type == "story_gold":
-            gold_amount = random.randint(30, 80) * self.floor_number
-            if self.inventory:
-                self.inventory.add_gold(gold_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"생존자: '더 이상 필요 없는 골드입니다. 받으세요.'\n{gold_amount} 골드를 획득했습니다!",
-                data={"npc_subtype": "timeline_survivor", "gold": gold_amount}
-            )
-        else:  # story_warning
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="생존자: '조심하세요. 시공의 균열이 점점 커지고 있습니다. 강력한 존재가 깨어나고 있어요...'",
-                data={"npc_subtype": "timeline_survivor", "warning": True}
-            )
-    
-    def _handle_space_explorer(self, tile: Tile) -> ExplorationResult:
-        """우주 탐험가 NPC"""
-        import random
-        tile.npc_interacted = True
-        
-        help_type = random.choice(["explorer_item", "explorer_info", "explorer_heal"])
-        
-        if help_type == "explorer_item":
-            from src.equipment.item_system import ItemGenerator
-            item = ItemGenerator.create_random_drop(self.floor_number + 1)
-            if self.inventory and self.inventory.add_item(item):
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"우주 탐험가: '우주 여행 중 발견한 물건입니다. 받으세요.'\n{item.name}을(를) 획득했습니다!",
-                    data={"npc_subtype": "space_explorer", "item": item}
-                )
-        elif help_type == "explorer_info":
-            gold_amount = random.randint(40, 120) * self.floor_number
-            if self.inventory:
-                self.inventory.add_gold(gold_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"우주 탐험가: '황금시대의 유물입니다. 받으세요.'\n{gold_amount} 골드를 획득했습니다!",
-                data={"npc_subtype": "space_explorer", "gold": gold_amount}
-            )
-        else:  # explorer_heal
-            heal_amount = 70 + self.floor_number * 12
-            for member in self.player.party:
-                if hasattr(member, 'heal'):
-                    member.heal(heal_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"우주 탐험가: '우주 의료 기술입니다. 도움이 될 것입니다.'\n파티가 {heal_amount} HP 회복했습니다!",
-                data={"npc_subtype": "space_explorer", "heal": heal_amount}
-            )
-    
-    def _handle_merchant(self, tile: Tile) -> ExplorationResult:
-        """상인 NPC (선택지 제공: 구매/판매)"""
-        if not self.inventory:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="상인: '인벤토리가 없어서 거래할 수 없습니다.'",
-                data={"npc_subtype": "merchant"}
-            )
-        
-        # 선택지가 있는 NPC로 처리 (UI에서 구매/판매 선택)
-        return ExplorationResult(
-            success=True,
-            event=ExplorationEvent.NPC_INTERACTION,
-            message="상인: '안녕하세요! 무엇을 도와드릴까요?'\n어떤 서비스를 원하시나요?",
-            data={"npc_subtype": "merchant", "has_choices": True}
-        )
-    
-    def _handle_refugee(self, tile: Tile) -> ExplorationResult:
-        """난민 NPC"""
-        import random
-        tile.npc_interacted = True
-        
-        help_type = random.choice(["refugee_small_heal", "refugee_small_gold"])
-        
-        if help_type == "refugee_small_heal":
-            heal_amount = 30 + self.floor_number * 5
-            for member in self.player.party:
-                if hasattr(member, 'heal'):
-                    member.heal(heal_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"난민: '고마워요... 작은 도움이라도 드릴게요.'\n파티가 {heal_amount} HP 회복했습니다!",
-                data={"npc_subtype": "refugee", "heal": heal_amount}
-            )
-        else:  # refugee_small_gold
-            gold_amount = random.randint(10, 30) * self.floor_number
-            if self.inventory:
-                self.inventory.add_gold(gold_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"난민: '이건 제가 가진 전부예요... 받으세요.'\n{gold_amount} 골드를 획득했습니다!",
-                data={"npc_subtype": "refugee", "gold": gold_amount}
-            )
-    
-    def _handle_time_thief(self, tile: Tile) -> ExplorationResult:
-        """시공 도적 NPC (손해)"""
-        import random
-        tile.npc_interacted = True
-        
-        harm_type = random.choice(["thief_gold", "thief_damage"])
-        
-        if harm_type == "thief_gold":
-            if self.inventory:
-                stolen_gold = min(self.inventory.gold, random.randint(100, 300) * self.floor_number)
-                self.inventory.gold = max(0, self.inventory.gold - stolen_gold)
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"시공 도적: '시공의 틈새를 이용해 골드를 훔쳤다!'\n{stolen_gold} 골드를 잃었습니다!",
-                    data={"npc_subtype": "time_thief", "gold_lost": stolen_gold}
-                )
-        else:  # thief_damage
-            damage = 30 + self.floor_number * 8
-            for member in self.player.party:
-                if hasattr(member, 'take_damage'):
-                    member.take_damage(damage)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"시공 도적: '시공 마법으로 공격한다!'\n파티가 {damage} 데미지를 입었습니다!",
-                data={"npc_subtype": "time_thief", "damage": damage}
-            )
-    
-    def _handle_distortion_entity(self, tile: Tile) -> ExplorationResult:
-        """타임라인 왜곡체 NPC (손해)"""
-        import random
-        tile.npc_interacted = True
-        
-        harm_type = random.choice(["distortion_damage", "distortion_curse"])
-        
-        if harm_type == "distortion_damage":
-            damage = 40 + self.floor_number * 10
-            for member in self.player.party:
-                if hasattr(member, 'take_damage'):
-                    member.take_damage(damage)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"타임라인 왜곡체: '시공의 힘으로 공격한다...'\n파티가 {damage} 데미지를 입었습니다!",
-                data={"npc_subtype": "distortion_entity", "damage": damage}
-            )
-        else:  # distortion_curse
-            if self.inventory:
-                stolen_gold = min(self.inventory.gold, random.randint(80, 200))
-                self.inventory.gold = max(0, self.inventory.gold - stolen_gold)
-            damage = 20 + self.floor_number * 5
-            for member in self.player.party:
-                if hasattr(member, 'take_damage'):
-                    member.take_damage(damage)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"타임라인 왜곡체: '시공의 저주를 걸었다...'\n{stolen_gold if self.inventory else 0} 골드를 잃고 {damage} 데미지를 입었습니다!",
-                data={"npc_subtype": "distortion_entity", "gold_lost": stolen_gold if self.inventory else 0, "damage": damage}
-            )
-    
-    def _handle_betrayer(self, tile: Tile) -> ExplorationResult:
-        """배신자 NPC (복합: 처음엔 도움, 나중엔 손해)"""
-        import random
-        
-        if not tile.npc_interacted:
-            # 첫 상호작용: 도움
-            tile.npc_interacted = True
-            heal_amount = 100 + self.floor_number * 20
-            for member in self.player.party:
-                if hasattr(member, 'heal'):
-                    member.heal(heal_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"???: '상처를 회복시켜드리겠습니다!'\n파티가 {heal_amount} HP 회복했습니다!",
-                data={"npc_subtype": "betrayer", "heal": heal_amount, "first_interaction": True}
-            )
-        else:
-            # 두 번째 상호작용: 배신
-            damage = 50 + self.floor_number * 15
-            for member in self.player.party:
-                if hasattr(member, 'take_damage'):
-                    member.take_damage(damage)
-            if self.inventory:
-                stolen_gold = min(self.inventory.gold, random.randint(150, 400))
-                self.inventory.gold = max(0, self.inventory.gold - stolen_gold)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"배신자: '하하하! 속았지!'\n파티가 {damage} 데미지를 입고 {stolen_gold if self.inventory else 0} 골드를 잃었습니다!",
-                data={"npc_subtype": "betrayer", "damage": damage, "gold_lost": stolen_gold if self.inventory else 0}
-            )
-    
-    def _handle_mysterious_merchant(self, tile: Tile) -> ExplorationResult:
-        """신비한 상인 NPC (선택지 제공: 구매/판매)"""
-        if not self.inventory:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="신비한 상인: '인벤토리가 없어서 거래할 수 없습니다.'",
-                data={"npc_subtype": "mysterious_merchant"}
-            )
-        
-        # 선택지가 있는 NPC로 처리 (UI에서 구매/판매 선택)
-        return ExplorationResult(
-            success=True,
-            event=ExplorationEvent.NPC_INTERACTION,
-            message="신비한 상인: '시공의 힘이 깃든 물건들을 팝니다...'\n어떤 서비스를 원하시나요?",
-            data={"npc_subtype": "mysterious_merchant", "has_choices": True}
-        )
-    
-    def _handle_time_mage(self, tile: Tile) -> ExplorationResult:
-        """시공 마법사 NPC (복합: 강력한 도움과 손해)"""
-        import random
-        
-        # 시공 마법사는 매번 다른 효과
-        effect_type = random.choice(["powerful_heal", "powerful_mp", "time_damage", "time_curse"])
-        
-        if effect_type == "powerful_heal":
-            heal_amount = 150 + self.floor_number * 25
-            for member in self.player.party:
-                if hasattr(member, 'heal'):
-                    member.heal(heal_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"시공 마법사: '시간을 되돌려 치유합니다...'\n파티가 {heal_amount} HP 회복했습니다!",
-                data={"npc_subtype": "time_mage", "heal": heal_amount}
-            )
-        elif effect_type == "powerful_mp":
-            mp_amount = 50 + self.floor_number * 10
-            for member in self.player.party:
-                if hasattr(member, 'current_mp') and hasattr(member, 'max_mp'):
-                    member.current_mp = min(member.max_mp, member.current_mp + mp_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"시공 마법사: '시공의 마나를 전달합니다...'\n파티가 {mp_amount} MP 회복했습니다!",
-                data={"npc_subtype": "time_mage", "mp": mp_amount}
-            )
-        elif effect_type == "time_damage":
-            damage = 60 + self.floor_number * 15
-            for member in self.player.party:
-                if hasattr(member, 'take_damage'):
-                    member.take_damage(damage)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"시공 마법사: '시공의 힘이 불안정합니다... 죄송합니다!'\n파티가 {damage} 데미지를 입었습니다!",
-                data={"npc_subtype": "time_mage", "damage": damage}
-            )
-        else:  # time_curse
-            if self.inventory:
-                stolen_gold = min(self.inventory.gold, random.randint(100, 250))
-                self.inventory.gold = max(0, self.inventory.gold - stolen_gold)
-            damage = 40 + self.floor_number * 10
-            for member in self.player.party:
-                if hasattr(member, 'take_damage'):
-                    member.take_damage(damage)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"시공 마법사: '시공의 저주가 발동했습니다!'\n{stolen_gold if self.inventory else 0} 골드를 잃고 {damage} 데미지를 입었습니다!",
-                data={"npc_subtype": "time_mage", "gold_lost": stolen_gold if self.inventory else 0, "damage": damage}
-            )
-    
-    def _handle_future_self(self, tile: Tile) -> ExplorationResult:
-        """미래의 자신 NPC (복합: 특별한 상호작용)"""
-        import random
-        tile.npc_interacted = True
-        
-        effect_type = random.choice(["future_warning", "future_gift", "future_curse"])
-        
-        if effect_type == "future_warning":
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="미래의 자신: '나는 미래의 너다. 조심해라. 시공교란의 진실은... 너의 선택에 달려있다.'",
-                data={"npc_subtype": "future_self", "warning": True}
-            )
-        elif effect_type == "future_gift":
-            from src.equipment.item_system import ItemGenerator
-            item = ItemGenerator.create_random_drop(self.floor_number + 5)
-            heal_amount = 100 + self.floor_number * 20
-            if self.inventory and self.inventory.add_item(item):
-                for member in self.player.party:
-                    if hasattr(member, 'heal'):
-                        member.heal(heal_amount)
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"미래의 자신: '이것은 미래에서 가져온 선물이다.'\n{item.name}을(를) 획득하고 파티가 {heal_amount} HP 회복했습니다!",
-                    data={"npc_subtype": "future_self", "item": item, "heal": heal_amount}
-                )
-        else:  # future_curse
-            damage = 30 + self.floor_number * 8
-            for member in self.player.party:
-                if hasattr(member, 'take_damage'):
-                    member.take_damage(damage)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"미래의 자신: '미래를 바꾸려는 시도는 위험하다...'\n파티가 {damage} 데미지를 입었습니다!",
-                data={"npc_subtype": "future_self", "damage": damage}
-            )
-    
-    def _handle_corrupted_survivor(self, tile: Tile) -> ExplorationResult:
-        """시공 교란 피해자 NPC (복합: 도움과 손해)"""
-        import random
-        tile.npc_interacted = True
-        
-        # 도움과 손해를 동시에
-        heal_amount = 60 + self.floor_number * 10
-        damage = 20 + self.floor_number * 5
-        
-        for member in self.player.party:
-            if hasattr(member, 'heal'):
-                member.heal(heal_amount)
-            if hasattr(member, 'take_damage'):
-                member.take_damage(damage)
-        
-        return ExplorationResult(
-            success=True,
-            event=ExplorationEvent.NPC_INTERACTION,
-            message=f"시공 교란 피해자: '시공의 힘이... 불안정해...'\n파티가 {heal_amount} HP 회복했지만 {damage} 데미지도 입었습니다!",
-            data={"npc_subtype": "corrupted_survivor", "heal": heal_amount, "damage": damage}
-        )
-    
-    def _handle_ancient_guardian(self, tile: Tile) -> ExplorationResult:
-        """고대 수호자 NPC (도움)"""
-        import random
-        tile.npc_interacted = True
-        
-        help_type = random.choice(["guardian_blessing", "guardian_item", "guardian_wisdom"])
-        
-        if help_type == "guardian_blessing":
-            heal_amount = 120 + self.floor_number * 20
-            for member in self.player.party:
-                if hasattr(member, 'heal'):
-                    member.heal(heal_amount)
-            mp_amount = 40 + self.floor_number * 8
-            for member in self.player.party:
-                if hasattr(member, 'current_mp') and hasattr(member, 'max_mp'):
-                    member.current_mp = min(member.max_mp, member.current_mp + mp_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"고대 수호자: '고대의 축복을 받으라.'\n파티가 {heal_amount} HP와 {mp_amount} MP 회복했습니다!",
-                data={"npc_subtype": "ancient_guardian", "heal": heal_amount, "mp": mp_amount}
-            )
-        elif help_type == "guardian_item":
-            from src.equipment.item_system import ItemGenerator
-            item = ItemGenerator.create_random_drop(self.floor_number + 4)
-            if self.inventory and self.inventory.add_item(item):
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"고대 수호자: '고대의 유물을 받으라.'\n{item.name}을(를) 획득했습니다!",
-                    data={"npc_subtype": "ancient_guardian", "item": item}
-                )
-        else:  # guardian_wisdom
-            gold_amount = random.randint(100, 200) * self.floor_number
-            if self.inventory:
-                self.inventory.add_gold(gold_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"고대 수호자: '고대의 지혜는 이렇게 전해진다.'\n{gold_amount} 골드를 획득했습니다!",
-                data={"npc_subtype": "ancient_guardian", "gold": gold_amount}
-            )
-    
-    def _handle_void_wanderer(self, tile: Tile) -> ExplorationResult:
-        """공허 방랑자 NPC (복합: 랜덤 효과)"""
-        import random
-        tile.npc_interacted = True
-        
-        effect_type = random.choice(["void_heal", "void_damage", "void_item", "void_nothing"])
-        
-        if effect_type == "void_heal":
-            heal_amount = 80 + self.floor_number * 15
-            for member in self.player.party:
-                if hasattr(member, 'heal'):
-                    member.heal(heal_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"공허 방랑자: '공허에서 온 치유...'\n파티가 {heal_amount} HP 회복했습니다!",
-                data={"npc_subtype": "void_wanderer", "heal": heal_amount}
-            )
-        elif effect_type == "void_damage":
-            damage = 50 + self.floor_number * 12
-            for member in self.player.party:
-                if hasattr(member, 'take_damage'):
-                    member.take_damage(damage)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"공허 방랑자: '공허의 손길...'\n파티가 {damage} 데미지를 입었습니다!",
-                data={"npc_subtype": "void_wanderer", "damage": damage}
-            )
-        elif effect_type == "void_item":
-            from src.equipment.item_system import ItemGenerator
-            item = ItemGenerator.create_random_drop(self.floor_number + 2)
-            if self.inventory and self.inventory.add_item(item):
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"공허 방랑자: '공허에서 발견한 물건...'\n{item.name}을(를) 획득했습니다!",
-                    data={"npc_subtype": "void_wanderer", "item": item}
-                )
-        else:  # void_nothing
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="공허 방랑자: '...' (아무 일도 일어나지 않았습니다)",
-                data={"npc_subtype": "void_wanderer"}
-            )
-    
-    def _handle_helpful_npc(self, tile: Tile) -> ExplorationResult:
-        """기본 도움 NPC (하위 호환성)"""
-        import random
-        tile.npc_interacted = True
-        help_type = random.choice(["heal", "item", "gold"])
-        
-        if help_type == "heal":
-            heal_amount = 50 + self.floor_number * 10
-            for member in self.player.party:
-                if hasattr(member, 'heal'):
-                    member.heal(heal_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"친절한 NPC가 파티를 {heal_amount} HP 회복시켜줬습니다!",
-                data={"npc_type": "helpful", "heal": heal_amount}
-            )
-        elif help_type == "item":
-            from src.equipment.item_system import ItemGenerator
-            item = ItemGenerator.create_random_drop(self.floor_number)
-            if self.inventory and self.inventory.add_item(item):
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"친절한 NPC가 {item.name}을(를) 주었습니다!",
-                    data={"npc_type": "helpful", "item": item}
-                )
-        else:  # gold
-            gold_amount = random.randint(20, 100) * self.floor_number
-            if self.inventory:
-                self.inventory.add_gold(gold_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"친절한 NPC가 {gold_amount} 골드를 주었습니다!",
-                data={"npc_type": "helpful", "gold": gold_amount}
-            )
-    
-    def _handle_harmful_npc(self, tile: Tile) -> ExplorationResult:
-        """기본 손해 NPC (하위 호환성)"""
-        import random
-        tile.npc_interacted = True
-        harm_type = random.choice(["damage", "curse"])
-        
-        if harm_type == "damage":
-            damage = 20 + self.floor_number * 5
-            for member in self.player.party:
-                if hasattr(member, 'take_damage'):
-                    member.take_damage(damage)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"악의적인 NPC가 파티에게 {damage} 데미지를 입혔습니다!",
-                data={"npc_type": "harmful", "damage": damage}
-            )
-        else:  # curse
-            if self.inventory:
-                stolen_gold = min(self.inventory.gold, random.randint(50, 200))
-                self.inventory.gold = max(0, self.inventory.gold - stolen_gold)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"악의적인 NPC가 {stolen_gold if self.inventory else 0} 골드를 훔쳤습니다!",
-                data={"npc_type": "harmful", "gold_lost": stolen_gold if self.inventory else 0}
-            )
-    
-    def _handle_neutral_npc(self, tile: Tile) -> ExplorationResult:
-        """기본 중립 NPC (하위 호환성)"""
-        tile.npc_interacted = True
-        return ExplorationResult(
-            success=True,
-            event=ExplorationEvent.NPC_INTERACTION,
-            message="NPC와 대화했습니다. (특별한 일은 없었습니다)",
-            data={"npc_type": "neutral"}
-        )
-    
-    # ========================
-    # === 새로운 창의적 NPC ===
-    # ========================
-    
-    def _handle_stat_trainer(self, tile: Tile) -> ExplorationResult:
-        """스탯 훈련사 NPC (영구적 스탯 변경 - 해당 세이브파일 한정)"""
-        import random
-        tile.npc_interacted = True
-        
-        # 랜덤하게 스탯 선택
-        stat_options = [
-            ("strength", "힘", 3),
-            ("defense", "방어", 3),
-            ("magic", "마법", 3),
-            ("spirit", "정신", 3),
-            ("speed", "속도", 2),
-            ("luck", "행운", 2),
-        ]
-        
-        # 증가시킬 스탯과 감소시킬 스탯 선택
-        increase_stat = random.choice(stat_options)
-        decrease_stat = random.choice([s for s in stat_options if s[0] != increase_stat[0]])
-        
-        messages = []
-        for member in self.player.party:
-            # stat_manager를 통해 기본 스탯 수정
-            if hasattr(member, 'stat_manager'):
-                # 증가 스탯
-                member.stat_manager.modify(increase_stat[0], increase_stat[2])
-                # 감소 스탯 (최소 1 유지)
-                current_val = member.stat_manager.get_value(decrease_stat[0], use_total=False)
-                decrease_amount = min(decrease_stat[2], current_val - 1)  # 최소 1 유지
-                if decrease_amount > 0:
-                    member.stat_manager.modify(decrease_stat[0], -decrease_amount)
-        
-        return ExplorationResult(
-            success=True,
-            event=ExplorationEvent.NPC_INTERACTION,
-            message=f"스탯 훈련사: '훈련이 끝났다!'\n파티 전원: {increase_stat[1]} +{increase_stat[2]}, {decrease_stat[1]} -{decrease_stat[2]} (영구 적용)",
-            data={"npc_subtype": "stat_trainer", "stat_increased": increase_stat[0], "stat_decreased": decrease_stat[0]}
-        )
-    
-    def _handle_gambler(self, tile: Tile) -> ExplorationResult:
-        """도박꾼 NPC (골드 베팅) - 대화 확인 후 진행"""
-        import random
-        
-        # 이미 상호작용 완료된 경우
-        if tile.npc_interacted:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="도박꾼: '이미 한판 했잖아! 다음에 또 만나자!'",
-                data={"npc_subtype": "gambler", "already_interacted": True}
-            )
-        
-        if not self.inventory:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="도박꾼: '돈이 없으면 게임할 수 없지!'",
-                data={"npc_subtype": "gambler"}
-            )
-        
-        # 현재 골드의 30~50% 베팅
-        bet_percent = random.uniform(0.3, 0.5)
-        bet_amount = int(self.inventory.gold * bet_percent)
-        bet_amount = max(50, min(bet_amount, 500 * self.floor_number))  # 최소 50, 층수 기반 최대
-        
-        if self.inventory.gold < bet_amount:
-            bet_amount = self.inventory.gold
-        
-        if bet_amount <= 0:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="도박꾼: '돈이 부족해!'",
-                data={"npc_subtype": "gambler"}
-            )
-        
-        # 확인 대화를 요청 (world_ui.py에서 선택지 처리)
-        return ExplorationResult(
-            success=True,
-            event=ExplorationEvent.NPC_INTERACTION,
-            message=f"도박꾼: '한판 해볼래? 베팅 금액은 {bet_amount} 골드다!'\n(현재 보유: {self.inventory.gold} 골드)",
-            data={
-                "npc_subtype": "gambler", 
-                "needs_confirm": True,
-                "bet_amount": bet_amount,
-                "tile": tile
-            }
-        )
-    
-    def execute_gambler_bet(self, tile: Tile, bet_amount: int) -> ExplorationResult:
-        """도박꾼 NPC - 실제 도박 실행 (확인 후 호출)"""
-        import random
-        
-        tile.npc_interacted = True
-        
-        # 50/50 도박
-        if random.random() < 0.5:
-            # 승리: 베팅 금액의 2배 획득
-            winnings = bet_amount * 2
-            self.inventory.add_gold(winnings)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"도박꾼: '운이 좋군! 가져가라!'\n{bet_amount} 골드 베팅 → {winnings} 골드 획득! (+{bet_amount})",
-                data={"npc_subtype": "gambler", "won": True, "amount": winnings}
-            )
-        else:
-            # 패배: 베팅 금액 손실
-            self.inventory.gold = max(0, self.inventory.gold - bet_amount)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"도박꾼: '하하! 내 승리다!'\n{bet_amount} 골드를 잃었습니다...",
-                data={"npc_subtype": "gambler", "won": False, "amount": bet_amount}
-            )
-    
-    def _handle_equipment_enchanter(self, tile: Tile) -> ExplorationResult:
-        """장비 변형 NPC (장착 중인 모든 장비 속성 변경) - 대화 확인 필요"""
-        import random
-        
-        # 이미 상호작용한 NPC는 다시 상호작용 불가
-        if tile.npc_interacted:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="장비 마법사: '이미 만났군... 다음에 또 보지.'",
-                data={"npc_subtype": "equipment_enchanter", "already_interacted": True}
-            )
-        
-        # 파티가 없으면 처리 불가
-        if not self.player.party:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="장비 마법사: '변형할 장비를 가진 자가 없군...'",
-                data={"npc_subtype": "equipment_enchanter"}
-            )
-        
-        # 상호작용 전에 확인을 받아야 함 (첫 조우)
-        # 대화 확인은 world_ui.py에서 NPC_INTERACTION 이벤트 처리 시 선택지로 제공
-        tile.npc_interacted = True
-        
-        # 모든 파티원의 장착 중인 장비 수집
-        all_equipped_items = []
-        for member in self.player.party:
-            if hasattr(member, 'equipment') and member.equipment:
-                equipment = member.equipment
-                # member.equipment은 딕셔너리 {'weapon': item, 'armor': item, 'accessory': item}
-                # 각 장비 슬롯 확인
-                for slot_name in ['weapon', 'armor', 'accessory']:
-                    # 딕셔너리에서 .get()으로 접근
-                    item = equipment.get(slot_name) if isinstance(equipment, dict) else getattr(equipment, slot_name, None)
-                    if item and hasattr(item, 'base_stats') and item.base_stats:
-                        all_equipped_items.append((member.name, slot_name, item))
-        
-        if not all_equipped_items:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="장비 마법사: '장착한 장비가 없군... 장비를 갖춰 오거라.'",
-                data={"npc_subtype": "equipment_enchanter"}
-            )
-        
-        # 모든 장착 장비에 대해 스탯 변형 적용
-        enhanced_list = []
-        weakened_list = []
-        
-        for member_name, slot_name, item in all_equipped_items:
-            if item.base_stats:
-                # 랜덤 스탯 선택
-                stat_key = random.choice(list(item.base_stats.keys()))
-                original_value = item.base_stats[stat_key]
-                
-                if random.random() < 0.7:
-                    # 70% 확률로 향상
-                    boost = int(original_value * random.uniform(0.2, 0.5))
-                    boost = max(1, boost)  # 최소 1
-                    item.base_stats[stat_key] = original_value + boost
-                    enhanced_list.append(f"{item.name}: {stat_key} +{boost}")
-                else:
-                    # 30% 확률로 하락
-                    penalty = int(original_value * random.uniform(0.1, 0.3))
-                    penalty = max(1, penalty)  # 최소 1
-                    item.base_stats[stat_key] = max(1, original_value - penalty)
-                    weakened_list.append(f"{item.name}: {stat_key} -{penalty}")
-        
-        # 결과 메시지 생성
-        result_lines = ["장비 마법사: '마법의 힘으로 장비를 변형했다!'"]
-        
-        if enhanced_list:
-            result_lines.append(f"\n✨ 강화된 장비 ({len(enhanced_list)}개):")
-            for e in enhanced_list[:5]:  # 최대 5개만 표시
-                result_lines.append(f"  • {e}")
-            if len(enhanced_list) > 5:
-                result_lines.append(f"  ... 외 {len(enhanced_list) - 5}개")
-        
-        if weakened_list:
-            result_lines.append(f"\n💔 약화된 장비 ({len(weakened_list)}개):")
-            for w in weakened_list[:3]:  # 최대 3개만 표시
-                result_lines.append(f"  • {w}")
-            if len(weakened_list) > 3:
-                result_lines.append(f"  ... 외 {len(weakened_list) - 3}개")
-        
-        return ExplorationResult(
-            success=True,
-            event=ExplorationEvent.NPC_INTERACTION,
-            message="\n".join(result_lines),
-            data={
-                "npc_subtype": "equipment_enchanter", 
-                "enhanced_count": len(enhanced_list), 
-                "weakened_count": len(weakened_list)
-            }
-        )
-    
-    def _handle_dungeon_curse(self, tile: Tile) -> ExplorationResult:
-        """던전 저주/축복 NPC (층 전체 영향)"""
-        import random
-        tile.npc_interacted = True
-        
-        # 70% 축복, 30% 저주
-        is_blessing = random.random() < 0.7
-        
-        if is_blessing:
-            blessing_type = random.choice(["heal_boost", "exp_boost", "item_boost", "damage_boost"])
-            
-            if blessing_type == "heal_boost":
-                heal = 100 + self.floor_number * 20
-                for member in self.player.party:
-                    if hasattr(member, 'heal'):
-                        member.heal(heal)
-                    if hasattr(member, 'current_mp') and hasattr(member, 'max_mp'):
-                        member.current_mp = min(member.max_mp, member.current_mp + heal // 2)
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"신비한 존재: '이 층에 축복을 내린다...'\n파티 전원 HP {heal}, MP {heal//2} 회복!",
-                    data={"npc_subtype": "dungeon_curse", "blessing": "heal_boost"}
-                )
-            elif blessing_type == "damage_boost":
-                # 파티 공격력 상승 (다음 전투 한정으로 상태이상 부여)
-                for member in self.player.party:
-                    if hasattr(member, 'status_manager'):
-                        from src.combat.status_effects import StatusEffect, StatusType
-                        buff = StatusEffect("축복: 공격력 상승", StatusType.BOOST_ATK, duration=10, intensity=0.3)
-                        member.status_manager.add_status(buff)
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message="신비한 존재: '이 층에 파괴의 축복을...'\n파티 전원 공격력 +30% (10턴)!",
-                    data={"npc_subtype": "dungeon_curse", "blessing": "damage_boost"}
-                )
-            else:
-                gold = random.randint(100, 300) * self.floor_number
-                if self.inventory:
-                    self.inventory.add_gold(gold)
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"신비한 존재: '이 층의 보물을 가져가라...'\n{gold} 골드 획득!",
-                    data={"npc_subtype": "dungeon_curse", "blessing": "gold"}
-                )
-        else:
-            curse_type = random.choice(["damage", "gold_loss", "debuff"])
-            
-            if curse_type == "damage":
-                damage = 30 + self.floor_number * 10
-                for member in self.player.party:
-                    if hasattr(member, 'take_damage'):
-                        member.take_damage(damage)
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"저주받은 존재: '이 층에 저주를...'\n파티 전원 {damage} 데미지!",
-                    data={"npc_subtype": "dungeon_curse", "curse": "damage"}
-                )
-            elif curse_type == "gold_loss":
-                if self.inventory:
-                    loss = min(self.inventory.gold, random.randint(100, 500))
-                    self.inventory.gold = max(0, self.inventory.gold - loss)
-                    return ExplorationResult(
-                        success=True,
-                        event=ExplorationEvent.NPC_INTERACTION,
-                        message=f"저주받은 존재: '네 재산을 빼앗겠다...'\n{loss} 골드를 잃었습니다!",
-                        data={"npc_subtype": "dungeon_curse", "curse": "gold_loss"}
-                    )
-            else:
-                for member in self.player.party:
-                    if hasattr(member, 'status_manager'):
-                        from src.combat.status_effects import StatusEffect, StatusType
-                        debuff = StatusEffect("저주: 속도 감소", StatusType.SLOW, duration=10, intensity=0.3)
-                        member.status_manager.add_status(debuff)
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message="저주받은 존재: '느려지거라...'\n파티 전원 속도 -30% (10턴)!",
-                    data={"npc_subtype": "dungeon_curse", "curse": "debuff"}
-                )
-        
-        return ExplorationResult(
-            success=True,
-            event=ExplorationEvent.NPC_INTERACTION,
-            message="신비한 존재가 사라졌습니다...",
-            data={"npc_subtype": "dungeon_curse"}
-        )
-    
-    def _handle_wandering_alchemist(self, tile: Tile) -> ExplorationResult:
-        """방랑 연금술사 NPC (랜덤 포션/폭탄 제공)"""
-        import random
-        tile.npc_interacted = True
-        
-        if not self.inventory:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="방랑 연금술사: '인벤토리가 없군...'",
-                data={"npc_subtype": "wandering_alchemist"}
-            )
-        
-        from src.equipment.item_system import ItemGenerator
-        
-        # 랜덤 포션/폭탄 1~3개 제공
-        item_count = random.randint(1, 3)
-        items_given = []
-        consumable_ids = [
-            "hp_potion", "mp_potion", "greater_hp_potion", "greater_mp_potion",
-            "fire_bomb", "ice_bomb", "poison_bomb", "antidote", "panacea"
-        ]
-        
-        for _ in range(item_count):
-            item_id = random.choice(consumable_ids)
-            try:
-                item = ItemGenerator.create_consumable(item_id)
-                if self.inventory.can_add_item(item):
-                    self.inventory.add_item(item)
-                    items_given.append(item.name)
-            except:
-                pass
-        
-        if items_given:
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"방랑 연금술사: '내 작품들을 가져가게!'\n획득: {', '.join(items_given)}",
-                data={"npc_subtype": "wandering_alchemist", "items": items_given}
-            )
-        else:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="방랑 연금술사: '인벤토리가 가득 찼군...'",
-                data={"npc_subtype": "wandering_alchemist"}
-            )
-    
-    def _handle_dimension_crafter(self, tile: Tile) -> ExplorationResult:
-        """차원 세공사 NPC (장비 이름/설명/랜덤 효과 변경)"""
-        import random
-        tile.npc_interacted = True
-        
-        if not self.inventory or not self.inventory.slots:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="차원 세공사: '작업할 장비가 없군...'",
-                data={"npc_subtype": "dimension_crafter"}
-            )
-        
-        # 랜덤 장비 선택
-        equipment_items = []
-        for i, slot in enumerate(self.inventory.slots):
-            if slot and slot.item and hasattr(slot.item, 'affixes'):
-                equipment_items.append((i, slot.item))
-        
-        if not equipment_items:
-            return ExplorationResult(
-                success=False,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="차원 세공사: '세공할 장비가 없군...'",
-                data={"npc_subtype": "dimension_crafter"}
-            )
-        
-        idx, item = random.choice(equipment_items)
-        
-        # 랜덤 접사 재생성
-        from src.equipment.item_system import ItemGenerator
-        new_affixes = ItemGenerator.generate_random_affixes(item.rarity, getattr(item, 'level_requirement', 1))
-        item.affixes = new_affixes
-        
-        return ExplorationResult(
-            success=True,
-            event=ExplorationEvent.NPC_INTERACTION,
-            message=f"차원 세공사: '차원의 힘으로 재구성!'\n{item.name}의 옵션이 변경되었습니다!",
-            data={"npc_subtype": "dimension_crafter", "item": item.name}
-        )
-    
-    def _handle_oracle(self, tile: Tile) -> ExplorationResult:
-        """예언자 NPC (전투 버프 + 미래 암시)"""
-        import random
-        tile.npc_interacted = True
-        
-        # 파티에 예언 버프 부여
-        for member in self.player.party:
-            if hasattr(member, 'status_manager'):
-                from src.combat.status_effects import StatusEffect, StatusType
-                # 명중률/회피율 상승
-                oracle_buff = StatusEffect("예언: 통찰", StatusType.BOOST_LUK, duration=15, intensity=1.5)
-                member.status_manager.add_status(oracle_buff)
-        
-        # 랜덤 예언 메시지
-        prophecies = [
-            "시간이 점점 빨라지고 있다...",
-            "누군가 너를 지켜보고 있다...",
-        ]
-        prophecy = random.choice(prophecies)
-        
-        return ExplorationResult(
-            success=True,
-            event=ExplorationEvent.NPC_INTERACTION,
-            message=f"예언자: '{prophecy}'\n파티 전원 행운 +50% (15턴)!",
-            data={"npc_subtype": "oracle", "prophecy": prophecy}
-        )
-    
-    def _handle_chaos_entity(self, tile: Tile) -> ExplorationResult:
-        """혼돈의 존재 NPC (완전 랜덤 효과)"""
-        import random
-        tile.npc_interacted = True
-        
-        chaos_effects = [
-            "massive_heal",    # 전원 완전 회복
-            "massive_damage",  # 전원 HP 50% 감소
-            "gold_explosion",  # 골드 3배 또는 0
-            "stat_shuffle",    # 스탯 랜덤 섞기
-            "item_rain",       # 랜덤 아이템 다량 획득
-            "level_boost",     # 전원 경험치 대량 획득
-            "curse_blessing",  # 저주와 축복 동시
-        ]
-        
-        effect = random.choice(chaos_effects)
-        
-        if effect == "massive_heal":
-            for member in self.player.party:
-                if hasattr(member, 'current_hp') and hasattr(member, 'max_hp'):
-                    member.current_hp = member.max_hp
-                if hasattr(member, 'current_mp') and hasattr(member, 'max_mp'):
-                    member.current_mp = member.max_mp
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="혼돈의 존재: '생명의 폭발!'\n파티 전원 HP/MP 완전 회복!",
-                data={"npc_subtype": "chaos_entity", "effect": "massive_heal"}
-            )
-        
-        elif effect == "massive_damage":
-            for member in self.player.party:
-                if hasattr(member, 'current_hp') and hasattr(member, 'max_hp'):
-                    member.current_hp = max(1, member.current_hp // 2)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="혼돈의 존재: '혼돈의 대가!'\n파티 전원 HP 50% 감소!",
-                data={"npc_subtype": "chaos_entity", "effect": "massive_damage"}
-            )
-        
-        elif effect == "gold_explosion":
-            if self.inventory:
-                if random.random() < 0.5:
-                    old_gold = self.inventory.gold
-                    self.inventory.gold = old_gold * 3
-                    gain = self.inventory.gold - old_gold
-                    return ExplorationResult(
-                        success=True,
-                        event=ExplorationEvent.NPC_INTERACTION,
-                        message=f"혼돈의 존재: '황금의 증식!'\n골드 3배! (+{gain})",
-                        data={"npc_subtype": "chaos_entity", "effect": "gold_triple"}
-                    )
-                else:
-                    lost = self.inventory.gold
-                    self.inventory.gold = 0
-                    return ExplorationResult(
-                        success=True,
-                        event=ExplorationEvent.NPC_INTERACTION,
-                        message=f"혼돈의 존재: '황금의 소멸!'\n모든 골드 상실! (-{lost})",
-                        data={"npc_subtype": "chaos_entity", "effect": "gold_zero"}
-                    )
-        
-        elif effect == "stat_shuffle":
-            for member in self.player.party:
-                stats = ["strength", "defense", "magic", "spirit", "speed"]
-                values = [getattr(member, s, 10) for s in stats]
-                random.shuffle(values)
-                for i, s in enumerate(stats):
-                    if hasattr(member, s):
-                        setattr(member, s, values[i])
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message="혼돈의 존재: '스탯 혼란!'\n파티 전원 스탯이 무작위로 섞였습니다!",
-                data={"npc_subtype": "chaos_entity", "effect": "stat_shuffle"}
-            )
-        
-        elif effect == "item_rain":
-            if self.inventory:
-                from src.equipment.item_system import ItemGenerator
-                items_given = []
-                for _ in range(random.randint(3, 5)):
-                    try:
-                        item = ItemGenerator.create_random_drop(self.floor_number + 5)
-                        if self.inventory.can_add_item(item):
-                            self.inventory.add_item(item)
-                            items_given.append(item.name)
-                    except:
-                        pass
-                return ExplorationResult(
-                    success=True,
-                    event=ExplorationEvent.NPC_INTERACTION,
-                    message=f"혼돈의 존재: '아이템 폭풍!'\n{len(items_given)}개 아이템 획득!",
-                    data={"npc_subtype": "chaos_entity", "effect": "item_rain", "items": items_given}
-                )
-        
-        elif effect == "level_boost":
-            exp_gain = 500 * self.floor_number
-            for member in self.player.party:
-                if hasattr(member, 'experience'):
-                    member.experience += exp_gain
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"혼돈의 존재: '경험의 폭발!'\n파티 전원 경험치 +{exp_gain}!",
-                data={"npc_subtype": "chaos_entity", "effect": "level_boost", "exp": exp_gain}
-            )
-        
-        else:  # curse_blessing
-            # 저주와 축복 동시
-            heal = 50 + self.floor_number * 10
-            damage = 30 + self.floor_number * 5
-            for member in self.player.party:
-                if hasattr(member, 'heal'):
-                    member.heal(heal)
-                if hasattr(member, 'take_damage'):
-                    member.take_damage(damage)
-            return ExplorationResult(
-                success=True,
-                event=ExplorationEvent.NPC_INTERACTION,
-                message=f"혼돈의 존재: '축복과 저주!'\nHP +{heal}, 데미지 -{damage}!",
-                data={"npc_subtype": "chaos_entity", "effect": "curse_blessing"}
-            )
-
-    def _move_npcs(self):
-        """모든 NPC 움직임 처리 (랜덤 배회)"""
-        # 던전 전체를 스캔하여 NPC 타일 찾기
-        npc_positions = []
-        for y in range(self.dungeon.height):
-            for x in range(self.dungeon.width):
-                tile = self.dungeon.get_tile(x, y)
-                if tile and tile.tile_type == TileType.NPC:
-                    npc_positions.append((x, y, tile))
-        
-        # 각 NPC를 랜덤하게 이동
-        for x, y, npc_tile in npc_positions:
-            # NPC는 상호작용하지 않은 경우에만 이동 (상인 등은 제외)
-            if npc_tile.npc_interacted:
-                continue
-            
-            # 30% 확률로 이동 (적보다 덜 자주 이동)
-            if random.random() < 0.3:
-                directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
-                random.shuffle(directions)  # 랜덤 순서
-                
-                for dx, dy in directions:
-                    new_x = x + dx
-                    new_y = y + dy
-                    
-                    # 이동 가능한 위치인지 확인
-                    if self.dungeon.is_walkable(new_x, new_y):
-                        new_tile = self.dungeon.get_tile(new_x, new_y)
-                        # 다른 NPC나 적, 플레이어와 겹치지 않도록 체크
-                        if (new_tile and new_tile.tile_type != TileType.NPC and
-                            not self.get_enemy_at(new_x, new_y) and
-                            (new_x, new_y) != (self.player.x, self.player.y)):
-                            
-                            # 기존 위치를 FLOOR로 변경
-                            self.dungeon.set_tile(x, y, TileType.FLOOR)
-                            
-                            # 새 위치에 NPC 배치
-                            self.dungeon.set_tile(
-                                new_x, new_y,
-                                TileType.NPC,
-                                npc_id=npc_tile.npc_id,
-                                npc_type=npc_tile.npc_type,
-                                npc_subtype=npc_tile.npc_subtype,
-                                npc_interacted=npc_tile.npc_interacted
-                            )
-                            logger.debug(f"NPC 이동: {npc_tile.npc_subtype} ({x}, {y}) -> ({new_x}, {new_y})")
-                            break  # 이동 성공하면 중단
 
     def _handle_altar(self, tile: Tile) -> ExplorationResult:
         """제단 처리 (버프/회복)"""

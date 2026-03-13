@@ -66,20 +66,21 @@ class SaveLoadUI:
 
         logger.info(f"저장/로드 UI 열기: {mode.value}, {len(self.save_files)}개 파일")
 
-    def handle_input(self, action: GameAction, event: tcod.event.KeyDown = None) -> bool:
+    def handle_input(self, action: GameAction, event=None, text_event=None) -> bool:
         """
         입력 처리
 
         Args:
             action: 게임 액션
-            event: 키보드 이벤트
+            event: tcod.event.KeyDown (키보드 키 입력)
+            text_event: tcod.event.TextInput (IME 조합 완료 문자 - 한글 등)
 
         Returns:
             닫기 여부
         """
         # 이름 입력 중
         if self.creating_new_save and self.name_input:
-            return self._handle_name_input(action, event)
+            return self._handle_name_input(action, event, text_event)
 
         # 확인 메시지
         if self.confirm_message:
@@ -129,8 +130,14 @@ class SaveLoadUI:
 
         return False
 
-    def _handle_name_input(self, action: GameAction, event: tcod.event.KeyDown) -> bool:
-        """이름 입력 처리"""
+    def _handle_name_input(self, action: GameAction, event=None, text_event=None) -> bool:
+        """이름 입력 처리
+
+        Args:
+            action: GameAction
+            event: tcod.event.KeyDown (키보드 키 입력)
+            text_event: tcod.event.TextInput (IME 조합 완료 문자 - 한글 등)
+        """
         if action == GameAction.CONFIRM:
             self.name_input.handle_confirm()
             if self.name_input.confirmed:
@@ -147,6 +154,11 @@ class SaveLoadUI:
             play_sfx("ui", "cursor_cancel")
             self.creating_new_save = False
             self.name_input = None
+        elif text_event and isinstance(text_event, tcod.event.TextInput):
+            # IME 텍스트 입력 (한글 등)
+            for ch in text_event.text:
+                if ch.isprintable():
+                    self.name_input.handle_char_input(ch)
         elif event and event.sym == tcod.event.KeySym.BACKSPACE:
             self.name_input.handle_backspace()
         elif event and event.sym < 128:
@@ -412,14 +424,24 @@ def show_save_screen(
     """
     save_system = SaveSystem()
 
-    # 게임 타입에 따라 자동으로 파일명 결정 (save_name은 사용하지 않음)
-    save_name = "save_single" if not is_multiplayer else "save_multiplayer"
-    
+    # 게임 타입에 따라 자동으로 파일명 결정
+    # RPG 모드 감지: game_state에 rpg_mode 플래그가 있으면 RPG 세이브로 분리
+    is_rpg = game_state.get("rpg_mode", False)
+    if is_rpg:
+        save_name = "save_rpg"
+        game_type = "rpg"
+    elif is_multiplayer:
+        save_name = "save_multiplayer"
+        game_type = None
+    else:
+        save_name = "save_single"
+        game_type = None
+
     # 게임 상태에 멀티플레이어 정보 추가
     game_state["is_multiplayer"] = is_multiplayer
 
     # 저장 실행
-    success = save_system.save_game(save_name, game_state, is_multiplayer=is_multiplayer)
+    success = save_system.save_game(save_name, game_state, is_multiplayer=is_multiplayer, game_type=game_type)
     if success:
         logger.info(f"게임 저장 완료: {save_name} (타입: {'멀티플레이' if is_multiplayer else '싱글플레이'})")
     else:
@@ -479,8 +501,17 @@ def show_load_screen(
         for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
 
-            if action:
-                if ui.handle_input(action):
+            # TextInput 이벤트 (한글 IME 등) - 이름 입력 중 전달
+            if isinstance(event, tcod.event.TextInput):
+                if ui.creating_new_save and ui.name_input:
+                    ui.handle_input(None, text_event=event)
+                continue
+
+            # KeyDown 이벤트 저장
+            key_event = event if isinstance(event, tcod.event.KeyDown) else None
+
+            if action or (key_event and ui.creating_new_save):
+                if ui.handle_input(action, event=key_event):
                     # 로드 실행
                     if ui.selected_save:
                         game_state = save_system.load_game(ui.selected_save)

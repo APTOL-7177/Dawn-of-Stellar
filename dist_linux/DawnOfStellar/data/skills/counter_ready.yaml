@@ -1,0 +1,34 @@
+id: counter_ready
+name: 반격 준비
+type: buff
+description: '완벽한 반격을 준비합니다.
+
+  다음 피격 시 반격 100% 발동 + 데미지 200%.
+
+  성공 시 환호 +15, 관중 요구 무조건 충족 취급.
+
+  '
+target: self
+costs:
+  mp: 10
+metadata:
+  perfect_counter: true
+  cheer_on_success: 15
+  auto_fulfill_demand: true
+effects:
+- type: buff
+  buff_id: counter_ready
+  duration: 1
+  consume_on_hit: true
+  effects:
+    counter_rate: 1.0
+    counter_damage_multiplier: 2.0
+animation:
+  icon: 🛡️
+  color:
+  - 150
+  - 200
+  - 255
+sfx:
+- se
+- Up1

@@ -1,0 +1,21 @@
+id: summon_possibility
+name: 가능성 소환
+type: special
+description: 슬롯에서 가능성 1개를 선택하여 85% 위력으로 즉시 발동 (MP 무료!)
+costs:
+  mp: 0
+  cast_time: 0.3
+target: self
+requirements:
+  min_possibilities: 1
+effects:
+- type: summon_possibility
+  power_ratio: 0.85
+  select_slot: true
+metadata:
+  gimmick_skill: true
+  no_possibility_generation: true
+  job: time_mage
+sfx:
+- se
+- Summon

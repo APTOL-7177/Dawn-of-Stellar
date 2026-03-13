@@ -1,0 +1,30 @@
+id: shaman_spirit_charge
+name: 영력 충전
+type: support
+description: '영력을 모아 MP를 회복하고 마법 공격을 강화합니다.
+
+  '
+target: self
+metadata:
+  job: shaman
+  mp_recovery: true
+effects:
+- type: heal
+  heal_type: mp
+  percentage: 0.3
+  target_self: true
+- type: buff
+  stat: magic
+  value: 0.25
+  duration: 3
+costs:
+  mp: 6
+animation:
+  icon: ??
+  color:
+  - 100
+  - 180
+  - 220
+sfx:
+- se
+- Magic2

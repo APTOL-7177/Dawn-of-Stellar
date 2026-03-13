@@ -1,0 +1,21 @@
+id: elemental_aegis
+name: 원소 장막
+type: defensive
+description: 모든 원소 소비 (최소 5개). 보호막 + 반격 효과. 완전 보호 시 내구도 2배
+costs:
+  mp: 7
+effects:
+- type: shield
+  durability_multiplier: 0.3
+  duration: 3
+  fire_reflect_per_stack: 0.1
+  ice_slow_per_stack: 0.15
+  lightning_shock_per_stack: 0.15
+metadata:
+  utility: true
+  defensive: true
+  shield: true
+  min_total_stacks: 5
+sfx:
+- se
+- Magic1

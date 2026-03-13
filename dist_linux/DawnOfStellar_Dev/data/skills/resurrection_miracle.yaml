@@ -1,0 +1,41 @@
+id: resurrection_miracle
+name: 부활의 기적
+type: special
+description: '[기적 - 신앙 75+ 필요] 부활의 기적을 일으킵니다.
+
+  전투불능 아군 1명 부활 (HP 50%).
+
+  신앙 -75 소모.
+
+  전투당 1회 사용 가능.
+
+  '
+target: dead_ally
+costs:
+  mp: 30
+  faith: 75
+cooldown: 99
+metadata:
+  miracle: true
+  requires_faith: 75
+  consumes_faith: 75
+  once_per_battle: true
+effects:
+- type: revive
+  hp_percent: 0.5
+- type: gimmick
+  operation: add
+  field: faith
+  value: -75
+  min_value: 0
+animation:
+  icon: 👼
+  color:
+  - 255
+  - 255
+  - 255
+  screen_effect: resurrection
+  duration: 2.0
+sfx:
+- se
+- Magic1

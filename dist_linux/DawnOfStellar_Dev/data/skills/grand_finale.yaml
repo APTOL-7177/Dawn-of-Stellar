@@ -1,0 +1,37 @@
+id: grand_finale
+name: 그랜드 피날레
+type: special
+description: "[환호 100 필요] 전설의 피날레를 펼칩니다!\n환호 100을 전부 소모하여 3가지 중 1가지 선택:\n\n1. 황제의\
+  \ 심판 (공격형)\n   전체 적 HP 4.5 피해 + HP 가장 낮은 적 즉시 처형\n   처형 성공 시 환호 30 유지\n\n2. 불사의\
+  \ 챔피언 (방어형)\n   3턴간 무적, 무적 중 피격 시 반격 100%\n   반격 데미지 +100%\n\n3. 전설의 귀환 (유틸형)\n\
+  \   HP/MP 전회복, 모든 스킬 쿨다운 초기화\n   5턴간 모든 요구 보상 2배\n"
+target: all
+costs:
+  mp: 0
+metadata:
+  requires_cheer: 100
+  consumes_cheer: 100
+  choice_skill: true
+  choices:
+  - id: emperors_judgment
+    name: 황제의 심판
+    type: attack
+  - id: immortal_champion
+    name: 불사의 챔피언
+    type: defense
+  - id: return_of_legend
+    name: 전설의 귀환
+    type: utility
+effects:
+- type: custom
+  handler: grand_finale_choice
+animation:
+  icon: 👑
+  color:
+  - 255
+  - 215
+  - 0
+  screen_effect: grand_finale
+sfx:
+- se
+- Magic1

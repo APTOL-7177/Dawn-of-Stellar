@@ -1966,12 +1966,12 @@ class EnemySkillDatabase:
 
             # === 세피로스 전용 스킬 (15층 보스) ===
 
-            # 슈퍼노바
+            # 슈퍼노바 (단일 대상 - 광역 기절이 너무 강력하므로 1인기로 변경)
             "supernova": EnemySkill(
                 skill_id="supernova",
                 name="슈퍼노바",
-                description="초신성 폭발로 모든 것을 집어삼킨다.",
-                target_type=SkillTargetType.ALL_ENEMIES,
+                description="초신성의 에너지를 한 점에 집중시켜 대상을 소멸시킨다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
                 damage=0,  # BRV 시스템 사용
                 damage_multiplier=3.0,  # 궁극기 최대 배율
                 brv_damage=1,
@@ -4317,6 +4317,583 @@ class EnemySkillDatabase:
                 cooldown=8,
                 sfx=("skill", "dark")
             ),
+
+            # ============================================================
+            # === 신규 대량 추가 스킬 ===
+            # ============================================================
+
+            # --- 화염 계열 ---
+            "magma_strike": EnemySkill(
+                skill_id="magma_strike",
+                name="용암 타격",
+                description="용암으로 내려친다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=12,
+                damage_multiplier=1.8,
+                brv_damage=1,
+                hp_attack=True,
+                element="fire",
+                use_probability=0.35,
+                sfx=("skill", "fire")
+            ),
+            "ember_shot": EnemySkill(
+                skill_id="ember_shot",
+                name="불씨 발사",
+                description="불씨를 발사한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=8,
+                damage_multiplier=1.4,
+                is_magical=True,
+                brv_damage=1,
+                element="fire",
+                use_probability=0.4,
+                sfx=("skill", "fire")
+            ),
+
+            # --- 빙결 계열 ---
+            "frost_bite": EnemySkill(
+                skill_id="frost_bite",
+                name="서리 물기",
+                description="얼음 이빨로 문다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=10,
+                damage_multiplier=1.6,
+                brv_damage=1,
+                hp_attack=True,
+                element="ice",
+                status_effects=["slow"],
+                status_duration=2,
+                status_intensity=0.2,
+                use_probability=0.35,
+                sfx=("skill", "ice")
+            ),
+            "blizzard_breath": EnemySkill(
+                skill_id="blizzard_breath",
+                name="눈보라 브레스",
+                description="눈보라를 내뿜는다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=22,
+                damage_multiplier=1.8,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="ice",
+                use_probability=0.25,
+                sfx=("skill", "ice")
+            ),
+            "ice_lance": EnemySkill(
+                skill_id="ice_lance",
+                name="얼음 창",
+                description="거대한 얼음 창을 던진다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=14,
+                damage_multiplier=2.0,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="ice",
+                use_probability=0.3,
+                sfx=("skill", "ice")
+            ),
+            "frozen_claw": EnemySkill(
+                skill_id="frozen_claw",
+                name="냉동 발톱",
+                description="얼음 발톱으로 할퀸다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=8,
+                damage_multiplier=1.5,
+                brv_damage=1,
+                hp_attack=True,
+                element="ice",
+                use_probability=0.4,
+                sfx=("skill", "ice")
+            ),
+
+            # --- 번개 계열 ---
+            "thunder_strike": EnemySkill(
+                skill_id="thunder_strike",
+                name="뇌격",
+                description="번개를 내리친다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=12,
+                damage_multiplier=1.8,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="lightning",
+                use_probability=0.35,
+                sfx=("skill", "bolt")
+            ),
+            "static_charge": EnemySkill(
+                skill_id="static_charge",
+                name="정전기 충전",
+                description="전기를 충전하여 폭발시킨다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=10,
+                damage_multiplier=1.5,
+                is_magical=True,
+                brv_damage=1,
+                element="lightning",
+                status_effects=["paralysis"],
+                status_duration=1,
+                status_intensity=0.3,
+                use_probability=0.3,
+                sfx=("skill", "bolt")
+            ),
+            "thunder_storm": EnemySkill(
+                skill_id="thunder_storm",
+                name="뇌폭풍",
+                description="폭풍을 소환한다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=30,
+                damage_multiplier=2.2,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="lightning",
+                use_probability=0.2,
+                sfx=("skill", "bolt")
+            ),
+            "voltage_spike": EnemySkill(
+                skill_id="voltage_spike",
+                name="고압 전류",
+                description="고압 전류를 흘린다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=15,
+                damage_multiplier=2.0,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="lightning",
+                status_effects=["stun"],
+                status_duration=1,
+                status_intensity=0.2,
+                use_probability=0.25,
+                sfx=("skill", "bolt")
+            ),
+
+            # --- 암흑 계열 ---
+            "shadow_bolt": EnemySkill(
+                skill_id="shadow_bolt",
+                name="그림자 화살",
+                description="어둠의 화살을 발사한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=10,
+                damage_multiplier=1.6,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="dark",
+                use_probability=0.35,
+                sfx=("skill", "dark")
+            ),
+            "dark_nova": EnemySkill(
+                skill_id="dark_nova",
+                name="어둠의 파동",
+                description="어둠의 에너지를 폭발시킨다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=25,
+                damage_multiplier=2.0,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="dark",
+                use_probability=0.2,
+                sfx=("skill", "dark")
+            ),
+            "curse_of_darkness": EnemySkill(
+                skill_id="curse_of_darkness",
+                name="어둠의 저주",
+                description="어둠의 저주를 건다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=15,
+                damage_multiplier=1.2,
+                is_magical=True,
+                brv_damage=1,
+                element="dark",
+                status_effects=["curse"],
+                status_duration=4,
+                status_intensity=0.25,
+                debuff_stats={"strength": 0.8, "magic": 0.8},
+                use_probability=0.25,
+                sfx=("skill", "dark")
+            ),
+            "void_pulse": EnemySkill(
+                skill_id="void_pulse",
+                name="공허의 파동",
+                description="공허의 에너지를 방출한다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=30,
+                damage_multiplier=2.3,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="dark",
+                use_probability=0.15,
+                sfx=("skill", "dark")
+            ),
+            "necrotic_touch": EnemySkill(
+                skill_id="necrotic_touch",
+                name="괴사의 손길",
+                description="죽음의 에너지를 전달한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=12,
+                damage_multiplier=1.4,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="dark",
+                status_effects=["poison"],
+                status_duration=3,
+                status_intensity=0.1,
+                use_probability=0.35,
+                sfx=("skill", "dark")
+            ),
+
+            # --- 신성 계열 ---
+            "holy_smite": EnemySkill(
+                skill_id="holy_smite",
+                name="성스러운 강타",
+                description="성스러운 빛으로 내려친다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=15,
+                damage_multiplier=2.0,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="holy",
+                use_probability=0.3,
+                sfx=("skill", "holy")
+            ),
+            "divine_wrath": EnemySkill(
+                skill_id="divine_wrath",
+                name="신의 분노",
+                description="신성한 분노를 쏟아붓는다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=28,
+                damage_multiplier=2.2,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="holy",
+                use_probability=0.2,
+                sfx=("skill", "holy")
+            ),
+            "radiant_burst": EnemySkill(
+                skill_id="radiant_burst",
+                name="광휘 폭발",
+                description="찬란한 빛이 폭발한다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=20,
+                damage_multiplier=1.8,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="holy",
+                use_probability=0.25,
+                sfx=("skill", "holy")
+            ),
+            "purifying_light": EnemySkill(
+                skill_id="purifying_light",
+                name="정화의 빛",
+                description="정화의 빛으로 적을 태운다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=12,
+                damage_multiplier=1.6,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="holy",
+                status_effects=["burn"],
+                status_duration=2,
+                status_intensity=0.1,
+                use_probability=0.3,
+                sfx=("skill", "holy")
+            ),
+
+            # --- 대지/바람/물 계열 ---
+            "sand_storm": EnemySkill(
+                skill_id="sand_storm",
+                name="모래 폭풍",
+                description="모래 폭풍을 일으킨다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=15,
+                damage_multiplier=1.4,
+                is_magical=True,
+                brv_damage=1,
+                element="earth",
+                status_effects=["blind"],
+                status_duration=2,
+                status_intensity=0.3,
+                use_probability=0.3,
+                sfx=("skill", "earth")
+            ),
+            "gale_slash": EnemySkill(
+                skill_id="gale_slash",
+                name="질풍 베기",
+                description="바람의 칼날로 벤다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=10,
+                damage_multiplier=1.7,
+                brv_damage=1,
+                hp_attack=True,
+                element="wind",
+                use_probability=0.35,
+                sfx=("skill", "wind")
+            ),
+            "tidal_wave": EnemySkill(
+                skill_id="tidal_wave",
+                name="해일",
+                description="거대한 파도를 일으킨다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=22,
+                damage_multiplier=1.9,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="water",
+                use_probability=0.25,
+                sfx=("skill", "water")
+            ),
+            "water_jet": EnemySkill(
+                skill_id="water_jet",
+                name="물 분사",
+                description="고압 물줄기를 발사한다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=10,
+                damage_multiplier=1.6,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="water",
+                use_probability=0.35,
+                sfx=("skill", "water")
+            ),
+            "aqua_prison": EnemySkill(
+                skill_id="aqua_prison",
+                name="물의 감옥",
+                description="물로 가두어 옥죄인다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=15,
+                damage_multiplier=1.3,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="water",
+                status_effects=["slow"],
+                status_duration=2,
+                status_intensity=0.25,
+                use_probability=0.3,
+                sfx=("skill", "water")
+            ),
+
+            # --- 독/상태이상 계열 ---
+            "toxic_spit": EnemySkill(
+                skill_id="toxic_spit",
+                name="독액 분사",
+                description="독액을 내뿜는다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=12,
+                damage_multiplier=1.2,
+                is_magical=True,
+                brv_damage=1,
+                status_effects=["poison"],
+                status_duration=4,
+                status_intensity=0.12,
+                use_probability=0.35,
+                sfx=("skill", "dark")
+            ),
+            "plague_cloud": EnemySkill(
+                skill_id="plague_cloud",
+                name="역병 구름",
+                description="역병 구름을 뿌린다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=20,
+                damage_multiplier=1.0,
+                is_magical=True,
+                brv_damage=1,
+                status_effects=["poison"],
+                status_duration=5,
+                status_intensity=0.15,
+                debuff_stats={"strength": 0.85, "defense": 0.85},
+                use_probability=0.25,
+                sfx=("skill", "dark")
+            ),
+            "petrify_gaze": EnemySkill(
+                skill_id="petrify_gaze",
+                name="석화의 시선",
+                description="시선으로 돌로 만든다.",
+                target_type=SkillTargetType.SINGLE_ENEMY,
+                mp_cost=18,
+                damage_multiplier=0.8,
+                is_magical=True,
+                brv_damage=1,
+                status_effects=["petrify"],
+                status_duration=2,
+                status_intensity=0.25,
+                use_probability=0.2,
+                sfx=("skill", "dark")
+            ),
+            "sonic_screech": EnemySkill(
+                skill_id="sonic_screech",
+                name="초음파 비명",
+                description="초음파로 혼란시킨다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=15,
+                damage_multiplier=1.3,
+                is_magical=True,
+                brv_damage=1,
+                element="wind",
+                status_effects=["confusion"],
+                status_duration=2,
+                status_intensity=0.3,
+                use_probability=0.25,
+                sfx=("skill", "wind")
+            ),
+
+            # --- 버프/회복 계열 ---
+            "war_drum": EnemySkill(
+                skill_id="war_drum",
+                name="전쟁의 북",
+                description="전장의 사기를 올린다.",
+                target_type=SkillTargetType.ALL_ALLIES,
+                mp_cost=15,
+                buff_stats={"strength": 1.25, "defense": 1.15},
+                use_probability=0.25,
+                max_hp_percent=0.8
+            ),
+            "dark_blessing": EnemySkill(
+                skill_id="dark_blessing",
+                name="어둠의 축복",
+                description="어둠의 힘으로 강화한다.",
+                target_type=SkillTargetType.SINGLE_ALLY,
+                mp_cost=12,
+                buff_stats={"strength": 1.3, "magic": 1.3},
+                use_probability=0.3,
+                max_hp_percent=0.7,
+                sfx=("skill", "dark")
+            ),
+            "crystal_shell": EnemySkill(
+                skill_id="crystal_shell",
+                name="수정 껍질",
+                description="수정으로 몸을 감싼다.",
+                target_type=SkillTargetType.SELF,
+                mp_cost=15,
+                shield_amount=50,
+                buff_stats={"defense": 1.4, "spirit": 1.4},
+                use_probability=0.25,
+                max_hp_percent=0.6
+            ),
+            "regenerate": EnemySkill(
+                skill_id="regenerate",
+                name="재생",
+                description="몸을 재생한다.",
+                target_type=SkillTargetType.SELF,
+                mp_cost=20,
+                heal_amount=25,
+                use_probability=0.3,
+                max_hp_percent=0.5
+            ),
+            "group_heal": EnemySkill(
+                skill_id="group_heal",
+                name="집단 회복",
+                description="아군 전체를 회복한다.",
+                target_type=SkillTargetType.ALL_ALLIES,
+                mp_cost=25,
+                heal_amount=20,
+                use_probability=0.2,
+                max_hp_percent=0.6
+            ),
+            "enrage": EnemySkill(
+                skill_id="enrage",
+                name="격노",
+                description="분노하여 공격력이 크게 상승한다.",
+                target_type=SkillTargetType.SELF,
+                mp_cost=10,
+                buff_stats={"strength": 1.5},
+                debuff_stats={"defense": 0.8},
+                use_probability=0.3,
+                max_hp_percent=0.4
+            ),
+
+            # --- 보스급 특수 스킬 ---
+            "apocalypse": EnemySkill(
+                skill_id="apocalypse",
+                name="묵시록",
+                description="종말의 파괴력을 해방한다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=40,
+                damage_multiplier=3.0,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="dark",
+                use_probability=0.1,
+                cooldown=5,
+                min_hp_percent=0.0,
+                max_hp_percent=0.3,
+                sfx=("skill", "dark")
+            ),
+            "primordial_breath": EnemySkill(
+                skill_id="primordial_breath",
+                name="시조의 브레스",
+                description="태초의 브레스를 내뿜는다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=35,
+                damage_multiplier=2.8,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="fire",
+                use_probability=0.15,
+                cooldown=4,
+                sfx=("skill", "fire")
+            ),
+            "dimensional_rift_enemy": EnemySkill(
+                skill_id="dimensional_rift_enemy",
+                name="차원 균열",
+                description="차원을 찢어 적을 삼킨다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=30,
+                damage_multiplier=2.5,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="dark",
+                use_probability=0.15,
+                cooldown=3,
+                sfx=("skill", "dark")
+            ),
+            "storm_of_ages": EnemySkill(
+                skill_id="storm_of_ages",
+                name="만년의 폭풍",
+                description="만년의 힘이 깃든 폭풍.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=35,
+                damage_multiplier=2.6,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="lightning",
+                use_probability=0.12,
+                cooldown=4,
+                sfx=("skill", "bolt")
+            ),
+            "celestial_judgment": EnemySkill(
+                skill_id="celestial_judgment",
+                name="천상의 심판",
+                description="천상의 심판을 내린다.",
+                target_type=SkillTargetType.ALL_ENEMIES,
+                mp_cost=30,
+                damage_multiplier=2.5,
+                is_magical=True,
+                brv_damage=1,
+                hp_attack=True,
+                element="holy",
+                use_probability=0.15,
+                cooldown=3,
+                sfx=("skill", "holy")
+            ),
         }
 
         logger.info(f"적 스킬 데이터베이스 초기화 완료: {len(cls.SKILLS)}개 스킬")
@@ -4499,6 +5076,103 @@ class EnemySkillDatabase:
             "void_walker": ["void_rift", "dimension_shift", "shadow_flare", "major_heal", "magic_boost"],
             "nightmare_lord": ["nightmare_realm", "terror_incarnate", "nightmare_vision", "major_heal", "emergency_heal"],
             "abyss_demon": ["abyss_gaze", "dark_apocalypse", "hellfire", "full_recovery", "strengthen"],
+
+            # ============================================================
+            # === 신규 적 매핑 ===
+            # ============================================================
+
+            # Tier 1
+            "mushroom": ["toxic_spit", "venomous_bite", "minor_heal"],
+            "bat": ["sonic_screech", "shadow_bolt", "minor_heal"],
+            "rat_swarm": ["venomous_bite", "war_cry", "minor_heal"],
+            "fire_sprite": ["ember_shot", "flame_burst", "minor_heal"],
+            "ice_fairy": ["frozen_claw", "frost_bite", "minor_heal"],
+
+            # Tier 2
+            "lizardman": ["rock_throw", "heavy_strike", "war_cry", "moderate_heal"],
+            "harpy": ["gale_slash", "sonic_screech", "tornado", "minor_heal"],
+            "shadow_imp": ["shadow_bolt", "curse_of_darkness", "necrotic_touch", "minor_heal"],
+            "frost_wolf": ["frost_bite", "frozen_claw", "minor_heal"],
+            "flame_hound": ["fire_breath", "magma_strike", "minor_heal"],
+            "sand_worm": ["earthquake", "sand_storm", "rock_throw", "moderate_heal"],
+            "thunder_hawk": ["thunder_strike", "static_charge", "gale_slash"],
+            "aqua_slime": ["water_jet", "aqua_prison", "tidal_wave", "minor_heal"],
+
+            # Tier 3
+            "gargoyle": ["rock_throw", "earthquake", "petrify_gaze", "crystal_shell", "moderate_heal"],
+            "spectre": ["shadow_bolt", "dark_nova", "soul_drain", "curse_of_darkness"],
+            "lava_golem": ["magma_strike", "inferno", "earthquake", "crystal_shell", "moderate_heal"],
+            "frost_giant": ["ice_lance", "blizzard_breath", "frost_bite", "war_drum", "moderate_heal"],
+            "storm_drake": ["thunder_strike", "chain_lightning", "gale_slash", "tornado", "moderate_heal"],
+            "dark_priestess": ["dark_nova", "curse_of_darkness", "soul_drain", "dark_blessing", "group_heal"],
+            "iron_beetle": ["rock_throw", "earthquake", "crystal_shell", "enrage", "moderate_heal"],
+            "toxic_hydra": ["toxic_spit", "venomous_bite", "plague_cloud", "regenerate"],
+            "phoenix_chick": ["flame_burst", "fire_breath", "purifying_light", "regenerate"],
+
+            # Tier 4
+            "chaos_knight": ["shadow_bolt", "dark_nova", "enrage", "war_drum", "moderate_heal", "strengthen"],
+            "frost_wyrm": ["blizzard_breath", "absolute_zero", "frost_bite", "ice_lance", "moderate_heal", "strengthen"],
+            "thunder_dragon": ["chain_lightning", "thunder_storm", "voltage_spike", "thunder_strike", "moderate_heal", "haste"],
+            "plague_bearer": ["plague_cloud", "toxic_spit", "necrotic_touch", "curse_of_darkness", "dark_blessing"],
+            "crystal_guardian": ["holy_smite", "radiant_burst", "crystal_shell", "group_heal", "strengthen"],
+            "shadow_assassin": ["shadow_bolt", "soul_drain", "necrotic_touch", "enrage", "haste"],
+            "infernal_mage": ["inferno", "fire_breath", "dark_nova", "curse_of_darkness", "strengthen", "moderate_heal"],
+            "water_elemental": ["tidal_wave", "water_jet", "aqua_prison", "moderate_heal", "regenerate"],
+            "storm_giant": ["thunder_storm", "earthquake", "chain_lightning", "war_drum", "enrage", "moderate_heal"],
+
+            # Tier 5
+            "ancient_lich": ["dark_nova", "void_pulse", "curse_of_darkness", "soul_drain", "necrotic_touch", "dark_blessing", "major_heal", "strengthen", "magic_boost"],
+            "chaos_dragon": ["inferno", "dark_nova", "fire_breath", "void_pulse", "enrage", "major_heal", "strengthen", "haste"],
+            "celestial_guardian": ["celestial_judgment", "divine_wrath", "holy_smite", "crystal_shell", "group_heal", "strengthen"],
+            "abyssal_horror": ["void_pulse", "dark_nova", "tidal_wave", "soul_drain", "curse_of_darkness", "enrage", "major_heal"],
+            "volcanic_titan": ["inferno", "earthquake", "magma_strike", "rock_throw", "enrage", "war_drum", "major_heal"],
+            "frost_phoenix": ["absolute_zero", "blizzard_breath", "purifying_light", "radiant_burst", "regenerate", "major_heal"],
+            "void_beast": ["void_pulse", "shadow_bolt", "dark_nova", "soul_drain", "enrage", "haste"],
+            "tempest_serpent": ["tornado", "thunder_storm", "chain_lightning", "gale_slash", "haste", "major_heal"],
+
+            # Tier 6 (보스급)
+            "demon_lord": ["apocalypse", "inferno", "dark_nova", "void_pulse", "curse_of_darkness", "enrage", "dark_blessing", "full_restoration", "strengthen", "magic_boost"],
+            "elder_lich": ["apocalypse", "void_pulse", "dark_nova", "absolute_zero", "curse_of_darkness", "soul_drain", "dark_blessing", "full_restoration", "magic_boost"],
+            "storm_colossus": ["storm_of_ages", "thunder_storm", "earthquake", "chain_lightning", "tornado", "war_drum", "enrage", "major_heal", "strengthen"],
+            "primordial_dragon": ["primordial_breath", "inferno", "absolute_zero", "thunder_storm", "void_pulse", "dimensional_rift_enemy", "full_restoration", "strengthen", "haste", "magic_boost"],
+
+            # ============================================================
+            # === legendary 티어 스킬 매핑 ===
+            # ============================================================
+            "hell_knight": ["dark_nova", "shadow_bolt", "magma_strike", "enrage", "war_drum", "major_heal", "strengthen"],
+            "blood_witch": ["soul_drain", "dark_nova", "curse_of_darkness", "necrotic_touch", "dark_blessing", "major_heal", "magic_boost"],
+            "shadow_dragon": ["void_pulse", "dark_nova", "fire_breath", "shadow_bolt", "enrage", "major_heal", "strengthen", "haste"],
+            "arcane_golem": ["holy_smite", "radiant_burst", "earthquake", "crystal_shell", "strengthen", "major_heal"],
+            "death_priest": ["void_pulse", "curse_of_darkness", "soul_drain", "dark_blessing", "group_heal", "magic_boost"],
+            "flame_titan": ["inferno", "magma_strike", "fire_breath", "earthquake", "enrage", "war_drum", "major_heal"],
+            "ice_wraith": ["absolute_zero", "blizzard_breath", "ice_lance", "soul_drain", "haste", "major_heal"],
+            "thunder_lord": ["thunder_storm", "chain_lightning", "voltage_spike", "thunder_strike", "enrage", "haste", "major_heal", "strengthen"],
+            "corrupted_angel": ["celestial_judgment", "dark_nova", "holy_smite", "soul_drain", "divine_wrath", "major_heal", "strengthen"],
+            "venom_drake": ["toxic_spit", "venomous_bite", "plague_cloud", "fire_breath", "enrage", "major_heal"],
+            "storm_harpy": ["tornado", "gale_slash", "sonic_screech", "chain_lightning", "haste", "major_heal"],
+            "bone_colossus": ["earthquake", "rock_throw", "dark_nova", "crystal_shell", "enrage", "war_drum", "major_heal"],
+            "cursed_samurai": ["gale_slash", "shadow_bolt", "voltage_spike", "enrage", "haste", "major_heal"],
+            "magma_serpent": ["inferno", "magma_strike", "fire_breath", "venomous_bite", "major_heal"],
+            "void_sentinel": ["void_pulse", "dark_nova", "shadow_bolt", "crystal_shell", "strengthen", "major_heal"],
+
+            # ============================================================
+            # === mythic 티어 스킬 매핑 ===
+            # ============================================================
+            "world_serpent": ["tidal_wave", "earthquake", "thunder_storm", "aqua_prison", "enrage", "war_drum", "full_restoration", "strengthen"],
+            "fallen_seraph": ["celestial_judgment", "dark_nova", "divine_wrath", "void_pulse", "soul_drain", "full_restoration", "strengthen", "magic_boost"],
+            "titan_king": ["earthquake", "rock_throw", "inferno", "war_drum", "enrage", "crystal_shell", "full_restoration", "strengthen"],
+            "lich_emperor": ["apocalypse", "void_pulse", "absolute_zero", "curse_of_darkness", "soul_drain", "dark_blessing", "full_restoration", "magic_boost"],
+            "nightmare_king": ["apocalypse", "dark_nova", "void_pulse", "curse_of_darkness", "soul_drain", "enrage", "full_restoration", "strengthen"],
+            "elemental_lord": ["inferno", "absolute_zero", "thunder_storm", "tidal_wave", "tornado", "earthquake", "full_restoration", "magic_boost"],
+            "doom_bringer": ["apocalypse", "inferno", "dark_nova", "void_pulse", "enrage", "war_drum", "full_restoration", "strengthen"],
+            "celestial_dragon": ["celestial_judgment", "primordial_breath", "divine_wrath", "chain_lightning", "holy_smite", "full_restoration", "strengthen", "haste"],
+            "abyssal_king": ["apocalypse", "void_pulse", "dark_nova", "tidal_wave", "soul_drain", "enrage", "full_restoration", "strengthen", "magic_boost"],
+            "chrono_guardian": ["thunder_storm", "chain_lightning", "tornado", "haste", "crystal_shell", "full_restoration", "strengthen"],
+            "infernal_dragon": ["primordial_breath", "inferno", "dark_nova", "fire_breath", "void_pulse", "enrage", "full_restoration", "strengthen", "haste"],
+            "divine_beast": ["celestial_judgment", "divine_wrath", "holy_smite", "radiant_burst", "purifying_light", "full_restoration", "strengthen"],
+            "shadow_emperor": ["apocalypse", "void_pulse", "dark_nova", "curse_of_darkness", "soul_drain", "dark_blessing", "full_restoration", "strengthen", "magic_boost"],
+            "runic_titan": ["earthquake", "thunder_storm", "rock_throw", "crystal_shell", "enrage", "war_drum", "full_restoration", "strengthen"],
+            "eternal_phoenix": ["inferno", "celestial_judgment", "purifying_light", "radiant_burst", "regenerate", "full_restoration", "haste", "magic_boost"],
         }
 
         skill_ids = skill_mapping.get(enemy_type.lower(), [])

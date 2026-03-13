@@ -10,6 +10,7 @@ import time
 from src.tutorial.tutorial_manager import get_tutorial_manager
 from src.tutorial.tutorial_ui import TutorialUI
 from src.core.logger import get_logger, Loggers
+from src.ui.input_handler import iter_game_input, GameAction
 
 
 logger = get_logger(Loggers.SYSTEM)
@@ -148,24 +149,23 @@ def run_tutorial_viewer(console: tcod.console.Console, context: tcod.context.Con
         # 입력 대기
         waiting = True
         while waiting:
-            for event in tcod.event.wait():
-                if isinstance(event, tcod.event.Quit):
+            for action, event in iter_game_input():
+                if event and isinstance(event, tcod.event.Quit):
                     return
-                elif isinstance(event, tcod.event.KeyDown):
-                    if event.sym == tcod.event.KeySym.ESCAPE:
-                        # 메인 메뉴로
-                        return
-                    elif event.sym in (tcod.event.KeySym.RIGHT, tcod.event.KeySym.RETURN, tcod.event.KeySym.KP_ENTER):
-                        # 다음 튜토리얼 (엔터 키 지원)
-                        current_tutorial_index += 1
-                        waiting = False
-                        break
-                    elif event.sym == tcod.event.KeySym.LEFT:
-                        # 이전 튜토리얼
-                        if current_tutorial_index > 0:
-                            current_tutorial_index -= 1
-                        waiting = False
-                        break
+                if action in (GameAction.ESCAPE, GameAction.CANCEL):
+                    # 메인 메뉴로
+                    return
+                elif action in (GameAction.MOVE_RIGHT, GameAction.CONFIRM):
+                    # 다음 튜토리얼
+                    current_tutorial_index += 1
+                    waiting = False
+                    break
+                elif action == GameAction.MOVE_LEFT:
+                    # 이전 튜토리얼
+                    if current_tutorial_index > 0:
+                        current_tutorial_index -= 1
+                    waiting = False
+                    break
 
     # 모든 튜토리얼 완료
     console.clear()
@@ -197,14 +197,10 @@ def run_tutorial_viewer(console: tcod.console.Console, context: tcod.context.Con
     context.present(console)
 
     # 아무 키나 누를 때까지 대기
-    waiting = True
-    while waiting:
-        for event in tcod.event.wait():
-            if isinstance(event, tcod.event.Quit):
-                waiting = False
-                break
-            elif isinstance(event, tcod.event.KeyDown):
-                waiting = False
-                break
+    for action, event in iter_game_input():
+        if event and isinstance(event, tcod.event.Quit):
+            break
+        if action is not None:
+            break
 
     logger.info("튜토리얼 뷰어 종료")

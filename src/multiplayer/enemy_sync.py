@@ -49,11 +49,35 @@ class EnemySyncManager:
         if self.network_manager:
             self._register_handlers()
     
+    def set_host_mode(self, is_host: bool):
+        """
+        호스트 모드 동적 전환 (호스트 마이그레이션용)
+
+        Args:
+            is_host: 새로운 호스트 여부
+        """
+        old_is_host = self.is_host
+        self.is_host = is_host
+        self.logger.info(f"EnemySyncManager 호스트 모드 전환: {old_is_host} -> {is_host}")
+
+        # 핸들러 갱신: 호스트가 되면 적 이동 수신 핸들러 해제
+        if self.network_manager:
+            if is_host and not old_is_host:
+                self.network_manager.unregister_handler(
+                    MessageType.ENEMY_MOVE,
+                    self._handle_enemy_move
+                )
+            elif not is_host and old_is_host:
+                self.network_manager.register_handler(
+                    MessageType.ENEMY_MOVE,
+                    self._handle_enemy_move
+                )
+
     def _register_handlers(self):
         """네트워크 메시지 핸들러 등록"""
         if not self.network_manager:
             return
-        
+
         # 적 이동 메시지 핸들러 (클라이언트만)
         if not self.is_host:
             self.network_manager.register_handler(
@@ -90,12 +114,70 @@ class EnemySyncManager:
         """
         self.last_move_time = current_time
     
-    async def sync_enemy_positions(self, enemies: List[Any]):
+    def _collect_enemy_positions(
+        self,
+        enemies: List[Any],
+        current_time: float
+    ) -> Dict[str, Dict[str, Any]]:
+        """브로드캐스트용 적 위치 데이터 수집"""
+        enemy_positions: Dict[str, Dict[str, Any]] = {}
+
+        for enemy in enemies:
+            try:
+                if not enemy:
+                    continue
+
+                enemy_id = self._get_enemy_id(enemy)
+                if not enemy_id:
+                    continue
+
+                if not hasattr(enemy, 'x') or not hasattr(enemy, 'y'):
+                    continue
+
+                try:
+                    x = int(enemy.x)
+                    y = int(enemy.y)
+                except (ValueError, TypeError, AttributeError):
+                    self.logger.warning(f"적 {enemy_id}의 위치를 읽을 수 없음")
+                    continue
+
+                # spawn 좌표도 포함 (클라이언트에서 안정적 ID 생성용)
+                spawn_x = getattr(enemy, 'spawn_x', None)
+                spawn_y = getattr(enemy, 'spawn_y', None)
+                enemy_type = getattr(enemy, 'enemy_id', None)
+
+                pos_data = {
+                    "x": x,
+                    "y": y,
+                    "timestamp": current_time
+                }
+                if spawn_x is not None:
+                    pos_data["spawn_x"] = int(spawn_x)
+                if spawn_y is not None:
+                    pos_data["spawn_y"] = int(spawn_y)
+                if enemy_type:
+                    pos_data["enemy_type"] = str(enemy_type)
+
+                enemy_positions[enemy_id] = pos_data
+            except Exception as e:
+                self.logger.error(f"적 위치 수집 실패: {e}", exc_info=True)
+                continue
+
+        return enemy_positions
+
+    async def sync_enemy_positions(
+        self,
+        enemies: List[Any],
+        check_interval: bool = True,
+        current_time: Optional[float] = None
+    ):
         """
         적 위치 동기화 (호스트 -> 모든 클라이언트)
         
         Args:
             enemies: 적 리스트
+            check_interval: 이동 간격 체크 여부
+            current_time: 외부에서 전달된 현재 시간 (없으면 time.time 사용)
         """
         try:
             if not self.is_host or not self.network_manager:
@@ -105,44 +187,14 @@ class EnemySyncManager:
                 self.logger.warning(f"잘못된 적 리스트 타입: {type(enemies)}")
                 return
             
-            current_time = time.time()
+            if current_time is None:
+                current_time = time.time()
             
             # 이동 가능 여부 확인
-            if not self.can_move_enemies(current_time):
+            if check_interval and not self.can_move_enemies(current_time):
                 return
             
-            # 모든 적 위치 수집
-            enemy_positions = {}
-            for enemy in enemies:
-                try:
-                    if not enemy:
-                        continue
-                    
-                    # 적 ID 생성
-                    enemy_id = self._get_enemy_id(enemy)
-                    if not enemy_id:
-                        continue
-                    
-                    # 적 위치 확인
-                    if not hasattr(enemy, 'x') or not hasattr(enemy, 'y'):
-                        continue
-                    
-                    try:
-                        x = int(enemy.x)
-                        y = int(enemy.y)
-                    except (ValueError, TypeError, AttributeError):
-                        self.logger.warning(f"적 {enemy_id}의 위치를 읽을 수 없음")
-                        continue
-                    
-                    enemy_positions[enemy_id] = {
-                        "x": x,
-                        "y": y,
-                        "timestamp": current_time
-                    }
-                except Exception as e:
-                    self.logger.error(f"적 위치 수집 실패: {e}", exc_info=True)
-                    continue
-            
+            enemy_positions = self._collect_enemy_positions(enemies, current_time)
             if not enemy_positions:
                 return
             
@@ -159,6 +211,45 @@ class EnemySyncManager:
                 self.logger.error(f"적 위치 동기화 브로드캐스트 실패: {e}", exc_info=True)
         except Exception as e:
             self.logger.error(f"적 위치 동기화 실패: {e}", exc_info=True)
+
+    def sync_enemy_positions_sync(
+        self,
+        enemies: List[Any],
+        check_interval: bool = True,
+        current_time: Optional[float] = None
+    ):
+        """
+        동기 컨텍스트에서 적 위치 동기화
+
+        Args:
+            enemies: 적 리스트
+            check_interval: 이동 간격 체크 여부
+            current_time: 외부에서 전달된 현재 시간 (없으면 time.time 사용)
+        """
+        try:
+            if not self.is_host or not self.network_manager:
+                return
+
+            if not isinstance(enemies, list):
+                self.logger.warning(f"잘못된 적 리스트 타입: {type(enemies)}")
+                return
+
+            if current_time is None:
+                current_time = time.time()
+
+            if check_interval and not self.can_move_enemies(current_time):
+                return
+
+            enemy_positions = self._collect_enemy_positions(enemies, current_time)
+            if not enemy_positions:
+                return
+
+            move_message = MessageBuilder.enemy_move(enemy_positions)
+            self.network_manager.broadcast_sync(move_message)
+            self.update_move_time(current_time)
+            self.logger.debug(f"적 위치 동기화 브로드캐스트: {len(enemy_positions)}마리")
+        except Exception as e:
+            self.logger.error(f"적 위치 동기화 실패(동기): {e}", exc_info=True)
     
     async def _handle_enemy_move(
         self,
@@ -177,49 +268,144 @@ class EnemySyncManager:
         
         enemy_positions = message.data.get("enemies", {})
         
-        # 캐시 업데이트
-        self.enemy_positions = {}
+        # 캐시 업데이트 (머지 방식: 기존 위치 유지하면서 새 데이터 갱신)
+        updated_positions = {}
+        enemy_spawn_data = {}  # {enemy_id: {spawn_x, spawn_y, enemy_type}}
         for enemy_id, pos_data in enemy_positions.items():
             x = pos_data.get("x", 0)
             y = pos_data.get("y", 0)
-            self.enemy_positions[enemy_id] = (x, y)
-        
+            updated_positions[enemy_id] = (x, y)
+            # spawn 좌표 메타데이터 저장
+            if "spawn_x" in pos_data or "spawn_y" in pos_data:
+                enemy_spawn_data[enemy_id] = {
+                    "spawn_x": pos_data.get("spawn_x"),
+                    "spawn_y": pos_data.get("spawn_y"),
+                    "enemy_type": pos_data.get("enemy_type")
+                }
+
+        # 머지: 새로 받은 위치로 갱신하되, 수신되지 않은 기존 캐시는 유지
+        self.enemy_positions.update(updated_positions)
+
         # 실제 exploration.enemies 위치 업데이트
         if hasattr(self, 'exploration') and self.exploration:
             if hasattr(self.exploration, 'enemies'):
                 updated_count = 0
+                matched_msg_ids = set()
+
                 for enemy in self.exploration.enemies:
-                    # 적 ID 생성 (여러 방법 시도)
+                    # 수신된 spawn 좌표로 로컬 적 객체에 spawn_x/spawn_y 설정
+                    # (클라이언트에서 spawn 좌표가 없는 경우 호스트 데이터로 보완)
                     enemy_id = self._get_enemy_id(enemy)
-                    
-                    # ID로 직접 매칭 시도
+
+                    # 1차: ID로 직접 매칭
                     if enemy_id in self.enemy_positions:
                         new_x, new_y = self.enemy_positions[enemy_id]
                         old_x, old_y = enemy.x, enemy.y
                         enemy.x = new_x
                         enemy.y = new_y
+                        matched_msg_ids.add(enemy_id)
                         updated_count += 1
                         if old_x != new_x or old_y != new_y:
                             self.logger.debug(f"적 {enemy_id} 위치 업데이트: ({old_x}, {old_y}) -> ({new_x}, {new_y})")
-                    else:
-                        # ID로 매칭 실패 시, 위치 기반으로 매칭 시도 (같은 위치의 적)
-                        # 이는 임시 방편이며, 정확한 ID 매칭이 더 중요함
-                        for msg_enemy_id, (msg_x, msg_y) in self.enemy_positions.items():
-                            # 현재 적의 위치와 메시지의 위치가 같으면 매칭
-                            if abs(enemy.x - msg_x) <= 1 and abs(enemy.y - msg_y) <= 1:
-                                # 같은 위치의 적이 여러 마리일 수 있으므로, spawn 위치도 확인
-                                if hasattr(enemy, 'spawn_x') and hasattr(enemy, 'spawn_y'):
-                                    # spawn 위치가 메시지 ID에 포함되어 있는지 확인
-                                    if f"{enemy.spawn_x}_{enemy.spawn_y}" in msg_enemy_id:
-                                        enemy.x = msg_x
-                                        enemy.y = msg_y
-                                        updated_count += 1
-                                        self.logger.debug(f"적 위치 기반 매칭: ({enemy.x}, {enemy.y}) -> ({msg_x}, {msg_y})")
-                                        break
+                        continue
+
+                    # 2차: spawn 좌표 기반 매칭 (메시지의 spawn 좌표 vs 적의 spawn/현재 좌표)
+                    matched = False
+                    for msg_enemy_id, spawn_info in enemy_spawn_data.items():
+                        if msg_enemy_id in matched_msg_ids:
+                            continue
+                        msg_spawn_x = spawn_info.get("spawn_x")
+                        msg_spawn_y = spawn_info.get("spawn_y")
+                        if msg_spawn_x is None or msg_spawn_y is None:
+                            continue
+
+                        local_spawn_x = getattr(enemy, 'spawn_x', None)
+                        local_spawn_y = getattr(enemy, 'spawn_y', None)
+
+                        if local_spawn_x == msg_spawn_x and local_spawn_y == msg_spawn_y:
+                            # spawn 좌표 일치 - 적 객체에 spawn 정보 설정 및 ID 캐시 갱신
+                            if not hasattr(enemy, 'spawn_x') or enemy.spawn_x is None:
+                                enemy.spawn_x = msg_spawn_x
+                                enemy.spawn_y = msg_spawn_y
+                            if spawn_info.get("enemy_type") and not getattr(enemy, 'enemy_id', None):
+                                enemy.enemy_id = spawn_info["enemy_type"]
+                            # 캐시된 ID 무효화하여 다음 호출 시 안정 ID 재생성
+                            try:
+                                if hasattr(enemy, '_multiplayer_sync_id'):
+                                    delattr(enemy, '_multiplayer_sync_id')
+                            except Exception:
+                                pass
+
+                            new_x, new_y = self.enemy_positions[msg_enemy_id]
+                            enemy.x = new_x
+                            enemy.y = new_y
+                            matched_msg_ids.add(msg_enemy_id)
+                            updated_count += 1
+                            self.logger.debug(f"적 spawn 기반 매칭: {msg_enemy_id} -> ({new_x}, {new_y})")
+                            matched = True
+                            break
+
+                    if matched:
+                        continue
+
+                    # 3차: 메시지의 spawn 좌표와 적의 현재 위치가 같은 경우 (최초 동기화)
+                    for msg_enemy_id, spawn_info in enemy_spawn_data.items():
+                        if msg_enemy_id in matched_msg_ids:
+                            continue
+                        msg_spawn_x = spawn_info.get("spawn_x")
+                        msg_spawn_y = spawn_info.get("spawn_y")
+                        if msg_spawn_x is None or msg_spawn_y is None:
+                            continue
+
+                        if int(enemy.x) == msg_spawn_x and int(enemy.y) == msg_spawn_y:
+                            # 현재 위치가 호스트의 spawn 좌표와 같으면 매칭
+                            enemy.spawn_x = msg_spawn_x
+                            enemy.spawn_y = msg_spawn_y
+                            if spawn_info.get("enemy_type"):
+                                enemy.enemy_id = spawn_info["enemy_type"]
+                            try:
+                                if hasattr(enemy, '_multiplayer_sync_id'):
+                                    delattr(enemy, '_multiplayer_sync_id')
+                            except Exception:
+                                pass
+
+                            new_x, new_y = self.enemy_positions[msg_enemy_id]
+                            enemy.x = new_x
+                            enemy.y = new_y
+                            matched_msg_ids.add(msg_enemy_id)
+                            updated_count += 1
+                            self.logger.debug(f"적 초기위치 매칭: {msg_enemy_id} -> ({new_x}, {new_y})")
+                            break
                 
+                # 4차 fallback: 매칭 안 된 적과 메시지를 순서대로 강제 매칭
+                if updated_count < len(self.exploration.enemies):
+                    unmatched_msg_ids = [mid for mid in updated_positions if mid not in matched_msg_ids]
+                    unmatched_enemies = [e for e in self.exploration.enemies
+                                         if self._get_enemy_id(e) not in matched_msg_ids]
+                    for enemy, msg_id in zip(unmatched_enemies, unmatched_msg_ids):
+                        new_x, new_y = updated_positions[msg_id]
+                        enemy.x = new_x
+                        enemy.y = new_y
+                        # spawn 정보도 설정하여 다음 매칭 안정화
+                        if msg_id in enemy_spawn_data:
+                            si = enemy_spawn_data[msg_id]
+                            if si.get("spawn_x") is not None:
+                                enemy.spawn_x = si["spawn_x"]
+                                enemy.spawn_y = si["spawn_y"]
+                            if si.get("enemy_type"):
+                                enemy.enemy_id = si["enemy_type"]
+                        try:
+                            if hasattr(enemy, '_multiplayer_sync_id'):
+                                delattr(enemy, '_multiplayer_sync_id')
+                        except Exception:
+                            pass
+                        matched_msg_ids.add(msg_id)
+                        updated_count += 1
+                        self.logger.debug(f"적 강제 매칭: {msg_id} -> ({new_x}, {new_y})")
+
                 if updated_count == 0:
                     self.logger.warning(f"적 위치 동기화 실패: {len(self.exploration.enemies)}마리 중 0마리 업데이트됨")
-                    self.logger.debug(f"수신한 적 ID: {list(self.enemy_positions.keys())}")
+                    self.logger.debug(f"수신한 적 ID: {list(updated_positions.keys())}")
                     self.logger.debug(f"로컬 적 ID: {[self._get_enemy_id(e) for e in self.exploration.enemies]}")
         
         self.logger.debug(f"적 위치 동기화 수신: {len(enemy_positions)}마리")
@@ -260,6 +446,7 @@ class EnemySyncManager:
         else:
             stable_id = f"enemy_unknown_{id(enemy)}"
 
+        # _multiplayer_sync_id를 최초 호출 시 반드시 설정 (이후 이동해도 ID 유지)
         try:
             setattr(enemy, '_multiplayer_sync_id', stable_id)
         except Exception:

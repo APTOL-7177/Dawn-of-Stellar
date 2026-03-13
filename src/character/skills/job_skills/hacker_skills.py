@@ -10,18 +10,18 @@ def create_hacker_skills():
     """해커 10개 스킬 생성 (멀티스레드 시스템 - 최대 3개 프로그램 동시 실행)"""
 
     # 1. 기본 BRV: 코드 주입
-    code_injection = Skill("hacker_code_injection", "코드 주입", "기본 해킹 공격")
+    code_injection = Skill("hacker_code_injection", "코드 주입", "[번개 속성] 기본 해킹 공격")
     code_injection.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magical")
+        DamageEffect(DamageType.BRV, 0.98, stat_type="magical", element="lightning")
     ]
     code_injection.costs = []  # 기본 공격은 MP 소모 없음
     code_injection.sfx = ("se", "Computer")  # 코드 주입
     code_injection.metadata = {"ram_cost": 3}
 
     # 2. 기본 HP: 데이터 유출
-    data_breach = Skill("hacker_data_breach", "데이터 유출", "정보 탈취 HP 공격")
+    data_breach = Skill("hacker_data_breach", "데이터 유출", "[번개 속성] 정보 탈취 HP 공격")
     data_breach.effects = [
-        DamageEffect(DamageType.HP, 1.2, stat_type="magical")
+        DamageEffect(DamageType.HP, 0.78, stat_type="magical", element="lightning")
     ]
     data_breach.costs = []  # 기본 공격은 MP 소모 없음
     data_breach.sfx = ("se", "Computer")  # 데이터 유출
@@ -101,10 +101,10 @@ def create_hacker_skills():
     run_spyware.metadata = {"program_type": "spyware", "info_gathering": True, "ram_cost": 5}
 
     # 8. 프로그램 종료 (모든 프로그램 종료하여 강력한 공격)
-    terminate_all = Skill("hacker_terminate_all", "프로그램 종료", "모든 프로그램 종료하여 강력한 공격")
+    terminate_all = Skill("hacker_terminate_all", "프로그램 종료", "[번개 속성] 모든 프로그램 종료하여 강력한 공격")
     terminate_all.effects = [
         # 실행 중인 프로그램 수에 비례한 공격 (피해량 감소: 2.5 -> 1.8, multiplier: 0.6 -> 0.4)
-        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="magical",
+        DamageEffect(DamageType.BRV_HP, 1.17, stat_type="magical", element="lightning",
                     gimmick_bonus={"field": "total_programs", "multiplier": 0.4}),
         # 모든 프로그램 종료
         GimmickEffect(GimmickOperation.SET, "program_virus", 0),
@@ -119,9 +119,9 @@ def create_hacker_skills():
     terminate_all.metadata = {"terminate_all": True, "ram_cost": 7, "ram_burn_bonus_per": 0.04, "ram_burn_max": 6}
 
     # 9. 시스템 과부하 (프로그램 유지하면서 강력한 공격)
-    system_overload = Skill("hacker_system_overload", "시스템 과부하", "프로그램 수에 비례한 강력한 공격")
+    system_overload = Skill("hacker_system_overload", "시스템 과부하", "[번개 속성] 프로그램 수에 비례한 강력한 공격")
     system_overload.effects = [
-        DamageEffect(DamageType.BRV_HP, 3.0, stat_type="magical",
+        DamageEffect(DamageType.BRV_HP, 1.95, stat_type="magical", element="lightning",
                     gimmick_bonus={"field": "total_programs", "multiplier": 0.5})
     ]
     system_overload.costs = [MPCost(7)]
@@ -130,15 +130,15 @@ def create_hacker_skills():
     system_overload.metadata = {"program_scaling": True, "ram_cost": 6, "ram_burn_bonus_per": 0.05, "ram_burn_max": 8}
 
     # 10. 궁극기: 멀티스레드 폭주 (모든 프로그램 즉시 실행 + 극대 공격)
-    ultimate = Skill("hacker_ultimate", "멀티스레드 폭주", "적 전체에 모든 프로그램 즉시 실행 + 극대 공격")
+    ultimate = Skill("hacker_ultimate", "멀티스레드 폭주", "[번개 속성] 적 전체에 모든 프로그램 즉시 실행 + 극대 공격")
     ultimate.effects = [
         # 모든 프로그램 즉시 실행
         GimmickEffect(GimmickOperation.SET, "program_virus", 1),
         GimmickEffect(GimmickOperation.SET, "program_backdoor", 1),
         GimmickEffect(GimmickOperation.SET, "program_ddos", 1),
         # 극대 공격
-        DamageEffect(DamageType.BRV, 3.5, stat_type="magical"),
-        DamageEffect(DamageType.HP, 3.2, stat_type="magical"),
+        DamageEffect(DamageType.BRV, 2.27, stat_type="magical", element="lightning"),
+        DamageEffect(DamageType.HP, 2.08, stat_type="magical", element="lightning"),
         # 모든 디버프 적용
         BuffEffect(BuffType.ATTACK_DOWN, 0.15, duration=5),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.2, duration=5),
@@ -160,28 +160,31 @@ def create_hacker_skills():
 def register_hacker_skills(skill_manager):
     """해커 스킬 등록"""
     skills = create_hacker_skills()
-    skills.append(skills[-1])  # ultimate
 
-    # 팀워크 스킬: 해킹 공격
+    # 팀워크 스킬: 시스템 오버라이드 (침투 시스템 연계)
     teamwork = TeamworkSkill(
         "hacker_teamwork",
         "시스템 오버라이드",
-        "적 전체 버프 제거 + 디버프 1개씩 부여 + 본인 프로그램 3개 즉시 실행",
+        "전체 적 침투 +25 + 속도/마방 감소 (2턴) + 자신 RAM +10 & 오버클럭 (2턴)",
         gauge_cost=225)
     teamwork.effects = [
-        BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.7, duration=2, is_party_wide=True),  # 적 전체 마법 방어력 -70%
-        GimmickEffect(GimmickOperation.ADD, "programs_executed", 3, max_value=10),  # 프로그램 3개 즉시 실행
-        # 디버프 부여 완료
+        BuffEffect(BuffType.SPEED_DOWN, 0.25, duration=2),        # 적 전체 속도 -25%
+        BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.2, duration=2),  # 적 전체 마방 -20%
     ]
-    teamwork.target_type = "party"
+    teamwork.target_type = "all_enemies"
     teamwork.is_aoe = True
     teamwork.costs = [MPCost(0)]
     teamwork.sfx = ("skill", "teamwork")
-    teamwork.metadata = {"teamwork": True, "chain": True, "buff": True, "hack": True, "ram_cost": 8}
+    teamwork.metadata = {
+        "teamwork": True, "chain": True, "hack": True,
+        "intrusion_gain_all": 25,   # 전체 적 침투 게이지 +25
+        "self_ram_recover": 10,     # 자신 RAM +10 회복
+        "self_overclock": 2,        # 오버클럭 버프 2턴 (침투 획득량 +50%, 속도 +30%)
+        "ram_cost": 8,
+    }
     skills.append(teamwork)
 
     for skill in skills:
         skill_manager.register_skill(skill)
 
-    # 팀워크 스킬: 시스템 오버라이드
     return [s.skill_id for s in skills]

@@ -12,9 +12,9 @@ def create_vampire_skills():
     """흡혈귀 10개 스킬 생성 (갈증 관리 시스템)"""
 
     # 1. 기본 BRV: 흡혈 물기 (갈증 -5, 소량 감소)
-    vampiric_bite = Skill("vampire_vampiric_bite", "흡혈 물기", "적을 물어 피를 빨아 갈증 감소")
+    vampiric_bite = Skill("vampire_vampiric_bite", "흡혈 물기", "[암흑 속성] 적을 물어 피를 빨아 갈증 감소")
     vampiric_bite.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 1.5, stat_type="physical", element="dark"),
         GimmickEffect(GimmickOperation.ADD, "thirst", -5, min_value=0)  # 갈증 -5
     ]
     vampiric_bite.costs = []  # 기본 공격은 MP 소모 없음
@@ -22,9 +22,9 @@ def create_vampire_skills():
     vampiric_bite.metadata = {"basic_attack": True, "thirst_reduction": -5, "lifesteal": 0.2}
 
     # 2. 기본 HP: 피의 흡수 (갈증 -20, 대량 감소)
-    blood_drain = Skill("vampire_blood_drain", "피의 흡수", "적의 생명력을 빨아들여 갈증 대폭 감소")
+    blood_drain = Skill("vampire_blood_drain", "피의 흡수", "[암흑 속성] 적의 생명력을 빨아들여 갈증 대폭 감소")
     blood_drain.effects = [
-        DamageEffect(DamageType.HP, 1.2, stat_type="physical"),
+        DamageEffect(DamageType.HP, 1.2, stat_type="physical", element="dark"),
         GimmickEffect(GimmickOperation.ADD, "thirst", -20, min_value=0)  # 갈증 -20
     ]
     blood_drain.costs = []  # 기본 공격은 MP 소모 없음
@@ -34,7 +34,7 @@ def create_vampire_skills():
     # 3. 피의 창 (안정형 - 저위험, 갈증 감소 + 회복)
     blood_lance = Skill("vampire_blood_lance", "피의 창", "[암흑 속성] 안정적인 공격 + 갈증 감소 + 소량 회복")
     blood_lance.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.6, stat_type="magical", element="dark",
+        DamageEffect(DamageType.BRV_HP, 1.04, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "thirst", "multiplier": 0.005}),
         GimmickEffect(GimmickOperation.ADD, "thirst", -5, min_value=0),
         HealEffect(percentage=0.15, target_self=True)
@@ -44,9 +44,9 @@ def create_vampire_skills():
     blood_lance.metadata = {"element": "dark", "thirst_scaling": True, "stable": True, "sustain": True}
 
     # 4. 갈증 폭발 (고위험 고회보 - 갈증 소모해서 폭발적 피해)
-    thirst_surge = Skill("vampire_thirst_surge", "갈증 폭발", "갈증을 소모해 폭발적인 피해 (갈증 -40)")
+    thirst_surge = Skill("vampire_thirst_surge", "갈증 폭발", "[암흑 속성] 갈증을 소모해 폭발적인 피해 (갈증 -40)")
     thirst_surge.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.0, stat_type="physical",
+        DamageEffect(DamageType.BRV_HP, 2.0, stat_type="physical", element="dark",
                     gimmick_bonus={"field": "thirst", "multiplier": 0.02}),  # 갈증 1당 +2% 피해 (강한 스케일링)
         GimmickEffect(GimmickOperation.ADD, "thirst", -40, min_value=0),  # 갈증 -40 (소모)
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=1, target="self")  # 공격력 +30% 1턴
@@ -58,7 +58,7 @@ def create_vampire_skills():
     # 5. 박쥐 떼 (광역 공격, 갈증 증가)
     bat_swarm = Skill("vampire_bat_swarm", "박쥐 떼", "[암흑 속성] 박쥐 떼로 적 전체 공격, 갈증 증가")
     bat_swarm.effects = [
-        DamageEffect(DamageType.BRV, 1.4, stat_type="magical", element="dark"),
+        DamageEffect(DamageType.BRV, 0.91, stat_type="magical", element="dark"),
         GimmickEffect(GimmickOperation.ADD, "thirst", 12, max_value=100)
     ]
     bat_swarm.costs = [MPCost(5)]
@@ -93,7 +93,7 @@ def create_vampire_skills():
     # 8. 생명력 착취 (강력한 HP 흡수, 갈증 대폭 감소)
     life_tap = Skill("vampire_life_tap", "생명력 착취", "[암흑 속성] 적의 생명력을 대량 흡수, 갈증 -30")
     life_tap.effects = [
-        DamageEffect(DamageType.HP, 2.5, stat_type="magical", element="dark"),
+        DamageEffect(DamageType.HP, 1.62, stat_type="magical", element="dark"),
         LifestealEffect(lifesteal_percent=0.9),
         GimmickEffect(GimmickOperation.ADD, "thirst", -30, min_value=0)
     ]
@@ -118,7 +118,7 @@ def create_vampire_skills():
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 3.0, stat_type="physical",
                     gimmick_bonus={"field": "thirst", "multiplier": 0.01}),
-        DamageEffect(DamageType.HP, 3.2, stat_type="magical", element="dark",
+        DamageEffect(DamageType.HP, 2.08, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "thirst", "multiplier": 0.01}),
         HealEffect(percentage=0.95),
         BuffEffect(BuffType.ATTACK_UP, 1.0, duration=4, target="self"),
@@ -138,10 +138,10 @@ def create_vampire_skills():
     teamwork = TeamworkSkill(
         "vampire_teamwork",
         "피의 향연",
-        "단일 대상 BRV+HP (2.5x → HP 변환) + 입힌 HP 데미지의 100% 흡혈 + 갈증 게이지 완전 충족",
+        "[암흑 속성] 단일 대상 BRV+HP (2.5x → HP 변환) + 입힌 HP 데미지의 100% 흡혈 + 갈증 게이지 완전 충족",
         gauge_cost=150)
     teamwork.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="physical"),  # 단일 대상 2.5x 피해
+        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="physical", element="dark"),  # 단일 대상 2.5x 피해
         LifestealEffect(lifesteal_percent=1.0),  # 100% 흡혈
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=3, is_party_wide=True),  # 공격력 +50%
         GimmickEffect(GimmickOperation.SET, "thirst", 100),  # 갈증 게이지 완전 충족

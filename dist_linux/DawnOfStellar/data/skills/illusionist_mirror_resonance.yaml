@@ -1,0 +1,39 @@
+id: illusionist_mirror_resonance
+name: 거울 감응
+type: support
+description: '거울 속 환영들과 공명하여 방어력을 강화한다.
+
+  환영 3개 이상일 때 방어력/마법방어력 +25%,
+
+  회피 성공 시 환영 1개 자동 복구.
+
+  '
+costs:
+  mp: 16
+  cast_time: 0.7
+target: self
+requirements:
+  min_phantoms: 3
+effects:
+- type: buff
+  stat: physical_defense
+  value: 0.25
+  duration: 3
+- type: buff
+  stat: magic_defense
+  value: 0.25
+  duration: 3
+- type: on_evade_trigger
+  effect: restore_phantom
+  count: 1
+  duration: 3
+metadata:
+  job: illusionist
+  tank_skill: true
+  gimmick_skill: true
+  defensive_skill: true
+  evasion_synergy: true
+  skill_category: defense
+sfx:
+- se
+- Up1

@@ -1,0 +1,36 @@
+id: illusionist_phantom_aegis
+name: 환영 장막
+type: defense
+description: '환영들을 방패 삼아 자신을 보호한다.
+
+  받는 피해의 50%를 환영이 대신 받으며,
+
+  피해를 대신 받은 환영은 즉시 파괴된다.
+
+  지속: 3턴 또는 환영이 전부 파괴될 때까지.
+
+  '
+costs:
+  mp: 14
+  cast_time: 0.6
+target: self
+requirements:
+  min_phantoms: 1
+effects:
+- type: phantom_damage_redirect
+  redirect_percent: 0.5
+  destroy_on_damage: true
+  duration: 3
+- type: summon_phantom
+  count: 1
+  bonus_chance: 0.0
+metadata:
+  job: illusionist
+  tank_skill: true
+  gimmick_skill: true
+  defensive_skill: true
+  phantom_consume: true
+  skill_category: defense
+sfx:
+- se
+- Summon

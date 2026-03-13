@@ -145,14 +145,11 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 # 전투 이벤트 구독 (멀티플레이 모드에서만)
                 self._subscribe_to_combat_events()
                 
-                # 채집물은 개인보상이므로 동기화 제거
-                # self._register_harvest_handler()
+                # 채집물은 개인보상 - 시각적 동기화 + 클라이언트 인벤토리 추가용 핸들러
+                self._register_harvest_handler()
                 
-                # 아이템 획득 동기화 핸들러 등록 (드롭된 아이템은 개인보상이므로 제거)
-                # self._register_item_pickup_handler()  # 드롭된 아이템은 개인보상
-                
-                # NPC 위치 동기화 핸들러 등록
-                self._register_npc_move_handler()
+                # 아이템 획득 동기화 핸들러 등록 (아이템은 개인보상이지만 타일 제거는 동기화 필요)
+                self._register_item_pickup_handler()
                 
                 # 드롭된 아이템/골드 동기화 핸들러 등록
                 self._register_drop_handlers()
@@ -226,11 +223,13 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 x = message.data.get("x")
                 y = message.data.get("y")
                 object_type_str = message.data.get("object_type")
-                
+                items = message.data.get("items")  # 아이템 정보 (호스트에서 전송)
+                target_player_id = message.data.get("target_player_id")
+
                 if x is None or y is None or not object_type_str:
                     self.logger.warning(f"채집 메시지에 필수 데이터가 없습니다: x={x}, y={y}, object_type={object_type_str}")
                     return
-                
+
                 # 해당 위치의 harvestable 찾기
                 from src.gathering.harvestable import HarvestableType
                 try:
@@ -238,11 +237,11 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 except ValueError:
                     self.logger.warning(f"알 수 없는 채집 타입: {object_type_str}")
                     return
-                
-                # 던전의 harvestable 목록에서 찾기
+
+                # 던전의 harvestable 목록에서 찾기 (시각적 동기화)
                 found = False
                 for harvestable in self.dungeon.harvestables:
-                    if (harvestable.x == x and harvestable.y == y and 
+                    if (harvestable.x == x and harvestable.y == y and
                         harvestable.object_type == object_type):
                         found = True
                         # 이미 채집되었는지 확인 (중복 방지)
@@ -253,9 +252,24 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                         else:
                             self.logger.debug(f"채집 동기화: ({x}, {y}) {object_type_str}는 이미 채집됨")
                         break
-                
+
                 if not found:
                     self.logger.warning(f"채집 동기화: ({x}, {y}) {object_type_str}를 찾을 수 없음")
+
+                # 이 메시지가 나(클라이언트)를 위한 것이면 인벤토리에 아이템 추가
+                if items and target_player_id == self.local_player_id and self.inventory:
+                    from src.gathering.ingredient import IngredientDatabase
+                    items_gained = []
+                    for item_id, qty in items.items():
+                        ingredient = IngredientDatabase.get_ingredient(item_id)
+                        if ingredient:
+                            for _ in range(qty):
+                                self.inventory.add_item(ingredient)
+                            items_gained.append(f"{item_id} x{qty}")
+                    if items_gained:
+                        from src.core.audio import play_sfx
+                        play_sfx("world", "pickup_item")
+                        self.logger.info(f"채집 아이템 수령: {', '.join(items_gained)}")
             except Exception as e:
                 self.logger.error(f"채집 동기화 처리 실패: {e}", exc_info=True)
         
@@ -301,63 +315,6 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         self.network_manager.register_handler(MessageType.ITEM_PICKED_UP, handle_item_pickup)
         self.logger.debug("아이템 획득 동기화 핸들러 등록 완료")
     
-    def _register_npc_move_handler(self):
-        """NPC 이동 동기화 핸들러 등록"""
-        if not self.network_manager:
-            return
-        
-        from src.multiplayer.protocol import MessageType
-        from src.world.tile import TileType
-        
-        async def handle_npc_move(message, sender_id=None):
-            """NPC 이동 메시지 처리 (클라이언트)"""
-            try:
-                npc_positions = message.data.get("npcs", {})
-                
-                if not npc_positions:
-                    return
-                
-                # 각 NPC 위치 업데이트
-                for npc_id, pos_data in npc_positions.items():
-                    old_x = pos_data.get("old_x")
-                    old_y = pos_data.get("old_y")
-                    new_x = pos_data.get("x")
-                    new_y = pos_data.get("y")
-                    
-                    if old_x is None or old_y is None or new_x is None or new_y is None:
-                        continue
-                    
-                    # 기존 위치의 타일 확인
-                    if 0 <= old_x < self.dungeon.width and 0 <= old_y < self.dungeon.height:
-                        old_tile = self.dungeon.get_tile(old_x, old_y)
-                        if old_tile and old_tile.tile_type == TileType.NPC and old_tile.npc_id == npc_id:
-                            # 기존 위치를 FLOOR로 변경
-                            self.dungeon.set_tile(old_x, old_y, TileType.FLOOR)
-                    
-                    # 새 위치에 NPC 배치
-                    if 0 <= new_x < self.dungeon.width and 0 <= new_y < self.dungeon.height:
-                        new_tile = self.dungeon.get_tile(new_x, new_y)
-                        if new_tile and new_tile.tile_type != TileType.NPC:
-                            # NPC 정보 가져오기 (기존 타일에서)
-                            npc_type = pos_data.get("npc_type")
-                            npc_subtype = pos_data.get("npc_subtype")
-                            npc_interacted = pos_data.get("npc_interacted", False)
-                            
-                            self.dungeon.set_tile(
-                                new_x, new_y,
-                                TileType.NPC,
-                                npc_id=npc_id,
-                                npc_type=npc_type,
-                                npc_subtype=npc_subtype,
-                                npc_interacted=npc_interacted
-                            )
-                            self.logger.debug(f"NPC 이동 동기화: {npc_id} ({old_x}, {old_y}) -> ({new_x}, {new_y})")
-            except Exception as e:
-                self.logger.error(f"NPC 이동 동기화 처리 실패: {e}", exc_info=True)
-        
-        self.network_manager.register_handler(MessageType.NPC_MOVE, handle_npc_move)
-        self.logger.debug("NPC 이동 동기화 핸들러 등록 완료")
-    
     def _register_combat_start_handler(self):
         """전투 시작 핸들러 등록"""
         if not self.network_manager:
@@ -399,37 +356,87 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     # enemies 정보는 ID 리스트로 오므로, 로컬에서 찾아야 함
                     
                     enemy_ids = message.data.get("enemies", [])
+                    enemy_data_list = message.data.get("enemy_data", [])
                     combat_position = message.data.get("position", {})
-                    
-                    # 로컬에서 적 객체 찾기 (렌더링 등을 위해)
+
+                    # 호스트에서 전송한 적 데이터로 전투용 적 객체 직접 구성
                     local_enemies = []
-                    if enemy_ids:
+                    if enemy_data_list:
+                        for ed in enemy_data_list:
+                            try:
+                                from src.world.enemy_generator import SimpleEnemy, EnemyTemplate, ENEMY_TEMPLATES
+                                template_id = ed.get("enemy_id")
+                                template = ENEMY_TEMPLATES.get(template_id) if template_id else None
+                                if template:
+                                    # 템플릿 기반으로 생성 후 호스트 값으로 덮어쓰기
+                                    enemy = SimpleEnemy(template, level_modifier=1.0)
+                                else:
+                                    # 템플릿이 없으면 기본 템플릿 사용
+                                    fallback_template = EnemyTemplate(
+                                        ed.get("enemy_id", "unknown"),
+                                        ed.get("name", "적"), 1,
+                                        hp=ed.get("max_hp", 100), mp=ed.get("max_mp", 0),
+                                        physical_attack=ed.get("physical_attack", 10),
+                                        physical_defense=ed.get("physical_defense", 5),
+                                        magic_attack=ed.get("magic_attack", 10),
+                                        magic_defense=ed.get("magic_defense", 5),
+                                        speed=ed.get("speed", 50),
+                                        max_brv=ed.get("max_brv", 1000),
+                                        init_brv=ed.get("init_brv", 333),
+                                    )
+                                    enemy = SimpleEnemy(fallback_template, level_modifier=1.0)
+
+                                # 호스트의 정확한 값으로 덮어쓰기
+                                enemy.id = ed.get("id")
+                                enemy.enemy_id = ed.get("enemy_id", enemy.enemy_id)
+                                enemy.name = ed.get("name", enemy.name)
+                                enemy.level = ed.get("level", enemy.level)
+                                enemy.max_hp = ed.get("max_hp", enemy.max_hp)
+                                enemy.current_hp = ed.get("current_hp", enemy.current_hp)
+                                enemy.max_mp = ed.get("max_mp", enemy.max_mp)
+                                enemy.current_mp = ed.get("current_mp", enemy.current_mp)
+                                enemy.physical_attack = ed.get("physical_attack", enemy.physical_attack)
+                                enemy.physical_defense = ed.get("physical_defense", enemy.physical_defense)
+                                enemy.magic_attack = ed.get("magic_attack", enemy.magic_attack)
+                                enemy.magic_defense = ed.get("magic_defense", enemy.magic_defense)
+                                enemy.speed = ed.get("speed", enemy.speed)
+                                enemy.max_brv = ed.get("max_brv", enemy.max_brv)
+                                enemy.init_brv = ed.get("init_brv", enemy.init_brv)
+                                enemy.current_brv = ed.get("current_brv", enemy.current_brv)
+                                enemy.luck = ed.get("luck", enemy.luck)
+                                enemy.accuracy = ed.get("accuracy", enemy.accuracy)
+                                enemy.evasion = ed.get("evasion", enemy.evasion)
+                                enemy.is_boss = ed.get("is_boss", enemy.is_boss)
+                                enemy.is_floor_boss = ed.get("is_floor_boss", getattr(enemy, 'is_floor_boss', False))
+                                enemy.is_enemy = True
+                                enemy.is_alive = ed.get("is_alive", True)
+
+                                local_enemies.append(enemy)
+                                self.logger.info(
+                                    f"호스트 적 데이터로 구성: {enemy.name} "
+                                    f"(ID: {enemy.id}, HP: {enemy.current_hp}/{enemy.max_hp})"
+                                )
+                            except Exception as e_err:
+                                self.logger.error(f"적 객체 구성 실패: {e_err}", exc_info=True)
+
+                    # enemy_data가 없는 경우 (구버전 호환) 기존 ID 매칭 폴백
+                    if not local_enemies and enemy_ids:
                         for enemy_id in enemy_ids:
-                            # 적 ID로 찾기 (enemy_sync 등에서 관리하는 ID)
-                            # 현재 Enemy 클래스에는 ID 필드가 없거나 불확실하므로, 
-                            # 위치 기반으로 찾거나 모든 적을 순회하며 ID 비교
-                            found = False
                             for e in self.enemies:
                                 if hasattr(e, 'id') and e.id == enemy_id:
                                     local_enemies.append(e)
-                                    found = True
                                     break
-                            
-                            # 못 찾았으면 위치 기반으로라도 시도 (첫 번째 적이 기준)
-                            if not found and not local_enemies and combat_position:
-                                cx = combat_position.get("x")
-                                cy = combat_position.get("y")
-                                if cx is not None and cy is not None:
-                                    e = self.get_enemy_at(cx, cy)
-                                    if e:
-                                        local_enemies.append(e)
                     
                     # 전투 데이터 구성
                     combat_data = {
                         "is_multiplayer": True,
                         "enemies": local_enemies,
                         "combat_position": (combat_position.get("x"), combat_position.get("y")) if combat_position else None,
-                        "participants": participants
+                        "participants": participants,
+                        "num_enemies": message.data.get("num_enemies"),
+                        "enemy_level": message.data.get("enemy_level"),
+                        "is_boss": message.data.get("is_boss", False),
+                        "floor": message.data.get("floor"),
                     }
                     
                     # 이벤트 버스를 통해 전투 시작 알림 (UI 전환용)
@@ -452,11 +459,25 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             
             # 전투 종료 이벤트 구독
             event_bus.subscribe(Events.COMBAT_END, self._on_combat_end)
-            
+
+            # 호스트 마이그레이션 이벤트 구독
+            event_bus.subscribe("multiplayer.host_migrated", self._on_host_migrated)
+
             self.logger.info("전투 이벤트 구독 완료 (멀티플레이 합류 시스템)")
         except Exception as e:
             self.logger.error(f"전투 이벤트 구독 실패: {e}", exc_info=True)
     
+    def _on_host_migrated(self, data: Dict[str, Any]):
+        """호스트 마이그레이션 이벤트 처리 - EnemySyncManager 호스트 모드 전환"""
+        try:
+            is_new_host = data.get("is_new_host", False)
+            if is_new_host and self.enemy_sync:
+                self.enemy_sync.set_host_mode(True)
+                self.is_host = True
+                self.logger.info("호스트 마이그레이션: EnemySyncManager 호스트 모드로 전환")
+        except Exception as e:
+            self.logger.error(f"호스트 마이그레이션 처리 실패: {e}", exc_info=True)
+
     def _on_combat_start(self, data: Dict[str, Any]):
         """전투 시작 이벤트 처리"""
         try:
@@ -468,11 +489,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             if not combat_manager:
                 self.logger.warning("전투 시작 이벤트에 전투 관리자가 없음")
                 return
-            
-            # 전투 ID 생성 (타임스탬프 기반)
-            import time
-            combat_id = f"combat_{int(time.time() * 1000)}"
-            
+
             # 전투 위치 (플레이어 위치 또는 이벤트 데이터에서 가져오기)
             position = None
             if hasattr(self, 'player') and hasattr(self.player, 'x') and hasattr(self.player, 'y'):
@@ -485,6 +502,13 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 first_position = next(iter(self.player_positions.values()), None)
                 if first_position:
                     position = first_position
+
+            # 전투 ID 생성 (위치 기반 - 같은 위치의 전투는 같은 ID로 통합)
+            if position:
+                combat_id = f"combat_{position[0]}_{position[1]}"
+            else:
+                import time
+                combat_id = f"combat_{int(time.time() * 1000)}"
             
             if not position:
                 # 기본 위치
@@ -529,7 +553,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     return self.player.party or []
                 return []
             
-            participation_radius = MultiplayerConfig.participation_radius  # 5 타일
+            participation_radius = MultiplayerConfig.participation_radius_player  # 10 타일
             participants = []
             
             # 모든 플레이어 확인
@@ -684,12 +708,12 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 import asyncio
                 from src.multiplayer.protocol import MessageBuilder
                 
-                # 적 목록 (현재 적 하나만 보냄, 주변 적 포함 로직 필요하면 추가)
-                enemies = [enemy]
+                # 적 목록: super()에서 이미 주변 적을 수집했으므로 결과에서 가져옴
+                enemies = result.data.get("enemies", [enemy]) if result.data else [enemy]
                 
                 start_msg = MessageBuilder.combat_start(
                     participants=[p.id if hasattr(p, 'id') else str(p) for p in participants],
-                    enemies=[e.id if hasattr(e, 'id') else str(e) for e in enemies],
+                    enemies=enemies,  # 적 객체 전체를 전달하여 전체 데이터 직렬화
                     position=combat_position
                 )
                 start_msg.data["participant_player_ids"] = sorted({
@@ -697,6 +721,12 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     for p in participants
                     if (getattr(p, 'player_id', None) if not isinstance(p, str) else p)
                 })
+                # 전투 메타데이터 동기화 (클라이언트가 동일한 전투를 구성하도록)
+                if result.data:
+                    start_msg.data["num_enemies"] = result.data.get("num_enemies")
+                    start_msg.data["enemy_level"] = result.data.get("enemy_level")
+                    start_msg.data["is_boss"] = result.data.get("is_boss", False)
+                    start_msg.data["floor"] = result.data.get("floor", self.floor_number)
                 
                 try:
                     server_loop = getattr(self.network_manager, '_server_event_loop', None)
@@ -934,9 +964,9 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             # check_and_harvest 호출 (부모 클래스 메서드)
             harvest_data = self.check_and_harvest(new_x, new_y, player_id)
             if harvest_data:
-                _, object_type_str = harvest_data
-                
-                # 채집 메시지 브로드캐스트
+                harvest_results, object_type_str = harvest_data
+
+                # 채집 메시지 브로드캐스트 (아이템 정보 포함)
                 if self.network_manager:
                     from src.multiplayer.protocol import MessageBuilder
                     import asyncio
@@ -946,7 +976,10 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                             y=new_y,
                             object_type=object_type_str
                         )
-                        
+                        # 아이템 정보를 메시지에 추가 (클라이언트 인벤토리 반영용)
+                        harvest_msg.data["items"] = harvest_results
+                        harvest_msg.data["target_player_id"] = player_id
+
                         # network_manager의 서버 이벤트 루프 사용
                         server_loop = getattr(self.network_manager, '_server_event_loop', None)
                         if server_loop and server_loop.is_running():
@@ -956,8 +989,8 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                             )
                         else:
                             self.network_manager.broadcast_sync(harvest_msg)
-                            
-                        self.logger.info(f"플레이어 {player_id} 자동 채집: ({new_x}, {new_y}) {object_type_str}")
+
+                        self.logger.info(f"플레이어 {player_id} 자동 채집: ({new_x}, {new_y}) {object_type_str} -> {harvest_results}")
                     except Exception as e:
                         self.logger.error(f"자동 채집 브로드캐스트 실패: {e}", exc_info=True)
         
@@ -1074,7 +1107,19 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 self.update_fov()
             # 항상 FOV 업데이트 (안전장치)
             self.update_fov()
+
+        # 환경 효과 적용 (마을이 아닌 경우만) - 싱글플레이와 동일
+        if hasattr(self.dungeon, 'environment_effect_manager') and not getattr(self, 'is_town', False):
+            effect_manager = getattr(self.dungeon, 'environment_effect_manager', None) or \
+                             getattr(self.dungeon, 'environmental_effect_manager', None)
+            party = getattr(self.player, 'party', None) or []
+            if effect_manager and party:
+                for member in party:
+                    effect_manager.apply_tile_effects(member, self.player.x, self.player.y, is_movement=True)
         
+        # 환경 효과 타이머 업데이트 및 적용 (싱글플레이와 동일하게 시간 기반 효과 적용)
+        dot_messages = self._update_effect_timers_and_apply(self.player.x, self.player.y)
+
         # 밟으면 자동 채집 (Walk-over Harvest) - 로컬 플레이어용
         harvest_data = self.check_and_harvest(self.player.x, self.player.y, self.local_player_id)
         
@@ -1084,27 +1129,14 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             # 획득한 아이템 처리
             items_gained = []
             if self.inventory:
-                from src.equipment.item_system import ItemGenerator
+                from src.gathering.ingredient import IngredientDatabase
                 for item_id, qty in harvest_results.items():
                     items_gained.append(f"{item_id} x{qty}")
-                    # 실제 아이템 추가 시도
-                    try:
-                        item_obj = ItemGenerator.create_consumable(item_id)
-                    except:
-                        try:
-                            item_obj = ItemGenerator.create_weapon(item_id)
-                        except:
-                            try:
-                                item_obj = ItemGenerator.create_armor(item_id)
-                            except:
-                                try:
-                                    item_obj = ItemGenerator.create_accessory(item_id)
-                                except:
-                                    # 다 실패하면 랜덤
-                                    item_obj = ItemGenerator.create_random_drop(1)
-
-                    if item_obj:
-                        self.inventory.add_item(item_obj, qty)
+                    # 채집물은 Ingredient 타입이므로 IngredientDatabase에서 가져옴
+                    ingredient = IngredientDatabase.get_ingredient(item_id)
+                    if ingredient and self.inventory:
+                        for _ in range(qty):
+                            self.inventory.add_item(ingredient)
             
             play_sfx("world", "pickup_item")
             
@@ -1127,18 +1159,18 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             # 바로 반환하지 않고 로깅만 하다가, tile 이벤트가 없으면 반환하도록 로직 구성 필요
             # 하지만 구조상 result를 반환해야 함.
             
-            # 호스트인 경우 브로드캐스트
+            # 호스트인 경우 브로드캐스트 (다른 클라이언트에 시각적 동기화)
             if self.is_host and self.network_manager:
                 try:
                     from src.multiplayer.protocol import MessageBuilder
                     import asyncio
-                    
+
                     harvest_msg_net = MessageBuilder.harvest(
                         x=self.player.x,
                         y=self.player.y,
                         object_type=object_type_str
                     )
-                    
+
                     server_loop = getattr(self.network_manager, '_server_event_loop', None)
                     if server_loop and server_loop.is_running():
                         asyncio.run_coroutine_threadsafe(
@@ -1146,7 +1178,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                             server_loop
                         )
                     else:
-                        self.network_manager.broadcast(harvest_msg_net)
+                        self.network_manager.broadcast_sync(harvest_msg_net)
                 except Exception as e:
                     self.logger.error(f"채집 브로드캐스트 실패: {e}", exc_info=True)
                     
@@ -1161,13 +1193,13 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 event=ExplorationEvent.ITEM_FOUND,
                 message=harvest_msg
             )
-        
-        # NPC 이동 (플레이어 이동 후, 멀티플레이에서는 호스트만)
-        if self.is_multiplayer:
-            if self.is_host:
-                self._move_npcs_multiplayer()
-        else:
-            self._move_npcs()
+
+        # 환경 효과 지속 피해 메시지 병합
+        if dot_messages and result:
+            if result.message:
+                result.message = f"{result.message}\n{dot_messages[0]}"
+            else:
+                result.message = dot_messages[0]
         
         # 적 움직임 후 플레이어 위치에 적이 있는지 다시 체크 (호스트만)
         if self.is_host:
@@ -1176,6 +1208,29 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 self.logger.info(f"적이 플레이어에게 접근! 전투 시작")
                 return self._trigger_combat_with_enemy(enemy_at_player)
         
+        # 랜덤 이벤트 체크 (타일 이벤트가 없을 때만)
+        if result is None or result.event == ExplorationEvent.NONE:
+            try:
+                from src.world.random_events import get_random_event_manager
+                event_mgr = get_random_event_manager()
+                current_floor = getattr(self.dungeon, 'floor', 1)
+                region = getattr(self, 'current_region', None) or getattr(self, 'nav_current_region', None)
+                biome = getattr(self.dungeon, 'biome', None)
+                party_jobs = []
+                if hasattr(self.player, 'party') and self.player.party:
+                    party_jobs = [getattr(c, 'character_class', '') for c in self.player.party]
+                random_event = event_mgr.on_step(current_floor, region, party_jobs, biome=biome)
+                if random_event:
+                    result = ExplorationResult(
+                        success=True,
+                        event=ExplorationEvent.RANDOM_EVENT,
+                        message=f"이벤트 발생: {random_event.name}",
+                        data={"random_event": random_event}
+                    )
+                    return result
+            except Exception as e:
+                self.logger.debug(f"랜덤 이벤트 체크 실패: {e}")
+
         if result is None:
             # 기본 결과 반환
             result = ExplorationResult(
@@ -1183,7 +1238,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 event=ExplorationEvent.NONE,
                 message=""
             )
-        
+
         return result
     
     def _handle_single_player_movement(self, dx: int, dy: int) -> bool:
@@ -1206,49 +1261,43 @@ class MultiplayerExplorationSystem(ExplorationSystem):
     def _move_all_enemies(self):
         """
         모든 적 이동 (부모 클래스 메서드 오버라이드)
-        
+
         멀티플레이에서는 호스트만 실행하고, 0.65초 간격으로 제한됩니다.
+        클라이언트는 enemy_sync에서 수신한 위치를 메인 스레드에서 적용합니다.
         """
         if not self.is_multiplayer:
             # 싱글플레이: 부모 클래스 로직 사용
             super()._move_all_enemies()
             return
-        
+
         # 멀티플레이: 호스트만 실행하고 시간 체크는 상위에서 처리
         if self.is_host:
             current_time = time.time()
-            
+
             # 적 동기화 관리자를 통한 이동 가능 여부 확인
             if self.enemy_sync and self.enemy_sync.can_move_enemies(current_time):
                 # 부모 클래스의 적 이동 로직 실행
                 super()._move_all_enemies()
-                
-                # 적 위치 동기화 (비동기로 처리)
-                if self.enemy_sync and hasattr(self, 'enemies') and self.enemies:
-                    import asyncio
-                    try:
-                        # network_manager의 서버 이벤트 루프 사용
-                        server_loop = getattr(self.network_manager, '_server_event_loop', None)
-                        if server_loop and server_loop.is_running():
-                            # 서버 이벤트 루프가 실행 중이면 run_coroutine_threadsafe 사용
-                            asyncio.run_coroutine_threadsafe(
-                                self.enemy_sync.sync_enemy_positions(self.enemies),
-                                server_loop
-                            )
-                        else:
-                            # 서버 이벤트 루프가 없으면 스킵 (동기 실행 불가)
-                            self.logger.debug("서버 이벤트 루프가 없어 적 위치 동기화 스킵")
-                    except Exception as e:
-                        # 이벤트 루프 관련 오류는 무시 (동기 모드일 수 있음)
-                        self.logger.debug(f"적 위치 동기화 실패: {e}")
-                        self.logger.debug(f"비동기 브로드캐스트 실패 (이벤트 루프 없음): {e}")
-                    except Exception as e:
-                        # 기타 예외는 로그만 남기고 계속 진행
-                        self.logger.debug(f"적 위치 동기화 오류 (무시): {e}")
-                
+
+                # 적 위치 동기화 (서버 루프가 없어도 broadcast_sync 경로로 전송)
+                if hasattr(self, 'enemies'):
+                    self.enemy_sync.sync_enemy_positions_sync(
+                        self.enemies,
+                        check_interval=False,
+                        current_time=current_time
+                    )
+
                 # 이동 시간 업데이트
                 self.enemy_sync.update_move_time(current_time)
                 self.last_enemy_move = current_time
+        else:
+            # 클라이언트: enemy_sync 캐시에서 위치를 메인 스레드로 동기 적용
+            if self.enemy_sync and self.enemy_sync.enemy_positions and hasattr(self, 'enemies'):
+                for enemy in self.enemies:
+                    enemy_id = self.enemy_sync._get_enemy_id(enemy)
+                    pos = self.enemy_sync.enemy_positions.get(enemy_id)
+                    if pos:
+                        enemy.x, enemy.y = pos
     
     async def sync_player_positions(self):
         """
@@ -1332,9 +1381,6 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             else:
                 # 서버 이벤트 루프가 없으면 스킵 (동기 실행 불가)
                 self.logger.debug("서버 이벤트 루프가 없어 전투 자동 합류 체크 스킵")
-        except Exception as e:
-            # 이벤트 루프 관련 오류는 무시 (동기 모드일 수 있음)
-            self.logger.debug(f"비동기 전투 자동 합류 체크 실패: {e}")
         except Exception as e:
             self.logger.warning(f"전투 자동 합류 체크 실패: {e}")
     
@@ -1484,7 +1530,21 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     # 합류 표시
                     if self.combat_join_handler:
                         self.combat_join_handler.mark_player_joined(combat_id, player_id)
-                    
+
+                    # Party 객체 갱신 (합류한 캐릭터 포함)
+                    if hasattr(self.active_combat_manager, 'party') and hasattr(self.active_combat_manager, 'allies'):
+                        try:
+                            from src.character.party import Party
+                            old_party = self.active_combat_manager.party
+                            self.active_combat_manager.party = Party(list(self.active_combat_manager.allies))
+                            # 기존 팀워크 게이지 유지
+                            if old_party:
+                                self.active_combat_manager.party.teamwork_gauge = old_party.teamwork_gauge
+                                self.active_combat_manager.party.max_teamwork_gauge = old_party.max_teamwork_gauge
+                            self.logger.info(f"Party 객체 갱신 완료 (멤버 수: {len(self.active_combat_manager.party)})")
+                        except Exception as e:
+                            self.logger.error(f"Party 객체 갱신 실패: {e}", exc_info=True)
+
                     # 네트워크 동기화 (호스트가 모든 클라이언트에게 브로드캐스트)
                     if self.is_host and self.network_manager:
                         try:
@@ -1542,118 +1602,13 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             # 싱글플레이: 기존 로직 사용
             return
         
-        # 적 동기화 관리자를 통한 이동 처리
-        if self.enemy_sync:
-            # 이동 가능 여부 확인
-            if self.enemy_sync.can_move_enemies(current_time):
-                # 호스트만 적 이동 실행
-                if self.is_host:
-                    # 기존 적 이동 로직 실행 (부모 클래스의 _move_all_enemies 호출)
-                    if hasattr(self, '_move_all_enemies'):
-                        self._move_all_enemies()
-                    
-                    # 적 위치 동기화
-                    if hasattr(self, 'enemies'):
-                        await self.enemy_sync.sync_enemy_positions(self.enemies)
+        # 호스트만 적 이동 실행 (_move_all_enemies에서 이동/동기화를 함께 처리)
+        if self.is_host and self.enemy_sync and hasattr(self, '_move_all_enemies'):
+            self._move_all_enemies()
         
         # 기존 타이머 업데이트 (백업)
         if current_time - self.last_enemy_move >= self.enemy_move_interval:
             self.last_enemy_move = current_time
-    
-    def _move_npcs_multiplayer(self):
-        """
-        NPC 이동 처리 (멀티플레이 - 호스트만)
-        
-        NPC 이동 후 동기화 메시지를 클라이언트에게 전송합니다.
-        """
-        if not self.is_host or not self.is_multiplayer:
-            return
-        
-        from src.world.tile import TileType
-        import random
-        
-        # 던전 전체를 스캔하여 NPC 타일 찾기
-        npc_positions = []
-        for y in range(self.dungeon.height):
-            for x in range(self.dungeon.width):
-                tile = self.dungeon.get_tile(x, y)
-                if tile and tile.tile_type == TileType.NPC:
-                    npc_positions.append((x, y, tile))
-        
-        # 이동한 NPC 정보 수집
-        moved_npcs = {}
-        
-        # 각 NPC를 랜덤하게 이동
-        for x, y, npc_tile in npc_positions:
-            # NPC는 상호작용하지 않은 경우에만 이동 (상인 등은 제외)
-            if npc_tile.npc_interacted:
-                continue
-            
-            # 30% 확률로 이동 (적보다 덜 자주 이동)
-            if random.random() < 0.3:
-                directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
-                random.shuffle(directions)  # 랜덤 순서
-                
-                for dx, dy in directions:
-                    new_x = x + dx
-                    new_y = y + dy
-                    
-                    # 이동 가능한 위치인지 확인
-                    if self.dungeon.is_walkable(new_x, new_y):
-                        new_tile = self.dungeon.get_tile(new_x, new_y)
-                        # 다른 NPC나 적, 플레이어와 겹치지 않도록 체크
-                        if (new_tile and new_tile.tile_type != TileType.NPC and
-                            not self.get_enemy_at(new_x, new_y) and
-                            (new_x, new_y) != (self.player.x, self.player.y)):
-                            
-                            # 기존 위치를 FLOOR로 변경
-                            self.dungeon.set_tile(x, y, TileType.FLOOR)
-                            
-                            # 새 위치에 NPC 배치
-                            self.dungeon.set_tile(
-                                new_x, new_y,
-                                TileType.NPC,
-                                npc_id=npc_tile.npc_id,
-                                npc_type=npc_tile.npc_type,
-                                npc_subtype=npc_tile.npc_subtype,
-                                npc_interacted=npc_tile.npc_interacted
-                            )
-                            
-                            # 이동한 NPC 정보 저장
-                            npc_id = npc_tile.npc_id or f"npc_{x}_{y}"
-                            moved_npcs[npc_id] = {
-                                "x": new_x,
-                                "y": new_y,
-                                "old_x": x,
-                                "old_y": y,
-                                "npc_type": npc_tile.npc_type,
-                                "npc_subtype": npc_tile.npc_subtype,
-                                "npc_interacted": npc_tile.npc_interacted
-                            }
-                            
-                            self.logger.debug(f"NPC 이동: {npc_tile.npc_subtype} ({x}, {y}) -> ({new_x}, {new_y})")
-                            break  # 이동 성공하면 중단
-        
-        # 이동한 NPC가 있으면 동기화 메시지 전송
-        if moved_npcs and self.network_manager:
-            from src.multiplayer.protocol import MessageBuilder
-            import asyncio
-            try:
-                npc_move_msg = MessageBuilder.npc_move(moved_npcs)
-                # network_manager의 서버 이벤트 루프 사용
-                server_loop = getattr(self.network_manager, '_server_event_loop', None)
-                if server_loop and server_loop.is_running():
-                    # 서버 이벤트 루프가 실행 중이면 run_coroutine_threadsafe 사용
-                    asyncio.run_coroutine_threadsafe(
-                        self.network_manager.broadcast(npc_move_msg),
-                        server_loop
-                    )
-                else:
-                    # 서버 이벤트 루프가 없으면 동기 브로드캐스트
-                    self.network_manager.broadcast(npc_move_msg)
-                self.logger.debug(f"NPC 이동 동기화 메시지 전송: {len(moved_npcs)}개")
-            except Exception as e:
-                self.logger.error(f"NPC 이동 동기화 메시지 전송 실패: {e}", exc_info=True)
     
     def _register_drop_handlers(self):
         """드롭된 아이템/골드 동기화 핸들러 등록"""

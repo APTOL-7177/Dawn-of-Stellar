@@ -397,11 +397,16 @@ def run_trait_selection(
     Returns:
         선택된 특성 리스트 또는 None (취소 시)
     """
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     selection = TraitSelection(party_members, console.width, console.height)
 
     import time
     import pygame
-    
+
     while True:
         # 렌더링
         selection.render(console)

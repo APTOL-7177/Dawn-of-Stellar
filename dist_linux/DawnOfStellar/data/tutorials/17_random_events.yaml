@@ -1,0 +1,31 @@
+id: random_events
+title: "랜덤 이벤트"
+order: 17
+category: exploration
+description: "탐험 중 마주치는 예측 불가한 이벤트들"
+steps:
+  - id: "event_intro"
+    messages:
+      - "던전을 탐험하다 보면 예상치 못한 이벤트를 만날 수 있다."
+      - "부상당한 여행자, 숨겨진 보물, 함정, 떠돌이 상인..."
+      - "각 이벤트는 선택지를 제공한다. 신중하게 골라라!"
+
+  - id: "event_encounter"
+    messages:
+      - "이벤트가 발생하면 선택지가 표시된다."
+      - "파티의 직업이나 보유 아이템에 따라 추가 선택지가 열릴 수 있다!"
+    completion_condition:
+      type: "random_event_resolved"
+    hints:
+      - text: "이벤트는 탐험 중 자동으로 발생합니다"
+        trigger_time: 15.0
+
+  - id: "event_result"
+    messages:
+      - "선택의 결과는 다양하다. 보상을 얻거나, 함정에 걸리거나..."
+      - "때로는 호감도가 변하기도 한다."
+      - "뭐가 나올지 모르는 것이 탐험의 묘미다!"
+
+rewards:
+  exp: 100
+  gold: 80

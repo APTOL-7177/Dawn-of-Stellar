@@ -1,0 +1,32 @@
+id: healing_touch
+name: 치유의 손길
+type: heal
+description: '신성한 치유의 손길.
+
+  대상 HP 30% 회복.
+
+  디버프 1개 제거.
+
+  자비 서약: 신앙 +10
+
+  '
+target: single_ally
+costs:
+  mp: 15
+metadata:
+  oath_mercy_faith: 10
+effects:
+- type: heal
+  heal_type: percent
+  value: 0.3
+- type: cleanse
+  cleanse_count: 1
+animation:
+  icon: 💚
+  color:
+  - 100
+  - 255
+  - 150
+sfx:
+- se
+- Recovery

@@ -251,7 +251,7 @@ def _create_damage_effect(data: Dict[str, Any]) -> DamageEffect:
         damage_type=_map_damage_type(data.get("damage_type")),
         multiplier=float(data.get("multiplier", 1.0)),
         gimmick_bonus=data.get("gimmick_bonus"),
-        stat_type=data.get("stat_base", "physical"),
+        stat_type="magical" if data.get("stat_base") in ("magic", "magical") else data.get("stat_base", "physical"),
         conditional_bonus=data.get("conditional_bonus"),
         hp_scaling=data.get("hp_scaling", False),
     )

@@ -22,7 +22,6 @@ try:
     INPUTS_AVAILABLE = True
 except ImportError:
     INPUTS_AVAILABLE = False
-    print("Warning: inputs 라이브러리를 사용할 수 없습니다. pygame만 사용합니다.")
 from src.core.vibration_system import vibration_manager, vibration_listener
 
 
@@ -77,6 +76,19 @@ class GameAction(Enum):
 
     # 필드 스킬
     FIELD_SKILL = "field_skill"
+
+    # 탐험 유틸리티
+    TELEPORT_TO_SPAWN = "teleport_to_spawn"  # 스폰 위치로 텔레포트 (긴급 탈출)
+
+
+# 키 반복(held key)이 허용되는 액션 (이동/페이징만)
+_REPEATABLE_ACTIONS = frozenset({
+    GameAction.MOVE_UP, GameAction.MOVE_DOWN,
+    GameAction.MOVE_LEFT, GameAction.MOVE_RIGHT,
+    GameAction.MOVE_UP_LEFT, GameAction.MOVE_UP_RIGHT,
+    GameAction.MOVE_DOWN_LEFT, GameAction.MOVE_DOWN_RIGHT,
+    GameAction.PAGE_UP, GameAction.PAGE_DOWN,
+})
 
 
 class GamepadLayout(Enum):
@@ -165,11 +177,19 @@ class InputHandler(tcod.event.EventDispatch[Optional[GameAction]]):
             'x': GameAction.CANCEL,
             'q': GameAction.QUIT,
 
-            # 채팅
+            # 채팅 / 릴리 대화
             't': GameAction.CHAT,
             # 필드 스킬
             'f': GameAction.FIELD_SKILL,
+            # 스폰 위치 텔레포트 (긴급 탈출)
+            'r': GameAction.TELEPORT_TO_SPAWN,
+
+            # 게임패드용 듀얼 바인딩 (rs_left, rs_right 활용)
+            'w': GameAction.GIMMICK_DETAIL,  # g 외에 w도 기믹 상세로 추가
         }
+
+        # KeySym 바인딩에 Tab → OPEN_MAP 추가 (N키는 이동과 충돌하므로 Tab 사용)
+        self.key_bindings[tcod.event.KeySym.TAB] = GameAction.OPEN_MAP
 
     def ev_quit(self, event: tcod.event.Quit) -> Optional[GameAction]:
         """종료 이벤트"""
@@ -332,7 +352,7 @@ class KeyBindingManager:
             "open_inventory": ["i"],
             "open_character": ["c"],
             "open_skills": ["s"],
-            "gimmick_detail": ["g"],
+            "gimmick_detail": ["g", "w"],
             "inventory_destroy": ["v"],
             "inventory_drop": ["d"],
             "inventory_drop_gold": ["g"],
@@ -351,10 +371,14 @@ class KeyBindingManager:
             5: "c",        # RB - 캐릭터 (C키)
             6: "ESCAPE",   # Back - 탈출 (ESC키)
             7: "m",        # Start - 메뉴 (M키)
-            8: "f",        # Left Stick (L3) - 필드 스킬 (F키)
-            9: "p",        # Right Stick - 줍기 (P키)
-            "trigger_l": "f", # Left Trigger - 필드 스킬 (F키)
-            "trigger_r": "SPACE", # Right Trigger - 공격 (Space키) - R스틱 클릭 대신 트리거로도 공격
+            8: "PERIOD",   # Left Stick (L3) - 대기 (.)
+            9: "p",        # Right Stick (R3) - 줍기 (P키)
+            "trigger_l": "s", # Left Trigger - 스킬 (S키)
+            "trigger_r": "f", # Right Trigger - 필드 스킬 (F키)
+            "rs_up": "PAGEUP",    # 우측 스틱 위 - 페이지 업
+            "rs_down": "PAGEDOWN",# 우측 스틱 아래 - 페이지 다운
+            "rs_left": "d",       # 우측 스틱 왼쪽 - 인벤토리 드롭 (D키)
+            "rs_right": "v",      # 우측 스틱 오른쪽 - 인벤토리 파괴/버리기 (V키)
         }
         
         # 게임패드 D-pad -> 키보드 키 기본 매핑
@@ -667,22 +691,12 @@ class GamepadHandler:
 
     def __init__(self) -> None:
         self.logger = get_logger("gamepad")
-        print("GamepadHandler initializing...")  # 초기화 시작 로그
-
-        # pygame 초기화 (이미 초기화되어 있다면 생략)
-        if not pygame.get_init():
-            pygame.init()
-            print("pygame.init() called")
-
-        # joystick 초기화
-        pygame.joystick.init()
-        print("pygame.joystick.init() called")
 
         # 게임패드 인스턴스
         self.joystick: Optional[pygame.joystick.Joystick] = None
         self.connected = False
 
-        # 입력 상태 추적
+        # 입력 상태 추적 (헤드리스 여부와 무관하게 항상 초기화)
         self.prev_button_states = {}
         self.prev_axis_states = {}
         self.prev_hat_states = {}
@@ -706,7 +720,7 @@ class GamepadHandler:
 
                 # Stick clicks
                 8: GameAction.FIELD_SKILL,  # Left Stick (L3) - 필드 스킬
-                9: GameAction.PICKUP,       # Right Stick - 줍기
+                9: GameAction.TELEPORT_TO_SPAWN,  # Right Stick (R3) - 스폰 텔레포트
             },
 
             GamepadLayout.PLAYSTATION: {
@@ -726,7 +740,7 @@ class GamepadHandler:
 
                 # Stick clicks (L3/R3)
                 8: GameAction.FIELD_SKILL,  # L3 - 필드 스킬
-                9: GameAction.PICKUP,       # R3 - 줍기
+                9: GameAction.TELEPORT_TO_SPAWN,  # R3 - 스폰 텔레포트
             },
 
             GamepadLayout.NINTENDO: {
@@ -746,7 +760,7 @@ class GamepadHandler:
 
                 # Stick clicks
                 8: GameAction.FIELD_SKILL,  # Left Stick (L3) - 필드 스킬
-                9: GameAction.PICKUP,       # Right Stick - 줍기
+                9: GameAction.TELEPORT_TO_SPAWN,  # Right Stick (R3) - 스폰 텔레포트
             },
 
             GamepadLayout.GENERIC: {
@@ -766,7 +780,7 @@ class GamepadHandler:
 
                 # 추가 버튼들
                 8: GameAction.FIELD_SKILL,  # 버튼 9 (L3) - 필드 스킬
-                9: GameAction.PICKUP,       # 버튼 10 - 줍기
+                9: GameAction.TELEPORT_TO_SPAWN,  # 버튼 10 (R3) - 스폰 텔레포트
             }
         }
 
@@ -803,7 +817,8 @@ class GamepadHandler:
         self.first_move_time = 0
         self.is_first_move = True
         self.last_action = None
-        
+        self._direction_held = False  # 방향 입력 물리적 활성 여부
+
         # 버튼 입력 딜레이 (같은 버튼 연속 입력 방지)
         self.button_input_delay = 0.15  # 같은 버튼 입력 간 최소 딜레이 (초)
         self.last_button_times: Dict[int, float] = {}  # 버튼별 마지막 입력 시간
@@ -811,6 +826,18 @@ class GamepadHandler:
         
         # 스틱 방향 고정 (미세한 각도 변화 무시용)
         self.locked_stick_direction: Optional[str] = None
+
+        # 헤드리스 환경(RL 학습 등)에서는 pygame/joystick 초기화 건너뛰기
+        if os.environ.get("SDL_VIDEODRIVER") == "dummy":
+            self.logger.info("헤드리스 환경 감지 - 게임패드 초기화 건너뛰기")
+            return
+
+        # pygame 초기화 (이미 초기화되어 있다면 생략)
+        if not pygame.get_init():
+            pygame.init()
+
+        # joystick 초기화
+        pygame.joystick.init()
 
         # 게임패드 연결 시도
         self._initialize_joystick()
@@ -887,8 +914,10 @@ class GamepadHandler:
         """게임패드 이름으로 레이아웃 자동 감지"""
         name_lower = joystick_name.lower()
 
-        # Xbox 컨트롤러 감지
-        if any(keyword in name_lower for keyword in ['xbox', 'x-input', 'microsoft']):
+        # Xbox 및 Xbox 호환 컨트롤러 감지 (ROG Ally, Steam Deck 등)
+        if any(keyword in name_lower for keyword in ['xbox', 'x-input', 'microsoft',
+                                                      'rog', 'ally', 'asus', 'steam deck',
+                                                      'x360', 'xinput']):
             return GamepadLayout.XBOX
 
         # PlayStation 컨트롤러 감지
@@ -906,23 +935,14 @@ class GamepadHandler:
     def _initialize_joystick(self) -> None:
         """게임패드 초기화"""
         try:
-            print("[INIT] Initializing gamepad...")  # 디버깅용
-
             # pygame 이벤트 초기화 (중요!)
             pygame.event.get()  # 기존 이벤트 비우기
-            print("[OK] pygame events cleared")  # 디버깅용
 
             joystick_count = pygame.joystick.get_count()
             self.logger.info(f"감지된 조이스틱 수: {joystick_count}")
-            print(f"[INFO] Detected joysticks: {joystick_count}")  # 디버깅용
 
             if joystick_count == 0:
-                print("[FAIL] No gamepads detected")
-                print("[HINT] Xbox 360 controller troubleshooting:")
-                print("   1. Connect with USB cable")
-                print("   2. Press center X button to power on")
-                print("   3. Check Windows 'Game controller settings'")
-                print("   4. Install Xbox Accessories app")
+                self.logger.debug("게임패드 미감지")
                 return
 
             if joystick_count > 0:
@@ -1022,6 +1042,10 @@ class GamepadHandler:
                     
                     # 키보드 키로 변환
                     key_name = key_binding_manager.get_key_for_gamepad_button(button_id)
+                    
+                    # LB나 L2 등의 조합을 위한 모디파이어 확인 (선택적)
+                    # 여기서는 일단 기본 변환만 수행
+                    
                     if key_name:
                         # 키에 해당하는 액션 찾기
                         action = key_binding_manager.get_action_for_key(key_name)
@@ -1030,6 +1054,80 @@ class GamepadHandler:
                             self.logger.debug(f"게임패드 버튼 {button_id} -> 키 '{key_name}' -> {action.value}")
                             self._update_states()
                             return action
+
+            # 트리거 입력 확인 (아날로그 축을 버튼처럼 사용)
+            if self.joystick.get_numaxes() >= 6:
+                # Xbox/PS 기준 트리거는 보통 axis 4(LT/L2), 5(RT/R2) 또는 2(LT), 5(RT) 
+                # Pygame 2에서 Xbox 컨트롤러: LT는 보통 4, RT는 5.
+                # PS4/PS5: L2는 4, R2는 5
+                axes_to_check = {
+                    4: "trigger_l",
+                    5: "trigger_r"
+                }
+                
+                # 가끔 트리거가 2, 3번 축에 매핑되는 경우도 대응
+                if self.joystick.get_name().lower().find("xbox") != -1 and self.joystick.get_numaxes() == 6:
+                    # SDL2의 Xbox 컨트롤러 매핑: 4=LT, 5=RT
+                    pass
+                
+                for axis_id, trigger_name in axes_to_check.items():
+                    if axis_id < self.joystick.get_numaxes():
+                        val = self.joystick.get_axis(axis_id)
+                        # 트리거는 보통 -1(안눌림) ~ 1(끝까지 눌림), 또는 0~1
+                        # 0.5 이상 눌렸을 때 버튼 클릭으로 간주
+                        is_pressed = val > 0.5
+                        was_pressed = self.prev_axis_states.get(axis_id, -1.0) > 0.5
+                        
+                        if is_pressed and not was_pressed:
+                            last_time = self.last_button_times.get(trigger_name, 0)
+                            if current_time - last_time >= self.button_input_delay:
+                                key_name = key_binding_manager.gamepad_button_to_key.get(trigger_name)
+                                if key_name:
+                                    action = key_binding_manager.get_action_for_key(key_name)
+                                    if action:
+                                        self.last_button_times[trigger_name] = current_time
+                                        self.logger.debug(f"게임패드 {trigger_name} -> 키 '{key_name}' -> {action.value}")
+                                        self._update_states()
+                                        return action
+
+            # 우측 스틱 확인 (Right Stick) - Axis 2, 3 (또는 3, 4)
+            # 페이징이나 기타 기능에 활용 가능
+            if self.joystick.get_numaxes() >= 4:
+                # 오른쪽 스틱 X, Y축 인덱스는 보통 2, 3 또는 3, 4
+                rs_x, rs_y = 2, 3
+                if self.joystick.get_name().lower().find("ps") != -1:
+                    rs_x, rs_y = 2, 3
+                elif self.joystick.get_numaxes() >= 6:
+                    rs_x, rs_y = 2, 3
+                
+                x_val = self.joystick.get_axis(rs_x) if rs_x < self.joystick.get_numaxes() else 0
+                y_val = self.joystick.get_axis(rs_y) if rs_y < self.joystick.get_numaxes() else 0
+                
+                deadzone = 0.5
+                rs_dir = None
+                if y_val < -deadzone:
+                    rs_dir = "rs_up"
+                elif y_val > deadzone:
+                    rs_dir = "rs_down"
+                elif x_val < -deadzone:
+                    rs_dir = "rs_left"
+                elif x_val > deadzone:
+                    rs_dir = "rs_right"
+                    
+                if rs_dir:
+                    last_dir_time = self.last_direction_time.get(rs_dir, 0)
+                    if current_time - last_dir_time >= 0.2: # 0.2초 쿨다운
+                        key_name = key_binding_manager.gamepad_button_to_key.get(rs_dir)
+                        if key_name:
+                            action = key_binding_manager.get_action_for_key(key_name)
+                            if action:
+                                self.last_direction_time[rs_dir] = current_time
+                                self.logger.debug(f"우측 스틱 {rs_dir} -> 키 '{key_name}' -> {action.value}")
+                                self._update_states()
+                                return action
+
+            # D-pad / 아날로그 스틱 방향 입력 확인
+            self._direction_held = False
 
             # D-pad 입력 확인 (키보드 키 변환 방식)
             action = self._get_dpad_action_via_key()
@@ -1042,6 +1140,11 @@ class GamepadHandler:
             if action:
                 self._update_states()
                 return action
+
+            # 방향 입력이 물리적으로 해제되었으면 반복 상태 리셋
+            if not self._direction_held:
+                self.last_action = None
+                self.is_first_move = True
 
         except Exception as e:
             self.logger.error(f"게임패드 입력 처리 오류: {e}")
@@ -1090,20 +1193,25 @@ class GamepadHandler:
                     direction = "right"
 
         # 3. Hat과 버튼이 없으면 D-pad 축(axis)으로 확인
-        if not direction and self.joystick.get_numaxes() >= 6:
+        # 단, Xbox/GENERIC 6축 컨트롤러에서는 axis 4,5가 LT/RT 트리거이므로
+        # D-pad 축으로 사용하면 안 됨 (ROG Ally 등에서 키가 계속 눌리는 버그 발생)
+        if not direction and self.joystick.get_numaxes() >= 8:
+            # 8축 이상인 컨트롤러만 D-pad 축 사용 (PS 컨트롤러 등)
             num_axes = self.joystick.get_numaxes()
             dpad_x_axis = num_axes - 2
             dpad_y_axis = num_axes - 1
-            
+
             dpad_x = self.joystick.get_axis(dpad_x_axis)
             dpad_y = self.joystick.get_axis(dpad_y_axis)
-            
+
             dpad_deadzone = 0.5
             if abs(dpad_x) > dpad_deadzone or abs(dpad_y) > dpad_deadzone:
                 direction = self._axis_to_direction(dpad_x, dpad_y, dpad_deadzone)
 
         if not direction:
             return None
+
+        self._direction_held = True  # D-pad 방향 입력 감지됨
 
         # 아날로그 스틱 매핑(stick_to_key)을 우선 사용 (D-pad → 스틱 신호 변환)
         key_name = key_binding_manager.get_key_for_stick(direction)
@@ -1218,10 +1326,8 @@ class GamepadHandler:
             x_axis = self.joystick.get_axis(0)
             y_axis = self.joystick.get_axis(1)
 
-            # 데드존 적용
-            strict_deadzone = key_binding_manager.gamepad_deadzone
-            if strict_deadzone < 0.3:
-                strict_deadzone = 0.5  # 최소 0.5 보장
+            # 데드존 적용 (ROG Ally 등 드리프트가 큰 기기 대응: 최소 0.5)
+            strict_deadzone = max(key_binding_manager.gamepad_deadzone, 0.5)
             
             # 스틱이 중립 위치로 돌아왔으면 방향 잠금 해제
             if abs(x_axis) <= strict_deadzone and abs(y_axis) <= strict_deadzone:
@@ -1235,7 +1341,9 @@ class GamepadHandler:
                 raw_direction = self._axis_to_direction(x_axis, y_axis, strict_deadzone)
                 if not raw_direction:
                     return None
-                
+
+                self._direction_held = True  # 아날로그 스틱 방향 입력 감지됨
+
                 # 방향이 고정되어 있으면 호환되는 방향인지 확인
                 is_new_direction = False
                 if self.locked_stick_direction:
@@ -1448,10 +1556,13 @@ class UnifiedInputHandler:
         self.keyboard_handler = InputHandler()
         self.gamepad_handler = GamepadHandler()
         self.logger = get_logger("unified_input")
-        
+
         # 키보드 키별 디바운싱 (키 통합이 아닌 키별로 따로)
         self.keyboard_input_delay = 0.03  # 같은 키 입력 간 최소 딜레이 (초) - 매우 짧게
         self.last_key_times: Dict[int, float] = {}  # 키별 마지막 입력 시간
+
+        # 화면 전환 시 입력 쿨다운 (clear_input_state 호출 후 일정 시간 입력 무시)
+        self._input_cooldown_until: float = 0.0
 
     def get_action(self) -> Optional[GameAction]:
         """
@@ -1459,6 +1570,13 @@ class UnifiedInputHandler:
 
         우선순위: 게임패드 > 키보드
         """
+        # 화면 전환 쿨다운 중에는 입력 무시
+        if time.time() < self._input_cooldown_until:
+            # 게임패드 상태는 업데이트하되 액션은 반환하지 않음
+            if self.gamepad_handler.connected and self.gamepad_handler.joystick:
+                self.gamepad_handler._update_states()
+            return None
+
         # 게임패드 입력 우선
         gamepad_action = self.gamepad_handler.get_action()
         if gamepad_action:
@@ -1471,11 +1589,22 @@ class UnifiedInputHandler:
 
     def process_tcod_event(self, event) -> Optional[GameAction]:
         """tcod 이벤트를 처리하여 액션 반환 (게임패드 우선, 키보드 차선)"""
+        # 화면 전환 쿨다운 중에는 입력 무시 (KeyUp은 상태 정리를 위해 허용)
+        if time.time() < self._input_cooldown_until:
+            if isinstance(event, tcod.event.KeyUp):
+                key_sym = event.sym
+                if key_sym in self.last_key_times:
+                    del self.last_key_times[key_sym]
+            # 게임패드 상태는 업데이트하되 액션은 반환하지 않음
+            if self.gamepad_handler.connected and self.gamepad_handler.joystick:
+                self.gamepad_handler._update_states()
+            return None
+
         # 게임패드 입력 우선 확인
         gamepad_action = self.gamepad_handler.get_action()
         if gamepad_action:
             return gamepad_action
-        
+
         # 키보드 키를 뗐을 때 디바운싱 타이머 리셋
         if isinstance(event, tcod.event.KeyUp):
             key_sym = event.sym
@@ -1488,14 +1617,20 @@ class UnifiedInputHandler:
             current_time = time.time()
             key_sym = event.sym
             
-            # 새로운 키 누름 (repeat=False)은 항상 허용
-            # 키 반복 (repeat=True)일 때만 디바운싱 적용
+            # 키 반복 (repeat=True)일 때: 이동 키만 허용, 확인/취소 등은 무시
             if event.repeat:
-                last_time = self.last_key_times.get(key_sym, 0)
-                if current_time - last_time < self.keyboard_input_delay:
-                    return None  # 반복 입력은 딜레이 내에 무시
-            
-            # 액션 처리
+                # 먼저 액션을 확인하여 이동 계열인지 판단
+                action = self.keyboard_handler.dispatch(event)
+                if action and action in _REPEATABLE_ACTIONS:
+                    last_time = self.last_key_times.get(key_sym, 0)
+                    if current_time - last_time < self.keyboard_input_delay:
+                        return None  # 디바운싱 간격 내 무시
+                    self.last_key_times[key_sym] = current_time
+                    return action
+                # 이동 외 키 반복은 무시 (확인, 취소 등 오입력 방지)
+                return None
+
+            # 새로운 키 누름 (repeat=False)은 항상 허용
             action = self.keyboard_handler.dispatch(event)
             if action:
                 self.last_key_times[key_sym] = current_time
@@ -1524,7 +1659,19 @@ class UnifiedInputHandler:
         """입력 상태 초기화 (메시지 박스 등에서 이전 입력이 즉시 처리되는 것 방지)"""
         # 키보드 디바운싱 타이머 리셋
         self.last_key_times.clear()
-        
+
+        # 화면 전환 쿨다운 설정 (200ms간 모든 입력 무시)
+        # Z키 등이 물리적으로 눌린 채 다음 화면으로 넘어가는 것을 방지
+        self._input_cooldown_until = time.time() + 0.20
+
+        # tcod 이벤트 큐 플러시 (tcod/pygame 이중 큐 문제 해결)
+        import tcod.event
+        for _ in tcod.event.get():
+            pass
+
+        # pygame 이벤트 큐 플러시 (키보드 이벤트가 다음 화면으로 전달되는 것 방지)
+        pygame.event.clear()
+
         # 게임패드 상태 업데이트 (현재 눌린 버튼을 "이전 상태"로 기록)
         if self.gamepad_handler.connected and self.gamepad_handler.joystick:
             self.gamepad_handler._update_states()
@@ -1539,3 +1686,73 @@ class UnifiedInputHandler:
 input_handler = InputHandler()
 gamepad_handler = GamepadHandler()
 unified_input_handler = UnifiedInputHandler()
+
+
+def iter_game_input(timeout=0.05):
+    """
+    키보드 + 게임패드 통합 입력 제너레이터 (블로킹).
+
+    tcod.event.wait() 대체용. 짧은 타임아웃으로 게임패드 폴링을 허용하면서
+    CPU를 과도하게 사용하지 않습니다.
+
+    Yields:
+        (action, event) 튜플:
+        - action: Optional[GameAction] (키보드 또는 게임패드)
+        - event: Optional[tcod.event.Event] (게임패드 입력 시 None)
+
+    Usage:
+        for action, event in iter_game_input():
+            if action == GameAction.CONFIRM: ...
+            elif action == GameAction.CANCEL: ...
+    """
+    # 게임패드 먼저 확인 (이미 큐에 입력이 있을 수 있음)
+    gp_action = unified_input_handler.get_action()
+    if gp_action:
+        yield gp_action, None
+        return
+
+    # tcod 이벤트 대기 (타임아웃으로 게임패드 폴링 허용)
+    for event in tcod.event.wait(timeout=timeout):
+        if isinstance(event, tcod.event.Quit):
+            yield GameAction.QUIT, event
+            return
+        action = unified_input_handler.process_tcod_event(event)
+        yield action, event
+
+    # tcod 타임아웃 후 게임패드 재확인
+    gp_action = unified_input_handler.get_action()
+    if gp_action:
+        yield gp_action, None
+
+
+def poll_game_input():
+    """
+    키보드 + 게임패드 통합 입력 제너레이터 (논블로킹).
+
+    tcod.event.get() 대체용. 자체 프레임 루프가 있는 화면에서 사용합니다.
+
+    Yields:
+        (action, event) 튜플, iter_game_input()과 동일 형식.
+
+    Usage:
+        for action, event in poll_game_input():
+            if action == GameAction.CONFIRM: ...
+    """
+    # 게임패드 먼저 확인
+    gp_action = unified_input_handler.get_action()
+    if gp_action:
+        yield gp_action, None
+        return
+
+    # 대기 중인 tcod 이벤트 처리
+    for event in tcod.event.get():
+        if isinstance(event, tcod.event.Quit):
+            yield GameAction.QUIT, event
+            return
+        action = unified_input_handler.process_tcod_event(event)
+        yield action, event
+
+    # tcod 이벤트 처리 후 게임패드 재확인
+    gp_action = unified_input_handler.get_action()
+    if gp_action:
+        yield gp_action, None

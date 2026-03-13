@@ -15,9 +15,9 @@ def create_paladin_skills():
     skills = []
 
     # 1. 기본 BRV: 성스러운 일격
-    holy_strike = Skill("paladin_holy_strike", "성스러운 일격", "신성 속성. 신성한 힘으로 공격, 성력 획득")
+    holy_strike = Skill("paladin_holy_strike", "성스러운 일격", "[신성 속성] 신성 속성. 신성한 힘으로 공격, 성력 획득")
     holy_strike.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magical", element="holy"),
+        DamageEffect(DamageType.BRV, 0.98, stat_type="magical", element="holy"),
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
     holy_strike.costs = []
@@ -26,9 +26,9 @@ def create_paladin_skills():
     skills.append(holy_strike)
 
     # 2. 기본 HP: 신성한 심판
-    divine_judgment = Skill("paladin_judgment", "신성한 심판", "신성 속성. 성력 소비 심판의 일격")
+    divine_judgment = Skill("paladin_judgment", "신성한 심판", "[신성 속성] 신성 속성. 성력 소비 심판의 일격")
     divine_judgment.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="magical", element="holy", gimmick_bonus={"field": "holy_power", "multiplier": 0.3}),
+        DamageEffect(DamageType.HP, 0.65, stat_type="magical", element="holy", gimmick_bonus={"field": "holy_power", "multiplier": 0.3}),
         GimmickEffect(GimmickOperation.CONSUME, "holy_power", 1)
     ]
     divine_judgment.costs = []
@@ -50,10 +50,10 @@ def create_paladin_skills():
     skills.append(divine_shield)
 
     # 4. 신성화
-    consecration = Skill("paladin_consecration", "신성화", "땅을 신성화, 지속 피해")
+    consecration = Skill("paladin_consecration", "신성화", "[신성 속성] 땅을 신성화, 지속 피해")
     consecration.effects = [
-        DamageEffect(DamageType.BRV, 1.3),
-        DamageEffect(DamageType.BRV, 1.3),
+        DamageEffect(DamageType.BRV, 1.3, element="holy"),
+        DamageEffect(DamageType.BRV, 1.3, element="holy"),
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
     consecration.costs = [MPCost(3)]
@@ -76,9 +76,9 @@ def create_paladin_skills():
     skills.append(holy_light)
 
     # 6. 정의의 망치
-    hammer = Skill("paladin_hammer", "정의의 망치", "신성 속성. 성력 비례 강타")
+    hammer = Skill("paladin_hammer", "정의의 망치", "[신성 속성] 신성 속성. 성력 비례 강타")
     hammer.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.0, stat_type="magical", element="holy", gimmick_bonus={"field": "holy_power", "multiplier": 0.25}),
+        DamageEffect(DamageType.BRV_HP, 1.3, stat_type="magical", element="holy", gimmick_bonus={"field": "holy_power", "multiplier": 0.25}),
         GimmickEffect(GimmickOperation.ADD, "holy_power", 1, max_value=5)
     ]
     hammer.costs = [MPCost(6)]
@@ -116,9 +116,9 @@ def create_paladin_skills():
     skills.append(avenging_wrath)
 
     # 9. 성스러운 징벌 (NEW - 10번째 스킬 전)
-    holy_retribution = Skill("paladin_retribution", "성스러운 징벌", "신성 속성. 성력 4 소비, 신성 폭발")
+    holy_retribution = Skill("paladin_retribution", "성스러운 징벌", "[신성 속성] 신성 속성. 성력 4 소비, 신성 폭발")
     holy_retribution.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="magical", element="holy", gimmick_bonus={"field": "holy_power", "multiplier": 0.35}),
+        DamageEffect(DamageType.BRV_HP, 1.62, stat_type="magical", element="holy", gimmick_bonus={"field": "holy_power", "multiplier": 0.35}),
         BuffEffect(BuffType.ATTACK_DOWN, 0.4, duration=4),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.4, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "holy_power", 4)
@@ -131,11 +131,11 @@ def create_paladin_skills():
     skills.append(holy_retribution)
 
     # 10. 궁극기: 신성한 폭풍
-    ultimate = Skill("paladin_ultimate", "신성한 폭풍", "신성 속성. 성력으로 신성 폭풍 + 파티 힐")
+    ultimate = Skill("paladin_ultimate", "신성한 폭풍", "[신성 속성] 신성 속성. 성력으로 신성 폭풍 + 파티 힐")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.0, stat_type="magical", element="holy", gimmick_bonus={"field": "holy_power", "multiplier": 0.4}),
-        DamageEffect(DamageType.BRV, 2.0, stat_type="magical", element="holy", gimmick_bonus={"field": "holy_power", "multiplier": 0.4}),
-        DamageEffect(DamageType.HP, 3.2, stat_type="magical", element="holy"),
+        DamageEffect(DamageType.BRV, 1.3, stat_type="magical", element="holy", gimmick_bonus={"field": "holy_power", "multiplier": 0.4}),
+        DamageEffect(DamageType.BRV, 1.3, stat_type="magical", element="holy", gimmick_bonus={"field": "holy_power", "multiplier": 0.4}),
+        DamageEffect(DamageType.HP, 2.08, stat_type="magical", element="holy"),
         HealEffect(HealType.HP, percentage=0.7, is_party_wide=True),
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "holy_power", 5)

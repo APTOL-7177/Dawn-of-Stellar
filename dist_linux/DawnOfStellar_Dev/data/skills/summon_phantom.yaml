@@ -1,0 +1,25 @@
+id: summon_phantom
+name: 환영 소환
+type: special
+description: 거울 속에서 자신의 환영을 불러낸다. 행운에 비례해 추가 생성 확률 증가
+costs:
+  mp: 8
+  cast_time: 0.5
+target: self
+effects:
+- type: summon_phantom
+  base_count: 1
+  bonus_count: 1
+  bonus_chance: 0.3
+  luck_scaling: 0.01
+- type: buff
+  stat: evasion
+  value: 0.1
+  duration: 1
+metadata:
+  job: illusionist
+  gimmick_skill: true
+  phantom_generation: true
+sfx:
+- se
+- Summon

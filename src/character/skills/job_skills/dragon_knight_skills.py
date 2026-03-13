@@ -27,7 +27,7 @@ def create_dragon_knight_skills():
     skills.append(flame_slash)
 
     # 2. 기본 HP: 용의 돌진
-    dragon_dive = Skill("dragon_knight_dragon_dive", "용의 돌진", "용의 힘 소비 공격 + 화상 부여")
+    dragon_dive = Skill("dragon_knight_dragon_dive", "용의 돌진", "[화염 속성] 용의 힘 소비 공격 + 화상 부여")
     dragon_dive.effects = [
         DamageEffect(DamageType.HP, 1.25, stat_type="physical", element="fire"),
         GimmickEffect(GimmickOperation.CONSUME, "dragon_power", 1),
@@ -106,7 +106,7 @@ def create_dragon_knight_skills():
     skills.append(inferno_burst)
 
     # 8. 용의 날개
-    dragon_wings = Skill("dragon_knight_dragon_wings", "용의 날개", "용의 힘 4스택 소비 대공격 + 화상")
+    dragon_wings = Skill("dragon_knight_dragon_wings", "용의 날개", "[화염 속성] 용의 힘 4스택 소비 대공격 + 화상")
     dragon_wings.effects = [
         DamageEffect(DamageType.BRV, 2.8, stat_type="physical", element="fire"),
         DamageEffect(DamageType.HP, 2.0, stat_type="physical", element="fire"),
@@ -133,7 +133,7 @@ def create_dragon_knight_skills():
     skills.append(dragon_roar)
 
     # 10. 용의 각인 (용표 1개 소비 - 강력한 단일 공격)
-    dragon_mark_strike = Skill("dragon_knight_dragon_mark_strike", "용의 각인", "용표 1개 소비하여 강력한 일격 + 100% 화상")
+    dragon_mark_strike = Skill("dragon_knight_dragon_mark_strike", "용의 각인", "[화염 속성] 용표 1개 소비하여 강력한 일격 + 100% 화상")
     dragon_mark_strike.effects = [
         DamageEffect(DamageType.BRV, 3.0, stat_type="physical", element="fire"),
         DamageEffect(DamageType.HP, 3.5, stat_type="physical", element="fire"),

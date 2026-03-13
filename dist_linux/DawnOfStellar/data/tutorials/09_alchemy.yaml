@@ -1,0 +1,59 @@
+# 튜토리얼 9단계: 연금술 시스템
+id: alchemy
+title: "연금술 시스템"
+order: 9
+category: crafting
+enabled: true
+skippable: true
+
+description: |
+  연금술 테이블에서 포션과 폭탄을 제작해봅시다!
+  다양한 재료를 조합하면 유용한 소비 아이템을 만들 수 있습니다.
+
+objective: "연금술 테이블에서 포션 또는 폭탄 1개 제작"
+
+messages:
+  - text: "마지막으로 연금술 시스템을 배워보겠습니다."
+    color: [255, 215, 0]
+    pause: 2.0
+    effect: "fade_in"
+
+  - text: "맵에 떨어진 연금술 재료(*표시)를 수집하세요."
+    color: [255, 255, 255]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "연금술 테이블 근처에서 Z키를 누르면 제작을 시작합니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "재료를 조합해 포션을 만들어보세요!"
+    color: [0, 255, 255]
+    pause: 2.0
+    effect: "flash"
+
+completion_condition:
+  type: "item_used"
+  required_count: 1
+  message: "연금술 제작을 성공했습니다!"
+
+hints:
+  - text: "맵의 * 표시된 곳에서 연금술 재료를 수집하세요."
+    trigger_time: 10.0
+
+  - text: "연금술 테이블 근처에서 Z키를 눌러보세요."
+    trigger_time: 20.0
+
+ui_highlights:
+  - element: "key_hint"
+    text: "[Z] 상호작용 / [방향키] 이동"
+    position: "bottom_center"
+    color: [255, 255, 255]
+
+rewards:
+  exp: 75
+  items: ["magic_herb", "blue_mushroom"]
+  message: "연금술의 기초를 배웠습니다!"
+
+next_step: "party_management"

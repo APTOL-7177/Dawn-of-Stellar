@@ -1,0 +1,26 @@
+id: gladiator_spectacular
+name: 화려한 공격
+type: attack
+description: '쇼맨십을 발휘해 큰 피해를 주고 환호를 더 모읍니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv_hp
+  stat_base: physical
+  multiplier: 1.8
+- type: gimmick
+  operation: add
+  field: cheer
+  value: 15
+  max_value: 100
+target: enemy
+costs:
+  mp: 5
+metadata:
+  job: gladiator
+  showmanship: true
+  cheer_gain: 15
+sfx:
+- se
+- Explosion2

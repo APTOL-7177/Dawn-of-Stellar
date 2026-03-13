@@ -1,0 +1,46 @@
+id: purification_miracle
+name: 정화의 기적
+type: utility
+description: '[기적 - 신앙 75+ 필요] 정화의 기적을 일으킵니다.
+
+  전체 적 모든 버프 제거.
+
+  전체 적 "신성 화상" 3턴: 매 턴 HP -8%.
+
+  신앙 -75 소모.
+
+  '
+target: all_enemies
+costs:
+  mp: 25
+  faith: 75
+metadata:
+  miracle: true
+  requires_faith: 75
+  consumes_faith: 75
+  purify: true
+effects:
+- type: dispel
+  dispel_type: all_buffs
+  target: all_enemies
+- type: debuff
+  debuff_id: holy_burn
+  target: all_enemies
+  duration: 3
+  effects:
+    dot_percent: 0.08
+- type: gimmick
+  operation: add
+  field: faith
+  value: -75
+  min_value: 0
+animation:
+  icon: 🔥✨
+  color:
+  - 255
+  - 255
+  - 200
+  screen_effect: purification
+sfx:
+- se
+- Up1

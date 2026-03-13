@@ -454,7 +454,7 @@ class RumEffect(SkillEffect):
     def execute(self, user, target, context) -> EffectResult:
         """럼주 효과 실행"""
         import random
-        from src.combat.status_effects import StatusEffect as CombatStatusEffect, StatusType
+        from src.combat.status_effects import StatusEffect as CombatStatusEffect, StatusType as CombatStatusType
         
         # 1. 랜덤 효과 선택
         effect_id, effect_data = get_random_rum_effect(self.positive_chance)
@@ -586,7 +586,7 @@ class RumEffect(SkillEffect):
             if hasattr(combat_manager, 'allies'):
                 for ally in combat_manager.allies:
                     if hasattr(ally, 'status_manager'):
-                        buff = CombatStatusEffect("선장의 위엄: 공격", StatusType.BUFF, duration=duration)
+                        buff = CombatStatusEffect("선장의 위엄: 공격", CombatStatusType.BUFF, duration=duration)
                         buff.stat_changes = {"physical_attack": val, "magic_attack": val}
                         ally.status_manager.add_status(buff)
         
@@ -596,7 +596,7 @@ class RumEffect(SkillEffect):
             if hasattr(combat_manager, 'allies'):
                 for ally in combat_manager.allies:
                     if hasattr(ally, 'status_manager'):
-                        buff = CombatStatusEffect("선장의 위엄: 방어", StatusType.BUFF, duration=duration)
+                        buff = CombatStatusEffect("선장의 위엄: 방어", CombatStatusType.BUFF, duration=duration)
                         buff.stat_changes = {"physical_defense": val, "magic_defense": val}
                         ally.status_manager.add_status(buff)
         
@@ -614,8 +614,8 @@ class RumEffect(SkillEffect):
         # (26) 자동 부활
         if "auto_revive" in effect_data:
             revive_hp = effect_data.get("revive_hp", 0.5)
-            if hasattr(user, 'status_manager'):
-                revive_buff = CombatStatusEffect("불사조 럼", StatusType.BUFF, duration=duration)
+            if hasattr(user, 'status_manager') and user.status_manager:
+                revive_buff = CombatStatusEffect("불사조 럼", CombatStatusType.BUFF, duration=duration)
                 revive_buff.metadata = {"auto_revive": True, "revive_hp": revive_hp}
                 user.status_manager.add_status(revive_buff)
         
@@ -766,10 +766,10 @@ def create_pirate_skills():
     rum_splash = Skill(
         "pirate_rum_splash",
         "럼주 뿌리기",
-        "럼주를 뿌리고 불을 붙인다! 전체 화상 + 속도 감소."
+        "[화염 속성] 럼주를 뿌리고 불을 붙인다! 전체 화상 + 속도 감소."
     )
     rum_splash.effects = [
-        DamageEffect(DamageType.BRV, 1.4),
+        DamageEffect(DamageType.BRV, 1.4, element="fire"),
         StatusEffect(StatusType.BURN, 3, 0.08),  # 3턴 화상
         BuffEffect(BuffType.SPEED_DOWN, 0.3, duration=2),
     ]
@@ -822,11 +822,11 @@ def create_pirate_skills():
     treasure_bomb = Skill(
         "pirate_treasure_bomb",
         "보물 폭탄",
-        "보물을 모두 던져 폭발시킨다! 보물당 피해 증가."
+        "[화염 속성] 보물을 모두 던져 폭발시킨다! 보물당 피해 증가."
     )
     treasure_bomb.effects = [
-        DamageEffect(DamageType.BRV, 1.5, gimmick_bonus={"field": "treasure_count", "multiplier": 0.5}),
-        DamageEffect(DamageType.HP, 1.2, gimmick_bonus={"field": "treasure_count", "multiplier": 0.4}),
+        DamageEffect(DamageType.BRV, 1.5, element="fire", gimmick_bonus={"field": "treasure_count", "multiplier": 0.5}),
+        DamageEffect(DamageType.HP, 1.2, element="fire", gimmick_bonus={"field": "treasure_count", "multiplier": 0.4}),
     ]
     treasure_bomb.costs = [MPCost(14)]
     treasure_bomb.target_type = "all_enemies"
@@ -846,11 +846,11 @@ def create_pirate_skills():
     cannon_barrage = Skill(
         "pirate_cannon_barrage",
         "함포 일제사격",
-        "해적선의 함포를 일제히 발사한다! 전체 대상 강력한 HP 공격."
+        "[화염 속성] 해적선의 함포를 일제히 발사한다! 전체 대상 강력한 HP 공격."
     )
     cannon_barrage.effects = [
-        DamageEffect(DamageType.BRV, 2.2),
-        DamageEffect(DamageType.HP, 1.6),
+        DamageEffect(DamageType.BRV, 2.2, element="fire"),
+        DamageEffect(DamageType.HP, 1.6, element="fire"),
     ]
     cannon_barrage.costs = [MPCost(16)]
     cannon_barrage.target_type = "all_enemies"
@@ -952,18 +952,18 @@ class TreasureUseEffect(SkillEffect):
     def execute(self, user: Any, target: Any, context: Optional[dict] = None) -> EffectResult:
         """보물 효과 실행"""
         import random
-        from src.combat.status_effects import StatusEffect as CombatStatusEffect, StatusType
+        from src.combat.status_effects import StatusEffect as CombatStatusEffect, StatusType as CombatStatusType
         
         # 보물 하나 소비
         if not hasattr(user, 'treasure_inventory') or not user.treasure_inventory:
-            return EffectResult(success=False, message="보물이 없습니다!")
+            return EffectResult(effect_type=EffectType.GIMMICK, success=False, message="보물이 없습니다!")
         
         # 첫 번째 보물 사용
         treasure_id = user.treasure_inventory.pop(0)
         treasure_data = TREASURE_TYPES.get(treasure_id)
         
         if not treasure_data:
-            return EffectResult(success=False, message="알 수 없는 보물입니다!")
+            return EffectResult(effect_type=EffectType.GIMMICK, success=False, message="알 수 없는 보물입니다!")
         
         treasure_name = treasure_data["name"]
         effect_type = treasure_data["effect"]
@@ -991,10 +991,10 @@ class TreasureUseEffect(SkillEffect):
                 duration = treasure_data.get("duration", 3)
                 for enemy in combat_manager.enemies:
                     if hasattr(enemy, 'status_manager'):
-                        atk_debuff = CombatStatusEffect("저주: 공격력", StatusType.DEBUFF, duration=duration)
+                        atk_debuff = CombatStatusEffect("저주: 공격력", CombatStatusType.DEBUFF, duration=duration)
                         atk_debuff.stat_changes = {"physical_attack": -treasure_data["value"], "magic_attack": -treasure_data["value"]}
                         enemy.status_manager.add_status(atk_debuff)
-                        def_debuff = CombatStatusEffect("저주: 방어력", StatusType.DEBUFF, duration=duration)
+                        def_debuff = CombatStatusEffect("저주: 방어력", CombatStatusType.DEBUFF, duration=duration)
                         def_debuff.stat_changes = {"physical_defense": -treasure_data["value"], "magic_defense": -treasure_data["value"]}
                         enemy.status_manager.add_status(def_debuff)
                 messages.append(f"💀 적 전체 공/방 -{int(treasure_data['value']*100)}% ({duration}턴)!")
@@ -1020,7 +1020,7 @@ class TreasureUseEffect(SkillEffect):
                 duration = treasure_data.get("duration", 3)
                 for ally in combat_manager.allies:
                     if hasattr(ally, 'status_manager'):
-                        buff = CombatStatusEffect("해적 깃발", StatusType.BUFF, duration=duration)
+                        buff = CombatStatusEffect("해적 깃발", CombatStatusType.BUFF, duration=duration)
                         buff.stat_changes = {"physical_attack": treasure_data["value"], "magic_attack": treasure_data["value"]}
                         ally.status_manager.add_status(buff)
                 messages.append(f"🏴 아군 전체 공격력 +{int(treasure_data['value']*100)}% ({duration}턴)!")
@@ -1061,7 +1061,7 @@ class TreasureUseEffect(SkillEffect):
                     ally.current_hp = min(ally.max_hp, ally.current_hp + hp_heal)
                     ally.current_mp = min(ally.max_mp, ally.current_mp + mp_heal)
                     if hasattr(ally, 'status_manager'):
-                        buff = CombatStatusEffect("인어의 축복", StatusType.BUFF, duration=duration)
+                        buff = CombatStatusEffect("인어의 축복", CombatStatusType.BUFF, duration=duration)
                         buff.stat_changes = {"evasion": treasure_data["evasion_bonus"]}
                         ally.status_manager.add_status(buff)
                 messages.append(f"🧜 전체 HP/MP 30% 회복 + 회피 +20% ({duration}턴)!")
@@ -1072,10 +1072,10 @@ class TreasureUseEffect(SkillEffect):
                 duration = treasure_data["duration"]
                 for enemy in combat_manager.enemies:
                     if hasattr(enemy, 'status_manager'):
-                        poison = CombatStatusEffect("치명적인 독", StatusType.POISON, duration=duration)
+                        poison = CombatStatusEffect("치명적인 독", CombatStatusType.POISON, duration=duration)
                         poison.metadata = {"damage_percent": treasure_data["damage_percent"]}
                         enemy.status_manager.add_status(poison)
-                        def_debuff = CombatStatusEffect("독: 방어력 감소", StatusType.DEBUFF, duration=duration)
+                        def_debuff = CombatStatusEffect("독: 방어력 감소", CombatStatusType.DEBUFF, duration=duration)
                         def_debuff.stat_changes = {"physical_defense": -treasure_data["def_down"], "magic_defense": -treasure_data["def_down"]}
                         enemy.status_manager.add_status(def_debuff)
                 messages.append(f"☠️ 적 전체 맹독 ({duration}턴, 매턴 10% + 방어 -40%)!")
@@ -1103,7 +1103,7 @@ class TreasureUseEffect(SkillEffect):
                 for enemy in combat_manager.enemies:
                     enemy.current_brv = int(enemy.current_brv * (1 - treasure_data["brv_down"]))
                     if hasattr(enemy, 'status_manager'):
-                        speed_debuff = CombatStatusEffect("폭풍", StatusType.DEBUFF, duration=duration)
+                        speed_debuff = CombatStatusEffect("폭풍", CombatStatusType.DEBUFF, duration=duration)
                         speed_debuff.stat_changes = {"speed": -treasure_data["speed_down"]}
                         enemy.status_manager.add_status(speed_debuff)
                 messages.append(f"🌪️ 적 전체 BRV -50% + 속도 -30% ({duration}턴)!")
@@ -1122,7 +1122,7 @@ class TreasureUseEffect(SkillEffect):
                 target.current_hp = max(0, target.current_hp - damage)
                 user.current_brv = 0
                 if hasattr(target, 'status_manager'):
-                    stun = CombatStatusEffect("기절", StatusType.STUN, duration=treasure_data["stun_duration"])
+                    stun = CombatStatusEffect("기절", CombatStatusType.STUN, duration=treasure_data["stun_duration"])
                     target.status_manager.add_status(stun)
                 messages.append(f"🔱 {target.name}에게 {damage} HP 피해 + 기절 {treasure_data['stun_duration']}턴!")
         
@@ -1134,7 +1134,7 @@ class TreasureUseEffect(SkillEffect):
                     hp_heal = int(ally.max_hp * heal_percent)
                     ally.current_hp = min(ally.max_hp, ally.current_hp + hp_heal)
                     if hasattr(ally, 'status_manager'):
-                        revive_buff = CombatStatusEffect("불사조의 가호", StatusType.BUFF, duration=duration)
+                        revive_buff = CombatStatusEffect("불사조의 가호", CombatStatusType.BUFF, duration=duration)
                         revive_buff.metadata = {"revive_on_death": True}
                         ally.status_manager.add_status(revive_buff)
                 messages.append(f"🔥 전체 HP 50% 회복 + 부활 버프 ({duration}턴)!")
@@ -1142,7 +1142,7 @@ class TreasureUseEffect(SkillEffect):
         else:
             messages.append(f"✨ {treasure_data['description']}")
         
-        return EffectResult(success=True, message=" ".join(messages))
+        return EffectResult(effect_type=EffectType.GIMMICK, success=True, message=" ".join(messages))
 
 
 def register_pirate_skills(skill_manager):

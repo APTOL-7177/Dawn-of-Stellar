@@ -6,7 +6,7 @@
 
 import tcod.console
 import tcod.event
-from typing import List, Optional, Any
+from typing import List, Dict, Optional, Any
 from enum import Enum
 
 from src.equipment.inventory import Inventory
@@ -26,6 +26,7 @@ class CookingMode(Enum):
     """요리 모드"""
     SELECT_SLOT = "select_slot"  # 슬롯 선택
     SELECT_INGREDIENT = "select_ingredient"  # 재료 선택
+    SELECT_QUICK = "select_quick"  # 퀵 제작 선택 (커서 기반)
     CONFIRM_COOK = "confirm_cook"  # 요리 확인
     SHOW_RESULT = "show_result"  # 결과 표시
 
@@ -71,6 +72,13 @@ class CookingPotUI:
         # 레시피 초기화
         RecipeDatabase.initialize()
 
+        # 퀵 제작: 제작 가능한 레시피 목록 (커서 기반)
+        self._quick_recipes: List[tuple] = []  # [(Recipe, [(slot_idx, ingredient), ...]), ...]
+        self.quick_cursor = 0
+        self.quick_scroll = 0
+        self.max_visible_quick = 6
+        self._update_quick_recipes()
+
     def handle_input(self, action: GameAction) -> bool:
         """
         입력 처리
@@ -85,6 +93,8 @@ class CookingPotUI:
             return self._handle_slot_selection(action)
         elif self.mode == CookingMode.SELECT_INGREDIENT:
             return self._handle_ingredient_selection(action)
+        elif self.mode == CookingMode.SELECT_QUICK:
+            return self._handle_quick_selection(action)
         elif self.mode == CookingMode.CONFIRM_COOK:
             return self._handle_confirm_cook(action)
         elif self.mode == CookingMode.SHOW_RESULT:
@@ -98,6 +108,11 @@ class CookingPotUI:
             self.selected_slot = max(0, self.selected_slot - 1)
         elif action == GameAction.MOVE_RIGHT:
             self.selected_slot = min(3, self.selected_slot + 1)
+        elif action == GameAction.MOVE_DOWN or action == GameAction.MOVE_UP:
+            # 퀵 제작 패널로 이동
+            if self._quick_recipes:
+                self.mode = CookingMode.SELECT_QUICK
+                play_sfx("ui", "cursor_move")
         elif action == GameAction.CONFIRM:
             # 슬롯에 재료 추가 or 제거
             if self.pot_slots[self.selected_slot] is None:
@@ -125,6 +140,49 @@ class CookingPotUI:
 
         return False
 
+    def _handle_quick_selection(self, action: GameAction) -> bool:
+        """퀵 제작 선택 모드 (커서 기반)"""
+        if not self._quick_recipes:
+            self.mode = CookingMode.SELECT_SLOT
+            return False
+
+        if action == GameAction.MOVE_UP:
+            if self.quick_cursor > 0:
+                self.quick_cursor -= 1
+                self._update_quick_scroll()
+                play_sfx("ui", "cursor_move")
+            else:
+                # 맨 위에서 위 누르면 슬롯 선택 모드로 복귀
+                self.mode = CookingMode.SELECT_SLOT
+                play_sfx("ui", "cursor_move")
+        elif action == GameAction.MOVE_DOWN:
+            if self.quick_cursor < len(self._quick_recipes) - 1:
+                self.quick_cursor += 1
+                self._update_quick_scroll()
+                play_sfx("ui", "cursor_move")
+        elif action == GameAction.MOVE_LEFT or action == GameAction.MOVE_RIGHT:
+            # 슬롯 선택 모드로 복귀
+            self.mode = CookingMode.SELECT_SLOT
+            play_sfx("ui", "cursor_move")
+        elif action == GameAction.CONFIRM:
+            # 퀵 제작 실행
+            if 0 <= self.quick_cursor < len(self._quick_recipes):
+                play_sfx("ui", "cursor_confirm")
+                self.quick_craft(self.quick_cursor)
+        elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+            # 슬롯 선택 모드로 복귀
+            self.mode = CookingMode.SELECT_SLOT
+            play_sfx("ui", "cursor_cancel")
+
+        return False
+
+    def _update_quick_scroll(self):
+        """퀵 제작 스크롤 업데이트"""
+        if self.quick_cursor < self.quick_scroll:
+            self.quick_scroll = self.quick_cursor
+        elif self.quick_cursor >= self.quick_scroll + self.max_visible_quick:
+            self.quick_scroll = self.quick_cursor - self.max_visible_quick + 1
+
     def _handle_ingredient_selection(self, action: GameAction) -> bool:
         """재료 선택 모드"""
         ingredients = self._get_available_ingredients()
@@ -134,6 +192,14 @@ class CookingPotUI:
             self._update_ingredient_scroll()
         elif action == GameAction.MOVE_DOWN:
             self.ingredient_cursor = min(len(ingredients) - 1, self.ingredient_cursor + 1)
+            self._update_ingredient_scroll()
+        elif action == GameAction.MOVE_LEFT:
+            # 페이지 위로 (한 페이지 = max_visible_ingredients)
+            self.ingredient_cursor = max(0, self.ingredient_cursor - self.max_visible_ingredients)
+            self._update_ingredient_scroll()
+        elif action == GameAction.MOVE_RIGHT:
+            # 페이지 아래로
+            self.ingredient_cursor = min(len(ingredients) - 1, self.ingredient_cursor + self.max_visible_ingredients)
             self._update_ingredient_scroll()
         elif action == GameAction.CONFIRM:
             # 재료 선택
@@ -170,18 +236,18 @@ class CookingPotUI:
     def _handle_show_result(self, action: GameAction) -> bool:
         """결과 표시 모드"""
         if action == GameAction.CONFIRM or action == GameAction.CANCEL or action == GameAction.ESCAPE:
-            # 냄비 닫기 (요리 결과는 인벤토리에 추가됨)
-            if action != GameAction.CONFIRM:  # CONFIRM은 요리 완료이므로 다른 효과음
-                play_sfx("ui", "cursor_cancel")
-            self.closed = True
-            return True
+            # 요리 결과 확인 후 냄비 초기화하여 계속 요리 가능
+            self.pot_slots = [None, None, None, None]
+            self.selected_slot = 0
+            self.cooked_food = None
+            self.mode = CookingMode.SELECT_SLOT
 
         return False
 
-    def _cook(self):
+    def _cook(self, forced_recipe=None):
         """요리 실행"""
         import random
-        
+
         # 냄비에 있는 재료 수집 (재료만 추출)
         ingredient_data = [slot for slot in self.pot_slots if slot is not None]
 
@@ -193,8 +259,8 @@ class CookingPotUI:
         ingredients = [data[0] for data in ingredient_data]
         slot_indices = [data[1] for data in ingredient_data]
 
-        # 레시피 찾기
-        recipe = RecipeDatabase.find_recipe(ingredients)
+        # 레시피 찾기 (퀵슬롯에서 호출 시 이미 선택된 레시피 사용)
+        recipe = forced_recipe if forced_recipe is not None else RecipeDatabase.find_recipe(ingredients)
 
         # 원본 객체 수정 방지를 위해 deepcopy 사용
         from copy import deepcopy
@@ -254,11 +320,28 @@ class CookingPotUI:
 
         logger.info(f"요리 완료: {self.cooked_food.name}")
 
+        # 재료 제거 (인벤토리 / 창고 구분)
+        inv_indices = sorted([idx for idx in slot_indices if idx >= 0], reverse=True)
+        storage_indices = sorted([(-1000 - idx) for idx in slot_indices if idx < -999], reverse=True)
+
         # 인벤토리에서 재료 제거 (높은 인덱스부터 제거해야 인덱스 변경 안됨)
-        for slot_idx in sorted(slot_indices, reverse=True):
+        for slot_idx in inv_indices:
             removed = self.inventory.remove_item(slot_idx, quantity=1)
             if removed:
                 logger.debug(f"인벤토리에서 재료 제거: 슬롯 {slot_idx}, {removed.name}")
+
+        # 창고에서 재료 제거 (높은 인덱스부터)
+        if storage_indices:
+            try:
+                from src.town.town_manager import get_town_manager
+                town_mgr = get_town_manager()
+                if town_mgr and hasattr(town_mgr, 'retrieve_item_from_storage'):
+                    for si in storage_indices:
+                        retrieved = town_mgr.retrieve_item_from_storage(si)
+                        if retrieved:
+                            logger.debug(f"창고에서 재료 제거: 인덱스 {si}, {getattr(retrieved, 'name', '?')}")
+            except Exception as e:
+                logger.warning(f"창고 재료 제거 실패: {e}")
 
         # 요리 결과를 인벤토리에 추가
         success = self.inventory.add_item(self.cooked_food, quantity=1)
@@ -267,12 +350,25 @@ class CookingPotUI:
         else:
             logger.warning(f"인벤토리가 가득 차서 요리를 추가할 수 없습니다!")
 
+    def _is_ingredient(self, item) -> bool:
+        """아이템이 식재료인지 확인"""
+        item_type = getattr(item, 'item_type', None)
+        has_category = hasattr(item, 'category')
+        if item_type == ItemType.MATERIAL and has_category:
+            return True
+        if isinstance(item, Ingredient):
+            return True
+        if has_category and isinstance(getattr(item, 'category', None), IngredientCategory):
+            return True
+        return False
+
     def _get_available_ingredients(self) -> List[tuple]:
         """
-        인벤토리에서 사용 가능한 재료 목록
+        인벤토리 + 마을 창고에서 사용 가능한 재료 목록
 
         Returns:
             [(슬롯 인덱스, Ingredient), ...]
+            슬롯 인덱스가 음수(-1000 이하)이면 창고 아이템
         """
         available = []
 
@@ -287,49 +383,46 @@ class CookingPotUI:
                 _, slot_idx = pot_slot
                 used_counts[slot_idx] = used_counts.get(slot_idx, 0) + 1
 
+        # === 1) 인벤토리 재료 ===
         for i, slot in enumerate(self.inventory.slots):
-            # 슬롯과 아이템이 존재하는지 확인
             if slot is None:
                 continue
             if not hasattr(slot, 'item') or slot.item is None:
                 continue
-            
-            # Ingredient 타입 확인 (여러 방법 시도 - 순서 중요!)
-            is_ingredient = False
-            
-            # 방법 1: item_type이 MATERIAL이고 category 속성이 있는지 확인 (가장 확실한 방법)
-            item_type = getattr(slot.item, 'item_type', None)
-            has_category = hasattr(slot.item, 'category')
-            if item_type == ItemType.MATERIAL and has_category:
-                is_ingredient = True
-            # 방법 2: isinstance 체크
-            elif isinstance(slot.item, Ingredient):
-                is_ingredient = True
-            # 방법 3: category 속성이 IngredientCategory 타입인지 확인 (저장/로드 후 타입 체크 실패 대비)
-            elif has_category and isinstance(getattr(slot.item, 'category', None), IngredientCategory):
-                is_ingredient = True
-            
-            if is_ingredient:
-                # 슬롯의 전체 quantity와 이미 사용된 개수 확인
+
+            if self._is_ingredient(slot.item):
                 total_quantity = getattr(slot, 'quantity', 1)
                 used_count = used_counts.get(i, 0)
                 remaining_quantity = total_quantity - used_count
 
-                # 남은 quantity만큼만 목록에 추가
                 if remaining_quantity > 0:
                     for _ in range(remaining_quantity):
                         available.append((i, slot.item))
                     logger.info(f"사용 가능한 재료 발견: 슬롯 {i}, {slot.item.name} (전체: {total_quantity}, 사용: {used_count}, 남음: {remaining_quantity})")
-            else:
-                # 디버그: 왜 식재료로 인식되지 않는지 확인 (로그 레벨을 info로 변경해서 항상 출력)
-                item_type = getattr(slot.item, 'item_type', None)
-                has_category = hasattr(slot.item, 'category')
-                category_value = getattr(slot.item, 'category', None)
-                logger.info(f"슬롯 {i} 아이템은 식재료가 아님: {getattr(slot.item, 'name', 'Unknown')} "
-                           f"(타입: {type(slot.item).__name__}, item_type: {item_type}, "
-                           f"category 속성: {has_category}, category 값: {category_value})")
 
-        logger.info(f"사용 가능한 재료 개수: {len(available)}")
+        # === 2) 마을 창고 재료 (요리솥 사용 시에만) ===
+        if self.is_cooking_pot:
+            try:
+                from src.town.town_manager import get_town_manager
+                from src.persistence.save_system import deserialize_item
+                town_mgr = get_town_manager()
+                if town_mgr and hasattr(town_mgr, 'get_storage_inventory'):
+                    storage_items = town_mgr.get_storage_inventory()
+                    for si, serialized in enumerate(storage_items):
+                        try:
+                            item = deserialize_item(serialized)
+                            if item and self._is_ingredient(item):
+                                storage_idx = -1000 - si  # 창고 인덱스 구분
+                                used_count = used_counts.get(storage_idx, 0)
+                                if used_count < 1:
+                                    available.append((storage_idx, item))
+                                    logger.info(f"창고 재료 발견: {item.name} (창고 인덱스 {si})")
+                        except Exception as e:
+                            logger.debug(f"창고 아이템 역직렬화 실패: {e}")
+            except Exception as e:
+                logger.debug(f"창고 재료 로드 실패: {e}")
+
+        logger.info(f"사용 가능한 재료 개수: {len(available)} (인벤토리+창고)")
         return available
 
     def _update_ingredient_scroll(self):
@@ -353,11 +446,8 @@ class CookingPotUI:
         """요리 화면 렌더링"""
         render_space_background(console, self.screen_width, self.screen_height)
 
-        # 제목 (요리솥 보너스 표시)
-        if self.is_cooking_pot:
-            title = "🍲 요리 냄비 (요리솥 보너스 적용)"
-        else:
-            title = "🍲 요리 냄비"
+        # 제목
+        title = "요리 냄비"
         console.print(
             (self.screen_width - len(title)) // 2,
             2,
@@ -365,10 +455,24 @@ class CookingPotUI:
             fg=Colors.UI_TEXT_SELECTED
         )
 
+        # 요리솥 보너스 배너
+        if self.is_cooking_pot:
+            banner = "요리솥: HP/MP +20%  지속시간 +20%  추가아이템 10%"
+            console.print(
+                (self.screen_width - len(banner)) // 2,
+                3,
+                banner,
+                fg=(255, 200, 100)
+            )
+
         if self.mode == CookingMode.SHOW_RESULT:
             self._render_cooking_result(console)
         else:
             self._render_cooking_pot(console)
+
+        # 퀵 제작 패널 (슬롯 선택 / 퀵 제작 모드에서 표시)
+        if self.mode in (CookingMode.SELECT_SLOT, CookingMode.SELECT_QUICK):
+            self._render_quick_slots(console)
 
         # 도움말
         self._render_help(console)
@@ -463,10 +567,14 @@ class CookingPotUI:
 
             category_color = self._get_category_color(ingredient.category)
 
+            # 창고 재료 표시 구분
+            is_storage = slot_idx < -999
+            name_prefix = "[창고] " if is_storage else ""
+
             console.print(
                 box_x + 2, y,
-                f"{prefix} {ingredient.name}",
-                fg=Colors.UI_TEXT_SELECTED if is_selected else Colors.UI_TEXT
+                f"{prefix} {name_prefix}{ingredient.name}",
+                fg=Colors.UI_TEXT_SELECTED if is_selected else ((200, 180, 140) if is_storage else Colors.UI_TEXT)
             )
 
             console.print(
@@ -474,6 +582,11 @@ class CookingPotUI:
                 f"[{ingredient.category.display_name}]",
                 fg=category_color
             )
+
+            # 재료 효과 힌트
+            hint = self._get_ingredient_hint(ingredient)
+            if hint:
+                console.print(box_x + 40, y, hint, fg=(150, 150, 150))
 
             y += 1
 
@@ -522,7 +635,7 @@ class CookingPotUI:
         )
 
     def _render_preview(self, console: tcod.console.Console, y: int):
-        """예상 결과 미리보기"""
+        """예상 결과 미리보기 (요리솥 보너스 포함)"""
         ingredient_data = [slot for slot in self.pot_slots if slot is not None]
 
         if not ingredient_data:
@@ -533,35 +646,77 @@ class CookingPotUI:
 
         # 레시피 찾기
         recipe = RecipeDatabase.find_recipe(ingredients)
+        result = recipe.result
 
-        console.print(
-            (self.screen_width - 40) // 2,
-            y,
-            "예상 결과:",
-            fg=Colors.UI_TEXT
-        )
+        # 요리솥 보너스 여부
+        has_cooked_food = any(isinstance(ing, CookedFood) for ing in ingredients)
+        pot_bonus = self.is_cooking_pot and not has_cooked_food
 
-        console.print(
-            (self.screen_width - 40) // 2,
-            y + 1,
-            f"→ {recipe.result.name}",
-            fg=Colors.UI_TEXT_SELECTED
-        )
+        base_x = (self.screen_width - 50) // 2
 
-        console.print(
-            (self.screen_width - 40) // 2,
-            y + 2,
-            f"   HP+{recipe.result.hp_restore}, MP+{recipe.result.mp_restore}",
-            fg=Colors.GRAY
-        )
+        console.print(base_x, y, "예상 결과:", fg=Colors.UI_TEXT)
+        console.print(base_x, y + 1, f"→ {result.name}", fg=Colors.UI_TEXT_SELECTED)
+
+        line_y = y + 2
+
+        # HP 회복
+        if result.hp_restore > 0:
+            if pot_bonus:
+                boosted = int(result.hp_restore * 1.2)
+                console.print(base_x + 2, line_y, f"HP +{result.hp_restore}", fg=(100, 255, 100))
+                console.print(base_x + 2 + len(f"HP +{result.hp_restore}") + 1, line_y, f"→ +{boosted}", fg=(150, 255, 150))
+                console.print(base_x + 2 + len(f"HP +{result.hp_restore} → +{boosted}") + 1, line_y, "(솥 +20%)", fg=(255, 200, 100))
+            else:
+                console.print(base_x + 2, line_y, f"HP +{result.hp_restore}", fg=(100, 255, 100))
+            line_y += 1
+
+        # MP 회복
+        if result.mp_restore > 0:
+            if pot_bonus:
+                boosted = int(result.mp_restore * 1.2)
+                console.print(base_x + 2, line_y, f"MP +{result.mp_restore}", fg=(100, 200, 255))
+                console.print(base_x + 2 + len(f"MP +{result.mp_restore}") + 1, line_y, f"→ +{boosted}", fg=(150, 220, 255))
+                console.print(base_x + 2 + len(f"MP +{result.mp_restore} → +{boosted}") + 1, line_y, "(솥 +20%)", fg=(255, 200, 100))
+            else:
+                console.print(base_x + 2, line_y, f"MP +{result.mp_restore}", fg=(100, 200, 255))
+            line_y += 1
+
+        # 버프
+        if result.max_hp_bonus > 0:
+            dur = result.buff_duration
+            dur_text = f" ({dur}턴)"
+            if pot_bonus:
+                boosted_dur = int(dur * 1.2)
+                dur_text = f" ({dur}→{boosted_dur}턴)"
+            console.print(base_x + 2, line_y, f"최대 HP +{result.max_hp_bonus}{dur_text}", fg=(255, 200, 100))
+            line_y += 1
+
+        if result.max_mp_bonus > 0:
+            dur = result.buff_duration
+            dur_text = f" ({dur}턴)"
+            if pot_bonus:
+                boosted_dur = int(dur * 1.2)
+                dur_text = f" ({dur}→{boosted_dur}턴)"
+            console.print(base_x + 2, line_y, f"최대 MP +{result.max_mp_bonus}{dur_text}", fg=(200, 150, 255))
+            line_y += 1
+
+        # 독
+        if result.is_poison:
+            console.print(base_x + 2, line_y, f"독! 피해: {result.poison_damage}", fg=(255, 100, 100))
+            line_y += 1
+
+        # 요리솥 보너스 알림
+        if pot_bonus:
+            line_y += 1
+            console.print(base_x, line_y, "추가 아이템 10% 확률", fg=(255, 200, 100))
 
     def _render_cooking_result(self, console: tcod.console.Console):
-        """요리 결과 표시"""
+        """요리 결과 표시 (요리솥 보너스 강조)"""
         if not self.cooked_food:
             return
 
         box_width = 60
-        box_height = 20
+        box_height = 22
         box_x = (self.screen_width - box_width) // 2
         box_y = (self.screen_height - box_height) // 2
 
@@ -572,7 +727,14 @@ class CookingPotUI:
             bg=Colors.UI_BG
         )
 
-        y = box_y + 3
+        y = box_y + 2
+
+        # 요리솥 보너스 배너
+        if self.is_cooking_pot and hasattr(self.cooked_food, 'original_hp_restore'):
+            console.print(box_x + 2, y, "요리솥: HP/MP +20%, 지속시간 +20%", fg=(255, 200, 100))
+            y += 1
+
+        y += 1
 
         # 요리 이름
         console.print(
@@ -584,34 +746,54 @@ class CookingPotUI:
         y += 2
 
         # 설명
-        console.print(
-            box_x + 2,
-            y,
-            self.cooked_food.description,
-            fg=Colors.UI_TEXT
-        )
+        desc = self.cooked_food.description
+        if len(desc) > box_width - 4:
+            desc = desc[:box_width - 7] + "..."
+        console.print(box_x + 2, y, desc, fg=Colors.UI_TEXT)
         y += 2
 
         # 효과
         console.print(box_x + 2, y, "효과:", fg=Colors.UI_TEXT)
         y += 1
 
+        # HP 회복 (보너스 강조)
         if self.cooked_food.hp_restore > 0:
-            console.print(box_x + 4, y, f"HP 회복: +{self.cooked_food.hp_restore}", fg=(100, 255, 100))
+            orig = getattr(self.cooked_food, 'original_hp_restore', 0)
+            if orig and orig != self.cooked_food.hp_restore:
+                console.print(box_x + 4, y, f"HP 회복: +{self.cooked_food.hp_restore}", fg=(100, 255, 100))
+                console.print(box_x + 4 + len(f"HP 회복: +{self.cooked_food.hp_restore}") + 1, y, f"(+{self.cooked_food.hp_restore - orig} 솥)", fg=(255, 200, 100))
+            else:
+                console.print(box_x + 4, y, f"HP 회복: +{self.cooked_food.hp_restore}", fg=(100, 255, 100))
             y += 1
 
+        # MP 회복 (보너스 강조)
         if self.cooked_food.mp_restore > 0:
-            console.print(box_x + 4, y, f"MP 회복: +{self.cooked_food.mp_restore}", fg=(100, 200, 255))
+            orig = getattr(self.cooked_food, 'original_mp_restore', 0)
+            if orig and orig != self.cooked_food.mp_restore:
+                console.print(box_x + 4, y, f"MP 회복: +{self.cooked_food.mp_restore}", fg=(100, 200, 255))
+                console.print(box_x + 4 + len(f"MP 회복: +{self.cooked_food.mp_restore}") + 1, y, f"(+{self.cooked_food.mp_restore - orig} 솥)", fg=(255, 200, 100))
+            else:
+                console.print(box_x + 4, y, f"MP 회복: +{self.cooked_food.mp_restore}", fg=(100, 200, 255))
             y += 1
 
+        # 최대 HP 버프
         if self.cooked_food.max_hp_bonus > 0:
-            console.print(box_x + 4, y, f"최대 HP 증가: +{self.cooked_food.max_hp_bonus} ({self.cooked_food.buff_duration}턴)", fg=(255, 200, 100))
+            dur = self.cooked_food.buff_duration
+            orig_dur = getattr(self.cooked_food, 'original_buff_duration', 0)
+            if orig_dur and orig_dur != dur:
+                console.print(box_x + 4, y, f"최대 HP +{self.cooked_food.max_hp_bonus} ({dur}턴)", fg=(255, 200, 100))
+                console.print(box_x + 4 + len(f"최대 HP +{self.cooked_food.max_hp_bonus} ({dur}턴)") + 1, y, f"(+{dur - orig_dur}턴 솥)", fg=(255, 200, 100))
+            else:
+                console.print(box_x + 4, y, f"최대 HP +{self.cooked_food.max_hp_bonus} ({dur}턴)", fg=(255, 200, 100))
             y += 1
 
+        # 최대 MP 버프
         if self.cooked_food.max_mp_bonus > 0:
-            console.print(box_x + 4, y, f"최대 MP 증가: +{self.cooked_food.max_mp_bonus} ({self.cooked_food.buff_duration}턴)", fg=(200, 150, 255))
+            dur = self.cooked_food.buff_duration
+            console.print(box_x + 4, y, f"최대 MP +{self.cooked_food.max_mp_bonus} ({dur}턴)", fg=(200, 150, 255))
             y += 1
 
+        # 독
         if self.cooked_food.is_poison:
             console.print(box_x + 4, y, f"독! 피해: {self.cooked_food.poison_damage}", fg=(255, 100, 100))
             y += 1
@@ -621,9 +803,12 @@ class CookingPotUI:
         help_y = self.screen_height - 2
 
         if self.mode == CookingMode.SELECT_SLOT:
-            help_text = "←→: 슬롯 선택  Z: 재료 추가/제거  M: 요리 시작  X: 닫기"
+            quick_hint = "  ↑↓: 퀵제작" if self._quick_recipes else ""
+            help_text = f"←→: 슬롯 선택  Z: 재료 추가/제거  M: 요리 시작  X: 닫기{quick_hint}"
         elif self.mode == CookingMode.SELECT_INGREDIENT:
-            help_text = "↑↓: 재료 선택  Z: 선택  X: 취소"
+            help_text = "↑↓: 재료 선택  ←→: 페이지  Z: 선택  X: 취소"
+        elif self.mode == CookingMode.SELECT_QUICK:
+            help_text = "↑↓: 레시피 선택  Z: 즉시 제작  X/←→: 슬롯으로 돌아가기"
         elif self.mode == CookingMode.CONFIRM_COOK:
             help_text = "Z: 요리  X: 취소"
         elif self.mode == CookingMode.SHOW_RESULT:
@@ -638,6 +823,23 @@ class CookingPotUI:
             fg=Colors.GRAY
         )
 
+    def _get_ingredient_hint(self, ingredient) -> str:
+        """재료의 주요 효과 힌트"""
+        cat = ingredient.category if hasattr(ingredient, 'category') else None
+        if not cat:
+            return ""
+        hints = {
+            IngredientCategory.MEAT: "HP",
+            IngredientCategory.VEGETABLE: "HP",
+            IngredientCategory.FRUIT: "MP",
+            IngredientCategory.MUSHROOM: "버프",
+            IngredientCategory.FISH: "HP/MP",
+            IngredientCategory.SPICE: "버프",
+            IngredientCategory.SWEETENER: "MP",
+            IngredientCategory.FILLER: "",
+        }
+        return hints.get(cat, "")
+
     def _get_category_color(self, category: IngredientCategory):
         """카테고리별 색상"""
         colors = {
@@ -651,6 +853,152 @@ class CookingPotUI:
             IngredientCategory.FILLER: (150, 150, 150)
         }
         return colors.get(category, Colors.UI_TEXT)
+
+    def _update_quick_recipes(self):
+        """제작 가능한 레시피 목록 업데이트 (넘버키 퀵슬롯용)"""
+        self._quick_recipes = []
+        available = self._get_available_ingredients()
+        if not available:
+            return
+
+        # 사용 가능한 재료를 item_id별로 그룹화
+        available_counts: Dict[str, int] = {}
+        available_map: Dict[str, list] = {}  # item_id -> [(slot_idx, ingredient), ...]
+        for slot_idx, ingredient in available:
+            iid = getattr(ingredient, 'item_id', ingredient.name)
+            available_counts[iid] = available_counts.get(iid, 0) + 1
+            if iid not in available_map:
+                available_map[iid] = []
+            available_map[iid].append((slot_idx, ingredient))
+
+        # required_counts가 있는 레시피만 퀵슬롯 대상 (독/실패 요리 제외)
+        for recipe in RecipeDatabase.RECIPES:
+            if not recipe.condition.required_counts:
+                continue
+            if recipe.result.is_poison:
+                continue
+            # 모든 필수 재료가 충분한지 확인
+            can_craft = True
+            needed_ingredients = []
+            for item_id, count in recipe.condition.required_counts.items():
+                if available_counts.get(item_id, 0) < count:
+                    can_craft = False
+                    break
+                # 필요한 만큼 재료 선택
+                for i in range(count):
+                    if i < len(available_map.get(item_id, [])):
+                        needed_ingredients.append(available_map[item_id][i])
+            if can_craft and needed_ingredients:
+                self._quick_recipes.append((recipe, needed_ingredients))
+
+    def quick_craft(self, recipe_idx: int) -> bool:
+        """
+        퀵슬롯으로 즉시 요리 (넘버키)
+
+        Args:
+            recipe_idx: 퀵슬롯 인덱스 (0~8)
+
+        Returns:
+            요리 성공 여부
+        """
+        if recipe_idx < 0 or recipe_idx >= len(self._quick_recipes):
+            return False
+
+        recipe, ingredients = self._quick_recipes[recipe_idx]
+
+        # 냄비 초기화
+        self.pot_slots = [None, None, None, None]
+
+        # 재료를 냄비에 자동 배치 (최대 4개)
+        for i, (slot_idx, ingredient) in enumerate(ingredients[:4]):
+            self.pot_slots[i] = (ingredient, slot_idx)
+
+        # 요리 실행 (퀵슬롯에서 선택된 레시피를 직접 전달)
+        self._cook(forced_recipe=recipe)
+        self.mode = CookingMode.SHOW_RESULT
+
+        # 퀵슬롯 목록 갱신 및 커서 범위 보정
+        self._update_quick_recipes()
+        if self.quick_cursor >= len(self._quick_recipes):
+            self.quick_cursor = max(0, len(self._quick_recipes) - 1)
+        self._update_quick_scroll()
+        return True
+
+    def _render_quick_slots(self, console: tcod.console.Console):
+        """퀵 제작 패널 렌더링 (커서 기반)"""
+        if not self._quick_recipes:
+            # 퀵 제작 가능한 레시피 없음
+            hint_y = self.screen_height - 4
+            console.print(2, hint_y, "퀵 제작: 제작 가능한 레시피 없음", fg=Colors.DARK_GRAY)
+            return
+
+        is_quick_mode = (self.mode == CookingMode.SELECT_QUICK)
+
+        # 패널 영역 계산
+        panel_x = 2
+        panel_width = self.screen_width - 4
+        panel_y = self.screen_height - self.max_visible_quick - 5
+        panel_height = self.max_visible_quick + 3
+
+        # 패널 프레임
+        title = " 퀵 제작 (↑↓ 선택) " if is_quick_mode else " 퀵 제작 (↓키로 이동) "
+        title_color = Colors.UI_TEXT_SELECTED if is_quick_mode else Colors.GRAY
+        console.draw_frame(
+            panel_x, panel_y, panel_width, panel_height,
+            title,
+            fg=title_color if is_quick_mode else Colors.UI_BORDER,
+            bg=Colors.UI_BG
+        )
+
+        # 레시피 목록
+        visible = self._quick_recipes[self.quick_scroll:self.quick_scroll + self.max_visible_quick]
+        list_y = panel_y + 1
+
+        for i, (recipe, ingredients) in enumerate(visible):
+            actual_idx = self.quick_scroll + i
+            is_selected = is_quick_mode and (actual_idx == self.quick_cursor)
+            y = list_y + i
+
+            # 커서 표시
+            prefix = "►" if is_selected else " "
+
+            # 레시피 이름
+            name = recipe.result.name
+
+            # 효과 요약
+            effects = []
+            if recipe.result.hp_restore > 0:
+                effects.append(f"HP+{recipe.result.hp_restore}")
+            if recipe.result.mp_restore > 0:
+                effects.append(f"MP+{recipe.result.mp_restore}")
+            if recipe.result.max_hp_bonus > 0:
+                effects.append(f"최대HP+{recipe.result.max_hp_bonus}")
+            if recipe.result.max_mp_bonus > 0:
+                effects.append(f"최대MP+{recipe.result.max_mp_bonus}")
+            effect_str = " ".join(effects) if effects else ""
+
+            # 필요 재료 요약
+            mat_names = [ing.name for _, ing in ingredients[:4]]
+            mat_str = "+".join(mat_names)
+
+            # 선택 색상
+            if is_selected:
+                name_color = Colors.UI_TEXT_SELECTED
+                detail_color = (200, 255, 200)
+            else:
+                name_color = (180, 220, 180)
+                detail_color = Colors.GRAY
+
+            console.print(panel_x + 2, y, f"{prefix} {name}", fg=name_color)
+            if effect_str:
+                console.print(panel_x + 20, y, effect_str, fg=detail_color)
+            console.print(panel_x + 42, y, f"[{mat_str}]"[:panel_width - 44], fg=Colors.DARK_GRAY)
+
+        # 스크롤 표시
+        total = len(self._quick_recipes)
+        if total > self.max_visible_quick:
+            scroll_info = f"({self.quick_scroll + 1}-{min(self.quick_scroll + self.max_visible_quick, total)}/{total})"
+            console.print(panel_x + panel_width - len(scroll_info) - 2, panel_y + panel_height - 1, scroll_info, fg=Colors.DARK_GRAY)
 
 
 def open_cooking_pot(

@@ -33,10 +33,8 @@ class Logger:
 
         # Set default log directory to game folder's user_data/logs
         if log_dir is None:
-            import os
-            # Get the directory where the main script is located (game root)
-            script_dir = Path(__file__).parent.parent.parent  # src/core/logger.py -> src -> project_root
-            log_dir = script_dir / "user_data" / "logs"
+            from src.core.paths import get_project_root
+            log_dir = get_project_root() / "user_data" / "logs"
 
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -53,9 +51,12 @@ class Logger:
         if self.logger.handlers:
             self.logger.handlers.clear()
 
-        # 콘솔 핸들러
+        # 콘솔 핸들러 (환경변수 LOG_LEVEL로 조절 가능: DEBUG, INFO, WARNING, ERROR)
+        import os
+        env_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+        console_level = getattr(logging, env_level, logging.INFO)
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(console_level)
         console_format = logging.Formatter(
             "[%(levelname)s] %(name)s: %(message)s"
         )

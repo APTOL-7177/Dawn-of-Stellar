@@ -114,7 +114,7 @@ class StatusEffect(SkillEffect):
     def _apply_status(self, target, user=None):
         """개별 상태 이상 적용"""
         # StatusManager가 있으면 사용 (신규 시스템)
-        if hasattr(target, 'status_manager'):
+        if hasattr(target, 'status_manager') and target.status_manager:
             from src.combat.status_effects import StatusEffect as CombatStatusEffect, StatusType
 
             # status_type 문자열을 StatusType Enum으로 변환

@@ -65,23 +65,24 @@ class LifestealEffect(SkillEffect):
         elif hasattr(user, 'system_traits') and 'vitality_overflow' in user.system_traits:
             has_overflow = True
             
-        if has_overflow:
-            # Calculate overheal
+        if has_overflow and hasattr(user, 'current_brv') and hasattr(user, 'max_brv'):
+            # 1단계: init_brv로 먼저 복귀 (항상)
+            init_brv_val = getattr(user, 'init_brv', 0)
+            if user.current_brv < init_brv_val:
+                user.current_brv = init_brv_val
+            # 2단계: 초과 흡혈량을 BRV로 추가 전환
             overheal = lifesteal_amount - actual_heal
+            brv_gain = 0
             if overheal > 0:
-                # Convert overheal to BRV (100% efficiency? or 50%? Let's do 100% as per trait desc "전환")
-                # But BRV usually has a cap (Max BRV).
-                if hasattr(user, 'current_brv') and hasattr(user, 'max_brv'):
-                    old_brv = user.current_brv
-                    user.current_brv = min(user.current_brv + overheal, user.max_brv)
-                    brv_gain = user.current_brv - old_brv
-                    if brv_gain > 0:
-                        return EffectResult(
-                            effect_type=EffectType.HEAL,
-                            success=True,
-                            heal_amount=actual_heal,
-                            message=f"흡혈 회복 {actual_heal}, BRV 전환 +{brv_gain}"
-                        )
+                brv_gain = min(overheal, user.max_brv - user.current_brv)
+                if brv_gain > 0:
+                    user.current_brv += brv_gain
+            return EffectResult(
+                effect_type=EffectType.HEAL,
+                success=True,
+                heal_amount=actual_heal,
+                message=f"흡혈 회복 {actual_heal}, BRV 복귀 +{brv_gain}" if brv_gain > 0 else f"흡혈 회복 {actual_heal}, BRV 복귀"
+            )
 
         return EffectResult(
             effect_type=EffectType.HEAL,

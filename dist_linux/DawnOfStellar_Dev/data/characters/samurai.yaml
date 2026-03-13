@@ -1,0 +1,136 @@
+class_name: 사무라이
+description: 적의 공격을 읽고 패링하여 역이용하는 검의 달인
+slogan: 검을 든 자는 상대의 검을 읽어야 한다
+archetype: 관찰과 반격의 도
+base_stats:
+  hp: 167
+  mp: 43
+  init_brv: 125
+  speed: 67
+  physical_attack: 74
+  physical_defense: 58
+  magic_attack: 45
+  magic_defense: 53
+  max_brv: 325
+stat_growth:
+  hp: 40.9
+  mp: 2.9
+  init_brv: 29.5
+  strength: 21.2
+  defense: 15.1
+  magic: 9.1
+  spirit: 12.2
+  speed: 16.5
+  max_brv: 91.4
+  luck: 1.0
+  accuracy: 1.6
+  evasion: 1.2
+traits:
+- id: kenshin_growth
+  name: 검심의 성장
+  description: 관찰 스택에 따라 반격 효과 증가 (피해 경감 + 반사 데미지)
+  type: passive
+- id: meditation
+  name: 참선
+  description: 패링 중 피격 시 HP/MP 10% 회복
+  type: trigger
+- id: iaijutsu
+  name: 발도술
+  description: 선제 공격 시 크리티컬 확정 + 데미지 2배
+  type: trigger
+- id: iron_will
+  name: 강철 의지
+  description: HP 1로 생존 효과 (전투당 1회)
+  type: trigger
+- id: brv_absorb_master
+  name: 미키리의 달인
+  description: 적 BRV 흡수 시 추가로 10% 더 흡수
+  type: passive
+gimmick:
+  type: kenshin_system
+  name: 검심(剣心) - 관찰과 반격의 도
+  description: |
+    적의 공격을 관찰하고 학습하여 완벽한 반격을 수행한다.
+
+    ■ 관찰 스택 (0~10+)
+      - 적의 공격 피격/패링 시 획득 (+1~3)
+      - 공격 스킬 사용 시 감소 (-2)
+      - 매 턴 종료 시 감소 (-1)
+      - 3단계: 초심(0-4) → 무심(5-9) → 검성(10+)
+      - 검성 유지는 어렵지만 강력함
+
+    ■ 반격 시스템 (피격 시 자동)
+      - 초심: 피해 10%↓, 받은 피해의 30% BRV 반사
+      - 무심: 피해 20%↓, 받은 피해의 50% BRV 반사
+      - 검성: 피해 35%↓, 받은 피해의 80% BRV 반사
+
+    ■ 검압 게이지 (0~100)
+      - 피격/패링 시 획득
+      - 특수 스킬 사용 시 소모
+
+    ■ 패링 시스템 (미키리 카마에)
+      - MP 0, ATB 150% 캐스트
+      - 캐스트 중 최대 3회 패링 (100% 확정)
+      - 캐스트 완료 시 패링 횟수에 따라 강공격
+        → 1회: 2.0배, 2회: 3.5배, 3회: 5.0배
+
+    ■ 요미 (적 행동 예측)
+      - 턴 소모 없음 (즉시 발동)
+      - MP 소량 소모
+      - 적 전체의 다음 행동 표시 (2~3턴간)
+
+  max_observation: 15
+  max_kenatsu: 100
+  parry_max_count: 3
+
+  stages:
+    shoshin:  # 초심 (0-4)
+      name: 초심(平心)
+      observation_min: 0
+      observation_max: 4
+      damage_reduction: 0.1  # 피격 시 피해 10% 감소
+      counter_damage: 0.3    # 받은 피해의 30%를 BRV 반사
+      brv_absorb_bonus: 0
+    mushin:  # 무심 (5-9)
+      name: 무심(無心)
+      observation_min: 5
+      observation_max: 9
+      damage_reduction: 0.2  # 피격 시 피해 20% 감소
+      counter_damage: 0.5    # 받은 피해의 50%를 BRV 반사
+      brv_absorb_bonus: 0.1
+    kensei:  # 검성 (10+)
+      name: 검성(剣聖)
+      observation_min: 10
+      damage_reduction: 0.35  # 피격 시 피해 35% 감소
+      counter_damage: 0.8     # 받은 피해의 80%를 BRV 반사
+      brv_absorb_bonus: 0.2
+      special_abilities:
+        - yomi_enhanced  # 신메이노요미 해금
+        - consecutive_counter  # 연속 반격
+        - kenatsu_burst  # 검압 폭발
+
+skills:
+- teamwork
+- kengi
+- battojutsu
+- gekko_giri
+- meikyo_shisui
+- mikiri_kamae
+- gi_no_tate
+- muga_kamae
+- mikiri
+- kenatsuan
+- kenkihousha
+- kenatsuryoku
+- yomi
+- shinmei_no_yomi
+- muhouken
+- tenchijuzan
+- muryoutaiga
+- ultimate
+
+bonuses:
+  status_immunity: 1.0
+  duel_bonus: 1.3
+  first_strike_bonus: 2.0
+  counter_damage_bonus: 0.1  # 기본 10% 반격 보너스

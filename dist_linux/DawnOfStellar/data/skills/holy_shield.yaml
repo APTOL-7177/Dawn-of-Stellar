@@ -1,0 +1,31 @@
+id: holy_shield
+name: 성스러운 방패
+type: buff
+description: '신성한 방패로 아군을 보호합니다.
+
+  대상 3턴: 받는 피해 -25%, 디버프 저항 +30%.
+
+  인내 서약: 신앙 +10
+
+  '
+target: single_ally
+costs:
+  mp: 12
+metadata:
+  oath_endurance_faith: 10
+effects:
+- type: buff
+  buff_id: holy_shield
+  duration: 3
+  effects:
+    damage_reduction: 0.25
+    debuff_resistance: 0.3
+animation:
+  icon: 🛡️
+  color:
+  - 255
+  - 215
+  - 0
+sfx:
+- se
+- Heal4

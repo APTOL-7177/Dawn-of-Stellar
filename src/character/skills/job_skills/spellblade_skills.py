@@ -41,10 +41,10 @@ def create_spellblade_skills():
     mana_pierce = Skill(
         "spellblade_mana_pierce",
         "마나 피어스",
-        "마력을 실은 찌르기로 Mana Line을 채우고 HP 피해를 준다."
+        "[번개 속성] 마력을 실은 찌르기로 Mana Line을 채우고 HP 피해를 준다."
     )
     mana_pierce.effects = [
-        DamageEffect(DamageType.HP, 1.25, stat_type="magical",
+        DamageEffect(DamageType.HP, 0.81, stat_type="magical", element="lightning",
                      conditional_bonus={"condition": "stealth", "multiplier": 1.2})
     ]
     mana_pierce.costs = []
@@ -106,11 +106,11 @@ def create_spellblade_skills():
     mirror_edge = Skill(
         "spellblade_mirror_edge_overload",
         "미러 엣지: 오버로드",
-        "Resonance Sigil을 소모해 물리/마법 동시 폭발과 방깎을 적용한다."
+        "[화염 속성] Resonance Sigil을 소모해 물리/마법 동시 폭발과 방깎을 적용한다."
     )
     mirror_edge.effects = [
         DamageEffect(DamageType.BRV_HP, 1.9, stat_type="physical"),
-        DamageEffect(DamageType.BRV_HP, 1.45, stat_type="magical"),
+        DamageEffect(DamageType.BRV_HP, 0.94, stat_type="magical", element="fire"),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.12, duration=3),
         BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.12, duration=3)
     ]
@@ -133,11 +133,11 @@ def create_spellblade_skills():
     ultimate = Skill(
         "spellblade_duality_collapse",
         "이중 붕괴",
-        "두 채널을 동시에 방전해 광역 하이브리드 폭발을 일으킨다."
+        "[번개 속성] 두 채널을 동시에 방전해 광역 하이브리드 폭발을 일으킨다."
     )
     ultimate.effects = [
         DamageEffect(DamageType.BRV, 3.2, stat_type="physical"),
-        DamageEffect(DamageType.HP, 2.8, stat_type="magical"),
+        DamageEffect(DamageType.HP, 1.82, stat_type="magical", element="lightning"),
         StatusEffect(StatusType.STUN, duration=1, value=1.0, chance=0.35),
         GimmickEffect(GimmickOperation.SET, "steel_line", 0),
         GimmickEffect(GimmickOperation.SET, "mana_line", 0)
@@ -166,7 +166,7 @@ def create_spellblade_skills():
     )
     teamwork.effects = [
         DamageEffect(DamageType.BRV, 1.8, stat_type="physical"),
-        DamageEffect(DamageType.HP, 1.4, stat_type="magical"),
+        DamageEffect(DamageType.HP, 0.91, stat_type="magical"),
         BuffEffect(BuffType.ATTACK_UP, 0.22, duration=3, is_party_wide=True),
         BuffEffect(BuffType.MAGIC_UP, 0.22, duration=3, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "resonance_sigil", 3)
@@ -209,10 +209,10 @@ def create_spellblade_skills():
     phase_sever = Skill(
         "spellblade_phase_sever",
         "위상 단절",
-        "마나 블레이드를 찔러 차단선을 그어 큰 피해를 준다."
+        "[빙결 속성] 마나 블레이드를 찔러 차단선을 그어 큰 피해를 준다."
     )
     phase_sever.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.2, stat_type="magical",
+        DamageEffect(DamageType.BRV_HP, 1.43, stat_type="magical", element="ice",
                      conditional_bonus={"condition": "stealth", "multiplier": 1.2})
     ]
     phase_sever.costs = [MPCost(10)]
@@ -255,7 +255,7 @@ def create_spellblade_skills():
     )
     arc_dive.effects = [
         DamageEffect(DamageType.BRV, 1.7, stat_type="physical"),
-        DamageEffect(DamageType.HP, 1.3, stat_type="magical")
+        DamageEffect(DamageType.HP, 0.85, stat_type="magical")
     ]
     arc_dive.costs = [MPCost(11)]
     arc_dive.sfx = ("combat", "sword4")
@@ -295,10 +295,10 @@ def create_spellblade_skills():
     spark_rebound = Skill(
         "spellblade_spark_rebound",
         "스파크 리바운드",
-        "역극성 마나를 주입해 반발 피해를 주고 시그넷을 끌어당긴다."
+        "[번개 속성] 역극성 마나를 주입해 반발 피해를 주고 시그넷을 끌어당긴다."
     )
     spark_rebound.effects = [
-        DamageEffect(DamageType.HP, 1.6, stat_type="magical"),
+        DamageEffect(DamageType.HP, 1.04, stat_type="magical", element="lightning"),
         GimmickEffect(GimmickOperation.ADD, "resonance_sigil", 1, max_value=3)
     ]
     spark_rebound.costs = [MPCost(9)]
@@ -339,11 +339,11 @@ def create_spellblade_skills():
     mirror_storm = Skill(
         "spellblade_mirror_storm",
         "미러 스톰",
-        "검과 마법을 교차 회전시켜 주변을 휩쓴다."
+        "[바람 속성] 검과 마법을 교차 회전시켜 주변을 휩쓴다."
     )
     mirror_storm.effects = [
         DamageEffect(DamageType.BRV, 1.45, stat_type="physical"),
-        DamageEffect(DamageType.HP, 1.15, stat_type="magical")
+        DamageEffect(DamageType.HP, 0.75, stat_type="magical", element="wind")
     ]
     mirror_storm.target_type = "all_enemies"
     mirror_storm.is_aoe = True

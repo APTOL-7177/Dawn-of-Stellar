@@ -1,0 +1,28 @@
+id: cleansing_prayer
+name: 정화의 기도
+type: utility
+description: '정화의 기도를 올립니다.
+
+  아군 전체 디버프 2개 제거.
+
+  정화의 신탁 충족 가능.
+
+  '
+target: all_allies
+costs:
+  mp: 18
+metadata:
+  oracle_action: cleanse_debuff
+effects:
+- type: cleanse
+  cleanse_count: 2
+  target: all_allies
+animation:
+  icon: 🙏
+  color:
+  - 255
+  - 255
+  - 255
+sfx:
+- se
+- Magic1

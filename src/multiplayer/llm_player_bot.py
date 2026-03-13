@@ -18,11 +18,38 @@ import threading
 import re
 from dataclasses import dataclass, field, asdict
 from enum import Enum
+from pathlib import Path
 
 from src.core.logger import get_logger
 from src.tutorial.tutorial_bot import JOB_DATABASE, COOKING_DATABASE, STATUS_EFFECTS
 
 logger = get_logger("llm_player_bot")
+
+# .env 파일에서 API 키 자동 로드
+def _load_dotenv():
+    """프로젝트 루트의 .env 파일에서 환경변수 로드"""
+    # 프로젝트 루트 탐색 (src/multiplayer/ 기준 2단계 위)
+    env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+    if not env_path.exists():
+        return
+    try:
+        with open(env_path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key, _, value = line.partition("=")
+                    key = key.strip()
+                    value = value.strip()
+                    # 이미 설정된 환경변수는 덮어쓰지 않음
+                    if key and value and not os.environ.get(key):
+                        os.environ[key] = value
+                        logger.info(f".env 로드: {key}=***")
+    except Exception as e:
+        logger.warning(f".env 파일 로드 실패: {e}")
+
+_load_dotenv()
 
 
 # =============================================================================
@@ -42,8 +69,8 @@ class PlayStyle(Enum):
 class LLMConfig:
     """LLM 설정"""
     base_url: str = "http://localhost:11434"  # Ollama 로컬 주소
-    model: str = "gpt-oss:20b"  # Cloud 모델 (가장 가벼움: gpt-oss:20b)
-    use_cloud: bool = True  # Ollama Cloud 사용
+    model: str = "gemini-3-flash-preview"  # Cloud 모델
+    use_cloud: bool = True  # True: Ollama Cloud (OLLAMA_API_KEY 필요), False: 로컬
     temperature: float = 0.3  # 낮을수록 일관된 결정
     timeout: float = 60.0  # 타임아웃 (Cloud는 네트워크 지연 고려)
     max_tokens: int = 2048  # 응답 토큰 (간결하게)
@@ -56,6 +83,7 @@ class LLMConfig:
     async_mode: bool = True  # 비동기 모드
     detailed_prompt: bool = True  # True=상세 프롬프트 (느리지만 정확), False=간소화 (빠름)
     boss_mode: bool = False  # 보스전용 상세 분석 모드
+    provider: str = "ollama"  # "openai" or "ollama"
 
 
 # =============================================================================
@@ -1141,7 +1169,23 @@ class LLMPlayerBot:
         self.job_id = job_id
         self.config = config or LLMConfig()
         
-        self.client = OllamaClientSync(self.config)
+        # 프로바이더별 클라이언트 초기화
+        if self.config.provider == "openai":
+            try:
+                from src.ai.openai_client import OpenAIConfig, OpenAIClientSync
+                openai_config = OpenAIConfig(
+                    model=self.config.model if "gpt" in self.config.model else "gpt-4o-mini",
+                    temperature=self.config.temperature,
+                    max_tokens=self.config.max_tokens,
+                    timeout=self.config.timeout,
+                )
+                self.client = OpenAIClientSync(openai_config)
+                logger.info(f"[{bot_name}] OpenAI 프로바이더 사용: {openai_config.model}")
+            except Exception as e:
+                logger.warning(f"[{bot_name}] OpenAI 초기화 실패, Ollama 폴백: {e}")
+                self.client = OllamaClientSync(self.config)
+        else:
+            self.client = OllamaClientSync(self.config)
         self.parser = ResponseParser()
         
         # 직업 정보 캐싱
@@ -1210,12 +1254,29 @@ class LLMPlayerBot:
                                if a.is_alive and a.hp < a.max_hp * 0.3)
         allies_low_hp = sum(1 for a in combat_state.allies
                             if a.is_alive and a.hp < a.max_hp * 0.5)
+        allies_dead = sum(1 for a in combat_state.allies if not a.is_alive)
 
         # 적 상황 분석
         alive_enemies = [e for e in combat_state.enemies if e.is_alive]
         total_enemy_hp = sum(e.hp for e in alive_enemies)
         enemy_count = len(alive_enemies)
         broken_enemies = sum(1 for e in alive_enemies if e.is_broken)
+        low_brv_enemies = sum(1 for e in alive_enemies
+                              if e.max_brv > 0 and e.brv / e.max_brv < 0.3)
+
+        # 보스전 인식
+        is_boss = combat_state.boss_name is not None
+        if is_boss:
+            # 보스전은 보수적 전략 우선
+            if self_hp_ratio < 0.5 or allies_in_danger >= 1:
+                return PlayStyle.DEFENSIVE
+            if self_mp_ratio < 0.3:
+                return PlayStyle.RESOURCE_SAVER
+            return PlayStyle.BALANCED
+
+        # 아군 사망자 있으면 긴급 방어 모드
+        if allies_dead > 0 and allies_in_danger >= 1:
+            return PlayStyle.DEFENSIVE
 
         # 플레이 스타일 동적 결정
 
@@ -1227,23 +1288,31 @@ class LLMPlayerBot:
         if allies_in_danger > 0:
             return PlayStyle.DEFENSIVE
 
-        # 3. MP가 거의 없음 -> 절약형
+        # 3. 다수 적 BRV 낮음 -> BREAK 연타 기회 -> 공격적
+        if low_brv_enemies >= 2 and self_hp_ratio > 0.5:
+            return PlayStyle.AGGRESSIVE
+
+        # 4. MP가 거의 없음 -> 절약형
         if self_mp_ratio < 0.2 and enemy_count > 1:
             return PlayStyle.RESOURCE_SAVER
 
-        # 4. 적이 1마리 남음 -> 스피드런 (빠른 처치)
+        # 5. 장기전 감지 (턴 15 이상 + 적 HP 많음) -> 자원 절약
+        if combat_state.turn_count >= 15 and total_enemy_hp > 1000:
+            return PlayStyle.RESOURCE_SAVER
+
+        # 6. 적이 1마리 남음 -> 스피드런 (빠른 처치)
         if enemy_count == 1 and alive_enemies[0].hp < alive_enemies[0].max_hp * 0.4:
             return PlayStyle.SPEEDRUN
 
-        # 5. 여러 적이 있고 자신의 HP가 충분 -> 공격적
+        # 7. 여러 적이 있고 자신의 HP가 충분 -> 공격적
         if enemy_count >= 2 and self_hp_ratio > 0.6 and self_brv_ratio > 0.5:
             return PlayStyle.AGGRESSIVE
 
-        # 6. 적이 BREAK 상태 + 자신의 BRV 높음 -> 공격적
+        # 8. 적이 BREAK 상태 + 자신의 BRV 높음 -> 공격적
         if broken_enemies > 0 and self_brv_ratio > 0.6:
             return PlayStyle.AGGRESSIVE
 
-        # 7. 적의 총 HP가 낮고 아군이 안정적 -> 스피드런
+        # 9. 적의 총 HP가 낮고 아군이 안정적 -> 스피드런
         if total_enemy_hp < 500 and allies_low_hp == 0:
             return PlayStyle.SPEEDRUN
 
@@ -1483,13 +1552,33 @@ class LLMPlayerBot:
                     f"[{self.bot_name}] 행동 결정: {action.action_type.value}, "
                     f"타겟: {action.target_name}, 이유: {action.reasoning}"
                 )
+
+                # 플레이 데이터 로깅 (RL 학습용)
+                try:
+                    from src.ai.play_data_logger import PlayDataLogger
+                    if hasattr(self, '_play_logger') and self._play_logger:
+                        self._play_logger.log_step(
+                            state=asdict(combat_state),
+                            action={"action_type": action.action_type.value, "target": action.target_name, "skill_id": action.skill_id},
+                            reward=0.0,  # 실시간 보상은 나중에 계산
+                            done=False
+                        )
+                except Exception:
+                    pass
+
                 return action
             else:
-                return self._fallback_action(combat_state)
+                fallback_act = self._fallback_action(combat_state)
+                if self.on_commentary:
+                    self.on_commentary(f"💡 {fallback_act.reasoning}")
+                return fallback_act
                 
         except Exception as e:
             logger.error(f"[{self.bot_name}] LLM 호출 오류: {e}")
-            return self._fallback_action(combat_state)
+            fallback_act = self._fallback_action(combat_state)
+            if self.on_commentary:
+                self.on_commentary(f"💡 {fallback_act.reasoning}")
+            return fallback_act
     
     def decide_action(
         self,
@@ -1586,23 +1675,46 @@ class LLMPlayerBot:
             reasoning="폴백: 랜덤 이동"
         )
     
+    def _get_job_role(self) -> Dict[str, bool]:
+        """직업 역할 판별"""
+        job_key = self.job_id.lower().replace(" ", "_") if self.job_id else "warrior"
+        return {
+            'is_healer': job_key in ['priest', 'cleric', 'druid', 'paladin'],
+            'is_buffer': job_key in ['bard', 'knight', 'time_mage', 'engineer', 'shaman'],
+            'is_tank': job_key in ['paladin', 'dimensionist', 'knight', 'warrior'],
+            'is_debuffer': job_key in ['hacker', 'necromancer', 'shaman'],
+            'job_key': job_key,
+        }
+
+    def _find_skill_by_type(self, skills: List[SkillInfo], skill_types: List[str], mp: int) -> Optional[SkillInfo]:
+        """특정 타입의 사용 가능한 스킬 찾기"""
+        for s in skills:
+            if s.mp_cost > mp:
+                continue
+            if s.cooldown_remaining > 0:
+                continue
+            s_type = (s.skill_type or '').lower()
+            s_id = (s.id or '').lower()
+            s_desc = (s.description or '').lower()
+            s_name = (s.name or '').lower()
+            for t in skill_types:
+                if t in s_type or t in s_id or t in s_desc or t in s_name:
+                    return s
+        return None
+
     def _fallback_action(self, combat_state: CombatState) -> BotAction:
-        """폴백 행동 (LLM 실패 시)"""
+        """폴백 행동 (LLM 실패 시) - 매우 강화된 직업 역할 기반 지능형 AI"""
         self.fallback_actions += 1
-        
+
         # 현재 행동자 찾기
-        current_ally = None
-        for ally in combat_state.allies:
-            if ally.name == combat_state.current_actor:
-                current_ally = ally
-                break
-        
+        current_ally = next((a for a in combat_state.allies if a.name == combat_state.current_actor), None)
+
         if not current_ally or not current_ally.is_alive:
             return BotAction(
                 action_type=ActionType.DEFEND,
                 reasoning="폴백: 방어"
             )
-        
+
         # 살아있는 적 찾기
         alive_enemies = [e for e in combat_state.enemies if e.is_alive]
         if not alive_enemies:
@@ -1611,62 +1723,183 @@ class LLMPlayerBot:
                 reasoning="폴백: 적 없음"
             )
 
-        # 전략적 타겟 선택 (우선순위: BREAK > HP낮음 > BRV낮음)
+        alive_allies = [a for a in combat_state.allies if a.is_alive]
+
+        # 기본 상태값
+        hp_ratio = current_ally.hp / current_ally.max_hp if current_ally.max_hp > 0 else 1.0
+        mp = current_ally.mp
+        brv = current_ally.brv
+        max_brv = current_ally.max_brv if current_ally.max_brv > 0 else 1
+        brv_ratio = brv / max_brv
+        gimmick_value = current_ally.gimmick_value or 0
+
+        # 직업 역할 판별
+        role = self._get_job_role()
+        # MP가 충분하고 쿨다운이 없는 스킬 필터링
+        skills = [s for s in combat_state.available_skills if s.mp_cost <= mp and s.cooldown_remaining == 0]
+
+        # 전략적 타겟 선택 (우선순위: BREAK > 적 BRV 높음 > 적 HP 낮음)
         def calc_priority(e):
             priority = 0
             if e.is_broken:
+                priority += 500  # 브레이크된 적 최우선 (HP 딜 찬스)
+                
+            e_hp_pct = e.hp / e.max_hp if e.max_hp > 0 else 1.0
+            if e_hp_pct < 0.2:
+                priority += 400  # 딸피 적 마무리
+            elif e_hp_pct < 0.5:
                 priority += 100
-            hp_pct = e.hp / e.max_hp if e.max_hp > 0 else 1.0
-            if hp_pct < 0.3:
-                priority += 50
-            elif hp_pct < 0.5:
-                priority += 30
-            brv_pct = e.brv / e.max_brv if e.max_brv > 0 else 1.0
-            if brv_pct < 0.3:
-                priority += 20
+                
+            e_brv_pct = e.brv / e.max_brv if e.max_brv > 0 else 1.0
+            if e_brv_pct > 0.8:
+                priority += 300  # 적 BRV가 높아 브레이크 위험
+            elif e_brv_pct < 0.3:
+                priority += 150  # 브레이크 내기 쉬운 적
+                
+            # 체력이 낮은 적에게 보너스 점수 (일점사 유도)
+            priority -= e.hp * 0.1 
             return priority
-        
+
         target = max(alive_enemies, key=calc_priority)
-        
-        # 간단한 규칙 기반 폴백
-        # 1. HP 위험하면 회복 아이템
-        hp_percent = current_ally.hp / current_ally.max_hp if current_ally.max_hp > 0 else 1.0
-        if hp_percent < 0.3:
+
+        # ===== 0. 위급 상황: HP 위험 시 회복 (모든 역할 공통) =====
+        if hp_ratio < 0.35:
+            heal_skill = self._find_skill_by_type(skills, ['heal', '회복', '치유', 'cure', '빛', 'holy'], mp)
+            if heal_skill:
+                target_ally = current_ally
+                if heal_skill.target_type in ["all_allies", "party"] or "전체" in (heal_skill.description or ""):
+                    target_ally = None
+                return BotAction(
+                    action_type=ActionType.SKILL,
+                    skill_id=heal_skill.id,
+                    target_name=target_ally.name if target_ally else None,
+                    reasoning=f"폴백(긴급): 생존을 위해 {heal_skill.name} 자힐"
+                )
             for item in combat_state.available_items:
-                if "회복" in item.effect or "HP" in item.effect.upper():
+                if "회복" in item.effect or "HP" in item.effect.upper() or "포션" in item.name:
                     return BotAction(
                         action_type=ActionType.ITEM,
                         item_id=item.id,
                         target_name=current_ally.name,
-                        reasoning="폴백: HP 낮아서 회복"
+                        reasoning=f"폴백(긴급): {item.name} 사용"
                     )
-        
-        # 2. BRV 충분하면 HP 공격
-        if current_ally.brv > 500:
-            # BREAK 상태인 적 우선
-            for enemy in alive_enemies:
-                if enemy.is_broken:
+
+        # ===== 1. 힐러: 아군 보호 =====
+        if role['is_healer']:
+            critical_allies = [a for a in alive_allies if (a.hp / a.max_hp) < 0.6]
+            if critical_allies:
+                worst_ally = min(critical_allies, key=lambda a: a.hp / a.max_hp)
+                heal_skill = self._find_skill_by_type(skills, ['heal', '회복', '치유', 'cure', 'holy', '기도', '축복'], mp)
+                if heal_skill:
+                    tgt_name = None if (heal_skill.target_type in ["all_allies", "party"] or "전체" in (heal_skill.description or "")) else worst_ally.name
                     return BotAction(
-                        action_type=ActionType.HP_ATTACK,
-                        target_name=enemy.name,
-                        reasoning="폴백: BREAK 상태 적에게 HP 공격"
+                        action_type=ActionType.SKILL,
+                        skill_id=heal_skill.id,
+                        target_name=tgt_name,
+                        reasoning=f"폴백(힐러): 아군 보호 → {heal_skill.name}"
                     )
+            buff_skill = self._find_skill_by_type(skills, ['buff', '강화', '버프', '보호', '축복', 'aura', 'barrier'], mp)
+            if buff_skill:
+                return BotAction(
+                    action_type=ActionType.SKILL,
+                    skill_id=buff_skill.id,
+                    target_name=current_ally.name,
+                    reasoning=f"폴백(힐러): 아군 강화 → {buff_skill.name}"
+                )
+
+        # ===== 2. 탱커: 어그로 및 방어 =====
+        if role['is_tank']:
+            weak_allies = [a for a in alive_allies if a.name != current_ally.name and (a.hp / a.max_hp) < 0.5]
+            if weak_allies:
+                taunt_skill = self._find_skill_by_type(skills, ['taunt', '도발', 'provoke', 'shield', '보호', 'iron_will', 'oath', '방패'], mp)
+                if taunt_skill:
+                    tgt_name = target.name if taunt_skill.target_type in ["enemy", "single_enemy"] else current_ally.name
+                    return BotAction(
+                        action_type=ActionType.SKILL,
+                        skill_id=taunt_skill.id,
+                        target_name=tgt_name,
+                        reasoning=f"폴백(탱커): 아군 보호 → {taunt_skill.name}"
+                    )
+            if hp_ratio < 0.5 and brv_ratio < 0.5:
+                return BotAction(action_type=ActionType.DEFEND, reasoning="폴백(탱커): 방어로 생존")
+
+        # ===== 3. 버퍼 / 디버퍼: 보조 스킬 우선 =====
+        if role['is_buffer']:
+            buff_skill = self._find_skill_by_type(skills, ['buff', '강화', '버프', 'inspire', 'march', 'song', 'haste', '가속'], mp)
+            if buff_skill:
+                return BotAction(
+                    action_type=ActionType.SKILL,
+                    skill_id=buff_skill.id,
+                    target_name=current_ally.name,
+                    reasoning=f"폴백(버퍼): 파티 강화 → {buff_skill.name}"
+                )
+        if role['is_debuffer']:
+            debuff_skill = self._find_skill_by_type(skills, ['debuff', '약화', '저주', 'curse', 'slow', 'blind', 'poison', 'virus', 'hack', '디버프', '침묵'], mp)
+            if debuff_skill:
+                return BotAction(
+                    action_type=ActionType.SKILL,
+                    skill_id=debuff_skill.id,
+                    target_name=target.name,
+                    reasoning=f"폴백(디버퍼): 적 약화 → {debuff_skill.name}"
+                )
+
+        # ===== 4. 딜러 (약점 공략 & 기믹 방출) =====
+        weakness_skill = None
+        weakness_str = getattr(target, 'element_weakness', '')
+        if weakness_str:
+            weaknesses = [w.strip().lower() for w in weakness_str.split(',') if w.strip()]
+            for s in skills:
+                desc_lower = (s.description or "").lower()
+                name_lower = (s.name or "").lower()
+                if any(w in desc_lower or w in name_lower for w in weaknesses):
+                    weakness_skill = s
+                    break
+                
+        if weakness_skill:
+            return BotAction(
+                action_type=ActionType.SKILL,
+                skill_id=weakness_skill.id,
+                target_name=target.name,
+                reasoning=f"폴백(딜러): 약점 공략 → {weakness_skill.name}"
+            )
+
+        if gimmick_value >= 70:
+            release_skill = self._find_skill_by_type(skills, ['burst', 'release', 'hadou', 'storm', 'mega', 'surge', 'bisect', 'execution', 'explosion', '방출', '폭발', '필살'], mp)
+            if release_skill:
+                return BotAction(
+                    action_type=ActionType.SKILL,
+                    skill_id=release_skill.id,
+                    target_name=target.name,
+                    reasoning=f"폴백(딜러): 기믹 {gimmick_value}% 폭발 → {release_skill.name}"
+                )
+
+        # MP 여유 시 주력기(가장 비싼 스킬) 사용
+        if mp > current_ally.max_mp * 0.3:
+            attack_skills = [s for s in skills if any(kw in (s.skill_type or '').lower() or kw in (s.description or '').lower() for kw in ['brv', 'attack', 'hp', 'strike', 'slash', 'hit', '공격', '피해', '데미지'])]
+            if attack_skills:
+                best_attack = max(attack_skills, key=lambda s: s.mp_cost)
+                return BotAction(
+                    action_type=ActionType.SKILL,
+                    skill_id=best_attack.id,
+                    target_name=target.name,
+                    reasoning=f"폴백(딜러): 주력 스킬 → {best_attack.name}"
+                )
+
+        # ===== 5. 기본 공격 (BRV vs HP) =====
+        if brv >= max_brv * 0.7 or target.is_broken:
             return BotAction(
                 action_type=ActionType.HP_ATTACK,
                 target_name=target.name,
-                reasoning="폴백: BRV 높아서 HP 공격"
+                reasoning=f"폴백: BRV {brv_ratio:.0%} / Break 상태 → HP 공격!"
             )
-        
-        # 3. 적 BRV 낮으면 BRV 공격으로 BREAK 노리기
-        for enemy in alive_enemies:
-            if enemy.brv < 200:
-                return BotAction(
-                    action_type=ActionType.BRV_ATTACK,
-                    target_name=enemy.name,
-                    reasoning="폴백: 적 BRV 낮아서 BREAK 노림"
-                )
-        
-        # 4. 기본 BRV 공격
+            
+        if target.brv > target.max_brv * 0.6:
+            return BotAction(
+                action_type=ActionType.BRV_ATTACK,
+                target_name=target.name,
+                reasoning=f"폴백: 적 BRV 높음 → BRV 공격으로 깎기"
+            )
+
         return BotAction(
             action_type=ActionType.BRV_ATTACK,
             target_name=target.name,
@@ -2057,34 +2290,48 @@ class GameStateConverter:
 def create_llm_bot(
     name: str,
     job_id: str = "warrior",
-    model: str = "gpt-oss:20b",
+    model: str = "gemini-3-flash-preview",
     style: PlayStyle = PlayStyle.BALANCED,
     enable_thinking: bool = False,  # thinking 모드 끔 (빈 응답 방지)
     enable_commentary: bool = True,
-    async_mode: bool = True
+    async_mode: bool = True,
+    provider: str = None,  # "openai" or "ollama" (None=자동감지)
 ) -> LLMPlayerBot:
     """
     간편하게 LLM 봇 생성
-    
+
     Args:
         name: 봇 이름
         job_id: 직업 ID (warrior, knight, archmage, cleric 등)
-        model: Ollama 모델명 (qwen3:4b 추천)
+        model: LLM 모델명 (Ollama Cloud: gemini-3-flash-preview, OpenAI: gpt-4o-mini)
         style: 플레이 스타일
         enable_thinking: Qwen3 thinking 모드 활성화
         enable_commentary: 실시간 해설 활성화
         async_mode: 비동기 모드 (게임 프레임 드롭 방지)
-        
+        provider: "openai" 또는 "ollama" (None이면 API 키로 자동 결정)
+
     Returns:
         LLMPlayerBot 인스턴스
     """
     import uuid
+    # 프로바이더 자동 감지: OPENAI_API_KEY → openai, OLLAMA_API_KEY → ollama cloud, 그 외 → ollama 로컬
+    if provider is None:
+        if os.environ.get("OPENAI_API_KEY"):
+            provider = "openai"
+        else:
+            provider = "ollama"
+
+    # Ollama Cloud 자동 감지: OLLAMA_API_KEY가 있으면 cloud 모드
+    use_cloud = bool(os.environ.get("OLLAMA_API_KEY")) if provider == "ollama" else False
+
     config = LLMConfig(
         model=model,
         play_style=style,
         enable_thinking=enable_thinking,
         enable_commentary=enable_commentary,
-        async_mode=async_mode
+        async_mode=async_mode,
+        provider=provider,
+        use_cloud=use_cloud,
     )
     return LLMPlayerBot(
         bot_id=str(uuid.uuid4()),
@@ -2096,7 +2343,7 @@ def create_llm_bot(
 
 def create_party_bots(
     party_config: List[Dict[str, str]],
-    model: str = "gpt-oss:20b",
+    model: str = "gemini-3-flash-preview",
     style: PlayStyle = PlayStyle.BALANCED
 ) -> List[LLMPlayerBot]:
     """
@@ -2355,7 +2602,16 @@ class AutoPlayAI:
     
     def __init__(self, config: Optional[LLMConfig] = None):
         self.config = config or LLMConfig()
-        self.client = OllamaClientSync(self.config)
+        # 프로바이더별 클라이언트 초기화
+        if self.config.provider == "openai":
+            try:
+                from src.ai.llm_provider import create_provider
+                self.client = create_provider("openai")
+            except Exception as e:
+                logger.warning(f"OpenAI 프로바이더 초기화 실패, Ollama 폴백: {e}")
+                self.client = OllamaClientSync(self.config)
+        else:
+            self.client = OllamaClientSync(self.config)
         self.combat_bots: Dict[str, LLMPlayerBot] = {}
         self.logger = get_logger("auto_play_ai")
         
@@ -2965,6 +3221,19 @@ JSON 형식으로 행동 결정:
         self.combat_bots.clear()
 
 
-def create_auto_play_ai(model: str = "gpt-oss:20b", style: PlayStyle = PlayStyle.BALANCED) -> AutoPlayAI:
-    """자동 플레이 AI 생성"""
-    return AutoPlayAI(LLMConfig(model=model, play_style=style))
+def create_auto_play_ai(
+    model: str = None,
+    style: PlayStyle = PlayStyle.BALANCED,
+    provider: str = None,
+    **kwargs
+) -> AutoPlayAI:
+    """AutoPlayAI 인스턴스 생성 (프로바이더 선택)"""
+    config = LLMConfig(play_style=style)
+
+    if provider == "openai":
+        config.provider = "openai"
+    elif model:
+        config.model = model
+        config.provider = "ollama"
+
+    return AutoPlayAI(config)

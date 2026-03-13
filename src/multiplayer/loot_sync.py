@@ -6,6 +6,7 @@
 
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
+from uuid import uuid4
 
 from src.core.logger import get_logger
 
@@ -41,50 +42,107 @@ class LootSyncManager:
     def set_loot_pool(self, items: List[Any]):
         """
         전리품 풀 설정
-        
+
+        각 아이템에 안정적인 loot_uid를 부여하여 인덱스 밀림 문제를 방지합니다.
+
         Args:
             items: 전리품 아이템 리스트
         """
         self.loot_pool = list(items)  # 복사
         self.claimed_items = {}
+
+        # 각 아이템에 고유 UUID 할당 (인덱스 대신 사용)
+        self._loot_uids: Dict[str, Any] = {}  # {loot_uid: item}
+        for item in self.loot_pool:
+            # 항상 고유한 UUID를 생성하여 같은 종류 아이템도 구분
+            loot_uid = str(uuid4())
+            # 아이템에 loot_uid 속성 설정 (추적용)
+            try:
+                item._loot_uid = loot_uid
+            except (AttributeError, TypeError):
+                pass
+            self._loot_uids[loot_uid] = item
+
         logger.info(f"전리품 풀 설정: {len(items)}개 아이템")
     
     def claim_item(self, player_id: str, index: int) -> bool:
         """
         아이템 선점 (호스트 권위)
-        
+
+        인덱스로 아이템을 찾되, 내부적으로는 안정적인 loot_uid로 식별합니다.
+        pop 대신 claimed 상태로 마킹하여 인덱스 밀림을 방지합니다.
+
         Args:
             player_id: 선점 요청 플레이어 ID
-            index: 전리품 풀 인덱스
-            
+            index: 전리품 풀 인덱스 (미선점 아이템 기준)
+
         Returns:
             성공 여부
         """
+        # 미선점 아이템만 필터링 (인덱스는 미선점 목록 기준)
+        unclaimed_items = [item for item in self.loot_pool
+                          if self._get_loot_uid(item) not in self.claimed_items]
+
         # 유효성 검사
-        if index < 0 or index >= len(self.loot_pool):
-            logger.warning(f"잘못된 전리품 인덱스: {index} (풀 크기: {len(self.loot_pool)})")
+        if index < 0 or index >= len(unclaimed_items):
+            logger.warning(f"잘못된 전리품 인덱스: {index} (미선점 아이템 수: {len(unclaimed_items)})")
             return False
-        
+
         # 아이템 가져오기
-        item = self.loot_pool[index]
-        item_id = getattr(item, 'item_id', str(id(item)))
+        item = unclaimed_items[index]
+        item_id = self._get_loot_uid(item)
         item_name = getattr(item, 'name', '알 수 없는 아이템')
-        
-        # 이미 선점된 아이템인지 확인
+
+        # 이미 선점된 아이템인지 확인 (race condition 방지)
         if item_id in self.claimed_items:
             logger.warning(f"이미 선점된 아이템: {item_name} by {self.claimed_items[item_id]}")
             return False
-        
-        # 선점 처리
+
+        # 선점 처리 (pop 대신 claimed 마킹)
         self.claimed_items[item_id] = player_id
-        self.loot_pool.pop(index)
-        
+
         logger.info(f"아이템 선점: {item_name} -> {player_id}")
-        
+
         # 브로드캐스트 (다른 플레이어에게 알림)
         self._broadcast_claim(player_id, item_id, item_name)
-        
+
         return True
+
+    def _get_loot_uid(self, item: Any) -> str:
+        """
+        아이템의 안정적인 UID 반환
+
+        Args:
+            item: 아이템 객체
+
+        Returns:
+            안정적인 고유 ID
+        """
+        # set_loot_pool에서 할당된 _loot_uid 우선 사용
+        uid = getattr(item, '_loot_uid', None)
+        if uid:
+            return uid
+
+        # item_id 속성이 있으면 사용
+        item_id = getattr(item, 'item_id', None)
+        if item_id:
+            return str(item_id)
+
+        # _loot_uids 맵에서 역방향 탐색
+        if hasattr(self, '_loot_uids'):
+            for uid, loot_item in self._loot_uids.items():
+                if loot_item is item:
+                    return uid
+
+        # 최후의 수단: UUID 생성 후 할당
+        new_uid = str(uuid4())
+        try:
+            item._loot_uid = new_uid
+        except (AttributeError, TypeError):
+            pass
+        if hasattr(self, '_loot_uids'):
+            self._loot_uids[new_uid] = item
+        return new_uid
     
     def _broadcast_claim(self, player_id: str, item_id: str, item_name: str):
         """선점 결과 브로드캐스트"""
@@ -95,7 +153,7 @@ class LootSyncManager:
             from src.multiplayer.protocol import MessageBuilder, MessageType
             
             message = MessageBuilder.custom(
-                MessageType.LOOT_CLAIMED if hasattr(MessageType, 'LOOT_CLAIMED') else MessageType.GAME_STATE,
+                MessageType.LOOT_CLAIMED,
                 {
                     "player_id": player_id,
                     "item_id": item_id,
@@ -112,8 +170,8 @@ class LootSyncManager:
                     self.network_manager._server_event_loop
                 )
             else:
-                self.network_manager.broadcast(message)
-                
+                logger.debug("서버 이벤트 루프 없음, 전리품 브로드캐스트 스킵")
+
         except Exception as e:
             logger.error(f"전리품 선점 브로드캐스트 실패: {e}")
     
@@ -152,12 +210,13 @@ class LootSyncManager:
         return distribution
     
     def get_loot_pool(self) -> List[Any]:
-        """현재 전리품 풀 반환"""
-        return self.loot_pool
-    
+        """현재 미선점 전리품 풀 반환"""
+        return [item for item in self.loot_pool
+                if self._get_loot_uid(item) not in self.claimed_items]
+
     def is_empty(self) -> bool:
-        """전리품 풀이 비었는지 확인"""
-        return len(self.loot_pool) == 0
+        """미선점 전리품이 비었는지 확인"""
+        return len(self.get_loot_pool()) == 0
 
 
 class StorageSyncManager:
@@ -274,7 +333,7 @@ class StorageSyncManager:
             from src.multiplayer.protocol import MessageBuilder, MessageType
             
             message = MessageBuilder.custom(
-                MessageType.STORAGE_UPDATE if hasattr(MessageType, 'STORAGE_UPDATE') else MessageType.GAME_STATE,
+                MessageType.STORAGE_UPDATE,
                 {
                     "action": "storage_update",
                     "storage_size": len(self._host_storage.items) if hasattr(self._host_storage, 'items') else 0
@@ -289,8 +348,8 @@ class StorageSyncManager:
                     self.network_manager._server_event_loop
                 )
             else:
-                self.network_manager.broadcast(message)
-                
+                logger.debug("서버 이벤트 루프 없음, 창고 브로드캐스트 스킵")
+
         except Exception as e:
             logger.error(f"창고 동기화 브로드캐스트 실패: {e}")
 

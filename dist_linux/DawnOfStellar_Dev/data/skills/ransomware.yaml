@@ -1,0 +1,30 @@
+id: ransomware
+name: 랜섬웨어
+type: debuff
+description: |
+  [프로그램] 적 시스템을 암호화합니다.
+  4턴간 매 턴 HP -7%, 스킬 사용 시 20% 확률로 행동 실패.
+  대상 침투 +10.
+target: single_enemy
+costs:
+  mp: 8
+  ram: 10
+metadata:
+  program: true
+  intrusion_gain: 10
+effects:
+- type: debuff
+  debuff_id: ransomware
+  duration: 4
+  effects:
+    dot_percent: 0.07
+    skill_fail_chance: 0.2
+- type: custom
+  handler: add_intrusion
+  value: 10
+animation:
+  icon: "🔒"
+  color: [200, 0, 50]
+sfx:
+- se
+- Buzzer3

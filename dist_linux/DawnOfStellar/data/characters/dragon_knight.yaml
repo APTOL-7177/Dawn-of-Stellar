@@ -1,0 +1,71 @@
+class_name: 용기사
+description: 용의 화염으로 전장을 불태우는 화염의 기사
+slogan: 용의 피가 내 안에서 불타오른다
+archetype: 화염 특화 딜러
+base_stats:
+  hp: 181
+  mp: 48
+  init_brv: 127
+  speed: 61
+  physical_attack: 78
+  physical_defense: 67
+  magic_attack: 62
+  magic_defense: 58
+  max_brv: 327
+stat_growth:
+  hp: 46.5
+  mp: 3.2
+  init_brv: 30.0
+  strength: 22.4
+  defense: 18.3
+  magic: 13.2
+  spirit: 14.1
+  speed: 14.3
+  max_brv: 92.0
+  luck: 0.6
+  accuracy: 1.6
+  evasion: 1.2
+traits:
+- id: dragon_breath
+  name: 용의 숨결
+  description: 화염 속성 데미지 +35%, 화염 저항 +50%
+  type: passive
+- id: burning_rage
+  name: 넘치는 활력
+  description: 화상 피해 입힐 시 피해량의 70% 체력 회복, 매턴 HP/MP 4% 재생
+  type: trigger
+- id: dragon_scales
+  name: 용린 갑주
+  description: HP 95% 이상일 때 받는 피해 85% 감소
+  type: trigger
+- id: flame_wings
+  name: 화염의 날개
+  description: 회피 성공 시 반격으로 화염 피해
+  type: trigger
+- id: inferno
+  name: 지옥불
+  description: 화상 상태의 적 공격 시 데미지 +30%
+  type: trigger
+gimmick:
+  type: dragon_marks
+  name: 용의 각인
+  description: 용의 힘을 축적하여 드래곤 브레스와 비상 기술 사용
+  max_dragon_power: 100
+skills:
+- teamwork
+- flame_slash
+- dragon_dive
+- fire_breath
+- burning_strike
+- dragon_rage
+- dragon_scales
+- inferno_burst
+- dragon_wings
+- dragon_roar
+- dragon_mark_strike
+- dragon_storm
+- ultimate
+bonuses:
+  fire_damage: 1.15
+  fire_resistance: 0.2
+  burn_chance: 0.2

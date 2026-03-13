@@ -608,7 +608,7 @@ class StatusManager:
         """
         # DoT 타입 정의
         dot_types = {
-            StatusType.POISON: {"name": "독", "multiplier": 0.10, "icon": "☠️"},
+            StatusType.POISON: {"name": "독", "multiplier": 0.15, "icon": "☠️"},
             StatusType.BURN: {"name": "화상", "multiplier": 0.15, "icon": "🔥"},
             StatusType.BLEED: {"name": "출혈", "multiplier": 0.12, "icon": "🩸"},
             StatusType.CORRODE: {"name": "부식", "multiplier": 0.08, "icon": "🧪"},

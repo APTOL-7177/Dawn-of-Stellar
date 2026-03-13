@@ -1,0 +1,23 @@
+id: past_regression
+name: 과거 회귀
+type: heal
+description: 아군 1명의 HP를 2턴 전 상태로 복원 (최대 40% 회복)
+costs:
+  mp: 14
+  cast_time: 1.0
+target: single_ally
+effects:
+- type: temporal_heal
+  target: selected_ally
+  method: restore_past_hp
+  turns_back: 2
+  max_heal_percent: 0.4
+- type: generate_possibility
+  chance: 0.7
+  alternative_skill: future_sight
+metadata:
+  possibility_pair: future_sight
+  job: time_mage
+sfx:
+- se
+- Recovery

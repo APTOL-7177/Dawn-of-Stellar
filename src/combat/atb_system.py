@@ -36,6 +36,9 @@ class ATBGauge:
         # 캐스팅 상태
         self.is_casting = False
 
+        # 마지막 행동 턴 카운터 (라운드 로빈용 - 낮을수록 오래 전에 행동)
+        self.last_acted_turn: int = 0
+
     @property
     def percentage(self) -> float:
         """게이지 퍼센트 (0.0 ~ 1.0)"""
@@ -189,6 +192,9 @@ class ATBSystem:
         # 평균 속도 캐시
         self._average_speed: float = 0.0
 
+        # 글로벌 턴 카운터 (라운드 로빈 공정성용)
+        self._global_turn_counter: int = 0
+
         # BREAK 이벤트 구독 (BREAK 시 ATB 초기화)
         event_bus.subscribe("brave.break", self._on_break)
 
@@ -237,7 +243,7 @@ class ATBSystem:
         """
         ATB 증가량 계산
 
-        ATB 증가량 = (해당 전투원의 SPD / 평균 SPD) * base_rate
+        ATB 증가량 = (해당 전투원의 유효 SPD / 모든 전투원의 평균 유효 SPD) * base_rate
 
         Args:
             combatant: 전투원
@@ -246,13 +252,20 @@ class ATBSystem:
         Returns:
             ATB 증가량
         """
-        if self._average_speed <= 0:
-            self._update_average_speed()
+        # 살아있는 전투원들의 유효 속도 평균 계산
+        alive_speeds = []
+        for c, g in self.gauges.items():
+            if getattr(c, 'is_alive', True):
+                alive_speeds.append(g.get_effective_speed())
+        avg_speed = sum(alive_speeds) / len(alive_speeds) if alive_speeds else 1.0
+        if avg_speed <= 0:
+            avg_speed = 1.0
 
-        combatant_speed = getattr(combatant, "speed", 10)
+        gauge = self.gauges.get(combatant)
+        effective_speed = gauge.get_effective_speed() if gauge else getattr(combatant, "speed", 10)
 
         # 상대적 속도 계산
-        speed_ratio = combatant_speed / self._average_speed
+        speed_ratio = effective_speed / avg_speed
 
         # 기본 증가량
         increase = speed_ratio * self.base_rate
@@ -274,13 +287,35 @@ class ATBSystem:
         if not self.enabled:
             return
 
-        # 플레이어 턴 중에는 시간 정지 (ATB 증가 안 함)
+        bullet_time_multiplier = 1.0
+        # 플레이어 턴 중에는 불릿타임 적용 (ATB 증가 속도 감소)
         if is_player_turn:
-            return
+            difficulty = self.config.get("game.difficulty", "normal")
+            if difficulty == "easy":
+                bullet_time_multiplier = 0.003125  # 0.3125%
+            elif difficulty == "hard":
+                bullet_time_multiplier = 0.0125    # 1.25%
+            elif difficulty == "expert":
+                bullet_time_multiplier = 0.025     # 2.5%
+            else:
+                bullet_time_multiplier = 0.00625   # 0.625% (normal 등)
 
         # 캐스팅 시스템 가져오기
         from src.combat.casting_system import get_casting_system
         casting_system = get_casting_system()
+
+        # 살아있는 전투원들의 유효 속도 평균 계산 (상대값 기반)
+        alive_effective_speeds = []
+        for c, g in self.gauges.items():
+            if getattr(c, 'is_alive', True):
+                alive_effective_speeds.append(g.get_effective_speed())
+        avg_effective_speed = (
+            sum(alive_effective_speeds) / len(alive_effective_speeds)
+            if alive_effective_speeds else 1.0
+        )
+        # 안전 장치: 평균 속도가 0 이하면 1.0으로 보정
+        if avg_effective_speed <= 0:
+            avg_effective_speed = 1.0
 
         for combatant, gauge in self.gauges.items():
             # 죽은 캐릭터는 ATB 업데이트 건너뛰기
@@ -289,20 +324,22 @@ class ATBSystem:
                 # 죽은 캐릭터의 ATB는 0으로 유지
                 gauge.current = 0
                 continue
-            
+
             # 상태이상 효과가 반영된 속도 사용
             effective_speed = gauge.get_effective_speed()
 
-            # ATB 업데이트 속도를 1/10로 느리게 조정 (1/2로 감소)
-            increase = (effective_speed * delta_time) / 10.0
+            # 상대 속도 기반 ATB 증가량 = (유효 속도 / 평균 유효 속도) * base_rate
+            # 이렇게 하면 레벨이 올라도 전체적인 ATB 충전 속도가 일정하게 유지됨
+            speed_ratio = effective_speed / avg_effective_speed
+            increase = speed_ratio * self.base_rate * delta_time * bullet_time_multiplier
 
             # 캐스팅 중인지 확인
             is_casting = casting_system.is_casting(combatant)
             gauge.is_casting = is_casting
 
             if is_casting:
-                # 캐스팅 중이면 캐스팅 진행도 업데이트 (ATB는 증가하지 않음)
-                casting_system.update(combatant, int(increase))
+                # 캐스팅 중이면 캐스팅 진행도 업데이트 (ATB는 증가하지 않음, 소수점 유지)
+                casting_system.update(combatant, increase)
             else:
                 # 캐스팅 중이 아니면 항상 ATB 증가 (기절/수면 상태에서도 ATB는 증가해야 함)
                 # 기절이 풀리면 바로 행동할 수 있도록 ATB를 미리 채워둠
@@ -317,19 +354,25 @@ class ATBSystem:
 
     def get_action_order(self) -> List[Any]:
         """
-        행동 순서 가져오기 (ATB 게이지 기준 정렬)
+        행동 순서 가져오기 (공정한 라운드 로빈 정렬)
+
+        ATB가 threshold 이상인 캐릭터들 사이에서는 가장 오래 행동하지 않은
+        캐릭터가 먼저 행동합니다. 이를 통해 빠른 캐릭터가 오버슈트 차이로
+        항상 우선되는 기아(starvation) 문제를 방지합니다.
 
         Returns:
-            행동 가능한 전투원 리스트 (ATB 게이지 높은 순)
+            행동 가능한 전투원 리스트
         """
         ready_combatants = [
-            (combatant, gauge.current)
+            (combatant, gauge)
             for combatant, gauge in self.gauges.items()
             if gauge.can_act
         ]
 
-        # ATB 게이지가 높은 순으로 정렬
-        ready_combatants.sort(key=lambda x: x[1], reverse=True)
+        # 정렬 기준: last_acted_turn 오름차순 (오래 전에 행동한 캐릭터 우선)
+        # threshold 이상인 캐릭터들은 모두 행동 가능하므로, ATB 오버슈트 차이가
+        # 아닌 "누가 더 오래 기다렸는가"로 공정하게 순서 결정
+        ready_combatants.sort(key=lambda x: x[1].last_acted_turn)
 
         return [combatant for combatant, _ in ready_combatants]
 
@@ -347,6 +390,10 @@ class ATBSystem:
                 amount = self.threshold
 
             gauge.consume(amount)
+
+            # 라운드 로빈: 행동한 캐릭터에 현재 턴 카운터를 기록하고 증가
+            gauge.last_acted_turn = self._global_turn_counter
+            self._global_turn_counter += 1
 
             self.logger.debug(
                 f"ATB 소비: {getattr(combatant, 'name', 'Unknown')}",
@@ -482,6 +529,7 @@ class ATBSystem:
         self.gauges.clear()
         self.combatants.clear()
         self._average_speed = 0.0
+        self._global_turn_counter = 0
 
 
 # 전역 인스턴스
@@ -515,12 +563,13 @@ def get_atb_system() -> ATBSystem:
     if _atb_system is None:
         _atb_system = ATBSystem()
     else:
-        # 이미 멀티플레이 시스템이 설정되어 있으면 그대로 사용 (전투 중일 수 있음)
+        # 싱글플레이 모드: MultiplayerATBSystem이 남아 있으면 일반 시스템으로 교체
         try:
             from src.multiplayer.atb_multiplayer import MultiplayerATBSystem
             if isinstance(_atb_system, MultiplayerATBSystem):
-                # 멀티플레이 모드가 아니면 일반 시스템으로 교체하지 않음 (전투 중일 수 있음)
-                pass
+                _atb_system = ATBSystem()
+                logger = get_logger("atb")
+                logger.info("싱글플레이 전환: 일반 ATBSystem으로 교체")
         except ImportError:
             pass
     

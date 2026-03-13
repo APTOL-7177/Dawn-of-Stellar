@@ -1,0 +1,33 @@
+id: immortal_spirit
+name: 불멸의 투혼
+type: buff
+description: '[환호 80+ 필요] 불멸의 투혼을 발휘합니다.
+
+  3턴간 HP 1 이하로 떨어지지 않음.
+
+  3턴간 환호 감소 무효.
+
+  '
+target: self
+costs:
+  mp: 25
+metadata:
+  requires_cheer: 80
+effects:
+- type: buff
+  buff_id: immortal_spirit
+  duration: 3
+  effects:
+    undying: true
+    min_hp: 1
+    cheer_loss_immune: true
+animation:
+  icon: 💀
+  color:
+  - 100
+  - 0
+  - 100
+  screen_effect: immortal_aura
+sfx:
+- se
+- Up1

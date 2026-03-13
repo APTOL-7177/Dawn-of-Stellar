@@ -31,8 +31,8 @@ class CastingInfo:
     skill: Any  # 스킬
     target: Optional[Any]  # 대상
     cast_time_ratio: float  # ATB 비율 (0.0~1.0, 예: 0.3 = 30%)
-    required_atb: int = 0  # 필요한 ATB 포인트
-    accumulated_atb: int = 0  # 축적된 ATB 포인트
+    required_atb: float = 0.0  # 필요한 ATB 포인트
+    accumulated_atb: float = 0.0  # 축적된 ATB 포인트
     state: CastingState = CastingState.CASTING
     interruptible: bool = True  # 중단 가능 여부
     parry_success: bool = False  # 패링 성공 여부
@@ -64,7 +64,7 @@ class CastingSystem:
         skill: Any,
         target: Optional[Any],
         cast_time_ratio: float,
-        atb_threshold: int = 1000,
+        atb_threshold: float = 1000.0,
         interruptible: bool = True
     ) -> CastingInfo:
         """
@@ -86,7 +86,7 @@ class CastingSystem:
             self.cancel_cast(caster, "새로운 시전 시작")
 
         # 필요한 ATB 포인트 계산 (ATB 비율 * 임계값)
-        required_atb = int(cast_time_ratio * atb_threshold)
+        required_atb = cast_time_ratio * atb_threshold
 
         # 기믹 값 스냅샷 생성 (스킬 효과 계산 시 사용)
         snapshot = {}
@@ -143,7 +143,7 @@ class CastingSystem:
 
         return cast_info
 
-    def update(self, caster: Any, atb_increase: int):
+    def update(self, caster: Any, atb_increase: float):
         """
         특정 시전자의 캐스팅 업데이트 (ATB 기반)
 

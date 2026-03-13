@@ -84,15 +84,17 @@ class ItemAffix:
         grade = ""
         if self.is_percentage:
             val = self.value * 100
-            if val >= 20: grade = "(S)"
-            elif val >= 15: grade = "(A)"
-            elif val >= 10: grade = "(B)"
+            abs_val = abs(val)
+            if abs_val >= 20: grade = "(S)"
+            elif abs_val >= 15: grade = "(A)"
+            elif abs_val >= 10: grade = "(B)"
             else: grade = "(C)"
-            return f"{display_stat} +{int(val)}% {grade}"
+            sign = "+" if val >= 0 else ""
+            return f"{display_stat} {sign}{int(val)}% {grade}"
         else:
             # 고정값은 스탯 종류에 따라 기준이 다름 (대략적인 구분)
-            grade = ""
-            return f"{display_stat} +{int(self.value)}"
+            sign = "+" if self.value >= 0 else ""
+            return f"{display_stat} {sign}{int(self.value)}"
 
 
 @dataclass
@@ -160,7 +162,8 @@ class Item:
         if self.base_stats:
             lines.append("기본 능력:")
             for stat, value in self.base_stats.items():
-                lines.append(f"  {stat}: +{int(value)}")
+                sign = "+" if value >= 0 else ""
+                lines.append(f"  {stat}: {sign}{int(value)}")
 
         # 접사
         if self.affixes:
@@ -196,6 +199,7 @@ class Consumable(Item):
     """소비 아이템"""
     effect_type: str = "heal_hp"  # heal_hp, heal_mp, buff, etc.
     effect_value: float = 0
+    duration: int = 0  # 버프 지속시간 (턴)
 
     def __post_init__(self):
         self.item_type = ItemType.CONSUMABLE
@@ -2363,6 +2367,362 @@ WEAPON_TEMPLATES = {
         "unique_effect": "status_freeze:0.50|ice_damage:0.45|slow:0.40",
         "sell_price": 24000
     },
+
+    # ============================================================
+    # === 새로운 무기 - 유명 게임/세계관 오마주 ===
+    # ============================================================
+
+    # --- Dark Souls / Elden Ring ---
+    "moonveil_katana": {
+        "name": "달빛 베일 카타나",
+        "description": "달빛의 마력이 깃든 카타나",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 10,
+        "base_stats": {"physical_attack": 62, "magic_attack": 55, "speed": 5},
+        "unique_effect": "critical_chance:0.20|spell_power:0.15|status_shock:0.10",
+        "sell_price": 15000
+    },
+    "rivers_of_blood": {
+        "name": "피의 강 카타나",
+        "description": "출혈을 일으키는 저주받은 도",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"physical_attack": 72, "speed": 8},
+        "unique_effect": "lifesteal:0.12|status_bleed:0.30|multi_strike:0.15",
+        "sell_price": 18000
+    },
+    "blasphemous_blade": {
+        "name": "모독의 검",
+        "description": "신을 모독한 자의 검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"physical_attack": 78, "magic_attack": 30},
+        "unique_effect": "lifesteal:0.15|on_kill_heal:50|status_burn:0.20",
+        "sell_price": 20000
+    },
+    "hand_of_malenia": {
+        "name": "말레니아의 의수검",
+        "description": "부패의 여신이 휘두르던 검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 13,
+        "base_stats": {"physical_attack": 85, "speed": 10, "accuracy": 12},
+        "unique_effect": "lifesteal:0.10|multi_strike:0.25|critical_chance:0.15",
+        "sell_price": 25000
+    },
+    "greatsword_of_radahn": {
+        "name": "라단의 대검",
+        "description": "별을 멈춘 장군의 대검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"physical_attack": 95, "strength": 10},
+        "unique_effect": "earthquake:0.20|physical_penetration:0.20|execute:0.25",
+        "sell_price": 22000
+    },
+
+    # --- Monster Hunter ---
+    "rathalos_firesword": {
+        "name": "리오레우스 화염검",
+        "description": "화룡의 비늘로 만든 대검",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 8,
+        "base_stats": {"physical_attack": 65, "strength": 5},
+        "unique_effect": "status_burn:0.25|fire_mastery:0.15",
+        "sell_price": 8000
+    },
+    "diablos_shatterer": {
+        "name": "디아블로스 분쇄기",
+        "description": "각룡의 뿔로 만든 둔기",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 9,
+        "base_stats": {"physical_attack": 78, "strength": 8},
+        "unique_effect": "physical_penetration:0.20|stun_chance:0.15",
+        "sell_price": 9000
+    },
+    "fatalis_darkblade": {
+        "name": "미라보레아스 흑룡검",
+        "description": "전설의 흑룡으로 만든 검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 14,
+        "base_stats": {"physical_attack": 100, "magic_attack": 25, "strength": 12},
+        "unique_effect": "all_damage:0.20|critical_damage:0.30|berserk:0.25",
+        "sell_price": 30000
+    },
+
+    # --- Diablo ---
+    "windforce_bow": {
+        "name": "윈드포스",
+        "description": "바람의 힘이 깃든 전설의 활",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 10,
+        "base_stats": {"physical_attack": 70, "speed": 7, "accuracy": 15},
+        "unique_effect": "multi_strike:0.20|critical_chance:0.15|debuff_slow:0.10",
+        "sell_price": 16000
+    },
+    "doombringer_sword": {
+        "name": "둠브링어",
+        "description": "파멸을 부르는 악마의 검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"physical_attack": 80, "hp": 50},
+        "unique_effect": "lifesteal:0.15|all_damage:0.15|on_kill_heal:30",
+        "sell_price": 19000
+    },
+    "wizardspike_dagger": {
+        "name": "위저드스파이크",
+        "description": "마력을 증폭시키는 마법 단검",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 7,
+        "base_stats": {"magic_attack": 52, "mp": 40, "speed": 5},
+        "unique_effect": "mp_regen:8|spell_power:0.20|mp_cost_reduction:0.15",
+        "sell_price": 7000
+    },
+    "grandfather_sword": {
+        "name": "그랜드파더",
+        "description": "고대의 장검 중 최고",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 13,
+        "base_stats": {"physical_attack": 92, "hp": 80, "strength": 8},
+        "unique_effect": "all_damage:0.20|critical_damage:0.35|lifesteal:0.08",
+        "sell_price": 28000
+    },
+
+    # --- League of Legends ---
+    "blade_of_ruined_king": {
+        "name": "몰락한 왕의 검",
+        "description": "왕의 몰락과 함께 저주받은 검",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 7,
+        "base_stats": {"physical_attack": 50, "speed": 6},
+        "unique_effect": "lifesteal:0.10|execute:0.20|debuff_slow:0.15",
+        "sell_price": 6500
+    },
+    "rabadons_deathcap": {
+        "name": "라바돈의 죽음모자",
+        "description": "마법사의 최강 모자... 지팡이로 개조",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 10,
+        "base_stats": {"magic_attack": 85, "mp": 50},
+        "unique_effect": "spell_power:0.35|critical_damage:0.25",
+        "sell_price": 14000
+    },
+    "duskblade_of_draktharr": {
+        "name": "드락사르의 황혼검",
+        "description": "어둠 속에서 빛나는 암살자의 검",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 8,
+        "base_stats": {"physical_attack": 58, "speed": 5},
+        "unique_effect": "backstab:0.30|stealth:0.15|execute:0.20",
+        "sell_price": 7500
+    },
+    "kraken_slayer_bow": {
+        "name": "크라켄 학살자",
+        "description": "바다 괴물도 쓰러뜨리는 활",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 9,
+        "base_stats": {"physical_attack": 60, "speed": 8, "accuracy": 10},
+        "unique_effect": "triple_shot:3|critical_chance:0.15|physical_penetration:0.10",
+        "sell_price": 8500
+    },
+
+    # --- WoW ---
+    "ashbringer_holy": {
+        "name": "잿빛가져오는자",
+        "description": "은빛 십자군의 성검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"physical_attack": 82, "magic_attack": 30, "hp": 40},
+        "unique_effect": "holy_damage:1.0|bonus_vs_undead:0.50|on_kill_heal:40",
+        "sell_price": 22000
+    },
+    "sulfuras_hammer": {
+        "name": "설퍼라스 - 라그나로스의 손",
+        "description": "불의 군주의 대망치",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 13,
+        "base_stats": {"physical_attack": 90, "strength": 12},
+        "unique_effect": "status_burn:0.30|fire_explosion:0.20|fire_mastery:0.25",
+        "sell_price": 26000
+    },
+    "thunderfury_blade": {
+        "name": "천둥분노 - 바람추적자의 축복받은 검",
+        "description": "바람의 원소가 깃든 전설의 검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"physical_attack": 75, "speed": 10, "accuracy": 12},
+        "unique_effect": "chain_lightning:0.40|status_shock:0.25|debuff_slow:0.15",
+        "sell_price": 24000
+    },
+    "warglaive_of_azzinoth": {
+        "name": "아지노스의 전투검",
+        "description": "일리단의 쌍검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 13,
+        "base_stats": {"physical_attack": 70, "speed": 12, "accuracy": 15},
+        "unique_effect": "double_strike:2|lifesteal:0.08|critical_chance:0.20",
+        "sell_price": 25000
+    },
+
+    # --- Genshin Impact ---
+    "engulfing_lightning": {
+        "name": "예초의 번개",
+        "description": "라이덴 쇼군의 장병기",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"physical_attack": 60, "magic_attack": 55, "mp": 30},
+        "unique_effect": "mp_to_damage:0.20|status_shock:0.20|gimmick_boost:0.15",
+        "sell_price": 18000
+    },
+    "staff_of_homa": {
+        "name": "호마의 지팡이",
+        "description": "어둠의 불꽃이 깃든 창",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"physical_attack": 72, "hp": 40},
+        "unique_effect": "berserk:0.30|critical_damage:0.25|status_burn:0.15",
+        "sell_price": 17000
+    },
+    "primordial_jade_cutter": {
+        "name": "반암결록",
+        "description": "옥으로 만든 고대의 검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 10,
+        "base_stats": {"physical_attack": 65, "hp": 60, "accuracy": 10},
+        "unique_effect": "critical_chance:0.30|hp_regen:0.02|all_damage:0.12",
+        "sell_price": 16000
+    },
+
+    # --- Undertale / Indie ---
+    "real_knife": {
+        "name": "진정한 나이프",
+        "description": "결의로 가득 찬 칼",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 10,
+        "base_stats": {"physical_attack": 75, "speed": 5},
+        "unique_effect": "execute:0.35|critical_damage:0.30",
+        "sell_price": 10000
+    },
+    "galaxy_hammer": {
+        "name": "은하수 망치",
+        "description": "스타듀밸리 최강의 망치",
+        "rarity": ItemRarity.RARE,
+        "level_requirement": 5,
+        "base_stats": {"physical_attack": 42, "strength": 5},
+        "unique_effect": "stun_chance:0.15|critical_chance:0.10",
+        "sell_price": 3000
+    },
+
+    # --- 북유럽 신화 ---
+    "tyrfing_cursed": {
+        "name": "티르핑",
+        "description": "반드시 피를 보아야 칼집에 돌아가는 저주받은 검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"physical_attack": 88, "accuracy": 20},
+        "unique_effect": "critical_chance:0.25|lifesteal:0.10|berserk:0.20",
+        "sell_price": 19000
+    },
+    "dainsleif_sword": {
+        "name": "다인슬레이프",
+        "description": "칼집에서 빼면 반드시 죽이는 마검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"physical_attack": 92, "accuracy": 18},
+        "unique_effect": "execute:0.40|physical_penetration:0.25|on_kill_heal:35",
+        "sell_price": 21000
+    },
+
+    # --- 그리스 신화 ---
+    "poseidon_trident": {
+        "name": "포세이돈의 삼지창",
+        "description": "바다의 신이 휘두르는 삼지창",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"physical_attack": 80, "magic_attack": 35, "accuracy": 12},
+        "unique_effect": "ice_storm:0.20|chain_lightning:0.15|triple_shot:3",
+        "sell_price": 23000
+    },
+    "apollo_bow": {
+        "name": "아폴론의 은궁",
+        "description": "태양신의 빛나는 활",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"physical_attack": 68, "magic_attack": 30, "accuracy": 20},
+        "unique_effect": "holy_damage:1.0|critical_chance:0.20|heal_on_hit:15",
+        "sell_price": 18000
+    },
+
+    # --- Hades (게임) ---
+    "stygius_blade": {
+        "name": "스티기우스",
+        "description": "명계의 검",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 8,
+        "base_stats": {"physical_attack": 58, "speed": 6},
+        "unique_effect": "lifesteal:0.08|multi_strike:0.15|on_kill_heal:20",
+        "sell_price": 7000
+    },
+    "coronacht_bow": {
+        "name": "코로나크트",
+        "description": "심장을 꿰뚫는 명계의 활",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 8,
+        "base_stats": {"physical_attack": 52, "speed": 8, "accuracy": 15},
+        "unique_effect": "critical_chance:0.20|headshot:0.15|multi_strike:0.10",
+        "sell_price": 7000
+    },
+
+    # --- Terraria ---
+    "terra_blade": {
+        "name": "테라 블레이드",
+        "description": "빛과 어둠의 힘이 합쳐진 검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"physical_attack": 80, "magic_attack": 35},
+        "unique_effect": "chain_lightning:0.25|all_damage:0.15|holy_damage:1.0",
+        "sell_price": 20000
+    },
+    "zenith_sword": {
+        "name": "제니스",
+        "description": "모든 검의 정점",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 15,
+        "base_stats": {"physical_attack": 110, "magic_attack": 50, "speed": 10},
+        "unique_effect": "multi_strike:0.30|all_damage:0.25|critical_chance:0.20",
+        "sell_price": 50000
+    },
+
+    # --- Hollow Knight ---
+    "pure_nail": {
+        "name": "순수한 못",
+        "description": "할로우네스트 최강의 무기",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 9,
+        "base_stats": {"physical_attack": 60, "speed": 8},
+        "unique_effect": "critical_chance:0.15|multi_strike:0.10|hp_regen:0.02",
+        "sell_price": 8000
+    },
+
+    # --- 중국 신화 ---
+    "ruyi_jingu_bang": {
+        "name": "여의봉",
+        "description": "손오공의 변환 무기",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"physical_attack": 85, "magic_attack": 25, "strength": 10},
+        "unique_effect": "multi_strike:0.20|stun_chance:0.20|physical_penetration:0.15",
+        "sell_price": 22000
+    },
+
+    # --- 일본 신화 ---
+    "ame_no_murakumo": {
+        "name": "아메노무라쿠모",
+        "description": "야마타노오로치에서 얻은 천상의 검",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 13,
+        "base_stats": {"physical_attack": 90, "magic_attack": 30, "speed": 6},
+        "unique_effect": "tornado:0.20|critical_damage:0.30|dodge_chance:0.10",
+        "sell_price": 25000
+    },
 }
 
 
@@ -3750,6 +4110,179 @@ ARMOR_TEMPLATES = {
         "unique_effect": "all_resist:0.50|hp_regen:0.06|mp_regen:15",
         "sell_price": 65000
     },
+
+    # ============================================================
+    # === 새로운 방어구 - 유명 게임/세계관 오마주 ===
+    # ============================================================
+
+    # --- Dark Souls / Elden Ring ---
+    "radahn_armor": {
+        "name": "별의 장군 갑옷",
+        "description": "성궤의 장군 라단의 갑옷",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"physical_defense": 45, "magic_defense": 30, "hp": 80, "strength": 5},
+        "unique_effect": "thorns:0.15|physical_penetration:0.10|berserk:0.15",
+        "sell_price": 20000
+    },
+    "cleanrot_armor": {
+        "name": "부패 기사의 갑옷",
+        "description": "말레니아를 따르는 부패 기사의 갑옷",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 10,
+        "base_stats": {"physical_defense": 38, "magic_defense": 28, "hp": 50},
+        "unique_effect": "poison_immunity|hp_regen:0.03|status_resistance:0.20",
+        "sell_price": 12000
+    },
+    "crucible_tree_armor": {
+        "name": "도가니 기사 갑옷",
+        "description": "원시의 힘이 깃든 갑옷",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"physical_defense": 42, "magic_defense": 35, "hp": 70},
+        "unique_effect": "thorns:0.20|counter_attack:0.15|hp_regen:0.02",
+        "sell_price": 18000
+    },
+
+    # --- Monster Hunter ---
+    "rathalos_armor": {
+        "name": "리오레우스 갑옷",
+        "description": "화룡의 비늘로 만든 갑옷",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 8,
+        "base_stats": {"physical_defense": 35, "magic_defense": 20, "hp": 40},
+        "unique_effect": "burn_immunity|critical_chance:0.10|fire_mastery:0.15",
+        "sell_price": 7500
+    },
+    "fatalis_armor": {
+        "name": "미라보레아스 갑옷",
+        "description": "전설의 흑룡으로 만든 최강 갑옷",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 14,
+        "base_stats": {"physical_defense": 50, "magic_defense": 45, "hp": 100, "strength": 5, "speed": 3},
+        "unique_effect": "all_resist:0.20|critical_damage:0.20|all_damage:0.10",
+        "sell_price": 35000
+    },
+
+    # --- Diablo ---
+    "tyrael_valor_armor": {
+        "name": "티리엘의 용기",
+        "description": "대천사 티리엘의 성스러운 갑옷",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 13,
+        "base_stats": {"physical_defense": 42, "magic_defense": 42, "hp": 90, "speed": 5},
+        "unique_effect": "holy_protection:1.0|hp_regen:0.04|status_immunity:1.0",
+        "sell_price": 28000
+    },
+    "tal_rasha_robe": {
+        "name": "탈 라샤의 봉인",
+        "description": "위대한 마법사의 로브",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"magic_defense": 40, "mp": 60, "magic_attack": 15},
+        "unique_effect": "elemental_mastery:0.25|spell_power:0.20|mp_regen:8",
+        "sell_price": 18000
+    },
+
+    # --- WoW ---
+    "tier_judgment_armor": {
+        "name": "심판의 갑옷",
+        "description": "팔라딘의 전설적 갑옷",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"physical_defense": 44, "magic_defense": 38, "hp": 80, "mp": 30},
+        "unique_effect": "holy_protection:1.0|heal_boost:0.20|thorns:0.10",
+        "sell_price": 22000
+    },
+    "bloodfang_armor": {
+        "name": "혈아 갑옷",
+        "description": "도적의 전설적 가죽 갑옷",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"physical_defense": 30, "hp": 40, "speed": 10, "accuracy": 8},
+        "unique_effect": "dodge_chance:0.20|critical_chance:0.15|backstab_damage:0.25",
+        "sell_price": 19000
+    },
+
+    # --- LoL ---
+    "gargoyle_stoneplate": {
+        "name": "가고일 돌갑옷",
+        "description": "석화된 가고일의 판금 갑옷",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 9,
+        "base_stats": {"physical_defense": 40, "magic_defense": 40, "hp": 50},
+        "unique_effect": "damage_reduction:0.15|thorns:0.10|tank:0.20",
+        "sell_price": 9000
+    },
+    "zhonyas_hourglass_armor": {
+        "name": "존야의 모래시계 갑옷",
+        "description": "시간을 멈추는 마법이 깃든 로브",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 8,
+        "base_stats": {"magic_defense": 35, "mp": 40, "magic_attack": 10},
+        "unique_effect": "spell_power:0.15|dodge_chance:0.15|status_resistance:0.20",
+        "sell_price": 8000
+    },
+
+    # --- Genshin Impact ---
+    "archon_war_armor": {
+        "name": "마신전쟁 갑옷",
+        "description": "고대 마신전쟁 시대의 갑옷",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"physical_defense": 45, "magic_defense": 40, "hp": 75},
+        "unique_effect": "elemental_mastery:0.20|all_resist:0.15|counter_attack:0.10",
+        "sell_price": 22000
+    },
+
+    # --- Terraria ---
+    "solar_flare_armor": {
+        "name": "태양 플레어 갑옷",
+        "description": "태양의 힘이 깃든 갑옷",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 13,
+        "base_stats": {"physical_defense": 50, "hp": 80, "strength": 8},
+        "unique_effect": "thorns:0.25|berserk:0.20|burn_immunity",
+        "sell_price": 25000
+    },
+    "nebula_armor": {
+        "name": "성운 갑옷",
+        "description": "우주의 마력이 깃든 로브",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 13,
+        "base_stats": {"magic_defense": 45, "mp": 70, "magic_attack": 20},
+        "unique_effect": "spell_power:0.25|mp_regen:10|spell_echo:0.10",
+        "sell_price": 25000
+    },
+
+    # --- 신화/전설 ---
+    "golden_fleece": {
+        "name": "황금 양모",
+        "description": "이아손이 찾은 전설의 황금 양모",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 10,
+        "base_stats": {"physical_defense": 35, "magic_defense": 35, "hp": 60, "mp": 30},
+        "unique_effect": "gold_find:0.50|hp_regen:0.04|status_resistance:0.25",
+        "sell_price": 20000
+    },
+    "nemean_lion_hide": {
+        "name": "네메아의 사자 가죽",
+        "description": "헤라클레스가 퇴치한 사자의 가죽",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"physical_defense": 48, "hp": 70, "strength": 6},
+        "unique_effect": "damage_reduction:0.20|thorns:0.15|physical_penetration:0.10",
+        "sell_price": 18000
+    },
+    "draupnir_chainmail": {
+        "name": "드라우프니르 쇄갑",
+        "description": "오딘의 반지에서 영감을 받은 갑옷",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 9,
+        "base_stats": {"physical_defense": 36, "magic_defense": 25, "hp": 45},
+        "unique_effect": "gold_find:0.30|hp_regen:0.03|wound_reduction:0.20",
+        "sell_price": 10000
+    },
 }
 
 
@@ -4355,7 +4888,7 @@ ACCESSORY_TEMPLATES = {
                 "rarity": ItemRarity.LEGENDARY,
         "level_requirement": 13,
         "base_stats": {"hp": 130, "mp": 195, "all_stats": 13},
-        "unique_effect": "infinite_resources|hp_regen:0.05|mp_cost:0",
+        "unique_effect": "infinite_resources|hp_regen:0.05|mp_cost_reduction:0.30",
         "sell_price": 20000
     },
     "omniscient_eye": {
@@ -5357,6 +5890,195 @@ ACCESSORY_TEMPLATES = {
         "unique_effect": "all_damage:0.55|all_resist:0.45|hp_regen:0.05",
         "sell_price": 70000
     },
+
+    # ============================================================
+    # === 새로운 액세서리 - 유명 게임/세계관 오마주 ===
+    # ============================================================
+
+    # --- Dark Souls / Elden Ring ---
+    "havel_ring": {
+        "name": "하벨의 반지",
+        "description": "바위의 하벨이 착용한 반지",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 8,
+        "base_stats": {"hp": 40, "physical_defense": 10},
+        "unique_effect": "tank:0.15|block_chance:0.10",
+        "sell_price": 6000
+    },
+    "ring_of_favor": {
+        "name": "총애의 반지",
+        "description": "여신의 총애가 깃든 반지",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 7,
+        "base_stats": {"hp": 30, "mp": 15, "speed": 3},
+        "unique_effect": "hp_regen:0.02|mp_regen:3|dodge_chance:0.05",
+        "sell_price": 5500
+    },
+    "erdtree_talisman": {
+        "name": "황금률의 부적",
+        "description": "엘든 링의 축복이 깃든 부적",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 10,
+        "base_stats": {"hp": 50, "mp": 30},
+        "unique_effect": "heal_boost:0.25|hp_regen:0.03|holy_protection:1.0",
+        "sell_price": 14000
+    },
+    "shard_of_alexander": {
+        "name": "알렉산더의 파편",
+        "description": "전사 항아리의 파편",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 10,
+        "base_stats": {"strength": 8, "physical_attack": 15},
+        "unique_effect": "skill_power:0.20|critical_damage:0.15",
+        "sell_price": 13000
+    },
+
+    # --- Diablo ---
+    "stone_of_jordan": {
+        "name": "요르단의 돌",
+        "description": "전설적인 마법 반지",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 10,
+        "base_stats": {"magic_attack": 20, "mp": 40},
+        "unique_effect": "spell_power:0.25|mp_cost_reduction:0.15|elemental_mastery:0.15",
+        "sell_price": 15000
+    },
+    "hellfire_amulet": {
+        "name": "지옥불 아뮬렛",
+        "description": "지옥의 불꽃이 타오르는 목걸이",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"physical_attack": 15, "magic_attack": 15, "hp": 30},
+        "unique_effect": "status_burn:0.15|fire_mastery:0.20|critical_chance:0.10",
+        "sell_price": 16000
+    },
+
+    # --- LoL ---
+    "guardian_angel_wing": {
+        "name": "수호천사의 날개",
+        "description": "한 번의 부활 기회를 주는 날개",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 9,
+        "base_stats": {"physical_defense": 10, "magic_defense": 10, "hp": 30},
+        "unique_effect": "phoenix:0.50|heal_boost:0.10",
+        "sell_price": 8000
+    },
+    "mejais_soulstealer": {
+        "name": "메자이의 영혼약탈자",
+        "description": "적을 처치할수록 강해지는 책",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 7,
+        "base_stats": {"magic_attack": 20, "mp": 25},
+        "unique_effect": "on_kill_heal:25|spell_power:0.15|exp_bonus:0.20",
+        "sell_price": 5500
+    },
+
+    # --- WoW ---
+    "sulfuron_signet": {
+        "name": "설퍼론 인장",
+        "description": "라그나로스의 힘이 깃든 반지",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"physical_attack": 12, "magic_attack": 12, "hp": 35},
+        "unique_effect": "status_burn:0.20|fire_mastery:0.15|lifesteal:0.08",
+        "sell_price": 18000
+    },
+    "onyxia_pendant": {
+        "name": "오닉시아의 고리",
+        "description": "검은 용의 여왕이 남긴 목걸이",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"magic_defense": 20, "hp": 50, "mp": 25},
+        "unique_effect": "all_resist:0.15|status_resistance:0.20|fire_resist:0.20",
+        "sell_price": 16000
+    },
+
+    # --- Genshin Impact ---
+    "gnosis_earring": {
+        "name": "신의 눈 귀걸이",
+        "description": "원소 반응을 강화하는 귀걸이",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 8,
+        "base_stats": {"magic_attack": 15, "mp": 20},
+        "unique_effect": "elemental_mastery:0.20|spell_echo:0.10",
+        "sell_price": 7000
+    },
+
+    # --- 신화/전설 ---
+    "ring_of_gyges": {
+        "name": "기게스의 반지",
+        "description": "투명해지는 전설의 반지",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 10,
+        "base_stats": {"speed": 8, "evasion": 10},
+        "unique_effect": "dodge_chance:0.25|stealth:0.20|first_strike:1.0",
+        "sell_price": 15000
+    },
+    "tarnhelm": {
+        "name": "타른헬름",
+        "description": "니벨룽의 투구 - 변신과 투명의 마법",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 11,
+        "base_stats": {"magic_defense": 15, "speed": 6, "evasion": 8},
+        "unique_effect": "dodge_chance:0.20|stealth_bonus:0.15|counter_attack:0.10",
+        "sell_price": 16000
+    },
+    "ankh_of_rebirth": {
+        "name": "부활의 앙크",
+        "description": "이집트의 생명의 상징",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 8,
+        "base_stats": {"hp": 40, "mp": 20},
+        "unique_effect": "phoenix:0.75|hp_regen:0.03|heal_boost:0.15",
+        "sell_price": 8000
+    },
+    "yata_mirror": {
+        "name": "야타의 거울",
+        "description": "일본 삼종신기 중 하나",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"magic_defense": 25, "hp": 45, "mp": 30},
+        "unique_effect": "debuff_reflect:0.30|spell_reflect:0.15|status_resistance:0.20",
+        "sell_price": 20000
+    },
+    "nibelung_ring": {
+        "name": "니벨룽의 반지",
+        "description": "라인강의 황금으로 만든 전능의 반지",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 13,
+        "base_stats": {"physical_attack": 10, "magic_attack": 10, "hp": 30, "mp": 30},
+        "unique_effect": "all_damage:0.15|gold_find:0.50|berserk:0.15",
+        "sell_price": 25000
+    },
+    "cloak_of_invisibility": {
+        "name": "투명망토",
+        "description": "죽음의 세 번째 선물",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 10,
+        "base_stats": {"speed": 5, "evasion": 12},
+        "unique_effect": "dodge_chance:0.30|stealth:0.25|first_strike:1.0",
+        "sell_price": 18000
+    },
+    "elder_wand_charm": {
+        "name": "딱총나무 지팡이 부적",
+        "description": "죽음의 첫 번째 선물의 파편",
+        "rarity": ItemRarity.LEGENDARY,
+        "level_requirement": 12,
+        "base_stats": {"magic_attack": 25, "mp": 35},
+        "unique_effect": "spell_power:0.30|spell_echo:0.15|critical_damage:0.20",
+        "sell_price": 22000
+    },
+
+    # --- Hollow Knight ---
+    "charm_of_grimmchild": {
+        "name": "그림 차일드 부적",
+        "description": "그림 일족의 불꽃 정령",
+        "rarity": ItemRarity.EPIC,
+        "level_requirement": 7,
+        "base_stats": {"magic_attack": 12, "mp": 15},
+        "unique_effect": "status_burn:0.15|spell_power:0.10|mp_regen:3",
+        "sell_price": 5000
+    },
 }
 
 
@@ -5364,43 +6086,80 @@ ACCESSORY_TEMPLATES = {
 UNIQUE_ITEMS = {
     "excalibur": {
         "name": "엑스칼리버",
-        "description": "",
-                "rarity": ItemRarity.UNIQUE,
+        "description": "아서왕의 전설적 성검",
+        "rarity": ItemRarity.UNIQUE,
         "level_requirement": 13,
         "base_stats": {"physical_attack": 98, "magic_attack": 32, "hp": 65, "mp": 32},
-        "unique_effect": "HP 50% 이상 시 모든 공격력 +30%",
+        "unique_effect": "all_damage:0.30|holy_damage:1.0|hp_regen:0.05",
         "sell_price": 99999
     },
     "mjolnir": {
         "name": "묠니르",
-        "description": "",
-                "rarity": ItemRarity.UNIQUE,
+        "description": "천둥의 신 토르의 망치",
+        "rarity": ItemRarity.UNIQUE,
         "level_requirement": 9,
         "base_stats": {"physical_attack": 91, "strength": 13},
-        "unique_effect": "공격 시 30% 확률로 번개 추가 데미지",
+        "unique_effect": "chain_lightning:0.30|stun_chance:0.15|status_shock:0.25",
         "sell_price": 88888
     },
     "infinity_gauntlet": {
         "name": "무한의 건틀릿",
-        "description": "",
-                "rarity": ItemRarity.UNIQUE,
+        "description": "우주의 힘이 깃든 건틀릿",
+        "rarity": ItemRarity.UNIQUE,
         "level_requirement": 15,
         "base_stats": {
             "physical_attack": 32, "magic_attack": 32,
             "physical_defense": 20, "magic_defense": 20,
             "hp": 130, "mp": 65
         },
-        "unique_effect": "모든 스탯 +10%",
+        "unique_effect": "all_damage:0.10|all_resist:0.10|critical_chance:0.10|dodge_chance:0.10",
         "sell_price": 150000
     },
     "phoenix_feather": {
         "name": "불사조의 깃털",
-        "description": "",
-                "rarity": ItemRarity.UNIQUE,
+        "description": "불사조의 불멸의 깃털",
+        "rarity": ItemRarity.UNIQUE,
         "level_requirement": 6,
         "base_stats": {"hp": 98, "magic_defense": 26},
-        "unique_effect": "전투 중 1회 사망 시 HP 100%로 부활",
+        "unique_effect": "phoenix:1.0|hp_regen:0.03|burn_immunity",
         "sell_price": 50000
+    },
+    # === 새로운 유니크 무기 ===
+    "zantetsuken": {
+        "name": "참철검",
+        "description": "오딘의 일도양단 검",
+        "rarity": ItemRarity.UNIQUE,
+        "level_requirement": 14,
+        "base_stats": {"physical_attack": 105, "speed": 8, "accuracy": 15},
+        "unique_effect": "execute:0.50|critical_damage:0.40|first_strike:1.0",
+        "sell_price": 120000
+    },
+    "longinus_spear": {
+        "name": "롱기누스의 창",
+        "description": "신을 꿰뚫은 성창",
+        "rarity": ItemRarity.UNIQUE,
+        "level_requirement": 15,
+        "base_stats": {"physical_attack": 110, "magic_attack": 45, "accuracy": 20},
+        "unique_effect": "physical_penetration:0.35|magic_penetration:0.35|holy_damage:1.0",
+        "sell_price": 160000
+    },
+    "pandoras_box": {
+        "name": "판도라의 상자",
+        "description": "세계의 모든 재앙이 담긴 상자",
+        "rarity": ItemRarity.UNIQUE,
+        "level_requirement": 12,
+        "base_stats": {"magic_attack": 88, "mp": 60},
+        "unique_effect": "spell_echo:0.25|chain_lightning:0.30|status_burn:0.20|debuff_slow:0.20",
+        "sell_price": 100000
+    },
+    "aegis_shield": {
+        "name": "아이기스의 방패",
+        "description": "아테나의 신성한 방패",
+        "rarity": ItemRarity.UNIQUE,
+        "level_requirement": 11,
+        "base_stats": {"physical_defense": 45, "magic_defense": 45, "hp": 120},
+        "unique_effect": "thorns:0.25|block_chance:0.30|status_immunity:1.0",
+        "sell_price": 95000
     },
 }
 
@@ -5511,7 +6270,16 @@ class ItemGenerator:
             available_affixes.append(affix)
         
         selected_base = random.sample(available_affixes, min(count, len(available_affixes)))
-        
+
+        # 같은 stat 옵션 중복 방지 - stat 기준으로 필터링
+        seen_stats = set()
+        unique_selected = []
+        for affix in selected_base:
+            if affix.stat not in seen_stats:
+                seen_stats.add(affix.stat)
+                unique_selected.append(affix)
+        selected_base = unique_selected
+
         final_affixes = []
         for base_affix in selected_base:
             # 레벨에 따른 수치 보정 (기본값 + 레벨 * 계수)
@@ -5726,6 +6494,7 @@ class ItemGenerator:
             rarity=template["rarity"],
             effect_type=template["effect_type"],
             effect_value=template["effect_value"],
+            duration=template.get("duration", 0),
             sell_price=template["sell_price"],
             weight=weight
         )
@@ -5793,6 +6562,10 @@ class ItemGenerator:
         # 레벨과 등급에 맞는 템플릿 필터링
         filtered_templates = []
         for template_id, template in all_templates.items():
+            # 연금술 전용 등 판매 가격이 0 이하인 아이템은 드롭에서 제외
+            if template.get("sell_price", 0) <= 0:
+                continue
+
             template_rarity = template.get("rarity", ItemRarity.COMMON)
             template_level = template.get("level_requirement", 1)
             
@@ -5803,6 +6576,8 @@ class ItemGenerator:
         # 필터링된 템플릿이 없으면 등급만 맞는 템플릿 선택
         if not filtered_templates:
             for template_id, template in all_templates.items():
+                if template.get("sell_price", 0) <= 0:
+                    continue
                 template_rarity = template.get("rarity", ItemRarity.COMMON)
                 if template_rarity == chosen_rarity:
                     filtered_templates.append((template_id, template))
@@ -5810,6 +6585,8 @@ class ItemGenerator:
         # 여전히 없으면 COMMON 등급 템플릿 선택
         if not filtered_templates:
             for template_id, template in all_templates.items():
+                if template.get("sell_price", 0) <= 0:
+                    continue
                 template_level = template.get("level_requirement", 1)
                 if template_level <= level:
                     filtered_templates.append((template_id, template))
@@ -5883,7 +6660,6 @@ CONSUMABLE_TEMPLATES = {
     # === 특수 아이템 ===
     "phoenix_down": {"name": "불사조의 깃털", "description": "쓰러진 아군을 HP 50%로 부활.", "effect_type": "revive", "effect_value": 0.5, "rarity": ItemRarity.EPIC, "stack_size": 10, "sell_price": 1000},
     "mega_phoenix": {"name": "메가 불사조의 깃털", "description": "쓰러진 아군을 HP 100%로 부활.", "effect_type": "revive_full", "effect_value": 1.0, "rarity": ItemRarity.LEGENDARY, "stack_size": 5, "sell_price": 5000},
-    "warp_stone": {"name": "귀환석", "description": "마을로 즉시 귀환합니다.", "effect_type": "warp_town", "effect_value": 0, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 50},
     "tent": {"name": "텐트", "description": "야영 후 전체 HP/MP 50% 회복.", "effect_type": "camp_rest", "effect_value": 0, "rarity": ItemRarity.UNCOMMON, "stack_size": 20, "sell_price": 200},
     
     # === BRV 아이템 ===
@@ -5892,7 +6668,7 @@ CONSUMABLE_TEMPLATES = {
     
     # === 경험치/골드 아이템 ===
     "exp_crystal": {"name": "경험치 크리스탈", "description": "경험치 100을 즉시 획득합니다.", "effect_type": "bonus_exp", "effect_value": 100, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 300},
-    "gold_nugget": {"name": "금 덩어리", "description": "골드 1000을 즉시 획득합니다. (판매 불가)", "effect_type": "bonus_gold", "effect_value": 1000, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 0},  # 판매 불가
+    "gold_nugget": {"name": "금 덩어리", "description": "골드를 즉시 획득합니다. (층수에 따라 증가, 판매 불가)", "effect_type": "bonus_gold", "effect_value": 200, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 0},  # 판매 불가
     
     # === 전투용 공격 아이템 ===
     "thunder_grenade": {"name": "천둥 수류탄", "description": "적 전체에게 (75 + 층수 × 25) 번개 피해 + 기절 확률.", "effect_type": "thunder_grenade", "effect_value": 200, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 250},
@@ -5912,4 +6688,55 @@ CONSUMABLE_TEMPLATES = {
     "mp_regen_crystal": {"name": "MP 재생 크리스탈", "description": "아군 전체 매턴 MP 20 회복 (5턴).", "effect_type": "mp_regen_crystal", "effect_value": 20, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 300},
     "status_cleanse": {"name": "정화 물약", "description": "모든 디버프 상태를 해제합니다.", "effect_type": "status_cleanse", "effect_value": 0, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 180},
     "revive_crystal": {"name": "부활 크리스탈", "description": "쓰러진 아군을 HP 30%로 부활.", "effect_type": "revive_crystal", "effect_value": 0.3, "rarity": ItemRarity.EPIC, "stack_size": 10, "sell_price": 500},
+
+    # === 연금술 포션 (Alchemy Potions) (판매 및 필드 드롭 불가) ===
+    "minor_health_potion": {"name": "소형 체력 포션", "description": "HP 75 + 마법력×30% 회복.", "effect_type": "heal_hp", "effect_value": 75, "duration": 0, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 0},
+    "health_potion": {"name": "체력 포션", "description": "HP 225 + 마법력×50% 회복.", "effect_type": "heal_hp", "effect_value": 225, "duration": 0, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 0},
+    "greater_health_potion": {"name": "대형 체력 포션", "description": "HP 450 + 마법력×80% 회복.", "effect_type": "heal_hp", "effect_value": 450, "duration": 0, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 0},
+    "minor_mana_potion": {"name": "소형 마나 포션", "description": "MP 45 + 마법력×20% 회복.", "effect_type": "heal_mp", "effect_value": 45, "duration": 0, "rarity": ItemRarity.COMMON, "stack_size": 99, "sell_price": 0},
+    "mana_potion": {"name": "마나 포션", "description": "MP 120 + 마법력×40% 회복.", "effect_type": "heal_mp", "effect_value": 120, "duration": 0, "rarity": ItemRarity.UNCOMMON, "stack_size": 99, "sell_price": 0},
+    "greater_mana_potion": {"name": "대형 마나 포션", "description": "MP 300 + 마법력×60% 회복.", "effect_type": "heal_mp", "effect_value": 300, "duration": 0, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 0},
+    "rejuvenation_potion": {"name": "회춘 포션", "description": "HP 150, MP 75 동시 회복.", "effect_type": "heal_both", "effect_value": 150, "duration": 0, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 0},
+    "strength_potion": {"name": "힘의 포션", "description": "공격력 +25, 25턴 지속.", "effect_type": "buff_strength", "effect_value": 25, "duration": 25, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 0},
+    "defense_potion": {"name": "방어의 포션", "description": "방어력 +25, 25턴 지속.", "effect_type": "buff_defense", "effect_value": 25, "duration": 25, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 0},
+    "speed_potion": {"name": "신속의 포션", "description": "속도 +30%, 20턴 지속.", "effect_type": "buff_speed", "effect_value": 30, "duration": 20, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 0},
+    "regeneration_potion": {"name": "재생 포션", "description": "턴당 HP 35 회복, 12턴.", "effect_type": "buff_regen", "effect_value": 35, "duration": 12, "rarity": ItemRarity.EPIC, "stack_size": 30, "sell_price": 0},
+    "cleansing_potion": {"name": "정화 포션", "description": "모든 상태이상 제거.", "effect_type": "cure_all_status", "effect_value": 0, "duration": 0, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 0},
+    "berserk_potion": {"name": "광폭화 포션", "description": "공격+30%, 방어-20%, 15턴.", "effect_type": "buff_berserk", "effect_value": 30, "duration": 15, "rarity": ItemRarity.EPIC, "stack_size": 30, "sell_price": 0},
+    "resistance_potion": {"name": "저항의 포션", "description": "상태이상 저항 +50%, 20턴.", "effect_type": "buff_resistance", "effect_value": 50, "duration": 20, "rarity": ItemRarity.EPIC, "stack_size": 30, "sell_price": 0},
+    "luck_potion": {"name": "행운의 포션", "description": "크리티컬 +15%, 30턴.", "effect_type": "buff_luck", "effect_value": 15, "duration": 30, "rarity": ItemRarity.LEGENDARY, "stack_size": 20, "sell_price": 0},
+    # === 고급 연금술 포션 (Advanced Alchemy Potions) ===
+    "elixir_of_life": {"name": "생명의 영약", "description": "HP 500 회복 + 상처 100 치료.", "effect_type": "heal_hp", "effect_value": 500, "duration": 0, "rarity": ItemRarity.LEGENDARY, "stack_size": 10, "sell_price": 0},
+    "ether_draught": {"name": "에테르 음료", "description": "MP 완전 회복.", "effect_type": "heal_mp_full", "effect_value": 0, "duration": 0, "rarity": ItemRarity.LEGENDARY, "stack_size": 10, "sell_price": 0},
+    "invisibility_potion": {"name": "투명화 포션", "description": "회피율 +80%, 5턴.", "effect_type": "buff_invisibility", "effect_value": 80, "duration": 5, "rarity": ItemRarity.LEGENDARY, "stack_size": 10, "sell_price": 0},
+    "titans_strength": {"name": "거인의 힘", "description": "공격력 +50, 25턴.", "effect_type": "buff_strength", "effect_value": 50, "duration": 25, "rarity": ItemRarity.LEGENDARY, "stack_size": 10, "sell_price": 0},
+    "stone_skin": {"name": "석화 피부", "description": "방어력 +50, 20턴.", "effect_type": "buff_defense", "effect_value": 50, "duration": 20, "rarity": ItemRarity.LEGENDARY, "stack_size": 10, "sell_price": 0},
+    "wind_walker": {"name": "바람 걷기", "description": "속도 +40, 회피 +20%, 15턴.", "effect_type": "buff_speed", "effect_value": 40, "duration": 15, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 0},
+    "vampiric_elixir": {"name": "흡혈 영약", "description": "피해의 30%를 HP 흡수, 20턴.", "effect_type": "buff_lifesteal", "effect_value": 30, "duration": 20, "rarity": ItemRarity.LEGENDARY, "stack_size": 10, "sell_price": 0},
+    "holy_water": {"name": "성수", "description": "상태이상 제거 + HP 100 회복.", "effect_type": "cure_all_status", "effect_value": 100, "duration": 0, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 0},
+    "cursed_brew": {"name": "저주받은 물약", "description": "모든 능력+20%, HP/MP-50%, 15턴.", "effect_type": "buff_berserk", "effect_value": 20, "duration": 15, "rarity": ItemRarity.LEGENDARY, "stack_size": 10, "sell_price": 0},
+    "philosophers_elixir": {"name": "현자의 영약", "description": "HP/MP 전체 회복 + 상태이상 제거.", "effect_type": "heal_both_full", "effect_value": 0, "duration": 0, "rarity": ItemRarity.LEGENDARY, "stack_size": 5, "sell_price": 0},
+    "mana_shield": {"name": "마나 보호막", "description": "MP로 피해 50% 흡수, 15턴.", "effect_type": "buff_mana_shield", "effect_value": 50, "duration": 15, "rarity": ItemRarity.LEGENDARY, "stack_size": 10, "sell_price": 0},
+    "moonlight_brew": {"name": "달빛 물약", "description": "크리확률 +25%, 크리데미지 +50%, 20턴.", "effect_type": "buff_crit_boost", "effect_value": 25, "duration": 20, "rarity": ItemRarity.LEGENDARY, "stack_size": 10, "sell_price": 0},
+    # === 유니크 연금술 포션 (Unique Alchemy Potions) ===
+    "iron_fortress": {"name": "철의 요새", "description": "마법력×200% 보호막, 10턴.", "effect_type": "shield", "effect_value": 0, "duration": 10, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 0},
+    "dimensional_barrier": {"name": "차원 장벽", "description": "받는 피해 40% 감소, 10턴.", "effect_type": "damage_reduction", "effect_value": 40, "duration": 10, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 0},
+    "blade_fury": {"name": "칼날의 분노", "description": "공격 시 추가 HP 피해 30%, 10턴.", "effect_type": "buff_bonus_damage", "effect_value": 30, "duration": 10, "rarity": ItemRarity.LEGENDARY, "stack_size": 10, "sell_price": 0},
+    "battle_trance": {"name": "전투 무아경", "description": "공격+40%, 속도+30%, 받는피해+25%, 12턴.", "effect_type": "buff_battle_trance", "effect_value": 40, "duration": 12, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 0},
+    # === 연금술 폭탄 (Alchemy Bombs) ===
+    "fragmentation_grenade": {"name": "파편 수류탄", "description": "적 전체 관통 피해 180.", "effect_type": "attack_aoe", "effect_value": 180, "duration": 0, "rarity": ItemRarity.RARE, "stack_size": 50, "sell_price": 0},
+    "stun_grenade": {"name": "섬광탄", "description": "적 전체 30 피해 + 기절 100%, 2턴.", "effect_type": "attack_lightning", "effect_value": 30, "duration": 0, "rarity": ItemRarity.EPIC, "stack_size": 30, "sell_price": 0},
+    "explosive_crystal_bomb": {"name": "폭발 결정 폭탄", "description": "적 전체 200 피해 + 화상 5턴.", "effect_type": "attack_fire", "effect_value": 200, "duration": 0, "rarity": ItemRarity.LEGENDARY, "stack_size": 10, "sell_price": 0},
+    "napalm_bomb": {"name": "네이팜 폭탄", "description": "적 전체 100 피해 + 강력한 화상 7턴.", "effect_type": "attack_fire", "effect_value": 100, "duration": 0, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 0},
+    "cryo_grenade": {"name": "극저온 수류탄", "description": "적 전체 80 피해 + 동결 2턴.", "effect_type": "attack_ice", "effect_value": 80, "duration": 0, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 0},
+    "emp_grenade": {"name": "EMP 수류탄", "description": "적 전체 50 피해 + MP 소실 100.", "effect_type": "attack_lightning", "effect_value": 50, "duration": 0, "rarity": ItemRarity.EPIC, "stack_size": 20, "sell_price": 0},
+    # === 전설 연금술 폭탄 (Legendary Alchemy Bombs) ===
+    "dragons_fury": {"name": "용의 분노", "description": "적 전체 250 피해 + 극대 화상 10턴.", "effect_type": "attack_fire", "effect_value": 250, "duration": 0, "rarity": ItemRarity.LEGENDARY, "stack_size": 5, "sell_price": 0},
+    "absolute_zero": {"name": "절대영도", "description": "적 전체 200 피해 + 동결 100%, 3턴.", "effect_type": "attack_ice", "effect_value": 200, "duration": 0, "rarity": ItemRarity.LEGENDARY, "stack_size": 5, "sell_price": 0},
+    "thunder_storm": {"name": "뇌우 폭탄", "description": "적 전체 180 피해 + 광범위 마비.", "effect_type": "attack_lightning", "effect_value": 180, "duration": 0, "rarity": ItemRarity.LEGENDARY, "stack_size": 5, "sell_price": 0},
+    "void_grenade": {"name": "공허 수류탄", "description": "적 전체 150 피해 + 버프 제거 + 약화.", "effect_type": "attack_poison", "effect_value": 150, "duration": 0, "rarity": ItemRarity.LEGENDARY, "stack_size": 5, "sell_price": 0},
+    "mithril_shrapnel": {"name": "미스릴 파편탄", "description": "적 전체 200 피해 + 방어력 무시 50%.", "effect_type": "attack_aoe", "effect_value": 200, "duration": 0, "rarity": ItemRarity.LEGENDARY, "stack_size": 5, "sell_price": 0},
+    "cursed_explosive": {"name": "저주받은 폭발물", "description": "적 전체 220 피해 + 저주 3턴.", "effect_type": "attack_poison", "effect_value": 220, "duration": 0, "rarity": ItemRarity.LEGENDARY, "stack_size": 5, "sell_price": 0},
+    "holy_grenade": {"name": "성스러운 수류탄", "description": "적 전체 150 피해 (언데드/악마 300).", "effect_type": "attack_explosive", "effect_value": 150, "duration": 0, "rarity": ItemRarity.LEGENDARY, "stack_size": 5, "sell_price": 0},
+    "stardust_bomb": {"name": "별가루 폭탄", "description": "적 전체 350 피해 + 모든 원소 효과.", "effect_type": "attack_fire", "effect_value": 350, "duration": 0, "rarity": ItemRarity.LEGENDARY, "stack_size": 3, "sell_price": 0},
 }

@@ -1,0 +1,36 @@
+id: priest_blessing
+name: 신의 축복
+type: buff
+description: '신의 축복을 내립니다.
+
+  대상 3턴: 공격 +15%, 방어 +15%.
+
+  신앙 100이면 공격/방어 +30%, 5턴 + 신앙 소모.
+
+  보호의 신탁 충족 가능.
+
+  '
+target: single_ally
+costs:
+  mp: 10
+metadata:
+  oracle_action: buff_ally
+  faith_empowered: true
+effects:
+- type: buff
+  buff_id: priest_blessing
+  duration: 3
+  effects:
+    attack_multiplier: 1.15
+    magic_multiplier: 1.15
+    defense_multiplier: 1.15
+    magic_defense_multiplier: 1.15
+animation:
+  icon: ✨
+  color:
+  - 255
+  - 255
+  - 200
+sfx:
+- se
+- Up1

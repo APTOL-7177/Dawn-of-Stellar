@@ -1,0 +1,29 @@
+id: paradox_surge
+name: 상반의 격류
+type: brv_hp_attack
+description: 화염+빙결 융합 열충격 파쇄! 스택 차이만큼 추가 데미지, 균형 시 크리티컬 +40%
+costs:
+  mp: 6
+  cast_time: 0.25
+  element_cost:
+    fire: 1
+    ice: 1
+effects:
+- type: thermal_shock
+  element:
+  - fire
+  - ice
+  multiplier: 2.0
+  diff_bonus_per_stack: 0.15
+  balance_crit_bonus: 0.4
+  balance_crit_multiplier: 2.2
+  stat_base: magic
+metadata:
+  fusion: true
+  elements:
+  - fire
+  - ice
+  special: thermal_shock
+sfx:
+- se
+- Magic1

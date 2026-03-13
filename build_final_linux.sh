@@ -4,12 +4,17 @@ echo "Dawn of Stellar - Linux 최종 패키징"
 echo "========================================"
 echo
 
+# 스크립트 위치로 이동
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
 # Python이 설치되어 있는지 확인
 if ! command -v python3 &> /dev/null; then
     echo "[오류] Python3이 설치되어 있지 않습니다."
     echo "Python 3.10 이상을 설치해주세요."
     echo "Ubuntu/Debian: sudo apt install python3 python3-pip"
     echo "CentOS/RHEL: sudo yum install python3 python3-pip"
+    echo "Arch Linux: sudo pacman -S python python-pip"
     exit 1
 fi
 
@@ -37,11 +42,18 @@ echo "필수 파일 확인 완료."
 echo
 echo "[3/6] 필요한 패키지 설치 확인..."
 python3 -m pip install --upgrade pip > /dev/null 2>&1
-python3 -m pip install pyinstaller > /dev/null 2>&1
+python3 -m pip install --break-system-packages pyinstaller 2>/dev/null || \
+python3 -m pip install pyinstaller 2>/dev/null
 
 if [ $? -ne 0 ]; then
     echo "[오류] PyInstaller 설치에 실패했습니다."
     exit 1
+fi
+
+# 게임 의존성 설치
+if [ -f "requirements.txt" ]; then
+    python3 -m pip install --break-system-packages -r requirements.txt 2>/dev/null || \
+    python3 -m pip install -r requirements.txt 2>/dev/null || true
 fi
 
 echo
@@ -74,16 +86,19 @@ cd dist/DawnOfStellar
 # config.yaml 복사 (실행 파일과 같은 위치에)
 cp ../../config.yaml config.yaml
 
-# 기본 메타 진행 파일 복사 (배포판용)
-if [ ! -d user_data ]; then
-    mkdir user_data
+# config 디렉토리 복사 (key_bindings.yaml 등)
+if [ -d ../../config ]; then
+    cp -r ../../config .
 fi
-cp ../../config/meta_progress.json user_data/meta_progress.json
+
+# 기본 메타 진행 파일 복사 (배포판용)
+mkdir -p user_data
+cp config/meta_progress.json user_data/meta_progress.json
 
 # 폰트 파일들 복사
-cp ../../*.ttf . 2>/dev/null
-cp ../../*.ttc . 2>/dev/null
-cp ../../*.bdf . 2>/dev/null
+cp ../../*.ttf . 2>/dev/null || true
+cp ../../*.ttc . 2>/dev/null || true
+cp ../../*.bdf . 2>/dev/null || true
 
 # data 폴더 복사
 if [ -d ../../data ]; then
@@ -95,7 +110,17 @@ if [ -d ../../assets ]; then
     cp -r ../../assets .
 fi
 
+# 실행 권한 부여
+chmod +x DawnOfStellar
+
 cd ../..
+
+# tar.gz 아카이브 생성
+echo
+echo "배포용 아카이브 생성..."
+cd dist
+tar -czf DawnOfStellar_Linux.tar.gz DawnOfStellar
+cd ..
 
 echo
 echo "========================================"
@@ -103,13 +128,14 @@ echo "패키징 완료!"
 echo "========================================"
 echo
 echo "게임 폴더 위치: dist/DawnOfStellar"
+echo "배포 아카이브:   dist/DawnOfStellar_Linux.tar.gz"
 echo
 echo "게임 실행 방법:"
-echo "1. dist/DawnOfStellar 폴더로 이동"
-echo "2. ./DawnOfStellar 실행 (또는 더블클릭)"
+echo "  1. dist/DawnOfStellar 폴더로 이동"
+echo "  2. ./DawnOfStellar 실행"
 echo
 echo "배포 방법:"
-echo "1. dist/DawnOfStellar 폴더 전체를 압축"
-echo "2. DawnOfStellar_Linux.tar.gz 등으로 배포"
+echo "  1. dist/DawnOfStellar_Linux.tar.gz 파일을 배포"
+echo "  2. 사용자가 압축 해제 후 ./DawnOfStellar 실행"
 echo
 echo "완료되었습니다!"

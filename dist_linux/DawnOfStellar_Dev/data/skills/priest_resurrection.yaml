@@ -1,0 +1,35 @@
+id: priest_resurrection
+name: 부활
+type: heal
+description: '쓰러진 아군을 부활시킨다.
+
+  사망한 아군 HP 40% 회복하여 부활.
+
+  신앙 100이면 HP 80% 회복 + 신앙 소모.
+
+  "부활의 신탁" 충족.
+
+  '
+target: single_ally
+costs:
+  mp: 25
+metadata:
+  oracle_action: resurrect_ally
+  miracle: true
+  resurrection: true
+  faith_empowered: true
+effects:
+- type: heal
+  heal_type: hp
+  value: 0.4
+  target_dead: true
+animation:
+  icon: 🕊️
+  color:
+  - 255
+  - 255
+  - 200
+  screen_effect: holy_light
+sfx:
+- se
+- Revive

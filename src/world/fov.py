@@ -179,12 +179,11 @@ class FOVSystem:
         return (cx, cy)
 
     def clear_visibility(self, dungeon: DungeonMap):
-        """현재 프레임 가시성 초기화"""
-        for y in range(dungeon.height):
-            for x in range(dungeon.width):
-                tile = dungeon.get_tile(x, y)
-                if tile:
-                    tile.visible = False
+        """현재 프레임 가시성 초기화 (이전에 보였던 타일만)"""
+        for x, y in self.visible_tiles:
+            tile = dungeon.get_tile(x, y)
+            if tile:
+                tile.visible = False
 
     def get_visible_radius_with_modifiers(self, base_radius: int, modifiers: dict) -> int:
         """

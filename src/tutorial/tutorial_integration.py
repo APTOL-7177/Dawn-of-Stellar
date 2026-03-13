@@ -6,6 +6,7 @@ import tcod
 import tcod.console
 import time
 from typing import Optional
+from src.ui.input_handler import iter_game_input, poll_game_input, GameAction
 
 from src.tutorial.tutorial_manager import get_tutorial_manager
 from src.tutorial.tutorial_ui import TutorialUI
@@ -90,16 +91,19 @@ class TutorialIntegration:
 
         # 입력 대기
         while True:
-            for event in tcod.event.wait():
-                if isinstance(event, tcod.event.KeyDown):
+            for action, event in iter_game_input():
+                if event and isinstance(event, tcod.event.Quit):
+                    return False
+                if action == GameAction.CONFIRM:
+                    return True
+                if action in (GameAction.CANCEL, GameAction.ESCAPE):
+                    return False
+                # 키보드 Y/N 폴백
+                if event and isinstance(event, tcod.event.KeyDown):
                     if event.sym == tcod.event.KeySym.y:
                         return True
                     elif event.sym == tcod.event.KeySym.n:
                         return False
-                    elif event.sym == tcod.event.KeySym.ESCAPE:
-                        return False
-                elif isinstance(event, tcod.event.Quit):
-                    return False
 
     def show_tutorial_intro(self) -> None:
         """튜토리얼 인트로 메시지 표시"""
@@ -200,11 +204,10 @@ class TutorialIntegration:
         """
         start_time = time.time()
         while time.time() - start_time < duration:
-            for event in tcod.event.get():
-                if isinstance(event, tcod.event.KeyDown):
-                    if event.sym == tcod.event.KeySym.ESCAPE:
-                        return True
-                elif isinstance(event, tcod.event.Quit):
+            for action, event in poll_game_input():
+                if event and isinstance(event, tcod.event.Quit):
+                    return True
+                if action in (GameAction.CANCEL, GameAction.ESCAPE):
                     return True
             time.sleep(0.01)
         return False
@@ -286,14 +289,19 @@ class TutorialIntegration:
 
         # 입력 대기
         while True:
-            for event in tcod.event.wait():
-                if isinstance(event, tcod.event.KeyDown):
+            for action, event in iter_game_input():
+                if event and isinstance(event, tcod.event.Quit):
+                    return True
+                if action == GameAction.CONFIRM:
+                    return True
+                if action in (GameAction.CANCEL, GameAction.ESCAPE):
+                    return False
+                # 키보드 Y/N 폴백
+                if event and isinstance(event, tcod.event.KeyDown):
                     if event.sym == tcod.event.KeySym.y:
                         return True
-                    elif event.sym == tcod.event.KeySym.n or event.sym == tcod.event.KeySym.ESCAPE:
+                    elif event.sym == tcod.event.KeySym.n:
                         return False
-                elif isinstance(event, tcod.event.Quit):
-                        return True
 
 
 def show_tutorial_intro_with_story(

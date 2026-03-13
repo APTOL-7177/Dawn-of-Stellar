@@ -1,0 +1,96 @@
+class_name: 브레이커
+description: 화공학 엔진과 증기기관이 달린 건틀릿으로 상대를 산산조각 내는 딜러
+slogan: 부서진 것들이 나의 무기가 된다
+archetype: SCATTER/연격 특화
+base_stats:
+  hp: 195
+  mp: 38
+  init_brv: 130
+  speed: 68
+  physical_attack: 81
+  physical_defense: 62
+  magic_attack: 35
+  magic_defense: 48
+  max_brv: 332
+stat_growth:
+  hp: 47.8
+  mp: 2.6
+  init_brv: 30.7
+  strength: 23.2
+  defense: 16.2
+  magic: 7.0
+  spirit: 11.0
+  speed: 14.4
+  max_brv: 93.4
+  luck: 0.8
+  accuracy: 1.6
+  evasion: 1.2
+gimmick:
+  type: break_system
+  name: 연격 기믹
+  description: '[SCATTER 시스템]
+    - 브레이커가 직접 BREAK 시키면 적은 [SCATTER] 상태가 됨.
+    - SCATTER 상태: 게이지 파란색, 받는 피해 150% (타격당 +8% 증가), 속도 -30%.
+    
+    [연격 기믹]
+    - SCATTER 상태인 적에게 입힌 "추가 피해량"만큼 기믹 게이지 획득.
+    - 최대치: 최대 HP의 50%.
+    - SCATTER 발동 시 기믹 게이지가 공격력의 50% 이상이면, 공격력의 50%를 소모하여 [추가 행동] 획득.
+    '
+  max_break_power: 1000 # Placeholder, dynamic based on HP in code
+  power_scaling:
+    per_stack: 1.0
+    max_bonus: 1.0
+traits:
+- id: engine_overclock
+  name: 엔진 오버클럭
+  description: SCATTER 시 기본 피해 배율 150% -> 185%로 시작
+  type: passive
+  effects:
+    scatter_multiplier_bonus: 0.35
+- id: hydraulic_piston
+  name: 유압 피스톤
+  description: SCATTER 된 적의 속도 감소량 30% -> 45%
+  type: passive
+  effects:
+    scatter_slow_bonus: 0.15
+- id: chemical_resonance
+  name: 화공 공명
+  description: SCATTER 된 적 타격 시 피해 배율 증가량 8% -> 12%
+  type: passive
+  effects:
+    scatter_ramp_bonus: 0.04
+- id: steam_siphon
+  name: 증기 흡수
+  description: SCATTER 발동 시 브레이커 공격력의 40%만큼 HP 회복
+  type: trigger
+  effects:
+    heal_on_scatter: 0.4
+- id: infinite_loop
+  name: 무한 루프
+  description: 연격 기믹 획득 효율 20% 증가 및 최대치 20% 증가
+  type: passive
+  effects:
+    gauge_gain_bonus: 0.2
+    max_gauge_bonus: 0.2
+skills:
+- teamwork
+- triple_smash
+- steam_erupt
+- overdrive_start
+- rapid_piston
+- chemical_leak
+- engine_roar
+- scatter_bomb
+- full_throttle
+- limit_break
+- ultimate
+- safety_valve
+- pressure_cooker
+- steam_screen
+- recycle
+- chain_reaction
+bonuses:
+  brv_damage: 1.15
+  break_bonus: 1.4
+  shield_penetration: 0.15

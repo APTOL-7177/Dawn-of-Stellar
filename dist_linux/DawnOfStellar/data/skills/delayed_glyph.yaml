@@ -1,0 +1,17 @@
+id: delayed_glyph
+name: 지연 마법진
+type: utility
+description: 원소 마법진 설치 (최대 3개). 3턴 후 자동 발동 또는 융합 스킬로 기폭
+costs:
+  mp: 3
+effects:
+- type: glyph
+  delay_turns: 3
+  max_glyphs: 3
+metadata:
+  utility: true
+  trap: true
+  requires_selection: true
+sfx:
+- se
+- Magic1

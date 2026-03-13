@@ -1,0 +1,59 @@
+# 튜토리얼 12단계: 던전 탐험
+id: dungeon_exploration
+title: "던전 탐험"
+order: 12
+category: exploration
+enabled: true
+skippable: true
+
+description: |
+  지금까지 배운 모든 것을 활용하여 미니 던전을 탐험합니다!
+  적을 피하거나 물리치고, 보물을 찾고, 출구를 향해 나아가세요.
+
+objective: "미니 던전을 탐험하고 출구에 도달하기"
+
+messages:
+  - text: "마지막 실전 테스트입니다!"
+    color: [255, 215, 0]
+    pause: 2.0
+    effect: "fade_in"
+
+  - text: "지금까지 배운 모든 것을 활용해보세요."
+    color: [255, 255, 255]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "보물 상자를 열고, 회복 샘을 사용하고, 출구를 찾으세요!"
+    color: [0, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+completion_condition:
+  type: "position_reached"
+  target_x: 25
+  target_y: 19
+  radius: 0
+  message: "축하합니다! 던전 탐험에 성공했습니다!"
+
+hints:
+  - text: "보물상자($)에서 아이템을 얻을 수 있습니다."
+    trigger_time: 10.0
+
+  - text: "회복 샘(~)에서 체력을 회복하세요."
+    trigger_time: 20.0
+
+  - text: "★ 표시된 출구를 찾아 이동하세요."
+    trigger_time: 30.0
+
+ui_highlights:
+  - element: "key_hint"
+    text: "[Z] 상호작용 / [방향키] 이동"
+    position: "bottom_center"
+    color: [255, 255, 255]
+
+rewards:
+  exp: 100
+  gold: 50
+  message: "모든 튜토리얼을 완료했습니다! 이제 진정한 모험을 시작하세요!"
+
+next_step: null

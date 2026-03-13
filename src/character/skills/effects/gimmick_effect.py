@@ -27,6 +27,8 @@ class GimmickEffect(SkillEffect):
     def can_execute(self, user, target, context) -> bool:
         # apply_to_target이 True면 target을 확인, False면 user를 확인
         check_entity = target if self.apply_to_target else user
+        if isinstance(check_entity, list):
+            return len(check_entity) > 0
         return check_entity is not None
 
     def execute(self, user, target, context) -> EffectResult:
@@ -43,6 +45,26 @@ class GimmickEffect(SkillEffect):
 
         if entity is None:
             return EffectResult(effect_type=EffectType.GIMMICK, success=False, message="대상이 없습니다")
+
+        # AoE 스킬: target이 리스트인 경우 각 대상에 개별 적용
+        if isinstance(entity, list):
+            messages = []
+            total_changes = {}
+            for single_entity in entity:
+                if single_entity is None:
+                    continue
+                single_result = self.execute(user, single_entity, context)
+                if single_result.success:
+                    messages.append(single_result.message)
+                    if single_result.gimmick_changes:
+                        for k, v in single_result.gimmick_changes.items():
+                            total_changes[k] = total_changes.get(k, 0) + v
+            return EffectResult(
+                effect_type=EffectType.GIMMICK,
+                success=len(messages) > 0,
+                gimmick_changes=total_changes if total_changes else None,
+                message=" | ".join(messages) if messages else "대상 없음"
+            )
 
         # 기본 operation 처리
         old_value = getattr(entity, self.field, 0)

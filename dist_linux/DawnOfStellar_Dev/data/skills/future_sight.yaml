@@ -1,0 +1,27 @@
+id: future_sight
+name: 미래 예지
+type: buff
+description: 아군 1명에게 회피율 +50% (2턴) + 다음 공격 크리티컬 확정
+costs:
+  mp: 14
+  cast_time: 0.6
+target: single_ally
+effects:
+- type: buff
+  target: selected_ally
+  stat: evasion
+  value: 1.5
+  duration: 2
+- type: buff
+  target: selected_ally
+  special: guaranteed_critical
+  duration: 1
+- type: generate_possibility
+  chance: 0.7
+  alternative_skill: past_regression
+metadata:
+  possibility_pair: past_regression
+  job: time_mage
+sfx:
+- se
+- Up1

@@ -1,0 +1,34 @@
+id: summon_wind_spirit
+name: 바람 정령 소환
+type: summon
+description: '바람 정령을 소환합니다.
+
+  이미 2마리가 소환된 경우 가장 오래된 정령이 교체됩니다.
+
+
+  효과: 속도 +30%, 회피 +15%
+
+  '
+target: self
+costs:
+  mp: 10
+metadata:
+  spirit_type: wind
+  gimmick_summon: true
+effects:
+- type: gimmick
+  operation: set
+  field: spirit_wind
+  value: 1
+- type: custom
+  handler: summon_spirit
+  spirit: wind
+animation:
+  icon: 💨
+  color:
+  - 150
+  - 255
+  - 150
+sfx:
+- se
+- Summon

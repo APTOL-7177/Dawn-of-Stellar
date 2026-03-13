@@ -47,6 +47,12 @@ class Inventory:
         self.cooking_cooldown_turn: Optional[int] = None  # 요리 사용한 전투 턴
         self.cooking_cooldown_duration: int = 0  # 쿨타임 지속 턴 수
 
+        # 획득 아이템 대기 메시지 (world_ui에서 표시 후 비움)
+        self.pending_loot_messages: List[str] = []
+
+        # 현재 층수 (금덩어리 등 스케일링용, 탐험 시작 시 갱신)
+        self.current_floor: int = 1
+
         logger.info(f"인벤토리 생성: 기본 무게 {base_weight}kg")
 
     @property
@@ -104,7 +110,7 @@ class Inventory:
         # 기본 무게 조정 (0.3 배율 - 창고 시스템 도입으로 인벤토리 축소)
         total = total * 0.3
         
-        # 멀티플레이 무게 감소 적용 (40% 감소 = 0.6 배율)
+        # 멀티플레이 무게 증가 적용 (70% 증가 = 1.7 배율)
         try:
             from src.multiplayer.game_mode import get_game_mode_manager
             game_mode_manager = get_game_mode_manager()
@@ -719,10 +725,10 @@ class Inventory:
             # 피해 감소 버프 적용
             if hasattr(target, 'status_manager'):
                 from src.combat.status_effects import StatusEffect as CombatStatusEffect, StatusType
-                
+
                 reduction_percent = effect_value / 100.0 if effect_value > 1 else effect_value
                 duration = getattr(item, 'duration', 10) if hasattr(item, 'duration') else 10
-                
+
                 reduction_buff = CombatStatusEffect(
                     name="Damage Reduction",
                     status_type=StatusType.BARRIER,  # BARRIER 타입은 피해 감소로 동작
@@ -736,6 +742,40 @@ class Inventory:
                 success = True
             else:
                 logger.warning(f"{target_name}: {item_name} 사용 실패 - 상태 관리자 없음")
+                success = False
+        elif effect_type == "bonus_gold":
+            # 금덩어리: 골드 즉시 획득 (층수에 따라 스케일링)
+            base_gold = effect_value if effect_value > 0 else 200
+            floor = getattr(self, 'current_floor', 1)
+            # 층당 25% 증가: 1층=1.0x, 2층=1.25x, 5층=2.0x, 10층=3.25x
+            floor_multiplier = 1.0 + (floor - 1) * 0.25
+            gold_amount = int(base_gold * floor_multiplier)
+            self.add_gold(gold_amount)
+            logger.info(f"{target_name}: {item_name} 사용 → 골드 +{gold_amount}G (기본 {base_gold} x {floor_multiplier:.2f} [{floor}층]) (총 {self.gold}G)")
+            success = True
+        elif effect_type == "camp_rest":
+            # 텐트: 파티 전체 HP/MP 50% 회복
+            party = self.party if self.party else [target]
+            healed_count = 0
+            for member in party:
+                if not getattr(member, 'is_alive', True) or getattr(member, 'current_hp', 0) <= 0:
+                    continue
+                hp_healed = 0
+                mp_restored = 0
+                if hasattr(member, 'max_hp') and hasattr(member, 'current_hp'):
+                    heal_amount = int(member.max_hp * 0.5)
+                    hp_healed = member.heal(heal_amount, can_revive=False)
+                if hasattr(member, 'max_mp') and hasattr(member, 'current_mp'):
+                    restore_amount = int(member.max_mp * 0.5)
+                    mp_restored = member.restore_mp(restore_amount)
+                if hp_healed > 0 or mp_restored > 0:
+                    healed_count += 1
+                    logger.info(f"  {member.name}: HP +{hp_healed}, MP +{mp_restored}")
+            if healed_count > 0:
+                logger.info(f"{target_name}: {item_name} 사용 → 야영! {healed_count}명 HP/MP 50% 회복")
+                success = True
+            else:
+                logger.warning(f"{target_name}: {item_name} 사용 실패 - 회복할 대상 없음")
                 success = False
 
         # 사용 성공 시 아이템 제거

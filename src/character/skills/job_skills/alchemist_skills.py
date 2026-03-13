@@ -30,10 +30,10 @@ def create_alchemist_skills():
     throw_potion = Skill(
         "alchemist_throw_potion",
         "포션 투척",
-        "실험용 포션을 던져 공격. 재료 +1 획득."
+        "[화염 속성] 실험용 포션을 던져 공격. 재료 +1 획득."
     )
     throw_potion.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 0.98, stat_type="magic", element="fire"),
         GimmickEffect(GimmickOperation.ADD, "potion_stock", 1, max_value=10)
     ]
     throw_potion.costs = []
@@ -51,10 +51,10 @@ def create_alchemist_skills():
     explosive = Skill(
         "alchemist_explosive",
         "폭발 포션",
-        "불안정한 포션이 폭발! 재료 비례 피해."
+        "[화염 속성] 불안정한 포션이 폭발! 재료 비례 피해."
     )
     explosive.effects = [
-        DamageEffect(DamageType.HP, 1.2, stat_type="magic",
+        DamageEffect(DamageType.HP, 0.78, stat_type="magic", element="fire",
                     gimmick_bonus={"field": "potion_stock", "multiplier": 0.15}),
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 1)
     ]
@@ -119,10 +119,10 @@ def create_alchemist_skills():
     poison_bomb = Skill(
         "alchemist_poison_bomb",
         "독 폭탄",
-        "맹독 폭탄 투척. 4턴 독 + 재료 +1."
+        "[암흑 속성] 맹독 폭탄 투척. 4턴 독 + 재료 +1."
     )
     poison_bomb.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="magic"),
+        DamageEffect(DamageType.BRV_HP, 1.17, stat_type="magic", element="dark"),
         StatusEffect(StatusType.POISON, duration=4, value=1.0,
                     damage_stat="magic", damage_multiplier=0.12),
         GimmickEffect(GimmickOperation.ADD, "potion_stock", 1, max_value=10)
@@ -185,10 +185,10 @@ def create_alchemist_skills():
     chain = Skill(
         "alchemist_chain",
         "폭발 연쇄",
-        "연쇄 폭발! 전체 피해 + 재료 비례 보너스. (재료 4개)"
+        "[화염 속성] 연쇄 폭발! 전체 피해 + 재료 비례 보너스. (재료 4개)"
     )
     chain.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.2, stat_type="magic",
+        DamageEffect(DamageType.BRV_HP, 1.43, stat_type="magic", element="fire",
                     gimmick_bonus={"field": "potion_stock", "multiplier": 0.2}),
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 4)
     ]
@@ -209,10 +209,10 @@ def create_alchemist_skills():
     acid_flask = Skill(
         "alchemist_acid_flask",
         "산성 플라스크",
-        "강산 투척! 물/마방 -25% (4턴). (재료 3개)"
+        "[암흑 속성] 강산 투척! 물/마방 -25% (4턴). (재료 3개)"
     )
     acid_flask.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.0, stat_type="magic"),
+        DamageEffect(DamageType.BRV_HP, 1.3, stat_type="magic", element="dark"),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.25, duration=4),
         BuffEffect(BuffType.MAGIC_DEFENSE_DOWN, 0.25, duration=4),
         GimmickEffect(GimmickOperation.CONSUME, "potion_stock", 3)

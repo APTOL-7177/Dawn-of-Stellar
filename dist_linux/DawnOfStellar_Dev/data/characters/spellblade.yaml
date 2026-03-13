@@ -1,0 +1,76 @@
+class_name: 마검사
+description: 물리/마법을 교차시키는 블레이드 서킷 전문가
+slogan: 검과 마법이 교차하는 회로
+archetype: 하이브리드 딜러
+base_stats:
+  hp: 164
+  mp: 62
+  init_brv: 117
+  speed: 58
+  physical_attack: 67
+  physical_defense: 54
+  magic_attack: 70
+  magic_defense: 61
+  max_brv: 317
+stat_growth:
+  hp: 38.3
+  mp: 4.4
+  init_brv: 27.6
+  strength: 18.4
+  defense: 13.4
+  magic: 18.2
+  spirit: 14.8
+  speed: 14.3
+  max_brv: 89.0
+  luck: 0.9
+  accuracy: 1.6
+  evasion: 1.2
+traits:
+- id: circuit_overdrive
+  name: 서킷 오버드라이브
+  description: 아크 스파크 추가 피해 +20%, 스틸/마나 라인 획득량 +20%
+  type: passive
+- id: resonance_loop
+  name: 공명 루프
+  description: 물리→마법→물리(또는 역순) 성공 시 추가로 시그넷 +1 (전투당 2회)
+  type: trigger
+- id: mirror_specialist
+  name: 미러 엣지 스페셜리스트
+  description: 미러 엣지 사용 시 소비한 시그넷 수만큼 방깎/마방깎 추가 5% 적용
+  type: passive
+- id: feedback_spark
+  name: 피드백 스파크
+  description: 봉인 채널 사용 시 MP 8 회복 및 아크 스파크 피해 10% 증가
+  type: passive
+- id: balanced_blade
+  name: 균형의 검
+  description: 스틸/마나 라인이 모두 50 이상일 때 물리/마법 피해 +15%, 피해 감소 10%
+  type: conditional
+gimmick:
+  type: blade_circuit
+  name: 블레이드 서킷
+  description: '스틸 라인(물리) / 마나 라인(마법)을 번갈아 사용해 공명 시그넷을 축적하고 아크 스파크로 폭발시키는 하이브리드 회로.'
+  max_steel_line: 100
+  max_mana_line: 100
+  max_resonance_sigil: 3
+  default_lock_turns: 1
+skills:
+- spellblade_arc_slash
+- spellblade_mana_pierce
+- spellblade_flux_step
+- spellblade_circuit_brand
+- spellblade_steel_ripple
+- spellblade_phase_sever
+- spellblade_dual_resonance
+- spellblade_arc_dive
+- spellblade_circuit_shift
+- spellblade_spark_rebound
+- spellblade_resonant_cleave
+- spellblade_mirror_storm
+- spellblade_mirror_edge_overload
+- spellblade_duality_collapse
+- spellblade_teamwork
+bonuses:
+  circuit_efficiency: 1.15
+  hybrid_sync: 1.1
+  sigil_power: 1.0

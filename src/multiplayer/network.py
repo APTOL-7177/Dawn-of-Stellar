@@ -62,6 +62,7 @@ class NetworkManager:
         self.ping_history: Dict[str, List[float]] = {}  # {player_id: [ping, ...]}
         self.last_ping_time: Dict[str, float] = {}  # {player_id: timestamp}
         self.ping_interval = 1.0  # 1초마다 핑 측정
+        self._max_ping_history = 50  # 플레이어당 최대 핑 기록 수 (무한 성장 방지)
         
         # 압축 설정
         self.use_compression = MultiplayerConfig.message_compression
@@ -157,9 +158,19 @@ class NetworkManager:
                 enemy_id = message.data.get("enemy_id")
                 
                 if x is not None and y is not None:
+                    # 이미 해당 위치 근처에서 전투가 진행 중이면 기존 전투에 합류
+                    if self.current_exploration and hasattr(self.current_exploration, 'active_combat_id') and self.current_exploration.active_combat_id:
+                        active_pos = getattr(self.current_exploration, 'active_combat_position', None)
+                        if active_pos:
+                            dist = abs(x - active_pos[0]) + abs(y - active_pos[1])
+                            if dist <= 5:  # 5타일 이내면 같은 전투로 간주
+                                self.logger.info(f"전투 요청 ({x},{y}): 이미 진행 중인 전투 {self.current_exploration.active_combat_id}에 합류 처리")
+                                # 이미 전투 중이므로 추가 브로드캐스트 불필요 (자동 합류 시스템이 처리)
+                                return
+
                     # 전투 시작 브로드캐스트
                     from src.multiplayer.protocol import MessageBuilder
-                    
+
                     # 현재 탐험 시스템에서 적 정보 가져오기
                     enemies = []
                     if self.current_exploration:
@@ -169,7 +180,7 @@ class NetworkManager:
                             # _trigger_combat_with_enemy 로직 재사용하여 참여할 적 결정
                             # (여기서는 실제 trigger는 하지 않고 참여자만 계산)
                             combat_enemies = [target_enemy]
-                            combat_range = 3
+                            combat_range = MultiplayerConfig.participation_radius_enemy
                             for other in self.current_exploration.enemies:
                                 if other == target_enemy: continue
                                 dist = abs(other.x - target_enemy.x) + abs(other.y - target_enemy.y)
@@ -305,9 +316,13 @@ class NetworkManager:
             if self.use_compression and len(data) > self.compression_threshold:
                 data = b"COMPRESSED:" + message.compress()
             
-            await asyncio.gather(*[
+            results = await asyncio.gather(*[
                 self._send_raw(data, client) for client in targets.values()
             ], return_exceptions=True)
+            # 전송 실패 클라이언트 감지 및 로깅
+            for (pid, _client), result in zip(targets.items(), results):
+                if isinstance(result, Exception):
+                    self.logger.warning(f"브로드캐스트 전송 실패 (player: {pid}): {result}")
     
     def broadcast_sync(self, message: NetworkMessage, exclude: Optional[str] = None):
         """
@@ -348,7 +363,38 @@ class NetworkManager:
                 
         except Exception as e:
             self.logger.error(f"동기 브로드캐스트 실패: {e}", exc_info=True)
-    
+
+    def send_sync(self, message: NetworkMessage, target_id: Optional[str] = None):
+        """
+        동기 컨텍스트에서 send 호출
+
+        broadcast_sync와 동일한 폴백 패턴을 사용합니다.
+
+        Args:
+            message: 전송할 메시지
+            target_id: 특정 플레이어에게만 전송
+        """
+        try:
+            event_loop = getattr(self, '_server_event_loop', None)
+            if event_loop is None:
+                event_loop = getattr(self, '_client_event_loop', None)
+
+            if event_loop and event_loop.is_running():
+                asyncio.run_coroutine_threadsafe(
+                    self.send(message, target_id),
+                    event_loop
+                )
+                return
+
+            try:
+                loop = asyncio.get_running_loop()
+                asyncio.create_task(self.send(message, target_id))
+            except RuntimeError:
+                asyncio.run(self.send(message, target_id))
+
+        except Exception as e:
+            self.logger.error(f"동기 send 실패: {e}", exc_info=True)
+
     async def _receive_message(self, data: bytes, sender_id: Optional[str] = None) -> Optional[NetworkMessage]:
         """메시지 수신 및 파싱"""
         try:
@@ -396,11 +442,21 @@ class NetworkManager:
                 self.logger.error(f"핑 측정 루프 오류: {e}", exc_info=True)
                 await asyncio.sleep(self.ping_interval)
     
+    def record_ping(self, player_id: str, ping_ms: float) -> None:
+        """핑 값을 기록하고 최대 크기(_max_ping_history)를 초과하면 오래된 항목 제거"""
+        if player_id not in self.ping_history:
+            self.ping_history[player_id] = []
+        history = self.ping_history[player_id]
+        history.append(ping_ms)
+        if len(history) > self._max_ping_history:
+            # 최근 _max_ping_history 개만 유지
+            self.ping_history[player_id] = history[-self._max_ping_history:]
+
     def calculate_average_ping(self, player_id: str) -> float:
         """평균 핑 계산"""
         if player_id not in self.ping_history or not self.ping_history[player_id]:
             return 0.0
-        
+
         # 최근 10개의 평균
         recent_pings = self.ping_history[player_id][-10:]
         return sum(recent_pings) / len(recent_pings)
@@ -439,7 +495,7 @@ class HostNetworkManager(NetworkManager):
     def __init__(self, port: int = 5000, session: Optional[Any] = None):
         """
         호스트 네트워크 관리자 초기화
-        
+
         Args:
             port: 서버 포트
             session: 멀티플레이 세션 참조
@@ -448,6 +504,11 @@ class HostNetworkManager(NetworkManager):
         self.port = port
         self.server: Optional[Any] = None
         self._local_ip: Optional[str] = None
+
+        # UPnP 상태
+        self.upnp_success: bool = False
+        self.external_ip: Optional[str] = None
+        self._upnp_mapped_port: Optional[int] = None
     
     @staticmethod
     def find_available_port(start_port: int = 5000, max_attempts: int = 100) -> int:
@@ -585,7 +646,7 @@ class HostNetworkManager(NetworkManager):
                             if self.current_exploration and hasattr(self.current_exploration, 'player'):
                                 dungeon_data["player_start_x"] = self.current_exploration.player.x
                                 dungeon_data["player_start_y"] = self.current_exploration.player.y
-                                self.logger.info(f"던전 데이터에 시작 위치 포함: ({dungeon_data['player_start_x']}, {dungeon_data['player_start_x']})")
+                                self.logger.info(f"던전 데이터에 시작 위치 포함: ({dungeon_data['player_start_x']}, {dungeon_data['player_start_y']})")
                             
                             dungeon_msg = MessageBuilder.dungeon_data(
                                 dungeon_data,
@@ -754,12 +815,33 @@ class HostNetworkManager(NetworkManager):
         # 로컬 네트워크 IP 주소 가져오기
         local_ip = HostNetworkManager.get_local_ip()
         self._local_ip = local_ip
-        
+
+        # UPnP 자동 포트 포워딩 시도
+        try:
+            from src.multiplayer.upnp import try_port_mapping, is_available as upnp_available
+            if upnp_available():
+                self.logger.info("UPnP 자동 포트개방 시도 중...")
+                success, ext_ip, ext_port = try_port_mapping(self.port)
+                self.upnp_success = success
+                if success:
+                    self.external_ip = ext_ip
+                    self._upnp_mapped_port = ext_port
+                    self.logger.info(f"UPnP 포트개방 성공! 외부 접속: {ext_ip}:{ext_port}")
+                else:
+                    self.logger.info("UPnP 포트개방 실패 - 수동 포트포워딩 필요")
+            else:
+                self.logger.info("UPnP 라이브러리 미설치 - 자동 포트개방 건너뜀")
+        except Exception as e:
+            self.logger.warning(f"UPnP 처리 중 오류: {e}")
+
         # 서버 시작 로그 (실제 접속 가능한 IP 주소 표시)
         self.logger.info(f"호스트 서버 시작 완료: ws://0.0.0.0:{self.port}")
         self.logger.info(f"로컬 네트워크 접속 주소: ws://{local_ip}:{self.port}")
-        self.logger.info(f"같은 네트워크의 플레이어들은 이 주소로 연결하세요: {local_ip}:{self.port}")
-        
+        if self.upnp_success and self.external_ip:
+            self.logger.info(f"외부 접속 주소 (UPnP): {self.external_ip}:{self._upnp_mapped_port}")
+        else:
+            self.logger.info(f"같은 네트워크의 플레이어들은 이 주소로 연결하세요: {local_ip}:{self.port}")
+
         # 핑 루프 시작
         await self.start_ping_loop()
     
@@ -805,22 +887,32 @@ class HostNetworkManager(NetworkManager):
     async def stop_server(self):
         """서버 중지"""
         self.logger.info("호스트 서버 중지 중...")
-        
+
+        # UPnP 포트 매핑 제거
+        if self._upnp_mapped_port is not None:
+            try:
+                from src.multiplayer.upnp import remove_port_mapping
+                remove_port_mapping(self._upnp_mapped_port)
+                self._upnp_mapped_port = None
+                self.upnp_success = False
+            except Exception as e:
+                self.logger.warning(f"UPnP 포트 매핑 제거 실패: {e}")
+
         # 핑 루프 중지
         await self.stop_ping_loop()
-        
+
         # 모든 클라이언트 연결 종료
         if self.clients:
             await asyncio.gather(*[
                 client.close() for client in self.clients.values()
             ], return_exceptions=True)
             self.clients.clear()
-        
+
         # 서버 종료
         if self.server:
             self.server.close()
             await self.server.wait_closed()
-        
+
         self.connection_state = ConnectionState.DISCONNECTED
         self.logger.info("호스트 서버 중지 완료")
 
@@ -1019,9 +1111,34 @@ class ClientNetworkManager(NetworkManager):
                     except asyncio.TimeoutError:
                         pass
                     
+                    # 전투 상태 동기화 요청 (진행 중인 전투가 있을 경우)
+                    try:
+                        state_sync_msg = NetworkMessage(
+                            type=MessageType.REQUEST_STATE_SYNC,
+                            player_id=self.player_id,
+                            data={}
+                        )
+                        await self._send_raw(state_sync_msg.to_json().encode('utf-8'), self.websocket)
+                        self.logger.info("전투 상태 동기화 요청 전송")
+
+                        # FULL_STATE_SYNC 응답 수신 (타임아웃 3초)
+                        try:
+                            sync_data = await asyncio.wait_for(self.websocket.recv(), timeout=3.0)
+                            sync_message = await self._receive_message(sync_data)
+                            if sync_message and sync_message.type == MessageType.FULL_STATE_SYNC:
+                                await self._handle_message(sync_message, "host")
+                                self.logger.info("전투 상태 동기화 완료")
+                            elif sync_message:
+                                # 전투 중이 아니라 다른 메시지가 온 경우 정상 처리
+                                await self._handle_message(sync_message, "host")
+                        except asyncio.TimeoutError:
+                            self.logger.debug("전투 상태 동기화 응답 없음 (전투 중이 아닐 수 있음)")
+                    except Exception as e:
+                        self.logger.debug(f"전투 상태 동기화 요청 실패 (무시 가능): {e}")
+
                     # 핑 루프 재시작
                     await self.start_ping_loop()
-                    
+
                     # 메시지 수신 루프 재시작
                     asyncio.create_task(self._receive_loop())
                     return

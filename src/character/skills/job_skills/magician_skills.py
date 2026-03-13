@@ -444,10 +444,10 @@ def create_magician_skills():
     card_charge_shot = Skill(
         "magician_ace_in_the_hole",
         "에이스 인 더 홀",
-        "숨겨둔 패를 꺼낸다! 손패 중 최고 랭크 카드로 숫자+무늬 효과 동시 발동!"
+        "[암흑 속성] 숨겨둔 패를 꺼낸다! 손패 중 최고 랭크 카드로 숫자+무늬 효과 동시 발동!"
     )
     card_charge_shot.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5)  # 강화된 피해량
+        DamageEffect(DamageType.BRV_HP, 2.5, element="dark")  # 강화된 피해량 (스페이드=암흑 대표)
     ]
     card_charge_shot.costs = [MPCost(8)]
     card_charge_shot.sfx = ("skill", "cast_complete")
@@ -482,9 +482,7 @@ def create_magician_skills():
         "스탯 스왑",
         "[투페어 필요] 3턴간 적과 자신의 공격력/방어력을 바꿔치기! 강적에게 효과적!"
     )
-    stat_swap.effects = [
-        StatusEffect(StatusType.SILENCE, duration=1, value=0.0)  # 더미 효과
-    ]
+    stat_swap.effects = []  # 효과는 execute_magician_skill()에서 직접 처리
     stat_swap.costs = [MPCost(20)]
     stat_swap.sfx = ("skill", "debuff")
     stat_swap.metadata = {
@@ -493,59 +491,6 @@ def create_magician_skills():
         "swap_stats": ["attack", "defense"],
         "duration": 3
     }
-
-    # stat_swap 전용 execute 메서드
-    def stat_swap_execute(self, user, target, context):
-        """스탯 스왑 실행"""
-        from src.character.stats import Stats
-        results = []
-
-        # 보스에게는 적용하지 않음
-        target_name = getattr(target, 'name', '').lower()
-        if '세피로스' in target_name or '카인' in target_name:
-            results.append("보스에게는 스탯 스왑이 적용되지 않습니다!")
-            return {"success": True, "results": results}
-
-        if not target or not hasattr(target, 'stat_manager') or not hasattr(user, 'stat_manager'):
-            return {"success": False, "results": ["대상이 유효하지 않습니다"]}
-
-        # 스탯 교환
-        stats_to_swap = [Stats.STRENGTH, Stats.DEFENSE]  # attack, defense
-        duration = 3
-
-        results.append(f"스탯 교환! ({duration}턴)")
-        results.append(f"{user.name} ↔ {target.name}")
-
-        for stat in stats_to_swap:
-            user_value = user.stat_manager.get_value(stat)
-            target_value = target.stat_manager.get_value(stat)
-
-            results.append(f"  {stat.name}: {user_value} ↔ {target_value}")
-
-            # 스탯 교환
-            user.stat_manager.set_base_value(stat, target_value)
-            target.stat_manager.set_base_value(stat, user_value)
-
-            # 턴 종료 시 복원을 위한 효과 등록
-            if not hasattr(user, 'stat_swap_effects'):
-                user.stat_swap_effects = []
-            if not hasattr(target, 'stat_swap_effects'):
-                target.stat_swap_effects = []
-
-            user.stat_swap_effects.append({
-                'stat': stat,
-                'original_value': user_value,
-                'duration': duration
-            })
-            target.stat_swap_effects.append({
-                'stat': stat,
-                'original_value': target_value,
-                'duration': duration
-            })
-
-        return {"success": True, "results": results}
-
-    stat_swap.execute = stat_swap_execute.__get__(stat_swap, type(stat_swap))
     skills.append(stat_swap)
     
     # 7. 미러 포스 - 받은 피해 반사
@@ -625,10 +570,10 @@ def create_magician_skills():
     fatal_flush = Skill(
         "magician_fatal_flush",
         "페이탈 플러시",
-        "[플러시 필요] 5장 무늬에 따른 속성 폭격! ♠암흑 ♥흡혈 ♦방무 ♣맹독"
+        "[암흑 속성] [플러시 필요] 5장 무늬에 따른 속성 폭격! ♠암흑 ♥빛 ♦대지 ♣독"
     )
     fatal_flush.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.2)
+        DamageEffect(DamageType.BRV_HP, 2.2, element="dark")  # 기본 원소: 스페이드(암흑), suit에 따라 동적 변환
     ]
     fatal_flush.costs = [MPCost(25)]
     fatal_flush.is_aoe = True
@@ -670,11 +615,11 @@ def create_magician_skills():
     four_kind_overkill = Skill(
         "magician_four_kind_overkill",
         "포카드 오버킬",
-        "[포카드 필요] 4장의 힘을 모아 단일 대상 말살! 숫자가 높을수록 데미지 증가!"
+        "[암흑 속성] [포카드 필요] 4장의 힘을 모아 단일 대상 말살! 숫자가 높을수록 데미지 증가!"
     )
     four_kind_overkill.effects = [
-        DamageEffect(DamageType.BRV, 2.2),
-        DamageEffect(DamageType.HP, 3.3)
+        DamageEffect(DamageType.BRV, 2.2, element="dark"),
+        DamageEffect(DamageType.HP, 3.3, element="dark")
     ]
     four_kind_overkill.costs = [MPCost(35)]
     four_kind_overkill.sfx = ("skill", "explosion")
@@ -884,7 +829,15 @@ def execute_magician_skill(character, skill, target, context):
         # 조합 확인
         combo_type, combo_cards, score = check_poker_combination(hand)
         
-        if combo_type != required and required != "pair":  # pair는 모든 조합에서 사용 가능
+        # can_use와 동일한 랭크 기반 비교 (상위 조합으로도 사용 가능)
+        combo_ranks = {
+            "pair": 1, "two_pair": 2, "triple": 3, "straight": 4,
+            "flush": 5, "full_house": 6, "four_of_kind": 7,
+            "straight_flush": 8, "royal_straight_flush": 9
+        }
+        required_rank = combo_ranks.get(required, 0)
+        current_rank = combo_ranks.get(combo_type, 0)
+        if current_rank < required_rank:
             # 조합이 맞지 않으면 실패
             results.append(f"조합 실패! {required} 필요 (현재: {combo_type or '없음'})")
             return {"success": False, "results": results}
@@ -910,16 +863,33 @@ def execute_magician_skill(character, skill, target, context):
         if metadata.get('swap_stats'):
             # 스탯 스왑: 적과 자신의 스탯 교환 (HP 제외)
             from src.character.stats import Stats
-            if target and hasattr(target, 'stat_manager') and hasattr(character, 'stat_manager'):
+
+            # Skill.execute()에서 target이 리스트로 변환되므로 단일 타겟 추출
+            actual_target = target
+            if isinstance(target, list):
+                actual_target = target[0] if target else None
+
+            if actual_target and hasattr(character, 'stat_manager'):
                 # 보스에게는 스탯 스왑 적용하지 않음
-                target_name = getattr(target, 'name', '').lower()
+                target_name = getattr(actual_target, 'name', '').lower()
                 if '세피로스' in target_name or '카인' in target_name:
                     results.append("보스에게는 스탯 스왑이 적용되지 않습니다!")
                     return {'success': True, 'results': results}
+
+                # SimpleEnemy 등 stat_manager가 없는 대상을 위한 직접 속성 매핑
+                stat_to_attr = {
+                    Stats.STRENGTH: 'physical_attack',
+                    Stats.DEFENSE: 'physical_defense',
+                    Stats.MAGIC: 'magic_attack',
+                    Stats.SPIRIT: 'magic_defense',
+                    Stats.SPEED: 'speed',
+                    Stats.LUCK: 'luck',
+                }
+                has_target_sm = hasattr(actual_target, 'stat_manager') and actual_target.stat_manager
+
                 # 메타데이터에서 교환할 스탯 결정
                 swap_stats_config = metadata.get('swap_stats', [])
                 if isinstance(swap_stats_config, list):
-                    # 설정된 스탯만 교환
                     stat_mapping = {
                         "attack": Stats.STRENGTH,
                         "defense": Stats.DEFENSE,
@@ -930,38 +900,47 @@ def execute_magician_skill(character, skill, target, context):
                     }
                     stats_to_swap = [stat_mapping[stat] for stat in swap_stats_config if stat in stat_mapping]
                 else:
-                    # 기본값: 모든 스탯 교환
                     stats_to_swap = [Stats.STRENGTH, Stats.DEFENSE, Stats.MAGIC, Stats.SPIRIT, Stats.SPEED, Stats.LUCK]
 
                 duration = metadata.get('duration', 3)
 
                 results.append(f"스탯 교환! ({duration}턴)")
-                results.append(f"{character.name} ↔ {target.name}")
+                results.append(f"{character.name} ↔ {actual_target.name}")
 
                 for stat in stats_to_swap:
-                    # 각 스탯의 현재 값 가져오기
                     ally_stat_value = character.stat_manager.get_value(stat)
-                    enemy_stat_value = target.stat_manager.get_value(stat)
 
-                    results.append(f"  {stat.name}: {character.name} {ally_stat_value} ↔ {target.name} {enemy_stat_value}")
+                    # target 스탯 가져오기
+                    if has_target_sm:
+                        enemy_stat_value = actual_target.stat_manager.get_value(stat)
+                    else:
+                        attr_name = stat_to_attr.get(stat)
+                        enemy_stat_value = int(getattr(actual_target, attr_name, 0)) if attr_name else 0
 
-                    # 스탯 교환: 직접 base_value를 교환
+                    # character 스탯 교환
                     character.stat_manager.set_base_value(stat, enemy_stat_value)
-                    target.stat_manager.set_base_value(stat, ally_stat_value)
+
+                    # target 스탯 교환
+                    if has_target_sm:
+                        actual_target.stat_manager.set_base_value(stat, ally_stat_value)
+                    else:
+                        attr_name = stat_to_attr.get(stat)
+                        if attr_name:
+                            setattr(actual_target, attr_name, int(ally_stat_value))
 
                     # 임시 효과로 등록 (턴 종료 시 복원)
                     if not hasattr(character, 'stat_swap_effects'):
                         character.stat_swap_effects = []
-                    if not hasattr(target, 'stat_swap_effects'):
-                        target.stat_swap_effects = []
+                    if not hasattr(actual_target, 'stat_swap_effects'):
+                        actual_target.stat_swap_effects = []
 
                     character.stat_swap_effects.append({
                         'stat': stat,
                         'original_value': ally_stat_value,
                         'duration': duration
                     })
-                    target.stat_swap_effects.append({
-                        'stat': stat,
+                    actual_target.stat_swap_effects.append({
+                        'stat': stat_to_attr.get(stat) if not has_target_sm else stat,
                         'original_value': enemy_stat_value,
                         'duration': duration
                     })

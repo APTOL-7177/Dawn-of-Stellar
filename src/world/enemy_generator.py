@@ -233,12 +233,12 @@ ENEMY_TEMPLATES = {
     # 7분 30초 제한 - 스킬 계수로 위협적
     "sephiroth": EnemyTemplate(
         "sephiroth", "세피로스", 1,
-        hp=400, mp=500,  # HP 적당히 증가 (300->350), MP 대폭 증가
-        physical_attack=66, physical_defense=94,  # 물리 특화, 방어력 20% 감소 (68->54)
-        magic_attack=42, magic_defense=66,  # 마법은 낮게, 방어력 20% 감소 (58->46)
-        speed=110,  # 스피드 2배 (55*2)
-        max_brv=1200, init_brv=600,  # init_brv를 max_brv 절반으로 설정 (1200//2)
-        luck=18, accuracy=85, evasion=16
+        hp=520, mp=650,  # 전체 스탯 30% 증가
+        physical_attack=86, physical_defense=122,  # 물리 특화
+        magic_attack=55, magic_defense=86,  # 마법은 낮게
+        speed=143,  # 고속
+        max_brv=1560, init_brv=780,  # BRV 30% 증가
+        luck=23, accuracy=110, evasion=21
     ),
 
     # === 진 최종 보스 (30층) - 마법형 ===
@@ -246,12 +246,12 @@ ENEMY_TEMPLATES = {
     # 4분 제한 - 시간은 짧지만 마법 계수 높은 스킬로 승부
     "abel_cain": EnemyTemplate(
         "abel_cain", "닥터 아벨 카인", 1,
-        hp=270, mp=500,  # HP 2/3 감소 (300->200), MP 대폭 증가
-        physical_attack=40, physical_defense=60,  # 물리는 낮게, 방어력 1.3배 (54->70)
-        magic_attack=79, magic_defense=98,  # 마법 특화, 방어력 1.3배 (75->98)
-        speed=96,  # 스피드 2배 (48*2) - 마법형이라 조금 느림
-        max_brv=960, init_brv=480,  # init_brv를 max_brv 절반으로 설정 (960//2)
-        luck=20, accuracy=88, evasion=14
+        hp=351, mp=650,  # 전체 스탯 30% 증가
+        physical_attack=52, physical_defense=78,  # 물리는 낮게
+        magic_attack=103, magic_defense=127,  # 마법 특화
+        speed=125,  # 마법형이라 조금 느림
+        max_brv=1248, init_brv=624,  # BRV 30% 증가
+        luck=26, accuracy=114, evasion=18
     ),
 
     # ============================================================
@@ -778,6 +778,95 @@ ENEMY_TEMPLATES = {
         max_brv=1600, init_brv=533,
         luck=16, accuracy=72, evasion=15
     ),
+
+    # === Tier 1 - 약한 적 (1-3층) ===
+    "mushroom": EnemyTemplate("mushroom", "독버섯", 1, hp=210, mp=30, physical_attack=22, physical_defense=37, magic_attack=22, magic_defense=32, speed=21, max_brv=700, init_brv=233, luck=6, accuracy=55, evasion=8),
+    "bat": EnemyTemplate("bat", "박쥐", 1, hp=72, mp=25, physical_attack=52, physical_defense=10, magic_attack=18, magic_defense=12, speed=97, max_brv=650, init_brv=217, luck=7, accuracy=60, evasion=25),
+    "rat_swarm": EnemyTemplate("rat_swarm", "쥐떼", 1, hp=136, mp=20, physical_attack=62, physical_defense=10, magic_attack=10, magic_defense=10, speed=66, max_brv=680, init_brv=227, luck=6, accuracy=58, evasion=18),
+    "fire_sprite": EnemyTemplate("fire_sprite", "화염 요정", 1, hp=75, mp=60, physical_attack=10, physical_defense=10, magic_attack=105, magic_defense=60, speed=57, max_brv=750, init_brv=250, luck=8, accuracy=65, evasion=20),
+    "ice_fairy": EnemyTemplate("ice_fairy", "얼음 요정", 1, hp=75, mp=60, physical_attack=10, physical_defense=10, magic_attack=102, magic_defense=62, speed=55, max_brv=720, init_brv=240, luck=8, accuracy=63, evasion=22),
+
+    # === Tier 2 - 일반 적 (3-6층) ===
+    "lizardman": EnemyTemplate("lizardman", "리자드맨", 1, hp=364, mp=35, physical_attack=40, physical_defense=102, magic_attack=11, magic_defense=25, speed=29, max_brv=950, init_brv=317, luck=7, accuracy=60, evasion=8),
+    "harpy": EnemyTemplate("harpy", "하피", 1, hp=140, mp=55, physical_attack=22, physical_defense=17, magic_attack=84, magic_defense=24, speed=68, max_brv=900, init_brv=300, luck=9, accuracy=68, evasion=22),
+    "shadow_imp": EnemyTemplate("shadow_imp", "그림자 임프", 1, hp=135, mp=65, physical_attack=11, physical_defense=12, magic_attack=93, magic_defense=66, speed=55, max_brv=850, init_brv=283, luck=10, accuracy=65, evasion=20),
+    "frost_wolf": EnemyTemplate("frost_wolf", "서리 늑대", 1, hp=132, mp=30, physical_attack=63, physical_defense=21, magic_attack=21, magic_defense=15, speed=90, max_brv=920, init_brv=307, luck=8, accuracy=64, evasion=15),
+    "flame_hound": EnemyTemplate("flame_hound", "화염 사냥개", 1, hp=178, mp=35, physical_attack=93, physical_defense=15, magic_attack=14, magic_defense=11, speed=74, max_brv=930, init_brv=310, luck=8, accuracy=65, evasion=14),
+    "sand_worm": EnemyTemplate("sand_worm", "모래벌레", 1, hp=450, mp=20, physical_attack=24, physical_defense=112, magic_attack=10, magic_defense=36, speed=15, max_brv=1050, init_brv=350, luck=5, accuracy=55, evasion=3),
+    "thunder_hawk": EnemyTemplate("thunder_hawk", "번개 매", 1, hp=102, mp=45, physical_attack=57, physical_defense=15, magic_attack=33, magic_defense=20, speed=108, max_brv=880, init_brv=293, luck=10, accuracy=72, evasion=28),
+    "aqua_slime": EnemyTemplate("aqua_slime", "물 슬라임", 1, hp=260, mp=55, physical_attack=19, physical_defense=26, magic_attack=42, magic_defense=90, speed=30, max_brv=850, init_brv=283, luck=7, accuracy=58, evasion=12),
+
+    # === Tier 3 - 강한 적 (6-9층) ===
+    "gargoyle": EnemyTemplate("gargoyle", "가고일", 1, hp=392, mp=40, physical_attack=40, physical_defense=120, magic_attack=18, magic_defense=44, speed=29, max_brv=1100, init_brv=367, luck=8, accuracy=60, evasion=8),
+    "spectre": EnemyTemplate("spectre", "망령체", 1, hp=150, mp=80, physical_attack=10, physical_defense=11, magic_attack=112, magic_defense=84, speed=47, max_brv=1000, init_brv=333, luck=12, accuracy=68, evasion=25),
+    "lava_golem": EnemyTemplate("lava_golem", "용암 골렘", 1, hp=525, mp=30, physical_attack=31, physical_defense=127, magic_attack=24, magic_defense=58, speed=15, max_brv=1200, init_brv=400, luck=6, accuracy=55, evasion=3),
+    "frost_giant": EnemyTemplate("frost_giant", "서리 거인", 1, hp=510, mp=35, physical_attack=72, physical_defense=94, magic_attack=20, magic_defense=49, speed=15, max_brv=1150, init_brv=383, luck=7, accuracy=56, evasion=5),
+    "storm_drake": EnemyTemplate("storm_drake", "폭풍 드레이크", 1, hp=232, mp=60, physical_attack=78, physical_defense=30, magic_attack=72, magic_defense=27, speed=60, max_brv=1100, init_brv=367, luck=10, accuracy=68, evasion=15),
+    "dark_priestess": EnemyTemplate("dark_priestess", "암흑 사제", 1, hp=165, mp=90, physical_attack=10, physical_defense=13, magic_attack=117, magic_defense=86, speed=42, max_brv=1050, init_brv=350, luck=11, accuracy=70, evasion=12),
+    "iron_beetle": EnemyTemplate("iron_beetle", "철 딱정벌레", 1, hp=465, mp=20, physical_attack=27, physical_defense=135, magic_attack=10, magic_defense=43, speed=17, max_brv=1080, init_brv=360, luck=6, accuracy=58, evasion=5),
+    "toxic_hydra": EnemyTemplate("toxic_hydra", "독 히드라", 1, hp=495, mp=50, physical_attack=58, physical_defense=74, magic_attack=26, magic_defense=52, speed=19, max_brv=1150, init_brv=383, luck=9, accuracy=62, evasion=8),
+    "phoenix_chick": EnemyTemplate("phoenix_chick", "어린 불사조", 1, hp=161, mp=70, physical_attack=20, physical_defense=17, magic_attack=104, magic_defense=35, speed=60, max_brv=1000, init_brv=333, luck=12, accuracy=70, evasion=20),
+
+    # === Tier 4 - 매우 강한 적 (9-12층) ===
+    "chaos_knight": EnemyTemplate("chaos_knight", "혼돈의 기사", 1, hp=400, mp=55, physical_attack=97, physical_defense=63, magic_attack=20, magic_defense=33, speed=44, max_brv=1200, init_brv=400, luck=12, accuracy=70, evasion=10),
+    "frost_wyrm": EnemyTemplate("frost_wyrm", "서리 비룡", 1, hp=510, mp=70, physical_attack=65, physical_defense=87, magic_attack=34, magic_defense=66, speed=25, max_brv=1250, init_brv=417, luck=13, accuracy=72, evasion=12),
+    "thunder_dragon": EnemyTemplate("thunder_dragon", "뇌룡", 1, hp=264, mp=75, physical_attack=74, physical_defense=31, magic_attack=86, magic_defense=30, speed=63, max_brv=1200, init_brv=400, luck=14, accuracy=74, evasion=14),
+    "plague_bearer": EnemyTemplate("plague_bearer", "역병 전파자", 1, hp=210, mp=85, physical_attack=13, physical_defense=18, magic_attack=112, magic_defense=78, speed=39, max_brv=1100, init_brv=367, luck=11, accuracy=68, evasion=8),
+    "crystal_guardian": EnemyTemplate("crystal_guardian", "수정 수호자", 1, hp=540, mp=60, physical_attack=24, physical_defense=127, magic_attack=27, magic_defense=116, speed=19, max_brv=1300, init_brv=433, luck=10, accuracy=62, evasion=5),
+    "shadow_assassin": EnemyTemplate("shadow_assassin", "그림자 암살자", 1, hp=204, mp=50, physical_attack=120, physical_defense=16, magic_attack=12, magic_defense=14, speed=90, max_brv=1100, init_brv=367, luck=15, accuracy=78, evasion=28),
+    "infernal_mage": EnemyTemplate("infernal_mage", "지옥 마법사", 1, hp=195, mp=100, physical_attack=10, physical_defense=15, magic_attack=123, magic_defense=84, speed=45, max_brv=1150, init_brv=383, luck=12, accuracy=72, evasion=12),
+    "water_elemental": EnemyTemplate("water_elemental", "물의 정령", 1, hp=351, mp=80, physical_attack=20, physical_defense=37, magic_attack=49, magic_defense=112, speed=33, max_brv=1100, init_brv=367, luck=10, accuracy=65, evasion=15),
+    "storm_giant": EnemyTemplate("storm_giant", "폭풍 거인", 1, hp=570, mp=50, physical_attack=75, physical_defense=97, magic_attack=27, magic_defense=55, speed=17, max_brv=1350, init_brv=450, luck=10, accuracy=60, evasion=5),
+
+    # === Tier 5 - 최상급 적 (12-15층) ===
+    "ancient_lich": EnemyTemplate("ancient_lich", "고대 리치", 1, hp=232, mp=120, physical_attack=12, physical_defense=20, magic_attack=127, magic_defense=96, speed=45, max_brv=1250, init_brv=417, luck=15, accuracy=75, evasion=15),
+    "chaos_dragon": EnemyTemplate("chaos_dragon", "혼돈의 용", 1, hp=304, mp=90, physical_attack=90, physical_defense=38, magic_attack=84, magic_defense=35, speed=57, max_brv=1400, init_brv=467, luck=16, accuracy=75, evasion=12),
+    "celestial_guardian": EnemyTemplate("celestial_guardian", "천상의 수호자", 1, hp=525, mp=80, physical_attack=27, physical_defense=120, magic_attack=29, magic_defense=123, speed=24, max_brv=1350, init_brv=450, luck=14, accuracy=72, evasion=8),
+    "abyssal_horror": EnemyTemplate("abyssal_horror", "심연의 공포", 1, hp=289, mp=95, physical_attack=108, physical_defense=22, magic_attack=27, magic_defense=24, speed=60, max_brv=1300, init_brv=433, luck=15, accuracy=73, evasion=12),
+    "volcanic_titan": EnemyTemplate("volcanic_titan", "화산 타이탄", 1, hp=600, mp=50, physical_attack=80, physical_defense=110, magic_attack=30, magic_defense=49, speed=15, max_brv=1450, init_brv=483, luck=10, accuracy=62, evasion=3),
+    "frost_phoenix": EnemyTemplate("frost_phoenix", "서리 불사조", 1, hp=210, mp=90, physical_attack=22, physical_defense=22, magic_attack=116, magic_defense=42, speed=66, max_brv=1250, init_brv=417, luck=16, accuracy=76, evasion=22),
+    "void_beast": EnemyTemplate("void_beast", "공허의 야수", 1, hp=297, mp=60, physical_attack=120, physical_defense=24, magic_attack=19, magic_defense=20, speed=69, max_brv=1350, init_brv=450, luck=13, accuracy=72, evasion=15),
+    "tempest_serpent": EnemyTemplate("tempest_serpent", "폭풍 뱀", 1, hp=174, mp=75, physical_attack=66, physical_defense=25, magic_attack=43, magic_defense=31, speed=97, max_brv=1200, init_brv=400, luck=14, accuracy=74, evasion=18),
+
+    # === Tier 6 - 보스급 적 (15+층) ===
+    "demon_lord": EnemyTemplate("demon_lord", "마왕", 1, hp=336, mp=120, physical_attack=96, physical_defense=41, magic_attack=98, magic_defense=38, speed=57, max_brv=1500, init_brv=500, luck=18, accuracy=78, evasion=15),
+    "elder_lich": EnemyTemplate("elder_lich", "상위 리치", 1, hp=262, mp=150, physical_attack=13, physical_defense=22, magic_attack=135, magic_defense=102, speed=42, max_brv=1400, init_brv=467, luck=18, accuracy=80, evasion=12),
+    "storm_colossus": EnemyTemplate("storm_colossus", "폭풍의 거상", 1, hp=675, mp=80, physical_attack=82, physical_defense=108, magic_attack=32, magic_defense=66, speed=19, max_brv=1550, init_brv=517, luck=14, accuracy=65, evasion=5),
+    "primordial_dragon": EnemyTemplate("primordial_dragon", "시조룡", 1, hp=384, mp=100, physical_attack=93, physical_defense=42, magic_attack=90, magic_defense=39, speed=60, max_brv=1600, init_brv=533, luck=18, accuracy=80, evasion=12),
+
+    # === legendary 티어 (18-24층) ===
+    "hell_knight": EnemyTemplate("hell_knight", "지옥 기사", 1, hp=475, mp=70, physical_attack=105, physical_defense=64, magic_attack=18, magic_defense=33, speed=44, max_brv=1400, init_brv=467, luck=15, accuracy=75, evasion=12),
+    "blood_witch": EnemyTemplate("blood_witch", "피의 마녀", 1, hp=210, mp=110, physical_attack=10, physical_defense=15, magic_attack=127, magic_defense=90, speed=47, max_brv=1200, init_brv=400, luck=16, accuracy=76, evasion=15),
+    "shadow_dragon": EnemyTemplate("shadow_dragon", "그림자 용", 1, hp=320, mp=85, physical_attack=86, physical_defense=37, magic_attack=84, magic_defense=35, speed=57, max_brv=1450, init_brv=483, luck=16, accuracy=76, evasion=14),
+    "arcane_golem": EnemyTemplate("arcane_golem", "비전 골렘", 1, hp=630, mp=60, physical_attack=29, physical_defense=132, magic_attack=24, magic_defense=118, speed=17, max_brv=1500, init_brv=500, luck=10, accuracy=60, evasion=3),
+    "death_priest": EnemyTemplate("death_priest", "죽음의 사제", 1, hp=217, mp=100, physical_attack=11, physical_defense=18, magic_attack=123, magic_defense=93, speed=45, max_brv=1250, init_brv=417, luck=14, accuracy=72, evasion=12),
+    "flame_titan": EnemyTemplate("flame_titan", "화염 타이탄", 1, hp=645, mp=55, physical_attack=82, physical_defense=105, magic_attack=29, magic_defense=49, speed=16, max_brv=1500, init_brv=500, luck=11, accuracy=62, evasion=4),
+    "ice_wraith": EnemyTemplate("ice_wraith", "빙결 망령", 1, hp=189, mp=90, physical_attack=18, physical_defense=17, magic_attack=116, magic_defense=41, speed=60, max_brv=1200, init_brv=400, luck=14, accuracy=72, evasion=20),
+    "thunder_lord": EnemyTemplate("thunder_lord", "뇌신", 1, hp=280, mp=90, physical_attack=78, physical_defense=30, magic_attack=96, magic_defense=35, speed=65, max_brv=1350, init_brv=450, luck=15, accuracy=75, evasion=16),
+    "corrupted_angel": EnemyTemplate("corrupted_angel", "타락 천사", 1, hp=306, mp=95, physical_attack=69, physical_defense=32, magic_attack=27, magic_defense=104, speed=60, max_brv=1300, init_brv=433, luck=16, accuracy=76, evasion=18),
+    "venom_drake": EnemyTemplate("venom_drake", "독룡", 1, hp=450, mp=65, physical_attack=94, physical_defense=55, magic_attack=22, magic_defense=30, speed=44, max_brv=1350, init_brv=450, luck=14, accuracy=70, evasion=12),
+    "storm_harpy": EnemyTemplate("storm_harpy", "폭풍 하피", 1, hp=168, mp=75, physical_attack=60, physical_defense=20, magic_attack=43, magic_defense=30, speed=105, max_brv=1200, init_brv=400, luck=16, accuracy=78, evasion=25),
+    "bone_colossus": EnemyTemplate("bone_colossus", "해골 거상", 1, hp=675, mp=40, physical_attack=36, physical_defense=127, magic_attack=15, magic_defense=58, speed=15, max_brv=1550, init_brv=517, luck=10, accuracy=58, evasion=3),
+    "cursed_samurai": EnemyTemplate("cursed_samurai", "저주받은 사무라이", 1, hp=240, mp=55, physical_attack=114, physical_defense=30, magic_attack=20, magic_defense=22, speed=74, max_brv=1300, init_brv=433, luck=15, accuracy=80, evasion=18),
+    "magma_serpent": EnemyTemplate("magma_serpent", "용암 뱀", 1, hp=248, mp=70, physical_attack=74, physical_defense=28, magic_attack=86, magic_defense=30, speed=57, max_brv=1250, init_brv=417, luck=13, accuracy=72, evasion=14),
+    "void_sentinel": EnemyTemplate("void_sentinel", "공허의 파수꾼", 1, hp=532, mp=75, physical_attack=44, physical_defense=112, magic_attack=24, magic_defense=56, speed=29, max_brv=1400, init_brv=467, luck=14, accuracy=68, evasion=8),
+
+    # === mythic 티어 (24+층) ===
+    "world_serpent": EnemyTemplate("world_serpent", "세계뱀", 1, hp=720, mp=100, physical_attack=80, physical_defense=101, magic_attack=39, magic_defense=77, speed=27, max_brv=1600, init_brv=533, luck=18, accuracy=80, evasion=14),
+    "fallen_seraph": EnemyTemplate("fallen_seraph", "타락한 세라핌", 1, hp=315, mp=120, physical_attack=19, physical_defense=27, magic_attack=132, magic_defense=98, speed=57, max_brv=1550, init_brv=517, luck=18, accuracy=82, evasion=20),
+    "titan_king": EnemyTemplate("titan_king", "타이탄 왕", 1, hp=780, mp=70, physical_attack=39, physical_defense=127, magic_attack=22, magic_defense=79, speed=19, max_brv=1700, init_brv=567, luck=14, accuracy=68, evasion=5),
+    "lich_emperor": EnemyTemplate("lich_emperor", "리치 황제", 1, hp=285, mp=150, physical_attack=13, physical_defense=22, magic_attack=138, magic_defense=105, speed=47, max_brv=1500, init_brv=500, luck=20, accuracy=82, evasion=15),
+    "nightmare_king": EnemyTemplate("nightmare_king", "악몽의 왕", 1, hp=352, mp=100, physical_attack=90, physical_defense=35, magic_attack=96, magic_defense=39, speed=57, max_brv=1550, init_brv=517, luck=18, accuracy=78, evasion=16),
+    "elemental_lord": EnemyTemplate("elemental_lord", "정령왕", 1, hp=280, mp=130, physical_attack=24, physical_defense=27, magic_attack=130, magic_defense=46, speed=57, max_brv=1500, init_brv=500, luck=18, accuracy=80, evasion=14),
+    "doom_bringer": EnemyTemplate("doom_bringer", "파멸의 전령", 1, hp=391, mp=80, physical_attack=131, physical_defense=28, magic_attack=22, magic_defense=24, speed=69, max_brv=1600, init_brv=533, luck=17, accuracy=78, evasion=12),
+    "celestial_dragon": EnemyTemplate("celestial_dragon", "천룡", 1, hp=400, mp=110, physical_attack=98, physical_defense=42, magic_attack=96, magic_defense=41, speed=60, max_brv=1650, init_brv=550, luck=19, accuracy=82, evasion=14),
+    "abyssal_king": EnemyTemplate("abyssal_king", "심연의 왕", 1, hp=587, mp=100, physical_attack=110, physical_defense=63, magic_attack=31, magic_defense=40, speed=44, max_brv=1600, init_brv=533, luck=18, accuracy=78, evasion=12),
+    "chrono_guardian": EnemyTemplate("chrono_guardian", "시간의 수호자", 1, hp=342, mp=120, physical_attack=63, physical_defense=42, magic_attack=29, magic_defense=116, speed=68, max_brv=1450, init_brv=483, luck=18, accuracy=80, evasion=18),
+    "infernal_dragon": EnemyTemplate("infernal_dragon", "지옥룡", 1, hp=416, mp=95, physical_attack=131, physical_defense=30, magic_attack=26, magic_defense=26, speed=66, max_brv=1650, init_brv=550, luck=17, accuracy=78, evasion=12),
+    "divine_beast": EnemyTemplate("divine_beast", "신수", 1, hp=585, mp=100, physical_attack=37, physical_defense=54, magic_attack=54, magic_defense=112, speed=43, max_brv=1550, init_brv=517, luck=18, accuracy=80, evasion=15),
+    "shadow_emperor": EnemyTemplate("shadow_emperor", "그림자 황제", 1, hp=322, mp=110, physical_attack=21, physical_defense=29, magic_attack=123, magic_defense=90, speed=52, max_brv=1500, init_brv=500, luck=19, accuracy=80, evasion=16),
+    "runic_titan": EnemyTemplate("runic_titan", "룬 타이탄", 1, hp=750, mp=80, physical_attack=38, physical_defense=132, magic_attack=27, magic_defense=94, speed=16, max_brv=1700, init_brv=567, luck=12, accuracy=65, evasion=3),
+    "eternal_phoenix": EnemyTemplate("eternal_phoenix", "영원의 불사조", 1, hp=280, mp=110, physical_attack=27, physical_defense=27, magic_attack=123, magic_defense=44, speed=68, max_brv=1500, init_brv=500, luck=19, accuracy=82, evasion=20),
 }
 
 
@@ -789,10 +878,12 @@ class SimpleEnemy:
         self.name = template.name
         self.level = max(1, int(template.level * level_modifier))
         self.is_floor_boss = is_floor_boss  # 5층마다 나오는 층 보스 여부
-        
+
         # 보스 여부 확인 (enemy_id로도 확인)
         if not is_boss:
             is_boss = template.enemy_id.startswith("boss_") or template.enemy_id == "sephiroth"
+        self.is_boss = is_boss  # 인스턴스 속성으로 저장
+        self.is_enemy = True  # 툴팁에서 적 판별용
         
         # ±20% 랜덤 오차 (0.8 ~ 1.2배)
         stat_variance = random.uniform(0.8, 1.2)
@@ -994,6 +1085,95 @@ class SimpleEnemy:
             "boss_dragon_king": {"holy": 0.7},  # 약간의 신성 약점만
             "sephiroth": {"holy": 0.8},  # 미미한 약점
             "abel_cain": {"dark": 0.8, "holy": 0.8},  # 양면성
+
+            # === Tier 1 - 약한 적 ===
+            "mushroom": {"earth": 1.5, "fire": 0.5, "ice": 0.7},
+            "bat": {"dark": 1.5, "holy": 0.5, "wind": 1.2},
+            "rat_swarm": {"fire": 0.6, "ice": 0.8},
+            "fire_sprite": {"fire": 2.5, "ice": 0.3, "water": 0.5},
+            "ice_fairy": {"ice": 2.5, "fire": 0.3, "lightning": 0.7},
+
+            # === Tier 2 - 일반 적 ===
+            "lizardman": {"earth": 1.5, "ice": 0.6, "fire": 1.2},
+            "harpy": {"wind": 1.5, "lightning": 0.5, "ice": 0.7, "earth": 1.3},
+            "shadow_imp": {"dark": 1.8, "holy": 0.4, "fire": 0.8},
+            "frost_wolf": {"ice": 2.0, "fire": 0.4, "water": 1.3},
+            "flame_hound": {"fire": 2.0, "ice": 0.4, "water": 0.5},
+            "sand_worm": {"earth": 2.0, "water": 0.4, "ice": 0.6},
+            "thunder_hawk": {"lightning": 1.8, "earth": 0.5, "wind": 1.5},
+            "aqua_slime": {"water": 2.0, "lightning": 0.3, "fire": 0.8, "ice": 1.5},
+
+            # === Tier 3 - 강한 적 ===
+            "gargoyle": {"earth": 1.8, "holy": 0.5, "lightning": 0.6},
+            "spectre": {"dark": 1.5, "holy": 0.3, "fire": 0.7},
+            "lava_golem": {"fire": 2.5, "ice": 0.3, "water": 0.4, "earth": 1.5},
+            "frost_giant": {"ice": 2.0, "fire": 0.4, "lightning": 0.7},
+            "storm_drake": {"lightning": 1.8, "wind": 1.5, "earth": 0.5, "ice": 0.6},
+            "dark_priestess": {"dark": 2.0, "holy": 0.3, "fire": 0.8},
+            "iron_beetle": {"earth": 2.0, "lightning": 0.5, "fire": 0.6, "water": 1.3},
+            "toxic_hydra": {"water": 1.5, "fire": 0.5, "ice": 0.6, "lightning": 0.7},
+            "phoenix_chick": {"fire": 2.0, "holy": 1.5, "ice": 0.4, "water": 0.5, "dark": 0.6},
+
+            # === Tier 4 - 매우 강한 적 ===
+            "chaos_knight": {"dark": 1.8, "holy": 0.4, "lightning": 0.7},
+            "frost_wyrm": {"ice": 2.0, "fire": 0.4, "water": 1.3, "lightning": 0.6},
+            "thunder_dragon": {"lightning": 2.0, "earth": 0.4, "water": 0.6, "wind": 1.5},
+            "plague_bearer": {"dark": 1.8, "holy": 0.4, "fire": 0.5},
+            "crystal_guardian": {"holy": 1.8, "ice": 1.5, "dark": 0.4, "earth": 0.6},
+            "shadow_assassin": {"dark": 1.8, "holy": 0.4, "fire": 0.7},
+            "infernal_mage": {"fire": 2.0, "dark": 1.5, "ice": 0.4, "water": 0.5},
+            "water_elemental": {"water": 2.5, "lightning": 0.3, "fire": 0.8, "ice": 1.5},
+            "storm_giant": {"lightning": 1.5, "wind": 1.5, "earth": 0.5, "ice": 0.6},
+
+            # === Tier 5 - 최상급 적 ===
+            "ancient_lich": {"dark": 2.0, "ice": 1.5, "holy": 0.3, "fire": 0.5},
+            "chaos_dragon": {"dark": 1.5, "fire": 1.5, "holy": 0.4, "ice": 0.5},
+            "celestial_guardian": {"holy": 2.0, "lightning": 1.5, "dark": 0.3, "earth": 0.6},
+            "abyssal_horror": {"dark": 2.0, "water": 1.5, "holy": 0.3, "lightning": 0.5},
+            "volcanic_titan": {"fire": 2.0, "earth": 1.8, "ice": 0.3, "water": 0.4},
+            "frost_phoenix": {"ice": 2.0, "holy": 1.5, "fire": 0.4, "dark": 0.5},
+            "void_beast": {"dark": 2.0, "holy": 0.4, "fire": 0.6, "lightning": 0.6},
+            "tempest_serpent": {"wind": 2.0, "lightning": 1.5, "earth": 0.4, "ice": 0.6},
+
+            # === Tier 6 - 보스급 적 ===
+            "demon_lord": {"dark": 2.0, "fire": 1.5, "holy": 0.3, "ice": 0.5},
+            "elder_lich": {"dark": 2.0, "ice": 1.8, "holy": 0.3, "fire": 0.4},
+            "storm_colossus": {"lightning": 2.0, "wind": 1.8, "earth": 0.4, "ice": 0.5},
+            "primordial_dragon": {"fire": 1.5, "ice": 1.3, "lightning": 1.3, "holy": 0.6, "dark": 0.6},
+
+            # === legendary 티어 ===
+            "hell_knight": {"dark": 1.8, "fire": 1.5, "holy": 0.4, "ice": 0.6},
+            "blood_witch": {"dark": 2.0, "holy": 0.3, "fire": 0.7},
+            "shadow_dragon": {"dark": 2.0, "fire": 1.3, "holy": 0.4, "lightning": 0.6},
+            "arcane_golem": {"earth": 1.8, "lightning": 0.5, "fire": 0.6, "holy": 1.3},
+            "death_priest": {"dark": 2.0, "holy": 0.3, "fire": 0.6},
+            "flame_titan": {"fire": 2.5, "ice": 0.3, "water": 0.4, "earth": 1.5},
+            "ice_wraith": {"ice": 2.0, "fire": 0.4, "holy": 0.5, "dark": 1.3},
+            "thunder_lord": {"lightning": 2.0, "earth": 0.4, "water": 0.6, "wind": 1.5},
+            "corrupted_angel": {"dark": 1.5, "holy": 1.5, "lightning": 0.5, "fire": 0.6},
+            "venom_drake": {"earth": 1.5, "dark": 1.3, "ice": 0.5, "holy": 0.6},
+            "storm_harpy": {"wind": 2.0, "lightning": 1.5, "earth": 0.4, "ice": 0.6},
+            "bone_colossus": {"dark": 1.5, "earth": 1.5, "holy": 0.4, "fire": 0.5},
+            "cursed_samurai": {"dark": 1.5, "wind": 1.3, "holy": 0.5, "lightning": 0.6},
+            "magma_serpent": {"fire": 2.0, "earth": 1.3, "ice": 0.4, "water": 0.5},
+            "void_sentinel": {"dark": 1.8, "holy": 0.4, "lightning": 0.5, "fire": 0.6},
+
+            # === mythic 티어 ===
+            "world_serpent": {"water": 1.8, "earth": 1.5, "lightning": 0.5, "ice": 0.6},
+            "fallen_seraph": {"dark": 1.8, "holy": 1.5, "lightning": 0.5, "fire": 0.5},
+            "titan_king": {"earth": 2.0, "fire": 1.3, "lightning": 0.5, "ice": 0.5},
+            "lich_emperor": {"dark": 2.0, "ice": 1.8, "holy": 0.3, "fire": 0.4},
+            "nightmare_king": {"dark": 2.0, "holy": 0.3, "fire": 0.5, "lightning": 0.5},
+            "elemental_lord": {"fire": 1.3, "ice": 1.3, "lightning": 1.3, "water": 1.3, "earth": 1.3, "wind": 1.3, "holy": 0.5, "dark": 0.5},
+            "doom_bringer": {"dark": 1.8, "fire": 1.3, "holy": 0.4, "ice": 0.5},
+            "celestial_dragon": {"holy": 1.8, "fire": 1.3, "dark": 0.4, "ice": 0.5},
+            "abyssal_king": {"dark": 2.0, "water": 1.5, "holy": 0.3, "lightning": 0.5},
+            "chrono_guardian": {"lightning": 1.5, "wind": 1.5, "earth": 0.5, "dark": 0.5},
+            "infernal_dragon": {"fire": 2.0, "dark": 1.5, "ice": 0.3, "water": 0.4},
+            "divine_beast": {"holy": 1.8, "wind": 1.3, "dark": 0.4, "fire": 0.5},
+            "shadow_emperor": {"dark": 2.0, "holy": 0.3, "fire": 0.5, "lightning": 0.5},
+            "runic_titan": {"earth": 2.0, "lightning": 1.5, "water": 0.5, "fire": 0.5},
+            "eternal_phoenix": {"fire": 2.0, "holy": 1.8, "ice": 0.3, "dark": 0.4},
         }
         return ELEMENT_RESISTANCES.get(enemy_id, {})
 
@@ -1026,18 +1206,23 @@ class EnemyGenerator:
     # 적 등급별 등장 층수 정의
     ENEMY_TIERS = {
         # 약한 적 (1-3층)
-        "weak": ["slime", "goblin", "wolf", "zombie", "imp", "giant_centipede"],
+        "weak": ["slime", "goblin", "wolf", "zombie", "imp", "giant_centipede",
+                 "mushroom", "bat", "rat_swarm", "fire_sprite", "ice_fairy"],
         # 일반 적 (3-6층)
         "normal": [
             "orc", "skeleton", "dark_mage", "ghoul", "spider", "scorpion", "bear",
-            "dire_wolf", "merfolk_warrior", "queen_bee", "plague_moth"
+            "dire_wolf", "merfolk_warrior", "queen_bee", "plague_moth",
+            "lizardman", "harpy", "shadow_imp", "frost_wolf", "flame_hound",
+            "sand_worm", "thunder_hawk", "aqua_slime"
         ],
         # 강한 적 (6-9층)
         "strong": [
             "ogre", "wraith", "golem",
             "mummy", "banshee", "fire_elemental", "ice_elemental",
             "wind_elemental", "basilisk",
-            "thunderbird", "sea_serpent", "revenant", "death_beetle", "assassin"
+            "thunderbird", "sea_serpent", "revenant", "death_beetle", "assassin",
+            "gargoyle", "spectre", "lava_golem", "frost_giant", "storm_drake",
+            "dark_priestess", "iron_beetle", "toxic_hydra", "phoenix_chick"
         ],
         # 매우 강한 적 (9-12층)
         "very_strong": [
@@ -1045,7 +1230,10 @@ class EnemyGenerator:
             "death_knight", "thunder_elemental", "dark_elemental",
             "earth_elemental", "cerberus", "hydra", "mimic",
             "manticore", "siren", "dullahan", "dark_knight", "battle_mage",
-            "shadow_stalker", "berserker"
+            "shadow_stalker", "berserker",
+            "chaos_knight", "frost_wyrm", "thunder_dragon", "plague_bearer",
+            "crystal_guardian", "shadow_assassin", "infernal_mage",
+            "water_elemental", "storm_giant"
         ],
         # 최상급 적 (12-15층)
         "elite": [
@@ -1053,13 +1241,30 @@ class EnemyGenerator:
             "fire_dragon", "ice_dragon", "poison_dragon",
             "succubus", "nightmare",
             "chimera", "kraken", "bone_dragon", "lich_king",
-            "void_walker", "nightmare_lord"
+            "void_walker", "nightmare_lord",
+            "ancient_lich", "chaos_dragon", "celestial_guardian", "abyssal_horror",
+            "volcanic_titan", "frost_phoenix", "void_beast", "tempest_serpent"
         ],
         # 보스급 (15층 이상 또는 특수 조우)
         "boss": [
             "balrog", "archfiend", "elder_dragon",
             "iron_golem", "crystal_golem", "ancient_automaton",
-            "treant", "abyss_demon"
+            "treant", "abyss_demon",
+            "demon_lord", "elder_lich", "storm_colossus", "primordial_dragon"
+        ],
+        # legendary 티어 (18-24층)
+        "legendary": [
+            "hell_knight", "blood_witch", "shadow_dragon", "arcane_golem",
+            "death_priest", "flame_titan", "ice_wraith", "thunder_lord",
+            "corrupted_angel", "venom_drake", "storm_harpy", "bone_colossus",
+            "cursed_samurai", "magma_serpent", "void_sentinel"
+        ],
+        # mythic 티어 (24+층)
+        "mythic": [
+            "world_serpent", "fallen_seraph", "titan_king", "lich_emperor",
+            "nightmare_king", "elemental_lord", "doom_bringer", "celestial_dragon",
+            "abyssal_king", "chrono_guardian", "infernal_dragon", "divine_beast",
+            "shadow_emperor", "runic_titan", "eternal_phoenix"
         ],
     }
 
@@ -1087,9 +1292,15 @@ class EnemyGenerator:
             suitable.extend(EnemyGenerator.ENEMY_TIERS["very_strong"])
         if 11 <= floor_number <= 15:
             suitable.extend(EnemyGenerator.ENEMY_TIERS["elite"])
-        if floor_number >= 15:
-            # 15층 이상: elite 적만 추가 (보스는 보스 스폰에서만 등장)
+        if 14 <= floor_number <= 20:
             suitable.extend(EnemyGenerator.ENEMY_TIERS["elite"])
+            suitable.extend(EnemyGenerator.ENEMY_TIERS["boss"])
+        if 18 <= floor_number <= 26:
+            suitable.extend(EnemyGenerator.ENEMY_TIERS["boss"])
+            suitable.extend(EnemyGenerator.ENEMY_TIERS["legendary"])
+        if floor_number >= 24:
+            suitable.extend(EnemyGenerator.ENEMY_TIERS["legendary"])
+            suitable.extend(EnemyGenerator.ENEMY_TIERS["mythic"])
 
         # 최소 1종류는 나오도록
         if not suitable:
@@ -1105,11 +1316,11 @@ class EnemyGenerator:
         # t: 1층=1.0 (최대 버프) → 14층≈0.07 (거의 없음)
         t = (15 - floor_number) / 14.0
         # 공격력 강화 (아군이 받는 HP 피해 증가)
-        atk_mult = 1.0 + t * 1.0
+        atk_mult = 1.0 + t * 0.4
         enemy.physical_attack = int(enemy.physical_attack * atk_mult)
         enemy.magic_attack = int(enemy.magic_attack * atk_mult)
         # 방어력 강화 (아군 BRV 공격에 대한 내성 증가)
-        def_mult = 1.0 + t * 1.5
+        def_mult = 1.0 + t * 1.0
         enemy.physical_defense = int(enemy.physical_defense * def_mult)
         enemy.magic_defense = int(enemy.magic_defense * def_mult)
         # HP 강화

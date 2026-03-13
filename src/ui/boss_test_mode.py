@@ -180,15 +180,30 @@ def run_boss_test(console: tcod.console.Console, context: Any, boss_floor: int, 
     # 파티 설정
     combat_manager.party = party
 
+    # AffinityManager 설정 (연계스킬/체인어빌리티용) — 테스트모드: 호감도 최대
+    try:
+        from src.character.affinity import AffinityManager
+        affinity_mgr = AffinityManager()
+        # 보스 테스트 모드에서는 모든 파티원 간 호감도를 DEEP_BOND(500+) 레벨로 설정
+        party_jobs = [c.job_id for c in party_members if hasattr(c, 'job_id')]
+        for i, job_a in enumerate(party_jobs):
+            for job_b in party_jobs[i+1:]:
+                affinity_mgr.add_points(job_a, job_b, 600)  # DEEP_BOND 기준 500 이상
+        combat_manager.affinity_manager = affinity_mgr
+    except Exception as e:
+        logger.warning(f"AffinityManager 설정 실패: {e}")
+
     # 전투 시작
     combat_manager.start_combat(party_members, enemies)
+
+    # 팀워크 게이지 600 (체인어빌리티 테스트용) — start_combat 이후에 설정해야 덮어써지지 않음
+    combat_manager.party.teamwork_gauge = 600
 
     # 패시브 적용 (커스텀 파티인 경우)
     if selected_passives:
         for passive in selected_passives:
-            if hasattr(passive, 'apply_to_character'):
-                for member in party_members:
-                    passive.apply_to_character(member)
+            for member in party_members:
+                member.activate_trait(passive.id)
             logger.debug(f"패시브 적용: {passive.name}")
 
     # 전투 루프
@@ -412,6 +427,11 @@ def _select_party_mode(
     last_gamepad_check = 0
     gamepad_check_interval = 0.016
 
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     while True:
         console.clear()
         menu.render(console)
@@ -504,6 +524,11 @@ def _select_job(
     last_gamepad_check = 0
     gamepad_check_interval = 0.016
 
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     while True:
         console.clear()
 
@@ -579,6 +604,11 @@ def _input_level(
 
     last_gamepad_check = 0
     gamepad_check_interval = 0.016
+
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
 
     while True:
         # 게임패드 입력 체크

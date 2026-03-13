@@ -1,0 +1,78 @@
+class_name: 저격수
+description: 느리지만 압도적인 일격을 날리는 정밀 사수
+slogan: 한 발, 한 명. 그것으로 충분하다
+archetype: 초고화력 원거리
+base_stats:
+  hp: 151
+  mp: 43
+  init_brv: 144
+  speed: 38
+  physical_attack: 127
+  physical_defense: 41
+  magic_attack: 48
+  magic_defense: 43
+  max_brv: 394
+stat_growth:
+  hp: 30.0
+  mp: 2.9
+  init_brv: 34.0
+  strength: 36.4
+  defense: 9.1
+  magic: 9.7
+  spirit: 9.3
+  speed: 9.8
+  max_brv: 110.7
+  luck: 1.2
+  accuracy: 1.9
+  evasion: 1.2
+traits:
+- id: last_bullet
+  name: 라스트 불렛
+  description: 마지막 탄환 크리티컬 확률 +50%, 데미지 +30%
+  type: conditional
+- id: quick_hands
+  name: 빠른 손놀림
+  description: 재장전 시 턴을 소모하지 않음 (전투당 2회)
+  type: trigger
+- id: bullet_conservation
+  name: 탄환 절약
+  description: 30% 확률로 탄환 소모하지 않음
+  type: passive
+- id: precision_aim
+  name: 정밀 조준
+  description: 특수 탄환 사용 시 효과 +50%
+  type: conditional
+- id: headshot_master
+  name: 헤드샷 마스터
+  description: 크리티컬 시 즉사 확률 5% (보스 제외)
+  type: trigger
+gimmick:
+  type: magazine_system
+  name: 탄창 관리
+  description: 제한된 탄환(6발)을 관리하며 특수 탄환 활용. 재장전 필요
+  max_magazine: 6
+  bullet_types:
+  - normal: 기본 탄환 (배율 2.0)
+  - penetrating: 관통탄 (방어 무시 50%, 배율 2.5)
+  - explosive: 폭발탄 (광역 피해 50%, 배율 1.8)
+  - frost: 빙결탄 (빙결 상태이상, 배율 1.8)
+  - fire: 화염탄 (화상 3턴, 배율 2.0)
+  - poison: 독침탄 (독 5턴, 배율 1.5)
+  - flash: 섬광탄 (명중률 -50% 2턴)
+  - headshot: 헤드샷 탄 (크리티컬 100%, 배율 5.0)
+skills:
+- teamwork
+- precise_shot
+- headshot
+- double_tap
+- reload
+- load_penetrating
+- load_explosive
+- perfect_aim
+- smoke_grenade
+- set_trap
+- deadeye
+bonuses:
+  critical_rate: 1.25
+  critical_damage: 1.5
+  single_target_bonus: 1.2

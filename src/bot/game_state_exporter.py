@@ -17,11 +17,12 @@ from dataclasses import dataclass, asdict
 from threading import Lock
 
 from src.core.logger import get_logger
+from src.core.paths import get_project_root
 
 logger = get_logger("bot_exporter")
 
 # 공유 파일 경로
-USER_DATA = Path(__file__).parent.parent.parent / "user_data"
+USER_DATA = get_project_root() / "user_data"
 STATE_FILE = USER_DATA / "bot_state.json"
 COMMAND_FILE = USER_DATA / "bot_command.json"
 ENABLE_FILE = USER_DATA / "enable_bot.txt"

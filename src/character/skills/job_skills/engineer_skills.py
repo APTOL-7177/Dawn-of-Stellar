@@ -16,9 +16,9 @@ def create_engineer_skills():
     # ============================================================
 
     # 1. 기본 BRV: 포탑 사격
-    turret_shot = Skill("engineer_turret_shot", "포탑 사격", "BRV 피해, 열 +2")
+    turret_shot = Skill("engineer_turret_shot", "포탑 사격", "[번개 속성] BRV 피해, 열 +2")
     turret_shot.effects = [
-        DamageEffect(DamageType.BRV, 1.4),
+        DamageEffect(DamageType.BRV, 1.4, element="lightning"),
         GimmickEffect(GimmickOperation.ADD, "heat", 2, max_value=100)
     ]
     turret_shot.costs = []  # 기본 공격은 MP 소모 없음
@@ -27,9 +27,9 @@ def create_engineer_skills():
     skills.append(turret_shot)
 
     # 2. 기본 HP: 로켓 펀치
-    rocket_punch = Skill("engineer_rocket_punch", "로켓 펀치", "HP 피해, 열 +5")
+    rocket_punch = Skill("engineer_rocket_punch", "로켓 펀치", "[화염 속성] HP 피해, 열 +5")
     rocket_punch.effects = [
-        DamageEffect(DamageType.HP, 1.2),
+        DamageEffect(DamageType.HP, 1.2, element="fire"),
         GimmickEffect(GimmickOperation.ADD, "heat", 5, max_value=100)
     ]
     rocket_punch.costs = []  # 기본 공격은 MP 소모 없음
@@ -196,9 +196,9 @@ def create_engineer_skills():
     skills.append(turret_enhance)
 
     # 11. 궁극기: 메가 블래스터
-    mega_blaster = Skill("engineer_mega_blaster", "메가 블래스터", "포탑 수 × HP 2.0배, 열 +60")
+    mega_blaster = Skill("engineer_mega_blaster", "메가 블래스터", "[화염 속성] 포탑 수 × HP 2.0배, 열 +60")
     mega_blaster.effects = [
-        DamageEffect(DamageType.HP, 2.0, gimmick_bonus={"field": "turret_count", "multiplier": 1.0}),  # 포탑 1개당 +100% (2배씩 증가)
+        DamageEffect(DamageType.HP, 2.0, element="fire", gimmick_bonus={"field": "turret_count", "multiplier": 1.0}),  # 포탑 1개당 +100% (2배씩 증가)
         GimmickEffect(GimmickOperation.ADD, "heat", 60, max_value=100)
     ]
     mega_blaster.costs = [MPCost(30)]

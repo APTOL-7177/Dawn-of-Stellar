@@ -176,12 +176,12 @@ class SkillManager:
             current_intrusion = getattr(target, "intrusion_gauge", 0)
             if current_intrusion < required_intrusion:
                 return SkillResult(success=False, message=f"침투 {required_intrusion}% 이상 필요 (현재 {current_intrusion}%)")
-        # 농락 요구
-        if meta.get("requires_mockery") is not None and target is not None:
-            required_mockery = meta.get("requires_mockery", 0)
-            current_mockery = getattr(target, "mockery_gauge", 0)
-            if current_mockery < required_mockery:
-                return SkillResult(success=False, message=f"농락 {required_mockery}+ 필요 (현재 {current_mockery})")
+        # 독 중첩 요구
+        if meta.get("requires_venom") is not None and target is not None:
+            required_venom = meta.get("requires_venom", 0)
+            current_venom = getattr(target, "venom_stacks", 0)
+            if current_venom < required_venom:
+                return SkillResult(success=False, message=f"독 중첩 {required_venom}+ 필요 (현재 {current_venom})")
         # 정령 소환 수 요구 (정령술사)
         if meta.get("requires_spirits") is not None and getattr(user, "gimmick_type", None) == "elemental_spirits":
             from src.character.gimmick_updater import GimmickUpdater
@@ -320,10 +320,10 @@ class SkillManager:
             if meta.get("consumes_intrusion") and target is not None and hasattr(target, "intrusion_gauge"):
                 from src.character.gimmick_updater import GimmickUpdater
                 GimmickUpdater.reset_intrusion(target)
-            # 농락 소모
-            if meta.get("consumes_mockery") and target is not None and hasattr(target, "mockery_gauge"):
+            # 독 중첩 소모
+            if meta.get("venom_consume_all") and target is not None and hasattr(target, "venom_stacks"):
                 from src.character.gimmick_updater import GimmickUpdater
-                GimmickUpdater.reset_mockery(target)
+                GimmickUpdater.reset_venom(target)
             # 정령 소모
             if meta.get("consumes_all_spirits") and getattr(user, "gimmick_type", None) == "elemental_spirits":
                 from src.character.gimmick_updater import GimmickUpdater

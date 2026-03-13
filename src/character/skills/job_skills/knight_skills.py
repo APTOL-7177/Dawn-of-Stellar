@@ -49,10 +49,10 @@ def create_knight_skills():
     duty_strike = Skill(
         "knight_duty_strike",
         "의무의 일격",
-        "의무 비례 HP 피해. 의무 -1."
+        "[신성 속성] 의무 비례 HP 피해. 의무 -1."
     )
     duty_strike.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="physical",
+        DamageEffect(DamageType.HP, 1.0, stat_type="physical", element="holy",
                     gimmick_bonus={"field": "duty_stacks", "multiplier": 0.15}),
         GimmickEffect(GimmickOperation.CONSUME, "duty_stacks", 1)
     ]
@@ -235,12 +235,12 @@ def create_knight_skills():
     ultimate = Skill(
         "knight_ultimate",
         "성기사의 심판",
-        "성스러운 심판! 전체 피해 + 파티 보호막 + 의무 전소비."
+        "[신성 속성] 성스러운 심판! 전체 피해 + 파티 보호막 + 의무 전소비."
     )
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.5, stat_type="physical",
+        DamageEffect(DamageType.BRV, 2.5, stat_type="physical", element="holy",
                     gimmick_bonus={"field": "duty_stacks", "multiplier": 0.2}),
-        DamageEffect(DamageType.HP, 3.2, stat_type="physical"),
+        DamageEffect(DamageType.HP, 3.2, stat_type="physical", element="holy"),
         BuffEffect(BuffType.DEFENSE_UP, 0.5, duration=5, is_party_wide=True),
         BuffEffect(BuffType.INVINCIBLE, 1.0, duration=1, is_party_wide=True),
         GimmickEffect(GimmickOperation.SET, "duty_stacks", 0)
@@ -315,10 +315,10 @@ def create_knight_skills():
     counter_ready = Skill(
         "knight_counter_ready",
         "정의의 심판",
-        "의무 2 소비. 심판의 일격을 준비. 캐스트 중 피격 시 반격 (2.0배), 캐스트 완료 시 약한 공격 (1.0배)."
+        "[신성 속성] 의무 2 소비. 심판의 일격을 준비. 캐스트 중 피격 시 반격 (2.0배), 캐스트 완료 시 약한 공격 (1.0배)."
     )
     counter_ready.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.0, stat_type="physical"),  # 캐스트 완료 시 약한 공격
+        DamageEffect(DamageType.BRV_HP, 1.0, stat_type="physical", element="holy"),  # 캐스트 완료 시 약한 공격
         GimmickEffect(GimmickOperation.CONSUME, "duty_stacks", 2),
         GimmickEffect(GimmickOperation.ADD, "duty_stacks", 1, max_value=10)  # 캐스트 완료 시 의무 +1
     ]

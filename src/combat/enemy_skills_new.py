@@ -811,7 +811,7 @@ class EnemySkillDatabase:
                 use_probability=0.9,
                 min_hp_percent=0.0,
                 max_hp_percent=0.01,  # 거의 죽었을 때
-                cooldown=99  # 한 번만,
+                cooldown=99,  # 한 번만
                 sfx=("combat", "attack_physical")
             ),
 
@@ -1741,7 +1741,7 @@ class EnemySkillDatabase:
                 use_probability=0.2,
                 min_hp_percent=0.0,
                 max_hp_percent=0.3,
-                cooldown=99  # 한 번만,
+                cooldown=99,  # 한 번만
                 sfx=("skill", "summon")
             ),
 
@@ -3310,7 +3310,7 @@ class EnemySkillDatabase:
                 use_probability=0.15,
                 min_hp_percent=0.0,
                 max_hp_percent=0.2,  # HP 20% 이하에서만 사용
-                cooldown=99  # 한 번만 사용,
+                cooldown=99,  # 한 번만 사용
                 sfx=("combat", "attack_physical")
             ),
 

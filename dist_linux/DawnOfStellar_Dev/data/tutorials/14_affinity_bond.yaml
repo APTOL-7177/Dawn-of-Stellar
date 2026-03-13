@@ -1,0 +1,43 @@
+id: affinity_bond
+title: "호감도와 유대"
+order: 14
+category: social
+description: "동료와의 유대를 깊게 하여 강력한 연계 능력을 해금하자"
+steps:
+  - id: "aff_intro"
+    messages:
+      - "함께 싸우고 여행하면 파티원들의 유대가 깊어진다."
+      - "호감도는 전투 참여, 힐, 팀워크 연쇄 등으로 상승한다."
+      - "메뉴에서 호감도 현황을 확인할 수 있다."
+
+  - id: "aff_bond_skill"
+    messages:
+      - "호감도가 일정 수준에 도달하면 연계스킬이 해금된다."
+      - "연계스킬은 전투 중 자동으로 발동하는 무료 보너스 공격이다!"
+      - "아군이 공격할 때, 피해를 입을 때... 다양한 상황에서 동료가 도와준다."
+    completion_condition:
+      type: "bond_skill_triggered"
+    hints:
+      - text: "연계스킬은 자동 발동입니다. 전투를 계속하세요!"
+        trigger_time: 15.0
+
+  - id: "aff_chain_ability"
+    messages:
+      - "체인어빌리티는 연계스킬과 다르다."
+      - "적을 BREAK 상태로 만들거나, 팀워크 스킬 사용 후, 또는 특정 강력한 기술 사용 시 발동한다!"
+      - "발동하면 사용 가능한 체인어빌리티 목록이 나타나고, 하나를 선택하거나 ESC로 패스할 수 있다."
+      - "체인어빌리티는 팀워크 게이지를 대량으로 소모하므로 신중하게!"
+    completion_condition:
+      type: "chain_ability_used"
+    hints:
+      - text: "적을 BREAK 시키거나 팀워크 스킬을 사용해보세요!"
+        trigger_time: 12.0
+
+  - id: "aff_check"
+    messages:
+      - "호감도는 메뉴에서 언제든 확인 가능하다."
+      - "높은 호감도는 게이지 충전 보너스도 제공한다!"
+
+rewards:
+  exp: 200
+  gold: 150

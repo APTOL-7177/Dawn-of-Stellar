@@ -1,0 +1,2182 @@
+# 랜덤 이벤트 - 던전 이벤트
+# Dawn of Stellar - 던전 내 랜덤 이벤트 정의
+dungeon_events:
+
+  # ============================================================
+  # NPC 구출 / 조우 이벤트
+  # ============================================================
+
+  - id: "wounded_traveler"
+    name: "부상당한 여행자"
+    category: "npc_rescue"
+    description: "길가에 쓰러진 여행자를 발견했다. 깊은 상처에서 피가 흐르고 있다."
+    min_floor: 1
+    max_floor: 15
+    weight: 15
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "치료해준다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 120
+            items: ["healing_herb", "mana_potion_small"]
+            affinity_gain: 3
+            message: "여행자가 눈물을 글썽이며 감사 인사를 전한다. 가방에서 약초를 꺼내 건넨다."
+      - text: "치료사가 있다면 치료를 맡긴다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "reward"
+            gold: 300
+            items: ["ancient_herb", "resurrection_stone"]
+            exp: 80
+            affinity_gain: 5
+            message: "사제의 손길에 상처가 빠르게 아물었다. 여행자는 숨겨둔 귀중한 물건을 감사의 표시로 건넨다."
+      - text: "무시하고 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: -2
+            message: "신음 소리가 등 뒤에서 멀어진다. 마음 한구석이 무거워진다."
+
+  - id: "trapped_adventurer"
+    name: "함정에 갇힌 모험가"
+    category: "npc_rescue"
+    description: "거대한 바위틈에 다리가 끼인 모험가를 발견했다. 혼자 힘으로는 빠져나올 수 없어 보인다."
+    min_floor: 3
+    max_floor: 20
+    weight: 12
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "힘을 합쳐 바위를 들어낸다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 200
+            items: ["dungeon_map_fragment", "iron_key"]
+            affinity_gain: 4
+            message: "모험가가 자유로워졌다. 감사의 표시로 이 층의 지도 조각과 열쇠를 건넨다."
+      - text: "마법으로 바위를 부순다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "reward"
+            gold: 350
+            items: ["spell_scroll_rare", "mana_crystal"]
+            exp: 100
+            affinity_gain: 5
+            message: "마법사의 주문으로 바위가 산산조각 났다. 모험가는 비밀 스크롤을 사례로 건넨다."
+      - text: "모른 척한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: -3
+            message: "절박한 외침이 점점 작아진다. 언젠가 그 목소리가 꿈에 나올지도 모른다."
+
+  - id: "lost_child"
+    name: "미아 아이"
+    category: "npc_rescue"
+    description: "어두운 던전 한가운데서 울고 있는 아이를 발견했다. 어떻게 여기까지 들어왔는지 알 수 없다."
+    min_floor: 1
+    max_floor: 10
+    weight: 10
+    cooldown_steps: 300
+    once_only: true
+    choices:
+      - text: "출구로 안전하게 데려다 준다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 500
+            items: ["lucky_charm", "child_drawing"]
+            exp: 150
+            affinity_gain: 8
+            message: "아이의 부모가 눈물을 흘리며 감사한다. 아이는 작은 그림을 그려 선물로 준다. 왠지 행운이 깃들 것 같다."
+      - text: "일단 안전한 곳에 숨겨두고 나중에 데리러 온다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: 2
+            message: "아이를 안전한 곳에 숨겨두었다. 빨리 돌아와야 한다."
+      - text: "혼자서도 나갈 수 있을 거라 달래고 떠난다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: -5
+            message: "아이의 울음소리가 오래도록 귓가에 맴돈다."
+
+  - id: "poisoned_explorer"
+    name: "독에 중독된 탐험가"
+    category: "npc_rescue"
+    description: "바닥에 쓰러진 탐험가가 독 증상으로 고통받고 있다. 피부가 검게 변해가고 있다."
+    min_floor: 5
+    max_floor: 25
+    weight: 13
+    cooldown_steps: 220
+    once_only: false
+    choices:
+      - text: "해독제를 사용해 치료한다"
+        requirements:
+          has_item: "antidote"
+        outcomes:
+          - type: "reward"
+            gold: 400
+            items: ["rare_poison_vial", "explorer_notes"]
+            exp: 120
+            affinity_gain: 6
+            message: "해독제가 독을 중화시켰다. 탐험가는 귀한 독약 샘플과 탐사 메모를 건넨다."
+      - text: "연금술사라면 임시 해독제를 만들 수 있다"
+        requirements:
+          has_job: "alchemist"
+        outcomes:
+          - type: "reward"
+            gold: 600
+            items: ["master_antidote", "alchemist_formula"]
+            exp: 200
+            affinity_gain: 7
+            message: "연금술사가 주변 재료로 강력한 해독제를 조합했다. 탐험가는 비밀 제조법을 알려준다."
+      - text: "지켜보다가 떠난다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: -4
+            message: "탐험가의 떨리는 손이 뇌리에 박힌다."
+
+  - id: "mind_controlled_adventurer"
+    name: "정신 지배당한 모험가"
+    category: "npc_rescue"
+    description: "눈이 텅 빈 모험가가 마치 꼭두각시처럼 걸어온다. 어딘가의 마법에 지배당한 것이 분명하다."
+    min_floor: 10
+    max_floor: 30
+    weight: 8
+    cooldown_steps: 350
+    once_only: false
+    choices:
+      - text: "마법을 해제하려 시도한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "reward"
+            gold: 500
+            items: ["mind_ward_amulet", "enchanted_staff"]
+            exp: 250
+            affinity_gain: 8
+            message: "복잡한 주문을 풀어내자 모험가가 의식을 되찾았다. 지니고 있던 마법 지팡이를 감사히 건넨다."
+      - text: "전투로 제압하고 결박한다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 10
+            message: "모험가를 제압하는 과정에서 상처를 입었다. 그러나 결박에 성공했고, 정신이 돌아온 모험가는 감사 인사를 전했다."
+      - text: "위험하니 피해서 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: 0
+            message: "지배당한 모험가를 우회해 나아간다. 나중에 누군가가 도와주길 바란다."
+
+  - id: "talking_cat"
+    name: "말하는 고양이"
+    category: "npc_rescue"
+    description: "구석에서 야옹거리는 고양이가 갑자기 또렷한 목소리로 말을 걸었다. '이봐, 나 좀 도와줄 수 있어?'"
+    min_floor: 2
+    max_floor: 20
+    weight: 7
+    cooldown_steps: 400
+    once_only: true
+    choices:
+      - text: "말하는 고양이라니, 도와준다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["cat_whisker_charm", "fortune_cookie"]
+            exp: 180
+            affinity_gain: 10
+            message: "고양이가 웃음기 담긴 목소리로 '잊지 않을게' 라며 사라졌다. 손안에 이상한 부적이 쥐어져 있다."
+      - text: "환각이다. 무시한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: -1
+            message: "고양이는 실망한 듯 '다음엔 더 잘해줄게' 라고 중얼거리며 사라졌다."
+      - text: "고양이를 파티에 데려간다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "cat_luck"
+            duration: 30
+            message: "고양이가 어깨에 올라탔다. 왠지 모르게 운이 좋아질 것 같다."
+
+  - id: "injured_soldier"
+    name: "부상당한 병사"
+    category: "npc_rescue"
+    description: "왕국 문장이 새겨진 갑옷을 입은 병사가 벽에 기대어 있다. 전투에서 크게 다친 것 같다."
+    min_floor: 5
+    max_floor: 20
+    weight: 11
+    cooldown_steps: 280
+    once_only: false
+    choices:
+      - text: "응급 처치를 한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 250
+            items: ["royal_medal", "soldier_ration"]
+            affinity_gain: 5
+            message: "병사가 왕국의 은혜에 보답할 것을 맹세하며 군용 식량을 건넨다."
+      - text: "기사라면 전우를 돕는다"
+        requirements:
+          has_job: "knight"
+        outcomes:
+          - type: "reward"
+            gold: 500
+            items: ["knight_badge", "enchanted_shield"]
+            exp: 150
+            affinity_gain: 7
+            message: "기사의 도움에 병사는 눈물을 흘린다. 대를 이어 전해온 방패를 기꺼이 양도한다."
+      - text: "지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: -2
+            message: "병사의 힘겨운 숨소리가 귓가에 남는다."
+
+  - id: "merchant_chased_by_bandits"
+    name: "도적에게 쫓기는 상인"
+    category: "npc_rescue"
+    description: "상인이 숨을 헐떡이며 달려온다. '제발 도와주세요! 도적들이 쫓아옵니다!'"
+    min_floor: 2
+    max_floor: 15
+    weight: 14
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "도적을 상대한다"
+        requirements: {}
+        outcomes:
+          - type: "battle"
+            enemy_id: "dungeon_bandit"
+            enemy_level: 3
+          - type: "reward"
+            gold: 400
+            items: ["merchant_gratitude_box"]
+            affinity_gain: 6
+            message: "도적들을 물리쳤다. 상인은 감사의 표시로 특별한 상자를 건넨다."
+      - text: "상인에게 숨을 곳을 알려주고 도적을 유인한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 300
+            items: ["trade_voucher"]
+            affinity_gain: 4
+            message: "상인을 안전하게 피신시켰다. 나중에 이 지역 상점에서 쓸 수 있는 바우처를 받았다."
+      - text: "상관없는 일이다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: -3
+            message: "상인의 비명이 던전 안에 울려 퍼진다."
+
+  # ============================================================
+  # 숨겨진 보물 이벤트
+  # ============================================================
+
+  - id: "ancient_chest"
+    name: "고대의 상자"
+    category: "hidden_treasure"
+    description: "이끼 낀 오래된 상자가 구석에 놓여있다. 자물쇠는 녹슬었지만 단단해 보인다."
+    min_floor: 1
+    max_floor: 30
+    weight: 14
+    cooldown_steps: 150
+    once_only: false
+    choices:
+      - text: "자물쇠를 부수고 연다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 300
+            items: ["ancient_coin", "dust_relic"]
+            message: "먼지 쌓인 유물이 나왔다. 가치가 있을 것 같다."
+      - text: "도둑처럼 자물쇠를 푼다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 600
+            items: ["legendary_gem", "stealth_boots"]
+            exp: 200
+            message: "자물쇠를 소리 없이 풀었다. 안에는 보석과 그림자처럼 가벼운 장화가 들어있었다."
+      - text: "마법으로 안을 들여다본다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "reward"
+            gold: 450
+            items: ["magic_tome_fragment", "mana_crystal"]
+            message: "마법으로 안을 살핀 후 조심히 열었다. 마법 서적 일부와 수정이 들어있었다."
+      - text: "그냥 지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "상자를 그냥 지나쳤다. 무엇이 있었는지 궁금하다."
+
+  - id: "wall_crack_glow"
+    name: "벽 틈의 빛"
+    category: "hidden_treasure"
+    description: "벽 틈 사이로 희미한 빛이 새어 나온다. 무언가가 안에 있는 것 같다."
+    min_floor: 3
+    max_floor: 25
+    weight: 12
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "손을 넣어 꺼낸다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 200
+            items: ["glowing_crystal"]
+            message: "빛나는 수정을 꺼냈다. 온기가 느껴진다."
+          - type: "damage"
+            damage_percent: 5
+            message: "손에 날카로운 돌부리가 긁혔다."
+      - text: "벽을 무너뜨린다"
+        requirements:
+          has_job: "warrior"
+        outcomes:
+          - type: "reward"
+            gold: 500
+            items: ["hidden_vault_key", "war_relic"]
+            message: "벽이 무너지며 숨겨진 보물 창고가 드러났다."
+      - text: "지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "빛이 점점 희미해진다. 지금쯤이면 사라졌을 것이다."
+
+  - id: "floor_crack"
+    name: "바닥의 균열"
+    category: "hidden_treasure"
+    description: "바닥에 독특한 문양의 균열이 있다. 아래에 무언가 있는 것 같은 느낌이 든다."
+    min_floor: 2
+    max_floor: 20
+    weight: 11
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "균열을 파헤친다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 150
+            items: ["buried_coin_pouch"]
+            message: "오래된 동전 주머니를 꺼냈다."
+      - text: "마법으로 감지한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "reward"
+            gold: 800
+            items: ["ley_stone", "ancient_map"]
+            exp: 180
+            message: "마법 감지로 지맥석과 고대 지도를 찾아냈다."
+      - text: "균열이 넓어진다 (점프)"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 15
+            message: "균열이 갑자기 넓어지며 아래로 추락했다! 다행히 아래 층과 이어져 있었다."
+
+  - id: "suspicious_statue"
+    name: "수상한 석상"
+    category: "hidden_treasure"
+    description: "복도 한가운데 놓인 석상이 손에 무언가를 쥐고 있는 것 같다."
+    min_floor: 4
+    max_floor: 25
+    weight: 10
+    cooldown_steps: 220
+    once_only: false
+    choices:
+      - text: "손에서 물건을 빼앗는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 400
+            items: ["stone_idol"]
+            message: "석상 손에서 석상을 뽑아냈다."
+          - type: "damage"
+            damage_percent: 20
+            message: "석상의 눈이 빨갛게 빛나며 독화살이 날아왔다!"
+      - text: "석상에 공물을 바친다"
+        requirements:
+          min_gold: 100
+        outcomes:
+          - type: "reward"
+            gold: -100
+            items: ["divine_blessing_scroll", "ancient_artifact"]
+            exp: 300
+            message: "석상이 황금빛으로 빛나며 신성한 두루마리를 내려주었다."
+      - text: "석상을 관찰만 한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "석상은 그저 석상이었다. 혹은 그렇게 보였다."
+
+  - id: "fairy_gift"
+    name: "요정의 선물"
+    category: "hidden_treasure"
+    description: "작은 빛이 반짝이며 작은 상자를 남기고 사라졌다. 요정이 두고 간 것이 분명하다."
+    min_floor: 1
+    max_floor: 15
+    weight: 8
+    cooldown_steps: 400
+    once_only: false
+    choices:
+      - text: "상자를 열어본다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 30
+            message: "상자 안에서 향기로운 빛이 쏟아졌다. 상처가 아물고 기운이 회복되었다."
+          - type: "reward"
+            items: ["fairy_dust", "lucky_clover"]
+            message: "요정의 가루와 네잎 클로버가 나왔다."
+      - text: "요정에게 선물을 돌려주려 한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "fairy_blessing"
+            duration: 50
+            message: "요정이 다시 나타나 감동한 듯 파티 전체에 축복을 내려주었다."
+
+  - id: "ghost_merchant_relic"
+    name: "유령 상인의 유품"
+    category: "hidden_treasure"
+    description: "이 던전에서 죽은 상인의 영혼이 자신의 유품을 남겨두고 떠났다. '가져가세요... 어차피 나는 이제 필요 없으니...'"
+    min_floor: 8
+    max_floor: 30
+    weight: 7
+    cooldown_steps: 350
+    once_only: true
+    choices:
+      - text: "유품을 정중히 받는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 700
+            items: ["merchant_ledger", "ghost_coin", "trade_ring"]
+            exp: 200
+            affinity_gain: 5
+            message: "유령 상인이 감사히 사라졌다. 그의 물건들이 손안에 남았다."
+      - text: "유품을 묻어주고 떠난다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "spirit_blessing"
+            duration: 60
+            exp: 300
+            affinity_gain: 8
+            message: "유령이 밝은 빛으로 승천했다. 떠나며 파티에게 축복을 남겼다."
+
+  - id: "magic_symbol"
+    name: "이상한 문양"
+    category: "hidden_treasure"
+    description: "벽에 빛나는 문양이 새겨져 있다. 고대 언어로 무언가 쓰여 있는 것 같다."
+    min_floor: 5
+    max_floor: 30
+    weight: 9
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "문양을 해독한다"
+        requirements:
+          has_job: "scholar"
+        outcomes:
+          - type: "reward"
+            exp: 400
+            items: ["ancient_knowledge_tome"]
+            message: "문양의 의미를 해독했다. 이 지역의 역사에 대한 귀중한 정보를 얻었다."
+      - text: "문양을 따라 그린다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "arcane_mark"
+            duration: 40
+            message: "문양을 모사하자 갑자기 온몸에 마력이 흘렀다."
+      - text: "문양을 지운다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 10
+            message: "문양을 지우려 하자 강한 반발력이 터져 나왔다!"
+      - text: "문양에 손을 댄다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 250
+            items: ["rune_stone"]
+            message: "손바닥을 문양에 갖다 대자 빛나는 룬 석판이 나타났다."
+
+  - id: "shining_crystal"
+    name: "빛나는 수정"
+    category: "hidden_treasure"
+    description: "천장에 박힌 커다란 수정이 아름다운 빛을 발하고 있다. 마력이 느껴진다."
+    min_floor: 6
+    max_floor: 25
+    weight: 10
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "수정을 채취한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["mana_crystal_large"]
+            message: "커다란 마나 수정을 얻었다."
+      - text: "수정의 마력을 흡수한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "heal"
+            heal_percent: 50
+            message: "수정의 마력이 몸 속으로 흡수되며 마나가 완전히 회복되었다."
+          - type: "reward"
+            exp: 200
+            message: "마력 흡수 훈련으로 경험치를 획득했다."
+      - text: "수정을 부순다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 25
+            message: "수정이 폭발하며 마력 충격파가 퍼졌다!"
+          - type: "reward"
+            items: ["crystal_shard_x5"]
+            message: "파편들을 수습했다."
+
+  # ============================================================
+  # 함정 이벤트
+  # ============================================================
+
+  - id: "trap_floor"
+    name: "함정 바닥"
+    category: "trap"
+    description: "발을 딛자 바닥이 꺼지는 소리가 났다. 함정이다!"
+    min_floor: 2
+    max_floor: 30
+    weight: 16
+    cooldown_steps: 120
+    once_only: false
+    choices:
+      - text: "재빨리 뛰어오른다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 10
+            message: "뛰어오르다 발이 약간 걸렸다. 작은 부상을 입었다."
+      - text: "도적의 감각으로 미리 감지한다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "neutral"
+            message: "예민한 감각이 함정을 미리 알아챘다. 무사히 우회했다."
+      - text: "마법 방어막을 펼친다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "neutral"
+            message: "마법 방어막이 충격을 흡수했다. 피해 없음."
+      - text: "운에 맡긴다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 20
+            message: "함정 구덩이에 빠졌다! 기어 올라오는 데 시간이 걸렸다."
+
+  - id: "poison_fog"
+    name: "독 안개"
+    category: "trap"
+    description: "복도에서 초록빛 안개가 피어오르고 있다. 숨막히는 냄새가 코를 찌른다."
+    min_floor: 5
+    max_floor: 25
+    weight: 14
+    cooldown_steps: 150
+    once_only: false
+    choices:
+      - text: "숨을 참고 달린다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 15
+            message: "안개를 통과했지만 독 기운을 일부 흡입했다."
+          - type: "debuff"
+            debuff_id: "poisoned"
+            duration: 5
+            message: "독 상태가 되었다."
+      - text: "해독의 약초로 마스크를 만든다"
+        requirements:
+          has_item: "healing_herb"
+        outcomes:
+          - type: "neutral"
+            message: "약초로 임시 방독 마스크를 만들어 독 안개를 무사히 통과했다."
+      - text: "바람의 마법으로 안개를 흩어버린다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "neutral"
+            exp: 80
+            message: "바람 마법이 독 안개를 완전히 걷어냈다. 기술이 늘었다."
+      - text: "돌아간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "독 안개를 피해 돌아갔다. 시간이 더 걸렸지만 안전하다."
+
+  - id: "falling_ceiling"
+    name: "떨어지는 천장"
+    category: "trap"
+    description: "갑자기 천장이 내려앉기 시작한다! 탈출해야 한다!"
+    min_floor: 3
+    max_floor: 20
+    weight: 13
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "전속력으로 달린다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 10
+            message: "가까스로 빠져나왔다. 아슬아슬했다."
+      - text: "용사처럼 천장을 버텨낸다"
+        requirements:
+          has_job: "warrior"
+        outcomes:
+          - type: "damage"
+            damage_percent: 5
+            message: "엄청난 힘으로 천장을 버텨내며 파티가 탈출할 시간을 벌었다."
+          - type: "reward"
+            exp: 150
+            affinity_gain: 3
+            message: "동료들이 감탄하며 박수를 쳤다."
+      - text: "시간 마법으로 천장을 멈춘다"
+        requirements:
+          has_job: "time_mage"
+        outcomes:
+          - type: "neutral"
+            exp: 200
+            message: "시간 마법이 천장의 낙하를 잠시 멈췄다. 파티 전원이 무사히 탈출했다."
+
+  - id: "magic_mine"
+    name: "마법 지뢰"
+    category: "trap"
+    description: "바닥에 마법으로 만들어진 지뢰가 숨겨져 있었다. 발이 닿자마자 빛이 반짝인다!"
+    min_floor: 8
+    max_floor: 30
+    weight: 11
+    cooldown_steps: 160
+    once_only: false
+    choices:
+      - text: "뛰어서 피한다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 20
+            message: "지뢰가 폭발했다! 마법 충격파에 맞았다."
+      - text: "마법을 해제한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "reward"
+            items: ["magic_mine_core"]
+            message: "지뢰의 마법을 해제하고 핵심 소재를 수거했다."
+      - text: "방패로 막는다"
+        requirements:
+          has_job: "knight"
+        outcomes:
+          - type: "damage"
+            damage_percent: 5
+            message: "방패가 폭발의 충격을 대부분 흡수했다. 약간의 피해만 입었다."
+
+  - id: "illusion_maze"
+    name: "환영 미로"
+    category: "trap"
+    description: "갑자기 주변 벽이 움직이기 시작한다. 환영 마법으로 만든 미로에 갇혔다!"
+    min_floor: 10
+    max_floor: 30
+    weight: 9
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "벽을 더듬으며 출구를 찾는다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 8
+            message: "헤매는 과정에서 몸이 지쳤다. 결국 출구를 찾았지만 시간이 많이 걸렸다."
+      - text: "환영을 꿰뚫어 본다"
+        requirements:
+          has_job: "illusionist"
+        outcomes:
+          - type: "reward"
+            exp: 300
+            items: ["illusion_crystal"]
+            message: "환영 마법을 역으로 이용해 미로를 해석하고 핵심 수정을 얻었다."
+      - text: "눈을 감고 감각에 의존한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "소리와 바람의 흐름만으로 출구를 찾아냈다. 의외로 빠르게 해결되었다."
+
+  - id: "gravity_reverse_zone"
+    name: "중력 반전 구역"
+    category: "trap"
+    description: "이 구역에 들어서자 갑자기 천장이 바닥이 되었다! 중력이 뒤집혔다."
+    min_floor: 15
+    max_floor: 30
+    weight: 7
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "어쩔 수 없이 적응하며 이동한다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 12
+            message: "뒤집힌 중력에 여기저기 부딪히며 이동했다."
+      - text: "중력 마법으로 원상복구한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            exp: 400
+            items: ["gravity_stone"]
+            message: "차원 마법으로 중력을 정상화시키고 중력석을 얻었다."
+      - text: "몸을 가볍게 해 떠다니며 이동한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "neutral"
+            exp: 150
+            message: "부양 마법으로 뒤집힌 중력에서도 자유롭게 이동했다."
+
+  - id: "time_stop_trap"
+    name: "시간 정지 함정"
+    category: "trap"
+    description: "갑자기 모든 것이 멈췄다. 시간이 정지된 공간에 들어선 것이다."
+    min_floor: 20
+    max_floor: 30
+    weight: 6
+    cooldown_steps: 500
+    once_only: false
+    choices:
+      - text: "의지력으로 버텨낸다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 15
+            message: "시간 정지에서 억지로 빠져나오는 과정에서 큰 충격을 받았다."
+      - text: "시간 흐름을 역으로 이용한다"
+        requirements:
+          has_job: "time_mage"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["time_shard"]
+            message: "시간 마법으로 정지된 시간을 역이용해 귀한 시간 파편을 얻었다."
+
+  - id: "cursed_door"
+    name: "저주의 문"
+    category: "trap"
+    description: "앞을 가로막는 문에 저주의 문양이 새겨져 있다. 열면 무언가 나쁜 일이 일어날 것 같다."
+    min_floor: 7
+    max_floor: 25
+    weight: 12
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "저주를 무시하고 문을 연다"
+        requirements: {}
+        outcomes:
+          - type: "debuff"
+            debuff_id: "curse_weakened"
+            duration: 10
+            message: "문이 열리자 저주가 파티에게 깃들었다. 능력치가 잠시 감소했다."
+          - type: "reward"
+            gold: 200
+            items: ["cursed_coin"]
+            message: "문 뒤에는 저주받은 동전들이 있었다."
+      - text: "저주를 해제한다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "reward"
+            gold: 400
+            items: ["holy_key", "blessed_item"]
+            message: "사제가 저주를 정화했다. 문 뒤에서 성스러운 열쇠와 축복받은 물건을 찾았다."
+      - text: "돌아간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "저주의 문을 피해 다른 길을 찾았다."
+
+  # ============================================================
+  # 상인 이벤트
+  # ============================================================
+
+  - id: "wandering_pharmacist"
+    name: "떠돌이 약사"
+    category: "merchant"
+    description: "어두운 던전 안에서 약사 가운을 입은 노인이 짐을 펼쳐놓고 있다. '약이 필요하신가요?'"
+    min_floor: 1
+    max_floor: 15
+    weight: 10
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "약을 구매한다"
+        requirements:
+          min_gold: 100
+        outcomes:
+          - type: "shop"
+            items: ["healing_potion", "antidote", "mana_potion", "stamina_herb", "elixir_small"]
+            message: "노인의 약 가방에서 필요한 것을 골랐다."
+      - text: "그냥 인사만 하고 간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "노인이 밝게 웃으며 손을 흔들었다."
+
+  - id: "suspicious_collector"
+    name: "수상한 수집가"
+    category: "merchant"
+    description: "가면을 쓴 인물이 유물을 펼쳐놓고 있다. '좋은 것들만 모았지요. 물건을 바꾸지 않겠습니까?'"
+    min_floor: 5
+    max_floor: 25
+    weight: 8
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "물건을 교환한다"
+        requirements:
+          min_gold: 50
+        outcomes:
+          - type: "shop"
+            items: ["rare_artifact", "mysterious_relic", "enchanted_ring", "dimensional_fragment"]
+            message: "수집가의 물건들은 진품인 것 같다."
+      - text: "수집가를 조사한다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 300
+            items: ["stolen_goods_bag"]
+            message: "수상한 낌새를 감지해 주머니에서 훔친 물건 가방을 발견했다. 원래 주인에게 돌려주어야 할 것 같다."
+      - text: "관심 없다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "수집가가 어깨를 으쓱했다."
+
+  - id: "goblin_merchant"
+    name: "도깨비 상인"
+    category: "merchant"
+    description: "초록색 피부의 도깨비가 큰 배낭을 들고 나타났다. '물건이 좋아요~ 싸게 드릴게요~'"
+    min_floor: 3
+    max_floor: 20
+    weight: 9
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "흥정해본다"
+        requirements: {}
+        outcomes:
+          - type: "shop"
+            items: ["goblin_bomb", "rusty_sword", "magic_mushroom", "goblin_potion", "junk_treasure"]
+            message: "도깨비 상인의 물건 중에서 건질 만한 것이 있을지도 모른다."
+      - text: "도깨비를 쫓아낸다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "도깨비가 투덜거리며 사라졌다."
+
+  - id: "angel_merchant"
+    name: "천사 상인"
+    category: "merchant"
+    description: "눈부신 빛과 함께 날개 달린 존재가 나타났다. '신의 뜻으로 당신들을 돕기 위해 왔습니다.'"
+    min_floor: 10
+    max_floor: 30
+    weight: 5
+    cooldown_steps: 500
+    once_only: false
+    choices:
+      - text: "축복받은 물건을 구매한다"
+        requirements:
+          min_gold: 500
+        outcomes:
+          - type: "shop"
+            items: ["holy_sword", "angel_feather", "divine_shield", "resurrection_gem", "light_arrow"]
+            message: "천사 상인의 물건에는 신성한 기운이 깃들어 있다."
+      - text: "치유를 부탁한다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 100
+            message: "천사가 손을 얹자 파티 전원의 상처가 완전히 회복되었다."
+      - text: "그냥 고마움을 표한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "divine_blessing"
+            duration: 30
+            message: "천사가 미소 지으며 작은 축복을 내려주었다."
+
+  - id: "dimensional_peddler"
+    name: "차원의 행상인"
+    category: "merchant"
+    description: "공중에 떠 있는 문이 열리더니 이상한 옷차림의 행상인이 나왔다. '안녕, 여러 차원을 돌며 장사하는 중이야.'"
+    min_floor: 15
+    max_floor: 30
+    weight: 6
+    cooldown_steps: 400
+    once_only: false
+    choices:
+      - text: "다른 차원의 물건을 산다"
+        requirements:
+          min_gold: 800
+        outcomes:
+          - type: "shop"
+            items: ["otherworld_blade", "void_crystal", "star_fragment", "time_potion", "dimension_key"]
+            message: "다른 차원에서 온 물건들이다. 이 세계에서는 구하기 어렵다."
+      - text: "차원에 대한 이야기를 듣는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 300
+            message: "행상인의 이야기에서 다른 차원의 비밀을 조금 엿들었다."
+
+  - id: "ghost_blacksmith"
+    name: "유령 대장장이"
+    category: "merchant"
+    description: "반투명한 유령이 모루 앞에서 망치질을 하고 있다. '죽어서도 일은 해야지. 무기 수리해줄까?'"
+    min_floor: 5
+    max_floor: 25
+    weight: 7
+    cooldown_steps: 350
+    once_only: false
+    choices:
+      - text: "무기를 강화해달라고 한다"
+        requirements:
+          min_gold: 300
+        outcomes:
+          - type: "reward"
+            gold: -300
+            items: ["enhanced_weapon_token"]
+            message: "유령 대장장이가 무기에 영혼을 불어넣어 강화했다."
+      - text: "특별한 무기를 제작해달라고 한다"
+        requirements:
+          min_gold: 1000
+          has_item: "rare_ore"
+        outcomes:
+          - type: "reward"
+            gold: -1000
+            items: ["ghost_forged_blade"]
+            message: "유령 대장장이가 영혼의 기술로 특별한 검을 만들어주었다."
+      - text: "유령과 대화를 나눈다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 100
+            message: "대장장이가 생전의 기술에 대해 이야기해주었다."
+
+  # ============================================================
+  # 스토리 이벤트
+  # ============================================================
+
+  - id: "old_diary"
+    name: "오래된 일기장"
+    category: "story"
+    description: "선반 위에 낡은 일기장이 놓여있다. 표지에 '던전 탐험의 기록 - 용사 레인'이라 쓰여 있다."
+    min_floor: 1
+    max_floor: 20
+    weight: 8
+    cooldown_steps: 300
+    once_only: true
+    choices:
+      - text: "일기를 읽는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 200
+            items: ["rain_diary"]
+            message: "일기에는 이 던전의 숨겨진 보물과 함정에 대한 기록이 남아있었다. 귀중한 정보를 얻었다."
+      - text: "일기를 가져간다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["rain_diary"]
+            message: "일기를 가방에 넣었다. 나중에 천천히 읽어봐야겠다."
+      - text: "그냥 둔다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "일기를 그대로 두었다. 주인이 돌아올 수도 있다."
+
+  - id: "mural_secret"
+    name: "벽화의 비밀"
+    category: "story"
+    description: "화려한 벽화가 온 벽을 뒤덮고 있다. 고대 신과 인간의 싸움을 묘사한 것 같다."
+    min_floor: 5
+    max_floor: 25
+    weight: 9
+    cooldown_steps: 350
+    once_only: true
+    choices:
+      - text: "벽화를 자세히 살펴본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 250
+            message: "벽화에서 이 세계의 잊혀진 역사를 발견했다. 고대 신과의 전쟁이 진짜였음을 알게 되었다."
+      - text: "학자라면 내용을 해독한다"
+        requirements:
+          has_job: "scholar"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["ancient_history_scroll"]
+            message: "벽화의 모든 내용을 해독했다. 잊혀진 왕국의 실체와 봉인된 신의 위치를 알게 되었다."
+      - text: "벽화를 스케치한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["mural_sketch"]
+            message: "벽화를 종이에 스케치했다. 학자들이 관심을 가질 것 같다."
+
+  - id: "forgotten_hero_memory"
+    name: "잊혀진 영웅의 기억"
+    category: "story"
+    description: "바닥에 반짝이는 오라가 있다. 손을 대자 누군가의 기억 조각이 떠오르기 시작했다."
+    min_floor: 8
+    max_floor: 30
+    weight: 7
+    cooldown_steps: 400
+    once_only: true
+    choices:
+      - text: "기억 속으로 깊이 들어간다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 400
+            items: ["hero_memory_fragment"]
+            message: "수백 년 전 영웅의 기억이 생생하게 펼쳐졌다. 그가 봉인한 악마의 이름을 알게 되었다."
+      - text: "기억에서 빠져나온다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "기억의 흐름에 휩쓸릴 것 같아 재빨리 빠져나왔다."
+
+  - id: "dimensional_rift"
+    name: "차원의 틈"
+    category: "story"
+    description: "공중에 보라색 빛의 균열이 떠 있다. 다른 세계의 소리가 들려오는 것 같다."
+    min_floor: 10
+    max_floor: 30
+    weight: 6
+    cooldown_steps: 500
+    once_only: true
+    choices:
+      - text: "틈 속을 들여다본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 300
+            items: ["dimensional_fragment"]
+            message: "틈 속에서 다른 차원의 풍경을 보았다. 이 세계가 아닌 곳의 것을 얻었다."
+      - text: "틈을 통해 들어간다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            exp: 800
+            items: ["void_artifact", "dimension_crystal"]
+            message: "다른 차원을 잠깐 여행하고 돌아왔다. 아무도 믿지 않을 경험을 했다."
+      - text: "틈을 닫는다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "world_guardian"
+            duration: 50
+            exp: 200
+            message: "차원의 균열을 막았다. 세계를 지키는 힘이 깃든 것 같다."
+
+  - id: "ancient_ruin_voice"
+    name: "고대 유적의 목소리"
+    category: "story"
+    description: "텅 빈 방에서 목소리가 들린다. '...오래 기다렸다. 이 유적을 발견한 자에게 묻겠다.'"
+    min_floor: 12
+    max_floor: 30
+    weight: 7
+    cooldown_steps: 450
+    once_only: true
+    choices:
+      - text: "목소리에 답한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 350
+            items: ["ancient_testimony"]
+            message: "목소리와 오랜 대화를 나누었다. 이 유적의 진짜 목적을 알게 되었고 증거를 얻었다."
+      - text: "질문을 역으로 던진다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["ruin_keeper_badge"]
+            message: "예상치 못한 질문에 목소리의 주인이 감동했다. 유적 수호자의 증표를 받았다."
+      - text: "무시한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "목소리가 깊은 한숨을 내쉬며 침묵했다."
+
+  - id: "crystal_ball_vision"
+    name: "수정 구슬의 환영"
+    category: "story"
+    description: "받침대 위에 놓인 수정 구슬이 희미하게 빛나고 있다. 안에 무언가 보이는 것 같다."
+    min_floor: 6
+    max_floor: 25
+    weight: 9
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "수정 구슬을 응시한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 200
+            message: "미래의 환영을 보았다. 다음에 만날 강적의 약점을 알게 되었다."
+      - text: "마법으로 수정을 활성화한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "reward"
+            exp: 400
+            items: ["prophecy_scroll"]
+            message: "수정 구슬이 완전히 활성화되어 예언을 기록한 두루마리가 나타났다."
+      - text: "수정 구슬을 가져간다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["crystal_ball"]
+            message: "수정 구슬을 챙겼다. 나중에 쓸모 있을 것 같다."
+
+  - id: "time_echo"
+    name: "시간의 잔향"
+    category: "story"
+    description: "이 방에 들어서자 과거의 장면들이 환영처럼 겹쳐 보인다. 오래전 이 곳에서 있었던 격전의 기억이다."
+    min_floor: 7
+    max_floor: 25
+    weight: 8
+    cooldown_steps: 350
+    once_only: true
+    choices:
+      - text: "과거의 기억을 관찰한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 300
+            message: "이 던전에서 벌어진 고대의 전쟁을 목격했다. 전투 기술에 대한 통찰을 얻었다."
+      - text: "기억 속 영웅에게 말을 건다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 400
+            items: ["echo_sword_token"]
+            message: "영웅이 잠시 실체를 갖추며 자신의 검 사용법을 전수해주었다."
+
+  - id: "sealed_letter"
+    name: "봉인된 편지"
+    category: "story"
+    description: "봉인 마법이 걸린 편지가 벽에 붙어있다. '이 편지를 여는 자에게 - 아직 늦지 않았다.'"
+    min_floor: 3
+    max_floor: 20
+    weight: 10
+    cooldown_steps: 280
+    once_only: true
+    choices:
+      - text: "봉인을 풀고 읽는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 250
+            items: ["sealed_letter_content"]
+            message: "편지에는 이 던전의 숨겨진 출구와 보물의 위치가 적혀 있었다."
+      - text: "봉인을 분석한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "reward"
+            exp: 350
+            items: ["sealing_magic_formula", "sealed_letter_content"]
+            message: "봉인 마법의 원리를 해석했다. 새로운 마법 공식을 얻었다."
+
+  - id: "otherworld_trace"
+    name: "이 세계가 아닌 곳의 흔적"
+    category: "story"
+    description: "물리 법칙이 무시된 흔적들이 여기저기 있다. 공중에 떠 있는 돌, 반대로 흐르는 물..."
+    min_floor: 15
+    max_floor: 30
+    weight: 6
+    cooldown_steps: 500
+    once_only: true
+    choices:
+      - text: "현상을 기록한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 300
+            items: ["anomaly_report"]
+            message: "이상 현상을 상세히 기록했다. 나중에 학자들에게 팔 수 있을 것 같다."
+      - text: "현상의 원인을 추적한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            exp: 600
+            items: ["dimensional_tear_sample", "void_residue"]
+            message: "차원 붕괴의 잔여물을 발견했다. 누군가 의도적으로 차원을 찢어놓았다."
+
+  - id: "adventurer_last_words"
+    name: "모험가의 유언"
+    category: "story"
+    description: "먼지 쌓인 해골 옆에 쪽지가 있다. '누군가 이걸 읽는다면... 내 가족에게 전해줘.'"
+    min_floor: 5
+    max_floor: 20
+    weight: 11
+    cooldown_steps: 250
+    once_only: true
+    choices:
+      - text: "쪽지를 읽고 유품을 수습한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["adventurer_locket", "last_note"]
+            affinity_gain: 3
+            message: "모험가의 마지막 유품을 수습했다. 가족에게 전해줄 것을 다짐했다."
+      - text: "함께 묵념한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "courage_of_fallen"
+            duration: 40
+            exp: 150
+            affinity_gain: 2
+            message: "죽은 모험가의 용기가 파티에게 전해지는 것 같았다."
+      - text: "지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: -2
+            message: "쪽지를 보고도 그냥 지나쳤다. 어쩐지 찜찜하다."
+
+  # ============================================================
+  # 로어/스토리 이벤트 - 차원의 잔향 세계관
+  # ============================================================
+
+  - id: "echo_vision_past_timeline"
+    name: "잔향의 환영"
+    category: "story"
+    description: "던전 깊은 곳에서 희미한 빛이 피어오른다. 눈을 깜빡이는 사이, 현실 위로 다른 세계의 장면이 겹쳐 보이기 시작한다. 이곳에서 벌어진 과거 타임라인의 기억이 환영으로 재생되고 있다."
+    min_floor: 5
+    max_floor: 30
+    weight: 9
+    cooldown_steps: 400
+    once_only: false
+    choices:
+      - text: "환영 속으로 의식을 집중한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 350
+            items: ["timeline_memory_shard"]
+            message: "환영 속에서 다른 타임라인의 전투가 펼쳐졌다. 그 속의 영웅들은 지금의 파티와 닮아 있었다. 기시감과 함께 강해진 느낌이 든다."
+      - text: "릴리에게 이 환영이 보이는지 묻는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 200
+            affinity_gain: 6
+            message: "릴리가 조용히 고개를 끄덕였다. '나도 봐... 이건 세피로스가 반복했던 루프 중 하나야.' 그녀의 눈에 복잡한 감정이 스쳤다."
+      - text: "환영을 무시하고 앞으로 나아간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "환영은 점차 사라졌다. 하지만 그 잔상이 뇌리에 오래 남았다."
+
+  - id: "time_crack_glimpse"
+    name: "시간의 균열"
+    category: "story"
+    description: "벽면에 유리처럼 금이 간 균열이 나타났다. 균열 너머로 전혀 다른 풍경이 보인다. 동일한 던전이지만 완전히 다른 상태, 다른 시간대의 모습이다."
+    min_floor: 8
+    max_floor: 30
+    weight: 8
+    cooldown_steps: 450
+    once_only: false
+    choices:
+      - text: "균열 너머를 자세히 들여다본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 280
+            message: "균열 너머에 또 다른 파티가 보였다. 그들도 이쪽을 바라보고 있었다. 서로 눈이 마주치는 순간, 균열이 닫혔다."
+      - text: "차원술사의 능력으로 균열을 분석한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            exp: 600
+            items: ["time_crack_fragment", "dimensional_analysis_notes"]
+            affinity_gain: 3
+            message: "균열의 구조를 분석했다. 이것은 10만 번의 루프가 남긴 차원 피로 현상이었다. 균열에서 시간 파편을 채취하는 데 성공했다."
+      - text: "균열을 손으로 막아본다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "time_resonance"
+            duration: 35
+            message: "균열에 손을 갖다 대자 이상한 진동이 느껴졌다. 과거와 현재가 공명하며 능력이 일시적으로 강화되었다."
+
+  - id: "sephiroth_hidden_note"
+    name: "세피로스의 메모"
+    category: "story"
+    description: "벽돌 사이 깊숙이 끼어있는 낡은 쪽지를 발견했다. 꺼내 펼치자 지우고 다시 쓴 흔적이 가득한 글씨가 나타난다. '10만 번째 실패. 이번엔... 아니, 다음엔 반드시.'"
+    min_floor: 10
+    max_floor: 30
+    weight: 6
+    cooldown_steps: 500
+    once_only: true
+    choices:
+      - text: "메모를 꼼꼼히 읽는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 400
+            items: ["sephiroth_memo_page"]
+            message: "메모에는 수백 번의 루프에 걸친 시도와 실패가 기록되어 있었다. 세피로스가 무엇을 원했는지, 그리고 왜 포기할 수 없었는지가 느껴졌다."
+      - text: "릴리에게 메모를 보여준다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 300
+            affinity_gain: 8
+            items: ["sephiroth_memo_page"]
+            message: "릴리가 메모를 오래 바라보았다. '그가 이걸 여기 숨겨 뒀다는 건... 우리한테 찾아주길 바랐던 건 아닐까.' 그녀의 목소리가 조금 떨렸다."
+      - text: "메모를 원래 자리에 되돌려 놓는다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "resolved_will"
+            duration: 40
+            message: "메모를 읽고 다시 벽돌 사이에 끼워 넣었다. 다음 여행자가 찾아야 할 것 같았다. 알 수 없는 결의가 가슴을 채웠다."
+
+  - id: "mirror_room_alternates"
+    name: "거울의 방"
+    category: "mystery"
+    description: "사방이 거울로 뒤덮인 방에 들어섰다. 거울 속 자신들은 조금씩 다르다. 다른 직업, 다른 표정, 다른 운명을 걷고 있는 또 다른 파티가 거울 속에서 이쪽을 바라보고 있다."
+    min_floor: 12
+    max_floor: 30
+    weight: 7
+    cooldown_steps: 500
+    once_only: true
+    choices:
+      - text: "거울 속 자신에게 말을 건다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 350
+            affinity_gain: 5
+            message: "거울 속 자신이 입을 열었다. 목소리는 들리지 않았지만 표정에서 경고를 읽었다. 곧 마주칠 위험에 대한 직감이 생겼다."
+      - text: "환영술사의 눈으로 거울을 분석한다"
+        requirements:
+          has_job: "illusionist"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["mirror_shard_alternate", "illusory_self_token"]
+            message: "거울은 단순한 반사가 아니었다. 실제로 다른 타임라인과 연결된 창이었다. 그 연결고리를 이용해 거울 파편을 채취했다."
+      - text: "거울을 깨뜨린다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 15
+            message: "거울이 산산조각 났다. 수천 개의 파편이 쏟아지며 파티에게 상처를 입혔다. 하지만 방의 환영도 사라졌다."
+          - type: "reward"
+            items: ["mirror_shard_x7"]
+            message: "거울 파편들을 모았다. 마력이 남아 있다."
+
+  - id: "forgotten_battle_aftermath"
+    name: "잊혀진 전투"
+    category: "story"
+    description: "방 안에 오래된 전투의 흔적이 남아있다. 무기, 갑옷 파편, 그리고 아직도 옅게 빛나는 마법의 잔재. 이 전투는 기록에 없는, 다른 타임라인에서 벌어진 것이었다."
+    min_floor: 7
+    max_floor: 25
+    weight: 10
+    cooldown_steps: 350
+    once_only: false
+    choices:
+      - text: "전투 흔적을 조사한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 220
+            items: ["rusted_timeline_blade"]
+            message: "무기에 새겨진 문양은 이 세계의 것이 아니었다. 다른 타임라인의 전사가 여기서 쓰러진 것이 분명하다."
+      - text: "기사로서 전사자들을 위해 묵념한다"
+        requirements:
+          has_job: "knight"
+        outcomes:
+          - type: "buff"
+            buff_id: "fallen_warriors_blessing"
+            duration: 45
+            exp: 300
+            affinity_gain: 4
+            message: "갑옷 파편 앞에 무릎을 꿇고 묵념했다. 그들의 용기가 파티에게 전해지는 것 같았다."
+      - text: "살아있는 마력을 흡수한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "heal"
+            heal_percent: 25
+            message: "전투에서 남은 마력 잔재를 흡수했다. 마나가 회복되었다."
+
+  - id: "dimensional_melody"
+    name: "차원의 노래"
+    category: "story"
+    description: "던전 깊은 곳에서 선율이 흘러온다. 악기 소리도 아니고, 목소리도 아닌, 차원 자체가 내는 소리 같다. 릴리가 걸음을 멈추고 귀를 기울인다. '이 노래... 어디선가 들어본 것 같아.'"
+    min_floor: 6
+    max_floor: 25
+    weight: 9
+    cooldown_steps: 400
+    once_only: false
+    choices:
+      - text: "릴리와 함께 선율을 따라간다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 250
+            items: ["dimensional_resonance_gem"]
+            affinity_gain: 7
+            message: "선율을 따라가자 숨겨진 방이 나타났다. 릴리가 '이 노래는 세피로스가 마지막 루프에서 흥얼거리던 거야' 라고 조용히 말했다."
+      - text: "음유시인이 선율을 재현한다"
+        requirements:
+          has_job: "bard"
+        outcomes:
+          - type: "buff"
+            buff_id: "dimensional_harmony"
+            duration: 60
+            exp: 400
+            affinity_gain: 5
+            message: "음유시인이 차원의 선율을 악기로 재현했다. 던전 전체가 울림으로 가득 찼고 파티에게 신비로운 강화가 걸렸다."
+      - text: "선율의 출처를 무시한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: -1
+            message: "선율은 점점 멀어지다 사라졌다. 릴리가 아쉬운 표정을 지었다."
+
+  - id: "cain_experiment_remnant"
+    name: "카인의 실험 흔적"
+    category: "mystery"
+    description: "방 한가운데 정교한 차원 실험 장치의 잔해가 있다. 설계도, 메모, 폭발로 그을린 장비들. 이것은 카인이 차원 균열을 연구하던 흔적이다."
+    min_floor: 15
+    max_floor: 30
+    weight: 6
+    cooldown_steps: 500
+    once_only: true
+    choices:
+      - text: "실험 메모를 수집한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 400
+            items: ["cain_research_notes", "dimension_formula_fragment"]
+            message: "카인의 메모에는 차원 붕괴를 의도적으로 유발하는 방법이 적혀 있었다. 위험한 지식이지만, 이해하면 도움이 될 수도 있다."
+      - text: "차원술사가 장치를 복원한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            exp: 700
+            items: ["cain_prototype_core", "dimension_amplifier"]
+            message: "부서진 장치를 부분적으로 복원했다. 카인이 어디까지 연구했는지, 그리고 무엇을 목표로 했는지를 짐작할 수 있었다."
+      - text: "장치를 완전히 파괴한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 200
+            affinity_gain: 3
+            message: "위험한 장치를 파괴했다. 카인의 연구가 더 이상 세계를 해치지 않도록."
+
+  - id: "loop_100000_echo"
+    name: "10만번째 메아리"
+    category: "story"
+    description: "던전의 한 구석에서 이상한 공명이 느껴진다. 이곳은 10만 번의 루프를 거치는 동안 항상 같은 결말을 맞이했던 장소다. 그 모든 반복의 무게가 이 공간에 새겨져 있다."
+    min_floor: 20
+    max_floor: 30
+    weight: 4
+    cooldown_steps: 600
+    once_only: true
+    choices:
+      - text: "공명 속으로 정신을 집중한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 800
+            items: ["echo_of_10000_loops"]
+            message: "10만 번의 기억이 한꺼번에 흘러들었다. 압도적인 경험이었다. 그리고 그 모든 루프 끝에 세피로스가 무엇을 보았는지, 희미하게나마 느낄 수 있었다."
+      - text: "릴리의 손을 잡고 함께 받아들인다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 600
+            affinity_gain: 10
+            items: ["shared_echo_crystal"]
+            message: "릴리가 크리스의 손을 꽉 쥐었다. 두 사람이 함께 메아리를 받아들이자, 압도적인 무게가 반으로 줄었다. 그리고 한 가지를 확신했다. 이번 루프는 다를 것이라고."
+      - text: "너무 위험하다, 피한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "공명에서 벗어났다. 하지만 심장이 오래도록 두근거렸다."
+
+  # ============================================================
+  # 수수께끼/퍼즐 이벤트
+  # ============================================================
+
+  - id: "riddle_door"
+    name: "수수께끼의 문"
+    category: "mystery"
+    description: "복도를 가로막은 거대한 석문에 문구가 새겨져 있다. '나는 빠를수록 천천히 가고, 느릴수록 멈춘다. 가장 귀하게 쓰이지만 되찾을 수 없다. 나는 무엇인가?'"
+    min_floor: 5
+    max_floor: 25
+    weight: 11
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "'시간'이라고 답한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 300
+            items: ["time_stone", "riddle_reward_pouch"]
+            exp: 200
+            message: "석문이 천천히 열렸다. 안에서 시간석과 보상 주머니가 굴러 나왔다."
+      - text: "'생명'이라고 답한다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 40
+            message: "석문이 열리며 생명의 기운이 쏟아졌다. 틀린 답이었지만 문이 자비를 베풀었다."
+      - text: "'기억'이라고 답한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 400
+            items: ["memory_crystal_rare"]
+            message: "석문이 진동하며 열렸다. '다른 답도 맞다'는 소리가 들렸다. 귀한 기억 수정이 나타났다."
+      - text: "문을 힘으로 부순다"
+        requirements:
+          has_job: "warrior"
+        outcomes:
+          - type: "damage"
+            damage_percent: 20
+            message: "문이 강한 반발력으로 충격파를 날렸다! 하지만 결국 부서졌다."
+
+  - id: "otherworld_merchant"
+    name: "이상한 상인"
+    category: "merchant"
+    description: "보라색 연기 속에서 기묘한 상인이 나타났다. '다른 타임라인의 물건을 팔지요. 이 세계에선 존재하지 않는 것들이오.' 그의 상품들은 어딘가 낯설고 낯익은 느낌이 든다."
+    min_floor: 10
+    max_floor: 30
+    weight: 7
+    cooldown_steps: 400
+    once_only: false
+    choices:
+      - text: "다른 타임라인의 물건을 구매한다"
+        requirements:
+          min_gold: 500
+        outcomes:
+          - type: "shop"
+            items: ["alternate_timeline_blade", "paradox_ring", "echo_shield", "void_potion", "loop_catalyst"]
+            message: "상인이 웃으며 말했다. '이 물건들이 어떤 루프에서 왔는지는 말씀드리기 어렵습니다만, 분명 도움이 될 거예요.'"
+      - text: "상인에게 세피로스에 대해 묻는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 300
+            affinity_gain: 4
+            message: "상인이 눈을 가늘게 떴다. '세피로스 말이오? 그가 내 가장 큰 고객이었지요. 10만 번의 루프 동안 수십만 가지 물건을 샀습니다.' 그는 더 이상 말하지 않았다."
+      - text: "상인의 정체를 캐묻는다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 400
+            items: ["merchant_identity_clue"]
+            message: "도적의 날카로운 눈이 상인의 가면 뒤를 꿰뚫었다. 상인이 당황하며 입막음 값을 지불했다."
+
+  - id: "time_reverse_trap"
+    name: "시간 역행 함정"
+    category: "trap"
+    description: "바닥을 밟는 순간 주위 공간이 뒤틀렸다! 파티의 위치가 갑자기 수십 미터 뒤로 되돌아갔다. 시간 역행 함정이다."
+    min_floor: 12
+    max_floor: 30
+    weight: 8
+    cooldown_steps: 280
+    once_only: false
+    choices:
+      - text: "역행에 저항한다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 12
+            message: "시간 역행에 저항하는 과정에서 몸에 큰 부담이 왔다. 어지러움과 함께 제자리로 돌아왔지만 상처를 입었다."
+      - text: "시간 마법사가 역행을 역이용한다"
+        requirements:
+          has_job: "time_mage"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["time_reversal_essence"]
+            message: "시간 역행의 흐름을 역이용해 함정의 에너지를 흡수했다. 귀한 시간 역행 정수를 얻었다."
+      - text: "차원술사가 공간을 고정한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "neutral"
+            exp: 300
+            message: "공간을 고정해 역행의 영향을 최소화했다. 파티는 무사히 제자리를 지켰다."
+
+  - id: "dimension_puzzle_box"
+    name: "차원 퍼즐 상자"
+    category: "mystery"
+    description: "공중에 떠 있는 육면체 상자를 발견했다. 면마다 다른 문양이 새겨져 있고, 특정 순서로 돌려야 열리는 것 같다. 상자에서 다른 차원의 냄새가 난다."
+    min_floor: 8
+    max_floor: 25
+    weight: 9
+    cooldown_steps: 350
+    once_only: false
+    choices:
+      - text: "퍼즐을 직접 풀어본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 500
+            items: ["dimension_box_reward", "puzzle_gem"]
+            exp: 200
+            message: "오랜 시도 끝에 올바른 순서를 찾아냈다. 상자가 열리며 안에서 귀한 보물이 나왔다."
+          - type: "damage"
+            damage_percent: 5
+            message: "몇 번의 실패 과정에서 작은 충격파를 맞았다."
+      - text: "차원술사가 상자의 구조를 해석한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            gold: 800
+            items: ["dimension_box_reward", "void_crystal_rare", "dimension_key"]
+            exp: 400
+            message: "차원의 구조를 읽어 퍼즐을 단번에 해결했다. 상자 안에는 일반적인 방법으로는 꺼낼 수 없는 귀한 물건들이 들어있었다."
+      - text: "상자를 그냥 가져간다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["unsolved_puzzle_box"]
+            message: "상자를 그대로 챙겼다. 나중에 천천히 풀어보기로 했다."
+
+  - id: "memory_well"
+    name: "기억의 샘"
+    category: "mystery"
+    description: "자연적으로 생겨난 것 같지 않은 완벽한 원형의 우물이 있다. 우물 속을 들여다보면 물 대신 어두운 공간이 보이고, 동전을 던지면 누군가의 기억이 보인다는 문구가 새겨져 있다."
+    min_floor: 4
+    max_floor: 20
+    weight: 11
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "동전을 던져 기억을 본다"
+        requirements:
+          min_gold: 10
+        outcomes:
+          - type: "reward"
+            gold: -10
+            exp: 250
+            message: "동전이 어둠 속으로 사라지자 다른 루프에서의 크리스의 기억이 떠올랐다. 그 루프에서 크리스는 실패했다. 하지만 그 실패가 이번엔 교훈이 된다."
+      - text: "우물 속으로 손을 뻗는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["memory_coin"]
+            exp: 150
+            message: "손이 차가운 어둠에 닿았다. 뭔가 딱딱한 것이 잡혔다. 꺼내보니 오래된 동전이었다. 누군가가 훨씬 오래전에 던진 것 같다."
+      - text: "릴리에게 먼저 보여준다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            affinity_gain: 6
+            exp: 180
+            message: "릴리가 우물을 들여다보다 조용히 말했다. '이 우물... 모든 루프의 기억을 담고 있어.' 그녀가 뭔가를 더 알고 있는 것 같았다."
+      - text: "우물에 아무것도 하지 않는다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "우물 옆을 지나쳤다. 등 뒤에서 물결 소리 같은 것이 들렸다."
+
+  - id: "crystal_prophecy_orb"
+    name: "수정 구슬의 예언"
+    category: "mystery"
+    description: "제단 위에 거대한 수정 구슬이 놓여 있다. 안에서 빛이 소용돌이치며 미래의 장면들을 보여주는 것 같다. '이 차원의 진실을 알고 싶은가?' 라는 음성이 들린다."
+    min_floor: 7
+    max_floor: 28
+    weight: 8
+    cooldown_steps: 400
+    once_only: false
+    choices:
+      - text: "진실을 본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 300
+            message: "수정 구슬이 보여준 것은 이 차원이 사실 세피로스의 마지막 루프에서 만들어진 인공 세계라는 것이었다. 충격적이었지만 각오를 다지게 해주었다."
+      - text: "마법사가 구슬의 에너지를 증폭시킨다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["amplified_prophecy_scroll", "foresight_crystal"]
+            message: "구슬을 증폭시키자 더 선명하고 구체적인 미래가 보였다. 앞으로 마주칠 강적의 약점과 숨겨진 경로를 알게 되었다."
+      - text: "구슬에 질문을 던진다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "prophetic_insight"
+            duration: 50
+            message: "질문을 던지자 구슬이 은빛으로 빛나며 답을 주었다. 무엇을 물었는지는 각자만 알겠지만, 파티 모두의 눈빛이 확고해졌다."
+
+  # ============================================================
+  # 전투 이벤트
+  # ============================================================
+
+  - id: "shadow_doppelganger"
+    name: "타임라인의 그림자"
+    category: "mystery"
+    description: "어둠 속에서 파티와 똑같은 실루엣들이 나타났다. 다른 타임라인에서 잘못된 선택을 한 파티의 그림자 버전들이다. 그들의 눈에서 붉은 빛이 번쩍인다."
+    min_floor: 15
+    max_floor: 30
+    weight: 7
+    cooldown_steps: 400
+    once_only: false
+    choices:
+      - text: "그림자들과 싸운다"
+        requirements: {}
+        outcomes:
+          - type: "battle"
+            enemy_id: "shadow_doppelganger_party"
+            enemy_level: 5
+          - type: "reward"
+            gold: 600
+            items: ["shadow_essence", "alternate_self_token"]
+            exp: 500
+            message: "그림자들을 물리쳤다. 그들이 사라지며 '이 루프는... 너희가 더 나았어'라는 속삭임이 들렸다."
+      - text: "그림자들에게 말을 건다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 350
+            affinity_gain: 4
+            message: "그림자들이 잠시 멈췄다. 그들도 이쪽과 대화하길 원했던 것 같다. 이상한 공감대가 형성되었고, 그림자들은 적대 없이 사라졌다."
+      - text: "차원술사가 그림자를 흡수한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "buff"
+            buff_id: "alternate_self_power"
+            duration: 40
+            exp: 600
+            message: "그림자들의 힘을 흡수했다. 다른 타임라인의 경험이 파티의 능력을 일시적으로 강화했다."
+
+  - id: "dimension_predator"
+    name: "차원 포식자"
+    category: "mystery"
+    description: "공기가 진동하며 보이지 않는 무언가의 존재감이 느껴진다. 차원 에너지를 먹고 사는 생명체, 차원 포식자가 파티에게 접근하고 있다."
+    min_floor: 18
+    max_floor: 30
+    weight: 6
+    cooldown_steps: 450
+    once_only: false
+    choices:
+      - text: "전투를 준비하고 맞선다"
+        requirements: {}
+        outcomes:
+          - type: "battle"
+            enemy_id: "dimension_predator"
+            enemy_level: 6
+          - type: "reward"
+            gold: 700
+            items: ["predator_core", "dimension_energy_crystal"]
+            exp: 600
+            message: "차원 포식자를 물리쳤다. 그 핵에서 순수한 차원 에너지 결정을 꺼냈다."
+      - text: "차원술사가 포식자와 교감한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "buff"
+            buff_id: "predator_familiar"
+            duration: 30
+            exp: 400
+            message: "차원 포식자에게 차원 에너지를 나눠주며 공생 관계를 맺었다. 포식자가 잠시 파티를 따르기로 했다."
+      - text: "어둠 속으로 도망친다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 10
+            message: "포식자가 도망치는 파티를 일부 공격했다. 가까스로 벗어났다."
+
+  - id: "ancient_guardian_awakens"
+    name: "고대 수호자 각성"
+    category: "trap"
+    description: "방 한가운데 석상이 갑자기 눈을 뜨며 일어났다. 수천 년간 잠들어 있던 고대 수호자가 침입자를 감지하고 깨어났다."
+    min_floor: 10
+    max_floor: 30
+    weight: 8
+    cooldown_steps: 350
+    once_only: false
+    choices:
+      - text: "수호자와 정면 대결한다"
+        requirements: {}
+        outcomes:
+          - type: "battle"
+            enemy_id: "ancient_guardian"
+            enemy_level: 4
+          - type: "reward"
+            gold: 800
+            items: ["guardian_core_fragment", "ancient_protection_rune"]
+            exp: 700
+            message: "고대 수호자를 쓰러뜨렸다. 그 핵에서 보호 룬과 코어 파편을 얻었다."
+      - text: "기사로서 수호자에게 경의를 표한다"
+        requirements:
+          has_job: "knight"
+        outcomes:
+          - type: "reward"
+            exp: 400
+            items: ["guardian_respect_token"]
+            affinity_gain: 5
+            message: "기사의 예의를 갖춰 수호자에게 경의를 표했다. 수호자가 잠시 파티를 바라보다 다시 석상으로 돌아갔다. 통과를 허락받았다."
+      - text: "신관이 고대 봉인 주문으로 재봉인한다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["ancient_seal_scroll"]
+            message: "봉인 주문으로 수호자를 다시 잠재웠다. 수호자는 저항하지 않았다. 마치 오래된 임무를 마치길 기다리고 있었던 것 같았다."
+
+  - id: "mutant_horde"
+    name: "변이 군단"
+    category: "trap"
+    description: "차원 에너지에 오염된 몬스터들이 떼를 지어 달려온다. 각기 다른 타임라인의 생명체들이 뒤섞여 변이된 형태다. 수가 너무 많다."
+    min_floor: 12
+    max_floor: 30
+    weight: 9
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "전력으로 맞선다"
+        requirements: {}
+        outcomes:
+          - type: "battle"
+            enemy_id: "mutant_horde"
+            enemy_level: 4
+          - type: "reward"
+            gold: 400
+            items: ["mutant_core_fragment_x3", "chaos_essence"]
+            exp: 450
+            message: "변이 군단을 물리쳤다. 녀석들의 핵에서 혼돈 정수를 얻었다."
+      - text: "드루이드가 자연의 힘으로 제어한다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["purified_mutant_core"]
+            message: "자연의 힘으로 변이 군단의 분노를 가라앉혔다. 정화된 핵을 얻었다."
+      - text: "함정을 이용해 유인한다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 350
+            exp: 300
+            message: "도적의 기지로 군단을 함정에 유인했다. 군단이 자멸하는 사이 전리품을 챙겼다."
+
+  - id: "mini_boss_encounter"
+    name: "미니보스 조우"
+    category: "trap"
+    description: "던전의 지배자가 모습을 드러냈다. 이 층을 지배하는 강력한 엘리트 몬스터다. 눈이 마주치는 순간 전투는 불가피해졌다."
+    min_floor: 5
+    max_floor: 30
+    weight: 10
+    cooldown_steps: 400
+    once_only: false
+    choices:
+      - text: "미니보스와 싸운다"
+        requirements: {}
+        outcomes:
+          - type: "battle"
+            enemy_id: "floor_mini_boss"
+            enemy_level: 5
+          - type: "reward"
+            gold: 1000
+            items: ["boss_trophy", "rare_equipment_token"]
+            exp: 800
+            message: "미니보스를 쓰러뜨렸다! 강력한 전리품을 손에 넣었다."
+      - text: "도적처럼 그림자 속에 숨어 피한다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "neutral"
+            exp: 150
+            message: "그림자에 몸을 숨겨 미니보스의 시야를 피했다. 보스도 결국 다른 곳으로 사라졌다."
+      - text: "전사가 선제 기습을 감행한다"
+        requirements:
+          has_job: "warrior"
+        outcomes:
+          - type: "battle"
+            enemy_id: "floor_mini_boss_weakened"
+            enemy_level: 4
+          - type: "reward"
+            gold: 1200
+            items: ["boss_trophy", "warrior_glory_badge", "rare_equipment_token"]
+            exp: 900
+            affinity_gain: 3
+            message: "기습으로 미니보스를 약화시킨 뒤 격파했다! 전사의 용기에 파티가 고무되었다."
+
+  # ============================================================
+  # 생존/자원 이벤트
+  # ============================================================
+
+  - id: "safe_campsite"
+    name: "야영지 발견"
+    category: "npc_rescue"
+    description: "오래 전 모험가들이 사용했던 것으로 보이는 야영지를 발견했다. 아직도 사용할 수 있는 장비들이 남아있고, 한숨 돌리기 좋은 아늑한 공간이다."
+    min_floor: 1
+    max_floor: 20
+    weight: 13
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "야영지에서 충분히 쉰다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 40
+            message: "야영지에서 푹 쉬었다. 체력이 크게 회복되었다."
+      - text: "야영지를 뒤져 물자를 챙긴다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 100
+            items: ["campsite_ration", "torch_bundle", "rope"]
+            message: "야영지에 남겨진 물자들을 챙겼다. 모험가의 기본 필수품들이다."
+      - text: "신관이 야영지를 정화하고 성역으로 만든다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "heal"
+            heal_percent: 70
+            message: "사제가 야영지를 축복해 성역으로 만들었다. 파티 전원이 깊은 회복을 경험했다."
+          - type: "buff"
+            buff_id: "sanctified_rest"
+            duration: 30
+            message: "성역의 축복이 일정 시간 파티를 보호한다."
+
+  - id: "rare_mineral_vein"
+    name: "희귀 광맥"
+    category: "hidden_treasure"
+    description: "벽 깊숙이 박혀있는 반짝이는 광맥을 발견했다. 일반 광물이 아니다. 차원 에너지를 담은 희귀 광석이 보인다."
+    min_floor: 5
+    max_floor: 30
+    weight: 10
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "광맥에서 광석을 채굴한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["dimensional_ore_chunk", "rare_crystal_shard"]
+            message: "광맥에서 차원석을 채굴했다. 희귀한 소재다."
+      - text: "연금술사가 광맥을 정제한다"
+        requirements:
+          has_job: "alchemist"
+        outcomes:
+          - type: "reward"
+            items: ["refined_dimensional_ore", "pure_crystal", "alchemical_byproduct"]
+            exp: 300
+            message: "연금술 기술로 광맥에서 순수 정제 광석과 부산물을 채취했다."
+      - text: "전사가 힘으로 광맥을 파낸다"
+        requirements:
+          has_job: "warrior"
+        outcomes:
+          - type: "reward"
+            gold: 200
+            items: ["dimensional_ore_chunk_x3"]
+            message: "강한 힘으로 광맥을 크게 파내어 많은 광석을 얻었다."
+
+  - id: "mysterious_pool"
+    name: "물 웅덩이"
+    category: "mystery"
+    description: "던전 안에 어울리지 않는 맑은 물 웅덩이가 있다. 물에 손을 담그면 이상한 느낌이 온다. 축복인지 저주인지 알 수 없다."
+    min_floor: 3
+    max_floor: 20
+    weight: 12
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "웅덩이의 물을 마신다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 30
+            message: "차갑고 맑은 물이 목을 타고 내려갔다. 몸이 상쾌해졌다."
+          - type: "buff"
+            buff_id: "mysterious_water_buff"
+            duration: 25
+            message: "신비로운 효과가 깃들었다. 능력이 미세하게 강화된 것 같다."
+      - text: "드루이드가 물의 성질을 분석한다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "reward"
+            items: ["pure_spring_water_vial", "nature_essence"]
+            exp: 200
+            message: "이 웅덩이는 대지의 에너지가 자연스럽게 솟아 만들어진 것이었다. 정수를 채취해 자연 정수와 대지 정기를 얻었다."
+      - text: "웅덩이에 손만 담근다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "water_touch"
+            duration: 15
+            message: "손에 시원한 감각이 남았다. 기분이 좋아졌다."
+
+  - id: "lost_spirit_trade"
+    name: "길 잃은 정령"
+    category: "story"
+    description: "방황하는 작은 정령이 파티 앞에 나타났다. 오래전 이 던전에서 죽은 모험가의 정령인 것 같다. 길을 잃어 이승을 떠나지 못하고 있다."
+    min_floor: 5
+    max_floor: 25
+    weight: 9
+    cooldown_steps: 350
+    once_only: false
+    choices:
+      - text: "정령과 거래를 제안한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 350
+            items: ["spirit_gem", "ghost_light"]
+            message: "정령이 길 안내 대신 자신이 간직하고 있던 물건들을 주었다. 그리고 저세상으로 떠났다."
+      - text: "신관이 정령을 인도한다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "reward"
+            exp: 400
+            affinity_gain: 6
+            items: ["spirit_blessing_token"]
+            message: "사제의 인도로 정령이 평안히 저세상으로 떠났다. 고마움의 표시로 축복의 징표를 남겼다."
+      - text: "정령의 이야기를 들어준다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 200
+            affinity_gain: 3
+            message: "정령이 생전의 이야기를 했다. 이 던전의 숨겨진 경로를 알게 되었다."
+
+  - id: "blessed_altar"
+    name: "축복받은 제단"
+    category: "hidden_treasure"
+    description: "오래된 제단이 여전히 신성한 기운을 발하고 있다. 무언가를 올려놓고 기도하면 신이 응답할 것 같은 분위기다."
+    min_floor: 3
+    max_floor: 20
+    weight: 11
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "제단에 금화를 바치고 기도한다"
+        requirements:
+          min_gold: 200
+        outcomes:
+          - type: "buff"
+            buff_id: "divine_protection"
+            duration: 50
+            gold: -200
+            message: "신성한 빛이 파티를 감쌌다. 신의 보호가 일정 시간 함께한다."
+      - text: "신관이 제단에서 의식을 집전한다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "heal"
+            heal_percent: 60
+            message: "사제의 의식으로 신의 기운이 크게 증폭되었다. 파티 전원이 완전에 가깝게 회복되었다."
+          - type: "buff"
+            buff_id: "sacred_covenant"
+            duration: 60
+            message: "신과의 계약이 파티를 축복한다."
+      - text: "제단을 살펴보고 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "제단의 신성함을 느끼며 지나쳤다. 경건한 마음이 생겼다."
+
+  - id: "cursed_treasure_chest"
+    name: "저주받은 보물상자"
+    category: "hidden_treasure"
+    description: "화려하게 장식된 황금 보물상자가 놓여있다. 그러나 상자 주위에 희미한 보라색 안개가 흐르고 있다. 저주가 걸려있는 것이 분명하다."
+    min_floor: 8
+    max_floor: 30
+    weight: 10
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "저주를 무시하고 상자를 연다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 1500
+            items: ["cursed_golden_ring", "forbidden_tome"]
+            message: "상자 안에 엄청난 보물이 들어있었다! 하지만 저주도 함께 왔다."
+          - type: "debuff"
+            debuff_id: "treasure_curse"
+            duration: 15
+            message: "저주가 파티에게 깃들었다. 한동안 능력이 저하된다."
+      - text: "신관이 저주를 정화한다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "reward"
+            gold: 1500
+            items: ["blessed_golden_ring", "purified_tome"]
+            exp: 300
+            message: "사제가 저주를 정화했다. 상자가 활짝 열리며 보물이 쏟아졌다. 저주도 없이."
+      - text: "상자를 그냥 둔다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "저주받은 보물에 탐심을 버렸다. 현명한 선택일 것이다."

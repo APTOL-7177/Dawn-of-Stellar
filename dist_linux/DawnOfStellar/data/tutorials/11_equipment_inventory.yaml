@@ -1,0 +1,58 @@
+# 튜토리얼 11단계: 장비와 대장간
+id: equipment_inventory
+title: "장비와 대장간"
+order: 11
+category: management
+enabled: true
+skippable: true
+
+description: |
+  장비를 주워서 장착하고, 대장간(모루)에서 수리하는 방법을 배웁니다.
+  장비에는 내구도가 있으며, 모루에서 수리할 수 있습니다.
+
+objective: "장비를 줍고 대장간에서 수리해보기"
+
+messages:
+  - text: "장비 관리와 대장간 사용법을 배워보겠습니다."
+    color: [255, 215, 0]
+    pause: 2.0
+    effect: "fade_in"
+
+  - text: "맵에 떨어진 장비(!)를 밟아서 수집하세요."
+    color: [255, 255, 255]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "모루 근처에서 Z키를 눌러 장비를 수리할 수 있습니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "장비를 잘 관리하면 전투가 훨씬 수월해집니다!"
+    color: [0, 255, 255]
+    pause: 2.0
+    effect: "flash"
+
+completion_condition:
+  type: "equipment_changed"
+  message: "장비 관리 방법을 배웠습니다!"
+
+hints:
+  - text: "맵의 ! 표시에서 장비를 수집할 수 있습니다."
+    trigger_time: 10.0
+
+  - text: "모루(M) 근처에서 Z키를 눌러 수리해보세요."
+    trigger_time: 20.0
+
+ui_highlights:
+  - element: "key_hint"
+    text: "[Z] 상호작용 / [방향키] 이동"
+    position: "bottom_center"
+    color: [255, 255, 255]
+
+rewards:
+  exp: 50
+  items: ["potion"]
+  message: "장비 관리와 수리 방법을 익혔습니다!"
+
+next_step: "dungeon_exploration"

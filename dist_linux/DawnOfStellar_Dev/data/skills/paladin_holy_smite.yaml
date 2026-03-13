@@ -1,0 +1,27 @@
+id: paladin_holy_smite
+name: 성스러운 참격
+type: attack
+description: '[신성 속성] 성스러운 힘을 집중해 HP 피해를 가하는 기본 공격입니다.
+
+  HP 1.1 피해를 줍니다.
+
+  '
+target: enemy
+metadata:
+  job: paladin
+  basic_attack: true
+effects:
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 1.1
+  element: holy
+animation:
+  icon: ??
+  color:
+  - 210
+  - 200
+  - 255
+sfx:
+- se
+- Heal4

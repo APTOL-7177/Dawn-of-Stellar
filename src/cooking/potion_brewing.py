@@ -4,6 +4,7 @@
 연금술 재료를 사용하여 다양한 포션을 제작하는 시스템
 """
 
+import random
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -12,6 +13,15 @@ from src.core.logger import get_logger
 from src.gathering.ingredient import IngredientDatabase
 
 logger = get_logger("alchemy")
+
+
+@dataclass
+class CraftResult:
+    """제작 결과"""
+    success: bool
+    item: Any = None
+    is_masterwork: bool = False
+    quality_bonus: float = 0.0  # 0.0 = 일반, 0.3 = 걸작(+30%)
 
 
 class PotionType(Enum):
@@ -423,32 +433,57 @@ class PotionBrewer:
         return True
     
     @staticmethod
-    def brew_potion(recipe: PotionRecipe, player: Any) -> bool:
+    def brew_potion(recipe: PotionRecipe, player: Any) -> CraftResult:
         """
-        포션 제조
-        
+        포션 제조 (걸작 시스템 포함)
+
         Args:
             recipe: 포션 레시피
             player: 플레이어 객체
-            
+
         Returns:
-            성공 여부
+            CraftResult (성공 여부, 걸작 여부, 품질 보너스)
         """
         # 재료 확인
         if not PotionBrewer.can_brew(recipe, player.inventory):
             logger.warning(f"재료 부족: {recipe.name}")
-            return False
-        
+            return CraftResult(success=False)
+
         # 재료 소모
         for ingredient_id, count in recipe.ingredients.items():
             player.remove_item(ingredient_id, count)
-        
+
         # 포션 생성 (ItemGenerator 사용)
         from src.equipment.item_system import ItemGenerator
         potion = ItemGenerator.create_consumable(recipe.potion_id)
-        
+
+        # 걸작 확률 계산: 기본 10% + (연금술사 레벨 * 2%) + (행운 * 0.5%)
+        masterwork_chance = 10
+        if hasattr(player, 'job_id') and player.job_id == 'alchemist':
+            masterwork_chance += getattr(player, 'level', 1) * 2
+        masterwork_chance += getattr(player, 'luck', 0) * 0.5
+        masterwork_chance = min(masterwork_chance, 50)  # 최대 50%
+
+        is_masterwork = random.randint(1, 100) <= masterwork_chance
+        quality_bonus = 0.3 if is_masterwork else 0.0
+
+        if is_masterwork:
+            potion.name = f"걸작 {potion.name}"
+            potion.effect_value = int(potion.effect_value * 1.3)
+            # rarity 1단계 상승
+            from src.equipment.item_system import ItemRarity
+            rarity_upgrade = {
+                ItemRarity.COMMON: ItemRarity.UNCOMMON,
+                ItemRarity.UNCOMMON: ItemRarity.RARE,
+                ItemRarity.RARE: ItemRarity.EPIC,
+                ItemRarity.EPIC: ItemRarity.LEGENDARY,
+                ItemRarity.LEGENDARY: ItemRarity.UNIQUE,
+            }
+            potion.rarity = rarity_upgrade.get(potion.rarity, potion.rarity)
+            logger.info(f"걸작 포션 제조! {potion.name} (효과 +30%, 등급 상승)")
+
         # 인벤토리에 추가
         player.add_item(potion)
-        
-        logger.info(f"포션 제조 성공: {recipe.name}")
-        return True
+
+        logger.info(f"포션 제조 성공: {potion.name} (걸작: {is_masterwork})")
+        return CraftResult(success=True, item=potion, is_masterwork=is_masterwork, quality_bonus=quality_bonus)

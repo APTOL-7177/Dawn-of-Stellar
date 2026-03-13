@@ -30,10 +30,10 @@ def create_bard_skills():
     note_strike = Skill(
         "bard_note_strike",
         "음표 타격",
-        "음파로 공격! 악보에 A 음표 추가."
+        "[바람 속성] 음파로 공격! 악보에 A 음표 추가."
     )
     note_strike.effects = [
-        DamageEffect(DamageType.BRV, 1.4, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 0.91, stat_type="magic", element="wind"),
     ]
     note_strike.costs = []
     note_strike.sfx = ("combat", "attack_magic")
@@ -50,10 +50,10 @@ def create_bard_skills():
     chord_wave = Skill(
         "bard_chord_wave",
         "화음파",
-        "화음의 파동! HP 피해 + 악보에 B 추가."
+        "[바람 속성] 화음의 파동! HP 피해 + 악보에 B 추가."
     )
     chord_wave.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="magic"),
+        DamageEffect(DamageType.HP, 0.65, stat_type="magic", element="wind"),
     ]
     chord_wave.costs = []
     chord_wave.sfx = ("skill", "magic_cast")
@@ -76,7 +76,7 @@ def create_bard_skills():
         BuffEffect(BuffType.ATTACK_UP, 0.25, duration=4, is_party_wide=True),
         BuffEffect(BuffType.SPEED_UP, 0.2, duration=4, is_party_wide=True),
     ]
-    battle_march.costs = [MPCost(10)]
+    battle_march.costs = [MPCost(7)]
     battle_march.target_type = "all_allies"
     battle_march.sfx = ("character", "status_buff")
     battle_march.metadata = {
@@ -95,9 +95,9 @@ def create_bard_skills():
         "부드러운 선율로 파티 전체 회복 + S 추가."
     )
     healing_melody.effects = [
-        HealEffect(HealType.HP, percentage=0.40, is_party_wide=True),
+        HealEffect(HealType.HP, percentage=0.55, is_party_wide=True),
     ]
-    healing_melody.costs = [MPCost(12)]
+    healing_melody.costs = [MPCost(8)]
     healing_melody.target_type = "all_allies"
     healing_melody.sfx = ("character", "hp_heal")
     healing_melody.metadata = {
@@ -119,7 +119,7 @@ def create_bard_skills():
         BuffEffect(BuffType.CRITICAL_UP, 0.3, duration=4, is_party_wide=True),
         BuffEffect(BuffType.ACCURACY_UP, 0.2, duration=4, is_party_wide=True),
     ]
-    inspire_song.costs = [MPCost(8)]
+    inspire_song.costs = [MPCost(5)]
     inspire_song.target_type = "all_allies"
     inspire_song.sfx = ("character", "status_buff")
     inspire_song.metadata = {
@@ -135,14 +135,14 @@ def create_bard_skills():
     requiem = Skill(
         "bard_requiem",
         "진혼곡",
-        "슬픈 진혼곡으로 적을 약화! 전체 디버프 + S 추가."
+        "[바람 속성] 슬픈 진혼곡으로 적을 약화! 전체 디버프 + S 추가."
     )
     requiem.effects = [
-        DamageEffect(DamageType.BRV, 1.2, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 0.78, stat_type="magic", element="wind"),
         BuffEffect(BuffType.ATTACK_DOWN, 0.25, duration=3),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.2, duration=3),
     ]
-    requiem.costs = [MPCost(10)]
+    requiem.costs = [MPCost(7)]
     requiem.target_type = "all_enemies"
     requiem.is_aoe = True
     requiem.sfx = ("character", "status_debuff")
@@ -166,7 +166,7 @@ def create_bard_skills():
         StatusEffect(StatusType.SLEEP, 2, 1.0),  # 2턴 수면
         BuffEffect(BuffType.SPEED_DOWN, 0.4, duration=2),
     ]
-    lullaby.costs = [MPCost(14)]
+    lullaby.costs = [MPCost(10)]
     lullaby.target_type = "enemy"
     lullaby.sfx = ("character", "status_debuff")
     lullaby.metadata = {
@@ -188,7 +188,7 @@ def create_bard_skills():
         # 효과는 execute_skill에서 음표 패턴에 따라 적용
         BuffEffect(BuffType.ATTACK_UP, 0.1, duration=2, target="self"),  # 기본 효과
     ]
-    compose.costs = [MPCost(6)]
+    compose.costs = [MPCost(4)]
     compose.target_type = "all_allies"
     compose.sfx = ("skill", "magic_cast")
     compose.metadata = {
@@ -210,13 +210,13 @@ def create_bard_skills():
     improvise = Skill(
         "bard_improvise",
         "즉흥 연주",
-        "즉흥적인 연주! 랜덤 음표 3개 추가."
+        "[바람 속성] 즉흥적인 연주! 랜덤 음표 3개 추가."
     )
     improvise.effects = [
-        DamageEffect(DamageType.BRV, 1.6, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 1.04, stat_type="magic", element="wind"),
         BuffEffect(BuffType.SPEED_UP, 0.15, duration=2, target="self"),
     ]
-    improvise.costs = [MPCost(8)]
+    improvise.costs = [MPCost(5)]
     improvise.sfx = ("skill", "haste")
     improvise.metadata = {
         "random_notes": 3,
@@ -230,12 +230,12 @@ def create_bard_skills():
     ultimate = Skill(
         "bard_ultimate",
         "그랜드 피날레",
-        "장엄한 피날레! 5음표 교향곡 확정 + 모든 효과 발동."
+        "[바람 속성] 장엄한 피날레! 5음표 교향곡 확정 + 모든 효과 발동."
     )
     ultimate.effects = [
         # 강력한 전체 공격
-        DamageEffect(DamageType.BRV, 2.5, stat_type="magic"),
-        DamageEffect(DamageType.HP, 3.0, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 1.62, stat_type="magic", element="wind"),
+        DamageEffect(DamageType.HP, 1.95, stat_type="magic", element="wind"),
         # 파티 극강 버프
         BuffEffect(BuffType.ATTACK_UP, 0.5, duration=5, is_party_wide=True),
         BuffEffect(BuffType.DEFENSE_UP, 0.4, duration=5, is_party_wide=True),
@@ -244,7 +244,7 @@ def create_bard_skills():
         # 파티 힐
         HealEffect(HealType.HP, percentage=0.35, is_party_wide=True),
     ]
-    ultimate.costs = [MPCost(35)]
+    ultimate.costs = [MPCost(25)]
     ultimate.is_ultimate = True
     ultimate.target_type = "all_enemies"
     ultimate.is_aoe = True
@@ -263,12 +263,12 @@ def create_bard_skills():
     teamwork = TeamworkSkill(
         "bard_teamwork",
         "대합주",
-        "파티 전원이 함께하는 대합주! 전체 버프 + 적 전체 피해.",
+        "[바람 속성] 파티 전원이 함께하는 대합주! 전체 버프 + 적 전체 피해.",
         gauge_cost=175
     )
     teamwork.effects = [
-        DamageEffect(DamageType.BRV, 2.0, stat_type="magic"),
-        DamageEffect(DamageType.HP, 1.5, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 1.3, stat_type="magic", element="wind"),
+        DamageEffect(DamageType.HP, 0.98, stat_type="magic", element="wind"),
         BuffEffect(BuffType.ATTACK_UP, 0.35, duration=4, is_party_wide=True),
         BuffEffect(BuffType.SPEED_UP, 0.25, duration=4, is_party_wide=True),
     ]

@@ -1,0 +1,45 @@
+id: spirit_release
+name: 정령 해방
+type: buff
+description: '소환된 모든 정령을 해방합니다.
+
+  소멸한 정령당 다음 공격 데미지 +50%.
+
+  2마리 해방 시: 추가로 MP 소모 -30%, 크리티컬 +25%.
+
+
+  ※ 정령 1마리 이상 소환 필요
+
+  '
+target: self
+costs:
+  mp: 0
+metadata:
+  requires_spirits: 1
+  consumes_spirits: true
+effects:
+- type: custom
+  handler: spirit_release
+- type: buff
+  buff_id: spirit_power
+  duration: 1
+  stacking: true
+  effects:
+    damage_bonus_per_spirit: 0.5
+- type: conditional_buff
+  condition: spirits_released_2
+  buff_id: spirit_liberation
+  duration: 1
+  effects:
+    mp_reduction: 0.3
+    critical_bonus: 0.25
+animation:
+  icon: ✨
+  color:
+  - 255
+  - 255
+  - 200
+  screen_effect: spirit_release
+sfx:
+- se
+- Up1

@@ -1317,6 +1317,67 @@ class IngredientDatabase:
             spoil_time=0,
             edible_raw=False
         ),
+
+        # === 요리 전용 재료 (Cooking-specific) ===
+        "wine": Ingredient(
+            item_id="wine",
+            name="포도주",
+            description="숙성된 포도주. 요리에 풍미를 더한다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.UNCOMMON,
+            weight=0.5,
+            sell_price=20,
+            category=IngredientCategory.FILLER,
+            food_value=1.0,
+            spoil_time=0,
+            edible_raw=True,
+            raw_hp_restore=5,
+            raw_mp_restore=5
+        ),
+
+        "soy_sauce": Ingredient(
+            item_id="soy_sauce",
+            name="간장",
+            description="콩을 발효시켜 만든 간장. 깊은 감칠맛을 준다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.3,
+            sell_price=10,
+            category=IngredientCategory.SPICE,
+            food_value=0.5,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
+        "mint": Ingredient(
+            item_id="mint",
+            name="민트",
+            description="상쾌한 향의 민트. 머리를 맑게 해준다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.1,
+            sell_price=8,
+            category=IngredientCategory.VEGETABLE,
+            food_value=0.5,
+            spoil_time=100,
+            edible_raw=True,
+            raw_hp_restore=0,
+            raw_mp_restore=5
+        ),
+
+        "kraken_tentacle": Ingredient(
+            item_id="kraken_tentacle",
+            name="크라켄 촉수",
+            description="크라켄의 거대한 촉수. 심해의 마력이 깃들어 있다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.EPIC,
+            weight=2.0,
+            sell_price=80,
+            category=IngredientCategory.FISH,
+            food_value=3.0,
+            spoil_time=80,
+            edible_raw=False
+        ),
     }
 
     @classmethod

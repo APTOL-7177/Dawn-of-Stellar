@@ -2,12 +2,14 @@
 맵 렌더러
 
 던전 맵을 화면에 표시
+동적 조명 시스템 통합 (pygame 백엔드)
 """
 
 import tcod
 
 from src.world.dungeon_generator import DungeonMap
 from src.world.tile import TileType
+from src.ui.pygame_backend.map_lighting import MapLighting
 
 
 class MapRenderer:
@@ -21,6 +23,10 @@ class MapRenderer:
         """
         self.map_x = map_x
         self.map_y = map_y
+
+        # 동적 조명 시스템
+        self.lighting = MapLighting()
+        self._lighting_dungeon_id: int = 0  # 광원 자동 배치 추적
 
     def render(
         self,
@@ -47,6 +53,15 @@ class MapRenderer:
         start_y = max(0, camera_y)
         end_x = min(dungeon.width, camera_x + view_width)
         end_y = min(dungeon.height, camera_y + view_height)
+
+        # 동적 조명: 던전 변경 시 자동 횃불 배치
+        dungeon_id = id(dungeon)
+        if dungeon_id != self._lighting_dungeon_id:
+            self._lighting_dungeon_id = dungeon_id
+            self.lighting.auto_place_lights(dungeon)
+
+        # 동적 조명: 프레임 라이트맵 준비
+        self.lighting.prepare_frame(camera_x, camera_y, view_width, view_height)
 
         # 타일 렌더링
         for map_y in range(start_y, end_y):
@@ -84,11 +99,6 @@ class MapRenderer:
                     char = "."
                     fg = (100, 100, 100)
                     bg = (0, 0, 0)
-                # 퍼즐은 해결되면 일반 바닥처럼 표시
-                elif tile.tile_type == TileType.PUZZLE and getattr(tile, 'puzzle_solved', False):
-                    char = "."
-                    fg = (100, 100, 100)
-                    bg = (0, 0, 0)
                 else:
                     # 타일 표시
                     char = tile.char
@@ -100,14 +110,14 @@ class MapRenderer:
                     fg = tuple(c // 4 for c in fg)
                     bg = tuple(c // 4 for c in bg)
 
-                # 환경 효과 색상 오버레이 적용 (마을이 아닌 경우만)
-                if hasattr(dungeon, 'environment_effect_manager') and not (hasattr(dungeon, 'is_town') and dungeon.is_town):
+                # 환경 효과 색상 오버레이 적용 (시야 내 + 마을이 아닌 경우만)
+                if tile.visible and hasattr(dungeon, 'environment_effect_manager') and not (hasattr(dungeon, 'is_town') and dungeon.is_town):
                     effects = dungeon.environment_effect_manager.get_effects_at_tile(map_x, map_y)
                     if effects:
                         # 가장 강한 효과의 색상 사용 (첫 번째 효과)
                         effect = effects[0]
                         overlay_color = effect.color_overlay
-                        
+
                         # 색상 블렌딩 (50% 오버레이)
                         fg = tuple(
                             int(fg[i] * 0.5 + overlay_color[i] * 0.5)
@@ -118,6 +128,12 @@ class MapRenderer:
                             int(bg[i] * 0.7 + overlay_color[i] * 0.3)
                             for i in range(3)
                         )
+
+                # 동적 조명 적용 (보이는 타일에만)
+                if self.lighting.enabled and tile.visible:
+                    fg, bg = self.lighting.apply_to_tile(
+                        map_x, map_y, fg, bg, tile.visible
+                    )
 
                 console.print(screen_x, screen_y, char, fg=fg, bg=bg)
 
@@ -225,5 +241,9 @@ class MapRenderer:
                 elif tile.tile_type == TileType.CHEST:
                     char = "C"
                     fg = (255, 215, 0)  # 금색
+                elif tile.tile_type != TileType.VOID:
+                    # 기타 모든 타일 (RPG 지형 포함): 타일 자체 속성 사용
+                    char = tile.char
+                    fg = tile.fg_color
 
                 console.print(minimap_x + mx, minimap_y + my, char, fg=fg)

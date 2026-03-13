@@ -1,0 +1,42 @@
+id: hacker_teamwork
+name: 분산 해킹 네트워크
+type: teamwork
+description: |
+  [팀워크] 파티 전체가 해킹 네트워크에 연결됩니다.
+  
+  효과:
+  1. 전체 적 침투 +40
+  2. 아군 전체 2턴 버프:
+     - 명중 +20%
+     - 크리티컬 +15%
+  3. 모든 적 "네트워크 노출" 디버프 2턴:
+     - 받는 피해 +15%
+target: all
+costs:
+  teamwork_gauge: 100
+metadata:
+  teamwork: true
+effects:
+- type: custom
+  handler: add_intrusion_all
+  value: 40
+- type: buff
+  buff_id: network_sync
+  target: all_allies
+  duration: 2
+  effects:
+    accuracy_bonus: 0.2
+    critical_bonus: 0.15
+- type: debuff
+  debuff_id: network_exposed
+  target: all_enemies
+  duration: 2
+  effects:
+    damage_taken: 0.15
+animation:
+  icon: "🌐"
+  color: [0, 200, 255]
+  screen_effect: network_hack
+sfx:
+- skill
+- teamwork

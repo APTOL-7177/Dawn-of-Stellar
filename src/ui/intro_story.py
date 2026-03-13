@@ -30,16 +30,33 @@ class StoryLine:
     effect: str = "typing"  # typing, fade_in, flash, glitch
 
 
+# 글리치 문자 풀
+_GLITCH_CHARS = ['█', '▓', '▒', '░', '▄', '▀', '■', '□', '▯', '◾', '◼']
+_NOISE_FRAGMENTS = [
+    "ERR0R: T1MEL1NE_C0RRUPT",
+    "▓▒░ DATA LOST ░▒▓",
+    "█▓▒ SIGNAL DECAY ▒▓█",
+    ">>>FATAL: REALITY_BREACH<<<",
+    "░░░ VOID DETECTED ░░░",
+    "▒▓█ LOOP #99,999 █▓▒",
+    "ERR: 세피로스_LINK_ACTIVE",
+    "▓▓▓ 시공간_왜곡_감지 ▓▓▓",
+]
+
+
 class IntroStorySystem:
     """인트로 스토리 시스템"""
 
-    def __init__(self, console: tcod.console.Console, context: tcod.context.Context):
+    def __init__(self, console: tcod.console.Console, context: tcod.context.Context,
+                 glitch_level: int = 0):
         self.console = console
         self.context = context
         self.screen_width = console.width
         self.screen_height = console.height
         self.skip_requested = False
         self.logger = logger
+        self.glitch_level = glitch_level
+        self._lines_since_noise = 0
 
     def show_intro(self) -> bool:
         """
@@ -78,18 +95,38 @@ class IntroStorySystem:
                 current_lines = []
                 last_clear_index = i
 
-            # 라인 표시
-            if line.effect == "typing":
-                self._show_typing_effect(line, len(current_lines))
-            elif line.effect == "fade_in":
-                self._show_fade_in_line(line, len(current_lines))
-            elif line.effect == "flash":
-                self._show_flash_line(line, len(current_lines))
-            elif line.effect == "glitch":
-                self._show_glitch_line(line, len(current_lines))
+            # 글리치 모드: 라인 변형 적용
+            display_line = self._apply_glitch_to_line(line)
 
-            if line.text != "":
-                current_lines.append(line)
+            # 라인 표시
+            if display_line.effect == "typing":
+                self._show_typing_effect(display_line, len(current_lines))
+            elif display_line.effect == "fade_in":
+                self._show_fade_in_line(display_line, len(current_lines))
+            elif display_line.effect == "flash":
+                self._show_flash_line(display_line, len(current_lines))
+            elif display_line.effect == "glitch":
+                self._show_glitch_line(display_line, len(current_lines))
+
+            if display_line.text != "":
+                current_lines.append(display_line)
+                self._lines_since_noise += 1
+
+            # 글리치 레벨 2: 5~8줄마다 노이즈 라인 삽입
+            if (self.glitch_level >= 2
+                    and display_line.text != ""
+                    and self._lines_since_noise >= random.randint(5, 8)):
+                self._lines_since_noise = 0
+                noise_text = random.choice(_NOISE_FRAGMENTS)
+                noise_line = StoryLine(
+                    noise_text,
+                    color=(255, 0, 0) if random.random() < 0.5 else (200, 0, 50),
+                    delay=0.01,
+                    pause=0.4,
+                    effect="glitch"
+                )
+                self._show_glitch_line(noise_line, len(current_lines))
+                current_lines.append(noise_line)
 
             # 화면이 너무 차면 클리어
             if len(current_lines) > 8:
@@ -97,7 +134,7 @@ class IntroStorySystem:
                 current_lines = []
 
             # 일시정지
-            if self._wait_with_skip_check(line.pause):
+            if self._wait_with_skip_check(display_line.pause):
                 logger.info("인트로 스킵됨")
                 return False
 
@@ -114,6 +151,10 @@ class IntroStorySystem:
 
     def _get_story_lines(self) -> List[StoryLine]:
         """스토리 라인 목록 - 게임 인트로 스토리"""
+        # 글리치 레벨 2: 어두운 변형 스토리
+        if self.glitch_level >= 2:
+            return self._get_glitched_story_lines()
+
         return [
             # 타이틀
             StoryLine(
@@ -711,6 +752,287 @@ class IntroStorySystem:
             ),
         ]
 
+    def _get_glitched_story_lines(self) -> List[StoryLine]:
+        """글리치 모드 전용 어두운 인트로 스토리 (세피로스 조우 후)"""
+        return [
+            # 타이틀 - 왜곡됨
+            StoryLine(
+                "별빛의 여명",
+                color=(200, 50, 50),
+                delay=0.08,
+                pause=2.0,
+                effect="glitch"
+            ),
+            StoryLine(
+                "Dawn of Stellar",
+                color=(150, 80, 80),
+                delay=0.06,
+                pause=2.5,
+                effect="glitch"
+            ),
+
+            StoryLine("", pause=1.5),
+
+            # 시간 왜곡
+            StoryLine(
+                "서기 2157년...",
+                color=(180, 180, 180),
+                delay=0.1,
+                pause=2.0,
+                effect="typing"
+            ),
+
+            StoryLine("", pause=0.3),
+
+            StoryLine(
+                "인류는 마침내 평화를 이루었다.",
+                color=(160, 160, 160),
+                delay=0.06,
+                pause=1.5,
+                effect="typing"
+            ),
+            StoryLine(
+                "...아니, 정말로 그랬을까?",
+                color=(200, 80, 80),
+                delay=0.08,
+                pause=2.0,
+                effect="typing"
+            ),
+
+            StoryLine("", pause=1.0),
+
+            StoryLine(
+                "기억이 뒤틀린다.",
+                color=(200, 0, 0),
+                delay=0.08,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "무엇이 진실이고 무엇이 거짓인지...",
+                color=(180, 80, 80),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+
+            StoryLine("", pause=1.2),
+
+            StoryLine(
+                "열 만 번째 악몽이 다시 시작된다.",
+                color=(255, 0, 0),
+                delay=0.08,
+                pause=2.2,
+                effect="flash"
+            ),
+
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "그는 아직 거기 있다.",
+                color=(200, 50, 50),
+                delay=0.08,
+                pause=1.8,
+                effect="typing"
+            ),
+
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "긴 흑발, 한 손의 창.",
+                color=(150, 0, 0),
+                delay=0.08,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "절대적인 파괴의 상징.",
+                color=(200, 0, 0),
+                delay=0.08,
+                pause=2.2,
+                effect="flash"
+            ),
+
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "\"...또 왔군.\"",
+                color=(255, 0, 0),
+                delay=0.1,
+                pause=2.2,
+                effect="typing"
+            ),
+
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "\"몇 번을 반복하든 결과는 같아.\"",
+                color=(200, 0, 0),
+                delay=0.08,
+                pause=2.0,
+                effect="typing"
+            ),
+
+            StoryLine("", pause=1.2),
+
+            StoryLine(
+                "세계는 산산조각 났다.",
+                color=(255, 0, 0),
+                delay=0.08,
+                pause=2.2,
+                effect="flash"
+            ),
+
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "시간의 강이 역류한다.",
+                color=(200, 0, 200),
+                delay=0.08,
+                pause=2.0,
+                effect="typing"
+            ),
+
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "현실과 환상의 경계가 무너진다.",
+                color=(200, 0, 200),
+                delay=0.06,
+                pause=2.0,
+                effect="typing"
+            ),
+
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "이것은 기억인가, 예언인가.",
+                color=(180, 80, 80),
+                delay=0.08,
+                pause=2.0,
+                effect="typing"
+            ),
+
+            StoryLine("", pause=0.8),
+
+            StoryLine(
+                "아니면... 저주인가.",
+                color=(255, 0, 0),
+                delay=0.1,
+                pause=2.5,
+                effect="flash"
+            ),
+
+            StoryLine("", pause=1.8),
+
+            StoryLine(
+                "하지만...",
+                color=(200, 200, 0),
+                delay=0.1,
+                pause=2.2,
+                effect="typing"
+            ),
+
+            StoryLine("", pause=1.2),
+
+            StoryLine(
+                "어둠 속에서도",
+                color=(100, 150, 200),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "걸어가는 자가 있다.",
+                color=(100, 150, 200),
+                delay=0.08,
+                pause=2.5,
+                effect="fade_in"
+            ),
+
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "당신이다.",
+                color=(200, 170, 50),
+                delay=0.1,
+                pause=2.2,
+                effect="flash"
+            ),
+
+            StoryLine("", pause=1.2),
+
+            StoryLine(
+                "이번에는... 끝내야 한다.",
+                color=(255, 100, 100),
+                delay=0.08,
+                pause=2.5,
+                effect="typing"
+            ),
+
+            StoryLine("", pause=1.5),
+
+            StoryLine(
+                "그의 저주를 끊고,",
+                color=(200, 150, 50),
+                delay=0.06,
+                pause=1.8,
+                effect="typing"
+            ),
+            StoryLine(
+                "진짜 여명을 맞이하기 위해.",
+                color=(200, 150, 50),
+                delay=0.08,
+                pause=3.0,
+                effect="fade_in"
+            ),
+
+            StoryLine("", pause=2.0),
+
+            StoryLine(
+                "별빛의 여명",
+                color=(200, 50, 50),
+                delay=0.08,
+                pause=3.0,
+                effect="glitch"
+            ),
+        ]
+
+    def _apply_glitch_to_line(self, line: StoryLine) -> StoryLine:
+        """글리치 레벨에 따라 라인 변형"""
+        if self.glitch_level == 0 or line.text == "":
+            return line
+
+        text = line.text
+        color = line.color
+        delay = line.delay
+        pause = line.pause
+        effect = line.effect
+
+        if self.glitch_level >= 2:
+            # 강도 2: 글자 10~15% 치환
+            corrupt_rate = random.uniform(0.10, 0.15)
+            text = ''.join(
+                random.choice(_GLITCH_CHARS) if random.random() < corrupt_rate and c != ' ' else c
+                for c in text
+            )
+            # 일부 라인 색상을 붉은 톤으로 변조 (30% 확률)
+            if random.random() < 0.3:
+                color = (255, 80, 80)
+            # 타이핑 딜레이 불규칙 (가끔 멈춤/급가속)
+            if random.random() < 0.2:
+                delay = random.choice([0.0, 0.0, 0.15, 0.2])  # 급가속 or 멈춤
+        elif self.glitch_level == 1:
+            # 강도 1: 글자 3~5%만 치환
+            corrupt_rate = random.uniform(0.03, 0.05)
+            text = ''.join(
+                random.choice(_GLITCH_CHARS) if random.random() < corrupt_rate and c != ' ' else c
+                for c in text
+            )
+            # 색상 변조/딜레이 변형 없음
+
+        return StoryLine(text=text, color=color, delay=delay, pause=pause, effect=effect)
+
     def _show_typing_effect(self, line: StoryLine, line_index: int):
         """타이핑 효과"""
         y = self.screen_height // 2 - 10 + line_index * 2
@@ -883,32 +1205,40 @@ class IntroStorySystem:
         return True  # 타임아웃 - 정상 진행
 
     def _check_skip(self) -> bool:
-        """스킵 체크 (Enter 키 또는 A 버튼)"""
-        # 게임패드 버튼 직접 확인 (가장 안정적인 방법)
+        """스킵 체크 (키보드: Enter/Space/ESC, 게임패드: unified_input_handler)"""
+        import pygame
+
+        # pygame 이벤트 업데이트 (게임패드 폴링을 위해)
         try:
-            import pygame
             pygame.event.pump()
-            # 연결된 게임패드가 있으면 A 버튼 (버튼 0) 확인
-            joystick_count = pygame.joystick.get_count()
-            if joystick_count > 0:
-                joystick = pygame.joystick.Joystick(0)
-                joystick.init()
-                if joystick.get_button(0):  # A 버튼
-                    self.skip_requested = True
-                    return True
-        except Exception as e:
-            # pygame 관련 에러 무시하고 키보드 입력으로 진행
+        except Exception:
             pass
 
-        # 키보드 입력 확인
+        # 키보드 입력 확인 (확장: RETURN, KP_ENTER, ESCAPE, SPACE)
         for event in tcod.event.get():
             if isinstance(event, tcod.event.KeyDown):
-                if event.sym == tcod.event.KeySym.RETURN or event.sym == tcod.event.KeySym.KP_ENTER:
+                if event.sym in (
+                    tcod.event.KeySym.RETURN,
+                    tcod.event.KeySym.KP_ENTER,
+                    tcod.event.KeySym.ESCAPE,
+                    tcod.event.KeySym.SPACE,
+                ):
                     self.skip_requested = True
                     return True
             elif isinstance(event, tcod.event.Quit):
                 self.skip_requested = True
                 return True
+
+        # 게임패드 입력 확인 (unified_input_handler 통합)
+        gamepad_action = unified_input_handler.get_action()
+        if gamepad_action in (
+            GameAction.CONFIRM,
+            GameAction.CANCEL,
+            GameAction.ESCAPE,
+            GameAction.ATTACK,
+        ):
+            self.skip_requested = True
+            return True
 
         return self.skip_requested
 
@@ -927,16 +1257,18 @@ class IntroStorySystem:
         return False
 
 
-def show_intro_story(console: tcod.console.Console, context: tcod.context.Context) -> bool:
+def show_intro_story(console: tcod.console.Console, context: tcod.context.Context,
+                     glitch_level: int = 0) -> bool:
     """
     인트로 스토리 표시
 
     Args:
         console: TCOD 콘솔
         context: TCOD 컨텍스트
+        glitch_level: 글리치 강도 (0=없음, 1=약, 2=강)
 
     Returns:
         True: 정상 완료, False: 스킵됨
     """
-    intro = IntroStorySystem(console, context)
+    intro = IntroStorySystem(console, context, glitch_level=glitch_level)
     return intro.show_intro()

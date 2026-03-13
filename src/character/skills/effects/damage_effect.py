@@ -437,7 +437,7 @@ class DamageEffect(SkillEffect):
             if context and context.get('force_critical'):
                 calc_kwargs['force_critical'] = True
             
-            if self.stat_type == "magical":
+            if self.stat_type in ("magical", "hybrid"):
                 # 원소 속성 전달 (적 저항/약점 적용)
                 dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult, element=self.element, **calc_kwargs)
             else:
@@ -470,7 +470,8 @@ class DamageEffect(SkillEffect):
                 saved_brv = user.current_brv
                 user.current_brv = context['_aoe_hp_initial_brv']
             
-            hp_result = self.brave_system.hp_attack(user, target, final_mult, damage_type=self.stat_type, **hp_kwargs)
+            hp_damage_type = "magical" if self.stat_type in ("magical", "hybrid") else self.stat_type
+            hp_result = self.brave_system.hp_attack(user, target, final_mult, damage_type=hp_damage_type, **hp_kwargs)
             
             # 첫 번째 타겟이 아닌 경우, BRV를 복원 (실제로 소모하지 않음)
             # 첫 번째 타겟에서는 BRV가 0이 되어야 하므로 그대로 둠
@@ -485,8 +486,8 @@ class DamageEffect(SkillEffect):
                 context['last_damage'] = result.hp_damage
         
         elif self.damage_type == DamageType.BRV_HP:
-            # 물리/마법 구분
-            if self.stat_type == "magical":
+            # 물리/마법 구분 (hybrid는 magical로 처리)
+            if self.stat_type in ("magical", "hybrid"):
                 # 원소 속성 전달 (적 저항/약점 적용)
                 dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult, element=self.element)
             else:
@@ -496,8 +497,9 @@ class DamageEffect(SkillEffect):
             result.brv_damage = brv_result['brv_stolen']
             result.brv_gained = brv_result['actual_gain']
             result.brv_broken = brv_result['is_break']
-            # HP 공격도 물리/마법 구분 - final_mult 사용 (기믹 보너스 적용)
-            hp_result = self.brave_system.hp_attack(user, target, final_mult, damage_type=self.stat_type)
+            # HP 공격: BRV에 이미 final_mult가 적용되었으므로 HP에는 1.0 사용 (이중 적용 방지)
+            hp_damage_type = "magical" if self.stat_type in ("magical", "hybrid") else self.stat_type
+            hp_result = self.brave_system.hp_attack(user, target, 1.0, damage_type=hp_damage_type)
             result.hp_damage = hp_result['hp_damage']
             result.damage_dealt = hp_result['hp_damage']
             result.message = f"BRV+HP 공격! BRV:{result.brv_damage} HP:{result.hp_damage}"
@@ -672,6 +674,10 @@ class DamageEffect(SkillEffect):
         # ========================================
         # 히트 이벤트 발행 (다단히트 타격감용)
         # ========================================
+        # 스킬 객체 참조 (이펙트 다양화용)
+        _skill = context.get('skill') if context else None
+        _skill_meta = getattr(_skill, 'metadata', None) or {} if _skill else {}
+
         hit_info = {
             'attacker': user,
             'target': target,
@@ -682,10 +688,19 @@ class DamageEffect(SkillEffect):
             'is_break': getattr(result, 'brv_broken', False),
             'sword_aura_hit': context.get('_sword_aura_hit') if context else None,
             'multi_hit_current': context.get('_multi_hit_current') if context else None,
-            'sfx': context.get('_sfx') if context else None,  # SFX 정보 (category, name, pitch)
-            # 추가 컨텍스트 (관중 요구/서약 조건 확인용)
+            'sfx': context.get('_sfx') if context else None,
+            'element': self.element,
             'targets_hit': context.get('targets_count', 1) if context else 1,
             'hp_percent_of_target': (getattr(result, 'hp_damage', 0) / target.max_hp * 100) if getattr(result, 'hp_damage', 0) and hasattr(target, 'max_hp') and target.max_hp > 0 else 0,
+            # ── 이펙트 다양화를 위한 추가 필드 ──
+            'stat_type': self.stat_type,  # "physical" / "magical"
+            'skill_id': getattr(_skill, 'skill_id', None),
+            'is_ultimate': getattr(_skill, 'is_ultimate', False) or _skill_meta.get('ultimate', False),
+            'is_basic_attack': _skill_meta.get('basic_attack', False),
+            'skill_special': _skill_meta.get('special'),  # 직업 고유 특수 효과 태그
+            'gimmick_type': getattr(user, 'gimmick_type', None),  # 공격자의 기믹 타입
+            'multi_hit_total': context.get('_multi_hit_total') if context else None,
+            'multiplier': self.multiplier,  # 스킬 배율 (이펙트 스케일링용)
         }
         event_bus.publish(Events.COMBAT_HIT, hit_info)
 

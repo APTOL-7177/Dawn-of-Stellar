@@ -25,7 +25,7 @@ class CombatJoinHandler:
         self.logger = get_logger("multiplayer.combat_join")
         
         # 참여 가능 반경 (타일)
-        self.participation_radius = MultiplayerConfig.participation_radius  # 5 타일
+        self.participation_radius = MultiplayerConfig.participation_radius_player  # 10 타일
         
         # 합류 체크 주기 (초)
         self.join_check_interval = 0.5  # 0.5초마다 체크
@@ -158,18 +158,33 @@ class CombatJoinHandler:
         
         return nearby_combats
     
-    def mark_player_joined(self, combat_id: str, player_id: str):
+    def mark_player_joined(self, combat_id: str, player_id: str, combat_manager: Optional[Any] = None, characters: Optional[List[Any]] = None):
         """
-        플레이어가 전투에 합류했음을 표시
-        
+        플레이어가 전투에 합류했음을 표시하고 ATB/BRV 초기화
+
         Args:
             combat_id: 전투 ID
             player_id: 플레이어 ID
+            combat_manager: 전투 관리자 (ATB/BRV 초기화용)
+            characters: 합류 플레이어의 캐릭터 리스트
         """
         if combat_id not in self.joined_players:
             self.joined_players[combat_id] = set()
         self.joined_players[combat_id].add(player_id)
         self.logger.info(f"플레이어 {player_id} 전투 {combat_id}에 합류 표시")
+
+        # ATB 시스템에 새 전투원 등록 및 BRV 초기화
+        if combat_manager and characters:
+            for char in characters:
+                try:
+                    if hasattr(combat_manager, 'atb') and combat_manager.atb:
+                        combat_manager.atb.register_combatant(char)
+                        self.logger.debug(f"ATB 등록: {getattr(char, 'name', 'Unknown')}")
+                    if hasattr(combat_manager, 'brave') and combat_manager.brave:
+                        combat_manager.brave.initialize_brv(char)
+                        self.logger.debug(f"BRV 초기화: {getattr(char, 'name', 'Unknown')}")
+                except Exception as e:
+                    self.logger.error(f"합류 캐릭터 초기화 실패: {e}", exc_info=True)
     
     def check_auto_join(self, current_time: float, all_players: Dict[str, Any]) -> List[Dict[str, Any]]:
         """

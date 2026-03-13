@@ -29,10 +29,10 @@ def create_elementalist_skills():
     strike = Skill(
         "elementalist_strike",
         "정령 일격",
-        "정령의 힘을 담은 기본 공격."
+        "[화염 속성] 정령의 힘을 담은 기본 공격."
     )
     strike.effects = [
-        DamageEffect(DamageType.BRV, 1.4, stat_type="magical"),
+        DamageEffect(DamageType.BRV, 0.91, stat_type="magical", element="fire"),
     ]
     strike.costs = []
     strike.sfx = ("skill", "magic_cast")
@@ -48,10 +48,10 @@ def create_elementalist_skills():
     spirit_burst = Skill(
         "elementalist_spirit_burst",
         "정령 폭발",
-        "소환된 정령 수 비례 HP 피해."
+        "[화염 속성] 소환된 정령 수 비례 HP 피해."
     )
     spirit_burst.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="magical",
+        DamageEffect(DamageType.HP, 0.65, stat_type="magical", element="fire",
                     gimmick_bonus={"field": "spirit_count", "multiplier": 0.4}),
     ]
     spirit_burst.costs = []
@@ -71,7 +71,7 @@ def create_elementalist_skills():
         "[화염 속성] 화염 정령 소환! 공격력 +20%, 화상 부여."
     )
     summon_fire.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="magical", element="fire"),
+        DamageEffect(DamageType.BRV_HP, 1.17, stat_type="magical", element="fire"),
         StatusEffect(StatusType.BURN, duration=3, value=1.0,
                     damage_stat="magic", damage_multiplier=0.10),
         BuffEffect(BuffType.ATTACK_UP, 0.20, duration=5, target="self"),
@@ -96,7 +96,7 @@ def create_elementalist_skills():
         "[물 속성] 물 정령 소환! MP회복 +5/턴, 힐 +25%."
     )
     summon_water.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magical", element="water"),
+        DamageEffect(DamageType.BRV, 0.98, stat_type="magical", element="water"),
         HealEffect(HealType.HP, percentage=0.15),
         BuffEffect(BuffType.MP_REGEN, 5, duration=5),
         GimmickEffect(GimmickOperation.SET, "spirit_water", 1)
@@ -121,7 +121,7 @@ def create_elementalist_skills():
         "[바람 속성] 바람 정령 소환! 속도 +25%, 회피 +15%."
     )
     summon_wind.effects = [
-        DamageEffect(DamageType.BRV, 1.6, stat_type="magical", element="wind"),
+        DamageEffect(DamageType.BRV, 1.04, stat_type="magical", element="wind"),
         BuffEffect(BuffType.SPEED_UP, 0.25, duration=5, target="self"),
         BuffEffect(BuffType.EVASION_UP, 0.15, duration=5, target="self"),
         GimmickEffect(GimmickOperation.SET, "spirit_wind", 1)
@@ -146,7 +146,7 @@ def create_elementalist_skills():
         "[대지 속성] 대지 정령 소환! 방어력 +25%, HP회복 +3/턴."
     )
     summon_earth.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magical", element="earth"),
+        DamageEffect(DamageType.BRV, 0.98, stat_type="magical", element="earth"),
         BuffEffect(BuffType.DEFENSE_UP, 0.25, duration=5, target="self"),
         BuffEffect(BuffType.HP_REGEN, 3, duration=5),
         GimmickEffect(GimmickOperation.SET, "spirit_earth", 1)
@@ -171,8 +171,8 @@ def create_elementalist_skills():
         "[화염 속성]『융합』화염+바람 정령. 전체 화염 폭풍."
     )
     fusion_firestorm.effects = [
-        DamageEffect(DamageType.BRV, 2.2, stat_type="magical", element="fire"),
-        DamageEffect(DamageType.HP, 1.8, stat_type="magical", element="fire"),
+        DamageEffect(DamageType.BRV, 1.43, stat_type="magical", element="fire"),
+        DamageEffect(DamageType.HP, 1.17, stat_type="magical", element="fire"),
         StatusEffect(StatusType.BURN, duration=3, value=1.0,
                     damage_stat="magic", damage_multiplier=0.12),
     ]
@@ -194,10 +194,10 @@ def create_elementalist_skills():
     fusion_mudtrap = Skill(
         "elementalist_fusion_mudtrap",
         "진흙 속박",
-        "[융합] 물+대지 정령. 전체 속도/방어 감소."
+        "[대지 속성] [융합] 물+대지 정령. 전체 속도/방어 감소."
     )
     fusion_mudtrap.effects = [
-        DamageEffect(DamageType.BRV_HP, 1.8, stat_type="magic"),
+        DamageEffect(DamageType.BRV_HP, 1.17, stat_type="magic", element="earth"),
         BuffEffect(BuffType.SPEED_DOWN, 0.30, duration=3),
         BuffEffect(BuffType.DEFENSE_DOWN, 0.20, duration=3),
     ]
@@ -218,11 +218,11 @@ def create_elementalist_skills():
     fusion_steam = Skill(
         "elementalist_fusion_steam",
         "증기 폭발",
-        "[융합] 화염+물 정령. 강력한 단일 피해."
+        "[물 속성] [융합] 화염+물 정령. 강력한 단일 피해."
     )
     fusion_steam.effects = [
-        DamageEffect(DamageType.BRV, 2.5, stat_type="magic"),
-        DamageEffect(DamageType.HP, 2.0, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 1.62, stat_type="magic", element="water"),
+        DamageEffect(DamageType.HP, 1.3, stat_type="magic", element="fire"),
         BuffEffect(BuffType.ACCURACY_DOWN, 0.25, duration=2),
     ]
     fusion_steam.costs = [MPCost(13)]
@@ -240,12 +240,12 @@ def create_elementalist_skills():
     ultimate = Skill(
         "elementalist_ultimate",
         "4대 정령 융합",
-        "4대 정령 완전 융합! 전체 피해 + 모든 정령 효과."
+        "[화염 속성] 4대 정령 완전 융합! 전체 피해 + 모든 정령 효과."
     )
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.5, stat_type="magic"),
-        DamageEffect(DamageType.BRV, 2.5, stat_type="magic"),
-        DamageEffect(DamageType.HP, 3.0, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 1.62, stat_type="magic", element="fire"),
+        DamageEffect(DamageType.BRV, 1.62, stat_type="magic", element="wind"),
+        DamageEffect(DamageType.HP, 1.95, stat_type="magic", element="earth"),
         StatusEffect(StatusType.BURN, duration=3, value=1.0,
                     damage_stat="magic", damage_multiplier=0.15),
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=5, target="self"),
@@ -273,12 +273,12 @@ def create_elementalist_skills():
     teamwork = TeamworkSkill(
         "elementalist_teamwork",
         "정령 합체",
-        "모든 정령이 하나로! 전체 피해 + 모든 정령 소환.",
+        "[화염 속성] 모든 정령이 하나로! 전체 피해 + 모든 정령 소환.",
         gauge_cost=175
     )
     teamwork.effects = [
-        DamageEffect(DamageType.BRV, 2.5, stat_type="magic"),
-        DamageEffect(DamageType.HP, 2.0, stat_type="magic"),
+        DamageEffect(DamageType.BRV, 1.62, stat_type="magic", element="fire"),
+        DamageEffect(DamageType.HP, 1.3, stat_type="magic", element="wind"),
         GimmickEffect(GimmickOperation.SET, "spirit_fire", 1),
         GimmickEffect(GimmickOperation.SET, "spirit_water", 1),
         GimmickEffect(GimmickOperation.SET, "spirit_wind", 1),

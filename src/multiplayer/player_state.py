@@ -42,9 +42,11 @@ class PlayerStateManager:
             player: 플레이어 객체
         """
         # 플레이어의 모든 캐릭터가 살아있는지 확인
-        all_dead = True
-        
-        if hasattr(player, 'party') and player.party:
+        # 파티가 비어있거나 없으면 사망으로 판정하지 않음
+        if not hasattr(player, 'party') or not player.party or len(player.party) == 0:
+            all_dead = False
+        else:
+            all_dead = True
             for character in player.party:
                 # Character 객체는 is_alive 속성을 가지고 있음
                 if hasattr(character, 'is_alive'):
@@ -95,16 +97,18 @@ class PlayerStateManager:
         self,
         player: MultiplayerPlayer,
         revived_character: Character,
-        revive_position: Optional[Tuple[int, int]] = None
+        revive_position: Optional[Tuple[int, int]] = None,
+        dungeon: Any = None
     ) -> Tuple[int, int]:
         """
         캐릭터 부활 처리
-        
+
         Args:
             player: 플레이어 객체
             revived_character: 부활한 캐릭터
             revive_position: 부활 위치 (None이면 플레이어 옆에 스폰)
-            
+            dungeon: 던전 객체 (walkable 검증용, 없으면 검증 생략)
+
         Returns:
             (x, y) 부활 위치
         """
@@ -113,7 +117,7 @@ class PlayerStateManager:
             x, y = revive_position
         else:
             # 플레이어 옆에 스폰 (플레이어 위치 기준 상하좌우 중 하나)
-            x, y = self._find_spawn_position_near_player(player)
+            x, y = self._find_spawn_position_near_player(player, dungeon=dungeon)
         
         # 캐릭터 위치 설정 (Character 객체는 x, y 속성을 가지지 않을 수 있음)
         # 맵 탐험 시스템에서 별도로 관리될 수 있으므로 여기서는 설정하지 않음
@@ -140,21 +144,23 @@ class PlayerStateManager:
     def _find_spawn_position_near_player(
         self,
         player: MultiplayerPlayer,
-        radius: int = 2
+        radius: int = 2,
+        dungeon: Any = None
     ) -> Tuple[int, int]:
         """
         플레이어 옆에 안전한 스폰 위치 찾기
-        
+
         Args:
             player: 플레이어 객체
             radius: 검색 반경
-            
+            dungeon: 던전 객체 (walkable 검증용, 없으면 검증 생략)
+
         Returns:
             (x, y) 스폰 위치
         """
         # 플레이어 위치
         px, py = player.x, player.y
-        
+
         # 플레이어 옆 위치들 (상하좌우 대각선 포함)
         positions = [
             (px + 1, py),      # 오른쪽
@@ -166,14 +172,26 @@ class PlayerStateManager:
             (px - 1, py + 1),  # 왼쪽 아래
             (px - 1, py - 1),  # 왼쪽 위
         ]
-        
-        # 첫 번째 유효한 위치 반환 (실제로는 맵 유효성 체크 필요)
+
         for x, y in positions:
-            # 여기서는 단순히 첫 번째 위치 반환
-            # 실제 구현에서는 맵의 walkable 체크 필요
-            return (x, y)
-        
+            # 던전이 있으면 walkable 검증
+            if dungeon and hasattr(dungeon, 'is_walkable'):
+                if dungeon.is_walkable(x, y):
+                    return (x, y)
+            elif dungeon and hasattr(dungeon, 'get_tile'):
+                tile = dungeon.get_tile(x, y)
+                if tile and getattr(tile, 'walkable', False):
+                    return (x, y)
+            else:
+                # 던전 정보 없으면 범위 체크만 수행
+                if x >= 0 and y >= 0:
+                    return (x, y)
+
         # 모든 위치가 유효하지 않으면 플레이어 위치 반환
+        self.logger.warning(
+            f"플레이어 {player.player_id} 주변에 walkable 위치 없음, "
+            f"플레이어 위치 ({px}, {py}) 사용"
+        )
         return (px, py)
     
     def get_mark_positions(self, players: Dict[str, MultiplayerPlayer]) -> Dict[str, Tuple[int, int]]:

@@ -12,7 +12,7 @@ from enum import Enum
 from src.equipment.inventory import Inventory
 from src.equipment.item_system import ItemType
 from src.gathering.ingredient import Ingredient, IngredientCategory, IngredientDatabase
-from src.cooking.potion_brewing import PotionDatabase, PotionRecipe, PotionBrewer, PotionType
+from src.cooking.potion_brewing import PotionDatabase, PotionRecipe, PotionBrewer, PotionType, CraftResult
 from src.cooking.bomb_crafting import BombDatabase, BombRecipe, BombCrafter, BombType
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
@@ -23,6 +23,152 @@ from src.audio import play_sfx
 
 logger = get_logger("alchemy_ui")
 
+# 희귀도별 색상
+RARITY_COLORS = {}
+try:
+    from src.equipment.item_system import ItemRarity
+    RARITY_COLORS = {
+        ItemRarity.COMMON: (200, 200, 200),      # 회색
+        ItemRarity.UNCOMMON: (100, 255, 100),     # 초록
+        ItemRarity.RARE: (100, 150, 255),         # 파랑
+        ItemRarity.EPIC: (200, 100, 255),         # 보라
+        ItemRarity.LEGENDARY: (255, 200, 50),     # 금색
+        ItemRarity.UNIQUE: (255, 100, 100),       # 빨강
+    }
+except Exception:
+    pass
+
+
+def _get_effect_summary(recipe) -> str:
+    """레시피의 효과 요약 문자열 생성"""
+    try:
+        # 포션 레시피
+        if hasattr(recipe, 'potion_id'):
+            from src.equipment.item_system import CONSUMABLE_TEMPLATES
+            tmpl = CONSUMABLE_TEMPLATES.get(recipe.potion_id, {})
+            etype = tmpl.get('effect_type', '')
+            evalue = tmpl.get('effect_value', 0)
+            duration = tmpl.get('duration', 0)
+
+            if etype == 'heal_hp':
+                return f"HP+{evalue}"
+            elif etype == 'heal_mp':
+                return f"MP+{evalue}"
+            elif etype == 'heal_both':
+                return f"HP/MP+{evalue}"
+            elif etype == 'shield':
+                return f"보호막 {evalue}"
+            elif etype == 'buff_strength':
+                return f"공+{evalue} {duration}턴"
+            elif etype == 'buff_defense':
+                return f"방+{evalue} {duration}턴"
+            elif etype == 'buff_speed':
+                return f"속+{evalue}% {duration}턴"
+            elif etype == 'buff_regen':
+                return f"재생 {evalue}/턴"
+            elif etype == 'buff_berserk':
+                return f"광폭화 {duration}턴"
+            elif etype == 'buff_resistance':
+                return f"저항+{evalue}%"
+            elif etype == 'buff_luck':
+                return f"크리+{evalue}%"
+            elif etype == 'buff_invisibility':
+                return f"회피+{evalue}%"
+            elif etype == 'buff_lifesteal':
+                return f"흡혈 {evalue}%"
+            elif etype == 'buff_mana_shield':
+                return f"마나방어 {evalue}%"
+            elif etype == 'buff_crit_boost':
+                return f"크리강화 {duration}턴"
+            elif etype == 'buff_battle_trance':
+                return f"무아경 {duration}턴"
+            elif etype == 'buff_bonus_damage':
+                return f"추가피해 {evalue}%"
+            elif 'cure' in etype or 'cleanse' in etype:
+                return "상태이상 치료"
+            elif etype == 'damage_reduction':
+                return f"피해감소 {evalue}%"
+            elif etype == 'heal_wound':
+                return f"상처치료 {evalue}"
+            elif evalue > 0:
+                return f"효과 {evalue}"
+            # 템플릿에 없으면 레시피 effects에서 추출
+            effects = getattr(recipe, 'effects', {})
+            if effects.get('hp_restore'):
+                return f"HP+{effects['hp_restore']}"
+            if effects.get('mp_restore'):
+                return f"MP+{effects['mp_restore']}"
+            return ""
+        # 폭탄 레시피
+        elif hasattr(recipe, 'bomb_id'):
+            dmg = getattr(recipe, 'damage', 0)
+            bomb_type = getattr(recipe, 'bomb_type', None)
+            element = ""
+            if bomb_type:
+                type_map = {'fire': '화', 'ice': '빙', 'lightning': '뇌', 'poison': '독', 'explosive': '폭발', 'special': '특수'}
+                element = type_map.get(str(bomb_type.value).lower() if hasattr(bomb_type, 'value') else str(bomb_type).lower(), '')
+            if dmg:
+                return f"{element} {dmg}+a"
+            return element or ""
+    except Exception:
+        return ""
+    return ""
+
+
+def _get_recipe_rarity(recipe):
+    """레시피 난이도 기반 희귀도 추정"""
+    try:
+        from src.equipment.item_system import ItemRarity, CONSUMABLE_TEMPLATES
+        # 템플릿에서 rarity 가져오기
+        item_id = getattr(recipe, 'potion_id', None) or getattr(recipe, 'bomb_id', None)
+        if item_id:
+            tmpl = CONSUMABLE_TEMPLATES.get(item_id, {})
+            rarity_str = tmpl.get('rarity', 'COMMON')
+            if hasattr(ItemRarity, rarity_str):
+                return getattr(ItemRarity, rarity_str)
+        # 없으면 난이도 기반 추정
+        diff = getattr(recipe, 'difficulty', 1)
+        if diff >= 5:
+            return ItemRarity.LEGENDARY
+        elif diff >= 4:
+            return ItemRarity.EPIC
+        elif diff >= 3:
+            return ItemRarity.RARE
+        elif diff >= 2:
+            return ItemRarity.UNCOMMON
+        return ItemRarity.COMMON
+    except Exception:
+        return None
+
+
+def _get_effect_summary_from_item(effect_type: str, effect_value, duration=0) -> str:
+    """아이템의 effect_type/value로 효과 요약 문자열 생성"""
+    if effect_type == 'heal_hp':
+        return f"HP +{effect_value}"
+    elif effect_type == 'heal_mp':
+        return f"MP +{effect_value}"
+    elif effect_type == 'heal_both':
+        return f"HP/MP +{effect_value}"
+    elif effect_type == 'shield':
+        return f"보호막 {effect_value}"
+    elif effect_type == 'buff_strength':
+        return f"공격력 +{effect_value} ({duration}턴)" if duration else f"공격력 +{effect_value}"
+    elif effect_type == 'buff_defense':
+        return f"방어력 +{effect_value} ({duration}턴)" if duration else f"방어력 +{effect_value}"
+    elif effect_type == 'buff_speed':
+        return f"속도 +{effect_value}%"
+    elif effect_type == 'buff_regen':
+        return f"재생 {effect_value}/턴"
+    elif effect_type == 'buff_berserk':
+        return f"광폭화 (공+30% 방-20%)"
+    elif 'cure' in effect_type or 'cleanse' in effect_type:
+        return "상태이상 치료"
+    elif 'attack' in effect_type or 'aoe' in effect_type or 'bomb' in effect_type or 'grenade' in effect_type:
+        return f"피해 {effect_value}+a"
+    elif effect_value > 0:
+        return f"효과 {effect_value}"
+    return ""
+
 
 class AlchemyMode(Enum):
     """연금술 모드"""
@@ -31,6 +177,7 @@ class AlchemyMode(Enum):
     CONFIRM_CRAFT = "confirm_craft"  # 제작 확인
     SHOW_RESULT = "show_result"  # 결과 표시
     TRANSMUTATION_SELECT_ITEM = "transmutation_select_item"  # 변환할 아이템 선택
+    TRANSMUTATION_SELECT_TARGET = "transmutation_select_target"  # 변환 대상 재료 선택
     TRANSMUTATION_CONFIRM = "transmutation_confirm"  # 변환 확인
 
 
@@ -83,6 +230,13 @@ class AlchemyUI:
         self.transmutation_item_scroll = 0
         self.selected_transmutation_item: Optional[Any] = None
         self.transmutation_result_item: Optional[Any] = None
+        # 스마트 변환: 대상 재료 선택
+        self.transmutation_targets: List[Any] = []  # 변환 가능한 대상 목록
+        self.transmutation_target_cursor = 0
+        self.transmutation_target_scroll = 0
+        self.selected_transmutation_target: Optional[Any] = None
+        # 걸작 결과 추적
+        self.is_masterwork_result: bool = False
         
         logger.info(f"연금술 실험실 열기 - 포션 레시피: {len(self.potion_recipes)}개, 폭탄 레시피: {len(self.bomb_recipes)}개, 연금술사: {self.has_alchemist}")
 
@@ -139,14 +293,90 @@ class AlchemyUI:
         return self.potion_recipes if self.current_tab == 0 else self.bomb_recipes
     
     def _get_inventory_items_dict(self) -> Dict[str, int]:
-        """인벤토리를 {item_id: count} 딕셔너리로 변환"""
+        """인벤토리 + 창고 + 허브저장소를 {item_id: count} 딕셔너리로 변환"""
         items_dict = {}
         for slot in self.inventory.slots:
             if slot and slot.item:
                 item_id = getattr(slot.item, 'item_id', '')
                 if item_id:
                     items_dict[item_id] = items_dict.get(item_id, 0) + slot.quantity
+        # 창고 + 허브 저장소 재료도 포함
+        try:
+            from src.town.town_manager import get_town_manager
+            town_mgr = get_town_manager()
+            if town_mgr:
+                # 마을 창고 - 직렬화된 dict에서 직접 item_id 읽기 (역직렬화 불필요)
+                storage_items = town_mgr.get_storage_inventory()
+                for serialized in storage_items:
+                    try:
+                        item_id = serialized.get('item_id', '') if isinstance(serialized, dict) else ''
+                        if item_id:
+                            items_dict[item_id] = items_dict.get(item_id, 0) + 1
+                    except Exception as e:
+                        logger.warning(f"창고 아이템 조회 실패: {e}")
+                # 허브 저장소 (게임오버 시 자동 보관된 재료)
+                hub_items = town_mgr.get_hub_storage()
+                for serialized in hub_items:
+                    try:
+                        item_id = serialized.get('item_id', '') if isinstance(serialized, dict) else ''
+                        if item_id:
+                            items_dict[item_id] = items_dict.get(item_id, 0) + 1
+                    except Exception as e:
+                        logger.warning(f"허브 아이템 조회 실패: {e}")
+        except Exception as e:
+            logger.warning(f"창고 재료 조회 실패: {e}")
         return items_dict
+
+    def _get_inventory_and_storage_counts(self) -> tuple:
+        """인벤토리와 창고+허브 재료를 각각 분리하여 반환
+
+        Returns:
+            (inv_dict, storage_dict, total_dict) - 각각 {item_id: count}
+            storage_dict에는 마을 창고 + 허브 저장소 모두 포함
+        """
+        inv_dict: Dict[str, int] = {}
+        storage_dict: Dict[str, int] = {}
+
+        # 인벤토리 재료
+        for slot in self.inventory.slots:
+            if slot and slot.item:
+                item_id = getattr(slot.item, 'item_id', '')
+                if item_id:
+                    inv_dict[item_id] = inv_dict.get(item_id, 0) + slot.quantity
+
+        # 창고 + 허브 저장소 재료 - 직렬화된 dict에서 직접 item_id 읽기
+        try:
+            from src.town.town_manager import get_town_manager
+            town_mgr = get_town_manager()
+            if town_mgr:
+                # 마을 창고
+                storage_items = town_mgr.get_storage_inventory()
+                for serialized in storage_items:
+                    try:
+                        item_id = serialized.get('item_id', '') if isinstance(serialized, dict) else ''
+                        if item_id:
+                            storage_dict[item_id] = storage_dict.get(item_id, 0) + 1
+                    except Exception as e:
+                        logger.warning(f"창고 아이템 조회 실패: {e}")
+                # 허브 저장소
+                hub_items = town_mgr.get_hub_storage()
+                for serialized in hub_items:
+                    try:
+                        item_id = serialized.get('item_id', '') if isinstance(serialized, dict) else ''
+                        if item_id:
+                            storage_dict[item_id] = storage_dict.get(item_id, 0) + 1
+                    except Exception as e:
+                        logger.warning(f"허브 아이템 조회 실패: {e}")
+        except Exception as e:
+            logger.warning(f"창고 재료 조회 실패: {e}")
+
+        # 합산
+        total_dict: Dict[str, int] = {}
+        all_ids = set(inv_dict.keys()) | set(storage_dict.keys())
+        for item_id in all_ids:
+            total_dict[item_id] = inv_dict.get(item_id, 0) + storage_dict.get(item_id, 0)
+
+        return inv_dict, storage_dict, total_dict
     
     def _can_craft_recipe(self, recipe: PotionRecipe | BombRecipe) -> bool:
         """레시피 제작 가능 여부 확인"""
@@ -169,6 +399,8 @@ class AlchemyUI:
             return self._handle_show_result(action)
         elif self.mode == AlchemyMode.TRANSMUTATION_SELECT_ITEM:
             return self._handle_transmutation_item_selection(action)
+        elif self.mode == AlchemyMode.TRANSMUTATION_SELECT_TARGET:
+            return self._handle_transmutation_target_selection(action)
         elif self.mode == AlchemyMode.TRANSMUTATION_CONFIRM:
             return self._handle_transmutation_confirm(action)
         
@@ -272,6 +504,8 @@ class AlchemyUI:
             self.transmutation_result_item = None
             self.selected_recipe = None
             self.selected_transmutation_item = None
+            self.selected_transmutation_target = None
+            self.is_masterwork_result = False
             
             if self.current_tab == 2 and self.has_alchemist:
                 # 연금술 변환 탭인 경우
@@ -315,18 +549,61 @@ class AlchemyUI:
             play_sfx("ui", "cursor_move")
         
         elif action == GameAction.CONFIRM:
-            # 아이템 선택
+            # 아이템 선택 → 대상 재료 선택 단계로
             if transmutable_items and 0 <= self.transmutation_item_cursor < len(transmutable_items):
                 slot_idx, slot = transmutable_items[self.transmutation_item_cursor]
                 self.selected_transmutation_item = (slot_idx, slot)
-                self.mode = AlchemyMode.TRANSMUTATION_CONFIRM
-                play_sfx("ui", "confirm")
-        
+                # 같은 카테고리의 다른 재료 목록 생성
+                item = slot.item
+                from src.gathering.ingredient import IngredientDatabase
+                self.transmutation_targets = []
+                for ingredient_id, ingredient_data in IngredientDatabase.INGREDIENTS.items():
+                    ingredient = IngredientDatabase.get_ingredient(ingredient_id)
+                    if ingredient and ingredient.category == item.category and ingredient.item_id != item.item_id:
+                        self.transmutation_targets.append(ingredient)
+                if self.transmutation_targets:
+                    self.transmutation_target_cursor = 0
+                    self.transmutation_target_scroll = 0
+                    self.mode = AlchemyMode.TRANSMUTATION_SELECT_TARGET
+                    play_sfx("ui", "confirm")
+                else:
+                    play_sfx("ui", "cursor_cancel")
+                    logger.warning("변환할 수 있는 대상 재료가 없습니다.")
+
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
             # 탭 선택 모드로 복귀
             self.mode = AlchemyMode.SELECT_TAB
             play_sfx("ui", "cursor_cancel")
-        
+
+        return False
+
+    def _handle_transmutation_target_selection(self, action: GameAction) -> bool:
+        """변환 대상 재료 선택 모드"""
+        if action == GameAction.MOVE_UP:
+            if self.transmutation_targets:
+                self.transmutation_target_cursor = max(0, self.transmutation_target_cursor - 1)
+                if self.transmutation_target_cursor < self.transmutation_target_scroll:
+                    self.transmutation_target_scroll = self.transmutation_target_cursor
+                play_sfx("ui", "cursor_move")
+
+        elif action == GameAction.MOVE_DOWN:
+            if self.transmutation_targets:
+                self.transmutation_target_cursor = min(len(self.transmutation_targets) - 1, self.transmutation_target_cursor + 1)
+                if self.transmutation_target_cursor >= self.transmutation_target_scroll + self.max_visible_recipes:
+                    self.transmutation_target_scroll = self.transmutation_target_cursor - self.max_visible_recipes + 1
+                play_sfx("ui", "cursor_move")
+
+        elif action == GameAction.CONFIRM:
+            if self.transmutation_targets and 0 <= self.transmutation_target_cursor < len(self.transmutation_targets):
+                self.selected_transmutation_target = self.transmutation_targets[self.transmutation_target_cursor]
+                self.mode = AlchemyMode.TRANSMUTATION_CONFIRM
+                play_sfx("ui", "confirm")
+
+        elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
+            self.selected_transmutation_target = None
+            self.mode = AlchemyMode.TRANSMUTATION_SELECT_ITEM
+            play_sfx("ui", "cursor_cancel")
+
         return False
 
     def _handle_transmutation_confirm(self, action: GameAction) -> bool:
@@ -335,54 +612,42 @@ class AlchemyUI:
             # 변환 실행
             self._transmute_item()
             self.mode = AlchemyMode.SHOW_RESULT
-        
+
         elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
-            # 아이템 선택 모드로 복귀
-            self.selected_transmutation_item = None
-            self.mode = AlchemyMode.TRANSMUTATION_SELECT_ITEM
+            # 대상 선택 모드로 복귀
+            self.selected_transmutation_target = None
+            self.mode = AlchemyMode.TRANSMUTATION_SELECT_TARGET
             play_sfx("ui", "cursor_cancel")
-        
+
         return False
 
     def _transmute_item(self):
-        """아이템 변환 실행"""
+        """아이템 변환 실행 (선택된 대상 재료로 변환)"""
         if not self.selected_transmutation_item:
             logger.warning("선택된 아이템이 없습니다.")
             return
-        
+
+        if not self.selected_transmutation_target:
+            logger.warning("변환 대상이 선택되지 않았습니다.")
+            return
+
         slot_idx, slot = self.selected_transmutation_item
-        
+
         if not slot or not slot.item:
             logger.warning("유효하지 않은 아이템 슬롯")
             return
-        
+
         from src.gathering.ingredient import Ingredient, IngredientCategory, IngredientDatabase
         if not isinstance(slot.item, Ingredient):
             logger.warning("재료 아이템만 변환 가능합니다.")
             return
-        
+
         item = slot.item
-        item_category = item.category
-        
-        # 같은 카테고리의 다른 재료로 변환 (랜덤)
-        available_ingredients = []
-        for ingredient_id, ingredient_data in IngredientDatabase.INGREDIENTS.items():
-            ingredient = IngredientDatabase.get_ingredient(ingredient_id)
-            if ingredient and ingredient.category == item_category and ingredient.item_id != item.item_id:
-                available_ingredients.append(ingredient)
-        
-        if not available_ingredients:
-            logger.warning("변환할 수 있는 아이템이 없습니다.")
-            self.mode = AlchemyMode.TRANSMUTATION_SELECT_ITEM
-            return
-        
-        # 랜덤 선택
-        import random
-        target_ingredient = random.choice(available_ingredients)
-        
+        target_ingredient = self.selected_transmutation_target
+
         # 아이템 제거 (1개)
         self.inventory.remove_item(slot_idx, 1)
-        
+
         # 새 아이템 생성
         from src.gathering.ingredient import Ingredient, ItemRarity
         transmuted_item = Ingredient(
@@ -401,14 +666,13 @@ class AlchemyUI:
             raw_hp_restore=target_ingredient.raw_hp_restore,
             raw_mp_restore=target_ingredient.raw_mp_restore
         )
-        
+
         # 인벤토리에 추가
         if self.inventory.add_item(transmuted_item, 1):
             self.transmutation_result_item = transmuted_item
             logger.info(f"변환 완료: {item.name} -> {transmuted_item.name}")
         else:
             logger.warning("인벤토리 공간 부족")
-            # 변환 실패 시 원래 아이템 복구하지 않음 (이미 소모됨)
             self.transmutation_result_item = None
 
     def _craft_item(self):
@@ -430,12 +694,11 @@ class AlchemyUI:
             self.mode = AlchemyMode.SELECT_RECIPE
             return
         
-        # 재료 소모 (인벤토리에서 제거)
+        # 재료 소모 (인벤토리 우선, 부족하면 창고에서 제거)
         for ingredient_id, required_count in self.selected_recipe.ingredients.items():
             remaining = required_count
-            
-            # 인벤토리에서 해당 재료 찾아서 제거 (역순으로 순회하여 인덱스 변경 문제 방지)
-            slots_to_remove = []
+
+            # 1) 인벤토리에서 해당 재료 찾아서 제거 (역순으로 순회하여 인덱스 변경 문제 방지)
             for i in range(len(self.inventory.slots) - 1, -1, -1):
                 slot = self.inventory.slots[i]
                 if slot and slot.item and remaining > 0:
@@ -446,6 +709,50 @@ class AlchemyUI:
                         remaining -= remove_count
                         if remaining <= 0:
                             break
+
+            # 2) 인벤토리에서 부족하면 마을 창고에서 제거
+            if remaining > 0:
+                try:
+                    from src.town.town_manager import get_town_manager
+                    from src.persistence.save_system import deserialize_item
+                    town_mgr = get_town_manager()
+                    if town_mgr:
+                        storage_items = town_mgr.get_storage_inventory()
+                        indices_to_remove = []
+                        for si in range(len(storage_items) - 1, -1, -1):
+                            if remaining <= 0:
+                                break
+                            item = deserialize_item(storage_items[si])
+                            if item and getattr(item, 'item_id', '') == ingredient_id:
+                                indices_to_remove.append(si)
+                                remaining -= 1
+                        for idx in sorted(indices_to_remove, reverse=True):
+                            town_mgr.retrieve_item_from_storage(idx)
+                            logger.info(f"[연금술] 창고에서 재료 소모: {ingredient_id}")
+                except Exception as e:
+                    logger.debug(f"창고 재료 소모 실패: {e}")
+
+            # 3) 마을 창고에서도 부족하면 허브 저장소에서 제거
+            if remaining > 0:
+                try:
+                    from src.town.town_manager import get_town_manager
+                    from src.persistence.save_system import deserialize_item
+                    town_mgr = get_town_manager()
+                    if town_mgr:
+                        hub_items = town_mgr.get_hub_storage()
+                        indices_to_remove = []
+                        for si in range(len(hub_items) - 1, -1, -1):
+                            if remaining <= 0:
+                                break
+                            item = deserialize_item(hub_items[si])
+                            if item and getattr(item, 'item_id', '') == ingredient_id:
+                                indices_to_remove.append(si)
+                                remaining -= 1
+                        for idx in sorted(indices_to_remove, reverse=True):
+                            town_mgr.retrieve_item_from_hub_storage(idx)
+                            logger.info(f"[연금술] 허브 저장소에서 재료 소모: {ingredient_id}")
+                except Exception as e:
+                    logger.debug(f"허브 저장소 재료 소모 실패: {e}")
         
         # 아이템 생성
         if isinstance(self.selected_recipe, PotionRecipe):
@@ -506,13 +813,47 @@ class AlchemyUI:
                     weight=0.3
                 )
         
+        # 걸작 판정
+        self.is_masterwork_result = False
+        if self.crafted_item:
+            import random
+            masterwork_chance = 10  # 기본 10%
+            for member in self.party:
+                job_id = getattr(member, 'job_id', '')
+                if job_id == 'alchemist':
+                    masterwork_chance += getattr(member, 'level', 1) * 2
+                    break
+            # 파티 전체 행운 평균
+            luck_sum = sum(getattr(m, 'luck', 0) for m in self.party) if self.party else 0
+            luck_avg = luck_sum / max(len(self.party), 1)
+            masterwork_chance += luck_avg * 0.5
+            masterwork_chance = min(masterwork_chance, 50)
+
+            if random.randint(1, 100) <= masterwork_chance:
+                self.is_masterwork_result = True
+                self.crafted_item.name = f"걸작 {self.crafted_item.name}"
+                self.crafted_item.effect_value = int(self.crafted_item.effect_value * 1.3)
+                from src.equipment.item_system import ItemRarity
+                rarity_upgrade = {
+                    ItemRarity.COMMON: ItemRarity.UNCOMMON,
+                    ItemRarity.UNCOMMON: ItemRarity.RARE,
+                    ItemRarity.RARE: ItemRarity.EPIC,
+                    ItemRarity.EPIC: ItemRarity.LEGENDARY,
+                    ItemRarity.LEGENDARY: ItemRarity.UNIQUE,
+                }
+                self.crafted_item.rarity = rarity_upgrade.get(self.crafted_item.rarity, self.crafted_item.rarity)
+                logger.info(f"걸작 제작! {self.crafted_item.name} (효과 +30%, 등급 상승)")
+
         # 인벤토리에 추가
         if self.crafted_item:
             if self.inventory.add_item(self.crafted_item, 1):
+                if self.is_masterwork_result:
+                    play_sfx("ui", "level_up")
+                else:
+                    play_sfx("ui", "confirm")
                 logger.info(f"제작 완료: {self.crafted_item.name}")
             else:
                 logger.warning("인벤토리 공간 부족")
-                # 인벤토리에 추가 실패 시 재료 반환은 하지 않음 (이미 소모됨)
                 self.crafted_item = None
 
     def render(self, console: tcod.console.Console):
@@ -550,54 +891,111 @@ class AlchemyUI:
                     for i, recipe in enumerate(visible_recipes):
                         y = list_y + i
                         cursor_index = self.recipe_scroll + i
-                        
+
                         # 커서
                         if cursor_index == self.recipe_cursor and self.mode == AlchemyMode.SELECT_RECIPE:
                             console.print(3, y, "►", fg=(255, 255, 100))
-                        
-                        # 레시피 이름
+
+                        # 희귀도 색상 적용
+                        rarity = _get_recipe_rarity(recipe)
+                        rarity_color = RARITY_COLORS.get(rarity, (200, 200, 200)) if rarity else (200, 200, 200)
+
+                        # 레시피 이름 (희귀도 색상)
                         can_craft = self._can_craft_recipe(recipe)
-                        color = (255, 255, 255) if (cursor_index == self.recipe_cursor and can_craft) else ((150, 150, 150) if not can_craft else (200, 200, 200))
+                        if cursor_index == self.recipe_cursor and can_craft:
+                            color = rarity_color
+                        elif not can_craft:
+                            color = (150, 150, 150)
+                        else:
+                            # 비선택 상태에서도 희귀도 색상 약하게 적용
+                            color = tuple(min(255, c * 3 // 4 + 50) for c in rarity_color)
                         console.print(5, y, recipe.name, fg=color)
-                        
+
+                        # 효과 요약
+                        effect_summary = _get_effect_summary(recipe)
+                        if effect_summary:
+                            summary_x = 5 + len(recipe.name) + 2
+                            # 가용 공간 내에서 표시
+                            if summary_x + len(effect_summary) < self.screen_width - 28:
+                                console.print(summary_x, y, effect_summary, fg=(180, 220, 255) if can_craft else (120, 120, 120))
+
                         # 난이도 표시
                         difficulty_stars = "★" * recipe.difficulty
                         console.print(self.screen_width - 25, y, difficulty_stars, fg=(255, 215, 0))
-                        
-                        # 제작 불가능 표시
+
+                        # 재료 상태 표시
                         if not can_craft:
                             console.print(self.screen_width - 10, y, "[재료부족]", fg=(255, 100, 100))
+                        else:
+                            console.print(self.screen_width - 10, y, "[재료OK]", fg=(100, 200, 100))
                 
                 # 선택된 레시피 상세 정보
                 if self.selected_recipe or (current_recipes and 0 <= self.recipe_cursor < len(current_recipes)):
                     recipe = self.selected_recipe if self.selected_recipe else current_recipes[self.recipe_cursor]
                     detail_y = list_y + self.max_visible_recipes + 2
-                    
+
                     console.print(3, detail_y, "─" * (self.screen_width - 6), fg=Colors.UI_BORDER)
                     detail_y += 1
-                    
-                    # 설명
-                    console.print(5, detail_y, recipe.description, fg=Colors.UI_TEXT)
-                    detail_y += 2
-                    
+
+                    # 희귀도 배지 + 설명
+                    rarity = _get_recipe_rarity(recipe)
+                    rarity_color = RARITY_COLORS.get(rarity, (200, 200, 200)) if rarity else (200, 200, 200)
+                    rarity_name = rarity.name if rarity and hasattr(rarity, 'name') else ""
+                    if rarity_name:
+                        rarity_labels = {"COMMON": "일반", "UNCOMMON": "고급", "RARE": "희귀", "EPIC": "영웅", "LEGENDARY": "전설", "UNIQUE": "유일"}
+                        console.print(5, detail_y, f"[{rarity_labels.get(rarity_name, rarity_name)}]", fg=rarity_color)
+                        console.print(5 + len(f"[{rarity_labels.get(rarity_name, rarity_name)}]") + 1, detail_y, recipe.description, fg=Colors.UI_TEXT)
+                    else:
+                        console.print(5, detail_y, recipe.description, fg=Colors.UI_TEXT)
+                    detail_y += 1
+
+                    # 효과 상세 표시
+                    effect_summary = _get_effect_summary(recipe)
+                    if effect_summary:
+                        console.print(5, detail_y, f"효과: {effect_summary}", fg=(180, 220, 255))
+                        detail_y += 1
+
+                    detail_y += 1
+
                     # 재료 목록
                     console.print(5, detail_y, "필요 재료:", fg=(255, 200, 100))
                     detail_y += 1
-                    
-                    inventory_dict = self._get_inventory_items_dict()
-                    
+
+                    inv_dict, storage_dict, total_dict = self._get_inventory_and_storage_counts()
+
                     for ingredient_id, required_count in recipe.ingredients.items():
                         ingredient = IngredientDatabase.get_ingredient(ingredient_id)
                         ingredient_name = ingredient.name if ingredient else ingredient_id
-                        current_count = inventory_dict.get(ingredient_id, 0)
-                        
+                        inv_count = inv_dict.get(ingredient_id, 0)
+                        stg_count = storage_dict.get(ingredient_id, 0)
+                        current_count = total_dict.get(ingredient_id, 0)
+
                         # 색상: 충분하면 녹색, 부족하면 빨간색
                         color = (100, 255, 100) if current_count >= required_count else (255, 100, 100)
-                        
+
                         status = "✓" if current_count >= required_count else "✗"
-                        console.print(7, detail_y, f"{status} {ingredient_name} x{required_count} (보유: {current_count})", fg=color)
+                        # 창고에 재료가 있으면 인벤/창고 구분 표시
+                        if stg_count > 0:
+                            count_text = f"인벤{inv_count}+창고{stg_count}"
+                        else:
+                            count_text = f"{current_count}"
+                        console.print(7, detail_y, f"{status} {ingredient_name} x{required_count} (보유: {count_text})", fg=color)
                         detail_y += 1
-                    
+
+                    # 걸작 확률 표시
+                    masterwork_chance = 10
+                    for member in self.party:
+                        job_id = getattr(member, 'job_id', '')
+                        if job_id == 'alchemist':
+                            masterwork_chance += getattr(member, 'level', 1) * 2
+                            break
+                    luck_sum = sum(getattr(m, 'luck', 0) for m in self.party) if self.party else 0
+                    luck_avg = luck_sum / max(len(self.party), 1)
+                    masterwork_chance += luck_avg * 0.5
+                    masterwork_chance = min(masterwork_chance, 50)
+                    detail_y += 1
+                    console.print(5, detail_y, f"걸작 확률: {int(masterwork_chance)}%", fg=(255, 215, 0))
+
                     # 제작 확인 메시지
                     if self.mode == AlchemyMode.CONFIRM_CRAFT:
                         detail_y += 1
@@ -608,18 +1006,101 @@ class AlchemyUI:
                     result_y = list_y + self.max_visible_recipes + 2
                     console.print(3, result_y, "─" * (self.screen_width - 6), fg=Colors.UI_BORDER)
                     result_y += 1
-                    
+
                     if self.crafted_item:
-                        console.print(5, result_y, f"✓ {self.crafted_item.name} 제작 완료!", fg=(100, 255, 100))
+                        # 희귀도 색상
+                        item_rarity = getattr(self.crafted_item, 'rarity', None)
+                        item_color = RARITY_COLORS.get(item_rarity, (200, 200, 200)) if item_rarity else (200, 200, 200)
+
+                        if self.is_masterwork_result:
+                            # 걸작 결과: 금색 프레임
+                            console.print(5, result_y, "★ ★ ★  걸  작  ★ ★ ★", fg=(255, 215, 0))
+                            result_y += 1
+                            console.print(5, result_y, f"{self.crafted_item.name}", fg=item_color)
+                            result_y += 1
+                            # 효과 비교 (일반 vs 걸작)
+                            base_value = int(getattr(self.crafted_item, 'effect_value', 0) / 1.3)
+                            actual_value = getattr(self.crafted_item, 'effect_value', 0)
+                            console.print(7, result_y, f"효과: {base_value} → {actual_value} (+30%)", fg=(255, 200, 50))
+                            result_y += 1
+                            console.print(7, result_y, "등급 상승!", fg=(255, 200, 50))
+                        else:
+                            console.print(5, result_y, f"✓ {self.crafted_item.name} 제작 완료!", fg=item_color)
+                            result_y += 1
+                            # 효과 상세
+                            etype = getattr(self.crafted_item, 'effect_type', '')
+                            evalue = getattr(self.crafted_item, 'effect_value', 0)
+                            if evalue > 0:
+                                effect_text = _get_effect_summary_from_item(etype, evalue, getattr(self.crafted_item, 'duration', 0))
+                                if effect_text:
+                                    console.print(7, result_y, f"효과: {effect_text}", fg=(180, 220, 255))
+
+                        result_y += 1
+                        console.print(5, result_y, "인벤토리에 추가됨", fg=(150, 150, 150))
                     elif self.transmutation_result_item:
                         console.print(5, result_y, f"✓ {self.transmutation_result_item.name} 변환 완료!", fg=(100, 255, 100))
-                    
+
                     result_y += 1
                     console.print(5, result_y, "Z 키를 누르면 계속합니다.", fg=Colors.UI_TEXT)
         
         # 연금술 변환 탭 UI
         if self.current_tab == 2 and self.has_alchemist:
-            if self.mode == AlchemyMode.TRANSMUTATION_SELECT_ITEM or self.mode == AlchemyMode.TRANSMUTATION_CONFIRM:
+            if self.mode == AlchemyMode.TRANSMUTATION_SELECT_TARGET:
+                # 대상 재료 선택 UI
+                console.print(5, list_y - 1, "변환 대상 재료를 선택하세요:", fg=(255, 200, 100))
+                visible_targets = self.transmutation_targets[self.transmutation_target_scroll:self.transmutation_target_scroll + self.max_visible_recipes]
+
+                if not visible_targets:
+                    console.print(10, list_y, "변환 가능한 대상이 없습니다.", fg=(150, 150, 150))
+                else:
+                    for i, target in enumerate(visible_targets):
+                        y = list_y + i
+                        cursor_index = self.transmutation_target_scroll + i
+                        if cursor_index == self.transmutation_target_cursor:
+                            console.print(3, y, "►", fg=(255, 255, 100))
+                        color = (255, 255, 255) if cursor_index == self.transmutation_target_cursor else (200, 200, 200)
+                        console.print(5, y, target.name, fg=color)
+                        # 카테고리 색상 표시
+                        if hasattr(target, 'category'):
+                            cat_name = target.category.display_name if hasattr(target.category, 'display_name') else str(target.category.value)
+                            cat_colors = {
+                                'herb': (100, 200, 100), 'mineral': (180, 180, 220), 'monster': (255, 120, 120),
+                                'crystal': (150, 200, 255), 'reagent': (200, 150, 255), 'essence': (255, 200, 100),
+                            }
+                            cat_val = str(target.category.value).lower() if hasattr(target.category, 'value') else ''
+                            cat_color = cat_colors.get(cat_val, (150, 200, 255))
+                            console.print(self.screen_width - 20, y, f"[{cat_name}]", fg=cat_color)
+
+                # 선택 확인 정보
+                if self.transmutation_targets and 0 <= self.transmutation_target_cursor < len(self.transmutation_targets):
+                    target = self.transmutation_targets[self.transmutation_target_cursor]
+                    detail_y = list_y + self.max_visible_recipes + 2
+                    console.print(3, detail_y, "─" * (self.screen_width - 6), fg=Colors.UI_BORDER)
+                    detail_y += 1
+                    if self.selected_transmutation_item:
+                        _, src_slot = self.selected_transmutation_item
+                        console.print(5, detail_y, f"{src_slot.item.name} → {target.name}", fg=(200, 255, 200))
+                        detail_y += 1
+                    console.print(5, detail_y, target.description[:self.screen_width - 10] if target.description else "", fg=Colors.UI_TEXT)
+
+            elif self.mode == AlchemyMode.TRANSMUTATION_CONFIRM:
+                # 변환 확인 UI
+                detail_y = list_y
+                if self.selected_transmutation_item and self.selected_transmutation_target:
+                    _, src_slot = self.selected_transmutation_item
+                    console.print(5, detail_y, f"{src_slot.item.name} → {self.selected_transmutation_target.name}", fg=(200, 255, 200))
+                    detail_y += 2
+                    console.print(5, detail_y, "변환하시겠습니까? (Z: 변환, X: 취소)", fg=(255, 255, 100))
+
+            elif self.mode == AlchemyMode.SHOW_RESULT and self.transmutation_result_item:
+                result_y = list_y
+                console.print(3, result_y, "─" * (self.screen_width - 6), fg=Colors.UI_BORDER)
+                result_y += 1
+                console.print(5, result_y, f"✓ {self.transmutation_result_item.name} 변환 완료!", fg=(100, 255, 100))
+                result_y += 1
+                console.print(5, result_y, "Z 키를 누르면 계속합니다.", fg=Colors.UI_TEXT)
+
+            elif self.mode == AlchemyMode.TRANSMUTATION_SELECT_ITEM or self.mode == AlchemyMode.SELECT_TAB:
                 # 변환 가능한 아이템 목록
                 transmutable_items = []
                 for i, slot in enumerate(self.inventory.slots):
@@ -665,12 +1146,7 @@ class AlchemyUI:
                     detail_y += 1
                     console.print(5, detail_y, f"카테고리: {item.category.display_name if hasattr(item.category, 'display_name') else item.category.value}", fg=Colors.UI_TEXT)
                     detail_y += 2
-                    console.print(5, detail_y, "같은 카테고리의 다른 재료로 랜덤 변환됩니다.", fg=(200, 200, 100))
-                    detail_y += 1
-                    
-                    # 확인 메시지
-                    if self.mode == AlchemyMode.TRANSMUTATION_CONFIRM:
-                        console.print(5, detail_y, "변환하시겠습니까? (Z: 변환, X: 취소)", fg=(255, 255, 100))
+                    console.print(5, detail_y, "Z키로 변환 대상 재료를 선택하세요.", fg=(200, 200, 100))
         
         # 안내 메시지
         help_y = self.screen_height - 2
@@ -681,7 +1157,9 @@ class AlchemyUI:
         elif self.mode == AlchemyMode.CONFIRM_CRAFT:
             help_text = "Z: 제작  X: 취소"
         elif self.mode == AlchemyMode.TRANSMUTATION_SELECT_ITEM:
-            help_text = "↑↓: 선택  ←→: 탭 변경  Z: 변환  X: 취소"
+            help_text = "↑↓: 선택  ←→: 탭 변경  Z: 대상 선택  X: 취소"
+        elif self.mode == AlchemyMode.TRANSMUTATION_SELECT_TARGET:
+            help_text = "↑↓: 대상 선택  Z: 확인  X: 뒤로"
         elif self.mode == AlchemyMode.TRANSMUTATION_CONFIRM:
             help_text = "Z: 변환  X: 취소"
         else:

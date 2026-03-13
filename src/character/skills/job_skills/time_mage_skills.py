@@ -18,7 +18,7 @@ def create_time_mage_skills():
     time_distortion = Skill("time_mage_time_distortion", "시간 왜곡",
                            "시간을 왜곡하여 BRV 피해 (MAG×1.15). 25% 슬로우, 50% 가능성 생성")
     time_distortion.effects = [
-        DamageEffect(DamageType.BRV, 1.15, stat_type="magical"),
+        DamageEffect(DamageType.BRV, 0.75, stat_type="magical"),
         BuffEffect(BuffType.SPEED_DOWN, 0.10, duration=1)  # 25% 확률로 적용 (metadata에서 처리)
     ]
     time_distortion.costs = []  # 기본 공격은 MP 무료
@@ -36,7 +36,7 @@ def create_time_mage_skills():
     time_collapse = Skill("time_mage_time_collapse", "시간 붕괴",
                          "축적된 시간의 힘을 폭발! HP 피해 (MAG×1.0). 슬롯당 +8%")
     time_collapse.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="magical",
+        DamageEffect(DamageType.HP, 0.65, stat_type="magical",
                     gimmick_bonus={"field": "possibility_slots", "multiplier": 0.08, "count_mode": True})
     ]
     time_collapse.costs = []  # 기본 공격은 MP 무료
@@ -54,9 +54,9 @@ def create_time_mage_skills():
 
     # 1. 타임 볼트 - 단일 BRV 공격
     time_bolt = Skill("time_mage_time_bolt", "타임 볼트",
-                     "응축된 시간 에너지를 발사하여 단일 적에게 BRV 피해")
+                     "[번개 속성] 응축된 시간 에너지를 발사하여 단일 적에게 BRV 피해")
     time_bolt.effects = [
-        DamageEffect(DamageType.BRV, 2.7, stat_type="magical")
+        DamageEffect(DamageType.BRV, 1.76, stat_type="magical", element="lightning")
     ]
     time_bolt.costs = [MPCost(9)]
     time_bolt.target_type = "single_enemy"
@@ -69,9 +69,9 @@ def create_time_mage_skills():
 
     # 2. 타임 쇼크 - 전체 BRV 공격
     time_shock = Skill("time_mage_time_shock", "타임 쇼크",
-                      "시간의 충격파로 전체 적에게 BRV 피해")
+                      "[번개 속성] 시간의 충격파로 전체 적에게 BRV 피해")
     time_shock.effects = [
-        DamageEffect(DamageType.BRV, 2.4, stat_type="magical")
+        DamageEffect(DamageType.BRV, 1.56, stat_type="magical", element="lightning")
     ]
     time_shock.costs = [MPCost(12)]
     time_shock.target_type = "all_enemies"
@@ -85,9 +85,9 @@ def create_time_mage_skills():
 
     # 3. 크로노 블라스트 - 단일 HP 공격 + 가능성 확정 생성
     chrono_blast = Skill("time_mage_chrono_blast", "크로노 블라스트",
-                        "시간의 폭발로 강력한 HP 피해 + 가능성 확정 생성")
+                        "[번개 속성] 시간의 폭발로 강력한 HP 피해 + 가능성 확정 생성")
     chrono_blast.effects = [
-        DamageEffect(DamageType.HP, 3.0, stat_type="magical")
+        DamageEffect(DamageType.HP, 1.95, stat_type="magical", element="lightning")
     ]
     chrono_blast.costs = [MPCost(12)]
     chrono_blast.target_type = "single_enemy"
@@ -102,8 +102,8 @@ def create_time_mage_skills():
     time_wave = Skill("time_mage_time_wave", "타임 웨이브",
                      "시간의 파동으로 전체 BRV → HP 피해, 20% 슬로우")
     time_wave.effects = [
-        DamageEffect(DamageType.BRV, 1.4, stat_type="magical"),
-        DamageEffect(DamageType.HP, 1.9, stat_type="magical"),
+        DamageEffect(DamageType.BRV, 0.91, stat_type="magical"),
+        DamageEffect(DamageType.HP, 1.23, stat_type="magical"),
         BuffEffect(BuffType.SPEED_DOWN, 0.20, duration=2)  # 20% 슬로우
     ]
     time_wave.costs = [MPCost(16)]
@@ -342,10 +342,10 @@ def create_time_mage_skills():
 
     # 18. 무한 수렴 - 궁극기
     infinite_convergence = Skill("time_mage_infinite_convergence", "무한 수렴",
-                                "모든 시간선의 가능성을 수렴! 저장된 가능성 + 타임 볼트/쇼크/리와인드 연속 발동 (120% 위력)")
+                                "[번개 속성] 모든 시간선의 가능성을 수렴! 저장된 가능성 + 타임 볼트/쇼크/리와인드 연속 발동 (120% 위력)")
     infinite_convergence.effects = [
-        DamageEffect(DamageType.BRV, 2.5, stat_type="magical"),  # 피니시 피해
-        DamageEffect(DamageType.HP, 2.0, stat_type="magical"),
+        DamageEffect(DamageType.BRV, 1.62, stat_type="magical", element="lightning"),  # 피니시 피해
+        DamageEffect(DamageType.HP, 1.3, stat_type="magical", element="lightning"),
         BuffEffect(BuffType.ATTACK_DOWN, 0.20, duration=2)  # 적 전체 스탯 -20%
     ]
     infinite_convergence.costs = [MPCost(38)]

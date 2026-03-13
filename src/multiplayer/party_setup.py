@@ -146,18 +146,18 @@ class MultiplayerPartySetup:
         
         if job_id not in self.used_jobs:
             self.used_jobs.add(job_id)
-            
+
             # 모든 클라이언트에게 직업 사용 알림
             if self.network_manager:
                 message = NetworkMessage(
-                    type=MessageType.PLAYER_JOINED,  # 임시로 사용
+                    type=MessageType.JOB_SELECTED,
                     data={
                         "action": "job_selected",
                         "job_id": job_id
                     }
                 )
-                self.network_manager.broadcast(message)
-    
+                self.network_manager.broadcast_sync(message)
+
     def remove_job_from_used_list(self, job_id: str):
         """
         직업을 사용된 목록에서 제거 (호스트만)
@@ -171,17 +171,17 @@ class MultiplayerPartySetup:
         
         if job_id in self.used_jobs:
             self.used_jobs.remove(job_id)
-            
+
             # 모든 클라이언트에게 직업 해제 알림
             if self.network_manager:
                 message = NetworkMessage(
-                    type=MessageType.PLAYER_JOINED,  # 임시로 사용
+                    type=MessageType.JOB_DESELECTED,
                     data={
                         "action": "job_deselected",
                         "job_id": job_id
                     }
                 )
-                self.network_manager.broadcast(message)
+                self.network_manager.broadcast_sync(message)
     
     def add_party_member(self, member: PartyMember) -> bool:
         """
@@ -212,14 +212,14 @@ class MultiplayerPartySetup:
         elif self.network_manager:
             # 클라이언트: 호스트에게 직업 선택 요청
             message = NetworkMessage(
-                type=MessageType.PLAYER_JOINED,  # 임시로 사용
+                type=MessageType.JOB_SELECTED,
                 player_id=self.player_id,
                 data={
                     "action": "request_job",
                     "job_id": member.job_id
                 }
             )
-            self.network_manager.send(message)
+            self.network_manager.send_sync(message)
         
         return True
     
@@ -248,14 +248,14 @@ class MultiplayerPartySetup:
         elif self.network_manager:
             # 클라이언트: 호스트에게 직업 해제 요청
             message = NetworkMessage(
-                type=MessageType.PLAYER_JOINED,  # 임시로 사용
+                type=MessageType.JOB_DESELECTED,
                 player_id=self.player_id,
                 data={
                     "action": "release_job",
                     "job_id": job_id
                 }
             )
-            self.network_manager.send(message)
+            self.network_manager.send_sync(message)
         
         return True
     
@@ -278,13 +278,13 @@ class MultiplayerPartySetup:
         # 모든 클라이언트에게 패시브 전송
         if self.network_manager:
             message = NetworkMessage(
-                type=MessageType.PLAYER_JOINED,  # 임시로 사용
+                type=MessageType.PASSIVES_SET,
                 data={
                     "action": "passives_set",
                     "passives": passives
                 }
             )
-            self.network_manager.broadcast(message)
+            self.network_manager.broadcast_sync(message)
         
         return True
     

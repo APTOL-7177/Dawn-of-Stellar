@@ -1,0 +1,69 @@
+class_name: 성직자
+description: 신성한 치유의 힘으로 동료를 지키는 지원 전문가
+slogan: 신앙은 기적을 낳고, 기적은 승리를 부른다
+archetype: 힐러/서포터
+base_stats:
+  hp: 145
+  mp: 78
+  init_brv: 112
+  speed: 55
+  physical_attack: 38
+  physical_defense: 42
+  magic_attack: 62
+  magic_defense: 73
+  max_brv: 311
+stat_growth:
+  hp: 32.2
+  mp: 6.0
+  init_brv: 26.5
+  strength: 8.1
+  defense: 10.9
+  magic: 15.4
+  spirit: 21.5
+  speed: 12.3
+  max_brv: 87.5
+  luck: 0.6
+  accuracy: 1.6
+  evasion: 1.2
+traits:
+- id: healing_power
+  name: 치유력
+  description: 모든 회복 효과 +40%
+  type: passive
+- id: faith_shield
+  name: 신앙의 보호막
+  description: 아군 치유 시 회복량의 40%만큼 보호막 부여
+  type: trigger
+- id: divine_grace
+  name: 신의 은총
+  description: MP 50% 이상일 때 회복 스킬 시전 시간 -60%
+  type: trigger
+- id: resurrection_master
+  name: 부활 전문가
+  description: 아군 치유 시 회복량의 25%만큼 본인도 추가 치유
+  type: trigger
+- id: prayer_blessing
+  name: 기도의 축복
+  description: 매 턴 아군 전체 HP 5% 회복
+  type: passive
+gimmick:
+  type: divinity_system
+  name: 신앙의 힘
+  description: 신앙심으로 강력한 치유와 보호 마법 사용
+  max_faith_points: 10
+skills:
+- teamwork
+- pray
+- holy_attack
+- heal
+- greater_heal
+- mass_heal
+- faith_blessing
+- holy_barrier
+- resurrect
+- holy_judgment
+- ultimate
+bonuses:
+  healing_power: 1.15
+  mp_efficiency: 0.9
+  party_support: 1.1

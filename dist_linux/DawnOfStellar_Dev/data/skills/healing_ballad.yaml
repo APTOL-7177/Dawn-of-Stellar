@@ -1,0 +1,17 @@
+id: healing_ballad
+name: Healing Ballad
+type: heal
+target_type: party
+description: 치유의 노래로 모든 아군을 회복합니다 (마법력 기반)
+costs:
+  mp: 35
+  cast_time: 1.5
+effects:
+- type: heal
+  heal_type: hp
+  stat_scaling: magic
+  multiplier: 1.8
+  is_party_wide: true
+sfx:
+- se
+- Recovery

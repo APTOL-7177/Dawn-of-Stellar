@@ -1,0 +1,750 @@
+# RPG 모드 챕터별 컷씬 데이터
+# 모든 챕터(특히 Ch2~5, 7, 9)에 릴리 중심 대화 씬 추가
+# Ch1, 6, 8, 10은 기존 rpg_config.yaml 이벤트에 추가로 표시
+
+chapter_cutscenes:
+  rpg_ch1:
+    bgm: "pianosolo"
+    scenes:
+      - speaker: "릴리"
+        lines:
+          - "크리스... 드디어 눈을 떴구나!"
+          - "나는 릴리. 하늘에서 떨어진 너를 발견했어."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "이 세계는 '잔향의 차원'이라고 해."
+          - "나도 여기서 태어나서... 바깥 세계는 몰라."
+          - "하지만 네가 왔으니까, 이제 뭔가 달라질 것 같아!"
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "자, 마을을 안내해줄게. 따라와!"
+          - "아, 참! 위험한 곳에는 같이 가줄 테니까 걱정 마."
+        effect: null
+
+  rpg_ch2:
+    scenes:
+      - speaker: "릴리"
+        lines:
+          - "크리스, 이 비석 좀 봐."
+          - "'이 세계는 후회로 만들어졌다'... 무슨 뜻일까?"
+        effect: null
+      - speaker: "크리스"
+        lines:
+          - "누군가가 남긴 메시지 같은데..."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "후회로 만들어졌다... 좀 슬프다."
+          - "그래도 여기서 만난 사람들은 진짜야."
+          - "이 숲도, 마을 사람들도... 나도."
+        effect: "slow"
+        choices:
+          - text: "물론이지. 넌 진짜야."
+            affinity: 5
+          - text: "...그러길 바라."
+            affinity: 0
+
+  rpg_ch3:
+    scenes:
+      - speaker: "릴리"
+        lines:
+          - "사막이라니... 숲이랑 완전 달라!"
+          - "모래가 황금빛으로 반짝여. 예쁘다."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "근데 신기해. 처음 온 건데 길을 아는 것 같아."
+          - "저쪽에 유적이 있을 거야. 왜 그걸 아는지 모르겠지만."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "크리스... 나, 이상한 꿈을 꿨어."
+          - "꿈에서 누군가가 울고 있었어."
+          - "'10만 번'이라고... 반복했다고."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "무슨 꿈이야? 괜찮아?"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "...응, 괜찮아! 그냥 꿈이니까."
+          - "가자, 유적 구경하러!"
+        effect: null
+
+  rpg_ch4:
+    scenes:
+      - speaker: "릴리"
+        lines:
+          - "이 동굴... 뭔가 속삭이는 것 같아."
+          - "'돌아와'라고... 누가 부르는 것 같은데."
+        effect: "shake"
+      - speaker: "크리스"
+        lines:
+          - "릴리, 괜찮아?"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "...응. 잠깐 어지러웠어."
+          - "이 동굴에 들어오니까 머리가 아파."
+          - "하지만 가야 해. 뭔가 중요한 게 있는 것 같아."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "크리스, 나... 가끔 무서워."
+          - "내가 나인지, 아니면 누군가의 그림자인지."
+          - "그런 생각이 들 때가 있어."
+        effect: "slow"
+        choices:
+          - text: "네가 누구든 내 동료야."
+            affinity: 10
+          - text: "무슨 소리야, 넌 릴리잖아."
+            affinity: 5
+
+  rpg_ch5:
+    scenes:
+      - speaker: "릴리"
+        lines:
+          - "이 폭풍... 자연현상이 아니야."
+          - "누군가의 분노 같아. 오래된... 아주 오래된."
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "크리스, 잠깐 멈춰봐."
+          - "...들려? 바람 사이로 목소리가."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "크리스, 약속해줘."
+          - "내가 누구인지 알게 되더라도..."
+          - "날 버리지 않겠다고."
+        effect: "slow"
+        choices:
+          - text: "약속할게."
+            affinity: 15
+          - text: "왜 갑자기 그런 말을..."
+            affinity: 3
+
+  rpg_ch7:
+    scenes:
+      - speaker: "카인"
+        lines:
+          - "또 만나는구나... 잔향이여."
+          - "10만 번째 반복에서도 넌 변하지 않는구나."
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "카인이... 나를 보고 웃었어."
+          - "'또 만나는구나, 잔향이여'라고..."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "잔향? 내가 잔향이라고?"
+          - "아니야. 나는 나야. 릴리야!"
+          - "...그렇지, 크리스?"
+        effect: "slow"
+        choices:
+          - text: "넌 릴리야. 그게 전부야."
+            affinity: 15
+          - text: "진실이 뭐든 함께 알아보자."
+            affinity: 10
+
+  rpg_ch6:
+    bgm: "pianosolo"
+    scenes:
+      - speaker: "릴리"
+        lines:
+          - "여기는... 빙원이 맞는데."
+          - "시간이 얼어붙어 있어. 공기 자체가 다른 느낌이야."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "저기 봐. 얼음 속에 뭔가 갇혀 있어."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "...사람이야."
+          - "얼음 속에 갇힌 사람들... 표정이 없어."
+          - "마치 처음부터 존재하지 않았던 것처럼."
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "크리스, 저 얼굴 봐."
+          - "...나랑 똑같아."
+          - "눈도, 머리카락도, 웃는 방식도."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "릴리..."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "다른 사람이야. 분명히 다른 사람이야."
+          - "근데 왜... 내 기억 속에 있는 것 같지?"
+          - "한 번도 만난 적 없는데."
+        effect: "slow"
+        choices:
+          - text: "릴리, 진정해. 내가 여기 있어."
+            affinity: 10
+          - text: "혹시 저 사람이 원래의 릴리인 건 아닐까?"
+            affinity: -5
+      - speaker: "세피로스"
+        lines:
+          - "..."
+          - "보이는가. 얼어붙은 가능성들이."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "누구야! 거기 누구 있어?"
+        effect: null
+      - speaker: "세피로스"
+        lines:
+          - "나는 아무것도 아닌 자다."
+          - "이 세계를 만든... 그리고 이 세계에 갇힌."
+          - "10만 번의 반복 끝에 남은 메아리."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "비전이 보여, 크리스."
+          - "어떤 남자가... 울고 있어."
+          - "같은 장면이 반복돼. 끝없이, 끝없이."
+        effect: "shake"
+      - speaker: "크리스"
+        lines:
+          - "그게 세피로스야?"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "모르겠어. 근데... 엄청 외로워 보여."
+          - "10만 번이나 같은 슬픔을 겪었던 사람."
+          - "그 사람이 이 세계를 만든 거야?"
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "크리스."
+          - "나는... 진짜야?"
+          - "이 얼음 속에 갇힌 사람들처럼 복사품이 아니야?"
+        effect: "slow"
+        choices:
+          - text: "넌 진짜야. 내 눈을 봐."
+            affinity: 15
+          - text: "진짜든 아니든, 넌 지금 여기 있잖아."
+            affinity: 8
+          - text: "...나도 확신할 수 없어."
+            affinity: -10
+      - speaker: "릴리"
+        lines:
+          - "...고마워, 크리스."
+          - "무서워. 솔직히 말할게."
+          - "하지만 네 손을 잡고 있으면 괜찮을 것 같아."
+        effect: "slow"
+
+  rpg_ch8:
+    bgm: "pianosolo"
+    scenes:
+      - speaker: "릴리"
+        lines:
+          - "이 공간... 이상해."
+          - "공기가 떨리는 것 같아. 마치 누군가가 오래 기다린 것처럼."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "릴리, 뭔가 느껴져?"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "응. 슬픔이야."
+          - "엄청나게 깊고... 오래된 슬픔."
+          - "이 공간 자체가 그 감정으로 만들어진 것 같아."
+        effect: "slow"
+      - speaker: "세피로스"
+        lines:
+          - "왔구나."
+          - "10만 번째 반복이."
+          - "...이번엔 여기까지 왔어."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "세피로스... 당신이 이 세계를 만든 거야?"
+        effect: null
+      - speaker: "세피로스"
+        lines:
+          - "그렇다."
+          - "너를 구하기 위해서."
+          - "크리스... 원래 세계에서 너는 죽었어."
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "...뭐라고?"
+        effect: null
+      - speaker: "세피로스"
+        lines:
+          - "나는 너의 죽음을 받아들일 수 없었다."
+          - "그래서 시간을 되돌렸어. 한 번, 두 번, 세 번."
+          - "하지만 어떤 타임라인에서도 너는 같은 순간에 사라졌지."
+          - "10만 번째가 되었을 때... 나는 다른 선택을 했어."
+          - "타임라인 바깥에 새로운 세계를 만들었다."
+          - "이 '잔향의 차원'을."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "그렇다면... 여기가 가짜 세계인 거야?"
+        effect: null
+      - speaker: "세피로스"
+        lines:
+          - "가짜가 아니다. 하지만 원본도 아니지."
+          - "10만 개의 타임라인에서 수집한 감정, 기억, 가능성들로 만든 세계."
+          - "진짜보다 더 진짜일 수도 있는 세계다."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "그럼... 나는?"
+          - "나는 어디서 온 거야?"
+        effect: "shake"
+      - speaker: "세피로스"
+        lines:
+          - "릴리."
+          - "너는... 10만 개의 타임라인에 존재했던 한 소녀의 잔향이다."
+          - "모든 가능성 속에서 크리스의 곁을 지켰던 그 소녀."
+          - "각 타임라인의 기억과 감정을 하나로 응집시킨... 잔향의 결정체."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "..."
+          - "그러니까 나는... 10만 명의 복사품이야."
+          - "진짜가 없는."
+        effect: "slow"
+      - speaker: "세피로스"
+        lines:
+          - "아니다."
+          - "릴리, 너는 10만 개의 진심이 모여 탄생한 존재다."
+          - "어떤 타임라인의 릴리도 가짜가 아니었어."
+          - "그리고 그 모든 진심을 이어받은 너도... 진짜야."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "릴리..."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "크리스, 괜찮아."
+          - "..."
+          - "괜찮아. 진짜로."
+          - "울고 싶은데 참을게."
+        effect: "slow"
+        choices:
+          - text: "울어도 돼. 내가 여기 있어."
+            affinity: 15
+          - text: "릴리가 진짜라는 건 처음부터 알고 있었어."
+            affinity: 12
+          - text: "세피로스, 당신은 왜 이제 말하는 거야?"
+            affinity: 5
+      - speaker: "세피로스"
+        lines:
+          - "카인이 이 세계를 이용하려 한다."
+          - "이 차원의 에너지를 흡수해 시간의 왕좌를 재건하려 하지."
+          - "그렇게 되면 10만 개의 타임라인이 모두 소멸한다."
+        effect: "shake"
+      - speaker: "크리스"
+        lines:
+          - "막아야 해. 어떻게 하면 돼?"
+        effect: null
+      - speaker: "세피로스"
+        lines:
+          - "별빛의 왕좌까지 가야 한다."
+          - "하지만... 릴리의 힘이 필요해."
+          - "잔향의 결정체인 그녀만이 카인의 계획을 저지할 수 있어."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "내가 할게."
+          - "10만 명의 나를 위해서, 그리고 지금의 나를 위해서."
+          - "크리스... 같이 가줄 거지?"
+        effect: "slow"
+        choices:
+          - text: "당연하지. 끝까지 함께야."
+            affinity: 20
+          - text: "릴리 혼자 싸우게 두지 않아."
+            affinity: 15
+      - speaker: "세피로스"
+        lines:
+          - "...감사하다, 크리스."
+          - "내가 10만 번 실패한 것을... 너희가 완성해줄 거라 믿는다."
+        effect: "slow"
+
+  rpg_ch9:
+    bgm: "pianosolo"
+    scenes:
+      - speaker: "크리스"
+        lines:
+          - "차원이 흔들리고 있어."
+          - "땅이... 공중으로 떠오르고 있잖아."
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "카인이 시작했어. 왕좌를 재건하려는 거야."
+          - "시간이 없어, 크리스!"
+        effect: "shake"
+      - speaker: "세피로스"
+        lines:
+          - "이곳이 마지막 피난처다. 아스트라."
+          - "별빛으로 둘러싸인 이 섬이 무너지기 전에..."
+          - "준비를 마쳐야 한다."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "별빛의 왕좌가 보여..."
+          - "저기서 모든 게 끝나는 거야."
+        effect: null
+      - speaker: "엔트리아의 영혼"
+        lines:
+          - "숲의 기억이 함께한다... 크리스, 릴리."
+          - "우리가 쉬게 해준 대가를 치러야 할 때야."
+        effect: "slow"
+      - speaker: "글라시아의 영혼"
+        lines:
+          - "얼어붙은 시간이 다시 흐르기 시작했다."
+          - "그 흐름을 타고... 나아가거라."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "모두가 함께해주고 있어."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "응. 우리가 이긴 보스들이 전부."
+          - "이 세계에서 만난 모든 존재들이."
+          - "...무섭지 않아. 이제는."
+        effect: "slow"
+      - speaker: "세피로스"
+        lines:
+          - "전략을 말하겠다."
+          - "카인은 세 단계에 걸쳐 왕좌의 힘을 흡수한다."
+          - "그 전에 접근해서 릴리가 차단해야 해."
+          - "그리고 크리스... 너는 카인의 관심을 끌어야 한다."
+        effect: null
+      - speaker: "크리스"
+        lines:
+          - "미끼 역할?"
+        effect: null
+      - speaker: "세피로스"
+        lines:
+          - "카인에게 너는 특별한 존재야."
+          - "10만 번의 타임라인에서도 변수였던 인간."
+          - "그가 너를 무시할 수 없어."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "크리스, 잠깐만."
+          - "나 할 말이 있어. 둘이서."
+        effect: null
+      - speaker: "세피로스"
+        lines:
+          - "...자리를 비우겠다."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "크리스."
+          - "만약 내가... 이번 싸움에서 살아남지 못하면."
+          - "아니, 그런 말 하지 말자."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "릴리, 무슨 말을 하려는 거야."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "좋아했어, 크리스."
+          - "이 세계에 처음 왔을 때부터."
+          - "하늘에서 떨어진 멍청한 녀석이라고 생각했는데."
+          - "어느새 네가 없으면 아무것도 못 할 것 같아졌어."
+        effect: "slow"
+        choices:
+          - text: "나도야. 처음부터."
+            affinity: 25
+          - text: "끝나고 나서 제대로 얘기하자."
+            affinity: 15
+          - text: "...살아서 돌아가면 다 얘기해줄게."
+            affinity: 10
+      - speaker: "릴리"
+        lines:
+          - "...살아남자. 둘 다."
+          - "끝나고 나서 하고 싶은 게 너무 많아."
+        effect: "slow"
+      - speaker: "세피로스"
+        lines:
+          - "...시간이 됐다."
+          - "릴리, 크리스."
+          - "이 세계를 만든 내가 할 수 있는 마지막 일을 할게."
+          - "너희가 카인에게 닿을 수 있도록."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "세피로스... 당신은?"
+        effect: null
+      - speaker: "세피로스"
+        lines:
+          - "나는 이 세계의 일부야."
+          - "괜찮다. 이것이 내가 선택한 결말이니까."
+          - "가거라. 그리고... 잘 살아."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "아직 안 끝났잖아."
+          - "가자. 카인을 만나러."
+        effect: "slow"
+
+  rpg_ch10:
+    bgm: "battle"
+    scenes:
+      - speaker: "크리스"
+        lines:
+          - "여기가 별빛의 왕좌야."
+          - "카인이 보여. 저기서 기다리고 있어."
+        effect: null
+      - speaker: "카인"
+        lines:
+          - "왔구나, 크리스."
+          - "그리고... 잔향이여."
+          - "10만 번의 루프 끝에 이 자리까지 오다니."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "카인. 이 세계를 파괴하려는 거 알아."
+          - "하지만 여기에는 진짜 삶이 있어!"
+          - "우리가 만난 사람들, 이 세계의 기억들!"
+        effect: null
+      - speaker: "카인"
+        lines:
+          - "진짜? 하하."
+          - "잔향이 진짜를 말하는군."
+          - "릴리, 넌 10만 번의 복사품이야. 진짜가 없는 존재."
+          - "그 사실이 두렵지 않나?"
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "..."
+          - "두려웠어. 계속."
+          - "하지만 크리스가 가르쳐줬어."
+          - "진짜냐 아니냐보다... 지금 여기 있느냐가 더 중요하다고."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "카인, 세피로스가 왜 이 세계를 만들었는지 알아?"
+          - "너를 위해서가 아니야."
+          - "인간의 가능성을 믿었기 때문이야."
+        effect: null
+      - speaker: "카인"
+        lines:
+          - "...입을 다물어라."
+          - "시간의 왕좌는 내 것이 돼야 해."
+          - "모든 타임라인을 지배해야 더 이상의 비극이 없어!"
+        effect: "shake"
+      - speaker: "세피로스"
+        lines:
+          - "카인."
+          - "우리는 친구였어. 기억하나."
+          - "함께 시간의 비밀을 연구하던 시절을."
+        effect: "slow"
+      - speaker: "카인"
+        lines:
+          - "...세피로스."
+          - "넌 이 세계에 갇혔잖아. 잔향이 되어서."
+        effect: null
+      - speaker: "세피로스"
+        lines:
+          - "그래. 나는 이 세계의 일부가 됐어."
+          - "하지만 그게 후회스럽지 않아."
+          - "크리스가 살아있으니까. 릴리가 태어났으니까."
+          - "카인... 멈춰줘."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "크리스, 지금이야!"
+        effect: "shake"
+      - speaker: "크리스"
+        lines:
+          - "가자, 릴리!"
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "10만 개의 목소리가 들려."
+          - "모든 타임라인의 나들이 말하고 있어."
+          - "'포기하지 마. 이번엔 반드시.'"
+          - "크리스, 내 손을 잡아!"
+        effect: "shake"
+      - speaker: "세피로스"
+        lines:
+          - "릴리... 네 안의 10만 개의 빛을 풀어줘."
+          - "그것이 이 세계를 구할 유일한 열쇠야."
+          - "나는... 그 빛을 담는 그릇이 될게."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "세피로스! 안 돼!"
+        effect: "shake"
+      - speaker: "세피로스"
+        lines:
+          - "괜찮아."
+          - "10만 번의 후회가 드디어 끝나는 거니까."
+          - "릴리... 행복하게 살아."
+          - "크리스... 잘 부탁해."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "세피로스...!"
+        effect: "shake"
+      - speaker: "릴리"
+        lines:
+          - "...고마워, 세피로스."
+          - "절대 잊지 않을게."
+        effect: "slow"
+      - speaker: "카인"
+        lines:
+          - "...세피로스."
+          - "네가 그렇게까지."
+          - "나는... 내가 잘못된 건가."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "카인... 아직 늦지 않았어."
+          - "세피로스가 만든 이 세계를 함께 지키자."
+        effect: "slow"
+      - speaker: "카인"
+        lines:
+          - "...나는 이미 너무 많이 망가뜨렸어."
+          - "하지만."
+          - "너희가 원한다면."
+          - "마지막으로 한 가지만."
+        effect: "slow"
+      - speaker: "카인"
+        lines:
+          - "크리스. 원래 세계로 돌아갈 수 있어."
+          - "내가 길을 열어줄 수 있어."
+          - "단 한 번뿐인 기회야."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "..."
+          - "크리스."
+          - "네 세계가 있잖아. 돌아가."
+        effect: "slow"
+        choices:
+          - text: "[남는다] 나는 여기 남을래. 릴리와 함께."
+            affinity: 30
+          - text: "[돌아간다] 언젠가 다시 만날 수 있어?"
+            affinity: 15
+      - speaker: "릴리"
+        lines:
+          - "..."
+        effect: "slow"
+
+  rpg_ch10_ending_stay:
+    bgm: "pianosolo"
+    scenes:
+      - speaker: "크리스"
+        lines:
+          - "나는 여기 남을게."
+          - "이 세계가 내 세계야. 이제는."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "...바보."
+          - "진짜 바보야, 크리스."
+          - "어떡하려고."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "어떡하긴. 너랑 살아야지."
+          - "이 세계를 다시 만들어나가야 하잖아."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "...응."
+          - "그래, 같이 만들자."
+          - "세피로스가 만든 이 세계를."
+          - "우리가 지켜나가자."
+        effect: "slow"
+      - speaker: "카인"
+        lines:
+          - "...둘 다 바보군."
+          - "하지만."
+          - "그 바보짓이 싫지 않아."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "카인, 너도 함께야."
+          - "혼자서 다 짊어지지 않아도 돼."
+        effect: null
+      - speaker: "카인"
+        lines:
+          - "...그것도 바보 같은 말이군."
+          - "좋아. 이번 한 번만."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "새벽이 오고 있어."
+          - "별빛의 새벽."
+          - "세피로스... 봐줘. 우리 잘 하고 있어."
+        effect: "slow"
+
+  rpg_ch10_ending_return:
+    bgm: "pianosolo"
+    scenes:
+      - speaker: "크리스"
+        lines:
+          - "릴리... 나는 돌아가야 해."
+          - "하지만 언젠가 반드시 돌아올게."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "약속이야."
+          - "...약속해."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "약속해."
+        effect: null
+      - speaker: "릴리"
+        lines:
+          - "가. 어서 가."
+          - "보고 있으면 보내기 싫어지니까."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "크리스."
+          - "이 세계를 잊지 마."
+          - "세피로스를 잊지 마."
+          - "그리고... 나를."
+        effect: "slow"
+      - speaker: "크리스"
+        lines:
+          - "절대 잊지 않을게."
+          - "릴리... 기다려줘."
+        effect: "slow"
+      - speaker: "릴리"
+        lines:
+          - "응. 기다릴게."
+          - "별이 지지 않는 한."
+          - "새벽이 올 때까지."
+        effect: "slow"
+
+  rpg_ch10_credits:
+    bgm: "pianosolo"
+    scenes:
+      - speaker: "세피로스"
+        lines:
+          - "10만 번의 반복이 끝났다."
+          - "드디어."
+          - "이 세계는 계속 존재할 것이다."
+          - "크리스와 릴리가 지키는 한."
+        effect: "slow"
+      - speaker: "세피로스"
+        lines:
+          - "나는 이 세계의 별빛 속에 있다."
+          - "사라진 것이 아니야."
+          - "잔향이 된 것이다."
+          - "그리고 잔향은... 영원히 울린다."
+        effect: "slow"

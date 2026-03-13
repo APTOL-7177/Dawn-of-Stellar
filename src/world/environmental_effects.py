@@ -111,15 +111,15 @@ class EnvironmentalEffect:
 # 환경 효과 설정 (간격 및 데미지)
 EFFECT_CONFIGS = {
     EnvironmentalEffectType.BURNING_FLOOR: {
-        "interval": 0.2,  # 1.5초마다
+        "interval": 0.2,  # 0.2초마다
         "damage_type": "fixed",
-        "value": 3,      # 고정 15 데미지
+        "value": 3,      # 고정 3 데미지
         "message": "불타는 바닥이 당신을 태웁니다!"
     },
     EnvironmentalEffectType.POISON_SWAMP: {
-        "interval": 4.0,  # 3초마다
+        "interval": 4.0,  # 4초마다
         "damage_type": "percent_max",
-        "value": 0.1,    # 최대 체력의 2%
+        "value": 0.1,    # 최대 체력의 10%
         "message": "독 늪이 당신을 침식합니다!"
     },
     EnvironmentalEffectType.RADIATION_ZONE: {
@@ -129,7 +129,7 @@ EFFECT_CONFIGS = {
         "message": "방사능이 당신을 해칩니다!"
     },
     EnvironmentalEffectType.ELECTRIC_FIELD: {
-        "interval": 0.1,  # 1초마다 (빠름)
+        "interval": 0.1,  # 0.1초마다 (빠름)
         "damage_type": "fixed",
         "value": 1,
         "message": "전기장이 당신을 감전시킵니다!"

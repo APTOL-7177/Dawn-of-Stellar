@@ -1,0 +1,47 @@
+id: teamwork_system
+title: "팀워크 시스템"
+order: 13
+category: combat
+description: "팀워크 게이지와 팀워크 스킬의 활용법"
+steps:
+  - id: "tw_intro"
+    messages:
+      - "전투에서 가장 강력한 무기는 동료와의 협력이다."
+      - "화면 하단의 팀워크 게이지를 주목하라."
+    ui_highlights:
+      - element: "teamwork_gauge"
+        pulse: true
+
+  - id: "tw_charge"
+    messages:
+      - "전투 행동을 할 때마다 게이지가 충전된다."
+      - "BRV 공격, HP 공격, 스킬 사용... 모든 행동이 게이지를 채운다."
+      - "크리티컬 히트나 브레이크를 유발하면 더 많이 충전된다!"
+    completion_condition:
+      type: "action_count"
+      action: "any_attack"
+      count: 3
+
+  - id: "tw_skill"
+    messages:
+      - "게이지가 충분하면 팀워크 스킬을 사용할 수 있다!"
+      - "스킬 메뉴에서 [팀워크] 표시가 있는 스킬을 선택해보자."
+    completion_condition:
+      type: "teamwork_used"
+    hints:
+      - text: "팀워크 스킬은 스킬 목록 하단에 있습니다"
+        trigger_time: 10.0
+
+  - id: "tw_chain"
+    messages:
+      - "다른 파티원이 이어서 팀워크 스킬을 사용하면 연쇄가 발동한다!"
+      - "연쇄할수록 위력이 증가하지만, MP 비용도 늘어난다."
+      - "게이지 관리가 핵심이다. 아끼면서 쓸 것인가, 한방에 쏟아부을 것인가?"
+      - "또한 팀워크 스킬 사용 후에는 체인어빌리티가 발동할 수 있다!"
+    hints:
+      - text: "연쇄 시 MP 비용이 증가합니다. 전략적으로 사용하세요."
+        trigger_time: 8.0
+
+rewards:
+  exp: 150
+  gold: 100

@@ -10,6 +10,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
 from src.core.logger import get_logger, Loggers
+from src.core.paths import get_project_root
 
 
 logger = get_logger(Loggers.SYSTEM)
@@ -21,13 +22,12 @@ class SaveSystem:
     def __init__(self, save_directory: Optional[str] = None):
         if save_directory is None:
             # Use game folder's user_data/saves directory
-            script_dir = Path(__file__).parent.parent.parent  # src/persistence/save_system.py -> src -> project_root
-            save_directory = script_dir / "user_data" / "saves"
+            save_directory = get_project_root() / "user_data" / "saves"
 
         self.save_dir = Path(save_directory)
         self.save_dir.mkdir(parents=True, exist_ok=True)
 
-    def save_game(self, save_name: str, game_state: Dict[str, Any], is_multiplayer: bool = False) -> bool:
+    def save_game(self, save_name: str, game_state: Dict[str, Any], is_multiplayer: bool = False, game_type: Optional[str] = None) -> bool:
         """
         게임 저장
 
@@ -35,13 +35,16 @@ class SaveSystem:
             save_name: 저장 파일 이름 (사용되지 않음, 게임 타입에 따라 자동 결정)
             game_state: 전체 게임 상태 딕셔너리
             is_multiplayer: 멀티플레이어 여부
+            game_type: 게임 타입 ("rpg" 등). 지정 시 is_multiplayer보다 우선
 
         Returns:
             성공 여부
         """
         try:
             # 게임 타입에 따라 파일명 결정
-            if is_multiplayer:
+            if game_type == "rpg":
+                save_filename = "save_rpg.json"
+            elif is_multiplayer:
                 save_filename = "save_multiplayer.json"
             else:
                 save_filename = "save_single.json"
@@ -52,6 +55,8 @@ class SaveSystem:
             game_state["save_time"] = datetime.now().isoformat()
             game_state["version"] = "5.0.0"
             game_state["is_multiplayer"] = is_multiplayer
+            if game_type:
+                game_state["game_type"] = game_type
             
             # 마을 창고 아이템 저장 로그 (game_state에 town_manager가 포함된 경우)
             if "town_manager" in game_state:
@@ -97,6 +102,33 @@ class SaveSystem:
             except Exception as e:
                 logger.warning(f"팀워크 게이지 저장 실패: {e}")
 
+            # 호감도/유대 데이터 저장
+            try:
+                from src.combat.combat_manager import get_combat_manager
+                cm = get_combat_manager()
+                if cm and cm.affinity_manager:
+                    game_state["affinity_data"] = cm.affinity_manager.to_dict()
+                    logger.info(f"호감도 데이터 저장됨")
+                else:
+                    # 캐시된 호감도 데이터 사용
+                    import src.persistence.save_system as save_module
+                    cached_affinity = getattr(save_module, '_last_loaded_affinity_data', None)
+                    if cached_affinity:
+                        game_state["affinity_data"] = cached_affinity
+                        logger.info("호감도 데이터 저장됨 (캐시)")
+            except Exception as e:
+                logger.warning(f"호감도 데이터 저장 실패: {e}")
+
+            # 랜덤 이벤트 상태 저장
+            try:
+                from src.world.random_events import get_random_event_manager
+                event_mgr = get_random_event_manager()
+                game_state["random_event_state"] = event_mgr.to_dict()
+                logger.info("랜덤 이벤트 상태 저장됨")
+            except Exception as e:
+                logger.debug(f"랜덤 이벤트 저장 실패: {e}")
+
+
             # JSON 직렬화 전에 모든 데이터 검증 및 정리
             cleaned_state = self._clean_for_json(game_state)
 
@@ -108,7 +140,13 @@ class SaveSystem:
             with open(save_path, 'w', encoding='utf-8') as f:
                 json.dump(cleaned_state, f, indent=2, ensure_ascii=False, default=self._json_default)
 
-            logger.info(f"게임 저장 완료: {save_path} (타입: {'멀티플레이' if is_multiplayer else '싱글플레이'})")
+            if game_type == "rpg":
+                save_type_label = "RPG 모드"
+            elif is_multiplayer:
+                save_type_label = "멀티플레이"
+            else:
+                save_type_label = "싱글플레이"
+            logger.info(f"게임 저장 완료: {save_path} (타입: {save_type_label})")
             return True
 
         except Exception as e:
@@ -237,6 +275,34 @@ class SaveSystem:
                 except Exception as e:
                     logger.warning(f"팀워크 게이지 복원 실패: {e}")
 
+            # 호감도/유대 데이터 복원
+            if "affinity_data" in game_state:
+                try:
+                    import src.persistence.save_system as save_module
+                    save_module._last_loaded_affinity_data = game_state["affinity_data"]
+                    # 전투 매니저에 바로 적용 시도
+                    from src.combat.combat_manager import get_combat_manager
+                    cm = get_combat_manager()
+                    if cm:
+                        from src.character.affinity import AffinityManager
+                        if not cm.affinity_manager:
+                            cm.affinity_manager = AffinityManager()
+                        cm.affinity_manager.from_dict(game_state["affinity_data"])
+                    logger.info("호감도 데이터 복원 완료")
+                except Exception as e:
+                    logger.warning(f"호감도 데이터 복원 실패: {e}")
+
+            # 랜덤 이벤트 상태 복원
+            if "random_event_state" in game_state:
+                try:
+                    from src.world.random_events import get_random_event_manager
+                    event_mgr = get_random_event_manager()
+                    event_mgr.from_dict(game_state["random_event_state"])
+                    logger.info("랜덤 이벤트 상태 복원 완료")
+                except Exception as e:
+                    logger.debug(f"랜덤 이벤트 복원 실패: {e}")
+
+
             # QuestManager 복원
             if "quest_manager" in game_state:
                 from src.quest.quest_manager import get_quest_manager, QuestManager, _quest_manager
@@ -249,7 +315,15 @@ class SaveSystem:
             # 도전과제 시스템 복원
             if "achievement_manager" in game_state:
                 # 도전과제 시스템은 계정 수준에서 별도 관리되므로 게임 로드에서 제외
-                logger.info(f"퀘스트 데이터 복원 완료: 활성 {len(loaded_quest_manager.active_quests)}개, 가능 {len(loaded_quest_manager.available_quests)}개, 완료 {len(loaded_quest_manager.completed_quests)}개")
+                pass
+
+            # 퀘스트 복원 로그 (quest_manager가 복원된 경우에만)
+            if "quest_manager" in game_state:
+                try:
+                    loaded_qm = quest_module._quest_manager
+                    logger.info(f"퀘스트 데이터 복원 완료: 활성 {len(loaded_qm.active_quests)}개, 가능 {len(loaded_qm.available_quests)}개, 완료 {len(loaded_qm.completed_quests)}개")
+                except Exception:
+                    pass
             
             # 스토리 시스템 복원
             if "story_system" in game_state:
@@ -274,8 +348,9 @@ class SaveSystem:
         # 고정된 파일명 확인
         single_save = self.save_dir / "save_single.json"
         multiplayer_save = self.save_dir / "save_multiplayer.json"
+        rpg_save = self.save_dir / "save_rpg.json"
 
-        for save_file in [single_save, multiplayer_save]:
+        for save_file in [single_save, multiplayer_save, rpg_save]:
             if not save_file.exists():
                 continue
 
@@ -289,7 +364,13 @@ class SaveSystem:
                     continue
 
                 is_multiplayer = data.get("is_multiplayer", False)
-                save_type = "멀티플레이" if is_multiplayer else "싱글플레이"
+                rpg_mode = data.get("rpg_mode", False)
+                if rpg_mode:
+                    save_type = "RPG 모드"
+                elif is_multiplayer:
+                    save_type = "멀티플레이"
+                else:
+                    save_type = "싱글플레이"
 
                 saves.append({
                     "name": save_file.stem,
@@ -371,7 +452,7 @@ class SaveSystem:
         """
         try:
             # 계정 파일 경로
-            script_dir = Path(__file__).parent.parent.parent
+            script_dir = get_project_root()
             account_file = script_dir / "user_data" / "account_progress.json"
 
             # 디렉토리 생성
@@ -400,7 +481,7 @@ class SaveSystem:
         """
         try:
             # 계정 파일 경로들 (하위 호환성)
-            script_dir = Path(__file__).parent.parent.parent
+            script_dir = get_project_root()
             account_file = script_dir / "user_data" / "account_progress.json"
             legacy_file = script_dir / "user_data" / "achievements.json"
 
@@ -572,7 +653,7 @@ def serialize_gimmick_state(member: Any) -> Dict[str, Any]:
         "intrusion_system": ["ram", "max_ram", "ram_regen", "overclock_active", "intrusion_stages"],
         "oath_system": ["faith", "max_faith", "current_oath", "oath_violation_count", "oath_kept"],
         "oracle_system": ["faith", "max_faith", "current_oracle", "oracle_combo"],
-        "mockery_system": ["max_mockery", "stealth_active", "consecutive_evades"],
+        "venom_system": ["max_venom", "venom_effects", "venom_dot_per_stack", "speed_scaling", "evasion_chain"],
         "crowd_cheer": ["cheer", "max_cheer", "start_cheer", "cheer_tiers", "cheer_tier", "current_demand", "demand_progress", "consecutive_boos"],
         "stealth_exposure": ["stealth_active", "exposed_turns", "restealth_cooldown"],
         "mp_overload_system": ["overload_gauge", "max_overload_gauge", "active_toggles", "reserved_max_mp", "last_mp_state"],
@@ -722,6 +803,66 @@ def serialize_item(item: Any) -> Dict[str, Any]:
     return result
 
 
+def peek_glitch_level() -> int:
+    """
+    세이브 파일에서 글리치 강도를 사전 감지 (게임 로딩 전 사용)
+
+    Returns:
+        2: 풀 글리치 (세피로스 조우 O, 세피로스 처치 X)
+        1: 약한 잔여 (세피로스 처치 O, 카인 처치 X)
+        0: 글리치 해제 (카인 처치 O 또는 세이브 없음)
+    """
+    try:
+        save_path = get_project_root() / "user_data" / "saves" / "save_single.json"
+        if not save_path.exists():
+            return 0
+
+        with open(save_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        story = data.get("story_system", {})
+        sephiroth_encountered = story.get("sephiroth_encountered", False)
+        sephiroth_defeated = story.get("sephiroth_defeated", False)
+        cain_defeated = story.get("cain_defeated", False)
+
+        if cain_defeated:
+            return 0
+        elif sephiroth_defeated:
+            return 1
+        elif sephiroth_encountered:
+            return 2
+        else:
+            return 0
+    except Exception:
+        return 0
+
+
+# ── RPG 오픈월드 채집 타임스탬프 직렬화/역직렬화 ──
+
+def _serialize_harvest_timestamps(dungeon) -> Dict[str, float]:
+    """RPG 오픈월드 채집 타임스탬프 직렬화 (3일 리젠용)"""
+    result: Dict[str, float] = {}
+    if hasattr(dungeon, 'harvest_timestamps'):
+        for (x, y), ts in dungeon.harvest_timestamps.items():
+            result[f"{x},{y}"] = ts
+    return result
+
+
+def _deserialize_harvest_timestamps(dungeon, dungeon_data: Dict[str, Any]):
+    """RPG 오픈월드 채집 타임스탬프 역직렬화 (3일 리젠용)"""
+    if not hasattr(dungeon, 'harvest_timestamps'):
+        return
+    timestamps: Dict[tuple, float] = {}
+    for key_str, ts in dungeon_data.get("harvest_timestamps", {}).items():
+        parts = key_str.split(",")
+        if len(parts) == 2:
+            try:
+                timestamps[(int(parts[0]), int(parts[1]))] = float(ts)
+            except (ValueError, TypeError):
+                continue
+    dungeon.harvest_timestamps = timestamps
+
+
 def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]:
     """던전 직렬화"""
     from src.world.tile import TileType
@@ -750,11 +891,6 @@ def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]
                 "loot_id": tile.loot_id,
                 "ingredient_id": tile.ingredient_id,
                 "harvested": tile.harvested,
-                # NPC 관련 속성 (마을 건축물 동기화용)
-                "npc_id": tile.npc_id,
-                "npc_type": tile.npc_type,
-                "npc_subtype": tile.npc_subtype,
-                "npc_interacted": tile.npc_interacted,
                 # 건물 관련 속성 (마을 건축물 렌더링용)
                 "building_symbol": getattr(tile, 'building_symbol', None),
                 "building_color": getattr(tile, 'building_color', None),
@@ -798,6 +934,9 @@ def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]
             # 적 ID 포함 (멀티플레이 동기화용)
             if hasattr(enemy, 'id') and enemy.id:
                 enemy_data["id"] = enemy.id
+            # 적 타입 ID 포함 (멀티플레이 위치 동기화 매칭용)
+            if hasattr(enemy, 'enemy_id') and enemy.enemy_id:
+                enemy_data["enemy_id"] = enemy.enemy_id
             enemies_data.append(enemy_data)
 
     # 방(rooms) 직렬화 (클라이언트 시작 위치 동기화용)
@@ -836,6 +975,8 @@ def serialize_dungeon(dungeon: Any, enemies: List[Any] = None) -> Dict[str, Any]
         "enemies": enemies_data,  # 적 추가
         "rooms": rooms_data,  # 방 정보 추가
         "environmental_effects": env_effects_data,  # 환경 효과 추가
+        # RPG 오픈월드 채집 타임스탬프 (3일 리젠용)
+        "harvest_timestamps": _serialize_harvest_timestamps(dungeon),
     }
 
 
@@ -903,13 +1044,13 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
         tile.visible = tile_data.get("visible", False)
         tile.ingredient_id = tile_data.get("ingredient_id")
         tile.harvested = tile_data.get("harvested", False)
-        
-        # NPC 관련 속성 복원 (마을 건축물 동기화용)
-        tile.npc_id = tile_data.get("npc_id")
-        tile.npc_type = tile_data.get("npc_type")
-        tile.npc_subtype = tile_data.get("npc_subtype")
-        tile.npc_interacted = tile_data.get("npc_interacted", False)
-        
+
+        # 채집된 자연 타일의 시각 상태 복원
+        if tile.harvested:
+            from src.gathering.tile_gathering import HARVESTABLE_TILE_TYPE_VALUES
+            if tile.tile_type.value in HARVESTABLE_TILE_TYPE_VALUES:
+                tile.restore_harvested_visual()
+
         # 건물 관련 속성 복원 (마을 건축물 렌더링용)
         if tile_data.get("building_symbol"):
             tile.building_symbol = tile_data.get("building_symbol")
@@ -1009,6 +1150,9 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
         harvestables.append(harvestable)
     dungeon.harvestables = harvestables
 
+    # RPG 오픈월드 채집 타임스탬프 복원
+    _deserialize_harvest_timestamps(dungeon, dungeon_data)
+
     # 적(enemies) 복원
     enemies = []
     for enemy_data in dungeon_data.get("enemies", []):
@@ -1018,7 +1162,8 @@ def deserialize_dungeon(dungeon_data: Dict[str, Any]) -> Tuple[Any, List[Any]]:
             level=enemy_data.get("level", 1),
             name=enemy_data.get("name", "적"),
             is_boss=enemy_data.get("is_boss", False),
-            id=enemy_data.get("id")  # 적 ID 복원 (멀티플레이 동기화용)
+            enemy_id=enemy_data.get("enemy_id"),  # 적 타입 ID 복원 (멀티플레이 동기화용)
+            id=enemy_data.get("id")  # 적 고유 ID 복원 (멀티플레이 동기화용)
         )
         enemy.spawn_x = enemy_data.get("spawn_x", enemy.x)
         enemy.spawn_y = enemy_data.get("spawn_y", enemy.y)

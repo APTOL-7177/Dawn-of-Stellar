@@ -47,7 +47,7 @@ class HarvestableType(Enum):
             HarvestableType.HERB_PLANT: "♦",
             HarvestableType.TREE: "♣",
             HarvestableType.ROCK: "O",  # 바위: O (더 일반적인 문자)
-            HarvestableType.WATER: "≈",
+            HarvestableType.WATER: "~",
             HarvestableType.CARCASS: "X",  # 시체: X (더 일반적인 문자)
             HarvestableType.COOKING_POT: "Ω"
         }
@@ -126,12 +126,12 @@ class HarvestableObject:
                 ("mithril_ore", 0, 1), # 희귀: 미스릴
             ],
             HarvestableType.WATER: [
-                ("fish", 0, 3),
-                ("shellfish", 0, 2),
-                ("water", 0, 3),
-                ("pure_water", 0, 1), # 연금술: 정제수
+                ("fish", 1, 4),
+                ("shellfish", 0, 3),
+                ("water", 2, 5),
+                ("pure_water", 0, 2), # 연금술: 정제수
                 ("glass_vial", 0, 1), # 연금술: 유리병
-                ("ice", 0, 1),
+                ("ice", 0, 2),
                 ("slime_jelly", 0, 1), # 물가에 슬라임?
                 ("fuse", 0, 1), # 폭탄: 도화선
             ],

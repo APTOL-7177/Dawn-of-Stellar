@@ -20,15 +20,19 @@ logger = get_logger("quest_list_ui")
 def open_quest_list(
     console: tcod.console.Console,
     context: tcod.context.Context,
-    quest_manager: Any
+    quest_manager: Any,
+    player: Any = None,
+    inventory: Any = None
 ):
     """
     퀘스트 목록 UI 열기
-    
+
     Args:
         console: TCOD 콘솔
         context: TCOD 컨텍스트
         quest_manager: QuestManager 인스턴스
+        player: 플레이어 객체 (보상 수령용)
+        inventory: 인벤토리 객체 (골드 보상용)
     """
     active_quests = quest_manager.get_active_quests()
     cursor = 0
@@ -40,7 +44,12 @@ def open_quest_list(
     active_quests = quest_manager.get_active_quests()  # 완료 체크 후 다시 가져오기
     
     logger.info(f"퀘스트 목록 열기 - 활성 퀘스트: {len(active_quests)}개")
-    
+
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     while True:
         render_space_background(console, console.width, console.height)
         
@@ -92,8 +101,10 @@ def open_quest_list(
                             required = quest.requirements[key]
                             current = value
                             progress_parts.append(f"{key}: {current}/{required}")
-                
-                if progress_parts:
+
+                if quest.is_complete:
+                    console.print(5, y + 3, " 완료됨 - Z키로 보상 수령", fg=(255, 215, 0))
+                elif progress_parts:
                     # 진행도 텍스트 앞에 라벨 추가하여 명확하게 표시
                     progress_text = "진행: " + " | ".join(progress_parts)
                     # 텍스트가 너무 길면 자르기
@@ -121,7 +132,7 @@ def open_quest_list(
                         console.print(5, reward_y, reward_text, fg=(255, 215, 0))
         
         # 도움말
-        help_text = "↑↓: 선택  Z: 확인  X: 닫기"
+        help_text = "↑↓: 선택  Z: 보상 수령  X: 닫기"
         console.print((console.width - len(help_text)) // 2, console.height - 2, help_text, fg=Colors.GRAY)
         
         context.present(console)
@@ -135,7 +146,7 @@ def open_quest_list(
         
         # 입력 처리 함수
         def process_action(action):
-            nonlocal cursor, scroll_offset
+            nonlocal cursor, scroll_offset, active_quests
             if action == GameAction.MOVE_UP:
                 if active_quests:
                     cursor = max(0, cursor - 1)
@@ -148,7 +159,22 @@ def open_quest_list(
                     if cursor >= scroll_offset + max_visible:
                         scroll_offset = cursor - max_visible + 1
                     play_sfx("ui", "cursor_move")
-            elif action == GameAction.CONFIRM or action == GameAction.CANCEL or action == GameAction.ESCAPE:
+            elif action == GameAction.CONFIRM:
+                if active_quests and 0 <= cursor < len(active_quests):
+                    quest = active_quests[cursor]
+                    if quest.is_complete and player is not None:
+                        if quest_manager.complete_quest(quest.quest_id, player, inventory):
+                            active_quests = quest_manager.get_active_quests()
+                            cursor = min(cursor, max(0, len(active_quests) - 1))
+                            play_sfx("ui", "item_get")
+                            logger.info(f"퀘스트 완료 보상 수령: {quest.name} - 보상: {quest.reward}")
+                        else:
+                            play_sfx("ui", "cursor_cancel")
+                    else:
+                        play_sfx("ui", "cursor_cancel")
+                else:
+                    play_sfx("ui", "cursor_cancel")
+            elif action == GameAction.CANCEL or action == GameAction.ESCAPE:
                 play_sfx("ui", "cursor_cancel")
                 return True
             return False

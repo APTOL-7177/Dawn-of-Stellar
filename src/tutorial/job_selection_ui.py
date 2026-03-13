@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from src.core.event_bus import event_bus
 from src.core.logger import get_logger, Loggers
-from src.ui.input_handler import unified_input_handler, GameAction
+from src.ui.input_handler import unified_input_handler, iter_game_input, poll_game_input, GameAction
 
 
 logger = get_logger(Loggers.UI)
@@ -33,6 +33,84 @@ class JobChoiceInfo:
     def __post_init__(self):
         if self.preview_skills is None:
             self.preview_skills = []
+
+
+# 직업 카테고리 정의 (34개 직업 + 시간술사 = 35개)
+JOB_CATEGORIES = {
+    "melee": {
+        "name": "근접 전투",
+        "description": "적과 직접 맞서 싸우는 전사들",
+        "color": (255, 100, 100),
+        "jobs": [
+            "warrior", "knight", "berserker", "gladiator", "dark_knight",
+            "samurai", "monk", "dragon_knight", "sword_saint", "paladin",
+        ],
+    },
+    "ranged": {
+        "name": "원거리 전투",
+        "description": "먼 거리에서 적을 공격하는 사수들",
+        "color": (100, 255, 100),
+        "jobs": [
+            "archer", "sniper", "rogue", "assassin", "ninja", "pirate", "engineer",
+        ],
+    },
+    "magic": {
+        "name": "마법",
+        "description": "강력한 마법으로 전장을 지배하는 마법사들",
+        "color": (100, 150, 255),
+        "jobs": [
+            "magician", "elementalist", "archmage", "necromancer",
+            "illusionist", "spellblade", "battle_mage",
+        ],
+    },
+    "support": {
+        "name": "지원",
+        "description": "아군을 강화하고 치유하는 지원가들",
+        "color": (255, 255, 100),
+        "jobs": [
+            "cleric", "priest", "bard", "druid", "shaman", "philosopher",
+        ],
+    },
+    "special": {
+        "name": "특수",
+        "description": "독특한 기믹으로 싸우는 특수 직업들",
+        "color": (200, 150, 255),
+        "jobs": [
+            "time_mage", "dimensionist", "hacker", "alchemist",
+            "vampire", "breaker",
+        ],
+    },
+}
+
+
+def _load_job_display_name(job_id: str) -> str:
+    """data/characters/{job_id}.yaml에서 직업 표시 이름 로드"""
+    from pathlib import Path
+    import yaml
+    path = Path(f"data/characters/{job_id}.yaml")
+    try:
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            return data.get("display_name", data.get("name", job_id))
+    except Exception:
+        pass
+    # 폴백: 기본 이름 맵
+    _FALLBACK_NAMES = {
+        "warrior": "전사", "knight": "기사", "berserker": "광전사",
+        "gladiator": "검투사", "dark_knight": "암흑기사", "samurai": "사무라이",
+        "monk": "무투가", "dragon_knight": "용기사", "sword_saint": "검성",
+        "paladin": "성기사", "archer": "궁수", "sniper": "저격수",
+        "rogue": "도적", "assassin": "암살자", "ninja": "닌자", "pirate": "해적",
+        "engineer": "기술자", "magician": "마법사", "elementalist": "원소술사",
+        "archmage": "대마법사", "necromancer": "강령술사", "illusionist": "환술사",
+        "spellblade": "마검사", "battle_mage": "전투마법사",
+        "cleric": "성직자", "priest": "사제", "bard": "음유시인",
+        "druid": "드루이드", "shaman": "주술사", "philosopher": "현자",
+        "time_mage": "시간술사", "dimensionist": "차원술사", "hacker": "해커",
+        "alchemist": "연금술사", "vampire": "뱀파이어", "breaker": "브레이커",
+    }
+    return _FALLBACK_NAMES.get(job_id, job_id)
 
 
 class JobSelectionUI:
@@ -104,11 +182,12 @@ class JobSelectionUI:
             self.context.present(self.console)
             
             # 입력 처리
-            for event in tcod.event.wait(timeout=0.1):
-                if isinstance(event, tcod.event.Quit):
+            for action, event in iter_game_input(timeout=0.1):
+                if event and isinstance(event, tcod.event.Quit):
                     return None
-                    
-                if isinstance(event, tcod.event.KeyDown):
+                if action is not None:
+                    self._handle_action(action)
+                elif event and isinstance(event, tcod.event.KeyDown):
                     self._handle_key(event)
         
         # 선택된 직업
@@ -281,6 +360,22 @@ class JobSelectionUI:
                 lines.append(current_line.strip())
         return lines
     
+    def _handle_action(self, action: GameAction) -> None:
+        """GameAction 입력 처리 (게임패드 포함)"""
+        if action == GameAction.MOVE_UP:
+            self.selected_index = (self.selected_index - 1) % len(self.choices)
+        elif action == GameAction.MOVE_DOWN:
+            self.selected_index = (self.selected_index + 1) % len(self.choices)
+        elif action == GameAction.CONFIRM:
+            self.confirmed = True
+        elif action in (GameAction.CANCEL, GameAction.ESCAPE):
+            # CANCEL/ESC는 추천 직업으로 자동 선택
+            for i, choice in enumerate(self.choices):
+                if choice.recommended:
+                    self.selected_index = i
+                    break
+            self.confirmed = True
+
     def _handle_key(self, event: tcod.event.KeyDown) -> None:
         """키 입력 처리"""
         if event.sym == tcod.event.KeySym.UP:
@@ -358,8 +453,12 @@ class JobSelectionUI:
         self.context.present(self.console)
         
         # 아무 키나 대기
-        for event in tcod.event.wait():
-            if isinstance(event, (tcod.event.KeyDown, tcod.event.MouseButtonDown)):
+        for action, event in iter_game_input():
+            if event and isinstance(event, tcod.event.Quit):
+                break
+            if action is not None:
+                break
+            if event and isinstance(event, tcod.event.MouseButtonDown):
                 break
 
 
@@ -369,43 +468,136 @@ def show_job_selection(
     on_select: Optional[Callable[[str], None]] = None
 ) -> Optional[str]:
     """
-    직업 선택 UI를 표시하는 헬퍼 함수
-    
+    직업 선택 UI를 표시하는 헬퍼 함수 (2단계: 카테고리 → 직업)
+
     Args:
         console: TCOD 콘솔
         context: TCOD 컨텍스트
         on_select: 선택 완료 콜백
-        
+
     Returns:
         선택된 직업 ID
     """
-    # 기본 선택지
-    choices = [
-        JobChoiceInfo(
-            id="time_mage",
-            name="시간술사",
-            description="시간을 조작하여 전장을 지배하는 시공의 마법사.\n타임라인 시스템으로 과거/현재/미래를 넘나든다.",
-            story_reason="시공 균열 봉인으로 시간의 힘이 각성했다.",
-            recommended=True,
-            preview_skills=["시간 정지 (Stop)", "시간 역행 (Rewind)", "가속 (Haste)"]
-        ),
-        JobChoiceInfo(
-            id="dimensionist",
-            name="차원술사",
-            description="차원과 확률을 조작하는 시공간의 지배자.\n평행 우주의 힘으로 불가능을 가능으로.",
-            story_reason="차원 항해 기술의 부작용으로 공간 조작력이 각성했다.",
-            recommended=False,
-            preview_skills=["차원 도약", "확률 왜곡", "평행 소환"]
-        ),
-        JobChoiceInfo(
-            id="hacker",
-            name="해커",
-            description="시스템을 해킹하여 적을 약화시키는 전투 전문가.\n미래 기술로 적의 능력을 무력화.",
-            story_reason="미래 기술과의 접촉으로 시스템 해킹 능력이 각성했다.",
-            recommended=False,
-            preview_skills=["시스템 침투", "바이러스", "방화벽"]
+    from src.ui.npc_dialog_ui import show_npc_dialog, NPCChoice
+
+    # 1단계: 카테고리 선택
+    while True:
+        cat_choices = []
+        cat_keys = list(JOB_CATEGORIES.keys())
+        for key in cat_keys:
+            cat = JOB_CATEGORIES[key]
+            cat_choices.append(
+                NPCChoice(text=f"{cat['name']} ({len(cat['jobs'])}개 직업) - {cat['description']}")
+            )
+
+        cat_result = show_npc_dialog(
+            console, context,
+            "셀레나",
+            "35개의 직업이 5개 카테고리로 나뉘어 있어요.\n어떤 계열의 직업에 관심이 있나요?",
+            choices=cat_choices,
         )
-    ]
-    
-    ui = JobSelectionUI(console, context, choices)
-    return ui.show(on_select)
+
+        if cat_result is None:
+            # ESC → 시간술사 기본 선택
+            if on_select:
+                on_select("time_mage")
+            return "time_mage"
+
+        selected_cat_key = cat_keys[cat_result]
+        selected_cat = JOB_CATEGORIES[selected_cat_key]
+
+        # 2단계: 카테고리 내 직업 선택 (4개씩 페이지)
+        job_ids = selected_cat["jobs"]
+        page = 0
+        jobs_per_page = 4
+
+        while True:
+            start = page * jobs_per_page
+            end = min(start + jobs_per_page, len(job_ids))
+            page_jobs = job_ids[start:end]
+
+            job_choices = []
+            for jid in page_jobs:
+                name = _load_job_display_name(jid)
+                recommended = " [추천]" if jid == "time_mage" else ""
+                job_choices.append(NPCChoice(text=f"{name}{recommended}"))
+
+            # 이전/다음 페이지 + 뒤로가기
+            has_prev = page > 0
+            has_next = end < len(job_ids)
+            if has_prev:
+                job_choices.append(NPCChoice(text="◀ 이전 페이지"))
+            if has_next:
+                job_choices.append(NPCChoice(text="▶ 다음 페이지"))
+            job_choices.append(NPCChoice(text="← 카테고리로 돌아가기"))
+
+            total_pages = (len(job_ids) + jobs_per_page - 1) // jobs_per_page
+            prompt_text = (
+                f"【{selected_cat['name']}】 계열 직업 "
+                f"(페이지 {page + 1}/{total_pages})\n"
+                f"어떤 직업을 선택하시겠어요?"
+            )
+
+            job_result = show_npc_dialog(
+                console, context, "셀레나", prompt_text, choices=job_choices,
+            )
+
+            if job_result is None:
+                break  # ESC → 카테고리 선택으로
+
+            # 네비게이션 처리
+            nav_offset = len(page_jobs)
+            if job_result >= nav_offset:
+                nav_idx = job_result - nav_offset
+                nav_items = []
+                if has_prev:
+                    nav_items.append("prev")
+                if has_next:
+                    nav_items.append("next")
+                nav_items.append("back")
+
+                action = nav_items[nav_idx] if nav_idx < len(nav_items) else "back"
+                if action == "prev":
+                    page -= 1
+                    continue
+                elif action == "next":
+                    page += 1
+                    continue
+                else:  # back
+                    break
+            else:
+                # 직업 선택됨
+                selected_job_id = page_jobs[job_result]
+
+                # 확인 대화
+                job_name = _load_job_display_name(selected_job_id)
+                confirm_choices = [
+                    NPCChoice(text=f"네, {job_name}(으)로 결정합니다!"),
+                    NPCChoice(text="다시 선택할게요"),
+                ]
+                confirm = show_npc_dialog(
+                    console, context,
+                    "셀레나",
+                    f"{job_name}을(를) 선택하시겠어요?\n이 직업은 본 게임에서 해금됩니다.",
+                    choices=confirm_choices,
+                )
+                if confirm == 0:
+                    # 선택 확정
+                    choices_for_effect = [
+                        JobChoiceInfo(
+                            id=selected_job_id,
+                            name=job_name,
+                            description=f"{selected_cat['name']} 계열 직업",
+                            story_reason="스토리 모드를 완료하여 각성한 힘",
+                            recommended=(selected_job_id == "time_mage"),
+                        )
+                    ]
+                    ui = JobSelectionUI(console, context, choices_for_effect, timeout=999)
+                    ui.selected_index = 0
+                    ui.confirmed = True
+                    ui._show_selection_effect()
+
+                    if on_select:
+                        on_select(selected_job_id)
+                    return selected_job_id
+                # else: 다시 선택 → 같은 페이지 계속

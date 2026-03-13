@@ -10,6 +10,7 @@ import tcod.console
 
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
+from src.ui.ui_renderer import SelectionHighlight
 from src.core.logger import get_logger
 from src.core.vibration_system import vibration_manager, VibrationPattern
 from src.audio import play_sfx
@@ -64,9 +65,15 @@ class CursorMenu:
 
         self.cursor_index = 0
         self.scroll_offset = 0
-        self.max_visible_items = 10  # 한 번에 보이는 최대 아이템 수
+        self.max_visible_items = 8  # 한 번에 보이는 최대 아이템 수
 
         self.logger = get_logger("cursor_menu")
+
+        # UI 효과
+        self._highlight = SelectionHighlight(
+            base_bg=(40, 40, 60), pulse_bg=(60, 60, 100), speed=3.0
+        )
+        self._last_time = 0.0
 
         # 첫 번째 활성화된 아이템으로 커서 이동
         self._move_to_first_enabled()
@@ -175,6 +182,34 @@ class CursorMenu:
             vibration_manager.vibrate(VibrationPattern.FAILURE)  # 실패 진동
         return None
 
+    def handle_input(self, action: GameAction) -> Any:
+        """
+        입력 처리 후 결과 반환
+
+        Args:
+            action: 게임 액션
+
+        Returns:
+            CONFIRM 시 선택된 아이템의 value (없으면 None),
+            그 외에는 None
+        """
+        if action == GameAction.MOVE_UP:
+            self.move_cursor_up()
+        elif action == GameAction.MOVE_DOWN:
+            self.move_cursor_down()
+        elif action == GameAction.CONFIRM:
+            item = self.get_selected_item()
+            if item and item.enabled:
+                play_sfx("ui", "cursor_select")
+                vibration_manager.vibrate(VibrationPattern.MEDIUM_TAP)
+                if item.action:
+                    return item.action()
+                return item.value
+            elif item and not item.enabled:
+                play_sfx("ui", "cursor_error")
+                vibration_manager.vibrate(VibrationPattern.FAILURE)
+        return None
+
     def render(self, console: tcod.console.Console) -> None:
         """
         메뉴 렌더링
@@ -182,6 +217,14 @@ class CursorMenu:
         Args:
             console: 렌더링할 콘솔
         """
+        import time as _time
+
+        # dt 계산
+        now = _time.monotonic()
+        dt = now - self._last_time if self._last_time else 0.016
+        self._last_time = now
+        self._highlight.update(dt)
+
         current_y = self.y
 
         # 제목 렌더링
@@ -215,15 +258,16 @@ class CursorMenu:
             actual_index = self.scroll_offset + i
             item_y = items_start_y + i
 
-            # 선택된 아이템 하이라이트 배경
+            # 선택된 아이템 하이라이트 배경 (펄스 효과)
             if actual_index == self.cursor_index:
+                highlight_bg = self._highlight.get_bg_color()
                 console.draw_rect(
                     self.x,
                     item_y,
                     self.width,
                     1,
                     ord(" "),
-                    bg=(40, 40, 60)  # 밝은 하이라이트
+                    bg=highlight_bg
                 )
 
             # 커서 표시
@@ -357,7 +401,12 @@ def show_teleporter_choice_menu(console: tcod.console.Console, context: tcod.con
 
     import time
     import pygame
-    
+
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     # 메뉴 루프
     while True:
         # 화면 렌더링
@@ -476,13 +525,15 @@ class TextInputBox:
 
     def render(self, console: tcod.console.Console) -> None:
         """텍스트 입력 박스 렌더링"""
-        # 테두리
-        console.draw_frame(
+        # 테두리 (더블라인 박스)
+        from src.ui.ui_renderer import draw_styled_box
+        draw_styled_box(
+            console,
             self.x,
             self.y,
             self.width,
             6,
-            self.title,
+            title=self.title,
             fg=Colors.UI_BORDER,
             bg=Colors.UI_BG
         )
@@ -515,7 +566,7 @@ class TextInputBox:
         )
 
         # 도움말
-        help_text = "Z: 확인  X: 취소  Backspace: 삭제"
+        help_text = "Enter: 확인  ESC: 취소  Backspace: 삭제"
         console.print(
             self.x + 2,
             self.y + 4,
@@ -523,12 +574,23 @@ class TextInputBox:
             fg=Colors.GRAY
         )
 
-    def handle_input(self, action: GameAction, event: Optional[tcod.event.KeyDown] = None) -> None:
-        """입력 처리"""
+    def handle_input(self, action: GameAction, event=None, text_event=None) -> None:
+        """입력 처리
+
+        Args:
+            action: GameAction
+            event: tcod.event.KeyDown (키보드 키 입력)
+            text_event: tcod.event.TextInput (IME 조합 완료 문자 - 한글 등)
+        """
         if action == GameAction.CONFIRM:
             self.handle_confirm()
         elif action == GameAction.CANCEL:
             self.handle_cancel()
+        # IME 텍스트 입력 (한글 등 조합 문자)
+        elif text_event and isinstance(text_event, tcod.event.TextInput):
+            for ch in text_event.text:
+                if ch.isprintable():
+                    self.handle_char_input(ch)
         # MOVE_UP, MOVE_DOWN은 텍스트 입력에서 무시 (커서 이동 없음)
         elif event and isinstance(event, tcod.event.KeyDown):
             # 문자 입력

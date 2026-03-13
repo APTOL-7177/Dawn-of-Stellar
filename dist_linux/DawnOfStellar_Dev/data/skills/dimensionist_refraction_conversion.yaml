@@ -1,0 +1,25 @@
+id: dimensionist_refraction_conversion
+name: 굴절 전환
+type: support
+description: '자신의 HP를 굴절량으로 전환합니다.
+
+  소모한 HP의 350%를 굴절량으로 획득합니다.
+
+  HP가 낮을수록 전환 효율이 증가합니다.
+
+  '
+effects: []
+target: self
+costs:
+  mp: 10
+metadata:
+  job: dimensionist
+  self_damage_hp_percent: 0.25
+  refraction_gain_multiplier: 3.5
+  custom_effect: true
+  low_hp_efficiency_bonus: true
+  max_efficiency_at_hp_percent: 0.5
+  max_efficiency_multiplier: 1.5
+sfx:
+- se
+- Move2

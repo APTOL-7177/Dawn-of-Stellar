@@ -5,6 +5,7 @@
 """
 
 from typing import List, Optional, Tuple
+import os
 import tcod
 import time
 import pygame
@@ -13,11 +14,12 @@ import pygame
 from src.world.exploration import ExplorationEvent, ExplorationResult, ExplorationSystem
 from src.world.map_renderer import MapRenderer
 from src.world.field_skills import FieldSkillManager
-from src.world.tile import TileType
-from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
+from src.world.tile import TileType, get_tile_info
+from src.ui.input_handler import InputHandler, GameAction, unified_input_handler, iter_game_input, poll_game_input
 from src.ui.gauge_renderer import GaugeRenderer
 from src.ui.tcod_display import render_space_background
 from src.ui.field_skill_ui import FieldSkillUI
+from src.ui.ui_renderer import draw_styled_box, DynamicSeparator
 from src.core.logger import get_logger, Loggers
 from src.audio.audio_manager import play_bgm
 
@@ -102,19 +104,51 @@ class WorldUI:
         self.fountain_used = False
         self.was_in_town = False  # 이전 프레임의 마을 상태 추적
 
+        # 미니맵 토글 (RPG 오픈월드 전용)
+        self.show_minimap = False
+
+        # 마우스 호버 툴팁 (보통/평온 난이도에서만 활성)
+        self._mouse_sx = 0
+        self._mouse_sy = 0
+        self._tooltip_enabled = False
+        try:
+            from src.core.config import get_config
+            cfg = get_config()
+            if cfg:
+                self._tooltip_enabled = cfg.difficulty in ("평온", "보통")
+        except Exception:
+            pass
+
+        # 화면 전환 후 CONFIRM 입력 방지 쿨다운
+        self._confirm_cooldown_until = 0.0
+
         # 마법진 사용 확인
         self.magic_circle_confirm_mode = False
         self.magic_circle_confirm_yes = True
         self.magic_circle_tile = None
 
-    def add_message(self, text: str):
-        """메시지 추가"""
+        # 릴리 대사 타이머
+        self._lily_idle_check_time = time.time()
+        self._lily_random_check_time = time.time()
+
+    def add_message(self, text: str, color=None):
+        """메시지 추가 (color는 호환성용 - 탐험 로그에서는 미사용)"""
         self.messages.append(text)
         if len(self.messages) > self.max_messages:
             self.messages.pop(0)
         logger.debug(f"메시지: {text}")
 
+    def flush_pending_loot_messages(self):
+        """인벤토리에 저장된 아이템 획득 대기 메시지를 로그에 표시"""
+        if self.inventory and hasattr(self.inventory, 'pending_loot_messages'):
+            for msg in self.inventory.pending_loot_messages:
+                self.add_message(msg)
+            self.inventory.pending_loot_messages.clear()
+
     def handle_input(self, action: GameAction, console=None, context=None, key_event=None) -> bool:
+        # 대기 중인 아이템 획득 메시지 표시
+        self.flush_pending_loot_messages()
+
         # 마을 입장 시 분수대 사용 플래그 리셋
         is_in_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
         if is_in_town and not self.was_in_town:
@@ -168,6 +202,46 @@ class WorldUI:
 
         # 필드 스킬 및 채팅 입력 (GameAction 사용)
         # 필드 스킬 (F 키 / L-Trigger)
+        # 스폰 위치 텔레포트 (R 키 / 게임패드 R3)
+        if action == GameAction.TELEPORT_TO_SPAWN:
+            try:
+                # RPG 오픈월드에서는 사용 불가
+                is_rpg_world = (
+                    (hasattr(self.exploration, 'rpg_progress')) or
+                    (hasattr(self.exploration, 'is_rpg_sub_dungeon') and self.exploration.is_rpg_sub_dungeon) or
+                    (self.exploration.dungeon.width > 300 or self.exploration.dungeon.height > 300)
+                )
+                if is_rpg_world:
+                    self.add_message("RPG 모드에서는 스폰 텔레포트를 사용할 수 없습니다.")
+                    return False
+
+                result = self.exploration.teleport_to_spawn()
+                if result.success:
+                    self.add_message(result.message, (0, 255, 200))
+                    # 멀티플레이: 위치 동기화
+                    if self.network_manager and hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                        try:
+                            from src.multiplayer.protocol import MessageBuilder
+                            import asyncio
+                            player_id = getattr(self.exploration, 'local_player_id', None) or self.local_player_id
+                            if player_id:
+                                move_message = MessageBuilder.player_move(
+                                    player_id=player_id,
+                                    x=self.exploration.player.x,
+                                    y=self.exploration.player.y,
+                                    timestamp=time.time()
+                                )
+                                self.network_manager.broadcast_sync(move_message)
+                                logger.info(f"멀티플레이 스폰 텔레포트 동기화: {player_id} -> ({self.exploration.player.x}, {self.exploration.player.y})")
+                        except Exception as sync_e:
+                            logger.error(f"스폰 텔레포트 동기화 실패: {sync_e}")
+                else:
+                    self.add_message(result.message, (255, 200, 100))
+            except Exception as e:
+                logger.error(f"스폰 텔레포트 처리 중 오류: {e}")
+                self.add_message("텔레포트 오류가 발생했습니다.")
+            return False
+
         if action == GameAction.FIELD_SKILL:
             try:
                 # 마을인지 확인
@@ -194,8 +268,23 @@ class WorldUI:
                 self.chat_input_active = True
                 self.chat_input_text = ""
                 return False
+            else:
+                # 싱글플레이어: 릴리 대화 (RPG 모드 - 마을/필드 어디서든)
+                if hasattr(self.exploration, 'lily_dialogue') and hasattr(self.exploration, 'rpg_progress'):
+                    self._open_lily_conversation(console, context)
+                    return False
         
         # 봇 관련 코드 제거됨
+
+        # 미니맵 토글 (Tab 키 / OPEN_MAP)
+        if action == GameAction.OPEN_MAP:
+            self.show_minimap = not self.show_minimap
+            return False
+
+        # 미니맵이 열려있을 때 X키(CANCEL/ESCAPE)로 닫기
+        if self.show_minimap and action in (GameAction.CANCEL, GameAction.ESCAPE):
+            self.show_minimap = False
+            return False
 
         # 종료 확인 모드
         if self.quit_confirm_mode:
@@ -265,6 +354,33 @@ class WorldUI:
                     self.quit_requested = True
                     self.main_menu_requested = True
                     return True
+                elif result == MenuOption.WORLD_MAP:
+                    # 월드맵(미니맵) 토글
+                    self.show_minimap = not self.show_minimap
+                    return False
+                elif result == MenuOption.TELEPORT_TO_SPAWN:
+                    # 스폰 위치로 텔레포트
+                    tp_result = self.exploration.teleport_to_spawn()
+                    if tp_result.success:
+                        self.add_message(tp_result.message, (0, 255, 200))
+                        # 멀티플레이: 위치 동기화
+                        if self.network_manager and hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                            try:
+                                from src.multiplayer.protocol import MessageBuilder
+                                player_id = getattr(self.exploration, 'local_player_id', None) or self.local_player_id
+                                if player_id:
+                                    move_message = MessageBuilder.player_move(
+                                        player_id=player_id,
+                                        x=self.exploration.player.x,
+                                        y=self.exploration.player.y,
+                                        timestamp=time.time()
+                                    )
+                                    self.network_manager.broadcast_sync(move_message)
+                            except Exception as sync_e:
+                                logger.error(f"스폰 텔레포트 동기화 실패: {sync_e}")
+                    else:
+                        self.add_message(tp_result.message, (255, 200, 100))
+                    return False
                 return False
             else:
                 logger.warning(f"메뉴를 열 수 없음 - inventory={self.inventory is not None}, party={self.party is not None}, console={console is not None}, context={context is not None}")
@@ -374,6 +490,11 @@ class WorldUI:
             else:
                 # Debug: 이동 결과 이벤트
                 pass
+            # 효과 타일 첫 진입 설명 메시지 표시
+            if hasattr(self.exploration, '_pending_tile_messages') and self.exploration._pending_tile_messages:
+                for msg in self.exploration._pending_tile_messages:
+                    self.add_message(msg, (180, 220, 255))
+                self.exploration._pending_tile_messages.clear()
 
             # 이동 성공 시 요리솥 자동 열기 체크 제거 (사용자가 명시적으로 상호작용해야 함)
             # 주석 처리: 자동 열기는 사용자 경험을 해침
@@ -386,6 +507,116 @@ class WorldUI:
 
         # 채집 또는 계단 이동 (Z키/엔터키)
         elif action == GameAction.CONFIRM:
+            # 화면 전환 직후 CONFIRM 쿨다운 체크 (Z키 잔류 입력 방지)
+            import time as _time
+            if _time.time() < self._confirm_cooldown_until:
+                return False
+
+            # 우선순위 0: 플레이어가 계단 위에 서 있으면 즉시 계단 이동 (채집보다 우선)
+            current_tile = self.exploration.dungeon.get_tile(
+                self.exploration.player.x,
+                self.exploration.player.y
+            )
+            if current_tile and current_tile.tile_type == TileType.STAIRS_DOWN:
+                from src.audio import play_sfx
+                play_sfx("world", "stairs_down")
+                is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
+                if is_town:
+                    if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                        if hasattr(self.exploration, 'session') and self.exploration.session:
+                            session = self.exploration.session
+                            local_player_id = None
+                            if hasattr(self.exploration, 'local_player_id'):
+                                local_player_id = self.exploration.local_player_id
+                            if local_player_id:
+                                session.set_floor_ready(local_player_id, True)
+                                if self.network_manager:
+                                    from src.multiplayer.protocol import MessageBuilder
+                                    import asyncio
+                                    try:
+                                        ready_msg = MessageBuilder.floor_ready(
+                                            player_id=local_player_id,
+                                            ready=True,
+                                            ready_players=list(session.floor_ready_players),
+                                            total_players=len(session.players)
+                                        )
+                                        server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                                        client_loop = getattr(self.network_manager, '_client_event_loop', None)
+                                        event_loop = server_loop or client_loop
+                                        if event_loop and event_loop.is_running():
+                                            asyncio.run_coroutine_threadsafe(
+                                                self.network_manager.broadcast(ready_msg),
+                                                event_loop
+                                            )
+                                        else:
+                                            self.network_manager.broadcast_sync(ready_msg)
+                                    except Exception as e:
+                                        logger.error(f"층 이동 준비 상태 브로드캐스트 실패: {e}")
+                            if session.is_all_ready_for_floor_change():
+                                self.floor_change_requested = "floor_down"
+                                self.add_message("모든 플레이어가 준비되었습니다. 던전으로 이동합니다...")
+                                session.reset_floor_ready()
+                                return True
+                            else:
+                                ready_count = len(session.floor_ready_players)
+                                total_count = len(session.players)
+                                self.add_message(f"던전으로 이동 대기 중... ({ready_count}/{total_count} 준비)")
+                                return False
+                    self.floor_change_requested = "floor_down"
+                    self.add_message("던전으로 이동합니다...")
+                    return True
+                else:
+                    if hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer:
+                        if hasattr(self.exploration, 'session') and self.exploration.session:
+                            session = self.exploration.session
+                            local_player_id = None
+                            if hasattr(self.exploration, 'local_player_id'):
+                                local_player_id = self.exploration.local_player_id
+                            if local_player_id:
+                                session.set_floor_ready(local_player_id, True)
+                                if self.network_manager:
+                                    from src.multiplayer.protocol import MessageBuilder
+                                    import asyncio
+                                    try:
+                                        ready_msg = MessageBuilder.floor_ready(
+                                            player_id=local_player_id,
+                                            ready=True,
+                                            ready_players=list(session.floor_ready_players),
+                                            total_players=len(session.players)
+                                        )
+                                        server_loop = getattr(self.network_manager, '_server_event_loop', None)
+                                        client_loop = getattr(self.network_manager, '_client_event_loop', None)
+                                        event_loop = server_loop or client_loop
+                                        if event_loop and event_loop.is_running():
+                                            asyncio.run_coroutine_threadsafe(
+                                                self.network_manager.broadcast(ready_msg),
+                                                event_loop
+                                            )
+                                        else:
+                                            self.network_manager.broadcast_sync(ready_msg)
+                                    except Exception as e:
+                                        logger.error(f"층 이동 준비 상태 브로드캐스트 실패: {e}")
+                            if session.is_all_ready_for_floor_change():
+                                self.floor_change_requested = "floor_down"
+                                self.add_message("모든 플레이어가 준비되었습니다. 아래층으로 내려갑니다...")
+                                session.reset_floor_ready()
+                                return True
+                            else:
+                                ready_count = len(session.floor_ready_players)
+                                total_count = len(session.players)
+                                self.add_message(f"다음 층으로 이동 대기 중... ({ready_count}/{total_count} 준비)")
+                                return False
+                    self.floor_change_requested = "floor_down"
+                    self.add_message("아래층으로 내려갑니다...")
+                    next_floor = self.exploration.floor_number + 1
+                    try:
+                        from src.quest.quest_manager import get_quest_manager
+                        quest_manager = get_quest_manager()
+                        quest_manager.update_progress("floor_reached", f"floor_{next_floor}")
+                    except Exception:
+                        pass
+                    return True
+
             # 우선순위 1: 요리솥 상호작용
             nearby_cooking_pot = self._find_nearby_cooking_pot()
             if nearby_cooking_pot:
@@ -426,7 +657,11 @@ class WorldUI:
                     logger.warning("채집 불가: console, context, inventory가 필요합니다")
                     return False
 
-            # 우선순위 3: 계단 이동 체크
+            # 우선순위 3: RPG 오픈월드 타일 상호작용 (Z키)
+            if self._handle_rpg_tile_interact(console, context):
+                return False
+
+            # 우선순위 4: 계단 이동 체크
             tile = self.exploration.dungeon.get_tile(
                 self.exploration.player.x,
                 self.exploration.player.y
@@ -670,14 +905,13 @@ class WorldUI:
                         if building:
                             # 건물과 상호작용
                             result = TownInteractionHandler.interact_with_building(
-                                building, 
-                                self.exploration.player, 
+                                building,
+                                self.exploration.player,
                                 town_manager
                             )
                             logger.info(f"[상호작용 성공] {building.name} (위치: {player_x}, {player_y}) - {result.get('message', '')}")
                             self.add_message(result.get('message', f"{building.name}에 입장했습니다."))
-                            # TODO: 건물별 UI 열기 (주방, 대장간 등)
-                            return False
+                            # 건물별 UI 열기는 아래 _handle_rpg_tile_interact로 폴스루
                         else:
                             # 건물이 없는 위치에서 상호작용 시도
                             tile_char = player_tile.char if player_tile else 'None'
@@ -686,8 +920,7 @@ class WorldUI:
                             if town_map.buildings:
                                 for b in town_map.buildings:
                                     logger.warning(f"  건물: {b.name} at ({b.x}, {b.y})")
-                            self.add_message("주변에 상호작용할 건물이 없습니다.")
-                            return True
+                            # 타일 기반 핸들러로 폴스루
                     else:
                         logger.warning(f"town_map={town_map is not None}, town_manager={town_manager is not None}")
                         if not town_map:
@@ -695,6 +928,10 @@ class WorldUI:
                         if not town_manager:
                             logger.error("town_manager를 찾을 수 없습니다.")
                 
+                # RPG 오픈월드 타일 상호작용 (is_town이 아니어도 동작)
+                if self._handle_rpg_tile_interact(console, context):
+                    return False
+
                 # 현재 위치의 타일 확인 (모루 등)
                 player_tile = self.exploration.dungeon.get_tile(self.exploration.player.x, self.exploration.player.y)
                 if player_tile:
@@ -760,8 +997,15 @@ class WorldUI:
             logger.info(f"[건물 상호작용] 이벤트 수신 - result.data={result.data}, console={console is not None}, context={context is not None}, console_type={type(console)}, context_type={type(context)}")
             if result.data:
                 building = result.data.get("building")
-                logger.info(f"[건물 상호작용] building 객체 확인 - building={building}, building is not None={building is not None}")
-                if building is not None and console is not None and context is not None:
+                building_type_str = result.data.get("building_type", "")
+                logger.info(f"[건물 상호작용] building 객체 확인 - building={building}, building_type_str={building_type_str}")
+
+                # building 객체가 없지만 building_type 문자열이 있는 경우 (RPG 오픈월드)
+                # 타일 타입 기반으로 직접 UI 열기
+                if building is None and building_type_str and console is not None and context is not None:
+                    self._handle_building_type_ui(console, context, building_type_str)
+
+                elif building is not None and console is not None and context is not None:
                     # 마을에서 건물과 상호작용
                     from src.town.town_map import TownInteractionHandler, BuildingType
                     # 항상 싱글톤 town_manager 사용
@@ -928,30 +1172,9 @@ class WorldUI:
                                     logger.warning(f"[건물 상호작용] 인벤토리 또는 town_manager가 없어 창고를 열 수 없습니다.")
                                     self.add_message("창고를 사용할 수 없습니다.")
                             elif building.building_type == BuildingType.GUILD_HALL:
-                                # 모험가 길드: 도전과제 및 마일스톤 UI 열기
+                                # 모험가 길드: 퀘스트 게시판 + 파티 상태 + 업적
                                 logger.info(f"[건물 상호작용] 모험가 길드")
-                                try:
-                                    from src.ui.guild_hall_ui import GuildHallUI
-                                    from src.achievement.achievement_manager import AchievementManager
-
-                                    # 도전과제 관리자 인스턴스 가져오기
-                                    # 글로벌 변수에서 가져오기 (main.py에서 초기화됨)
-                                    import __main__
-                                    achievement_manager = getattr(__main__, 'global_achievement_manager', None)
-                                    if not achievement_manager:
-                                        # 폴백: 새로 생성
-                                        achievement_manager = AchievementManager()
-
-                                    guild_ui = GuildHallUI()
-                                    guild_ui.set_achievement_manager(achievement_manager)
-                                    guild_ui.run(console, context)
-
-                                except Exception as e:
-                                    import traceback
-                                    logger.error(f"길드 홀 UI 열기 오류: {e}")
-                                    logger.error(f"상세 오류: {traceback.format_exc()}")
-                                    from src.ui.game_menu import show_message
-                                    show_message(console, context, f"길드 홀에 접근할 수 없습니다: {e}")
+                                self._open_town_guild_hall(console, context)
                             elif building.building_type == BuildingType.FOUNTAIN:
                                 # 분수대: 파티 전체 HP/MP 20% 회복 (부활 포함)
                                 # 마을 방문마다 1번만 사용 가능
@@ -1002,33 +1225,6 @@ class WorldUI:
                         self.add_message(f"{building.name}에 입장했습니다.")
             return
         
-        # NPC 상호작용은 대화 창으로 처리 (로그에 표시하지 않음)
-        if result.event == ExplorationEvent.NPC_INTERACTION:
-            if console and context and result.data:
-                # 기존 화면 먼저 렌더링 (대화 창 위에 표시하기 위해)
-                if hasattr(self, 'render'):
-                    self.render(console)
-                    context.present(console)
-                
-                from src.ui.npc_dialog_ui import show_npc_dialog, NPCChoice
-                
-                npc_subtype = result.data.get("npc_subtype", result.data.get("npc_type", "unknown"))
-                npc_name = self._get_npc_name(npc_subtype)
-                
-                # 이미 상호작용한 NPC는 메시지만 표시
-                if result.data.get("already_interacted", False):
-                    show_npc_dialog(console, context, npc_name, result.message)
-                else:
-                    # 선택지가 있는 NPC 처리
-                    choices = self._get_npc_choices(result, npc_subtype, console, context)
-                    if choices:
-                        choice_index = show_npc_dialog(console, context, npc_name, result.message, choices)
-                        # 선택지 콜백은 show_npc_dialog 내부에서 처리됨
-                    else:
-                        # 선택지 없이 대화만 표시
-                        show_npc_dialog(console, context, npc_name, result.message)
-            return
-
         if result.message:
             self.add_message(result.message)
 
@@ -1039,10 +1235,11 @@ class WorldUI:
             if result.data:
                 if "num_enemies" in result.data:
                     self.combat_num_enemies = result.data["num_enemies"]
-                    # Debug: 전투 적 수
                 if "enemies" in result.data:
                     self.combat_enemies = result.data["enemies"]
-                    # Debug: 맵 적 엔티티
+                # 보스/레벨 정보 저장 (RPG 모드 전투 정확성 향상)
+                self.combat_is_boss = result.data.get("is_boss", False)
+                self.combat_enemy_level = result.data.get("enemy_level", None)
                 # 멀티플레이: 참여자 정보 저장
                 if "participants" in result.data:
                     self.combat_participants = result.data["participants"]
@@ -1097,6 +1294,9 @@ class WorldUI:
                     logger.info("LootUI 표시 시도...")
                     show_loot_screen(console, context, items, self.inventory)
                     logger.info("LootUI 종료됨")
+
+                    # 획득 아이템 로그 표시 (pending_loot_messages에서 자동 처리)
+                    self.flush_pending_loot_messages()
                     
                     # LootUI 닫은 후 타일 정리
                     if tile:
@@ -1147,6 +1347,142 @@ class WorldUI:
             else:
                 logger.warning(f"[WorldUI] 이벤트 데이터가 부족합니다: console={console is not None}, context={context is not None}, data={result.data is not None}")
             return
+
+        elif result.event == ExplorationEvent.RANDOM_EVENT:
+            # 랜덤 이벤트 처리
+            if result.data and "random_event" in result.data:
+                random_event = result.data["random_event"]
+                self.add_message(f"[이벤트] {random_event.name}", (255, 215, 0))
+                try:
+                    from src.ui.random_event_ui import RandomEventUI
+                    party_jobs = []
+                    if hasattr(self.exploration.player, 'party') and self.exploration.player.party:
+                        party_jobs = [getattr(c, 'character_class', '') for c in self.exploration.player.party]
+                    event_ui = RandomEventUI()
+                    inventory = getattr(self.exploration, 'inventory', None)
+                    event_ui.open(random_event, party_jobs, inventory)
+                    if console is not None and context is not None:
+                        # 이벤트 UI 루프
+                        while event_ui.is_active:
+                            event_ui.render(console)
+                            context.present(console)
+                            for action, event in iter_game_input():
+                                if action == GameAction.QUIT:
+                                    event_ui.is_active = False
+                                    break
+                                elif action == GameAction.MOVE_UP:
+                                    event_ui._selected_idx = (event_ui._selected_idx - 1) % max(event_ui._choice_count, 1)
+                                elif action == GameAction.MOVE_DOWN:
+                                    event_ui._selected_idx = (event_ui._selected_idx + 1) % max(event_ui._choice_count, 1)
+                                elif action == GameAction.CONFIRM:
+                                    event_ui._confirm_selection()
+                                elif action == GameAction.CANCEL:
+                                    event_ui._result_idx = -1
+                                    event_ui.is_active = False
+                                elif event and isinstance(event, tcod.event.KeyDown):
+                                    event_ui.handle_input(event)
+                        # 결과 처리
+                        choice_idx = event_ui.get_selected_choice()
+                        if choice_idx >= 0:
+                            from src.world.random_events import get_random_event_manager
+                            # 스케일링용 층수/레벨 계산
+                            _evt_floor = getattr(getattr(self.exploration, 'dungeon', None), 'floor', 1) or 1
+                            _evt_level = 1
+                            _evt_party = getattr(getattr(self.exploration, 'player', None), 'party', None)
+                            if _evt_party:
+                                _lvls = [getattr(m, 'level', 1) for m in _evt_party]
+                                if _lvls:
+                                    _evt_level = max(1, sum(_lvls) // len(_lvls))
+                            outcome = get_random_event_manager().resolve_choice(
+                                random_event, choice_idx, party_jobs, inventory,
+                                floor=_evt_floor, level=_evt_level,
+                            )
+                            if outcome.message:
+                                self.add_message(outcome.message, (200, 200, 200))
+                            # 골드 처리 (양수=획득, 음수=차감)
+                            if outcome.gold != 0 and inventory is not None:
+                                inventory.gold = max(0, inventory.gold + outcome.gold)
+                                if outcome.gold > 0:
+                                    self.add_message(f"  골드 +{outcome.gold}", (255, 215, 0))
+                                else:
+                                    self.add_message(f"  골드 {outcome.gold}", (200, 150, 50))
+                            if outcome.exp > 0:
+                                self.add_message(f"  경험치 +{outcome.exp}", (100, 200, 255))
+                            # 아이템 획득
+                            if outcome.items and inventory is not None:
+                                for item_id in outcome.items:
+                                    try:
+                                        from src.equipment.item_system import (
+                                            ItemGenerator, CONSUMABLE_TEMPLATES,
+                                            WEAPON_TEMPLATES, ARMOR_TEMPLATES, ACCESSORY_TEMPLATES
+                                        )
+                                        item = None
+                                        if item_id in CONSUMABLE_TEMPLATES:
+                                            item = ItemGenerator.create_consumable(item_id)
+                                        elif item_id in WEAPON_TEMPLATES:
+                                            item = ItemGenerator.create_weapon(item_id)
+                                        elif item_id in ARMOR_TEMPLATES:
+                                            item = ItemGenerator.create_armor(item_id)
+                                        elif item_id in ACCESSORY_TEMPLATES:
+                                            item = ItemGenerator.create_accessory(item_id)
+                                        else:
+                                            # 템플릿에 없는 이벤트 아이템 → 파티 레벨 기반 실제 장비/포션으로 대체
+                                            avg_level = 1
+                                            if hasattr(self.exploration, 'player') and hasattr(self.exploration.player, 'party'):
+                                                levels = [getattr(m, 'level', 1) for m in (self.exploration.player.party or [])]
+                                                if levels:
+                                                    avg_level = max(1, sum(levels) // len(levels))
+                                            item = ItemGenerator.create_random_drop(
+                                                level=avg_level, boss_drop=False,
+                                                floor_number=getattr(self.exploration.dungeon, 'floor', 1)
+                                            )
+                                        if item:
+                                            inventory.add_item(item)
+                                            self.add_message(f"  아이템 획득: {item.name}", (150, 255, 150))
+                                        else:
+                                            self.add_message(f"  아이템 획득 실패", (200, 150, 150))
+                                    except Exception:
+                                        self.add_message(f"  아이템 획득 실패", (200, 150, 150))
+                            # 데미지 처리
+                            if (outcome.damage > 0 or outcome.damage_percent > 0) and party:
+                                for member in party:
+                                    if hasattr(member, 'current_hp') and hasattr(member, 'max_hp'):
+                                        dmg = outcome.damage
+                                        if outcome.damage_percent > 0:
+                                            dmg += int(member.max_hp * outcome.damage_percent / 100)
+                                        if dmg > 0:
+                                            member.current_hp = max(1, member.current_hp - dmg)
+                                if outcome.damage_percent > 0:
+                                    self.add_message(f"  파티 HP -{outcome.damage_percent}%!", (255, 100, 100))
+                                elif outcome.damage > 0:
+                                    self.add_message(f"  파티 HP -{outcome.damage}!", (255, 100, 100))
+                            # 회복 처리
+                            if (outcome.heal > 0 or outcome.heal_percent > 0) and party:
+                                for member in party:
+                                    if hasattr(member, 'current_hp') and hasattr(member, 'max_hp'):
+                                        amount = outcome.heal
+                                        if outcome.heal_percent > 0:
+                                            amount += int(member.max_hp * outcome.heal_percent / 100)
+                                        if amount > 0:
+                                            member.current_hp = min(member.max_hp, member.current_hp + amount)
+                                if outcome.heal_percent > 0:
+                                    self.add_message(f"  파티 HP +{outcome.heal_percent}% 회복!", (100, 255, 100))
+                                elif outcome.heal > 0:
+                                    self.add_message(f"  파티 HP +{outcome.heal} 회복!", (100, 255, 100))
+                            # 호감도 변화
+                            if outcome.affinity_gain != 0:
+                                if hasattr(self, 'exploration') and hasattr(self.exploration, 'rpg_progress'):
+                                    progress = self.exploration.rpg_progress
+                                    if hasattr(progress, 'lily_affinity'):
+                                        progress.lily_affinity = max(0, progress.lily_affinity + outcome.affinity_gain)
+                                if outcome.affinity_gain > 0:
+                                    self.add_message(f"  호감도 +{outcome.affinity_gain}", (255, 180, 200))
+                                else:
+                                    self.add_message(f"  호감도 {outcome.affinity_gain}", (180, 100, 100))
+                except Exception as e:
+                    logger.warning(f"랜덤 이벤트 UI 처리 실패: {e}")
+                    self.add_message(f"{random_event.description}", (200, 200, 200))
+
 
         elif result.event == ExplorationEvent.TELEPORTER_FOUND:
             # 텔레포터 선택 메뉴 표시
@@ -1263,6 +1599,924 @@ class WorldUI:
 
         return closest_harvestable
 
+    def _handle_rpg_tile_interact(self, console, context) -> bool:
+        """RPG 오픈월드 타일 상호작용 처리. 처리했으면 True 반환."""
+        if self.exploration.dungeon.width <= 300 and self.exploration.dungeon.height <= 300:
+            return False
+
+        player_tile = self.exploration.dungeon.get_tile(
+            self.exploration.player.x, self.exploration.player.y
+        )
+        if not player_tile:
+            return False
+
+        tt = player_tile.tile_type
+
+        if tt == TileType.NPC:
+            try:
+                from src.rpg_mode.town_npc_manager import get_town_npc_manager
+                from src.ui.npc_dialog_ui import run_npc_dialog, NPCChoice
+                from src.quest.quest_manager import get_quest_manager
+                npc_mgr = get_town_npc_manager()
+                npc_id = getattr(player_tile, 'npc_id', None)
+                npc = npc_mgr.get_npc(npc_id) if npc_id else None
+
+                if npc and console and context:
+                    # 현재 챕터 확인 (세이브 파일에서 직접 읽기)
+                    current_chapter = ""
+                    try:
+                        import json
+                        save_path = os.path.join(
+                            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                            "saves", "rpg_save.json"
+                        )
+                        if os.path.exists(save_path):
+                            with open(save_path, "r", encoding="utf-8") as f:
+                                save_data = json.load(f)
+                            rpg_prog = save_data.get("rpg_progress", {})
+                            ch_num = rpg_prog.get("current_chapter", 0)
+                            if ch_num > 0:
+                                current_chapter = f"rpg_ch{ch_num}"
+                    except Exception:
+                        pass
+
+                    dialog_lines = npc_mgr.get_npc_dialog_lines(npc_id, current_chapter)
+                    display_name = npc_mgr.get_npc_display_name(npc_id)
+
+                    # ── 퀘스트 선택지 생성 ──
+                    choices = []
+                    try:
+                        qm = get_quest_manager()
+                        npc_region = npc_mgr.get_npc_region(npc_id)
+                        npc_quest_types = {
+                            "investigate", "explore", "fetch", "collect",
+                            "delivery", "escort", "rescue", "puzzle",
+                        }
+                        for quest in qm.active_quests:
+                            if (quest.quest_subtype in npc_quest_types
+                                    and quest.region == npc_region
+                                    and not quest.is_complete):
+                                def _make_cb(qid=quest.quest_id):
+                                    def _cb():
+                                        _advance_npc_quest(qm, qid, self)
+                                    return _cb
+                                choices.append(NPCChoice(
+                                    text=f"[퀘스트] {quest.name} 진행",
+                                    callback=_make_cb(),
+                                ))
+                    except Exception:
+                        pass
+
+                    run_npc_dialog(
+                        console, context,
+                        npc_name=display_name,
+                        dialog_lines=dialog_lines,
+                        npc_id=npc_id,
+                        choices=choices if choices else None,
+                    )
+                    self.add_message(f"{npc.name}: 대화를 나눴습니다.")
+                elif npc:
+                    # console/context 없으면 메시지로 대체
+                    self.add_message(f"{npc.name} ({npc.role}): \"{npc.greeting or '...'}\"")
+                else:
+                    self.add_message("NPC: \"이 차원에 온 것을 환영합니다, 여행자여.\"")
+            except Exception as e:
+                self.add_message("NPC: \"이 차원에 온 것을 환영합니다, 여행자여.\"")
+            return True
+        elif tt == TileType.CAMPFIRE:
+            if self.party:
+                for m in self.party:
+                    m.current_hp = m.max_hp
+                    m.current_mp = m.max_mp
+            self.add_message("캠프파이어에서 휴식했습니다. HP/MP 회복!")
+            return True
+        elif tt == TileType.HEALING_SPRING:
+            if self.party:
+                for m in self.party:
+                    m.current_hp = m.max_hp
+                    m.current_mp = m.max_mp
+                    m.wound = 0
+            self.add_message("치유의 샘에서 모든 상처가 회복되었습니다!")
+            return True
+        elif tt == TileType.SHOP:
+            if self.inventory and console and context:
+                from src.ui.gold_shop_ui import open_gold_shop
+                floor_level = getattr(self.exploration, 'floor_number', 1)
+                open_gold_shop(console, context, self.inventory, floor_level, shop_type="shop")
+            else:
+                self.add_message("상점을 이용할 수 없습니다.")
+            return True
+        elif tt == TileType.KITCHEN:
+            if self.inventory and console and context:
+                from src.ui.cooking_ui import open_cooking_pot
+                open_cooking_pot(console, context, self.inventory, is_cooking_pot=True)
+            else:
+                self.add_message("주방을 이용할 수 없습니다.")
+            _check_facility_quest_progress("kitchen", self)
+            return True
+        elif tt == TileType.BLACKSMITH:
+            if self.inventory and console and context:
+                from src.ui.gold_shop_ui import open_gold_shop
+                floor_level = getattr(self.exploration, 'floor_number', 1)
+                open_gold_shop(console, context, self.inventory, floor_level, shop_type="blacksmith")
+            else:
+                self.add_message("대장간을 이용할 수 없습니다.")
+            _check_facility_quest_progress("blacksmith", self)
+            return True
+        elif tt == TileType.ALCHEMY_LAB:
+            if self.inventory and console and context:
+                from src.ui.alchemy_ui import open_alchemy_lab
+                floor_level = getattr(self.exploration, 'floor_number', 1)
+                open_alchemy_lab(console, context, self.inventory, floor_level, party=self.party)
+            else:
+                self.add_message("연금술 작업대를 이용할 수 없습니다.")
+            _check_facility_quest_progress("alchemy_lab", self)
+            return True
+        elif tt == TileType.QUEST_BOARD:
+            if console and context:
+                from src.ui.quest_board_ui import open_quest_board
+                player_level = self.party[0].level if self.party else 1
+                open_quest_board(console, context, player_level=player_level,
+                                 player=self.party[0] if self.party else None,
+                                 inventory=self.inventory)
+            else:
+                self.add_message("퀘스트 게시판을 이용할 수 없습니다.")
+            return True
+        elif tt == TileType.STORAGE_BUILDING:
+            if self.inventory and console and context:
+                from src.ui.storage_ui import open_storage
+                from src.town.town_manager import get_town_manager
+                town_mgr = get_town_manager()
+                open_storage(console, context, self.inventory, None, town_mgr)
+            else:
+                self.add_message("창고를 이용할 수 없습니다.")
+            return True
+        elif tt == TileType.INN:
+            if self.party:
+                for m in self.party:
+                    m.current_hp = m.max_hp
+                    m.current_mp = m.max_mp
+                    m.wound = 0
+            self.add_message("여관에서 충분히 쉬었습니다. 컨디션 완전 회복!")
+            return True
+        elif tt == TileType.GUILD_HALL:
+            if console and context:
+                self._open_guild_hall_ui(console, context)
+            else:
+                self.add_message("모험가 길드입니다.")
+            return True
+        elif tt == TileType.CAVE_ENTRANCE:
+            if console and context:
+                self._enter_sub_dungeon(console, context)
+            else:
+                self.add_message("동굴 입구를 발견했습니다.")
+            _check_area_quest_progress("cave_entrance", self)
+            return True
+        elif tt == TileType.SIGNPOST:
+            self._show_signpost_info()
+            _check_area_quest_progress("signpost", self)
+            return True
+        elif tt == TileType.FOUNTAIN:
+            self.add_message("마을 중앙의 분수대입니다.")
+            return True
+
+        # ── RPG 오픈월드 자연 타일 채집 ──
+        from src.gathering.tile_gathering import can_harvest_tile_at, harvest_tile, get_tile_harvest_name
+
+        px, py = self.exploration.player.x, self.exploration.player.y
+        if can_harvest_tile_at(px, py, tt):
+            tile = self.exploration.dungeon.get_tile(px, py)
+            if tile and tile.harvested:
+                self.add_message("이미 채집한 곳입니다.")
+                return True
+
+            if console and context:
+                tile_name = get_tile_harvest_name(tt)
+                from src.ui.gathering_ui import show_gathering_prompt_simple
+                if not show_gathering_prompt_simple(console, context, tile_name):
+                    return True  # 취소
+
+            # 지역 판별
+            from src.rpg_mode.rpg_world_generator import _get_region_for_point
+            from src.rpg_mode.rpg_world_config import RPG_WORLD_WIDTH, RPG_WORLD_HEIGHT
+            region_id = _get_region_for_point(
+                px, py,
+                RPG_WORLD_WIDTH, RPG_WORLD_HEIGHT
+            )
+
+            # 채집 실행
+            results = harvest_tile(tile, region_id)
+
+            # 타임스탬프 기록 (리젠용)
+            if hasattr(self.exploration.dungeon, 'harvest_timestamps'):
+                self.exploration.dungeon.record_harvest(px, py)
+
+            # 인벤토리에 추가 + 결과 메시지
+            if results and self.inventory:
+                from src.gathering.ingredient import IngredientDatabase
+                added = []
+                for ingredient_id, qty in results.items():
+                    ingredient = IngredientDatabase.get_ingredient(ingredient_id)
+                    if ingredient:
+                        for _ in range(qty):
+                            if self.inventory.add_item(ingredient):
+                                added.append(ingredient.name)
+
+                if added:
+                    counts = {}
+                    for name in added:
+                        counts[name] = counts.get(name, 0) + 1
+                    msg_parts = [f"{n} x{c}" for n, c in counts.items()]
+                    self.add_message(f"채집 완료! {', '.join(msg_parts)}")
+                else:
+                    self.add_message("인벤토리가 가득 찼습니다.")
+            else:
+                self.add_message("채집할 것이 없었습니다.")
+
+            return True
+
+        return False
+
+    def _handle_building_type_ui(self, console, context, building_type_str: str):
+        """building_type 문자열 기반으로 건물 UI 열기 (RPG 오픈월드용 폴백)"""
+        logger.info(f"[건물 상호작용 폴백] building_type={building_type_str}")
+        if building_type_str == "kitchen" or building_type_str == "cooking_pot":
+            if self.inventory is not None:
+                from src.ui.cooking_ui import open_cooking_pot
+                open_cooking_pot(console, context, self.inventory, is_cooking_pot=True)
+            else:
+                self.add_message("인벤토리가 없어 주방을 사용할 수 없습니다.")
+        elif building_type_str == "shop":
+            if self.inventory is not None:
+                from src.ui.gold_shop_ui import open_gold_shop
+                floor_level = getattr(self.exploration, 'floor_number', 1)
+                open_gold_shop(console, context, self.inventory, floor_level, shop_type="shop")
+            else:
+                self.add_message("인벤토리가 없어 상점을 사용할 수 없습니다.")
+        elif building_type_str == "blacksmith":
+            if self.inventory is not None:
+                from src.ui.gold_shop_ui import open_gold_shop
+                floor_level = getattr(self.exploration, 'floor_number', 1)
+                open_gold_shop(console, context, self.inventory, floor_level, shop_type="blacksmith")
+            else:
+                self.add_message("인벤토리가 없어 대장간을 사용할 수 없습니다.")
+        elif building_type_str == "alchemy_lab":
+            if self.inventory is not None:
+                from src.ui.alchemy_ui import open_alchemy_lab
+                floor_level = getattr(self.exploration, 'floor_number', 1)
+                open_alchemy_lab(console, context, self.inventory, floor_level, party=self.party)
+            else:
+                self.add_message("인벤토리가 없어 연금술 작업대를 사용할 수 없습니다.")
+        elif building_type_str == "storage_building":
+            if self.inventory is not None:
+                from src.ui.storage_ui import open_storage
+                from src.town.town_manager import get_town_manager
+                town_mgr = get_town_manager()
+                open_storage(console, context, self.inventory, None, town_mgr)
+            else:
+                self.add_message("인벤토리가 없어 창고를 사용할 수 없습니다.")
+        elif building_type_str == "quest_board":
+            from src.ui.quest_board_ui import open_quest_board
+            player_level = self.party[0].level if self.party else 1
+            open_quest_board(console, context, player_level=player_level,
+                             player=self.party[0] if self.party else None,
+                             inventory=self.inventory)
+        elif building_type_str == "inn":
+            if self.party:
+                for m in self.party:
+                    m.current_hp = m.max_hp
+                    m.current_mp = m.max_mp
+                    m.wound = 0
+            self.add_message("여관에서 충분히 쉬었습니다. 컨디션 완전 회복!")
+        elif building_type_str == "guild_hall":
+            self._open_guild_hall_ui(console, context)
+        elif building_type_str == "cave_entrance":
+            self._enter_sub_dungeon(console, context)
+        else:
+            self.add_message(f"건물({building_type_str})에 도착했습니다.")
+
+    def _show_signpost_info(self):
+        """SIGNPOST 타일에서 이정표 정보 표시"""
+        from src.rpg_mode.rpg_world_generator import _get_region_for_point, get_dungeon_entrance_map
+        from src.rpg_mode.rpg_world_config import REGION_MAP
+
+        dungeon = self.exploration.dungeon
+        px = self.exploration.player.x
+        py = self.exploration.player.y
+        w, h = dungeon.width, dungeon.height
+
+        region_id = _get_region_for_point(px, py, w, h)
+        region = REGION_MAP.get(region_id)
+
+        # 인접 타일에 CAVE_ENTRANCE가 있는지 확인
+        adjacent_cave = None
+        seed = getattr(dungeon, '_world_seed', 0)
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            adj_tile = dungeon.get_tile(px + dx, py + dy)
+            if adj_tile and adj_tile.tile_type == TileType.CAVE_ENTRANCE and seed:
+                entrance_map = get_dungeon_entrance_map(seed, w, h)
+                match = entrance_map.get((px + dx, py + dy))
+                if match:
+                    _, sub = match
+                    if sub.is_boss_dungeon and region and region.boss_level:
+                        level = region.boss_level
+                    else:
+                        level = region.level_min + sub.enemy_level_bonus if region else sub.enemy_level_bonus
+                    boss_tag = " [BOSS]" if sub.is_boss_dungeon else ""
+                    self.add_message(f"[이정표] {sub.name} (Lv.{level}){boss_tag} - {sub.description}")
+                    adjacent_cave = True
+                break
+
+        if not adjacent_cave and region:
+            self.add_message(f"[이정표] {region.name} (Lv.{region.level_min}~{region.level_max})")
+            if region.town_name:
+                self.add_message(f"  마을: {region.town_name}")
+
+    def _enter_sub_dungeon(self, console, context):
+        """CAVE_ENTRANCE 타일에서 서브 던전 진입 처리"""
+        from src.rpg_mode.rpg_world_generator import get_dungeon_entrance_map, _get_region_for_point
+        from src.rpg_mode.rpg_world_config import REGION_MAP
+        from src.world.dungeon_generator import DungeonGenerator
+        from src.ui.combat_ui import run_combat
+        from src.combat.combat_manager import CombatState
+        from src.world.enemy_generator import EnemyGenerator
+
+        dungeon = self.exploration.dungeon
+        seed = getattr(dungeon, '_world_seed', 0)
+        if not seed:
+            self.add_message("동굴 입구를 발견했습니다.")
+            return
+
+        px = self.exploration.player.x
+        py = self.exploration.player.y
+        w, h = dungeon.width, dungeon.height
+
+        entrance_map = get_dungeon_entrance_map(seed, w, h)
+        match = entrance_map.get((px, py))
+        if not match:
+            self.add_message("이 동굴은 무너져서 진입할 수 없습니다.")
+            return
+
+        region, sub = match
+        if sub.is_boss_dungeon and region.boss_level:
+            level = region.boss_level
+        else:
+            level = region.level_min + sub.enemy_level_bonus
+        boss_tag = " [BOSS]" if sub.is_boss_dungeon else ""
+        label = f"{sub.name} (Lv.{level}){boss_tag}"
+
+        # 진입 확인 UI
+        from src.ui.cursor_menu import CursorMenu, MenuItem
+        confirm_items = [
+            MenuItem(text=f"{label} 에 진입한다", description=sub.description, value=True),
+            MenuItem(text="떠난다", description="동굴을 떠납니다", value=False),
+        ]
+        menu = CursorMenu(
+            title="동굴 입구",
+            items=confirm_items,
+            x=console.width // 2 - 22,
+            y=console.height // 2 - 4,
+            width=44,
+        )
+
+        # 입력 큐 비우기
+        for _ in tcod.event.get():
+            pass
+        unified_input_handler.clear_input_state()
+
+        confirmed = False
+        while True:
+            console.clear()
+            menu.render(console)
+            context.present(console)
+            try:
+                pygame.event.pump()
+            except Exception:
+                pass
+
+            def _process(action):
+                if action == GameAction.CONFIRM:
+                    sel = menu.get_selected_item()
+                    if sel and sel.value is not None:
+                        return sel.value
+                elif action == GameAction.CANCEL:
+                    return False
+                elif action == GameAction.MOVE_UP:
+                    menu.move_cursor_up()
+                elif action == GameAction.MOVE_DOWN:
+                    menu.move_cursor_down()
+                return None
+
+            done = False
+            for event in tcod.event.get():
+                action = unified_input_handler.process_tcod_event(event)
+                if action:
+                    r = _process(action)
+                    if r is not None:
+                        confirmed = r
+                        done = True
+                        break
+                if isinstance(event, tcod.event.Quit):
+                    raise SystemExit()
+            if not done:
+                ga = unified_input_handler.get_action()
+                if ga:
+                    r = _process(ga)
+                    if r is not None:
+                        confirmed = r
+                        done = True
+            if done:
+                break
+            time.sleep(0.016)
+
+        if not confirmed:
+            self.add_message("동굴을 떠났습니다.")
+            return
+
+        # 서브 던전 생성 및 탐험
+        self.add_message(f"{sub.name}에 진입합니다...")
+        dungeon_seed = hash(sub.dungeon_id) & 0x7FFFFFFF
+        gen = DungeonGenerator(width=sub.width, height=sub.height)
+        sub_map = gen.generate(floor_number=level, seed=dungeon_seed)
+
+        sub_exploration = ExplorationSystem(
+            sub_map, self.party, floor_number=level, inventory=self.inventory,
+        )
+        sub_exploration.is_rpg_sub_dungeon = True
+
+        # 서브 던전 탐험 루프
+        while True:
+            result = run_exploration(
+                console, context, sub_exploration,
+                inventory=self.inventory, party=self.party,
+                play_bgm_on_start=True,
+            )
+
+            result_type = result[0] if isinstance(result, tuple) else result
+
+            if result_type == "combat":
+                # 전투에 참여한 맵 적 엔티티 기억
+                combat_data = result[1] if isinstance(result, tuple) and len(result) > 1 else {}
+                map_enemies = combat_data.get("enemies", []) if combat_data else []
+
+                enemies = EnemyGenerator.generate_enemies(
+                    floor_number=max(1, level),
+                )
+                combat_result = run_combat(
+                    console=console, context=context,
+                    party=self.party, enemies=enemies,
+                    inventory=self.inventory,
+                )
+                state = combat_result[0] if isinstance(combat_result, tuple) else combat_result
+
+                # 전투 후 맵에서 적 엔티티 제거 (승리/도주 모두)
+                if hasattr(sub_exploration, 'enemies') and map_enemies:
+                    for me in map_enemies:
+                        if me in sub_exploration.enemies:
+                            sub_exploration.enemies.remove(me)
+                # 충돌 상태 초기화
+                sub_exploration.collision_enemy = None
+
+                if state == CombatState.VICTORY:
+                    # 보상 계산 및 표시
+                    try:
+                        from src.combat.experience_system import (
+                            RewardCalculator, distribute_party_experience,
+                        )
+                        from src.ui.reward_ui import show_reward_screen
+
+                        rewards = RewardCalculator.calculate_combat_rewards(
+                            enemies, level, is_boss_fight=sub.is_boss_dungeon,
+                        )
+                        level_up_info = distribute_party_experience(
+                            self.party, rewards["experience"],
+                        )
+                        show_reward_screen(
+                            console, context, rewards, level_up_info,
+                            inventory=self.inventory,
+                        )
+                        if self.inventory:
+                            self.inventory.add_gold(rewards.get("gold", 0))
+                    except Exception as e:
+                        logger.warning(f"서브 던전 보상 처리 오류: {e}")
+
+                    self.add_message("전투 승리!")
+                    continue  # 서브 던전 탐험 계속
+                elif state == CombatState.DEFEAT:
+                    self.add_message("전투에서 패배했습니다... 동굴 밖으로 이동합니다.")
+                    break
+                else:
+                    # FLED - 서브 던전 탐험 계속
+                    continue
+            else:
+                # "quit", "main_menu", "floor_up", "floor_down" 등 → 서브 던전 탈출
+                break
+
+        # 서브 던전 클리어 메시지 (보스 던전인 경우)
+        if sub.is_boss_dungeon and result_type != "combat":
+            self.add_message(f"보스 던전 [{sub.name}]을 탐험했습니다!")
+
+        self.add_message("월드맵으로 돌아왔습니다.")
+        # 탐험 BGM 복구
+        try:
+            play_bgm("exploration")
+        except Exception:
+            pass
+
+    def _open_town_guild_hall(self, console, context):
+        """일반 마을 모험가 길드 메뉴 (퀘스트 게시판 + 파티 상태 + 업적)"""
+        from src.ui.cursor_menu import CursorMenu, MenuItem
+        from src.ui.game_menu import show_message
+        from src.audio import play_sfx
+        import time
+        import pygame
+
+        menu_items = [
+            MenuItem("퀘스트 게시판", value="quest_board"),
+            MenuItem("파티 상태", value="party_status"),
+            MenuItem("업적/도전과제", value="achievements"),
+            MenuItem("나가기", value="exit"),
+        ]
+
+        guild_menu = CursorMenu(
+            title="모험가 길드",
+            items=menu_items,
+            x=10,
+            y=5,
+            width=console.width - 20
+        )
+
+        # 입력 큐 비우기
+        for _ in tcod.event.get():
+            pass
+        try:
+            pygame.event.pump()
+            pygame.event.clear()
+        except Exception:
+            pass
+        unified_input_handler.clear_input_state()
+        time.sleep(0.05)
+        for _ in tcod.event.get():
+            pass
+        unified_input_handler.clear_input_state()
+
+        while True:
+            console.clear()
+            render_space_background(console, console.width, console.height)
+            # 길드 헤더
+            header = "=== 모험가 길드 ==="
+            console.print((console.width - len(header)) // 2, 2, header, fg=(255, 80, 80))
+            console.print(12, 4, "환영합니다, 모험가여!", fg=(200, 200, 200))
+            guild_menu.render(console)
+            # 안내
+            console.print(2, console.height - 2, "↑↓: 선택  Z: 확인  X: 닫기", fg=(150, 150, 150))
+            context.present(console)
+
+            try:
+                pygame.event.pump()
+            except Exception:
+                pass
+
+            action = None
+            for event in tcod.event.get():
+                action = unified_input_handler.process_tcod_event(event)
+                if isinstance(event, tcod.event.Quit):
+                    return
+                if action:
+                    break
+
+            if not action:
+                action = unified_input_handler.get_action()
+
+            if not action:
+                time.sleep(0.01)
+                continue
+
+            result = guild_menu.handle_input(action)
+            if result == "exit" or action == GameAction.ESCAPE or action == GameAction.MENU:
+                play_sfx("ui", "cursor_cancel")
+                break
+            elif result == "quest_board":
+                play_sfx("ui", "confirm")
+                try:
+                    from src.ui.quest_board_ui import open_quest_board
+                    from src.quest.quest_manager import get_quest_manager
+                    quest_manager = get_quest_manager()
+                    player_level = getattr(self.party[0], 'level', 1) if self.party else 1
+                    current_floor = getattr(self, 'current_floor', 0)
+                    open_quest_board(
+                        console, context,
+                        quest_manager=quest_manager,
+                        player_level=player_level,
+                        player=self.party[0] if self.party else None,
+                        current_floor=current_floor,
+                        inventory=self.inventory
+                    )
+                except Exception as e:
+                    logger.error(f"퀘스트 게시판 열기 오류: {e}")
+                    show_message(console, context, f"퀘스트 게시판을 열 수 없습니다: {e}")
+            elif result == "party_status":
+                play_sfx("ui", "confirm")
+                self._show_town_guild_party_status(console, context)
+            elif result == "achievements":
+                play_sfx("ui", "confirm")
+                try:
+                    from src.ui.guild_hall_ui import GuildHallUI
+                    from src.achievement.achievement_manager import AchievementManager
+                    import __main__
+                    achievement_manager = getattr(__main__, 'global_achievement_manager', None)
+                    if not achievement_manager:
+                        achievement_manager = AchievementManager()
+                    guild_ui = GuildHallUI()
+                    guild_ui.set_achievement_manager(achievement_manager)
+                    guild_ui.run(console, context)
+                except Exception as e:
+                    logger.error(f"업적 UI 열기 오류: {e}")
+                    show_message(console, context, "업적 시스템에 접근할 수 없습니다.")
+
+            # 길드 메뉴로 돌아갈 때 입력 초기화
+            for _ in tcod.event.get():
+                pass
+            try:
+                pygame.event.pump()
+                pygame.event.clear()
+            except Exception:
+                pass
+            unified_input_handler.clear_input_state()
+
+    def _show_town_guild_party_status(self, console, context):
+        """일반 마을 길드 - 파티 상태 표시"""
+        from src.ui.game_menu import show_message
+        import time
+        import pygame
+
+        if not self.party:
+            show_message(console, context, "파티가 비어 있습니다.")
+            return
+
+        # 입력 초기화
+        for _ in tcod.event.get():
+            pass
+        unified_input_handler.clear_input_state()
+
+        while True:
+            console.clear()
+            render_space_background(console, console.width, console.height)
+
+            header = "=== 파티 상태 ==="
+            console.print((console.width - len(header)) // 2, 2, header, fg=(100, 200, 255))
+
+            y = 5
+            for i, member in enumerate(self.party):
+                name = getattr(member, 'name', f'멤버 {i+1}')
+                job = getattr(member, 'job', '???')
+                level = getattr(member, 'level', 1)
+                hp = getattr(member, 'current_hp', 0)
+                max_hp = getattr(member, 'max_hp', 1)
+                mp = getattr(member, 'current_mp', 0)
+                max_mp = getattr(member, 'max_mp', 1)
+                alive = hp > 0
+
+                # 이름 + 직업
+                name_color = (255, 255, 255) if alive else (100, 100, 100)
+                console.print(5, y, f"{name} (Lv.{level} {job})", fg=name_color)
+                y += 1
+
+                # HP 바
+                hp_ratio = hp / max_hp if max_hp > 0 else 0
+                hp_color = (50, 255, 50) if hp_ratio > 0.5 else (255, 255, 0) if hp_ratio > 0.2 else (255, 50, 50)
+                console.print(7, y, f"HP: {hp}/{max_hp}", fg=hp_color)
+                # HP 바 그래프
+                bar_width = 20
+                filled = int(bar_width * hp_ratio)
+                bar_str = "█" * filled + "░" * (bar_width - filled)
+                console.print(25, y, bar_str, fg=hp_color)
+                y += 1
+
+                # MP 바
+                mp_ratio = mp / max_mp if max_mp > 0 else 0
+                console.print(7, y, f"MP: {mp}/{max_mp}", fg=(100, 150, 255))
+                filled_mp = int(bar_width * mp_ratio)
+                bar_str_mp = "█" * filled_mp + "░" * (bar_width - filled_mp)
+                console.print(25, y, bar_str_mp, fg=(100, 150, 255))
+                y += 1
+
+                # 상태
+                if not alive:
+                    console.print(7, y, "상태: 전투불능", fg=(255, 50, 50))
+                else:
+                    console.print(7, y, "상태: 정상", fg=(100, 255, 100))
+                y += 2
+
+            console.print(2, console.height - 2, "X: 돌아가기", fg=(150, 150, 150))
+            context.present(console)
+
+            try:
+                pygame.event.pump()
+            except Exception:
+                pass
+
+            action = None
+            for event in tcod.event.get():
+                action = unified_input_handler.process_tcod_event(event)
+                if isinstance(event, tcod.event.Quit):
+                    return
+                if action:
+                    break
+            if not action:
+                action = unified_input_handler.get_action()
+
+            if action in (GameAction.ESCAPE, GameAction.MENU, GameAction.CANCEL):
+                return
+
+            time.sleep(0.01)
+
+    def _open_guild_hall_ui(self, console, context):
+        """GUILD_HALL 타일에서 길드 홀 UI 표시"""
+        from src.ui.cursor_menu import CursorMenu, MenuItem
+        from src.rpg_mode.rpg_world_generator import _get_region_for_point, get_dungeon_entrance_map
+        from src.rpg_mode.rpg_world_config import REGION_MAP, REGIONS
+
+        dungeon = self.exploration.dungeon
+        w, h = dungeon.width, dungeon.height
+        px = self.exploration.player.x
+        py = self.exploration.player.y
+        region_id = _get_region_for_point(px, py, w, h)
+        region = REGION_MAP.get(region_id)
+
+        while True:
+            items = [
+                MenuItem(text="퀘스트 게시판", description="의뢰를 확인하고 수락합니다", value="quest"),
+                MenuItem(text="파티 상태", description="파티원의 상태를 확인합니다", value="party"),
+                MenuItem(text="지역 던전 정보", description="이 지역의 던전 목록을 봅니다", value="dungeon_info"),
+                MenuItem(text="나가기", description="길드를 나갑니다", value="exit"),
+            ]
+            menu = CursorMenu(
+                title="모험가 길드",
+                items=items,
+                x=console.width // 2 - 22,
+                y=console.height // 2 - 6,
+                width=44,
+            )
+
+            for _ in tcod.event.get():
+                pass
+            unified_input_handler.clear_input_state()
+
+            choice = None
+            while choice is None:
+                console.clear()
+                menu.render(console)
+                context.present(console)
+                try:
+                    pygame.event.pump()
+                except Exception:
+                    pass
+
+                def _proc(action):
+                    if action == GameAction.CONFIRM:
+                        sel = menu.get_selected_item()
+                        if sel and sel.value is not None:
+                            return sel.value
+                    elif action == GameAction.CANCEL:
+                        return "exit"
+                    elif action == GameAction.MOVE_UP:
+                        menu.move_cursor_up()
+                    elif action == GameAction.MOVE_DOWN:
+                        menu.move_cursor_down()
+                    return None
+
+                for event in tcod.event.get():
+                    action = unified_input_handler.process_tcod_event(event)
+                    if action:
+                        r = _proc(action)
+                        if r is not None:
+                            choice = r
+                            break
+                    if isinstance(event, tcod.event.Quit):
+                        raise SystemExit()
+                if choice is None:
+                    ga = unified_input_handler.get_action()
+                    if ga:
+                        r = _proc(ga)
+                        if r is not None:
+                            choice = r
+                time.sleep(0.016)
+
+            if choice == "exit":
+                self.add_message("길드를 나왔습니다.")
+                return
+            elif choice == "quest":
+                from src.ui.quest_board_ui import open_quest_board
+                player_level = self.party[0].level if self.party else 1
+                open_quest_board(
+                    console, context, player_level=player_level,
+                    player=self.party[0] if self.party else None,
+                    inventory=self.inventory,
+                )
+            elif choice == "party":
+                self._show_guild_party_status(console, context)
+            elif choice == "dungeon_info":
+                self._show_guild_dungeon_info(console, context, region)
+
+    def _show_guild_party_status(self, console, context):
+        """길드에서 파티 상태 표시"""
+        for _ in tcod.event.get():
+            pass
+        unified_input_handler.clear_input_state()
+
+        while True:
+            console.clear()
+            console.print(2, 1, "[ 파티 상태 ]", fg=(255, 220, 100))
+            console.print(2, 2, "-" * 40, fg=(100, 100, 100))
+
+            if self.party:
+                for i, member in enumerate(self.party):
+                    y = 4 + i * 3
+                    name = getattr(member, 'name', '???')
+                    job = getattr(member, 'job_name', getattr(member, 'job', '???'))
+                    lv = getattr(member, 'level', 1)
+                    hp = getattr(member, 'current_hp', 0)
+                    max_hp = getattr(member, 'max_hp', 1)
+                    mp = getattr(member, 'current_mp', 0)
+                    max_mp = getattr(member, 'max_mp', 1)
+
+                    console.print(3, y, f"{name} [{job}] Lv.{lv}", fg=(220, 220, 255))
+                    hp_ratio = hp / max(max_hp, 1)
+                    hp_color = (100, 255, 100) if hp_ratio > 0.5 else (255, 255, 100) if hp_ratio > 0.25 else (255, 100, 100)
+                    console.print(5, y + 1, f"HP {hp}/{max_hp}  MP {mp}/{max_mp}", fg=hp_color)
+            else:
+                console.print(3, 4, "파티원이 없습니다.", fg=(180, 180, 180))
+
+            console.print(2, console.height - 2, "X: 돌아가기", fg=(180, 180, 180))
+            context.present(console)
+
+            try:
+                pygame.event.pump()
+            except Exception:
+                pass
+
+            for event in tcod.event.get():
+                action = unified_input_handler.process_tcod_event(event)
+                if action in (GameAction.CANCEL, GameAction.CONFIRM):
+                    return
+                if isinstance(event, tcod.event.Quit):
+                    raise SystemExit()
+            ga = unified_input_handler.get_action()
+            if ga in (GameAction.CANCEL, GameAction.CONFIRM):
+                return
+            time.sleep(0.016)
+
+    def _show_guild_dungeon_info(self, console, context, region):
+        """길드에서 지역 던전 정보 표시"""
+        for _ in tcod.event.get():
+            pass
+        unified_input_handler.clear_input_state()
+
+        while True:
+            console.clear()
+            region_name = region.name if region else "알 수 없는 지역"
+            console.print(2, 1, f"[ {region_name} - 던전 정보 ]", fg=(255, 220, 100))
+            console.print(2, 2, "-" * 44, fg=(100, 100, 100))
+
+            if region and region.sub_dungeons:
+                for i, sub in enumerate(region.sub_dungeons):
+                    y = 4 + i * 3
+                    if sub.is_boss_dungeon and region.boss_level:
+                        level = region.boss_level
+                    else:
+                        level = region.level_min + sub.enemy_level_bonus
+                    tags = []
+                    if sub.is_boss_dungeon:
+                        tags.append("BOSS")
+                    if sub.is_hidden:
+                        tags.append("HIDDEN")
+                    tag_str = f" [{'/'.join(tags)}]" if tags else ""
+                    name_color = (255, 100, 100) if sub.is_boss_dungeon else (200, 200, 255)
+                    console.print(3, y, f"{sub.name}{tag_str}", fg=name_color)
+                    console.print(5, y + 1, f"Lv.{level}  {sub.description}", fg=(180, 180, 180))
+            else:
+                console.print(3, 4, "이 지역에는 알려진 던전이 없습니다.", fg=(180, 180, 180))
+
+            console.print(2, console.height - 2, "X: 돌아가기", fg=(180, 180, 180))
+            context.present(console)
+
+            try:
+                pygame.event.pump()
+            except Exception:
+                pass
+
+            for event in tcod.event.get():
+                action = unified_input_handler.process_tcod_event(event)
+                if action in (GameAction.CANCEL, GameAction.CONFIRM):
+                    return
+                if isinstance(event, tcod.event.Quit):
+                    raise SystemExit()
+            ga = unified_input_handler.get_action()
+            if ga in (GameAction.CANCEL, GameAction.CONFIRM):
+                return
+            time.sleep(0.016)
+
     def _find_nearby_cooking_pot(self):
         """
         플레이어 주변의 요리솥 찾기
@@ -1302,6 +2556,71 @@ class WorldUI:
         logger.debug("주변에 사용 가능한 요리솥 없음")
         return None
 
+    def _open_lily_conversation(self, console, context):
+        """마을에서 릴리와 대화 (T키)"""
+        try:
+            from src.ui.npc_dialog_ui import run_npc_dialog
+            from src.ui.cursor_menu import CursorMenu
+
+            lily_mgr = self.exploration.lily_dialogue
+            progress = self.exploration.rpg_progress
+
+            conversations = lily_mgr.get_town_conversations(
+                progress.current_chapter,
+                progress.lily_affinity,
+                progress.lily_conversations_seen
+            )
+
+            if not conversations:
+                self.add_message("릴리: \"지금은 특별히 할 얘기가 없어...\"")
+                return
+
+            # 대화 주제 메뉴
+            menu_items = []
+            for conv in conversations:
+                title = conv.get("title", "???")
+                is_new = conv.get("is_new", False)
+                prefix = "★ " if is_new else "  "
+                menu_items.append(f"{prefix}{title}")
+
+            menu = CursorMenu(
+                title="릴리와 대화",
+                items=menu_items,
+                width=30,
+            )
+
+            selected = menu.run(console, context)
+            if selected is None or selected < 0 or selected >= len(conversations):
+                return
+
+            conv = conversations[selected]
+            conv_id = conv.get("id", "")
+            lines_data = conv.get("lines", [])
+            affinity_change = conv.get("affinity_change", 0)
+
+            # 대화 표시
+            dialog_lines = []
+            for line_entry in lines_data:
+                dialog_lines.append(line_entry.get("text", ""))
+
+            if dialog_lines:
+                speaker = lines_data[0].get("speaker", "릴리") if lines_data else "릴리"
+                run_npc_dialog(
+                    console, context,
+                    npc_name=speaker,
+                    dialog_lines=dialog_lines,
+                )
+
+            # 친밀도 변화 + 본 대화 기록
+            progress.lily_affinity += affinity_change
+            progress.lily_conversations_seen.add(conv_id)
+
+            if affinity_change > 0:
+                self.add_message(f"릴리와의 유대가 깊어졌다. (친밀도 +{affinity_change})")
+
+        except Exception as e:
+            logger.warning(f"릴리 대화 실패: {e}")
+
     def render(self, console: tcod.console.Console):
         """렌더링"""
         # 마을인지 확인하여 컨텍스트 설정
@@ -1330,8 +2649,43 @@ class WorldUI:
             fg=(255, 255, 100)
         )
 
+        # 릴리 대사 시스템 목표 HUD
+        if hasattr(self.exploration, 'objective_tracker'):
+            obj = self.exploration.objective_tracker
+            if hasattr(obj, 'current') and obj.current:
+                obj_text = obj.current.main_text
+                if obj.current.sub_text:
+                    obj_text += f" - {obj.current.sub_text}"
+                console.print(
+                    2, 2,
+                    f"[Ch.{obj.current.chapter_number}] {obj.current.chapter_title}",
+                    fg=(200, 200, 255)
+                )
+                console.print(
+                    2, 3,
+                    f"▶ {obj_text}",
+                    fg=(255, 255, 200)
+                )
+
+        # 실제 시간 기반 밤/낮 표시 (RPG 모드 한정)
+        if hasattr(self.exploration, 'time_label'):
+            time_label = self.exploration.time_label
+            is_night = getattr(self.exploration, 'is_night', False)
+            time_color = (100, 100, 200) if is_night else (255, 220, 100)
+            time_icon = "☾" if is_night else "☀"
+            console.print(
+                self.screen_width - 10, 1,
+                f"{time_icon} {time_label}",
+                fg=time_color
+            )
+
         # 맵 렌더링 (플레이어 중심)
         player = self.exploration.player
+
+        # 동적 조명: 플레이어 위치 업데이트 + 프레임 갱신
+        self.map_renderer.lighting.set_player_position(player.x, player.y)
+        self.map_renderer.lighting.update(1.0 / 60.0)
+
         self.map_renderer.render(
             console,
             self.exploration.dungeon,
@@ -1502,31 +2856,81 @@ class WorldUI:
         # 파티 상태 (우측 상단)
         self._render_party_status(console)
 
+        # RPG 나침반 HUD (오픈월드 전용)
+        is_large_map = (self.exploration.dungeon.width > 300 or
+                        self.exploration.dungeon.height > 300)
+        if is_large_map:
+            self._render_navigation_compass(console)
+
         # 메시지 로그 (하단)
         self._render_messages(console)
 
-        # 조작법 (최하단, 로그 패널 밖)
-        help_text = "방향키: 이동  Z: 계단 이용  M: 메뉴  I: 인벤토리  ESC: 종료"
+        # RPG 미니맵 오버레이 (메시지 위에 표시)
+        if is_large_map:
+            self._render_minimap(console)
+
+        # 조작법 (최하단, 로그 패널 밖) - 컬러 키 가이드
         is_multiplayer = (
             self.network_manager is not None or
             (hasattr(self.exploration, 'is_multiplayer') and self.exploration.is_multiplayer) or
             (hasattr(self.exploration, 'session') and self.exploration.session is not None)
         )
-        if is_multiplayer:
-            help_text += "  T: 채팅"
-
-        # 요리솥 근처에 있을 때 상호작용 힌트 추가
         nearby_cooking_pot = self._find_nearby_cooking_pot()
-        if nearby_cooking_pot:
-            help_text += "  Z/E: 요리솥 사용"
 
-        # 조작 가이드를 최하단에 배치 (로그 패널 아래)
-        console.print(
-            2,
-            self.screen_height - 2,
-            help_text,
-            fg=(180, 180, 180)
-        )
+        # 키 항목 목록: (키 텍스트, 설명 텍스트)
+        if is_large_map:
+            key_items = [
+                ("←↑↓→", "이동"),
+                ("Z", "확인/상호작용"),
+                ("X", "취소"),
+                ("M", "메뉴"),
+                ("I", "인벤토리"),
+                ("X", "월드맵"),
+                ("T", "릴리"),
+            ]
+        else:
+            key_items = [
+                ("←↑↓→", "이동"),
+                ("Z", "계단/상호작용"),
+                ("X", "취소"),
+                ("M", "메뉴"),
+                ("I", "인벤토리"),
+                ("ESC", "종료"),
+            ]
+
+        if is_multiplayer:
+            # T 키 항목이 이미 있으면 채팅으로 교체, 없으면 추가
+            existing_keys = [k for k, _ in key_items]
+            if "T" in existing_keys:
+                key_items = [(k, "채팅" if k == "T" else d) for k, d in key_items]
+            else:
+                key_items.append(("T", "채팅"))
+
+        if nearby_cooking_pot:
+            key_items.append(("Z/E", "요리솥 사용"))
+
+        # 한 줄로 렌더링 (key=노란색, 설명=회색, 구분자=어두운 회색)
+        KEY_COLOR = (255, 220, 100)
+        DESC_COLOR = (160, 160, 160)
+        SEP_COLOR = (100, 100, 100)
+
+        render_x = 2
+        render_y = self.screen_height - 2
+
+        for idx, (key_str, desc_str) in enumerate(key_items):
+            if idx > 0:
+                console.print(render_x, render_y, "  ", fg=SEP_COLOR)
+                render_x += 2
+            console.print(render_x, render_y, key_str, fg=KEY_COLOR)
+            render_x += len(key_str)
+            console.print(render_x, render_y, ":", fg=SEP_COLOR)
+            render_x += 1
+            console.print(render_x, render_y, desc_str, fg=DESC_COLOR)
+            render_x += len(desc_str)
+
+        # 마우스 호버 타일 툴팁
+        if self._tooltip_enabled:
+            self._render_hover_tooltip(console, camera_x, camera_y)
 
         # 필드 스킬 UI
         if self.field_skill_ui.is_active:
@@ -1541,6 +2945,184 @@ class WorldUI:
             self._render_quit_confirm(console)
         elif self.magic_circle_confirm_mode:
             self._render_magic_circle_confirm(console)
+
+    def update_mouse_position(self, pixel_x: int, pixel_y: int, tile_width: int = 1, tile_height: int = 1):
+        """마우스 위치 업데이트 (픽셀 → 타일 좌표 변환)
+
+        pygame 이벤트 루프에서 호출. tile_width/tile_height는 한 타일의 픽셀 크기.
+        tcod context가 변환을 처리하는 경우 타일 좌표를 직접 전달.
+        """
+        if tile_width > 1:
+            self._mouse_sx = pixel_x // tile_width
+            self._mouse_sy = pixel_y // tile_height
+        else:
+            self._mouse_sx = pixel_x
+            self._mouse_sy = pixel_y
+
+    def _render_hover_tooltip(
+        self,
+        console: tcod.console.Console,
+        camera_x: int,
+        camera_y: int,
+    ):
+        """마우스 호버 위치의 타일/적 정보를 툴팁으로 표시"""
+        sx = self._mouse_sx
+        sy = self._mouse_sy
+
+        # 화면 범위 밖이면 무시
+        if sx < 0 or sy < 5 or sx >= self.screen_width or sy >= self.screen_height:
+            return
+
+        # 화면 좌표 → 맵 좌표 역변환 (map_renderer: screen = map_x_offset + (map - camera))
+        map_x = camera_x + (sx - 0)   # map_x_offset = 0
+        map_y = camera_y + (sy - 5)   # map_y_offset = 5
+
+        dungeon = self.exploration.dungeon
+        if map_x < 0 or map_y < 0 or map_x >= dungeon.width or map_y >= dungeon.height:
+            return
+
+        tile = dungeon.get_tile(map_x, map_y)
+        if tile is None:
+            return
+
+        # 탐험 안 된 타일, VOID 는 툴팁 표시 안 함
+        if not tile.explored:
+            return
+        if tile.tile_type == TileType.VOID:
+            return
+
+        # 타일 정보 취득
+        tile_name, tile_desc = get_tile_info(tile.tile_type)
+
+        # 해당 좌표에 적이 있는지 확인
+        enemy_at = None
+        for enemy in self.exploration.enemies:
+            if enemy.x == map_x and enemy.y == map_y:
+                # 시야 내에 있는 적만 표시
+                if tile.visible:
+                    enemy_at = enemy
+                break
+
+        self._draw_tile_tooltip(console, tile, tile_name, tile_desc, enemy_at, sx, sy)
+
+    def _draw_tile_tooltip(
+        self,
+        console: tcod.console.Console,
+        tile,
+        tile_name: str,
+        tile_desc: str,
+        enemy,
+        sx: int,
+        sy: int,
+    ):
+        """타일 툴팁 박스를 콘솔에 렌더링"""
+        # 색상 상수 (combat_tooltip 스타일)
+        BG = (15, 15, 30)
+        BORDER = (120, 140, 180)
+
+        # 내용 조립: (텍스트, 색상) 리스트
+        lines: list = []
+        lines.append((f" {tile_name}", tile.fg_color))
+        lines.append((f" {tile_desc}", (160, 160, 180)))
+
+        # 부가 정보
+        if tile.trap_damage > 0:
+            lines.append((f" 피해: {tile.trap_damage}", (255, 100, 100)))
+        if tile.locked:
+            lines.append((" [잠김]", (200, 150, 50)))
+
+        # 적 정보
+        if enemy is not None:
+            enemy_name = getattr(enemy, "name", "???")
+            enemy_lv = getattr(enemy, "level", 1)
+            is_boss = getattr(enemy, "is_boss", False)
+            color = (255, 80, 80) if is_boss else (255, 180, 80)
+            prefix = "BOSS " if is_boss else ""
+            lines.append(("", (0, 0, 0)))  # 빈 줄
+            lines.append((f" {prefix}{enemy_name} Lv.{enemy_lv}", color))
+
+        # 폭/높이 계산
+        tooltip_w = 22
+        tooltip_h = len(lines) + 2  # 테두리 상하
+
+        # 콘솔 크기
+        try:
+            cw = getattr(console, "width", self.screen_width)
+            ch = getattr(console, "height", self.screen_height)
+        except Exception:
+            cw, ch = self.screen_width, self.screen_height
+        sw = min(self.screen_width, cw)
+        sh = min(self.screen_height, ch)
+
+        # 위치: 마우스 우측 2칸
+        tx = sx + 2
+        ty = sy
+
+        # 화면 밖 보정
+        if tx + tooltip_w >= sw:
+            tx = sx - tooltip_w - 1
+        if tx < 0:
+            tx = 0
+        if ty + tooltip_h >= sh:
+            ty = sh - tooltip_h - 1
+        if ty < 0:
+            ty = 0
+
+        # 배경 채우기
+        for dy in range(tooltip_h):
+            for dx in range(tooltip_w):
+                cx, cy = tx + dx, ty + dy
+                if 0 <= cx < sw and 0 <= cy < sh:
+                    console.rgb["ch"][cy, cx] = ord(" ")
+                    console.rgb["bg"][cy, cx] = BG
+
+        # 테두리
+        self._draw_tooltip_border(console, tx, ty, tooltip_w, tooltip_h, sw, sh, BORDER, BG)
+
+        # 내용
+        for i, (text, color) in enumerate(lines):
+            cy = ty + 1 + i
+            if 0 <= cy < sh and text:
+                max_len = max(0, sw - tx - 2)
+                clipped = text[: tooltip_w - 2]
+                if max_len > 0:
+                    console.print(tx + 1, cy, clipped[:max_len], fg=color, bg=BG)
+
+    @staticmethod
+    def _draw_tooltip_border(console, x, y, w, h, sw, sh, border_color, bg_color):
+        """단순 박스 테두리 그리기"""
+        # 상단
+        if 0 <= y < sh:
+            for dx in range(w):
+                cx = x + dx
+                if 0 <= cx < sw:
+                    ch = ord("┌") if dx == 0 else (ord("┐") if dx == w - 1 else ord("─"))
+                    console.rgb["ch"][y, cx] = ch
+                    console.rgb["fg"][y, cx] = border_color
+                    console.rgb["bg"][y, cx] = bg_color
+        # 하단
+        by = y + h - 1
+        if 0 <= by < sh:
+            for dx in range(w):
+                cx = x + dx
+                if 0 <= cx < sw:
+                    ch = ord("└") if dx == 0 else (ord("┘") if dx == w - 1 else ord("─"))
+                    console.rgb["ch"][by, cx] = ch
+                    console.rgb["fg"][by, cx] = border_color
+                    console.rgb["bg"][by, cx] = bg_color
+        # 좌우
+        for dy in range(1, h - 1):
+            cy = y + dy
+            if 0 <= cy < sh:
+                if 0 <= x < sw:
+                    console.rgb["ch"][cy, x] = ord("│")
+                    console.rgb["fg"][cy, x] = border_color
+                    console.rgb["bg"][cy, x] = bg_color
+                rx = x + w - 1
+                if 0 <= rx < sw:
+                    console.rgb["ch"][cy, rx] = ord("│")
+                    console.rgb["fg"][cy, rx] = border_color
+                    console.rgb["bg"][cy, rx] = bg_color
 
     def _render_party_status(self, console: tcod.console.Console):
         """파티 상태 렌더링 (전투 UI와 동일한 스타일) - 화면 맨 밑에 배치"""
@@ -1633,6 +3215,202 @@ class WorldUI:
             item_count = len(self.inventory.slots) if self.inventory and hasattr(self.inventory, 'slots') else 0
             console.print(x + 2, inv_y + 2, f"아이템: {item_count}개", fg=(200, 200, 200))
 
+    def _render_navigation_compass(self, console: tcod.console.Console):
+        """RPG 오픈월드 나침반 HUD - 가장 가까운 마을 방향/거리 + 현재 지역명"""
+        if not hasattr(self.exploration, 'nav_spawn_points'):
+            return
+        spawn_points = self.exploration.nav_spawn_points
+        if not spawn_points:
+            return
+
+        player = self.exploration.player
+        px, py = player.x, player.y
+
+        # 현재 지역명 표시
+        current_region_id = getattr(self.exploration, 'nav_current_region', None)
+        region_names = {
+            "forgotten_forest": "잊혀진 숲",
+            "twilight_desert": "황혼 사막",
+            "abyss_cavern": "심연 동굴",
+            "storm_plateau": "폭풍 고원",
+            "eternal_glacier": "영원의 빙하",
+            "war_lands": "전쟁의 땅",
+            "starlight_throne": "별빛의 왕좌",
+        }
+        region_name = region_names.get(current_region_id, "알 수 없는 지역")
+        console.print(
+            self.screen_width // 2 - len(region_name) - 1, 0,
+            f"< {region_name} >",
+            fg=(180, 220, 255)
+        )
+
+        # 가장 가까운 마을 찾기
+        nearest_id = None
+        nearest_dist = float('inf')
+        nearest_x, nearest_y = 0, 0
+        for rid, (tx, ty) in spawn_points.items():
+            dist = ((px - tx) ** 2 + (py - ty) ** 2) ** 0.5
+            if dist < nearest_dist:
+                nearest_dist = dist
+                nearest_id = rid
+                nearest_x, nearest_y = tx, ty
+
+        if nearest_id is None:
+            return
+
+        # 방향 화살표 계산
+        dx = nearest_x - px
+        dy = nearest_y - py
+        dist_int = int(nearest_dist)
+
+        if dist_int < 15:
+            # 마을 근처면 "마을 근처" 표시
+            compass_text = "★ 마을 근처"
+            compass_color = (100, 255, 150)
+        else:
+            # 방향 화살표
+            import math
+            angle = math.atan2(-dy, dx)  # y축 반전 (화면 좌표)
+            # 8방향 매핑
+            arrows = ["→", "↗", "↑", "↖", "←", "↙", "↓", "↘"]
+            idx = int((angle + math.pi) / (math.pi / 4) + 0.5) % 8
+            # 인덱스 보정: atan2 0=오른쪽, 반시계방향
+            arrow = arrows[idx]
+
+            town_name_map = {
+                "forgotten_forest": "실바나",
+                "twilight_desert": "사막 마을",
+                "abyss_cavern": "동굴 마을",
+                "storm_plateau": "고원 마을",
+                "eternal_glacier": "빙하 마을",
+                "war_lands": "전장 마을",
+                "starlight_throne": "왕좌 마을",
+            }
+            town_name = town_name_map.get(nearest_id, "마을")
+
+            if dist_int > 500:
+                dist_text = f"{dist_int // 100}00+"
+            else:
+                dist_text = str(dist_int)
+            compass_text = f"{arrow} {town_name} ({dist_text}m)"
+            # 거리에 따라 색상 변화
+            if dist_int > 300:
+                compass_color = (255, 150, 100)  # 멀면 주황
+            elif dist_int > 100:
+                compass_color = (255, 255, 150)  # 중간이면 노랑
+            else:
+                compass_color = (150, 255, 150)  # 가까우면 초록
+
+        # 우측 상단 근처에 표시 (시간 표시 아래)
+        console.print(
+            self.screen_width - len(compass_text) - 2, 2,
+            compass_text,
+            fg=compass_color
+        )
+
+    def _render_minimap(self, console: tcod.console.Console):
+        """RPG 오픈월드 미니맵 오버레이"""
+        if not self.show_minimap:
+            return
+        if not hasattr(self.exploration, 'nav_spawn_points'):
+            return
+
+        spawn_points = self.exploration.nav_spawn_points
+        player = self.exploration.player
+        map_w = self.exploration.dungeon.width
+        map_h = self.exploration.dungeon.height
+
+        # 미니맵 크기 (화면 중앙에 표시)
+        mini_w = 40
+        mini_h = 22
+        mini_x = (self.screen_width - mini_w) // 2
+        mini_y = (self.screen_height - mini_h) // 2
+
+        # 배경 프레임
+        console.draw_frame(
+            mini_x, mini_y, mini_w, mini_h,
+            title=" 월드 맵 [N: 닫기] ",
+            fg=(200, 220, 255),
+            bg=(10, 10, 25),
+        )
+
+        # 지역 색상
+        region_colors = {
+            "forgotten_forest": (50, 150, 50),
+            "twilight_desert": (200, 180, 80),
+            "abyss_cavern": (100, 60, 150),
+            "storm_plateau": (80, 180, 80),
+            "eternal_glacier": (150, 200, 255),
+            "war_lands": (200, 80, 50),
+            "starlight_throne": (200, 180, 255),
+        }
+        region_icons = {
+            "forgotten_forest": "♣",
+            "twilight_desert": "☼",
+            "abyss_cavern": "▼",
+            "storm_plateau": "≡",
+            "eternal_glacier": "❄",
+            "war_lands": "⚔",
+            "starlight_throne": "★",
+        }
+        region_labels = {
+            "forgotten_forest": "잊혀진 숲",
+            "twilight_desert": "황혼 사막",
+            "abyss_cavern": "심연 동굴",
+            "storm_plateau": "폭풍 고원",
+            "eternal_glacier": "영원의 빙하",
+            "war_lands": "전쟁의 땅",
+            "starlight_throne": "별빛의 왕좌",
+        }
+
+        # 내부 영역
+        inner_x = mini_x + 1
+        inner_y = mini_y + 1
+        inner_w = mini_w - 2
+        inner_h = mini_h - 2
+
+        # 각 마을 위치를 미니맵 좌표로 변환하여 표시
+        current_region = getattr(self.exploration, 'nav_current_region', None)
+        for rid, (tx, ty) in spawn_points.items():
+            # 맵 좌표 → 미니맵 좌표
+            mx = inner_x + int(tx / max(1, map_w) * (inner_w - 1))
+            my = inner_y + int(ty / max(1, map_h) * (inner_h - 1))
+            mx = max(inner_x, min(inner_x + inner_w - 1, mx))
+            my = max(inner_y, min(inner_y + inner_h - 1, my))
+
+            color = region_colors.get(rid, (150, 150, 150))
+            icon = region_icons.get(rid, "?")
+            label = region_labels.get(rid, rid)
+
+            # 현재 지역은 밝게 표시
+            if rid == current_region:
+                color = (min(255, color[0] + 80), min(255, color[1] + 80), min(255, color[2] + 80))
+
+            console.print(mx, my, icon, fg=color)
+            # 라벨 (아이콘 옆)
+            label_x = mx + 2
+            if label_x + len(label) > inner_x + inner_w:
+                label_x = mx - len(label) - 1
+            if inner_x <= label_x and label_x + len(label) <= inner_x + inner_w:
+                console.print(label_x, my, label, fg=color)
+
+        # 플레이어 위치
+        pmx = inner_x + int(player.x / max(1, map_w) * (inner_w - 1))
+        pmy = inner_y + int(player.y / max(1, map_h) * (inner_h - 1))
+        pmx = max(inner_x, min(inner_x + inner_w - 1, pmx))
+        pmy = max(inner_y, min(inner_y + inner_h - 1, pmy))
+        # 깜빡임 효과
+        import time
+        blink = int(time.time() * 3) % 2 == 0
+        if blink:
+            console.print(pmx, pmy, "@", fg=(255, 255, 100))
+        else:
+            console.print(pmx, pmy, "@", fg=(255, 200, 50))
+
+        # 하단 범례
+        legend_y = mini_y + mini_h - 2
+        console.print(inner_x, legend_y, "@ 현재 위치", fg=(255, 255, 100))
+
     def _render_messages(self, console: tcod.console.Console):
         """메시지 로그 - 파티 상태창 왼쪽에 크게 표시"""
         # 파티 상태창 위치 계산 (파티 상태창과 동일한 계산)
@@ -1648,12 +3426,13 @@ class WorldUI:
         log_panel_y = self.screen_height - log_panel_height - 3  # 하단에 배치 (조작법 공간 확보)
 
         # 로그 패널 테두리
-        console.draw_frame(
+        draw_styled_box(
+            console,
             log_panel_x - 1,
             log_panel_y - 1,
             log_panel_width + 2,
             log_panel_height + 2,
-            "[로그]",
+            title="로그",
             fg=(150, 150, 150),
             bg=(0, 0, 0)
         )
@@ -1666,11 +3445,16 @@ class WorldUI:
             # 메시지가 패널 너비를 초과하면 자르기
             if len(msg) > log_panel_width - 2:
                 msg = msg[:log_panel_width - 5] + "..."
+            # 릴리 대사 색상 구분
+            if msg.startswith('릴리:'):
+                msg_color = (255, 200, 255)
+            else:
+                msg_color = (200, 200, 200)
             console.print(
                 log_panel_x,
                 log_panel_y + i,
                 msg,
-                fg=(200, 200, 200)
+                fg=msg_color
             )
 
     def _render_quit_confirm(self, console: tcod.console.Console):
@@ -1681,9 +3465,9 @@ class WorldUI:
         box_y = (self.screen_height - box_height) // 2
 
         # 배경 박스
-        console.draw_frame(
-            box_x, box_y, box_width, box_height,
-            "게임 종료",
+        draw_styled_box(
+            console, box_x, box_y, box_width, box_height,
+            title="게임 종료",
             fg=(255, 100, 100),
             bg=(0, 0, 0)
         )
@@ -1738,9 +3522,9 @@ class WorldUI:
         box_y = (self.screen_height - box_height) // 2
 
         # 배경 박스
-        console.draw_frame(
-            box_x, box_y, box_width, box_height,
-            "마법진 발견",
+        draw_styled_box(
+            console, box_x, box_y, box_width, box_height,
+            title="마법진 발견",
             fg=(100, 200, 255),
             bg=(0, 0, 0)
         )
@@ -1795,9 +3579,9 @@ class WorldUI:
         box_y = self.screen_height - box_height - 5
         
         # 배경 박스
-        console.draw_frame(
-            box_x, box_y, box_width, box_height,
-            "채팅",
+        draw_styled_box(
+            console, box_x, box_y, box_width, box_height,
+            title="채팅",
             fg=(100, 200, 255),
             bg=(0, 0, 0)
         )
@@ -1885,167 +3669,6 @@ class WorldUI:
         color_index = abs(hash_value) % len(color_palette)
         return color_palette[color_index]
 
-    def _get_npc_name(self, npc_subtype: str) -> str:
-        """NPC 서브타입에 따른 이름 반환"""
-        npc_names = {
-            "time_researcher": "시공 연구자",
-            "timeline_survivor": "타임라인 생존자",
-            "space_explorer": "우주 탐험가",
-            "merchant": "상인",
-            "refugee": "난민",
-            "time_thief": "시공 도둑",
-            "distortion_entity": "왜곡된 존재",
-            "betrayer": "배신자",
-            "mysterious_merchant": "신비한 상인",
-            "time_mage": "시공 마법사",
-            "future_self": "미래의 자신",
-            "corrupted_survivor": "오염된 생존자",
-            "ancient_guardian": "고대 수호자",
-            "void_wanderer": "공허 방랑자",
-            "helpful": "친절한 방랑자",
-            "harmful": "의심스러운 존재",
-            "neutral": "무명의 여행자"
-        }
-        return npc_names.get(npc_subtype, "NPC")
-    
-    def _get_npc_choices(self, result: ExplorationResult, npc_subtype: str, console, context) -> Optional[List]:
-        """NPC 서브타입에 따른 선택지 반환"""
-        from src.ui.npc_dialog_ui import NPCChoice
-        
-        choices = []
-        
-        # 시공 연구자: 도움 종류 선택
-        if npc_subtype == "time_researcher":
-            def choose_heal():
-                heal_amount = 80 + self.exploration.floor_number * 15
-                for member in self.exploration.player.party:
-                    if hasattr(member, 'heal'):
-                        member.heal(heal_amount)
-                from src.ui.npc_dialog_ui import show_npc_dialog
-                show_npc_dialog(
-                    console, context,
-                    self._get_npc_name(npc_subtype),
-                    f"치유 물약을 받았습니다!\n파티가 {heal_amount} HP 회복했습니다!"
-                )
-            
-            def choose_item():
-                from src.equipment.item_system import ItemGenerator
-                item = ItemGenerator.create_random_drop(self.exploration.floor_number + 2)
-                if self.inventory and self.inventory.add_item(item):
-                    from src.ui.npc_dialog_ui import show_npc_dialog
-                    show_npc_dialog(
-                        console, context,
-                        self._get_npc_name(npc_subtype),
-                        f"{item.name}을(를) 획득했습니다!"
-                    )
-            
-            def choose_mp():
-                mp_amount = 30 + self.exploration.floor_number * 5
-                for member in self.exploration.player.party:
-                    if hasattr(member, 'current_mp') and hasattr(member, 'max_mp'):
-                        member.current_mp = min(member.max_mp, member.current_mp + mp_amount)
-                from src.ui.npc_dialog_ui import show_npc_dialog
-                show_npc_dialog(
-                    console, context,
-                    self._get_npc_name(npc_subtype),
-                    f"마나 회복제를 받았습니다!\n파티가 {mp_amount} MP 회복했습니다!"
-                )
-            
-            choices = [
-                NPCChoice("치유 물약 받기", choose_heal),
-                NPCChoice("장비 받기", choose_item),
-                NPCChoice("마나 회복제 받기", choose_mp)
-            ]
-        
-        # 상인: 구매/판매
-        elif npc_subtype in ["merchant", "mysterious_merchant"]:
-            def choose_buy():
-                from src.ui.shop_ui import open_shop
-                open_shop(console, context, self.inventory)
-            
-            def choose_sell():
-                # TODO: 판매 모드 구현
-                from src.ui.npc_dialog_ui import show_npc_dialog
-                show_npc_dialog(
-                    console, context,
-                    self._get_npc_name(npc_subtype),
-                    "판매 기능은 아직 구현되지 않았습니다."
-                )
-            
-            choices = [
-                NPCChoice("구매하기", choose_buy),
-                NPCChoice("판매하기", choose_sell),
-                NPCChoice("떠나기", None)
-            ]
-        
-        # 배신자: 신뢰하기/거절
-        elif npc_subtype == "betrayer":
-            def choose_trust():
-                # 배신: 데미지 받음
-                damage = 100 + self.exploration.floor_number * 20
-                for member in self.exploration.player.party:
-                    if hasattr(member, 'take_damage'):
-                        member.take_damage(damage)
-                from src.ui.npc_dialog_ui import show_npc_dialog
-                show_npc_dialog(
-                    console, context,
-                    self._get_npc_name(npc_subtype),
-                    f"배신당했습니다!\n파티가 {damage} 데미지를 입었습니다!"
-                )
-            
-            def choose_refuse():
-                from src.ui.npc_dialog_ui import show_npc_dialog
-                show_npc_dialog(
-                    console, context,
-                    self._get_npc_name(npc_subtype),
-                    "신중한 선택이었습니다.\nNPC가 떠났습니다."
-                )
-            
-            choices = [
-                NPCChoice("신뢰하기", choose_trust),
-                NPCChoice("거절하기", choose_refuse)
-            ]
-        
-        # 도박꾼: 도박하기/거절하기 - 확인 대화
-        elif npc_subtype == "gambler":
-            # needs_confirm이 있으면 확인 대화 필요
-            if result.data and result.data.get("needs_confirm"):
-                bet_amount = result.data.get("bet_amount", 0)
-                tile = result.data.get("tile")
-                
-                def choose_accept():
-                    # 도박 실행
-                    if hasattr(self.exploration, 'execute_gambler_bet') and tile:
-                        gamble_result = self.exploration.execute_gambler_bet(tile, bet_amount)
-                        from src.ui.npc_dialog_ui import show_npc_dialog
-                        show_npc_dialog(
-                            console, context,
-                            self._get_npc_name(npc_subtype),
-                            gamble_result.message
-                        )
-                
-                def choose_refuse():
-                    # 거절하면 아이템 상호작용 안함
-                    from src.ui.npc_dialog_ui import show_npc_dialog
-                    show_npc_dialog(
-                        console, context,
-                        self._get_npc_name(npc_subtype),
-                        "도박꾼: '쳇, 겁쟁이군... 다음에 보자!'"
-                    )
-                
-                choices = [
-                    NPCChoice("도박하기", choose_accept),
-                    NPCChoice("거절하기", choose_refuse)
-                ]
-        
-        # 장비 마법사: 대화만 표시 (결과 메시지만)
-        elif npc_subtype == "equipment_enchanter":
-            # 장비 변형은 이미 exploration.py에서 처리됨
-            # 결과 메시지만 표시
-            pass
-        
-        return choices if choices else None
-
 
 def run_exploration(
     console: tcod.console.Console,
@@ -2056,24 +3679,27 @@ def run_exploration(
     play_bgm_on_start: bool = True,
     network_manager=None,
     local_player_id=None,
-    ai_input_provider=None  # AI 관전 모드: AI 입력 제공 콜백
 ) -> tuple:
     """
     탐험 실행
 
     Args:
         play_bgm_on_start: 탐험 시작 시 BGM 재생 여부 (기본 True, 전투 후 복귀 시 False)
-        ai_input_provider: AI 입력 콜백 (GameAction 반환) - None이면 플레이어 입력 사용
 
     Returns:
         "quit", "combat", "floor_up", "floor_down"
     """
     ui = WorldUI(console.width, console.height, exploration, inventory, party, network_manager, local_player_id)
     handler = InputHandler()
-    
-    # AI 모드 설정 (요리솥 자동 열기 비활성화 등)
-    if ai_input_provider:
-        ui.ai_mode = True
+
+    # RPG 모드 초기 안내 메시지
+    if hasattr(exploration, 'initial_messages') and exploration.initial_messages:
+        for msg in exploration.initial_messages:
+            ui.add_message(msg)
+        exploration.initial_messages = []  # 한 번만 표시
+
+    # 릴리 대사 타이머 초기화
+    lily_check_timer = time.time()
 
     logger.info(f"탐험 시작: {exploration.floor_number}층")
 
@@ -2130,6 +3756,7 @@ def run_exploration(
 
     # 남은 이벤트 제거 (불러오기 등에서 남은 키 입력 방지)
     tcod.event.get()
+    unified_input_handler.clear_input_state()
 
     # BGM 재생 (매 층마다 바뀜, 전투 후 복귀 시에는 재생하지 않음)
     if play_bgm_on_start:
@@ -2263,6 +3890,8 @@ def run_exploration(
                 
                 ui.combat_num_enemies = num_enemies
                 ui.combat_enemies = combat_enemies
+                ui.combat_is_boss = False  # 필드 충돌은 보스전 아님
+                ui.combat_enemy_level = getattr(collided_enemy, 'level', None)
                 if hasattr(exploration, 'player'):
                     ui.combat_position = (exploration.player.x, exploration.player.y)
                 
@@ -2285,6 +3914,13 @@ def run_exploration(
     # WorldUI에 업데이트 콜백 설정
     ui.on_update = update_game_state
 
+    # 메인 루프 진입 직전: 초기화 중 쌓인 이벤트 2차 플러시 + CONFIRM 쿨다운
+    # (BGM 로딩 등 초기화 작업 중 SDL 이벤트가 새로 쌓일 수 있으므로)
+    tcod.event.get()
+    pygame.event.clear()
+    import time as _time
+    ui._confirm_cooldown_until = _time.time() + 0.5
+
     while True:
         # 메인 루프에서도 업데이트 실행
         update_game_state()
@@ -2294,6 +3930,52 @@ def run_exploration(
         # print("🔄 pygame.event.pump() 호출됨", end='\r')  # 디버깅용 (필요시 활성화)
 
 
+        # 마우스 셀 좌표 업데이트 (호버 툴팁용)
+        if ui._tooltip_enabled:
+            try:
+                mx, my = pygame.mouse.get_pos()
+                if hasattr(context, 'pixel_to_cell'):
+                    cell_x, cell_y = context.pixel_to_cell(mx, my)
+                else:
+                    tile_w = getattr(context, 'tile_width', 10)
+                    tile_h = getattr(context, 'tile_height', 13)
+                    cell_x, cell_y = mx // tile_w, my // tile_h
+                ui._mouse_sx = cell_x
+                ui._mouse_sy = cell_y
+            except Exception:
+                pass
+
+        # 릴리 대기 대사 체크
+        if hasattr(exploration, 'lily_dialogue') and hasattr(exploration, 'rpg_progress'):
+            now = time.time()
+            if now - lily_check_timer > 10.0:  # 10초마다 체크
+                lily_check_timer = now
+                ch = exploration.rpg_progress.current_chapter
+                aff = exploration.rpg_progress.lily_affinity
+                spoke = False
+
+                idle_line = exploration.lily_dialogue.check_idle_line(ch, aff)
+                if idle_line:
+                    ui.add_message(f'릴리: "{idle_line}"')
+                    spoke = True
+
+                # idle이 나왔으면 random은 스킵 (동시 출력 방지)
+                if not spoke:
+                    random_line = exploration.lily_dialogue.check_random_chat(ch, aff)
+                    if random_line:
+                        ui.add_message(f'릴리: "{random_line}"')
+                        spoke = True
+
+                # 밤 탐험 대사 (RPG 모드, 실제 시간 기반) - 다른 대사 없을 때만
+                if not spoke and getattr(exploration, 'is_night', False):
+                    from datetime import datetime
+                    cur_hour = datetime.now().hour
+                    exploration.is_night = (cur_hour >= 19 or cur_hour < 6)
+                    if exploration.is_night:
+                        night_line = exploration.lily_dialogue.get_night_line(ch, aff)
+                        if night_line:
+                            ui.add_message(f'릴리: "{night_line}"')
+
         # 렌더링
         ui.render(console)
         context.present(console)
@@ -2302,33 +3984,24 @@ def run_exploration(
         action = None
         key_event = None
 
-        # AI 관전 모드: AI 입력 사용
-        if ai_input_provider:
-            # ESC 키로 종료 가능하게
-            for event in tcod.event.get():
-                if isinstance(event, tcod.event.KeyDown):
-                    if event.sym == tcod.event.KeySym.ESCAPE:
-                        return ("quit", None)
-            
-            # AI 입력 가져오기
-            action = ai_input_provider(exploration, party, inventory)
-            if action:
-                time.sleep(0.3)  # 실제 플레이어처럼 자연스러운 속도
-        else:
-            # 게임패드 입력 우선 확인
-            # print("🔍 게임패드 입력 확인 시작", end='\r')  # 디버깅용 (필요시 활성화)
-            action = unified_input_handler.get_action()
-            # if action:
-            #     print(f"✅ 게임패드 액션 감지: {action}")  # 디버깅용 (필요시 활성화)
+        # 게임패드 입력 우선 확인
+        # print("🔍 게임패드 입력 확인 시작", end='\r')  # 디버깅용 (필요시 활성화)
+        action = unified_input_handler.get_action()
+        # if action:
+        #     print(f"✅ 게임패드 액션 감지: {action}")  # 디버깅용 (필요시 활성화)
 
-            # tcod 이벤트 처리 (키보드/마우스) - 게임패드 입력이 없을 때만
-            if not action:
-                # print("⌨️ 키보드 입력 확인 시작", end='\r')  # 디버깅용 (필요시 활성화)
-                # tcod 이벤트는 non-blocking으로 변경
-                events = tcod.event.get()  # wait 대신 get 사용
-                for event in events:
-                    action = unified_input_handler.process_tcod_event(event)
-                    key_event = event if isinstance(event, tcod.event.KeyDown) else None
+        # tcod 이벤트 처리 (키보드/마우스) - 게임패드 입력이 없을 때만
+        if not action:
+            # print("⌨️ 키보드 입력 확인 시작", end='\r')  # 디버깅용 (필요시 활성화)
+            # tcod 이벤트는 non-blocking으로 변경
+            events = tcod.event.get()  # wait 대신 get 사용
+            for event in events:
+                result = unified_input_handler.process_tcod_event(event)
+                if isinstance(event, tcod.event.KeyDown):
+                    key_event = event
+                if result:
+                    action = result
+                    break  # 액션 발견 시 즉시 중단 (마우스 이벤트가 덮어쓰는 것 방지)
 
         if action or key_event:
             # Debug: 액션 수신
@@ -2461,13 +4134,21 @@ def run_exploration(
         
         # 입력 처리 후 즉시 상태 체크 (전투 요청 확인)
         if ui.combat_requested:
-            # 전투 데이터 반환: (적 수, 맵 적 엔티티, 참여자, 위치)
+            # 선제공격 보너스 가져오기
+            preemptive = getattr(exploration, 'preemptive_bonus', 0.0)
+            # 전투 데이터 반환: (적 수, 맵 적 엔티티, 참여자, 위치, 선제공격)
             combat_data = {
                 "num_enemies": ui.combat_num_enemies,
                 "enemies": ui.combat_enemies,
+                "is_boss": getattr(ui, 'combat_is_boss', False),
+                "enemy_level": getattr(ui, 'combat_enemy_level', None),
                 "participants": getattr(ui, 'combat_participants', None),
-                "position": getattr(ui, 'combat_position', None)
+                "position": getattr(ui, 'combat_position', None),
+                "preemptive_bonus": preemptive
             }
+            # 선제공격 보너스 소비 (1회성)
+            if hasattr(exploration, 'preemptive_bonus'):
+                exploration.preemptive_bonus = 0.0
             return ("combat", combat_data)
 
         # 호스트 나감 체크 (멀티플레이어)
@@ -2491,12 +4172,18 @@ def run_exploration(
     if ui.floor_change_requested:
         return (ui.floor_change_requested, None)
     elif ui.combat_requested:
+        preemptive = getattr(exploration, 'preemptive_bonus', 0.0)
         combat_data = {
             "num_enemies": ui.combat_num_enemies,
             "enemies": ui.combat_enemies,
+            "is_boss": getattr(ui, 'combat_is_boss', False),
+            "enemy_level": getattr(ui, 'combat_enemy_level', None),
             "participants": getattr(ui, 'combat_participants', None),
-            "position": getattr(ui, 'combat_position', None)
+            "position": getattr(ui, 'combat_position', None),
+            "preemptive_bonus": preemptive
         }
+        if hasattr(exploration, 'preemptive_bonus'):
+            exploration.preemptive_bonus = 0.0
         return ("combat", combat_data)
     elif ui.main_menu_requested:
         return ("main_menu", None)
@@ -2505,3 +4192,83 @@ def run_exploration(
 
     # 기본값 반환 (예외 상황 대비)
     return ("quit", None)
+
+
+# ── 퀘스트 진행 헬퍼 함수 (모듈 수준) ──
+
+def _advance_npc_quest(qm, quest_id: str, world_ui):
+    """NPC 대화를 통한 퀘스트 목표 진행"""
+    try:
+        for quest in qm.active_quests:
+            if quest.quest_id == quest_id and not quest.is_complete:
+                # 미완료 목표 중 첫 번째를 진행
+                for i, obj in enumerate(quest.objectives):
+                    if not obj.is_complete:
+                        qm.complete_rpg_objective(quest_id, i, 1)
+                        if obj.is_complete:
+                            world_ui.add_message(f"[퀘스트] {obj.description} (완료!)")
+                        else:
+                            world_ui.add_message(f"[퀘스트] {obj.description} ({obj.progress_text})")
+                        break
+                if quest.all_objectives_complete:
+                    world_ui.add_message(f"[퀘스트 완료] {quest.name} - 퀘스트 보드에서 보상을 수령하세요!")
+                break
+    except Exception:
+        pass
+
+
+def _check_facility_quest_progress(facility_type: str, world_ui):
+    """시설 이용 시 관련 퀘스트 자동 진행 (주방/대장간/연금술)"""
+    try:
+        from src.quest.quest_manager import get_quest_manager
+        qm = get_quest_manager()
+        facility_to_subtype = {
+            "kitchen": "cooking",
+            "blacksmith": "craft",
+            "alchemy_lab": "alchemy",
+        }
+        target_subtype = facility_to_subtype.get(facility_type, "")
+        if not target_subtype:
+            return
+        for quest in qm.active_quests:
+            if quest.quest_subtype == target_subtype and not quest.is_complete:
+                for i, obj in enumerate(quest.objectives):
+                    if not obj.is_complete:
+                        qm.complete_rpg_objective(quest.quest_id, i, 1)
+                        if obj.is_complete:
+                            world_ui.add_message(f"[퀘스트] {obj.description} (완료!)")
+                        else:
+                            world_ui.add_message(f"[퀘스트] {obj.description} ({obj.progress_text})")
+                        break
+                if quest.all_objectives_complete:
+                    world_ui.add_message(f"[퀘스트 완료] {quest.name} - 퀘스트 보드에서 보상을 수령하세요!")
+    except Exception:
+        pass
+
+
+def _check_area_quest_progress(area_type: str, world_ui):
+    """지역 타일(동굴/이정표) 상호작용 시 관련 퀘스트 자동 진행"""
+    try:
+        from src.quest.quest_manager import get_quest_manager
+        qm = get_quest_manager()
+        area_to_subtypes = {
+            "cave_entrance": ["explore", "rescue", "investigate"],
+            "signpost": ["explore", "investigate", "puzzle"],
+        }
+        target_subtypes = area_to_subtypes.get(area_type, [])
+        if not target_subtypes:
+            return
+        for quest in qm.active_quests:
+            if quest.quest_subtype in target_subtypes and not quest.is_complete:
+                for i, obj in enumerate(quest.objectives):
+                    if not obj.is_complete:
+                        qm.complete_rpg_objective(quest.quest_id, i, 1)
+                        if obj.is_complete:
+                            world_ui.add_message(f"[퀘스트] {obj.description} (완료!)")
+                        else:
+                            world_ui.add_message(f"[퀘스트] {obj.description} ({obj.progress_text})")
+                        break
+                if quest.all_objectives_complete:
+                    world_ui.add_message(f"[퀘스트 완료] {quest.name} - 퀘스트 보드에서 보상을 수령하세요!")
+    except Exception:
+        pass

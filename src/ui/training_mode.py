@@ -289,9 +289,11 @@ def run_training_mode(
 
     # 패시브 적용
     if passive_result and passive_result.passives:
-        # 패시브는 캐릭터에 직접 적용하지 않고 전투 시작 시 적용됨
         selected_passives = passive_result.passives
-        logger.info(f"패시브 선택: {len(selected_passives)}개")
+        for passive in selected_passives:
+            for member in party_members:
+                member.activate_trait(passive.id)
+        logger.info(f"패시브 선택 및 적용: {len(selected_passives)}개")
     else:
         selected_passives = []
 
@@ -325,7 +327,25 @@ def run_training_mode(
     combat_ui.training_variant = variant
 
     combat_manager.party = party
+
+    # 호감도 MAX 설정 (체인어빌리티 테스트용)
+    from src.character.affinity import AffinityManager
+    affinity_mgr = AffinityManager()
+    party_jobs = [m.job_id for m in party_members if hasattr(m, 'job_id')]
+    affinity_mgr.add_points_all(party_jobs, 1000)  # 750+ = 영혼의 동반자 (Lv5)
+    combat_manager.affinity_manager = affinity_mgr
+
     combat_manager.start_combat(party_members, enemies)
+
+    # 팀워크 게이지 600 (체인어빌리티 테스트용) — start_combat 이후에 설정해야 덮어써지지 않음
+    combat_manager.party.teamwork_gauge = 600
+
+    # 이펙트 매니저 주입 (전투 애니메이션 효과용)
+    if hasattr(context, 'effect_manager'):
+        combat_ui.effect_manager = context.effect_manager
+    # 셀→콘솔 픽셀 변환 함수 주입 (파티클 위치용)
+    if hasattr(context, 'cell_to_console_pixel'):
+        combat_ui._cell_to_pixel_fn = context.cell_to_console_pixel
 
     # 트레이닝 허수아비의 ATB를 0으로 리셋 (턴이 안오는 버그 방지)
     for dummy in enemies:
@@ -359,7 +379,7 @@ def run_training_mode(
     # 60fps 프레임 제한 설정
     TARGET_FPS = 60
     FRAME_TIME = 1.0 / TARGET_FPS
-    GAME_SPEED = 1.0  # 기본 속도
+    GAME_SPEED = 2.0  # 실전과 동일한 전투 속도
 
     loop_count = 0
     last_frame_time = time.perf_counter()
@@ -375,6 +395,19 @@ def run_training_mode(
         try:
             pygame.event.pump()
         except:
+            pass
+
+        # 마우스 셀 좌표 업데이트 (호버 툴팁용)
+        try:
+            mx, my = pygame.mouse.get_pos()
+            if hasattr(context, 'pixel_to_cell'):
+                cell_x, cell_y = context.pixel_to_cell(mx, my)
+            else:
+                tile_w = getattr(context, 'tile_width', 10)
+                tile_h = getattr(context, 'tile_height', 13)
+                cell_x, cell_y = mx // tile_w, my // tile_h
+            combat_ui.update_mouse_cell(cell_x, cell_y)
+        except Exception:
             pass
 
         # 전투 관리자 업데이트 (ATB 시스템 포함)
@@ -454,6 +487,11 @@ def _show_training_statistics(
     stats = dummy.get_statistics()
 
     logger.info(f"트레이닝 통계: HP 총합 {stats['total_hp_damage']}, 턴 {stats['turn_count']}")
+
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
 
     while True:
         console.clear()
@@ -576,6 +614,11 @@ def _select_job(
 
     selected_job = None
 
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     while True:
         console.clear()
 
@@ -670,6 +713,11 @@ def _select_training_variant(console: tcod.console.Console, context: Any, logger
     last_gamepad_check = 0
     gamepad_check_interval = 0.016
 
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     while True:
         console.clear()
         menu.render(console)
@@ -722,13 +770,18 @@ def _input_level(console: tcod.console.Console, context: Any, logger: Any) -> Op
     import time
     last_gamepad_check = 0
     gamepad_check_interval = 0.016  # 약 60 FPS
-    
+
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     while True:
         # 게임패드 입력 체크
         current_time = time.time()
         if current_time - last_gamepad_check >= gamepad_check_interval:
             gamepad_action = unified_input_handler.gamepad_handler.get_action()
-            
+
             if gamepad_action == GameAction.ESCAPE or gamepad_action == GameAction.CANCEL:
                 return None
             elif gamepad_action == GameAction.CONFIRM:

@@ -532,8 +532,12 @@ class MultiplayerPartySetup:
     
     def _create_job_menu(self):
         """직업 선택 메뉴 생성 (중복 방지 및 턴 체크)"""
+        # 기존 커서 위치 보존 (네트워크 메시지로 인한 메뉴 재생성 시 커서 리셋 방지)
+        prev_cursor_index = self.job_menu.cursor_index if self.job_menu else 0
+        prev_scroll_offset = self.job_menu.scroll_offset if self.job_menu else 0
+
         available_jobs = [job for job in self.jobs if job['unlocked']]
-        
+
         # 현재 턴이 설정되지 않았으면 처리
         if self.current_turn_player_id is None:
             if self.is_host:
@@ -545,23 +549,23 @@ class MultiplayerPartySetup:
             else:
                 # 클라이언트는 호스트 메시지 대기 중
                 self.logger.warning("_create_job_menu: 클라이언트의 current_turn_player_id가 None입니다. 호스트 메시지 대기 중...")
-        
+
         # 현재 턴인지 확인
         is_my_turn = (self.current_turn_player_id == self.local_player_id) if self.current_turn_player_id else False
-        
+
         # 이미 선택한 직업 제외
         my_selected_jobs = {member.job_id for member in self.party if hasattr(member, 'job_id') and member.job_id}
-        
+
         # 다른 플레이어가 선택한 직업 제외
         # available_jobs에서 이미 선택된 직업이나 다른 플레이어가 선택한 직업 필터링
         menu_items = []
         for job in available_jobs:
             job_id = job['id']
-            
+
             # 이미 내가 선택한 직업인지 확인
             if job_id in my_selected_jobs:
                 continue
-            
+
             # 다른 플레이어가 선택한 직업인지 확인
             if job_id in self.other_players_jobs:
                 # 비활성화된 항목으로 추가 (선택 불가 표시)
@@ -595,13 +599,13 @@ class MultiplayerPartySetup:
                         description=f'"{job.get("slogan", "")}" - {job.get("description", "")}' if job.get('slogan') else job.get('description', '')
                     )
                 )
-        
+
         # 직업이 없으면 오류
         if not menu_items:
             self.error_message = "선택 가능한 직업이 없습니다"
             self.error_timer = 3.0
             return
-        
+
         self.job_menu = CursorMenu(
             title=f"직업 선택 ({len(self.party)}/{self.character_allocation})",
             items=menu_items,
@@ -609,6 +613,11 @@ class MultiplayerPartySetup:
             y=10,
             width=60
         )
+
+        # 커서 위치 복원 (범위 내로 클램프)
+        if prev_cursor_index > 0 and menu_items:
+            self.job_menu.cursor_index = min(prev_cursor_index, len(menu_items) - 1)
+            self.job_menu.scroll_offset = min(prev_scroll_offset, max(0, len(menu_items) - self.job_menu.max_visible_items))
     
     def _create_name_input(self):
         """이름 입력 박스 생성"""
@@ -618,13 +627,13 @@ class MultiplayerPartySetup:
         member = self.party[self.current_slot]
         job_name = member.job_name
         
-        # 랜덤 이름 추천
+        # 랜덤 이름 추천 (확인 시점에 재사용하기 위해 인스턴스 변수에 저장)
         import random
-        random_name = random.choice(self.random_names) if self.random_names else "플레이어"
-        
+        self._pending_random_name = random.choice(self.random_names) if self.random_names else "플레이어"
+
         self.name_input = TextInputBox(
             title=f"이름 입력 ({self.current_slot + 1}/{self.character_allocation})",
-            prompt=f"{job_name}의 이름을 입력하세요 (비우면 {random_name}):",
+            prompt=f"{job_name}의 이름을 입력하세요 (비우면 {self._pending_random_name}):",
             max_length=20,
             x=20,
             y=15,
@@ -826,42 +835,50 @@ class MultiplayerPartySetup:
         
         return False
     
-    def _handle_name_input(self, action: GameAction, key_event: Optional[tcod.event.KeyDown] = None) -> bool:
-        """이름 입력 상태 입력 처리"""
+    def _handle_name_input(self, action: GameAction, key_event: Optional[tcod.event.KeyDown] = None, text_event=None) -> bool:
+        """이름 입력 상태 입력 처리
+
+        Args:
+            action: GameAction
+            key_event: tcod.event.KeyDown (키보드 키 입력)
+            text_event: tcod.event.TextInput (IME 조합 완료 문자 - 한글 등)
+        """
         if not self.name_input:
             return False
-        
+
         # 엔터 키(Return) 확인
         if key_event and key_event.sym == tcod.event.KeySym.RETURN:
             # 엔터 키로 입력 완료
             name = self.name_input.text.strip()
-            
-            # 빈 이름이면 랜덤 이름 사용
+
+            # 빈 이름이면 프롬프트에 표시된 랜덤 이름 사용
             if not name:
-                import random
-                name = random.choice(self.random_names) if self.random_names else "플레이어"
-            
+                name = getattr(self, '_pending_random_name', None) or "플레이어"
+
             # 현재 멤버에 이름 설정
             if self.party and self.current_slot < len(self.party):
                 self.party[self.current_slot].character_name = name
                 self.logger.info(f"이름 입력: {name}")
-                
+
                 # 특성 선택으로 이동
                 self.state = "trait_select"
                 self._create_trait_menu()
-            
+
             return False
-        
+
         elif action == GameAction.CANCEL:
             # 직업 선택으로 돌아가기
             self.state = "job_select"
             self.name_input = None
             return False
-        
+
+        # IME 텍스트 입력 (한글 등)
+        if text_event and isinstance(text_event, tcod.event.TextInput):
+            self.name_input.handle_input(None, text_event=text_event)
         # 일반 키 입력 처리 (엔터 키가 아닐 때만)
-        if key_event and key_event.sym != tcod.event.KeySym.RETURN:
+        elif key_event and key_event.sym != tcod.event.KeySym.RETURN:
             self.name_input.handle_input(action, key_event)
-        
+
         return False
     
     def _handle_trait_select(self, action: GameAction, key_event: Optional[tcod.event.KeyDown] = None) -> bool:
@@ -1220,6 +1237,11 @@ def run_multiplayer_party_setup(
     Returns:
         (파티 멤버 리스트, 선택된 패시브 리스트) 또는 None (취소 시)
     """
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     setup = MultiplayerPartySetup(
         screen_width=console.width,
         screen_height=console.height,
@@ -1229,7 +1251,7 @@ def run_multiplayer_party_setup(
         character_allocation=character_allocation,
         is_host=is_host
     )
-    
+
     import time
     last_connection_check = time.time()
     connection_check_interval = 1.0  # 1초마다 연결 상태 확인
@@ -1300,15 +1322,23 @@ def run_multiplayer_party_setup(
         context.present(console)
         
         # 입력 처리
+        state_before_loop = setup.state
         for event in tcod.event.wait(timeout=0.05):
             if isinstance(event, tcod.event.Quit):
                 return None
-            
+
             context.convert_event(event)
             action = unified_input_handler.process_tcod_event(event)
-            
+
+            # TextInput 이벤트 (한글 IME 등) - 이름 입력 중 전달
+            # 단, 이번 루프에서 막 name_input으로 전환된 경우 무시 (확정키 문자 유입 방지)
+            if isinstance(event, tcod.event.TextInput):
+                if setup.state == "name_input" and state_before_loop == "name_input" and setup.name_input:
+                    setup._handle_name_input(None, text_event=event)
+                continue
+
             key_event = event if isinstance(event, tcod.event.KeyDown) else None
-            
+
             if action or key_event:
                 if setup.handle_input(action, key_event):
                     if setup.cancelled:

@@ -1,0 +1,552 @@
+accessibility:
+  colorblind_mode: false
+  flash_reduction: false
+  high_contrast: false
+  screen_shake: true
+  text_to_speech: false
+ai:
+  combat_bot_type: rl
+  companion:
+    decision_delay: 0.5
+    default_personality: balanced
+    enabled: true
+    personality_types:
+    - aggressive
+    - defensive
+    - balanced
+    - support
+  enemy:
+    chase_duration: 10
+    random_movement_chance: 0.3
+    vision_range: 5
+audio:
+  bgm:
+    enabled: true
+    fade_duration: 1.0
+    tracks:
+      battle_birth_of_god: boss
+      battle_boss: boss
+      battle_cain: 시간의_왕좌
+      battle_final_boss: sephiroth
+      battle_jenova: battle
+      battle_jenova_absolute: battle
+      battle_normal: battle
+      battle_sephiroth: 광기의_춤
+      battle_weapon: boss
+      biome_0: worldmap
+      biome_1: forest
+      biome_2: devillands
+      biome_3: badlands
+      biome_4: desert
+      biome_5: frostlands
+      biome_6: highlands
+      biome_7: icelands
+      biome_8: warlands
+      biome_9: caves
+      boot_splash: logo
+      credits: prelude
+      danger: danger
+      dungeon_dark: devillands
+      dungeon_normal: caves
+      dungeon_search: forest
+      escape: devillands
+      game_over: gameover
+      hope: menu
+      intro: intro
+      main_menu: menu
+      menu: menu2
+      multiplayer_lobby: party_setup
+      party_setup: party_setup
+      rest: inn1
+      sad: menu2
+      shop: menu2
+      suspense: devillands
+      town: town
+      training: Timewalker
+      triumph: fanfare
+      emotional: pianosolo
+      tutorial: menu
+      victory: fanfare
+      world_map: worldmap
+  bgm_volume: 0.5
+  master_volume: 0.8
+  sfx:
+    categories:
+    - ui
+    - combat
+    - character
+    - skill
+    - item
+    - world
+    character:
+      death: Collapse1
+      faint: Paralyze1
+      hp_heal: Recovery
+      hp_heal_high: Recovery
+      hp_heal_max: Recovery
+      level_up: Powerup
+      mp_heal: Recovery
+      revive: Raise1
+      status_buff: Up1
+      status_debuff: Down1
+      taunt: Blow10
+    combat:
+      attack_gun: Gun1
+      attack_magic: Magic1
+      attack_physical: Damage3
+      attack_sword: Sword2
+      battle_start: Battle1
+      break: Break
+      critical: Damage5
+      damage_high: Damage3
+      damage_low: Damage1
+      dodge: Evasion1
+      escape: Run
+      guard: Parry
+      miss: Miss
+      multi_hit: Damage4
+      sword4: Sword4
+      turn_start: Cursor2
+    enabled: true
+    item:
+      buy: Shop1
+      elixir: Heal5
+      equip: Equip1
+      get_gil: Coin
+      get_item: Item1
+      grenade: Explosion1
+      high_potion: Heal3
+      open_chest: Chest1
+      phoenix_down: Raise1
+      potion: Heal1
+      use_item: Item2
+    skill:
+      barrier: Barrier
+      bell: Bell1
+      bolt: Thunder1
+      bolt2: Thunder2
+      bolt3: Thunder3
+      cannon: Explosion2
+      cast_complete: Magic2
+      cast_start: Magic1
+      computer: Computer
+      confusion: Blind
+      cure: Heal1
+      cure2: Heal1
+      cure3: Heal1
+      dark: Darkness3
+      earth: Earth1
+      elemental: Magic2
+      explosion: Explosion2
+      fire: Fire1
+      fire2: Fire2
+      fire3: Fire3
+      fire_explosion: Fire3
+      flare: Explosion3
+      gun_reload: Gun2
+      gun_shot: Gun1
+      haste: Up2
+      holy: Heal4
+      ice: Ice1
+      ice2: Ice2
+      ice3: Ice3
+      laser: Laser1
+      lightning: Thunder2
+      limit_break: Damage5
+      load: Load1
+      machine: Machine
+      magic_cast: Magic1
+      poison: Poison
+      protect: Barrier
+      rain: Water1
+      reflect: Reflection
+      roar: Blow10
+      save: Save1
+      shell: Barrier
+      skill3: Skill3
+      slash: Slash1
+      slash2: Slash2
+      slow: Down2
+      sound1: Sound1
+      sound2: Sound2
+      sound3: Sound3
+      summon: Summon
+      switch: Switch1
+      sword: Sword2
+      teamwork: Summon
+      teleport: Move2
+      trap: Switch2
+      ultima: Explosion4
+      water: Water1
+      wind: Wind1
+    ui:
+      cursor_cancel: Cancel3
+      cursor_error: Buzzer1
+      cursor_move: Cursor1
+      cursor_select: Decision4
+      cursor_select_pitch: 1.5
+      menu_close: Cancel3
+      menu_open: Cursor1
+      turn_ready: Decision1
+    world:
+      alert: Siren
+      break_open: Hammer
+      button: Switch1
+      chest_open: Chest1
+      door_close: Close1
+      door_open: Door1
+      door_unlock: Key
+      fall: Fall
+      footstep: Move1
+      gate_open: Gate1
+      gate_unlock: Key
+      gathering: Item2
+      item_discover: Item1
+      jump: Jump1
+      key_pickup: Item1
+      land: Move2
+      lever: Switch1
+      pressure_plate: Switch1
+      rest: Recovery
+      save: Save1
+      stairs: Move1
+      stairs_down: Move1
+      stairs_up: Move1
+      switch_off: Switch2
+      switch_on: Switch1
+      teleport: Move2
+      trap_trigger: Buzzer1
+  sfx_volume: 0.5
+character:
+  max_level: 99
+  party:
+    default_formation: 균형
+    max_size: 4
+  skills:
+    casting_interrupt_damage_threshold: 0.2
+    max_equipped: 6
+    mp_regeneration_rate: 0.05
+    skill_types:
+      combat:
+      - brv_attack
+      - hp_attack
+      - brv_hp_attack
+      - support
+      - debuff
+      - ultimate
+      crafting:
+      - cooking
+      - alchemy
+      - smithing
+      - enchanting
+      field:
+      - lockpicking
+      - detection
+      - stealth
+      - tracking
+      - healing_magic
+  stats:
+    base_stats:
+    - hp
+    - mp
+    - init_brv
+    - strength
+    - defense
+    - magic
+    - spirit
+    - speed
+    - luck
+    - accuracy
+    - evasion
+    extended_stats:
+    - stamina
+    - vitality
+    - dexterity
+    - perception
+    - endurance
+    - charisma
+    growth_types:
+    - linear
+    - exponential
+    - logarithmic
+    - custom
+combat:
+  atb:
+    action_threshold: 1000
+    animation_enabled: true
+    animation_fps: 60
+    base_rate: 50
+    enabled: true
+    frame_delay: 0.016
+    max_gauge: 2000
+    player_turn_enemy_atb_rate: 0.3
+    show_percentage: true
+  brave:
+    base_brv: 1000
+    break_bonus: 1.5
+    break_stun_duration: 1
+    max_brv_multiplier: 1.5
+  damage:
+    break_bonus: 1.5
+    brv_multiplier: 75.0
+    critical_chance: 0.1
+    critical_multiplier: 1.5
+    elemental_resistance_reduction: 0.5
+    elemental_weakness_bonus: 1.5
+    hp_multiplier: 0.1
+    level_scaling_per_level: 0.0
+    magical_defense_reduction: 0.0
+    physical_defense_reduction: 0.0
+    wound_rate: 0.25
+  difficulty:
+    player_turn_enemy_atb_multiplier:
+      도전: 0.3
+      보통: 0.2
+      악몽: 0.4
+      지옥: 0.5
+      평온: 0.1
+  status:
+    dot_tick_interval: 1.0
+    max_stacks: 5
+development:
+  debug_mode: true
+  enabled: true
+  show_damage_calculations: false
+  unlimited_essence: false
+  unlock_all_classes: true
+difficulty:
+  default: 보통
+  levels:
+    도전:
+      description: 차원의 흐름이 불안정하여 더 강력한 적 출현
+      drop_rate_multiplier: 1.0
+      enemy_damage_multiplier: 1.3
+      enemy_hp_multiplier: 1.3
+      exp_multiplier: 1.0
+      name: 불안정한 차원 항해
+      player_damage_multiplier: 0.9
+    보통:
+      description: 적절한 도전과 보상의 균형
+      drop_rate_multiplier: 1.0
+      enemy_damage_multiplier: 1.0
+      enemy_hp_multiplier: 1.0
+      exp_multiplier: 1.0
+      name: 균형잡힌 차원 항해
+      player_damage_multiplier: 1.0
+    악몽:
+      description: 차원이 크게 왜곡되어 매우 강력한 적 출현
+      drop_rate_multiplier: 1.0
+      enemy_damage_multiplier: 1.6
+      enemy_hp_multiplier: 1.6
+      exp_multiplier: 1.0
+      name: 왜곡된 차원 항해
+      player_damage_multiplier: 0.8
+    지옥:
+      description: 차원이 붕괴 직전, 최강의 적들과 싸워야 함
+      drop_rate_multiplier: 1.0
+      enemy_damage_multiplier: 2.0
+      enemy_hp_multiplier: 2.0
+      exp_multiplier: 1.0
+      name: 붕괴 직전의 차원 항해
+      player_damage_multiplier: 0.7
+    평온:
+      description: 차원의 흐름이 안정되어 여유로운 탐험이 가능
+      drop_rate_multiplier: 1.0
+      enemy_damage_multiplier: 0.6
+      enemy_hp_multiplier: 0.7
+      exp_multiplier: 1.0
+      name: 안정된 차원 항해
+      player_damage_multiplier: 1.3
+display:
+  aspect_ratio_locked: true
+  borderless: true
+  borderless_fullscreen: true
+  display_mode: borderless
+  char_spacing_adjust: 0
+  window_width: 1280
+  window_height: 720
+  effects:
+    crt: false
+    glitch: true
+    glow: false
+    glow_intensity: 0.15
+    lighting: false
+    particles: true
+    screen_effects: true
+  font_size: 60
+  fps_limit: 240
+  fullscreen: false
+  keep_aspect: true
+  panels:
+    map_height: 33
+    map_width: 60
+    message_height: 7
+    sidebar_width: 20
+  pixel_height: 1080
+  pixel_width: 1920
+  renderer: opengl2
+  screen_height: 45
+  screen_width: 90
+  show_fps: false
+  tileset: assets/fonts/dejavu10x10_gs_tc.png
+  ui:
+    animation_speed: 0.3
+    color_scheme: classic
+    message_scroll_speed: 50
+    show_tooltips: true
+  vsync: true
+equipment:
+  drop_rates:
+    artifact: 0.01
+    common: 0.5
+    legendary: 0.04
+    rare: 0.15
+    uncommon: 0.3
+  durability_enabled: true
+  durability_loss_rate: 0.7
+  max_slots: 3
+experimental:
+  advanced_ai: false
+  hot_reload: true
+  procedural_story: false
+field_systems:
+  cooking:
+    enabled: true
+    failure_chance: 0.1
+    quality_tiers:
+    - poor
+    - normal
+    - good
+    - excellent
+    stamina_cost: 15
+    stat_bonus: dexterity
+  field_skills:
+    detection:
+      enabled: true
+      radius_base: 5
+      stat_bonus: perception
+    lockpicking:
+      difficulty_levels:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      enabled: true
+      stat_bonus: dexterity
+    stealth:
+      detection_radius_reduction: 0.5
+      enabled: true
+      stat_bonus: speed
+  gathering:
+    enabled: true
+    stamina_cost: 10
+    stat_bonus: dexterity
+    success_base_chance: 0.91
+    yield_multiplier_range:
+    - 1
+    - 3
+game:
+  language: ko
+  title: Dawn of Stellar - 별빛의 여명
+  version: 4.3.13
+logging:
+  categories:
+    combat: true
+    debug: true
+    enemy: true
+    error: true
+    player: true
+    system: true
+    world: true
+  enabled: true
+  levels:
+    console: INFO
+    file: DEBUG
+  log_directory: logs/
+  rotation:
+    enabled: true
+    max_files: 5
+    max_size_mb: 10
+meta_progression:
+  enabled: true
+  max_star_fragments: 999999
+  star_fragment_drop_rate: 0.1
+  unlock_costs:
+    advanced_class: 100
+    basic_class: 0
+    special_class: 500
+    ultimate_class: 1000
+mobile:
+  enabled: true
+  server_mode: web_ui
+  touch_controls: true
+  virtual_joystick: true
+multiplayer:
+  default_port: 5000
+  enabled: true
+  max_players: 4
+  modes:
+  - hotseat
+  - cooperative
+  - competitive
+performance:
+  animation_quality: high
+  cache_enabled: true
+  cache_size_mb: 100
+  enable_profiling: false
+  max_particles: 100
+save:
+  auto_save_enabled: true
+  auto_save_interval: 300
+  backup_enabled: true
+  max_backups: 3
+  max_save_slots: 10
+  save_directory: saves/
+story:
+  glitch_mode:
+    enabled: true
+    force_glitch: false
+  terminology:
+    boss: 차원 지배자
+    exploration: 차원 항해
+    location: 차원 공간
+  theme: 차원 항해사
+  true_ending:
+    enabled: true
+    requirements_met: false
+world:
+  default_size: 보통맵
+  dungeon:
+    corridor_width: 1
+    enemy_count:
+      max_enemies: 4
+      min_enemies: 2
+    enemy_spawn_chance: 0.3
+    item_spawn_chance: 0.2
+    max_room_size: 10
+    min_room_size: 4
+    treasure_spawn_chance: 0.1
+  map_sizes:
+    거대맵:
+      height: 50
+      rooms: 16-20
+      width: 100
+    보통맵:
+      height: 30
+      rooms: 8-12
+      width: 60
+    작은맵:
+      height: 20
+      rooms: 5-8
+      width: 40
+    큰맵:
+      height: 40
+      rooms: 12-16
+      width: 80
+wound_system:
+  enabled: true
+  healing_items_efficiency: 1.5
+  max_wound_percentage: 0.5
+  natural_healing_rate: 0.01
+  wound_threshold: 0.25

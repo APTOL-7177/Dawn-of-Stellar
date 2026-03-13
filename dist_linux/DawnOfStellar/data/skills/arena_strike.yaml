@@ -1,0 +1,39 @@
+id: arena_strike
+name: 투기장 강타
+type: brv_hp_attack
+description: '투기장의 열기를 담은 강타.
+
+  BRV 1.8 + HP 1.5 피해.
+
+  크리티컬 시 환호 +10.
+
+  '
+target: single_enemy
+costs:
+  mp: 8
+metadata:
+  cheer_on_critical: 10
+  base_cheer_gain: 5
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 1.8
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 1.5
+- type: gimmick
+  operation: add
+  field: cheer
+  value: 5
+  max_value: 100
+animation:
+  icon: ⚔️
+  color:
+  - 200
+  - 150
+  - 50
+sfx:
+- se
+- Damage3

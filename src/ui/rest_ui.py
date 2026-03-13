@@ -48,6 +48,11 @@ def open_rest_menu(
 
     logger.info("휴식 메뉴 열기")
 
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     while True:
         # 화면 지우기
         render_space_background(console, console.width, console.height)
@@ -274,6 +279,11 @@ def open_inn_menu(
     cursor = 0
 
     logger.info(f"여관 메뉴 열기 (가격: {cost}G, 보유 골드: {current_gold}G)")
+
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
 
     while True:
         # 화면 지우기

@@ -23,6 +23,9 @@ from src.combat.status_effects import StatusEffect, StatusType
 from src.core.logger import get_logger, Loggers
 from src.core.vibration_system import vibration_manager, VibrationPattern
 from src.audio import play_sfx, play_bgm
+from src.ui.combat_tooltip import render_tooltip
+from src.ui.pygame_backend.effects.skill_effects import trigger_skill_effect, trigger_status_effect, trigger_item_effect
+from src.ui.ui_renderer import draw_styled_box, SelectionHighlight
 
 
 logger = get_logger(Loggers.UI)
@@ -41,6 +44,7 @@ class CombatUIState(Enum):
     CARD_SELECT = "card_select"  # 카드 선택 (마술사)
     POSSIBILITY_SELECT = "possibility_select"  # 가능성 선택 (시간술사)
     GIMMICK_VIEW = "gimmick_view"  # 기믹 상세 보기
+    CHAIN_ABILITY_SELECT = "chain_ability_select"  # 체인어빌리티 선택 (불릿타임)
     EXECUTING = "executing"  # 행동 실행 중
     BATTLE_END = "battle_end"  # 전투 종료
 
@@ -79,7 +83,10 @@ class CombatUI:
         session: Optional[Any] = None,
         network_manager: Optional[Any] = None,
         bot_manager: Optional[Any] = None,  # 봇 관리자 (자동 전투용)
-        local_player_id: Optional[str] = None  # 로컬 플레이어 ID (다른 플레이어 컨트롤 방지)
+        local_player_id: Optional[str] = None,  # 로컬 플레이어 ID (다른 플레이어 컨트롤 방지)
+        lily_dialogue: Optional[Any] = None,  # RPG 모드 릴리 대사 매니저
+        rpg_chapter: int = 0,
+        rpg_affinity: int = 0,
     ):
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -100,6 +107,8 @@ class CombatUI:
         self.selected_item: Optional[Any] = None  # 선택된 아이템
         self.selected_item_index: Optional[int] = None  # 선택된 아이템 인덱스
         self.choice_menu: Optional[CursorMenu] = None  # 선택형 스킬 메뉴
+        self.chain_ability_menu: Optional[CursorMenu] = None  # 체인어빌리티 선택 메뉴
+        self.chain_ability_results: list = []  # 체인어빌리티 결과 목록
 
         # 메시지 로그 (스크롤 형식, 제한 없이 저장)
         self.messages: List[CombatMessage] = []
@@ -129,6 +138,18 @@ class CombatUI:
         self.current_target_list: List[Any] = []  # 현재 타겟 선택 리스트
         self.all_allies_mode = False  # ALL_ALLIES 타겟 선택 모드
         
+        # RPG 모드 릴리 대사
+        self.lily_dialogue = lily_dialogue
+        self._rpg_chapter = rpg_chapter
+        self._rpg_affinity = rpg_affinity
+        self._lily_low_hp_shown = False
+        self._lily_ally_down_shown: set = set()
+        self._lily_ally_critical_shown = False
+        self._lily_long_battle_shown = False
+        self._lily_party_danger_shown = False
+        self._lily_turn_count = 0
+        self._lily_last_turn_count = 0
+
         # 카드 선택 (마술사)
         self.card_cursor = 0
         self.card_hand: List[Any] = []  # 현재 손패
@@ -169,6 +190,17 @@ class CombatUI:
         # 히트 이벤트 구독
         from src.core.event_bus import event_bus, Events
         event_bus.subscribe(Events.COMBAT_HIT, self._on_combat_hit)
+        event_bus.subscribe(Events.STATUS_APPLIED, self._on_status_applied)
+
+        # 마우스 호버 툴팁 시스템
+        self._ally_rects: Dict[int, Any] = {}  # {ally_index: (x, y, w, h)} 셀 좌표
+        self._enemy_rects: Dict[int, Any] = {}  # {enemy_index: (x, y, w, h)} 셀 좌표
+        self._mouse_cell: Optional[Tuple[int, int]] = None  # 마우스 셀 좌표 (x, y)
+        self._hover_character: Optional[Any] = None  # 마우스 호버 중인 캐릭터
+        self._hover_cell: Optional[Tuple[int, int]] = None  # 호버 캐릭터의 기준 셀 좌표
+
+        # 이펙트 매니저 참조 (PygameDisplay에서 주입)
+        self.effect_manager: Optional[Any] = None
 
         # 멀티플레이 전투 동기화 관리자
         self.combat_sync_manager: Optional[Any] = None
@@ -356,7 +388,23 @@ class CombatUI:
 
         logger.warning(f"[SKILL_MENU] 기본 공격 제외 후 일반 스킬: {len(normal_skills)}개, 기믹 스킬: {len(gimmick_skills)}개")
 
-        # 스킬 순서: 기믹 스킬 맨 위 -> 일반 스킬 -> 팀워크 스킬 맨 뒤
+        # 합체기 스킬 (시너지 시스템)
+        combo_skills = []
+        try:
+            if hasattr(self.combat_manager, 'get_available_combo_skills'):
+                available_combos = self.combat_manager.get_available_combo_skills()
+                # 현재 행동 캐릭터의 직업이 합체기에 포함된 경우만 표시
+                actor_job = getattr(actor, 'character_class', None)
+                combo_skills = [
+                    c for c in available_combos
+                    if actor_job and actor_job in c.required_jobs
+                ]
+                if combo_skills:
+                    logger.warning(f"[SKILL_MENU] 발동 가능 합체기: {len(combo_skills)}개")
+        except Exception as e:
+            logger.debug(f"합체기 목록 조회 실패: {e}")
+
+        # 스킬 순서: 기믹 스킬 맨 위 -> 일반 스킬 -> 팀워크 스킬 -> 합체기 맨 뒤
         skills = gimmick_skills + normal_skills + teamwork_skills
 
         logger.warning(f"[SKILL_MENU] 메뉴에 표시할 팀워크 스킬: {len(teamwork_skills)}개")
@@ -385,6 +433,18 @@ class CombatUI:
                 can_use = False
                 reason = "행동 불가 상태"
 
+            skill_metadata = getattr(skill, 'metadata', {}) or {}
+
+            # 가능성 스킬 사용 조건 체크
+            if can_use and skill_metadata.get('possibility_system'):
+                action = skill_metadata.get('action', 'summon_single')
+                if action in ['summon_single', 'summon_dual', 'overwrite_slot']:
+                    slots = getattr(actor, 'possibility_slots', [])
+                    min_required = 2 if action == "summon_dual" else 1
+                    if len(slots) < min_required:
+                        can_use = False
+                        reason = f"가능성 {min_required}개 필요"
+
             # 비용 정보 표시
             cost_parts = []
             for cost in skill.costs:
@@ -405,6 +465,22 @@ class CombatUI:
                             cost_desc = cost.get_description(actor)
                     if cost_desc:
                         cost_parts.append(cost_desc)
+
+            # 해커 RAM 비용 표시
+            skill_meta = getattr(skill, 'metadata', {}) or {}
+            if getattr(actor, 'gimmick_type', None) == "intrusion_system":
+                ram_cost_val = int(skill_meta.get('ram_cost', 0) or 0)
+                if ram_cost_val == 0:
+                    # costs에서 ram 키 확인
+                    raw_costs = getattr(skill, '_raw_costs', None)
+                    if raw_costs and isinstance(raw_costs, dict):
+                        ram_cost_val = int(raw_costs.get('ram', 0) or 0)
+                if ram_cost_val > 0:
+                    # 오버클럭 할인 적용
+                    if getattr(actor, 'overclock_active', False):
+                        discount = int(getattr(actor, 'overclock_data', {}).get('ram_cost_discount', 0))
+                        ram_cost_val = max(0, ram_cost_val - discount)
+                    cost_parts.append(f"RAM {ram_cost_val}")
 
             cost_text = f" ({', '.join(cost_parts)})" if cost_parts else ""
 
@@ -466,6 +542,23 @@ class CombatUI:
                 enabled=can_use,
                 value=skill
             ))
+
+        # 합체기 메뉴 아이템 추가
+        if combo_skills:
+            for combo in combo_skills:
+                gauge = self.combat_manager.party.teamwork_gauge if self.combat_manager.party else 0
+                can_use_combo = gauge >= combo.gauge_cost
+                jobs_text = " + ".join(combo.required_jobs)
+                cost_text = f" (게이지 {combo.gauge_cost})"
+                desc = f"{combo.description}\n필요: {jobs_text}"
+                if not can_use_combo:
+                    desc += f"\n게이지 부족 ({gauge}/{combo.gauge_cost})"
+                items.append(MenuItem(
+                    text=f"★ {combo.name}{cost_text}",
+                    description=desc,
+                    enabled=can_use_combo,
+                    value=("combo", combo)
+                ))
 
         # 뒤로가기
         items.append(MenuItem("← 뒤로", "행동 메뉴로 돌아가기", True, None))
@@ -686,6 +779,10 @@ class CombatUI:
         # 기믹 상세 보기
         elif self.state == CombatUIState.GIMMICK_VIEW:
             return self._handle_gimmick_view(action)
+
+        # 체인어빌리티 선택
+        elif self.state == CombatUIState.CHAIN_ABILITY_SELECT:
+            return self._handle_chain_ability_select(action)
 
         # G 키로 기믹 상세 보기 (전투 중 언제든지 가능)
         if action == GameAction.GIMMICK_DETAIL and self.current_actor:
@@ -975,14 +1072,56 @@ class CombatUI:
                     self.add_message("사용할 수 없는 스킬입니다!", (255, 100, 100))
                 else:
                     play_sfx("ui", "cursor_select")  # 선택 효과음
-                    self.selected_skill = selected_item.value
-                    # 과부하 선택 상태를 메타데이터에 반영
-                    self._apply_overload_choice(self.selected_skill)
-                    self._start_target_selection()
+                    # 합체기 처리
+                    if isinstance(selected_item.value, tuple) and selected_item.value[0] == "combo":
+                        combo_skill = selected_item.value[1]
+                        self._execute_combo_skill(combo_skill)
+                    else:
+                        self.selected_skill = selected_item.value
+                        # 과부하 선택 상태를 메타데이터에 반영
+                        self._apply_overload_choice(self.selected_skill)
+                        self._start_target_selection()
         elif action == GameAction.CANCEL:
             self.state = CombatUIState.ACTION_MENU
 
         return False
+
+    def _execute_combo_skill(self, combo_skill):
+        """합체기 실행"""
+        # 타겟 결정: single이면 첫 번째 살아있는 적
+        target = None
+        for effect in combo_skill.effects:
+            if effect.get("target") == "single":
+                alive_enemies = [e for e in self.combat_manager.enemies if getattr(e, 'is_alive', True)]
+                if alive_enemies:
+                    target = alive_enemies[0]
+                break
+
+        result = self.combat_manager.execute_combo_skill(combo_skill, target)
+        if result.get("success"):
+            # 합체기 연출 메시지
+            self.add_message(f"★ {combo_skill.name} 발동! ★", (255, 215, 0))
+            for effect_info in result.get("effects", []):
+                if effect_info["type"] == "damage":
+                    self.add_message(
+                        f"  {effect_info['target']}에게 {effect_info['damage']} 데미지!",
+                        (255, 100, 100)
+                    )
+                elif effect_info["type"] == "heal":
+                    self.add_message(
+                        f"  {effect_info['target']} HP +{effect_info['amount']}",
+                        (100, 255, 100)
+                    )
+
+            # 턴 종료: 체인어빌리티 체크 후 행동 딜레이 설정
+            self.state = CombatUIState.EXECUTING
+            if self.combat_manager.pending_chain_abilities:
+                self._enter_chain_ability_select()
+                return
+            self._set_action_delay(self.action_delay_max, self.current_actor)
+            self.current_actor = None
+        else:
+            self.add_message(f"합체기 실패: {result.get('message', '')}", (255, 100, 100))
 
     def _handle_target_select(self, action: GameAction) -> bool:
         """대상 선택 입력 처리"""
@@ -1139,6 +1278,13 @@ class CombatUI:
                                     self.add_message("부활시킬 아군이 없습니다!")
                                     self.state = CombatUIState.ACTION_MENU
                                     self.logger.info("죽은 파티원이 없어 액션 메뉴로 복귀")
+                            elif effect_type == "camp_rest":
+                                # 텐트 등 아군 전체 대상 아이템
+                                self.logger.info(f"아군 전체 대상 아이템: {effect_type}")
+                                self.current_target_list = self.combat_manager.party
+                                self.all_allies_mode = True
+                                self.target_cursor = 0
+                                self.state = CombatUIState.TARGET_SELECT
                             else:
                                 # revive_crystal이 아닌 다른 effect_type: 회복/버프 아이템으로 처리
                                 self.logger.info(f"부활 크리스탈이 아닌 다른 effect_type: {effect_type} - 회복 아이템으로 처리")
@@ -1724,6 +1870,145 @@ class CombatUI:
             self.state = CombatUIState.SKILL_MENU
         return False
 
+    # ── 체인어빌리티 선택 UI ──
+
+    def _enter_chain_ability_select(self):
+        """체인어빌리티 선택 모드 진입"""
+        results = self.combat_manager.pending_chain_abilities
+        if not results:
+            return
+
+        self.chain_ability_results = results
+        items = []
+        for r in results:
+            # 아군 이름 찾기
+            ally_char = next(
+                (c for c in self.combat_manager.allies
+                 if hasattr(c, 'character_class') and c.character_class == r.ally_job),
+                None
+            )
+            ally_name = getattr(ally_char, 'name', r.ally_job) if ally_char else r.ally_job
+            cd = getattr(r, 'cooldown_remaining', 0)
+            if cd > 0:
+                label = f"[{ally_name}] {r.ability.name} (쿨다운 {cd}턴)"
+                desc = f"재사용까지 {cd}턴 남음"
+                items.append(MenuItem(text=label, value=r, description=desc, enabled=False))
+            else:
+                label = f"[{ally_name}] {r.ability.name}"
+                desc = getattr(r.ability, 'description', '') or ''
+                desc += f" (게이지 -{r.gauge_cost})"
+                items.append(MenuItem(text=label, value=r, description=desc, enabled=True))
+
+        self.chain_ability_menu = CursorMenu(
+            title="체인어빌리티",
+            items=items,
+            x=5,
+            y=33,
+            width=50,
+            show_description=True
+        )
+        self.state = CombatUIState.CHAIN_ABILITY_SELECT
+        self.add_message("체인어빌리티 발동 가능!", (255, 220, 100))
+        play_sfx("ui", "cursor_select")
+
+    def _handle_chain_ability_select(self, action: GameAction) -> bool:
+        """체인어빌리티 선택 입력 처리"""
+        if not self.chain_ability_menu:
+            self._exit_chain_ability_select()
+            return False
+
+        if action == GameAction.MOVE_UP:
+            self.chain_ability_menu.move_cursor_up()
+        elif action == GameAction.MOVE_DOWN:
+            self.chain_ability_menu.move_cursor_down()
+        elif action == GameAction.CONFIRM:
+            selected = self.chain_ability_menu.get_selected_item()
+            if selected and selected.value:
+                play_sfx("ui", "cursor_select")
+                result = self.combat_manager.execute_chain_ability(selected.value)
+                # 결과 메시지 표시
+                ability_name = result.get("ability_name", "???")
+                effects = result.get("effects", [])
+                gauge_used = result.get("gauge_used", 0)
+                msg = f"체인어빌리티 [{ability_name}] 발동! (게이지 -{gauge_used})"
+                self.add_message(msg, (255, 200, 100))
+                for eff in effects:
+                    eff_type = eff.get("type", "")
+                    if eff_type == "damage":
+                        self.add_message(
+                            f"  {eff['target']}에게 {eff['amount']} 데미지!",
+                            (255, 100, 100)
+                        )
+                    elif eff_type == "heal":
+                        self.add_message(
+                            f"  {eff['target']} HP +{eff['amount']} 회복!",
+                            (100, 255, 100)
+                        )
+                    elif eff_type == "revive":
+                        self.add_message(
+                            f"  {eff['target']} 부활! (HP {eff['hp']})",
+                            (255, 255, 100)
+                        )
+                    elif eff_type == "buff":
+                        self.add_message(
+                            f"  {eff.get('target', '아군')} {eff.get('buff_desc', '버프')} 적용!",
+                            (100, 200, 255)
+                        )
+                    elif eff_type == "debuff":
+                        self.add_message(
+                            f"  적에게 {eff.get('desc', '디버프')} 적용!",
+                            (200, 100, 255)
+                        )
+                    elif eff_type == "shield":
+                        self.add_message(
+                            f"  {eff['target']} BRV +{eff['amount']} 보호막!",
+                            (100, 200, 200)
+                        )
+                    elif eff_type == "mp_restore":
+                        self.add_message(
+                            f"  {eff['target']} MP +{eff['amount']} 회복!",
+                            (100, 150, 255)
+                        )
+                    elif eff_type == "brv_damage":
+                        self.add_message(
+                            f"  {eff['target']}의 BRV -{eff['amount']}!",
+                            (255, 150, 50)
+                        )
+                    elif eff_type == "status":
+                        self.add_message(
+                            f"  적 {eff.get('targets', 0)}명에게 {eff.get('status', '')} 부여!",
+                            (200, 100, 200)
+                        )
+                    elif eff_type == "redirect":
+                        self.add_message(
+                            f"  피해 전환 활성! (경감 {int(eff.get('reduction', 0)*100)}%)",
+                            (200, 200, 100)
+                        )
+                self._exit_chain_ability_select()
+        elif action == GameAction.CANCEL:
+            play_sfx("ui", "cursor_error")
+            self.add_message("체인어빌리티를 사용하지 않았다.", (150, 150, 150))
+            self._exit_chain_ability_select()
+        return False
+
+    def _exit_chain_ability_select(self):
+        """체인어빌리티 선택 모드 종료"""
+        self.combat_manager.pending_chain_abilities = []
+        self.chain_ability_menu = None
+        self.chain_ability_results = []
+        # 행동 후 대기로 복귀
+        self._set_action_delay(self.action_delay_max, self.current_actor)
+        self.current_actor = None
+        self.state = CombatUIState.EXECUTING
+
+    def _render_chain_ability_select(self, console):
+        """체인어빌리티 선택 패널 렌더링"""
+        if self.chain_ability_menu:
+            self.chain_ability_menu.render(console)
+            # 하단 안내
+            help_y = console.height - 2
+            console.print(5, help_y, "[Z] 사용  [X] 패스", fg=(180, 180, 180))
+
     def _execute_current_action(self):
         """현재 선택된 행동 실행"""
         self.state = CombatUIState.EXECUTING
@@ -1841,8 +2126,39 @@ class CombatUI:
                 **kwargs
             )
 
+            # 아이템 사용 시 파티클 이펙트
+            if action_type == ActionType.ITEM and self.selected_item and self.effect_manager:
+                item_target = self.selected_target or self.current_actor
+                target_idx = None
+                is_enemy = hasattr(item_target, 'enemy_id')
+                if is_enemy:
+                    for idx, e in enumerate(self.combat_manager.enemies):
+                        if e is item_target:
+                            target_idx = idx
+                            break
+                    if target_idx is not None and target_idx in self._enemy_rects:
+                        rx, ry, rw, rh = self._enemy_rects[target_idx]
+                        converter = getattr(self, '_cell_to_pixel_fn', None)
+                        px, py = converter(rx + rw // 2, ry + rh // 2) if converter else (rx * 10 + 5, ry * 13 + 6)
+                        trigger_item_effect(getattr(self.selected_item, 'name', ''), self.effect_manager, px, py)
+                else:
+                    for idx, a in enumerate(self.combat_manager.allies):
+                        if a is item_target:
+                            target_idx = idx
+                            break
+                    if target_idx is not None and target_idx in self._ally_rects:
+                        rx, ry, rw, rh = self._ally_rects[target_idx]
+                        converter = getattr(self, '_cell_to_pixel_fn', None)
+                        px, py = converter(rx + rw // 2, ry + rh // 2) if converter else (rx * 10 + 5, ry * 13 + 6)
+                        trigger_item_effect(getattr(self.selected_item, 'name', ''), self.effect_manager, px, py)
+
             # 결과 메시지 표시
             self._show_action_result(result)
+
+            # 체인어빌리티 트리거 체크
+            if self.combat_manager.pending_chain_abilities:
+                self._enter_chain_ability_select()
+                return
 
             # 행동 후 대기 시간 설정 (1.5초)
             self._set_action_delay(self.action_delay_max, self.current_actor)
@@ -2113,6 +2429,40 @@ class CombatUI:
                     # 기본 메시지
                     self.add_message(f"{item_name} 사용!", (200, 200, 200))
 
+        # ── 연계스킬 발동 표시 ──
+        bond_results = result.get("bond_skill_results", [])
+        for br in bond_results:
+            skill_name = br.get("skill_name", "연계스킬")
+            source = br.get("source", "")
+            self.add_message(f"★ 연계스킬 [{source}] {skill_name} 발동!", (255, 220, 100))
+            for eff in br.get("effects", []):
+                eff_type = eff.get("type", "")
+                if eff_type == "damage":
+                    self.add_message(
+                        f"  → {eff['target']}에게 {eff['amount']} 데미지!",
+                        (255, 150, 100)
+                    )
+                elif eff_type == "heal":
+                    self.add_message(
+                        f"  → {eff['target']} HP {eff['amount']} 회복!",
+                        (100, 255, 150)
+                    )
+                elif eff_type == "mp_restore":
+                    self.add_message(
+                        f"  → {eff['target']} MP {eff['amount']} 회복!",
+                        (100, 200, 255)
+                    )
+                elif eff_type == "shield":
+                    shield_target = eff.get('target', '')
+                    shield_amt = eff.get('amount', 0)
+                    self.add_message(f"  → {shield_target} 보호막 +{shield_amt}!", (200, 200, 255))
+                elif eff_type == "buff":
+                    buff_target = eff.get('target', '')
+                    buff_desc = eff.get('buff_desc', '버프')
+                    self.add_message(f"  → {buff_target} {buff_desc}!", (200, 255, 200))
+                elif eff_type == "redirect":
+                    self.add_message(f"  → 피해 전환!", (255, 200, 200))
+
     def update(self, delta_time: float = 1.0):
         """업데이트 (매 프레임)"""
         if self.state == CombatUIState.CARD_SELECT:
@@ -2132,7 +2482,8 @@ class CombatUI:
                 elif self.state not in [CombatUIState.ACTION_MENU, CombatUIState.SKILL_MENU,
                                         CombatUIState.TARGET_SELECT, CombatUIState.ITEM_MENU,
                                         CombatUIState.CARD_SELECT, CombatUIState.CHOICE_SELECT,
-                                        CombatUIState.POSSIBILITY_SELECT, CombatUIState.GIMMICK_VIEW]:
+                                        CombatUIState.POSSIBILITY_SELECT, CombatUIState.GIMMICK_VIEW,
+                                        CombatUIState.CHAIN_ABILITY_SELECT]:
                     # 다른 상태에서도 WAITING_ATB로 전환 (기절 스킵 후 다음 턴 대기)
                     self.state = CombatUIState.WAITING_ATB
 
@@ -2162,17 +2513,20 @@ class CombatUI:
                     self.combat_manager.revival_message = None
                     self.revival_message_timer = 0
 
-        # 플레이어가 선택 중인지 또는 대기 중인지 확인
+        # 행동 실행 중인지 확인 (ATB 완전 정지)
+        is_time_frozen = self.state == CombatUIState.EXECUTING
+
+        # 플레이어가 메뉴에서 선택 중인지 확인 (불릿타임 적용)
         is_player_selecting = self.state in [
             CombatUIState.ACTION_MENU,
             CombatUIState.SKILL_MENU,
             CombatUIState.TARGET_SELECT,
             CombatUIState.ITEM_MENU,
-            CombatUIState.CARD_SELECT,  # 카드 선택 중에도 시간 정지
-            CombatUIState.CHOICE_SELECT,  # 선택형 스킬 선택 중에도 시간 정지
-            CombatUIState.POSSIBILITY_SELECT,  # 가능성 선택 중에도 시간 정지
-            CombatUIState.GIMMICK_VIEW,  # 기믹 상세 보기 중에도 시간 정지
-            CombatUIState.EXECUTING  # 행동 실행 후 대기 중에도 시간 정지
+            CombatUIState.CARD_SELECT,  # 카드 선택 중에도 불릿타임
+            CombatUIState.CHOICE_SELECT,  # 선택형 스킬 선택 중에도 불릿타임
+            CombatUIState.POSSIBILITY_SELECT,  # 가능성 선택 중에도 불릿타임
+            CombatUIState.GIMMICK_VIEW,  # 기믹 상세 보기 중에도 불릿타임
+            CombatUIState.CHAIN_ABILITY_SELECT,  # 체인어빌리티 선택 중에도 불릿타임
         ]
 
         # 멀티플레이 모드 확인
@@ -2180,25 +2534,25 @@ class CombatUI:
         game_mode_manager = get_game_mode_manager()
         is_multiplayer = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
 
-        # 멀티플레이가 아닐 때만 시간 정지 로직 적용
-        # 멀티플레이에서는 불릿타임 모드로 속도 조절
-        if not is_multiplayer:
-            # 플레이어가 선택 중이거나 대기 중일 때는 ATB 증가를 멈춤
+        # 행동 실행 중: ATB 완전 정지 (update 호출 안 함)
+        # 메뉴 선택 중: 불릿타임 (ATB 매우 느리게 증가)
+        # 그 외(WAITING_ATB 등): ATB 정상 속도 증가
+        if is_time_frozen:
+            # 행동 실행 중에는 ATB 완전 정지 - combat_manager.update() 호출하지 않음
+            pass
+        else:
             if is_player_selecting:
-                # ATB 업데이트 스킵 (시간 정지)
-                # 플레이어 턴으로 표시하여 ATB 증가 방지
                 self.combat_manager.state = CombatState.PLAYER_TURN
             else:
-                # 일반 진행
                 if self.combat_manager.state == CombatState.PLAYER_TURN:
                     self.combat_manager.state = CombatState.IN_PROGRESS
-        else:
-            # 멀티플레이: 항상 IN_PROGRESS 상태 유지 (불릿타임 모드로 속도 조절)
-            if self.combat_manager.state == CombatState.PLAYER_TURN:
-                self.combat_manager.state = CombatState.IN_PROGRESS
 
-        # 전투 매니저 업데이트
-        self.combat_manager.update(delta_time)
+            # 전투 매니저 업데이트
+            self.combat_manager.update(delta_time)
+
+        # 멀티플레이 호스트: 주기적 전투 상태 하트비트 (200ms 간격)
+        if is_multiplayer and self.combat_sync_manager and self.combat_sync_manager.is_host:
+            self.combat_sync_manager.send_heartbeat_sync()
 
         # ATB 업데이트 직후 즉시 턴 체크
         # 행동 가능한 캐릭터 확인
@@ -2265,21 +2619,24 @@ class CombatUI:
             self.combat_manager._on_turn_end(actor)
             
             # 상태를 WAITING_ATB로 명확히 설정 (무한 대기 방지)
-            self.state = CombatUIState.WAITING_ATB
+            # 단, 체인어빌리티 선택 중에는 덮어쓰지 않음
+            if self.state != CombatUIState.CHAIN_ABILITY_SELECT:
+                self.state = CombatUIState.WAITING_ATB
             
             # 행동 지연 타이머 설정 (0.5초 대기)
             self._set_action_delay(15, actor)  # 0.5초 (30 FPS 기준)
         elif processable_ready:
             # 행동자 처리 전 상태 정상화 (플레이어 입력 대기 상태는 유지)
             player_input_states = [
-                CombatUIState.ACTION_MENU, 
-                CombatUIState.SKILL_MENU, 
+                CombatUIState.ACTION_MENU,
+                CombatUIState.SKILL_MENU,
                 CombatUIState.ITEM_MENU,
                 CombatUIState.TARGET_SELECT,
                 CombatUIState.CARD_SELECT,  # 마술사 카드 선택
                 CombatUIState.CHOICE_SELECT,  # 선택형 스킬
                 CombatUIState.POSSIBILITY_SELECT,  # 시간술사 가능성 선택
-                CombatUIState.GIMMICK_VIEW  # 기믹 상세 보기
+                CombatUIState.GIMMICK_VIEW,  # 기믹 상세 보기
+                CombatUIState.CHAIN_ABILITY_SELECT  # 체인어빌리티 선택
             ]
             if self.state != CombatUIState.WAITING_ATB and self.state not in player_input_states:
                 logger.debug(f"상태 강제 정상화: {self.state.value} -> WAITING_ATB")
@@ -2301,10 +2658,19 @@ class CombatUI:
                     self._execute_enemy_turn(actor)
                     # 적 행동 후 상태 복구
                     if self.state != CombatUIState.BATTLE_END:
-                        if prev_state in player_input_states:
-                            # 플레이어가 행동 선택 중이었으면 선택 상태 유지
-                            self.state = prev_state
-                            self.current_actor = prev_actor
+                        if prev_state in player_input_states and prev_actor:
+                            # BREAK 등으로 이전 액터의 ATB가 리셋되었는지 확인
+                            prev_gauge = self.combat_manager.atb.get_gauge(prev_actor)
+                            prev_alive = getattr(prev_actor, 'is_alive', True)
+                            if prev_alive and prev_gauge and prev_gauge.can_act:
+                                # 이전 액터가 여전히 행동 가능 → 선택 상태 유지
+                                self.state = prev_state
+                                self.current_actor = prev_actor
+                            else:
+                                # BREAK/사망 등으로 행동 불가 → WAITING_ATB로 전환
+                                logger.info(f"적 행동 후 {prev_actor.name} ATB 부족/사망 → 선택 상태 해제")
+                                self.state = CombatUIState.WAITING_ATB
+                                self.current_actor = None
                         else:
                             self.state = CombatUIState.WAITING_ATB
                     logger.debug(f"적 {actor.name} 행동 완료 - 상태: {self.state.value}")
@@ -2954,7 +3320,44 @@ class CombatUI:
                 self.training_damage_log[name] = self.training_damage_log.get(name, 0) + hp_damage
 
         self.hit_queue.append(hit_info)
-    
+
+    def _on_status_applied(self, status_data: Dict[str, Any]):
+        """상태이상 적용 이벤트 핸들러 - 디버프/버프 파티클 이펙트"""
+        if not self.effect_manager:
+            return
+
+        owner_obj = status_data.get("owner_object")
+        if owner_obj is None:
+            return
+
+        def _cell_to_pixel(cx, cy):
+            converter = getattr(self, '_cell_to_pixel_fn', None)
+            if converter:
+                return converter(cx, cy)
+            return (cx * 10 + 5, cy * 13 + 6)
+
+        # 대상이 적인지 아군인지 판별하여 위치 결정
+        target_idx = None
+        is_enemy = hasattr(owner_obj, 'enemy_id')
+        if is_enemy:
+            for idx, e in enumerate(self.combat_manager.enemies):
+                if e is owner_obj:
+                    target_idx = idx
+                    break
+            if target_idx is not None and target_idx in self._enemy_rects:
+                rx, ry, rw, rh = self._enemy_rects[target_idx]
+                px, py = _cell_to_pixel(rx + rw // 2, ry + rh // 2)
+                trigger_status_effect(status_data, self.effect_manager, px, py)
+        else:
+            for idx, a in enumerate(self.combat_manager.allies):
+                if a is owner_obj:
+                    target_idx = idx
+                    break
+            if target_idx is not None and target_idx in self._ally_rects:
+                rx, ry, rw, rh = self._ally_rects[target_idx]
+                px, py = _cell_to_pixel(rx + rw // 2, ry + rh // 2)
+                trigger_status_effect(status_data, self.effect_manager, px, py)
+
     def process_hit_queue(self):
         """히트 큐 처리 - 프레임마다 호출하여 다단히트 표시"""
         if not self.hit_queue:
@@ -3031,6 +3434,71 @@ class CombatUI:
                 self.add_message(msg, color)
         # 단일 히트는 메시지 표시하지 않음 (스킬 결과 메시지에서 이미 표시됨)
 
+        # 스킬 이펙트 트리거 (원소별 파티클 + 셰이크 + 플래시)
+        if self.effect_manager and target:
+            # 셀→콘솔 픽셀 변환 함수 (context에 pixel converter가 있으면 사용)
+            def _cell_to_pixel(cx, cy):
+                converter = getattr(self, '_cell_to_pixel_fn', None)
+                if converter:
+                    return converter(cx, cy)
+                # 폴백: 기본 타일 크기
+                return (cx * 10 + 5, cy * 13 + 6)
+
+            target_idx = None
+            is_enemy_target = hasattr(target, 'enemy_id')
+            if is_enemy_target:
+                for idx, e in enumerate(self.combat_manager.enemies):
+                    if e is target:
+                        target_idx = idx
+                        break
+                if target_idx is not None and target_idx in self._enemy_rects:
+                    rx, ry, rw, rh = self._enemy_rects[target_idx]
+                    px, py = _cell_to_pixel(rx + rw // 2, ry + rh // 2)
+                    trigger_skill_effect(hit_info, self.effect_manager, px, py)
+            else:
+                for idx, a in enumerate(self.combat_manager.allies):
+                    if a is target:
+                        target_idx = idx
+                        break
+                if target_idx is not None and target_idx in self._ally_rects:
+                    rx, ry, rw, rh = self._ally_rects[target_idx]
+                    px, py = _cell_to_pixel(rx + rw // 2, ry + rh // 2)
+                    trigger_skill_effect(hit_info, self.effect_manager, px, py)
+
+            # ── Cogmind 스타일 글리치 이펙트 (큰 피해/크리티컬/BREAK 시) ──
+            try:
+                hp_pct = hit_info.get("hp_percent_of_target", 0)
+                is_critical = hit_info.get("is_critical", False)
+                is_break = hit_info.get("is_break", False)
+                is_ultimate = hit_info.get("is_ultimate", False)
+                targets_hit = hit_info.get("targets_hit", 1)
+
+                glitch_intensity = 0.0
+                glitch_duration = 0.0
+
+                if is_break:
+                    glitch_intensity = max(glitch_intensity, 0.6)
+                    glitch_duration = max(glitch_duration, 0.3)
+                if is_critical and hp_pct > 15:
+                    glitch_intensity = max(glitch_intensity, 0.6)
+                    glitch_duration = max(glitch_duration, 0.25)
+                elif hp_pct > 30:
+                    glitch_intensity = max(glitch_intensity, 0.5)
+                    glitch_duration = max(glitch_duration, 0.2)
+                if is_ultimate:
+                    glitch_intensity = min(1.0, glitch_intensity + 0.3)
+                    glitch_duration = max(glitch_duration, 0.35)
+
+                # AoE 다단히트: 이펙트 강도 감소 (과도한 화면 떨림 방지)
+                if targets_hit > 1:
+                    glitch_intensity *= 0.4
+                    glitch_duration *= 0.5
+
+                if glitch_intensity > 0 and hasattr(self.effect_manager, 'trigger_glitch'):
+                    self.effect_manager.trigger_glitch(glitch_intensity, glitch_duration)
+            except Exception:
+                pass  # 글리치 이펙트 실패는 무시
+
     def add_message(self, text: str, color: Tuple[int, int, int] = (255, 255, 255)):
         """메시지 추가 (스크롤 형식 - 제한 없이 계속 저장, 다중 줄 지원)"""
         import re
@@ -3065,6 +3533,73 @@ class CombatUI:
         """
         for text, color in messages:
             self.add_message(text, color)
+
+    def check_lily_combat_conditions(self):
+        """RPG 모드 릴리 전투 중 대사 조건 체크"""
+        if not self.lily_dialogue:
+            return
+        cm = self.combat_manager
+        if not cm:
+            return
+        ch = self._rpg_chapter
+        aff = self._rpg_affinity
+        lily_color = (255, 200, 255)
+
+        # 현재 턴 수 추적
+        turn = getattr(cm, 'turn_count', 0)
+        if turn != self._lily_last_turn_count:
+            self._lily_turn_count = turn
+            self._lily_last_turn_count = turn
+
+        party = getattr(cm, 'party', []) or []
+        alive = [m for m in party if getattr(m, 'is_alive', True)]
+        dead = [m for m in party if not getattr(m, 'is_alive', True)]
+
+        # 1) 아군 HP 위험 (<25%) - 한번만
+        if not self._lily_low_hp_shown:
+            for m in alive:
+                hp = getattr(m, 'hp', 1)
+                max_hp = getattr(m, 'max_hp', 1)
+                if max_hp > 0 and hp / max_hp < 0.25:
+                    line = self.lily_dialogue.get_low_hp_line(ch, aff)
+                    if line:
+                        self.add_message(f'릴리: "{line}"', lily_color)
+                    self._lily_low_hp_shown = True
+                    break
+
+        # 2) 아군 전투불능
+        for m in dead:
+            name = getattr(m, 'name', '???')
+            if name not in self._lily_ally_down_shown:
+                line = self.lily_dialogue.get_ally_down_line(ch, aff)
+                if line:
+                    self.add_message(f'릴리: "{line}"', lily_color)
+                self._lily_ally_down_shown.add(name)
+
+        # 3) 주인공(파티 첫번째) HP 위험
+        if not self._lily_ally_critical_shown and party:
+            main_char = party[0]
+            hp = getattr(main_char, 'hp', 1)
+            max_hp = getattr(main_char, 'max_hp', 1)
+            if getattr(main_char, 'is_alive', True) and max_hp > 0 and hp / max_hp < 0.25:
+                line = self.lily_dialogue.get_ally_critical_line(ch, aff)
+                if line:
+                    self.add_message(f'릴리: "{line}"', lily_color)
+                self._lily_ally_critical_shown = True
+
+        # 4) 장기전 (15턴 이상)
+        if not self._lily_long_battle_shown and self._lily_turn_count >= 15:
+            line = self.lily_dialogue.get_long_battle_line(ch, aff)
+            if line:
+                self.add_message(f'릴리: "{line}"', lily_color)
+            self._lily_long_battle_shown = True
+
+        # 5) 파티 전멸 위기 (2명 이상 전투불능)
+        if not self._lily_party_danger_shown and len(dead) >= 2:
+            line = self.lily_dialogue.get_party_danger_line(ch, aff)
+            if line:
+                self.add_message(f'릴리: "{line}"', lily_color)
+            self._lily_party_danger_shown = True
 
     def add_floating_dialogue(self, text: str, color: Tuple[int, int, int] = (255, 100, 100)):
         """
@@ -3122,14 +3657,9 @@ class CombatUI:
         # 기믹 상세보기 상태에서는 다른 UI를 그리지 않고 전용 화면만 표시
         if self.state == CombatUIState.GIMMICK_VIEW:
             try:
-                console.rgb["ch"][:, :] = ord(" ")
-                console.rgb["fg"][:, :] = (0, 0, 0)
-                console.rgb["bg"][:, :] = (0, 0, 0)
+                console.clear(ch=ord(" "), fg=(0, 0, 0), bg=(0, 0, 0))
             except Exception:
-                try:
-                    console.clear()
-                except Exception:
-                    pass
+                pass
             self._render_gimmick_view(console)
             return
         
@@ -3252,6 +3782,9 @@ class CombatUI:
             logger.info(f"[가능성 선택] render() POSSIBILITY_SELECT 분기 진입, slots={len(self.possibility_slots) if self.possibility_slots else 0}개")
             self._render_possibility_select(console)
 
+        elif self.state == CombatUIState.CHAIN_ABILITY_SELECT:
+            self._render_chain_ability_select(console)
+
         elif self.state == CombatUIState.BATTLE_END:
             self._render_battle_end(console)
 
@@ -3262,12 +3795,63 @@ class CombatUI:
         if self.state == CombatUIState.GIMMICK_VIEW:
             self._render_gimmick_view(console)
 
+        # 마우스 호버 툴팁 (최상위 레이어)
+        self._update_hover_character()
+        if self._hover_character and self._hover_cell:
+            render_tooltip(
+                console,
+                self._hover_character,
+                self._hover_cell[0],
+                self._hover_cell[1],
+                self.screen_width,
+                self.screen_height,
+                combat_manager=self.combat_manager,
+            )
+
+    def update_mouse_cell(self, cell_x: int, cell_y: int) -> None:
+        """마우스 셀 좌표 업데이트 (외부에서 호출)"""
+        self._mouse_cell = (cell_x, cell_y)
+
+    def _update_hover_character(self) -> None:
+        """마우스 위치에 따라 호버 캐릭터 갱신"""
+        if self._mouse_cell is None:
+            self._hover_character = None
+            self._hover_cell = None
+            return
+
+        mx, my = self._mouse_cell
+
+        # 아군 영역 체크
+        for i, rect in self._ally_rects.items():
+            rx, ry, rw, rh = rect
+            if rx <= mx < rx + rw and ry <= my < ry + rh:
+                if i < len(self.combat_manager.allies):
+                    self._hover_character = self.combat_manager.allies[i]
+                    self._hover_cell = (rx + rw, ry)
+                    return
+
+        # 적군 영역 체크
+        for i, rect in self._enemy_rects.items():
+            rx, ry, rw, rh = rect
+            if rx <= mx < rx + rw and ry <= my < ry + rh:
+                if i < len(self.combat_manager.enemies):
+                    self._hover_character = self.combat_manager.enemies[i]
+                    self._hover_cell = (rx, ry)
+                    return
+
+        self._hover_character = None
+        self._hover_cell = None
+
     def _render_allies(self, console: tcod.console.Console):
         """아군 상태 렌더링 (상세)"""
         console.print(5, 4, "[아군 파티]", fg=(100, 255, 100))
+        self._ally_rects.clear()
 
         for i, ally in enumerate(self.combat_manager.allies):
             y = 6 + i * 6  # 더 큰 간격
+
+            # 아군 영역 저장 (툴팁용: x, y, width, height 셀 좌표)
+            self._ally_rects[i] = (3, y, 46, 5)
 
             # 이름 + 상태
             name_color = (255, 255, 255) if ally.is_alive else (100, 100, 100)
@@ -3281,6 +3865,11 @@ class CombatUI:
                 # 타겟 선택 중 - 아군이 타겟 리스트에 있는지 확인
                 is_targeted = ally in self.current_target_list
 
+                # 현재 커서가 가리키는 실제 타겟 객체
+                selected_target = (self.current_target_list[self.target_cursor]
+                                   if self.current_target_list and 0 <= self.target_cursor < len(self.current_target_list)
+                                   else None)
+
                 # 광역 스킬 확인 또는 ALL_ALLIES 모드
                 is_aoe = self.selected_skill and getattr(self.selected_skill, 'is_aoe', False)
                 is_all_allies = getattr(self, 'all_allies_mode', False)
@@ -3289,7 +3878,7 @@ class CombatUI:
                     # 광역 스킬 또는 전체 아군 타겟 - 모든 타겟에 화살표
                     turn_indicator = "◆ "
                     indicator_color = (100, 255, 255)
-                elif is_targeted and i == self.target_cursor:
+                elif is_targeted and ally is selected_target:
                     # 단일 타겟 - 선택된 대상에만 화살표
                     turn_indicator = "▶ "
                     indicator_color = (100, 255, 100)
@@ -3415,13 +4004,7 @@ class CombatUI:
             # status_manager에서 상태이상 가져오기
             if hasattr(ally, 'status_manager'):
                 status_effects = ally.status_manager.status_effects
-            # 기믹 상태 표시: 농락/침투 등 타겟 기반 수치
             status_list = list(status_effects) if isinstance(status_effects, list) else []
-            # 농락 게이지 표시 (타겟형 기믹)
-            mockery_val = getattr(ally, "mockery_gauge", 0)
-            if mockery_val:
-                max_mockery = getattr(ally, "max_mockery", 10)
-                status_list.append(StatusEffect(name=f"농락 {mockery_val}/{max_mockery}", status_type="mockery", duration=mockery_val))
             # 침투 게이지 표시
             intrusion_val = getattr(ally, "intrusion_gauge", 0)
             if intrusion_val:
@@ -3475,10 +4058,14 @@ class CombatUI:
     def _render_enemies(self, console: tcod.console.Console):
         """적군 상태 렌더링 (상세)"""
         console.print(self.screen_width - 30, 4, "[적군]", fg=(255, 100, 100))
+        self._enemy_rects.clear()
 
         for i, enemy in enumerate(self.combat_manager.enemies):
             y = 6 + i * 6
             x = self.screen_width - 30
+
+            # 적군 영역 저장 (툴팁용)
+            self._enemy_rects[i] = (x, y, 28, 5)
 
             # 이름 색상: 보스는 빨간색, 일반 적은 흰색
             is_boss = hasattr(enemy, 'enemy_id') and enemy.enemy_id.startswith("boss_") if hasattr(enemy, 'enemy_id') else False
@@ -3499,6 +4086,11 @@ class CombatUI:
                 # 타겟 선택 중 - 적이 타겟 리스트에 있는지 확인
                 is_targeted = enemy in self.current_target_list
 
+                # 현재 커서가 가리키는 실제 타겟 객체
+                selected_target = (self.current_target_list[self.target_cursor]
+                                   if self.current_target_list and 0 <= self.target_cursor < len(self.current_target_list)
+                                   else None)
+
                 # 광역 스킬 확인
                 is_aoe = self.selected_skill and getattr(self.selected_skill, 'is_aoe', False)
 
@@ -3506,7 +4098,7 @@ class CombatUI:
                     # 광역 스킬 - 모든 살아있는 타겟에 화살표
                     cursor = "◆ "
                     cursor_color = (255, 100, 255)
-                elif is_targeted and i == self.target_cursor:
+                elif is_targeted and enemy is selected_target:
                     # 단일 타겟 - 선택된 대상에만 화살표
                     cursor = "▶ "
                     cursor_color = (255, 255, 100)
@@ -3569,10 +4161,11 @@ class CombatUI:
             if hasattr(enemy, 'status_manager'):
                 status_effects = enemy.status_manager.status_effects
             status_list = list(status_effects) if isinstance(status_effects, list) else []
-            mockery_val = getattr(enemy, "mockery_gauge", 0)
-            if mockery_val:
-                max_mockery = getattr(enemy, "max_mockery", 10)
-                status_list.append(StatusEffect(name=f"농락 {mockery_val}/{max_mockery}", status_type="mockery", duration=mockery_val))
+            # 독 중첩 표시 (적에게 쌓인 독)
+            venom_val = getattr(enemy, "venom_stacks", 0)
+            if venom_val:
+                max_venom = getattr(enemy, "max_venom", 5)
+                status_list.append(StatusEffect(name=f"독 {venom_val}/{max_venom}", status_type="venom", duration=venom_val))
             intrusion_val = getattr(enemy, "intrusion_gauge", 0)
             if intrusion_val:
                 status_list.append(StatusEffect(name=f"침투 {intrusion_val}%", status_type="intrusion", duration=intrusion_val))
@@ -3920,9 +4513,9 @@ class CombatUI:
             return (f"탄창:{len(magazine)}/6", (150, 150, 200))
 
         elif gimmick_type == "venom_system":
-            # 도적 - 베놈
-            venom = getattr(character, 'venom_power', 0)
-            return (f"독:{venom}", (100, 255, 100))
+            # 도적 - 훔친 아이템 (독은 적에게 적용되므로 아이템 표시)
+            items = getattr(character, 'stolen_items', 0)
+            return (f"아이템:{items}", (255, 220, 100))
 
         elif gimmick_type == "shadow_system":
             # 암살자 - 그림자
@@ -4439,6 +5032,55 @@ class CombatUI:
                 return (f"환영:{phantom_icons} 잔상:{afterimage}", (180, 120, 255))
             return (f"환영:{phantom_icons} 잔상:{afterimage}", (150, 100, 200))
 
+        elif gimmick_type == "oath_system":
+            # 성기사 - 서약 시스템
+            current_oath = getattr(character, 'current_oath', None)
+            faith = getattr(character, 'faith', 0)
+            max_faith = getattr(character, 'max_faith', 100)
+            oaths = getattr(character, 'oaths', {})
+            if current_oath:
+                oath_info = oaths.get(current_oath, {})
+                oath_name = oath_info.get('name', current_oath)
+                short_name = oath_name.replace('의 서약', '')
+                return (f"[{short_name}] 신앙:{faith}/{max_faith}", (255, 255, 150))
+            else:
+                return (f"서약없음 신앙:{faith}/{max_faith}", (200, 200, 100))
+
+        elif gimmick_type == "ninpo_chain":
+            # 닌자 - 인법 연쇄
+            fire = getattr(character, 'seal_fire', 0)
+            ice = getattr(character, 'seal_ice', 0)
+            thunder = getattr(character, 'seal_thunder', 0)
+            wind = getattr(character, 'seal_wind', 0)
+            total = fire + ice + thunder + wind
+            seals = []
+            if fire: seals.append(f"火{fire}")
+            if ice: seals.append(f"氷{ice}")
+            if thunder: seals.append(f"雷{thunder}")
+            if wind: seals.append(f"風{wind}")
+            seal_text = "/".join(seals) if seals else "0"
+            # 마지막 사용 속성에 따른 기본 색상
+            last_elem = getattr(character, 'last_seal_element', None)
+            element_colors = {
+                "fire": (255, 100, 50),
+                "ice": (100, 200, 255),
+                "thunder": (255, 255, 100),
+                "wind": (100, 255, 150),
+            }
+            base_color = element_colors.get(last_elem, (200, 200, 200))
+            # 은신 상태 표시
+            stealth = getattr(character, 'ninja_stealth', False)
+            if stealth:
+                return (f"은신 인:{seal_text}", (100, 200, 150))
+            # 연쇄 단계별 색상 (높은 단계는 고유 색상 우선)
+            if total >= 4:
+                return (f"인:{seal_text} 만화경!", (255, 100, 255))
+            elif total >= 3:
+                return (f"인:{seal_text} 폭주", (255, 200, 50))
+            elif total >= 2:
+                return (f"인:{seal_text} 강화", (255, 150, 0))
+            return (f"인:{seal_text}", base_color)
+
         return ("", (255, 255, 255))
 
     def _render_gimmick_view(self, console: tcod.console.Console):
@@ -4451,9 +5093,7 @@ class CombatUI:
 
         # 전체 화면을 완전히 검게 덮어 기존 UI(트레이닝 통계/아군파티/턴 화살표 등) 가림
         try:
-            console.rgb["ch"][:, :] = ord(" ")
-            console.rgb["fg"][:, :] = (0, 0, 0)
-            console.rgb["bg"][:, :] = (0, 0, 0)
+            console.clear(ch=ord(" "), fg=(0, 0, 0), bg=(0, 0, 0))
         except Exception:
             try:
                 console.draw_rect(0, 0, self.screen_width, self.screen_height, ord(" "), bg=(0, 0, 0))
@@ -6049,7 +6689,7 @@ class CombatUI:
 
         details = []
 
-        # === 33개 직업 기믹 시스템 상세 (ISSUE-007: UI 시각화 개선) ===
+        # === 35개 직업 기믹 시스템 상세 (ISSUE-007: UI 시각화 개선) ===
 
         # 몽크 - 음양 흐름
         if gimmick_type == "yin_yang_flow":
@@ -6555,11 +7195,10 @@ class CombatUI:
             elif kenatsu >= 30:
                 details.append("✅ 미키리(검압 30) 사용 가능")
 
-            # 요미 예측 정보 표시 (토글 ON + 예측 활성 시에만 표시)
-            yomi_on = hasattr(character, "active_toggles") and "samurai_yomi" in getattr(character, "active_toggles", [])
+            # 요미 예측 정보 표시 (예측 활성 시에만 표시)
             prediction_active = getattr(character, "prediction_active", False)
             has_prediction = hasattr(character, 'predicted_actions') and bool(character.predicted_actions)
-            if yomi_on and prediction_active and has_prediction:
+            if prediction_active and has_prediction:
                 details.append("")
                 details.append("=== 요미 예측 정보 ===")
                 for enemy_name, pred_info in character.predicted_actions.items():
@@ -6771,8 +7410,8 @@ class CombatUI:
         y = (console.height - height) // 2
         
         # 배경 박스
-        console.draw_frame(x, y, width, height, title="가능성 선택",
-                          clear=True, fg=(255, 255, 255), bg=(20, 20, 50))
+        draw_styled_box(console, x, y, width, height, title="가능성 선택",
+                          fg=(255, 255, 255), bg=(20, 20, 50))
         
         # 설명
         action_desc = {
@@ -6841,8 +7480,8 @@ class CombatUI:
         box_y = self.screen_height - box_height - 2
         
         # 배경 박스
-        console.draw_frame(box_x, box_y, box_width, box_height, 
-                          title=" 카드 선택 ", 
+        draw_styled_box(console, box_x, box_y, box_width, box_height,
+                          title="카드 선택",
                           fg=(255, 200, 100), bg=(20, 20, 40))
         
         # 안내 텍스트 + 카드 번호
@@ -6890,7 +7529,7 @@ class CombatUI:
                 bg_color = (20, 20, 30)
             
             # 카드 박스
-            console.draw_frame(card_x, card_y, card_width, 5, fg=color, bg=bg_color)
+            draw_styled_box(console, card_x, card_y, card_width, 5, fg=color, bg=bg_color)
             
             # 카드 내용
             console.print(card_x + 1, card_y + 1, f"{symbol}", fg=color)
@@ -6972,6 +7611,51 @@ class CombatUI:
         )
 
 
+def _play_combat_transition(
+    console: tcod.console.Console,
+    context: tcod.context.Context,
+    direction: str = "out",
+    duration: float = 0.5,
+) -> None:
+    """전투 진입/퇴장 트랜지션 효과
+
+    Args:
+        console: TCOD 콘솔
+        context: TCOD 컨텍스트
+        direction: "out"=화면을 가림, "in"=가림을 해제
+        duration: 전환 시간 (초)
+    """
+    import time as _time
+    import random as _rand
+    try:
+        from src.ui.pygame_backend.effects.transition import TransitionMode
+        em = getattr(context, 'effect_manager', None)
+        if em is None or not hasattr(em, 'trigger_transition'):
+            return
+
+        modes = [
+            TransitionMode.FADE,
+            TransitionMode.DISSOLVE,
+            TransitionMode.SCANLINE,
+        ]
+        mode = _rand.choice(modes)
+        em.trigger_transition(mode, duration, direction=direction, color=(0, 0, 0))
+
+        # dt 폭주 방지
+        if hasattr(context, '_last_frame_time'):
+            context._last_frame_time = _time.time()
+
+        import pygame
+        start = _time.time()
+        timeout = duration + 0.2
+        while em.is_transitioning and (_time.time() - start) < timeout:
+            context.present(console)
+            pygame.event.pump()
+            _time.sleep(0.016)
+    except Exception:
+        pass
+
+
 def run_combat(
     console: tcod.console.Console,
     context: tcod.context.Context,
@@ -6984,7 +7668,11 @@ def run_combat(
     dungeon: Optional[Any] = None,  # 던전 맵 (환경 효과용)
     bot_manager: Optional[Any] = None,  # 봇 관리자 (자동 전투용)
     local_player_id: Optional[str] = None,  # 로컬 플레이어 ID (다른 플레이어 컨트롤 방지)
-    ai_input_provider: Optional[Any] = None  # AI 관전 모드: AI 입력 제공 콜백
+    lily_start_message: Optional[str] = None,  # RPG 모드 전투 시작 릴리 대사
+    lily_dialogue: Optional[Any] = None,  # RPG 모드 릴리 대사 매니저
+    rpg_chapter: int = 0,
+    rpg_affinity: int = 0,
+    preemptive_bonus: float = 0.0,  # 선제공격 보너스 (0.0~1.0)
 ) -> Tuple[CombatState, bool]:
     """
     전투 실행
@@ -6998,13 +7686,19 @@ def run_combat(
         session: 멀티플레이 세션 (선택적)
         network_manager: 네트워크 관리자 (선택적)
         combat_position: 전투 시작 위치 (선택적, 멀티플레이용)
-        ai_input_provider: AI 입력 콜백 (CombatUI, combat_manager 받아서 action 반환) - None이면 플레이어 입력 사용
-
     Returns:
         (전투 결과 (승리/패배/도주), 게임오버 여부)
     """
     # 전투 시작 SFX (Battle Swirl)
     play_sfx("combat", "battle_start")
+
+    # ── 전투 진입 트랜지션 (탐험 화면 → 검은 화면) ────────────────────
+    _play_combat_transition(console, context, direction="out", duration=0.5)
+
+    # 트랜지션 중 누적된 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
 
     # 적 타입에 따라 BGM 선택
     # 1. 세피로스 확인
@@ -7143,7 +7837,22 @@ def run_combat(
         logger.warning("Player 객체가 파티에 포함되어 있다면 Character 객체가 필요합니다")
         return (CombatState.FLED, False)
 
-    combat_manager.start_combat(party, enemies, dungeon=dungeon, combat_position=combat_position)
+    combat_manager.start_combat(party, enemies, dungeon=dungeon, combat_position=combat_position, preemptive_bonus=preemptive_bonus)
+
+    # AffinityManager 설정 (연계스킬/체인어빌리티용)
+    if not combat_manager.affinity_manager:
+        try:
+            from src.character.affinity import AffinityManager
+            affinity_mgr = AffinityManager()
+            # 세이브 데이터에서 호감도 복원 시도
+            import src.persistence.save_system as save_module
+            saved_affinity = getattr(save_module, '_last_loaded_affinity_data', None)
+            if saved_affinity:
+                affinity_mgr.from_dict(saved_affinity)
+            combat_manager.affinity_manager = affinity_mgr
+            logger.info("전투 매니저에 AffinityManager 설정 완료")
+        except Exception as e:
+            logger.warning(f"AffinityManager 설정 실패: {e}")
 
     # 인벤토리 설정 (전투 매니저에도 전달)
     if inventory is not None:
@@ -7171,38 +7880,35 @@ def run_combat(
         logger.info(f"멀티플레이 전투 UI 생성: 세션={session.session_id if session else None}, 로컬 플레이어={local_player_id}")
     else:
         ui = CombatUI(
-            console.width, 
-            console.height, 
-            combat_manager, 
+            console.width,
+            console.height,
+            combat_manager,
             inventory=inventory,
             bot_manager=bot_manager,  # 봇 관리자 전달
-            local_player_id=local_player_id  # 로컬 플레이어 ID 전달 (싱글플레이도 전달)
+            local_player_id=local_player_id,  # 로컬 플레이어 ID 전달 (싱글플레이도 전달)
+            lily_dialogue=lily_dialogue,
+            rpg_chapter=rpg_chapter,
+            rpg_affinity=rpg_affinity,
         )
-    
+
+    # 선제공격 발동 시 전투 로그 메시지 표시
+    if getattr(combat_manager, 'is_preemptive', False):
+        ui.add_message("선제공격! 아군이 먼저 행동합니다!", (255, 255, 100))
+
+    # RPG 모드 전투 시작 릴리 대사 표시
+    if lily_start_message:
+        ui.add_message(lily_start_message, (255, 200, 255))
+
     handler = InputHandler()
 
+    # 이펙트 매니저 주입 (PygameContext에서 가져옴)
+    if hasattr(context, 'effect_manager'):
+        ui.effect_manager = context.effect_manager
+    # 셀→콘솔 픽셀 변환 함수 주입 (파티클 위치용)
+    if hasattr(context, 'cell_to_console_pixel'):
+        ui._cell_to_pixel_fn = context.cell_to_console_pixel
+
     logger.info(f"전투 시작: 아군 {len(party)}명 vs 적군 {len(enemies)}명 (BGM: {selected_bgm})")
-
-    # AI 모드: 전투 초기에 ATB를 업데이트해서 아군이 행동 가능하게 만들기
-    if ai_input_provider:
-        logger.info("[COMBAT] 🤖 AI 모드: ATB 초기화 중...")
-        # 아군(파티)이 준비될 때까지 ATB 업데이트
-        # start_combat에서 이미 0~50% 범위의 ATB를 할당했으므로, 몇 프레임 후에 누군가 준비될 것
-        for _ in range(100):  # 최대 100프레임
-            # ATB만 직접 업데이트 (time freeze 상태 아님)
-            combat_manager.atb.update(1.0, is_player_turn=False)
-            action_order = combat_manager.atb.get_action_order()
-
-            # 아군(파티 소속)이 준비되었는지 확인
-            if action_order:
-                for candidate in action_order:
-                    if candidate in party:
-                        logger.info(f"[COMBAT] ✅ ATB 초기화 완료: {candidate.name} (아군 준비됨)")
-                        break
-                else:
-                    # 아군이 없으면 계속 업데이트
-                    continue
-                break
 
     # 60fps 고정 및 전투 속도 2배 설정
     TARGET_FPS = 60
@@ -7218,8 +7924,26 @@ def run_combat(
         # pygame 이벤트 처리 (게임패드 입력을 위해) - 더 자주 호출
         pygame.event.pump()  # pygame 이벤트 큐 업데이트
 
+        # 마우스 셀 좌표 업데이트 (호버 툴팁용)
+        try:
+            mx, my = pygame.mouse.get_pos()
+            # 윈도우 픽셀 → 콘솔 셀 좌표 변환 (스케일링/레터박싱 보정)
+            if hasattr(context, 'pixel_to_cell'):
+                cell_x, cell_y = context.pixel_to_cell(mx, my)
+            else:
+                tile_w = getattr(context, 'tile_width', 10)
+                tile_h = getattr(context, 'tile_height', 13)
+                cell_x, cell_y = mx // tile_w, my // tile_h
+            ui.update_mouse_cell(cell_x, cell_y)
+        except Exception:
+            pass
+
         # 업데이트 (게임 속도 2배)
         ui.update(delta_time=GAME_SPEED)
+
+        # RPG 모드 릴리 전투 중 대사 체크
+        if ui.lily_dialogue and not ui.battle_ended:
+            ui.check_lily_combat_conditions()
 
         # 렌더링
         ui.render(console)
@@ -7228,65 +7952,21 @@ def run_combat(
         # 입력 처리
         action = None
 
-        # AI 관전 모드: AI 입력 사용
-        if ai_input_provider:
-            # ESC 키로 강제 종료 가능하게
-            for event in tcod.event.get():
-                if isinstance(event, tcod.event.KeyDown):
-                    if event.sym == tcod.event.KeySym.ESCAPE:
-                        ui.battle_ended = True
-                        ui.battle_result = CombatState.FLED
-                        break
+        # 게임패드 입력 우선 확인
+        action = unified_input_handler.get_action()
 
-            # 현재 턴인 캐릭터가 아군이면 AI 입력 가져오기
-            current = combat_manager.current_actor
-
-            # current_actor가 None이면 ATB에서 다음 행동자 찾기
-            # AI 모드에서는 아군이 준비될 때까지 기다려야 함 (적은 handle_input 처리 안 함)
-            if not current and hasattr(combat_manager, 'atb'):
-                action_order = combat_manager.atb.get_action_order()
-                if action_order:
-                    candidate = action_order[0]
-                    if candidate in party:
-                        # ✅ 아군 발견!
-                        current = candidate
-                        logger.debug(f"[COMBAT_UI] ATB에서 아군 발견: {current.name}")
-                    else:
-                        # 적이 준비됨. 다음 프레임에 아군 나올 때까지 ATB 업데이트만 함
-                        # (루프는 피함 - 매 프레임 한 번만 업데이트)
-                        combat_manager.atb.update(1.0, is_player_turn=False)
-
-            logger.info(f"[COMBAT_UI] 현재 actor: {current.name if current else 'None'} (타입: {type(current).__name__ if current else 'None'})")
-            logger.info(f"[COMBAT_UI] 아군 파티: {[c.name for c in party]}")
-
-            if current and current in party:
-                logger.info(f"[COMBAT_UI] 🤖 AI 입력 호출: {current.name}")
-                action = ai_input_provider(ui, combat_manager, current, inventory)
-                logger.info(f"[COMBAT_UI] ✅ AI 반환: {action}")
+        # tcod 이벤트 처리 (키보드/마우스) - 게임패드 입력이 없을 때만
+        if not action:
+            # tcod 이벤트는 non-blocking으로 변경
+            events = tcod.event.get()  # wait 대신 get 사용
+            for event in events:
+                action = unified_input_handler.process_tcod_event(event)
                 if action:
-                    # AI 관전 모드에서는 자연스러운 속도 불필요 (너무 느려짐)
-                    # 원래는 time.sleep(0.5)였지만 성능상 제거함
-                    pass
-            elif current:
-                logger.warning(f"[COMBAT_UI] ⚠️ 현재 캐릭터가 파티가 아님: {current.name if current else 'None'} (적군일 가능성)")
-            else:
-                logger.warning(f"[COMBAT_UI] ⚠️ 현재 행동자를 찾을 수 없음")
-        else:
-            # 게임패드 입력 우선 확인
-            action = unified_input_handler.get_action()
+                    break
 
-            # tcod 이벤트 처리 (키보드/마우스) - 게임패드 입력이 없을 때만
-            if not action:
-                # tcod 이벤트는 non-blocking으로 변경
-                events = tcod.event.get()  # wait 대신 get 사용
-                for event in events:
-                    action = unified_input_handler.process_tcod_event(event)
-                    if action:
-                        break
-
-                    # 윈도우 닫기는 무시 (전투 중에는 도주 명령으로만 종료 가능)
-                    # if isinstance(event, tcod.event.Quit):
-                    #     return CombatState.FLED
+                # 윈도우 닫기는 무시 (전투 중에는 도주 명령으로만 종료 가능)
+                # if isinstance(event, tcod.event.Quit):
+                #     return CombatState.FLED
 
         if action:
             if ui.handle_input(action):
@@ -7305,6 +7985,9 @@ def run_combat(
     # Combat BGM fade out before field BGM starts
     from src.audio import stop_bgm
     stop_bgm(fade_out=True)
+
+    # ── 전투 퇴장 트랜지션 (전투 화면 → 검은 화면) ────────────────────
+    _play_combat_transition(console, context, direction="out", duration=0.4)
 
     # BGM은 main.py에서 처리 (필드 BGM으로 전환하기 위해)
     # combat_manager의 is_game_over 플래그도 함께 반환

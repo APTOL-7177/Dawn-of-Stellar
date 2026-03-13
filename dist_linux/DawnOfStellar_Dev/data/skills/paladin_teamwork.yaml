@@ -1,0 +1,41 @@
+id: paladin_teamwork
+name: 신성한 가호
+type: teamwork
+description: "[팀워크] 파티 전체에 신성한 가호를 내립니다.\n\n효과:\n1. 신앙 +30\n2. 아군 전체 2턴 버프:\n   -\
+  \ 받는 피해 -25%\n   - 회복량 +25%\n   - 디버프 저항 +30%\n3. 전체 적 \"신성 약화\" 2턴:\n   - 받는 신성\
+  \ 피해 +30%\n"
+target: all
+costs:
+  teamwork_gauge: 100
+metadata:
+  teamwork: true
+effects:
+- type: gimmick
+  operation: add
+  field: faith
+  value: 30
+  max_value: 100
+- type: buff
+  buff_id: holy_blessing
+  target: all_allies
+  duration: 2
+  effects:
+    damage_reduction: 0.25
+    heal_multiplier: 1.25
+    debuff_resistance: 0.3
+- type: debuff
+  debuff_id: holy_weakness
+  target: all_enemies
+  duration: 2
+  effects:
+    holy_damage_taken: 0.3
+animation:
+  icon: 🙏✨
+  color:
+  - 255
+  - 255
+  - 200
+  screen_effect: holy_blessing
+sfx:
+- se
+- Summon

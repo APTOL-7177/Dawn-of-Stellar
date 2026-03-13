@@ -89,11 +89,6 @@ class EffectType(Enum):
     ITEM_FIND = "item_find"                    # 아이템 드롭률 +X%
     EXP_BONUS = "exp_bonus"                    # 경험치 +X%
 
-    # === 기믹 관련 ===
-    GIMMICK_BOOST = "gimmick_boost"            # 기믹 효율 +X%
-    GIMMICK_COST_REDUCTION = "gimmick_cost_reduction"  # 기믹 소모 -X%
-    MAX_GIMMICK_INCREASE = "max_gimmick_increase"      # 최대 기믹 +X
-
     # === 특수 효과 ===
     PHOENIX = "phoenix"                        # 부활 (1회)
     BERSERK = "berserk"                        # 광폭화 (HP 낮을수록 강함)
@@ -247,6 +242,36 @@ class EquipmentEffectManager:
             EffectType.STRIKE_COUNT: self._handle_strike_count,
             EffectType.STUN_CHANCE: self._handle_stun_chance,
             EffectType.DAMAGE_FROM_DEFENSE: self._handle_damage_from_defense,
+            # === 추가 핸들러 ===
+            EffectType.CRITICAL_DAMAGE: self._handle_critical_damage,
+            EffectType.COUNTER_ATTACK: self._handle_counter_attack,
+            EffectType.FIRST_STRIKE: self._handle_first_strike,
+            EffectType.EXECUTE: self._handle_execute,
+            EffectType.PHOENIX: self._handle_phoenix,
+            EffectType.BERSERK: self._handle_berserk,
+            EffectType.GLASS_CANNON: self._handle_glass_cannon,
+            EffectType.TANK: self._handle_tank,
+            EffectType.STATUS_RESISTANCE: self._handle_status_resistance,
+            EffectType.STATUS_DURATION: self._handle_status_duration,
+            EffectType.DEBUFF_REFLECT: self._handle_debuff_reflect,
+            EffectType.RESOURCE_GAIN: self._handle_resource_gain,
+            EffectType.ELEMENTAL_AFFINITY: self._handle_elemental_affinity,
+            EffectType.ELEMENTAL_POWER: self._handle_elemental_power,
+            EffectType.COOLDOWN_REDUCTION: self._handle_cooldown_reduction,
+            EffectType.SKILL_POWER: self._handle_skill_power,
+            EffectType.SPELL_POWER: self._handle_spell_power,
+            EffectType.SPELL_ECHO: self._handle_spell_echo,
+            EffectType.POTION_BOOST: self._handle_potion_boost,
+            EffectType.GOLD_FIND: self._handle_gold_find,
+            EffectType.ITEM_FIND: self._handle_item_find,
+            EffectType.EXP_BONUS: self._handle_exp_bonus,
+            EffectType.MP_COST_REDUCTION: self._handle_mp_cost_reduction,
+            EffectType.DETECT_ENEMY: self._handle_detect_enemy,
+            EffectType.WOUND_TRANSFER: self._handle_wound_transfer,
+            EffectType.BRV_STEAL: self._handle_brv_steal,
+            EffectType.BRV_BREAK_BONUS: self._handle_brv_break_bonus,
+            EffectType.BRV_PROTECT: self._handle_brv_protect,
+            EffectType.DAMAGE_CONVERSION: self._handle_damage_conversion,
         }
         logger.info(f"[_register_handlers] 핸들러 등록 완료: {len(self.effect_handlers)}개 (VISION_BONUS 포함: {EffectType.VISION_BONUS in self.effect_handlers})")
         if EffectType.VISION_BONUS in self.effect_handlers:
@@ -852,6 +877,212 @@ class EquipmentEffectManager:
 
         logger.debug(f"{character.name} 방어력 기반 데미지: {effect.value * 100:.1f}% (총: {character.damage_from_defense * 100:.1f}%)")
 
+    # === 추가 핸들러 구현 ===
+    def _handle_critical_damage(self, character, effect, context=None):
+        """크리티컬 데미지 보너스"""
+        if context and "is_critical" in context and context["is_critical"]:
+            context["critical_damage_bonus"] = context.get("critical_damage_bonus", 0) + effect.value
+            logger.debug(f"[크리티컬 데미지] +{effect.value*100:.0f}%")
+
+    def _handle_counter_attack(self, character, effect, context=None):
+        """반격 처리 - 피격 시 확률적으로 반격"""
+        import random
+        if context and random.random() < effect.value:
+            context["counter_attack"] = True
+            context["counter_damage"] = context.get("original_damage", 0) * 0.5
+            logger.info(f"[반격] {getattr(character, 'name', '?')} 반격 발동! ({effect.value*100:.0f}%)")
+
+    def _handle_first_strike(self, character, effect, context=None):
+        """선제공격 - ATB 보너스"""
+        if hasattr(character, 'atb_gauge'):
+            character.atb_gauge = min(getattr(character, 'atb_gauge', 0) + effect.value * 20, 100)
+        if context:
+            context["first_strike"] = True
+        logger.debug(f"[선제공격] {getattr(character, 'name', '?')} ATB 보너스")
+
+    def _handle_execute(self, character, effect, context=None):
+        """처형 - 적 HP 30% 이하 시 추가 데미지"""
+        if context:
+            target = context.get("target")
+            if target and hasattr(target, 'current_hp') and hasattr(target, 'max_hp'):
+                hp_ratio = target.current_hp / max(1, target.max_hp)
+                if hp_ratio <= 0.3:
+                    execute_bonus = effect.value
+                    context["execute_bonus"] = execute_bonus
+                    logger.info(f"[처형] 적 HP {hp_ratio*100:.0f}% - 추가 데미지 +{execute_bonus*100:.0f}%")
+
+    def _handle_phoenix(self, character, effect, context=None):
+        """불사조 - 사망 시 1회 부활"""
+        if hasattr(character, 'current_hp') and character.current_hp <= 0:
+            if not getattr(character, '_phoenix_used', False):
+                character._phoenix_used = True
+                character.current_hp = int(character.max_hp * effect.value)
+                character.is_alive = True
+                logger.info(f"[불사조] {getattr(character, 'name', '?')} 부활! HP {character.current_hp}")
+                if context:
+                    context["phoenix_revive"] = True
+
+    def _handle_berserk(self, character, effect, context=None):
+        """광폭화 - HP 낮을수록 공격력 증가"""
+        if hasattr(character, 'current_hp') and hasattr(character, 'max_hp'):
+            hp_ratio = character.current_hp / max(1, character.max_hp)
+            if hp_ratio <= 0.3:
+                bonus = effect.value * (1.0 - hp_ratio)
+                if context:
+                    context["berserk_bonus"] = bonus
+                logger.debug(f"[광폭화] HP {hp_ratio*100:.0f}% - 공격력 +{bonus*100:.0f}%")
+
+    def _handle_glass_cannon(self, character, effect, context=None):
+        """유리대포 - 공격+, 방어-"""
+        if context:
+            context["glass_cannon_attack"] = effect.value
+            context["glass_cannon_defense"] = -effect.value * 0.5
+        logger.debug(f"[유리대포] 공격 +{effect.value*100:.0f}%, 방어 -{effect.value*50:.0f}%")
+
+    def _handle_tank(self, character, effect, context=None):
+        """탱크 - 방어+, 속도-"""
+        if context:
+            context["tank_defense"] = effect.value
+            context["tank_speed"] = -effect.value * 0.3
+        logger.debug(f"[탱크] 방어 +{effect.value*100:.0f}%, 속도 -{effect.value*30:.0f}%")
+
+    def _handle_status_resistance(self, character, effect, context=None):
+        """상태이상 저항"""
+        if context:
+            context["status_resistance"] = context.get("status_resistance", 0) + effect.value
+        logger.debug(f"[상태이상 저항] +{effect.value*100:.0f}%")
+
+    def _handle_status_duration(self, character, effect, context=None):
+        """버프 지속시간 증가"""
+        if context:
+            context["buff_duration_bonus"] = context.get("buff_duration_bonus", 0) + int(effect.value)
+        logger.debug(f"[지속시간 증가] +{int(effect.value)}턴")
+
+    def _handle_debuff_reflect(self, character, effect, context=None):
+        """디버프 반사"""
+        import random
+        if context and random.random() < effect.value:
+            context["debuff_reflect"] = True
+            logger.info(f"[디버프 반사] {getattr(character, 'name', '?')} 디버프 반사!")
+
+    def _handle_resource_gain(self, character, effect, context=None):
+        """자원 획득 보너스"""
+        if context:
+            context["resource_gain_bonus"] = context.get("resource_gain_bonus", 0) + effect.value
+        logger.debug(f"[자원 획득] +{effect.value*100:.0f}%")
+
+    def _handle_elemental_affinity(self, character, effect, context=None):
+        """속성 친화력"""
+        if context:
+            context["elemental_affinity"] = effect.value
+        logger.debug(f"[속성 친화력] {effect.value}")
+
+    def _handle_elemental_power(self, character, effect, context=None):
+        """속성 위력 증가"""
+        if context:
+            context["elemental_power"] = context.get("elemental_power", 0) + effect.value
+        logger.debug(f"[속성 위력] +{effect.value*100:.0f}%")
+
+    def _handle_cooldown_reduction(self, character, effect, context=None):
+        """쿨다운 감소"""
+        if context:
+            context["cooldown_reduction"] = context.get("cooldown_reduction", 0) + effect.value
+        logger.debug(f"[쿨다운 감소] -{effect.value*100:.0f}%")
+
+    def _handle_skill_power(self, character, effect, context=None):
+        """스킬 위력 증가"""
+        if context:
+            context["skill_power"] = context.get("skill_power", 0) + effect.value
+        logger.debug(f"[스킬 위력] +{effect.value*100:.0f}%")
+
+    def _handle_spell_power(self, character, effect, context=None):
+        """주문 위력 증가"""
+        if context:
+            context["spell_power"] = context.get("spell_power", 0) + effect.value
+        logger.debug(f"[주문 위력] +{effect.value*100:.0f}%")
+
+    def _handle_spell_echo(self, character, effect, context=None):
+        """주문 반향 - 확률적 재시전"""
+        import random
+        if context and random.random() < effect.value:
+            context["spell_echo"] = True
+            logger.info(f"[주문 반향] 재시전 발동! ({effect.value*100:.0f}%)")
+
+    def _handle_potion_boost(self, character, effect, context=None):
+        """포션 효과 증가"""
+        if context:
+            context["potion_boost"] = context.get("potion_boost", 0) + effect.value
+        logger.debug(f"[포션 부스트] +{effect.value*100:.0f}%")
+
+    def _handle_gold_find(self, character, effect, context=None):
+        """골드 획득 증가"""
+        if context:
+            context["gold_find"] = context.get("gold_find", 0) + effect.value
+        logger.debug(f"[골드 획득] +{effect.value*100:.0f}%")
+
+    def _handle_item_find(self, character, effect, context=None):
+        """아이템 드롭률 증가"""
+        if context:
+            context["item_find"] = context.get("item_find", 0) + effect.value
+        logger.debug(f"[아이템 드롭] +{effect.value*100:.0f}%")
+
+    def _handle_exp_bonus(self, character, effect, context=None):
+        """경험치 보너스"""
+        if context:
+            context["exp_bonus"] = context.get("exp_bonus", 0) + effect.value
+        logger.debug(f"[경험치 보너스] +{effect.value*100:.0f}%")
+
+    def _handle_mp_cost_reduction(self, character, effect, context=None):
+        """MP 소모 감소"""
+        if context:
+            context["mp_cost_reduction"] = context.get("mp_cost_reduction", 0) + effect.value
+        logger.debug(f"[MP 비용 감소] -{effect.value*100:.0f}%")
+
+    def _handle_detect_enemy(self, character, effect, context=None):
+        """적 탐지"""
+        if context:
+            context["detect_enemy"] = True
+        logger.debug(f"[적 탐지] 미니맵 적 표시")
+
+    def _handle_wound_transfer(self, character, effect, context=None):
+        """상처 전이"""
+        if context:
+            target = context.get("target")
+            if target and hasattr(target, 'wound'):
+                transfer = int(getattr(character, 'wound', 0) * effect.value)
+                if transfer > 0:
+                    target.wound = getattr(target, 'wound', 0) + transfer
+                    character.wound = max(0, character.wound - transfer)
+                    logger.info(f"[상처 전이] {transfer} 전이")
+
+    def _handle_brv_steal(self, character, effect, context=None):
+        """BRV 흡수"""
+        if context:
+            target = context.get("target")
+            if target and hasattr(target, 'current_brv') and hasattr(character, 'current_brv'):
+                steal = int(getattr(target, 'current_brv', 0) * effect.value)
+                target.current_brv = max(0, target.current_brv - steal)
+                character.current_brv = getattr(character, 'current_brv', 0) + steal
+                logger.info(f"[BRV 흡수] {steal} 흡수")
+
+    def _handle_brv_break_bonus(self, character, effect, context=None):
+        """BREAK 보너스 데미지"""
+        if context:
+            context["brv_break_bonus"] = context.get("brv_break_bonus", 0) + effect.value
+        logger.debug(f"[BREAK 보너스] +{effect.value*100:.0f}%")
+
+    def _handle_brv_protect(self, character, effect, context=None):
+        """BREAK 방지"""
+        if context:
+            context["brv_protect"] = True
+        logger.debug(f"[BREAK 방지] 활성")
+
+    def _handle_damage_conversion(self, character, effect, context=None):
+        """데미지 속성 변환"""
+        if context:
+            context["damage_conversion"] = effect.value
+        logger.debug(f"[데미지 변환] 활성")
+
 
 # 전역 인스턴스
 _equipment_effect_manager: Optional[EquipmentEffectManager] = None
@@ -965,6 +1196,7 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
         effect_mapping = {
             # Vision
             "vision": (EffectType.VISION_BONUS, EffectTrigger.ON_EQUIP),
+            "vision_bonus": (EffectType.VISION_BONUS, EffectTrigger.ON_EQUIP),
             "night_vision": (EffectType.NIGHT_VISION, EffectTrigger.PASSIVE),
             "true_sight": (EffectType.TRUE_SIGHT, EffectTrigger.PASSIVE),
 
@@ -1036,6 +1268,115 @@ def parse_unique_effects(unique_effect_string: str) -> List[EquipmentEffect]:
             "damage_from_defense": (EffectType.DAMAGE_FROM_DEFENSE, EffectTrigger.PASSIVE),
             "critical_damage": (EffectType.CRITICAL_DAMAGE, EffectTrigger.PASSIVE),
             "potion_boost": (EffectType.POTION_BOOST, EffectTrigger.PASSIVE),
+
+            # === Combat effects ===
+            "lifesteal": (EffectType.LIFESTEAL, EffectTrigger.ON_HIT),
+            "thorns": (EffectType.THORNS, EffectTrigger.ON_DAMAGED),
+            "critical_chance": (EffectType.CRITICAL_CHANCE, EffectTrigger.PASSIVE),
+            "critical_rate": (EffectType.CRITICAL_RATE, EffectTrigger.PASSIVE),
+            "dodge_chance": (EffectType.DODGE_CHANCE, EffectTrigger.PASSIVE),
+            "block_chance": (EffectType.BLOCK_CHANCE, EffectTrigger.PASSIVE),
+            "counter_attack": (EffectType.COUNTER_ATTACK, EffectTrigger.ON_DAMAGED),
+            "first_strike": (EffectType.FIRST_STRIKE, EffectTrigger.PASSIVE),
+            "execute": (EffectType.EXECUTE, EffectTrigger.ON_HIT),
+            "multi_strike": (EffectType.MULTI_STRIKE, EffectTrigger.ON_HIT),
+
+            # === Special effects ===
+            "phoenix": (EffectType.PHOENIX, EffectTrigger.ON_LOW_HP),
+            "phoenix_rebirth": (EffectType.PHOENIX, EffectTrigger.ON_LOW_HP),
+            "auto_revive": (EffectType.PHOENIX, EffectTrigger.ON_LOW_HP),
+            "berserk": (EffectType.BERSERK, EffectTrigger.ON_LOW_HP),
+            "low_hp_bonus": (EffectType.BERSERK, EffectTrigger.ON_LOW_HP),
+            "low_hp_damage": (EffectType.BERSERK, EffectTrigger.ON_LOW_HP),
+            "glass_cannon": (EffectType.GLASS_CANNON, EffectTrigger.ON_EQUIP),
+            "tank": (EffectType.TANK, EffectTrigger.ON_EQUIP),
+
+            # === Resistance/immunity ===
+            "status_resistance": (EffectType.STATUS_RESISTANCE, EffectTrigger.PASSIVE),
+            "status_duration": (EffectType.STATUS_DURATION, EffectTrigger.PASSIVE),
+            "debuff_reflect": (EffectType.DEBUFF_REFLECT, EffectTrigger.ON_DAMAGED),
+            "fire_resist": (EffectType.STATUS_RESISTANCE, EffectTrigger.PASSIVE),
+            "ice_resist": (EffectType.STATUS_RESISTANCE, EffectTrigger.PASSIVE),
+            "lightning_resist": (EffectType.STATUS_RESISTANCE, EffectTrigger.PASSIVE),
+            "all_element_resist": (EffectType.STATUS_RESISTANCE, EffectTrigger.PASSIVE),
+            "all_resist": (EffectType.STATUS_RESISTANCE, EffectTrigger.PASSIVE),
+            "ice_immunity": (EffectType.FREEZE_IMMUNITY, EffectTrigger.PASSIVE),
+            "lightning_immunity": (EffectType.STUN_IMMUNITY, EffectTrigger.PASSIVE),
+            "fire_absorb": (EffectType.HEAL_BOOST, EffectTrigger.PASSIVE),
+
+            # === Resource/gimmick ===
+            "resource_gain": (EffectType.RESOURCE_GAIN, EffectTrigger.PASSIVE),
+
+            # === Damage bonuses ===
+            "all_damage": (EffectType.SKILL_POWER, EffectTrigger.PASSIVE),
+            "spell_reflect": (EffectType.DEBUFF_REFLECT, EffectTrigger.ON_DAMAGED),
+            "damage_reduction": (EffectType.BRV_SHIELD, EffectTrigger.PASSIVE),
+            "flat_damage_reduction": (EffectType.BLOCK_CHANCE, EffectTrigger.PASSIVE),
+            "ignore_armor": (EffectType.PHYSICAL_PENETRATION, EffectTrigger.PASSIVE),
+            "ignore_defense": (EffectType.PHYSICAL_PENETRATION, EffectTrigger.PASSIVE),
+            "piercing": (EffectType.PHYSICAL_PENETRATION, EffectTrigger.PASSIVE),
+
+            # === Elemental mastery ===
+            "fire_mastery": (EffectType.ELEMENTAL_POWER, EffectTrigger.PASSIVE),
+            "ice_mastery": (EffectType.ELEMENTAL_POWER, EffectTrigger.PASSIVE),
+            "lightning_mastery": (EffectType.ELEMENTAL_POWER, EffectTrigger.PASSIVE),
+            "elemental_mastery": (EffectType.ELEMENTAL_POWER, EffectTrigger.PASSIVE),
+
+            # === On-hit status ===
+            "status_bleed": (EffectType.STATUS_BURN, EffectTrigger.ON_HIT),
+            "status_fear": (EffectType.DEBUFF_SLOW, EffectTrigger.ON_HIT),
+            "status_freeze": (EffectType.DEBUFF_SLOW, EffectTrigger.ON_HIT),
+            "status_poison": (EffectType.STATUS_BURN, EffectTrigger.ON_HIT),
+
+            # === Combo/special mechanics ===
+            "random_damage": (EffectType.MULTI_STRIKE, EffectTrigger.ON_HIT),
+            "combo_bonus": (EffectType.BRV_BONUS, EffectTrigger.PASSIVE),
+            "mp_to_damage": (EffectType.SPELL_POWER, EffectTrigger.PASSIVE),
+            "headshot": (EffectType.EXECUTE, EffectTrigger.ON_HIT),
+            "triple_shot": (EffectType.STRIKE_COUNT, EffectTrigger.PASSIVE),
+
+            # === Stat bonuses ===
+            "all_stats_bonus": (EffectType.SKILL_POWER, EffectTrigger.PASSIVE),
+            "strength_boost": (EffectType.SKILL_POWER, EffectTrigger.PASSIVE),
+            "speed_boost": (EffectType.SKILL_POWER, EffectTrigger.PASSIVE),
+
+            # === Stealth/social ===
+            "stealth": (EffectType.DODGE_CHANCE, EffectTrigger.PASSIVE),
+            "stealth_bonus": (EffectType.DODGE_CHANCE, EffectTrigger.PASSIVE),
+            "backstab": (EffectType.EXECUTE, EffectTrigger.ON_HIT),
+            "backstab_damage": (EffectType.CRITICAL_DAMAGE, EffectTrigger.PASSIVE),
+
+            # === Holy/elemental damage ===
+            "holy_damage": (EffectType.ELEMENT, EffectTrigger.PASSIVE),
+            "holy_protection": (EffectType.STATUS_IMMUNITY, EffectTrigger.PASSIVE),
+            "fire_explosion": (EffectType.CHAIN_LIGHTNING, EffectTrigger.ON_HIT),
+            "ice_storm": (EffectType.CHAIN_LIGHTNING, EffectTrigger.ON_HIT),
+            "tornado": (EffectType.CHAIN_LIGHTNING, EffectTrigger.ON_HIT),
+            "earthquake": (EffectType.CHAIN_LIGHTNING, EffectTrigger.ON_HIT),
+            "void_cut": (EffectType.CHAIN_LIGHTNING, EffectTrigger.ON_HIT),
+
+            # === Misc item keywords ===
+            "honor_buff": (EffectType.SKILL_POWER, EffectTrigger.PASSIVE),
+            "leadership": (EffectType.SKILL_POWER, EffectTrigger.PASSIVE),
+            "detect_enemy": (EffectType.DETECT_ENEMY, EffectTrigger.PASSIVE),
+            "detect_hidden": (EffectType.DETECT_ENEMY, EffectTrigger.PASSIVE),
+            "treasure_finder": (EffectType.GOLD_FIND, EffectTrigger.PASSIVE),
+            "shop_discount": (EffectType.GOLD_FIND, EffectTrigger.PASSIVE),
+            "item_rarity": (EffectType.ITEM_FIND, EffectTrigger.PASSIVE),
+            "auto_pickup": (EffectType.ITEM_FIND, EffectTrigger.PASSIVE),
+            "dodge_counter": (EffectType.COUNTER_ATTACK, EffectTrigger.ON_DAMAGED),
+            "double_turn": (EffectType.FIRST_STRIKE, EffectTrigger.PASSIVE),
+            "barrier_on_turn": (EffectType.BRV_SHIELD, EffectTrigger.ON_TURN_START),
+            "cc_immunity": (EffectType.STATUS_IMMUNITY, EffectTrigger.PASSIVE),
+            "cleanse_on_turn": (EffectType.STATUS_IMMUNITY, EffectTrigger.ON_TURN_START),
+            "debuff_resist": (EffectType.STATUS_RESISTANCE, EffectTrigger.PASSIVE),
+            "mana_overflow": (EffectType.MP_REGEN, EffectTrigger.ON_TURN_END),
+            "mp_cost_per_hit": (EffectType.MP_COST_REDUCTION, EffectTrigger.PASSIVE),
+            "mp_cost_mult": (EffectType.MP_COST_REDUCTION, EffectTrigger.PASSIVE),
+            "wound_transfer": (EffectType.WOUND_TRANSFER, EffectTrigger.ON_HIT),
+            "brv_protect": (EffectType.BRV_PROTECT, EffectTrigger.PASSIVE),
+            "elemental_affinity": (EffectType.ELEMENTAL_AFFINITY, EffectTrigger.PASSIVE),
+            "damage_conversion": (EffectType.DAMAGE_CONVERSION, EffectTrigger.PASSIVE),
         }
 
         if effect_name in effect_mapping:

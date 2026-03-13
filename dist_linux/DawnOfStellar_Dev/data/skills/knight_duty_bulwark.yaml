@@ -1,0 +1,46 @@
+id: knight_duty_bulwark
+name: 의무 방벽
+type: support
+description: '축적된 의무의 힘을 방패로 변환한다.
+
+  의무 3을 소비하여 방어력/마법방어력 +45%,
+
+  보유 중인 의무 스택당 피해 경감 5% 추가 (최대 35%).
+
+  '
+costs:
+  mp: 9
+  cast_time: 0.8
+  stacks:
+    duty_stacks: 3
+target: self
+requirements:
+  min_duty: 3
+effects:
+- type: gimmick
+  operation: consume
+  field: duty_stacks
+  value: 3
+- type: buff
+  stat: physical_defense
+  value: 0.45
+  duration: 3
+- type: buff
+  stat: magic_defense
+  value: 0.45
+  duration: 3
+- type: buff
+  special: duty_damage_reduction
+  value_per_stack: 0.05
+  max_stacks: 7
+  gimmick_source: duty
+  duration: 3
+metadata:
+  job: knight
+  tank_skill: true
+  gimmick_skill: true
+  duty_consume: 3
+  skill_category: defense
+sfx:
+- se
+- Barrier

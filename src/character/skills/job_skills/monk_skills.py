@@ -21,9 +21,9 @@ def create_monk_skills():
     palm_strike.metadata = {}
 
     # 2. 기본 HP: 기공파 (균형 유지)
-    energy_blast = Skill("monk_energy_blast", "기공파", "내공을 실은 HP 피해 공격")
+    energy_blast = Skill("monk_energy_blast", "기공파", "[바람 속성] 내공을 실은 HP 피해 공격")
     energy_blast.effects = [
-        DamageEffect(DamageType.HP, 1.2, stat_type="physical")
+        DamageEffect(DamageType.HP, 1.2, stat_type="physical", element="wind")
     ]
     energy_blast.costs = []  # 기본 공격은 MP 소모 없음
     energy_blast.sfx = ("combat", "damage_high")  # 기공파
@@ -33,7 +33,7 @@ def create_monk_skills():
     yin_strike = Skill("monk_yin_strike", "음극 장",
                       "음의 기를 모아 마법 피해, 음 -15")
     yin_strike.effects = [
-        DamageEffect(DamageType.BRV, 2.2, stat_type="magical",
+        DamageEffect(DamageType.BRV, 1.43, stat_type="magical",
                     conditional_bonus={"condition": "in_yin_state", "multiplier": 1.3}),
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", -15, min_value=0, max_value=100)
     ]
@@ -43,9 +43,9 @@ def create_monk_skills():
 
     # 4. 양극 권 (양으로 이동, 물리 피해)
     yang_strike = Skill("monk_yang_strike", "양극 권",
-                       "양의 기를 폭발시켜 물리 피해, 양 +15")
+                       "[신성 속성] 양의 기를 폭발시켜 물리 피해, 양 +15")
     yang_strike.effects = [
-        DamageEffect(DamageType.BRV, 2.5, stat_type="physical",
+        DamageEffect(DamageType.BRV, 2.5, stat_type="physical", element="holy",
                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.3}),
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", 15, min_value=0, max_value=100)
     ]
@@ -69,7 +69,7 @@ def create_monk_skills():
     yin_extreme = Skill("monk_yin_extreme", "극음공",
                        "음극(20-)에서만 발동, 강력한 마법 공격, 음 -10")
     yin_extreme.effects = [
-        DamageEffect(DamageType.BRV_HP, 3.2, stat_type="magical",
+        DamageEffect(DamageType.BRV_HP, 2.08, stat_type="magical",
                     conditional_bonus={"condition": "in_yin_state", "multiplier": 1.0}),
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", -10, min_value=0, max_value=100)
     ]
@@ -80,9 +80,9 @@ def create_monk_skills():
 
     # 7. 극양공 (양 극단 상태에서 강력한 물리 공격)
     yang_extreme = Skill("monk_yang_extreme", "극양공",
-                        "양극(80+)에서만 발동, 강력한 물리 공격, 양 +10")
+                        "[신성 속성] 양극(80+)에서만 발동, 강력한 물리 공격, 양 +10")
     yang_extreme.effects = [
-        DamageEffect(DamageType.BRV_HP, 3.2, stat_type="physical",
+        DamageEffect(DamageType.BRV_HP, 3.2, stat_type="physical", element="holy",
                     conditional_bonus={"condition": "in_yang_state", "multiplier": 1.0}),
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", 10, min_value=0, max_value=100)
     ]
@@ -159,9 +159,9 @@ def create_monk_skills():
 
     # 11. 음영 장막 (음 극단, 마법 피해 + 회복)
     shadow_veil = Skill("monk_shadow_veil", "음영 장막",
-                        "음 극단(0)에서 암영 타격 후 소량 치유, 음 +10")
+                        "[빙결 속성] 음 극단(0)에서 암영 타격 후 소량 치유, 음 +10")
     shadow_veil.effects = [
-        DamageEffect(DamageType.HP, 1.4, stat_type="magical",
+        DamageEffect(DamageType.HP, 0.91, stat_type="magical", element="ice",
                      conditional_bonus={"condition": "in_yin_state", "multiplier": 1.2}),
         HealEffect(percentage=0.18, heal_type=HealType.HP),
         GimmickEffect(GimmickOperation.ADD, "ki_gauge", 10, min_value=0, max_value=100)
@@ -186,12 +186,12 @@ def create_monk_skills():
 
     # 10. 궁극기: 태극천지파 (음양을 모두 활용한 궁극기)
     taichi_ultimate = Skill("monk_taichi_ultimate", "태극천지파",
-                           "음양의 힘을 모두 방출, 균형(50)으로 복귀")
+                           "[신성 속성] 음양의 힘을 모두 방출, 균형(50)으로 복귀")
     taichi_ultimate.effects = [
         # 현재 기 게이지 값에 비례한 피해
-        DamageEffect(DamageType.HP, 3.0, stat_type="physical",
+        DamageEffect(DamageType.HP, 3.0, stat_type="physical", element="holy",
                     gimmick_bonus={"field": "ki_gauge", "multiplier": 0.01}),  # 기 1당 +1% 피해
-        DamageEffect(DamageType.HP, 3.0, stat_type="magical",
+        DamageEffect(DamageType.HP, 1.95, stat_type="magical", element="wind",
                     gimmick_bonus={"field": "ki_gauge", "multiplier": -0.01, "invert": True}),  # 100-기 값만큼 피해
         GimmickEffect(GimmickOperation.SET, "ki_gauge", 50)  # 균형으로 복귀
     ]

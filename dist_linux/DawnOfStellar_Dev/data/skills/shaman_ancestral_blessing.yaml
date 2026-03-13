@@ -1,0 +1,37 @@
+id: shaman_ancestral_blessing
+name: 조상의 축복
+type: buff
+description: '조상의 힘을 받아 마공/속도를 크게 높입니다.
+
+  최대 MP 30%를 예약합니다.
+
+  '
+target: self
+metadata:
+  job: shaman
+  toggle: true
+  max_mp_penalty: 0.3
+effects:
+- type: buff
+  stat: magic
+  value: 0.4
+  duration: 3
+- type: buff
+  stat: speed
+  value: 0.2
+  duration: 3
+- type: gimmick
+  operation: add
+  field: reserved_max_mp_ratio
+  value: 0.3
+costs:
+  mp: 20
+animation:
+  icon: ??
+  color:
+  - 180
+  - 140
+  - 220
+sfx:
+- se
+- Up1

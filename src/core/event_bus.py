@@ -140,6 +140,24 @@ class Events:
     EQUIPMENT_UNEQUIPPED = "equipment.unequipped"
     EQUIPMENT_BROKEN = "equipment.broken"
 
+    # Affinity/Bond Events
+    AFFINITY_CHANGED = "affinity.changed"
+    BOND_SKILL_TRIGGERED = "affinity.bond_skill_triggered"
+    CHAIN_ABILITY_TRIGGERED = "affinity.chain_ability_triggered"
+    CHAIN_ABILITY_CONFIRMED = "affinity.chain_ability_confirmed"
+
+    # Synergy/Combo Events
+    COMBO_SKILL_EXECUTED = "synergy.combo_executed"
+    PARTY_BONUS_APPLIED = "synergy.party_bonus_applied"
+
+    # Random Event Events
+    RANDOM_EVENT_TRIGGERED = "random_event.triggered"
+    RANDOM_EVENT_RESOLVED = "random_event.resolved"
+
+    # Puzzle Events
+    PUZZLE_DISCOVERED = "puzzle.discovered"
+    PUZZLE_SOLVED = "puzzle.solved"
+
     # UI Events
     UI_MENU_OPEN = "ui.menu_open"
     UI_MENU_CLOSE = "ui.menu_close"

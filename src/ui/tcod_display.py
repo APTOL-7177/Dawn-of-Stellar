@@ -59,6 +59,9 @@ class Colors:
     # 상처
     WOUND = (150, 50, 50)
 
+    # 음식 아이템
+    FOOD = (255, 200, 150)  # 살구색
+
     # 맵 색상
     FLOOR = (50, 50, 150)
     WALL = (0, 0, 100)
@@ -81,17 +84,36 @@ class TCODDisplay:
             if platform.system() == "Windows":
                 import ctypes
                 user32 = ctypes.windll.user32
-                # DPI 인식 설정 (정확한 해상도 감지)
                 try:
                     user32.SetProcessDPIAware()
-                except:
+                except Exception:
                     pass
                 width = user32.GetSystemMetrics(0)  # SM_CXSCREEN
                 height = user32.GetSystemMetrics(1)  # SM_CYSCREEN
                 if width > 0 and height > 0:
                     return (width, height)
             else:
-                # Linux/Mac: tkinter 사용
+                # Linux/Mac: xrandr 파싱 시도 (tkinter 불필요)
+                if platform.system() == "Linux":
+                    try:
+                        import subprocess
+                        result = subprocess.run(
+                            ["xrandr", "--current"],
+                            capture_output=True, text=True, timeout=2
+                        )
+                        if result.returncode == 0:
+                            import re
+                            match = re.search(r'(\d+)x(\d+)\+0\+0', result.stdout)
+                            if not match:
+                                match = re.search(r'current\s+(\d+)\s*x\s*(\d+)', result.stdout)
+                            if match:
+                                w, h = int(match.group(1)), int(match.group(2))
+                                if w > 0 and h > 0:
+                                    return (w, h)
+                    except Exception:
+                        pass
+
+                # 폴백: tkinter (설치되어 있을 때만)
                 try:
                     import tkinter as tk
                     root = tk.Tk()
@@ -101,11 +123,22 @@ class TCODDisplay:
                     root.destroy()
                     if width > 0 and height > 0:
                         return (width, height)
-                except:
+                except Exception:
+                    pass
+
+                # 폴백: pygame 디스플레이 정보
+                try:
+                    import pygame
+                    if not pygame.display.get_init():
+                        pygame.display.init()
+                    info = pygame.display.Info()
+                    if info.current_w > 0 and info.current_h > 0:
+                        return (info.current_w, info.current_h)
+                except Exception:
                     pass
         except Exception:
             pass
-        
+
         # 기본값: 1920x1080
         return (1920, 1080)
 
@@ -118,33 +151,42 @@ class TCODDisplay:
         self.screen_width = self.config.get("display.screen_width", 80)
         self.screen_height = self.config.get("display.screen_height", 50)
         
-        # 디스플레이 설정
-        self.borderless = self.config.get("display.borderless", True)  # 테두리 없는 창
-        self.borderless_fullscreen = self.config.get("display.borderless_fullscreen", True)  # 전체 창 화면
+        # 디스플레이 설정 - display_mode 우선, 없으면 기존 설정에서 추론
+        display_mode = self.config.get("display.display_mode", None)
+        if display_mode is not None:
+            self.fullscreen = (display_mode == "fullscreen")
+            self.borderless_fullscreen = (display_mode == "borderless")
+            self.borderless = self.borderless_fullscreen
+        else:
+            self.borderless = self.config.get("display.borderless", True)
+            self.borderless_fullscreen = self.config.get("display.borderless_fullscreen", True)
+            self.fullscreen = self.config.get("display.fullscreen", False)
+            if self.borderless_fullscreen:
+                self.borderless = True
         self.keep_aspect = self.config.get("display.keep_aspect", True)  # 종횡비 유지 (검은 띠)
         self.aspect_ratio_locked = self.config.get("display.aspect_ratio_locked", True)
-        
-        # 테두리 없는 전체 창이면 borderless도 True로 설정
-        if self.borderless_fullscreen:
-            self.borderless = True
         
         # 16:9 고정 종횡비 (1920/1080 = 1.777...)
         self._fixed_aspect_ratio = 16 / 9  # 1.7777...
         
-        # 창 크기 설정 (테두리 없는 전체 창이면 모니터 해상도 사용)
-        if self.borderless_fullscreen:
+        # 창 크기 설정
+        if self.borderless_fullscreen or self.fullscreen:
+            # 전체 창화면 / 전체화면: 모니터 해상도 사용
             screen_res = self._detect_screen_resolution()
             self.pixel_width = screen_res[0]
             self.pixel_height = screen_res[1]
-            self.logger.info(f"테두리 없는 전체 창 모드: {self.pixel_width}x{self.pixel_height}")
+            mode_name = "전체화면" if self.fullscreen else "전체 창화면"
+            self.logger.info(f"{mode_name} 모드: {self.pixel_width}x{self.pixel_height}")
         else:
-            self.pixel_width = self.config.get("display.pixel_width", 1920)
-            self.pixel_height = self.config.get("display.pixel_height", 1080)
-        
+            # 창모드: 별도 창 크기 사용
+            self.pixel_width = self.config.get("display.window_width", 1280)
+            self.pixel_height = self.config.get("display.window_height", 720)
+            self.logger.info(f"창모드: {self.pixel_width}x{self.pixel_height}")
+
         self.logger.info(
             f"콘솔 크기: {self.screen_width}x{self.screen_height}, "
             f"창 크기: {self.pixel_width}x{self.pixel_height}, "
-            f"종횡비: 16:9 고정, 테두리 없는 전체 창: {self.borderless_fullscreen}"
+            f"종횡비: 16:9 고정"
         )
 
         # 패널 크기
@@ -178,11 +220,143 @@ class TCODDisplay:
         os.environ.pop("DISPLAY", None)
         os.environ.pop("WAYLAND_DISPLAY", None)
         self._headless = True
+        # SDL 리셋 시도 (tcod 버전에 따라 API가 다름)
         try:
-            tcod.lib.SDL_Quit()
-        except Exception as reset_error:
-            self.logger.debug(f"SDL_Quit 호출 실패: {reset_error}")
+            import ctypes
+            lib_names = {
+                "Linux": ["libSDL2-2.0.so.0", "libSDL2-2.0.so", "libSDL2.so"],
+                "Windows": ["SDL2.dll"],
+                "Darwin": ["libSDL2.dylib"],
+            }
+            for lib_name in lib_names.get(platform.system(), []):
+                try:
+                    sdl2 = ctypes.CDLL(lib_name)
+                    sdl2.SDL_Quit()
+                    break
+                except OSError:
+                    continue
+        except Exception:
+            pass  # SDL 리셋 실패해도 무시 - 이후 context 생성 시 재초기화됨
         self.logger.warning(f"{reason} - SDL dummy 비디오 드라이버 사용")
+
+    def _install_x11_error_handler(self) -> None:
+        """Linux X11 환경에서 치명적 X 에러를 비치명적으로 변환
+
+        X11 BadLength 등의 에러는 기본적으로 프로세스를 즉시 종료시켜
+        Python 예외 처리를 우회합니다. 이 핸들러를 설치하면
+        X 에러 발생 시 프로세스 종료 대신 플래그만 설정하여
+        fallback 로직이 실행될 수 있도록 합니다.
+        """
+        try:
+            import ctypes
+            import ctypes.util
+
+            x11_name = ctypes.util.find_library('X11')
+            if not x11_name:
+                return
+
+            x11 = ctypes.CDLL(x11_name)
+
+            # XErrorHandler: int (*)(Display*, XErrorEvent*)
+            XERROR_HANDLER = ctypes.CFUNCTYPE(
+                ctypes.c_int,
+                ctypes.c_void_p,
+                ctypes.c_void_p,
+            )
+
+            self._x11_error_occurred = False
+
+            def _error_handler(display, event):
+                self._x11_error_occurred = True
+                self.logger.warning(
+                    "X11 에러 감지 - 프로세스 종료를 방지하고 fallback 렌더러로 재시도합니다"
+                )
+                return 0
+
+            # GC가 콜백을 수집하지 못하도록 인스턴스에 참조 유지
+            self._x11_handler_ref = XERROR_HANDLER(_error_handler)
+            x11.XSetErrorHandler(self._x11_handler_ref)
+            self.logger.debug("X11 비치명적 에러 핸들러 설치 완료")
+        except Exception as e:
+            self.logger.debug(f"X11 에러 핸들러 설치 건너뜀: {e}")
+
+    def _try_create_context(self, context_kwargs: dict, basic_kwargs: dict):
+        """tcod 컨텍스트 생성 (X11 에러 감지 시 자동 fallback)
+
+        시도 순서:
+        1. 요청된 렌더러로 생성
+        2. X11 에러 감지 시 → SDL2 렌더러로 재시도
+        3. 실패 시 → 렌더러 미지정으로 재시도
+        4. 실패 시 → 헤드리스 dummy 드라이버로 재시도
+        """
+        import traceback
+
+        def _x11_error_detected() -> bool:
+            """X11 에러 핸들러가 에러를 잡았는지 확인"""
+            if getattr(self, '_x11_error_occurred', False):
+                self._x11_error_occurred = False
+                return True
+            return False
+
+        # 1차: 요청된 설정으로 시도
+        try:
+            if self._headless:
+                context_kwargs.pop("renderer", None)
+                context_kwargs["vsync"] = False
+            ctx = tcod.context.new(**context_kwargs)
+            if _x11_error_detected():
+                self.logger.warning("X11 에러 감지 (1차 시도) - fallback 렌더러로 재시도")
+                try:
+                    ctx.close()
+                except Exception:
+                    pass
+                raise RuntimeError("X11 BadLength detected")
+            self.logger.info("TCOD 컨텍스트 생성 완료")
+            return ctx
+        except Exception as e:
+            self.logger.error(f"컨텍스트 생성 오류 (1차): {e}")
+            self.logger.debug(traceback.format_exc())
+
+        # 2차: Linux에서 SDL2 렌더러로 재시도 (OpenGL이 실패한 경우)
+        if not self._headless:
+            for fallback_renderer, fallback_name in [
+                (tcod.context.RENDERER_SDL2, "SDL2"),
+                (None, "자동"),
+            ]:
+                try:
+                    fb_kwargs = dict(basic_kwargs)
+                    if fallback_renderer is not None:
+                        fb_kwargs["renderer"] = fallback_renderer
+                    fb_kwargs["vsync"] = context_kwargs.get("vsync", True)
+                    ctx = tcod.context.new(**fb_kwargs)
+                    if _x11_error_detected():
+                        self.logger.warning(
+                            f"X11 에러 감지 ({fallback_name} 렌더러) - 다음 fallback 시도"
+                        )
+                        try:
+                            ctx.close()
+                        except Exception:
+                            pass
+                        continue
+                    self.logger.info(f"TCOD 컨텍스트 생성 완료 (fallback: {fallback_name} 렌더러)")
+                    return ctx
+                except Exception as fb_e:
+                    self.logger.warning(f"fallback 컨텍스트 생성 실패 ({fallback_name}): {fb_e}")
+
+        # 3차: 헤드리스 dummy 드라이버
+        if not self._headless:
+            self._enable_dummy_video_driver("디스플레이 초기화 실패 - 모든 렌더러 실패")
+            try:
+                fb_kwargs = dict(basic_kwargs)
+                fb_kwargs["vsync"] = False
+                ctx = tcod.context.new(**fb_kwargs)
+                self.logger.info("TCOD 컨텍스트 생성 완료 (dummy video driver)")
+                return ctx
+            except Exception as dummy_e:
+                self.logger.error(f"헤드리스 컨텍스트 생성도 실패: {dummy_e}")
+                self.logger.error(traceback.format_exc())
+
+        return None
 
     def _initialize_tcod(self) -> None:
         """TCOD 초기화"""
@@ -192,6 +366,10 @@ class TCODDisplay:
 
         import platform
         import os
+
+        # Linux X11: BadLength 등 치명적 X 에러 방지 핸들러 설치
+        if platform.system() == "Linux":
+            self._install_x11_error_handler()
 
         env_headless = os.environ.get("DOS_HEADLESS", "").lower()
         config_headless = bool(self.config.get("display.headless", False))
@@ -208,35 +386,37 @@ class TCODDisplay:
             self._headless = True
         elif platform.system() == "Linux":
             display_env = os.environ.get("DISPLAY")
+            wayland_env = os.environ.get("WAYLAND_DISPLAY")
             if display_env and not self._headless:
-                xauth_path = os.environ.get("XAUTHORITY") or str(Path.home() / ".Xauthority")
-                if xauth_path and not os.access(xauth_path, os.R_OK):
-                    self._enable_dummy_video_driver("디스플레이 인증 파일 접근 실패 감지")
-                else:
-                    probe_cmd = None
-                    if shutil.which("xrandr"):
-                        probe_cmd = ["xrandr", "--current"]
-                    elif shutil.which("xdpyinfo"):
-                        probe_cmd = ["xdpyinfo"]
-                try:
-                    import subprocess
-
-                    if probe_cmd:
+                # X11 환경: Xauthority 검사 (Wayland에서는 불필요)
+                if not wayland_env:
+                    xauth_path = os.environ.get("XAUTHORITY") or str(Path.home() / ".Xauthority")
+                    if not os.path.exists(xauth_path):
+                        self.logger.debug(f"Xauthority 파일 없음: {xauth_path} - X11 인증 검사 건너뜀")
+                    elif not os.access(xauth_path, os.R_OK):
+                        self.logger.warning(f"Xauthority 파일 접근 불가: {xauth_path}")
+                # 디스플레이 접근 확인 (xrandr/xdpyinfo)
+                probe_cmd = None
+                if shutil.which("xrandr"):
+                    probe_cmd = ["xrandr", "--current"]
+                elif shutil.which("xdpyinfo"):
+                    probe_cmd = ["xdpyinfo"]
+                if probe_cmd:
+                    try:
+                        import subprocess
                         probe = subprocess.run(
                             probe_cmd,
                             capture_output=True,
                             text=True,
-                            timeout=1,
+                            timeout=2,
                         )
                         if probe.returncode != 0:
                             reason = probe.stderr.strip() or probe.stdout.strip() or f"{probe_cmd[0]} 실패"
-                            self._enable_dummy_video_driver(
-                                f"디스플레이 접근 실패 감지: {reason}"
-                            )
-                    else:
-                        self.logger.debug("디스플레이 확인용 유틸리티(xrandr/xdpyinfo) 없음 - 확인 건너뜀")
-                except Exception as probe_error:
-                    self._enable_dummy_video_driver(f"디스플레이 확인 예외: {probe_error}")
+                            self.logger.warning(f"디스플레이 확인 경고: {reason}")
+                    except Exception as probe_error:
+                        self.logger.debug(f"디스플레이 확인 예외 (무시): {probe_error}")
+                else:
+                    self.logger.debug("디스플레이 확인용 유틸리티(xrandr/xdpyinfo) 없음 - 확인 건너뜀")
 
         # OS별 시스템 폰트 경로 (한글 지원)
         font_paths = []
@@ -405,6 +585,16 @@ class TCODDisplay:
                 "vsync": self.config.get("display.vsync", True),
             }
 
+            # Linux에서 renderer=auto이면 OpenGL2를 우선 사용
+            # X11 환경에서 대용량 타일셋(한글 BDF 폰트 + 게이지 타일)을
+            # SDL2 소프트웨어 렌더러로 업로드 시 MIT-SHM BadLength 에러 발생 방지
+            if renderer is None and platform.system() == "Linux" and not self._headless:
+                renderer = tcod.context.RENDERER_OPENGL2
+                renderer_name = "opengl2 (Linux 자동 선택)"
+                self.logger.info(
+                    f"Linux 환경 감지 - X11 BadLength 방지를 위해 OpenGL2 렌더러 사용"
+                )
+
             if renderer is not None:
                 context_kwargs["renderer"] = renderer
                 self.logger.info(f"렌더러 사용: {renderer_name}")
@@ -417,41 +607,14 @@ class TCODDisplay:
             }
 
             # context 생성
-            try:
-                if self._headless:
-                    context_kwargs.pop("renderer", None)
-                    context_kwargs["vsync"] = False
-                self.context = tcod.context.new(**context_kwargs)
-                self.logger.info("TCOD 컨텍스트 생성 완료")
-            except Exception as e:
-                import traceback
-                self.logger.error(f"컨텍스트 생성 중 오류: {e}")
-                self.logger.error(traceback.format_exc())
-                self.context = None
-
-                if not self._headless:
-                    self._enable_dummy_video_driver("디스플레이 초기화 실패 감지")
-                    fallback_kwargs = dict(context_kwargs)
-                    fallback_kwargs.pop("renderer", None)
-                    fallback_kwargs["vsync"] = False
-                    try:
-                        self.context = tcod.context.new(**fallback_kwargs)
-                        self.logger.info("TCOD 컨텍스트 생성 완료 (dummy video driver)")
-                    except Exception as headless_e:
-                        self.logger.error(f"헤드리스 컨텍스트 생성 실패: {headless_e}")
-                        self.logger.error(traceback.format_exc())
-
-                if not self.context:
-                    try:
-                        self.context = tcod.context.new(**basic_kwargs)
-                        self.logger.info("기본 설정으로 컨텍스트 생성 완료")
-                    except Exception as e2:
-                        self.logger.error(f"기본 컨텍스트 생성도 실패: {e2}")
+            self.context = self._try_create_context(context_kwargs, basic_kwargs)
 
             if self.context:
                 if not self._headless:
                     # 전체 화면 모드 설정 (context 생성 후 SDL로 직접 설정)
-                    if self.borderless_fullscreen:
+                    if self.fullscreen:
+                        self._set_exclusive_fullscreen_mode()
+                    elif self.borderless_fullscreen:
                         self._set_fullscreen_desktop_mode()
                     elif self.borderless:
                         self._set_borderless_mode()
@@ -1209,6 +1372,43 @@ class TCODDisplay:
             self.logger.warning(f"SDL 창 포인터 추출 실패: {e}")
             return None
     
+    def _set_exclusive_fullscreen_mode(self) -> None:
+        """독점 전체화면 모드 설정 (SDL_WINDOW_FULLSCREEN)"""
+        if not self.context:
+            self.logger.warning("context가 없어서 전체화면 설정 불가")
+            return
+
+        try:
+            window_p = self.context.sdl_window_p
+            if window_p is None or 'NULL' in str(window_p):
+                self.logger.warning("SDL 창 포인터가 NULL입니다")
+                return
+
+            import ctypes
+            try:
+                sdl2 = ctypes.CDLL("SDL2.dll")
+            except OSError:
+                try:
+                    sdl2 = ctypes.cdll.LoadLibrary("libSDL2.so")
+                except OSError:
+                    sdl2 = ctypes.cdll.LoadLibrary("libSDL2.dylib")
+
+            window_ptr = ctypes.cast(int(self.context.sdl_window_p), ctypes.c_void_p)
+
+            # SDL_WINDOW_FULLSCREEN = 0x00000001 (독점 전체화면)
+            sdl2.SDL_SetWindowFullscreen.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+            sdl2.SDL_SetWindowFullscreen.restype = ctypes.c_int
+            result = sdl2.SDL_SetWindowFullscreen(window_ptr, 0x00000001)
+
+            if result == 0:
+                self.logger.info("독점 전체화면 모드 설정 완료")
+            else:
+                self.logger.warning(f"독점 전체화면 설정 실패 (SDL 반환값: {result}), borderless fallback")
+                self._set_fullscreen_desktop_mode()
+        except Exception as e:
+            self.logger.warning(f"독점 전체화면 설정 실패: {e}, borderless fallback")
+            self._set_fullscreen_desktop_mode()
+
     def _set_fullscreen_desktop_mode(self) -> None:
         """테두리 없는 전체 화면 모드 설정 (Windows/Linux/macOS 지원)"""
         if not self.context:
@@ -1443,15 +1643,28 @@ class TCODDisplay:
         self.logger.info("TCOD 종료")
 
 
+# ── pygame 백엔드 전환 플래그 ──
+# True: pygame-ce 렌더러 사용 (Cogmind급 비주얼)
+# False: 기존 tcod 렌더러 즉시 롤백
+_USE_PYGAME = True
+
 # 전역 인스턴스
 _display: Optional[TCODDisplay] = None
 
 
-def get_display() -> TCODDisplay:
-    """전역 디스플레이 인스턴스"""
+def get_display():
+    """전역 디스플레이 인스턴스
+
+    _USE_PYGAME=True이면 PygameDisplay, False이면 TCODDisplay 반환.
+    두 클래스 모두 동일한 공개 API를 제공.
+    """
     global _display
     if _display is None:
-        _display = TCODDisplay()
+        if _USE_PYGAME:
+            from src.ui.pygame_backend.pygame_display import PygameDisplay
+            _display = PygameDisplay()
+        else:
+            _display = TCODDisplay()
     return _display
 
 

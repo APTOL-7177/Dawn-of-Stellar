@@ -335,18 +335,12 @@ class DungeonGenerator:
                     dungeon.corridors.append((x, y2))
 
     def _create_walls(self, dungeon: DungeonMap):
-        """벽 생성 (바닥 주변)"""
+        """벽 생성 (모든 VOID를 벽으로 변환)"""
         for y in range(dungeon.height):
             for x in range(dungeon.width):
                 tile = dungeon.get_tile(x, y)
                 if tile and tile.tile_type == TileType.VOID:
-                    # 인접한 타일 중 바닥이 있으면 벽으로
-                    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                        nx, ny = x + dx, y + dy
-                        neighbor = dungeon.get_tile(nx, ny)
-                        if neighbor and neighbor.tile_type in [TileType.FLOOR, TileType.DOOR]:
-                            dungeon.set_tile(x, y, TileType.WALL)
-                            break
+                    dungeon.set_tile(x, y, TileType.WALL)
 
     def _place_stairs(self, dungeon: DungeonMap, floor_number: int):
         """계단 배치 - 다음 층으로만 진행 (올라가는 계단 제거)"""
@@ -399,10 +393,6 @@ class DungeonGenerator:
         # 치유의 샘
         if random.random() < 0.3:
             self._place_healing_spring(dungeon)
-
-        # NPC 배치
-        num_npcs = min(3, 1 + floor_number // 5)
-        self._place_npcs(dungeon, num_npcs)
 
         # 특수 타일 배치
         self._place_special_tiles(dungeon, floor_number)
@@ -742,60 +732,10 @@ class DungeonGenerator:
                     harvestable.x, harvestable.y = pos
                     dungeon.harvestables.append(harvestable)
 
-            # 요리솥 배치 (3층당 1번 = 약 33% 확률)
-            if random.random() < 0.33 or floor_number % 3 == 0:
-                room = random.choice(dungeon.rooms) if dungeon.rooms else None
-                if room:
-                    pos = self._get_random_floor_pos(dungeon, room, avoid_center=False)
-                    if pos:
-                        cooking_pot = HarvestableObject(
-                            object_type=HarvestableType.COOKING_POT,
-                            x=pos[0],
-                            y=pos[1]
-                        )
-                        dungeon.harvestables.append(cooking_pot)
-                        logger.info(f"요리솥 배치: {pos}")
-
             logger.info(f"채집 오브젝트 {len(dungeon.harvestables)}개 배치")
 
         except ImportError as e:
             logger.warning(f"채집 시스템 로드 실패: {e}")
-
-    def _place_npcs(self, dungeon: DungeonMap, num_npcs: int):
-        """NPC 배치"""
-        npc_types = ["helpful", "harmful", "neutral"]
-        npc_subtypes = [
-            "time_researcher", "timeline_survivor", "space_explorer",
-            "merchant", "refugee", "time_thief", "distortion_entity",
-            "betrayer", "mysterious_merchant", "time_mage", "future_self",
-            "corrupted_survivor", "ancient_guardian", "void_wanderer",
-            # === 새로운 창의적 NPC 타입 ===
-            "stat_trainer", "gambler", "equipment_enchanter", "dungeon_curse",
-            "wandering_alchemist", "dimension_crafter", "oracle", "chaos_entity"
-        ]
-
-        for i in range(num_npcs):
-            if not dungeon.rooms:
-                break
-
-            room = random.choice(dungeon.rooms)
-            pos = self._get_random_floor_pos(dungeon, room, avoid_center=True)
-            
-            if pos:
-                # NPC 타입과 서브타입 랜덤 선택
-                npc_type = random.choice(npc_types)
-                npc_subtype = random.choice(npc_subtypes)
-                npc_id = f"npc_{i}_{npc_subtype}"
-                
-                dungeon.set_tile(
-                    pos[0], pos[1],
-                    TileType.NPC,
-                    npc_id=npc_id,
-                    npc_type=npc_type,
-                    npc_subtype=npc_subtype,
-                    npc_interacted=False
-                )
-                logger.debug(f"NPC 배치: {npc_subtype} ({npc_type}) at {pos}")
 
     def _place_special_tiles(self, dungeon: DungeonMap, floor_number: int):
         """특수 타일 배치 (ALTAR, SHRINE, PORTAL, CRYSTAL, MANA_WELL 등)"""

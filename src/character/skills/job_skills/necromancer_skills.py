@@ -14,18 +14,18 @@ def create_necromancer_skills():
     """네크로맨서 10개 스킬 생성 (언데드 군단 관리 시스템)"""
 
     # 1. 기본 BRV: 암흑 화살 (마법 공격)
-    shadow_bolt = Skill("necromancer_shadow_bolt", "암흑 화살", "암흑 속성. 어둠의 마법 공격")
+    shadow_bolt = Skill("necromancer_shadow_bolt", "암흑 화살", "[암흑 속성] 암흑 속성. 어둠의 마법 공격")
     shadow_bolt.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="magical", element="dark")
+        DamageEffect(DamageType.BRV, 0.98, stat_type="magical", element="dark")
     ]
     shadow_bolt.costs = []  # 기본 공격은 MP 소모 없음
     shadow_bolt.sfx = ("skill", "cast_start")  # 암흑 화살
     shadow_bolt.metadata = {"element": "dark"}
 
     # 2. 기본 HP: 생명력 흡수 (HP 드레인)
-    drain_life = Skill("necromancer_drain_life", "생명력 흡수", "암흑 속성. 적의 HP를 흡수")
+    drain_life = Skill("necromancer_drain_life", "생명력 흡수", "[암흑 속성] 암흑 속성. 적의 HP를 흡수")
     drain_life.effects = [
-        DamageEffect(DamageType.HP, 1.0, stat_type="magical", element="dark"),
+        DamageEffect(DamageType.HP, 0.65, stat_type="magical", element="dark"),
         LifestealEffect(lifesteal_percent=0.15, low_hp_bonus=False)
     ]
     drain_life.costs = []
@@ -74,7 +74,7 @@ def create_necromancer_skills():
     sacrifice_undead = Skill("necromancer_sacrifice_undead", "언데드 희생",
                             "언데드 1마리 희생, 강력한 피해 + MP 회복")
     sacrifice_undead.effects = [
-        DamageEffect(DamageType.BRV_HP, 3.0, stat_type="magical",
+        DamageEffect(DamageType.BRV_HP, 1.95, stat_type="magical",
                     gimmick_bonus={"field": "total_undead", "multiplier": 0.5}),
         GimmickEffect(GimmickOperation.CONSUME, "undead_skeleton", 1),  # 우선순위: skeleton
         HealEffect(heal_type=HealType.MP, base_amount=20)
@@ -96,9 +96,9 @@ def create_necromancer_skills():
 
     # 8. 죽음의 파동 (언데드 수에 비례한 광역 공격)
     death_wave = Skill("necromancer_death_wave", "죽음의 파동",
-                      "암흑 속성. 언데드 수에 비례한 광역 공격")
+                      "[암흑 속성] 암흑 속성. 언데드 수에 비례한 광역 공격")
     death_wave.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.0, stat_type="magical", element="dark",
+        DamageEffect(DamageType.BRV_HP, 1.3, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "total_undead", "multiplier": 0.4})
     ]
     death_wave.costs = [MPCost(8)]
@@ -125,11 +125,11 @@ def create_necromancer_skills():
 
     # 10. 궁극기: 언데드 대군단 (모든 언데드 희생, 극한의 피해)
     ultimate = Skill("necromancer_ultimate", "언데드 대군단",
-                    "암흑 속성. 모든 언데드 희생, 극한의 피해")
+                    "[암흑 속성] 암흑 속성. 모든 언데드 희생, 극한의 피해")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 3.0, stat_type="magical", element="dark",
+        DamageEffect(DamageType.BRV, 1.95, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "total_undead", "multiplier": 0.8}),
-        DamageEffect(DamageType.HP, 3.2, stat_type="magical", element="dark",
+        DamageEffect(DamageType.HP, 2.08, stat_type="magical", element="dark",
                     gimmick_bonus={"field": "total_undead", "multiplier": 0.6}),
         GimmickEffect(GimmickOperation.SET, "undead_skeleton", 0),
         GimmickEffect(GimmickOperation.SET, "undead_zombie", 0),
@@ -157,7 +157,7 @@ def register_necromancer_skills(skill_manager):
         "언데드 하수인 3기 즉시 소환 (최대 3기) + 적 전체에 저주 (HP 회복 불가, 3턴)",
         gauge_cost=200)
     teamwork.effects = [
-        DamageEffect(DamageType.HP, 0.2, stat_type="magical"),  # 적 전체 HP 20% 흡수
+        DamageEffect(DamageType.HP, 0.3, stat_type="magical"),  # 적 전체 HP 20% 흡수
         HealEffect(percentage=0.2, is_party_wide=True),  # 아군 전체 HP 20% 회복
         BuffEffect(BuffType.ATTACK_UP, 0.3, duration=3, is_party_wide=True)  # 공격력 +30%
     ]

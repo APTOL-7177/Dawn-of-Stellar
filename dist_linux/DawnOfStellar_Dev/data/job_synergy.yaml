@@ -1,0 +1,411 @@
+# 직업 시너지 데이터
+# 합체기: 2인 이상의 직업 조합 필살기 (팀워크 게이지 소모)
+# 파티 보너스: 편성 조건에 따른 자동 패시브
+#
+# combo_pattern 유형:
+#   brv_hp         - 기본. P1이 BRV 탈취, P2가 HP 일격
+#   empower_strike - P1이 P2를 강화(x1.5), P2가 강화된 BRV→HP 일격
+#   weaken_execute - P1이 적 방어력 절반으로 약화, P2가 약화된 적에게 BRV→HP 일격
+#   sacrifice_burst- P1이 최대 HP 15%를 희생, 희생량만큼 추가 피해 + BRV→HP 일격
+#
+# required_jobs 순서: [P1(셋업/지원), P2(피니시/일격)]
+
+combo_skills:
+  # ─── 물리 + 물리 합체기 ─────────────────
+  - id: "twin_blade_storm"
+    name: "쌍검의 폭풍"
+    required_jobs: ["warrior", "samurai"]
+    gauge_cost: 250
+    min_affinity: 3
+    combo_pattern: "brv_hp"
+    effects:
+      - type: "damage"
+        target: "all_enemies"
+        damage_type: "physical"
+        multiplier: 4.5
+    description: "전사가 적의 BRV를 난도질로 깎아내고, 사무라이가 무방비 상태의 적을 거합으로 마무리한다."
+    animation: "twin_slash"
+
+  - id: "shadow_execution"
+    name: "그림자 처형"
+    required_jobs: ["assassin", "dark_knight"]
+    gauge_cost: 275
+    min_affinity: 3
+    combo_pattern: "weaken_execute"
+    effects:
+      - type: "damage"
+        target: "single"
+        damage_type: "physical"
+        multiplier: 6.5
+        critical_guaranteed: true
+        hp_drain_percent: 30
+    description: "암살자가 그림자 속에서 적의 급소를 표식하고, 암흑기사가 어둠의 힘으로 표식된 급소를 꿰뚫는다."
+    animation: "shadow_strike"
+
+  - id: "berserker_dragon_rage"
+    name: "광룡의 분노"
+    required_jobs: ["berserker", "dragon_knight"]
+    gauge_cost: 300
+    min_affinity: 3
+    combo_pattern: "sacrifice_burst"
+    effects:
+      - type: "damage"
+        target: "all_enemies"
+        damage_type: "physical"
+        multiplier: 5.5
+    description: "광전사가 자신의 생명력을 불태워 광기의 기운을 발산하고, 용기사가 그 광기를 용의 돌진에 실어 적진을 궤멸시킨다."
+    animation: "dragon_berserk"
+
+  - id: "perfect_counter"
+    name: "완벽한 반격"
+    required_jobs: ["knight", "samurai"]
+    gauge_cost: 200
+    min_affinity: 3
+    combo_pattern: "brv_hp"
+    effects:
+      - type: "buff"
+        target: "self_pair"
+        counter_rate: 1.0
+        counter_multiplier: 2.0
+        duration: 3
+    description: "기사가 철벽 방어로 모든 공격을 받아내고, 사무라이가 빈틈을 노려 2배의 반격을 가한다."
+    animation: "perfect_guard"
+
+  # ─── 마법 + 마법 합체기 ─────────────────
+  - id: "temporal_storm"
+    name: "시공 폭풍"
+    required_jobs: ["time_mage", "elementalist"]
+    gauge_cost: 300
+    min_affinity: 3
+    combo_pattern: "weaken_execute"
+    effects:
+      - type: "damage"
+        target: "all_enemies"
+        damage_type: "magic"
+        multiplier: 5.0
+        status: "slow"
+        status_duration: 3
+    description: "시간마법사가 적의 시간 흐름을 느리게 왜곡하여 방어를 무력화하고, 원소술사가 느려진 적들에게 원소 폭풍을 퍼붓는다."
+    animation: "temporal_storm"
+
+  - id: "infinite_void"
+    name: "무한의 허공"
+    required_jobs: ["dimensionist", "archmage"]
+    gauge_cost: 350
+    min_affinity: 3
+    combo_pattern: "empower_strike"
+    effects:
+      - type: "damage"
+        target: "all_enemies"
+        damage_type: "magic"
+        multiplier: 6.0
+        ignore_defense: true
+    description: "차원술사가 차원의 틈을 열어 대마법사에게 무한한 마력을 공급하고, 대마법사가 그 힘으로 적을 차원의 허공으로 빨아들인다."
+    animation: "dimension_collapse"
+
+  - id: "mirror_nightmare"
+    name: "거울의 악몽"
+    required_jobs: ["illusionist", "necromancer"]
+    gauge_cost: 275
+    min_affinity: 3
+    combo_pattern: "weaken_execute"
+    effects:
+      - type: "damage"
+        target: "all_enemies"
+        damage_type: "magic"
+        multiplier: 4.0
+        status: "confusion"
+        status_duration: 2
+        hp_drain_percent: 20
+    description: "환영술사가 거울 미궁으로 적의 정신을 교란하고, 사령술사가 혼란에 빠진 적의 생명력을 거두어들인다."
+    animation: "nightmare"
+
+  # ─── 물리 + 마법 합체기 ─────────────────
+  - id: "elemental_blade_dance"
+    name: "원소의 검무"
+    required_jobs: ["elementalist", "spellblade"]
+    gauge_cost: 275
+    min_affinity: 3
+    combo_pattern: "empower_strike"
+    effects:
+      - type: "damage"
+        target: "all_enemies"
+        damage_type: "hybrid"
+        multiplier: 5.0
+        element: "random"
+    description: "원소술사가 불·얼음·번개의 원소를 마법검사의 검에 부여하고, 마법검사가 원소를 머금은 검으로 화려한 검무를 펼친다."
+    animation: "elemental_dance"
+
+  - id: "spirit_fist"
+    name: "정령권"
+    required_jobs: ["shaman", "monk"]
+    gauge_cost: 250
+    min_affinity: 3
+    combo_pattern: "empower_strike"
+    effects:
+      - type: "damage"
+        target: "single"
+        damage_type: "hybrid"
+        multiplier: 5.5
+      - type: "buff"
+        target: "all_allies"
+        all_stats_mult: 1.10
+        duration: 2
+    description: "정령사가 대지의 정령력을 수도승에게 불어넣고, 수도승이 정령의 기운이 깃든 권으로 궁극의 일격을 날린다."
+    animation: "spirit_punch"
+
+  # ─── 서포트 합체기 ──────────────────────
+  - id: "divine_purification"
+    name: "신성 정화"
+    required_jobs: ["priest", "paladin"]
+    gauge_cost: 250
+    min_affinity: 3
+    combo_pattern: "brv_hp"
+    effects:
+      - type: "heal"
+        target: "all_allies"
+        heal_percent: 60
+        cleanse: true
+      - type: "damage"
+        target: "all_enemies"
+        damage_type: "holy"
+        multiplier: 3.0
+    description: "사제가 아군을 치유하고 저주를 정화하는 동안, 성기사가 신성한 빛으로 적의 BRV를 부수고 심판의 일격을 내린다."
+    animation: "divine_light"
+
+  - id: "symphony_of_nature"
+    name: "자연의 교향곡"
+    required_jobs: ["bard", "druid"]
+    gauge_cost: 225
+    min_affinity: 3
+    combo_pattern: "brv_hp"
+    effects:
+      - type: "heal"
+        target: "all_allies"
+        heal_percent: 40
+      - type: "buff"
+        target: "all_allies"
+        physical_attack_mult: 1.15
+        magic_attack_mult: 1.15
+        speed_mult: 1.15
+        duration: 4
+    description: "음유시인이 용기의 선율을 연주하여 아군을 강화하고, 드루이드가 자연의 치유력으로 아군의 상처를 감싸안는다."
+    animation: "nature_song"
+
+  # ─── 특수 합체기 ────────────────────────
+  - id: "blood_pact"
+    name: "피의 서약"
+    required_jobs: ["vampire", "dark_knight"]
+    gauge_cost: 300
+    min_affinity: 3
+    combo_pattern: "sacrifice_burst"
+    effects:
+      - type: "damage"
+        target: "all_enemies"
+        damage_type: "dark"
+        multiplier: 5.5
+        hp_drain_percent: 50
+    description: "뱀파이어가 자신의 피를 바쳐 어둠의 서약을 맺고, 암흑기사가 그 피의 힘으로 적의 생명력을 모조리 빨아들인다."
+    animation: "blood_ritual"
+
+  - id: "tech_overload"
+    name: "기술 과부하"
+    required_jobs: ["hacker", "engineer"]
+    gauge_cost: 250
+    min_affinity: 3
+    combo_pattern: "weaken_execute"
+    effects:
+      - type: "damage"
+        target: "all_enemies"
+        damage_type: "tech"
+        multiplier: 4.5
+      - type: "debuff"
+        target: "all_enemies"
+        physical_defense_mult: 0.7
+        magic_defense_mult: 0.7
+        duration: 3
+    description: "해커가 적의 방어 시스템을 해킹하여 무력화하고, 엔지니어가 과부하 EMP를 방출하여 무방비 상태의 적을 초토화한다."
+    animation: "tech_emp"
+
+  - id: "alchemist_bomb_rain"
+    name: "연금 폭격"
+    required_jobs: ["alchemist", "sniper"]
+    gauge_cost: 250
+    min_affinity: 3
+    combo_pattern: "empower_strike"
+    effects:
+      - type: "damage"
+        target: "all_enemies"
+        damage_type: "physical"
+        multiplier: 4.0
+        status: "burn"
+        status_duration: 3
+    description: "연금술사가 특수 폭발물을 조합하여 저격수에게 건네고, 저격수가 정밀 사격으로 적 한가운데에 폭탄을 정확히 투하한다."
+    animation: "bomb_snipe"
+
+  - id: "absolute_zero"
+    name: "절대영도"
+    required_jobs: ["time_mage", "archmage"]
+    gauge_cost: 350
+    min_affinity: 4
+    combo_pattern: "empower_strike"
+    effects:
+      - type: "damage"
+        target: "all_enemies"
+        damage_type: "magic"
+        multiplier: 7.0
+        status: "freeze"
+        status_duration: 2
+    description: "시간마법사가 시간을 멈추어 대마법사에게 무한한 영창 시간을 부여하고, 대마법사가 최대 출력의 절대영도를 해방한다."
+    animation: "absolute_zero"
+
+# ─── 파티 편성 보너스 ─────────────────────
+
+party_bonuses:
+  - id: "physical_dominance"
+    name: "물리 우세"
+    condition:
+      job_category: "physical"
+      min_count: 3
+    effects:
+      physical_attack_mult: 1.10
+      teamwork_charge_bonus: 0.15
+    description: "물리 직업 3명 이상: 물리 공격력 +10%, 게이지 충전 +15%"
+
+  - id: "magic_supremacy"
+    name: "마법 우세"
+    condition:
+      job_category: "magic"
+      min_count: 3
+    effects:
+      magic_attack_mult: 1.10
+      mp_cost_reduction: 0.10
+      teamwork_charge_bonus: 0.10
+    description: "마법 직업 3명 이상: 마법 공격력 +10%, MP 소비 -10%"
+
+  - id: "support_harmony"
+    name: "서포트 조화"
+    condition:
+      job_category: "support"
+      min_count: 2
+    effects:
+      heal_power_mult: 1.20
+      buff_duration_bonus: 1
+      teamwork_charge_bonus: 0.10
+    description: "서포트 직업 2명 이상: 회복력 +20%, 버프 지속 +1턴"
+
+  - id: "balanced_formation"
+    name: "균형 편성"
+    condition:
+      balanced: true
+    effects:
+      all_stats_mult: 1.05
+      teamwork_charge_bonus: 0.10
+    description: "물리+마법+서포트 각 1명 이상: 전스탯 +5%"
+
+  - id: "dark_legion"
+    name: "어둠의 군단"
+    condition:
+      job_category: "dark"
+      min_count: 2
+    effects:
+      physical_attack_mult: 1.08
+      magic_attack_mult: 1.08
+      hp_drain_bonus: 0.10
+      teamwork_charge_bonus: 0.05
+    description: "어둠 직업 2명 이상: 공격력 +8%, HP 흡수 +10%"
+
+  - id: "tech_synergy"
+    name: "기술 시너지"
+    condition:
+      job_category: "tech"
+      min_count: 2
+    effects:
+      debuff_duration_bonus: 1
+      physical_defense_mult: 1.10
+      teamwork_charge_bonus: 0.10
+    description: "기술 직업 2명: 디버프 지속 +1턴, 물리 방어 +10%"
+
+  - id: "diverse_party"
+    name: "다양성의 힘"
+    condition:
+      all_different_categories: true
+    effects:
+      all_stats_mult: 1.03
+      exp_bonus: 0.10
+      teamwork_charge_bonus: 0.08
+    description: "전원 다른 카테고리: 전스탯 +3%, 경험치 +10%"
+
+  - id: "blade_masters"
+    name: "검의 달인들"
+    condition:
+      required_jobs: ["sword_saint", "samurai"]
+    effects:
+      physical_attack_mult: 1.15
+      critical_rate_bonus: 0.10
+      teamwork_charge_bonus: 0.12
+    description: "검성+사무라이: 물리 공격 +15%, 크리티컬률 +10%"
+
+# ─── ninja 합체기 ─────────────────────────
+
+  - id: "ninja_assassin_shadow_blitz"
+    name: "그림자 섬멸진"
+    required_jobs: ["ninja", "assassin"]
+    gauge_cost: 250
+    min_affinity: 3
+    combo_pattern: "sequential"
+    effects:
+      - type: "damage"
+        damage_type: "brv_hp"
+        multiplier: 3.0
+        stat_base: "physical"
+        element: "dark"
+        target: "single_enemy"
+      - type: "debuff"
+        debuff_id: "defense_down"
+        value: 0.25
+        duration: 3
+    description: "닌자와 암살자의 합동 암살! 암속성 3.0배 + 방어 -25%"
+    animation: "shadow_blitz"
+
+  - id: "ninja_samurai_dual_blade"
+    name: "쌍검 질풍참"
+    required_jobs: ["ninja", "samurai"]
+    gauge_cost: 250
+    min_affinity: 3
+    combo_pattern: "simultaneous"
+    effects:
+      - type: "damage"
+        damage_type: "brv_hp"
+        multiplier: 2.8
+        stat_base: "hybrid"
+        element: "wind"
+        target: "all_enemies"
+      - type: "buff"
+        buff_id: "speed_up"
+        value: 0.20
+        duration: 3
+        target: "all_allies"
+    description: "닌자와 사무라이의 쌍검술! 풍속성 2.8배 광역 + 아군 속도 +20%"
+    animation: "dual_blade"
+
+  - id: "ninja_elementalist_elemental_storm"
+    name: "원소 폭풍진"
+    required_jobs: ["ninja", "elementalist"]
+    gauge_cost: 300
+    min_affinity: 4
+    combo_pattern: "sequential"
+    effects:
+      - type: "damage"
+        damage_type: "brv_hp"
+        multiplier: 3.5
+        stat_base: "magic"
+        element: "all"
+        target: "all_enemies"
+      - type: "debuff"
+        debuff_id: "element_resist_down"
+        value: 0.30
+        duration: 3
+        target: "all_enemies"
+    description: "닌자와 정령술사의 원소 합작! 전속성 3.5배 광역 + 속성 내성 -30%"
+    animation: "elemental_storm"

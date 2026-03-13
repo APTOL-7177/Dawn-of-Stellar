@@ -1,0 +1,46 @@
+id: champion_roar
+name: 챔피언의 포효
+type: buff
+description: '[환호 60+ 필요] 챔피언의 포효를 울립니다.
+
+  전체 적 공포 2턴.
+
+  아군 전체 공격력 +20% 2턴.
+
+  환호 +10.
+
+  '
+target: all
+costs:
+  mp: 20
+metadata:
+  requires_cheer: 60
+effects:
+- type: debuff
+  debuff_id: fear
+  target: all_enemies
+  duration: 2
+  effects:
+    cannot_act_chance: 0.3
+    attack_reduction: 0.2
+- type: buff
+  buff_id: champion_inspiration
+  target: all_allies
+  duration: 2
+  effects:
+    attack_multiplier: 1.2
+- type: gimmick
+  operation: add
+  field: cheer
+  value: 10
+  max_value: 100
+animation:
+  icon: 🦁
+  color:
+  - 255
+  - 200
+  - 0
+  screen_effect: roar
+sfx:
+- se
+- Up1

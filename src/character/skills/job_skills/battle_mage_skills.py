@@ -17,10 +17,10 @@ def create_battle_mage_skills():
     rune_etch = Skill(
         "battle_mage_rune_etch",
         "룬 각인",
-        "BRV 피해와 함께 대상에 랜덤 룬 1개를 각인한다."
+        "[화염 속성] BRV 피해와 함께 대상에 랜덤 룬 1개를 각인한다."
     )
     rune_etch.effects = [
-        DamageEffect(DamageType.BRV, 1.25, stat_type="hybrid")
+        DamageEffect(DamageType.BRV, 1.25, stat_type="hybrid", element="fire")
     ]
     rune_etch.costs = []
     rune_etch.sfx = ("combat", "attack_physical")
@@ -37,10 +37,10 @@ def create_battle_mage_skills():
     rune_burst = Skill(
         "battle_mage_rune_burst",
         "룬 폭발",
-        "대상에 새겨진 룬을 연쇄 폭발시켜 하이브리드 피해를 준다."
+        "[화염 속성] 대상에 새겨진 룬을 연쇄 폭발시켜 하이브리드 피해를 준다."
     )
     rune_burst.effects = [
-        DamageEffect(DamageType.HP, 0.9, stat_type="hybrid",
+        DamageEffect(DamageType.HP, 0.9, stat_type="hybrid", element="fire",
                      gimmick_bonus={"field": "total_runes", "multiplier": 0.17})
     ]
     rune_burst.costs = []
@@ -175,10 +175,10 @@ def create_battle_mage_skills():
     rune_fusion = Skill(
         "battle_mage_rune_fusion",
         "룬 융합",
-        "모든 적에게 비전 룬을 각인시키며 파동을 일으켜 광역 피해를 준다."
+        "[번개 속성] 모든 적에게 비전 룬을 각인시키며 파동을 일으켜 광역 피해를 준다."
     )
     rune_fusion.effects = [
-        DamageEffect(DamageType.BRV, 1.1, stat_type="hybrid")
+        DamageEffect(DamageType.BRV, 1.1, stat_type="hybrid", element="lightning")
     ]
     rune_fusion.target_type = "all_enemies"
     rune_fusion.is_aoe = True
@@ -218,10 +218,10 @@ def create_battle_mage_skills():
     rune_barrier = Skill(
         "battle_mage_rune_barrier",
         "룬 방벽",
-        "대지 룬을 새겨 적을 묶고 파티에 방어 장벽을 부여한다."
+        "[대지 속성] 대지 룬을 새겨 적을 묶고 파티에 방어 장벽을 부여한다."
     )
     rune_barrier.effects = [
-        DamageEffect(DamageType.BRV, 1.0, stat_type="hybrid"),
+        DamageEffect(DamageType.BRV, 1.0, stat_type="hybrid", element="earth"),
         BuffEffect(BuffType.DEFENSE_UP, 0.15, duration=2, is_party_wide=True),
         BuffEffect(BuffType.MAGIC_DEFENSE_UP, 0.15, duration=2, is_party_wide=True)
     ]

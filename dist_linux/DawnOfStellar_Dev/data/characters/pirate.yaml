@@ -1,0 +1,160 @@
+class_name: 해적
+description: 럼주와 도박을 사랑하는 바다의 무법자. 약탈한 보물로 전장을 지배한다.
+slogan: 인생은 도박이야, 럼주나 마셔
+archetype: 도박사/버스터
+base_stats:
+  hp: 168
+  mp: 42
+  init_brv: 125
+  speed: 78
+  physical_attack: 76
+  physical_defense: 48
+  magic_attack: 32
+  magic_defense: 38
+  max_brv: 336
+stat_growth:
+  hp: 39.2
+  mp: 2.8
+  init_brv: 29.5
+  strength: 20.8
+  defense: 11.9
+  magic: 6.4
+  spirit: 8.3
+  speed: 20.2
+  max_brv: 94.4
+  luck: 1.6
+  accuracy: 1.6
+  evasion: 1.2
+traits:
+- id: lucky_drunk
+  name: 행운의 주정뱅이
+  description: 럼주 효과가 항상 긍정적, 부정 효과 발동 시 BRV +30% 보상
+  type: passive
+  effects:
+    rum_always_positive: true
+    negative_rum_brv_bonus: 0.3
+- id: treasure_hoarder
+  name: 보물 수집가
+  description: 보물 최대 보유량 +2 (3→5), 같은 보물 중첩 시 효과 1.5배
+  type: passive
+  effects:
+    max_treasure: 5
+    stack_bonus: 1.5
+- id: sea_dog_instinct
+  name: 바다 늑대의 본능
+  description: HP 30% 이하 시 회피율 +40%, 럼주 효과 지속시간 2배
+  type: conditional
+  conditions:
+    hp_below: 0.3
+  effects:
+    evasion_bonus: 0.4
+    rum_duration_multiplier: 2.0
+- id: plunder_master
+  name: 약탈의 대가
+  description: 적 처치 시 100% 보물 획득 (기본 60%), 보물 효과 +30%
+  type: passive
+  effects:
+    treasure_drop_rate: 1.0
+    treasure_effect_bonus: 1.3
+- id: pirate_kings_fortune
+  name: 해적왕의 행운
+  description: 모든 확률 기반 효과 +15%, 크리티컬 데미지 +25%
+  type: passive
+  effects:
+    luck_bonus: 0.15
+    critical_damage: 1.25
+gimmick:
+  type: rum_treasure_system
+  name: 럼주와 보물
+  description: '[럼주] 마시면 랜덤 효과 발동 (도박!)
+
+    [보물] 적 처치 시 획득, 강력한 일회용 효과
+
+
+    럼주 효과 (50% 긍정 / 50% 부정):
+
+    - 대박: 공격력 2배 (3턴)
+
+    - 취기: 명중 -30%, 회피 +50% (2턴)
+
+    - 불꽃: 매턴 자해 10%, 공격력 +80% (3턴)
+
+    - 블랙아웃: 1턴 기절, 다음 턴 2회 행동
+
+
+    보물 종류:
+
+    - 금화 주머니: 즉시 BRV +50%
+
+    - 해적 권총: 추가 원거리 공격
+
+    - 저주받은 동전: 적 전체 디버프
+
+    - 행운의 주사위: 다음 스킬 효과 2배 or 0.5배
+
+    - 검은 진주: 궁극기 게이지 +50
+
+    '
+  max_treasure: 3
+  rum_positive_chance: 0.5
+  treasure_drop_chance: 0.6
+  rum_effects:
+    jackpot:
+      name: 대박
+      chance: 0.25
+      effect: attack_up_200
+      duration: 3
+    tipsy:
+      name: 취기
+      chance: 0.25
+      effect: accuracy_down_evasion_up
+      duration: 2
+    fire_blood:
+      name: 불꽃 피
+      chance: 0.25
+      effect: self_damage_attack_up
+      duration: 3
+    blackout:
+      name: 블랙아웃
+      chance: 0.25
+      effect: stun_then_double_action
+      duration: 1
+  treasure_types:
+    gold_pouch:
+      name: 금화 주머니
+      effect: brv_boost_50
+      drop_weight: 30
+    pirate_pistol:
+      name: 해적 권총
+      effect: bonus_ranged_attack
+      drop_weight: 25
+    cursed_coin:
+      name: 저주받은 동전
+      effect: enemy_all_debuff
+      drop_weight: 20
+    lucky_dice:
+      name: 행운의 주사위
+      effect: next_skill_gamble
+      drop_weight: 15
+    black_pearl:
+      name: 검은 진주
+      effect: ultimate_charge_50
+      drop_weight: 10
+skills:
+- teamwork
+- cutlass_slash
+- pistol_shot
+- drink_rum
+- share_rum
+- rum_splash
+- plunder
+- use_treasure
+- treasure_bomb
+- cannon_barrage
+- raise_flag
+- ultimate
+bonuses:
+  luck_multiplier: 1.3
+  gold_bonus: 1.5
+  critical_damage: 1.2
+  treasure_effect: 1.15

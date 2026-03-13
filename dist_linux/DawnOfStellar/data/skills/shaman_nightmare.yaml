@@ -1,0 +1,36 @@
+id: shaman_nightmare
+name: 악몽 투영
+type: attack
+description: '[암흑 속성] 악몽을 투영해 피해를 주고 수면을 겁니다.
+
+  '
+target: enemy
+metadata:
+  job: shaman
+  overload_capable: true
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: magical
+  multiplier: 1.8
+  element: dark
+- type: damage
+  damage_type: hp
+  stat_base: magical
+  multiplier: 1.8
+  element: dark
+- type: status
+  status_type: sleep
+  duration: 2
+  value: 1.0
+costs:
+  mp: 12
+animation:
+  icon: ??
+  color:
+  - 80
+  - 80
+  - 160
+sfx:
+- se
+- Darkness3

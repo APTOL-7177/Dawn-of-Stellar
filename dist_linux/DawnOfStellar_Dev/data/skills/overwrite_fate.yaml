@@ -1,0 +1,25 @@
+id: overwrite_fate
+name: 운명 덮어쓰기
+type: special
+description: 지정한 슬롯의 가능성을 원하는 보유 스킬로 교체
+costs:
+  mp: 11
+  cast_time: 0.5
+target: self
+requirements:
+  min_possibilities: 1
+effects:
+- type: overwrite_fate
+  select_slot: true
+  select_replacement_skill: true
+  power_ratio: 0.85
+restrictions:
+- cannot_select_ultimate
+- cannot_select_teamwork
+metadata:
+  gimmick_skill: true
+  no_possibility_generation: true
+  job: time_mage
+sfx:
+- se
+- Magic1

@@ -37,8 +37,7 @@ class MultiplayerSession:
         self.host_id = host_id
         
         self.players: Dict[str, MultiplayerPlayer] = {}
-        self.player_count = 0
-        
+
         # 세션 시드 (던전 생성용)
         self.session_seed = random.randint(0, 2**31 - 1)
         
@@ -60,7 +59,12 @@ class MultiplayerSession:
         
         # 다음 층 이동 준비 상태 (모든 플레이어가 준비해야 이동 가능)
         self.floor_ready_players: Set[str] = set()
-    
+
+    @property
+    def player_count(self) -> int:
+        """현재 플레이어 수 (players 딕셔너리에서 직접 계산)"""
+        return len(self.players)
+
     def add_player(self, player: MultiplayerPlayer) -> bool:
         """
         플레이어 추가
@@ -104,8 +108,7 @@ class MultiplayerSession:
         # 플레이어 추가
         player.session_id = self.session_id
         self.players[player.player_id] = player
-        self.player_count += 1
-        
+
         # 첫 번째 플레이어를 호스트로 설정
         if self.host_id is None:
             self.host_id = player.player_id
@@ -151,13 +154,15 @@ class MultiplayerSession:
         
         player = self.players[player_id]
         del self.players[player_id]
-        self.player_count -= 1
-        
+
+        # floor_ready_players에서도 제거 (정리)
+        self.floor_ready_players.discard(player_id)
+
         self.logger.info(
             f"세션 {self.session_id}: 플레이어 {player.player_name} ({player_id}) 제거 "
             f"(현재: {self.player_count}/{self.max_players})"
         )
-        
+
         new_host_id = None
         
         # 호스트가 나간 경우, 다른 플레이어를 호스트로 설정
@@ -172,8 +177,9 @@ class MultiplayerSession:
             else:
                 # 모든 플레이어가 나간 경우
                 self.host_id = None
-                self.logger.warning(f"세션 {self.session_id}: 모든 플레이어가 나감 (호스트 없음)")
-        
+                self.is_active = False
+                self.logger.warning(f"세션 {self.session_id}: 모든 플레이어가 나감 (호스트 없음, 세션 비활성화)")
+
         return True, new_host_id
     
     def get_player(self, player_id: str) -> Optional[MultiplayerPlayer]:

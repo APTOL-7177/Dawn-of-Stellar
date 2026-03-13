@@ -376,6 +376,23 @@ class TownManager:
         else:
             logger.warning(f"잘못된 창고 인덱스: {index}")
             return None
+
+    def retrieve_item_from_hub_storage(self, index: int) -> Optional[Any]:
+        """허브 저장소에서 아이템 꺼내기 (연금술 재료 소모 등)"""
+        from src.persistence.save_system import deserialize_item
+
+        if 0 <= index < len(self.hub_storage):
+            try:
+                serialized_item = self.hub_storage.pop(index)
+                item = deserialize_item(serialized_item)
+                logger.info(f"허브 저장소에서 아이템 꺼냄: {getattr(item, 'name', '알 수 없는 아이템')}")
+                return item
+            except Exception as e:
+                logger.error(f"허브 저장소 아이템 꺼내기 실패: {e}")
+                return None
+        else:
+            logger.warning(f"잘못된 허브 저장소 인덱스: {index}")
+            return None
     
     def clear_runtime_storage(self):
         """

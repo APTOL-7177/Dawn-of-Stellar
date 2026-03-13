@@ -1,0 +1,18 @@
+id: desperate_strength
+name: 절망의 힘
+type: support
+description: HP가 낮을수록 공격력이 크게 증가하지만 매턴 HP가 감소하는 버프를 얻습니다
+costs:
+  mp: 40
+  cast_time: 1.0
+effects:
+- type: buff
+  target: self
+  stat: physical_attack
+  value: 1.0
+  hp_scaling: 0.5
+  duration: 8
+  hp_drain_per_turn: 0.08
+sfx:
+- se
+- Up1

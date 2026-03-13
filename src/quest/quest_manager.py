@@ -89,6 +89,11 @@ class Quest:
     reward: QuestReward
     is_active: bool = False
     is_complete: bool = False
+    time_limit: int = 0  # 턴 제한 (SPEED_RUN용, 0=제한없음)
+    accepted_at: float = 0.0  # 수락 시점 (time.time())
+    hint: str = ""              # 퀘스트 보드 힌트 텍스트
+    quest_subtype: str = ""     # 원래 YAML quest_type (kill, investigate 등)
+    region: str = ""            # 소속 지역 ID (forgotten_forest 등)
     
     @property
     def all_objectives_complete(self) -> bool:
@@ -230,9 +235,12 @@ class QuestDatabase:
         )
     
     @staticmethod
-    def generate_exploration_quest(player_level: int) -> Quest:
+    def generate_exploration_quest(player_level: int, current_floor: int = 0) -> Quest:
         """탐험 퀘스트 생성"""
         target_floor = (player_level // 3 + 1) * 3  # 플레이어 레벨에 맞는 층
+        # 현재 층보다 낮으면 현재 층 + 2~5 로 보정
+        if current_floor > 0 and target_floor <= current_floor:
+            target_floor = current_floor + random.randint(2, 5)
         
         # 난이도
         if target_floor <= 3:
@@ -313,9 +321,11 @@ class QuestDatabase:
         )
     
     @staticmethod
-    def generate_speed_run_quest(player_level: int) -> Quest:
+    def generate_speed_run_quest(player_level: int, current_floor: int = 0) -> Quest:
         """속도 도전 퀘스트"""
         target_floor = player_level // 2 + 3
+        if current_floor > 0 and target_floor <= current_floor:
+            target_floor = current_floor + random.randint(2, 4)
         time_limit = target_floor * 10
         
         reward = QuestReward(
@@ -333,7 +343,8 @@ class QuestDatabase:
             objectives=[
                 QuestObjective(description=f"{target_floor}층 도달", target=f"floor_{target_floor}", required=1)
             ],
-            reward=reward
+            reward=reward,
+            time_limit=time_limit
         )
     
     @staticmethod
@@ -421,9 +432,11 @@ class QuestDatabase:
         )
     
     @staticmethod
-    def generate_no_damage_quest(player_level: int) -> Quest:
+    def generate_no_damage_quest(player_level: int, current_floor: int = 0) -> Quest:
         """무피해 클리어 퀘스트"""
         target_floor = player_level // 3 + 1
+        if current_floor > 0 and target_floor <= current_floor:
+            target_floor = current_floor + random.randint(1, 3)
         
         reward = QuestReward(
             gold=(target_floor * 200) // 4,  # 1/4로 감소
@@ -463,29 +476,34 @@ class QuestManager:
         self.completed_quests.clear()
         logger.info("퀘스트 매니저 초기화 완료")
     
-    def refresh_quests(self, player_level: int, count: int = 5):
+    def refresh_quests(self, player_level: int, count: int = 5, current_floor: int = 0):
         """
         퀘스트 목록 갱신 (기존 목록 초기화 후 재생성)
-        
+
         Args:
             player_level: 플레이어 레벨
             count: 생성할 퀘스트 수
+            current_floor: 현재 층수
         """
         self.available_quests.clear()
-        self.generate_quests(player_level, count)
-        logger.info(f"퀘스트 목록 갱신 완료 (레벨 {player_level})")
+        self.generate_quests(player_level, count, current_floor=current_floor)
+        logger.info(f"퀘스트 목록 갱신 완료 (레벨 {player_level}, 현재 층 {current_floor})")
 
-    def generate_quests(self, player_level: int, count: int = 5):
+    def generate_quests(self, player_level: int, count: int = 5, current_floor: int = 0):
         """
         퀘스트 생성
-        
+
         Args:
             player_level: 플레이어 레벨
             count: 생성할 퀘스트 수
+            current_floor: 현재 층수 (탐험 퀘스트 목표층 결정용)
         """
         # 기존 목록 유지 (refresh_quests 사용 시만 초기화)
         # self.available_quests.clear()  <-- 제거됨 (refresh_quests로 이동)
-        
+
+        # 층수 기반 퀘스트 생성기 (current_floor 필요)
+        floor_based_types = {QuestType.EXPLORATION, QuestType.SPEED_RUN, QuestType.NO_DAMAGE}
+
         # 각 타입별로 퀘스트 생성 (가중치 기반)
         quest_generators = [
             (QuestType.BOUNTY_HUNT, QuestDatabase.generate_bounty_quest, 30),
@@ -499,18 +517,21 @@ class QuestManager:
             (QuestType.ALCHEMY_QUEST, QuestDatabase.generate_alchemy_quest, 10),
             (QuestType.NO_DAMAGE, QuestDatabase.generate_no_damage_quest, 3)
         ]
-        
+
         for _ in range(count):
             quest_type, generator, weight = random.choices(
                 quest_generators,
                 weights=[w for _, _, w in quest_generators]
             )[0]
-            
-            quest = generator(player_level)
-            
+
+            if quest_type in floor_based_types and current_floor > 0:
+                quest = generator(player_level, current_floor=current_floor)
+            else:
+                quest = generator(player_level)
+
             self.available_quests.append(quest)
-        
-        logger.info(f"{count}개의 퀘스트 생성 완료 (플레이어 레벨: {player_level})")
+
+        logger.info(f"{count}개의 퀘스트 생성 완료 (플레이어 레벨: {player_level}, 현재 층: {current_floor})")
     
     def accept_quest(self, quest_id: str, current_floor: int = 0) -> bool:
         """
@@ -530,6 +551,8 @@ class QuestManager:
         for quest in self.available_quests:
             if quest.quest_id == quest_id:
                 quest.is_active = True
+                import time as _time
+                quest.accepted_at = _time.time()
                 self.active_quests.append(quest)
                 self.available_quests.remove(quest)
                 logger.info(f"퀘스트 수락: {quest.name}")
@@ -638,7 +661,16 @@ class QuestManager:
                     if item:
                         player.add_item(item)
                 
-                # 별의 파편은 별도 관리 필요 (TownManager 등)
+                # 별의 파편 보상 지급 (MetaProgress)
+                if quest.reward.star_fragments > 0:
+                    try:
+                        from src.persistence.meta_progress import get_meta_progress, save_meta_progress
+                        meta = get_meta_progress()
+                        meta.add_star_fragments(quest.reward.star_fragments)
+                        save_meta_progress()
+                        logger.info(f"별의 파편 보상 지급: +{quest.reward.star_fragments} (총: {meta.star_fragments})")
+                    except Exception as e:
+                        logger.warning(f"별의 파편 지급 실패: {e}")
                 
                 # 퀘스트 이동
                 self.active_quests.remove(quest)
@@ -650,6 +682,51 @@ class QuestManager:
         
         return False
     
+    def complete_rpg_objective(self, quest_id: str, obj_index: int = 0, amount: int = 1) -> bool:
+        """
+        RPG 사이드 퀘스트 목표 수동 완료 (NPC 대화/이벤트에서 호출)
+
+        Args:
+            quest_id: 퀘스트 ID (예: "sq_ff_01")
+            obj_index: 목표 인덱스 (0부터)
+            amount: 진행량 (기본 1, 킬 퀘스트는 적 수만큼)
+        """
+        target = f"rpg_quest:{quest_id}:{obj_index}"
+        updated = False
+        for quest in self.active_quests:
+            if quest.quest_id == quest_id:
+                updated = quest.update_progress(target, amount)
+                break
+        return updated
+
+    def complete_rpg_quest_all(self, quest_id: str) -> bool:
+        """RPG 퀘스트의 모든 목표를 한번에 완료 (NPC 보고 시)"""
+        for quest in self.active_quests:
+            if quest.quest_id == quest_id:
+                for obj in quest.objectives:
+                    if not obj.is_complete:
+                        obj.current = obj.required
+                quest._check_completion()
+                logger.info(f"RPG 퀘스트 전체 완료 처리: {quest.name}")
+                return True
+        return False
+
+    def check_expired_quests(self) -> List[Quest]:
+        """시간 제한 초과 퀘스트 만료 처리 (SPEED_RUN 등)"""
+        import time as _time
+        expired = []
+        now = _time.time()
+        for quest in self.active_quests[:]:
+            if quest.time_limit > 0 and quest.accepted_at > 0 and not quest.is_complete:
+                # time_limit(턴) → 실시간 환산: 1턴 ≈ 5초
+                real_time_limit = quest.time_limit * 5
+                elapsed = now - quest.accepted_at
+                if elapsed > real_time_limit:
+                    self.active_quests.remove(quest)
+                    expired.append(quest)
+                    logger.info(f"퀘스트 만료: {quest.name} ({elapsed:.0f}초/{real_time_limit}초)")
+        return expired
+
     def get_active_quests(self) -> List[Quest]:
         """활성 퀘스트 목록"""
         return self.active_quests.copy()
@@ -690,7 +767,12 @@ class QuestManager:
                 "star_fragments": quest.reward.star_fragments
             },
             "is_active": quest.is_active,
-            "is_complete": quest.is_complete
+            "is_complete": quest.is_complete,
+            "time_limit": quest.time_limit,
+            "accepted_at": quest.accepted_at,
+            "hint": quest.hint,
+            "quest_subtype": quest.quest_subtype,
+            "region": quest.region,
         }
     
     @classmethod
@@ -754,7 +836,12 @@ class QuestManager:
                 objectives=objectives,
                 reward=reward,
                 is_active=data.get("is_active", False),
-                is_complete=data.get("is_complete", False)
+                is_complete=data.get("is_complete", False),
+                time_limit=data.get("time_limit", 0),
+                accepted_at=data.get("accepted_at", 0.0),
+                hint=data.get("hint", ""),
+                quest_subtype=data.get("quest_subtype", ""),
+                region=data.get("region", ""),
             )
             
             return quest

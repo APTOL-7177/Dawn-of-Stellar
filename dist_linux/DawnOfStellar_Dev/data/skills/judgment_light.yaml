@@ -1,0 +1,43 @@
+id: judgment_light
+name: 심판의 빛
+type: brv_hp_attack
+description: '신성한 심판의 빛을 발사합니다.
+
+  전체 적 BRV 1.5 + HP 1.2 신성 피해.
+
+  정화: 적 버프 1개 제거.
+
+  순결 서약: 신앙 +8
+
+  '
+target: all_enemies
+costs:
+  mp: 18
+metadata:
+  oath_purity_faith: 8
+  purify: true
+effects:
+- type: damage
+  damage_type: brv
+  element: holy
+  stat_base: magic
+  multiplier: 1.5
+  target: all_enemies
+- type: damage
+  damage_type: hp
+  element: holy
+  stat_base: magic
+  multiplier: 1.2
+  target: all_enemies
+- type: dispel
+  dispel_count: 1
+  target: all_enemies
+animation:
+  icon: ✨
+  color:
+  - 255
+  - 255
+  - 150
+sfx:
+- se
+- Magic1

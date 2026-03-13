@@ -1,0 +1,53 @@
+# 튜토리얼 10단계: 파티 관리
+id: party_management
+title: "파티 관리"
+order: 10
+category: management
+enabled: true
+skippable: true
+
+description: |
+  파티원의 정보를 확인하고 관리하는 방법을 배웁니다.
+  캐릭터 상태, 장비, 패시브 스킬을 확인해보세요.
+
+objective: "파티원 정보를 확인하고 인벤토리를 열어보기"
+
+messages:
+  - text: "이제 파티 관리를 배울 시간입니다."
+    color: [255, 215, 0]
+    pause: 2.0
+    effect: "fade_in"
+
+  - text: "NPC에게 말을 걸어 파티 관리 방법을 배우세요."
+    color: [255, 255, 255]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "인벤토리를 열어 아이템을 확인해보세요."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+completion_condition:
+  type: "menu_opened"
+  menu_type: "inventory"
+  message: "파티 관리 방법을 익혔습니다!"
+
+hints:
+  - text: "NPC(N) 근처에서 Z키로 대화할 수 있습니다."
+    trigger_time: 10.0
+
+  - text: "인벤토리 상자($) 근처에서 Z키를 눌러보세요."
+    trigger_time: 20.0
+
+ui_highlights:
+  - element: "key_hint"
+    text: "[Z] 상호작용 / [방향키] 이동"
+    position: "bottom_center"
+    color: [255, 255, 255]
+
+rewards:
+  exp: 50
+  message: "파티 관리 방법을 익혔습니다!"
+
+next_step: "equipment_inventory"

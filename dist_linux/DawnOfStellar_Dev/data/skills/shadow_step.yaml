@@ -1,0 +1,43 @@
+id: umbra_gradus
+name: 움브라 그라두스
+type: utility
+description: '적의 그림자를 밟아 접근합니다.
+
+  대상 뒤로 순간이동.
+
+  다음 공격 뒤치기 판정 (피해 +50%).
+
+  농락 +2.
+
+  은신 상태면 농락 +4.
+
+  '
+target: single_enemy
+costs:
+  mp: 8
+metadata:
+  backstab_next: true
+  backstab_bonus: 0.5
+  mockery_gain: 2
+  mockery_stealth: 4
+effects:
+- type: buff
+  buff_id: shadow_position
+  target: self
+  duration: 1
+  effects:
+    next_attack_backstab: true
+    damage_bonus: 0.5
+- type: custom
+  handler: add_mockery_with_stealth
+  base: 2
+  stealth: 4
+animation:
+  icon: 👣
+  color:
+  - 50
+  - 50
+  - 100
+sfx:
+- se
+- Up1

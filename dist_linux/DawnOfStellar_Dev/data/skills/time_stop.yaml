@@ -1,0 +1,22 @@
+id: time_stop
+name: 시간 정지
+type: cc
+description: 적 1명의 시간을 정지시켜 1턴 행동불가
+costs:
+  mp: 19
+  cast_time: 1.2
+target: single_enemy
+effects:
+- type: debuff
+  target: selected_enemy
+  status: stun
+  duration: 1
+- type: generate_possibility
+  chance: 0.7
+  alternative_skill: time_accel
+metadata:
+  possibility_pair: time_accel
+  job: time_mage
+sfx:
+- se
+- Up1

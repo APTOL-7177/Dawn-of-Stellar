@@ -65,9 +65,9 @@ def create_warrior_skills():
     skills.append(defensive_stance)
 
     # 6. 광전사 자세
-    berserker_rage = Skill("warrior_berserker_rage", "광전사 자세", "BRV 피해 + 극한 공격 모드 전환")
+    berserker_rage = Skill("warrior_berserker_rage", "광전사 자세", "[화염 속성] BRV 피해 + 극한 공격 모드 전환")
     berserker_rage.effects = [
-        DamageEffect(DamageType.BRV, 2.0),
+        DamageEffect(DamageType.BRV, 2.0, element="fire"),
         GimmickEffect(GimmickOperation.SET, "current_stance", 4)  # 4=berserker
     ]
     berserker_rage.costs = [MPCost(6)]
@@ -123,9 +123,9 @@ def create_warrior_skills():
     skills.append(war_cry)
 
     # 11. 격노의 일격
-    furious_strike = Skill("warrior_furious_strike", "격노의 일격", "BRV+HP 피해 + 공격력 증가 버프")
+    furious_strike = Skill("warrior_furious_strike", "격노의 일격", "[화염 속성] BRV+HP 피해 + 공격력 증가 버프")
     furious_strike.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.6),
+        DamageEffect(DamageType.BRV_HP, 2.6, element="fire"),
         BuffEffect(BuffType.ATTACK_UP, 0.4, duration=3, target="self"),
         GimmickEffect(GimmickOperation.SET, "current_stance", 1)  # 1=attack
     ]
@@ -136,11 +136,11 @@ def create_warrior_skills():
     skills.append(furious_strike)
 
     # 12. 궁극기: 완전체 각성
-    ultimate = Skill("warrior_ultimate", "완전체 각성", "다중 BRV+HP 피해 + 공방속 대폭 증가")
+    ultimate = Skill("warrior_ultimate", "완전체 각성", "[화염 속성] 다중 BRV+HP 피해 + 공방속 대폭 증가")
     ultimate.effects = [
-        DamageEffect(DamageType.BRV, 2.5),
-        DamageEffect(DamageType.BRV, 2.5),
-        DamageEffect(DamageType.HP, 3.1),
+        DamageEffect(DamageType.BRV, 2.5, element="fire"),
+        DamageEffect(DamageType.BRV, 2.5, element="earth"),
+        DamageEffect(DamageType.HP, 3.1, element="fire"),
         BuffEffect(BuffType.ATTACK_UP, 0.6, duration=5, target="self"),
         BuffEffect(BuffType.DEFENSE_UP, 0.6, duration=5, target="self"),
         BuffEffect(BuffType.SPEED_UP, 0.6, duration=5, target="self"),
@@ -199,11 +199,11 @@ def create_warrior_skills():
     teamwork = TeamworkSkill(
         "warrior_teamwork",
         "전장의 돌격",
-        "단일 대상 BRV+HP 공격 (2.2x → HP 변환) + 현재 스탠스 유지",
+        "[대지 속성] 단일 대상 BRV+HP 공격 (2.2x → HP 변환) + 현재 스탠스 유지",
         gauge_cost=125)
     teamwork.effects = [
         # 단일 대상 BRV+HP 공격 (2.2x → HP 변환)
-        DamageEffect(DamageType.BRV_HP, multiplier=2.2),
+        DamageEffect(DamageType.BRV_HP, multiplier=2.2, element="earth"),
         # 현재 스탠스 유지 (메타데이터로 처리)
     ]
     teamwork.costs = [MPCost(0)]

@@ -1,0 +1,43 @@
+id: knight_counter_ready
+name: 정의의 심판
+type: attack
+description: |
+  의무 2 소비. 정의의 심판 준비 (캐스트 60%).
+
+  캐스트 중 피격: 반격 2배 + 의무 +2
+  캐스트 완료: 약한 공격 + 의무 +1
+target: single_enemy
+costs:
+  mp: 8
+  cast_time: 0.6
+  stacks:
+    duty_stacks: 2
+requirements:
+  min_duty: 2
+effects:
+- type: damage
+  damage_type: brv_hp
+  multiplier: 1.0
+  stat_type: physical
+- type: gimmick
+  operation: consume
+  field: duty_stacks
+  value: 2
+- type: gimmick
+  operation: add
+  field: duty_stacks
+  value: 1
+  max_value: 10
+metadata:
+  job: knight
+  duty_cost: 2
+  parry: true
+  cast_time: 0.6
+  interruptible: true
+  counter_on_interrupt: true
+  no_damage_on_parry: true
+  parry_damage_multiplier: 2.0
+  parry_duty_gain: 2
+sfx:
+- se
+- Sword2

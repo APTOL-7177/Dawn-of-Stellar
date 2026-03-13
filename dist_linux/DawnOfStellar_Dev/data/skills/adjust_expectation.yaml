@@ -1,0 +1,34 @@
+id: adjust_expectation
+name: 기대치 조절
+type: utility
+description: '현재 관중의 요구를 재추첨합니다.
+
+  라운드당 1회만 사용 가능.
+
+  환호 -5.
+
+  '
+target: self
+costs:
+  mp: 8
+cooldown: 99
+metadata:
+  reroll_demand: true
+  once_per_round: true
+effects:
+- type: gimmick
+  operation: add
+  field: cheer
+  value: -5
+  min_value: 0
+- type: custom
+  handler: reroll_crowd_demand
+animation:
+  icon: 🎲
+  color:
+  - 200
+  - 200
+  - 200
+sfx:
+- se
+- Magic1

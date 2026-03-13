@@ -1,0 +1,43 @@
+id: healing_miracle
+name: 치유의 기적
+type: heal
+description: '[기적 - 신앙 50+ 필요] 치유의 기적을 일으킵니다.
+
+  아군 전체 HP 50% 회복.
+
+  모든 디버프 제거.
+
+  신앙 -50 소모.
+
+  '
+target: all_allies
+costs:
+  mp: 20
+  faith: 50
+metadata:
+  miracle: true
+  requires_faith: 50
+  consumes_faith: 50
+effects:
+- type: heal
+  heal_type: percent
+  value: 0.5
+  target: all_allies
+- type: cleanse
+  cleanse_count: 99
+  target: all_allies
+- type: gimmick
+  operation: add
+  field: faith
+  value: -50
+  min_value: 0
+animation:
+  icon: 💚✨
+  color:
+  - 100
+  - 255
+  - 150
+  screen_effect: healing_light
+sfx:
+- se
+- Recovery

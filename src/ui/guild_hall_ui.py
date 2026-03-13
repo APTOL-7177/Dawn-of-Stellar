@@ -444,11 +444,8 @@ class GuildHallUI:
         if achievement.is_unlocked:
             console.print(50, y, "✓ 완료", fg=Colors.GREEN)
         else:
-            # 진행률 표시
-            current = getattr(achievement, 'current_value', 0)
-            target = getattr(achievement, 'target_value', 1)
-            percentage = (current / target * 100) if target > 0 else 0
-            # 소수점 없이 정수로 표시
+            # 진행률 표시 (Achievement.progress_percentage: 0.0~1.0)
+            percentage = getattr(achievement, 'progress_percentage', 0.0) * 100
             progress = f"{int(percentage)}%"
             console.print(50, y, progress, fg=Colors.BLUE)
 

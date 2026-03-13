@@ -119,12 +119,19 @@ class KeyBindingsUI:
             play_sfx("ui", "cursor_move")
         elif action == GameAction.CONFIRM:
             # 키 변경 시작
-            self.waiting_for_key = True
             if self.current_tab == KeyBindingTab.KEYBOARD:
+                self.waiting_for_key = True
                 self.waiting_action = items[self.selected_index][1]
+                play_sfx("ui", "cursor_ok")
             else:
-                self.waiting_action = items[self.selected_index]
-            play_sfx("ui", "cursor_ok")
+                item = items[self.selected_index]
+                # D-pad 정보 항목은 바인딩 변경 불가
+                if isinstance(item[1], int):
+                    self.waiting_for_key = True
+                    self.waiting_action = item
+                    play_sfx("ui", "cursor_ok")
+                else:
+                    play_sfx("ui", "cursor_cancel")
         elif action == GameAction.CANCEL:
             # 기본값으로 리셋 (현재 선택된 항목만)
             self._reset_current_binding()
@@ -234,7 +241,7 @@ class KeyBindingsUI:
                 button_defaults = {
                     0: "z", 1: "x", 2: "e", 3: "SPACE",
                     4: "i", 5: "c", 6: "ESCAPE", 7: "m",
-                    8: "s", 9: "p",
+                    8: "TAB", 9: "p",
                 }
                 button_id = item[1]
                 if button_id in button_defaults:
@@ -376,13 +383,18 @@ def open_key_bindings(
         console: TCOD 콘솔
         context: TCOD 컨텍스트
     """
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     ui = KeyBindingsUI(console.width, console.height)
-    
+
     logger.info("키 바인딩 설정 열림")
 
     import time
     import pygame
-    
+
     while True:
         # 렌더링
         ui.render(console)

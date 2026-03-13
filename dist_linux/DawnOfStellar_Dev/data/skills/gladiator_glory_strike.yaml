@@ -1,0 +1,31 @@
+id: gladiator_glory_strike
+name: 영광의 일격
+type: attack
+description: '환호를 대량 소비해 강력한 일격을 날립니다.
+
+  환호에 비례한 추가 피해가 적용됩니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv_hp
+  stat_base: physical
+  multiplier: 3.0
+  gimmick_bonus:
+    field: cheer
+    multiplier: 0.02
+- type: gimmick
+  operation: consume
+  field: cheer
+  value: 30
+  min_value: 0
+target: enemy
+costs:
+  mp: 10
+metadata:
+  job: gladiator
+  cheer_cost: 30
+  scaling: 환호당 +2%
+sfx:
+- se
+- Damage5

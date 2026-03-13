@@ -1,0 +1,32 @@
+id: paladin_blessing
+name: 축복
+type: buff
+description: '신성한 축복을 내립니다.
+
+  대상 3턴: 공격 +15%, 방어 +15%, 크리 +10%.
+
+  자비 서약: 신앙 +8
+
+  '
+target: single_ally
+costs:
+  mp: 11.2
+metadata:
+  oath_mercy_faith: 8
+effects:
+- type: buff
+  buff_id: paladin_blessing
+  duration: 3
+  effects:
+    attack_multiplier: 1.15
+    defense_multiplier: 1.15
+    critical_bonus: 0.1
+animation:
+  icon: 🙏
+  color:
+  - 255
+  - 255
+  - 200
+sfx:
+- se
+- Up1

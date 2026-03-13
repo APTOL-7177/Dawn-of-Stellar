@@ -1,0 +1,139 @@
+class_name: 닌자
+description: 인법과 속성 인술로 전장을 지배하는 쾌속의 닌자
+slogan: 바람보다 빠르게, 불꽃보다 뜨겁게.
+archetype: 속성 서브딜러 / 스피드 서포터
+base_stats:
+  hp: 140
+  mp: 55
+  init_brv: 105
+  physical_attack: 58
+  physical_defense: 40
+  magic_attack: 56
+  magic_defense: 45
+  speed: 90
+  max_brv: 310
+stat_growth:
+  hp: 30.0
+  mp: 3.8
+  init_brv: 25.0
+  strength: 15.0
+  defense: 9.0
+  magic: 14.5
+  spirit: 10.0
+  speed: 24.5
+  max_brv: 87.0
+  luck: 1.6
+  accuracy: 1.7
+  evasion: 1.5
+gimmick:
+  type: ninpo_chain
+  name: 인법 연쇄
+  description: '[인법 연쇄] 속성 인술을 연결하여 강력한 연쇄 인법을 발동하라!
+
+
+    ■ 인(印) 시스템 (0~4)
+
+    속성 스킬 사용 시 해당 속성의 인(印)을 축적.
+
+    화(火), 빙(氷), 뇌(雷), 풍(風) 4종.
+
+
+    ■ 연쇄 인법 (인 2개 이상 시 발동 가능)
+
+    2인: 속성 강화 — 해당 속성 피해 +40%
+
+    3인: 속성 폭주 — 광역 속성 피해 + 속성 약점 무시
+
+    4인: 만화경 인법 — 전 속성 초강력 연쇄 공격
+
+
+    ■ 속성 순환
+
+    같은 속성 연속 사용 시 인 축적량 감소 (2→1).
+
+    다른 속성으로 전환하면 보너스 인 +1.
+
+    아군에게 속성 부여/가속 지원 가능.
+
+    '
+  max_seals: 4
+  seal_types:
+    - fire
+    - ice
+    - thunder
+    - wind
+  chain_effects:
+    2:
+      name: 속성 강화
+      element_damage_bonus: 0.4
+    3:
+      name: 속성 폭주
+      aoe_damage: true
+      ignore_element_resist: true
+    4:
+      name: 만화경 인법
+      all_element_burst: true
+      damage_multiplier: 2.5
+  same_element_penalty:
+    seal_reduction: 1
+  element_switch_bonus:
+    extra_seal: 1
+traits:
+- id: ninjutsu_master
+  name: 인법술사
+  description: 속성 스킬 피해 +20%, 속성 약점 적중 시 추가 +15%
+  type: passive
+  effects:
+    elemental_damage_bonus: 0.2
+    weakness_extra_bonus: 0.15
+- id: afterimage_step
+  name: 잔영보법
+  description: 속도 +10%, 회피 성공 시 인(印) 1개 자동 축적
+  type: passive
+  effects:
+    speed_bonus: 0.1
+    seal_on_evade: 1
+- id: covert_entry
+  name: 은밀행동
+  description: 전투 첫 턴 은신 상태 진입, 첫 공격 크리티컬 확정
+  type: trigger
+  effects:
+    battle_start_stealth: true
+    first_attack_critical: true
+- id: smoke_escape
+  name: 연막전개
+  description: HP 30% 이하 시 자동 회피 1회 + 은신 상태 진입 (전투 1회)
+  type: conditional
+  conditions:
+    hp_below: 0.3
+  effects:
+    auto_evade: 1
+    enter_stealth: true
+    once_per_battle: true
+- id: gale_fury
+  name: 질풍노도
+  description: 연속 3회 행동 시 ATB +95%
+  type: trigger
+  effects:
+    consecutive_action_threshold: 3
+    atb_bonus: 0.95
+skills:
+- teamwork
+- ninja_shuriken
+- ninja_shuriken_hp
+- ninja_fire_ninjutsu
+- ninja_ice_ninjutsu
+- ninja_thunder_ninjutsu
+- ninja_wind_ninjutsu
+- ninja_elemental_edge
+- ninja_shadow_clone
+- ninja_smoke_bomb
+- ninja_haste_support
+- ninja_seal_burst
+- ninja_elemental_barrage
+- ninja_ultimate
+bonuses:
+  speed_multiplier: 1.12
+  critical_rate: 1.15
+  evasion_bonus: 10
+  elemental_mastery: 0.1

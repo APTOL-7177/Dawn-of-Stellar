@@ -1,0 +1,52 @@
+id: divine_grace_100
+name: 신의 은총
+type: heal
+description: '[기적 - 신앙 100 필요] 신의 은총을 내립니다.
+
+  아군 전체 HP 전회복.
+
+  아군 전체 MP 50% 회복.
+
+  3턴간 "신의 가호": 받는 피해 -50%, 회복량 +50%.
+
+  신앙 0으로 초기화.
+
+  '
+target: all_allies
+costs:
+  mp: 40
+  faith: 100
+metadata:
+  miracle: true
+  requires_faith: 100
+  consumes_all_faith: true
+effects:
+- type: heal
+  heal_type: full
+  target: all_allies
+- type: mp_restore
+  restore_type: percent
+  value: 0.5
+  target: all_allies
+- type: buff
+  buff_id: divine_grace
+  target: all_allies
+  duration: 3
+  effects:
+    damage_reduction: 0.5
+    heal_multiplier: 1.5
+- type: gimmick
+  operation: set
+  field: faith
+  value: 0
+animation:
+  icon: 👼✨
+  color:
+  - 255
+  - 255
+  - 255
+  screen_effect: divine_grace
+  duration: 3.0
+sfx:
+- se
+- Recovery

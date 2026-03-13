@@ -1,0 +1,36 @@
+id: small_miracle
+name: 작은 기적
+type: heal
+description: '[기적 - 신앙 25+ 필요] 작은 기적을 일으킵니다.
+
+  대상 HP 40% 회복.
+
+  신앙 -25 소모.
+
+  '
+target: single_ally
+costs:
+  mp: 10
+  faith: 25
+metadata:
+  miracle: true
+  requires_faith: 25
+  consumes_faith: 25
+effects:
+- type: heal
+  heal_type: percent
+  value: 0.4
+- type: gimmick
+  operation: add
+  field: faith
+  value: -25
+  min_value: 0
+animation:
+  icon: ✨
+  color:
+  - 255
+  - 255
+  - 200
+sfx:
+- se
+- Recovery

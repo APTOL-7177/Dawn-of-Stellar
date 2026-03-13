@@ -146,14 +146,19 @@ def show_multiplayer_menu(
     Returns:
         선택 결과 (None이면 취소)
     """
+    # 이전 화면에서 남은 입력 이벤트 제거 (Z키 등이 넘어오는 것 방지)
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     menu = MultiplayerMenu(console.width, console.height)
-    
+
     # BGM 재생 (메인 메뉴와 동일)
     play_bgm("main_menu", loop=True)
-    
+
     import time
     import pygame
-    
+
     while True:
         # pygame 이벤트 업데이트 (게임패드 입력을 위해)
         try:

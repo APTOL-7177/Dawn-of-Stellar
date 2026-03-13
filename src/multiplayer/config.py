@@ -16,12 +16,14 @@ ENEMY_COUNT_MULTIPLIER = 1.0  # 싱글과 동일
 ENEMY_HP_MULTIPLIER = 1.0  # 싱글과 동일
 ENEMY_DAMAGE_MULTIPLIER = 1.0  # 싱글과 동일
 EXP_DIVIDE_BY_PARTICIPANTS = True  # 참여 전투원 수로 나눔
-INVENTORY_WEIGHT_MULTIPLIER = 1.4  # 멀티플레이 40% 증가 (인원 분산 고려)
+INVENTORY_WEIGHT_MULTIPLIER = 1.7  # 멀티플레이 70% 증가 (인원 분산 고려)
 
 # 전투 시스템
 ACTION_WAIT_TIME = 1.5  # 1.5초 고정
 ATB_REDUCTION_MULTIPLIER = 0.02  # 1/50 고정
-PARTICIPATION_RADIUS = 5  # 5 타일 고정
+PARTICIPATION_RADIUS = 5  # 하위 호환성 유지
+PARTICIPATION_RADIUS_PLAYER = 10  # 플레이어 합류 반경 10블록
+PARTICIPATION_RADIUS_ENEMY = 5    # 적 합류 반경 5블록
 
 # 인벤토리 시스템
 ITEM_USE_PERMISSION = "free"  # 자유 사용
@@ -78,6 +80,8 @@ class MultiplayerConfig:
     action_wait_time = ACTION_WAIT_TIME
     atb_reduction_multiplier = ATB_REDUCTION_MULTIPLIER
     participation_radius = PARTICIPATION_RADIUS
+    participation_radius_player = PARTICIPATION_RADIUS_PLAYER
+    participation_radius_enemy = PARTICIPATION_RADIUS_ENEMY
     
     # 인벤토리 시스템
     item_use_permission = ITEM_USE_PERMISSION

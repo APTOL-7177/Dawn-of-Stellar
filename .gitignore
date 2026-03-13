@@ -1,3 +1,6 @@
+# 사용자 설정 (빌드/업데이트 시 보존)
+user_config.yaml
+
 # Python
 __pycache__/
 *.py[cod]
@@ -84,3 +87,17 @@ dmypy.json
 # Documentation build
 docs/_build/
 nul
+
+# AI Training Data
+data/play_logs/
+data/models/
+data/rl_logs/
+
+# Training artifacts
+training/__pycache__/
+*.pt
+
+# OMC state
+.omc/
+.claude/worktrees/
+.history/

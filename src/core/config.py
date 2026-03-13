@@ -33,6 +33,8 @@ class Config:
                 else:
                     # _internal 폴더의 config.yaml 사용
                     self.config_path = Path(sys._MEIPASS) / config_path
+                # 사용자 설정은 항상 게임 디렉토리에 저장
+                self.user_config_path = game_dir / "user_config.yaml"
             else:
                 # 일반적인 경우
                 exe_dir = exe_path.parent
@@ -41,16 +43,19 @@ class Config:
                     self.config_path = external_config
                 else:
                     self.config_path = Path(sys._MEIPASS) / config_path
+                self.user_config_path = exe_dir / "user_config.yaml"
         else:
             # 일반 실행인 경우
             base_path = Path(__file__).parent.parent.parent
             self.config_path = base_path / config_path
+            self.user_config_path = base_path / "user_config.yaml"
 
         self._config: Dict[str, Any] = {}
+        self._user_overrides: Dict[str, Any] = {}  # 사용자 변경 설정 추적
         self.load()
 
     def load(self) -> None:
-        """설정 파일 로드"""
+        """설정 파일 로드 (config.yaml + user_config.yaml 병합)"""
         if not self.config_path.exists():
             raise FileNotFoundError(f"설정 파일을 찾을 수 없습니다: {self.config_path}")
 
@@ -58,8 +63,6 @@ class Config:
             with open(self.config_path, "r", encoding="utf-8") as f:
                 self._config = yaml.safe_load(f)
         except PermissionError:
-            # PyInstaller 환경에서 권한 문제가 발생할 수 있음
-            # 기본 설정으로 초기화
             print(f"⚠️  설정 파일 권한 문제 발생: {self.config_path}")
             print("기본 설정으로 초기화합니다.")
             self._config = self._get_default_config()
@@ -68,20 +71,39 @@ class Config:
             print("기본 설정으로 초기화합니다.")
             self._config = self._get_default_config()
 
+        # 사용자 설정 파일이 있으면 병합 (빌드/업데이트 시에도 유지됨)
+        if self.user_config_path.exists():
+            try:
+                with open(self.user_config_path, "r", encoding="utf-8") as f:
+                    self._user_overrides = yaml.safe_load(f) or {}
+                self._deep_merge(self._config, self._user_overrides)
+            except Exception as e:
+                print(f"⚠️  사용자 설정 로드 실패 (무시됨): {e}")
+                self._user_overrides = {}
+
+    @staticmethod
+    def _deep_merge(base: dict, override: dict) -> None:
+        """override의 값을 base에 재귀적으로 병합"""
+        for key, value in override.items():
+            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                Config._deep_merge(base[key], value)
+            else:
+                base[key] = value
+
     def _get_default_config(self) -> Dict[str, Any]:
         """기본 설정 반환"""
         return {
             "development": {"enabled": False},
-            "game": {"version": "6.1.0"},
+            "game": {"version": "4.3.13"},
             "display": {"width": 1200, "height": 800},
             "audio": {"enabled": True, "volume": 0.7},
             "controls": {"key_repeat": True}
         }
 
     def save(self) -> None:
-        """설정 파일 저장"""
-        with open(self.config_path, "w", encoding="utf-8") as f:
-            yaml.dump(self._config, f, default_flow_style=False, allow_unicode=True)
+        """사용자 설정을 user_config.yaml에 저장 (config.yaml은 건드리지 않음)"""
+        with open(self.user_config_path, "w", encoding="utf-8") as f:
+            yaml.dump(self._user_overrides, f, default_flow_style=False, allow_unicode=True)
 
     def get(self, key_path: str, default: Any = None) -> Any:
         """
@@ -114,16 +136,22 @@ class Config:
             value: 설정할 값
         """
         keys = key_path.split(".")
-        config = self._config
 
-        # 마지막 키 전까지 딕셔너리 탐색
+        # 메인 config에 반영
+        config = self._config
         for key in keys[:-1]:
             if key not in config:
                 config[key] = {}
             config = config[key]
-
-        # 마지막 키에 값 설정
         config[keys[-1]] = value
+
+        # user_overrides에도 기록 (save 시 user_config.yaml에 저장됨)
+        overrides = self._user_overrides
+        for key in keys[:-1]:
+            if key not in overrides:
+                overrides[key] = {}
+            overrides = overrides[key]
+        overrides[keys[-1]] = value
 
     def get_section(self, section: str) -> Dict[str, Any]:
         """

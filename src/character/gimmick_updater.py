@@ -108,29 +108,30 @@ class GimmickUpdater:
     def on_hp_change(character, old_hp: int, new_hp: int):
         """HP 변화 시 기믹 업데이트 (광기 즉시 반영)"""
         gimmick_type = getattr(character, 'gimmick_type', None)
-        if not gimmick_type or gimmick_type != "madness_threshold":
+        if not gimmick_type:
             return
 
-        # 광기 HP 변화량 업데이트 (즉시 반영)
-        if hasattr(character, 'current_hp') and hasattr(character, 'max_hp') and character.max_hp > 0:
-            hp_diff = new_hp - old_hp
-            max_hp = character.max_hp
-            
-            # HP 변화율 (전체 HP 대비)
-            change_ratio = hp_diff / max_hp
-            
-            # 광기 변화량 계산: HP 1%당 광기 1 변동
-            # 피해(diff < 0) -> 광기 증가 (+)
-            # 회복(diff > 0) -> 광기 감소 (-)
-            madness_change = int(-change_ratio * 100)
-            
-            if madness_change != 0:
-                old_madness = character.madness
-                character.madness = max(0, min(100, character.madness + madness_change))
-                if madness_change > 0:
-                    logger.info(f"{character.name} 피해로 광기 증가: +{madness_change} ({old_madness}→{character.madness})")
-                else:
-                    logger.info(f"{character.name} 회복으로 광기 감소: {madness_change} ({old_madness}→{character.madness})")
+        # 버서커: 광기 HP 변화량 업데이트 (즉시 반영)
+        if gimmick_type == "madness_threshold":
+            if hasattr(character, 'current_hp') and hasattr(character, 'max_hp') and character.max_hp > 0:
+                hp_diff = new_hp - old_hp
+                max_hp = character.max_hp
+
+                # HP 변화율 (전체 HP 대비)
+                change_ratio = hp_diff / max_hp
+
+                # 광기 변화량 계산: HP 1%당 광기 1 변동
+                # 피해(diff < 0) -> 광기 증가 (+)
+                # 회복(diff > 0) -> 광기 감소 (-)
+                madness_change = int(-change_ratio * 100)
+
+                if madness_change != 0:
+                    old_madness = character.madness
+                    character.madness = max(0, min(100, character.madness + madness_change))
+                    if madness_change > 0:
+                        logger.info(f"{character.name} 피해로 광기 증가: +{madness_change} ({old_madness}→{character.madness})")
+                    else:
+                        logger.info(f"{character.name} 회복으로 광기 감소: {madness_change} ({old_madness}→{character.madness})")
         elif gimmick_type == "duty_system":
             GimmickUpdater._update_duty_system(character)
         elif gimmick_type == "stance_system":
@@ -164,7 +165,7 @@ class GimmickUpdater:
             GimmickUpdater._update_alchemy_system(character)
         elif gimmick_type == "elemental_spirits":
             GimmickUpdater._update_elemental_spirits(character)
-        elif gimmick_type == "plunder_system":
+        elif gimmick_type in ("plunder_system", "rum_treasure_system"):
             GimmickUpdater._update_plunder_system(character)
         elif gimmick_type == "multithread_system":
             GimmickUpdater._update_multithread_system(character)
@@ -174,8 +175,8 @@ class GimmickUpdater:
             GimmickUpdater._update_oath_system(character)
         elif gimmick_type == "oracle_system":
             GimmickUpdater._update_oracle_system(character)
-        elif gimmick_type == "mockery_system":
-            GimmickUpdater._update_mockery_system(character)
+        elif gimmick_type == "venom_system":
+            GimmickUpdater._update_venom_system(character)
         elif gimmick_type == "dilemma_choice":
             GimmickUpdater._update_dilemma_choice(character)
         elif gimmick_type == "rune_resonance":
@@ -195,6 +196,8 @@ class GimmickUpdater:
         elif gimmick_type == "kenshin_system":
             # 사무라이: 관찰 스택 감소 (매 턴 종료 시 -1)
             GimmickUpdater._update_kenshin_system_turn_end(character)
+        elif gimmick_type == "ninpo_chain":
+            GimmickUpdater._update_ninpo_chain(character)
 
     @staticmethod
     def on_turn_start(character, context=None):
@@ -841,6 +844,42 @@ class GimmickUpdater:
                     f"[Rune Trigger] {getattr(attacker, 'name', '')} → {getattr(target, 'name', '')} {rune_type} 룬 폭발",
                 )
 
+        # 양자 얽힘 특성: 아군 HP 공격 시 (굴절/최대HP×8%) 피해 증폭 및 굴절 6% 감소
+        is_hp_attack = (context or {}).get("is_hp_attack", False)
+        if is_hp_attack and target and getattr(target, 'is_alive', True):
+            for ally in all_allies:
+                if (getattr(ally, 'gimmick_type', None) == 'dimension_refraction'
+                        and ally != attacker
+                        and getattr(ally, 'is_alive', True)):
+                    if not GimmickUpdater._has_trait(ally, 'quantum_entanglement'):
+                        continue
+                    refraction = getattr(ally, 'refraction_stacks', 0)
+                    max_hp = getattr(ally, 'max_hp', 1)
+                    if refraction <= 0 or max_hp <= 0:
+                        continue
+                    # 피해 증폭률: (굴절/최대HP) × 8%
+                    amp_ratio = (refraction / max_hp) * 0.08
+                    # 공격자의 주요 스탯 기반 추가 피해
+                    atk_stat = max(getattr(attacker, 'strength', 0), getattr(attacker, 'magic', 0))
+                    bonus_damage = int(atk_stat * amp_ratio)
+                    if bonus_damage > 0:
+                        if hasattr(target, 'take_fixed_damage'):
+                            target.take_fixed_damage(bonus_damage)
+                        else:
+                            target.current_hp = max(0, getattr(target, 'current_hp', 0) - bonus_damage)
+                        # 굴절량 6% 감소
+                        decay = int(refraction * 0.06)
+                        ally.refraction_stacks = max(0, refraction - decay)
+                        logger.info(
+                            f"[양자 얽힘] {ally.name} → {attacker.name}의 HP 공격에 "
+                            f"+{bonus_damage} 추가 피해 (증폭률 {amp_ratio*100:.1f}%), 굴절 -{decay}"
+                        )
+                        GimmickUpdater._push_ui_log(
+                            ally,
+                            f"양자 얽힘! {attacker.name}의 공격 +{bonus_damage} (굴절 -{decay})",
+                            (120, 200, 255)
+                        )
+
     @staticmethod
     def _trigger_support_fire(archer, attacking_ally, target=None, context=None):
         """궁수 지원사격 트리거"""
@@ -1050,28 +1089,15 @@ class GimmickUpdater:
                 character.stat_manager.remove_bonus(Stats.MAGIC_DEF, "heat_bonus")
         except (AttributeError, KeyError):
             pass
-        
-        # 기계공학자의 턴에만 열 감소 처리
-        if is_own_turn:
-            # 기본 열 감소 (매 턴 -15, 기존 -5에서 200% 증가)
-            base_heat_decay = 15
-            old_heat = getattr(character, 'heat', 0)
-            character.heat = max(0, character.heat - base_heat_decay)
-            logger.debug(f"{character.name} 기본 열 감소: -{base_heat_decay} ({old_heat} → {character.heat})")
-            
-            # 자동 냉각 특성 (추가 -5)
-            if hasattr(character, 'active_traits'):
-                if any((t if isinstance(t, str) else t.get('id')) == 'auto_cooling' for t in character.active_traits):
-                    character.heat = max(0, character.heat - 5)
-                    logger.debug(f"{character.name} 자동 냉각: 열 -5")
 
-        # 열 구간별 처리
+        # === 오버히트/방지 체크를 열 감소보다 먼저 수행 ===
         heat = getattr(character, 'heat', 0)
         optimal_min = getattr(character, 'optimal_min', 50)
         optimal_max = getattr(character, 'optimal_max', 79)
         danger_min = getattr(character, 'danger_min', 80)
-        
+
         # 오버히트 방지 특성 체크 (80+ 도달 시 발동, 전투당 3회, -30)
+        # 주의: 100 이상일 때는 방지가 발동하지 않고 바로 오버히트
         if heat >= 80 and heat < 100:
             has_prevention_trait = False
             
@@ -1151,7 +1177,23 @@ class GimmickUpdater:
             # 열 리셋 (오버히트 후 50으로)
             character.heat = 50
             heat = 50
-        
+
+        # 오버히트가 발동하지 않은 경우, 기계공학자의 턴에 열 감소 처리
+        if is_own_turn and not getattr(character, 'is_stunned', False):
+            # 기본 열 감소 (매 턴 -15)
+            base_heat_decay = 15
+            old_heat = getattr(character, 'heat', 0)
+            character.heat = max(0, character.heat - base_heat_decay)
+            logger.debug(f"{character.name} 기본 열 감소: -{base_heat_decay} ({old_heat} → {character.heat})")
+
+            # 자동 냉각 특성 (추가 -5)
+            if hasattr(character, 'active_traits'):
+                if any((t if isinstance(t, str) else t.get('id')) == 'auto_cooling' for t in character.active_traits):
+                    character.heat = max(0, character.heat - 5)
+                    logger.debug(f"{character.name} 자동 냉각: 열 -5")
+
+            heat = getattr(character, 'heat', 0)
+
         # 스탯 보너스 적용
         if hasattr(character, 'stat_manager'):
             if optimal_min <= heat <= optimal_max:
@@ -1305,7 +1347,7 @@ class GimmickUpdater:
                     "max": character.max_hp
                 })
 
-            logger.critical(f"{character.name} 폭주 상태! 공격력 +100%, 받는 피해 +50%, HP -{hp_loss} (잔여: {character.current_hp})")
+            logger.warning(f"{character.name} 폭주 상태! 공격력 +100%, 받는 피해 +50%, HP -{hp_loss} (잔여: {character.current_hp})")
 
         # 위험 구간 (effective_danger_min ~ 99)
         elif madness >= effective_danger_min:
@@ -1420,7 +1462,7 @@ class GimmickUpdater:
             character.current_hp = max(1, character.current_hp - critical_hp_loss)
             mp_loss = int(character.max_mp * 0.2)
             character.current_mp = max(0, character.current_mp - mp_loss)
-            logger.critical(f"{character.name} 최대 갈증! HP -{critical_hp_loss}, MP -{mp_loss} (총 HP: {character.current_hp}, MP: {character.current_mp})")
+            logger.warning(f"{character.name} 최대 갈증! HP -{critical_hp_loss}, MP -{mp_loss} (총 HP: {character.current_hp}, MP: {character.current_mp})")
         # 갈증 95-99: HP 지속 감소 (8%)
         elif thirst >= 95:
             hp_loss = int(character.max_hp * 0.08)
@@ -2168,8 +2210,8 @@ class GimmickUpdater:
             base_attack = character.stat_manager.get_value(Stats.STRENGTH)
             base_magic = character.stat_manager.get_value(Stats.MAGIC)
         else:
-            base_attack = getattr(character, 'physical_attack', 0)
-            base_magic = getattr(character, 'magic_attack', 0)
+            base_attack = getattr(character, 'strength', 0)
+            base_magic = getattr(character, 'magic', 0)
         
         import random
         
@@ -2605,29 +2647,25 @@ class GimmickUpdater:
                 character.overclock_active = False
                 logger.info(f"[오버클럭] {character.name} 오버클럭 모드 비활성화!")
 
-        # 오버클럭 모드: 고정 보너스 회복만 적용 (2배 회복 제거)
+        # 오버클럭 모드: RAM 추가 생산
         if getattr(character, 'overclock_active', False):
             overclock_data = getattr(character, 'overclock_data', {})
-            ram_regen += int(overclock_data.get('ram_regen_bonus', 0))
-        
+            ram_gain = int(overclock_data.get('ram_gain_per_turn', 5))
+            ram_regen += ram_gain
+
         old_ram = getattr(character, 'ram', 0)
         max_ram = getattr(character, 'max_ram', 32)
         character.ram = min(max_ram, old_ram + ram_regen)
-        
+
         if character.ram > old_ram:
             logger.info(f"[해커] {character.name} RAM 회복: +{character.ram - old_ram} (총: {character.ram}/{max_ram})")
-        
-        # 오버클럭 모드 페널티
+
+        # 오버클럭 모드 페널티: HP 대가 (RAM 대신 HP를 크게 소모)
         if getattr(character, 'overclock_active', False):
             overclock_data = getattr(character, 'overclock_data', {})
-            
-            # RAM 소모 (기본값 10으로 상향하여 확실히 줄어들게 함)
-            ram_cost = overclock_data.get('ram_cost_per_turn', 10)
-            character.ram = max(0, character.ram - ram_cost)
-            logger.info(f"[오버클럭] {character.name} 시스템 유지비: RAM -{ram_cost} (잔여: {character.ram})")
-            
-            # HP 소모
-            hp_cost_rate = overclock_data.get('hp_cost_per_turn', 0.05)
+
+            # HP 소모 (기본 12%)
+            hp_cost_rate = overclock_data.get('hp_cost_per_turn', 0.12)
             # 가상화 특성: HP 페널티 50% 감소
             if hasattr(character, 'active_traits'):
                 for trait in character.active_traits:
@@ -2635,15 +2673,21 @@ class GimmickUpdater:
                     if tid == 'virtualization':
                         hp_cost_rate *= 0.5
                         break
-            
+
             hp_cost = int(character.max_hp * hp_cost_rate)
             character.current_hp = max(1, character.current_hp - hp_cost)
-            logger.debug(f"[오버클럭] {character.name} HP -{hp_cost}")
-            
-            # RAM 부족 시 오버클럭 해제
-            if character.ram <= 0:
+            logger.info(f"[오버클럭] {character.name} HP -{hp_cost} ({hp_cost_rate*100:.0f}%)")
+
+            # HP 1 이하 시 오버클럭 자동 해제 (사망 방지)
+            if character.current_hp <= 1:
                 character.overclock_active = False
-                logger.info(f"[오버클럭 해제] {character.name} RAM 부족으로 오버클럭 종료!")
+                # 오버클럭 상태 버프도 제거 (안 하면 동기화 코드가 다시 활성화함)
+                try:
+                    from src.combat.status_effects import StatusType
+                    character.status_manager.remove_status(StatusType.OVERCLOCK)
+                except Exception:
+                    pass
+                logger.info(f"[오버클럭 해제] {character.name} HP 위험으로 오버클럭 종료!")
     
     @staticmethod
     def add_intrusion(hacker, target, amount: int):
@@ -3201,113 +3245,202 @@ class GimmickUpdater:
         return actual_gain
     
     @staticmethod
-    def _update_mockery_system(character):
-        """도적: 농락 시스템 업데이트 (리메이크)"""
-        # 턴 종료 시 연속 회피 카운트 초기화 (행동 없이 턴 종료 시)
-        # 은신 상태는 공격 시 해제됨
+    def _update_venom_system(character):
+        """도적: 맹독 시스템 턴 시작 업데이트
+        독 DoT는 전투 매니저에서 적 단위로 apply_venom_dot 호출.
+        """
         pass
-    
+
     @staticmethod
-    def add_mockery(rogue, target, amount: int):
-        """대상에게 농락 게이지 추가"""
-        if not hasattr(target, 'mockery_gauge'):
-            target.mockery_gauge = 0
-        
-        max_mockery = getattr(rogue, 'max_mockery', 10)
-        
-        # 농락의 달인 특성: +50%
-        bonus = 1.0
+    def add_venom(rogue, target, amount: int):
+        """대상에게 독 중첩 추가 (최대 5)"""
+        if not hasattr(target, 'venom_stacks'):
+            target.venom_stacks = 0
+
+        max_venom = getattr(rogue, 'max_venom', 5)
+
+        # 맹독술사 특성: 독 중첩 시 추가 +1
+        bonus = 0
         if hasattr(rogue, 'active_traits'):
             for trait in rogue.active_traits:
                 tid = trait if isinstance(trait, str) else trait.get('id')
-                if tid == 'master_mocker':
-                    bonus = 1.5
+                if tid == 'venom_master':
+                    bonus = 1
                     break
-        
-        actual_gain = int(amount * bonus)
-        old_mockery = target.mockery_gauge
-        target.mockery_gauge = min(max_mockery, target.mockery_gauge + actual_gain)
-        
+
+        actual_amount = amount + bonus
+        old_stacks = target.venom_stacks
+        target.venom_stacks = min(max_venom, target.venom_stacks + actual_amount)
+        actual_gain = target.venom_stacks - old_stacks
+
         # 단계 진입 로그
-        mockery_effects = getattr(rogue, 'mockery_effects', {})
-        for threshold_str, effect_data in mockery_effects.items():
+        venom_effects = getattr(rogue, 'venom_effects', {})
+        for threshold_str, effect_data in venom_effects.items():
             threshold = int(threshold_str)
-            if old_mockery < threshold <= target.mockery_gauge:
-                effect_name = effect_data.get('name', f'농락 {threshold}')
-                logger.info(f"[농락] {target.name}: {effect_name} 상태! ({target.mockery_gauge}/{max_mockery})")
-                
-                # 굴욕 전문가 특성: 농락 10 달성 시 HP 10% 순수 피해
-                if threshold == 10:
-                    if hasattr(rogue, 'active_traits'):
-                        for trait in rogue.active_traits:
-                            tid = trait if isinstance(trait, str) else trait.get('id')
-                            if tid == 'humiliation':
-                                damage = int(target.max_hp * 0.1)
-                                target.current_hp = max(1, target.current_hp - damage)
-                                logger.info(f"[굴욕 전문가] {target.name}에게 {damage} 순수 피해!")
-                                break
-        
+            if old_stacks < threshold <= target.venom_stacks:
+                effect_name = effect_data.get('name', f'독 {threshold}')
+                logger.info(f"[맹독] {target.name}: {effect_name} 상태! ({target.venom_stacks}/{max_venom})")
+
         if actual_gain > 0:
-            logger.debug(f"[농락] {rogue.name} → {target.name}: +{actual_gain} (총: {target.mockery_gauge})")
-        
+            logger.debug(f"[맹독] {rogue.name} → {target.name}: +{actual_gain} (총: {target.venom_stacks})")
+
         return actual_gain
-    
+
     @staticmethod
-    def get_mockery_effects(rogue, target) -> dict:
-        """대상의 농락 단계에 따른 효과 반환"""
-        mockery = getattr(target, 'mockery_gauge', 0)
-        mockery_effects = getattr(rogue, 'mockery_effects', {})
-        
-        effects = {}
-        for threshold_str, effect_data in mockery_effects.items():
-            threshold = int(threshold_str)
-            if mockery >= threshold:
-                effects.update(effect_data)
-        
-        return effects
-    
-    @staticmethod
-    def reset_mockery(target):
-        """대상의 농락 게이지 초기화"""
-        if hasattr(target, 'mockery_gauge'):
-            old = target.mockery_gauge
-            target.mockery_gauge = 0
-            logger.info(f"[농락 소모] {target.name}: {old} → 0")
-    
-    @staticmethod
-    def on_evade_success(rogue, attacker):
-        """회피 성공 시 처리"""
-        if not hasattr(rogue, 'gimmick_type') or rogue.gimmick_type != "mockery_system":
-            return
-        
-        evasion_chain = getattr(rogue, 'evasion_chain', {})
-        per_evade = evasion_chain.get('per_evade', {})
-        
-        # 농락 +2
-        mockery_gain = per_evade.get('mockery', 2)
-        GimmickUpdater.add_mockery(rogue, attacker, mockery_gain)
-        
-        # 연속 회피 카운트
-        rogue.consecutive_evades = getattr(rogue, 'consecutive_evades', 0) + 1
-        
-        # 그림자 춤꾼 특성: 회피 시 속도 +10%
+    def apply_venom_dot(rogue, target):
+        """독 중첩 DoT 피해 적용 (매 턴 호출)"""
+        stacks = getattr(target, 'venom_stacks', 0)
+        if stacks <= 0:
+            return 0
+
+        # 기본 DoT: 중첩당 물공 20% (기존 8% → 상향)
+        dot_per_stack = getattr(rogue, 'venom_dot_per_stack', 0.20)
+        phys_atk = getattr(rogue, 'strength', 50)
+        # 레벨 스케일링: 전투 데미지(0.3/레벨)의 절반 수준 (DoT이므로)
+        rogue_level = getattr(rogue, 'level', 1)
+        level_multiplier = 1.0 + (rogue_level * 0.15)
+        base_dot = int(phys_atk * dot_per_stack * stacks * level_multiplier)
+
+        # 속도 차이 비례 독 피해 증가 (최대 +50%)
+        speed_bonus = 1.0
+        if getattr(rogue, 'speed_scaling', True):
+            rogue_speed = getattr(rogue, 'speed', 50)
+            target_speed = getattr(target, 'speed', 50)
+            if rogue_speed > target_speed:
+                speed_diff_ratio = min((rogue_speed - target_speed) / max(target_speed, 1), 0.5)
+                speed_bonus = 1.0 + speed_diff_ratio
+
+        # 맹독술사 특성: 독 피해 +30%
+        trait_bonus = 1.0
         if hasattr(rogue, 'active_traits'):
             for trait in rogue.active_traits:
                 tid = trait if isinstance(trait, str) else trait.get('id')
-                if tid == 'shadow_dancer':
-                    logger.debug(f"[그림자 춤꾼] {rogue.name} 속도 버프 적용")
+                if tid == 'venom_master':
+                    trait_bonus = 1.3
                     break
-        
-        # 3연속 회피: 은신 돌입
-        chain_3 = evasion_chain.get('chain_3', {})
-        if rogue.consecutive_evades >= 3 and chain_3.get('stealth'):
-            rogue.stealth_active = True
-            bonus_mockery = chain_3.get('mockery', 5)
-            GimmickUpdater.add_mockery(rogue, attacker, bonus_mockery)
-            rogue.consecutive_evades = 0
-            logger.info(f"[3연속 회피!] {rogue.name} 은신 돌입!")
-        
-        logger.debug(f"[회피 성공] {rogue.name} 연속 회피: {rogue.consecutive_evades}")
+
+        total_dot = int(base_dot * speed_bonus * trait_bonus)
+
+        if total_dot > 0:
+            target.current_hp = max(1, target.current_hp - total_dot)
+            logger.info(f"[독 DoT] {target.name}: {total_dot} 피해 (중첩 {stacks}, 속도x{speed_bonus:.1f})")
+
+        # 사독 (5중첩): 즉사 확률 10% (보스 면역)
+        if stacks >= 5:
+            import random
+            venom_effects = getattr(rogue, 'venom_effects', {})
+            death_data = venom_effects.get(5, venom_effects.get('5', {}))
+            kill_chance = death_data.get('instant_kill_chance', 0.10)
+            boss_immune = death_data.get('boss_immune', True)
+            is_boss = getattr(target, 'is_boss', False)
+            if not (boss_immune and is_boss) and random.random() < kill_chance:
+                target.current_hp = 0
+                logger.info(f"[사독] {target.name} 즉사!")
+
+        return total_dot
+
+    @staticmethod
+    def get_venom_effects(rogue, target) -> dict:
+        """대상의 독 단계에 따른 효과 반환"""
+        stacks = getattr(target, 'venom_stacks', 0)
+        venom_effects = getattr(rogue, 'venom_effects', {})
+
+        effects = {}
+        for threshold_str, effect_data in venom_effects.items():
+            threshold = int(threshold_str)
+            if stacks >= threshold:
+                effects.update(effect_data)
+
+        return effects
+
+    @staticmethod
+    def reset_venom(target):
+        """대상의 독 중첩 초기화 (독 폭발 등)"""
+        if hasattr(target, 'venom_stacks'):
+            old = target.venom_stacks
+            target.venom_stacks = 0
+            logger.info(f"[독 소모] {target.name}: {old} → 0")
+            return old
+        return 0
+
+    @staticmethod
+    def on_rogue_evade(rogue, attacker):
+        """도적 회피 성공 시 처리"""
+        if getattr(rogue, 'gimmick_type', None) != "venom_system":
+            return
+
+        evasion_chain = getattr(rogue, 'evasion_chain', {})
+
+        # ATB 보너스 +15%
+        atb_bonus = evasion_chain.get('atb_bonus', 0.15)
+        current_atb = getattr(rogue, 'atb_gauge', 0)
+        max_atb = getattr(rogue, 'max_atb', 100)
+        rogue.atb_gauge = min(max_atb, current_atb + int(max_atb * atb_bonus))
+
+        # 공격자에게 독 중첩 +1
+        extra_venom = evasion_chain.get('extra_venom', 1)
+        GimmickUpdater.add_venom(rogue, attacker, extra_venom)
+
+        # 독무 특성: 회피 성공 시 공격자에게 독 +1 추가
+        if hasattr(rogue, 'active_traits'):
+            for trait in rogue.active_traits:
+                tid = trait if isinstance(trait, str) else trait.get('id')
+                if tid == 'venom_dance':
+                    GimmickUpdater.add_venom(rogue, attacker, 1)
+                    logger.debug(f"[독무] {rogue.name} 회피 → {attacker.name}에게 추가 독")
+                    break
+
+        # 질풍 특성: 회피 시 ATB +20% 추가
+        if hasattr(rogue, 'active_traits'):
+            for trait in rogue.active_traits:
+                tid = trait if isinstance(trait, str) else trait.get('id')
+                if tid == 'gale_runner':
+                    extra_atb = 0.20
+                    rogue.atb_gauge = min(max_atb, rogue.atb_gauge + int(max_atb * extra_atb))
+                    logger.debug(f"[질풍] {rogue.name} 추가 ATB +20%")
+                    break
+
+        logger.debug(f"[회피 성공] {rogue.name} ATB: {rogue.atb_gauge}")
+
+    @staticmethod
+    def on_venom_target_death(rogue, dead_target, all_enemies):
+        """독에 걸린 적 사망 시 처리 (역병 전이 특성)"""
+        stacks = getattr(dead_target, 'venom_stacks', 0)
+        if stacks <= 0:
+            return
+
+        # 역병 전이 특성 체크
+        has_plague = False
+        if hasattr(rogue, 'active_traits'):
+            for trait in rogue.active_traits:
+                tid = trait if isinstance(trait, str) else trait.get('id')
+                if tid == 'plague_burst':
+                    has_plague = True
+                    break
+
+        if not has_plague:
+            return
+
+        # 남은 독 피해 = 물공 × 8% × 중첩 수, 그 50%를 광역
+        phys_atk = getattr(rogue, 'strength', 50)
+        dot_per_stack = getattr(rogue, 'venom_dot_per_stack', 0.08)
+        remaining_dot = int(phys_atk * dot_per_stack * stacks)
+        plague_damage = int(remaining_dot * 0.5)
+
+        if plague_damage <= 0:
+            return
+
+        hit_count = 0
+        for enemy in all_enemies:
+            if enemy is dead_target:
+                continue
+            if getattr(enemy, 'current_hp', 0) <= 0:
+                continue
+            enemy.current_hp = max(1, enemy.current_hp - plague_damage)
+            hit_count += 1
+
+        if hit_count > 0:
+            logger.info(f"[역병 전이] {dead_target.name} 사망 → {hit_count}명에게 {plague_damage} 피해!")
     
     @staticmethod
     def enter_stealth(rogue):
@@ -3397,10 +3530,10 @@ class GimmickUpdater:
         """차원술사: 차원 굴절 시스템 업데이트 - 매 행동마다 굴절량 감소 및 피해"""
         try:
             refraction = getattr(character, 'refraction_stacks', 0)
-            print(f"[DEBUG][굴절업데이트] {character.name} 굴절량={refraction}")
+            # print(f"[DEBUG][굴절업데이트] {character.name} 굴절량={refraction}")
 
             if refraction <= 0:
-                print(f"[DEBUG][굴절업데이트] 굴절량 0 이하, 스킵")
+                # print(f"[DEBUG][굴절업데이트] 굴절량 0 이하, 스킵")
                 return
 
             # 매 행동마다: 현재 굴절량의 10% 소멸 + 고정 피해
@@ -3411,13 +3544,13 @@ class GimmickUpdater:
             active_traits = list(getattr(character, 'active_traits', []) or [])
             selected_traits = list(getattr(character, 'selected_traits', []) or [])
             all_traits = active_traits + selected_traits
-            print(f"[DEBUG][굴절업데이트] active_traits={active_traits}, selected_traits={selected_traits}")
+            # print(f"[DEBUG][굴절업데이트] active_traits={active_traits}, selected_traits={selected_traits}")
             
             for t in all_traits:
                 trait_id = t if isinstance(t, str) else t.get('id') if isinstance(t, dict) else None
                 if trait_id == 'dimensional_stabilization':
                     decay_rate = 0.05
-                    print(f"[DEBUG][굴절업데이트] 차원 안정화 특성 적용, decay_rate=5%")
+                    # print(f"[DEBUG][굴절업데이트] 차원 안정화 특성 적용, decay_rate=5%")
                     break
 
             # 이중 차원 특성: 굴절 피해 +75%
@@ -3426,7 +3559,7 @@ class GimmickUpdater:
                 trait_id = t if isinstance(t, str) else t.get('id') if isinstance(t, dict) else None
                 if trait_id == 'double_refraction':
                     decay_damage_mult = 1.75
-                    print(f"[DEBUG][굴절업데이트] 이중 차원 특성 적용, 피해 배율=175%")
+                    # print(f"[DEBUG][굴절업데이트] 이중 차원 특성 적용, 피해 배율=175%")
                     break
 
             decay_amount = int(refraction * decay_rate)
@@ -3434,10 +3567,10 @@ class GimmickUpdater:
             if refraction > 0 and decay_amount < 1:
                 decay_amount = 1
             
-            print(f"[DEBUG][굴절업데이트] 감소량={decay_amount}, 감소율={int(decay_rate*100)}%")
+            # print(f"[DEBUG][굴절업데이트] 감소량={decay_amount}, 감소율={int(decay_rate*100)}%")
                  
             fixed_damage = max(1, int(decay_amount * decay_damage_mult))
-            print(f"[DEBUG][굴절업데이트] 고정피해={fixed_damage}")
+            # print(f"[DEBUG][굴절업데이트] 고정피해={fixed_damage}")
 
             # 굴절 보호막(Refraction Shield)이 있으면 자해 피해만 방지 (굴절 감소는 진행)
             skip_damage = False
@@ -3452,17 +3585,17 @@ class GimmickUpdater:
                     
                     if refraction_shield:
                         shield_hp = getattr(refraction_shield, 'metadata', {}).get('shield_hp', 0)
-                        print(f"[DEBUG][굴절업데이트] Refraction Shield 발견, shield_hp={shield_hp}")
+                        # print(f"[DEBUG][굴절업데이트] Refraction Shield 발견, shield_hp={shield_hp}")
                         if shield_hp > 0:
                             skip_damage = True
-                            print(f"[DEBUG][굴절업데이트] 보호막으로 피해 {fixed_damage} 방지됨")
+                            # print(f"[DEBUG][굴절업데이트] 보호막으로 피해 {fixed_damage} 방지됨")
                 except Exception as e:
-                    print(f"[DEBUG][굴절업데이트] 보호막 체크 중 오류: {e}")
+                    pass  # 보호막 체크 오류 무시
 
             # 고정 피해 적용 (보호막이 없을 때만)
             actual_damage = 0
             if not skip_damage:
-                print(f"[DEBUG][굴절업데이트] 피해 적용 시도...")
+                # print(f"[DEBUG][굴절업데이트] 피해 적용 시도...")
                 character._processing_refraction_decay = True
                 try:
                     if hasattr(character, 'take_fixed_damage'):
@@ -3470,20 +3603,21 @@ class GimmickUpdater:
                     else:
                         actual_damage = min(fixed_damage, getattr(character, 'current_hp', 0))
                         character.current_hp = max(1, character.current_hp - fixed_damage)
-                    print(f"[DEBUG][굴절업데이트] 피해 적용 완료: {actual_damage}")
+                    # print(f"[DEBUG][굴절업데이트] 피해 적용 완료: {actual_damage}")
                 except Exception as e:
-                    print(f"[DEBUG][굴절업데이트] 피해 적용 중 오류: {e}")
+                    # print(f"[DEBUG][굴절업데이트] 피해 적용 중 오류: {e}")
                     import traceback
                     traceback.print_exc()
                 finally:
                     character._processing_refraction_decay = False
             else:
-                print(f"[DEBUG][굴절업데이트] 피해 스킵됨 (보호막)")
+                pass  # 보호막으로 피해 스킵
 
             # 굴절량 감소는 항상 적용!
             old_refraction = character.refraction_stacks
             character.refraction_stacks = max(0, refraction - decay_amount)
-            print(f"[DEBUG][굴절업데이트] 굴절량 변화: {old_refraction} → {character.refraction_stacks}")
+
+            # (양자 얽힘 특성은 on_ally_attack / take_damage에서 처리)
 
             # 로그
             if actual_damage > 0 or decay_amount > 0:
@@ -3492,7 +3626,7 @@ class GimmickUpdater:
                     f"(굴절량 {refraction} → {character.refraction_stacks}, 감소율 {int(decay_rate*100)}%)"
                 )
         except Exception as e:
-            print(f"[DEBUG][굴절업데이트] 전체 오류: {e}")
+            # print(f"[DEBUG][굴절업데이트] 전체 오류: {e}")
             import traceback
             traceback.print_exc()
 
@@ -5015,6 +5149,7 @@ class GimmickUpdater:
                 if total > 0:
                     hook["rune_detonations"].append({"target": enemy, "runes": rune_snapshot})
             hook["snapshot"] = {"total_runes": total_runes}
+            hook["is_mass_detonate"] = True  # 전체 기폭 플래그
 
         # 스냅샷 컨텍스트 전달 (DamageEffect gimmick_bonus 사용)
         if hook.get("snapshot"):
@@ -5041,13 +5176,14 @@ class GimmickUpdater:
             """공/마 공격력 기반 방어/마방으로 나눈 뒤 MAX BRV 비례 HP 피해 + 히트 이벤트"""
             if not tgt or not getattr(tgt, "is_alive", True):
                 return 0
-            atk = max(getattr(u, "physical_attack", 0), getattr(u, "magic_attack", 0))
-            p_def = getattr(tgt, "physical_defense", 1) or 1
-            m_def = getattr(tgt, "magic_defense", p_def) or 1
+            atk = max(getattr(u, "strength", 0) or getattr(u, "physical_attack", 0),
+                      getattr(u, "magic", 0) or getattr(u, "magic_attack", 0))
+            p_def = getattr(tgt, "defense", 0) or getattr(tgt, "physical_defense", 0) or 1
+            m_def = getattr(tgt, "spirit", 0) or getattr(tgt, "magic_defense", 0) or 1
             defense = min(p_def, m_def)
             max_brv = getattr(u, "max_brv", 100) or 100
-            ratio = max(0.2, atk / max(1, defense))
-            damage = int(ratio * base_mult * max_brv)
+            ratio = max(0.2, min(5.0, atk / max(1, defense)))
+            damage = int(ratio * base_mult * max_brv) // 6
             damage = max(1, damage)
             actual = damage
             damage_type = "hp"
@@ -5112,6 +5248,10 @@ class GimmickUpdater:
                 result["messages"].append(f"공명 게이지 {pulse_gauge} 소모")
                 user.resonance_gauge = 0
 
+        is_mass_detonate = hook.get("is_mass_detonate", False)
+        # 전체 기폭 시 연쇄 폭발 중복 방지를 위한 공유 세트
+        shared_chain_exploded = set()
+
         for entry in detos:
             t = entry.get("target")
             rune_counts = entry.get("runes", {})
@@ -5129,10 +5269,10 @@ class GimmickUpdater:
                 result["extra_damage"] += applied
             result["messages"].append(f"룬 폭발 {total_runes}스택")
 
-            # 광역 충격: 다른 적들도 동시 피해
+            # 광역 충격: 다른 적들도 동시 피해 (전체 기폭 시에는 각 대상이 개별 폭발하므로 스킵)
             enemies_all = context.get("all_enemies", []) if context else []
             aoe_targets = [e for e in enemies_all if e and getattr(e, "is_alive", True) and e != t]
-            if aoe_targets:
+            if aoe_targets and not is_mass_detonate:
                 for aoe_idx, aoe_t in enumerate(aoe_targets):
                     aoe_applied = _apply_direct_rune_damage(
                         user,
@@ -5346,6 +5486,10 @@ class GimmickUpdater:
             character.heat = max(0, min(getattr(character, 'max_heat', 100), new_heat))
             logger.info(f"[포탑 시스템] {character.name}: 포탑 {turret_count}개 × 1 = 열 +{turret_heat} (총: {character.heat})")
 
+            # 포탑 열 증가로 오버히트 도달 시 즉시 체크
+            if character.heat >= 100:
+                GimmickUpdater._update_heat_management(character, is_own_turn=False)
+
         # 스턴 상태면 포탑 공격 안함
         if getattr(character, 'is_stunned', False):
             logger.info(f"[포탑 시스템] {character.name}: 스턴 상태로 포탑 공격 불가")
@@ -5367,7 +5511,7 @@ class GimmickUpdater:
             attack_power = character.stat_manager.get_value("strength")
             logger.info(f"[포탑 디버그] {character.name} StatManager 공격력: {attack_power}")
         else:
-            attack_power = getattr(character, 'physical_attack', 50)
+            attack_power = getattr(character, 'strength', 50)
             logger.info(f"[포탑 디버그] {character.name} 기본 공격력: {attack_power}")
 
         # 포탑별로 랜덤 적 공격
@@ -5414,13 +5558,26 @@ class GimmickUpdater:
                         allies = [a for a in combat_manager.allies if getattr(a, 'is_alive', True)]
 
                 if allies:
-                    heal_target = min(allies, key=lambda a: a.current_hp / max(1, a.max_hp))
-                    heal_amount = int(attack_power * 0.30)
-                    old_hp = heal_target.current_hp
-                    heal_target.current_hp = min(heal_target.max_hp, heal_target.current_hp + heal_amount)
-                    actual_heal = heal_target.current_hp - old_hp
+                    # HP 비율이 가장 낮은 아군 선택
+                    heal_target = min(allies, key=lambda a: getattr(a, 'current_hp', 1) / max(1, getattr(a, 'max_hp', 1)))
+                    
+                    # 힐량 계산 (공격력 30% 의 1/2 로 적용)
+                    heal_amount = max(1, int((attack_power * 0.30) / 2))
+                    
+                    actual_heal = 0
+                    if hasattr(heal_target, 'heal'):
+                        actual_heal = heal_target.heal(heal_amount, source_character=character)
+                    else:
+                        old_hp = getattr(heal_target, 'current_hp', 0)
+                        heal_target.current_hp = min(getattr(heal_target, 'max_hp', 100), old_hp + heal_amount)
+                        actual_heal = heal_target.current_hp - old_hp
+                        
                     if actual_heal > 0:
                         logger.info(f"[치유 포탑] {heal_target.name} HP +{actual_heal}")
+                        if context and 'combat_manager' in context:
+                            ui = getattr(context['combat_manager'], 'combat_ui', None)
+                            if ui and hasattr(ui, 'add_message'):
+                                ui.add_message(f"[치유 포탑] {heal_target.name}이(가) {actual_heal} 회복!", (100, 255, 100))
                 continue
 
             # 데미지 계산 (방어력 영향 + MAXBRV 보너스)
@@ -5429,7 +5586,7 @@ class GimmickUpdater:
             enemy_defense = getattr(target, 'physical_defense', 20)
             enemy_defense = max(1, enemy_defense)  # 0 방지
             
-            base_damage = attack_power * damage_multiplier
+            base_damage = attack_power * damage_multiplier * 0.6  # 포탑 피해 40% 감소
             brv_bonus = max_brv / (enemy_defense * 4)
             damage = int((base_damage * 1.0 + base_damage * brv_bonus) / 10)  # 피해량 1/10로 조정
             damage = max(1, damage)  # 최소 1 피해
@@ -5575,12 +5732,24 @@ class GimmickUpdater:
 
     @staticmethod
     def _update_kenshin_system_turn_end(character):
-        """턴 종료 시 관찰 스택 감소 (-1)"""
+        """턴 종료 시 관찰 스택 감소 (-1) + 예측 턴 감소"""
         observation = getattr(character, "observation", 0)
         if observation > 0:
             character.observation = max(0, observation - 1)
             stage = GimmickUpdater._get_kenshin_stage(character)
             logger.info(f"{character.name} 관찰 스택 -1 (턴 종료) -> {character.observation} [{stage}]")
+
+        # 요미 예측 턴 감소
+        if getattr(character, "prediction_active", False):
+            turns_left = getattr(character, "prediction_turns_left", 0)
+            if turns_left > 0:
+                character.prediction_turns_left = turns_left - 1
+                logger.info(f"[요미] {character.name} 예측 남은 턴: {character.prediction_turns_left}")
+                if character.prediction_turns_left <= 0:
+                    character.prediction_active = False
+                    character.predicted_actions = {}
+                    logger.info(f"[요미] {character.name} 예측 만료")
+                    GimmickUpdater._push_ui_log(character, "[요미] 예측 만료", color=(180, 180, 180))
 
     @staticmethod
     def _get_kenshin_stage(character):
@@ -5723,12 +5892,9 @@ class GimmickUpdater:
             skill: 요미 스킬
             context: 스킬 실행 컨텍스트 (enemies 리스트 포함)
         """
-        # 토글 상태 보정: active_toggles가 없거나 요미가 누락된 경우 추가
-        if not hasattr(character, "active_toggles"):
-            character.active_toggles = []
-        if "samurai_yomi" not in character.active_toggles:
-            character.active_toggles.append("samurai_yomi")
-            GimmickUpdater._push_ui_log(character, "[요미] 예측 활성화 (토글 ON)")
+        # 예측 활성화 (지속형)
+        character.prediction_active = True
+        GimmickUpdater._push_ui_log(character, "[요미] 예측 활성화")
 
         # 컨텍스트에서 적 목록 가져오기 (없으면 전투 관리자에서 조회)
         enemies = []
@@ -5968,6 +6134,230 @@ class GimmickUpdater:
             pass
 
         return 0.0
+
+    # === 닌자 (Ninja) - 인법 연쇄 시스템 ===
+
+    @staticmethod
+    def _update_ninpo_chain(character):
+        """닌자: 인법 연쇄 시스템 턴 종료 업데이트"""
+        total_seals = GimmickUpdater.get_ninja_total_seals(character)
+
+        # 연속 행동 카운트 증가 (질풍노도 특성용)
+        consecutive = getattr(character, "consecutive_actions", 0) + 1
+        character.consecutive_actions = consecutive
+
+        # 질풍노도 특성: 3회 연속 행동 시 ATB +95%
+        has_gale = hasattr(character, "_has_trait") and character._has_trait("gale_fury")
+        if not has_gale:
+            # _has_trait 없을 때 traits에서 직접 탐색
+            traits = getattr(character, "traits", []) or getattr(character, "active_traits", [])
+            has_gale = any(
+                (t if isinstance(t, str) else t.get("id", "")) == "gale_fury"
+                for t in traits
+            )
+
+        if consecutive >= 3 and has_gale:
+            character.consecutive_actions = 0
+            if hasattr(character, "atb"):
+                max_atb = getattr(character, "max_atb", 1000)
+                atb_bonus = int(max_atb * 0.95)
+                character.atb = min(max_atb, character.atb + atb_bonus)
+                GimmickUpdater._push_ui_log(
+                    character,
+                    f"[질풍노도] {character.name} 연속 3행동! ATB +95%!",
+                    color=(0, 255, 200)
+                )
+                logger.info(f"[질풍노도] {character.name} ATB +{atb_bonus}")
+
+        # 연막전개 특성: HP 30% 이하 시 자동 회피 1회 + 은신
+        if not getattr(character, "smoke_escape_used", False):
+            hp_ratio = character.current_hp / max(1, character.max_hp) if hasattr(character, "current_hp") else 1.0
+            if hp_ratio <= 0.3:
+                has_smoke = hasattr(character, "_has_trait") and character._has_trait("smoke_escape")
+                if not has_smoke:
+                    traits = getattr(character, "traits", []) or getattr(character, "active_traits", [])
+                    has_smoke = any(
+                        (t if isinstance(t, str) else t.get("id", "")) == "smoke_escape"
+                        for t in traits
+                    )
+                if has_smoke:
+                    character.smoke_escape_used = True
+                    character.ninja_stealth = True
+                    GimmickUpdater._push_ui_log(
+                        character,
+                        f"[연막전개] {character.name} 위기 감지! 자동 회피 + 은신!",
+                        color=(150, 150, 150)
+                    )
+                    logger.info(f"[연막전개] {character.name} HP 30% 이하 - 자동 은신")
+
+        # 인 상태 로그
+        if total_seals > 0:
+            seal_status = []
+            if getattr(character, "seal_fire", 0) > 0:
+                seal_status.append(f"火{character.seal_fire}")
+            if getattr(character, "seal_ice", 0) > 0:
+                seal_status.append(f"氷{character.seal_ice}")
+            if getattr(character, "seal_thunder", 0) > 0:
+                seal_status.append(f"雷{character.seal_thunder}")
+            if getattr(character, "seal_wind", 0) > 0:
+                seal_status.append(f"風{character.seal_wind}")
+            logger.debug(f"{character.name} 인법 연쇄: [{'/'.join(seal_status)}] (총 {total_seals}인)")
+
+    @staticmethod
+    def add_ninja_seal(character, seal_type: str, amount: int = 1):
+        """닌자: 인(印) 축적
+
+        Args:
+            character: 캐릭터
+            seal_type: 속성 ("fire", "ice", "thunder", "wind")
+            amount: 축적량
+
+        Returns:
+            실제 축적된 양
+        """
+        field = f"seal_{seal_type}"
+        if not hasattr(character, field):
+            return 0
+
+        max_seals = getattr(character, "max_seals", 4)
+        current = getattr(character, field, 0)
+        last_element = getattr(character, "last_seal_element", None)
+
+        # 속성 순환 보너스/패널티
+        actual_amount = amount
+        if last_element == seal_type:
+            # 같은 속성 연속 사용: 축적량 감소
+            penalty = getattr(character, "same_element_penalty", {})
+            reduction = penalty.get("seal_reduction", 1) if isinstance(penalty, dict) else 1
+            actual_amount = max(0, amount - reduction)
+            if actual_amount < amount:
+                logger.info(f"[인법 연쇄] {character.name} 같은 속성 연속! 인 축적 감소 ({amount}->{actual_amount})")
+        elif last_element is not None:
+            # 다른 속성으로 전환: 보너스 인 +1
+            bonus = getattr(character, "element_switch_bonus", {})
+            extra = bonus.get("extra_seal", 1) if isinstance(bonus, dict) else 1
+            actual_amount += extra
+            logger.info(f"[인법 연쇄] {character.name} 속성 전환 보너스! +{extra} 추가 인")
+
+        # 최대치 제한 후 적용
+        new_val = min(max_seals, current + actual_amount)
+        added = new_val - current
+        setattr(character, field, new_val)
+        character.last_seal_element = seal_type
+
+        total = GimmickUpdater.get_ninja_total_seals(character)
+        seal_names = {"fire": "火", "ice": "氷", "thunder": "雷", "wind": "風"}
+        seal_name = seal_names.get(seal_type, seal_type)
+
+        if added > 0:
+            GimmickUpdater._push_ui_log(
+                character,
+                f"[인법] {character.name} {seal_name} 인 +{added} (총 {total}인)",
+                color=(255, 150, 0)
+            )
+
+        # 은신 해제 (공격 행동 시)
+        if getattr(character, "ninja_stealth", False):
+            character.ninja_stealth = False
+            logger.info(f"[은밀행동] {character.name} 은신 해제")
+
+        return added
+
+    @staticmethod
+    def consume_ninja_seals(character, consume_all=False, seal_type=None, amount=1):
+        """닌자: 인(印) 소비
+
+        Args:
+            character: 캐릭터
+            consume_all: True면 모든 인 소비
+            seal_type: 특정 속성만 소비 (None이면 모든 속성)
+            amount: 소비할 양
+
+        Returns:
+            {"total": 소비된 총량, "detail": {속성: 양}}
+        """
+        consumed = {}
+
+        if consume_all:
+            for stype in ["fire", "ice", "thunder", "wind"]:
+                field = f"seal_{stype}"
+                val = getattr(character, field, 0)
+                if val > 0:
+                    consumed[stype] = val
+                    setattr(character, field, 0)
+            character.last_seal_element = None
+        elif seal_type:
+            field = f"seal_{seal_type}"
+            current = getattr(character, field, 0)
+            actual = min(current, amount)
+            if actual > 0:
+                setattr(character, field, current - actual)
+                consumed[seal_type] = actual
+
+        total = sum(consumed.values())
+        if total > 0:
+            seal_names = {"fire": "火", "ice": "氷", "thunder": "雷", "wind": "風"}
+            detail = ", ".join(f"{seal_names.get(k, k)}{v}" for k, v in consumed.items())
+            GimmickUpdater._push_ui_log(
+                character,
+                f"[인법] {character.name} 인 소비: {detail} (총 {total})",
+                color=(255, 100, 50)
+            )
+
+        return {"total": total, "detail": consumed}
+
+    @staticmethod
+    def get_ninja_total_seals(character):
+        """닌자: 현재 인(印) 총합 반환"""
+        return (
+            getattr(character, "seal_fire", 0) +
+            getattr(character, "seal_ice", 0) +
+            getattr(character, "seal_thunder", 0) +
+            getattr(character, "seal_wind", 0)
+        )
+
+    @staticmethod
+    def get_ninja_chain_effect(character):
+        """닌자: 현재 인 수에 따른 연쇄 효과 반환
+
+        Returns:
+            연쇄 효과 dict 또는 None
+            예: {"threshold": 3, "total_seals": 3, "name": "속성 폭주", ...}
+        """
+        total = GimmickUpdater.get_ninja_total_seals(character)
+        chain_effects = getattr(character, "chain_effects", {})
+
+        # 높은 단계부터 체크
+        for threshold in sorted(chain_effects.keys(), key=lambda x: int(x), reverse=True):
+            threshold_int = int(threshold)
+            if total >= threshold_int:
+                effect = chain_effects[threshold]
+                return {"threshold": threshold_int, "total_seals": total, **effect}
+
+        return None
+
+    @staticmethod
+    def on_ninja_evade(character):
+        """닌자: 회피 성공 시 잔영보법 특성 처리"""
+        if getattr(character, "gimmick_type", None) != "ninpo_chain":
+            return
+
+        has_afterimage = hasattr(character, "_has_trait") and character._has_trait("afterimage_step")
+        if not has_afterimage:
+            traits = getattr(character, "traits", []) or getattr(character, "active_traits", [])
+            has_afterimage = any(
+                (t if isinstance(t, str) else t.get("id", "")) == "afterimage_step"
+                for t in traits
+            )
+
+        if has_afterimage:
+            added = GimmickUpdater.add_ninja_seal(character, "wind", 1)
+            if added > 0:
+                GimmickUpdater._push_ui_log(
+                    character,
+                    f"[잔영보법] {character.name} 회피 성공! 풍(風) 인 자동 축적!",
+                    color=(0, 255, 200)
+                )
 
 
 class ElementalBalanceChecker:
@@ -6448,6 +6838,23 @@ def _handle_skill_execute(event):
                 except Exception:
                     pass
 
+        # self_ram_recover: RAM 즉시 회복
+        ram_recover = meta.get("self_ram_recover", 0)
+        if ram_recover:
+            max_ram = getattr(user, "max_ram", 32)
+            old_ram = getattr(user, "ram", 0)
+            user.ram = min(max_ram, old_ram + ram_recover)
+            logger.info(f"[해커] {user.name} RAM 회복: {old_ram} → {user.ram} (+{ram_recover})")
+
+        # self_overclock: 기간 지정 오버클럭 활성화
+        oc_duration = meta.get("self_overclock", 0)
+        if oc_duration:
+            user.overclock_active = True
+            oc_data = getattr(user, "overclock_data", {}) or {}
+            oc_data["remaining_turns"] = oc_duration
+            user.overclock_data = oc_data
+            logger.info(f"[해커] {user.name} 오버클럭 활성화 ({oc_duration}턴)")
+
     # 광전사: 광기 조절 처리
     if gimmick_type == "madness_threshold":
         meta = getattr(skill, "metadata", {}) or {}
@@ -6479,24 +6886,149 @@ def _handle_skill_execute(event):
         if oracle_action:
             GimmickUpdater.check_oracle_fulfillment(user, oracle_action)
 
-    # 도적: 농락 게이지
-    if getattr(user, "gimmick_type", None) == "mockery_system":
-        GimmickUpdater._update_mockery_system(user)
-        
+    # 도적: 맹독 시스템
+    if getattr(user, "gimmick_type", None) == "venom_system":
         meta = getattr(skill, "metadata", {}) or {}
-        gain = meta.get("mockery_gain", 0)
-        gain_all = meta.get("mockery_gain_all", 0)
+        venom_add = meta.get("venom_add", 0)
+        venom_consume_all = meta.get("venom_consume_all", False)
         targets = event.get("target")
         targets = targets if isinstance(targets, list) else [targets] if targets else []
-        if gain_all and targets:
+        if venom_add and targets:
             for t in targets:
-                GimmickUpdater.add_mockery(user, t, gain_all)
-        elif gain and targets:
+                if t and getattr(t, 'current_hp', 0) > 0:
+                    GimmickUpdater.add_venom(user, t, venom_add)
+        if venom_consume_all and targets:
             for t in targets:
-                GimmickUpdater.add_mockery(user, t, gain)
+                GimmickUpdater.reset_venom(t)
 
     # 차원술사 굴절 업데이트는 _handle_combat_action에서 처리 (중복 방지)
     # SKILL_EXECUTE는 스킬 사용 시에만 발동되므로, COMBAT_ACTION에서 처리하는 것이 적절
+
+    # 닌자: 인법 연쇄 시스템 - 인(印) 축적
+    if getattr(user, "gimmick_type", None) == "ninpo_chain":
+        meta = getattr(skill, "metadata", {}) or {}
+        if meta.get("ninpo_seal"):
+            seal_type = meta.get("seal_type", "wind")
+            seal_add = meta.get("seal_add", 1)
+
+            # "last_used" → 마지막 사용 속성 또는 기본 wind
+            if seal_type == "last_used":
+                seal_type = getattr(user, "last_seal_element", None) or "wind"
+            # "random" → 랜덤 속성
+            elif seal_type == "random":
+                import random
+                seal_type = random.choice(["fire", "ice", "thunder", "wind"])
+
+            GimmickUpdater.add_ninja_seal(user, seal_type, seal_add)
+
+        # 해인(seal_burst): 모든 인 소비
+        if meta.get("seal_consume_all") or meta.get("ninpo_seal_consume_all"):
+            GimmickUpdater.consume_ninja_seals(user, consume_all=True)
+
+        # 풍둔/신속지원 ATB 즉시 부스트
+        atb_boost = meta.get("atb_boost", 0)
+        if atb_boost > 0 and hasattr(user, "atb"):
+            max_atb = getattr(user, "max_atb", 1000)
+            bonus = int(max_atb * atb_boost)
+            user.atb = min(max_atb, user.atb + bonus)
+            logger.info(f"[닌자] {user.name} ATB +{int(atb_boost*100)}% ({bonus})")
+
+        # 궁극기: 전인(全印) 채운 뒤 소비
+        seal_fill = meta.get("ninpo_seal_fill", 0)
+        if seal_fill > 0:
+            for stype in ["fire", "ice", "thunder", "wind"]:
+                setattr(user, f"seal_{stype}", min(seal_fill, getattr(user, "max_seals", 4)))
+
+        # 파티 ATB 부스트 (궁극기)
+        party_atb = meta.get("party_atb_boost", 0)
+        if party_atb > 0:
+            try:
+                from src.combat.combat_manager import get_combat_manager
+                cm = get_combat_manager()
+                if cm and hasattr(cm, 'allies'):
+                    for ally in cm.allies:
+                        if ally and hasattr(ally, 'atb') and getattr(ally, 'current_hp', 0) > 0:
+                            max_atb = getattr(ally, "max_atb", 1000)
+                            bonus = int(max_atb * party_atb)
+                            ally.atb = min(max_atb, ally.atb + bonus)
+                    logger.info(f"[닌자 궁극기] 아군 전체 ATB +{int(party_atb*100)}%")
+            except Exception:
+                pass
+
+        # 인법결계: 사속호법 (팀워크 스킬 - 인 기반 아군 버프 + 보호막)
+        if meta.get("ninpo_barrier"):
+            try:
+                from src.combat.combat_manager import get_combat_manager
+                from src.combat.status_effects import StatusType, StatusEffect as CombatStatusEffect
+                cm = get_combat_manager()
+                if cm and hasattr(cm, 'allies'):
+                    allies = [a for a in cm.allies if getattr(a, 'is_alive', True)]
+                    buff_duration = meta.get("buff_duration", 3)
+                    applied_buffs = []
+
+                    # 화인: 공격력/마법공격력 +20%
+                    if getattr(user, 'seal_fire', 0) > 0:
+                        for ally in allies:
+                            if hasattr(ally, 'status_manager'):
+                                ally.status_manager.add_status(CombatStatusEffect(
+                                    name="인법결계:화(공격)", status_type=StatusType.BOOST_ATK,
+                                    duration=buff_duration, intensity=1.0))
+                                ally.status_manager.add_status(CombatStatusEffect(
+                                    name="인법결계:화(마공)", status_type=StatusType.BOOST_MAGIC_ATK,
+                                    duration=buff_duration, intensity=1.0))
+                        applied_buffs.append("火:공/마+20%")
+
+                    # 빙인: 방어력/마법방어력 +20%
+                    if getattr(user, 'seal_ice', 0) > 0:
+                        for ally in allies:
+                            if hasattr(ally, 'status_manager'):
+                                ally.status_manager.add_status(CombatStatusEffect(
+                                    name="인법결계:빙(방어)", status_type=StatusType.BOOST_DEF,
+                                    duration=buff_duration, intensity=1.0))
+                                ally.status_manager.add_status(CombatStatusEffect(
+                                    name="인법결계:빙(마방)", status_type=StatusType.BOOST_MAGIC_DEF,
+                                    duration=buff_duration, intensity=1.0))
+                        applied_buffs.append("氷:방/마방+20%")
+
+                    # 뇌인: 속도 +20%
+                    if getattr(user, 'seal_thunder', 0) > 0:
+                        for ally in allies:
+                            if hasattr(ally, 'status_manager'):
+                                ally.status_manager.add_status(CombatStatusEffect(
+                                    name="인법결계:뇌(속도)", status_type=StatusType.BOOST_SPD,
+                                    duration=buff_duration, intensity=0.67))
+                        applied_buffs.append("雷:속도+20%")
+
+                    # 풍인: ATB +300
+                    if getattr(user, 'seal_wind', 0) > 0:
+                        for ally in allies:
+                            if hasattr(ally, 'atb'):
+                                ally.atb = min(getattr(ally, 'max_atb', 1000), ally.atb + 300)
+                        applied_buffs.append("風:ATB+300")
+
+                    # 보호막: 인 수 × 마법력 × 0.25
+                    total_seals = GimmickUpdater.get_ninja_total_seals(user)
+                    if total_seals > 0:
+                        magic_coeff = meta.get("shield_magic_coeff", 0.25)
+                        magic_stat = getattr(user, 'magic', getattr(user, 'magic_attack', 50))
+                        shield_amount = int(total_seals * magic_stat * magic_coeff)
+                        for ally in allies:
+                            if hasattr(ally, 'status_manager'):
+                                ally.status_manager.add_status(CombatStatusEffect(
+                                    name="인법결계:보호막",
+                                    status_type=StatusType.SHIELD,
+                                    duration=buff_duration,
+                                    intensity=shield_amount,
+                                    metadata={"shield_hp": shield_amount}
+                                ), allow_refresh=True)
+                        applied_buffs.append(f"보호막:{shield_amount}")
+
+                    if applied_buffs:
+                        logger.info(f"[인법결계] {user.name} 사속호법: {', '.join(applied_buffs)}")
+                    else:
+                        logger.info(f"[인법결계] {user.name} 사속호법: 인 없음 (효과 없음)")
+            except Exception as e:
+                logger.warning(f"[인법결계] 처리 실패: {e}")
 
 
 def _handle_combat_hit(event):
@@ -6524,7 +7056,7 @@ def _handle_combat_hit(event):
 
 def _handle_combat_action(event):
     """COMBAT_ACTION 이벤트 핸들러 - 행동 카운트 & 차원 굴절"""
-    print(f"[DEBUG] _handle_combat_action 호출됨!")  # 핸들러 호출 확인용
+    # print(f"[DEBUG] _handle_combat_action 호출됨!")  # 핸들러 호출 확인용
     if not event:
         return
     actor = event.get("actor")
@@ -6549,12 +7081,12 @@ def _handle_combat_action(event):
     if combat_manager and hasattr(combat_manager, "allies"):
         # 디버그: allies 상태 출력
         allies_count = len(combat_manager.allies) if combat_manager.allies else 0
-        print(f"[DEBUG] allies 수: {allies_count}")
+        # print(f"[DEBUG] allies 수: {allies_count}")
         for i, ally in enumerate(combat_manager.allies):
             ally_name = getattr(ally, 'name', 'Unknown')
             ally_gimmick = getattr(ally, 'gimmick_type', None)
             ally_refraction = getattr(ally, 'refraction_stacks', 0)
-            print(f"[DEBUG] ally[{i}]: {ally_name}, gimmick={ally_gimmick}, refraction={ally_refraction}")
+            # print(f"[DEBUG] ally[{i}]: {ally_name}, gimmick={ally_gimmick}, refraction={ally_refraction}")
         
         # 아군 중 차원술사 찾기
         dimensionists_found = 0
@@ -6567,7 +7099,7 @@ def _handle_combat_action(event):
                     refraction_after = getattr(ally, 'refraction_stacks', 0)
                     logger.info(f"[차원 굴절] {ally.name} 굴절 감소: {refraction_before} → {refraction_after} (행동자: {getattr(actor, 'name', '?')})")
         
-        print(f"[DEBUG] 차원술사 발견: {dimensionists_found}명")
+        # print(f"[DEBUG] 차원술사 발견: {dimensionists_found}명")
         # 차원술사가 없으면 로그 생략 (너무 많은 로그 방지)
     else:
         logger.warning(f"[COMBAT_ACTION] combat_manager 없음: actor={getattr(actor, 'name', 'None')}")

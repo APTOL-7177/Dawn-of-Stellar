@@ -1,0 +1,46 @@
+id: priest_purify
+name: 정화의 빛
+type: buff
+description: '신성한 빛으로 모든 악을 정화한다.
+
+  파티 전체 디버프 3개 제거.
+
+  방어 +20% (2턴).
+
+  신앙 100이면 디버프 전체 제거 + 방어 +40% (4턴) + 신앙 소모.
+
+  신앙 +15.
+
+  "정화의 신탁" 충족.
+
+  '
+target: all_allies
+costs:
+  mp: 11
+metadata:
+  oracle_action: cleanse_debuff
+  faith_empowered: true
+effects:
+- type: cleanse
+  cleanse_count: 3
+  target: all_allies
+- type: buff
+  stat: defense
+  value: 0.2
+  duration: 2
+  target: all_allies
+- type: gimmick
+  operation: add
+  field: faith
+  value: 15
+  max_value: 100
+animation:
+  icon: ✨
+  color:
+  - 255
+  - 255
+  - 200
+  screen_effect: purify
+sfx:
+- se
+- Dispel

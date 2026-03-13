@@ -65,7 +65,8 @@ class PassiveSelectionUI:
         # UI 상태
         self.cursor_index = 0
         self.scroll_offset = 0
-        self.max_visible_items = 15
+        # 화면 높이에 맞게 동적 계산 (상단 7행 + 하단 상세정보 ~10행 예약)
+        self.max_visible_items = max(5, min(15, screen_height - 17))
         self.cancelled = False
         self.confirmed = False
 
@@ -219,6 +220,12 @@ class PassiveSelectionUI:
     def render(self, console: tcod.console.Console):
         """UI 렌더링"""
         render_space_background(console, self.screen_width, self.screen_height)
+
+        # 커서가 항상 보이는 영역 안에 있도록 보정
+        if self.cursor_index < self.scroll_offset:
+            self.scroll_offset = self.cursor_index
+        elif self.cursor_index >= self.scroll_offset + self.max_visible_items:
+            self.scroll_offset = self.cursor_index - self.max_visible_items + 1
 
         # 제목
         title = "패시브 선택"
@@ -405,13 +412,18 @@ def run_passive_selection(
     Returns:
         선택된 패시브 또는 None (취소 시)
     """
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     selection = PassiveSelectionUI(console.width, console.height)
 
     logger.info("패시브 선택 시작")
 
     import time
     import pygame
-    
+
     while True:
         # 렌더링
         selection.render(console)

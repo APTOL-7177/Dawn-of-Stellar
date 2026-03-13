@@ -1,0 +1,136 @@
+class_name: 시간술사
+description: 평행 시간선의 가능성을 소환하여 전투하는 시공의 마법사
+slogan: 선택하지 않은 길도, 결국 나의 것이다
+archetype: 마법 딜러/유틸리티
+base_stats:
+  hp: 115
+  mp: 98
+  init_brv: 105
+  speed: 62
+  physical_attack: 42
+  physical_defense: 65
+  magic_attack: 82
+  magic_defense: 75
+  max_brv: 294
+stat_growth:
+  hp: 22.8
+  mp: 7.6
+  init_brv: 24.8
+  strength: 10.5
+  defense: 15.0
+  magic: 22.3
+  spirit: 17.6
+  speed: 16.0
+  max_brv: 82.5
+  luck: 0.7
+  accuracy: 1.6
+  evasion: 1.2
+traits:
+- id: branch_creator
+  name: 분기점 창조자
+  description: 스킬 사용 시 가능성 생성 확률 +15% (총 85%), 행운 4당 추가 +1% (최대 95%)
+  type: passive
+  effects:
+    generation_chance_bonus: 0.15
+    luck_scaling: 0.0025
+    max_generation_chance: 0.95
+- id: parallel_resonance
+  name: 평행 공명
+  description: 보유 가능성 1개당 마법 공격력 +8%, 받는 피해 -5%
+  type: passive
+  effects:
+    per_slot_magic_bonus: 0.08
+    per_slot_damage_reduction: 0.05
+    full_slot_atb_bonus: 0.15
+- id: timeline_interference
+  name: 시간선 간섭
+  description: 가능성 소환 시 30% 확률로 해당 가능성이 소멸하지 않음 (최대 2회 재사용)
+  type: trigger
+  effects:
+    preserve_chance: 0.3
+    max_reuse: 2
+- id: converging_fates
+  name: 수렴하는 운명
+  description: 시간 폭풍으로 3개 이상 가능성 해방 시 피해 +40%, 시간 고정 1턴 부여
+  type: conditional
+  effects:
+    min_possibilities: 3
+    damage_bonus: 0.4
+    apply_time_lock: true
+    time_lock_duration: 1
+- id: infinite_branches
+  name: 무한 분기
+  description: 전투 시작 시 가능성 1개 자동 생성, HP 30% 이하 시 생성 확률 100%
+  type: passive
+  effects:
+    start_with_possibility: 1
+    low_hp_threshold: 0.3
+    low_hp_generation_chance: 1.0
+    double_cast_chance: 0.1
+gimmick:
+  type: possibility_slots
+  name: 가능성 슬롯
+  description: '스킬 사용 시 "선택하지 않은 가능성"을 슬롯에 저장.
+
+    저장된 가능성을 소환하여 추가 행동 가능!
+
+    가능성이 많을수록 평행 공명으로 강해진다.
+
+    '
+  max_slots: 4
+  base_generation_chance: 0.7
+  possibility_power_ratio: 0.85
+  resonance_per_slot:
+    magic_attack_bonus: 0.08
+    damage_reduction: 0.05
+  full_slot_bonus:
+    atb_bonus: 0.15
+possibility_pairs:
+  time_mage_time_bolt: time_mage_time_shock
+  time_mage_time_shock: time_mage_time_bolt
+  time_mage_chrono_blast: time_mage_time_wave
+  time_mage_time_wave: time_mage_chrono_blast
+  time_mage_haste: time_mage_slow
+  time_mage_slow: time_mage_haste
+  time_mage_time_stop: time_mage_time_accel
+  time_mage_time_accel: time_mage_time_stop
+  time_mage_future_sight: time_mage_past_regression
+  time_mage_past_regression: time_mage_future_sight
+  time_mage_rewind: time_mage_paradox_guard
+  time_mage_paradox_guard: time_mage_rewind
+  time_mage_time_distortion: time_mage_slow
+  time_mage_time_collapse: time_mage_haste
+skills:
+- time_mage_teamwork
+- time_mage_time_distortion
+- time_mage_time_collapse
+- time_mage_summon_possibility
+- time_mage_time_crossing
+- time_mage_time_storm
+- time_mage_fate_copy
+- time_mage_overwrite_fate
+- time_mage_time_bolt
+- time_mage_time_shock
+- time_mage_chrono_blast
+- time_mage_time_wave
+- time_mage_haste
+- time_mage_slow
+- time_mage_time_stop
+- time_mage_time_accel
+- time_mage_future_sight
+- time_mage_past_regression
+- time_mage_rewind
+- time_mage_paradox_guard
+- time_mage_infinite_convergence
+field_skill:
+  id: temporal_echo
+  name: 시간의 잔향
+  description: 필드에서 시간을 되돌려 최근 사용한 소모품 1개 복원
+  cooldown: 3
+  effects:
+  - type: restore_consumable
+    count: 1
+bonuses:
+  magic_multiplier: 1.1
+  atb_rate: 1.08
+  spell_cast_speed: 1.1

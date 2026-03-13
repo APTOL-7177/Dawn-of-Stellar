@@ -1,0 +1,31 @@
+id: fighting_stance
+name: 투기의 자세
+type: buff
+description: '전투 자세를 취합니다.
+
+  3턴간 반격률 50%, 받는 피해 +20%.
+
+  반격 성공 시 환호 +5.
+
+  '
+target: self
+costs:
+  mp: 8
+metadata:
+  cheer_on_counter: 5
+effects:
+- type: buff
+  buff_id: fighting_stance
+  duration: 3
+  effects:
+    counter_rate_bonus: 0.5
+    damage_taken_increase: 0.2
+animation:
+  icon: 🥊
+  color:
+  - 200
+  - 100
+  - 50
+sfx:
+- se
+- Up1

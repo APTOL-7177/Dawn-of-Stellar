@@ -23,6 +23,7 @@ class BotBehavior(Enum):
     FOLLOW = "follow"  # 따라다니기 (다른 플레이어를 따라감)
     RANDOM = "random"  # 랜덤 행동
     LLM_AI = "llm_ai"  # LLM 기반 AI (AutoPlayAI 사용)
+    RL_AI = "rl_ai"  # 강화학습 기반 AI
 
 
 class AIBot:
@@ -74,7 +75,10 @@ class AIBot:
         
         if self.behavior == BotBehavior.LLM_AI:
             self._init_llm_ai()
-        
+
+        if self.behavior == BotBehavior.RL_AI:
+            self._init_rl_ai()
+
         # 메시지 핸들러 등록
         self._register_handlers()
     
@@ -82,11 +86,27 @@ class AIBot:
         """LLM AI 초기화"""
         try:
             from src.multiplayer.llm_player_bot import create_auto_play_ai, PlayStyle
-            self.llm_ai = create_auto_play_ai(model="gpt-oss:20b", style=PlayStyle.BALANCED)
-            self.logger.info(f"봇 {self.bot_name}: LLM AI 초기화 완료")
+            # provider 파라미터 지원 (기본값: openai -> ollama 폴백)
+            try:
+                self.llm_ai = create_auto_play_ai(provider="openai", style=PlayStyle.BALANCED)
+                self.logger.info(f"봇 {self.bot_name}: LLM AI 초기화 완료 (OpenAI)")
+            except Exception:
+                self.llm_ai = create_auto_play_ai(model="gemini-3-flash-preview", style=PlayStyle.BALANCED)
+                self.logger.info(f"봇 {self.bot_name}: LLM AI 초기화 완료 (Ollama 폴백)")
         except Exception as e:
             self.logger.warning(f"LLM AI 초기화 실패, EXPLORER로 폴백: {e}")
             self.behavior = BotBehavior.EXPLORER
+
+    def _init_rl_ai(self):
+        """RL AI 초기화"""
+        try:
+            from src.rl.rl_bot import RLBot
+            self.rl_bot = RLBot()
+            self.logger.info(f"봇 {self.bot_name}: RL AI 초기화 완료")
+        except Exception as e:
+            self.logger.warning(f"RL AI 초기화 실패, LLM_AI로 폴백: {e}")
+            self.behavior = BotBehavior.LLM_AI
+            self._init_llm_ai()
     
     def set_party(self, party: List[Any]):
         """파티 설정 (전투 AI용)"""
@@ -211,7 +231,11 @@ class AIBot:
         elif self.behavior == BotBehavior.LLM_AI:
             # LLM 기반 AI 행동
             return self._get_llm_ai_move()
-        
+
+        elif self.behavior == BotBehavior.RL_AI:
+            # RL AI는 전투만 담당, 탐험은 LLM_AI처럼 동작
+            return self._get_llm_ai_move()
+
         return None
     
     def _get_llm_ai_move(self) -> Optional[Dict[str, Any]]:
@@ -381,8 +405,16 @@ class AIBot:
         Returns:
             전투 행동 딕셔너리
         """
-        if self.behavior != BotBehavior.LLM_AI or not self.llm_ai:
-            # LLM AI가 아니면 기본 공격
+        # RL AI 분기
+        if self.behavior == BotBehavior.RL_AI and hasattr(self, 'rl_bot') and self.rl_bot:
+            try:
+                return self.rl_bot.get_combat_action(combat_manager, current_char)
+            except Exception as e:
+                self.logger.warning(f"RL AI 행동 결정 오류, LLM 폴백: {e}")
+                # RL 실패 시 LLM 폴백
+
+        if self.behavior not in (BotBehavior.LLM_AI, BotBehavior.RL_AI) or not self.llm_ai:
+            # LLM/RL AI가 아니면 기본 공격
             return {"type": "brv_attack", "target_index": 0}
 
         try:
@@ -414,9 +446,11 @@ class AIBot:
         if self.llm_ai:
             try:
                 self.llm_ai.shutdown()
-            except:
+            except Exception:
                 pass
             self.llm_ai = None
+        if hasattr(self, 'rl_bot') and self.rl_bot:
+            self.rl_bot = None
 
     def _get_random_move(self) -> Dict[str, Any]:
         """랜덤 이동 행동 생성"""
@@ -554,11 +588,25 @@ class AIBot:
             )
             
             # 클라이언트인 경우 호스트에게만 전송
+            import asyncio
+            server_loop = getattr(self.network_manager, '_server_event_loop', None)
             if not self.network_manager.is_host:
-                self.network_manager.send(move_message)
+                if server_loop and server_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.send(move_message),
+                        server_loop
+                    )
+                else:
+                    self.logger.debug("서버 이벤트 루프 없음, 봇 이동 메시지 스킵")
             else:
                 # 호스트인 경우 브로드캐스트
-                self.network_manager.broadcast(move_message)
+                if server_loop and server_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.network_manager.broadcast(move_message),
+                        server_loop
+                    )
+                else:
+                    self.logger.debug("서버 이벤트 루프 없음, 봇 브로드캐스트 스킵")
             
             self.logger.debug(f"봇 {self.bot_name} 이동: ({new_x}, {new_y})")
         except Exception as e:
@@ -694,6 +742,25 @@ class BotManager:
             bot.set_inventory(inventory)
         return bot
     
+    def add_rl_ai_bot(
+        self,
+        bot_id: str,
+        bot_name: str,
+        party: List[Any] = None,
+        inventory: Any = None,
+        model_path: str = None
+    ) -> AIBot:
+        """RL AI 봇 추가 (간편 메서드)"""
+        bot = self.add_bot(bot_id, bot_name, BotBehavior.RL_AI)
+        if party:
+            bot.set_party(party)
+        if inventory is not None:
+            bot.set_inventory(inventory)
+        if model_path and hasattr(bot, 'rl_bot') and bot.rl_bot:
+            bot.rl_bot.model_path = model_path
+            bot.rl_bot._load_model()
+        return bot
+
     def shutdown_all(self):
         """모든 봇 종료 및 리소스 정리"""
         for bot in self.bots.values():

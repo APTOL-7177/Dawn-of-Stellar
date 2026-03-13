@@ -1,0 +1,33 @@
+id: thunderstorm_inferno
+name: 폭뢰섬
+type: brv_hp_attack
+description: 화염+번개 융합 연쇄 폭발! 화염 스택당 연쇄 확률 +20%, 번개 스택만큼 최대 연쇄 횟수
+costs:
+  mp: 6
+  cast_time: 0.25
+  element_cost:
+    fire: 1
+    lightning: 1
+effects:
+- type: chain_damage
+  element:
+  - fire
+  - lightning
+  multiplier: 1.8
+  chain_chance_per_stack: 0.2
+  damage_falloff:
+  - 0.7
+  - 0.5
+  - 0.3
+  - 0.2
+  - 0.15
+  stat_base: magic
+metadata:
+  fusion: true
+  elements:
+  - fire
+  - lightning
+  special: chain_explosion
+sfx:
+- se
+- Thunder1

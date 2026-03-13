@@ -1,0 +1,21 @@
+id: hacker_basic_breach
+name: 베이직 브리치
+type: attack
+description: |
+  가장 기초적인 침투 명령으로 적 시스템을 두드립니다.
+  BRV 1.1 피해를 줍니다.
+target: enemy
+metadata:
+  job: hacker
+  basic_attack: true
+  intrusion_gain: 8
+  ram_cost: 2
+effects:
+  - type: damage
+    damage_type: brv
+    stat_base: magical
+    multiplier: 1.1
+animation:
+  icon: "??"
+  color: [80, 180, 220]
+sfx: ["se", "Computer"]

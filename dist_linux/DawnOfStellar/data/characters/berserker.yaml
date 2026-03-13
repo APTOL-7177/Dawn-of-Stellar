@@ -1,0 +1,105 @@
+class_name: 광전사
+description: 체력이 낮을수록 더 강해지는 광기의 전사
+slogan: 고통이 클수록 나는 강해진다
+archetype: 하이리스크 하이리턴
+base_stats:
+  hp: 327
+  mp: 22
+  init_brv: 145
+  speed: 74
+  physical_attack: 64
+  physical_defense: 35
+  magic_attack: 13
+  magic_defense: 28
+  max_brv: 353
+stat_growth:
+  hp: 76.4
+  mp: 1.5
+  init_brv: 34.3
+  strength: 18.3
+  defense: 7.8
+  magic: 2.6
+  spirit: 6.1
+  speed: 18.3
+  max_brv: 99.3
+  luck: 0.3
+  accuracy: 1.6
+  evasion: 1.2
+traits:
+- id: rage_control
+  name: 분노 제어
+  description: 광기 자연 감소량 -50%, 최적 구간 확장 (30-70 → 25-75)
+  type: passive
+  effects:
+    madness_decay_multiplier: 0.5
+    optimal_range_extension: 5
+- id: bloodlust
+  name: 피의 욕망
+  description: 적 처치 시 HP 15% 회복, 광기 20 감소
+  type: on_kill
+  effects:
+    hp_restore_percent: 0.15
+    madness_reduction: 20
+- id: last_stand
+  name: 최후의 저항
+  description: HP 15% 이하로 떨어지는 치명적 피해 1회 회피 (전투당 1회), 광기 50 감소
+  type: conditional
+  conditions:
+    fatal_damage: true
+    once_per_combat: true
+  effects:
+    damage_immunity: true
+    survival_hp_percent: 0.01
+    madness_reduction: 50
+- id: berserker_rush
+  name: 광전사 돌진
+  description: 광기 50 소모하여 같은 턴 추가 행동 (턴당 1회, 추가 행동 피해 -30%)
+  type: active
+  conditions:
+    madness_min: 50
+    once_per_turn: true
+  effects:
+    extra_action: true
+    madness_cost: 50
+    damage_penalty: 0.7
+- id: pain_to_power
+  name: 고통을 힘으로
+  description: 피격 시 '고통' 스택 +1 (최대 10스택), 공격 시 스택당 피해 +5% (최대 +50%), 공격 후 스택 소모
+  type: conditional
+  conditions:
+    on_damaged: true
+  effects:
+    pain_stack_gain: 1
+    max_pain_stacks: 10
+    damage_per_stack: 0.05
+    consume_on_attack: true
+gimmick:
+  type: madness_threshold
+  name: 광기 역치 시스템
+  description: HP가 낮을수록 광기 증가. 30-70 최적(공+25%,속+15%), 71-99 위험(공+50%,속+30%,크리+15%,피해+30%,HP-5%/턴),
+    100 폭주(공+100%,크리+25%,피해+50%,HP-10%/턴)
+  min_madness: 0
+  max_madness: 100
+  optimal_min: 30
+  optimal_max: 70
+  danger_min: 71
+  rampage_threshold: 100
+skills:
+- teamwork
+- slash
+- smash
+- reckless_strike
+- blood_shield
+- self_harm
+- battle_cry
+- rage_eruption
+- blood_rage
+- desperate_assault
+- desperate_strength
+- healing_roar
+- controlled_fury
+- ultimate
+bonuses:
+  low_hp_damage: 1.1
+  hp_multiplier: 1.1
+  reckless_bonus: 1.2

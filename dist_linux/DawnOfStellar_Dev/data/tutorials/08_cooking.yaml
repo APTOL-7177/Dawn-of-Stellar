@@ -1,0 +1,59 @@
+# 튜토리얼 8단계: 요리 시스템
+id: cooking
+title: "요리 시스템"
+order: 8
+category: crafting
+enabled: true
+skippable: true
+
+description: |
+  재료를 모아 요리를 만들어봅시다!
+  요리솥을 사용하면 보너스 효과를 얻을 수 있습니다.
+
+objective: "재료를 모아 요리솥에서 요리 1개 만들기"
+
+messages:
+  - text: "이번에는 요리 시스템을 배워보겠습니다."
+    color: [255, 215, 0]
+    pause: 2.0
+    effect: "fade_in"
+
+  - text: "맵에 떨어진 재료(*표시)를 밟아서 수집하세요."
+    color: [255, 255, 255]
+    pause: 2.0
+    effect: "typing"
+
+  - text: "요리솥 근처에서 Z키를 누르면 요리를 시작할 수 있습니다."
+    color: [255, 255, 255]
+    pause: 2.5
+    effect: "typing"
+
+  - text: "재료를 모아 맛있는 요리를 만들어보세요!"
+    color: [0, 255, 255]
+    pause: 2.0
+    effect: "flash"
+
+completion_condition:
+  type: "item_used"
+  required_count: 1
+  message: "요리를 성공적으로 만들었습니다!"
+
+hints:
+  - text: "맵의 * 표시된 곳에서 재료를 수집할 수 있습니다."
+    trigger_time: 10.0
+
+  - text: "요리솥(Pot 표시) 근처에서 Z키를 눌러보세요."
+    trigger_time: 20.0
+
+ui_highlights:
+  - element: "key_hint"
+    text: "[Z] 상호작용 / [방향키] 이동"
+    position: "bottom_center"
+    color: [255, 255, 255]
+
+rewards:
+  exp: 75
+  items: ["magic_herb", "monster_meat"]
+  message: "요리의 기초를 배웠습니다!"
+
+next_step: "alchemy"

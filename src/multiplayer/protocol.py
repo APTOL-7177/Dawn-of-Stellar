@@ -52,6 +52,7 @@ class MessageType(Enum):
     COMBAT_START = "combat_start"
     COMBAT_JOIN = "combat_join"
     COMBAT_ACTION = "combat_action"
+    COMBAT_FLEE_RESULT = "combat_flee_result"  # 도망 결과 브로드캐스트
     ACTION_SELECTION_START = "action_selection_start"
     
     # 상태 동기화
@@ -66,9 +67,6 @@ class MessageType(Enum):
     
     # 적 관련
     ENEMY_MOVE = "enemy_move"
-    
-    # NPC 관련
-    NPC_MOVE = "npc_move"
     
     # 전투 합류
     COMBAT_AUTO_JOIN = "combat_auto_join"
@@ -90,6 +88,30 @@ class MessageType(Enum):
     ITEM_DROPPED = "item_dropped"  # 아이템 드롭
     GOLD_DROPPED = "gold_dropped"  # 골드 드롭
     
+    # 전리품/창고 동기화
+    LOOT_CLAIMED = "loot_claimed"  # 전리품 선점 결과
+    STORAGE_UPDATE = "storage_update"  # 창고 변경 알림
+
+    # 호감도/유대 시스템
+    AFFINITY_UPDATE = "affinity_update"  # 호감도 변경 동기화
+    BOND_SKILL_TRIGGERED = "bond_skill_triggered"  # 연계스킬 발동 알림
+    CHAIN_ABILITY_TRIGGERED = "chain_ability_triggered"  # 체인어빌리티 발동 알림
+    CHAIN_ABILITY_CONFIRMED = "chain_ability_confirmed"  # 체인어빌리티 확정 알림
+
+    # 시너지/합체기
+    COMBO_SKILL_EXECUTED = "combo_skill_executed"  # 합체기 실행 알림
+
+    # 랜덤 이벤트
+    RANDOM_EVENT_TRIGGER = "random_event_trigger"  # 랜덤 이벤트 발생
+    RANDOM_EVENT_CHOICE = "random_event_choice"  # 랜덤 이벤트 선택지 결과
+
+    # 퍼즐
+    PUZZLE_SOLVED = "puzzle_solved"  # 퍼즐 해결 알림
+
+    # 상태 복구 (재연결용)
+    REQUEST_STATE_SYNC = "request_state_sync"  # 클라이언트 -> 호스트: 전투 상태 요청
+    FULL_STATE_SYNC = "full_state_sync"  # 호스트 -> 클라이언트: 전체 전투 상태 응답
+
     # 에러 (테스트용)
     ERROR = "error"
 
@@ -311,12 +333,46 @@ class MessageBuilder:
     
     @staticmethod
     def combat_start(participants: list, enemies: list, position: tuple) -> NetworkMessage:
-        """전투 시작 메시지 생성"""
+        """전투 시작 메시지 생성 (적 전체 데이터 포함)"""
+        # 적 전체 데이터 직렬화 (클라이언트가 동일한 적을 구성할 수 있도록)
+        serialized_enemies = []
+        for e in enemies:
+            if isinstance(e, str):
+                serialized_enemies.append({"id": e})
+            else:
+                enemy_data = {
+                    "id": getattr(e, 'id', str(e)),
+                    "enemy_id": getattr(e, 'enemy_id', None),
+                    "name": getattr(e, 'name', '적'),
+                    "level": getattr(e, 'level', 1),
+                    "max_hp": getattr(e, 'max_hp', 100),
+                    "current_hp": getattr(e, 'current_hp', 100),
+                    "max_mp": getattr(e, 'max_mp', 0),
+                    "current_mp": getattr(e, 'current_mp', 0),
+                    "physical_attack": getattr(e, 'physical_attack', 10),
+                    "physical_defense": getattr(e, 'physical_defense', 5),
+                    "magic_attack": getattr(e, 'magic_attack', 10),
+                    "magic_defense": getattr(e, 'magic_defense', 5),
+                    "speed": getattr(e, 'speed', 50),
+                    "max_brv": getattr(e, 'max_brv', 1000),
+                    "init_brv": getattr(e, 'init_brv', 333),
+                    "current_brv": getattr(e, 'current_brv', 0),
+                    "luck": getattr(e, 'luck', 10),
+                    "accuracy": getattr(e, 'accuracy', 70),
+                    "evasion": getattr(e, 'evasion', 10),
+                    "is_boss": getattr(e, 'is_boss', False),
+                    "is_floor_boss": getattr(e, 'is_floor_boss', False),
+                    "is_enemy": True,
+                    "is_alive": getattr(e, 'is_alive', True),
+                }
+                serialized_enemies.append(enemy_data)
+
         return NetworkMessage(
             type=MessageType.COMBAT_START,
             data={
                 "participants": participants,
-                "enemies": [e if isinstance(e, str) else getattr(e, 'id', str(e)) for e in enemies],
+                "enemies": [ed.get("id", "") for ed in serialized_enemies],
+                "enemy_data": serialized_enemies,
                 "position": {"x": position[0], "y": position[1]}
             }
         )
@@ -359,23 +415,6 @@ class MessageBuilder:
             timestamp=time.time(),
             data={
                 "enemies": enemy_positions
-            }
-        )
-    
-    @staticmethod
-    def npc_move(npc_positions: Dict[str, Dict[str, Any]]) -> NetworkMessage:
-        """
-        NPC 이동 메시지 생성
-        
-        Args:
-            npc_positions: {npc_id: {"x": int, "y": int, "old_x": int, "old_y": int}}
-        """
-        import time
-        return NetworkMessage(
-            type=MessageType.NPC_MOVE,
-            timestamp=time.time(),
-            data={
-                "npcs": npc_positions
             }
         )
     
@@ -654,6 +693,20 @@ class MessageBuilder:
             }
         )
     
+    @staticmethod
+    def custom(msg_type: MessageType, data: Dict[str, Any]) -> NetworkMessage:
+        """
+        커스텀 메시지 생성
+
+        Args:
+            msg_type: 메시지 타입
+            data: 메시지 데이터
+        """
+        return NetworkMessage(
+            type=msg_type,
+            data=data
+        )
+
     @staticmethod
     def movement_rejected(reason: str, correct_position: Tuple[int, int]) -> NetworkMessage:
         """

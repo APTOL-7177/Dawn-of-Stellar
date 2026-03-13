@@ -11,9 +11,9 @@ def create_assassin_skills():
     """암살자 10개 스킬 생성 (은신-노출 딜레마)"""
 
     # 1. 기본 BRV: 그림자 베기 (은신 중이면 크리티컬, 은신 해제)
-    shadow_slash = Skill("assassin_shadow_slash", "그림자 베기", "은신 중이면 크리티컬 (은신 해제)")
+    shadow_slash = Skill("assassin_shadow_slash", "그림자 베기", "[암흑 속성] 은신 중이면 크리티컬 (은신 해제)")
     shadow_slash.effects = [
-        DamageEffect(DamageType.BRV, 1.5, stat_type="physical",
+        DamageEffect(DamageType.BRV, 1.5, stat_type="physical", element="dark",
                     conditional_bonus={"condition": "stealth_active", "multiplier": 1.8}),
         # 공격 시 은신 해제
         GimmickEffect(GimmickOperation.SET, "stealth_active", 0)
@@ -47,9 +47,9 @@ def create_assassin_skills():
     vanish.metadata = {"enter_stealth": True}
 
     # 4. 배후 일격 (은신 중 방어 무시)
-    backstab = Skill("assassin_backstab", "배후 일격", "은신 중 방어력 무시 공격 (은신 해제)")
+    backstab = Skill("assassin_backstab", "배후 일격", "[암흑 속성] 은신 중 방어력 무시 공격 (은신 해제)")
     backstab.effects = [
-        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="physical",
+        DamageEffect(DamageType.BRV_HP, 2.5, stat_type="physical", element="dark",
                     conditional_bonus={"condition": "stealth_active", "multiplier": 2.0, "defense_ignore": True}),
         GimmickEffect(GimmickOperation.SET, "stealth_active", 0)  # 은신 해제
     ]
@@ -59,9 +59,9 @@ def create_assassin_skills():
     backstab.metadata = {"breaks_stealth": True, "defense_ignore_stealth": True}
 
     # 5. 목 베기 (노출 상태에서 사용 가능, 즉시 은신 진입)
-    throat_slit = Skill("assassin_throat_slit", "목 베기", "강력한 공격 후 즉시 은신 (노출→은신)")
+    throat_slit = Skill("assassin_throat_slit", "목 베기", "[암흑 속성] 강력한 공격 후 즉시 은신 (노출→은신)")
     throat_slit.effects = [
-        DamageEffect(DamageType.BRV, 2.8, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 2.8, stat_type="physical", element="dark"),
         GimmickEffect(GimmickOperation.SET, "stealth_active", 1),  # 즉시 은신
         GimmickEffect(GimmickOperation.SET, "exposed_turns", 0)
     ]
@@ -110,9 +110,9 @@ def create_assassin_skills():
     shadow_clone.metadata = {"enhance_stealth": True}
 
     # 9. 침묵의 처형 (은신 중 최대 피해)
-    silent_execution = Skill("assassin_silent_execution", "침묵의 처형", "은신 중 극한의 피해 (은신 해제)")
+    silent_execution = Skill("assassin_silent_execution", "침묵의 처형", "[암흑 속성] 은신 중 극한의 피해 (은신 해제)")
     silent_execution.effects = [
-        DamageEffect(DamageType.BRV_HP, 3.5, stat_type="physical",
+        DamageEffect(DamageType.BRV_HP, 3.5, stat_type="physical", element="dark",
                     conditional_bonus={"condition": "stealth_active", "multiplier": 3.0}),  # 은신 중 +300%
         GimmickEffect(GimmickOperation.SET, "stealth_active", 0)  # 은신 해제
     ]
@@ -122,14 +122,14 @@ def create_assassin_skills():
     silent_execution.metadata = {"breaks_stealth": True, "ultimate_stealth_attack": True}
 
     # 10. 궁극기: 그림자의 화신 (완벽한 은신 + 극대 공격)
-    ultimate = Skill("assassin_ultimate", "그림자의 화신", "완벽한 은신 + 연속 암살")
+    ultimate = Skill("assassin_ultimate", "그림자의 화신", "[암흑 속성] 완벽한 은신 + 연속 암살")
     ultimate.effects = [
         # 완벽한 은신 진입
         GimmickEffect(GimmickOperation.SET, "stealth_active", 1),
         # 연속 공격 (3회)
-        DamageEffect(DamageType.BRV, 3.0, stat_type="physical"),
-        DamageEffect(DamageType.BRV, 2.5, stat_type="physical"),
-        DamageEffect(DamageType.HP, 3.5, stat_type="physical"),
+        DamageEffect(DamageType.BRV, 3.0, stat_type="physical", element="dark"),
+        DamageEffect(DamageType.BRV, 2.5, stat_type="physical", element="dark"),
+        DamageEffect(DamageType.HP, 3.5, stat_type="physical", element="dark"),
         # 버프
         BuffEffect(BuffType.EVASION_UP, 1.5, duration=5, target="self"),  # 회피 +150%
         BuffEffect(BuffType.CRITICAL_UP, 1.0, duration=5, target="self"),  # 크리티컬 +100%

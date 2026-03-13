@@ -1,0 +1,24 @@
+id: gladiator_arena_strike
+name: 투기장 타격
+type: attack
+description: '관중에게 어필하는 기본 공격으로 환호를 얻습니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 1.1
+- type: gimmick
+  operation: add
+  field: cheer
+  value: 5
+  max_value: 100
+target: enemy
+metadata:
+  job: gladiator
+  basic_attack: true
+  cheer_gain: 5
+sfx:
+- se
+- Damage3

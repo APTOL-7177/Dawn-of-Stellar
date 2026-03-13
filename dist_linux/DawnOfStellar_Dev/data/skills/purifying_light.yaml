@@ -1,0 +1,29 @@
+id: purifying_light
+name: 정화의 빛
+type: utility
+description: '정화의 빛으로 불결함을 씻어냅니다.
+
+  아군 전체: 디버프 2개 제거.
+
+  순결 서약: 신앙 +15
+
+  '
+target: all_allies
+costs:
+  mp: 20
+metadata:
+  oath_purity_faith: 15
+  purify: true
+effects:
+- type: cleanse
+  cleanse_count: 2
+  target: all_allies
+animation:
+  icon: 🌟
+  color:
+  - 255
+  - 255
+  - 255
+sfx:
+- se
+- Magic1

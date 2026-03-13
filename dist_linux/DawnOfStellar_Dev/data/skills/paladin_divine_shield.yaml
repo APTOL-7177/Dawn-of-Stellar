@@ -1,0 +1,24 @@
+id: paladin_divine_shield
+name: 신성한 보호막
+type: defense
+description: '성력을 사용해 자신에게 강력한 보호막을 전개합니다.
+
+  '
+effects:
+- type: shield
+  base_amount: 0
+- type: gimmick
+  operation: consume
+  field: holy_power
+  value: 2
+target: self
+metadata:
+  job: paladin
+  holy_power_cost: 2
+  shield: true
+  attack_multiplier: 0.7
+  replace_shield: true
+  skill_category: defense
+sfx:
+- se
+- Barrier

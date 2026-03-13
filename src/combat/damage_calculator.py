@@ -225,6 +225,16 @@ class DamageCalculator:
             player_dmg_mult = difficulty_system.get_player_damage_multiplier()
             final_damage = int(final_damage * player_dmg_mult)
 
+        # 아군 피해 경감 (적 → 아군 공격 시 40% 감소)
+        if self._is_player(defender) and not self._is_player(attacker):
+            final_damage = int(final_damage * 0.6)
+            self.logger.debug(f"[아군 피해 경감] {defender.name} 받는 BRV 피해 40% 감소 → {final_damage}")
+
+        # 아군 BRV 공격력 감소 (아군 → 적 공격 시 30% 감소)
+        if self._is_player(attacker) and not self._is_player(defender):
+            final_damage = int(final_damage * 0.7)
+            self.logger.debug(f"[아군 BRV 감소] {attacker.name} BRV 피해 30% 감소 → {final_damage}")
+
         # [NEW] SCATTER 보너스 (BRV 공격에도 적용, 단 연격 게이지는 증가하지 않음)
         from src.combat.status_effects import StatusType
         
@@ -538,6 +548,16 @@ class DamageCalculator:
             player_dmg_mult = difficulty_system.get_player_damage_multiplier()
             final_damage = int(final_damage * player_dmg_mult)
 
+        # 적 HP 공격 피해 감소 (적의 모든 HP 공격 35% 감소)
+        if not self._is_player(attacker):
+            final_damage = int(final_damage * 0.65)
+            self.logger.debug(f"[적 피해 감소] {attacker.name}의 HP 피해 35% 감소 → {final_damage}")
+
+        # 아군 피해 경감 (적 → 아군 공격 시 추가 40% 감소, 곱적용)
+        if self._is_player(defender) and not self._is_player(attacker):
+            final_damage = int(final_damage * 0.6)
+            self.logger.debug(f"[아군 피해 경감] {defender.name} 받는 HP 피해 40% 추가 감소 → {final_damage}")
+
         # 상처 데미지 (BREAK 상태면 75%, 아니면 25%)
         wound_rate = 0.75 if is_break else self.wound_damage_rate
         wound_damage = int(final_damage * wound_rate)
@@ -656,6 +676,16 @@ class DamageCalculator:
         # 스킬 배율 적용
         base_damage = max(1, int(stat_modifier * skill_multiplier * self.brv_damage_multiplier * element_bonus))
 
+        # 레벨 기반 배율: 물리와 동일 (하드코딩 0.3/레벨)
+        attacker_level = getattr(attacker, 'level', 1)
+        level_multiplier = 1.0 + (attacker_level * 0.3)
+        base_damage = int(base_damage * level_multiplier)
+
+        # 마법 피해 계수 보정: 개별 스킬에 0.65 너프가 적용되어 있으므로
+        # 0.85/0.65 = 1.3077 보정으로 실질 너프를 35% → 15%로 상향
+        MAGIC_NERF_CORRECTION = 0.85 / 0.65
+        base_damage = int(base_damage * MAGIC_NERF_CORRECTION)
+
         # 랜덤 변수
         variance = random.uniform(0.9, 1.1)
         damage = base_damage * variance
@@ -673,6 +703,11 @@ class DamageCalculator:
             damage *= total_crit_mult
 
         final_damage = max(1, int(damage))
+
+        # 아군 BRV 공격력 감소 (아군 → 적 공격 시 30% 감소) — 물리와 동일
+        if self._is_player(attacker) and not self._is_player(defender):
+            final_damage = int(final_damage * 0.7)
+            self.logger.debug(f"[아군 BRV 감소] {attacker.name} 마법 BRV 피해 30% 감소 → {final_damage}")
 
         return DamageResult(
             base_damage=base_damage,
@@ -840,19 +875,12 @@ class DamageCalculator:
                     base_stat = int(base_stat * (1.0 - debuff_value))
 
         # 환술사 환영 회피 보너스 적용
-        print(f"[DEBUG] 환술사 체크 시작: hasattr={hasattr(character, 'gimmick_type')}")
-        if hasattr(character, 'gimmick_type'):
-            print(f"[DEBUG] gimmick_type: {character.gimmick_type}")
         if hasattr(character, 'gimmick_type') and character.gimmick_type == "phantom_legion":
             phantom_count = getattr(character, 'phantom_count', 0)
             evasion_per_phantom = getattr(character, 'phantom_evasion_bonus', 0.12)
             phantom_evasion_bonus = phantom_count * evasion_per_phantom
-            print(f"[DEBUG] 환술사 회피 보너스: phantom_count={phantom_count}, bonus={phantom_evasion_bonus}, base_stat_before={base_stat}")
             if phantom_evasion_bonus > 0:
                 base_stat = int(base_stat * (1.0 + phantom_evasion_bonus))
-                print(f"[DEBUG] 환술사 회피 적용 후: base_stat={base_stat}")
-        else:
-            print(f"[DEBUG] 환술사 조건 불충분")
 
         # 환경 효과 스탯 수정치 적용
         if hasattr(character, 'env_stat_modifiers'):

@@ -239,7 +239,7 @@ def show_reward_screen(
     player_id: Optional[str] = None,
     network_manager: Optional[Any] = None,
     is_multiplayer: bool = False
-) -> None:
+) -> List[str]:
     """
     보상 화면 표시 (경험치/골드) 후 전리품 UI 호출
 
@@ -252,6 +252,9 @@ def show_reward_screen(
         player_id: 플레이어 ID (멀티플레이용)
         network_manager: 네트워크 매니저 (멀티플레이용)
         is_multiplayer: 멀티플레이 여부
+
+    Returns:
+        획득한 아이템 이름 리스트
     """
 
     # 승리 BGM 재생 (한 번만 재생, 반복 없음)
@@ -339,9 +342,10 @@ def show_reward_screen(
     
     # 전리품 UI 표시 (아이템이 있고 인벤토리가 있는 경우)
     loot_items = rewards.get("items", [])
+    claimed_items = []
     if loot_items and inventory is not None:
         from src.ui.loot_ui import show_loot_screen
-        show_loot_screen(
+        claimed_items = show_loot_screen(
             console,
             context,
             loot_items,
@@ -350,3 +354,4 @@ def show_reward_screen(
             network_manager,
             is_multiplayer
         )
+    return claimed_items

@@ -1,0 +1,27 @@
+id: dimensionist_refraction_enhance
+name: 굴절 강화
+type: buff
+description: '굴절을 소모해 자신의 공격력과 마법력을 크게 높입니다.
+
+  '
+effects:
+- type: buff
+  buff_type: attack_up
+  value: 0.6
+  duration: 3
+  target: self
+- type: buff
+  buff_type: magic_up
+  value: 0.6
+  duration: 3
+  target: self
+target: self
+costs:
+  mp: 10
+metadata:
+  job: dimensionist
+  refraction_cost_hp_percent: 0.2
+  requires_refraction_check: true
+sfx:
+- se
+- Move2

@@ -10,7 +10,6 @@ from enum import Enum
 class CompletionType(Enum):
     """완료 조건 타입"""
     POSITION_REACHED = "position_reached"  # 특정 위치 도달
-    NPC_INTERACTION = "npc_interaction"  # NPC와 상호작용
     COMBAT_VICTORY = "combat_victory"  # 전투 승리
     ACTION_COUNT = "action_count"  # 특정 횟수 행동
     SKILL_USAGE_VARIETY = "skill_usage_variety"  # 다양한 스킬 사용
@@ -32,6 +31,13 @@ class CompletionType(Enum):
     DUNGEON_ENTERED = "dungeon_entered"  # 던전 진입
     BOSS_DEFEATED = "boss_defeated"  # 보스 처치
     CHECKLIST_COMPLETE = "checklist_complete"  # 체크리스트 완료
+    # 신규 시스템 튜토리얼용
+    TEAMWORK_USED = "teamwork_used"  # 팀워크 스킬 사용
+    BOND_SKILL_TRIGGERED = "bond_skill_triggered"  # 연계스킬 발동
+    CHAIN_ABILITY_USED = "chain_ability_used"  # 체인어빌리티 사용
+    COMBO_EXECUTED = "combo_executed"  # 합체기 발동
+    PUZZLE_SOLVED = "puzzle_solved"  # 퍼즐 해결
+    RANDOM_EVENT_RESOLVED = "random_event_resolved"  # 랜덤 이벤트 해결
 
 
 @dataclass
@@ -166,8 +172,6 @@ class TutorialStep:
         # 완료 조건 타입별 체크
         if condition_type == CompletionType.POSITION_REACHED:
             return self._check_position_reached(game_state, params)
-        elif condition_type == CompletionType.NPC_INTERACTION:
-            return self._check_npc_interaction(game_state, params)
         elif condition_type == CompletionType.COMBAT_VICTORY:
             return self._check_combat_victory(game_state, params)
         elif condition_type == CompletionType.ACTION_COUNT:
@@ -176,6 +180,41 @@ class TutorialStep:
             return self._check_skill_usage_variety(game_state, params)
         elif condition_type == CompletionType.COMBAT_ACTION_SEQUENCE:
             return self._check_combat_action_sequence(game_state, params)
+        elif condition_type == CompletionType.MENU_OPENED:
+            return self._check_menu_opened(game_state, params)
+        elif condition_type == CompletionType.ITEM_USED:
+            return self._check_item_used(game_state, params)
+        elif condition_type == CompletionType.AUTO_COMPLETE:
+            return game_state.get("auto_complete", False)
+        elif condition_type == CompletionType.DIALOGUE_COMPLETE:
+            return game_state.get("dialogue_complete", False)
+        elif condition_type == CompletionType.ENEMY_DEFEATED:
+            return self._check_enemy_defeated(game_state, params)
+        elif condition_type == CompletionType.EQUIPMENT_CHANGED:
+            return game_state.get("equipment_changed", False)
+        elif condition_type == CompletionType.ATB_ACTION:
+            return game_state.get("atb_action_performed", False)
+        elif condition_type == CompletionType.JOB_GIMMICK_USED:
+            return game_state.get("job_gimmick_used", False)
+        elif condition_type == CompletionType.PARTY_MEMBER_ADDED:
+            return game_state.get("party_member_added", False)
+        elif condition_type == CompletionType.PARTY_SIZE:
+            required = params.get("required_size", 2)
+            return game_state.get("party_size", 1) >= required
+        elif condition_type == CompletionType.ITEM_RECEIVED:
+            return game_state.get("item_received", False)
+        elif condition_type == CompletionType.EQUIPMENT_EQUIPPED:
+            return game_state.get("equipment_equipped", False)
+        elif condition_type == CompletionType.PASSIVE_EQUIPPED:
+            return game_state.get("passive_equipped", False)
+        elif condition_type == CompletionType.DUNGEON_ENTERED:
+            return game_state.get("dungeon_entered", False)
+        elif condition_type == CompletionType.BOSS_DEFEATED:
+            return game_state.get("boss_defeated", False)
+        elif condition_type == CompletionType.CHECKLIST_COMPLETE:
+            required = set(params.get("required_items", []))
+            completed = set(game_state.get("checklist_completed", []))
+            return required.issubset(completed)
 
         return False
 
@@ -193,14 +232,6 @@ class TutorialStep:
 
         distance = abs(player_pos[0] - target_x) + abs(player_pos[1] - target_y)
         return distance <= radius
-
-    def _check_npc_interaction(
-        self, game_state: Dict[str, Any], params: Dict[str, Any]
-    ) -> bool:
-        """NPC 상호작용 확인"""
-        interacted_npcs = game_state.get("interacted_npcs", [])
-        target_npc = params.get("npc_id")
-        return target_npc in interacted_npcs
 
     def _check_combat_victory(
         self, game_state: Dict[str, Any], params: Dict[str, Any]
@@ -250,6 +281,30 @@ class TutorialStep:
                 return False
 
         return True
+
+    def _check_menu_opened(
+        self, game_state: Dict[str, Any], params: Dict[str, Any]
+    ) -> bool:
+        """메뉴 열기 확인"""
+        return game_state.get("menu_opened", False)
+
+    def _check_item_used(
+        self, game_state: Dict[str, Any], params: Dict[str, Any]
+    ) -> bool:
+        """아이템 사용/제작 확인"""
+        required_count = params.get("required_count", 1)
+        return game_state.get("items_crafted", 0) >= required_count
+
+    def _check_enemy_defeated(
+        self, game_state: Dict[str, Any], params: Dict[str, Any]
+    ) -> bool:
+        """특정 적 처치 확인"""
+        required_name = params.get("enemy_name")
+        defeated_enemies = game_state.get("defeated_enemy_names", [])
+        if required_name:
+            return required_name in defeated_enemies
+        required_count = params.get("enemy_count", 1)
+        return len(defeated_enemies) >= required_count
 
     def get_current_hints(self) -> List[TutorialHint]:
         """현재 표시할 힌트 목록"""

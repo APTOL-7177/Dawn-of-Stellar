@@ -1,0 +1,145 @@
+# 호감도 레벨별 해금 이벤트/대사
+# 호감도 레벨이 오를 때 표시되는 이벤트와 대사
+
+affinity_levels:
+  0:
+    name: "모르는 사이"
+    threshold: 0
+    description: "아직 서로를 잘 모르는 사이다."
+    unlock_message: null
+    bonuses:
+      gauge_charge: 0.0
+
+  1:
+    name: "동료"
+    threshold: 50
+    description: "함께 싸우며 서로를 인식하기 시작했다."
+    unlock_message: "{char_a}와(과) {char_b}의 관계가 '동료'로 발전했다!"
+    bonuses:
+      gauge_charge: 0.05
+
+  2:
+    name: "신뢰"
+    threshold: 150
+    description: "서로의 실력을 인정하고 신뢰하게 되었다."
+    unlock_message: "{char_a}와(과) {char_b}의 관계가 '신뢰'로 깊어졌다! 연계스킬이 해금되었다!"
+    bonuses:
+      gauge_charge: 0.10
+      unlock: ["bond_skill_1"]
+
+  3:
+    name: "친밀"
+    threshold: 300
+    description: "전투와 여행을 함께하며 깊은 유대가 형성되었다."
+    unlock_message: "{char_a}와(과) {char_b}의 관계가 '친밀'로 깊어졌다! 새로운 연계스킬과 합체기가 해금되었다!"
+    bonuses:
+      gauge_charge: 0.15
+      unlock: ["bond_skill_2", "combo_skill"]
+
+  4:
+    name: "깊은 유대"
+    threshold: 500
+    description: "말하지 않아도 서로의 의도를 읽을 수 있는 사이가 되었다."
+    unlock_message: "{char_a}와(과) {char_b}의 관계가 '깊은 유대'! 체인어빌리티가 해금되었다!"
+    bonuses:
+      gauge_charge: 0.20
+      unlock: ["chain_ability"]
+
+  5:
+    name: "영혼의 동반자"
+    threshold: 750
+    description: "영혼으로 연결된 진정한 동반자. 함께라면 무엇이든 가능하다."
+    unlock_message: "{char_a}와(과) {char_b}가 '영혼의 동반자'가 되었다! 궁극의 연계가 해금되었다!"
+    bonuses:
+      gauge_charge: 0.25
+      unlock: ["ultimate_chain"]
+
+# 호감도 변동 이벤트 정의
+affinity_gain_events:
+  battle_together:
+    name: "함께 전투"
+    amount: 1
+    description: "같은 전투에 참여"
+    target: "all_party"
+
+  battle_victory:
+    name: "전투 승리"
+    amount: 2
+    description: "전투에서 승리"
+    target: "all_party"
+
+  heal_or_buff:
+    name: "힐/버프 시전"
+    amount: 3
+    description: "아군에게 회복이나 버프를 시전"
+    target: "caster_and_target"
+
+  teamwork_chain:
+    name: "팀워크 연쇄"
+    amount: 5
+    description: "팀워크 스킬을 연쇄적으로 사용"
+    target: "participants"
+
+  combo_skill:
+    name: "합체기 사용"
+    amount: 8
+    description: "합체기를 함께 발동"
+    target: "participants"
+
+  exploration_steps:
+    name: "함께 이동"
+    amount: 1
+    description: "50걸음마다 호감도 증가"
+    target: "all_party"
+    condition: "every_50_steps"
+
+  random_event_resolved:
+    name: "이벤트 해결"
+    amount: 0  # YAML 이벤트별로 다름
+    description: "랜덤 이벤트 해결 시"
+    target: "all_party"
+
+  puzzle_solved:
+    name: "퍼즐 해결"
+    amount: 3
+    description: "환경 퍼즐을 해결"
+    target: "solver_and_all"
+
+  protect_ally:
+    name: "아군 보호"
+    amount: 4
+    description: "아군을 대신 피해를 받아 보호"
+    target: "protector_and_protected"
+
+  revive_ally:
+    name: "아군 부활"
+    amount: 6
+    description: "전투불능 아군을 부활시킴"
+    target: "reviver_and_revived"
+
+# 레벨업 시 연출 설정
+level_up_effects:
+  1:
+    animation: "sparkle_small"
+    color: [180, 180, 180]
+    sound: "affinity_up_1"
+
+  2:
+    animation: "sparkle_medium"
+    color: [100, 200, 255]
+    sound: "affinity_up_2"
+
+  3:
+    animation: "sparkle_large"
+    color: [255, 200, 100]
+    sound: "affinity_up_3"
+
+  4:
+    animation: "bond_flash"
+    color: [255, 100, 200]
+    sound: "affinity_up_4"
+
+  5:
+    animation: "soul_resonance"
+    color: [255, 215, 0]
+    sound: "affinity_up_5"

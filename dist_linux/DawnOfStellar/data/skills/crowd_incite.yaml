@@ -1,0 +1,33 @@
+id: crowd_incite
+name: 관중 선동
+type: buff
+description: '관중을 선동하여 환호를 끌어올립니다.
+
+  환호 +15.
+
+  3턴간 요구 보상 +5.
+
+  '
+target: self
+costs:
+  mp: 10
+effects:
+- type: gimmick
+  operation: add
+  field: cheer
+  value: 15
+  max_value: 100
+- type: buff
+  buff_id: crowd_favor
+  duration: 3
+  effects:
+    demand_bonus_cheer: 5
+animation:
+  icon: 📣
+  color:
+  - 255
+  - 200
+  - 50
+sfx:
+- se
+- Up1

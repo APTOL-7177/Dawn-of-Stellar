@@ -1,0 +1,26 @@
+id: dimensionist_dimension_scatter
+name: 차원 분산
+type: attack
+description: '굴절을 분산시켜 전체 적에게 강력한 피해를 줍니다.
+
+  굴절량에 비례한 추가 피해가 적용됩니다.
+
+  '
+effects:
+- type: damage
+  damage_type: brv_hp
+  stat_base: magical
+  multiplier: 1.5
+  target: all_enemies
+target: all_enemies
+costs:
+  mp: 15
+metadata:
+  job: dimensionist
+  refraction_cost_hp_percent: 0.15
+  refraction_scaling: true
+  requires_refraction_check: true
+  refraction_fixed_damage_rate: 0.4
+sfx:
+- se
+- Move2

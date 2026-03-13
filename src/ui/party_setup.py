@@ -10,15 +10,27 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 import yaml
 from pathlib import Path
+import math
+import random
+import time as _time_module
 
 from src.ui.cursor_menu import CursorMenu, MenuItem, TextInputBox
-from src.ui.tcod_display import Colors, render_space_background
+from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.core.logger import get_logger
 from src.core.config import get_config
 from src.persistence.meta_progress import get_meta_progress
 from src.audio import play_bgm, play_sfx
-import random
+from src.ui.pygame_backend.effects.text_effects import (
+    TextScrambler,
+    ColorCycler,
+    render_scrambled_text,
+)
+from src.combat.job_synergy import get_synergy_manager
+
+
+def _clamp(v: int) -> int:
+    return max(0, min(255, v))
 
 
 @dataclass
@@ -91,6 +103,54 @@ class PartySetup:
         self.category_filter = "전체"  # 전체, 탱커, 힐러, 물리 딜러, 마법 딜러, 스피드, 하이브리드, 서포터, 특수
         self.category_list = ["전체", "탱커", "힐러", "물리 딜러", "마법 딜러", "스피드", "하이브리드", "서포터", "특수"]
 
+        # ── 애니메이션 ──
+        self.animation_frame = 0
+        self._last_render_time = 0.0
+
+        # 3레이어 별빛
+        self.stars_layers: List[List[dict]] = [[], [], []]
+        self._init_stars()
+
+        # 유성, 파티클
+        self.meteors: List[dict] = []
+        self.particles: List[dict] = []
+
+        # 텍스트 이펙트
+        self._title_scrambler = TextScrambler("파티 구성", duration=1.0, style="decode")
+        self._title_scramble_done = False
+
+        # ColorCycler (내부 phase로만 애니메이션, 느린 속도)
+        self._border_cycler = ColorCycler(
+            colors=[
+                (60, 80, 180),
+                (100, 120, 220),
+                (80, 100, 200),
+                (120, 140, 255),
+            ],
+            speed=0.25,
+            mode="wave",
+        )
+        self._star_cycler = ColorCycler(
+            colors=[
+                (150, 180, 255),
+                (255, 255, 200),
+                (200, 220, 255),
+                (255, 240, 150),
+            ],
+            speed=0.4,
+            mode="sparkle",
+        )
+        self._frame_cycler = ColorCycler(
+            colors=[
+                (50, 70, 160),
+                (80, 100, 200),
+                (60, 90, 180),
+                (100, 120, 230),
+            ],
+            speed=0.2,
+            mode="wave",
+        )
+
         # 직업 선택 메뉴 생성
         self._create_job_menu()
         
@@ -113,6 +173,7 @@ class PartySetup:
             "assassin": {"화력": 4.5, "유틸": 2.0, "생존": 3.5, "스피드": 5.0, "조작난이도": 3.5},
             "archer": {"화력": 3.5, "유틸": 3.0, "생존": 2.5, "스피드": 4.0, "조작난이도": 4.0},
             "sniper": {"화력": 5.0, "유틸": 1.5, "생존": 2.0, "스피드": 1.5, "조작난이도": 3.0},
+            "ninja": {"화력": 3.5, "유틸": 3.5, "생존": 2.5, "스피드": 5.0, "조작난이도": 2.5},
             "pirate": {"화력": 3.5, "유틸": 3.0, "생존": 3.0, "스피드": 3.5, "조작난이도": 3.0},
             "sword_saint": {"화력": 4.5, "유틸": 1.5, "생존": 2.5, "스피드": 4.0, "조작난이도": 3.0},
             "breaker": {"화력": 4.0, "유틸": 3.5, "생존": 2.5, "스피드": 3.0, "조작난이도": 3.0},
@@ -257,6 +318,7 @@ class PartySetup:
             "archer": ["물리 딜러", "스피드"],
             "sniper": ["물리 딜러"],  # 느린 직업이므로 스피드 제외
             "pirate": ["물리 딜러", "스피드"],
+            "ninja": ["마법 딜러", "스피드", "서포터"],
             "sword_saint": ["물리 딜러"],
             
             # 마법 딜러
@@ -514,7 +576,7 @@ class PartySetup:
         
         # 메뉴 생성
         menu_x = 3
-        menu_y = 8
+        menu_y = 6
         menu_width = 43
 
         filter_info = f" [{self.category_filter}]" if self.category_filter != "전체" else ""
@@ -612,6 +674,8 @@ class PartySetup:
 
         self.logger.info(f"특성 메뉴 생성: 멤버 {self.current_slot + 1}/4 - {member.character_name} ({member.job_name}, job_id: {member.job_id}), 해금된 특성 수: {len(unlocked_traits)} (총 {len(traits)}개 중), 선택된 특성: {member.selected_traits}")
 
+        selected_count = len(member.selected_traits) if member.selected_traits else 0
+
         if not unlocked_traits:
             self.logger.warning(f"특성이 없습니다: {member.job_id}")
             # 특성이 없어도 완료 항목은 표시
@@ -683,7 +747,7 @@ class PartySetup:
             title=f"{member.character_name} ({member.job_name}) - 특성 선택 ({selected_count}/{max_traits}, 해금: {len(unlocked_traits)}개)",
             items=menu_items,
             x=3,
-            y=8,
+            y=6,
             width=43,
             show_description=True
         )
@@ -1089,7 +1153,7 @@ class PartySetup:
             title=title,
             items=menu_items,
             x=3,
-            y=8,
+            y=6,
             width=43,
             show_description=True
         )
@@ -1380,41 +1444,258 @@ class PartySetup:
 
         return False
 
+    # ── 렌더링 헬퍼 (메인 메뉴 동일 기법) ──────────────────────────
+
+    def _init_stars(self):
+        """3레이어 시차 별빛 초기화"""
+        for layer in range(3):
+            count = [60, 35, 15][layer]
+            speed = [0.02, 0.05, 0.12][layer]
+            for _ in range(count):
+                self.stars_layers[layer].append({
+                    "x": random.uniform(0, self.screen_width),
+                    "y": random.uniform(0, self.screen_height),
+                    "brightness": random.uniform(0.3, 1.0),
+                    "twinkle_phase": random.uniform(0, math.pi * 2),
+                    "twinkle_speed": random.uniform(1.0, 3.0),
+                    "speed": speed,
+                    "char": random.choice("·.+*") if layer < 2 else random.choice("+*"),
+                })
+
+    def _render_bg(self, console, t):
+        """배경 우주 그라데이션 + 오로라"""
+        aurora_limit = self.screen_height * 0.35
+        for y in range(self.screen_height):
+            gi = max(0, int(3 + (y / self.screen_height) * 15))
+            base_r, base_g, base_b = gi // 4, gi // 5, gi
+            if y < aurora_limit:
+                for x in range(self.screen_width):
+                    wave1 = math.sin(x * 0.06 + t * 0.8) * math.sin(y * 0.1 + t * 0.3)
+                    wave2 = math.sin(x * 0.04 - t * 0.5 + 2.0) * math.cos(y * 0.07 + t * 0.4)
+                    intensity = max(0, (wave1 + wave2) * 0.5)
+                    y_factor = max(0, 1.0 - (y / aurora_limit))
+                    intensity *= y_factor * 0.5
+                    r = _clamp(base_r + int(intensity * 20))
+                    g = _clamp(base_g + int(intensity * 55))
+                    b = _clamp(base_b + int(intensity * 35))
+                    console.rgb[y, x] = (ord(' '), (r, g, b), (r, g, b))
+            else:
+                for x in range(self.screen_width):
+                    console.rgb[y, x] = (ord(' '), (base_r, base_g, base_b), (base_r, base_g, base_b))
+
+    def _render_stars(self, console, t):
+        """3레이어 시차 별빛 렌더링"""
+        for li in range(3):
+            for star in self.stars_layers[li]:
+                star["y"] += star["speed"]
+                if star["y"] >= self.screen_height:
+                    star["y"] = 0
+                    star["x"] = random.uniform(0, self.screen_width)
+                twinkle = 0.5 + 0.5 * math.sin(
+                    t * star["twinkle_speed"] + star["twinkle_phase"]
+                )
+                brt = star["brightness"] * twinkle
+                if li == 0:
+                    color = (
+                        _clamp(int(120 * brt)),
+                        _clamp(int(130 * brt)),
+                        _clamp(int(200 * brt)),
+                    )
+                elif li == 1:
+                    v = _clamp(int(180 * brt))
+                    color = (v, v, _clamp(int(v * 0.9)))
+                else:
+                    color = (
+                        _clamp(int(220 * brt)),
+                        _clamp(int(210 * brt)),
+                        _clamp(int(170 * brt)),
+                    )
+                sx, sy = int(star["x"]), int(star["y"])
+                if 0 <= sx < self.screen_width and 0 <= sy < self.screen_height:
+                    console.print(sx, sy, star["char"], fg=color)
+
+    def _update_meteors(self, console):
+        """유성 업데이트 및 렌더링"""
+        if random.random() < 0.02:
+            self.meteors.append({
+                "x": random.uniform(0, self.screen_width * 0.7),
+                "y": random.uniform(0, self.screen_height * 0.3),
+                "vx": random.uniform(1.5, 3.5),
+                "vy": random.uniform(0.8, 2.0),
+                "life": random.uniform(0.4, 1.0),
+                "trail": random.randint(3, 8),
+            })
+        remaining = []
+        for m in self.meteors:
+            m["x"] += m["vx"]
+            m["y"] += m["vy"]
+            m["life"] -= 0.03
+            if m["life"] > 0 and m["x"] < self.screen_width + 10 and m["y"] < self.screen_height + 10:
+                for i in range(m["trail"]):
+                    tx = int(m["x"] - m["vx"] * i * 0.4)
+                    ty = int(m["y"] - m["vy"] * i * 0.4)
+                    if 0 <= tx < self.screen_width and 0 <= ty < self.screen_height:
+                        fade = max(0, m["life"] - i * 0.1)
+                        v = _clamp(int(255 * fade))
+                        ch = "*" if i == 0 else "·"
+                        console.print(tx, ty, ch, fg=(v, v, _clamp(int(v * 0.7))))
+                remaining.append(m)
+        self.meteors = remaining[-15:]
+
+    def _update_particles(self, console):
+        """화면 전체 미세 반짝이 파티클"""
+        if random.random() < 0.05:
+            self.particles.append({
+                "x": random.uniform(0, self.screen_width),
+                "y": random.uniform(0, self.screen_height),
+                "vx": random.uniform(-0.2, 0.2),
+                "vy": random.uniform(-0.3, 0.0),
+                "life": random.uniform(0.3, 1.0),
+                "char": random.choice("·.*"),
+                "color": random.choice([
+                    (200, 200, 255), (255, 255, 200), (180, 220, 255),
+                ]),
+            })
+        remaining = []
+        for p in self.particles:
+            p["x"] += p["vx"] * 0.3
+            p["y"] += p["vy"] * 0.3
+            p["life"] -= 0.03
+            if p["life"] > 0:
+                alpha = min(1.0, p["life"])
+                px, py = int(p["x"]), int(p["y"])
+                if 0 <= px < self.screen_width and 0 <= py < self.screen_height:
+                    c = p["color"]
+                    fc = (
+                        _clamp(int(c[0] * alpha)),
+                        _clamp(int(c[1] * alpha)),
+                        _clamp(int(c[2] * alpha)),
+                    )
+                    console.print(px, py, p["char"], fg=fc)
+                remaining.append(p)
+        self.particles = remaining[-20:]
+
+    def _render_decoration_line(self, console, y, idx_offset):
+        """상하 장식 라인: ══════════════ ✦ ══════════════"""
+        cx = self.screen_width // 2
+        half_len = 16
+        # 고정 위치로 색상 조회 (내부 phase가 시간 애니메이션 담당)
+        star_color = self._star_cycler.get_color(0)
+        console.print(cx, y, "✦", fg=star_color)
+        for i in range(1, half_len + 1):
+            line_color = self._border_cycler.get_color(i)
+            lx = cx - i
+            rx = cx + i
+            if 0 <= lx < self.screen_width:
+                console.print(lx, y, "═", fg=line_color)
+            if 0 <= rx < self.screen_width:
+                console.print(rx, y, "═", fg=line_color)
+
+    def _render_title(self, console):
+        """장식 타이틀: ═══ ✦ 파티 구성 ✦ ═══"""
+        title_text = "파티 구성"
+        title_y = 2
+
+        if not self._title_scramble_done:
+            title_x = (self.screen_width - len(title_text)) // 2
+            render_scrambled_text(
+                console, title_x, title_y,
+                self._title_scrambler,
+                fg_resolved=(200, 200, 255),
+                fg_scrambled=(0, 180, 80),
+            )
+        else:
+            decorated = f"═══ ✦ {title_text} ✦ ═══"
+            dec_len = len(decorated)
+            dx = (self.screen_width - dec_len) // 2
+
+            dash_color = self._border_cycler.get_color(0)
+            star_color = self._star_cycler.get_color(0)
+            sub_brightness = _clamp(int(200 + 55 * math.sin(self.animation_frame / 50.0)))
+            title_color = (sub_brightness, sub_brightness, 255)
+
+            console.print(dx, title_y, "═══", fg=dash_color)
+            console.print(dx + 4, title_y, "✦", fg=star_color)
+            console.print(dx + 6, title_y, title_text, fg=title_color)
+            console.print(dx + 6 + len(title_text) + 1, title_y, "✦", fg=star_color)
+            console.print(dx + 6 + len(title_text) + 3, title_y, "═══", fg=dash_color)
+
+    def _render_animated_frame(self, console, x, y, w, h, title=""):
+        """애니메이션 테두리 패널 (╔═╗║╚╝ + ColorCycler wave)"""
+        fc = self._frame_cycler.get_color(0)
+
+        console.print(x, y, "╔", fg=fc)
+        for i in range(1, w - 1):
+            console.print(x + i, y, "═", fg=fc)
+        console.print(x + w - 1, y, "╗", fg=fc)
+
+        console.print(x, y + h - 1, "╚", fg=fc)
+        for i in range(1, w - 1):
+            console.print(x + i, y + h - 1, "═", fg=fc)
+        console.print(x + w - 1, y + h - 1, "╝", fg=fc)
+
+        for row in range(y + 1, y + h - 1):
+            console.print(x, row, "║", fg=fc)
+            console.print(x + w - 1, row, "║", fg=fc)
+
+        if title:
+            title_x = x + (w - len(title)) // 2
+            star_color = self._star_cycler.get_color(0)
+            console.print(title_x, y, title, fg=star_color)
+
+    # ── 메인 렌더 ────────────────────────────────────────────
+
     def render(self, console: tcod.console.Console):
         """파티 구성 화면 렌더링"""
-        render_space_background(console, self.screen_width, self.screen_height)
+        console.clear()
+        self.animation_frame += 1
 
-        # 제목
-        title = "파티 구성"
-        console.print(
-            (self.screen_width - len(title)) // 2,
-            2,
-            title,
-            fg=Colors.UI_TEXT_SELECTED
-        )
+        # dt 계산
+        _now = _time_module.time()
+        _dt = min(0.1, _now - self._last_render_time) if self._last_render_time > 0 else 0.033
+        self._last_render_time = _now
+        t = _now
 
-        # 현재 파티 상태 표시 (우측)
+        # 이펙트 업데이트
+        self._border_cycler.update(_dt)
+        self._star_cycler.update(_dt)
+        self._frame_cycler.update(_dt)
+
+        if not self._title_scramble_done:
+            self._title_scrambler.update(_dt)
+            if self._title_scrambler.is_complete:
+                self._title_scramble_done = True
+
+        # 1. 배경 (그라데이션 + 오로라)
+        self._render_bg(console, t)
+
+        # 2. 3레이어 별빛
+        self._render_stars(console, t)
+
+        # 3. 유성
+        self._update_meteors(console)
+
+        # 4. 파티클
+        self._update_particles(console)
+
+        # 5. 상단 장식 라인 (y=0)
+        self._render_decoration_line(console, 0, self.animation_frame)
+
+        # 6. 장식 타이틀 (y=2)
+        self._render_title(console)
+
+        # 7. 현재 파티 상태 표시 (우측)
         self._render_party_status(console)
 
-        # 상태별 렌더링
+        # 8. 상태별 렌더링
         if self.state == "job_select":
             if self.job_menu:
                 self.job_menu.render(console)
-                
-                # 카테고리 필터 표시
                 self._render_category_filter(console)
-                
-                # 선택된 직업 평점 표시
                 self._render_job_ratings(console)
-
-                # 도움말
+                self._render_synergy_guide(console)
                 help_text = "↑↓: 이동  ←→: 카테고리  Z: 선택  X: 이전"
-                console.print(
-                    2,
-                    self.screen_height - 2,
-                    help_text,
-                    fg=Colors.GRAY
-                )
+                console.print(2, self.screen_height - 2, help_text, fg=Colors.GRAY)
 
         elif self.state == "name_input":
             if self.name_input:
@@ -1423,39 +1704,25 @@ class PartySetup:
         elif self.state == "trait_select":
             if self.trait_menu:
                 self.trait_menu.render(console)
-                
-                # 도움말
                 help_text = "↑↓: 이동  Z: 선택/해제  X: 이전"
-                console.print(
-                    2,
-                    self.screen_height - 2,
-                    help_text,
-                    fg=Colors.GRAY
-                )
+                console.print(2, self.screen_height - 2, help_text, fg=Colors.GRAY)
 
         elif self.state == "passive_select":
             if self.passive_menu:
                 self.passive_menu.render(console)
-                
-                # 도움말
                 help_text = "↑↓: 이동  Z: 선택/해제  X: 이전"
-                console.print(
-                    2,
-                    self.screen_height - 2,
-                    help_text,
-                    fg=Colors.GRAY
-                )
+                console.print(2, self.screen_height - 2, help_text, fg=Colors.GRAY)
 
         elif self.state == "confirm":
-            # 최종 확인 메시지
             confirm_msg = "파티 구성이 완료되었습니다!"
+            pulse = _clamp(int(200 + 55 * math.sin(self.animation_frame / 40.0)))
+            confirm_color = (pulse, pulse, 255)
             console.print(
                 (self.screen_width - len(confirm_msg)) // 2,
                 20,
                 confirm_msg,
-                fg=Colors.UI_TEXT_SELECTED
+                fg=confirm_color
             )
-
             confirm_help = "Z: 게임 시작  X: 수정"
             console.print(
                 (self.screen_width - len(confirm_help)) // 2,
@@ -1470,25 +1737,30 @@ class PartySetup:
                 (self.screen_width - len(self.error_message)) // 2,
                 self.screen_height - 4,
                 self.error_message,
-                fg=(255, 100, 100)  # 빨간색
+                fg=(255, 100, 100)
             )
             self.error_timer -= 1
 
+        # 하단 장식 라인
+        self._render_decoration_line(console, self.screen_height - 1, self.animation_frame + 20)
+
     def _render_category_filter(self, console: tcod.console.Console):
-        """카테고리 필터 표시"""
-        filter_y = 5
+        """카테고리 필터 표시 (애니메이션)"""
+        filter_y = 4
         filter_x = 3
-        
-        # 현재 카테고리 인덱스
+
         current_idx = self.category_list.index(self.category_filter)
-        
-        # 이전/다음 카테고리 표시
         prev_cat = self.category_list[(current_idx - 1) % len(self.category_list)]
         next_cat = self.category_list[(current_idx + 1) % len(self.category_list)]
-        
-        console.print(filter_x, filter_y, f"◀ {prev_cat}", fg=Colors.GRAY)
-        console.print(filter_x + 12, filter_y, f"[ {self.category_filter} ]", fg=Colors.UI_TEXT_SELECTED)
-        console.print(filter_x + 28, filter_y, f"{next_cat} ▶", fg=Colors.GRAY)
+
+        # 좌우 화살표 미세 깜빡임 (약 1초 주기)
+        arrow_blink = (self.animation_frame // 30) % 2 == 0
+        arrow_color = Colors.GRAY if arrow_blink else (80, 80, 100)
+
+        console.print(filter_x, filter_y, f"◀ {prev_cat}", fg=arrow_color)
+        cat_color = self._star_cycler.get_color(0)
+        console.print(filter_x + 12, filter_y, f"[ {self.category_filter} ]", fg=cat_color)
+        console.print(filter_x + 28, filter_y, f"{next_cat} ▶", fg=arrow_color)
 
     def _render_job_ratings(self, console: tcod.console.Console):
         """선택된 직업의 평점 표시"""
@@ -1515,15 +1787,10 @@ class PartySetup:
         rating_x = 52
         rating_y = 28
         
-        # 테두리
-        console.draw_frame(
-            rating_x,
-            rating_y,
-            28,
-            12,
-            f"[ {job_data.get('name', job_id)} ]",
-            fg=Colors.UI_BORDER,
-            bg=Colors.UI_BG
+        # 애니메이션 테두리
+        self._render_animated_frame(
+            console, rating_x, rating_y, 28, 12,
+            title=f"[ {job_data.get('name', job_id)} ]"
         )
         
         # 각 평점 항목 표시
@@ -1564,15 +1831,10 @@ class PartySetup:
         status_x = 52
         status_y = 8
 
-        # 테두리
-        console.draw_frame(
-            status_x,
-            status_y - 2,
-            28,
-            18,
-            "현재 파티",
-            fg=Colors.UI_BORDER,
-            bg=Colors.UI_BG
+        # 애니메이션 테두리
+        self._render_animated_frame(
+            console, status_x, status_y - 2, 28, 18,
+            title="현재 파티"
         )
 
         # 4개 슬롯 표시
@@ -1611,6 +1873,89 @@ class PartySetup:
                     fg=Colors.DARK_GRAY
                 )
 
+    # ── 편성 효과 가이드 ────────────────────────────────────────
+
+    def _get_preview_jobs(self) -> List[str]:
+        """현재 확정된 파티원 + 커서 위치 직업으로 미리보기 직업 목록 생성"""
+        jobs = [m.job_id for m in self.party if m.job_id]
+        if self.job_menu:
+            selected = self.job_menu.get_selected_item()
+            if selected and selected.value:
+                job_data = selected.value.get('job')
+                if job_data:
+                    hover_job = job_data.get('id', '')
+                    if hover_job and hover_job not in jobs:
+                        jobs.append(hover_job)
+        return jobs
+
+    def _get_job_name_map(self) -> Dict[str, str]:
+        """직업 ID → 한글 이름 매핑 (메뉴 아이템에서 구축)"""
+        if not hasattr(self, '_job_name_map') or not self._job_name_map:
+            self._job_name_map = {}
+            if self.job_menu:
+                for item in self.job_menu.items:
+                    if item.value and 'job' in item.value:
+                        job = item.value['job']
+                        self._job_name_map[job['id']] = job['name']
+        return self._job_name_map
+
+    def _render_synergy_guide(self, console: tcod.console.Console):
+        """편성 보너스 & 합체기 미리보기 가이드 패널 (왼쪽 하단, 넓게)"""
+        preview_jobs = self._get_preview_jobs()
+        if not preview_jobs:
+            return
+
+        try:
+            synergy = get_synergy_manager()
+        except Exception:
+            return
+
+        lines: List[tuple] = []  # [(text, color)]
+
+        # 1. 활성 파티 보너스
+        for bonus in synergy._party_bonuses:
+            if bonus.check_condition(preview_jobs):
+                # 보너스 이름
+                lines.append((f" ★ {bonus.name}", (100, 255, 100)))
+                # 간략 효과 (설명에서 ":" 뒤 부분 추출)
+                desc = bonus.description
+                if ":" in desc:
+                    effect_part = desc.split(":")[-1].strip()
+                else:
+                    effect_part = desc
+                if len(effect_part.encode('utf-8')) > 88:
+                    effect_part = effect_part[:30] + ".."
+                lines.append((f"   {effect_part}", (120, 180, 120)))
+
+        # 2. 사용 가능한 합체기
+        name_map = self._get_job_name_map()
+        for combo in synergy.get_all_combos():
+            if all(j in preview_jobs for j in combo.required_jobs):
+                lines.append((f" ◆ {combo.name}", (100, 200, 255)))
+                job_names = "+".join(name_map.get(j, j) for j in combo.required_jobs)
+                lines.append((f"   ({job_names})", (130, 160, 190)))
+
+        if not lines:
+            return
+
+        # 패널 렌더링 (왼쪽 하단, 직업 메뉴 아래에 넓게)
+        panel_x = 2
+        panel_w = 48
+        max_lines = min(len(lines), 8)
+        panel_h = max_lines + 2  # 테두리 포함
+
+        # 하단 도움말(screen_height - 2) 위에 배치
+        panel_y = self.screen_height - panel_h - 3
+
+        self._render_animated_frame(
+            console, panel_x, panel_y, panel_w, panel_h,
+            title="편성 효과"
+        )
+
+        for i, (text, color) in enumerate(lines[:max_lines]):
+            display_text = text[:panel_w - 3]  # 패널 너비에 맞게 자르기
+            console.print(panel_x + 1, panel_y + 1 + i, display_text, fg=color)
+
     def get_party(self) -> Optional[List[PartyMember]]:
         """완성된 파티 반환"""
         if self.completed and len(self.party) == 4:
@@ -1640,41 +1985,42 @@ def run_party_setup(console: tcod.console.Console, context: tcod.context.Context
     # 파티 구성 BGM 재생
     play_bgm("party_setup")
 
+    # 이전 화면에서 남은 입력 이벤트 제거
+    for _ in tcod.event.get():
+        pass
+    unified_input_handler.clear_input_state()
+
     setup = PartySetup(console.width, console.height)
 
+    # 애니메이션을 위한 시간 관리
+    import time
+    last_time = time.time()
+    frame_time = 1.0 / 30.0  # 30 FPS
+
     while True:
-        # 렌더링
-        setup.render(console)
-        context.present(console)
-
-        # pygame 이벤트 업데이트 (게임패드 입력을 위해)
         try:
-            import pygame
-            pygame.event.pump()
-        except:
-            pass
+            current_time = time.time()
+            delta_time = current_time - last_time
 
-        # 게임패드 입력 우선 확인
-        gamepad_action = unified_input_handler.get_action()
-        if gamepad_action:
-            if setup.handle_input(gamepad_action, None):
-                # 완료 또는 취소
-                if setup.cancelled:
-                    return None
-                party = setup.get_party()
-                passives = setup.get_passives() if party else []
-                return (party, passives)
+            # 프레임 제한 (30 FPS)
+            if delta_time >= frame_time:
+                last_time = current_time
 
-        # 키보드 입력 처리
-        for event in tcod.event.get():
-            action = unified_input_handler.process_tcod_event(event)
+                # 렌더링 (매 프레임마다 애니메이션 업데이트)
+                setup.render(console)
+                context.present(console)
 
-            # KeyDown 이벤트 저장 (텍스트 입력용)
-            key_event = event if isinstance(event, tcod.event.KeyDown) else None
+            # pygame 이벤트 업데이트 (게임패드 입력을 위해)
+            try:
+                import pygame
+                pygame.event.pump()
+            except:
+                pass
 
-            # 이름 입력 중이나 패시브 선택 중에는 action이 없어도 event 처리 필요
-            if action or (key_event and (setup.state == "name_input" or setup.state == "passive_select")):
-                if setup.handle_input(action, key_event):
+            # 게임패드 입력 우선 확인
+            gamepad_action = unified_input_handler.get_action()
+            if gamepad_action:
+                if setup.handle_input(gamepad_action, None):
                     # 완료 또는 취소
                     if setup.cancelled:
                         return None
@@ -1682,11 +2028,43 @@ def run_party_setup(console: tcod.console.Console, context: tcod.context.Context
                     passives = setup.get_passives() if party else []
                     return (party, passives)
 
-            # 윈도우 닫기
-            for quit_event in tcod.event.get():
-                if isinstance(quit_event, tcod.event.Quit):
+            # 키보드 입력 처리
+            state_before_loop = setup.state
+            for event in tcod.event.get():
+                action = unified_input_handler.process_tcod_event(event)
+
+                # KeyDown 이벤트 저장 (텍스트 입력용)
+                key_event = event if isinstance(event, tcod.event.KeyDown) else None
+
+                # TextInput 이벤트 (한글 IME 등 조합 문자) - 이름 입력 중 직접 전달
+                # 단, 이번 루프에서 막 name_input으로 전환된 경우 무시 (확정키 문자 유입 방지)
+                if isinstance(event, tcod.event.TextInput) and setup.state == "name_input":
+                    if state_before_loop == "name_input" and setup.name_input:
+                        setup.name_input.handle_input(None, text_event=event)
+                    continue
+
+                # 이름 입력 중이나 패시브 선택 중에는 action이 없어도 event 처리 필요
+                if action or (key_event and (setup.state == "name_input" or setup.state == "passive_select")):
+                    if setup.handle_input(action, key_event):
+                        # 완료 또는 취소
+                        if setup.cancelled:
+                            return None
+                        party = setup.get_party()
+                        passives = setup.get_passives() if party else []
+                        return (party, passives)
+
+                # 윈도우 닫기
+                if isinstance(event, tcod.event.Quit):
                     return None
 
-        # CPU 사용률 낮추기 (논블로킹 모드에서 필요)
-        import time
-        time.sleep(0.01)
+            # CPU 사용률 낮추기
+            time.sleep(0.01)
+
+        except Exception as e:
+            import traceback
+            logger = get_logger("party_setup")
+            logger.error(f"파티 구성 루프 오류: {e}")
+            logger.error(traceback.format_exc())
+            # 오류 발생 시 에러 메시지를 화면에 표시하고 계속 진행
+            setup.error_message = f"오류: {e}"
+            setup.error_timer = 180

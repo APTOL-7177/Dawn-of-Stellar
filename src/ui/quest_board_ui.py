@@ -56,7 +56,7 @@ class QuestBoardUI:
         
         # 퀘스트가 없으면 생성
         if not self.available_quests:
-            quest_manager.generate_quests(player_level, count=5)
+            quest_manager.generate_quests(player_level, count=5, current_floor=current_floor)
             self.available_quests = quest_manager.get_available_quests()
         
         # 퀘스트 게시판을 열 때마다 완료 체크 (안전장치)
@@ -230,7 +230,12 @@ class QuestBoardUI:
             # 설명
             console.print(5, current_y, f"설명: {quest.description}", fg=Colors.UI_TEXT)
             current_y += 2
-            
+
+            # 힌트 (있을 경우)
+            if getattr(quest, 'hint', '') and quest.hint:
+                console.print(5, current_y, f"힌트: {quest.hint}", fg=(150, 220, 255))
+                current_y += 2
+
             # 목표
             console.print(5, current_y, "목표:", fg=(255, 200, 100))
             # 목표는 옆에 나열하거나 한 줄에 하나씩

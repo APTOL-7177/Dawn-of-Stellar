@@ -3,6 +3,8 @@ import yaml
 from pathlib import Path
 from typing import Dict, Any
 from src.core.logger import get_logger
+from src.core.paths import get_project_root
+
 
 class JobStatsLoader:
     """직업 스탯 로더"""
@@ -10,10 +12,10 @@ class JobStatsLoader:
         self.logger = get_logger("job_stats")
         self.stats = {}
         self._load_stats()
-    
+
     def _load_stats(self):
         """스탯 YAML 로드"""
-        stats_file = Path(__file__).parent.parent.parent / "data" / "jobs" / "stats_base.yaml"
+        stats_file = get_project_root() / "data" / "jobs" / "stats_base.yaml"
         try:
             with open(stats_file, 'r', encoding='utf-8') as f:
                 self.stats = yaml.safe_load(f)

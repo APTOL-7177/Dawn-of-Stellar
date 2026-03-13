@@ -1,0 +1,18 @@
+id: elemental_transmutation
+name: 원소 순환
+type: utility
+description: 원소 2개 소비 → 다른 원소 3개 생성. 완전 순환 시 모든 원소 +1, 마법 공격력 +20%
+costs:
+  mp: 4
+effects:
+- type: transmutation
+  consume_amount: 2
+  generate_amount: 3
+  mp_recovery: 5
+metadata:
+  utility: true
+  element_transform: true
+  requires_selection: true
+sfx:
+- se
+- Magic1

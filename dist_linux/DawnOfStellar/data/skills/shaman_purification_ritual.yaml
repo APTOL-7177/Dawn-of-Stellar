@@ -1,0 +1,36 @@
+id: shaman_purification_ritual
+name: 정화 의식
+type: support
+description: '영적 의식을 통해 자신을 정화합니다.
+
+  상태이상 1개를 해제하고 최대 MP의 20%를 회복합니다.
+
+  '
+target: self
+metadata:
+  job: shaman
+  mp_recovery: true
+  cleanse: true
+effects:
+- type: cleanse
+  count: 1
+  target_self: true
+- type: heal
+  heal_type: mp
+  percentage: 0.2
+  target_self: true
+- type: buff
+  stat: spirit
+  value: 0.15
+  duration: 2
+costs:
+  mp: 8
+animation:
+  icon: ✨
+  color:
+  - 255
+  - 240
+  - 200
+sfx:
+- se
+- Heal4

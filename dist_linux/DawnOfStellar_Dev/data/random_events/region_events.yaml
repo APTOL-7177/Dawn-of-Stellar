@@ -1,0 +1,4136 @@
+# 랜덤 이벤트 - 지역 이벤트
+# Dawn of Stellar - 지역별 야외 랜덤 이벤트 정의
+region_events:
+
+  # ============================================================
+  # 초원 지역 이벤트
+  # ============================================================
+
+  - id: "wild_horse"
+    name: "야생마"
+    category: "npc_rescue"
+    region: "grassland"
+    description: "상처 입은 야생마가 풀밭에 쓰러져 있다. 아름다운 은빛 갈기가 바람에 흩날린다."
+    weight: 14
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "마를 치료해준다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 20
+            message: "말이 감사하다는 듯 코를 비볐다. 기분이 좋아졌다."
+          - type: "buff"
+            buff_id: "horse_blessing"
+            duration: 40
+            message: "야생마가 다음 전투까지 함께 달려줄 것이다."
+      - text: "드루이드라면 동물과 교감한다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "reward"
+            items: ["silver_horseshoe", "horse_companion_token"]
+            exp: 200
+            affinity_gain: 5
+            message: "자연의 언어로 말과 대화했다. 말이 특별한 편자를 발굽에서 빼어 건넸다."
+      - text: "말을 타고 달린다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "mounted_speed"
+            duration: 20
+            message: "야생마에 올라타 초원을 질주했다. 이동 속도가 빨라졌다."
+
+  - id: "flower_field_fairy"
+    name: "꽃밭의 요정"
+    category: "story"
+    region: "grassland"
+    description: "색색의 꽃들이 피어있는 들판에서 작은 빛이 반짝인다. 요정이 꽃들 사이에서 춤을 추고 있다."
+    weight: 10
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "요정을 조용히 바라본다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "nature_harmony"
+            duration: 50
+            message: "요정이 알아채고 미소 지었다. 자연의 조화가 파티에게 깃들었다."
+      - text: "요정에게 말을 건다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["fairy_pollen", "bloom_charm"]
+            exp: 150
+            affinity_gain: 4
+            message: "요정이 기뻐하며 특별한 꽃가루를 나눠주었다."
+      - text: "요정을 잡으려 한다"
+        requirements: {}
+        outcomes:
+          - type: "debuff"
+            debuff_id: "nature_curse"
+            duration: 10
+            message: "꽃들이 모두 시들고 요정이 분노했다. 자연의 저주를 받았다."
+
+  - id: "shepherd_request"
+    name: "목동의 부탁"
+    category: "npc_rescue"
+    region: "grassland"
+    description: "어린 목동이 울고 있다. '양들이 다 도망가 버렸어요! 늑대들이 쫓아왔나 봐요.'"
+    weight: 12
+    cooldown_steps: 220
+    once_only: false
+    choices:
+      - text: "양들을 찾아준다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 150
+            items: ["fresh_wool", "shepherd_pie"]
+            affinity_gain: 4
+            message: "양들을 전부 찾아 목동에게 돌려주었다. 목동이 수제 파이를 감사히 건넸다."
+      - text: "늑대를 처치한다"
+        requirements: {}
+        outcomes:
+          - type: "battle"
+            enemy_id: "wild_wolf"
+            enemy_level: 2
+          - type: "reward"
+            gold: 200
+            items: ["wolf_pelt", "shepherd_gratitude"]
+            affinity_gain: 5
+            message: "늑대를 물리쳤다. 목동이 크게 기뻐하며 사례를 주었다."
+      - text: "바쁘다고 거절한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: -2
+            message: "목동이 실망한 눈빛으로 쳐다보았다."
+
+  # ============================================================
+  # 숲 지역 이벤트
+  # ============================================================
+
+  - id: "giant_tree_spirit"
+    name: "거대 나무 정령"
+    category: "story"
+    region: "forest"
+    description: "수천 년은 되어 보이는 거대한 나무가 천천히 눈을 뜨더니 당신들을 바라본다."
+    weight: 7
+    cooldown_steps: 500
+    once_only: true
+    choices:
+      - text: "정령에게 경의를 표한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "ancient_tree_blessing"
+            duration: 100
+            exp: 500
+            affinity_gain: 8
+            message: "정령이 천천히 고개를 끄덕였다. 오래된 숲의 축복이 파티에게 내렸다."
+      - text: "드루이드로서 숲의 언어로 말한다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "reward"
+            items: ["ancient_bark", "heartwood_gem", "nature_tome"]
+            exp: 800
+            affinity_gain: 10
+            message: "정령이 반가워하며 숲의 비밀을 공유했다. 고대의 나무껍질과 심목석을 선물했다."
+      - text: "나무를 베려 한다"
+        requirements: {}
+        outcomes:
+          - type: "battle"
+            enemy_id: "ancient_treant"
+            enemy_level: 10
+          - type: "damage"
+            damage_percent: 30
+            message: "정령이 분노했다! 숲 전체가 적이 되었다."
+
+  - id: "poisonous_mushroom_colony"
+    name: "독버섯 군락"
+    category: "trap"
+    region: "forest"
+    description: "화려한 색의 버섯들이 군락을 이루고 있다. 아름답지만 독성이 있을 것 같다."
+    weight: 13
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "조심스럽게 우회한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "버섯 군락을 안전하게 우회했다."
+      - text: "연금술사라면 독을 추출한다"
+        requirements:
+          has_job: "alchemist"
+        outcomes:
+          - type: "reward"
+            items: ["rare_poison_extract", "mushroom_spore"]
+            exp: 200
+            message: "독버섯에서 귀한 독을 추출했다. 약이 될 수도 독이 될 수도 있다."
+      - text: "버섯을 채집한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["poisonous_mushroom"]
+            message: "독버섯을 채집했다."
+          - type: "debuff"
+            debuff_id: "mild_poison"
+            duration: 5
+            message: "포자를 흡입해 가벼운 중독 상태가 되었다."
+      - text: "먹어본다 (위험!)"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 25
+            message: "독버섯을 먹자 온몸이 뒤틀렸다!"
+          - type: "buff"
+            buff_id: "toxic_resistance"
+            duration: 60
+            message: "...그러나 살아남았다. 독에 대한 저항이 생긴 것 같다."
+
+  - id: "forest_trial"
+    name: "숲의 시험"
+    category: "story"
+    region: "forest"
+    description: "숲 한가운데 빛나는 제단이 있다. 목소리가 들린다. '이 숲을 통과하려면 시험을 통과해야 한다.'"
+    weight: 9
+    cooldown_steps: 400
+    once_only: true
+    choices:
+      - text: "시험을 받아들인다"
+        requirements: {}
+        outcomes:
+          - type: "battle"
+            enemy_id: "forest_guardian"
+            enemy_level: 5
+          - type: "reward"
+            exp: 600
+            items: ["forest_pass", "guardian_essence"]
+            message: "수호자를 이겨냈다. 숲의 정령이 통과를 허락하며 정수를 주었다."
+      - text: "지혜로 시험에 답한다"
+        requirements:
+          has_job: "scholar"
+        outcomes:
+          - type: "reward"
+            exp: 800
+            items: ["wisdom_leaf", "forest_pass"]
+            affinity_gain: 6
+            message: "지혜의 말로 수호자를 납득시켰다. 싸움 없이 시험을 통과했다."
+      - text: "시험을 거부하고 강행 돌파한다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 20
+            message: "숲이 방해했다. 가시덤불과 나무뿌리에 걸려 상처를 입었다."
+
+  # ============================================================
+  # 산악 지역 이벤트
+  # ============================================================
+
+  - id: "rockfall_danger"
+    name: "낙석 위험"
+    category: "trap"
+    region: "mountain"
+    description: "산 위에서 돌이 굴러떨어지기 시작한다. 산사태가 일어나고 있다!"
+    weight: 15
+    cooldown_steps: 150
+    once_only: false
+    choices:
+      - text: "전속력으로 달린다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 15
+            message: "낙석 몇 개에 맞았지만 통과했다."
+      - text: "방어막을 펼친다"
+        requirements:
+          has_job: "knight"
+        outcomes:
+          - type: "damage"
+            damage_percent: 5
+            message: "방패로 파티를 보호하며 낙석 지대를 통과했다."
+      - text: "마법으로 낙석을 막는다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "neutral"
+            exp: 100
+            message: "마법으로 낙석들을 튕겨냈다. 무사히 통과했다."
+      - text: "동굴을 찾아 피한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "근처 동굴에서 낙석이 멈출 때까지 기다렸다. 시간이 걸렸지만 안전했다."
+
+  - id: "mountain_bandit_ambush"
+    name: "산적 매복"
+    category: "trap"
+    region: "mountain"
+    description: "산길 양쪽에서 산적들이 튀어나왔다. '통행료를 내시오!'"
+    weight: 14
+    cooldown_steps: 160
+    once_only: false
+    choices:
+      - text: "싸운다"
+        requirements: {}
+        outcomes:
+          - type: "battle"
+            enemy_id: "mountain_bandit"
+            enemy_level: 4
+          - type: "reward"
+            gold: 300
+            items: ["bandit_loot"]
+            message: "산적들을 물리쳤다. 그들이 모아둔 전리품을 가져왔다."
+      - text: "통행료를 낸다"
+        requirements:
+          min_gold: 200
+        outcomes:
+          - type: "reward"
+            gold: -200
+            message: "통행료를 냈다. 번거롭지만 시간을 아꼈다."
+      - text: "허세를 부려 겁을 준다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "강하게 위협하자 산적들이 주춤하다 도망쳤다."
+          - type: "reward"
+            exp: 100
+            message: "싸우지 않고 이겨냈다."
+      - text: "도적 기술로 그들의 방심을 노린다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 500
+            items: ["stolen_treasure_map"]
+            message: "산적 두목의 지갑을 털고 보물 지도까지 빼앗았다."
+
+  - id: "hermit_cave"
+    name: "은자의 동굴"
+    category: "story"
+    region: "mountain"
+    description: "외딴 동굴 입구에 '방해하지 마시오'라는 팻말이 있다. 하지만 안에서 기침 소리가 들린다."
+    weight: 8
+    cooldown_steps: 350
+    once_only: true
+    choices:
+      - text: "들어가서 노인을 돕는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 300
+            items: ["hermit_wisdom_scroll", "mountain_herb"]
+            affinity_gain: 6
+            message: "은자 노인이 처음에는 화를 냈지만 도움을 받고 귀한 지식을 전해주었다."
+      - text: "팻말을 존중하고 돌아간다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "respect_karma"
+            duration: 30
+            message: "팻말을 존중하고 돌아갔다. 왠지 좋은 일이 생길 것 같다."
+      - text: "의사라면 병을 치료해준다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["ancient_technique_scroll", "rare_mountain_crystal"]
+            affinity_gain: 8
+            message: "노인의 병을 고쳐주었다. 노인은 수십 년간 갈고 닦은 비전 기술을 전수해주었다."
+
+  # ============================================================
+  # 사막 지역 이벤트
+  # ============================================================
+
+  - id: "mirage"
+    name: "신기루"
+    category: "trap"
+    region: "desert"
+    description: "저 멀리 오아시스가 보인다. 하지만 뭔가 이상하다. 신기루일 수도 있다."
+    weight: 13
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "오아시스를 향해 달려간다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 10
+            message: "오아시스가 사라졌다. 신기루였다. 헛걸음에 체력이 소진되었다."
+      - text: "마법으로 진위를 확인한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "neutral"
+            message: "마법 감지로 신기루임을 확인했다. 소중한 체력을 아꼈다."
+      - text: "경험으로 판단한다"
+        requirements:
+          min_level: 10
+        outcomes:
+          - type: "neutral"
+            exp: 50
+            message: "경험 덕분에 신기루를 바로 알아챘다."
+      - text: "도전해서 가본다 (혹시 모르니)"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 100
+            items: ["desert_pearl"]
+            message: "신기루인 줄 알았는데 실제 오아시스 근처에서 사막 진주를 발견했다!"
+
+  - id: "oasis_discovery"
+    name: "오아시스 발견"
+    category: "hidden_treasure"
+    region: "desert"
+    description: "진짜 오아시스를 발견했다! 맑은 물과 야자수가 있는 아름다운 오아시스다."
+    weight: 8
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "물을 마시고 쉰다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 40
+            message: "오아시스의 맑은 물이 파티를 회복시켰다."
+      - text: "오아시스를 탐색한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["oasis_water_flask", "desert_fruit"]
+            message: "오아시스에서 물통을 채우고 과일을 수확했다."
+      - text: "오아시스에서 오래 머문다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 100
+            message: "충분한 휴식 후 완전히 회복되었다."
+          - type: "reward"
+            exp: 100
+            message: "사막에서 살아남는 법을 몸으로 익혔다."
+
+  - id: "sandstorm"
+    name: "모래 폭풍"
+    category: "trap"
+    region: "desert"
+    description: "지평선 너머로 거대한 모래 폭풍이 몰려오고 있다. 빠르게 결정해야 한다!"
+    weight: 14
+    cooldown_steps: 140
+    once_only: false
+    choices:
+      - text: "천을 두르고 엎드려 버틴다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 12
+            message: "모래 폭풍이 지나갔다. 온몸이 모래투성이가 되었다."
+      - text: "바위 뒤에 숨는다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "바위를 방패 삼아 폭풍을 막았다."
+      - text: "바람 마법으로 맞선다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "reward"
+            exp: 250
+            items: ["wind_essence"]
+            message: "바람 마법으로 폭풍을 분산시켰다. 원소 정수를 얻었다."
+      - text: "시간 마법으로 멈춘다"
+        requirements:
+          has_job: "time_mage"
+        outcomes:
+          - type: "reward"
+            exp: 400
+            items: ["frozen_sand_crystal"]
+            message: "폭풍을 일시 정지시켰다. 시간이 멈춘 모래 결정이 생성되었다."
+
+  # ============================================================
+  # 해안 지역 이벤트
+  # ============================================================
+
+  - id: "shipwreck_search"
+    name: "난파선 탐색"
+    category: "hidden_treasure"
+    region: "coast"
+    description: "해안에 오래된 난파선이 좌초해 있다. 화물이 남아있을 수도 있다."
+    weight: 10
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "난파선에 올라가 탐색한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 400
+            items: ["sailor_chest", "old_compass"]
+            message: "난파선에서 금화와 낡은 나침반을 찾았다."
+          - type: "damage"
+            damage_percent: 8
+            message: "낡은 갑판이 부서지며 발을 다쳤다."
+      - text: "수영해서 선창에 들어간다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 800
+            items: ["sunken_treasure", "pearl_necklace"]
+            message: "선창 깊숙한 곳에서 보물 상자를 발견했다!"
+      - text: "피해 간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "위험해 보이는 난파선을 피해 지나쳤다."
+
+  - id: "mermaid_song"
+    name: "인어의 노래"
+    category: "story"
+    region: "coast"
+    description: "바다에서 아름다운 노래가 들려온다. 바위 위에 앉은 인어가 노래하고 있다."
+    weight: 7
+    cooldown_steps: 400
+    once_only: true
+    choices:
+      - text: "노래에 귀를 기울인다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "sea_blessing"
+            duration: 60
+            exp: 200
+            message: "인어의 노래가 파티의 마음을 치유했다."
+      - text: "인어에게 말을 건다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["mermaid_scale", "ocean_pearl"]
+            exp: 300
+            affinity_gain: 5
+            message: "인어가 신기해하며 비늘 하나와 진주를 선물로 주었다."
+      - text: "노래에 빠져들다 (위험)"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 20
+            message: "노래에 홀려 바다로 걸어들어가다 파도에 쓸렸다."
+          - type: "debuff"
+            debuff_id: "enchanted"
+            duration: 8
+            message: "인어 마법에 홀린 상태가 되었다."
+
+  - id: "pirate_treasure_map"
+    name: "해적의 보물 지도"
+    category: "hidden_treasure"
+    region: "coast"
+    description: "병 속에 든 메모를 발견했다. '이 지도를 따라가면 보물이 있다... 만약 살아있다면'"
+    weight: 8
+    cooldown_steps: 350
+    once_only: true
+    choices:
+      - text: "지도를 따라간다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 1500
+            items: ["pirate_treasure_chest"]
+            exp: 400
+            message: "지도가 진짜였다! 해적의 보물을 발견했다."
+      - text: "지도를 분석한다"
+        requirements:
+          has_job: "scholar"
+        outcomes:
+          - type: "reward"
+            gold: 2000
+            items: ["legendary_pirate_artifact"]
+            exp: 600
+            message: "지도의 암호를 해독해 진짜 보물 위치를 찾아냈다."
+      - text: "지도를 버린다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "함정일 수도 있다고 생각해 지도를 버렸다."
+
+  # ============================================================
+  # 설원 지역 이벤트
+  # ============================================================
+
+  - id: "blizzard"
+    name: "눈보라"
+    category: "trap"
+    region: "snowfield"
+    description: "갑자기 시야가 하얗게 변하며 강한 눈보라가 몰아친다. 온도가 급격히 떨어진다."
+    weight: 15
+    cooldown_steps: 130
+    once_only: false
+    choices:
+      - text: "몸을 웅크리고 버틴다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 15
+            message: "눈보라가 지나가는 동안 동상에 걸릴 뻔했다."
+          - type: "debuff"
+            debuff_id: "frostbitten"
+            duration: 8
+            message: "한기가 몸속으로 파고들었다."
+      - text: "눈 굴을 만들어 피신한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "눈 굴 속에서 눈보라가 지나갈 때까지 기다렸다."
+      - text: "불 마법으로 온기를 만든다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "neutral"
+            exp: 120
+            message: "불 마법으로 파티를 따뜻하게 했다. 눈보라도 무서울 것이 없다."
+
+  - id: "frozen_traveler"
+    name: "얼어붙은 여행자"
+    category: "npc_rescue"
+    region: "snowfield"
+    description: "눈 속에 반쯤 묻힌 사람이 있다. 살아있는 것 같지만 빠르게 행동하지 않으면 위험하다."
+    weight: 11
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "불을 피워 녹인다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 300
+            items: ["snowfield_map", "fur_cloak"]
+            affinity_gain: 5
+            message: "여행자가 의식을 회복했다. 감사의 표시로 설원 지도와 모피 외투를 건넸다."
+      - text: "불의 마법으로 빠르게 해동한다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "reward"
+            gold: 600
+            items: ["snowfield_map", "ice_staff", "warm_rune"]
+            exp: 200
+            affinity_gain: 7
+            message: "여행자를 빠르게 녹였다. 감사히 지팡이와 온기 룬을 건넸다."
+      - text: "그냥 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: -5
+            message: "차가운 마음으로 지나쳤다."
+
+  - id: "ice_spirit"
+    name: "얼음 정령"
+    category: "story"
+    region: "snowfield"
+    description: "눈보라 속에서 반투명한 얼음 형상이 모습을 드러냈다. 설원의 수호 정령인 것 같다."
+    weight: 7
+    cooldown_steps: 450
+    once_only: true
+    choices:
+      - text: "정령에게 경의를 표한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "ice_resistance"
+            duration: 100
+            exp: 300
+            message: "얼음 정령이 고개를 숙이며 설원의 보호를 허락했다."
+      - text: "정령에게 길을 물어본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["ice_spirit_guide"]
+            message: "정령이 안전한 길을 가리켜 주었다. 맵에 표시되었다."
+      - text: "정령과 싸운다"
+        requirements: {}
+        outcomes:
+          - type: "battle"
+            enemy_id: "ice_spirit_guardian"
+            enemy_level: 8
+          - type: "reward"
+            items: ["spirit_ice_crystal"]
+            exp: 500
+            message: "정령을 이겼지만... 설원이 더 차갑게 느껴진다."
+
+  # ============================================================
+  # 화산 지역 이벤트
+  # ============================================================
+
+  - id: "lava_eruption"
+    name: "용암 분출"
+    category: "trap"
+    region: "volcano"
+    description: "갑자기 땅이 갈라지며 붉은 용암이 분출하기 시작한다!"
+    weight: 14
+    cooldown_steps: 140
+    once_only: false
+    choices:
+      - text: "사방으로 달린다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 18
+            message: "용암을 피해 달렸지만 열기에 화상을 입었다."
+      - text: "땅의 흐름을 읽어 피한다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "neutral"
+            exp: 150
+            message: "자연의 흐름을 읽어 용암이 나오기 직전에 피해났다."
+      - text: "불 마법으로 용암을 흡수한다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "heal"
+            heal_percent: 20
+            message: "용암의 화력을 마법력으로 변환해 흡수했다!"
+          - type: "reward"
+            items: ["lava_essence"]
+            message: "용암 정수를 얻었다."
+
+  - id: "fire_trial"
+    name: "불의 시험"
+    category: "story"
+    region: "volcano"
+    description: "화산 중턱의 신전에서 불꽃 문자가 타오른다. '진정한 자만이 이 불을 통과할 수 있다.'"
+    weight: 7
+    cooldown_steps: 500
+    once_only: true
+    choices:
+      - text: "불 속으로 걸어 들어간다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 30
+            message: "불꽃이 온몸을 태웠다."
+          - type: "reward"
+            exp: 500
+            items: ["fire_trial_mark"]
+            message: "그럼에도 통과했다. 용기의 증표를 받았다."
+      - text: "불꽃을 다루는 자로서 통과한다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "reward"
+            exp: 800
+            items: ["flame_mastery_gem", "volcano_blessing"]
+            message: "불꽃이 길을 열어주었다. 화염 대가의 증표를 얻었다."
+      - text: "돌아간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "아직 때가 아닌 것 같다."
+
+  - id: "ancient_dragon_trace"
+    name: "고대 드래곤의 흔적"
+    category: "story"
+    region: "volcano"
+    description: "거대한 비늘이 화산 암반에 꽂혀있다. 이 크기라면 수천 년 전의 고대 드래곤 것이 분명하다."
+    weight: 6
+    cooldown_steps: 600
+    once_only: true
+    choices:
+      - text: "비늘을 뽑아 가져간다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["ancient_dragon_scale"]
+            exp: 400
+            message: "고대 드래곤의 비늘을 얻었다. 세상에서 가장 단단한 방어구의 재료가 될 것이다."
+      - text: "비늘 앞에서 경의를 표한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "dragon_aura"
+            duration: 80
+            exp: 300
+            message: "드래곤의 기운이 파티에게 스며들었다. 경외심이 힘이 되었다."
+      - text: "용의 언어로 의식을 치른다"
+        requirements:
+          has_job: "dragon_knight"
+        outcomes:
+          - type: "reward"
+            exp: 1000
+            items: ["dragon_blood_crystal", "ancient_dragon_scale"]
+            message: "드래곤의 영혼이 응답했다. 고대의 힘이 깨어났다."
+
+  # ============================================================
+  # 도시/마을 근교 이벤트
+  # ============================================================
+
+  - id: "pickpocket"
+    name: "소매치기"
+    category: "trap"
+    region: "town"
+    description: "북적이는 시장에서 누군가 스쳐지나갔다. 지갑이 가벼워진 것 같다!"
+    weight: 13
+    cooldown_steps: 120
+    once_only: false
+    choices:
+      - text: "소매치기를 추격한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 150
+            message: "소매치기를 잡아 빼앗긴 돈을 되찾았다."
+          - type: "damage"
+            damage_percent: 3
+            message: "추격전에서 사람들과 부딪혔다."
+      - text: "도적이라면 더 빠르게 잡는다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 200
+            items: ["stolen_goods"]
+            message: "소매치기를 순식간에 잡고 오히려 그의 훔친 물건까지 회수했다."
+      - text: "그냥 포기한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: -150
+            message: "소매치기에게 돈을 잃었다."
+
+  - id: "street_musician"
+    name: "거리 음악가"
+    category: "story"
+    region: "town"
+    description: "길모퉁이에서 악사가 아름다운 멜로디를 연주하고 있다. 지나가는 사람들이 발을 멈춘다."
+    weight: 11
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "동전을 넣어준다"
+        requirements:
+          min_gold: 10
+        outcomes:
+          - type: "buff"
+            buff_id: "music_inspiration"
+            duration: 40
+            affinity_gain: 2
+            message: "음악가가 특별한 곡을 연주해주었다. 용기와 힘이 솟는다."
+      - text: "음악가와 함께 연주한다 (음유시인)"
+        requirements:
+          has_job: "bard"
+        outcomes:
+          - type: "reward"
+            gold: 300
+            exp: 200
+            items: ["musical_score"]
+            affinity_gain: 5
+            message: "함께 연주하며 주변 사람들이 모여들었다. 자연스럽게 공연료를 받았다."
+      - text: "그냥 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "아름다운 음악이 멀어진다."
+
+  - id: "informant_deal"
+    name: "정보상의 거래"
+    category: "merchant"
+    region: "town"
+    description: "후드 달린 망토를 쓴 인물이 다가온다. '정보 하나 사지 않겠소? 아주 귀한 것이요.'"
+    weight: 9
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "정보를 구매한다"
+        requirements:
+          min_gold: 300
+        outcomes:
+          - type: "reward"
+            gold: -300
+            items: ["dungeon_intelligence", "enemy_weakness_report"]
+            message: "귀한 정보를 얻었다. 앞으로의 탐험에 도움이 될 것이다."
+      - text: "정보상을 심문한다"
+        requirements:
+          has_job: "knight"
+        outcomes:
+          - type: "reward"
+            items: ["criminal_ledger"]
+            message: "기사 권위로 정보상을 심문해 숨겨진 범죄 장부를 압수했다."
+      - text: "거절한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "정보상이 어깨를 으쓱하고 사라졌다."
+
+  - id: "cursed_well"
+    name: "저주받은 우물"
+    category: "hidden_treasure"
+    region: "town"
+    description: "마을 광장의 오래된 우물에서 이상한 소리가 들린다. 우물 안에 빛이 반짝인다."
+    weight: 9
+    cooldown_steps: 280
+    once_only: false
+    choices:
+      - text: "우물 안을 들여다본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 200
+            items: ["well_coin"]
+            message: "우물 바닥에 동전들이 잔뜩 있었다. 소원을 빌며 던진 것들이리라."
+          - type: "debuff"
+            debuff_id: "cursed"
+            duration: 5
+            message: "우물의 저주가 깃들었다."
+      - text: "우물에 소원을 빈다"
+        requirements:
+          min_gold: 10
+        outcomes:
+          - type: "heal"
+            heal_percent: 25
+            message: "동전을 던지자 따뜻한 빛이 우물에서 솟아올랐다."
+      - text: "우물을 정화한다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "reward"
+            gold: 500
+            items: ["purified_well_water", "village_gratitude_token"]
+            affinity_gain: 6
+            exp: 250
+            message: "우물의 저주를 정화했다. 마을 사람들이 크게 기뻐했다."
+
+  - id: "traveling_circus"
+    name: "순회 서커스단"
+    category: "story"
+    region: "town"
+    description: "화려한 마차 행렬이 지나간다. '구경꾼 환영! 단원 모집 중!' 이라는 현수막이 보인다."
+    weight: 8
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "공연을 관람한다"
+        requirements:
+          min_gold: 50
+        outcomes:
+          - type: "buff"
+            buff_id: "entertained"
+            duration: 30
+            message: "화려한 공연에 감탄했다. 기분이 좋아져 전투 의욕이 올랐다."
+      - text: "서커스단에 참여한다"
+        requirements:
+          has_job: "bard"
+        outcomes:
+          - type: "reward"
+            gold: 400
+            exp: 300
+            items: ["circus_costume", "acrobat_ribbon"]
+            message: "음유시인의 끼를 발휘해 관객들의 환호를 받았다."
+      - text: "서커스단 뒤를 캔다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            items: ["circus_secret_trick"]
+            exp: 150
+            message: "서커스단의 비밀 트릭을 몰래 훔쳐봤다. 특기가 늘었다."
+
+  - id: "mysterious_fortune_teller"
+    name: "수수께끼의 점쟁이"
+    category: "story"
+    region: "town"
+    description: "천막 안에서 점쟁이가 손짓한다. '당신들의 미래가 보입니다...'"
+    weight: 10
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "운세를 본다"
+        requirements:
+          min_gold: 50
+        outcomes:
+          - type: "buff"
+            buff_id: "fortune_told"
+            duration: 50
+            message: "점쟁이가 당신의 행운의 날을 알려주었다. 잠시 동안 운이 좋아질 것이다."
+      - text: "점쟁이를 시험해본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 150
+            message: "점쟁이가 맞추지 못했지만... 아니면 맞춘 것인지 알 수 없었다."
+      - text: "점쟁이에게 묻는다: 이 여정의 끝은?"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["prophecy_fragment"]
+            exp: 200
+            message: "점쟁이의 눈이 흐려졌다. '...반드시 선택의 순간이 온다.' 암호 같은 예언을 들었다."
+
+  # ============================================================
+  # 상인 이벤트 (지역)
+  # ============================================================
+
+  - id: "traveling_apothecary"
+    name: "순회 약제상"
+    category: "merchant"
+    region: "grassland"
+    description: "약초 향기를 풍기는 마차가 길가에 서 있다. 약제상이 손을 흔들며 인사한다."
+    weight: 12
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "약을 구경한다"
+        requirements: {}
+        outcomes:
+          - type: "shop"
+            items: ["healing_potion", "antidote", "stamina_herb", "mana_potion", "revival_herb"]
+            message: "약제상의 물건들이 잘 정리되어 있다."
+      - text: "연금술사라면 재료를 교환한다"
+        requirements:
+          has_job: "alchemist"
+        outcomes:
+          - type: "shop"
+            items: ["rare_catalyst", "alchemist_primer", "transmutation_stone", "philosopher_seed"]
+            message: "동료 연금술사로서 특별한 재료를 보여주었다."
+      - text: "그냥 인사하고 간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "약제상이 안전한 여행을 빌어주었다."
+
+  - id: "black_market_dealer"
+    name: "암시장 거래상"
+    category: "merchant"
+    region: "town"
+    description: "어두운 골목에서 누군가 조심스럽게 손짓한다. '좋은 물건 있어요... 공식 상점에서는 못 파는 것들.'"
+    weight: 8
+    cooldown_steps: 350
+    once_only: false
+    choices:
+      - text: "물건을 살펴본다"
+        requirements:
+          min_gold: 200
+        outcomes:
+          - type: "shop"
+            items: ["forbidden_scroll", "shadow_blade", "cursed_ring_strong", "poison_kit", "smuggled_artifact"]
+            message: "암시장의 물건들이다. 강력하지만 위험할 수도 있다."
+      - text: "거래상을 체포한다"
+        requirements:
+          has_job: "knight"
+        outcomes:
+          - type: "reward"
+            gold: 500
+            exp: 200
+            items: ["confiscated_goods"]
+            affinity_gain: 4
+            message: "기사로서 암시장 거래상을 체포하고 압수품을 확보했다."
+      - text: "그냥 자리를 피한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "관계없는 일이다."
+
+  - id: "wandering_blacksmith"
+    name: "떠돌이 대장장이"
+    category: "merchant"
+    region: "mountain"
+    description: "짐 한가득 연장을 멘 대장장이가 산길을 오르고 있다. '무기 손질 해드릴까요?'"
+    weight: 10
+    cooldown_steps: 220
+    once_only: false
+    choices:
+      - text: "무기를 수리해달라고 한다"
+        requirements:
+          min_gold: 100
+        outcomes:
+          - type: "reward"
+            gold: -100
+            items: ["repaired_weapon_token"]
+            message: "대장장이가 무기를 꼼꼼히 정비해주었다."
+      - text: "특산 재료로 무기를 개조한다"
+        requirements:
+          min_gold: 500
+          has_item: "rare_ore"
+        outcomes:
+          - type: "reward"
+            gold: -500
+            items: ["custom_forged_weapon"]
+            message: "대장장이가 특별한 재료를 보고 눈을 빛냈다. 훌륭한 무기가 탄생했다."
+      - text: "수다나 떤다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            exp: 50
+            message: "대장장이의 여행담을 들었다. 유익한 정보도 조금 얻었다."
+
+  - id: "desert_caravan"
+    name: "사막 카라반"
+    category: "merchant"
+    region: "desert"
+    description: "낙타를 탄 상인 무리가 사막을 가로지르고 있다. '이 지역 특산품 있어요!'"
+    weight: 11
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "사막 특산품을 구매한다"
+        requirements:
+          min_gold: 150
+        outcomes:
+          - type: "shop"
+            items: ["desert_spice", "sand_crystal", "oasis_water_flask", "camel_leather", "sun_stone"]
+            message: "카라반의 사막 특산품들이다."
+      - text: "카라반에 합류해 이동한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "caravan_safety"
+            duration: 60
+            message: "카라반과 함께 이동하니 사막의 위험이 줄었다."
+      - text: "정보를 교환한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["desert_route_map"]
+            message: "카라반이 안전한 사막 경로를 알려주었다."
+
+  - id: "sea_trader"
+    name: "해상 무역상"
+    category: "merchant"
+    region: "coast"
+    description: "배에서 내린 무역상이 수레를 끌고 있다. '먼 나라에서 온 물건들이오!'"
+    weight: 9
+    cooldown_steps: 240
+    once_only: false
+    choices:
+      - text: "이국의 물건을 살펴본다"
+        requirements:
+          min_gold: 300
+        outcomes:
+          - type: "shop"
+            items: ["exotic_spice", "foreign_sword", "sea_glass_charm", "ocean_rune", "sailor_coat"]
+            message: "먼 나라의 희귀한 물건들이다."
+      - text: "해상 정보를 구한다"
+        requirements:
+          min_gold: 100
+        outcomes:
+          - type: "reward"
+            gold: -100
+            items: ["sea_route_chart", "treasure_island_hint"]
+            message: "무역상에게 해상 루트와 전설의 섬에 대한 정보를 샀다."
+      - text: "그냥 구경만 한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "이국적인 물건들을 눈으로만 구경했다."
+
+  # ============================================================
+  # 추가 지역 이벤트
+  # ============================================================
+
+  - id: "battlefield_remains"
+    name: "과거 전장의 흔적"
+    category: "story"
+    region: "grassland"
+    description: "들판에 오래된 검과 갑옷 파편들이 흩어져 있다. 오래 전 큰 전투가 있었던 것 같다."
+    weight: 8
+    cooldown_steps: 300
+    once_only: true
+    choices:
+      - text: "유물을 수집한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["rusted_hero_sword", "battle_memoir"]
+            exp: 200
+            message: "전장의 유물을 수집했다. 역사학자들이 관심을 가질 만한 물건들이다."
+      - text: "전사들을 위해 묵념한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "warrior_spirit"
+            duration: 50
+            exp: 150
+            affinity_gain: 3
+            message: "쓰러진 전사들의 혼이 파티를 응원하는 것 같다."
+      - text: "전장의 마력을 감지한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "reward"
+            exp: 300
+            items: ["battle_residue_crystal"]
+            message: "격전의 마력이 아직 잔류하고 있었다. 수정에 담아냈다."
+
+  - id: "snowfield_ancient_ruins"
+    name: "설원의 고대 유적"
+    category: "story"
+    region: "snowfield"
+    description: "눈 속에 반쯤 묻힌 석조 구조물이 보인다. 누가 이 눈보라 속에 건물을 지었을까."
+    weight: 7
+    cooldown_steps: 400
+    once_only: true
+    choices:
+      - text: "유적을 탐사한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 350
+            items: ["frozen_relic", "snowfield_history_tablet"]
+            message: "유적 안에서 이 땅의 오래된 역사를 담은 석판을 발견했다."
+      - text: "유적의 마법을 분석한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["cryomancy_scroll", "frost_rune"]
+            message: "빙결 마법이 유적을 지키고 있었다. 분석해 냉기 마법 두루마리를 얻었다."
+
+  - id: "volcano_fire_guardian"
+    name: "화산의 불꽃 수호자"
+    category: "npc_rescue"
+    region: "volcano"
+    description: "불꽃에 휩싸인 인간형 존재가 괴로워하고 있다. 저주에 걸린 것인지 불이 꺼질 줄 모른다."
+    weight: 6
+    cooldown_steps: 500
+    once_only: true
+    choices:
+      - text: "저주를 해제해준다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "reward"
+            exp: 600
+            items: ["fire_guardian_emblem", "volcanic_blessing_stone"]
+            affinity_gain: 8
+            message: "사제의 정화로 저주가 풀렸다. 수호자가 감사히 증표를 건넸다."
+      - text: "물 마법으로 불을 끈다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["extinguished_flame_core"]
+            affinity_gain: 5
+            message: "원소 마법으로 불꽃을 제어했다. 수호자가 안도하며 불꽃의 핵심을 남겼다."
+      - text: "위험하니 거리를 둔다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "불꽃 존재를 멀리서 지켜보다 지나쳤다."
+
+  # ============================================================
+  # 동굴 지역 이벤트
+  # ============================================================
+
+  - id: "cave_echo"
+    name: "메아리"
+    category: "mystery"
+    region: "cave"
+    description: "동굴 깊은 곳에서 이상한 메아리가 들려온다. 누군가의 목소리 같기도 하고, 바람 소리 같기도 하다."
+    weight: 14
+    cooldown_steps: 150
+    once_only: false
+    choices:
+      - text: "소리를 따라간다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 80
+            message: "메아리를 따라가니 이전 모험가가 남긴 보급품이 있었다."
+          - type: "damage"
+            damage_percent: 8
+            message: "메아리에 이끌려 함정에 빠졌다. 다행히 크게 다치진 않았다."
+      - text: "조용히 귀를 기울인다"
+        requirements:
+          has_job: "monk"
+        outcomes:
+          - type: "buff"
+            buff_id: "cave_sense"
+            duration: 30
+            message: "내면의 감각을 집중하니 동굴의 구조가 머릿속에 그려진다."
+      - text: "무시하고 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "메아리를 뒤로하고 조용히 길을 재촉했다."
+
+  - id: "glowing_mushroom"
+    name: "빛나는 버섯"
+    category: "hidden_treasure"
+    region: "cave"
+    description: "동굴 벽면에 은은하게 빛나는 버섯 군락이 자라고 있다. 신비로운 광채가 주변을 밝힌다."
+    weight: 12
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "버섯을 채집한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["glowing_mushroom"]
+            message: "조심스럽게 빛나는 버섯을 채집했다. 연금술 재료로 쓸 수 있을 것이다."
+      - text: "드루이드로서 버섯의 힘을 끌어낸다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "heal"
+            heal_percent: 25
+            message: "자연의 힘을 통해 버섯의 치유 에너지를 끌어냈다."
+      - text: "지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "아름다운 광경을 감상하고 길을 계속했다."
+
+  - id: "cave_collapse"
+    name: "낙석 위험"
+    category: "trap"
+    region: "cave"
+    description: "천장에서 작은 돌멩이가 떨어지고 있다. 곧 대규모 낙석이 일어날 것 같다."
+    weight: 10
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "재빨리 뛰어서 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 12
+            message: "낙석 사이를 뛰어 지나갔지만 파편에 맞았다."
+          - type: "neutral"
+            exp: 30
+            message: "간발의 차로 낙석을 피했다! 재빠른 판단이었다."
+      - text: "마법으로 바위를 지탱한다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "neutral"
+            exp: 80
+            message: "원소 마법으로 천장을 지탱하고 안전하게 지나갔다."
+      - text: "다른 길을 찾는다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "돌아가서 다른 안전한 경로를 찾았다."
+
+  # ============================================================
+  # 황무지 지역 이벤트
+  # ============================================================
+
+  - id: "battlefield_relic"
+    name: "전장의 유물"
+    category: "hidden_treasure"
+    region: "wasteland"
+    description: "오래된 전장의 흔적이 남아있다. 녹슨 무기와 갑옷 조각 사이로 무언가 반짝인다."
+    weight: 13
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "유물을 발굴한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 150
+            items: ["ancient_war_medal"]
+            message: "전쟁 영웅의 훈장을 발견했다. 역사적 가치가 있는 물건이다."
+      - text: "기사로서 전사자에게 경의를 표한다"
+        requirements:
+          has_job: "knight"
+        outcomes:
+          - type: "buff"
+            buff_id: "warriors_honor"
+            duration: 40
+            message: "쓰러진 전사들에게 경의를 표하니 전투 의지가 불타올랐다."
+      - text: "건드리지 않고 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "전쟁의 흔적을 뒤로하고 묵묵히 걸었다."
+
+  - id: "wasteland_survivor"
+    name: "황무지 생존자"
+    category: "npc_rescue"
+    region: "wasteland"
+    description: "먼지바람 속에서 쓰러진 여행자를 발견했다. 탈수와 피로로 의식이 희미하다."
+    weight: 11
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "물을 나눠주고 응급처치한다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: -5
+            message: "물을 나눠준 탓에 조금 지쳤지만, 여행자가 감사의 표시로 지도를 줬다."
+          - type: "reward"
+            gold: 60
+            message: "여행자가 고마워하며 노잣돈을 남겼다."
+      - text: "성직자로서 치유 기도를 올린다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "heal"
+            heal_percent: 10
+            message: "신성한 기도로 여행자와 파티 모두 치유되었다."
+      - text: "모른 척 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "마음이 무거웠지만 발걸음을 재촉했다."
+
+  - id: "dust_storm"
+    name: "먼지 폭풍"
+    category: "challenge"
+    region: "wasteland"
+    description: "거대한 먼지 폭풍이 몰려오고 있다! 곧 시야가 완전히 차단될 것이다."
+    weight: 10
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "폭풍에 맞서 전진한다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 15
+            message: "먼지 폭풍을 뚫고 전진했지만 상당한 피해를 입었다."
+          - type: "reward"
+            exp: 100
+            message: "폭풍을 뚫고 나오니 숨겨진 유적을 발견했다!"
+      - text: "시간마법으로 폭풍을 멈춘다"
+        requirements:
+          has_job: "time_mage"
+        outcomes:
+          - type: "neutral"
+            exp: 120
+            message: "시간의 흐름을 늦춰 폭풍이 지나갈 때까지 안전하게 기다렸다."
+      - text: "엄폐물 뒤에 숨는다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "바위 뒤에 몸을 숨기고 폭풍이 지나가길 기다렸다."
+
+  # ============================================================
+  # 별빛 지역 이벤트
+  # ============================================================
+
+  - id: "stellar_fragment"
+    name: "별의 파편"
+    category: "hidden_treasure"
+    region: "stellar"
+    description: "하늘에서 떨어진 별의 파편이 은은한 빛을 내고 있다. 강력한 마력이 느껴진다."
+    weight: 10
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "파편을 주워 담는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["stellar_fragment"]
+            exp: 150
+            message: "별의 파편을 손에 넣었다. 우주의 기운이 온몸을 감싼다."
+      - text: "차원술사로서 파편의 비밀을 읽는다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            exp: 300
+            items: ["stellar_essence"]
+            message: "차원의 눈으로 파편 속 우주의 기억을 읽어냈다."
+      - text: "만지지 않는다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "알 수 없는 에너지에 조심스러워 지나쳤다."
+
+  - id: "constellation_guide"
+    name: "별자리의 인도"
+    category: "blessing"
+    region: "stellar"
+    description: "밤하늘의 별자리가 유독 밝게 빛나며 길을 가리키는 것 같다. 신비로운 기운이 감돈다."
+    weight: 12
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "별자리가 가리키는 방향으로 간다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "starlight_blessing"
+            duration: 50
+            message: "별빛의 축복을 받았다! 전투에서 더 강해질 것이다."
+      - text: "점성술로 별자리를 해석한다"
+        requirements:
+          has_job: "philosopher"
+        outcomes:
+          - type: "heal"
+            heal_percent: 20
+            exp: 200
+            message: "별자리의 의미를 해석하니 우주의 치유력이 쏟아졌다."
+      - text: "무시하고 원래 길을 간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "아름다운 별하늘을 올려다보며 길을 계속했다."
+
+  - id: "void_rift"
+    name: "허공의 균열"
+    category: "mystery"
+    region: "stellar"
+    description: "공간에 작은 균열이 생겼다. 균열 너머로 다른 차원의 풍경이 어렴풋이 보인다."
+    weight: 8
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "균열 속으로 손을 넣어본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["void_crystal"]
+            message: "균열 속에서 허공의 결정을 꺼냈다!"
+          - type: "damage"
+            damage_percent: 20
+            message: "균열에서 뿜어져 나온 에너지에 튕겨나갔다!"
+      - text: "차원술사로서 균열을 안정시킨다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            exp: 250
+            items: ["dimensional_shard"]
+            affinity_gain: 3
+            message: "차원의 힘으로 균열을 안정시키고, 차원 파편을 얻었다."
+      - text: "위험하니 피한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "균열에서 멀찍이 물러나 안전한 길로 우회했다."
+
+  # ============================================================
+  # 숲 지역 추가 이벤트
+  # ============================================================
+
+  - id: "forest_ancient_ruins"
+    name: "숲 속의 고대 유적"
+    category: "mystery"
+    region: "forest"
+    description: "울창한 숲 깊숙이 이끼로 뒤덮인 고대 유적이 나타난다. 문명의 흔적인지, 마법의 산물인지 알 수 없는 문양들이 돌벽에 가득 새겨져 있다. 내부에서 희미한 마력이 느껴진다."
+    weight: 12
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "유적 내부를 탐색한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 150
+            items: ["ancient_scroll"]
+            exp: 80
+            message: "유적 내부에서 오래된 두루마리와 금화를 발견했다."
+      - text: "마법 문양을 해독한다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "buff"
+            buff_id: "arcane_insight"
+            duration: 60
+            message: "원소술사의 능력으로 문양을 해독해 고대 마법의 비전을 얻었다."
+      - text: "함정이 있을 수 있으니 조심스럽게 살핀다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 200
+            exp: 60
+            message: "도적의 예리한 눈으로 함정을 피하고 숨겨진 보물함을 찾아냈다."
+      - text: "그냥 지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "유적에는 손대지 않고 조용히 자리를 떴다."
+
+  - id: "forest_lost_fairy"
+    name: "길 잃은 요정"
+    category: "npc_rescue"
+    region: "forest"
+    description: "가시덤불 속에 작은 요정이 날개가 걸린 채 울고 있다. 요정은 겁에 질린 눈으로 당신을 바라보며 제발 도와달라고 손짓한다. 주변에서 무언가 접근하는 소리가 들린다."
+    weight: 13
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "요정을 조심스럽게 구해준다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 80
+            items: ["fairy_dust"]
+            exp: 60
+            message: "요정은 감사의 표시로 마법 가루를 남기고 사라졌다."
+      - text: "자연의 힘으로 가시덤불을 제거한다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "buff"
+            buff_id: "fairy_blessing"
+            duration: 90
+            message: "드루이드의 자연 친화력에 감동한 요정이 강력한 축복을 내려주었다."
+      - text: "접근하는 소리를 먼저 확인한다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            amount: 20
+            message: "확인하는 사이 숨어있던 가시 괴수에게 습격당했다."
+      - text: "요정에게 말을 걸어본다"
+        requirements:
+          min_level: 5
+        outcomes:
+          - type: "reward"
+            exp: 100
+            message: "요정과 대화를 나눠 숲의 비밀 지식을 얻었다."
+
+  - id: "forest_wolf_pack"
+    name: "늑대 무리의 습격"
+    category: "challenge"
+    region: "forest"
+    description: "갑자기 사방에서 늑대 울음소리가 들린다. 수십 쌍의 눈이 어둠 속에서 빛나며 당신을 에워싸기 시작한다. 무리의 우두머리로 보이는 거대한 늑대가 앞으로 나선다."
+    weight: 11
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "무리와 싸운다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 120
+            items: ["wolf_pelt"]
+            exp: 90
+            message: "치열한 전투 끝에 늑대 무리를 물리쳤다."
+      - text: "우두머리 늑대와 눈을 마주치며 위압한다"
+        requirements:
+          has_job: "monk"
+        outcomes:
+          - type: "buff"
+            buff_id: "predator_aura"
+            duration: 45
+            message: "수행으로 단련된 기백으로 늑대 무리를 굴복시켰다. 우두머리가 복종을 표했다."
+      - text: "먹이를 던져 주의를 분산시킨 뒤 도주한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "가진 식량을 던져주고 틈을 타 재빨리 도망쳤다."
+      - text: "짐승의 언어로 교감한다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "reward"
+            items: ["alpha_wolf_fang"]
+            exp: 70
+            message: "드루이드의 능력으로 우두머리 늑대와 대화를 나눠 무리의 안내를 받았다."
+
+  - id: "forest_enchanted_spring"
+    name: "마법의 샘"
+    category: "blessing"
+    region: "forest"
+    description: "숲속 공터에 맑은 빛을 발하는 샘이 있다. 물 속에서 작은 빛 알갱이들이 춤추듯 떠다니며, 샘 주변의 꽃들은 계절에 맞지 않게 만발해 있다. 마시면 무언가 일어날 것 같다."
+    weight: 10
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "샘물을 마신다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            amount: 80
+            message: "마법의 샘물을 마시자 온몸의 상처가 치유되고 활력이 넘쳤다."
+      - text: "샘의 마법 성분을 분석한다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "buff"
+            buff_id: "elemental_attunement"
+            duration: 120
+            message: "샘의 원소 에너지를 분석해 자신의 마법력과 동조시켰다."
+      - text: "샘물을 병에 담아 보관한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["enchanted_water"]
+            message: "마법의 샘물을 신중하게 병에 담았다."
+      - text: "샘 주변을 정화 의식으로 축복한다"
+        requirements:
+          has_job: "monk"
+        outcomes:
+          - type: "buff"
+            buff_id: "spring_blessing"
+            duration: 180
+            message: "수행자의 정화 의식으로 샘의 마력이 증폭되어 강력한 축복을 받았다."
+
+  - id: "forest_bandit_camp"
+    name: "도적단의 야영지"
+    category: "hidden_treasure"
+    region: "forest"
+    description: "나무 사이로 불빛과 웃음소리가 들린다. 슬며시 다가가 보니 도적단이 야영 중이다. 그들 곁에는 빼앗은 보물로 가득 찬 상자들이 쌓여있다. 경비병은 세 명뿐이다."
+    weight: 12
+    cooldown_steps: 220
+    once_only: false
+    choices:
+      - text: "정면으로 공격한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 300
+            items: ["stolen_goods"]
+            exp: 100
+            message: "도적단을 격파하고 빼앗긴 보물을 되찾았다."
+      - text: "몰래 잠입해 보물을 훔친다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 400
+            exp: 80
+            message: "도둑의 솜씨로 도적들 코앞에서 보물을 훔쳐 유유히 사라졌다."
+      - text: "도적단과 협상한다"
+        requirements:
+          min_level: 8
+        outcomes:
+          - type: "reward"
+            gold: 150
+            message: "능숙한 협상으로 도적단으로부터 일부 보물을 받아냈다."
+      - text: "우회해서 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "위험을 감수하지 않고 조용히 우회해서 지나갔다."
+
+  # ============================================================
+  # 동굴 지역 추가 이벤트
+  # ============================================================
+
+  - id: "cave_underground_river"
+    name: "지하 강"
+    category: "mystery"
+    region: "cave"
+    description: "동굴 깊은 곳에서 물 흐르는 소리가 들린다. 앞으로 나아가자 어둠 속을 유유히 흐르는 지하 강이 나타났다. 강물은 차갑고 맑으며, 강 건너편에 뭔가 반짝이는 것이 보인다."
+    weight: 11
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "강을 헤엄쳐 건넌다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 180
+            items: ["river_pearl"]
+            exp: 70
+            message: "차가운 강을 헤엄쳐 건너 강 건너편의 빛나는 진주를 발견했다."
+      - text: "물의 흐름을 분석해 안전한 도강 지점을 찾는다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "reward"
+            gold: 200
+            items: ["river_crystal"]
+            exp: 90
+            message: "원소술사의 능력으로 물의 흐름을 제어해 안전하게 건너고 귀한 결정을 얻었다."
+      - text: "강물을 마셔본다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            amount: 40
+            message: "지하 강의 맑은 물을 마시자 피로가 회복되었다."
+      - text: "지하 강에서 낚시를 한다"
+        requirements:
+          min_level: 3
+        outcomes:
+          - type: "reward"
+            items: ["cave_fish"]
+            exp: 30
+            message: "지하 강에서 보기 드문 맹목 물고기를 낚아올렸다."
+
+  - id: "cave_crystal_cavern"
+    name: "수정 동굴"
+    category: "hidden_treasure"
+    region: "cave"
+    description: "거대한 수정들이 천장과 바닥에서 자라나 찬란하게 빛나는 공간이 펼쳐진다. 보석처럼 빛나는 수정들은 약한 마력을 발산하며 동굴 전체를 화려하게 물들이고 있다. 그러나 수정들을 건드리면 무슨 일이 일어날지 모른다."
+    weight: 13
+    cooldown_steps: 280
+    once_only: false
+    choices:
+      - text: "수정을 캐낸다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 250
+            items: ["magic_crystal"]
+            exp: 60
+            message: "마력이 담긴 수정을 힘겹게 캐냈다."
+      - text: "수정의 마력과 공명한다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "buff"
+            buff_id: "crystal_resonance"
+            duration: 150
+            message: "원소술사로서 수정의 파동과 공명해 마력이 대폭 증가했다."
+      - text: "수정 구조를 분석해 안전하게 채취한다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 350
+            items: ["perfect_crystal"]
+            message: "섬세한 손놀림으로 수정을 완벽하게 채취했다."
+      - text: "수정의 아름다움을 감상하고 떠난다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "수정 동굴의 아름다움에 감탄하며 아무것도 건드리지 않고 나왔다."
+
+  - id: "cave_ancient_carvings"
+    name: "고대 동굴 벽화"
+    category: "mystery"
+    region: "cave"
+    description: "동굴 벽면 가득 정교한 그림과 문자들이 새겨져 있다. 수천 년은 됐을 벽화에는 거대한 존재들과 인간들의 전쟁이 생생하게 묘사되어 있다. 벽화 아래에 작은 제단 같은 것이 놓여있다."
+    weight: 10
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "벽화를 꼼꼼히 해독한다"
+        requirements:
+          min_level: 10
+        outcomes:
+          - type: "reward"
+            exp: 150
+            message: "오래된 문자를 해독해 잊혀진 역사의 비밀을 알게 되었다."
+      - text: "제단에 제물을 바친다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "ancestral_blessing"
+            duration: 90
+            message: "제단에 공물을 바치자 고대의 정령이 잠시 깨어나 축복을 내렸다."
+      - text: "수행자의 직관으로 벽화의 의미를 읽는다"
+        requirements:
+          has_job: "monk"
+        outcomes:
+          - type: "buff"
+            buff_id: "ancient_wisdom"
+            duration: 120
+            message: "수행으로 연마된 직관으로 벽화의 깊은 의미를 이해하고 고대의 지혜를 얻었다."
+      - text: "벽화를 탁본으로 떠서 보관한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["ancient_rubbing"]
+            exp: 50
+            message: "벽화를 탁본으로 떠서 나중에 연구할 수 있게 보관했다."
+
+  - id: "cave_bat_swarm"
+    name: "박쥐 떼의 습격"
+    category: "trap"
+    region: "cave"
+    description: "동굴 천장에서 갑자기 수천 마리의 박쥐들이 쏟아져 내린다. 날카로운 울음소리와 함께 사방이 어두워질 정도의 박쥐 떼가 맹렬하게 몰려든다. 어둠 속에서 방향감각을 잃기 쉽다."
+    weight: 14
+    cooldown_steps: 150
+    once_only: false
+    choices:
+      - text: "웅크려 머리를 보호하며 통과한다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            amount: 25
+            message: "박쥐 떼를 피하지 못하고 여러 곳을 긁혔지만 통과했다."
+      - text: "자연의 기운으로 박쥐들을 진정시킨다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "neutral"
+            message: "드루이드의 자연 친화력으로 박쥐들을 진정시켜 무사히 지나갔다."
+      - text: "횃불로 박쥐들을 쫓아낸다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "불빛을 휘두르며 박쥐들을 겨우 쫓아냈다."
+      - text: "어둠 속에서 음파로 방향을 파악한다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            exp: 60
+            message: "예리한 감각으로 박쥐의 음파 패턴을 파악해 완벽하게 피하고 희귀한 박쥐 날개를 얻었다."
+
+  - id: "cave_buried_treasure"
+    name: "매장된 보물"
+    category: "hidden_treasure"
+    region: "cave"
+    description: "동굴 바닥 한켠이 다른 곳보다 색이 다르고 약간 솟아있다. 자세히 보면 누군가 최근에 흙을 팠다가 다시 덮은 흔적이 역력하다. 주변에 낡은 삽 하나가 버려져 있다."
+    weight: 12
+    cooldown_steps: 220
+    once_only: false
+    choices:
+      - text: "삽으로 파본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 400
+            items: ["buried_chest"]
+            exp: 80
+            message: "열심히 파내자 낡은 보물 상자가 나타났다. 안에는 금화와 귀한 보석이 가득했다."
+      - text: "함정 여부를 먼저 살핀다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 500
+            items: ["trap_mechanism", "buried_chest"]
+            exp: 100
+            message: "도적의 눈으로 함정 장치를 발견해 해제하고 보물을 온전히 차지했다."
+      - text: "땅의 기운으로 매장물을 감지한다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "reward"
+            gold: 350
+            items: ["rare_herb", "buried_chest"]
+            message: "대지와 교감해 보물 위치와 함께 오래된 희귀 약초도 발견했다."
+      - text: "그냥 지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "이상하게 여겼지만 섣불리 손대지 않고 지나쳤다."
+
+  # ============================================================
+  # 초원 지역 추가 이벤트
+  # ============================================================
+
+  - id: "hawk_nest"
+    name: "매의 둥지"
+    category: "challenge"
+    region: "grassland"
+    description: "거대한 바위 위에 매의 둥지가 있다. 둥지 안에 반짝이는 무언가가 보인다. 어미 매가 하늘을 빙빙 돌며 경계하고 있다."
+    weight: 10
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "둥지에 손을 뻗어 안을 살펴본다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage: 25
+            message: "어미 매가 날카로운 발톱으로 손을 할퀴었다! 하지만 작은 보석 하나를 손에 넣었다."
+          - type: "reward"
+            gold: 60
+            exp: 30
+            message: ""
+      - text: "레인저의 기술로 매를 달랜다"
+        requirements:
+          has_job: "ranger"
+        outcomes:
+          - type: "reward"
+            gold: 120
+            items: ["eagle_feather"]
+            exp: 80
+            message: "매와 눈을 맞추며 천천히 손을 내밀었다. 매가 경계를 풀고 깃털 하나를 선물로 주었다."
+      - text: "둥지 아래에 먹이를 놓아두고 떠난다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "nature_blessing"
+            duration: 40
+            message: "자연의 섭리를 존중한 당신에게 대지의 축복이 내렸다."
+      - text: "그냥 지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "매의 예리한 시선을 뒤로하고 길을 계속 걸었다."
+
+  - id: "merchant_caravan"
+    name: "유랑 상인 대상"
+    category: "hidden_treasure"
+    region: "grassland"
+    description: "먼지를 일으키며 이동하는 대규모 상인 대상이 나타났다. 알록달록한 천막과 이국적인 향신료 냄새가 바람에 실려 온다. 대상의 우두머리가 손을 흔들며 인사한다."
+    weight: 13
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "대상과 함께 이동하며 교역한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 150
+            items: ["exotic_spice"]
+            exp: 40
+            message: "대상과 함께 이동하며 이국적인 물건들을 사고팔았다. 꽤 짭짤한 거래였다."
+      - text: "상인들의 비밀 창고를 슬쩍 엿본다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 300
+            items: ["rare_gem"]
+            exp: 100
+            message: "혼란을 틈타 비밀 창고를 열었다. 귀한 보석들이 가득했다."
+      - text: "대상의 안전을 보장하는 호위를 제안한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 200
+            exp: 60
+            message: "다음 마을까지 대상을 안전하게 호위했다. 넉넉한 보수를 받았다."
+      - text: "정보만 얻고 헤어진다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "대상 우두머리에게 앞길의 정보를 얻었다. 위험한 지역을 피할 수 있을 것 같다."
+
+  - id: "ancient_stone_circle"
+    name: "고대 돌 원형 제단"
+    category: "mystery"
+    region: "grassland"
+    description: "초원 한가운데 수십 개의 거대한 돌이 원형으로 배열되어 있다. 돌마다 고대의 룬 문자가 새겨져 있으며 달빛 아래 희미하게 빛나고 있다. 이 장소에서는 이상한 기운이 느껴진다."
+    weight: 9
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "룬 문자를 해독하려 시도한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "reward"
+            exp: 150
+            items: ["ancient_rune_shard"]
+            message: "고대의 마법 지식이 머릿속에 흘러들어왔다. 잊혀진 주문의 일부를 깨달았다."
+      - text: "원형 제단의 중앙에 서서 의식을 거행한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "ancient_power"
+            duration: 60
+            message: "고대의 힘이 몸을 감쌌다. 잠시 동안 특별한 능력이 깨어났다."
+      - text: "돌 틈새를 자세히 살펴본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 80
+            items: ["silver_coin_ancient"]
+            exp: 30
+            message: "돌 틈새에서 오래된 동전 꾸러미를 발견했다. 꽤 가치 있는 것들이다."
+      - text: "불길한 기운을 느끼고 물러선다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "고대의 힘을 건드리지 않기로 했다. 현명한 선택일지도 모른다."
+
+  # ============================================================
+  # 해안 지역 추가 이벤트
+  # ============================================================
+
+  - id: "giant_crab"
+    name: "거대 집게발 게"
+    category: "challenge"
+    region: "coast"
+    description: "해안가 바위 위에 사람만한 크기의 거대한 게가 웅크리고 있다. 강철처럼 단단해 보이는 집게발을 천천히 움직이며 당신을 주시한다. 등껍데기에는 빛나는 진주들이 붙어 있다."
+    weight: 11
+    cooldown_steps: 220
+    once_only: false
+    choices:
+      - text: "집게발을 피해 진주를 빼앗으려 한다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage: 40
+            message: "게의 집게발이 빠르게 날아왔다! 상처를 입었지만 진주 몇 개를 챙겼다."
+          - type: "reward"
+            items: ["shining_pearl"]
+            exp: 50
+            message: ""
+      - text: "해산물 조리법으로 유인한다"
+        requirements:
+          has_job: "alchemist"
+        outcomes:
+          - type: "reward"
+            gold: 200
+            items: ["giant_crab_claw", "shining_pearl"]
+            exp: 120
+            message: "특수한 향료로 게를 유인해 잠재웠다. 귀한 집게발과 진주를 모두 얻었다."
+      - text: "해안 상인에게 팔기 위해 포획을 시도한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 350
+            exp: 80
+            message: "힘겨운 싸움 끝에 게를 포획했다. 항구 상인이 높은 값을 쳐주었다."
+      - text: "게의 영역을 침범하지 않고 우회한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "거대한 게와 눈을 마주치지 않으며 조심스럽게 지나갔다."
+
+  - id: "message_in_bottle"
+    name: "병 속의 편지"
+    category: "mystery"
+    region: "coast"
+    description: "파도에 밀려온 초록빛 유리병 안에 오래된 편지가 들어 있다. 편지의 잉크는 바닷물에 번졌지만 지도의 일부분과 수수께끼 같은 글귀가 남아 있다. 이 편지를 보낸 사람은 누구일까."
+    weight: 12
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "편지의 지도를 해독해 보물을 찾는다"
+        requirements:
+          has_job: "pirate"
+        outcomes:
+          - type: "reward"
+            gold: 500
+            items: ["treasure_map_fragment"]
+            exp: 200
+            message: "해적의 직감으로 지도를 해독했다! 근처 동굴에서 숨겨진 보물 상자를 발견했다."
+      - text: "편지를 꼼꼼히 읽으며 단서를 분석한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 100
+            exp: 60
+            message: "편지에서 근처 난파선의 위치를 파악했다. 가볼 만한 곳이 생겼다."
+      - text: "편지를 항구의 선장에게 전달한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 150
+            exp: 40
+            message: "편지를 받은 선장은 실종된 동료의 것임을 알아보았다. 감사의 표시로 금화를 건네주었다."
+      - text: "편지를 다시 바다에 흘려보낸다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "편지를 바다에 돌려보냈다. 바람이 어딘가로 데려갈 것이다."
+
+  - id: "stranded_whale"
+    name: "좌초된 향고래"
+    category: "npc_rescue"
+    region: "coast"
+    description: "모래사장에 거대한 향고래가 쓰러져 있다. 힘겹게 숨을 쉬며 꼬리를 간헐적으로 움직인다. 배 안에서 귀한 용연향이 나는지 은은한 향기가 퍼지고 있다."
+    weight: 10
+    cooldown_steps: 240
+    once_only: false
+    choices:
+      - text: "고래를 바다로 돌려보내도록 돕는다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "ocean_blessing"
+            duration: 50
+            message: "마을 사람들과 함께 고래를 바다로 돌려보냈다. 고래가 감사의 표시로 물을 뿜었고 바다의 축복이 내렸다."
+          - type: "reward"
+            exp: 100
+            message: ""
+      - text: "연금술 재료인 용연향을 채취한다"
+        requirements:
+          has_job: "alchemist"
+        outcomes:
+          - type: "reward"
+            items: ["ambergris"]
+            gold: 200
+            exp: 80
+            message: "고래를 돕기 전 소량의 용연향을 채취했다. 귀한 연금술 재료를 얻었다."
+      - text: "고래 주변을 탐색해 삼킨 물건을 찾는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 180
+            items: ["ancient_compass"]
+            exp: 50
+            message: "고래가 과거에 삼킨 것들이 토해져 나왔다. 오래된 나침반과 금화들을 발견했다."
+      - text: "발길을 돌린다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "거대한 고래의 모습이 마음에 걸렸지만 길을 계속 걸었다."
+
+  - id: "lighthouse_keeper"
+    name: "외로운 등대지기"
+    category: "blessing"
+    region: "coast"
+    description: "절벽 위 오래된 등대에서 노인이 손을 흔들고 있다. 수십 년을 이 등대를 지켜온 그는 바다의 모든 비밀을 알고 있다고 한다. 등대 안에서 맛있는 생선 냄새가 풍겨온다."
+    weight: 11
+    cooldown_steps: 190
+    once_only: false
+    choices:
+      - text: "노인의 이야기를 귀 기울여 듣는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 120
+            message: "등대지기 노인은 수십 년간 바다에서 목격한 신비로운 이야기들을 들려주었다. 귀중한 지혜를 얻었다."
+      - text: "바다 항법 기술을 전수받는다"
+        requirements:
+          has_job: "pirate"
+        outcomes:
+          - type: "buff"
+            buff_id: "sea_expertise"
+            duration: 80
+            message: "노인에게 별자리와 해류를 읽는 법을 배웠다. 항해 실력이 크게 향상되었다."
+          - type: "reward"
+            exp: 150
+            message: ""
+      - text: "노인을 위해 등대 수리를 도와준다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 100
+            items: ["navigation_chart"]
+            exp: 60
+            message: "낡은 등대를 함께 수리했다. 노인이 감사의 표시로 귀한 해도를 주었다."
+      - text: "생선 요리를 함께 먹고 떠난다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            hp: 50
+            message: "노인이 정성껏 만든 생선 요리를 배불리 먹었다. 피로가 회복되었다."
+
+  # ============================================================
+  # 마을 지역 추가 이벤트
+  # ============================================================
+
+  - id: "festival_preparation"
+    name: "축제 준비의 혼란"
+    category: "challenge"
+    region: "town"
+    description: "마을 광장에서 대규모 축제 준비가 한창이다. 하지만 무대 장식이 무너지고 요리사가 다쳐 주방이 아수라장이 되었다. 마을 대표가 도움을 구하며 주위를 두리번거리고 있다."
+    weight: 13
+    cooldown_steps: 160
+    once_only: false
+    choices:
+      - text: "무너진 무대를 직접 수리한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 120
+            exp: 60
+            message: "힘을 합쳐 무대를 수리했다. 마을 대표가 감사의 뜻으로 금화와 특별 초대장을 주었다."
+          - type: "buff"
+            buff_id: "town_reputation"
+            duration: 100
+            message: ""
+      - text: "노래와 연주로 분위기를 살린다"
+        requirements:
+          has_job: "bard"
+        outcomes:
+          - type: "reward"
+            gold: 250
+            exp: 150
+            message: "즉석 공연으로 혼란스러운 분위기를 반전시켰다. 마을 사람들이 열광했고 두둑한 사례금을 받았다."
+          - type: "buff"
+            buff_id: "inspiration"
+            duration: 60
+            message: ""
+      - text: "주방을 대신해 요리를 완성한다"
+        requirements:
+          has_job: "alchemist"
+        outcomes:
+          - type: "reward"
+            gold: 180
+            items: ["festival_cake"]
+            exp: 100
+            message: "조제 기술로 빠르게 대량의 음식을 만들었다. 축제가 성공적으로 열렸다."
+      - text: "구경만 하다가 자리를 뜬다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "북적이는 혼란을 피해 조용히 자리를 떴다. 나중에 축제 소리가 멀리서 들려왔다."
+
+  # ============================================================
+  # 사막 지역 추가 이벤트
+  # ============================================================
+
+  - id: "scorpion_nest"
+    name: "전갈 둥지"
+    category: "trap"
+    region: "desert"
+    description: "모래 언덕 사이에 숨겨진 거대 전갈 떼의 둥지를 발견했다. 독침이 사방으로 튀어나올 준비가 되어 있고, 둥지 안에는 지나간 여행자들의 유품이 가득하다."
+    weight: 11
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "조심스럽게 유품을 수거한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 80
+            items: ["desert_traveler_pouch"]
+            exp: 40
+            message: "전갈들이 눈치채기 전에 유품을 챙겼다."
+      - text: "전갈 독을 채취한다 (연금술사 전용)"
+        requirements:
+          has_job: "alchemist"
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["giant_scorpion_venom", "giant_scorpion_venom"]
+            exp: 60
+            message: "능숙한 솜씨로 희귀한 독을 채취하는 데 성공했다."
+      - text: "둥지에 불을 지른다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 20
+            message: "화염이 번지며 전갈들이 달려들었다. 큰 부상을 입었다."
+      - text: "조용히 우회한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "위험을 피해 안전하게 돌아갔다."
+
+  - id: "ancient_pyramid"
+    name: "고대 피라미드 입구"
+    category: "mystery"
+    region: "desert"
+    description: "모래 속에 반쯤 묻힌 고대 피라미드의 입구가 모습을 드러냈다. 입구 주변에는 낯선 문자가 새겨져 있고, 내부에서 희미한 빛이 새어 나온다."
+    weight: 10
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "내부를 탐색한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 200
+            items: ["ancient_relic"]
+            exp: 80
+            message: "罠을 피해 깊숙이 들어가 귀중한 유물을 발견했다."
+      - text: "고대 문자를 해독한다 (학자/철학자 전용)"
+        requirements:
+          has_job: "philosopher"
+        outcomes:
+          - type: "reward"
+            gold: 150
+            items: ["forbidden_knowledge_scroll"]
+            exp: 120
+            message: "문자에 담긴 비밀을 해독해 숨겨진 보물 방을 열었다."
+      - text: "입구의 함정을 무력화한다 (도적 전용)"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 180
+            items: ["trap_mechanism_part", "ancient_gold_coin"]
+            exp: 90
+            message: "함정을 해제하고 안전하게 보물을 가져왔다."
+      - text: "위험하다고 판단해 입구만 확인한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "내부를 탐색하지 않고 입구만 살폈다."
+
+  - id: "sand_golem"
+    name: "모래 골렘"
+    category: "challenge"
+    region: "desert"
+    description: "거대한 모래 기둥이 솟아오르더니 인간형 골렘으로 변해 길을 막았다. 눈처럼 빛나는 두 개의 보석이 골렘의 눈 자리에 박혀 있다."
+    weight: 9
+    cooldown_steps: 220
+    once_only: false
+    choices:
+      - text: "정면으로 싸운다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 120
+            items: ["golem_core_shard"]
+            exp: 100
+            message: "격전 끝에 골렘을 쓰러뜨리고 핵심 파편을 얻었다."
+      - text: "물로 약점을 공격한다 (원소술사 전용)"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "reward"
+            gold: 160
+            items: ["golem_core_shard", "desert_opal"]
+            exp: 130
+            message: "물 원소로 골렘을 굳혀 쉽게 쓰러뜨렸다."
+      - text: "눈의 보석을 노린다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 30
+            message: "보석을 노렸지만 골렘의 강타를 받았다."
+      - text: "다른 길을 찾는다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "골렘을 피해 우회로를 찾아냈다. 시간이 걸렸다."
+
+  - id: "nomad_camp"
+    name: "사막 유목민 야영지"
+    category: "npc_rescue"
+    region: "desert"
+    description: "사막을 유랑하는 유목민 부족의 임시 야영지에 도착했다. 그들은 낯선 여행자를 경계하면서도 물과 식량이 부족해 어려움을 겪고 있다."
+    weight: 13
+    cooldown_steps: 160
+    once_only: false
+    choices:
+      - text: "식량과 물을 나눠준다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: -50
+            items: ["nomad_blessing_token"]
+            exp: 60
+            message: "유목민들이 감사를 표하며 사막 길 안내를 해주었다."
+      - text: "부족 장로를 치료한다 (성직자/팔라딘 전용)"
+        requirements:
+          has_job: "paladin"
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["desert_map", "rare_herb_bundle"]
+            exp: 90
+            buff_id: "nomad_guidance"
+            message: "장로를 치료하자 부족이 귀한 사막 비약과 지도를 선물했다."
+      - text: "교역을 제안한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 60
+            items: ["sand_silk"]
+            exp: 30
+            message: "유목민과 물물교환을 통해 귀한 물품을 얻었다."
+      - text: "계속 이동한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "야영지를 지나쳐 계속 나아갔다."
+
+  # ============================================================
+  # 산악 지역 추가 이벤트
+  # ============================================================
+
+  - id: "eagle_nest"
+    name: "독수리 둥지"
+    category: "hidden_treasure"
+    region: "mountain"
+    description: "험준한 절벽 위에 거대한 독수리 둥지가 보인다. 둥지 안에는 독수리가 모아온 반짝이는 물건들이 가득하다. 독수리 어미는 먹이를 구하러 자리를 비운 것 같다."
+    weight: 12
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "절벽을 타고 올라가 둥지를 뒤진다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 90
+            items: ["eagle_feather", "mountain_gem"]
+            exp: 50
+            message: "둥지에서 보석과 깃털을 챙겼다. 독수리가 돌아오기 전에 서둘렀다."
+      - text: "독수리와 교감한다 (드루이드 전용)"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "buff"
+            buff_id: "eagle_vision"
+            duration: 50
+            message: "독수리와 정신적으로 연결되어 주변 지형을 훤히 꿰뚫는 시야를 얻었다."
+      - text: "새끼 독수리를 구조한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["eagle_chick_favor"]
+            exp: 70
+            message: "위험에 처한 새끼를 구해주자 독수리 어미가 감사의 표시로 길을 안내해주었다."
+      - text: "멀리서 바라보다 지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "괜한 위험을 자초하지 않고 지나쳤다."
+
+  - id: "mountain_hot_spring"
+    name: "산악 온천"
+    category: "blessing"
+    region: "mountain"
+    description: "눈 덮인 산 속 깊은 곳에서 연기가 피어오르는 천연 온천을 발견했다. 유황 냄새가 코를 찌르지만 물은 맑고 따뜻하며, 주변에는 이름 모를 약초가 자라고 있다."
+    weight: 14
+    cooldown_steps: 150
+    once_only: false
+    choices:
+      - text: "온천에 몸을 담근다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 40
+            message: "따뜻한 온천물이 피로와 상처를 녹여주었다."
+      - text: "약초를 채집하며 휴식한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["mountain_herb", "mountain_herb"]
+            exp: 30
+            message: "온천 주변의 희귀 약초를 채집하며 몸을 회복했다."
+      - text: "온천수로 무기를 담금질한다 (대장장이/전사 전용)"
+        requirements:
+          has_job: "warrior"
+        outcomes:
+          - type: "buff"
+            buff_id: "tempered_weapon"
+            duration: 60
+            message: "유황 온천수로 담금질한 무기가 일시적으로 강화되었다."
+      - text: "서둘러 지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "쉴 여유가 없다고 판단해 계속 이동했다."
+
+  - id: "frozen_pass"
+    name: "결빙 고갯길"
+    category: "trap"
+    region: "mountain"
+    description: "산 정상으로 향하는 좁은 고갯길이 완전히 얼어붙어 있다. 한 발짝 잘못 디디면 낭떠러지로 떨어질 수 있고, 얼음 밑에는 무언가 봉인되어 있는 것 같다."
+    weight: 10
+    cooldown_steps: 230
+    once_only: false
+    choices:
+      - text: "조심스럽게 건너간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "아슬아슬하게 고갯길을 건너는 데 성공했다."
+      - text: "얼음을 녹여 봉인된 것을 꺼낸다 (화염 마법사 전용)"
+        requirements:
+          has_job: "archmage"
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["frozen_relic", "ice_crystal"]
+            exp: 100
+            message: "얼음 속에 봉인된 고대 유물을 꺼내는 데 성공했다."
+      - text: "로프를 활용해 안전하게 이동한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: []
+            exp: 25
+            message: "로프를 걸어 안전하게 건넜다. 경험이 쌓였다."
+      - text: "미끄러져 떨어진다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 25
+            message: "얼음에 미끄러져 낭떠러지 아래로 굴러떨어졌다."
+
+  - id: "mountain_monastery"
+    name: "산 위의 수도원"
+    category: "mystery"
+    region: "mountain"
+    description: "구름 위에 솟아있는 낡은 수도원에 도착했다. 오랫동안 사람이 살지 않은 것 같지만, 제단에는 아직 꺼지지 않은 촛불이 타오르고 있다."
+    weight: 11
+    cooldown_steps: 270
+    once_only: false
+    choices:
+      - text: "제단에 기도를 올린다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "divine_protection"
+            duration: 40
+            message: "진심 어린 기도가 하늘에 닿았는지 신성한 기운이 몸을 감쌌다."
+      - text: "수도원 문서를 해독한다 (성직자/팔라딘 전용)"
+        requirements:
+          has_job: "cleric"
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["holy_scripture", "divine_essence"]
+            exp: 110
+            message: "오래된 수도원 문서에서 잊혀진 신성 주문을 발견했다."
+      - text: "숨겨진 보물 창고를 뒤진다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 140
+            items: ["monastery_offering"]
+            exp: 55
+            message: "수도원 지하에서 오래된 헌금함을 발견했다."
+      - text: "경건히 예를 갖추고 떠난다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "수도원에 예를 표하고 조용히 자리를 떴다."
+
+  # ============================================================
+  # 황무지 지역 추가 이벤트
+  # ============================================================
+
+  - id: "abandoned_fortress"
+    name: "버려진 요새"
+    category: "mystery"
+    region: "wasteland"
+    description: "과거 치열한 전투가 벌어졌던 요새가 황야 한가운데 폐허로 남아있다. 벽에는 아직도 화살과 창이 박혀있고, 군기 잔해가 바람에 나부낀다."
+    weight: 11
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "요새 내부를 수색한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 130
+            items: ["old_military_badge", "war_ration"]
+            exp: 65
+            message: "요새 곳곳을 뒤져 군용품과 금화를 찾아냈다."
+      - text: "방어 시설을 분석한다 (기사/전사 전용)"
+        requirements:
+          has_job: "knight"
+        outcomes:
+          - type: "buff"
+            buff_id: "tactical_insight"
+            duration: 45
+            message: "방어 구조를 분석해 전술적 통찰을 얻었다. 방어력이 일시적으로 상승했다."
+      - text: "함정을 수거한다 (도적 전용)"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["old_trap_mechanism", "poison_dart_set"]
+            exp: 80
+            message: "아직 작동하는 함정들을 해제하고 부품을 챙겼다."
+      - text: "요새를 피해 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "위험할 수 있다고 판단해 요새를 우회했다."
+
+  - id: "war_ghost"
+    name: "전쟁의 망령"
+    category: "challenge"
+    region: "wasteland"
+    description: "황야를 떠도는 전사의 망령이 나타나 길을 막았다. 생전에 이 전장에서 쓰러진 용사로, 아직도 전쟁이 끝나지 않았다고 믿으며 침입자를 공격한다."
+    weight: 10
+    cooldown_steps: 240
+    once_only: false
+    choices:
+      - text: "망령과 싸운다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 100
+            items: ["spectral_essence"]
+            exp: 90
+            message: "혼신의 힘으로 망령을 퇴치했다. 안도감이 밀려왔다."
+      - text: "망령을 성스러운 힘으로 성불시킨다 (성직자/팔라딘 전용)"
+        requirements:
+          has_job: "paladin"
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["blessed_war_medal", "spirit_crystal"]
+            exp: 130
+            message: "진심 어린 기도로 망령을 안식에 들게 했다. 감사의 축복을 받았다."
+      - text: "망령의 말에 귀를 기울인다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["war_hero_memory"]
+            exp: 70
+            message: "망령의 이야기를 들으며 과거 전쟁의 비밀을 알게 되었다. 망령이 사라졌다."
+      - text: "달아난다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 15
+            message: "망령의 저주가 등 뒤로 날아와 상처를 입었다."
+
+  - id: "supply_cache"
+    name: "군수 보급 창고"
+    category: "hidden_treasure"
+    region: "wasteland"
+    description: "과거 군대가 숨겨둔 보급 창고를 우연히 발견했다. 자물쇠가 달린 나무 상자들이 모래 아래 묻혀 있고, 일부는 아직 개봉되지 않은 상태다."
+    weight: 13
+    cooldown_steps: 170
+    once_only: false
+    choices:
+      - text: "자물쇠를 부수고 상자를 연다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 160
+            items: ["military_ration", "iron_ingot"]
+            exp: 45
+            message: "군수 물자와 금화가 가득했다. 수년 된 물건들이지만 쓸만하다."
+      - text: "자물쇠를 따서 조용히 연다 (도적 전용)"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            gold: 200
+            items: ["military_ration", "rare_weapon_component", "iron_ingot"]
+            exp: 75
+            message: "흔적 없이 자물쇠를 따서 더 깊은 곳의 귀한 물건까지 챙겼다."
+      - text: "약품 상자를 우선 확인한다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 35
+            message: "군용 치료약을 발견해 부상을 치료했다."
+      - text: "손대지 않고 표시만 해둔다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "나중을 위해 위치만 기억해두고 지나쳤다."
+
+  - id: "bone_field"
+    name: "뼈의 들판"
+    category: "mystery"
+    region: "wasteland"
+    description: "셀 수 없이 많은 유골이 들판을 뒤덮고 있다. 인간과 짐승이 뒤섞여 쓰러진 흔적으로, 오랜 전쟁터였음을 알 수 있다. 유골 사이에서 이따금 빛이 반짝인다."
+    weight: 9
+    cooldown_steps: 210
+    once_only: false
+    choices:
+      - text: "빛나는 물체를 찾아 뒤진다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 110
+            items: ["fallen_soldier_ring", "cracked_amulet"]
+            exp: 55
+            message: "뼈 사이에서 몇 가지 가치 있는 물건을 찾아냈다."
+      - text: "죽은 자의 넋을 달래는 의식을 행한다 (강령술사 전용)"
+        requirements:
+          has_job: "necromancer"
+        outcomes:
+          - type: "buff"
+            buff_id: "undead_affinity"
+            duration: 60
+            message: "수천 영혼의 감사를 받아 언데드에 대한 친화력이 크게 높아졌다."
+      - text: "유골을 정중히 매장한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "spirit_blessing"
+            duration: 35
+            message: "정성껏 유골을 매장하자 떠도는 영혼들이 축복을 내려주었다."
+      - text: "이 음산한 장소를 빠르게 빠져나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "불길한 기운을 피해 들판을 서둘러 벗어났다."
+
+  - id: "scorched_ritual"
+    name: "불탄 땅의 의식"
+    category: "mystery"
+    region: "wasteland"
+    description: "검게 타버린 땅 한가운데 누군가 최근에 의식을 행한 흔적이 남아있다. 불에 탄 문양과 핏자국이 뒤섞여 있고, 의식에 쓰인 제물이 아직 식지 않았다."
+    weight: 8
+    cooldown_steps: 280
+    once_only: false
+    choices:
+      - text: "의식 흔적을 조사한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["ritual_ash", "dark_rune_fragment"]
+            exp: 70
+            message: "의식에 쓰인 잔재를 모았다. 강력한 어둠의 기운이 서려있다."
+      - text: "의식을 완성시킨다 (암흑 기사/강령술사 전용)"
+        requirements:
+          has_job: "dark_knight"
+        outcomes:
+          - type: "buff"
+            buff_id: "dark_empowerment"
+            duration: 50
+            message: "끊어진 의식을 완성시키자 어둠의 힘이 몸속으로 스며들었다."
+      - text: "의식을 정화한다 (성직자 전용)"
+        requirements:
+          has_job: "cleric"
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["purified_ritual_crystal"]
+            exp: 95
+            message: "사악한 의식의 잔재를 정화해 정화된 결정체를 얻었다."
+      - text: "위험하다 판단해 자리를 피한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "불길한 장소를 피해 멀리 돌아갔다."
+
+  # ============================================================
+  # 설원 지역 추가 이벤트
+  # ============================================================
+
+  - id: "ice_fishing_hole"
+    name: "얼음 낚시터"
+    category: "hidden_treasure"
+    region: "snowfield"
+    description: "설원 한복판에 누군가 뚫어 놓은 얼음 구멍이 있다. 투명한 얼음 아래로 거대한 그림자가 움직이는 것이 보인다. 이 추위 속에서도 살아남은 생명의 흔적이 신비롭다."
+    weight: 11
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "낚싯줄을 드리워 물고기를 잡는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 80
+            items: ["frozen_fish"]
+            exp: 40
+            message: "두꺼운 얼음 아래에서 빛나는 희귀한 얼음 물고기를 낚아 올렸다!"
+      - text: "정령술사의 힘으로 물 정령을 소환해 도움을 요청한다"
+        requirements:
+          has_job: "shaman"
+        outcomes:
+          - type: "reward"
+            gold: 150
+            items: ["spirit_scale", "frozen_fish"]
+            exp: 80
+            message: "물 정령이 깊은 곳에서 신비로운 비늘을 건져 올려 주었다."
+      - text: "얼음 구멍을 그냥 지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "차가운 바람만 맞으며 자리를 떠났다."
+      - text: "손을 넣어 직접 잡아본다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 0.08
+            message: "얼음장 같은 물속에 손을 넣자 동상에 걸릴 것 같은 통증이 몰려왔다!"
+
+  - id: "snow_fox_encounter"
+    name: "설원의 흰 여우"
+    category: "npc_rescue"
+    region: "snowfield"
+    description: "새하얀 털을 가진 여우 한 마리가 눈 속에 발이 걸린 채 낑낑거리고 있다. 눈이 마치 달빛처럼 빛나는 신비로운 존재로, 보통 여우와는 다른 기운이 느껴진다."
+    weight: 12
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "조심스럽게 다가가 여우를 구해준다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "lucky_blessing"
+            duration: 50
+            message: "여우가 고마움의 표시로 당신 주위를 한 바퀴 돌더니 사라졌다. 무언가 행운이 깃든 것 같다."
+      - text: "환상술사의 능력으로 여우와 교감한다"
+        requirements:
+          has_job: "illusionist"
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["spirit_fox_tail"]
+            exp: 100
+            message: "여우는 사실 설원의 수호령이었다. 감사의 표시로 신비로운 꼬리털 하나를 남기고 사라졌다."
+      - text: "여우를 무시하고 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "여우의 슬픈 눈빛을 뒤로하고 발길을 돌렸다."
+      - text: "여우를 포획해 팔려고 한다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 0.12
+            message: "여우가 갑자기 얼음 가시를 내뿜으며 반격했다! 생각보다 훨씬 강한 존재였다."
+
+  - id: "aurora_borealis"
+    name: "극야의 오로라"
+    category: "blessing"
+    region: "snowfield"
+    description: "밤하늘에 초록빛과 보랏빛이 뒤섞인 거대한 빛의 커튼이 펼쳐진다. 고대 전설에 따르면 오로라가 나타날 때 소원을 빌면 이루어진다고 한다. 빛의 물결이 온몸을 감싸는 것 같은 기분이 든다."
+    weight: 8
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "오로라를 바라보며 힘을 달라고 기도한다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 0.3
+            message: "신비로운 빛이 몸속으로 스며들며 상처가 아물고 피로가 사라졌다."
+      - text: "시간마법사의 힘으로 오로라의 시간을 연장한다"
+        requirements:
+          has_job: "time_mage"
+        outcomes:
+          - type: "buff"
+            buff_id: "aurora_empowerment"
+            duration: 80
+            message: "오로라의 시간을 늘려 더 오래 빛을 흡수했다. 강력한 마법 에너지가 충전된 느낌이다."
+      - text: "오로라 아래서 잠시 명상한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: []
+            exp: 120
+            message: "오로라의 신비로운 빛 속에서 깊은 통찰을 얻었다."
+      - text: "아름다운 광경을 감상하며 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "잊을 수 없는 아름다운 광경을 마음에 새기며 발걸음을 옮겼다."
+
+  - id: "ice_cave_discovery"
+    name: "숨겨진 빙굴"
+    category: "mystery"
+    region: "snowfield"
+    description: "설원의 절벽 틈새에 숨겨진 빙굴 입구가 보인다. 동굴 안에서 차갑고 신비로운 기운이 흘러나오며, 벽면에는 고대 문자가 얼음 속에 새겨져 있다."
+    weight: 10
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "동굴 안으로 조심스럽게 들어간다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 200
+            items: ["ancient_ice_crystal"]
+            exp: 90
+            message: "얼음 벽 깊숙이 봉인된 고대 수정을 발견했다. 차갑지만 아름다운 보물이다."
+      - text: "철학자의 지식으로 고대 문자를 해독한다"
+        requirements:
+          has_job: "philosopher"
+        outcomes:
+          - type: "reward"
+            gold: 300
+            items: ["ancient_ice_crystal", "forgotten_tome"]
+            exp: 150
+            message: "고대 문자는 잊혀진 빙하 문명의 비밀을 담고 있었다. 귀중한 지식과 보물을 모두 얻었다."
+      - text: "위험할 수 있으니 입구만 살펴본다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "입구 근처에서 차가운 바람만 맞고 돌아섰다. 안전을 택한 현명한 선택이었다."
+      - text: "무턱대고 깊이 들어간다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 0.15
+            message: "함정 얼음이 무너지며 날카로운 고드름에 찔렸다! 너무 경솔했다."
+
+  # ============================================================
+  # 화산 지역 추가 이벤트
+  # ============================================================
+
+  - id: "obsidian_deposit"
+    name: "흑요석 광맥"
+    category: "hidden_treasure"
+    region: "volcano"
+    description: "용암이 급격히 식어 형성된 거대한 흑요석 광맥이 눈앞에 펼쳐진다. 날카롭고 광택이 나는 검은 돌이 화산 벽면을 가득 채우고 있으며, 그 안에 뭔가 봉인된 것이 보인다."
+    weight: 11
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "조심스럽게 흑요석을 채굴한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 180
+            items: ["obsidian_shard"]
+            exp: 60
+            message: "날카로운 흑요석 조각을 여러 개 캐냈다. 무기나 도구를 만드는 데 쓸 수 있을 것 같다."
+      - text: "원소술사의 화염 마법으로 광맥을 정밀하게 녹인다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "reward"
+            gold: 350
+            items: ["volcanic_obsidian", "fire_essence"]
+            exp: 130
+            message: "마법으로 불순물만 녹여내자 순수한 화산 흑요석과 불의 정수가 나타났다!"
+      - text: "봉인된 것이 무엇인지 살펴본다"
+        requirements: {}
+        outcomes:
+          - type: "mystery"
+            message: "흑요석 안에 봉인된 것은 고대 화염 룬이었다. 하지만 꺼내는 방법을 몰라 그냥 두었다."
+      - text: "그냥 지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "뜨거운 열기를 뒤로하고 길을 계속 걸었다."
+
+  - id: "volcanic_hot_spring"
+    name: "화산 온천"
+    category: "blessing"
+    region: "volcano"
+    description: "용암 지대 한가운데 기적처럼 온천이 솟아나고 있다. 유황 냄새가 나지만 물색은 맑고 온도는 딱 알맞다. 오래된 돌판에 '용의 눈물이 흐르는 샘'이라는 글자가 새겨져 있다."
+    weight: 12
+    cooldown_steps: 180
+    once_only: false
+    choices:
+      - text: "온천에 몸을 담그고 휴식을 취한다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 0.4
+            message: "뜨거운 온천물이 온몸의 피로와 상처를 녹여냈다. 기분이 한결 좋아졌다."
+      - text: "샤먼의 능력으로 온천의 정령에게 축복을 구한다"
+        requirements:
+          has_job: "shaman"
+        outcomes:
+          - type: "buff"
+            buff_id: "dragon_blessing"
+            duration: 60
+            message: "용의 정령이 모습을 드러내며 강력한 축복을 내려주었다. 몸에 용의 힘이 깃드는 것이 느껴진다."
+      - text: "온천물을 병에 담아 가져간다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["dragon_spring_water"]
+            exp: 50
+            message: "용의 눈물이라 불리는 신비로운 온천물을 담았다. 나중에 요긴하게 쓸 수 있을 것이다."
+      - text: "위험해 보여 그냥 지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "유황 냄새가 너무 강해 그냥 지나쳤다."
+
+  - id: "phoenix_feather"
+    name: "불사조의 깃털"
+    category: "mystery"
+    region: "volcano"
+    description: "화산 분화구 근처에서 타오르는 듯 빛나는 붉은 깃털 하나를 발견했다. 만져도 뜨겁지 않고 오히려 생명의 온기가 느껴진다. 전설 속 불사조가 이곳을 지나간 것일까."
+    weight: 9
+    cooldown_steps: 270
+    once_only: false
+    choices:
+      - text: "깃털을 조심스럽게 집어 보관한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["phoenix_feather"]
+            exp: 100
+            message: "불사조의 깃털을 손에 쥐는 순간 온몸에 따스한 불꽃이 퍼지는 것 같았다."
+      - text: "대마법사의 힘으로 깃털에 깃든 마력을 흡수한다"
+        requirements:
+          has_job: "archmage"
+        outcomes:
+          - type: "buff"
+            buff_id: "phoenix_power"
+            duration: 70
+            message: "불사조의 마력이 몸속으로 흘러들어왔다. 한 번 쓰러져도 다시 일어날 수 있는 힘이 깃든 것 같다."
+      - text: "깃털을 공중에 날려 불사조에게 돌려준다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 0.25
+            message: "깃털이 하늘로 날아오르더니 찬란한 불꽃이 되어 온몸을 감쌌다. 생명력이 회복되었다."
+      - text: "깃털을 무시하고 지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "평범한 깃털인 줄 알고 지나쳤다. 나중에야 후회가 밀려왔다."
+
+  - id: "fire_salamander"
+    name: "화염 도롱뇽"
+    category: "challenge"
+    region: "volcano"
+    description: "용암 웅덩이 가장자리에서 화염 도롱뇽 한 무리가 놀고 있다. 몸에서 불꽃을 뿜으며 뛰어노는 이 생물들은 화산의 정령이라 불린다. 그 중 한 마리가 당신을 빤히 쳐다보고 있다."
+    weight: 10
+    cooldown_steps: 220
+    once_only: false
+    choices:
+      - text: "도롱뇽과 대결을 펼친다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 120
+            items: ["flame_scale"]
+            exp: 110
+            message: "치열한 싸움 끝에 도롱뇽을 제압했다! 불꽃 비늘을 전리품으로 얻었다."
+      - text: "원소술사의 불꽃 친화력으로 교감한다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "buff"
+            buff_id: "fire_affinity"
+            duration: 55
+            message: "도롱뇽이 동족으로 인정했는지 머리를 비볐다. 화염에 대한 저항력이 높아진 것 같다."
+      - text: "먹이를 주어 친해진다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "가지고 있던 음식을 나눠주자 도롱뇽이 만족스러운 듯 불꽃을 내뿜으며 사라졌다."
+      - text: "도망친다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 0.1
+            message: "도망치는 도중 도롱뇽이 뿜은 불꽃에 화상을 입었다!"
+
+  # ============================================================
+  # 별빛 지역 추가 이벤트
+  # ============================================================
+
+  - id: "cosmic_entity"
+    name: "우주 존재와의 조우"
+    category: "mystery"
+    region: "stellar"
+    description: "별빛 지대를 걷다가 형태를 알 수 없는 존재와 마주쳤다. 수많은 별이 응집된 것처럼 보이는 이 존재는 말 대신 직접 의식에 메시지를 전달한다. '무엇을 원하는가'라는 질문이 머릿속을 채운다."
+    weight: 9
+    cooldown_steps: 280
+    once_only: false
+    choices:
+      - text: "힘을 달라고 요청한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "cosmic_power"
+            duration: 60
+            message: "존재가 별빛 에너지를 불어넣어 주었다. 온몸에 우주의 힘이 가득 찬 느낌이다."
+      - text: "차원술사의 능력으로 존재의 본질을 파악한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["cosmic_core"]
+            exp: 200
+            message: "존재의 진정한 형태는 차원 사이를 유영하는 고대 의식체였다. 감사의 표시로 우주의 핵심을 남겼다."
+      - text: "지식을 달라고 요청한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: []
+            exp: 180
+            message: "우주의 비밀 일부가 머릿속으로 흘러들어왔다. 압도적인 지식에 잠시 정신이 아찔했다."
+      - text: "무서워서 눈을 감고 버틴다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "눈을 뜨자 존재는 사라져 있었다. 기회를 놓친 것 같아 아쉬움이 남았다."
+
+  - id: "star_gate"
+    name: "별의 관문"
+    category: "mystery"
+    region: "stellar"
+    description: "공중에 떠 있는 별빛으로 만들어진 거대한 아치형 관문이 보인다. 관문 너머로는 다른 별자리 지역이 보이는 것 같지만, 통과하면 어디로 가는지 알 수 없다. 관문 주위로 별들이 소용돌이치고 있다."
+    weight: 10
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "관문을 통과해 본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 250
+            items: ["stellar_token"]
+            exp: 120
+            message: "관문을 통과하자 잠시 별들 사이 공간을 유영했다. 별빛 결정이 가득한 곳에서 보물을 발견했다!"
+      - text: "시간마법사의 시간 예지로 관문 너머를 본다"
+        requirements:
+          has_job: "time_mage"
+        outcomes:
+          - type: "reward"
+            gold: 400
+            items: ["stellar_token", "star_essence"]
+            exp: 200
+            message: "미래의 눈으로 관문 너머를 살펴본 후 완벽한 타이밍에 통과해 더 많은 보물을 얻었다!"
+      - text: "관문을 조사하고 돌아온다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "관문의 구조를 살펴보았지만 통과하는 용기는 없었다."
+      - text: "관문 주위의 별빛 에너지를 수집한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "starlight_charge"
+            duration: 45
+            message: "관문 주위를 맴도는 별빛 에너지를 몸속으로 흡수했다. 마법 에너지가 충전되었다."
+
+  - id: "nebula_mist"
+    name: "성운의 안개"
+    category: "trap"
+    region: "stellar"
+    description: "형형색색의 안개가 경로를 가득 채우고 있다. 아름다운 빛깔의 성운 안개이지만, 그 안에서 이상한 환각이 보인다는 전설이 있다. 안개 속에서 무언가가 빛나고 있는 것이 보인다."
+    weight: 11
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "안개 속으로 들어가 빛나는 것을 찾는다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 0.12
+            message: "안개 속에서 환각에 빠져 방향감각을 잃었다. 겨우 빠져나왔지만 정신적 충격이 컸다."
+      - text: "환상술사의 능력으로 안개의 환각을 꿰뚫는다"
+        requirements:
+          has_job: "illusionist"
+        outcomes:
+          - type: "reward"
+            gold: 280
+            items: ["nebula_crystal"]
+            exp: 130
+            message: "환각 속에서도 진실을 볼 수 있었다. 안개 중심에서 귀한 성운 수정을 손에 넣었다."
+      - text: "안개를 우회하는 길을 찾는다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "멀리 돌아가느라 시간을 낭비했지만 무사히 안개를 피했다."
+      - text: "숨을 참고 빠르게 안개를 통과한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: []
+            exp: 70
+            message: "안개를 빠르게 통과하는 데 성공했다. 짧은 순간이었지만 신비로운 경험이었다."
+
+  - id: "gravity_anomaly"
+    name: "중력 이상 지대"
+    category: "challenge"
+    region: "stellar"
+    description: "이 구역에서 갑자기 중력이 반전되기 시작했다. 돌멩이들이 하늘로 떠오르고, 발밑의 땅이 흔들린다. 이상한 중력파가 주기적으로 몸을 끌어당기고 밀어낸다."
+    weight: 10
+    cooldown_steps: 230
+    once_only: false
+    choices:
+      - text: "중력을 거스르며 강제로 전진한다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 0.15
+            message: "중력 이상에 몸이 여기저기 부딪히며 상처를 입었다. 힘겹게 지대를 빠져나왔다."
+      - text: "차원술사의 능력으로 중력파를 조종한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "buff"
+            buff_id: "gravity_mastery"
+            duration: 65
+            message: "중력파를 역이용해 하늘을 자유롭게 날아다녔다. 차원의 힘이 한층 강해진 것 같다."
+      - text: "중력이 안정될 때까지 기다린다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "잠시 기다리자 중력 이상이 잠시 멈췄다. 그 틈에 재빠르게 지대를 빠져나왔다."
+      - text: "뜨오르는 돌멩이들 사이에서 보물을 찾는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 160
+            items: ["gravity_crystal"]
+            exp: 85
+            message: "공중에 떠 있는 돌멩이들 사이에서 중력석 조각을 발견했다. 신기한 물건이다."
+
+  - id: "starlight_spring"
+    name: "별빛의 샘"
+    category: "blessing"
+    region: "stellar"
+    description: "별빛이 액체처럼 흘러내려 고인 신비로운 샘이 있다. 샘물은 밤하늘을 담은 듯 은하수처럼 빛난다. 고대 성좌 문명의 성지로 알려진 곳으로, 이 물을 마시면 별의 축복을 받는다고 전해진다."
+    weight: 8
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "별빛 샘물을 마신다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 0.5
+            message: "은하수 같은 샘물이 목을 타고 넘어가며 온몸에 별의 에너지가 가득 찼다. 완전히 회복되었다!"
+      - text: "철학자의 통찰로 샘의 비밀을 깨우친다"
+        requirements:
+          has_job: "philosopher"
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["starlight_essence"]
+            exp: 250
+            message: "별빛 샘의 근원은 우주의 지혜가 응집된 것이었다. 그 진리를 깨닫고 정수를 담아냈다."
+      - text: "샘물을 병에 담아 가져간다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 0
+            items: ["bottled_starlight"]
+            exp: 60
+            message: "별빛 샘물을 조심스럽게 병에 담았다. 병 안에서도 은하수처럼 빛난다."
+      - text: "샘 주위에서 명상한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "stellar_insight"
+            duration: 50
+            message: "별빛에 둘러싸여 명상하자 정신이 맑아지고 감각이 예리해졌다."
+
+  # ============================================================
+  # 잊혀진 숲 (forgotten_forest) 신규 이벤트
+  # ============================================================
+
+  - id: "forest_fairy_circle"
+    name: "요정의 원형 지대"
+    category: "mystery"
+    region: "forgotten_forest"
+    description: "버섯들이 완벽한 원을 그리며 자라난 곳을 발견했다. 요정의 원형 지대라 불리는 곳으로, 이 안에 들어서면 다른 세계와 연결된다는 전설이 있다. 원 중앙의 공기가 미세하게 일렁인다."
+    weight: 10
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "원 안으로 들어선다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 300
+            items: ["fairy_circle_dust", "forest_blessing_charm"]
+            affinity_gain: 4
+            message: "원 안으로 들어서자 작은 요정들이 무수히 나타나 파티를 환영했다. 잠시 다른 세계를 여행한 것 같은 기분이 들었고, 돌아올 때 요정의 선물을 받았다."
+      - text: "드루이드가 요정들과 교신한다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["fairy_queen_feather", "ancient_forest_seed"]
+            affinity_gain: 7
+            message: "자연의 언어로 요정 여왕과 직접 대화했다. 그녀는 잊혀진 숲의 진짜 역사를 들려주었고, 귀한 선물을 주었다."
+      - text: "원 주위를 돌며 관찰한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "fairy_watch"
+            duration: 40
+            message: "원을 조심스럽게 관찰했다. 요정들의 기운이 파티에게 미약하게 깃들었다."
+
+  - id: "forest_talking_animal"
+    name: "말하는 동물"
+    category: "story"
+    region: "forgotten_forest"
+    description: "오래된 나무 그늘 아래 커다란 수달이 앉아있다. 그런데 수달이 입을 열었다. '당신들, 이 숲에서 길을 잃었군요. 내가 안내해 드릴까요?'"
+    weight: 9
+    cooldown_steps: 280
+    once_only: false
+    choices:
+      - text: "수달의 안내를 받는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 200
+            items: ["otter_guide_token"]
+            message: "수달이 숲 속 지름길을 안내해 주었다. 덕분에 시간을 크게 절약했고, 작은 보물도 찾았다."
+      - text: "드루이드가 수달과 깊이 대화한다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "reward"
+            exp: 400
+            items: ["forest_secret_map", "talking_animal_gift"]
+            affinity_gain: 5
+            message: "수달은 이 숲에 수백 년을 산 지혜로운 존재였다. 잊혀진 숲의 비밀 구역과 숨겨진 샘의 위치를 알려주었다."
+      - text: "수달을 파티에 데려가려 한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "수달이 정중히 거절했다. '나는 이 숲의 일부랍니다. 하지만 언제든 다시 오세요.'"
+
+  - id: "forest_ancient_tree_spirit"
+    name: "고대 나무 정령"
+    category: "story"
+    region: "forgotten_forest"
+    description: "수천 년은 된 것으로 보이는 거대한 나무에서 인간형의 정령이 모습을 드러냈다. '오랜만에 찾아온 방문자로군. 이 숲이 왜 잊혀졌는지 알고 싶은가?'"
+    weight: 7
+    cooldown_steps: 400
+    once_only: true
+    choices:
+      - text: "숲이 잊혀진 이유를 묻는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 450
+            items: ["ancient_forest_chronicle"]
+            message: "정령이 이야기했다. 이 숲은 세피로스의 첫 번째 루프에서 파괴되었다가, 반복되는 루프 속에서 점점 '잊혀진' 존재가 되었다고. 그래서 이름이 잊혀진 숲이 되었다."
+      - text: "정령에게 축복을 부탁한다"
+        requirements:
+          min_gold: 300
+        outcomes:
+          - type: "buff"
+            buff_id: "ancient_tree_blessing"
+            duration: 80
+            gold: -300
+            exp: 300
+            message: "정령이 나뭇가지를 뻗어 파티를 감쌌다. 수천 년의 자연 에너지가 파티에게 깃들었다."
+      - text: "정령과 작별 인사를 나눈다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "forest_farewell"
+            duration: 30
+            message: "정령이 조용히 미소 지었다. '다음에도 무사히 돌아오길.' 나뭇잎 하나가 손바닥에 떨어졌다."
+
+  # ============================================================
+  # 황혼의 사막 (twilight_desert) 신규 이벤트
+  # ============================================================
+
+  - id: "desert_sandstorm_opportunity"
+    name: "모래 폭풍의 기회"
+    category: "mystery"
+    region: "twilight_desert"
+    description: "거대한 모래 폭풍이 몰려온다. 폭풍이 지나가면 모래 속에 묻혀있던 것들이 드러나는 경우가 많다. 폭풍 속에 뛰어들 것인가, 피할 것인가."
+    weight: 11
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "폭풍을 피해 몸을 숨긴다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "모래 폭풍이 지나갔다. 안전하게 피했지만 기회를 잃었다."
+      - text: "폭풍이 지나간 뒤 드러난 것을 발굴한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 400
+            items: ["desert_buried_relic", "ancient_coin_pouch"]
+            exp: 200
+            message: "폭풍이 쓸고 간 모래 아래 오래된 유물들이 드러났다. 수백 년 된 상인의 물건들이었다."
+      - text: "정령술사가 폭풍 정령을 달랜다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "reward"
+            gold: 600
+            items: ["storm_sand_crystal", "desert_wind_essence"]
+            exp: 400
+            message: "폭풍 정령에게 말을 걸어 달래자, 정령이 선물을 남기고 떠났다. 폭풍 수정과 사막 바람의 정수를 얻었다."
+
+  - id: "desert_mirage_npc"
+    name: "신기루 속의 인물"
+    category: "story"
+    region: "twilight_desert"
+    description: "신기루인지 실재인지 알 수 없는 인물이 멀리서 손을 흔들고 있다. 가까이 다가갈수록 점점 선명해진다. 그는 이 사막에서 길을 잃은 것 같다."
+    weight: 10
+    cooldown_steps: 280
+    once_only: false
+    choices:
+      - text: "다가가서 말을 건다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 250
+            items: ["mirage_touched_gem"]
+            affinity_gain: 3
+            message: "신기루가 아니었다. 실제 여행자였고, 사흘째 길을 잃고 있었다. 안내해주자 감사의 표시로 귀한 보석을 건넸다."
+      - text: "시간 마법사가 신기루를 분석한다"
+        requirements:
+          has_job: "time_mage"
+        outcomes:
+          - type: "reward"
+            exp: 350
+            items: ["temporal_mirage_shard"]
+            message: "이것은 단순한 신기루가 아니었다. 과거 다른 루프에서의 장면이 사막의 열기에 의해 굴절되어 나타난 '시간 신기루'였다. 파편을 채취했다."
+      - text: "무시하고 지나간다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "신기루라고 판단하고 지나쳤다. 뒤를 돌아보니 그 자리는 비어있었다."
+
+  - id: "desert_buried_treasure"
+    name: "사막의 매장 보물"
+    category: "hidden_treasure"
+    region: "twilight_desert"
+    description: "모래 위에 아주 조금 돌출된 금속 조각이 눈에 띈다. 파보면 뭔가 나올 것 같다. 하지만 사막의 열기 속에서 삽질은 쉽지 않다."
+    weight: 12
+    cooldown_steps: 200
+    once_only: false
+    choices:
+      - text: "힘을 합쳐 파낸다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 600
+            items: ["desert_treasure_chest_small"]
+            exp: 150
+            message: "한참을 파자 낡은 상인의 상자가 나왔다. 오래된 동전과 보석이 들어있었다."
+          - type: "damage"
+            damage_percent: 5
+            message: "무더위에 삽질을 하느라 체력이 소모되었다."
+      - text: "연금술사가 탐지약을 사용한다"
+        requirements:
+          has_job: "alchemist"
+        outcomes:
+          - type: "reward"
+            gold: 1000
+            items: ["ancient_merchant_chest", "desert_relic_fragment"]
+            exp: 300
+            message: "탐지약으로 매장물의 정확한 위치를 파악해 효율적으로 발굴했다. 고대 상인의 비밀 금고를 통째로 꺼냈다."
+      - text: "지나친다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "그냥 지나쳤다. 어쩌면 대단한 보물이 있었을지도 모른다."
+
+  # ============================================================
+  # 심연의 동굴 (abyss_cavern) 신규 이벤트
+  # ============================================================
+
+  - id: "cavern_crystal_formation"
+    name: "수정 군집"
+    category: "hidden_treasure"
+    region: "abyss_cavern"
+    description: "동굴 깊은 곳에 경이로운 수정 군집이 있다. 수십 개의 크고 작은 수정이 서로 맞닿아 아름다운 구조를 이루고 있으며, 그 속에서 약한 마력이 흘러나온다."
+    weight: 11
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "수정 일부를 채취한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["abyss_crystal_shard_x3", "mana_residue"]
+            message: "작은 수정 파편들을 채취했다. 마력이 깃들어 있다."
+      - text: "마법사가 수정의 에너지를 흡수한다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "heal"
+            heal_percent: 40
+            message: "수정 군집의 마력을 흡수해 마나를 완전히 회복했다."
+          - type: "reward"
+            items: ["resonance_crystal"]
+            exp: 250
+            message: "공명 수정 하나를 부드럽게 분리하는 데 성공했다."
+      - text: "수정 군집을 관찰하며 스케치한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 180
+            items: ["crystal_formation_sketch"]
+            message: "아름다운 수정 군집을 스케치했다. 학술적 가치가 높아 보인다."
+
+  - id: "cavern_underground_echo"
+    name: "메아리 방"
+    category: "mystery"
+    region: "abyss_cavern"
+    description: "특이한 형태의 방에 들어서자 소리가 이상하게 증폭된다. 속삭임이 고함이 되고, 발소리가 천둥이 된다. 그리고 아주 멀리서 무언가의 소리가 메아리쳐 온다."
+    weight: 9
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "메아리에 귀를 기울인다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 200
+            message: "메아리 속에서 이 동굴 깊은 곳의 구조를 파악했다. 숨겨진 경로가 있다는 것을 알게 되었다."
+      - text: "음유시인이 노래를 부른다"
+        requirements:
+          has_job: "bard"
+        outcomes:
+          - type: "buff"
+            buff_id: "echo_resonance"
+            duration: 50
+            exp: 300
+            items: ["echo_melody_fragment"]
+            affinity_gain: 5
+            message: "음유시인의 노래가 메아리 방에서 증폭되어 파티 전체를 강화했다. 노래 선율이 수정에 새겨졌다."
+      - text: "큰 소리를 내어 구조물 약점을 찾는다"
+        requirements:
+          has_job: "warrior"
+        outcomes:
+          - type: "reward"
+            items: ["crumbled_wall_treasure"]
+            message: "전사의 외침이 약한 벽을 무너뜨렸다. 숨겨진 공간에서 오래된 물건이 나왔다."
+
+  - id: "cavern_deep_river"
+    name: "지하 강"
+    category: "story"
+    region: "abyss_cavern"
+    description: "동굴 깊숙이 지하 강이 흐른다. 투명한 물에는 발광하는 생물들이 헤엄치고 있다. 강 건너편에 무언가 반짝이는 것이 보인다."
+    weight: 10
+    cooldown_steps: 220
+    once_only: false
+    choices:
+      - text: "강을 헤엄쳐 건넌다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 350
+            items: ["deep_river_gem", "luminous_fish_scale"]
+            message: "차가운 강물을 헤쳐 건넜다. 강 건너편에 빛나는 보석과 발광 어류의 비늘이 있었다."
+          - type: "damage"
+            damage_percent: 8
+            message: "차가운 물에 체온이 내려갔다."
+      - text: "드루이드가 발광 생물을 교감한다"
+        requirements:
+          has_job: "druid"
+        outcomes:
+          - type: "reward"
+            exp: 350
+            items: ["bioluminescent_essence", "deep_river_map"]
+            message: "발광 생물들과 교감해 지하 강의 지도를 얻었다. 생물들이 더 안전한 도하 경로를 알려주었다."
+      - text: "강을 따라 상류로 이동한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["upstream_relic"]
+            exp: 150
+            message: "상류에 오래된 문명의 흔적이 있었다. 유물을 발견했다."
+
+  # ============================================================
+  # 폭풍의 고원 (storm_plateau) 신규 이벤트
+  # ============================================================
+
+  - id: "plateau_lightning_phenomenon"
+    name: "낙뢰 현상"
+    category: "mystery"
+    region: "storm_plateau"
+    description: "고원 위에서 번개가 특정 지점에 반복해서 내리치고 있다. 자연 현상이 아닌 것 같다. 번개가 모이는 중심에 무언가 빛나는 것이 있다."
+    weight: 11
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "낙뢰 중심부에 접근한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["lightning_core", "storm_crystal"]
+            exp: 250
+            message: "번개가 내리치는 지점에 뇌정석이 있었다. 감전 위험을 무릅쓰고 채취했다."
+          - type: "damage"
+            damage_percent: 12
+            message: "여러 차례 번개에 스쳤다."
+      - text: "정령술사가 번개 정령을 소환한다"
+        requirements:
+          has_job: "elementalist"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["thunder_spirit_core", "lightning_essence_large"]
+            message: "번개 정령들을 불러내 대화했다. 그들은 이 고원의 폭풍이 고대 마법 실험의 잔재임을 알려주었다. 감사의 표시로 번개 정령의 핵을 주었다."
+      - text: "번개를 피해 우회한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "위험한 낙뢰 지점을 우회했다. 안전하게 지나쳤다."
+
+  - id: "plateau_wind_spirit"
+    name: "바람의 정령"
+    category: "story"
+    region: "storm_plateau"
+    description: "고원의 강한 바람 속에서 반투명한 형체가 모습을 드러냈다. 바람 정령이 파티를 가로막는다. '이 고원을 지나려면 나의 시험을 통과해야 한다.'"
+    weight: 9
+    cooldown_steps: 350
+    once_only: false
+    choices:
+      - text: "시험을 받아들인다"
+        requirements: {}
+        outcomes:
+          - type: "battle"
+            enemy_id: "wind_spirit_trial"
+            enemy_level: 3
+          - type: "buff"
+            buff_id: "wind_blessing"
+            duration: 60
+            exp: 400
+            message: "바람 정령의 시험을 통과했다! 정령이 고원의 바람을 선물로 내려주었다."
+      - text: "정령과 대화로 시험을 대신한다"
+        requirements:
+          has_job: "bard"
+        outcomes:
+          - type: "buff"
+            buff_id: "wind_harmony"
+            duration: 50
+            exp: 300
+            affinity_gain: 4
+            message: "음유시인의 말과 노래로 정령의 마음을 움직였다. 정령이 전투 없이 통과를 허락했다."
+      - text: "정령을 무시하고 강행 돌파한다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 15
+            message: "정령이 강풍으로 파티를 강타했다. 가까스로 뚫고 나왔지만 상처를 입었다."
+
+  - id: "plateau_cloud_walk"
+    name: "구름 위를 걷다"
+    category: "story"
+    region: "storm_plateau"
+    description: "고원 끝에서 거대한 구름이 발판처럼 떠 있다. 올라설 수 있을 것 같다. 구름 위에 무언가가 있는 것이 멀리서 보인다."
+    weight: 8
+    cooldown_steps: 300
+    once_only: true
+    choices:
+      - text: "구름 위로 올라선다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 350
+            items: ["cloud_stepping_boots", "sky_relic"]
+            message: "구름이 신기하게도 체중을 지탱해주었다. 구름 위에서 숨겨진 하늘 유물을 발견했다."
+      - text: "마법으로 부양해 구름까지 날아간다"
+        requirements:
+          has_job: "mage"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["cloud_essence", "storm_throne_fragment", "sky_relic"]
+            message: "마법으로 날아 구름 위에 착지했다. 그 위에 고대 폭풍 왕국의 유물이 있었다."
+      - text: "위험해 보여 포기한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            message: "구름 발판이 위험해 보여 포기했다. 구름은 곧 바람에 흩어졌다."
+
+  # ============================================================
+  # 영원의 빙하 (eternal_glacier) 신규 이벤트
+  # ============================================================
+
+  - id: "glacier_frozen_time_pocket"
+    name: "얼어붙은 시간의 공간"
+    category: "story"
+    region: "eternal_glacier"
+    description: "빙하 한가운데 얼음 속에 완벽하게 보존된 장면이 있다. 고대의 전사들이 전투 중인 모습 그대로 얼어있다. 시간 자체가 이 얼음 속에서 멈춰버린 것 같다."
+    weight: 8
+    cooldown_steps: 400
+    once_only: true
+    choices:
+      - text: "얼음 속 장면을 자세히 관찰한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 400
+            items: ["frozen_time_record"]
+            message: "얼음 속에 보존된 전투는 수천 년 전의 것이었다. 그들이 어떤 기술로 싸웠는지를 관찰하며 전투 경험을 얻었다."
+      - text: "시간 마법사가 얼어붙은 시간을 살짝 해제한다"
+        requirements:
+          has_job: "time_mage"
+        outcomes:
+          - type: "reward"
+            exp: 700
+            items: ["time_frozen_artifact", "ancient_warriors_technique"]
+            message: "시간 정지를 잠시 해제하자 전사들이 짧게 움직였다. 그들의 검술을 직접 관찰하고, 얼어붙어 있던 유물을 꺼냈다."
+      - text: "얼음을 녹여 전사들을 해방시킨다"
+        requirements: {}
+        outcomes:
+          - type: "damage"
+            damage_percent: 5
+            message: "얼음을 녹이자 수천 년의 에너지가 폭발적으로 터졌다. 전사들은 먼지가 되어 사라졌다. 무언가 잘못된 것 같다."
+          - type: "reward"
+            items: ["ancient_dust_relic"]
+            message: "전사들의 마지막 유물이 남았다."
+
+  - id: "glacier_aurora_event"
+    name: "오로라 현상"
+    category: "story"
+    region: "eternal_glacier"
+    description: "밤하늘에 아름다운 오로라가 펼쳐진다. 그런데 오로라의 색깔과 패턴이 어떤 메시지를 담고 있는 것 같다. 릴리가 하늘을 바라보며 멈췄다. '저거... 차원의 언어야.'"
+    weight: 9
+    cooldown_steps: 350
+    once_only: false
+    choices:
+      - text: "릴리와 함께 오로라를 해석한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 350
+            affinity_gain: 8
+            items: ["aurora_decoded_message"]
+            message: "릴리가 오로라를 해석했다. 그것은 세피로스가 이 세계에 남긴 메시지였다. '다음 루프에는... 꼭.' 두 사람은 말없이 하늘을 바라보았다."
+      - text: "차원술사가 오로라의 구조를 분석한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["aurora_dimension_data", "ice_dimension_crystal"]
+            message: "오로라가 실제로 차원 에너지의 흐름을 시각화한 것임을 알아냈다. 영원한 빙하의 차원 지형도를 얻었다."
+      - text: "오로라를 감상하며 쉰다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 20
+            message: "아름다운 오로라 아래 잠시 쉬었다. 마음이 차분해지며 체력이 회복되었다."
+          - type: "buff"
+            buff_id: "aurora_serenity"
+            duration: 35
+            message: "오로라의 신비로운 빛이 파티에게 평온함을 주었다."
+
+  - id: "glacier_ice_sculpture"
+    name: "얼음 조각상들"
+    category: "mystery"
+    region: "eternal_glacier"
+    description: "빙하 속에 정교하게 조각된 인물상들이 줄지어 서 있다. 모두 같은 방향을 바라보고 있으며, 어딘가 슬픈 표정이다. 자연적으로 형성된 것이 아니다."
+    weight: 10
+    cooldown_steps: 280
+    once_only: true
+    choices:
+      - text: "조각상들을 살펴본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 300
+            items: ["ice_sculptor_journal"]
+            message: "조각상들 근처에 얼어붙은 일기가 있었다. 세피로스의 루프 중 한 번에 이 지역에서 살았던 사람들의 마지막 기록이었다."
+      - text: "신관이 조각상에 기도한다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "buff"
+            buff_id: "frozen_souls_blessing"
+            duration: 50
+            exp: 350
+            affinity_gain: 4
+            message: "기도를 올리자 조각상들이 잠시 빛났다. 그 속에 갇힌 영혼들이 편안히 떠나는 것 같았다. 그들의 감사가 파티를 축복했다."
+      - text: "조각상 중 하나를 가져가려 한다"
+        requirements: {}
+        outcomes:
+          - type: "debuff"
+            debuff_id: "ice_curse"
+            duration: 12
+            message: "조각상을 건드리자 차가운 기운이 몸 속으로 파고들었다. 저주에 걸린 것 같다."
+
+  # ============================================================
+  # 전쟁의 땅 (war_lands) 신규 이벤트
+  # ============================================================
+
+  - id: "war_abandoned_camp"
+    name: "버려진 야영지"
+    category: "story"
+    region: "war_lands"
+    description: "전쟁 때 사용했던 대규모 야영지의 흔적이 남아있다. 텐트 뼈대, 녹슨 장비, 그리고 아직도 읽을 수 있는 명령서들. 이 전쟁이 어떻게 끝났는지가 궁금해진다."
+    weight: 12
+    cooldown_steps: 220
+    once_only: false
+    choices:
+      - text: "야영지를 뒤진다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 300
+            items: ["military_ration_box", "war_era_coin", "rusty_but_usable_blade"]
+            message: "야영지에서 아직 쓸 만한 물건들을 찾았다. 군용 식량 상자와 전쟁 시대의 유물들이다."
+      - text: "기사가 명령서를 분석한다"
+        requirements:
+          has_job: "knight"
+        outcomes:
+          - type: "reward"
+            exp: 350
+            items: ["ancient_battle_strategy", "officer_badge"]
+            message: "명령서에는 이 전쟁의 전략 정보가 담겨있었다. 고대 전술을 배웠고 지휘관 배지를 찾았다."
+      - text: "야영지에서 하룻밤을 보낸다"
+        requirements: {}
+        outcomes:
+          - type: "heal"
+            heal_percent: 35
+            message: "오래된 야영지에서 쉬었다. 과거 전사들의 기운이 남아있는 것 같은 장소였다."
+
+  - id: "war_ghost_encounter"
+    name: "전쟁의 유령"
+    category: "story"
+    region: "war_lands"
+    description: "저녁이 되자 전쟁에서 죽은 병사들의 유령이 나타났다. 그들은 아직도 전투 중인 것처럼 서로 싸우고 있다. 유령들은 전쟁이 끝난 것을 모르는 것 같다."
+    weight: 10
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "유령들에게 전쟁이 끝났음을 알린다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 350
+            affinity_gain: 5
+            items: ["war_ghost_token"]
+            message: "유령들이 멈추었다. 전쟁이 끝났다는 사실에 혼란스러워하다가, 하나둘 빛으로 사라졌다. 감사의 징표가 남았다."
+      - text: "신관이 유령들을 인도한다"
+        requirements:
+          has_job: "priest"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            affinity_gain: 7
+            items: ["fallen_soldier_blessing"]
+            message: "사제의 기도가 유령들을 모두 인도했다. 모든 유령이 평안히 떠나며 그들의 축복이 파티에게 내려졌다."
+      - text: "유령들을 관찰한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 200
+            message: "유령들의 전투를 관찰하며 고대 전술을 배웠다. 전쟁의 슬픔이 마음에 남았다."
+
+  - id: "war_weapon_cache"
+    name: "무기 창고"
+    category: "hidden_treasure"
+    region: "war_lands"
+    description: "전쟁 당시 병사들이 숨겨놓은 비밀 무기 창고를 발견했다. 오랜 시간이 지났지만 마법으로 보존된 무기들이 아직도 빛을 발하고 있다."
+    weight: 11
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "무기를 챙긴다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 500
+            items: ["war_era_sword", "preserved_shield", "battle_axe_antique"]
+            message: "오랜 시간이 지났지만 마법 보존 덕에 아직도 쓸 수 있는 무기들을 얻었다."
+      - text: "기사가 무기들을 감정한다"
+        requirements:
+          has_job: "knight"
+        outcomes:
+          - type: "reward"
+            gold: 800
+            items: ["commander_sword_ancient", "legendary_shield_fragment"]
+            exp: 300
+            message: "무기들 중 지휘관이 사용하던 특별한 검을 식별했다. 아직도 강력한 마법이 깃들어 있다."
+      - text: "창고 전체를 파악한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 200
+            items: ["cache_map_notes"]
+            message: "창고의 물건 목록을 작성했다. 나중에 필요한 것을 다시 올 수 있게 기록해두었다."
+
+  # ============================================================
+  # 별빛의 왕좌 (starlight_throne) 신규 이벤트
+  # ============================================================
+
+  - id: "stellar_star_fragment"
+    name: "별의 파편"
+    category: "hidden_treasure"
+    region: "starlight_throne"
+    description: "땅에 박혀있는 빛나는 물체가 눈에 띈다. 가까이 다가가자 우주에서 떨어진 별의 파편임을 알 수 있다. 차원 에너지가 강하게 응축되어 있다."
+    weight: 9
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "별 파편을 채취한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            items: ["star_fragment_large", "cosmic_dust"]
+            exp: 250
+            message: "별의 파편을 채취했다. 강력한 우주 에너지가 느껴진다."
+      - text: "차원술사가 파편의 에너지를 분석한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["analyzed_star_core", "dimension_map_stellar"]
+            message: "별 파편에 담긴 차원 에너지를 분석했다. 이 별은 다른 차원에서 날아온 것이었다. 에너지 구조를 파악해 별빛의 왕좌 지형도를 얻었다."
+      - text: "파편에 손을 얹고 기원한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "stellar_wish"
+            duration: 60
+            message: "별에 소원을 빌었다. 알 수 없는 힘이 파티에게 깃들었다."
+
+  - id: "stellar_cosmic_event"
+    name: "우주적 사건"
+    category: "story"
+    region: "starlight_throne"
+    description: "하늘에서 두 별이 충돌하는 장면이 보인다. 충돌의 여파로 이 지역의 차원이 잠시 불안정해졌다. 공간 곳곳에서 에너지가 흘러나온다."
+    weight: 7
+    cooldown_steps: 400
+    once_only: false
+    choices:
+      - text: "에너지 흐름을 흡수한다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "cosmic_surge"
+            duration: 45
+            message: "우주의 에너지가 파티에게 쏟아졌다. 모든 능력이 일시적으로 강화되었다."
+          - type: "damage"
+            damage_percent: 8
+            message: "과도한 에너지 흡수로 약간의 충격을 받았다."
+      - text: "차원술사가 불안정한 차원을 안정화한다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            exp: 600
+            items: ["stabilized_cosmic_core", "void_star_fragment"]
+            message: "차원을 안정화하는 과정에서 우주적 에너지의 정수를 포집했다."
+      - text: "현상을 기록한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 300
+            items: ["cosmic_event_record"]
+            message: "우주적 사건을 상세히 기록했다. 천문학자들에게 귀한 자료가 될 것이다."
+
+  - id: "stellar_dimension_rift_unique"
+    name: "별빛의 차원 균열"
+    category: "story"
+    region: "starlight_throne"
+    description: "별빛의 왕좌에서만 볼 수 있는 특별한 차원 균열이 나타났다. 균열 너머로 별들이 가득한 공간이 보인다. 세피로스가 마지막 루프에서 이 균열을 통해 무언가를 보았다고 전해진다."
+    weight: 6
+    cooldown_steps: 500
+    once_only: true
+    choices:
+      - text: "균열 너머를 바라본다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 500
+            items: ["stellar_rift_vision_record"]
+            message: "균열 너머에 끝없는 별들이 있었다. 그 중 하나가 유독 밝게 빛났다. '저게 이 차원의 시작점이야.' 릴리가 조용히 말했다."
+      - text: "릴리에게 균열에 대해 묻는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 400
+            affinity_gain: 9
+            items: ["lily_revelation_fragment"]
+            message: "릴리가 오랫동안 침묵하다 말했다. '이 균열... 세피로스가 내게 마지막으로 보여줬던 거야. 10만 번째 루프가 끝나기 직전에.' 그녀의 눈에 눈물이 맺혔다."
+      - text: "균열 속으로 뛰어든다"
+        requirements:
+          has_job: "dimensionist"
+        outcomes:
+          - type: "reward"
+            exp: 900
+            items: ["void_between_stars", "stellar_throne_secret"]
+            message: "균열 속으로 뛰어들어 별들 사이의 공간을 잠시 여행했다. 그곳에서 이 차원의 진짜 구조와 세피로스의 마지막 목적을 일부 이해했다."
+
+  # ============================================================
+  # 전 지역 공통 이벤트
+  # ============================================================
+
+  - id: "wandering_bard_timeline"
+    name: "방랑 음유시인"
+    category: "story"
+    region: "all"
+    description: "길가에서 노래를 부르는 음유시인을 만났다. 그의 노래는 이상하게도 '타임라인의 영웅'에 대한 것이다. 마치 현재 파티의 이야기를 노래하는 것 같은 기분이 든다."
+    weight: 8
+    cooldown_steps: 250
+    once_only: false
+    choices:
+      - text: "노래를 끝까지 듣는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 200
+            affinity_gain: 4
+            message: "노래가 끝났다. 음유시인이 웃으며 말했다. '당신들 이야기는 이미 전설이 되고 있습니다. 물론 아직 쓰여지지 않은 부분이 더 많지만요.'"
+      - text: "음유시인에게 세피로스에 대해 노래해달라 한다"
+        requirements:
+          has_job: "bard"
+        outcomes:
+          - type: "reward"
+            exp: 350
+            affinity_gain: 6
+            items: ["timeline_ballad_scroll"]
+            message: "음유시인이 세피로스에 대한 노래를 불렀다. 10만 번의 루프를 걸어간 외로운 존재의 이야기. 음유시인은 마치 직접 목격한 사람처럼 노래했다."
+      - text: "음유시인의 정체를 의심한다"
+        requirements:
+          has_job: "rogue"
+        outcomes:
+          - type: "reward"
+            exp: 250
+            items: ["mysterious_bard_token"]
+            message: "도적의 눈이 음유시인의 허상을 꿰뚫었다. 이 '사람'은 사실 이 차원 자체의 기억이 의인화된 존재였다. 그가 사라지며 특별한 징표를 남겼다."
+
+  - id: "merchant_zik_encounter"
+    name: "차원의 상인 지크"
+    category: "merchant"
+    region: "all"
+    description: "어디서나 나타나는 유명한 방랑 상인 지크를 만났다. 그는 차원을 넘나들며 물건을 팔기로 유명하다. '안녕하세요! 오늘도 희귀한 물건을 가져왔답니다!'"
+    weight: 7
+    cooldown_steps: 300
+    once_only: false
+    choices:
+      - text: "지크의 물건을 구경한다"
+        requirements:
+          min_gold: 300
+        outcomes:
+          - type: "shop"
+            items: ["zik_special_potion", "dimensional_compass", "loop_memory_gem", "zik_mystery_box", "timeline_token"]
+            message: "지크의 물건들은 모두 다른 차원이나 타임라인에서 온 것들이다."
+      - text: "지크에게 세계의 정보를 묻는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 250
+            message: "지크가 각 지역의 최신 소식을 전해주었다. 위험한 장소와 숨겨진 기회에 대한 귀한 정보다."
+      - text: "지크의 과거를 묻는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 180
+            affinity_gain: 3
+            message: "지크가 잠시 진지한 표정을 지었다. '나는... 루프가 반복되는 동안 이 일을 해왔어요. 세피로스도 내 손님이었죠.' 그는 더 말하지 않았다."
+
+  - id: "lily_intuition_event"
+    name: "릴리의 직감"
+    category: "story"
+    region: "all"
+    description: "릴리가 갑자기 걸음을 멈추었다. 그녀가 조용히 말했다. '잠깐... 저기 뭔가 있어. 직감이야.' 그녀의 직감은 지금까지 한 번도 틀린 적이 없다."
+    weight: 9
+    cooldown_steps: 280
+    once_only: false
+    choices:
+      - text: "릴리를 따라 조사한다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            gold: 400
+            items: ["lily_discovery_item"]
+            exp: 200
+            affinity_gain: 5
+            message: "릴리의 직감대로 숨겨진 곳에 귀한 것이 있었다. 릴리가 환하게 웃었다. '봐, 맞잖아!'"
+      - text: "릴리의 능력에 대해 묻는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 150
+            affinity_gain: 7
+            message: "릴리가 잠시 생각하다 말했다. '나도 잘 모르겠어. 루프의 잔향인 건지... 아니면 내가 원래 이런 건지.' 그녀가 조용히 웃었다."
+      - text: "지금은 서두르자고 말한다"
+        requirements: {}
+        outcomes:
+          - type: "neutral"
+            affinity_gain: -2
+            message: "릴리가 아쉬운 표정을 지었다. '알았어...' 하지만 뒤를 돌아보는 눈빛이 마음에 걸렸다."
+
+  - id: "temporal_butterfly"
+    name: "시간의 나비"
+    category: "story"
+    region: "all"
+    description: "황금빛 나비 한 마리가 파티 앞에 나타났다. 나비의 날개에서 과거와 현재의 장면들이 어른거린다. 이것은 시간 에너지로 만들어진 존재다."
+    weight: 8
+    cooldown_steps: 350
+    once_only: false
+    choices:
+      - text: "나비를 조용히 바라본다"
+        requirements: {}
+        outcomes:
+          - type: "buff"
+            buff_id: "temporal_grace"
+            duration: 40
+            message: "나비가 파티 주위를 천천히 날았다. 시간의 흐름이 잠시 부드러워지는 것 같았다. 파티에게 시간의 은총이 깃들었다."
+      - text: "나비의 날개에서 장면을 읽는다"
+        requirements: {}
+        outcomes:
+          - type: "reward"
+            exp: 280
+            affinity_gain: 3
+            message: "나비의 날개에서 10만 번의 루프 중 행복했던 순간들이 보였다. 그 중에 현재 파티와 닮은 장면도 있었다."
+      - text: "나비를 잡으려 한다"
+        requirements: {}
+        outcomes:
+          - type: "debuff"
+            debuff_id: "time_disruption"
+            duration: 8
+            message: "나비를 잡으려 하자 갑자기 사라졌다. 동시에 시간의 흐름이 잠시 흐트러지는 느낌이 들었다."
+      - text: "음유시인이 나비를 위해 노래한다"
+        requirements:
+          has_job: "bard"
+        outcomes:
+          - type: "reward"
+            exp: 350
+            items: ["temporal_butterfly_scale"]
+            affinity_gain: 6
+            message: "노래에 감응한 나비가 날개에서 비늘을 하나 떨어뜨리고 사라졌다. 시간의 나비 비늘은 귀한 마법 소재다."
+

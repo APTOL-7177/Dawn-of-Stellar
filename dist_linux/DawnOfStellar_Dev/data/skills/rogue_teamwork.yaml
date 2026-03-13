@@ -1,0 +1,47 @@
+id: praeda_magna
+name: 프라에다 마그나
+type: teamwork
+description: "[팀워크] 파티 전체가 그림자에서 습격합니다.\n\n효과:\n1. 전체 적 농락 +5\n2. 아군 전체 2턴 버프:\n \
+  \  - 크리티컬 +20%\n   - 회피 +15%\n3. 전체 적 BRV 1.5 + HP 2.0 피해\n4. 전체 적 \"기본 독\" 3턴\n"
+target: all
+costs:
+  teamwork_gauge: 100
+metadata:
+  teamwork: true
+effects:
+- type: custom
+  handler: add_mockery_all
+  value: 5
+- type: buff
+  buff_id: shadow_assault
+  target: all_allies
+  duration: 2
+  effects:
+    critical_bonus: 0.2
+    evasion_bonus: 0.15
+- type: damage
+  damage_type: brv
+  stat_base: physical
+  multiplier: 1.5
+  target: all_enemies
+- type: damage
+  damage_type: hp
+  stat_base: physical
+  multiplier: 2.0
+  target: all_enemies
+- type: debuff
+  debuff_id: basic_poison
+  target: all_enemies
+  duration: 3
+  effects:
+    dot_percent: 0.05
+animation:
+  icon: 🌑⚔️
+  color:
+  - 100
+  - 50
+  - 150
+  screen_effect: shadow_assault
+sfx:
+- se
+- Up1

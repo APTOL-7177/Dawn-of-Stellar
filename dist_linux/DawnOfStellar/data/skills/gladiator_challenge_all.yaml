@@ -1,0 +1,30 @@
+id: gladiator_challenge_all
+name: 전원 도발
+type: buff
+description: '모든 적을 도발하고 관중을 열광시킨다.
+
+  전체 적 도발 2턴 + 환호 +15.
+
+  "곡예사" 요구 충족 가능.
+
+  '
+target: all_enemies
+costs:
+  mp: 8
+metadata:
+  crowd_action: hit_all_enemies
+  cheer_gain: 15
+effects:
+- type: status
+  status_type: taunt
+  duration: 2
+  cannot_resist: true
+animation:
+  icon: 🎯
+  color:
+  - 255
+  - 100
+  - 100
+sfx:
+- se
+- Taunt

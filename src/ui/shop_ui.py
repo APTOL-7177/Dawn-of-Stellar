@@ -28,7 +28,6 @@ class ShopCategory(Enum):
     PASSIVE_UNLOCKS = "passives"  # 패시브 해금
     CONSUMABLES = "consumables"  # 소모품
     BUILDINGS = "buildings"  # 건물 시설
-    SPECIAL = "special"  # 특수 아이템
 
 
 class ShopItem:
@@ -68,7 +67,7 @@ def get_job_unlock_items() -> List[ShopItem]:
         ("dimensionist", "차원술사"), ("dragon_knight", "드래곤 나이트"),
         ("druid", "드루이드"), ("elementalist", "정령사"), ("engineer", "기계공학자"),
         ("gladiator", "검투사"), ("hacker", "해커"), ("monk", "무승"),
-        ("necromancer", "네크로맨서"), ("paladin", "성기사"),
+        ("necromancer", "네크로맨서"), ("ninja", "닌자"), ("paladin", "성기사"),
         ("philosopher", "철학자"), ("pirate", "해적"), ("priest", "사제"),
         ("samurai", "사무라이"), ("shaman", "무당"), ("sniper", "스나이퍼"),
         ("spellblade", "마검사"), ("sword_saint", "검성"), ("time_mage", "시간술사"),
@@ -117,7 +116,7 @@ def get_trait_unlock_items() -> List[ShopItem]:
         ("dragon_knight", "드래곤 나이트"), ("druid", "드루이드"),
         ("elementalist", "정령사"), ("engineer", "기술자"), ("gladiator", "검투사"),
         ("hacker", "해커"), ("knight", "기사"), ("mage", "마법사"),
-        ("monk", "무승"), ("necromancer", "네크로맨서"), ("paladin", "성기사"),
+        ("monk", "무승"), ("necromancer", "네크로맨서"), ("ninja", "닌자"), ("paladin", "성기사"),
         ("philosopher", "철학자"), ("pirate", "해적"), ("priest", "사제"),
         ("rogue", "도적"), ("samurai", "사무라이"), ("shaman", "주술사"),
         ("sniper", "스나이퍼"), ("spellblade", "마검사"),
@@ -347,49 +346,31 @@ def get_shop_items() -> List[ShopItem]:
     items.extend([
         ShopItem(
             "엘릭서",
-            "HP와 MP를 완전히 회복",
+            "HP와 MP를 완전히 회복 (마을 창고로 지급)",
             20,  # 100 * 0.2
-            ShopCategory.CONSUMABLES
+            ShopCategory.CONSUMABLES,
+            item_id="elixir"
         ),
         ShopItem(
             "하이포션",
-            "HP 500 회복",
+            "HP 500 회복 (마을 창고로 지급)",
             10,  # 50 * 0.2
-            ShopCategory.CONSUMABLES
+            ShopCategory.CONSUMABLES,
+            item_id="greater_hp_potion"
         ),
         ShopItem(
             "하이이더",
-            "MP 100 회복",
+            "MP 100 회복 (마을 창고로 지급)",
             10,  # 50 * 0.2
-            ShopCategory.CONSUMABLES
+            ShopCategory.CONSUMABLES,
+            item_id="greater_mp_potion"
         ),
         ShopItem(
             "피닉스의 깃털",
-            "전투 중 사망 시 자동 부활 (1회)",
+            "전투 중 사망 시 자동 부활 1회 (마을 창고로 지급)",
             40,  # 200 * 0.2
-            ShopCategory.CONSUMABLES
-        ),
-    ])
-
-    # === 특수 아이템 ===
-    items.extend([
-        ShopItem(
-            "던전 스킵 티켓",
-            "특정 층을 스킵하고 다음 층으로",
-            60,  # 300 * 0.2
-            ShopCategory.SPECIAL
-        ),
-        ShopItem(
-            "보스 레이더",
-            "현재 층의 보스 위치를 미니맵에 표시",
-            30,  # 150 * 0.2
-            ShopCategory.SPECIAL
-        ),
-        ShopItem(
-            "보물 탐지기",
-            "현재 층의 모든 보물 위치를 미니맵에 표시",
-            20,  # 100 * 0.2
-            ShopCategory.SPECIAL
+            ShopCategory.CONSUMABLES,
+            item_id="phoenix_feather"
         ),
     ])
 
@@ -582,7 +563,32 @@ class ShopUI:
             logger.info(f"건물 시설 업그레이드: {facility_id} Lv.{target_level} ({item.price} 별의 파편)")
             return True, f"{item.name} 업그레이드 완료! (Lv.{current_level} → Lv.{target_level})"
         
-        # 소모품 및 기타
+        # 소모품 (창고로 지급)
+        elif item.category == ShopCategory.CONSUMABLES:
+            # 별의 파편 확인
+            if self.meta.star_fragments < item.price:
+                return False, f"별의 파편이 부족합니다. (필요: {item.price}, 보유: {self.meta.star_fragments})"
+
+            # 구매 처리 및 창고(town_storage)에 추가
+            self.meta.spend_star_fragments(item.price)
+
+            # town_storage는 List[Dict] 형태이므로, 기존에 같은 아이템이 있는지 확인
+            found = False
+            for storage_item in self.meta.town_storage:
+                if storage_item.get("id") == item.item_id:
+                    storage_item["quantity"] = storage_item.get("quantity", 0) + 1
+                    found = True
+                    break
+            
+            if not found:
+                self.meta.town_storage.append({"id": item.item_id, "quantity": 1})
+
+            save_meta_progress()
+
+            logger.info(f"소모품 구매 (창고 저장): {item.name} ({item.price} 별의 파편)")
+            return True, f"{item.name} 구매 완료! (마을 창고에 보관됨)"
+
+        # 기타
         else:
             # 별의 파편 확인
             if self.meta.star_fragments < item.price:
@@ -616,8 +622,7 @@ class ShopUI:
             ShopCategory.TRAIT_UNLOCKS: "특성 해금",
             ShopCategory.PASSIVE_UNLOCKS: "패시브 해금",
             ShopCategory.CONSUMABLES: "소모품",
-            ShopCategory.BUILDINGS: "건물 시설",
-            ShopCategory.SPECIAL: "특수"
+            ShopCategory.BUILDINGS: "건물 시설"
         }
 
         for i, category in enumerate(self.categories):

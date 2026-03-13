@@ -1,0 +1,20 @@
+id: meditation_heal
+name: Meditation Heal
+type: heal
+target_type: self
+description: 명상을 통해 자신의 HP와 MP를 모두 회복합니다 (마법력 기반)
+costs:
+  mp: 0
+  cast_time: 2.0
+effects:
+- type: heal
+  heal_type: hp
+  stat_scaling: magic
+  multiplier: 1.5
+- type: heal
+  heal_type: mp
+  stat_scaling: magic
+  multiplier: 1.0
+sfx:
+- se
+- Recovery

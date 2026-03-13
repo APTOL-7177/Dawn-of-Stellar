@@ -117,6 +117,9 @@ def get_gold_shop_items(floor_level: int = 1, shop_level: int = 1, shop_type: st
     # 기본 소모품 풀 (모든 레벨에서 사용 가능)
     base_consumable_pool = []
     for item_id, template in CONSUMABLE_TEMPLATES.items():
+        # 연금술 전용 아이템(가격 0)은 상점에 팔지 않음
+        if template.get("sell_price", 0) <= 0:
+            continue
         # 기본 가격은 sell_price 사용
         base_price = template.get("sell_price", 50)
         base_consumable_pool.append((item_id, base_price))
@@ -469,8 +472,8 @@ class GoldShopUI:
             # 대장간: 장비와 서비스만 표시 (소모품, 특수 아이템 제거)
             self.tabs = [GoldShopTab.EQUIPMENT, GoldShopTab.SERVICE]
         else:
-            # 상점: 소모품과 특수 아이템만 표시 (장비, 서비스 제거)
-            self.tabs = [GoldShopTab.CONSUMABLES, GoldShopTab.SPECIAL]
+            # 상점: 소모품만 표시 (장비, 서비스, 특수 아이템 제거)
+            self.tabs = [GoldShopTab.CONSUMABLES]
         
         self.current_tab = self.tabs[0]  # 첫 번째 탭 선택
         self.tab_index = 0
@@ -902,7 +905,7 @@ class GoldShopUI:
             selected_item = current_items[self.selected_index]
             # 재고가 있는 아이템만 설명 표시 (0이 아니면, -1은 무제한)
             if selected_item.stock != 0:
-                desc_y = shop_y + shop_height - 8
+                desc_y = shop_y + shop_height - 14
 
                 console.print(shop_x + 2, desc_y, "[ 설명 ]", fg=(150, 200, 255))
                 desc_y += 1
@@ -950,6 +953,15 @@ class GoldShopUI:
                     if hasattr(equipment_obj, 'level_requirement') and equipment_obj.level_requirement > 0:
                         level_text = f"레벨 제한: {equipment_obj.level_requirement}"
                         console.print(shop_x + 4, desc_y, level_text, fg=(200, 200, 255))
+                        desc_y += 1
+
+                    # 무게 표시
+                    item_weight = getattr(equipment_obj, 'weight', 0)
+                    if item_weight > 0:
+                        remaining = self.inventory.remaining_weight
+                        weight_color = (200, 200, 200) if item_weight <= remaining else (255, 100, 100)
+                        weight_text = f"무게: {item_weight:.1f}kg (여유: {remaining:.1f}kg / 최대: {self.inventory.max_weight:.1f}kg)"
+                        console.print(shop_x + 4, desc_y, weight_text, fg=weight_color)
                         desc_y += 1
 
         # 조작법
