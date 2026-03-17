@@ -2239,7 +2239,8 @@ class CombatUI:
                 is_host = self.session.host_id == local_player_id
 
         # 멀티플레이 모드에서 클라이언트인 경우 호스트로 액션 전송
-        if is_multiplayer and self.combat_sync_manager and self.session and not is_host:
+        # (self.session 체크 제거 - combat_sync_manager 존재가 이미 멀티플레이 보장)
+        if is_multiplayer and self.combat_sync_manager and not is_host:
             # 클라이언트: 호스트로 액션 요청 전송
             if not self.current_actor:
                 logger.error("멀티플레이 액션 실행 실패: 현재 액터가 없습니다.")
