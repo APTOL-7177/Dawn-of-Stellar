@@ -2253,9 +2253,7 @@ class CombatUI:
                 self.state = CombatUIState.ACTION_MENU
                 return
 
-            local_player_id = getattr(self.session, 'local_player_id', None) or (
-                self.session.host_id if hasattr(self.session, 'host_id') else None
-            )
+            local_player_id = self._get_local_player_id()
             if not local_player_id:
                 logger.error("멀티플레이 액션 실행 실패: 로컬 플레이어 ID를 찾을 수 없습니다.")
                 self.state = CombatUIState.ACTION_MENU
