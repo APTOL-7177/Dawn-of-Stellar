@@ -1545,12 +1545,17 @@ def main() -> int:
                                     # 멀티플레이: 경험치 분배 (호스트만 실행하여 중복 분배 방지)
                                     from src.multiplayer.config import MultiplayerConfig
                                     if is_host:
+                                        # 멀티플레이: 유령 상태가 아닌 캐릭터만 경험치/보상 수령
+                                        reward_party = [c for c in combat_party if not getattr(c, 'is_ghost', False)]
+                                        if not reward_party:
+                                            reward_party = combat_party  # 안전 장치
+
                                         if MultiplayerConfig.exp_divide_by_participants:
-                                            participating_count = len(combat_party)
+                                            participating_count = len(reward_party)
                                             if participating_count > 0:
                                                 rewards["experience"] = rewards["experience"] // participating_count
 
-                                        level_up_info = distribute_party_experience(combat_party, rewards["experience"])
+                                        level_up_info = distribute_party_experience(reward_party, rewards["experience"])
                                     else:
                                         level_up_info = []
 
@@ -1568,6 +1573,18 @@ def main() -> int:
                                     # 아이템은 LootUI에서 처리됨 (무게 체크 및 선택적 획득)
 
                                     inventory.add_gold(rewards.get("gold", 0))
+
+                                    # 멀티플레이: 보상 지급 완료 후 유령 플레이어 부활 (HP 1)
+                                    from src.combat.combat_manager import get_combat_manager
+                                    _cm = get_combat_manager()
+                                    if _cm and getattr(_cm, '_ghost_revival_pending', False):
+                                        for _ally in getattr(_cm, 'allies', []):
+                                            if getattr(_ally, 'is_ghost', False):
+                                                _ally.is_ghost = False
+                                                _ally.is_alive = True
+                                                _ally.current_hp = 1
+                                                logger.info(f"[유령 부활] {getattr(_ally, 'name', 'Unknown')} HP 1로 부활 (보상 지급 후)")
+                                        _cm._ghost_revival_pending = False
 
                                     # === 보스 승리 시 층 클리어 처리 ===
                                     if is_boss_fight and (floor_number == 20 or floor_number == 30):

@@ -5603,19 +5603,24 @@ class CombatManager:
         
         # 마술사 다이아 효과 (bonus_rewards) - 승리 시 추가 보상
         if state == CombatState.VICTORY:
-            # 멀티플레이: 유령 상태 플레이어 부활 (HP 1)
+            # 멀티플레이: 유령 상태 플레이어는 보상 분배 후 부활
+            # (보상/경험치는 유령이 아닌 생존 파티원에게만 지급)
+            # 유령 부활은 main.py에서 보상 처리 완료 후 수행
             if hasattr(self, 'session') and self.session:
+                ghost_players = []
                 for player_id, player in self.session.players.items():
                     if hasattr(player, 'party') and player.party:
                         for char in player.party:
                             if getattr(char, 'is_ghost', False):
-                                char.is_ghost = False
-                                char.is_alive = True
-                                char.current_hp = 1
-                                self.logger.info(
-                                    f"[유령 부활] {getattr(char, 'name', 'Unknown')} "
-                                    f"(플레이어: {player_id}) HP 1로 부활"
-                                )
+                                ghost_players.append((player_id, getattr(char, 'name', 'Unknown')))
+                if ghost_players:
+                    self.logger.info(
+                        f"[유령 보상 제외] 유령 플레이어 {len(ghost_players)}명: "
+                        f"{', '.join(f'{name}({pid})' for pid, name in ghost_players)} "
+                        f"→ 보상 후 HP 1로 부활 예정"
+                    )
+                    # _ghost_revival_pending 플래그 설정 (main.py에서 참조)
+                    self._ghost_revival_pending = True
 
             # === 보스 승리 스토리 ===
             is_sephiroth = any(getattr(enemy, 'enemy_id', None) == "sephiroth" for enemy in self.enemies)

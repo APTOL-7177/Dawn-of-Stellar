@@ -63,6 +63,17 @@ class HealEffect(SkillEffect):
                     is_reviving = True
                     # 부활 처리: is_alive를 True로 설정
                     t.is_alive = True
+                    # 멀티플레이: 유령 상태 해제 (전투 중 부활)
+                    if hasattr(t, 'is_ghost') and t.is_ghost:
+                        t.is_ghost = False
+                        # 같은 플레이어의 다른 캐릭터도 유령 해제
+                        t_pid = getattr(t, 'player_id', None) or getattr(t, 'owner_player_id', None)
+                        if t_pid and context and context.get('combat_manager'):
+                            cm = context['combat_manager']
+                            for ally in getattr(cm, 'allies', []):
+                                if (getattr(ally, 'player_id', None) or getattr(ally, 'owner_player_id', None)) == t_pid:
+                                    if hasattr(ally, 'is_ghost'):
+                                        ally.is_ghost = False
             elif not getattr(t, 'is_alive', True):
                 # 일반 회복 스킬에서는 죽은 대상 스킵
                 continue
@@ -151,18 +162,18 @@ class HealEffect(SkillEffect):
             if context is not None:
                 context['targets_healed'] = context.get('targets_healed', 0) + 1
 
-            # faith_shield 특성: 아군 치유 시 대상에게 보호막 부여 (회복량의 40%)
-            if hasattr(user, 'active_traits') and user != t:  # 자가 힐 제외
+            # faith_shield 특성: 치유 시 대상에게 보호막 부여 (전체 회복량의 40%, 본인 포함)
+            if hasattr(user, 'active_traits'):
                 has_faith_shield = any(
                     (trait if isinstance(trait, str) else trait.get('id')) == 'faith_shield'
                     for trait in user.active_traits
                 )
-                if has_faith_shield and actual_heal > 0:
-                    shield_amount = int(actual_heal * 0.40)
-                    if shield_amount > 0:
+                if has_faith_shield and heal_amount > 0:
+                    shield_val = int(heal_amount * 0.40)
+                    if shield_val > 0:
                         if not hasattr(t, 'shield_amount'):
                             t.shield_amount = 0
-                        t.shield_amount += shield_amount
+                        t.shield_amount += shield_val
 
             # resurrection_master 특성: 아군 치유 시 회복량의 25%만큼 본인도 추가 치유
             if hasattr(user, 'active_traits') and user != t:  # 자가 힐 제외

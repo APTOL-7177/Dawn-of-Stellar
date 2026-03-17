@@ -127,6 +127,24 @@ class RevivalSystem:
             # is_alive 플래그 설정
             if hasattr(character, 'is_alive'):
                 character.is_alive = True
+
+            # 멀티플레이: 유령 상태 해제 (한 캐릭터라도 부활하면 해당 플레이어 유령 해제)
+            if hasattr(character, 'is_ghost'):
+                character.is_ghost = False
+            # 같은 플레이어의 다른 캐릭터도 유령 해제
+            char_player_id = getattr(character, 'player_id', None) or getattr(character, 'owner_player_id', None)
+            if char_player_id:
+                try:
+                    from src.combat.combat_manager import get_combat_manager
+                    cm = get_combat_manager()
+                    if cm and hasattr(cm, 'allies'):
+                        for ally in cm.allies:
+                            ally_pid = getattr(ally, 'player_id', None) or getattr(ally, 'owner_player_id', None)
+                            if ally_pid == char_player_id and hasattr(ally, 'is_ghost'):
+                                ally.is_ghost = False
+                        self.logger.info(f"[유령 해제] 플레이어 {char_player_id} 유령 상태 해제 (부활: {getattr(character, 'name', 'Unknown')})")
+                except Exception as e:
+                    self.logger.debug(f"유령 해제 처리 중 예외 (무시): {e}")
             
             # 상처 상태 초기화 (있는 경우)
             if hasattr(character, 'current_wounds'):
