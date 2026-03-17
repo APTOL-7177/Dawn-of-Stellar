@@ -202,6 +202,34 @@ class NetworkManager:
                     all_parties = None
                     if self.current_exploration and hasattr(self.current_exploration, '_collect_all_parties'):
                         all_parties = self.current_exploration._collect_all_parties((x, y))
+                        self.logger.info(f"합류 파티 구성 완료: {len(all_parties) if all_parties else 0}명 플레이어")
+                    else:
+                        # current_exploration이 None이거나 메서드가 없는 경우: 세션 플레이어에서 직접 수집
+                        self.logger.warning(
+                            f"current_exploration={'None' if not self.current_exploration else 'no _collect_all_parties'} "
+                            f"→ session.players에서 파티 직접 수집 (폴백)"
+                        )
+                        if self.session and self.session.players:
+                            from src.multiplayer.protocol import MessageBuilder
+                            all_parties = {}
+                            for pid, mp_player in self.session.players.items():
+                                party = getattr(mp_player, 'party', None) or []
+                                serialized = []
+                                for character in party:
+                                    if character and getattr(character, 'is_alive', True):
+                                        try:
+                                            character.owner_player_id = pid
+                                        except Exception:
+                                            pass
+                                        try:
+                                            serialized.append(
+                                                MessageBuilder.serialize_character_for_combat(character)
+                                            )
+                                        except Exception as e:
+                                            self.logger.error(f"캐릭터 직렬화 실패 ({pid}): {e}")
+                                if serialized:
+                                    all_parties[pid] = serialized
+                            self.logger.info(f"합류 파티 구성 완료 (폴백): {len(all_parties)}명 플레이어")
 
                     # 전투 시작 메시지 브로드캐스트
                     start_msg = MessageBuilder.combat_start(

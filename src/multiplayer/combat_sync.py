@@ -105,20 +105,42 @@ class CombatSyncManager:
         except Exception as e:
             self.logger.error(f"하트비트 브로드캐스트 실패: {e}", exc_info=True)
 
+    def _get_network_event_loop(self):
+        """네트워크 매니저의 이벤트 루프를 가져옵니다 (동기→비동기 브릿지용)"""
+        if not self.network_manager:
+            return None
+        loop = getattr(self.network_manager, '_server_event_loop', None)
+        if loop is None:
+            loop = getattr(self.network_manager, '_client_event_loop', None)
+        if loop and loop.is_running():
+            return loop
+        return None
+
+    def _schedule_async(self, coro):
+        """동기 컨텍스트에서 코루틴을 네트워크 이벤트 루프에 스케줄링"""
+        import asyncio
+        # 1차: 네트워크 매니저의 이벤트 루프 (별도 스레드)
+        event_loop = self._get_network_event_loop()
+        if event_loop:
+            asyncio.run_coroutine_threadsafe(coro, event_loop)
+            return True
+        # 2차: 현재 실행 중인 async 루프 (async 컨텍스트에서 호출된 경우)
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(coro)
+            return True
+        except RuntimeError:
+            return False
+
     def send_heartbeat_sync(self):
         """
         send_heartbeat의 동기 래퍼 (combat_ui에서 호출용)
 
-        asyncio 이벤트 루프가 실행 중인 경우 비동기 하트비트를 스케줄링합니다.
+        네트워크 매니저의 이벤트 루프를 통해 비동기 하트비트를 스케줄링합니다.
+        동기 전투 루프에서도 안정적으로 동작합니다.
         """
         try:
-            import asyncio
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(self.send_heartbeat())
-            except RuntimeError:
-                # 이벤트 루프가 없는 경우 무시
-                pass
+            self._schedule_async(self.send_heartbeat())
         except Exception as e:
             self.logger.error(f"하트비트 동기 래퍼 실패: {e}", exc_info=True)
 
@@ -715,8 +737,15 @@ class CombatSyncManager:
                 # 액션 동기화 실행
                 await self._sync_remote_action(combat_action)
 
+                # 액션 결과를 UI 콜백으로 전달 (데미지/힐 메시지, 애니메이션 표시)
+                result_data = combat_action.get("result", {})
+                if result_data and self.on_action_result_callback:
+                    try:
+                        self.on_action_result_callback(result_data)
+                    except Exception as cb_e:
+                        self.logger.error(f"액션 결과 UI 콜백 실패: {cb_e}", exc_info=True)
+
                 # 내 액션에 대한 응답이라면 타임아웃 취소 및 UI 잠금 해제
-                # (단, _sync_remote_action에서 로컬 플레이어 액션은 스킵하므로 여기서 처리)
                 action_player_id = combat_action.get("player_id")
                 from src.multiplayer.game_mode import get_game_mode_manager
                 game_mode_manager = get_game_mode_manager()
@@ -1253,12 +1282,7 @@ class CombatSyncManager:
     def send_action_selection_start_sync(self, actor: Any, target_player_id: str):
         """send_action_selection_start의 동기 래퍼 (combat_ui에서 호출용)"""
         try:
-            import asyncio
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(self.send_action_selection_start(actor, target_player_id))
-            except RuntimeError:
-                pass
+            self._schedule_async(self.send_action_selection_start(actor, target_player_id))
         except Exception as e:
             self.logger.error(f"액션 선택 시작 동기 래퍼 실패: {e}", exc_info=True)
 
@@ -1292,12 +1316,7 @@ class CombatSyncManager:
     def broadcast_action_result_sync(self, actor: Any, result_data: Dict[str, Any]):
         """broadcast_action_result의 동기 래퍼 (combat_ui에서 호출용)"""
         try:
-            import asyncio
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(self.broadcast_action_result(actor, result_data))
-            except RuntimeError:
-                pass
+            self._schedule_async(self.broadcast_action_result(actor, result_data))
         except Exception as e:
             self.logger.error(f"액션 결과 브로드캐스트 동기 래퍼 실패: {e}", exc_info=True)
 
@@ -1322,12 +1341,7 @@ class CombatSyncManager:
     def broadcast_combat_end_sync(self, result: str, rewards: Optional[Dict[str, Any]] = None):
         """broadcast_combat_end의 동기 래퍼 (combat_ui에서 호출용)"""
         try:
-            import asyncio
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(self.broadcast_combat_end(result, rewards))
-            except RuntimeError:
-                pass
+            self._schedule_async(self.broadcast_combat_end(result, rewards))
         except Exception as e:
             self.logger.error(f"전투 종료 브로드캐스트 동기 래퍼 실패: {e}", exc_info=True)
 

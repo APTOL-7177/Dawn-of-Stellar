@@ -167,6 +167,8 @@ def _build_minimal_ui_for_update(
     ui._remote_action_actor = None
     ui._mp_combat_end_received = False
     ui._mp_combat_end_result = None
+    ui._pending_remote_actors = {}
+    ui._pending_remote_timeouts = {}
 
     ui.action_delay_frames = delay_frames
     ui.action_delay_max = 90
@@ -195,7 +197,8 @@ def _build_minimal_ui_for_update(
     return ui
 
 
-def test_multiplayer_delay_allows_other_player_ready_turn(monkeypatch):
+def test_multiplayer_client_skips_turn_processing_in_update(monkeypatch):
+    """멀티플레이 클라이언트는 update()에서 턴을 처리하지 않음 (호스트 권위 모델)"""
     actor = SimpleNamespace(name="Remote Ally", player_id="remote")
     ui = _build_minimal_ui_for_update(
         actor,
@@ -210,6 +213,33 @@ def test_multiplayer_delay_allows_other_player_ready_turn(monkeypatch):
     monkeypatch.setattr("src.ui.combat_ui.play_sfx", lambda *args, **kwargs: None)
 
     ui.update(delta_time=1.0)
+
+    # 클라이언트는 update()에서 턴을 처리하지 않음 (호스트만 턴 관리)
+    assert ui.current_actor is None
+    assert ui.state == CombatUIState.WAITING_ATB
+
+
+def test_multiplayer_client_activates_turn_via_callback(monkeypatch):
+    """멀티플레이 클라이언트는 ACTION_SELECTION_START 콜백으로 턴 활성화"""
+    actor = SimpleNamespace(id="ally_remote", name="Remote Ally", player_id="remote")
+    ui = _build_minimal_ui_for_update(
+        actor,
+        local_player_id="remote",
+        delay_owner_player_id="host"
+    )
+    # combat_sync_manager에 _find_character_by_id 설정
+    sync_manager = MagicMock()
+    sync_manager._find_character_by_id = MagicMock(return_value=actor)
+    ui.combat_sync_manager = sync_manager
+
+    monkeypatch.setattr(
+        "src.multiplayer.game_mode.get_game_mode_manager",
+        lambda: SimpleNamespace(is_multiplayer=lambda: True, local_player_id="remote")
+    )
+    monkeypatch.setattr("src.ui.combat_ui.play_sfx", lambda *args, **kwargs: None)
+
+    # ACTION_SELECTION_START 콜백 호출 (호스트가 이 클라이언트의 캐릭터 턴을 알림)
+    ui._on_mp_action_selection_start("ally_remote", "Remote Ally", "remote")
 
     assert ui.current_actor is actor
     assert ui.state == CombatUIState.ACTION_MENU

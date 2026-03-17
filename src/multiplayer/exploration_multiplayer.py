@@ -1109,14 +1109,32 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         
         return True
     
+    def get_pending_combat(self):
+        """멀티플레이 대기 중인 전투 데이터를 반환 (매 프레임 폴링용).
+
+        move_player() 호출 없이도 호스트가 보낸 COMBAT_START를 즉시 처리하기 위해
+        world_ui.py 메인 루프에서 매 프레임 호출된다.
+        """
+        if hasattr(self, '_pending_client_combat') and self._pending_client_combat:
+            combat_data = self._pending_client_combat
+            self._pending_client_combat = None
+            self.logger.info("get_pending_combat: 호스트 동기화 전투 즉시 진입!")
+            return ExplorationResult(
+                success=True,
+                event=ExplorationEvent.COMBAT,
+                message="⚔ 전투 시작! (멀티플레이)",
+                data=combat_data
+            )
+        return None
+
     def move_player(self, dx: int, dy: int):
         """
         플레이어 이동 (멀티플레이 오버라이드)
-        
+
         Args:
             dx: X 방향 이동량
             dy: Y 방향 이동량
-            
+
         Returns:
             ExplorationResult
         """

@@ -209,8 +209,9 @@ class CombatUI:
         # 멀티플레이 전투 동기화
         self.local_party_ids: set = set()  # 로컬 플레이어가 조종하는 캐릭터 ID 셋
         self.is_mp_host: bool = False  # 멀티플레이 호스트 여부
-        self._remote_action_timeout: float = 0.0  # 원격 플레이어 행동 타임아웃 타이머
-        self._remote_action_actor: Optional[Any] = None  # 원격 행동 대기 중인 액터
+        self._remote_action_timeout: float = 0.0  # 원격 플레이어 행동 타임아웃 타이머 (미사용, 호환성 유지)
+        self._remote_action_actor: Optional[Any] = None  # 원격 행동 대기 중인 액터 (미사용, 호환성 유지)
+        self._pending_remote_actors: dict = {}  # {remote_key: (actor, timeout_remaining)} 비차단 원격 대기 추적
         self._mp_combat_end_received: bool = False  # 클라이언트: COMBAT_END 수신 플래그
         self._mp_combat_end_result: Optional[str] = None  # 클라이언트: 수신된 전투 결과
         self.combat_sync_manager: Optional[Any] = None
@@ -818,9 +819,8 @@ class CombatUI:
         if self.state == CombatUIState.BATTLE_END:
             return True
 
-        # 멀티플레이: 원격 플레이어 행동 대기 중에는 입력 무시
-        if self.state == CombatUIState.WAITING_REMOTE_ACTION:
-            return False
+        # 멀티플레이: WAITING_REMOTE_ACTION 상태 (레거시, 현재는 비차단 방식 사용)
+        # 이 상태는 더 이상 진입하지 않으므로 입력을 차단하지 않음
 
         # 멀티플레이 모드에서 다른 플레이어의 캐릭터 컨트롤 방지
         if self._should_block_input():
@@ -968,23 +968,27 @@ class CombatUI:
             actor: 행동한 캐릭터
             result: 액션 실행 결과
         """
+        # _pending_remote_actors에서 제거 (비차단 방식)
+        actor_pid = getattr(actor, 'player_id', None)
+        actor_id = getattr(actor, 'id', None)
+        if actor_pid and actor_id:
+            remote_key = f"{actor_pid}:{actor_id}"
+            self._pending_remote_actors.pop(remote_key, None)
+
+        # 액션 결과 표시
+        if isinstance(result, dict):
+            self._show_action_result(result)
+
+        # 행동 후 대기 시간 설정
+        self._set_action_delay(self.action_delay_max, actor)
+
+        actor_name = getattr(actor, 'name', 'Unknown')
+        logger.info(f"[호스트] 원격 플레이어 액션 실행 완료: {actor_name}")
+
+        # WAITING_REMOTE_ACTION 상태였다면 해제 (레거시 호환)
         if self.state == CombatUIState.WAITING_REMOTE_ACTION:
-            self._remote_action_actor = None
-            self._remote_action_timeout = 0
-
-            # 액션 결과 표시
-            if isinstance(result, dict):
-                self._show_action_result(result)
-
-            # 행동 후 대기 시간 설정
-            self._set_action_delay(self.action_delay_max, actor)
-
-            # 상태 초기화
             self.current_actor = None
             self.state = CombatUIState.WAITING_ATB
-
-            actor_name = getattr(actor, 'name', 'Unknown')
-            logger.info(f"[호스트] 원격 플레이어 액션 실행 완료: {actor_name}")
 
             # 전투 종료 확인
             from src.combat.combat_manager import CombatState as CS
@@ -1093,6 +1097,12 @@ class CombatUI:
                         return combatant
             return ready[0]
 
+        # 호스트는 모든 캐릭터의 턴을 처리해야 함 (원격 아군 포함)
+        # 원격 아군 턴 시 WAITING_REMOTE_ACTION + ACTION_SELECTION_START 전송
+        if getattr(self, 'is_mp_host', False):
+            return ready[0] if ready else None
+
+        # 클라이언트: 원격 아군 건너뛰기 (호스트의 ACTION_SELECTION_START 콜백으로만 턴 활성화)
         local_player_id = self._get_local_player_id()
         if not local_player_id:
             return ready[0]
@@ -2218,17 +2228,13 @@ class CombatUI:
         if isinstance(self.selected_action, tuple):
             action_type = ActionType.SKILL  # 기본 공격 스킬도 스킬로 실행
 
-        # 멀티플레이 모드 확인
-        from src.multiplayer.game_mode import get_game_mode_manager
-        game_mode_manager = get_game_mode_manager()
-        is_multiplayer = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
-        
+        # 멀티플레이 모드 확인 (combat_sync_manager 존재 여부로 판별)
+        is_multiplayer = self.combat_sync_manager is not None
+
         # 호스트 여부 확인
-        is_host = False
-        if self.session and game_mode_manager:
-            local_player_id = getattr(game_mode_manager, 'local_player_id', None) or (
-                self.session.host_id if hasattr(self.session, 'host_id') else None
-            )
+        is_host = self.is_mp_host
+        if not is_host and self.session:
+            local_player_id = self._get_local_player_id()
             if local_player_id and hasattr(self.session, 'host_id'):
                 is_host = self.session.host_id == local_player_id
 
@@ -2259,51 +2265,20 @@ class CombatUI:
                 kwargs['item'] = self.selected_item
                 kwargs['item_index'] = self.selected_item_index
 
-            # 비동기 액션 요청 전송
-            import asyncio
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    asyncio.create_task(
-                        self.combat_sync_manager.send_action_request(
-                            player_id=local_player_id,
-                            actor=self.current_actor,
-                            action_type=action_type,
-                            target=self.selected_target,
-                            skill=self.selected_skill,
-                            **kwargs
-                        )
-                    )
-                else:
-                    asyncio.run(
-                        self.combat_sync_manager.send_action_request(
-                            player_id=local_player_id,
-                            actor=self.current_actor,
-                            action_type=action_type,
-                            target=self.selected_target,
-                            skill=self.selected_skill,
-                            **kwargs
-                        )
-                    )
-            except RuntimeError:
-                # 이벤트 루프가 없으면 동기적으로 처리
-                logger.warning("비동기 이벤트 루프 없음, 동기 처리 시도")
-                try:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    loop.run_until_complete(
-                        self.combat_sync_manager.send_action_request(
-                            player_id=local_player_id,
-                            actor=self.current_actor,
-                            action_type=action_type,
-                            target=self.selected_target,
-                            skill=self.selected_skill,
-                            **kwargs
-                        )
-                    )
-                    loop.close()
-                except Exception as e:
-                    logger.error(f"멀티플레이 액션 전송 실패: {e}", exc_info=True)
+            # 비동기 액션 요청 전송 - combat_sync_manager의 _schedule_async 사용
+            # (전투 루프는 별도 스레드에서 동작하므로 run_coroutine_threadsafe 패턴 필요)
+            scheduled = self.combat_sync_manager._schedule_async(
+                self.combat_sync_manager.send_action_request(
+                    player_id=local_player_id,
+                    actor=self.current_actor,
+                    action_type=action_type,
+                    target=self.selected_target,
+                    skill=self.selected_skill,
+                    **kwargs
+                )
+            )
+            if not scheduled:
+                logger.error(f"멀티플레이 액션 전송 실패: 네트워크 이벤트 루프를 찾을 수 없음")
 
             logger.info(f"멀티플레이 액션 요청 전송: {local_player_id} - {actor_id} - {action_type.value if hasattr(action_type, 'value') else action_type}")
 
@@ -2830,23 +2805,25 @@ class CombatUI:
             self.battle_result = self.combat_manager.state
             self.state = CombatUIState.BATTLE_END
 
-        # 멀티플레이 호스트: 원격 플레이어 행동 대기 타임아웃 처리
-        if self.state == CombatUIState.WAITING_REMOTE_ACTION:
-            self._remote_action_timeout -= 1
-            if self._remote_action_timeout <= 0:
-                # 타임아웃: AI 자동 행동으로 대체
-                actor = self._remote_action_actor
-                if actor and getattr(actor, 'is_alive', True):
-                    actor_name = getattr(actor, 'name', 'Unknown')
-                    self.add_message(f"{actor_name} 행동 타임아웃 - AI 자동 행동", (255, 200, 100))
-                    logger.warning(f"[호스트] 원격 플레이어 행동 타임아웃: {actor_name}")
-                    # AI 기본 행동 실행
-                    self._execute_default_bot_action(actor)
-                self._remote_action_actor = None
-                self.state = CombatUIState.WAITING_ATB
+        # 멀티플레이 호스트: 비차단 원격 대기 타임아웃 처리
+        if self._pending_remote_actors:
+            timed_out_keys = []
+            for remote_key, (actor, timeout) in list(self._pending_remote_actors.items()):
+                timeout -= 1
+                if timeout <= 0:
+                    timed_out_keys.append(remote_key)
+                    if actor and getattr(actor, 'is_alive', True):
+                        actor_name = getattr(actor, 'name', 'Unknown')
+                        self.add_message(f"{actor_name} 행동 타임아웃 - AI 자동 행동", (255, 200, 100))
+                        logger.warning(f"[호스트] 원격 플레이어 행동 타임아웃(비차단): {actor_name}")
+                        self._execute_default_bot_action(actor)
+                else:
+                    self._pending_remote_actors[remote_key] = (actor, timeout)
+            for key in timed_out_keys:
+                self._pending_remote_actors.pop(key, None)
 
-        # 행동 실행 중인지 확인 (ATB 완전 정지)
-        is_time_frozen = self.state in [CombatUIState.EXECUTING, CombatUIState.WAITING_REMOTE_ACTION]
+        # 행동 실행 중인지 확인 (ATB 완전 정지) - WAITING_REMOTE_ACTION 제거됨
+        is_time_frozen = self.state in [CombatUIState.EXECUTING]
 
         # 플레이어가 메뉴에서 선택 중인지 확인 (불릿타임 적용)
         is_player_selecting = self.state in [
@@ -2861,16 +2838,19 @@ class CombatUI:
             CombatUIState.CHAIN_ABILITY_SELECT,  # 체인어빌리티 선택 중에도 불릿타임
         ]
 
-        # 멀티플레이 모드 확인
-        from src.multiplayer.game_mode import get_game_mode_manager
-        game_mode_manager = get_game_mode_manager()
-        is_multiplayer = game_mode_manager and game_mode_manager.is_multiplayer() if game_mode_manager else False
+        # 멀티플레이 모드 확인 (combat_sync_manager 존재 여부로 판별 - get_game_mode_manager보다 안정적)
+        is_multiplayer = self.combat_sync_manager is not None
 
         # 행동 실행 중: ATB 완전 정지 (update 호출 안 함)
         # 메뉴 선택 중: 불릿타임 (ATB 매우 느리게 증가)
         # 그 외(WAITING_ATB 등): ATB 정상 속도 증가
         if is_time_frozen:
             # 행동 실행 중에는 ATB 완전 정지 - combat_manager.update() 호출하지 않음
+            pass
+        elif is_multiplayer and not self.is_mp_host:
+            # 멀티플레이 클라이언트: combat_manager.update() 건너뛰기
+            # ATB, 캐스팅, 보스 타이머, 승리/패배 판정 모두 호스트에서 처리
+            # 클라이언트는 200ms 하트비트로 전체 상태를 동기화 수신
             pass
         else:
             if is_player_selecting:
@@ -2885,6 +2865,30 @@ class CombatUI:
         # 멀티플레이 호스트: 주기적 전투 상태 하트비트 (200ms 간격)
         if is_multiplayer and self.combat_sync_manager and self.combat_sync_manager.is_host:
             self.combat_sync_manager.send_heartbeat_sync()
+
+        # ── 멀티플레이 클라이언트: 적 AI/상태이상 등은 호스트만 처리 ──
+        # 단, 로컬 캐릭터의 ATB 100% 체크 → 행동 선택 UI 표시는 클라이언트에서 직접 수행
+        # (하트비트로 동기화된 ATB 값 기반, ACTION_SELECTION_START 대기 불필요)
+        if is_multiplayer and not self.is_mp_host:
+            # 클라이언트: 로컬 캐릭터 중 ATB 100%인 캐릭터가 있으면 행동 메뉴 표시
+            if self.state == CombatUIState.WAITING_ATB and self.current_actor is None:
+                local_pid = self._get_local_player_id()
+                if local_pid:
+                    for ally in self.combat_manager.allies:
+                        ally_pid = getattr(ally, 'player_id', None) or getattr(ally, 'owner_player_id', None)
+                        if str(ally_pid) != str(local_pid):
+                            continue
+                        if not getattr(ally, 'is_alive', True):
+                            continue
+                        gauge = self.combat_manager.atb.get_gauge(ally)
+                        if gauge and gauge.can_act:
+                            self.current_actor = ally
+                            self.action_menu = self._create_action_menu(ally)
+                            self.state = CombatUIState.ACTION_MENU
+                            self.add_message(f"{ally.name}의 턴!", (100, 255, 255))
+                            play_sfx("ui", "turn_ready")
+                            break
+            return
 
         # ATB 업데이트 직후 즉시 턴 체크
         # 행동 가능한 캐릭터 확인
@@ -3058,12 +3062,41 @@ class CombatUI:
                             # 행동 지연 타이머 설정 (0.5초 대기)
                             self._set_action_delay(15, actor)  # 0.5초 (30 FPS 기준)
                         else:
-                            # 행동 가능: 정상적으로 UI 표시
-                            self.current_actor = actor
-                            self.action_menu = self._create_action_menu(actor)
-                            self.state = CombatUIState.ACTION_MENU
-                            self.add_message(f"{actor.name}의 턴!", (100, 255, 255))
-                            play_sfx("ui", "turn_ready")
+                            # 행동 가능: 멀티플레이 호스트/클라이언트 분기
+                            from src.multiplayer.game_mode import get_game_mode_manager
+                            gm = get_game_mode_manager()
+                            is_mp = gm and gm.is_multiplayer() if gm else False
+
+                            actor_pid = getattr(actor, 'player_id', None)
+                            local_pid = self.local_player_id
+                            if not local_pid and self.session:
+                                local_pid = getattr(self.session, 'local_player_id', None)
+
+                            is_remote = is_mp and actor_pid and local_pid and actor_pid != local_pid
+
+                            if is_remote and self.is_mp_host and self.combat_sync_manager:
+                                # 호스트: 원격 플레이어에게 ACTION_SELECTION_START 전송 (비차단)
+                                actor_id = getattr(actor, 'id', None)
+                                remote_key = f"{actor_pid}:{actor_id}"
+                                if remote_key not in self._pending_remote_actors:
+                                    self._pending_remote_actors[remote_key] = (actor, 10.0 * 60)  # 10초 타임아웃
+                                    self.combat_sync_manager.send_action_selection_start_sync(actor, actor_pid)
+                                    self.add_message(f"{actor.name} 행동 선택 중...", (200, 200, 100))
+                                    logger.info(f"[호스트] ACTION_SELECTION_START 전송 (비차단): {actor.name} -> {actor_pid}")
+                                    # 불릿타임 활성화
+                                    if hasattr(self.combat_manager.atb, 'set_player_selecting') and actor_pid:
+                                        self.combat_manager.atb.set_player_selecting(actor_pid, True)
+                                # 차단하지 않음 - 계속 진행
+                            else:
+                                # 싱글플레이 또는 로컬 캐릭터: 정상적으로 UI 표시
+                                self.current_actor = actor
+                                self.action_menu = self._create_action_menu(actor)
+                                self.state = CombatUIState.ACTION_MENU
+                                self.add_message(f"{actor.name}의 턴!", (100, 255, 255))
+                                play_sfx("ui", "turn_ready")
+                                # 멀티플레이: 행동 선택 시작 (불릿타임)
+                                if is_mp and hasattr(self.combat_manager.atb, 'set_player_selecting') and actor_pid:
+                                    self.combat_manager.atb.set_player_selecting(actor_pid, True)
 
         # 전투 종료 체크
         if self.combat_manager.state in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
@@ -3570,14 +3603,18 @@ class CombatUI:
                             f"로컬 플레이어={local_player_id}) - current_actor 설정 안 함"
                         )
 
-                        # 호스트: 원격 플레이어에게 ACTION_SELECTION_START 전송 + 대기 상태
+                        # 호스트: 원격 플레이어에게 ACTION_SELECTION_START 전송 (비차단)
                         if self.is_mp_host and self.combat_sync_manager:
-                            self._remote_action_actor = combatant
-                            self._remote_action_timeout = 10.0 * 60  # 10초 (프레임 단위, 60FPS)
-                            self.state = CombatUIState.WAITING_REMOTE_ACTION
-                            self.add_message(f"{combatant.name} ({actor_player_id}) 행동 대기 중...", (200, 200, 100))
-                            self.combat_sync_manager.send_action_selection_start_sync(combatant, actor_player_id)
-                            logger.info(f"[호스트] 원격 플레이어에게 ACTION_SELECTION_START 전송: {combatant.name} -> {actor_player_id}")
+                            combatant_id = getattr(combatant, 'id', None)
+                            remote_key = f"{actor_player_id}:{combatant_id}"
+                            if remote_key not in self._pending_remote_actors:
+                                self._pending_remote_actors[remote_key] = (combatant, 10.0 * 60)
+                                self.add_message(f"{combatant.name} 행동 선택 중...", (200, 200, 100))
+                                self.combat_sync_manager.send_action_selection_start_sync(combatant, actor_player_id)
+                                logger.info(f"[호스트] ACTION_SELECTION_START 전송 (비차단): {combatant.name} -> {actor_player_id}")
+                            # 차단하지 않음 - ATB 대기 상태 유지
+                            self.state = CombatUIState.WAITING_ATB
+                            self.current_actor = None
                         else:
                             # 클라이언트: ATB 대기 상태 유지 (ACTION_SELECTION_START 콜백으로 활성화)
                             self.state = CombatUIState.WAITING_ATB
@@ -4177,7 +4214,9 @@ class CombatUI:
             self._render_chain_ability_select(console)
 
         elif self.state == CombatUIState.WAITING_REMOTE_ACTION:
-            self._render_waiting_remote_action(console)
+            # 레거시 상태 - 비차단 방식 전환 후 더 이상 진입하지 않음
+            # 혹시 진입 시 일반 전투 화면 표시 (전체 차단 없음)
+            pass
 
         elif self.state == CombatUIState.BATTLE_END:
             self._render_battle_end(console)
@@ -4188,6 +4227,10 @@ class CombatUI:
         # 기믹 상세 보기 (최상위 레이어 - 모든 UI 위에 표시)
         if self.state == CombatUIState.GIMMICK_VIEW:
             self._render_gimmick_view(console)
+
+        # 멀티플레이: 비차단 원격 대기 오버레이 (상단 소형 표시)
+        if self._pending_remote_actors:
+            self._render_pending_remote_overlay(console)
 
         # 마우스 호버 툴팁 (최상위 레이어)
         self._update_hover_character()
@@ -8562,29 +8605,21 @@ class CombatUI:
                 console.print(box_x + 2, desc_y + 1, desc_text[:box_width - 4], fg=(200, 255, 200))
 
     def _render_waiting_remote_action(self, console: tcod.console.Console):
-        """원격 플레이어 행동 대기 중 렌더링 (호스트)"""
-        actor = self._remote_action_actor
-        actor_name = getattr(actor, 'name', '???') if actor else '???'
-        actor_player_id = getattr(actor, 'player_id', None) if actor else None
+        """원격 플레이어 행동 대기 중 오버레이 렌더링 (비차단, 상단 소형 표시)"""
+        # 비차단 방식: _pending_remote_actors의 각 항목을 상단에 소형 표시
+        if not self._pending_remote_actors:
+            return
+        y = 1
+        for remote_key, (actor, timeout) in self._pending_remote_actors.items():
+            actor_name = getattr(actor, 'name', '???') if actor else '???'
+            remaining_sec = max(0, timeout / 60.0)
+            msg = f"[{actor_name} 행동 선택 중... {remaining_sec:.0f}s]"
+            console.print(1, y, msg, fg=(200, 200, 100))
+            y += 1
 
-        # 대기 메시지 표시
-        msg = f"{actor_name} 행동 대기 중..."
-        console.print(
-            self.screen_width // 2 - len(msg) // 2,
-            self.screen_height // 2,
-            msg,
-            fg=(200, 200, 100)
-        )
-
-        # 타임아웃 잔여 시간 표시
-        remaining_sec = max(0, self._remote_action_timeout / 60.0)
-        timeout_msg = f"타임아웃: {remaining_sec:.1f}초"
-        console.print(
-            self.screen_width // 2 - len(timeout_msg) // 2,
-            self.screen_height // 2 + 2,
-            timeout_msg,
-            fg=(180, 180, 180)
-        )
+    def _render_pending_remote_overlay(self, console: tcod.console.Console):
+        """전투 화면 위에 원격 대기 상태를 소형 오버레이로 표시"""
+        self._render_waiting_remote_action(console)
 
     def _render_battle_end(self, console: tcod.console.Console):
         """전투 종료 화면 렌더링"""

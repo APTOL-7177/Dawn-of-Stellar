@@ -4373,7 +4373,15 @@ def run_exploration(
                     network_manager.pending_dungeon_data = None
                 except Exception as e:
                     logger.error(f"클라이언트 던전 업데이트 실패: {e}", exc_info=True)
-        
+
+        # 멀티플레이 클라이언트: 대기 중인 전투 즉시 진입 (매 프레임 폴링)
+        # _pending_client_combat은 move_player 호출 없이도 즉시 처리되어야 한다.
+        if not ui.combat_requested and hasattr(exploration, 'get_pending_combat'):
+            pending_combat = exploration.get_pending_combat()
+            if pending_combat is not None:
+                logger.info("get_pending_combat: 대기 전투 감지 → 전투 진입")
+                ui._handle_exploration_result(pending_combat, console, context)
+
         # 멀티플레이에서 session이 있는 경우 추가 체크 (호스트 측)
         session = None
         if network_manager and hasattr(network_manager, 'session'):

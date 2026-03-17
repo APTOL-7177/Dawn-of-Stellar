@@ -1385,7 +1385,36 @@ def main() -> int:
                                 else:
                                     enemies = EnemyGenerator.generate_enemies(floor_number)
 
-                                # 멀티플레이 호스트: 생성된 적을 클라이언트에 브로드캐스트
+                                is_boss_fight = any(e.is_boss for e in map_enemies) if map_enemies else False
+                                if is_boss_fight and map_enemies:
+                                    boss_entity = next((e for e in map_enemies if e.is_boss), None)
+                                    if boss_entity:
+                                        # 보스 전투: 보스 1마리 + 잡몹 3마리 구성
+                                        is_floor_boss = (floor_number % 5 == 0)
+                                        is_final_boss = floor_number in [20, 30]
+                                        boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss, boss_battle=is_final_boss)
+
+                                        # 보스 조우 스토리 재생
+                                        if floor_number == 20:
+                                            from src.story.story_system import get_story_system
+                                            story_system = get_story_system()
+                                            encounter_story = story_system.get_sephiroth_encounter_story()
+                                            # 스토리 재생
+                                            from src.ui.npc_dialog_ui import render_story_sequence
+                                            render_story_sequence(display.console, display.context, encounter_story, logger)
+                                        elif floor_number == 30:
+                                            from src.story.story_system import get_story_system
+                                            story_system = get_story_system()
+                                            encounter_story = story_system.get_cain_encounter_story()
+                                            # 스토리 재생
+                                            from src.ui.npc_dialog_ui import render_story_sequence
+                                            render_story_sequence(display.console, display.context, encounter_story, logger)
+
+                                        minions = EnemyGenerator.generate_enemies(floor_number, 3)
+                                        enemies = [boss] + minions
+
+                                # 멀티플레이 호스트: 모든 적 확정 후 클라이언트에 브로드캐스트
+                                # (보스+잡몹 생성 완료 이후에 전송해야 적 수 불일치 방지)
                                 if session and network_manager and not data.get("synced_enemies"):
                                     try:
                                         from src.multiplayer.protocol import MessageBuilder
@@ -1417,34 +1446,6 @@ def main() -> int:
                                             logger.info(f"[멀티플레이] 호스트가 전투용 적 {len(enemies)}마리 브로드캐스트 (파티 정보 포함)")
                                     except Exception as e:
                                         logger.error(f"[멀티플레이] 적 브로드캐스트 실패: {e}")
-
-                                is_boss_fight = any(e.is_boss for e in map_enemies) if map_enemies else False
-                                if is_boss_fight and map_enemies:
-                                    boss_entity = next((e for e in map_enemies if e.is_boss), None)
-                                    if boss_entity:
-                                        # 보스 전투: 보스 1마리 + 잡몹 3마리 구성
-                                        is_floor_boss = (floor_number % 5 == 0)
-                                        is_final_boss = floor_number in [20, 30]
-                                        boss = EnemyGenerator.generate_boss(floor_number, is_floor_boss=is_floor_boss, boss_battle=is_final_boss)
-
-                                        # 보스 조우 스토리 재생
-                                        if floor_number == 20:
-                                            from src.story.story_system import get_story_system
-                                            story_system = get_story_system()
-                                            encounter_story = story_system.get_sephiroth_encounter_story()
-                                            # 스토리 재생
-                                            from src.ui.npc_dialog_ui import render_story_sequence
-                                            render_story_sequence(display.console, display.context, encounter_story, logger)
-                                        elif floor_number == 30:
-                                            from src.story.story_system import get_story_system
-                                            story_system = get_story_system()
-                                            encounter_story = story_system.get_cain_encounter_story()
-                                            # 스토리 재생
-                                            from src.ui.npc_dialog_ui import render_story_sequence
-                                            render_story_sequence(display.console, display.context, encounter_story, logger)
-
-                                        minions = EnemyGenerator.generate_enemies(floor_number, 3)
-                                        enemies = [boss] + minions
                                 
                                 # 멀티플레이: 합류 파티가 있으면 사용 (호스트는 참여자 전원의 Character 객체 보유)
                                 effective_party = combat_party
