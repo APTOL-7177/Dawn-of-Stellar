@@ -99,6 +99,10 @@ class FixedDamageEffect(SkillEffect):
             # 없으면 직접 HP 감소
             actual_damage = min(damage, target.current_hp)
             target.current_hp = max(0, target.current_hp - damage)
+            # 사망 판정
+            if target.current_hp <= 0 and hasattr(target, 'is_alive'):
+                if not (hasattr(target, '_has_undying_existence') and target._has_undying_existence()):
+                    target.is_alive = False
 
         result.hp_damage = actual_damage
         result.damage_dealt = actual_damage

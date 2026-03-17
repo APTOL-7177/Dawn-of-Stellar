@@ -24,7 +24,7 @@ from src.core.logger import get_logger, Loggers
 from src.core.vibration_system import vibration_manager, VibrationPattern
 from src.audio import play_sfx, play_bgm
 from src.ui.combat_tooltip import render_tooltip
-from src.ui.pygame_backend.effects.skill_effects import trigger_skill_effect, trigger_status_effect, trigger_item_effect
+from src.ui.effects import trigger_skill_effect, trigger_status_effect, trigger_item_effect
 from src.ui.ui_renderer import draw_styled_box, SelectionHighlight
 
 
@@ -46,6 +46,7 @@ class CombatUIState(Enum):
     GIMMICK_VIEW = "gimmick_view"  # 기믹 상세 보기
     CHAIN_ABILITY_SELECT = "chain_ability_select"  # 체인어빌리티 선택 (불릿타임)
     EXECUTING = "executing"  # 행동 실행 중
+    WAITING_REMOTE_ACTION = "waiting_remote_action"  # 원격 플레이어 행동 대기 중 (멀티플레이)
     BATTLE_END = "battle_end"  # 전투 종료
 
 
@@ -202,7 +203,16 @@ class CombatUI:
         # 이펙트 매니저 참조 (PygameDisplay에서 주입)
         self.effect_manager: Optional[Any] = None
 
-        # 멀티플레이 전투 동기화 관리자
+        # 디스플레이 컨텍스트 참조 (raylib 백엔드용)
+        self.display_context: Optional[Any] = None
+
+        # 멀티플레이 전투 동기화
+        self.local_party_ids: set = set()  # 로컬 플레이어가 조종하는 캐릭터 ID 셋
+        self.is_mp_host: bool = False  # 멀티플레이 호스트 여부
+        self._remote_action_timeout: float = 0.0  # 원격 플레이어 행동 타임아웃 타이머
+        self._remote_action_actor: Optional[Any] = None  # 원격 행동 대기 중인 액터
+        self._mp_combat_end_received: bool = False  # 클라이언트: COMBAT_END 수신 플래그
+        self._mp_combat_end_result: Optional[str] = None  # 클라이언트: 수신된 전투 결과
         self.combat_sync_manager: Optional[Any] = None
         if session and network_manager:
             from src.multiplayer.game_mode import get_game_mode_manager
@@ -214,16 +224,81 @@ class CombatUI:
                     or getattr(session, 'local_player_id', None)
                     or getattr(game_mode_manager, 'local_player_id', None)
                 )
-                is_host = bool(getattr(game_mode_manager, 'is_host', False))
-                if resolved_local_player_id and hasattr(session, 'host_id'):
+                # 호스트 판정: network_manager.is_host를 최우선 사용 (가장 신뢰성 높음)
+                if network_manager and hasattr(network_manager, 'is_host'):
+                    is_host = bool(network_manager.is_host)
+                elif resolved_local_player_id and hasattr(session, 'host_id'):
                     is_host = session.host_id == resolved_local_player_id
+                else:
+                    is_host = bool(getattr(game_mode_manager, 'is_host', False))
+                self.is_mp_host = is_host
                 self.combat_sync_manager = CombatSyncManager(
                     session,
                     network_manager,
                     combat_manager,
                     is_host=is_host
                 )
-                logger.info("멀티플레이 전투 동기화 관리자 초기화 완료")
+                # local_party_ids 설정: 로컬 플레이어가 조종하는 캐릭터 ID 수집
+                if resolved_local_player_id and combat_manager:
+                    for ally in combat_manager.allies:
+                        ally_owner = getattr(ally, 'owner_player_id', None) or getattr(ally, 'player_id', None)
+                        if ally_owner == resolved_local_player_id or not ally_owner:
+                            ally_id = getattr(ally, 'id', None) or getattr(ally, 'name', None)
+                            if ally_id:
+                                self.local_party_ids.add(str(ally_id))
+                # 콜백 등록
+                if is_host:
+                    # 호스트: 원격 플레이어 액션 실행 완료 시 UI 상태 리셋
+                    self.combat_sync_manager.on_remote_action_executed_callback = self._on_mp_remote_action_executed
+                else:
+                    # 클라이언트: 호스트로부터 수신한 메시지 처리
+                    self.combat_sync_manager.on_action_selection_start_callback = self._on_mp_action_selection_start
+                    self.combat_sync_manager.on_action_result_callback = self._on_mp_action_result
+                    self.combat_sync_manager.on_combat_end_callback = self._on_mp_combat_end
+                logger.info(f"멀티플레이 전투 동기화 관리자 초기화 완료 (호스트={is_host}, 로컬파티={len(self.local_party_ids)}명)")
+
+        # ── Raylib 전투 렌더러 (백엔드가 raylib일 때만) ──
+        self._combat_renderer = None
+        self._raylib_context = None
+        try:
+            from src.core.config import get_config
+            if get_config().get("display.backend", "pygame") == "raylib":
+                from src.ui.raylib_backend.combat_renderer import CombatRenderer
+                from src.ui.tcod_display import get_display
+                display = get_display()
+                ctx = getattr(display, 'context', None) or getattr(display, '_context', None)
+                if ctx is not None:
+                    cw = getattr(ctx, 'tile_width', 14)
+                    ch = getattr(ctx, 'tile_height', 16)
+                    sw = cw * self.screen_width
+                    sh = ch * self.screen_height
+                    self._combat_renderer = CombatRenderer(
+                        screen_w=sw, screen_h=sh, cell_w=cw, cell_h=ch
+                    )
+                    self._raylib_context = ctx
+                    self.display_context = ctx
+                    # 전투 참가자 슬롯 초기화
+                    self._combat_renderer.setup(
+                        list(combat_manager.allies),
+                        list(combat_manager.enemies),
+                    )
+                    logger.info("Raylib CombatRenderer 초기화 완료")
+        except Exception as e:
+            logger.debug(f"Raylib CombatRenderer 초기화 스킵: {e}")
+
+        # 독립 팝업 매니저 (CombatRenderer 의존 없이 직접 관리)
+        self._standalone_popup = None
+        try:
+            from src.ui.raylib_backend.effects.damage_popup import DamagePopupManager
+            self._standalone_popup = DamagePopupManager()
+        except Exception:
+            pass
+
+        # 게이지 애니메이션 상태 (카운팅 이펙트 + 데미지 트레일)
+        self._gauge_anim_values: dict = {}   # key -> 표시 수치 (카운팅)
+        self._gauge_trail_ratios: dict = {}  # key -> 잔상 비율
+        self._gauge_prev_values: dict = {}   # key -> 이전 프레임 실제 수치 (팝업용)
+        self._gauge_display_ratios: dict = {}  # key -> 표시 비율 (증가 시 서서히 채움)
 
         logger.info("전투 UI 초기화")
 
@@ -743,6 +818,10 @@ class CombatUI:
         if self.state == CombatUIState.BATTLE_END:
             return True
 
+        # 멀티플레이: 원격 플레이어 행동 대기 중에는 입력 무시
+        if self.state == CombatUIState.WAITING_REMOTE_ACTION:
+            return False
+
         # 멀티플레이 모드에서 다른 플레이어의 캐릭터 컨트롤 방지
         if self._should_block_input():
             logger.debug(f"다른 플레이어의 캐릭터 컨트롤 시도 차단: current_actor={getattr(self.current_actor, 'name', None) if self.current_actor else None}")
@@ -876,6 +955,115 @@ class CombatUI:
             return getattr(game_mode_manager, 'local_player_id', None) if game_mode_manager else None
         except Exception:
             return None
+
+    # ── Phase 4: 멀티플레이 콜백 핸들러 ──────────────────────────────
+
+    def _on_mp_remote_action_executed(self, actor: Any, result: Any):
+        """
+        호스트: 원격 플레이어의 액션이 실행 완료되었을 때 콜백
+
+        WAITING_REMOTE_ACTION 상태를 해제하고 결과를 UI에 표시합니다.
+
+        Args:
+            actor: 행동한 캐릭터
+            result: 액션 실행 결과
+        """
+        if self.state == CombatUIState.WAITING_REMOTE_ACTION:
+            self._remote_action_actor = None
+            self._remote_action_timeout = 0
+
+            # 액션 결과 표시
+            if isinstance(result, dict):
+                self._show_action_result(result)
+
+            # 행동 후 대기 시간 설정
+            self._set_action_delay(self.action_delay_max, actor)
+
+            # 상태 초기화
+            self.current_actor = None
+            self.state = CombatUIState.WAITING_ATB
+
+            actor_name = getattr(actor, 'name', 'Unknown')
+            logger.info(f"[호스트] 원격 플레이어 액션 실행 완료: {actor_name}")
+
+            # 전투 종료 확인
+            from src.combat.combat_manager import CombatState as CS
+            if self.combat_manager.state in [CS.VICTORY, CS.DEFEAT, CS.FLED]:
+                if not self.battle_ended:
+                    self.battle_ended = True
+                    self.battle_result = self.combat_manager.state
+                    self.state = CombatUIState.BATTLE_END
+
+    def _on_mp_action_selection_start(self, actor_id: str, actor_name: str, player_id: str):
+        """
+        클라이언트: 호스트로부터 ACTION_SELECTION_START 수신 시 콜백
+
+        자신의 캐릭터 턴이 도래했음을 수신하여 행동 메뉴를 활성화합니다.
+
+        Args:
+            actor_id: 행동할 캐릭터 ID
+            actor_name: 행동할 캐릭터 이름
+            player_id: 대상 플레이어 ID
+        """
+        # 자신에게 해당하는 메시지인지 확인
+        local_player_id = self._get_local_player_id()
+        if local_player_id and player_id != local_player_id:
+            return
+
+        # 해당 캐릭터를 current_actor로 설정
+        if self.combat_sync_manager:
+            actor = self.combat_sync_manager._find_character_by_id(actor_id)
+            if actor:
+                self.current_actor = actor
+                self.action_menu = self._create_action_menu(actor)
+                self.state = CombatUIState.ACTION_MENU
+                self.add_message(f"{actor_name}의 턴!", (100, 255, 255))
+                from src.audio import play_sfx
+                play_sfx("ui", "turn_ready")
+                logger.info(f"[클라이언트] 액션 선택 시작: {actor_name} (ID: {actor_id})")
+            else:
+                logger.warning(f"[클라이언트] 액션 선택 시작 실패: 액터를 찾을 수 없음 ({actor_id})")
+
+    def _on_mp_action_result(self, result_data: Dict[str, Any]):
+        """
+        클라이언트: 호스트로부터 ACTION_RESULT 수신 시 콜백
+
+        호스트에서 실행된 액션 결과를 수신하여 UI에 표시합니다.
+
+        Args:
+            result_data: 액션 실행 결과 데이터
+        """
+        # 결과를 메시지로 표시
+        if isinstance(result_data, dict):
+            self._show_action_result(result_data)
+        logger.debug(f"[클라이언트] 액션 결과 수신: {list(result_data.keys()) if isinstance(result_data, dict) else result_data}")
+
+    def _on_mp_combat_end(self, result: str, rewards: Optional[Dict[str, Any]]):
+        """
+        클라이언트: 호스트로부터 COMBAT_END 수신 시 콜백
+
+        전투 루프를 종료하고 결과 화면을 표시합니다.
+
+        Args:
+            result: 전투 결과 ("victory", "defeat", "fled")
+            rewards: 보상 데이터
+        """
+        self._mp_combat_end_received = True
+        self._mp_combat_end_result = result
+        logger.info(f"[클라이언트] 전투 종료 수신: {result}")
+
+        # CombatManager 상태도 갱신
+        try:
+            from src.combat.combat_manager import CombatState as CS
+            self.combat_manager.state = CS(result)
+        except (ValueError, TypeError):
+            pass
+
+        # 전투 종료 처리
+        if not self.battle_ended:
+            self.battle_ended = True
+            self.battle_result = self.combat_manager.state
+            self.state = CombatUIState.BATTLE_END
 
     def _select_next_ready_actor(self, ready: List[Any], is_multiplayer: bool) -> Optional[Any]:
         """
@@ -1944,6 +2132,12 @@ class CombatUI:
                             f"  {eff['target']} HP +{eff['amount']} 회복!",
                             (100, 255, 100)
                         )
+                        # ── 회복 팝업 ──
+                        heal_name = eff.get('target', '')
+                        for ch in list(self.combat_manager.allies):
+                            if getattr(ch, 'name', '') == heal_name:
+                                self._trigger_damage_popup(ch, eff['amount'], "heal")
+                                break
                     elif eff_type == "revive":
                         self.add_message(
                             f"  {eff['target']} 부활! (HP {eff['hp']})",
@@ -1974,6 +2168,12 @@ class CombatUI:
                             f"  {eff['target']}의 BRV -{eff['amount']}!",
                             (255, 150, 50)
                         )
+                        # ── 스킬 BRV 데미지 팝업 ──
+                        eff_target_name = eff.get('target', '')
+                        for ch in list(self.combat_manager.enemies) + list(self.combat_manager.allies):
+                            if getattr(ch, 'name', '') == eff_target_name:
+                                self._trigger_damage_popup(ch, eff['amount'], "brv")
+                                break
                     elif eff_type == "status":
                         self.add_message(
                             f"  적 {eff.get('targets', 0)}명에게 {eff.get('status', '')} 부여!",
@@ -2152,6 +2352,11 @@ class CombatUI:
                         px, py = converter(rx + rw // 2, ry + rh // 2) if converter else (rx * 10 + 5, ry * 13 + 6)
                         trigger_item_effect(getattr(self.selected_item, 'name', ''), self.effect_manager, px, py)
 
+            # 멀티플레이 호스트: ACTION_RESULT 브로드캐스트
+            if self.is_mp_host and self.combat_sync_manager and self.session and self.network_manager:
+                if isinstance(result, dict) and self.current_actor:
+                    self.combat_sync_manager.broadcast_action_result_sync(self.current_actor, result)
+
             # 결과 메시지 표시
             self._show_action_result(result)
 
@@ -2162,7 +2367,7 @@ class CombatUI:
 
             # 행동 후 대기 시간 설정 (1.5초)
             self._set_action_delay(self.action_delay_max, self.current_actor)
-            
+
             # 현재 액터의 플레이어 ID 저장 (다음 아군 확인 전에 저장)
             current_actor_player_id = getattr(self.current_actor, 'player_id', None) if self.current_actor else None
             
@@ -2230,6 +2435,84 @@ class CombatUI:
             self.battle_result = self.combat_manager.state
             self.state = CombatUIState.BATTLE_END
             # BGM은 main.py에서 처리 (필드 BGM으로 전환하기 위해)
+            # 멀티플레이 호스트: COMBAT_END 브로드캐스트
+            if self.is_mp_host and self.combat_sync_manager and self.session and self.network_manager:
+                result_str = self.combat_manager.state.value if hasattr(self.combat_manager.state, 'value') else str(self.combat_manager.state)
+                self.combat_sync_manager.broadcast_combat_end_sync(result_str)
+
+    def _resolve_popup_target(self, result: Dict[str, Any] = None):
+        """팝업 대상 캐릭터 해석 (selected_target 우선, result dict 폴백)
+
+        Args:
+            result: 행동 결과 dict (None이면 selected_target만 시도)
+        Returns:
+            Character 객체 또는 None
+        """
+        # 1순위: UI에서 선택된 대상
+        target = getattr(self, 'selected_target', None)
+        if target is not None:
+            return target
+
+        if result is None:
+            return None
+
+        # 2순위: result dict에 target_obj가 있으면
+        target = result.get('target_obj', None)
+        if target is not None:
+            return target
+
+        # 3순위: result dict의 target (Character 객체 또는 이름 문자열)
+        target_val = result.get('target', None)
+        if target_val is not None:
+            # Character 객체이면 직접 반환
+            if not isinstance(target_val, str):
+                return target_val
+            # 문자열이면 이름으로 캐릭터 검색
+            all_chars = list(self.combat_manager.allies) + list(self.combat_manager.enemies)
+            for char in all_chars:
+                if getattr(char, 'name', '') == target_val:
+                    return char
+
+        return None
+
+    def _trigger_damage_popup(self, target, value, damage_type: str = "brv") -> None:
+        """Raylib 데미지 팝업 생성 (독립 팝업 매니저 사용)
+
+        Args:
+            target: 대상 캐릭터
+            value: 데미지/힐 수치
+            damage_type: "hp", "brv", "heal", "critical", "break", "miss"
+        """
+        if target is None:
+            return
+        pm = self._standalone_popup
+        if pm is None:
+            return
+        allies = list(self.combat_manager.allies)
+        enemies = list(self.combat_manager.enemies)
+        is_ally = target in allies
+        idx = -1
+        try:
+            idx = allies.index(target) if is_ally else enemies.index(target)
+        except ValueError:
+            logger.debug(f"팝업 대상 '{getattr(target, 'name', '?')}' 을 아군/적군 목록에서 찾지 못함")
+            return
+
+        # 콘솔 셀 좌표 기반 팝업 위치 계산 (게이지 바 중앙)
+        ctx = self._raylib_context
+        tw = getattr(ctx, '_render_tw', 18) if ctx else 18
+        th = getattr(ctx, '_render_th', 17) if ctx else 17
+        y_base = 6 + idx * 6
+        if is_ally:
+            # 아군 HP 게이지: cell(12, y_base+1) → 게이지 중앙
+            px = 12 * tw + (15 * tw) // 2
+            py = (y_base + 1) * th
+        else:
+            # 적군 HP 게이지: cell(ex+7, y_base+2)
+            ex = self.screen_width - 30
+            px = (ex + 7) * tw + (15 * tw) // 2
+            py = (y_base + 2) * th
+        pm.add(value, px, py, damage_type)
 
     def _show_action_result(self, result: Dict[str, Any]):
         """행동 결과 메시지 표시"""
@@ -2262,6 +2545,9 @@ class CombatUI:
                 else:
                     msg = "[빗나감] 공격이 빗나갔다!"
                     color = (150, 150, 150)
+                # ── MISS 팝업 ──
+                miss_target = self._resolve_popup_target(result)
+                self._trigger_damage_popup(miss_target, 0, "miss")
             else:
                 msg = f"BRV 공격! {damage} 데미지"
                 if is_crit:
@@ -2270,6 +2556,13 @@ class CombatUI:
                     msg += " [BREAK!]"
 
                 color = (255, 255, 100) if is_crit else (200, 200, 200)
+
+                # ── 데미지 팝업 ──
+                target = self._resolve_popup_target(result)
+                popup_type = "critical" if is_crit else "brv"
+                self._trigger_damage_popup(target, damage, popup_type)
+                if is_break:
+                    self._trigger_damage_popup(target, 0, "break")
 
             self.add_message(msg, color)
 
@@ -2283,6 +2576,12 @@ class CombatUI:
 
             color = (255, 100, 100)
             self.add_message(msg, color)
+
+            # ── 데미지 팝업 ──
+            target = self._resolve_popup_target(result)
+            is_hp_crit = result.get("is_critical", False)
+            hp_popup_type = "critical" if is_hp_crit else "hp"
+            self._trigger_damage_popup(target, damage, hp_popup_type)
 
         elif action == "defend":
             self.add_message("방어 자세!", (100, 200, 255))
@@ -2447,11 +2746,23 @@ class CombatUI:
                         f"  → {eff['target']} HP {eff['amount']} 회복!",
                         (100, 255, 150)
                     )
+                    # ── 회복 팝업 ──
+                    heal_name = eff.get('target', '')
+                    for ch in list(self.combat_manager.allies) + list(self.combat_manager.enemies):
+                        if getattr(ch, 'name', '') == heal_name:
+                            self._trigger_damage_popup(ch, eff['amount'], "heal")
+                            break
                 elif eff_type == "mp_restore":
                     self.add_message(
                         f"  → {eff['target']} MP {eff['amount']} 회복!",
                         (100, 200, 255)
                     )
+                    # ── MP 회복 팝업 ──
+                    mp_name = eff.get('target', '')
+                    for ch in list(self.combat_manager.allies) + list(self.combat_manager.enemies):
+                        if getattr(ch, 'name', '') == mp_name:
+                            self._trigger_damage_popup(ch, eff['amount'], "mp")
+                            break
                 elif eff_type == "shield":
                     shield_target = eff.get('target', '')
                     shield_amt = eff.get('amount', 0)
@@ -2513,8 +2824,29 @@ class CombatUI:
                     self.combat_manager.revival_message = None
                     self.revival_message_timer = 0
 
+        # 멀티플레이 클라이언트: COMBAT_END 수신 확인
+        if getattr(self, '_mp_combat_end_received', False) and not self.battle_ended:
+            self.battle_ended = True
+            self.battle_result = self.combat_manager.state
+            self.state = CombatUIState.BATTLE_END
+
+        # 멀티플레이 호스트: 원격 플레이어 행동 대기 타임아웃 처리
+        if self.state == CombatUIState.WAITING_REMOTE_ACTION:
+            self._remote_action_timeout -= 1
+            if self._remote_action_timeout <= 0:
+                # 타임아웃: AI 자동 행동으로 대체
+                actor = self._remote_action_actor
+                if actor and getattr(actor, 'is_alive', True):
+                    actor_name = getattr(actor, 'name', 'Unknown')
+                    self.add_message(f"{actor_name} 행동 타임아웃 - AI 자동 행동", (255, 200, 100))
+                    logger.warning(f"[호스트] 원격 플레이어 행동 타임아웃: {actor_name}")
+                    # AI 기본 행동 실행
+                    self._execute_default_bot_action(actor)
+                self._remote_action_actor = None
+                self.state = CombatUIState.WAITING_ATB
+
         # 행동 실행 중인지 확인 (ATB 완전 정지)
-        is_time_frozen = self.state == CombatUIState.EXECUTING
+        is_time_frozen = self.state in [CombatUIState.EXECUTING, CombatUIState.WAITING_REMOTE_ACTION]
 
         # 플레이어가 메뉴에서 선택 중인지 확인 (불릿타임 적용)
         is_player_selecting = self.state in [
@@ -2740,7 +3072,12 @@ class CombatUI:
                 self.battle_ended = True
                 self.battle_result = self.combat_manager.state
                 self.state = CombatUIState.BATTLE_END
-    
+                # 멀티플레이 호스트: COMBAT_END 브로드캐스트
+                if self.is_mp_host and self.combat_sync_manager and self.session and self.network_manager:
+                    result_str = self.combat_manager.state.value if hasattr(self.combat_manager.state, 'value') else str(self.combat_manager.state)
+                    self.combat_sync_manager.broadcast_combat_end_sync(result_str)
+                    logger.info(f"[호스트] 전투 종료 브로드캐스트: {result_str}")
+
         # 메시지 타이머 감소 (표시용이지만, 메시지는 사라지지 않고 계속 저장됨)
         for msg in self.messages:
             msg.frames_remaining -= 1
@@ -3232,15 +3569,25 @@ class CombatUI:
                             f"다른 플레이어의 캐릭터 턴: {combatant.name} (플레이어={actor_player_id}, "
                             f"로컬 플레이어={local_player_id}) - current_actor 설정 안 함"
                         )
-                        # 다른 플레이어의 캐릭터는 자동으로 행동 선택 (ATB 대기 상태 유지)
-                        self.state = CombatUIState.WAITING_ATB
-                        self.current_actor = None
-                        
+
+                        # 호스트: 원격 플레이어에게 ACTION_SELECTION_START 전송 + 대기 상태
+                        if self.is_mp_host and self.combat_sync_manager:
+                            self._remote_action_actor = combatant
+                            self._remote_action_timeout = 10.0 * 60  # 10초 (프레임 단위, 60FPS)
+                            self.state = CombatUIState.WAITING_REMOTE_ACTION
+                            self.add_message(f"{combatant.name} ({actor_player_id}) 행동 대기 중...", (200, 200, 100))
+                            self.combat_sync_manager.send_action_selection_start_sync(combatant, actor_player_id)
+                            logger.info(f"[호스트] 원격 플레이어에게 ACTION_SELECTION_START 전송: {combatant.name} -> {actor_player_id}")
+                        else:
+                            # 클라이언트: ATB 대기 상태 유지 (ACTION_SELECTION_START 콜백으로 활성화)
+                            self.state = CombatUIState.WAITING_ATB
+                            self.current_actor = None
+
                         # 다른 플레이어의 행동 선택 시작 알림 (불릿타임 모드 진입)
                         if hasattr(self.combat_manager.atb, 'set_player_selecting') and actor_player_id:
                             self.combat_manager.atb.set_player_selecting(actor_player_id, True)
-                            logger.info(f"🔫 불릿타임 활성화 요청: 플레이어 {actor_player_id} 행동 선택 시작")
-                        
+                            logger.info(f"불릿타임 활성화 요청: 플레이어 {actor_player_id} 행동 선택 시작")
+
                         return
                 
                 if should_set_actor:
@@ -3272,9 +3619,13 @@ class CombatUI:
         try:
             # CombatManager의 execute_enemy_turn 사용 (새로운 AI 시스템)
             result = self.combat_manager.execute_enemy_turn(enemy)
-            
+
             if result:
                 self._show_action_result(result)
+                # 멀티플레이 호스트: 적 행동 결과 브로드캐스트
+                if self.is_mp_host and self.combat_sync_manager and self.session and self.network_manager:
+                    if isinstance(result, dict):
+                        self.combat_sync_manager.broadcast_action_result_sync(enemy, result)
             else:
                 # AI 결정 실패 시 기본 메시지
                 self.add_message(f"{enemy.name}의 행동 결정 실패", (200, 200, 200))
@@ -3284,6 +3635,10 @@ class CombatUI:
                 self.battle_ended = True
                 self.battle_result = self.combat_manager.state
                 self.state = CombatUIState.BATTLE_END
+                # 멀티플레이 호스트: COMBAT_END 브로드캐스트
+                if self.is_mp_host and self.combat_sync_manager and self.session and self.network_manager:
+                    result_str = self.combat_manager.state.value if hasattr(self.combat_manager.state, 'value') else str(self.combat_manager.state)
+                    self.combat_sync_manager.broadcast_combat_end_sync(result_str)
         except Exception as e:
             # AI 실행 오류 시 안전장치 (기본 공격)
             logger.error(f"적 AI 실행 오류: {e}")
@@ -3291,22 +3646,30 @@ class CombatUI:
             if allies_alive:
                 import random
                 target = random.choice(allies_alive)
-                
+
                 # 기본 BRV 공격
                 result = self.combat_manager.execute_action(
                     actor=enemy,
                     action_type=ActionType.BRV_ATTACK,
                     target=target
                 )
-                
+
                 if result:
                     self._show_action_result(result)
-                
+                    # 멀티플레이 호스트: 적 행동 결과 브로드캐스트
+                    if self.is_mp_host and self.combat_sync_manager and self.session and self.network_manager:
+                        if isinstance(result, dict):
+                            self.combat_sync_manager.broadcast_action_result_sync(enemy, result)
+
                 # 전투 종료 확인
                 if self.combat_manager.state in [CombatState.VICTORY, CombatState.DEFEAT]:
                     self.battle_ended = True
                     self.battle_result = self.combat_manager.state
                     self.state = CombatUIState.BATTLE_END
+                    # 멀티플레이 호스트: COMBAT_END 브로드캐스트
+                    if self.is_mp_host and self.combat_sync_manager and self.session and self.network_manager:
+                        result_str = self.combat_manager.state.value if hasattr(self.combat_manager.state, 'value') else str(self.combat_manager.state)
+                        self.combat_sync_manager.broadcast_combat_end_sync(result_str)
 
     def _on_combat_hit(self, hit_info: Dict[str, Any]):
         """히트 이벤트 핸들러 - 다단히트 타격감용"""
@@ -3741,6 +4104,34 @@ class CombatUI:
         # 적군 상태
         self._render_enemies(console)
 
+        # ── 통합 픽셀 오버레이 (게이지 + 팝업 + 툴팁 재렌더) ──
+        # 가능성 선택/기믹 상세보기 중에는 게이지 오버레이 숨김 (UI 가림 방지)
+        _skip_gauge_overlay = self.state in (
+            CombatUIState.POSSIBILITY_SELECT,
+        )
+        self._update_hover_character()
+        _console_ref = console  # 클로저 캡처 (툴팁 재렌더용)
+
+        if self._raylib_context:
+            _skip = _skip_gauge_overlay  # 클로저 캡처
+            def _combined_overlay(dt):
+                # 1) 게이지 (가능성 선택 등 전체화면 UI 시 숨김)
+                if not _skip:
+                    self._draw_pixel_gauge_overlay(dt)
+                # 2) 팝업 (게이지 위에)
+                pm = getattr(self, '_standalone_popup', None)
+                if pm:
+                    try:
+                        pm.update(dt)
+                        pm.draw()
+                    except Exception:
+                        pass
+                # 3) 툴팁 재렌더 (게이지 위에 다시 그림)
+                if not _skip and self._hover_character and self._hover_cell:
+                    self._redraw_tooltip_area(_console_ref)
+
+            self._raylib_context.add_pixel_overlay(_combined_overlay)
+
         # 트레이닝 모드 통계 표시
         if self.training_mode and self.training_dummy:
             self._render_training_stats(console)
@@ -3784,6 +4175,9 @@ class CombatUI:
 
         elif self.state == CombatUIState.CHAIN_ABILITY_SELECT:
             self._render_chain_ability_select(console)
+
+        elif self.state == CombatUIState.WAITING_REMOTE_ACTION:
+            self._render_waiting_remote_action(console)
 
         elif self.state == CombatUIState.BATTLE_END:
             self._render_battle_end(console)
@@ -4235,6 +4629,591 @@ class CombatUI:
                     console, x + 3, y + 5, 15,
                     cast_info.progress, skill_name=f"시전:{skill_name[:8]}"
                 )
+
+    # ------------------------------------------------------------------
+    # 픽셀 단위 정밀 게이지 오버레이
+    # ------------------------------------------------------------------
+
+    _pixel_gauge_debug_logged: bool = False
+
+    def _lerp_gauge(self, key: str, actual: float, dt: float, speed: float = 12.0) -> float:
+        """게이지 카운팅 애니메이션용 보간"""
+        prev = self._gauge_anim_values.get(key, actual)
+        if abs(prev - actual) < 0.5:
+            self._gauge_anim_values[key] = actual
+            return actual
+        lerped = prev + (actual - prev) * min(1.0, dt * speed)
+        self._gauge_anim_values[key] = lerped
+        return lerped
+
+    def _update_trail(self, key: str, actual_ratio: float, dt: float, decay: float = 0.6) -> float:
+        """데미지/게인 트레일 비율 계산
+
+        감소 시: 잔상이 이전 위치에서 천천히 줄어듦 (양수 반환)
+        증가 시: 이전 위치에서 현재 위치까지 밝은 트레일 (음수 반환으로 구분)
+        """
+        prev = self._gauge_trail_ratios.get(key, actual_ratio)
+        if abs(actual_ratio - prev) < 0.001:
+            self._gauge_trail_ratios[key] = actual_ratio
+            return 0.0
+        if actual_ratio < prev:
+            # 감소 — 이전 위치에서 서서히 줄어듦
+            new_trail = max(actual_ratio, prev - dt * decay)
+            self._gauge_trail_ratios[key] = new_trail
+            return new_trail  # 양수 = 감소 트레일
+        else:
+            # 증가 — 이전 위치에서 서서히 늘어남
+            new_trail = min(actual_ratio, prev + dt * decay)
+            self._gauge_trail_ratios[key] = new_trail
+            return -new_trail  # 음수 = 증가 트레일 (절대값이 이전 위치)
+
+    def _get_display_ratio(self, key: str, actual_ratio: float, dt: float, speed: float = 1.2) -> float:
+        """증가 시 서서히 채워지는 표시 비율
+
+        감소: 즉시 반영 (잔상이 위에 남으므로)
+        증가: 서서히 올라감 (밝은 목표 마커가 먼저 보임)
+        """
+        prev = self._gauge_display_ratios.get(key, actual_ratio)
+        if actual_ratio <= prev:
+            # 감소 — 즉시 반영
+            self._gauge_display_ratios[key] = actual_ratio
+            return actual_ratio
+        # 증가 — 서서히 올라감
+        new_disp = min(actual_ratio, prev + dt * speed)
+        self._gauge_display_ratios[key] = new_disp
+        return new_disp
+
+    def _auto_popup(self, key: str, actual: float, px: int, py: int) -> None:
+        """게이지 값 변동 감지 → 자동 팝업 생성"""
+        pm = self._standalone_popup
+        if pm is None:
+            return
+        prev = self._gauge_prev_values.get(key)
+        self._gauge_prev_values[key] = actual
+        if prev is None:
+            return  # 첫 프레임
+        delta = actual - prev
+        if abs(delta) < 1:
+            return  # 무시할 만한 변동
+        if delta < 0:
+            # 감소 = 데미지
+            dtype = "hp" if "_hp" in key else "brv"
+            pm.add(int(abs(delta)), px, py, dtype)
+        else:
+            # 증가 = 회복
+            dtype = "heal" if "_hp" in key else ("mp" if "_mp" in key else "brv")
+            pm.add(int(delta), px, py, dtype)
+
+    def _draw_pixel_gauge_overlay(self, dt: float) -> None:
+        """
+        PUA 타일 게이지를 덮어쓰는 픽셀 정밀 게이지 오버레이
+
+        콘솔 렌더링 후 실행되어 블록 형태의 PUA 타일 게이지 위에
+        부드러운 직사각형 기반 게이지를 그립니다.
+        """
+        try:
+            import pyray as rl
+        except ImportError:
+            return
+
+        ctx = self._raylib_context
+        if not ctx:
+            return
+
+        tw = getattr(ctx, '_render_tw', 18)
+        th = getattr(ctx, '_render_th', 17)
+
+        if not CombatUI._pixel_gauge_debug_logged:
+            logger.info(f"[픽셀게이지] 오버레이 실행 중! tw={tw}, th={th}")
+            CombatUI._pixel_gauge_debug_logged = True
+
+        try:
+            allies = list(self.combat_manager.allies)
+            enemies = list(self.combat_manager.enemies)
+        except Exception as e:
+            logger.error(f"[픽셀게이지] 캐릭터 목록 접근 오류: {e}")
+            return
+
+        # ── 아군 게이지 ──
+        for i, ally in enumerate(allies):
+            y_base = 6 + i * 6
+
+            # HP: cell(12, y_base+1), width=15
+            max_hp = max(1, ally.max_hp)
+            hp_ratio = max(0.0, min(1.0, ally.current_hp / max_hp))
+            wound = getattr(ally, 'wound', 0)
+            wound_ratio = wound / max_hp if wound > 0 else 0.0
+            total_shield = getattr(ally, 'current_shield', 0) + getattr(ally, 'shield_amount', 0)
+            if hasattr(ally, 'status_manager'):
+                for eff in ally.status_manager.status_effects:
+                    if hasattr(eff, 'status_type') and eff.status_type == StatusType.SHIELD:
+                        total_shield += (eff.metadata.get('shield_hp', 0) if eff.metadata else 0)
+            # 카운팅 + 트레일 + 자동 팝업 + 증가 딜레이
+            hp_key = f"a{i}_hp"
+            hp_actual = ally.current_hp
+            hp_anim = self._lerp_gauge(hp_key, hp_actual + total_shield if total_shield > 0 else hp_actual, dt)
+            hp_disp_ratio = self._get_display_ratio(hp_key + "_d", hp_ratio, dt)
+            hp_trail = self._update_trail(hp_key + "_t", hp_ratio, dt)
+            hp_display = f"{int(hp_anim)}"
+            hp_cx = 12 * tw + (15 * tw) // 2
+            hp_cy = (y_base + 1) * th
+            self._auto_popup(hp_key, hp_actual, hp_cx, hp_cy)
+            self._draw_smooth_gauge(
+                12 * tw, hp_cy, 15 * tw, th,
+                hp_disp_ratio, "hp",
+                text=hp_display,
+                wound_ratio=wound_ratio,
+                shield_amount=total_shield, max_val=max_hp,
+                trail_ratio=hp_trail,
+            )
+
+            # BRV: cell(12, y_base+2), width=15
+            max_brv = max(1, getattr(ally, 'max_brv', 999))
+            is_broken = (self.combat_manager.brave.is_broken(ally)
+                         if hasattr(self.combat_manager, 'brave') else False)
+            brv_ratio = max(0.0, min(1.0, ally.current_brv / max_brv))
+            brv_key = f"a{i}_brv"
+            brv_actual = ally.current_brv
+            brv_anim = self._lerp_gauge(brv_key, brv_actual, dt)
+            brv_disp_ratio = self._get_display_ratio(brv_key + "_d", brv_ratio, dt)
+            brv_trail = self._update_trail(brv_key + "_t", brv_ratio, dt)
+            brv_text = "BREAK!" if is_broken else f"{int(brv_anim)}"
+            brv_cx = 12 * tw + (15 * tw) // 2
+            brv_cy = (y_base + 2) * th
+            self._auto_popup(brv_key, brv_actual, brv_cx, brv_cy)
+            self._draw_smooth_gauge(
+                12 * tw, brv_cy, 15 * tw, th,
+                brv_disp_ratio, "brv",
+                text=brv_text, is_broken=is_broken,
+                trail_ratio=brv_trail,
+            )
+
+            # ATB: cell(33, y_base+1), width=15
+            gauge = self.combat_manager.atb.get_gauge(ally)
+            atb_value = gauge.current if gauge else 0
+            atb_ratio = min(1.0, atb_value / 1000.0)
+            is_current = (self.current_actor is not None and self.current_actor is ally
+                          and self.state in [CombatUIState.ACTION_MENU, CombatUIState.SKILL_MENU,
+                                             CombatUIState.ITEM_MENU, CombatUIState.TARGET_SELECT])
+            cast_info = casting_system.get_cast_info(ally)
+            cast_prog = cast_info.progress if cast_info else 0.0
+            is_cast = cast_info is not None
+            if is_cast and cast_prog > 0:
+                atb_text = f"CAST {int(cast_prog * 100)}%"
+            else:
+                atb_text = f"{min(100, int(atb_value / 10))}%"
+            self._draw_smooth_gauge(
+                33 * tw, (y_base + 1) * th, 15 * tw, th,
+                atb_ratio, "atb",
+                text=atb_text,
+                is_current_actor=is_current,
+                cast_progress=cast_prog, is_casting=is_cast,
+            )
+
+            # MP: cell(33, y_base+2), width=15
+            max_mp = max(1, ally.max_mp)
+            reserved_mp = getattr(ally, 'reserved_max_mp', 0)
+            mp_reserve_ratio = reserved_mp / max_mp if reserved_mp > 0 else 0.0
+            mp_ratio = max(0.0, min(1.0, ally.current_mp / max_mp))
+            mp_key = f"a{i}_mp"
+            mp_anim = self._lerp_gauge(mp_key, ally.current_mp, dt)
+            self._draw_smooth_gauge(
+                33 * tw, (y_base + 2) * th, 15 * tw, th,
+                mp_ratio, "mp",
+                text=f"{int(mp_anim)}",
+                wound_ratio=mp_reserve_ratio,
+            )
+
+        # ── 적군 게이지 ──
+        ex = self.screen_width - 30  # 콘솔 셀 X 좌표
+
+        for i, enemy in enumerate(enemies):
+            y_base = 6 + i * 6
+
+            # HP: cell(ex+7, y_base+2), width=15
+            max_hp = max(1, enemy.max_hp)
+            hp_ratio = max(0.0, min(1.0, enemy.current_hp / max_hp))
+            enemy_shield = getattr(enemy, 'current_shield', 0) + getattr(enemy, 'shield_amount', 0)
+            if hasattr(enemy, 'status_manager'):
+                for eff in enemy.status_manager.status_effects:
+                    if hasattr(eff, 'status_type') and eff.status_type == StatusType.SHIELD:
+                        enemy_shield += (eff.metadata.get('shield_hp', 0) if eff.metadata else 0)
+            ehp_key = f"e{i}_hp"
+            ehp_raw = enemy.current_hp
+            ehp_actual = ehp_raw + enemy_shield if enemy_shield > 0 else ehp_raw
+            ehp_anim = self._lerp_gauge(ehp_key, ehp_actual, dt)
+            ehp_disp_ratio = self._get_display_ratio(ehp_key + "_d", hp_ratio, dt)
+            ehp_trail = self._update_trail(ehp_key + "_t", hp_ratio, dt)
+            ehp_display = f"{int(ehp_anim)}"
+            ehp_cx = (ex + 7) * tw + (15 * tw) // 2
+            ehp_cy = (y_base + 2) * th
+            self._auto_popup(ehp_key, ehp_raw, ehp_cx, ehp_cy)
+            self._draw_smooth_gauge(
+                (ex + 7) * tw, ehp_cy, 15 * tw, th,
+                ehp_disp_ratio, "hp",
+                text=ehp_display,
+                shield_amount=enemy_shield, max_val=max_hp,
+                trail_ratio=ehp_trail,
+            )
+
+            # BRV: cell(ex+7, y_base+3), width=15
+            max_brv = max(1, getattr(enemy, 'max_brv', 9999))
+            is_broken = (self.combat_manager.brave.is_broken(enemy)
+                         if hasattr(self.combat_manager, 'brave') else False)
+            is_scattered = False
+            if hasattr(enemy, 'status_manager'):
+                if enemy.status_manager.has_status(StatusType.SCATTER):
+                    is_scattered = True
+            brv_ratio = max(0.0, min(1.0, enemy.current_brv / max_brv))
+            ebrv_key = f"e{i}_brv"
+            ebrv_actual = enemy.current_brv
+            ebrv_anim = self._lerp_gauge(ebrv_key, ebrv_actual, dt)
+            ebrv_disp_ratio = self._get_display_ratio(ebrv_key + "_d", brv_ratio, dt)
+            ebrv_trail = self._update_trail(ebrv_key + "_t", brv_ratio, dt)
+            ebrv_cx = (ex + 7) * tw + (15 * tw) // 2
+            ebrv_cy = (y_base + 3) * th
+            self._auto_popup(ebrv_key, ebrv_actual, ebrv_cx, ebrv_cy)
+            if is_broken:
+                brv_text = "SCATTER!" if is_scattered else "BREAK!"
+            else:
+                brv_text = f"{int(ebrv_anim)}"
+            custom_brv = (0, 100, 255) if is_scattered else None
+            self._draw_smooth_gauge(
+                (ex + 7) * tw, (y_base + 3) * th, 15 * tw, th,
+                ebrv_disp_ratio, "brv",
+                text=brv_text, is_broken=is_broken,
+                custom_color=custom_brv,
+                trail_ratio=ebrv_trail,
+            )
+
+        # ── 팀워크 게이지 ──
+        # 위치: cell(6, 28), width=15 (라벨 "TW:"는 콘솔에서 cell(2,28)에 출력됨)
+        party = getattr(self.combat_manager, 'party', None)
+        if party:
+            tw_gauge = getattr(party, 'teamwork_gauge', 0)
+            max_tw = max(1, getattr(party, 'max_teamwork_gauge', 600))
+            tw_ratio = max(0.0, min(1.0, tw_gauge / max_tw))
+            tw_anim = self._lerp_gauge("tw", tw_gauge, dt)
+            self._draw_smooth_gauge(
+                6 * tw, 28 * th, 15 * tw, th,
+                tw_ratio, "tw",
+                text=f"{int(tw_anim)}",
+            )
+
+    def _draw_smooth_gauge(
+        self,
+        px: int, py: int, pw: int, ph: int,
+        ratio: float,
+        kind: str,
+        text: str = "",
+        wound_ratio: float = 0.0,
+        shield_amount: float = 0.0,
+        max_val: float = 0.0,
+        is_broken: bool = False,
+        overflow_ratio: float = 0.0,
+        is_current_actor: bool = False,
+        cast_progress: float = 0.0,
+        is_casting: bool = False,
+        custom_color: tuple = None,
+        trail_ratio: float = 0.0,
+    ) -> None:
+        """
+        단일 픽셀 단위 정밀 게이지 바 렌더링
+
+        Args:
+            px, py: 좌상단 픽셀 좌표 (렌더 텍스처 내)
+            pw, ph: 게이지 픽셀 크기
+            ratio: 채움 비율 (0.0 ~ 1.0)
+            kind: 게이지 종류 ("hp", "brv", "mp", "atb")
+            text: 게이지 내부 텍스트 (숫자 등)
+            wound_ratio: 상처 비율 (HP 전용)
+            shield_amount: 보호막 수치 (HP 전용)
+            max_val: 최대값 (보호막 비율 계산용)
+            is_broken: BRV 브레이크 여부
+            overflow_ratio: ATB 오버플로우 비율
+            is_current_actor: 현재 행동 중인 아군 여부 (ATB 반짝임)
+            cast_progress: 캐스팅 진행도 (ATB 전용)
+            is_casting: 캐스팅 중 여부 (ATB 전용)
+            custom_color: 커스텀 채움 색상 (BRV SCATTER 등)
+        """
+        import pyray as rl
+        import math
+        import time as _time
+
+        ratio = max(0.0, min(1.0, ratio))
+
+        # ── 색상 결정 ──
+        if custom_color:
+            fg = custom_color
+            bg = (max(0, fg[0] // 3), max(0, fg[1] // 3), max(0, fg[2] // 3))
+        elif kind == "hp":
+            if ratio > 0.6:
+                fg, bg = (50, 220, 50), (15, 55, 15)
+            elif ratio > 0.3:
+                fg, bg = (220, 220, 50), (55, 55, 15)
+            else:
+                fg, bg = (220, 50, 50), (55, 15, 15)
+        elif kind == "brv":
+            if is_broken:
+                fg, bg = (180, 50, 50), (50, 15, 15)
+            elif ratio >= 0.95:
+                # BRV 최대치 — 다홍색 불타는 효과
+                pulse = 0.5 + 0.5 * math.sin(_time.time() * 4 * math.pi)
+                fg = (int(220 + 35 * pulse), int(80 + 40 * pulse), int(30 + 30 * pulse))
+                bg = (70, 25, 10)
+            else:
+                fg, bg = (230, 200, 50), (60, 50, 15)
+        elif kind == "mp":
+            fg, bg = (100, 150, 255), (25, 38, 65)
+        elif kind == "tw":
+            if ratio >= 0.8:
+                fg, bg = (100, 255, 220), (30, 100, 80)
+            elif ratio >= 0.5:
+                fg, bg = (80, 220, 200), (25, 80, 70)
+            elif ratio >= 0.25:
+                fg, bg = (60, 180, 160), (20, 60, 55)
+            else:
+                fg, bg = (40, 140, 120), (15, 45, 40)
+        elif kind == "atb":
+            if is_current_actor:
+                pulse = 0.35 + 0.35 * math.sin(_time.time() * 6 * math.pi)
+                fg = (int(255 * (0.7 + pulse * 0.3)),
+                      int(215 * (0.7 + pulse * 0.3)),
+                      int(min(255, 100 * (0.5 + pulse * 0.5))))
+                bg = (70, 60, 25)
+            elif is_casting:
+                fg, bg = (200, 100, 255), (55, 28, 70)
+            else:
+                fg, bg = (135, 206, 235), (35, 55, 65)
+        else:
+            fg, bg = (200, 200, 200), (50, 50, 50)
+
+        # 1) 배경
+        rl.draw_rectangle(px, py, pw, ph, rl.Color(bg[0], bg[1], bg[2], 255))
+
+        # 2) 예약/상처 영역 — 오른쪽 끝에 사용 불가 표시
+        wound_w = 0
+        if wound_ratio > 0 and kind in ("hp", "mp"):
+            wound_w = max(1, int(wound_ratio * pw))
+            wound_w = min(wound_w, pw // 2)  # 최대 50%
+            if kind == "hp":
+                # HP 상처: 검은색 + 붉은 경계선
+                rl.draw_rectangle(
+                    px + pw - wound_w, py, wound_w, ph,
+                    rl.Color(10, 8, 12, 255),
+                )
+                rl.draw_rectangle(
+                    px + pw - wound_w, py, 1, ph,
+                    rl.Color(120, 30, 30, 200),
+                )
+            else:
+                # MP 예약: 어두운 보라색 + 파란 경계선
+                rl.draw_rectangle(
+                    px + pw - wound_w, py, wound_w, ph,
+                    rl.Color(15, 8, 25, 255),
+                )
+                rl.draw_rectangle(
+                    px + pw - wound_w, py, 1, ph,
+                    rl.Color(60, 40, 120, 200),
+                )
+
+        # 3) 트레일 (잔상) — 메인 채움 전에 그려서 그 아래에 보임
+        fill_w = int(ratio * pw)
+        if wound_w > 0:
+            fill_w = min(fill_w, pw - wound_w)
+        # 감소 트레일 — fill 오른쪽에 주황/금 잔상 (메인 채움 아래에 그려도 OK)
+        if trail_ratio > 0 and kind in ("hp", "brv"):
+            trail_w = int(trail_ratio * pw)
+            if wound_w > 0:
+                trail_w = min(trail_w, pw - wound_w)
+            if trail_w > fill_w:
+                tc = rl.Color(220, 120, 40, 180) if kind == "hp" else rl.Color(200, 180, 80, 160)
+                rl.draw_rectangle(px + fill_w, py, trail_w - fill_w, ph, tc)
+
+        # 3b) 메인 채움
+        if fill_w > 0:
+            rl.draw_rectangle(px, py, fill_w, ph, rl.Color(fg[0], fg[1], fg[2], 255))
+
+        # 3c) 증가 트레일 — 메인 채움 위에 밝은 오버레이
+        if trail_ratio < 0 and kind in ("hp", "brv"):
+            old_w = int(abs(trail_ratio) * pw)
+            if wound_w > 0:
+                old_w = min(old_w, pw - wound_w)
+            if fill_w > old_w:
+                tc = rl.Color(200, 255, 200, 160) if kind == "hp" else rl.Color(255, 255, 180, 160)
+                rl.draw_rectangle(px + old_w, py, fill_w - old_w, ph, tc)
+
+        # 4) 보호막 (HP only) — 채움 바 오른쪽에 파란색
+        if shield_amount > 0 and max_val > 0 and kind == "hp":
+            shield_ratio = shield_amount / max_val
+            shield_w = max(1, int(shield_ratio * pw))
+            shield_x = px + fill_w
+            if shield_x + shield_w <= px + pw - wound_w:
+                rl.draw_rectangle(shield_x, py, shield_w, ph, rl.Color(80, 140, 255, 200))
+
+        # 5) ATB 오버플로우 — 흰색 게이지가 처음부터 다시 채워짐
+        if overflow_ratio > 0 and kind == "atb":
+            ov_w = max(1, int(overflow_ratio * pw))
+            rl.draw_rectangle(px, py, ov_w, ph, rl.Color(240, 240, 255, 230))
+
+        # 6) 캐스팅 진행도 (ATB only) — 보라색 오버레이
+        if is_casting and cast_progress > 0 and kind == "atb":
+            cast_w = max(1, int(cast_progress * pw))
+            rl.draw_rectangle(px, py, cast_w, ph, rl.Color(200, 100, 255, 220))
+
+        # 7) 상단 하이라이트 (반투명 흰색, 높이 1/4)
+        hl_h = max(1, ph // 4)
+        rl.draw_rectangle(px, py, pw, hl_h, rl.Color(255, 255, 255, 18))
+
+        # 8) 테두리
+        rl.draw_rectangle_lines(px, py, pw, ph, rl.Color(70, 70, 70, 180))
+
+        # 9) 텍스트 (BDF 폰트, 게이지 내부 왼쪽 정렬, 원본 UI 일치)
+        if text:
+            try:
+                tx = px + 8
+                ty = py  # BDF 폰트 셀 높이 = 게이지 높이이므로 추가 정렬 불필요
+                # 보호막 있으면 파란색, BREAK이면 빨간색, 기본 흰색
+                if kind == "hp" and shield_amount > 0:
+                    text_fg = (80, 180, 255)
+                elif is_broken and kind == "brv":
+                    text_fg = (255, 80, 80)
+                else:
+                    text_fg = (255, 255, 255)
+                self._draw_bdf_text(text, tx, ty, text_fg, outline=(0, 0, 0))
+            except Exception:
+                pass
+
+    def _draw_bdf_text(
+        self,
+        text: str,
+        x: int,
+        y: int,
+        fg: tuple,
+        outline: tuple = None,
+    ) -> None:
+        """BDF 폰트로 텍스트 렌더링 (배경 없음, 게이지 오버레이용)
+
+        FontRenderer.render_cell()과 동일한 BDF 아틀라스를 사용하되
+        배경을 그리지 않아 게이지 바 위에 글리프만 표시합니다.
+        """
+        import pyray as rl
+
+        ctx = self._raylib_context
+        if not ctx:
+            return
+        fr = getattr(ctx, 'font_renderer', None)
+        if not fr or not getattr(fr, 'is_loaded', False):
+            # 폴백: raylib 기본 폰트
+            fs = getattr(fr, 'tile_height', 17) if fr else 17
+            fg_c = rl.Color(fg[0], fg[1], fg[2], 255)
+            if outline:
+                ol_c = rl.Color(outline[0], outline[1], outline[2], 220)
+                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    rl.draw_text(text, x + dx, y + dy, fs, ol_c)
+            rl.draw_text(text, x, y, fs, fg_c)
+            return
+
+        tw = fr.tile_width
+        fg_color = rl.Color(fg[0], fg[1], fg[2], 255)
+
+        # BDF 아틀라스 모드
+        if fr._bdf_mode and fr._atlas_tex is not None:
+            cur_x = x
+            for char in text:
+                cp = ord(char)
+                if cp <= 0x20:
+                    cur_x += tw
+                    continue
+                rect_data = fr._glyph_rects.get(cp)
+                if rect_data is None:
+                    cur_x += tw
+                    continue
+                src = rl.Rectangle(*rect_data)
+                # 외곽선 (4방향)
+                if outline:
+                    ol_c = rl.Color(outline[0], outline[1], outline[2], 220)
+                    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                        rl.draw_texture_rec(
+                            fr._atlas_tex, src,
+                            rl.Vector2(float(cur_x + dx), float(y + dy)),
+                            ol_c,
+                        )
+                # 본 글리프
+                rl.draw_texture_rec(
+                    fr._atlas_tex, src,
+                    rl.Vector2(float(cur_x), float(y)),
+                    fg_color,
+                )
+                cur_x += tw
+        elif fr.font is not None:
+            # TTF 모드 폴백
+            cur_x = x
+            for char in text:
+                cp = ord(char)
+                if cp <= 0x20:
+                    cur_x += tw
+                    continue
+                if outline:
+                    ol_c = rl.Color(outline[0], outline[1], outline[2], 220)
+                    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                        rl.draw_text_codepoint(
+                            fr.font, cp,
+                            rl.Vector2(float(cur_x + dx), float(y + dy)),
+                            float(fr.font_size), ol_c,
+                        )
+                rl.draw_text_codepoint(
+                    fr.font, cp,
+                    rl.Vector2(float(cur_x), float(y)),
+                    float(fr.font_size), fg_color,
+                )
+                cur_x += tw
+        else:
+            # 최종 폴백
+            rl.draw_text(text, x, y, 17, fg_color)
+
+    def _redraw_tooltip_area(self, console) -> None:
+        """게이지 위에 툴팁 영역을 콘솔 버퍼에서 다시 렌더링
+
+        픽셀 오버레이로 그려진 게이지가 콘솔 툴팁을 가리므로,
+        툴팁이 차지하는 셀 영역을 font_renderer.render_cell()로
+        다시 그려 게이지 위에 표시합니다.
+        """
+        ctx = self._raylib_context
+        if not ctx or not console:
+            return
+        fr = getattr(ctx, 'font_renderer', None)
+        if not fr or not getattr(fr, 'is_loaded', False):
+            return
+
+        tw_px = getattr(ctx, '_render_tw', 18)
+        th_px = getattr(ctx, '_render_th', 17)
+
+        sw = min(self.screen_width, getattr(console, 'width', 80))
+        sh = min(self.screen_height, getattr(console, 'height', 50))
+
+        # 툴팁 BG 색 = (12, 12, 25) — combat_tooltip.py BG_COLOR
+        # 콘솔 버퍼에서 해당 BG 색을 가진 모든 셀을 재렌더링
+        try:
+            import numpy as np
+            bg_arr = console.bg  # shape: (H, W, 3)
+            # 툴팁 BG 매칭 마스크
+            mask = (bg_arr[:, :, 0] == 12) & (bg_arr[:, :, 1] == 12) & (bg_arr[:, :, 2] == 25)
+            ys, xs = np.where(mask)
+            if len(ys) == 0:
+                return
+            # 바운딩 박스로 최적화
+            y_min, y_max = int(ys.min()), int(ys.max())
+            x_min, x_max = int(xs.min()), int(xs.max())
+            for cy in range(y_min, y_max + 1):
+                for cx in range(x_min, x_max + 1):
+                    if mask[cy, cx]:
+                        ch = int(console.ch[cy, cx])
+                        fg = (int(console.fg[cy, cx, 0]), int(console.fg[cy, cx, 1]), int(console.fg[cy, cx, 2]))
+                        bg = (12, 12, 25)
+                        fr.render_cell(cx * tw_px, cy * th_px, ch, fg, bg)
+        except Exception:
+            pass
 
     def _render_training_stats(self, console: tcod.console.Console):
         """트레이닝 모드 통계 렌더링"""
@@ -4800,13 +5779,35 @@ class CombatUI:
                 return ("노출", (255, 150, 150))
 
         elif gimmick_type == "dilemma_choice":
-            # 철학자 - 선택 (간략: 총 선택 수)
-            power = getattr(character, 'choice_power', 0)
-            wisdom = getattr(character, 'choice_wisdom', 0)
-            sacrifice = getattr(character, 'choice_sacrifice', 0)
-            truth = getattr(character, 'choice_truth', 0)
-            total = power + wisdom + sacrifice + truth
-            return (f"선택:{total}", (200, 150, 255))
+            # 철학자 - 딜레마 (가장 진행된 선택 + 발동 상태 표시)
+            threshold = getattr(character, 'accumulation_threshold', 3)
+            choices = {
+                '힘': getattr(character, 'choice_power', 0),
+                '지혜': getattr(character, 'choice_wisdom', 0),
+                '희생': getattr(character, 'choice_sacrifice', 0),
+                '생존': getattr(character, 'choice_survival', 0),
+                '진실': getattr(character, 'choice_truth', 0),
+                '거짓': getattr(character, 'choice_lie', 0),
+            }
+            # 발동된 딜레마 수
+            activated = [name for name, count in choices.items() if count >= threshold]
+            if len(activated) >= 2:
+                return (f"{'·'.join(activated[:2])}발동!", (255, 200, 100))
+            elif len(activated) == 1:
+                # 발동 1개 + 가장 높은 미발동 표시
+                rest = {n: c for n, c in choices.items() if c < threshold}
+                if rest:
+                    next_name = max(rest, key=rest.get)
+                    next_val = rest[next_name]
+                    return (f"{activated[0]}✓ {next_name}:{next_val}/{threshold}", (200, 150, 255))
+                return (f"{activated[0]} 발동!", (255, 200, 100))
+            else:
+                # 미발동: 가장 높은 선택 표시
+                if any(choices.values()):
+                    lead_name = max(choices, key=choices.get)
+                    lead_val = choices[lead_name]
+                    return (f"{lead_name}:{lead_val}/{threshold}", (200, 150, 255))
+                return ("딜레마 대기", (150, 150, 200))
 
         elif gimmick_type == "support_fire":
             # 궁수 - 지원사격 (간략: 콤보)
@@ -4840,9 +5841,13 @@ class CombatUI:
                 return (f"환호:{cheer}", (255, 200, 100))
 
         elif gimmick_type == "crowd_cheer":
-            # 검투사 - 군중의 환호
+            # 검투사 - 군중의 환호 + 현재 요구
             cheer = getattr(character, 'cheer', 0)
             max_cheer = getattr(character, 'max_cheer', 100)
+            current_demand = getattr(character, 'current_demand', None)
+            demand_name = current_demand.get("name", "") if current_demand else ""
+            if demand_name:
+                return (f"환호:{cheer} [{demand_name}]", (255, 200, 100))
             return (f"환호:{cheer}/{max_cheer}", (255, 200, 100))
 
         elif gimmick_type == "timeline_system":
@@ -4890,13 +5895,10 @@ class CombatUI:
             return (f"{rum_text}보물:{len(treasures)}", (255, 200, 100))
         
         elif gimmick_type == "score_composition":
-            # 바드 - 악보 작곡
+            # 바드 - 악보 작곡: 음표 순서 표시
             notes = getattr(character, 'music_notes', [])
-            max_notes = getattr(character, 'max_notes', 5)
-            harmony = getattr(character, 'harmony_bonus', 1.0)
-            if harmony > 1.0:
-                return (f"화음x{harmony:.1f} 음:{len(notes)}", (200, 150, 255))
-            return (f"음표:{len(notes)}/{max_notes}", (200, 150, 255))
+            notes_str = ''.join(notes) if notes else "---"
+            return (f"음표: {notes_str}", (200, 150, 255))
         
         elif gimmick_type == "alchemy_system":
             # 연금술사 - 포션 조합
@@ -7203,11 +8205,11 @@ class CombatUI:
                 details.append("=== 요미 예측 정보 ===")
                 for enemy_name, pred_info in character.predicted_actions.items():
                     action_type = pred_info.get('action', '알 수 없음')
-                    atb_pct = pred_info.get('atb_percentage', 0)
-                    atb_bar = self._create_gauge_bar(atb_pct, 100, width=5)
+                    target = pred_info.get('target', '')
                     details.append(f"{enemy_name}:")
                     details.append(f"  행동: {action_type}")
-                    details.append(f"  ATB: {atb_bar} ({atb_pct}%)")
+                    if target:
+                        details.append(f"  대상: {target}")
             elif yomi_on and prediction_active and not has_prediction:
                 details.append("")
                 details.append("=== 요미 예측 정보 ===")
@@ -7559,6 +8561,31 @@ class CombatUI:
                 desc_text = f"무늬: {suit_effect.get('name', '')} - {suit_effect.get('desc', '')[:35]}"
                 console.print(box_x + 2, desc_y + 1, desc_text[:box_width - 4], fg=(200, 255, 200))
 
+    def _render_waiting_remote_action(self, console: tcod.console.Console):
+        """원격 플레이어 행동 대기 중 렌더링 (호스트)"""
+        actor = self._remote_action_actor
+        actor_name = getattr(actor, 'name', '???') if actor else '???'
+        actor_player_id = getattr(actor, 'player_id', None) if actor else None
+
+        # 대기 메시지 표시
+        msg = f"{actor_name} 행동 대기 중..."
+        console.print(
+            self.screen_width // 2 - len(msg) // 2,
+            self.screen_height // 2,
+            msg,
+            fg=(200, 200, 100)
+        )
+
+        # 타임아웃 잔여 시간 표시
+        remaining_sec = max(0, self._remote_action_timeout / 60.0)
+        timeout_msg = f"타임아웃: {remaining_sec:.1f}초"
+        console.print(
+            self.screen_width // 2 - len(timeout_msg) // 2,
+            self.screen_height // 2 + 2,
+            timeout_msg,
+            fg=(180, 180, 180)
+        )
+
     def _render_battle_end(self, console: tcod.console.Console):
         """전투 종료 화면 렌더링"""
         if self.battle_result == CombatState.VICTORY:
@@ -7628,29 +8655,40 @@ def _play_combat_transition(
     import time as _time
     import random as _rand
     try:
-        from src.ui.pygame_backend.effects.transition import TransitionMode
+        from src.ui.effects import TransitionMode
         em = getattr(context, 'effect_manager', None)
         if em is None or not hasattr(em, 'trigger_transition'):
             return
 
-        modes = [
-            TransitionMode.FADE,
-            TransitionMode.DISSOLVE,
-            TransitionMode.SCANLINE,
-        ]
-        mode = _rand.choice(modes)
+        if direction == "out":
+            # 전투 진입: SHATTER 효과 + 임팩트 플래시/셰이크
+            mode = TransitionMode.SHATTER
+            if hasattr(em, 'trigger_flash'):
+                em.trigger_flash((255, 255, 255), 0.15, max_alpha=200)
+            if hasattr(em, 'trigger_shake'):
+                em.trigger_shake(8.0, 0.4)
+        else:
+            # 전투 퇴장: 기존 FADE/WIPE 랜덤
+            modes = [
+                TransitionMode.FADE,
+                TransitionMode.WIPE_LEFT,
+            ]
+            mode = _rand.choice(modes)
         em.trigger_transition(mode, duration, direction=direction, color=(0, 0, 0))
 
         # dt 폭주 방지
         if hasattr(context, '_last_frame_time'):
             context._last_frame_time = _time.time()
 
-        import pygame
         start = _time.time()
         timeout = duration + 0.2
         while em.is_transitioning and (_time.time() - start) < timeout:
             context.present(console)
-            pygame.event.pump()
+            try:
+                import pygame
+                pygame.event.pump()
+            except Exception:
+                pass
             _time.sleep(0.016)
     except Exception:
         pass
@@ -7780,9 +8818,15 @@ def run_combat(
             
             # ATB 시스템 교체
             combat_manager.atb = new_atb
-            logger.info(f"🔧 멀티플레이 전투: ATB 시스템을 MultiplayerATBSystem으로 교체 (게이지 {len(old_gauges)}개 복원)")
+            logger.info(f"멀티플레이 전투: ATB 시스템을 MultiplayerATBSystem으로 교체 (게이지 {len(old_gauges)}개 복원)")
         else:
             logger.info("멀티플레이 ATB 시스템 이미 활성화됨")
+
+        # 호스트/클라이언트 모드 설정
+        is_host = (network_manager and hasattr(network_manager, 'is_host') and network_manager.is_host)
+        if hasattr(combat_manager.atb, 'set_host_mode'):
+            combat_manager.atb.set_host_mode(is_host)
+            logger.info(f"멀티플레이 ATB 호스트 모드: {is_host}")
     
     # 파티 유효성 검사 - 최소 1명의 살아있는 캐릭터 필요
     logger.info(f"전투 파티 검사 시작: 파티 크기 {len(party) if party else 0}")

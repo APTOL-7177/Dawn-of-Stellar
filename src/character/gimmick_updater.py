@@ -135,7 +135,7 @@ class GimmickUpdater:
         elif gimmick_type == "duty_system":
             GimmickUpdater._update_duty_system(character)
         elif gimmick_type == "stance_system":
-            GimmickUpdater._update_stance_system(character)
+            pass  # 매턴 효과는 on_turn_start에서 처리 (광전사 HP 유실, 수호자 HP 재생)
         elif gimmick_type == "iaijutsu_system":
             GimmickUpdater._update_iaijutsu_system(character)
         elif gimmick_type == "dragon_marks":
@@ -279,9 +279,10 @@ class GimmickUpdater:
             character.cheer = min(max_cheer, cheer + 5)
             logger.debug(f"{character.name} 환호 증가: +5 (총: {character.cheer})")
         
-        # 전사 - 스탠스 시스템 효과 적용
+        # 전사 - 스탠스 시스템 효과 적용 + 매턴 효과 (광전사 HP 유실, 수호자 HP 재생)
         elif gimmick_type == "stance_system":
             GimmickUpdater._apply_stance_effects(character)
+            GimmickUpdater._update_stance_system(character)
         
         # 네크로맨서 - 언데드 자동 공격
         elif gimmick_type == "undead_legion":
@@ -421,8 +422,10 @@ class GimmickUpdater:
                             if hasattr(ally, 'heal'):
                                 actual_heal = ally.heal(heal_amount)
                             else:
-                                actual_heal = min(heal_amount, ally.max_hp - ally.current_hp)
-                                ally.current_hp = min(ally.max_hp, ally.current_hp + actual_heal)
+                                wound = getattr(ally, 'wound', 0)
+                                effective_max = max(1, ally.max_hp - wound)
+                                actual_heal = min(heal_amount, effective_max - ally.current_hp)
+                                ally.current_hp = min(effective_max, ally.current_hp + max(0, actual_heal))
                             if actual_heal > 0:
                                 logger.info(f"[기도의 축복] {ally.name} HP +{actual_heal} (최대 HP의 5%)")
 
@@ -460,8 +463,10 @@ class GimmickUpdater:
                 if hasattr(character, 'heal'):
                     actual_heal = character.heal(heal_amount)
                 else:
-                    actual_heal = min(heal_amount, character.max_hp - character.current_hp)
-                    character.current_hp = min(character.max_hp, character.current_hp + actual_heal)
+                    wound = getattr(character, 'wound', 0)
+                    effective_max = max(1, character.max_hp - wound)
+                    actual_heal = min(heal_amount, effective_max - character.current_hp)
+                    character.current_hp = min(effective_max, character.current_hp + max(0, actual_heal))
                 if actual_heal > 0:
                     logger.info(f"[치유의 빛] {character.name} HP +{actual_heal} (최대 HP의 3%)")
 
@@ -568,6 +573,19 @@ class GimmickUpdater:
                     character.music_notes.append(note_add)
                     logger.info(f"{character.name} 악보 갱신: {''.join(character.music_notes)}")
             
+            # 악보 컨트롤: 마지막 음표 제거
+            if skill.metadata.get("note_remove_last"):
+                if hasattr(character, 'music_notes') and character.music_notes:
+                    removed = character.music_notes.pop()
+                    logger.info(f"{character.name} 조율: {removed} 음표 제거! (현재: {''.join(character.music_notes)})")
+
+            # 악보 컨트롤: 음표 전체 변환
+            if skill.metadata.get("note_transform"):
+                transform_map = skill.metadata.get("transform_map", {"A": "B", "B": "S", "S": "A"})
+                if hasattr(character, 'music_notes') and character.music_notes:
+                    character.music_notes = [transform_map.get(n, n) for n in character.music_notes]
+                    logger.info(f"{character.name} 전조: 음표 변환! (현재: {''.join(character.music_notes)})")
+
             # 작곡 스킬: 패턴 효과 발동
             if skill.metadata.get("compose_skill"):
                 GimmickUpdater._apply_bard_compose_effect(character, skill, context)
@@ -1247,9 +1265,15 @@ class GimmickUpdater:
                     character.ki_gauge = max(50, current_ki - 5)
                     logger.debug(f"{character.name} 기 흐름: -5 (균형으로)")
 
-        # 균형 상태에서 HP/MP 회복
+        # 균형 상태에서 HP/MP 회복 (wound 시스템 준수)
         if 40 <= character.ki_gauge <= 60:
-            character.current_hp = min(character.max_hp, character.current_hp + int(character.max_hp * 0.05))
+            hp_heal = int(character.max_hp * 0.05)
+            if hasattr(character, 'heal'):
+                character.heal(hp_heal)
+            else:
+                wound = getattr(character, 'wound', 0)
+                effective_max = max(1, character.max_hp - wound)
+                character.current_hp = min(effective_max, character.current_hp + hp_heal)
             character.current_mp = min(character.max_mp, character.current_mp + int(character.max_mp * 0.05))
             logger.debug(f"{character.name} 태극 조화: HP/MP 5% 회복")
 
@@ -1991,13 +2015,18 @@ class GimmickUpdater:
                 character.current_hp = max(1, character.current_hp - damage)
                 logger.info(f"{character.name} 광전사 자세: 매턴 피해 -{damage} HP")
         
-        # 수호자: HP 재생 (MP 재생 제거)
+        # 수호자: HP 재생 (MP 재생 제거, wound 시스템 준수)
         elif stance == 5:  # guardian
             if hasattr(character, 'max_hp'):
                 hp_regen = int(character.max_hp * 0.12)  # 최대 HP의 12%
                 old_hp = character.current_hp
-                character.current_hp = min(character.max_hp, character.current_hp + hp_regen)
-                actual_hp = character.current_hp - old_hp
+                if hasattr(character, 'heal'):
+                    actual_hp = character.heal(hp_regen)
+                else:
+                    wound = getattr(character, 'wound', 0)
+                    effective_max = max(1, character.max_hp - wound)
+                    character.current_hp = min(effective_max, character.current_hp + hp_regen)
+                    actual_hp = character.current_hp - old_hp
                 if actual_hp > 0:
                     logger.info(f"{character.name} 수호자 자세: HP +{actual_hp}")
     
@@ -2006,20 +2035,20 @@ class GimmickUpdater:
         """전사: 스탠스 효과를 StatManager에 적용"""
         if not hasattr(character, 'stat_manager'):
             return
-        
+
         # 스탠스 변경 시 remove_on_stance_change 플래그가 있는 버프 제거
         if hasattr(character, 'active_buffs') and character.active_buffs:
             buffs_to_remove = []
             for buff_id, buff_data in character.active_buffs.items():
                 if isinstance(buff_data, dict) and buff_data.get('remove_on_stance_change'):
                     buffs_to_remove.append(buff_id)
-            
+
             for buff_id in buffs_to_remove:
                 del character.active_buffs[buff_id]
                 logger.info(f"[스탠스 변경] {character.name}의 '{buff_id}' 버프가 스탠스 변경으로 제거됨")
-        
+
         stance = getattr(character, 'current_stance', 0)
-        
+
         # 문자열인 경우 정수로 변환
         if isinstance(stance, str):
             stance_id_to_index = {
@@ -2031,57 +2060,77 @@ class GimmickUpdater:
                 "speed": 6
             }
             stance = stance_id_to_index.get(stance, 0)
-        
+
         from src.character.stats import Stats
-        
+
         # 기존 스탠스 보너스 제거
         for stat_name in [Stats.STRENGTH, Stats.DEFENSE, Stats.SPIRIT, Stats.SPEED]:
             character.stat_manager.remove_bonus(stat_name, "stance")
 
         # 스탠스별 피해 경감 초기화 (수호자 전용)
         character.stance_damage_reduction = 0.0
-        
+
+        # 스탠스별 고유 어드밴티지 초기화
+        character.stance_status_resist = 0.0       # 중립: 상태이상 저항
+        character.stance_debuff_reduction = 0       # 중립: 디버프 지속시간 감소 (턴)
+        character.stance_crit_bonus = 0.0           # 공격: 크리티컬 확률 보너스
+        character.stance_defense_ignore = 0.0       # 공격: 방어력 무시 비율
+        character.stance_break_immune = False        # 방어: BREAK 면역
+        character.stance_status_immune = False       # 방어: 상태이상 면역
+        character.stance_lifesteal = 0.0            # 광전사: HP 피해 흡혈 비율
+        character.stance_break_atb = 0.0            # 광전사: BREAK 시 ATB 충전 비율
+        character.stance_evasion_bonus = 0.0        # 속도: 회피 보너스
+        character.stance_atb_on_attack_chance = 0.0  # 속도: 공격 후 ATB 충전 확률
+        character.stance_atb_on_attack_amount = 0.0  # 속도: 공격 후 ATB 충전량
+
         # 스탠스별 효과 적용
         if stance == 0:  # 중립 (balanced)
-            # 모든 스탯 그대로 - 보너스 없음
-            pass
-        
+            # 모든 스탯 그대로 + 상태이상 저항 +30%, 디버프 지속시간 -1턴
+            character.stance_status_resist = 0.30
+            character.stance_debuff_reduction = 1
+
         elif stance == 1:  # 공격 (attack)
-            # 공격+40%, 방,마방-25%
+            # 공격+40%, 방,마방-25% + 크리티컬 +20%, 방어력 20% 무시
             base_attack = character.stat_manager.get_value(Stats.STRENGTH)
             base_defense = character.stat_manager.get_value(Stats.DEFENSE)
             base_magic_def = character.stat_manager.get_value(Stats.SPIRIT)
-            
+
             character.stat_manager.add_bonus(Stats.STRENGTH, "stance", base_attack * 0.40)
             character.stat_manager.add_bonus(Stats.DEFENSE, "stance", -base_defense * 0.25)
             character.stat_manager.add_bonus(Stats.SPIRIT, "stance", -base_magic_def * 0.25)
-        
+            character.stance_crit_bonus = 0.20
+            character.stance_defense_ignore = 0.20
+
         elif stance == 2:  # 방어 (defense)
-            # 방,마방+60%, 공-30%, 속도-30%
+            # 방,마방+60%, 공-30%, 속도-30% + BREAK 면역, 상태이상 면역
             base_attack = character.stat_manager.get_value(Stats.STRENGTH)
             base_defense = character.stat_manager.get_value(Stats.DEFENSE)
             base_magic_def = character.stat_manager.get_value(Stats.SPIRIT)
             base_speed = character.stat_manager.get_value(Stats.SPEED)
-            
+
             character.stat_manager.add_bonus(Stats.DEFENSE, "stance", base_defense * 0.60)
             character.stat_manager.add_bonus(Stats.SPIRIT, "stance", base_magic_def * 0.60)
             character.stat_manager.add_bonus(Stats.STRENGTH, "stance", -base_attack * 0.30)
             character.stat_manager.add_bonus(Stats.SPEED, "stance", -base_speed * 0.30)
-        
+            character.stance_break_immune = True
+            character.stance_status_immune = True
+
         elif stance == 4:  # 광전사 (berserker)
-            # 속도,공격+55%, 방,마방-45%
+            # 속도,공격+55%, 방,마방-45% + HP 피해 15% 흡혈, BREAK 시 ATB 50% 충전
             base_attack = character.stat_manager.get_value(Stats.STRENGTH)
             base_defense = character.stat_manager.get_value(Stats.DEFENSE)
             base_magic_def = character.stat_manager.get_value(Stats.SPIRIT)
             base_speed = character.stat_manager.get_value(Stats.SPEED)
-            
+
             character.stat_manager.add_bonus(Stats.STRENGTH, "stance", base_attack * 0.55)
             character.stat_manager.add_bonus(Stats.SPEED, "stance", base_speed * 0.55)
             character.stat_manager.add_bonus(Stats.DEFENSE, "stance", -base_defense * 0.45)
             character.stat_manager.add_bonus(Stats.SPIRIT, "stance", -base_magic_def * 0.45)
-        
+            character.stance_lifesteal = 0.15
+            character.stance_break_atb = 0.50
+
         elif stance == 5:  # 수호자 (guardian)
-            # 받는 피해 70% 경감, 공격력/마법공격력/속도 -60%
+            # 받는 피해 35% 경감, 공격력/마법공격력/속도 -60%, HP재생 12%, 50% 보호
             base_attack = character.stat_manager.get_value(Stats.STRENGTH)
             base_magic = character.stat_manager.get_value(Stats.MAGIC)
             base_speed = character.stat_manager.get_value(Stats.SPEED)
@@ -2089,19 +2138,21 @@ class GimmickUpdater:
             character.stat_manager.add_bonus(Stats.STRENGTH, "stance", -base_attack * 0.60)
             character.stat_manager.add_bonus(Stats.MAGIC, "stance", -base_magic * 0.60)
             character.stat_manager.add_bonus(Stats.SPEED, "stance", -base_speed * 0.60)
-            character.stance_damage_reduction = 0.70
-        
+            character.stance_damage_reduction = 0.35
+
         elif stance == 6:  # 속도 (speed)
-            # 속도+80%, 방,마방,공-25%
+            # 속도+80%, 방,마방,공-25% + 공격 후 70% 확률 ATB 30% 충전
             base_attack = character.stat_manager.get_value(Stats.STRENGTH)
             base_defense = character.stat_manager.get_value(Stats.DEFENSE)
             base_magic_def = character.stat_manager.get_value(Stats.SPIRIT)
             base_speed = character.stat_manager.get_value(Stats.SPEED)
-            
+
             character.stat_manager.add_bonus(Stats.SPEED, "stance", base_speed * 0.80)
             character.stat_manager.add_bonus(Stats.STRENGTH, "stance", -base_attack * 0.25)
             character.stat_manager.add_bonus(Stats.DEFENSE, "stance", -base_defense * 0.25)
             character.stat_manager.add_bonus(Stats.SPIRIT, "stance", -base_magic_def * 0.25)
+            character.stance_atb_on_attack_chance = 0.70
+            character.stance_atb_on_attack_amount = 0.30
 
     @staticmethod
     def _update_iaijutsu_system(character):
@@ -2381,24 +2432,34 @@ class GimmickUpdater:
                 if actual_regen > 0:
                     logger.info(f"[물 정령] {character.name} MP +{actual_regen} (총: {character.current_mp})")
         
-        # 대지 정령: HP +3/턴
+        # 대지 정령: HP +3/턴 (wound 시스템 준수)
         if getattr(character, 'spirit_earth', 0) > 0:
             hp_regen = 3
             if hasattr(character, 'current_hp') and hasattr(character, 'max_hp'):
                 old_hp = character.current_hp
-                character.current_hp = min(character.max_hp, character.current_hp + hp_regen)
-                actual_regen = character.current_hp - old_hp
+                if hasattr(character, 'heal'):
+                    actual_regen = character.heal(hp_regen)
+                else:
+                    wound = getattr(character, 'wound', 0)
+                    effective_max = max(1, character.max_hp - wound)
+                    character.current_hp = min(effective_max, character.current_hp + hp_regen)
+                    actual_regen = character.current_hp - old_hp
                 if actual_regen > 0:
                     logger.info(f"[대지 정령] {character.name} HP +{actual_regen} (총: {character.current_hp})")
-        
-        # 생명 공명 (물+대지): HP/MP 동시 회복 추가
+
+        # 생명 공명 (물+대지): HP/MP 동시 회복 추가 (wound 시스템 준수)
         if getattr(character, 'spirit_water', 0) > 0 and getattr(character, 'spirit_earth', 0) > 0:
             resonance_mult = getattr(character, 'resonance_multiplier', 1.0)
             bonus_regen = int(3 * resonance_mult)
             if hasattr(character, 'current_hp') and hasattr(character, 'max_hp'):
                 old_hp = character.current_hp
-                character.current_hp = min(character.max_hp, character.current_hp + bonus_regen)
-                hp_bonus = character.current_hp - old_hp
+                if hasattr(character, 'heal'):
+                    hp_bonus = character.heal(bonus_regen)
+                else:
+                    wound = getattr(character, 'wound', 0)
+                    effective_max = max(1, character.max_hp - wound)
+                    character.current_hp = min(effective_max, character.current_hp + bonus_regen)
+                    hp_bonus = character.current_hp - old_hp
                 if hp_bonus > 0:
                     logger.info(f"[생명 공명] {character.name} 추가 HP +{hp_bonus}")
             if hasattr(character, 'current_mp') and hasattr(character, 'max_mp'):
@@ -3253,22 +3314,36 @@ class GimmickUpdater:
 
     @staticmethod
     def add_venom(rogue, target, amount: int):
-        """대상에게 독 중첩 추가 (최대 5)"""
+        """대상에게 독 중첩 추가 (최대 5, 확률 기반)"""
+        import random
         if not hasattr(target, 'venom_stacks'):
             target.venom_stacks = 0
 
         max_venom = getattr(rogue, 'max_venom', 5)
 
-        # 맹독술사 특성: 독 중첩 시 추가 +1
+        # 맹독술사 특성: 독 중첩 시 추가 +1 및 확률 보정
         bonus = 0
+        venom_chance_bonus = 0
         if hasattr(rogue, 'active_traits'):
             for trait in rogue.active_traits:
                 tid = trait if isinstance(trait, str) else trait.get('id')
                 if tid == 'venom_master':
                     bonus = 1
+                    venom_chance_bonus = 0.15  # 맹독술사: 확률 +15%
                     break
 
-        actual_amount = amount + bonus
+        # 독 중첩 확률: 기본 70% (맹독술사 특성 시 85%)
+        base_venom_chance = 0.70 + venom_chance_bonus
+        # 각 중첩마다 개별 확률 판정
+        actual_amount = 0
+        for _ in range(amount + bonus):
+            if random.random() < base_venom_chance:
+                actual_amount += 1
+
+        if actual_amount == 0:
+            logger.debug(f"[맹독] {rogue.name} → {target.name}: 독 부여 실패 (확률 {base_venom_chance*100:.0f}%)")
+            return 0
+
         old_stacks = target.venom_stacks
         target.venom_stacks = min(max_venom, target.venom_stacks + actual_amount)
         actual_gain = target.venom_stacks - old_stacks
@@ -4056,18 +4131,30 @@ class GimmickUpdater:
                                 buff_data["duration"] += int(value)
                 logger.info(f"  -> 아군 전체 버프 지속시간 +{int(value)}턴")
             elif effect_type == "mass_heal":
-                # 파티 전체 힐
+                # 파티 전체 힐 (wound 시스템 준수)
                 healed_count = 0
                 for ally in allies:
                     if hasattr(ally, 'current_hp') and hasattr(ally, 'max_hp'):
                         heal_amount = int(ally.max_hp * value)
-                        ally.current_hp = min(ally.max_hp, ally.current_hp + heal_amount)
-                        logger.info(f"  -> {ally.name} HP {heal_amount} 회복!")
+                        if hasattr(ally, 'heal'):
+                            actual_heal = ally.heal(heal_amount)
+                        else:
+                            wound = getattr(ally, 'wound', 0)
+                            effective_max = max(1, ally.max_hp - wound)
+                            actual_heal = min(heal_amount, effective_max - ally.current_hp)
+                            ally.current_hp = min(effective_max, ally.current_hp + actual_heal)
+                        logger.info(f"  -> {ally.name} HP {actual_heal} 회복!")
                         healed_count += 1
                 if healed_count == 0:
                     heal_amount = int(character.max_hp * value)
-                    character.current_hp = min(character.max_hp, character.current_hp + heal_amount)
-                    logger.info(f"  -> HP {heal_amount} 회복!")
+                    if hasattr(character, 'heal'):
+                        actual_heal = character.heal(heal_amount)
+                    else:
+                        wound = getattr(character, 'wound', 0)
+                        effective_max = max(1, character.max_hp - wound)
+                        actual_heal = min(heal_amount, effective_max - character.current_hp)
+                        character.current_hp = min(effective_max, character.current_hp + actual_heal)
+                    logger.info(f"  -> HP {actual_heal} 회복!")
             elif effect_type == "all_stat_up":
                 # 파티 전체 공/방/마공/마방/속 버프
                 for ally in allies:
@@ -4094,44 +4181,44 @@ class GimmickUpdater:
                     enemy.active_buffs["speed_down"] = {"value": value, "duration": duration}
                 logger.info(f"  -> 적 전체 공/방/마공/마방/속 -{int(value*100)}% ({duration}턴)")
             elif effect_type == "magic_heal":
-                # 바드 마법력 기반 파티 전체 회복
+                # 바드 마법력 기반 파티 전체 회복 (wound 시스템 준수)
                 magic_stat = getattr(character, 'magic', getattr(character, 'magic_attack', 100))
                 heal_multiplier = matched_effect.get("multiplier", 1.35)
                 heal_amount = int(magic_stat * heal_multiplier)
                 for ally in allies:
                     if hasattr(ally, 'current_hp') and hasattr(ally, 'max_hp'):
-                        actual_heal = min(ally.max_hp - ally.current_hp, heal_amount)
-                        ally.current_hp = min(ally.max_hp, ally.current_hp + heal_amount)
+                        if hasattr(ally, 'heal'):
+                            actual_heal = ally.heal(heal_amount)
+                        else:
+                            wound = getattr(ally, 'wound', 0)
+                            effective_max = max(1, ally.max_hp - wound)
+                            actual_heal = min(heal_amount, effective_max - ally.current_hp)
+                            ally.current_hp = min(effective_max, ally.current_hp + actual_heal)
                         logger.info(f"  -> {ally.name} HP {actual_heal} 회복!")
                 logger.info(f"  -> 마법력 {magic_stat} × {heal_multiplier} = {heal_amount} 회복")
             elif effect_type == "triple_strike":
-                # 적 전체 3연타 BRV+HP 공격
+                # 적 전체 3연타 BRV+HP 공격 (정상 전투 시스템 경유)
+                from src.character.skills.effects.damage_effect import DamageEffect, DamageType
                 all_enemies = []
                 if context and 'all_enemies' in context:
                     all_enemies = [e for e in context['all_enemies'] if getattr(e, 'is_alive', True)]
-                
+
                 brv_mult = matched_effect.get("brv_multiplier", 1.2)
                 hp_mult = matched_effect.get("hp_multiplier", 1.0)
-                magic_stat = getattr(character, 'magic', getattr(character, 'magic_attack', 100))
-                
+
                 for enemy in all_enemies:
-                    total_damage = 0
-                    # 3연타 BRV 공격
-                    for i in range(3):
-                        brv_damage = int(magic_stat * brv_mult * 0.8)
-                        if hasattr(enemy, 'current_brv'):
-                            enemy.current_brv = max(0, enemy.current_brv - brv_damage)
-                        total_damage += brv_damage
-                    # HP 공격 마무리
-                    hp_damage = int(magic_stat * hp_mult)
-                    if hasattr(enemy, 'current_hp'):
-                        enemy.current_hp = max(0, enemy.current_hp - hp_damage)
-                    total_damage += hp_damage
-                    logger.info(f"  -> {enemy.name}에게 3연타 BRV + HP 공격! (총 {total_damage} 피해)")
-                    
-                    # 사망 체크
-                    if hasattr(enemy, 'current_hp') and enemy.current_hp <= 0:
-                        enemy.is_alive = False
+                    try:
+                        # 3연타 BRV 공격
+                        for i in range(3):
+                            brv_hit = DamageEffect(DamageType.BRV, brv_mult * 0.8, stat_type="magic")
+                            brv_hit.execute(character, enemy, context)
+                        # HP 공격 마무리
+                        hp_hit = DamageEffect(DamageType.HP, hp_mult, stat_type="magic")
+                        hp_result = hp_hit.execute(character, enemy, context)
+                        hp_dmg = getattr(hp_result, 'hp_damage', 0) if hp_result else 0
+                        logger.info(f"  -> {enemy.name}에게 3연타 BRV + HP 공격! (HP {hp_dmg})")
+                    except Exception:
+                        logger.warning(f"  -> {enemy.name} 트리플 스트라이크 실패", exc_info=True)
             elif effect_type == "enemy_debuff":
                 # 적 전체 디버프 (context에서 적 목록 가져오기)
                 all_enemies = []
@@ -4143,6 +4230,46 @@ class GimmickUpdater:
                     enemy.active_buffs["attack_down"] = {"value": value, "duration": duration}
                     enemy.active_buffs["defense_down"] = {"value": value, "duration": duration}
                 logger.info(f"  -> 적 전체 공/방 -{int(value*100)}% ({duration}턴)")
+            elif effect_type == "party_heal":
+                # 불협화음(SBA) → 아군 전체 HP 회복 (wound 시스템 준수)
+                heal_value = value
+                for ally in allies:
+                    if hasattr(ally, 'current_hp') and hasattr(ally, 'max_hp'):
+                        heal_amount = int(ally.max_hp * heal_value)
+                        if hasattr(ally, 'heal'):
+                            actual_heal = ally.heal(heal_amount)
+                        else:
+                            wound = getattr(ally, 'wound', 0)
+                            effective_max = max(1, ally.max_hp - wound)
+                            actual_heal = min(heal_amount, effective_max - ally.current_hp)
+                            ally.current_hp = min(effective_max, ally.current_hp + actual_heal)
+                        logger.info(f"  -> {ally.name} HP {actual_heal} 회복!")
+                logger.info(f"  -> 불협화음! 아군 전체 HP {int(heal_value*100)}% 회복")
+            elif effect_type == "party_speed":
+                # ABA: 파티 전체 속도 버프
+                for ally in allies:
+                    if not hasattr(ally, 'active_buffs'):
+                        ally.active_buffs = {}
+                    ally.active_buffs["speed_up"] = {"value": value, "duration": duration}
+                    ally.active_buffs["evasion_up"] = {"value": value * 0.5, "duration": duration}
+                logger.info(f"  -> 아군 전체 속도 +{int(value*100)}%, 회피 +{int(value*50)}% ({duration}턴)")
+            elif effect_type == "party_defense":
+                # BSB: 파티 전체 방어 버프
+                for ally in allies:
+                    if not hasattr(ally, 'active_buffs'):
+                        ally.active_buffs = {}
+                    ally.active_buffs["defense_up"] = {"value": value, "duration": duration}
+                    ally.active_buffs["spirit_up"] = {"value": value, "duration": duration}
+                logger.info(f"  -> 아군 전체 방어/마방 +{int(value*100)}% ({duration}턴)")
+            elif effect_type == "brv_recovery":
+                # SAS: 파티 BRV 회복
+                for ally in allies:
+                    max_brv = getattr(ally, 'max_brv', 300)
+                    brv_heal = int(max_brv * value)
+                    current_brv = getattr(ally, 'current_brv', 0)
+                    ally.current_brv = min(max_brv, current_brv + brv_heal)
+                    logger.info(f"  -> {ally.name} BRV +{brv_heal}")
+                logger.info(f"  -> 아군 전체 최대 BRV의 {int(value*100)}% 회복")
             
             if skill.metadata.get("consume_notes"):
                 if len(character.music_notes) >= 3:
@@ -4151,24 +4278,36 @@ class GimmickUpdater:
                     character.music_notes = []
                 logger.info(f"  -> 악보 갱신: {''.join(character.music_notes) if character.music_notes else '(비어있음)'}")
         else:
-            # 패턴 미완성: 음표 개수에 비례한 공/마 버프 (아군 전체)
-            note_count = len(character.music_notes)
-            bonus = 0.1 * note_count  # 음표당 10%
-            
-            # 아군 전체에 버프 적용
+            # 패턴 미매칭: 아군 전체 올스탯 +20% (절대음감 특성 시 +50% 강화)
+            base_value = 0.20
+            # 절대음감 특성: 미매칭 버프 효과 +50%
+            if hasattr(character, 'active_traits'):
+                for trait_data in character.active_traits:
+                    trait_id = trait_data if isinstance(trait_data, str) else trait_data.get('id', '')
+                    if trait_id == "perfect_pitch":
+                        effects = trait_data.get('effects', {}) if isinstance(trait_data, dict) else {}
+                        no_match_bonus = effects.get('no_match_bonus', 1.5)
+                        base_value *= no_match_bonus
+                        break
+
+            duration = 3
+            # 아군 전체에 올스탯 버프 적용
             allies = []
             if context and 'all_allies' in context:
                 allies = [a for a in context['all_allies'] if getattr(a, 'is_alive', True)]
             else:
                 allies = [character]  # fallback
-            
+
             for ally in allies:
                 if not hasattr(ally, 'active_buffs'):
                     ally.active_buffs = {}
-                ally.active_buffs["attack_up"] = {"value": bonus, "duration": 2}
-                ally.active_buffs["magic_up"] = {"value": bonus, "duration": 2}
-            
-            logger.info(f"[바드] 패턴 미완성. 음표 {note_count}개 -> 아군 전체 공/마 +{int(bonus*100)}% (2턴)")
+                ally.active_buffs["attack_up"] = {"value": base_value, "duration": duration}
+                ally.active_buffs["defense_up"] = {"value": base_value, "duration": duration}
+                ally.active_buffs["magic_up"] = {"value": base_value, "duration": duration}
+                ally.active_buffs["spirit_up"] = {"value": base_value, "duration": duration}
+                ally.active_buffs["speed_up"] = {"value": base_value, "duration": duration}
+
+            logger.info(f"[바드] 패턴 미매칭 -> 아군 전체 올스탯 +{int(base_value*100)}% ({duration}턴)")
             
             # 패턴 미완성 시에도 음표 소모
             if skill.metadata.get("consume_notes"):
@@ -4659,8 +4798,10 @@ class GimmickUpdater:
                             actual_heal = character.heal(heal_amount)
                         else:
                             current_hp = getattr(character, 'current_hp', 0)
-                            actual_heal = min(heal_amount, max_hp - current_hp)
-                            character.current_hp = min(max_hp, current_hp + actual_heal)
+                            wound = getattr(character, 'wound', 0)
+                            effective_max = max(1, max_hp - wound)
+                            actual_heal = min(heal_amount, effective_max - current_hp)
+                            character.current_hp = min(effective_max, current_hp + max(0, actual_heal))
 
                         # 다음 공격 피해 +15%
                         character._shadow_feast_bonus = 0.15
@@ -4793,16 +4934,19 @@ class GimmickUpdater:
             user.circuit_flux_ready = 0
 
         hook["channel"] = channel
-        lock_turns = meta.get("lock_turns", getattr(user, "default_lock_turns", 1))
+        lock_turns = meta.get("lock_turns", getattr(user, "default_lock_turns", 2))
         arc_bonus = meta.get("arc_spark_bonus", 0.5)
 
         # 봉인 채널을 사용했을 때 Arc Spark 준비
+        logger.info(f"[블레이드서킷 PRE] {user.name} channel={channel} steel_lock={getattr(user, 'steel_lock', 0)} mana_lock={getattr(user, 'mana_lock', 0)}")
         if channel == "steel" and getattr(user, "steel_lock", 0) > 0:
             hook["arc_spark"] = {"bonus": arc_bonus, "channel": "steel"}
             user.steel_lock = 0
+            logger.info(f"[Arc Spark 준비] steel 봉인 해제, bonus={arc_bonus}")
         elif channel == "mana" and getattr(user, "mana_lock", 0) > 0:
             hook["arc_spark"] = {"bonus": arc_bonus, "channel": "mana"}
             user.mana_lock = 0
+            logger.info(f"[Arc Spark 준비] mana 봉인 해제, bonus={arc_bonus}")
 
         # 게이지 충전
         charge = meta.get("circuit_charge", 10)
@@ -4829,6 +4973,7 @@ class GimmickUpdater:
         elif channel == "hybrid":
             user.steel_lock = max(getattr(user, "steel_lock", 0), lock_turns)
             user.mana_lock = max(getattr(user, "mana_lock", 0), lock_turns)
+        logger.info(f"[블레이드서킷 POST-LOCK] steel_lock={getattr(user, 'steel_lock', 0)} mana_lock={getattr(user, 'mana_lock', 0)} lock_turns={lock_turns}")
 
         # 공명 패턴 체크 (물리→마법→물리 또는 역순)
         if meta.get("resonance_step") and channel in ("steel", "mana"):
@@ -4893,7 +5038,7 @@ class GimmickUpdater:
                 if not t or not getattr(t, "is_alive", True):
                     continue
                 try:
-                    base_mult = 0.8 + ((getattr(user, "steel_line", 0) + getattr(user, "mana_line", 0)) / 200.0) * 0.25
+                    base_mult = 0.5 + ((getattr(user, "steel_line", 0) + getattr(user, "mana_line", 0)) / 200.0) * 0.85
                     spark_mult = base_mult * arc.get("bonus", 1.0)
                     if GimmickUpdater._has_trait(user, "circuit_overdrive"):
                         spark_mult *= 1.2
@@ -5569,7 +5714,9 @@ class GimmickUpdater:
                         actual_heal = heal_target.heal(heal_amount, source_character=character)
                     else:
                         old_hp = getattr(heal_target, 'current_hp', 0)
-                        heal_target.current_hp = min(getattr(heal_target, 'max_hp', 100), old_hp + heal_amount)
+                        wound = getattr(heal_target, 'wound', 0)
+                        effective_max = max(1, getattr(heal_target, 'max_hp', 100) - wound)
+                        heal_target.current_hp = min(effective_max, old_hp + heal_amount)
                         actual_heal = heal_target.current_hp - old_hp
                         
                     if actual_heal > 0:
@@ -5885,86 +6032,129 @@ class GimmickUpdater:
 
     @staticmethod
     def _apply_kenshin_prediction(character, skill, context=None):
-        """요미 스킬: 적의 다음 행동 예측
+        """요미 스킬: 적의 다음 행동 및 공격 대상 예측
 
         Args:
             character: 사무라이 캐릭터
             skill: 요미 스킬
-            context: 스킬 실행 컨텍스트 (enemies 리스트 포함)
+            context: 스킬 실행 컨텍스트 (enemies/all_allies 포함)
         """
         # 예측 활성화 (지속형)
         character.prediction_active = True
         GimmickUpdater._push_ui_log(character, "[요미] 예측 활성화")
 
-        # 컨텍스트에서 적 목록 가져오기 (없으면 전투 관리자에서 조회)
+        # 컨텍스트에서 적/아군 목록 가져오기
         enemies = []
+        allies = []
         if context:
-            enemies = context.get('enemies') or []
-            if not enemies:
-                enemies = context.get('all_enemies', []) or []
+            enemies = context.get('enemies') or context.get('all_enemies', []) or []
             if not enemies and 'combat_manager' in context:
                 cm = context.get('combat_manager')
                 enemies = getattr(cm, 'enemies', []) if cm else []
+            allies = context.get('all_allies', []) or []
+            if not allies and 'combat_manager' in context:
+                cm = context.get('combat_manager')
+                allies = getattr(cm, 'allies', []) if cm else []
         if not enemies:
             logger.warning(f"[요미] {character.name} 예측 실패: 적 정보 없음")
             GimmickUpdater._push_ui_log(character, "[요미] 예측 실패: 적 정보 없음", color=(255, 120, 120))
             return
 
-        # 예측 결과를 저장할 딕셔너리 초기화
+        # 예측 결과 초기화
         if not hasattr(character, 'predicted_actions'):
             character.predicted_actions = {}
 
-        # 예측 턴 수
         prediction_turns = skill.metadata.get('prediction_turns', 2)
+        alive_allies = [a for a in allies if getattr(a, 'is_alive', True)]
 
-        logger.info(f"[요미] {character.name} 적의 다음 {prediction_turns}턴 행동 예측...")
+        logger.info(f"[요미] {character.name} 적의 행동/대상 예측 ({prediction_turns}턴)...")
 
-        # 각 적의 다음 행동 예측
         for enemy in enemies:
             if not getattr(enemy, 'is_alive', False):
                 continue
 
-            # 간단한 휴리스틱 기반 예측
+            # 행동 예측 (기존 휴리스틱)
             action_type = GimmickUpdater._predict_enemy_action(enemy)
 
-            # ATB 정보 가져오기
-            current_atb = getattr(enemy, 'atb_gauge', 0)
-            atb_threshold = getattr(enemy, 'atb_threshold', 1000)
-            atb_percentage = int((current_atb / atb_threshold) * 100) if atb_threshold > 0 else 0
+            # 행동 유형에 따른 대상 예측
+            if action_type in ("회복 스킬 사용 예정", "방어 태세 예정"):
+                # 비공격 행동: 자기 자신 대상
+                target_name = "자신"
+            elif action_type == "강력한 스킬 사용 예정":
+                # 보스 강력 스킬: 전체 대상일 수 있음
+                target_name = "전체 공격 가능"
+            else:
+                # 공격 행동: 어그로 가중치 기반 대상 예측
+                predicted_target = GimmickUpdater._predict_enemy_target(enemy, alive_allies)
+                target_name = getattr(predicted_target, 'name', '???') if predicted_target else '???'
 
             # 예측 결과 저장
             character.predicted_actions[enemy.name] = {
                 'action': action_type,
-                'atb': current_atb,
-                'atb_max': atb_threshold,
-                'atb_percentage': atb_percentage,
+                'target': target_name,
                 'turns_remaining': prediction_turns
             }
 
-            logger.info(f"  → {enemy.name}: {action_type} (ATB: {atb_percentage}%)")
+            logger.info(f"  → {enemy.name}: {action_type} → 대상: {target_name}")
             GimmickUpdater._push_ui_log(
                 character,
-                f"[요미] {enemy.name}: {action_type} (ATB {atb_percentage}%)",
+                f"[요미] {enemy.name}: {action_type} → {target_name}",
                 color=(200, 255, 200),
             )
 
-        # 예측 정보를 UI에서 참조할 수 있도록 플래그 설정
         character.prediction_active = True
         character.prediction_turns_left = prediction_turns
-        GimmickUpdater._push_ui_log(character, f"[요미] 다음 {prediction_turns}턴 예측 완료", color=(200, 255, 200))
+        GimmickUpdater._push_ui_log(character, f"[요미] {prediction_turns}턴간 예측 활성", color=(200, 255, 200))
 
-        # 현재 선택된 대상의 예측 정보를 인게임 로그에 즉시 노출 (요미 ON일 때)
-        target = None
-        if context:
-            target = context.get("target") or context.get("primary_target")
-        if target and hasattr(target, "name"):
-            pred = character.predicted_actions.get(getattr(target, "name"), None)
-            if pred:
-                act = pred.get("action", "알 수 없음")
-                atb_pct = pred.get("atb_percentage", 0)
-                GimmickUpdater._push_ui_log(character, f"[요미] 현재 대상 {target.name}: {act} (ATB {atb_pct}%)", color=(255, 255, 120))
-            else:
-                GimmickUpdater._push_ui_log(character, f"[요미] 현재 대상 {target.name}: 예측 데이터 없음", color=(200, 200, 200))
+    @staticmethod
+    def _predict_enemy_target(enemy, alive_allies):
+        """적의 공격 대상 예측 (어그로 가중치 기반)
+
+        Args:
+            enemy: 적 캐릭터
+            alive_allies: 살아있는 아군 리스트
+
+        Returns:
+            가장 노려질 가능성이 높은 아군
+        """
+        if not alive_allies:
+            return None
+        if len(alive_allies) == 1:
+            return alive_allies[0]
+
+        best_target = None
+        best_score = -1
+
+        for ally in alive_allies:
+            score = 50.0  # 기본 어그로
+
+            # 도발 상태: 최우선
+            if getattr(ally, 'is_taunting', False) or 'taunt' in getattr(ally, 'active_buffs', {}):
+                score += 500
+
+            # HP 비율 (낮을수록 타겟 확률 증가)
+            hp_ratio = getattr(ally, 'current_hp', 1) / max(getattr(ally, 'max_hp', 1), 1)
+            score += (1.0 - hp_ratio) * 30  # HP 낮을수록 +30
+
+            # 기존 어그로 값
+            agro = getattr(ally, '_agro_value', 50)
+            score += agro * 0.3
+
+            # 딜러 위협: 공격력/마법력 높으면 더 노림
+            atk = getattr(ally, 'physical_attack', getattr(ally, 'strength', 50))
+            mag = getattr(ally, 'magic_attack', getattr(ally, 'magic', 50))
+            score += max(atk, mag) * 0.1
+
+            # BRV 높으면 위협적
+            brv = getattr(ally, 'current_brv', 0)
+            max_brv = max(getattr(ally, 'max_brv', 300), 1)
+            score += (brv / max_brv) * 20
+
+            if score > best_score:
+                best_score = score
+                best_target = ally
+
+        return best_target
 
     @staticmethod
     def _predict_enemy_action(enemy) -> str:
@@ -7101,6 +7291,39 @@ def _handle_combat_action(event):
         
         # print(f"[DEBUG] 차원술사 발견: {dimensionists_found}명")
         # 차원술사가 없으면 로그 생략 (너무 많은 로그 방지)
+
+        # === 요미 예측 자동 갱신: 적이 행동 완료 후 다음 행동 재예측 ===
+        if actor and actor not in combat_manager.allies:
+            enemy_name = getattr(actor, 'name', '')
+            if enemy_name and getattr(actor, 'is_alive', False):
+                alive_allies = [a for a in combat_manager.allies
+                                if getattr(a, 'is_alive', True)]
+                for ally in alive_allies:
+                    if not getattr(ally, 'prediction_active', False):
+                        continue
+                    turns_left = getattr(ally, 'prediction_turns_left', 0)
+                    if turns_left <= 0:
+                        continue
+                    predicted = getattr(ally, 'predicted_actions', {})
+                    if enemy_name not in predicted:
+                        continue
+
+                    # 해당 적의 예측 갱신
+                    new_action = GimmickUpdater._predict_enemy_action(actor)
+                    if new_action in ("회복 스킬 사용 예정", "방어 태세 예정"):
+                        new_target = "자신"
+                    elif new_action == "강력한 스킬 사용 예정":
+                        new_target = "전체 공격 가능"
+                    else:
+                        pred_target = GimmickUpdater._predict_enemy_target(actor, alive_allies)
+                        new_target = getattr(pred_target, 'name', '???') if pred_target else '???'
+
+                    predicted[enemy_name] = {
+                        'action': new_action,
+                        'target': new_target,
+                        'turns_remaining': turns_left
+                    }
+                    logger.debug(f"[요미 갱신] {enemy_name}: {new_action} → {new_target}")
     else:
         logger.warning(f"[COMBAT_ACTION] combat_manager 없음: actor={getattr(actor, 'name', 'None')}")
 

@@ -451,39 +451,53 @@ class DamageEffect(SkillEffect):
             result.message = f"BRV 공격! {result.brv_damage}"
         
         elif self.damage_type == DamageType.HP:
-            # 물리/마법 구분하여 HP 공격
-            # 탄환 정보를 전달 (관통탄 방어 관통력용)
-            hp_kwargs = {}
-            if context and 'defense_pierce_fixed' in context:
-                hp_kwargs['defense_pierce_fixed'] = context['defense_pierce_fixed']
-            
-            # AOE HP 공격의 경우, 첫 번째 타겟에서만 실제로 BRV를 소모
-            # 나머지 타겟들에는 초기 BRV를 사용하되, 실제 소모는 하지 않음
-            is_aoe_hp = context and '_aoe_hp_initial_brv' in context
-            target_index = context.get('_aoe_hp_target_index', 0) if context else 0
-            is_first_target = (is_aoe_hp and target_index == 0)
-            
-            # 첫 번째 타겟이 아닌 경우, BRV를 임시로 초기값으로 설정 (데미지 계산용)
-            # 하지만 실제 소모는 하지 않음 (hp_attack 후 복원)
-            saved_brv = None
-            if is_aoe_hp and not is_first_target:
-                saved_brv = user.current_brv
-                user.current_brv = context['_aoe_hp_initial_brv']
-            
-            hp_damage_type = "magical" if self.stat_type in ("magical", "hybrid") else self.stat_type
-            hp_result = self.brave_system.hp_attack(user, target, final_mult, damage_type=hp_damage_type, **hp_kwargs)
-            
-            # 첫 번째 타겟이 아닌 경우, BRV를 복원 (실제로 소모하지 않음)
-            # 첫 번째 타겟에서는 BRV가 0이 되어야 하므로 그대로 둠
-            if is_aoe_hp and not is_first_target and saved_brv is not None:
-                # BRV를 복원 (실제로 소모하지 않았으므로 초기값 유지)
-                user.current_brv = context['_aoe_hp_initial_brv']
-            
-            result.hp_damage = hp_result['hp_damage']
-            result.damage_dealt = hp_result['hp_damage']
-            result.message = f"HP 공격! {result.hp_damage}"
-            if context is not None:
-                context['last_damage'] = result.hp_damage
+            # current_hp 기반 고정 HP 소모 (영혼 전환 등)
+            if self.stat_type == "current_hp":
+                hp_cost = int(target.current_hp * final_mult)
+                hp_cost = max(1, hp_cost)
+                # 최소 1 HP 유지
+                hp_cost = min(hp_cost, target.current_hp - 1) if target.current_hp > 1 else 0
+                if hp_cost > 0:
+                    target.current_hp = max(1, target.current_hp - hp_cost)
+                result.hp_damage = hp_cost
+                result.damage_dealt = hp_cost
+                result.message = f"HP 소모! {hp_cost}"
+                if context is not None:
+                    context['last_damage'] = hp_cost
+            else:
+                # 물리/마법 구분하여 HP 공격
+                # 탄환 정보를 전달 (관통탄 방어 관통력용)
+                hp_kwargs = {}
+                if context and 'defense_pierce_fixed' in context:
+                    hp_kwargs['defense_pierce_fixed'] = context['defense_pierce_fixed']
+
+                # AOE HP 공격의 경우, 첫 번째 타겟에서만 실제로 BRV를 소모
+                # 나머지 타겟들에는 초기 BRV를 사용하되, 실제 소모는 하지 않음
+                is_aoe_hp = context and '_aoe_hp_initial_brv' in context
+                target_index = context.get('_aoe_hp_target_index', 0) if context else 0
+                is_first_target = (is_aoe_hp and target_index == 0)
+
+                # 첫 번째 타겟이 아닌 경우, BRV를 임시로 초기값으로 설정 (데미지 계산용)
+                # 하지만 실제 소모는 하지 않음 (hp_attack 후 복원)
+                saved_brv = None
+                if is_aoe_hp and not is_first_target:
+                    saved_brv = user.current_brv
+                    user.current_brv = context['_aoe_hp_initial_brv']
+
+                hp_damage_type = "magical" if self.stat_type in ("magical", "hybrid") else self.stat_type
+                hp_result = self.brave_system.hp_attack(user, target, final_mult, damage_type=hp_damage_type, **hp_kwargs)
+
+                # 첫 번째 타겟이 아닌 경우, BRV를 복원 (실제로 소모하지 않음)
+                # 첫 번째 타겟에서는 BRV가 0이 되어야 하므로 그대로 둠
+                if is_aoe_hp and not is_first_target and saved_brv is not None:
+                    # BRV를 복원 (실제로 소모하지 않았으므로 초기값 유지)
+                    user.current_brv = context['_aoe_hp_initial_brv']
+
+                result.hp_damage = hp_result['hp_damage']
+                result.damage_dealt = hp_result['hp_damage']
+                result.message = f"HP 공격! {result.hp_damage}"
+                if context is not None:
+                    context['last_damage'] = result.hp_damage
         
         elif self.damage_type == DamageType.BRV_HP:
             # 물리/마법 구분 (hybrid는 magical로 처리)
@@ -652,6 +666,10 @@ class DamageEffect(SkillEffect):
                     # HP 고정 피해 적용
                     actual_damage = min(fixed_damage, target.current_hp)
                     target.current_hp = max(0, target.current_hp - fixed_damage)
+                    # 사망 판정
+                    if target.current_hp <= 0 and hasattr(target, 'is_alive'):
+                        if not (hasattr(target, '_has_undying_existence') and target._has_undying_existence()):
+                            target.is_alive = False
 
                     # 결과에 추가
                     if hasattr(result, 'hp_damage'):

@@ -317,7 +317,7 @@ def _play_transition_out(display, duration: float = 0.7) -> None:
     import time as _time
     import random as _rand
     try:
-        from src.ui.pygame_backend.effects.transition import TransitionMode
+        from src.ui.effects import TransitionMode
         ctx = display.context
         em = getattr(ctx, 'effect_manager', None)
         if em is None or not hasattr(em, 'trigger_transition'):
@@ -325,9 +325,7 @@ def _play_transition_out(display, duration: float = 0.7) -> None:
 
         modes = [
             TransitionMode.FADE,
-            TransitionMode.DISSOLVE,
             TransitionMode.WIPE_LEFT,
-            TransitionMode.SCANLINE,
         ]
         mode = _rand.choice(modes)
         em.trigger_transition(mode, duration, direction="out", color=(0, 0, 0))
@@ -339,13 +337,14 @@ def _play_transition_out(display, duration: float = 0.7) -> None:
         start = _time.time()
         timeout = duration + 0.2
         while em.is_transitioning and (_time.time() - start) < timeout:
-            # console을 clear하지 않음 → _console_surface에 마지막 프레임이 남아있음
-            # _render_console()에서 dirty가 없으면 기존 픽셀을 유지함
             ctx.present(display.console)
 
-            # pygame 이벤트 펌프 (윈도우 응답 유지)
-            import pygame
-            pygame.event.pump()
+            # 이벤트 펌프 (윈도우 응답 유지)
+            try:
+                import pygame
+                pygame.event.pump()
+            except Exception:
+                pass
 
             _time.sleep(0.016)
 
@@ -363,7 +362,7 @@ def _play_transition_in(display, duration: float = 0.6) -> None:
     import time as _time
     import random as _rand
     try:
-        from src.ui.pygame_backend.effects.transition import TransitionMode
+        from src.ui.effects import TransitionMode
         ctx = display.context
         em = getattr(ctx, 'effect_manager', None)
         if em is None or not hasattr(em, 'trigger_transition'):
@@ -371,8 +370,7 @@ def _play_transition_in(display, duration: float = 0.6) -> None:
 
         modes = [
             TransitionMode.FADE,
-            TransitionMode.DISSOLVE,
-            TransitionMode.SCANLINE,
+            TransitionMode.WIPE_LEFT,
         ]
         mode = _rand.choice(modes)
         em.trigger_transition(mode, duration, direction="in", color=(0, 0, 0))
@@ -383,12 +381,14 @@ def _play_transition_in(display, duration: float = 0.6) -> None:
         start = _time.time()
         timeout = duration + 0.2
         while em.is_transitioning and (_time.time() - start) < timeout:
-            # 검은 콘솔 위에 전환 오버레이가 점점 걷힘
             display.console.clear()
             ctx.present(display.console)
 
-            import pygame
-            pygame.event.pump()
+            try:
+                import pygame
+                pygame.event.pump()
+            except Exception:
+                pass
 
             _time.sleep(0.016)
     except Exception:
@@ -426,52 +426,60 @@ def main() -> int:
             config.set("development.enabled", False)  # 개발 모드 표시 없음
             config.set("development.debug_mode", False)  # 디버그 모드 표시 없음
 
+        # 디버그 모드일 때만 파일 로그 활성화
+        from src.core.logger import set_debug_mode
+        set_debug_mode(args.debug)
+
         # 로거 초기화 (먼저 해야 pygame 초기화에서 사용 가능)
         logger = get_logger(Loggers.SYSTEM)
 
-        # pygame 초기화 (게임패드 지원용)
-        try:
-            import pygame
-            pygame.init()
-            results = pygame.init()  # 초기화 결과 확인
-            logger.info(f"pygame 초기화 결과: {results}")
+        # pygame 초기화 (게임패드 지원용) — raylib 백엔드에서는 건너뜀
+        _backend = config.get("display.backend", "pygame")
+        if _backend != "raylib":
+            try:
+                import pygame
+                pygame.init()
+                results = pygame.init()  # 초기화 결과 확인
+                logger.info(f"pygame 초기화 결과: {results}")
 
-            pygame.joystick.init()
-            joystick_count = pygame.joystick.get_count()
-            print(f"Joystick initialized, connected count: {joystick_count}")  # 콘솔 직접 출력
-            logger.info(f"조이스틱 초기화 완료, 연결된 수: {joystick_count}")
+                pygame.joystick.init()
+                joystick_count = pygame.joystick.get_count()
+                print(f"Joystick initialized, connected count: {joystick_count}")  # 콘솔 직접 출력
+                logger.info(f"조이스틱 초기화 완료, 연결된 수: {joystick_count}")
 
-            # 연결된 게임패드 정보 출력
-            for i in range(joystick_count):
-                try:
-                    joy = pygame.joystick.Joystick(i)
-                    joy.init()
-                    print(f"Gamepad {i}: {joy.get_name()}")  # 콘솔 직접 출력
-                    logger.info(f"게임패드 {i}: {joy.get_name()}")
-                except Exception as e:
-                    print(f"Gamepad {i} initialization failed: {e}")
-                    logger.error(f"게임패드 {i} 초기화 실패: {e}")
+                # 연결된 게임패드 정보 출력
+                for i in range(joystick_count):
+                    try:
+                        joy = pygame.joystick.Joystick(i)
+                        joy.init()
+                        print(f"Gamepad {i}: {joy.get_name()}")  # 콘솔 직접 출력
+                        logger.info(f"게임패드 {i}: {joy.get_name()}")
+                    except Exception as e:
+                        print(f"Gamepad {i} initialization failed: {e}")
+                        logger.error(f"게임패드 {i} 초기화 실패: {e}")
 
-            # 게임패드 이벤트 활성화 (키보드/마우스/윈도우 이벤트도 유지)
-            pygame.event.set_allowed([
-                pygame.QUIT,
-                pygame.KEYDOWN, pygame.KEYUP,
-                pygame.TEXTINPUT,
-                pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP,
-                pygame.WINDOWRESIZED, pygame.WINDOWFOCUSGAINED, pygame.WINDOWFOCUSLOST,
-                pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP,
-                pygame.JOYHATMOTION, pygame.JOYAXISMOTION,
-                pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED
-            ])
-            print("pygame gamepad events enabled")  # 콘솔 직접 출력
-            logger.info("pygame gamepad events enabled")
+                # 게임패드 이벤트 활성화 (키보드/마우스/윈도우 이벤트도 유지)
+                pygame.event.set_allowed([
+                    pygame.QUIT,
+                    pygame.KEYDOWN, pygame.KEYUP,
+                    pygame.TEXTINPUT,
+                    pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP,
+                    pygame.WINDOWRESIZED, pygame.WINDOWFOCUSGAINED, pygame.WINDOWFOCUSLOST,
+                    pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP,
+                    pygame.JOYHATMOTION, pygame.JOYAXISMOTION,
+                    pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED
+                ])
+                print("pygame gamepad events enabled")  # 콘솔 직접 출력
+                logger.info("pygame gamepad events enabled")
 
-            print("pygame initialization complete (gamepad support enabled)")  # 콘솔 직접 출력
-            logger.info("pygame initialization complete (gamepad support enabled)")
-        except Exception as e:
-            logger.warning(f"pygame initialization failed (gamepad support disabled): {e}")
-            import traceback
-            logger.debug(f"pygame 초기화 상세 오류: {traceback.format_exc()}")
+                print("pygame initialization complete (gamepad support enabled)")  # 콘솔 직접 출력
+                logger.info("pygame initialization complete (gamepad support enabled)")
+            except Exception as e:
+                logger.warning(f"pygame initialization failed (gamepad support disabled): {e}")
+                import traceback
+                logger.debug(f"pygame 초기화 상세 오류: {traceback.format_exc()}")
+        else:
+            logger.info("raylib 백엔드 사용 — pygame 초기화 건너뜀")
         logger.info("=" * 60)
         logger.info("Dawn of Stellar - 별빛의 여명 시작")
         logger.info(f"버전: {config.get('game.version', '5.0.0')}")
@@ -479,9 +487,7 @@ def main() -> int:
         logger.info(f"개발 모드: {config.development_mode}")
         logger.info(f"디버그 모드: {config.debug_mode}")
 
-        # 진동 시스템 이벤트 리스너 등록
-        for event_name in vibration_listener.event_mappings.keys():
-            event_bus.subscribe(event_name, vibration_listener.handle_event)
+        # 진동 시스템 이벤트 리스너 (vibration_system 모듈 로드 시 자동 등록)
         logger.info("진동 이벤트 리스너 등록됨")
 
         # 도전과제 시스템 초기화 (계정 수준)
@@ -837,6 +843,10 @@ def main() -> int:
                         except Exception as e:
                             logger.warning(f"로비 완료 메시지 브로드캐스트 실패: {e}", exc_info=True)
                         
+                        # 멀티플레이 퀘스트 매니저 초기화 (싱글플레이와 분리)
+                        from src.quest.quest_manager import reset_quest_manager
+                        reset_quest_manager()
+
                         # 멀티플레이 파티 설정 (각 플레이어가 자신의 캐릭터 선택)
                         from src.ui.multiplayer_party_setup import run_multiplayer_party_setup
                         party_result = run_multiplayer_party_setup(
@@ -935,7 +945,8 @@ def main() -> int:
                             )
                             # 경험치 초기화
                             char.experience = 0
-                            
+                            char.gender = getattr(member, 'gender', 'male')
+
                             # 멀티플레이: 캐릭터에 플레이어 ID 할당
                             # PartyMember에 player_id가 있으면 사용, 없으면 local_player_id 사용
                             if hasattr(member, 'player_id') and member.player_id:
@@ -1005,7 +1016,8 @@ def main() -> int:
                                             level=1
                                         )
                                         char.experience = 0
-                                        
+                                        char.gender = getattr(member, 'gender', 'male')
+
                                         # 플레이어 ID 할당
                                         if hasattr(member, 'player_id') and member.player_id:
                                             char.player_id = member.player_id
@@ -1363,11 +1375,49 @@ def main() -> int:
                                     combat_position = (local_player.x, local_player.y)
                                     combat_dungeon = exploration.dungeon if hasattr(exploration, 'dungeon') else None
                                 
-                                if num_enemies > 0:
+                                # 멀티플레이: 호스트가 보낸 동기화된 적이 있으면 사용
+                                synced_enemies = data.get("synced_enemies") if data else None
+                                if synced_enemies:
+                                    enemies = synced_enemies
+                                    logger.info(f"[멀티플레이] 호스트 동기화 적 사용: {len(enemies)}마리")
+                                elif num_enemies > 0:
                                     enemies = EnemyGenerator.generate_enemies(floor_number, num_enemies)
                                 else:
                                     enemies = EnemyGenerator.generate_enemies(floor_number)
-                                
+
+                                # 멀티플레이 호스트: 생성된 적을 클라이언트에 브로드캐스트
+                                if session and network_manager and not data.get("synced_enemies"):
+                                    try:
+                                        from src.multiplayer.protocol import MessageBuilder
+                                        import asyncio
+                                        participant_ids = [local_player_id] if local_player_id else []
+                                        for pid in (session.players if session else {}):
+                                            if pid != local_player_id:
+                                                participant_ids.append(pid)
+
+                                        # 참여 플레이어별 파티 정보 수집
+                                        all_parties = data.get("all_parties") if data and isinstance(data, dict) else None
+
+                                        start_msg = MessageBuilder.combat_start(
+                                            participants=participant_ids,
+                                            enemies=enemies,
+                                            position=combat_position,
+                                            all_parties=all_parties
+                                        )
+                                        # participant_player_ids 추가
+                                        start_msg.data["participant_player_ids"] = participant_ids
+                                        start_msg.data["num_enemies"] = len(enemies)
+                                        start_msg.data["enemy_level"] = floor_number
+                                        start_msg.data["floor"] = floor_number
+                                        server_loop = getattr(network_manager, '_server_event_loop', None)
+                                        if server_loop and server_loop.is_running():
+                                            asyncio.run_coroutine_threadsafe(
+                                                network_manager.broadcast(start_msg), server_loop
+                                            )
+                                            logger.info(f"[멀티플레이] 호스트가 전투용 적 {len(enemies)}마리 브로드캐스트 (파티 정보 포함)")
+                                    except Exception as e:
+                                        logger.error(f"[멀티플레이] 적 브로드캐스트 실패: {e}")
+
                                 is_boss_fight = any(e.is_boss for e in map_enemies) if map_enemies else False
                                 if is_boss_fight and map_enemies:
                                     boss_entity = next((e for e in map_enemies if e.is_boss), None)
@@ -1396,11 +1446,19 @@ def main() -> int:
                                         minions = EnemyGenerator.generate_enemies(floor_number, 3)
                                         enemies = [boss] + minions
                                 
+                                # 멀티플레이: 합류 파티가 있으면 사용 (호스트는 참여자 전원의 Character 객체 보유)
+                                effective_party = combat_party
+                                if session and data and isinstance(data, dict):
+                                    combined = data.get("combined_party")
+                                    if combined:
+                                        effective_party = combined
+                                        logger.info(f"[멀티플레이] 합류 파티 사용: {len(effective_party)}명")
+
                                 # 멀티플레이 전투 실행
                                 combat_result, _ = run_combat(
                                     display.console,
                                     display.context,
-                                    combat_party,
+                                    effective_party,
                                     enemies,
                                     inventory=inventory,
                                     session=session,
@@ -2089,7 +2147,11 @@ def main() -> int:
                                     # 파티 설정으로 이동 (호스트와 동기화)
                                     player_count = len(session.players)
                                     local_allocation = get_character_allocation(player_count, False)
-                                    
+
+                                    # 멀티플레이 퀘스트 매니저 초기화 (싱글플레이와 분리)
+                                    from src.quest.quest_manager import reset_quest_manager
+                                    reset_quest_manager()
+
                                     from src.ui.multiplayer_party_setup import run_multiplayer_party_setup
                                     party_result = run_multiplayer_party_setup(
                                         display.console,
@@ -2283,7 +2345,8 @@ def main() -> int:
                                             level=1
                                         )
                                         char.experience = 0
-                                        
+                                        char.gender = getattr(member, 'gender', 'male')
+
                                         # 멀티플레이: 캐릭터에 플레이어 ID 할당
                                         if hasattr(member, 'player_id') and member.player_id:
                                             char.player_id = member.player_id
@@ -2505,7 +2568,8 @@ def main() -> int:
                                                 if data and isinstance(data, dict):
                                                     num_enemies = data.get("num_enemies", 0)
                                                     map_enemies = data.get("enemies", [])
-                                                    combat_party = data.get("participants", party_members)
+                                                    # participants는 플레이어 ID 문자열일 수 있으므로 party_members 기본 사용
+                                                    combat_party = party_members
                                                     combat_position = data.get("position", (local_player.x, local_player.y))
                                                     is_boss_fight = data.get("is_boss_fight", False)
                                                 else:
@@ -2515,11 +2579,16 @@ def main() -> int:
                                                     combat_position = (local_player.x, local_player.y)
                                                     is_boss_fight = False
                                                 
-                                                if num_enemies > 0:
+                                                # 멀티플레이: 호스트가 보낸 동기화된 적이 있으면 사용
+                                                synced_enemies = data.get("synced_enemies") if data else None
+                                                if synced_enemies:
+                                                    enemies = synced_enemies
+                                                    logger.info(f"[멀티플레이] 호스트 동기화 적 사용: {len(enemies)}마리")
+                                                elif num_enemies > 0:
                                                     enemies = EnemyGenerator.generate_enemies(floor_number, num_enemies)
                                                 else:
                                                     enemies = EnemyGenerator.generate_enemies(floor_number)
-                                                
+
                                                 if is_boss_fight and map_enemies:
                                                     boss_entity = next((e for e in map_enemies if e.is_boss), None)
                                                     if boss_entity:
@@ -2547,11 +2616,19 @@ def main() -> int:
                                                         else:
                                                             enemies.append(boss)
                                                 
+                                                # 멀티플레이: 합류 파티가 있으면 사용 (클라이언트 측)
+                                                effective_party = combat_party
+                                                if data and isinstance(data, dict):
+                                                    combined = data.get("combined_party")
+                                                    if combined:
+                                                        effective_party = combined
+                                                        logger.info(f"[멀티플레이] 클라이언트 합류 파티 사용: {len(effective_party)}명")
+
                                                 # 멀티플레이 전투 실행
                                                 combat_result, _ = run_combat(
                                                     display.console,
                                                     display.context,
-                                                    combat_party,
+                                                    effective_party,
                                                     enemies,
                                                     inventory=inventory,
                                                     session=session,
@@ -4146,13 +4223,14 @@ def main() -> int:
                         )
                         # 경험치 초기화
                         char.experience = 0
-                        
+                        char.gender = getattr(member, 'gender', 'male')
+
                         # 파티 구성에서 선택된 특성 적용
                         if member.selected_traits:
                             for trait_id in member.selected_traits:
                                 if char.activate_trait(trait_id):
                                     logger.debug(f"{member.character_name}에 특성 추가: {trait_id}")
-                        
+
                         character_party.append(char)
                     
                     # 선택된 패시브를 모든 캐릭터에 적용 (파티 전체 공통)

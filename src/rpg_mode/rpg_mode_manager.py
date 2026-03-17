@@ -493,6 +493,14 @@ class RPGModeManager:
             logger.info(f"초기 챕터 해금: {ch.title}")
             self._show_enhanced_chapter_event(ch)
 
+        # RPG 모드 활성화 플래그 세팅 (경험치 계수 등 모드별 분기에 사용)
+        from src.core.config import get_config
+        get_config().set("rpg_mode.enabled", True)
+
+        # ExplorationSystem 영속화: 루프 밖에서 None으로 초기화하여 지역 변경 시에만 재생성
+        exploration = None
+        _last_region_id = None  # 마지막으로 ExplorationSystem을 생성한 지역 ID
+
         try:
             while True:
                 # 현재 위치의 지역 확인
@@ -504,34 +512,62 @@ class RPGModeManager:
                 if region:
                     self.progress.current_region = current_region_id
 
-                # 플레이어 위치 기준 적 레벨 계산
+                # 동적 레벨 스케일링: 파티 평균 레벨 기반으로 적 레벨 계산
                 enemy_level = 1
                 if region:
-                    # 마을 중심 대비 거리로 progress 계산
-                    from src.rpg_mode.rpg_world_generator import _REGION_CENTERS
-                    cx_ratio, cy_ratio = _REGION_CENTERS.get(current_region_id, (0.5, 0.5))
-                    cx = int(cx_ratio * RPG_WORLD_WIDTH)
-                    cy = int(cy_ratio * RPG_WORLD_HEIGHT)
-                    dist = ((self.player_x - cx) ** 2 + (self.player_y - cy) ** 2) ** 0.5
-                    max_dist = RPG_WORLD_WIDTH * 0.2  # 지역 반경 추정
-                    progress = min(1.0, dist / max(1, max_dist))
-                    enemy_level = get_enemy_level_for_region(region, progress)
+                    # 파티 평균 레벨 계산
+                    avg_party_level = (
+                        sum(getattr(c, 'level', 1) for c in self.party) / max(1, len(self.party))
+                        if self.party else 1
+                    )
+                    if avg_party_level >= 1:
+                        # 파티 평균 레벨 ±2 범위 내에서 스폰, 지역 level_min/level_max로 클램핑
+                        import random as _random
+                        min_enemy_level = max(region.level_min, int(avg_party_level) - 2)
+                        max_enemy_level = min(region.level_max, int(avg_party_level) + 2)
+                        # min이 max보다 클 경우 보정 (지역 범위 초과 시)
+                        if min_enemy_level > max_enemy_level:
+                            min_enemy_level = max_enemy_level
+                        enemy_level = _random.randint(min_enemy_level, max_enemy_level)
+                    else:
+                        # fallback: 거리 기반 로직 (파티 레벨 정보 없을 때)
+                        from src.rpg_mode.rpg_world_generator import _REGION_CENTERS
+                        cx_ratio, cy_ratio = _REGION_CENTERS.get(current_region_id, (0.5, 0.5))
+                        cx = int(cx_ratio * RPG_WORLD_WIDTH)
+                        cy = int(cy_ratio * RPG_WORLD_HEIGHT)
+                        dist = ((self.player_x - cx) ** 2 + (self.player_y - cy) ** 2) ** 0.5
+                        max_dist = RPG_WORLD_WIDTH * 0.2  # 지역 반경 추정
+                        progress = min(1.0, dist / max(1, max_dist))
+                        enemy_level = get_enemy_level_for_region(region, progress)
 
                 # 플레이어 시작 위치를 던전에 미리 설정 (적 스폰 시 올바른 위치 기준 사용)
                 self.world_dungeon.player_start = (self.player_x, self.player_y)
 
-                # ExplorationSystem 생성 (player_start 기준으로 플레이어/적 배치)
-                exploration = ExplorationSystem(
-                    dungeon=self.world_dungeon,
-                    party=self.party,
-                    floor_number=1,  # 오픈월드는 층 개념 없음
-                    inventory=inventory,
-                )
+                # ExplorationSystem 영속화:
+                # - 최초 생성이거나 지역이 바뀌었을 때만 새로 생성
+                # - 그 외에는 기존 exploration을 재사용 (explored_tiles, 남은 적 보존)
+                region_changed = (current_region_id != _last_region_id)
+                if exploration is None or region_changed:
+                    exploration = ExplorationSystem(
+                        dungeon=self.world_dungeon,
+                        party=self.party,
+                        floor_number=1,  # 오픈월드는 층 개념 없음
+                        inventory=inventory,
+                    )
+                    _last_region_id = current_region_id
+                    # 새로 생성한 적 엔티티에 레벨 설정
+                    if hasattr(exploration, 'enemies'):
+                        for enemy in exploration.enemies:
+                            enemy.level = enemy_level
+                else:
+                    # 기존 exploration 재사용 시: 플레이어 위치와 파티 동기화
+                    if hasattr(exploration, 'player'):
+                        exploration.player.x = self.player_x
+                        exploration.player.y = self.player_y
+                        exploration.player.party = self.party
 
-                # 적 엔티티 레벨 설정
-                if hasattr(exploration, 'enemies'):
-                    for enemy in exploration.enemies:
-                        enemy.level = enemy_level
+                # 랜덤 이벤트 on_step에서 region 필터링에 사용할 지역 ID 주입
+                exploration._current_region_id = current_region_id
 
                 # TownManager 연결
                 if self.town_manager:
@@ -565,6 +601,13 @@ class RPGModeManager:
                 if self._pending_lily_message:
                     exploration.initial_messages.append(self._pending_lily_message)
                     self._pending_lily_message = None
+
+                # 대기 중인 챕터 이벤트 표시 (맵 복귀 후)
+                if hasattr(self, '_pending_chapter_events') and self._pending_chapter_events:
+                    pending = self._pending_chapter_events[:]
+                    self._pending_chapter_events = []
+                    for ch in pending:
+                        self._show_enhanced_chapter_event(ch)
 
                 # 릴리 마을 진입 대사
                 is_town = hasattr(exploration, 'is_town') and exploration.is_town
@@ -632,6 +675,25 @@ class RPGModeManager:
                     # 전투 종료 직후 호감도 캐시 갱신 (combat manager 해제 전)
                     self._cache_affinity_data()
 
+                    # ExplorationSystem 영속화: 전투에 참여한 적을 exploration에서 제거
+                    # 승리/패배/도주 모두 전투에 참여한 적은 맵에서 사라져야 함
+                    if exploration is not None and isinstance(result_data, dict):
+                        combat_enemies = result_data.get("enemies", [])
+                        if combat_enemies:
+                            participated_ids = {getattr(e, 'id', None) for e in combat_enemies if e is not None}
+                            # id 매칭으로 처치된 적 제거 (승리 시에만 제거, 도주 시에는 잔류)
+                            if combat_result not in ("fled", "game_over"):
+                                to_remove = [
+                                    e for e in list(exploration.enemies)
+                                    if getattr(e, 'id', None) in participated_ids
+                                ]
+                                for e in to_remove:
+                                    exploration.remove_enemy(e)
+                                if to_remove:
+                                    logger.info(f"전투 후 맵 적 제거: {len(to_remove)}마리 (exploration 재사용)")
+                        # 전투 후 면역 시간 설정 (즉각 재조우 방지)
+                        exploration.set_post_combat_immunity(2.0)
+
                     if combat_result == "game_over":
                         # 패배 시 릴리 부활 대사
                         respawn_line = self.lily_dialogue.get_respawn_line(ch, aff)
@@ -640,6 +702,9 @@ class RPGModeManager:
                             self._pending_lily_message = f'릴리: "{respawn_line}"'
                         self.lily_dialogue._victory_count = 0  # 연승 리셋
                         self._auto_save(inventory)
+                        # 리스폰 후 지역이 바뀌므로 exploration 초기화
+                        exploration = None
+                        _last_region_id = None
                         continue
                     elif combat_result == "quit":
                         self._auto_save(inventory)
@@ -685,6 +750,7 @@ class RPGModeManager:
 
                 # 챕터 트리거 체크
                 new_chapters = self.chapter_system.check_chapter_triggers(self.progress)
+                # 챕터 이벤트를 대기열에 저장 (맵 복귀 후 표시)
                 for ch in new_chapters:
                     # 이미 표시한 챕터는 건너뛰기 (중복 방지)
                     if ch.chapter_id in self._shown_chapter_events:
@@ -696,8 +762,10 @@ class RPGModeManager:
                     )
                     logger.info(f"새 챕터 해금: {ch.title}")
 
-                    # 모든 챕터에서 이벤트 표시
-                    self._show_enhanced_chapter_event(ch)
+                    # 챕터 이벤트를 대기열에 추가 (맵 복귀 후 표시)
+                    if not hasattr(self, '_pending_chapter_events'):
+                        self._pending_chapter_events = []
+                    self._pending_chapter_events.append(ch)
                     # 새 지역 해금 대사
                     region_line = self.lily_dialogue.get_new_region_line(
                         self.progress.current_chapter, self.progress.lily_affinity
@@ -709,6 +777,9 @@ class RPGModeManager:
             logger.error(f"RPG 모드 게임 루프 오류: {e}", exc_info=True)
             self._auto_save(inventory)
             return RPGModeResult.RETURN_TO_MENU
+        finally:
+            # RPG 모드 종료 시 플래그 해제
+            get_config().set("rpg_mode.enabled", False)
 
     # ── 전투 처리 ──────────────────────────────────────────
 

@@ -593,12 +593,9 @@ class TextInputBox:
                     self.handle_char_input(ch)
         # MOVE_UP, MOVE_DOWN은 텍스트 입력에서 무시 (커서 이동 없음)
         elif event and isinstance(event, tcod.event.KeyDown):
-            # 문자 입력
+            # 특수 키만 처리 - 문자 입력은 TextInput 이벤트로 처리 (이중 입력 방지)
             if event.sym == tcod.event.KeySym.BACKSPACE:
                 self.handle_backspace()
-            elif 32 <= event.sym <= 126:  # ASCII 문자 범위 (공백~)
-                char = chr(event.sym)
-                self.handle_char_input(char)
     
     def get_result(self) -> Optional[str]:
         """입력 결과 반환 (확인된 경우만)"""

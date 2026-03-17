@@ -149,15 +149,15 @@ class EquipmentEffect:
         target = context.get("target")
 
         if self.condition == "hp_below_50" and character:
-            return (character.hp / character.max_hp) < 0.5
+            return (getattr(character, 'current_hp', 0) / character.max_hp) < 0.5
         elif self.condition == "hp_below_30" and character:
-            return (character.hp / character.max_hp) < 0.3
+            return (getattr(character, 'current_hp', 0) / character.max_hp) < 0.3
         elif self.condition == "hp_above_50" and character:
-            return (character.hp / character.max_hp) >= 0.5
+            return (getattr(character, 'current_hp', 0) / character.max_hp) >= 0.5
         elif self.condition == "hp_full" and character:
-            return character.hp == character.max_hp
+            return getattr(character, 'current_hp', 0) == character.max_hp
         elif self.condition == "enemy_hp_below_30" and target:
-            return (target.hp / target.max_hp) < 0.3
+            return (getattr(target, 'current_hp', 0) / target.max_hp) < 0.3
         elif self.condition == "in_combat":
             return context.get("in_combat", False)
 
@@ -626,8 +626,13 @@ class EquipmentEffectManager:
         damage = context.get("damage", 0)
         heal = int(damage * effect.value)
         if heal > 0:
-            character.hp = min(character.max_hp, character.hp + heal)
-            logger.info(f"{character.name} 생명력 흡수: +{heal} HP")
+            if hasattr(character, 'heal'):
+                actual_heal = character.heal(heal)
+                if actual_heal > 0:
+                    logger.info(f"{character.name} 생명력 흡수: +{actual_heal} HP")
+            elif hasattr(character, 'current_hp'):
+                character.current_hp = min(character.max_hp, character.current_hp + heal)
+                logger.info(f"{character.name} 생명력 흡수: +{heal} HP")
 
     def _handle_thorns(self, character: Any, effect: EquipmentEffect, context: Dict):
         """가시 (반사 데미지)"""
@@ -637,7 +642,10 @@ class EquipmentEffectManager:
         if attacker:
             reflect_damage = int(damage * effect.value)
             if reflect_damage > 0:
-                attacker.hp -= reflect_damage
+                if hasattr(attacker, 'take_damage'):
+                    attacker.take_damage(reflect_damage)
+                elif hasattr(attacker, 'current_hp'):
+                    attacker.current_hp = max(0, attacker.current_hp - reflect_damage)
                 logger.info(f"{character.name} 가시 데미지: {attacker.name}에게 {reflect_damage}")
 
     def _handle_hp_regen(self, character: Any, effect: EquipmentEffect, context: Dict):
@@ -648,23 +656,40 @@ class EquipmentEffectManager:
         effective_max_hp = wound_system.get_effective_max_hp(character)
 
         heal = int(character.max_hp * effect.value)
-        if character.hp < effective_max_hp:
-            character.hp = min(effective_max_hp, character.hp + heal)
-            logger.debug(f"{character.name} HP 재생: +{heal}")
+        current_hp = getattr(character, 'current_hp', None)
+        if current_hp is not None and current_hp < effective_max_hp:
+            if hasattr(character, 'heal'):
+                actual_heal = character.heal(heal)
+                logger.debug(f"{character.name} HP 재생(장비): +{actual_heal}")
+            else:
+                character.current_hp = min(effective_max_hp, current_hp + heal)
+                logger.debug(f"{character.name} HP 재생(장비): +{heal}")
 
     def _handle_mp_regen(self, character: Any, effect: EquipmentEffect, context: Dict):
         """MP 재생"""
         restore = int(effect.value)
-        character.mp = min(character.max_mp, character.mp + restore)
-        logger.debug(f"{character.name} MP 재생: +{restore}")
+        if hasattr(character, 'restore_mp'):
+            actual_restore = character.restore_mp(restore)
+            if actual_restore > 0:
+                logger.debug(f"{character.name} MP 재생(장비): +{actual_restore}")
+        elif hasattr(character, 'current_mp') and hasattr(character, 'max_mp'):
+            old_mp = character.current_mp
+            character.current_mp = min(character.max_mp, character.current_mp + restore)
+            actual_restore = character.current_mp - old_mp
+            if actual_restore > 0:
+                logger.debug(f"{character.name} MP 재생(장비): +{actual_restore}")
 
     # === 추가 효과 핸들러 ===
 
     def _handle_on_kill_heal(self, character: Any, effect: EquipmentEffect, context: Dict):
         """처치 시 회복"""
         heal_amount = int(effect.value)
-        if hasattr(character, "hp") and hasattr(character, "max_hp"):
-            character.hp = min(character.max_hp, character.hp + heal_amount)
+        if hasattr(character, 'heal'):
+            actual_heal = character.heal(heal_amount)
+            if actual_heal > 0:
+                logger.info(f"{character.name} 처치 회복: +{actual_heal} HP")
+        elif hasattr(character, "current_hp") and hasattr(character, "max_hp"):
+            character.current_hp = min(character.max_hp, character.current_hp + heal_amount)
             logger.info(f"{character.name} 처치 회복: +{heal_amount} HP")
 
     def _handle_element(self, character: Any, effect: EquipmentEffect, context: Dict):
@@ -776,15 +801,18 @@ class EquipmentEffectManager:
     def _handle_mp_steal(self, character: Any, effect: EquipmentEffect, context: Dict):
         """MP 흡수"""
         target = context.get("target")
-        if not target or not hasattr(target, "mp"):
+        if not target or not hasattr(target, "current_mp"):
             return
 
         # 백분율 기반 MP 흡수
         steal_amount = int(target.max_mp * effect.value)
-        if steal_amount > 0 and target.mp > 0:
-            actual_steal = min(steal_amount, target.mp)
-            target.mp -= actual_steal
-            character.mp = min(character.max_mp, character.mp + actual_steal)
+        if steal_amount > 0 and target.current_mp > 0:
+            actual_steal = min(steal_amount, target.current_mp)
+            target.current_mp -= actual_steal
+            if hasattr(character, 'restore_mp'):
+                character.restore_mp(actual_steal)
+            elif hasattr(character, 'current_mp'):
+                character.current_mp = min(character.max_mp, character.current_mp + actual_steal)
             logger.info(f"{character.name} MP 흡수: {target.name}의 MP {actual_steal} 흡수")
 
     def _handle_bonus_vs_undead(self, character: Any, effect: EquipmentEffect, context: Dict):
@@ -800,8 +828,12 @@ class EquipmentEffectManager:
     def _handle_heal_on_hit(self, character: Any, effect: EquipmentEffect, context: Dict):
         """공격 시 회복"""
         heal_amount = int(effect.value)
-        if hasattr(character, "hp") and hasattr(character, "max_hp"):
-            character.hp = min(character.max_hp, character.hp + heal_amount)
+        if hasattr(character, 'heal'):
+            actual_heal = character.heal(heal_amount)
+            if actual_heal > 0:
+                logger.info(f"{character.name} 공격 회복: +{actual_heal} HP")
+        elif hasattr(character, "current_hp") and hasattr(character, "max_hp"):
+            character.current_hp = min(character.max_hp, character.current_hp + heal_amount)
             logger.info(f"{character.name} 공격 회복: +{heal_amount} HP")
 
     def _handle_accuracy_bonus(self, character: Any, effect: EquipmentEffect, context: Dict):

@@ -63,7 +63,13 @@ class CombatSyncManager:
         
         # 타임아웃 태스크 관리 {player_id: task}
         self.timeout_tasks: Dict[str, asyncio.Task] = {}
-        
+
+        # CombatUI 콜백 (combat_ui.py에서 설정)
+        self.on_action_selection_start_callback = None  # (actor_id, actor_name, player_id) -> None
+        self.on_action_result_callback = None  # (result_data) -> None
+        self.on_combat_end_callback = None  # (result, rewards) -> None
+        self.on_remote_action_executed_callback = None  # (actor, result) -> None  호스트: 원격 액션 실행 완료
+
         # 네트워크 메시지 핸들러 등록
         if self.network_manager:
             self._register_handlers()
@@ -139,6 +145,27 @@ class CombatSyncManager:
                 self.network_manager.register_handler(
                     MessageType.STATE_UPDATE,
                     self._handle_combat_state_update
+                )
+
+            # 액션 선택 시작 핸들러 (클라이언트만)
+            if not self.is_host:
+                self.network_manager.register_handler(
+                    MessageType.ACTION_SELECTION_START,
+                    self._handle_action_selection_start
+                )
+
+            # 액션 결과 핸들러 (클라이언트만)
+            if not self.is_host:
+                self.network_manager.register_handler(
+                    MessageType.ACTION_RESULT,
+                    self._handle_action_result
+                )
+
+            # 전투 종료 핸들러 (클라이언트만)
+            if not self.is_host:
+                self.network_manager.register_handler(
+                    MessageType.COMBAT_END,
+                    self._handle_combat_end
                 )
 
             # 호스트 마이그레이션 핸들러 (모든 노드)
@@ -413,13 +440,20 @@ class CombatSyncManager:
             action_type, target, skill, kwargs = self._deserialize_action(action_data)
             
             # 액션 실행 및 브로드캐스트
-            await self._execute_and_broadcast_action(
+            result = await self._execute_and_broadcast_action(
                 player_id, actor, action_type, target, skill, **kwargs
             )
-            
+
             # 행동 선택 완료 (ATB 감소 해제)
             self._set_player_selecting(player_id, False)
-            
+
+            # 호스트 UI에 원격 액션 실행 완료 콜백 (WAITING_REMOTE_ACTION 해제)
+            if self.on_remote_action_executed_callback:
+                try:
+                    self.on_remote_action_executed_callback(actor, result)
+                except Exception as cb_e:
+                    self.logger.error(f"원격 액션 실행 콜백 실패: {cb_e}", exc_info=True)
+
         except Exception as e:
             self.logger.error(f"전투 액션 처리 실패: {e}", exc_info=True)
 
@@ -1184,10 +1218,243 @@ class CombatSyncManager:
             self.logger.error(f"액션 결과 직렬화 실패: {e}", exc_info=True)
             return {}
     
+    # ── Phase 3-5: 액션 선택/결과/전투 종료 핸들러 ──────────────────────
+
+    async def send_action_selection_start(self, actor: Any, target_player_id: str):
+        """
+        액션 선택 시작 메시지 전송 (호스트 -> 특정 클라이언트)
+
+        원격 플레이어의 캐릭터 턴이 되었을 때 해당 플레이어에게 행동 선택을 요청합니다.
+
+        Args:
+            actor: 행동할 캐릭터
+            target_player_id: 대상 플레이어 ID
+        """
+        if not self.is_host or not self.network_manager:
+            return
+
+        actor_id = self._get_character_id(actor)
+        actor_name = getattr(actor, 'name', '아군')
+        if not actor_id:
+            self.logger.warning(f"액션 선택 시작 전송 실패: 액터 ID를 찾을 수 없음")
+            return
+
+        try:
+            message = MessageBuilder.action_selection_start(
+                actor_id=actor_id,
+                actor_name=actor_name,
+                player_id=target_player_id
+            )
+            await self.network_manager.broadcast(message)
+            self.logger.info(f"액션 선택 시작 전송: {actor_name} -> 플레이어 {target_player_id}")
+        except Exception as e:
+            self.logger.error(f"액션 선택 시작 전송 실패: {e}", exc_info=True)
+
+    def send_action_selection_start_sync(self, actor: Any, target_player_id: str):
+        """send_action_selection_start의 동기 래퍼 (combat_ui에서 호출용)"""
+        try:
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.send_action_selection_start(actor, target_player_id))
+            except RuntimeError:
+                pass
+        except Exception as e:
+            self.logger.error(f"액션 선택 시작 동기 래퍼 실패: {e}", exc_info=True)
+
+    async def broadcast_action_result(self, actor: Any, result_data: Dict[str, Any]):
+        """
+        액션 실행 결과 브로드캐스트 (호스트 -> 모든 클라이언트)
+
+        Args:
+            actor: 행동한 캐릭터
+            result_data: 액션 실행 결과 데이터
+        """
+        if not self.is_host or not self.network_manager:
+            return
+
+        actor_id = self._get_character_id(actor)
+        if not actor_id:
+            return
+
+        try:
+            state_snapshot = self._get_combat_state_snapshot()
+            message = MessageBuilder.action_result(
+                actor_id=actor_id,
+                result_data=result_data,
+                combat_state=state_snapshot
+            )
+            await self.network_manager.broadcast(message)
+            self.logger.debug(f"액션 결과 브로드캐스트: {getattr(actor, 'name', 'Unknown')}")
+        except Exception as e:
+            self.logger.error(f"액션 결과 브로드캐스트 실패: {e}", exc_info=True)
+
+    def broadcast_action_result_sync(self, actor: Any, result_data: Dict[str, Any]):
+        """broadcast_action_result의 동기 래퍼 (combat_ui에서 호출용)"""
+        try:
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.broadcast_action_result(actor, result_data))
+            except RuntimeError:
+                pass
+        except Exception as e:
+            self.logger.error(f"액션 결과 브로드캐스트 동기 래퍼 실패: {e}", exc_info=True)
+
+    async def broadcast_combat_end(self, result: str, rewards: Optional[Dict[str, Any]] = None):
+        """
+        전투 종료 브로드캐스트 (호스트 -> 모든 클라이언트)
+
+        Args:
+            result: 전투 결과 ("victory", "defeat", "fled")
+            rewards: 보상 데이터 (승리 시)
+        """
+        if not self.is_host or not self.network_manager:
+            return
+
+        try:
+            message = MessageBuilder.combat_end(result=result, rewards=rewards)
+            await self.network_manager.broadcast(message)
+            self.logger.info(f"전투 종료 브로드캐스트: {result}")
+        except Exception as e:
+            self.logger.error(f"전투 종료 브로드캐스트 실패: {e}", exc_info=True)
+
+    def broadcast_combat_end_sync(self, result: str, rewards: Optional[Dict[str, Any]] = None):
+        """broadcast_combat_end의 동기 래퍼 (combat_ui에서 호출용)"""
+        try:
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.broadcast_combat_end(result, rewards))
+            except RuntimeError:
+                pass
+        except Exception as e:
+            self.logger.error(f"전투 종료 브로드캐스트 동기 래퍼 실패: {e}", exc_info=True)
+
+    async def _handle_action_selection_start(
+        self,
+        message: NetworkMessage,
+        sender_id: Optional[str] = None
+    ):
+        """
+        액션 선택 시작 메시지 처리 (클라이언트)
+
+        호스트로부터 자신의 캐릭터 턴이 되었다는 알림을 수신합니다.
+
+        Args:
+            message: ACTION_SELECTION_START 메시지
+            sender_id: 발신자 ID (호스트)
+        """
+        try:
+            if self.is_host:
+                return
+
+            data = message.data or {}
+            actor_id = data.get("actor_id")
+            actor_name = data.get("actor_name", "아군")
+            player_id = data.get("player_id")
+
+            self.logger.info(f"액션 선택 시작 수신: {actor_name} (ID: {actor_id}, 플레이어: {player_id})")
+
+            # 콜백으로 CombatUI에 알림
+            if self.on_action_selection_start_callback:
+                self.on_action_selection_start_callback(actor_id, actor_name, player_id)
+        except Exception as e:
+            self.logger.error(f"액션 선택 시작 처리 실패: {e}", exc_info=True)
+
+    async def _handle_action_result(
+        self,
+        message: NetworkMessage,
+        sender_id: Optional[str] = None
+    ):
+        """
+        액션 실행 결과 메시지 처리 (클라이언트)
+
+        호스트에서 실행된 액션 결과를 수신하여 로컬 상태에 반영합니다.
+
+        Args:
+            message: ACTION_RESULT 메시지
+            sender_id: 발신자 ID (호스트)
+        """
+        try:
+            if self.is_host:
+                return
+
+            data = message.data or {}
+            result_data = data.get("result", {})
+            combat_state = data.get("combat_state")
+
+            # 전투 상태 스냅샷 동기화
+            if combat_state:
+                self._sync_combat_state(combat_state)
+
+            # 콜백으로 CombatUI에 알림 (데미지/힐 메시지 표시, 애니메이션 트리거)
+            if self.on_action_result_callback:
+                self.on_action_result_callback(result_data)
+
+            self.logger.debug(f"액션 결과 수신 완료: actor={data.get('actor_id')}")
+        except Exception as e:
+            self.logger.error(f"액션 결과 처리 실패: {e}", exc_info=True)
+
+    async def _handle_combat_end(
+        self,
+        message: NetworkMessage,
+        sender_id: Optional[str] = None
+    ):
+        """
+        전투 종료 메시지 처리 (클라이언트)
+
+        호스트에서 전투 종료를 수신하여 전투 루프를 종료합니다.
+
+        Args:
+            message: COMBAT_END 메시지
+            sender_id: 발신자 ID (호스트)
+        """
+        try:
+            if self.is_host:
+                return
+
+            data = message.data or {}
+            result = data.get("result", "defeat")
+            rewards = data.get("rewards")
+
+            self.logger.info(f"전투 종료 수신: 결과={result}")
+
+            # CombatManager 상태 갱신
+            if self.combat_manager:
+                try:
+                    self.combat_manager.state = CombatState(result)
+                except (ValueError, TypeError):
+                    self.logger.warning(f"전투 상태 변환 실패: {result}, DEFEAT로 처리")
+                    self.combat_manager.state = CombatState.DEFEAT
+
+            # 콜백으로 CombatUI에 알림
+            if self.on_combat_end_callback:
+                self.on_combat_end_callback(result, rewards)
+        except Exception as e:
+            self.logger.error(f"전투 종료 처리 실패: {e}", exc_info=True)
+
+    def apply_state_update(self, state_data: Dict[str, Any]):
+        """
+        클라이언트가 STATE_UPDATE 수신 시 로컬 CombatManager 상태를 동기화합니다.
+
+        호스트의 하트비트(200ms) 또는 직접 호출을 통해 전투 상태를 갱신합니다.
+
+        Args:
+            state_data: 호스트로부터 수신한 상태 데이터
+        """
+        if self.is_host:
+            return
+
+        try:
+            self._sync_combat_state(state_data)
+        except Exception as e:
+            self.logger.error(f"상태 업데이트 적용 실패: {e}", exc_info=True)
+
     def _get_combat_state_snapshot(self) -> Dict[str, Any]:
         """
         전투 상태 스냅샷 생성 (동기화용)
-        
+
         Returns:
             전투 상태 데이터
         """

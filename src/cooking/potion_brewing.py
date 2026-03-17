@@ -129,7 +129,7 @@ class PotionDatabase:
         "rejuvenation_potion": PotionRecipe(
             potion_id="rejuvenation_potion",
             name="회춘 포션",
-            description="HP와 MP를 동시에 회복. HP 100, MP 50 회복.",
+            description="HP와 MP를 동시에 회복. HP 150, MP 75 회복.",
             potion_type=PotionType.REJUVENATION,
             ingredients={"glass_vial": 1, "pure_water": 2, "magic_herb": 1, "mana_blossom": 1, "honey": 1},
             effects={"hp_restore": 150, "mp_restore": 75},

@@ -136,6 +136,31 @@ class WorldUI:
         self._lily_idle_check_time = time.time()
         self._lily_random_check_time = time.time()
 
+        # ── Raylib 월드 렌더러 (백엔드가 raylib일 때만) ──────────────
+        self._world_renderer = None
+        self._raylib_context = None
+        self._field_pending_gauges = []  # 게이지 오버레이 큐 (툴팁 보호용 지연 등록)
+        try:
+            from src.core.config import get_config
+            if get_config().get("display.backend", "pygame") == "raylib":
+                from src.ui.raylib_backend.world_renderer import WorldRenderer
+                from src.ui.tcod_display import get_display
+                display = get_display()
+                ctx = getattr(display, 'context', None) or getattr(display, '_context', None)
+                if ctx is not None:
+                    tw = getattr(ctx, 'tile_width', 16)
+                    th = getattr(ctx, 'tile_height', 16)
+                    self._world_renderer = WorldRenderer(
+                        tile_w=tw,
+                        tile_h=th,
+                        view_cols=self.screen_width,
+                        view_rows=self.screen_height - 5,
+                    )
+                    self._raylib_context = ctx
+                    logger.info("Raylib WorldRenderer 초기화 완료")
+        except Exception as e:
+            logger.debug(f"WorldRenderer 초기화 스킵: {e}")
+
     def add_message(self, text: str, color=None):
         """메시지 추가 (color는 호환성용 - 탐험 로그에서는 미사용)"""
         self.messages.append(text)
@@ -503,6 +528,21 @@ class WorldUI:
 
             # 이동 성공 시 요리솥 자동 열기 체크 제거 (사용자가 명시적으로 상호작용해야 함)
             # 주석 처리: 자동 열기는 사용자 경험을 해침
+
+            # 랜덤 이벤트 진단: 200스텝마다 게임 내 메시지 표시
+            _re_count = getattr(self.exploration, '_re_move_count', 0)
+            if _re_count > 0 and _re_count % 200 == 0:
+                try:
+                    from src.world.random_events import get_random_event_manager
+                    _mgr = get_random_event_manager()
+                    self.add_message(
+                        f"[진단] 이동 {_re_count}회, 이벤트체크 steps={_mgr._steps_since_event}, "
+                        f"events={len(_mgr._dungeon_events)}+{len(_mgr._region_events)}, "
+                        f"is_town={getattr(self.exploration, 'is_town', '?')}",
+                        (100, 100, 100)
+                    )
+                except Exception:
+                    pass
 
             self._handle_exploration_result(result, console, context)
             # 전투가 트리거되면 메인 루프의 상태 체크에서 처리하도록 False 반환
@@ -1249,6 +1289,13 @@ class WorldUI:
                 if "participants" in result.data:
                     self.combat_participants = result.data["participants"]
                     logger.info(f"멀티플레이 전투 참여자: {len(self.combat_participants)}명")
+                # 멀티플레이: 동기화 데이터 저장
+                if "synced_enemies" in result.data:
+                    self.combat_synced_enemies = result.data["synced_enemies"]
+                if "combined_party" in result.data:
+                    self.combat_combined_party = result.data["combined_party"]
+                if "local_party_ids" in result.data:
+                    self.combat_local_party_ids = result.data["local_party_ids"]
                 # 멀티플레이: 전투 위치 저장
                 if hasattr(self.exploration, 'player'):
                     self.combat_position = (self.exploration.player.x, self.exploration.player.y)
@@ -1292,9 +1339,9 @@ class WorldUI:
                     self.add_message(result.message)
                     
                     # 기존 화면 렌더링
-                    self.render(console)
+                    self.render(console, render_ctx=context)
                     context.present(console)
-                    
+
                     # LootUI 표시
                     logger.info("LootUI 표시 시도...")
                     show_loot_screen(console, context, items, self.inventory)
@@ -1375,17 +1422,8 @@ class WorldUI:
                                 if action == GameAction.QUIT:
                                     event_ui.is_active = False
                                     break
-                                elif action == GameAction.MOVE_UP:
-                                    event_ui._selected_idx = (event_ui._selected_idx - 1) % max(event_ui._choice_count, 1)
-                                elif action == GameAction.MOVE_DOWN:
-                                    event_ui._selected_idx = (event_ui._selected_idx + 1) % max(event_ui._choice_count, 1)
-                                elif action == GameAction.CONFIRM:
-                                    event_ui._confirm_selection()
-                                elif action == GameAction.CANCEL:
-                                    event_ui._result_idx = -1
-                                    event_ui.is_active = False
-                                elif event and isinstance(event, tcod.event.KeyDown):
-                                    event_ui.handle_input(event)
+                                elif action:
+                                    event_ui.handle_input(action)
                         # 결과 처리
                         choice_idx = event_ui.get_selected_choice()
                         if choice_idx >= 0:
@@ -1485,7 +1523,8 @@ class WorldUI:
                                 else:
                                     self.add_message(f"  호감도 {outcome.affinity_gain}", (180, 100, 100))
                 except Exception as e:
-                    logger.warning(f"랜덤 이벤트 UI 처리 실패: {e}")
+                    import traceback
+                    logger.error(f"[랜덤이벤트 진단] UI 처리 실패: {e}\n{traceback.format_exc()}")
                     self.add_message(f"{random_event.description}", (200, 200, 200))
 
 
@@ -1820,19 +1859,33 @@ class WorldUI:
             if results and self.inventory:
                 from src.gathering.ingredient import IngredientDatabase
                 added = []
+                failed = 0
+                total_items = 0
                 for ingredient_id, qty in results.items():
                     ingredient = IngredientDatabase.get_ingredient(ingredient_id)
                     if ingredient:
-                        for _ in range(qty):
-                            if self.inventory.add_item(ingredient):
-                                added.append(ingredient.name)
+                        total_items += qty
+                        # 일괄 추가 시도
+                        if hasattr(self.inventory, 'add_item'):
+                            for _ in range(qty):
+                                if self.inventory.add_item(ingredient):
+                                    added.append(ingredient.name)
+                                else:
+                                    failed += 1
 
                 if added:
                     counts = {}
                     for name in added:
                         counts[name] = counts.get(name, 0) + 1
                     msg_parts = [f"{n} x{c}" for n, c in counts.items()]
-                    self.add_message(f"채집 완료! {', '.join(msg_parts)}")
+                    msg = f"채집 완료! {', '.join(msg_parts)}"
+                    if failed > 0:
+                        msg += f" (무게 초과로 {failed}개 버림)"
+                    self.add_message(msg)
+                elif total_items > 0:
+                    cur_w = getattr(self.inventory, 'current_weight', 0)
+                    max_w = getattr(self.inventory, 'max_weight', 0)
+                    self.add_message(f"인벤토리가 가득 찼습니다. ({cur_w:.1f}/{max_w:.1f}kg)")
                 else:
                     self.add_message("인벤토리가 가득 찼습니다.")
             else:
@@ -2274,7 +2327,7 @@ class WorldUI:
             y = 5
             for i, member in enumerate(self.party):
                 name = getattr(member, 'name', f'멤버 {i+1}')
-                job = getattr(member, 'job', '???')
+                job = getattr(member, 'job_name', getattr(member, 'character_class', '???'))
                 level = getattr(member, 'level', 1)
                 hp = getattr(member, 'current_hp', 0)
                 max_hp = getattr(member, 'max_hp', 1)
@@ -2626,18 +2679,23 @@ class WorldUI:
         except Exception as e:
             logger.warning(f"릴리 대화 실패: {e}")
 
-    def render(self, console: tcod.console.Console):
-        """렌더링"""
+    def render(self, console: tcod.console.Console, render_ctx=None):
+        """렌더링
+
+        Args:
+            console: 렌더링할 tcod 콘솔
+            render_ctx: 렌더링 컨텍스트 (pixel overlay 등록용, RaylibContext 등)
+        """
         # 마을인지 확인하여 컨텍스트 설정
         is_town = hasattr(self.exploration, 'is_town') and self.exploration.is_town
-        context = "town" if is_town else "dungeon"
+        bg_context = "town" if is_town else "dungeon"
 
         # 배경 렌더링 (마을: 핑크 그라데이션, 던전: 바이옴별 배경)
         render_space_background(
             console,
             self.screen_width,
             self.screen_height,
-            context=context,
+            context=bg_context,
             floor=self.exploration.floor_number
         )
 
@@ -2699,6 +2757,35 @@ class WorldUI:
             view_width=self.screen_width,
             view_height=35
         )
+
+        # ── Raylib 월드 렌더러 오버레이 (타일셋/FOV/엔티티/미니맵) ──
+        if self._world_renderer is not None and self._raylib_context is not None:
+            wr = self._world_renderer
+            dungeon = self.exploration.dungeon
+
+            # setup (최초 1회 또는 맵 변경 시)
+            dw = getattr(dungeon, 'width', 0)
+            dh = getattr(dungeon, 'height', 0)
+            if getattr(wr, 'map_width', 0) != dw or getattr(wr, 'map_height', 0) != dh:
+                wr.setup(dw, dh)
+
+            # 엔티티 목록: 적 + NPC
+            entities = list(self.exploration.enemies)
+            if hasattr(self.exploration, 'npcs'):
+                entities.extend(self.exploration.npcs)
+
+            # FOV 데이터
+            fov_visible = getattr(self.exploration, 'fov_visible', None)
+            fov_explored = getattr(dungeon, 'explored', None)
+            tiles = getattr(dungeon, 'tiles', None)
+
+            def _pixel_cb(dt, _wr=wr, _tiles=tiles,
+                          _fov_v=fov_visible, _fov_e=fov_explored,
+                          _ents=entities, _px=player.x, _py=player.y):
+                _wr.update(dt, _px, _py)
+                _wr.draw_map(_tiles, _fov_v, _fov_e, _ents, (_px, _py))
+
+            self._raylib_context.add_pixel_overlay(_pixel_cb)
 
         # 적 위치 표시
         camera_x = max(0, player.x - 40)
@@ -2941,6 +3028,9 @@ class WorldUI:
         if self.mouse_hover_active:
             self._render_tile_hover_info(console)
 
+        # 게이지 pixel overlay 등록 (툴팁 렌더링 후 → 툴팁이 게이지 위에 표시됨)
+        self._register_field_gauge_overlay(console, render_ctx)
+
         # 필드 스킬 UI
         if self.field_skill_ui.is_active:
             self.field_skill_ui.render(console)
@@ -3097,6 +3187,99 @@ class WorldUI:
                 if max_len > 0:
                     console.print(tx + 1, cy, clipped[:max_len], fg=color, bg=BG)
 
+    def _render_tile_hover_info(self, console: tcod.console.Console):
+        """마우스 호버 타일의 환경 효과 오버레이 표시"""
+        sx = getattr(self, '_mouse_sx', -1)
+        sy = getattr(self, '_mouse_sy', -1)
+        if sx < 0 or sy < 5 or sx >= self.screen_width or sy >= self.screen_height:
+            return
+
+        # 카메라 좌표 계산
+        camera_x = getattr(self, '_camera_x', 0)
+        camera_y = getattr(self, '_camera_y', 0)
+        map_x = camera_x + sx
+        map_y = camera_y + (sy - 5)
+
+        dungeon = getattr(self.exploration, 'dungeon', None)
+        if not dungeon:
+            return
+        if map_x < 0 or map_y < 0 or map_x >= dungeon.width or map_y >= dungeon.height:
+            return
+
+        tile = dungeon.get_tile(map_x, map_y)
+        if not tile or not tile.explored or not tile.visible:
+            return
+
+        # 환경 효과 매니저에서 해당 타일의 효과 확인
+        effect_manager = getattr(dungeon, 'environmental_effect_manager', None)
+        if not effect_manager:
+            return
+
+        active_effects = getattr(effect_manager, 'active_effects', {})
+        tile_effects = []
+        for effect_type, effect in active_effects.items():
+            affected = getattr(effect, 'affected_tiles', None)
+            if affected is None:
+                continue
+            if (map_x, map_y) in affected:
+                tile_effects.append(effect)
+
+        if not tile_effects:
+            return
+
+        # 오버레이 박스 렌더링
+        lines = []
+        for eff in tile_effects:
+            color = getattr(eff, 'color_overlay', (180, 180, 180))
+            lines.append((f" {eff.name}", color))
+            desc = getattr(eff, 'description', '')
+            if desc:
+                lines.append((f"  {desc}", (160, 160, 180)))
+
+        if not lines:
+            return
+
+        tooltip_w = max(len(text) + 3 for text, _ in lines)
+        tooltip_w = max(tooltip_w, 18)
+        tooltip_w = min(tooltip_w, 35)
+        tooltip_h = len(lines) + 2
+
+        cw = getattr(console, 'width', self.screen_width)
+        ch = getattr(console, 'height', self.screen_height)
+        sw = min(self.screen_width, cw)
+        sh = min(self.screen_height, ch)
+
+        # 마우스 좌하단에 표시
+        tx = sx + 2
+        ty = sy + 1
+        if tx + tooltip_w >= sw:
+            tx = sx - tooltip_w - 1
+        if tx < 0:
+            tx = 0
+        if ty + tooltip_h >= sh:
+            ty = sy - tooltip_h
+        if ty < 0:
+            ty = 0
+
+        BG = (10, 10, 25)
+        BORDER = (100, 130, 170)
+
+        # 배경
+        for dy in range(tooltip_h):
+            for dx in range(tooltip_w):
+                cx, cy = tx + dx, ty + dy
+                if 0 <= cx < sw and 0 <= cy < sh:
+                    console.rgb["ch"][cy, cx] = ord(" ")
+                    console.rgb["bg"][cy, cx] = BG
+
+        self._draw_tooltip_border(console, tx, ty, tooltip_w, tooltip_h, sw, sh, BORDER, BG)
+
+        for i, (text, color) in enumerate(lines):
+            cy = ty + 1 + i
+            if 0 <= cy < sh and text:
+                clipped = text[:tooltip_w - 2]
+                console.print(tx + 1, cy, clipped, fg=color, bg=BG)
+
     @staticmethod
     def _draw_tooltip_border(console, x, y, w, h, sw, sh, border_color, bg_color):
         """단순 박스 테두리 그리기"""
@@ -3135,7 +3318,7 @@ class WorldUI:
 
     def _render_party_status(self, console: tcod.console.Console):
         """파티 상태 렌더링 (전투 UI와 동일한 스타일) - 화면 맨 밑에 배치"""
-        from src.ui.gauge_renderer import get_animation_manager
+        self._field_pending_gauges = []
 
         x = self.screen_width - 30
 
@@ -3190,22 +3373,27 @@ class WorldUI:
             if wound_damage > 0:  # 상처가 있는 경우만 로깅
                 logger.debug(f"[아군 상처] {member_name}: wound={wound_damage}")
 
-            # HP 게이지 (전투 UI와 동일 - 애니메이션 + 상처 표시 + 숫자)
+            # HP 게이지 (스무스 pixel overlay) — 전투 UI와 동일: 현재값만 게이지 내부
             console.print(x, my + 1, "HP:", fg=(200, 200, 200))
-            self.gauge_renderer.render_animated_hp_bar(
-                console, x + 4, my + 1, 15,
-                current_hp, max_hp, entity_id,
-                wound_damage=wound_damage, show_numbers=True
-            )
-            
-            # MP 게이지 (전투 UI와 동일 - 애니메이션 + 숫자)
+            hp_ratio = current_hp / max(max_hp, 1)
+            # 콘솔 폴백 (HP) — 전투 UI와 동일 색상 테이블
+            console.draw_rect(x + 4, my + 1, 15, 1, ord(" "), bg=(15, 55, 15))
+            _hp_filled = max(0, int(15 * max(0.0, min(1.0, hp_ratio))))
+            if _hp_filled > 0:
+                _hc = (50, 220, 50) if hp_ratio > 0.6 else ((220, 220, 50) if hp_ratio > 0.3 else (220, 50, 50))
+                console.draw_rect(x + 4, my + 1, _hp_filled, 1, ord(" "), bg=_hc)
+            wound_r = wound_damage / (max_hp + wound_damage) if wound_damage > 0 and max_hp > 0 else 0.0
+            self._field_pending_gauges.append((x + 4, my + 1, 15, hp_ratio, "hp", wound_r, f"{current_hp}"))
+
+            # MP 게이지 (스무스 pixel overlay) — 전투 UI와 동일: 현재값만 게이지 내부
             console.print(x, my + 2, "MP:", fg=(200, 200, 200))
-            self.gauge_renderer.render_animated_mp_bar(
-                console, x + 4, my + 2, 15,
-                current_mp, max_mp, entity_id,
-                show_numbers=True,
-                reserved_mp=getattr(member, "reserved_max_mp", 0)
-            )
+            mp_ratio = current_mp / max(max_mp, 1)
+            # 콘솔 폴백 (MP) — 전투 UI와 동일 색상
+            console.draw_rect(x + 4, my + 2, 15, 1, ord(" "), bg=(25, 38, 65))
+            _mp_filled = max(0, int(15 * max(0.0, min(1.0, mp_ratio))))
+            if _mp_filled > 0:
+                console.draw_rect(x + 4, my + 2, _mp_filled, 1, ord(" "), bg=(100, 150, 255))
+            self._field_pending_gauges.append((x + 4, my + 2, 15, mp_ratio, "mp", 0.0, f"{current_mp}"))
 
         # 인벤토리 정보 (파티 상태 아래로 이동)
         inv_y = y + 2 + 4 * min(4, len(self.exploration.player.party)) + 1
@@ -3224,6 +3412,72 @@ class WorldUI:
             item_count = len(self.inventory.slots) if self.inventory and hasattr(self.inventory, 'slots') else 0
             console.print(x + 2, inv_y + 2, f"아이템: {item_count}개", fg=(200, 200, 200))
 
+        # 게이지 오버레이는 메인 렌더에서 툴팁 렌더링 후에 등록 (툴팁 가림 방지)
+
+    def _register_field_gauge_overlay(self, console, render_ctx=None) -> None:
+        """필드 게이지 pixel overlay 등록 — 툴팁 영역을 게이지 위에 재렌더링
+
+        Args:
+            console: tcod 콘솔 (툴팁 보호용)
+            render_ctx: present()를 호출하는 렌더링 컨텍스트 (game_menu/inventory 패턴)
+        """
+        # render_ctx 우선, 없으면 self._raylib_context 폴백
+        ctx = None
+        if render_ctx and hasattr(render_ctx, 'add_pixel_overlay'):
+            ctx = render_ctx
+        elif self._raylib_context and hasattr(self._raylib_context, 'add_pixel_overlay'):
+            ctx = self._raylib_context
+        if not ctx or not self._field_pending_gauges:
+            return
+        _g = list(self._field_pending_gauges)
+        self._field_pending_gauges.clear()
+        tw = getattr(ctx, 'tile_width', 10)
+        th = getattr(ctx, 'tile_height', 13)
+        # 툴팁 보호: 콘솔 참조를 캡처해서 오버레이 내부에서 재렌더링
+        _console_ref = console
+        _tooltip_bg = (15, 15, 30)  # world_ui 툴팁 배경색
+        _fr = getattr(ctx, 'font_renderer', None)  # BDF 폰트 렌더러
+
+        def _field_overlay(dt, _gg=_g, _tw=tw, _th=th,
+                           _con=_console_ref, _tbg=_tooltip_bg, _ctx=ctx,
+                           _font=_fr):
+            from src.ui.raylib_backend.smooth_gauge import draw_smooth_gauge
+            # 1) 게이지 그리기 — 튜플: (gx, gy, gw, ratio, kind_or_color, wound, [text])
+            for entry in _gg:
+                gx, gy, gw, r, ci, wound = entry[:6]
+                txt = entry[6] if len(entry) > 6 else ""
+                if isinstance(ci, str):
+                    draw_smooth_gauge(gx * _tw, gy * _th, gw * _tw, _th, r, kind=ci, wound_ratio=wound, text=txt, font_renderer=_font)
+                else:
+                    draw_smooth_gauge(gx * _tw, gy * _th, gw * _tw, _th, r, custom_color=ci, wound_ratio=wound, text=txt, font_renderer=_font)
+            # 2) 툴팁 영역 재렌더링 (게이지 위에 다시 그림)
+            try:
+                import numpy as np
+                bg_arr = _con.bg  # shape: (H, W, 3)
+                mask = ((bg_arr[:, :, 0] == _tbg[0]) &
+                        (bg_arr[:, :, 1] == _tbg[1]) &
+                        (bg_arr[:, :, 2] == _tbg[2]))
+                ys, xs = np.where(mask)
+                if len(ys) == 0:
+                    return
+                fr = getattr(_ctx, 'font_renderer', None)
+                if not fr or not getattr(fr, 'is_loaded', False):
+                    return
+                y_min, y_max = int(ys.min()), int(ys.max())
+                x_min, x_max = int(xs.min()), int(xs.max())
+                for cy in range(y_min, y_max + 1):
+                    for cx in range(x_min, x_max + 1):
+                        if mask[cy, cx]:
+                            ch = int(_con.ch[cy, cx])
+                            fg = (int(_con.fg[cy, cx, 0]),
+                                  int(_con.fg[cy, cx, 1]),
+                                  int(_con.fg[cy, cx, 2]))
+                            fr.render_cell(cx * _tw, cy * _th, ch, fg, _tbg)
+            except Exception:
+                pass
+
+        ctx.add_pixel_overlay(_field_overlay)
+
     def _render_navigation_compass(self, console: tcod.console.Console):
         """RPG 오픈월드 나침반 HUD - 가장 가까운 마을 방향/거리 + 현재 지역명"""
         if not hasattr(self.exploration, 'nav_spawn_points'):
@@ -3235,8 +3489,7 @@ class WorldUI:
         player = self.exploration.player
         px, py = player.x, player.y
 
-        # 현재 지역명 표시
-        current_region_id = getattr(self.exploration, 'nav_current_region', None)
+        # 현재 지역명 표시 (플레이어 위치 기반 실시간 판정)
         region_names = {
             "forgotten_forest": "잊혀진 숲",
             "twilight_desert": "황혼 사막",
@@ -3246,6 +3499,37 @@ class WorldUI:
             "war_lands": "전쟁의 땅",
             "starlight_throne": "별빛의 왕좌",
         }
+        current_region_id = getattr(self.exploration, 'nav_current_region', None)
+        # RPG 오픈월드: 플레이어 좌표로 실시간 지역 판정
+        if hasattr(self.exploration, 'dungeon') and self.exploration.dungeon:
+            dw = self.exploration.dungeon.width
+            dh = self.exploration.dungeon.height
+            if dw > 300 or dh > 300:
+                try:
+                    from src.rpg_mode.rpg_world_generator import _get_region_for_point
+                    new_region_id = _get_region_for_point(px, py, dw, dh)
+                    # 지역 변경 감지 → BGM 변경
+                    if new_region_id != current_region_id:
+                        region_bgm = {
+                            "forgotten_forest": "forest",
+                            "twilight_desert": "desert",
+                            "abyss_cavern": "caves",
+                            "storm_plateau": "highlands",
+                            "eternal_glacier": "frostlands",
+                            "war_lands": "warlands",
+                            "starlight_throne": "worldmap",
+                        }
+                        bgm_track = region_bgm.get(new_region_id)
+                        if bgm_track:
+                            try:
+                                from src.audio import play_bgm
+                                play_bgm(bgm_track)
+                            except Exception:
+                                pass
+                    current_region_id = new_region_id
+                    self.exploration.nav_current_region = current_region_id
+                except Exception:
+                    pass
         region_name = region_names.get(current_region_id, "알 수 없는 지역")
         console.print(
             self.screen_width // 2 - len(region_name) - 1, 0,
@@ -3989,7 +4273,7 @@ def run_exploration(
                             ui.add_message(f'릴리: "{night_line}"')
 
         # 렌더링
-        ui.render(console)
+        ui.render(console, render_ctx=context)
         context.present(console)
 
         # 입력 처리
@@ -4156,7 +4440,11 @@ def run_exploration(
                 "enemy_level": getattr(ui, 'combat_enemy_level', None),
                 "participants": getattr(ui, 'combat_participants', None),
                 "position": getattr(ui, 'combat_position', None),
-                "preemptive_bonus": preemptive
+                "preemptive_bonus": preemptive,
+                # 멀티플레이 동기화 데이터
+                "synced_enemies": getattr(ui, 'combat_synced_enemies', None),
+                "combined_party": getattr(ui, 'combat_combined_party', None),
+                "local_party_ids": getattr(ui, 'combat_local_party_ids', None),
             }
             # 선제공격 보너스 소비 (1회성)
             if hasattr(exploration, 'preemptive_bonus'):
@@ -4192,7 +4480,11 @@ def run_exploration(
             "enemy_level": getattr(ui, 'combat_enemy_level', None),
             "participants": getattr(ui, 'combat_participants', None),
             "position": getattr(ui, 'combat_position', None),
-            "preemptive_bonus": preemptive
+            "preemptive_bonus": preemptive,
+            # 멀티플레이 동기화 데이터
+            "synced_enemies": getattr(ui, 'combat_synced_enemies', None),
+            "combined_party": getattr(ui, 'combat_combined_party', None),
+            "local_party_ids": getattr(ui, 'combat_local_party_ids', None),
         }
         if hasattr(exploration, 'preemptive_bonus'):
             exploration.preemptive_bonus = 0.0

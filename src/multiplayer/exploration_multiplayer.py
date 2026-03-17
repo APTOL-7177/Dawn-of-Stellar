@@ -438,10 +438,61 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                         "is_boss": message.data.get("is_boss", False),
                         "floor": message.data.get("floor"),
                     }
-                    
-                    # 이벤트 버스를 통해 전투 시작 알림 (UI 전환용)
-                    from src.core.event_bus import event_bus, Events
-                    event_bus.publish(Events.COMBAT_START_CLIENT, combat_data)
+
+                    # all_parties 수신: 원격 플레이어 파티를 SimpleAlly로 합류
+                    all_parties_data = message.data.get("all_parties")
+                    if all_parties_data and isinstance(all_parties_data, dict):
+                        try:
+                            from src.world.enemy_generator import SimpleAlly
+
+                            combined_party = []
+                            local_party_ids = set()
+
+                            # 로컬 플레이어 파티 (실제 Character 객체 사용)
+                            if self.session and self.local_player_id in self.session.players:
+                                local_player_obj = self.session.players[self.local_player_id]
+                                local_party = getattr(local_player_obj, 'party', []) or []
+                                for char in local_party:
+                                    if char and getattr(char, 'is_alive', True):
+                                        try:
+                                            char.owner_player_id = self.local_player_id
+                                        except Exception:
+                                            pass
+                                        combined_party.append(char)
+                                        char_id = getattr(char, 'id', None)
+                                        if char_id:
+                                            local_party_ids.add(str(char_id))
+
+                            # 원격 플레이어 파티 (SimpleAlly 객체로 생성)
+                            for pid, party_data_list in all_parties_data.items():
+                                if pid == self.local_player_id:
+                                    # 로컬 파티는 위에서 처리 완료
+                                    continue
+                                for char_data in party_data_list:
+                                    if not isinstance(char_data, dict):
+                                        continue
+                                    char_data["owner_player_id"] = pid
+                                    ally = SimpleAlly(char_data)
+                                    combined_party.append(ally)
+                                    self.logger.debug(
+                                        f"원격 아군 생성: {ally.name} (소유자: {pid})"
+                                    )
+
+                            if combined_party:
+                                combat_data["combined_party"] = combined_party
+                                combat_data["local_party_ids"] = local_party_ids
+                                self.logger.info(
+                                    f"합류 파티 구성 완료: 총 {len(combined_party)}명 "
+                                    f"(로컬 {len(local_party_ids)}명, "
+                                    f"원격 {len(combined_party) - len(local_party_ids)}명)"
+                                )
+                        except Exception as e:
+                            self.logger.error(f"합류 파티 구성 실패: {e}", exc_info=True)
+
+                    # 대기 전투 데이터 저장 (탐험 루프에서 감지하여 전투 진입)
+                    combat_data["synced_enemies"] = local_enemies  # 호스트 동기화된 적
+                    self._pending_client_combat = combat_data
+                    self.logger.info(f"멀티플레이 전투 대기 설정: 적 {len(local_enemies)}마리")
                     
             except Exception as e:
                 self.logger.error(f"전투 시작 핸들러 오류: {e}", exc_info=True)
@@ -633,7 +684,72 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             if hasattr(self, 'player') and hasattr(self.player, 'party'):
                 return self.player.party or []
             return []
-    
+
+    def _collect_all_parties(self, combat_position: Tuple[int, int]) -> Dict[str, list]:
+        """
+        전투 시작 시 주변 참여 플레이어별 파티 데이터를 수집·직렬화
+
+        Args:
+            combat_position: 전투 시작 위치 (x, y)
+
+        Returns:
+            {player_id: [직렬화된 캐릭터 데이터, ...]} 형태의 딕셔너리
+        """
+        from src.multiplayer.protocol import MessageBuilder
+
+        all_parties: Dict[str, list] = {}
+        try:
+            if not self.is_multiplayer or not self.session:
+                return all_parties
+
+            participation_radius = MultiplayerConfig.participation_radius_player
+
+            for player_id, player in self.session.players.items():
+                try:
+                    if not player or not hasattr(player, 'x') or not hasattr(player, 'y'):
+                        continue
+
+                    try:
+                        player_x = int(player.x)
+                        player_y = int(player.y)
+                    except (ValueError, TypeError, AttributeError):
+                        continue
+
+                    distance = abs(player_x - combat_position[0]) + abs(player_y - combat_position[1])
+                    if distance > participation_radius:
+                        continue
+
+                    party = getattr(player, 'party', None) or []
+                    serialized_party = []
+                    for character in party:
+                        if not character:
+                            continue
+                        if not getattr(character, 'is_alive', True):
+                            continue
+                        # owner_player_id 태깅
+                        try:
+                            character.owner_player_id = player_id
+                        except Exception:
+                            pass
+                        serialized_party.append(
+                            MessageBuilder.serialize_character_for_combat(character)
+                        )
+
+                    if serialized_party:
+                        all_parties[player_id] = serialized_party
+                        self.logger.debug(
+                            f"파티 수집 완료: 플레이어 {player_id} -> {len(serialized_party)}명"
+                        )
+                except Exception as e:
+                    self.logger.error(f"플레이어 {player_id} 파티 수집 실패: {e}", exc_info=True)
+                    continue
+
+            self.logger.info(f"전체 파티 수집 완료: {len(all_parties)}명의 플레이어, 총 {sum(len(v) for v in all_parties.values())}명의 캐릭터")
+        except Exception as e:
+            self.logger.error(f"파티 수집 실패: {e}", exc_info=True)
+
+        return all_parties
+
     def _trigger_combat_with_enemy(self, enemy: Any) -> 'ExplorationResult':
         """
         적 엔티티와의 전투 (멀티플레이 오버라이드)
@@ -687,15 +803,20 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             if self.is_host and self.network_manager:
                 combat_position = (enemy.x, enemy.y)
                 participants = self._get_nearby_participants(combat_position)
-                
+
+                # 참여 플레이어별 파티 정보 수집 (all_parties)
+                all_parties = self._collect_all_parties(combat_position)
+
                 # 참여자 정보를 결과에 추가
                 if result.data:
                     result.data["participants"] = participants
                     result.data["combat_position"] = combat_position
+                    result.data["all_parties"] = all_parties
                 else:
                     result.data = {
                         "participants": participants,
-                        "combat_position": combat_position
+                        "combat_position": combat_position,
+                        "all_parties": all_parties,
                     }
                 
                 participant_count = len(participants)
@@ -704,41 +825,9 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     f"(반경 {MultiplayerConfig.participation_radius}타일 내)"
                 )
                 
-                # 브로드캐스트
-                import asyncio
-                from src.multiplayer.protocol import MessageBuilder
-                
-                # 적 목록: super()에서 이미 주변 적을 수집했으므로 결과에서 가져옴
-                enemies = result.data.get("enemies", [enemy]) if result.data else [enemy]
-                
-                start_msg = MessageBuilder.combat_start(
-                    participants=[p.id if hasattr(p, 'id') else str(p) for p in participants],
-                    enemies=enemies,  # 적 객체 전체를 전달하여 전체 데이터 직렬화
-                    position=combat_position
-                )
-                start_msg.data["participant_player_ids"] = sorted({
-                    getattr(p, 'player_id', None) if not isinstance(p, str) else p
-                    for p in participants
-                    if (getattr(p, 'player_id', None) if not isinstance(p, str) else p)
-                })
-                # 전투 메타데이터 동기화 (클라이언트가 동일한 전투를 구성하도록)
-                if result.data:
-                    start_msg.data["num_enemies"] = result.data.get("num_enemies")
-                    start_msg.data["enemy_level"] = result.data.get("enemy_level")
-                    start_msg.data["is_boss"] = result.data.get("is_boss", False)
-                    start_msg.data["floor"] = result.data.get("floor", self.floor_number)
-                
-                try:
-                    server_loop = getattr(self.network_manager, '_server_event_loop', None)
-                    if server_loop and server_loop.is_running():
-                        asyncio.run_coroutine_threadsafe(
-                            self.network_manager.broadcast(start_msg),
-                            server_loop
-                        )
-                    else:
-                        self.network_manager.broadcast_sync(start_msg)
-                except Exception as e:
-                    self.logger.error(f"전투 시작 브로드캐스트 실패: {e}")
+                # 브로드캐스트는 main.py에서 EnemyGenerator로 실제 전투용 적 생성 후 수행
+                # (여기서 브로드캐스트하면 맵 엔티티만 전송되어 클라이언트와 적 불일치 발생)
+                self.logger.info(f"호스트 전투 트리거 완료 - 적 브로드캐스트는 main.py에서 처리")
             
             return result
             
@@ -1031,6 +1120,18 @@ class MultiplayerExplorationSystem(ExplorationSystem):
         Returns:
             ExplorationResult
         """
+        # 멀티플레이: 호스트로부터 수신된 대기 전투가 있으면 즉시 반환
+        if hasattr(self, '_pending_client_combat') and self._pending_client_combat:
+            combat_data = self._pending_client_combat
+            self._pending_client_combat = None
+            self.logger.info("호스트 동기화 전투 시작!")
+            return ExplorationResult(
+                success=True,
+                event=ExplorationEvent.COMBAT,
+                message="⚔ 전투 시작! (멀티플레이)",
+                data=combat_data
+            )
+
         if not self.is_multiplayer or not self.session or not self.local_player_id:
             # 싱글플레이 모드: 부모 클래스 로직 사용
             return super().move_player(dx, dy)
@@ -1208,28 +1309,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 self.logger.info(f"적이 플레이어에게 접근! 전투 시작")
                 return self._trigger_combat_with_enemy(enemy_at_player)
         
-        # 랜덤 이벤트 체크 (타일 이벤트가 없을 때만)
-        if result is None or result.event == ExplorationEvent.NONE:
-            try:
-                from src.world.random_events import get_random_event_manager
-                event_mgr = get_random_event_manager()
-                current_floor = getattr(self.dungeon, 'floor', 1)
-                region = getattr(self, 'current_region', None) or getattr(self, 'nav_current_region', None)
-                biome = getattr(self.dungeon, 'biome', None)
-                party_jobs = []
-                if hasattr(self.player, 'party') and self.player.party:
-                    party_jobs = [getattr(c, 'character_class', '') for c in self.player.party]
-                random_event = event_mgr.on_step(current_floor, region, party_jobs, biome=biome)
-                if random_event:
-                    result = ExplorationResult(
-                        success=True,
-                        event=ExplorationEvent.RANDOM_EVENT,
-                        message=f"이벤트 발생: {random_event.name}",
-                        data={"random_event": random_event}
-                    )
-                    return result
-            except Exception as e:
-                self.logger.debug(f"랜덤 이벤트 체크 실패: {e}")
+        # 랜덤 이벤트 기능 제거됨 (deprecated)
 
         if result is None:
             # 기본 결과 반환

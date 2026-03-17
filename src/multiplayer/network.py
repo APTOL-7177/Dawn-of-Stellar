@@ -195,17 +195,22 @@ class NetworkManager:
                     if self.current_exploration:
                         participants = self.current_exploration._get_nearby_participants((x, y))
                     
+                    # 참여 플레이어 ID 수집 (세션의 모든 플레이어)
+                    all_player_ids = sorted(self.session.players.keys()) if self.session else []
+
+                    # 참여 플레이어별 파티 정보 수집
+                    all_parties = None
+                    if self.current_exploration and hasattr(self.current_exploration, '_collect_all_parties'):
+                        all_parties = self.current_exploration._collect_all_parties((x, y))
+
                     # 전투 시작 메시지 브로드캐스트
                     start_msg = MessageBuilder.combat_start(
-                        participants=[p.id if hasattr(p, 'id') else str(p) for p in participants], # ID만 전송
+                        participants=all_player_ids,
                         enemies=enemies,
-                        position=(x, y)
+                        position=(x, y),
+                        all_parties=all_parties
                     )
-                    start_msg.data["participant_player_ids"] = sorted({
-                        getattr(p, 'player_id', None) if not isinstance(p, str) else p
-                        for p in participants
-                        if (getattr(p, 'player_id', None) if not isinstance(p, str) else p)
-                    })
+                    start_msg.data["participant_player_ids"] = all_player_ids
                     await self.broadcast(start_msg)
                     
                     # 호스트 자신도 전투 시작 처리 (이벤트 버스 등 활용)

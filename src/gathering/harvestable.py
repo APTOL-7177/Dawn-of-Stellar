@@ -104,7 +104,7 @@ class HarvestableObject:
                 ("mandrake", 0, 1), # 희귀: 만드라고라
             ],
             HarvestableType.TREE: [
-                ("wood", 0, 3), # 목재
+                ("wood", 0, 1), # 목재 (수량 감소)
                 ("stick", 0, 2),
                 ("apple", 0, 2),
                 ("egg", 0, 1),

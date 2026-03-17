@@ -100,6 +100,7 @@ class Events:
 
     # Combat Events
     COMBAT_START = "combat.start"
+    COMBAT_START_CLIENT = "combat.start_client"  # 멀티플레이 클라이언트 전투 시작
     COMBAT_END = "combat.end"
     COMBAT_TURN_START = "combat.turn_start"
     COMBAT_TURN_END = "combat.turn_end"

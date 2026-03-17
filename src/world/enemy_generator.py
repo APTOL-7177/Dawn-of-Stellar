@@ -228,30 +228,28 @@ ENEMY_TEMPLATES = {
         luck=12, accuracy=68, evasion=12
     ),
 
-    # === 최종 보스 (20층) - 물리형 ===
-    # 5층 물리형 보스(dragon_king)의 1.2배 스탯, 스피드 2배, HP/방어력 조정 (글리치 대사 + AI 강화)
+    # === 최종 보스 (20층) - 물리형 (소폭 강화 +15%) ===
     # 7분 30초 제한 - 스킬 계수로 위협적
     "sephiroth": EnemyTemplate(
         "sephiroth", "세피로스", 1,
-        hp=520, mp=650,  # 전체 스탯 30% 증가
-        physical_attack=86, physical_defense=122,  # 물리 특화
-        magic_attack=55, magic_defense=86,  # 마법은 낮게
-        speed=143,  # 고속
-        max_brv=1560, init_brv=780,  # BRV 30% 증가
-        luck=23, accuracy=110, evasion=21
+        hp=600, mp=750,
+        physical_attack=99, physical_defense=140,
+        magic_attack=63, magic_defense=99,
+        speed=155,
+        max_brv=1800, init_brv=900,
+        luck=26, accuracy=120, evasion=24
     ),
 
-    # === 진 최종 보스 (30층) - 마법형 ===
-    # 5층 마법형 보스(lich)의 1.2배 스탯, 스피드 2배, HP/방어력 조정 (글리치 대사 + AI 강화)
+    # === 진 최종 보스 (30층) - 마법형 (소폭 강화 +15%) ===
     # 4분 제한 - 시간은 짧지만 마법 계수 높은 스킬로 승부
     "abel_cain": EnemyTemplate(
         "abel_cain", "닥터 아벨 카인", 1,
-        hp=351, mp=650,  # 전체 스탯 30% 증가
-        physical_attack=52, physical_defense=78,  # 물리는 낮게
-        magic_attack=103, magic_defense=127,  # 마법 특화
-        speed=125,  # 마법형이라 조금 느림
-        max_brv=1248, init_brv=624,  # BRV 30% 증가
-        luck=26, accuracy=114, evasion=18
+        hp=404, mp=750,
+        physical_attack=60, physical_defense=90,
+        magic_attack=118, magic_defense=146,
+        speed=138,
+        max_brv=1435, init_brv=718,
+        luck=30, accuracy=125, evasion=21
     ),
 
     # ============================================================
@@ -874,6 +872,8 @@ class SimpleEnemy:
     """간단한 적 클래스 (전투용)"""
 
     def __init__(self, template: EnemyTemplate, level_modifier: float = 1.0, difficulty_hp_mult: float = 1.0, difficulty_dmg_mult: float = 1.0, is_boss: bool = False, is_floor_boss: bool = False):
+        import uuid
+        self.id = str(uuid.uuid4())[:8]  # 멀티플레이 동기화용 고유 ID
         self.enemy_id = template.enemy_id  # 적 ID 저장 (BGM 선택용)
         self.name = template.name
         self.level = max(1, int(template.level * level_modifier))
@@ -889,7 +889,7 @@ class SimpleEnemy:
         stat_variance = random.uniform(0.8, 1.2)
         
         # 보스 배율: 기본 스탯 1.445배 (15% 너프), HP 3.5배
-        boss_stat_mult = 1.445 if is_boss else 1.0
+        boss_stat_mult = 1.8 if is_boss else 1.0
         boss_hp_mult = 3.5 if is_boss else 1.0
 
         # 플레이어와 유사한 레벨당 비율 기반 성장 (장비 차이 고려하여 약 1.25배 더 성장)
@@ -910,14 +910,14 @@ class SimpleEnemy:
         self.current_mp = self.max_mp
         
         # 공격력: 레벨당 기초 공격력의 22.5% 성장 (기존 40%에서 감소)
-        # 최종 배율 1.0 (100%)
+        # 최종 배율 0.8 (소폭 강화)
         attack_growth = template.physical_attack * 0.225 * (level - 1)
         base_physical_attack = (template.physical_attack + attack_growth) * boss_stat_mult * stat_variance
-        self.physical_attack = int(base_physical_attack * 0.7) * difficulty_dmg_mult  # 모든 적 공격력 100%
+        self.physical_attack = int(base_physical_attack * 1.0) * difficulty_dmg_mult
 
         magic_attack_growth = template.magic_attack * 0.225 * (level - 1)
         base_magic_attack = (template.magic_attack + magic_attack_growth) * boss_stat_mult * stat_variance
-        self.magic_attack = int(base_magic_attack * 0.7) * difficulty_dmg_mult  # 모든 적 마법력 100%
+        self.magic_attack = int(base_magic_attack * 1.0) * difficulty_dmg_mult
         
         # 방어력: 레벨당 기초 방어력의 68% 성장 (기존 40%에서 대폭 증가), 최종값 2/3배
         defense_growth = template.physical_defense * 0.68 * (level - 1)
@@ -945,17 +945,19 @@ class SimpleEnemy:
         # BRV: 레벨당 기초 BRV의 40% 성장 (기존 28.6%에서 증가), 1/4로 감소 후 1.6배
         brv_growth = template.max_brv * 0.40 * (level - 1)
         base_max_brv = (template.max_brv + brv_growth) * boss_stat_mult * stat_variance
-        self.max_brv = int(base_max_brv * 0.25 * 1.6)  # 1/4로 감소 후 1.6배 (밸런스 조정)
-        
+        # 일반 적은 max_brv x0.6, 보스는 원본 유지
+        max_brv_mult = 1.0 if self.enemy_id in ["sephiroth", "abel_cain"] else 0.6
+        self.max_brv = int(base_max_brv * 0.25 * 1.6 * max_brv_mult)
+
         init_brv_growth = template.init_brv * 0.50 * (level - 1)
         full_init_brv = (template.init_brv + init_brv_growth) * boss_stat_mult * stat_variance
-        
-        # 기본 2배 적용, 세피로스와 카인은 제외
-        init_brv_mult = 2.0
+
+        # init_brv 배율: 보스는 1.0, 일반 적은 1.2 (기존 2.0에서 하향하여 BREAK 유발 완화)
+        init_brv_mult = 1.2
         if self.enemy_id in ["sephiroth", "abel_cain"]:
             init_brv_mult = 1.0
-            
-        self.init_brv = int(full_init_brv * 0.25 * init_brv_mult)  # 1/4로 감소 후 2배 (일반) 또는 1배 (보스)
+
+        self.init_brv = int(full_init_brv * 0.25 * init_brv_mult)
         
         # 전투 시작 시 current_brv는 init_brv 그대로 사용
         self.current_brv = self.init_brv
@@ -1186,6 +1188,80 @@ class SimpleEnemy:
             self.current_hp = 0
             self.is_alive = False
 
+        return actual_damage
+
+    def heal(self, amount: int) -> int:
+        """회복"""
+        actual_heal = min(amount, self.max_hp - self.current_hp)
+        self.current_hp += actual_heal
+        return actual_heal
+
+    @property
+    def hp(self) -> int:
+        """현재 HP (하위 호환성)"""
+        return self.current_hp
+
+
+class SimpleAlly:
+    """
+    원격 플레이어의 캐릭터를 나타내는 간단한 아군 클래스 (멀티플레이 전투용)
+
+    호스트가 브로드캐스트한 직렬화 데이터로부터 클라이언트 측에서 생성됩니다.
+    로컬 Character 객체가 아닌 원격 캐릭터를 전투 파티에 포함시키기 위해 사용합니다.
+    """
+
+    def __init__(self, data: dict):
+        """
+        직렬화된 캐릭터 데이터로부터 아군 객체 생성
+
+        Args:
+            data: 직렬화된 캐릭터 전투 데이터 딕셔너리
+        """
+        self.id = data.get("id", "unknown")
+        self.name = data.get("name", "아군")
+        self.job_id = data.get("job_id", "warrior")
+        self.job_name = data.get("job_name", "전사")
+        self.character_class = self.job_id
+        self.level = data.get("level", 1)
+
+        # HP/MP
+        self.max_hp = data.get("max_hp", 100)
+        self.current_hp = data.get("current_hp", self.max_hp)
+        self.max_mp = data.get("max_mp", 50)
+        self.current_mp = data.get("current_mp", self.max_mp)
+
+        # 전투 스탯
+        self.physical_attack = data.get("physical_attack", 10)
+        self.physical_defense = data.get("physical_defense", 10)
+        self.magic_attack = data.get("magic_attack", 10)
+        self.magic_defense = data.get("magic_defense", 10)
+        self.speed = data.get("speed", 50)
+
+        # BRV
+        self.max_brv = data.get("max_brv", 1000)
+        self.init_brv = data.get("init_brv", 333)
+        self.current_brv = data.get("current_brv", self.init_brv)
+
+        # 상태
+        self.is_alive = data.get("is_alive", True)
+        self.is_enemy = False
+        self.owner_player_id = data.get("owner_player_id")
+
+        # 상태이상 관리 (전투 시스템 호환)
+        self.status_manager = StatusManager(owner_name=self.name, owner=self)
+        self.status_effects = self.status_manager.status_effects
+        self.wound_damage = 0
+
+        # 스킬 (원격 아군은 빈 목록 - 봇/AI가 제어)
+        self.skills = []
+
+    def take_damage(self, amount: int) -> int:
+        """데미지 적용"""
+        actual_damage = min(amount, self.current_hp)
+        self.current_hp -= actual_damage
+        if self.current_hp <= 0:
+            self.current_hp = 0
+            self.is_alive = False
         return actual_damage
 
     def heal(self, amount: int) -> int:
@@ -1482,13 +1558,13 @@ class EnemyGenerator:
             level_modifier = floor_number * 0.8
             boss = SimpleEnemy(template, level_modifier, difficulty_hp_mult, difficulty_dmg_mult, is_boss=True, is_floor_boss=is_floor_boss)
 
-            # 층 보스는 추가 강화 (HP 1.5배, 스탯 1.3배 추가)
-            boss.max_hp = int(boss.max_hp * 1.5)
+            # 층 보스는 추가 강화 (HP 1.8배, 공격 1.5배, 방어 1.4배)
+            boss.max_hp = int(boss.max_hp * 1.8)
             boss.current_hp = boss.max_hp
-            boss.physical_attack = int(boss.physical_attack * 1.3)
-            boss.magic_attack = int(boss.magic_attack * 1.3)
-            boss.physical_defense = int(boss.physical_defense * 1.2)
-            boss.magic_defense = int(boss.magic_defense * 1.2)
+            boss.physical_attack = int(boss.physical_attack * 1.5)
+            boss.magic_attack = int(boss.magic_attack * 1.5)
+            boss.physical_defense = int(boss.physical_defense * 1.4)
+            boss.magic_defense = int(boss.magic_defense * 1.4)
             boss.max_brv = int(boss.max_brv * 1.3)
             boss.current_brv = int(boss.current_brv * 1.3)
             

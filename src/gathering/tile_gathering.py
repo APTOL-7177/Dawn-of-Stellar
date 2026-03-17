@@ -101,7 +101,7 @@ _BASE_LOOT: Dict[TileType, List[Tuple[str, int, int, float]]] = {
         ("spice", 0, 1, 0.3),
     ],
     TileType.DEAD_TREE: [
-        ("wood", 1, 2, 0.7),
+        ("wood", 0, 1, 0.35),
         ("stick", 0, 2, 0.5),
         ("metal_scrap", 0, 1, 0.2),
     ],
@@ -122,7 +122,7 @@ _BASE_LOOT: Dict[TileType, List[Tuple[str, int, int, float]]] = {
         ("glass_vial", 0, 1, 0.2),
     ],
     TileType.DEEP_FOREST: [
-        ("wood", 1, 2, 0.6),
+        ("wood", 0, 1, 0.25),
         ("berry", 0, 2, 0.5),
         ("apple", 0, 1, 0.3),
         ("egg", 0, 1, 0.2),

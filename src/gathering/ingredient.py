@@ -789,6 +789,20 @@ class IngredientDatabase:
             edible_raw=False
         ),
 
+        "flower_petal": Ingredient(
+            item_id="flower_petal",
+            name="꽃잎",
+            description="다양한 꽃에서 채집한 꽃잎. 연금술과 요리 재료로 사용된다.",
+            item_type=ItemType.MATERIAL,
+            rarity=ItemRarity.COMMON,
+            weight=0.1,
+            sell_price=5,
+            category=IngredientCategory.ALCHEMY,
+            food_value=0.0,
+            spoil_time=0,
+            edible_raw=False
+        ),
+
         "mana_blossom": Ingredient(
             item_id="mana_blossom",
             name="마력꽃",

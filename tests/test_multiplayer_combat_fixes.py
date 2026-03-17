@@ -160,6 +160,14 @@ def _build_minimal_ui_for_update(
     ui.battle_ended = False
     ui.battle_result = None
 
+    # 멀티플레이 전투 동기화 필드
+    ui.local_party_ids = set()
+    ui.is_mp_host = False
+    ui._remote_action_timeout = 0.0
+    ui._remote_action_actor = None
+    ui._mp_combat_end_received = False
+    ui._mp_combat_end_result = None
+
     ui.action_delay_frames = delay_frames
     ui.action_delay_max = 90
     ui.action_delay_owner_player_id = delay_owner_player_id

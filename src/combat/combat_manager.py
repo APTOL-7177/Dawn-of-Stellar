@@ -885,9 +885,11 @@ class CombatManager:
         
         # 3-2. 랜섬웨어 효과 처리 (적의 턴 시작 시)
         if actor in self.enemies:
+            hp_before_ransomware = getattr(actor, 'current_hp', 0)
             self._process_ransomware_damage(actor)
-            # 랜섬웨어로 사망 여부 확인
-            if hasattr(actor, 'current_hp') and actor.current_hp <= 0:
+            # 랜섬웨어로 실제 피해를 받아 사망한 경우만 표시
+            if (hasattr(actor, 'current_hp') and actor.current_hp <= 0
+                    and hp_before_ransomware > 0 and actor.current_hp < hp_before_ransomware):
                 if not (hasattr(actor, '_has_undying_existence') and actor._has_undying_existence()):
                     actor.is_alive = False
                     self.logger.warning(f"{actor.name}이(가) 랜섬웨어로 사망!")
@@ -917,6 +919,15 @@ class CombatManager:
             expired = actor.status_manager.update_duration()
             if expired:
                 self.logger.debug(f"{actor.name}: {len(expired)}개 상태 효과 만료")
+
+        # 4-1. 강철 수호진 상태이상 면역 타이머 감소
+        if hasattr(actor, '_status_immune_turns') and actor._status_immune_turns > 0:
+            actor._status_immune_turns -= 1
+            if actor._status_immune_turns <= 0:
+                actor._status_immune_turns = 0
+                if hasattr(actor, 'status_manager'):
+                    actor.status_manager.immune_to_all = False
+                self.logger.info(f"[강철 수호진] {actor.name}: 상태이상 면역 해제")
 
         # 5. 행동 불가능 상태 확인 (스턴, 마비, 수면 등)
         if hasattr(actor, 'status_manager'):
@@ -981,6 +992,52 @@ class CombatManager:
         else:
             # 일반 ATB 소비
             self.atb.consume_atb(actor)
+
+        # ATB 환불 (요미 등 atb_return 메타데이터가 있는 스킬)
+        if action_type == ActionType.SKILL and skill and hasattr(skill, 'metadata'):
+            atb_return = skill.metadata.get('atb_return', 0)
+            if atb_return > 0:
+                gauge = self.atb.get_gauge(actor)
+                if gauge:
+                    refund = int(self.atb.threshold * atb_return)
+                    gauge.current = refund
+                    self.logger.info(f"[ATB 환불] {actor.name}: ATB {int(atb_return * 100)}% 환불 ({refund})")
+
+        # 전사: 자세 변경 스킬 사용 시 ATB 70% 환급 (combat_instinct 특성 보유 시 95%)
+        # consume_atb() 이후에 처리해야 ATB가 리셋되지 않음
+        if action_type == ActionType.SKILL and skill and hasattr(skill, 'metadata'):
+            if skill.metadata.get('stance') and hasattr(self, 'atb') and actor in self.allies:
+                atb_refund_rate = 0.70
+                if hasattr(actor, 'active_traits'):
+                    for trait_data in actor.active_traits:
+                        trait_id = trait_data if isinstance(trait_data, str) else (trait_data.get('id') if isinstance(trait_data, dict) else None)
+                        if trait_id == 'combat_instinct':
+                            atb_refund_rate = 0.95
+                            break
+                gauge = self.atb.get_gauge(actor)
+                if gauge:
+                    refund = int(self.atb.threshold * atb_refund_rate)
+                    gauge.current = refund
+                    self.logger.info(f"[스탠스 ATB 환급] {actor.name}: ATB {atb_refund_rate*100:.0f}% 환급 ({refund})")
+
+        # 전사 속도 자세: 공격 후 70% 확률로 ATB 30% 충전
+        # consume_atb() 이후에 처리해야 ATB가 리셋되지 않음
+        if action_type == ActionType.SKILL and skill and result.get("success") and actor in self.allies:
+            atb_on_attack_chance = getattr(actor, 'stance_atb_on_attack_chance', 0)
+            atb_on_attack_amount = getattr(actor, 'stance_atb_on_attack_amount', 0)
+            if atb_on_attack_chance > 0 and atb_on_attack_amount > 0 and hasattr(self, 'atb'):
+                has_damage = False
+                if hasattr(skill, 'effects'):
+                    from src.character.skills.effects.damage_effect import DamageEffect
+                    has_damage = any(isinstance(effect, DamageEffect) for effect in skill.effects)
+                if has_damage:
+                    import random as _random
+                    if _random.random() < atb_on_attack_chance:
+                        gauge = self.atb.get_gauge(actor)
+                        if gauge:
+                            atb_charge = int(self.atb.threshold * atb_on_attack_amount)
+                            gauge.current = min(self.atb.threshold, gauge.current + atb_charge)
+                            self.logger.info(f"[속도 자세] {actor.name}: 공격 후 ATB +{atb_on_attack_amount*100:.0f}% ({atb_charge})")
 
         # 연속 베기 특성 (rapid_slash): 공격 시 25% 확률로 즉시 추가 공격
         rapid_slash_triggered = False
@@ -1533,6 +1590,8 @@ class CombatManager:
             # 즉사: 현재 HP를 모두 제거
             if hasattr(defender, 'current_hp'):
                 defender.current_hp = 0
+            if hasattr(defender, 'is_alive'):
+                defender.is_alive = False
             hp_result = {
                 "hp_damage": 9999,
                 "brv_consumed": attacker.current_brv,
@@ -1556,6 +1615,17 @@ class CombatManager:
                     "is_critical": hp_result.get("is_critical", False),
                     "damage_type": "physical"  # HP 공격은 기본적으로 물리로 취급
                 })
+
+                # 전사 광전사 자세: HP 피해의 15% 흡혈
+                stance_lifesteal = getattr(attacker, 'stance_lifesteal', 0)
+                if stance_lifesteal > 0:
+                    heal_amount = int(hp_result["hp_damage"] * stance_lifesteal)
+                    if heal_amount > 0 and hasattr(attacker, 'current_hp') and hasattr(attacker, 'max_hp'):
+                        old_hp = attacker.current_hp
+                        attacker.current_hp = min(attacker.max_hp, attacker.current_hp + heal_amount)
+                        actual_heal = attacker.current_hp - old_hp
+                        if actual_heal > 0:
+                            self.logger.info(f"[광전사 흡혈] {attacker.name}: HP +{actual_heal} (피해 {hp_result['hp_damage']}의 {stance_lifesteal*100:.0f}%)")
 
         # HP 공격은 빗나감이 없으므로(BRV 0이면 0데미지지만 공격 자체는 성공) 항상 내구도 감소 시도
         if hasattr(attacker, 'degrade_equipment') and not kwargs.get('skip_degrade', False):
@@ -2606,6 +2676,8 @@ class CombatManager:
 
             # 기믹 업데이트는 스킬 실행 전에 이미 호출됨 (카드 효과 등)
 
+            # 전사 스탠스 ATB 환급은 consume_atb() 이후에 처리 (execute_action에서)
+
             # 공격 스킬 사용 시 기믹 트리거 (지원사격 등) - 캐스팅이 아닌 즉시 실행 스킬만
             if actor in self.allies and target:
                 # 스킬에 데미지 효과가 있는지 확인
@@ -2617,6 +2689,35 @@ class CombatManager:
                 # 데미지 효과가 있으면 공격 스킬로 간주하고 on_ally_attack 호출
                 if has_damage:
                     GimmickUpdater.on_ally_attack(actor, self.allies, target=target, context=context)
+
+                    # 전사 속도 자세 ATB 충전은 consume_atb() 이후에 처리 (execute_action에서)
+
+            # 전사 강철 수호진: 디버프 해제 + 상태이상 면역
+            if hasattr(skill, 'metadata') and skill.metadata.get('cleanse_debuffs'):
+                if hasattr(actor, 'status_manager'):
+                    # 모든 디버프 해제
+                    from src.combat.status_effects import StatusType
+                    debuff_types = [
+                        StatusType.POISON, StatusType.BURN, StatusType.BLEED,
+                        StatusType.SLOW, StatusType.BLIND, StatusType.SILENCE,
+                        StatusType.STUN, StatusType.SLEEP, StatusType.PARALYZE,
+                        StatusType.FREEZE, StatusType.CURSE, StatusType.DOOM,
+                    ]
+                    removed = []
+                    for st in debuff_types:
+                        if actor.status_manager.has_status(st):
+                            actor.status_manager.remove_status(st)
+                            removed.append(st.value)
+                    if removed:
+                        self.logger.info(f"[강철 수호진] {actor.name}: 디버프 해제 - {', '.join(removed)}")
+
+                    # 상태이상 면역 적용
+                    immune_duration = skill.metadata.get('status_immune_duration', 2)
+                    actor.status_manager.immune_to_all = True
+                    if not hasattr(actor, '_status_immune_turns'):
+                        actor._status_immune_turns = 0
+                    actor._status_immune_turns = immune_duration
+                    self.logger.info(f"[강철 수호진] {actor.name}: {immune_duration}턴간 상태이상 면역")
 
             # 해적: 보물 획득 스킬 처리
             if hasattr(skill, 'metadata') and skill.metadata.get('treasure_skill'):
@@ -4565,11 +4666,153 @@ class CombatManager:
         defender = data.get("character")
         damage = data.get("damage", 0)
         
-        if not defender or damage <= 0:
+        if not defender:
             return
-            
+
         # 반사 피해로 인한 무한 루프 방지
         if data.get("is_reflect", False):
+            return
+
+        # BRV 패링 후 동일 공격의 HP 데미지도 무효화
+        attacker_for_parry = data.get("attacker")
+        if (getattr(defender, '_parried_this_action', False) and
+                getattr(defender, '_parried_attacker', None) is attacker_for_parry):
+            data["damage"] = 0
+            defender._parried_this_action = False
+            defender._parried_attacker = None
+            self.logger.info(f"[패링] {defender.name}: BRV 패링으로 HP 데미지도 무효화")
+            return
+
+        # 패링 체크: 캐스팅 중 적의 직접 공격에만 패링 발동
+        # 제외: DoT, 반사, 환경 피해, 공격자 없는 피해
+        is_dot = data.get("is_dot", False)
+        has_attacker = data.get("attacker") is not None
+        from src.combat.casting_system import get_casting_system
+        _casting_system = get_casting_system()
+        if _casting_system and not is_dot and has_attacker:
+            # 1. 방어자 자신의 패링 (CASTING 또는 CAST_COMPLETE 모두 허용)
+            cast_info = _casting_system.get_cast_info(defender)
+            if cast_info and cast_info.state.value in ("casting", "cast_complete"):
+                skill = cast_info.skill
+                parry_attacker = data.get("attacker")
+
+                if skill and hasattr(skill, 'metadata') and skill.metadata.get('parry'):
+                    data["damage"] = 0
+
+                    # 카운터 데미지 발동
+                    if parry_attacker:
+                        parry_multiplier = skill.metadata.get('parry_damage_multiplier', 3.0)
+                        from src.combat.damage_calculator import get_damage_calculator
+                        damage_calc = get_damage_calculator()
+
+                        counter_result = damage_calc.calculate_brv_damage(
+                            attacker=defender, defender=parry_attacker,
+                            skill_multiplier=parry_multiplier
+                        )
+
+                        self.brave.brv_attack(defender, parry_attacker,
+                                              counter_result.final_damage, is_counter=True)
+
+                        if hasattr(defender, 'current_brv') and defender.current_brv > 0:
+                            hp_result = self.brave.hp_attack(defender, parry_attacker)
+                            self.logger.info(
+                                f"[패링!] {defender.name}이(가) {parry_attacker.name}의 공격을 막고 카운터! "
+                                f"BRV: {counter_result.final_damage}, HP: {hp_result.get('hp_damage', 0)}"
+                            )
+
+                        # 기믹별 패링 보상
+                        if hasattr(defender, 'gimmick_type'):
+                            from src.character.gimmick_updater import GimmickUpdater
+                            if defender.gimmick_type == "charge_system":
+                                parry_charge_gain = skill.metadata.get('parry_charge_gain', 30)
+                                GimmickUpdater.on_charge_gained(defender, parry_charge_gain, "패링 성공")
+                            elif defender.gimmick_type == "kenshin_system":
+                                obs_gain = skill.metadata.get('parry_observation_gain', 3)
+                                ken_gain = skill.metadata.get('parry_kenatsu_gain', 40)
+                                cur_obs = getattr(defender, 'observation', 0)
+                                max_obs = getattr(defender, 'max_observation', 15)
+                                defender.observation = min(max_obs, cur_obs + obs_gain)
+                                cur_ken = getattr(defender, 'kenatsu', 0)
+                                max_ken = getattr(defender, 'max_kenatsu', 100)
+                                defender.kenatsu = min(max_ken, cur_ken + ken_gain)
+
+                    # 캐스트 취소 (attacker 유무와 무관하게 항상 취소)
+                    _casting_system.cancel_cast(defender, reason="패링 성공")
+
+                    # 패링 성공 시 ATB 50% 환불
+                    if hasattr(self, 'atb'):
+                        gauge = self.atb.get_gauge(defender)
+                        if gauge:
+                            refund = int(self.atb.threshold * 0.5)
+                            gauge.current = refund
+                            self.logger.info(f"[패링 ATB 환불] {defender.name}: ATB 50% 환불 ({refund})")
+                    return
+
+            # 2. 아군 수호 패링 (active_casts + cast_queue 모두 검색)
+            all_casts = list(_casting_system.active_casts.items())
+            for queued in _casting_system.cast_queue:
+                all_casts.append((queued.caster, queued))
+            for caster, ally_cast in all_casts:
+                if caster == defender or ally_cast.state.value not in ("casting", "cast_complete"):
+                    continue
+                ally_skill = ally_cast.skill
+                if not (ally_skill and hasattr(ally_skill, 'metadata') and
+                        ally_skill.metadata.get('parry') and
+                        ally_skill.metadata.get('protect_ally')):
+                    continue
+                if ally_cast.target is not defender:
+                    continue
+
+                # 아군 수호 패링 성공!
+                parry_attacker = data.get("attacker")
+                data["damage"] = 0
+                self.logger.info(
+                    f"[수호 패링!] {caster.name}이(가) {defender.name}을(를) 지키며 패링!"
+                )
+
+                if parry_attacker:
+                    parry_multiplier = ally_skill.metadata.get('parry_damage_multiplier', 3.0)
+                    from src.combat.damage_calculator import get_damage_calculator
+                    damage_calc = get_damage_calculator()
+                    counter_result = damage_calc.calculate_brv_damage(
+                        attacker=caster, defender=parry_attacker,
+                        skill_multiplier=parry_multiplier
+                    )
+                    self.brave.brv_attack(caster, parry_attacker,
+                                          counter_result.final_damage, is_counter=True)
+                    if hasattr(caster, 'current_brv') and caster.current_brv > 0:
+                        hp_result = self.brave.hp_attack(caster, parry_attacker)
+                        self.logger.info(
+                            f"[수호 패링!] {caster.name} → {parry_attacker.name} 카운터! "
+                            f"BRV: {counter_result.final_damage}, HP: {hp_result.get('hp_damage', 0)}"
+                        )
+
+                    if hasattr(caster, 'gimmick_type'):
+                        from src.character.gimmick_updater import GimmickUpdater
+                        if caster.gimmick_type == "kenshin_system":
+                            obs_gain = ally_skill.metadata.get('parry_observation_gain', 3)
+                            ken_gain = ally_skill.metadata.get('parry_kenatsu_gain', 40)
+                            cur_obs = getattr(caster, 'observation', 0)
+                            max_obs = getattr(caster, 'max_observation', 15)
+                            caster.observation = min(max_obs, cur_obs + obs_gain)
+                            cur_ken = getattr(caster, 'kenatsu', 0)
+                            max_ken = getattr(caster, 'max_kenatsu', 100)
+                            caster.kenatsu = min(max_ken, cur_ken + ken_gain)
+
+                # 캐스트 취소 (attacker 유무와 무관하게 항상 취소)
+                _casting_system.cancel_cast(caster, reason="수호 패링 성공")
+
+                # 패링 성공 시 ATB 50% 환불
+                if hasattr(self, 'atb'):
+                    gauge = self.atb.get_gauge(caster)
+                    if gauge:
+                        refund = int(self.atb.threshold * 0.5)
+                        gauge.current = refund
+                        self.logger.info(f"[패링 ATB 환불] {caster.name}: ATB 50% 환불 ({refund})")
+                return
+
+        # 0 이하 피해는 패링 이후 처리 불필요
+        if damage <= 0:
             return
         
         # 아군 피격 시 진동 (피해량에 따라 강도 조절)
@@ -4828,85 +5071,6 @@ class CombatManager:
                                     ally._is_guarding = False
                             
                             return  # 한 명만 수호
-
-        # 패링 메커니즘: 캐스팅 중 피격 시 카운터 (충전 획득 전에 처리)
-        if hasattr(self, 'casting_system'):
-            cast_info = self.casting_system.get_cast_info(defender)
-            if cast_info and cast_info.state.value == "casting":
-                skill = cast_info.skill
-                attacker = data.get("attacker")
-
-                # 패링 스킬인지 확인
-                if skill and hasattr(skill, 'metadata') and skill.metadata.get('parry'):
-                    # 피해 무효화
-                    data["damage"] = 0
-                    if hasattr(defender, 'take_damage'):
-                        # 실제 HP 감소 방지
-                        pass
-
-                    # 카운터 데미지 발동
-                    if attacker:
-                        parry_multiplier = skill.metadata.get('parry_damage_multiplier', 3.0)
-                        parry_charge_gain = skill.metadata.get('parry_charge_gain', 30)
-
-                        # 카운터 데미지 계산 (기본 스킬 데미지 × 패링 배율)
-                        from src.combat.damage_calculator import get_damage_calculator
-                        damage_calc = get_damage_calculator()
-
-                        # 패링 데미지 (BRV+HP)
-                        counter_result = damage_calc.calculate_physical_damage(
-                            attacker=defender,
-                            defender=attacker,
-                            multiplier=parry_multiplier
-                        )
-
-                        # BRV 데미지
-                        self.brave.brv_attack(defender, attacker, counter_result.final_damage)
-
-                        # HP 데미지
-                        if hasattr(defender, 'current_brv') and defender.current_brv > 0:
-                            hp_result = self.brave.hp_attack(defender, attacker)
-
-                            self.logger.info(
-                                f"[패링!] {defender.name}이(가) {attacker.name}의 공격을 막고 카운터! "
-                                f"BRV: {counter_result.final_damage}, HP: {hp_result.get('hp_damage', 0)}"
-                            )
-
-                        # 기믹별 패링 보상
-                        if hasattr(defender, 'gimmick_type'):
-                            from src.character.gimmick_updater import GimmickUpdater
-
-                            # 암흑기사: 충전 획득
-                            if defender.gimmick_type == "charge_system":
-                                GimmickUpdater.on_charge_gained(defender, parry_charge_gain, "패링 성공")
-
-                            # 사무라이: 관찰 + 검압 획득
-                            elif defender.gimmick_type == "kenshin_system":
-                                observation_gain = skill.metadata.get('parry_observation_gain', 3)
-                                kenatsu_gain = skill.metadata.get('parry_kenatsu_gain', 40)
-
-                                # 관찰 스택 증가
-                                current_obs = getattr(defender, 'observation', 0)
-                                max_obs = getattr(defender, 'max_observation', 15)
-                                defender.observation = min(max_obs, current_obs + observation_gain)
-
-                                # 검압 게이지 증가
-                                current_kenatsu = getattr(defender, 'kenatsu', 0)
-                                max_kenatsu = getattr(defender, 'max_kenatsu', 100)
-                                defender.kenatsu = min(max_kenatsu, current_kenatsu + kenatsu_gain)
-
-                                stage = GimmickUpdater._get_kenshin_stage(defender)
-                                self.logger.info(
-                                    f"[검심 패링] {defender.name} [{stage}] 관찰 +{observation_gain} ({defender.observation}/{max_obs}), "
-                                    f"검압 +{kenatsu_gain} ({defender.kenatsu}/{max_kenatsu})"
-                                )
-
-                        # 패링 성공 플래그 설정 (캐스팅 완료 시 스킬 효과 발동 방지용)
-                        cast_info.parry_success = True
-                        
-                        # 캐스팅은 계속 진행 (취소하지 않음)
-                        # 패링 성공 시 피해를 받지 않으므로 충전 획득 없음
-                        return
 
         # 암흑기사: 피격 시 충전 획득 (패링으로 막히지 않은 경우에만)
         # 패링이 성공하면 위에서 return되므로 여기 도달하지 않음
@@ -5265,6 +5429,16 @@ class CombatManager:
         # 전투가 이미 종료된 상태라면 체크하지 않음
         if self.state in [CombatState.VICTORY, CombatState.DEFEAT, CombatState.FLED]:
             return
+
+        # === is_alive 동기화: HP 0 이하인데 is_alive인 캐릭터 보정 ===
+        for combatant in self.allies + self.enemies:
+            if (hasattr(combatant, 'current_hp') and combatant.current_hp <= 0
+                    and getattr(combatant, 'is_alive', False)):
+                # 불멸의 존재 특성이 있으면 예외
+                if hasattr(combatant, '_has_undying_existence') and combatant._has_undying_existence():
+                    continue
+                combatant.is_alive = False
+                self.logger.warning(f"[is_alive 동기화] {getattr(combatant, 'name', 'Unknown')} HP=0인데 is_alive=True → False로 보정")
 
         # === 카인 불멸 능력: HP 0 도달 시 1회 부활 ===
         for enemy in self.enemies:
@@ -6195,34 +6369,33 @@ class CombatManager:
         )
 
         if effect_type == "additional_attack":
-            # 추가 공격 (strength/magic 프로퍼티 사용 + 레벨 스케일링)
+            # 추가 공격 — 메인 데미지 계산기 사용 (BRV 데미지 → 직접 HP 적용)
             multiplier = effect.get("multiplier", 0.5)
             damage_type = effect.get("damage_type", "physical")
+            element = effect.get("element", None)
             if source_char and self.enemies:
                 import random
                 alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
                 target = random.choice(alive_enemies) if alive_enemies else self.enemies[0]
-                if damage_type == "physical":
-                    base_dmg = getattr(source_char, 'strength', 50)
+                # 메인 데미지 계산기로 BRV 데미지 산출
+                if damage_type in ("magical",):
+                    dmg_result = self.damage_calc.calculate_magic_damage(
+                        source_char, target, multiplier, element=element,
+                        ignore_evasion=True
+                    )
                 else:
-                    base_dmg = getattr(source_char, 'magic', 50)
-                # 적 방어력 고려
-                if damage_type == "physical":
-                    target_def = getattr(target, 'defense', 0) if hasattr(target, 'defense') else 0
-                else:
-                    target_def = getattr(target, 'spirit', 0) if hasattr(target, 'spirit') else 0
-                # 레벨 스케일링 (일반 BRV 공격과 동일)
-                attacker_level = getattr(source_char, 'level', 1)
-                from src.core.config import get_config
-                config = get_config()
-                level_scaling_per_level = config.get("combat.damage.level_scaling_per_level", 0.3)
-                level_scaling = 1.0 + (attacker_level - 1) * level_scaling_per_level
-                raw_dmg = int(base_dmg * multiplier * level_scaling)
-                # 방어력 비례 경감 (flat 차감 대신 비율 경감)
-                def_factor = 200.0 / (200.0 + target_def) if target_def > 0 else 1.0
-                dmg = max(1, int(raw_dmg * def_factor))
-                target.current_hp = max(0, getattr(target, 'current_hp', 0) - dmg)
-                exec_result["effects"].append({"type": "damage", "target": getattr(target, 'name', ''), "amount": dmg})
+                    dmg_result = self.damage_calc.calculate_brv_damage(
+                        source_char, target, multiplier, element=element,
+                        ignore_evasion=True
+                    )
+                # BRV 데미지에 HP 배율 적용 후 HP 피해 (연계스킬 보너스 공격)
+                hp_mult = getattr(self.damage_calc, 'hp_damage_multiplier', 0.15)
+                hp_damage = max(1, int(dmg_result.final_damage * hp_mult))
+                target.current_hp = max(0, getattr(target, 'current_hp', 0) - hp_damage)
+                exec_result["effects"].append({
+                    "type": "damage", "target": getattr(target, 'name', ''),
+                    "amount": hp_damage, "critical": dmg_result.is_critical
+                })
 
         elif effect_type == "redirect_damage":
             # 피해 전환 — 대상에게 리다이렉트 마커 부여
@@ -6326,7 +6499,7 @@ class CombatManager:
                 exec_result["effects"].append({"type": "mp_restore", "target": target_char.name, "amount": restore})
 
         elif effect_type == "hp_drain":
-            # HP 흡수 공격 (뱀파이어 등)
+            # HP 흡수 공격 (뱀파이어 등) — 메인 데미지 계산기 사용
             multiplier = effect.get("multiplier", 1.0)
             drain_percent = effect.get("drain_percent", 0.3)
             if source_char and self.enemies:
@@ -6334,16 +6507,12 @@ class CombatManager:
                 alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
                 if alive_enemies:
                     target_enemy = random.choice(alive_enemies)
-                    base_dmg = getattr(source_char, 'strength', 50)
-                    attacker_level = getattr(source_char, 'level', 1)
-                    from src.core.config import get_config
-                    config = get_config()
-                    level_scaling_per_level = config.get("combat.damage.level_scaling_per_level", 0.3)
-                    level_scaling = 1.0 + (attacker_level - 1) * level_scaling_per_level
-                    raw_dmg = int(base_dmg * multiplier * level_scaling)
-                    target_def = getattr(target_enemy, 'defense', 0)
-                    def_factor = 200.0 / (200.0 + target_def) if target_def > 0 else 1.0
-                    dmg = max(1, int(raw_dmg * def_factor))
+                    # 메인 데미지 계산기로 마법 데미지 산출 (hp_drain은 마법 기반)
+                    dmg_result = self.damage_calc.calculate_magic_damage(
+                        source_char, target_enemy, multiplier, ignore_evasion=True
+                    )
+                    hp_mult = getattr(self.damage_calc, 'hp_damage_multiplier', 0.15)
+                    dmg = max(1, int(dmg_result.final_damage * hp_mult))
                     target_enemy.current_hp = max(0, getattr(target_enemy, 'current_hp', 0) - dmg)
                     # 흡혈
                     heal_amount = int(dmg * drain_percent)
@@ -6562,8 +6731,9 @@ class CombatManager:
                         source_char, target, multiplier, element=element,
                         ignore_evasion=True
                     )
-                # BRV 데미지를 직접 HP 피해로 적용 (체인 어빌리티는 보너스 공격)
-                hp_damage = max(1, dmg_result.final_damage)
+                # BRV 데미지에 HP 배율 적용 후 HP 피해 (체인 어빌리티 보너스 공격)
+                hp_mult = getattr(self.damage_calc, 'hp_damage_multiplier', 0.15)
+                hp_damage = max(1, int(dmg_result.final_damage * hp_mult))
                 target.current_hp = max(0, getattr(target, 'current_hp', 0) - hp_damage)
                 is_crit = dmg_result.is_critical
                 exec_result["effects"].append({
@@ -6723,21 +6893,18 @@ class CombatManager:
                     exec_result["effects"].append({"type": "mp_restore", "target": getattr(mt, 'name', ''), "amount": restore})
 
         elif effect_type == "hp_drain":
-            # HP 흡수 — 적에게 데미지 + 자신 회복
+            # HP 흡수 — 메인 데미지 계산기로 마법 데미지 산출 + HP 배율 적용
             multiplier = effect.get("multiplier", 1.0)
             drain_pct = effect.get("drain_percent", 0.5)
             if source_char and self.enemies:
                 import random
                 alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
                 target = random.choice(alive_enemies) if alive_enemies else self.enemies[0]
-                base_dmg = getattr(source_char, 'magic', 50)
-                attacker_level = getattr(source_char, 'level', 1)
-                from src.core.config import get_config
-                config = get_config()
-                level_scaling = 1.0 + (attacker_level - 1) * config.get("combat.damage.level_scaling_per_level", 0.3)
-                target_def = getattr(target, 'spirit', 0)
-                def_factor = 200.0 / (200.0 + target_def) if target_def > 0 else 1.0
-                dmg = max(1, int(base_dmg * multiplier * level_scaling * def_factor))
+                dmg_result = self.damage_calc.calculate_magic_damage(
+                    source_char, target, multiplier, ignore_evasion=True
+                )
+                hp_mult = getattr(self.damage_calc, 'hp_damage_multiplier', 0.15)
+                dmg = max(1, int(dmg_result.final_damage * hp_mult))
                 target.current_hp = max(0, getattr(target, 'current_hp', 0) - dmg)
                 heal = int(dmg * drain_pct)
                 source_char.current_hp = min(getattr(source_char, 'max_hp', 100), source_char.current_hp + heal)
@@ -6745,20 +6912,16 @@ class CombatManager:
                 exec_result["effects"].append({"type": "heal", "target": getattr(source_char, 'name', ''), "amount": heal})
 
         elif effect_type == "brv_damage":
-            # BRV 데미지 — 적의 BRV를 깎음
+            # BRV 데미지 — 메인 데미지 계산기로 물리 BRV 데미지 산출
             multiplier = effect.get("multiplier", 1.5)
             if source_char and self.enemies:
                 import random
                 alive_enemies = [e for e in self.enemies if getattr(e, 'is_alive', True)]
                 target = random.choice(alive_enemies) if alive_enemies else self.enemies[0]
-                base_dmg = getattr(source_char, 'strength', 50)
-                attacker_level = getattr(source_char, 'level', 1)
-                from src.core.config import get_config
-                config = get_config()
-                level_scaling = 1.0 + (attacker_level - 1) * config.get("combat.damage.level_scaling_per_level", 0.3)
-                target_def = getattr(target, 'defense', 0)
-                def_factor = 200.0 / (200.0 + target_def) if target_def > 0 else 1.0
-                brv_dmg = max(1, int(base_dmg * multiplier * level_scaling * def_factor))
+                dmg_result = self.damage_calc.calculate_brv_damage(
+                    source_char, target, multiplier, ignore_evasion=True
+                )
+                brv_dmg = max(1, dmg_result.final_damage)
                 old_brv = getattr(target, 'current_brv', 0)
                 target.current_brv = max(0, old_brv - brv_dmg)
                 exec_result["effects"].append({"type": "brv_damage", "target": getattr(target, 'name', ''), "amount": brv_dmg})
@@ -6885,48 +7048,20 @@ class CombatManager:
                     targets = [all_enemies[0]]
 
                 # ── 합체기 협동 패턴 시스템 ──
-                # 모든 합체기는 "P1(셋업) → P2(피니시)" 구조의 BRV→HP 공격이지만,
-                # combo_pattern에 따라 셋업 단계가 달라진다.
+                # 모든 합체기는 "P1(셋업) → P2(피니시)" 구조의 BRV→HP 공격
+                # 메인 데미지 계산기를 사용하되, combo_pattern에 따라 보정 적용
                 pattern = getattr(combo_skill, 'combo_pattern', 'brv_hp')
                 brv_attacker = participants[0]
                 hp_attacker = participants[1] if len(participants) >= 2 else participants[0]
 
-                # BRV 공격자의 스탯 결정 (damage_calculator와 동일한 멀티 속성명 패턴)
-                def _resolve_stat(char, attr_names, default=10):
-                    for a in attr_names:
-                        if hasattr(char, a):
-                            return getattr(char, a)
-                    return default
-
-                _phys_atk_keys = ['physical_attack', 'p_atk', 'attack', 'strength']
-                _mag_atk_keys = ['magic_attack', 'm_atk', 'magic', 'intelligence']
-                _phys_def_keys = ['physical_defense', 'p_def', 'defense']
-                _mag_def_keys = ['magic_defense', 'm_def']
-
-                if damage_type == "physical":
-                    brv_atk_stat = _resolve_stat(brv_attacker, _phys_atk_keys)
-                    def_keys = _phys_def_keys
-                elif damage_type in ("magic", "holy", "dark", "tech"):
-                    brv_atk_stat = _resolve_stat(brv_attacker, _mag_atk_keys)
-                    def_keys = _mag_def_keys
-                else:
-                    from src.combat.job_synergy import get_job_category
-                    brv_cat = get_job_category(brv_attacker.character_class)
-                    if brv_cat in ("magic", "support"):
-                        brv_atk_stat = _resolve_stat(brv_attacker, _mag_atk_keys)
-                        def_keys = _mag_def_keys
-                    else:
-                        brv_atk_stat = _resolve_stat(brv_attacker, _phys_atk_keys)
-                        def_keys = _phys_def_keys
-
                 # ── 패턴별 셋업 보정 ──
-                empower_mult = 1.0
-                def_reduction = 1.0
+                effective_mult = multiplier
+                calc_kwargs = {"ignore_evasion": True}
                 sacrifice_bonus = 0
 
                 if pattern == "empower_strike":
                     # 강화→일격: P1이 P2를 강화 (1.5배 피해)
-                    empower_mult = 1.5
+                    effective_mult = multiplier * 1.5
                     result["effects"].append({
                         "type": "empower", "caster": brv_attacker.name,
                         "target": hp_attacker.name,
@@ -6935,15 +7070,15 @@ class CombatManager:
                     self.logger.info(f"[합체기 강화] {brv_attacker.name} → {hp_attacker.name} 강화 (x1.5)")
 
                 elif pattern == "weaken_execute":
-                    # 약화→처형: P1이 적 방어력 절반 감소
-                    def_reduction = 0.5
+                    # 약화→처형: P1이 적 방어력 50% 무시
+                    calc_kwargs["pierce"] = 0.5
                     for t in targets:
                         result["effects"].append({
                             "type": "weaken", "caster": brv_attacker.name,
                             "target": t.name,
                             "message": f"{brv_attacker.name}이(가) {t.name}의 약점을 간파한다!"
                         })
-                    self.logger.info(f"[합체기 약화] {brv_attacker.name}이 적 방어력 50% 감소")
+                    self.logger.info(f"[합체기 약화] {brv_attacker.name}이 적 방어력 50% 무시")
 
                 elif pattern == "sacrifice_burst":
                     # 희생→폭발: P1이 HP 15%를 희생하여 추가 피해
@@ -6957,14 +7092,38 @@ class CombatManager:
                     })
                     self.logger.info(f"[합체기 희생] {brv_attacker.name} HP -{sacrifice_hp} → 추가 피해 +{sacrifice_bonus}")
 
-                brv_base = int(brv_atk_stat * multiplier * empower_mult) + sacrifice_bonus
+                # 방어 무시 / 크리티컬 확정 옵션
+                if effect.get("ignore_defense"):
+                    calc_kwargs["pierce"] = 1.0
+                if effect.get("critical_guaranteed"):
+                    calc_kwargs["force_critical"] = True
+
+                # 데미지 타입에 따라 물리/마법 계산기 선택
+                stat_base = effect.get("stat_base", damage_type)
+                element = effect.get("element", None)
+                use_magic = False
+                if stat_base in ("magic", "magical"):
+                    use_magic = True
+                elif stat_base == "hybrid":
+                    from src.combat.job_synergy import get_job_category
+                    brv_cat = get_job_category(getattr(brv_attacker, 'character_class', ''))
+                    use_magic = brv_cat in ("magic", "support")
+                elif damage_type in ("magic", "holy", "dark", "tech"):
+                    use_magic = True
 
                 for t in targets:
-                    # [1단계] BRV 공격: 적의 BRV 탈취
-                    defense = int(_resolve_stat(t, def_keys, 0) * def_reduction)
-                    if effect.get("ignore_defense"):
-                        defense = 0
-                    actual_brv_dmg = max(1, brv_base - defense // 2)
+                    # 메인 데미지 계산기로 BRV 데미지 산출
+                    if use_magic:
+                        dmg_result = self.damage_calc.calculate_magic_damage(
+                            brv_attacker, t, effective_mult, element=element,
+                            **calc_kwargs
+                        )
+                    else:
+                        dmg_result = self.damage_calc.calculate_brv_damage(
+                            brv_attacker, t, effective_mult, element=element,
+                            **calc_kwargs
+                        )
+                    actual_brv_dmg = max(1, dmg_result.final_damage + sacrifice_bonus)
 
                     old_target_brv = getattr(t, 'current_brv', 0)
                     t.current_brv = max(0, old_target_brv - actual_brv_dmg)
@@ -6983,17 +7142,14 @@ class CombatManager:
                         "amount": brv_stolen
                     })
 
-                    # [3단계] HP 공격: 계산된 BRV 데미지를 직접 HP 피해로 변환
-                    # (합체기는 필살기이므로 타겟 BRV 잔량에 무관하게 전체 피해 적용)
-                    hp_damage = actual_brv_dmg
-                    if effect.get("critical_guaranteed"):
-                        hp_damage = int(hp_damage * 1.5)
-
+                    # [3단계] HP 공격: BRV 데미지에 HP 배율 적용 후 HP 피해
+                    hp_mult = getattr(self.damage_calc, 'hp_damage_multiplier', 0.15)
+                    hp_damage = max(1, int(actual_brv_dmg * hp_mult))
                     t.current_hp = max(0, getattr(t, 'current_hp', 0) - hp_damage)
                     result["effects"].append({
                         "type": "hp_attack", "attacker": hp_attacker.name,
                         "target": t.name, "hp_damage": hp_damage,
-                        "damage_type": damage_type
+                        "damage_type": damage_type, "critical": dmg_result.is_critical
                     })
 
                     self.logger.info(

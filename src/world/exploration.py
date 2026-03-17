@@ -585,28 +585,28 @@ class ExplorationSystem:
         # on_update 콜백에서 _move_all_enemies()가 지속적으로 호출됨
         # 플레이어와 적이 시간 기반으로 독립적으로 움직임
 
-        # 랜덤 이벤트 체크 (타일 이벤트가 없을 때만, 마을 제외)
-        if result.event == ExplorationEvent.NONE and not (hasattr(self, 'is_town') and self.is_town):
+        # 랜덤 이벤트 트리거 (RPG 오픈월드 맵 크기 > 300 에서만 활성화)
+        # RandomEventManager.on_step()이 최소 간격·확률·쿨다운을 내부적으로 관리
+        if self.dungeon.width > 300 or self.dungeon.height > 300:
             try:
                 from src.world.random_events import get_random_event_manager
+                party_jobs = [getattr(c, 'character_class', '') for c in (self.player.party or [])]
                 event_mgr = get_random_event_manager()
-                current_floor = getattr(self.dungeon, 'floor', 1)
-                region = getattr(self, 'current_region', None) or getattr(self, 'nav_current_region', None)
-                biome = getattr(self.dungeon, 'biome', None)
-                party_jobs = []
-                if hasattr(self.player, 'party') and self.player.party:
-                    party_jobs = [getattr(c, 'character_class', '') for c in self.player.party]
-                random_event = event_mgr.on_step(current_floor, region, party_jobs, biome=biome)
-                if random_event:
+                triggered = event_mgr.on_step(
+                    floor=self.floor_number,
+                    region=getattr(self, '_current_region_id', None),
+                    party_jobs=party_jobs,
+                    biome=None,
+                )
+                if triggered is not None:
                     result = ExplorationResult(
                         success=True,
                         event=ExplorationEvent.RANDOM_EVENT,
-                        message=f"이벤트 발생: {random_event.name}",
-                        data={"random_event": random_event}
+                        message=triggered.name,
+                        data={"random_event": triggered},
                     )
-                    return result
-            except Exception as e:
-                logger.warning(f"랜덤 이벤트 체크 실패: {e}")
+            except Exception:
+                pass
 
         # 호감도 이동 보너스 (50스텝마다 전체 파티 호감도 +1)
         try:
@@ -1433,6 +1433,7 @@ class ExplorationSystem:
             TileType.FLOWER, TileType.ROCK, TileType.DEAD_TREE,
             TileType.MUSHROOM, TileType.CACTUS, TileType.RUINS,
             TileType.STAR_MOSS, TileType.SCORCHED_EARTH, TileType.CRYSTAL_GRASS,
+            TileType.SHALLOW_WATER, TileType.LAVA, TileType.CRYSTAL,
         } if is_large_map else set()
 
         for x in range(x_min, x_max):

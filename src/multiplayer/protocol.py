@@ -108,6 +108,10 @@ class MessageType(Enum):
     # 퍼즐
     PUZZLE_SOLVED = "puzzle_solved"  # 퍼즐 해결 알림
 
+    # 전투 결과/종료
+    ACTION_RESULT = "action_result"  # 액션 실행 결과 브로드캐스트
+    COMBAT_END = "combat_end"  # 전투 종료 알림
+
     # 상태 복구 (재연결용)
     REQUEST_STATE_SYNC = "request_state_sync"  # 클라이언트 -> 호스트: 전투 상태 요청
     FULL_STATE_SYNC = "full_state_sync"  # 호스트 -> 클라이언트: 전체 전투 상태 응답
@@ -332,8 +336,50 @@ class MessageBuilder:
         )
     
     @staticmethod
-    def combat_start(participants: list, enemies: list, position: tuple) -> NetworkMessage:
-        """전투 시작 메시지 생성 (적 전체 데이터 포함)"""
+    def serialize_character_for_combat(character) -> Dict[str, Any]:
+        """
+        캐릭터의 핵심 전투 데이터를 직렬화
+
+        Args:
+            character: Character 객체 (아군)
+
+        Returns:
+            직렬화된 캐릭터 전투 데이터
+        """
+        return {
+            "id": getattr(character, 'id', str(id(character))),
+            "name": getattr(character, 'name', '아군'),
+            "job_id": getattr(character, 'job_id', getattr(character, 'character_class', 'warrior')),
+            "job_name": getattr(character, 'job_name', '전사'),
+            "level": getattr(character, 'level', 1),
+            "max_hp": getattr(character, 'max_hp', 100),
+            "current_hp": getattr(character, 'current_hp', 100),
+            "max_mp": getattr(character, 'max_mp', 50),
+            "current_mp": getattr(character, 'current_mp', 50),
+            "physical_attack": getattr(character, 'physical_attack', 10),
+            "physical_defense": getattr(character, 'physical_defense', 10),
+            "magic_attack": getattr(character, 'magic_attack', 10),
+            "magic_defense": getattr(character, 'magic_defense', 10),
+            "speed": getattr(character, 'speed', 50),
+            "max_brv": getattr(character, 'max_brv', 1000),
+            "init_brv": getattr(character, 'init_brv', 333),
+            "current_brv": getattr(character, 'current_brv', 0),
+            "is_alive": getattr(character, 'is_alive', True),
+            "owner_player_id": getattr(character, 'owner_player_id', None),
+        }
+
+    @staticmethod
+    def combat_start(participants: list, enemies: list, position: tuple, all_parties: Optional[Dict[str, list]] = None) -> NetworkMessage:
+        """
+        전투 시작 메시지 생성 (적 전체 데이터 + 모든 참여자 파티 포함)
+
+        Args:
+            participants: 참여자 ID 리스트
+            enemies: 적 객체 리스트
+            position: 전투 위치 (x, y)
+            all_parties: 모든 참여 플레이어의 파티 데이터
+                         {player_id: [serialized_character_data, ...]}
+        """
         # 적 전체 데이터 직렬화 (클라이언트가 동일한 적을 구성할 수 있도록)
         serialized_enemies = []
         for e in enemies:
@@ -367,14 +413,20 @@ class MessageBuilder:
                 }
                 serialized_enemies.append(enemy_data)
 
+        msg_data = {
+            "participants": participants,
+            "enemies": [ed.get("id", "") for ed in serialized_enemies],
+            "enemy_data": serialized_enemies,
+            "position": {"x": position[0], "y": position[1]}
+        }
+
+        # 모든 참여자 파티 정보 포함
+        if all_parties:
+            msg_data["all_parties"] = all_parties
+
         return NetworkMessage(
             type=MessageType.COMBAT_START,
-            data={
-                "participants": participants,
-                "enemies": [ed.get("id", "") for ed in serialized_enemies],
-                "enemy_data": serialized_enemies,
-                "position": {"x": position[0], "y": position[1]}
-            }
+            data=msg_data
         )
     
     @staticmethod
@@ -704,6 +756,68 @@ class MessageBuilder:
         """
         return NetworkMessage(
             type=msg_type,
+            data=data
+        )
+
+    @staticmethod
+    def action_selection_start(actor_id: str, actor_name: str, player_id: str) -> NetworkMessage:
+        """
+        액션 선택 시작 메시지 생성 (호스트 -> 특정 클라이언트)
+
+        원격 플레이어의 캐릭터 턴이 되었을 때 해당 플레이어에게 행동 선택을 요청합니다.
+
+        Args:
+            actor_id: 행동할 캐릭터 ID
+            actor_name: 행동할 캐릭터 이름
+            player_id: 대상 플레이어 ID
+        """
+        return NetworkMessage(
+            type=MessageType.ACTION_SELECTION_START,
+            player_id=player_id,
+            data={
+                "actor_id": actor_id,
+                "actor_name": actor_name,
+                "player_id": player_id
+            }
+        )
+
+    @staticmethod
+    def action_result(actor_id: str, result_data: Dict[str, Any], combat_state: Optional[Dict[str, Any]] = None) -> NetworkMessage:
+        """
+        액션 실행 결과 브로드캐스트 메시지 생성 (호스트 -> 모든 클라이언트)
+
+        Args:
+            actor_id: 행동한 캐릭터 ID
+            result_data: 액션 실행 결과 데이터
+            combat_state: 최신 전투 상태 스냅샷 (선택적)
+        """
+        data = {
+            "actor_id": actor_id,
+            "result": result_data
+        }
+        if combat_state:
+            data["combat_state"] = combat_state
+        return NetworkMessage(
+            type=MessageType.ACTION_RESULT,
+            data=data
+        )
+
+    @staticmethod
+    def combat_end(result: str, rewards: Optional[Dict[str, Any]] = None) -> NetworkMessage:
+        """
+        전투 종료 메시지 생성 (호스트 -> 모든 클라이언트)
+
+        Args:
+            result: 전투 결과 ("victory", "defeat", "fled")
+            rewards: 보상 데이터 (승리 시)
+        """
+        data: Dict[str, Any] = {
+            "result": result
+        }
+        if rewards:
+            data["rewards"] = rewards
+        return NetworkMessage(
+            type=MessageType.COMBAT_END,
             data=data
         )
 
