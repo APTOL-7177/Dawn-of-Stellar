@@ -1218,7 +1218,40 @@ def main() -> int:
                                 # 보스 + 잡몹 3마리
                                 minions = EnemyGenerator.generate_enemies(boss_floor, 3)
                                 enemies = [boss] + minions
-                                
+
+                                # 멀티플레이: 참여 파티 수집 + COMBAT_START 브로드캐스트
+                                combat_position = (exploration.player.x, exploration.player.y)
+                                if session and network_manager:
+                                    try:
+                                        # 주변 플레이어 파티 합류
+                                        if hasattr(exploration, '_get_nearby_participants'):
+                                            mp_participants = exploration._get_nearby_participants(combat_position)
+                                            if mp_participants and len(mp_participants) > len(combat_party):
+                                                combat_party = mp_participants
+                                                logger.info(f"[멀티플레이] 스토리 보스전 합류 파티: {len(combat_party)}명")
+
+                                        # 파티 정보 수집
+                                        all_parties = None
+                                        if hasattr(exploration, '_collect_all_parties'):
+                                            all_parties = exploration._collect_all_parties(combat_position)
+
+                                        # COMBAT_START 브로드캐스트
+                                        participant_ids = sorted(session.players.keys()) if session.players else []
+                                        start_msg = MessageBuilder.combat_start(
+                                            participants=participant_ids,
+                                            enemies=enemies,
+                                            position=combat_position,
+                                            all_parties=all_parties
+                                        )
+                                        start_msg.data["participant_player_ids"] = participant_ids
+                                        start_msg.data["num_enemies"] = len(enemies)
+                                        start_msg.data["is_boss"] = True
+                                        start_msg.data["floor"] = boss_floor
+                                        network_manager.broadcast_sync(start_msg)
+                                        logger.info(f"[멀티플레이] 스토리 보스전 COMBAT_START 브로드캐스트: 적 {len(enemies)}마리")
+                                    except Exception as e:
+                                        logger.error(f"스토리 보스전 멀티플레이 브로드캐스트 실패: {e}", exc_info=True)
+
                                 # 전투 실행
                                 combat_result, _ = run_combat(
                                     display.console,
@@ -1228,7 +1261,7 @@ def main() -> int:
                                     inventory=inventory,
                                     session=session,
                                     network_manager=network_manager,
-                                    combat_position=(exploration.player.x, exploration.player.y),
+                                    combat_position=combat_position,
                                     dungeon=exploration.dungeon,
                                     local_player_id=local_player_id
                                 )
