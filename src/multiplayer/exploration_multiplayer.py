@@ -604,7 +604,11 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     return self.player.party or []
                 return []
             
-            participation_radius = MultiplayerConfig.participation_radius_player  # 10 타일
+            # 시야거리 × 3을 합류 반경으로 사용 (기본 시야 3 → 반경 9)
+            fov_radius = 3  # 기본값
+            if hasattr(self, 'fov_system') and self.fov_system:
+                fov_radius = getattr(self.fov_system, 'default_radius', 3) or 3
+            participation_radius = max(fov_radius * 3, 5)  # 최소 5타일 보장
             participants = []
             
             # 모든 플레이어 확인
@@ -702,7 +706,11 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             if not self.is_multiplayer or not self.session:
                 return all_parties
 
-            participation_radius = MultiplayerConfig.participation_radius_player
+            # 시야거리 × 3을 합류 반경으로 사용
+            fov_radius = 3
+            if hasattr(self, 'fov_system') and self.fov_system:
+                fov_radius = getattr(self.fov_system, 'default_radius', 3) or 3
+            participation_radius = max(fov_radius * 3, 5)
 
             for player_id, player in self.session.players.items():
                 try:
