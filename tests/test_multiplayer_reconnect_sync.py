@@ -187,7 +187,7 @@ class TestHostMigrationDisabled:
             MultiplayerExplorationSystem._on_host_migrated(ex, {"is_new_host": True, "new_host_id": "c1"})
             assert ex.is_host is False  # 전환 없음
 
-        scenario()
+        asyncio.run(scenario())
 
 
 # ---------------------------------------------------------------- reconnect supersede

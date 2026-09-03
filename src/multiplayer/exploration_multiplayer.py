@@ -1802,7 +1802,9 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                             join_message = MessageBuilder.combat_join(
                                 player_id=player_id,
                                 characters=character_ids,
-                                combat_state=combat_state
+                                combat_state=combat_state,
+                                combat_id=combat_id,
+                                epoch=self.session.epoch if self.session else 0
                             )
                             await self.network_manager.broadcast(join_message)
                         except Exception as e:

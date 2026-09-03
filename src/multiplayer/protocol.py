@@ -271,13 +271,15 @@ class MessageBuilder:
         )
     
     @staticmethod
-    def connection_accepted(player_id: str, session_id: str) -> NetworkMessage:
-        """연결 승인 메시지 생성"""
+    def connection_accepted(player_id: str, session_id: str, epoch: int = 0) -> NetworkMessage:
+        """연결 승인 메시지 생성 (epoch 태그, t_7846bbe3 §4.1/§5.2 — connect 빌더 패턴 동일)"""
         return NetworkMessage(
             type=MessageType.CONNECTION_ACCEPTED,
             player_id=player_id,
+            epoch=epoch,
             data={
-                "session_id": session_id
+                "session_id": session_id,
+                "epoch": epoch
             }
         )
     
@@ -486,14 +488,18 @@ class MessageBuilder:
         )
     
     @staticmethod
-    def combat_join(player_id: str, characters: list, combat_state: dict) -> NetworkMessage:
-        """전투 합류 메시지 생성"""
+    def combat_join(player_id: str, characters: list, combat_state: dict,
+                    combat_id: Optional[str] = None, epoch: int = 0) -> NetworkMessage:
+        """전투 합류 메시지 생성 (combat_id/epoch 태그 — late join 검증용, t_7846bbe3 §5.4)"""
         return NetworkMessage(
             type=MessageType.COMBAT_JOIN,
             player_id=player_id,
+            epoch=epoch,
             data={
                 "characters": characters,
-                "combat_state": combat_state
+                "combat_state": combat_state,
+                "combat_id": combat_id,
+                "epoch": epoch
             }
         )
     

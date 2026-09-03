@@ -150,6 +150,56 @@ class NetworkManager:
                 
                 self.logger.info(f"DUNGEON_DATA 수신: floor={self.pending_floor_number}")
         
+        # COMBAT_JOIN 메시지 처리 (호스트만 — late join 정합 검증, t_7846bbe3 §5.4)
+        if message_type == MessageType.COMBAT_JOIN:
+            if self.is_host and self.session:
+                session = self.session
+                joiner_id = message.player_id or sender_id
+                combat_id = message.data.get("combat_id")
+                joiner_epoch = message.data.get("epoch", message.epoch)
+                exploration = self.current_exploration
+                handler = getattr(exploration, 'combat_join_handler', None) if exploration else None
+
+                server_epoch = session.epoch if session else 0
+                # 요청자 생존: 세션 플레이어의 파티에 생존 캐릭터가 있는지 확인
+                requester_alive = True
+                mp_player = session.players.get(joiner_id)
+                if mp_player is not None:
+                    party = getattr(mp_player, 'party', None) or []
+                    if party:
+                        requester_alive = any(getattr(c, 'is_alive', True) for c in party)
+
+                if handler is None or not combat_id:
+                    # 합류 처리 경로가 없으면 로그 후 무시 (grace 부재 상태에서 조용히 통과시키지 않음)
+                    self.logger.warning(
+                        f"late COMBAT_JOIN 무시 (검증 핸들러 부재): player={joiner_id}, combat={combat_id}"
+                    )
+                else:
+                    allowed, reason = handler.validate_late_join(
+                        joiner_id,
+                        combat_id,
+                        epoch=joiner_epoch,
+                        server_epoch=server_epoch,
+                        requester_alive=requester_alive,
+                    )
+                    if allowed:
+                        # 합류 승인: 실제 합류 처리 (자동 합류 경로와 동일 처리)
+                        player_obj = mp_player
+                        if exploration and player_obj is not None and hasattr(exploration, '_add_player_to_combat'):
+                            try:
+                                import asyncio as _asyncio
+                                _asyncio.get_running_loop()
+                                _asyncio.ensure_future(exploration._add_player_to_combat(joiner_id, player_obj, combat_id))
+                            except RuntimeError:
+                                # 실행 루프 밖(동기 컨텍스트)이면 합류 표시만 하고 로그 남김
+                                handler.mark_player_joined(combat_id, joiner_id)
+                                self.logger.info(f"late join 합류 표시 (동기 컨텍스트): {joiner_id} → {combat_id}")
+                    else:
+                        # 거부: 로그 남기고 무시 (합류 처리 안 함)
+                        self.logger.warning(
+                            f"late COMBAT_JOIN 거부: player={joiner_id}, combat={combat_id}, reason={reason}"
+                        )
+
         # REQUEST_COMBAT_START 메시지 처리 (호스트만)
         if message_type == MessageType.REQUEST_COMBAT_START:
             if self.is_host and self.session:
@@ -750,11 +800,12 @@ class HostNetworkManager(NetworkManager):
                         self.session.add_player(new_player)
                         self.logger.info(f"세션에 플레이어 추가: {client_name} ({client_id})")
                     
-                    # 연결 승인 메시지 전송
+                    # 연결 승인 메시지 전송 (세션 epoch 태그 — 클라이언트가 학습하여 재접속 CONNECT에 태그, t_7846bbe3 §5.2)
                     session_id = self.session.session_id if self.session else "unknown"
                     accept_msg = MessageBuilder.connection_accepted(
                         client_id,
-                        session_id
+                        session_id,
+                        epoch=server_epoch
                     )
                     await self._send_raw(accept_msg.to_json().encode('utf-8'), websocket)
                     
@@ -1088,8 +1139,8 @@ class ClientNetworkManager(NetworkManager):
             self.websocket = await websockets.connect(self.ws_url)
             self.logger.info("WebSocket 연결 성공")
             
-            # 연결 메시지 전송
-            connect_msg = MessageBuilder.connect(player_id, player_name)
+            # 연결 메시지 전송 (학습한 세션 epoch 태그 — 구 세대 재접속은 서버가 거부, t_7846bbe3 §4.1/§5.2)
+            connect_msg = MessageBuilder.connect(player_id, player_name, epoch=self.session_epoch)
             connect_data = connect_msg.to_json().encode('utf-8')
             self.logger.debug(f"연결 메시지 전송: {len(connect_data)} bytes, 타입={connect_msg.type}, player_id={player_id}")
             await self._send_raw(connect_data, self.websocket)
@@ -1125,6 +1176,21 @@ class ClientNetworkManager(NetworkManager):
                     except asyncio.TimeoutError:
                         self.logger.warning("세션 시드 메시지 타임아웃 (백그라운드 루프에서 수신 예정)")
                 else:
+                    # 세션 만료 거부: 재연결 루프를 즉시 포기 (t_7846bbe3 §4.3)
+                    if message.type == MessageType.SESSION_STALE:
+                        self.logger.warning(
+                            f"접속 거부 (세션 epoch 불일치): server={message.data.get('server_epoch')}, "
+                            f"client={message.data.get('client_epoch')}"
+                        )
+                        self.session_stale = True
+                        self._auto_reconnect = False
+                        self.connection_state = ConnectionState.DISCONNECTED
+                        try:
+                            await self.websocket.close()
+                        except Exception:
+                            pass
+                        self.websocket = None
+                        raise Exception("재접속 거부: 세션이 만료되었습니다 (구 세대)")
                     # 예상하지 못한 메시지 타입
                     raise Exception(f"연결 거부됨: 받은 메시지 타입={message.type} (예상: {MessageType.CONNECTION_ACCEPTED})")
             
