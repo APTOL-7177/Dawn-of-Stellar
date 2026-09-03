@@ -23,6 +23,10 @@ print("=== GAME STARTING ===")  # 게임 시작 즉시 표시
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# Linux X11: MIT-SHM BadLength 방지 (SDL/pygame 초기화 전에 설정 필수)
+if os.name != 'nt':
+    os.environ.setdefault("SDL_VIDEO_X11_SHMAT", "0")
+
 # Linux 실행 환경 사전 체크
 if os.name != 'nt':
     _missing = []
@@ -640,10 +644,27 @@ def main() -> int:
                     logger.info(f"스토리 모드 종료: {story_result.value}")
 
                     if story_result == StoryModeResult.TRANSITION_TO_GAME:
-                        # 스토리 완료 후 메인 게임 전환
+                        # 스토리 완료 후 메인 게임(RPG 모드) 전환
                         logger.info("스토리 모드에서 메인 게임으로 전환")
-                        # 새 게임으로 전환 (직업 선택 완료 상태)
-                        pass
+                        from src.rpg_mode.rpg_mode_manager import (
+                            RPGModeManager,
+                            RPGModeResult,
+                        )
+
+                        try:
+                            rpg_manager = RPGModeManager(display.console, display.context)
+                            rpg_result = rpg_manager.run()
+                            logger.info(f"RPG 모드 종료: {rpg_result.value}")
+                            if rpg_result == RPGModeResult.COMPLETED:
+                                logger.info("메인 게임 클리어 - 메인 메뉴로 복귀")
+                        except Exception as rpg_error:
+                            logger.error(f"메인 게임 전환 오류: {rpg_error}")
+                            import traceback
+                            logger.error(traceback.format_exc())
+                    else:
+                        logger.info(
+                            "스토리 모드가 게임 전환을 반환하지 않음 - 메인 메뉴로 복귀"
+                        )
                 except Exception as e:
                     logger.error(f"스토리 모드 오류: {e}")
                     import traceback
@@ -1510,7 +1531,10 @@ def main() -> int:
                                     if map_enemies:
                                         exploration.game_stats["enemies_defeated"] += len(map_enemies)
                                         for enemy_entity in map_enemies:
-                                            if enemy_entity in exploration.enemies:
+                                            e_id = getattr(enemy_entity, "id", None)
+                                            if e_id:
+                                                exploration.enemies = [e for e in exploration.enemies if getattr(e, "id", None) != e_id]
+                                            elif enemy_entity in exploration.enemies:
                                                 exploration.enemies.remove(enemy_entity)
                                     
                                     rewards = RewardCalculator.calculate_combat_rewards(
@@ -1574,17 +1598,6 @@ def main() -> int:
 
                                     inventory.add_gold(rewards.get("gold", 0))
 
-                                    # 멀티플레이: 보상 지급 완료 후 유령 플레이어 부활 (HP 1)
-                                    from src.combat.combat_manager import get_combat_manager
-                                    _cm = get_combat_manager()
-                                    if _cm and getattr(_cm, '_ghost_revival_pending', False):
-                                        for _ally in getattr(_cm, 'allies', []):
-                                            if getattr(_ally, 'is_ghost', False):
-                                                _ally.is_ghost = False
-                                                _ally.is_alive = True
-                                                _ally.current_hp = 1
-                                                logger.info(f"[유령 부활] {getattr(_ally, 'name', 'Unknown')} HP 1로 부활 (보상 지급 후)")
-                                        _cm._ghost_revival_pending = False
 
                                     # === 보스 승리 시 층 클리어 처리 ===
                                     if is_boss_fight and (floor_number == 20 or floor_number == 30):
@@ -1985,7 +1998,11 @@ def main() -> int:
                         if session_data["dungeon_data"] is None:
                             logger.warning("던전 데이터를 받지 못했습니다. 게임 시작 전 클라이언트 연결일 수 있습니다.")
                             # 게임이 시작되지 않은 경우, 로비로 이동하여 대기
-                            session = MultiplayerSession(max_players=4, host_id=None)
+                            session = MultiplayerSession(
+                                max_players=4,
+                                host_id=None,
+                                auto_assign_host=False,
+                            )
                             session.session_seed = session_data["session_seed"]
                             if session_data["session_id"]:
                                 session.session_id = session_data["session_id"]
@@ -2615,7 +2632,7 @@ def main() -> int:
                                             elif result == "combat":
                                                 # 전투 처리 (멀티플레이 지원)
                                                 logger.info("⚔ 전투 시작!")
-                                                
+
                                                 if data and isinstance(data, dict):
                                                     num_enemies = data.get("num_enemies", 0)
                                                     map_enemies = data.get("enemies", [])
@@ -2629,16 +2646,17 @@ def main() -> int:
                                                     combat_party = party_members
                                                     combat_position = (local_player.x, local_player.y)
                                                     is_boss_fight = False
-                                                
-                                                # 멀티플레이: 호스트가 보낸 동기화된 적이 있으면 사용
+
+                                                # 멀티플레이 클라이언트: synced_enemies 필수 (독자 전투 방지)
                                                 synced_enemies = data.get("synced_enemies") if data else None
                                                 if synced_enemies:
                                                     enemies = synced_enemies
                                                     logger.info(f"[멀티플레이] 호스트 동기화 적 사용: {len(enemies)}마리")
-                                                elif num_enemies > 0:
-                                                    enemies = EnemyGenerator.generate_enemies(floor_number, num_enemies)
                                                 else:
-                                                    enemies = EnemyGenerator.generate_enemies(floor_number)
+                                                    # 클라이언트: 호스트 동기화 적 없이는 전투 진입 불가
+                                                    logger.warning("[멀티플레이] 클라이언트: synced_enemies 없음 - 전투 스킵, 호스트 COMBAT_START 대기")
+                                                    play_dungeon_bgm = False
+                                                    continue
 
                                                 if is_boss_fight and map_enemies:
                                                     boss_entity = next((e for e in map_enemies if e.is_boss), None)
@@ -2697,7 +2715,10 @@ def main() -> int:
                                                     if map_enemies:
                                                         exploration.game_stats["enemies_defeated"] += len(map_enemies)
                                                         for enemy_entity in map_enemies:
-                                                            if enemy_entity in exploration.enemies:
+                                                            e_id = getattr(enemy_entity, 'id', None)
+                                                            if e_id:
+                                                                exploration.enemies = [e for e in exploration.enemies if getattr(e, 'id', None) != e_id]
+                                                            elif enemy_entity in exploration.enemies:
                                                                 exploration.enemies.remove(enemy_entity)
                                                     
                                                     rewards = RewardCalculator.calculate_combat_rewards(
@@ -3270,7 +3291,15 @@ def main() -> int:
                             logger.info("세션에 탐험 시스템 설정 완료")
                     else:
                         # 싱글플레이 탐험 시스템
-                        exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                        if session:
+                            from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                            exploration = MultiplayerExplorationSystem(dungeon, party, floor_number, inventory, game_stats, session=session, network_manager=network_manager, local_player_id=local_player_id)
+                        else:
+                            exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                        if 'network_manager' in locals() and network_manager:
+                            network_manager.current_exploration = exploration
+                            network_manager.current_floor = floor_number
+                            network_manager.current_dungeon = dungeon
                         exploration.player.x = player_pos["x"]
                         exploration.player.y = player_pos["y"]
                         logger.info("싱글플레이 탐험 시스템 생성 완료")
@@ -3652,7 +3681,10 @@ def main() -> int:
                                 if map_enemies:
                                     exploration.game_stats["enemies_defeated"] += len(map_enemies)
                                     for enemy_entity in map_enemies:
-                                        if enemy_entity in exploration.enemies:
+                                        e_id = getattr(enemy_entity, "id", None)
+                                        if e_id:
+                                            exploration.enemies = [e for e in exploration.enemies if getattr(e, "id", None) != e_id]
+                                        elif enemy_entity in exploration.enemies:
                                             exploration.enemies.remove(enemy_entity)
                                     logger.info(f"맵 적 엔티티 {len(map_enemies)}개 제거 (총 격파: {exploration.game_stats['enemies_defeated']}마리)")
 
@@ -4185,7 +4217,15 @@ def main() -> int:
                                     saved_y = None
                                     logger.info(f"새 {floor_number}층 던전 생성")
                                 
-                                exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                if session:
+                                    from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                                    exploration = MultiplayerExplorationSystem(dungeon, party, floor_number, inventory, game_stats, session=session, network_manager=network_manager, local_player_id=local_player_id)
+                                else:
+                                    exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                if 'network_manager' in locals() and network_manager:
+                                    network_manager.current_exploration = exploration
+                                    network_manager.current_floor = floor_number
+                                    network_manager.current_dungeon = dungeon
                                 # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
                                 if saved_enemies:
                                     exploration.enemies = saved_enemies
@@ -4370,14 +4410,30 @@ def main() -> int:
                     from src.town.town_map import get_town_map, create_town_dungeon_map
                     from src.town.town_manager import TownManager
                     from src.town.floor_transition import get_floor_transition_manager
-                    
+
                     # 마을 관련 객체 전역 저장 (층 이동 시 재사용)
                     town_map = get_town_map()
                     town_manager = TownManager()
                     dungeon = create_town_dungeon_map(town_map)
-                    
+
+                    # 싱글플레이: session/network_manager 미정의 방어
+                    if 'session' not in locals():
+                        session = None
+                    if 'network_manager' not in locals():
+                        network_manager = None
+                    if 'local_player_id' not in locals():
+                        local_player_id = None
+
                     # 탐험 시스템 초기화 (마을)
-                    exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                    if session:
+                        from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                        exploration = MultiplayerExplorationSystem(dungeon, party, floor_number, inventory, game_stats, session=session, network_manager=network_manager, local_player_id=local_player_id)
+                    else:
+                        exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                    if 'network_manager' in locals() and network_manager:
+                        network_manager.current_exploration = exploration
+                        network_manager.current_floor = floor_number
+                        network_manager.current_dungeon = dungeon
                     # 마을 플레이어 스폰 위치 설정
                     spawn_x, spawn_y = town_map.player_spawn
                     exploration.player.x = spawn_x
@@ -4852,7 +4908,15 @@ def main() -> int:
                                             saved_y = None
                                             logger.info(f"새 {floor_number}층 던전 생성")
                                         
-                                        exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        if session:
+                                            from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                                            exploration = MultiplayerExplorationSystem(dungeon, party, floor_number, inventory, game_stats, session=session, network_manager=network_manager, local_player_id=local_player_id)
+                                        else:
+                                            exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        if 'network_manager' in locals() and network_manager:
+                                            network_manager.current_exploration = exploration
+                                            network_manager.current_floor = floor_number
+                                            network_manager.current_dungeon = dungeon
                                         if saved_enemies:
                                             exploration.enemies = saved_enemies
                                         if saved_x is not None and saved_y is not None:
@@ -4929,7 +4993,15 @@ def main() -> int:
                                             saved_y = None
                                             logger.info(f"새 마을 맵 생성")
                                         
-                                        exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        if session:
+                                            from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                                            exploration = MultiplayerExplorationSystem(dungeon, party, floor_number, inventory, game_stats, session=session, network_manager=network_manager, local_player_id=local_player_id)
+                                        else:
+                                            exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        if 'network_manager' in locals() and network_manager:
+                                            network_manager.current_exploration = exploration
+                                            network_manager.current_floor = floor_number
+                                            network_manager.current_dungeon = dungeon
                                         # 마을 플레이어 스폰 위치 설정
                                         if saved_x is not None and saved_y is not None:
                                             exploration.player.x = saved_x
@@ -4970,7 +5042,15 @@ def main() -> int:
                                             saved_y = None
                                             logger.info(f"새 {floor_number}층 던전 생성")
                                         
-                                        exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        if session:
+                                            from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                                            exploration = MultiplayerExplorationSystem(dungeon, party, floor_number, inventory, game_stats, session=session, network_manager=network_manager, local_player_id=local_player_id)
+                                        else:
+                                            exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        if 'network_manager' in locals() and network_manager:
+                                            network_manager.current_exploration = exploration
+                                            network_manager.current_floor = floor_number
+                                            network_manager.current_dungeon = dungeon
                                         # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
                                         if saved_enemies:
                                             exploration.enemies = saved_enemies
@@ -5030,7 +5110,15 @@ def main() -> int:
                                             saved_y = None
                                             logger.info(f"새 마을 맵 생성")
                                         
-                                        exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        if session:
+                                            from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                                            exploration = MultiplayerExplorationSystem(dungeon, party, floor_number, inventory, game_stats, session=session, network_manager=network_manager, local_player_id=local_player_id)
+                                        else:
+                                            exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        if 'network_manager' in locals() and network_manager:
+                                            network_manager.current_exploration = exploration
+                                            network_manager.current_floor = floor_number
+                                            network_manager.current_dungeon = dungeon
                                         # 마을 플레이어 스폰 위치 설정
                                         if saved_x is not None and saved_y is not None:
                                             exploration.player.x = saved_x
@@ -5082,7 +5170,15 @@ def main() -> int:
                                             saved_y = None
                                             logger.info(f"새 {floor_number}층 던전 생성")
                                         
-                                        exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        if session:
+                                            from src.multiplayer.exploration_multiplayer import MultiplayerExplorationSystem
+                                            exploration = MultiplayerExplorationSystem(dungeon, party, floor_number, inventory, game_stats, session=session, network_manager=network_manager, local_player_id=local_player_id)
+                                        else:
+                                            exploration = ExplorationSystem(dungeon, party, floor_number, inventory, game_stats)
+                                        if 'network_manager' in locals() and network_manager:
+                                            network_manager.current_exploration = exploration
+                                            network_manager.current_floor = floor_number
+                                            network_manager.current_dungeon = dungeon
                                         # 기존 던전이면 저장된 적 사용, 새 던전이면 _spawn_enemies()로 생성된 적 사용
                                         if saved_enemies:
                                             exploration.enemies = saved_enemies
