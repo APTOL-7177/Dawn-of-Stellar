@@ -9,7 +9,7 @@ import json
 import time
 import gzip
 import socket
-from typing import Dict, Callable, Optional, Set, Any, List
+from typing import Dict, Callable, Optional, Set, Any, List, Tuple
 from enum import Enum
 
 import websockets
@@ -113,7 +113,7 @@ class NetworkManager:
                         )
                         return
                     self.session.set_floor_ready(authorized_player_id, ready)
-                    from src.multiplayer.protocol import MessageBuilder
+                    # MessageBuilder는 모듈 상단에서 임포트됨 (지역 import 금지 — UnboundLocalError 유발)
                     updated_msg = MessageBuilder.floor_ready(
                         player_id=authorized_player_id,
                         ready=ready,
@@ -220,7 +220,7 @@ class NetworkManager:
                                 return
 
                     # 전투 시작 브로드캐스트
-                    from src.multiplayer.protocol import MessageBuilder
+                    # MessageBuilder는 모듈 상단에서 임포트됨 (지역 import 금지 — UnboundLocalError 유발)
 
                     # 현재 탐험 시스템에서 적 정보 가져오기
                     enemies = []
@@ -261,7 +261,7 @@ class NetworkManager:
                             f"→ session.players에서 파티 직접 수집 (폴백)"
                         )
                         if self.session and self.session.players:
-                            from src.multiplayer.protocol import MessageBuilder
+                            # MessageBuilder는 모듈 상단에서 임포트됨 (지역 import 금지 — UnboundLocalError 유발)
                             all_parties = {}
                             for pid, mp_player in self.session.players.items():
                                 party = getattr(mp_player, 'party', None) or []
@@ -308,6 +308,65 @@ class NetworkManager:
                     # 롤백 함수 호출
                     if hasattr(self.current_exploration, "rollback_player_position"):
                         self.current_exploration.rollback_player_position(correct_x, correct_y)
+
+        # REQUEST_SNAPSHOT 메시지 처리 (호스트만 — 통합 스냅샷 회신, t_7846bbe3 §5.3 / t_ceed55de)
+        if message_type == MessageType.REQUEST_SNAPSHOT:
+            if self.is_host and self.session:
+                requester_id = message.resolve_sender_player_id(sender_id) or message.player_id
+                session = self.session
+                snapshot = {
+                    "session": session.serialize(),
+                    "players": {
+                        pid: {
+                            "player_id": pid,
+                            "player_name": getattr(p, "player_name", pid),
+                            "x": getattr(p, "x", 0),
+                            "y": getattr(p, "y", 0),
+                            "is_host": getattr(p, "is_host", False),
+                        }
+                        for pid, p in session.players.items()
+                    },
+                    "positions": {
+                        pid: {"x": getattr(p, "x", 0), "y": getattr(p, "y", 0)}
+                        for pid, p in session.players.items()
+                    },
+                    "combat": None,
+                }
+                reply = MessageBuilder.full_snapshot(
+                    epoch=session.epoch,
+                    revision=session.state_revision,
+                    snapshot=snapshot,
+                )
+                ws = self.clients.get(requester_id) if requester_id else None
+                if ws is not None:
+                    try:
+                        await self._send_raw(reply.to_json().encode("utf-8"), ws)
+                        self.logger.info(
+                            f"FULL_SNAPSHOT 응답 전송: requester={requester_id}, "
+                            f"epoch={session.epoch}, revision={session.state_revision}"
+                        )
+                    except Exception as e:
+                        self.logger.warning(f"FULL_SNAPSHOT 응답 실패 ({requester_id}): {e}")
+                else:
+                    self.logger.warning(f"REQUEST_SNAPSHOT 무시 (요청자 소켓 없음): {requester_id}")
+
+        # 세션 상태 메시지 직접 처리 (클라이언트 — UI 플래그/알림 기록, t_ceed55de)
+        if message_type == MessageType.FULL_SNAPSHOT and not self.is_host:
+            await self._apply_full_snapshot(message)
+        if message_type == MessageType.CHARACTER_REVIVAL and not self.is_host:
+            await self._apply_character_revival(message, sender_id)
+        if message_type == MessageType.SESSION_STALE and not self.is_host:
+            self.session_stale = True
+            self._record_ui_notice(
+                "session_stale",
+                server_epoch=message.data.get("server_epoch"),
+                client_epoch=message.data.get("client_epoch"),
+            )
+        if message_type == MessageType.SESSION_ENDED and not self.is_host:
+            # 플래그/알림은 _receive_loop에서 이미 기록되지만, 직접 호출 경로에서도 보장
+            if not self.session_ended:
+                self.session_ended = True
+                self._record_ui_notice("session_ended", reason=message.data.get("reason", "unknown"))
 
         # 핸들러 호출
         if message_type in self.message_handlers:
@@ -696,8 +755,15 @@ class HostNetworkManager(NetworkManager):
         # 사용 가능한 포트를 찾지 못한 경우
         raise RuntimeError(f"사용 가능한 포트를 찾을 수 없습니다 ({start_port}~{start_port + max_attempts - 1})")
     
-    async def start_server(self):
-        """서버 시작 (사용 가능한 포트 자동 검색)"""
+    async def start_server(self, port: Optional[int] = None):
+        """서버 시작 (사용 가능한 포트 자동 검색)
+
+        Args:
+            port: 사용할 포트 (None이면 기존 self.port 유지, t_ceed55de —
+                  원 호스트가 로비를 다시 열 때 포트를 지정해 재개할 수 있다)
+        """
+        if port is not None:
+            self.port = port
         # 현재 실행 중인 이벤트 루프 저장 (동기 코드에서 브로드캐스트용)
         try:
             self._server_event_loop = asyncio.get_running_loop()
@@ -1118,6 +1184,114 @@ class ClientNetworkManager(NetworkManager):
         # 세션 종료/만료 플래그 (main.py UI에서 확인)
         self.session_ended: bool = False
         self.session_stale: bool = False
+        # UI 연동 상태 (t_ceed55de): FULL_SNAPSHOT 저장, 부활 대기열, UI 알림 목록
+        self.last_full_snapshot: Optional[Dict[str, Any]] = None
+        self.pending_revivals: List[Tuple[str, str, int, int]] = []
+        self.ui_notices: List[Dict[str, Any]] = []
+        self.player_state_manager: Optional[Any] = None
+
+    def _record_ui_notice(self, notice_type: str, **detail) -> None:
+        """UI 폴링용 알림 기록 (SESSION_ENDED/SESSION_STALE/FULL_SNAPSHOT 등)."""
+        notice = {"type": notice_type}
+        notice.update(detail)
+        self.ui_notices.append(notice)
+        # 무한 증가 방지: 최근 20개만 유지
+        if len(self.ui_notices) > 20:
+            del self.ui_notices[:-20]
+
+    async def reconnect(self):
+        """명시적 재접속 (UI '다시 접속' 경로, t_ceed55de).
+
+        자동 재연결(_attempt_reconnect)과 달리 플래그 초기화 후 즉시 1회 접속을 시도한다.
+        SESSION_ENDED/SESSION_STALE로 포기한 상태에서도 원 호스트가 같은 세션(epoch)으로
+        서버를 다시 열었다면 재합류가 가능하다.
+        """
+        if not self.player_id or not self._player_name:
+            raise Exception("재접속에 필요한 플레이어 정보가 없습니다")
+        # 상태 초기화: 세션 종료/만료 플래그는 재접속 성공 시 해제
+        self._auto_reconnect = True
+        self._reconnect_attempts = 0
+        self.session_ended = False
+        self.session_stale = False
+        await self.connect(self.player_id, self._player_name)
+
+    async def _apply_full_snapshot(self, message: NetworkMessage):
+        """FULL_SNAPSHOT 적용 (t_7846bbe3 §5.3): 스냅샷 저장 + UI 알림."""
+        self.last_full_snapshot = message.data.get("snapshot", {})
+        self.session_epoch = message.epoch or self.session_epoch
+        self._record_ui_notice(
+            "full_snapshot",
+            epoch=message.epoch,
+            revision=message.revision,
+        )
+        self.logger.info(
+            f"FULL_SNAPSHOT 수신: epoch={message.epoch}, revision={message.revision}"
+        )
+
+    async def _apply_character_revival(self, message: NetworkMessage, sender_id: Optional[str] = None):
+        """CHARACTER_REVIVAL 수신 → player_state/마크 복원 (t_7846bbe3 §5.5, t_ceed55de).
+
+        클라이언트 경로 전용: 호스트는 브로드캐스트 원천이므로 자기 자신 메시지에 대해
+        복원을 수행하지 않는다.
+        """
+        if self.is_host:
+            return
+        player_id = message.player_id
+        character_id = message.data.get("character_id")
+        x = int(message.data.get("x", 0))
+        y = int(message.data.get("y", 0))
+        hp_pct = message.data.get("hp_pct")
+
+        self.pending_revivals.append((player_id, character_id, x, y))
+        if len(self.pending_revivals) > 50:
+            del self.pending_revivals[:-50]
+
+        session = self.session
+        if session is None:
+            session = getattr(self, "_last_session_ref", None)
+        player = session.players.get(player_id) if session and hasattr(session, "players") else None
+        if player is not None:
+            target = None
+            for character in getattr(player, "party", None) or []:
+                cid = getattr(character, "id", None) or getattr(character, "name", None)
+                if cid == character_id:
+                    target = character
+                    break
+            if target is not None:
+                max_hp = getattr(target, "max_hp", None)
+                if max_hp is None and hasattr(target, "stat_manager"):
+                    try:
+                        max_hp = target.stat_manager.get_stat("hp")
+                    except Exception:
+                        max_hp = None
+                target.is_alive = True
+                if max_hp and hp_pct is not None:
+                    target.current_hp = int(max_hp * float(hp_pct))
+                elif not getattr(target, "current_hp", 0):
+                    target.current_hp = int((max_hp or 100) * 0.5)
+                if hasattr(target, "is_ghost"):
+                    target.is_ghost = False
+                # 이동 인가 기준점 재설정 (부활 위치 기준)
+                if hasattr(player, "reset_movement_state"):
+                    try:
+                        player.reset_movement_state(x=x, y=y)
+                    except (TypeError, ValueError):
+                        pass
+                # 마크 복원
+                psm = getattr(self, "player_state_manager", None)
+                if psm is not None:
+                    try:
+                        psm.update_player_state(player)
+                    except Exception as e:
+                        self.logger.debug(f"마크 복원 실패 (무시): {e}")
+                self.logger.info(
+                    f"CHARACTER_REVIVAL 적용: player={player_id}, char={character_id}, pos=({x}, {y})"
+                )
+        else:
+            self.logger.debug(
+                f"CHARACTER_REVIVAL 수신 (플레이어 미확인, 대기열에 보관): {player_id}/{character_id}"
+            )
+        self._record_ui_notice("character_revival", player_id=player_id, character_id=character_id, x=x, y=y)
     
     async def connect(self, player_id: str, player_name: str):
         """
@@ -1243,8 +1417,11 @@ class ClientNetworkManager(NetworkManager):
                             self.session_ended = True
                             self._auto_reconnect = False
                             self.connection_state = ConnectionState.DISCONNECTED
+                            self._record_ui_notice("session_ended", reason=message.data.get("reason", "unknown"))
                             await self._handle_message(message, self.HOST_TRANSPORT_SENDER)
                             break
+                        # FULL_SNAPSHOT/CHARACTER_REVIVAL은 _handle_message 내 직접 처리 경로에서
+                        # 단일 적용된다 (t_ceed55de — 이중 적용 방지를 위해 여기선 라우팅하지 않음)
                         await self._handle_message(message, self.HOST_TRANSPORT_SENDER)
             except websockets.exceptions.ConnectionClosed:
                 self.logger.warning("호스트 연결 종료")

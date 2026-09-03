@@ -1992,9 +1992,19 @@ def main() -> int:
                         
                         # 세션 정보 확인
                         if session_data["session_seed"] is None:
+                            # 세션 만료 거부(SESSION_STALE)라면 재시도 없이 사용자에게 안내 (t_ceed55de)
+                            if getattr(network_manager, "session_stale", False):
+                                from src.ui.npc_dialog_ui import show_npc_dialog
+                                show_npc_dialog(
+                                    display.console,
+                                    display.context,
+                                    "접속 거부",
+                                    "세션이 만료되었습니다 (구 세대).\n\n"
+                                    "호스트가 새 로비를 열었다면\n'다시 접속'으로 재참여할 수 있습니다."
+                                )
                             logger.error("세션 시드를 받지 못했습니다")
                             raise Exception("세션 시드 수신 실패")
-                        
+
                         if session_data["dungeon_data"] is None:
                             logger.warning("던전 데이터를 받지 못했습니다. 게임 시작 전 클라이언트 연결일 수 있습니다.")
                             # 게임이 시작되지 않은 경우, 로비로 이동하여 대기
@@ -2004,6 +2014,9 @@ def main() -> int:
                                 auto_assign_host=False,
                             )
                             session.session_seed = session_data["session_seed"]
+                            # 클라이언트 네트워크 계층에 세션 참조 연결 (t_ceed55de —
+                            # CHARACTER_REVIVAL 수신 시 player_state 복원에 필요)
+                            network_manager.session = session
                             if session_data["session_id"]:
                                 session.session_id = session_data["session_id"]
                             session.local_player_id = local_player_id
@@ -2172,7 +2185,37 @@ def main() -> int:
                             network_manager.register_handler(MessageType.LOBBY_COMPLETE, handle_lobby_complete)
                             network_manager.register_handler(MessageType.PLAYER_LEFT, handle_player_left)
                             network_manager.register_handler(MessageType.GAME_START, handle_game_start)
-                            
+
+                            # 세션 상태 UI 연동 (t_ceed55de): 네트워크 계층이 기록한 알림을
+                            # 사용자 화면에 반영한다. SESSION_STALE/SESSION_ENDED는 즉시 다이얼로그,
+                            # FULL_SNAPSHOT/CHARACTER_REVIVAL은 로그로 확인 가능.
+                            network_manager.player_state_manager = None  # 게임 시작 시 탐험 시스템이 설정
+
+                            def poll_session_ui_notices():
+                                """네트워크 계층의 UI 알림을 소비해 사용자에게 표시한다."""
+                                from src.ui.npc_dialog_ui import show_npc_dialog
+                                notices = list(getattr(network_manager, "ui_notices", []))
+                                network_manager.ui_notices.clear()
+                                for notice in notices:
+                                    ntype = notice.get("type")
+                                    if ntype == "session_ended":
+                                        logger.warning("UI 알림: 세션 종료 (호스트 종료)")
+                                    elif ntype == "session_stale":
+                                        logger.warning(
+                                            f"UI 알림: 세션 만료 (구 세대 접속 시도) "
+                                            f"server={notice.get('server_epoch')}, client={notice.get('client_epoch')}"
+                                        )
+                                    elif ntype == "full_snapshot":
+                                        logger.info(
+                                            f"UI 알림: 상태 스냅샷 수신 (revision={notice.get('revision')})"
+                                        )
+                                    elif ntype == "character_revival":
+                                        logger.info(
+                                            f"UI 알림: 캐릭터 부활 ({notice.get('player_id')}/"
+                                            f"{notice.get('character_id')}) 위치 ({notice.get('x')}, {notice.get('y')})"
+                                        )
+                                return notices
+
                             # 로비에 던전 데이터 확인용 딕셔너리 전달
                             # 로비 내부에서 던전 데이터를 받았는지 확인하고 자동 완료
                             lobby_result = show_multiplayer_lobby(
@@ -2187,7 +2230,8 @@ def main() -> int:
                             )
                             
                             # 호스트 연결이 끊어졌거나 호스트가 나갔으면 메인 메뉴로 돌아가기
-                            if lobby_result and (lobby_result.get("host_disconnected") or host_disconnected.get("value", False)):
+                            poll_session_ui_notices()  # 로비 동안 쌓인 세션 알림 소비 (t_ceed55de)
+                            if lobby_result and (lobby_result.get("host_disconnected") or host_disconnected.get("value", False) or getattr(network_manager, "session_ended", False)):
                                 logger.warning("호스트가 나갔습니다. 메인 메뉴로 돌아갑니다.")
                                 # 연결 종료
                                 try:
