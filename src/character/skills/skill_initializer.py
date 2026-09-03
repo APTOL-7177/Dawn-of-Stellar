@@ -2,6 +2,10 @@
 Skill Initializer - 스킬 초기화 시스템
 
 게임 시작 시 모든 직업의 스킬을 SkillManager에 등록합니다.
+
+단일 정본 규칙: data/skills/*.yaml 이 스킬 정의의 정본(authority)이다.
+Python job_skills는 YAML에 없는 레거시 전용 스킬만 추가 등록하며,
+동일 ID를 재정의한 경우 YAML 정본 인스턴스로 복원된다.
 """
 import os
 from src.core.logger import get_logger
@@ -9,7 +13,7 @@ from src.core.logger import get_logger
 logger = get_logger("skill_initializer")
 
 # YAML로 완전 전환된 직업 (Python job_skills 등록을 건너뛰는 기본 목록)
-DEFAULT_SKIP_JOBS = {"paladin", "gladiator", "knight", "dimensionist", "hacker", "elementalist", "shaman"}
+DEFAULT_SKIP_JOBS = {"paladin", "gladiator", "knight", "dimensionist", "hacker", "elementalist", "shaman", "cleric"}
 
 
 def initialize_all_skills():
@@ -76,6 +80,23 @@ def initialize_all_skills():
 
         yaml_ids = load_yaml_skills(skill_manager)
         logger.info("[YAML] 스킬 %d개 등록", len(yaml_ids))
+        # YAML 단일 정본 스냅샷: 이후 Python job_skills 등록이 동일 ID를 덮어쓰지 않도록 한다.
+        # (재초기화 시 load_yaml_skills가 중복 skip하므로 현재 매니저에 YAML 인스턴스가
+        #  남아 있지 않을 수 있다 → 이 경우 파일에서 직접 다시 로드한다.)
+        from src.character.skills.yaml_skill_loader import _load_yaml_file, _create_skill, SKILLS_DIR
+        yaml_id_set = set(yaml_ids)
+        yaml_loaded_skills = {sid: skill_manager._skills[sid] for sid in yaml_id_set}
+        if SKILLS_DIR.exists():
+            for file_path in sorted(SKILLS_DIR.glob("*.yaml")):
+                data = _load_yaml_file(file_path)
+                if not data or data.get("metadata", {}).get("state") == "deprecated":
+                    continue
+                try:
+                    skill = _create_skill(data)
+                except Exception:
+                    continue
+                yaml_id_set.add(skill.skill_id)
+                yaml_loaded_skills[skill.skill_id] = skill
 
         skip_jobs_env = os.getenv("SKIP_PY_JOB_SKILLS", "")
         env_skip_jobs = {
@@ -130,7 +151,18 @@ def initialize_all_skills():
             if job_name in skip_jobs:
                 logger.info("[SKIP] %s job_skills 등록 생략 (SKIP_PY_JOB_SKILLS)", job_name)
                 continue
+            before_ids = set(skill_manager._skills.keys())
             skill_ids = register_func(skill_manager)
+            # YAML 단일 정본: Python 등록이 동일 ID의 YAML 스킬을 덮어썼다면 원래 YAML 스킬을 복원한다.
+            # (YAML에 없는 레거시 전용 Python 스킬만 유지)
+            # 검사 대상: 신규 추가 id + 반환된 id(기존 id를 덮어쓴 경우 포함)
+            restored = 0
+            for sid in (set(skill_manager._skills.keys()) - before_ids) | set(skill_ids or []):
+                if sid in yaml_id_set:
+                    skill_manager._skills[sid] = yaml_loaded_skills[sid]
+                    restored += 1
+            if restored:
+                logger.info(f"[YAML 우선] {job_name}: Python 재정의 {restored}개 스킬을 YAML 정본으로 복원")
             total_skills += len(skill_ids)
             logger.debug(f"{register_func.__name__}: {len(skill_ids)}개 스킬 등록")
 

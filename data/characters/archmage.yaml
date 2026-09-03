@@ -61,6 +61,7 @@ traits:
   description: 5스택 원소 과부하 시 강화 - 화염=작열 5턴, 빙결=ATB 초기화, 번개=15연타
   type: trigger
 skills:
+- teamwork
 - fireball
 - lightning_bolt
 - ice_storm
@@ -68,15 +69,7 @@ skills:
 - arctic_tempest
 - paradox_surge
 - meteor
-- arcane_missile
-- elemental_transmutation
-- elemental_overload
-- delayed_glyph
-- elemental_aegis
-- elemental_brand
-- elemental_surge
 - ultimate
-- teamwork
 bonuses:
   mp_multiplier: 1.2
   magic_damage: 1.1

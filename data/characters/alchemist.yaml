@@ -70,48 +70,71 @@ gimmick:
   description: '[포션 시스템] 재료를 모아 포션 제조!
 
 
-    - 공격/힐 스킬로 재료 획득 (최대 10개)
+    - 전투 시작 시 재료 3개 보유
 
-    - 포션 소비해 강력한 효과 발동
+    - 기본 공격(포션 투척/재료 수집)으로 재료 획득 (최대 10개)
 
-    - 회복/버프/폭발/산성 다양한 조합
+    - 재료를 소비해 강력한 포션 효과 발동
+
+    - 회복/MP 회복/버프/폭발/산성/독 다양한 조합
 
 
     포션 비용:
 
-    - 회복 포션: 2재료
+    - 회복 포션: 2재료 (HP 45%)
 
-    - 버프 포션: 3재료
+    - 마나 포션: 2재료 (MP 35%, MP 소비 없음!)
 
-    - 폭발 연쇄: 4재료
+    - 버프 포션: 3재료 (공/방 +30%)
+
+    - 산성 플라스크: 2재료 (방어 감소 + 독)
+
+    - 독 폭탄: 3재료 (전체 독)
+
+    - 폭발물: 4재료 (전체 BRV+HP)
+
+    - 연쇄 반응: 5재료 (단일 강타, 재료 비례 강화)
+
+    - 만능약: 6재료 (파티 풀힐 + 정화 + 방어 버프)
 
     '
   max_potion_stock: 10
+  initial_materials: 3
   potion_recipes:
     heal:
       cost: 2
-      effect: HP 회복
+      effect: HP 45% 회복
+    mana:
+      cost: 2
+      effect: MP 35% 회복
     buff:
       cost: 3
-      effect: 올스탯 버프
-    bomb:
-      cost: 4
-      effect: 광역 폭발
+      effect: 공/방 +30% 버프
     acid:
+      cost: 2
+      effect: 방어 감소 + 독
+    poison_bomb:
       cost: 3
-      effect: 방어 감소
+      effect: 전체 독
+    explosive:
+      cost: 4
+      effect: 전체 BRV+HP 폭발
+    chain:
+      cost: 5
+      effect: 단일 연쇄 폭발
+    grand_elixir:
+      cost: 6
+      effect: 파티 풀힐 + 정화
 skills:
 - teamwork
-- throw_potion
-- explosive
-- heal_potion
-- buff_potion
-- poison_bomb
-- gather
-- mana_potion
-- chain
-- acid_flask
 - ultimate
+- throw_potion
+- gather
+- heal_potion
+- mana_potion
+- buff_potion
+- acid_flask
+- grand_elixir
 bonuses:
   potion_power: 1.2
   item_find: 1.1

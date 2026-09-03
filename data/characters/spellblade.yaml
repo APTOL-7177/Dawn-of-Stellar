@@ -53,8 +53,9 @@ gimmick:
   max_steel_line: 100
   max_mana_line: 100
   max_resonance_sigil: 3
-  default_lock_turns: 1
+  default_lock_turns: 2
 skills:
+- spellblade_teamwork
 - spellblade_arc_slash
 - spellblade_mana_pierce
 - spellblade_flux_step
@@ -62,14 +63,7 @@ skills:
 - spellblade_steel_ripple
 - spellblade_phase_sever
 - spellblade_dual_resonance
-- spellblade_arc_dive
-- spellblade_circuit_shift
-- spellblade_spark_rebound
-- spellblade_resonant_cleave
-- spellblade_mirror_storm
-- spellblade_mirror_edge_overload
 - spellblade_duality_collapse
-- spellblade_teamwork
 bonuses:
   circuit_efficiency: 1.15
   hybrid_sync: 1.1

@@ -1,16 +1,7 @@
 id: hacker_ultimate
 name: 시스템 전면 장악
 type: ultimate
-description: |
-  [궁극기] 전체 적 시스템을 동시에 장악합니다.
-  
-  효과:
-  1. 전체 적 침투 게이지 +120
-  2. 전체 적 BRV 2.5 + HP 3.0 피해
-  3. 3턴간 "마스터 해커" 버프
-     - 침투 감소 무효
-     - RAM 소모 -50%
-     - 장악 스킬 침투 50만 필요
+description: 전체 적 시스템 장악! 침투 +120, BRV 2.5/HP 3.0 피해, 3턴간 마스터 해커 버프
 target: all_enemies
 triggers_chain: true
 costs:

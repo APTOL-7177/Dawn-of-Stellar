@@ -61,6 +61,7 @@ gimmick:
     earth: 대지 룬
     arcane: 비전 룬
 skills:
+- battle_mage_teamwork
 - battle_mage_rune_etch
 - battle_mage_rune_burst
 - battle_mage_rune_signal
@@ -69,13 +70,7 @@ skills:
 - battle_mage_rune_compression
 - battle_mage_shock_imprint
 # - battle_mage_resonance_pulse  # 비활성화됨
-- battle_mage_rune_fusion
-- battle_mage_chain_thunder
-- battle_mage_rune_barrier
-- battle_mage_arcane_wave
-- battle_mage_rune_storm
 - battle_mage_grand_resonance
-- battle_mage_teamwork
 bonuses:
   hybrid_power: 1.15
   resonance_gain: 1.15

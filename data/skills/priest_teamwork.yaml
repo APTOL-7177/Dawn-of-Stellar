@@ -1,8 +1,7 @@
 id: priest_teamwork
 name: 신의 가호
 type: teamwork
-description: "[팀워크] 파티 전체에 신의 가호를 내립니다.\n\n효과:\n1. 신앙 +25\n2. 아군 전체 마법력 기반 HP 회복\n\
-  3. 아군 전체 2턴 버프:\n   - 회복량 +30%\n   - 디버프 저항 +40%\n4. 전체 적 \"신성 약화\" 2턴\n"
+description: "파티 전체에 신의 가호! 신앙 +25, 아군 전체 HP 회복 + 회복량/저항 버프, 적 전체 신성 약화"
 target: all
 costs:
   teamwork_gauge: 100
@@ -19,6 +18,7 @@ effects:
   stat_scaling: magic
   multiplier: 1.6
   target: all_allies
+  is_party_wide: true
 - type: buff
   buff_id: divine_blessing
   target: all_allies
@@ -39,6 +39,4 @@ animation:
   - 255
   - 200
   screen_effect: divine_blessing
-sfx:
-- se
-- Summon
+sfx: ["skill", "teamwork"]

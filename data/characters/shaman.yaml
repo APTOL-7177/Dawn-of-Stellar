@@ -124,6 +124,7 @@ gimmick:
       skill_penalty: 0.5
       overload_disabled: true
 skills:
+- shaman_teamwork
 - shaman_spirit_arrow
 - shaman_spirit_burst
 - shaman_plague
@@ -131,15 +132,7 @@ skills:
 - shaman_ancestral_blessing
 - shaman_soul_drain
 - shaman_dark_curse
-- shaman_spirit_charge
-- shaman_nightmare
 - shaman_ultimate
-- shaman_teamwork
-- shaman_spirit_conversion
-- shaman_spirit_circulation
-- shaman_purification_ritual
-- shaman_mental_focus
-- shaman_mana_guard
 bonuses:
   mp_regen: 1.3
   magic_damage: 1.15
