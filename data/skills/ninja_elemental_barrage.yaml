@@ -1,0 +1,42 @@
+id: ninja_elemental_barrage
+name: 속성연사
+type: brv_hp_attack
+description: '속성 수리검 4연타! 화/빙/뇌/풍 각 0.6배 + HP. 인 최대 2개 축적.'
+target: single_enemy
+costs:
+  mp: 14
+effects:
+- type: damage
+  damage_type: brv
+  stat_base: hybrid
+  element: fire
+  multiplier: 0.6
+- type: damage
+  damage_type: brv
+  stat_base: hybrid
+  element: ice
+  multiplier: 0.6
+- type: damage
+  damage_type: brv
+  stat_base: hybrid
+  element: lightning
+  multiplier: 0.6
+- type: damage
+  damage_type: brv
+  stat_base: hybrid
+  element: wind
+  multiplier: 0.6
+- type: damage
+  damage_type: hp
+  stat_base: hybrid
+  multiplier: 2.0
+metadata:
+  multi_hit: true
+  hit_count: 4
+  ninpo_seal: true
+  seal_type: random
+  seal_add: 2
+animation:
+  icon: 🌟
+  color: [255, 150, 255]
+sfx: ["skill", "roar"]

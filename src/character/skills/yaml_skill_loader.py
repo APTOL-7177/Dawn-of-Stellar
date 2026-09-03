@@ -23,9 +23,44 @@ from src.character.skills.effects.taunt_effect import TauntEffect
 from src.character.skills.effects.protect_effect import ProtectEffect
 from src.character.skills.effects.fixed_damage_effect import FixedDamageEffect
 from src.character.skills.effects.shield_effect import ShieldEffect
+from src.character.skills.effects.atb_effect import AtbBoostEffect, AtbChargeEffect, SelfAtbCostEffect
+from src.character.skills.effects.multi_hit_effect import MultiHitHpDamageEffect, RandomHpHitsEffect
+from src.character.skills.effects.chain_effect import ChainCastEffect, ChainDamageEffect
+from src.character.skills.effects.temporal_heal_effect import TemporalHealEffect
+from src.character.skills.effects.damage_share_effect import DamageShareEffect
+from src.character.skills.effects.phantom_effect import (
+    SummonPhantomEffect, ConsumePhantomEffect, PhantomEchoDamageEffect,
+    ConsumeAllPhantomsEffect, PhantomBonusDebuffEffect, PhantomConvergenceBonusEffect,
+    PhantomDamageRedirectEffect, PhantomPriorityEffect, PhantomCounterEffect,
+)
+from src.character.skills.effects.possibility_effect import (
+    GeneratePossibilityEffect, ReleaseAllPossibilitiesEffect,
+    SummonPossibilityEffect, ConsumeOptionEffect,
+)
+from src.character.skills.effects.afterimage_effect import (
+    ConsumeAfterimageEffect, AfterimageScalingEffect, ChargeAfterimageEffect,
+)
+from src.character.skills.effects.time_effect import (
+    TimeFractureEffect, TimeCrossingEffect, TimeStormEffect,
+)
+from src.character.skills.effects.utility_effect import (
+    ClearSlotsEffect, GainGimmickEffect, ConsumeGimmickEffect,
+    ConvergenceBonusEffect, ShieldDamageEffect, AreaDamageEffect,
+)
+from src.character.skills.effects.trigger_effect import (
+    OnEvadeTriggerEffect, ApplyTrapEffect, BrandEffect,
+    ElectrocutionEffect, GlyphEffect,
+)
+from src.character.skills.effects.element_effect import (
+    OverloadEffect, TransmutationEffect, ThermalShockEffect,
+)
+from src.character.skills.effects.fate_effect import (
+    FateCopyEffect, OverwriteFateEffect,
+)
 from src.character.skills.costs.mp_cost import MPCost
 from src.character.skills.costs.hp_cost import HPCost
 from src.character.skills.costs.stack_cost import StackCost
+from src.character.skills.element_alias import normalize_element
 
 logger = get_logger("yaml_skill_loader")
 SKILLS_DIR = Path("data/skills")
@@ -256,12 +291,31 @@ def _create_damage_effect(data: Dict[str, Any]) -> DamageEffect:
         hp_scaling=data.get("hp_scaling", False),
     )
     if "element" in data:
-        setattr(effect, "element", data["element"])
+        # t_756d8ec1: element 값은 로드 시점에 canonical로 정규화 (thunder→lightning)
+        setattr(effect, "element", normalize_element(data["element"]))
     return effect
 
 
 def _create_heal_effect(data: Dict[str, Any]) -> HealEffect:
-    heal_type = HealType.HP if data.get("heal_type", "hp").lower() == "hp" else HealType.MP
+    raw_heal_type = data.get("heal_type", data.get("restore_type", "hp")).lower()
+    set_percent = data.get("set_percent")
+
+    # heal_type/restore_type: full → HP/MP 전회복 (set_percent=1.0)
+    if raw_heal_type == "full":
+        # mp_restore 타입이면 MP, 아니면 HP
+        effect_type = data.get("type", "heal")
+        if effect_type == "mp_restore":
+            heal_type = HealType.MP
+        else:
+            heal_type = HealType.HP
+        set_percent = 1.0
+    elif raw_heal_type == "mp":
+        heal_type = HealType.MP
+    elif raw_heal_type == "brv":
+        heal_type = HealType.BRV
+    else:
+        heal_type = HealType.HP
+
     percentage = data.get("percent")
     if percentage is None:
         percentage = data.get("percentage")
@@ -274,7 +328,7 @@ def _create_heal_effect(data: Dict[str, Any]) -> HealEffect:
         stat_scaling=data.get("stat_scaling"),
         multiplier=data.get("multiplier", 1.0),
         is_party_wide=data.get("is_party_wide", False),
-        set_percent=data.get("set_percent"),
+        set_percent=set_percent,
         fixed_amount=fixed_amount,
         metadata=data.get("metadata", {}),
         target_self=data.get("target_self", False),
@@ -355,53 +409,8 @@ def _create_custom_handler_effect(handler_name: str, data: Dict[str, Any]):
     return CustomHandlerEffect(handler_name, args)
 
 
-# 지원하지만 실제 효과는 스텁 처리할 커스텀 effect 타입들
-STUB_EFFECT_TYPES = {
-    "consume_afterimage",
-    "afterimage_scaling",
-    "summon_phantom",
-    "generate_possibility",
-    "phantom_bonus_debuff",
-    "phantom_convergence_bonus",
-    "consume_option",
-    "glyph",
-    "brand",
-    "overload",
-    "transmutation",
-    "fate_copy",
-    "on_evade_trigger",
-    "phantom_damage_redirect",
-    "release_all_possibilities",
-    "chain_cast",
-    "time_fracture",
-    "clear_slots",
-    "consume_all_phantoms",
-    "multi_hit_hp_damage",
-    "consume_gimmick",
-    "damage_share",
-    "gain_gimmick",
-    "consume_phantom",
-    "charge_afterimage",
-    "phantom_echo_damage",
-    "apply_trap",
-    "overwrite_fate",
-    "thermal_shock",
-    "temporal_heal",
-    "random_hp_hits",
-    "atb_boost",
-    "summon_possibility",
-    "phantom_priority",
-    "phantom_counter",
-    "chain_damage",
-    "atb_charge",
-    "self_atb_cost",
-    "time_crossing",
-    "time_storm",
-    "convergence_bonus",
-    "shield_damage",
-    "area_damage",
-    "electrocution",
-}
+# 모든 스텁 이펙트가 구현 완료됨 - 빈 set
+STUB_EFFECT_TYPES = set()
 
 
 def _create_status_effect(data: Dict[str, Any]) -> StatusEffect:
@@ -491,6 +500,86 @@ def _create_conditional_buff_effect(data: Dict[str, Any]):
     return ConditionalBuffEffect(data)
 
 
+def _create_lifesteal_effect(data: Dict[str, Any]):
+    """흡혈 효과 생성"""
+    from src.character.skills.effects.lifesteal_effect import LifestealEffect
+    percent = data.get("percent", 0.3)
+    low_hp_bonus = data.get("low_hp_bonus", True)
+    return LifestealEffect(lifesteal_percent=percent, low_hp_bonus=low_hp_bonus)
+
+
+def _create_atb_boost_effect(data: Dict[str, Any]) -> AtbBoostEffect:
+    """atb_boost 이펙트 빌더 - 대상 ATB를 고정값만큼 증가"""
+    return AtbBoostEffect(
+        amount=int(data.get("amount", 500)),
+        is_party_wide=data.get("is_party_wide", False),
+    )
+
+
+def _create_atb_charge_effect(data: Dict[str, Any]) -> AtbChargeEffect:
+    """atb_charge 이펙트 빌더 - 대상 ATB를 퍼센트만큼 충전"""
+    return AtbChargeEffect(percent=float(data.get("percent", 50)))
+
+
+def _create_self_atb_cost_effect(data: Dict[str, Any]) -> SelfAtbCostEffect:
+    """self_atb_cost 이펙트 빌더 - 시전자 ATB 추가 소비"""
+    return SelfAtbCostEffect(amount=int(data.get("amount", 300)))
+
+
+def _create_multi_hit_hp_damage_effect(data: Dict[str, Any]) -> MultiHitHpDamageEffect:
+    """multi_hit_hp_damage 이펙트 빌더 - 고정 횟수 HP 다단히트"""
+    return MultiHitHpDamageEffect(
+        hits=int(data.get("hits", 3)),
+        multiplier=float(data.get("multiplier", 0.5)),
+    )
+
+
+def _create_random_hp_hits_effect(data: Dict[str, Any]) -> RandomHpHitsEffect:
+    """random_hp_hits 이펙트 빌더 - 랜덤 횟수 HP 다단히트"""
+    return RandomHpHitsEffect(
+        min_hits=int(data.get("min_hits", 2)),
+        max_hits=int(data.get("max_hits", 5)),
+        multiplier=float(data.get("multiplier", 0.3)),
+    )
+
+
+def _create_chain_cast_effect(data: Dict[str, Any]) -> ChainCastEffect:
+    """chain_cast 이펙트 빌더 - 스킬 목록 연속 발동"""
+    return ChainCastEffect(skills=data.get("skills", []))
+
+
+def _create_chain_damage_effect(data: Dict[str, Any]) -> ChainDamageEffect:
+    """chain_damage 이펙트 빌더 - 원소 스택 기반 연쇄 폭발"""
+    elements = data.get("element", [])
+    if isinstance(elements, str):
+        elements = [elements]
+    return ChainDamageEffect(
+        elements=elements,
+        multiplier=float(data.get("multiplier", 1.0)),
+        chain_chance_per_stack=float(data.get("chain_chance_per_stack", 0.2)),
+        damage_falloff=data.get("damage_falloff", [0.7, 0.5, 0.3]),
+        stat_base=data.get("stat_base", "magic"),
+    )
+
+
+def _create_temporal_heal_effect(data: Dict[str, Any]) -> TemporalHealEffect:
+    """temporal_heal 이펙트 빌더 - 과거 HP 기준 시간 회복"""
+    return TemporalHealEffect(
+        method=data.get("method", "restore_past_hp"),
+        turns_back=int(data.get("turns_back", 2)),
+        max_heal_percent=float(data.get("max_heal_percent", 0.4)),
+    )
+
+
+def _create_damage_share_effect(data: Dict[str, Any]) -> DamageShareEffect:
+    """damage_share 이펙트 빌더 - 피해 분담 링크 등록"""
+    return DamageShareEffect(
+        share_percent=float(data.get("share_percent", 0.4)),
+        duration=int(data.get("duration", 3)),
+        linked_to=data.get("linked_to", "caster"),
+    )
+
+
 EFFECT_BUILDERS = {
     "damage": _create_damage_effect,
     "hp_damage": _create_damage_effect,  # hp_damage를 damage와 동일 처리
@@ -513,6 +602,182 @@ EFFECT_BUILDERS = {
     "restore_gimmick": _create_restore_gimmick_effect,
     "conditional_buff": _create_conditional_buff_effect,
     "toggle_buff": lambda data: _create_custom_handler_effect("toggle_buff", data),
+    "lifesteal": _create_lifesteal_effect,
+    # ── 신규 구현 이펙트 ──
+    "atb_boost": _create_atb_boost_effect,
+    "atb_charge": _create_atb_charge_effect,
+    "self_atb_cost": _create_self_atb_cost_effect,
+    "multi_hit_hp_damage": _create_multi_hit_hp_damage_effect,
+    "random_hp_hits": _create_random_hp_hits_effect,
+    "chain_cast": _create_chain_cast_effect,
+    "chain_damage": _create_chain_damage_effect,
+    "temporal_heal": _create_temporal_heal_effect,
+    "damage_share": _create_damage_share_effect,
+    # ── 환술사 환영 시스템 ──
+    "summon_phantom": lambda data: SummonPhantomEffect(
+        count=int(data.get("count", data.get("base_count", 1))),
+        bonus_count=int(data.get("bonus_count", 0)),
+        bonus_chance=float(data.get("bonus_chance", 0.0)),
+        fill_to_max=bool(data.get("fill_to_max", False)),
+        luck_scaling=float(data.get("luck_scaling", 0.0)),
+    ),
+    "consume_phantom": lambda data: ConsumePhantomEffect(
+        count=int(data.get("count", 1)),
+    ),
+    "phantom_echo_damage": lambda data: PhantomEchoDamageEffect(
+        per_phantom_multiplier=float(data.get("per_phantom_multiplier", 0.25)),
+        damage_type=data.get("damage_type", "physical"),
+        stat_base=data.get("stat_base", "physical"),
+    ),
+    "consume_all_phantoms": lambda data: ConsumeAllPhantomsEffect(
+        store_count=bool(data.get("store_count", True)),
+    ),
+    "phantom_bonus_debuff": lambda data: PhantomBonusDebuffEffect(
+        per_phantom_bonus=float(data.get("per_phantom_bonus", 0.05)),
+        stat=data.get("stat", "accuracy"),
+        max_bonus=float(data.get("max_bonus", 1.0)),
+    ),
+    "phantom_convergence_bonus": lambda data: PhantomConvergenceBonusEffect(
+        per_phantom_bonus=float(data.get("per_phantom_bonus", 0.25)),
+        max_bonus=float(data.get("max_bonus", 1.0)),
+    ),
+    "phantom_damage_redirect": lambda data: PhantomDamageRedirectEffect(
+        redirect_percent=float(data.get("redirect_percent", 0.5)),
+        destroy_on_damage=bool(data.get("destroy_on_damage", True)),
+        duration=int(data.get("duration", 3)),
+    ),
+    "phantom_priority": lambda data: PhantomPriorityEffect(
+        redirect_chance=float(data.get("redirect_chance", 0.7)),
+    ),
+    "phantom_counter": lambda data: PhantomCounterEffect(
+        counter_chance=float(data.get("counter_chance", 0.25)),
+        counter_damage=float(data.get("counter_damage", 0.5)),
+        stat_base=data.get("stat_base", "physical"),
+    ),
+    # ── 차원술사 가능성 시스템 ──
+    "generate_possibility": lambda data: GeneratePossibilityEffect(
+        chance=float(data.get("chance", 0.7)),
+        alternative_skill=data.get("alternative_skill", ""),
+    ),
+    "release_all_possibilities": lambda data: ReleaseAllPossibilitiesEffect(
+        power_ratio=float(data.get("power_ratio", 1.0)),
+        sequence=bool(data.get("sequence", True)),
+        delay_between=float(data.get("delay_between", 0.3)),
+    ),
+    "summon_possibility": lambda data: SummonPossibilityEffect(
+        power_ratio=float(data.get("power_ratio", 0.85)),
+        select_slot=bool(data.get("select_slot", True)),
+    ),
+    "consume_option": lambda data: ConsumeOptionEffect(
+        consume_phantoms=int(data.get("consume_phantoms", 0)),
+        bonus_if_consumed=data.get("bonus_if_consumed"),
+    ),
+    # ── 잔상 시스템 ──
+    "consume_afterimage": lambda data: ConsumeAfterimageEffect(
+        amount=data.get("amount", 1),
+    ),
+    "afterimage_scaling": lambda data: AfterimageScalingEffect(
+        bonus_per_afterimage=float(data.get("bonus_per_afterimage", 0.01)),
+    ),
+    "charge_afterimage": lambda data: ChargeAfterimageEffect(
+        value=int(data.get("value", 1)),
+    ),
+    # ── 시간 시스템 ──
+    "time_fracture": lambda data: TimeFractureEffect(
+        effect=data.get("effect", "all_stats_down"),
+        value=float(data.get("value", 0.2)),
+        duration=int(data.get("duration", 2)),
+        target=data.get("target", "all_enemies"),
+    ),
+    "time_crossing": lambda data: TimeCrossingEffect(
+        power_ratio=float(data.get("power_ratio", 0.75)),
+        slot_count=int(data.get("slot_count", 2)),
+        select_slots=bool(data.get("select_slots", True)),
+    ),
+    "time_storm": lambda data: TimeStormEffect(
+        power_ratio=float(data.get("power_ratio", 1.2)),
+        release_all=bool(data.get("release_all", True)),
+    ),
+    # ── 유틸리티/슬롯 시스템 ──
+    "clear_slots": lambda data: ClearSlotsEffect(
+        after_cast=bool(data.get("after_cast", True)),
+    ),
+    "gain_gimmick": lambda data: GainGimmickEffect(
+        gimmick=data.get("gimmick", ""),
+        amount=int(data.get("amount", 1)),
+    ),
+    "consume_gimmick": lambda data: ConsumeGimmickEffect(
+        gimmick=data.get("gimmick", ""),
+        amount=int(data.get("amount", 1)),
+    ),
+    "convergence_bonus": lambda data: ConvergenceBonusEffect(
+        min_possibilities=int(data.get("min_possibilities", 3)),
+        damage_bonus=float(data.get("damage_bonus", 0.5)),
+        apply_debuff=data.get("apply_debuff"),
+    ),
+    "shield_damage": lambda data: ShieldDamageEffect(
+        bonus_multiplier=float(data.get("bonus_multiplier", 1.5)),
+    ),
+    "area_damage": lambda data: AreaDamageEffect(
+        splash_ratio=float(data.get("splash_ratio", 0.5)),
+    ),
+    # ── 상태이상/트리거 시스템 ──
+    "on_evade_trigger": lambda data: OnEvadeTriggerEffect(
+        effect=data.get("effect", "summon_phantom"),
+        count=int(data.get("count", 1)),
+        duration=int(data.get("duration", 3)),
+    ),
+    "apply_trap": lambda data: ApplyTrapEffect(
+        trap_type=data.get("trap_type", "mirror_reflect"),
+        duration=int(data.get("duration", 2)),
+        trigger_chance=float(data.get("trigger_chance", 0.3)),
+        reflect_ratio=float(data.get("reflect_ratio", 0.4)),
+        damage_type=data.get("damage_type", "magic"),
+    ),
+    "brand": lambda data: BrandEffect(
+        vulnerability=float(data.get("vulnerability", 0.4)),
+        duration=int(data.get("duration", 5)),
+        brands=data.get("brands"),
+    ),
+    "electrocution": lambda data: ElectrocutionEffect(
+        element=data.get("element"),
+        brv_multiplier=float(data.get("brv_multiplier", 1.0)),
+        hp_multiplier=float(data.get("hp_multiplier", 1.0)),
+    ),
+    "glyph": lambda data: GlyphEffect(
+        delay_turns=int(data.get("delay_turns", 3)),
+        max_glyphs=int(data.get("max_glyphs", 3)),
+    ),
+    # ── 원소/변환 시스템 ──
+    "overload": lambda data: OverloadEffect(
+        min_stacks=int(data.get("min_stacks", 3)),
+        fire_effect=data.get("fire_effect", "burning"),
+        ice_effect=data.get("ice_effect", "frozen_solid"),
+        lightning_effect=data.get("lightning_effect", "stun"),
+        stat_base=data.get("stat_base", "magic"),
+    ),
+    "transmutation": lambda data: TransmutationEffect(
+        consume_amount=int(data.get("consume_amount", 2)),
+        generate_amount=int(data.get("generate_amount", 3)),
+        mp_recovery=int(data.get("mp_recovery", 0)),
+    ),
+    "thermal_shock": lambda data: ThermalShockEffect(
+        element=data.get("element"),
+        multiplier=float(data.get("multiplier", 2.0)),
+        diff_bonus_per_stack=float(data.get("diff_bonus_per_stack", 0.15)),
+    ),
+    # ── 운명 시스템 ──
+    "fate_copy": lambda data: FateCopyEffect(
+        copy_last_skill=bool(data.get("copy_last_skill", True)),
+        store_as_possibility=bool(data.get("store_as_possibility", True)),
+        power_ratio=float(data.get("power_ratio", 0.85)),
+        target=data.get("target", "selected_ally"),
+    ),
+    "overwrite_fate": lambda data: OverwriteFateEffect(
+        select_slot=bool(data.get("select_slot", True)),
+        select_replacement_skill=bool(data.get("select_replacement_skill", True)),
+        power_ratio=float(data.get("power_ratio", 0.85)),
+    ),
 }
 
 # 스텁 effect 타입을 모두 custom handler로 연결하여 경고 없이 통과
@@ -569,8 +834,8 @@ def _create_costs(data: Dict[str, Any]) -> List[Any]:
     # faith 비용 처리 (성기사 기적 스킬용)
     if data.get("faith") is not None:
         costs.append(StackCost("faith", int(data["faith"])))
-    if data.get("teamwork_gauge") is not None:
-        costs.append(StackCost("teamwork_gauge", int(data["teamwork_gauge"])))
+    # teamwork_gauge는 TeamworkSkill.can_use()에서 파티 게이지로 직접 검증하므로
+    # StackCost로 추가하지 않음 (StackCost는 캐릭터 속성을 검사하여 실패함)
     stacks = data.get("stacks")
     if isinstance(stacks, dict):
         for stack_id, amount in stacks.items():
@@ -629,16 +894,99 @@ def _create_skill(data: Dict[str, Any]) -> Skill:
     else:
         skill.sfx = _infer_sfx(data)
     skill.is_aoe = skill.target_type in {"all_enemies", "all_allies", "party", "all"}
+    skill.triggers_chain = bool(data.get("triggers_chain", False))
 
-    for effect_data in data.get("effects", []):
+    # variants 사용 시 일반 효과는 base.effects에, 아니면 effects에 정의됨 (t_082c6a99)
+    base_data = data.get("base") or {}
+    effects_data = data.get("effects") or (base_data.get("effects") if isinstance(base_data, dict) else None) or []
+    for effect_data in effects_data:
         effect = _create_effect(effect_data)
         if effect:
             skill.effects.append(effect)
+
+    # variants 파생 프리미티브 (t_082c6a99): base.effects 뒤에 변형 전용 효과를 append하고
+    # 실행 시 선택 변형의 인덱스만 활성화 (_variant_filter 매핑).
+    variants = data.get("variants")
+    if isinstance(variants, dict) and variants.get("options"):
+        _apply_variant_primitive(skill, variants)
 
     costs = _create_costs(data.get("costs"))
     skill.costs.extend(costs)
 
     return skill
+
+
+def _apply_variant_primitive(skill: Skill, variants: Dict[str, Any]) -> None:
+    """variants YAML → skill.metadata['variant_options'] + 변형 전용 효과 등록.
+
+    - 각 옵션의 extra_status/extra_buff는 기존 StatusEffect/BuffEffect 빌더를 재사용해
+      skill.effects 뒤에 등록하고, metadata['_variant_filter'][element] = [effect_idx...]
+      로 실행 시점 필터링 대상을 기록한다.
+    - 실행 시점 병합(_selected_variant → metadata_override 주입)은 skill.execute 참조.
+    """
+    options = variants.get("options") or {}
+    default_key = variants.get("default")
+    if not default_key or default_key not in options:
+        default_key = next(iter(options), None)
+
+    variant_options: Dict[str, Any] = {}
+    variant_filter: Dict[str, list] = {}
+
+    for key, opt in options.items():
+        if not isinstance(opt, dict):
+            continue
+        entry: Dict[str, Any] = {"label": opt.get("label", key)}
+        meta_override = opt.get("metadata_override")
+        if meta_override:
+            entry["metadata_override"] = dict(meta_override)
+            # t_756d8ec1: element 값만 canonical 정규화 (seal_type 등은 무변경)
+            if "element" in entry["metadata_override"]:
+                entry["metadata_override"]["element"] = normalize_element(
+                    entry["metadata_override"]["element"]
+                )
+        if opt.get("extra_status"):
+            entry["extra_status"] = dict(opt["extra_status"])
+        if opt.get("extra_buff"):
+            entry["extra_buff"] = dict(opt["extra_buff"])
+        if opt.get("extra_atb_boost") is not None:
+            entry["extra_atb_boost"] = opt["extra_atb_boost"]
+        variant_options[key] = entry
+
+        effect_indices = []
+        extra_status = opt.get("extra_status")
+        if extra_status:
+            status_data = dict(extra_status)
+            if "status_id" in status_data and "status_type" not in status_data:
+                status_data["status_type"] = status_data.pop("status_id")
+            effect = _create_status_effect(status_data)
+            skill.effects.append(effect)
+            effect_indices.append(len(skill.effects) - 1)
+        extra_buff = opt.get("extra_buff")
+        if extra_buff:
+            buff_data = dict(extra_buff)
+            stats = buff_data.pop("stats", None)
+            if isinstance(stats, dict) and stats:
+                stat_key, stat_value = next(iter(stats.items()))
+                buff_data.setdefault("value", stat_value)
+                buff_data.setdefault("custom_stat", stat_key)
+                buff_data.setdefault("buff_type", "custom")
+            effect = _create_buff_effect(buff_data)
+            skill.effects.append(effect)
+            effect_indices.append(len(skill.effects) - 1)
+        extra_atb = opt.get("extra_atb_boost")
+        if extra_atb:
+            # atb_boost는 metadata 기반(gimmick_updater atb_boost 처리)이므로
+            # metadata_override로 주입만 하면 됨 — 별도 effect 없음
+            entry.setdefault("metadata_override", {})["atb_boost"] = float(extra_atb)
+
+        if effect_indices:
+            variant_filter[key] = effect_indices
+
+    skill.metadata["variant_options"] = variant_options
+    skill.metadata["variant_default"] = default_key
+    skill.metadata["variant_capable"] = True
+    if variant_filter:
+        skill.metadata["_variant_filter"] = variant_filter
 
 
 def load_yaml_skills(skill_manager):

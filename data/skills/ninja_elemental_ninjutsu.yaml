@@ -1,0 +1,56 @@
+id: ninja_elemental_ninjutsu
+name: 오둔 - 오의
+type: brv_hp_attack
+description: '[속성 선택] 4대 속성 인술. 좌/우로 속성 결정: 화둔(화상) / 수둔(감속) / 뇌둔(감전) / 풍둔(ATB+10%). 대응 인(印) +1.'
+target: single_enemy
+costs:
+  mp: 1
+variants:
+  default: wind
+  cycle_on_repeat: false
+  options:
+    fire:
+      label: 화둔 - 호염진
+      metadata_override:
+        seal_type: fire
+        element: fire
+      extra_status: {status_id: burn, duration: 2, chance: 0.25}
+    ice:
+      label: 수둔 - 빙하진
+      metadata_override:
+        seal_type: ice
+        element: ice
+      extra_buff: {stats: {speed: -0.20}, duration: 2}
+    thunder:
+      label: 뇌둔 - 자전진
+      metadata_override:
+        seal_type: thunder
+        element: lightning
+      extra_status: {status_id: shock, duration: 2, chance: 0.25}
+    wind:
+      label: 풍둔 - 열풍진
+      metadata_override:
+        seal_type: wind
+        element: wind
+      extra_atb_boost: 0.10
+base:
+  effects:
+  - type: damage
+    damage_type: brv
+    stat_base: magical
+    multiplier: 1.5
+  - type: damage
+    damage_type: hp
+    stat_base: magical
+    multiplier: 1.2
+animation:
+  icon: 🌀
+  color: [200, 200, 255]
+  variant_colors: {fire: [255, 100, 0], ice: [100, 200, 255], thunder: [255, 255, 0], wind: [150, 255, 150]}
+sfx:
+  skill: ["skill", "generic_cast"]
+  variant_sfx: {fire: ["skill", "fire"], ice: ["skill", "ice"], thunder: ["skill", "bolt"], wind: ["skill", "wind"]}
+metadata:
+  ninpo_seal: true
+  seal_add: 1
+  variant_capable: true

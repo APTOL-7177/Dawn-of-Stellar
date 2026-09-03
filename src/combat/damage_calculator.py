@@ -11,6 +11,7 @@ import random
 
 from src.core.config import get_config
 from src.core.logger import get_logger
+from src.character.skills.element_alias import normalize_element
 
 
 @dataclass
@@ -111,9 +112,16 @@ class DamageCalculator:
             defender_def = max(0, defender_def - phys_pen_fixed)
             self.logger.debug(f"[물리 관통(고정)] 방어 -{phys_pen_fixed} → {original_def} → {defender_def}")
 
+        # 전사 공격 자세: 방어력 무시 (stance_defense_ignore)
+        stance_def_ignore = getattr(attacker, 'stance_defense_ignore', 0)
+        if stance_def_ignore > 0:
+            original_def = defender_def
+            defender_def = int(defender_def * (1.0 - stance_def_ignore))
+            self.logger.debug(f"[공격 자세] 방어 {stance_def_ignore*100:.0f}% 무시 → {original_def} → {defender_def}")
+
         # 기본 데미지 계산: 공격력 / 방어력 비율
         stat_modifier = attacker_atk / (defender_def + 1.0)
-        
+
         # 원소 데미지 보너스 적용 (물리 원소 공격용)
         element_bonus = 1.0
         if element:
@@ -409,6 +417,13 @@ class DamageCalculator:
                 defender_stat = max(0, defender_stat - phys_pen_fixed)
                 self.logger.debug(f"[물리 관통(고정)] 방어 -{phys_pen_fixed} → {original_stat} → {defender_stat}")
 
+        # 전사 공격 자세: 방어력 무시 (stance_defense_ignore) - HP 공격에도 적용
+        stance_def_ignore = getattr(attacker, 'stance_defense_ignore', 0)
+        if stance_def_ignore > 0:
+            original_stat = defender_stat
+            defender_stat = int(defender_stat * (1.0 - stance_def_ignore))
+            self.logger.debug(f"[공격 자세] HP 공격 방어 {stance_def_ignore*100:.0f}% 무시 → {original_stat} → {defender_stat}")
+
         # 스탯 보정 계산: 공격자 스탯 / (방어자 스탯 + 1)
         stat_modifier = attacker_stat / (defender_stat + 1.0)
 
@@ -655,6 +670,12 @@ class DamageCalculator:
             original_spr = defender_spr
             defender_spr = max(0, defender_spr - mag_pen_fixed)
             self.logger.debug(f"[마법 관통(고정)] 마방 -{mag_pen_fixed} → {original_spr} → {defender_spr}")
+
+        # pierce: 방어 무시 (%) - 마법방어력을 %만큼 무시
+        if kwargs.get('pierce'):
+            pierce_percent = kwargs['pierce']
+            defender_spr = int(defender_spr * (1.0 - pierce_percent))
+            self.logger.debug(f"[관통] 마방 {pierce_percent*100:.0f}% 무시 → 유효 마방: {defender_spr}")
 
         # 기본 데미지 계산: 마법력 / 정신력 비율
         stat_modifier = attacker_mag / (defender_spr + 1.0)
@@ -1010,6 +1031,12 @@ class DamageCalculator:
         except Exception as e:
             self.logger.debug(f"특성 크리티컬 보너스 계산 실패: {e}")
 
+        # 전사 공격 자세: 크리티컬 확률 보너스 (stance_crit_bonus)
+        stance_crit = getattr(attacker, 'stance_crit_bonus', 0)
+        if stance_crit > 0:
+            critical_chance += stance_crit
+            self.logger.debug(f"[공격 자세 크리티컬] {getattr(attacker, 'name', 'Unknown')} +{stance_crit * 100:.0f}%")
+
         # 크리티컬 확률 상한선 (95%)
         critical_chance = min(0.95, critical_chance)
 
@@ -1026,6 +1053,8 @@ class DamageCalculator:
         Returns:
             보너스 배율 (저항 반영)
         """
+        # t_756d8ec1: 계산 직전 방어선 — element 값 canonical 정규화 (thunder→lightning)
+        element = normalize_element(element)
         # 속성 저항 시스템 구현
         # defender.element_resistance = {"fire": 0.5, "ice": 2.0, ...}
         # 값이 1.0보다 작으면 약점 (데미지 증가), 크면 저항 (데미지 감소)
@@ -1055,14 +1084,14 @@ class DamageCalculator:
             크리티컬 데미지 추가 배율 (0.5 = +50%)
         """
         bonus = 0.0
-        
+
         if not hasattr(character, 'equipment') or not character.equipment:
             return bonus
-            
+
         for slot, item in character.equipment.items():
             if not item:
                 continue
-            
+
             # special_effects에서 critical_damage 확인
             if hasattr(item, 'special_effects'):
                 for effect in item.special_effects:
@@ -1073,7 +1102,19 @@ class DamageCalculator:
                     if type_value == 'critical_damage':
                         bonus += effect_value
                         self.logger.debug(f"[장비 크리티컬] {item.name}: +{effect_value*100:.0f}%")
-        
+
+            # base_stats + affixes에서 critical_damage 확인
+            total_stats = item.get_total_stats() if hasattr(item, 'get_total_stats') else {}
+            if 'critical_damage' in total_stats:
+                cd_value = total_stats['critical_damage']
+                # base_stats에 있으면 정수 퍼센트 형식 (20 = +20%)
+                if hasattr(item, 'base_stats') and 'critical_damage' in item.base_stats:
+                    bonus += cd_value / 100.0
+                else:
+                    # affix 전용이면 소수점 형식 (0.30 = +30%)
+                    bonus += cd_value
+                self.logger.debug(f"[장비 크리티컬 base/affix] {item.name}: +{cd_value}")
+
         return bonus
 
     def _get_elemental_damage_stat(self, character: Any, element: str) -> int:
@@ -1090,6 +1131,8 @@ class DamageCalculator:
         Returns:
             원소 데미지 보너스 합계
         """
+        # t_756d8ec1: 계산 직전 방어선 — element 값 canonical 정규화 (thunder→lightning)
+        element = normalize_element(element)
         # 원소별 속성명 매핑
         element_attr_map = {
             "fire": "fire_damage",
