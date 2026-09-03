@@ -9,7 +9,9 @@ from typing import List, Optional
 import tcod
 
 from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
 from src.ui.tcod_display import render_space_background, Colors
+from src.ui.visual_tokens import rgb
 from src.core.logger import get_logger, Loggers
 from src.field.field_skills import FieldSkillManager
 from src.character.skill_types import skill_type_registry, SkillCategory
@@ -53,7 +55,7 @@ class FieldSkillMenu:
         # 메뉴 옵션들
         start_y = 8
         for i, (option_text, _) in enumerate(self.menu_options):
-            fg_color = Colors.YELLOW if i == self.selected_index else Colors.WHITE
+            fg_color = rgb("accent.amber") if i == self.selected_index else rgb("text.primary")
             console.print(4, start_y + i * 2, f"{i + 1}. {option_text}", fg=fg_color)
 
         # 선택된 옵션에 대한 설명
@@ -96,6 +98,43 @@ class FieldSkillMenu:
             return FieldSkillMenuOption.BACK
 
         return None
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        descriptions = (
+            "사용 가능한 모든 필드 스킬을 확인하고 설명을 봅니다.",
+            "이전 메뉴로 돌아갑니다.",
+        )
+        return tuple(
+            PointerRegion(
+                region_id=str(index),
+                x=4,
+                y=8 + index * 2,
+                width=max(30, self.screen_width - 8),
+                height=1,
+                command=GameAction.CONFIRM,
+                tooltip=descriptions[index],
+                enabled=True,
+            )
+            for index, _option in enumerate(self.menu_options)
+        )
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        dispatcher = PointerDispatcher(self.pointer_regions())
+        result = dispatcher.dispatch(event)
+        region = dispatcher.region_at(event.position)
+        region_id = result.hovered_region_id or (region.region_id if region else None)
+        if region_id is not None:
+            self.selected_index = int(region_id)
+        if event.kind is PointerEventKind.WHEEL and result.action is not None:
+            value = self.handle_input(result.action)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            value = self.handle_input(GameAction.ESCAPE)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and result.action is not None:
+            value = self.handle_input(result.action)
+            return result.with_value(value)
+        return result
 
 
 def open_field_skill_menu(console: tcod.console.Console, context: tcod.context.Context) -> None:

@@ -15,6 +15,7 @@ from pathlib import Path
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
 from src.core.logger import get_logger
 from src.core.config import get_config
 from src.persistence.meta_progress import get_meta_progress
@@ -257,6 +258,27 @@ class TraitSelection:
                 return True
 
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        if self.trait_menu is None:
+            return ()
+        return self.trait_menu.pointer_regions()
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if self.trait_menu is None:
+            return PointerDispatchResult(event=event)
+        result = self.trait_menu.handle_pointer_event(event)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            value = self.handle_input(GameAction.CANCEL)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and result.value is not None:
+            value = self.handle_input(GameAction.CONFIRM)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.WHEEL and result.action is not None:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN
+            value = self.handle_input(action)
+            return result.with_value(value)
+        return result
 
     def _confirm_traits(self):
         """현재 멤버의 특성 확정"""

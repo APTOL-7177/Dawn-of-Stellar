@@ -10,11 +10,43 @@ from typing import List, Any
 
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
 
 logger = get_logger("quest_list_ui")
+
+
+def quest_list_pointer_regions(active_quests: List[Any], scroll_offset: int, max_visible: int, width: int) -> tuple[PointerRegion, ...]:
+    regions: list[PointerRegion] = []
+    for index, quest in enumerate(active_quests[scroll_offset:scroll_offset + max_visible]):
+        actual_index = scroll_offset + index
+        enabled = bool(getattr(quest, "is_complete", False))
+        regions.append(PointerRegion(f"quest:{actual_index}", 5, 7 + index * 6, width - 10, 5, GameAction.CONFIRM, quest_list_tooltip(quest, enabled), enabled=enabled))
+    return tuple(regions)
+
+
+def quest_list_tooltip(quest: Any, enabled: bool) -> str:
+    status = "보상 수령 가능" if enabled else "완료 조건을 아직 만족하지 않았습니다."
+    description = getattr(quest, "description", "")
+    return " | ".join(part for part in (getattr(quest, "name", "퀘스트"), description, status) if part)
+
+
+def handle_quest_list_pointer_event(event: PointerEvent, regions: tuple[PointerRegion, ...]) -> PointerDispatchResult:
+    if event.kind is PointerEventKind.WHEEL:
+        action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN if event.wheel_delta < 0 else None
+        return PointerDispatchResult(event=event, action=action)
+    if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+        return PointerDispatchResult(event=event, action=GameAction.CANCEL, value=True)
+    result = PointerDispatcher(regions).dispatch(event)
+    region = next((candidate for candidate in regions if candidate.contains(event.position)), None)
+    region_id = result.hovered_region_id or (region.region_id if region else None)
+    if event.kind is PointerEventKind.HOVER and region_id and result.tooltip is None:
+        return PointerDispatchResult(event=event, hovered_region_id=region_id, tooltip=region.tooltip if region else None)
+    if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+        return PointerDispatchResult(event=event, action=GameAction.CONFIRM, value=region.enabled if region else False, hovered_region_id=region_id, tooltip=result.tooltip if result.tooltip else region.tooltip if region else None)
+    return result
 
 
 def open_quest_list(
@@ -181,7 +213,21 @@ def open_quest_list(
         
         # 키보드 입력 처리
         keyboard_processed = False
+        pointer_regions = quest_list_pointer_regions(active_quests, scroll_offset, max_visible, console.width)
         for event in tcod.event.get():
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                pointer_result = handle_quest_list_pointer_event(pointer_event, pointer_regions)
+                if pointer_result.hovered_region_id and pointer_result.hovered_region_id.startswith("quest:"):
+                    cursor = int(pointer_result.hovered_region_id.split(":", 1)[1])
+                    if cursor < scroll_offset:
+                        scroll_offset = cursor
+                if pointer_result.action:
+                    keyboard_processed = True
+                    if process_action(pointer_result.action):
+                        return
+                continue
+
             action = unified_input_handler.process_tcod_event(event)
             
             if action:

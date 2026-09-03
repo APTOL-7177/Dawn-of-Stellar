@@ -3,9 +3,10 @@ import tcod
 
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerEvent, PointerEventKind
 from src.core.logger import get_logger, Loggers
 from src.audio import play_sfx
-from src.ui.tcod_display import render_popup_background
+from src.ui.visual_tokens import rgb
 
 logger = get_logger(Loggers.UI)
 
@@ -26,7 +27,13 @@ class AnvilUI:
             # 이미 사용한 모루
             self.menu = CursorMenu(
                 title="망가진 모루",
-                items=[MenuItem("이 모루는 더 이상 사용할 수 없습니다.", action=lambda: "close")],
+                items=[
+                    MenuItem(
+                        "이 모루는 더 이상 사용할 수 없습니다.",
+                        action=lambda: "close",
+                        description="이미 사용한 모루입니다.",
+                    )
+                ],
                 x=(self.screen_width - 50) // 2,
                 y=(self.screen_height - 10) // 2,
                 width=50,
@@ -55,7 +62,13 @@ class AnvilUI:
         if not repairable_items:
             self.menu = CursorMenu(
                 title="모루 (수리할 장비 없음)",
-                items=[MenuItem("수리할 장비가 없습니다.", action=lambda: "close")],
+                items=[
+                    MenuItem(
+                        "수리할 장비가 없습니다.",
+                        action=lambda: "close",
+                        description="수리할 장비가 없습니다.",
+                    )
+                ],
                 x=(self.screen_width - 50) // 2,
                 y=(self.screen_height - 10) // 2,
                 width=50,
@@ -178,8 +191,18 @@ class AnvilUI:
         """렌더링"""
         if self.menu:
             # 배경을 어둡게 처리 (팝업 효과)
-            console.draw_rect(0, 0, self.screen_width, self.screen_height, 0, bg=(0, 0, 0), bg_blend=tcod.BKGND_ALPHA(200))
+            console.draw_rect(0, 0, self.screen_width, self.screen_height, 0, bg=rgb("surface.base"), bg_blend=tcod.BKGND_ALPHA(200))
             self.menu.render(console)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if not self.menu:
+            return PointerDispatchResult(event=event, value=True)
+        result = self.menu.handle_pointer_event(event)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL, value=True, tooltip=result.tooltip)
+        if result.value == "close":
+            return result.with_value(True)
+        return result
 
     def handle_input(self, action: GameAction) -> bool:
         """입력 처리. True 반환 시 종료"""
@@ -242,6 +265,13 @@ def open_anvil_ui(console, context, inventory, target_tile):
         # 키보드 입력 처리
         keyboard_processed = False
         for event in tcod.event.get():
+            context.convert_event(event)
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event:
+                pointer_result = ui.handle_pointer_event(pointer_event)
+                if pointer_result.value is True:
+                    return
+
             action = unified_input_handler.process_tcod_event(event)
             if action:
                 keyboard_processed = True

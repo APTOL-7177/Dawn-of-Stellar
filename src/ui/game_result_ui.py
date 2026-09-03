@@ -14,6 +14,8 @@ from typing import Optional, Any
 
 from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.tcod_display import render_space_background
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerEvent, PointerEventKind
+from src.ui.visual_tokens import TokenName, rgb
 from src.core.logger import get_logger, Loggers
 from src.persistence.meta_progress import get_meta_progress, save_meta_progress
 from src.audio import play_sfx
@@ -24,6 +26,9 @@ logger = get_logger(Loggers.UI)
 
 class GameResultUI:
     """게임 정산 UI"""
+    confirm_token: TokenName = "accent.amber"
+    body_token: TokenName = "text.primary"
+    muted_token: TokenName = "text.secondary"
 
     def __init__(
         self,
@@ -47,6 +52,7 @@ class GameResultUI:
 
         # 별의 파편 계산
         self.star_fragments = self._calculate_star_fragments()
+        self.scroll_offset = 0
 
     def _calculate_star_fragments(self) -> int:
         """별의 파편 계산 (20배 증가)"""
@@ -79,10 +85,10 @@ class GameResultUI:
         # 제목
         if self.is_victory:
             title = "=== 게임 클리어! ==="
-            title_color = (100, 255, 100)
+            title_color = rgb("status.success")
         else:
             title = "=== 게임 오버 ==="
-            title_color = (255, 100, 100)
+            title_color = rgb("status.error")
 
         console.print(
             (self.screen_width - len(title)) // 2,
@@ -92,7 +98,7 @@ class GameResultUI:
         )
 
         # 통계
-        stats_y = 10
+        stats_y = 10 - self.scroll_offset
         stats = [
             f"도달 층수: {self.max_floor}층",
             f"처치한 적: {self.enemies_defeated}마리",
@@ -105,7 +111,7 @@ class GameResultUI:
                 (self.screen_width - len(stat)) // 2,
                 stats_y + i * 2,
                 stat,
-                fg=(200, 200, 200)
+                fg=rgb(self.body_token)
             )
 
         # 별의 파편
@@ -115,7 +121,7 @@ class GameResultUI:
             (self.screen_width - len(fragments_title)) // 2,
             fragments_y,
             fragments_title,
-            fg=(150, 200, 255)
+            fg=rgb("status.info")
         )
 
         # 별의 파편 계산 상세
@@ -145,7 +151,7 @@ class GameResultUI:
                 (self.screen_width - len(line)) // 2,
                 breakdown_y + i * 2,
                 line,
-                fg=(180, 180, 180)
+                fg=rgb(self.muted_token)
             )
 
         # 총 획득
@@ -155,7 +161,7 @@ class GameResultUI:
             (self.screen_width - len(total_line)) // 2,
             total_y,
             total_line,
-            fg=(255, 215, 0)
+            fg=rgb(self.confirm_token)
         )
 
         # 안내 메시지
@@ -172,7 +178,7 @@ class GameResultUI:
                 (self.screen_width - len(msg)) // 2,
                 message_y + i,
                 msg,
-                fg=(150, 150, 150)
+                fg=rgb(self.muted_token)
             )
 
     def handle_input(self, action: GameAction) -> bool:
@@ -187,6 +193,27 @@ class GameResultUI:
                 play_sfx("ui", "cursor_cancel")
             return True
         return False
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if event.kind is PointerEventKind.HOVER:
+            return PointerDispatchResult(event=event, tooltip="정산 상세와 별의 파편 보상 내역")
+        if event.kind is PointerEventKind.WHEEL:
+            if event.wheel_delta < 0:
+                self.scroll_offset = min(self._max_scroll_offset(), self.scroll_offset + 1)
+                return PointerDispatchResult(event=event, action=GameAction.MOVE_DOWN)
+            if event.wheel_delta > 0:
+                self.scroll_offset = max(0, self.scroll_offset - 1)
+                return PointerDispatchResult(event=event, action=GameAction.MOVE_UP)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+            return PointerDispatchResult(event=event, action=GameAction.CONFIRM)
+        return PointerDispatchResult(event=event)
+
+    def _max_scroll_offset(self) -> int:
+        milestone_rows = 2 if self.max_floor >= 10 else 0
+        content_bottom = 10 + 8 + 3 + 2 + 2 + milestone_rows + 6
+        return max(0, content_bottom - (self.screen_height - 4))
 
     def finalize(self):
         """
@@ -322,6 +349,15 @@ def show_game_result(
         keyboard_processed = False
         for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                pointer_result = ui.handle_pointer_event(pointer_event)
+                if pointer_result.action is GameAction.CANCEL:
+                    logger.info("게임 정산 종료")
+                    return
+                if pointer_result.action is GameAction.CONFIRM:
+                    logger.info("게임 정산 종료")
+                    return
 
             if action:
                 keyboard_processed = True

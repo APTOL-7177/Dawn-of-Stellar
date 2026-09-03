@@ -17,6 +17,8 @@ from typing import List, Tuple
 
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerEvent, PointerEventKind
+from src.ui.visual_tokens import TokenName, rgb
 from src.core.logger import get_logger
 
 _MATRIX_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*<>?/\\▓▒░█"
@@ -39,6 +41,7 @@ def _display_width(s: str) -> int:
 
 class CreditsUI:
     """다양한 시각 효과가 포함된 영화 스타일 크레딧 화면"""
+    controls_token: TokenName = "text.secondary"
 
     def __init__(self, screen_width: int = 80, screen_height: int = 50):
         self.w = screen_width
@@ -787,7 +790,7 @@ class CreditsUI:
 
         if section_idx >= len(self.sections):
             msg = "[ Z / Enter: 돌아가기 ]"
-            console.print((self.w - len(msg)) // 2, self.h // 2, msg, fg=(150, 150, 180))
+            console.print((self.w - len(msg)) // 2, self.h // 2, msg, fg=rgb(self.controls_token))
             return
 
         section = self.sections[section_idx]
@@ -839,10 +842,10 @@ class CreditsUI:
 
         # 하단 안내
         controls = "→/↓: 스킵  |  Z/Enter/X/ESC: 돌아가기"
-        console.print((self.w - len(controls)) // 2, self.h - 2, controls, fg=(60, 60, 80))
+        console.print((self.w - len(controls)) // 2, self.h - 2, controls, fg=rgb(self.controls_token))
 
         progress = f"[{section_idx + 1}/{len(self.sections)}]"
-        console.print(self.w - len(progress) - 2, self.h - 2, progress, fg=(60, 60, 80))
+        console.print(self.w - len(progress) - 2, self.h - 2, progress, fg=rgb("text.muted"))
 
     def handle_input(self, action: GameAction) -> bool:
         if action in (GameAction.CONFIRM, GameAction.CANCEL, GameAction.ESCAPE):
@@ -852,6 +855,22 @@ class CreditsUI:
             self._skip_to_next_section()
         return False
 
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if event.kind is PointerEventKind.WHEEL:
+            if event.wheel_delta < 0:
+                self._skip_to_next_section()
+                return PointerDispatchResult(event=event, action=GameAction.MOVE_DOWN)
+            if event.wheel_delta > 0:
+                self._skip_to_previous_section()
+                return PointerDispatchResult(event=event, action=GameAction.MOVE_UP)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            self.handle_input(GameAction.CANCEL)
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+            self.handle_input(GameAction.CONFIRM)
+            return PointerDispatchResult(event=event, action=GameAction.CONFIRM)
+        return PointerDispatchResult(event=event)
+
     def _skip_to_next_section(self):
         elapsed = time.time() - self.start_time
         accumulated = 0.0
@@ -860,6 +879,19 @@ class CreditsUI:
             if elapsed < accumulated:
                 self.start_time = time.time() - accumulated
                 break
+
+    def _skip_to_previous_section(self):
+        elapsed = time.time() - self.start_time
+        accumulated = 0.0
+        previous_start = 0.0
+        for section in self.sections:
+            section_end = accumulated + section["duration"]
+            if elapsed < section_end:
+                target = previous_start if elapsed - accumulated < 1.0 else accumulated
+                self.start_time = time.time() - target
+                break
+            previous_start = accumulated
+            accumulated = section_end
 
 
 def run_credits(console: tcod.console.Console, context: tcod.context.Context) -> None:
@@ -892,6 +924,16 @@ def run_credits(console: tcod.console.Console, context: tcod.context.Context) ->
 
         for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                pointer_result = credits_ui.handle_pointer_event(pointer_event)
+                if pointer_result.action is not None and credits_ui.should_close:
+                    try:
+                        from src.audio.audio_manager import get_audio_manager
+                        get_audio_manager().stop_bgm(fade_out=True)
+                    except Exception:
+                        pass
+                    return
             if action:
                 if credits_ui.handle_input(action):
                     try:

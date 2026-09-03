@@ -12,6 +12,8 @@ import math
 from src.core.difficulty import DifficultyLevel, DifficultySystem
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
+from src.ui.visual_tokens import TokenName, rgb
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
@@ -21,6 +23,11 @@ logger = get_logger("difficulty_ui")
 
 class DifficultySelectionUI:
     """난이도 선택 UI"""
+    choice_background_token: TokenName = "state.hover"
+    choice_active_token: TokenName = "state.active"
+    choice_focus_token: TokenName = "accent.amber"
+    choice_text_token: TokenName = "text.primary"
+    choice_description_token: TokenName = "text.secondary"
 
     def __init__(
         self,
@@ -48,6 +55,7 @@ class DifficultySelectionUI:
 
         # 애니메이션
         self.animation_frame = 0
+        self.pointer_tooltip: str | None = None
 
         logger.info("난이도 선택 UI 열기")
 
@@ -86,6 +94,47 @@ class DifficultySelectionUI:
             return True
 
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        menu_y = 10
+        menu_width = 60
+        menu_x = (self.screen_width - menu_width) // 2
+        regions = []
+        for idx, difficulty in enumerate(self.difficulties):
+            info = self.difficulty_system.get_difficulty_info(difficulty)
+            tooltip = f"{info['name']}: {info['description']}"
+            regions.append(
+                PointerRegion(
+                    region_id=str(idx),
+                    x=menu_x,
+                    y=menu_y + idx * 5,
+                    width=menu_width,
+                    height=4,
+                    command=GameAction.CONFIRM,
+                    tooltip=tooltip,
+                )
+            )
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        dispatcher = PointerDispatcher(self.pointer_regions())
+        result = dispatcher.dispatch(event)
+        region = dispatcher.region_at(event.position)
+        region_id = result.hovered_region_id or (region.region_id if region else None)
+        if region_id is not None:
+            self.cursor = int(region_id)
+        if result.tooltip is not None:
+            self.pointer_tooltip = result.tooltip
+        if event.kind is PointerEventKind.WHEEL and result.action is not None:
+            self.handle_input(result.action)
+            return result
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            self.handle_input(GameAction.CANCEL)
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL)
+        if event.kind is PointerEventKind.CLICK and result.action is not None:
+            self.handle_input(result.action)
+            return result
+        return result
 
     def render(self, console: tcod.console.Console) -> None:
         """
@@ -147,7 +196,7 @@ class DifficultySelectionUI:
             if is_selected:
                 # 선택된 항목 강조 (애니메이션)
                 pulse = math.sin(self.animation_frame / 10.0) * 10 + 20
-                bg_color = (int(pulse), int(pulse), int(pulse * 2))
+                bg_color = rgb(self.choice_background_token)
 
                 # 박스 그리기 (배경색만 설정) - tcod는 [y, x] 순서 사용 (4줄: y ~ y+3)
                 for dx in range(menu_width):
@@ -155,10 +204,10 @@ class DifficultySelectionUI:
                         console.bg[y + dy, menu_x + dx] = bg_color
 
             # 난이도 이름
-            name_color = difficulty_colors.get(difficulty, Colors.WHITE)
+            name_color = difficulty_colors.get(difficulty, rgb(self.choice_text_token))
             if is_selected:
                 # 선택된 항목은 더 밝게
-                name_color = tuple(min(255, c + 50) for c in name_color)
+                name_color = rgb(self.choice_focus_token)
 
             cursor_str = "▶ " if is_selected else "  "
             console.print(
@@ -173,7 +222,7 @@ class DifficultySelectionUI:
                 menu_x + 4,
                 y + 1,
                 info['description'],
-                fg=Colors.GRAY
+                fg=rgb(self.choice_description_token)
             )
 
             # 배율 정보
@@ -186,7 +235,7 @@ class DifficultySelectionUI:
                 menu_x + 4,
                 y + 2,
                 modifiers_text,
-                fg=Colors.YELLOW
+                fg=rgb("status.warning")
             )
 
             # 보상 정보
@@ -198,7 +247,7 @@ class DifficultySelectionUI:
                 menu_x + 4,
                 y + 3,
                 rewards_text,
-                fg=Colors.GREEN
+                fg=rgb("status.success")
             )
 
         # 조작 안내
@@ -207,8 +256,16 @@ class DifficultySelectionUI:
             (self.screen_width - len(controls)) // 2,
             self.screen_height - 3,
             controls,
-            fg=Colors.GRAY
+            fg=rgb("text.secondary")
         )
+
+        if self.pointer_tooltip:
+            console.print(
+                (self.screen_width - len(self.pointer_tooltip)) // 2,
+                self.screen_height - 2,
+                self.pointer_tooltip,
+                fg=rgb("accent.cyan"),
+            )
 
         # 추가 안내
         notice = "※ 난이도는 세이브 파일별로 저장되며, 게임 중 변경할 수 없습니다"
@@ -216,7 +273,7 @@ class DifficultySelectionUI:
             (self.screen_width - len(notice)) // 2,
             self.screen_height - 5,
             notice,
-            fg=Colors.ORANGE
+            fg=rgb("status.warning")
         )
 
 
@@ -282,8 +339,13 @@ def show_difficulty_selection(
         action = None
         for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                pointer_result = ui.handle_pointer_event(pointer_event)
+                if pointer_result.action is not None:
+                    action = pointer_result.action
 
-            if action:
+            if action and pointer_event is None:
                 if ui.handle_input(action):
                     return ui.selected_difficulty
 

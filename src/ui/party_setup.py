@@ -18,6 +18,7 @@ import time as _time_module
 from src.ui.cursor_menu import CursorMenu, MenuItem, TextInputBox
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
 from src.core.logger import get_logger
 from src.core.config import get_config
 from src.persistence.meta_progress import get_meta_progress
@@ -1199,6 +1200,42 @@ class PartySetup:
             return self._handle_confirm(action)
 
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        active_menu = self._active_pointer_menu()
+        if active_menu is None:
+            return ()
+        return active_menu.pointer_regions()
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        active_menu = self._active_pointer_menu()
+        if active_menu is None:
+            return PointerDispatchResult(event=event)
+        result = active_menu.handle_pointer_event(event)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            value = self.handle_input(GameAction.CANCEL)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and result.value is not None:
+            value = self.handle_input(GameAction.CONFIRM)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN
+            value = self.handle_input(action)
+            return result.with_value(value)
+        return result
+
+    def _active_pointer_menu(self) -> CursorMenu | None:
+        if self.show_job_guide:
+            return None
+        if self.state == "job_select":
+            return self.job_menu
+        if self.state == "gender_select":
+            return self.gender_menu
+        if self.state == "trait_select":
+            return self.trait_menu
+        if self.state == "passive_select":
+            return self.passive_menu
+        return None
 
     def _handle_trait_select(self, action: GameAction) -> bool:
         """특성 선택 입력 처리"""

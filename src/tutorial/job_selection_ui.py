@@ -15,9 +15,44 @@ from dataclasses import dataclass
 from src.core.event_bus import event_bus
 from src.core.logger import get_logger, Loggers
 from src.ui.input_handler import unified_input_handler, iter_game_input, poll_game_input, GameAction
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
+from src.ui.visual_tokens import rgb
 
 
 logger = get_logger(Loggers.UI)
+
+
+def _job_choice_regions(box_x: int, box_y: int, choices: list["JobChoiceInfo"]) -> tuple[PointerRegion, ...]:
+    return tuple(
+        PointerRegion(
+            region_id=str(index),
+            x=box_x + 2,
+            y=box_y + 2 + index * 8,
+            width=56,
+            height=7,
+            command=GameAction.CONFIRM,
+            tooltip=f"{choice.name}: {choice.description} / {choice.story_reason}",
+        )
+        for index, choice in enumerate(choices)
+    )
+
+
+def _job_pointer_action(event: PointerEvent, regions: tuple[PointerRegion, ...]) -> tuple[GameAction | None, int | None, str | None]:
+    dispatcher = PointerDispatcher(regions)
+    result = dispatcher.dispatch(event)
+    region = dispatcher.region_at(event.position)
+    region_id = result.hovered_region_id or (region.region_id if region else None)
+    hovered = int(region_id) if region_id is not None else None
+    if event.kind is PointerEventKind.HOVER:
+        return None, hovered, result.tooltip
+    if event.kind is PointerEventKind.WHEEL:
+        return result.action, None, None
+    if event.kind is PointerEventKind.CLICK:
+        if event.button is PointerButton.RIGHT:
+            return GameAction.CANCEL, None, None
+        if event.button is PointerButton.LEFT:
+            return result.action, hovered, None
+    return None, None, None
 
 
 @dataclass
@@ -149,6 +184,7 @@ class JobSelectionUI:
         self.confirmed = False
         self.timed_out = False
         self.start_time = 0.0
+        self.pointer_tooltip: str | None = None
         
         # 추천 직업을 기본 선택으로
         for i, choice in enumerate(choices):
@@ -185,6 +221,20 @@ class JobSelectionUI:
             for action, event in iter_game_input(timeout=0.1):
                 if event and isinstance(event, tcod.event.Quit):
                     return None
+                pointer_event = unified_input_handler.process_pointer_event(event) if event is not None else None
+                if pointer_event is not None:
+                    box_width = 60
+                    box_x = (self.screen_width - box_width) // 2
+                    box_y = 8
+                    pointer_action, hovered_index, tooltip = _job_pointer_action(
+                        pointer_event, _job_choice_regions(box_x, box_y, self.choices)
+                    )
+                    if hovered_index is not None:
+                        self.selected_index = hovered_index
+                    if tooltip is not None:
+                        self.pointer_tooltip = tooltip
+                    if pointer_action is not None:
+                        action = pointer_action
                 if action is not None:
                     self._handle_action(action)
                 elif event and isinstance(event, tcod.event.KeyDown):
@@ -259,9 +309,11 @@ class JobSelectionUI:
         self.console.print(
             box_x,
             help_y,
-            "↑↓: 선택 이동  Enter: 확정  (시간 초과 시 추천 직업 자동 선택)",
+            "↑↓/Wheel: 선택 이동  Left/Enter: 확정  Right/ESC: 추천 직업 자동 선택",
             fg=(150, 150, 150)
         )
+        if self.pointer_tooltip:
+            self.console.print(box_x, help_y + 1, self.pointer_tooltip[:58], fg=rgb("accent.amber"), bg=rgb("state.tooltip"))
     
     def _render_choice(
         self,
@@ -272,6 +324,8 @@ class JobSelectionUI:
     ) -> None:
         """선택지 렌더링"""
         is_selected = index == self.selected_index
+        if is_selected:
+            self.console.draw_rect(x - 1, y, 56, 7, ord(" "), bg=rgb("state.active"))
         
         # 선택 표시
         marker = "▶ " if is_selected else "  "
@@ -454,6 +508,9 @@ class JobSelectionUI:
         
         # 아무 키나 대기
         for action, event in iter_game_input():
+            pointer_event = unified_input_handler.process_pointer_event(event) if event is not None else None
+            if pointer_event is not None and pointer_event.kind is PointerEventKind.CLICK:
+                break
             if event and isinstance(event, tcod.event.Quit):
                 break
             if action is not None:

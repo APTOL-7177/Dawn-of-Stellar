@@ -16,6 +16,7 @@ from src.cooking.potion_brewing import PotionDatabase, PotionRecipe, PotionBrewe
 from src.cooking.bomb_crafting import BombDatabase, BombRecipe, BombCrafter, BombType
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 from src.equipment.item_system import ItemGenerator
 from src.core.logger import get_logger
 from src.audio import play_sfx
@@ -621,6 +622,101 @@ class AlchemyUI:
 
         return False
 
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions: list[PointerRegion] = [
+            PointerRegion(f"tab:{index}", 5 + index * 30, 4, 28, 1, GameAction.CONFIRM, f"{tab_name} 탭")
+            for index, tab_name in enumerate(self.tabs)
+        ]
+        list_y = 7
+        if self.current_tab == 2 and self.has_alchemist:
+            if self.mode == AlchemyMode.TRANSMUTATION_SELECT_TARGET:
+                visible_targets = self.transmutation_targets[
+                    self.transmutation_target_scroll:self.transmutation_target_scroll + self.max_visible_recipes
+                ]
+                for index, target in enumerate(visible_targets):
+                    actual_index = self.transmutation_target_scroll + index
+                    regions.append(PointerRegion(f"target:{actual_index}", 5, list_y + index, self.screen_width - 10, 1, GameAction.CONFIRM, self._target_tooltip(target)))
+            else:
+                for index, slot_pair in enumerate(self._transmutable_slots()[self.transmutation_item_scroll:self.transmutation_item_scroll + self.max_visible_recipes]):
+                    actual_index = self.transmutation_item_scroll + index
+                    regions.append(PointerRegion(f"transmute:{actual_index}", 5, list_y + index, self.screen_width - 10, 1, GameAction.CONFIRM, self._item_tooltip(getattr(slot_pair[1], "item", None))))
+            return tuple(regions)
+
+        visible_recipes = self._get_current_recipes()[self.recipe_scroll:self.recipe_scroll + self.max_visible_recipes]
+        for index, recipe in enumerate(visible_recipes):
+            actual_index = self.recipe_scroll + index
+            enabled = self._can_craft_recipe(recipe)
+            regions.append(PointerRegion(f"recipe:{actual_index}", 5, list_y + index, self.screen_width - 10, 1, GameAction.CONFIRM, self._recipe_tooltip(recipe, enabled), enabled=enabled))
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN if event.wheel_delta < 0 else None
+            if action is not None:
+                self.handle_input(action)
+            return PointerDispatchResult(event=event, action=action)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            self.handle_input(GameAction.CANCEL)
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL)
+
+        result = PointerDispatcher(self.pointer_regions()).dispatch(event)
+        region_id = result.hovered_region_id or self._region_id_at(event)
+        if region_id:
+            self._focus_pointer_region(region_id)
+        if event.kind is PointerEventKind.HOVER and region_id and result.tooltip is None:
+            region = next((candidate for candidate in self.pointer_regions() if candidate.region_id == region_id), None)
+            return PointerDispatchResult(event=event, hovered_region_id=region_id, tooltip=region.tooltip if region else None)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+            self._focus_pointer_region(region_id)
+            if region_id.startswith("recipe:"):
+                recipe = self._get_current_recipes()[self.recipe_cursor]
+                if not self._can_craft_recipe(recipe):
+                    return PointerDispatchResult(event=event, action=GameAction.CONFIRM, value=False, hovered_region_id=region_id, tooltip=self._recipe_disabled_reason(recipe))
+            closed = self.handle_input(GameAction.CONFIRM)
+            return PointerDispatchResult(event=event, action=GameAction.CONFIRM, value=closed, hovered_region_id=region_id, tooltip=result.tooltip)
+        return result
+
+    def _region_id_at(self, event: PointerEvent) -> str:
+        region = next((candidate for candidate in self.pointer_regions() if candidate.contains(event.position)), None)
+        return region.region_id if region else ""
+
+    def _focus_pointer_region(self, region_id: str) -> None:
+        if region_id.startswith("tab:"):
+            self.current_tab = int(region_id.split(":", 1)[1])
+            self.mode = AlchemyMode.SELECT_TAB
+            self.recipe_cursor = 0
+            self.recipe_scroll = 0
+        elif region_id.startswith("recipe:"):
+            self.recipe_cursor = int(region_id.split(":", 1)[1])
+            self.mode = AlchemyMode.SELECT_RECIPE
+            if self.recipe_cursor < self.recipe_scroll:
+                self.recipe_scroll = self.recipe_cursor
+        elif region_id.startswith("target:"):
+            self.transmutation_target_cursor = int(region_id.split(":", 1)[1])
+            self.mode = AlchemyMode.TRANSMUTATION_SELECT_TARGET
+        elif region_id.startswith("transmute:"):
+            self.transmutation_item_cursor = int(region_id.split(":", 1)[1])
+            self.mode = AlchemyMode.TRANSMUTATION_SELECT_ITEM
+
+    def _recipe_tooltip(self, recipe: Any, enabled: bool) -> str:
+        summary = _get_effect_summary(recipe)
+        ingredients = ", ".join(f"{key} x{value}" for key, value in getattr(recipe, "ingredients", {}).items())
+        status = "제작 가능" if enabled else self._recipe_disabled_reason(recipe)
+        return " | ".join(part for part in (getattr(recipe, "name", "레시피"), summary, ingredients, status) if part)
+
+    def _recipe_disabled_reason(self, recipe: Any) -> str:
+        return f"재료 부족: {getattr(recipe, 'name', '레시피')}"
+
+    def _target_tooltip(self, target: Any) -> str:
+        category = getattr(getattr(target, "category", None), "display_name", "재료")
+        return f"{getattr(target, 'name', '재료')} | {category} | 변환 대상으로 선택"
+
+    def _item_tooltip(self, item: Any) -> str:
+        return f"{getattr(item, 'name', '아이템')} | 연금술 변환 재료"
+
+    def _transmutable_slots(self) -> list[tuple[int, Any]]:
+        return [(index, slot) for index, slot in enumerate(self.inventory.slots) if slot and isinstance(getattr(slot, "item", None), Ingredient)]
+
     def _transmute_item(self):
         """아이템 변환 실행 (선택된 대상 재료로 변환)"""
         if not self.selected_transmutation_item:
@@ -1222,6 +1318,12 @@ def open_alchemy_lab(
         # 키보드 입력 처리
         keyboard_processed = False
         for event in tcod.event.get():
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                ui.handle_pointer_event(pointer_event)
+                keyboard_processed = True
+                continue
+
             action = unified_input_handler.process_tcod_event(event)
             
             if action:

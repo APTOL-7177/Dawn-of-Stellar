@@ -12,12 +12,37 @@ from typing import List, Any, Optional
 from src.equipment.inventory import Inventory
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 from src.ui.cooking_ui import open_cooking_pot
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
 
 logger = get_logger("rest_ui")
+
+
+def rest_menu_pointer_regions(console: tcod.console.Console, menu_items: List[str], start_y: int) -> tuple[PointerRegion, ...]:
+    return tuple(
+        PointerRegion(
+            f"menu:{index}",
+            max(0, (console.width - len(item) - 2) // 2),
+            start_y + index * 2,
+            len(item) + 4,
+            1,
+            GameAction.CONFIRM,
+            f"{item} 선택",
+        )
+        for index, item in enumerate(menu_items)
+    )
+
+
+def handle_rest_menu_pointer_event(event: PointerEvent, regions: tuple[PointerRegion, ...]) -> PointerDispatchResult:
+    if event.kind is PointerEventKind.WHEEL:
+        action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN if event.wheel_delta < 0 else None
+        return PointerDispatchResult(event=event, action=action)
+    if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+        return PointerDispatchResult(event=event, action=GameAction.CANCEL, value="cancel")
+    return PointerDispatcher(regions).dispatch(event)
 
 
 def open_rest_menu(
@@ -175,7 +200,20 @@ def open_rest_menu(
 
         # 키보드 입력 처리
         keyboard_processed = False
+        pointer_regions = rest_menu_pointer_regions(console, menu_items, start_y)
         for event in tcod.event.get():
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                pointer_result = handle_rest_menu_pointer_event(pointer_event, pointer_regions)
+                if pointer_result.hovered_region_id and pointer_result.hovered_region_id.startswith("menu:"):
+                    cursor = int(pointer_result.hovered_region_id.split(":", 1)[1])
+                if pointer_result.action:
+                    keyboard_processed = True
+                    result = process_action(pointer_result.action)
+                    if result:
+                        return result
+                continue
+
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
@@ -404,7 +442,20 @@ def open_inn_menu(
 
         # 키보드 입력 처리
         keyboard_processed = False
+        pointer_regions = rest_menu_pointer_regions(console, menu_items, start_y)
         for event in tcod.event.get():
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                pointer_result = handle_rest_menu_pointer_event(pointer_event, pointer_regions)
+                if pointer_result.hovered_region_id and pointer_result.hovered_region_id.startswith("menu:"):
+                    cursor = int(pointer_result.hovered_region_id.split(":", 1)[1])
+                if pointer_result.action:
+                    keyboard_processed = True
+                    result = process_inn_action(pointer_result.action)
+                    if result:
+                        return result
+                continue
+
             action = unified_input_handler.process_tcod_event(event)
 
             if action:

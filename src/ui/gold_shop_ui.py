@@ -11,6 +11,7 @@ import tcod
 import random
 
 from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
 from src.core.logger import get_logger, Loggers
 from src.audio import play_sfx
 from src.equipment.item_system import (
@@ -18,6 +19,7 @@ from src.equipment.item_system import (
     CONSUMABLE_TEMPLATES, WEAPON_TEMPLATES, ARMOR_TEMPLATES, ACCESSORY_TEMPLATES
 )
 from src.ui.cursor_menu import CursorMenu, MenuItem
+from src.ui.visual_tokens import rgb
 
 
 logger = get_logger(Loggers.UI)
@@ -575,12 +577,83 @@ class GoldShopUI:
             # 아이템 구매
             self._purchase_item()
 
-        elif action == GameAction.ESCAPE or action == GameAction.MENU:
+        elif action == GameAction.ESCAPE or action == GameAction.MENU or action == GameAction.CANCEL:
             # 상점 닫기
             play_sfx("ui", "cursor_cancel")
             return True
 
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        if self.state == ShopState.REPAIR_SELECT and self.repair_menu:
+            return self.repair_menu.pointer_regions()
+        if self.state == ShopState.REFORGE_SELECT and self.reforge_menu:
+            return self.reforge_menu.pointer_regions()
+        shop_width = 70
+        shop_height = 40
+        shop_x = (self.screen_width - shop_width) // 2
+        shop_y = (self.screen_height - shop_height) // 2
+        current_items = self.shop_items[self.current_tab]
+        item_y = shop_y + 7
+        regions = []
+        for index, item in enumerate(current_items):
+            if item.stock == 0:
+                continue
+            regions.append(
+                PointerRegion(
+                    region_id=str(index),
+                    x=shop_x + 2,
+                    y=item_y,
+                    width=shop_width - 4,
+                    height=1,
+                    command=GameAction.CONFIRM,
+                    tooltip=self._item_tooltip(item),
+                    enabled=True,
+                )
+            )
+            item_y += 1
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if self.state == ShopState.REPAIR_SELECT and self.repair_menu:
+            return self._handle_cursor_menu_pointer(event, self.repair_menu)
+        if self.state == ShopState.REFORGE_SELECT and self.reforge_menu:
+            return self._handle_cursor_menu_pointer(event, self.reforge_menu)
+        dispatcher = PointerDispatcher(self.pointer_regions())
+        result = dispatcher.dispatch(event)
+        region = dispatcher.region_at(event.position)
+        region_id = result.hovered_region_id or (region.region_id if region else None)
+        if region_id is not None:
+            self.selected_index = int(region_id)
+        if event.kind is PointerEventKind.WHEEL and result.action is not None:
+            return result.with_value(self.handle_input(result.action))
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            return result.with_value(self.handle_input(GameAction.CANCEL))
+        if event.kind is PointerEventKind.CLICK and result.action is not None:
+            return PointerDispatchResult(
+                event=event,
+                action=result.action,
+                value=self.handle_input(result.action),
+                tooltip=region.tooltip if region else result.tooltip,
+            )
+        return result
+
+    def _handle_cursor_menu_pointer(self, event: PointerEvent, menu: CursorMenu) -> PointerDispatchResult:
+        result = menu.handle_pointer_event(event)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            self.handle_input(GameAction.CANCEL)
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL, value=False, tooltip=result.tooltip)
+        return result
+
+    def _item_tooltip(self, item: GoldShopItem) -> str:
+        service_types = ("service", "service_repair", "service_reforge")
+        if item.stock == 0:
+            return "매진된 상품입니다."
+        if item.item_type not in service_types and self.inventory.gold < item.price:
+            return f"골드 부족: 필요 {item.price}G, 보유 {self.inventory.gold}G"
+        if item.item_type not in service_types and not self.inventory.can_add_item(item.item_obj):
+            return "인벤토리가 가득 찼습니다."
+        return item.description
 
     def _purchase_item(self):
         """아이템 구매 또는 서비스 이용"""
@@ -819,7 +892,7 @@ class GoldShopUI:
         # 배경 어둡게
         for y in range(self.screen_height):
             for x in range(self.screen_width):
-                console.print(x, y, " ", bg=(0, 0, 0))
+                console.print(x, y, " ", bg=rgb("surface.base"))
 
         # 상점 박스
         shop_width = 70
@@ -836,7 +909,7 @@ class GoldShopUI:
             shop_x + (shop_width - len(title)) // 2,
             shop_y + 2,
             title,
-            fg=(255, 215, 0)  # 금색
+            fg=rgb("accent.amber")
         )
 
         # 골드 표시
@@ -845,7 +918,7 @@ class GoldShopUI:
             shop_x + shop_width - len(gold_text) - 2,
             shop_y + 2,
             gold_text,
-            fg=(255, 215, 0)
+            fg=rgb("accent.amber")
         )
 
         # 탭 메뉴
@@ -853,14 +926,14 @@ class GoldShopUI:
         tab_x = shop_x + 2
         for i, tab in enumerate(self.tabs):
             if tab == self.current_tab:
-                console.print(tab_x, tab_y, f"[{tab.value}]", fg=(255, 255, 100))
+                console.print(tab_x, tab_y, f"[{tab.value}]", fg=rgb("accent.amber"))
             else:
-                console.print(tab_x, tab_y, f" {tab.value} ", fg=(150, 150, 150))
+                console.print(tab_x, tab_y, f" {tab.value} ", fg=rgb("text.secondary"))
             tab_x += len(tab.value) + 4
 
         # 구분선
         for x in range(1, shop_width - 1):
-            console.print(shop_x + x, shop_y + 5, "─", fg=(100, 100, 100))
+            console.print(shop_x + x, shop_y + 5, "─", fg=rgb("line.subtle"))
 
         # 아이템 목록
         current_items = self.shop_items[self.current_tab]
@@ -873,20 +946,20 @@ class GoldShopUI:
                 
             if i == self.selected_index:
                 # 선택된 아이템
-                console.print(shop_x + 2, item_y, "►", fg=(255, 255, 100))
+                console.print(shop_x + 2, item_y, "►", fg=rgb("accent.amber"))
                 
                 # 아이템 이름과 재고
                 if item.stock > 1:
                     item_name = f"{item.name} (재고: {item.stock})"
                 else:
                     item_name = item.name
-                console.print(shop_x + 4, item_y, item_name, fg=(255, 255, 100))
+                console.print(shop_x + 4, item_y, item_name, fg=rgb("accent.amber"))
 
                 # 가격 (골드 부족 시 빨간색, 재고 없으면 회색)
                 if item.stock != 0:  # 0이 아니면 (양수 또는 -1 무제한)
-                    price_color = (255, 255, 100) if self.inventory.gold >= item.price else (255, 100, 100)
+                    price_color = rgb("accent.amber") if self.inventory.gold >= item.price else rgb("status.error")
                 else:
-                    price_color = (100, 100, 100)
+                    price_color = rgb("state.disabled")
                 console.print(shop_x + shop_width - 12, item_y, f"{item.price}G", fg=price_color)
             else:
                 # 일반 아이템
@@ -895,8 +968,8 @@ class GoldShopUI:
                     item_name = f"{item.name} (재고: {item.stock})"
                 else:
                     item_name = item.name
-                console.print(shop_x + 4, item_y, item_name, fg=(200, 200, 200))
-                console.print(shop_x + shop_width - 12, item_y, f"{item.price}G", fg=(200, 200, 200))
+                console.print(shop_x + 4, item_y, item_name, fg=rgb("text.primary"))
+                console.print(shop_x + shop_width - 12, item_y, f"{item.price}G", fg=rgb("text.secondary"))
 
             item_y += 1
 
@@ -907,13 +980,13 @@ class GoldShopUI:
             if selected_item.stock != 0:
                 desc_y = shop_y + shop_height - 14
 
-                console.print(shop_x + 2, desc_y, "[ 설명 ]", fg=(150, 200, 255))
+                console.print(shop_x + 2, desc_y, "[ 설명 ]", fg=rgb("status.info"))
                 desc_y += 1
 
                 # 설명 텍스트 (여러 줄 가능)
                 desc_lines = self._wrap_text(selected_item.description, shop_width - 6)
                 for line in desc_lines:
-                    console.print(shop_x + 4, desc_y, line, fg=(200, 200, 200))
+                    console.print(shop_x + 4, desc_y, line, fg=rgb("text.primary"))
                     desc_y += 1
                 
                 # 장비인 경우 효과 정보 추가 표시
@@ -930,7 +1003,7 @@ class GoldShopUI:
                             stat_line = "기본 능력: " + " ".join(stat_texts[:5])  # 최대 5개
                             stat_lines = self._wrap_text(stat_line, shop_width - 6)
                             for line in stat_lines:
-                                console.print(shop_x + 4, desc_y, line, fg=(150, 255, 150))
+                                console.print(shop_x + 4, desc_y, line, fg=rgb("status.success"))
                                 desc_y += 1
                     
                     # 접사 (추가 능력)
@@ -939,27 +1012,27 @@ class GoldShopUI:
                             affix_desc = affix.get_description()
                             affix_lines = self._wrap_text(f"추가: {affix_desc}", shop_width - 6)
                             for line in affix_lines:
-                                console.print(shop_x + 4, desc_y, line, fg=(255, 200, 100))
+                                console.print(shop_x + 4, desc_y, line, fg=rgb("status.warning"))
                                 desc_y += 1
                     
                     # 유니크 효과
                     if hasattr(equipment_obj, 'unique_effect') and equipment_obj.unique_effect:
                         unique_lines = self._wrap_text(f"특수: {equipment_obj.unique_effect}", shop_width - 6)
                         for line in unique_lines:
-                            console.print(shop_x + 4, desc_y, line, fg=(255, 150, 255))
+                            console.print(shop_x + 4, desc_y, line, fg=rgb("accent.violet"))
                             desc_y += 1
                     
                     # 레벨 제한
                     if hasattr(equipment_obj, 'level_requirement') and equipment_obj.level_requirement > 0:
                         level_text = f"레벨 제한: {equipment_obj.level_requirement}"
-                        console.print(shop_x + 4, desc_y, level_text, fg=(200, 200, 255))
+                        console.print(shop_x + 4, desc_y, level_text, fg=rgb("status.info"))
                         desc_y += 1
 
                     # 무게 표시
                     item_weight = getattr(equipment_obj, 'weight', 0)
                     if item_weight > 0:
                         remaining = self.inventory.remaining_weight
-                        weight_color = (200, 200, 200) if item_weight <= remaining else (255, 100, 100)
+                        weight_color = rgb("text.secondary") if item_weight <= remaining else rgb("status.error")
                         weight_text = f"무게: {item_weight:.1f}kg (여유: {remaining:.1f}kg / 최대: {self.inventory.max_weight:.1f}kg)"
                         console.print(shop_x + 4, desc_y, weight_text, fg=weight_color)
                         desc_y += 1
@@ -970,31 +1043,31 @@ class GoldShopUI:
             shop_x + (shop_width - len(help_text)) // 2,
             shop_y + shop_height - 2,
             help_text,
-            fg=(150, 150, 150)
+            fg=rgb("text.secondary")
         )
 
     def _draw_box(self, console: tcod.console.Console, x: int, y: int, width: int, height: int):
         """박스 테두리 그리기"""
         # 모서리
-        console.print(x, y, "┌", fg=(200, 200, 200))
-        console.print(x + width - 1, y, "┐", fg=(200, 200, 200))
-        console.print(x, y + height - 1, "└", fg=(200, 200, 200))
-        console.print(x + width - 1, y + height - 1, "┘", fg=(200, 200, 200))
+        console.print(x, y, "┌", fg=rgb("line.default"))
+        console.print(x + width - 1, y, "┐", fg=rgb("line.default"))
+        console.print(x, y + height - 1, "└", fg=rgb("line.default"))
+        console.print(x + width - 1, y + height - 1, "┘", fg=rgb("line.default"))
 
         # 가로선
         for i in range(1, width - 1):
-            console.print(x + i, y, "─", fg=(200, 200, 200))
-            console.print(x + i, y + height - 1, "─", fg=(200, 200, 200))
+            console.print(x + i, y, "─", fg=rgb("line.default"))
+            console.print(x + i, y + height - 1, "─", fg=rgb("line.default"))
 
         # 세로선
         for i in range(1, height - 1):
-            console.print(x, y + i, "│", fg=(200, 200, 200))
-            console.print(x + width - 1, y + i, "│", fg=(200, 200, 200))
+            console.print(x, y + i, "│", fg=rgb("line.default"))
+            console.print(x + width - 1, y + i, "│", fg=rgb("line.default"))
 
         # 내부 채우기
         for dy in range(1, height - 1):
             for dx in range(1, width - 1):
-                console.print(x + dx, y + dy, " ", bg=(20, 20, 40))
+                console.print(x + dx, y + dy, " ", bg=rgb("surface.panel"))
 
     def _wrap_text(self, text: str, max_width: int) -> List[str]:
         """텍스트를 최대 너비에 맞춰 여러 줄로 나눔"""
@@ -1080,6 +1153,14 @@ def open_gold_shop(
         # 키보드 입력 처리
         keyboard_processed = False
         for event in tcod.event.get():
+            context.convert_event(event)
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event:
+                pointer_result = shop_ui.handle_pointer_event(pointer_event)
+                if pointer_result.value is True:
+                    logger.info("골드 상점 닫음")
+                    return
+
             action = unified_input_handler.process_tcod_event(event)
 
             if action:

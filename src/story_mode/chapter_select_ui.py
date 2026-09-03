@@ -19,6 +19,8 @@ import tcod.event
 
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
+from src.ui.visual_tokens import rgb
 from src.audio import play_sfx
 from src.core.logger import get_logger
 from src.story_mode.story_mode_manager import (
@@ -82,6 +84,68 @@ class ChapterSelectState:
         self._meteor_timer = 0.0
 
 
+def _chapter_select_row_map() -> list[tuple[str, str]]:
+    current_act = None
+    row_map = []
+    for ch_id in CHAPTER_ORDER:
+        meta = CHAPTER_META[ch_id]
+        ch_act = meta.get("act", "")
+        if ch_act != current_act:
+            current_act = ch_act
+            row_map.append(("act_header", ch_act))
+        row_map.append(("chapter", ch_id))
+    return row_map
+
+
+def _chapter_select_scroll_offset(selectable: list[str], cursor: int, max_visible: int) -> int:
+    row_map = _chapter_select_row_map()
+    selectable_set = set(selectable)
+    cursor_abs = 0
+    for idx, (rtype, rid) in enumerate(row_map):
+        if rtype == "chapter" and rid in selectable_set:
+            sel_idx = selectable.index(rid) if rid in selectable else -1
+            if sel_idx == cursor:
+                cursor_abs = idx
+                break
+    scroll_offset = max(0, cursor_abs - max_visible // 2)
+    return min(scroll_offset, max(0, len(row_map) - max_visible))
+
+
+def _chapter_pointer_regions(
+    console_width: int,
+    console_height: int,
+    selectable: list[str],
+    cursor: int,
+) -> tuple[PointerRegion, ...]:
+    list_x = max(2, (console_width - 60) // 2)
+    list_y = 5
+    max_visible = console_height - list_y - 12
+    scroll_offset = _chapter_select_scroll_offset(selectable, cursor, max_visible)
+    visible_rows = _chapter_select_row_map()[scroll_offset:scroll_offset + max_visible]
+    selectable_set = set(selectable)
+    regions = []
+    for draw_idx, (rtype, rid) in enumerate(visible_rows):
+        if rtype == "chapter" and rid in selectable_set:
+            meta = CHAPTER_META[rid]
+            tooltip = f"{meta.get('learning', '')} / 가이드: {meta.get('npc_guide', 'selena')}"
+            regions.append(PointerRegion(rid, list_x, list_y + draw_idx, 58, 1, GameAction.CONFIRM, tooltip))
+    return tuple(regions)
+
+
+def _chapter_pointer_action(event: PointerEvent, regions: tuple[PointerRegion, ...]) -> tuple[GameAction | None, str | None, str | None]:
+    result = PointerDispatcher(regions).dispatch(event)
+    if event.kind is PointerEventKind.HOVER:
+        return None, result.hovered_region_id, result.tooltip
+    if event.kind is PointerEventKind.WHEEL:
+        return result.action, None, None
+    if event.kind is PointerEventKind.CLICK:
+        if event.button is PointerButton.RIGHT:
+            return GameAction.CANCEL, None, None
+        if event.button is PointerButton.LEFT:
+            return result.action, result.hovered_region_id, None
+    return None, None, None
+
+
 def run_chapter_select(
     console: tcod.console.Console,
     context: tcod.context.Context,
@@ -120,6 +184,7 @@ def run_chapter_select(
         pass
 
     last_time = time.time()
+    pointer_tooltip: str | None = None
 
     while True:
         current_time = time.time()
@@ -129,7 +194,7 @@ def run_chapter_select(
             last_time = current_time
             animation_frame += 1
             _render_chapter_select(
-                console, progress, cursor, selectable, animation_frame, state
+                console, progress, cursor, selectable, animation_frame, state, pointer_tooltip
             )
             context.present(console)
 
@@ -144,6 +209,16 @@ def run_chapter_select(
         keyboard_processed = False
         for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                regions = _chapter_pointer_regions(w, h, selectable, cursor)
+                pointer_action, hovered_chapter, tooltip = _chapter_pointer_action(pointer_event, regions)
+                if hovered_chapter in selectable:
+                    cursor = selectable.index(hovered_chapter)
+                if tooltip is not None:
+                    pointer_tooltip = tooltip
+                if pointer_action is not None:
+                    action = pointer_action
             if action:
                 keyboard_processed = True
 
@@ -290,6 +365,7 @@ def _render_chapter_select(
     selectable: list,
     frame: int,
     state: ChapterSelectState,
+    pointer_tooltip: str | None = None,
 ):
     """챕터 선택 화면 렌더링"""
     console.clear()
@@ -334,29 +410,9 @@ def _render_chapter_select(
     # 스크롤 영역 계산
     max_visible = h - list_y - 12  # 하단 정보 패널용 공간 확보
 
-    # 행 맵 구성
-    current_act = None
-    row_map = []
-    for ch_id in CHAPTER_ORDER:
-        meta = CHAPTER_META[ch_id]
-        ch_act = meta.get("act", "")
-        if ch_act != current_act:
-            current_act = ch_act
-            row_map.append(("act_header", ch_act))
-        row_map.append(("chapter", ch_id))
+    row_map = _chapter_select_row_map()
 
-    # 커서의 절대 행 찾기
-    cursor_abs = 0
-    for idx, (rtype, rid) in enumerate(row_map):
-        if rtype == "chapter" and rid in selectable_set:
-            sel_idx = selectable.index(rid) if rid in selectable else -1
-            if sel_idx == cursor:
-                cursor_abs = idx
-                break
-
-    # 스크롤 오프셋
-    scroll_offset = max(0, cursor_abs - max_visible // 2)
-    scroll_offset = min(scroll_offset, max(0, len(row_map) - max_visible))
+    scroll_offset = _chapter_select_scroll_offset(selectable, cursor, max_visible)
 
     visible_rows = row_map[scroll_offset:scroll_offset + max_visible]
 
@@ -445,9 +501,7 @@ def _render_chapter_select(
 
             # 선택 행 배경 하이라이트
             act_color = ACT_INFO.get(meta.get("act", "act1"), {}).get("color", (100, 100, 200))
-            bg_r = max(0, min(30, int(act_color[0] * 0.08)))
-            bg_g = max(0, min(30, int(act_color[1] * 0.08)))
-            bg_b = max(0, min(40, int(act_color[2] * 0.12)))
+            bg_r, bg_g, bg_b = rgb("state.active")
             for bx in range(list_x - 1, min(list_x + 58, w)):
                 if 0 <= bx < w and 0 <= y < h:
                     console.rgb["bg"][y, bx] = (bg_r, bg_g, bg_b)
@@ -526,5 +580,8 @@ def _render_chapter_select(
 
     # 5) 하단 조작 안내
     help_y = h - 2
-    controls = "↑↓: 선택  Z: 시작  X: 뒤로  Tab: 전체 스킵"
+    if pointer_tooltip:
+        tip = pointer_tooltip[: min(60, w - 6)]
+        console.print((w - len(tip)) // 2, help_y - 1, tip, fg=rgb("accent.amber"), bg=rgb("state.tooltip"))
+    controls = "↑↓/Wheel: 선택  Left/Z: 시작  Right/X: 뒤로  Tab: 전체 스킵"
     console.print((w - len(controls)) // 2, help_y, controls, fg=(100, 100, 140))

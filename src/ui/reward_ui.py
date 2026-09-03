@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional
 
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
@@ -67,6 +68,38 @@ class RewardDisplay:
             self.scroll_offset = min(max_offset, self.scroll_offset + 1)
 
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions = [PointerRegion("continue", 0, self.screen_height - 4, self.screen_width, 4, GameAction.CONFIRM, "보상 확인 후 계속")]
+        items = self.rewards.get("items", [])
+        for index, item in enumerate(items[self.scroll_offset:self.scroll_offset + self.max_items_visible]):
+            actual_index = self.scroll_offset + index
+            regions.append(PointerRegion(f"item:{actual_index}", 7, self._item_row(index), self.screen_width - 14, 1, GameAction.CONFIRM, self._item_tooltip(item)))
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN if event.wheel_delta < 0 else None
+            if action is not None:
+                self.handle_input(action)
+            return PointerDispatchResult(event=event, action=action)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            done = self.handle_input(GameAction.ESCAPE)
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL, value=done)
+        result = PointerDispatcher(self.pointer_regions()).dispatch(event)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+            done = self.handle_input(GameAction.CONFIRM)
+            return result.with_value(done)
+        return result
+
+    def _item_row(self, visible_index: int) -> int:
+        base_y = 9 + len(self.level_ups) * 3
+        return min(self.screen_height - 5, base_y + visible_index)
+
+    def _item_tooltip(self, item: Any) -> str:
+        rarity = getattr(getattr(item, "rarity", None), "display_name", "")
+        description = getattr(item, "description", "")
+        return " | ".join(part for part in (getattr(item, "name", "아이템"), rarity, description) if part)
 
     def render(self, console: tcod.console.Console):
         """보상 화면 렌더링"""
@@ -314,6 +347,15 @@ def show_reward_screen(
         # 키보드 입력 처리
         keyboard_processed = False
         for event in tcod.event.get():
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                keyboard_processed = True
+                result = display.handle_pointer_event(pointer_event)
+                if result.value is True:
+                    logger.info("보상 화면 종료")
+                    break
+                continue
+
             action = unified_input_handler.process_tcod_event(event)
 
             if action:

@@ -12,6 +12,7 @@ import yaml
 import tcod
 
 from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
 from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.core.config import get_config
@@ -198,6 +199,46 @@ class PassiveSelectionUI:
             return False
 
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions = []
+        visible = self.all_passives[self.scroll_offset:self.scroll_offset + self.max_visible_items]
+        for offset, passive in enumerate(visible):
+            index = self.scroll_offset + offset
+            can_select, reason = self._can_select_passive(passive)
+            tooltip = passive.description if can_select or passive in self.selected_passives else reason
+            regions.append(
+                PointerRegion(
+                    region_id=str(index),
+                    x=3,
+                    y=6 + offset,
+                    width=max(50, self.screen_width - 6),
+                    height=1,
+                    command=GameAction.CONFIRM,
+                    tooltip=tooltip,
+                    enabled=True,
+                )
+            )
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        dispatcher = PointerDispatcher(self.pointer_regions())
+        result = dispatcher.dispatch(event)
+        region = dispatcher.region_at(event.position)
+        region_id = result.hovered_region_id or (region.region_id if region else None)
+        if region_id is not None:
+            self.cursor_index = int(region_id)
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN
+            value = self.handle_input(action)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            value = self.handle_input(GameAction.CANCEL)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and result.action is not None:
+            value = self.handle_input(result.action)
+            return PointerDispatchResult(event=event, action=result.action, value=value, tooltip=region.tooltip if region else result.tooltip)
+        return result
 
     def _move_cursor_up(self):
         """커서 위로"""

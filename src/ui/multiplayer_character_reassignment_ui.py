@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.tcod_display import Colors, render_space_background
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
+from src.ui.visual_tokens import rgb
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
@@ -63,6 +65,7 @@ class MultiplayerCharacterReassignmentUI:
         # 플레이어 선택 메뉴
         self.player_menu: Optional[CursorMenu] = None
         self._create_player_menu()
+        self.drag_character_index: Optional[int] = None
     
     def _auto_assign(self):
         """자동 할당: 같은 player_id가 있으면 자동 연결"""
@@ -167,6 +170,55 @@ class MultiplayerCharacterReassignmentUI:
             return True
         
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions: list[PointerRegion] = []
+        for idx, assignment in enumerate(self.assignments):
+            char_data = self.loaded_characters[assignment.character_index]
+            job_name = char_data.get("job_name", "직업")
+            regions.append(PointerRegion(f"character:{idx}", 5, 8 + idx, 34, 1, tooltip=f"캐릭터 카드: {assignment.character_name} / {job_name}"))
+        if self.player_menu:
+            regions.extend(self.player_menu.pointer_regions())
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent):
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            return self.handle_input(GameAction.CANCEL)
+
+        dispatcher = PointerDispatcher(self.pointer_regions())
+        region = dispatcher.region_at(event.position)
+        region_id = region.region_id if region else None
+        result = dispatcher.dispatch(event)
+        if region_id and region_id.startswith("character:"):
+            index = int(region_id.split(":", 1)[1])
+            if event.kind in {PointerEventKind.CLICK, PointerEventKind.DRAG_START}:
+                self.selected_character_index = index
+                self.drag_character_index = index
+            return PointerDispatcher((region,)).dispatch(event) if region else result
+
+        if event.kind is PointerEventKind.DRAG_END and self.drag_character_index is not None:
+            player_result = self._handle_player_pointer_drop(event)
+            self.drag_character_index = None
+            return player_result
+
+        if result.hovered_region_id is not None and self.player_menu:
+            self.player_menu._focus_pointer_region(result.hovered_region_id)
+        if result.action is not None:
+            return self.handle_input(result.action)
+        return result
+
+    def _handle_player_pointer_drop(self, event: PointerEvent):
+        if not self.player_menu:
+            return PointerDispatcher(()).dispatch(event)
+        result = PointerDispatcher(self.player_menu.pointer_regions()).dispatch(event)
+        if result.hovered_region_id is not None:
+            index = int(result.hovered_region_id)
+            if 0 <= index < len(self.player_menu.items):
+                selected_item = self.player_menu.items[index]
+                assignment = self.assignments[self.selected_character_index]
+                assignment.assigned_player_id = selected_item.value
+                self._create_player_menu()
+        return result
     
     def render(self, console: tcod.console.Console):
         """렌더링"""
@@ -211,10 +263,10 @@ class MultiplayerCharacterReassignmentUI:
             # 할당 상태 표시
             if assigned_player:
                 status = f"→ {assigned_player}"
-                status_color = (100, 255, 100)  # 초록색
+                status_color = rgb("status.success")
             else:
                 status = "→ 미할당"
-                status_color = Colors.DARK_GRAY
+                status_color = rgb("text.muted")
             
             console.print(5, y, f"{prefix} {char_name} ({job_name})", fg=Colors.UI_TEXT)
             console.print(35, y, status, fg=status_color)
@@ -315,6 +367,13 @@ def show_character_reassignment(
             # 키보드 입력 처리
             keyboard_processed = False
             for event in tcod.event.get():
+                context.convert_event(event)
+                pointer_event = unified_input_handler.process_pointer_event(event)
+                if pointer_event:
+                    pointer_result = ui.handle_pointer_event(pointer_event)
+                    if pointer_result is True:
+                        break
+
                 action = unified_input_handler.process_tcod_event(event)
                 
                 if action:

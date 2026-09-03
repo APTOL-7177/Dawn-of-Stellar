@@ -12,6 +12,7 @@ from src.equipment.inventory import Inventory
 from src.ui.pygame_backend.pygame_console import PygameConsole
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 from src.core.logger import get_logger
 from src.audio import play_sfx
 from src.gathering.ingredient import IngredientDatabase, IngredientCategory
@@ -336,6 +337,87 @@ class StorageUI:
             return True
         
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions: list[PointerRegion] = [
+            PointerRegion(f"tab:{index}", 3 + index * 20, 4, 18, 1, GameAction.CONFIRM, f"{tab_name} 탭")
+            for index, tab_name in enumerate(self.tabs)
+        ]
+        list_x = 2
+        list_width = self.screen_width // 2 - 1
+        panel_y = 6
+        list_y = panel_y + 2
+        current_list = self.storage_items if self.current_tab == 0 else self.inventory.slots
+        for index, item_data in enumerate(current_list[self.scroll_offset:self.scroll_offset + self.max_visible]):
+            actual_index = self.scroll_offset + index
+            enabled = self.current_tab == 0 or bool(item_data and getattr(item_data, "item", None))
+            regions.append(PointerRegion(f"item:{actual_index}", list_x + 1, list_y + index, list_width - 2, 1, GameAction.CONFIRM, self._list_item_tooltip(item_data, enabled), enabled=enabled))
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN if event.wheel_delta < 0 else None
+            if action is not None:
+                self.handle_input(action)
+            return PointerDispatchResult(event=event, action=action)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            closed = self.handle_input(GameAction.ESCAPE)
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL, value=closed)
+        if event.kind is PointerEventKind.DRAG_END and event.drag_origin is not None:
+            return self._handle_drag_end(event)
+
+        result = PointerDispatcher(self.pointer_regions()).dispatch(event)
+        region_id = result.hovered_region_id or self._region_id_at(event)
+        if region_id:
+            self._focus_pointer_region(region_id)
+        if event.kind is PointerEventKind.HOVER and region_id and result.tooltip is None:
+            region = next((candidate for candidate in self.pointer_regions() if candidate.region_id == region_id), None)
+            return PointerDispatchResult(event=event, hovered_region_id=region_id, tooltip=region.tooltip if region else None)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+            closed = self.handle_input(GameAction.CONFIRM)
+            return PointerDispatchResult(event=event, action=GameAction.CONFIRM, value=closed, hovered_region_id=region_id, tooltip=result.tooltip)
+        return result
+
+    def _handle_drag_end(self, event: PointerEvent) -> PointerDispatchResult:
+        origin = next((region for region in self.pointer_regions() if event.drag_origin and region.contains(event.drag_origin)), None)
+        target = next((region for region in self.pointer_regions() if region.contains(event.position)), None)
+        if origin is None or target is None:
+            return PointerDispatchResult(event=event)
+        if origin.region_id.startswith("item:") and target.region_id.startswith("tab:"):
+            self._focus_pointer_region(origin.region_id)
+            target_tab = int(target.region_id.split(":", 1)[1])
+            if target_tab != self.current_tab:
+                self.handle_input(GameAction.CONFIRM)
+                return PointerDispatchResult(event=event, value="storage_transfer", hovered_region_id=target.region_id, tooltip="선택한 아이템을 반대 탭으로 이동했습니다.")
+        return PointerDispatchResult(event=event, hovered_region_id=target.region_id)
+
+    def _region_id_at(self, event: PointerEvent) -> str:
+        region = next((candidate for candidate in self.pointer_regions() if candidate.contains(event.position)), None)
+        return region.region_id if region else ""
+
+    def _focus_pointer_region(self, region_id: str) -> None:
+        if region_id.startswith("tab:"):
+            self.current_tab = int(region_id.split(":", 1)[1])
+            self.cursor = 0
+            self.scroll_offset = 0
+        elif region_id.startswith("item:"):
+            self.cursor = int(region_id.split(":", 1)[1])
+            if self.cursor < self.scroll_offset:
+                self.scroll_offset = self.cursor
+
+    def _list_item_tooltip(self, item_data: Any, enabled: bool) -> str:
+        if not enabled:
+            return "빈 인벤토리 슬롯: 보관할 아이템이 없습니다."
+        if self.current_tab == 0:
+            if len(item_data) >= 5:
+                _item_id, count, _ingredient, item_name, _group = item_data
+                return f"{item_name} x{count} | 클릭하면 인벤토리로 출고"
+            item_id, count, ingredient = item_data[:3]
+            name = getattr(ingredient, "name", item_id)
+            return f"{name} x{count} | 클릭하면 인벤토리로 출고"
+        item = getattr(item_data, "item", None)
+        quantity = getattr(item_data, "quantity", 1)
+        return f"{getattr(item, 'name', '아이템')} x{quantity} | 클릭하면 창고에 보관"
 
     def _get_selected_item_object(self):
         """현재 선택된 아이템의 Item 객체 반환"""
@@ -669,6 +751,12 @@ def open_storage(
             # 키보드 입력 처리
             keyboard_processed = False
             for event in tcod.event.get():
+                pointer_event = unified_input_handler.process_pointer_event(event)
+                if pointer_event is not None:
+                    keyboard_processed = True
+                    ui.handle_pointer_event(pointer_event)
+                    continue
+
                 action = unified_input_handler.process_tcod_event(event)
                 
                 if action:

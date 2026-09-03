@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from src.core.logger import get_logger, Loggers
 from src.ui.input_handler import unified_input_handler, GameAction
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerEvent, PointerEventKind
 
 
 logger = get_logger(Loggers.SYSTEM)
@@ -57,6 +58,13 @@ class IntroStorySystem:
         self.logger = logger
         self.glitch_level = glitch_level
         self._lines_since_noise = 0
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if event.kind is PointerEventKind.CLICK and event.button in (PointerButton.LEFT, PointerButton.RIGHT):
+            self.skip_requested = True
+            action = GameAction.CANCEL if event.button is PointerButton.RIGHT else GameAction.CONFIRM
+            return PointerDispatchResult(event=event, action=action)
+        return PointerDispatchResult(event=event)
 
     def show_intro(self) -> bool:
         """
@@ -1073,7 +1081,11 @@ class IntroStorySystem:
                 return
 
             brightness = alpha / 10.0
-            faded_color = tuple(int(c * brightness) for c in line.color)
+            faded_color = (
+                int(line.color[0] * brightness),
+                int(line.color[1] * brightness),
+                int(line.color[2] * brightness),
+            )
             self.console.print(x, y, line.text, fg=faded_color)
             self.context.present(self.console)
             time.sleep(0.05)
@@ -1096,7 +1108,7 @@ class IntroStorySystem:
             time.sleep(0.2)
 
             # 어둡게
-            dark_color = tuple(c // 3 for c in line.color)
+            dark_color = (line.color[0] // 3, line.color[1] // 3, line.color[2] // 3)
             self.console.print(x, y, line.text, fg=dark_color)
             self.context.present(self.console)
             time.sleep(0.2)
@@ -1216,6 +1228,9 @@ class IntroStorySystem:
 
         # 키보드 입력 확인 (확장: RETURN, KP_ENTER, ESCAPE, SPACE)
         for event in tcod.event.get():
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None and self.handle_pointer_event(pointer_event).action is not None:
+                return True
             if isinstance(event, tcod.event.KeyDown):
                 if event.sym in (
                     tcod.event.KeySym.RETURN,

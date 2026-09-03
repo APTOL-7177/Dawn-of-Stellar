@@ -11,7 +11,9 @@ import yaml
 from pathlib import Path
 
 from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
 from src.ui.tcod_display import render_space_background
+from src.ui.visual_tokens import rgb
 from src.core.logger import get_logger, Loggers
 from src.persistence.meta_progress import get_meta_progress, save_meta_progress
 from src.audio import play_sfx
@@ -460,6 +462,57 @@ class ShopUI:
 
         return None
 
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        paged_items, _current_page, _total_pages = self.get_paged_items()
+        regions = []
+        for index, item in enumerate(paged_items):
+            disabled_reason = self._purchase_block_reason(item)
+            regions.append(
+                PointerRegion(
+                    region_id=str(index),
+                    x=3,
+                    y=7 + index * 3,
+                    width=max(65, self.screen_width - 6),
+                    height=2,
+                    command=GameAction.CONFIRM,
+                    tooltip=disabled_reason or item.description,
+                    enabled=True,
+                )
+            )
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        dispatcher = PointerDispatcher(self.pointer_regions())
+        result = dispatcher.dispatch(event)
+        region = dispatcher.region_at(event.position)
+        region_id = result.hovered_region_id or (region.region_id if region else None)
+        if region_id is not None:
+            self.selected_index = int(region_id)
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN
+            value = self.handle_input(action)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            value = self.handle_input(GameAction.ESCAPE)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and result.action is not None:
+            value = self.handle_input(result.action)
+            return PointerDispatchResult(event=event, action=result.action, value=value, tooltip=region.tooltip if region else result.tooltip)
+        return result
+
+    def _purchase_block_reason(self, item: ShopItem) -> str:
+        if item.category == ShopCategory.JOB_UNLOCKS and self.meta.is_job_unlocked(item.job_id):
+            return "이미 해금된 직업입니다."
+        if item.category == ShopCategory.TRAIT_UNLOCKS and self.meta.is_trait_unlocked(item.job_id, item.trait_id):
+            return "이미 해금된 특성입니다."
+        if item.category == ShopCategory.PASSIVE_UNLOCKS and item.passive_id in self.meta.purchased_passives:
+            return "이미 해금된 패시브입니다."
+        if item.category == ShopCategory.PERMANENT_UPGRADES and self.meta.is_upgrade_purchased(item.item_id):
+            return "이미 구매한 업그레이드입니다."
+        if self.meta.star_fragments < item.price:
+            return f"별의 파편 부족: 필요 {item.price}, 보유 {self.meta.star_fragments}"
+        return ""
+
     def purchase_item(self, item: ShopItem) -> Tuple[bool, str]:
         """
         아이템 구매 시도
@@ -628,9 +681,9 @@ class ShopUI:
         for i, category in enumerate(self.categories):
             name = category_names.get(category, category.value)
             if i == self.category_index:
-                console.print(tab_x + i * 10, tab_y, f"[{name}]", fg=(255, 255, 100))
+                console.print(tab_x + i * 10, tab_y, f"[{name}]", fg=rgb("accent.amber"))
             else:
-                console.print(tab_x + i * 10, tab_y, f" {name} ", fg=(150, 150, 150))
+                console.print(tab_x + i * 10, tab_y, f" {name} ", fg=rgb("text.secondary"))
 
         # 아이템 목록 (페이징)
         paged_items, current_page, total_pages = self.get_paged_items()
@@ -650,7 +703,7 @@ class ShopUI:
 
                 # 선택 커서
                 if i == self.selected_index:
-                    console.print(3, y, "►", fg=(255, 255, 100))
+                    console.print(3, y, "►", fg=rgb("accent.amber"))
 
                 # 구매/해금 상태 확인
                 item_color = (200, 200, 200)

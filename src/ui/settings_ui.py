@@ -10,7 +10,9 @@ from typing import Optional
 import tcod
 
 from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
 from src.ui.tcod_display import render_space_background
+from src.ui.visual_tokens import rgb
 from src.core.logger import get_logger, Loggers
 from src.core.config import get_config
 from src.core.paths import get_project_root
@@ -156,6 +158,73 @@ class SettingsUI:
 
         return None
 
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions = []
+        for index, (label, _option) in enumerate(self.options):
+            regions.append(
+                PointerRegion(
+                    region_id=str(index),
+                    x=5,
+                    y=6 + index * 2,
+                    width=max(44, self.screen_width - 10),
+                    height=1,
+                    command=GameAction.CONFIRM,
+                    tooltip=self._option_tooltip(index, label),
+                    enabled=True,
+                )
+            )
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        dispatcher = PointerDispatcher(self.pointer_regions())
+        result = dispatcher.dispatch(event)
+        region = dispatcher.region_at(event.position)
+        region_id = result.hovered_region_id or (region.region_id if region else None)
+        if region_id is not None:
+            self.selected_index = int(region_id)
+        if event.kind is PointerEventKind.WHEEL and result.action is not None:
+            value = self.handle_input(result.action)
+            return result.with_value(value)
+        if event.kind in (PointerEventKind.DRAG_START, PointerEventKind.DRAG_MOVE, PointerEventKind.DRAG_END):
+            return self._handle_slider_drag(event, result)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            value = self.handle_input(GameAction.ESCAPE)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and result.action is not None:
+            value = self.handle_input(result.action)
+            return result.with_value(value)
+        return result
+
+    def _handle_slider_drag(self, event: PointerEvent, result: PointerDispatchResult) -> PointerDispatchResult:
+        if result.hovered_region_id is None:
+            return result
+        self.selected_index = int(result.hovered_region_id)
+        option = self.options[self.selected_index][1]
+        if option not in (SettingOption.VOLUME_BGM, SettingOption.VOLUME_SFX):
+            return result
+        region = next(region for region in self.pointer_regions() if region.region_id == result.hovered_region_id)
+        relative_x = max(0, min(region.width - 1, event.position.tile[0] - region.x))
+        volume = int(round((relative_x / max(1, region.width - 1)) * 10)) * 10
+        if option == SettingOption.VOLUME_BGM:
+            self.bgm_volume = volume
+            tooltip = f"BGM 볼륨: {self.bgm_volume}%"
+        else:
+            self.sfx_volume = volume
+            tooltip = f"효과음 볼륨: {self.sfx_volume}%"
+        return PointerDispatchResult(event=event, hovered_region_id=result.hovered_region_id, tooltip=tooltip)
+
+    def _option_tooltip(self, index: int, label: str) -> str:
+        explanations = {
+            0: f"{label}: {self.bgm_volume}%",
+            1: f"{label}: {self.sfx_volume}%",
+            2: "화면 모드를 변경합니다.",
+            3: "수직 동기화를 켜거나 끕니다.",
+            4: "키보드와 게임패드 키 설정을 엽니다.",
+            5: "RPG 데이터 초기화 확인을 엽니다.",
+            6: "설정을 저장하고 닫습니다.",
+        }
+        return explanations.get(index, label)
+
     def _reset_rpg_data(self):
         """RPG 모드 데이터 초기화 - 세이브 파일과 스토리 진행도 삭제"""
         root = get_project_root()
@@ -245,14 +314,14 @@ class SettingsUI:
         for i, (label, option) in enumerate(self.options):
             # 선택 커서
             if i == self.selected_index:
-                console.print(5, y, "►", fg=(255, 255, 100))
+                console.print(5, y, "►", fg=rgb("accent.amber"))
 
             # 설정 이름
-            console.print(7, y, label, fg=(200, 200, 200) if i == self.selected_index else (150, 150, 150))
+            console.print(7, y, label, fg=rgb("text.primary") if i == self.selected_index else rgb("text.secondary"))
 
             # 설정 값
             value_x = 35
-            value_color = (255, 255, 100) if i == self.selected_index else (200, 200, 200)
+            value_color = rgb("accent.amber") if i == self.selected_index else rgb("text.primary")
 
             if option == SettingOption.VOLUME_BGM:
                 # 10의 배수로 보장

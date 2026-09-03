@@ -15,6 +15,7 @@ from src.gathering.ingredient import Ingredient, IngredientCategory
 from src.cooking.recipe import RecipeDatabase, CookedFood
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
@@ -101,6 +102,100 @@ class CookingPotUI:
             return self._handle_show_result(action)
 
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions: list[PointerRegion] = []
+        pot_y = 5
+        slot_y = pot_y + 2
+        slot_start_x = (self.screen_width - 60) // 2 + 2
+        for index in range(4):
+            slot_data = self.pot_slots[index]
+            tooltip = self._slot_tooltip(index, slot_data)
+            regions.append(PointerRegion(f"slot:{index}", slot_start_x + index * 15, slot_y, 12, 3, GameAction.CONFIRM, tooltip))
+
+        if self.mode == CookingMode.SELECT_INGREDIENT:
+            box_width = 50
+            box_height = 20
+            box_x = (self.screen_width - box_width) // 2
+            box_y = (self.screen_height - box_height) // 2
+            visible = self._get_available_ingredients()[self.ingredient_scroll:self.ingredient_scroll + self.max_visible_ingredients]
+            for index, (_slot_index, ingredient) in enumerate(visible):
+                actual_index = self.ingredient_scroll + index
+                regions.append(PointerRegion(f"ingredient:{actual_index}", box_x + 2, box_y + 2 + index, box_width - 4, 1, GameAction.CONFIRM, self._ingredient_tooltip(ingredient)))
+
+        if self.mode in (CookingMode.SELECT_SLOT, CookingMode.SELECT_QUICK):
+            panel_y = self.screen_height - self.max_visible_quick - 5
+            visible_quick = self._quick_recipes[self.quick_scroll:self.quick_scroll + self.max_visible_quick]
+            for index, (recipe, ingredients) in enumerate(visible_quick):
+                actual_index = self.quick_scroll + index
+                tooltip = f"{getattr(recipe, 'name', '레시피')} | 재료 {len(ingredients)}개 | 즉시 제작"
+                regions.append(PointerRegion(f"quick:{actual_index}", 4, panel_y + 1 + index, self.screen_width - 8, 1, GameAction.CONFIRM, tooltip))
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN if event.wheel_delta < 0 else None
+            if action is not None:
+                self.handle_input(action)
+            return PointerDispatchResult(event=event, action=action)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            closed = self.handle_input(GameAction.CANCEL)
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL, value=closed)
+        if event.kind is PointerEventKind.DRAG_END and event.drag_origin is not None:
+            return self._handle_drag_end(event)
+
+        result = PointerDispatcher(self.pointer_regions()).dispatch(event)
+        if result.hovered_region_id is not None:
+            self._focus_pointer_region(result.hovered_region_id)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+            closed = self.handle_input(GameAction.CONFIRM)
+            return result.with_value(closed)
+        return result
+
+    def _handle_drag_end(self, event: PointerEvent) -> PointerDispatchResult:
+        origin_region = next((region for region in self.pointer_regions() if event.drag_origin and region.contains(event.drag_origin)), None)
+        target_region = next((region for region in self.pointer_regions() if region.contains(event.position)), None)
+        if origin_region is None or target_region is None:
+            return PointerDispatchResult(event=event)
+        if origin_region.region_id.startswith("ingredient:") and target_region.region_id.startswith("slot:"):
+            ingredient_index = int(origin_region.region_id.split(":", 1)[1])
+            slot_index = int(target_region.region_id.split(":", 1)[1])
+            ingredients = self._get_available_ingredients()
+            if 0 <= ingredient_index < len(ingredients):
+                source_slot, ingredient = ingredients[ingredient_index]
+                self.selected_slot = slot_index
+                self.pot_slots[slot_index] = (ingredient, source_slot)
+                self.mode = CookingMode.SELECT_SLOT
+                return PointerDispatchResult(event=event, value="ingredient_to_slot", hovered_region_id=target_region.region_id, tooltip=self._slot_tooltip(slot_index, self.pot_slots[slot_index]))
+        return PointerDispatchResult(event=event, hovered_region_id=target_region.region_id)
+
+    def _focus_pointer_region(self, region_id: str) -> None:
+        if region_id.startswith("slot:"):
+            self.selected_slot = int(region_id.split(":", 1)[1])
+            if self.mode not in (CookingMode.CONFIRM_COOK, CookingMode.SHOW_RESULT):
+                self.mode = CookingMode.SELECT_SLOT
+        elif region_id.startswith("ingredient:"):
+            self.ingredient_cursor = int(region_id.split(":", 1)[1])
+            self.mode = CookingMode.SELECT_INGREDIENT
+            self._update_ingredient_scroll()
+        elif region_id.startswith("quick:"):
+            self.quick_cursor = int(region_id.split(":", 1)[1])
+            self.mode = CookingMode.SELECT_QUICK
+            self._update_quick_scroll()
+
+    def _slot_tooltip(self, index: int, slot_data) -> str:
+        if slot_data:
+            ingredient, _slot_index = slot_data
+            return f"슬롯 {index + 1}: {getattr(ingredient, 'name', '재료')} | 클릭하면 제거, 드래그로 교체"
+        return f"슬롯 {index + 1}: 비어 있음 | 재료를 드래그하거나 클릭해 선택"
+
+    def _ingredient_tooltip(self, ingredient) -> str:
+        category = getattr(getattr(ingredient, "category", None), "display_name", "재료")
+        try:
+            hint = self._get_ingredient_hint(ingredient)
+        except TypeError:
+            hint = ""
+        return " | ".join(part for part in (getattr(ingredient, "name", "재료"), category, hint, "드래그해서 냄비 슬롯에 넣기") if part)
 
     def _handle_slot_selection(self, action: GameAction) -> bool:
         """슬롯 선택 모드"""
@@ -1072,6 +1167,14 @@ def open_cooking_pot(
 
         # 키보드 입력 처리
         for event in tcod.event.get():
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                pointer_result = ui.handle_pointer_event(pointer_event)
+                if pointer_result.value is True and ui.cooked_food:
+                    logger.info(f"요리 완성: {ui.cooked_food.name}")
+                    return ui.cooked_food
+                continue
+
             action = unified_input_handler.process_tcod_event(event)
 
             if action:

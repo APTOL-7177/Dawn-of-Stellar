@@ -173,6 +173,9 @@ class ChapterRunner:
                 return "quit"
             if result == "skip":
                 return "skipped"
+            if result == "failed":
+                # 챕터 실패: 완료·보상 없이 종료 (재시작 가능)
+                return "failed"
 
         # 챕터 완료 보상 표시 + 메타 진행 적용
         rewards = chapter_data.get("rewards", {})
@@ -335,6 +338,10 @@ class ChapterRunner:
             victory_dialogue = phase.get("victory_dialogue")
             if victory_dialogue and result == "victory":
                 self._run_dialogue(victory_dialogue)
+            if result == "defeat":
+                # 전멸 한도 초과: 챕터 미완료, 재시도 가능 (보상 없음)
+                logger.info(f"[{chapter_id}] 전투 실패 - 챕터 재시도 대상")
+                return "failed"
             return "continue" if result != "quit" else "quit"
 
     def _run_exploration(self, phase: dict, chapter_id: str) -> str:

@@ -16,6 +16,8 @@ from src.core.logger import get_logger
 from src.audio import play_bgm, play_sfx
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
+from src.ui.visual_tokens import rgb
 from src.story_mode.inline_tutorial_overlay import (
     InlineTutorialOverlay,
     NPC_NAMES,
@@ -25,6 +27,40 @@ from src.story_mode.inline_tutorial_overlay import (
 logger = get_logger("story_mode")
 
 
+def _combat_action_regions(actions: list[str], action_names: list[str], menu_y: int, forced_action: str | None) -> tuple[PointerRegion, ...]:
+    return tuple(
+        PointerRegion(
+            region_id=str(index),
+            x=6,
+            y=menu_y + index,
+            width=24,
+            height=1,
+            command=GameAction.CONFIRM,
+            tooltip=f"{name}: 전투 행동을 선택합니다",
+            enabled=forced_action is None or action == forced_action,
+        )
+        for index, (action, name) in enumerate(zip(actions, action_names))
+    )
+
+
+def _combat_pointer_action(event: PointerEvent, regions: tuple[PointerRegion, ...]) -> tuple[GameAction | None, int | None, str | None]:
+    dispatcher = PointerDispatcher(regions)
+    result = dispatcher.dispatch(event)
+    region = dispatcher.region_at(event.position)
+    region_id = result.hovered_region_id or (region.region_id if region else None)
+    hovered = int(region_id) if region_id is not None else None
+    if event.kind is PointerEventKind.HOVER:
+        return None, hovered, result.tooltip
+    if event.kind is PointerEventKind.WHEEL:
+        return result.action, None, None
+    if event.kind is PointerEventKind.CLICK:
+        if event.button is PointerButton.RIGHT:
+            return GameAction.CANCEL, None, None
+        if event.button is PointerButton.LEFT:
+            return result.action, hovered, None
+    return None, None, None
+
+
 class StoryCombatController:
     """
     스토리 모드 전용 전투 컨트롤러
@@ -32,8 +68,11 @@ class StoryCombatController:
     - 약한 적 생성
     - forced_actions로 특정 행동만 허용
     - 조건부 힌트 트리거
-    - 자동 부활 (절대 게임오버 불가)
+    - 자동 부활 (한도 내: MAX_PARTY_REVIVES회 초과 전멸 시 "defeat" 반환)
     """
+
+    # 파티 전멸 자동 부활 한도 (초과 시 전투 실패 → 챕터 재시도)
+    MAX_PARTY_REVIVES = 3
 
     def __init__(
         self,
@@ -44,6 +83,25 @@ class StoryCombatController:
         self.console = console
         self.context = context
         self.overlay = overlay
+        self._revive_count = 0
+
+    def _handle_party_wipe(self, revive_count: int) -> str:
+        """
+        파티 전멸 처리.
+
+        Args:
+            revive_count: 이번 전투에서 이미 부활한 횟수
+
+        Returns:
+            "revive": 아직 한도 내 → 자동 부활 진행
+            "defeat": 한도 초과 → 전투 실패 (챕터 재시도)
+        """
+        if revive_count >= self.MAX_PARTY_REVIVES:
+            logger.warning(
+                f"파티 전멸 {revive_count + 1}회 - 부활 한도 초과, 전투 실패 처리"
+            )
+            return "defeat"
+        return "revive"
 
     def run_scripted_combat(
         self,
@@ -142,9 +200,12 @@ class StoryCombatController:
                 self._show_victory_screen()
                 return "victory"
 
-            # 파티 전멸 체크 → 자동 부활
+            # 파티 전멸 체크 → 부활 한도 내 자동 부활, 초과 시 전투 실패
             alive_party = [m for m in party if m["hp"] > 0]
             if not alive_party:
+                if self._handle_party_wipe(self._revive_count) == "defeat":
+                    return "defeat"
+                self._revive_count += 1
                 for m in party:
                     m["hp"] = m["max_hp"] // 2
                     m["brv"] = m["init_brv"]
@@ -405,6 +466,7 @@ class StoryCombatController:
         actions = ["brv_attack", "hp_attack", "skill", "item", "defend"]
         action_names = ["BRV 공격", "HP 공격", "스킬", "아이템", "방어"]
         cursor = 0
+        pointer_tooltip: str | None = None
 
         # forced_action이면 해당 행동의 인덱스로 커서 고정
         if forced_action and forced_action in actions:
@@ -486,6 +548,7 @@ class StoryCombatController:
                 if i == cursor:
                     prefix = "> "
                     fg = (255, 255, 200) if is_enabled else (100, 100, 60)
+                    self.console.draw_rect(5, menu_y + i, 26, 1, ord(" "), bg=rgb("state.active" if is_enabled else "state.disabled"))
                 else:
                     prefix = "  "
                     fg = Colors.UI_TEXT if is_enabled else (60, 60, 60)
@@ -502,6 +565,8 @@ class StoryCombatController:
             self.console.print(
                 2, h - 2, "↑↓: 선택  Z: 확인  X: 돌아가기", fg=Colors.GRAY
             )
+            if pointer_tooltip:
+                self.console.print(2, h - 3, pointer_tooltip[:70], fg=rgb("accent.amber"), bg=rgb("state.tooltip"))
 
             self.context.present(self.console)
 
@@ -515,6 +580,18 @@ class StoryCombatController:
             keyboard_processed = False
             for event in tcod.event.get():
                 action = unified_input_handler.process_tcod_event(event)
+                pointer_event = unified_input_handler.process_pointer_event(event)
+                if pointer_event is not None:
+                    pointer_action, hovered_index, tooltip = _combat_pointer_action(
+                        pointer_event,
+                        _combat_action_regions(actions, action_names, menu_y, forced_action),
+                    )
+                    if hovered_index is not None and not forced_action:
+                        cursor = hovered_index
+                    if tooltip is not None:
+                        pointer_tooltip = tooltip
+                    if pointer_action is not None:
+                        action = pointer_action
                 if action:
                     keyboard_processed = True
 

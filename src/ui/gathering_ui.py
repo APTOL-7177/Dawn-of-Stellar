@@ -13,11 +13,29 @@ from src.gathering.ingredient import IngredientDatabase
 from src.equipment.inventory import Inventory
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
 
 logger = get_logger("gathering_ui")
+
+
+def gathering_prompt_pointer_regions(box_x: int, box_y: int, box_width: int, box_height: int, message: str) -> tuple[PointerRegion, ...]:
+    return (
+        PointerRegion("confirm", box_x + 2, box_y + 3, box_width - 4, 1, GameAction.CONFIRM, f"{message} | 채집하기"),
+        PointerRegion("cancel", box_x + 2, box_y + box_height - 2, box_width - 4, 1, GameAction.CANCEL, "취소하고 돌아가기"),
+    )
+
+
+def handle_gathering_pointer_event(event: PointerEvent, regions: tuple[PointerRegion, ...]) -> PointerDispatchResult:
+    if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+        return PointerDispatchResult(event=event, action=GameAction.CANCEL, value=False)
+    result = PointerDispatcher(regions).dispatch(event)
+    if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+        value = result.action is GameAction.CONFIRM
+        return PointerDispatchResult(event=event, action=result.action, value=value, hovered_region_id=result.hovered_region_id, tooltip=result.tooltip)
+    return result
 
 
 def harvest_object(
@@ -176,7 +194,16 @@ def show_gathering_prompt(
 
         # 키보드 입력 처리
         keyboard_processed = False
+        pointer_regions = gathering_prompt_pointer_regions(box_x, box_y, box_width, box_height, message)
         for event in tcod.event.get():
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                pointer_result = handle_gathering_pointer_event(pointer_event, pointer_regions)
+                if pointer_result.value is not None:
+                    return bool(pointer_result.value)
+                keyboard_processed = True
+                continue
+
             action = unified_input_handler.process_tcod_event(event)
 
             if action:
@@ -323,8 +350,19 @@ def show_multi_line_message(
 
         # 키보드 입력 처리
         keyboard_processed = False
+        pointer_regions = gathering_prompt_pointer_regions(box_x, box_y, box_width, box_height, messages[0] if messages else "알림")
         for event in tcod.event.get():
             if can_accept_input:
+                pointer_event = unified_input_handler.process_pointer_event(event)
+                if pointer_event is not None:
+                    pointer_result = handle_gathering_pointer_event(pointer_event, pointer_regions)
+                    if pointer_result.action in (GameAction.CONFIRM, GameAction.CANCEL):
+                        if pointer_result.action is not GameAction.CONFIRM:
+                            play_sfx("ui", "cursor_cancel")
+                        return
+                    keyboard_processed = True
+                    continue
+
                 action = unified_input_handler.process_tcod_event(event)
 
                 if action:
@@ -425,7 +463,20 @@ def show_gathering_prompt_simple(
 
         # 키보드 입력 처리
         keyboard_processed = False
+        pointer_regions = gathering_prompt_pointer_regions(box_x, box_y, box_width, box_height, message)
         for event in tcod.event.get():
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                pointer_result = handle_gathering_pointer_event(pointer_event, pointer_regions)
+                if pointer_result.action is GameAction.CONFIRM:
+                    play_sfx("world", "gathering")
+                    return True
+                if pointer_result.action is GameAction.CANCEL:
+                    play_sfx("ui", "cursor_cancel")
+                    return False
+                keyboard_processed = True
+                continue
+
             action = unified_input_handler.process_tcod_event(event)
 
             if action:

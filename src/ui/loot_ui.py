@@ -14,6 +14,7 @@ import time
 
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 from src.equipment.inventory import Inventory
 from src.core.logger import get_logger
 from src.audio import play_sfx
@@ -178,6 +179,87 @@ class LootUI:
             return False
 
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        detail_height = 5
+        panel_width = (self.screen_width - 6) // 2
+        left_x = 3
+        right_x = left_x + panel_width + 2
+        panel_top = 5
+        panel_height = self.screen_height - 10 - detail_height
+        regions: list[PointerRegion] = []
+        for index, item in enumerate(self.loot_items[self.loot_scroll:self.loot_scroll + self.max_visible]):
+            actual_index = self.loot_scroll + index
+            regions.append(PointerRegion(f"loot:{actual_index}", left_x + 2, panel_top + 2 + index, panel_width - 4, 1, GameAction.CONFIRM, self._item_tooltip(item)))
+        inv_items = [slot.item for slot in self.inventory.slots] if self.inventory.slots else []
+        for index, item in enumerate(inv_items[self.inv_scroll:self.inv_scroll + self.max_visible]):
+            actual_index = self.inv_scroll + index
+            tooltip = self._item_tooltip(item) if item else "빈 인벤토리 슬롯"
+            regions.append(PointerRegion(f"inventory:{actual_index}", right_x + 2, panel_top + 2 + index, panel_width - 4, 1, GameAction.CONFIRM, tooltip, enabled=item is not None))
+        regions.extend(
+            (
+                PointerRegion("loot_drop", left_x + 1, panel_top + 1, panel_width - 2, panel_height - 2, GameAction.MOVE_LEFT, "전리품 패널로 이동"),
+                PointerRegion("inventory_drop", right_x + 1, panel_top + 1, panel_width - 2, panel_height - 2, GameAction.MOVE_RIGHT, "인벤토리 패널로 이동"),
+            )
+        )
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN if event.wheel_delta < 0 else None
+            if action is not None:
+                self.handle_input(action)
+            return PointerDispatchResult(event=event, action=action)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            done = self.handle_input(GameAction.CANCEL)
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL, value=done)
+        if event.kind is PointerEventKind.DRAG_END and event.drag_origin is not None:
+            return self._handle_drag_end(event)
+
+        result = PointerDispatcher(self.pointer_regions()).dispatch(event)
+        if result.hovered_region_id is not None:
+            self._focus_pointer_region(result.hovered_region_id)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+            done = self.handle_input(GameAction.CONFIRM)
+            return result.with_value(done)
+        return result
+
+    def _handle_drag_end(self, event: PointerEvent) -> PointerDispatchResult:
+        origin = next((region for region in self.pointer_regions() if event.drag_origin and region.contains(event.drag_origin)), None)
+        target = next((region for region in self.pointer_regions() if region.contains(event.position)), None)
+        if origin is None or target is None:
+            return PointerDispatchResult(event=event)
+        self._focus_pointer_region(origin.region_id)
+        if origin.region_id.startswith("loot:") and target.region_id in {"inventory_drop"} | {region.region_id for region in self.pointer_regions() if region.region_id.startswith("inventory:")}:
+            self._try_claim_item()
+            return PointerDispatchResult(event=event, value="loot_to_inventory", hovered_region_id=target.region_id, tooltip="전리품을 인벤토리로 이동했습니다.")
+        if origin.region_id.startswith("inventory:") and target.region_id in {"loot_drop"} | {region.region_id for region in self.pointer_regions() if region.region_id.startswith("loot:")}:
+            self._move_to_loot()
+            return PointerDispatchResult(event=event, value="inventory_to_loot", hovered_region_id=target.region_id, tooltip="인벤토리 아이템을 전리품으로 되돌렸습니다.")
+        return PointerDispatchResult(event=event, hovered_region_id=target.region_id)
+
+    def _focus_pointer_region(self, region_id: str) -> None:
+        if region_id.startswith("loot:"):
+            self.current_panel = 0
+            self.loot_index = int(region_id.split(":", 1)[1])
+            if self.loot_index < self.loot_scroll:
+                self.loot_scroll = self.loot_index
+        elif region_id.startswith("inventory:"):
+            self.current_panel = 1
+            self.inv_index = int(region_id.split(":", 1)[1])
+            if self.inv_index < self.inv_scroll:
+                self.inv_scroll = self.inv_index
+        elif region_id == "loot_drop":
+            self.current_panel = 0
+        elif region_id == "inventory_drop":
+            self.current_panel = 1
+
+    def _item_tooltip(self, item: Any) -> str:
+        name = getattr(item, "name", "아이템")
+        description = getattr(item, "description", "")
+        weight = getattr(item, "weight", None)
+        weight_text = f"무게 {weight:.1f}kg" if isinstance(weight, (int, float)) else ""
+        return " | ".join(part for part in (name, description, weight_text) if part)
 
     def _move_selection(self, delta: int, is_loot: bool):
         """선택 이동"""
@@ -675,11 +757,12 @@ def show_loot_screen(
     inventory: Inventory,
     player_id: Optional[str] = None,
     network_manager: Optional[Any] = None,
-    is_multiplayer: bool = False
+    is_multiplayer: bool = False,
+    exploration: Optional[Any] = None
 ) -> List[Any]:
     """
     전리품 획득 화면 표시
-    
+
     Args:
         console: TCOD 콘솔
         context: TCOD 컨텍스트
@@ -688,7 +771,8 @@ def show_loot_screen(
         player_id: 플레이어 ID (멀티플레이용)
         network_manager: 네트워크 매니저 (멀티플레이용)
         is_multiplayer: 멀티플레이 여부
-        
+        exploration: 탐험 시스템 (멀티플레이 전투 감지용)
+
     Returns:
         획득한 아이템 리스트
     """
@@ -728,19 +812,30 @@ def show_loot_screen(
     initial_item_count = len(loot_items)
     
     while not ui.completed:
+        # 멀티플레이: 전투 대기 중이면 LootUI 강제 종료 (즉시 전투 합류)
+        if exploration and hasattr(exploration, '_pending_client_combat') and exploration._pending_client_combat:
+            logger.info("[LootUI] 멀티플레이 전투 감지 - 전리품 화면 강제 종료")
+            break
+
         # 렌더링
         ui.render(console)
         context.present(console)
-        
+
         # pygame 이벤트 업데이트
         try:
             pygame.event.pump()
         except:
             pass
-        
+
         # 키보드 입력 처리
         keyboard_processed = False
         for event in tcod.event.get():
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                keyboard_processed = True
+                ui.handle_pointer_event(pointer_event)
+                continue
+
             action = unified_input_handler.process_tcod_event(event)
             
             if action:

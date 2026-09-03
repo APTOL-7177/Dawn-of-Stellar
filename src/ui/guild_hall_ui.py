@@ -12,6 +12,7 @@ from enum import Enum
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 from src.core.logger import get_logger
 from src.achievement.achievement_manager import AchievementManager
 from src.achievement.achievement_system import AchievementCategory, AchievementRarity
@@ -118,6 +119,14 @@ class GuildHallUI:
             # 키보드 입력 처리
             action = None
             for event in tcod.event.get():
+                pointer_event = unified_input_handler.process_pointer_event(event)
+                if pointer_event is not None:
+                    pointer_result = self.handle_pointer_event(pointer_event)
+                    if pointer_result.action is GameAction.CANCEL:
+                        return False
+                    action = None
+                    break
+
                 action = unified_input_handler.process_tcod_event(event)
                 
                 if isinstance(event, tcod.event.Quit):
@@ -238,6 +247,54 @@ class GuildHallUI:
         if hasattr(selected_item, 'description'):
             # 상세 정보 토글
             pass
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions = [PointerRegion(f"tab:{index}", index * 15 + 5, 1, 14, 2, GameAction.CONFIRM, f"{self._tab_label(tab)} 탭") for index, tab in enumerate(self.tabs)]
+        content_y = 6
+        for index, item in enumerate(self._get_current_items()[self.scroll_offset:self.scroll_offset + self.max_visible_items]):
+            actual_index = self.scroll_offset + index
+            regions.append(PointerRegion(f"item:{actual_index}", 0, content_y + index, self.screen_width, 1, GameAction.CONFIRM, self._item_tooltip(item)))
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN if event.wheel_delta < 0 else None
+            if action is GameAction.MOVE_UP:
+                self._move_selection(-1)
+            elif action is GameAction.MOVE_DOWN:
+                self._move_selection(1)
+            return PointerDispatchResult(event=event, action=action)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL, value=False)
+        result = PointerDispatcher(self.pointer_regions()).dispatch(event)
+        if result.hovered_region_id:
+            self._focus_pointer_region(result.hovered_region_id)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+            self._handle_select()
+            return result.with_value(True)
+        return result
+
+    def _focus_pointer_region(self, region_id: str) -> None:
+        if region_id.startswith("tab:"):
+            self.current_tab = self.tabs[int(region_id.split(":", 1)[1])]
+            self.scroll_offset = 0
+            self.selected_index = 0
+        elif region_id.startswith("item:"):
+            self.selected_index = int(region_id.split(":", 1)[1])
+
+    def _tab_label(self, tab: GuildHallTab) -> str:
+        return {
+            GuildHallTab.ACHIEVEMENTS: "도전과제",
+            GuildHallTab.MILESTONES: "마일스톤",
+            GuildHallTab.STATS: "통계",
+        }[tab]
+
+    def _item_tooltip(self, item) -> str:
+        name = getattr(item, "name", "항목")
+        description = getattr(item, "description", "")
+        progress = getattr(item, "progress_percentage", None)
+        progress_text = f"진행률 {int(progress * 100)}%" if isinstance(progress, (int, float)) else ""
+        return " | ".join(part for part in (name, description, progress_text) if part)
 
     def _get_current_items(self) -> List:
         """현재 탭의 항목들 가져오기"""

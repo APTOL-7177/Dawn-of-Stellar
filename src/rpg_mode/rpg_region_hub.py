@@ -12,6 +12,8 @@ from typing import Optional, List, Set
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerEventKind
+from src.ui.visual_tokens import rgb
 from src.rpg_mode.rpg_world_config import REGIONS, RegionConfig, REGION_MAP
 from src.core.logger import get_logger
 from src.audio import play_bgm
@@ -116,6 +118,7 @@ def run_region_hub(
     )
 
     last_time = time.time()
+    pointer_tooltip: str | None = None
 
     # 입력 버퍼 클리어
     for _ in tcod.event.get():
@@ -170,15 +173,26 @@ def run_region_hub(
                     console.print(3, desc_y + 1, desc[max_w:max_w * 2], fg=Colors.GRAY)
             else:
                 console.print(3, desc_y, desc, fg=Colors.GRAY)
+        if pointer_tooltip:
+            console.print(3, console.height - 4, pointer_tooltip[: console.width - 6], fg=rgb("accent.amber"), bg=rgb("state.tooltip"))
 
         # 조작 안내
-        console.print(2, console.height - 2, "방향키: 이동  Z: 선택  X: 돌아가기", fg=Colors.GRAY)
+        console.print(2, console.height - 2, "↑↓/Wheel: 이동  Left/Z: 선택  Right/X: 돌아가기", fg=Colors.GRAY)
 
         context.present(console)
 
         # 입력
         for event in tcod.event.get():
             action = unified_input_handler.process_tcod_event(event)
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                if pointer_event.kind is PointerEventKind.CLICK and pointer_event.button is PointerButton.RIGHT:
+                    return RegionHubResult("quit")
+                pointer_result = menu.handle_pointer_event(pointer_event)
+                if pointer_result.tooltip:
+                    pointer_tooltip = pointer_result.tooltip
+                if pointer_result.value is not None:
+                    menu.execute_selected()
             if isinstance(event, tcod.event.Quit):
                 return RegionHubResult("quit")
 

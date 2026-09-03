@@ -1,15 +1,74 @@
 import tcod.console
 import tcod.event
 import sys
+from dataclasses import replace
 from typing import Optional, Dict, Any
 
 from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.cursor_menu import TextInputBox
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
+from src.ui.visual_tokens import rgb
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
 logger = get_logger("multiplayer_join_ui")
+
+
+def _create_join_pointer_regions(
+    screen_width: int,
+    screen_height: int,
+    input_x: int,
+    input_y: int,
+    input_width: int,
+) -> tuple[PointerRegion, ...]:
+    connect_text = "[ 연결 ]"
+    cancel_text = "[ 취소 ]"
+    button_y = input_y + 10
+    connect_x = screen_width // 2 - len(connect_text) - 2
+    cancel_x = screen_width // 2 + 2
+    return (
+        PointerRegion(
+            region_id="address_field",
+            x=input_x + 2,
+            y=input_y + 3,
+            width=input_width - 4,
+            height=1,
+            tooltip="서버 주소 입력 필드: 클릭하면 입력 커서가 활성화됩니다",
+        ),
+        PointerRegion(
+            region_id="connect_button",
+            x=connect_x,
+            y=button_y,
+            width=len(connect_text),
+            height=1,
+            command=GameAction.CONFIRM,
+            tooltip="입력한 주소로 연결합니다",
+        ),
+        PointerRegion(
+            region_id="cancel_button",
+            x=cancel_x,
+            y=button_y,
+            width=len(cancel_text),
+            height=1,
+            command=GameAction.CANCEL,
+            tooltip="멀티플레이 메뉴로 돌아갑니다",
+        ),
+    )
+
+
+def _handle_join_pointer_event(event: PointerEvent, regions: tuple[PointerRegion, ...]):
+    if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+        return PointerDispatcher(()).dispatch(event).with_value("right_click_back")
+    dispatcher = PointerDispatcher(regions)
+    field_region = dispatcher.region_at(event.position)
+    if field_region and field_region.region_id == "address_field":
+        result = dispatcher.dispatch(event)
+        return result.with_value("focus_address")
+    result = dispatcher.dispatch(event)
+    if event.kind is PointerEventKind.CLICK and field_region is None:
+        return replace(result, action=None)
+    return result
 
 
 def _get_clipboard() -> Optional[str]:
@@ -115,6 +174,7 @@ def show_join_game_screen(
 
     error_msg = ""
     error_timer = 0
+    address_focused = True
 
     while True:
         # 렌더링
@@ -132,11 +192,11 @@ def show_join_game_screen(
         # 입력 박스 (기본 렌더)
         addr_input.render(console)
 
-        # 활성 테두리 강조
+        focus_color = rgb("state.focus") if address_focused else rgb("line.default")
         console.draw_frame(
             addr_input.x, addr_input.y, addr_input.width, 6,
             addr_input.title,
-            fg=Colors.YELLOW,
+            fg=focus_color,
             bg=Colors.UI_BG
         )
         # 프롬프트
@@ -161,7 +221,7 @@ def show_join_game_screen(
             addr_input.x + 3,
             addr_input.y + 3,
             display_text[:input_bg_width - 2],
-            fg=Colors.WHITE
+            fg=rgb("text.primary")
         )
 
         # 형식 안내
@@ -176,7 +236,7 @@ def show_join_game_screen(
                 (screen_width - len(hint)) // 2,
                 hint_y + i,
                 hint,
-                fg=(80, 80, 100)
+                fg=rgb("text.muted")
             )
 
         # 에러 메시지
@@ -190,7 +250,11 @@ def show_join_game_screen(
             error_timer -= 1
 
         # 안내
-        help_text = "Enter: 연결  ESC: 취소"
+        button_y = addr_input.y + 10
+        console.print(screen_width // 2 - 10, button_y, "[ 연결 ]", fg=rgb("accent.cyan"))
+        console.print(screen_width // 2 + 2, button_y, "[ 취소 ]", fg=rgb("accent.amber"))
+
+        help_text = "Enter/Click: 연결  ESC/Right Click: 취소"
         console.print(
             (screen_width - len(help_text)) // 2,
             screen_height - 3,
@@ -202,6 +266,29 @@ def show_join_game_screen(
 
         # 입력 처리
         for event in tcod.event.wait():
+            context.convert_event(event)
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            pointer_action = None
+            if pointer_event:
+                pointer_result = _handle_join_pointer_event(
+                    pointer_event,
+                    _create_join_pointer_regions(
+                        screen_width,
+                        screen_height,
+                        addr_input.x,
+                        addr_input.y,
+                        addr_input.width,
+                    ),
+                )
+                if pointer_result.value == "focus_address":
+                    address_focused = True
+                    continue
+                if pointer_result.value == "right_click_back":
+                    logger.info("게임 참가 취소 (right click)")
+                    play_sfx("ui", "cursor_cancel")
+                    return None
+                pointer_action = pointer_result.action
+
             # ESC
             if isinstance(event, tcod.event.KeyDown) and event.sym == tcod.event.KeySym.ESCAPE:
                 logger.info("게임 참가 취소 (ESC)")
@@ -211,9 +298,9 @@ def show_join_game_screen(
             if isinstance(event, tcod.event.Quit):
                 return None
 
-            action = unified_input_handler.process_tcod_event(event)
+            action = pointer_action or unified_input_handler.process_tcod_event(event)
 
-            if isinstance(event, tcod.event.KeyDown):
+            if address_focused and isinstance(event, tcod.event.KeyDown):
                 # Enter 키 직접 처리 (CONFIRM 액션과 별도)
                 if event.sym == tcod.event.KeySym.RETURN:
                     action = GameAction.CONFIRM

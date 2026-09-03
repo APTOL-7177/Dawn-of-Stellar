@@ -9,8 +9,10 @@ from typing import Optional, List
 import tcod
 
 from src.ui.input_handler import InputHandler, GameAction, unified_input_handler
+from src.ui.pointer import PointerDispatcher, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
 from src.ui.tcod_display import render_space_background
 from src.ui.ui_renderer import draw_styled_box, SelectionHighlight, MenuScrambleEffect
+from src.ui.visual_tokens import rgb
 from src.core.logger import get_logger, Loggers
 
 
@@ -129,6 +131,76 @@ class GameMenu:
 
         return None
 
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        menu_width = 40
+        menu_height = len(self.menu_options) + 6
+        menu_x = (self.screen_width - menu_width) // 2
+        menu_y = (self.screen_height - menu_height) // 2
+        regions = []
+        for index, (_label, option) in enumerate(self.menu_options):
+            disabled_reason = self._disabled_reason(option)
+            tooltip = disabled_reason or self._option_description(option)
+            regions.append(
+                PointerRegion(
+                    region_id=str(index),
+                    x=menu_x + 1,
+                    y=menu_y + 4 + index,
+                    width=menu_width - 2,
+                    height=1,
+                    command=GameAction.CONFIRM,
+                    tooltip=tooltip,
+                    enabled=True,
+                )
+            )
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        dispatcher = PointerDispatcher(self.pointer_regions())
+        result = dispatcher.dispatch(event)
+        region = dispatcher.region_at(event.position)
+        region_id = result.hovered_region_id or (region.region_id if region else None)
+        if region_id is not None:
+            self.selected_index = int(region_id)
+        if event.kind is PointerEventKind.WHEEL and result.action is not None:
+            value = self.handle_input(result.action)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and event.button is not None:
+            if event.button.value == "right":
+                value = self.handle_input(GameAction.ESCAPE)
+                return result.with_value(value)
+            if region_id is not None:
+                self.selected_index = int(region_id)
+                option = self.menu_options[self.selected_index][1]
+                if self._disabled_reason(option):
+                    return result.with_value(None)
+            if result.action is not None:
+                value = self.handle_input(result.action)
+                return result.with_value(value)
+        return result
+
+    def _disabled_reason(self, option: MenuOption) -> str:
+        if option == MenuOption.SAVE_GAME and self.is_town:
+            return "마을에서는 저장할 수 없습니다."
+        return ""
+
+    def _option_description(self, option: MenuOption) -> str:
+        descriptions = {
+            MenuOption.PARTY_STATUS: "파티 상태를 확인합니다.",
+            MenuOption.INVENTORY: "인벤토리를 엽니다.",
+            MenuOption.AFFINITY: "동료 호감도를 확인합니다.",
+            MenuOption.QUEST_LIST: "진행 중인 퀘스트를 확인합니다.",
+            MenuOption.SAVE_GAME: "현재 게임을 저장합니다.",
+            MenuOption.LOAD_GAME: "저장된 게임을 불러옵니다.",
+            MenuOption.OPTIONS: "환경 설정을 엽니다.",
+            MenuOption.MAIN_MENU: "메인 메뉴로 돌아갑니다.",
+            MenuOption.LILY_TALK: "릴리와 대화합니다.",
+            MenuOption.WORLD_MAP: "월드맵을 엽니다.",
+            MenuOption.TELEPORT_TO_SPAWN: "스폰 위치로 귀환합니다.",
+            MenuOption.RETURN: "탐험으로 돌아갑니다.",
+            MenuOption.QUIT: "게임을 종료합니다.",
+        }
+        return descriptions.get(option, "")
+
     def render(self, console: tcod.console.Console):
         """메뉴 렌더링"""
         import time as _time
@@ -181,17 +253,17 @@ class GameMenu:
                 console.draw_rect(menu_x + 1, y, menu_width - 2, 1, ord(" "), bg=highlight_bg)
 
                 if is_disabled:
-                    console.print(menu_x + 2, y, "►", fg=(150, 150, 150))
-                    console.print(menu_x + 4, y, f"{display_label} (마을에서 불가)", fg=(150, 150, 150))
+                    console.print(menu_x + 2, y, "►", fg=rgb("state.disabled"))
+                    console.print(menu_x + 4, y, f"{display_label} (마을에서 불가)", fg=rgb("state.disabled"))
                 else:
-                    console.print(menu_x + 2, y, "►", fg=(255, 255, 100))
-                    console.print(menu_x + 4, y, display_label, fg=(255, 255, 100))
+                    console.print(menu_x + 2, y, "►", fg=rgb("accent.amber"))
+                    console.print(menu_x + 4, y, display_label, fg=rgb("accent.amber"))
             else:
                 # 일반 항목
                 if is_disabled:
-                    console.print(menu_x + 4, y, f"{display_label} (마을에서 불가)", fg=(100, 100, 100))
+                    console.print(menu_x + 4, y, f"{display_label} (마을에서 불가)", fg=rgb("text.muted"))
                 else:
-                    console.print(menu_x + 4, y, display_label, fg=(200, 200, 200))
+                    console.print(menu_x + 4, y, display_label, fg=rgb("text.primary"))
 
         # 조작법 (게임패드 연결 시 게임패드 버튼으로 표시)
         from src.ui.input_handler import key_binding_manager
@@ -243,6 +315,11 @@ def open_game_menu(
     unified_input_handler.clear_input_state()
 
     while True:
+        # 멀티플레이: 전투 대기 중이면 메뉴 강제 종료 (즉시 전투 합류)
+        if exploration and hasattr(exploration, '_pending_client_combat') and exploration._pending_client_combat:
+            logger.info("[메뉴] 멀티플레이 전투 감지 - 메뉴 강제 종료")
+            return MenuOption.RETURN
+
         # 렌더링
         menu.render(console)
         context.present(console)
@@ -648,6 +725,7 @@ def open_party_status_menu(
 
     while True:
         render_space_background(console, console.width, console.height)
+        pending_gauges = []
 
         # 제목
         title = "=== 파티 상태 ==="
@@ -695,13 +773,18 @@ def open_party_status_menu(
                 max_hp = getattr(member, 'max_hp', 1)
                 if current_hp is not None and max_hp is not None:
                     console.print(7, y, "HP:", fg=(200, 200, 200))
-                    hp_member_id = f"party_hp_{i}_{getattr(member, 'id', id(member))}"
-                    wound_damage = getattr(member, 'wound', 0)
-                    gauge_renderer.render_animated_hp_bar(
-                        console, 11, y, 15,
-                        current_hp, max_hp, hp_member_id,
-                        wound_damage=wound_damage, show_numbers=True
-                    )
+                    hp_ratio = current_hp / max(max_hp, 1)
+                    # 콘솔 폴백 (HP)
+                    console.draw_rect(11, y, 15, 1, ord(" "), bg=(15, 55, 15))
+                    _hp_filled = max(0, int(15 * max(0.0, min(1.0, hp_ratio))))
+                    if _hp_filled > 0:
+                        _hc = (50, 220, 50) if hp_ratio > 0.6 else ((220, 220, 50) if hp_ratio > 0.3 else (220, 50, 50))
+                        console.draw_rect(11, y, _hp_filled, 1, ord(" "), bg=_hc)
+                    wound = getattr(member, 'wound', 0)
+                    wound_r = wound / (max_hp + wound) if wound > 0 and max_hp > 0 else 0.0
+                    pending_gauges.append((11, y, 15, hp_ratio, "hp", wound_r))
+                    hp_color = (50, 220, 50) if hp_ratio > 0.6 else ((220, 220, 50) if hp_ratio > 0.3 else (220, 50, 50))
+                    console.print(27, y, f"{current_hp}/{max_hp}", fg=hp_color)
                     y += 1
 
                 # MP (애니메이션 게이지)
@@ -709,13 +792,14 @@ def open_party_status_menu(
                 max_mp = getattr(member, 'max_mp', 1)
                 if current_mp is not None and max_mp is not None:
                     console.print(7, y, "MP:", fg=(200, 200, 200))
-                    mp_member_id = f"party_mp_{i}_{getattr(member, 'id', id(member))}"
-                    gauge_renderer.render_animated_mp_bar(
-                        console, 11, y, 15,
-                        current_mp, max_mp, mp_member_id,
-                        show_numbers=True,
-                        reserved_mp=getattr(member, "reserved_max_mp", 0)
-                    )
+                    mp_ratio = current_mp / max(max_mp, 1)
+                    # 콘솔 폴백 (MP)
+                    console.draw_rect(11, y, 15, 1, ord(" "), bg=(25, 38, 65))
+                    _mp_filled = max(0, int(15 * max(0.0, min(1.0, mp_ratio))))
+                    if _mp_filled > 0:
+                        console.draw_rect(11, y, _mp_filled, 1, ord(" "), bg=(100, 150, 255))
+                    pending_gauges.append((11, y, 15, mp_ratio, "mp", 0.0))
+                    console.print(27, y, f"{current_mp}/{max_mp}", fg=(100, 150, 255))
                     y += 1
 
                 y += 1  # 다음 파티원과 간격
@@ -730,6 +814,18 @@ def open_party_status_menu(
             fg=(180, 180, 180)
         )
 
+        if hasattr(context, 'add_pixel_overlay') and pending_gauges:
+            _g = list(pending_gauges)
+            tw = getattr(context, 'tile_width', 10)
+            th = getattr(context, 'tile_height', 13)
+            def _go(dt, _gg=_g, _tw=tw, _th=th):
+                from src.ui.raylib_backend.smooth_gauge import draw_smooth_gauge
+                for gx, gy, gw, r, ci, wound in _gg:
+                    if isinstance(ci, str):
+                        draw_smooth_gauge(gx * _tw, gy * _th, gw * _tw, _th, r, kind=ci, wound_ratio=wound)
+                    else:
+                        draw_smooth_gauge(gx * _tw, gy * _th, gw * _tw, _th, r, custom_color=ci, wound_ratio=wound)
+            context.add_pixel_overlay(_go)
         context.present(console)
 
         # pygame 이벤트 업데이트 (게임패드 입력을 위해)
@@ -803,6 +899,7 @@ def show_character_detail(
 
     while True:
         render_space_background(console, console.width, console.height)
+        pending_gauges = []
 
         # 제목
         character_name = getattr(character, 'name', getattr(character, 'character_name', 'Unknown'))
@@ -824,28 +921,34 @@ def show_character_detail(
             console.print(10, y, f"직업: {character.character_class}", fg=(150, 200, 255))
         y += 2
 
-        # HP (애니메이션 게이지 사용)
+        # HP
         if hasattr(character, 'current_hp') and hasattr(character, 'max_hp'):
             console.print(10, y, "HP:", fg=(200, 200, 200))
-            hp_character_id = f"detail_hp_{getattr(character, 'id', id(character))}"
-            wound_damage = getattr(character, 'wound', 0)
-            gauge_renderer.render_animated_hp_bar(
-                console, 14, y, 30,
-                character.current_hp, character.max_hp, hp_character_id,
-                wound_damage=wound_damage, show_numbers=True
-            )
+            hp_ratio = character.current_hp / max(character.max_hp, 1)
+            # 콘솔 폴백 (HP)
+            console.draw_rect(14, y, 30, 1, ord(" "), bg=(15, 55, 15))
+            _hp_filled = max(0, int(30 * max(0.0, min(1.0, hp_ratio))))
+            if _hp_filled > 0:
+                _hc = (50, 220, 50) if hp_ratio > 0.6 else ((220, 220, 50) if hp_ratio > 0.3 else (220, 50, 50))
+                console.draw_rect(14, y, _hp_filled, 1, ord(" "), bg=_hc)
+            wound = getattr(character, 'wound', 0)
+            wound_r = wound / (character.max_hp + wound) if wound > 0 and character.max_hp > 0 else 0.0
+            pending_gauges.append((14, y, 30, hp_ratio, "hp", wound_r))
+            hp_color = (50, 220, 50) if hp_ratio > 0.6 else ((220, 220, 50) if hp_ratio > 0.3 else (220, 50, 50))
+            console.print(45, y, f"{character.current_hp}/{character.max_hp}", fg=hp_color)
             y += 1
 
-        # MP (애니메이션 게이지 사용)
+        # MP
         if hasattr(character, 'current_mp') and hasattr(character, 'max_mp'):
             console.print(10, y, "MP:", fg=(200, 200, 200))
-            mp_character_id = f"detail_mp_{getattr(character, 'id', id(character))}"
-            gauge_renderer.render_animated_mp_bar(
-                console, 14, y, 30,
-                character.current_mp, character.max_mp, mp_character_id,
-                show_numbers=True,
-                reserved_mp=getattr(character, "reserved_max_mp", 0)
-            )
+            mp_ratio = character.current_mp / max(character.max_mp, 1)
+            # 콘솔 폴백 (MP)
+            console.draw_rect(14, y, 30, 1, ord(" "), bg=(25, 38, 65))
+            _mp_filled = max(0, int(30 * max(0.0, min(1.0, mp_ratio))))
+            if _mp_filled > 0:
+                console.draw_rect(14, y, _mp_filled, 1, ord(" "), bg=(100, 150, 255))
+            pending_gauges.append((14, y, 30, mp_ratio, "mp", 0.0))
+            console.print(45, y, f"{character.current_mp}/{character.max_mp}", fg=(100, 150, 255))
             y += 2
 
         # 스탯 상세
@@ -890,7 +993,7 @@ def show_character_detail(
             base_crit_dmg = 1.5
             trait_crit_dmg = trait_manager.calculate_critical_damage(character)
             equip_crit_dmg = 0.0
-            
+
             # 장비에서 critical_damage 효과 합산
             if hasattr(character, 'equipment') and character.equipment:
                 for slot, item in character.equipment.items():
@@ -904,6 +1007,16 @@ def show_character_detail(
                             type_value = getattr(effect_type, 'value', str(effect_type)) if effect_type else ''
                             if type_value == 'critical_damage':
                                 equip_crit_dmg += effect_value
+                    # base_stats + affixes에서 critical_damage 확인
+                    total_stats = item.get_total_stats() if hasattr(item, 'get_total_stats') else {}
+                    if 'critical_damage' in total_stats:
+                        cd_value = total_stats['critical_damage']
+                        # base_stats에 있으면 정수 퍼센트 형식 (20 = +20%)
+                        if hasattr(item, 'base_stats') and 'critical_damage' in item.base_stats:
+                            equip_crit_dmg += cd_value / 100.0
+                        else:
+                            # affix 전용이면 소수점 형식 (0.30 = +30%)
+                            equip_crit_dmg += cd_value
             
             final_crit_dmg = base_crit_dmg * trait_crit_dmg + equip_crit_dmg
             
@@ -1024,10 +1137,12 @@ def show_character_detail(
             console.print(10, y, "[ 경험치 ]", fg=(255, 200, 100))
             y += 1
             exp_ratio = character.experience / character.experience_to_next_level if character.experience_to_next_level > 0 else 0
-            exp_bar, exp_color = gauge_renderer.render_percentage_bar(
-                exp_ratio, width=30, show_percent=False
-            )
-            console.print(12, y, f"{exp_bar}", fg=(100, 255, 100))
+            # 콘솔 폴백 (EXP)
+            console.draw_rect(12, y, 30, 1, ord(" "), bg=(25, 65, 25))
+            _exp_filled = max(0, int(30 * max(0.0, min(1.0, exp_ratio))))
+            if _exp_filled > 0:
+                console.draw_rect(12, y, _exp_filled, 1, ord(" "), bg=(100, 255, 100))
+            pending_gauges.append((12, y, 30, exp_ratio, "exp", 0.0))
             y += 1
             console.print(12, y, f"{character.experience} / {character.experience_to_next_level} EXP", fg=(150, 255, 150))
             y += 2
@@ -1058,6 +1173,18 @@ def show_character_detail(
             fg=(180, 180, 180)
         )
 
+        if hasattr(context, 'add_pixel_overlay') and pending_gauges:
+            _g = list(pending_gauges)
+            tw = getattr(context, 'tile_width', 10)
+            th = getattr(context, 'tile_height', 13)
+            def _go2(dt, _gg=_g, _tw=tw, _th=th):
+                from src.ui.raylib_backend.smooth_gauge import draw_smooth_gauge
+                for gx, gy, gw, r, ci, wound in _gg:
+                    if isinstance(ci, str):
+                        draw_smooth_gauge(gx * _tw, gy * _th, gw * _tw, _th, r, kind=ci, wound_ratio=wound)
+                    else:
+                        draw_smooth_gauge(gx * _tw, gy * _th, gw * _tw, _th, r, custom_color=ci, wound_ratio=wound)
+            context.add_pixel_overlay(_go2)
         context.present(console)
 
         # pygame 이벤트 업데이트 (게임패드 입력을 위해)

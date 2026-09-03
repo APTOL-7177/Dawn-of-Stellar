@@ -8,7 +8,8 @@
 from typing import List, Any, Optional, Tuple
 from src.core.logger import get_logger
 from src.character.affinity import AffinityManager, AffinityLevel
-from src.ui.input_handler import iter_game_input, GameAction
+from src.ui.input_handler import GameAction, iter_game_input, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 
 logger = get_logger("affinity_ui")
 
@@ -32,6 +33,7 @@ class AffinityUI:
         self.selected_pair_index = 0
         self.scroll_offset = 0
         self.detail_mode = False  # True면 상세 보기
+        self._pending_gauges = []  # pixel overlay 게이지 큐
 
     def show(self, affinity_manager: AffinityManager, party_jobs: List[str], party_names: dict):
         """
@@ -68,9 +70,27 @@ class AffinityUI:
 
         while running:
             self._render(pairs, affinity_manager, party_jobs)
+            # pixel overlay 스무스 게이지 등록
+            if hasattr(self.context, 'add_pixel_overlay') and self._pending_gauges:
+                gauges = list(self._pending_gauges)
+                self._pending_gauges.clear()
+                tw = getattr(self.context, 'tile_width', 10)
+                th = getattr(self.context, 'tile_height', 13)
+                def _gauge_overlay(dt, _g=gauges, _tw=tw, _th=th):
+                    from src.ui.raylib_backend.smooth_gauge import draw_smooth_gauge
+                    for gx, gy, gw, ratio, ci, wound in _g:
+                        if isinstance(ci, str):
+                            draw_smooth_gauge(gx * _tw, gy * _th, gw * _tw, _th, ratio, kind=ci, wound_ratio=wound)
+                        else:
+                            draw_smooth_gauge(gx * _tw, gy * _th, gw * _tw, _th, ratio, custom_color=ci, wound_ratio=wound)
+                self.context.add_pixel_overlay(_gauge_overlay)
             self.context.present(self.console)
 
             for action, event in iter_game_input():
+                pointer_event = unified_input_handler.process_pointer_event(event) if event is not None else None
+                if pointer_event is not None:
+                    self.handle_pointer_event(pointer_event, pairs)
+                    continue
                 if action == GameAction.QUIT:
                     running = False
                     break
@@ -138,11 +158,54 @@ class AffinityUI:
                 progress = (pair["points"] - current_threshold) / (next_threshold - current_threshold)
                 progress = min(1.0, max(0.0, progress))
                 bar_width = 20
-                filled = int(bar_width * progress)
-                bar = "█" * filled + "░" * (bar_width - filled)
-                self.console.print(4, y + 1, bar, fg=color, bg=bg)
+                _bg = tuple(max(0, c // 4) for c in color)
+                self.console.draw_rect(4, y + 1, bar_width, 1, ord(" "), bg=_bg)
+                _filled = max(0, int(bar_width * progress))
+                if _filled > 0:
+                    self.console.draw_rect(4, y + 1, _filled, 1, ord(" "), bg=color)
+                self._pending_gauges.append((4, y + 1, bar_width, progress, color, 0.0))  # custom_color tuple
             else:
                 self.console.print(4, y + 1, "████████████████████ MAX", fg=(255, 215, 0), bg=bg)
+
+    def pointer_regions(self, pairs: list | None = None) -> tuple[PointerRegion, ...]:
+        if pairs is None:
+            pairs = getattr(self, "_pointer_pairs", [])
+        if self.detail_mode:
+            return (PointerRegion("detail", 0, 3, self.console.width, self.console.height - 6, GameAction.CANCEL, "상세 보기 | 우클릭으로 목록"),)
+        max_visible = min(len(pairs), self.console.height - 6)
+        regions: list[PointerRegion] = []
+        for index in range(max_visible):
+            actual_index = self.scroll_offset + index
+            if actual_index >= len(pairs):
+                break
+            pair = pairs[actual_index]
+            regions.append(PointerRegion(f"pair:{actual_index}", 2, 3 + index * 2, self.console.width - 4, 2, GameAction.CONFIRM, self._pair_tooltip(pair)))
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent, pairs: list | None = None) -> PointerDispatchResult:
+        if pairs is not None:
+            self._pointer_pairs = pairs
+        active_pairs = pairs if pairs is not None else getattr(self, "_pointer_pairs", [])
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN if event.wheel_delta < 0 else None
+            if action is not None and active_pairs:
+                self._handle_action(action, active_pairs, None, [])
+            return PointerDispatchResult(event=event, action=action)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            action = GameAction.CANCEL
+            result = self._handle_action(action, active_pairs, None, []) if active_pairs else None
+            return PointerDispatchResult(event=event, action=action, value=result)
+        result = PointerDispatcher(self.pointer_regions(active_pairs)).dispatch(event)
+        if result.hovered_region_id and result.hovered_region_id.startswith("pair:"):
+            self.selected_pair_index = int(result.hovered_region_id.split(":", 1)[1])
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT and active_pairs:
+            value = self._handle_action(GameAction.CONFIRM, active_pairs, None, [])
+            return result.with_value(value)
+        return result
+
+    def _pair_tooltip(self, pair: Any) -> str:
+        level = pair["level"]
+        return f"{pair['name_a']} ↔ {pair['name_b']} | Lv{level.value} {level.display_name} | {pair['points']}pt"
 
     def _render_detail(self, pairs: list, affinity_manager: AffinityManager, party_jobs: List[str]):
         """상세 보기 렌더링"""

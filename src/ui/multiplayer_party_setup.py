@@ -18,6 +18,8 @@ import time
 from src.ui.cursor_menu import CursorMenu, MenuItem, TextInputBox
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
+from src.ui.visual_tokens import rgb
 from src.core.logger import get_logger
 from src.core.config import get_config
 from src.persistence.meta_progress import get_meta_progress
@@ -70,7 +72,7 @@ class MultiplayerPartySetup:
         self.current_slot = 0
         
         # 상태
-        self.state = "job_select"  # job_select, name_input, trait_select
+        self.state = "job_select"  # job_select, gender_select, name_input, trait_select
         self.completed = False
         self.cancelled = False
         self.player_left = False  # 플레이어가 나갔는지 여부
@@ -87,6 +89,7 @@ class MultiplayerPartySetup:
         
         # 현재 메뉴/입력 박스
         self.job_menu: Optional[CursorMenu] = None
+        self.gender_menu: Optional[CursorMenu] = None
         self.name_input: Optional[TextInputBox] = None
         self.trait_menu: Optional[CursorMenu] = None
         
@@ -108,6 +111,7 @@ class MultiplayerPartySetup:
         # 에러 메시지
         self.error_message = ""
         self.error_timer = 0.0
+        self.name_input_focused = False
     
     def _initialize_player_order(self):
         """플레이어 순서 초기화 (1P = 호스트, 이후 연결 순서)"""
@@ -510,25 +514,36 @@ class MultiplayerPartySetup:
         )
         return jobs
     
-    def _load_random_names(self) -> List[str]:
-        """랜덤 이름 풀 로드"""
-        name_file = Path("name.txt")
-        
-        if not name_file.exists():
-            return ["아리아", "카일", "엘리나", "다리우스", "루나", "제이든", "세라", "라이언",
-                    "미아", "알렉스", "소피아", "마커스", "이리스", "테오", "엠마", "노아"]
-        
+    def _load_random_names(self) -> Dict[str, List[str]]:
+        """성별별 랜덤 이름 풀 로드"""
+        names_file = Path("data/names.yaml")
+
+        default_names = {
+            "male": ["카일", "다리우스", "라이언", "알렉스", "테오", "노아", "마커스", "에릭"],
+            "female": ["아리아", "엘리나", "루나", "세라", "미아", "소피아", "이리스", "엠마"],
+        }
+
+        if not names_file.exists():
+            self.logger.warning("data/names.yaml 파일이 없습니다. 기본 이름을 사용합니다.")
+            return default_names
+
         try:
-            with open(name_file, 'r', encoding='utf-8') as f:
-                names = [line.strip() for line in f if line.strip()]
-            if not names:
-                return ["아리아", "카일", "엘리나", "다리우스", "루나", "제이든", "세라", "라이언",
-                        "미아", "알렉스", "소피아", "마커스", "이리스", "테오", "엠마", "노아"]
-            return names
+            with open(names_file, 'r', encoding='utf-8') as f:
+                data = yaml.safe_load(f)
+
+            male_names = data.get('male', [])
+            female_names = data.get('female', [])
+
+            if not male_names and not female_names:
+                return default_names
+
+            return {
+                "male": male_names if male_names else default_names["male"],
+                "female": female_names if female_names else default_names["female"],
+            }
         except Exception as e:
-            self.logger.error(f"name.txt 로드 실패: {e}")
-            return ["아리아", "카일", "엘리나", "다리우스", "루나", "제이든", "세라", "라이언",
-                    "미아", "알렉스", "소피아", "마커스", "이리스", "테오", "엠마", "노아"]
+            self.logger.error(f"names.yaml 로드 실패: {e}")
+            return default_names
     
     def _create_job_menu(self):
         """직업 선택 메뉴 생성 (중복 방지 및 턴 체크)"""
@@ -619,17 +634,70 @@ class MultiplayerPartySetup:
             self.job_menu.cursor_index = min(prev_cursor_index, len(menu_items) - 1)
             self.job_menu.scroll_offset = min(prev_scroll_offset, max(0, len(menu_items) - self.job_menu.max_visible_items))
     
+    def _create_gender_menu(self):
+        """성별 선택 메뉴 생성"""
+        if not self.party or self.current_slot >= len(self.party):
+            return
+
+        job_name = self.party[self.current_slot].job_name
+
+        menu_items = [
+            MenuItem(text="♂ 남성", value="male", description="남성 캐릭터"),
+            MenuItem(text="♀ 여성", value="female", description="여성 캐릭터"),
+        ]
+
+        self.gender_menu = CursorMenu(
+            title=f"{job_name}의 성별 선택",
+            items=menu_items,
+            x=25,
+            y=15,
+            width=30,
+        )
+
+    def _handle_gender_select(self, action: GameAction, key_event=None, text_event=None) -> bool:
+        """성별 선택 처리"""
+        if not self.gender_menu:
+            return False
+
+        if action == GameAction.CONFIRM:
+            selected = self.gender_menu.get_selected_item()
+            if selected and selected.value:
+                gender = selected.value
+                self.party[self.current_slot].gender = gender
+                play_sfx("ui", "cursor_confirm")
+                self.logger.info(f"멀티 파티 멤버 {self.current_slot + 1} 성별: {gender}")
+                self.state = "name_input"
+                self._create_name_input()
+        elif action == GameAction.MOVE_UP:
+            self.gender_menu.move_cursor_up()
+        elif action == GameAction.MOVE_DOWN:
+            self.gender_menu.move_cursor_down()
+        elif action == GameAction.CANCEL:
+            play_sfx("ui", "cursor_cancel")
+            # 직업 선택으로 돌아가기
+            self.state = "job_select"
+            if self.party:
+                last_member = self.party.pop()
+                if hasattr(last_member, 'job_id') and last_member.job_id:
+                    self._send_job_deselected(last_member.job_id)
+                self.current_slot = len(self.party)
+            self._create_job_menu()
+
+        return False
+
     def _create_name_input(self):
         """이름 입력 박스 생성"""
         if not self.party or self.current_slot >= len(self.party):
             return
-        
+
         member = self.party[self.current_slot]
         job_name = member.job_name
         
         # 랜덤 이름 추천 (확인 시점에 재사용하기 위해 인스턴스 변수에 저장)
         import random
-        self._pending_random_name = random.choice(self.random_names) if self.random_names else "플레이어"
+        gender = member.gender if hasattr(member, 'gender') else "male"
+        names_pool = self.random_names.get(gender, self.random_names.get("male", []))
+        self._pending_random_name = random.choice(names_pool) if names_pool else "플레이어"
 
         self.name_input = TextInputBox(
             title=f"이름 입력 ({self.current_slot + 1}/{self.character_allocation})",
@@ -697,7 +765,80 @@ class MultiplayerPartySetup:
             y=10,
             width=60
         )
-    
+
+    def handle_pointer_event(self, event: PointerEvent):
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            return self.handle_input(GameAction.CANCEL)
+
+        active_menu = self._active_pointer_menu()
+        if active_menu is not None:
+            result = self._handle_active_menu_pointer_event(active_menu, event)
+            if result.action is not None:
+                return self.handle_input(result.action)
+            return result
+
+        if self.state == "name_input" and self.name_input:
+            result = PointerDispatcher(self._name_input_pointer_regions()).dispatch(event)
+            if result.hovered_region_id == "name_field":
+                self.name_input_focused = True
+                return result.with_value("focus_name")
+            if result.action is not None:
+                return self.handle_input(result.action)
+            return result
+
+        return PointerDispatcher(()).dispatch(event)
+
+    def _handle_active_menu_pointer_event(self, menu: CursorMenu, event: PointerEvent) -> PointerDispatchResult:
+        manual_result = self._manual_menu_pointer_result(menu, event)
+        if manual_result is not None:
+            return manual_result
+        result = menu.handle_pointer_event(event)
+        if event.kind is PointerEventKind.CLICK and result.hovered_region_id is None and result.action is GameAction.CONFIRM:
+            return PointerDispatchResult(event=event)
+        return result
+
+    def _manual_menu_pointer_result(self, menu: CursorMenu, event: PointerEvent) -> PointerDispatchResult | None:
+        tile_x, tile_y = event.position.tile
+        for index, item in enumerate(menu.items):
+            if not (menu.scroll_offset <= index < menu.scroll_offset + menu.max_visible_items):
+                continue
+            item_y = menu._item_y(index)
+            if menu.x <= tile_x < menu.x + menu.width and tile_y == item_y:
+                menu.cursor_index = index
+                menu._sync_scroll_to_cursor()
+                if item.enabled:
+                    if event.kind is PointerEventKind.CLICK:
+                        return PointerDispatchResult(
+                            event=event,
+                            action=GameAction.CONFIRM,
+                            hovered_region_id=str(index),
+                            tooltip=item.description or item.text,
+                        )
+                    return None
+                return PointerDispatchResult(
+                    event=event,
+                    hovered_region_id=str(index),
+                    tooltip=item.description or item.text,
+                )
+        return None
+
+    def _active_pointer_menu(self) -> CursorMenu | None:
+        if self.state == "job_select":
+            return self.job_menu
+        if self.state == "gender_select":
+            return self.gender_menu
+        if self.state == "trait_select":
+            return self.trait_menu
+        return None
+
+    def _name_input_pointer_regions(self) -> tuple[PointerRegion, ...]:
+        if not self.name_input:
+            return ()
+        return (
+            PointerRegion("name_field", self.name_input.x + 2, self.name_input.y + 3, self.name_input.width - 4, 1, tooltip="캐릭터 이름 입력 필드: 클릭하면 입력 커서가 활성화됩니다"),
+            PointerRegion("name_confirm", self.name_input.x + 2, self.name_input.y + 4, self.name_input.width // 2, 1, GameAction.CONFIRM, "이 이름으로 다음 단계로 진행합니다"),
+        )
+     
     def handle_input(self, action: GameAction, key_event: Optional[tcod.event.KeyDown] = None) -> bool:
         """입력 처리"""
         if self.error_timer > 0:
@@ -707,12 +848,27 @@ class MultiplayerPartySetup:
         
         if self.state == "job_select":
             return self._handle_job_select(action)
+        elif self.state == "gender_select":
+            return self._handle_gender_select(action, key_event)
         elif self.state == "name_input":
+            if action == GameAction.CONFIRM and key_event is None:
+                self._confirm_current_name_input()
+                return False
             return self._handle_name_input(action, key_event)
         elif self.state == "trait_select":
             return self._handle_trait_select(action, key_event)
         
         return False
+
+    def _confirm_current_name_input(self) -> None:
+        if not self.name_input:
+            return
+        name = self.name_input.text.strip() or getattr(self, '_pending_random_name', None) or "플레이어"
+        if self.party and self.current_slot < len(self.party):
+            self.party[self.current_slot].character_name = name
+            self.logger.info(f"이름 입력: {name}")
+            self.state = "trait_select"
+            self._create_trait_menu()
     
     def _handle_job_select(self, action: GameAction) -> bool:
         """직업 선택 상태 입력 처리"""
@@ -808,10 +964,10 @@ class MultiplayerPartySetup:
                 
                 self.logger.info(f"직업 선택 성공: {job['name']} ({job['id']}) - 현재 턴={self.current_turn_player_id}, 로컬 플레이어={self.local_player_id}")
                 
-                # 이름 입력으로 이동
+                # 성별 선택으로 이동
                 self.current_slot = len(self.party) - 1
-                self.state = "name_input"
-                self._create_name_input()
+                self.state = "gender_select"
+                self._create_gender_menu()
                 
                 # 모든 캐릭터 선택 완료 확인
                 # (직업 선택 완료는 모든 캐릭터의 특성까지 선택 완료되었을 때 보냄)
@@ -867,9 +1023,11 @@ class MultiplayerPartySetup:
             return False
 
         elif action == GameAction.CANCEL:
-            # 직업 선택으로 돌아가기
-            self.state = "job_select"
+            # 성별 선택으로 돌아가기
+            play_sfx("ui", "cursor_cancel")
+            self.state = "gender_select"
             self.name_input = None
+            self._create_gender_menu()
             return False
 
         # IME 텍스트 입력 (한글 등)
@@ -1136,14 +1294,23 @@ class MultiplayerPartySetup:
                 self.screen_width // 2 - len(turn_msg) // 2,
                 6,
                 turn_msg,
-                fg=turn_color
+                fg=rgb("accent.cyan") if self.current_turn_player_id == self.local_player_id else rgb("text.muted")
             )
         
         # 현재 상태에 따라 렌더링
         if self.state == "job_select" and self.job_menu:
             self.job_menu.render(console)
+        elif self.state == "gender_select" and self.gender_menu:
+            self.gender_menu.render(console)
         elif self.state == "name_input" and self.name_input:
             self.name_input.render(console)
+            if self.name_input_focused:
+                console.print(
+                    self.name_input.x + 3 + min(len(self.name_input.text), self.name_input.width - 6),
+                    self.name_input.y + 3,
+                    "_",
+                    fg=rgb("state.focus"),
+                )
         elif self.state == "trait_select" and self.trait_menu:
             self.trait_menu.render(console)
         
@@ -1328,6 +1495,14 @@ def run_multiplayer_party_setup(
                 return None
 
             context.convert_event(event)
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event:
+                pointer_result = setup.handle_pointer_event(pointer_event)
+                if pointer_result is True and setup.cancelled:
+                    return None
+                if getattr(pointer_result, "action", None) is not None:
+                    continue
+
             action = unified_input_handler.process_tcod_event(event)
 
             # TextInput 이벤트 (한글 IME 등) - 이름 입력 중 전달

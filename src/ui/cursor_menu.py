@@ -10,6 +10,7 @@ import tcod.console
 
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
+from src.ui.pointer import PointerDispatcher, PointerEvent, PointerRegion, PointerDispatchResult
 from src.ui.ui_renderer import SelectionHighlight
 from src.core.logger import get_logger
 from src.core.vibration_system import vibration_manager, VibrationPattern
@@ -209,6 +210,49 @@ class CursorMenu:
                 play_sfx("ui", "cursor_error")
                 vibration_manager.vibrate(VibrationPattern.FAILURE)
         return None
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions = []
+        for index, item in enumerate(self.items):
+            if self.scroll_offset <= index < self.scroll_offset + self.max_visible_items:
+                regions.append(
+                    PointerRegion(
+                        region_id=str(index),
+                        x=self.x,
+                        y=self._item_y(index),
+                        width=self.width,
+                        height=1,
+                        command=GameAction.CONFIRM,
+                        tooltip=item.description,
+                        enabled=item.enabled,
+                    )
+                )
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        result = PointerDispatcher(self.pointer_regions()).dispatch(event)
+        if result.hovered_region_id is not None:
+            self._focus_pointer_region(result.hovered_region_id)
+        if result.action is None:
+            return result
+        value = self.handle_input(result.action)
+        return result.with_value(value)
+
+    def _focus_pointer_region(self, region_id: str) -> None:
+        index = int(region_id)
+        if 0 <= index < len(self.items):
+            self.cursor_index = index
+            self._sync_scroll_to_cursor()
+
+    def _sync_scroll_to_cursor(self) -> None:
+        if self.cursor_index < self.scroll_offset:
+            self.scroll_offset = self.cursor_index
+        elif self.cursor_index >= self.scroll_offset + self.max_visible_items:
+            self.scroll_offset = self.cursor_index - self.max_visible_items + 1
+
+    def _item_y(self, index: int) -> int:
+        items_start_y = self.y + (2 if self.title else 0)
+        return items_start_y + index - self.scroll_offset
 
     def render(self, console: tcod.console.Console) -> None:
         """

@@ -5,13 +5,14 @@
 """
 
 from enum import Enum
-from typing import Optional, List, Tuple
+from typing import Any, Optional, List, Tuple
 import tcod
 
 from src.ui.input_handler import (
     InputHandler, GameAction, unified_input_handler,
     key_binding_manager, KEY_NAME_TO_KEYSYM, KEYSYM_TO_KEY_NAME
 )
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 from src.ui.tcod_display import render_space_background
 from src.core.logger import get_logger, Loggers
 from src.audio import play_sfx
@@ -143,6 +144,61 @@ class KeyBindingsUI:
             return "close"
         
         return None
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions = (
+            PointerRegion("tab:keyboard", 10, 4, 12, 1, GameAction.CONFIRM, "키보드 바인딩 탭"),
+            PointerRegion("tab:gamepad", 30, 4, 14, 1, GameAction.CONFIRM, "게임패드 바인딩 탭"),
+        )
+        item_regions: list[PointerRegion] = []
+        for row, item_index in enumerate(range(self.scroll_offset, min(self.scroll_offset + self.max_visible_items, len(self.get_current_items())))):
+            item = self.get_current_items()[item_index]
+            enabled = self.current_tab is KeyBindingTab.KEYBOARD or isinstance(item[1], int)
+            tooltip = self._binding_tooltip(item, enabled)
+            item_regions.append(PointerRegion(f"binding:{item_index}", 5, 7 + row, self.screen_width - 10, 1, GameAction.CONFIRM, tooltip, enabled=enabled))
+        return regions + tuple(item_regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN if event.wheel_delta < 0 else None
+            if action is not None:
+                self.handle_input(action)
+            return PointerDispatchResult(event=event, action=action)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            value = self.handle_input(GameAction.ESCAPE)
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL, value=value)
+        result = PointerDispatcher(self.pointer_regions()).dispatch(event)
+        region_id = result.hovered_region_id or self._region_id_at(event)
+        if region_id:
+            self._focus_pointer_region(region_id)
+        if event.kind is PointerEventKind.HOVER and region_id and result.tooltip is None:
+            region = next((candidate for candidate in self.pointer_regions() if candidate.region_id == region_id), None)
+            return PointerDispatchResult(event=event, hovered_region_id=region_id, tooltip=region.tooltip if region else None)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+            value = self.handle_input(GameAction.CONFIRM)
+            return PointerDispatchResult(event=event, action=GameAction.CONFIRM, value=value, hovered_region_id=region_id, tooltip=result.tooltip)
+        return result
+
+    def _region_id_at(self, event: PointerEvent) -> str:
+        region = next((candidate for candidate in self.pointer_regions() if candidate.contains(event.position)), None)
+        return region.region_id if region else ""
+
+    def _focus_pointer_region(self, region_id: str) -> None:
+        if region_id == "tab:keyboard":
+            self.current_tab = KeyBindingTab.KEYBOARD
+            self.selected_index = 0
+            self.scroll_offset = 0
+        elif region_id == "tab:gamepad":
+            self.current_tab = KeyBindingTab.GAMEPAD
+            self.selected_index = 0
+            self.scroll_offset = 0
+        elif region_id.startswith("binding:"):
+            self.selected_index = int(region_id.split(":", 1)[1])
+
+    def _binding_tooltip(self, item: tuple[str, Any], enabled: bool) -> str:
+        if not enabled:
+            return f"{item[0]}: D-pad 정보 행은 직접 재지정할 수 없습니다."
+        return f"{item[0]} | 좌클릭 변경 대기 | 우클릭 저장 후 닫기"
 
     def handle_key_input(self, event: tcod.event.KeyDown) -> bool:
         """키 입력 대기 중 키 처리"""
@@ -412,6 +468,14 @@ def open_key_bindings(
             if ui.waiting_for_key:
                 if isinstance(event, tcod.event.KeyDown):
                     ui.handle_key_input(event)
+                continue
+
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                result = ui.handle_pointer_event(pointer_event)
+                if result.value == "close":
+                    logger.info("키 바인딩 설정 닫힘")
+                    return
                 continue
             
             # 일반 입력 처리

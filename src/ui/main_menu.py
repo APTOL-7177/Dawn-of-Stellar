@@ -14,9 +14,10 @@ from enum import Enum
 
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
 from src.core.logger import get_logger
 from src.audio import play_bgm, play_sfx
-from src.ui.pygame_backend.effects.text_effects import (
+from src.ui.effects import (
     TextScrambler,
     ColorCycler,
     render_scrambled_text,
@@ -458,6 +459,50 @@ class MainMenu:
             except Exception:
                 pass
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions = []
+        for index, item in enumerate(self.dial_items):
+            offset = index - self.dial_index
+            if offset > len(self.dial_items) // 2:
+                offset -= len(self.dial_items)
+            elif offset < -len(self.dial_items) // 2:
+                offset += len(self.dial_items)
+            if abs(offset) > self.dial_visible_range:
+                continue
+            y = self.dial_center_y + offset * 2
+            description = str(item.get("description", ""))
+            regions.append(
+                PointerRegion(
+                    region_id=str(index),
+                    x=self.dial_frame_x + 2,
+                    y=y,
+                    width=self.dial_frame_width - 4,
+                    height=1,
+                    command=GameAction.CONFIRM,
+                    tooltip=description,
+                    enabled=True,
+                )
+            )
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        dispatcher = PointerDispatcher(self.pointer_regions())
+        result = dispatcher.dispatch(event)
+        region = dispatcher.region_at(event.position)
+        region_id = result.hovered_region_id or (region.region_id if region else None)
+        if region_id is not None:
+            self.dial_index = int(region_id)
+        if event.kind is PointerEventKind.WHEEL:
+            self._dial_rotate(-1 if event.wheel_delta > 0 else 1)
+            return result
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            self.result = MenuResult.QUIT
+            return result.with_value(True)
+        if event.kind is PointerEventKind.CLICK and result.action is not None:
+            value = self.handle_input(result.action)
+            return PointerDispatchResult(event=event, action=result.action, value=value, tooltip=region.tooltip if region else result.tooltip)
+        return result
 
     # ── 렌더링 헬퍼 ──────────────────────────────────────────
 
@@ -1051,6 +1096,14 @@ class MainMenu:
         self.result = MenuResult.NONE
 
 
+def _handle_main_menu_pointer_event(menu: MainMenu, event) -> bool:
+    pointer_event = unified_input_handler.process_pointer_event(event)
+    if pointer_event is None:
+        return False
+    result = menu.handle_pointer_event(pointer_event)
+    return bool(result.value and menu.result is not MenuResult.NONE)
+
+
 def run_main_menu(console: tcod.console.Console, context: tcod.context.Context) -> MenuResult:
     """
     메인 메뉴 실행
@@ -1128,6 +1181,9 @@ def run_main_menu(console: tcod.console.Console, context: tcod.context.Context) 
         # 키보드 입력 우선 처리
         keyboard_processed = False
         for event in tcod.event.get():
+            if _handle_main_menu_pointer_event(menu, event):
+                return menu.result
+
             action = unified_input_handler.process_tcod_event(event)
 
             if action:

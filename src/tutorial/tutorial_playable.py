@@ -18,6 +18,8 @@ from src.world.exploration import ExplorationSystem
 from src.world.tile import TileType
 from src.equipment.inventory import Inventory
 from src.ui.input_handler import InputHandler, GameAction, iter_game_input, unified_input_handler
+from src.ui.pointer import PointerButton, PointerEventKind
+from src.ui.visual_tokens import rgb
 from src.core.logger import get_logger, Loggers
 
 
@@ -33,6 +35,32 @@ def flush_events():
             pass
         time.sleep(0.01)  # CPU 부하 방지
     unified_input_handler.clear_input_state()
+
+
+def _coerce_pointer_action(action: GameAction | None, event) -> GameAction | None:
+    if action is not None or event is None:
+        return action
+    pointer_event = unified_input_handler.process_pointer_event(event)
+    if pointer_event is None:
+        return None
+    if pointer_event.kind is PointerEventKind.WHEEL:
+        if pointer_event.wheel_delta > 0:
+            return GameAction.MOVE_UP
+        if pointer_event.wheel_delta < 0:
+            return GameAction.MOVE_DOWN
+    if pointer_event.kind is PointerEventKind.CLICK:
+        if pointer_event.button is PointerButton.RIGHT:
+            return GameAction.ESCAPE
+        if pointer_event.button is PointerButton.LEFT:
+            return GameAction.CONFIRM
+    return None
+
+
+def _pointer_surface_hint(event, text: str) -> str | None:
+    pointer_event = unified_input_handler.process_pointer_event(event) if event is not None else None
+    if pointer_event is not None and pointer_event.kind is PointerEventKind.HOVER:
+        return text
+    return None
 
 
 class TutorialPlayMode:
@@ -164,6 +192,7 @@ class TutorialPlayMode:
 
         # 입력 대기
         for action, event in iter_game_input():
+            action = _coerce_pointer_action(action, event)
             if action == GameAction.CONFIRM:
                 return True
             elif action in (GameAction.ESCAPE, GameAction.CANCEL):
@@ -211,6 +240,7 @@ class TutorialPlayMode:
         # 입력 대기 (Z 또는 엔터만)
         while True:
             for action, event in iter_game_input():
+                action = _coerce_pointer_action(action, event)
                 if action == GameAction.CONFIRM:
                     return
 
@@ -247,6 +277,7 @@ class TutorialPlayMode:
         flush_events()
         while True:
             for action, event in iter_game_input():
+                action = _coerce_pointer_action(action, event)
                 if action == GameAction.CONFIRM:
                     return True
                 elif action in (GameAction.ESCAPE, GameAction.CANCEL):
@@ -300,6 +331,7 @@ class TutorialPlayMode:
             self.context.present(self.console)
 
             for action, event in iter_game_input():
+                action = _coerce_pointer_action(action, event)
                 if action == GameAction.ESCAPE:
                     return False
                 elif self._is_move_action(action):
@@ -346,6 +378,7 @@ class TutorialPlayMode:
             self.context.present(self.console)
 
             for action, event in iter_game_input():
+                action = _coerce_pointer_action(action, event)
                 if action == GameAction.ESCAPE:
                     return False
                 elif self._is_move_action(action):
@@ -424,6 +457,7 @@ class TutorialPlayMode:
                 self.context.present(self.console)
 
                 for action, event in iter_game_input():
+                    action = _coerce_pointer_action(action, event)
                     if action == GameAction.ESCAPE:
                         return False
                     elif self._is_move_action(action):
@@ -463,6 +497,7 @@ class TutorialPlayMode:
                 self.context.present(self.console)
 
                 for action, event in iter_game_input():
+                    action = _coerce_pointer_action(action, event)
                     if action == GameAction.CONFIRM:
                         combat_actions += 1
                         if combat_actions >= 3:
@@ -514,6 +549,7 @@ class TutorialPlayMode:
                 self.context.present(self.console)
 
                 for action, event in iter_game_input():
+                    action = _coerce_pointer_action(action, event)
                     if action == GameAction.ESCAPE:
                         return False
                     elif self._is_move_action(action):
@@ -548,6 +584,7 @@ class TutorialPlayMode:
                 self.context.present(self.console)
 
                 for action, event in iter_game_input():
+                    action = _coerce_pointer_action(action, event)
                     if action in (GameAction.ESCAPE, GameAction.CANCEL):
                         return False
                     elif action == GameAction.CONFIRM:
@@ -604,6 +641,7 @@ class TutorialPlayMode:
                 self.context.present(self.console)
 
                 for action, event in iter_game_input():
+                    action = _coerce_pointer_action(action, event)
                     if action == GameAction.ESCAPE:
                         return False
                     elif self._is_move_action(action):
@@ -642,6 +680,7 @@ class TutorialPlayMode:
                 self.context.present(self.console)
 
                 for action, event in iter_game_input():
+                    action = _coerce_pointer_action(action, event)
                     if action in (GameAction.ESCAPE, GameAction.CANCEL):
                         return False
                     elif action == GameAction.CONFIRM:
@@ -1575,14 +1614,22 @@ class TutorialPlayMode:
 
 def run_playable_tutorial(console: tcod.console.Console, context: tcod.context.Context) -> bool:
     """
-    플레이 가능한 튜토리얼 실행
+    [비활성] 레거시 플레이 가능 튜토리얼 진입점
+
+    Story Mode가 유일한 정식 온보딩 (2026-09 설계 결정).
+    세이브 호환성을 위해 TutorialPlayMode 클래스는 유지하지만,
+    이 진입 함수는 더 이상 UI를 띄우지 않고 즉시 중단(False)을 반환한다.
+    재진입 요청은 Story Mode Act 1 onboarding으로 리다이렉트된다.
 
     Args:
-        console: TCOD 콘솔
-        context: TCOD 컨텍스트
+        console: 사용하지 않음 (호환성 유지)
+        context: 사용하지 않음 (호환성 유지)
 
     Returns:
-        True: 완료, False: 중단
+        False: 항상 (레거시 진입 차단)
     """
-    tutorial_mode = TutorialPlayMode(console, context)
-    return tutorial_mode.run()
+    logger.warning(
+        "레거시 플레이 가능 튜토리얼 진입 차단 - Story Mode로 안내됩니다. "
+        "(튜토리얼은 메인 메뉴의 스토리 모드 Act 1에서 진행하세요)"
+    )
+    return False

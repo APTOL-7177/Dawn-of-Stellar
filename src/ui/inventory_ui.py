@@ -14,6 +14,7 @@ from src.equipment.item_system import Item, Equipment, Consumable, ItemType
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.ui.cursor_menu import CursorMenu, MenuItem
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
 from src.ui.ui_renderer import draw_styled_box, SelectionHighlight
 from src.core.logger import get_logger
 from src.audio import play_sfx
@@ -99,6 +100,41 @@ class InventoryUI:
         self.selected_character_for_comparison = 0  # 비교할 캐릭터 인덱스
 
         self.closed = False
+        self._pending_gauges = []  # pixel overlay 게이지 큐
+
+    def _queue_gauge(self, console, cell_x: int, cell_y: int, cell_w: int,
+                     ratio: float, kind: str = "", custom_color: tuple = None,
+                     wound_ratio: float = 0.0) -> None:
+        """pixel overlay 스무스 게이지 큐에 추가 + 콘솔 폴백 렌더링
+
+        kind: "hp", "mp", "exp" 등 — combat_ui 와 동일 색상 테이블 사용
+        custom_color: kind 대신 직접 색상 지정 (내구도 등)
+        """
+        # 콘솔 폴백 색상 결정 (전투 UI와 동일한 임계값)
+        r = max(0.0, min(1.0, ratio))
+        if kind == "hp":
+            if r > 0.6:
+                fg = (50, 220, 50)
+            elif r > 0.3:
+                fg = (220, 220, 50)
+            else:
+                fg = (220, 50, 50)
+        elif kind == "mp":
+            fg = (100, 150, 255)
+        elif kind == "exp":
+            fg = (100, 255, 100)
+        elif custom_color:
+            fg = custom_color
+        else:
+            fg = (200, 200, 200)
+        bg = tuple(max(0, c // 4) for c in fg)
+        console.draw_rect(cell_x, cell_y, cell_w, 1, ord(" "), bg=bg)
+        filled = max(0, int(cell_w * r))
+        if filled > 0:
+            console.draw_rect(cell_x, cell_y, filled, 1, ord(" "), bg=fg)
+        # kind 또는 custom_color 를 그대로 저장
+        color_info = kind if kind else custom_color
+        self._pending_gauges.append((cell_x, cell_y, cell_w, ratio, color_info, wound_ratio))
 
     def _translate_unique_effect(self, effect_str: str) -> str:
         """유니크 효과를 한글로 번역"""
@@ -298,6 +334,59 @@ class InventoryUI:
             return self._handle_drop_gold(action)
 
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        if self.sort_menu:
+            return self.sort_menu.pointer_regions()
+        if self.mode != InventoryMode.BROWSE:
+            return ()
+        regions = []
+        for filtered_index in range(self.scroll_offset, min(self.scroll_offset + self.max_visible, self._get_filtered_item_count())):
+            actual_index = self._get_actual_slot_index(filtered_index)
+            item = self.inventory.get_item(actual_index)
+            tooltip = getattr(item, "description", "") if item else "빈 슬롯입니다."
+            regions.append(
+                PointerRegion(
+                    region_id=str(filtered_index),
+                    x=5,
+                    y=6 + (filtered_index - self.scroll_offset),
+                    width=max(50, self.screen_width - 10),
+                    height=1,
+                    command=GameAction.CONFIRM,
+                    tooltip=tooltip,
+                    enabled=item is not None,
+                )
+            )
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if self.sort_menu:
+            result = self.sort_menu.handle_pointer_event(event)
+            if result.value is not None:
+                self._handle_sort_menu(GameAction.CONFIRM)
+            return result
+        dispatcher = PointerDispatcher(self.pointer_regions())
+        result = dispatcher.dispatch(event)
+        region = dispatcher.region_at(event.position)
+        region_id = result.hovered_region_id or (region.region_id if region else None)
+        if region_id is not None:
+            self.cursor = int(region_id)
+            self._update_scroll()
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN
+            value = self.handle_input(action)
+            return result.with_value(value)
+        if event.kind in (PointerEventKind.DRAG_START, PointerEventKind.DRAG_MOVE, PointerEventKind.DRAG_END):
+            if region_id is not None:
+                self.cursor = int(region_id)
+            return PointerDispatchResult(event=event, hovered_region_id=region_id, tooltip=region.tooltip if region else result.tooltip)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            value = self.handle_input(GameAction.CANCEL)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and result.action is not None:
+            value = self.handle_input(result.action)
+            return PointerDispatchResult(event=event, action=result.action, value=value, tooltip=region.tooltip if region else result.tooltip)
+        return result
 
     def _handle_browse(self, action: GameAction) -> bool:
         """둘러보기 모드 입력"""
@@ -1736,25 +1825,22 @@ class InventoryUI:
                 header += f" (Lv.{char_level} {char_job})"
             console.print(box_x + 2, y, header, fg=name_color)
 
-            # 2줄: HP 바
+            # 2줄: HP 바 (draw_rect 게이지)
             hp_ratio = char_hp / char_max_hp if char_max_hp > 0 else 0
             hp_color = Colors.HP_FULL if hp_ratio > 0.5 else (Colors.HP_HALF if hp_ratio > 0.25 else Colors.HP_LOW)
             bar_width = 20
-            filled = int(bar_width * hp_ratio)
-            hp_bar = "█" * filled + "░" * (bar_width - filled)
             console.print(box_x + 4, y + 1, "HP", fg=Colors.GRAY)
-            console.print(box_x + 7, y + 1, hp_bar, fg=hp_color)
+            _wr = char_wound / (char_max_hp + char_wound) if char_wound > 0 and char_max_hp > 0 else 0.0
+            self._queue_gauge(console, box_x + 7, y + 1, bar_width, hp_ratio, kind="hp", wound_ratio=_wr)
             hp_text = f"{char_hp}/{char_max_hp}"
             if char_wound > 0:
                 hp_text += f" (상처:{char_wound})"
             console.print(box_x + 28, y + 1, hp_text, fg=hp_color)
 
-            # 3줄: MP 바
+            # 3줄: MP 바 (draw_rect 게이지)
             mp_ratio = char_mp / char_max_mp if char_max_mp > 0 else 0
-            mp_filled = int(bar_width * mp_ratio)
-            mp_bar = "█" * mp_filled + "░" * (bar_width - mp_filled)
             console.print(box_x + 4, y + 2, "MP", fg=Colors.GRAY)
-            console.print(box_x + 7, y + 2, mp_bar, fg=Colors.MP_FULL)
+            self._queue_gauge(console, box_x + 7, y + 2, bar_width, mp_ratio, kind="mp")
             console.print(box_x + 28, y + 2, f"{char_mp}/{char_max_mp}", fg=Colors.MP_FULL)
 
             y += rows_per_char
@@ -1812,20 +1898,18 @@ class InventoryUI:
             bar_w = 8
             hp_ratio = char_hp / max(char_max_hp, 1)
             mp_ratio = char_mp / max(char_max_mp, 1)
-            hp_filled = int(bar_w * hp_ratio)
-            mp_filled = int(bar_w * mp_ratio)
-            hp_bar = "█" * hp_filled + "░" * (bar_w - hp_filled)
-            mp_bar = "█" * mp_filled + "░" * (bar_w - mp_filled)
 
             info_x = box_x + box_width - 26
             hp_color = Colors.HP_FULL if hp_ratio > 0.5 else (
                 Colors.HP_HALF if hp_ratio > 0.2 else Colors.HP_LOW)
             console.print(info_x, y, "HP", fg=Colors.GRAY)
-            console.print(info_x + 3, y, hp_bar, fg=hp_color)
+            _wr2 = getattr(character, 'wound', 0)
+            _wr2 = _wr2 / (char_max_hp + _wr2) if _wr2 > 0 and char_max_hp > 0 else 0.0
+            self._queue_gauge(console, info_x + 3, y, bar_w, hp_ratio, kind="hp", wound_ratio=_wr2)
             console.print(info_x + 12, y, f"{char_hp}/{char_max_hp}", fg=hp_color)
 
             console.print(info_x, y + 1, "MP", fg=Colors.GRAY)
-            console.print(info_x + 3, y + 1, mp_bar, fg=Colors.MP_FULL)
+            self._queue_gauge(console, info_x + 3, y + 1, bar_w, mp_ratio, kind="mp")
             console.print(info_x + 12, y + 1, f"{char_mp}/{char_max_mp}", fg=Colors.MP_FULL)
 
             # 2줄: 장비 요약
@@ -1907,12 +1991,12 @@ class InventoryUI:
         char_max_hp = getattr(character, 'max_hp', 1)
         hp_ratio = char_hp / max(char_max_hp, 1)
         bar_w = left_w - 8
-        hp_filled = int(bar_w * hp_ratio)
-        hp_bar = "█" * hp_filled + "░" * (bar_w - hp_filled)
         hp_color = Colors.HP_FULL if hp_ratio > 0.5 else (
             Colors.HP_HALF if hp_ratio > 0.2 else Colors.HP_LOW)
         console.print(box_x + 2, ly, "HP", fg=Colors.GRAY)
-        console.print(box_x + 5, ly, hp_bar, fg=hp_color)
+        _wr3 = getattr(character, 'wound', 0)
+        _wr3 = _wr3 / (char_max_hp + _wr3) if _wr3 > 0 and char_max_hp > 0 else 0.0
+        self._queue_gauge(console, box_x + 5, ly, bar_w, hp_ratio, kind="hp", wound_ratio=_wr3)
         ly += 1
         console.print(box_x + 5, ly, f"{char_hp}/{char_max_hp}", fg=hp_color)
         ly += 1
@@ -1921,10 +2005,8 @@ class InventoryUI:
         char_mp = getattr(character, 'current_mp', 0)
         char_max_mp = getattr(character, 'max_mp', 1)
         mp_ratio = char_mp / max(char_max_mp, 1)
-        mp_filled = int(bar_w * mp_ratio)
-        mp_bar = "█" * mp_filled + "░" * (bar_w - mp_filled)
         console.print(box_x + 2, ly, "MP", fg=Colors.GRAY)
-        console.print(box_x + 5, ly, mp_bar, fg=Colors.MP_FULL)
+        self._queue_gauge(console, box_x + 5, ly, bar_w, mp_ratio, kind="mp")
         ly += 1
         console.print(box_x + 5, ly, f"{char_mp}/{char_max_mp}", fg=Colors.MP_FULL)
         ly += 2
@@ -1995,13 +2077,10 @@ class InventoryUI:
                     max_dur = getattr(item, 'max_durability', 100)
                     if max_dur > 0:
                         dur_ratio = current_dur / max_dur
-                        dur_bar_w = 10
-                        dur_filled = int(dur_bar_w * dur_ratio)
-                        dur_bar = "█" * dur_filled + "░" * (dur_bar_w - dur_filled)
                         dur_color = (100, 255, 100) if dur_ratio > 0.5 else (
                             (255, 255, 100) if dur_ratio > 0.2 else (255, 100, 100))
                         console.print(rx + 2, ry, "내구도", fg=Colors.GRAY)
-                        console.print(rx + 6, ry, dur_bar, fg=dur_color)
+                        self._queue_gauge(console, rx + 6, ry, 10, dur_ratio, custom_color=dur_color)
                         console.print(rx + 17, ry,
                                       f"[{current_dur}/{max_dur}]", fg=dur_color)
                         ry += 1
@@ -2285,12 +2364,10 @@ class InventoryUI:
         if new_dur is not None and new_max_dur and new_max_dur > 0:
             dur_ratio = new_dur / new_max_dur
             bar_w = panel_w - 8
-            filled = int(bar_w * dur_ratio)
-            bar = "█" * filled + "░" * (bar_w - filled)
             dur_color = (100, 255, 100) if dur_ratio > 0.5 else (
                 (255, 200, 0) if dur_ratio > 0.2 else (255, 100, 100))
             console.print(lx, ly, "내구:", fg=Colors.GRAY)
-            console.print(lx + 5, ly, bar, fg=dur_color)
+            self._queue_gauge(console, lx + 5, ly, bar_w, dur_ratio, custom_color=dur_color)
             ly += 1
             console.print(lx + 5, ly, f"{new_dur}/{new_max_dur}", fg=dur_color)
             ly += 1
@@ -2385,12 +2462,10 @@ class InventoryUI:
             if cur_dur is not None and cur_max_dur and cur_max_dur > 0:
                 dur_ratio = cur_dur / cur_max_dur
                 bar_w = rpanel_w - 8
-                filled = int(bar_w * dur_ratio)
-                bar = "█" * filled + "░" * (bar_w - filled)
                 dur_color = (100, 255, 100) if dur_ratio > 0.5 else (
                     (255, 200, 0) if dur_ratio > 0.2 else (255, 100, 100))
                 console.print(rx, ry, "내구:", fg=Colors.GRAY)
-                console.print(rx + 5, ry, bar, fg=dur_color)
+                self._queue_gauge(console, rx + 5, ry, bar_w, dur_ratio, custom_color=dur_color)
                 ry += 1
                 console.print(rx + 5, ry, f"{cur_dur}/{cur_max_dur}", fg=dur_color)
                 ry += 1
@@ -2501,6 +2576,20 @@ def open_inventory(
 
         # 렌더링
         ui.render(console)
+        # pixel overlay 스무스 게이지 등록
+        if hasattr(context, 'add_pixel_overlay') and ui._pending_gauges:
+            gauges = list(ui._pending_gauges)
+            ui._pending_gauges.clear()
+            tw = getattr(context, 'tile_width', 10)
+            th = getattr(context, 'tile_height', 13)
+            def _gauge_overlay(dt, _g=gauges, _tw=tw, _th=th):
+                from src.ui.raylib_backend.smooth_gauge import draw_smooth_gauge
+                for gx, gy, gw, ratio, ci, wound in _g:
+                    if isinstance(ci, str):
+                        draw_smooth_gauge(gx * _tw, gy * _th, gw * _tw, _th, ratio, kind=ci, wound_ratio=wound)
+                    else:
+                        draw_smooth_gauge(gx * _tw, gy * _th, gw * _tw, _th, ratio, custom_color=ci, wound_ratio=wound)
+            context.add_pixel_overlay(_gauge_overlay)
         context.present(console)
 
         # pygame 이벤트 업데이트 (게임패드 입력을 위해)

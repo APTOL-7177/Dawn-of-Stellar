@@ -8,66 +8,75 @@ import tcod
 import tcod.context
 import tcod.console
 import tcod.event
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, List, Dict
 from pathlib import Path
 import os
 import platform
 import sys
 import shutil
+import time
 
 from src.core.config import get_config
 from src.core.logger import get_logger
 from src.ui.gauge_tileset import initialize_gauge_tiles
+from src.ui.visual_tokens import rgb
 
 
 class Colors:
     """색상 정의"""
     # 기본 색상
-    BLACK = (0, 0, 0)
-    WHITE = (255, 255, 255)
-    GRAY = (128, 128, 128)
-    DARK_GRAY = (64, 64, 64)
+    BLACK = rgb("surface.base")
+    WHITE = rgb("text.primary")
+    GRAY = rgb("text.secondary")
+    DARK_GRAY = rgb("text.muted")
 
     # 추가 색상
-    RED = (255, 0, 0)
-    GREEN = (0, 255, 0)
-    BLUE = (0, 0, 255)
-    DARK_BLUE = (0, 0, 139)
-    LIGHT_BLUE = (173, 216, 230)
-    YELLOW = (255, 255, 0)
-    CYAN = (0, 255, 255)
-    MAGENTA = (255, 0, 255)
-    ORANGE = (255, 165, 0)
-    PURPLE = (128, 0, 128)
-    GOLD = (255, 215, 0)
+    RED = rgb("status.error")
+    GREEN = rgb("status.success")
+    BLUE = rgb("accent.blue")
+    DARK_BLUE = rgb("surface.grid")
+    LIGHT_BLUE = rgb("status.info")
+    YELLOW = rgb("status.warning")
+    CYAN = rgb("accent.cyan")
+    MAGENTA = rgb("accent.violet")
+    ORANGE = rgb("threat.high")
+    PURPLE = rgb("rarity.epic")
+    GOLD = rgb("rarity.legendary")
 
     # UI 색상
-    UI_BG = (20, 20, 30)
-    UI_BORDER = (100, 100, 150)
-    UI_TEXT = (200, 200, 200)
-    UI_TEXT_SELECTED = (255, 255, 100)
+    UI_BG = rgb("surface.panel")
+    UI_BORDER = rgb("line.default")
+    UI_TEXT = rgb("text.primary")
+    UI_TEXT_SELECTED = rgb("accent.amber")
 
     # HP/MP 바
-    HP_FULL = (0, 200, 0)
-    HP_HALF = (200, 200, 0)
-    HP_LOW = (200, 0, 0)
-    HP_BG = (100, 0, 0)
+    HP_FULL = rgb("status.hp_high")
+    HP_HALF = rgb("status.hp_mid")
+    HP_LOW = rgb("status.hp_low")
+    HP_BG = rgb("surface.sunken")
 
-    MP_FULL = (0, 100, 200)
-    MP_BG = (0, 50, 100)
+    MP_FULL = rgb("status.mp")
+    MP_BG = rgb("surface.sunken")
 
     # 상처
-    WOUND = (150, 50, 50)
+    WOUND = rgb("threat.high")
 
     # 음식 아이템
-    FOOD = (255, 200, 150)  # 살구색
+    FOOD = rgb("accent.amber")
 
     # 맵 색상
-    FLOOR = (50, 50, 150)
-    WALL = (0, 0, 100)
-    PLAYER = (255, 255, 255)
-    ENEMY = (255, 0, 0)
-    ITEM = (255, 255, 0)
+    FLOOR = rgb("surface.grid")
+    WALL = rgb("surface.sunken")
+    PLAYER = rgb("text.primary")
+    ENEMY = rgb("threat.critical")
+    ITEM = rgb("rarity.legendary")
+
+    FOCUS = rgb("state.focus")
+    HOVER_BG = rgb("state.hover")
+    ACTIVE_BG = rgb("state.active")
+    DISABLED = rgb("state.disabled")
+    TOOLTIP_BG = rgb("state.tooltip")
+    DRAG_BG = rgb("state.drag")
 
 
 class TCODDisplay:
@@ -208,6 +217,12 @@ class TCODDisplay:
         # 종횡비 유지 관련
         self._last_window_size = None
         self._aspect_ratio_check_counter = 0  # 프레임 카운터 (너무 자주 확인하지 않기 위해)
+
+        # 사이드바 게이지 애니메이션 시스템
+        self._sidebar_anim: Dict[str, Dict] = {}  # key: "hp"/"mp" → {current, previous, target, start_time}
+        self._sidebar_prev_values: Dict[str, int] = {}  # 이전 프레임 실제 값 (변화 감지용)
+        self._sidebar_popups: List[Dict] = []  # 데미지/힐 팝업 [{text, x, y, start_time, color, dy}]
+        self._sidebar_last_time = time.time()
 
         self._initialize_tcod()
 
@@ -367,8 +382,11 @@ class TCODDisplay:
         import platform
         import os
 
-        # Linux X11: BadLength 등 치명적 X 에러 방지 핸들러 설치
+        # Linux X11: BadLength 등 치명적 X 에러 방지
         if platform.system() == "Linux":
+            # MIT-SHM 비활성화: 대용량 타일셋을 SDL2로 X11에 업로드할 때
+            # XShmPutImage가 XMaxRequestSize를 초과하는 BadLength 방지
+            os.environ.setdefault("SDL_VIDEO_X11_SHMAT", "0")
             self._install_x11_error_handler()
 
         env_headless = os.environ.get("DOS_HEADLESS", "").lower()
@@ -763,20 +781,20 @@ class TCODDisplay:
             self.sidebar_console.print(1, y, f"레벨: {level}", fg=Colors.WHITE)
             y += 2
 
-            # HP 바
+            # HP 바 (애니메이션)
             current_hp = getattr(character, 'current_hp', 100)
             max_hp = getattr(character, 'max_hp', 100)
             self.sidebar_console.print(1, y, "HP:", fg=Colors.UI_TEXT)
             y += 1
-            self._render_bar(self.sidebar_console, 1, y, 18, current_hp, max_hp, Colors.HP_FULL, Colors.HP_BG)
+            self._render_bar(self.sidebar_console, 1, y, 18, current_hp, max_hp, Colors.HP_FULL, Colors.HP_BG, bar_key="hp")
             y += 2
 
-            # MP 바
+            # MP 바 (애니메이션)
             current_mp = getattr(character, 'current_mp', 50)
             max_mp = getattr(character, 'max_mp', 50)
             self.sidebar_console.print(1, y, "MP:", fg=Colors.UI_TEXT)
             y += 1
-            self._render_bar(self.sidebar_console, 1, y, 18, current_mp, max_mp, Colors.MP_FULL, Colors.MP_BG)
+            self._render_bar(self.sidebar_console, 1, y, 18, current_mp, max_mp, Colors.MP_FULL, Colors.MP_BG, bar_key="mp")
             y += 2
 
             # 주요 스탯 표시
@@ -809,6 +827,9 @@ class TCODDisplay:
         self.sidebar_console.print(1, y, "MP:", fg=Colors.UI_TEXT)
         y += 1
         self._render_bar(self.sidebar_console, 1, y, 18, 50, 50, Colors.MP_FULL, Colors.MP_BG)
+
+        # 데미지/힐 팝업 렌더링
+        self._render_sidebar_popups(self.sidebar_console)
 
     def render_messages(self, messages: list) -> None:
         """
@@ -846,33 +867,152 @@ class TCODDisplay:
         current: int,
         maximum: int,
         fg_color: Tuple[int, int, int],
-        bg_color: Tuple[int, int, int]
+        bg_color: Tuple[int, int, int],
+        bar_key: str = ""
     ) -> None:
         """
-        바(HP/MP) 렌더링
+        애니메이션 바(HP/MP) 렌더링 - 트레일 + 숫자 애니메이션
 
         Args:
             console: 대상 콘솔
             x, y: 위치
             width: 바 너비
-            current: 현재 값
+            current: 현재 실제 값
             maximum: 최대 값
             fg_color: 전경색
             bg_color: 배경색
+            bar_key: 애니메이션 키 ("hp", "mp" 등)
         """
+        if maximum <= 0:
+            return
+
+        now = time.time()
+        anim_duration = 0.6  # 게이지 애니메이션 지속 시간
+        trail_duration = 1.0  # 트레일 페이드 시간
+        trail_delay = 0.3  # 트레일 시작 전 대기
+
+        # 애니메이션 상태 초기화 / 업데이트
+        if bar_key and bar_key not in self._sidebar_anim:
+            self._sidebar_anim[bar_key] = {
+                "display": float(current),  # 게이지 표시 값 (부드럽게 이동)
+                "trail": float(current),    # 트레일 값 (뒤따라감)
+                "target": float(current),
+                "display_num": float(current),  # 숫자 표시 값
+                "move_start": now,
+                "trail_start": now,
+                "prev_target": float(current),
+            }
+
+        if bar_key and bar_key in self._sidebar_anim:
+            a = self._sidebar_anim[bar_key]
+
+            # 값 변화 감지 → 애니메이션 시작
+            if float(current) != a["target"]:
+                a["prev_target"] = a["display"]  # 현재 표시 위치에서 시작
+                a["target"] = float(current)
+                a["move_start"] = now
+                a["trail_start"] = now + trail_delay  # 트레일은 잠시 후 시작
+
+                # 팝업 생성
+                diff = current - int(a["prev_target"])
+                if diff != 0 and bar_key == "hp":
+                    popup_color = (100, 255, 100) if diff > 0 else (255, 80, 80)
+                    popup_text = f"+{diff}" if diff > 0 else str(diff)
+                    self._sidebar_popups.append({
+                        "text": popup_text, "x": x + width // 2, "y": y - 1,
+                        "start": now, "color": popup_color, "duration": 1.2
+                    })
+
+            # 게이지 부드러운 이동 (ease-out cubic)
+            elapsed = now - a["move_start"]
+            if elapsed < anim_duration:
+                t = elapsed / anim_duration
+                t = 1 - (1 - t) ** 3
+                a["display"] = a["prev_target"] + (a["target"] - a["prev_target"]) * t
+            else:
+                a["display"] = a["target"]
+
+            # 트레일 (지연 후 빠르게 따라감)
+            if now >= a["trail_start"]:
+                trail_elapsed = now - a["trail_start"]
+                if trail_elapsed < trail_duration:
+                    tt = trail_elapsed / trail_duration
+                    tt = 1 - (1 - tt) ** 2
+                    # prev_target → target으로 따라감
+                    a["trail"] = a["prev_target"] + (a["target"] - a["prev_target"]) * tt
+                else:
+                    a["trail"] = a["target"]
+
+            # 숫자 부드럽게 이동
+            num_diff = current - a["display_num"]
+            if abs(num_diff) < 1:
+                a["display_num"] = float(current)
+            else:
+                speed = max(1.0, abs(num_diff) * 0.15)
+                if num_diff > 0:
+                    a["display_num"] = min(float(current), a["display_num"] + speed)
+                else:
+                    a["display_num"] = max(float(current), a["display_num"] - speed)
+
+            display_val = a["display"]
+            trail_val = a["trail"]
+            display_num = int(a["display_num"])
+        else:
+            display_val = float(current)
+            trail_val = float(current)
+            display_num = current
+
         # 배경
         console.draw_rect(x, y, width, 1, ord(" "), bg=bg_color)
 
-        # 전경 (현재 값)
-        if maximum > 0:
-            filled_width = int((current / maximum) * width)
-            if filled_width > 0:
-                console.draw_rect(x, y, filled_width, 1, ord(" "), bg=fg_color)
+        # 트레일 렌더링 (데미지: 빨간 잔상 / 힐: 밝은 잔상)
+        if bar_key and trail_val != display_val:
+            low = min(display_val, trail_val)
+            high = max(display_val, trail_val)
+            trail_start_w = int((low / maximum) * width)
+            trail_end_w = int((high / maximum) * width)
+            trail_w = trail_end_w - trail_start_w
+            if trail_w > 0:
+                if display_val < trail_val:
+                    # 데미지: 빨간 트레일
+                    trail_color = (200, 60, 60)
+                else:
+                    # 힐: 밝은 초록 트레일
+                    trail_color = (100, 255, 130)
+                console.draw_rect(x + trail_start_w, y, trail_w, 1, ord(" "), bg=trail_color)
 
-        # 텍스트 (숫자)
-        text = f"{current}/{maximum}"
+        # 현재 게이지
+        filled_width = int((display_val / maximum) * width)
+        if filled_width > 0:
+            console.draw_rect(x, y, filled_width, 1, ord(" "), bg=fg_color)
+
+        # 텍스트 (애니메이션 숫자)
+        text = f"{display_num}/{maximum}"
         text_x = x + (width - len(text)) // 2
         console.print(text_x, y, text, fg=Colors.WHITE)
+
+    def _render_sidebar_popups(self, console: tcod.console.Console) -> None:
+        """사이드바 데미지/힐 팝업 렌더링"""
+        now = time.time()
+        alive = []
+        for popup in self._sidebar_popups:
+            elapsed = now - popup["start"]
+            if elapsed >= popup["duration"]:
+                continue
+            alive.append(popup)
+            # 위로 떠오르는 효과
+            rise = int(elapsed * 2.0)  # 초당 2칸 상승
+            py = popup["y"] - rise
+            if py < 0:
+                continue
+            # 페이드: 시간이 지날수록 어두워짐
+            progress = elapsed / popup["duration"]
+            r, g, b = popup["color"]
+            fade = max(0.0, 1.0 - progress)
+            color = (int(r * fade), int(g * fade), int(b * fade))
+            px = max(1, popup["x"] - len(popup["text"]) // 2)
+            console.print(px, py, popup["text"], fg=color)
+        self._sidebar_popups = alive
 
     def compose(self) -> None:
         """모든 서브 콘솔을 메인 콘솔에 합성"""
@@ -1643,10 +1783,12 @@ class TCODDisplay:
         self.logger.info("TCOD 종료")
 
 
-# ── pygame 백엔드 전환 플래그 ──
-# True: pygame-ce 렌더러 사용 (Cogmind급 비주얼)
-# False: 기존 tcod 렌더러 즉시 롤백
-_USE_PYGAME = True
+# ── 렌더링 백엔드 선택 ──
+# "pygame": pygame-ce 렌더러 (Cogmind급 비주얼)
+# "raylib": raylib 렌더러 (Phase 1)
+# "tcod":   기존 tcod 렌더러
+_BACKEND = "pygame"
+_USE_PYGAME = True  # 하위 호환
 
 # 전역 인스턴스
 _display: Optional[TCODDisplay] = None
@@ -1655,12 +1797,22 @@ _display: Optional[TCODDisplay] = None
 def get_display():
     """전역 디스플레이 인스턴스
 
-    _USE_PYGAME=True이면 PygameDisplay, False이면 TCODDisplay 반환.
-    두 클래스 모두 동일한 공개 API를 제공.
+    config.yaml의 display.backend 설정에 따라 백엔드 선택.
+    "raylib" → RaylibDisplay, "pygame" → PygameDisplay, "tcod" → TCODDisplay.
+    세 클래스 모두 동일한 공개 API를 제공.
     """
     global _display
     if _display is None:
-        if _USE_PYGAME:
+        try:
+            from src.core.config import get_config
+            backend = get_config().get("display.backend", _BACKEND)
+        except Exception:
+            backend = _BACKEND
+
+        if backend == "raylib":
+            from src.ui.raylib_backend.raylib_display import RaylibDisplay
+            _display = RaylibDisplay()
+        elif backend == "pygame" or _USE_PYGAME:
             from src.ui.pygame_backend.pygame_display import PygameDisplay
             _display = PygameDisplay()
         else:

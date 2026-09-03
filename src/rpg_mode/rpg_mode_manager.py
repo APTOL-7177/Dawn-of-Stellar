@@ -15,6 +15,7 @@ from typing import Optional, List, Dict, Any, Tuple, Set
 import tcod.console
 import tcod.context
 from src.ui.input_handler import iter_game_input, GameAction
+from src.ui.pointer import PointerButton, PointerEventKind
 
 from src.core.logger import get_logger
 from src.core.paths import get_project_root
@@ -30,6 +31,23 @@ from src.rpg_mode.lily_dialogue import LilyDialogueManager
 from src.rpg_mode.objective_tracker import RPGObjectiveTracker
 
 logger = get_logger("rpg_mode")
+
+
+def _rpg_pointer_action(event) -> GameAction | None:
+    if event is None:
+        return None
+    from src.ui.input_handler import unified_input_handler
+    pointer_event = unified_input_handler.process_pointer_event(event)
+    if pointer_event is None:
+        return None
+    if pointer_event.kind is PointerEventKind.CLICK:
+        if pointer_event.button is PointerButton.RIGHT:
+            return GameAction.CANCEL
+        if pointer_event.button is PointerButton.LEFT:
+            return GameAction.CONFIRM
+    if pointer_event.kind is PointerEventKind.WHEEL:
+        return GameAction.PAGE_UP if pointer_event.wheel_delta > 0 else GameAction.PAGE_DOWN
+    return None
 
 # 튜토리얼(스토리 모드) 전체 챕터 목록
 _ALL_TUTORIAL_CHAPTERS = [
@@ -1170,9 +1188,10 @@ class RPGModeManager:
             # 키 입력 대기
             while True:
                 for action, event in iter_game_input():
+                    action = action or _rpg_pointer_action(event)
                     if action is not None:
                         break
-                    elif event and isinstance(event, (tcod.event.KeyDown, tcod.event.MouseButtonDown)):
+                    elif event and isinstance(event, tcod.event.KeyDown):
                         break
                 else:
                     continue

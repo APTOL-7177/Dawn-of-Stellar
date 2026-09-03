@@ -19,22 +19,26 @@ from typing import Tuple, List, Optional
 
 import tcod.console
 
+from src.ui.visual_primitives import glyphs_for
+from src.ui.visual_tokens import rgb
+
 # ── 더블라인 박스 문자 ─────────────────────────────────────────────────────
 # ╔═╗
 # ║ ║
 # ╠═╣  (구분선)
 # ║ ║
 # ╚═╝
-_BOX_TL = "╔"
-_BOX_TR = "╗"
-_BOX_BL = "╚"
-_BOX_BR = "╝"
-_BOX_H = "═"
-_BOX_V = "║"
-_BOX_SL = "╠"  # separator left
-_BOX_SR = "╣"  # separator right
-_BOX_TITLE_L = "╡"
-_BOX_TITLE_R = "╞"
+_BOX_GLYPHS = glyphs_for(console_glyphs_supported=True)
+_BOX_TL = _BOX_GLYPHS.top_left
+_BOX_TR = _BOX_GLYPHS.top_right
+_BOX_BL = _BOX_GLYPHS.bottom_left
+_BOX_BR = _BOX_GLYPHS.bottom_right
+_BOX_H = _BOX_GLYPHS.horizontal
+_BOX_V = _BOX_GLYPHS.vertical
+_BOX_SL = _BOX_GLYPHS.separator_left
+_BOX_SR = _BOX_GLYPHS.separator_right
+_BOX_TITLE_L = _BOX_GLYPHS.title_left
+_BOX_TITLE_R = _BOX_GLYPHS.title_right
 
 # 스크램블 문자 세트
 _SCRAMBLE_CHARS = "░▒▓█▀▄▌▐│─┌┐└┘├┤┬┴┼╔╗╚╝═║@#$%&*<>{}[]01"
@@ -61,8 +65,8 @@ def draw_styled_box(
     w: int,
     h: int,
     title: str = "",
-    fg: Color = (200, 200, 200),
-    bg: Color = (20, 20, 40),
+    fg: Color = rgb("line.default"),
+    bg: Color = rgb("surface.panel"),
     title_fg: Optional[Color] = None,
     separator_y: Optional[int] = None,
     clear: bool = True,
@@ -146,8 +150,8 @@ class SelectionHighlight:
 
     def __init__(
         self,
-        base_bg: Color = (40, 40, 60),
-        pulse_bg: Color = (60, 60, 100),
+        base_bg: Color = rgb("state.hover"),
+        pulse_bg: Color = rgb("state.active"),
         speed: float = 3.0,
     ) -> None:
         self.base_bg = base_bg
@@ -267,8 +271,8 @@ class DynamicSeparator:
     def __init__(
         self,
         width: int,
-        fg: Color = (100, 100, 150),
-        pulse_fg: Color = (140, 140, 200),
+        fg: Color = rgb("line.default"),
+        pulse_fg: Color = rgb("line.strong"),
         speed: float = 2.0,
     ) -> None:
         self.width = width

@@ -12,6 +12,8 @@ import random
 
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
+from src.ui.visual_tokens import rgb
 from src.core.logger import get_logger
 from src.multiplayer.session import MultiplayerSession
 from src.multiplayer.network import HostNetworkManager, ClientNetworkManager
@@ -78,6 +80,8 @@ class MultiplayerLobby:
         self.completed = False
         self.cancelled = False
         self.host_disconnected = False
+        self.player_scroll_offset = 0
+        self.max_visible_players = 6
     
     def handle_input(self, action: GameAction) -> bool:
         """입력 처리"""
@@ -94,6 +98,40 @@ class MultiplayerLobby:
             return True
         
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions: list[PointerRegion] = []
+        if self.is_host:
+            regions.append(PointerRegion("start_button", self.screen_width // 2 - 16, self.screen_height - 3, 18, 1, GameAction.CONFIRM, "호스트 권한으로 게임을 시작합니다"))
+            regions.append(PointerRegion("cancel_button", self.screen_width // 2 + 4, self.screen_height - 3, 14, 1, GameAction.CANCEL, "로비를 취소하고 연결을 종료합니다"))
+        else:
+            regions.append(PointerRegion("cancel_button", self.screen_width // 2 - 8, self.screen_height - 3, 16, 1, GameAction.CANCEL, "대기를 취소하고 나갑니다"))
+
+        player_items = list(self.session.players.items())
+        visible = player_items[self.player_scroll_offset:self.player_scroll_offset + self.max_visible_players]
+        for offset, (player_id, player) in enumerate(visible):
+            player_name = getattr(player, "player_name", "Unknown")
+            role = "호스트" if getattr(player, "is_host", False) else "클라이언트"
+            local = " / 로컬" if player_id == self.local_player_id else ""
+            regions.append(PointerRegion(f"player:{player_id}", self.screen_width // 2 - 15, 14 + offset, 30, 1, tooltip=f"연결 상태: {role}{local} - {player_name}"))
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent):
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            return self.handle_input(GameAction.CANCEL)
+
+        result = PointerDispatcher(self.pointer_regions()).dispatch(event)
+        if result.action is GameAction.MOVE_UP:
+            self.player_scroll_offset = max(0, self.player_scroll_offset - 1)
+        elif result.action is GameAction.MOVE_DOWN:
+            max_offset = max(0, len(self.session.players) - self.max_visible_players)
+            self.player_scroll_offset = min(max_offset, self.player_scroll_offset + 1)
+        elif result.action is not None:
+            finished = self.handle_input(result.action)
+            if result.action is GameAction.CANCEL:
+                play_sfx("ui", "cursor_cancel")
+            return finished
+        return result
     
     def render(self, console: tcod.console.Console):
         """렌더링"""
@@ -159,7 +197,9 @@ class MultiplayerLobby:
         )
         y += 2
         
-        for player_id, player in self.session.players.items():
+        player_items = list(self.session.players.items())
+        visible_players = player_items[self.player_scroll_offset:self.player_scroll_offset + self.max_visible_players]
+        for player_id, player in visible_players:
             player_name = getattr(player, 'player_name', 'Unknown')
             is_host_player = getattr(player, 'is_host', False)
             
@@ -173,26 +213,30 @@ class MultiplayerLobby:
                 self.screen_width // 2 - 15,
                 y,
                 name_text,
-                fg=Colors.UI_TEXT_SELECTED if player_id == self.local_player_id else Colors.UI_TEXT
+                fg=rgb("accent.cyan") if player_id == self.local_player_id else rgb("text.primary")
             )
             y += 1
+
+        if len(player_items) > self.max_visible_players:
+            scroll_text = f"{self.player_scroll_offset + 1}-{self.player_scroll_offset + len(visible_players)} / {len(player_items)}"
+            console.print(self.screen_width // 2 + 17, 14, scroll_text, fg=rgb("text.secondary"))
         
         # 안내 메시지
         if self.is_host:
-            help_text = "Enter: 게임 시작  ESC: 취소"
+            help_text = "[ 게임 시작 ]    [ 취소 ]"
             console.print(
                 self.screen_width // 2 - len(help_text) // 2,
                 self.screen_height - 3,
                 help_text,
-                fg=Colors.UI_TEXT
+                fg=rgb("accent.cyan")
             )
         else:
-            help_text = "호스트가 게임을 시작할 때까지 대기 중..."
+            help_text = "호스트가 게임을 시작할 때까지 대기 중...  [ 취소 ]"
             console.print(
                 self.screen_width // 2 - len(help_text) // 2,
                 self.screen_height - 3,
                 help_text,
-                fg=Colors.DARK_GRAY
+                fg=rgb("text.muted")
             )
 
 
@@ -282,6 +326,12 @@ def show_multiplayer_lobby(
                 break
             
             context.convert_event(event)
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event:
+                pointer_result = ui.handle_pointer_event(pointer_event)
+                if pointer_result is True:
+                    break
+
             action = unified_input_handler.process_tcod_event(event)
             
             if action:

@@ -169,7 +169,7 @@ class InputHandler(tcod.event.EventDispatch[Optional[GameAction]]):
             # 인벤토리
             'v': GameAction.INVENTORY_DESTROY,  # 파괴/버리기
             'd': GameAction.INVENTORY_DROP,  # 아이템 드롭
-            'g': GameAction.INVENTORY_DROP_GOLD,  # 골드 드롭
+            'a': GameAction.INVENTORY_DROP_GOLD,  # 골드 드롭 (a키: 대문자 G은 게임패드에서 입력 불가)
             # 'f': GameAction.USE_CONSUMABLE,  # 음식/소비품 사용 (필드 스킬과 충돌하여 제거)
 
             # 시스템 (Z = 선택, X = 취소)
@@ -313,7 +313,7 @@ class KeyBindingManager:
         self.keyboard_bindings: Dict[str, list] = {}
         
         # 게임패드 버튼 -> 키보드 키 매핑
-        self.gamepad_button_to_key: Dict[int, str] = {}
+        self.gamepad_button_to_key: Dict[int | str, str] = {}
         
         # 게임패드 D-pad -> 키보드 키 매핑
         self.gamepad_dpad_to_key: Dict[str, str] = {}
@@ -435,7 +435,8 @@ class KeyBindingManager:
                 
                 if 'button_to_key' in gp:
                     self.gamepad_button_to_key = {
-                        int(k): v for k, v in gp['button_to_key'].items()
+                        int(k) if str(k).isdigit() else str(k): v
+                        for k, v in gp['button_to_key'].items()
                     }
                 
                 if 'dpad_to_key' in gp:
@@ -1019,6 +1020,9 @@ class GamepadHandler:
         if not self.connected or not self.joystick:
             return None
 
+        # 핫플러그 지원: 매 입력 체크 시 연결 상태 갱신
+        self.update()
+
         try:
             # pygame 이벤트 큐 업데이트 (중요!)
             pygame.event.pump()
@@ -1326,8 +1330,8 @@ class GamepadHandler:
             x_axis = self.joystick.get_axis(0)
             y_axis = self.joystick.get_axis(1)
 
-            # 데드존 적용 (ROG Ally 등 드리프트가 큰 기기 대응: 최소 0.5)
-            strict_deadzone = max(key_binding_manager.gamepad_deadzone, 0.5)
+            # 데드존 적용 (config 값 그대로 사용)
+            strict_deadzone = key_binding_manager.gamepad_deadzone
             
             # 스틱이 중립 위치로 돌아왔으면 방향 잠금 해제
             if abs(x_axis) <= strict_deadzone and abs(y_axis) <= strict_deadzone:
@@ -1638,6 +1642,16 @@ class UnifiedInputHandler:
         
         # 다른 이벤트 (Quit 등)는 그대로 처리
         return self.keyboard_handler.dispatch(event)
+
+    def process_pointer_event(self, event):
+        from src.ui.pointer import PointerEvent, PointerNormalizer
+
+        normalizer: PointerNormalizer
+        if not hasattr(self, "_pointer_normalizer"):
+            self._pointer_normalizer = PointerNormalizer()
+        normalizer = self._pointer_normalizer
+        pointer_event: PointerEvent | None = normalizer.normalize(event)
+        return pointer_event
 
 
     def get_direction(self, action: GameAction) -> Optional[Tuple[int, int]]:

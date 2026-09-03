@@ -12,6 +12,7 @@ from enum import Enum
 from src.ui.cursor_menu import CursorMenu, MenuItem
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerEvent, PointerEventKind
 from src.core.logger import get_logger
 from src.audio import play_sfx, play_bgm
 
@@ -112,6 +113,26 @@ class MultiplayerMenu:
             return True
         
         return False
+
+    def handle_pointer_event(self, event: PointerEvent) -> bool:
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            play_sfx("ui", "cursor_cancel")
+            self.result = MultiplayerMenuResult.BACK
+            return True
+
+        if event.kind is PointerEventKind.CLICK:
+            hover_result = self.menu.pointer_regions() and self.menu.handle_pointer_event(
+                PointerEventKind.HOVER.at(tile=event.position.tile, pixel=event.position.pixel)
+            )
+            if hover_result and hover_result.hovered_region_id is None:
+                return False
+
+        result = self.menu.handle_pointer_event(event)
+        if result.action is GameAction.CANCEL:
+            play_sfx("ui", "cursor_cancel")
+            self.result = MultiplayerMenuResult.BACK
+            return True
+        return self.result is not None
     
     def render(self, console: tcod.console.Console) -> None:
         """렌더링"""
@@ -170,7 +191,10 @@ def show_multiplayer_menu(
         keyboard_processed = False
         for event in tcod.event.get():
             context.convert_event(event)
-            
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event and menu.handle_pointer_event(pointer_event):
+                break
+             
             action = unified_input_handler.process_tcod_event(event)
             if action:
                 keyboard_processed = True

@@ -5,6 +5,7 @@ from typing import Optional, List, Dict, Any
 from src.core.logger import get_logger
 from src.audio.audio_manager import play_sfx
 from src.ui.input_handler import unified_input_handler, GameAction
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
 from src.ui.ui_renderer import draw_styled_box, SelectionHighlight
 
 logger = get_logger("possibility_selection_ui")
@@ -151,6 +152,47 @@ class PossibilitySelectionUI:
                 return True
 
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        return tuple(
+            PointerRegion(
+                region_id=str(index),
+                x=self.x + 1,
+                y=self.y + 3 + index,
+                width=self.width - 2,
+                height=1,
+                command=GameAction.CONFIRM,
+                tooltip=self._slot_tooltip(index, slot),
+                enabled=True,
+            )
+            for index, slot in enumerate(self.slots)
+        )
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        dispatcher = PointerDispatcher(self.pointer_regions())
+        result = dispatcher.dispatch(event)
+        region = dispatcher.region_at(event.position)
+        region_id = result.hovered_region_id or (region.region_id if region else None)
+        if region_id is not None:
+            self.cursor_index = int(region_id)
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN
+            value = self.handle_input(action)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            value = self.handle_input(GameAction.CANCEL)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and result.action is not None:
+            value = self.handle_input(result.action)
+            return PointerDispatchResult(event=event, action=result.action, value=value, tooltip=region.tooltip if region else result.tooltip)
+        return result
+
+    def _slot_tooltip(self, index: int, slot: Dict) -> str:
+        skill_name = slot.get('skill_name', slot.get('skill_id', '???'))
+        power = int(slot.get('power_ratio', 0.85) * 100)
+        if index in self.selected_indices:
+            return f"선택됨: {skill_name} ({power}%)"
+        return f"{skill_name} 가능성 {power}%"
 
     def handle_number_key(self, key: tcod.event.KeyDown) -> bool:
         """숫자키 직접 선택 (키보드 전용)"""

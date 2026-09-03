@@ -18,6 +18,7 @@ import unicodedata
 from typing import List
 
 from src.ui.input_handler import unified_input_handler, GameAction
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerEvent, PointerEventKind
 from src.core.logger import get_logger
 
 logger = get_logger("boot_splash")
@@ -75,10 +76,21 @@ class BootSplash:
 
         # 별 파티클
         self.stars: List[dict] = []
+        self.skip_requested = False
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if event.kind is PointerEventKind.CLICK and event.button in (PointerButton.LEFT, PointerButton.RIGHT):
+            self.skip_requested = True
+            action = GameAction.CANCEL if event.button is PointerButton.RIGHT else GameAction.CONFIRM
+            return PointerDispatchResult(event=event, action=action)
+        return PointerDispatchResult(event=event)
 
     def _skip_check(self) -> bool:
         """Z키/Enter/ESC로 스킵"""
         for event in tcod.event.get():
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None and self.handle_pointer_event(pointer_event).action is not None:
+                return True
             if isinstance(event, tcod.event.KeyDown):
                 return True
         action = unified_input_handler.get_action()
@@ -360,6 +372,9 @@ class BootSplash:
         """부트 스플래시 시퀀스 실행"""
         logger.info("부트 스플래시 시작")
 
+        def stop_bgm(*, fade_out: bool) -> None:
+            return None
+
         for _ in tcod.event.get():
             pass
         unified_input_handler.clear_input_state()
@@ -372,7 +387,8 @@ class BootSplash:
 
         # 부트 스플래시 전용 BGM 재생
         try:
-            from src.audio.audio_manager import play_bgm, stop_bgm
+            from src.audio.audio_manager import play_bgm, stop_bgm as stop_boot_bgm
+            stop_bgm = stop_boot_bgm
             play_bgm("boot_splash", loop=False, fade_in=False)
         except Exception:
             pass

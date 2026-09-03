@@ -7,10 +7,13 @@ NPC와의 대화 및 선택지 처리 (타이핑 효과, 연출 포함)
 import time
 import tcod.console
 import tcod.event
+from dataclasses import dataclass
 from typing import Optional, List, Any, Callable
 
 from src.ui.input_handler import GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 from src.ui.tcod_display import Colors
+from src.ui.visual_tokens import rgb
 from src.core.logger import get_logger
 from src.audio import play_sfx
 
@@ -35,6 +38,14 @@ class NPCChoice:
     def __init__(self, text: str, callback: Callable[[], Any] = None):
         self.text = text
         self.callback = callback
+
+
+@dataclass(frozen=True, slots=True)
+class DialogPointerResult:
+    action: GameAction | None = None
+    choice_index: int | None = None
+    hovered_choice: int | None = None
+    tooltip: str | None = None
 
 
 def _wrap_text(text: str, max_width: int) -> list:
@@ -69,7 +80,74 @@ def _flush_events():
     unified_input_handler.clear_input_state()
 
 
-def _poll_action():
+def _dialog_pointer_regions(
+    bx: int,
+    box_y: int,
+    box_width: int,
+    box_height: int,
+    display_line_count: int,
+    choices: list[NPCChoice] | None,
+    typing_done: bool,
+) -> tuple[PointerRegion, ...]:
+    if choices and typing_done:
+        choice_y = box_y + 2 + display_line_count + 1
+        return tuple(
+            PointerRegion(
+                region_id=f"choice:{index}",
+                x=bx + 4,
+                y=choice_y + index,
+                width=max(4, box_width - 8),
+                height=1,
+                command=GameAction.CONFIRM,
+                tooltip=choice.text,
+            )
+            for index, choice in enumerate(choices)
+        )
+    return (
+        PointerRegion(
+            region_id="advance",
+            x=bx,
+            y=box_y,
+            width=box_width,
+            height=box_height,
+            command=GameAction.CONFIRM,
+            tooltip="대화를 진행합니다" if typing_done else "타이핑을 즉시 완료합니다",
+        ),
+    )
+
+
+def _dialog_pointer_result(
+    event: PointerEvent,
+    regions: tuple[PointerRegion, ...],
+    has_choices: bool,
+) -> DialogPointerResult:
+    dispatcher = PointerDispatcher(regions)
+    dispatch = dispatcher.dispatch(event)
+    region = dispatcher.region_at(event.position)
+    region_id = dispatch.hovered_region_id or (region.region_id if region else None)
+    hovered_choice = _choice_index_from_region(region_id)
+    if event.kind is PointerEventKind.HOVER:
+        return DialogPointerResult(hovered_choice=hovered_choice, tooltip=dispatch.tooltip)
+    if event.kind is PointerEventKind.WHEEL:
+        return DialogPointerResult(action=dispatch.action)
+    if event.kind is not PointerEventKind.CLICK:
+        return DialogPointerResult()
+    if event.button is PointerButton.RIGHT:
+        return DialogPointerResult(action=GameAction.CANCEL)
+    if event.button is not PointerButton.LEFT:
+        return DialogPointerResult()
+    if has_choices and hovered_choice is not None:
+        return DialogPointerResult(action=GameAction.CONFIRM, choice_index=hovered_choice)
+    return DialogPointerResult(action=GameAction.CONFIRM)
+
+
+def _choice_index_from_region(region_id: str | None) -> int | None:
+    if region_id is None or not region_id.startswith("choice:"):
+        return None
+    return int(region_id.split(":", 1)[1])
+
+
+def _poll_action(regions: tuple[PointerRegion, ...], has_choices: bool):
     """키보드/게임패드 액션 폴링. (action, quit_requested) 반환"""
     try:
         import pygame
@@ -84,14 +162,19 @@ def _poll_action():
         action = unified_input_handler.process_tcod_event(event)
         if action:
             kbd_action = action
+        pointer_event = unified_input_handler.process_pointer_event(event)
+        if pointer_event is not None:
+            pointer_result = _dialog_pointer_result(pointer_event, regions, has_choices)
+            if pointer_result.action is not None or pointer_result.hovered_choice is not None or pointer_result.tooltip:
+                return pointer_result, quit_req
         if isinstance(event, tcod.event.Quit):
             quit_req = True
 
     if kbd_action:
-        return kbd_action, quit_req
+        return DialogPointerResult(action=kbd_action), quit_req
 
     gp = unified_input_handler.get_action()
-    return gp, quit_req
+    return DialogPointerResult(action=gp), quit_req
 
 
 def run_npc_dialog(
@@ -191,6 +274,8 @@ def show_npc_dialog(
     # ▼ 깜빡임 상태
     ind_timer = time.time()
     ind_visible = True
+    hovered_choice: int | None = None
+    pointer_tooltip: str | None = None
 
     while True:
         now = time.time()
@@ -264,8 +349,14 @@ def show_npc_dialog(
         if has_choices and typing_done:
             yc = box_y + 2 + len(display_lines) + 1
             for i, ch in enumerate(choices):
-                pfx = "> " if i == selected_index else "  "
-                fg = Colors.UI_TEXT_SELECTED if i == selected_index else Colors.UI_TEXT
+                is_hovered = i == hovered_choice
+                is_selected = i == selected_index
+                if is_selected:
+                    console.draw_rect(bx + 3, yc, box_width - 6, 1, ord(" "), bg=rgb("state.active"))
+                elif is_hovered:
+                    console.draw_rect(bx + 3, yc, box_width - 6, 1, ord(" "), bg=rgb("state.hover"))
+                pfx = "> " if is_selected else ("~ " if is_hovered else "  ")
+                fg = Colors.UI_TEXT_SELECTED if is_selected else (rgb("state.focus") if is_hovered else Colors.UI_TEXT)
                 console.print(bx + 4, yc, f"{pfx}{ch.text}", fg=fg)
                 yc += 1
 
@@ -279,17 +370,28 @@ def show_npc_dialog(
         # 안내 메시지
         hy = box_y + box_height - 2
         if has_choices and typing_done:
-            ht = "↑↓: 선택  Z: 확인  X: 취소"
+            ht = "↑↓/Wheel: 선택  Left/Z: 확인  Right/X: 취소"
         elif typing_done:
-            ht = "Z: 확인"
+            ht = "Left/Z: 확인  Right/X: 취소"
         else:
-            ht = "Z: 스킵"
+            ht = "Left/Z: 스킵  Right/X: 취소"
         console.print(bx + (box_width - len(ht)) // 2, hy, ht, fg=Colors.GRAY)
+        if pointer_tooltip:
+            tip = pointer_tooltip[: box_width - 6]
+            console.print(bx + 3, max(box_y + 1, hy - 1), tip, fg=rgb("accent.amber"), bg=rgb("state.tooltip"))
 
         context.present(console)
 
         # === 입력 처리 ===
-        action, quit_r = _poll_action()
+        regions = _dialog_pointer_regions(bx, box_y, box_width, box_height, len(display_lines), choices, typing_done)
+        pointer_result, quit_r = _poll_action(regions, bool(has_choices))
+        action = pointer_result.action
+        if pointer_result.hovered_choice is not None:
+            hovered_choice = pointer_result.hovered_choice
+            selected_index = pointer_result.hovered_choice
+        pointer_tooltip = pointer_result.tooltip
+        if pointer_result.choice_index is not None:
+            selected_index = pointer_result.choice_index
         if quit_r:
             return None
 

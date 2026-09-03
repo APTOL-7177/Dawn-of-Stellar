@@ -10,6 +10,7 @@ from typing import List, Optional, Any
 
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
 from src.quest.quest_manager import QuestManager, Quest
 from src.core.logger import get_logger
 from src.audio import play_sfx
@@ -133,8 +134,73 @@ class QuestBoardUI:
             play_sfx("ui", "cursor_cancel")
             self.closed = True
             return True
-        
+
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        regions: list[PointerRegion] = [
+            PointerRegion(f"tab:{index}", 5 + index * 30, 4, 28, 1, GameAction.CONFIRM, f"{tab_name} 탭")
+            for index, tab_name in enumerate(self.tabs)
+        ]
+        current_list = self.available_quests if self.current_tab == 0 else self.active_quests
+        item_spacing = 4 if self.current_tab == 1 else 2
+        for index, quest in enumerate(current_list[self.scroll_offset:self.scroll_offset + self.max_visible]):
+            actual_index = self.scroll_offset + index
+            enabled = self.current_tab == 0 or bool(getattr(quest, "is_complete", False))
+            regions.append(PointerRegion(f"quest:{actual_index}", 5, 7 + index * item_spacing, self.screen_width - 10, item_spacing, GameAction.CONFIRM, self._quest_tooltip(quest, enabled), enabled=enabled))
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        if event.kind is PointerEventKind.WHEEL:
+            action = GameAction.MOVE_UP if event.wheel_delta > 0 else GameAction.MOVE_DOWN if event.wheel_delta < 0 else None
+            if action is not None:
+                self.handle_input(action)
+            return PointerDispatchResult(event=event, action=action)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            closed = self.handle_input(GameAction.CANCEL)
+            return PointerDispatchResult(event=event, action=GameAction.CANCEL, value=closed)
+
+        result = PointerDispatcher(self.pointer_regions()).dispatch(event)
+        region_id = result.hovered_region_id or self._region_id_at(event)
+        if region_id:
+            self._focus_pointer_region(region_id)
+        if event.kind is PointerEventKind.HOVER and region_id and result.tooltip is None:
+            region = next((candidate for candidate in self.pointer_regions() if candidate.region_id == region_id), None)
+            return PointerDispatchResult(event=event, hovered_region_id=region_id, tooltip=region.tooltip if region else None)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+            quest = self._selected_quest()
+            if self.current_tab == 1 and quest is not None and not getattr(quest, "is_complete", False):
+                return PointerDispatchResult(event=event, action=GameAction.CONFIRM, value=False, hovered_region_id=region_id, tooltip="완료 조건을 아직 만족하지 않았습니다.")
+            closed = self.handle_input(GameAction.CONFIRM)
+            return PointerDispatchResult(event=event, action=GameAction.CONFIRM, value=closed, hovered_region_id=region_id, tooltip=result.tooltip)
+        return result
+
+    def _region_id_at(self, event: PointerEvent) -> str:
+        region = next((candidate for candidate in self.pointer_regions() if candidate.contains(event.position)), None)
+        return region.region_id if region else ""
+
+    def _focus_pointer_region(self, region_id: str) -> None:
+        if region_id.startswith("tab:"):
+            self.current_tab = int(region_id.split(":", 1)[1])
+            self.cursor = 0
+            self.scroll_offset = 0
+        elif region_id.startswith("quest:"):
+            self.cursor = int(region_id.split(":", 1)[1])
+            if self.cursor < self.scroll_offset:
+                self.scroll_offset = self.cursor
+
+    def _selected_quest(self) -> Any | None:
+        current_list = self.available_quests if self.current_tab == 0 else self.active_quests
+        if current_list and 0 <= self.cursor < len(current_list):
+            return current_list[self.cursor]
+        return None
+
+    def _quest_tooltip(self, quest: Any, enabled: bool) -> str:
+        description = getattr(quest, "description", "")
+        difficulty = getattr(getattr(quest, "difficulty", None), "value", "")
+        quest_type = getattr(getattr(quest, "quest_type", None), "value", "")
+        status = "보상 수령 가능" if enabled and self.current_tab == 1 else "수락 가능" if enabled else "완료 조건 미충족"
+        return " | ".join(part for part in (getattr(quest, "name", "퀘스트"), quest_type, difficulty, description, status) if part)
 
     def render(self, console: tcod.console.Console):
         """렌더링"""
@@ -321,6 +387,12 @@ def open_quest_board(
         # 키보드 입력 처리
         keyboard_processed = False
         for event in tcod.event.get():
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event is not None:
+                keyboard_processed = True
+                ui.handle_pointer_event(pointer_event)
+                continue
+
             action = unified_input_handler.process_tcod_event(event)
             
             if action:

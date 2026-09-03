@@ -14,6 +14,8 @@ from src.persistence.save_system import SaveSystem
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
 from src.ui.cursor_menu import CursorMenu, MenuItem, TextInputBox
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerDispatchResult, PointerEvent, PointerEventKind, PointerRegion
+from src.ui.visual_tokens import rgb
 from src.core.logger import get_logger
 
 
@@ -129,6 +131,69 @@ class SaveLoadUI:
             self.confirm_yes = False
 
         return False
+
+    def pointer_regions(self) -> tuple[PointerRegion, ...]:
+        if self.creating_new_save or self.confirm_message:
+            return ()
+        regions = []
+        y = 5
+        if self.mode == SaveLoadMode.SAVE:
+            regions.append(
+                PointerRegion(
+                    region_id="new_save",
+                    x=10,
+                    y=y,
+                    width=max(24, self.screen_width - 20),
+                    height=1,
+                    command=GameAction.CONFIRM,
+                    tooltip="새 저장 파일을 만듭니다.",
+                    enabled=True,
+                )
+            )
+            y += 2
+        for index, save_info in enumerate(self.save_files):
+            save_name = str(save_info.get("name", f"slot-{index + 1}"))
+            tooltip = f"{save_name}에 덮어쓰기 또는 삭제를 선택합니다."
+            if self.mode == SaveLoadMode.LOAD:
+                tooltip = f"{save_name}을 불러옵니다."
+            regions.append(
+                PointerRegion(
+                    region_id=str(index),
+                    x=10,
+                    y=y,
+                    width=max(28, self.screen_width - 20),
+                    height=3,
+                    command=GameAction.CONFIRM,
+                    tooltip=tooltip,
+                    enabled=True,
+                )
+            )
+            y += 4
+        return tuple(regions)
+
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        dispatcher = PointerDispatcher(self.pointer_regions())
+        result = dispatcher.dispatch(event)
+        region = dispatcher.region_at(event.position)
+        region_id = result.hovered_region_id or (region.region_id if region else None)
+        if region_id is not None:
+            self._focus_pointer_region(region_id)
+        if event.kind is PointerEventKind.WHEEL and result.action is not None:
+            value = self.handle_input(result.action)
+            return result.with_value(value)
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            value = self.handle_input(GameAction.CANCEL)
+            return PointerDispatchResult(event=event, value=value, tooltip=region.tooltip if region else result.tooltip)
+        if event.kind is PointerEventKind.CLICK and result.action is not None:
+            value = self.handle_input(result.action)
+            return PointerDispatchResult(event=event, action=result.action, value=value, tooltip=region.tooltip if region else result.tooltip)
+        return result
+
+    def _focus_pointer_region(self, region_id: str) -> None:
+        if region_id == "new_save":
+            self.cursor = -1
+            return
+        self.cursor = int(region_id)
 
     def _handle_name_input(self, action: GameAction, event=None, text_event=None) -> bool:
         """이름 입력 처리
@@ -260,7 +325,7 @@ class SaveLoadUI:
                 10,
                 y,
                 f"{prefix} [새 저장...]",
-                fg=Colors.UI_TEXT_SELECTED if is_selected else Colors.UI_TEXT
+                fg=rgb("accent.amber") if is_selected else rgb("text.primary")
             )
             y += 2
 
@@ -289,7 +354,7 @@ class SaveLoadUI:
                     10,
                     y,
                     f"{prefix} {display_name}",
-                    fg=Colors.UI_TEXT_SELECTED if is_selected else Colors.UI_TEXT
+                    fg=rgb("accent.amber") if is_selected else rgb("text.primary")
                 )
 
                 # 정보

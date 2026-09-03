@@ -10,7 +10,52 @@ from typing import Optional
 
 from src.ui.tcod_display import Colors, render_space_background
 from src.ui.input_handler import GameAction, InputHandler, unified_input_handler
+from src.ui.pointer import PointerButton, PointerDispatcher, PointerEvent, PointerEventKind, PointerRegion
+from src.ui.visual_tokens import rgb
 from src.audio import play_sfx
+
+
+def quantity_pointer_regions(console_width: int) -> tuple[PointerRegion, ...]:
+    bar_width = 30
+    bar_x = (console_width - bar_width) // 2
+    return (
+        PointerRegion("quantity_bar", bar_x, 15, bar_width, 1, tooltip="드래그하거나 휠로 수량을 조절합니다."),
+        PointerRegion("confirm", bar_x, 18, 12, 1, command=GameAction.CONFIRM, tooltip="선택한 수량을 확정합니다."),
+        PointerRegion("cancel", bar_x + 18, 18, 12, 1, command=GameAction.CANCEL, tooltip="수량 선택을 취소합니다."),
+    )
+
+
+def handle_quantity_pointer_event(
+    event: PointerEvent,
+    selected_quantity: int,
+    max_quantity: int,
+    console_width: int,
+) -> tuple[int, tuple[str, int | None] | None]:
+    dispatcher = PointerDispatcher(quantity_pointer_regions(console_width))
+    result = dispatcher.dispatch(event)
+    region = dispatcher.region_at(event.position)
+    if event.kind is PointerEventKind.WHEEL:
+        step = 1 if event.wheel_delta > 0 else -1
+        return max(1, min(max_quantity, selected_quantity + step)), None
+    if event.kind in (PointerEventKind.DRAG_START, PointerEventKind.DRAG_MOVE, PointerEventKind.DRAG_END) and region:
+        relative_x = max(0, min(region.width - 1, event.position.tile[0] - region.x))
+        quantity = 1 + int(round((relative_x / max(1, region.width - 1)) * (max_quantity - 1)))
+        return max(1, min(max_quantity, quantity)), None
+    if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+        return selected_quantity, ("cancel", None)
+    if event.kind is PointerEventKind.CLICK and region and region.region_id == "quantity_bar":
+        quantity, _result = handle_quantity_pointer_event(
+            PointerEventKind.DRAG_MOVE.at(tile=event.position.tile, pixel=event.position.pixel, button=PointerButton.LEFT),
+            selected_quantity,
+            max_quantity,
+            console_width,
+        )
+        return quantity, None
+    if result.action is GameAction.CONFIRM:
+        return selected_quantity, ("confirm", selected_quantity)
+    if result.action is GameAction.CANCEL:
+        return selected_quantity, ("cancel", None)
+    return selected_quantity, None
 
 
 def select_quantity(
@@ -71,7 +116,7 @@ def select_quantity(
         bar_width = 30
         filled = int((selected_quantity / max_quantity) * bar_width)
         bar = "█" * filled + "░" * (bar_width - filled)
-        console.print((console_width - bar_width) // 2, 15, bar, fg=(100, 200, 100))
+        console.print((console_width - bar_width) // 2, 15, bar, fg=rgb("status.success"))
         
         # 도움말
         help_lines = [
@@ -127,6 +172,18 @@ def select_quantity(
                 result = process_action(action)
                 if result:
                     return result[1]
+
+            if hasattr(event, "tile") and hasattr(event, "pixel"):
+                pointer_event = unified_input_handler.process_pointer_event(event)
+                if pointer_event is not None:
+                    selected_quantity, pointer_result = handle_quantity_pointer_event(
+                        pointer_event,
+                        selected_quantity,
+                        max_quantity,
+                        console_width,
+                    )
+                    if pointer_result:
+                        return pointer_result[1]
 
             if isinstance(event, tcod.event.Quit):
                 return None

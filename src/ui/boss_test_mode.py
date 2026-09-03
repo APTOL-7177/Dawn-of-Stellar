@@ -8,6 +8,7 @@
 import tcod
 from typing import Any, TYPE_CHECKING, Optional
 from src.ui.input_handler import unified_input_handler, GameAction
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerEvent, PointerEventKind
 
 if TYPE_CHECKING:
     from src.character.character import Character
@@ -121,6 +122,9 @@ def run_boss_test(console: tcod.console.Console, context: Any, boss_floor: int, 
         if trait_results and len(trait_results) > 0:
             for member, traits in zip(party_members, trait_results):
                 member.selected_traits = traits.selected_traits
+                for trait in traits.selected_traits:
+                    tid = trait.id if hasattr(trait, 'id') else str(trait)
+                    member.activate_trait(tid)
                 logger.info(f"{member.name} 특성 적용: {len(member.selected_traits)}개")
 
         # 패시브 선택
@@ -386,6 +390,37 @@ def _equip_best_gear(character: "Character", level: int, logger: Any) -> None:
     logger.debug(f"{character.name} 장비 완료: 무기+방어구+장신구")
 
 
+def _make_party_mode_menu(screen_width: int, screen_height: int):
+    from src.ui.cursor_menu import CursorMenu, MenuItem
+
+    return CursorMenu(
+        title="보스 테스트 - 파티 구성 모드",
+        items=[
+            MenuItem(
+                "기본 파티 (프리셋)",
+                action=lambda: "default",
+                description="미리 정해진 직업 조합으로 빠르게 테스트"
+            ),
+            MenuItem(
+                "직접 파티 구성 (커스텀)",
+                action=lambda: "custom",
+                description="트레이닝 모드처럼 직접 직업/특성/패시브 선택"
+            ),
+        ],
+        x=screen_width // 2 - 22,
+        y=screen_height // 2 - 6,
+        width=45,
+        show_description=True
+    )
+
+
+def _boss_menu_pointer_result(menu, event: PointerEvent) -> PointerDispatchResult:
+    result = menu.handle_pointer_event(event)
+    if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+        return PointerDispatchResult(event=event, action=GameAction.CANCEL, value=None, tooltip=result.tooltip)
+    return result
+
+
 def _select_party_mode(
     console: tcod.console.Console, context: Any, logger: Any
 ) -> Optional[str]:
@@ -400,29 +435,10 @@ def _select_party_mode(
     Returns:
         "default" (기본 파티) 또는 "custom" (직접 선택), 취소 시 None
     """
-    from src.ui.cursor_menu import CursorMenu, MenuItem
     import tcod.event
     import time
 
-    menu = CursorMenu(
-        title="보스 테스트 - 파티 구성 모드",
-        items=[
-            MenuItem(
-                "기본 파티 (프리셋)",
-                action=lambda: "default",
-                description="미리 정해진 직업 조합으로 빠르게 테스트"
-            ),
-            MenuItem(
-                "직접 파티 구성 (커스텀)",
-                action=lambda: "custom",
-                description="트레이닝 모드처럼 직접 직업/특성/패시브 선택"
-            ),
-        ],
-        x=console.width // 2 - 22,
-        y=console.height // 2 - 6,
-        width=45,
-        show_description=True
-    )
+    menu = _make_party_mode_menu(console.width, console.height)
 
     last_gamepad_check = 0
     gamepad_check_interval = 0.016
@@ -451,6 +467,15 @@ def _select_party_mode(
             last_gamepad_check = current_time
 
         for event in tcod.event.get():
+            context.convert_event(event)
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event:
+                pointer_result = _boss_menu_pointer_result(menu, pointer_event)
+                if pointer_result.action is GameAction.CANCEL:
+                    return None
+                if pointer_result.value is not None:
+                    return str(pointer_result.value)
+
             if isinstance(event, tcod.event.KeyDown):
                 if event.sym == tcod.event.KeySym.UP:
                     menu.move_cursor_up()
@@ -564,6 +589,17 @@ def _select_job(
             last_gamepad_check = current_time
 
         for event in tcod.event.get():
+            context.convert_event(event)
+            pointer_event = unified_input_handler.process_pointer_event(event)
+            if pointer_event:
+                pointer_result = _boss_menu_pointer_result(menu, pointer_event)
+                if pointer_result.action is GameAction.CANCEL:
+                    return None
+                if pointer_result.value:
+                    selected_job = str(pointer_result.value)
+                    logger.info(f"직업 선택: {selected_job}")
+                    return selected_job
+
             if isinstance(event, tcod.event.KeyDown):
                 if event.sym == tcod.event.KeySym.UP:
                     menu.move_cursor_up()

@@ -16,6 +16,8 @@ from src.core.logger import get_logger
 from src.audio import play_sfx
 from src.ui.tcod_display import Colors
 from src.ui.input_handler import GameAction, unified_input_handler
+from src.ui.pointer import PointerButton, PointerEvent, PointerEventKind
+from src.ui.visual_tokens import rgb
 from src.world.tile import TileType
 from src.story_mode.inline_tutorial_overlay import InlineTutorialOverlay, NPC_NAMES
 
@@ -56,6 +58,36 @@ PLAYER_CHAR = "@"
 PLAYER_COLOR = (255, 255, 255)
 
 
+def _screen_to_map_tile(console: tcod.console.Console, dungeon, tile: tuple[int, int]) -> tuple[int, int] | None:
+    map_offset_x = (console.width - dungeon.width) // 2
+    map_offset_y = (console.height - dungeon.height) // 2 - 2
+    tx = tile[0] - map_offset_x
+    ty = tile[1] - map_offset_y
+    if 0 <= tx < dungeon.width and 0 <= ty < dungeon.height:
+        return tx, ty
+    return None
+
+
+def _exploration_pointer_step(event: PointerEvent, console: tcod.console.Console, dungeon, px: int, py: int) -> tuple[int, int, str | None, bool]:
+    map_tile = _screen_to_map_tile(console, dungeon, event.position.tile)
+    if map_tile is None:
+        if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+            return 0, 0, None, True
+        return 0, 0, None, False
+    tx, ty = map_tile
+    tile = dungeon.tiles[ty][tx]
+    tooltip = f"{TILE_CHARS.get(tile.tile_type, ('?',))[0]} {tile.tile_type.name}: 목표/오브젝트 위치를 확인합니다"
+    if event.kind is PointerEventKind.HOVER:
+        return 0, 0, tooltip, False
+    if event.kind is PointerEventKind.CLICK and event.button is PointerButton.RIGHT:
+        return 0, 0, None, True
+    if event.kind is PointerEventKind.CLICK and event.button is PointerButton.LEFT:
+        dx = max(-1, min(1, tx - px))
+        dy = max(-1, min(1, ty - py))
+        return dx, dy, tooltip, False
+    return 0, 0, None, False
+
+
 class StoryExplorationController:
     """
     스토리 모드 탐험 컨트롤러
@@ -72,6 +104,7 @@ class StoryExplorationController:
         self.console = console
         self.context = context
         self.overlay = overlay
+        self._pointer_tooltip: str | None = None
 
     def run_scripted_exploration(
         self,
@@ -149,6 +182,15 @@ class StoryExplorationController:
 
             for event in tcod.event.get():
                 action = unified_input_handler.process_tcod_event(event)
+                pointer_event = unified_input_handler.process_pointer_event(event)
+                if pointer_event is not None:
+                    pdx, pdy, tooltip, cancel = _exploration_pointer_step(pointer_event, self.console, dungeon, px, py)
+                    if tooltip is not None:
+                        self._pointer_tooltip = tooltip
+                    if cancel:
+                        return "quit"
+                    if pdx != 0 or pdy != 0:
+                        dx, dy = pdx, pdy
                 if action:
                     keyboard_processed = True
 
@@ -274,6 +316,8 @@ class StoryExplorationController:
         self.console.print(
             2, 2, "방향키: 이동  X: 돌아가기", fg=Colors.GRAY
         )
+        if self._pointer_tooltip:
+            self.console.print(2, 3, self._pointer_tooltip[:70], fg=rgb("accent.amber"), bg=rgb("state.tooltip"))
 
         # 타일 범례
         legend_y = h - 8
