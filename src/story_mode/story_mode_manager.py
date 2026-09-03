@@ -7,6 +7,8 @@ Dawn of Stellar - 별빛의 여명
 """
 
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -574,7 +576,8 @@ class StoryModeManager:
                 for ch in CHAPTER_ORDER:
                     self.progress.complete_chapter(ch, skipped=True)
                 self.save_progress()
-                return StoryModeResult.COMPLETED
+                logger.info("전체 챕터 스킵 - 메인 게임 전환")
+                return StoryModeResult.TRANSITION_TO_GAME
 
             # 막 전환 연출
             meta = CHAPTER_META.get(selected, {})
@@ -584,6 +587,8 @@ class StoryModeManager:
             # 챕터 실행
             from src.story_mode.chapter_runner import ChapterRunner
             runner = ChapterRunner(self.console, self.context)
+            # 보상 exactly-once 판단용: 실행 직전의 진행 상태 스냅샷
+            runner._last_progress = self.progress
 
             chapter_start = time.time()
             result = runner.run_chapter(selected, self.progress)
@@ -596,7 +601,8 @@ class StoryModeManager:
                 logger.info(f"챕터 '{selected}' 완료 ({chapter_time:.1f}초)")
 
                 if selected == "act5_finale":
-                    return StoryModeResult.COMPLETED
+                    logger.info("피날레 완료 - 메인 게임 전환")
+                    return StoryModeResult.TRANSITION_TO_GAME
 
             elif result == "skipped":
                 self.progress.complete_chapter(selected, play_time=0, skipped=True)
@@ -818,19 +824,36 @@ class StoryModeManager:
                     return
             time.sleep(0.016)
 
-    def save_progress(self):
+    def save_progress(self) -> bool:
         """진행 저장"""
+        temporary_path = None
         try:
             SAVE_PATH.parent.mkdir(parents=True, exist_ok=True)
             data = self.progress.to_dict()
             data["version"] = "3.0.0"
-            with open(SAVE_PATH, "w", encoding="utf-8") as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=SAVE_PATH.parent,
+                prefix=f".{SAVE_PATH.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as f:
+                temporary_path = Path(f.name)
                 json.dump(data, f, indent=2, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temporary_path, SAVE_PATH)
             logger.info("스토리 모드 진행 저장 완료")
-        except Exception as e:
+            return True
+        except (OSError, TypeError, ValueError) as e:
             logger.error(f"스토리 모드 저장 실패: {e}")
+            return False
+        finally:
+            if temporary_path is not None and temporary_path.exists():
+                temporary_path.unlink()
 
-    def load_progress(self):
+    def load_progress(self) -> bool:
         """진행 로드"""
         try:
             if SAVE_PATH.exists():
@@ -843,6 +866,15 @@ class StoryModeManager:
                 )
             else:
                 self.progress = StoryModeProgress()
-        except Exception as e:
+            return True
+        except (OSError, json.JSONDecodeError, TypeError, ValueError, KeyError) as e:
+            quarantine_path = SAVE_PATH.with_name(
+                f"{SAVE_PATH.name}.corrupt-{int(time.time() * 1000)}"
+            )
+            try:
+                os.replace(SAVE_PATH, quarantine_path)
+                logger.error(f"손상된 스토리 모드 진행을 격리했습니다: {quarantine_path}")
+            except OSError as quarantine_error:
+                logger.error(f"손상된 스토리 모드 진행 격리 실패: {quarantine_error}")
             logger.error(f"스토리 모드 로드 실패: {e}")
-            self.progress = StoryModeProgress()
+            return False

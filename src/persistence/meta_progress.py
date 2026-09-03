@@ -19,6 +19,7 @@ from src.core.logger import get_logger, Loggers
 class MetaProgress:
     """메타 진행 상태"""
     star_fragments: int = 0  # 별의 파편 (메타 화폐)
+    glitch_level: int = 0  # 글리치 레벨 (세이브 삭제 후에도 유지)
 
     # 해금된 특성 {job_id: [trait_id1, trait_id2, ...]}
     unlocked_traits: Dict[str, list] = field(default_factory=dict)
@@ -244,6 +245,19 @@ class MetaProgress:
             return True
         return False
 
+    def grant_job_unlock_reward(self, job_id: Optional[str], star_fragments: int = 0) -> bool:
+        """직업 해금 + 별의 파편 보상 (exactly-once)
+
+        이미 해금된 직업이면 아무것도 적용하지 않고 False를 반환한다.
+        따라서 중복 호출·재시작 후 재호출에도 보상이 이중 지급되지 않는다.
+        """
+        if not job_id or job_id in self.unlocked_jobs:
+            return False
+        self.unlocked_jobs.add(job_id)
+        if star_fragments > 0:
+            self.star_fragments += star_fragments
+        return True
+
     def is_job_unlocked(self, job_id: str) -> bool:
         """직업 해금 여부 확인"""
         return job_id in self.unlocked_jobs
@@ -295,7 +309,9 @@ class MetaProgress:
             "hub_storage": self.hub_storage,  # 허브 저장소 저장
             "town_storage": self.town_storage,  # 마을 창고 저장
             "intro_shown": self.intro_shown,
-            "tutorial_offered": self.tutorial_offered
+            "tutorial_offered": self.tutorial_offered,
+            "tutorial_completed": self.tutorial_completed,
+            "glitch_level": self.glitch_level
         }
 
     @classmethod
@@ -317,7 +333,9 @@ class MetaProgress:
             hub_storage=data.get("hub_storage", []),
             town_storage=data.get("town_storage", []),
             intro_shown=data.get("intro_shown", False),
-            tutorial_offered=data.get("tutorial_offered", False)
+            tutorial_offered=data.get("tutorial_offered", False),
+            tutorial_completed=data.get("tutorial_completed", False),
+            glitch_level=data.get("glitch_level", 0)
         )
 
 

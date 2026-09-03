@@ -15,6 +15,8 @@ from enum import Enum
 import tcod.console
 import tcod.event
 from src.ui.input_handler import iter_game_input, poll_game_input, GameAction
+from src.ui.pointer import PointerButton, PointerEventKind
+from src.ui.visual_tokens import rgb
 
 from src.core.logger import get_logger
 from src.audio import play_bgm, play_sfx
@@ -32,6 +34,25 @@ from src.story_mode.inline_tutorial_overlay import (
 logger = get_logger("story_mode")
 
 DATA_DIR = Path("data/story_mode/chapters")
+
+
+def _pointer_screen_action(event) -> GameAction | None:
+    pointer_event = None
+    try:
+        from src.ui.input_handler import unified_input_handler
+        pointer_event = unified_input_handler.process_pointer_event(event)
+    except AttributeError:
+        pointer_event = None
+    if pointer_event is None:
+        return None
+    if pointer_event.kind is PointerEventKind.CLICK:
+        if pointer_event.button is PointerButton.RIGHT:
+            return GameAction.CANCEL
+        if pointer_event.button is PointerButton.LEFT:
+            return GameAction.CONFIRM
+    if pointer_event.kind is PointerEventKind.WHEEL:
+        return GameAction.PAGE_UP if pointer_event.wheel_delta > 0 else GameAction.PAGE_DOWN
+    return None
 
 
 class PhaseType(Enum):
@@ -67,6 +88,9 @@ class ChapterRunner:
         self.context = context
         self.overlay = InlineTutorialOverlay()
         self._current_chapter_id: Optional[str] = None
+        # StoryModeManager가 챕터 실행 직전 주입하는 진행 상태 스냅샷
+        # (재클리어 시 챕터 보상 exactly-once 판단에 사용)
+        self._last_progress: Optional[StoryModeProgress] = None
 
     def run_chapter(self, chapter_id: str, progress: StoryModeProgress) -> str:
         """
@@ -150,10 +174,11 @@ class ChapterRunner:
             if result == "skip":
                 return "skipped"
 
-        # 챕터 완료 보상 표시
+        # 챕터 완료 보상 표시 + 메타 진행 적용
         rewards = chapter_data.get("rewards", {})
         if rewards:
             self._show_rewards(rewards, meta)
+            self._apply_chapter_rewards(chapter_id, rewards)
 
         # 챕터 완료 화면
         self._show_chapter_complete(title, subtitle)
@@ -1118,6 +1143,7 @@ class ChapterRunner:
 
             # 입력 처리
             for action, event in poll_game_input():
+                action = action or _pointer_screen_action(event)
                 if action == GameAction.CONFIRM:
                     play_sfx("ui", "cursor_select")
                     return "start"
@@ -1137,6 +1163,47 @@ class ChapterRunner:
                 return "start"
 
             time.sleep(0.016)
+
+    def _apply_chapter_rewards(self, chapter_id: str, rewards: dict):
+        """챕터 보상을 메타 진행에 실제 적용 (exactly-once)
+
+        - star_fragments를 별의 파편에 지급하고 저장한다.
+        - 이미 완료된 챕터를 다시 클리어한 경우 중복 지급하지 않는다.
+        - 실제 지급액은 화면 표시값과 다를 수 있으므로 로그로 남긴다.
+        """
+        star_fragments = int(rewards.get("star_fragments", 0) or 0)
+        if star_fragments <= 0:
+            return
+
+        try:
+            from src.story_mode.story_mode_manager import (
+                StoryModeProgress as _Progress,
+            )
+            # 호출 시점에는 run_chapter의 progress가 아직 complete_chapter 되기 전이므로
+            # 재플레이 여부는 이미 완료 목록으로 판단한다.
+            from src.persistence.meta_progress import (
+                get_meta_progress,
+                save_meta_progress,
+            )
+
+            meta = get_meta_progress()
+            already_done = getattr(self, "_last_progress", None)
+            if (
+                isinstance(already_done, _Progress)
+                and already_done.is_chapter_completed(chapter_id)
+            ):
+                logger.info(
+                    f"챕터 '{chapter_id}' 재클리어 - 보상 중복 지급 생략"
+                )
+                return
+
+            meta.add_star_fragments(star_fragments)
+            save_meta_progress()
+            logger.info(
+                f"챕터 보상 적용: '{chapter_id}' 별의 파편 +{star_fragments}"
+            )
+        except Exception as e:
+            logger.error(f"챕터 보상 적용 실패 ({chapter_id}): {e}")
 
     def _show_rewards(self, rewards: dict, meta: dict):
         """보상 표시 - 별의 파편 수집 연출"""
@@ -1242,6 +1309,7 @@ class ChapterRunner:
 
             # 입력 처리
             for action, event in poll_game_input():
+                action = action or _pointer_screen_action(event)
                 if action is not None and elapsed > 0.5:
                     return
                 elif event and isinstance(event, tcod.event.Quit) and elapsed > 0.5:
@@ -1384,6 +1452,7 @@ class ChapterRunner:
 
             # 입력 처리 (최소 1초는 보여줌)
             for action, event in poll_game_input():
+                action = action or _pointer_screen_action(event)
                 if action is not None and elapsed > 1.0:
                     return
                 elif event and isinstance(event, tcod.event.Quit) and elapsed > 1.0:

@@ -269,18 +269,21 @@ class StoryTutorialManager:
             "stellar_fragments": 100,  # 별의 파편 (메타 진행 해금용)
         }
         
-        # 메타 진행에 직업 해금 적용
+        # 메타 진행에 직업 해금 적용 (exactly-once: 이미 해금 시 무지급)
         try:
-            from src.meta.meta_progress import get_meta_progress
+            from src.persistence.meta_progress import (
+                get_meta_progress,
+                save_meta_progress,
+            )
             meta = get_meta_progress()
-            
-            if self.selected_job and self.selected_job not in meta.unlocked_jobs:
-                meta.unlocked_jobs.append(self.selected_job)
-                meta.star_fragments += rewards["stellar_fragments"]
-                meta.save()
-                
-                logger.info(f"메타 진행에 직업 해금 적용: {self.selected_job}")
-                
+
+            if meta.grant_job_unlock_reward(
+                self.selected_job, rewards["stellar_fragments"]
+            ):
+                save_meta_progress()
+                logger.info(
+                    f"메타 진행에 직업 해금 적용: {self.selected_job}"
+                )
         except Exception as e:
             logger.error(f"메타 진행 업데이트 실패: {e}")
         
@@ -426,7 +429,7 @@ def unlock_job_from_tutorial(job_id: str) -> bool:
         성공 여부
     """
     try:
-        from src.meta.meta_progress import get_meta_progress
+        from src.persistence.meta_progress import get_meta_progress
         meta = get_meta_progress()
         
         if job_id not in meta.unlocked_jobs:

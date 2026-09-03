@@ -102,7 +102,7 @@ class BotUIRenderer:
         # 반투명 배경 (어두운 색)
         for y in range(box_y, box_y + self.BOX_HEIGHT):
             for x in range(box_x, box_x + box_width):
-                self.console.rgb["bg"][x, y] = (20, 20, 40)
+                self.console.rgb["bg"][y, x] = (20, 20, 40)
         
         # 테두리
         border_color = BOT_COLORS.get(message.personality, Colors.BOT_SELENA)
@@ -341,25 +341,23 @@ def on_tutorial_complete() -> Dict[str, Any]:
         "rewards": {"stellar_fragments": 50}
     }
     
-    # 보상 적용
+    # 보상 적용 (exactly-once: 이미 해금 시 무지급)
     try:
-        from src.persistence.meta_progress import get_meta_progress, save_meta_progress
+        from src.persistence.meta_progress import (
+            get_meta_progress,
+            save_meta_progress,
+        )
         meta = get_meta_progress()
-        
-        if "time_mage" not in meta.unlocked_jobs:
-            meta.unlocked_jobs.append("time_mage")
-            logger.info("직업 해금: time_mage")
-        
-        meta.star_fragments += 50
-        logger.info("별의 파편 +50")
-        
-        save_meta_progress()
+
+        if meta.grant_job_unlock_reward("time_mage", 50):
+            save_meta_progress()
+            logger.info("직업 해금 + 별의 파편 +50: time_mage")
     except Exception as e:
         logger.error(f"보상 적용 실패: {e}")
     
-    # 튜토리얼 모드 종료
-    end_tutorial_mode()
-    
+    # 튜토리얼 모드 종료 (completed=True로 재입장 방지)
+    end_tutorial_mode(completed=True)
+
     logger.info("=== 튜토리얼 완료 ===")
     
     return result
